@@ -4,6 +4,7 @@ import { Prisma } from "@sitedoc/db-timer";
 import { router, protectedProcedure } from "../../trpc/trpc";
 import { autoriserAdminForFirma, resolverOrgFraInput } from "../../trpc/tilgangskontroll";
 import { krevTimerAktivert } from "../../services/timer";
+import { lonnsartBruktUtenProsjekt } from "./dagsseddel";
 
 const TYPE_VERDIER = ["ordinaer", "fravaer", "feriepenger", "diett"] as const;
 const SATS_ENHET_VERDIER = ["per_dag", "per_natt", "per_km", "per_time"] as const;
@@ -56,6 +57,8 @@ export const lonnsartRouter = router({
           .union([z.literal(50), z.literal(100)])
           .nullable()
           .optional(),
+        // B10 (§ 11.10.2): fravær med tak. Uten feltet → true (standard i skjemaet).
+        fravaerNormtak: z.boolean().optional(),
         organizationId: z.string().uuid(),
       }),
     )
@@ -79,6 +82,7 @@ export const lonnsartRouter = router({
             rekkefolge: input.rekkefolge ?? 0,
             overtidsnivaa:
               input.type === "ordinaer" ? input.overtidsnivaa ?? null : null,
+            fravaerNormtak: input.fravaerNormtak ?? true,
             // seedNivaa = null → egendefinert (Nivå 3)
           },
         });
@@ -115,6 +119,8 @@ export const lonnsartRouter = router({
           .union([z.literal(50), z.literal(100)])
           .nullable()
           .optional(),
+        // B10 (§ 11.10.2): virker framover fra neste katalogsynk; attesterte rader røres ikke.
+        fravaerNormtak: z.boolean().optional(),
         organizationId: z.string().uuid(),
       }),
     )
@@ -131,6 +137,22 @@ export const lonnsartRouter = router({
         });
       }
 
+      // Kort-id-spec § 11.2/F7: typen kan ikke endres bort fra fravær mens arten står på
+      // en rad uten prosjekt (databasens CHECK kan ikke lese lønnsarten; FM2).
+      if (
+        input.type !== undefined &&
+        input.type !== "fravaer" &&
+        eksisterende.type === "fravaer"
+      ) {
+        if (await lonnsartBruktUtenProsjekt(ctx.prismaTimer, input.id)) {
+          throw new TRPCError({
+            code: "PRECONDITION_FAILED",
+            message:
+              "Lønnsarten brukes på fravær uten prosjekt og kan ikke endres til en annen type",
+          });
+        }
+      }
+
       const data: Prisma.LonnsartUpdateInput = {};
       if (input.type !== undefined) data.type = input.type;
       if (input.kode !== undefined) data.kode = input.kode?.trim() || null;
@@ -143,6 +165,7 @@ export const lonnsartRouter = router({
       if (input.tvungenKommentar !== undefined) data.tvungenKommentar = input.tvungenKommentar;
       if (input.rekkefolge !== undefined) data.rekkefolge = input.rekkefolge;
       if (input.aktiv !== undefined) data.aktiv = input.aktiv;
+      if (input.fravaerNormtak !== undefined) data.fravaerNormtak = input.fravaerNormtak;
       // Overtid-nivå gir kun mening for ordinær tid — null hvis effektiv type
       // ikke er ordinaer (defense-in-depth; klienten sender allerede null da).
       // Rører feltet KUN når det er eksplisitt sendt (unngår utilsiktet nulling).

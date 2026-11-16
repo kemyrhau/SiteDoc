@@ -277,3 +277,32 @@ export function slaaSammenVarelinjer<T extends { id: string }>(
   const kjente = new Set(server.map((v) => v.id));
   return [...server, ...lokale.filter((v) => !kjente.has(v.id))];
 }
+
+// ---------------------------------------------------------------------------
+// Kortnøkkel — delt kilde (prosjektkort-kortid-spec § 2.3: flyttet fra
+// apps/mobile/src/lib/prosjektkortMobil.ts, som re-eksporterer; web trenger den i § 5).
+// Samme strengform som `kortIdNokkel` i ./kortId (K2–K4).
+// ---------------------------------------------------------------------------
+
+/** Kortets nøkkel: prosjekt + effektiv byggeplass + underprosjekt. `null` skrives «ingen». */
+export type KortValg = {
+  projectId: string;
+  byggeplassId: string | null;
+  ecoId: string | null;
+};
+export type KortNokkel = string;
+
+const KORT_INGEN = "ingen";
+
+export function kortNokkel(k: KortValg): KortNokkel {
+  return `${k.projectId}|${k.byggeplassId ?? KORT_INGEN}|${k.ecoId ?? KORT_INGEN}`;
+}
+
+export function fraKortNokkel(nokkel: KortNokkel): KortValg {
+  const [projectId = "", bp, up] = nokkel.split("|");
+  return {
+    projectId,
+    byggeplassId: !bp || bp === KORT_INGEN ? null : bp,
+    ecoId: !up || up === KORT_INGEN ? null : up,
+  };
+}

@@ -141,6 +141,9 @@ export const dagsseddelLocal = sqliteTable("dagsseddel_local", {
 
 export const sheetTimerLocal = sqliteTable("sheet_timer_local", {
   id: text("id").primaryKey(),
+  // Kort-id (prosjektkort-kortid-spec § 2–3, 2026-11-16): prosjektkortet raden hører til. Intern,
+  // vises aldri. Lagt til + backfilt via KORTID_LOCAL_KOLONNER; satt av services/kortIdLokal.ts.
+  kortId: text("kort_id"),
   dagsseddelId: text("dagsseddel_id").notNull(), // FK → dagsseddel_local.id
   // Per-rad prosjekt (T7-3b1 2026-05-14). Tilføyes idempotent via ALTER;
   // backfill fra parent dagsseddel_local.project_id. Nullable for legacy-
@@ -207,6 +210,9 @@ export const sheetTimerLocal = sqliteTable("sheet_timer_local", {
  */
 export const sheetMachineLocal = sqliteTable("sheet_machine_local", {
   id: text("id").primaryKey(),
+  // Kort-id (prosjektkort-kortid-spec § 2–3, 2026-11-16): prosjektkortet raden hører til. Intern,
+  // vises aldri. Lagt til + backfilt via KORTID_LOCAL_KOLONNER; satt av services/kortIdLokal.ts.
+  kortId: text("kort_id"),
   dagsseddelId: text("dagsseddel_id").notNull(),
   // Del B pkt 1 (device-funn 2026-08-08) — svak FK → sheet_timer_local.id.
   // Kobler maskin-raden til timer-raden den ble ført sammen med, så rediger-
@@ -243,6 +249,9 @@ export const sheetMachineLocal = sqliteTable("sheet_machine_local", {
 
 export const sheetTilleggLocal = sqliteTable("sheet_tillegg_local", {
   id: text("id").primaryKey(),
+  // Kort-id (prosjektkort-kortid-spec § 2–3, 2026-11-16): prosjektkortet raden hører til. Intern,
+  // vises aldri. Lagt til + backfilt via KORTID_LOCAL_KOLONNER; satt av services/kortIdLokal.ts.
+  kortId: text("kort_id"),
   dagsseddelId: text("dagsseddel_id").notNull(),
   // Per-rad prosjekt (T7-3b1). Se kommentar på sheetTimerLocal.projectId.
   projectId: text("project_id"),
@@ -325,6 +334,9 @@ export const sheetTilleggVedleggLocal = sqliteTable(
  */
 export const sheetUtleggLocal = sqliteTable("sheet_utlegg_local", {
   id: text("id").primaryKey(),
+  // Kort-id (prosjektkort-kortid-spec § 2–3, 2026-11-16): prosjektkortet raden hører til. Intern,
+  // vises aldri. Lagt til + backfilt via KORTID_LOCAL_KOLONNER; satt av services/kortIdLokal.ts.
+  kortId: text("kort_id"),
   dagsseddelId: text("dagsseddel_id").notNull(),
   projectId: text("project_id"),
   expenseCategoryId: text("expense_category_id").notNull(),
@@ -1066,6 +1078,9 @@ export const vareLocal = sqliteTable("vare_local", {
  */
 export const vareforbrukLocal = sqliteTable("vareforbruk_local", {
   id: text("id").primaryKey(),
+  // Kort-id (prosjektkort-kortid-spec § 2–3, 2026-11-16): prosjektkortet raden hører til. Intern,
+  // vises aldri. Lagt til + backfilt via KORTID_LOCAL_KOLONNER; satt av services/kortIdLokal.ts.
+  kortId: text("kort_id"),
   userId: text("user_id").notNull(), // eier-bruker — lesevakt
   organizationId: text("organization_id").notNull(),
   sheetId: text("sheet_id").notNull(), // = dagsseddelLocal.id (re-nøkles ved forsoning)

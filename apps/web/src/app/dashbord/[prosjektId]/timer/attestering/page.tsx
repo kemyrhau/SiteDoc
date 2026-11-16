@@ -8,6 +8,8 @@ import { trpc } from "@/lib/trpc";
 import { Button, Modal, Spinner } from "@sitedoc/ui";
 import { Check, RotateCcw, ChevronRight, AlertCircle } from "lucide-react";
 import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
+import type { NormtakBruddData } from "@sitedoc/shared";
+import { normtakBruddLinje } from "@/lib/normtakBrudd";
 
 type AttesteringRad = {
   id: string;
@@ -15,6 +17,8 @@ type AttesteringRad = {
   status: string;
   totaltimer: number;
   antallRader: number;
+  // B10 (§ 11.10.4, F9 = A): fravær med tak over dagsnormen; null = intet brudd.
+  fravaerNormtakBrudd?: NormtakBruddData | null;
   aktivitet: { id: string; navn: string; kode: string | null } | null;
   ansatt: {
     id: string;
@@ -33,7 +37,7 @@ function formatDato(d: Date | string): string {
 }
 
 export default function AttesteringSide() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const params = useParams<{ prosjektId: string }>();
   const utils = trpc.useUtils();
 
@@ -113,13 +117,21 @@ export default function AttesteringSide() {
               </tr>
             </thead>
             <tbody>
-              {(rader as unknown as AttesteringRad[]).map((rad) => (
+              {(rader as unknown as AttesteringRad[]).map((rad) => {
+                const normtakLinje = normtakBruddLinje(t, rad.fravaerNormtakBrudd, i18n.language);
+                return (
                 <tr
                   key={rad.id}
                   className="border-b border-gray-100 last:border-b-0 hover:bg-gray-50"
                 >
                   <td className="px-3 py-2 font-medium text-gray-900">
                     {formatDato(rad.dato)}
+                    {normtakLinje && (
+                      <div className="mt-0.5 flex items-start gap-1 text-xs font-normal text-amber-800">
+                        <AlertCircle className="mt-0.5 h-3 w-3 shrink-0" />
+                        <span>{normtakLinje}</span>
+                      </div>
+                    )}
                   </td>
                   <td className="px-3 py-2">
                     <div className="text-gray-900">
@@ -162,16 +174,21 @@ export default function AttesteringSide() {
                           setFeil(null);
                           attester.mutate({ id: rad.id });
                         }}
-                        disabled={attester.isPending}
+                        disabled={attester.isPending || normtakLinje !== null}
                         className="rounded p-1.5 text-green-600 hover:bg-green-50 disabled:opacity-40"
-                        title={t("timer.attestering.attester")}
+                        title={
+                          normtakLinje
+                            ? t("timer.normtak.attesterSperret")
+                            : t("timer.attestering.attester")
+                        }
                       >
                         <Check className="h-4 w-4" />
                       </button>
                     </div>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>

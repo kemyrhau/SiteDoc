@@ -41,6 +41,8 @@ export interface KatalogLonnsart {
   navn: string;
   type: string;
   tvungenKommentar?: boolean;
+  /** B10 (kort-id-spec § 11.10.2): fravær med tak. Uten feltet → true. */
+  fravaerNormtak?: boolean;
   matchNavn?: string[];
 }
 
@@ -339,6 +341,10 @@ export async function importerKatalog(
               navn: fx.navn,
               type: fx.type ?? "ordinaer",
               tvungenKommentar: fx.tvungenKommentar ?? false,
+              fravaerNormtak:
+                "fravaerNormtak" in fx && typeof fx.fravaerNormtak === "boolean"
+                  ? fx.fravaerNormtak
+                  : true,
             },
           });
         } else if (op.tabell === "aktivitet") {

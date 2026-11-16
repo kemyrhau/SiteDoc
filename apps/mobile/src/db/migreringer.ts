@@ -1,5 +1,6 @@
 import { openDatabaseSync } from "expo-sqlite";
 import { erDatabaseTilgjengelig } from "./database";
+import { backfillLokalKortId, type RaaSqlite } from "../utils/kortIdNormalisering";
 
 /**
  * Kjør SQLite-migreringer.
@@ -1531,6 +1532,27 @@ export function kjorMigreringer() {
       feilmelding TEXT
     );
   `);
+
+  // Kort-id (prosjektkort-kortid-spec § 3.3, Kenneth 2026-11-16): `kort_id` på de fem lokale
+  // radtabellene + lokal backfill i SAMME kjøring med shared `utledKortId` (samme id som
+  // serverens backfill). Additiv, nullable; ingen rad slettes, ingen annen kolonne endres.
+  // Idempotent: ALTER via PRAGMA, backfillen rører bare rader uten id.
+  for (const [tabell, kol] of KORTID_LOCAL_KOLONNER) {
+    try {
+      const kolonner = db.getAllSync(`PRAGMA table_info(${tabell})`) as Array<{ name: string }>;
+      if (!kolonner.find((k) => k.name === kol)) {
+        db.execSync(`ALTER TABLE ${tabell} ADD COLUMN ${kol} TEXT`);
+      }
+    } catch (e) {
+      console.warn(`[MIG] ${kol} på ${tabell} feilet`, e);
+    }
+  }
+  try {
+    const antall = backfillLokalKortId(db as unknown as RaaSqlite);
+    if (antall > 0) console.log(`[MIG] kort_id backfilt på ${antall} lokale rader`);
+  } catch (e) {
+    console.warn("[MIG] kort_id-backfill feilet", e);
+  }
 }
 
 /** POST (13) del B: periode-cachens kilde-kolonne (tabell, kolonne). */
@@ -1552,6 +1574,15 @@ export const KORTVALG_LOCAL_KOLONNER = [
   ["sheet_tillegg_local", "external_cost_object_id"],
   ["sheet_utlegg_local", "byggeplass_id"],
   ["sheet_utlegg_local", "external_cost_object_id"],
+] as const;
+
+/** Kort-id (prosjektkort-kortid-spec § 3.3): prosjektkortet raden hører til (tabell, kolonne). */
+export const KORTID_LOCAL_KOLONNER = [
+  ["sheet_timer_local", "kort_id"],
+  ["sheet_machine_local", "kort_id"],
+  ["sheet_tillegg_local", "kort_id"],
+  ["sheet_utlegg_local", "kort_id"],
+  ["vareforbruk_local", "kort_id"],
 ] as const;
 
 /** Radform: varelinjens timerrad (tabell, kolonne). */

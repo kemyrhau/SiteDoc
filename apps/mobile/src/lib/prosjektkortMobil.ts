@@ -12,7 +12,14 @@ import type {
   KortTimerRad,
   KortVareLinje,
 } from "@sitedoc/shared";
-import { slaaSammenVarelinjer, sendDagenTekst, type SendDagenTekst } from "@sitedoc/shared";
+import {
+  kortNokkel,
+  slaaSammenVarelinjer,
+  sendDagenTekst,
+  type KortNokkel,
+  type KortValg,
+  type SendDagenTekst,
+} from "@sitedoc/shared";
 import { erReiseRadVisning } from "../utils/reiseRad";
 
 type LokalTimerRad = {
@@ -179,27 +186,10 @@ export function arvetByggeplassVisning(
  * Nøkkelen er felles for kortlista, ruten (`?bp=&up=`), Bekreft dag
  * (`beskrivelsePerKort`) og «Flytt raden». `null` skrives «ingen».
  */
-export type KortValg = {
-  projectId: string;
-  byggeplassId: string | null;
-  ecoId: string | null;
-};
-export type KortNokkel = string;
+// Delt kilde i shared (kort-id-spec § 2.3); re-eksportert så ingen kaller endres.
+export { kortNokkel, fraKortNokkel, type KortValg, type KortNokkel } from "@sitedoc/shared";
 
 const INGEN = "ingen";
-
-export function kortNokkel(k: KortValg): KortNokkel {
-  return `${k.projectId}|${k.byggeplassId ?? INGEN}|${k.ecoId ?? INGEN}`;
-}
-
-export function fraKortNokkel(nokkel: KortNokkel): KortValg {
-  const [projectId = "", bp, up] = nokkel.split("|");
-  return {
-    projectId,
-    byggeplassId: !bp || bp === INGEN ? null : bp,
-    ecoId: !up || up === INGEN ? null : up,
-  };
-}
 
 /** Rute-parameter ↔ verdi: `ingen`/manglende → null. */
 export function fraRuteParam(verdi: string | string[] | undefined): string | null | undefined {

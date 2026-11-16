@@ -22,6 +22,7 @@ import {
 import { StatusBadge } from "@/components/timer/StatusBadge";
 import { ForslagValgSeksjon } from "@/components/timer/ForslagValgSeksjon";
 import { AttesteringDetaljEdit } from "@/components/timer/AttesteringDetalj_Edit";
+import { normtakBruddLinje } from "@/lib/normtakBrudd";
 import {
   ProsjektSectionAttest,
   type EcoBucketAttestProps,
@@ -29,6 +30,7 @@ import {
   type RadProsjekt,
   type TilleggRad,
   type TimerRad,
+  radIKontekst,
 } from "@/components/attestering/attestering-buckets";
 
 function formatDato(d: Date | string): string {
@@ -60,7 +62,7 @@ export function AttesteringDetalj({
   prosjektKontekst,
   tilbakeUrl,
 }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const router = useRouter();
   const utils = trpc.useUtils();
 
@@ -116,10 +118,11 @@ export function AttesteringDetalj({
   const tilleggRader = (sheet?.tillegg ?? []) as unknown as TilleggRad[];
   const maskinRader = (sheet?.maskiner ?? []) as unknown as MaskinRad[];
 
-  const radTilgjengelig = (rad: { projectId: string; attestertStatus: string | null }) => {
+  // Kort-id-spec § 11.4 (F1): serveren sier om fravær uten prosjekt kan attesteres her.
+  const fravaerKanAttesteres = sheet?.fravaerKanAttesteres === true;
+  const radTilgjengelig = (rad: { projectId: string | null; attestertStatus: string | null }) => {
     if (rad.attestertStatus !== "pending") return false;
-    if (prosjektKontekst && rad.projectId !== prosjektKontekst) return false;
-    return true;
+    return radIKontekst(rad.projectId, prosjektKontekst, fravaerKanAttesteres);
   };
 
   // Pre-utvalg: alle pending-rader leder har tilgang til
@@ -174,6 +177,8 @@ export function AttesteringDetalj({
     (sheet as { konfliktVentendeSiden?: string | Date | null }).konfliktVentendeSiden ??
     null;
   const forslagBlokkert = overlappBlokkererAttestering(konfliktVentendeSiden);
+  // B10 (F9 = A): bruddlinja fra hentForAttestering — null = intet brudd.
+  const normtakLinje = normtakBruddLinje(t, sheet.fravaerNormtakBrudd, i18n.language);
   // Forslaget attestanten LESER (ikke velger). hentForAttestering er ett av KUN to
   // steder forslaget leses (M15) — aldri en lønnsleser.
   const forslagRader = (
@@ -261,7 +266,10 @@ export function AttesteringDetalj({
             {formatDato(sheet.dato)}
           </h1>
           <p className="mt-1 text-sm text-gray-600">
-            {sheet.prosjekt?.name ?? t("timer.detalj.ukjentProsjekt")}
+            {sheet.prosjekt?.name ??
+              (timerRader.length > 0 && timerRader.every((r) => r.projectId === null)
+                ? t("timer.detalj.fravaerUtenProsjekt")
+                : t("timer.detalj.ukjentProsjekt"))}
             {sheet.prosjekt?.internalProjectNumber
               ? ` (${sheet.prosjekt.internalProjectNumber})`
               : ""}
@@ -399,6 +407,20 @@ export function AttesteringDetalj({
         </div>
       )}
 
+      {/* B10 (§ 11.10.4, F9 = A): fravær med tak over dagsnormen — der overtidsvarselet
+          står. Attestering er sperret til bruddet er rettet; retur virker. */}
+      {normtakLinje && (
+        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <div>
+              <p className="font-medium">{normtakLinje}</p>
+              <p className="mt-0.5 text-xs text-amber-800">{t("timer.normtak.attesterSperret")}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* D2-attestantvarsel (ORDRE 2 STEG 3 ledd 2): banner når ukens beregnede
           overtid avviker fra det som er ført. Kun varsel — blokkerer ikke
           attestering. Tallene: uattestert = live, attestert = frosset snapshot. */}
@@ -516,8 +538,10 @@ export function AttesteringDetalj({
         };
 
         for (const r of timerRader) {
-          noterBucket(r.projectId, r.externalCostObjectId, r.project);
-          bucketMap.get(bucketKey(r.projectId, r.externalCostObjectId))!.timer.push(r);
+          // Kort-id-spec § 11.4: fravær uten prosjekt samles under tom nøkkel («Fravær»).
+          const pid = r.projectId ?? "";
+          noterBucket(pid, r.externalCostObjectId, r.project);
+          bucketMap.get(bucketKey(pid, r.externalCostObjectId))!.timer.push(r);
         }
         for (const r of maskinRader) {
           noterBucket(r.projectId, r.externalCostObjectId, r.project);
@@ -547,6 +571,7 @@ export function AttesteringDetalj({
             bucketMap={bucketMap}
             tillegg={tilleggPerProsjekt.get(pid) ?? []}
             prosjektKontekst={prosjektKontekst}
+            fravaerKanAttesteres={fravaerKanAttesteres}
             valgteTimer={valgteTimer}
             valgteMaskin={valgteMaskin}
             valgteTillegg={valgteTillegg}
@@ -588,10 +613,18 @@ export function AttesteringDetalj({
             {/* V19-C (C-2): blokker attestering ved uavklart overlapp. `title` på en
                 wrapper (ikke selve knappen) så tooltipen vises selv når knappen er
                 disabled. Retur-knappen over er bevisst IKKE gatet — retur er utveien. */}
-            <span title={forslagBlokkert ? t("timer.forslagValg.attesterBlokkert") : undefined}>
+            <span
+              title={
+                forslagBlokkert
+                  ? t("timer.forslagValg.attesterBlokkert")
+                  : normtakLinje
+                    ? t("timer.normtak.attesterSperret")
+                    : undefined
+              }
+            >
               <Button
                 onClick={handleAttester}
-                disabled={!kanHandle || forslagBlokkert || attesterRader.isPending}
+                disabled={!kanHandle || forslagBlokkert || !!normtakLinje || attesterRader.isPending}
               >
                 <Check className="mr-1 h-4 w-4" />
                 {attesterRader.isPending
