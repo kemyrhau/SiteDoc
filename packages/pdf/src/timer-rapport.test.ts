@@ -160,11 +160,14 @@ describe("byggTimerRapportHtml — kolonnebredder (ORDRE 36)", () => {
   };
   const KORTE = ["dato", "type", "timer", "maskintimer", "antall", "belop", "mengde", "enhet"];
   const KOLONNER = ["dato", "ansatt", "prosjekt", "type", "betegnelse", "aktivitet", "timer", "maskintimer", "antall", "belop", "mengde", "enhet", "beskrivelse"];
+  /** Kolonnene PDF-en faktisk viser: Aktivitet er tom på alle rader og skjules. */
+  const VISTE = KOLONNER.filter((id) => id !== "aktivitet");
   const html = (o: Partial<TimerRapportData> = {}) =>
     byggTimerRapportHtml(
       {
         ...data("ekstern"),
-        grupper: [{ overskrift: null, rader: [{ ...timerRad, aktivitet: null }, { ...maskinUtenRad, aktivitet: null }], subtotal: { timer: 7.5, maskintimer: 4, antall: null, belop: null } }],
+        // Alle valgte kolonner har verdi unntatt Aktivitet (tom → skjules, TILLEGG 36).
+        grupper: [{ overskrift: null, rader: [{ ...timerRad, aktivitet: null, antall: 2, belop: 0, mengde: 3, enhet: "m3" }, { ...maskinUtenRad, aktivitet: null }], subtotal: { timer: 7.5, maskintimer: 4, antall: 2, belop: 0 } }],
         valgteKolonner: KOLONNER,
         kolBredder: BREDDE,
         ...o,
@@ -184,30 +187,78 @@ describe("byggTimerRapportHtml — kolonnebredder (ORDRE 36)", () => {
     const h = html();
     const { ths, forsteRad, cols } = detaljer(h);
     for (const id of KORTE) {
-      const i = KOLONNER.indexOf(id);
+      const i = VISTE.indexOf(id);
       expect(ths[i], id).toMatch(/class="[^"]*\bkort\b/);
       expect(forsteRad[i], id).toMatch(/class="[^"]*\bkort\b/);
       expect(cols[i], id).toBe('<col style="width:1px">');
     }
+    // SVAR (72) A1 (Kenneth: godta): overskriften over en tallkolonne er høyrejustert.
+    for (const id of ["timer", "maskintimer", "antall", "belop", "mengde"]) {
+      expect(ths[VISTE.indexOf(id)], id).toMatch(/^<th class="num\b/);
+    }
+    expect(ths[VISTE.indexOf("enhet")]).not.toMatch(/\bnum\b/);
     expect(h).toMatch(/table\.vekt \.kort \{ white-space: nowrap;/);
     expect(h).not.toContain("table-layout: fixed");
   });
 
-  it("tekstkolonner med innhold deler bredden etter vekt; tom tekstkolonne (Aktivitet) får ingen bredde", () => {
+  it("tekstkolonner med innhold deler bredden etter vekt", () => {
     const { cols, ths } = detaljer(html());
-    // ansatt 2 · prosjekt 2 · betegnelse 4 · beskrivelse 6 = 14 (aktivitet er tom → 0)
-    const pst = (id: string) => cols[KOLONNER.indexOf(id)];
+    // ansatt 2 · prosjekt 2 · betegnelse 4 · beskrivelse 6 = 14 (aktivitet er skjult)
+    expect(cols).toHaveLength(VISTE.length);
+    const pst = (id: string) => cols[VISTE.indexOf(id)];
     expect(pst("ansatt")).toBe('<col style="width:14.29%">');
     expect(pst("prosjekt")).toBe('<col style="width:14.29%">');
     expect(pst("betegnelse")).toBe('<col style="width:28.57%">');
     expect(pst("beskrivelse")).toBe('<col style="width:42.86%">');
-    expect(pst("aktivitet")).toBe("<col>");
-    expect(ths[KOLONNER.indexOf("beskrivelse")]).toBe("<th>");
+    expect(ths[VISTE.indexOf("beskrivelse")]).toBe("<th>");
   });
 
   it("negativkontroll: uten kolBredder er tabellen som før (ingen colgroup, ingen kort-klasse)", () => {
     const { tab } = detaljer(html({ kolBredder: undefined }));
     expect(tab).not.toContain("<colgroup>");
     expect(tab).not.toContain("kort");
+  });
+});
+
+/* ============================================================================
+ * TILLEGG (36) 2026-11-16 — tomme valgte kolonner skjules i PDF-en (Kenneth: ja).
+ * Skjerm og Excel er uendret (B1): shared `losTimerKolonner` gir fortsatt
+ * brukervalget ordrett — vakt: timerDetaljRader.test.ts «config satt → ordrett
+ * brukervalg … (ingen drop-tom)». «Tom» = samme regel som skjermen
+ * (`kolonnerMedInnhold`): tekst null/"" · tall kun null (0 er en verdi).
+ * ============================================================================ */
+describe("byggTimerRapportHtml — tomme valgte kolonner skjules (TILLEGG 36)", () => {
+  const overskrifter = (h: string): string[] => {
+    const tab = h.slice(h.lastIndexOf("<table"));
+    const thead = tab.match(/<thead>(.*?)<\/thead>/s)?.[1] ?? "";
+    return [...thead.matchAll(/<th[^>]*>(.*?)<\/th>/g)].map((m) => m[1] ?? "");
+  };
+  const lag = (valgteKolonner: string[], rader = [timerRad, maskinUtenRad]) =>
+    byggTimerRapportHtml(
+      { ...data("intern"), grupper: [{ overskrift: null, rader, subtotal: { timer: 7.5, maskintimer: 4, antall: null, belop: null } }], valgteKolonner },
+      tekster,
+    );
+
+  it("valgt kolonne som er tom på alle rader vises ikke (tall, tekst og ansattnr)", () => {
+    const rader = [{ ...timerRad, ansattnr: null }, { ...maskinUtenRad, ansattnr: "" }];
+    const h = overskrifter(lag(["dato", "ansattnr", "timer", "mengde", "enhet", "beskrivelse"], rader));
+    expect(h).toEqual(["Dato", "Timer", "Beskrivelse"]);
+  });
+
+  it("negativkontroll: én verdi på én rad holder kolonnen — også 0 og én tekst", () => {
+    const rader = [{ ...timerRad, mengde: 0, enhet: "m3" }, maskinUtenRad];
+    const h = overskrifter(lag(["dato", "ansattnr", "mengde", "enhet", "aktivitet"], rader));
+    expect(h).toEqual(["Dato", "ANSATTNR_HDR", "Mengde", "Enhet", "Aktivitet"]);
+  });
+
+  it("er alle valgte kolonner tomme, vises tabellen som før (alle valgte)", () => {
+    const h = overskrifter(lag(["mengde", "enhet"]));
+    expect(h).toEqual(["Mengde", "Enhet"]);
+  });
+
+  it("dynamisk sett (uten brukervalg) er uendret", () => {
+    const h = overskrifter(lag([]));
+    expect(h).not.toContain("Mengde");
+    expect(h).toContain("ANSATTNR_HDR");
   });
 });

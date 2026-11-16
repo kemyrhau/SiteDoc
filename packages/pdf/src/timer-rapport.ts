@@ -449,24 +449,36 @@ function detaljerTabell(d: TimerRapportData, t: TimerRapportTekster): string {
   const alleRader = d.grupper.flatMap((g) => g.rader);
   if (alleRader.length === 0) return `<p class="tom">${esc(t.ingenData)}</p>`;
   // Kolonnevalg (flateparitet, config v3): malens `valgteKolonner` styrer settet OG
-  // rekkefølgen ordrett (ingen drop-tom) — nøyaktig samme kolonner som skjerm/Excel.
+  // rekkefølgen — samme kolonner som skjerm/Excel, minus tomme (TILLEGG 36, under).
   // Mangler det: dagens dynamiske sett (alltid-kolonner + kolonner med innhold, tomme
   // droppes for A4-lesbarhet). Ekstern-regelen er allerede anvendt i `kolonner()`
   // (status/ansattnr bygges ikke), så et brukervalg som nevner dem faller bort her.
   const alle = kolonner(t, d.mottaker);
   const valgt = d.valgteKolonner;
-  const kols =
+  // TILLEGG (36) 2026-11-16 (Kenneth: ja): KUN i PDF-en skjules en valgt kolonne som
+  // er tom på alle rader i utvalget — A4 har ikke plass til tomme kolonner. Skjerm og
+  // Excel får fortsatt brukervalget ordrett (shared `losTimerKolonner`, B1). «Tom» =
+  // skjermens regel (`kolonnerMedInnhold`): tekst null/"" · tall kun null (0 er verdi).
+  // `alltid`-kolonner har `tilstede: () => true`, så de måles på cellens innhold
+  // (fanger tomt ansattnr). Er alle valgte tomme: vis valget som før.
+  const harVerdi = (k: KolDef): boolean =>
+    k.alltid ? alleRader.some((r) => k.celle(r, t) !== "") : k.tilstede(alleRader);
+  const valgteKols =
     valgt && valgt.length > 0
-      ? (valgt
-          .map((id) => alle.find((k) => k.id === id))
-          .filter((k): k is KolDef => k !== undefined))
-      : alle.filter((k) => k.alltid || k.tilstede(alleRader));
+      ? valgt.map((id) => alle.find((k) => k.id === id)).filter((k): k is KolDef => k !== undefined)
+      : null;
+  const valgteMedVerdi = valgteKols?.filter(harVerdi) ?? [];
+  const kols = valgteKols
+    ? valgteMedVerdi.length > 0
+      ? valgteMedVerdi
+      : valgteKols
+    : alle.filter((k) => k.alltid || k.tilstede(alleRader));
 
 
   // Kolonnebredder (flateparitet, ORDRE (36)): delt bredde-intensjon fra
   // `kolBredder`. Kort kolonne (vekt 0) → ingen bredde + nowrap (innholdets
   // bredde). Tekstkolonne med innhold → prosent av tekstvektene. Tekstkolonne uten
-  // innhold (brukervalgt, tom i perioden) → ingen bredde (overskriftens bredde).
+  // innhold (kun når ALLE valgte er tomme, TILLEGG 36) → ingen bredde.
   // Før: prosent av ALLE kolonners min·(1+vekt) med table-layout:fixed — Dato fikk
   // ~19 px på liggende A4 og ble brutt bokstav for bokstav.
   const bredder = d.kolBredder;

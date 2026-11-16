@@ -61,6 +61,16 @@ den begrensningen gjelder den andre flaten. Er svaret nei, er PDF-ens valg ikke 
 ⚠️ **Dette opphever ikke flateparitet.** Samme *informasjon* på alle flater står. Men hvilken flate
 som har rett når de er ulike, avgjøres av begrunnelsen — ikke av at den ene er en PDF.
 
+### Unntak: tomme kolonner i timerapport-PDF (Kenneth 2026-11-16, TILLEGG (36))
+
+I timerapportens PDF skjules en valgt kolonne som er tom på **alle** rader i utvalget, også når
+brukeren har valgt den. Skjerm og Excel viser fortsatt valget ordrett (B1, `losTimerKolonner` i
+`@sitedoc/shared`). Begrunnelse etter regelen over: A4 har ikke plass til tomme kolonner, og en tom
+kolonne bærer ingen informasjon, så unntaket fjerner ingenting leseren trenger. «Tom» følger skjermens
+regel (`kolonnerMedInnhold`): tekst null eller tom streng, tall kun null (0 er en verdi). Er alle
+valgte kolonner tomme, vises valget som før. Kode: `packages/pdf/src/timer-rapport.ts`
+`detaljerTabell`; vakt: `timer-rapport.test.ts` «tomme valgte kolonner skjules (TILLEGG 36)».
+
 ### Målt brudd som utløste vedtaket (2026-09-01)
 
 **Endringsloggen er asymmetrisk mellom sjekkliste og oppgave:**
