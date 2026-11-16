@@ -300,6 +300,7 @@ finnes kortene alt.
 > ~~**Eksport/rapport/PDF:** urørt. Ingen leser grupperer på kort (M3), og alle beløp følger radenes egne felt.~~
 
 - **Attestering, eksport/fakturering og rapport (🟡 ny retning 2026-11-16):** prosjektkortet slik det ble ført (`kortId`) skal følge raden hele veien: kortet vises samlet i attesteringen, med timer, maskin og varer under sin timerad, og fakturering/eksport skal kunne dele opp timene pr. kort. Detaljene kommer i SPEC-TILLEGGET.
+- **Visningskrav (Kenneth 2026-11-16, 🟡 ikke bygget):** *«vi skal ha en oversiktsrad med informasjon. i hver rad er det faste felter med informasjon. -> et excelark med en beskrivende topprad som er synlig hele tiden. Timerader kommer under. vi må presentere lønnsart i en fast kolonne, fra til i en annen kolonne. Kolonner må kunne flyttes.»* Maskin- og varerader skal vise hva de er og hva mengden er (*«hva er 6m3 … jeg kan ikke lese hvilken vare vi har brukt»*). Varsler skal si hvilken norm (dag/uke/måned) og hvilken rad (*«hvilken norm? … en gjettekonkuranse»*). Fakturagrunnlaget til kunden følger samme struktur.
 
 ### 5.5 Paritetsmatrise
 
