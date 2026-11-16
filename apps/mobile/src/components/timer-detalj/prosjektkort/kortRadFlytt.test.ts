@@ -42,6 +42,8 @@ import * as schema from "../../../db/schema";
 import { kjorMigreringer } from "../../../db/migreringer";
 import {
   flyttKort,
+  kortUtfallParametre,
+  kortUtfallTekst,
   kortInnhold,
   radInnhold,
   slettKortLokalt,
@@ -453,7 +455,7 @@ describe("T12 — Flytt/Endre/Slett pr. kort-id", () => {
 
   it("«Flytt raden» til et kort som finnes: raden får det kortets id — også når den var kortets eneste rad", async () => {
     const r1 = leggTilTimerRad(db(), K, { ...felt, kortId: "A", timer: 4 }, []);
-    leggTilTimerRad(db(), K, { ...felt, projectId: "p2", kortId: "B", timer: 2 }, []);
+    leggTilTimerRad(db(), K, { ...felt, projectId: "p2", kortId: "B", fraTid: "15:00", tilTid: "17:00", timer: 2, pauseMin: 0 }, []);
     const tilB = { projectId: "p2", byggeplassId: null, ecoId: null, kortId: "B" };
     expect(await flyttKort(db(), dag(), radInnhold({ rad: timerRad(r1) as unknown as Rad, maskinRader: [], varer: [] }), kortA, tilB, server)).toEqual({ utfall: "ok" });
     expect(timerRad(r1)!.kortId).toBe("B");
@@ -494,7 +496,8 @@ describe("Kontrollør A1 — maskin eller vare flyttet alene får målkortets id
   /** Kort A (p1) med koblet maskin og vare, kort B (p2). */
   const toKort = () => {
     const a = leggTilTimerRad(db(), K, { ...felt, kortId: "A", timer: 4 }, [{ vehicleId: "v1", timer: 4, mengde: null, enhet: null }]);
-    leggTilTimerRad(db(), K, { ...felt, projectId: "p2", kortId: "B", timer: 2 }, []);
+    // ORDRE (35): B ligger etter A i tid — lagring sperrer overlapp på hele sedelen, og «Flytt raden» sjekker det nå.
+    leggTilTimerRad(db(), K, { ...felt, projectId: "p2", kortId: "B", fraTid: "15:00", tilTid: "17:00", timer: 2, pauseMin: 0 }, []);
     db()
       .insert(vareforbrukLocal)
       .values({ id: "v-s", userId: "u1", organizationId: "o1", sheetId: "s1", projectId: "p1", sheetTimerId: a, kortId: "A", dato: "2026-11-07", vareId: "x", vareNavn: "Pukk", enhet: "t", antall: 2, syncStatus: "synced", sistEndretLokalt: 1 })
@@ -557,5 +560,77 @@ describe("Kontrollør A1 — maskin eller vare flyttet alene får målkortets id
     expect(blokk).toContain("const til = flyttMaalKort(valgt, nytt);");
     expect(blokk).toContain("kortId: til.kortId");
     expect(blokk.match(/sikreLokalKortId\(db\(\), sheetId\)/g)).toHaveLength(2);
+  });
+});
+
+/* ============================================================================
+ *  ORDRE (35) 2026-11-16 (spec § 12.8.3 «Flytt raden — kollisjonssjekk»):
+ *  «Flytt raden» kjører samme kollisjonssjekk som «Endre kort»
+ *  (`finnKortKollisjon`) — samme utfall og samme melding. Ingen ny regel.
+ *  Overlappen lages direkte i SQLite: lagring av en rad sperrer overlapp på hele
+ *  sedelen, så sjekken treffer bare overlapp som fantes fra før.
+ *  🔴 Rød før koden (flyttKort hoppet over sjekken uten `kollisjonssjekk: true`).
+ * ============================================================================ */
+describe("ORDRE (35) — «Flytt raden» får kollisjonssjekk", () => {
+  const SEDEL = { projectId: "p1", byggeplass: null };
+  const server = { erPaaNettet: true, pushSedel: async () => true, flyttVare: async () => {} };
+  type Rad = Parameters<typeof radInnhold>[0]["rad"];
+  const dag = (): KortDag => ({
+    sheetId: "s1",
+    organizationId: "o1",
+    status: "draft",
+    pauseMin: 0,
+    sedel: SEDEL,
+    timerRader: db().select().from(sheetTimerLocal).all() as unknown as Rad[],
+    maskinRader: [],
+    reiseLonnsartId: null,
+  });
+  const kortA = { projectId: "p1", byggeplassId: null, ecoId: null, kortId: "A" };
+  const tilB = { projectId: "p2", byggeplassId: null, ecoId: null, kortId: "B" };
+  /** Rad a på kort A (07–11) og rad b på kort B (p2) med gitte tider. */
+  const toKort = (bFra: string, bTil: string) => {
+    const a = leggTilTimerRad(db(), K, { ...felt, kortId: "A", fraTid: "07:00", tilTid: "11:00", timer: 4, pauseMin: 0 }, []);
+    const b = leggTilTimerRad(db(), K, { ...felt, projectId: "p2", byggeplassId: null, kortId: "B", fraTid: bFra, tilTid: bTil, timer: 4, pauseMin: 0 }, []);
+    db().update(sheetTimerLocal).set({ kortId: "A" }).where(eq(sheetTimerLocal.id, a)).run();
+    db().update(sheetTimerLocal).set({ kortId: "B" }).where(eq(sheetTimerLocal.id, b)).run();
+    return { a, b };
+  };
+  // Samme kall som `utforFlytt` i ProsjektkortDagsoversikt (rad-innhold, ingen ekstra valg).
+  const flyttRad = (radId: string, til: typeof tilB) =>
+    flyttKort(db(), dag(), radInnhold({ rad: timerRad(radId) as unknown as Rad, maskinRader: [], varer: [] }), kortA, til, server);
+
+  it("med overlapp: samme utfall som «Endre kort» (`overlapp`, `timer.feil.overlapp` med tidene) — ingen skriving", async () => {
+    const { a } = toKort("10:00", "15:00");
+    const foer = timerRad(a)!.sistEndretLokalt;
+    const u = await flyttRad(a, tilB);
+    expect(u).toEqual({ utfall: "overlapp", fra: "07:00", til: "11:00", annenFra: "10:00", annenTil: "15:00" });
+    expect(kortUtfallTekst(u, "flytt")).toBe("timer.feil.overlapp");
+    expect(kortUtfallParametre(u)).toEqual({ fra: "07:00", til: "11:00", annenFra: "10:00", annenTil: "15:00" });
+    expect(timerRad(a)).toMatchObject({ projectId: "p1", kortId: "A", sistEndretLokalt: foer });
+  });
+
+  it("«Flytt til nytt kort» på en nøkkel med overlappende kort sperres likt (alle kort med nøkkelen)", async () => {
+    const { a } = toKort("10:00", "15:00");
+    expect((await flyttRad(a, { ...tilB, kortId: "NY" })).utfall).toBe("overlapp");
+    expect(timerRad(a)).toMatchObject({ projectId: "p1", kortId: "A" });
+  });
+
+  it("negativkontroll: uten overlapp flyttes raden som før (berøring i endepunkt er ikke overlapp)", async () => {
+    const { a } = toKort("11:00", "15:00");
+    expect(await flyttRad(a, tilB)).toEqual({ utfall: "ok" });
+    expect(timerRad(a)).toMatchObject({ projectId: "p2", kortId: "B" });
+  });
+
+  it("negativkontroll: overlapp med et kort på en ANNEN nøkkel stopper ikke flyttet", async () => {
+    const { a } = toKort("10:00", "15:00");
+    expect(await flyttRad(a, { projectId: "p3", byggeplassId: null, ecoId: null, kortId: "C" })).toEqual({ utfall: "ok" });
+    expect(timerRad(a)).toMatchObject({ projectId: "p3", kortId: "C" });
+  });
+
+  it("kildevakt: «Flytt raden» viser meldingen med tidene, som kortskjermen", async () => {
+    const fs = await import("node:fs");
+    const kilde = fs.readFileSync(path.join(__dirname, "ProsjektkortDagsoversikt.tsx"), "utf8");
+    const blokk = kilde.slice(kilde.indexOf("const utforFlytt = async"), kilde.indexOf("} else if (flytt.radType === \"maskin\")"));
+    expect(blokk).toContain("...kortUtfallParametre(u)");
   });
 });

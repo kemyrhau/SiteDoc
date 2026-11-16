@@ -487,6 +487,8 @@ describe("flyttKort", () => {
 
   it("rader uten kort-id: målnøkkelen finnes → radene får samme nøkkel og beholder beskrivelsene", async () => {
     const { a, nabo } = byggDag();
+    // ORDRE (35): kollisjonssjekken er alltid på — naboen flyttes ut av A-radens tid (lagring sperrer overlapp).
+    db().update(sheetTimerLocal).set({ fraTid: "15:00", tilTid: "22:30" }).where(eq(sheetTimerLocal.id, nabo)).run();
     const B: KortValg = { projectId: "p2", byggeplassId: null, ecoId: null };
     expect(await flyttKort(db(), dagFor(), innholdFor(A), A, B, SERVER_OK)).toEqual({ utfall: "ok" });
     expect(innholdFor(B).timer.map((r) => [r.id, r.beskrivelse]).sort()).toEqual(
@@ -678,7 +680,7 @@ describe("RETUR (33) c pkt 1 — «Endre kort» til en nøkkel som alt har kort"
     return { a, b };
   }
   const endre = () =>
-    flyttKort(db(), dagFor(), innholdFor(A_ID), A_ID, { ...B, kortId: "k-a" }, SERVER_OK, { kollisjonssjekk: true });
+    flyttKort(db(), dagFor(), innholdFor(A_ID), A_ID, { ...B, kortId: "k-a" }, SERVER_OK);
 
   it("uten overlapp: to kort på samme nøkkel, hver med sin id og sin beskrivelse", async () => {
     const { a, b } = toKort("11:00", "15:00"); // berøring i endepunkt er ikke overlapp
@@ -701,13 +703,14 @@ describe("RETUR (33) c pkt 1 — «Endre kort» til en nøkkel som alt har kort"
   it("negativkontroll: overlapp med et kort på en ANNEN nøkkel stopper ikke «Endre kort»", async () => {
     const { a } = toKort("10:00", "15:00");
     const C: KortValg = { projectId: "p3", byggeplassId: null, ecoId: null, kortId: "k-a" };
-    expect(await flyttKort(db(), dagFor(), innholdFor(A_ID), A_ID, C, SERVER_OK, { kollisjonssjekk: true })).toEqual({ utfall: "ok" });
+    expect(await flyttKort(db(), dagFor(), innholdFor(A_ID), A_ID, C, SERVER_OK)).toEqual({ utfall: "ok" });
     expect(timerRad(a)).toMatchObject({ projectId: "p3", kortId: "k-a" });
   });
 
-  it("kortskjermen ber om kollisjonssjekk, og merknaden om sammenslåing er borte", () => {
+  it("kortskjermen kaller flyttKort (sjekken er alltid på — ORDRE (35)), og merknaden om sammenslåing er borte", () => {
     const skjerm = fs.readFileSync(path.join(__dirname, "../../../../app/timer/[id]/kort/[projectId].tsx"), "utf8");
-    expect(skjerm).toContain("kollisjonssjekk: true");
+    expect(skjerm).toContain("await flyttKort(");
+    expect(fs.readFileSync(path.join(__dirname, "kortRadFlytt.ts"), "utf8")).not.toContain("kollisjonssjekk");
     expect(skjerm).not.toContain("sammenslaa");
     expect(skjerm).not.toContain("kortFinnesFraFor");
     const i18nDir = path.join(__dirname, "../../../../../../packages/shared/src/i18n");

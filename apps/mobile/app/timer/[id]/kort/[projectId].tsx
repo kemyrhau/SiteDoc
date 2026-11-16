@@ -447,7 +447,7 @@ export default function ProsjektkortSkjerm() {
           externalCostObjectId: maal.ecoId,
         });
       },
-    }, { kollisjonssjekk: true });
+    });
     setKortArbeider(false);
     if (u.utfall === "delvis") {
       // 36c-kort-3: timer er flyttet — les på nytt; modalen står med teksten,

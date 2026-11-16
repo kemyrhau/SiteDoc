@@ -12,6 +12,7 @@
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
 **Sist oppdatert:** 2026-11-16
+- 2026-11-16 — **`prosjektkort-kortid-spec.md` § 8.2 + `timer.md`: ORDRE (35) — «Flytt raden» får kollisjonssjekk** (branch `feat/flytt-raden-kollisjon`, kode + docs, Kort-id-c): `flyttKort` kjører `finnKortKollisjon` alltid (valget `kollisjonssjekk` fjernet); maskin/vare alene uendret.
 - 2026-11-16 — **Merge ordre (33) c mobil kort-id** (`5f2004f5`) + Fabel § 12 del 4 (`72e18715`) + Kenneths svar H15 (`e435ead2`): FUNKSJONSENDRINGER + STATUS-AKTUELT ført.
 - 2026-11-16 — **`prosjektkort-kortid-spec.md` § 8.2: TILLEGG 2 til RETUR (33) c — A3 «Fjern teksten» fjernet** (branch `feat/kortid-c-mobil`, kode + docs, Kort-id-c): foreldreløs beskrivelse vises uten slett-knapp; nøkkelen `timer.bekreftDag.kort.fjernTekst` fjernet i 15 språk. Ingen fil opprettet/slettet i docs/claude — tellinger uendret.
 - 2026-11-16 — **`prosjektkort-kortid-spec.md` § 8.2 + § 11.9 + `timer.md` + `mobil.md` + `hjelpetekster.md`: RETUR (33) c — Kenneths exit-svar E1–E4** (branch `feat/kortid-c-mobil`, kode + docs, Kort-id-c): «Endre kort» beholder id med kollisjonssjekk, `timer.kort.sammenslaa` fjernet, dagsummen tar med fravær, «Slå sammen igjen» beholdt (🟢, rettelse til E3), 0,5 t-steg 🟢; Kontrollørs gate (70) A1 (maskin/vare flyttet alene får målkortets id) og A2 (nyttKort-frøet følger ikke utkastet). Ingen fil opprettet/slettet i docs/claude — tellinger uendret.

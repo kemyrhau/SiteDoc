@@ -554,6 +554,9 @@ export function slettKortLokalt(db: LokalDb, sheetId: string, innhold: KortInnho
  * `flyttVare` per synket vare → lokal vareflytt for hver vare server godtok.
  * Feiler push eller en vare: «delvis» — resten blir på dette kortet, og et nytt
  * «Endre kort» der flytter dem (timer-steget er da tomt).
+ *
+ * Kollisjonssjekken (`finnKortKollisjon`) gjelder begge kallerne: «Endre kort»
+ * (hele kortet) og «Flytt raden» (én timer-rad med koblet maskin/vare).
  */
 export async function flyttKort(
   db: LokalDb,
@@ -566,8 +569,6 @@ export async function flyttKort(
     pushSedel: () => Promise<boolean>;
     flyttVare: (id: string, til: FlyttMaal) => Promise<void>;
   },
-  /** RETUR (33) c pkt 1: «Endre kort» sjekker tidskollisjon mot kort med målnøkkelen. «Flytt raden» gjør det ikke (uendret). */
-  valg: { kollisjonssjekk?: boolean } = {},
 ): Promise<KortUtfall> {
   if (!erRedigerbar(dag.status)) return { utfall: "laast" };
   // Ordre c (T12): målets id skrives på alle radene som flyttes. «Endre kort»:
@@ -579,10 +580,10 @@ export async function flyttKort(
   }
   // Spec § 11.4: fraværskortet (prosjekt `null`) flyttes ikke og er aldri mål.
   if (fra.projectId === null || til.projectId === null) return { utfall: "uendret" };
-  if (valg.kollisjonssjekk) {
-    const kollisjon = finnKortKollisjon(dag, innhold, til);
-    if (kollisjon) return kollisjon;
-  }
+  // RETUR (33) c pkt 1 + ORDRE (35): tidskollisjon mot kort med målnøkkelen —
+  // både «Endre kort» og «Flytt raden» (samme utfall, samme melding).
+  const kollisjon = finnKortKollisjon(dag, innhold, til);
+  if (kollisjon) return kollisjon;
   if (girNyttBrudd(dag, innhold, til)) return { utfall: "brudd" };
   // Varer har ingen sedel-arv: kortets effektive byggeplass lagres (RETUR 4).
   const vareMaal: FlyttMaal = { projectId: til.projectId, byggeplassId: vareByggeplassForKort(til), ecoId: til.ecoId };
