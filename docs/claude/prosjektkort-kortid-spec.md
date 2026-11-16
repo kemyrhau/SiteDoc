@@ -1050,7 +1050,7 @@ som egen mobilordre rett etter b.
 ## 12. TILLEGG — kortet følger hele veien: attestering, eksport/fakturering og rapport (Kenneth 2026-11-16)
 
 > **Status:** 🟢 H1–H10 besvart av Kenneth 2026-11-16 (§ 12.8.1) og ført inn i reglene under (del 3). 🟡 Åpent til
-> Kenneth: H2-skissen, H12, H13 og H14 (§ 12.8.2). Ingen kode. **FUNKSJONSENDRING**; hjemmel:
+> Kenneth: H2-skissen og H14 (§ 12.8.2). H11–H13 og mal-raden besvart 2026-11-16 (§ 12.8.3; H12 = sperre ved føring). Ingen kode. **FUNKSJONSENDRING**; hjemmel:
 > Kenneth 2026-11-16, ført i § 5.4 som ⚠️ SNUDD (`10d343ce`), «Visningskrav» (`0783cf1d`) og «Total overhaling»
 > (`f465d7d5`). Hjemmel for del 2: Kenneths ord under («Rapportens Detaljer som mønster»). Hjemmel for del 3: § 12.8.1.
 > Målt mot develop @ `10d343ce`; HM22–HM25 mot `0783cf1d`; HM26–HM30 mot `f465d7d5`; HM31–HM41 mot `a49821ca`;
@@ -1717,3 +1717,14 @@ Viktigst først. De to første låser attesteringstabellen (d2b-1).
 
 **Låser d2a:** ingen — kan bestilles nå. **Låser d2b-1:** H2-skissen og H14; H12 styrer bare ett varsel.
 **Låser d2b-2:** ingen. **Låser d3:** H14 og H12. **Låser d2c:** H13.
+
+#### 12.8.3 Kenneths svar 2026-11-16, runde 2 (ordrett der det står i anførselstegn)
+
+🟢 **Besvart: H11, H12 og H13, pluss mal-raden i eksportmenyen.** 🟡 **Åpent: H2-skissen og H14 (§ 12.8.2).** Svarene her går foran tabellen i § 12.8.2.
+
+| # | Svar | Hva det betyr |
+|---|---|---|
+| **H11** | **«enig»** (A) | En maskin som er koblet til en timerad, står på timeradens linje i attesteringen, slik rapporten gjør. Linja attesteres samlet. |
+| **H12** | ⚠️ **Strengere enn A og B:** *«man skal ikke kunne registrere maskinrad uten at det er ført timer.»* | Varselet blir en **sperre ved føring**. En maskinrad kan ikke lagres uten at det er ført timer. Fabel skal spesifisere følgende: om sperren krever en koblet timerad (H13) eller bare timer på kortet; hvor den virker (mobil i begge moduser, PC og attestantens «legg til maskin»); og hva som skjer med eksisterende maskinrader uten timer. De eksisterende radene slettes aldri, og de vises i kortet sitt (G5). Spørsmålet om koblet timerad eller timer på kortet er sendt til Kenneth. |
+| **H13** | **«enig»** (A) | Maskinen kobles til timeraden fremover, også på PC og i dagskort-modus. Det blir egen ordre (d2c). Gamle rader står som de er. |
+| **Mal-raden** (ordre 34) | **Nei.** *«jeg vil se filen først før vi lager/lagrer den»* | Klikk på en mal-rad som «Fakturagrunnlag (.pdf)» legger malen på skjermen og lager **ingen** fil, som i dag (`86a91047`). Eksporten skjer med knappen. E9 gjelder: knappen svarer alltid med en fil eller en melding. |
