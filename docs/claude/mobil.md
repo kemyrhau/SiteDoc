@@ -776,6 +776,7 @@ Mobil-vieweren cacher parsed IFC som fragments for raskere gjenåpning:
 - `IfcViewer.tsx` lagrer fragments i `sitedoc-fragments/`-mappe (dokumentkatalogen)
 - Ved gjenåpning sendes cached fragments tilbake med `lastModeller`-meldingen
 - Fallback til full IFC-parsing hvis fragments mangler eller er utdatert
+- **Råfil på cache-veien (M5 (1), 2026-11-16):** objektinfo og skjuling av IfcSpace/IfcOpening leses fra IFC-råfila med web-ifc. Lastes modellen fra fragment-cachen, henter `mobil-viewer` råfila fra nettet i bakgrunnen (samme URL + token, ingen ny geometri-parsing) etter at modellen vises (`apps/web/src/app/mobil-viewer/ifcRaadata.ts` `lagRaadataLager`/`hentIfcRaadata`; kalles fra `page.tsx` `lastEnModell`). Et tapp før råfila er kommet venter på den. Offline: hentingen feiler stille → modellen vises, objektinfo uten attributter (som før fiksen). `sitedoc-ifc/`-cachen («Last ned») brukes ikke her — den finnes bare etter manuell nedlasting og måtte sendes som base64 over RN-broen. Test: `apps/web/src/__tests__/mobil-viewer-cache-objektinfo.test.ts`. Utrulling: web-deploy, ikke OTA.
 
 ### Tegning+3D split-view
 

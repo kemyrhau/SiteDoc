@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { hentIfcRaadata, lagRaadataLager, lesAttributter } from "./ifcRaadata";
 
 /**
  * Standalone IFC 3D-viewer for bruk i React Native WebView.
@@ -150,7 +151,8 @@ export default function MobilViewer() {
       // State
       const modeller = new Map<number, unknown>();
       const synligeModeller = new Set<string>();
-      const ifcDataMap = new Map<string, Uint8Array>();
+      // Råfil pr. modell — fra IFC-veien direkte, fra cache-veien hentet i bakgrunnen (M5 (1))
+      const raadata = lagRaadataLager();
       const totalBbox = new THREE.Box3();
 
       // Raycasting
@@ -215,25 +217,15 @@ export default function MobilViewer() {
           const item = hitModel.getItem(localId);
           const kategori = await item.getCategory().catch(() => null);
 
-          // Egenskaper via web-ifc (gjenbruker propsApi)
-          const rawData = ifcDataMap.get(hitModel.modelId);
+          // Egenskaper via web-ifc (gjenbruker propsApi). Venter på råfila hvis den
+          // fortsatt hentes i bakgrunnen (modell lastet fra fragment-cache).
+          const rawData = await raadata.hent(hitModel.modelId);
           let attributter: Record<string, unknown> = {};
           if (rawData && propsApi) {
             try {
-              let modelId: number = openModelIds.get(hitModel.modelId) ?? -1;
-              if (modelId === -1) {
-                modelId = propsApi.OpenModel(rawData) as number;
-                openModelIds.set(hitModel.modelId, modelId);
-              }
+              const modelId = åpneIfc(hitModel.modelId, rawData);
               const itemProps = await propsApi.properties.getItemProperties(modelId, localId, true).catch(() => null);
-              if (itemProps) {
-                for (const [k, v] of Object.entries(itemProps)) {
-                  if (v && typeof v === "object" && "value" in (v as Record<string, unknown>)) {
-                    const val = (v as { value: unknown }).value;
-                    if (val != null && val !== "") attributter[k] = val;
-                  }
-                }
-              }
+              attributter = lesAttributter(itemProps);
             } catch { /* */ }
           }
 
@@ -253,6 +245,31 @@ export default function MobilViewer() {
         if (!clipper.enabled || renset) return;
         await clipper.create(world);
       });
+
+      /** Åpne råfila i web-ifc én gang pr. modell */
+      function åpneIfc(fragModelId: string, ifcData: Uint8Array): number {
+        let mid: number = openModelIds.get(fragModelId) ?? -1;
+        if (mid === -1) {
+          mid = propsApi.OpenModel(ifcData) as number;
+          openModelIds.set(fragModelId, mid);
+        }
+        return mid;
+      }
+
+      /** Skjul IfcSpace og IfcOpeningElement (krever råfila) */
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      async function skjulRomOgÅpninger(model: any, ifcData: Uint8Array) {
+        try {
+          const mid = åpneIfc((model as { modelId: string }).modelId, ifcData);
+          const hideApi = propsApi as unknown as { GetLineIDsWithType: (m: number, t: number) => { size: () => number; get: (i: number) => number } };
+          const skjulIds: number[] = [];
+          for (const ifcType of [WEBIFC.IFCSPACE, WEBIFC.IFCOPENINGELEMENT]) {
+            const lineIds = hideApi.GetLineIDsWithType(mid, ifcType);
+            for (let si = 0; si < lineIds.size(); si++) skjulIds.push(lineIds.get(si));
+          }
+          if (skjulIds.length > 0) await model.setVisible(skjulIds, false);
+        } catch { /* */ }
+      }
 
       /** Base64 → Uint8Array */
       function b64ToUint8(b64: string): Uint8Array {
@@ -300,12 +317,7 @@ export default function MobilViewer() {
         // Fallback: Last og parse IFC
         if (!model) {
           setStatus(`Laster ned ${index + 1}...`);
-          const headers: Record<string, string> = {};
-          if (token) headers["Authorization"] = `Bearer ${token}`;
-
-          const response = await fetch(url, { headers });
-          if (!response.ok) throw new Error(`HTTP ${response.status}`);
-          const ifcData = new Uint8Array(await response.arrayBuffer());
+          const ifcData = await hentIfcRaadata(url, token);
           if (renset) return false;
 
           setStatus(`Parser ${index + 1}...`);
@@ -313,23 +325,10 @@ export default function MobilViewer() {
 
           // Lagre IFC-data for egenskapssøk
           const fragModelId = (model as { modelId: string }).modelId;
-          ifcDataMap.set(fragModelId, ifcData);
+          raadata.sett(fragModelId, ifcData);
 
           // Skjul IfcSpace og IfcOpeningElement
-          try {
-            let mid: number = openModelIds.get(fragModelId) ?? -1;
-            if (mid === -1) {
-              mid = propsApi.OpenModel(ifcData) as number;
-              openModelIds.set(fragModelId, mid);
-            }
-            const hideApi = propsApi as unknown as { GetLineIDsWithType: (m: number, t: number) => { size: () => number; get: (i: number) => number } };
-            const skjulIds: number[] = [];
-            for (const ifcType of [WEBIFC.IFCSPACE, WEBIFC.IFCOPENINGELEMENT]) {
-              const lineIds = hideApi.GetLineIDsWithType(mid, ifcType);
-              for (let si = 0; si < lineIds.size(); si++) skjulIds.push(lineIds.get(si));
-            }
-            if (skjulIds.length > 0) await model.setVisible(skjulIds, false);
-          } catch { /* */ }
+          await skjulRomOgÅpninger(model, ifcData);
 
           // Eksporter fragment-buffer og send til app for caching
           try {
@@ -346,6 +345,14 @@ export default function MobilViewer() {
         modeller.set(index, model);
         synligeModeller.add(mf.modelId);
         totalBbox.union(mf.box);
+
+        // Cache-veien: hent råfila i bakgrunnen (ingen ny geometri-parsing) for
+        // objektinfo og skjuling av IfcSpace/IfcOpening. Visningen venter ikke på den.
+        if (fraCache) {
+          void raadata.hentIBakgrunn(mf.modelId, () => hentIfcRaadata(url, token)).then((data) => {
+            if (data && !renset) void skjulRomOgÅpninger(model, data);
+          });
+        }
 
         return fraCache;
       }
