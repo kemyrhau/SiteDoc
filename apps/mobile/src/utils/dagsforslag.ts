@@ -30,7 +30,6 @@
  */
 import {
   klassifiserReise,
-  klassifiserArbeidstid,
   velgOvertidLonnsart,
   carveArbeidstider,
   dagPauseMinForNyttArbeid,
@@ -63,6 +62,7 @@ import {
   type KjedeKort,
 } from "@sitedoc/shared";
 import { rundTidspunktTilNarmeste } from "./tidsrunding";
+import { klassifiserMotDognet } from "./overtidMotDognet";
 import type { NyKoOppforing } from "../providers/OpplastingsKoProvider";
 import { splittVedMidnatt, kappGlemtDagSlutt } from "./dagsegment";
 
@@ -259,6 +259,12 @@ export type DagsforslagEksisterendeSedel = {
      *  arbeidstimene som plasserer pausen (ORDRE 2026-11-14). */
     erReise?: boolean | null;
   }>;
+  /**
+   * ORDRE (27b), spec § 6 L1: timer som alt bruker av normen (alle kort, også
+   * overtid; ikke reise, ikke `erstattet`). Satt av manuell Bekreft dag
+   * (`forberedManuellDag`); udefinert = 0 (GPS-dagen til ordre a2).
+   */
+  bruktAvNorm?: number;
 };
 
 /** Én foreslått timer-rad (uten id/sedel — fylles av `anvendDagsforslag`). */
@@ -528,6 +534,12 @@ export type DagsforslagRettingDato = {
    * godtas — ellers faller valget tilbake til `velgOvertidLonnsart`.
    */
   overtidLonnsartId?: string;
+  /**
+   * ORDRE (27b) V5a: arbeideren har slått overtiden av med nivå-knappen — hele
+   * arbeidet føres som standardart. `overtidFra` står som minne, så et nytt
+   * trykk på et nivå legger overtiden tilbake der den var.
+   */
+  overtidAv?: boolean;
   /** POST (13) L2: overføringsrader arbeideren har fjernet for datoen. */
   fjernOverforing?: Array<"ut" | "retur">;
   /**
@@ -743,8 +755,38 @@ export function leggTilOvertidRetting(
   overtidValg: Array<{ id: string }>,
 ): DagsforslagRettingDato {
   const forste = overtidValg[0];
-  if (velgOvertidLonnsart(alleLonnsarter, OVERTID_NIVAA_50) || !forste) return { overtidFra: fra };
-  return { overtidFra: fra, overtidLonnsartId: forste.id };
+  if (velgOvertidLonnsart(alleLonnsarter, OVERTID_NIVAA_50) || !forste)
+    return { overtidFra: fra, overtidAv: false };
+  return { overtidFra: fra, overtidLonnsartId: forste.id, overtidAv: false };
+}
+
+/**
+ * ORDRE (27b) V5a (Kenneth 2026-11-16: «Hvorfor ikke bare trykke en gang til på
+ * blått felt, så blir feltet hvitt?»): rettingen et trykk på en nivå-knapp gir.
+ *
+ *  - Blå knapp (nivået kortet står på) → overtiden av; «Overtid fra» huskes.
+ *  - Hvit knapp mens overtiden er av → nivået velges og overtiden legges
+ *    tilbake fra forrige «Overtid fra», ellers arbeidsstart.
+ *  - Hvit knapp mens overtiden er på → bare nivået byttes (som før).
+ */
+export function vekslOvertidNivaa(args: {
+  trykketId: string;
+  /** Lønnsarten kortets første overtidsrad står på; null = ingen overtid. */
+  valgtId: string | null;
+  /** Første overtidsrads fra-tid (forslaget). */
+  forsteOtFra: string | null;
+  rettetOvertidFra: string | undefined;
+  arbeidFra: string;
+}): DagsforslagRettingDato {
+  if (args.valgtId !== null && args.trykketId === args.valgtId) {
+    return { overtidAv: true, overtidFra: args.forsteOtFra ?? args.rettetOvertidFra ?? args.arbeidFra };
+  }
+  if (args.valgtId !== null) return { overtidLonnsartId: args.trykketId };
+  return {
+    overtidAv: false,
+    overtidLonnsartId: args.trykketId,
+    overtidFra: args.rettetOvertidFra ?? args.arbeidFra,
+  };
 }
 
 /**
@@ -1261,6 +1303,7 @@ function beregnDagsforslagKjerne(input: BeregnDagsforslagInput): Dagsforslag {
       fjernArbeid: rettDato?.fjernArbeid === true,
       overtidFra: rettDato?.overtidFra ?? null,
       overtidLonnsartId: rettDato?.overtidLonnsartId ?? null,
+      overtidAv: rettDato?.overtidAv === true,
       utReise: segUt,
       returReise: segRetur,
       tidsrundingMinutter: regel?.tidsrundingMinutter ?? null,
@@ -1541,6 +1584,8 @@ function beregnSegment(a: {
   overtidFra: string | null;
   /** ORDRE 34 pkt 4: valgt overtid-lønnsart — null = `velgOvertidLonnsart`. */
   overtidLonnsartId: string | null;
+  /** ORDRE (27b) V5a: overtiden slått av — alt arbeid er normaltid. */
+  overtidAv?: boolean;
   /** Ut-reise (reisetid) på start-segmentet — forskyver arbeidsstart + egen rad. null ellers. */
   utReise: ReiseRadResolvert | null;
   /** Retur-reise (reisetid) på slutt-segmentet — forskyver arbeidsslutt + egen rad. null ellers. */
@@ -1623,7 +1668,9 @@ function beregnSegment(a: {
     const effektivDagsnorm = a.effektiv?.dagsnorm ?? 0;
     // V1: reisetid er ALDRI overtid. Normen er alltid `dagsnorm0` — det gamle
     // `reisetidTellerOvertid`-fradraget i terskelen er fjernet (flagget leses ikke).
-    const dagsnorm = effektivDagsnorm > 0 ? effektivDagsnorm : arbeidstimer;
+    // ORDRE (27b) L1–L3: normen er det som er IGJEN etter døgnets registrerte
+    // arbeid (`eksisterende.bruktAvNorm`). Ukjent norm og rest 0 er to ulike
+    // grener i `klassifiserMotDognet` — aldri «0 = ingen norm» for rest 0.
 
     // Carve fra ARBEIDSSTART (etter ut-etappen), ikke segment-GPS-start.
     // reisetidTimer=0: vinduet har alt ekskludert reisen (B2).
@@ -1642,7 +1689,9 @@ function beregnSegment(a: {
       reisetidTimer: 0,
       pauseFra,
       pauseMin: a.pauseMin,
-      segmenter: a.overtidFra
+      segmenter: a.overtidAv
+        ? [{ overtidsnivaa: null, timer: arbeidstimer }]
+        : a.overtidFra
         ? segmenterVedOvertidFra({
             arbeidstimer,
             arbeidsstartHHMM,
@@ -1650,7 +1699,11 @@ function beregnSegment(a: {
             pauseFra,
             pauseMin: a.pauseMin,
           })
-        : klassifiserArbeidstid({ arbeidstimer, dagsnorm }),
+        : klassifiserMotDognet({
+            arbeidstimer,
+            dagsnorm: effektivDagsnorm,
+            bruktAvNorm: eksisterende.bruktAvNorm ?? 0,
+          }),
     });
     const valgtOvertid = godtattOvertidLonnsart(a.alleLonnsarter, a.overtidLonnsartId);
     for (const [radIndeks, vindu] of carvet.entries()) {

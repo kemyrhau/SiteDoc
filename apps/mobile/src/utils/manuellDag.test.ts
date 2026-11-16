@@ -41,7 +41,7 @@ import * as schema from "../db/schema";
 import { kjorMigreringer } from "../db/migreringer";
 import { bekreftDag, forberedBekreftDag, prosjekterMedArbeid } from "./bekreftDag";
 import { manuellDag, lesManuellGrunnlag, forberedManuellDag } from "./manuellDag";
-import type { Dagsforslag } from "./dagsforslag";
+import { beregnDagsforslag, vekslOvertidNivaa, type Dagsforslag } from "./dagsforslag";
 import { entydigByggeplass, radTilleggNokkel, type BekreftDagTillegg, type TilleggPerRad } from "./bekreftDagTillegg";
 
 /** PRESISERING TILLEGG: linjene ligger på forslagets første arbeidsrad. */
@@ -189,7 +189,8 @@ describe("ORDRE 36c — manuellDag (ren)", () => {
   it("lesManuellGrunnlag: null uten sedel, tider + hodepause med", () => {
     expect(lesManuellGrunnlag(lokalDb(), BRUKER, DATO)).toBeNull();
     seedSedel();
-    expect(lesManuellGrunnlag(lokalDb(), BRUKER, DATO)).toEqual({ tilTider: ["15:00"], hodePauseMin: 30 });
+    // ORDRE (27b): også arbeid som alt bruker av normen (rad1 = 7,5 t).
+    expect(lesManuellGrunnlag(lokalDb(), BRUKER, DATO)).toEqual({ tilTider: ["15:00"], hodePauseMin: 30, bruktAvNorm: 7.5 });
   });
 });
 
@@ -580,5 +581,175 @@ describe("ORDRE 2026-11-13 — manuell kort dag (4 t) får ingen pause", () => {
     const r = rader();
     expect(r.map((x) => [x.fraTid, x.tilTid, x.timer, x.pauseMin])).toEqual([["08:00", "12:00", 4, 0]]);
     expect(sedler()[0]!.pauseMin).toBe(0);
+  });
+});
+
+// ORDRE 2026-11-16 (27b) — spec prosjektkort-kortid-spec.md § 6 L1–L4, L7 og
+// § 6.1 V5a, mot ekte SQLite. Norm 7,5 t fra svar-cachen.
+describe("ORDRE (27b) — manuelt kort regnes mot døgnets registreringer", () => {
+  const L_OT50 = "L-ot50";
+  const settNorm = () =>
+    db().insert(schema.arbeidstidSvarLocal).values({
+      organizationId: ORG, dato: DATO, dagsnorm: 7.5, startTid: "07:00", sluttTid: "15:00", pauseMin: 30,
+      normKilde: "fast", pauseEtterTimer: 5.5, pauseReferanse: "ankomst", hentetAt: Date.now(),
+    }).run();
+  const sedelMed = (rader: Array<{ id: string; timer: number; fra: string; til: string; lonnsart?: string; erReise?: boolean; pause?: number }>) => {
+    db().insert(dagsseddelLocal).values({
+      id: "sedel1", userId: BRUKER, organizationId: ORG, projectId: "p1", aktivitetId: "a1",
+      dato: DATO, status: "draft", pauseMin: 30, sistEndretLokalt: 1,
+    }).run();
+    for (const r of rader) {
+      db().insert(sheetTimerLocal).values({
+        id: r.id, dagsseddelId: "sedel1", projectId: "p1", lonnsartId: r.lonnsart ?? "L-normal", aktivitetId: "a1",
+        timer: r.timer, fraTid: r.fra, tilTid: r.til, pauseMin: r.pause ?? 0, erReise: r.erReise ?? false,
+        beskrivelse: "Graving", sistEndretLokalt: 1,
+      }).run();
+    }
+  };
+  /** Kenneths mandag 16.11: 07–15 Timelønn + 15–17 Overtid 50 %. */
+  const kennethsDag = () =>
+    sedelMed([
+      { id: "rad1", timer: 7.5, fra: "07:00", til: "15:00", pause: 30 },
+      { id: "rad2", timer: 2, fra: "15:00", til: "17:00", lonnsart: L_OT50 },
+    ]);
+  const forslagArbeid = (retting?: Parameters<typeof forberedManuellDag>[2]) =>
+    forberedManuellDag(lokalDb(), manuellKontekst(), retting).forslag.datoer[0]!.rader.filter((r) => !r.erReise);
+  const nivaa = (r: { lonnsartId: string }) => (r.lonnsartId === L_OT50 ? "OT50" : "normal");
+  const sum = (filter: (r: { lonnsartId: string; erReise: boolean | null }) => boolean) =>
+    Math.round(rader().filter((r) => !r.erReise && filter(r)).reduce((s, r) => s + r.timer, 0) * 100) / 100;
+
+  beforeEach(() => {
+    holder.raw.run("DELETE FROM arbeidstid_svar_local;");
+    db().insert(lonnsartLocal).values({
+      id: L_OT50, organizationId: ORG, type: "ordinaer", navn: "Overtid 50 %",
+      aktiv: true, overtidsnivaa: 50, rekkefolge: 1, sistOppdatert: 1,
+    }).run();
+  });
+
+  it("🔴 Kenneths dag: 17–18 og 18–19 (p2) blir Overtid 50 %; overtid 4,0, normal 7,5, sum 11,5", () => {
+    settNorm();
+    kennethsDag();
+    expect(lagreManuelt().handling.type).toBe("suksess");
+    expect(lagreManuelt({ prosjektId: "p2" }).handling.type).toBe("suksess");
+    const nye = rader().filter((r) => !["rad1", "rad2"].includes(r.id)).sort((a, b) => a.fraTid!.localeCompare(b.fraTid!));
+    expect(nye.map((r) => [r.projectId, r.fraTid, r.tilTid, r.timer, nivaa(r)])).toEqual([
+      ["p1", "17:00", "18:00", 1, "OT50"],
+      ["p2", "18:00", "19:00", 1, "OT50"],
+    ]);
+    expect(sum((r) => r.lonnsartId === L_OT50)).toBe(4);
+    expect(sum((r) => r.lonnsartId === "L-normal")).toBe(7.5);
+    expect(sum(() => true)).toBe(11.5);
+    // L5: eksisterende rader røres aldri.
+    expect(rader().filter((r) => ["rad1", "rad2"].includes(r.id)).map((r) => [r.id, r.timer, r.lonnsartId]))
+      .toEqual([["rad1", 7.5, "L-normal"], ["rad2", 2, L_OT50]]);
+  });
+
+  it("🔴 delvis brukt norm: 6 t registrert, kort 2,5 t → 1,5 normal + 1 overtid", () => {
+    settNorm();
+    sedelMed([{ id: "rad1", timer: 6, fra: "07:00", til: "13:30", pause: 30 }]);
+    const r = forslagArbeid({ perDato: { [DATO]: { arbeidFra: "13:30", arbeidTil: "16:00" } } });
+    expect(r.map((x) => [x.fraTid, x.tilTid, x.timer, nivaa(x)])).toEqual([
+      ["13:30", "15:00", 1.5, "normal"],
+      ["15:00", "16:00", 1, "OT50"],
+    ]);
+  });
+
+  it("🔴 delvis brukt norm, to kort: 1,5 t → normal, deretter 1 t → overtid", () => {
+    settNorm();
+    sedelMed([{ id: "rad1", timer: 6, fra: "07:00", til: "13:30", pause: 30 }]);
+    lagreManuelt({ perDato: { [DATO]: { arbeidFra: "13:30", arbeidTil: "15:00" } } });
+    lagreManuelt({ prosjektId: "p2", perDato: { [DATO]: { arbeidFra: "15:00", arbeidTil: "16:00" } } });
+    const nye = rader().filter((r) => r.id !== "rad1").sort((a, b) => a.fraTid!.localeCompare(b.fraTid!));
+    expect(nye.map((r) => [r.projectId, r.timer, nivaa(r)])).toEqual([["p1", 1.5, "normal"], ["p2", 1, "OT50"]]);
+  });
+
+  it("🔴 reise teller ikke mot normen", () => {
+    settNorm();
+    sedelMed([
+      { id: "reise1", timer: 2, fra: "05:00", til: "07:00", erReise: true },
+      { id: "rad1", timer: 6, fra: "07:00", til: "13:30", pause: 30 },
+    ]);
+    const r = forslagArbeid({ perDato: { [DATO]: { arbeidFra: "13:30", arbeidTil: "16:00" } } });
+    expect(r.map((x) => [x.timer, nivaa(x)])).toEqual([[1.5, "normal"], [1, "OT50"]]);
+  });
+
+  it("ingen registrert tid → som i dag (normen fra 0)", () => {
+    settNorm();
+    const r = forslagArbeid({ perDato: { [DATO]: { arbeidFra: "07:00", arbeidTil: "09:00" } } });
+    expect(r.map((x) => [x.timer, nivaa(x)])).toEqual([[2, "normal"]]);
+  });
+
+  it("🔴 ukjent norm → ingen splitt, markøren står (normStatus ukjent)", () => {
+    kennethsDag();
+    const { forslag } = forberedManuellDag(lokalDb(), manuellKontekst());
+    expect(forslag.normStatus).toBe("ukjent");
+    expect(forslag.datoer[0]!.rader.filter((r) => !r.erReise).map((x) => [x.timer, nivaa(x)])).toEqual([[1, "normal"]]);
+  });
+
+  it("🔴 L7 overstyring til ordinær: overtidAv → Timelønn", () => {
+    settNorm();
+    kennethsDag();
+    const r = forslagArbeid({ perDato: { [DATO]: { overtidAv: true } } });
+    expect(r.map((x) => [x.fraTid, x.tilTid, x.timer, nivaa(x)])).toEqual([["17:00", "18:00", 1, "normal"]]);
+  });
+
+  it("negativkontroll: uten brukt norm i forslaget (dagens kode) blir 17–18 Timelønn", () => {
+    settNorm();
+    kennethsDag();
+    const { input } = forberedManuellDag(lokalDb(), manuellKontekst());
+    expect(input.eksisterendeSedelPerDato[DATO]!.bruktAvNorm).toBe(9.5);
+    const utenBrukt = {
+      ...input,
+      eksisterendeSedelPerDato: { [DATO]: { ...input.eksisterendeSedelPerDato[DATO]!, bruktAvNorm: undefined } },
+    };
+    const r = beregnDagsforslag(utenBrukt).datoer[0]!.rader.filter((x) => !x.erReise);
+    expect(r.map((x) => [x.timer, nivaa(x)])).toEqual([[1, "normal"]]);
+  });
+});
+
+describe("ORDRE (27b) V5a — overtid av/på med samme knapp (Kenneths kort 19–20)", () => {
+  const L_OT50 = "L-ot50";
+  beforeEach(() => {
+    holder.raw.run("DELETE FROM arbeidstid_svar_local;");
+    db().insert(lonnsartLocal).values({
+      id: L_OT50, organizationId: ORG, type: "ordinaer", navn: "Overtid 50 %",
+      aktiv: true, overtidsnivaa: 50, rekkefolge: 1, sistOppdatert: 1,
+    }).run();
+    db().insert(schema.arbeidstidSvarLocal).values({
+      organizationId: ORG, dato: DATO, dagsnorm: 7.5, startTid: "07:00", sluttTid: "15:00", pauseMin: 30,
+      normKilde: "fast", pauseEtterTimer: 5.5, pauseReferanse: "ankomst", hentetAt: Date.now(),
+    }).run();
+    db().insert(dagsseddelLocal).values({
+      id: "sedel1", userId: BRUKER, organizationId: ORG, projectId: "p1", aktivitetId: "a1",
+      dato: DATO, status: "draft", pauseMin: 30, sistEndretLokalt: 1,
+    }).run();
+    db().insert(sheetTimerLocal).values([
+      { id: "rad1", dagsseddelId: "sedel1", projectId: "p1", lonnsartId: "L-normal", aktivitetId: "a1", timer: 7.5, fraTid: "07:00", tilTid: "15:00", pauseMin: 30, sistEndretLokalt: 1 },
+      { id: "rad2", dagsseddelId: "sedel1", projectId: "p1", lonnsartId: L_OT50, aktivitetId: "a1", timer: 4, fraTid: "15:00", tilTid: "19:00", pauseMin: 0, sistEndretLokalt: 1 },
+    ]).run();
+  });
+  const arbeid = (retting?: Parameters<typeof forberedManuellDag>[2]) =>
+    forberedManuellDag(lokalDb(), manuellKontekst(), retting).forslag.datoer[0]!.rader.filter((r) => !r.erReise);
+  const vis = (r: ReturnType<typeof arbeid>) => r.map((x) => [x.fraTid, x.tilTid, x.timer, x.lonnsartId]);
+
+  it("🔴 19–20 er Overtid 50 % fra 19:00; ett trykk på blå → 1 t Timelønn; trykk igjen → overtid tilbake", () => {
+    const foer = arbeid();
+    expect(vis(foer)).toEqual([["19:00", "20:00", 1, L_OT50]]);
+    const ot = foer[0]!;
+    // Trykk på blå knapp (nivået kortet står på).
+    const av = vekslOvertidNivaa({
+      trykketId: L_OT50, valgtId: ot.lonnsartId, forsteOtFra: ot.fraTid, rettetOvertidFra: undefined, arbeidFra: "19:00",
+    });
+    const etterAv = arbeid({ perDato: { [DATO]: av } });
+    expect(vis(etterAv)).toEqual([["19:00", "20:00", 1, "L-normal"]]);
+    // Trykk igjen (knappen er nå hvit — ingen overtidsrad).
+    const paa = vekslOvertidNivaa({
+      trykketId: L_OT50, valgtId: null, forsteOtFra: null, rettetOvertidFra: av.overtidFra, arbeidFra: "19:00",
+    });
+    expect(vis(arbeid({ perDato: { [DATO]: { ...av, ...paa } } }))).toEqual([["19:00", "20:00", 1, L_OT50]]);
+  });
+
+  it("negativkontroll: dagens trykk (bare nivå-id) fjerner ikke overtiden", () => {
+    expect(vis(arbeid({ perDato: { [DATO]: { overtidLonnsartId: L_OT50 } } }))).toEqual([["19:00", "20:00", 1, L_OT50]]);
   });
 });

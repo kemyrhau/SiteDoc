@@ -47,7 +47,9 @@ describe("radform — kildevakter", () => {
 
   it("radene bygges av raderForDag; ingen gammel prosjekt-oppsummering", () => {
     expect(OVERSIKT).toMatch(/raderForDag\(\{/);
-    expect(OVERSIKT).toContain("function radBoks(");
+    // ORDRE (27b): radboksen er erstattet av linja i prosjektkortet.
+    expect(OVERSIKT).toContain("function kortLinje(");
+    expect(OVERSIKT).toContain("function prosjektkort(");
     expect(OVERSIKT).not.toContain("linjer.overtid.map(");
   });
 

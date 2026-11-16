@@ -109,6 +109,7 @@ import {
   leggTilOvertidRetting,
   overtidEditorFra,
   stegOvertidFra,
+  vekslOvertidNivaa,
 } from "../../src/utils/dagsforslag";
 import type {
   DagsforslagRetting,
@@ -1369,6 +1370,7 @@ export default function BekreftDagSkjerm() {
                 overtidValg={overtidValg}
                 alleLonnsarter={input.alleLonnsarter}
                 rettetOvertidFra={retting.perDato?.[d.dato]?.overtidFra}
+                overtidAv={retting.perDato?.[d.dato]?.overtidAv === true}
                 rettetArbeidFra={retting.perDato?.[d.dato]?.arbeidFra}
                 rettetReiseTid={retting.perDato?.[d.dato]?.reiseTid ?? {}}
                 maaltAnkomst={maaltAnkomst(besok, d.dato)}
@@ -1730,6 +1732,7 @@ function DatoKort({
   overtidValg,
   alleLonnsarter,
   rettetOvertidFra,
+  overtidAv,
   rettetArbeidFra,
   rettetReiseTid,
   maaltAnkomst: maalt,
@@ -1745,6 +1748,8 @@ function DatoKort({
   overtidValg: Array<{ id: string; navn: string }>;
   alleLonnsarter: DagsforslagLonnsart[];
   rettetOvertidFra: string | undefined;
+  /** ORDRE (27b) V5a: overtiden er slått av med nivå-knappen. */
+  overtidAv: boolean;
   /** Ordre (17): arbeiderens rettede arbeidsstart (ankomst). */
   rettetArbeidFra: string | undefined;
   /** Ordre (17): rettede kjedekort pr. nøkkel — fast punkt i kjeden. */
@@ -1903,7 +1908,7 @@ function DatoKort({
           ) : null}
           {/* ORDRE 35 del B: ingen overtid ennå → start den fra arbeidsstart; samme motor
               (segmenterVedOvertidFra). Uten OT50 velges første nivå (leggTilOvertidRetting). */}
-          {!forsteOt && overtidValg.length > 0 ? (
+          {!forsteOt && overtidValg.length > 0 && !(redigerOvertid && overtidAv) ? (
             <Pressable
               onPress={() => {
                 onRett(leggTilOvertidRetting(fra, alleLonnsarter, overtidValg));
@@ -1920,6 +1925,8 @@ function DatoKort({
           ) : null}
           {redigerOvertid && otFra ? (
             <View className="gap-2 rounded-md border border-amber-200 bg-white p-2">
+              {/* ORDRE (27b) V5a: overtiden av → «Overtid fra» skjules, nivå-knappene står. */}
+              {!overtidAv ? (
               <View className="flex-row items-center justify-between">
                 <Text className="text-sm text-gray-700">{t("timer.bekreftDag.overtidFra")}</Text>
                 <View className="flex-row items-center gap-3">
@@ -1944,6 +1951,7 @@ function DatoKort({
                   </Pressable>
                 </View>
               </View>
+              ) : null}
               <Text className="text-sm text-gray-700">{t("timer.bekreftDag.overtidNivaa")}</Text>
               <View className="flex-row flex-wrap gap-2">
                 {overtidValg.map((l) => {
@@ -1951,7 +1959,19 @@ function DatoKort({
                   return (
                     <Pressable
                       key={l.id}
-                      onPress={() => onRett({ overtidLonnsartId: l.id })}
+                      // V5a: blå knapp av, hvit knapp på (fra forrige «Overtid fra», ellers arbeidsstart).
+                      onPress={() =>
+                        onRett(
+                          vekslOvertidNivaa({
+                            trykketId: l.id,
+                            valgtId: forsteOt?.lonnsartId ?? null,
+                            forsteOtFra: forsteOt?.fraTid ?? null,
+                            rettetOvertidFra,
+                            arbeidFra: fra,
+                          }),
+                        )
+                      }
+                      accessibilityState={{ selected: valgt }}
                       className={`rounded-full border px-3 py-1 ${valgt ? "border-blue-600 bg-blue-50" : "border-gray-300"}`}
                     >
                       <Text className={`text-xs ${valgt ? "font-semibold text-blue-700" : "text-gray-700"}`}>

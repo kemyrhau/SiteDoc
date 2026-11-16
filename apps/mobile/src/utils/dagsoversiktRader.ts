@@ -109,6 +109,61 @@ export function grupperPaaUnderprosjekt<
 }
 
 /**
+ * ORDRE 2026-11-16 (27b), timer.md § «Prosjektkort og dagskort — definisjon»:
+ * dagskortet består av prosjektkort, og radene står som LINJER i kortet sitt.
+ * Overtid er en linje i kortet, aldri et eget kort. Ett kort = én nøkkel
+ * (`kortNokkel` = prosjekt | effektiv byggeplass | underprosjekt i dag; kort-id
+ * i ordre b/c) — kalleren sier hvilket kort hver rad og linje hører til.
+ *
+ * - Kortene står i rekkefølgen til sin første linje (tidsrekkefølge); kort med
+ *   bare «Uten rad» kommer etter, i innkommende orden.
+ * - Linjene beholder tidsrekkefølgen fra `raderForDag`. Ingenting slås sammen.
+ * - Maskin/varer: radenes koblede linjer i linjerekkefølge, deretter «Uten rad»
+ *   for kortet linja selv hører til. Hver linje står ett sted.
+ * - Rad eller linje uten kort (ukjent nøkkel) vises ikke — som før, der
+ *   kalleren bare sendte rader med kort.
+ */
+export type RadformKort<T, M, V> = {
+  nokkel: string;
+  rader: RadformBoks<T, M, V>[];
+  utenRad: { maskin: M[]; varer: V[] };
+};
+
+export function grupperPaaKort<T extends RadformTimer, M extends RadformKoblet, V extends RadformKoblet>(
+  dag: RadformDag<T, M, V>,
+  kortAv: {
+    timer: (id: string) => string | undefined;
+    maskin: (id: string) => string | undefined;
+    vare: (id: string) => string | undefined;
+  },
+): RadformKort<T, M, V>[] {
+  const kort: RadformKort<T, M, V>[] = [];
+  const etterNokkel = new Map<string, RadformKort<T, M, V>>();
+  const hent = (nokkel: string) => {
+    let k = etterNokkel.get(nokkel);
+    if (!k) {
+      k = { nokkel, rader: [], utenRad: { maskin: [], varer: [] } };
+      etterNokkel.set(nokkel, k);
+      kort.push(k);
+    }
+    return k;
+  };
+  for (const boks of dag.rader) {
+    const n = kortAv.timer(boks.rad.id);
+    if (n !== undefined) hent(n).rader.push(boks);
+  }
+  for (const m of dag.utenRad.maskin) {
+    const n = kortAv.maskin(m.id);
+    if (n !== undefined) hent(n).utenRad.maskin.push(m);
+  }
+  for (const v of dag.utenRad.varer) {
+    const n = kortAv.vare(v.id);
+    if (n !== undefined) hent(n).utenRad.varer.push(v);
+  }
+  return kort;
+}
+
+/**
  * Første rad (i visningsrekkefølge) som mangler beskrivelse — Send sperres og
  * meldingen peker hit (beslutning 3). Reise krever ikke beskrivelse.
  */
