@@ -125,6 +125,18 @@ describe("ORDRE 34 — dagskortet er isolert fra Bekreft dag", () => {
     }
   });
 
+  it("🔴 TF10 / F6 (TILLEGG (33) pkt 4.2): dagskortet viser fravær uten prosjekt i egen gruppe, oppretter ikke", () => {
+    const flat = DAGSKORT.replace(/\s+/g, " ");
+    // Prosjektgruppene får bare rader med prosjekt; fraværsradene får lese-gruppa.
+    expect(flat).toContain("timerRader={prosjektTimerRader.filter((r) => (r.projectId ?? sedel.projectId) === pid)}");
+    expect(flat).toContain("delDagskortRader(timerRader)");
+    expect(flat).toContain('{fravaerTimerRader.length > 0 && (');
+    // «Opprette senere»: ingen fraværskort-modal og ingen «+ Fravær» i dagskort-modus.
+    expect(DAGSKORT).not.toContain("FravaerKortModal");
+    expect(DAGSKORT).not.toContain("fravaerKort.leggTil");
+    expect(DAGSKORT).not.toContain("lagreFravaerKort");
+  });
+
   it("prosjektkortets MaskinSeksjon har fortsatt mengde (pkt 1b alt. 1 — kun fjernet i Bekreft dag)", () => {
     expect(MASKIN).toContain("mengde");
   });
@@ -197,8 +209,11 @@ describe("ORDRE 37 — varesøket over tastaturet", () => {
 // vilje: regenerer hashen med `jsxTagger` og begrunn det i commit-meldingen.
 // 2026-11-14: + `BekreftSendUtenPauseModal` foran `MiniToast` (ORDRE spørsmål
 // ved innsending av dag over 5,5 t uten pause — dagskortets egen send-vei).
+// 2026-11-16 TILLEGG (33) pkt 4.2 (F6, Kenneth: «vise nå, opprette senere»):
+// + `View Text Text Text` etter prosjektgruppene — lese-gruppa «Fravær» for rader
+// uten prosjekt (før: de falt på sedelens prosjekt). Ingen annen tagg er endret.
 const DAGSKORT_TAGG_HASH =
-  "c895640790e9aa53d4e092d7c6dad80906830d2dcf9c6c755d8fd2cf315d3892";
+  "93ce2b3d25110b2caeead7b8355023f0f255ea74559f485b7ad12e03a2c089f9";
 
 function jsxTagger(kilde: string): string {
   const uten = kilde.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");

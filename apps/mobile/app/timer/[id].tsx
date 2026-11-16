@@ -82,7 +82,9 @@ import {
 import {
   hentStandardLonnsartLokalt,
   harOvertidLonnsartLokalt,
+  finnLonnsartLokalt,
 } from "../../src/services/timerKatalog";
+import { dagskortStandardProsjekt, delDagskortRader } from "../../src/utils/dagskortFravaer";
 import { harMaskinforerbevisLokalt } from "../../src/services/maskinKatalog";
 import { formatNorskDato, formatTidspunkt, isoTidspunktTilHHMM } from "../../src/utils/dato";
 import { kanGjenaapneDagsseddel } from "../../src/utils/gjenaapne-tilgang";
@@ -181,7 +183,7 @@ function raaTilForsonRad(r: RaaRad): DeltForsonRad {
 
 export default function DagsseddelDetalj() {
   const router = useRouter();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const params = useLocalSearchParams<{
     id: string;
     aapnetEksisterende?: string;
@@ -577,7 +579,8 @@ export default function DagsseddelDetalj() {
   // tilføyde ekstra-grupper.
   const aktiveProsjektIder = useMemo(() => {
     if (!sedel) return [];
-    const ider = new Set<string>([sedel.projectId]);
+    // F6 (TILLEGG (33) pkt 4.2): sedel uten prosjekt (fraværskortet) får ingen tom prosjektgruppe.
+    const ider = new Set<string>(dagskortStandardProsjekt(sedel.projectId));
     for (const r of timerRader) if (r.projectId) ider.add(r.projectId);
     for (const r of tilleggRader) if (r.projectId) ider.add(r.projectId);
     for (const r of maskinRader) if (r.projectId) ider.add(r.projectId);
@@ -589,6 +592,12 @@ export default function DagsseddelDetalj() {
   // Prosjektkort L2 (spec § 9): firmaets modus fra lokal cache (fornyes ved synk).
   // Offline uten cache → «dagskort» (lesTimerModus-default). Dagskort-grenen under
   // er uendret; kortmodus bytter kun ut sedel-boks/arbeidstid/grupper/send.
+  // F6: rader uten prosjekt vises i gruppen «Fravær», ikke på sedelens prosjekt.
+  const { prosjektRader: prosjektTimerRader, fravaerRader: fravaerTimerRader } = useMemo(
+    () => delDagskortRader(timerRader),
+    [timerRader],
+  );
+
   const kortModus = useMemo(
     () =>
       sedel ? lesTimerModusLokalt(sedel.organizationId) === "prosjektkort" : false,
@@ -1286,7 +1295,7 @@ export default function DagsseddelDetalj() {
             redigerbar={erRedigerbar}
             onPauseToggle={handterPauseToggle}
             dagsnormTimer={normTimer}
-            timerRader={timerRader.filter((r) => (r.projectId ?? sedel.projectId) === pid)}
+            timerRader={prosjektTimerRader.filter((r) => (r.projectId ?? sedel.projectId) === pid)}
             alleTimerRader={timerRader}
             tilleggRader={tilleggRader.filter((r) => (r.projectId ?? sedel.projectId) === pid)}
             maskinRader={maskinRader.filter((r) => (r.projectId ?? sedel.projectId) === pid)}
@@ -1295,6 +1304,26 @@ export default function DagsseddelDetalj() {
             onEndret={markerEndretOgLes}
           />
         ))}
+
+        {/* F6 (TILLEGG (33) pkt 4.2): fravær uten prosjekt vises, oppretting kommer senere. */}
+        {fravaerTimerRader.length > 0 && (
+          <View className="mx-4 mt-4 rounded-lg border border-gray-200 bg-white px-4 py-3">
+            <Text className="text-base font-semibold text-gray-900">{t("timer.fravaerKort.tittel")}</Text>
+            {fravaerTimerRader.map((r) => (
+              <Text key={r.id} className="py-1 text-sm text-gray-700" style={{ fontVariant: ["tabular-nums"] }}>
+                {t("timer.fravaerKort.linje", {
+                  timer: Number(r.timer).toLocaleString(i18n.language, { maximumFractionDigits: 2 }),
+                  art: finnLonnsartLokalt(r.lonnsartId)?.navn ?? "",
+                })}
+              </Text>
+            ))}
+            {fravaerTimerRader.find((r) => r.beskrivelse)?.beskrivelse ? (
+              <Text className="py-1 text-sm text-gray-900">
+                {fravaerTimerRader.find((r) => r.beskrivelse)?.beskrivelse}
+              </Text>
+            ) : null}
+          </View>
+        )}
 
         {erRedigerbar && (
           <Pressable
