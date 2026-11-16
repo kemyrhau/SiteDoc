@@ -197,9 +197,10 @@ export {
   OVERTID_NIVAA_50,
   OVERTID_NIVAA_100,
   klassifiserArbeidstid,
+  bruktAvNorm,
   velgOvertidLonnsart,
 } from "./lonnsregel";
-export type { ArbeidstidSegment, OvertidLonnsartKandidat } from "./lonnsregel";
+export type { ArbeidstidSegment, DognRad, OvertidLonnsartKandidat } from "./lonnsregel";
 export { foreslaOvertidSplitt } from "./overtidForslag";
 export type {
   OvertidForslagRad,

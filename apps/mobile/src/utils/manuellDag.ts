@@ -1,11 +1,8 @@
 import { and, eq } from "drizzle-orm";
 import { hhmmTilMin } from "@sitedoc/shared";
-import { dagsseddelLocal, lonnsartLocal, sheetTimerLocal } from "../db/schema";
+import { dagsseddelLocal, sheetTimerLocal } from "../db/schema";
 import { samleDagsforslagInput, type LokalDb } from "../services/dagsforslagInput";
 import { hentArbeidsdagTiderLokalt } from "../services/kalenderKatalog";
-import { hentReiseLonnsartId } from "../services/timerKatalog";
-import { erReiseRadVisning } from "./reiseRad";
-import { bruktAvNorm } from "./overtidMotDognet";
 import {
   beregnDagsforslag,
   type BeregnDagsforslagInput,
@@ -30,8 +27,6 @@ import {
 export type ManuellGrunnlag = {
   tilTider: (string | null)[];
   hodePauseMin: number;
-  /** ORDRE (27b) L1: arbeid som alt står på datoen (alle kort, også overtid; ikke reise, ikke fravær — B8). */
-  bruktAvNorm: number;
 };
 
 const tilHhmm = (min: number) =>
@@ -58,16 +53,15 @@ export function manuellDag(
 }
 
 /**
- * LES: datoens sedel (pause i hodet + radenes sluttider + arbeid som bruker av
- * normen), null = ingen sedel. `reiseLonnsartId` avgjør reise for eldre rader
- * uten `erReise`-flagg (samme regel som dagsoversikten, `erReiseRadVisning`).
- * `erstattet`-rader finnes ikke lokalt (pull filtrerer dem bort på server).
+ * LES: datoens sedel (pause i hodet + radenes sluttider), null = ingen sedel.
+ * Normgrunnlaget (`bruktAvNorm`, spec § 6 L1) leses ikke her: ORDRE (29) a2
+ * flyttet det til `lesEksisterendeSedel` (`services/dagsforslagInput.ts`), som
+ * GPS-dagen og manuelt kort deler (L4).
  */
 export function lesManuellGrunnlag(
   db: LokalDb,
   userId: string,
   dato: string,
-  reiseLonnsartId: string | null = null,
 ): ManuellGrunnlag | null {
   const sedel = db
     .select({ id: dagsseddelLocal.id, pauseMin: dagsseddelLocal.pauseMin })
@@ -76,35 +70,13 @@ export function lesManuellGrunnlag(
     .all()[0];
   if (!sedel) return null;
   const rader = db
-    .select({
-      tilTid: sheetTimerLocal.tilTid,
-      timer: sheetTimerLocal.timer,
-      erReise: sheetTimerLocal.erReise,
-      lonnsartId: sheetTimerLocal.lonnsartId,
-    })
+    .select({ tilTid: sheetTimerLocal.tilTid })
     .from(sheetTimerLocal)
     .where(eq(sheetTimerLocal.dagsseddelId, sedel.id))
     .all();
-  // ORDRE (28) B8: fravær bruker ikke normen. Lønnsart-id er global, så typen
-  // slås opp uten firmafilter.
-  const fravaerIder = new Set(
-    db
-      .select({ id: lonnsartLocal.id })
-      .from(lonnsartLocal)
-      .where(eq(lonnsartLocal.type, "fravaer"))
-      .all()
-      .map((l) => l.id),
-  );
   return {
     tilTider: rader.map((r) => r.tilTid),
     hodePauseMin: sedel.pauseMin ?? 0,
-    bruktAvNorm: bruktAvNorm(
-      rader.map((r) => ({
-        timer: r.timer,
-        erReise: erReiseRadVisning(r.erReise, r.lonnsartId, reiseLonnsartId),
-        erFravaer: r.lonnsartId != null && fravaerIder.has(r.lonnsartId),
-      })),
-    ),
   };
 }
 
@@ -127,7 +99,7 @@ export function forberedManuellDag(
   retting?: DagsforslagRetting,
 ): { input: BeregnDagsforslagInput; forslag: Dagsforslag; sluttIso: string } {
   const tider = hentArbeidsdagTiderLokalt(p.orgId, new Date(`${p.dato}T00:00:00`));
-  const grunnlag = lesManuellGrunnlag(db, p.userId, p.dato, hentReiseLonnsartId(p.orgId));
+  const grunnlag = lesManuellGrunnlag(db, p.userId, p.dato);
   const md = manuellDag(p.dato, tider, grunnlag);
   const lest = samleDagsforslagInput(db, {
     userId: p.userId,
@@ -145,18 +117,9 @@ export function forberedManuellDag(
   const medPause: BeregnDagsforslagInput = dagEff
     ? { ...lest, effektivPerDato: { ...lest.effektivPerDato, [p.dato]: { ...dagEff, pauseMin: md.pauseMin } } }
     : lest;
-  // ORDRE (27b) L1–L2: kortet regnes mot det som er igjen av normen etter
-  // døgnets registrerte arbeid (`klassifiserMotDognet` i `beregnSegment`).
-  const eks = medPause.eksisterendeSedelPerDato[p.dato];
-  const input: BeregnDagsforslagInput =
-    eks && grunnlag
-      ? {
-          ...medPause,
-          eksisterendeSedelPerDato: {
-            ...medPause.eksisterendeSedelPerDato,
-            [p.dato]: { ...eks, bruktAvNorm: grunnlag.bruktAvNorm },
-          },
-        }
-      : medPause;
+  // ORDRE (27b) L1–L2 / (29) a2: kortet regnes mot det som er igjen av normen
+  // etter døgnets registrerte arbeid — `eksisterendeSedelPerDato[dato].bruktAvNorm`
+  // fra `samleDagsforslagInput`, samme lesning som GPS-dagen.
+  const input = medPause;
   return { input, forslag: beregnDagsforslag({ ...input, retting }), sluttIso: md.sluttIso };
 }

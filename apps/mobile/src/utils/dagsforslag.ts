@@ -58,11 +58,11 @@ import {
   byggOverforingOppslag,
   type DagsforslagOverforingOppslag,
   OVERTID_NIVAA_50,
+  klassifiserArbeidstid,
   sekvenserReisekjede,
   type KjedeKort,
 } from "@sitedoc/shared";
 import { rundTidspunktTilNarmeste } from "./tidsrunding";
-import { klassifiserMotDognet } from "./overtidMotDognet";
 import type { NyKoOppforing } from "../providers/OpplastingsKoProvider";
 import { splittVedMidnatt, kappGlemtDagSlutt } from "./dagsegment";
 
@@ -261,8 +261,9 @@ export type DagsforslagEksisterendeSedel = {
   }>;
   /**
    * ORDRE (27b), spec § 6 L1: timer som alt bruker av normen (alle kort, også
-   * overtid; ikke reise, ikke `erstattet`). Satt av manuell Bekreft dag
-   * (`forberedManuellDag`); udefinert = 0 (GPS-dagen til ordre a2).
+   * overtid; ikke reise, ikke `erstattet`, ikke fravær — B8). Satt av
+   * `lesEksisterendeSedel` (`services/dagsforslagInput.ts`) for GPS-dagen og
+   * manuelt kort (ORDRE (29) a2, L4); udefinert = 0.
    */
   bruktAvNorm?: number;
 };
@@ -1760,8 +1761,9 @@ function beregnSegment(a: {
     // V1: reisetid er ALDRI overtid. Normen er alltid `dagsnorm0` — det gamle
     // `reisetidTellerOvertid`-fradraget i terskelen er fjernet (flagget leses ikke).
     // ORDRE (27b) L1–L3: normen er det som er IGJEN etter døgnets registrerte
-    // arbeid (`eksisterende.bruktAvNorm`). Ukjent norm og rest 0 er to ulike
-    // grener i `klassifiserMotDognet` — aldri «0 = ingen norm» for rest 0.
+    // arbeid (`eksisterende.bruktAvNorm`, ORDRE (29) a2: regelen bor i
+    // `klassifiserArbeidstid`). Ukjent norm og rest 0 er to ulike grener der —
+    // aldri «0 = ingen norm» for rest 0.
 
     // Carve fra ARBEIDSSTART (etter ut-etappen), ikke segment-GPS-start.
     // reisetidTimer=0: vinduet har alt ekskludert reisen (B2).
@@ -1785,7 +1787,7 @@ function beregnSegment(a: {
           pauseFra,
           pauseMin: a.pauseMin,
         })
-      : klassifiserMotDognet({
+      : klassifiserArbeidstid({
           arbeidstimer,
           dagsnorm: effektivDagsnorm,
           bruktAvNorm: eksisterende.bruktAvNorm ?? 0,
@@ -1871,7 +1873,7 @@ function beregnSegment(a: {
           ? []
           : a.overtidAv
           ? [{ overtidsnivaa: null, timer: rest }]
-          : klassifiserMotDognet({
+          : klassifiserArbeidstid({
               arbeidstimer: rest,
               dagsnorm: effektivDagsnorm,
               bruktAvNorm: eksisterende.bruktAvNorm ?? 0,
