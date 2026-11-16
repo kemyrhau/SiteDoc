@@ -29,6 +29,12 @@ export interface OvertidRad {
    * kunne la en reise-rad telle som arbeid. Begge serverkallerne setter den.
    */
   erReise: boolean;
+  /**
+   * Kort-id-spec § 11.10.4 F-F1: fravær (lønnsart-type `fravaer`, med og uten tak) er
+   * ikke arbeid — holdes utenfor arbeidstimer, sumOrdinaert, sumOvertid og beregnet
+   * overtid, og summeres i `fravaerTimer`. Påkrevd, som `erReise`.
+   */
+  erFravaer: boolean;
 }
 
 export interface Overtidsgrunnlag {
@@ -40,6 +46,14 @@ export interface Overtidsgrunnlag {
   arbeidstimer: number;
   /** LAG 2 / V1: timer på reise-rader — holdt UTENFOR overtidsfordelingen. */
   reisetimer: number;
+  /** F-F1: timer på fraværsrader — holdt UTENFOR overtidsfordelingen. */
+  fravaerTimer: number;
+  /**
+   * F-F1 uke-nivå: timene raden(e) teller med i en ukesum — totaltimer der fravær bare
+   * fyller normen, aldri mer: totaltimer − fravær + min(fravær, max(0, norm − arbeid)).
+   * Meningsfull på dag-nivå (norm = dagsnorm); ukesbadgen summerer den.
+   */
+  ukeTimer: number;
   /** Valgt: timer ført på ikke-reise-rader UTEN overtidsnivaa. */
   sumOrdinaert: number;
   /** Valgt: timer ført på ikke-reise-rader MED overtidsnivaa (bruker-tagget overtid). */
@@ -62,11 +76,15 @@ export function beregnOvertidsgrunnlag(
 ): Overtidsgrunnlag {
   // V1: reise-rader holdes HELT utenfor overtidsgrunnlaget. De teller i reisetimer
   // (for visning), men aldri i arbeidstimer, sumOvertid eller klassifiseringen.
-  const arbeidRader = rader.filter((r) => !r.erReise);
+  // F-F1: fravær (ikke reise) likeså — summeres i fravaerTimer.
+  const arbeidRader = rader.filter((r) => !r.erReise && !r.erFravaer);
   const reiseRader = rader.filter((r) => r.erReise);
+  const fravaerRader = rader.filter((r) => !r.erReise && r.erFravaer);
   const arbeidstimer = round2(arbeidRader.reduce((s, r) => s + r.timer, 0));
   const reisetimer = round2(reiseRader.reduce((s, r) => s + r.timer, 0));
-  const totaltimer = round2(arbeidstimer + reisetimer);
+  const fravaerTimer = round2(fravaerRader.reduce((s, r) => s + r.timer, 0));
+  const totaltimer = round2(arbeidstimer + reisetimer + fravaerTimer);
+  const ukeTimer = round2(totaltimer - fravaerTimer + fravaerINorm(fravaerTimer, arbeidstimer, norm));
   const sumOvertid = round2(
     arbeidRader
       .filter((r) => r.overtidsnivaa !== null)
@@ -83,10 +101,58 @@ export function beregnOvertidsgrunnlag(
     totaltimer,
     arbeidstimer,
     reisetimer,
+    fravaerTimer,
+    ukeTimer,
     sumOrdinaert,
     sumOvertid,
     beregnetOvertid,
     avvik,
+  };
+}
+
+/** Fraværet som fyller normen: min(fravær, max(0, norm − arbeid)). Ukjent norm → 0. */
+function fravaerINorm(fravaer: number, arbeid: number, norm: number): number {
+  if (!(norm > 0)) return 0;
+  return round2(Math.min(fravaer, Math.max(0, norm - arbeid)));
+}
+
+/**
+ * F-F1 uke-nivå (§ 11.10.4): fravær kan ikke bare strykes fra ukegrunnlaget — da gir en
+ * uke med én egenmeldingsdag og ført overtid de andre dagene et falskt avvik. Hver dag
+ * teller `arbeid + min(fravær, max(0, dagsnorm − arbeid))`, med og uten tak likt.
+ * `arbeidstimer` er rent arbeid; klassifiseringen går på arbeid + fravær i normen.
+ */
+export function beregnUkeOvertidsgrunnlag(
+  dager: readonly { dagsnorm: number; rader: readonly OvertidRad[] }[],
+  ukenorm: number,
+): Overtidsgrunnlag {
+  const perDag = dager.map((d) => beregnOvertidsgrunnlag([...d.rader], d.dagsnorm));
+  const sum = (f: (g: Overtidsgrunnlag) => number) => round2(perDag.reduce((a, g) => a + f(g), 0));
+  const arbeidstimer = sum((g) => g.arbeidstimer);
+  const reisetimer = sum((g) => g.reisetimer);
+  const fravaerTimer = sum((g) => g.fravaerTimer);
+  const iNorm = round2(
+    perDag.reduce((a, g) => a + fravaerINorm(g.fravaerTimer, g.arbeidstimer, g.norm), 0),
+  );
+  const sumOvertid = sum((g) => g.sumOvertid);
+  const sumOrdinaert = round2(arbeidstimer - sumOvertid);
+  const beregnetOvertid = round2(
+    klassifiserArbeidstid({ arbeidstimer: round2(arbeidstimer + iNorm), dagsnorm: ukenorm })
+      .filter((s) => s.overtidsnivaa !== null)
+      .reduce((a, s) => a + s.timer, 0),
+  );
+  const totaltimer = round2(arbeidstimer + reisetimer + fravaerTimer);
+  return {
+    norm: ukenorm,
+    totaltimer,
+    arbeidstimer,
+    reisetimer,
+    fravaerTimer,
+    ukeTimer: round2(totaltimer - fravaerTimer + iNorm),
+    sumOrdinaert,
+    sumOvertid,
+    beregnetOvertid,
+    avvik: Math.abs(beregnetOvertid - sumOvertid) > 0.01,
   };
 }
 
@@ -125,11 +191,17 @@ export function lesOvertidsgrunnlagFraSnapshot(
   // totaltimer, reisetimer = 0 (ærlig gjengivelse av det som faktisk ble attestert).
   const arbeidstimer = num(g.arbeidstimer);
   const reisetimer = num(g.reisetimer);
+  // F-F1: fravaerTimer kom til i b. Eldre snapshots telte fravær som arbeid → 0 er
+  // det som faktisk ble attestert; ukeTimer = totaltimer av samme grunn.
+  const fravaerTimer = num(g.fravaerTimer);
+  const ukeTimer = num(g.ukeTimer);
   return {
     norm,
     totaltimer,
     arbeidstimer: arbeidstimer ?? totaltimer,
     reisetimer: reisetimer ?? 0,
+    fravaerTimer: fravaerTimer ?? 0,
+    ukeTimer: ukeTimer ?? totaltimer,
     sumOrdinaert,
     sumOvertid,
     beregnetOvertid,
@@ -153,6 +225,11 @@ export function lesOvertidsgrunnlagFraSnapshot(
 /** Én sedel redusert til det uke-avviket trenger (dag-grunnlag + ukenorm). */
 export interface UkeSedelInput {
   totaltimer: number;
+  /**
+   * F-F1: dagens timer der fravær bare fyller normen (`Overtidsgrunnlag.ukeTimer`).
+   * Valgfri — uten den brukes totaltimer som før (kaller som ikke er oppdatert).
+   */
+  ukeTimer?: number;
   /** Ukenormen sedelens uke måles mot (fra beregnUkenorm, servert per sedel). */
   ukenorm: number;
   /** Ført (valgt) overtid denne sedelen — dag-grunnlagets sumOvertid. */
@@ -180,7 +257,7 @@ export interface UkeAvvik {
  */
 export function beregnUkeAvvik(sedler: UkeSedelInput[]): UkeAvvik {
   const norm = sedler[0]?.ukenorm ?? 0;
-  const ukesum = round2(sedler.reduce((a, s) => a + s.totaltimer, 0));
+  const ukesum = round2(sedler.reduce((a, s) => a + (s.ukeTimer ?? s.totaltimer), 0));
   const sumOvertid = round2(sedler.reduce((a, s) => a + s.sumOvertid, 0));
   const sumOrdinaert = round2(ukesum - sumOvertid);
   const beregnetOvertid = round2(

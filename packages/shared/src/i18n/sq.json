@@ -5689,5 +5689,16 @@
   "timer.bekreftDag.fravaerTil": "Mungesa deri në",
   "timer.bekreftDag.lonnsartGruppe.ordinaer": "E zakonshme",
   "timer.bekreftDag.lonnsartGruppe.overtid": "Jashtë orarit",
-  "timer.bekreftDag.lonnsartGruppe.fravaer": "Mungesa"
+  "timer.bekreftDag.lonnsartGruppe.fravaer": "Mungesa",
+  "firma.timer.normtak.medTak": "me kapak",
+  "firma.timer.normtak.utenTak": "jo i mbuluar",
+  "firma.timer.felt.fravaerNormtak": "Mungesa mund të plotësojë maksimumi pjesën tjetër të normës ditore",
+  "firma.timer.felt.fravaerNormtakHint": "Aktivizoni për mungesë punëdhënësi paguan në vend të punës: pushim mjekësor të vetë-certifikuar, pushim mjekësor dhe sëmundje të fëmijës. Pa të - për shembull pushimet dhe punët personale - mungesa regjistrohet plotësisht dhe puna në të njëjtën ditë vjen si shtesë.",
+  "firma.timer.normtak.hjelpTittel": "Mungesa e kufizuar",
+  "firma.timer.normtak.hjelpTekst": "Mungesa e kufizuar mund të plotësojë më së shumti atë që ka mbetur nga norma ditore pas punës dhe mungesa të tjera në të njëjtën ditë. Shembull me një normë 7,5 orësh: 2 orë punë lejon më së shumti 5,5 orë pushim mjekësor të vetë-certifikuar. Mungesa pa kapak - pushime dhe punë personale - regjistrohet plotësisht. Një ditë mbi kapak nuk mund të miratohet derisa mungesa të korrigjohet; miratuesi kthen fletën ose korrigjon orët.",
+  "timer.normtak.leddArt": "{{art}} {{timer}} h",
+  "timer.normtak.leddArbeid": "punë {{timer}} h",
+  "timer.normtak.leddAnnet": "mungesë tjetër {{timer}} h",
+  "timer.normtak.brudd": "{{ledd}} = {{sum}} h - mbi normën ditore prej {{norm}} h",
+  "timer.normtak.attesterSperret": "Data nuk mund të miratohet derisa mungesa të korrigjohet. Kthejeni fletën ose korrigjoni orët."
 }

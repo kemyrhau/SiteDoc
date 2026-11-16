@@ -57,6 +57,8 @@ export const lonnsartRouter = router({
           .union([z.literal(50), z.literal(100)])
           .nullable()
           .optional(),
+        // B10 (§ 11.10.2): fravær med tak. Uten feltet → true (standard i skjemaet).
+        fravaerNormtak: z.boolean().optional(),
         organizationId: z.string().uuid(),
       }),
     )
@@ -80,6 +82,7 @@ export const lonnsartRouter = router({
             rekkefolge: input.rekkefolge ?? 0,
             overtidsnivaa:
               input.type === "ordinaer" ? input.overtidsnivaa ?? null : null,
+            fravaerNormtak: input.fravaerNormtak ?? true,
             // seedNivaa = null → egendefinert (Nivå 3)
           },
         });
@@ -116,6 +119,8 @@ export const lonnsartRouter = router({
           .union([z.literal(50), z.literal(100)])
           .nullable()
           .optional(),
+        // B10 (§ 11.10.2): virker framover fra neste katalogsynk; attesterte rader røres ikke.
+        fravaerNormtak: z.boolean().optional(),
         organizationId: z.string().uuid(),
       }),
     )
@@ -160,6 +165,7 @@ export const lonnsartRouter = router({
       if (input.tvungenKommentar !== undefined) data.tvungenKommentar = input.tvungenKommentar;
       if (input.rekkefolge !== undefined) data.rekkefolge = input.rekkefolge;
       if (input.aktiv !== undefined) data.aktiv = input.aktiv;
+      if (input.fravaerNormtak !== undefined) data.fravaerNormtak = input.fravaerNormtak;
       // Overtid-nivå gir kun mening for ordinær tid — null hvis effektiv type
       // ikke er ordinaer (defense-in-depth; klienten sender allerede null da).
       // Rører feltet KUN når det er eksplisitt sendt (unngår utilsiktet nulling).

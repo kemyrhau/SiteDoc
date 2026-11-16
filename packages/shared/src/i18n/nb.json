@@ -5689,5 +5689,16 @@
   "timer.bekreftDag.fravaerTil": "Fravær til",
   "timer.bekreftDag.lonnsartGruppe.ordinaer": "Ordinær",
   "timer.bekreftDag.lonnsartGruppe.overtid": "Overtid",
-  "timer.bekreftDag.lonnsartGruppe.fravaer": "Fravær"
+  "timer.bekreftDag.lonnsartGruppe.fravaer": "Fravær",
+  "firma.timer.normtak.medTak": "med tak",
+  "firma.timer.normtak.utenTak": "uten tak",
+  "firma.timer.felt.fravaerNormtak": "Fraværet kan høyst fylle resten av dagsnormen",
+  "firma.timer.felt.fravaerNormtakHint": "Slå på for fravær arbeidsgiver betaler i stedet for arbeid: egenmelding, sykemelding og barns sykdom. Uten avkrysning — for eksempel ferie og privat ærend — føres fraværet fullt, og arbeid samme dag kommer i tillegg.",
+  "firma.timer.normtak.hjelpTittel": "Fravær med tak",
+  "firma.timer.normtak.hjelpTekst": "Fravær med tak kan høyst fylle det som er igjen av dagsnormen etter arbeid og annet fravær samme dag. Eksempel med norm 7,5 t: 2 t arbeid gir høyst 5,5 t egenmelding. Fravær uten tak — ferie og privat ærend — føres fullt. En dag over taket kan ikke attesteres før fraværet er rettet; attestanten returnerer sedelen eller retter timene.",
+  "timer.normtak.leddArt": "{{art}} {{timer}} t",
+  "timer.normtak.leddArbeid": "arbeid {{timer}} t",
+  "timer.normtak.leddAnnet": "annet fravær {{timer}} t",
+  "timer.normtak.brudd": "{{ledd}} = {{sum}} t — over dagsnormen {{norm}} t",
+  "timer.normtak.attesterSperret": "Datoen kan ikke attesteres før fraværet er rettet. Returner sedelen, eller rett timene."
 }

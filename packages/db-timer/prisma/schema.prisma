@@ -41,6 +41,9 @@ model Lonnsart {
   // 50 = 50 %; 100 = 100 %. Erstatter fritekst-navne-match i mobil auto-gen.
   // Regelen som bruker feltet er isolert i @sitedoc/shared lonnsregel.ts.
   overtidsnivaa    Int?     @map("overtidsnivaa")
+  /// Kort-id-spec § 11.10.2 (B10): leses bare når type = "fravaer". true = fravær med tak (kan høyst
+  /// fylle resten av dagsnormen), false = fravær uten tak. Én leser: harNormtak i @sitedoc/shared.
+  fravaerNormtak   Boolean  @default(true) @map("fravaer_normtak")
   seedNivaa        Int?     @map("seed_nivaa") // 1, 2 eller null (3 = egendefinert)
   createdAt        DateTime @default(now()) @map("created_at")
   updatedAt        DateTime @updatedAt @map("updated_at")

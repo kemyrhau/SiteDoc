@@ -5689,5 +5689,16 @@
   "timer.bekreftDag.fravaerTil": "Abwesenheit bis",
   "timer.bekreftDag.lonnsartGruppe.ordinaer": "Normal",
   "timer.bekreftDag.lonnsartGruppe.overtid": "Im Laufe der Zeit",
-  "timer.bekreftDag.lonnsartGruppe.fravaer": "Abwesenheit"
+  "timer.bekreftDag.lonnsartGruppe.fravaer": "Abwesenheit",
+  "firma.timer.normtak.medTak": "gedeckelt",
+  "firma.timer.normtak.utenTak": "nicht gedeckelt",
+  "firma.timer.felt.fravaerNormtak": "Abwesenheit kann höchstens den Rest des Tagesbedarfs decken",
+  "firma.timer.felt.fravaerNormtakHint": "Aktivieren Sie bei Abwesenheit, die der Arbeitgeber anstelle der Arbeit bezahlt: selbstbescheinigter Krankenstand, Krankenstand und Krankheit des Kindes. Ohne sie – zum Beispiel Urlaub und persönliche Besorgungen – wird die Abwesenheit vollständig erfasst und die Arbeit am selben Tag kommt hinzu.",
+  "firma.timer.normtak.hjelpTittel": "Begrenzte Abwesenheit",
+  "firma.timer.normtak.hjelpTekst": "Die begrenzte Abwesenheit kann höchstens den Restbetrag der täglichen Norm nach der Arbeit und anderen Abwesenheiten am selben Tag ausgleichen. Beispiel mit einer 7,5-Stunden-Norm: 2 Stunden Arbeit ermöglichen höchstens 5,5 Stunden selbstbescheinigten Krankenstand. Abwesenheiten ohne Obergrenze – Urlaub und persönliche Besorgungen – werden vollständig erfasst. Eine Überschreitung der Obergrenze für einen Tag kann erst dann genehmigt werden, wenn die Abwesenheit korrigiert wurde. Der Genehmiger gibt das Blatt zurück oder korrigiert die Stunden.",
+  "timer.normtak.leddArt": "{{art}} {{timer}} Std",
+  "timer.normtak.leddArbeid": "Arbeit {{timer}} Stunden",
+  "timer.normtak.leddAnnet": "andere Abwesenheit {{timer}} h",
+  "timer.normtak.brudd": "{{ledd}} = {{sum}} h – über der Tagesnorm von {{norm}} h",
+  "timer.normtak.attesterSperret": "Der Termin kann erst genehmigt werden, wenn die Abwesenheit korrigiert ist. Geben Sie das Blatt zurück oder korrigieren Sie die Stunden."
 }

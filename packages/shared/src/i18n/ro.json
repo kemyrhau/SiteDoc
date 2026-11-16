@@ -5689,5 +5689,16 @@
   "timer.bekreftDag.fravaerTil": "Absența până la",
   "timer.bekreftDag.lonnsartGruppe.ordinaer": "Comun",
   "timer.bekreftDag.lonnsartGruppe.overtid": "Peste orar",
-  "timer.bekreftDag.lonnsartGruppe.fravaer": "Absența"
+  "timer.bekreftDag.lonnsartGruppe.fravaer": "Absența",
+  "firma.timer.normtak.medTak": "plafonat",
+  "firma.timer.normtak.utenTak": "nu plafonat",
+  "firma.timer.felt.fravaerNormtak": "Absența poate umple cel mult restul normei zilnice",
+  "firma.timer.felt.fravaerNormtakHint": "Activați pentru absență angajatorul plătește în loc de muncă: concediu medical autocertificat, concediu medical și boala copilului. Fără ea - de exemplu vacanță și comisioane personale - absența este înregistrată în totalitate, iar munca în aceeași zi vine în plus.",
+  "firma.timer.normtak.hjelpTittel": "Absență plafonată",
+  "firma.timer.normtak.hjelpTekst": "Absența plafonată poate umple cel mult ceea ce a mai rămas din norma zilnică după muncă și alte absențe în aceeași zi. Exemplu cu norma de 7,5 ore: 2 ore de munca permit cel mult 5,5 ore de concediu medical autocertificat. Absența fără limită - vacanță și comisioane personale - este înregistrată integral. O zi peste plafon nu poate fi aprobată până când absența este corectată; aprobatorul returnează foaia sau corectează orele.",
+  "timer.normtak.leddArt": "{{art}} {{timer}} h",
+  "timer.normtak.leddArbeid": "lucru {{timer}} h",
+  "timer.normtak.leddAnnet": "altă absență {{timer}} h",
+  "timer.normtak.brudd": "{{ledd}} = {{sum}} h — peste norma zilnică de {{norm}} h",
+  "timer.normtak.attesterSperret": "Data nu poate fi aprobată până când absența nu este corectată. Returnează foaia sau corectează orele."
 }

@@ -78,6 +78,8 @@ export type PivotRad = {
     sumOvertid: number;
     beregnetOvertid: number;
     avvik: boolean;
+    // F-F1 (kort-id-spec § 11.10.4): dagens timer med fravær bare inntil normen.
+    ukeTimer?: number;
   } | null;
   ansatt: { id: string; name: string | null; email: string } | null;
   prosjekt: { id: string; name: string; internalProjectNumber: string | null } | null;
@@ -451,6 +453,8 @@ export function AnsattPivot({
                 totaltimer: s.totaltimer,
                 ukenorm: s.ukenorm,
                 sumOvertid: s.overtidsgrunnlag?.sumOvertid ?? 0,
+                // F-F1: fravær fyller bare dagens norm i ukesummen (eldre svar → totaltimer).
+                ukeTimer: s.overtidsgrunnlag?.ukeTimer,
               })),
             );
             // ukesum til visning følger fanen (det attestanten ser nå).

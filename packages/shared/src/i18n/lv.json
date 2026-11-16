@@ -5689,5 +5689,16 @@
   "timer.bekreftDag.fravaerTil": "Prombūtne līdz",
   "timer.bekreftDag.lonnsartGruppe.ordinaer": "Parasta",
   "timer.bekreftDag.lonnsartGruppe.overtid": "Virsstundas",
-  "timer.bekreftDag.lonnsartGruppe.fravaer": "Prombūtne"
+  "timer.bekreftDag.lonnsartGruppe.fravaer": "Prombūtne",
+  "firma.timer.normtak.medTak": "ar vāciņu",
+  "firma.timer.normtak.utenTak": "nav ierobežots",
+  "firma.timer.felt.fravaerNormtak": "Prombūtne var maksimāli aizpildīt atlikušo dienas normu",
+  "firma.timer.felt.fravaerNormtakHint": "Ieslēgt par prombūtni darba devējs apmaksā darba vietā: paša apliecināts slimības atvaļinājums, slimības atvaļinājums un bērna slimība. Bez tā, piemēram, brīvdienu un personīgo darbu veikšana, prombūtne tiek reģistrēta pilnībā, un papildus tiek pieskaitīts darbs tajā pašā dienā.",
+  "firma.timer.normtak.hjelpTittel": "Ierobežota prombūtne",
+  "firma.timer.normtak.hjelpTekst": "Ierobežotā prombūtne var maksimāli aizpildīt to, kas paliek pāri no dienas normas pēc darba un citas prombūtnes tajā pašā dienā. Piemērs ar 7,5 h normu: 2 h darba pieļauj ne vairāk kā 5,5 h pašsertificēta slimības atvaļinājuma. Prombūtne bez ierobežojuma — brīvdienas un personīgie darbi — tiek ierakstīta pilnībā. Dienu virs ierobežojuma nevar apstiprināt, kamēr prombūtne nav novērsta; apstiprinātājs atdod lapu vai labo stundas.",
+  "timer.normtak.leddArt": "{{art}} {{timer}} st",
+  "timer.normtak.leddArbeid": "darbs {{timer}} st",
+  "timer.normtak.leddAnnet": "cita prombūtne {{timer}} st",
+  "timer.normtak.brudd": "{{ledd}} = {{sum}} h — virs dienas normas {{norm}} h",
+  "timer.normtak.attesterSperret": "Datumu nevar apstiprināt, kamēr prombūtne nav novērsta. Atgrieziet lapu vai labojiet stundas."
 }

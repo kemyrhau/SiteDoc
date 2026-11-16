@@ -5689,5 +5689,16 @@
   "timer.bekreftDag.fravaerTil": "Nieobecność do",
   "timer.bekreftDag.lonnsartGruppe.ordinaer": "Zwykły",
   "timer.bekreftDag.lonnsartGruppe.overtid": "Nadgodziny",
-  "timer.bekreftDag.lonnsartGruppe.fravaer": "Brak"
+  "timer.bekreftDag.lonnsartGruppe.fravaer": "Brak",
+  "firma.timer.normtak.medTak": "zakryty",
+  "firma.timer.normtak.utenTak": "nie ograniczone",
+  "firma.timer.felt.fravaerNormtak": "Nieobecność może co najwyżej wypełnić resztę codziennej normy",
+  "firma.timer.felt.fravaerNormtakHint": "Włącz opcję nieobecności opłacanej przez pracodawcę zamiast pracy: zwolnienie lekarskie, zwolnienie lekarskie i choroba dziecka. Bez tego – na przykład w związku z urlopem lub sprawami osobistymi – nieobecność jest rejestrowana w całości, a praca w tym samym dniu doliczana jest dodatkowo.",
+  "firma.timer.normtak.hjelpTittel": "Ograniczona nieobecność",
+  "firma.timer.normtak.hjelpTekst": "Nieobecność ograniczona może co najwyżej wypełnić to, co pozostało z normy dziennej po pracy i inne nieobecności tego samego dnia. Przykład z normą 7,5 godz.: 2 godz. pracy pozwala na maksymalnie 5,5 godz. zwolnienia lekarskiego. Nieobecność bez czapki – urlopy i sprawy osobiste – odnotowuje się w całości. Dzień przekraczający limit nie może zostać zatwierdzony do czasu poprawienia nieobecności; osoba zatwierdzająca zwraca arkusz lub koryguje godziny.",
+  "timer.normtak.leddArt": "{{art}} {{timer}} godz",
+  "timer.normtak.leddArbeid": "praca {{timer}} godz",
+  "timer.normtak.leddAnnet": "inna nieobecność {{timer}} godz",
+  "timer.normtak.brudd": "{{ledd}} = {{sum}} godz — powyżej dziennej normy wynoszącej {{norm}} godz",
+  "timer.normtak.attesterSperret": "Do czasu uzupełnienia nieobecności nie można zatwierdzić terminu. Zwróć arkusz lub popraw godziny."
 }

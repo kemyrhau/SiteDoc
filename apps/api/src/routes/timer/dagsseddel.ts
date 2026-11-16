@@ -86,6 +86,15 @@ import {
   validerUtenProsjekt,
   UTEN_PROSJEKT_MELDING,
   type UtenProsjektRad,
+  beregnUkeOvertidsgrunnlag,
+  type OvertidRad,
+  harNormtak,
+  erFravaerArt,
+  restForFravaerMedTak,
+  vurderFravaerNormtak,
+  erNormtakBrudd,
+  type FravaerNormtakVurdering,
+  type NormtakBruddData,
 } from "@sitedoc/shared";
 import {
   klassifiserSyncRader,
@@ -948,6 +957,192 @@ export async function lonnsartBruktUtenProsjekt(
   return paaRad.length + paaForslag.length > 0;
 }
 
+// ============================================================================
+//  B10 — fravær med tak og dagsnormen (kort-id-spec § 11.10.4, server)
+// ============================================================================
+
+/** En rad slik taket ser den: timer, reise og lønnsartens type/markør. */
+interface NormtakGrunnlagRad {
+  id?: string;
+  timer: number;
+  erReise: boolean;
+  attestertStatus?: string | null;
+  lonnsart: { type: string; fravaerNormtak: boolean; navn: string } | null;
+}
+
+/** Timer med én desimal (5,5), to når det trengs (5,25) — som i specens tekster. */
+function fmtTimer(n: number): string {
+  const r = Math.round(n * 100) / 100;
+  return r.toFixed(Number.isInteger(r * 10) ? 1 : 2).replace(".", ",");
+}
+
+/** Sedelens ikke-erstattede timer-rader med lønnsartens type/markør (firma-isolert). */
+async function lastNormtakRader(
+  pt: PrismaTimerKlient,
+  sheetId: string,
+  organizationId: string,
+): Promise<NormtakGrunnlagRad[]> {
+  const rader = await pt.sheetTimer.findMany({
+    where: { sheetId, attestertStatus: { not: "erstattet" }, sheet: { organizationId } },
+    select: {
+      id: true,
+      timer: true,
+      erReise: true,
+      attestertStatus: true,
+      lonnsart: { select: { type: true, fravaerNormtak: true, navn: true } },
+    },
+  });
+  return rader.map((r) => ({
+    id: r.id,
+    timer: Number(r.timer),
+    erReise: r.erReise,
+    attestertStatus: r.attestertStatus,
+    lonnsart: r.lonnsart,
+  }));
+}
+
+/** «… — 2,0 t arbeid og 2,0 t annet fravær er ført» (bare det som finnes). */
+function fortTekst(arbeid: number, annetFravaer: number): string {
+  const deler: string[] = [];
+  if (arbeid > 0.001) deler.push(`${fmtTimer(arbeid)} t arbeid`);
+  if (annetFravaer > 0.001) deler.push(`${fmtTimer(annetFravaer)} t annet fravær`);
+  return deler.length === 0 ? "" : ` — ${deler.join(" og ")} er ført`;
+}
+
+/**
+ * Bruddlinja (attestering, syncBatch-svar): «Egenmelding 7,5 t + arbeid 2,0 t = 9,5 t —
+ * over dagsnormen 7,5 t». Annet fravær nevnes når det finnes.
+ */
+export function normtakBruddTekst(
+  v: FravaerNormtakVurdering,
+  dagsnorm: number,
+  artNavn: string,
+): string {
+  const ledd = [`${artNavn} ${fmtTimer(v.fravaerMedTak)} t`];
+  if (v.arbeid > 0.001) ledd.push(`arbeid ${fmtTimer(v.arbeid)} t`);
+  if (v.fravaerUtenTak > 0.001) ledd.push(`annet fravær ${fmtTimer(v.fravaerUtenTak)} t`);
+  const sum = v.fravaerMedTak + v.arbeid + v.fravaerUtenTak;
+  return `${ledd.join(" + ")} = ${fmtTimer(sum)} t — over dagsnormen ${fmtTimer(dagsnorm)} t`;
+}
+
+/** Navnet på (første) fravær-art med tak på dagen, til tekstene. */
+function normtakArtNavn(rader: readonly NormtakGrunnlagRad[]): string {
+  return rader.find((r) => harNormtak(r.lonnsart))?.lonnsart?.navn ?? "Fraværet";
+}
+
+/**
+ * Interaktive skriveveier (N2/N4/N5): en skriving som øker fravær med tak og etterlater
+ * dagen over taket, avvises med tallene. Arbeid og fravær uten tak avvises aldri; en
+ * skriving som senker fraværet godtas også på en dag som alt er i brudd. Normen er
+ * firmaets effektive dagsnorm for datoen (N9); ukjent norm → intet tak.
+ * Kalles bare når den skrevne raden har en art med tak (ingen ekstra spørring ellers).
+ */
+async function krevFravaerInnenforTak(
+  pt: PrismaTimerKlient,
+  sheet: { id: string; organizationId: string; dato: Date },
+  etter: (foer: NormtakGrunnlagRad[]) => NormtakGrunnlagRad[],
+): Promise<void> {
+  const { dagsnorm } = await hentEffektivArbeidstid(sheet.organizationId, sheet.dato);
+  if (!(dagsnorm > 0)) return;
+  const foerRader = await lastNormtakRader(pt, sheet.id, sheet.organizationId);
+  const foer = vurderFravaerNormtak({ dagsnorm, rader: foerRader });
+  const etterRader = etter(foerRader);
+  const v = vurderFravaerNormtak({ dagsnorm, rader: etterRader });
+  if (!erNormtakBrudd(v) || v.fravaerMedTak <= foer.fravaerMedTak + 0.001) return;
+  // Det den skrevne linja høyst kan være: norm − arbeid − alt annet fravær (F10).
+  const skrevet = Math.max(0, v.fravaerMedTak - foer.fravaerMedTak);
+  const annet = v.fravaerUtenTak + v.fravaerMedTak - skrevet;
+  const hoyst = restForFravaerMedTak({ dagsnorm, arbeid: v.arbeid, annetFravaer: annet }) ?? 0;
+  throw new TRPCError({
+    code: "BAD_REQUEST",
+    message: `${normtakArtNavn(etterRader)} kan høyst være ${fmtTimer(hoyst)} t denne dagen${fortTekst(
+      v.arbeid,
+      annet,
+    )}`,
+  });
+}
+
+/**
+ * Bruddet slik klientene får det: tallene, ikke ferdig tekst — web og mobil bygger
+ * linja med `t()` (i18n). Serverens egne feilmeldinger bruker `normtakBruddTekst`.
+ */
+export type NormtakBrudd = NormtakBruddData;
+
+/** Taket for én sedel (lesere og attestering). */
+export interface SedelNormtak {
+  dagsnorm: number;
+  vurdering: FravaerNormtakVurdering;
+  /** Bruddet når dagen er i brudd, ellers null. */
+  brudd: NormtakBrudd | null;
+  /** Norsk linje til serverens feilmeldinger, ellers null. */
+  bruddTekst: string | null;
+}
+
+function vurderSedelNormtak(
+  rader: readonly NormtakGrunnlagRad[],
+  dagsnorm: number,
+): SedelNormtak {
+  const vurdering = vurderFravaerNormtak({
+    dagsnorm,
+    rader: rader.filter((r) => r.attestertStatus !== "erstattet"),
+  });
+  if (!erNormtakBrudd(vurdering)) return { dagsnorm, vurdering, brudd: null, bruddTekst: null };
+  const artNavn = normtakArtNavn(rader);
+  return {
+    dagsnorm,
+    vurdering,
+    brudd: {
+      artNavn,
+      fravaerMedTak: vurdering.fravaerMedTak,
+      arbeid: vurdering.arbeid,
+      fravaerUtenTak: vurdering.fravaerUtenTak,
+      dagsnorm,
+      tak: vurdering.tak ?? 0,
+    },
+    bruddTekst: normtakBruddTekst(vurdering, dagsnorm, artNavn),
+  };
+}
+
+/** Effektiv dagsnorm pr. (firma, dato), slått opp én gang pr. par. */
+async function dagsnormerFor(
+  par: readonly { organizationId: string; dato: Date }[],
+): Promise<(organizationId: string, dato: Date) => number> {
+  const kart = new Map<string, number>();
+  await Promise.all(
+    Array.from(
+      new Set(par.map((p) => `${p.organizationId}|${p.dato.toISOString().slice(0, 10)}`)),
+    ).map(async (k) => {
+      const [org, iso] = k.split("|") as [string, string];
+      kart.set(k, (await hentEffektivArbeidstid(org, new Date(`${iso}T00:00:00.000Z`))).dagsnorm);
+    }),
+  );
+  return (org, dato) => kart.get(`${org}|${dato.toISOString().slice(0, 10)}`) ?? 0;
+}
+
+/**
+ * F9 = A: attestering av en dato i brudd sperres med tallene. `returner`, `returnerRader`
+ * og `redigerSedelRader` virker. Attesterte rader og snapshots røres ikke.
+ */
+async function krevIngenNormtakBrudd(
+  pt: PrismaTimerKlient,
+  sedler: readonly { id: string; organizationId: string; dato: Date }[],
+): Promise<void> {
+  for (const s of sedler) {
+    const rader = await lastNormtakRader(pt, s.id, s.organizationId);
+    // Uten fravær med tak kan dagen ikke være i brudd — normen slås ikke opp.
+    if (!rader.some((r) => harNormtak(r.lonnsart))) continue;
+    const { dagsnorm } = await hentEffektivArbeidstid(s.organizationId, s.dato);
+    if (!(dagsnorm > 0)) continue;
+    const r = vurderSedelNormtak(rader, dagsnorm);
+    if (r.bruddTekst) {
+      throw new TRPCError({
+        code: "PRECONDITION_FAILED",
+        message: `Kan ikke attestere ${s.dato.toISOString().slice(0, 10)}: ${r.bruddTekst}. Rett fraværet eller returner sedelen.`,
+      });
+    }
+  }
+}
+
 function avvisTimerAvvik(
   fraTid: string,
   tilTid: string,
@@ -1423,17 +1618,28 @@ async function byggUkeOvertidsgrunnlag(
     select: {
       timer: true,
       erReise: true,
-      lonnsart: { select: { overtidsnivaa: true } },
+      sheet: { select: { dato: true } },
+      lonnsart: { select: { overtidsnivaa: true, type: true } },
     },
   });
 
-  return beregnOvertidsgrunnlag(
-    rader.map((r) => ({
+  // F-F1 (kort-id-spec § 11.10.4): fravær er ikke arbeid, men fyller dagens norm i
+  // ukesummen (aldri mer) — derfor gruppert pr. dato med datoens dagsnorm.
+  const perDato = new Map<string, OvertidRad[]>();
+  for (const r of rader) {
+    const iso = r.sheet.dato.toISOString().slice(0, 10);
+    const liste = perDato.get(iso) ?? [];
+    liste.push({
       timer: Number(r.timer),
       overtidsnivaa: r.lonnsart?.overtidsnivaa ?? null,
       // V1: reise holdes utenfor overtidsgrunnlaget.
       erReise: r.erReise,
-    })),
+      erFravaer: erFravaerArt(r.lonnsart),
+    });
+    perDato.set(iso, liste);
+  }
+  return beregnUkeOvertidsgrunnlag(
+    [...perDato].map(([iso, liste]) => ({ dagsnorm: dagsnormMap.get(iso) ?? 0, rader: liste })),
     uke.norm,
   );
 }
@@ -2729,6 +2935,13 @@ export const dagsseddelRouter = router({
       const erReise = utledErReise(input.lonnsartId, lonnsart.navn, erReiseKtx);
       // § 11.2: rad uten prosjekt kan ikke være reise (CHECK + K-regel).
       if (utenProsjekt && erReise) krevGyldigUtenProsjekt({ ...input, erReise }, lonnsart.type);
+      // B10 (§ 11.10.4): ny fraværsrad med tak må holde seg innenfor resten av dagsnormen.
+      if (harNormtak(lonnsart)) {
+        await krevFravaerInnenforTak(ctx.prismaTimer, sheet, (foer) => [
+          ...foer,
+          { timer: input.timer, erReise, lonnsart },
+        ]);
+      }
       if (input.reiseKilde && !erReise) {
         throw new TRPCError({
           code: "BAD_REQUEST",
@@ -2927,9 +3140,17 @@ export const dagsseddelRouter = router({
         const effektivTimer = input.timer ?? Number(rad.timer);
         const lonnsart = await ctx.prismaTimer.lonnsart.findFirst({
           where: { id: effektivLonnsartId, organizationId: sheet.organizationId },
-          select: { satsEnhet: true },
+          select: { satsEnhet: true, type: true, fravaerNormtak: true, navn: true },
         });
         krevRadInnenforTak(effektivTimer, lonnsart?.satsEnhet);
+        // B10 (§ 11.10.4): raden etter skrivingen erstatter seg selv i dagens sett.
+        // En senking godtas alltid (taket avviser bare når fravær med tak øker).
+        if (lonnsart && harNormtak(lonnsart)) {
+          await krevFravaerInnenforTak(ctx.prismaTimer, sheet, (foer) => [
+            ...foer.filter((r) => r.id !== rad.id),
+            { id: rad.id, timer: effektivTimer, erReise: rad.erReise, lonnsart },
+          ]);
+        }
       }
 
       // Post (7) punkt 1: katalog-ID-er må tilhøre sedelens firma før connect.
@@ -4465,11 +4686,16 @@ export const dagsseddelRouter = router({
           // fra rediger-mutasjoner). Uten dette dobbelttelles redigerte rader i
           // `totaltimer`/`antallRader` — en bug uavhengig av aggregat-designet
           // (samme filter som hentTilAttesteringFirma :2315).
-          timer: { where: { attestertStatus: { not: "erstattet" } } },
+          timer: {
+            where: { attestertStatus: { not: "erstattet" } },
+            include: { lonnsart: { select: { type: true, fravaerNormtak: true, navn: true } } },
+          },
           tillegg: { where: { attestertStatus: { not: "erstattet" } } },
         },
         orderBy: [{ dato: "asc" }, { createdAt: "asc" }],
       });
+      // B10: effektiv dagsnorm pr. (firma, dato) for bruddlinja.
+      const normFor = await dagsnormerFor(sedler);
 
       // Berik med ansatt-navn (cross-package: må slå opp i kjernen-DB)
       const userIder = Array.from(new Set(sedler.map((s) => s.userId)));
@@ -4496,6 +4722,11 @@ export const dagsseddelRouter = router({
         return {
           ...s,
           fravaerKanAttesteres: fravaerRett.get(s.id) ?? false,
+          // B10: bruddlinja (null = intet brudd).
+          fravaerNormtakBrudd: vurderSedelNormtak(
+            s.timer.map((r) => ({ timer: Number(r.timer), erReise: r.erReise, lonnsart: r.lonnsart })),
+            normFor(s.organizationId, s.dato),
+          ).brudd,
           ansatt: bruker
             ? { ...bruker, ansattnummer: ansattnummerMap.get(`${s.userId}:${s.organizationId}`) ?? null }
             : null,
@@ -4597,7 +4828,11 @@ export const dagsseddelRouter = router({
           // rad.lonnsartId.
           timer: {
             where: { attestertStatus: { not: "erstattet" } },
-            include: { lonnsart: { select: { overtidsnivaa: true } } },
+            include: {
+              lonnsart: {
+                select: { overtidsnivaa: true, type: true, fravaerNormtak: true, navn: true },
+              },
+            },
           },
           tillegg: { where: { attestertStatus: { not: "erstattet" } } },
           maskiner: { where: { attestertStatus: { not: "erstattet" } } },
@@ -4741,7 +4976,14 @@ export const dagsseddelRouter = router({
             overtidsnivaa: r.lonnsart?.overtidsnivaa ?? null,
             // V1: reise holdes utenfor overtidsgrunnlaget.
             erReise: r.erReise,
+            // F-F1: fravær holdes utenfor arbeidstimer og overtid.
+            erFravaer: erFravaerArt(r.lonnsart),
           })),
+          effektivDagsnormMap.get(isoDato) ?? 0,
+        );
+        // B10 (§ 11.10.4): taket pr. dato — attestanten ser bruddet, attester sperres.
+        const normtak = vurderSedelNormtak(
+          s.timer.map((r) => ({ timer: Number(r.timer), erReise: r.erReise, lonnsart: r.lonnsart })),
           effektivDagsnormMap.get(isoDato) ?? 0,
         );
         const ukenorm = ukenormMap.get(mandagIso(s.dato)) ?? 0;
@@ -4783,6 +5025,8 @@ export const dagsseddelRouter = router({
           overtidsgrunnlag,
           // ORDRE 2 STEG 2: ukenorm for sedelens uke (D3 per-ansatt norm-kolonne).
           ukenorm,
+          // B10: bruddlinja (null = intet brudd). Attester sperres når den finnes.
+          fravaerNormtakBrudd: normtak.brudd,
           // T.11: true når sedel har maskinarbeid og eier mangler gyldig bevis.
           manglerMaskinforerbevis:
             s.maskiner.length > 0 && !maskinforerbevisMap.get(s.userId),
@@ -4969,6 +5213,17 @@ export const dagsseddelRouter = router({
         );
       }
 
+      // B10 (§ 11.10.4): bruddlinja for detalj-banneret. Bare oppslag når sedelen
+      // har fravær (ingen ekstra spørring for vanlige arbeidsdager).
+      let fravaerNormtakBrudd: NormtakBrudd | null = null;
+      if (timer.some((r) => r.lonnsartId) && sheet.status !== "accepted") {
+        const rader = await lastNormtakRader(ctx.prismaTimer, sheet.id, sheet.organizationId);
+        if (rader.some((r) => harNormtak(r.lonnsart))) {
+          const { dagsnorm } = await hentEffektivArbeidstid(sheet.organizationId, sheet.dato);
+          fravaerNormtakBrudd = vurderSedelNormtak(rader, dagsnorm).brudd;
+        }
+      }
+
       return {
         ...sheet,
         aktivitet,
@@ -4991,6 +5246,8 @@ export const dagsseddelRouter = router({
         // Kort-id-spec § 11.4 (F1): serverens svar på om brukeren kan attestere
         // fraværsrader uten prosjekt på denne sedelen — klienten regner det aldri selv.
         fravaerKanAttesteres: fravaerRett.get(sheet.id) ?? false,
+        // B10: tallene bak «Egenmelding 7,5 t + arbeid 2,0 t = 9,5 t — over dagsnormen 7,5 t»; null = intet brudd.
+        fravaerNormtakBrudd,
       };
     }),
 
@@ -5222,6 +5479,8 @@ export const dagsseddelRouter = router({
         where: { id: { in: uniqueSheetIds } },
         select: { id: true, dato: true, userId: true, organizationId: true },
       });
+      // B10 (F9 = A): en dato i brudd attesteres ikke — hele datoen, også arbeidsradene.
+      await krevIngenNormtakBrudd(ctx.prismaTimer, sheetInfo);
       const ukeCache = new Map<string, Overtidsgrunnlag>();
       const sheetGrunnlag = new Map<string, Overtidsgrunnlag | null>();
       for (const sh of sheetInfo) {
@@ -5763,6 +6022,8 @@ export const dagsseddelRouter = router({
         tilleggIder: input.nyeRader.tillegg.map((r) => r.tilleggId),
       });
       const redigerSatsEnhet = new Map<string, string | null>();
+      // B10: artene i edit-settet (type + markør) til taket under.
+      const redigerArt = new Map<string, { type: string; fravaerNormtak: boolean; navn: string }>();
       if (input.nyeRader.timer.length > 0) {
         const redigerLonnsartIder = Array.from(
           new Set(input.nyeRader.timer.map((r) => r.lonnsartId)),
@@ -5772,7 +6033,7 @@ export const dagsseddelRouter = router({
             id: { in: redigerLonnsartIder },
             organizationId: sheet.organizationId,
           },
-          select: { id: true, satsEnhet: true, type: true },
+          select: { id: true, satsEnhet: true, type: true, fravaerNormtak: true, navn: true },
         });
         if (redigerLonnsarter.length !== redigerLonnsartIder.length) {
           throw new TRPCError({
@@ -5790,7 +6051,10 @@ export const dagsseddelRouter = router({
             (!r.projectId && r.originalId !== null && eksUten.has(r.originalId));
           krevGyldigUtenProsjekt({ ...r, utenProsjekt }, typeFor.get(r.lonnsartId));
         }
-        for (const l of redigerLonnsarter) redigerSatsEnhet.set(l.id, l.satsEnhet);
+        for (const l of redigerLonnsarter) {
+          redigerSatsEnhet.set(l.id, l.satsEnhet);
+          redigerArt.set(l.id, { type: l.type, fravaerNormtak: l.fravaerNormtak, navn: l.navn });
+        }
         for (const r of input.nyeRader.timer) {
           krevRadInnenforTak(r.timer, redigerSatsEnhet.get(r.lonnsartId));
         }
@@ -5851,6 +6115,19 @@ export const dagsseddelRouter = router({
         sheet.organizationId,
         input.nyeRader.timer.map((r) => r.lonnsartId),
       );
+      // B10 (§ 11.10.4): edit-settet erstatter alle pending timer-rader. Øker det fravær
+      // med tak og etterlater dagen over taket, avvises det med tallene; en retting som
+      // senker fraværet på en dag i brudd godtas (attestanten retter slik).
+      if (input.nyeRader.timer.some((r) => harNormtak(redigerArt.get(r.lonnsartId)))) {
+        await krevFravaerInnenforTak(ctx.prismaTimer, sheet, (foer) => [
+          ...foer.filter((r) => r.attestertStatus !== "pending"),
+          ...input.nyeRader.timer.map((r) => ({
+            timer: r.timer,
+            erReise: redigerErReiseMap.get(r.lonnsartId) ?? false,
+            lonnsart: redigerArt.get(r.lonnsartId) ?? null,
+          })),
+        ]);
+      }
       const baseline = await hentRaderForValidering(ctx.prismaTimer, sheet.id);
       const postTimer: ValiderRad[] = [
         ...baseline.timer.filter((r) => !eksisterendePendingTimerIder.has(r.id)),
@@ -6626,6 +6903,15 @@ export const dagsseddelRouter = router({
         })),
       );
 
+      // B10 (F9 = A): dato i brudd attesteres ikke. Oppslaget bare når sedelen har
+      // fravær med tak blant radene som attesteres (rader som alt er attestert, er
+      // låst og kan ikke ha skapt et nytt brudd alene).
+      if (timerRader.some((r) => harNormtak(r.lonnsart))) {
+        await krevIngenNormtakBrudd(ctx.prismaTimer, [
+          { id: input.id, organizationId: sheet.organizationId, dato: sheet.dato },
+        ]);
+      }
+
       const naa = new Date();
 
       // ORDRE 2 STEG 1: uke-nivå overtidsgrunnlag for etterprøvbart snapshot.
@@ -7312,6 +7598,9 @@ export const dagsseddelRouter = router({
         // Kort-id-spec § 11.3: maskinlesbar grunn på avvisning. Valgfritt → eldre
         // klient ignorerer feltet.
         grunn?: "utenProsjektKreverFravaer";
+        // B10 (§ 11.10.4, F9 = A): synken lagrer alltid; ligger dagen over taket etter
+        // skrivingen, returneres bruddlinja. Valgfritt → eldre klient ignorerer feltet.
+        fravaerNormtakBrudd?: NormtakBrudd;
       };
 
       const resultater: ResultatRad[] = [];
@@ -7414,8 +7703,8 @@ export const dagsseddelRouter = router({
               : ctx.prismaTimer.lonnsart.findMany({
                   where: { id: { in: lonnsartIder }, organizationId: orgId },
                   // LAG 0a (H5): satsEnhet for det lønnsart-bevisste taket.
-                  // § 11.3: type for fravær uten prosjekt.
-                  select: { id: true, satsEnhet: true, type: true },
+                  // § 11.3: type for fravær uten prosjekt. B10: markøren for taket.
+                  select: { id: true, satsEnhet: true, type: true, fravaerNormtak: true },
                 }),
             aktivitetIderIRader.length === 0
               ? Promise.resolve([])
@@ -8441,9 +8730,23 @@ export const dagsseddelRouter = router({
           }
 
           const oppdatert = txResultat.sedel;
+          // B10: bruddet regnes av det serveren nå har (ikke payloaden) — bare når
+          // sedelen har fravær med tak, så en vanlig sync koster ingen ekstra spørring.
+          let fravaerNormtakBrudd: NormtakBrudd | undefined;
+          if (lonnsartTreff.some((l) => harNormtak(l))) {
+            const { dagsnorm } = await hentEffektivArbeidstid(orgId, oppdatert.dato);
+            if (dagsnorm > 0) {
+              const v = vurderSedelNormtak(
+                await lastNormtakRader(ctx.prismaTimer, oppdatert.id, orgId),
+                dagsnorm,
+              );
+              fravaerNormtakBrudd = v.brudd ?? undefined;
+            }
+          }
           resultater.push({
             clientUuid: lokal.clientUuid,
             resultat: "ok",
+            ...(fravaerNormtakBrudd ? { fravaerNormtakBrudd } : {}),
             serverData: {
               id: oppdatert.id,
               status: oppdatert.status as DagsseddelStatus,

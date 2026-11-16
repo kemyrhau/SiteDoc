@@ -5689,5 +5689,16 @@
   "timer.bekreftDag.fravaerTil": "Puudub kuni",
   "timer.bekreftDag.lonnsartGruppe.ordinaer": "Tavaline",
   "timer.bekreftDag.lonnsartGruppe.overtid": "Ületunnitöö",
-  "timer.bekreftDag.lonnsartGruppe.fravaer": "Puudumine"
+  "timer.bekreftDag.lonnsartGruppe.fravaer": "Puudumine",
+  "firma.timer.normtak.medTak": "kaetud",
+  "firma.timer.normtak.utenTak": "ei ole kaetud",
+  "firma.timer.felt.fravaerNormtak": "Puudumine võib maksimaalselt täita ülejäänud päevanormi",
+  "firma.timer.felt.fravaerNormtakHint": "Lülitage sisse puudumise eest, mille eest maksab tööandja töö asemel: enda tõendatud haigusleht, haigusleht ja lapse haigus. Ilma selleta – näiteks puhkuse- ja isiklikud asjaajamised – arvestatakse puudumist täies mahus ning lisaks tuleb sama päeva töö.",
+  "firma.timer.normtak.hjelpTittel": "Piiratud puudumine",
+  "firma.timer.normtak.hjelpTekst": "Piiratud puudumised võivad maksimaalselt täita päevanormist pärast tööd ja muud samal päeval puudumist. Näide 7,5h normiga: 2h tööd võimaldab maksimaalselt 5,5h enesetõendatud haiguslehte. Korgita puudumine – puhkused ja isiklikud toimetused – registreeritakse täies mahus. Päeva üle piiri ei saa kinnitada enne, kui puudumine on parandatud; kinnitaja tagastab lehe või parandab tunnid.",
+  "timer.normtak.leddArt": "{{art}} {{timer}} h",
+  "timer.normtak.leddArbeid": "töö {{timer}} h",
+  "timer.normtak.leddAnnet": "muu puudumine {{timer}} h",
+  "timer.normtak.brudd": "{{ledd}} = {{sum}} h — üle päevanormi {{norm}} h",
+  "timer.normtak.attesterSperret": "Kuupäeva ei saa kinnitada enne, kui puudumine on parandatud. Tagasta leht või paranda tunnid."
 }

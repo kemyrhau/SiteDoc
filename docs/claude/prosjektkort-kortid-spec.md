@@ -1,5 +1,5 @@
 ---
-status: 🟢 VEDTATT 2026-11-16 — B1–B10 besvart av Kenneth (§ 10 «Kenneths svar»); B6 snudd: fravær føres på prosjektkort. Ingen kode. Ingen funksjon fjernes uten hjemmel (§ 7, § 11.4). TILLEGG 2026-11-16 (lønnsartvalg pr. linje) ført inn som § 6.1. TILLEGG 2026-11-16 (fraværskort uten prosjekt, § 11) og TILLEGG 2026-11-16 (B10 — fravær med tak mot dagsnormen, § 11.10): 🟢 VEDTATT 2026-11-16 — F1–F11 besvart av Kenneth og ført inn i brødteksten. 🟡 Åpent: F12 («Fravær til» i Bekreft dag når fravær får eget kort, § 11.9) — låser én rad i ordre c, ikke b. 🔨 Ordre b under bygging på `feat/kortid-b-skjema` (Kort-id-b): b1 kort-id bygget, ikke merget (§ 8.1); b2 og b3 gjenstår.
+status: 🟢 VEDTATT 2026-11-16 — B1–B10 besvart av Kenneth (§ 10 «Kenneths svar»); B6 snudd: fravær føres på prosjektkort. Ingen kode. Ingen funksjon fjernes uten hjemmel (§ 7, § 11.4). TILLEGG 2026-11-16 (lønnsartvalg pr. linje) ført inn som § 6.1. TILLEGG 2026-11-16 (fraværskort uten prosjekt, § 11) og TILLEGG 2026-11-16 (B10 — fravær med tak mot dagsnormen, § 11.10): 🟢 VEDTATT 2026-11-16 — F1–F11 besvart av Kenneth og ført inn i brødteksten. 🟡 Åpent: F12 («Fravær til» i Bekreft dag når fravær får eget kort, § 11.9) — låser én rad i ordre c, ikke b. 🔨 Ordre b under bygging på `feat/kortid-b-skjema` (Kort-id-b): b1 + b2 + b3 bygget, ikke merget (§ 8.1).
 sist_verifisert_mot_kode: 2026-11-16 (develop @ e3aea58f — målt på 140c19cb, linjereferanser i `bekreft-dag.tsx` og `dagsforslagAnvend.ts` oppdatert etter (26)-mergen `780f388c`; § 11 målt mot develop @ dc5833dc; § 11.10 målt mot develop @ e3c7d6cf; § 11-rettingen FM27–FM29 (F1, F4, F8) målt mot develop @ b4dac1b8)
 eier: Fabel (spec) → Timer-feilsøk/Redesign (kode)
 ordre: «ORDRE — spec: prosjektkort med kort-id, dagskortet som sum av prosjektkort, lønnsart-forslag fra døgnets registreringer — orkestrator 2026-11-16» + «TILLEGG … valg av lønnsart ved manuell registrering» + «ORDRE 2026-11-16 — SPEC-TILLEGG: fraværskort uten prosjekt» + «SPEC-TILLEGG 2026-11-16 — B10 betalt fravær i ordre b» + «SPEC-RETTING 2026-11-16 — § 11 til VEDTATT med Kenneths svar F1–F11» (relay/inbox-fabel.md)
@@ -467,6 +467,27 @@ Avvik og funn, meldt i SJEKKPUNKT b2:
 - **F7-sjekken (`lonnsartBruktUtenProsjekt`) bor i `dagsseddel.ts`**, ikke i `lonnsart.ts`, fordi V19-vakten (1d) bare tillater forslagstabellen der. Den er en eksistenssjekk (`findMany`, `id`, `take: 1`).
 - **`hentTilAttesteringFirma` gir tom liste når firmaet har null prosjekter**, også om det finnes fraværssedler. Kantfall, ikke rettet.
 - **Gate-SQL § 3.4 gate 2** står uten `coalesce(project_id,'ingen')` i specteksten; § 11.2 sier at den skal endres. Målt med coalesce.
+
+**b3 — B10 fravær med tak og F-F1 (2026-11-16).** Migreringen er ikke kjørt mot test eller prod.
+
+| Del | Kode |
+|---|---|
+| Migrering db-timer (`fravaer_normtak` NOT NULL DEFAULT true + backfill) | samme fil som b1/b2: `packages/db-timer/prisma/migrations/20261116120000_kortid_fravaer_normtak/migration.sql` (setningen under `-- B10-BACKFILL:`) |
+| Skrivere | seed `apps/api/src/services/seed/index.ts`, import `apps/api/src/services/katalog/importerKatalog.ts`, `opprett`/`oppdater` i `apps/api/src/routes/timer/lonnsart.ts` — uten feltet → `true` |
+| Regel (shared) | `packages/shared/src/utils/fravaerNormtak.ts` — `harNormtak` (eneste leser av markøren, glue-vakt i testen), `vurderFravaerNormtak`, `restForFravaerMedTak`, `byggNormtakBruddLinje`; F-F1 i `packages/shared/src/utils/overtidsgrunnlag.ts` (`beregnUkeOvertidsgrunnlag`, `ukeTimer`) |
+| Server, skriveveier | `apps/api/src/routes/timer/dagsseddel.ts` — `krevFravaerInnenforTak` i `tilfoyTimerRad`, `oppdaterTimerRad`, `redigerSedelRader`. Avviser bare når fravær med tak øker og dagen er i brudd etterpå; arbeid og fravær uten tak avvises aldri |
+| Server, synk | `syncBatch` lagrer alltid; `fravaerNormtakBrudd` (tall) i resultatet når dagen er i brudd |
+| Server, attestering (F9 = A) | `krevIngenNormtakBrudd` i `attester` og `attesterRader` (hele datoen sperres, også arbeidsrader). Leserne `hentTilAttesteringFirma`, `hentTilAttestering`, `hentForAttestering` returnerer `fravaerNormtakBrudd` |
+| Server, ukegrunnlag (F-F1) | `byggUkeOvertidsgrunnlag` grupperer pr. dato; fravær fyller bare dagens norm i `ukeTimer`, aldri arbeid eller overtid |
+| Web | lønnsartoppsettet `apps/web/src/app/dashbord/firma/timer/lonnsarter/page.tsx` (avkrysning + «Fravær · med tak», `apps/web/src/lib/lonnsartTypeEtikett.ts`); bruddlinje og sperret ✓ i `SeddelKort.tsx`, `AttesteringDetalj.tsx`, `apps/web/src/app/dashbord/[prosjektId]/timer/attestering/page.tsx` (`apps/web/src/lib/normtakBrudd.ts`); `ukeTimer` i `AttesteringPivot.tsx` og firma-attesteringen |
+| Tester | TF13, TF16 (server), TF17, TF18 i `apps/api/src/routes/fravaer-normtak.integration.test.ts` (21; 14 røde mot b2-koden); TF14, TF15, TF25 i `packages/shared/src/utils/fravaerNormtak.test.ts`; TF8, TF16 i `overtidsgrunnlag.test.ts`; TF19 i `apps/web/src/__tests__/b10-normtak-visning.test.ts` |
+
+Avvik og funn, meldt i SJEKKPUNKT b3:
+- **Mobil er ikke endret** (ordren: ingen mobil-UI). Mobilens ukebadge og attesteringsliste viser ikke bruddet; serveren sperrer attesteringen likevel.
+- **Web-pivoten og DagsKort har ingen egen sperre**; serveren avviser med tallene i feilmeldingen.
+- **`attester` slår bare opp normen når radene som attesteres har fravær med tak**; `attesterRader` slår alltid opp for datoen.
+- **Lønnseksporten tar også uattesterte rader** (`rapport.ts` `detaljEksport`/`firmaPeriodeRapport` filtrerer bare `erstattet`; radstatus er en kolonne). En dag i brudd kan derfor stå i eksporten som `pending`. Ikke endret.
+- Fixture i `firmagrense-attestering.test.ts` fikk `sheet.dato` fordi ukegrunnlaget nå grupperer pr. dato.
 
 ---
 

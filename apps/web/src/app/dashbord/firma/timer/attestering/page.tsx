@@ -18,7 +18,7 @@ import {
   FolderKanban,
   Users,
 } from "lucide-react";
-import { beregnUkeAvvik, mandagIso, type UkeAvvik } from "@sitedoc/shared";
+import { beregnUkeAvvik, mandagIso, type UkeAvvik, type NormtakBruddData } from "@sitedoc/shared";
 import { useFirma } from "@/kontekst/firma-kontekst";
 import {
   ProsjektPivot,
@@ -84,12 +84,16 @@ type AttesteringRad = {
   // V19-C (C-2): uavklart PC/mobil-overlapp (DailySheet.konfliktVentendeSiden, via
   // ...s-spread). Blokkerer ✓ i SeddelKort. Lista leser ALDRI forslagsradene (M15).
   konfliktVentendeSiden: Date | string | null;
+  // B10 (§ 11.10.4): fravær med tak over dagsnormen; null = intet brudd. Sperrer ✓.
+  fravaerNormtakBrudd: NormtakBruddData | null;
   // ORDRE 2 STEG 1/2: server-avledet overtidsgrunnlag (dag-nivå) + ukenorm.
   overtidsgrunnlag: {
     sumOrdinaert: number;
     sumOvertid: number;
     beregnetOvertid: number;
     avvik: boolean;
+    // F-F1 (kort-id-spec § 11.10.4): dagens timer med fravær bare inntil normen.
+    ukeTimer?: number;
   } | null;
   ukenorm: number;
 };
@@ -284,7 +288,7 @@ export default function FirmaAttesteringSide() {
   const avvikPerNokkel = useMemo(() => {
     const bøtter = new Map<
       string,
-      { totaltimer: number; ukenorm: number; sumOvertid: number }[]
+      { totaltimer: number; ukenorm: number; sumOvertid: number; ukeTimer?: number }[]
     >();
     for (const s of ukeGrunnlag) {
       const ansattId = s.ansatt?.id;
@@ -295,6 +299,8 @@ export default function FirmaAttesteringSide() {
         totaltimer: s.totaltimer,
         ukenorm: s.ukenorm,
         sumOvertid: s.overtidsgrunnlag?.sumOvertid ?? 0,
+        // F-F1: fravær fyller bare dagens norm i ukesummen (eldre svar → totaltimer).
+        ukeTimer: s.overtidsgrunnlag?.ukeTimer,
       });
       bøtter.set(nokkel, liste);
     }

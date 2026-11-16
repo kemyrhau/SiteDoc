@@ -22,6 +22,7 @@ import {
 import { StatusBadge } from "@/components/timer/StatusBadge";
 import { ForslagValgSeksjon } from "@/components/timer/ForslagValgSeksjon";
 import { AttesteringDetaljEdit } from "@/components/timer/AttesteringDetalj_Edit";
+import { normtakBruddLinje } from "@/lib/normtakBrudd";
 import {
   ProsjektSectionAttest,
   type EcoBucketAttestProps,
@@ -61,7 +62,7 @@ export function AttesteringDetalj({
   prosjektKontekst,
   tilbakeUrl,
 }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const router = useRouter();
   const utils = trpc.useUtils();
 
@@ -176,6 +177,8 @@ export function AttesteringDetalj({
     (sheet as { konfliktVentendeSiden?: string | Date | null }).konfliktVentendeSiden ??
     null;
   const forslagBlokkert = overlappBlokkererAttestering(konfliktVentendeSiden);
+  // B10 (F9 = A): bruddlinja fra hentForAttestering — null = intet brudd.
+  const normtakLinje = normtakBruddLinje(t, sheet.fravaerNormtakBrudd, i18n.language);
   // Forslaget attestanten LESER (ikke velger). hentForAttestering er ett av KUN to
   // steder forslaget leses (M15) — aldri en lønnsleser.
   const forslagRader = (
@@ -404,6 +407,20 @@ export function AttesteringDetalj({
         </div>
       )}
 
+      {/* B10 (§ 11.10.4, F9 = A): fravær med tak over dagsnormen — der overtidsvarselet
+          står. Attestering er sperret til bruddet er rettet; retur virker. */}
+      {normtakLinje && (
+        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <div>
+              <p className="font-medium">{normtakLinje}</p>
+              <p className="mt-0.5 text-xs text-amber-800">{t("timer.normtak.attesterSperret")}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* D2-attestantvarsel (ORDRE 2 STEG 3 ledd 2): banner når ukens beregnede
           overtid avviker fra det som er ført. Kun varsel — blokkerer ikke
           attestering. Tallene: uattestert = live, attestert = frosset snapshot. */}
@@ -596,10 +613,18 @@ export function AttesteringDetalj({
             {/* V19-C (C-2): blokker attestering ved uavklart overlapp. `title` på en
                 wrapper (ikke selve knappen) så tooltipen vises selv når knappen er
                 disabled. Retur-knappen over er bevisst IKKE gatet — retur er utveien. */}
-            <span title={forslagBlokkert ? t("timer.forslagValg.attesterBlokkert") : undefined}>
+            <span
+              title={
+                forslagBlokkert
+                  ? t("timer.forslagValg.attesterBlokkert")
+                  : normtakLinje
+                    ? t("timer.normtak.attesterSperret")
+                    : undefined
+              }
+            >
               <Button
                 onClick={handleAttester}
-                disabled={!kanHandle || forslagBlokkert || attesterRader.isPending}
+                disabled={!kanHandle || forslagBlokkert || !!normtakLinje || attesterRader.isPending}
               >
                 <Check className="mr-1 h-4 w-4" />
                 {attesterRader.isPending

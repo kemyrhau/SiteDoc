@@ -5689,5 +5689,16 @@
   "timer.bekreftDag.fravaerTil": "Poissaolo asti",
   "timer.bekreftDag.lonnsartGruppe.ordinaer": "Tavallinen",
   "timer.bekreftDag.lonnsartGruppe.overtid": "Ylitöitä",
-  "timer.bekreftDag.lonnsartGruppe.fravaer": "Poissaolo"
+  "timer.bekreftDag.lonnsartGruppe.fravaer": "Poissaolo",
+  "firma.timer.normtak.medTak": "rajattu",
+  "firma.timer.normtak.utenTak": "ei rajoitettu",
+  "firma.timer.felt.fravaerNormtak": "Poissaolo voi korkeintaan täyttää loput päivänormista",
+  "firma.timer.felt.fravaerNormtakHint": "Päälle poissaolosta työnantaja maksaa työn sijaan: itse todennettu sairausloma, sairausloma ja lapsen sairaus. Ilman sitä – esimerkiksi loma- ja henkilökohtaiset asiat – poissaolo kirjataan kokonaisuudessaan ja lisäksi tulee saman päivän työ.",
+  "firma.timer.normtak.hjelpTittel": "Rajattu poissaolo",
+  "firma.timer.normtak.hjelpTekst": "Rajoitettu poissaolo voi korkeintaan täyttää sen, mikä jää päivänormista töiden ja muiden saman päivän poissaolojen jälkeen. Esimerkki 7,5 h normilla: 2 h työtä sallii enintään 5,5 h omatoimista sairauslomaa. Poissaolo ilman korkkia - loma ja henkilökohtaiset asiat - kirjataan kokonaisuudessaan. Ylimääräistä päivää ei voida hyväksyä ennen kuin poissaolo on korjattu; hyväksyjä palauttaa arkin tai korjaa tunnit.",
+  "timer.normtak.leddArt": "{{art}} {{timer}} h",
+  "timer.normtak.leddArbeid": "työ {{timer}} h",
+  "timer.normtak.leddAnnet": "muu poissaolo {{timer}} h",
+  "timer.normtak.brudd": "{{ledd}} = {{sum}} h — yli päivittäisen normin {{norm}} h",
+  "timer.normtak.attesterSperret": "Päivämäärää ei voida hyväksyä ennen kuin poissaolo on korjattu. Palauta arkki tai korjaa tunnit."
 }

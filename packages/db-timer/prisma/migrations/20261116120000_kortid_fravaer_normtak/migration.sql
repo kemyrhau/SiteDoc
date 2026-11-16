@@ -102,3 +102,16 @@ ALTER TABLE "timer"."sheet_timer_forslag" ADD CONSTRAINT "sheet_timer_forslag_ut
   OR ("uten_prosjekt" = true AND "project_id" IS NULL AND "byggeplass_id" IS NULL
       AND "external_cost_object_id" IS NULL AND "vehicle_id" IS NULL AND "er_reise" = false)
 );
+
+-- ============================================================================
+-- B10 (§ 11.10.2): fravaer_normtak — markøren for fravær med tak. Additiv, NOT NULL DEFAULT true
+-- (ukjent = tak; feil vei koster minst). Backfill med diskriminerende WHERE: ubetalte arter og F10-artene
+-- (ferie m/lønn, bevegelig helligdag) har ikke tak. Verdien på arter som ikke er fravær leses aldri.
+-- ============================================================================
+ALTER TABLE "timer"."lonnsarter" ADD COLUMN "fravaer_normtak" BOOLEAN NOT NULL DEFAULT true;
+
+-- B10-BACKFILL: arter uten tak (TF13 leser setningen ordrett herfra)
+UPDATE "timer"."lonnsarter" SET "fravaer_normtak" = false
+ WHERE "type" = 'fravaer'
+   AND ("navn" ILIKE '%u/lønn%' OR "navn" ILIKE '%uten lønn%' OR "navn" ILIKE '%ubetalt%'
+        OR "navn" ILIKE '%privat%' OR "navn" ILIKE 'ferie m/lønn%' OR "navn" ILIKE '%helligdag%');

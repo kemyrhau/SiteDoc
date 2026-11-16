@@ -5689,5 +5689,16 @@
   "timer.bekreftDag.fravaerTil": "Absence until",
   "timer.bekreftDag.lonnsartGruppe.ordinaer": "Ordinary",
   "timer.bekreftDag.lonnsartGruppe.overtid": "Overtime",
-  "timer.bekreftDag.lonnsartGruppe.fravaer": "Absence"
+  "timer.bekreftDag.lonnsartGruppe.fravaer": "Absence",
+  "firma.timer.normtak.medTak": "capped",
+  "firma.timer.normtak.utenTak": "not capped",
+  "firma.timer.felt.fravaerNormtak": "Absence can at most fill the rest of the daily norm",
+  "firma.timer.felt.fravaerNormtakHint": "Turn on for absence the employer pays instead of work: self-certified sick leave, sick leave and child's illness. Without it — for example holiday and personal errands — the absence is recorded in full, and work the same day comes in addition.",
+  "firma.timer.normtak.hjelpTittel": "Capped absence",
+  "firma.timer.normtak.hjelpTekst": "Capped absence can at most fill what is left of the daily norm after work and other absence the same day. Example with a 7.5 h norm: 2 h of work allows at most 5.5 h of self-certified sick leave. Absence without a cap — holiday and personal errands — is recorded in full. A day over the cap cannot be approved until the absence is corrected; the approver returns the sheet or corrects the hours.",
+  "timer.normtak.leddArt": "{{art}} {{timer}} h",
+  "timer.normtak.leddArbeid": "work {{timer}} h",
+  "timer.normtak.leddAnnet": "other absence {{timer}} h",
+  "timer.normtak.brudd": "{{ledd}} = {{sum}} h — over the daily norm of {{norm}} h",
+  "timer.normtak.attesterSperret": "The date cannot be approved until the absence is corrected. Return the sheet, or correct the hours."
 }

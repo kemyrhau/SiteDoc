@@ -5689,5 +5689,16 @@
   "timer.bekreftDag.fravaerTil": "Absence jusqu'à",
   "timer.bekreftDag.lonnsartGruppe.ordinaer": "Ordinaire",
   "timer.bekreftDag.lonnsartGruppe.overtid": "Au fil du temps",
-  "timer.bekreftDag.lonnsartGruppe.fravaer": "Absence"
+  "timer.bekreftDag.lonnsartGruppe.fravaer": "Absence",
+  "firma.timer.normtak.medTak": "plafonné",
+  "firma.timer.normtak.utenTak": "non plafonné",
+  "firma.timer.felt.fravaerNormtak": "L'absence peut tout au plus combler le reste de la norme quotidienne",
+  "firma.timer.felt.fravaerNormtakHint": "Activez les absences payées par l'employeur au lieu du travail : congés de maladie autocertifiés, congés de maladie et maladie de l'enfant. Sans cela — par exemple les vacances et les courses personnelles — l'absence est enregistrée intégralement, et le travail le jour même vient en plus.",
+  "firma.timer.normtak.hjelpTittel": "Absence plafonnée",
+  "firma.timer.normtak.hjelpTekst": "Les absences plafonnées peuvent tout au plus combler ce qui reste de la norme quotidienne après le travail et les autres absences le même jour. Exemple avec une norme de 7,5 h : 2 h de travail permettent au maximum 5,5 h d'arrêt maladie autocertifié. Les absences sans plafond – vacances et courses personnelles – sont intégralement enregistrées. Un jour au-delà du plafond ne peut être approuvé tant que l'absence n'est pas corrigée ; l'approbateur renvoie la fiche ou corrige les horaires.",
+  "timer.normtak.leddArt": "{{art}} {{timer}} h",
+  "timer.normtak.leddArbeid": "travailler {{timer}} h",
+  "timer.normtak.leddAnnet": "autre absence {{timer}} h",
+  "timer.normtak.brudd": "{{ledd}} = {{sum}} h — au-dessus de la norme quotidienne de {{norm}} h",
+  "timer.normtak.attesterSperret": "La date ne peut être approuvée tant que l’absence n’est pas corrigée. Renvoyez la feuille, ou corrigez les heures."
 }

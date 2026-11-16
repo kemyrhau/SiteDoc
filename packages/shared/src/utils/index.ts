@@ -262,10 +262,26 @@ export type { Slettevindu, LokalSedelUtsnitt } from "./timerSyncSletting";
 export { carveArbeidstider } from "./carveArbeidstid";
 export type { CarveSegment, CarvetVindu } from "./carveArbeidstid";
 export { beregnUkenorm, mandagIso } from "./ukenorm";
+export {
+  harNormtak,
+  erFravaerArt,
+  restForFravaerMedTak,
+  vurderFravaerNormtak,
+  erNormtakBrudd,
+  NORMTAK_TOLERANSE,
+  byggNormtakBruddLinje,
+} from "./fravaerNormtak";
+export type {
+  NormtakLonnsart,
+  NormtakRad,
+  FravaerNormtakVurdering,
+  NormtakBruddData,
+} from "./fravaerNormtak";
 export type { UkenormResultat, UkenormDag } from "./ukenorm";
 export { STANDARD_ARBEIDSTID_FALLBACK } from "./arbeidstidDefault";
 export {
   beregnOvertidsgrunnlag,
+  beregnUkeOvertidsgrunnlag,
   lesOvertidsgrunnlagFraSnapshot,
   beregnUkeAvvik,
   avvikRetning,
