@@ -718,6 +718,7 @@ Denne seksjonen er fasit for hva et prosjektkort og et dagskort er. Tekst lenger
 - **Flere prosjektkort på samme prosjekt** føres når arbeidets art må deles opp, også med samme byggeplass og underprosjekt. Eksempel: grøftegraving (kontraktsarbeid) og legging av skifer (regningsarbeid) = to kort. Brukeren sørger selv for oppdelingen.
 - **Splitt av automatisk opprettede føringer:** brukeren må kunne dele en foreslått føring (GPS/auto) i flere prosjektkort for å fange endrings- og regningsarbeid.
 - **Overtid er ikke nytt arbeid:** overtid er egen rad (egen lønnsart) og vises som egen linje i kortet, men deler aldri kortet. Overtid måles mot dagens registrerte tid, også ved manuell føring (se V21-blokka).
+- **Hver linje viser lønnsarten timen tilhører** (Kenneth 2026-11-16): tid, timer og lønnsart på hver linje i prosjektkortet, f.eks. «07:00–15:00 · 7,5 t · Timelønn» og «15:00–17:00 · 2,0 t · Overtid 50 %».
 - **Ett kort:** én beskrivelse og ett sett maskin/varer pr. kort, og aldri to datoer (ORDRE 24, se § «Én beskrivelse pr. prosjektkort»).
 - **Forslag, ikke fasit:** systemet foreslår mest mulig; brukeren kan endre alt. 80 % riktig forslag = lykkes.
 - **Lesbarhet:** den ansatte skal kunne lese av kortet at radene er riktig ført (prosjekt, underprosjekt/byggeplass, tid, lønnsart inkl. overtid).
