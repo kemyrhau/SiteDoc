@@ -535,6 +535,21 @@ describe("TF18 — attesteringssperren (F9 = A)", () => {
     expect(etter).toEqual(foer);
   });
 
+  it("attester sperrer når fraværet alt er attestert og arbeid senere gir brudd (N5)", async () => {
+    // RETUR (30) A1: bare arbeidsrader er pending, men datoen er i brudd.
+    const sid = await nySedel({ status: "sent" });
+    await arbeid(sid, 1);
+    const f = await fravaer(sid, 5.5);
+    await dag(FADMIN).attesterRader({ radIder: { timerIder: [f] } });
+    expect(await status(sid)).toBe("sent");
+    await arbeid(sid, 4); // 1 + 4 + 5,5 = 10,5 > 7,5
+    await expect(dag(FADMIN).attester({ id: sid })).rejects.toMatchObject({
+      code: "PRECONDITION_FAILED",
+      message: expect.stringMatching(/Egenmelding 5,5 t \+ arbeid 5,0 t = 10,5 t — over dagsnormen 7,5 t/),
+    });
+    expect(await status(sid)).toBe("sent");
+  });
+
   it("leserne viser bruddet; dag uten brudd har null", async () => {
     const sid = await nySedel({ status: "sent" });
     await arbeid(sid, 2);

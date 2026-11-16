@@ -6903,14 +6903,13 @@ export const dagsseddelRouter = router({
         })),
       );
 
-      // B10 (F9 = A): dato i brudd attesteres ikke. Oppslaget bare når sedelen har
-      // fravær med tak blant radene som attesteres (rader som alt er attestert, er
-      // låst og kan ikke ha skapt et nytt brudd alene).
-      if (timerRader.some((r) => harNormtak(r.lonnsart))) {
-        await krevIngenNormtakBrudd(ctx.prismaTimer, [
-          { id: input.id, organizationId: sheet.organizationId, dato: sheet.dato },
-        ]);
-      }
+      // B10 (F9 = A): dato i brudd attesteres ikke — uansett hvilke rader som er
+      // pending. Fravær som alt er attestert, kan komme i brudd når arbeid føres
+      // senere (N5); sperren må derfor se hele datoen. Normen slås bare opp når
+      // datoen har fravær med tak (`krevIngenNormtakBrudd`).
+      await krevIngenNormtakBrudd(ctx.prismaTimer, [
+        { id: input.id, organizationId: sheet.organizationId, dato: sheet.dato },
+      ]);
 
       const naa = new Date();
 

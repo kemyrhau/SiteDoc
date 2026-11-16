@@ -485,7 +485,7 @@ Avvik og funn, meldt i SJEKKPUNKT b2:
 Avvik og funn, meldt i SJEKKPUNKT b3:
 - **Mobil er ikke endret** (ordren: ingen mobil-UI). Mobilens ukebadge og attesteringsliste viser ikke bruddet; serveren sperrer attesteringen likevel.
 - **Web-pivoten og DagsKort har ingen egen sperre**; serveren avviser med tallene i feilmeldingen.
-- **`attester` slår bare opp normen når radene som attesteres har fravær med tak**; `attesterRader` slår alltid opp for datoen.
+- **`attester` og `attesterRader` sjekker hele datoen** (RETUR (30) A1: alt attestert fravær kan komme i brudd når arbeid føres senere, N5). Normen slås bare opp når datoen har fravær med tak.
 - **Lønnseksporten tar også uattesterte rader** (`rapport.ts` `detaljEksport`/`firmaPeriodeRapport` filtrerer bare `erstattet`; radstatus er en kolonne). En dag i brudd kan derfor stå i eksporten som `pending`. Ikke endret.
 - Fixture i `firmagrense-attestering.test.ts` fikk `sheet.dato` fordi ukegrunnlaget nå grupperer pr. dato.
 
