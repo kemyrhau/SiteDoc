@@ -4397,6 +4397,10 @@ F4-1b gjorde `hentEgenDagsseddel` identitets-robust (`id ?? clientUuid`), men fl
 
 Egen ordre etter d i kort-id-specen, med egen spec fra Fabel. Kenneth 2026-11-16: «dersom en arbeidstaker fyller ut ferie før han reiser, og blir syk mens han er på ferie ->arbeidsgiver åpner kortene for redigering -> ferie byttes til sykdom iht. regler om evt. legeerklæring -> ferie vil da bli omgjort til sykedager, og feriedager vil kunne tas ut senere.» Omfang: flerdagers føring av fravær («til og med dato»), lønnsansvarlig bytter lønnsart på flere dager samtidig, feriesaldo (finnes ikke i dag). Føring fram i tid én dag om gangen bygges allerede i b–d. Spec: `prosjektkort-kortid-spec.md` § 11.9 F8. Ikke bygget.
 
+### 🔵 Firmaets attesteringsliste tom når firmaet har null prosjekter (ordre b, 2026-11-16)
+
+`hentTilAttesteringFirma` (`apps/api/src/routes/timer/dagsseddel.ts`, `if (prosjektIder.length === 0) return [];`) returnerer `[]` før utvalget av fraværssedler uten prosjekt. Et firma uten prosjekter, men med fraværssedler, får derfor ingenting å attestere. Funnet av Kort-id-b i b2 (punkt 8); ikke rettet fordi et firma med timer i praksis alltid har prosjekter. Retting: fjern den tidlige returen eller la fravær-utvalget gå uansett.
+
 ### 🔵 B10-taket i dagskort-modus (firma uten prosjektkort) — F11 (Kenneth 2026-11-16)
 
 Kenneth 2026-11-16: «før f 11 i backlogg». Taket for betalt fravær (B10: fravær med tak + arbeid ≤ dagsnormen) bygges i prosjektkort-flaten i ordre b–d, men ikke i rad-vinduet i dagskort-modus, fordi den skjermen er vernet (dagskort isolert). Til det bygges, stopper F9 = A en dag over taket ved attestering. Spec: `prosjektkort-kortid-spec.md` § 11.9 F11 og § 11.10. Ikke bygget.

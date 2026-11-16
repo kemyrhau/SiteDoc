@@ -12,6 +12,7 @@
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
 **Sist oppdatert:** 2026-11-16
+- 2026-11-16 — **Merge ordre b (30) kort-id + fravær uten prosjekt + B10** (`eca8dd1f`): FUNKSJONSENDRINGER + STATUS-AKTUELT ført; migreringer ikke kjørt.
 - 2026-11-16 — **`prosjektkort-kortid-spec.md` § 8.1 b3 + `hjelpetekster.md`: B10 fravær med tak og F-F1** (branch `feat/kortid-b-skjema`, kode + docs, Kort-id-b): `fravaer_normtak` + backfill i db-timer, `harNormtak`/`vurderFravaerNormtak` i shared, avvisning i skriveveiene, brudd i syncBatch og attesteringslistene, attesteringssperre (F9 = A), ukegrunnlag F-F1, web lønnsartoppsett og bruddlinje. Ingen fil opprettet/slettet i docs/claude — tellinger uendret.
 - 2026-11-16 — **`prosjektkort-kortid-spec.md` § 8.1 b2 + `hjelpetekster.md`: fravær uten prosjekt og F1** (branch `feat/kortid-b-skjema`, kode + docs, Kort-id-b): `uten_prosjekt` + CHECK i db-timer, F1-kolonnen `fravaer_attesteres_av_prosjektleder`, `validerUtenProsjekt`, skriveveier/syncBatch/F1/rapport, web «Fravær» og F1-avkrysning. Ingen fil opprettet/slettet i docs/claude — tellinger uendret.
 - 2026-11-16 — **`prosjektkort-kortid-spec.md`: ny § 8.1 «Bygget — ordre b», b1 kort-id** (branch `feat/kortid-b-skjema`, kode + docs, Kort-id-b). Den har kode-referanser til migreringene, `kortId.ts` (shared og api) og mobilens `kortIdNormalisering.ts`/`kortIdLokal.ts`, og fører avvikene (K5 ikke bygget, K6 bare ved samme prosjekt, vare-push uten `kortId`). Fila har fortsatt status 🟢 VEDTATT. Ingen ny fil, så tellingen er uendret.
