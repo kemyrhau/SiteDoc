@@ -33,6 +33,8 @@ sist_verifisert_mot_kode: 2026-05-16
 | PSI/§15-geofence-håndheving (nivåer, per firma/byggeplass) | `psi-geofence-handhevning-utredning.md` (🟡 parkert grunnlagsdok) |
 | Maskin-modul spec endres | `maskin.md` |
 | Tillegg/utlegg på prosjektkortet (byggeplass/underprosjekt) spec endres | `tillegg-utlegg-prosjektkort-spec.md` (🟡 UTKAST, Fabel) |
+| Målt avreise/ankomst via lokal geofence (S3-kilde i timer, firmabryter, GDPR-grunnlag) spec endres | `timer-geofence-avreise-ankomst-spec.md` (🟡 UTKAST, Fabel) |
+| Prosjektkort med kort-id, dagskortet som sum av prosjektkort, lønnsart-forslag fra døgnets registreringer — spec endres | `prosjektkort-kortid-spec.md` (🟡 UTKAST, Fabel) |
 | Dokumentflyt-regler endres | `dokumentflyt.md` |
 | Domeneflyt/arbeidsflyt endres | `domene-arbeidsflyt.md` |
 | Mobil-spec endres | `mobil.md` |
