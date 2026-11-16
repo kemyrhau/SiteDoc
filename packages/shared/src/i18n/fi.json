@@ -1553,6 +1553,7 @@
   "3d.modeller": "Mallit",
   "3d.lastOpp": "Lataa",
   "3d.snitt": "osio",
+  "3d.snittHjelp": "Luo osio kaksoisnapsauttamalla pintaa",
   "3d.synk": "Synkronoi",
   "3d.georeferert": "Georeferoitu",
   "3d.gpsKalibrert": "GPS kalibroitu",

@@ -31,7 +31,7 @@ import {
   settWebifcKonstanter,
   finnIfcTypeKode,
 } from "@/app/dashbord/[prosjektId]/3d-visning/hjelpefunksjoner";
-import { panTargetPaaModellDybde } from "@/lib/tredKamera";
+import { flyttLangsBlikk, hjulAvstand, orbitPunkt, panTargetPaaModellDybde } from "@/lib/tredKamera";
 
 /* ------------------------------------------------------------------ */
 /*  Kontekst-type                                                       */
@@ -374,6 +374,10 @@ export function ViewerCanvas({
         world.camera.controls?.setLookAt(20, 20, 20, 0, 0, 0);
         // Senter av alle lastede modeller — settes når modellene er lastet (brukes av pan, W4)
         let modellSenter: InstanceType<typeof THREE.Vector3> | null = null;
+        // Rotasjon rundt skjermmidten: avstand til siste orbit-punkt, og raycast fra
+        // skjermmidten mot synlige modeller (settes når raycasting er klar lenger ned)
+        let sisteOrbitAvstand = 10;
+        let finnTreffISkjermmidten: (() => Promise<InstanceType<typeof THREE.Vector3> | null>) | null = null;
         if (world.camera.controls) {
           const ctrl = world.camera.controls;
           const cam = world.camera.three;
@@ -388,39 +392,53 @@ export function ViewerCanvas({
             return tgt.sub(cam.position).normalize();
           }
 
-          // ── Hjelpefunksjon: sett target 2 enheter foran kamera ──
-          function oppdaterTarget() {
-            const t = cam.position.clone().add(blikkretning().multiplyScalar(2));
-            ctrl.setTarget(t.x, t.y, t.z, false);
+          // ── Venstre knapp: rotasjon rundt punktet midt på skjermen (Kenneth 2026-11-17) ──
+          // Orbit-punktet legges straks på blikklinja med samme avstand som sist, og
+          // flyttes til treffpunktet når raycasten fra skjermmidten svarer. Punktet ligger
+          // alltid på blikklinja, så kameraet snur seg ikke. Regel: orbitPunkt (lib/tredKamera.ts).
+          let orbitTeller = 0;
+          async function settOrbitPunkt() {
+            const nr = ++orbitTeller;
+            const start = orbitPunkt(cam.position, blikkretning(), null, sisteOrbitAvstand);
+            ctrl.setTarget(start.punkt.x, start.punkt.y, start.punkt.z, false);
+            if (!finnTreffISkjermmidten) return;
+            const kameraVedStart = cam.position.clone();
+            const treff = await finnTreffISkjermmidten();
+            if (nr !== orbitTeller || !treff) return;
+            // Kameraet kan ha rotert litt mens raycasten gikk: legg punktet på blikklinja slik den er nå
+            const o = orbitPunkt(cam.position, blikkretning(), treff.distanceTo(kameraVedStart), sisteOrbitAvstand);
+            sisteOrbitAvstand = o.avstand;
+            ctrl.setTarget(o.punkt.x, o.punkt.y, o.punkt.z, false);
           }
 
-          // ── Scroll: flytt kamera fremover/bakover ──
-          // Bruker ctrl.forward() som respekterer orbit-kontrollens interne tilstand.
+          // ── Scroll: flytt kamera og target langs blikket (W6) ──
+          // camera-controls' egen hjul-dolly slås av: den kjørte i tillegg til denne
+          // lytteren (dollyToCursor fra OBC). forward() i camera-controls flytter vannrett
+          // (camera.up × høyre), så modellen gled ut av bildet ved innzoom skrått ovenfra.
+          ctrl.mouseButtons.wheel = 0; // ACTION.NONE
           container.addEventListener("wheel", (e: WheelEvent) => {
             e.preventDefault();
-            const steg = -e.deltaY / 100; // positiv = fremover
-            ctrl.forward(steg * 2.5, false);
+            const retning = blikkretning();
+            const t = new THREE.Vector3();
+            ctrl.getTarget(t);
+            const nyttTarget = flyttLangsBlikk(t, retning, hjulAvstand(e.deltaY));
+            ctrl.moveTo(nyttTarget.x, nyttTarget.y, nyttTarget.z, false);
           }, { passive: false });
 
           // ── Høyre/midtre knapp (pan/dolly): legg target på dybden brukeren ser på ──
           // Pan-farten i camera-controls er proporsjonal med avstanden kamera→target.
-          // Venstreklikk og controlend legger target 2 enheter foran kamera (rotasjon
-          // rundt ståsted), så uten dette ble pan ~2 % av forventet på en bygning sett
-          // på avstand (W4). Regelen: panTargetPaaModellDybde (lib/tredKamera.ts).
+          // Uten dette ble pan ~2 % av forventet på en bygning sett på avstand når target
+          // lå nær kameraet (W4). Regelen: panTargetPaaModellDybde (lib/tredKamera.ts).
           function settTargetPaaModellDybde() {
             if (!modellSenter) return;
             const t = panTargetPaaModellDybde(cam.position, blikkretning(), modellSenter);
             if (t) ctrl.setTarget(t.x, t.y, t.z, false);
           }
 
-          // ── Venstreklikk: sett target nær kamera → rotasjon rundt ståsted ──
           container.addEventListener("pointerdown", (e: PointerEvent) => {
-            if (e.button === 0) oppdaterTarget();
+            if (e.button === 0) void settOrbitPunkt();
             else if (e.button === 1 || e.button === 2) settTargetPaaModellDybde();
           });
-
-          // ── Etter all interaksjon: oppdater target for neste rotasjon ──
-          ctrl.addEventListener("controlend", oppdaterTarget);
         }
 
         components.init();
@@ -548,6 +566,8 @@ export function ViewerCanvas({
           modellSenter = center.clone();
           const size = totalBbox.getSize(new THREE.Vector3());
           const maxDim = Math.max(size.x, size.y, size.z);
+          // Startkameraet ser på senteret; første rotasjon som bommer, går rundt det
+          sisteOrbitAvstand = new THREE.Vector3(maxDim * 0.6, maxDim * 0.4, maxDim * 0.6).length() || sisteOrbitAvstand;
           // Sett near/far basert på modellstørrelse for å unngå z-fighting/flimring
           threeCamera.near = maxDim * 0.001;
           threeCamera.far = maxDim * 20;
@@ -622,6 +642,26 @@ export function ViewerCanvas({
             markerMesh = null;
           }
         }
+
+        // Orbit-punkt for rotasjon: nærmeste treff fra skjermmidten i synlige modeller
+        finnTreffISkjermmidten = async () => {
+          if (renset) return null;
+          const rect = rendererDom.getBoundingClientRect();
+          const raycastData = {
+            camera: threeCamera,
+            mouse: new THREE.Vector2(rect.left + rect.width / 2, rect.top + rect.height / 2),
+            dom: rendererDom,
+          };
+          let naermest: Awaited<ReturnType<typeof fragmentsManager.raycast>> = undefined;
+          for (const [mid, model] of fragmentsManager.list) {
+            if (!synligeModeller.has(mid)) continue;
+            try {
+              const result = await model.raycast(raycastData);
+              if (result && (!naermest || result.distance < naermest.distance)) naermest = result;
+            } catch { /* Noen modeller kan feile */ }
+          }
+          return naermest ? naermest.point.clone() : null;
+        };
 
         let mouseDownPos: { x: number; y: number } | null = null;
         let sisteKlikkPunkt3D: { x: number; y: number; z: number } | null = null;

@@ -1553,6 +1553,7 @@
   "3d.modeller": "Modele",
   "3d.lastOpp": "Încărcați",
   "3d.snitt": "Secțiune",
+  "3d.snittHjelp": "Faceți dublu clic pe o suprafață pentru a crea o secțiune",
   "3d.synk": "Sincronizare",
   "3d.georeferert": "Georeferențiat",
   "3d.gpsKalibrert": "GPS calibrat",

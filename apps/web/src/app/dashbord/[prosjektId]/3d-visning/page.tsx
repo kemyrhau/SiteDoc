@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams } from "next/navigation";
 import { trpc } from "@/lib/trpc";
-import { Spinner } from "@sitedoc/ui";
+import { Spinner, Tooltip } from "@sitedoc/ui";
 import {
   Upload,
   Box,
@@ -251,20 +251,21 @@ function Fane3DModell() {
           </span>
           <div className="flex-1" />
           <div className="flex items-center gap-1 border-r border-gray-200 pr-3">
-            <button
-              onClick={() => {
-                const nyModus = !klippModus;
-                setKlippModus(nyModus);
-                if (nyModus) viewerRef.current?.settKlipperSynlig(true);
-              }}
-              className={`flex items-center gap-1 rounded px-2 py-1 text-xs ${
-                klippModus ? "bg-sitedoc-primary text-white" : "text-gray-600 hover:bg-gray-100"
-              }`}
-              title={t("3d.snitt")}
-            >
-              <Scissors className="h-3.5 w-3.5" />
-              {t("3d.snitt")}
-            </button>
+            <Tooltip tekst={t("3d.snittHjelp")} side="bottom">
+              <button
+                onClick={() => {
+                  const nyModus = !klippModus;
+                  setKlippModus(nyModus);
+                  if (nyModus) viewerRef.current?.settKlipperSynlig(true);
+                }}
+                className={`flex items-center gap-1 rounded px-2 py-1 text-xs ${
+                  klippModus ? "bg-sitedoc-primary text-white" : "text-gray-600 hover:bg-gray-100"
+                }`}
+              >
+                <Scissors className="h-3.5 w-3.5" />
+                {t("3d.snitt")}
+              </button>
+            </Tooltip>
             {klippModus && (
               <button
                 onClick={() => {

@@ -1553,6 +1553,7 @@
   "3d.modeller": "Modelle",
   "3d.lastOpp": "Hochladen",
   "3d.snitt": "Abschnitt",
+  "3d.snittHjelp": "Doppelklicken Sie auf eine Oberfläche, um einen Abschnitt zu erstellen",
   "3d.synk": "Synchronisieren",
   "3d.georeferert": "Georeferenziert",
   "3d.gpsKalibrert": "GPS-kalibriert",
