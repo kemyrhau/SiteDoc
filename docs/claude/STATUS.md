@@ -12,6 +12,7 @@
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
 **Sist oppdatert:** 2026-11-16
+- 2026-11-16 — **`3d-agent-prinsipper.md`: målinger W1–W5/M1–M6 ført** (develop, docs-only, orkestrator): status 🔵 pr. funn, filkart får `mobil-viewer/page.tsx` (mobilens motor, web-deploy) + de to dashbord-layoutene. Tellinger uendret.
 - 2026-11-16 — **NY fil `3d-agent-prinsipper.md` (+1) + `SAMARBEIDSREGLER.md` § 1/§ /clear-REGELEN C + `CLAUDE.md` + `DOC-MAP.md`** (develop, docs-only, orkestrator): Kenneths bestilling — to 3D-agenter (web, mobil), hard grense mot DWG→DXF-konvertering og DXF-filer, mål først, funnliste W1–W5/M1–M6, filkart.
 - 2026-11-16 — **Merge d2c-1** (`274e7fb2`): STATUS-AKTUELT + FUNKSJONSENDRINGER ført.
 - 2026-11-16 — **Merge (37) sammendraget teller dagssedler med rader**: STATUS-AKTUELT + FUNKSJONSENDRINGER ført.
