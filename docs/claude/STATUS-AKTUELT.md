@@ -32,6 +32,8 @@ sist_verifisert_mot_kode: 2026-08-09
 
 > ✅ **Gjestevern ved firmabytte, mobil (19) MERGET 2026-11-15** (merge `1a287c5d` av `38f4dffa`; Kontrollør GODKJENT GATE (44) nederst i `inbox-orkestrator.md`). `skalNullstilleProsjekt` flyttet til `@sitedoc/shared` (`gjesteprosjekt.ts`, web re-eksporterer); mobil `ProsjektKontekst.tsx` holder ventende firmabytte til gjestelista er lastet (`firmabyttProsjekt.ts` `firmabyttUtfall`) — gjesteprosjekt beholdes ved firmabytte. **Ikke deployet.** Lukker (18) åpent punkt (b).
 
+> ✅ **Rapport: PDF-eksport med tilbakemelding (34) MERGET 2026-11-16** (merge `e18953e9` av `8c0ca1a2`; Kontrollør GODKJENT GATE (69) `inbox-orkestrator.md:29490`). `pdfEksport` svarer `tomtUtvalg`; klienten viser fil/tomt/feil-linje; `lastNedBase64` i `apps/web/src/lib/pdf-eksport-nedlasting.ts`. Ingen migrering. Ikke deployet; følger b + (31) + (32) til prod. Rotårsak hos Kenneth sannsynligvis mal-raden (vedtatt atferd siden `86a91047`), ikke målt på test.
+
 > ✅ **Rapport: kladd og erstattet (32) MERGET 2026-11-16** (merge `27cf1ac9` av `107422bc`; Kontrollør GODKJENT GATE (68) `inbox-orkestrator.md:28860`). `rapport.ts`: `statusNokkel` (`draft`/`returned` → kladd, `sent` → sendt), `IKKE_ERSTATTET` i `firmaPeriodeRapport`, `sedelUtvalgRapport` og `hentFirmaProsjekterMedTimer`. Bare api, ingen migrering. Ikke deployet; følger b + (31) til prod.
 
 > ✅ **Eksport kun attesterte (31) MERGET 2026-11-16** (merge `ecc2e3c3` av `acfe566c`; Kontrollør GODKJENT GATE (67) `inbox-orkestrator.md:28800`). Eksporten tar som standard bare attesterte rader; avkryssing «Ta med uattesterte» (config v4, ingen migrering). Ikke deployet. Funn O1 (aggregatet teller erstattet-rader) + O2 (kladd = attestert i statusFordeling) → ordre (32).
