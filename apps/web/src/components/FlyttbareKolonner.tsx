@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { GripVertical } from "lucide-react";
 import { DndContext, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, horizontalListSortingStrategy, sortableKeyboardCoordinates, useSortable } from "@dnd-kit/sortable";
@@ -47,16 +47,22 @@ export function FlyttbareKolonner({
   );
 }
 
-function FlyttbartHode({ hode, flyttEtikett }: { hode: KolonneHode; flyttEtikett: string }) {
-  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id: hode.kolonneId });
-  const { ref, style, className, onClick } = hode.thProps;
-  return (
-    <th
-      ref={(el) => { ref(el); setNodeRef(el); }}
-      className={`group ${className}`}
-      style={{ ...style, transform: CSS.Translate.toString(transform), transition, opacity: isDragging ? 0.6 : 1, zIndex: isDragging ? 20 : undefined }}
-      onClick={onClick}
-    >
+/**
+ * Flytting av én kolonne i hodet — delt av `<Table>` (via `renderFlyttbartHode`) og
+ * `TimerRadTabell` (spec R1/T51: flyttehåndtaket finnes ett sted). Gir ref og stil til
+ * hodecellen, og håndtaket som skal stå i den. Cellen må ha `group` i className for at
+ * håndtaket vises ved hover.
+ */
+export function useFlyttbarKolonne(kolonneId: string, flyttEtikett: string): {
+  setNodeRef: (el: HTMLElement | null) => void;
+  flyttStil: CSSProperties;
+  handtak: ReactNode;
+} {
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id: kolonneId });
+  return {
+    setNodeRef,
+    flyttStil: { transform: CSS.Translate.toString(transform), transition, opacity: isDragging ? 0.6 : 1, zIndex: isDragging ? 20 : undefined },
+    handtak: (
       <button
         type="button"
         ref={setActivatorNodeRef}
@@ -69,6 +75,21 @@ function FlyttbartHode({ hode, flyttEtikett }: { hode: KolonneHode; flyttEtikett
       >
         <GripVertical className="h-3 w-3" />
       </button>
+    ),
+  };
+}
+
+function FlyttbartHode({ hode, flyttEtikett }: { hode: KolonneHode; flyttEtikett: string }) {
+  const { setNodeRef, flyttStil, handtak } = useFlyttbarKolonne(hode.kolonneId, flyttEtikett);
+  const { ref, style, className, onClick } = hode.thProps;
+  return (
+    <th
+      ref={(el) => { ref(el); setNodeRef(el); }}
+      className={`group ${className}`}
+      style={{ ...style, ...flyttStil }}
+      onClick={onClick}
+    >
+      {handtak}
       {hode.innhold}
     </th>
   );

@@ -177,6 +177,13 @@ export {
   TIMER_KOL_BREDDE,
   INTERNE_TIMER_KOLONNER,
   ALLE_RADTYPER,
+  TIMER_TABELL_NYE_KOL,
+  TIMER_TABELL_KOL_KEYS,
+  TIMER_TABELL_KOL,
+  TIMER_TABELL_STANDARD,
+  TIMER_TABELL_KOL_BREDDE,
+  timerTabellVerdi,
+  antallUnderlinjer,
 } from "./timerDetaljRader";
 export type {
   DetaljRadType,
@@ -192,6 +199,12 @@ export type {
   DetaljSubtotal,
   DetaljGruppe,
   DetaljVisuellRad,
+  TimerTabellKolKey,
+  TimerTabellRadType,
+  TimerTabellKolDef,
+  TimerTabellMaskin,
+  TimerTabellVare,
+  TimerTabellLinje,
 } from "./timerDetaljRader";
 export {
   OVERTID_NIVAA_50,

@@ -309,3 +309,13 @@ Avkrysning i eksportmenyen, rett over CSV/Excel/PDF, og i mal-redigereren (`apps
 - **Hint** (tooltip i menyen, tekst under i redigereren): «Uten avkrysning tar Excel, CSV og PDF bare med attesterte timer, maskiner og tillegg, og utlegg fra attesterte sedler. Med avkrysning kommer også det som venter på attestering.» (`…taMedUattesterteHint`).
 - Skjermen viser fortsatt alle rader, med status i egen kolonne; bare eksporten filtreres. Eksempel: Ola har 7,5 t attestert og 2 t som venter — Excel uten avkrysning viser 7,5 t, med avkrysning 9,5 t.
 - Rapportsiden har ennå ikke `HjelpKnapp` (?-ikon); teksten over er vedtatt hjelpetekst for eksportvalget når siden får ikonet.
+
+## Firma → Timer → Attestering: Sedler som tabell (kort-id-spec d2b-1, § 12.8.5, 🟡 ikke merget)
+
+`apps/web/src/app/dashbord/firma/timer/attestering/page.tsx` har `HjelpKnapp` med fanen «Attestering» (`timer.attestering.tabell.hjelp.tittel`). Den løse beskrivelsen over fanene er flyttet inn som første avsnitt (`firma.timer.attesteringBeskrivelse`). Øvrige avsnitt:
+
+- **Struktur:** «Hver dag er én dagsseddel. Under den står prosjektsedlene med en oversiktsrad, og linjene under hver prosjektseddel. Nederst på dagen står summen for dagsseddelen.» (`…hjelp.struktur`)
+- **Handlinger:** ✓/↩/↺ på linje, oversiktsrad og dag; sperren står i Avvik-kolonnen og stopper ✓ (`…hjelp.handlinger`).
+- **Retting:** klikk i cella på en ventende linje når firmaet tillater retting; Enter/Tab lagrer, Esc angrer; «var …» viser gammel verdi (`…hjelp.retting`).
+- **Verktøy:** «Velg parameter», sortering og filter i kolonnehodet, «Attester utvalget» = avkryssede linjer, ellers alle synlige ventende; gjelder besøket (`…hjelp.verktoy`).
+- **Mikrotekst i tabellen** (`timer.attestering.tabell.*`): «Attester utvalget (n)», «n linjer har sperre og ble stående.», «Dagen: X t av dagsnorm Y t», «Uke N: X t overtid ikke ført (ukenorm Y t)», «var X», «Bare oversiktsrader», «Ukeoversikt».

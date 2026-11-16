@@ -1,4 +1,13 @@
 import { Fragment, useState, useMemo, useRef, useEffect, useCallback, type CSSProperties, type ReactNode } from "react";
+import {
+  SorterPil,
+  KolonneFilter,
+  BreddeHandtak,
+  useBreddeDragning,
+  STANDARD_FILTER_TEKSTER,
+  type SorterRetning,
+  type KolonneFilterTekster,
+} from "./tabellverktoy";
 
 interface KolonneDef<T> {
   id: string;
@@ -12,8 +21,6 @@ interface KolonneDef<T> {
   /** Snarveier rendres over alternativ-listen i filter-dropdown. Klikk setter filterverdi til verdier.join(","). */
   filterSnarveier?: { label: string; verdier: string[] }[];
 }
-
-type SorterRetning = "asc" | "desc";
 
 /**
  * Default kolonnebredde når `bredde` mangler. Under `table-layout: fixed` deler
@@ -56,6 +63,8 @@ interface TableProps<T> {
    * apps/web, ikke her). Må rendre en `<th>` med `thProps` og `innhold`.
    */
   renderKolonneHode?: (hode: KolonneHode) => ReactNode;
+  /** Tekster i filternedtrekket (send `t()`). Standard: dagens norske tekst. */
+  tekster?: KolonneFilterTekster;
 }
 
 /** Det `renderKolonneHode` får: ferdige `<th>`-props og innholdet (tittel, sorterpil, filter, bredde-håndtak). */
@@ -99,141 +108,6 @@ function IndeterminateCheckbox({
   );
 }
 
-/* Inline SVG-ikoner for å unngå lucide-react avhengighet */
-function SorterPilOpp() {
-  return (
-    <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M18 15l-6-6-6 6" />
-    </svg>
-  );
-}
-
-function SorterPilNed() {
-  return (
-    <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M6 9l6 6 6-6" />
-    </svg>
-  );
-}
-
-function FilterIkon() {
-  return (
-    <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
-    </svg>
-  );
-}
-
-function FilterDropdown({
-  alternativer,
-  snarveier,
-  verdi,
-  onChange,
-}: {
-  alternativer: { value: string; label: string }[];
-  snarveier?: { label: string; verdier: string[] }[];
-  verdi: string;
-  onChange: (verdi: string) => void;
-}) {
-  const [apen, setApen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  // Parse komma-separert verdi til Set
-  const valgteVerdier = useMemo(() => {
-    if (!verdi) return new Set<string>();
-    return new Set(verdi.split(","));
-  }, [verdi]);
-
-  function toggleVerdi(v: string) {
-    const ny = new Set(valgteVerdier);
-    if (ny.has(v)) ny.delete(v); else ny.add(v);
-    onChange(ny.size > 0 ? [...ny].join(",") : "");
-  }
-
-  useEffect(() => {
-    function handleKlikk(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setApen(false);
-      }
-    }
-    if (apen) document.addEventListener("mousedown", handleKlikk);
-    return () => document.removeEventListener("mousedown", handleKlikk);
-  }, [apen]);
-
-  const harFilter = valgteVerdier.size > 0;
-
-  return (
-    <div ref={ref} className="relative inline-block">
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          setApen(!apen);
-        }}
-        className={`ml-1 inline-flex items-center rounded p-0.5 hover:bg-gray-200 ${
-          harFilter ? "text-blue-600" : "text-gray-400"
-        }`}
-        title="Filtrer"
-      >
-        <FilterIkon />
-      </button>
-      {apen && (
-        <div className="absolute left-0 top-full z-50 mt-1 min-w-[160px] rounded-md border border-gray-200 bg-white py-1 shadow-lg max-h-[300px] overflow-y-auto">
-          <button
-            onClick={() => {
-              onChange("");
-              setApen(false);
-            }}
-            className={`block w-full px-3 py-1.5 text-left text-xs hover:bg-gray-50 ${
-              !harFilter ? "font-semibold text-blue-600" : "text-gray-600"
-            }`}
-          >
-            Alle
-          </button>
-          {snarveier && snarveier.length > 0 && (
-            <div className="border-b border-gray-100">
-              {snarveier.map((sn) => {
-                const snarveiVerdi = sn.verdier.join(",");
-                const erAktiv = verdi === snarveiVerdi;
-                return (
-                  <button
-                    key={sn.label}
-                    onClick={() => {
-                      onChange(snarveiVerdi);
-                      setApen(false);
-                    }}
-                    className={`block w-full px-3 py-1.5 text-left text-xs hover:bg-gray-50 ${
-                      erAktiv ? "font-semibold text-blue-600" : "text-gray-600"
-                    }`}
-                  >
-                    {sn.label}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-          {alternativer.map((alt) => (
-            <label
-              key={alt.value}
-              className="flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-gray-50 cursor-pointer"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <input
-                type="checkbox"
-                checked={valgteVerdier.has(alt.value)}
-                onChange={() => toggleVerdi(alt.value)}
-                className="rounded text-blue-600 h-3 w-3"
-              />
-              <span className={valgteVerdier.has(alt.value) ? "font-medium text-blue-600" : "text-gray-600"}>
-                {alt.label}
-              </span>
-            </label>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 export function Table<T>({
   kolonner,
   data,
@@ -249,49 +123,28 @@ export function Table<T>({
   kolonneBredder,
   onKolonneBreddeEndring,
   renderKolonneHode,
+  tekster = STANDARD_FILTER_TEKSTER,
 }: TableProps<T>) {
   const [sorterKolonne, setSorterKolonne] = useState<string | null>(null);
   const [sorterRetning, setSorterRetning] = useState<SorterRetning>("asc");
 
-  // Resize-state
-  const [resizeKolId, setResizeKolId] = useState<string | null>(null);
-  const resizeStartX = useRef(0);
-  const resizeStartBredde = useRef(0);
+  // Bredde-dragning (delt med TimerRadTabell): bredden settes direkte på <th> under
+  // dragningen, og lagres samlet ved slipp.
   const lokaleBreader = useRef<Record<string, number>>({});
   const thRefs = useRef<Record<string, HTMLTableCellElement | null>>({});
-
-  const handleResizeStart = useCallback((e: React.MouseEvent, kolId: string) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const th = thRefs.current[kolId];
-    if (!th) return;
-    resizeStartX.current = e.clientX;
-    resizeStartBredde.current = th.offsetWidth;
-    setResizeKolId(kolId);
-  }, []);
-
-  useEffect(() => {
-    if (!resizeKolId) return;
-    const handleMove = (e: MouseEvent) => {
-      const diff = e.clientX - resizeStartX.current;
-      const nyBredde = Math.max(40, resizeStartBredde.current + diff);
-      lokaleBreader.current = { ...lokaleBreader.current, [resizeKolId]: nyBredde };
-      const th = thRefs.current[resizeKolId];
+  const { aktivId: resizeKolId, start: handleResizeStart } = useBreddeDragning({
+    startBredde: useCallback((kolId: string) => thRefs.current[kolId]?.offsetWidth, []),
+    onLive: (kolId, nyBredde) => {
+      lokaleBreader.current = { ...lokaleBreader.current, [kolId]: nyBredde };
+      const th = thRefs.current[kolId];
       if (th) th.style.width = `${nyBredde}px`;
-    };
-    const handleUp = () => {
-      setResizeKolId(null);
+    },
+    onSlutt: () => {
       if (onKolonneBreddeEndring) {
         onKolonneBreddeEndring({ ...kolonneBredder, ...lokaleBreader.current });
       }
-    };
-    document.addEventListener("mousemove", handleMove);
-    document.addEventListener("mouseup", handleUp);
-    return () => {
-      document.removeEventListener("mousemove", handleMove);
-      document.removeEventListener("mouseup", handleUp);
-    };
-  }, [resizeKolId, kolonneBredder, onKolonneBreddeEndring]);
+    },
+  });
 
   function handleSorter(kolonneId: string) {
     if (sorterKolonne === kolonneId) {
@@ -391,12 +244,11 @@ export function Table<T>({
                   <span className="flex min-w-0 items-center gap-0.5">
                     <span className="truncate">{kol.header}</span>
                     {kol.sorterbar && sorterKolonne === kol.id && (
-                      sorterRetning === "asc"
-                        ? <SorterPilOpp />
-                        : <SorterPilNed />
+                      <SorterPil retning={sorterRetning} />
                     )}
                     {kol.filtrerbar && kol.filterAlternativer && onFilterEndring && (
-                      <FilterDropdown
+                      <KolonneFilter
+                        tekster={tekster}
                         alternativer={kol.filterAlternativer}
                         snarveier={kol.filterSnarveier}
                         verdi={filterVerdier?.[kol.id] ?? ""}
@@ -405,13 +257,7 @@ export function Table<T>({
                     )}
                   </span>
                   {/* Resize-håndtak */}
-                  <div
-                    onMouseDown={(e) => handleResizeStart(e, kol.id)}
-                    className={`absolute -right-1 top-0 z-10 h-full w-2 cursor-col-resize ${
-                      resizeKolId === kol.id ? "bg-blue-400" : "bg-gray-300 hover:bg-blue-400"
-                    }`}
-                    style={{ width: "3px" }}
-                  />
+                  <BreddeHandtak aktiv={resizeKolId === kol.id} onMouseDown={(e) => handleResizeStart(e, kol.id)} />
                 </>
               );
               if (renderKolonneHode) {

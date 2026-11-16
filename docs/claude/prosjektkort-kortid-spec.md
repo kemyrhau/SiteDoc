@@ -2144,7 +2144,7 @@ Grenser:
 - **Endret kort-nøkkel** ved retting går gjennom samme kort-id-regel som før (`kortIdForSkriving`, så `sikreKortId`); det er ingen egen kollisjonssjekk mot andre kort.
 
 
-### 12.10 Bygget — ordre d2c-1 (Kort-id-d2c1, 🟡 ikke merget)
+### 12.10 Bygget — ordre d2c-1 (Kort-id-d2c1, 🟢 merget `274e7fb2` 2026-11-16, ikke deployet)
 
 **Kobling og sperre ved føring på PC (2026-11-16).** Ingen migrering. `syncBatch` er uendret.
 
@@ -2161,3 +2161,22 @@ Grenser:
 Grenser:
 - **Døgn-maskin ved sletting:** bekreftelsen navngir bare maskinene som krever raden. Døgn-maskiner blir stående uten kobling, som på telefonen (d2c-2). Spec-raden for PC sier «sletter dem», uten å skille mellom enhetene. Tolkningen følger telefon-raden.
 - **Kortet i nedtrekket** er prosjektets timerader på sedelen. Serveren avviser en kobling til et annet prosjekt.
+### 12.11 Bygget — ordre d2b-1 (Kort-id-c, 🟢 merget 2026-11-16, ikke deployet)
+
+Branch `feat/kortid-d2b1-tabell`, fem commits (2026-11-16). Ingen migrering, ingen endring i API-et.
+
+| Del | Kode |
+|---|---|
+| T46, T51: hodets verktøy ut av `Table` | `packages/ui/src/tabellverktoy.tsx` (`SorterPil`, `KolonneFilter`, `useBreddeDragning`, `BreddeHandtak`); `Table` bruker dem uendret; `apps/web/src/components/FlyttbareKolonner.tsx` |
+| R16, H9, H14: kolonnelista | `packages/shared/src/utils/timerDetaljRader.ts` — `TIMER_TABELL_KOL`, `TIMER_TABELL_KOL_KEYS`, `TIMER_TABELL_STANDARD`, `timerTabellVerdi`, `antallUnderlinjer`. Maskinmengde/Maskinenhet på skjermen; eksporten beholder «Mengde»/«Enhet» til d3 |
+| R1, R5–R7, R19, R22, R25: én tabell | `apps/web/src/components/timer/TimerRadTabell.tsx` — klebrig hode, faste venstre-/høyrekolonner over alle tekstlinjer, vekslende bakgrunn pr. linje, bredde og flytting i hodet, sortering og filter pr. besøk. Rapportens Detaljer (`TimerRapportDetaljer.tsx`) bruker den uten sortering og filter |
+| R2–R4, R8–R11, R17, R18, R20, R21, R23, § 12.8.5: Sedler-fanen | `apps/web/src/components/attestering/attestering-tabell.ts` (modell: dag → kort → linjer, sperrer, filter, utvalg) og `AttesteringTabell.tsx` (oversiktsrad pr. kort, dagsumrad, handlinger, retting i cella, verktøylinje). Siden: `apps/web/src/app/dashbord/firma/timer/attestering/page.tsx` |
+| Tester | T46 `apps/web/src/__tests__/table-uendret-t46.test.tsx`; T40, T47, H9, H14 `timerTabellKol.test.ts`; T47, T48, T50, R22/R25 `timer-rad-tabell.test.tsx`; T51 `tabellverktoy-t51.test.ts`; T23, T27, T29, T30, T35, T39, T41–T43, T55, T63, T69 `attestering-tabell-modell.test.ts`; T38, T43, T44, T49, T59 (web), T60, T61 `attestering-tabell.test.tsx` |
+
+Grenser:
+- **Varemengde** kan ikke rettes i cella: `rettRadFelt` har ingen vare-radtype.
+- **T63 tredje tilfelle** (SD-visning av → tomt) er ikke oppfylt: leseren gir ikke prosjektets `visSiteDocNummer`.
+- **Pivotvisningene** (Per prosjekt / Per ansatt) er urørt og har fortsatt nedtrekkene (d2b-2).
+- **`SeddelKort.tsx`** står, men siden bruker den ikke lenger.
+- **Hover-dagskortet over ansattnavnet** (gammel `SeddelKort.tsx`) er fjernet i Sedler-fanen: tabellen viser linjene og dagsummen direkte. Godtatt av Kenneth 2026-11-16 (gate (77) B1). Pivotvisningene har det fortsatt.
+

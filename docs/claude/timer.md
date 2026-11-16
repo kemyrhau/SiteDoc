@@ -754,7 +754,7 @@ Skriveveiene (commit 2):
 - R24: en maskin som krever timerad kan ikke stå igjen uten kobling etter en retting.
 - `vareforbruk.oppdater` logger antallet før, og sperrer en vare på attestert timerad.
 
-### Sperren ved føring på PC (ordre d2c-1) — 🟡 `feat/kortid-d2c1-kobling` (2026-11-16, ikke merget)
+### Sperren ved føring på PC (ordre d2c-1) — 🟢 merget `274e7fb2` 2026-11-16, ikke deployet
 
 R24 gjelder nå også når arbeideren fører på PC (`apps/api/src/routes/timer/dagsseddel.ts`):
 - `maskin.tilfoy` og `maskin.oppdater` tar `sheetTimerId`. De avviser en maskin som krever timerad (alt unntatt `doegn`, H15 = A) når den mangler gyldig kobling. En oppgitt kobling må være gyldig også for døgn-maskin. Koblet maskin følger timeradens kort-id.
@@ -763,6 +763,20 @@ R24 gjelder nå også når arbeideren fører på PC (`apps/api/src/routes/timer/
 - Web (`timer/[id]/page.tsx`): maskin ført i timerad-vinduet får radens id. Maskinvinduet har nedtrekket «Timerad», forvalgt når kortet har én arbeidsrad. Sletting av en timerad med maskin krever bekreftelse som navngir maskinene.
 
 Telefonen fører lokalt og synker med `syncBatch`, som er uendret (vakt i `kortid-d2c1.integration.test.ts`). Telefonens sperre kommer i d2c-2. Kode og tester: [prosjektkort-kortid-spec.md § 12.10](prosjektkort-kortid-spec.md).
+
+### Attesteringstabellen (ordre d2b-1) — 🟢 merget 2026-11-16, ikke deployet
+
+Sedler-fanen på `/dashbord/firma/timer/attestering` er en tabell (`AttesteringTabell.tsx`, modell `attestering-tabell.ts` i `apps/web/src/components/attestering/`):
+- Én dag er én dagsseddel. Under den står prosjektsedlene, hver med en oversiktsrad (✓ / ↩ / ↺ for hele kortet), og linjene. Reise står som eget kort først.
+- Dagsumraden nederst har «Attester dagen» (`attester`), i attestert-fanen «Gjenåpne dagen» (`gjenaapneAttestering`, samme vindu som før), og lenke til sedelen. Ingen retting der (§ 12.8.5).
+- Linja har ✓ / ↩ / ↺ (`attesterRader` / `returnerRader` / `gjenaapneRader`), ✂ (`SplittRadModal`) og penn (`RedigerRadModal`) som synlige knapper i den faste høyrekolonnen.
+- Retting i cella (`rettRadFelt`) når firmaet tillater retting ved attestering og linja venter: Enter eller Tab lagrer, Esc angrer. Avvisning står i cella. Rettede felt viser «var …».
+- Sperrer (B10 fraværstak, V19 uavklart forslag) står i Avvik og stopper ✓. «Attester utvalget» tar de avkryssede linjene, eller alle synlige ventende, og sier hvor mange som ble stående.
+- Én verktøylinje: uke, visning, «Velg parameter», «Bare oversiktsrader», «Ukeoversikt» (ansattpivoten, lukket som standard), filterbrikker og teller. Filter, sortering og «Bare oversiktsrader» gjelder besøket; kolonnevalg, rekkefølge og bredde lagres under `timer-attestering`.
+- Erstatter `SeddelKort`, ekspanderknappene og «Attester gruppe». Hover-dagskortet over ansattnavnet er fjernet (Kenneth 2026-11-16: ja, tabellen viser linjene og dagsummen direkte). Matpause vises i Pause-kolonnen. Pivotvisningene er uendret.
+- Rapportens Detaljer bruker samme `TimerRadTabell` og kolonneliste (`TIMER_TABELL_KOL`), uten sortering og filter.
+
+Kode og tester: [prosjektkort-kortid-spec.md § 12.11](prosjektkort-kortid-spec.md).
 
 ### Kort-id på telefonen og fraværskortet (ordre c) — 🟡 `feat/kortid-c-mobil` (2026-11-16, ikke merget)
 

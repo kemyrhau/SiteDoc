@@ -1203,6 +1203,7 @@ export default function TimerRapportSide() {
             mottaker={mottaker}
             gruppering={gruppering}
             valgteKolonner={valgteKolonner}
+            onKolonneRekkefolge={setValgteKolonner}
           />
         </div>
       )}
