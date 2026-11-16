@@ -285,13 +285,36 @@ export {
   lesOvertidsgrunnlagFraSnapshot,
   beregnUkeAvvik,
   avvikRetning,
+  ukeAvvikRader,
 } from "./overtidsgrunnlag";
 export type {
   OvertidRad,
   Overtidsgrunnlag,
   UkeSedelInput,
   UkeAvvik,
+  UkeAvvikRadInput,
 } from "./overtidsgrunnlag";
+// Kort-id-spec § 12 (ordre d2a): kort-gruppering, maskin → timerad (R24), prosjektnummer (E4).
+export { grupperPaaKort, byggKortRader } from "./kortGruppering";
+export type {
+  KortRadBase,
+  KortTimerInn,
+  KortKobletInn,
+  KortInn,
+  KortLinjeGruppe,
+  KortGruppe,
+  KortGruppering,
+  KortRadTimerInn,
+  KortRadMaskinInn,
+  KortRadVareInn,
+  KortLinjeMaskin,
+  KortLinjeVare,
+  KortRadLinje,
+} from "./kortGruppering";
+export { maskinKreverTimerad, erGyldigTimeradKobling, finnMaskinerUtenTimerad } from "./maskinKobling";
+export type { KoblingTimerRad, KoblingMaskinRad } from "./maskinKobling";
+export { visProsjektnummer } from "./prosjektnummer";
+export type { ProsjektnummerKilde } from "./prosjektnummer";
 export {
   harFeltVerdi,
   beregnLaasteFelter,

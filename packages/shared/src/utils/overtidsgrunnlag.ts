@@ -285,3 +285,90 @@ export function avvikRetning(g: {
   if (d < -0.01) return "under";
   return null;
 }
+
+// ============================================================================
+//  Avvik pekes ut (kort-id-spec § 12.2 «Avvik pekes ut», T26).
+//
+//  Hvilke rader ukeavviket gjelder. Regnestykket over (beregnUkeAvvik) er
+//  uendret; dette bare peker ut radene.
+//  - «under» (ført overtid > beregnet): alle ukas overtidsrader.
+//  - «over» (beregnet > ført): de ordinære arbeidsradene etter at ukenormen er
+//    passert, i tidsrekkefølge (dato, fraTid, opprettet).
+//  Reise teller aldri. Fravær merkes aldri, og teller i ukesummen bare så langt
+//  det fyller dagens norm (F-F1).
+// ============================================================================
+
+export interface UkeAvvikRadInput {
+  id: string;
+  /** ISO-dato YYYY-MM-DD. */
+  dato: string;
+  fraTid?: string | null;
+  createdAt?: Date | string | null;
+  timer: number;
+  overtidsnivaa: number | null;
+  erReise: boolean;
+  erFravaer: boolean;
+}
+
+/**
+ * Id-ene til radene ukeavviket gjelder, i tidsrekkefølge. Tom liste når det
+ * ikke er avvik. `dagsnorm(iso)` gir dagens norm for F-F1; uten den teller
+ * fravær fullt.
+ */
+export function ukeAvvikRader(
+  rader: readonly UkeAvvikRadInput[],
+  g: { norm: number; beregnetOvertid: number; sumOvertid: number },
+  dagsnorm?: (iso: string) => number,
+): string[] {
+  const retning = avvikRetning(g);
+  if (retning === null) return [];
+  const ms = (t: Date | string | null | undefined): number =>
+    t == null ? Number.POSITIVE_INFINITY : typeof t === "string" ? Date.parse(t) : t.getTime();
+  const sortert = [...rader].sort(
+    (a, b) =>
+      (a.dato < b.dato ? -1 : a.dato > b.dato ? 1 : 0) ||
+      ((a.fraTid ?? "99:99") < (b.fraTid ?? "99:99") ? -1 : (a.fraTid ?? "99:99") > (b.fraTid ?? "99:99") ? 1 : 0) ||
+      ms(a.createdAt) - ms(b.createdAt) ||
+      (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
+  );
+  const erArbeid = (r: UkeAvvikRadInput) => !r.erReise && !r.erFravaer;
+  if (retning === "under") {
+    return sortert.filter((r) => erArbeid(r) && r.overtidsnivaa !== null).map((r) => r.id);
+  }
+
+  // F-F1: fravær fyller bare dagens norm — beregn hvor mye fravær som teller pr. dato.
+  const fravaerKreditt = new Map<string, number>();
+  if (dagsnorm) {
+    const perDato = new Map<string, { arbeid: number; fravaer: number }>();
+    for (const r of sortert) {
+      if (r.erReise) continue;
+      const d = perDato.get(r.dato) ?? { arbeid: 0, fravaer: 0 };
+      if (r.erFravaer) d.fravaer += r.timer;
+      else d.arbeid += r.timer;
+      perDato.set(r.dato, d);
+    }
+    for (const [iso, d] of perDato) {
+      fravaerKreditt.set(iso, Math.min(d.fravaer, Math.max(0, dagsnorm(iso) - d.arbeid)));
+    }
+  }
+
+  const merket: string[] = [];
+  let sum = 0;
+  for (const r of sortert) {
+    if (r.erReise) continue;
+    if (r.erFravaer) {
+      if (!dagsnorm) {
+        sum += r.timer;
+        continue;
+      }
+      const igjen = fravaerKreditt.get(r.dato) ?? 0;
+      const teller = Math.min(r.timer, igjen);
+      fravaerKreditt.set(r.dato, igjen - teller);
+      sum += teller;
+      continue;
+    }
+    sum = round2(sum + r.timer);
+    if (r.overtidsnivaa === null && sum > g.norm + 0.005) merket.push(r.id);
+  }
+  return merket;
+}

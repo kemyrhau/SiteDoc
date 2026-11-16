@@ -2098,3 +2098,23 @@ Ett spørsmål. Det låser ingen ordre, men bør være besvart før sperren går
    velger timerad.
 
 **Låser d2a, d2b-1, d2b-2 og d3:** ingen. **d2c-1 og d2c-2:** H15 = A (besvart 2026-11-16).
+
+
+### 12.9 Bygget — ordre d2a (Kort-id-d2a, 🟡 ikke merget)
+
+**Commit 1 — gruppering, kobling og lesere (2026-11-16).** Ingen migrering, ingen skjermendring.
+
+| Del | Kode |
+|---|---|
+| Gruppering G1–G11, linjer R3/R16 | `packages/shared/src/utils/kortGruppering.ts` — `grupperPaaKort`, `byggKortRader` |
+| R24 maskin krever timerad | `packages/shared/src/utils/maskinKobling.ts` — `maskinKreverTimerad` (bare `doegn` slipper, H15 = A), `erGyldigTimeradKobling`, `finnMaskinerUtenTimerad`. Arbeid = `arbeidUtenReise`; `maskinKapasitet.ts` er urørt |
+| E4 prosjektnummer | `packages/shared/src/utils/prosjektnummer.ts` — `visProsjektnummer` |
+| Rader ukeavviket peker på | `packages/shared/src/utils/overtidsgrunnlag.ts` — `ukeAvvikRader`; regnestykket er uendret |
+| Felles oppslag | `apps/api/src/services/timer/kortLeser.ts` — maskinnavn og enhet, byggeplass- og underprosjektnavn (flyttet fra `rapport.ts` `detaljEksport`), varer pr. sedel, rettede felter |
+| Lesere | `apps/api/src/routes/timer/dagsseddel.ts` — `hentTilAttestering`, `hentTilAttesteringFirma`, `hentForAttestering` via `lastKortBerikelse`/`berikRad`/`berikMaskinRad`. Nye felt: `varer[]`, `ukeAvvikRadIder`; pr. rad `byggeplassNavn`, `underprosjekt`, `rettedeFelter`; pr. maskinrad `utleieEnhet`, `manglerTimerad`; `utlegg` i detaljen; `maskiner` i prosjektlista. Radene sorteres på `fraTid`, så `createdAt`. Ingen felt fjernet eller omdøpt |
+| Tester | T21–T23, T37, T52 `kortGruppering.test.ts`; T67 `maskinKobling.test.ts`; T63 `prosjektnummer.test.ts`; T26 `ukeAvvikRader.test.ts`; T24, T25, T57, T69, ukeavvik og vakt for `detaljEksport` i `apps/api/src/routes/kortid-d2a.integration.test.ts` |
+
+Grenser:
+- **Varer** kommer bare fra sedelens eget firmas varekatalog, og lista er tom når varelager er av for firmaet.
+- **`ukeAvvikRadIder`** gir bare sedelens egne rader. På ferdig attestert sedel leser detaljen det frosne grunnlaget; listene regner fra dagens rader.
+

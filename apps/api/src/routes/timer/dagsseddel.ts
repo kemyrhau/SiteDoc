@@ -26,6 +26,17 @@ import {
   validerOppgittKortId,
 } from "../../services/timer/kortId";
 import {
+  hentKortStedNavn,
+  hentRettedeFelter,
+  hentUtstyrOppslag,
+  hentVarerForSedler,
+  stedFelter,
+  type KortStedNavn,
+  type RettetFelt,
+  type SedelVare,
+  type UtstyrOppslag,
+} from "../../services/timer/kortLeser";
+import {
   krevRadInnenforTak,
   maksForSatsEnhet,
   takFeilmelding,
@@ -88,6 +99,11 @@ import {
   type UtenProsjektRad,
   beregnUkeOvertidsgrunnlag,
   type OvertidRad,
+  ukeAvvikRader,
+  type UkeAvvikRadInput,
+  finnMaskinerUtenTimerad,
+  maskinKreverTimerad,
+  erGyldigTimeradKobling,
   harNormtak,
   erFravaerArt,
   restForFravaerMedTak,
@@ -1585,6 +1601,20 @@ async function byggUkeOvertidsgrunnlag(
   userId: string,
   dato: Date,
 ): Promise<Overtidsgrunnlag> {
+  return (await lastUkeOvertid(prismaTimer, organizationId, userId, dato)).grunnlag;
+}
+
+/**
+ * Ukens overtidsgrunnlag + radene det er regnet av (ordre d2a: leserne peker ut
+ * radene ukeavviket gjelder). Regnestykket er uendret — `byggUkeOvertidsgrunnlag`
+ * gir bare `grunnlag` videre.
+ */
+async function lastUkeOvertid(
+  prismaTimer: PrismaTimerKlient,
+  organizationId: string,
+  userId: string,
+  dato: Date,
+): Promise<{ grunnlag: Overtidsgrunnlag; rader: UkeAvvikRadInput[]; dagsnorm: Map<string, number> }> {
   const ukestart = mandagIso(dato);
   const ukeslutt = leggTilDagerIso(ukestart, 4); // fredag
 
@@ -1616,6 +1646,9 @@ async function byggUkeOvertidsgrunnlag(
       },
     },
     select: {
+      id: true,
+      fraTid: true,
+      createdAt: true,
       timer: true,
       erReise: true,
       sheet: { select: { dato: true } },
@@ -1626,23 +1659,167 @@ async function byggUkeOvertidsgrunnlag(
   // F-F1 (kort-id-spec § 11.10.4): fravær er ikke arbeid, men fyller dagens norm i
   // ukesummen (aldri mer) — derfor gruppert pr. dato med datoens dagsnorm.
   const perDato = new Map<string, OvertidRad[]>();
+  const avvikRader: UkeAvvikRadInput[] = [];
   for (const r of rader) {
     const iso = r.sheet.dato.toISOString().slice(0, 10);
     const liste = perDato.get(iso) ?? [];
-    liste.push({
+    const rad = {
       timer: Number(r.timer),
       overtidsnivaa: r.lonnsart?.overtidsnivaa ?? null,
       // V1: reise holdes utenfor overtidsgrunnlaget.
       erReise: r.erReise,
       erFravaer: erFravaerArt(r.lonnsart),
-    });
+    };
+    liste.push(rad);
     perDato.set(iso, liste);
+    avvikRader.push({ ...rad, id: r.id, dato: iso, fraTid: r.fraTid, createdAt: r.createdAt });
   }
-  return beregnUkeOvertidsgrunnlag(
+  const grunnlag = beregnUkeOvertidsgrunnlag(
     [...perDato].map(([iso, liste]) => ({ dagsnorm: dagsnormMap.get(iso) ?? 0, rader: liste })),
     uke.norm,
   );
+  return { grunnlag, rader: avvikRader, dagsnorm: dagsnormMap };
 }
+
+/**
+ * Ordre d2a: pr. sedel id-ene til radene ukeavviket peker på (bare sedelens egne
+ * rader). Én lasting pr. (firma, ansatt, uke). `grunnlagFor` lar detaljen bruke
+ * frosset grunnlag på ferdig attestert sedel.
+ */
+async function hentUkeAvvikRadIder(
+  prismaTimer: PrismaTimerKlient,
+  sedler: ReadonlyArray<{ id: string; organizationId: string; userId: string; dato: Date; timer: ReadonlyArray<{ id: string }> }>,
+  grunnlagFor?: (sheetId: string) => Overtidsgrunnlag | null,
+): Promise<Map<string, string[]>> {
+  const uker = new Map<string, Promise<Awaited<ReturnType<typeof lastUkeOvertid>>>>();
+  const resultat = new Map<string, string[]>();
+  await Promise.all(
+    sedler.map(async (s) => {
+      const nokkel = `${s.organizationId}:${s.userId}:${mandagIso(s.dato)}`;
+      let uke = uker.get(nokkel);
+      if (!uke) {
+        uke = lastUkeOvertid(prismaTimer, s.organizationId, s.userId, s.dato);
+        uker.set(nokkel, uke);
+      }
+      const u = await uke;
+      const g = grunnlagFor?.(s.id) ?? u.grunnlag;
+      const egne = new Set(s.timer.map((r) => r.id));
+      const ider = ukeAvvikRader(u.rader, g, (iso) => u.dagsnorm.get(iso) ?? 0);
+      resultat.set(s.id, ider.filter((id) => egne.has(id)));
+    }),
+  );
+  return resultat;
+}
+
+// ---------------------------------------------------------------------------
+//  Ordre d2a — felles berikelse for attesteringens tre lesere
+// ---------------------------------------------------------------------------
+
+type RadMedKort = {
+  id: string;
+  parentRadId?: string | null;
+  byggeplassId?: string | null;
+  externalCostObjectId?: string | null;
+};
+type TimerRadForBerikelse = RadMedKort & {
+  sheetId: string;
+  kortId: string | null;
+  projectId: string | null;
+  timer: Prisma.Decimal | number;
+  erReise: boolean;
+  attestertStatus: string | null;
+};
+type MaskinRadForBerikelse = RadMedKort & {
+  sheetId: string;
+  kortId: string | null;
+  sheetTimerId: string | null;
+  vehicleId: string;
+};
+
+interface KortBerikelse {
+  sted: KortStedNavn;
+  utstyr: UtstyrOppslag;
+  varer: Map<string, SedelVare[]>;
+  rettede: Map<string, RettetFelt[]>;
+  ukeAvvik: Map<string, string[]>;
+}
+
+/** Ett batchet oppslag for alle sedlene leseren gir tilbake. */
+async function lastKortBerikelse(
+  ctx: {
+    prisma: typeof prisma;
+    prismaTimer: PrismaTimerKlient;
+    prismaMaskin: Parameters<typeof hentUtstyrOppslag>[0];
+    prismaVarelager: Parameters<typeof hentVarerForSedler>[0];
+  },
+  sedler: ReadonlyArray<{
+    id: string;
+    organizationId: string;
+    userId: string;
+    dato: Date;
+    byggeplassId?: string | null;
+    timer: ReadonlyArray<TimerRadForBerikelse>;
+    tillegg: ReadonlyArray<RadMedKort>;
+    maskiner: ReadonlyArray<MaskinRadForBerikelse>;
+  }>,
+  grunnlagFor?: (sheetId: string) => Overtidsgrunnlag | null,
+): Promise<KortBerikelse> {
+  const [sted, utstyr, varer, rettede, ukeAvvik] = await Promise.all([
+    hentKortStedNavn(
+      ctx.prisma,
+      sedler.map((s) => ({
+        organizationId: s.organizationId,
+        byggeplassId: s.byggeplassId ?? null,
+        rader: [...s.timer, ...s.tillegg, ...s.maskiner],
+      })),
+    ),
+    hentUtstyrOppslag(ctx.prismaMaskin, sedler.flatMap((s) => s.maskiner.map((m) => m.vehicleId))),
+    hentVarerForSedler(ctx.prismaVarelager, sedler),
+    hentRettedeFelter(
+      ctx.prismaTimer,
+      ctx.prisma,
+      sedler.flatMap((s) => [
+        ...s.timer.map((rad) => ({ type: "timer" as const, rad })),
+        ...s.tillegg.map((rad) => ({ type: "tillegg" as const, rad })),
+        ...s.maskiner.map((rad) => ({ type: "maskin" as const, rad })),
+      ]),
+    ),
+    hentUkeAvvikRadIder(ctx.prismaTimer, sedler, grunnlagFor),
+  ]);
+  return { sted, utstyr, varer, rettede, ukeAvvik };
+}
+
+/** Navn på byggeplass/underprosjekt + rettede felter. Bare nye felt. */
+function berikRad<R extends RadMedKort>(b: KortBerikelse, rad: R) {
+  return { ...rad, ...stedFelter(b.sted, rad), rettedeFelter: b.rettede.get(rad.id) ?? [] };
+}
+
+/** Som berikRad + maskinens enhet og «mangler påkrevd timerad» (R24). */
+function berikMaskinRad<R extends MaskinRadForBerikelse>(
+  b: KortBerikelse,
+  rad: R,
+  timer: ReadonlyArray<TimerRadForBerikelse>,
+) {
+  const utleieEnhet = b.utstyr.utleieEnhet.get(rad.vehicleId) ?? null;
+  const manglerTimerad =
+    maskinKreverTimerad(utleieEnhet) &&
+    !erGyldigTimeradKobling(
+      { sheetId: rad.sheetId, kortId: rad.kortId, sheetTimerId: rad.sheetTimerId },
+      timer.map((t) => ({
+        id: t.id,
+        sheetId: t.sheetId,
+        kortId: t.kortId,
+        projectId: t.projectId,
+        timer: Number(t.timer),
+        erReise: t.erReise,
+        attestertStatus: t.attestertStatus,
+      })),
+    );
+  return { ...berikRad(b, rad), utleieEnhet, manglerTimerad };
+}
+
+/** Rekkefølgen radene vises i (ordre d2a): fraTid, så opprettet. */
+const RAD_REKKEFOLGE = [{ fraTid: "asc" as const }, { createdAt: "asc" as const }];
 
 // ============================================================================
 //  T7-4b (2026-05-16) — validerMaskinUnderArbeid
@@ -4689,11 +4866,15 @@ export const dagsseddelRouter = router({
           timer: {
             where: { attestertStatus: { not: "erstattet" } },
             include: { lonnsart: { select: { type: true, fravaerNormtak: true, navn: true } } },
+            orderBy: RAD_REKKEFOLGE,
           },
-          tillegg: { where: { attestertStatus: { not: "erstattet" } } },
+          tillegg: { where: { attestertStatus: { not: "erstattet" } }, orderBy: { createdAt: "asc" } },
+          // Ordre d2a: maskinene med i prosjektlista.
+          maskiner: { where: { attestertStatus: { not: "erstattet" } }, orderBy: RAD_REKKEFOLGE },
         },
         orderBy: [{ dato: "asc" }, { createdAt: "asc" }],
       });
+      const kort = await lastKortBerikelse(ctx, sedler);
       // B10: effektiv dagsnorm pr. (firma, dato) for bruddlinja.
       const normFor = await dagsnormerFor(sedler);
 
@@ -4732,6 +4913,12 @@ export const dagsseddelRouter = router({
             : null,
           totaltimer: s.timer.reduce((acc, t) => acc + Number(t.timer), 0),
           antallRader: s.timer.length + s.tillegg.length,
+          // Ordre d2a: kort-feltene (bare nye felt).
+          timer: s.timer.map((r) => berikRad(kort, r)),
+          tillegg: s.tillegg.map((r) => berikRad(kort, r)),
+          maskiner: s.maskiner.map((r) => berikMaskinRad(kort, r, s.timer)),
+          varer: kort.varer.get(s.id) ?? [],
+          ukeAvvikRadIder: kort.ukeAvvik.get(s.id) ?? [],
         };
       });
     }),
@@ -4833,9 +5020,10 @@ export const dagsseddelRouter = router({
                 select: { overtidsnivaa: true, type: true, fravaerNormtak: true, navn: true },
               },
             },
+            orderBy: RAD_REKKEFOLGE,
           },
-          tillegg: { where: { attestertStatus: { not: "erstattet" } } },
-          maskiner: { where: { attestertStatus: { not: "erstattet" } } },
+          tillegg: { where: { attestertStatus: { not: "erstattet" } }, orderBy: { createdAt: "asc" } },
+          maskiner: { where: { attestertStatus: { not: "erstattet" } }, orderBy: RAD_REKKEFOLGE },
           // Dagskortet viser «alt registrert den dagen» → utlegg med. `select`
           // (ikke `include`) → KUN beløp + kategorinavn i denne uke-scopede
           // firma-spørringen; henter IKKE kommentar (@db.Text), mvaSats,
@@ -4965,6 +5153,7 @@ export const dagsseddelRouter = router({
 
       // F1: firma-admin har alltid rett; samme regel som serveren håndhever.
       const fravaerRett = await fravaerRettPrSedel(ctx.userId, sedler);
+      const kort = await lastKortBerikelse(ctx, sedler);
 
       return sedler.map((s) => {
         // Første rad MED prosjekt (fravær uten prosjekt bærer ikke sedelens prosjekt).
@@ -4988,19 +5177,22 @@ export const dagsseddelRouter = router({
         );
         const ukenorm = ukenormMap.get(mandagIso(s.dato)) ?? 0;
         const timerMedProsjekt = s.timer.map((r) => ({
-          ...r,
+          ...berikRad(kort, r),
           project: r.projectId ? (prosjektMap.get(r.projectId) ?? null) : null,
         }));
         const tilleggMedProsjekt = s.tillegg.map((r) => ({
-          ...r,
+          ...berikRad(kort, r),
           project: prosjektMap.get(r.projectId) ?? null,
         }));
         const maskinerMedProsjekt = s.maskiner.map((r) => ({
-          ...r,
+          ...berikMaskinRad(kort, r, s.timer),
           project: prosjektMap.get(r.projectId) ?? null,
         }));
         return {
           ...s,
+          // Ordre d2a: varer pr. sedel og radene ukeavviket peker på.
+          varer: kort.varer.get(s.id) ?? [],
+          ukeAvvikRadIder: kort.ukeAvvik.get(s.id) ?? [],
           fravaerKanAttesteres: fravaerRett.get(s.id) ?? false,
           timer: timerMedProsjekt,
           tillegg: tilleggMedProsjekt,
@@ -5064,7 +5256,7 @@ export const dagsseddelRouter = router({
         // Filtrer ut "erstattet"-rader (audit-spor fra rediger-mutasjoner).
         ctx.prismaTimer.sheetTimer.findMany({
           where: { sheetId: sheet.id, attestertStatus: { not: "erstattet" } },
-          orderBy: { createdAt: "asc" },
+          orderBy: RAD_REKKEFOLGE,
         }),
         ctx.prismaTimer.sheetTillegg.findMany({
           where: { sheetId: sheet.id, attestertStatus: { not: "erstattet" } },
@@ -5072,7 +5264,7 @@ export const dagsseddelRouter = router({
         }),
         ctx.prismaTimer.sheetMachine.findMany({
           where: { sheetId: sheet.id, attestertStatus: { not: "erstattet" } },
-          orderBy: { createdAt: "asc" },
+          orderBy: RAD_REKKEFOLGE,
         }),
         // V19 (A-7, C-2): forslaget LESES av attestanten — vist side om side med
         // radene, men ALDRI valgt eller attestert (V19.5). Attester-knappen er
@@ -5168,18 +5360,46 @@ export const dagsseddelRouter = router({
           }),
         ]);
 
+      // Ordre d2a: utleggene i detaljen (samme felt som firmalista + kort og beskrivelse).
+      const utlegg = await ctx.prismaTimer.sheetUtlegg.findMany({
+        where: { sheetId: sheet.id },
+        select: {
+          id: true,
+          projectId: true,
+          belop: true,
+          kommentar: true,
+          kortId: true,
+          byggeplassId: true,
+          externalCostObjectId: true,
+          expenseCategory: { select: { navn: true } },
+        },
+        orderBy: { createdAt: "asc" },
+      });
+
+      // Ordre d2a: kort-berikelsen. Ferdig attestert sedel peker ukeavviket ut
+      // fra det frosne grunnlaget (samme kilde som banneret under).
+      const frosset =
+        sheet.status === "accepted"
+          ? lesOvertidsgrunnlagFraSnapshot(timer.find((r) => r.attestertSnapshot)?.attestertSnapshot)
+          : null;
+      const kortBerikelse = await lastKortBerikelse(
+        ctx,
+        [{ ...sheet, timer, tillegg, maskiner }],
+        () => frosset,
+      );
+
       // T7-2d: bygg map og berik radene
       const prosjektMap = new Map(prosjekterPerRad.map((p) => [p.id, p]));
       const timerMedProsjekt = timer.map((r) => ({
-        ...r,
+        ...berikRad(kortBerikelse, r),
         project: r.projectId ? (prosjektMap.get(r.projectId) ?? null) : null,
       }));
       const tilleggMedProsjekt = tillegg.map((r) => ({
-        ...r,
+        ...berikRad(kortBerikelse, r),
         project: prosjektMap.get(r.projectId) ?? null,
       }));
       const maskinerMedProsjekt = maskiner.map((r) => ({
-        ...r,
+        ...berikMaskinRad(kortBerikelse, r, timer),
         project: prosjektMap.get(r.projectId) ?? null,
       }));
 
@@ -5230,6 +5450,10 @@ export const dagsseddelRouter = router({
         timer: timerMedProsjekt,
         tillegg: tilleggMedProsjekt,
         maskiner: maskinerMedProsjekt,
+        // Ordre d2a: varer, utlegg og radene ukeavviket peker på.
+        varer: kortBerikelse.varer.get(sheet.id) ?? [],
+        utlegg,
+        ukeAvvikRadIder: kortBerikelse.ukeAvvik.get(sheet.id) ?? [],
         prosjekt,
         ansatt,
         redigerTillatt,
