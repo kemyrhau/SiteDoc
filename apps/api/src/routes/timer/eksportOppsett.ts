@@ -66,9 +66,12 @@ const configSchema = z.object({
   orientering: z.enum(["auto", "staaende", "liggende"]).optional(),
   topptekst: z.object({ linjer: z.array(z.string()) }).nullable().optional(),
   kolonner: z.array(z.enum(KOLONNE_KEYS)).optional(),
+  // configVersion 4 (ordre (31), 2026-11-16): avkryssingen «Ta med uattesterte».
+  // JSONB → ingen migrering. Utelatt → false = bare attesterte rader (eksport-standard).
+  taMedUattesterte: z.boolean().optional(),
 });
 
-const CONFIG_VERSION = 3;
+const CONFIG_VERSION = 4;
 
 const NIVAA = ["firma", "personlig"] as const;
 

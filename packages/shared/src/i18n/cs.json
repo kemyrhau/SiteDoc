@@ -2570,6 +2570,8 @@
   "firma.timer.rapport.eksport.csv": "CSV (.csv)",
   "firma.timer.rapport.eksport.excel": "Excel (.xlsx)",
   "firma.timer.rapport.eksport.pdf": "PDF (.pdf)",
+  "firma.timer.rapport.eksport.taMedUattesterte": "Zahrnout neschválené",
+  "firma.timer.rapport.eksport.taMedUattesterteHint": "Nezaškrtnuté, Excel, CSV a PDF obsahují pouze schválené hodiny, stroje a příspěvky a výdaje ze schválených pracovních výkazů. Zkontrolováno, zahrnují také to, co ještě čeká na schválení.",
   "firma.timer.rapport.pdf.dokumentTittel": "Zpráva o čase",
   "firma.timer.rapport.pdf.periode": "Období",
   "firma.timer.rapport.pdf.prosjekt": "Projekt",

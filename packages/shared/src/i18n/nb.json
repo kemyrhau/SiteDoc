@@ -2570,6 +2570,8 @@
   "firma.timer.rapport.eksport.csv": "CSV (.csv)",
   "firma.timer.rapport.eksport.excel": "Excel (.xlsx)",
   "firma.timer.rapport.eksport.pdf": "PDF (.pdf)",
+  "firma.timer.rapport.eksport.taMedUattesterte": "Ta med uattesterte",
+  "firma.timer.rapport.eksport.taMedUattesterteHint": "Uten avkrysning tar Excel, CSV og PDF bare med attesterte timer, maskiner og tillegg, og utlegg fra attesterte sedler. Med avkrysning kommer også det som venter på attestering.",
   "firma.timer.rapport.pdf.dokumentTittel": "Timerapport",
   "firma.timer.rapport.pdf.periode": "Periode",
   "firma.timer.rapport.pdf.prosjekt": "Prosjekt",

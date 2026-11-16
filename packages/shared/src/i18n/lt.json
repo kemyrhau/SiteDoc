@@ -2570,6 +2570,8 @@
   "firma.timer.rapport.eksport.csv": "CSV (.csv)",
   "firma.timer.rapport.eksport.excel": "Excel (.xlsx)",
   "firma.timer.rapport.eksport.pdf": "PDF (.pdf)",
+  "firma.timer.rapport.eksport.taMedUattesterte": "Įtraukti nepatvirtintus",
+  "firma.timer.rapport.eksport.taMedUattesterteHint": "Nepažymėta, Excel, CSV ir PDF apima tik patvirtintas valandas, įrenginius ir pašalpas bei išlaidas iš patvirtintų darbo laiko apskaitos žiniaraščių. Patikrinta, juose taip pat yra tai, kas dar laukia patvirtinimo.",
   "firma.timer.rapport.pdf.dokumentTittel": "Laiko ataskaita",
   "firma.timer.rapport.pdf.periode": "Laikotarpis",
   "firma.timer.rapport.pdf.prosjekt": "Projektas",

@@ -283,3 +283,12 @@ Avkrysning under Timeføring-hjelpeteksten (`apps/web/src/app/dashbord/firma/inn
 - **Hint under:** «Uten avkrysning attesterer bare lønnsansvarlig fravær. Med avkrysning kan også prosjektlederen som attesterer resten av dagen, attestere fraværet.» (`…fravaerProsjektlederHint`).
 - **?-ikon:** «Gjelder fravær ført uten prosjekt. Valget virker fra neste attestering; attesterte timer endres ikke.» (`…fravaerProsjektlederHjelpIkon`).
 - Serveren avgjør (`krevAttesteringsrett` i `apps/api/src/routes/timer/dagsseddel.ts`) og sender `fravaerKanAttesteres` pr. sedel; attesteringslistene viser fraværsraden nedtonet når den er `false`. Fravær uten prosjekt heter «Fravær» (`timer.detalj.fravaerUtenProsjekt`) overalt på web.
+
+## Firma → Timer → Rapport: «Ta med uattesterte» (ordre (31), 🟡 ikke merget)
+
+Avkrysning i eksportmenyen, rett over CSV/Excel/PDF, og i mal-redigereren (`apps/web/src/app/dashbord/firma/timer/rapport/page.tsx`). Av som standard; valget lagres i utskriftsmalen.
+
+- **Ledetekst:** «Ta med uattesterte» (`firma.timer.rapport.eksport.taMedUattesterte`).
+- **Hint** (tooltip i menyen, tekst under i redigereren): «Uten avkrysning tar Excel, CSV og PDF bare med attesterte timer, maskiner og tillegg, og utlegg fra attesterte sedler. Med avkrysning kommer også det som venter på attestering.» (`…taMedUattesterteHint`).
+- Skjermen viser fortsatt alle rader, med status i egen kolonne; bare eksporten filtreres. Eksempel: Ola har 7,5 t attestert og 2 t som venter — Excel uten avkrysning viser 7,5 t, med avkrysning 9,5 t.
+- Rapportsiden har ennå ikke `HjelpKnapp` (?-ikon); teksten over er vedtatt hjelpetekst for eksportvalget når siden får ikonet.

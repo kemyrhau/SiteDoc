@@ -646,12 +646,14 @@ describe("TF6 — rapport og eksport", () => {
     const filtrert = await rapport(FADMIN).firmaPeriodeRapport({ ...periode, prosjektId: P1 });
     expect(filtrert.ansatte.find((a) => a.userId === USER)!.perProsjekt.some((p) => p.prosjektId === null)).toBe(false);
 
-    const detalj = await rapport(FADMIN).detaljEksport(periode);
+    // Skjermens kall (alle rader): radene her er ikke attestert. Ordre (31) gjør
+    // «bare attesterte» til eksport-standard; utvalget testes i eksport-kun-attesterte.
+    const detalj = await rapport(FADMIN).detaljEksport({ ...periode, taMedUattesterte: true });
     const mine = detalj.timerader.filter((r) => r.dato === dato);
     expect(mine).toHaveLength(2);
     expect(mine.map((r) => r.prosjekt).sort()).toEqual(["Fravær", "Fravær P1"]);
     expect(detalj.timerader.filter((r) => r.dato === datoBare).map((r) => r.prosjekt)).toEqual(["Fravær"]);
-    const detaljFiltrert = await rapport(FADMIN).detaljEksport({ ...periode, prosjektId: P1 });
+    const detaljFiltrert = await rapport(FADMIN).detaljEksport({ ...periode, prosjektId: P1, taMedUattesterte: true });
     expect(detaljFiltrert.timerader.filter((r) => r.dato === dato).map((r) => r.prosjekt)).toEqual(["Fravær P1"]);
     expect(detaljFiltrert.timerader.some((r) => r.dato === datoBare)).toBe(false);
   });

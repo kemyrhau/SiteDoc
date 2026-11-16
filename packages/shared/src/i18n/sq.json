@@ -2570,6 +2570,8 @@
   "firma.timer.rapport.eksport.csv": "CSV (.csv)",
   "firma.timer.rapport.eksport.excel": "Excel (.xlsx)",
   "firma.timer.rapport.eksport.pdf": "PDF (.pdf)",
+  "firma.timer.rapport.eksport.taMedUattesterte": "Përfshi të pamiratuara",
+  "firma.timer.rapport.eksport.taMedUattesterteHint": "Të pakontrolluara, Excel, CSV dhe PDF përfshijnë vetëm orët e miratuara, makineritë dhe kompensimet dhe shpenzimet nga fletët e miratuara të orarit. Të kontrolluara, ato përfshijnë gjithashtu atë që është ende në pritje të miratimit.",
   "firma.timer.rapport.pdf.dokumentTittel": "Raporti i kohës",
   "firma.timer.rapport.pdf.periode": "Periudha",
   "firma.timer.rapport.pdf.prosjekt": "Projekti",

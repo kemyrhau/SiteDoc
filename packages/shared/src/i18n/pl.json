@@ -2570,6 +2570,8 @@
   "firma.timer.rapport.eksport.csv": "CSV (.csv)",
   "firma.timer.rapport.eksport.excel": "Excel (.xlsx)",
   "firma.timer.rapport.eksport.pdf": "PDF (.pdf)",
+  "firma.timer.rapport.eksport.taMedUattesterte": "Uwzględnij niezatwierdzone",
+  "firma.timer.rapport.eksport.taMedUattesterteHint": "Niezaznaczone, Excel, CSV i PDF uwzględniają tylko zatwierdzone godziny, maszyny i dodatki oraz wydatki z zatwierdzonych grafików. Sprawdzone, obejmują także to, co wciąż oczekuje na zatwierdzenie.",
   "firma.timer.rapport.pdf.dokumentTittel": "Raport czasowy",
   "firma.timer.rapport.pdf.periode": "Okres",
   "firma.timer.rapport.pdf.prosjekt": "Projekt",

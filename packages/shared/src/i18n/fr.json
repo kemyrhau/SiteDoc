@@ -2570,6 +2570,8 @@
   "firma.timer.rapport.eksport.csv": "CSV (.csv)",
   "firma.timer.rapport.eksport.excel": "Excel (.xlsx)",
   "firma.timer.rapport.eksport.pdf": "PDF (.pdf)",
+  "firma.timer.rapport.eksport.taMedUattesterte": "Inclure non approuvé",
+  "firma.timer.rapport.eksport.taMedUattesterteHint": "Non cochés, Excel, CSV et PDF incluent uniquement les heures, les machines et les indemnités approuvées, ainsi que les dépenses des feuilles de temps approuvées. Vérifiés, ils incluent également ce qui est encore en attente d'approbation.",
   "firma.timer.rapport.pdf.dokumentTittel": "Rapport de temps",
   "firma.timer.rapport.pdf.periode": "Période",
   "firma.timer.rapport.pdf.prosjekt": "Projet",

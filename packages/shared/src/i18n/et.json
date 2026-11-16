@@ -2570,6 +2570,8 @@
   "firma.timer.rapport.eksport.csv": "CSV (.csv)",
   "firma.timer.rapport.eksport.excel": "Excel (.xlsx)",
   "firma.timer.rapport.eksport.pdf": "PDF (.pdf)",
+  "firma.timer.rapport.eksport.taMedUattesterte": "Kaasa kinnitamata",
+  "firma.timer.rapport.eksport.taMedUattesterteHint": "Märkimata sisaldavad Excel, CSV ja PDF ainult heakskiidetud tunde, masinaid ja lisatasusid ning kinnitatud ajatabelite kulusid. Kontrollitud, sisaldavad ka seda, mis veel kinnitamist ootab.",
   "firma.timer.rapport.pdf.dokumentTittel": "Ajaaruanne",
   "firma.timer.rapport.pdf.periode": "Periood",
   "firma.timer.rapport.pdf.prosjekt": "Projekt",
