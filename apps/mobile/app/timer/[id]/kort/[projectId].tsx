@@ -289,6 +289,15 @@ export default function ProsjektkortSkjerm() {
     [sedel],
   );
 
+  // U12 (ORDRE (33) SVAR pkt 2): B10-taket bruker bare datoens eget svar.
+  const normtakTimer = useMemo(
+    () =>
+      sedel
+        ? hentDagsnormLokalt(sedel.organizationId, sedel.dato, undefined, { kunEksakt: true })?.dagsnorm ?? null
+        : null,
+    [sedel],
+  );
+
   const prosjektNavn = useMemo(() => {
     return prosjektVisningsnavn(finnProsjektLokalt(projectId), t("timer.detalj.ukjentProsjekt"));
   }, [projectId, t]);
@@ -537,6 +546,7 @@ export default function ProsjektkortSkjerm() {
           harEquipmentCache={harEquipmentCache}
           varelagerProsjekter={varelagerProsjekter}
           normTimer={normTimer}
+          normtakTimer={normtakTimer}
           ramme={{
             fra: isoTidspunktTilHHMM(sedel.startAt),
             til: isoTidspunktTilHHMM(sedel.endAt),

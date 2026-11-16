@@ -130,6 +130,7 @@ export function ProsjektkortDagsoversikt({
   harEquipmentCache,
   varelagerProsjekter,
   normTimer,
+  normtakTimer,
   ramme,
   rammeByggeplassNavn,
   prosjektNavn,
@@ -162,6 +163,8 @@ export function ProsjektkortDagsoversikt({
   harEquipmentCache: boolean;
   varelagerProsjekter: string[];
   normTimer: number | null;
+  /** U12: datoens eksakte norm (ukjent → null → intet tak). Bare B10 leser den. */
+  normtakTimer: number | null;
   ramme: { fra: string; til: string; pauseMin: number };
   rammeByggeplassNavn: string | null;
   prosjektNavn: (projectId: string) => string;
@@ -359,7 +362,7 @@ export function ProsjektkortDagsoversikt({
   const normtakBrudd = useMemo(
     () =>
       bruddForDag({
-        dagsnorm: normTimer,
+        dagsnorm: normtakTimer,
         rader: timerRader.map((r) => ({
           id: r.id,
           lonnsartId: r.lonnsartId,
@@ -368,7 +371,7 @@ export function ProsjektkortDagsoversikt({
         })),
         finnArt: finnNormtakArtLokalt,
       }),
-    [normTimer, timerRader, reiseLonnsartId],
+    [normtakTimer, timerRader, reiseLonnsartId],
   );
 
   const timerRad = (id: string | null) => (id ? timerRader.find((r) => r.id === id) ?? null : null);
@@ -958,6 +961,7 @@ export function ProsjektkortDagsoversikt({
           // som dagskortets TimerSeksjon. Normal-delen lagres via onLagre,
           // overtid-delen som ny rad på samme kort (ingen koblet maskin).
           dagsnormTimer={normTimer}
+          normtakDagsnorm={normtakTimer}
           onLeggTilOvertidDel={(
             projectId,
             _byggeplassId,

@@ -365,6 +365,7 @@ export default function ProsjektkortSkjerm() {
           harEquipmentCache={s.harEquipmentCache}
           varelagerProsjekter={s.varelagerProsjekter}
           normTimer={s.normTimer}
+          normtakTimer={s.normtakTimer}
           ramme={{
             fra: isoTidspunktTilHHMM(sedel.startAt),
             til: isoTidspunktTilHHMM(sedel.endAt),

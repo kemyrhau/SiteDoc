@@ -395,6 +395,11 @@ export function useProsjektkortSedel(sheetId: string) {
   }, [sedel, normNonce]);
   const normTimer = normSvar?.dagsnorm ?? null;
   const normStatus = normSvar?.normStatus ?? "ukjent";
+  // U12 (ORDRE (33) SVAR pkt 2): B10-taket og fraværskortet bruker bare datoens eget
+  // svar — mangler det, er normen ukjent (intet tak), aldri en annen dags norm.
+  // `normStatus === "server"` er nøyaktig `kunEksakt`-trinnet (eksakt svar for datoen);
+  // utledet her for å holde glue-kopiene like (prosjektkort-glue-vakt).
+  const normtakTimer = normSvar?.normStatus === "server" ? normSvar.dagsnorm : null;
 
   const totaltimer = useMemo(
     () => timerRader.reduce((sum, r) => sum + (r.timer ?? 0), 0),
@@ -733,6 +738,7 @@ export function useProsjektkortSedel(sheetId: string) {
     manglerOvertidLonnsart,
     normTimer,
     normStatus,
+    normtakTimer,
     totaltimer,
     totalMaskin,
     kortModus,

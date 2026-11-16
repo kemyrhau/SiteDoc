@@ -75,14 +75,51 @@ export function sistBrukteRadvalg(
       ? siste.aktivitetId
       : null;
 
-  const standardAktivitet =
-    aktiveAktiviteter.find((a) => a.navn === "Anleggsarbeid")?.id ??
-    (aktiveAktiviteter.length === 1 ? aktiveAktiviteter[0]!.id : null);
-
   return {
     lonnsartId: sistLonnsart ?? aktiveLonnsarter.find((l) => l.erStandardvalg)?.id ?? null,
-    aktivitetId: sistAktivitet ?? standardAktivitet,
+    aktivitetId: sistAktivitet ?? standardAktivitet(aktiveAktiviteter),
   };
+}
+
+/**
+ * Firmaets standard-aktivitet for en ny rad (Q5 steg 2): «Anleggsarbeid», ellers den
+ * eneste aktive. `null` = ingen standard. Kalleren gir firmaets AKTIVE aktiviteter.
+ */
+export function standardAktivitet(aktive: readonly { id: string; navn: string }[]): string | null {
+  return (
+    aktive.find((a) => a.navn === "Anleggsarbeid")?.id ?? (aktive.length === 1 ? aktive[0]!.id : null)
+  );
+}
+
+/**
+ * U6 (ORDRE (33) SVAR pkt 1, spec § 11.5): aktiviteten fraværsraden får uten at feltet
+ * vises. «Sist brukte» hoppes over (den er prosjektbundet).
+ *  1. `standardAktivitet` — samme som en ny arbeidsrad;
+ *  2. ellers firmaets første aktive etter `seedNivaa` (1, 2, deretter null), så `kode`,
+ *     så `navn`;
+ *  3. ingen aktiv aktivitet → `null`: «+ Fravær» kan ikke lagre (aldri `""` mot serveren).
+ */
+export function fravaerAktivitetId(db: LokalDb, organizationId: string): string | null {
+  const aktive = db
+    .select({
+      id: aktivitetLocal.id,
+      navn: aktivitetLocal.navn,
+      kode: aktivitetLocal.kode,
+      seedNivaa: aktivitetLocal.seedNivaa,
+    })
+    .from(aktivitetLocal)
+    .where(and(eq(aktivitetLocal.organizationId, organizationId), eq(aktivitetLocal.aktiv, true)))
+    .all();
+  const standard = standardAktivitet(aktive);
+  if (standard) return standard;
+  const nivaa = (n: number | null) => (n == null ? Number.POSITIVE_INFINITY : n);
+  const sortert = [...aktive].sort(
+    (a, b) =>
+      nivaa(a.seedNivaa) - nivaa(b.seedNivaa) ||
+      (a.kode ?? "\uffff").localeCompare(b.kode ?? "\uffff") ||
+      a.navn.localeCompare(b.navn, "nb"),
+  );
+  return sortert[0]?.id ?? null;
 }
 
 /** Prosjekt + byggeplass som foreslås for ny rad (ORDRE 29 pkt 1). */

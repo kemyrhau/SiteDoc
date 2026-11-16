@@ -147,6 +147,24 @@ describe("hentDagsnormLokalt — svar-cachens tre trinn", () => {
   });
 });
 
+describe("U12 (ORDRE (33) SVAR pkt 2) — kunEksakt: B10-tak og fraværskortets forhåndsutfylling", () => {
+  it("🔴 framtidig dato utenfor cachen, annen dag ≤30d i cachen → null (ukjent), aldri en annen dags norm", () => {
+    // Helligdag-eksempelet: 24.12 er ikke hentet; cachen har en vanlig 7,5-dag.
+    seedSvar({ dato: "2026-11-16", dagsnorm: 7.5, hentetAt: NAA - DAG_MS });
+    expect(hentDagsnormLokalt(ORG, "2026-12-24", naa, { kunEksakt: true })).toBeNull();
+  });
+  it("kunEksakt med eksakt svar → 'server' som før", () => {
+    seedSvar({ dato: "2026-12-24", dagsnorm: 0, hentetAt: NAA });
+    const r = hentDagsnormLokalt(ORG, "2026-12-24", naa, { kunEksakt: true });
+    expect(r?.normStatus).toBe("server");
+    expect(r?.dagsnorm).toBe(0);
+  });
+  it("vakt: uten valget beholder andre kallere (dagsforslag, GPS-dag) cachet-fallbacken", () => {
+    seedSvar({ dato: "2026-11-16", dagsnorm: 7.5, hentetAt: NAA - DAG_MS });
+    expect(hentDagsnormLokalt(ORG, "2026-12-24", naa)?.normStatus).toBe("cachet");
+  });
+});
+
 describe("hentOgCacheArbeidstidSvar — henting ved åpning", () => {
   function lagKlient(svar: Record<string, unknown>) {
     return {

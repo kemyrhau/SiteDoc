@@ -66,7 +66,8 @@ describe("radform — kildevakter", () => {
   });
 
   it("🔴 TF23 (ORDRE (33) c3, F9 = A): brudd på fravær med tak sperrer Send; brudd-linja har ett-trykks retting", () => {
-    expect(OVERSIKT).toMatch(/bruddForDag\(\{\s*dagsnorm: normTimer/);
+    // SVAR (33) pkt 2 (U12): taket bruker datoens eksakte norm, ikke cachet fallback.
+    expect(OVERSIKT).toMatch(/bruddForDag\(\{\s*dagsnorm: normtakTimer/);
     expect(OVERSIKT).toMatch(/disabled=\{normtakBrudd != null && !manglerBeskrivelse\}/);
     expect(OVERSIKT).toContain("byggNormtakBruddLinje(t, normtakBrudd.data, formatKortTall)");
     expect(OVERSIKT).toMatch(/onPress=\{rettNormtakBrudd\}/);

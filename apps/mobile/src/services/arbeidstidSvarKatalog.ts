@@ -91,11 +91,17 @@ export async function hentOgCacheArbeidstidSvar(
  *  1. Eksakt svar for datoen → `normStatus: "server"`.
  *  2. Ellers siste svar for firmaet hentet ≤ 30 dager siden → `"cachet"`.
  *  3. Ingenting → `null` (kalleren lager forslag uten overtid-splitt, trinn 3).
+ *
+ * `kunEksakt` (ORDRE (33) SVAR pkt 2, spec U3/U12/§ 11.10.3): bare trinn 1 — mangler
+ * datoen i cachen, er normen ukjent (`null`), aldri en annen dags norm. Brukes av B10-taket
+ * (`bruddForDag`, `restForRad`) og fraværskortets forhåndsutfylling. Dagsforslag, GPS-dag,
+ * matpause og overtidsforslaget (V21) bruker fortsatt fallbacken (udiskutert atferd).
  */
 export function hentDagsnormLokalt(
   organizationId: string,
   dato: string,
   naa: () => number = Date.now,
+  valg: { kunEksakt?: boolean } = {},
 ): DagsnormSvar | null {
   const db = hentDatabase();
   if (!db) return null;
@@ -111,6 +117,7 @@ export function hentDagsnormLokalt(
     )
     .all()[0];
   if (eksakt) return tilSvar(eksakt, "server");
+  if (valg.kunEksakt) return null;
 
   const grense = naa() - CACHE_MAKS_ALDER_MS;
   const nyeste = db

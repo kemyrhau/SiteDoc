@@ -33,7 +33,13 @@ import {
   aktivitetLocal,
   equipmentLocal,
   externalCostObjectLocal,
+  dagsseddelLocal,
 } from "../../db/schema";
+import { byggNormtakBruddLinje } from "@sitedoc/shared";
+import { hentDagsnormLokalt } from "../../services/arbeidstidSvarKatalog";
+import { finnNormtakArtLokalt, hentReiseLonnsartId } from "../../services/timerKatalog";
+import { erReiseRadVisning } from "../../utils/reiseRad";
+import { splittDelVerdier, splittNormtakBrudd } from "../../utils/splittFravaer";
 import type { TimerRad, MaskinRad, TilleggRad } from "../../types/timer-detalj";
 import { VelgerFelt } from "./VelgerFelt";
 import { hentKobledeMaskiner, maskinerOverRad } from "../../services/kobledeMaskiner";
@@ -127,6 +133,10 @@ export function SplittRadModal(props: Props) {
     props.radType === "tillegg"
       ? props.original.projectId ?? ""
       : props.original.projectId ?? "";
+
+  // ORDRE (33) SVAR pkt 3: «Del opp» på en fraværsrad viser bare art (fravær-arter) og
+  // timer — ingen prosjekt, byggeplass, underprosjekt eller aktivitet pr. del.
+  const erFravaerRad = props.radType === "timer" && props.original.utenProsjekt;
 
   // Én useState per rad-type (radType er konstant i modalens levetid, men hooks
   // må kalles ubetinget) — kun den aktive listen brukes. Init = 2 deler likt.
@@ -254,6 +264,37 @@ export function SplittRadModal(props: Props) {
         }
       }
       const o = props.original;
+      // B10 (SVAR pkt 3): taket gjelder summen av delene — brudd sperrer lagring.
+      if (erFravaerRad) {
+        const sedel = db.select().from(dagsseddelLocal).where(eq(dagsseddelLocal.id, o.dagsseddelId)).all()[0];
+        if (sedel) {
+          const reiseId = hentReiseLonnsartId(sedel.organizationId);
+          const dagRader = db
+            .select()
+            .from(sheetTimerLocal)
+            .where(eq(sheetTimerLocal.dagsseddelId, o.dagsseddelId))
+            .all()
+            .map((r) => ({
+              id: r.id,
+              lonnsartId: r.lonnsartId,
+              timer: r.timer,
+              erReise: erReiseRadVisning(r.erReise ?? null, r.lonnsartId, reiseId),
+            }));
+          const brudd = splittNormtakBrudd({
+            dagsnorm:
+              hentDagsnormLokalt(sedel.organizationId, sedel.dato, undefined, { kunEksakt: true })?.dagsnorm ?? null,
+            dagRader,
+            originalId: o.id,
+            deler: timerDeler.map((d) => ({ lonnsartId: d.lonnsartId, timer: tilTall(d.timerTekst) })),
+            finnArt: finnNormtakArtLokalt,
+          });
+          if (brudd) {
+            const fmt = (n: number) => n.toLocaleString(i18n.language, { maximumFractionDigits: 2 });
+            setFeil(byggNormtakBruddLinje(t, brudd.data, fmt));
+            return;
+          }
+        }
+      }
       // NY BESLUTNING maskinkobling (2026-11-12): koblede maskiner blir på del 1
       // (originalens id). Får del 1 færre timer enn en koblet maskin, sier vi fra
       // og lagrer ikke — maskintimene rettes aldri stille.
@@ -276,28 +317,30 @@ export function SplittRadModal(props: Props) {
       // Insert-feltene speiler TimerSeksjon.leggTil; prosjekt/fra/til/beskrivelse
       // arves (står allerede på originalen — kun lønnsart/aktivitet/ECO/timer varierer).
       const [forsteTimer, ...restenTimer] = timerDeler;
+      const forste = splittDelVerdier(o, { ...forsteTimer, timer: tilTall(forsteTimer.timerTekst) });
       db.update(sheetTimerLocal)
         .set({
-          lonnsartId: forsteTimer.lonnsartId,
-          aktivitetId: forsteTimer.aktivitetId,
-          externalCostObjectId: forsteTimer.externalCostObjectId,
-          timer: tilTall(forsteTimer.timerTekst),
+          lonnsartId: forste.lonnsartId,
+          aktivitetId: forste.aktivitetId,
+          externalCostObjectId: forste.externalCostObjectId,
+          timer: forste.timer,
           sistEndretLokalt: Date.now(),
         })
         .where(eq(sheetTimerLocal.id, o.id))
         .run();
       for (const d of restenTimer) {
+        // M18 / spec § 11.4: deler av en fraværsrad forblir i fraværskortet (uten underprosjekt).
+        const v = splittDelVerdier(o, { ...d, timer: tilTall(d.timerTekst) });
         db.insert(sheetTimerLocal)
           .values({
             id: randomUUID(),
             dagsseddelId: o.dagsseddelId,
             projectId: o.projectId,
-            // M18 / spec § 11.4: deler av en fraværsrad forblir i fraværskortet.
-            utenProsjekt: o.utenProsjekt,
-            lonnsartId: d.lonnsartId,
-            aktivitetId: d.aktivitetId,
-            externalCostObjectId: d.externalCostObjectId,
-            timer: tilTall(d.timerTekst),
+            utenProsjekt: v.utenProsjekt,
+            lonnsartId: v.lonnsartId,
+            aktivitetId: v.aktivitetId,
+            externalCostObjectId: v.externalCostObjectId,
+            timer: v.timer,
             fraTid: o.fraTid,
             tilTid: o.tilTid,
             beskrivelse: o.beskrivelse,
@@ -456,6 +499,7 @@ export function SplittRadModal(props: Props) {
                   indeks={i}
                   organizationId={props.organizationId}
                   projectId={projectId}
+                  fravaer={erFravaerRad}
                   kanSlett={i > 0}
                   onChange={(felt) => oppdaterTimer(del.key, felt)}
                   onSlett={() => slettDel(del.key)}
@@ -571,6 +615,7 @@ function TimerDelRad({
   indeks,
   organizationId,
   projectId,
+  fravaer,
   kanSlett,
   onChange,
   onSlett,
@@ -580,6 +625,8 @@ function TimerDelRad({
   /** ORDRE (28) F-L2: velgeren viser bare innlogget firmas arter. */
   organizationId: string;
   projectId: string;
+  /** SVAR (33) pkt 3: fraværsrad — bare art (fravær-arter) og timer pr. del. */
+  fravaer: boolean;
   kanSlett: boolean;
   onChange: (felt: Partial<TimerDel>) => void;
   onSlett: () => void;
@@ -641,6 +688,8 @@ function TimerDelRad({
           onPress={() => setVisLonnsart(true)}
         />
       </View>
+      {!fravaer && (
+        <>
       <View>
         <Text className="mb-1 text-sm font-medium text-gray-700">
           {t("timer.felt.aktivitet")} *
@@ -662,6 +711,8 @@ function TimerDelRad({
           onClear={() => onChange({ externalCostObjectId: null })}
         />
       </View>
+        </>
+      )}
       <View>
         <Text className="mb-1 text-sm font-medium text-gray-700">
           {t("timer.felt.antallTimer")} *
@@ -680,6 +731,7 @@ function TimerDelRad({
         <LonnsartVelgerModal
           valgtId={del.lonnsartId}
           organizationId={organizationId}
+          bareFravaer={fravaer}
           onVelg={(id) => {
             onChange({ lonnsartId: id });
             setVisLonnsart(false);

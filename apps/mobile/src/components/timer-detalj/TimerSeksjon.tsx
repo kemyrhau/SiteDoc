@@ -1047,6 +1047,7 @@ export function TimerRadModal({
   fokusBeskrivelse = false,
   reise,
   dagsnormTimer,
+  normtakDagsnorm = null,
   onLeggTilOvertidDel,
   onLagre,
   onLukk,
@@ -1093,6 +1094,8 @@ export function TimerRadModal({
   /** V21: dagsnorm for overtidsforslaget. Udefinert/null (kortene, ny-rad-flyten)
    *  = ingen forslagslinje, modalen som før. */
   dagsnormTimer?: number | null;
+  /** U12 (ORDRE (33) SVAR pkt 2): datoens eksakte norm for B10-taket; ukjent → null → ingen grense. */
+  normtakDagsnorm?: number | null;
   /** V21: lagrer overtid-delen som ny rad når forslaget deler raden. Normal-
    *  delen går gjennom `onLagre`. Udefinert = kun «hel rad»-forslag vises ikke
    *  heller (forslagslinja krever begge). */
@@ -1515,7 +1518,7 @@ export function TimerRadModal({
     () =>
       kortModus
         ? restForRad({
-            dagsnorm: dagsnormTimer ?? null,
+            dagsnorm: normtakDagsnorm,
             rader: alleTimerRader.map((r) => ({
               id: r.id,
               lonnsartId: r.lonnsartId,
@@ -1527,7 +1530,7 @@ export function TimerRadModal({
             finnArt: finnNormtakArtLokalt,
           })
         : null,
-    [kortModus, dagsnormTimer, alleTimerRader, eksisterendeRad?.id, valgtLonnsartId, organizationId],
+    [kortModus, normtakDagsnorm, alleTimerRader, eksisterendeRad?.id, valgtLonnsartId, organizationId],
   );
   // F5: fravær-arter tilbys ikke i rad-vinduet i prosjektkort-modus — unntatt når
   // raden som åpnes alt står på en fravær-art (ført før c / fra PC).
@@ -2416,6 +2419,7 @@ export function LonnsartVelgerModal({
   organizationId,
   kandidatIder,
   skjulFravaer = false,
+  bareFravaer = false,
   onVelg,
   onLukk,
 }: {
@@ -2424,6 +2428,8 @@ export function LonnsartVelgerModal({
   kandidatIder?: readonly string[];
   /** ORDRE (33) F5: rad-vinduet i prosjektkort-modus. Standard false = som før. */
   skjulFravaer?: boolean;
+  /** SVAR (33) pkt 3 / U2: bare fravær-arter (fraværskortet, «Del opp» på fraværsrad). Standard false = som før. */
+  bareFravaer?: boolean;
   onVelg: (id: string) => void;
   onLukk: () => void;
 }) {
@@ -2436,11 +2442,13 @@ export function LonnsartVelgerModal({
     const aktive = filtrerVelgerLonnsarter(
       db.select().from(lonnsartLocal).where(eq(lonnsartLocal.aktiv, true)).all(),
       organizationId,
-    ).filter((l) => !skjulFravaer || l.type !== "fravaer");
+    )
+      .filter((l) => !skjulFravaer || l.type !== "fravaer")
+      .filter((l) => !bareFravaer || l.type === "fravaer");
     if (!kandidatIder) return aktive;
     const tillatt = new Set(kandidatIder);
     return aktive.filter((l) => tillatt.has(l.id)).sort((a, b) => a.rekkefolge - b.rekkefolge);
-  }, [organizationId, kandidatIder, skjulFravaer]);
+  }, [organizationId, kandidatIder, skjulFravaer, bareFravaer]);
 
   const filtrert = useMemo(() => {
     if (!sok.trim()) return lonnsarter;
