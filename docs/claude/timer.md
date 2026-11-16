@@ -713,7 +713,7 @@ Denne seksjonen er fasit for hva et prosjektkort og et dagskort er. Tekst lenger
 
 > Kenneth 2026-11-16: *«vi skal bygge opp et dagskort … ved å summere opp de prosjektkortene som bygges innenfor et døgn. Dersom vi er en time innom 10 forskjellige prosjekter, da består dagskortet av 10 prosjektkort.»* · *«Prosjektkort → det er et kort som registreres på et prosjekt → det kan føres flere prosjektkort på samme prosjekt dersom arbeidets art må deles opp → overtid er ikke å anse som nytt arbeid.»* · *«underprosjekt er en del av kortet. men dersom underprosjekt benyttes, så er det ikke sikkert at byggeplass benyttes.»* · *«timeføringer må kunne være dynamiske, men vi skal foreslå mest mulig, og bruker skal kunne endre. om vi treffer 80% rett på timeføring, da har vi lykkes.»* · *«Det er oversiktlig registrering som er viktig. Den ansatte må kunne lese at radene er riktig ført.»*
 
-- **Dagskortet** er summen av prosjektkortene innenfor ett døgn (én dato, 00–24). Ti prosjekter på én dag = ti prosjektkort.
+- **Dagskortet:** én ansatt har ett dagskort pr. døgn (én dato, 00–24). Dagskortet er summen av den ansattes prosjektkort det døgnet — 1 til 30 prosjektkort. Ti prosjekter på én dag = ett dagskort med ti prosjektkort.
 - **Prosjektkortet** registreres på ett prosjekt. Underprosjekt er en del av kortet. Byggeplass er en del av kortet når den brukes; et kort med underprosjekt trenger ikke ha byggeplass.
 - **Flere prosjektkort på samme prosjekt** føres når arbeidets art må deles opp, også med samme byggeplass og underprosjekt. Eksempel: grøftegraving (kontraktsarbeid) og legging av skifer (regningsarbeid) = to kort. Brukeren sørger selv for oppdelingen.
 - **Splitt av automatisk opprettede føringer:** brukeren må kunne dele en foreslått føring (GPS/auto) i flere prosjektkort for å fange endrings- og regningsarbeid.
@@ -725,7 +725,7 @@ Denne seksjonen er fasit for hva et prosjektkort og et dagskort er. Tekst lenger
 
 🟡 **Avvik mellom definisjonen og koden (målt 2026-11-16, ikke bygget):**
 1. Bekreft dag: kortet er prosjekt + byggeplass; underprosjekt er ikke med og lagres ikke på kortet (`apps/mobile/src/utils/beskrivelseKort.ts:7`).
-2. Dagskortet: én boks pr. timerrad, gruppert på (prosjekt, underprosjekt) (`apps/mobile/src/utils/dagsoversiktRader.ts`); overtid blir egen boks.
+2. Dagskortet: hver timerrad vises som egen boks, gruppert på (prosjekt, underprosjekt) (`apps/mobile/src/utils/dagsoversiktRader.ts`), så en overtidsrad ser ut som et eget prosjektkort.
 3. Kortet har ingen egen identitet: det utledes av `kortNokkel` = prosjekt|byggeplass|underprosjekt (`apps/mobile/src/lib/prosjektkortMobil.ts`). To kort på samme prosjekt med samme byggeplass og underprosjekt (grøft/skifer) kan derfor ikke skilles. **Kenneth 2026-11-16: «ja, legg til kort-id».** Hver rad (timer, maskin, varer, tillegg/utlegg som hører til kortet) skal bære kortets id, så to kort på samme prosjekt, byggeplass og underprosjekt holdes adskilt. Skjemaendring (additiv migrering, Kenneth kjører); spec før kode.
 4. Manuelt kort («+ Nytt prosjektkort», `apps/mobile/src/utils/manuellDag.ts`) regner overtid bare mot sin egen tid (ORDRE 27).
 5. Splitt av foreslått føring til eget prosjektkort: ikke målt om «Del opp» (`SplittRadModal`) kan gi et nytt kort.
@@ -796,7 +796,7 @@ Kenneth GO 2026-11-07 (§ 7: ingen backfill, valg kun når relevant (K3), SQLite
 
 Godkjent plan «Dagsoversikt i radform»: beslutning 1 = B (varer kobles til rad), 2 og 3 som anbefalt. Maskin/vare i Bekreft dag: se «TILLEGG 2026-11-12» under.
 
-- ⚠️ **Regel (Kenneth 2026-11-16): dagskortet viser ett kort for hvert prosjektkort, og radene (også overtid) står som linjer inne i kortet.** Punktene under beskriver hvordan koden viser det i dag — én boks for hver rad, så overtid blir en egen boks. Det skal rettes (🟡 avvik 2 i «Prosjektkort og dagskort — definisjon»).
+- ⚠️ **Regel (Kenneth 2026-11-16): én ansatt har ett dagskort pr. døgn. Dagskortet inneholder 1–30 prosjektkort. Inne i hvert prosjektkort står radene som linjer — overtid er en linje i prosjektkortet, ikke et eget prosjektkort.** Punktene under beskriver koden i dag: hver rad vises som sin egen boks, så overtiden ser ut som et eget prosjektkort. Det skal rettes (🟡 avvik 2 i «Prosjektkort og dagskort — definisjon»).
 - **Én boks pr. timerrad** i `ProsjektkortDagsoversikt`, i tidsrekkefølge (fra-tid stigende, rader uten fra-tid sist), gruppert pr. (prosjekt, underprosjekt) — se TILLEGG under. Regelen bor i `apps/mobile/src/utils/dagsoversiktRader.ts` (`raderForDag`, `grupperPaaUnderprosjekt`). Rader slås aldri sammen, heller ikke like rader på samme prosjekt. Overtid er en vanlig rad. Oppsummeringen pr. prosjekt er fjernet.
 - **Boksen** (`radBoks`): `Clock` + «07:00–15:00» (`timer.dagsoversikt.utenTid` når fra–til mangler), prosjekt + timer, lønnsart (overtid: `timer.dagsoversikt.overtid`) · byggeplass, beskrivelse eller amber «Mangler beskrivelse», radens maskin og varer, «+ Vare». Trykk på boksen åpner `TimerRadModal` når `redigerbar`; V21 (`dagsnormTimer`, `onLeggTilOvertidDel` → `leggTilTimerRad`) er uendret.
 - **Kort uten rader** får egen boks med «+ Legg til arbeid», «+ Legg til maskin» og «+ Vare» som før (knappeteksten kun når `redigerbar`).
