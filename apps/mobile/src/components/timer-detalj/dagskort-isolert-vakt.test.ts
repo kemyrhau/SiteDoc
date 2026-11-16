@@ -34,6 +34,9 @@ const BEKREFT_DAG_PROPS = [
   "delvisSendt",
   "sendteDatoer",
   "kortPrDato",
+  // ORDRE (27b) V5a: overtid av/på med samme knapp — kun Bekreft dag.
+  "overtidAv",
+  "vekslOvertidNivaa",
   // ORDRE Tillegg/Utlegg i Bekreft dag (2026-11-13): ?-ikon kun i prosjektkortet
   // og Bekreft dag; minne-føring kun i Bekreft dag.
   "hjelpIkon",

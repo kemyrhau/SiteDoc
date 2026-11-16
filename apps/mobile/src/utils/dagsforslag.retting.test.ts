@@ -301,7 +301,8 @@ describe("ORDRE 35 del B — «Legg til overtid» i Bekreft dag", () => {
     const i = flat.indexOf('t("timer.bekreftDag.overtidLeggTil")');
     expect(i).toBeGreaterThan(0);
     const knapp = flat.slice(flat.lastIndexOf("{!forsteOt", i), i);
-    expect(knapp).toContain("{!forsteOt && overtidValg.length > 0 ? (");
+    // ORDRE (27b) V5a: skjules mens nivå-knappene står åpne med overtiden av.
+    expect(knapp).toContain("{!forsteOt && overtidValg.length > 0 && !(redigerOvertid && overtidAv) ? (");
     expect(knapp).toContain("onRett(leggTilOvertidRetting(fra, alleLonnsarter, overtidValg));");
     expect(knapp).toContain("setRedigerOvertid(true);");
   });
@@ -320,6 +321,8 @@ describe("ORDRE 35 RETUR 1 — firma med OT100 uten OT50", () => {
     expect(leggTilOvertidRetting("07:00", kunOt100, overtidValg)).toEqual({
       overtidFra: "07:00",
       overtidLonnsartId: L_OT100,
+      // ORDRE (27b) V5a: «Legg til overtid» slår også på igjen en overtid som var av.
+      overtidAv: false,
     });
     const f = beregnDagsforslag(
       lagInput({
@@ -344,7 +347,7 @@ describe("ORDRE 35 RETUR 1 — firma med OT100 uten OT50", () => {
 
   it("med OT50 settes ikke nivå — standardvalget gjelder som før", () => {
     const medOt50 = lagInput().alleLonnsarter;
-    expect(leggTilOvertidRetting("07:00", medOt50, [{ id: L_OT50 }])).toEqual({ overtidFra: "07:00" });
+    expect(leggTilOvertidRetting("07:00", medOt50, [{ id: L_OT50 }])).toEqual({ overtidFra: "07:00", overtidAv: false });
   });
 
   it("🔴 (b) editoren får overtid-start fra rettingen når ingen overtidsrad finnes", () => {

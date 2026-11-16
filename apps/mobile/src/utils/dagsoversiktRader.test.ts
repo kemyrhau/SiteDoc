@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { forsteRadUtenBeskrivelse, grupperPaaUnderprosjekt, raderForDag } from "./dagsoversiktRader";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { forsteRadUtenBeskrivelse, grupperPaaKort, grupperPaaUnderprosjekt, raderForDag } from "./dagsoversiktRader";
 
 const rad = (id: string, projectId: string, fraTid: string | null, timer = 2) => ({ id, projectId, fraTid, timer });
 
@@ -120,5 +123,99 @@ describe("TILLEGG 2026-11-12 regel 4–5 — gruppering pr. underprosjekt", () =
     const g = grupperPaaUnderprosjekt(dag);
     expect(g[0].rader.map((b) => b.rad.id)).toEqual(["r1", "r2"]);
     expect(g[1].rader.map((b) => b.rad.id)).toEqual(["rb"]);
+  });
+});
+
+// ORDRE 2026-11-16 (27b), spec § 8 rad a del 2: dagskortet = prosjektkort med
+// linjer. Kortnøkkelen kommer fra kalleren (`kortNokkel` i dag, kort-id i b/c).
+describe("(27b) grupperPaaKort — ett prosjektkort, radene som linjer", () => {
+  const nokler = (m: Record<string, string>) => (id: string) => m[id];
+  const ingen = () => undefined;
+
+  it("🔴 normal + overtid på samme kort → ett kort, to linjer i tidsrekkefølge", () => {
+    const d = raderForDag({
+      timer: [rad("ot", "p1", "15:00", 2), rad("normal", "p1", "07:00", 7.5)],
+      maskin: [],
+      varer: [],
+    });
+    const k = grupperPaaKort(d, { timer: nokler({ ot: "p1|ingen|ingen", normal: "p1|ingen|ingen" }), maskin: ingen, vare: ingen });
+    expect(k).toHaveLength(1);
+    expect(k[0]!.rader.map((b) => b.rad.id)).toEqual(["normal", "ot"]);
+  });
+
+  it("negativkontroll: dagens gruppering (pr. rad-boks) gir to bokser for samme kort", () => {
+    const d = raderForDag({ timer: [rad("normal", "p1", "07:00", 7.5), rad("ot", "p1", "15:00", 2)], maskin: [], varer: [] });
+    // Én boks pr. rad — det Kenneth så som «overtid ser ut som et eget kort».
+    expect(d.rader).toHaveLength(2);
+  });
+
+  it("🔴 to prosjektkort → to kort, i rekkefølgen til første linje", () => {
+    const d = raderForDag({
+      timer: [rad("b", "p2", "17:00", 1), rad("a", "p1", "07:00", 7.5), rad("c", "p1", "18:00", 1)],
+      maskin: [],
+      varer: [],
+    });
+    const k = grupperPaaKort(d, { timer: nokler({ a: "K1", c: "K1", b: "K2" }), maskin: ingen, vare: ingen });
+    expect(k.map((x) => [x.nokkel, x.rader.map((b) => b.rad.id)])).toEqual([["K1", ["a", "c"]], ["K2", ["b"]]]);
+  });
+
+  it("🔴 en varelinje står ett sted: koblet → under raden i kortet, ukoblet → «Uten rad» i kortet sitt", () => {
+    const d = raderForDag({
+      timer: [rad("r1", "p1", "07:00")],
+      maskin: [],
+      varer: [
+        { id: "v1", projectId: "p1", sheetTimerId: "r1" },
+        { id: "v2", projectId: "p1", sheetTimerId: null },
+      ],
+    });
+    const k = grupperPaaKort(d, { timer: nokler({ r1: "K1" }), maskin: ingen, vare: nokler({ v1: "K1", v2: "K1" }) });
+    expect(k).toHaveLength(1);
+    expect(k[0]!.rader[0]!.varer.map((v) => v.id)).toEqual(["v1"]);
+    expect(k[0]!.utenRad.varer.map((v) => v.id)).toEqual(["v2"]);
+    const alle = [...k[0]!.rader.flatMap((b) => b.varer), ...k[0]!.utenRad.varer].map((v) => v.id);
+    expect(alle).toEqual([...new Set(alle)]);
+  });
+
+  it("kort med bare «Uten rad» kommer etter kort med linjer", () => {
+    const d = raderForDag({
+      timer: [rad("r1", "p1", "07:00")],
+      maskin: [{ id: "m1", projectId: "p2", sheetTimerId: null }],
+      varer: [],
+    });
+    const k = grupperPaaKort(d, { timer: nokler({ r1: "K1" }), maskin: nokler({ m1: "K2" }), vare: ingen });
+    expect(k.map((x) => [x.nokkel, x.rader.length, x.utenRad.maskin.length])).toEqual([["K1", 1, 0], ["K2", 0, 1]]);
+  });
+});
+
+describe("(27b) kildevakter — dagskortet og V5a", () => {
+  const her = dirname(fileURLToPath(import.meta.url));
+  const les = (rel: string) => readFileSync(join(her, rel), "utf-8");
+  const OVERSIKT = les("../components/timer-detalj/prosjektkort/ProsjektkortDagsoversikt.tsx");
+  const SKJERM = les("../../app/timer/bekreft-dag.tsx");
+
+  it("🔴 kortet bruker den delte nøkkelen og grupperPaaKort; ingen egen kopi", () => {
+    expect(OVERSIKT).toContain("grupperPaaKort(dag, {");
+    expect(OVERSIKT).toMatch(/return v \? kortNokkel\(v\) : undefined;/);
+    expect(OVERSIKT).not.toContain("grupperPaaUnderprosjekt(");
+  });
+
+  it("🔴 linja åpner rad-vinduet for raden og viser tid · timer · lønnsart", () => {
+    const start = OVERSIKT.indexOf("function kortLinje(");
+    const blokk = OVERSIKT.slice(start, OVERSIKT.indexOf("\n  }\n", start));
+    expect(blokk).toContain("onPress={() => aapneTimer(valg, rad.id)}");
+    expect(blokk).toContain("[tidTekst(rad), t2(rad.timer), lonnsart].filter(Boolean).join(\" · \")");
+  });
+
+  it("🔴 aldri to datoer: dagskortets rader leses for én sedel (unik pr. bruker og dato)", () => {
+    const sedel = les("../components/timer-detalj/prosjektkort/useProsjektkortSedel.ts");
+    expect(sedel).toContain("db.select().from(sheetTimerLocal).where(eq(sheetTimerLocal.dagsseddelId, sheetId)).all()");
+  });
+
+  it("🔴 V5a: nivå-knappene går via vekslOvertidNivaa; «Overtid fra» skjules når overtiden er av", () => {
+    const flat = SKJERM.replace(/\s+/g, " ");
+    expect(flat).toContain("onRett( vekslOvertidNivaa({ trykketId: l.id, valgtId: forsteOt?.lonnsartId ?? null,");
+    expect(flat).toContain("{!overtidAv ? ( <View className=\"flex-row items-center justify-between\">");
+    expect(flat).toContain("overtidAv={retting.perDato?.[d.dato]?.overtidAv === true}");
+    expect(flat).not.toContain("onPress={() => onRett({ overtidLonnsartId: l.id })}");
   });
 });
