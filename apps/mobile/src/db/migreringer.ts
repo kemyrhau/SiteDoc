@@ -293,6 +293,12 @@ export function kjorMigreringer() {
         `ALTER TABLE lonnsart_local ADD COLUMN overtidsnivaa INTEGER`,
       );
     }
+    // ORDRE (33) c3, B10 — tak mot dagsnormen. Nullable INTEGER uten default:
+    // NULL = tak (`harNormtak`) til refreshKatalog har skrevet serverens verdi.
+    if (!lonnsartInfo.find((k) => k.name === "fravaer_normtak")) {
+      console.log("[MIG] Legger til fravaer_normtak på lonnsart_local (B10)");
+      db.execSync(`ALTER TABLE lonnsart_local ADD COLUMN fravaer_normtak INTEGER`);
+    }
   } catch (e) {
     console.warn("[MIG] Kunne ikke utvide lonnsart_local med er_standardvalg:", e);
   }

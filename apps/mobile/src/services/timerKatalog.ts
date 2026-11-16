@@ -100,6 +100,8 @@ export async function refreshKatalog(klient: TrpcKlient): Promise<{
         aktiv: l.aktiv,
         erStandardvalg: l.erStandardvalg ?? false,
         overtidsnivaa: l.overtidsnivaa ?? null,
+        // B10: mangler feltet i svaret (gammel API) → NULL → tak (`harNormtak`).
+        fravaerNormtak: l.fravaerNormtak ?? null,
         seedNivaa: l.seedNivaa,
         sistOppdatert: naa,
       })

@@ -429,6 +429,10 @@ export const lonnsartLocal = sqliteTable("lonnsart_local", {
   // ③a: strukturert overtid-nivå (50/100). null = ikke overtid. ALTER i
   // migreringer.ts for eksisterende klienter; refreshKatalog skriver feltet.
   overtidsnivaa: integer("overtidsnivaa"),
+  // ORDRE (33) c3, B10 (kort-id-spec § 11.10.4): tak mot dagsnormen for fravær-arter.
+  // Nullable — `NULL` (før første katalogsynk, eller API uten feltet) = tak.
+  // Leses KUN via `harNormtak` (`@sitedoc/shared`). ALTER i migreringer.ts.
+  fravaerNormtak: integer("fravaer_normtak", { mode: "boolean" }),
   seedNivaa: integer("seed_nivaa"),
   sistOppdatert: integer("sist_oppdatert").notNull(), // Unix ms — siste pull fra server
 });
