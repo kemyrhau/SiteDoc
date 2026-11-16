@@ -12,6 +12,7 @@
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
 **Sist oppdatert:** 2026-11-16
+- 2026-11-16 — **`STATUS-AKTUELT.md` + `FUNKSJONSENDRINGER.md`: (27b) ordre a (overtid mot døgnet, V5a, dagskort med prosjektkort) merget (`ebaba3ec`)** (develop, docs-only, orkestrator).
 - 2026-11-16 — **`STATUS-AKTUELT.md` + `FUNKSJONSENDRINGER.md`: (26) Bekreft dag-vakt for sendt dato merget (`780f388c`)** (develop, docs-only, orkestrator).
 - 2026-11-16 — **`prosjektkort-kortid-spec.md`: ny spec — prosjektkort med kort-id, dagskortet som sum av prosjektkort, lønnsart-forslag fra døgnets registreringer** (branch `docs/fabel`, docs-only, Fabel, 🟡 UTKAST, B1–B7 til Kenneth; TILLEGG samme dag: § 6.1 lønnsartvalg pr. linje i Bekreft dag): `kort_id` på radene (timer, maskin, tillegg, utlegg, vareforbruk, forslag) i `db-timer`/`db-varelager`, additiv migrering med backfill fra dagens `kortNokkel` og gate-SQL, `løsKortId` for eldre klient, flater/paritet web–mobil, én regel i `klassifiserArbeidstid` (`bruktAvNorm`), funksjonsinventar (ingen fjernet), ordre a–e, 16 tester. Målt mot develop @ e3aea58f. Registrert i DOC-MAP. 🔄 Under arbeid 23 → 24, totalt 59 → 60.
 - 2026-11-16 — **`STATUS-AKTUELT.md` + `FUNKSJONSENDRINGER.md`: prod-deploy `a01ba576` + (25) tillegg/utlegg følger datokortet merget (`0aa1b3ef`)** (develop, docs-only, orkestrator).
