@@ -32,6 +32,8 @@ sist_verifisert_mot_kode: 2026-08-09
 
 > ✅ **Gjestevern ved firmabytte, mobil (19) MERGET 2026-11-15** (merge `1a287c5d` av `38f4dffa`; Kontrollør GODKJENT GATE (44) nederst i `inbox-orkestrator.md`). `skalNullstilleProsjekt` flyttet til `@sitedoc/shared` (`gjesteprosjekt.ts`, web re-eksporterer); mobil `ProsjektKontekst.tsx` holder ventende firmabytte til gjestelista er lastet (`firmabyttProsjekt.ts` `firmabyttUtfall`) — gjesteprosjekt beholdes ved firmabytte. **Ikke deployet.** Lukker (18) åpent punkt (b).
 
+> ✅ **Bekreft dag stopper når en valgt dato er sendt mens skjermen står (26) MERGET 2026-11-16** (merge `780f388c` av `f45735a9`; Kontrollør GODKJENT GATE (54)). Mobil — krever OTA til test. Lukker oppfølgeren fra (25).
+
 > 🟢 **PROD-DEPLOY 2026-11-16: `a01ba576`** (main, bygget 00:33Z, `/version` bekreftet av Kenneth). Bærer develop `24d236f1`: (12)–(24) — oppmøtested med perioder/overføring, prosjektvelger, gjestevern, byggeplassfilter husker valg, gjenåpne på kortskjerm, byggeplass følger tegningen, prosjektkort én beskrivelse/aldri to datoer. Migreringer (fem, additive): `20261106120000_task_byggeplass`, `20261112000001_vareforbruk_sheet_timer_id`, `20261113120000_tillegg_utlegg_byggeplass_eco`, `20261115120000_oppmote_perioder`, `20261115130000_oppmote_overforing`. ⚠️ Ikke bekreftet ennå: migrate-utskrift og innlogget sjekk på sitedoc.no. ⚠️ **OTA prod-kanal ikke publisert** — venter telefon-verifisering av (24)+(25) på test.
 >
 > ✅ **Tillegg og utlegg følger datokortet (25) MERGET 2026-11-16** (merge `0aa1b3ef` av `f07e662c`; Kontrollør GODKJENT GATE (53)). Åpent: oppfølger — vakt når datoen blir sendt mens Bekreft dag står åpen (linja faller i dag til første åpne seddel; målt GATE (53) pkt 4).

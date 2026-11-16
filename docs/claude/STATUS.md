@@ -12,6 +12,7 @@
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
 **Sist oppdatert:** 2026-11-16
+- 2026-11-16 — **`STATUS-AKTUELT.md` + `FUNKSJONSENDRINGER.md`: (26) Bekreft dag-vakt for sendt dato merget (`780f388c`)** (develop, docs-only, orkestrator).
 - 2026-11-16 — **`STATUS-AKTUELT.md` + `FUNKSJONSENDRINGER.md`: prod-deploy `a01ba576` + (25) tillegg/utlegg følger datokortet merget (`0aa1b3ef`)** (develop, docs-only, orkestrator).
 - 2026-11-16 — **`eas-build-veileder.md`: OTA test `d7dfcce8`** (develop, docs-only, orkestrator): group `8e663eee-…`, bærer (24).
 - 2026-11-16 — **`STATUS-AKTUELT.md` + `FUNKSJONSENDRINGER.md`: (24) prosjektkort én beskrivelse / aldri to datoer merget (`3417d893`)** (develop, docs-only, orkestrator): ✅-innslag, funksjonsendring ført.
