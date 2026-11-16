@@ -1804,7 +1804,11 @@ function ArbeidLinjer({
   ].sort((a, b) => a.fraTid.localeCompare(b.fraTid));
   if (linjer.length === 0) return null;
   const aapenLinje = linjer.find((l) => l.nokkel === aapen) ?? null;
-  const chips = linjeArter.length <= MAKS_LINJE_CHIPS;
+  // RETUR 2 (28): `arbeid`-linja (arbeid etter fravær) tilbys ikke fravær —
+  // mer fravær føres med «Fravær til» (`beregnSegment` godtar det ikke der).
+  const arterFor = (linje: ArbeidLinje) =>
+    linje === "arbeid" ? linjeArter.filter((a) => a.type !== "fravaer") : linjeArter;
+  const chips = aapenLinje ? arterFor(aapenLinje.linje).length <= MAKS_LINJE_CHIPS : true;
   const velg = (linje: ArbeidLinje, art: DagsforslagLonnsart) => {
     onVelg(linje, art);
     setAapen(null);
@@ -1829,7 +1833,7 @@ function ArbeidLinjer({
             </Pressable>
             {aapen === l.nokkel && chips ? (
               <View className="gap-1 rounded-md border border-gray-200 bg-white p-2">
-                {grupperLinjeLonnsarter(linjeArter).map((g) => (
+                {grupperLinjeLonnsarter(arterFor(l.linje)).map((g) => (
                   <View key={g.gruppe} className="gap-1">
                     <Text className="text-xs font-semibold text-gray-500">
                       {t(`timer.bekreftDag.lonnsartGruppe.${g.gruppe}`)}
@@ -1861,9 +1865,9 @@ function ArbeidLinjer({
       {aapenLinje && !chips ? (
         <LonnsartVelgerModal
           valgtId={aapenLinje.lonnsartId ?? ""}
-          kandidatIder={linjeArter.map((a) => a.id)}
+          kandidatIder={arterFor(aapenLinje.linje).map((a) => a.id)}
           onVelg={(id) => {
-            const art = linjeArter.find((a) => a.id === id);
+            const art = arterFor(aapenLinje.linje).find((a) => a.id === id);
             if (art) velg(aapenLinje.linje, art);
           }}
           onLukk={() => setAapen(null)}

@@ -1790,23 +1790,37 @@ function beregnSegment(a: {
     // Valgene står på linjene sine (V7); bare tidene på linjene etter flytter.
     // «Overtid fra» leses ikke i denne delingen (overtid følger normen);
     // «overtid av» (V5a) gir alt arbeid etter fraværet som normaltid.
+    // RETUR 2 (28) A2: `fravaerTil` klemmes til kortet — tidligst ett
+    // tidsrunding-steg (ellers 15 min) etter arbeidsstart — så fraværet aldri
+    // blir 0 t, delingen aldri faller bort og en husket «Overtid fra» aldri
+    // leses igjen mens fraværet står. Bare uten `fravaerTil` (valget gjøres
+    // alltid med punktet, `velgLinjeLonnsart`) brukes normallinja slik delingen
+    // over gir den.
     const normalValg = godtattLinjeLonnsart(
       a.alleLonnsarter,
       a.lonnsartPerLinje?.normal,
       a.reiseLonnsartIder,
     );
-    const fravaerSeg =
-      normalValg?.type === "fravaer"
-        ? a.fravaerTil
-          ? segmenterVedOvertidFra({
-              arbeidstimer,
-              arbeidsstartHHMM,
-              overtidFra: a.fravaerTil,
-              pauseFra,
-              pauseMin: a.pauseMin,
-            })[0]
-          : vanlige[0]
-        : undefined;
+    let fravaerSeg: ArbeidstidSegment | undefined;
+    if (normalValg?.type === "fravaer") {
+      if (a.fravaerTil) {
+        const steg = a.tidsrundingMinutter && a.tidsrundingMinutter > 0 ? a.tidsrundingMinutter : 15;
+        const tidligst = hhmmTilMin(arbeidsstartHHMM) + steg;
+        const klemt = Math.max(hhmmTilMin(a.fravaerTil), tidligst);
+        const delt = segmenterVedOvertidFra({
+          arbeidstimer,
+          arbeidsstartHHMM,
+          overtidFra: minTilHhmm(Math.min(klemt, 23 * 60 + 59)),
+          pauseFra,
+          pauseMin: a.pauseMin,
+        })[0];
+        // Dekker pausen hele første steg, er fraværet hele kortet (aldri 0 t).
+        fravaerSeg =
+          delt?.overtidsnivaa === null ? delt : { overtidsnivaa: null, timer: arbeidstimer };
+      } else if (vanlige[0]?.overtidsnivaa === null) {
+        fravaerSeg = vanlige[0];
+      }
+    }
     let segmenter: Array<ArbeidstidSegment & { linje: ArbeidLinje }>;
     let medFravaerDeling = false;
     if (fravaerSeg && fravaerSeg.overtidsnivaa === null) {
@@ -1851,11 +1865,18 @@ function beregnSegment(a: {
       // ORDRE (28) V7: arbeiderens valg på linja vinner over forhåndsvalget.
       // Forhåndsvalg (V2): normaltid (overtidsnivaa=null) → firmaets
       // standard-lønnsart; overtid → velg strukturert på overtidsnivaa.
-      const linjeValg = godtattLinjeLonnsart(
+      const linjeValgRaa = godtattLinjeLonnsart(
         a.alleLonnsarter,
         a.lonnsartPerLinje?.[linje],
         a.reiseLonnsartIder,
       );
+      // RETUR 2 (28): fravær på `arbeid`-linja godtas ikke (faller tilbake til
+      // standardarten). Linja er normaltid som fyller normen; skulle den være
+      // fravær, måtte arbeidet etter den regnes om igjen — et nytt fraværsvindu,
+      // som a3 ikke har (Kenneth: fravær midt i kortet er ikke et reelt
+      // tilfelle). Mer fravær føres ved å flytte «Fravær til».
+      const linjeValg =
+        linje === "arbeid" && linjeValgRaa?.type === "fravaer" ? null : linjeValgRaa;
       const lonnsartId =
         linjeValg?.id ??
         (vindu.overtidsnivaa === null

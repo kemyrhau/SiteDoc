@@ -1065,4 +1065,102 @@ describe("ORDRE (28) — lønnsart pr. linje før lagring, fravær bruker ikke n
     const ider = hentFravaerLonnsartIderLokalt();
     expect([...ider].sort()).toEqual(["L-gammel-fravaer", L_EGEN, L_SYK].sort());
   });
+
+  // RETUR 2 (28) — Kontrollør GATE (58) A2: fravær bruker ALDRI normen, uansett
+  // hvor «Fravær til» står. Punktet klemmes til tidligst arbeidsstart + 15 min
+  // (ingen tidsrunding i testfirmaet). Målt med og uten pause.
+  const sjekkB9 = (dag: Dagsforslag["datoer"][number], fravaerArt: string, fravaerTil: string) => {
+    const r = dag.rader.filter((x) => !x.erReise);
+    const fravaer = r.filter((x) => x.lonnsartId === fravaerArt);
+    const arbeidRader = r.filter((x) => x.lonnsartId !== fravaerArt);
+    const arbeidSum = arbeidRader.reduce((s, x) => s + x.timer, 0);
+    const ot = arbeidRader.filter((x) => x.lonnsartId === L_OT50).reduce((s, x) => s + x.timer, 0);
+    const normal = arbeidRader.filter((x) => x.lonnsartId === "L-normal").reduce((s, x) => s + x.timer, 0);
+    expect(dag.fravaerTil).toBe(fravaerTil); // «Fravær til» synlig
+    expect(fravaer).toHaveLength(1);
+    expect(fravaer[0]!.linje).toBe("normal");
+    expect(fravaer[0]!.tilTid).toBe(fravaerTil);
+    // Overtid først når faktisk arbeid har brukt normen (7,5 t).
+    expect(Math.round(normal * 100) / 100).toBe(Math.min(7.5, Math.round(arbeidSum * 100) / 100));
+    expect(Math.round(ot * 100) / 100).toBe(Math.max(0, Math.round((arbeidSum - 7.5) * 100) / 100));
+    // Ingen overtidsrad før siste normaltidsrad.
+    const forsteOt = r.findIndex((x) => x.lonnsartId === L_OT50);
+    if (forsteOt >= 0) expect(r.slice(forsteOt).every((x) => x.lonnsartId === L_OT50)).toBe(true);
+    return r;
+  };
+  const dagMed = (rett: Record<string, unknown>) => forslag({ perDato: { [DATO]: rett } }).datoer[0]!;
+
+  it.each([
+    ["uten pause", 0],
+    ["med pause", 30],
+  ])("🔴 A2 (a): «Fravær til» = arbeidsstart, med og uten husket «Overtid fra» — %s", (_navn, pauseMin) => {
+    settNorm();
+    arter();
+    for (const ekstra of [{}, { overtidFra: "10:00" }]) {
+      const dag = dagMed({
+        arbeidFra: "08:00", arbeidTil: "17:00", pauseMin, ...ekstra,
+        fravaerTil: "08:00", lonnsartPerLinje: { normal: L_EGEN },
+      });
+      const r = sjekkB9(dag, L_EGEN, "08:15");
+      expect(r[0]!.fraTid).toBe("08:00");
+    }
+  });
+
+  it.each([
+    ["uten pause", 0],
+    ["med pause", 30],
+  ])("🔴 A2 (b): «Fravær til» før arbeidsstart, med og uten husket «Overtid fra» — %s", (_navn, pauseMin) => {
+    settNorm();
+    arter();
+    for (const ekstra of [{}, { overtidFra: "10:00" }]) {
+      sjekkB9(
+        dagMed({
+          arbeidFra: "08:00", arbeidTil: "17:00", pauseMin, ...ekstra,
+          fravaerTil: "06:30", lonnsartPerLinje: { normal: L_EGEN },
+        }),
+        L_EGEN,
+        "08:15",
+      );
+    }
+  });
+
+  it.each([
+    ["uten pause", 0],
+    ["med pause", 30],
+  ])("🔴 A2 (c): arbeidsstart flyttet forbi punktet — %s", (_navn, pauseMin) => {
+    settNorm();
+    arter();
+    const dag = dagMed({
+      arbeidFra: "09:00", arbeidTil: "17:00", pauseMin, overtidFra: "10:00",
+      fravaerTil: "08:30", lonnsartPerLinje: { normal: L_EGEN },
+    });
+    const r = sjekkB9(dag, L_EGEN, "09:15");
+    expect(r[0]!.fraTid).toBe("09:00");
+  });
+
+  it("🔴 A2 (d): Sykdom på arbeid-linja godtas ikke — arbeidet fyller normen, overtid først etter 7,5 t", () => {
+    settNorm();
+    arter();
+    const dag = dagMed({
+      arbeidFra: "08:00", arbeidTil: "19:00", pauseMin: 0,
+      fravaerTil: "10:00", lonnsartPerLinje: { normal: L_EGEN, arbeid: L_SYK },
+    });
+    expect(vis(dag.rader.filter((r) => !r.erReise))).toEqual([
+      ["08:00", "10:00", 2, L_EGEN],
+      ["10:00", "17:30", 7.5, "L-normal"],
+      ["17:30", "19:00", 1.5, L_OT50],
+    ]);
+    sjekkB9(dag, L_EGEN, "10:00");
+  });
+
+  it("🔴 A2 (d) med pause: Sykdom på arbeid-linja godtas ikke", () => {
+    settNorm();
+    arter();
+    const dag = dagMed({
+      arbeidFra: "08:00", arbeidTil: "19:00", pauseMin: 30,
+      fravaerTil: "10:00", lonnsartPerLinje: { normal: L_EGEN, arbeid: L_SYK },
+    });
+    expect(dag.rader.some((r) => r.lonnsartId === L_SYK)).toBe(false);
+    sjekkB9(dag, L_EGEN, "10:00");
+  });
 });

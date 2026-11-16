@@ -295,6 +295,14 @@ describe("ORDRE 35 del B — «Legg til overtid» i Bekreft dag", () => {
     expect(sum(rader)).toBe(6);
   });
 
+  it("🔴 RETUR 2 (28): arbeid-linja tilbys ikke fravær i velgeren (chips og liste)", () => {
+    const her = dirname(fileURLToPath(import.meta.url));
+    const flat = readFileSync(join(her, "../../app/timer/bekreft-dag.tsx"), "utf-8").replace(/\s+/g, " ");
+    expect(flat).toContain('linje === "arbeid" ? linjeArter.filter((a) => a.type !== "fravaer") : linjeArter;');
+    expect(flat).toContain("grupperLinjeLonnsarter(arterFor(l.linje))");
+    expect(flat).toContain("kandidatIder={arterFor(aapenLinje.linje).map((a) => a.id)}");
+  });
+
   it("🔴 knappen: vises kun uten overtid og med nivå-valg; starter overtid fra arbeidsstart og åpner editoren", () => {
     const her = dirname(fileURLToPath(import.meta.url));
     const flat = readFileSync(join(her, "../../app/timer/bekreft-dag.tsx"), "utf-8").replace(/\s+/g, " ");
