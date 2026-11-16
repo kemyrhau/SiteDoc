@@ -512,6 +512,8 @@ for SERVER-laget, de to påstandene over/under om at `pauseMin` er sedel-nivå (
 
 ### V21 — overtidsforslag ved manuell føring — `feat/v21-overtidsforslag` 2026-11-12
 
+> 🟡 **Overtid måles mot dagens registrerte tid, også ved manuell føring (Kenneth 2026-11-16, ORDRE 27 — ikke bygget):** *«koden må måle på lik linje med gps … har det vært registrert 7,5 timer en dag → da er ordinær tid oppbrukt → men den ansatte skal kunne overstyre og skrive ordinære timer dersom dette er spesielt avtalt med sjefen.»* Et manuelt kort («+»/«+ Nytt prosjektkort», `utils/manuellDag.ts`) regner i dag bare sin egen tid mot normen, så 17–18 etter 9,5 t ble Timelønn. Etter ORDRE 27: arbeid som alt er registrert på datoen bruker opp normen først; tid etter det er overtid som standard; arbeideren kan overstyre til ordinær. Reise teller aldri (V1). Gjelder samme regel som GPS-dagen.
+
 ⚠️ **Venter Kontrollør-gate.** Spec: [timer-pause-en-kilde-spec.md § 8](timer-pause-en-kilde-spec.md). Når manuelle rader (eller dagens sum) passerer firmaets dagsnorm, viser rad-dialogen **én linje med én knapp**. Ingenting skrives automatisk.
 
 - **Regelen er én ren funksjon:** `foreslaOvertidSplitt` ([overtidForslag.ts](../../packages/shared/src/utils/overtidForslag.ts)). Radene tas kronologisk på `fraTid`; normaltid fylles før overtid. Reise er aldri overtid og teller ikke mot normen (V1). Nivå og lønnsart kommer fra `klassifiserArbeidstid` + `velgOvertidLonnsart` (strukturert `overtidsnivaa`). Uten dagsnorm eller uten overtid-lønnsart → ingen linje. Rader som alt står på overtid teller mot summen, men får ikke forslag.
