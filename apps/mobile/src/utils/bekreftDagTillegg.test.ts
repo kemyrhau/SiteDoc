@@ -41,7 +41,8 @@ vi.mock("../db/database", () => ({
 import { drizzle } from "drizzle-orm/sql-js";
 import * as schema from "../db/schema";
 import { kjorMigreringer } from "../db/migreringer";
-import { kortMedArbeid, arbeidsraderPerKort } from "./beskrivelseKort";
+import { kortMedArbeid, arbeidsraderPerKort, kortMedFlestTimer } from "./beskrivelseKort";
+import { kortForLinje, knyttLonnUtleggTilKort } from "./lonnUtleggKort";
 import { kortArbeidstimer, fordelTilleggPaaKort } from "./tilleggPaaKort";
 import { forberedBekreftDag, bekreftDag, prosjekterMedArbeid, prosjektMedFlestTimer } from "./bekreftDag";
 import { skrivUtlegg, type NyttUtlegg } from "../services/tilleggUtleggSkriv";
@@ -1073,6 +1074,94 @@ describe("RETUR (24) — kort over midnatt", () => {
     const kort = kortMedArbeid(forslag);
     expect(kort.map((k) => [k.nokkel, k.visDato])).toEqual([["p1", false]]);
     expect(kortArbeidstimer(arbeidsraderPerKort(forslag).get("p1") ?? [])).toBe(7.5);
+  });
+});
+
+describe("ORDRE 25 — tillegg og utlegg følger datokortet på nattevakt", () => {
+  const NATT_SLUTT = "2026-07-02T06:00:00";
+  beforeEach(() => {
+    holder.raw.run("DELETE FROM sheet_tillegg_local; DELETE FROM sheet_utlegg_local; DELETE FROM sheet_utlegg_vedlegg_local;");
+  });
+  function natt() {
+    holder.raw.run("DELETE FROM arbeidsdag_local;");
+    seedArbeidsdag("2026-07-01T21:00:00");
+    const ctx = kontekst({
+      dag: { startAt: "2026-07-01T21:00:00", startLat: null, startLng: null, oppmotestedId: null, byggeplassId: null },
+      sluttIso: NATT_SLUTT,
+    });
+    const { forslag } = forberedBekreftDag(lokalDb(), ctx);
+    const neste = forslag.datoer.find((d) => !d.erStartSegment)!.dato;
+    return { forslag: medBeskrivelseAlleKort(forslag), neste, ctx: { ...skriveCtx(), sluttIso: NATT_SLUTT } };
+  }
+  /** Tekst på alle kortene (begge datoer) — sperren for tom beskrivelse er ikke det som testes her. */
+  function medBeskrivelseAlleKort(f: Dagsforslag): Dagsforslag {
+    return { ...f, beskrivelsePerKort: Object.fromEntries(kortMedArbeid(f).map((k) => [k.nokkel, "Arbeid"])) };
+  }
+  const tillegg = (dato?: string): LonnUtlegg["tillegg"][number] => ({
+    lokalId: "lt-1", projectId: "p1", tilleggId: "t-smuss", antall: 1, kommentar: null, byggeplassId: null,
+    ...(dato !== undefined ? { dato } : {}),
+  });
+  const utlegg = (dato?: string): NyttUtlegg => ({
+    id: "utl-1", projectId: "p1", expenseCategoryId: "kat-1", belop: 250, kommentar: null,
+    ordningVedFoering: "utlegg", foertVed: 500, kvittering: null, byggeplassId: null,
+    ...(dato !== undefined ? { dato } : {}),
+  });
+  const datoFor = (sheetId: string) => db().select().from(dagsseddelLocal).all().find((x) => x.id === sheetId)?.dato;
+  const lagre = (forslag: Dagsforslag, ctx: ReturnType<typeof skriveCtx>, l: LonnUtlegg) =>
+    bekreftDag(lokalDb(), forslag, ctx, {}, knyttLonnUtleggTilKort(l, kortMedArbeid(forslag), forslag));
+
+  it("🔴 nattevakt 21–06: tillegg på 17.11-kortet → 17.11-sedelen; utlegg på 16.11-kortet → 16.11-sedelen", () => {
+    const { forslag, neste, ctx } = natt();
+    const r = lagre(forslag, ctx, { tillegg: [tillegg(neste)], utlegg: [utlegg(DATO)] });
+    expect(r.handling.type).toBe("suksess");
+    const t = db().select().from(schema.sheetTilleggLocal).all();
+    const u = db().select().from(schema.sheetUtleggLocal).all();
+    expect(t.map((x) => datoFor(x.dagsseddelId))).toEqual([neste]);
+    expect(u.map((x) => datoFor(x.dagsseddelId))).toEqual([DATO]);
+  });
+
+  it("🔴 kortvalget er datokortene med dato i etiketten; ny linje får startdatoens kort (forvalg)", () => {
+    const { forslag, neste } = natt();
+    const kort = kortMedArbeid(forslag);
+    expect(kort.map((k) => [k.dato, k.visDato, k.paaStartDato])).toEqual([[DATO, true, true], [neste, true, false]]);
+    expect(kortMedFlestTimer(forslag, "p1")).toMatchObject({ dato: DATO });
+  });
+
+  it("🔴 dato 1 blokkert (sendt) → bare 17.11 valgbart; linje valgt på 16.11 lagres på 17.11, sendt sedel urørt", () => {
+    db().insert(dagsseddelLocal).values({
+      id: "sendt1", userId: BRUKER, organizationId: ORG, projectId: "p1", aktivitetId: "a1",
+      dato: DATO, status: "sent", sistEndretLokalt: 1,
+    }).run();
+    const { forslag, neste, ctx } = natt();
+    const kort = kortMedArbeid(forslag);
+    expect(kort.map((k) => k.dato)).toEqual([neste]);
+    expect(kortForLinje(tillegg(DATO), kort, forslag)).toMatchObject({ dato: neste });
+    const r = lagre(forslag, ctx, { tillegg: [tillegg(DATO)], utlegg: [utlegg()] });
+    expect(r.resultat?.lonnUtleggSkrevet).toBe(true);
+    const alle = [...db().select().from(schema.sheetTilleggLocal).all(), ...db().select().from(schema.sheetUtleggLocal).all()];
+    expect(alle.map((x) => datoFor(x.dagsseddelId))).toEqual([neste, neste]);
+    expect(alle.some((x) => x.dagsseddelId === "sendt1")).toBe(false);
+  });
+
+  it("🔴 utkast fra før 25 (linje uten dato) → startdatoens kort, aldri kastet", () => {
+    const { forslag, ctx } = natt();
+    const gammelUtenBp = { ...tillegg(), lokalId: "lt-2" };
+    delete (gammelUtenBp as { byggeplassId?: string | null }).byggeplassId;
+    const r = lagre(forslag, ctx, { tillegg: [tillegg(), gammelUtenBp], utlegg: [utlegg()] });
+    expect(r.handling.type).toBe("suksess");
+    const alle = [...db().select().from(schema.sheetTilleggLocal).all(), ...db().select().from(schema.sheetUtleggLocal).all()];
+    expect(alle).toHaveLength(3);
+    expect(alle.map((x) => datoFor(x.dagsseddelId))).toEqual([DATO, DATO, DATO]);
+  });
+
+  it("🔴 dagsvakt: ett kort uten dato (ingen kortvalg), lagring på første åpne sedel som før", () => {
+    const forslag = medBeskrivelse(toRader(VANLIG));
+    const kort = kortMedArbeid(forslag);
+    expect(kort.map((k) => [k.dato, k.visDato])).toEqual([[DATO, false]]);
+    const r = lagre(forslag, skriveCtx(), { tillegg: [tillegg()], utlegg: [utlegg()] });
+    const sedel = r.resultat!.forsteLagredeSheetId!;
+    expect(db().select().from(schema.sheetTilleggLocal).all().map((x) => x.dagsseddelId)).toEqual([sedel]);
+    expect(db().select().from(schema.sheetUtleggLocal).all().map((x) => x.dagsseddelId)).toEqual([sedel]);
   });
 });
 

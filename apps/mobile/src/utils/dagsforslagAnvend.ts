@@ -30,8 +30,9 @@ import type { NyKoOppforing } from "../providers/OpplastingsKoProvider";
 
 /**
  * ORDRE Tillegg/Utlegg i Bekreft dag: lønnstillegg og utlegg holdt i minnet på
- * skjermen. Knyttet til sedel + prosjekt (ikke rad) — skrives på første åpne
- * dato sin sedel (`forsteLagredeSheetId`).
+ * skjermen. Knyttet til sedel + prosjekt (ikke rad). ORDRE 25: skrives på
+ * sedelen for linjas datokort (`dato`); uten dato, eller datoen ble blokkert
+ * under skrivingen, på første åpne dato sin sedel (`forsteLagredeSheetId`).
  */
 export type LonnUtlegg = { tillegg: NyttLonnstillegg[]; utlegg: NyttUtlegg[] };
 
@@ -93,6 +94,8 @@ export function anvendDagsforslag(
   const lagredeDatoer: string[] = [];
   const blokkerteDatoer: string[] = [];
   let forsteLagredeSheetId: string | null = null;
+  /** ORDRE 25: åpen sedel pr. dato — tillegg/utlegg lagres på datokortets sedel. */
+  const sedelPerDato = new Map<string, string>();
 
   if (ctx.erAnsatt === false) {
     return {
@@ -166,6 +169,7 @@ export function anvendDagsforslag(
     }
     lagredeDatoer.push(d.dato);
     forsteLagredeSheetId ??= resultat.id;
+    sedelPerDato.set(d.dato, resultat.id);
     if (d.raderDroppetUtenLonnsart > 0) manglerLonnsart = true;
 
     // RETUR 36c pkt 1: arbeidsrader arver sedelens byggeplass (null). Fantes
@@ -255,28 +259,39 @@ export function anvendDagsforslag(
     vekForOverlapp.push(...d.vekForOverlapp);
   }
 
-  // ORDRE Tillegg/Utlegg i Bekreft dag: på første åpne dato sin sedel. Ingen
-  // åpen sedel (alt ble blokkert under skrivingen) → `lonnUtleggSkrevet` false;
-  // `bekreftDag` gjør det til stoppen `tilleggUtleggUtenDag`, og skjermen blir
-  // stående med linjene — aldri stille tap.
+  // ORDRE Tillegg/Utlegg i Bekreft dag. ORDRE 25 (Kenneth 2026-11-16): hver
+  // linje på sedelen for sitt datokort (`dato`, satt av `knyttLonnUtleggTilKort`).
+  // Uten dato (prosjekt uten arbeid) eller datoen ble blokkert under skrivingen
+  // → første åpne dato sin sedel, som før 25 — aldri stille tap. Ingen åpen
+  // sedel (alt ble blokkert) → `lonnUtleggSkrevet` false; `bekreftDag` gjør det
+  // til stoppen `tilleggUtleggUtenDag`, og skjermen blir stående med linjene.
   let lonnUtleggSkrevet = false;
   const utleggKo: NyKoOppforing[] = [];
   if (harLonnUtlegg(lonnUtlegg) && forsteLagredeSheetId) {
+    const forste = forsteLagredeSheetId;
     // T12 (spec tillegg-utlegg-prosjektkort § 5, B6): linja bærer kortets
     // byggeplass (effektiv). Lik sedelens → null (arv), som timeradene
     // (`lagretByggeplassForKort`). Underprosjektet er dagens valg og settes
     // bare på dagens prosjekt — et ECO tilhører alltid sitt prosjekt.
-    const sedel = sedelKontekstLokalt(db, forsteLagredeSheetId);
-    const kortFelt = (l: { projectId: string; byggeplassId?: string | null }) => {
+    const plassering = (l: { projectId: string; byggeplassId?: string | null; dato?: string }) => {
+      const sheetId = (l.dato !== undefined ? sedelPerDato.get(l.dato) : undefined) ?? forste;
+      const sedel = sedelKontekstLokalt(db, sheetId);
       const bp = l.byggeplassId ?? null;
       return {
-        byggeplassId: sedel ? lagretByggeplassForKort({ projectId: l.projectId, byggeplassId: bp, ecoId: null }, sedel) : bp,
-        externalCostObjectId: l.projectId === forslag.prosjektId ? (ctx.ecoId ?? null) : null,
+        sheetId,
+        felt: {
+          byggeplassId: sedel ? lagretByggeplassForKort({ projectId: l.projectId, byggeplassId: bp, ecoId: null }, sedel) : bp,
+          externalCostObjectId: l.projectId === forslag.prosjektId ? (ctx.ecoId ?? null) : null,
+        },
       };
     };
-    for (const l of lonnUtlegg.tillegg) skrivLonnstillegg(db, forsteLagredeSheetId, { ...l, ...kortFelt(l) }, ctx.naa());
+    for (const l of lonnUtlegg.tillegg) {
+      const { sheetId, felt } = plassering(l);
+      skrivLonnstillegg(db, sheetId, { ...l, ...felt }, ctx.naa());
+    }
     for (const u of lonnUtlegg.utlegg) {
-      const ko = skrivUtlegg(db, forsteLagredeSheetId, { ...u, ...kortFelt(u) }, ctx.nyId);
+      const { sheetId, felt } = plassering(u);
+      const ko = skrivUtlegg(db, sheetId, { ...u, ...felt }, ctx.nyId);
       if (ko) utleggKo.push(ko);
     }
     lonnUtleggSkrevet = true;

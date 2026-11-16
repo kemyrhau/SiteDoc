@@ -459,18 +459,6 @@ export default function BekreftDagSkjerm() {
     () => (beregnet ? kortMedArbeid(beregnet.forslag) : []),
     [beregnet],
   );
-  // Tillegg/utlegg (T12) har ingen dato: ett valg pr. kort-sted (prosjekt +
-  // byggeplass), første datos kort — uendret av RETUR (24).
-  const lonnUtleggKort = useMemo(
-    () =>
-      arbeidKort
-        .filter(
-          (k, i) =>
-            arbeidKort.findIndex((x) => x.projectId === k.projectId && x.byggeplassId === k.byggeplassId) === i,
-        )
-        .map((k) => ({ ...k, visDato: false })),
-    [arbeidKort],
-  );
   // Kortets navn: prosjekt, byggeplassen når flere kort deler prosjektet, og
   // datoen når prosjektet har kort på flere datoer (RETUR 24: nattevakt 21–06
   // = to kort, «Prosjekt · 16.11.» og «Prosjekt · 17.11.»).
@@ -1559,7 +1547,7 @@ export default function BekreftDagSkjerm() {
               />
             ) : null}
 
-            {/* ORDRE Tillegg/Utlegg i Bekreft dag — skrives på første åpne dato sin sedel. */}
+            {/* ORDRE Tillegg/Utlegg i Bekreft dag — ORDRE 25: hver linje velger datokort og skrives på den datoens sedel. */}
             {!alleSendt && !ikkeAnsatt && !tomt && lonnUtleggProsjekt ? (
               <BekreftDagLonnUtlegg
                 verdi={lonnUtlegg}
@@ -1567,7 +1555,7 @@ export default function BekreftDagSkjerm() {
                 organizationId={orgId}
                 defaultProjectId={lonnUtleggProsjekt}
                 prosjektValg={prosjekter.map((p) => ({ id: p.id, navn: p.name }))}
-                kort={lonnUtleggKort}
+                kort={arbeidKort}
                 standardKortFor={standardKortFor}
                 kortEtikett={kortEtikett}
                 onFjernKvittering={fjernKvittering}

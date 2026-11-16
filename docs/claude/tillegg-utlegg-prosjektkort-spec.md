@@ -220,7 +220,7 @@ Vakten `dagskort-isolert-vakt.test.ts` utvides (negativkontroll på hver):
 
 - `BekreftDagLonnUtlegg.tsx` får `kort: BeskrivelseKort[]` (= `arbeidKort`, `bekreft-dag.tsx:396-399`) i stedet for bare `defaultProjectId`. Én kort: ingen valg vises, linja arver det. Flere kort: chips pr. linje (samme mønster som underprosjekt-chips :1166-1171 / `UTLEGG_CHIPS`), default = kortet med flest timer (`prosjektMedFlestTimer` :392-394 byttes til kort-varianten).
 - Felt på linja: `projectId` og `byggeplassId` fra kortet (`kortMedArbeid` gir effektiv byggeplass, :46); `externalCostObjectId = ctx.ecoId` — dagens ene underprosjekt (`ecoId: manuell ? ecoId : null`, :477-517), nøyaktig som timer-radene får i `dagsforslagAnvend.ts:195-215`. Når 36d-2 § 3.9 gir underprosjekt pr. kort, følger linja kortet.
-- `dagsforslagAnvend.ts:258-271`: `skrivLonnstillegg`/`skrivUtlegg` skriver feltene. Sedelen er fortsatt `forsteLagredeSheetId` (første åpne dato); stoppen `tilleggUtleggUtenDag` står.
+- `dagsforslagAnvend.ts:258-271`: `skrivLonnstillegg`/`skrivUtlegg` skriver feltene. Sedelen var `forsteLagredeSheetId` (første åpne dato); fra ORDRE 25 (Kenneth 2026-11-16) er den linjas datokort-sedel (`sedelPerDato`), med `forsteLagredeSheetId` som reserve — se `timer.md` § «Tillegg og utlegg følger datokortet». Stoppen `tilleggUtleggUtenDag` står.
 - Utkast C2: `UtkastData.lonnUtlegg` bærer feltene gjennom de utvidede typene; gamle utkast uten felt leses som null (arv) — ingen migrering av utkast.
 - Manuell modus uten GPS-forslag har ett kort (prosjekt + valgt byggeplass + ecoId) — linja arver det.
 

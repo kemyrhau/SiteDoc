@@ -29,6 +29,12 @@ export type NyttUtlegg = {
   /** Prosjektkortets byggeplass/underprosjekt (2026-11-13). Utelatt/null = arv. */
   byggeplassId?: string | null;
   externalCostObjectId?: string | null;
+  /**
+   * Bekreft dag (ORDRE 25, Kenneth 2026-11-16): datokortets dato — linja
+   * lagres på den datoens dagsseddel. Utelatt (utkast fra før 25) =
+   * startdatoens kort (`kortForLinje`). Skrives ikke til DB.
+   */
+  dato?: string;
 };
 
 /**
@@ -101,6 +107,12 @@ export type NyttLonnstillegg = {
   /** Prosjektkortets byggeplass/underprosjekt (2026-11-13). Utelatt/null = arv. */
   byggeplassId?: string | null;
   externalCostObjectId?: string | null;
+  /**
+   * Bekreft dag (ORDRE 25, Kenneth 2026-11-16): datokortets dato — linja
+   * lagres på den datoens dagsseddel. Utelatt (utkast fra før 25) =
+   * startdatoens kort (`kortForLinje`). Skrives ikke til DB.
+   */
+  dato?: string;
 };
 
 /** Skriver lønnstillegget på `sheetId` — samme verdier som prosjektkortets `leggTil`. */
