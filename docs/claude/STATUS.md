@@ -12,6 +12,7 @@
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
 **Sist oppdatert:** 2026-11-16
+- 2026-11-16 — **`eas-build-veileder.md`: OTA test `d7dfcce8`** (develop, docs-only, orkestrator): group `8e663eee-…`, bærer (24).
 - 2026-11-16 — **`STATUS-AKTUELT.md` + `FUNKSJONSENDRINGER.md`: (24) prosjektkort én beskrivelse / aldri to datoer merget (`3417d893`)** (develop, docs-only, orkestrator): ✅-innslag, funksjonsendring ført.
 - 2026-11-16 — **`timer.md`: tillegg/utlegg følger datokortet** (develop, docs-only, orkestrator): Kenneths beslutning — linja velger datokort og lagres på det kortets seddel. 🟡 egen ordre etter (24).
 - 2026-11-16 — **`timer.md` (aldri to datoer, TILLEGG) + `maskin.md` «Maskinrad fra Bekreft dag» + `mobil.md` `bekreft-dag.tsx`: RETUR (24) kort over midnatt + V1–V3** (branch `fix/prosjektkort-en-beskrivelse`, kode + docs): ett kort pr. (dato, prosjekt), egen beskrivelse og eget maskin/varer-sett pr. kort, dato i etiketten, kapasitet pr. (maskin, rad); 🟡-markørene for (24) erstattet av kode-referanser.
