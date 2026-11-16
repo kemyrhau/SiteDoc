@@ -23,6 +23,7 @@ import { useNettverk } from "../../../providers/NettverkProvider";
 import { finnLonnsartLokalt, finnNormtakArtLokalt } from "../../../services/timerKatalog";
 import { bruddForDag } from "../../../utils/fravaerNormtakMobil";
 import { finnEquipmentLokalt } from "../../../services/maskinKatalog";
+import { sikreLokalKortId } from "../../../services/kortIdLokal";
 import { erReiseRadVisning } from "../../../utils/reiseRad";
 import { formatNorskDato } from "../../../utils/dato";
 import {
@@ -499,12 +500,14 @@ export function ProsjektkortDagsoversikt({
 
   const utforFlytt = async (valgt: ProsjektKortValg, nytt = false) => {
     if (!flytt) return;
-    const til = flytt.radType === "timer" ? flyttMaalKort(valgt, nytt) : valgt;
+    // Kontrollør A1: også maskin og vare som flyttes alene får målkortets id.
+    const til = flyttMaalKort(valgt, nytt);
     loftArvVedBehov(til);
     const maal: FlyttMaal = {
       projectId: til.projectId,
       byggeplassId: lagretByggeplassForKort(til, sedelKontekst),
       ecoId: til.ecoId,
+      kortId: til.kortId ?? undefined,
     };
     if (flytt.radType === "timer") {
       // TILLEGG 2026-11-12 regel 1: raden tar med koblede maskiner OG varer,
@@ -576,6 +579,7 @@ export function ProsjektkortDagsoversikt({
         return;
       }
       flyttMaskinRad(db(), flytt.rad.id, maal);
+      sikreLokalKortId(db(), sheetId);
     } else {
       const v = flytt.vare;
       // Varer har ingen sedel-arv: kortets effektive byggeplass lagres (RETUR 4).
@@ -596,6 +600,7 @@ export function ProsjektkortDagsoversikt({
         }
       }
       flyttVareLokalt(db(), v.id, vareMaal);
+      sikreLokalKortId(db(), sheetId);
       setFlytt(null);
       onVarerLagret();
       return;

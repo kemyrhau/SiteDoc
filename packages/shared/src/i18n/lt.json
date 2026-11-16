@@ -5612,7 +5612,6 @@
   "timer.kort.slett": "Ištrinti kortelę",
   "timer.kort.flyttTittel": "Perkelkite kortelę į",
   "timer.kort.flyttKnapp": "Perkelti kortelę",
-  "timer.kort.sammenslaa": "Kortelė bus sujungta su {{kort}}, kuri jau yra.",
   "timer.kort.slettTittel": "Ištrinti kortelę?",
   "timer.kort.slettTekst": "Darbas ({{timer}} h), mašinos, prekės, pašalpos ir išlaidos {{kort}} pašalinamos iš {{dato}} darbo laiko apskaitos žiniaraščio.",
   "timer.kort.slettUtkast": "Darbo laiko apskaitos žiniaraštis lieka jūsų juodraštis. Jūsų vadovas jo negavo. Kelionės saugomos.",

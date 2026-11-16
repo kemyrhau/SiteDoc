@@ -5612,7 +5612,6 @@
   "timer.kort.slett": "Usuń kartę",
   "timer.kort.flyttTittel": "Przesuń kartę do",
   "timer.kort.flyttKnapp": "Przesuń kartę",
-  "timer.kort.sammenslaa": "Karta zostanie połączona z {{kort}}, który już istnieje.",
   "timer.kort.slettTittel": "Usunąć kartę?",
   "timer.kort.slettTekst": "Praca ({{timer}} h), maszyny, towary, dodatki i wydatki w dniu {{kort}} są usuwane z grafiku dla {{dato}}.",
   "timer.kort.slettUtkast": "Karta czasu pracy pozostaje wersją roboczą. Twój menadżer go nie otrzymał. Podróż zostaje zachowana.",

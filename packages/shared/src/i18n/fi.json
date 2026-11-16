@@ -5612,7 +5612,6 @@
   "timer.kort.slett": "Poista kortti",
   "timer.kort.flyttTittel": "Siirrä kortti kohteeseen",
   "timer.kort.flyttKnapp": "Siirrä korttia",
-  "timer.kort.sammenslaa": "Kortti yhdistetään {{kort}}:ään, joka on jo olemassa.",
   "timer.kort.slettTittel": "Poistetaanko kortti?",
   "timer.kort.slettTekst": "Työ ({{timer}} h), koneet, tavarat, korvaukset ja kulut {{kort}} poistetaan {{dato}} tuntilomakkeesta.",
   "timer.kort.slettUtkast": "Työaikalomake pysyy luonnoksena. Esimiehenne ei ole saanut sitä. Matkailu pidetään.",

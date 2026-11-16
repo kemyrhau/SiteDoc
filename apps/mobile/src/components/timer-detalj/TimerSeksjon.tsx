@@ -2413,7 +2413,7 @@ export function TimerRadModal({
 // lønnsart-velger som TimerRadModal).
 // ORDRE (28) F-L2: `organizationId` → bare innlogget firmas aktive arter.
 // V3: Bekreft dag sender `kandidatIder` (linjas aktuelle arter) og får lista
-// gruppert Ordinær · Overtid · Fravær. Uten dem: alle typer som før.
+// gruppert Ordinær · Overtid (fravær-arter er ute av linjene fra ordre c, F5). Uten dem: alle typer som før.
 export function LonnsartVelgerModal({
   valgtId,
   organizationId,

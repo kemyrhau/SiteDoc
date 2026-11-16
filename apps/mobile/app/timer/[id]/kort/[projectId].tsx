@@ -66,9 +66,9 @@ import { KortValgModal } from "../../../../src/components/timer-detalj/prosjektk
 import { BekreftSlettModal } from "../../../../src/components/timer-detalj/prosjektkort/BekreftSlettModal";
 import {
   flyttKort,
-  kortFinnesFraFor,
   kortInnhold,
   kortUtfallTekst,
+  kortUtfallParametre,
   slettKort,
   vareFinnesPaaServer,
   type KortDag,
@@ -430,7 +430,7 @@ export default function ProsjektkortSkjerm() {
     if (u.utfall === "ok") return true;
     const tekst = kortUtfallTekst(u, handling);
     const grunn = u.utfall === "delvis" && u.melding ? `\n${u.melding}` : "";
-    setKortFeil(tekst ? t(tekst, { defaultValue: tekst }) + grunn : null);
+    setKortFeil(tekst ? t(tekst, { defaultValue: tekst, ...kortUtfallParametre(u) }) + grunn : null);
     return false;
   };
   const utforEndre = async (til: typeof valg) => {
@@ -447,7 +447,7 @@ export default function ProsjektkortSkjerm() {
           externalCostObjectId: maal.ecoId,
         });
       },
-    });
+    }, { kollisjonssjekk: true });
     setKortArbeider(false);
     if (u.utfall === "delvis") {
       // 36c-kort-3: timer er flyttet — les på nytt; modalen står med teksten,
@@ -668,12 +668,6 @@ export default function ProsjektkortSkjerm() {
           sedel={kontekst}
           prosjektNavn={(id) => prosjektVisningsnavn(finnProsjektLokalt(id), t("timer.detalj.ukjentProsjekt"))}
           feil={kortFeil}
-          merknad={(til) =>
-            utledetKortNokkel(til) !== utledetKortNokkel(valg) &&
-            kortFinnesFraFor([...timerRader.filter((r) => !iKortet.has(r.id)), ...maskinRader.filter((m) => !iKortet.has(m.id))], kontekst, til)
-              ? t("timer.kort.sammenslaa", { kort: kortNavn(til) })
-              : null
-          }
           onVelg={(til) => void utforEndre(til)}
           onLukk={() => setVisEndre(false)}
         />

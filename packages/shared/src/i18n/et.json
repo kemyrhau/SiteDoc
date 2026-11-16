@@ -5612,7 +5612,6 @@
   "timer.kort.slett": "Kustuta kaart",
   "timer.kort.flyttTittel": "Liigutage kaart kohta",
   "timer.kort.flyttKnapp": "Liiguta kaarti",
-  "timer.kort.sammenslaa": "Kaart liidetakse kaardiga {{kort}}, mis on juba olemas.",
   "timer.kort.slettTittel": "Kas kustutada kaart?",
   "timer.kort.slettTekst": "Töö ({{timer}} h), masinad, kaubad, toetused ja kulud {{kort}} eemaldatakse {{dato}} tööajaarvestusest.",
   "timer.kort.slettUtkast": "Tööajatabel jääb teie mustandiks. Teie juht ei ole seda kätte saanud. Reisimine on hoitud.",

@@ -5612,7 +5612,6 @@
   "timer.kort.slett": "Supprimer la carte",
   "timer.kort.flyttTittel": "Déplacez la carte vers",
   "timer.kort.flyttKnapp": "Déplacer la carte",
-  "timer.kort.sammenslaa": "La carte sera fusionnée avec {{kort}}, qui existe déjà.",
   "timer.kort.slettTittel": "Supprimer la carte ?",
   "timer.kort.slettTekst": "Le travail ({{timer}} h), les machines, les biens, les indemnités et les dépenses sur {{kort}} sont supprimés de la feuille de temps pour {{dato}}.",
   "timer.kort.slettUtkast": "La feuille de temps reste votre brouillon. Votre manager ne l'a pas reçu. Les déplacements sont conservés.",

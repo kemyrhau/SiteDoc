@@ -5612,7 +5612,6 @@
   "timer.kort.slett": "Dzēst karti",
   "timer.kort.flyttTittel": "Pārvietojiet karti uz",
   "timer.kort.flyttKnapp": "Pārvietot karti",
-  "timer.kort.sammenslaa": "Karte tiks apvienota ar {{kort}}, kas jau pastāv.",
   "timer.kort.slettTittel": "Vai dzēst karti?",
   "timer.kort.slettTekst": "Darbs ({{timer}} h), mašīnas, preces, piemaksas un izdevumi {{kort}} tiek noņemti no laika uzskaites uzskaites datumam {{dato}}.",
   "timer.kort.slettUtkast": "Darba laika uzskaite paliek kā jūsu melnraksts. Jūsu vadītājs to nav saņēmis. Ceļojums tiek saglabāts.",

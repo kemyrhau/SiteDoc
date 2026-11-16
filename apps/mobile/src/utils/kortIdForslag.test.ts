@@ -253,7 +253,7 @@ describe("delingsVindu — hvor et kort kan deles", () => {
   });
 });
 
-describe("angreKortDeling — slår kortet sammen igjen", () => {
+describe("angreKortDeling — slår kortet sammen igjen (🟢 beholdt, Kenneth 2026-11-16)", () => {
   it("fjerner delingen og delinger av det utdelte kortet", () => {
     const r = {
       kortDeling: [
@@ -263,5 +263,48 @@ describe("angreKortDeling — slår kortet sammen igjen", () => {
       ],
     };
     expect(angreKortDeling(r, "b").kortDeling?.map((d) => d.kortId)).toEqual(["d"]);
+  });
+  it("del og angre gir rettingen uten deling igjen", () => {
+    const delt = delTilEgetKort({}, { dato: DATO, fraKortId: "a", fra: "10:00" }, () => "b");
+    expect(delt.kortDeling).toHaveLength(1);
+    expect(angreKortDeling(delt, "b").kortDeling).toEqual([]);
+  });
+  it("knappen står i Bekreft dag, og nøkkelen finnes i alle 15 språk", async () => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const skjerm = fs.readFileSync(path.join(__dirname, "../../app/timer/bekreft-dag.tsx"), "utf8");
+    expect(skjerm).toContain("angreKortDeling(r, k.kortId!)");
+    expect(skjerm).toContain('t("timer.bekreftDag.kort.slaaSammen")');
+    const i18nDir = path.join(__dirname, "../../../../packages/shared/src/i18n");
+    const filer = fs.readdirSync(i18nDir).filter((f) => f.endsWith(".json"));
+    expect(filer).toHaveLength(15);
+    for (const f of filer) expect(JSON.parse(fs.readFileSync(path.join(i18nDir, f), "utf8"))["timer.bekreftDag.kort.slaaSammen"]).toBeTruthy();
+  });
+});
+
+describe("Kontrollør A2 — frøet for «+ Nytt prosjektkort» følger ikke utkastet over i vanlig «+»", () => {
+  const ny = () => "frø-ny";
+  it("«+ Nytt prosjektkort» (nyttKort=1) sår frø, og beholder et frø fra utkastet", async () => {
+    const { nyttKortFroe } = await import("./kortIdForslag");
+    expect(nyttKortFroe({}, { manuell: true, nyttKortParam: "1" }, ny)).toEqual({ nyttKort: "frø-ny" });
+    expect(nyttKortFroe({ nyttKort: "frø-gml" }, { manuell: true, nyttKortParam: "1" }, ny)).toEqual({ nyttKort: "frø-gml" });
+  });
+  it("vanlig «+» på samme dato: frøet fra utkastet fjernes, resten av rettingen står", async () => {
+    const { nyttKortFroe } = await import("./kortIdForslag");
+    const r = { nyttKort: "frø-gml", kortDeling: [{ dato: DATO, fraKortId: "a", fra: "10:00", kortId: "b" }] };
+    expect(nyttKortFroe(r, { manuell: true, nyttKortParam: undefined }, ny)).toEqual({ kortDeling: r.kortDeling });
+    expect(nyttKortFroe({ nyttKort: "frø-gml" }, { manuell: false, nyttKortParam: "1" }, ny)).toEqual({});
+  });
+  it("negativkontroll: uten frø og uten nyttKort=1 er rettingen uendret (samme objekt)", async () => {
+    const { nyttKortFroe } = await import("./kortIdForslag");
+    const r = {};
+    expect(nyttKortFroe(r, { manuell: true, nyttKortParam: undefined }, ny)).toBe(r);
+  });
+  it("vakt: Bekreft dag bruker den delte regelen både ved start og ved gjenoppretting av utkast", async () => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const skjerm = fs.readFileSync(path.join(__dirname, "../../app/timer/bekreft-dag.tsx"), "utf8");
+    expect(skjerm).toContain("nyttKortFroeRegel(r, { manuell, nyttKortParam: params.nyttKort }, randomUUID)");
+    expect(skjerm).toContain("setRetting(nyttKortFroe(d.retting ?? {}))");
   });
 });

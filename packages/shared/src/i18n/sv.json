@@ -5612,7 +5612,6 @@
   "timer.kort.slett": "Ta bort kort",
   "timer.kort.flyttTittel": "Flytta kortet till",
   "timer.kort.flyttKnapp": "Flytta kort",
-  "timer.kort.sammenslaa": "Kortet kommer att slås samman med {{kort}}, som redan finns.",
   "timer.kort.slettTittel": "Ta bort kortet?",
   "timer.kort.slettTekst": "Arbete ({{timer}} h), maskiner, varor, traktamenten och utgifter på {{kort}} tas bort från tidrapporten för {{dato}}.",
   "timer.kort.slettUtkast": "Tidrapporten förblir som ditt utkast. Din chef har inte fått det. Resan behålls.",

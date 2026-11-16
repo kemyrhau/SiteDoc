@@ -517,7 +517,7 @@ Avvik og funn, meldt i SJEKKPUNKT b3:
 | Fraværskortet på dagskortet: «+ Fravær», art/timer/beskrivelse, tak, lagring (TF3, TF9, TF22, TF27) | `apps/mobile/src/utils/fravaerKort.ts`, `prosjektkort/FravaerKortModal.tsx`, `prosjektkort/fravaerKortLagring.ts`, `ProsjektkortDagsoversikt.tsx` (`29cf31ff`) |
 | «+ Fravær» i Bekreft dag (U1 inngang 2), U8 bare for arbeidskort | `prosjektkort/fravaerKortDag.ts`, `bekreft-dag.tsx` (`0c92afd3`) |
 | F6: dagskort-modus viser fravær uten prosjekt i lese-gruppa «Fravær» (TF10) | `apps/mobile/src/utils/dagskortFravaer.ts`, `apps/mobile/app/timer/[id].tsx` (`0d3e9dc6`) |
-| «Sum i dag» og «Send dagen» fra én funksjon (verdi uendret, TILLEGG pkt 3) | `dagSumTimer` i `apps/mobile/src/utils/dagsoversikt.ts` (`bc4fddb4`) |
+| «Sum i dag» og «Send dagen» fra én funksjon (TILLEGG pkt 3); tar med fravær (E2, 🟢 Kenneth 2026-11-16) | `dagSumTimer` i `apps/mobile/src/utils/dagsoversikt.ts` — eneste kaller `ProsjektkortDagsoversikt.tsx`; test `dagSumTimer.test.ts` |
 
 **c1 — kort-id i UI (§ 5.1, § 5.2).**
 
@@ -525,9 +525,12 @@ Avvik og funn, meldt i SJEKKPUNKT b3:
 |---|---|
 | T13/M18: «Del opp» beholder radens byggeplass og kort-id | `splittFravaer.ts`, `SplittRadModal.tsx` (`04c4ca9a`) |
 | K5: én beskrivelse pr. kort i prosjektkort-modus | `prosjektkort/kortBeskrivelse.ts` (`ee602f74`) |
-| T10/T14: Bekreft dag — «Del til eget kort», underprosjekt pr. kort, «Slå sammen igjen», utkast skjemaversjon 2 (v1 lastes uendret) | `tildelKortIder` i `apps/mobile/src/utils/kortIdForslag.ts`, `retting.kortDeling` i `dagsforslag.ts`, `beskrivelseKort.ts`, `dagsforslagAnvend.ts`, `prosjektkortUtkast.ts` (`UTKAST_SKJEMA_VERSJON = 2`), `DelKortModal.tsx` (`38b643b0`) |
+| T10/T14: Bekreft dag — «Del til eget kort», underprosjekt pr. kort, «Slå sammen igjen» (🟢 Kenneth 2026-11-16), utkast skjemaversjon 2 (v1 lastes uendret) | `tildelKortIder` i `apps/mobile/src/utils/kortIdForslag.ts`, `retting.kortDeling` i `dagsforslag.ts`, `beskrivelseKort.ts`, `dagsforslagAnvend.ts`, `prosjektkortUtkast.ts` (`UTKAST_SKJEMA_VERSJON = 2`), `DelKortModal.tsx` (`38b643b0`) |
 | T11: dagskort og kortskjerm grupperer på kort-id; rute `kort=<kortId>` | `KortValg.kortId`, `kortNokkel`, `utenIdTilKort`, `kortRute`/`kortForRute` i `apps/mobile/src/lib/prosjektkortMobil.ts`; ny rad skrives med kortets id i `nyTimerRad.ts` (`de162384`) |
 | T12: «Flytt til nytt kort», «+ Nytt prosjektkort» gir alltid nytt kort, «Endre kort» beholder id | `FlyttMaal.kortId` i `prosjektkort/kortRadFlytt.ts`; `nyttKort` i `KortValgModal.tsx`; `retting.nyttKort` → `tildelKortIder` (`7a5cb7c7`) |
+| Gate (70) A1: maskin og vare flyttet alene (og synket vare etter server-flytt) får målkortets id; uten mål-id nullstilles id-en og utledes på nytt | `flyttMaskinRad`, `flyttVareLokalt`, `flyttKort` i `prosjektkort/kortRadFlytt.ts`; `utforFlytt` i `ProsjektkortDagsoversikt.tsx` (`flyttMaalKort` for alle radtyper + `sikreLokalKortId`). Test `kortRadFlytt.test.ts` |
+| Gate (70) A2: frøet for «+ Nytt prosjektkort» fjernes når skjermen åpnes uten `nyttKort=1` (utkastnøkkelen er bare datoen) | `nyttKortFroe` i `apps/mobile/src/utils/kortIdForslag.ts`, brukt i `bekreft-dag.tsx`. Test `kortIdForslag.test.ts` |
+| E1: «Endre kort» til en nøkkel som alt har kort — tidskollisjon sjekkes med lagringsregelen (`finnOverlappendeTidsrom` → sperre `timer.feil.overlapp`, som `TimerSeksjon.tsx`); uten overlapp to kort, hver med sin beskrivelse | `finnKortKollisjon`, `kortUtfallParametre` og `flyttKort(…, { kollisjonssjekk: true })` i `prosjektkort/kortRadFlytt.ts`; kalles fra `app/timer/[id]/kort/[projectId].tsx`. «Flytt raden» sjekker ikke (uendret). Test `kortHele.test.ts` |
 
 **Tester:** T10/T12/T14 `bekreftDagKortId.test.ts`, `kortIdForslag.test.ts`; T11 `prosjektkortMobil.kortid.test.ts`; T12 `kortRadFlytt.test.ts`; T13 `splittKortId.test.ts`, `splittFravaer.test.ts`; TF3/TF9/TF22/TF27 `fravaerKort.test.ts`, `fravaerKortLagring.test.ts`, `fravaerKortDag.test.ts`; TF10 `dagskortFravaer.test.ts`, `radProsjektId-vakt.test.ts`, `packages/shared/src/utils/fravaerKort.test.ts`; TF20 `timerKatalog-fravaerNormtak.test.ts`; TF23/TF24 `fravaerNormtakMobil.test.ts`, `radform-vakt.test.ts`; TF21 (A-vakt) `dagsforslag.retting.test.ts`, `manuellDag.test.ts`; T16 vaktene `dagskort-isolert-vakt.test.ts`, `radLagring-glue-vakt`, `prosjektkort-glue-vakt`, `attesteringNormtak-vakt.test.ts`, `normtakEksakt-vakt.test.ts`.
 
@@ -537,11 +540,11 @@ Avvik og valg, meldt i SJEKKPUNKT c:
 - **Foreldreløs beskrivelse vises og sperrer ikke Bekreft**; den droppes aldri.
 - **Ingen byggeplassvalg pr. delt kort** — delen arver kildens byggeplass.
 - **Rad flyttet til en nøkkel uten kort får tilfeldig UUID** (§ 2.4: kort laget av brukeren).
-- **«Slå sammen igjen»** (`angreKortDeling`) er ny og ikke nevnt i ordren — angrer «Del til eget kort» før lagring. Meldt.
-- **«Endre kort» til en nøkkel som alt har kort beholder id** → to kort med samme nøkkel (K7). Merknaden `timer.kort.sammenslaa` («slås sammen») stemmer da ikke. Venter Kenneth.
+- 🟢 **«Slå sammen igjen»** (`angreKortDeling`) angrer «Del til eget kort» før lagring — beholdt, vedtatt av Kenneth 2026-11-16 (rettelse til E3). Test i `kortIdForslag.test.ts`.
+- **«Endre kort» til en nøkkel som alt har kort beholder id** → to kort med samme nøkkel (K7), etter kollisjonssjekk (E1). Merknaden `timer.kort.sammenslaa` er fjernet i 15 språk.
 - **«Del opp» (`SplittRadModal`) er delt med dagskort-modus**, så T13-rettingen (byggeplass og kort-id arves) gjelder der også. Datakorrigering uten synlig endring.
-- **Fraværskortets −/+ går i firmaets tidsrunding; uten tidsrunding 0,5 t** (`fravaerSteg` i `fravaerKort.ts`). Agentens valg 🟡 2026-11-16, ikke vedtatt.
-- **«Send dagen (0 t)» og «Sum i dag» på en dag med bare fravær** er ikke endret (TILLEGG pkt 3). Venter Kenneth.
+- **Fraværskortets −/+ går i firmaets tidsrunding; uten tidsrunding 0,5 t** (`fravaerSteg` i `fravaerKort.ts`). 🟢 Kenneth 2026-11-16 (E4).
+- **«Send dagen (N t)» og «Sum i dag»** tar med fraværstimer (E2). Normtak og brudd (B10) er uendret.
 
 ---
 
@@ -905,6 +908,12 @@ radene for å bygge. F12 er besvart (A).
 | **F10** | **B10 — hvilke standardarter har taket?** Du navnga egenmelding, sykemelding og barns sykdom (tak) og ubetalt fravær (ikke tak). Ikke navngitt: Ferie m/lønn, Bevegelig helligdag, Permittering m/lønn, Velferdspermisjon. | **Tak: Permittering m/lønn og Velferdspermisjon** — arbeidsgiver betaler fraværet, som ved sykdom. **Ikke tak: Ferie m/lønn og Bevegelig helligdag** — B8: arbeid på en feriedag lønnes «med avspasering eller med lønn», altså i tillegg til feriedagen; med tak ville 2 t arbeid kutte feriedagen til 5,5 t. Firmaet kan snu hver art i oppsettet. Derfor heter markøren «tak mot dagsnormen», ikke «betalt». ✅ **Kenneth 2026-11-16: «enig»** — tak: Permittering m/lønn, Velferdspermisjon; ikke tak: Ferie m/lønn, Bevegelig helligdag. Kenneth: «en feriedag skal ikke kuttes til 5,5 timer pga arbeid. da er det 7,5 timer ferie + 2 timer arbeid.» ✅ **Blanding (Kenneth 2026-11-16, ja):** fravær med tak kan høyst være dagsnormen − arbeid − annet fravær samme dag (med og uten tak); fravær uten tak beholder sine timer. Ferie m/lønn 7,5 + egenmelding → 0 egenmelding; privat ærend 2 + egenmelding → høyst 5,5; ferie 7,5 + arbeid 2 uendret. Erstatter «norm − arbeid» i § 11.10 der det står. |
 | **F11** | **B10 — dagskort-modus** (firma uten prosjektkort): skal rad-vinduet der få taket i c, eller senere? | **Senere.** Skjermen er vernet (dagskort isolert). Med F9 = A stoppes en dag over taket uansett ved attestering. ✅ **Kenneth 2026-11-16: som anbefalt** — senere. |
 | **F12** | 🟡 **«Fravær til» i Bekreft dag når fravær får eget kort i c.** Kontrollen ble merget i a3 (`6d611b05`): den deler ett kort i fravær + arbeid (B9) og vises bare når normallinja har fravær-art. F5 = ja tar fravær-artene ut av linjene, men svaret nevnte ikke «Fravær til» ved navn. **A:** «Fravær til» går ut i c. Privat ærend 08–15:30 og arbeid 15:30–17 føres som arbeidskort 15:30–17 og «+ Fravær» 6,0 t. **B:** «Fravær til» beholdes som snarvei; fraværsdelen lagres som linje i fraværskortet (bare timer), arbeidsdelen på prosjektkortet. | **A.** Én vei inn til fravær, og F3 sier bare timer — «Fravær til» fører fravær med klokkeslett. Lønnsresultatet er det samme: arbeidet er normaltid fordi fravær aldri bruker normen (B9 står). Koster ett trykk mer. B gir to veier til samme kort, og snarveien må da også få beskrivelse og tak. Konsekvens av A: taket bygges ikke inn i «Fravær til» (TF21 utgår), og a3 går på OTA først sammen med c. ✅ **Kenneth 2026-11-16: A** — «Fravær til» fjernes i ordre c; fravær føres bare via «+ Fravær» (fraværskortet). a3 sendes på OTA først sammen med c. |
+
+**Exit-svar ordre c — 🟢 Kenneth 2026-11-16** (ordrett):
+- **E1 «Endre kort» til en nøkkel som alt har kort:** «Kort til prosjekt som allerede har kort, sjekk om tidspunkter kolliderer, hvis ikke registrer hver for seg. Merknad tilhører kortet og skal fortsette å gjøre det. Merknad er kundens dokumentasjon på hva som er utført av arbeid.» → kortet beholder id-en (K7), beskrivelsen følger kortet; overlapp i tid gir samme sperre som når en rad lagres i dag (`timer.feil.overlapp`). Systemteksten `timer.kort.sammenslaa` er fjernet.
+- **E2 Dagsummen:** «Jeg er usikker, men jeg tror det. Lønnsarten sorterer den ut.» → «Send dagen (N t)» og «Sum i dag» tar med fraværstimer (`dagSumTimer`). Normtak og brudd endres ikke. (Setningen under om at dagens sum viser arbeid og fravær hver for seg gjelder serverens overtidsgrunnlag og dagsoversikten; telefonens dagsum er nå én sum.)
+- **E3 «Slå sammen igjen»:** ~~«Jeg tror ikke det er aktuelt å slå sammen noe etter oppdeling.»~~ Snudd samme dag etter at knappen ble forklart (den angrer «Del til eget kort» før lagring): «Skal den nye knappen «Slå sammen igjen» beholdes? … -> ja». → 🟢 `angreKortDeling`, knappen og `timer.bekreftDag.kort.slaaSammen` beholdes.
+- **E4 −/+ i fraværskortet uten tidsrunding = 0,5 t:** ja.
 
 **Ingenting låser ordre b.** F12 låser én rad i ordre c («Fravær til», § 11.4); resten av c og hele d kan bygges.
 Følger av B8 og bygges uten ny beslutning: F-F1 (overtidsgrunnlaget på server teller ikke fravær som arbeid) og at

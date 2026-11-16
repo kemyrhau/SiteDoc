@@ -5612,7 +5612,6 @@
   "timer.kort.slett": "Smazat kartu",
   "timer.kort.flyttTittel": "Přesuňte kartu do",
   "timer.kort.flyttKnapp": "Přesunout kartu",
-  "timer.kort.sammenslaa": "Karta bude sloučena s kartou {{kort}}, která již existuje.",
   "timer.kort.slettTittel": "Smazat kartu?",
   "timer.kort.slettTekst": "Práce ({{timer}} h), stroje, zboží, povolenky a výdaje na {{kort}} jsou odstraněny z časového rozvrhu pro {{dato}}.",
   "timer.kort.slettUtkast": "Časový rozvrh zůstane jako váš koncept. Váš manažer jej neobdržel. Cestování je zachováno.",

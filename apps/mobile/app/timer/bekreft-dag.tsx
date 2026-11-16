@@ -110,7 +110,7 @@ import { DatoVelgerFelt } from "../../src/components/DatoVelgerFelt";
 import { formatNorskDato, lokalIsoDato } from "../../src/utils/dato";
 import { BekreftDagBeskrivelse } from "../../src/components/timer-detalj/BekreftDagBeskrivelse";
 import { kortMedArbeid, kortMedFlestTimer, arbeidsraderPerKort, foreldreloseBeskrivelser, type BeskrivelseKort } from "../../src/utils/beskrivelseKort";
-import { angreKortDeling, delTilEgetKort, delingsVindu } from "../../src/utils/kortIdForslag";
+import { angreKortDeling, delTilEgetKort, delingsVindu, nyttKortFroe as nyttKortFroeRegel } from "../../src/utils/kortIdForslag";
 import { DelKortModal } from "../../src/components/timer-detalj/DelKortModal";
 import { knyttLonnUtleggTilKort } from "../../src/utils/lonnUtleggKort";
 import { kortNokkel } from "../../src/lib/prosjektkortMobil";
@@ -222,9 +222,10 @@ export default function BekreftDagSkjerm() {
     params.sisteSegmentKilde === "system" ? "system" : "bruker";
 
   // Ordre c (T12): «+ Nytt prosjektkort» gir et nytt kort, også på et prosjekt som alt har kort.
+  // Kontrollør A2: uten nyttKort=1 fjernes et frø som fulgte med utkastet (nøkkelen er bare datoen).
   const nyttKortFroe = useCallback(
     (r: DagsforslagRetting): DagsforslagRetting =>
-      manuell && params.nyttKort === "1" && !r.nyttKort ? { ...r, nyttKort: randomUUID() } : r,
+      nyttKortFroeRegel(r, { manuell, nyttKortParam: params.nyttKort }, randomUUID),
     [manuell, params.nyttKort],
   );
   const [retting, setRetting] = useState<DagsforslagRetting>(() => nyttKortFroe({}));

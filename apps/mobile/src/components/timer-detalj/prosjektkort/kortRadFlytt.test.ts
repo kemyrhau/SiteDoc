@@ -57,6 +57,7 @@ import {
   trengerByggeplassLoft,
 } from "./kortRadFlytt";
 import { leggTilTimerRad, type TimerRadFelt } from "./radLagring";
+import { radHorerTilKort } from "../../../lib/prosjektkortMobil";
 
 const { dagsseddelLocal, lonnsartLocal, sheetMachineLocal, sheetTimerLocal, vareforbrukLocal } = schema;
 
@@ -484,5 +485,77 @@ describe("T12 — Flytt/Endre/Slett pr. kort-id", () => {
     expect(timerRad(r1)).toBeUndefined();
     expect(timerRad(r2)!.kortId).toBe("A");
     expect(maskinRader()).toHaveLength(0);
+  });
+});
+
+describe("Kontrollør A1 — maskin eller vare flyttet alene får målkortets id", () => {
+  const SEDEL = { projectId: "p1", byggeplass: null };
+  const tilB = { projectId: "p2", byggeplassId: null, ecoId: null, kortId: "B" };
+  /** Kort A (p1) med koblet maskin og vare, kort B (p2). */
+  const toKort = () => {
+    const a = leggTilTimerRad(db(), K, { ...felt, kortId: "A", timer: 4 }, [{ vehicleId: "v1", timer: 4, mengde: null, enhet: null }]);
+    leggTilTimerRad(db(), K, { ...felt, projectId: "p2", kortId: "B", timer: 2 }, []);
+    db()
+      .insert(vareforbrukLocal)
+      .values({ id: "v-s", userId: "u1", organizationId: "o1", sheetId: "s1", projectId: "p1", sheetTimerId: a, kortId: "A", dato: "2026-11-07", vareId: "x", vareNavn: "Pukk", enhet: "t", antall: 2, syncStatus: "synced", sistEndretLokalt: 1 })
+      .run();
+    return { a };
+  };
+  const paaKort = (rad: { projectId: string | null; byggeplassId?: string | null; externalCostObjectId?: string | null; kortId?: string | null }, kort: typeof tilB) =>
+    radHorerTilKort({ ...rad, kortId: rad.kortId ?? undefined } as never, SEDEL, kort);
+
+  it("flyttMaskinRad: maskinen får målkortets id og hører til B, ikke A", () => {
+    toKort();
+    const m = maskinRader()[0]!;
+    expect(m.kortId).toBe("A");
+    flyttMaskinRad(db(), m.id, { projectId: "p2", byggeplassId: null, ecoId: null, kortId: "B" });
+    const etter = maskinRader()[0]!;
+    expect(etter).toMatchObject({ projectId: "p2", kortId: "B", sheetTimerId: null });
+    expect(paaKort(etter, tilB)).toBe(true);
+    expect(paaKort(etter, { projectId: "p1", byggeplassId: null, ecoId: null, kortId: "A" })).toBe(false);
+  });
+
+  it("flyttVareLokalt: varen får målkortets id", () => {
+    toKort();
+    flyttVareLokalt(db(), "v-s", { projectId: "p2", byggeplassId: null, ecoId: null, kortId: "B" });
+    expect(vare("v-s")).toMatchObject({ projectId: "p2", kortId: "B" });
+  });
+
+  it("flytt uten kort-id i målet: id-en nullstilles og utledes på nytt (aldri gammelt kort på ny nøkkel)", () => {
+    toKort();
+    flyttMaskinRad(db(), maskinRader()[0]!.id, { projectId: "p3", byggeplassId: null, ecoId: null });
+    expect(maskinRader()[0]!.kortId).toBeNull();
+    flyttVareLokalt(db(), "v-s", { projectId: "p3", byggeplassId: null, ecoId: null });
+    expect(vare("v-s")!.kortId).toBeNull();
+  });
+
+  it("flyttKort: synket vare får mål-id-en etter at serveren har godtatt flyttet («Flytt raden» til B)", async () => {
+    const { a } = toKort();
+    type Rad = Parameters<typeof radInnhold>[0]["rad"];
+    const dag: KortDag = {
+      sheetId: "s1",
+      organizationId: "o1",
+      status: "draft",
+      pauseMin: 0,
+      sedel: SEDEL,
+      timerRader: db().select().from(sheetTimerLocal).all() as unknown as Rad[],
+      maskinRader: [],
+      reiseLonnsartId: null,
+    };
+    const innhold = radInnhold({ rad: timerRad(a) as unknown as Rad, maskinRader: maskinRader() as never, varer: [{ ...vare("v-s")!, syncStatus: "synced" as const }] });
+    const server = { erPaaNettet: true, pushSedel: async () => true, flyttVare: vi.fn(async () => {}) };
+    expect(await flyttKort(db(), dag, innhold, { projectId: "p1", byggeplassId: null, ecoId: null, kortId: "A" }, tilB, server)).toEqual({ utfall: "ok" });
+    expect(server.flyttVare).toHaveBeenCalledTimes(1);
+    expect(timerRad(a)!.kortId).toBe("B");
+    expect(vare("v-s")).toMatchObject({ projectId: "p2", kortId: "B" });
+  });
+
+  it("vakt: «Flytt raden» for maskin og vare sender målkortets id og normaliserer etterpå", () => {
+    const fs = require("node:fs") as typeof import("node:fs");
+    const kilde = fs.readFileSync(path.join(__dirname, "ProsjektkortDagsoversikt.tsx"), "utf8");
+    const blokk = kilde.slice(kilde.indexOf("const utforFlytt = async"), kilde.indexOf("onVarerLagret();\n", kilde.indexOf("flyttVareLokalt(db(), v.id")));
+    expect(blokk).toContain("const til = flyttMaalKort(valgt, nytt);");
+    expect(blokk).toContain("kortId: til.kortId");
+    expect(blokk.match(/sikreLokalKortId\(db\(\), sheetId\)/g)).toHaveLength(2);
   });
 });

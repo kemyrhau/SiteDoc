@@ -171,9 +171,9 @@ export function dagsoversiktSum(linjer: readonly ProsjektLinjer<OversiktVare>[])
 
 /**
  * TILLEGG (33) pkt 3 — timetallet i «Sum i dag» og på «Send dagen (N t)» i prosjektkort-modus.
- * Én kilde for begge. Fravær (`uten_prosjekt`) telles IKKE i dag: om det skal med, ligger hos
- * Kenneth (specen sier ikke noe). Når svaret kommer, er endringen denne ene linja.
+ * Én kilde for begge. RETUR (33) c pkt 2 (Kenneth 2026-11-16): fravær (`uten_prosjekt`) telles
+ * med — «Lønnsarten sorterer den ut». Normtak og brudd (B10) bruker egne funksjoner og er urørt.
  */
 export function dagSumTimer(a: { arbeid: number; fravaer: number }): number {
-  return a.arbeid;
+  return a.arbeid + a.fravaer;
 }

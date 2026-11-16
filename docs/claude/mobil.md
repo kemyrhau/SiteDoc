@@ -288,7 +288,7 @@ Timeregistrering for feltarbeider. Skjermene ligger i `apps/mobile/app/timer/` (
 
 ### Kort-id og fraværskort (ordre c, 🟡 `feat/kortid-c-mobil`, ikke merget)
 
-Prosjektkort-modus grupperer på kort-id i stedet for prosjekt|byggeplass|underprosjekt: lokal kolonne `kort_id` (ordre b) normaliseres etter hver skriving (`sikreLokalKortId`), og ruten til kortskjermen bærer `kort=<kortId>`. Fraværsrader uten prosjekt har lokal `sheet_timer_local.uten_prosjekt` og synkes uten prosjekt (`apps/mobile/src/utils/utenProsjektSynk.ts`); `radProsjektId` (`packages/shared/src/utils/prosjektkort.ts`) er eneste sted en rad arver sedelens prosjekt (vakt `radProsjektId-vakt.test.ts`). Lokal katalogkolonne `fravaer_normtak` bærer B10-taket. Krever ordre b i prod før OTA. Detaljer: [timer.md](timer.md) og [prosjektkort-kortid-spec.md § 8.2](prosjektkort-kortid-spec.md).
+Prosjektkort-modus grupperer på kort-id i stedet for prosjekt|byggeplass|underprosjekt: lokal kolonne `kort_id` (ordre b) normaliseres etter hver skriving (`sikreLokalKortId`), og ruten til kortskjermen bærer `kort=<kortId>`. Fraværsrader uten prosjekt har lokal `sheet_timer_local.uten_prosjekt` og synkes uten prosjekt (`apps/mobile/src/utils/utenProsjektSynk.ts`); `radProsjektId` (`packages/shared/src/utils/prosjektkort.ts`) er eneste sted en rad arver sedelens prosjekt (vakt `radProsjektId-vakt.test.ts`). Lokal katalogkolonne `fravaer_normtak` bærer B10-taket. «Endre kort» til en nøkkel som alt har kort beholder kort-id-en etter kollisjonssjekk (`finnKortKollisjon`, samme overlappsregel som lagring av en rad). Krever ordre b i prod før OTA. Detaljer: [timer.md](timer.md) og [prosjektkort-kortid-spec.md § 8.2](prosjektkort-kortid-spec.md).
 
 ## Flerspråklig (i18n)
 

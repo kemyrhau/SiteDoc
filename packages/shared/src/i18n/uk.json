@@ -5612,7 +5612,6 @@
   "timer.kort.slett": "Видалити картку",
   "timer.kort.flyttTittel": "Перемістіть картку до",
   "timer.kort.flyttKnapp": "Перемістити картку",
-  "timer.kort.sammenslaa": "Картку буде об’єднано з {{kort}}, яка вже існує.",
   "timer.kort.slettTittel": "Видалити картку?",
   "timer.kort.slettTekst": "Робота ({{timer}} год), машини, товари, надбавки та витрати на {{kort}} видаляються з табелю за {{dato}}.",
   "timer.kort.slettUtkast": "Табель залишається чернеткою. Ваш керівник не отримав його. Проїзд зберігається.",

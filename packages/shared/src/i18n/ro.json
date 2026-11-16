@@ -5612,7 +5612,6 @@
   "timer.kort.slett": "Ștergeți cardul",
   "timer.kort.flyttTittel": "Mutați cardul în",
   "timer.kort.flyttKnapp": "Mutați cardul",
-  "timer.kort.sammenslaa": "Cardul va fi îmbinat cu {{kort}}, care există deja.",
   "timer.kort.slettTittel": "Ștergeți cardul?",
   "timer.kort.slettTekst": "Munca ({{timer}} h), utilajele, bunurile, indemnizațiile și cheltuielile pe {{kort}} sunt eliminate din foaia de pontaj pentru {{dato}}.",
   "timer.kort.slettUtkast": "Foaia de pontaj rămâne ca schiță. Managerul dvs. nu a primit-o. Călătoria se păstrează.",

@@ -147,6 +147,23 @@ export function angreKortDeling(retting: DagsforslagRetting, kortId: string): Da
 }
 
 /**
+ * Ordre c (T12) + Kontrollør A2: frøet for «+ Nytt prosjektkort». Med `nyttKort=1`
+ * (manuell modus) sås et frø om rettingen mangler det. Ellers fjernes et frø som
+ * fulgte med utkastet — utkastnøkkelen er bare datoen, så vanlig «+» på samme dato
+ * skal ikke arve «nytt kort». Uendret retting returneres som samme objekt.
+ */
+export function nyttKortFroe(
+  retting: DagsforslagRetting,
+  args: { manuell: boolean; nyttKortParam: string | undefined },
+  nyId: () => string,
+): DagsforslagRetting {
+  if (args.manuell && args.nyttKortParam === "1") return retting.nyttKort ? retting : { ...retting, nyttKort: nyId() };
+  if (!retting.nyttKort) return retting;
+  const { nyttKort: _frø, ...rest } = retting;
+  return rest;
+}
+
+/**
  * Ordre c: tidsrommet et kort kan deles i — første fra-tid til siste til-tid
  * blant kortets rader med tider, innskrenket ett steg i hver ende (ingen tom
  * del). `null` = kortet er for kort til å deles, eller har ikke tider.

@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { beregnMaskinBrudd, type MaskinBrudd } from "@sitedoc/shared";
+import { beregnMaskinBrudd, finnOverlappendeTidsrom, type MaskinBrudd } from "@sitedoc/shared";
 import type { hentDatabase } from "../../../db/database";
 import {
   dagsseddelLocal,
@@ -122,6 +122,9 @@ export function flyttTimerRad(db: LokalDb, kontekst: RadKontekst, rad: TimerRad,
  * Flytt en maskin-rad alene. Er den koblet til en timer-rad, kobles den løs
  * (`sheetTimerId = null`) — ellers ville neste lagring av timer-raden dratt
  * den tilbake. Kapasitetssjekken gjøres av kalleren før flytt.
+ * Kontrollør A1 (ordre c): kort-id-en følger flyttet — målkortets id når den er
+ * gitt, ellers `null` så normaliseringen (`sikreLokalKortId`, kalleren) utleder
+ * den på nytt. Den gamle id-en blir aldri stående på en ny nøkkel.
  */
 export function flyttMaskinRad(db: LokalDb, radId: string, til: FlyttMaal): void {
   db.update(sheetMachineLocal)
@@ -130,6 +133,7 @@ export function flyttMaskinRad(db: LokalDb, radId: string, til: FlyttMaal): void
       byggeplassId: til.byggeplassId,
       externalCostObjectId: til.ecoId,
       sheetTimerId: null,
+      kortId: til.kortId ?? null,
       sistEndretLokalt: Date.now(),
     })
     .where(eq(sheetMachineLocal.id, radId))
@@ -141,6 +145,7 @@ export function flyttMaskinRad(db: LokalDb, radId: string, til: FlyttMaal): void
  * neste sync (`vareforbruk.opprett`); en `synced` linje må i tillegg flyttes
  * på server (`vareforbruk.oppdater`) — det gjør kalleren FØR denne kalles.
  * Linjen finnes kanskje ikke lokalt (bare på server) → no-op.
+ * Kontrollør A1: kort-id som i `flyttMaskinRad` (målets id, ellers `null`).
  */
 export function flyttVareLokalt(db: LokalDb, vareId: string, til: FlyttMaal): void {
   db.update(vareforbrukLocal)
@@ -148,6 +153,7 @@ export function flyttVareLokalt(db: LokalDb, vareId: string, til: FlyttMaal): vo
       projectId: til.projectId,
       byggeplassId: til.byggeplassId,
       externalCostObjectId: til.ecoId,
+      kortId: til.kortId ?? null,
       sistEndretLokalt: Date.now(),
     })
     .where(eq(vareforbrukLocal.id, vareId))
@@ -328,21 +334,14 @@ export function radInnhold<V extends KortVare & { sheetTimerId?: string | null }
   };
 }
 
-/** Finnes et annet kort med målnøkkelen? Da slås kortene sammen. */
-export function kortFinnesFraFor(
-  rader: readonly { projectId: string | null; byggeplassId?: string | null; externalCostObjectId?: string | null }[],
-  sedel: SedelKortKontekst,
-  til: KortValg,
-): boolean {
-  return raderPaaKort(rader, sedel, til).length > 0;
-}
-
 export type KortUtfall =
   | { utfall: "ok" }
   | { utfall: "laast" }
   | { utfall: "uendret" }
   | { utfall: "brudd" }
   | { utfall: "offline" }
+  /** RETUR (33) c pkt 1: kortets tider overlapper et kort med målnøkkelen (samme regel som lagring av en rad). */
+  | { utfall: "overlapp"; fra: string; til: string; annenFra: string; annenTil: string }
   /** 36c-kort-3: timer og maskin er flyttet, (noen) synkede varer ikke. `melding` = serverens avslag. */
   | { utfall: "delvis"; melding?: string }
   | { utfall: "serverFeil"; melding: string };
@@ -362,11 +361,18 @@ export function kortUtfallTekst(u: KortUtfall, handling: "slett" | "flytt"): str
       return handling === "slett" ? "timer.kort.offlineSlett" : "timer.kort.offlineFlytt";
     case "laast":
       return "timer.detalj.laast";
+    case "overlapp":
+      return "timer.feil.overlapp";
     case "delvis":
       return "timer.kort.delvisFlyttet";
     case "serverFeil":
       return u.melding;
   }
+}
+
+/** RETUR (33) c pkt 1: interpolasjon til teksten — overlapp bærer tidene (som `timer.feil.overlapp` ved lagring av en rad). */
+export function kortUtfallParametre(u: KortUtfall): Record<string, string> {
+  return u.utfall === "overlapp" ? { fra: u.fra, til: u.til, annenFra: u.annenFra, annenTil: u.annenTil } : {};
 }
 
 /**
@@ -391,6 +397,33 @@ export type KortDag = {
   /** Ordre (6): reise teller ikke som arbeid i maskin-kontrollen (visnings-fallback for rader uten flagg). */
   reiseLonnsartId: string | null;
 };
+
+/**
+ * RETUR (33) c pkt 1 (Kenneth 2026-11-16): «Endre kort» til en nøkkel som alt
+ * har kort. Kortet beholder id-en og står som eget kort (K7) — men først
+ * sjekkes tidene: overlapper en av kortets rader en rad på et kort med
+ * målnøkkelen, gjelder samme regel som når en rad lagres i dag
+ * (`TimerSeksjon.tsx`, `finnOverlappendeTidsrom` → sperre med
+ * `timer.feil.overlapp`). Ingen ny regel. Reise er dagsnivå og tas ikke med.
+ */
+export function finnKortKollisjon(
+  dag: KortDag,
+  innhold: KortInnhold,
+  til: KortValg,
+): Extract<KortUtfall, { utfall: "overlapp" }> | null {
+  const flyttes = new Set(innhold.timer.map((r) => r.id));
+  // Uten kort-id: alle kort med målnøkkelen, uansett id.
+  const andre = raderPaaKort(dag.timerRader, dag.sedel, { ...til, kortId: null }).filter(
+    (r) => !flyttes.has(r.id) && !erReiseRadVisning(r.erReise, r.lonnsartId, dag.reiseLonnsartId),
+  );
+  for (const r of innhold.timer) {
+    const annen = finnOverlappendeTidsrom(r.fraTid, r.tilTid, andre);
+    if (annen && r.fraTid && r.tilTid && annen.fraTid && annen.tilTid) {
+      return { utfall: "overlapp", fra: r.fraTid, til: r.tilTid, annenFra: annen.fraTid, annenTil: annen.tilTid };
+    }
+  }
+  return null;
+}
 
 function erRedigerbar(status: string): boolean {
   return status === "draft" || status === "returned";
@@ -533,6 +566,8 @@ export async function flyttKort(
     pushSedel: () => Promise<boolean>;
     flyttVare: (id: string, til: FlyttMaal) => Promise<void>;
   },
+  /** RETUR (33) c pkt 1: «Endre kort» sjekker tidskollisjon mot kort med målnøkkelen. «Flytt raden» gjør det ikke (uendret). */
+  valg: { kollisjonssjekk?: boolean } = {},
 ): Promise<KortUtfall> {
   if (!erRedigerbar(dag.status)) return { utfall: "laast" };
   // Ordre c (T12): målets id skrives på alle radene som flyttes. «Endre kort»:
@@ -544,6 +579,10 @@ export async function flyttKort(
   }
   // Spec § 11.4: fraværskortet (prosjekt `null`) flyttes ikke og er aldri mål.
   if (fra.projectId === null || til.projectId === null) return { utfall: "uendret" };
+  if (valg.kollisjonssjekk) {
+    const kollisjon = finnKortKollisjon(dag, innhold, til);
+    if (kollisjon) return kollisjon;
+  }
   if (girNyttBrudd(dag, innhold, til)) return { utfall: "brudd" };
   // Varer har ingen sedel-arv: kortets effektive byggeplass lagres (RETUR 4).
   const vareMaal: FlyttMaal = { projectId: til.projectId, byggeplassId: vareByggeplassForKort(til), ecoId: til.ecoId };
@@ -582,8 +621,9 @@ export async function flyttKort(
       for (const r of innhold.tillegg ?? []) t.update(sheetTilleggLocal).set({ kortId }).where(eq(sheetTilleggLocal.id, r.id)).run();
       for (const r of innhold.utlegg ?? []) t.update(sheetUtleggLocal).set({ kortId }).where(eq(sheetUtleggLocal.id, r.id)).run();
       for (const v of innhold.varer) if (!vareFinnesPaaServer(v)) t.update(vareforbrukLocal).set({ kortId }).where(eq(vareforbrukLocal.id, v.id)).run();
-      sikreLokalKortId(t, dag.sheetId);
     }
+    // Kontrollør A1: flyttMaskinRad/flyttVareLokalt nullstiller id-en uten mål-id — utled på nytt.
+    sikreLokalKortId(t, dag.sheetId);
     if (serverVarer.length > 0) {
       t.update(dagsseddelLocal)
         .set({ sistEndretLokalt: Date.now(), syncStatus: "pending" })
@@ -602,8 +642,10 @@ export async function flyttKort(
       // (underprosjektet) mangler — en avvist flytt må stoppe (RETUR 36c-kort-2b).
       return { utfall: "delvis", melding: e instanceof Error ? e.message : String(e) };
     }
-    flyttVareLokalt(db, v.id, vareMaal);
+    // Kontrollør A1: synket vare får mål-id-en lokalt når serveren har godtatt flyttet.
+    flyttVareLokalt(db, v.id, maalKortId ? { ...vareMaal, kortId: maalKortId } : vareMaal);
   }
+  if (serverVarer.length > 0) sikreLokalKortId(db, dag.sheetId);
   return { utfall: "ok" };
 }
 
