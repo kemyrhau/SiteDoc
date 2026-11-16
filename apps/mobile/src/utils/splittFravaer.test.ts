@@ -14,7 +14,7 @@ const ARTER: Record<string, NormtakArt> = {
 const finnArt = (id: string | null) => (id ? ARTER[id] ?? null : null);
 
 describe("splittDelVerdier", () => {
-  const fravaer = { utenProsjekt: true };
+  const fravaer = { utenProsjekt: true, byggeplassId: null, kortId: null, externalCostObjectId: null };
   it("fraværsrad delt i to → begge delene utenProsjekt og uten underprosjekt", () => {
     const deler = [
       { lonnsartId: "egen", aktivitetId: "a1", externalCostObjectId: "eco-1", timer: 3 },
@@ -27,11 +27,33 @@ describe("splittDelVerdier", () => {
   });
   it("vakt: prosjektrad beholder delens underprosjekt som før", () => {
     const v = splittDelVerdier(
-      { utenProsjekt: false },
+      { utenProsjekt: false, byggeplassId: null, kortId: null, externalCostObjectId: null },
       { lonnsartId: "normal", aktivitetId: "a1", externalCostObjectId: "eco-1", timer: 2 },
     );
     expect(v.utenProsjekt).toBe(false);
     expect(v.externalCostObjectId).toBe("eco-1");
+  });
+});
+
+describe("T13 / M18 — «Del opp» beholder byggeplass og kort-id", () => {
+  const original = { utenProsjekt: false, byggeplassId: "bp-2", kortId: "k-1", externalCostObjectId: "eco-1" };
+  it("del med samme underprosjekt: radens byggeplass og kortId (rød før c1: byggeplass mistet)", () => {
+    const v = splittDelVerdier(original, { lonnsartId: "normal", aktivitetId: "a1", externalCostObjectId: "eco-1", timer: 2 });
+    expect(v.byggeplassId).toBe("bp-2");
+    expect(v.kortId).toBe("k-1");
+  });
+  it("del med annet underprosjekt: byggeplass beholdes, kort-id utledes på nytt (K2: ett kort = én nøkkel)", () => {
+    const v = splittDelVerdier(original, { lonnsartId: "normal", aktivitetId: "a1", externalCostObjectId: "eco-2", timer: 2 });
+    expect(v.byggeplassId).toBe("bp-2");
+    expect(v.kortId).toBeNull();
+  });
+  it("fraværsrad: ingen byggeplass, kort-id som originalen («ingen»-kortet)", () => {
+    const v = splittDelVerdier(
+      { utenProsjekt: true, byggeplassId: null, kortId: "k-fravaer", externalCostObjectId: null },
+      { lonnsartId: "egen", aktivitetId: "a1", externalCostObjectId: "eco-9", timer: 2 },
+    );
+    expect(v.byggeplassId).toBeNull();
+    expect(v.kortId).toBe("k-fravaer");
   });
 });
 

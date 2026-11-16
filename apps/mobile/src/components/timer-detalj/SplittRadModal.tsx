@@ -336,6 +336,8 @@ export function SplittRadModal(props: Props) {
             id: randomUUID(),
             dagsseddelId: o.dagsseddelId,
             projectId: o.projectId,
+            byggeplassId: v.byggeplassId,
+            kortId: v.kortId,
             utenProsjekt: v.utenProsjekt,
             lonnsartId: v.lonnsartId,
             aktivitetId: v.aktivitetId,
