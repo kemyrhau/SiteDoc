@@ -1816,7 +1816,18 @@ function beregnSegment(a: {
     let fravaerSeg: ArbeidstidSegment | undefined;
     let fravaerPunktMin: number | null = null;
     const fravaerSteg = a.tidsrundingMinutter && a.tidsrundingMinutter > 0 ? a.tidsrundingMinutter : 15;
-    const sluttMinFravaer = Math.min(hhmmTilMin(tilHHMM(new Date(arbeidssluttMs).toISOString())), 23 * 60 + 59);
+    // RETUR 4 (28) A4: kortets slutt regnes fra arbeidsstart + varighet —
+    // et kort som slutter 00:00 (nattskift delt ved midnatt, «til» 24:00)
+    // ville ellers gi 0 min. Et punkt før arbeidsstart på et slikt kort
+    // (linjas slutt «00:00») ligger etter midnatt.
+    const startMinFravaer = hhmmTilMin(arbeidsstartHHMM);
+    const varighetMinFravaer = Math.round((arbeidssluttMs - arbeidsstartMs) / 60_000);
+    const sluttMinFravaer = Math.min(startMinFravaer + varighetMinFravaer, 23 * 60 + 59);
+    const kryssMidnatt = startMinFravaer + varighetMinFravaer >= 24 * 60;
+    const punktTilMin = (hhmm: string): number => {
+      const m = hhmmTilMin(hhmm);
+      return kryssMidnatt && m < startMinFravaer ? m + 24 * 60 : m;
+    };
     const fravaerTimerVed = (punktMin: number): number => {
       const forste = segmenterVedOvertidFra({
         arbeidstimer,
@@ -1840,7 +1851,7 @@ function beregnSegment(a: {
           fravaerSeg = { overtidsnivaa: null, timer: arbeidstimer };
           fravaerPunktMin = sluttMinFravaer;
         } else {
-          fravaerPunktMin = Math.min(Math.max(hhmmTilMin(a.fravaerTil), tidligstMin), sluttMinFravaer);
+          fravaerPunktMin = Math.min(Math.max(punktTilMin(a.fravaerTil), tidligstMin), sluttMinFravaer);
           const t = fravaerPunktMin >= sluttMinFravaer ? arbeidstimer : fravaerTimerVed(fravaerPunktMin);
           fravaerSeg = { overtidsnivaa: null, timer: t };
         }
@@ -1888,11 +1899,14 @@ function beregnSegment(a: {
     if (medFravaerDeling && carvet[0]) {
       fravaerTil = carvet[0].tilTid;
       // Stepperens neste punkter: første steg som endrer fraværstimene.
-      const naaMin = fravaerPunktMin ?? hhmmTilMin(carvet[0].tilTid);
+      const naaMin = fravaerPunktMin ?? Math.min(punktTilMin(carvet[0].tilTid), sluttMinFravaer);
       const naaTimer = segmenter[0]!.timer;
       let ned: string | null = null;
       if (tidligstMin != null) {
-        for (let p = naaMin - fravaerSteg; p >= tidligstMin; p -= fravaerSteg) {
+        // Stegene følger rutenettet fra arbeidsstart (et klemt punkt, f.eks.
+        // 23:59 på et kort som slutter 00:00, gir ellers 23:44).
+        const forsteNed = startMinFravaer + Math.floor((naaMin - startMinFravaer - 1) / fravaerSteg) * fravaerSteg;
+        for (let p = forsteNed; p >= tidligstMin; p -= fravaerSteg) {
           if (fravaerTimerVed(p) < naaTimer) {
             ned = minTilHhmm(p);
             break;
@@ -1905,7 +1919,8 @@ function beregnSegment(a: {
       }
       let opp: string | null = null;
       if (naaTimer < arbeidstimer) {
-        for (let p = naaMin + fravaerSteg; ; p += fravaerSteg) {
+        const forsteOpp = startMinFravaer + (Math.floor((naaMin - startMinFravaer) / fravaerSteg) + 1) * fravaerSteg;
+        for (let p = forsteOpp; ; p += fravaerSteg) {
           if (p >= sluttMinFravaer) {
             opp = minTilHhmm(sluttMinFravaer);
             break;

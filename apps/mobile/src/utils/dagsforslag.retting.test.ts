@@ -474,3 +474,52 @@ describe("(15) gjesteprosjekt som aktivt prosjekt", () => {
     }
   });
 });
+
+/**
+ * RETUR 4 (28) — Kontrollør GATE (60) A4: nattskift fra GPS deles ved midnatt
+ * (`dagsegment.ts`), så dag 1 slutter 00:00. Kortets slutt regnes fra
+ * arbeidsstart + varighet; 00:00 = 0 min ga hele kortet som fravær og en
+ * sperret stepper. (Manuell «til» 00:00 legges på samme dato og gir et tomt
+ * kort — den veien finnes ikke.)
+ */
+describe("RETUR 4 (28) A4 — kort som slutter ved midnatt", () => {
+  const L_EGEN = "L-egen";
+  const natt = (rett: Record<string, unknown>) =>
+    beregnDagsforslag(
+      lagInput({
+        dag: { startAt: "2026-07-01T20:00:00", startLat: 59.9, startLng: 10.7, oppmotestedId: "o1", byggeplassId: null },
+        sluttIso: "2026-07-02T02:00:00",
+        reiseOppslag: null,
+        alleLonnsarter: [
+          { id: L_NORMAL, overtidsnivaa: null, aktiv: true, type: "ordinaer", rekkefolge: 0 },
+          { id: L_OT50, overtidsnivaa: 50, aktiv: true, type: "ordinaer", rekkefolge: 1 },
+          { id: L_EGEN, overtidsnivaa: null, aktiv: true, type: "fravaer", rekkefolge: 2 },
+        ],
+        effektivPerDato: {
+          "2026-07-01": { ...SOMMER, pauseMin: 0, dagsnorm: 7.5 },
+          "2026-07-02": { ...SOMMER, pauseMin: 0, dagsnorm: 7.5 },
+        },
+        retting: { perDato: { "2026-07-01": { lonnsartPerLinje: { normal: L_EGEN }, ...rett } } },
+      }),
+    ).datoer;
+  const vis = (rader: { fraTid: string | null; tilTid: string | null; timer: number; lonnsartId: string }[]) =>
+    rader.map((r) => [r.fraTid, r.tilTid, r.timer, r.lonnsartId]);
+
+  it("🔴 nattskift 20–02, dag 1 med «Fravær til» 22:00 → 2 t fravær + 2 t normal, stepper 21:45/22:15", () => {
+    const [d1, d2] = natt({ fravaerTil: "22:00" });
+    expect(vis(d1!.rader.filter((r) => !r.erReise))).toEqual([
+      ["20:00", "22:00", 2, L_EGEN],
+      ["22:00", "23:59", 2, L_NORMAL],
+    ]);
+    expect(d1!.fravaerTil).toBe("22:00");
+    expect(d1!.fravaerSteg).toEqual({ ned: "21:45", opp: "22:15" });
+    // Dag 2 er urørt.
+    expect(vis(d2!.rader.filter((r) => !r.erReise))).toEqual([["00:00", "02:00", 2, L_NORMAL]]);
+  });
+
+  it("🔴 «Fravær til» 00:00 (linjas slutt over midnatt) → hele kortet fravær, «−» virker", () => {
+    const [d1] = natt({ fravaerTil: "00:00" });
+    expect(vis(d1!.rader.filter((r) => !r.erReise))).toEqual([["20:00", "23:59", 4, L_EGEN]]);
+    expect(d1!.fravaerSteg).toEqual({ ned: "23:45", opp: null });
+  });
+});
