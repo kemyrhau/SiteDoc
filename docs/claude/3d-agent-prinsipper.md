@@ -69,6 +69,7 @@ W3 og M5 deler kilde i **klienten** (web-ifc i nettleseren), ikke i `ifcMetadata
 Gjelder **både web og mobil** (paritet):
 1. **Rotasjon skjer rundt punktet midt på skjermen**: flaten som ligger midt i bildet (raycast fra skjermsenter). Treffer midten ingenting, holdes samme avstand som sist. Brukeren sentrerer selv det hun vil se på. Erstatter «rundt berøringspunktet» (gate (81) `3977c19d`) og webens «rundt eget ståsted».
 2. **Zoom-farten følger avstanden til flaten midt på skjermen**: rask langt unna, sakte nær («som en hyperbelfunksjon», Kenneth). Brukeren skal kunne gå inn i bygget uten at det forsvinner ut av bildet.
+2b. **Zoom går mot midten av skjermen på både web og mobil — som prøve** (Kenneth 2026-11-17: *«ja, midten på begge -> la oss prøve det. normalt liker jeg zoom mot muspeker og zoom mot midt mellom fingre -> det er egentlig bedre»*). Web-hjulet går langs blikket; mobil får `dollyToCursor = false`. Vurderes på nytt etter Kenneths test; snus det, er alternativet zoom mot muspeker (web) og mot midt mellom fingrene (mobil).
 3. **Objekter langt unna bygget skjules som standard**, med bryteren «Vis objekter langt unna». Begrunnelse (Kenneth): ofte feil-eksport DWG→IFC; arkitekter legger informasjonsfiler langt unna tegningen. Innramming og kamera ser bort fra dem uansett. Utligger-regelen er én ren funksjon i `@sitedoc/shared`, brukt av begge flater.
 
 🟡 Ikke bygget — RETUR (81) til 3D-mobil, ORDRE 3D-web 3.

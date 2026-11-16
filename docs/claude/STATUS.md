@@ -12,6 +12,7 @@
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
 **Sist oppdatert:** 2026-11-16
+- 2026-11-17 — **`3d-agent-prinsipper.md` § 3b punkt 2b: zoom mot skjermmidten på web og mobil som prøve (Kenneth; muspeker/fingre er hans normale preferanse)** (develop, docs-only, orkestrator).
 - 2026-11-17 — **`3d-agent-prinsipper.md` § 3b: Kenneths vedtak — rotasjon rundt skjermmidten, zoom etter avstand til flaten, objekter langt unna skjult med bryter (web + mobil)** (develop, docs-only, orkestrator).
 - 2026-11-17 — **Merge d2b-1 `80f165cf` + 3D-web `470f9d57`** (develop, docs-only, orkestrator): FUNKSJONSENDRINGER + STATUS-AKTUELT + tavla; `3d-agent-prinsipper.md` W1/W2/W4 🟢 + Kenneths feltobservasjon M3. Konflikt-løsning i mergen: d2b-1 er `prosjektkort-kortid-spec.md` § 12.11.
 - 2026-11-16 — **Merge 3D M5 (1) `1dfb6191` + Kenneths 3D-svar** (develop, docs-only, orkestrator): FUNKSJONSENDRINGER + STATUS-AKTUELT + tavla ført; `3d-agent-prinsipper.md` får W6 (drift ved zoom med Snitt), hjelpetekst-vedtak W2, måling-nivå W5, prod-modellens egenskaper M1.
