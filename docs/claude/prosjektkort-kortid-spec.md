@@ -2107,7 +2107,7 @@ Ett spørsmål. Det låser ingen ordre, men bør være besvart før sperren går
 - **Visning og dagsum:** «når vi samler prosjektsedlene slik at dagseddelsum er nederst, så kan vi attestere pr dagseddel». Dagens prosjektsedler grupperes, og dagseddelens sum står i en rad nederst. Fra den raden kan hele dagen attesteres (eller gjenåpnes).
 - **Redigering:** «redigering må utføres pr prosjektseddel». Retting skjer på linjene inne i et kort (R21). Dagsum-raden er bare sum og handlinger, uten redigering.
 - **Følge for d2b-1:** ✓ pr. linje, kort, dag og utvalg står. «Dag» ligger i dagsum-raden nederst.
-- **Sammendraget i PDF/Excel:** teller prosjektsedler, ikke dagssedler. ⏳ Det er orkestratorens tolkning av «utskrifer … pr prosjektseddel». Kenneth bekrefter om det bare er prosjektsedler med rader i tabellen som telles.
+- **Sammendraget i PDF/Excel:** «ja, dagssedler med rader i tabellen». «Sedler» og statusfordelingen (kladd/sendt/attestert) teller dagssedler med minst én rad i eksporttabellen. Skjermen beholder dagens telling. ⏳ ikke kodet — ORDRE (37).
 
 ### 12.9 Bygget — ordre d2a (Kort-id-d2a, 🟡 ikke merget)
 
