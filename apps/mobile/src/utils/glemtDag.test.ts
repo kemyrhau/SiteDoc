@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
+import { kortMedArbeid } from "./beskrivelseKort";
 import { createRequire } from "node:module";
 import * as path from "node:path";
 
@@ -58,7 +59,8 @@ import { fileURLToPath } from "node:url";
 
 /** ORDRE 36a: beskrivelse er påkrevd ved Bekreft — testene her måler noe annet. */
 function medBeskrivelse(f: Dagsforslag): Dagsforslag {
-  return { ...f, beskrivelsePerKort: Object.fromEntries(prosjekterMedArbeid(f).map((p) => [p, "Graving"])) };
+  // RETUR (24): ett kort pr. dato — kortet etter midnatt har egen nøkkel.
+  return { ...f, beskrivelsePerKort: Object.fromEntries(kortMedArbeid(f).map((k) => [k.nokkel, "Graving"])) };
 }
 
 let teller = 0;

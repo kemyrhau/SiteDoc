@@ -87,7 +87,7 @@ import { trpc } from "../../src/lib/trpc";
 import { DatoVelgerFelt } from "../../src/components/DatoVelgerFelt";
 import { formatNorskDato, lokalIsoDato } from "../../src/utils/dato";
 import { BekreftDagBeskrivelse } from "../../src/components/timer-detalj/BekreftDagBeskrivelse";
-import { kortMedArbeid, kortMedFlestTimer, arbeidsraderPerKort, RAD_PREFIKS, type BeskrivelseKort } from "../../src/utils/beskrivelseKort";
+import { kortMedArbeid, kortMedFlestTimer, arbeidsraderPerKort, type BeskrivelseKort } from "../../src/utils/beskrivelseKort";
 import { knyttLonnUtleggTilKort } from "../../src/utils/lonnUtleggKort";
 import { kortNokkel } from "../../src/lib/prosjektkortMobil";
 import { sisteBeskrivelser, beskrivelseChips } from "../../src/services/beskrivelseForslag";
@@ -104,6 +104,7 @@ import {
   TilleggLinjer,
   useTilleggKatalog,
 } from "../../src/components/timer-detalj/BekreftDagRadTillegg";
+import { kortArbeidstimer, settTilleggPaaKort, tilleggPaaKort } from "../../src/utils/tilleggPaaKort";
 import {
   leggTilOvertidRetting,
   overtidEditorFra,
@@ -263,8 +264,6 @@ export default function BekreftDagSkjerm() {
   // RETUR 36c-2 (D4): tekstfeltets y innenfor kortet — rullemålet er feltet.
   const beskrivelseFeltY = useRef(new Map<string, number>());
   // Radform: radfeltene inne i kortet (nøkkel `rad:…`).
-  const radFelt = useRef(new Map<string, TextInput>());
-  const radY = useRef(new Map<string, number>());
   const [tastaturOppe, setTastaturOppe] = useState(false);
   useEffect(() => {
     const vis = Keyboard.addListener("keyboardDidShow", () => setTastaturOppe(true));
@@ -460,7 +459,21 @@ export default function BekreftDagSkjerm() {
     () => (beregnet ? kortMedArbeid(beregnet.forslag) : []),
     [beregnet],
   );
-  // Kortets navn: prosjekt, og byggeplassen når flere kort deler prosjektet.
+  // Tillegg/utlegg (T12) har ingen dato: ett valg pr. kort-sted (prosjekt +
+  // byggeplass), første datos kort — uendret av RETUR (24).
+  const lonnUtleggKort = useMemo(
+    () =>
+      arbeidKort
+        .filter(
+          (k, i) =>
+            arbeidKort.findIndex((x) => x.projectId === k.projectId && x.byggeplassId === k.byggeplassId) === i,
+        )
+        .map((k) => ({ ...k, visDato: false })),
+    [arbeidKort],
+  );
+  // Kortets navn: prosjekt, byggeplassen når flere kort deler prosjektet, og
+  // datoen når prosjektet har kort på flere datoer (RETUR 24: nattevakt 21–06
+  // = to kort, «Prosjekt · 16.11.» og «Prosjekt · 17.11.»).
   // Brukes av beskrivelsesfeltene og kortvalget på tillegg/utlegg (T12).
   const kortEtikett = useCallback(
     (k: BeskrivelseKort) =>
@@ -471,6 +484,7 @@ export default function BekreftDagSkjerm() {
               ? hentByggeplasserForProsjektLokalt(k.projectId).find((b) => b.id === k.byggeplassId)?.navn
               : null) ?? t("timer.kortValg.utenByggeplass")
           : null,
+        k.visDato ? kortDato(k.dato) : null,
       ]
         .filter(Boolean)
         .join(" · "),
@@ -506,29 +520,12 @@ export default function BekreftDagSkjerm() {
     setRetting((r) => ({ ...r, beskrivelse: { ...r.beskrivelse, [nokkel]: tekst } }));
     endret();
   }, [endret]);
-  const raderPerKortRef = useRef(raderPerKort);
-  raderPerKortRef.current = raderPerKort;
-  const settRadBeskrivelse = useCallback((nokkel: string, tekst: string) => {
-    setRetting((r) => ({ ...r, beskrivelsePerRad: { ...r.beskrivelsePerRad, [nokkel]: tekst } }));
-    endret();
-  }, [endret]);
 
   // Rød ramme + rull til første tomme felt + fokus. Ingen Alert, ingen toast.
   const visTomBeskrivelse = useCallback((nokler: string[]) => {
     setForsoktBekreft(true);
     const forste = nokler[0];
     if (!forste) return;
-    // Radform (beslutning 3): en radnøkkel ruller til radfeltet i sitt kort.
-    if (forste.startsWith(RAD_PREFIKS)) {
-      const kort = [...raderPerKortRef.current.entries()].find(([, rader]) =>
-        rader.some((r) => r.nokkel === forste),
-      )?.[0];
-      const kortY = kort ? beskrivelseY.current.get(kort) : undefined;
-      const y = kortY != null ? kortY + (radY.current.get(forste) ?? 0) : undefined;
-      if (y != null) rulleRef.current?.scrollTo({ y: Math.max(0, y - 16), animated: true });
-      radFelt.current.get(forste)?.focus();
-      return;
-    }
     const y = beskrivelseY.current.get(forste);
     if (y != null) rulleRef.current?.scrollTo({ y: Math.max(0, y - 16), animated: true });
     beskrivelseFelt.current.get(forste)?.focus();
@@ -1397,42 +1394,38 @@ export default function BekreftDagSkjerm() {
                 chips={beskrivelseChipsPerProsjekt.get(k.projectId) ?? []}
                 visFeil={forsoktBekreft && manglerNokler.includes(k.nokkel)}
                 onEndre={(tekst) => settBeskrivelse(k.nokkel, tekst)}
-                rader={(raderPerKort.get(k.nokkel) ?? []).map((r) => ({
-                  nokkel: r.nokkel,
-                  tid: r.fraTid && r.tilTid ? `${r.fraTid}–${r.tilTid}` : t("timer.dagsoversikt.utenTid"),
-                  verdi: retting.beskrivelsePerRad?.[r.nokkel] ?? "",
-                  visFeil: forsoktBekreft && manglerNokler.includes(r.nokkel),
-                }))}
-                onEndreRad={settRadBeskrivelse}
-                radRef={(nokkel, felt) => {
-                  if (felt) radFelt.current.set(nokkel, felt);
-                  else radFelt.current.delete(nokkel);
-                }}
-                onRadY={(nokkel, y) => radY.current.set(nokkel, y)}
-                radTillegg={(nokkel) => {
-                  const r = (raderPerKort.get(k.nokkel) ?? []).find((x) => x.nokkel === nokkel);
-                  if (!r?.tilleggNokkel || alleSendt || ikkeAnsatt || tomt || !bruker?.id) return null;
-                  const tn = r.tilleggNokkel;
-                  const egne = tilleggPerRad[tn] ?? { maskiner: [], varer: [] };
+                tillegg={(() => {
+                  // ORDRE 24 (Kenneth 2026-11-16): ETT sett maskin/varer pr. kort.
+                  // Holdes under første arbeidsrads nøkkel; fordeles på radene ved
+                  // Bekreft (`fordelTilleggPaaKort`). Vakten: maskin ≤ kortets sum.
+                  // RETUR (24): kortet er én dato, så «+ Maskin» forvelger kortets
+                  // timer (21–24 → 3 t) og ingenting flyttes over midnatt.
+                  const rader = raderPerKort.get(k.nokkel) ?? [];
+                  const forste = rader.find((x) => x.tilleggNokkel);
+                  if (!forste || alleSendt || ikkeAnsatt || tomt || !bruker?.id) return null;
+                  const egne = tilleggPaaKort(tilleggPerRad, rader);
                   return (
                     <BekreftDagRadTillegg
                       orgId={orgId}
                       userId={bruker.id}
                       projectId={k.projectId}
                       prosjektNavn={prosjekter.find((pr) => pr.id === k.projectId)?.name ?? ""}
-                      dato={r.dato}
-                      byggeplassId={r.byggeplassId}
-                      radTimer={r.timer}
-                      grunnlag={grunnlagPerDato.get(r.dato) ?? null}
-                      andreMaskiner={maskinerForDato(forslag, tilleggPerRad, r.dato).filter(
+                      dato={forste.dato}
+                      byggeplassId={forste.byggeplassId}
+                      radTimer={kortArbeidstimer(rader)}
+                      grunnlag={grunnlagPerDato.get(forste.dato) ?? null}
+                      andreMaskiner={maskinerForDato(forslag, tilleggPerRad, forste.dato).filter(
                         (m) => !egne.maskiner.some((e) => e.lokalId === m.lokalId),
                       )}
                       katalog={tilleggKatalog}
                       tillegg={egne}
-                      onEndre={(neste) => settRadTillegg(tn, neste)}
+                      onEndre={(neste) => {
+                        setTilleggPerRad((tl) => settTilleggPaaKort(tl, rader, neste));
+                        endret();
+                      }}
                     />
                   );
-                }}
+                })()}
               />
             ))}
 
@@ -1574,7 +1567,7 @@ export default function BekreftDagSkjerm() {
                 organizationId={orgId}
                 defaultProjectId={lonnUtleggProsjekt}
                 prosjektValg={prosjekter.map((p) => ({ id: p.id, navn: p.name }))}
-                kort={arbeidKort}
+                kort={lonnUtleggKort}
                 standardKortFor={standardKortFor}
                 kortEtikett={kortEtikett}
                 onFjernKvittering={fjernKvittering}

@@ -75,7 +75,8 @@ function harTekst(r: Record<string, string> | undefined): boolean {
 export function erTomtUtkast(data: UtkastData): boolean {
   const r = data.retting ?? {};
   if (r.prosjektId !== undefined || r.aktivitetId !== undefined || r.byggeplassId !== undefined) return false;
-  if (harTekst(r.beskrivelse) || harTekst(r.beskrivelsePerRad)) return false;
+  // ORDRE 24: et gammelt utkasts `beskrivelsePerRad` leses ikke — teller ikke som innhold.
+  if (harTekst(r.beskrivelse)) return false;
   if ((r.manuellReise?.length ?? 0) > 0) return false;
   for (const d of Object.values(r.perDato ?? {})) {
     if (Object.values(d).some((v) => v !== undefined)) return false;

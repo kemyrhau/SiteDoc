@@ -484,8 +484,8 @@ describe("RETUR 36c-3 — «Ingen byggeplass» fra Bekreft dag løfter arven (Ko
 describe("RETUR 36c-3 — testhull K10 og K12/P12 (kildevakter)", () => {
   const les = (rel: string) => fs.readFileSync(path.join(__dirname, rel), "utf8");
 
-  it("🔴 K10 (PRESISERING TILLEGG): skjermen sender radens byggeplass til radens maskin/vare", () => {
-    expect(les("../../app/timer/bekreft-dag.tsx")).toContain("byggeplassId={r.byggeplassId}");
+  it("🔴 K10 (PRESISERING TILLEGG, ORDRE 24): skjermen sender første arbeidsrads byggeplass til kortets maskin/vare", () => {
+    expect(les("../../app/timer/bekreft-dag.tsx")).toContain("byggeplassId={forste.byggeplassId}");
   });
 
   it("🔴 K12/P12: «+ Legg til arbeid/maskin» vises bare når sedelen er redigerbar (ikke låst)", () => {

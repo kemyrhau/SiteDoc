@@ -302,7 +302,7 @@ describe("ORDRE 36b — beskrivelse pr. kort (prosjekt + byggeplass)", () => {
   it("🔴 regresjon: ett kort pr. prosjekt → nøkkel = projectId, som 36a", () => {
     const { forslag } = forberedBekreftDag(lokalDb(), kontekst());
     expect(kortMedArbeid(forslag)).toEqual([
-      { nokkel: "p1", projectId: "p1", byggeplassId: null, delerProsjekt: false },
+      { nokkel: "p1", projectId: "p1", byggeplassId: null, dato: DATO, delerProsjekt: false, visDato: false },
     ]);
     const to = medEkstraProsjekt(forslag, "p2");
     expect(kortMedArbeid(to).map((k) => k.nokkel)).toEqual(["p1", "p2"]);
@@ -426,9 +426,9 @@ describe("ORDRE 36a — kildevakter i bekreft-dag.tsx", () => {
     expect(sperre).not.toContain("trpc");
   });
   it("🔴 rød ramme kun etter forsøk på tomt felt", () => {
-    // Radform: «tom» = manglerBeskrivelse (kort uten tekst på noen rad, eller radene som mangler).
+    // ORDRE 24: «tom» = manglerBeskrivelse pr. kort — ingen radfelt lenger.
     expect(SKJERM).toMatch(/visFeil=\{forsoktBekreft && manglerNokler\.includes\(k\.nokkel\)\}/);
-    expect(SKJERM).toMatch(/visFeil: forsoktBekreft && manglerNokler\.includes\(r\.nokkel\)/);
+    expect(SKJERM).not.toMatch(/manglerNokler\.includes\(r\.nokkel\)/);
     const flat = FELT.replace(/\s+/g, " ");
     expect(flat).toContain('visFeil ? "border-red-400 bg-red-50" : "border-gray-300 bg-white"');
     expect(flat).toMatch(/\{visFeil \? \( <Text className="text-xs text-red-700">/);

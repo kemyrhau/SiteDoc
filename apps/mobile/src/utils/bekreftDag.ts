@@ -28,7 +28,8 @@ import {
   vaktGrunnlag,
   type TilleggPerRad,
 } from "./bekreftDagTillegg";
-import { arbeidsraderPerKort, kortMedArbeid } from "./beskrivelseKort";
+import { kortMedArbeid } from "./beskrivelseKort";
+import { fordelTilleggPaaKort } from "./tilleggPaaKort";
 import { kortNokkel } from "../lib/prosjektkortMobil";
 import { avsluttBesok, type BesokSted } from "../services/arbeidsdagBesok";
 import { slettUtkastRad } from "./prosjektkortUtkast";
@@ -84,25 +85,15 @@ export function prosjektMedFlestTimer(forslag: Dagsforslag): string | null {
 }
 
 /**
- * ORDRE 36a/36b + radform (beslutning 2/3): nøklene der en arbeidsrad står
- * uten beskrivelse. Radens tekst = egen overstyring, ellers kortets tekst.
- * - Ingen rad på kortet har tekst → kortets nøkkel (skriv én gang i kortfeltet).
- * - Noen rader har tekst, andre ikke → radnøklene (`rad:…`) som mangler.
- * Ett kort pr. prosjekt → kortnøkkelen er projectId (som 36a).
+ * ORDRE 36a/36b: kortnøklene der kortet står uten beskrivelse. Ett kort =
+ * én beskrivelse (Kenneth 2026-11-16, ORDRE 24) — også når overtid deler
+ * kortet i flere arbeidsrader. Ett kort pr. (dato, prosjekt) — RETUR (24): første
+ * datos kort har nøkkelen projectId, senere datoer `${dato}|${projectId}`.
  */
 export function manglerBeskrivelse(forslag: Dagsforslag): string[] {
-  const rader = arbeidsraderPerKort(forslag);
-  const ut: string[] = [];
-  for (const k of kortMedArbeid(forslag)) {
-    const kortTekst = forslag.beskrivelsePerKort?.[k.nokkel]?.trim();
-    if (kortTekst) continue;
-    const kortRader = rader.get(k.nokkel) ?? [];
-    const tomme = kortRader.filter((r) => !forslag.beskrivelsePerRad?.[r.nokkel]?.trim());
-    if (tomme.length === 0 && kortRader.length > 0) continue;
-    if (tomme.length === kortRader.length) ut.push(k.nokkel);
-    else ut.push(...tomme.map((r) => r.nokkel));
-  }
-  return ut;
+  return kortMedArbeid(forslag)
+    .filter((k) => !forslag.beskrivelsePerKort?.[k.nokkel]?.trim())
+    .map((k) => k.nokkel);
 }
 
 /**
@@ -215,14 +206,18 @@ export function bekreftDag(
   if (harLonnUtlegg(lonnUtlegg) && !forslag.datoer.some((d) => !d.blokkert)) {
     return { handling: { type: "tilleggUtleggUtenDag" }, resultat: null };
   }
-  if (tilleggPerRad) {
+  // ORDRE 24 (Kenneth 2026-11-16): kortets ene sett maskin/varer fordeles på
+  // kortets arbeidsrader (varer → første rad; maskin fyller første rad, resten
+  // på neste) FØR vaktene — så maskin ≤ radens timer holder pr. rad.
+  const tillegg = tilleggPerRad ? fordelTilleggPaaKort(forslag, tilleggPerRad) : undefined;
+  if (tillegg) {
     // PRESISERING TILLEGG: linjer uten rad (raden forsvant) → stopp, ingenting skrives.
-    const utenRad = tilleggUtenRad(forslag, tilleggPerRad);
+    const utenRad = tilleggUtenRad(forslag, tillegg);
     if (utenRad.length > 0) {
       return { handling: { type: "tilleggUtenRad", nokler: utenRad }, resultat: null };
     }
     // Regel 2: maskinens egne timer ≤ radens.
-    const over = maskinerOverRaden(forslag, tilleggPerRad);
+    const over = maskinerOverRaden(forslag, tillegg);
     if (over.length > 0) {
       return {
         handling: {
@@ -240,7 +235,7 @@ export function bekreftDag(
     // Vakten kjøres FØR noe skrives — samme sum-regel som serveren, pr. sedel (dato).
     const datoer = [...new Set(tilleggRader(forslag).map((r) => r.dato))];
     for (const dato of datoer) {
-      const maskiner = maskinerForDato(forslag, tilleggPerRad, dato);
+      const maskiner = maskinerForDato(forslag, tillegg, dato);
       if (maskiner.length === 0) continue;
       const brudd = maskinBruddForTillegg(vaktGrunnlag(db, ctx.userId, forslag, dato), maskiner);
       if (brudd.length > 0) return { handling: { type: "maskinBrudd", brudd }, resultat: null };
@@ -256,7 +251,7 @@ export function bekreftDag(
   if (annetFirma) {
     return { handling: { type: "sedelIAnnetFirma", dato: annetFirma }, resultat: null };
   }
-  const resultat = anvendDagsforslag(db, forslag, ctx, tilleggPerRad, lonnUtlegg);
+  const resultat = anvendDagsforslag(db, forslag, ctx, tillegg, lonnUtlegg);
   // RETUR (Kontrollør M3): alle datoer ble sendt mellom forslag og Bekreft →
   // ingen åpen sedel, linjene ble ikke skrevet. Da ble heller ingen timer skrevet
   // (`forsteLagredeSheetId` settes ved første lagrede dato). Samme stopp som

@@ -6,10 +6,19 @@ import { radTilleggNokkel } from "./bekreftDagTillegg";
  * ORDRE 36b (revidert plan § 5): «Hva gjorde du i dag?» pr. KORT
  * (prosjekt + effektiv byggeplass; underprosjekt inngår ikke i nøkkelen).
  *
- * Nøkkelen i `beskrivelsePerKort` er:
- *  - `projectId` når prosjektet har ETT kort med arbeid — identisk med 36a,
- *    så teksten overlever bytte av dagens byggeplass slik den gjør i dag;
- *  - `kortNokkel(...)` når prosjektet har flere kort samme dag.
+ * RETUR (24), Kenneth 2026-11-16: «Et prosjektkort inneholder aldri to
+ * datoer» — datoen inngår i kortets identitet. Nattevakt 21–06 på samme
+ * prosjekt = to kort (21–24 og 00–06), hvert med egen beskrivelse og eget
+ * sett maskin/varer.
+ *
+ * Nøkkelen i `beskrivelsePerKort` er grunnøkkelen på FORSLAGETS STARTDATO
+ * og `${dato}|${grunnøkkel}` på alle senere datoer — også når startdatoens
+ * kort mangler (0 t eller blokkert sedel; RETUR 2 (24)). Grunnøkkelen er:
+ *  - `projectId` når prosjektet har ETT kort-sted (byggeplass) i forslaget —
+ *    identisk med 36a, så teksten overlever bytte av dagens byggeplass;
+ *  - `kortNokkel(...)` når prosjektet har flere byggeplasser.
+ * Slik havner et utkast lagret før RETUR (24) (nøkkel uten dato) bare på
+ * startdatoens kort, og kortet etter midnatt starter tomt.
  *
  * Effektiv byggeplass = radens egen `byggeplassId ?? sedelens` (arbeidsrader
  * har normalt null = arver dagens).
@@ -20,11 +29,16 @@ export type BeskrivelseKort = {
   nokkel: string;
   projectId: string;
   byggeplassId: string | null;
-  /** Prosjektet har flere kort i dag → feltet trenger byggeplassnavn. */
+  /** Kortets dato — én dagsseddel (§ Midnatt-splitt). */
+  dato: string;
+  /** Prosjektet har flere byggeplass-kort i forslaget → etiketten trenger byggeplassnavn. */
   delerProsjekt: boolean;
+  /** Prosjektet har kort på flere datoer (nattevakt) → etiketten trenger dato. */
+  visDato: boolean;
 };
 
 type RadKortGrunnlag = { projectId: string; byggeplassId: string | null };
+type DatoGrunnlag = Pick<DagsforslagDag, "byggeplassId" | "dato">;
 
 function radKortNokkel(rad: RadKortGrunnlag, d: Pick<DagsforslagDag, "byggeplassId">): string {
   return kortNokkel({
@@ -34,55 +48,57 @@ function radKortNokkel(rad: RadKortGrunnlag, d: Pick<DagsforslagDag, "byggeplass
   });
 }
 
-/** Kortene med arbeid (ikke reise) på åpne datoer, i forslagets rekkefølge. */
+/** Kortets identitet: dato + prosjekt + effektiv byggeplass. */
+function radKortId(rad: RadKortGrunnlag, d: DatoGrunnlag): string {
+  return `${d.dato}|${radKortNokkel(rad, d)}`;
+}
+
+function kortId(k: BeskrivelseKort): string {
+  return `${k.dato}|${kortNokkel({ projectId: k.projectId, byggeplassId: k.byggeplassId, ecoId: null })}`;
+}
+
+/** Forslagets startdato: start-segmentets dato, ellers første dato. Blokkert eller ei. */
+function forslagStartDato(forslag: Dagsforslag): string | null {
+  return (forslag.datoer.find((d) => d.erStartSegment) ?? forslag.datoer[0])?.dato ?? null;
+}
+
+/** Kortene med arbeid (ikke reise) på åpne datoer, i forslagets rekkefølge — ett pr. dato. */
 export function kortMedArbeid(forslag: Dagsforslag): BeskrivelseKort[] {
-  const kort: { kortNokkel: string; projectId: string; byggeplassId: string | null }[] = [];
+  const kort: { id: string; sted: string; dato: string; projectId: string; byggeplassId: string | null }[] = [];
   for (const d of forslag.datoer) {
     if (d.blokkert) continue;
     for (const r of d.rader) {
       if (r.erReise || !(r.timer > 0)) continue;
-      const k = radKortNokkel(r, d);
-      if (kort.some((x) => x.kortNokkel === k)) continue;
-      kort.push({ kortNokkel: k, projectId: r.projectId, byggeplassId: r.byggeplassId ?? d.byggeplassId ?? null });
+      const id = radKortId(r, d);
+      if (kort.some((x) => x.id === id)) continue;
+      kort.push({
+        id,
+        sted: radKortNokkel(r, d),
+        dato: d.dato,
+        projectId: r.projectId,
+        byggeplassId: r.byggeplassId ?? d.byggeplassId ?? null,
+      });
     }
   }
+  const startDato = forslagStartDato(forslag);
   return kort.map((k) => {
-    const delerProsjekt = kort.filter((x) => x.projectId === k.projectId).length > 1;
-    return {
-      nokkel: delerProsjekt ? k.kortNokkel : k.projectId,
-      projectId: k.projectId,
-      byggeplassId: k.byggeplassId,
-      delerProsjekt,
-    };
+    const egne = kort.filter((x) => x.projectId === k.projectId);
+    const delerProsjekt = new Set(egne.map((x) => x.sted)).size > 1;
+    const visDato = new Set(egne.map((x) => x.dato)).size > 1;
+    const grunn = delerProsjekt ? k.sted : k.projectId;
+    // RETUR 2 (24): grunnøkkelen uten dato tilhører KUN startdatoens kort —
+    // også når det kortet mangler (0 t / blokkert). Ellers arvet kortet
+    // 00–06 teksten fra 21–24 og arbeiderens egen tekst lå skjult.
+    const nokkel = k.dato === startDato ? grunn : `${k.dato}|${grunn}`;
+    return { nokkel, projectId: k.projectId, byggeplassId: k.byggeplassId, dato: k.dato, delerProsjekt, visDato };
   });
 }
 
 /**
- * Radform (Kenneth 2026-11-12, beslutning 2): kortteksten forhåndsutfyller
- * hver rad; hver arbeidsrad kan overstyres i `beskrivelsePerRad`.
- *
- * Radnøkkel = `rad:` + dato | prosjekt | fra-tid | n (n = løpenummer blant
- * like rader samme dato). Endres fra-tid, faller overstyringen bort og raden
- * får kortteksten igjen — aldri en annen rads tekst.
+ * Arbeidsrad på et kort. Kenneth 2026-11-16 (ORDRE 24): kortet har ÉN
+ * beskrivelse og ETT sett maskin/varer — radene bærer ingen egen tekst.
  */
-export const RAD_PREFIKS = "rad:";
-
-type RadNokkelGrunnlag = { projectId: string; fraTid: string | null; erReise: boolean };
-
-export function radBeskrivelseNokkel(
-  d: { dato: string; rader: readonly RadNokkelGrunnlag[] },
-  rad: RadNokkelGrunnlag,
-): string | null {
-  const i = d.rader.indexOf(rad);
-  if (i < 0 || rad.erReise) return null;
-  const n = d.rader
-    .slice(0, i)
-    .filter((r) => !r.erReise && r.projectId === rad.projectId && r.fraTid === rad.fraTid).length;
-  return `${RAD_PREFIKS}${d.dato}|${rad.projectId}|${rad.fraTid ?? ""}|${n}`;
-}
-
 export type BeskrivelseRad = {
-  nokkel: string;
   /** Kortet raden hører til (nøkkel i `beskrivelsePerKort`). */
   kortNokkel: string;
   fraTid: string | null;
@@ -103,39 +119,38 @@ export function arbeidsraderPerKort(forslag: Dagsforslag): Map<string, Beskrivel
     if (d.blokkert) continue;
     for (const r of d.rader) {
       if (r.erReise || !(r.timer > 0)) continue;
-      const nokkel = radBeskrivelseNokkel(d, r);
-      const k = radKortNokkel(r, d);
-      const kn = kort.find((x) => kortNokkelFraKort(x) === k)?.nokkel ?? r.projectId;
-      if (nokkel) {
-        ut.get(kn)?.push({
-          nokkel,
-          kortNokkel: kn,
-          fraTid: r.fraTid,
-          tilTid: r.tilTid,
-          tilleggNokkel: radTilleggNokkel(d.dato, r),
-          dato: d.dato,
-          timer: r.timer,
-          byggeplassId: r.byggeplassId ?? d.byggeplassId,
-        });
-      }
+      const id = radKortId(r, d);
+      const kn = kort.find((x) => kortId(x) === id)?.nokkel ?? r.projectId;
+      ut.get(kn)?.push({
+        kortNokkel: kn,
+        fraTid: r.fraTid,
+        tilTid: r.tilTid,
+        tilleggNokkel: radTilleggNokkel(d.dato, r),
+        dato: d.dato,
+        timer: r.timer,
+        byggeplassId: r.byggeplassId ?? d.byggeplassId,
+      });
     }
   }
   return ut;
 }
 
-/** Teksten (trimmet, null = tom) en arbeidsrad på dato `d` skal få. */
+/**
+ * Teksten (trimmet, null = tom) en arbeidsrad på dato `d` skal få: kortets
+ * tekst — på alle kortets arbeidsrader, også overtidsraden (Kenneth
+ * 2026-11-16: «hvert prosjektkort skal ha sin egen beskrivelse»). Et gammelt
+ * utkast med `beskrivelsePerRad` (radform 2026-11-12) leses ikke. Kortet
+ * er dato-bundet (RETUR 24): raden får teksten til kortet på sin egen dato.
+ */
 export function beskrivelseForRad(
   forslag: Dagsforslag,
-  rad: RadKortGrunnlag & RadNokkelGrunnlag,
-  d: Pick<DagsforslagDag, "byggeplassId" | "dato" | "rader">,
+  rad: RadKortGrunnlag,
+  d: DatoGrunnlag,
 ): string | null {
-  const radNokkel = radBeskrivelseNokkel(d, rad);
-  const egen = radNokkel ? forslag.beskrivelsePerRad?.[radNokkel]?.trim() : undefined;
-  if (egen) return egen;
   const b = forslag.beskrivelsePerKort;
   if (!b) return null;
-  const k = radKortNokkel(rad, d);
-  const kort = kortMedArbeid(forslag).find((x) => kortNokkelFraKort(x) === k);
+  const id = radKortId(rad, d);
+  const kort = kortMedArbeid(forslag).find((x) => kortId(x) === id);
   const nokkel = kort?.nokkel ?? rad.projectId;
   return b[nokkel]?.trim() || null;
 }
@@ -148,6 +163,9 @@ function kortNokkelFraKort(k: BeskrivelseKort): string {
  * Kortet med flest arbeidstimer (spec tillegg-utlegg-prosjektkort § 5, B6):
  * standardkort for en ny tillegg-/utleggslinje i Bekreft dag. Med `projectId`
  * velges blant det prosjektets kort. Lik sum → første kort. Ingen arbeid → null.
+ * Summen er pr. kort-sted (prosjekt + byggeplass) over alle datoene, og et
+ * sted med kort på flere datoer gir første datos kort — tillegg/utlegg har
+ * ingen dato, så valget er uendret av RETUR (24).
  */
 export function kortMedFlestTimer(forslag: Dagsforslag, projectId?: string): BeskrivelseKort | null {
   const sum = new Map<string, number>();

@@ -41,6 +41,8 @@ vi.mock("../db/database", () => ({
 import { drizzle } from "drizzle-orm/sql-js";
 import * as schema from "../db/schema";
 import { kjorMigreringer } from "../db/migreringer";
+import { kortMedArbeid, arbeidsraderPerKort } from "./beskrivelseKort";
+import { kortArbeidstimer, fordelTilleggPaaKort } from "./tilleggPaaKort";
 import { forberedBekreftDag, bekreftDag, prosjekterMedArbeid, prosjektMedFlestTimer } from "./bekreftDag";
 import { skrivUtlegg, type NyttUtlegg } from "../services/tilleggUtleggSkriv";
 import type { LonnUtlegg } from "./dagsforslagAnvend";
@@ -48,7 +50,8 @@ import type { Dagsforslag, DagsforslagRad } from "./dagsforslag";
 
 /** ORDRE 36a: beskrivelse er påkrevd ved Bekreft — testene her måler noe annet. */
 function medBeskrivelse(f: Dagsforslag): Dagsforslag {
-  return { ...f, beskrivelsePerKort: Object.fromEntries(prosjekterMedArbeid(f).map((p) => [p, "Graving"])) };
+  // RETUR (24): ett kort pr. dato — kortet etter midnatt har egen nøkkel.
+  return { ...f, beskrivelsePerKort: Object.fromEntries(kortMedArbeid(f).map((k) => [k.nokkel, "Graving"])) };
 }
 import {
   tilleggSynlighet,
@@ -61,6 +64,7 @@ import {
   sedelKontekstLokalt,
   tilleggRader,
   tilleggUtenRad,
+  maskinerOverRaden,
   type BekreftDagTillegg,
   type TilleggPerRad,
 } from "./bekreftDagTillegg";
@@ -329,7 +333,9 @@ describe("L3-D § 8 nr. 20 — byggeplass", () => {
     expect(entydigByggeplass(forslag, "p2")).toBeNull();
   });
 
-  it("🔴 to segmenter: maskinen havner på sedelen til raden den ble lagt på (negativkontroll: den andre datoen)", () => {
+  // RETUR (24) (Kenneth 2026-11-16): et prosjektkort inneholder aldri to datoer —
+  // maskin lagt på neste dato blir på neste datos sedel (ingen flytting over midnatt).
+  it("🔴 to segmenter: maskin lagt på neste dato havner på neste datos sedel (negativkontroll: ikke startdatoen)", () => {
     holder.raw.run("DELETE FROM arbeidsdag_local;");
     seedArbeidsdag("2026-07-01T20:00:00");
     const ctx = kontekst({
@@ -339,12 +345,13 @@ describe("L3-D § 8 nr. 20 — byggeplass", () => {
     const { forslag } = forberedBekreftDag(lokalDb(), ctx);
     expect(forslag.datoer).toHaveLength(2);
     const nesteDato = forslag.datoer.find((d) => !d.erStartSegment)!.dato;
-    const { resultat } = bekreftDag(
+    const { handling, resultat } = bekreftDag(
       lokalDb(),
       medBeskrivelse(forslag),
       { ...skriveCtx(), sluttIso: "2026-07-02T04:00:00" },
       paaRad(forslag, MASKIN_3, 0, nesteDato),
     );
+    expect(handling.type).toBe("suksess");
     const maskin = db().select().from(sheetMachineLocal).all();
     expect(maskin).toHaveLength(1);
     const sedel = db().select().from(dagsseddelLocal).all().find((s) => s.id === maskin[0]!.dagsseddelId)!;
@@ -550,21 +557,30 @@ describe("PRESISERING TILLEGG (GO 2026-11-13) — maskin/vare pr. arbeidsrad", (
     expect(arbeidsrader().find((r) => r.id === v[0]!.sheetTimerId)).toBeDefined();
   });
 
-  it("🔴 linje på rad 2 får rad 2s id (negativkontroll: rad 1s id er en annen)", () => {
+  it("🔴 ORDRE 24: linje lagt på rad 2 havner på kortets første rad (negativkontroll: ikke rad 2)", () => {
     const forslag = toRader(VANLIG);
     const { handling } = bekreftDag(lokalDb(), medBeskrivelse(forslag), skriveCtx(), paaRad(forslag, MASKIN_3, 1));
     expect(handling.type).toBe("suksess");
     const m = db().select().from(sheetMachineLocal).all();
     expect(m).toHaveLength(1);
-    expect(m[0]!.sheetTimerId).toBe(radMedTimer(3.5).id);
-    expect(m[0]!.sheetTimerId).not.toBe(radMedTimer(4).id);
+    expect(m[0]!.sheetTimerId).toBe(radMedTimer(4).id);
+    expect(m[0]!.sheetTimerId).not.toBe(radMedTimer(3.5).id);
   });
 
-  it("🔴 maskin over radens timer → maskinBrudd og ingenting skrevet, selv om bøtta har plass", () => {
+  it("🔴 ORDRE 24: maskin over første rads timer fordeles videre (7 t → 4 + 3), suksess", () => {
     const forslag = toRader(VANLIG);
-    const fire: BekreftDagTillegg = { maskiner: [{ ...MASKIN_3.maskiner[0]!, timer: 4 }], varer: VARE.varer };
-    // Bøtta (7,5 t) har plass — bare radregelen stopper.
-    expect(maskinBruddForTillegg(vaktGrunnlag(lokalDb(), BRUKER, forslag, DATO), fire.maskiner)).toEqual([]);
+    const sju: BekreftDagTillegg = { maskiner: [{ ...MASKIN_3.maskiner[0]!, timer: 7 }], varer: [] };
+    const r = bekreftDag(lokalDb(), medBeskrivelse(forslag), skriveCtx(), paaRad(forslag, sju, 1));
+    expect(r.handling.type).toBe("suksess");
+    const m = db().select().from(sheetMachineLocal).all();
+    expect(m.map((x) => [x.sheetTimerId, x.timer]).sort()).toEqual(
+      [[radMedTimer(4).id, 4], [radMedTimer(3.5).id, 3]].sort(),
+    );
+  });
+
+  it("🔴 maskin over kortets sum (8 t mot 7,5 t) → maskinBrudd og ingenting skrevet", () => {
+    const forslag = toRader(VANLIG);
+    const fire: BekreftDagTillegg = { maskiner: [{ ...MASKIN_3.maskiner[0]!, timer: 8 }], varer: VARE.varer };
     const r = bekreftDag(lokalDb(), medBeskrivelse(forslag), skriveCtx(), paaRad(forslag, fire, 1));
     expect(r.handling.type).toBe("maskinBrudd");
     expect(r.resultat).toBeNull();
@@ -622,14 +638,14 @@ describe("PRESISERING TILLEGG (GO 2026-11-13) — maskin/vare pr. arbeidsrad", (
     expect(radMedTimer(3.5).fraTid).toBe("07:00");
   });
 
-  it("negativkontroll: nøkkel etter posisjon (B = indeks 0 etter sortering) ville lagt linjen på A", () => {
+  it("ORDRE 24: linje under A sin nøkkel havner også på kortets første rad i tid (B etter byttet)", () => {
     const etter = toRader(BYTTET);
     const d = etter.datoer.find((x) => x.erStartSegment)!;
     const posisjonB = d.rader.filter((r) => !r.erReise).findIndex((r) => r.timer === 3.5);
     expect(posisjonB).toBe(0);
     const posisjonsNokkel = radTilleggNokkel(d.dato, { erReise: false, radIndeks: posisjonB })!;
     bekreftDag(lokalDb(), medBeskrivelse(etter), skriveCtx(), { [posisjonsNokkel]: MASKIN_3 });
-    expect(db().select().from(sheetMachineLocal).all()[0]!.sheetTimerId).toBe(radMedTimer(4).id);
+    expect(db().select().from(sheetMachineLocal).all()[0]!.sheetTimerId).toBe(radMedTimer(3.5).id);
   });
 });
 
@@ -651,7 +667,7 @@ describe("ORDRE Tillegg/Utlegg 3a/3b (GO 2026-11-13)", () => {
     }).run();
   }
 
-  it("🔴 3a: lønnsart byttet på raden → maskinen blir på raden (B), suksess", () => {
+  it("🔴 3a: lønnsart byttet på B (overtid) → maskinen på kortets første rad (A, normaltid), suksess", () => {
     seedOvertid();
     const foer = toRader(VANLIG);
     const perRad = paaRad(foer, MASKIN_3, 1);
@@ -662,7 +678,7 @@ describe("ORDRE Tillegg/Utlegg 3a/3b (GO 2026-11-13)", () => {
     const m = db().select().from(sheetMachineLocal).all();
     expect(m).toHaveLength(1);
     const b = radMedTimer(3.5);
-    expect(m[0]!.sheetTimerId).toBe(b.id);
+    expect(m[0]!.sheetTimerId).toBe(radMedTimer(4).id);
     expect(b.lonnsartId).toBe("L-overtid");
   });
 
@@ -810,7 +826,7 @@ describe("ORDRE Tillegg/Utlegg i Bekreft dag (GO 2026-11-13)", () => {
 
   it("🔴 maskinBrudd → ingenting skrevet", () => {
     const forslag = toRader(VANLIG);
-    const fire: BekreftDagTillegg = { maskiner: [{ ...MASKIN_3.maskiner[0]!, timer: 4 }], varer: [] };
+    const fire: BekreftDagTillegg = { maskiner: [{ ...MASKIN_3.maskiner[0]!, timer: 8 }], varer: [] };
     const { handling } = bekreftDag(lokalDb(), medBeskrivelse(forslag), skriveCtx(), paaRad(forslag, fire, 1), LINJER);
     expect(handling.type).toBe("maskinBrudd");
     expect(tell()).toEqual(INGEN);
@@ -937,5 +953,178 @@ describe("ORDRE 34 pkt 1a/2 — maskin uten mengde, «Ført i dag»", () => {
       { navn: "Grus", antall: 2, enhet: "m3" },
       { navn: "Sand", antall: 4, enhet: "tonn" },
     ]);
+  });
+});
+
+/**
+ * RETUR (24) (Kenneth 2026-11-16, timer.md «Et prosjektkort inneholder aldri to
+ * datoer»): nattevakt 21–06 på samme prosjekt = to kort (21–24 og 00–06), hver
+ * med egen beskrivelse og eget sett maskin/varer.
+ */
+describe("RETUR (24) — kort over midnatt", () => {
+  const NATT_SLUTT = "2026-07-02T06:00:00";
+  function natt() {
+    holder.raw.run("DELETE FROM arbeidsdag_local;");
+    seedArbeidsdag("2026-07-01T21:00:00");
+    const ctx = kontekst({
+      dag: { startAt: "2026-07-01T21:00:00", startLat: null, startLng: null, oppmotestedId: null, byggeplassId: null },
+      sluttIso: NATT_SLUTT,
+    });
+    const { forslag } = forberedBekreftDag(lokalDb(), ctx);
+    const neste = forslag.datoer.find((d) => !d.erStartSegment)!.dato;
+    return { forslag, neste, ctx: { ...skriveCtx(), sluttIso: NATT_SLUTT } };
+  }
+  const maskin = (timer: number, vehicleId = "eq-1"): BekreftDagTillegg => ({
+    maskiner: [{ ...MASKIN_3.maskiner[0]!, vehicleId, timer }],
+    varer: [],
+  });
+
+  // Målt: 00–06 trekker 30 min pause (forslagets pauseregel) → kortet har 5,5 arbeidstimer.
+  it("🔴 nattevakt 21–06 → to kort med dato i nøkkelen; «+ Maskin»-forvalg 3 t og 5,5 t (pause trukket)", () => {
+    const { forslag, neste } = natt();
+    const kort = kortMedArbeid(forslag);
+    expect(kort.map((k) => k.nokkel)).toEqual(["p1", `${neste}|p1`]);
+    expect(kort.map((k) => k.visDato)).toEqual([true, true]);
+    const rader = arbeidsraderPerKort(forslag);
+    expect(kort.map((k) => kortArbeidstimer(rader.get(k.nokkel) ?? []))).toEqual([3, 5.5]);
+  });
+
+  it("🔴 kort 2 starter tomt: gammelt utkast { p1 } fyller kort 1, sperren gjelder kort 2", () => {
+    const { forslag, neste, ctx } = natt();
+    const gammelt = { ...forslag, beskrivelsePerKort: { p1: "Graving" } };
+    const r = bekreftDag(lokalDb(), gammelt, ctx, {});
+    expect(r.handling).toEqual({ type: "manglerBeskrivelse", nokler: [`${neste}|p1`] });
+    expect(db().select().from(dagsseddelLocal).all()).toHaveLength(0);
+  });
+
+  it("🔴 to beskrivelser lagres på hver sin datos sedel", () => {
+    const { forslag, neste, ctx } = natt();
+    const med = { ...forslag, beskrivelsePerKort: { p1: "Kveld", [`${neste}|p1`]: "Natt" } };
+    expect(bekreftDag(lokalDb(), med, ctx, {}).handling.type).toBe("suksess");
+    const sedler = new Map(db().select().from(dagsseddelLocal).all().map((s) => [s.id, s.dato]));
+    const perDato = arbeidsrader().map((r) => [sedler.get(r.dagsseddelId), r.beskrivelse]);
+    expect(perDato.sort()).toEqual([[DATO, "Kveld"], [neste, "Natt"]].sort());
+  });
+
+  it("🔴 maskin 4 t på kort 21–24 → maskinBrudd (negativkontroll: 3 t → suksess)", () => {
+    const { forslag, ctx } = natt();
+    const fire = bekreftDag(lokalDb(), medBeskrivelse(forslag), ctx, paaRad(forslag, maskin(4), 0, DATO));
+    expect(fire.handling.type).toBe("maskinBrudd");
+    expect(tellTillegg()).toEqual({ maskin: 0, varer: 0 });
+    const tre = bekreftDag(lokalDb(), medBeskrivelse(forslag), ctx, paaRad(forslag, maskin(3), 0, DATO));
+    expect(tre.handling.type).toBe("suksess");
+  });
+
+  it("🔴 maskin 5,5 t på kort 00–06 skrives på neste datos sedel; ingenting flyttes til kort 1 (6 t → brudd)", () => {
+    const { forslag, neste, ctx } = natt();
+    const seks = bekreftDag(lokalDb(), medBeskrivelse(forslag), ctx, paaRad(forslag, maskin(6), 0, neste));
+    expect(seks.handling.type).toBe("maskinBrudd");
+    const perRad = paaRad(forslag, maskin(5.5), 0, neste);
+    const fordelt = fordelTilleggPaaKort(forslag, perRad);
+    expect(Object.keys(fordelt).every((n) => n.includes(neste))).toBe(true);
+    expect(bekreftDag(lokalDb(), medBeskrivelse(forslag), ctx, perRad).handling.type).toBe("suksess");
+    const m = db().select().from(sheetMachineLocal).all();
+    expect(m).toHaveLength(1);
+    const sedel = db().select().from(dagsseddelLocal).all().find((s) => s.id === m[0]!.dagsseddelId)!;
+    expect(sedel.dato).toBe(neste);
+  });
+
+  // RETUR 2 (24), vilkår 1: grunnøkkelen uten dato gjelder KUN startdatoens kort.
+  // Mangler det kortet (0 t / blokkert), skal kortet 00–06 likevel aldri vise 21–24-teksten.
+  const TO_TEKSTER = (neste: string) => ({ p1: "TEKST DATO 1", [`${neste}|p1`]: "TEKST DATO 2" });
+  function utenStartKort(forslag: Dagsforslag, hvordan: "nullTimer" | "blokkert"): Dagsforslag {
+    return {
+      ...forslag,
+      datoer: forslag.datoer.map((d) => {
+        if (!d.erStartSegment) return d;
+        return hvordan === "blokkert"
+          ? { ...d, blokkert: true, rader: [] }
+          : { ...d, rader: d.rader.map((r) => (r.erReise ? r : { ...r, timer: 0 })) };
+      }),
+    };
+  }
+
+  for (const hvordan of ["nullTimer", "blokkert"] as const) {
+    it(`🔴 RETUR 2 (${hvordan === "nullTimer" ? "a" : "b"}): startdato ${hvordan === "nullTimer" ? "med 0 t" : "blokkert"} → kort 00–06 har dato-nøkkel og egen tekst, aldri dato 1-teksten`, () => {
+      const { forslag, neste, ctx } = natt();
+      const uten = utenStartKort(forslag, hvordan);
+      expect(kortMedArbeid(uten).map((k) => k.nokkel)).toEqual([`${neste}|p1`]);
+      // Bare gammel tekst under grunnøkkelen → kortet 00–06 er tomt og sperrer.
+      const bareDato1 = bekreftDag(lokalDb(), { ...uten, beskrivelsePerKort: { p1: "TEKST DATO 1" } }, ctx, {});
+      expect(bareDato1.handling).toEqual({ type: "manglerBeskrivelse", nokler: [`${neste}|p1`] });
+      expect(db().select().from(dagsseddelLocal).all()).toHaveLength(0);
+      // Begge tekster → kortet 00–06 lagrer sin egen.
+      const med = { ...uten, beskrivelsePerKort: TO_TEKSTER(neste) };
+      expect(bekreftDag(lokalDb(), med, ctx, {}).handling.type).toBe("suksess");
+      const sedler = new Map(db().select().from(dagsseddelLocal).all().map((x) => [x.id, x.dato]));
+      const paaNeste = arbeidsrader().filter((r) => sedler.get(r.dagsseddelId) === neste);
+      expect(paaNeste.map((r) => r.beskrivelse)).toEqual(["TEKST DATO 2"]);
+    });
+  }
+
+  it("🔴 RETUR 2: med startdatoens kort til stede får hvert kort sin tekst (regresjon)", () => {
+    const { forslag, neste } = natt();
+    const kort = kortMedArbeid({ ...forslag, beskrivelsePerKort: TO_TEKSTER(neste) });
+    expect(kort.map((k) => k.nokkel)).toEqual(["p1", `${neste}|p1`]);
+  });
+
+  it("🔴 dagsvakt med to arbeidsrader samme dato er fortsatt ETT kort uten dato i etiketten", () => {
+    const forslag = toRader(VANLIG);
+    const kort = kortMedArbeid(forslag);
+    expect(kort.map((k) => [k.nokkel, k.visDato])).toEqual([["p1", false]]);
+    expect(kortArbeidstimer(arbeidsraderPerKort(forslag).get("p1") ?? [])).toBe(7.5);
+  });
+});
+
+describe("RETUR (24) V1 — samme maskin to ganger på ett kort", () => {
+  it("🔴 eq-1 4 t + eq-1 3 t på kort 4 + 3,5 → rad 1 får 4, rad 2 får 3 (ikke 7 t på 4 t-raden)", () => {
+    const forslag = toRader(VANLIG);
+    const to: BekreftDagTillegg = {
+      maskiner: [
+        { ...MASKIN_3.maskiner[0]!, lokalId: "m1", timer: 4 },
+        { ...MASKIN_3.maskiner[0]!, lokalId: "m2", timer: 3 },
+      ],
+      varer: [],
+    };
+    const r = bekreftDag(lokalDb(), medBeskrivelse(forslag), skriveCtx(), paaRad(forslag, to, 0));
+    expect(r.handling.type).toBe("suksess");
+    const perRad = new Map<string, number>();
+    for (const x of db().select().from(sheetMachineLocal).all()) {
+      perRad.set(x.sheetTimerId!, (perRad.get(x.sheetTimerId!) ?? 0) + x.timer!);
+    }
+    expect(perRad.get(radMedTimer(4).id)).toBe(4);
+    expect(perRad.get(radMedTimer(3.5).id)).toBe(3);
+  });
+
+  it("negativkontroll: to ULIKE maskiner 4 t + 3 t fyller hver sin kapasitet fra rad 1", () => {
+    const forslag = toRader(VANLIG);
+    const to: BekreftDagTillegg = {
+      maskiner: [
+        { ...MASKIN_3.maskiner[0]!, lokalId: "m1", vehicleId: "eq-1", timer: 4 },
+        { ...MASKIN_3.maskiner[0]!, lokalId: "m2", vehicleId: "eq-2", timer: 3 },
+      ],
+      varer: [],
+    };
+    const fordelt = fordelTilleggPaaKort(forslag, paaRad(forslag, to, 0));
+    const forste = fordelt[radNokkel(forslag, 0)]?.maskiner ?? [];
+    expect(forste.map((m) => [m.vehicleId, m.timer])).toEqual([["eq-1", 4], ["eq-2", 3]]);
+  });
+
+  it("🔴 vakten summerer samme maskin pr. rad: eq-1 3 t + 3 t på 4 t-raden → brudd med 6 t", () => {
+    const forslag = toRader(VANLIG);
+    const perRad: TilleggPerRad = {
+      [radNokkel(forslag, 0)]: {
+        maskiner: [
+          { ...MASKIN_3.maskiner[0]!, lokalId: "m1", timer: 3 },
+          { ...MASKIN_3.maskiner[0]!, lokalId: "m2", timer: 3 },
+        ],
+        varer: [],
+      },
+    };
+    const brudd = maskinerOverRaden(forslag, perRad);
+    expect(brudd.map((b) => [b.radTimer, b.maskin.timer])).toEqual([[4, 6]]);
+    // negativkontroll: ulike maskiner 3 + 3 på samme rad er hver for seg innenfor
+    const ulike = { [radNokkel(forslag, 0)]: { ...perRad[radNokkel(forslag, 0)]!, maskiner: perRad[radNokkel(forslag, 0)]!.maskiner.map((m, i) => ({ ...m, vehicleId: `eq-${i}` })) } };
+    expect(maskinerOverRaden(forslag, ulike)).toEqual([]);
   });
 });

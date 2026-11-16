@@ -57,7 +57,7 @@ export function useTilleggKatalog(orgId: string): { harEquipment: boolean; varel
  * PRESISERING TILLEGG (Kenneth 2026-11-12): registreres på RADEN, som i
  * prosjektkortet. Én blokk under hver arbeidsrad, også når dagen har én rad.
  * Holdes i minnet til [Bekreft og lagre]; ingenting skrives herfra. Maskinens
- * timer er som standard radens; lavere tillatt, høyere stopper.
+ * timer er som standard kortets sum (ORDRE 24); lavere tillatt, høyere stopper.
  */
 export function BekreftDagRadTillegg({
   orgId,
@@ -296,7 +296,7 @@ function MaskinTimerArk({
           {brudd ? (
             <Text className="text-xs text-red-700">
               {overRad
-                ? t("timer.bekreftDag.tillegg.overRad", { timer: formaterTimer(radTimer) })
+                ? t("timer.bekreftDag.tillegg.overKort", { timer: formaterTimer(radTimer) })
                 : t("timer.maskin.overstigerArbeid")}
             </Text>
           ) : null}

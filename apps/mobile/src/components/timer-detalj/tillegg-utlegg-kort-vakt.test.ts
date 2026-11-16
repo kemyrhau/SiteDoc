@@ -143,7 +143,8 @@ describe("T12 — Bekreft dag fører tillegg og utlegg pr. kort (B6)", () => {
   const LONN = flat(les("BekreftDagLonnUtlegg.tsx"));
   const KRAV_SKJERM = [
     "knyttLonnUtleggTilKort(lonnUtlegg, arbeidKort, forslag)",
-    "kort={arbeidKort}",
+    // RETUR (24): tillegg/utlegg har ingen dato — ett valg pr. kort-sted.
+    "kort={lonnUtleggKort}",
     "kortMedFlestTimer(beregnet.forslag)?.projectId",
   ];
   const KRAV_LONN = ["const visKortValg = kort.length > 1;", "byggeplassId: k.byggeplassId", "...nyttKort(projectId)", "...nyttKort(u.projectId)"];
