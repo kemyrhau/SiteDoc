@@ -12,6 +12,7 @@
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
 **Sist oppdatert:** 2026-11-16
+- 2026-11-17 — **3D-web ORDRE 3 (`23427bdb`) + 3D-mobil kamera (`5266492e`) merget**: FUNKSJONSENDRINGER, STATUS-AKTUELT, tavla, `3d-agent-prinsipper.md` status, `mobil.md` pinch mot midten (gate (83) M1) (develop, docs-only, orkestrator).
 - 2026-11-17 — **`3d-agent-prinsipper.md` § 3b punkt 2b: zoom mot skjermmidten på web og mobil som prøve (Kenneth; muspeker/fingre er hans normale preferanse)** (develop, docs-only, orkestrator).
 - 2026-11-17 — **`3d-agent-prinsipper.md` § 3b: Kenneths vedtak — rotasjon rundt skjermmidten, zoom etter avstand til flaten, objekter langt unna skjult med bryter (web + mobil)** (develop, docs-only, orkestrator).
 - 2026-11-17 — **Merge d2b-1 `80f165cf` + 3D-web `470f9d57`** (develop, docs-only, orkestrator): FUNKSJONSENDRINGER + STATUS-AKTUELT + tavla; `3d-agent-prinsipper.md` W1/W2/W4 🟢 + Kenneths feltobservasjon M3. Konflikt-løsning i mergen: d2b-1 er `prosjektkort-kortid-spec.md` § 12.11.
