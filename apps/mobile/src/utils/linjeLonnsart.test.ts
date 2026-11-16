@@ -41,18 +41,17 @@ describe("T18 (etter V4-⚠️) — velgeren", () => {
     erReise,
   ).map((l) => l.id);
 
-  it("🔴 ordinær, overtid og fravær tilbys — i katalogorden", () => {
-    expect(tilbudt).toEqual(["timelonn", "regning", "ot50", "ot100", "egenmelding"]);
+  it("🔴 ordinær og overtid tilbys — i katalogorden (ORDRE (33) F5: fravær ikke lenger)", () => {
+    expect(tilbudt).toEqual(["timelonn", "regning", "ot50", "ot100"]);
   });
-  it("🔴 reise, feriepenger, diett og inaktive tilbys ikke", () => {
-    for (const id of ["reise", "feriepenger", "diett", "inaktiv"]) expect(tilbudt).not.toContain(id);
+  it("🔴 reise, fravær (F5), feriepenger, diett og inaktive tilbys ikke", () => {
+    for (const id of ["reise", "egenmelding", "feriepenger", "diett", "inaktiv"]) expect(tilbudt).not.toContain(id);
   });
-  it("🔴 gruppert Ordinær · Overtid · Fravær", () => {
-    const g = grupperLinjeLonnsarter([EGENMELDING, OT50, TIMELONN]);
+  it("🔴 gruppert Ordinær · Overtid", () => {
+    const g = grupperLinjeLonnsarter([OT50, TIMELONN]);
     expect(g.map((x) => [x.gruppe, x.arter.map((a) => a.id)])).toEqual([
       ["ordinaer", ["timelonn"]],
       ["overtid", ["ot50"]],
-      ["fravaer", ["egenmelding"]],
     ]);
   });
   it("chips når ≤ 6 aktuelle arter (V3)", () => {

@@ -282,7 +282,7 @@ export type DagsforslagEksisterendeSedel = {
  * RETUR (28) B9: står normallinja på fravær, bruker den ikke normen; arbeidet
  * etter den er linja `arbeid` (normaltid til normen er brukt), deretter overtid.
  */
-export type ArbeidLinje = "normal" | "arbeid" | "overtid";
+export type ArbeidLinje = "normal" | "overtid";
 
 /** Én foreslått timer-rad (uten id/sedel — fylles av `anvendDagsforslag`). */
 export type DagsforslagRad = {
@@ -388,18 +388,6 @@ export type DagsforslagDag = {
    * over står for Slutt dag-meldingen. Utelatt = ingen.
    */
   linjerUtenLonnsart?: DagsforslagLinjeUtenLonnsart[];
-  /**
-   * RETUR (28) B9: normallinja står på fravær — slutten på fraværet
-   * (delingspunktet arbeideren kan flytte, «Fravær til»; lik kortets slutt når
-   * fraværet dekker hele kortet). Utelatt = normallinja står ikke på fravær.
-   */
-  fravaerTil?: string;
-  /**
-   * RETUR 3 (28) A3: stepperens neste punkter for «Fravær til» — hvert endrer
-   * fraværstimene; `ned` går aldri under tidligste punkt med fravær > 0.
-   * `null` = knappen er sperret. Satt sammen med `fravaerTil`.
-   */
-  fravaerSteg?: { ned: string | null; opp: string | null };
   rader: DagsforslagRad[];
   /** Ordre (17) punkt 2: satt → Bekreft sperres med begrunnelse. */
   kjedeKonflikt?: DagsforslagKjedeKonflikt | null;
@@ -602,13 +590,6 @@ export type DagsforslagRettingDato = {
    * (`ryddLonnsartPerLinje`). Utelatt = forhåndsvalget.
    */
   lonnsartPerLinje?: Partial<Record<ArbeidLinje, string>>;
-  /**
-   * RETUR (28) B9: slutten på fraværet når normallinja står på en fravær-art.
-   * Settes når fraværet velges (linjas slutt) og flyttes med «Fravær til».
-   * Leses bare mens normallinja står på fravær; utelatt = linjas slutt slik
-   * delingen ellers gir den.
-   */
-  fravaerTil?: string;
   /** POST (13) L2: overføringsrader arbeideren har fjernet for datoen. */
   fjernOverforing?: Array<"ut" | "retur">;
   /**
@@ -894,7 +875,7 @@ export function godtattLinjeLonnsart(
 ): DagsforslagLonnsart | null {
   if (!id || reiseIder?.has(id)) return null;
   const l = lonnsarter.find((x) => x.id === id);
-  return l && l.aktiv && (l.type === "ordinaer" || l.type === "fravaer") ? l : null;
+  return l && l.aktiv && l.type === "ordinaer" ? l : null;
 }
 
 /** Delmengden av `DagsforslagRegel` som `klassifiserReise` trenger. */
@@ -1392,7 +1373,6 @@ function beregnDagsforslagKjerne(input: BeregnDagsforslagInput): Dagsforslag {
       overtidLonnsartId: rettDato?.overtidLonnsartId ?? null,
       overtidAv: rettDato?.overtidAv === true,
       lonnsartPerLinje: rettDato?.lonnsartPerLinje,
-      fravaerTil: rettDato?.fravaerTil ?? null,
       reiseLonnsartIder: reiseIder,
       utReise: segUt,
       returReise: segRetur,
@@ -1706,8 +1686,6 @@ function beregnSegment(a: {
   overtidAv?: boolean;
   /** ORDRE (28) V7: arbeiderens lønnsart pr. linje. */
   lonnsartPerLinje?: Partial<Record<ArbeidLinje, string>>;
-  /** RETUR (28) B9: slutten på fraværet på normallinja. null = linjas slutt. */
-  fravaerTil: string | null;
   /** RETUR (28) A1: reise-arter — aldri en linjes lønnsart. */
   reiseLonnsartIder: ReadonlySet<string>;
   /** Ut-reise (reisetid) på start-segmentet — forskyver arbeidsstart + egen rad. null ellers. */
@@ -1785,8 +1763,6 @@ function beregnSegment(a: {
   const vekForOverlapp: Array<{ fraTid: string; tilTid: string }> = [];
   let raderDroppetUtenLonnsart = 0;
   const linjerUtenLonnsart: DagsforslagLinjeUtenLonnsart[] = [];
-  let fravaerTil: string | null = null;
-  let fravaerStegUt: { ned: string | null; opp: string | null } | null = null;
   const eksisterendeTidsrom = eksisterende.eksisterendeRader;
 
   // Auto-fordeling normaltid/overtid (per dag). Overtid velges strukturert på
@@ -1835,108 +1811,17 @@ function beregnSegment(a: {
           dagsnorm: effektivDagsnorm,
           bruktAvNorm: bruktNorm,
         });
-    // RETUR (28) B9 (Kenneth 2026-11-16): står normallinja på fravær, bruker
-    // den ikke normen. Fraværet går til `fravaerTil` (ellers normallinjas slutt
-    // slik delingen over gir den); arbeidet etter regnes PÅ NYTT mot den samme
-    // normresten — normaltid (linja `arbeid`) til normen er brukt, så overtid.
-    // Valgene står på linjene sine (V7); bare tidene på linjene etter flytter.
-    // «Overtid fra» leses ikke i denne delingen (overtid følger normen);
-    // «overtid av» (V5a) gir alt arbeid etter fraværet som normaltid.
-    // RETUR 2 (28) A2: `fravaerTil` klemmes til kortet — tidligst ett
-    // tidsrunding-steg (ellers 15 min) etter arbeidsstart — så fraværet aldri
-    // blir 0 t, delingen aldri faller bort og en husket «Overtid fra» aldri
-    // leses igjen mens fraværet står. Bare uten `fravaerTil` (valget gjøres
-    // alltid med punktet, `velgLinjeLonnsart`) brukes normallinja slik delingen
-    // over gir den.
-    const normalValg = godtattLinjeLonnsart(
-      a.alleLonnsarter,
-      a.lonnsartPerLinje?.normal,
-      a.reiseLonnsartIder,
-    );
-    // RETUR 3 (28) A3: tidligste punkt er det første steget som gir mer enn
-    // 0 t fravær — forbi pausen når den ligger ved arbeidsstart. Hele kortet
-    // som fravær bare når intet punkt før kortets slutt gir fravær. Stepperen
-    // får sine neste punkter herfra (`fravaerSteg`): hvert steg endrer
-    // fraværstimene (hopper over pausen), og «−» går aldri under grensen.
-    let fravaerSeg: ArbeidstidSegment | undefined;
-    let fravaerPunktMin: number | null = null;
-    const fravaerSteg = a.tidsrundingMinutter && a.tidsrundingMinutter > 0 ? a.tidsrundingMinutter : 15;
-    // RETUR 4 (28) A4: kortets slutt regnes fra arbeidsstart + varighet —
-    // et kort som slutter 00:00 (nattskift delt ved midnatt, «til» 24:00)
-    // ville ellers gi 0 min. RETUR 5 (28) A5: et punkt før arbeidsstart
-    // tolkes som etter midnatt bare når det da ligger innenfor kortet (på
-    // dag 1 bare linjas slutt «00:00»); ellers går det til den vanlige klemmen.
-    const startMinFravaer = hhmmTilMin(arbeidsstartHHMM);
-    const varighetMinFravaer = Math.round((arbeidssluttMs - arbeidsstartMs) / 60_000);
-    const sluttMinFravaer = Math.min(startMinFravaer + varighetMinFravaer, 23 * 60 + 59);
-    const kryssMidnatt = startMinFravaer + varighetMinFravaer >= 24 * 60;
-    const punktTilMin = (hhmm: string): number => {
-      const m = hhmmTilMin(hhmm);
-      return kryssMidnatt && m < startMinFravaer && m + 24 * 60 <= startMinFravaer + varighetMinFravaer
-        ? m + 24 * 60
-        : m;
-    };
-    const fravaerTimerVed = (punktMin: number): number => {
-      const forste = segmenterVedOvertidFra({
-        arbeidstimer,
-        arbeidsstartHHMM,
-        overtidFra: minTilHhmm(Math.min(punktMin, 23 * 60 + 59)),
-        pauseFra,
-        pauseMin: a.pauseMin,
-      })[0];
-      return forste?.overtidsnivaa === null ? forste.timer : 0;
-    };
-    let tidligstMin: number | null = null;
-    for (let p = hhmmTilMin(arbeidsstartHHMM) + fravaerSteg; p < sluttMinFravaer; p += fravaerSteg) {
-      if (fravaerTimerVed(p) > 0) {
-        tidligstMin = p;
-        break;
-      }
-    }
-    if (normalValg?.type === "fravaer") {
-      if (a.fravaerTil) {
-        if (tidligstMin == null) {
-          fravaerSeg = { overtidsnivaa: null, timer: arbeidstimer };
-          fravaerPunktMin = sluttMinFravaer;
-        } else {
-          fravaerPunktMin = Math.min(Math.max(punktTilMin(a.fravaerTil), tidligstMin), sluttMinFravaer);
-          const t = fravaerPunktMin >= sluttMinFravaer ? arbeidstimer : fravaerTimerVed(fravaerPunktMin);
-          fravaerSeg = { overtidsnivaa: null, timer: t };
-        }
-      } else if (vanlige[0]?.overtidsnivaa === null) {
-        fravaerSeg = vanlige[0];
-      }
-    }
-    let segmenter: Array<ArbeidstidSegment & { linje: ArbeidLinje }>;
-    let medFravaerDeling = false;
-    if (fravaerSeg && fravaerSeg.overtidsnivaa === null) {
-      const rest = Math.round((arbeidstimer - fravaerSeg.timer) * 100) / 100;
-      const etter: ArbeidstidSegment[] =
-        rest <= 0
-          ? []
-          : a.overtidAv
-          ? [{ overtidsnivaa: null, timer: rest }]
-          : klassifiserArbeidstid({
-              arbeidstimer: rest,
-              dagsnorm: effektivDagsnorm,
-              bruktAvNorm: bruktNorm,
-            });
-      medFravaerDeling = true;
-      segmenter = [
-        { overtidsnivaa: null, timer: Math.min(fravaerSeg.timer, arbeidstimer), linje: "normal" },
-        ...etter.map((s) => ({
-          ...s,
-          linje: (s.overtidsnivaa === null ? "arbeid" : "overtid") as ArbeidLinje,
-        })),
-      ];
-    } else {
-      segmenter = vanlige.map((s) => ({
+    // ORDRE (33) F12 = A (Kenneth 2026-11-16): «Fravær til» og delingen av ett
+    // kort i fravær + arbeid (RETUR (28) B9) er fjernet. Fravær føres bare i
+    // fraværskortet («+ Fravær»), og fravær-arter tilbys ikke på linjene (F5).
+    // B9-regelen står: fravær bruker aldri normen (L1, `klassifiserArbeidstid`).
+    const segmenter: Array<ArbeidstidSegment & { linje: ArbeidLinje }> = vanlige
+      .map((s) => ({
         ...s,
         linje: (s.overtidsnivaa === null ? "normal" : "overtid") as ArbeidLinje,
-      }));
-    }
-    // carve hopper over segmenter uten timer — fjernes her så linjene følger vinduene.
-    segmenter = segmenter.filter((s) => s.timer > 0);
+      }))
+      // carve hopper over segmenter uten timer — fjernes her så linjene følger vinduene.
+      .filter((s) => s.timer > 0);
     const carvet = carveArbeidstider({
       startTid: arbeidsstartHHMM,
       reisetidTimer: 0,
@@ -1944,61 +1829,17 @@ function beregnSegment(a: {
       pauseMin: a.pauseMin,
       segmenter,
     });
-    if (medFravaerDeling && carvet[0]) {
-      fravaerTil = carvet[0].tilTid;
-      // Stepperens neste punkter: første steg som endrer fraværstimene.
-      const naaMin = fravaerPunktMin ?? Math.min(punktTilMin(carvet[0].tilTid), sluttMinFravaer);
-      const naaTimer = segmenter[0]!.timer;
-      let ned: string | null = null;
-      if (tidligstMin != null) {
-        // RETUR 5 (28) B1: stegene ligger på hele steg fra klokka (kvarter
-        // uten tidsrunding) — 23:59 gir 23:45. Nedre grense som før.
-        const forsteNed = Math.floor((naaMin - 1) / fravaerSteg) * fravaerSteg;
-        for (let p = forsteNed; p >= tidligstMin; p -= fravaerSteg) {
-          if (fravaerTimerVed(p) < naaTimer) {
-            ned = minTilHhmm(p);
-            break;
-          }
-        }
-        // Står punktet mellom grensen og første steg (ikke på gridet): grensen.
-        if (ned == null && naaMin > tidligstMin && fravaerTimerVed(tidligstMin) < naaTimer) {
-          ned = minTilHhmm(tidligstMin);
-        }
-      }
-      let opp: string | null = null;
-      if (naaTimer < arbeidstimer) {
-        const forsteOpp = (Math.floor(naaMin / fravaerSteg) + 1) * fravaerSteg;
-        for (let p = forsteOpp; ; p += fravaerSteg) {
-          if (p >= sluttMinFravaer) {
-            opp = minTilHhmm(sluttMinFravaer);
-            break;
-          }
-          if (fravaerTimerVed(p) > naaTimer) {
-            opp = minTilHhmm(p);
-            break;
-          }
-        }
-      }
-      fravaerStegUt = { ned, opp };
-    }
     const valgtOvertid = godtattOvertidLonnsart(a.alleLonnsarter, a.overtidLonnsartId);
     for (const [radIndeks, vindu] of carvet.entries()) {
       const linje: ArbeidLinje = segmenter[radIndeks]!.linje;
       // ORDRE (28) V7: arbeiderens valg på linja vinner over forhåndsvalget.
       // Forhåndsvalg (V2): normaltid (overtidsnivaa=null) → firmaets
       // standard-lønnsart; overtid → velg strukturert på overtidsnivaa.
-      const linjeValgRaa = godtattLinjeLonnsart(
+      const linjeValg = godtattLinjeLonnsart(
         a.alleLonnsarter,
         a.lonnsartPerLinje?.[linje],
         a.reiseLonnsartIder,
       );
-      // RETUR 2 (28): fravær på `arbeid`-linja godtas ikke (faller tilbake til
-      // standardarten). Linja er normaltid som fyller normen; skulle den være
-      // fravær, måtte arbeidet etter den regnes om igjen — et nytt fraværsvindu,
-      // som a3 ikke har (Kenneth: fravær midt i kortet er ikke et reelt
-      // tilfelle). Mer fravær føres ved å flytte «Fravær til».
-      const linjeValg =
-        linje === "arbeid" && linjeValgRaa?.type === "fravaer" ? null : linjeValgRaa;
       const lonnsartId =
         linjeValg?.id ??
         (vindu.overtidsnivaa === null
@@ -2104,8 +1945,6 @@ function beregnSegment(a: {
     vekForOverlapp,
     raderDroppetUtenLonnsart,
     ...(linjerUtenLonnsart.length > 0 ? { linjerUtenLonnsart } : {}),
-    ...(fravaerTil ? { fravaerTil } : {}),
-    ...(fravaerStegUt ? { fravaerSteg: fravaerStegUt } : {}),
     rader,
   };
 }
