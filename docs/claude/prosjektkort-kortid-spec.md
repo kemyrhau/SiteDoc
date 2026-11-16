@@ -1,8 +1,8 @@
 ---
-status: 🟢 VEDTATT 2026-11-16 — B1–B10 besvart av Kenneth (§ 10 «Kenneths svar»); B6 snudd: fravær føres på prosjektkort. Ingen kode. Ingen funksjon fjernes uten hjemmel (§ 7, § 11.4). TILLEGG 2026-11-16 (lønnsartvalg pr. linje) ført inn som § 6.1. TILLEGG 2026-11-16 (fraværskort uten prosjekt, § 11) og TILLEGG 2026-11-16 (B10 — fravær med tak mot dagsnormen, § 11.10): 🟢 VEDTATT 2026-11-16 — F1–F11 besvart av Kenneth og ført inn i brødteksten. 🟡 Åpent: F12 («Fravær til» i Bekreft dag når fravær får eget kort, § 11.9) — låser én rad i ordre c, ikke b. 🔨 Ordre b under bygging på `feat/kortid-b-skjema` (Kort-id-b): b1 + b2 + b3 bygget, ikke merget (§ 8.1).
-sist_verifisert_mot_kode: 2026-11-16 (develop @ e3aea58f — målt på 140c19cb, linjereferanser i `bekreft-dag.tsx` og `dagsforslagAnvend.ts` oppdatert etter (26)-mergen `780f388c`; § 11 målt mot develop @ dc5833dc; § 11.10 målt mot develop @ e3c7d6cf; § 11-rettingen FM27–FM29 (F1, F4, F8) målt mot develop @ b4dac1b8)
+status: 🟢 VEDTATT 2026-11-16 — B1–B10 besvart av Kenneth (§ 10 «Kenneths svar»); B6 snudd: fravær føres på prosjektkort. Ingen kode. Ingen funksjon fjernes uten hjemmel (§ 7, § 11.4). TILLEGG 2026-11-16 (lønnsartvalg pr. linje) ført inn som § 6.1. TILLEGG 2026-11-16 (fraværskort uten prosjekt, § 11) og TILLEGG 2026-11-16 (B10 — fravær med tak mot dagsnormen, § 11.10): 🟢 VEDTATT 2026-11-16 — F1–F11 besvart av Kenneth og ført inn i brødteksten. 🟡 Åpent: F12 («Fravær til» i Bekreft dag når fravær får eget kort, § 11.9) — låser én rad i ordre c, ikke b. 🔨 Ordre b under bygging på `feat/kortid-b-skjema` (Kort-id-b): b1 + b2 + b3 bygget, ikke merget (§ 8.1). TILLEGG 2026-11-16 («kortet følger hele veien» — attestering, eksport/fakturering, rapport, § 12): 🟡 FORSLAG — H1–H6 til Kenneth (§ 12.8); ingen kode.
+sist_verifisert_mot_kode: 2026-11-16 (develop @ e3aea58f — målt på 140c19cb, linjereferanser i `bekreft-dag.tsx` og `dagsforslagAnvend.ts` oppdatert etter (26)-mergen `780f388c`; § 11 målt mot develop @ dc5833dc; § 11.10 målt mot develop @ e3c7d6cf; § 11-rettingen FM27–FM29 (F1, F4, F8) målt mot develop @ b4dac1b8; § 12 målt mot develop @ 10d343ce)
 eier: Fabel (spec) → Timer-feilsøk/Redesign (kode)
-ordre: «ORDRE — spec: prosjektkort med kort-id, dagskortet som sum av prosjektkort, lønnsart-forslag fra døgnets registreringer — orkestrator 2026-11-16» + «TILLEGG … valg av lønnsart ved manuell registrering» + «ORDRE 2026-11-16 — SPEC-TILLEGG: fraværskort uten prosjekt» + «SPEC-TILLEGG 2026-11-16 — B10 betalt fravær i ordre b» + «SPEC-RETTING 2026-11-16 — § 11 til VEDTATT med Kenneths svar F1–F11» (relay/inbox-fabel.md)
+ordre: «ORDRE — spec: prosjektkort med kort-id, dagskortet som sum av prosjektkort, lønnsart-forslag fra døgnets registreringer — orkestrator 2026-11-16» + «TILLEGG … valg av lønnsart ved manuell registrering» + «ORDRE 2026-11-16 — SPEC-TILLEGG: fraværskort uten prosjekt» + «SPEC-TILLEGG 2026-11-16 — B10 betalt fravær i ordre b» + «SPEC-RETTING 2026-11-16 — § 11 til VEDTATT med Kenneths svar F1–F11» + «SPEC-TILLEGG 2026-11-16 — «kortet følger hele veien»» (relay/inbox-fabel.md)
 ---
 
 # Spec — prosjektkort med kort-id, dagskortet som sum av prosjektkort, lønnsart-forslag fra døgnets registreringer
@@ -16,7 +16,7 @@ ordre: «ORDRE — spec: prosjektkort med kort-id, dagskortet som sum av prosjek
 
 **Hva specen legger til:** hvor kort-id bor og hvem som bærer den (§ 2), migrering (§ 3), synk og API med eldre
 klient (§ 4), flater og paritet (§ 5), én regel for lønnsart-forslag (§ 6) med lønnsartvalg pr. linje (§ 6.1), funksjonsinventar (§ 7), ordre-oppdeling
-(§ 8), tester (§ 9), beslutninger til Kenneth (§ 10) og fraværskort uten prosjekt (§ 11, tillegg) med taket for betalt fravær (§ 11.10, B10).
+(§ 8), tester (§ 9), beslutninger til Kenneth (§ 10), fraværskort uten prosjekt (§ 11, tillegg) med taket for betalt fravær (§ 11.10, B10) og kortet gjennom attestering, eksport og rapport (§ 12, tillegg — 🟡 forslag).
 
 ---
 
@@ -411,7 +411,7 @@ Ingen funksjon fjernes. «ENDRES» betyr at funksjonen virker som før for bruke
 | Overlapp PC ↔ mobil (V19), radversjoner (V19.9), forsoning | `SheetTimerForslag`, `forsonDagskort`, `timerSync.ts` | **BEVARES** — id-en følger raden. |
 | Rader slås aldri sammen | — | **BEVARES.** |
 | Utkast | `prosjektkort_utkast_local` | **ENDRES:** `skjemaVersjon`; gammelt utkast lastes (§ 5.1). |
-| Attestering, eksport, rapport, PDF | `apps/api/src/routes/timer/rapport.ts` m.fl. | **BEVARES** uendret. |
+| Attestering, eksport, rapport, PDF | `apps/api/src/routes/timer/rapport.ts` m.fl. | ~~**BEVARES** uendret.~~ ⚠️ Snudd av Kenneth 2026-11-16 — inventaret står i § 12.5. |
 | Vakter | `dagskort-isolert-vakt`, `radLagring-glue-vakt`, `prosjektkort-glue-vakt` | **ENDRES bevisst** der skrivefelt legges til; hver endret påstand begrunnes i leveransen. |
 
 ---
@@ -430,7 +430,7 @@ Ingen funksjon fjernes. «ENDRES» betyr at funksjonen virker som før for bruke
 
 Rekkefølge: a → a2 → a3 → b → c → d → e. a3 trenger ikke kort-id og kan leveres før skjemaet; den rører `bekreft-dag.tsx` og må derfor ikke gå samtidig med c. **b må i prod (API) før c sendes som OTA.**
 a og b rører ulike filer og kan gå parallelt hvis to agenter er ledige. Mellom c og d viser web grøft og skifer i
-samme prosjektkort (B5). **Fraværskort uten prosjekt** og **taket for betalt fravær (B10)** rir på b, c og d — fordelingen står i § 11.8.
+samme prosjektkort (B5). **Fraværskort uten prosjekt** og **taket for betalt fravær (B10)** rir på b, c og d — fordelingen står i § 11.8. **Kortet gjennom attestering, eksport og rapport** er egne ordrer d2a, d2b, d3 og c2 — § 12.6 (🟡 forslag).
 
 
 ### 8.1 Bygget — ordre b (Kort-id-b, `feat/kortid-b-skjema`, ikke merget)
@@ -1044,3 +1044,258 @@ som bærer a3, er c-leveransen. 🟡 Til orkestrator (ikke Kenneth) — avhenger
 gå på OTA foran fraværskortet, fordi «Fravær til» da verken får tak eller blir stående; c leveres som én ordre. Med
 **B** trenger B10-delen av c — katalogkolonnen, «Fravær til», rad-vinduet og brudd-linja — bare b, og kan skilles ut
 som egen mobilordre rett etter b.
+
+---
+
+## 12. TILLEGG — kortet følger hele veien: attestering, eksport/fakturering og rapport (Kenneth 2026-11-16)
+
+> **Status:** 🟡 FORSLAG 2026-11-16 — H1–H6 til Kenneth (§ 12.8). Ingen kode. **FUNKSJONSENDRING**; hjemmel: Kenneth
+> 2026-11-16, ført i § 5.4 som ⚠️ SNUDD (`10d343ce`). Målt mot develop @ `10d343ce`.
+>
+> **Kenneths ord:** *«jeg finner det umulig å se hva som er feil i timeføringen -> gjeldende rader er ikke merket»* ·
+> *«hvis en av prosjektradene skal faktureres med sine maskintimer -> hvordan finner jeg rett timerad. prosjektkortet
+> som ble bygget er jo helt ødelagt i attesteringen. alle timerader er stokket om på. totalen er sannsynligvis rett ->
+> men varer og maskintimer kan ikke faktureres med sin timerad»* · *«det er svært viktig at det førte prosjektkortet ->
+> følger hele veien -> attestering -> fakturering -> timer skal deles opp. prosjektnummer henger heller ikke sammen med
+> timeradene»*
+
+### 12.1 Målt mot koden (develop @ 10d343ce)
+
+Forkortelser: `D` = `apps/api/src/routes/timer/dagsseddel.ts`, `R` = `apps/api/src/routes/timer/rapport.ts`,
+`W` = `apps/web/src`, `A` = `apps/web/src/components/attestering`.
+
+**Server — leserne bak attesteringen**
+
+| # | Funn | Referanse |
+|---|---|---|
+| HM1 | `hentTilAttesteringFirma` (firmalista og pivotene): sedlene sorteres på dato, så opprettet. Timer, tillegg og maskiner hentes **uten `orderBy`** — rekkefølgen på radene er udefinert. Radene kommer hele (med `kortId`, `sheetTimerId`, `fraTid`, `tilTid`) og får `project { id, name, projectNumber, internalProjectNumber }` pr. rad. Underprosjekt og byggeplass kommer bare som id. Utlegg kommer med fem felt. | `D:4754`, `:4829–4838`, `:4848–4857`, `:4859`, `:4988–5001` |
+| HM2 | **Sedelens `prosjekt` er prosjektet på første timerad** som har prosjekt. En sedel med kort på tre prosjekter «tilhører» altså det første. | `D:4971` (firma), `D:5088–5092` (detalj: timer, ellers maskin, ellers tillegg) |
+| HM3 | `hentForAttestering` (detaljsiden, web og mobil): timer, tillegg og maskiner sortert på `createdAt` — ikke fra-tid. **Utlegg er ikke med.** | `D:5052`, `:5067`, `:5071`, `:5075` |
+| HM4 | `hentTilAttestering` (prosjektets attesteringsliste): timer og tillegg, **ikke maskiner**, ingen `orderBy` på rader, ingen prosjekt pr. rad. | `D:4669`, `:4689–4693`, `:4695` |
+| HM5 | **Varer finnes ikke i attesteringen.** 0 treff på `vareforbruk`/`prismaVarelager` i `D` og `R`. Eneste leser en attestant kan bruke er prosjektets `vareforbruk.list`; `hentMineForDato` gir bare egne rader. Ingen skrivevei setter `Vareforbruk.attestertSnapshot` — feltet leses i `vareforbruk.ts` og skrives bare i tester. Vareattestering er vedtatt og utsatt, ikke forkastet. | `apps/api/src/routes/vareforbruk.ts:275`, `:323`, `:363`; `packages/db-varelager/prisma/schema.prisma:71`, `:94`; `docs/claude/fase-0-beslutninger.md:317`; `docs/claude/historikk-2026-05.md:3284` |
+| HM6 | Attesteringens enhet er **raden**: `attesterRader`/`returnerRader` tar `timerIder`, `tilleggIder`, `maskinIder`. `attester`/`returner` er innpakning pr. sedel. Det finnes ingen enhet for kort eller bøtte, og en koblet maskin følger ikke timeraden — klienten må sende id-en. | `D:5407–5414`, `:5601`, `:6829`, `:7007`; 0 treff på `kortId`/`sheetTimerId` i `D:5407–5720` |
+| HM7 | Ukeavviket («over norm» / «ført under norm») er et rent aggregat pr. (ansatt, uke): `UkeAvvik` bærer norm, ukesum og overtid — **ingen rad, sedel eller dato**. Det regnes på klienten. Serverens ukegrunnlag for detaljsiden henter ikke rad-id. | `packages/shared/src/utils/overtidsgrunnlag.ts:240`, `:258`, `:277`; `W/app/dashbord/firma/timer/attestering/page.tsx:300–311`; `A/AttesteringPivot.tsx:451`; `apps/mobile/app/timer/attestering/index.tsx:104`; `D:1582`, `:1619–1624` |
+
+**Web — attesteringen**
+
+| # | Funn | Referanse |
+|---|---|---|
+| HM8 | Sedler-visningen grupperer **sedler** på sedelens prosjekt (HM2). Prosjektnummeret (`internalProjectNumber`) står bare i gruppehodet. Gruppesummene (arbeidstimer, maskintimer) summerer **alle** radene på gruppens sedler, også rader på andre prosjekter. Prosjektfilteret bruker samme felt, så en sedel med kort på prosjekt B og første rad på A forsvinner når en filtrerer på B. | `W/app/dashbord/firma/timer/attestering/page.tsx:262`, `:360–390`, `:714–717` |
+| HM9 | `SeddelKort` bøtter radene på **underprosjekt alene** — ikke prosjekt. Rader uten underprosjekt fra to prosjekter havner i samme bøtte. Kolonnene er lønnsart, aktivitet, fra–til og timer; **raden viser ikke prosjekt** (0 treff på prosjektnavn eller -nummer i fila). Underprosjekt-hode vises bare for ekte underprosjekt, og katalogen hentes bare for sedelens første prosjekt — underprosjekt på de andre prosjektene vises som «—». Byggeplass vises ikke. | `A/SeddelKort.tsx:264–271`, `:297–313`, `:601–612`, `:620–629` |
+| HM10 | `SeddelKort`: timeradene står i den rekkefølgen serveren leverte (udefinert, HM1). **Alle bøttas maskinrader står etter alle bøttas timerader**, uten bruk av `sheetTimerId`. Tillegg står samlet nederst på sedelen. Utlegg vises bare i hover-kortet. | `A/SeddelKort.tsx:639`, `:704`, `:764` |
+| HM11 | Hover-dagskortet nøster maskin under timeraden via `sheetTimerId` og samler ukoblede nederst. Det viser verken prosjekt eller fra–til (feltene strippes i `tilPivotRad`). | `A/DagsKort.tsx:76–84`, `:204–217`, `:230–271` |
+| HM12 | «Per prosjekt»-pivoten grupperer sedler på sedelens prosjekt og summerer `totaltimer`. Hele dagen føres altså på første rads prosjekt. «Per ansatt»-pivoten bruker radens prosjekt. | `A/AttesteringPivot.tsx:234–250`, `:281`, `:580–593` |
+| HM13 | Detaljsiden bøtter på (radens prosjekt, underprosjekt) med prosjektnavn og internnummer i seksjonshodet. I bøtta står alle timerader, så alle maskinrader som egen liste — ikke under sin timerad. Tillegg pr. prosjekt. Utlegg og varer vises ikke (HM3, HM5). | `W/components/timer/AttesteringDetalj.tsx:269–274`, `:502–571`; `A/attestering-buckets.tsx:631–640`, `:769`, `:781–800`, `:672–687` |
+| HM14 | Varsler i `SeddelKort` står på sedelens hode: ukeavvik, norm (`9,00t / 7,50t`), tilleggskrav, forslag-pille, normtak-sperre. På raden står bare reise-merket og matpause-merket. Ukeavviket vises på **alle** ansattens sedler i uka. | `A/SeddelKort.tsx:415–419`, `:647–649`; `A/Avviksbadge.tsx:15–36`; `A/sedel-vurdering.ts:39–66`; `W/app/dashbord/firma/timer/attestering/page.tsx:757` |
+
+**Rapport, eksport og PDF**
+
+| # | Funn | Referanse |
+|---|---|---|
+| HM15 | `detaljEksport` er eneste radkilde for Excel-arket «Detaljer», PDF og rapportskjermen. Sedlene sorteres på dato og opprettet; radene har ingen `orderBy`. Prosjekt sendes som **navn alene**, selv om begge prosjektnumrene hentes. Maskin nøstes under timeraden via `sheetTimerId`. Ingen `kortId`, ingen varer. | `R:376`, `:397`, `:475`, `:504`, `:509–512`, `:605`, `:677` |
+| HM16 | `byggDetaljRader`: én blokk = timerad + nøstede maskiner; sortert på dato, så kilderekkefølge. Tillegg, utlegg og ukoblede maskiner er egne blokker. `grupperDetaljRader` kan bare «ingen», «ansatt» og «prosjekt», og prosjektnøkkelen er **navnet** — to prosjekter med samme navn slås sammen. | `packages/shared/src/utils/timerDetaljRader.ts:200`, `:424`, `:769–790` |
+| HM17 | Excel: prosjektnummer finnes bare i aggregatarket «Etter prosjekt», ikke på detaljradene. Rad-id finnes bare uten kolonnevalg og med intern mottaker. CSV er bare sammendrag pr. ansatt. | `W/lib/timer-rapport-eksport.ts:267–274`, `:281`, `:544–546`, `:606` |
+| HM18 | **«Byggherredokumentet» er ikke et eget dokument.** Det er rapport-PDF-en med innebygd mal «Fakturagrunnlag»: PDF, ekstern mottaker, gruppert på prosjekt, kolonner uten ansatt, fra–til, underprosjekt og byggeplass. To kort samme dag på samme prosjekt skilles der bare av beskrivelse og aktivitet. | `W/app/dashbord/firma/timer/rapport/page.tsx:186–212`; `R:799`; `packages/pdf/src/timer-rapport.ts:336–420` |
+| HM19 | Det finnes **ingen** PDF av én dagsseddel, ingen PDF-pakke og ingen arkiv-PDF for timer. Prosjektarkivet utelater timer bevisst (Kenneth-vedtak 2026-09-06). Rapport-PDF-en lagres ikke; en ny layout gjelder også gamle perioder neste gang noen eksporterer. | `apps/api/src/services/eksport/arkiv.ts:162–165`; 0 treff på dagsseddel i `packages/pdf/src` utenom `timer-rapport.ts` |
+| HM20 | `firmaPeriodeRapport` gir bare aggregat pr. ansatt, prosjekt og dag — ingen rader. | `R:147`, `:296`, `:333–337` |
+
+**Mobil**
+
+| # | Funn | Referanse |
+|---|---|---|
+| HM21 | Attesteringslista er flat, ett kort pr. sedel, med sedelens prosjektnavn (HM2). Detaljen har tre seksjoner — timer, tillegg, maskiner — hver i `createdAt`-rekkefølge. Radene viser verken prosjekt, underprosjekt, fra–til eller beskrivelse. Maskin står ikke under timeraden. Varer og utlegg vises ikke. Ingen bruk av `kortId`. | `apps/mobile/app/timer/attestering/index.tsx:73`, `:146`; `apps/mobile/src/components/timer-attestering/AttesteringDetaljMobil.tsx:174`, `:295`, `:320`, `:339` |
+
+**Én gruppering finnes ikke.** Fem steder grupperer på hver sin måte: `SeddelKort` (underprosjekt), `attestering-buckets`
+(prosjekt + underprosjekt), `DagsKort` (`sheetTimerId`), `timerDetaljRader` (blokk pr. timerad) og mobilens detalj
+(radtype).
+
+#### 12.1.1 Der ordrens premiss og koden skiller lag
+
+- **«Bøtter pr. underprosjekt innenfor prosjektet»** stemmer ikke: bøtta er underprosjekt **på tvers av** prosjekter
+  (HM9).
+- **«Prosjektnummer henger ikke sammen med timeradene»** er målt som fire brudd: (1) sedelen legges under første rads
+  prosjekt (HM2, HM8), (2) raden viser ikke prosjekt (HM9), (3) summer og pivot pr. prosjekt regner med rader fra andre
+  prosjekter (HM8, HM12), (4) eksportens detaljrader har ikke prosjektnummer (HM15, HM17). «Totalen er sannsynligvis
+  rett» stemmer for sedelen og uka; **summen pr. prosjekt er feil** når en dag har flere prosjekter.
+- **«Varer i attesteringen»** er målt: de finnes ikke der, og heller ikke i rapport eller eksport (HM5, HM15).
+- **«PDF-pakken» og «arkiv-PDF»** finnes ikke for timer (HM19). Paritetsmatrisen under gjelder derfor rapport-PDF-en.
+- Maskin etter alle timerader (`SeddelKort.tsx:704`) er bekreftet. Detaljsiden og mobil har samme feil (HM13, HM21).
+
+### 12.2 Modell
+
+**Én delt gruppering.** Ny ren funksjon `grupperPaaKort` i `packages/shared/src/utils/kortGruppering.ts`. Alle
+leserne i § 12.1 skal bruke den — web-attestering, hover-kortet, detaljsiden, mobilens detalj og `byggDetaljRader`.
+Ingen flate skal ha egen bøtting etterpå (T35).
+
+| Regel | Innhold |
+|---|---|
+| G1 Gruppa | Rader på samme sedel med samme `kortId` er ett kort. **`kortId` bestemmer kortet; `sheetTimerId` bestemmer linja i kortet.** |
+| G2 Hode | Prosjektnummer + prosjektnavn · underprosjekt (`proAdmId · kortNavn`) · byggeplass, lest fra kortets første arbeidsrad (K2–K4 gjør dem like). Fraværskort uten prosjekt får hodet «Fravær» (§ 11). Hodet har kortets sum for arbeid og maskin og kortets status (attestert n av m). |
+| G3 Linjer | Timeradene sorteres på `fraTid`. Rader uten fra-tid står etter dem, i opprettet-rekkefølge. Likt → opprettet, så id. |
+| G4 Under linja | Maskin og varer med `sheetTimerId` som peker på en timerad **i samme kort**, står rett under den raden. |
+| G5 Uten rad | Maskin og varer i kortet uten gyldig kobling (ingen `sheetTimerId`, eller raden finnes ikke i kortet) samles nederst i kortet under «Uten rad». |
+| G6 Tillegg og utlegg | Står i kortet de bærer `kortId` til, etter linjene. De har ingen kobling til en rad (M5). |
+| G7 Kortenes rekkefølge | Første linjes `fraTid`. Kort uten tid etter dem. Likt → eldste rad, så `kortId`. |
+| G8 Reise | Reiserader har `kortId = NULL` (§ 2.2). De vises i egen blokk «Reise» på sedelen, sortert på `fraTid`, med reise-merket som i dag. |
+| G9 Uten kort | Andre rader med `kortId = NULL` samles i «Uten kort» nederst på sedelen. Ingen rad skjules; antall rader inn = antall rader ut. |
+| G10 Beskrivelse | Er teksten lik på alle kortets arbeidsrader, vises den én gang i hodet. Ellers pr. linje som i dag (K5 er ikke bygget, § 8.1). |
+| G11 Aldri synlig id | `kortId` brukes bare som nøkkel. Den skrives aldri ut i skjerm, PDF eller regneark (B1). |
+
+**Serveren** leverer det grupperingen trenger, i de tre leserne i HM1, HM3 og HM4:
+
+- Radene sorteres på server (`fraTid`, `createdAt`) så svaret er stabilt; `grupperPaaKort` sorterer uansett.
+- Underprosjekt (`proAdmId`, `kortNavn`) og byggeplass (navn) slås opp for **alle** sedelens prosjekter. `detaljEksport`
+  gjør dette oppslaget i dag (`R:579–605`); det flyttes til én tjenestefunksjon (`apps/api/src/services/timer/kortLeser.ts`)
+  og kopieres ikke.
+- `varer[]` pr. sedel: vareforbruk med `dagsseddelId` lik sedelen — varenavn, antall, enhet, `sheetTimerId`, `kortId`.
+  Bare sedler brukeren alt har rett til å se; er varelager-modulen av, er lista tom.
+- `hentForAttestering` får utlegg (samme fem felt som firmalista) og `hentTilAttestering` får maskiner, så alle tre
+  flatene viser samme kort.
+- Ingen prosedyre får nytt navn. Feltene legges til; eldre klienter ser dem ikke.
+
+**Sedler-visningen** (H4): prosjektgruppene består, men medlemskapet følger **kortene**. En sedel med kort på to
+prosjekter står under begge, og viser der bare det prosjektets kort, med linja «+ n kort på andre prosjekter».
+Gruppesum, prosjektfilter og «Per prosjekt»-pivoten regner på radens prosjekt. Dette retter HM8 og HM12.
+
+**Attestering pr. kort** (H1): kortets hode får ✓ og retur. De kaller `attesterRader`/`returnerRader` med kortets
+ventende timer-, maskin- og tilleggsrader. Serveren endres ikke. Attestering pr. rad og pr. sedel består.
+
+**Varer** (H2): vises under sin timerad og attesteres ikke enkeltvis. I eksporten følger de sedelen slik utlegg gjør
+i dag (`R:762`): med når sedelen er attestert, eller når «Ta med uattesterte» er krysset.
+
+**Avvik pekes ut**
+
+| Avvik | I dag | Etter |
+|---|---|---|
+| Ukeavvik «ført under norm» | Merke på alle sedler i uka (HM14) | Teksten sier uka: «Uke 46: overtid ført under norm». **Alle rader med overtidsart i uka merkes.** Sedelens hode har merket bare når sedelen har en merket rad. |
+| Ukeavvik «over norm» | Som over | «Uke 46: 2,0 t over norm, ikke ført som overtid». Merket står på de ordinære arbeidsradene som ligger etter at ukenormen er passert, i tidsrekkefølge. |
+| Maskin over arbeid | Sedel | Kortets hode, pr. kort (B4). Serverens tak er uendret. |
+| Brudd på fraværstak (B10) | Linje pr. dato | Linja står; fraværsradene med tak på datoen merkes. |
+| Norm for dagen (`9,00t / 7,50t`), tilleggskrav | Sedelens hode | Uendret — de gjelder dagen. |
+| Reise, matpause | Raden | Uendret. |
+
+Radene finnes av én ny ren funksjon `ukeAvvikRader` i `overtidsgrunnlag.ts`, ved siden av `beregnUkeAvvik`. Firmalista
+har ukas rader og regner selv. Detaljsiden har bare én sedel; serverens ukegrunnlag (`D:1619–1624`) henter derfor rad-id
+og returnerer hvilke rader på sedelen som er merket. Regnestykket for selve avviket endres ikke.
+
+### 12.3 Eksport og fakturering — hva «dele opp timene pr. kort» betyr
+
+Kortet har ingen synlig id. Det som skiller to kort på samme prosjekt i en eksport, er **dato + kortnummer**, og i
+korthodet klokkeslett og beskrivelse (H3).
+
+| Del | Regel |
+|---|---|
+| E1 Rekkefølge (alltid) | Detaljradene sorteres så et kort står samlet: dato → ansatt → kort (G7) → linje (G3), med maskin og varer under sin timerad og tillegg/utlegg sist i kortet. Gjelder Excel «Detaljer», PDF og rapportskjermen. |
+| E2 Kolonnen «Kort» (valgfri) | Løpenummer pr. dato innenfor eksportens gruppe: 1, 2, 3 … Tom for reise og rader uten kort. Dato + nummer (+ gruppe) er entydig i dokumentet, også når ansatt ikke vises. |
+| E3 «Delsum pr. prosjektkort» (valg i eksportmenyen og malene) | Hvert kort får en hodelinje — dato · fra–til · prosjektnummer og -navn · underprosjekt · byggeplass · «Kort n» — og en delsum for timer og maskintimer. Config v5, standard av. |
+| E4 Prosjektnummer | To valgfrie kolonner på detaljradene, de samme som aggregatarket har (SD-nummer og internt nummer). Gruppering på prosjekt bruker prosjektets **id** som nøkkel og viser nummer + navn i overskriften. |
+| E5 Varer | Ny radtype «vare» i `radTyper`: betegnelse, mengde, enhet. Ingen beløp — prisen er ikke låst før vareattestering er bygget (H2). |
+| E6 Malene | «Fakturagrunnlag» får delsum pr. prosjektkort på og radtypen vare. «Lønnsgrunnlag» får bare ny rekkefølge (E1). Lagrede maler leses som v4 med valget av og uten nye kolonner. |
+| E7 Urørt | CSV (sammendrag), arkene «Sammendrag», «Etter prosjekt» og «Etter dag», `firmaPeriodeRapport`, regelen «bare attesterte» fra (31) og kladd-visningen fra (32). |
+
+En delvis attestert sedel gir et kort med bare de attesterte radene; delsummen gjelder radene som er med.
+
+### 12.4 Paritetsmatrise
+
+Det finnes ingen arkiv-PDF for timer (HM19); siste kolonne er rapport-PDF og Excel «Detaljer».
+
+| Funksjon | Web firmaliste (`SeddelKort`) | Web detalj | Mobil detalj | PDF / Excel |
+|---|---|---|---|---|
+| Gruppe i dag | Underprosjekt (HM9) | Prosjekt + underprosjekt (HM13) | Radtype (HM21) | Blokk pr. timerad (HM16) |
+| Gruppe etter | Kort | Kort | Kort | Kort (rekkefølge; hode ved E3) |
+| Prosjektnummer i dag | Bare gruppehode, sedelens prosjekt | Seksjonshode | Nei | Bare aggregatark |
+| Prosjektnummer etter | Kortets hode | Kortets hode | Kortets hode | Kolonne + korthode |
+| Underprosjekt og byggeplass etter | Kortets hode | Kortets hode | Kortets hode | Kolonner (finnes) + korthode |
+| Timerader sortert på fra-tid | Nei → ja | Nei → ja | Nei → ja | Nei → ja |
+| Maskin under sin timerad | Nei → ja | Nei → ja | Nei → ja | Ja (står) |
+| Varer under sin timerad | Finnes ikke → ja | Finnes ikke → ja | Finnes ikke → ja | Finnes ikke → ja (E5) |
+| Tillegg i kortet | Nederst på sedel → i kortet | Pr. prosjekt → i kortet | Egen seksjon → i kortet | Egne blokker → i kortet |
+| Utlegg i kortet | Bare hover → i kortet | Finnes ikke → i kortet | Finnes ikke → i kortet | Egne blokker → i kortet |
+| Ukeavvik peker på rad | Nei → ja | Nei → ja | Nei → ja | — |
+| Attester og returner pr. kort (H1) | Nei → ja | Nei → ja | Nei → ja | — |
+
+### 12.5 Funksjonsinventar
+
+Ingen funksjon fjernes. Finner koderen en funksjon som ikke står her og som må vike: STOPP og meld.
+`page.tsx` = `apps/web/src/app/dashbord/firma/timer/attestering/page.tsx`; øvrige filnavn som i § 12.1.
+
+| Funksjon | Kode | Status |
+|---|---|---|
+| Tre visninger: Sedler · Per prosjekt · Per ansatt | `page.tsx:163`, `:596–607` | **BEVARES.** Per prosjekt **ENDRES:** summerer radens prosjekt (HM12). |
+| Prosjektgrupper i Sedler-visningen med sum og «Attester gruppe» | `page.tsx:360–390`, `:734–740` | **ENDRES** (H4): medlemskap og sum følger kortene; «Attester gruppe» attesterer gruppas kort, ikke hele sedlene. |
+| Prosjektfilteret | `page.tsx:262` | **ENDRES:** treffer sedler som har kort på prosjektet. |
+| ✓ og retur pr. sedel, gjenåpne | `SeddelKort.tsx`; `D:6829`, `:7007`, `:5708` | **BEVARES.** |
+| Avkrysning og ✓/retur pr. rad på detaljsiden | `attestering-buckets.tsx:159`, `:474`; `D:5407`, `:5601` | **BEVARES.** Radene står i kortet. |
+| Penn (rediger rader) | `SeddelKort.tsx:185–188`, `:867`; `RedigerRadModal.tsx` | **ENDRES:** åpnes for kortets rader. `redigerSedelRader` er urørt. Kan modalen ikke avgrenses uten serverendring: STOPP og meld. |
+| ✂ Del opp | `SeddelKort.tsx:689`, `:744`; `D:2094`, `:6434–6444` | **BEVARES.** Delene arver `kortId` (§ 4.3). «Eget kort» i attesteringen avhenger av H5. |
+| Flytt underprosjekt | `flyttTimerRadEco` (§ 4.3) | **BEVARES.** Raden bytter kort etter regel 3 og vises der. |
+| Merket «→ til byggherre» på underprosjekt | `SeddelKort.tsx:630–635`; `attestering-buckets.tsx:742–747` | **BEVARES** — i kortets hode. |
+| Hover-dagskortet fra navn og pivotceller | `DagsKort.tsx:195`, `:322` | **ENDRES:** samme kort som lista, med prosjekt i hodet. |
+| Reise-merke, matpause-merke | `ReiseRadMerke.tsx`, `MatpauseRadMerke.tsx` | **BEVARES.** |
+| Normtak-sperre (B10), forslag-sperre (V19), skrivebeskyttet modus, fold ut ved avvik | `SeddelKort.tsx`; `sedel-vurdering.ts` | **BEVARES.** |
+| Fravær uten prosjekt, F1-regelen `radIKontekst` | `attestering-buckets.tsx:31–39` | **BEVARES** — et kort har ett prosjekt (K2), så regelen gjelder kortet. |
+| Ukeavvik-merket | `Avviksbadge.tsx` | **ENDRES:** uke i teksten, rad merkes, hode bare ved merket rad (§ 12.2). |
+| Mobil attesteringsliste | `attestering/index.tsx` | **BEVARES.** Ukeavviket får uke i teksten. |
+| Mobil attesteringsdetalj | `AttesteringDetaljMobil.tsx` | **ENDRES:** kort i stedet for tre seksjoner. Attester og returner som i dag. |
+| Eksport: formater, mottaker, kolonnevalg, maler, «Ta med uattesterte» | `timer-rapport-eksport.ts`; `eksportOppsett.ts:52–71` | **BEVARES.** **ENDRES:** rekkefølge (E1), tre nye valgfrie kolonner, valget «Delsum pr. prosjektkort», radtypen vare. |
+| Gruppering «prosjekt» i eksport | `timerDetaljRader.ts:776–777` | **ENDRES:** nøkkel = id; overskrift med nummer (E4). |
+| Rapportens aggregat og CSV | `R:147`; `timer-rapport-eksport.ts:281` | **BEVARES** uendret. |
+| § 7-raden «Attestering, eksport, rapport, PDF — BEVARES uendret» | § 7 | **Erstattet av denne tabellen.** |
+
+### 12.6 Ordre-oppdeling
+
+Dette er egne ordrer, ikke en del av d. Ordre d rører den ansattes egen sedelside (`timer/[id]/page.tsx`);
+attesteringen og eksporten ligger i andre filer.
+
+| Ordre | Innhold | Rører | Skjema | Kenneth ser etterpå |
+|---|---|---|---|---|
+| **d2a** | `grupperPaaKort`, `ukeAvvikRader`, `kortLeser.ts`, de tre leserne (§ 12.2). Bare tillegg i svarene. | `packages/shared/src/utils/kortGruppering.ts` (ny), `overtidsgrunnlag.ts`, `apps/api/src/services/timer/kortLeser.ts` (ny), `D` | Nei | Ingenting. |
+| **d2b** | Web-attesteringen på kort: firmaliste, pivoter, hover-kort, detaljside, prosjektets liste, avvik på rad, ✓ pr. kort. Hjelpeteksten for siden i samme commit. | `A/*`, `W/components/timer/AttesteringDetalj.tsx`, de to attesteringssidene, i18n | Nei | Kortet slik det ble ført, med maskin og varer under sin timerad og prosjektnummer i hodet. |
+| **d3** | Eksport og rapport: `detaljEksport` (`kortId`, prosjektnummer, varer), `byggDetaljRader`, Excel, PDF, rapportskjerm, config v5, malene. | `R`, `timerDetaljRader.ts`, `W/lib/timer-rapport-eksport.ts`, `TimerRapportDetaljer.tsx`, rapportsiden, `eksportOppsett.ts`, `packages/pdf/src/timer-rapport.ts`, i18n | Nei | Fakturagrunnlag med ett avsnitt pr. kort og delsum. |
+| **c2** | Mobilens attesteringsdetalj på kort. | `AttesteringDetaljMobil.tsx`, `attestering/index.tsx`, i18n | Nei | Samme kort på telefonen. |
+
+- **Samtidig med c:** d2a. Ordre c rører ingen API-fil. Eneste felles fil er `packages/shared/src/utils/index.ts`
+  (én eksportlinje hver).
+- **Etter d2a:** d2b og d3 har ingen felles kodefiler og kan bygges samtidig. Begge legger til i18n-nøkler, og c har
+  15 språkfiler i sin diff — den som merges sist, rebaser språkfilene.
+- **c2 må vente på c:** c rører `apps/mobile/app/timer/attestering/index.tsx`.
+- **d og d3:** `timer/[id]/page.tsx` bruker `byggDetaljRader`. Ny rekkefølge (E1) slår inn der uten at fila røres;
+  den som bygger d, må vite det.
+- **Anbefalt rekkefølge:** d2a → d2b → d3 → d, med c2 rett etter c og e sist. d2b foran d fordi attesteringen er 🔴
+  hos Kenneth, mens d er paritet for den som fører.
+- **Deploy:** d2a, d2b og d3 er web og API — én test-deploy bærer alle tre. c2 går med neste OTA etter c.
+- Sier Kenneth B på H2 (vareattestering), blir det en egen ordre etter d3.
+
+### 12.7 Tester som skal feile først
+
+| # | Test | Ordre |
+|---|---|---|
+| T21 | `grupperPaaKort`: to kort med samme prosjekt, underprosjekt og byggeplass gir to grupper. Linjene er sortert på `fraTid` uansett rekkefølge inn; rader uten tid står sist; kortene i rekkefølge etter første linje. | d2a |
+| T22 | `grupperPaaKort`: maskin og vare med `sheetTimerId` står under sin timerad. Peker koblingen på en rad i et annet kort, eller mangler den, står linja under «Uten rad» i sitt eget kort. Reise i egen blokk. Rad uten `kortId` i «Uten kort». Antall rader inn = antall ut. | d2a |
+| T23 | Rader uten underprosjekt fra to prosjekter på samme sedel gir to kort med hvert sitt prosjekthode (rød i dag, HM9). | d2a, d2b |
+| T24 | `hentTilAttesteringFirma`, `hentForAttestering` og `hentTilAttestering` returnerer sedelens varer med `sheetTimerId` og `kortId`, utlegg i detaljen og maskiner i prosjektlista. Vare på en annen brukers eller et annet firmas sedel kommer aldri med. Varelager av → tom liste, ingen feil. | d2a |
+| T25 | Leserne returnerer underprosjekt og byggeplass med navn for **alle** sedelens prosjekter (rød i dag: bare id). | d2a |
+| T26 | `ukeAvvikRader`: «ført under norm» gir alle ukas overtidsrader og ingen andre; «over norm» gir de ordinære radene etter passert norm; uten avvik tom liste. Fravær følger F-F1. | d2a |
+| T27 | Web: en sedel med kort på tre prosjekter viser tre korthoder med prosjektnummer, underprosjekt og byggeplass. Maskin og vare står under sin timerad. `kortId` finnes ikke i den tegnede teksten. | d2b |
+| T28 | Web, Sedler-visningen: sedel med kort på A og B står under begge grupper med bare gruppens kort. Gruppesum = summen av gruppens kort. Filter på B finner sedelen (rød i dag, HM8). «Per prosjekt»-pivoten fører timene på radens prosjekt (rød i dag, HM12). | d2b |
+| T29 | Web: ukeavviket har ukenummer i teksten, raden er merket, og en sedel uten merket rad har ikke merket i hodet (rød i dag: alle sedler i uka). | d2b |
+| T30 | ✓ på kortet kaller `attesterRader` med nøyaktig kortets ventende timer-, maskin- og tilleggsrader. Sedelens andre kort står som ventende. I prosjektkontekst kan et kort på et annet prosjekt ikke velges. | d2b |
+| T31 | `byggDetaljRader`: radene i ett kort står samlet og i tidsrekkefølge uansett rekkefølge inn (rød i dag). Kolonnen «Kort» gir ulike nummer for to kort på samme prosjekt samme dag, også når ansatt ikke vises. | d3 |
+| T32 | Gruppering på prosjekt: to prosjekter med samme navn gir to grupper (rød i dag, HM16). Detaljradene har prosjektnummer når kolonnen er valgt. | d3 |
+| T33 | «Delsum pr. prosjektkort»: hodelinje og delsum pr. kort, med samme tall i Excel, PDF og på skjerm. Lagret mal uten valget gir samme kolonner som før. | d3 |
+| T34 | Vare i eksporten: med under sin timerad når sedelen er attestert, ute når den ikke er det, med når «Ta med uattesterte» er krysset. Testene fra (31) og (32) er grønne uendret. | d3 |
+| T35 | Vakt: `SeddelKort`, `DagsKort`, `AttesteringDetalj`, `AttesteringDetaljMobil` og `timerDetaljRader` importerer `grupperPaaKort`, og ingen av dem har egen bøtting på underprosjekt eller radtype. | d2b, d3, c2 |
+| T36 | Mobil: detaljen viser kort med prosjektnummer i hodet, linjer på fra-tid og maskin under sin timerad. | c2 |
+
+### 12.8 Beslutninger til Kenneth
+
+| # | Spørsmål | Anbefaling |
+|---|---|---|
+| **H1** | **Skal kortet kunne attesteres og returneres for seg?** A: ja, ✓ og retur i kortets hode, i tillegg til rad og sedel. B: nei, bare rad og sedel som i dag. | **A.** Det er slik du fakturerer: ett kort om gangen. Serveren har alt som trengs. |
+| **H2** | **Varer i attestering og eksport.** A: varene vises under sin timerad, attesteres ikke for seg, og går i eksporten når sedelen er attestert — med mengde og enhet, uten beløp. B: som A, og attestering låser i tillegg prisen på varen, så beløpet kan stå i fakturagrunnlaget. C: bare vise varene i attesteringen, ikke i eksporten. | **A nå, B som egen ordre.** A gir deg varene på riktig timerad med en gang. B er vedtatt fra før og aldri bygget (HM5); den skriver i varelageret og må ha egne regler for retur og gjenåpning. |
+| **H3** | **Hva skiller to kort på samme prosjekt i en eksport?** A: kolonnen «Kort» med løpenummer pr. dato, og korthode med klokkeslett og beskrivelse når «Delsum pr. prosjektkort» er på. B: bare korthodet, ingen kolonne. C: en kort kode laget av kort-id. | **A.** Nummeret kan filtreres og summeres i Excel. C bryter «kort-id vises ikke» (B1). |
+| **H4** | **Sedler-visningen: hva er øverste nivå?** A: prosjektgruppene består, og en dag med kort på to prosjekter står under begge, med bare det prosjektets kort. B: lista blir én rad pr. ansatt og dag med alle kortene i; prosjektgruppene og «Attester gruppe» fjernes, og prosjekt velges med filteret. | **A.** Ingen funksjon fjernes, og summen pr. prosjekt blir riktig. B er en enklere liste, men tar bort «Attester gruppe». |
+| **H5** | **«Timer skal deles opp» — har jeg lest deg riktig?** Jeg leser det som at timene skal stå delt pr. kort i attestering og eksport, med delsum pr. kort. A: ja, det er det. B: du vil også at attestanten skal kunne dele en rad ut til et **nytt** kort (✂ med «eget kort»). | **A.** Serveren støtter alt B (`D:6434–6444`); sier du B, er det et valg i ✂-vinduet i ordre d2b. |
+| **H6** | **Hvilket prosjektnummer står i kortets hode når prosjektet mangler internt nummer?** A: SD-nummeret vises i stedet. B: ingenting, som i dag. | **A.** Da har hvert kort et nummer. Eksporten får begge numrene som kolonner uansett. |
+
+**Låser d2a:** ingen — den kan bestilles nå. **Låser d2b:** H1, H4, H5, H6. **Låser d3:** H2, H3.
