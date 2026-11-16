@@ -12,6 +12,7 @@
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
 **Sist oppdatert:** 2026-11-16
+- 2026-11-16 — **Merge d2c-1** (`274e7fb2`): STATUS-AKTUELT + FUNKSJONSENDRINGER ført.
 - 2026-11-16 — **Merge (37) sammendraget teller dagssedler med rader**: STATUS-AKTUELT + FUNKSJONSENDRINGER ført.
 - 2026-11-16 — **`prosjektkort-kortid-spec.md` § 12.8.5 + `timer.md`: ORDRE (37) — sammendraget i PDF/Excel teller dagssedler med rader i eksporttabellen** (branch `fix/rapport-sammendrag-sedler`, kode + docs, Kort-id-d2c1): `harRadIEksporttabellen` på eksportveien; skjermen uendret.
 - 2026-11-16 — **`prosjektkort-kortid-spec.md` § 12.10 + `timer.md` + `api.md` + `hjelpetekster.md`: ordre d2c-1 — kobling og sperre ved føring på PC** (branch `feat/kortid-d2c1-kobling`, kode + docs, Kort-id-d2c1): `maskin.tilfoy`/`maskin.oppdater` tar `sheetTimerId` og håndhever R24, `fjernTimerRad` krever bekreftelse som navngir maskinene, `oppdaterTimerRad` avviser reise/0 timer på rad med maskin; nedtrekket «Timerad» og slett-bekreftelse på web. Ingen fil opprettet eller slettet i docs/claude — tellingene er uendret.
