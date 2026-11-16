@@ -240,13 +240,13 @@ describe("T7 — hver stopp beholder utkastet uendret", () => {
     urort(foer);
   });
 
-  it("🔴 tilleggUtleggUtenDag (sendt-race mellom forslag og Bekreft)", () => {
+  it("🔴 datoSendtUnderveis (ORDRE 26: sendt-race mellom forslag og Bekreft)", () => {
     const foer = forStopp();
     const { forslag } = forberedBekreftDag(lokalDb(), kontekst());
     sendSedel();
     const { handling, resultat } = bekreftDag(lokalDb(), medBeskrivelse(forslag), skriveCtx(), {}, LINJER);
-    expect(handling.type).toBe("tilleggUtleggUtenDag");
-    expect(resultat?.forsteLagredeSheetId ?? null).toBeNull();
+    expect(handling.type).toBe("datoSendtUnderveis");
+    expect(resultat).toBeNull();
     urort(foer);
   });
 

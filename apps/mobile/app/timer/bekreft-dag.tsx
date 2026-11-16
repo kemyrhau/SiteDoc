@@ -379,6 +379,9 @@ export default function BekreftDagSkjerm() {
   // LES + REGN på nytt ved hver retting. Ingen skriving.
   // (17, P2): kjeden beregnes på nytt når periode-cachen skrives (overføring/refresh).
   const periodeVersjon = useOppmotePeriodeVersjon();
+  // ORDRE (26): Bekreft stoppet fordi en dato ble sendt mens skjermen sto →
+  // regn forslaget ut på nytt (useMemo-en har ingen sync-avhengighet).
+  const [sendtNonce, settSendtNonce] = useState(0);
   const beregnet = useMemo(() => {
     const db = hentDatabase();
     if (!db || !bruker?.id) return null;
@@ -416,8 +419,8 @@ export default function BekreftDagSkjerm() {
       retting,
     );
     return { ...lest, sluttIso: brukSluttIso };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- normNonce: re-les svar-cachen (funn 3)
-  }, [manuell, manuellDato, normNonce, dag, bruker?.id, orgId, sluttIso, rettetSluttIso, endLat, endLng, valgtBygningId, valgtProsjektId, sisteSegmentKilde, valgtByggeplassId, retting, periodeVersjon]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- normNonce: re-les svar-cachen (funn 3); sendtNonce: re-les sedel-status (ORDRE 26)
+  }, [manuell, manuellDato, normNonce, dag, bruker?.id, orgId, sluttIso, rettetSluttIso, endLat, endLng, valgtBygningId, valgtProsjektId, sisteSegmentKilde, valgtByggeplassId, retting, periodeVersjon, sendtNonce]);
   // DEL 5 c: panelet for anslått slutt — GPS-veien, slutten satt av systemet
   // (glemt dag) eller kappet. Står også etter retting, så arbeideren ser tiden.
   const sluttPanel =
@@ -868,6 +871,18 @@ export default function BekreftDagSkjerm() {
         Alert.alert(
           t("timer.bekreftDag.tilleggUtlegg.utenDagTittel"),
           t("timer.bekreftDag.tilleggUtlegg.utenDagTekst"),
+        );
+        return;
+      }
+      if (handling.type === "datoSendtUnderveis") {
+        // ORDRE (26): ingenting er skrevet — datoen ble sendt mens skjermen sto.
+        // Kortene regnes ut på nytt uten den; nytt trykk på Bekreft er en ren retry.
+        settSendtNonce((n) => n + 1);
+        Alert.alert(
+          t("timer.bekreftDag.sendtUnderveis.tittel"),
+          t("timer.bekreftDag.sendtUnderveis.tekst", {
+            datoer: handling.datoer.map(formatNorskDato).join(", "),
+          }),
         );
         return;
       }
