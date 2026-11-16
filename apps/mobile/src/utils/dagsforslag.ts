@@ -258,6 +258,13 @@ export type DagsforslagEksisterendeSedel = {
     /** Reise-rad: teller i dagsbrutto (5,5-grensen), ikke i de 4
      *  arbeidstimene som plasserer pausen (ORDRE 2026-11-14). */
     erReise?: boolean | null;
+    /**
+     * RETUR (29) A1: timer raden bruker av normen (`bruktAvNorm([rad])` — 0 for
+     * reise og fravær). `beregnSegment` trekker den delen som ligger inne i
+     * kortets arbeidsvindu fra `bruktAvNorm`: de minuttene er alt med i
+     * `arbeidstimer`. Udefinert = 0 (ingen fradrag).
+     */
+    normTimer?: number;
   }>;
   /**
    * ORDRE (27b), spec § 6 L1: timer som alt bruker av normen (alle kort, også
@@ -1646,6 +1653,34 @@ function rettSegmentVindu<
   return { ...seg, startIso, sluttIso };
 }
 
+
+/**
+ * RETUR (29) A1, spec § 6 L1/L4: normen døgnet alt har brukt, UTENFOR kortets
+ * arbeidsvindu `[vinduFraMin, vinduFraMin + varighetMin)`. Rader som overlapper
+ * vinduet ligger alt i kortets `arbeidstimer`; den overlappende delen (høyst
+ * radens `normTimer`) trekkes fra `bruktAvNorm`. Rader uten tider eller uten
+ * `normTimer` trekkes ikke fra. Gjelder GPS-dagen og manuelt kort likt.
+ */
+export function bruktAvNormUtenforVindu(
+  eksisterende: Pick<DagsforslagEksisterendeSedel, "bruktAvNorm" | "eksisterendeRader">,
+  vinduFraMin: number,
+  varighetMin: number,
+): number {
+  const brukt = eksisterende.bruktAvNorm ?? 0;
+  if (brukt <= 0 || varighetMin <= 0) return Math.max(0, brukt);
+  const vinduTilMin = vinduFraMin + varighetMin;
+  let inne = 0;
+  for (const r of eksisterende.eksisterendeRader) {
+    if (!r.normTimer || r.normTimer <= 0 || !r.fraTid || !r.tilTid) continue;
+    const fra = hhmmTilMin(r.fraTid);
+    let til = hhmmTilMin(r.tilTid);
+    if (til <= fra) til += 24 * 60;
+    const overlappMin = Math.min(til, vinduTilMin) - Math.max(fra, vinduFraMin);
+    if (overlappMin > 0) inne += Math.min(r.normTimer, overlappMin / 60);
+  }
+  return Math.max(0, Math.round((brukt - inne) * 100) / 100);
+}
+
 /** Utregning av ett dag-segments rader — ren speiling av rad-genereringen i
  *  det gamle `opprettDagsseddelForSegment` (uten find-or-create og DB-insert). */
 function beregnSegment(a: {
@@ -1777,6 +1812,14 @@ function beregnSegment(a: {
       pauseFra: a.pauseFra ?? arbeidsstartHHMM,
       pauseMin: a.pauseMin,
     });
+    // RETUR (29) A1: registrerte timer INNE i arbeidsvinduet ligger alt i
+    // `arbeidstimer` (play-radene viker for dem, 1b) — bare timene utenfor
+    // vinduet bruker normen. Ellers telles de to ganger mot normen.
+    const bruktNorm = bruktAvNormUtenforVindu(
+      eksisterende,
+      hhmmTilMin(arbeidsstartHHMM),
+      Math.round((arbeidssluttMs - arbeidsstartMs) / 60_000),
+    );
     const vanlige: ArbeidstidSegment[] = a.overtidAv
       ? [{ overtidsnivaa: null, timer: arbeidstimer }]
       : a.overtidFra
@@ -1790,7 +1833,7 @@ function beregnSegment(a: {
       : klassifiserArbeidstid({
           arbeidstimer,
           dagsnorm: effektivDagsnorm,
-          bruktAvNorm: eksisterende.bruktAvNorm ?? 0,
+          bruktAvNorm: bruktNorm,
         });
     // RETUR (28) B9 (Kenneth 2026-11-16): står normallinja på fravær, bruker
     // den ikke normen. Fraværet går til `fravaerTil` (ellers normallinjas slutt
@@ -1876,7 +1919,7 @@ function beregnSegment(a: {
           : klassifiserArbeidstid({
               arbeidstimer: rest,
               dagsnorm: effektivDagsnorm,
-              bruktAvNorm: eksisterende.bruktAvNorm ?? 0,
+              bruktAvNorm: bruktNorm,
             });
       medFravaerDeling = true;
       segmenter = [

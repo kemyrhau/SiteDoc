@@ -751,6 +751,59 @@ describe("ORDRE (27b) — manuelt kort regnes mot døgnets registreringer", () =
     expect(gpsArbeid("13:30", "16:00").map((x) => [x.timer, nivaa(x)])).toEqual([[2.5, "normal"]]);
   });
 
+  // RETUR (29) A1: manuelle timer INNE i GPS-arbeidsvinduet ligger alt i
+  // `arbeidstimer` — de skal ikke i tillegg bruke normen (dobbelttelling).
+  const gpsDag = (fra: string, til: string) => {
+    const dag = forberedBekreftDag(lokalDb(), gpsKontekst(fra, til)).forslag.datoer[0]!;
+    return {
+      rader: dag.rader.filter((r) => !r.erReise).map((x) => [x.fraTid, x.tilTid, x.timer, nivaa(x)]),
+      vek: dag.vekForOverlapp.map((v) => [v.fraTid, v.tilTid]),
+    };
+  };
+
+  it("🔴 RETUR (29) A1: manuell 07–09 + GPS 07–18 → klassifisert 7,5 normal + 3 OT (ikke 5 t OT)", () => {
+    settNorm();
+    sedelMed([{ id: "m1", timer: 2, fra: "07:00", til: "09:00" }]);
+    // Normallinja 07–15 overlapper m1 og viker (eldre atferd, 1b); overtiden 15–18 står.
+    expect(gpsDag("07:00", "18:00")).toEqual({
+      rader: [["15:00", "18:00", 3, "OT50"]],
+      vek: [["07:00", "15:00"]],
+    });
+  });
+
+  it("RETUR (29) A1: uten overlapp (manuell 07–09 + GPS 09–18) → 5,5 normal + 3 OT, uendret", () => {
+    settNorm();
+    sedelMed([{ id: "m1", timer: 2, fra: "07:00", til: "09:00" }]);
+    const d = gpsDag("09:00", "18:00");
+    expect(d.vek).toEqual([]);
+    expect(d.rader.map((r) => [r[2], r[3]])).toEqual([[5.5, "normal"], [3, "OT50"]]);
+  });
+
+  it("🔴 RETUR (29) A1: delvis overlapp (manuell 06–08 + GPS 07–18) → bare 06–07 bruker normen", () => {
+    settNorm();
+    sedelMed([{ id: "m1", timer: 2, fra: "06:00", til: "08:00" }]);
+    // 10,5 t i vinduet, 1 t brukt utenfor → rest 6,5 normal (07–14), 4 t OT (14–18).
+    expect(gpsDag("07:00", "18:00")).toEqual({
+      rader: [["14:00", "18:00", 4, "OT50"]],
+      vek: [["07:00", "14:00"]],
+    });
+  });
+
+  it("🔴 RETUR (29) A1, manuelt kort: kort 07–17 oppå rad 07–15 → normen brukes ikke to ganger", () => {
+    settNorm();
+    sedelMed([{ id: "rad1", timer: 7.5, fra: "07:00", til: "15:00", pause: 30 }]);
+    const d = forberedManuellDag(lokalDb(), manuellKontekst(), {
+      perDato: { [DATO]: { arbeidFra: "07:00", arbeidTil: "17:00" } },
+    }).forslag.datoer[0]!;
+    // Klassifisert 7,5 normal (07–14:30, kortet har ingen pause — raden bærer den)
+    // + 2,5 OT (14:30–17). Før: rest 0 → hele 07–17 som ett overtidsvindu.
+    // Begge vinduene overlapper rad1 og viker (1b, eldre atferd — utenfor A1).
+    expect(d.vekForOverlapp.map((v) => [v.fraTid, v.tilTid])).toEqual([
+      ["07:00", "14:30"],
+      ["14:30", "17:00"],
+    ]);
+  });
+
   it("a2 GPS uten rader fra før → som i dag", () => {
     settNorm();
     expect(gpsArbeid("07:00", "09:00").map((x) => [x.timer, nivaa(x)])).toEqual([[2, "normal"]]);

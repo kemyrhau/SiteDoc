@@ -393,21 +393,23 @@ function lesEksisterendeSedel(
       .all()
       .map((l) => l.id),
   );
+  const dognRader = rader.map((r) => ({
+    timer: r.timer,
+    erReise: erReiseRadVisning(r.erReise, r.lonnsartId, reiseLonnsartId),
+    erFravaer: r.lonnsartId != null && fravaerIder.has(r.lonnsartId),
+  }));
   return {
     finnes: true,
     status: sedel.status,
-    eksisterendeRader: rader.map((r) => ({
+    // RETUR (29) A1: `normTimer` = radens del av `bruktAvNorm` (samme regel),
+    // så `beregnSegment` kan trekke fra timer som ligger i kortets vindu.
+    eksisterendeRader: rader.map((r, i) => ({
       fraTid: r.fraTid,
       tilTid: r.tilTid,
       pauseMin: r.pauseMin,
       erReise: r.erReise,
+      normTimer: bruktAvNorm([dognRader[i]!]),
     })),
-    bruktAvNorm: bruktAvNorm(
-      rader.map((r) => ({
-        timer: r.timer,
-        erReise: erReiseRadVisning(r.erReise, r.lonnsartId, reiseLonnsartId),
-        erFravaer: r.lonnsartId != null && fravaerIder.has(r.lonnsartId),
-      })),
-    ),
+    bruktAvNorm: bruktAvNorm(dognRader),
   };
 }
