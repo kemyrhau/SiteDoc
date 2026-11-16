@@ -1585,6 +1585,7 @@
   "3d.bakkeMinZ": "Lowest Z per cell",
   "3d.lagrerOverflate": "Saving surface…",
   "3d.ingenLagredeOverflater": "No saved surfaces",
+  "3d.visObjekterLangtUnna": "Show distant objects",
   "status.feilet": "Failed",
   "sok.tittel": "Document search",
   "sok.dokumentPlaceholder": "Search project documents...",

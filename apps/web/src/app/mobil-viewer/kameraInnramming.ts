@@ -1,84 +1,16 @@
 /**
- * Kamera som følger modellen i mobil-vieweren (M1–M3).
+ * Kamera som følger modellen i mobil-vieweren (M1–M3, § 3b).
  *
- * Før: innramming, orbit-target, near/far tok utgangspunkt i samlet bounding box over
- * alle objekter. Ett objekt langt unna (markør i origo, terrengbit, feilplassert element)
- * blåser opp boksen: modellen blir liten og forskjøvet ved åpning, og rotasjon, pan og
- * zoom regnes mot et punkt i tomrommet. Her beregnes en robust boks som ser bort fra
- * slike utliggere, og kameraverdier skalert til den.
+ * Innramming tar utgangspunkt i objektboksene uten objekter langt unna bygget (regelen
+ * `finnUtliggere` bor i `@sitedoc/shared`). Orbit-punktet er flaten midt på skjermen
+ * (`orbitAvstand`), og zoom-farten følger avstanden dit (`dollyFartForAvstand` i shared).
  */
 
-export type Punkt = { x: number; y: number; z: number };
-export type Boks = { min: Punkt; max: Punkt };
+import type { Boks3, Punkt3 } from "@sitedoc/shared";
 
-const AKSER = ["x", "y", "z"] as const;
-
-/** Under dette antallet objekter er det for få til å skille utliggere — bruk hele boksen. */
-export const MIN_OBJEKTER_FOR_ROBUST = 10;
-
-function gyldig(b: Boks): boolean {
-  return AKSER.every(
-    (a) => Number.isFinite(b.min[a]) && Number.isFinite(b.max[a]) && b.min[a] <= b.max[a],
-  );
-}
-
-function persentil(sortert: number[], p: number): number {
-  const i = (sortert.length - 1) * p;
-  const lav = Math.floor(i);
-  const høy = Math.ceil(i);
-  return sortert[lav]! + (sortert[høy]! - sortert[lav]!) * (i - lav);
-}
-
-function union(bokser: Boks[]): Boks {
-  const min = { x: Infinity, y: Infinity, z: Infinity };
-  const max = { x: -Infinity, y: -Infinity, z: -Infinity };
-  for (const b of bokser) {
-    for (const a of AKSER) {
-      if (b.min[a] < min[a]) min[a] = b.min[a];
-      if (b.max[a] > max[a]) max[a] = b.max[a];
-    }
-  }
-  return { min, max };
-}
-
-export type RobustResultat = { boks: Boks; antall: number; utliggere: number };
-
-/**
- * Robust boks over objektboksene. Et objekt er utligger når senteret ligger utenfor
- * [P1 − margin, P99 + margin] på en akse. Margin = max(halve P1–P99-spennet på aksen,
- * en firedel av største spenn på tvers av aksene), så flate modeller beholder taket og
- * lange bygg beholder endene. Boksen er union av hele objektboksene som beholdes.
- */
-export function robustBoks(bokser: Boks[]): RobustResultat | null {
-  const gyldige = bokser.filter(gyldig);
-  if (gyldige.length === 0) return null;
-  if (gyldige.length < MIN_OBJEKTER_FOR_ROBUST) {
-    return { boks: union(gyldige), antall: gyldige.length, utliggere: 0 };
-  }
-
-  const sentre = gyldige.map((b) => ({
-    x: (b.min.x + b.max.x) / 2,
-    y: (b.min.y + b.max.y) / 2,
-    z: (b.min.z + b.max.z) / 2,
-  }));
-  const grenser = AKSER.map((a) => {
-    const s = sentre.map((c) => c[a]).sort((p, q) => p - q);
-    return { a, lav: persentil(s, 0.01), høy: persentil(s, 0.99) };
-  });
-  const størsteSpenn = Math.max(...grenser.map((g) => g.høy - g.lav));
-  const intervall = grenser.map((g) => {
-    const margin = Math.max((g.høy - g.lav) / 2, størsteSpenn / 4);
-    return { a: g.a, fra: g.lav - margin, til: g.høy + margin };
-  });
-
-  const beholdt = gyldige.filter((_, i) =>
-    intervall.every(({ a, fra, til }) => sentre[i]![a] >= fra && sentre[i]![a] <= til),
-  );
-  if (beholdt.length === 0) {
-    return { boks: union(gyldige), antall: gyldige.length, utliggere: 0 };
-  }
-  return { boks: union(beholdt), antall: gyldige.length, utliggere: gyldige.length - beholdt.length };
-}
+/** Robust boks og utligger-regelen bor i `@sitedoc/shared` (`finnUtliggere`), felles med web. */
+export type Punkt = Punkt3;
+export type Boks = Boks3;
 
 export type Innramming = {
   target: Punkt;
@@ -138,17 +70,14 @@ export function beregnInnramming(boks: Boks, vfovGrader: number, aspect: number)
 }
 
 /**
- * Skal treffpunktet under fingrene bli nytt orbit-punkt? Nei når det ligger nærmere enn
- * minDistance (da ville kameraet hoppe bakover) eller ikke er et tall.
+ * Avstand langs siktelinja (fra kamera gjennom skjermmidten) til orbit-punktet (§ 3b punkt 1).
+ * Treff i midten: treffavstanden, men aldri nærmere enn 1,5·minDistance (ellers hopper
+ * kameraet bakover). Ingen treff: samme avstand som sist.
  */
-export function brukSomOrbitPunkt(kamera: Punkt, treff: Punkt, minDistance: number): boolean {
-  const d = Math.hypot(treff.x - kamera.x, treff.y - kamera.y, treff.z - kamera.z);
-  return Number.isFinite(d) && d > minDistance * 1.5;
-}
-
-/** Skjermpunktet gesten handler om: én finger = fingeren, flere = midtpunktet. */
-export function gestPunkt(pekere: { x: number; y: number }[]): { x: number; y: number } | null {
-  if (pekere.length === 0) return null;
-  const sum = pekere.reduce((s, p) => ({ x: s.x + p.x, y: s.y + p.y }), { x: 0, y: 0 });
-  return { x: sum.x / pekere.length, y: sum.y / pekere.length };
+export function orbitAvstand(treffAvstand: number | null, sisteAvstand: number, minDistance: number): number {
+  const minst = minDistance * 1.5;
+  if (treffAvstand != null && Number.isFinite(treffAvstand) && treffAvstand > 0) {
+    return Math.max(treffAvstand, minst);
+  }
+  return Number.isFinite(sisteAvstand) && sisteAvstand > 0 ? Math.max(sisteAvstand, minst) : minst;
 }

@@ -1,68 +1,13 @@
 /**
- * M1–M3: kameraet i mobil-vieweren skal følge modellen, ikke en bounding box blåst opp
- * av utliggere, og minDistance skal skaleres med modellen i stedet for fast 6 m.
+ * M1–M3 + RETUR 3 (§ 3b): kameraet i mobil-vieweren rammer inn bygget uten objekter langt
+ * unna, minDistance skaleres med modellen, orbit-punktet er flaten midt på skjermen, og
+ * zoom-farten følger avstanden dit. Utligger-regelen og zoom-kurven testes i
+ * packages/shared/src/tred/*.test.ts.
  */
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import {
-  beregnInnramming,
-  brukSomOrbitPunkt,
-  gestPunkt,
-  robustBoks,
-  type Boks,
-} from "../app/mobil-viewer/kameraInnramming";
-
-const boks = (x: number, y: number, z: number, s = 1): Boks => ({
-  min: { x, y, z },
-  max: { x: x + s, y: y + s, z: z + s },
-});
-
-/** Bygg på 100 × 20 × 60 m (x, y=høyde, z) med objekter jevnt fordelt. */
-function bygg(): Boks[] {
-  const ut: Boks[] = [];
-  for (let i = 0; i < 20; i++) for (let j = 0; j < 4; j++) for (let k = 0; k < 12; k++) {
-    ut.push(boks(i * 5, j * 5, k * 5, 4));
-  }
-  return ut;
-}
-
-describe("robustBoks", () => {
-  it("ser bort fra ett objekt langt unna (H1)", () => {
-    const r = robustBoks([...bygg(), boks(2000, 0, 1500)])!;
-    expect(r.utliggere).toBe(1);
-    expect(r.boks.max.x).toBeLessThanOrEqual(100);
-    expect(r.boks.max.z).toBeLessThanOrEqual(60);
-  });
-
-  it("tar med hele bygget når det ikke finnes utliggere", () => {
-    const r = robustBoks(bygg())!;
-    expect(r.utliggere).toBe(0);
-    expect(r.boks).toEqual({ min: { x: 0, y: 0, z: 0 }, max: { x: 99, y: 19, z: 59 } });
-  });
-
-  it("flat modell beholder et enkelt takobjekt (spenn 0 på høydeaksen)", () => {
-    const flat: Boks[] = [];
-    for (let i = 0; i < 50; i++) flat.push(boks(i * 2, 0, 0, 1));
-    flat.push(boks(50, 6, 0, 1));
-    const r = robustBoks(flat)!;
-    expect(r.utliggere).toBe(0);
-    expect(r.boks.max.y).toBe(7);
-  });
-
-  it("for få objekter: hele boksen", () => {
-    const r = robustBoks([boks(0, 0, 0), boks(5000, 0, 0)])!;
-    expect(r.utliggere).toBe(0);
-    expect(r.boks.max.x).toBe(5001);
-  });
-
-  it("ugyldige bokser ignoreres; ingen gyldige gir null", () => {
-    const tom = { min: { x: Infinity, y: Infinity, z: Infinity }, max: { x: -Infinity, y: -Infinity, z: -Infinity } };
-    expect(robustBoks([tom])).toBeNull();
-    expect(robustBoks([])).toBeNull();
-    expect(robustBoks([tom, boks(0, 0, 0)])!.antall).toBe(1);
-  });
-});
+import { beregnInnramming, orbitAvstand, type Boks } from "../app/mobil-viewer/kameraInnramming";
 
 describe("beregnInnramming", () => {
   const b: Boks = { min: { x: 0, y: 0, z: 0 }, max: { x: 100, y: 20, z: 60 } };
@@ -99,33 +44,53 @@ describe("beregnInnramming", () => {
   });
 });
 
-describe("orbit-punkt under fingrene", () => {
-  it("gestpunkt: én finger = fingeren, to = midtpunktet, ingen = null", () => {
-    expect(gestPunkt([{ x: 10, y: 20 }])).toEqual({ x: 10, y: 20 });
-    expect(gestPunkt([{ x: 0, y: 0 }, { x: 100, y: 50 }])).toEqual({ x: 50, y: 25 });
-    expect(gestPunkt([])).toBeNull();
+describe("orbitAvstand — punktet midt på skjermen", () => {
+  it("treff i midten: treffavstanden blir orbit-avstand", () => {
+    expect(orbitAvstand(12.5, 40, 0.5)).toBe(12.5);
   });
 
-  it("treff nærmere enn minDistance brukes ikke (kameraet ville hoppet bakover)", () => {
-    const kamera = { x: 0, y: 0, z: 0 };
-    expect(brukSomOrbitPunkt(kamera, { x: 0, y: 0, z: 10 }, 0.5)).toBe(true);
-    expect(brukSomOrbitPunkt(kamera, { x: 0, y: 0, z: 0.6 }, 0.5)).toBe(false);
-    expect(brukSomOrbitPunkt(kamera, { x: NaN, y: 0, z: 0 }, 0.5)).toBe(false);
+  it("treff nærmere enn 1,5·minDistance kappes (kameraet ville hoppet bakover)", () => {
+    expect(orbitAvstand(0.3, 40, 0.5)).toBe(0.75);
+  });
+
+  it("ingen treff: samme avstand som sist", () => {
+    expect(orbitAvstand(null, 40, 0.5)).toBe(40);
+    expect(orbitAvstand(NaN, 40, 0.5)).toBe(40);
+  });
+
+  it("ingen treff og ingen gyldig forrige avstand: minste tillatte", () => {
+    expect(orbitAvstand(null, 0, 0.5)).toBe(0.75);
+    expect(orbitAvstand(null, NaN, 0.5)).toBe(0.75);
   });
 });
 
 describe("mobil-viewer: vakt", () => {
   const kilde = readFileSync(resolve(__dirname, "../app/mobil-viewer/page.tsx"), "utf-8");
 
-  it("innramming bruker robust boks og setter minDistance fra modellen", () => {
-    expect(kilde).toContain("const robust = robustBoks(alle)");
+  it("innramming bruker boksen uten objekter langt unna og minDistance fra modellen", () => {
+    expect(kilde).toContain("const robust = finnUtliggere(alle)");
     expect(kilde).toContain("ctrl.minDistance = inn.minDistance");
     expect(kilde).toContain("await rammInn()");
   });
 
-  it("berøring setter orbit-punkt fra raycast", () => {
-    expect(kilde).toContain("ctrl.setOrbitPoint(treff.point.x, treff.point.y, treff.point.z)");
+  it("orbit-punkt fra raycast midt på skjermen, ikke fra fingrene", () => {
+    expect(kilde).toContain("raycastSynlige(rect.left + rect.width / 2, rect.top + rect.height / 2)");
+    expect(kilde).toContain("orbitAvstand(treffAvstand, sisteOrbitAvstand || ctrl.distance, minDistanceNå)");
+    expect(kilde).toContain("ctrl.setOrbitPoint(punkt.x, punkt.y, punkt.z)");
     expect(kilde).toContain("void settOrbitPunkt()");
+    expect(kilde).not.toContain("gestPunkt");
+  });
+
+  it("zoom-fart følger avstanden til orbit-punktet", () => {
+    expect(kilde).toContain("ctrl.dollySpeed = dollyFartForAvstand(ctrl.distance)");
+  });
+
+  it("objekter langt unna skjult som standard; bryter viser dem, rom/åpninger forblir skjult", () => {
+    expect(kilde).toContain("const [visUtliggere, setVisUtliggere] = useState(false)");
+    expect(kilde).toContain("let utliggereSynlige = false");
+    expect(kilde).toContain("await settUtliggerSynlighet(utliggereSynlige)");
+    expect(kilde).toContain("ids.filter((id) => !rom.has(id))");
+    expect(kilde).toContain('t("3d.visObjekterLangtUnna")');
   });
 
   it("funksjonsinventar bevart: fragment-cache, råfil-lager, objektvalg med punkt, snitt, modellbytte", () => {
@@ -134,5 +99,7 @@ describe("mobil-viewer: vakt", () => {
     expect(kilde).toContain("punkt: { x: hitResult.point.x, y: hitResult.point.y, z: hitResult.point.z }");
     expect(kilde).toContain("await clipper.create(world)");
     expect(kilde).toContain('msg.type === "toggleModell"');
+    expect(kilde).toContain('get("diag") === "1"');
+    expect(kilde).toContain("rendererDom.addEventListener(\"pointerdown\"");
   });
 });
