@@ -144,8 +144,8 @@ sist_verifisert_mot_kode: 2026-08-09
 | **Dokgen** | `SiteDoc-dokgen` | `feat/arbeidstegning-prod-klar` `954a2ac0` | ikke målt denne runden |
 | **Kontrollplan** | `SiteDoc-kontrollplan` | `feat/v17b-soner` `301da63e` | ikke målt denne runden |
 | **Mal-Opus** | `SiteDoc-mal` | `feat/mal-7b-standardnavn-vakt27` `eb5af56a` | ikke målt denne runden |
-| **3D-web** | app-tre `3d-web-maaling-a15d10` | `feat/3d-web-kamera` merget `23427bdb` | ⚪ LEDIG — neste: zoom-fart etter avstand + objekter langt unna på web med `@sitedoc/shared` `tred` ([3d-agent-prinsipper.md](3d-agent-prinsipper.md) § 3b) |
-| **3D-mobil** | app-tre `3d-mobil-maaling-a07340` | `fix/3d-mobil-kamera` merget `5266492e` | 🟡 neste: `/mobil-viewer` bundle 92 → 284 kB (gate (83) M2) |
+| **3D-web** | app-tre `3d-web-maaling-a15d10` | `feat/3d-web-avstand` (ny) | 🟡 ORDRE 3D-web 4 sendt 2026-11-17: zoom-fart etter avstand + objekter langt unna skjult på web ([3d-agent-prinsipper.md](3d-agent-prinsipper.md) § 3b) |
+| **3D-mobil** | app-tre `3d-mobil-maaling-a07340` | `fix/3d-mobil-bundle` (ny) | 🟡 ORDRE 3D-mobil 5 sendt 2026-11-17: `/mobil-viewer` bundle 92 → 284 kB (gate (83) M2), må lukkes før web-deploy |
 | **Merge** | `SiteDoc-merge` | detached på develop | ⚪ LEDIG |
 
 **Tilstander:** ⚪ LEDIG · 🟠 FERDIGSKREVET (ikke relayet) · 🔵 ORDRE GITT · 🟢 LEVERT · 🔴 BLOKKERT
