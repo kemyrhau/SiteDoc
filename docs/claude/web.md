@@ -727,6 +727,10 @@ Sammenslått IFC-viewer som laster ALLE prosjektets IFC-modeller i én @thatopen
 
 **IFC-funksjonalitet:** Klient-side WASM-parsing, objektvelging med highlight, klippeplan (snitt). Norske IFC-kategorinavn i egenskapspanelet. Prioriterte attributter vises øverst. Scrollbart panel med større visningsområde.
 
+**Mus (camera-controls via OBC `SimpleCamera`):** venstre = rotasjon rundt eget ståsted (target 2 enheter foran kamera, `oppdaterTarget` i `tred-viewer-kontekst.tsx`) · høyre = pan · midtre = dolly · hjul = `ctrl.forward`. Pan-farten følger avstanden kamera→target, så ved høyre/midtre `pointerdown` flyttes target til modellsenterets dybde langs blikket (`panTargetPaaModellDybde`, `lib/tredKamera.ts`, W4 2026-11-16). Ligger senteret bak eller under 2 enheter foran, beholdes target.
+
+**Snitt:** Snitt-knappen setter `klippModus`; dobbeltklikk på en flate lager snittplan (`clipper.create`). OBC-raycasteren opprettes ved oppsett (`Raycasters.get(world)`), så musa spores fra start og første dobbeltklikk treffer markøren. I snitt-modus gjør enkeltklikk ikke objektvalg (dobbeltklikket gir to `click`). Sperren følger `klippModus`, ikke klipperens `enabled`, fordi etasjeklipp i tegning-3d bruker klipperen med objektvalg på (W2 2026-11-16, vakt `kontekst/__tests__/tred-snitt-w2.test.ts`). `klippModus` lever i provideren som deles med tegning-3d, så `Fane3DModell` (`3d-visning/page.tsx`) slår av snittet ved avmontering slik «Fjern alle» gjør — ellers ville sperren tatt objektvalget i tegning-3d (GATE (79) V1, vakt `kontekst/__tests__/tred-snitt-navigasjon.test.ts`).
+
 **3D-visning som modul:** 3D-visning er en modul (`3d-visning`, kategori `funksjon`) i `PROSJEKT_MODULER`. Deaktivert som standard — aktiveres per prosjekt via Innstillinger > Feltarbeid > Moduler. Sidebar-ikonet for 3D skjules når modulen er deaktivert.
 
 **@thatopen initialisering (kritisk rekkefølge):**
@@ -836,7 +840,8 @@ Erstatter separate `/punktskyer` og `/modeller`-ruter. Gamle URLer redirectes vi
 3. **680+ console errors** fra 3D-debug og IFC-feil på ikke-3D-sider
 
 **Nåværende arkitektur:**
-- `layout.tsx` sjekker `er3DVisning` (pathname slutter med `/3d-visning` eller `/tegning-3d`)
+- `layout.tsx` sjekker `er3DVisning` via `erTreDVisning(pathname)` (`lib/tredLayout.ts`: pathname slutter med `/3d-visning` eller `/tegning-3d`)
+- **Høyde (W1, 2026-11-16):** `dashbord/layout.tsx` pakker sidene i en blokk-`<main>` (`flex-1 overflow-y-auto`, `cebe06f1`), så `flex-1` gir ingen høyde. På 3D-sidene får prosjekt-layoutens rot `h-full` (`prosjektLayoutRotKlasse`, `lib/tredLayout.ts`), ellers ble lerretet bare så høyt som modellista. Andre sider beholder innholdshøyde og scroll i `main`. Vakt: `lib/__tests__/tredLayout.test.ts`.
 - `TreDViewerProvider` + `ViewerCanvas` wraps kun innholdet når `er3DVisning === true`
 - Andre sider (økonomi, sjekklister, etc.) får ren layout uten 3D-overhead
 - **Konsekvens:** 3D-scenen re-initialiseres ved navigasjon til/fra 3D-sider (IFC-modeller caches i `ifcFilCache` for rask re-lasting)

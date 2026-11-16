@@ -126,6 +126,16 @@ function Fane3DModell() {
     lasterOpp,
   } = useTreDViewer();
 
+  // Snitt-modus lever i provideren, som deles med tegning-3d. Når 3d-visning
+  // forlates, slås snittet av slik «Fjern alle» gjør — ellers sperrer klippModus
+  // objektvalg i tegning-3d, som ikke har noen Snitt-knapp (GATE (79) V1).
+  useEffect(() => {
+    return () => {
+      viewerRef.current?.fjernAlleKlippeplan();
+      setKlippModus(false);
+    };
+  }, [viewerRef, setKlippModus]);
+
   if (lasterTegninger || lasterPunktskyer) {
     return (
       <div className="flex flex-1 items-center justify-center">
