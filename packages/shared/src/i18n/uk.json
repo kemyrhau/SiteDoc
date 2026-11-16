@@ -5042,7 +5042,6 @@
   "timer.bekreftDag.kort.slaaSammen": "Об'єднати назад",
   "timer.bekreftDag.kort.utenUnderprosjekt": "Жодного",
   "timer.bekreftDag.kort.utenKortMelding": "Цей текст належить картці, яка більше не існує. Він не зберігається в табелі обліку робочого часу.",
-  "timer.bekreftDag.kort.fjernTekst": "Видалити текст",
   "timer.delvisSendt.tittel": "Part of the session was not saved",
   "timer.delvisSendt.melding": "Saved: {{lagret}}. Not saved: {{blokkert}} — it has already been submitted for approval. The session has ended. Open the sheet and tap “Reopen for editing” to add the hours there.",
   "timer.bekreftDag.aapneSedel": "Відкрийте табель",

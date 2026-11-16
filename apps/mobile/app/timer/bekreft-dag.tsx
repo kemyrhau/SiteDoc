@@ -611,16 +611,6 @@ export default function BekreftDagSkjerm() {
     },
     [endret],
   );
-  const fjernForeldrelos = useCallback(
-    (nokkel: string) => {
-      setRetting((r) => {
-        const { [nokkel]: _fjernet, ...resten } = r.beskrivelse ?? {};
-        return { ...r, beskrivelse: resten };
-      });
-      endret();
-    },
-    [endret],
-  );
 
   // Rød ramme + rull til første tomme felt + fokus. Ingen Alert, ingen toast.
   const visTomBeskrivelse = useCallback((nokler: string[]) => {
@@ -1675,16 +1665,7 @@ export default function BekreftDagSkjerm() {
               <View className="gap-1.5 rounded-lg border border-amber-300 bg-amber-50 p-3">
                 <Text className="text-sm text-amber-900">{t("timer.bekreftDag.kort.utenKortMelding")}</Text>
                 {foreldrelose.map((n) => (
-                  <View key={n} className="flex-row items-center gap-2">
-                    <Text className="flex-1 text-sm text-gray-900">{retting.beskrivelse?.[n]}</Text>
-                    <Pressable
-                      onPress={() => fjernForeldrelos(n)}
-                      accessibilityLabel={t("timer.bekreftDag.kort.fjernTekst")}
-                      className="h-9 w-9 items-center justify-center rounded-full active:bg-amber-100"
-                    >
-                      <Trash2 size={16} color="#92400e" />
-                    </Pressable>
-                  </View>
+                  <Text key={n} className="text-sm text-gray-900">{retting.beskrivelse?.[n]}</Text>
                 ))}
               </View>
             ) : null}

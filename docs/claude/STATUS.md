@@ -12,6 +12,7 @@
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
 **Sist oppdatert:** 2026-11-16
+- 2026-11-16 — **`prosjektkort-kortid-spec.md` § 8.2: TILLEGG 2 til RETUR (33) c — A3 «Fjern teksten» fjernet** (branch `feat/kortid-c-mobil`, kode + docs, Kort-id-c): foreldreløs beskrivelse vises uten slett-knapp; nøkkelen `timer.bekreftDag.kort.fjernTekst` fjernet i 15 språk. Ingen fil opprettet/slettet i docs/claude — tellinger uendret.
 - 2026-11-16 — **`prosjektkort-kortid-spec.md` § 8.2 + § 11.9 + `timer.md` + `mobil.md` + `hjelpetekster.md`: RETUR (33) c — Kenneths exit-svar E1–E4** (branch `feat/kortid-c-mobil`, kode + docs, Kort-id-c): «Endre kort» beholder id med kollisjonssjekk, `timer.kort.sammenslaa` fjernet, dagsummen tar med fravær, «Slå sammen igjen» beholdt (🟢, rettelse til E3), 0,5 t-steg 🟢; Kontrollørs gate (70) A1 (maskin/vare flyttet alene får målkortets id) og A2 (nyttKort-frøet følger ikke utkastet). Ingen fil opprettet/slettet i docs/claude — tellinger uendret.
 - 2026-11-16 — **`prosjektkort-kortid-spec.md` § 8.2 + `timer.md` + `mobil.md` + `hjelpetekster.md`: ordre c — kort-id i mobil-UI og fraværskort** (branch `feat/kortid-c-mobil`, kode + docs, Kort-id-c): c3 B10 på telefon og F12 = A, c2 fraværskort uten prosjekt og F6, c1 «Del til eget kort», gruppering på kort-id, «Flytt til nytt kort». Spec-status: b merget. Ingen fil opprettet/slettet i docs/claude — tellinger uendret.
 - 2026-11-16 — **Merge ordre (34) PDF-eksport** (`e18953e9`): FUNKSJONSENDRINGER + STATUS-AKTUELT ført.

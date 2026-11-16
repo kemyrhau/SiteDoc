@@ -5042,7 +5042,6 @@
   "timer.bekreftDag.kort.slaaSammen": "Apvienojiet atpakaļ",
   "timer.bekreftDag.kort.utenUnderprosjekt": "Nav",
   "timer.bekreftDag.kort.utenKortMelding": "Šis teksts pieder kartītei, kas vairs nepastāv. Tas netiek saglabāts nevienā laika uzskaitē.",
-  "timer.bekreftDag.kort.fjernTekst": "Noņemt tekstu",
   "timer.delvisSendt.tittel": "Daļa sesijas netika saglabāta",
   "timer.delvisSendt.melding": "Saglabāts: {{lagret}}. Nav saglabāts: {{blokkert}} — tas jau ir iesniegts apstiprināšanai. Sesija ir beigusies. Atveriet lapu un pieskarieties “Atkārtoti atvērt rediģēšanai”, lai pievienotu darba laiku.",
   "timer.bekreftDag.aapneSedel": "Atveriet darba laika uzskaiti",

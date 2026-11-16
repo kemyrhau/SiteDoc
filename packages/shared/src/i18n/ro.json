@@ -5042,7 +5042,6 @@
   "timer.bekreftDag.kort.slaaSammen": "Îmbinați înapoi",
   "timer.bekreftDag.kort.utenUnderprosjekt": "Nici unul",
   "timer.bekreftDag.kort.utenKortMelding": "Acest text aparține unui card care nu mai există. Nu este salvat pe nicio foaie de pontaj.",
-  "timer.bekreftDag.kort.fjernTekst": "Eliminați textul",
   "timer.delvisSendt.tittel": "O parte din sesiune nu a fost salvată",
   "timer.delvisSendt.melding": "Salvat: {{lagret}}. Nesalvat: {{blokkert}} — a fost deja trimis spre aprobare. Sesiunea s-a încheiat. Deschideți foaia și atingeți „Redeschideți pentru editare” pentru a adăuga orele acolo.",
   "timer.bekreftDag.aapneSedel": "Deschideți foaia de pontaj",

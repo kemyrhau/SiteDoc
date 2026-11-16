@@ -5042,7 +5042,6 @@
   "timer.bekreftDag.kort.slaaSammen": "Sujungti atgal",
   "timer.bekreftDag.kort.utenUnderprosjekt": "Nėra",
   "timer.bekreftDag.kort.utenKortMelding": "Šis tekstas priklauso kortelei, kurios nebėra. Jis neišsaugomas jokiame darbo laiko apskaitos žiniaraštyje.",
-  "timer.bekreftDag.kort.fjernTekst": "Pašalinti tekstą",
   "timer.delvisSendt.tittel": "Dalis seanso nebuvo išsaugota",
   "timer.delvisSendt.melding": "Išsaugota: {{lagret}}. Neišsaugota: {{blokkert}} — jau pateikta tvirtinti. Sesija baigėsi. Atidarykite lapą ir bakstelėkite „Iš naujo atidaryti redaguoti“, kad pridėtumėte darbo valandas.",
   "timer.bekreftDag.aapneSedel": "Atidarykite darbo laiko apskaitos žiniaraštį",

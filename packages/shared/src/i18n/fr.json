@@ -5042,7 +5042,6 @@
   "timer.bekreftDag.kort.slaaSammen": "Fusionner à nouveau",
   "timer.bekreftDag.kort.utenUnderprosjekt": "Aucune",
   "timer.bekreftDag.kort.utenKortMelding": "Ce texte appartient à une carte qui n'existe plus. Il n’est enregistré sur aucune feuille de temps.",
-  "timer.bekreftDag.kort.fjernTekst": "Supprimer le texte",
   "timer.delvisSendt.tittel": "Une partie de la session n'a pas été enregistrée",
   "timer.delvisSendt.melding": "Enregistré : {{lagret}}. Non enregistré : {{blokkert}} — il a déjà été soumis pour approbation. La séance est terminée. Ouvrez la feuille et appuyez sur « Rouvrir pour modification » pour y ajouter les heures.",
   "timer.bekreftDag.aapneSedel": "Ouvrir la feuille de temps",

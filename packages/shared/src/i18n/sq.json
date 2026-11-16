@@ -5042,7 +5042,6 @@
   "timer.bekreftDag.kort.slaaSammen": "Bashkohuni përsëri",
   "timer.bekreftDag.kort.utenUnderprosjekt": "Asnjë",
   "timer.bekreftDag.kort.utenKortMelding": "Ky tekst i përket një karte që nuk ekziston më. Nuk ruhet në asnjë fletë kohore.",
-  "timer.bekreftDag.kort.fjernTekst": "Hiq tekstin",
   "timer.delvisSendt.tittel": "Një pjesë e seancës nuk u ruajt",
   "timer.delvisSendt.melding": "Ruajtur: {{lagret}}. Nuk u ruajt: {{blokkert}} — është dorëzuar tashmë për miratim. Seanca ka përfunduar. Hapni fletën dhe trokitni lehtë mbi \"Rihap për modifikim\" për të shtuar orët atje.",
   "timer.bekreftDag.aapneSedel": "Hapni fletën e kohës",

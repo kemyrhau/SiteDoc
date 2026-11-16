@@ -5042,7 +5042,6 @@
   "timer.bekreftDag.kort.slaaSammen": "Połącz z powrotem",
   "timer.bekreftDag.kort.utenUnderprosjekt": "Nic",
   "timer.bekreftDag.kort.utenKortMelding": "Ten tekst należy do karty, która już nie istnieje. Nie jest on zapisywany w żadnym grafiku.",
-  "timer.bekreftDag.kort.fjernTekst": "Usuń tekst",
   "timer.delvisSendt.tittel": "Część sesji nie została zapisana",
   "timer.delvisSendt.melding": "Zapisano: {{lagret}}. Niezapisano: {{blokkert}} — został już przesłany do zatwierdzenia. Sesja dobiegła końca. Otwórz arkusz i kliknij „Otwórz ponownie do edycji”, aby dodać w nim godziny.",
   "timer.bekreftDag.aapneSedel": "Otwórz grafik",

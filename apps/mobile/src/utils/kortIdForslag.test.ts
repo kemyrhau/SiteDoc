@@ -308,3 +308,19 @@ describe("Kontrollør A2 — frøet for «+ Nytt prosjektkort» følger ikke utk
     expect(skjerm).toContain("setRetting(nyttKortFroe(d.retting ?? {}))");
   });
 });
+
+describe("TILLEGG 2 A3 — «Fjern teksten» er fjernet (Kenneth 2026-11-16)", () => {
+  it("foreldreløs tekst vises fortsatt, men uten slett-knapp, og nøkkelen er borte i 15 språk", async () => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const skjerm = fs.readFileSync(path.join(__dirname, "../../app/timer/bekreft-dag.tsx"), "utf8");
+    expect(skjerm).toContain('t("timer.bekreftDag.kort.utenKortMelding")');
+    expect(skjerm).toContain("foreldreloseBeskrivelser(beregnet.forslag)");
+    expect(skjerm).not.toContain("fjernForeldrelos");
+    expect(skjerm).not.toContain("kort.fjernTekst");
+    const i18nDir = path.join(__dirname, "../../../../packages/shared/src/i18n");
+    const filer = fs.readdirSync(i18nDir).filter((f) => f.endsWith(".json"));
+    expect(filer).toHaveLength(15);
+    for (const f of filer) expect(JSON.parse(fs.readFileSync(path.join(i18nDir, f), "utf8"))["timer.bekreftDag.kort.fjernTekst"]).toBeUndefined();
+  });
+});

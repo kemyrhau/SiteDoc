@@ -5042,7 +5042,6 @@
   "timer.bekreftDag.kort.slaaSammen": "Zurück verschmelzen",
   "timer.bekreftDag.kort.utenUnderprosjekt": "Keiner",
   "timer.bekreftDag.kort.utenKortMelding": "Dieser Text gehört zu einer Karte, die nicht mehr existiert. Es wird in keinem Stundenzettel gespeichert.",
-  "timer.bekreftDag.kort.fjernTekst": "Text entfernen",
   "timer.delvisSendt.tittel": "Ein Teil der Sitzung wurde nicht gespeichert",
   "timer.delvisSendt.melding": "Gespeichert: {{lagret}}. Nicht gespeichert: {{blokkert}} – es wurde bereits zur Genehmigung eingereicht. Die Sitzung ist beendet. Öffnen Sie das Blatt und tippen Sie auf „Zur Bearbeitung erneut öffnen“, um dort die Stunden hinzuzufügen.",
   "timer.bekreftDag.aapneSedel": "Öffnen Sie die Arbeitszeittabelle",

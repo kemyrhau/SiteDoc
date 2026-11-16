@@ -538,6 +538,7 @@ Avvik og valg, meldt i SJEKKPUNKT c:
 - **Grunnkortet beholder utledet nøkkel i Bekreft dag**; bare utdelte kort nøkles på kort-id. Eksisterende kort på sedelen gjenbrukes.
 - **Delt kort får radIndeks i steg på 10 000 × (n + 1)** for tillegg pr. rad (`tilleggPerRad`).
 - **Foreldreløs beskrivelse vises og sperrer ikke Bekreft**; den droppes aldri.
+- 🟢 **Ingen «Fjern teksten» på foreldreløs beskrivelse** (Kenneth 2026-11-16, A3: «beskrivelse eksisterer ikke uten timer») — `fjernForeldrelos` og `timer.bekreftDag.kort.fjernTekst` er fjernet; teksten vises bare (`bekreft-dag.tsx`, `foreldreloseBeskrivelser`). Vakt i `kortIdForslag.test.ts`.
 - **Ingen byggeplassvalg pr. delt kort** — delen arver kildens byggeplass.
 - **Rad flyttet til en nøkkel uten kort får tilfeldig UUID** (§ 2.4: kort laget av brukeren).
 - 🟢 **«Slå sammen igjen»** (`angreKortDeling`) angrer «Del til eget kort» før lagring — beholdt, vedtatt av Kenneth 2026-11-16 (rettelse til E3). Test i `kortIdForslag.test.ts`.

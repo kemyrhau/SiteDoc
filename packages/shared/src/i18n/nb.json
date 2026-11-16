@@ -5042,7 +5042,6 @@
   "timer.bekreftDag.kort.slaaSammen": "Slå sammen igjen",
   "timer.bekreftDag.kort.utenUnderprosjekt": "Uten",
   "timer.bekreftDag.kort.utenKortMelding": "Denne teksten hører til et kort som ikke finnes lenger. Den lagres ikke på noen sedel.",
-  "timer.bekreftDag.kort.fjernTekst": "Fjern teksten",
   "timer.delvisSendt.tittel": "Noe av økten ble ikke lagret",
   "timer.delvisSendt.melding": "Lagret: {{lagret}}. Ikke lagret: {{blokkert}} — den er alt sendt til attestering. Økten er avsluttet. Åpne sedelen og trykk «Gjenåpne for redigering» for å føre timene der.",
   "timer.bekreftDag.aapneSedel": "Åpne dagsseddelen",

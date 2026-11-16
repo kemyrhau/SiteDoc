@@ -5042,7 +5042,6 @@
   "timer.bekreftDag.kort.slaaSammen": "Slå ihop tillbaka",
   "timer.bekreftDag.kort.utenUnderprosjekt": "Ingen",
   "timer.bekreftDag.kort.utenKortMelding": "Denna text tillhör ett kort som inte längre finns. Det sparas inte på någon tidrapport.",
-  "timer.bekreftDag.kort.fjernTekst": "Ta bort text",
   "timer.delvisSendt.tittel": "Part of the session was not saved",
   "timer.delvisSendt.melding": "Saved: {{lagret}}. Not saved: {{blokkert}} — it has already been submitted for approval. The session has ended. Open the sheet and tap “Reopen for editing” to add the hours there.",
   "timer.bekreftDag.aapneSedel": "Öppna tidrapporten",

@@ -5042,7 +5042,6 @@
   "timer.bekreftDag.kort.slaaSammen": "Yhdistä takaisin",
   "timer.bekreftDag.kort.utenUnderprosjekt": "Ei mitään",
   "timer.bekreftDag.kort.utenKortMelding": "Tämä teksti kuuluu korttiin, jota ei enää ole. Sitä ei tallenneta mihinkään työaikalomakkeeseen.",
-  "timer.bekreftDag.kort.fjernTekst": "Poista teksti",
   "timer.delvisSendt.tittel": "Osa istunnosta ei tallennettu",
   "timer.delvisSendt.melding": "Tallennettu: {{lagret}}. Ei tallennettu: {{blokkert}} — se on jo lähetetty hyväksyttäväksi. Istunto on päättynyt. Avaa taulukko ja lisää aukioloajat napauttamalla \"Avaa uudelleen muokkausta varten\".",
   "timer.bekreftDag.aapneSedel": "Avaa työaikalomake",
