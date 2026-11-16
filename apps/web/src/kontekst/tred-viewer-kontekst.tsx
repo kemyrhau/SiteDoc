@@ -31,7 +31,7 @@ import {
   settWebifcKonstanter,
   finnIfcTypeKode,
 } from "@/app/dashbord/[prosjektId]/3d-visning/hjelpefunksjoner";
-import { panTargetPaaModellDybde } from "@/lib/tredKamera";
+import { flyttLangsBlikk, hjulAvstand, panTargetPaaModellDybde } from "@/lib/tredKamera";
 
 /* ------------------------------------------------------------------ */
 /*  Kontekst-type                                                       */
@@ -394,12 +394,18 @@ export function ViewerCanvas({
             ctrl.setTarget(t.x, t.y, t.z, false);
           }
 
-          // ── Scroll: flytt kamera fremover/bakover ──
-          // Bruker ctrl.forward() som respekterer orbit-kontrollens interne tilstand.
+          // ── Scroll: flytt kamera og target langs blikket (W6) ──
+          // camera-controls' egen hjul-dolly slås av: den kjørte i tillegg til denne
+          // lytteren (dollyToCursor fra OBC). forward() i camera-controls flytter vannrett
+          // (camera.up × høyre), så modellen gled ut av bildet ved innzoom skrått ovenfra.
+          ctrl.mouseButtons.wheel = 0; // ACTION.NONE
           container.addEventListener("wheel", (e: WheelEvent) => {
             e.preventDefault();
-            const steg = -e.deltaY / 100; // positiv = fremover
-            ctrl.forward(steg * 2.5, false);
+            const retning = blikkretning();
+            const t = new THREE.Vector3();
+            ctrl.getTarget(t);
+            const nyttTarget = flyttLangsBlikk(t, retning, hjulAvstand(e.deltaY));
+            ctrl.moveTo(nyttTarget.x, nyttTarget.y, nyttTarget.z, false);
           }, { passive: false });
 
           // ── Høyre/midtre knapp (pan/dolly): legg target på dybden brukeren ser på ──

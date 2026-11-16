@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { panTargetPaaModellDybde, MIN_PAN_DYBDE } from "../tredKamera";
+import { flyttLangsBlikk, hjulAvstand, HJUL_STEG, panTargetPaaModellDybde, MIN_PAN_DYBDE } from "../tredKamera";
 
 /** W4 — pan-target legges på modellens dybde, ikke 2 enheter foran kamera. */
 describe("panTargetPaaModellDybde", () => {
@@ -32,6 +32,39 @@ describe("panTargetPaaModellDybde", () => {
   });
 });
 
+/** W6 — hjul-zoom følger blikket, også loddrett når kameraet ser skrått ned. */
+describe("hjul-zoom langs blikket", () => {
+  // Kamera over og ved siden av modellen, ser 45° ned mot origo
+  const kamera = { x: 0, y: 10, z: 10 };
+  const ned = { x: 0, y: -Math.SQRT1_2, z: -Math.SQRT1_2 };
+
+  it("innzoom skrått ovenfra senker kameraet mot det brukeren ser på", () => {
+    const ny = flyttLangsBlikk(kamera, ned, hjulAvstand(-100));
+    expect(ny.y).toBeLessThan(kamera.y);
+    expect(ny.z).toBeLessThan(kamera.z);
+    // Flyttet nøyaktig ett steg langs blikket
+    const d = Math.hypot(ny.x - kamera.x, ny.y - kamera.y, ny.z - kamera.z);
+    expect(d).toBeCloseTo(HJUL_STEG);
+  });
+
+  it("forflytningen er parallell med blikket (modellpunktet blir liggende midt i bildet)", () => {
+    const ny = flyttLangsBlikk(kamera, ned, 4);
+    // Origo ligger fortsatt på blikklinja fra ny posisjon: (origo - ny) × ned = 0
+    const v = { x: -ny.x, y: -ny.y, z: -ny.z };
+    const kryss = {
+      x: v.y * ned.z - v.z * ned.y,
+      y: v.z * ned.x - v.x * ned.z,
+      z: v.x * ned.y - v.y * ned.x,
+    };
+    expect(Math.hypot(kryss.x, kryss.y, kryss.z)).toBeCloseTo(0);
+  });
+
+  it("hjul ned (positiv deltaY) zoomer ut, hjul opp zoomer inn", () => {
+    expect(hjulAvstand(100)).toBeLessThan(0);
+    expect(hjulAvstand(-100)).toBeGreaterThan(0);
+  });
+});
+
 describe("kobling i tred-viewer-kontekst", () => {
   const kilde = readFileSync(resolve(__dirname, "../../kontekst/tred-viewer-kontekst.tsx"), "utf8");
 
@@ -39,6 +72,12 @@ describe("kobling i tred-viewer-kontekst", () => {
     expect(kilde).toContain("if (e.button === 0) oppdaterTarget();");
     expect(kilde).toContain("else if (e.button === 1 || e.button === 2) settTargetPaaModellDybde();");
     expect(kilde).toContain("panTargetPaaModellDybde(cam.position, blikkretning(), modellSenter)");
+  });
+
+  it("W6: camera-controls' hjul-dolly er av, og hjulet flytter target langs blikket", () => {
+    expect(kilde).toContain("ctrl.mouseButtons.wheel = 0;");
+    expect(kilde).toContain("flyttLangsBlikk(t, retning, hjulAvstand(e.deltaY))");
+    expect(kilde).not.toContain("ctrl.forward(");
   });
 
   it("modellsenteret settes fra samlet bbox når modellene er lastet", () => {

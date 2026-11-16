@@ -36,3 +36,28 @@ export function panTargetPaaModellDybde(kamera: Vec3, retning: Vec3, modellSente
     z: kamera.z + retning.z * dybde,
   };
 }
+
+/**
+ * W6 — hjul-zoom flytter kamera og target langs blikkretningen (også loddrett).
+ *
+ * Før: `ctrl.forward()` i camera-controls flytter langs `camera.up × høyre`, altså
+ * vannrett. Sett skrått ned på modellen gled den da ut av bildet nedover ved innzoom.
+ *
+ * @param retning enhetsvektor for blikkretningen
+ * @param avstand positiv = fremover (inn), negativ = bakover (ut)
+ */
+export function flyttLangsBlikk(punkt: Vec3, retning: Vec3, avstand: number): Vec3 {
+  return {
+    x: punkt.x + retning.x * avstand,
+    y: punkt.y + retning.y * avstand,
+    z: punkt.z + retning.z * avstand,
+  };
+}
+
+/** Steg pr. hjulhakk (scene-enheter pr. 100 deltaY) — samme som før W6. */
+export const HJUL_STEG = 2.5;
+
+/** Hjul-delta → avstand langs blikket; positiv = inn. */
+export function hjulAvstand(deltaY: number): number {
+  return (-deltaY / 100) * HJUL_STEG;
+}
