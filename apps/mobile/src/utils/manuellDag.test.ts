@@ -568,7 +568,9 @@ describe("ORDRE 36c — kildevakter for inngangene", () => {
 
   it("🔴 P4: «+ Nytt prosjektkort» sender kortets dato og låser den", () => {
     const kort = les("../../app/timer/[id]/prosjektkort.tsx");
-    expect(kort).toContain('params: { opprinnelse: "manuell", dato: sedel.dato, laastDato: "1" }');
+    // Ordre c (T12): + `nyttKort: "1"` — alltid nytt kort, også på prosjekt som alt har kort.
+    // Dato og låsing (P4) er uendret.
+    expect(kort).toContain('params: { opprinnelse: "manuell", dato: sedel.dato, laastDato: "1", nyttKort: "1" }');
     expect(kort).not.toContain("ProsjektVelgerModal");
   });
 
