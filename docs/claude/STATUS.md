@@ -12,6 +12,7 @@
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
 **Sist oppdatert:** 2026-11-16
+- 2026-11-17 — **Merge d2b-1 `80f165cf` + 3D-web `470f9d57`** (develop, docs-only, orkestrator): FUNKSJONSENDRINGER + STATUS-AKTUELT + tavla; `3d-agent-prinsipper.md` W1/W2/W4 🟢 + Kenneths feltobservasjon M3. Konflikt-løsning i mergen: d2b-1 er `prosjektkort-kortid-spec.md` § 12.11.
 - 2026-11-16 — **Merge 3D M5 (1) `1dfb6191` + Kenneths 3D-svar** (develop, docs-only, orkestrator): FUNKSJONSENDRINGER + STATUS-AKTUELT + tavla ført; `3d-agent-prinsipper.md` får W6 (drift ved zoom med Snitt), hjelpetekst-vedtak W2, måling-nivå W5, prod-modellens egenskaper M1.
 - 2026-11-16 — **`3d-agent-prinsipper.md`: målinger W1–W5/M1–M6 ført** (develop, docs-only, orkestrator): status 🔵 pr. funn, filkart får `mobil-viewer/page.tsx` (mobilens motor, web-deploy) + de to dashbord-layoutene. Tellinger uendret.
 - 2026-11-16 — **NY fil `3d-agent-prinsipper.md` (+1) + `SAMARBEIDSREGLER.md` § 1/§ /clear-REGELEN C + `CLAUDE.md` + `DOC-MAP.md`** (develop, docs-only, orkestrator): Kenneths bestilling — to 3D-agenter (web, mobil), hard grense mot DWG→DXF-konvertering og DXF-filer, mål først, funnliste W1–W5/M1–M6, filkart.
@@ -19,7 +20,6 @@
 - 2026-11-16 — **Merge (37) sammendraget teller dagssedler med rader**: STATUS-AKTUELT + FUNKSJONSENDRINGER ført.
 - 2026-11-16 — **`prosjektkort-kortid-spec.md` § 12.8.5 + `timer.md`: ORDRE (37) — sammendraget i PDF/Excel teller dagssedler med rader i eksporttabellen** (branch `fix/rapport-sammendrag-sedler`, kode + docs, Kort-id-d2c1): `harRadIEksporttabellen` på eksportveien; skjermen uendret.
 - 2026-11-16 — **`prosjektkort-kortid-spec.md` § 12.10 + `timer.md` + `api.md` + `hjelpetekster.md`: ordre d2c-1 — kobling og sperre ved føring på PC** (branch `feat/kortid-d2c1-kobling`, kode + docs, Kort-id-d2c1): `maskin.tilfoy`/`maskin.oppdater` tar `sheetTimerId` og håndhever R24, `fjernTimerRad` krever bekreftelse som navngir maskinene, `oppdaterTimerRad` avviser reise/0 timer på rad med maskin; nedtrekket «Timerad» og slett-bekreftelse på web. Ingen fil opprettet eller slettet i docs/claude — tellingene er uendret.
-
 - 2026-11-16 — **`prosjektkort-kortid-spec.md` § 12.10 + `timer.md` + `web.md` + `shared-pakker.md` + `hjelpetekster.md`: ordre d2b-1 — attesteringstabellen** (branch `feat/kortid-d2b1-tabell`, kode + docs, Kort-id-c): Sedler-fanen er tabell med dag → prosjektsedler → linjer, dagsumrad, retting i cella, sperrer i Avvik, «Attester utvalget»; rapportens Detaljer på samme `TimerRadTabell`. Ingen fil opprettet/slettet i docs/claude — tellinger uendret.
 - 2026-11-16 — **Merge (36) timerapport-PDF kolonner** (`1bac9f7f`): STATUS-AKTUELT + FUNKSJONSENDRINGER ført.
 - 2026-11-16 — **`timer.md` + `retningslinjer/ui-standarder.md`: TILLEGG (36) — tomme valgte kolonner skjules i timerapport-PDF** (branch `fix/rapport-pdf-kolonner`, kode + docs, Kort-id-c): unntak fra flateparitet skrevet inn; skjerm og Excel uendret (B1); høyrejusterte tall-overskrifter (SVAR (72) A1) dokumentert. Ingen fil opprettet/slettet i docs/claude — tellinger uendret.
