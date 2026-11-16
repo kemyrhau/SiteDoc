@@ -5676,5 +5676,13 @@
   "timer.reiseKort.midlertidigLinje": "Tillfälligt: ​​{{navn}} från {{dato}}",
   "timer.reiseKort.avslutt": "Avsluta",
   "timer.reiseKort.sperre.adminMidlertidig": "En företagsadministratör har angett en tillfällig mötesplats – be en företagsadministratör att ändra den",
-  "firma.ansatte.oppmote.viaOverforing": "via överföring"
+  "firma.ansatte.oppmote.viaOverforing": "via överföring",
+  "timer.bekreftDag.sperre.manglerLonnsart": "En linje har ingen löneart. Tryck på «Välj lönetyp» på raden och välj en.",
+  "timer.bekreftDag.linje": "{{fra}}–{{til}} · {{timer}} h",
+  "timer.bekreftDag.velgLonnsart": "Välj löneart",
+  "timer.bekreftDag.linjeLonnsartHint": "Tryck för att välja lönetyp för den här raden",
+  "timer.bekreftDag.etterNormen": "Bortom normen från {{fra}}",
+  "timer.bekreftDag.lonnsartGruppe.ordinaer": "Vanlig",
+  "timer.bekreftDag.lonnsartGruppe.overtid": "Övertid",
+  "timer.bekreftDag.lonnsartGruppe.fravaer": "Frånvaro"
 }

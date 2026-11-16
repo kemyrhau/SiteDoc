@@ -39,7 +39,8 @@ import { drizzle } from "drizzle-orm/sql-js";
 import { eq } from "drizzle-orm";
 import * as schema from "../db/schema";
 import { kjorMigreringer } from "../db/migreringer";
-import { bekreftDag, forberedBekreftDag, prosjekterMedArbeid } from "./bekreftDag";
+import { bekreftDag, bekreftSperre, forberedBekreftDag, prosjekterMedArbeid } from "./bekreftDag";
+import { velgLinjeLonnsart } from "./linjeLonnsart";
 import { manuellDag, lesManuellGrunnlag, forberedManuellDag } from "./manuellDag";
 import { beregnDagsforslag, vekslOvertidNivaa, type Dagsforslag } from "./dagsforslag";
 import { entydigByggeplass, radTilleggNokkel, type BekreftDagTillegg, type TilleggPerRad } from "./bekreftDagTillegg";
@@ -751,5 +752,183 @@ describe("ORDRE (27b) V5a — overtid av/på med samme knapp (Kenneths kort 19�
 
   it("negativkontroll: dagens trykk (bare nivå-id) fjerner ikke overtiden", () => {
     expect(vis(arbeid({ perDato: { [DATO]: { overtidLonnsartId: L_OT50 } } }))).toEqual([["19:00", "20:00", 1, L_OT50]]);
+  });
+});
+
+// ORDRE 2026-11-16 (28) — spec § 6.1 V1–V7 (a3) og § 10 B8, mot ekte SQLite.
+// Norm 7,5 t fra svar-cachen. Kenneth: «jeg syns det er feil å opprette et
+// prosjektkort først, for så å redigere kortet til å endre lønnsart».
+describe("ORDRE (28) — lønnsart pr. linje før lagring, fravær bruker ikke normen", () => {
+  const L_OT50 = "L-ot50";
+  const L_EGEN = "L-egenmelding";
+  const L_SYK = "L-sykdom";
+  const L_REGNING = "L-regning";
+  const settNorm = () =>
+    db().insert(schema.arbeidstidSvarLocal).values({
+      organizationId: ORG, dato: DATO, dagsnorm: 7.5, startTid: "07:00", sluttTid: "15:00", pauseMin: 30,
+      normKilde: "fast", pauseEtterTimer: 5.5, pauseReferanse: "ankomst", hentetAt: Date.now(),
+    }).run();
+  const arter = (medOvertid = true) => {
+    db().insert(lonnsartLocal).values([
+      ...(medOvertid
+        ? [{ id: L_OT50, organizationId: ORG, type: "ordinaer", navn: "Overtid 50 %", aktiv: true, overtidsnivaa: 50, rekkefolge: 1, sistOppdatert: 1 }]
+        : []),
+      { id: L_REGNING, organizationId: ORG, type: "ordinaer", navn: "Regningsarbeid", aktiv: true, rekkefolge: 2, sistOppdatert: 1 },
+      { id: L_EGEN, organizationId: ORG, type: "fravaer", navn: "Egenmelding", aktiv: true, rekkefolge: 3, sistOppdatert: 1 },
+      { id: L_SYK, organizationId: ORG, type: "fravaer", navn: "Sykdom", aktiv: true, rekkefolge: 4, sistOppdatert: 1 },
+    ]).run();
+  };
+  const sedelMed = (rader: Array<{ id: string; timer: number; fra: string; til: string; lonnsart?: string; pause?: number }>) => {
+    db().insert(dagsseddelLocal).values({
+      id: "sedel1", userId: BRUKER, organizationId: ORG, projectId: "p1", aktivitetId: "a1",
+      dato: DATO, status: "draft", pauseMin: 30, sistEndretLokalt: 1,
+    }).run();
+    for (const r of rader) {
+      db().insert(sheetTimerLocal).values({
+        id: r.id, dagsseddelId: "sedel1", projectId: "p1", lonnsartId: r.lonnsart ?? "L-normal", aktivitetId: "a1",
+        timer: r.timer, fraTid: r.fra, tilTid: r.til, pauseMin: r.pause ?? 0, erReise: false,
+        beskrivelse: "Graving", sistEndretLokalt: 1,
+      }).run();
+    }
+  };
+  const forslag = (retting?: Parameters<typeof forberedManuellDag>[2]) =>
+    forberedManuellDag(lokalDb(), manuellKontekst(), retting).forslag;
+  const arbeid = (retting?: Parameters<typeof forberedManuellDag>[2]) =>
+    forslag(retting).datoer[0]!.rader.filter((r) => !r.erReise);
+  const vis = (r: Array<{ fraTid: string | null; tilTid: string | null; timer: number; lonnsartId: string }>) =>
+    r.map((x) => [x.fraTid, x.tilTid, x.timer, x.lonnsartId]);
+  const nye = () => rader().filter((r) => !r.id.startsWith("rad")).sort((a, b) => a.fraTid!.localeCompare(b.fraTid!));
+  const egenmelding = { id: L_EGEN, navn: "Egenmelding", type: "fravaer", overtidsnivaa: null, aktiv: true, rekkefolge: 3 };
+  const sykdom = { ...egenmelding, id: L_SYK, navn: "Sykdom" };
+  const regning = { id: L_REGNING, navn: "Regningsarbeid", type: "ordinaer", overtidsnivaa: null, aktiv: true, rekkefolge: 2 };
+  const timelonn = { id: "L-normal", navn: "Normaltid", type: "ordinaer", overtidsnivaa: null, aktiv: true, rekkefolge: 0 };
+
+  beforeEach(() => {
+    holder.raw.run("DELETE FROM arbeidstid_svar_local;");
+  });
+
+  it("🔴 Kenneths flyt: «+» → nytt kort 08–15 → «Egenmelding» på linja → lagret med fravær-art, uten rad-vinduet", () => {
+    settNorm();
+    arter();
+    const tider = { arbeidFra: "08:00", arbeidTil: "15:00" };
+    const linje = arbeid({ perDato: { [DATO]: tider } });
+    expect(vis(linje)).toEqual([["08:00", "15:00", 6.5, "L-normal"]]);
+    expect(linje[0]!.linje).toBe("normal");
+    const valg = velgLinjeLonnsart({
+      linje: "normal", art: egenmelding, rettDato: tider, naboArtId: null, overtidFra: null, arbeidFra: "08:00",
+    });
+    const retting = { perDato: { [DATO]: { ...tider, ...valg } } };
+    expect(vis(arbeid(retting))).toEqual([["08:00", "15:00", 6.5, L_EGEN]]);
+    expect(lagreManuelt(retting).handling.type).toBe("suksess");
+    expect(nye().map((r) => [r.fraTid, r.tilTid, r.timer, r.lonnsartId])).toEqual([["08:00", "15:00", 6.5, L_EGEN]]);
+  });
+
+  it("negativkontroll: uten valg på linja lagres standardarten (dagens oppførsel)", () => {
+    settNorm();
+    arter();
+    lagreManuelt({ perDato: { [DATO]: { arbeidFra: "08:00", arbeidTil: "15:00" } } });
+    expect(nye().map((r) => r.lonnsartId)).toEqual(["L-normal"]);
+  });
+
+  it("🔴 T17: annen ordinær art på normaldelen lagres; ordinær art etter normen lagres som ordinær", () => {
+    settNorm();
+    arter();
+    sedelMed([{ id: "rad1", timer: 6, fra: "07:00", til: "13:30", pause: 30 }]);
+    const tider = { arbeidFra: "13:30", arbeidTil: "16:00" };
+    expect(vis(arbeid({ perDato: { [DATO]: tider } }))).toEqual([
+      ["13:30", "15:00", 1.5, "L-normal"],
+      ["15:00", "16:00", 1, L_OT50],
+    ]);
+    const retting = { perDato: { [DATO]: { ...tider, lonnsartPerLinje: { normal: L_REGNING, overtid: "L-normal" } } } };
+    expect(lagreManuelt(retting).handling.type).toBe("suksess");
+    expect(nye().map((r) => [r.fraTid, r.tilTid, r.timer, r.lonnsartId])).toEqual([
+      ["13:30", "15:00", 1.5, L_REGNING],
+      ["15:00", "16:00", 1, "L-normal"],
+    ]);
+  });
+
+  it("🔴 T17/V6: samme art på begge linjer → én linje", () => {
+    settNorm();
+    arter();
+    sedelMed([{ id: "rad1", timer: 6, fra: "07:00", til: "13:30", pause: 30 }]);
+    const tider = { arbeidFra: "13:30", arbeidTil: "16:00" };
+    const ot = arbeid({ perDato: { [DATO]: tider } })[1]!;
+    const valg = velgLinjeLonnsart({
+      linje: "overtid", art: timelonn, rettDato: tider, naboArtId: "L-normal", overtidFra: ot.fraTid, arbeidFra: "13:30",
+    });
+    expect(vis(arbeid({ perDato: { [DATO]: { ...tider, ...valg } } }))).toEqual([["13:30", "16:00", 2.5, "L-normal"]]);
+  });
+
+  it("🔴 T17: regningsart på normaldelen og samme art etter normen → én regningslinje", () => {
+    settNorm();
+    arter();
+    sedelMed([{ id: "rad1", timer: 6, fra: "07:00", til: "13:30", pause: 30 }]);
+    const tider = { arbeidFra: "13:30", arbeidTil: "16:00", lonnsartPerLinje: { normal: L_REGNING } };
+    const ot = arbeid({ perDato: { [DATO]: tider } })[1]!;
+    const valg = velgLinjeLonnsart({
+      linje: "overtid", art: regning, rettDato: tider, naboArtId: L_REGNING, overtidFra: ot.fraTid, arbeidFra: "13:30",
+    });
+    expect(vis(arbeid({ perDato: { [DATO]: { ...tider, ...valg } } }))).toEqual([["13:30", "16:00", 2.5, L_REGNING]]);
+  });
+
+  it("🔴 T19: firma uten overtidsart — linja etter normen vises «Velg lønnsart», sperrer, og lagres etter valg", () => {
+    settNorm();
+    arter(false);
+    seedSedel();
+    const f = forslag();
+    const dag = f.datoer[0]!;
+    expect(dag.rader.filter((r) => !r.erReise)).toEqual([]);
+    expect(dag.raderDroppetUtenLonnsart).toBe(1);
+    expect(dag.linjerUtenLonnsart).toEqual([{ linje: "overtid", fraTid: "15:00", tilTid: "16:00", timer: 1 }]);
+    const grunn = {
+      harDb: true, harBeregnet: true, harBruker: true, manuell: true, harArbeidsdagId: false,
+      manglerProsjekt: false, sluttIkkeGodkjent: false,
+    };
+    expect(bekreftSperre({ ...grunn, manglerLonnsart: (dag.linjerUtenLonnsart?.length ?? 0) > 0 })).toBe("manglerLonnsart");
+    const valg = velgLinjeLonnsart({
+      linje: "overtid", art: timelonn, rettDato: undefined, naboArtId: null, overtidFra: "15:00", arbeidFra: "15:00",
+    });
+    const etter = forslag({ perDato: { [DATO]: valg } }).datoer[0]!;
+    expect(etter.linjerUtenLonnsart).toBeUndefined();
+    expect(lagreManuelt({ perDato: { [DATO]: valg } }).handling.type).toBe("suksess");
+    expect(nye().map((r) => [r.fraTid, r.tilTid, r.timer, r.lonnsartId])).toEqual([["15:00", "16:00", 1, "L-normal"]]);
+  });
+
+  it("🔴 B8: 7,5 t fravær + manuelt 2 t → 2 t normaltid", () => {
+    settNorm();
+    arter();
+    sedelMed([{ id: "rad1", timer: 7.5, fra: "07:00", til: "15:00", lonnsart: L_EGEN, pause: 30 }]);
+    expect(lesManuellGrunnlag(lokalDb(), BRUKER, DATO)!.bruktAvNorm).toBe(0);
+    expect(vis(arbeid({ perDato: { [DATO]: { arbeidFra: "15:00", arbeidTil: "17:00" } } }))).toEqual([
+      ["15:00", "17:00", 2, "L-normal"],
+    ]);
+  });
+
+  it("🔴 B8: 3 t arbeid + 4,5 t sykdom lagres begge, ingen sperre", () => {
+    settNorm();
+    arter();
+    sedelMed([{ id: "rad1", timer: 3, fra: "07:00", til: "10:00" }]);
+    const tider = { arbeidFra: "10:00", arbeidTil: "14:30" };
+    const valg = velgLinjeLonnsart({
+      linje: "normal", art: sykdom, rettDato: tider, naboArtId: null, overtidFra: null, arbeidFra: "10:00",
+    });
+    const retting = { perDato: { [DATO]: { ...tider, ...valg } } };
+    const dag = forslag(retting).datoer[0]!;
+    expect(dag.kjedeKonflikt ?? null).toBeNull();
+    expect(dag.linjerUtenLonnsart).toBeUndefined();
+    expect(lagreManuelt(retting).handling.type).toBe("suksess");
+    expect(rader().sort((a, b) => a.fraTid!.localeCompare(b.fraTid!)).map((r) => [r.timer, r.lonnsartId])).toEqual([
+      [3, "L-normal"],
+      [4.5, L_SYK],
+    ]);
+  });
+
+  it("🔴 ukjent eller fremmed art i linjevalget faller tilbake til forhåndsvalget", () => {
+    settNorm();
+    arter();
+    const tider = { arbeidFra: "08:00", arbeidTil: "10:00" };
+    expect(vis(arbeid({ perDato: { [DATO]: { ...tider, lonnsartPerLinje: { normal: "fremmed" } } } }))).toEqual([
+      ["08:00", "10:00", 2, "L-normal"],
+    ]);
   });
 });

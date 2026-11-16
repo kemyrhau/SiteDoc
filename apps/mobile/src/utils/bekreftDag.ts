@@ -404,7 +404,8 @@ export type BekreftSperre =
   | "dagLukket"
   | "manglerProsjekt"
   | "sluttIkkeGodkjent"
-  | "kjedeKonflikt";
+  | "kjedeKonflikt"
+  | "manglerLonnsart";
 
 export function bekreftSperre(a: {
   harDb: boolean;
@@ -417,6 +418,8 @@ export function bekreftSperre(a: {
   sluttIkkeGodkjent: boolean;
   /** Ordre (17) punkt 2: reisekjeden overlapper eller går over midnatt. */
   kjedeKonflikt?: boolean;
+  /** ORDRE (28) V2/T19: en linje står med «Velg lønnsart» — aldri stille droppet. */
+  manglerLonnsart?: boolean;
 }): BekreftSperre | null {
   if (!a.harDb) return "ikkeKlar";
   if (!a.harBruker) return "ikkeInnlogget";
@@ -425,6 +428,7 @@ export function bekreftSperre(a: {
   if (a.manglerProsjekt) return "manglerProsjekt";
   if (a.sluttIkkeGodkjent) return "sluttIkkeGodkjent";
   if (a.kjedeKonflikt) return "kjedeKonflikt";
+  if (a.manglerLonnsart) return "manglerLonnsart";
   return null;
 }
 

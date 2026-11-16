@@ -5676,5 +5676,13 @@
   "timer.reiseKort.midlertidigLinje": "Laikinas: {{navn}} nuo {{dato}}",
   "timer.reiseKort.avslutt": "Pabaiga",
   "timer.reiseKort.sperre.adminMidlertidig": "Įmonės administratorius nustatė laikiną susitikimo vietą – paprašykite įmonės administratoriaus jį pakeisti",
-  "firma.ansatte.oppmote.viaOverforing": "per pavedimą"
+  "firma.ansatte.oppmote.viaOverforing": "per pavedimą",
+  "timer.bekreftDag.sperre.manglerLonnsart": "Eilutė neturi darbo užmokesčio tipo. Eilutėje bakstelėkite „Pasirinkti darbo užmokesčio tipą“ ir pasirinkite vieną.",
+  "timer.bekreftDag.linje": "{{fra}}–{{til}} · {{timer}} val",
+  "timer.bekreftDag.velgLonnsart": "Pasirinkite darbo užmokesčio tipą",
+  "timer.bekreftDag.linjeLonnsartHint": "Bakstelėkite, kad pasirinktumėte šios eilutės darbo užmokesčio tipą",
+  "timer.bekreftDag.etterNormen": "Daugiau nei įprasta nuo {{fra}}",
+  "timer.bekreftDag.lonnsartGruppe.ordinaer": "Įprasta",
+  "timer.bekreftDag.lonnsartGruppe.overtid": "Viršvalandžiai",
+  "timer.bekreftDag.lonnsartGruppe.fravaer": "Nebuvimas"
 }

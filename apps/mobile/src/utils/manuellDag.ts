@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { hhmmTilMin } from "@sitedoc/shared";
-import { dagsseddelLocal, sheetTimerLocal } from "../db/schema";
+import { dagsseddelLocal, lonnsartLocal, sheetTimerLocal } from "../db/schema";
 import { samleDagsforslagInput, type LokalDb } from "../services/dagsforslagInput";
 import { hentArbeidsdagTiderLokalt } from "../services/kalenderKatalog";
 import { hentReiseLonnsartId } from "../services/timerKatalog";
@@ -30,7 +30,7 @@ import {
 export type ManuellGrunnlag = {
   tilTider: (string | null)[];
   hodePauseMin: number;
-  /** ORDRE (27b) L1: arbeid som alt står på datoen (alle kort, også overtid; ikke reise). */
+  /** ORDRE (27b) L1: arbeid som alt står på datoen (alle kort, også overtid; ikke reise, ikke fravær — B8). */
   bruktAvNorm: number;
 };
 
@@ -85,6 +85,16 @@ export function lesManuellGrunnlag(
     .from(sheetTimerLocal)
     .where(eq(sheetTimerLocal.dagsseddelId, sedel.id))
     .all();
+  // ORDRE (28) B8: fravær bruker ikke normen. Lønnsart-id er global, så typen
+  // slås opp uten firmafilter.
+  const fravaerIder = new Set(
+    db
+      .select({ id: lonnsartLocal.id })
+      .from(lonnsartLocal)
+      .where(eq(lonnsartLocal.type, "fravaer"))
+      .all()
+      .map((l) => l.id),
+  );
   return {
     tilTider: rader.map((r) => r.tilTid),
     hodePauseMin: sedel.pauseMin ?? 0,
@@ -92,6 +102,7 @@ export function lesManuellGrunnlag(
       rader.map((r) => ({
         timer: r.timer,
         erReise: erReiseRadVisning(r.erReise, r.lonnsartId, reiseLonnsartId),
+        erFravaer: r.lonnsartId != null && fravaerIder.has(r.lonnsartId),
       })),
     ),
   };

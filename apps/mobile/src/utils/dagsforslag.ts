@@ -267,6 +267,13 @@ export type DagsforslagEksisterendeSedel = {
   bruktAvNorm?: number;
 };
 
+/**
+ * ORDRE (28), spec § 6.1 V1/V7: arbeidslinjene i et kort — normaltid (opp til
+ * normen) og overtid (etter normen / etter «Overtid fra»). Linjen er nøkkelen
+ * arbeiderens lønnsartvalg huskes på (`DagsforslagRettingDato.lonnsartPerLinje`).
+ */
+export type ArbeidLinje = "normal" | "overtid";
+
 /** Én foreslått timer-rad (uten id/sedel — fylles av `anvendDagsforslag`). */
 export type DagsforslagRad = {
   projectId: string;
@@ -297,6 +304,11 @@ export type DagsforslagRad = {
    * rettes. Utelatt på reise-rader.
    */
   radIndeks?: number;
+  /**
+   * ORDRE (28) V1: arbeidslinjen raden hører til. Satt på arbeidsrader fra
+   * `beregnSegment`; utelatt på reise-rader. Lagres ikke.
+   */
+  linje?: ArbeidLinje;
   /**
    * POST (13) L2 TILLEGG: overføringsrad (første/siste dag i en periode).
    * Kun UI-markør — Bekreft dag viser den som «Overføring {fra} → {til}» og
@@ -360,9 +372,23 @@ export type DagsforslagDag = {
   vekForOverlapp: Array<{ fraTid: string; tilTid: string }>;
   /** Arbeidsrader som ble hoppet over fordi lønnsarten manglet (aldri gjettet). */
   raderDroppetUtenLonnsart: number;
+  /**
+   * ORDRE (28) V2/T19: de samme linjene, med tid — Bekreft dag viser dem med
+   * amber «Velg lønnsart» og sperrer lagring til arbeideren har valgt. Tellingen
+   * over står for Slutt dag-meldingen. Utelatt = ingen.
+   */
+  linjerUtenLonnsart?: DagsforslagLinjeUtenLonnsart[];
   rader: DagsforslagRad[];
   /** Ordre (17) punkt 2: satt → Bekreft sperres med begrunnelse. */
   kjedeKonflikt?: DagsforslagKjedeKonflikt | null;
+};
+
+/** ORDRE (28) V2: en arbeidslinje uten lønnsart (firmaet mangler arten). */
+export type DagsforslagLinjeUtenLonnsart = {
+  linje: ArbeidLinje;
+  fraTid: string;
+  tilTid: string;
+  timer: number;
 };
 
 /** Hele forslaget — én dag normalt, flere ved midnatt-splitt. */
@@ -540,6 +566,14 @@ export type DagsforslagRettingDato = {
    * trykk på et nivå legger overtiden tilbake der den var.
    */
   overtidAv?: boolean;
+  /**
+   * ORDRE (28), spec § 6.1 V7: lønnsarten arbeideren har valgt pr. linje.
+   * Vinner over forhåndsvalget (standardart / overtidsart). Overtidsarter på
+   * overtidslinja føres i `overtidLonnsartId` (samme valg som nivå-chipsene,
+   * V5) — her står ordinære og fravær-arter. Forsvinner linja, ryddes valget
+   * (`ryddLonnsartPerLinje`). Utelatt = forhåndsvalget.
+   */
+  lonnsartPerLinje?: Partial<Record<ArbeidLinje, string>>;
   /** POST (13) L2: overføringsrader arbeideren har fjernet for datoen. */
   fjernOverforing?: Array<"ut" | "retur">;
   /**
@@ -809,6 +843,21 @@ export function godtattOvertidLonnsart(
   if (!id) return null;
   const l = lonnsarter.find((x) => x.id === id);
   return l && l.aktiv && l.overtidsnivaa != null ? l : null;
+}
+
+/**
+ * ORDRE (28) V4-⚠️: lønnsart arbeideren kan velge på en linje — aktiv, i
+ * firmaets katalog (`alleLonnsarter` er firmafiltrert), type ordinær eller
+ * fravær. Annet (ukjent id, feriepenger, diett) faller tilbake til
+ * forhåndsvalget. Reise-arter siles i velgeren (`lonnsarterForLinje`).
+ */
+export function godtattLinjeLonnsart(
+  lonnsarter: DagsforslagLonnsart[],
+  id: string | null | undefined,
+): DagsforslagLonnsart | null {
+  if (!id) return null;
+  const l = lonnsarter.find((x) => x.id === id);
+  return l && l.aktiv && (l.type === "ordinaer" || l.type === "fravaer") ? l : null;
 }
 
 /** Delmengden av `DagsforslagRegel` som `klassifiserReise` trenger. */
@@ -1304,6 +1353,7 @@ function beregnDagsforslagKjerne(input: BeregnDagsforslagInput): Dagsforslag {
       overtidFra: rettDato?.overtidFra ?? null,
       overtidLonnsartId: rettDato?.overtidLonnsartId ?? null,
       overtidAv: rettDato?.overtidAv === true,
+      lonnsartPerLinje: rettDato?.lonnsartPerLinje,
       utReise: segUt,
       returReise: segRetur,
       tidsrundingMinutter: regel?.tidsrundingMinutter ?? null,
@@ -1586,6 +1636,8 @@ function beregnSegment(a: {
   overtidLonnsartId: string | null;
   /** ORDRE (27b) V5a: overtiden slått av — alt arbeid er normaltid. */
   overtidAv?: boolean;
+  /** ORDRE (28) V7: arbeiderens lønnsart pr. linje. */
+  lonnsartPerLinje?: Partial<Record<ArbeidLinje, string>>;
   /** Ut-reise (reisetid) på start-segmentet — forskyver arbeidsstart + egen rad. null ellers. */
   utReise: ReiseRadResolvert | null;
   /** Retur-reise (reisetid) på slutt-segmentet — forskyver arbeidsslutt + egen rad. null ellers. */
@@ -1660,6 +1712,7 @@ function beregnSegment(a: {
   const rader: DagsforslagRad[] = [];
   const vekForOverlapp: Array<{ fraTid: string; tilTid: string }> = [];
   let raderDroppetUtenLonnsart = 0;
+  const linjerUtenLonnsart: DagsforslagLinjeUtenLonnsart[] = [];
   const eksisterendeTidsrom = eksisterende.eksisterendeRader;
 
   // Auto-fordeling normaltid/overtid (per dag). Overtid velges strukturert på
@@ -1707,18 +1760,24 @@ function beregnSegment(a: {
     });
     const valgtOvertid = godtattOvertidLonnsart(a.alleLonnsarter, a.overtidLonnsartId);
     for (const [radIndeks, vindu] of carvet.entries()) {
-      // Normaltid (overtidsnivaa=null) → firmaets standard-lønnsart.
-      // Overtid → velg strukturert på overtidsnivaa (type=ordinaer, aktiv).
+      const linje: ArbeidLinje = vindu.overtidsnivaa === null ? "normal" : "overtid";
+      // ORDRE (28) V7: arbeiderens valg på linja vinner over forhåndsvalget.
+      // Forhåndsvalg (V2): normaltid (overtidsnivaa=null) → firmaets
+      // standard-lønnsart; overtid → velg strukturert på overtidsnivaa.
+      const linjeValg = godtattLinjeLonnsart(a.alleLonnsarter, a.lonnsartPerLinje?.[linje]);
       const lonnsartId =
-        vindu.overtidsnivaa === null
+        linjeValg?.id ??
+        (vindu.overtidsnivaa === null
           ? a.standardLonnsartId
           : (valgtOvertid?.id ??
             velgOvertidLonnsart(a.alleLonnsarter, vindu.overtidsnivaa)?.id ??
-            null);
+            null));
       // ③a/③b: aldri feil-match, aldri stille drop — uten treff hoppes raden over.
-      // Telles, så Slutt dag kan si «mangler lønnsart» i stedet for «for kort».
+      // Telles, så Slutt dag kan si «mangler lønnsart» i stedet for «for kort»;
+      // ORDRE (28) V2: linja vises i Bekreft dag med «Velg lønnsart».
       if (!lonnsartId) {
         raderDroppetUtenLonnsart++;
+        linjerUtenLonnsart.push({ linje, fraTid: vindu.fraTid, tilTid: vindu.tilTid, timer: vindu.timer });
         continue;
       }
       // 1b: play viker for overlappende manuell rad. Berøring i endepunkt teller
@@ -1756,6 +1815,7 @@ function beregnSegment(a: {
         reiseRegel: null,
         tidKilde: null,
         radIndeks,
+        linje,
       });
     }
   }
@@ -1805,7 +1865,13 @@ function beregnSegment(a: {
     });
   }
 
-  return { ...base, vekForOverlapp, raderDroppetUtenLonnsart, rader };
+  return {
+    ...base,
+    vekForOverlapp,
+    raderDroppetUtenLonnsart,
+    ...(linjerUtenLonnsart.length > 0 ? { linjerUtenLonnsart } : {}),
+    rader,
+  };
 }
 
 /** Utfallet av å anvende forslaget (returneres av `anvendDagsforslag`). */

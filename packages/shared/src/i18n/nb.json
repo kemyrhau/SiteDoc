@@ -5676,5 +5676,13 @@
   "timer.reiseKort.midlertidigLinje": "Midlertidig: {{navn}} fra {{dato}}",
   "timer.reiseKort.avslutt": "Avslutt",
   "timer.reiseKort.sperre.adminMidlertidig": "Firmaadmin har satt et midlertidig oppmøtested — be firmaadmin endre det",
-  "firma.ansatte.oppmote.viaOverforing": "via overføring"
+  "firma.ansatte.oppmote.viaOverforing": "via overføring",
+  "timer.bekreftDag.sperre.manglerLonnsart": "En linje mangler lønnsart. Trykk «Velg lønnsart» på linja og velg.",
+  "timer.bekreftDag.linje": "{{fra}}–{{til}} · {{timer}} t",
+  "timer.bekreftDag.velgLonnsart": "Velg lønnsart",
+  "timer.bekreftDag.linjeLonnsartHint": "Trykk for å velge lønnsart for denne linja",
+  "timer.bekreftDag.etterNormen": "Etter normen fra {{fra}}",
+  "timer.bekreftDag.lonnsartGruppe.ordinaer": "Ordinær",
+  "timer.bekreftDag.lonnsartGruppe.overtid": "Overtid",
+  "timer.bekreftDag.lonnsartGruppe.fravaer": "Fravær"
 }

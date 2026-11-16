@@ -448,6 +448,7 @@ export function SplittRadModal(props: Props) {
                   key={del.key}
                   del={del}
                   indeks={i}
+                  organizationId={props.organizationId}
                   projectId={projectId}
                   kanSlett={i > 0}
                   onChange={(felt) => oppdaterTimer(del.key, felt)}
@@ -562,6 +563,7 @@ function DelHeader({
 function TimerDelRad({
   del,
   indeks,
+  organizationId,
   projectId,
   kanSlett,
   onChange,
@@ -569,6 +571,8 @@ function TimerDelRad({
 }: {
   del: TimerDel;
   indeks: number;
+  /** ORDRE (28) F-L2: velgeren viser bare innlogget firmas arter. */
+  organizationId: string;
   projectId: string;
   kanSlett: boolean;
   onChange: (felt: Partial<TimerDel>) => void;
@@ -669,6 +673,7 @@ function TimerDelRad({
       {visLonnsart && (
         <LonnsartVelgerModal
           valgtId={del.lonnsartId}
+          organizationId={organizationId}
           onVelg={(id) => {
             onChange({ lonnsartId: id });
             setVisLonnsart(false);

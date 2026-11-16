@@ -71,6 +71,11 @@ import { hentOrganizationSettingLokalt } from "../../services/organizationSettin
 import { erReiseRadVisning } from "../../utils/reiseRad";
 import { radManglerBeskrivelse } from "../../utils/dagsoversiktRader";
 import { nyRadTider } from "../../utils/nyRadTider";
+import {
+  filtrerVelgerLonnsarter,
+  forhaandsvalgNyRad,
+  grupperLinjeLonnsarter,
+} from "../../utils/linjeLonnsart";
 import type {
   TimerRad,
   Lonnsart,
@@ -1223,8 +1228,29 @@ export function TimerRadModal({
         aktivitetId: sisteRad?.aktivitetId ?? defaultAktivitetId ?? "",
       };
     }
+    const forrigeValg = sisteRad?.lonnsartId ?? firmaDefaultLonnsartId;
+    // ORDRE (28) V8/T20: ny rad i prosjektkortet — er normen alt brukt av
+    // datoens arbeid (ikke reise, ikke fravær), forhåndsvelges overtidsarten.
+    // Dagskort-modus (kortModus false) er urørt.
+    if (kortModus) {
+      const katalog = hentLonnsarterLokalt(organizationId);
+      const reiseId = hentReiseLonnsartId(organizationId);
+      return {
+        lonnsartId: forhaandsvalgNyRad({
+          dagsnorm: dagsnormTimer,
+          rader: alleTimerRader.map((r) => ({
+            timer: r.timer,
+            erReise: erReiseRadVisning(r.erReise ?? null, r.lonnsartId, reiseId),
+            erFravaer: katalog.find((l) => l.id === r.lonnsartId)?.type === "fravaer",
+          })),
+          katalog,
+          standardId: forrigeValg,
+        }),
+        aktivitetId: sisteRad?.aktivitetId ?? defaultAktivitetId ?? "",
+      };
+    }
     return {
-      lonnsartId: sisteRad?.lonnsartId ?? firmaDefaultLonnsartId,
+      lonnsartId: forrigeValg,
       aktivitetId: sisteRad?.aktivitetId ?? defaultAktivitetId ?? "",
     };
     // opprettelse leses kun ved åpning (initialverdi); prosjektbytte håndteres i onVelg.
@@ -2215,6 +2241,7 @@ export function TimerRadModal({
         {visLonnsartVelger && (
           <LonnsartVelgerModal
             valgtId={valgtLonnsartId}
+            organizationId={organizationId}
             onVelg={(id) => {
               setValgtLonnsartId(id);
               setVisLonnsartVelger(false);
@@ -2303,12 +2330,19 @@ export function TimerRadModal({
 
 // P2 (arbeider-splitt): eksportert for gjenbruk i SplittRadModal (samme
 // lønnsart-velger som TimerRadModal).
+// ORDRE (28) F-L2: `organizationId` → bare innlogget firmas aktive arter.
+// V3: Bekreft dag sender `kandidatIder` (linjas aktuelle arter) og får lista
+// gruppert Ordinær · Overtid · Fravær. Uten dem: alle typer som før.
 export function LonnsartVelgerModal({
   valgtId,
+  organizationId,
+  kandidatIder,
   onVelg,
   onLukk,
 }: {
   valgtId: string;
+  organizationId?: string;
+  kandidatIder?: readonly string[];
   onVelg: (id: string) => void;
   onLukk: () => void;
 }) {
@@ -2318,12 +2352,14 @@ export function LonnsartVelgerModal({
   const lonnsarter = useMemo<Lonnsart[]>(() => {
     const db = hentDatabase();
     if (!db) return [];
-    return db
-      .select()
-      .from(lonnsartLocal)
-      .where(eq(lonnsartLocal.aktiv, true))
-      .all();
-  }, []);
+    const aktive = filtrerVelgerLonnsarter(
+      db.select().from(lonnsartLocal).where(eq(lonnsartLocal.aktiv, true)).all(),
+      organizationId,
+    );
+    if (!kandidatIder) return aktive;
+    const tillatt = new Set(kandidatIder);
+    return aktive.filter((l) => tillatt.has(l.id)).sort((a, b) => a.rekkefolge - b.rekkefolge);
+  }, [organizationId, kandidatIder]);
 
   const filtrert = useMemo(() => {
     if (!sok.trim()) return lonnsarter;
@@ -2334,6 +2370,16 @@ export function LonnsartVelgerModal({
         (l.kode ?? "").toLowerCase().includes(q),
     );
   }, [lonnsarter, sok]);
+
+  // V3: grupperte rader med overskrift når Bekreft dag har avgrenset utvalget.
+  type Element = { slag: "gruppe"; id: string; gruppe: string } | { slag: "art"; id: string; art: Lonnsart };
+  const elementer = useMemo<Element[]>(() => {
+    if (!kandidatIder) return filtrert.map((art) => ({ slag: "art", id: art.id, art }));
+    return grupperLinjeLonnsarter(filtrert).flatMap((g) => [
+      { slag: "gruppe" as const, id: `gruppe-${g.gruppe}`, gruppe: g.gruppe },
+      ...g.arter.map((art) => ({ slag: "art" as const, id: art.id, art })),
+    ]);
+  }, [filtrert, kandidatIder]);
 
   return (
     <Modal
@@ -2362,26 +2408,32 @@ export function LonnsartVelgerModal({
           </View>
         )}
         <FlatList
-          data={filtrert}
+          data={elementer}
           keyExtractor={(item) => item.id}
           automaticallyAdjustKeyboardInsets
           keyboardShouldPersistTaps="handled"
-          renderItem={({ item }) => (
+          renderItem={({ item }) =>
+            item.slag === "gruppe" ? (
+              <Text className="bg-gray-50 px-4 pb-1 pt-3 text-xs font-semibold uppercase text-gray-500">
+                {t(`timer.bekreftDag.lonnsartGruppe.${item.gruppe}`)}
+              </Text>
+            ) : (
             <Pressable
-              onPress={() => onVelg(item.id)}
+              onPress={() => onVelg(item.art.id)}
               className={`flex-row items-center border-b border-gray-100 px-4 py-3 ${
-                item.id === valgtId ? "bg-blue-50" : ""
+                item.art.id === valgtId ? "bg-blue-50" : ""
               }`}
             >
               <View className="flex-1">
-                <Text className="text-base text-gray-900">{item.navn}</Text>
+                <Text className="text-base text-gray-900">{item.art.navn}</Text>
                 <Text className="text-xs text-gray-500">
-                  {[item.kode, item.type].filter(Boolean).join(" · ")}
+                  {[item.art.kode, item.art.type].filter(Boolean).join(" · ")}
                 </Text>
               </View>
-              {item.id === valgtId && <Check size={18} color="#1e40af" />}
+              {item.art.id === valgtId && <Check size={18} color="#1e40af" />}
             </Pressable>
-          )}
+            )
+          }
           ListEmptyComponent={() => (
             <View className="px-4 py-8">
               <Text className="text-center text-gray-500">

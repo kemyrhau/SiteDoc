@@ -22,15 +22,21 @@ export type DognRad = {
   erReise: boolean;
   /** Lokale rader bærer ikke status; serverrader kan være `erstattet`. */
   attestertStatus?: string | null;
+  /**
+   * ORDRE (28) B8 (Kenneth 2026-11-16): raden står på en fravær-art
+   * (`type = 'fravaer'`). Fravær bruker ikke normen — arbeid etter fravær er
+   * vanlig arbeidstid, ikke overtid. Udefinert = arbeid (som før).
+   */
+  erFravaer?: boolean;
 };
 
 /**
- * L1: timer som alt bruker av normen — alle kort, også overtidsrader. Reise og
- * `erstattet` teller ikke.
+ * L1: timer som alt bruker av normen — alle kort, også overtidsrader. Reise,
+ * `erstattet` og fravær (B8) teller ikke.
  */
 export function bruktAvNorm(rader: readonly DognRad[]): number {
   const sum = rader
-    .filter((r) => !r.erReise && r.attestertStatus !== "erstattet")
+    .filter((r) => !r.erReise && !r.erFravaer && r.attestertStatus !== "erstattet")
     .reduce((s, r) => s + (Number.isFinite(r.timer) ? r.timer : 0), 0);
   return Math.round(sum * 100) / 100;
 }

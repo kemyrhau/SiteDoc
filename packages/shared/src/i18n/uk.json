@@ -5676,5 +5676,13 @@
   "timer.reiseKort.midlertidigLinje": "Тимчасово: {{navn}} від {{dato}}",
   "timer.reiseKort.avslutt": "Кінець",
   "timer.reiseKort.sperre.adminMidlertidig": "Адміністратор компанії встановив тимчасове місце зустрічі — попросіть адміністратора компанії змінити його",
-  "firma.ansatte.oppmote.viaOverforing": "через трансфер"
+  "firma.ansatte.oppmote.viaOverforing": "через трансфер",
+  "timer.bekreftDag.sperre.manglerLonnsart": "Рядок не має типу оплати. У рядку натисніть «Вибрати тип оплати праці» та виберіть один.",
+  "timer.bekreftDag.linje": "{{fra}}–{{til}} · {{timer}} год",
+  "timer.bekreftDag.velgLonnsart": "Виберіть вид заробітної плати",
+  "timer.bekreftDag.linjeLonnsartHint": "Натисніть, щоб вибрати тип оплати для цього рядка",
+  "timer.bekreftDag.etterNormen": "Понад норму від {{fra}}",
+  "timer.bekreftDag.lonnsartGruppe.ordinaer": "Звичайний",
+  "timer.bekreftDag.lonnsartGruppe.overtid": "Понаднормова робота",
+  "timer.bekreftDag.lonnsartGruppe.fravaer": "Відсутність"
 }

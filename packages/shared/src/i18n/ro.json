@@ -5676,5 +5676,13 @@
   "timer.reiseKort.midlertidigLinje": "Temporar: {{navn}} din {{dato}}",
   "timer.reiseKort.avslutt": "Sfârşit",
   "timer.reiseKort.sperre.adminMidlertidig": "Un administrator al companiei a stabilit un punct de întâlnire temporar - cereți unui administrator al companiei să-l schimbe",
-  "firma.ansatte.oppmote.viaOverforing": "prin transfer"
+  "firma.ansatte.oppmote.viaOverforing": "prin transfer",
+  "timer.bekreftDag.sperre.manglerLonnsart": "O linie nu are tip de salariu. Atingeți „Alegeți tipul de salariu” pe linie și alegeți unul.",
+  "timer.bekreftDag.linje": "{{fra}}–{{til}} · {{timer}} h",
+  "timer.bekreftDag.velgLonnsart": "Alegeți tipul de salariu",
+  "timer.bekreftDag.linjeLonnsartHint": "Atingeți pentru a alege tipul de salariu pentru această linie",
+  "timer.bekreftDag.etterNormen": "Dincolo de norma de la {{fra}}",
+  "timer.bekreftDag.lonnsartGruppe.ordinaer": "Comun",
+  "timer.bekreftDag.lonnsartGruppe.overtid": "Peste orar",
+  "timer.bekreftDag.lonnsartGruppe.fravaer": "Absența"
 }

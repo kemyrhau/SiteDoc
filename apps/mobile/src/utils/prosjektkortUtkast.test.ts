@@ -346,3 +346,23 @@ describe("T12 — utkast synkes aldri", () => {
     expect(nevner(kopi + "\nselect * from prosjektkort_utkast_local")).toBe(true);
   });
 });
+
+// ORDRE (28) V7/T19: utkastet bærer lønnsartvalget pr. linje — lagret og lest
+// tilbake uendret, og et valg alene er innhold (ikke «tomt utkast»).
+describe("ORDRE (28) — lønnsart pr. linje i utkastet", () => {
+  const data = (): UtkastData => ({
+    ...tomt(),
+    retting: { perDato: { [DATO]: { lonnsartPerLinje: { normal: "L-egen", overtid: "L-ord" } } } },
+  });
+  it("🔴 lagres og leses tilbake", () => {
+    lagre(A, NOKKEL, data());
+    expect(finnUtkast(db(), { ...A, nokkel: NOKKEL })!.data.retting.perDato?.[DATO]?.lonnsartPerLinje).toEqual({
+      normal: "L-egen",
+      overtid: "L-ord",
+    });
+  });
+  it("🔴 et linjevalg alene er ikke et tomt utkast; ryddet valg (undefined) er tomt", () => {
+    expect(erTomtUtkast(data())).toBe(false);
+    expect(erTomtUtkast({ ...tomt(), retting: { perDato: { [DATO]: { lonnsartPerLinje: undefined } } } })).toBe(true);
+  });
+});

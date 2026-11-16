@@ -213,7 +213,9 @@ describe("(27b) kildevakter — dagskortet og V5a", () => {
 
   it("🔴 V5a: nivå-knappene går via vekslOvertidNivaa; «Overtid fra» skjules når overtiden er av", () => {
     const flat = SKJERM.replace(/\s+/g, " ");
-    expect(flat).toContain("onRett( vekslOvertidNivaa({ trykketId: l.id, valgtId: forsteOt?.lonnsartId ?? null,");
+    // ORDRE (28) V5: nivå-trykket erstatter også et linjevalg på overtidslinja.
+    expect(flat).toContain("onRett({ ...vekslOvertidNivaa({ trykketId: l.id, valgtId: forsteOt?.lonnsartId ?? null,");
+    expect(flat).toContain('lonnsartPerLinje: utenLinje(lonnsartPerLinje, "overtid"),');
     expect(flat).toContain("{!overtidAv ? ( <View className=\"flex-row items-center justify-between\">");
     expect(flat).toContain("overtidAv={retting.perDato?.[d.dato]?.overtidAv === true}");
     expect(flat).not.toContain("onPress={() => onRett({ overtidLonnsartId: l.id })}");

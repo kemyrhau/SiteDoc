@@ -5676,5 +5676,13 @@
   "timer.reiseKort.midlertidigLinje": "Temporaire : {{navn}} à partir de {{dato}}",
   "timer.reiseKort.avslutt": "Fin",
   "timer.reiseKort.sperre.adminMidlertidig": "Un administrateur d'entreprise a défini un point de rendez-vous temporaire : demandez à un administrateur d'entreprise de le modifier",
-  "firma.ansatte.oppmote.viaOverforing": "par virement"
+  "firma.ansatte.oppmote.viaOverforing": "par virement",
+  "timer.bekreftDag.sperre.manglerLonnsart": "Une ligne n'a pas de rubrique. Appuyez sur « Choisir le type de salaire » sur la ligne et choisissez-en un.",
+  "timer.bekreftDag.linje": "{{fra}}–{{til}} · {{timer}} h",
+  "timer.bekreftDag.velgLonnsart": "Choisissez le type de salaire",
+  "timer.bekreftDag.linjeLonnsartHint": "Appuyez pour choisir le type de salaire pour cette ligne",
+  "timer.bekreftDag.etterNormen": "Au-delà de la norme de {{fra}}",
+  "timer.bekreftDag.lonnsartGruppe.ordinaer": "Ordinaire",
+  "timer.bekreftDag.lonnsartGruppe.overtid": "Au fil du temps",
+  "timer.bekreftDag.lonnsartGruppe.fravaer": "Absence"
 }
