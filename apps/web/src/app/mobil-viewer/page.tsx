@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { dollyFartForAvstand, finnUtliggere } from "@sitedoc/shared";
 import { hentIfcRaadata, lagRaadataLager, lesAttributter } from "./ifcRaadata";
+import { beregnInnramming, orbitAvstand, type Boks } from "./kameraInnramming";
 
 /**
  * Standalone IFC 3D-viewer for bruk i React Native WebView.
@@ -34,6 +37,13 @@ export default function MobilViewer() {
   const [status, setStatus] = useState("Initialiserer...");
   const [antallLastet, setAntallLastet] = useState(0);
   const [totalt, setTotalt] = useState(0);
+  // Diagnose (?diag=1): bbox pr. modell, robust boks og kameraverdier (M1–M3)
+  const [diag, setDiag] = useState<string | null>(null);
+  const { t } = useTranslation();
+  // Objekter langt unna bygget (§ 3b punkt 3): skjult som standard, bryter vises bare når det finnes noen
+  const [antallUtliggere, setAntallUtliggere] = useState(0);
+  const [visUtliggere, setVisUtliggere] = useState(false);
+  const settUtliggerSynlighetRef = useRef<((vis: boolean) => void) | null>(null);
   const initRef = useRef(false);
 
   useEffect(() => {
@@ -154,6 +164,17 @@ export default function MobilViewer() {
       // Råfil pr. modell — fra IFC-veien direkte, fra cache-veien hentet i bakgrunnen (M5 (1))
       const raadata = lagRaadataLager();
       const totalBbox = new THREE.Box3();
+      // Sentrum av den robuste boksen (uten utliggere) — brukes av flyTil
+      let innrammingsSenter: InstanceType<typeof THREE.Vector3> | null = null;
+      // Skalert til modellen ved innramming (erstatter OBC-standarden 6 m)
+      let minDistanceNå = 0.05;
+      // Avstand til orbit-punktet sist — brukes når midten av skjermen ikke treffer noe
+      let sisteOrbitAvstand = 0;
+      // Pr. modell: objekter langt unna (skjult som standard) og rom/åpninger (alltid skjult)
+      const utliggerIds = new Map<string, number[]>();
+      const skjulteRomIds = new Map<string, Set<number>>();
+      let utliggereSynlige = false;
+      const visDiag = new URLSearchParams(window.location.search).get("diag") === "1";
 
       // Raycasting
       const rendererDom = threeRenderer.domElement;
@@ -166,8 +187,67 @@ export default function MobilViewer() {
       let currentHighlight: { modelId: string; localIds: number[] } | null = null;
       let mouseDownPos: { x: number; y: number } | null = null;
 
+      /** Nærmeste treff blant synlige modeller i et skjermpunkt */
+      async function raycastSynlige(x: number, y: number) {
+        const raycastData = {
+          camera: threeCamera,
+          mouse: new THREE.Vector2(x, y),
+          dom: rendererDom,
+        };
+        let hitResult: Awaited<ReturnType<typeof fragmentsManager.raycast>> = undefined;
+        for (const [mid, model] of fragmentsManager.list) {
+          if (!synligeModeller.has(mid)) continue;
+          try {
+            const result = await model.raycast(raycastData);
+            if (result && (!hitResult || result.distance < hitResult.distance)) hitResult = result;
+          } catch { /* */ }
+        }
+        return hitResult;
+      }
+
+      // Orbit-punkt = flaten midt på skjermen (§ 3b punkt 1): ved hver ny berøring
+      // (start av rotasjon, og etter pan/zoom) raycastes skjermsenteret, og treffet blir
+      // orbit-punkt. Treffer midten ingenting, holdes samme avstand som sist langs
+      // siktelinja. Kameraet flyttes ikke — bare punktet det dreier og zoomer rundt.
+      let orbitRaycastPågår = false;
+      let orbitPåNytt = false;
+      async function settOrbitPunkt() {
+        if (renset) return;
+        if (orbitRaycastPågår) { orbitPåNytt = true; return; }
+        orbitRaycastPågår = true;
+        try {
+          do {
+            orbitPåNytt = false;
+            const rect = rendererDom.getBoundingClientRect();
+            const treff = await raycastSynlige(rect.left + rect.width / 2, rect.top + rect.height / 2);
+            const ctrl = world.camera.controls;
+            if (!ctrl || renset) break;
+            const kamera = threeCamera.position;
+            const treffAvstand = treff ? kamera.distanceTo(treff.point) : null;
+            const avstand = orbitAvstand(treffAvstand, sisteOrbitAvstand || ctrl.distance, minDistanceNå);
+            const retning = threeCamera.getWorldDirection(new THREE.Vector3());
+            const punkt = kamera.clone().addScaledVector(retning, avstand);
+            ctrl.setOrbitPoint(punkt.x, punkt.y, punkt.z);
+            sisteOrbitAvstand = avstand;
+          } while (orbitPåNytt && !renset);
+        } catch { /* Orbit-punkt er en forbedring — gesten virker uten */ }
+        finally { orbitRaycastPågår = false; }
+      }
+
+      // Zoom-fart etter avstanden til flaten midt på skjermen (§ 3b punkt 2):
+      // orbit-punktet ligger på den flaten, så avstanden dit styrer dolly-farten.
+      // Kurven er felles med web (`zoomSteg` / `dollyFartForAvstand` i @sitedoc/shared).
+      // Pinch zoomer mot skjermmidten, ikke mot fingrene — PRØVE (§ 3b punkt 2b, Kenneth
+      // 2026-11-17). OBC setter true som standard; slett linja for å gå tilbake.
+      if (world.camera.controls) world.camera.controls.dollyToCursor = false;
+      world.camera.controls?.addEventListener("update", () => {
+        const ctrl = world.camera.controls;
+        if (ctrl) ctrl.dollySpeed = dollyFartForAvstand(ctrl.distance);
+      });
+
       rendererDom.addEventListener("pointerdown", (e: PointerEvent) => {
         mouseDownPos = { x: e.clientX, y: e.clientY };
+        void settOrbitPunkt();
       });
 
       async function handleKlikk(event: MouseEvent) {
@@ -187,20 +267,7 @@ export default function MobilViewer() {
         }
 
         try {
-          const raycastData = {
-            camera: threeCamera,
-            mouse: new THREE.Vector2(event.clientX, event.clientY),
-            dom: rendererDom,
-          };
-
-          let hitResult: Awaited<ReturnType<typeof fragmentsManager.raycast>> = undefined;
-          for (const [mid, model] of fragmentsManager.list) {
-            if (!synligeModeller.has(mid)) continue;
-            try {
-              const result = await model.raycast(raycastData);
-              if (result && (!hitResult || result.distance < hitResult.distance)) hitResult = result;
-            } catch { /* */ }
-          }
+          const hitResult = await raycastSynlige(event.clientX, event.clientY);
 
           if (!hitResult) {
             sendTilApp({ type: "objektFjernet" });
@@ -267,6 +334,7 @@ export default function MobilViewer() {
             const lineIds = hideApi.GetLineIDsWithType(mid, ifcType);
             for (let si = 0; si < lineIds.size(); si++) skjulIds.push(lineIds.get(si));
           }
+          skjulteRomIds.set((model as { modelId: string }).modelId, new Set(skjulIds));
           if (skjulIds.length > 0) await model.setVisible(skjulIds, false);
         } catch { /* */ }
       }
@@ -378,22 +446,97 @@ export default function MobilViewer() {
           }
         }
 
-        // Tilpass kamera og dybdebuffer
-        if (!totalBbox.isEmpty()) {
-          const center = totalBbox.getCenter(new THREE.Vector3());
-          const size = totalBbox.getSize(new THREE.Vector3());
-          const maxDim = Math.max(size.x, size.y, size.z);
-          threeCamera.near = maxDim * 0.001;
-          threeCamera.far = maxDim * 20;
-          threeCamera.updateProjectionMatrix();
-          world.camera.controls?.setLookAt(
-            center.x + maxDim, center.y + maxDim * 0.7, center.z + maxDim,
-            center.x, center.y, center.z,
-          );
-        }
+        // Tilpass kamera og dybdebuffer til en robust boks (uten utliggere), M1–M3
+        await rammInn();
 
         setStatus("");
         sendTilApp({ type: "alleLastet", antall: lastet });
+      }
+
+      /** Vis/skjul objekter langt unna. Rom/åpninger forblir skjult uansett. */
+      async function settUtliggerSynlighet(vis: boolean) {
+        utliggereSynlige = vis;
+        for (const [modelId, ids] of utliggerIds) {
+          const model = fragmentsManager.list.get(modelId);
+          if (!model) continue;
+          const rom = skjulteRomIds.get(modelId);
+          const aktuelle = vis && rom ? ids.filter((id) => !rom.has(id)) : ids;
+          if (aktuelle.length === 0) continue;
+          try { await model.setVisible(aktuelle, vis); } catch { /* */ }
+        }
+      }
+      settUtliggerSynlighetRef.current = (vis: boolean) => { void settUtliggerSynlighet(vis); };
+
+      /** Ramme inn synlige modeller fra objektboksene, uten utliggere. Faller tilbake til samlet boks. */
+      async function rammInn() {
+        // Objektboksene til alle synlige modeller, med hvem de tilhører
+        const alle: Boks[] = [];
+        const eiere: { modelId: string; localId: number }[] = [];
+        const diagLinjer: string[] = [];
+        const f = (v: number) => v.toFixed(1);
+        const beskriv = (b: Boks) =>
+          `str ${f(b.max.x - b.min.x)}×${f(b.max.y - b.min.y)}×${f(b.max.z - b.min.z)} ` +
+          `senter (${f((b.min.x + b.max.x) / 2)}, ${f((b.min.y + b.max.y) / 2)}, ${f((b.min.z + b.max.z) / 2)})`;
+        for (const [index, m] of modeller) {
+          const mf = m as {
+            modelId: string; box: Boks;
+            getItemsIdsWithGeometry: () => Promise<number[]>;
+            getBoxes: (ids?: number[]) => Promise<Boks[]>;
+          };
+          if (!synligeModeller.has(mf.modelId)) continue;
+          let ids: number[] = [];
+          let bokser: Boks[] = [];
+          try {
+            ids = await mf.getItemsIdsWithGeometry();
+            bokser = await mf.getBoxes(ids);
+          } catch { ids = []; bokser = []; /* faller tilbake til mf.box */ }
+          if (bokser.length !== ids.length) { ids = []; bokser = []; }
+          bokser.forEach((b, i) => { alle.push(b); eiere.push({ modelId: mf.modelId, localId: ids[i]! }); });
+          if (visDiag) {
+            const r = finnUtliggere(bokser);
+            diagLinjer.push(`modell ${index + 1}: bbox ${beskriv(mf.box)}`);
+            if (r) diagLinjer.push(`  robust ${beskriv(r.boks)} · ${r.utliggere.length}/${r.antall} utliggere`);
+          }
+        }
+        const robust = finnUtliggere(alle);
+        const boks: Boks | null = robust?.boks ?? (totalBbox.isEmpty() ? null : totalBbox);
+
+        // Objekter langt unna bygget: registrer pr. modell og skjul (standard)
+        utliggerIds.clear();
+        for (const i of robust?.utliggere ?? []) {
+          const e = eiere[i]!;
+          const liste = utliggerIds.get(e.modelId) ?? [];
+          liste.push(e.localId);
+          utliggerIds.set(e.modelId, liste);
+        }
+        setAntallUtliggere(robust?.utliggere.length ?? 0);
+        await settUtliggerSynlighet(utliggereSynlige);
+
+        if (!boks) return;
+
+        const inn = beregnInnramming(boks, threeCamera.fov, threeCamera.aspect || 1);
+        threeCamera.near = inn.near;
+        threeCamera.far = inn.far;
+        threeCamera.updateProjectionMatrix();
+        minDistanceNå = inn.minDistance;
+        sisteOrbitAvstand = inn.avstand;
+        innrammingsSenter = new THREE.Vector3(inn.target.x, inn.target.y, inn.target.z);
+        const ctrl = world.camera.controls;
+        if (ctrl) {
+          ctrl.minDistance = inn.minDistance;
+          ctrl.setLookAt(
+            inn.posisjon.x, inn.posisjon.y, inn.posisjon.z,
+            inn.target.x, inn.target.y, inn.target.z,
+          );
+        }
+
+        if (visDiag) {
+          if (!totalBbox.isEmpty()) diagLinjer.push(`samlet bbox ${beskriv(totalBbox)}`);
+          if (robust) diagLinjer.push(`samlet robust ${beskriv(robust.boks)} · ${robust.utliggere.length}/${robust.antall} utliggere`);
+          diagLinjer.push(`kamera avstand ${f(inn.avstand)} near ${inn.near.toFixed(3)} far ${f(inn.far)} minDistance ${inn.minDistance.toFixed(3)}`);
+          setDiag(diagLinjer.join("\n"));
+          console.log("[mobil-viewer diag]\n" + diagLinjer.join("\n"));
+        }
       }
 
       // Meldingshåndtering
@@ -418,7 +561,7 @@ export default function MobilViewer() {
         } else if (msg.type === "flyTil") {
           const { x, y, z } = msg;
           // Plasser kamera på punktet, se mot byggets sentrum
-          const senter = totalBbox.getCenter(new THREE.Vector3());
+          const senter = innrammingsSenter ?? totalBbox.getCenter(new THREE.Vector3());
           const dx = senter.x - x;
           const dz = senter.z - z;
           const len = Math.sqrt(dx * dx + dz * dz) || 1;
@@ -472,6 +615,25 @@ export default function MobilViewer() {
   return (
     <div className="fixed inset-0 bg-gray-100">
       <div ref={containerRef} className="h-full w-full" />
+      {antallUtliggere > 0 && (
+        <label className="absolute right-2 top-2 flex items-center gap-2 rounded-full bg-white/90 px-3 py-1.5 text-xs font-medium text-gray-700 shadow">
+          <input
+            type="checkbox"
+            className="h-4 w-4 accent-sitedoc-primary"
+            checked={visUtliggere}
+            onChange={(e) => {
+              setVisUtliggere(e.target.checked);
+              settUtliggerSynlighetRef.current?.(e.target.checked);
+            }}
+          />
+          {t("3d.visObjekterLangtUnna")} ({antallUtliggere})
+        </label>
+      )}
+      {diag && (
+        <pre className="pointer-events-none absolute left-2 top-2 max-w-[90vw] whitespace-pre-wrap rounded bg-white/90 p-2 text-[10px] leading-tight text-gray-800">
+          {diag}
+        </pre>
+      )}
       {status && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-100/90 pointer-events-none">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-sitedoc-primary border-t-transparent" />

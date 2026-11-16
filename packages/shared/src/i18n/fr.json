@@ -1586,6 +1586,7 @@
   "3d.bakkeMinZ": "Z le plus bas par cellule",
   "3d.lagrerOverflate": "Gain de surface…",
   "3d.ingenLagredeOverflater": "Aucune surface enregistrée",
+  "3d.visObjekterLangtUnna": "Afficher les objets distants",
   "status.feilet": "Échoué",
   "sok.tittel": "Recherche de documents",
   "sok.dokumentPlaceholder": "Rechercher des documents de projet...",

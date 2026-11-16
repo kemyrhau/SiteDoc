@@ -26,3 +26,5 @@ export * from "./tegning/rekonvertering";
 export * from "./sok/utsnitt";
 export * from "./dokument/leserblokker";
 export * from "./dokument/pdf-valg";
+export * from "./tred/utliggere";
+export * from "./tred/zoom-fart";

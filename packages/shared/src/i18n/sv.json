@@ -1586,6 +1586,7 @@
   "3d.bakkeMinZ": "Lägsta Z per cell",
   "3d.lagrerOverflate": "Sparar yta...",
   "3d.ingenLagredeOverflater": "Inga sparade ytor",
+  "3d.visObjekterLangtUnna": "Visa avlägsna objekt",
   "status.feilet": "Misslyckades",
   "sok.tittel": "Dokumentsökning",
   "sok.dokumentPlaceholder": "Sök i projektdokument...",
