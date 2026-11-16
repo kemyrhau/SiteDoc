@@ -2099,3 +2099,39 @@ Ett spørsmål. Det låser ingen ordre, men bør være besvart før sperren går
    velger timerad.
 
 **Låser d2a, d2b-1, d2b-2 og d3:** ingen. **d2c-1 og d2c-2:** H15 = A (besvart 2026-11-16).
+
+
+### 12.9 Bygget — ordre d2a (Kort-id-d2a, 🟡 ikke merget)
+
+**Commit 1 — gruppering, kobling og lesere (2026-11-16).** Ingen migrering, ingen skjermendring.
+
+| Del | Kode |
+|---|---|
+| Gruppering G1–G11, linjer R3/R16 | `packages/shared/src/utils/kortGruppering.ts` — `grupperPaaKort`, `byggKortRader` |
+| R24 maskin krever timerad | `packages/shared/src/utils/maskinKobling.ts` — `maskinKreverTimerad` (bare `doegn` slipper, H15 = A), `erGyldigTimeradKobling`, `finnMaskinerUtenTimerad`. Arbeid = `arbeidUtenReise`; `maskinKapasitet.ts` er urørt |
+| E4 prosjektnummer | `packages/shared/src/utils/prosjektnummer.ts` — `visProsjektnummer` |
+| Rader ukeavviket peker på | `packages/shared/src/utils/overtidsgrunnlag.ts` — `ukeAvvikRader`; regnestykket er uendret |
+| Felles oppslag | `apps/api/src/services/timer/kortLeser.ts` — maskinnavn og enhet, byggeplass- og underprosjektnavn (flyttet fra `rapport.ts` `detaljEksport`), varer pr. sedel, rettede felter |
+| Lesere | `apps/api/src/routes/timer/dagsseddel.ts` — `hentTilAttestering`, `hentTilAttesteringFirma`, `hentForAttestering` via `lastKortBerikelse`/`berikRad`/`berikMaskinRad`. Nye felt: `varer[]`, `ukeAvvikRadIder`; pr. rad `byggeplassNavn`, `underprosjekt`, `rettedeFelter`; pr. maskinrad `utleieEnhet`, `manglerTimerad`; `utlegg` i detaljen; `maskiner` i prosjektlista. Radene sorteres på `fraTid`, så `createdAt`. Ingen felt fjernet eller omdøpt |
+| Tester | T21–T23, T37, T52 `kortGruppering.test.ts`; T67 `maskinKobling.test.ts`; T63 `prosjektnummer.test.ts`; T26 `ukeAvvikRader.test.ts`; T24, T25, T57, T69, ukeavvik og vakt for `detaljEksport` i `apps/api/src/routes/kortid-d2a.integration.test.ts` |
+
+Grenser:
+- **Varer** kommer bare fra sedelens eget firmas varekatalog, og lista er tom når varelager er av for firmaet.
+- **`ukeAvvikRadIder`** gir bare sedelens egne rader. På ferdig attestert sedel leser detaljen det frosne grunnlaget; listene regner fra dagens rader.
+
+**Commit 2 — skriveveiene (2026-11-16).** Ingen migrering, ingen skjermendring, ingen ny i18n-nøkkel.
+
+| Del | Kode |
+|---|---|
+| Punkt 9, valg (a): retting på stedet | `apps/api/src/routes/timer/dagsseddel.ts` — `utforRedigerSedelRader` (kroppen til `redigerSedelRader`), `planleggRedigering`. En rad med `originalId` oppdateres og beholder id, kort-id og koblingen (maskin og vare → timerad). Bare endrede og slettede rader får historikkpost; uendrede røres ikke. Flere rader med samme `originalId` (deling) opprettes med `parentRadId` = originalen, og maskindelene arver `sheetTimerId`. Slettet timerad: maskiner og varer som sto på den, får koblingen nullet (varer etter transaksjonen, egen database). Målt før valget: telefonen bytter ut alle radene på en sedel ved henting, og nettleseren leser bare `parentRadId` (`kanSplittes`) |
+| R24 i rettingen | `krevMaskinKoblingEtterRetting` — ny eller endret maskinrad, eller en som mister en gyldig kobling, avvises når maskinen krever timerad (`feilMaskinUtenTimerad`). En uendret ukoblet rad slipper |
+| R21 `rettRadFelt` | Samme vei: hele sedelens ventende rader med bare den ene raden endret går gjennom `utforRedigerSedelRader`, så kontrollene er de samme (firmaadministrator, firmavalget, sendt sedel, overlapp, maskin innenfor arbeid, katalog, maskinregister, R24). Raden må vente på attestering. Logg `rett_rad_felt` |
+| R23 `gjenaapneRader` | Attesterte rader → ventende (attestant og tidspunkt nulles); ferdig attestert sedel → sendt. Samme tilgang som attesteringen (`krevAttesteringsrettForRader`). Én historikkpost pr. rad med `hendelse: "gjenaapnet"`, som leseren ikke viser som retting. Logg `gjenaapne_rader`. `gjenaapneAttestering` er urørt |
+| Splitt (HM70) | `splittRad` og `splittRadEier`: første del av en timerad oppdaterer originalen på stedet, så maskiner og varer står på første del. Delte maskinrader arver originalens `sheetTimerId` |
+| Vare-retting | `apps/api/src/routes/vareforbruk.ts` `oppdater`: loggen `vare.endret` har `antallFoer`; en vare på attestert timerad kan ikke rettes |
+| Tester | T56, T58, T59, T62, T68, T70 i `apps/api/src/routes/kortid-d2a.integration.test.ts`. `kortid-skriveveier.integration.test.ts` (T5 splitt) har nytt premiss: første del beholder originalens id |
+
+Grenser:
+- **`rettRadFelt`** avvises når en ventende timerad på sedelen mangler lønnsart eller aktivitet; da rettes hele sedelen.
+- **Endret kort-nøkkel** ved retting går gjennom samme kort-id-regel som før (`kortIdForSkriving`, så `sikreKortId`); det er ingen egen kollisjonssjekk mot andre kort.
+

@@ -24,6 +24,11 @@ import { esc, byggTimerRapportHtml, type TimerRapportData } from "@sitedoc/pdf";
 import { router, protectedProcedure } from "../../trpc/trpc";
 import { autoriserAdminForFirma } from "../../trpc/tilgangskontroll";
 import { krevTimerAktivert } from "../../services/timer";
+import {
+  hentByggeplassNavn,
+  hentUnderprosjektNavn,
+  hentUtstyrOppslag,
+} from "../../services/timer/kortLeser";
 import { renderPdfViaContainer } from "../../services/pdf-render-klient";
 
 async function verifiserFirmaAdmin(
@@ -512,25 +517,16 @@ export const rapportRouter = router({
           : (prosjektMap.get(id)?.name ?? "(ukjent)");
 
       // Maskin-navn (kryss-modul → db-maskin). Samme navn-form som dagskortet.
-      const vehicleIder = Array.from(
-        new Set(sedler.flatMap((s) => s.maskiner.map((m) => m.vehicleId))),
-      );
-      const utstyrMap = new Map<string, string>();
       // utleieEnhet ("time" | "doegn" | null) styrer om en nøstet maskin foldes
       // inn på operatørens timerad (maskin.md § faktureringsenheten). null =
       // ukjent → ALDRI gjettet (byggDetaljRader lar den stå på egen linje).
-      const utleieEnhetMap = new Map<string, string | null>();
-      if (vehicleIder.length > 0) {
-        const utstyr = await ctx.prismaMaskin.equipment.findMany({
-          where: { id: { in: vehicleIder } },
-          select: { id: true, merke: true, modell: true, internNavn: true, utleieEnhet: true },
-        });
-        for (const e of utstyr) {
-          const base = `${e.merke ?? ""} ${e.modell ?? ""}`.trim();
-          utstyrMap.set(e.id, base || e.internNavn || e.id);
-          utleieEnhetMap.set(e.id, e.utleieEnhet ?? null);
-        }
-      }
+      // Ordre d2a: oppslaget bor i kortLeser (felles med attesteringens lesere).
+      const utstyrOppslag = await hentUtstyrOppslag(
+        ctx.prismaMaskin,
+        sedler.flatMap((s) => s.maskiner.map((m) => m.vehicleId)),
+      );
+      const utstyrMap = utstyrOppslag.navn;
+      const utleieEnhetMap = utstyrOppslag.utleieEnhet;
 
       // LAG 2 D2 — oppmøtested- og byggeplass-navn for reise-radenes fra/til-sted.
       // Svak cross-table FK (A.20-mønster): ingen @relation, slås opp via kjerne-
@@ -551,28 +547,17 @@ export const rapportRouter = router({
         for (const o of steder) oppmotestedMap.set(o.id, o.navn);
       }
       // B8 (tillegg/utlegg på prosjektkortet): byggeplass-navn for ALLE radtyper
-      // og sedelens egen (arv når radens er NULL, A.30).
-      const byggeplassIder = Array.from(
-        new Set(
-          sedler
-            .flatMap((s) => [
-              s.byggeplassId,
-              ...s.timer.map((r) => r.byggeplassId),
-              ...s.maskiner.map((r) => r.byggeplassId),
-              ...s.tillegg.map((r) => r.byggeplassId),
-              ...s.utlegg.map((r) => r.byggeplassId),
-            ])
-            .filter((id): id is string => id != null),
-        ),
+      // og sedelens egen (arv når radens er NULL, A.30). Ordre d2a: via kortLeser.
+      const byggeplassMap = await hentByggeplassNavn(
+        prisma,
+        sedler.flatMap((s) => [
+          s.byggeplassId,
+          ...s.timer.map((r) => r.byggeplassId),
+          ...s.maskiner.map((r) => r.byggeplassId),
+          ...s.tillegg.map((r) => r.byggeplassId),
+          ...s.utlegg.map((r) => r.byggeplassId),
+        ]),
       );
-      const byggeplassMap = new Map<string, string>();
-      if (byggeplassIder.length > 0) {
-        const plasser = await prisma.byggeplass.findMany({
-          where: { id: { in: byggeplassIder } },
-          select: { id: true, name: true },
-        });
-        for (const b of plasser) byggeplassMap.set(b.id, b.name);
-      }
       const oppmotestedNavn = (id: string | null): string | null =>
         id == null ? null : (oppmotestedMap.get(id) ?? null);
       const byggeplassNavn = (id: string | null): string | null =>
@@ -584,26 +569,18 @@ export const rapportRouter = router({
       ): string | null => byggeplassNavn(r.byggeplassId ?? s.byggeplassId);
 
       // B8: underprosjekt-navn («proAdmId · kortNavn») for alle radtyper, firma-scopet.
-      const ecoIder = Array.from(
-        new Set(
-          sedler
-            .flatMap((s) => [
-              ...s.timer.map((r) => r.externalCostObjectId),
-              ...s.maskiner.map((r) => r.externalCostObjectId),
-              ...s.tillegg.map((r) => r.externalCostObjectId),
-              ...s.utlegg.map((r) => r.externalCostObjectId),
-            ])
-            .filter((id): id is string => id != null),
-        ),
+      // Ordre d2a: via kortLeser.
+      const ecoOppslag = await hentUnderprosjektNavn(
+        prisma,
+        sedler.flatMap((s) => [
+          ...s.timer.map((r) => r.externalCostObjectId),
+          ...s.maskiner.map((r) => r.externalCostObjectId),
+          ...s.tillegg.map((r) => r.externalCostObjectId),
+          ...s.utlegg.map((r) => r.externalCostObjectId),
+        ]),
+        orgId,
       );
-      const ecoMap = new Map<string, string>();
-      if (ecoIder.length > 0) {
-        const ecoer = await prisma.externalCostObject.findMany({
-          where: { id: { in: ecoIder }, organizationId: orgId },
-          select: { id: true, kortNavn: true, proAdmId: true },
-        });
-        for (const e of ecoer) ecoMap.set(e.id, `${e.proAdmId} · ${e.kortNavn}`);
-      }
+      const ecoMap = new Map(Array.from(ecoOppslag, ([id, e]) => [id, e.navn]));
       const underprosjektNavn = (id: string | null): string | null =>
         id == null ? null : (ecoMap.get(id) ?? null);
 

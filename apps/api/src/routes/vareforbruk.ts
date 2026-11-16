@@ -589,6 +589,8 @@ export const vareforbrukRouter = router({
           byggeplassId: true,
           externalCostObjectId: true,
           sheetTimerId: true,
+          // Ordre d2a: loggen bærer antallet før rettingen.
+          antall: true,
         },
       });
       if (!rad) throw new TRPCError({ code: "NOT_FOUND" });
@@ -597,6 +599,19 @@ export const vareforbrukRouter = router({
           code: "FORBIDDEN",
           message: "Vareforbruket er attestert og kan ikke endres",
         });
+      }
+      // Ordre d2a: varen står på en timerad som er attestert — den er låst med raden.
+      if (rad.sheetTimerId) {
+        const timerad = await ctx.prismaTimer.sheetTimer.findUnique({
+          where: { id: rad.sheetTimerId },
+          select: { attestertStatus: true },
+        });
+        if (timerad?.attestertStatus === "attestert") {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Timeraden varen står på er attestert. Gjenåpne raden for å rette varen.",
+          });
+        }
       }
 
       // ORDRE 36b «Flytt raden»: prosjektbytte krever samme tilgang til målprosjektet
@@ -710,6 +725,7 @@ export const vareforbrukRouter = router({
             action: "vare.endret",
             payload: {
               antall: oppdatert.antall.toString(),
+              antallFoer: rad.antall.toString(),
               ...(byttProsjekt ? { fraProsjektId: rad.projectId } : {}),
             },
           },

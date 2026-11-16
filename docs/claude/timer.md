@@ -733,6 +733,27 @@ Denne seksjonen er fasit for hva et prosjektkort og et dagskort er. Tekst lenger
 - **Avvik 3** — Kortet har ingen egen identitet: det utledes av `kortNokkel` = prosjekt|byggeplass|underprosjekt (`apps/mobile/src/lib/prosjektkortMobil.ts`). To kort på samme prosjekt med samme byggeplass og underprosjekt (grøft/skifer) kan derfor ikke skilles. **Kenneth 2026-11-16: «ja, legg til kort-id».** Hver rad (timer, maskin, varer, tillegg/utlegg som hører til kortet) skal bære kortets id, så to kort på samme prosjekt, byggeplass og underprosjekt holdes adskilt. Skjemaendring (additiv migrering, Kenneth kjører); spec før kode.
 - **Avvik 5** — Splitt av foreslått føring til eget prosjektkort: ikke målt om «Del opp» (`SplittRadModal`) kan gi et nytt kort.
 
+### Attesteringens grunnlag (ordre d2a) — 🟡 `feat/kortid-d2a-grunnlag` (2026-11-16, ikke merget)
+
+Serveren leverer alt attesteringen trenger for å vise kortene; skjermen er uendret til d2b. De tre leserne (`hentTilAttestering`, `hentTilAttesteringFirma`, `hentForAttestering` i `apps/api/src/routes/timer/dagsseddel.ts`) gir i tillegg:
+- `varer[]` pr. sedel, med `sheetTimerId` og `kortId`;
+- navn på byggeplass og underprosjekt pr. rad, for alle sedelens prosjekter;
+- `utleieEnhet` og `manglerTimerad` (R24) pr. maskinrad;
+- `rettedeFelter` (felt, verdien før, hvem, når) pr. rad;
+- `ukeAvvikRadIder`;
+- utleggene i detaljen;
+- maskinene i prosjektlista.
+
+Radene står i rekkefølge på fra-tid. Grupperingen i kort (`grupperPaaKort`), regelen for maskin uten timerad og prosjektnummeret (E4) ligger i `packages/shared`. Oppslagene for maskin, byggeplass og underprosjekt er flyttet fra `rapport.ts` til `apps/api/src/services/timer/kortLeser.ts`, og `detaljEksport` gir samme svar (vakt i `kortid-d2a.integration.test.ts`). Kode og tester: [prosjektkort-kortid-spec.md § 12.9](prosjektkort-kortid-spec.md).
+
+Skriveveiene (commit 2):
+- `redigerSedelRader` retter radene på stedet: samme id, kort-id og kobling maskin og vare → timerad. Bare endrede og slettede rader får historikkpost.
+- `rettRadFelt` retter ett felt på én ventende rad med de samme kontrollene.
+- `gjenaapneRader` gjør attesterte rader ventende igjen; en ferdig attestert sedel går tilbake til sendt.
+- `splittRad`/`splittRadEier`: første del beholder timeradens id, og delte maskinrader arver koblingen.
+- R24: en maskin som krever timerad kan ikke stå igjen uten kobling etter en retting.
+- `vareforbruk.oppdater` logger antallet før, og sperrer en vare på attestert timerad.
+
 ### Kort-id på telefonen og fraværskortet (ordre c) — 🟡 `feat/kortid-c-mobil` (2026-11-16, ikke merget)
 
 Avvik 3 over er løst på mobil: dagskortet, kortskjermen og Bekreft dag grupperer på kort-id (`KortValg.kortId`, `kortNokkel` i `apps/mobile/src/lib/prosjektkortMobil.ts`), så to kort på samme prosjekt, byggeplass og underprosjekt holdes adskilt. Bekreft dag har «Del til eget kort» (`tildelKortIder`, `apps/mobile/src/utils/kortIdForslag.ts`); «Flytt raden» har «Flytt til nytt kort»; «+ Nytt prosjektkort» gir alltid nytt kort. «Endre kort» til et prosjekt som alt har kort sjekker tidskollisjon med samme regel som lagring av en rad (`finnKortKollisjon` i `prosjektkort/kortRadFlytt.ts`); uten overlapp står kortene hver for seg med egen beskrivelse (Kenneth 2026-11-16, E1). «Sum i dag» og «Send dagen (N t)» tar med fraværstimer (`dagSumTimer`, E2). Maskin og vare som flyttes alene («Flytt raden»), og synkede varer etter server-flytt, får målkortets id (`flyttMaskinRad`/`flyttVareLokalt`, gate (70) A1). Fravær føres i eget fraværskort uten prosjekt («+ Fravær», `apps/mobile/src/utils/fravaerKort.ts`, `prosjektkort/fravaerKortLagring.ts`) med B10-taket; «Fravær til» (a3) er fjernet (F12 = A). Dagskort-modus viser fravær uten prosjekt i en lese-gruppe (F6, `apps/mobile/src/utils/dagskortFravaer.ts`). Full kode-liste, tester og avvik: [prosjektkort-kortid-spec.md § 8.2](prosjektkort-kortid-spec.md).
