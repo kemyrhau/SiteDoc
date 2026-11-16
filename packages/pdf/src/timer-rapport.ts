@@ -112,11 +112,13 @@ export type TimerRapportData = {
    *  tom/utelatt → dagens dynamiske sett (tomme kolonner droppes). Ekstern-regelen
    *  (status/ansattnr) vinner uansett strukturelt (kolonnen bygges ikke). */
   valgteKolonner?: string[];
-  /** Bredde-vekt pr. kanonisk kolonnenøkkel (@sitedoc/shared `TIMER_KOL_BREDDE`,
-   *  sendt inn som data fordi pakken ikke importerer shared). Høyere vekt = bredere
-   *  kolonne; Detaljer-tabellen bygger en `<colgroup>` med prosentbredder fra de
-   *  aktive kolonnenes vekt. Utelatt ⇒ auto-layout (bakoverkompatibelt). */
-  kolBredder?: Record<string, number>;
+  /** Bredde-intensjon pr. kanonisk kolonnenøkkel — @sitedoc/shared `TIMER_KOL_BREDDE`
+   *  ordrett, sendt inn som data fordi pakken ikke importerer shared. ORDRE (36):
+   *  `vekt 0` = kort kolonne (dato, kode, tall) — brytes aldri og får innholdets
+   *  bredde. `vekt > 0` = tekstkolonne — deler resten etter vekt og brytes på ord.
+   *  En tekstkolonne uten innhold får bare overskriftens bredde. `min` brukes ikke
+   *  i PDF (skjermpiksler). Utelatt ⇒ auto-layout (bakoverkompatibelt). */
+  kolBredder?: Record<string, { min: number; vekt: number }>;
   /** Fase 4: ferdig-flettet topptekst ({firma}/{periode}/{prosjekt} allerede satt inn).
    *  Tom liste ⇒ standard firmatopp (firmanavn + doktittel + meta). */
   topptekstLinjer: string[];
@@ -198,10 +200,12 @@ body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: #111827; fon
 .meta b { color: #111827; }
 h2 { font-size: 12px; color: #26327e; margin: 18px 0 6px; border-bottom: 1px solid #e5e7eb; padding-bottom: 3px; }
 table { width: 100%; border-collapse: collapse; }
-/* Detaljer med delte kolonnebredder: fast layout så <colgroup>-prosentene gjelder,
-   og fritekst brytes innenfor sin egen kolonne (ingen horisontal overflow). */
-table.fast { table-layout: fixed; }
-table.fast td, table.fast th { word-break: break-word; overflow-wrap: anywhere; }
+/* ORDRE (36) — Detaljer med delte kolonnebredder (auto-layout): korte kolonner
+   (.kort: dato, kode, tall) brytes aldri og får innholdets bredde; tekstkolonnene
+   har prosentbredde etter vekt og brytes på ord — et ord deles bare når det ikke
+   får plass alene (overflow-wrap: anywhere, aldri bokstav-for-bokstav i tall). */
+table.vekt td, table.vekt th { overflow-wrap: anywhere; }
+table.vekt .kort { white-space: nowrap; overflow-wrap: normal; }
 th { background: #f3f4f6; text-align: left; font-weight: 600; font-size: 8.5px; text-transform: uppercase; letter-spacing: .02em; color: #374151; padding: 4px 5px; border-bottom: 1px solid #d1d5db; }
 td { padding: 3px 5px; border-bottom: 1px solid #f0f1f3; vertical-align: top; }
 tr { break-inside: avoid; }
@@ -445,42 +449,63 @@ function detaljerTabell(d: TimerRapportData, t: TimerRapportTekster): string {
   const alleRader = d.grupper.flatMap((g) => g.rader);
   if (alleRader.length === 0) return `<p class="tom">${esc(t.ingenData)}</p>`;
   // Kolonnevalg (flateparitet, config v3): malens `valgteKolonner` styrer settet OG
-  // rekkefølgen ordrett (ingen drop-tom) — nøyaktig samme kolonner som skjerm/Excel.
+  // rekkefølgen — samme kolonner som skjerm/Excel, minus tomme (TILLEGG 36, under).
   // Mangler det: dagens dynamiske sett (alltid-kolonner + kolonner med innhold, tomme
   // droppes for A4-lesbarhet). Ekstern-regelen er allerede anvendt i `kolonner()`
   // (status/ansattnr bygges ikke), så et brukervalg som nevner dem faller bort her.
   const alle = kolonner(t, d.mottaker);
   const valgt = d.valgteKolonner;
-  const kols =
+  // TILLEGG (36) 2026-11-16 (Kenneth: ja): KUN i PDF-en skjules en valgt kolonne som
+  // er tom på alle rader i utvalget — A4 har ikke plass til tomme kolonner. Skjerm og
+  // Excel får fortsatt brukervalget ordrett (shared `losTimerKolonner`, B1). «Tom» =
+  // skjermens regel (`kolonnerMedInnhold`): tekst null/"" · tall kun null (0 er verdi).
+  // `alltid`-kolonner har `tilstede: () => true`, så de måles på cellens innhold
+  // (fanger tomt ansattnr). Er alle valgte tomme: vis valget som før.
+  const harVerdi = (k: KolDef): boolean =>
+    k.alltid ? alleRader.some((r) => k.celle(r, t) !== "") : k.tilstede(alleRader);
+  const valgteKols =
     valgt && valgt.length > 0
-      ? (valgt
-          .map((id) => alle.find((k) => k.id === id))
-          .filter((k): k is KolDef => k !== undefined))
-      : alle.filter((k) => k.alltid || k.tilstede(alleRader));
+      ? valgt.map((id) => alle.find((k) => k.id === id)).filter((k): k is KolDef => k !== undefined)
+      : null;
+  const valgteMedVerdi = valgteKols?.filter(harVerdi) ?? [];
+  const kols = valgteKols
+    ? valgteMedVerdi.length > 0
+      ? valgteMedVerdi
+      : valgteKols
+    : alle.filter((k) => k.alltid || k.tilstede(alleRader));
 
-  const head = th(...kols.map((k) => k.header));
 
-  // Kolonnebredder (flateparitet): bygg en <colgroup> med prosentbredder fra de
-  // aktive kolonnenes delte bredde-vekt (`kolBredder`). table-layout:fixed gjør at
-  // fritekst-kolonnene (Beskrivelse/Betegnelse) faktisk får plassen — ikke auto-
-  // layoutens «lengste enkelt-token vinner». Uten kolBredder: auto-layout som før.
+  // Kolonnebredder (flateparitet, ORDRE (36)): delt bredde-intensjon fra
+  // `kolBredder`. Kort kolonne (vekt 0) → ingen bredde + nowrap (innholdets
+  // bredde). Tekstkolonne med innhold → prosent av tekstvektene. Tekstkolonne uten
+  // innhold (kun når ALLE valgte er tomme, TILLEGG 36) → ingen bredde.
+  // Før: prosent av ALLE kolonners min·(1+vekt) med table-layout:fixed — Dato fikk
+  // ~19 px på liggende A4 og ble brutt bokstav for bokstav.
   const bredder = d.kolBredder;
+  const kort = (k: KolDef): boolean => (bredder?.[k.id]?.vekt ?? 1) === 0;
   let colgroup = "";
   let tabellKlasse = "";
   if (bredder) {
-    const vekter = kols.map((k) => bredder[k.id] ?? 100);
-    const sum = vekter.reduce((s, v) => s + v, 0) || 1;
-    colgroup = `<colgroup>${vekter
-      .map((v) => `<col style="width:${((v / sum) * 100).toFixed(2)}%">`)
+    const tekstVekt = (k: KolDef): number =>
+      kort(k) || !k.tilstede(alleRader) ? 0 : (bredder[k.id]?.vekt ?? 1);
+    const sum = kols.reduce((s, k) => s + tekstVekt(k), 0);
+    colgroup = `<colgroup>${kols
+      .map((k) => {
+        const v = tekstVekt(k);
+        if (kort(k)) return `<col style="width:1px">`; // krymper til innholdet (nowrap)
+        return v > 0 && sum > 0 ? `<col style="width:${((v / sum) * 100).toFixed(2)}%">` : "<col>";
+      })
       .join("")}</colgroup>`;
-    tabellKlasse = ' class="fast"';
+    tabellKlasse = ' class="vekt"';
   }
+  const celleKlasse = (k: KolDef): string =>
+    [k.num ? "num" : "", bredder && kort(k) ? "kort" : ""].filter(Boolean).join(" ");
 
   const radHtml = (r: TimerRapportDetaljRad): string => {
     const nest = r.type === "maskin" && r.nivaa === 1 ? " nest mrk" : "";
     const mrk = r.type === "maskin" && r.nivaa !== 1 ? " mrk" : "";
     const celler = kols
-      .map((k) => `<td class="${k.num ? "num" : ""}">${k.celle(r, t)}</td>`)
+      .map((k) => `<td class="${celleKlasse(k)}">${k.celle(r, t)}</td>`)
       .join("");
     return `<tr class="${(nest || mrk).trim()}">${celler}</tr>`;
   };
@@ -511,6 +536,12 @@ function detaljerTabell(d: TimerRapportData, t: TimerRapportTekster): string {
     ? sumRadHtml(kols, "sum", t.sum, (k) => (k.sum ? k.sum(alleRader) : null))
     : "";
 
+  const head = `<tr>${kols
+    .map((k) => {
+      const kl = celleKlasse(k);
+      return `<th${kl ? ` class="${kl}"` : ""}>${k.header}</th>`;
+    })
+    .join("")}</tr>`;
   return `<table${tabellKlasse}>${colgroup}<thead>${head}</thead><tbody>${body}${grandRad}</tbody></table>`;
 }
 

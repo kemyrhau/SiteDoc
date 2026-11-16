@@ -12,6 +12,8 @@
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
 **Sist oppdatert:** 2026-11-16
+- 2026-11-16 — **`timer.md` + `retningslinjer/ui-standarder.md`: TILLEGG (36) — tomme valgte kolonner skjules i timerapport-PDF** (branch `fix/rapport-pdf-kolonner`, kode + docs, Kort-id-c): unntak fra flateparitet skrevet inn; skjerm og Excel uendret (B1); høyrejusterte tall-overskrifter (SVAR (72) A1) dokumentert. Ingen fil opprettet/slettet i docs/claude — tellinger uendret.
+- 2026-11-16 — **`timer.md`: ORDRE (36) funn 1 — kolonnebredder i timerapport-PDF** (branch `fix/rapport-pdf-kolonner`, kode + docs, Kort-id-c): korte kolonner nowrap og innholdsbredde, tekstkolonner deler resten etter vekt; `rapport.ts` sender `TIMER_KOL_BREDDE` ordrett. Funn 2 (sammendraget) venter på Kenneth.
 - 2026-11-16 — **Prod `85ff903c` + OTA production `ac933d8b`; merge (35) `d799072e` + d2a `274be011`**: STATUS-AKTUELT + FUNKSJONSENDRINGER ført.
 - 2026-11-16 — **`prosjektkort-kortid-spec.md` § 8.2 + `timer.md`: ORDRE (35) — «Flytt raden» får kollisjonssjekk** (branch `feat/flytt-raden-kollisjon`, kode + docs, Kort-id-c): `flyttKort` kjører `finnKortKollisjon` alltid (valget `kollisjonssjekk` fjernet); maskin/vare alene uendret.
 - 2026-11-16 — **`prosjektkort-kortid-spec.md` § 12.9 + `timer.md` + `api.md`: ordre d2a commit 2 — retting på stedet i `redigerSedelRader`, `rettRadFelt`, `gjenaapneRader`, splitt som beholder koblingene og vare-retting med antallet før** (branch `feat/kortid-d2a-grunnlag`, kode + docs, Kort-id-d2a). Ingen fil opprettet eller slettet i docs/claude — tellingene er uendret.
