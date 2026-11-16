@@ -95,7 +95,10 @@ function modell(eget: Record<string, unknown> = {}) {
   });
 }
 
-const mocks = vi.hoisted(() => ({ create: vi.fn() }));
+// create returnerer raden som Prisma gjør (kort-id-veien leser `rad.id` etter skriving).
+const mocks = vi.hoisted(() => ({
+  create: vi.fn(async (a?: { data?: Record<string, unknown> }) => ({ id: "ny-rad", ...(a?.data ?? {}) })),
+}));
 
 vi.mock("@sitedoc/db", () => {
   const prisma = new Proxy(

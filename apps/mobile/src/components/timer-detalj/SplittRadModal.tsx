@@ -24,6 +24,7 @@ import { useTranslation } from "react-i18next";
 import { eq } from "drizzle-orm";
 import { randomUUID } from "expo-crypto";
 import { hentDatabase } from "../../db/database";
+import { sikreLokalKortId } from "../../services/kortIdLokal";
 import {
   sheetTimerLocal,
   sheetMachineLocal,
@@ -383,6 +384,9 @@ export function SplittRadModal(props: Props) {
           .run();
       }
     }
+    // Kort-id (prosjektkort-kortid-spec § 4.3, M9): delene får kortets id (lik nøkkel = samme
+    // kort; endret underprosjekt → regel 3). Ingen visning endres.
+    sikreLokalKortId(db, props.original.dagsseddelId);
     props.onLagret();
   }
 

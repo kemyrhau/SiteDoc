@@ -86,6 +86,9 @@ model Vareforbruk {
   // (db-timer). NULL = ikke koblet (eldre linjer, web, Bekreft dag uten rad) → vises
   // under «Uten rad». Ingen backfill: koblingen kan ikke utledes uten å gjette.
   sheetTimerId         String?  @map("sheet_timer_id")
+  // Kort-id (prosjektkort-kortid-spec.md § 2.2): koblet vare har timerradens kort; uten sedel → NULL.
+  // Svak referanse (annet skjema). Settes av losKortId (packages/shared).
+  kortId               String?  @map("kort_id")
 
   // Snapshot ved attestering (A.7) — {prisSnapshot, internkostnadSnapshot, varenavnSnapshot, enhetSnapshot, attestertVed}
   attestertSnapshot Json? @map("attestert_snapshot")
@@ -97,6 +100,7 @@ model Vareforbruk {
 
   @@index([projectId, dato])
   @@index([dagsseddelId])
+  @@index([dagsseddelId, kortId])
   @@index([sheetTimerId])
   @@index([externalCostObjectId])
   @@index([vareId])

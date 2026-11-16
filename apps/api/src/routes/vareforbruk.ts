@@ -2,6 +2,7 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { prisma } from "@sitedoc/db";
 import { router, protectedProcedure } from "../trpc/trpc";
+import { sikreKortId, vareKortIdForSkriving } from "../services/timer/kortId";
 import type { Context } from "../trpc/context";
 import {
   verifiserProsjektmedlem,
@@ -418,6 +419,9 @@ export const vareforbrukRouter = router({
         // Radform (2026-11-12): timerraden varen er ført fra. Krever dagsseddelId,
         // og raden må ligge på den sedelen og ha samme prosjekt.
         sheetTimerId: z.string().uuid().nullable().optional(),
+        // Kort-id (prosjektkort-kortid-spec § 4.3): valgfri. Koblet vare får radens id;
+        // uten sedel → NULL; ellers regel 3.
+        kortId: z.string().uuid().nullable().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -490,6 +494,17 @@ export const vareforbrukRouter = router({
         input.projectId,
       );
 
+      const kortId = await vareKortIdForSkriving(ctx.prismaTimer, {
+        dagsseddelId: input.dagsseddelId ?? null,
+        sheetTimerId,
+        oppgittKortId: input.kortId,
+        ny: {
+          projectId: input.projectId,
+          byggeplassId: input.byggeplassId ?? null,
+          externalCostObjectId: input.externalCostObjectId ?? null,
+        },
+      });
+
       let opprettet;
       try {
         opprettet = await ctx.prismaVarelager.vareforbruk.create({
@@ -504,6 +519,7 @@ export const vareforbrukRouter = router({
             kommentar: input.kommentar?.trim() || null,
             dagsseddelId: input.dagsseddelId ?? null,
             sheetTimerId,
+            kortId,
             registrertAvUserId: ctx.userId,
           },
         });
@@ -513,6 +529,13 @@ export const vareforbrukRouter = router({
         const rad = (e as { code?: string }).code === "P2002" ? await hentEksisterende() : null;
         if (!rad) throw e;
         return rad;
+      }
+
+      // Kort-id: regel 3 for vare uten id (fylles i samme løp som sedelens øvrige rader).
+      if (opprettet?.dagsseddelId && !opprettet.kortId) {
+        await sikreKortId(ctx.prismaTimer, opprettet.dagsseddelId);
+        opprettet =
+          (await ctx.prismaVarelager.vareforbruk.findUnique({ where: { id: opprettet.id } })) ?? opprettet;
       }
 
       // Activity-log (best-effort)
@@ -561,6 +584,11 @@ export const vareforbrukRouter = router({
           projectId: true,
           attestertSnapshot: true,
           dagsseddelId: true,
+          // Kort-id (spec § 4.3): regel 2 trenger lagret id og nøkkel.
+          kortId: true,
+          byggeplassId: true,
+          externalCostObjectId: true,
+          sheetTimerId: true,
         },
       });
       if (!rad) throw new TRPCError({ code: "NOT_FOUND" });
@@ -632,9 +660,28 @@ export const vareforbrukRouter = router({
           : byttProsjekt
             ? null
             : undefined;
+      // Kort-id (§ 4.3): uendret nøkkel → står; ellers koblet rad / regel 3.
+      const kortId = await vareKortIdForSkriving(ctx.prismaTimer, {
+        dagsseddelId: rad.dagsseddelId,
+        sheetTimerId: rad.sheetTimerId ?? null,
+        lagret: {
+          kortId: rad.kortId ?? null,
+          projectId: rad.projectId,
+          byggeplassId: rad.byggeplassId ?? null,
+          externalCostObjectId: rad.externalCostObjectId ?? null,
+        },
+        ny: {
+          projectId: maalProsjekt,
+          byggeplassId: byggeplassId !== undefined ? byggeplassId : (rad.byggeplassId ?? null),
+          externalCostObjectId:
+            externalCostObjectId !== undefined ? externalCostObjectId : (rad.externalCostObjectId ?? null),
+        },
+      });
       const oppdatert = await ctx.prismaVarelager.vareforbruk.update({
         where: { id },
         data: {
+          // Kort-id skrives bare når den endres.
+          ...((rad.kortId ?? null) !== kortId ? { kortId } : {}),
           ...(byttProsjekt ? { projectId: maalProsjekt } : {}),
           ...(dato !== undefined ? { dato: new Date(dato) } : {}),
           ...(antall !== undefined ? { antall } : {}),
@@ -643,6 +690,13 @@ export const vareforbrukRouter = router({
           ...(kommentar !== undefined ? { kommentar: kommentar?.trim() || null } : {}),
         },
       });
+
+      let resultat = oppdatert;
+      if (resultat?.dagsseddelId && !resultat.kortId) {
+        await sikreKortId(ctx.prismaTimer, resultat.dagsseddelId);
+        resultat =
+          (await ctx.prismaVarelager.vareforbruk.findUnique({ where: { id } })) ?? resultat;
+      }
 
       // Activity-log (best-effort)
       try {
@@ -664,7 +718,7 @@ export const vareforbrukRouter = router({
         // Ikke-blokkerende
       }
 
-      return oppdatert;
+      return resultat;
     }),
 
   slett: protectedProcedure

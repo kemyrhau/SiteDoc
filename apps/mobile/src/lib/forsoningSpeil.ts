@@ -32,6 +32,7 @@ import {
   vareforbrukLocal,
 } from "../db/schema";
 import type { Side, TidsromRad } from "./dagskortSammenligning";
+import { sikreLokalKortId } from "../services/kortIdLokal";
 
 /** Narrow form av server-radene `forsonDagskort` returnerer (unngår dyp tRPC-union / TS2589). */
 export type ForsonetServerRad = {
@@ -41,6 +42,8 @@ export type ForsonetServerRad = {
   lonnsartId: string;
   aktivitetId: string;
   externalCostObjectId: string | null;
+  // Kort-id (spec § 4.1): id-en følger forslagsraden tilbake. Mangler mot eldre API.
+  kortId?: string | null;
   timer: number | string;
   fraTid: string | null;
   tilTid: string | null;
@@ -125,6 +128,7 @@ export function anvendForsonetLokalt(
         lonnsartId: r.lonnsartId,
         aktivitetId: r.aktivitetId,
         externalCostObjectId: r.externalCostObjectId,
+        kortId: r.kortId ?? null,
         timer: Number(r.timer),
         fraTid: r.fraTid,
         tilTid: r.tilTid,
@@ -141,6 +145,8 @@ export function anvendForsonetLokalt(
     .set({ sistSynkronisert: naa, ...(usendt ? { syncStatus: "pending" as const } : {}) })
     .where(eq(dagsseddelLocal.id, sheetId))
     .run();
+  // Kort-id (spec § 4.1, V19): de forsonede radene bærer serverens id; øvrige normaliseres.
+  sikreLokalKortId(db, sheetId);
 }
 
 /**

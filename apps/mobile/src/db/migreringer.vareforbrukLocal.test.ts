@@ -82,6 +82,7 @@ describe("L3: vare_local + vareforbruk_local", () => {
         "external_cost_object_id", // ORDRE 36b — kortnøkkel
         "feilmelding",
         "id",
+        "kort_id", // kort-id-spec § 3.3 (2026-11-16) — prosjektkortet raden hører til
         "organization_id",
         "project_id",
         "sheet_id",

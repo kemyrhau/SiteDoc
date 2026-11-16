@@ -582,6 +582,10 @@ export {
   type VareSum,
   type KortSummer,
   type KortByggeplass,
+  kortNokkel,
+  fraKortNokkel,
+  type KortValg,
+  type KortNokkel,
 } from "./prosjektkort";
 
 export {
@@ -624,3 +628,17 @@ export {
   visByggeplassIkkeValgt, byggeplassByttInput, kanVelgeByggeplassDirekte,
 } from "./byggeplassIkkeValgt";
 export type { ByggeplassIkkeValgtInput } from "./byggeplassIkkeValgt";
+
+export {
+  md5Hex,
+  kortIdNokkel,
+  effektivKortByggeplass,
+  utledKortId,
+  losKortId,
+  kortPaaSedelFraRader,
+  validerKortInvariant,
+  type KortNokkelFelt,
+  type KortPaaSedel,
+  type KortInvariantRad,
+  type KortInvariantBrudd,
+} from "./kortId";

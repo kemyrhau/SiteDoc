@@ -305,7 +305,13 @@ model SheetTimer {
   lonnsart  Lonnsart   @relation(fields: [lonnsartId], references: [id], onDelete: Restrict)
   aktivitet Aktivitet  @relation(fields: [aktivitetId], references: [id], onDelete: Restrict)
 
+  // Kort-id (prosjektkort-kortid-spec.md § 2, B1 = A, Kenneth 2026-11-16): intern id for
+  // prosjektkortet raden hører til — vises aldri i UI. Settes av losKortId (packages/shared).
+  // Nullable til ordre e (CHECK, B2). Reise: alltid NULL.
+  kortId String? @map("kort_id")
+
   @@index([sheetId])
+  @@index([sheetId, kortId])
   @@index([lonnsartId])
   @@index([aktivitetId])
   @@index([externalCostObjectId])
@@ -374,7 +380,13 @@ model SheetTimerForslag {
 
   sheet DailySheet @relation(fields: [sheetId], references: [id], onDelete: Cascade)
 
+  // Kort-id (prosjektkort-kortid-spec.md § 2, B1 = A, Kenneth 2026-11-16): intern id for
+  // prosjektkortet raden hører til — vises aldri i UI. Settes av losKortId (packages/shared).
+  // Nullable til ordre e (CHECK, B2). Følger forslagsraden tilbake ved forsoning.
+  kortId String? @map("kort_id")
+
   @@index([sheetId])
+  @@index([sheetId, kortId])
   @@map("sheet_timer_forslag")
   @@schema("timer")
 }
@@ -408,7 +420,13 @@ model SheetTillegg {
   sheet   DailySheet @relation(fields: [sheetId], references: [id], onDelete: Cascade)
   tillegg Tillegg    @relation(fields: [tilleggId], references: [id], onDelete: Restrict)
 
+  // Kort-id (prosjektkort-kortid-spec.md § 2, B1 = A, Kenneth 2026-11-16): intern id for
+  // prosjektkortet raden hører til — vises aldri i UI. Settes av losKortId (packages/shared).
+  // Nullable til ordre e (CHECK, B2). Tillegget følger valgt kort.
+  kortId String? @map("kort_id")
+
   @@index([sheetId])
+  @@index([sheetId, kortId])
   @@index([tilleggId])
   @@index([projectId])
   @@index([attestertStatus])
@@ -480,7 +498,13 @@ model SheetUtlegg {
   sheet           DailySheet      @relation(fields: [sheetId], references: [id], onDelete: Cascade)
   expenseCategory ExpenseCategory @relation(fields: [expenseCategoryId], references: [id], onDelete: Restrict)
 
+  // Kort-id (prosjektkort-kortid-spec.md § 2, B1 = A, Kenneth 2026-11-16): intern id for
+  // prosjektkortet raden hører til — vises aldri i UI. Settes av losKortId (packages/shared).
+  // Nullable til ordre e (CHECK, B2). Utlegget følger valgt kort.
+  kortId String? @map("kort_id")
+
   @@index([sheetId])
+  @@index([sheetId, kortId])
   @@index([projectId])
   @@index([expenseCategoryId])
   @@index([byggeplassId])
@@ -578,7 +602,13 @@ model SheetMachine {
 
   sheet DailySheet @relation(fields: [sheetId], references: [id], onDelete: Cascade)
 
+  // Kort-id (prosjektkort-kortid-spec.md § 2, B1 = A, Kenneth 2026-11-16): intern id for
+  // prosjektkortet raden hører til — vises aldri i UI. Settes av losKortId (packages/shared).
+  // Nullable til ordre e (CHECK, B2). Koblet maskin har timerradens kort (K6).
+  kortId String? @map("kort_id")
+
   @@index([sheetId])
+  @@index([sheetId, kortId])
   @@index([sheetTimerId])
   @@index([vehicleId])
   @@index([projectId])

@@ -27,6 +27,7 @@ import type { Dagsforslag, AnvendDagsforslagResultat } from "./dagsforslag";
 import { radTilleggNokkel, sedelKontekstForRad, sedelKontekstLokalt, type BekreftDagTillegg, type TilleggPerRad } from "./bekreftDagTillegg";
 import { skrivLonnstillegg, skrivUtlegg, type NyttLonnstillegg, type NyttUtlegg } from "../services/tilleggUtleggSkriv";
 import type { NyKoOppforing } from "../providers/OpplastingsKoProvider";
+import { sikreLokalKortId } from "../services/kortIdLokal";
 
 /**
  * ORDRE Tillegg/Utlegg i Bekreft dag: lønnstillegg og utlegg holdt i minnet på
@@ -323,6 +324,8 @@ export function anvendDagsforslag(
     lonnUtleggSkrevet = true;
   }
 
+  // Kort-id (prosjektkort-kortid-spec § 2.4, M9): samme regel som serveren (regel 3, K6).
+  for (const sheetId of new Set(sedelPerDato.values())) sikreLokalKortId(db, sheetId);
   return {
     lonnUtleggSkrevet,
     utleggKo,

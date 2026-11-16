@@ -2,6 +2,7 @@ import type { UtleggOrdning } from "@sitedoc/shared";
 import { sheetTilleggLocal, sheetUtleggLocal, sheetUtleggVedleggLocal } from "../db/schema";
 import type { LokalDb } from "./dagsforslagInput";
 import type { NyKoOppforing } from "../providers/OpplastingsKoProvider";
+import { sikreLokalKortId } from "./kortIdLokal";
 
 /** Kvitteringsbilde tatt i modalen, lagret lokalt — ikke registrert ennå. */
 export type PendingKvittering = {
@@ -65,6 +66,8 @@ export function skrivUtlegg(
       sistEndretLokalt: u.foertVed,
     })
     .run();
+  // Kort-id (prosjektkort-kortid-spec § 2.4, M9): samme regel som serveren (regel 3, K6).
+  sikreLokalKortId(db, sheetId);
   const k = u.kvittering;
   if (!k) return null;
   const vedleggId = nyId();
@@ -130,4 +133,6 @@ export function skrivLonnstillegg(db: LokalDb, sheetId: string, l: NyttLonnstill
       sistEndretLokalt: naa,
     })
     .run();
+  // Kort-id (prosjektkort-kortid-spec § 2.4, M9): samme regel som serveren (regel 3, K6).
+  sikreLokalKortId(db, sheetId);
 }

@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { Prisma, type PrismaClient as PrismaClientTimer } from "@sitedoc/db-timer";
@@ -17,6 +18,13 @@ import {
   aktivtProsjektmedlemWhere,
 } from "../../trpc/tilgangskontroll";
 import { krevTimerAktivert, hentEffektivArbeidstid } from "../../services/timer";
+import {
+  kortIdForSkriving,
+  lastLagretKort,
+  lastSedelKortKontekst,
+  sikreKortId,
+  validerOppgittKortId,
+} from "../../services/timer/kortId";
 import {
   krevRadInnenforTak,
   maksForSatsEnhet,
@@ -507,6 +515,8 @@ type OverlappPayloadRad = {
   reiseKilde?: "matrise" | "manuell" | "overforing" | null;
   reiseRegel?: unknown;
   tidKilde?: "stempel" | "utledet" | "manuell" | null;
+  /** Kort-id (spec § 4.1): følger raden inn i forslaget og ut igjen ved forsoning. */
+  kortId?: string | null;
 };
 
 /**
@@ -583,6 +593,8 @@ async function lagreOverlappForslag(
         reiseKilde: r.reiseKilde ?? null,
         reiseRegel: jsonEllerNull(r.reiseRegel),
         tidKilde: r.tidKilde ?? null,
+        // Kort-id (spec § 4.1, T8): forslaget bærer radens kort; forsonDagskort skriver det tilbake.
+        kortId: r.erReise ? null : (r.kortId ?? null),
         kilde: "mobil",
         // V19.9.6: default "overlapp" → V19-A-forslag uendret.
         grunn: r.grunn ?? "overlapp",
@@ -1655,6 +1667,8 @@ async function opprettForsteTimerRadForslag(
     });
     // PK6: hodet = Σ rad (her = radPauseMin), speiler bæreren.
     await synkroniserHodePause(tx, sheetId);
+    // Kort-id (spec § 4.3): regel 3 — sedelen var tom, så raden får utledet id.
+    await sikreKortId(tx, sheetId);
   });
 }
 
@@ -1681,6 +1695,9 @@ const splittRadInput = z.discriminatedUnion("radType", [
           fraTid: z.string().nullable().optional(),
           tilTid: z.string().nullable().optional(),
           timer: z.number().positive(),
+          // Kort-id (spec § 4.3): true → delen får eget kort (ny id). Uten → samme id
+          // som originalen når nøkkelen er lik, ellers regel 3.
+          egetKort: z.boolean().optional(),
         }),
       )
       .min(2, "Splitt krever minst 2 nye rader"),
@@ -1699,6 +1716,9 @@ const splittRadInput = z.discriminatedUnion("radType", [
           // kort når prosjektet er det samme (arvTilleggKort).
           byggeplassId: z.string().uuid().nullable().optional(),
           externalCostObjectId: z.string().uuid().nullable().optional(),
+          // Kort-id (spec § 4.3): true → delen får eget kort (ny id). Uten → samme id
+          // som originalen når nøkkelen er lik, ellers regel 3.
+          egetKort: z.boolean().optional(),
         }),
       )
       .min(2, "Splitt krever minst 2 nye rader"),
@@ -2408,6 +2428,8 @@ export const dagsseddelRouter = router({
         reiseKjoretidMin: z.number().int().min(0).nullable().optional(),
         reiseAvstandM: z.number().int().min(0).nullable().optional(),
         reiseRegel: z.record(z.unknown()).nullable().optional(),
+        // Kort-id (spec § 4.3): valgfri. Uten → regel 3 (eldste kort med samme nøkkel).
+        kortId: z.string().uuid().nullable().optional(),
       }).superRefine(refineFraForTil),
     )
     .mutation(async ({ ctx, input }) => {
@@ -2589,16 +2611,24 @@ export const dagsseddelRouter = router({
       // raden og hodet = Σ rad i samme skriving.
       const rad = await ctx.prismaTimer.$transaction(async (tx) => {
         const ny = await tx.sheetTimer.create({
-          data: byggTimerRadData(
-            input.sheetId,
-            { ...input, pauseMin: vurdering.pauseMin },
-            erReise,
-            null,
-            reiseSpor,
-          ),
+          data: {
+            ...byggTimerRadData(
+              input.sheetId,
+              { ...input, pauseMin: vurdering.pauseMin },
+              erReise,
+              null,
+              reiseSpor,
+            ),
+            // Kort-id regel 1 (reise får aldri kort); uten id → regel 3 i sikreKortId.
+            kortId: erReise ? null : (input.kortId ?? null),
+          },
         });
         await synkroniserHodePause(tx, input.sheetId);
-        return ny;
+        const { kortIdFor } = await sikreKortId(tx, input.sheetId, {
+          kast: true,
+          oppgitteKortIder: input.kortId ? [input.kortId] : [],
+        });
+        return { ...ny, kortId: kortIdFor.get(ny.id) ?? ny.kortId };
       });
       return rad;
     }),
@@ -2797,12 +2827,29 @@ export const dagsseddelRouter = router({
 
       // F4-1d: rad-write + hode-synk (PK6) atomisk.
       const oppdatert = await ctx.prismaTimer.$transaction(async (tx) => {
+        // Kort-id (spec § 4.3): uendret nøkkel → id står; endret nøkkel (underprosjekt/
+        // byggeplass) eller arbeid↔reise → regel 3 i sikreKortId.
+        const postErReise = typeof data.erReise === "boolean" ? data.erReise : rad.erReise;
+        data.kortId = postErReise
+          ? null
+          : kortIdForSkriving(await lastSedelKortKontekst(tx, rad.sheetId), {
+              lagret: rad.erReise ? null : rad,
+              ny: {
+                projectId: rad.projectId,
+                byggeplassId: input.byggeplassId !== undefined ? input.byggeplassId : rad.byggeplassId,
+                externalCostObjectId:
+                  input.externalCostObjectId !== undefined
+                    ? input.externalCostObjectId
+                    : rad.externalCostObjectId,
+              },
+            });
         const o = await tx.sheetTimer.update({
           where: { id: input.id },
           data,
         });
         await synkroniserHodePause(tx, rad.sheetId);
-        return o;
+        const { kortIdFor } = await sikreKortId(tx, rad.sheetId);
+        return { ...o, kortId: kortIdFor.get(input.id) ?? o?.kortId ?? null };
       });
       return oppdatert;
     }),
@@ -2878,6 +2925,9 @@ export const dagsseddelRouter = router({
                 beskrivelse: z.string().nullable().optional(),
                 externalCostObjectId: z.string().uuid().nullable().optional(),
                 vehicleId: z.string().uuid().nullable().optional(),
+                // Kort-id (spec § 4.3): valgfri. Uten → forslagets id (samme tid/nøkkel),
+                // ellers regel 2/3.
+                kortId: z.string().uuid().nullable().optional(),
               })
               .superRefine(refineFraForTil),
           )
@@ -2899,6 +2949,9 @@ export const dagsseddelRouter = router({
                 beskrivelse: z.string().nullable().optional(),
                 externalCostObjectId: z.string().uuid().nullable().optional(),
                 vehicleId: z.string().uuid().nullable().optional(),
+                // Kort-id (spec § 4.3): valgfri. Uten → forslagets id (samme tid/nøkkel),
+                // ellers regel 2/3.
+                kortId: z.string().uuid().nullable().optional(),
               })
               .superRefine(refineFraForTil),
           )
@@ -3196,24 +3249,81 @@ export const dagsseddelRouter = router({
             where: { sheetId: input.sheetId, id: { in: input.slettinger } },
           });
         }
+        // Kort-id (spec § 4.1/4.3, T8): id-en følger forslagsraden. Oppdatering: oppgitt,
+        // ellers forslagets id for samme rad-id, ellers regel 2 mot lagret rad. Ny rad:
+        // oppgitt, ellers forslaget med samme tid og nøkkel, ellers regel 3 (sikreKortId).
+        const kortKontekst = await lastSedelKortKontekst(tx, input.sheetId);
+        const forslagKort = await tx.sheetTimerForslag.findMany({
+          where: { sheetId: input.sheetId, kortId: { not: null } },
+          select: { id: true, kortId: true, projectId: true, byggeplassId: true, externalCostObjectId: true, fraTid: true, tilTid: true },
+        });
+        const brukteForslag = new Set<string>();
+        const forslagFor = (r: {
+          id?: string;
+          projectId: string;
+          byggeplassId?: string | null;
+          externalCostObjectId?: string | null;
+          fraTid: string;
+          tilTid: string;
+        }) => {
+          const f =
+            (r.id ? forslagKort.find((x) => x.id === r.id) : undefined) ??
+            forslagKort.find(
+              (x) =>
+                !brukteForslag.has(x.id) &&
+                x.projectId === r.projectId &&
+                (x.byggeplassId ?? null) === (r.byggeplassId ?? null) &&
+                (x.externalCostObjectId ?? null) === (r.externalCostObjectId ?? null) &&
+                x.fraTid === r.fraTid &&
+                x.tilTid === r.tilTid,
+            );
+          if (f) brukteForslag.add(f.id);
+          return f?.kortId ?? null;
+        };
+        const lagredeForOppdatering = new Map(
+          (
+            await tx.sheetTimer.findMany({
+              where: { sheetId: input.sheetId, id: { in: input.oppdateringer.map((o) => o.id) } },
+              select: { id: true, kortId: true, projectId: true, byggeplassId: true, externalCostObjectId: true },
+            })
+          ).map((r) => [r.id, r]),
+        );
         for (const o of input.oppdateringer) {
+          const erReise = erReiseMap.get(o.lonnsartId) ?? false;
           await tx.sheetTimer.update({
             where: { id: o.id },
-            data: byggTimerRadData(
-              input.sheetId,
-              { ...o, pauseMin: oppdateringPause.get(o.id) ?? 0 },
-              erReiseMap.get(o.lonnsartId) ?? false,
-            ),
+            data: {
+              ...byggTimerRadData(
+                input.sheetId,
+                { ...o, pauseMin: oppdateringPause.get(o.id) ?? 0 },
+                erReise,
+              ),
+              kortId: erReise
+                ? null
+                : kortIdForSkriving(kortKontekst, {
+                    oppgittKortId: o.kortId ?? forslagFor(o),
+                    lagret: lagredeForOppdatering.get(o.id) ?? null,
+                    ny: {
+                      projectId: o.projectId,
+                      byggeplassId: o.byggeplassId ?? null,
+                      externalCostObjectId: o.externalCostObjectId ?? null,
+                    },
+                  }),
+            },
           });
         }
         for (let i = 0; i < input.nyeRader.length; i++) {
           const r = input.nyeRader[i]!;
+          const erReise = erReiseMap.get(r.lonnsartId) ?? false;
           await tx.sheetTimer.create({
-            data: byggTimerRadData(
-              input.sheetId,
-              { ...r, pauseMin: nyRadPause[i] ?? 0 },
-              erReiseMap.get(r.lonnsartId) ?? false,
-            ),
+            data: {
+              ...byggTimerRadData(
+                input.sheetId,
+                { ...r, pauseMin: nyRadPause[i] ?? 0 },
+                erReise,
+              ),
+              kortId: erReise ? null : (r.kortId ?? forslagFor(r)),
+            },
           });
         }
         // V20/PK6: hodet = Σ rad etter alle skrivinger (slett + oppdater + ny).
@@ -3224,6 +3334,16 @@ export const dagsseddelRouter = router({
         });
         // Funn 5: linjer på forslaget følger raden som vant (før forslaget slettes).
         const svar = await utforLinjeRelink(tx, input.sheetId, relinkPar, forsonet);
+        // Kort-id etter relinken, så koblet maskin følger raden den nå står på (K6).
+        await sikreKortId(tx, input.sheetId, {
+          kast: true,
+          kontekst: kortKontekst,
+          // Forslagets id kom fra klienten (syncBatch) → K1-sjekkes som oppgitt.
+          oppgitteKortIder: [
+            ...[...input.oppdateringer, ...input.nyeRader].flatMap((r) => (r.kortId ? [r.kortId] : [])),
+            ...forslagKort.flatMap((f) => (f.kortId ? [f.kortId] : [])),
+          ],
+        });
         // V19 (A-5): forslaget er anvendt → slett det i samme tx.
         await tx.sheetTimerForslag.deleteMany({ where: { sheetId: input.sheetId } });
         // V19 (A-5, vakt): forsoningen skal ALDRI etterlate en overlapp. Dette er
@@ -3383,6 +3503,8 @@ export const dagsseddelRouter = router({
         // Prosjektkortet: kortets byggeplass (null = arv) og underprosjekt.
         byggeplassId: z.string().uuid().nullable().optional(),
         externalCostObjectId: z.string().uuid().nullable().optional(),
+        // Kort-id (spec § 4.3): valgfri. Uten → regel 3 (eldste kort med samme nøkkel).
+        kortId: z.string().uuid().nullable().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -3413,6 +3535,13 @@ export const dagsseddelRouter = router({
         });
       }
 
+      // Kort-id (spec § 4.3): oppgitt id valideres før skriving (K1–K4); uten → regel 3.
+      const kortKontekst = await lastSedelKortKontekst(ctx.prismaTimer, input.sheetId);
+      await validerOppgittKortId(ctx.prismaTimer, kortKontekst, input.kortId, {
+        projectId: input.projectId,
+        byggeplassId: input.byggeplassId ?? null,
+        externalCostObjectId: input.externalCostObjectId ?? null,
+      });
       // F4-1d: rad-write + touchSedel atomisk.
       const [rad] = await ctx.prismaTimer.$transaction([
         ctx.prismaTimer.sheetTillegg.create({
@@ -3424,11 +3553,13 @@ export const dagsseddelRouter = router({
             kommentar: input.kommentar ?? null,
             byggeplassId: input.byggeplassId ?? null,
             externalCostObjectId: input.externalCostObjectId ?? null,
+            kortId: input.kortId ?? null,
           },
         }),
         touchSedel(ctx.prismaTimer, input.sheetId),
       ]);
-      return rad;
+      const { kortIdFor } = await sikreKortId(ctx.prismaTimer, input.sheetId, { kontekst: kortKontekst });
+      return { ...rad, kortId: kortIdFor.get(rad.id) ?? rad.kortId ?? null };
     }),
 
   oppdaterTilleggRad: protectedProcedure
@@ -3481,6 +3612,17 @@ export const dagsseddelRouter = router({
         data.externalCostObjectId = input.externalCostObjectId;
       }
 
+      // Kort-id (spec § 4.3): uendret nøkkel → står; ellers regel 3 (sikreKortId etterpå).
+      const kortKontekst = await lastSedelKortKontekst(ctx.prismaTimer, rad.sheetId);
+      data.kortId = kortIdForSkriving(kortKontekst, {
+        lagret: rad,
+        ny: {
+          projectId: rad.projectId,
+          byggeplassId: input.byggeplassId !== undefined ? input.byggeplassId : rad.byggeplassId,
+          externalCostObjectId:
+            input.externalCostObjectId !== undefined ? input.externalCostObjectId : rad.externalCostObjectId,
+        },
+      });
       // F4-1d: rad-write + touchSedel atomisk.
       const [oppdatert] = await ctx.prismaTimer.$transaction([
         ctx.prismaTimer.sheetTillegg.update({
@@ -3489,7 +3631,8 @@ export const dagsseddelRouter = router({
         }),
         touchSedel(ctx.prismaTimer, rad.sheetId),
       ]);
-      return oppdatert;
+      const { kortIdFor } = await sikreKortId(ctx.prismaTimer, rad.sheetId, { kontekst: kortKontekst });
+      return { ...oppdatert, kortId: kortIdFor.get(input.id) ?? oppdatert.kortId ?? null };
     }),
 
   fjernTilleggRad: protectedProcedure
@@ -3642,6 +3785,8 @@ export const dagsseddelRouter = router({
         // Prosjektkortet: kortets byggeplass (null = arv) og underprosjekt.
         byggeplassId: z.string().uuid().nullable().optional(),
         externalCostObjectId: z.string().uuid().nullable().optional(),
+        // Kort-id (spec § 4.3): valgfri. Uten → regel 3 (eldste kort med samme nøkkel).
+        kortId: z.string().uuid().nullable().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -3711,6 +3856,13 @@ export const dagsseddelRouter = router({
         belop = null;
       }
 
+      // Kort-id (spec § 4.3): oppgitt id valideres før skriving (K1–K4); uten → regel 3.
+      const kortKontekst = await lastSedelKortKontekst(ctx.prismaTimer, input.sheetId);
+      await validerOppgittKortId(ctx.prismaTimer, kortKontekst, input.kortId, {
+        projectId: input.projectId,
+        byggeplassId: input.byggeplassId ?? null,
+        externalCostObjectId: input.externalCostObjectId ?? null,
+      });
       const [rad] = await ctx.prismaTimer.$transaction([
         ctx.prismaTimer.sheetUtlegg.create({
           data: {
@@ -3722,11 +3874,13 @@ export const dagsseddelRouter = router({
             ordningVedFoering: ordning,
             byggeplassId: input.byggeplassId ?? null,
             externalCostObjectId: input.externalCostObjectId ?? null,
+            kortId: input.kortId ?? null,
           },
         }),
         touchSedel(ctx.prismaTimer, input.sheetId),
       ]);
-      return rad;
+      const { kortIdFor } = await sikreKortId(ctx.prismaTimer, input.sheetId, { kontekst: kortKontekst });
+      return { ...rad, kortId: kortIdFor.get(rad.id) ?? rad.kortId ?? null };
     }),
 
   // Kun beløp (innenfor radens ordning) + kommentar er redigerbart. Kategori og
@@ -3793,11 +3947,23 @@ export const dagsseddelRouter = router({
         data.externalCostObjectId = input.externalCostObjectId;
       }
 
+      // Kort-id (spec § 4.3): uendret nøkkel → står; ellers regel 3 (sikreKortId etterpå).
+      const kortKontekst = await lastSedelKortKontekst(ctx.prismaTimer, rad.sheetId);
+      data.kortId = kortIdForSkriving(kortKontekst, {
+        lagret: rad,
+        ny: {
+          projectId: rad.projectId,
+          byggeplassId: input.byggeplassId !== undefined ? input.byggeplassId : rad.byggeplassId,
+          externalCostObjectId:
+            input.externalCostObjectId !== undefined ? input.externalCostObjectId : rad.externalCostObjectId,
+        },
+      });
       const [oppdatert] = await ctx.prismaTimer.$transaction([
         ctx.prismaTimer.sheetUtlegg.update({ where: { id: input.id }, data }),
         touchSedel(ctx.prismaTimer, rad.sheetId),
       ]);
-      return oppdatert;
+      const { kortIdFor } = await sikreKortId(ctx.prismaTimer, rad.sheetId, { kontekst: kortKontekst });
+      return { ...oppdatert, kortId: kortIdFor.get(input.id) ?? oppdatert.kortId ?? null };
     }),
 
   fjernUtleggRad: protectedProcedure
@@ -4603,19 +4769,39 @@ export const dagsseddelRouter = router({
       }
 
       const fraEcoId = rad.externalCostObjectId;
+      // Kort-id (spec § 4.3): nøkkelen endres → regel 3; koblet maskin følger raden (K6).
+      const kortKontekst = await lastSedelKortKontekst(ctx.prismaTimer, rad.sheetId);
+      const nyKortId =
+        "erReise" in rad && rad.erReise
+          ? null
+          : kortIdForSkriving(kortKontekst, {
+              lagret: rad,
+              ny: {
+                projectId: rad.projectId,
+                byggeplassId: rad.byggeplassId,
+                externalCostObjectId: input.externalCostObjectId,
+              },
+            });
+      // Kort-id skrives bare når den endres (uendret id = ingen kolonne i data).
+      const kortData = (rad.kortId ?? null) !== nyKortId ? { kortId: nyKortId } : {};
       // F4-1d: rad-write + touchSedel atomisk.
-      const [oppdatert] = await ctx.prismaTimer.$transaction([
+      const [oppdatertRad] = await ctx.prismaTimer.$transaction([
         erTillegg
           ? ctx.prismaTimer.sheetTillegg.update({
               where: { id: input.timerRadId },
-              data: { externalCostObjectId: input.externalCostObjectId },
+              data: { externalCostObjectId: input.externalCostObjectId, ...kortData },
             })
           : ctx.prismaTimer.sheetTimer.update({
               where: { id: input.timerRadId },
-              data: { externalCostObjectId: input.externalCostObjectId },
+              data: { externalCostObjectId: input.externalCostObjectId, ...kortData },
             }),
         touchSedel(ctx.prismaTimer, rad.sheetId),
       ]);
+      const { kortIdFor } = await sikreKortId(ctx.prismaTimer, rad.sheetId, { kontekst: kortKontekst });
+      const oppdatert = {
+        ...oppdatertRad,
+        kortId: kortIdFor.get(input.timerRadId) ?? oppdatertRad?.kortId ?? null,
+      };
 
       // Activity-log (best-effort — ikke blokker ved skrivefeil)
       try {
@@ -5397,6 +5583,27 @@ export const dagsseddelRouter = router({
       }
 
 
+      // Kort-id (spec § 4.3): ny rad med `parentRadId` arver originalens id når nøkkelen
+      // er lik; ellers regel 3 (sikreKortId etter transaksjonen).
+      const redigerKortKontekst = await lastSedelKortKontekst(ctx.prismaTimer, sheet.id);
+      const originalKort = new Map(
+        [...eksTimer, ...eksTillegg, ...eksMaskin].map((r) => [r.id, r] as const),
+      );
+      const arvKortId = (rad: {
+        originalId: string | null;
+        projectId: string;
+        byggeplassId?: string | null;
+        externalCostObjectId?: string | null;
+      }) =>
+        kortIdForSkriving(redigerKortKontekst, {
+          lagret: rad.originalId ? (originalKort.get(rad.originalId) ?? null) : null,
+          ny: {
+            projectId: rad.projectId,
+            byggeplassId: rad.byggeplassId ?? null,
+            externalCostObjectId: rad.externalCostObjectId ?? null,
+          },
+        });
+
       // Transaksjon: marker alle eksisterende pending som "erstattet" + opprett nye
       await ctx.prismaTimer.$transaction([
         // F4-1d: oppdater sedelen ALLTID (ikke bare ved pause-endring) — ellers
@@ -5452,6 +5659,7 @@ export const dagsseddelRouter = router({
               parentRadId: rad.originalId,
               // LAG 2: utledet fra (ev. byttet) lønnsart.
               erReise: redigerErReiseMap.get(rad.lonnsartId) ?? false,
+              kortId: (redigerErReiseMap.get(rad.lonnsartId) ?? false) ? null : arvKortId(rad),
             },
           }),
         ),
@@ -5467,6 +5675,7 @@ export const dagsseddelRouter = router({
               externalCostObjectId: rad.externalCostObjectId ?? null,
               attestertStatus: "pending",
               parentRadId: rad.originalId,
+              kortId: arvKortId(rad),
             },
           }),
         ),
@@ -5485,10 +5694,13 @@ export const dagsseddelRouter = router({
               enhet: rad.enhet ?? null,
               attestertStatus: "pending",
               parentRadId: rad.originalId,
+              kortId: arvKortId(rad),
             },
           }),
         ),
       ]);
+      // Kort-id: regel 3 for rader uten arvet id (rader uten original eller ny nøkkel).
+      await sikreKortId(ctx.prismaTimer, sheet.id, { kontekst: redigerKortKontekst });
 
       // Activity-log (etter transaksjonen — separat så feilet log ikke ruller back).
       // T7-2c1: payload utvidet med originalerSnapshot + nyeSnapshot for revisjons-spor.
@@ -5612,6 +5824,31 @@ export const dagsseddelRouter = router({
         sum: originalSum,
       });
 
+      // Kort-id (spec § 4.3): delene beholder originalens id når nøkkelen er lik; `egetKort`
+      // gir ny id; ellers regel 3 (sikreKortId etter skrivingen). Reise får aldri kort.
+      const splittKontekst = await lastSedelKortKontekst(ctx.prismaTimer, sheet.id);
+      const splittKort = (del: {
+        projectId: string;
+        byggeplassId?: string | null;
+        externalCostObjectId?: string | null;
+        egetKort?: boolean;
+      }): string | null => {
+        if ((original as { erReise?: boolean }).erReise) return null;
+        if (del.egetKort) return randomUUID();
+        return kortIdForSkriving(splittKontekst, {
+          lagret: original as {
+            kortId: string | null;
+            projectId: string;
+            byggeplassId: string | null;
+            externalCostObjectId: string | null;
+          },
+          ny: {
+            projectId: del.projectId,
+            byggeplassId: del.byggeplassId ?? null,
+            externalCostObjectId: del.externalCostObjectId ?? null,
+          },
+        });
+      };
       // 8) Transaksjon: marker original "erstattet" + opprett nye med parentRadId
       const naa = new Date();
       if (input.radType === "timer") {
@@ -5674,6 +5911,7 @@ export const dagsseddelRouter = router({
                 parentRadId: original.id,
                 // LAG 2: split = samme arbeid → arv hele reise-sporet (sporbarhet).
                 ...arvReiseSpor(original as ReiseSporKilde),
+                kortId: splittKort(rad),
               },
             });
           }
@@ -5697,6 +5935,7 @@ export const dagsseddelRouter = router({
                 antall: rad.antall,
                 kommentar: rad.kommentar ?? null,
                 ...arvTilleggKort(rad, original as TilleggKortKilde),
+                kortId: splittKort({ ...rad, ...arvTilleggKort(rad, original as TilleggKortKilde) }),
                 attestertStatus: "pending",
                 parentRadId: original.id,
               },
@@ -5728,6 +5967,7 @@ export const dagsseddelRouter = router({
                 enhet: rad.enhet ?? null,
                 attestertStatus: "pending",
                 parentRadId: original.id,
+                kortId: splittKort(rad),
               },
             }),
           ),
@@ -5736,6 +5976,8 @@ export const dagsseddelRouter = router({
 
       // F4-1d: bump sedelens updatedAt så de nye split-radene når mobil pull.
       await touchSedel(ctx.prismaTimer, sheet.id);
+      // Kort-id: regel 3 for deler uten arvet id.
+      await sikreKortId(ctx.prismaTimer, sheet.id, { kontekst: splittKontekst });
 
       // 9) Activity-log med snapshots
       const originalSnapshot =
@@ -5835,6 +6077,31 @@ export const dagsseddelRouter = router({
         sum: originalSum,
       });
 
+      // Kort-id (spec § 4.3): delene beholder originalens id når nøkkelen er lik; `egetKort`
+      // gir ny id; ellers regel 3 (sikreKortId etter skrivingen). Reise får aldri kort.
+      const splittKontekst = await lastSedelKortKontekst(ctx.prismaTimer, sheet.id);
+      const splittKort = (del: {
+        projectId: string;
+        byggeplassId?: string | null;
+        externalCostObjectId?: string | null;
+        egetKort?: boolean;
+      }): string | null => {
+        if ((original as { erReise?: boolean }).erReise) return null;
+        if (del.egetKort) return randomUUID();
+        return kortIdForSkriving(splittKontekst, {
+          lagret: original as {
+            kortId: string | null;
+            projectId: string;
+            byggeplassId: string | null;
+            externalCostObjectId: string | null;
+          },
+          ny: {
+            projectId: del.projectId,
+            byggeplassId: del.byggeplassId ?? null,
+            externalCostObjectId: del.externalCostObjectId ?? null,
+          },
+        });
+      };
       // 6) Transaksjon: SLETT original + opprett N plain rader. Radene speiler
       //    tilfoy*-radene (ingen attestertStatus/parentRadId satt → skjema-
       //    default, identisk med normalt tillagte draft-rader).
@@ -5889,6 +6156,7 @@ export const dagsseddelRouter = router({
                   (original as { vehicleId: string | null }).vehicleId ?? null,
                 // LAG 2: arv hele reise-sporet (samme arbeid → samme spor).
                 ...arvReiseSpor(original as ReiseSporKilde),
+                kortId: splittKort(rad),
               },
             });
           }
@@ -5907,6 +6175,7 @@ export const dagsseddelRouter = router({
                 antall: rad.antall,
                 kommentar: rad.kommentar ?? null,
                 ...arvTilleggKort(rad, original as TilleggKortKilde),
+                kortId: splittKort({ ...rad, ...arvTilleggKort(rad, original as TilleggKortKilde) }),
               },
             }),
           ),
@@ -5927,6 +6196,7 @@ export const dagsseddelRouter = router({
                 timer: rad.timer,
                 mengde: rad.mengde ?? null,
                 enhet: rad.enhet ?? null,
+                kortId: splittKort(rad),
               },
             }),
           ),
@@ -5935,6 +6205,8 @@ export const dagsseddelRouter = router({
 
       // F4-1d: bump sedelens updatedAt så de nye split-radene når mobil pull.
       await touchSedel(ctx.prismaTimer, sheet.id);
+      // Kort-id: regel 3 for deler uten arvet id.
+      await sikreKortId(ctx.prismaTimer, sheet.id, { kontekst: splittKontekst });
 
       return { radType: input.radType, antallNye: input.nyeRader.length };
     }),
@@ -6334,6 +6606,8 @@ export const dagsseddelRouter = router({
             reiseRegel: t.reiseRegel,
             tidKilde: t.tidKilde,
             reiseAvvik: t.reiseAvvik,
+            // Kort-id (spec § 4.1): telefonen får serverens id på rader ført på web.
+            kortId: t.kortId,
           })),
           tillegg: s.tillegg.map((tl) => ({
             id: tl.id,
@@ -6344,6 +6618,8 @@ export const dagsseddelRouter = router({
             // Prosjektkortet: kortets byggeplass (null = arv) og underprosjekt.
             byggeplassId: tl.byggeplassId,
             externalCostObjectId: tl.externalCostObjectId,
+            // Kort-id (spec § 4.1): telefonen får serverens id på rader ført på web.
+            kortId: tl.kortId,
             // Funn #2: kvittering-vedlegg per tillegg-rad (metadata).
             vedlegg: (vedleggPerRad.get(tl.id) ?? []).map((v) => ({
               id: v.id,
@@ -6367,6 +6643,8 @@ export const dagsseddelRouter = router({
             enhet: m.enhet,
             fraTid: m.fraTid,
             tilTid: m.tilTid,
+            // Kort-id (spec § 4.1): telefonen får serverens id på rader ført på web.
+            kortId: m.kortId,
           })),
           // U4: utlegg-rader + kvittering-vedlegg. `foertVed` = createdAt (radens
           // føringstidspunkt, ikke synk-tid) så mobil beholder det reviderbare
@@ -6381,6 +6659,8 @@ export const dagsseddelRouter = router({
             foertVed: u.createdAt.toISOString(),
             byggeplassId: u.byggeplassId,
             externalCostObjectId: u.externalCostObjectId,
+            // Kort-id (spec § 4.1): telefonen får serverens id på rader ført på web.
+            kortId: u.kortId,
             vedlegg: (utleggVedleggPerRad.get(u.id) ?? []).map((v) => ({
               id: v.id,
               fileUrl: v.fileUrl,
@@ -6492,6 +6772,9 @@ export const dagsseddelRouter = router({
                 // (R9–R11/S4, innhold avgjør). ALDRI stille overskriving.
                 serverVersjon: z.string().datetime().nullable().optional(),
                 endretLokalt: z.boolean().optional(),
+                // Kort-id (prosjektkort-kortid-spec § 4.1, B1 = A): valgfri. Uten → regel 2/3
+                // på serveren (eldre klient). Vises aldri i UI.
+                kortId: z.string().uuid().nullable().optional(),
               }),
             ),
             tillegg: z.array(
@@ -6506,6 +6789,9 @@ export const dagsseddelRouter = router({
                 // feltene gir NULL (= arver sedelens byggeplass, uten underprosjekt).
                 byggeplassId: z.string().uuid().nullable().optional(),
                 externalCostObjectId: z.string().uuid().nullable().optional(),
+                // Kort-id (prosjektkort-kortid-spec § 4.1, B1 = A): valgfri. Uten → regel 2/3
+                // på serveren (eldre klient). Vises aldri i UI.
+                kortId: z.string().uuid().nullable().optional(),
               }),
             ),
             maskiner: z
@@ -6528,6 +6814,8 @@ export const dagsseddelRouter = router({
                   // SYNC-2: fra/til per maskin-rad (datatap-fiks, samme som timer).
                   fraTid: z.string().nullable().optional(),
                   tilTid: z.string().nullable().optional(),
+                  // Kort-id (§ 4.1). Koblet maskin får timerradens id uansett (K6).
+                  kortId: z.string().uuid().nullable().optional(),
                 }),
               )
               .default([]),
@@ -6555,6 +6843,8 @@ export const dagsseddelRouter = router({
                   // ikke synk-dagen. Uten dette ville en rad som lå offline i tre
                   // uker se ut som ført på synk-dagen (tillegg-hullet — se timer.md).
                   foertVed: z.string(),
+                  // Kort-id (§ 4.1): valgfri, som tillegg.
+                  kortId: z.string().uuid().nullable().optional(),
                 }),
               )
               .default([]),
@@ -6646,7 +6936,8 @@ export const dagsseddelRouter = router({
           // tilbake etter skriving) + rad-id-er som ble hoppet over (serverraden
           // står, telefonen henter den ved neste pull). Begge `ok` og
           // `conflict/overlapp`. Valgfritt → eldre klient ignorerer dem.
-          rader?: { id: string; updatedAt: string }[];
+          // Kort-id (spec § 4.1): serverens løste id pr. skrevet rad. Valgfritt.
+          rader?: { id: string; updatedAt: string; kortId?: string | null }[];
           hoppetOver?: string[];
           // Telefontest A funn 1: false = serveren skrev INGENTING fra pushen (tidlig
           // V19-A-overlapp, A-1a, laast) — heller ikke tillegg/utlegg/maskin. true =
@@ -7295,6 +7586,10 @@ export const dagsseddelRouter = router({
                   reiseKilde: s.reiseKilde,
                   reiseRegel: s.reiseRegel,
                   tidKilde: s.tidKilde,
+                  // Kort-id-spec § 2.2/§ 4.1: forslaget bærer radens kort-id også når
+                  // kilden er serverraden (slettet_telefon), så et godkjent forslag
+                  // havner på samme kort.
+                  kortId: s.kortId ?? null,
                   grunn: a.grunn,
                 } as OverlappPayloadRad & { grunn: string };
               });
@@ -7426,6 +7721,26 @@ export const dagsseddelRouter = router({
             const tilleggIder = lokal.tillegg.map((tl) => tl.id);
             const maskinIder = lokal.maskiner.map((m) => m.id);
             const utleggIderPayload = lokal.utlegg.map((u) => u.id);
+            // Kort-id (spec § 4.1): regel 2 trenger radens LAGREDE id og nøkkel — les dem
+            // før payload-replace sletter radene. Regel 3 + K6 + validering: sikreKortId under.
+            const kortKontekst = await lastSedelKortKontekst(tx, sedel.id);
+            const lagretKort = await lastLagretKort(tx, sedel.id, {
+              timer: skrivTimerListe.map((t) => t.id),
+              tillegg: tilleggIder,
+              maskin: maskinIder,
+              utlegg: utleggIderPayload,
+            });
+            const kortVedSync = (
+              id: string,
+              oppgitt: string | null | undefined,
+              ny: { projectId: string; byggeplassId: string | null; externalCostObjectId: string | null },
+            ) => kortIdForSkriving(kortKontekst, { oppgittKortId: oppgitt, lagret: lagretKort.get(id) ?? null, ny });
+            const oppgitteKortIder = [
+              ...skrivTimerListe,
+              ...lokal.tillegg,
+              ...lokal.maskiner,
+              ...lokal.utlegg,
+            ].flatMap((r) => (r.kortId ? [r.kortId] : []));
             if (skrivTimerListe.length > 0) {
               await tx.sheetTimer.deleteMany({
                 where: { sheetId: sedel.id, id: { in: skrivTimerListe.map((t) => t.id) } },
@@ -7535,6 +7850,14 @@ export const dagsseddelRouter = router({
                     reiseRegel: jsonEllerNull(rf.reiseRegel),
                     tidKilde: rf.tidKilde,
                     reiseAvvik: rf.reiseAvvik,
+                    // Kort-id regel 1/2 (reise får aldri kort — sikreKortId nuller).
+                    kortId: rf.erReise
+                      ? null
+                      : kortVedSync(t.id, t.kortId, {
+                          projectId: radProsjekt(t.projectId)!,
+                          byggeplassId: syncTimerByggeplass.get(t.id) ?? null,
+                          externalCostObjectId: t.externalCostObjectId ?? null,
+                        }),
                   };
                 }),
               });
@@ -7545,15 +7868,19 @@ export const dagsseddelRouter = router({
             await synkroniserHodePause(tx, sedel.id);
             if (lokal.tillegg.length > 0) {
               await tx.sheetTillegg.createMany({
-                data: lokal.tillegg.map((tl) => ({
-                  id: tl.id,
-                  sheetId: sedel.id,
-                  projectId: radProsjekt(tl.projectId)!,
-                  tilleggId: tl.tilleggId,
-                  antall: tl.antall,
-                  kommentar: tl.kommentar ?? null,
-                  ...kortFeltVedSync(tl, radProsjekt(tl.projectId)!, vaskTell, vaskEco),
-                })),
+                data: lokal.tillegg.map((tl) => {
+                  const kf = kortFeltVedSync(tl, radProsjekt(tl.projectId)!, vaskTell, vaskEco);
+                  return {
+                    id: tl.id,
+                    sheetId: sedel.id,
+                    projectId: radProsjekt(tl.projectId)!,
+                    tilleggId: tl.tilleggId,
+                    antall: tl.antall,
+                    kommentar: tl.kommentar ?? null,
+                    ...kf,
+                    kortId: kortVedSync(tl.id, tl.kortId, { projectId: radProsjekt(tl.projectId)!, ...kf }),
+                  };
+                }),
               });
             }
             if (lokal.maskiner.length > 0) {
@@ -7573,6 +7900,12 @@ export const dagsseddelRouter = router({
                   // SYNC-2: persister fra/til (datatap-fiks, samme som timer).
                   fraTid: m.fraTid ?? null,
                   tilTid: m.tilTid ?? null,
+                  // Kort-id regel 1/2; koblet maskin overstyres til timerradens (K6) i sikreKortId.
+                  kortId: kortVedSync(m.id, m.kortId, {
+                    projectId: radProsjekt(m.projectId)!,
+                    byggeplassId: syncMaskinByggeplass.get(m.id) ?? null,
+                    externalCostObjectId: m.externalCostObjectId ?? null,
+                  }),
                 })),
               });
             }
@@ -7584,19 +7917,28 @@ export const dagsseddelRouter = router({
               // (overstyrer @default(now())) så stempelet er reviderbart i tid —
               // IKKE synk-tidspunktet (tillegg-hullet, flagget i timer.md).
               await tx.sheetUtlegg.createMany({
-                data: lokal.utlegg.map((u) => ({
-                  id: u.id,
-                  sheetId: sedel.id,
-                  projectId: radProsjekt(u.projectId)!,
-                  expenseCategoryId: u.expenseCategoryId,
-                  belop: u.belop ?? null,
-                  kommentar: u.kommentar ?? null,
-                  ordningVedFoering: u.ordningVedFoering,
-                  ...kortFeltVedSync(u, radProsjekt(u.projectId)!, vaskTell, vaskEco),
-                  createdAt: new Date(u.foertVed),
-                })),
+                data: lokal.utlegg.map((u) => {
+                  const kf = kortFeltVedSync(u, radProsjekt(u.projectId)!, vaskTell, vaskEco);
+                  return {
+                    id: u.id,
+                    sheetId: sedel.id,
+                    projectId: radProsjekt(u.projectId)!,
+                    expenseCategoryId: u.expenseCategoryId,
+                    belop: u.belop ?? null,
+                    kommentar: u.kommentar ?? null,
+                    ordningVedFoering: u.ordningVedFoering,
+                    ...kf,
+                    kortId: kortVedSync(u.id, u.kortId, { projectId: radProsjekt(u.projectId)!, ...kf }),
+                    createdAt: new Date(u.foertVed),
+                  };
+                }),
               });
             }
+
+            // Kort-id (spec § 4.1): regel 3 for rader uten id, K6 for koblet maskin, og
+            // K1–K4 over hele sedelens post-tilstand (skrevne + hoppede rader). Brudd →
+            // TRPCError `kortUlikeRader` → tx rulles tilbake → `avvist` (SYNC-1, catch under).
+            await sikreKortId(tx, sedel.id, { kast: true, oppgitteKortIder, kontekst: kortKontekst });
 
             // V19.9.8 (A'-5): les tilbake versjonene for radene som FAKTISK ble
             // skrevet (etter createMany → updatedAt er satt). Mobilen skriver dem
@@ -7609,9 +7951,9 @@ export const dagsseddelRouter = router({
                       sheetId: sedel.id,
                       id: { in: skrivTimerListe.map((t) => t.id) },
                     },
-                    select: { id: true, updatedAt: true },
+                    select: { id: true, updatedAt: true, kortId: true },
                   })
-                ).map((r) => ({ id: r.id, updatedAt: r.updatedAt.toISOString() }))
+                ).map((r) => ({ id: r.id, updatedAt: r.updatedAt.toISOString(), kortId: r.kortId }))
               : [];
 
             // V19.9.5 (A-1b steg 5): uomstridte rader og hodet ER skrevet (over);
@@ -7852,6 +8194,8 @@ export const dagsseddelRouter = router({
           enhet: z.string().max(20).nullable().optional(),
           fraTid: z.string().nullable().optional(),
           tilTid: z.string().nullable().optional(),
+          // Kort-id (spec § 4.3): valgfri. Uten → regel 3.
+          kortId: z.string().uuid().nullable().optional(),
         }).superRefine(refineFraForTil),
       )
       .mutation(async ({ ctx, input }) => {
@@ -7899,6 +8243,13 @@ export const dagsseddelRouter = router({
           });
         }
 
+        // Kort-id (spec § 4.3): oppgitt id valideres før skriving; uten → regel 3.
+        const kortKontekst = await lastSedelKortKontekst(ctx.prismaTimer, input.sheetId);
+        await validerOppgittKortId(ctx.prismaTimer, kortKontekst, input.kortId, {
+          projectId: input.projectId,
+          byggeplassId: input.byggeplassId ?? null,
+          externalCostObjectId: input.externalCostObjectId ?? null,
+        });
         // F4-1d: rad-write + touchSedel atomisk.
         const [rad] = await ctx.prismaTimer.$transaction([
           ctx.prismaTimer.sheetMachine.create({
@@ -7913,11 +8264,13 @@ export const dagsseddelRouter = router({
               enhet: input.enhet ?? null,
               fraTid: input.fraTid ?? null,
               tilTid: input.tilTid ?? null,
+              kortId: input.kortId ?? null,
             },
           }),
           touchSedel(ctx.prismaTimer, input.sheetId),
         ]);
-        return rad;
+        const { kortIdFor } = await sikreKortId(ctx.prismaTimer, input.sheetId, { kontekst: kortKontekst });
+        return { ...rad, kortId: kortIdFor.get(rad.id) ?? rad.kortId ?? null };
       }),
 
     oppdater: protectedProcedure
@@ -8006,7 +8359,18 @@ export const dagsseddelRouter = router({
           });
         }
 
-        // F4-1d: rad-write + touchSedel atomisk.
+        // F4-1d: rad-write + touchSedel atomisk. Kort-id: uendret nøkkel → står; ellers
+        // regel 3 (koblet maskin følger raden, K6).
+        const kortKontekst = await lastSedelKortKontekst(ctx.prismaTimer, rad.sheetId);
+        data.kortId = kortIdForSkriving(kortKontekst, {
+          lagret: rad,
+          ny: {
+            projectId: rad.projectId,
+            byggeplassId: input.byggeplassId !== undefined ? input.byggeplassId : rad.byggeplassId,
+            externalCostObjectId:
+              input.externalCostObjectId !== undefined ? input.externalCostObjectId : rad.externalCostObjectId,
+          },
+        });
         const [oppdatert] = await ctx.prismaTimer.$transaction([
           ctx.prismaTimer.sheetMachine.update({
             where: { id: input.id },
@@ -8014,7 +8378,8 @@ export const dagsseddelRouter = router({
           }),
           touchSedel(ctx.prismaTimer, rad.sheetId),
         ]);
-        return oppdatert;
+        const { kortIdFor } = await sikreKortId(ctx.prismaTimer, rad.sheetId, { kontekst: kortKontekst });
+        return { ...oppdatert, kortId: kortIdFor.get(input.id) ?? oppdatert.kortId ?? null };
       }),
 
     fjern: protectedProcedure
