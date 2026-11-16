@@ -45,14 +45,11 @@ import { useMiniToast, MiniToast } from "../../../../src/components/MiniToast";
 import { useReLesVedSynk } from "../../../../src/hooks/useReLesVedSynk";
 import { formatNorskDato, isoTidspunktTilHHMM } from "../../../../src/utils/dato";
 import {
-  effektivByggeplass,
   formatKortTall,
   fraRuteParam,
   erProsjektKort,
-  radProsjektId,
-  kortNokkel,
+  utledetKortNokkel,
   kortProsjektIder,
-  kortValgFor,
   lagretByggeplassForKort,
   raderPaaKort,
   type KortValg,
@@ -60,7 +57,9 @@ import {
   tilKortMaskinRader,
   tilKortTimerRader,
   tilKortVarer,
-  tilRuteParam,
+  kortRute,
+  kortForRute,
+  utenIdTilKort,
   varerForProsjekt,
 } from "../../../../src/lib/prosjektkortMobil";
 import { KortValgModal } from "../../../../src/components/timer-detalj/prosjektkort/KortValgModal";
@@ -97,13 +96,15 @@ export default function ProsjektkortSkjerm() {
   const router = useRouter();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const params = useLocalSearchParams<{ id: string; projectId: string; bp?: string; up?: string }>();
+  const params = useLocalSearchParams<{ id: string; projectId: string; bp?: string; up?: string; kort?: string }>();
   const sheetId = params.id ?? "";
   const projectId = params.projectId ?? "";
   // ORDRE 36b: kortet = (prosjekt, byggeplass, underprosjekt). Mangler `bp`
   // (gammel rute) velges prosjektets første kort.
   const bpParam = fraRuteParam(params.bp);
   const upParam = fraRuteParam(params.up) ?? null;
+  // Ordre c (T11): `kort=<kortId>` adresserer kortet når det har id.
+  const kortParam = typeof params.kort === "string" && params.kort ? params.kort : null;
   const { triggerSync, pushSedel, oppdaterTellere, sistSynkronisert } = useTimerSync();
   const { erPaaNettet } = useNettverk();
 
@@ -352,21 +353,28 @@ export default function ProsjektkortSkjerm() {
     [timerRader, maskinRader, tilleggRader, utleggRader],
     [],
   ).length;
-  const iProsjektet = (r: { projectId: string | null; utenProsjekt?: boolean | null }) =>
-    radProsjektId(r, sedel) === projectId;
-  const forste = [...timerRader, ...maskinRader].find(iProsjektet);
-  const valg: KortValg =
-    bpParam === undefined
-      ? forste
-        ? kortValgFor(forste, kontekst)
-        : { projectId, byggeplassId: effektivByggeplass(projectId, null, kontekst), ecoId: null }
-      : { projectId, byggeplassId: bpParam, ecoId: upParam };
-  const kTimer = raderPaaKort(timerRader, kontekst, valg);
-  const kMaskin = raderPaaKort(maskinRader, kontekst, valg);
-  const kVarer = raderPaaKort(varer, kontekst, valg);
+  const valg: KortValg = kortForRute({
+    projectId,
+    kortParam,
+    bp: bpParam,
+    up: upParam,
+    rader: [...timerRader, ...maskinRader],
+    ovrige: [...tilleggRader, ...utleggRader],
+    sedel: kontekst,
+  });
+  // T11: linjer uten id (varer fra serveren) → første kort med lik nøkkel.
+  const utenId = utenIdTilKort(kontekst, [
+    timerRader.filter((r) => !r.utenProsjekt),
+    maskinRader,
+    tilleggRader,
+    utleggRader,
+  ]);
+  const kTimer = raderPaaKort(timerRader, kontekst, valg, utenId);
+  const kMaskin = raderPaaKort(maskinRader, kontekst, valg, utenId);
+  const kVarer = raderPaaKort(varer, kontekst, valg, utenId);
   // Spec tillegg-utlegg-prosjektkort § 3: tillegg og utlegg hører til kortet.
-  const kTillegg = raderPaaKort(tilleggRader, kontekst, valg);
-  const kUtlegg = raderPaaKort(utleggRader, kontekst, valg);
+  const kTillegg = raderPaaKort(tilleggRader, kontekst, valg, utenId);
+  const kUtlegg = raderPaaKort(utleggRader, kontekst, valg, utenId);
   const tomt = kTimer.length + kMaskin.length + kVarer.length + kTillegg.length + kUtlegg.length === 0;
 
   // ORDRE 36c-kort: kortets innhold (arbeid uten reise, maskin + koblet, varer,
@@ -451,9 +459,7 @@ export default function ProsjektkortSkjerm() {
     setVisEndre(false);
     markerEndretOgLes();
     void vareQuery.refetch();
-    router.replace(
-      `/timer/${sheetId}/kort/${til.projectId}?bp=${tilRuteParam(til.byggeplassId)}&up=${tilRuteParam(til.ecoId)}`,
-    );
+    router.replace(kortRute(sheetId, til));
   };
   const utforSlett = async () => {
     if (kortArbeider) return;
@@ -663,7 +669,7 @@ export default function ProsjektkortSkjerm() {
           prosjektNavn={(id) => prosjektVisningsnavn(finnProsjektLokalt(id), t("timer.detalj.ukjentProsjekt"))}
           feil={kortFeil}
           merknad={(til) =>
-            kortNokkel(til) !== kortNokkel(valg) &&
+            utledetKortNokkel(til) !== utledetKortNokkel(valg) &&
             kortFinnesFraFor([...timerRader.filter((r) => !iKortet.has(r.id)), ...maskinRader.filter((m) => !iKortet.has(m.id))], kontekst, til)
               ? t("timer.kort.sammenslaa", { kort: kortNavn(til) })
               : null

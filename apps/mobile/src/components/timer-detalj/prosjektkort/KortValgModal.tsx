@@ -5,7 +5,7 @@ import { hentByggeplasserForProsjektLokalt } from "../../../services/byggeplassK
 import { hentUnderprosjekterLokalt } from "../../../services/timerKatalog";
 import {
   effektivByggeplass,
-  kortNokkel,
+  utledetKortNokkel,
   type ProsjektKortValg,
   type SedelKortKontekst,
 } from "../../../lib/prosjektkortMobil";
@@ -113,7 +113,8 @@ export function KortValgModal({
   const heleKortet = modus.type === "flytt" && modus.heleKortet === true;
   // `ny` med flere byggeplasser: raden åpner kortet. Ellers chips + knapp.
   const byggeplassSomRader = !flytt && byggeplassRader.length > 1;
-  const kanBekrefte = flytt ? kortNokkel(valg) !== kortNokkel(modus.fra) : true;
+  // Ordre c (T11): valget arver kildens kort-id — sammenlign prosjekt/byggeplass/underprosjekt.
+  const kanBekrefte = flytt ? utledetKortNokkel(valg) !== utledetKortNokkel(modus.fra) : true;
 
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onLukk}>

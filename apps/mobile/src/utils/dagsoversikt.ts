@@ -1,7 +1,7 @@
 import { beregnKortSummer, kortStatus, type KortSummer } from "@sitedoc/shared";
 import {
-  kortNokkel,
-  kortNokkelFor,
+  radHorerTilKort,
+  type UtenIdTilKort,
   telteKortVarer,
   type KortValg,
   type SedelKortKontekst,
@@ -18,6 +18,8 @@ export type OversiktTimerRad = {
   id: string;
   projectId: string;
   byggeplassId: string | null;
+  /** Ordre c (T11): radens kort. Mangler = utledes fra nøkkelen. */
+  kortId?: string | null;
   timer: number;
   fraTid: string | null;
   tilTid: string | null;
@@ -33,6 +35,8 @@ export type OversiktMaskinRad = {
   id: string;
   projectId: string;
   byggeplassId: string | null;
+  /** Ordre c (T11): radens kort. Mangler = utledes fra nøkkelen. */
+  kortId?: string | null;
   vehicleId: string;
   externalCostObjectId?: string | null;
   timer: number;
@@ -90,12 +94,16 @@ export function linjerForProsjekt<V extends OversiktVare>(args: {
    * ORDRE 36b: ett kort = (prosjekt, effektiv byggeplass, underprosjekt). Uten
    * `kort` filtreres på prosjekt alene (som før).
    */
-  kort?: { valg: KortValg; sedel: SedelKortKontekst };
+  kort?: { valg: KortValg; sedel: SedelKortKontekst; utenId?: UtenIdTilKort };
 }): ProsjektLinjer<V> {
   const { projectId, kort } = args;
-  const nokkel = kort ? kortNokkel(kort.valg) : null;
-  const paaKort = (r: { projectId: string; byggeplassId?: string | null; externalCostObjectId?: string | null }) =>
-    r.projectId === projectId && (!kort || kortNokkelFor(r, kort.sedel) === nokkel);
+  // Ordre c (T11): kortet er kort-id-en når den finnes (radHorerTilKort).
+  const paaKort = (r: {
+    projectId: string;
+    byggeplassId?: string | null;
+    externalCostObjectId?: string | null;
+    kortId?: string | null;
+  }) => r.projectId === projectId && (!kort || radHorerTilKort(r, kort.sedel, kort.valg, kort.utenId));
   const timer = args.timer.filter((r) => paaKort(r) && gjelder(r));
   const maskin = args.maskin.filter((r) => paaKort(r) && gjelder(r));
   const varer = args.varer.filter(paaKort);

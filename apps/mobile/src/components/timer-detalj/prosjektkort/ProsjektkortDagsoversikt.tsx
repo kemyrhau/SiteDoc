@@ -39,6 +39,8 @@ import {
   kortNokkel,
   kortNokkelFor,
   kortValgFor,
+  utenIdTilKort,
+  utledetKortNokkel,
   lagretByggeplassForKort,
   vareByggeplassForKort,
   sendKnappTekst,
@@ -253,6 +255,7 @@ export function ProsjektkortDagsoversikt({
         // Lagret verdi: null = arver dagens byggeplass (kortnøkkelen avgjør).
         byggeplassId: r.byggeplassId ?? null,
         externalCostObjectId: r.externalCostObjectId ?? null,
+        kortId: r.kortId ?? null,
         timer: r.timer,
         fraTid: r.fraTid,
         tilTid: r.tilTid,
@@ -271,11 +274,24 @@ export function ProsjektkortDagsoversikt({
         projectId: r.projectId ?? sedel.projectId,
         byggeplassId: r.byggeplassId ?? null,
         externalCostObjectId: r.externalCostObjectId ?? null,
+        kortId: r.kortId ?? null,
         vehicleId: r.vehicleId,
         timer: r.timer,
         attestertStatus: null,
       })),
     [maskinRader, sedel.projectId],
+  );
+  // Ordre c (T11): rader uten kort-id (varer fra serveren) → første kort med lik
+  // nøkkel; samme regel som kortlista (`kortNokler`).
+  const utenId = useMemo(
+    () =>
+      utenIdTilKort(sedelKontekst, [
+        timerRader.filter((r) => !r.utenProsjekt),
+        maskinRader,
+        tilleggRader ?? [],
+        utleggRader ?? [],
+      ]),
+    [sedelKontekst, timerRader, maskinRader, tilleggRader, utleggRader],
   );
   // Kortene grupperes pr. prosjekt (kortNokler sorterer prosjektene samlet).
   // Reise hører til dagen og telles bare i sum-kortet.
@@ -291,14 +307,14 @@ export function ProsjektkortDagsoversikt({
         utlegg: 0,
         harEquipmentCache,
         harVarelager: varelagerProsjekter.includes(valg.projectId),
-        kort: { valg, sedel: sedelKontekst },
+        kort: { valg, sedel: sedelKontekst, utenId },
       });
       const siste = ut[ut.length - 1];
       if (siste?.projectId === valg.projectId) siste.blokker.push({ valg, linjer });
       else ut.push({ projectId: valg.projectId, blokker: [{ valg, linjer }] });
     }
     return ut;
-  }, [kort, oversiktTimer, oversiktMaskin, varer, harEquipmentCache, varelagerProsjekter, sedelKontekst]);
+  }, [kort, oversiktTimer, oversiktMaskin, varer, harEquipmentCache, varelagerProsjekter, sedelKontekst, utenId]);
   const reiseSum = oversiktTimer.filter((r) => r.erReise).reduce((a, r) => a + r.timer, 0);
   const sum = {
     ...dagsoversiktSum(grupper.flatMap((g) => g.blokker.map((b) => b.linjer))),
@@ -400,16 +416,20 @@ export function ProsjektkortDagsoversikt({
     projectId: string | null;
     byggeplassId?: string | null;
     externalCostObjectId?: string | null;
+    kortId?: string | null;
   }): ProsjektKortValg => {
     const valg = kortValgFor(
       {
         projectId: r.projectId,
         byggeplassId: r.byggeplassId ?? null,
         externalCostObjectId: r.externalCostObjectId ?? null,
+        kortId: r.kortId ?? null,
       },
       sedelKontekst,
     );
-    return { ...valg, projectId: valg.projectId ?? "" };
+    // T11: linje uten id (vare fra serveren) → kortet den vises i.
+    const kortId = valg.kortId ?? utenId.get(utledetKortNokkel(valg));
+    return { ...valg, projectId: valg.projectId ?? "", ...(kortId ? { kortId } : {}) };
   };
   /**
    * Koblet = vises under en rad (samme regel som `raderForDag`: raden finnes og
@@ -1045,6 +1065,7 @@ export function ProsjektkortDagsoversikt({
                 tilTid,
                 beskrivelse,
                 pauseMin,
+                kortId: timerModal.kort.kortId ?? null,
               },
               [],
             );
@@ -1099,7 +1120,7 @@ export function ProsjektkortDagsoversikt({
             };
             const radId = redigert
               ? (oppdaterTimerRad(db(), k, redigert.id, felt, maskin), redigert.id)
-              : leggTilTimerRad(db(), k, felt, maskin.linjer);
+              : leggTilTimerRad(db(), k, { ...felt, kortId: timerModal.kort.kortId ?? null }, maskin.linjer);
             // Koblet maskin følger raden også på byggeplass (GO punkt 5).
             foelgKobletMaskin(db(), radId);
             // K5 (c1): én beskrivelse pr. kort — teksten skrives på kortets øvrige arbeidsrader.

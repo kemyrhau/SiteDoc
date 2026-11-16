@@ -242,6 +242,11 @@ export interface NyRad {
    * erReise false på standard ordinær art). Udefinert → utledes fra lønnsarten.
    */
   reiseSpor?: ManuellReiseSpor;
+  /**
+   * Ordre c (T11): kortet raden føres på, når kortet har id (kortskjermen /
+   * dagskortets kort). Udefinert → regel 3 (`sikreLokalKortId`) som før.
+   */
+  kortId?: string | null;
 }
 
 /** Skriv én timer-rad (+ evt. maskin) på en sedel. Delt av sedelen og «+». */
@@ -297,6 +302,8 @@ export function settInnTimerRad(
       reiseKjoretidMin: spor?.erReise ? spor.reiseKjoretidMin : null,
       reiseRegel: spor ? JSON.stringify(spor.reiseRegel) : null,
       tidKilde: "manuell",
+      // Fraværskortet er ett kort (spec § 11.2) — id-en settes av regel 3.
+      kortId: rad.projectId === null ? null : (rad.kortId ?? null),
       sistEndretLokalt: Date.now(),
     })
     .run();

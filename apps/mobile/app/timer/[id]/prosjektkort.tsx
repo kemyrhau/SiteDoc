@@ -24,7 +24,7 @@ import { ByggeplassVelgerModal } from "../../../src/components/timer-detalj/Bygg
 import { BekreftSendUtenPauseModal } from "../../../src/components/timer-detalj/BekreftSendUtenPauseModal";
 import { DagSeksjon } from "../../../src/components/timer-detalj/prosjektkort/DagSeksjon";
 import {
-  tilRuteParam,
+  kortRute,
   type KortValg,
 } from "../../../src/lib/prosjektkortMobil";
 import { formatNorskDato, formatTidspunkt, isoTidspunktTilHHMM } from "../../../src/utils/dato";
@@ -74,10 +74,8 @@ export default function ProsjektkortSkjerm() {
   }
 
   // ORDRE 36b: kortet adresseres med (prosjekt, byggeplass, underprosjekt).
-  const aapneKort = (k: KortValg) =>
-    router.push(
-      `/timer/${sheetId}/kort/${k.projectId}?bp=${tilRuteParam(k.byggeplassId)}&up=${tilRuteParam(k.ecoId)}`,
-    );
+  // Ordre c (T11): med kort-id også `kort=` (to kort med lik nøkkel).
+  const aapneKort = (k: KortValg) => router.push(kortRute(sheetId, k));
   // Valgt kombinasjon som alt finnes → det eksisterende kortet åpnes (samme rute).
   const sedelKontekst = s.sedelKontekst ?? { projectId: sedel.projectId, byggeplass: null };
 

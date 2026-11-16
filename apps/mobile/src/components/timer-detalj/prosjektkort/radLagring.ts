@@ -48,6 +48,8 @@ export interface TimerRadFelt {
   beskrivelse: string | null;
   /** V20 PK2: radens matpause-bærer (0 ellers), avgjort i RadSkjema. */
   pauseMin: number;
+  /** Ordre c (T11): kortets id ved NY rad. `oppdaterTimerRad` rører den aldri. */
+  kortId?: string | null;
 }
 
 /** Feltene maskin-modalen lagrer (samme argumenter som MaskinSeksjon). */

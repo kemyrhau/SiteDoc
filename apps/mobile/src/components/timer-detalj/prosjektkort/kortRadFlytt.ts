@@ -12,8 +12,8 @@ import {
 } from "../../../db/schema";
 import {
   effektivByggeplass,
-  kortNokkel,
-  kortNokkelFor,
+  radHorerTilKort,
+  utledetKortNokkel,
   lagretByggeplassForKort,
   raderPaaKort,
   vareByggeplassForKort,
@@ -286,7 +286,7 @@ export function kortInnhold(args: {
   const maskin = args.maskinRader.filter(
     (m) =>
       (m.sheetTimerId != null && timerIder.has(m.sheetTimerId)) ||
-      kortNokkelFor(m, sedel) === kortNokkel(kort),
+      radHorerTilKort(m, sedel, kort),
   );
   return {
     timer,
@@ -522,7 +522,9 @@ export async function flyttKort(
   },
 ): Promise<KortUtfall> {
   if (!erRedigerbar(dag.status)) return { utfall: "laast" };
-  if (kortNokkel(fra) === kortNokkel(til)) return { utfall: "uendret" };
+  // Ordre c (T12): «Endre kort» sammenligner prosjekt/byggeplass/underprosjekt —
+  // kortets id beholdes (målet kan bære samme id som kilden).
+  if (utledetKortNokkel(fra) === utledetKortNokkel(til)) return { utfall: "uendret" };
   // Spec § 11.4: fraværskortet (prosjekt `null`) flyttes ikke og er aldri mål.
   if (fra.projectId === null || til.projectId === null) return { utfall: "uendret" };
   if (girNyttBrudd(dag, innhold, til)) return { utfall: "brudd" };
