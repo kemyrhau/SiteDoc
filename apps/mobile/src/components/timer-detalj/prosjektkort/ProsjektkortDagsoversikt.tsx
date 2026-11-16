@@ -78,6 +78,7 @@ import {
   type FlyttMaal,
 } from "./kortRadFlytt";
 import { KortValgModal } from "./KortValgModal";
+import { FravaerKortModal } from "./FravaerKortModal";
 import { BekreftSlettModal } from "./BekreftSlettModal";
 import { TastaturFerdig, TASTATUR_FERDIG_ID } from "../TastaturFerdig";
 import type { Sedel, TimerRad, MaskinRad } from "../../../types/timer-detalj";
@@ -198,6 +199,8 @@ export function ProsjektkortDagsoversikt({
   const kort = useMemo(() => alleKort.filter(erProsjektKort), [alleKort]);
 
   const [timerModal, setTimerModal] = useState<TimerModal | null>(null);
+  // ORDRE (33) c2: fraværskortet (spec § 11.5). `nyLinje` = åpnet fra «+ Fravær».
+  const [fravaerKort, setFravaerKort] = useState<{ nyLinje: boolean } | null>(null);
   const [maskinModal, setMaskinModal] = useState<MaskinRad | null>(null);
   const [splitt, setSplitt] = useState<Splitt | null>(null);
   const [vareKort, setVareKort] = useState<ProsjektKortValg | null>(null);
@@ -356,6 +359,10 @@ export function ProsjektkortDagsoversikt({
   );
   // Beslutning 3: Send sperres når en arbeidsrad mangler beskrivelse.
   const manglerBeskrivelse = redigerbar ? forsteRadUtenBeskrivelse(dag.rader.map((b) => b.rad)) : null;
+  // ORDRE (33) c2 (U11/F4, TF9): fraværskortet teller i beskrivelses-sperren — ett felt pr. kort.
+  const fravaerRader = timerRader.filter((r) => r.utenProsjekt);
+  const fravaerManglerBeskrivelse =
+    redigerbar && fravaerRader.some((r) => !(r.beskrivelse ?? "").trim());
   // B10 (ORDRE (33) c3, § 11.10.4): fravær med tak over resten av dagsnormen — det eneste
   // varselet om fravær og arbeid samme dag (N10). Ett trykk retter siste linje med tak;
   // med F9 = A sperres Send til bruddet er rettet. Hele dagens rader teller (N5).
@@ -805,6 +812,33 @@ export function ProsjektkortDagsoversikt({
       })}
       {kortUtenRader.map((valg) => prosjektkort(valg, undefined))}
 
+      {/* ORDRE (33) c2 — fraværskortet (U5/U10): art og timer pr. linje, én beskrivelse. */}
+      {!enkeltProsjekt && fravaerRader.length > 0 && (
+        <Pressable
+          onPress={() => (redigerbar ? setFravaerKort({ nyLinje: false }) : undefined)}
+          className="mx-4 mt-3 rounded-lg border border-gray-200 bg-white px-4 py-3 active:bg-gray-50"
+        >
+          <Text className="text-base font-semibold text-gray-900">{t("timer.fravaerKort.tittel")}</Text>
+          {fravaerRader.map((r) => (
+            <Text
+              key={r.id}
+              className={`py-1 text-sm ${normtakBrudd?.radId === r.id ? "text-amber-700" : "text-gray-700"}`}
+              style={{ fontVariant: ["tabular-nums"] }}
+            >
+              {t("timer.fravaerKort.linje", {
+                timer: formatKortTall(r.timer),
+                art: finnLonnsartLokalt(r.lonnsartId)?.navn ?? "",
+              })}
+            </Text>
+          ))}
+          {fravaerManglerBeskrivelse ? (
+            <Text className="py-1 text-sm text-amber-700">{t("timer.dagsoversikt.manglerBeskrivelse")}</Text>
+          ) : (
+            <Text className="py-1 text-sm text-gray-900">{fravaerRader.find((r) => r.beskrivelse)?.beskrivelse}</Text>
+          )}
+        </Pressable>
+      )}
+
       {redigerbar && enkeltProsjekt && kort[0] && (
         <Pressable
           onPress={() => aapneTimer(kort[0]!, null)}
@@ -819,6 +853,15 @@ export function ProsjektkortDagsoversikt({
           {redigerbar && (
             <Pressable onPress={onNyttKort} className="mx-4 mt-2 min-h-[44px] justify-center active:bg-gray-50">
               <Text className="text-base font-medium text-sitedoc-primary">{t("timer.prosjektkort.nyttKort")}</Text>
+            </Pressable>
+          )}
+          {/* U1 inngang 1: «+ Fravær» rett under «+ Nytt prosjektkort». */}
+          {redigerbar && (
+            <Pressable
+              onPress={() => setFravaerKort({ nyLinje: true })}
+              className="mx-4 min-h-[44px] justify-center active:bg-gray-50"
+            >
+              <Text className="text-base font-medium text-sitedoc-primary">{t("timer.fravaerKort.leggTil")}</Text>
             </Pressable>
           )}
 
@@ -888,6 +931,14 @@ export function ProsjektkortDagsoversikt({
                 </Text>
               </Pressable>
             )}
+            {!manglerBeskrivelse && fravaerManglerBeskrivelse && (
+              <Pressable
+                onPress={() => setFravaerKort({ nyLinje: false })}
+                className="min-h-[44px] justify-center active:bg-gray-50"
+              >
+                <Text className="text-sm text-amber-700">{t("timer.fravaerKort.sendSperret")}</Text>
+              </Pressable>
+            )}
             {normtakBrudd && (
               <View className="py-1">
                 <Text className="text-sm text-amber-700" style={{ fontVariant: ["tabular-nums"] }}>
@@ -913,9 +964,11 @@ export function ProsjektkortDagsoversikt({
                 onPress={() =>
                   manglerBeskrivelse
                     ? aapneTimer(kortFor.timer.get(manglerBeskrivelse.id)!, manglerBeskrivelse.id, true)
-                    : normtakBrudd
-                      ? undefined
-                      : onSend?.()
+                    : fravaerManglerBeskrivelse
+                      ? setFravaerKort({ nyLinje: false })
+                      : normtakBrudd
+                        ? undefined
+                        : onSend?.()
                 }
                 disabled={normtakBrudd != null && !manglerBeskrivelse}
                 className={`mt-2 min-h-[44px] items-center justify-center rounded-lg ${
@@ -1261,6 +1314,34 @@ export function ProsjektkortDagsoversikt({
         onBekreft={() => void bekreftSlettVare()}
       />
 
+      {fravaerKort && (
+        <FravaerKortModal
+          userId={sedel.userId}
+          organizationId={sedel.organizationId}
+          dato={sedel.dato}
+          dagsnorm={normtakTimer}
+          dagRader={timerRader
+            .filter((r) => !r.utenProsjekt)
+            .map((r) => ({
+              id: r.id,
+              lonnsartId: r.lonnsartId,
+              timer: r.timer,
+              erReise: erReiseRadVisning(r.erReise, r.lonnsartId, reiseLonnsartId),
+            }))}
+          eksisterende={fravaerRader.map((r) => ({
+            id: r.id,
+            lonnsartId: r.lonnsartId,
+            timer: r.timer,
+            beskrivelse: r.beskrivelse,
+          }))}
+          nyLinje={fravaerKort.nyLinje}
+          onLagret={() => {
+            setFravaerKort(null);
+            onEndret();
+          }}
+          onLukk={() => setFravaerKort(null)}
+        />
+      )}
       {flytt && (
         <KortValgModal
           organizationId={sedel.organizationId}
