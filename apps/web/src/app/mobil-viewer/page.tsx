@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { dollyFartForAvstand, finnUtliggere } from "@sitedoc/shared";
+import { dollyFartForAvstand, finnUtliggere } from "@sitedoc/shared/tred";
 import { hentIfcRaadata, lagRaadataLager, lesAttributter } from "./ifcRaadata";
 import { beregnInnramming, orbitAvstand, type Boks } from "./kameraInnramming";
 

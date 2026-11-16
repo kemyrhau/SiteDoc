@@ -6,7 +6,7 @@
  * (`orbitAvstand`), og zoom-farten følger avstanden dit (`dollyFartForAvstand` i shared).
  */
 
-import type { Boks3, Punkt3 } from "@sitedoc/shared";
+import type { Boks3, Punkt3 } from "@sitedoc/shared/tred";
 
 /** Robust boks og utligger-regelen bor i `@sitedoc/shared` (`finnUtliggere`), felles med web. */
 export type Punkt = Punkt3;
