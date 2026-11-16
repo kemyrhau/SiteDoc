@@ -12,6 +12,7 @@
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
 **Sist oppdatert:** 2026-11-16
+- 2026-11-16 — **`STATUS-AKTUELT.md` + `FUNKSJONSENDRINGER.md`: (28) ordre a3 (lønnsart pr. linje, fravær B8/B9) merget (`6d611b05`)** (develop, docs-only, orkestrator).
 - 2026-11-16 — **`prosjektkort-kortid-spec.md`: TILLEGG § 11 — fraværskort uten prosjekt** (branch `docs/fabel`, docs-only, Fabel, 🟡 FORSLAG, F1–F8 til Kenneth): `project_id` valgfri på `sheet_timer` og `sheet_timer_forslag` med eksplisitt markør `uten_prosjekt` + `CHECK` i samme migrering som `kort_id` (ordre b), `kortNokkel`/`utledKortId` med tomt prosjekt, synk og eldre klient, funksjonsinventar for alle lesere (attestering, rapport/eksport, dagskort, Bekreft dag, web), brukerflyt «+ Fravær» på mobil, 12 tester, plass i ordre b/c/d. a3 urørt. Målt mot develop @ dc5833dc. Ny seksjon på eksisterende fil → telling uendret.
 - 2026-11-16 — **`STATUS-AKTUELT.md` + `FUNKSJONSENDRINGER.md`: (27b) ordre a (overtid mot døgnet, V5a, dagskort med prosjektkort) merget (`ebaba3ec`)** (develop, docs-only, orkestrator).
 - 2026-11-16 — **`STATUS-AKTUELT.md` + `FUNKSJONSENDRINGER.md`: (26) Bekreft dag-vakt for sendt dato merget (`780f388c`)** (develop, docs-only, orkestrator).

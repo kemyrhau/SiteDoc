@@ -32,6 +32,8 @@ sist_verifisert_mot_kode: 2026-08-09
 
 > ✅ **Gjestevern ved firmabytte, mobil (19) MERGET 2026-11-15** (merge `1a287c5d` av `38f4dffa`; Kontrollør GODKJENT GATE (44) nederst i `inbox-orkestrator.md`). `skalNullstilleProsjekt` flyttet til `@sitedoc/shared` (`gjesteprosjekt.ts`, web re-eksporterer); mobil `ProsjektKontekst.tsx` holder ventende firmabytte til gjestelista er lastet (`firmabyttProsjekt.ts` `firmabyttUtfall`) — gjesteprosjekt beholdes ved firmabytte. **Ikke deployet.** Lukker (18) åpent punkt (b).
 
+> ✅ **Ordre a3 i kort-id-specen (28) MERGET 2026-11-16** (merge `6d611b05` av `2a75866b`; Kontrollør GATE (57)–(61) med retur A1–A5 + B1, GODKJENT GATE (62) `inbox-orkestrator.md:28069`). Lønnsart pr. linje i Bekreft dag (`utils/linjeLonnsart.ts`), velger filtrert på firma og gruppert; fravær bruker ikke normen (B8); «Fravær til» deler kortet (B9). Mobil-only, ingen migrering. **Ikke OTA-et.** Neste i specen: a2, så b (venter F1–F8 i § 11).
+
 > ✅ **Ordre a i kort-id-specen (27b) MERGET 2026-11-16** (merge `ebaba3ec` av `8e97c81a`; Kontrollør GODKJENT GATE (55) + GATE (56)). Overtid på manuelt kort mot døgnets registreringer, overtid av/på med samme knapp, dagskortet med prosjektkort og linjer; maskin/varer pr. linje som før. Mobil — krever OTA til test. Neste i specen: a2 (regelen inn i `klassifiserArbeidstid` + GPS-grunnlag + B3). Åpent: «Betong 3 m3» = to lagrede varelinjer, krever DB-spørring.
 
 > ✅ **Bekreft dag stopper når en valgt dato er sendt mens skjermen står (26) MERGET 2026-11-16** (merge `780f388c` av `f45735a9`; Kontrollør GODKJENT GATE (54)). Mobil — krever OTA til test. Lukker oppfølgeren fra (25).
