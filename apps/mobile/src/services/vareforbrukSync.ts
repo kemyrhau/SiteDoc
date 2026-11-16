@@ -1,4 +1,4 @@
-import { and, eq, asc } from "drizzle-orm";
+import { and, eq, asc, ne } from "drizzle-orm";
 import { kortDagsseddelId, kortVareforbrukInput, type KortVareforbrukInput } from "@sitedoc/shared";
 import { hentDatabase } from "../db/database";
 import { dagsseddelLocal, sheetTimerLocal, vareforbrukLocal } from "../db/schema";
@@ -30,9 +30,12 @@ export type Varesending = { handling: "vent" } | { handling: "send"; input: Kort
  *  - sedel mangler lokalt eller er avvist → send uten kobling (som på web).
  */
 export function planleggVaresending(
-  linje: Pick<VareLinjeLokal, "id" | "sheetId" | "projectId" | "dato" | "vareId" | "antall" | "byggeplassId">,
+  linje: Pick<
+    VareLinjeLokal,
+    "id" | "sheetId" | "projectId" | "dato" | "vareId" | "antall" | "byggeplassId" | "externalCostObjectId"
+  > & { sheetTimerId?: string | null },
   sedel: SedelLokal | null,
-  timerRader: readonly { projectId: string | null }[],
+  timerRader: readonly { id?: string; projectId: string | null }[],
 ): Varesending {
   const basis = {
     id: linje.id,
@@ -41,17 +44,25 @@ export function planleggVaresending(
     vareId: linje.vareId,
     antall: linje.antall,
     byggeplassId: linje.byggeplassId,
+    // ORDRE 36b: varen arver kortets underprosjekt (null på linjer fra før kolonnen).
+    externalCostObjectId: linje.externalCostObjectId ?? null,
   };
   if (!sedel || sedel.syncStatus === "avvist") {
     return { handling: "send", input: kortVareforbrukInput(basis) };
   }
   if (sedel.syncStatus !== "synced") return { handling: "vent" };
-  const timer = timerRader.map((r) => ({ projectId: r.projectId ?? sedel.projectId }));
+  const timer = timerRader.map((r) => ({ id: r.id, projectId: r.projectId ?? sedel.projectId }));
+  // Radform: koblingen sendes kun når raden fortsatt står på sedelen for varens
+  // prosjekt (flyttet/slettet rad → linjen sendes ukoblet og vises under «Uten rad»).
+  const rad = linje.sheetTimerId
+    ? timer.find((r) => r.id === linje.sheetTimerId && r.projectId === linje.projectId)
+    : undefined;
   return {
     handling: "send",
     input: kortVareforbrukInput({
       ...basis,
       dagsseddelId: kortDagsseddelId(sedel.id, timer, linje.projectId),
+      sheetTimerId: rad?.id ?? null,
     }),
   };
 }
@@ -98,7 +109,7 @@ export async function syncVareforbruk(
         .get() ?? null;
     const timerRader = sedel
       ? db
-          .select({ projectId: sheetTimerLocal.projectId })
+          .select({ id: sheetTimerLocal.id, projectId: sheetTimerLocal.projectId })
           .from(sheetTimerLocal)
           .where(eq(sheetTimerLocal.dagsseddelId, sedel.id))
           .all()
@@ -141,6 +152,11 @@ export type LokalVarelinje = {
   projectId: string;
   antall: number;
   vare: { navn: string; enhet: string };
+  /** ORDRE 36b: kortnøkkelens B og UP (null = sedelens byggeplass / uten UP). */
+  byggeplassId: string | null;
+  externalCostObjectId: string | null;
+  /** Radform: timerraden linjen er ført fra (null = «Uten rad»). */
+  sheetTimerId: string | null;
   syncStatus: "pending" | "synced" | "avvist";
   feilmelding: string | null;
 };
@@ -163,6 +179,9 @@ export function hentLokaleVarelinjer(sheetId: string, projectId?: string): Lokal
       projectId: l.projectId,
       antall: l.antall,
       vare: { navn: l.vareNavn, enhet: l.enhet },
+      byggeplassId: l.byggeplassId ?? null,
+      externalCostObjectId: l.externalCostObjectId ?? null,
+      sheetTimerId: l.sheetTimerId ?? null,
       syncStatus: l.syncStatus,
       feilmelding: l.feilmelding,
     }));
@@ -181,10 +200,80 @@ export function lagreLokalVarelinje(args: {
   enhet: string;
   antall: number;
   byggeplassId: string | null;
+  /** ORDRE 36b: kortets underprosjekt. */
+  externalCostObjectId?: string | null;
+  /** Radform: timerraden varen føres fra (null = ikke koblet). */
+  sheetTimerId?: string | null;
 }): void {
   const db = hentDatabase();
   if (!db) throw new Error("Database ikke tilgjengelig");
   db.insert(vareforbrukLocal)
-    .values({ ...args, syncStatus: "pending", feilmelding: null, sistEndretLokalt: Date.now() })
+    .values({
+      ...args,
+      externalCostObjectId: args.externalCostObjectId ?? null,
+      sheetTimerId: args.sheetTimerId ?? null,
+      syncStatus: "pending",
+      feilmelding: null,
+      sistEndretLokalt: Date.now(),
+    })
     .run();
+}
+/** Arbeiderens valg i vare-modalen (før det er bundet til en sedel). */
+export type VarelinjeValg = {
+  vareId: string;
+  vareNavn: string;
+  enhet: string;
+  antall: number;
+  byggeplassId: string | null;
+};
+
+/**
+ * L3-D vedtak B: med `onVelgLinje` returneres linja til kalleren (bekreft-dag
+ * holder den i minnet til Bekreft); uten lagres den som før (prosjektkortet).
+ */
+export function fullforVarelinje(
+  valg: VarelinjeValg,
+  p: { onVelgLinje?: (valg: VarelinjeValg) => void; lagre: (valg: VarelinjeValg) => void },
+): "valgt" | "lagret" {
+  if (p.onVelgLinje) {
+    p.onVelgLinje(valg);
+    return "valgt";
+  }
+  p.lagre(valg);
+  return "lagret";
+}
+
+/**
+ * ORDRE 34 pkt 2: hva modalen gjør etter «Før på kortet». `forblirApen`
+ * (Bekreft dag) nullstiller vare/antall og står åpen til [Ferdig]; ellers lukkes
+ * den som før (prosjektkortet).
+ */
+export function vareModalEtterLagre(forblirApen: boolean): "nullstill" | "lukk" {
+  return forblirApen ? "nullstill" : "lukk";
+}
+
+export type FortVarelinje = { navn: string; antall: number; enhet: string };
+
+/** Arbeiderens lokale varelinjer for prosjektet på datoen (alle sedler). */
+export function hentLokaleVarelinjerForDag(
+  userId: string,
+  projectId: string,
+  dato: string,
+): FortVarelinje[] {
+  const db = hentDatabase();
+  if (!db) return [];
+  return db
+    .select({ navn: vareforbrukLocal.vareNavn, antall: vareforbrukLocal.antall, enhet: vareforbrukLocal.enhet })
+    .from(vareforbrukLocal)
+    .where(
+      and(
+        eq(vareforbrukLocal.userId, userId),
+        eq(vareforbrukLocal.projectId, projectId),
+        eq(vareforbrukLocal.dato, dato),
+        // ORDRE 35 C3: avviste linjer ble aldri ført — vises ikke som «Ført i dag».
+        ne(vareforbrukLocal.syncStatus, "avvist"),
+      ),
+    )
+    .orderBy(asc(vareforbrukLocal.sistEndretLokalt))
+    .all();
 }

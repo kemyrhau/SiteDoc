@@ -81,6 +81,40 @@ PowerOffice-eksport (**0 filer** i `apps/api/src`) + `kode`-validering før atte
 - **Indeks på `drawings.conversion_status`:** konverteringsarbeideren i api poller `pending` hvert 3 s og watchdogen hvert 60 s, uten indeks (seq scan). Billig så lenge `drawings` er liten. Legg en partial index (`where conversion_status in ('pending','converting')`) i neste migreringsrunde (Kontrollør 17.10).
 - **Query-embedding (søk) og `EMBEDDING_SAMTIDIG`:** web og api er to prosesser, så samtidigheten mot NorBERT er ≤ 2 × grensen. Default 2 holdt på test. Senk til 1 via env ved behov.
 
+### 🟡 DOKUMENTLESER — oppfølgere etter DL-1 (gate 2026-11-10, merge `55f4d906`, ikke bestilt)
+
+- ⚠️ **DL-2 levert på `fix/dokumentleser-pdf-blokker`, venter gate** (Kenneth: «ja, lag lesevisningen»; ai-sok.md § PDF-blokkreparasjon). ~~**Beslutning (Kenneth): «Prosesser på nytt» for PDF uten blokker.**~~ Leseren viser «feilet» + knappen, men serveren lager ikke PDF-blokker på nytt (kun embedding) → 10 min spinner, så «feilet» igjen. Valg: PDF-blokkreparasjon, eller skjul knappen for PDF.
+- **Strandet `pending`/`processing` poller evig** i leseren (hvert 5. s mens fanen er åpen). Bruk `STRANDET_MS` også i `lesertilstand`.
+- **Leseren mangler ?-hjelpetekst** (ingen oppføring i `hjelpetekster.md`).
+- **Korrupt DOCX** får serverteksten «for stor eller ugyldig (maks 50 MB utpakket)» — misvisende for en liten, ødelagt fil.
+- **Testhull:** DOCX-språk fra uttrukket tekst (ikke zip-bytes) er ikke vaktet — en engelsk DOCX-fixture mangler (mutant M3 grønn).
+- **Lokal dev:** `mappe.hentDokumenter` gir 500 lokalt (`text = jsonb` i raw-spørringen); web leser `apps/web/uploads`, api skriver `apps/api/uploads`. Ikke sett på test.
+- **Bilder i DOCX** vises ikke i leseren (mammoth `convertImage` → fil → `image`-blokk, middels).
+
+### 🟡 DOKUMENTLESER — oppfølgere etter DL-2 (gate 2026-11-11, merge `80a233e0`, ikke bestilt)
+
+- **pdftoppm-feil på bildeside** gir 0 blokker + markøren `INGEN_LESERBLOKKER` → alle bildesider rendres på nytt ved hver «Prosesser mappe på nytt». Skill «tekstløs» fra «render feilet».
+- **Flaky test:** `apps/api/src/services/pdfjs-node20.test.ts` får timeout (5 s) under parallell `turbo test`; grønn alene og med `--concurrency=1`. Hev timeout for fila. Rammet merge 80a233e0 to ganger.
+- **e2e ikke kjørt:** mappelista viser ikke «Feil» for markøren (lokal `hentDokumenter` gir 500) — dekket av enhetstest; verifiser på test.
+
+### 🟡 FEILFORMAT — oppfølger etter ERRFMT (gate 2026-11-11, merge `8b18ae77`, ikke bestilt)
+
+- 🔴 **Rå prosesseringsfeil vises til brukeren (målt på test 2026-11-12):** `FtdDocument.processingError` lagres som rå `err.message` og vises uendret i mappelista og i leseren (`les/page.tsx:152`, `tilstand.feilmelding`). Eksempel: «ENOENT: no such file or directory, open '/app/apps/web/uploads/seed/seed-uparset.pdf'» — avslører serverens filsti. ERRFMT dekker tRPC-feil, ikke lagret feiltekst. Forslag: lagre/vis en feilkode med generisk tekst, originalen kun i loggen. Prioriteres foran i18n fase 2.
+- 🟡 **Testdata:** seed-filene under `uploads/seed/` finnes ikke på testserveren, så `seed-uparset.pdf` tester ikke «SiteDoc kan ikke lese denne filen» (feiler på ENOENT før lesing).
+
+- **i18n fase 2:** feilteksten fra `formaterFeil` er norsk på serveren. Klienten kan slå opp `t(`feil.${feilKode}`)` på `data.feilKode` (`IKKE_FUNNET`/`FINNES_ALLEREDE`/`HENGER_SAMMEN`/`INTERN`) for andre språk.
+
+### 🟡 SØK — oppfølgere etter SØK-2 (gate 2026-11-11, merge `85f821b0`, ikke bestilt)
+
+- 🟡 **Søketreff på bildesider får ingen markering (målt på test 2026-11-12):** sider med bilder rendres som sidebilde, teksten ligger som skjult søkbar blokk (`blokk-prosessering.ts` `prosesserSideSomBilde`). NS 3420-PDF-en (75 sider) har 0 `<mark>` etter Ctrl+K → Enter med `?highlight=`; ingen rulling til treffet. Forslag: hopp til treffets `pageNumber`. Gammel atferd (`fe073105`), ikke regresjon.
+
+- **Modul-gating av Dokumentsøk (alternativ B):** `dokumentsok`-modulen er definert, men gater ingenting. Skal ev. gjøres samlet for sidemeny, side og Ctrl K-gruppa. Krever hjemmel (funksjonsendring).
+- **Tiebreak i ORDER BY:** like rank gir tilfeldig rekkefølge (topp 10 «sikkerhet» varierer). Legg `c.id` som siste ledd.
+- **Testhull (mutanter grønne):** M6 — ingen test fanger at `ts_headline` i `hybridSok`/`leksikalskSok` får tsquery fra prefiks-trinnet; M8 — `sok-mappetilgang.test.ts` sjekker bare `toBeDefined()`, ikke at hybridsøkets leksikalske SQL har mappeklausulen (sjekk SQL som `sok-tsquery.test.ts:128`).
+- **Integrasjonstesten** `sok-tsquery.integration.test.ts` er ekskludert av `vitest.config` og kjøres ikke i gate.
+- **Ikke e2e-verifisert:** at leseren scroller til første `<mark>` fra Ctrl K, og medlem uten mappetilgang i Ctrl K. Verifiseres på test etter deploy.
+- **Lokal dev:** Next dev-rekompilering gir Postgres 42601 på søket (Prisma på `globalThis` + nestet `Prisma.sql` fra annen modulinstans). Restart web løser. Ikke prod.
+
 ### 🔴 PAUSE LIGGER TRE STEDER SOM ER UENIGE + «ARBEIDSTID I DAG» HAR INGEN REELL FUNKSJON (målt 2026-10-06)
 
 (1) radens timetall (skjult fradrag, `TimerSeksjon.tsx:1043-1060`) · (2) `rad.pauseMin` = avkrysningen, settes kun av GPS
@@ -94,7 +128,9 @@ Hodet `startAt/endAt/pauseMin` driver ikke lønn/overtid/norm/eksport (kun forsl
 Lokale rader redigert *mens* sedelen står i `conflict` erstattes av serverens når V19.7b-slippet skjer (valget tatt på PC).
 **Ikke bestilt.** Avgjøres om sammenligningen skal låse redigering under konflikt, eller om slippet skal ta lokale endringer med som nytt forslag.
 
-### 🔴 SAMME SEDEL REDIGERT PÅ PC OG TELEFON — SIST SYNKET VINNER STILLE (målt 2026-10-05, Kenneth på test)
+### ✅ LØST — SAMME SEDEL REDIGERT PÅ PC OG TELEFON — SIST SYNKET VINNER STILLE (målt 2026-10-05, Kenneth på test)
+
+✅ **Lukket av V19.9-B** (versjonssjekk pr. rad, klient `6905a80f`, merge `586c2c95`, i develop). Beholdt under for sporbarhet.
 
 `syncBatch` erstatter payload-radene etter id uten å sjekke om serverraden er endret siden telefonen hentet den
 (`SheetTimer.updatedAt` finnes; `sheet_timer_local` har kun `sistEndretLokalt`, ingen serverversjon). V19 dekker kun to
@@ -441,6 +477,8 @@ på fysisk iPhone 13.09) · #5/#6/#7/#9 er én samlet IA-sak åpen hos fabel · 
 **A7. Proxy-headers** — HSTS (High), X-Frame-Options (Medium), X-Powered-By av (Medium). Tre linjer i nginx/proxy. Est. 15 min.
 
 ### Pakke B — vedlikeholdsvindu
+
+> **[S-PAK-1 2026-11-10, branch `fix/sikkerhet-pakker-p1`, ⚠️ venter Kontrollør-gate]** Lukket fra lista: **next-auth** `5.0.0-beta.32` + **`@auth/core` 0.41.3** (direkte pin i `apps/web/package.json`; `@auth/prisma-adapter` løftet til `^2.11.3` fordi 2.11.1 låste `@auth/core` 0.41.1) · **find-my-way** 9.10.0 (via fastify `^5.12.2`) · **sharp** `^0.35.5` (libvips 1.3.4 som forhåndsbygd `@img/sharp-linux-x64`) · **brace-expansion** delvis (5.0.12 inn via `@fastify/static` 10; archiver/exceljs-grenen står). Samme runde: **`@fastify/static` `^10.1.1`** (major — `setHeaders` får `FastifyReply` og kjører etter send-headerne, `apps/api/src/server.ts:161`), dompurify `^3.4.17`, drizzle-orm (mobil) `^0.45.2` (ren JS, OTA-trygg), `pnpm.overrides` i rot-`package.json` for `@xmldom/xmldom` ≥0.8.15, `ws` ≥8.21, `fast-uri` ≥3.1.7, `@fastify/busboy` ≥3.2.1, og `images: { unoptimized: true }` i `apps/web/next.config.js` (slår av `/_next/image`; 0 `next/image`-bruk). `pnpm audit --prod` high/critical **128/10 → 89/5**. **Gjenstår i B:** Next 15 (Next 14.2.35 bærer 3 critical + 9 high), Expo/metro-dev-treet (tar, shell-quote, node-forge, undici, js-yaml, nanoid, picomatch, postcss, ws 6/7), undici via `expo-server-sdk`, archiver/exceljs (brace-expansion, glob, tmp), fast-xml-parser-grenene, zod 3, prisma-dev-treet, og `xlsx` (B-unntaket under).
 
 Én PR: `pnpm update` + `overrides` der transitivt. Omfatter next-auth beta + `@auth/core`, find-my-way, tar/tar-fs, brace-expansion, browserslist, undici, expo-file-system, sharp, fast-xml-parser, csv-parse, nanoid, jose, ajv, yargs, js-yaml, picomatch, postal-mime, `@ungap/structured-clone`, `@fastify/forwarded`, `@expo/spawn-async`, i18next, zod. Est. 3–4 t inkl. regresjon. **Redusert 2026-08-28:** `@xenova/transformers` fjernet (branch `chore/dodkode-xenova`) → `protobufjs` og `onnxruntime-node` falt ut av treet (var kun transitive via `@xenova`), så de er ute av denne pakken.
 
@@ -1039,7 +1077,11 @@ som DWG-gjenopprettingen, ikke etter.**
 
 ---
 
-### 🔴 Rå Prisma-tekst kan nå brukerens skjerm — tRPC har ingen `errorFormatter` (2026-09-24)
+### ✅ LØST — Rå Prisma-tekst kan nå brukerens skjerm — tRPC har ingen `errorFormatter` (2026-09-24)
+
+> ✅ **Løst 2026-11-11 (ERRFMT, branch `fix/trpc-errorformatter`):** `formaterFeil` i `apps/api/src/trpc/feilformat.ts`
+> er koblet i `trpc.ts`. P2025 → `NOT_FOUND`, P2002/P2003 → `CONFLICT`, alt annet → generisk; original logges.
+> Se [api.md § Feilformat](api.md) og [sikkerhet.md § Lukket 2026-11-11](sikkerhet.md). Teksten under er historikk.
 
 **Kenneth 2026-09-24, på test:** klikket Slett på en tegning og fikk i modalen
 «`Invalid prisma.drawing.findUniqueOrThrow() invocation … No record was found`».
@@ -3182,7 +3224,7 @@ Hører naturlig sammen med fase 3 (arkivmal), der bildeblokkene uansett bygges.
 
 ### Mobil-utskrift skjuler tomme tabeller og vedleggsfelt (målt 2026-08-13)
 
-> ⚠️ **IKKE lukket av F2 (2026-08-20).** Planen § F2 listet denne blant «fire saker F2 dekker», men F2 fjerner kun **web**-klient-utskriften. Denne saken bor i **mobil-stien** (`packages/pdf/src/felt.ts:131/152` via expo-print) og hører til **Fase 3 (mobil-device)** — dokgen rørte ingen mobil-filer. Meldt fra i stedet for lukket (per F2-ordrens gate).
+> ⚠️ **IKKE lukket av F2 (2026-08-20).** Planen § F2 listet denne blant «fire saker F2 dekker», men F2 fjerner kun **web**-klient-utskriften. Denne saken bor i **mobil-stien** (`packages/pdf/src/felt.ts:131/152` via expo-print — *historisk: mobil bruker `arkiv.rendr` siden 2026-08-24, så `felt.ts` kjører nå kun på serveren*) og hører til **Fase 3 (mobil-device)** — dokgen rørte ingen mobil-filer. Meldt fra i stedet for lukket (per F2-ordrens gate).
 
 **Oppfølger til web-funnet under.** `packages/pdf/src/felt.ts` viser «Ikke utfylt» for ~15 felttyper, men returnerer `""` — altså skjuler feltet — for to innholdsbærende typer:
 
@@ -3445,7 +3487,9 @@ Satellitt-laget (Norkart/WebAtlas, `waapi.webatlas.no/maptiles/…`) bærer **`a
 
 **Metode-lærdom verdt å beholde:** en Claude-økt tok inn en ekstern leverandør-avhengighet i produktet uten at eieren visste det, og det ble oppdaget fire måneder senere ved en tilfeldighet under en exit-runde. Samme klasse som dagens doc-drift: gjort, aldri skrevet ned.
 
-### 🟡 To geokodere sameksisterer — `oppmotested.geokod` bør adoptere `sokAdresser` (G2-gevinsten)
+### ✅ To geokodere sameksisterer — `oppmotested.geokod` bør adoptere `sokAdresser` (G2-gevinsten)
+
+> **Løst på `feat/reise-kort-l2` (TILLEGG 2026-11-15 (13) L2 del C, venter gate):** `oppmotested.geokod` kaller `sokAdresser` (`oppmotested.ts:166`); oppmøtested-modalen (`firma/oppmotesteder/OppmotestedModal.tsx`) og byggeplass deler `components/AdresseTreffliste.tsx`. `sokAdresser` prøver normaliserte varianter ved 0 treff (`normaliserteAdresseVarianter`, `rute-service.ts`) — gjelder også byggeplass. `geokodAdresse` (Nominatim) har nå **ingen kallere i kode** (reisetid-matrisen bruker den ikke — målt); beholdt til ordre om sletting. Gjenstår: `GeoReferanseEditor.tsx` har en tredje kopi av trefflista (ikke byttet).
 
 Etter G2 (`387d10a2`) bruker `bygning.geokod` **Kartverket** (`sokAdresser`, fuzzy, inntil 5 treff som klikkbar liste), mens **`oppmotested.geokod` + reisetid-matrisen fortsatt bruker Nominatim** (`geokodAdresse`, single-treff, krever presis staving). Oppmøtested-brukere får altså nøyaktig den dårligere opplevelsen G2 fjernet for byggeplasser.
 
@@ -4217,7 +4261,7 @@ på develop. GPS-geoforslag splittet ut til egen rad (se under). D9 separat.
 - **🟠 `{{dato}}` ikke-interpolert på attestert-tittel (reell, i #38).** `apps/mobile/app/timer/[id].tsx` kaller `t("timer.detalj.attestertTittel")` **uten** `{ dato }`-arg → nøkkelen (`nb.json`/`en.json`: «Attestert {{dato}}» / «Approved {{dato}}») rendres med literal `{{dato}}`. Datoen finnes allerede (`sedel.attestertVed` vises separat via `formatTidspunkt`). Fiks: send `{ dato }` eller fjern `{{dato}}` fra nøkkelen. Verifisert: kallet har ingen andre-arg; nøkkelen bærer `{{dato}}` i begge språk.
 - **🟡 Stale sync-badge.** Gul «Venter på sync» henger til man navigerer ut/inn av sedelen, selv etter fullført synk (bekreftet synket på web). Badge oppdateres ikke in-place. Kandidatmengde: `TimerSyncStatusBar.tsx` + `syncStatus`-lesning i `timer/[id].tsx` / listevisningen — mangler den en re-render/refetch etter synk-tick?
 - **🟡 Ingen per-rad rød markering av avviste sedler i lista.** Kun topp-aggregat «N avvist — må rettes» (`timer.sync.avvistAntall`); den enkelte avviste sedelen i listen er ikke rød-markert per rad. Kandidatmengde: mobil dagsseddel-liste-komponent + `syncStatus`-per-rad-rendering.
-- **🟡 Web timer prosjekt-filtrert vs. mobil firma-bred (Fase C-funn 2, 2026-07-11 — IKKE #38-blokker).** Web-prosjekt-timer-siden (`apps/web/src/app/dashbord/[prosjektId]/timer/page.tsx:62`) kaller `list.useQuery({ projectId: prosjektId })` → server `list` (`apps/api/src/routes/timer/dagsseddel.ts:584`) snevrer via `timer: { some: { projectId } }`, så prosjektbytte til et prosjekt uten rader viser «Ingen dagssedler». Mobil (`DagsseddelListe.lesDagssedlerLokalt`) er firma-bred (alle sedler for `userId`). Timer = **firmamodul** → skal `organizationId`-isoleres, ikke `projectId`-scopes for arbeiderens egen liste ([terminologi.md § 0](terminologi.md); minne «Timer er firma-eid»). **Retning (per Kenneth):** rut arbeiderens web-timer-inngang til den firma-brede `dashbord/timer/mine`-visningen (ren re-ruting = web-only); behold `[prosjektId]/timer` som valgfri leder/prosjekt-lens. `list`s valgfrie `projectId` er OK — feilen er at arbeider-inngangen bruker den. Bonus: `DailySheet` har ingen `projectId` (T.1 rad-nivå) → en 0-rads-sedel er prosjekt-foreldreløs og usynlig i alle prosjekt-lenser (iboende, akseptert). Avklar mot terminologi om «per-prosjekt arbeider-timerliste» i det hele tatt er gyldig konsept. Separat rot fra F4-1d (den = manglende `updatedAt`-touch; denne = scoping).
+- **🟡 Web timer prosjekt-filtrert vs. mobil firma-bred (Fase C-funn 2, 2026-07-11 — IKKE #38-blokker).** Web-prosjekt-timer-siden (`apps/web/src/app/dashbord/[prosjektId]/timer/page.tsx:62`) kaller `list.useQuery({ projectId: prosjektId })` → server `list` (`apps/api/src/routes/timer/dagsseddel.ts:584`) snevrer via `timer: { some: { projectId } }`, så prosjektbytte til et prosjekt uten rader viser «Ingen dagssedler». Mobil (`timerListeLokal.lesDagssedlerLokalt`) filtreres nå på valgt firma (`organizationId = valgtFirmaId`, POST (14) 2026-11-15, `fix/timer-firmafilter`); var firma-bred (alle sedler for `userId`). Timer = **firmamodul** → skal `organizationId`-isoleres, ikke `projectId`-scopes for arbeiderens egen liste ([terminologi.md § 0](terminologi.md); minne «Timer er firma-eid»). **Retning (per Kenneth):** rut arbeiderens web-timer-inngang til den firma-brede `dashbord/timer/mine`-visningen (ren re-ruting = web-only); behold `[prosjektId]/timer` som valgfri leder/prosjekt-lens. `list`s valgfrie `projectId` er OK — feilen er at arbeider-inngangen bruker den. Bonus: `DailySheet` har ingen `projectId` (T.1 rad-nivå) → en 0-rads-sedel er prosjekt-foreldreløs og usynlig i alle prosjekt-lenser (iboende, akseptert). Avklar mot terminologi om «per-prosjekt arbeider-timerliste» i det hele tatt er gyldig konsept. Separat rot fra F4-1d (den = manglende `updatedAt`-touch; denne = scoping).
 - **🟡 Timelønn→overtid-konvertering skjer ikke.** Avklar om egen feature (ikke bygget) vs. bug. Ikke undersøkt mot kode — trenger produkt-avklaring om forventet oppførsel før klassifisering.
 - **🟡 B2 fyrer aldri via normal ny-rad-flyt — `timer.md` overselger «hard sperre».** Auto-synken (`handterTimerEndret`→`tilFraAntall`, `handterFra/Til`→`effektiveTimerFraSpenn`) holder alltid `antall == spennet`, så B2-sperren i `lagre()` er i praksis uoppnåelig i normal flyt — den er kun et **sikkerhetsnett** mot legacy-divergerende rader (11 seed-rader i `sheet_machines`) eller manuell desync utenfor auto-synken. `timer.md` § B2 bør presisere at det er sikkerhetsnett, ikke en sperre brukeren møter. (Dokumentasjons-presisering, ikke kodefiks.)
 

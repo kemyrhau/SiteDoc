@@ -75,8 +75,49 @@ export type {
   TidKilde,
   NormStatus,
   ReiseRegelSnapshot,
+  OverforingSnapshot,
   NormSnapshot,
 } from "./reise";
+export {
+  løsReiseKnappLonnsart,
+  reiseLonnsartKandidater,
+  arbeidOgReise,
+  arbeidUtenReise,
+  sendDagenTekst,
+} from "./reiseSkille";
+export type {
+  ReiseKnappLonnsart,
+  ReiseKnappResultat,
+  ArbeidReiseRad,
+  SendDagenTekst,
+} from "./reiseSkille";
+export {
+  klassifiserManuellReise,
+  tilManuellReiseSpor,
+  manuellReiseForklaringTekst,
+  manuellReiseManglerArt,
+  løsReiseKort,
+  løsOverforingKort,
+  medOverforingPeriodeId,
+  finnDagsramme,
+  klokkeTilMin,
+  minTilKlokke,
+} from "./reiseManuell";
+export { sekvenserReisekjede } from "./reiseKjede";
+export type { KjedeKort } from "./reiseKjede";
+export type {
+  ManuellReiseInput,
+  ManuellReiseForklaring,
+  ManuellReiseKlassifisering,
+  ManuellReiseSpor,
+  ReiseKortRetning,
+  ReiseKortSperre,
+  OverforingKortInput,
+  ReiseKortInput,
+  ReiseKortResultat,
+} from "./reiseManuell";
+export { løsOppmote, finnFastOppmotested, trengerOppmoteValg, tilIsoDato, finnPeriodeKonflikt, finnOverforinger, byggOverforingOppslag, leggTilDager, periodeDatoFraOverforing, planleggOverforing, erApenOverforing, kontorOverforingOppsett, kontorOverforingRetning } from "./oppmote";
+export type { OppmotePeriodeType, OppmotePeriodeInput, OppmoteResultat, Overforing, OverforingSted, DagsforslagOverforingOppslag, DagsforslagOverforingCelle, OverforingPeriode, OverforingPlan, KontorOverforingOppsett } from "./oppmote";
 export { utmTilWgs84, ntmTilWgs84, konverterTilWgs84, detekterKoordinatSystem, EPSG_TIL_SYSTEM } from "./koordinatKonvertering";
 export type { KoordinatSystem } from "./koordinatKonvertering";
 export { wgs84TilUtm, wgs84TilNtm, wgs84TilProjeksjon, gpsTil3D, tredjeTilGps } from "./koordinatBro";
@@ -159,6 +200,12 @@ export {
   velgOvertidLonnsart,
 } from "./lonnsregel";
 export type { ArbeidstidSegment, OvertidLonnsartKandidat } from "./lonnsregel";
+export { foreslaOvertidSplitt } from "./overtidForslag";
+export type {
+  OvertidForslagRad,
+  OvertidForslagDel,
+  OvertidForslag,
+} from "./overtidForslag";
 export {
   DEFAULT_PAUSE_ETTER_TIMER,
   pauseVinduFra,
@@ -172,17 +219,28 @@ export {
   pauseVinduForDag,
   utledArbeidstidFraRader,
   avgjorRadPauseMin,
+  avgjorRadPause,
+  pauseFraForRad,
+  fastPauseFraFor,
+  dagPauseMinForNyttArbeid,
+  dagsBruttoTimer,
+  dagManglerPause,
+  forsokInnsending,
+  svarPaaPauseSporsmaal,
 } from "./pauseBeregning";
 export {
   tilErEtterFra,
   tidsromOverlapper,
   finnOverlappendeTidsrom,
   finnTidsromKonflikt,
+  finnOverlappVarsel,
 } from "./tidsromValidering";
-export type { Tidsrom, TidsromKonflikt } from "./tidsromValidering";
+export type { Tidsrom, TidsromKonflikt, OverlappVarsel } from "./tidsromValidering";
 export {
   byggForsonInputFraValg,
   parForslagMotSedel,
+  aktivtHelhetsvalg,
+  helhetsvalgNokler,
   overlappBlokkererAttestering,
 } from "./forsonValg";
 export type {
@@ -194,6 +252,8 @@ export type {
   ForsonInput,
   OverlappSlot,
 } from "./forsonValg";
+export { parForRelink, planleggLinjeRelink } from "./forsonRelink";
+export type { RelinkPar, RelinkLinje, RelinkData, RelinkPlan } from "./forsonRelink";
 export { radInnholdLikt } from "./radInnhold";
 export type { RadInnhold } from "./radInnhold";
 export { finnSedlerÅSlette } from "./timerSyncSletting";
@@ -505,8 +565,10 @@ export {
   sumIDag,
   dagSummer,
   utledKortByggeplass,
+  type KortByggeplassArv,
   kortStatus,
   trafikklysSone,
+  sumlinjeMotNorm,
   visVareforbrukKnapp,
   kortDagsseddelId,
   kortVareforbrukInput,
@@ -520,3 +582,44 @@ export {
   type KortSummer,
   type KortByggeplass,
 } from "./prosjektkort";
+
+export {
+  SIST_BRUKTE_MASKINER_ANTALL,
+  sammenlignInternNummer,
+  sisteUnikeMaskiner,
+  sorterMaskiner,
+} from "./maskinSortering";
+export { formaterKjoretid } from "./kjoretid";
+export { skalVarsleSkjulteTimer } from "./timerSkjultVarsel";
+export {
+  erGjesteprosjekt,
+  skjulFirmaModulForGjest,
+  gjesteprosjekterIAndreFirma,
+  skalNullstilleProsjekt,
+  type ProsjektForNullstilling,
+} from "./gjesteprosjekt";
+export {
+  velgTimerByggeplass,
+  velgByggeplassUtenGjett,
+  velgFilterByggeplass,
+  rensLagretByggeplassValg,
+} from "./standardByggeplass";
+export type { StandardByggeplassInput, FilterByggeplassInput } from "./standardByggeplass";
+export {
+  velgByggeplassKilde,
+  antallByggeplasser,
+  vedProsjektTrykk,
+  vedByggeplassTrykk,
+  erByggeplassAvhuket,
+  oppdaterBygningMap,
+} from "./prosjektByggeplassValg";
+export type {
+  ByggeplassValgRad,
+  ByggeplassKilde,
+  ProsjektTrykkHandling,
+  ByggeplassValg,
+} from "./prosjektByggeplassValg";
+export {
+  visByggeplassIkkeValgt, byggeplassByttInput, kanVelgeByggeplassDirekte,
+} from "./byggeplassIkkeValgt";
+export type { ByggeplassIkkeValgtInput } from "./byggeplassIkkeValgt";

@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { lesDokumentLokasjon } from "../dokument-lokasjon";
+import {
+  byggeplassByttInput,
+  byggeplassForLokasjon,
+  filtrerOmrader,
+  lesDokumentLokasjon,
+  manglerByggeplassValg,
+} from "../dokument-lokasjon";
 
 /**
  * 🔴 Regresjonsvakt (2026-08-23): oppgave-detaljsiden viste «Ikke satt» fordi den leste lokasjon fra
@@ -78,5 +84,78 @@ describe("lesDokumentLokasjon", () => {
       lokasjonOmfang: "omrade",
       omradeId: "omr-9",
     });
+  });
+
+  it("🔴 ORDRE 28: dokumentets egen byggeplass vinner over tegningens; tegningens er reserve", () => {
+    expect(
+      lesDokumentLokasjon({ byggeplass: { name: "Egen" }, drawing: { name: "T", byggeplass: { name: "Tegningens" } } })
+        .bygningNavn,
+    ).toBe("Egen");
+    // Egen uten tegning (oppgave opprettet på aktiv byggeplass, ingen standardtegning).
+    expect(lesDokumentLokasjon({ byggeplass: { name: "Egen" } }).bygningNavn).toBe("Egen");
+    // Eldre rad uten egen verdi → tegningens.
+    expect(lesDokumentLokasjon({ byggeplass: null, drawing: { name: "T", byggeplass: { name: "Tegningens" } } }).bygningNavn)
+      .toBe("Tegningens");
+  });
+});
+
+describe("ORDRE 29 #1: filtrerOmrader", () => {
+  const omrader = [
+    { id: "o1", byggeplassId: "bp1" },
+    { id: "o2", byggeplassId: "bp2" },
+    { id: "o3", byggeplassId: "bp1" },
+  ];
+  it("🔴 viser bare områdene på valgt byggeplass", () => {
+    expect(filtrerOmrader(omrader, "bp1").map((o) => o.id)).toEqual(["o1", "o3"]);
+  });
+  it("uten valgt byggeplass («Alle») vises alle", () => {
+    expect(filtrerOmrader(omrader, "").map((o) => o.id)).toEqual(["o1", "o2", "o3"]);
+    expect(filtrerOmrader(omrader, null)).toHaveLength(3);
+  });
+});
+
+describe("ORDRE 29 #1/#5: byggeplassForLokasjon", () => {
+  it("🔴 valgt byggeplass i velgeren går foran dokumentets og aktiv", () => {
+    expect(byggeplassForLokasjon({ valgt: "bp1", dokument: "bp2", aktiv: "bp3" })).toBe("bp1");
+  });
+  it("🔴 dokumentets byggeplass før toppbarens aktive", () => {
+    expect(byggeplassForLokasjon({ valgt: "", dokument: "bp2", aktiv: "bp3" })).toBe("bp2");
+    expect(byggeplassForLokasjon({ dokument: null, aktiv: "bp3" })).toBe("bp3");
+  });
+  it("🔴 aldri null — undefined lar serveren beholde dokumentets byggeplass", () => {
+    expect(byggeplassForLokasjon({ valgt: "", dokument: null, aktiv: null })).toBeUndefined();
+  });
+});
+
+describe("ORDRE 29 #6: byggeplassByttInput", () => {
+  it("🔴 område-omfang nullstilles sammen med området", () => {
+    expect(byggeplassByttInput("omrade", "bp2")).toEqual({
+      byggeplassId: "bp2",
+      drawingId: null,
+      positionX: null,
+      positionY: null,
+      omradeId: null,
+      lokasjonOmfang: null,
+    });
+  });
+  it("🔴 punkt-omfang mister tegningen og nullstilles", () => {
+    expect(byggeplassByttInput("punkt", "bp2").lokasjonOmfang).toBeNull();
+  });
+  it("hele byggeplassen beholdes (gjelder den nye byggeplassen)", () => {
+    const ut = byggeplassByttInput("byggeplass", null);
+    expect(ut).not.toHaveProperty("lokasjonOmfang");
+    expect(ut).toMatchObject({ byggeplassId: null, omradeId: null, drawingId: null });
+  });
+});
+
+describe("ORDRE (20b): manglerByggeplassValg", () => {
+  it("🔴 byggeplasser finnes, ingen kjent → mangler (ingen lagring av «hele byggeplassen» uten byggeplass)", () => {
+    expect(manglerByggeplassValg({ antallByggeplasser: 2, byggeplassId: undefined })).toBe(true);
+  });
+  it("byggeplass kjent → ok", () => {
+    expect(manglerByggeplassValg({ antallByggeplasser: 2, byggeplassId: "bp1" })).toBe(false);
+  });
+  it("prosjekt uten byggeplasser er uendret → ok", () => {
+    expect(manglerByggeplassValg({ antallByggeplasser: 0, byggeplassId: undefined })).toBe(false);
   });
 });

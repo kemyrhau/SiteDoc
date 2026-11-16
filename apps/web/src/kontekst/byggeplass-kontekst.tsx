@@ -7,21 +7,29 @@ import {
   useEffect,
   useCallback,
   useRef,
+  useMemo,
   type ReactNode,
 } from "react";
 import { useProsjekt } from "./prosjekt-kontekst";
-import { useFirma } from "./firma-kontekst";
 import { trpc } from "@/lib/trpc";
+import { velgFilterByggeplass } from "@sitedoc/shared";
 
 // Beholder samme localStorage-nøkkel for bakoverkompatibilitet
 const BYGGEPLASS_STORAGE_KEY = "sitedoc-aktiv-bygning";
 const TEGNING_STORAGE_KEY = "sitedoc-standard-tegning";
+// Brukerminne (server, delt med mobil): sist valgte byggeplass pr. prosjekt. Verdien er
+// fortsatt en ren id (eldre mobilversjoner leser den slik); `oppdatert` er valgets tid.
+const SERVER_NOKKEL_BYGGEPLASS = "sistBruktByggeplass";
 
 interface AktivByggeplass {
   id: string;
   name: string;
   number: number | null;
 }
+
+/** (22) Lagret manuelt valg pr. prosjekt. `tid` (ms) mangler i eldre oppføringer → 0.
+ *  Gamle streng-oppføringer fra før (22) leses som «intet valg» (`rensLagretByggeplassValg`). */
+type LagretValg = AktivByggeplass & { tid?: number };
 
 interface StandardTegning {
   id: string;
@@ -41,8 +49,21 @@ export interface PosisjonsResultat {
 }
 
 interface ByggeplassKontekstType {
+  /** (22) Byggeplassen filteret står på: ny innsjekk → sist valgte → null («Velg byggeplass»).
+   *  Aldri «første». */
   aktivByggeplass: AktivByggeplass | null;
-  velgByggeplass: (byggeplass: AktivByggeplass | null) => void;
+  /** (22) Prosjektet har minst én byggeplass (false også mens lista laster). */
+  harByggeplasser: boolean;
+  /** (22) Byggeplass-lista er lastet for aktivt prosjekt. */
+  byggeplasserLastet: boolean;
+  /** Velg byggeplass (huskes pr. bruker og prosjekt). `prosjektId` (18) lagrer valget på et
+   *  annet prosjekt enn det aktive — velgeren bytter prosjekt og byggeplass i samme trykk. */
+  velgByggeplass: (byggeplass: AktivByggeplass, prosjektId?: string) => void;
+  /** (20) Byggeplass for nye dokumenter: kun brukerens eget (lagrede) valg, ellers null —
+   *  aldri et avledet valg (innsjekk). Velgeren viser fortsatt `aktivByggeplass`. */
+  opprettByggeplass: AktivByggeplass | null;
+  /** (20) Standard-tegning for nye dokumenter — kun når `opprettByggeplass` er satt. */
+  opprettTegning: StandardTegning | null;
   standardTegning: StandardTegning | null;
   settStandardTegning: (tegning: StandardTegning | null) => void;
   aktivTegning: AktivTegning | null;
@@ -73,134 +94,165 @@ export function velgerRehydreringsHandling(
   return "ingen";
 }
 
+function lesLagretValg(prosjektId: string): LagretValg | null {
+  try {
+    const raa = localStorage.getItem(BYGGEPLASS_STORAGE_KEY);
+    if (!raa) return null;
+    const v = (JSON.parse(raa) as Record<string, unknown>)[prosjektId];
+    if (v && typeof v === "object" && typeof (v as LagretValg).id === "string") return v as LagretValg;
+  } catch {
+    // Ignorer ugyldig localStorage-data
+  }
+  return null;
+}
+
+function lesStandardTegning(byggeplassId: string): StandardTegning | null {
+  try {
+    const raa = localStorage.getItem(TEGNING_STORAGE_KEY);
+    if (!raa) return null;
+    return (JSON.parse(raa) as Record<string, StandardTegning>)[byggeplassId] ?? null;
+  } catch {
+    return null;
+  }
+}
+
 const ByggeplassKontekst = createContext<ByggeplassKontekstType | null>(null);
 
 export function ByggeplassProvider({ children }: { children: ReactNode }) {
   const { prosjektId } = useProsjekt();
-  const { valgtFirma } = useFirma();
-  const [aktivByggeplass, setAktivByggeplass] = useState<AktivByggeplass | null>(null);
+  // (22) Manuelt valg (localStorage) for aktivt prosjekt. `lestForProsjektId` (18) hindrer at
+  // forrige prosjekts valg brukes i samme commit som prosjektbyttet.
+  const [lagretValg, setLagretValg] = useState<LagretValg | null>(null);
+  const [lestForProsjektId, setLestForProsjektId] = useState<string | null>(null);
   const [standardTegning, setStandardTegning] = useState<StandardTegning | null>(null);
   const [aktivTegning, setAktivTegning] = useState<AktivTegning | null>(null);
   const [posisjonsvelgerAktiv, setPosisjonsvelgerAktiv] = useState(false);
   const [posisjonsvelgerFeltId, setPosisjonsvelgerFeltId] = useState<string | null>(null);
   const posisjonsResultatRef = useRef<PosisjonsResultat | null>(null);
 
-  // A1 (datakvalitet): byggeplass-lista bor i kilden — ikke i en UI-komponent —
-  // så autovalg + gyldighets-guard kan skje deterministisk her. React-query
-  // deduper mot KontekstChips identiske kall (samme path+input) → ingen
-  // dobbelt-henting. Sortert på `number` fra serveren (deterministisk «første»).
+  // Byggeplass-lista bor i kilden — gyldighet avgjøres her. React-query deduper mot
+  // KontekstChips identiske kall (samme path+input).
   const byggeplassListe = trpc.bygning.hentForProsjekt.useQuery(
     { projectId: prosjektId ?? "" },
     { enabled: !!prosjektId },
   );
+  // Brukerminne (server): sist valgte byggeplass pr. prosjekt — skrevet av web og mobil.
+  // Alle egne rader uten projectId-input — ingen medlemskapssjekk.
+  const brukerminne = trpc.brukerinnstilling.hent.useQuery(undefined, { staleTime: 60_000 });
+  const settBrukerminne = trpc.brukerinnstilling.sett.useMutation();
+  const utils = trpc.useUtils();
+  // (22) Innsjekk (PSI) — kun når PSI-modulen er aktiv på prosjektet (minStatus kaster ellers).
+  const moduler = trpc.modul.hentForProsjekt.useQuery(
+    { projectId: prosjektId ?? "" },
+    { enabled: !!prosjektId },
+  );
+  const psiAktiv = !!(moduler.data as { moduleSlug: string; status: string }[] | undefined)?.some(
+    (m) => m.moduleSlug === "psi" && m.status === "aktiv",
+  );
+  const minStatus = trpc.mannskap.minStatus.useQuery(
+    { projectId: prosjektId ?? "" },
+    { enabled: !!prosjektId && psiAktiv, retry: false, staleTime: 60_000 },
+  );
 
-  // Defensiv cleanup ved firma-bytte: clear byggeplass-state umiddelbart
-  // slik at gammel byggeplass-etikett ikke henger igjen i topbar mens
-  // ProsjektKontekst auto-resetter prosjektId. Uten dette så user en
-  // byggeplass fra forrige firma selv etter at prosjekt-velgeren viste
-  // «Velg prosjekt»-prompt.
+  // Les lagret valg ved prosjektbytte. (22) Erstatter firma-reset-effekten: den kjørte når
+  // `valgtFirma` gikk fra null til lastet og nullstilte valget ETTER at denne hadde lest det
+  // (valget «huskes ikke» etter last). Valget er nå nøklet på prosjekt og gyldighetssjekket
+  // mot prosjektets liste, så et firmabytte kan ikke vise forrige firmas byggeplass.
   useEffect(() => {
-    setAktivByggeplass(null);
-    setStandardTegning(null);
-    setAktivTegning(null);
-  }, [valgtFirma?.id]);
-
-  // Les fra localStorage etter mount
-  useEffect(() => {
-    if (!prosjektId) {
-      setAktivByggeplass(null);
-      setStandardTegning(null);
-      return;
-    }
-
-    try {
-      const lagretByggeplass = localStorage.getItem(BYGGEPLASS_STORAGE_KEY);
-      if (lagretByggeplass) {
-        const parsed = JSON.parse(lagretByggeplass) as Record<string, AktivByggeplass>;
-        if (parsed[prosjektId]) {
-          setAktivByggeplass(parsed[prosjektId]);
-
-          // Les standard-tegning for denne byggeplassen
-          const lagretTegning = localStorage.getItem(TEGNING_STORAGE_KEY);
-          if (lagretTegning) {
-            const parsedTegning = JSON.parse(lagretTegning) as Record<string, StandardTegning>;
-            const t = parsedTegning[parsed[prosjektId].id];
-            if (t) {
-              setStandardTegning(t);
-              setAktivTegning(t);
-            }
-          }
-        } else {
-          setAktivByggeplass(null);
-          setStandardTegning(null);
-        }
-      }
-    } catch {
-      // Ignorer ugyldig localStorage-data
-    }
+    setLagretValg(prosjektId ? lesLagretValg(prosjektId) : null);
+    setLestForProsjektId(prosjektId ?? null);
   }, [prosjektId]);
 
-  const velgByggeplass = useCallback(
-    (byggeplass: AktivByggeplass | null) => {
-      setAktivByggeplass(byggeplass);
-      setStandardTegning(null);
-      setAktivTegning(null);
+  const liste = byggeplassListe.data;
+  const byggeplasserLastet = !!prosjektId && !!liste;
+  const harByggeplasser = (liste?.length ?? 0) > 0;
+  const lestNaa = !!prosjektId && lestForProsjektId === prosjektId;
 
-      if (!prosjektId) return;
-
+  // Sist valgte: nyeste av localStorage (denne nettleseren) og brukerminnet (andre enheter).
+  const manuelt = useMemo(() => {
+    if (!prosjektId || !lestNaa) return null;
+    const lokal = lagretValg ? { id: lagretValg.id, tid: lagretValg.tid ?? 0 } : null;
+    const rad = brukerminne.data?.find(
+      (r) => r.projectId === prosjektId && r.nokkel === SERVER_NOKKEL_BYGGEPLASS,
+    );
+    let server: { id: string; tid: number } | null = null;
+    if (rad) {
       try {
-        const lagret = localStorage.getItem(BYGGEPLASS_STORAGE_KEY);
-        const parsed = lagret ? (JSON.parse(lagret) as Record<string, AktivByggeplass>) : {};
-        if (byggeplass) {
-          parsed[prosjektId] = byggeplass;
-        } else {
-          delete parsed[prosjektId];
-        }
+        const id = JSON.parse(rad.verdi) as unknown;
+        const tid = new Date(rad.oppdatert as unknown as string).getTime();
+        if (typeof id === "string") server = { id, tid: Number.isFinite(tid) ? tid : 0 };
+      } catch {
+        // Ignorer
+      }
+    }
+    if (!lokal) return server;
+    if (!server) return lokal;
+    return server.tid > lokal.tid ? server : lokal;
+  }, [prosjektId, lestNaa, lagretValg, brukerminne.data]);
+
+  const innsjekk = useMemo(() => {
+    const s = psiAktiv ? minStatus.data : null;
+    if (!s) return null;
+    return { id: s.byggeplassId ?? null, tid: new Date(s.innsjekkTid as unknown as string).getTime() };
+  }, [psiAktiv, minStatus.data]);
+
+  const aktivByggeplass = useMemo<AktivByggeplass | null>(() => {
+    if (!prosjektId || !lestNaa) return null;
+    if (!liste) {
+      // Lista laster: vis lagret valg (har navn) så velgeren ikke blinker «Velg byggeplass».
+      return lagretValg ? { id: lagretValg.id, name: lagretValg.name, number: lagretValg.number } : null;
+    }
+    const id = velgFilterByggeplass({
+      byggeplassIder: liste.map((b) => b.id),
+      innsjekk,
+      gps: null, // GPS finnes bare på mobil
+      manuelt,
+    });
+    const b = id ? liste.find((x) => x.id === id) : undefined;
+    return b ? { id: b.id, name: b.name, number: b.number } : null;
+  }, [prosjektId, lestNaa, liste, lagretValg, innsjekk, manuelt]);
+
+  // Standard-tegning følger valgt byggeplass.
+  const aktivId = aktivByggeplass?.id ?? null;
+  useEffect(() => {
+    const t = aktivId ? lesStandardTegning(aktivId) : null;
+    setStandardTegning(t);
+    setAktivTegning(t);
+  }, [aktivId]);
+
+  const velgByggeplass = useCallback(
+    (byggeplass: AktivByggeplass, prosjektIdValg?: string) => {
+      const pid = prosjektIdValg ?? prosjektId;
+      if (!pid) return;
+      const valg: LagretValg = { ...byggeplass, tid: Date.now() };
+      try {
+        const raa = localStorage.getItem(BYGGEPLASS_STORAGE_KEY);
+        const parsed = raa ? (JSON.parse(raa) as Record<string, unknown>) : {};
+        parsed[pid] = valg;
         localStorage.setItem(BYGGEPLASS_STORAGE_KEY, JSON.stringify(parsed));
       } catch {
         // Ignorer localStorage-feil
       }
-
-      // Les standard-tegning for ny byggeplass
-      if (byggeplass) {
-        try {
-          const lagretTegning = localStorage.getItem(TEGNING_STORAGE_KEY);
-          if (lagretTegning) {
-            const parsedTegning = JSON.parse(lagretTegning) as Record<string, StandardTegning>;
-            const t = parsedTegning[byggeplass.id];
-            if (t) {
-              setStandardTegning(t);
-              setAktivTegning(t);
-            }
-          }
-        } catch {
-          // Ignorer
-        }
-      }
+      // Brukerminnet (server): valget følger brukeren til andre enheter. Fire-and-forget.
+      settBrukerminne.mutate(
+        { nokkel: SERVER_NOKKEL_BYGGEPLASS, verdi: JSON.stringify(byggeplass.id), projectId: pid },
+        { onSuccess: () => void utils.brukerinnstilling.hent.invalidate() },
+      );
+      // Valg på et annet prosjekt: kun lagring — prosjektbyttet leser verdien inn.
+      if (pid === prosjektId) setLagretValg(valg);
     },
+    // settBrukerminne/utils er stabile nok; mutate-referansen endres ikke mellom render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [prosjektId],
   );
 
-  // A1: autovalg + gyldighets-guard. Kjører når byggeplass-lista er lastet.
-  // - Aktiv byggeplass som IKKE finnes i prosjektets liste (slettet/fremmed) →
-  //   forkast og revelg (dekker stale localStorage-id + prosjektbytte-guarden).
-  // - Ingen gyldig byggeplass valgt + prosjektet har byggeplasser → velg første
-  //   deterministisk. Erstatter sideeffekten som lå i ByggeplassVelger.tsx
-  //   (tapt i 4d52114e) — nå i kilden, så den ikke dør stille når UI fjernes.
-  //   `velgByggeplass` persisterer, akkurat som det gamle autovalget gjorde.
-  useEffect(() => {
-    if (!prosjektId) return;
-    const liste = byggeplassListe.data;
-    if (!liste) return; // vent på lista før valget røres (unngår stale-race)
-    const gyldig = !!aktivByggeplass && liste.some((b) => b.id === aktivByggeplass.id);
-    if (gyldig) return; // respekter gyldig (persistert) valg — ingen override
-    if (liste.length > 0) {
-      const forste = liste[0]!;
-      velgByggeplass({ id: forste.id, name: forste.name, number: forste.number });
-    } else if (aktivByggeplass) {
-      velgByggeplass(null); // prosjektet har ingen byggeplasser → nullstill rest
-    }
-  }, [prosjektId, byggeplassListe.data, aktivByggeplass, velgByggeplass]);
+  // (20) Byggeplass for nye dokumenter: brukerens eget (lagrede) valg, ellers ingen. Uendret
+  // regel; (22) innsjekk styrer filteret, men følger ikke med nye dokumenter.
+  const opprettByggeplass = useMemo(() => {
+    if (!aktivByggeplass || !manuelt) return null;
+    return manuelt.id === aktivByggeplass.id ? aktivByggeplass : null;
+  }, [aktivByggeplass, manuelt]);
+  const opprettTegning = opprettByggeplass ? standardTegning : null;
 
   const settStandardTegning = useCallback(
     (tegning: StandardTegning | null) => {
@@ -262,7 +314,11 @@ export function ByggeplassProvider({ children }: { children: ReactNode }) {
     <ByggeplassKontekst.Provider
       value={{
         aktivByggeplass,
+        harByggeplasser,
+        byggeplasserLastet,
         velgByggeplass,
+        opprettByggeplass,
+        opprettTegning,
         standardTegning,
         settStandardTegning,
         aktivTegning,

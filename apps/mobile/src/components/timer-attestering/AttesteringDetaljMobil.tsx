@@ -7,6 +7,7 @@ import { trpc } from "../../lib/trpc";
 import { RadCheckbox } from "./RadCheckbox";
 import { ReturnerModal } from "./ReturnerModal";
 import { isoTidspunktTilHHMM, formatNorskDato } from "../../utils/dato";
+import { prosjektVisningsnavn } from "../../utils/prosjektNavn";
 import { KnappMedForklaring } from "../KnappMedForklaring";
 
 type RadBase = {
@@ -170,10 +171,7 @@ export function AttesteringDetaljMobil({
             {formatNorskDato(sheet.dato as unknown as string)}
           </Text>
           <Text className="mt-0.5 text-sm text-gray-600">
-            {sheet.prosjekt?.name ?? t("timer.detalj.ukjentProsjekt")}
-            {sheet.prosjekt?.projectNumber
-              ? ` (${sheet.prosjekt.projectNumber})`
-              : ""}
+            {prosjektVisningsnavn(sheet.prosjekt, t("timer.detalj.ukjentProsjekt"))}
           </Text>
           {sheet.ansatt && (
             <Text className="mt-0.5 text-sm text-gray-600">

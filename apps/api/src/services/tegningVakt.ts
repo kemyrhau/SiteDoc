@@ -54,3 +54,34 @@ export async function verifiserByggeplassIProsjekt(
     });
   }
 }
+
+/**
+ * Prosjektisolering for område-referanser (ORDRE 29 #13): en `omradeId` som skrives på et
+ * dokument (oppgave, sjekkliste) eller et kontrollplanpunkt MÅ tilhøre samme prosjekt. Med
+ * `byggeplassId` kreves i tillegg at området ligger på den byggeplassen (kontrollplanen er
+ * byggeplass-bundet). Oppgave/sjekkliste sjekker bare prosjekt — dokumentets byggeplass kan
+ * følge tegningen og sjekkes separat.
+ */
+export async function verifiserOmradeIProsjekt(
+  db: TxClient,
+  omradeId: string,
+  projectId: string,
+  byggeplassId?: string | null,
+): Promise<void> {
+  const omrade = await db.omrade.findUnique({
+    where: { id: omradeId },
+    select: { projectId: true, byggeplassId: true },
+  });
+  if (!omrade || omrade.projectId !== projectId) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "Området hører til et annet prosjekt.",
+    });
+  }
+  if (byggeplassId && omrade.byggeplassId !== byggeplassId) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "Området hører til en annen byggeplass.",
+    });
+  }
+}

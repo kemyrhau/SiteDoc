@@ -10,6 +10,7 @@ import { trpc } from "@/lib/trpc";
 import { Button } from "@sitedoc/ui";
 import { KnappMedForklaring } from "@/components/KnappMedForklaring";
 import { Plus } from "lucide-react";
+import { arbeidOgReise } from "@sitedoc/shared";
 import { RedigerTimerRad } from "./RedigerTimerRad";
 import { RedigerTilleggRad } from "./RedigerTilleggRad";
 import { RedigerMaskinRad } from "./RedigerMaskinRad";
@@ -40,6 +41,8 @@ type TimerRad = {
   attestertStatus: string | null;
   // T7-2c3: parentRadId trengs for å skjule Splitt-knapp på split-resultatet selv
   parentRadId?: string | null;
+  // Ordre 2026-11-14 (6): reise skilles fra arbeid i bøttesummen.
+  erReise?: boolean | null;
 };
 type TilleggRad = {
   id: string;
@@ -49,6 +52,8 @@ type TilleggRad = {
   kommentar: string | null;
   attestertStatus: string | null;
   parentRadId?: string | null;
+  byggeplassId?: string | null;
+  externalCostObjectId?: string | null;
 };
 type MaskinRad = {
   id: string;
@@ -146,6 +151,8 @@ export function AttesteringDetaljEdit({
     tilleggId: r.tilleggId,
     antall: tilTall(r.antall),
     kommentar: r.kommentar,
+    byggeplassId: r.byggeplassId ?? null,
+    externalCostObjectId: r.externalCostObjectId ?? null,
   }));
   const initMaskin: RedigerMaskinRadData[] = pendingMaskin.map((r) => ({
     key: r.id,
@@ -358,6 +365,8 @@ export function AttesteringDetaljEdit({
           tilleggId: r.tilleggId,
           antall: r.antall,
           kommentar: r.kommentar,
+          byggeplassId: r.byggeplassId ?? null,
+          externalCostObjectId: r.externalCostObjectId ?? null,
         })),
         maskin: editMaskin.map((r) => ({
           originalId: r.originalId,
@@ -449,6 +458,7 @@ export function AttesteringDetaljEdit({
             prosjektValg.find((p) => p.id === pid)?.name ?? pid;
           return (
             <ProsjektSectionEdit
+              organizationId={organizationId}
               key={pid}
               projectId={pid}
               prosjektNavn={prosjektNavn}
@@ -512,6 +522,7 @@ export function AttesteringDetaljEdit({
         <SplittRadModal
           {...splittAktivFor}
           sheetId={sheetId}
+          organizationId={organizationId}
           prosjekter={prosjektValg}
           tidsrundingMinutter={tidsrundingMinutter}
           onLukk={() => setSplittAktivFor(null)}
@@ -590,6 +601,7 @@ type SplittAktivLokal =
   | { radType: "maskin"; original: MaskinRad };
 
 function ProsjektSectionEdit({
+  organizationId,
   projectId,
   prosjektNavn,
   ecoKeys,
@@ -611,6 +623,8 @@ function ProsjektSectionEdit({
   leggTilMaskin,
   aapneSplitt,
 }: {
+  /** Sedelens firma — katalogene (lønnsart/tillegg/maskin) hentes herfra. */
+  organizationId: string;
   projectId: string;
   prosjektNavn: string;
   ecoKeys: string[];
@@ -635,7 +649,7 @@ function ProsjektSectionEdit({
   const { t } = useTranslation();
   // Hent ECO-katalog én gang per prosjekt for navn på subheaders.
   const { data: ecoer } = trpc.eksternKostObjekt.list.useQuery(
-    { projectId },
+    { projectId, organizationId },
     { enabled: !!projectId },
   );
   const ecoNavnMap = new Map<string, { kortNavn: string; proAdmId: string }>(
@@ -658,6 +672,7 @@ function ProsjektSectionEdit({
           };
           return (
             <EcoBucketEdit
+              organizationId={organizationId}
               key={ekv}
               projectId={projectId}
               ecoId={ecoId}
@@ -710,6 +725,7 @@ function ProsjektSectionEdit({
               return (
                 <RedigerTilleggRad
                   key={rad.key}
+                  organizationId={organizationId}
                   rad={rad}
                   prosjekter={prosjekter}
                   onChange={(felt) => oppdaterTillegg(rad.key, felt)}
@@ -730,6 +746,7 @@ function ProsjektSectionEdit({
 }
 
 function EcoBucketEdit({
+  organizationId,
   projectId,
   ecoId,
   ecoNavn,
@@ -747,6 +764,7 @@ function EcoBucketEdit({
   leggTilMaskin,
   aapneSplitt,
 }: {
+  organizationId: string;
   projectId: string;
   ecoId: string | null;
   ecoNavn: { kortNavn: string; proAdmId: string } | null;
@@ -765,9 +783,21 @@ function EcoBucketEdit({
   aapneSplitt: (aktiv: SplittAktivLokal) => void;
 }) {
   const { t } = useTranslation();
-  const sumTimer = timer.reduce((acc, r) => acc + r.timer, 0);
+  // Ordre 2026-11-14 (6): arbeid og reise hver for seg. Redigerte rader bærer
+  // ikke erReise; en rad regnes som reise når lønnsarten er en reise-lønnsart
+  // på sedelens originale rader (serveren utleder på nytt ved lagring).
+  const reiseLonnsartIder = new Set(
+    pendingTimer.filter((r) => r.erReise === true).map((r) => r.lonnsartId),
+  );
+  const { arbeid: sumTimer, reise: sumReise } = arbeidOgReise(
+    timer.map((r) => ({
+      timer: r.timer,
+      erReise: reiseLonnsartIder.has(r.lonnsartId),
+    })),
+  );
   const sumMaskin = maskin.reduce((acc, r) => acc + r.timer, 0);
-  const maskinOk = sumMaskin <= sumTimer + 0.001;
+  // Kontrollen består (speil av server-validering), men måles mot arbeid uten
+  // reise. Sedel-pausen er ikke kjent her → 0 (strengere, som før).
 
   return (
     <div
@@ -800,6 +830,11 @@ function EcoBucketEdit({
             <span className="font-mono font-normal text-gray-500">
               ({sumTimer.toFixed(2)} {t("timer.timerEnhet")})
             </span>
+            {sumReise > 0 && (
+              <span className="ml-2 font-mono font-normal normal-case text-gray-500">
+                {t("timer.gruppe.reise", { timer: sumReise.toFixed(2) })}
+              </span>
+            )}
           </h5>
           <button
             type="button"
@@ -825,6 +860,7 @@ function EcoBucketEdit({
               return (
                 <RedigerTimerRad
                   key={rad.key}
+                  organizationId={organizationId}
                   rad={rad}
                   prosjekter={prosjekter}
                   tidsrundingMinutter={tidsrundingMinutter}
@@ -875,6 +911,7 @@ function EcoBucketEdit({
               return (
                 <RedigerMaskinRad
                   key={rad.key}
+                  organizationId={organizationId}
                   rad={rad}
                   prosjekter={prosjekter}
                   tidsrundingMinutter={tidsrundingMinutter}
@@ -892,19 +929,14 @@ function EcoBucketEdit({
         )}
       </div>
 
-      {/* Sum-indikator: grønn når maskin ≤ arbeid, rød ellers (speil av server-validering) */}
-      {(sumTimer > 0 || sumMaskin > 0) && (
+      {/* Ordre 2026-11-14 (6) + RETUR 1: «Maskin X t», alltid nøytral — ingen
+          rød/grønn, ingen varseltekst. Sperren mot maskin over arbeid (uten reise)
+          står i rad-modalene. */}
+      {sumMaskin > 0 && (
         <div
-          className={`mt-3 rounded border px-3 py-1.5 text-xs font-medium ${
-            maskinOk
-              ? "border-green-200 bg-green-50 text-green-800"
-              : "border-red-300 bg-red-50 text-red-800"
-          }`}
+          className="mt-3 rounded border px-3 py-1.5 text-xs font-medium border-gray-200 bg-white text-gray-700"
         >
-          {t("timer.gruppe.maskinAvArbeid", {
-            maskin: sumMaskin.toFixed(2),
-            arbeid: sumTimer.toFixed(2),
-          })}
+          {t("timer.gruppe.maskin", { maskin: sumMaskin.toFixed(2) })}
         </div>
       )}
     </div>

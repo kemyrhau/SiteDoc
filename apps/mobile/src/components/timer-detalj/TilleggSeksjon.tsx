@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   View,
   Text,
@@ -35,6 +35,10 @@ import { ProsjektVelgerModal, ProsjektFelt } from "./ProsjektVelger";
 import { VelgerFelt } from "./VelgerFelt";
 import { TastaturFerdig, TASTATUR_FERDIG_ID } from "./TastaturFerdig";
 import { SplittRadModal } from "./SplittRadModal";
+import { skrivLonnstillegg } from "../../services/tilleggUtleggSkriv";
+import { useKortLaas } from "./prosjektkortKontekst";
+import { KortLaasFelt } from "./KortLaasFelt";
+import { vedleggKilde } from "../../lib/vedleggKilde";
 
 interface TilleggSeksjonProps {
   sheetId: string;
@@ -43,6 +47,16 @@ interface TilleggSeksjonProps {
   rader: TilleggRad[];
   redigerbar: boolean;
   onEndret: () => void;
+  /**
+   * ORDRE Tillegg/Utlegg (B2): ?-ikon ved overskriften. Prosjektkortet sender
+   * det; dagskortet sender ingenting og ser seksjonen som før.
+   */
+  hjelpIkon?: ReactNode;
+  /**
+   * Spec tillegg-utlegg-prosjektkort (B1/T11): kortets lagrede felt på nye rader.
+   * Prosjektkortet sender det; dagskortet sender ingenting → `null, null` = arv.
+   */
+  kortFelt?: { byggeplassId: string | null; externalCostObjectId: string | null };
 }
 
 export function TilleggSeksjon({
@@ -52,6 +66,8 @@ export function TilleggSeksjon({
   rader,
   redigerbar,
   onEndret,
+  hjelpIkon,
+  kortFelt,
 }: TilleggSeksjonProps) {
   const { t } = useTranslation();
   const [visModal, setVisModal] = useState(false);
@@ -68,20 +84,23 @@ export function TilleggSeksjon({
     ) => {
       const db = hentDatabase();
       if (!db) return;
-      db.insert(sheetTilleggLocal)
-        .values({
-          id: randomUUID(),
-          dagsseddelId: sheetId,
+      skrivLonnstillegg(
+        db,
+        sheetId,
+        {
+          lokalId: randomUUID(),
           projectId: radProjectId,
           tilleggId,
           antall,
           kommentar,
-          sistEndretLokalt: Date.now(),
-        })
-        .run();
+          byggeplassId: kortFelt?.byggeplassId ?? null,
+          externalCostObjectId: kortFelt?.externalCostObjectId ?? null,
+        },
+        Date.now(),
+      );
       onEndret();
     },
-    [sheetId, onEndret],
+    [sheetId, onEndret, kortFelt?.byggeplassId, kortFelt?.externalCostObjectId],
   );
 
   const oppdater = useCallback(
@@ -94,19 +113,23 @@ export function TilleggSeksjon({
     ) => {
       const db = hentDatabase();
       if (!db) return;
+      // Byggeplass/underprosjekt hører til prosjektet: bytte prosjekt (kun mulig
+      // på dagskortet) nuller dem, så raden arver fra sedelen igjen.
+      const prosjektByttet = rader.find((r) => r.id === radId)?.projectId !== radProjectId;
       db.update(sheetTilleggLocal)
         .set({
           projectId: radProjectId,
           tilleggId,
           antall,
           kommentar,
+          ...(prosjektByttet ? { byggeplassId: null, externalCostObjectId: null } : {}),
           sistEndretLokalt: Date.now(),
         })
         .where(eq(sheetTilleggLocal.id, radId))
         .run();
       onEndret();
     },
-    [onEndret],
+    [onEndret, rader],
   );
 
   const fjern = useCallback(
@@ -136,9 +159,12 @@ export function TilleggSeksjon({
   return (
     <View className="mt-4">
       <View className="flex-row items-center justify-between border-b border-gray-200 bg-white px-4 py-2">
-        <Text className="text-sm font-semibold uppercase tracking-wide text-gray-700">
-          {t("timer.kol.tillegg")}
-        </Text>
+        <View className="flex-row items-center gap-2">
+          <Text className="text-sm font-semibold uppercase tracking-wide text-gray-700">
+            {t("timer.kol.tillegg")}
+          </Text>
+          {hjelpIkon}
+        </View>
         {redigerbar && (
           <Pressable
             onPress={() => {
@@ -322,13 +348,14 @@ function VedleggBilde({
   onFjern: (v: LokaltTilleggVedlegg) => void;
 }) {
   const { t } = useTranslation();
-  const harLokal = !!v.lokalSti;
+  // Telefontest A funn 2: server-URL vinner over en lokal sti (fila slettes etter opplasting).
+  const kilde = vedleggKilde(v);
   const signert = trpc.timer.dagsseddel.signerTilleggVedlegg.useQuery(
     { vedleggId: v.id },
-    { enabled: !harLokal && !!v.serverUrl },
+    { enabled: kilde.signer },
   );
-  const uri = harLokal
-    ? v.lokalSti ?? undefined
+  const uri = kilde.lokal
+    ? kilde.lokal
     : signert.data?.url
       ? `${AUTH_CONFIG.apiUrl}${signert.data.url}`
       : undefined;
@@ -500,7 +527,7 @@ function VedleggSeksjon({
   );
 }
 
-function TilleggRadModal({
+export function TilleggRadModal({
   eksisterendeRad,
   organizationId,
   defaultProjectId,
@@ -519,6 +546,8 @@ function TilleggRadModal({
   onLukk: () => void;
 }) {
   const { t } = useTranslation();
+  // Prosjektkortet: prosjekt, byggeplass og underprosjekt er kortets — låst (spec § 5).
+  const kortLaas = useKortLaas();
   const [valgtProjectId, setValgtProjectId] = useState<string>(
     eksisterendeRad?.projectId ?? defaultProjectId,
   );
@@ -597,10 +626,11 @@ function TilleggRadModal({
             </Text>
             <ProsjektFelt
               prosjektNavn={valgtProsjekt?.name ?? null}
-              prosjektNummer={valgtProsjekt?.projectNumber ?? null}
               onTrykk={() => setVisProsjektVelger(true)}
+              laast={!!kortLaas}
             />
           </View>
+          {kortLaas && valgtProjectId && <KortLaasFelt projectId={valgtProjectId} kortLaas={kortLaas} />}
 
           <View>
             <Text className="mb-1 text-sm font-medium text-gray-700">

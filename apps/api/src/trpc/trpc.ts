@@ -3,8 +3,10 @@ import { randomBytes } from "crypto";
 import type { Context } from "./context";
 import { sjekkRateLimitDetalj } from "../utils/rateLimiter";
 import { signerOutputHvisQuery } from "../utils/signerUploadsOutput";
+import { formaterFeil } from "./feilformat";
 
-const t = initTRPC.context<Context>().create();
+// ERRFMT: rå Prisma-/intern feiltekst oversettes her, ett sted — se feilformat.ts.
+const t = initTRPC.context<Context>().create({ errorFormatter: (opts) => formaterFeil(opts) });
 
 /**
  * 🔴 S1 Fase 1b — sentral signering av `/uploads/`-URL-er i ALLE query-svar

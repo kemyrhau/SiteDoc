@@ -122,7 +122,7 @@ function unikeVerdier(rader: DokumentRad[], hent: (r: DokumentRad) => string): {
 }
 
 function byggeplassNavnAvvik(r: DokumentRad): string {
-  return r.drawing?.byggeplass?.name ?? "—";
+  return r.byggeplass?.name ?? r.drawing?.byggeplass?.name ?? "—";
 }
 function byggeplassNavnSjekkliste(r: DokumentRad): string {
   return r.byggeplass?.name ?? "—";

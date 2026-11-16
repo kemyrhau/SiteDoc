@@ -3,11 +3,20 @@
 import { useState, useRef, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { ChevronDown, ArrowLeftRight, Star } from "lucide-react";
+import { ChevronDown, ArrowLeftRight, Star, HelpCircle, Check } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useSession } from "next-auth/react";
 import { trpc } from "@/lib/trpc";
 import { ruteErFirmaKontekst } from "@/lib/ruteKontekst";
+import { erProsjektRadValgt } from "@/lib/prosjektvelger";
+import {
+  gjesteprosjekterIAndreFirma,
+  antallByggeplasser,
+  vedProsjektTrykk,
+  vedByggeplassTrykk,
+  erByggeplassAvhuket,
+  type ByggeplassKilde,
+} from "@sitedoc/shared";
 import { useFavoritter } from "@/hooks/useFavoritter";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { useFirma } from "@/kontekst/firma-kontekst";
@@ -27,7 +36,9 @@ import {
   SøkeFelt,
 } from "@/components/kontekst-chip/trakt-primitiver";
 
-type Nivå = "firma" | "prosjekt" | "byggeplass";
+// (18): prosjekt og byggeplass deler ett nivå — prosjektliste øverst, byggeplasslista
+// for det markerte prosjektet under (samme oppsett som mobilens ProsjektVelger).
+type Nivå = "firma" | "prosjekt";
 
 interface Byggeplass {
   id: string;
@@ -87,6 +98,7 @@ export function KontekstChip() {
     prosjektScope,
     prosjekter,
     mineProsjekter,
+    gjesteprosjekter,
     velgProsjekt,
   } = useProsjekt();
   const { aktivByggeplass, velgByggeplass } = useByggeplass();
@@ -142,18 +154,21 @@ export function KontekstChip() {
   const [byggeplassSøk, setByggeplassSøk] = useState("");
   const ref = useRef<HTMLDivElement>(null);
 
-  // Byggeplasser for aktivt prosjekt — kilde til byggeplass-steget i trakten.
-  // Alltid montert (deduplikeres mot toppbarens ByggeplassVelger av react-query)
-  // slik at default-nivået i åpne() vet om prosjektet HAR byggeplasser.
+  // (18) Markert prosjekt i velgeren: trykk på et prosjekt markerer bare (viser dets
+  // byggeplasser under); valget skjer først ved trykk på en byggeplass.
+  const [markertId, setMarkertId] = useState<string | null>(null);
+
+  // Byggeplasser for aktivt prosjekt — sammenfoldet prosjekt-rad (byggeplassnavnet).
   const byggeplassQuery = trpc.bygning.hentForProsjekt.useQuery(
     { projectId: prosjektId! },
     { enabled: !!prosjektId },
   );
-  const bygninger = (byggeplassQuery.data ?? []) as Byggeplass[];
-
-  // B2: satt når prosjektvalg avanserer til byggeplass-steget i popoveren, mens
-  // vi venter på om det nye prosjektet FAKTISK har byggeplasser (async).
-  const [avventerByggeplass, setAvventerByggeplass] = useState(false);
+  const harByggeplasser = (byggeplassQuery.data ?? []).length > 0;
+  // Byggeplasser for det MARKERTE prosjektet — lista under prosjektlista.
+  const markertQuery = trpc.bygning.hentForProsjekt.useQuery(
+    { projectId: markertId! },
+    { enabled: apen && !!markertId, retry: false },
+  );
 
   // B3: prosjekt-favoritter (localStorage, delt hook — samme som gamle
   // ProsjektVelger; ingen ny lagring). Stjerne på hver rad + «Favoritter»-seksjon.
@@ -177,17 +192,6 @@ export function KontekstChip() {
     document.addEventListener("mousedown", handleKlikk);
     return () => document.removeEventListener("mousedown", handleKlikk);
   }, []);
-
-  // B2: etter prosjektvalg avanserer vi optimistisk til byggeplass-steget. Når
-  // lista for det NYE prosjektet er lastet (data definert + ikke fetching):
-  // har det ingen byggeplasser → lukk popoveren (som gammel oppførsel); har det
-  // byggeplasser → bli stående på byggeplass-steget (A1-autovalgt vises valgt).
-  useEffect(() => {
-    if (!avventerByggeplass) return;
-    if (byggeplassQuery.isFetching || byggeplassQuery.data === undefined) return;
-    setAvventerByggeplass(false);
-    if (byggeplassQuery.data.length === 0) setApen(false);
-  }, [avventerByggeplass, byggeplassQuery.isFetching, byggeplassQuery.data]);
 
   // c3: aldri «Velg firma / {konkret prosjekt}». Utled firma fra prosjektets
   // primaryOrganization når det ikke er eksplisitt valgt (typisk sitedoc_admin
@@ -233,18 +237,34 @@ export function KontekstChip() {
   // steget kun for brukere med flere firmaer).
   const visFirmaSteg = !!firmaNavn;
   const kanBytteFirma = tilgjengelige.length > 1;
-  const harByggeplasser = bygninger.length > 0;
   // Fase 2: firma-admin-signalet er nå kanAdministrereFirma (inkluderer sitedoc_admin).
   const visScopePille = kanAdministrereFirma;
 
   // Prosjektliste: Alle/Mine er en filter-pille (ikke egne rader). Uten pille
   // (menig ansatt) vises hele prosjektsettet som før.
-  const prosjektKilde = visScopePille
-    ? prosjektFilter === "alle"
-      ? prosjekter
-      : mineProsjekter
-    : prosjekter;
+  // (15): gjesteprosjekter (medlem, men eid av et firma brukeren ikke er ansatt i) vises i
+  // egen gruppe «Prosjekter i andre firma» — tas ut av hovedlista (hentAlle tar dem med
+  // for vanlige brukere uavhengig av valgt firma).
+  // (16): gruppen tar bare prosjekter der eier-firmaet ≠ valgt firma. Har brukeren valgt et
+  // firma hen ikke er ansatt i (sitedoc_admin), står det firmaets prosjekter i hovedlista.
+  const andreFirmaProsjekter = gjesteprosjekterIAndreFirma(gjesteprosjekter, valgtFirma?.id);
+  const gjesteIdSet = new Set(andreFirmaProsjekter.map((p) => p.id));
+  const prosjektKilde = (
+    visScopePille
+      ? prosjektFilter === "alle"
+        ? prosjekter
+        : mineProsjekter
+      : prosjekter
+  ).filter((p) => !gjesteIdSet.has(p.id));
   const pq = prosjektSøk.toLowerCase();
+  const gjesteFiltrert = pq
+    ? andreFirmaProsjekter.filter(
+        (p) =>
+          p.name.toLowerCase().includes(pq) ||
+          (p.internalProjectNumber?.toLowerCase().includes(pq) ?? false) ||
+          (p.primaryOrganization?.name.toLowerCase().includes(pq) ?? false),
+      )
+    : andreFirmaProsjekter;
   const prosjektFiltrert = pq
     ? prosjektKilde.filter(
         (p) =>
@@ -277,17 +297,44 @@ export function KontekstChip() {
   const sistUtenFav = sistProsjektRader.filter((p) => !favorittSet.has(p.id));
   const øvrigeUtenFav = øvrigeProsjekt.filter((p) => !favorittSet.has(p.id));
 
+  // (18) Antall byggeplasser pr. prosjektrad: én `hentForProsjekt` pr. synlig prosjekt,
+  // kun mens velgeren er åpen (react-query cacher; samme query som lista under bruker).
+  // Ingen tellings-endepunkt finnes — N små spørringer, målt i leveransen.
+  const synligeProsjektIder = [...prosjektFiltrert, ...gjesteFiltrert].map((p) => p.id);
+  const tellinger = trpc.useQueries((tq) =>
+    synligeProsjektIder.map((id) =>
+      tq.bygning.hentForProsjekt(
+        { projectId: id },
+        { enabled: apen, staleTime: 60_000, retry: false },
+      ),
+    ),
+  );
+  const kildeFor = (id: string): ByggeplassKilde => {
+    const q =
+      id === markertId ? markertQuery : tellinger[synligeProsjektIder.indexOf(id)];
+    if (!q) return "laster";
+    if (q.data) return q.data as Byggeplass[];
+    // Feil (f.eks. ikke medlem) → velg prosjektet direkte, som før (18).
+    if (q.isError) return "ukjent";
+    return "laster";
+  };
+
+  const markertBygninger = (markertQuery.data ?? []) as Byggeplass[];
   const bq = byggeplassSøk.toLowerCase();
   const byggeplassFiltrert = bq
-    ? bygninger.filter((b) => b.name.toLowerCase().includes(bq))
-    : bygninger;
-  const visByggeplassSøk = bygninger.length > 6;
+    ? markertBygninger.filter((b) => b.name.toLowerCase().includes(bq))
+    : markertBygninger;
+  const visByggeplassSøk = markertBygninger.length > 6;
+  const markertErAktiv = !!markertId && markertId === prosjektId;
   // Byggeplass «Sist brukt» beholder sticky (aktivByggeplass) — cowork-målt:
   // Activity logger IKKE byggeplass, så en Activity-basert recency finnes ikke
   // for byggeplass i v1. Byggeplass-recency krever egen logging (v2). Kenneths
   // «4-5»-scenario gjaldt prosjekter, ikke byggeplasser.
   const sistByggeplass =
-    visByggeplassSøk && aktivByggeplass && byggeplassFiltrert.some((b) => b.id === aktivByggeplass.id)
+    visByggeplassSøk &&
+    markertErAktiv &&
+    aktivByggeplass &&
+    byggeplassFiltrert.some((b) => b.id === aktivByggeplass.id)
       ? aktivByggeplass
       : null;
   const øvrigeByggeplass = sistByggeplass
@@ -308,39 +355,70 @@ export function KontekstChip() {
       : valgtProsjekt.name
     : "";
 
+  // Etikett for et prosjekt (internt nummer foran navnet) — overskriften over byggeplasslista.
+  const etikettFor = (id: string | null): string => {
+    if (!id) return "";
+    const p =
+      [...prosjekter, ...gjesteprosjekter].find((x) => x.id === id) ??
+      (valgtProsjekt?.id === id ? valgtProsjekt : undefined);
+    if (!p) return "";
+    return p.internalProjectNumber ? `${p.internalProjectNumber} ${p.name}` : p.name;
+  };
+
   // Åpne popover og velg default-nivå = det grunneste uavklarte steget. Speiler
-  // kundetelefonen: firma (kun ved flere) → prosjekt → byggeplass.
+  // kundetelefonen: firma (kun ved flere) → prosjekt + byggeplass (18: ett nivå).
+  // Ved åpning er aktivt prosjekt markert, så dets byggeplasser vises med aktiv avhuket.
   function åpne() {
     setFirmaSøk("");
     setProsjektSøk("");
     setByggeplassSøk("");
     setProsjektFilter(prosjektScope === "alle" ? "alle" : "mine");
+    setMarkertId(prosjektId ?? null);
     if (kanBytteFirma && !valgtFirma) setÅpentNivå("firma");
-    else if (!valgtProsjekt) setÅpentNivå("prosjekt");
-    else if (harByggeplasser) setÅpentNivå("byggeplass");
     else setÅpentNivå("prosjekt");
     setApen(true);
   }
 
-  // Firmabytte: velgFirma nullstiller nedover via effekter i prosjekt-/
-  // byggeplass-kontekst. Traktens jobb er å avansere til prosjekt-steget.
+  // Firmabytte: velgFirma nullstiller nedover via effekter i prosjekt-kontekst
+  // (byggeplassvalget er nøklet på prosjekt, 22). Traktens jobb er å avansere til prosjekt-steget.
   function velgFirmaTrakt(id: string) {
     velgFirma(id);
+    setMarkertId(null);
     setÅpentNivå("prosjekt");
   }
-  // B2 (erstatter vedtak 3 «prosjektvalg lukker»): bli i popoveren og avansér
-  // til byggeplass-steget. Om det nye prosjektet har byggeplasser avgjøres når
-  // lista er lastet — B2-effekten lukker hvis prosjektet er uten byggeplasser.
-  function velgProsjektTrakt(id: string) {
-    velgProsjekt(id);
+  // (18) Trykk på prosjekt markerer bare. Prosjekt uten byggeplasser (eller der lista
+  // ikke kan hentes) velges direkte og lukker — som før.
+  function trykkProsjekt(id: string) {
+    const h = vedProsjektTrykk(id, kildeFor(id));
+    if (h.type === "velgProsjekt") {
+      if (h.prosjektId !== prosjektId) velgProsjekt(h.prosjektId);
+      setApen(false);
+      return;
+    }
+    setMarkertId(h.prosjektId);
     setByggeplassSøk("");
-    setÅpentNivå("byggeplass");
-    setAvventerByggeplass(true);
   }
-  function velgByggeplassTrakt(b: Byggeplass | null) {
-    velgByggeplass(b);
+  // (18) Trykk på byggeplass velger prosjekt + byggeplass og lukker. Valget lagres på det
+  // MARKERTE prosjektet før prosjektbyttet, så byggeplass-konteksten leser det inn når
+  // prosjektet blir aktivt. (22) Kun byggeplasser er valg.
+  function velgByggeplassTrakt(b: Byggeplass) {
+    if (!markertId) return;
+    const v = vedByggeplassTrykk(markertId, b.id);
+    velgByggeplass({ id: b.id, name: b.name, number: b.number }, v.prosjektId);
+    if (v.prosjektId !== prosjektId) velgProsjekt(v.prosjektId);
     setApen(false);
   }
+  const erAvhuket = (byggeplassId: string | null) =>
+    erByggeplassAvhuket({
+      markertProsjektId: markertId,
+      valgtProsjektId: prosjektId ?? null,
+      valgtBygningId: aktivByggeplass?.id ?? null,
+      byggeplassId,
+    });
+  const antallTekst = (id: string): string | undefined => {
+    const n = antallByggeplasser(kildeFor(id));
+    return n !== null && n > 0 ? t("prosjektVelger.antallByggeplasser", { count: n }) : undefined;
+  };
 
   const prosjektRad = (p: (typeof prosjekter)[number]) => {
     const erFav = erFavoritt(p.id);
@@ -348,8 +426,9 @@ export function KontekstChip() {
       <TraktRad
         key={p.id}
         tittel={`${p.internalProjectNumber ? `${p.internalProjectNumber} ` : ""}${p.name}${p.address ? ` · ${p.address}` : ""}`}
-        valgt={valgtProsjekt?.id === p.id && prosjektScope === "enkelt"}
-        onVelg={() => velgProsjektTrakt(p.id)}
+        undertekst={antallTekst(p.id)}
+        valgt={erProsjektRadValgt(p.id, markertId ?? undefined)}
+        onVelg={() => trykkProsjekt(p.id)}
         handling={
           <button
             type="button"
@@ -369,12 +448,33 @@ export function KontekstChip() {
     );
   };
 
+  // (15): gjesterad viser eier-firmaet etter navnet — brukeren ser hvem prosjektet tilhører.
+  const gjesteRad = (p: (typeof gjesteprosjekter)[number]) => (
+    <TraktRad
+      key={p.id}
+      tittel={`${p.internalProjectNumber ? `${p.internalProjectNumber} ` : ""}${p.name}${p.primaryOrganization ? ` · ${p.primaryOrganization.name}` : ""}`}
+      undertekst={antallTekst(p.id)}
+      valgt={erProsjektRadValgt(p.id, markertId ?? undefined)}
+      onVelg={() => trykkProsjekt(p.id)}
+    />
+  );
+
+  // (18) punkt 3: aktiv byggeplass er AVHUKET (hake), skilt fra prosjektmarkeringen
+  // (blå rad uten hake). Ikke-klikkbar — ligger i TraktRads `handling`-slot.
+  const avhuking = (avhuket: boolean) =>
+    avhuket ? (
+      <span className="flex items-center pr-3" aria-hidden="true">
+        <Check className="h-4 w-4 text-sitedoc-primary" />
+      </span>
+    ) : undefined;
+
   const byggeplassRad = (b: Byggeplass) => (
     <TraktRad
       key={b.id}
       tittel={b.name}
-      valgt={aktivByggeplass?.id === b.id}
+      valgt={erAvhuket(b.id)}
       onVelg={() => velgByggeplassTrakt(b)}
+      handling={avhuking(erAvhuket(b.id))}
     />
   );
 
@@ -445,8 +545,8 @@ export function KontekstChip() {
           {visProsjektSøk && (
             <SøkeFelt verdi={prosjektSøk} onEndre={setProsjektSøk} placeholder={t("prosjektVelger.sok")} autoFokus />
           )}
-          <div className="max-h-64 overflow-auto pb-1">
-            {prosjektFiltrert.length === 0 ? (
+          <div className="max-h-56 overflow-auto pb-1">
+            {prosjektFiltrert.length === 0 && gjesteFiltrert.length > 0 ? null : prosjektFiltrert.length === 0 ? (
               <p className="px-3 py-2 text-sm text-gray-400">{t("prosjektVelger.ingen")}</p>
             ) : (
               <>
@@ -470,79 +570,70 @@ export function KontekstChip() {
                 {øvrigeUtenFav.map(prosjektRad)}
               </>
             )}
+            {gjesteFiltrert.length > 0 && (
+              <>
+                <SeksjonsLabel>
+                  <span className="inline-flex items-center gap-1" title={t("prosjektVelger.andreFirmaHjelp")}>
+                    {t("prosjektVelger.andreFirma")}
+                    <HelpCircle className="h-3 w-3" aria-label={t("prosjektVelger.andreFirmaHjelp")} />
+                  </span>
+                </SeksjonsLabel>
+                {gjesteFiltrert.map(gjesteRad)}
+              </>
+            )}
           </div>
         </div>
       ) : (
         <NivåRad
           etikett={t("kontekstChip.prosjekt")}
           etikettKlasse="text-[#1e40af]"
-          verdi={valgtProsjekt ? prosjektEtikett : prosjektTekst}
+          verdi={
+            valgtProsjekt
+              ? `${prosjektEtikett}${harByggeplasser ? ` · ${aktivByggeplass?.name ?? t("byggeplass.velgByggeplass")}` : ""}`
+              : prosjektTekst
+          }
           kanEndre
           endreTekst={t("kontekstChip.endre")}
-          onEndre={() => setÅpentNivå("prosjekt")}
+          onEndre={() => {
+            setMarkertId(prosjektId ?? null);
+            setÅpentNivå("prosjekt");
+          }}
+          sisteRad
         />
       )}
 
-      {/* --- BYGGEPLASS --------------------------------------------- */}
-      {/* B2: åpent byggeplass-steg rendres også mens lista for et nyvalgt
-          prosjekt lastes (viser «Laster …»); B2-effekten lukker hvis
-          prosjektet viser seg uten byggeplasser. Sammenfoldet NivåRad kun
-          når prosjektet HAR byggeplasser. */}
-      {åpentNivå === "byggeplass" ? (
-        <div>
-          <div className="px-3 pb-1.5 pt-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-            {t("byggeplassVelger.velg")}{" "}
-            {bygninger.length > 0 && (
-              <span className="text-gray-300">
-                · {t("kontekstChip.antallApne", { antall: bygninger.length })}
-              </span>
+      {/* --- BYGGEPLASSER FOR MARKERT PROSJEKT (18) ------------------ */}
+      {/* Under prosjektlista: byggeplassene til det markerte prosjektet, aktiv avhuket.
+          (22) Kun byggeplass-rader. Markert prosjekt uten byggeplasser → ingen liste
+          (trykk på det velger direkte). */}
+      {åpentNivå === "prosjekt" &&
+        (!markertId ? (
+          <p className="px-3 py-2 text-xs text-gray-400">{t("prosjektVelger.trykkProsjekt")}</p>
+        ) : markertQuery.isLoading ? (
+          <p className="px-3 py-2 text-sm text-gray-400">{t("kontekstChip.laster")}</p>
+        ) : markertBygninger.length > 0 ? (
+          <div>
+            <SeksjonsLabel>
+              {t("prosjektVelger.byggeplasserFor", { prosjekt: etikettFor(markertId) })}
+            </SeksjonsLabel>
+            {visByggeplassSøk && (
+              <SøkeFelt
+                verdi={byggeplassSøk}
+                onEndre={setByggeplassSøk}
+                placeholder={t("byggeplassVelger.sok")}
+              />
             )}
+            <div className="max-h-56 overflow-auto pb-1">
+              {sistByggeplass && (
+                <>
+                  <SeksjonsLabel>{t("kontekstChip.sistBrukt")}</SeksjonsLabel>
+                  {byggeplassRad(sistByggeplass)}
+                </>
+              )}
+              {øvrigeByggeplass.map(byggeplassRad)}
+            </div>
           </div>
-          {visByggeplassSøk && (
-            <SøkeFelt
-              verdi={byggeplassSøk}
-              onEndre={setByggeplassSøk}
-              placeholder={t("byggeplassVelger.sok")}
-              autoFokus
-            />
-          )}
-          <div className="max-h-64 overflow-auto pb-1">
-            {bygninger.length === 0 && byggeplassQuery.isFetching ? (
-              <p className="px-3 py-2 text-sm text-gray-400">{t("kontekstChip.laster")}</p>
-            ) : (
-              <>
-                {sistByggeplass && (
-                  <>
-                    <SeksjonsLabel>{t("kontekstChip.sistBrukt")}</SeksjonsLabel>
-                    {byggeplassRad(sistByggeplass)}
-                  </>
-                )}
-                <SeksjonsLabel>
-                  {t("kontekstChip.allePaa", { prosjekt: prosjektEtikett })}
-                </SeksjonsLabel>
-                <TraktRad
-                  tittel={t("kontekstChip.heleProsjektet")}
-                  valgt={!aktivByggeplass}
-                  onVelg={() => velgByggeplassTrakt(null)}
-                />
-                {øvrigeByggeplass.map(byggeplassRad)}
-              </>
-            )}
-          </div>
-        </div>
-      ) : (
-        harByggeplasser && (
-          <NivåRad
-            etikett={t("kontekstChip.byggeplass")}
-            etikettKlasse="text-gray-500"
-            verdi={aktivByggeplass?.name ?? t("kontekstChip.heleProsjektet")}
-            kanEndre
-            endreTekst={t("kontekstChip.endre")}
-            onEndre={() => setÅpentNivå("byggeplass")}
-            sisteRad
-          />
-        )
-      )}
+        ) : null)}
     </>
   );
 
@@ -643,6 +734,16 @@ export function KontekstChip() {
                 <span className="ml-1 min-w-0 truncate whitespace-nowrap text-blue-200/70">
                   · {aktivByggeplass.name}
                 </span>
+              )}
+              {/* (22) Prosjektet har byggeplasser, men ingen er valgt: be brukeren velge. */}
+              {valgtProsjekt && !aktivByggeplass && harByggeplasser && (
+                <button
+                  type="button"
+                  onClick={åpne}
+                  className="ml-1 min-w-0 truncate whitespace-nowrap text-amber-200 underline-offset-2 hover:underline"
+                >
+                  · {t("byggeplass.velgByggeplass")}
+                </button>
               )}
             </span>
             {velgerKnapper}

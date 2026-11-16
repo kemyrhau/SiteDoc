@@ -53,13 +53,13 @@ function tegn(
 }
 
 describe("ForslagValgSeksjon (C-1)", () => {
-  it("«Bruk mobilen for hele dagen» + Bekreft bygger input via byggForsonInputFraValg", () => {
+  it("«Bruk mobilen i alle tidsrom» + Bekreft bygger input via byggForsonInputFraValg", () => {
     const sedel = [rad("web1", "07:00", "15:00", 7.5)];
     const forslag = [rad("mob1", "07:00", "15:30", 8)];
     const onBekreft = vi.fn();
     tegn(sedel, forslag, onBekreft);
 
-    fireEvent.click(screen.getByText("Bruk mobilen for hele dagen"));
+    fireEvent.click(screen.getByText("Bruk mobilen i alle tidsrom"));
     fireEvent.click(screen.getByText("Bekreft valg"));
 
     expect(onBekreft).toHaveBeenCalledTimes(1);
@@ -100,6 +100,12 @@ describe("ForslagValgSeksjon (C-1)", () => {
     expect(screen.getAllByRole("radio")).toHaveLength(2);
   });
 
+  it("punkt 6: forklaringen under Bekreft sier hva som lagres og fjernes", () => {
+    tegn([rad("web1", "07:00", "15:00", 7.5)], [rad("mob1", "07:00", "15:30", 8)], vi.fn());
+    expect(screen.getByText(/Valgene lagres på dagskortet, og det du velger bort, fjernes/)).toBeTruthy();
+    expect(screen.getByText("Står på dagskortet nå")).toBeTruthy();
+  });
+
   it("lesevisning (C-2): ingen Bekreft-knapp, ingen radio, viser «venter siden»", () => {
     render(
       <I18nextProvider i18n={i18n}>
@@ -114,5 +120,7 @@ describe("ForslagValgSeksjon (C-1)", () => {
     expect(screen.queryByText("Bekreft valg")).toBeNull();
     expect(screen.queryAllByRole("radio")).toHaveLength(0);
     expect(screen.getByText(/venter på arbeiderens valg siden/)).toBeTruthy();
+    // Negativkontroll: attestanten bekrefter ikke, så forklaringen vises ikke.
+    expect(screen.queryByText(/Valgene lagres på dagskortet/)).toBeNull();
   });
 });

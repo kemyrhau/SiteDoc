@@ -2,6 +2,10 @@
 const nextConfig = {
   // Pakke A / A7: fjern «X-Powered-By: Next.js» (avslører rammeverk/versjon).
   poweredByHeader: false,
+  // S-PAK-1 (2026-11-10): slår av Next sin bildeoptimerer (`/_next/image`), som har
+  // en RCE-sårbarhet i Next 14 uten patch. Vi bruker ingen `next/image` (grep: 0
+  // treff i apps/web/src), så ingen side endres — endepunktet bare forsvinner.
+  images: { unoptimized: true },
   experimental: {
     // `sharp` (2026-08-14): arkivmalens bilde-komprimering (`services/arkiv/bilde-inliner.ts`)
     // importerer sharp statisk. Den når web-bygget via router.ts → tRPC-ruten, og

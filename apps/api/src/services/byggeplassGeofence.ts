@@ -1,6 +1,6 @@
 import { prisma } from "@sitedoc/db";
 import { beregnByggeplassGeofence, type GeoReferanse } from "@sitedoc/shared";
-import { recomputeRadForByggeplass } from "./reisetidMatrise";
+import { koordinatEndret, recomputeRadForByggeplass } from "./reisetidMatrise";
 
 /**
  * Fase 1c: beregn og lagre byggeplass-geofence fra nyeste georefererte tegning.
@@ -21,7 +21,7 @@ export async function oppdaterByggeplassGeofence(
 ): Promise<{ lat: number; lng: number; radiusM: number } | null> {
   const byggeplass = await prisma.byggeplass.findUnique({
     where: { id: byggeplassId },
-    select: { latitude: true, geofenceKilde: true },
+    select: { latitude: true, longitude: true, geofenceKilde: true },
   });
   if (!byggeplass) return null;
   if (kunHvisTom && byggeplass.latitude != null) return null;
@@ -58,6 +58,11 @@ export async function oppdaterByggeplassGeofence(
     },
   });
   // R3: byggeplass-koordinat endret (success-sti) → recompute rad (fire-and-forget).
-  recomputeRadForByggeplass(byggeplassId);
+  recomputeRadForByggeplass(byggeplassId, {
+    plasseringEndret: koordinatEndret(
+      { lat: byggeplass.latitude, lng: byggeplass.longitude },
+      { lat: geofence.lat, lng: geofence.lng },
+    ),
+  });
   return geofence;
 }

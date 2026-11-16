@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, Check, Truck, Wrench, Hammer } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { SearchInput } from "@sitedoc/ui";
+import { sorterMaskiner } from "@sitedoc/shared";
 import type { MaskinKategori } from "@/lib/maskin-typer";
 
 /**
@@ -13,7 +14,8 @@ import type { MaskinKategori } from "@/lib/maskin-typer";
  * - Fritekst-søk (SearchInput) over merke/modell/internNavn/internNummer/regnr
  * - Kategori-filter som enkel-select chips (Alle/Kjøretøy/Anleggsmaskin/
  *   Småutstyr) — labels + ikoner speiler /dashbord/maskin
- * - Sortering: brukt-på-seddelen først → internNummer (numerisk) → navn
+ * - Sortering (delt `sorterMaskiner`, ORDRE 29): sist brukt → brukt-på-seddelen
+ *   → internNummer (numerisk) → navn
  */
 export type MaskinVelgerUtstyr = {
   id: string;
@@ -47,22 +49,12 @@ function etikett(u: MaskinVelgerUtstyr): string {
   );
 }
 
-/** Numerisk-aware sammenligning av internNummer (tomme sist). */
-function sammenlignInternNummer(a: string | null, b: string | null): number {
-  if (!a && !b) return 0;
-  if (!a) return 1;
-  if (!b) return -1;
-  const na = Number(a);
-  const nb = Number(b);
-  if (!isNaN(na) && !isNaN(nb)) return na - nb;
-  return a.localeCompare(b, "nb");
-}
-
 export function MaskinVelger({
   utstyr,
   valgtId,
   onVelg,
   bruktPaaSeddel = [],
+  sistBrukt = [],
   disabled = false,
   id,
 }: {
@@ -71,6 +63,9 @@ export function MaskinVelger({
   onVelg: (id: string) => void;
   /** vehicleId-er allerede i bruk på denne seddelen — løftes øverst. */
   bruktPaaSeddel?: string[];
+  /** ORDRE 29: brukerens sist brukte maskiner (nyeste først) — øverst, merket.
+   *  Utelates i attestering (lederens egne maskiner er irrelevante der). */
+  sistBrukt?: string[];
   disabled?: boolean;
   id?: string;
 }) {
@@ -89,6 +84,7 @@ export function MaskinVelger({
   }, [apen]);
 
   const bruktSet = useMemo(() => new Set(bruktPaaSeddel), [bruktPaaSeddel]);
+  const sistSet = useMemo(() => new Set(sistBrukt), [sistBrukt]);
 
   const antallPerKategori = useMemo(() => {
     const m = new Map<string, number>();
@@ -105,15 +101,8 @@ export function MaskinVelger({
       return [u.merke, u.modell, u.internNavn, u.internNummer]
         .some((f) => (f ?? "").toLowerCase().includes(q));
     });
-    return filtrert.sort((a, b) => {
-      const aBrukt = bruktSet.has(a.id);
-      const bBrukt = bruktSet.has(b.id);
-      if (aBrukt !== bBrukt) return aBrukt ? -1 : 1;
-      const nr = sammenlignInternNummer(a.internNummer, b.internNummer);
-      if (nr !== 0) return nr;
-      return etikett(a).localeCompare(etikett(b), "nb");
-    });
-  }, [utstyr, sok, kategori, bruktSet]);
+    return sorterMaskiner(filtrert, { sistBrukt, bruktPaaSeddel, navn: etikett });
+  }, [utstyr, sok, kategori, sistBrukt, bruktPaaSeddel]);
 
   const valgt = utstyr.find((u) => u.id === valgtId);
 
@@ -177,10 +166,16 @@ export function MaskinVelger({
                 >
                   <span className="flex-1 truncate text-gray-900">
                     {etikett(u)}
-                    {bruktSet.has(u.id) && (
+                    {bruktSet.has(u.id) ? (
                       <span className="ml-2 text-xs text-sitedoc-primary">
                         · {t("timer.maskin.bruktPaaSeddel")}
                       </span>
+                    ) : (
+                      sistSet.has(u.id) && (
+                        <span className="ml-2 text-xs text-gray-500">
+                          · {t("timer.maskin.sistBrukt")}
+                        </span>
+                      )
                     )}
                   </span>
                   {u.id === valgtId && (

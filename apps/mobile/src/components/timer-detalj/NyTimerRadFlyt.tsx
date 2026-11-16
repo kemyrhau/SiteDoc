@@ -1,21 +1,28 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert } from "react-native";
 import { useRouter } from "expo-router";
+import { Alert } from "react-native";
 import { useTranslation } from "react-i18next";
 import { eq } from "drizzle-orm";
 import { hentDatabase } from "../../db/database";
+import { SedelIAnnetFirmaFeil } from "../../services/dagsseddelOpprett";
 import { dagsseddelLocal, equipmentLocal, sheetTimerLocal } from "../../db/schema";
 import { useAuth } from "../../providers/AuthProvider";
 import { useTimerSync } from "../../providers/TimerSyncProvider";
-import { useFirma, hentLagretAnsattStatus } from "../../kontekst/FirmaKontekst";
+import { useFirma } from "../../kontekst/FirmaKontekst";
+import { sjekkAnsattForNyRegistrering } from "../../utils/ansattSjekk";
+import { useProsjekt } from "../../kontekst/ProsjektKontekst";
+import { useByggeplass } from "../../kontekst/ByggeplassKontekst";
 import { useGeoProsjektForslag } from "../../hooks/useGeoProsjektForslag";
+import { hentByggeplasserForFirmaLokalt } from "../../services/byggeplassKatalog";
 import { hentProsjekterLokalt } from "../../services/prosjektKatalog";
 import { lesTimerModusLokalt } from "../../services/organizationSettingKatalog";
 import {
+  byggeplassForNyRad,
   erDagLaast,
   finnDagForDato,
   lagreNyTimerRad,
   sistBrukteRadvalg,
+  startvalgForNyRad,
 } from "../../services/nyTimerRad";
 import type { TimerRad } from "../../types/timer-detalj";
 import { ProsjektVelgerModal } from "./ProsjektVelger";
@@ -31,9 +38,10 @@ function iDag(): string {
 /**
  * «+» rett til timer-raden (ORDRE 17, 2026-11-06). Erstatter `app/timer/ny.tsx`.
  *
- * Ikke ansatt → melding, ingenting åpnes. Ellers prosjektliste (GPS-treff
- * forhåndsvalgt, hoppes over ved ett prosjekt) → timer-raden i opprettelses-
- * modus. Sedelen finnes-eller-opprettes først ved Lagre; Avbryt skriver
+ * Ikke ansatt → melding, ingenting åpnes. Ellers rett til timer-raden med
+ * innlogget prosjekt + byggeplass forhåndsvalgt (ORDRE 29); uten innlogget
+ * prosjekt i firmaet: prosjektliste (GPS-treff forhåndsvalgt, hoppes over ved
+ * ett prosjekt) → timer-raden i opprettelses-modus. Sedelen finnes-eller-opprettes først ved Lagre; Avbryt skriver
  * ingenting. Etter lagring: sedelen (dagskort) eller kortet (prosjektkort).
  */
 export function NyTimerRadFlyt({ onLukk }: { onLukk: () => void }) {
@@ -42,31 +50,52 @@ export function NyTimerRadFlyt({ onLukk }: { onLukk: () => void }) {
   const { bruker } = useAuth();
   const { valgtFirmaId, valgtFirma, erAnsattIValgtFirma } = useFirma();
   const { triggerSync, oppdaterTellere } = useTimerSync();
+  const { valgtProsjektId } = useProsjekt();
+  // (18) RETUR: ny timer-rad får aldri (c) «første byggeplass» — kun lagret valg/GPS.
+  const { kontekstByggeplassId: valgtBygningId } = useByggeplass();
 
   const orgId = valgtFirmaId ?? null;
   const prosjekter = useMemo(() => (orgId ? hentProsjekterLokalt(orgId) : []), [orgId]);
   const [steg, setSteg] = useState<"sjekker" | "liste" | "rad">("sjekker");
   const [projectId, setProjectId] = useState<string | null>(null);
+  const [byggeplassId, setByggeplassId] = useState<string | null>(null);
   const [dato, setDato] = useState(iDag);
-  const forslagId = useGeoProsjektForslag(orgId, steg === "liste");
+  const gpsForslag = useGeoProsjektForslag(orgId, steg === "liste");
+
+  // ORDRE 29: kildene for forhåndsvalgt prosjekt + byggeplass (innlogget → GPS).
+  const stedKilder = useMemo(
+    () => ({
+      innlogget: valgtProsjektId
+        ? { projectId: valgtProsjektId, byggeplassId: valgtBygningId }
+        : null,
+      gps: gpsForslag,
+      byggeplasser: orgId ? hentByggeplasserForFirmaLokalt(orgId) : [],
+    }),
+    [valgtProsjektId, valgtBygningId, gpsForslag, orgId],
+  );
 
   // Ikke ansatt i valgt firma → serveren ville nektet sedelen; si fra før lista.
   useEffect(() => {
     let avbrutt = false;
     (async () => {
-      const erAnsatt =
-        erAnsattIValgtFirma ?? (orgId ? await hentLagretAnsattStatus(orgId) : null);
+      const ansatt = await sjekkAnsattForNyRegistrering({
+        erAnsattIValgtFirma,
+        orgId,
+        firmaNavn: valgtFirma?.name ?? "",
+        t,
+      });
       if (avbrutt) return;
-      if (erAnsatt === false) {
-        Alert.alert(
-          t("timer.kildeManglet.tittel"),
-          t("timer.ikkeAnsatt", { firma: valgtFirma?.name ?? "" }),
-        );
+      if (!ansatt) {
         onLukk();
         return;
       }
-      if (prosjekter.length === 1) {
-        setProjectId(prosjekter[0]!.id);
+      const start = startvalgForNyRad(
+        prosjekter.map((p) => p.id),
+        stedKilder,
+      );
+      if (start) {
+        setProjectId(start.projectId);
+        setByggeplassId(start.byggeplassId);
         setSteg("rad");
       } else {
         setSteg("liste");
@@ -139,10 +168,11 @@ export function NyTimerRadFlyt({ onLukk }: { onLukk: () => void }) {
     return (
       <ProsjektVelgerModal
         organizationId={orgId}
-        valgtId={forslagId}
-        forslagId={forslagId}
+        valgtId={gpsForslag?.projectId ?? null}
+        forslagId={gpsForslag?.projectId ?? null}
         onVelg={(id) => {
           setProjectId(id);
+          setByggeplassId(byggeplassForNyRad(id, stedKilder));
           setSteg("rad");
         }}
         onLukk={onLukk}
@@ -157,6 +187,7 @@ export function NyTimerRadFlyt({ onLukk }: { onLukk: () => void }) {
       sheetId={dag?.id ?? ""}
       organizationId={orgId}
       defaultProjectId={projectId}
+      defaultByggeplassId={byggeplassId}
       defaultEcoId={null}
       dato={dato}
       sheetPauseMin={dag?.pauseMin ?? 0}
@@ -188,7 +219,9 @@ export function NyTimerRadFlyt({ onLukk }: { onLukk: () => void }) {
       ) => {
         const db = hentDatabase();
         if (!db) return;
-        const res = lagreNyTimerRad(db, {
+        let res: ReturnType<typeof lagreNyTimerRad>;
+        try {
+          res = lagreNyTimerRad(db, {
           userId: bruker.id,
           organizationId: orgId,
           dato,
@@ -203,10 +236,22 @@ export function NyTimerRadFlyt({ onLukk }: { onLukk: () => void }) {
             tilTid,
             beskrivelse,
             pauseMin,
-            maskin,
+            maskiner: maskin.linjer,
           },
         });
+        } catch (e) {
+          // Gate (34): sikkerhetsnett — forhåndssjekken i lagreNyTimerRad skal fange dette først.
+          if (e instanceof SedelIAnnetFirmaFeil) {
+            Alert.alert(t("timer.sedelIAnnetFirma.tittel"), t("timer.sedelIAnnetFirma.melding"));
+            return;
+          }
+          throw e;
+        }
         if (!res.ok) {
+          if (res.grunn === "sedelIAnnetFirma") {
+            Alert.alert(t("timer.sedelIAnnetFirma.tittel"), t("timer.sedelIAnnetFirma.melding"));
+            return;
+          }
           // Dagen ble sendt mens dialogen sto åpen — vis sedelen i stedet.
           aapneSedel(res.sheetId, null, false);
           return;

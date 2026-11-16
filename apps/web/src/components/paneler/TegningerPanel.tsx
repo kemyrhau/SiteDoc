@@ -229,12 +229,9 @@ export function TegningerPanel() {
     name: string;
     number: number | null;
   }) {
-    if (aktivByggeplass?.id === bygning.id) {
-      velgByggeplass(null);
-    } else {
-      velgByggeplass(bygning);
-      setUtvidede((prev) => new Set(prev).add(bygning.id));
-    }
+    // (22) Ingen «alle byggeplasser»: trykk på aktiv byggeplass fjerner ikke valget.
+    if (aktivByggeplass?.id !== bygning.id) velgByggeplass(bygning);
+    setUtvidede((prev) => new Set(prev).add(bygning.id));
   }
 
   function handleVelgTegning(
@@ -510,19 +507,6 @@ export function TegningerPanel() {
       )}
 
       <div className="flex flex-col gap-0.5">
-        {/* Alle byggeplasser */}
-        <button
-          onClick={() => velgByggeplass(null)}
-          className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors ${
-            !aktivByggeplass
-              ? "bg-blue-50 text-blue-700 font-medium"
-              : "text-gray-700 hover:bg-gray-50"
-          }`}
-        >
-          <MapPin className="h-4 w-4 shrink-0" />
-          <span>{t("tegninger.alleLokasjoner")}</span>
-        </button>
-
         {/* Bygningsliste */}
         {filtrerte.map((bygning) => {
           const erAktiv = aktivByggeplass?.id === bygning.id;

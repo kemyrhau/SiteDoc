@@ -11,6 +11,7 @@ import { Button, Input, Spinner } from "@sitedoc/ui";
 import { KnappMedForklaring } from "@/components/KnappMedForklaring";
 import { STANDARD_ARBEIDSTID_FALLBACK } from "@sitedoc/shared";
 import { ArrowLeft } from "lucide-react";
+import { OppmoteSporsmaalModal } from "@/components/timer/OppmoteSporsmaalModal";
 
 function nyUuid(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -70,7 +71,7 @@ export default function NyDagsseddelSide() {
   const { prosjektId: aktivProsjektId } = useProsjekt();
 
   const { data: aktiviteter, isLoading: aktiviteterLaster } =
-    trpc.timer.aktivitet.list.useQuery();
+    trpc.timer.aktivitet.list.useQuery({ organizationId: orgId ?? undefined });
 
   // D7: prosjektliste for arbeider (inkluderer interne prosjekter). Cast for å
   // unngå TS2589 (dyp Project-type) — samme mønster som detalj-siden.
@@ -212,6 +213,7 @@ export default function NyDagsseddelSide() {
 
   return (
     <div className="max-w-2xl p-6">
+      {kanFoereTimer && <OppmoteSporsmaalModal organizationId={orgId} />}
       <Link
         href="/dashbord/timer/mine"
         className="mb-3 inline-flex items-center gap-1 text-sm text-sitedoc-primary hover:underline"

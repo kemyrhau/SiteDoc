@@ -74,6 +74,7 @@ describe("T5 / D1 — leksikalsk kandidatuttak er sortert før LIMIT", () => {
     const { prisma, fanget } = lagPrisma({});
     await hybridSok(prisma, "p1", "dagmulkt", null, {});
     const sql = leksikalskSql(fanget);
+    // SØK-2 punkt 6: første trinn er hele ord (prefiks bare når det gir 0 kandidater).
     const orderPos = sql.search(/ORDER BY ts_rank\(c\.search_vector, plainto_tsquery\('norwegian', \?\)\) DESC/);
     const limitPos = sql.lastIndexOf("LIMIT");
     expect(orderPos).toBeGreaterThan(-1);

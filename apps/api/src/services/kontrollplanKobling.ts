@@ -34,6 +34,9 @@ export async function koblePunktTilSjekkliste(
       // tegningens byggeplass så den nye sjekklisten åpner med planens tegning valgt.
       drawingId: true,
       drawing: { select: { byggeplassId: true } },
+      // ORDRE 29 #4: også punktets område (+ områdets byggeplass) arves.
+      omradeId: true,
+      omrade: { select: { byggeplassId: true } },
       kontrollplan: { select: { projectId: true } },
     },
   });
@@ -106,10 +109,21 @@ export async function koblePunktTilSjekkliste(
   // bytte tegning som et bevisst valg). Byggeplassen følger tegningen, så lokasjonsvelgeren
   // åpner konsistent. Kun ved «startet» (fersk, tom sjekkliste) — «koblet» rører aldri en
   // eksisterende sjekklistes lokasjon.
-  if (args.kilde === "startet" && punkt.drawingId) {
+  //
+  // ORDRE 29 #4: punktets OMRÅDE arves også — før ble det tapt, og et punkt med område men uten
+  // tegning ga en sjekkliste uten lokasjon. Uten tegning blir området selve lokasjonsnivået
+  // (omfang «omrade»); med tegning beholdes dagens oppførsel (omfang settes når utføreren
+  // plasserer sin markør) og området følger med som tilleggsinformasjon. Byggeplassen følger
+  // tegningen, ellers området.
+  if (args.kilde === "startet" && (punkt.drawingId || punkt.omradeId)) {
     await tx.checklist.update({
       where: { id: args.sjekklisteId },
-      data: { drawingId: punkt.drawingId, byggeplassId: punkt.drawing?.byggeplassId ?? undefined },
+      data: {
+        ...(punkt.drawingId ? { drawingId: punkt.drawingId } : {}),
+        ...(punkt.omradeId ? { omradeId: punkt.omradeId } : {}),
+        ...(punkt.omradeId && !punkt.drawingId ? { lokasjonOmfang: "omrade" } : {}),
+        byggeplassId: punkt.drawing?.byggeplassId ?? punkt.omrade?.byggeplassId ?? undefined,
+      },
     });
   }
 }

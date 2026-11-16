@@ -49,6 +49,9 @@ type MockRad = {
   id: string;
   sheetId: string;
   projectId: string;
+  byggeplassId?: string | null;
+  lonnsartId?: string;
+  aktivitetId?: string;
   externalCostObjectId: string | null;
   timer: number;
   fraTid: string | null;
@@ -61,6 +64,9 @@ function lagCtx(opts: {
   // Antall rader den status-betingede updateMany INNE i tx treffer. 0 = sedelen ble
   // attestert i vinduet mellom validering og skriving (TOCTOU) → forsoningen skal avvises.
   touchCount?: number;
+  // Funn 5: forslag (SheetTimerForslag) og maskinlinjer på sedelen.
+  forslag?: MockRad[];
+  maskiner?: MockMaskin[];
 }) {
   const eksisterende = opts.eksisterende ?? [];
   const sheet = {
@@ -79,6 +85,12 @@ function lagCtx(opts: {
   const txFindMany = vi.fn().mockResolvedValue(eksisterende);
   // V19 (A-5): forsonDagskort sletter nå forslaget + nuller konfliktVentendeSiden i tx.
   const forslagDeleteMany = vi.fn().mockResolvedValue({ count: 0 });
+  const forslagFindMany = vi.fn().mockResolvedValue(opts.forslag ?? []);
+  const maskiner = opts.maskiner ?? [];
+  const maskinFindMany = vi.fn(async (a: { where: { sheetTimerId?: { in: string[] } } }) =>
+    maskiner.filter((m) => !a.where.sheetTimerId || a.where.sheetTimerId.in.includes(m.sheetTimerId ?? "")),
+  );
+  const maskinUpdate = vi.fn().mockResolvedValue({});
   const tx = {
     // V20/PK6: synkroniserHodePause bruker dailySheet.update + sheetTimer.aggregate.
     dailySheet: { updateMany, update: vi.fn().mockResolvedValue({}) },
@@ -88,7 +100,8 @@ function lagCtx(opts: {
       findMany: txFindMany,
       aggregate: vi.fn().mockResolvedValue({ _sum: { pauseMin: 0 } }),
     },
-    sheetTimerForslag: { deleteMany: forslagDeleteMany },
+    sheetTimerForslag: { deleteMany: forslagDeleteMany, findMany: forslagFindMany },
+    sheetMachine: { findMany: maskinFindMany, update: maskinUpdate },
   };
   // Interaktiv form: $transaction(fn) kjører callbacken med tx-klienten og returnerer
   // resultatet. Kaster callbacken, propagerer feilen (ruller «tilbake» — her: ingen commit).
@@ -117,8 +130,18 @@ function lagCtx(opts: {
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any;
-  return { ctx, update, create, updateMany, transaction, forslagDeleteMany };
+  return { ctx, update, create, updateMany, transaction, forslagDeleteMany, maskinUpdate };
 }
+
+type MockMaskin = {
+  id: string;
+  sheetId: string;
+  sheetTimerId: string | null;
+  projectId: string;
+  byggeplassId: string | null;
+  externalCostObjectId: string | null;
+  attestertStatus: string | null;
+};
 
 const rad = (o: Partial<MockRad> & { id: string }): MockRad => ({
   sheetId: SHEET,
@@ -277,5 +300,99 @@ describe("forsonDagskort — 🔴 TOCTOU: attestert i vinduet mellom validering 
     expect(updateMany).toHaveBeenCalledTimes(1);
     expect(update).toHaveBeenCalledTimes(1);
     expect(create).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("forsonDagskort — 🔴 funn 5: maskinlinjer følger raden som vant (relink)", () => {
+  const PC = "88888888-8888-8888-8888-888888888888";
+  const MOB = "99999999-9999-9999-9999-999999999999";
+  const MASKIN = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+  const B12 = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
+  const pc = (o: Partial<MockRad> = {}) =>
+    rad({ id: PC, byggeplassId: null, lonnsartId: LONNSART, aktivitetId: AKTIVITET, ...o });
+  const mob = rad({
+    id: MOB,
+    byggeplassId: B12,
+    lonnsartId: LONNSART,
+    aktivitetId: AKTIVITET,
+    fraTid: "08:00",
+    tilTid: "14:00",
+  });
+  const maskin = (o: Partial<MockMaskin> = {}): MockMaskin => ({
+    id: MASKIN,
+    sheetId: SHEET,
+    sheetTimerId: MOB,
+    projectId: PROSJEKT,
+    byggeplassId: B12,
+    externalCostObjectId: null,
+    attestertStatus: "pending",
+    ...o,
+  });
+
+  it("PC-valget (behold PC): maskinen på forslaget flyttes til PC-raden og får radens byggeplass", async () => {
+    const { ctx, maskinUpdate } = lagCtx({
+      status: "draft",
+      eksisterende: [pc()],
+      forslag: [mob],
+      maskiner: [maskin()],
+    });
+    const res = (await dagsseddelRouter
+      .createCaller(ctx)
+      .forsonDagskort({ sheetId: SHEET, oppdateringer: [], nyeRader: [] })) as Array<{
+      id: string;
+      relinketFra?: string[];
+    }>;
+    expect(maskinUpdate).toHaveBeenCalledTimes(1);
+    expect(maskinUpdate.mock.calls[0]![0]).toEqual({
+      where: { id: MASKIN },
+      data: { sheetTimerId: PC, byggeplassId: null },
+    });
+    expect(res.find((r) => r.id === PC)?.relinketFra).toEqual([MOB]);
+  });
+
+  it("forslag-valget: PC-raden fikk forslagets verdier → bare sheetTimerId endres", async () => {
+    const { ctx, maskinUpdate } = lagCtx({
+      status: "draft",
+      eksisterende: [pc({ byggeplassId: B12 })],
+      forslag: [mob],
+      maskiner: [maskin()],
+    });
+    await dagsseddelRouter.createCaller(ctx).forsonDagskort({
+      sheetId: SHEET,
+      oppdateringer: [{ ...oppdatering, id: PC, fraTid: "08:00", tilTid: "14:00", timer: 5.5 }],
+      nyeRader: [],
+    });
+    expect(maskinUpdate).toHaveBeenCalledTimes(1);
+    expect(maskinUpdate.mock.calls[0]![0]).toEqual({ where: { id: MASKIN }, data: { sheetTimerId: PC } });
+  });
+
+  it("negativkontroll: maskin på annen rad, attestert maskin og forsoning uten forslag røres ikke", async () => {
+    const { ctx, maskinUpdate } = lagCtx({
+      status: "draft",
+      eksisterende: [pc()],
+      forslag: [mob],
+      maskiner: [
+        maskin({ id: "m-annen", sheetTimerId: PC }),
+        maskin({ id: "m-att", attestertStatus: "attestert" }),
+      ],
+    });
+    const res = (await dagsseddelRouter
+      .createCaller(ctx)
+      .forsonDagskort({ sheetId: SHEET, oppdateringer: [], nyeRader: [] })) as Array<{
+      relinketFra?: string[];
+    }>;
+    expect(maskinUpdate).not.toHaveBeenCalled();
+    // Paret slot gir relinketFra uansett om noen linje hang på forslaget (mobilen
+    // relinker sine lokale linjer fra den).
+    expect(res[0]?.relinketFra).toEqual([MOB]);
+
+    const uten = lagCtx({ status: "draft", eksisterende: [pc()], maskiner: [maskin()] });
+    const res2 = (await dagsseddelRouter
+      .createCaller(uten.ctx)
+      .forsonDagskort({ sheetId: SHEET, oppdateringer: [], nyeRader: [] })) as Array<{
+      relinketFra?: string[];
+    }>;
+    expect(uten.maskinUpdate).not.toHaveBeenCalled();
+    expect(res2[0]?.relinketFra).toEqual([]);
   });
 });

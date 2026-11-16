@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { FileSearch, Search, Brain, BookOpen, AlertTriangle, Filter, Info } from "lucide-react";
@@ -37,10 +37,18 @@ export default function DokumentsokSide() {
   const params = useParams<{ prosjektId: string }>();
   const prosjektId = params.prosjektId;
   // Dev-modus for presisjonsanalyse (?debug i URL) — viser score pr. metode (F.2).
-  const visScore = useSearchParams().has("debug");
+  const searchParams = useSearchParams();
+  const visScore = searchParams.has("debug");
+  // SØK-2 (5b): «Se alle i Dokumentsøk» fra Ctrl K sender `?q=` — fyll inn og søk med en gang.
+  const startQ = searchParams.get("q")?.trim() ?? "";
 
-  const [query, setQuery] = useState("");
-  const [aktivtSok, setAktivtSok] = useState("");
+  const [query, setQuery] = useState(startQ);
+  const [aktivtSok, setAktivtSok] = useState(startQ);
+  useEffect(() => {
+    if (!startQ) return;
+    setQuery(startQ);
+    setAktivtSok(startQ);
+  }, [startQ]);
   const [valgtTreffId, setValgtTreffId] = useState<string | null>(null);
   const [valgtDokumentId, setValgtDokumentId] = useState<string | null>(null);
   // S1a: høyre rute fokuserer på valgt CHUNK (ikke side) — virker også for DOCX uten sidetall.

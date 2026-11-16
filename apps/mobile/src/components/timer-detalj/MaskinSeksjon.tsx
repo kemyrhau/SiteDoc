@@ -43,18 +43,25 @@ import {
   pauseVinduFra,
   tilFraAntall,
   tilErEtterFra,
+  sorterMaskiner,
 } from "@sitedoc/shared";
 import { finnProsjektLokalt } from "../../services/prosjektKatalog";
 import { hentArbeidsdagTiderLokalt } from "../../services/kalenderKatalog";
 import { hentOrganizationSettingLokalt } from "../../services/organizationSettingKatalog";
+import { hentReiseLonnsartId } from "../../services/timerKatalog";
+import { erReiseRadVisning } from "../../utils/reiseRad";
 import { ENHETER } from "../../lib/enheter";
 import type { MaskinRad, Equipment } from "../../types/timer-detalj";
 import { ProsjektVelgerModal, ProsjektFelt } from "./ProsjektVelger";
+import { useKortLaas } from "./prosjektkortKontekst";
 import { FraTilTidFelt } from "./FraTilTidFelt";
 import { UnderprosjektVelgerModal } from "./TimerSeksjon";
 import { VelgerFelt } from "./VelgerFelt";
 import { TastaturFerdig, TASTATUR_FERDIG_ID } from "./TastaturFerdig";
 import { SplittRadModal } from "./SplittRadModal";
+import { RadHandlinger, type RadHandlingerProps } from "./prosjektkort/RadHandlinger";
+import { useAuth } from "../../providers/AuthProvider";
+import { sistBrukteMaskiner } from "../../services/nyTimerRad";
 
 type MaskinKategori = "kjoretoy" | "anleggsmaskin" | "smautstyr";
 const MASKIN_KATEGORIER: MaskinKategori[] = [
@@ -67,17 +74,6 @@ const KATEGORI_IKON: Record<MaskinKategori, typeof Truck> = {
   anleggsmaskin: Wrench,
   smautstyr: Hammer,
 };
-
-/** Numerisk-aware sammenligning av internNummer (tomme sist). */
-function sammenlignInternNummer(a: string | null, b: string | null): number {
-  if (!a && !b) return 0;
-  if (!a) return 1;
-  if (!b) return -1;
-  const na = Number(a);
-  const nb = Number(b);
-  if (!isNaN(na) && !isNaN(nb)) return na - nb;
-  return a.localeCompare(b, "nb");
-}
 
 interface MaskinSeksjonProps {
   sheetId: string;
@@ -441,7 +437,7 @@ function MaskinRadVis({
   );
 }
 
-function MaskinRadModal({
+export function MaskinRadModal({
   sheetId,
   organizationId,
   defaultProjectId,
@@ -449,6 +445,7 @@ function MaskinRadModal({
   dato,
   pauseMin,
   eksisterendeRad,
+  handlinger,
   onLagre,
   onLukk,
 }: {
@@ -459,6 +456,9 @@ function MaskinRadModal({
   dato: string;
   pauseMin: number;
   eksisterendeRad: MaskinRad | null;
+  /** ORDRE 36b: «Del opp»/«Slett» — kun fra prosjektkort-flyten. Udefinert
+   *  (dagskortet) = ingen knapper, modalen som før. */
+  handlinger?: RadHandlingerProps;
   onLagre: (
     projectId: string,
     ecoId: string | null,
@@ -562,8 +562,10 @@ function MaskinRadModal({
   const [fraTid, setFraTid] = useState<string | null>(defaultTider.fra);
   const [tilTid, setTilTid] = useState<string | null>(defaultTider.til);
   // T7-4e: ECO på maskin — pre-selekteres fra eksisterende rad eller defaultEcoId.
+  // ORDRE 36b: på et kort er underprosjektet låst til kortets valg.
+  const kortLaas = useKortLaas();
   const [valgtEcoId, setValgtEcoId] = useState<string | null>(
-    eksisterendeRad?.externalCostObjectId ?? defaultEcoId,
+    kortLaas ? kortLaas.ecoId : eksisterendeRad?.externalCostObjectId ?? defaultEcoId,
   );
   const [feil, setFeil] = useState<string | null>(null);
   const [visProsjektVelger, setVisProsjektVelger] = useState(false);
@@ -663,12 +665,14 @@ function MaskinRadModal({
     }) =>
       (r.projectId ?? defaultProjectId) === valgtProjectId &&
       (r.externalCostObjectId ?? null) === (valgtEcoId ?? null);
+    // Ordre (6): maskin måles mot arbeid UTEN reise.
+    const reiseArtId = hentReiseLonnsartId(organizationId);
     const arbeidSum = db
       .select()
       .from(sheetTimerLocal)
       .where(eq(sheetTimerLocal.dagsseddelId, sheetId))
       .all()
-      .filter(iBucket)
+      .filter((r) => iBucket(r) && !erReiseRadVisning(r.erReise, r.lonnsartId, reiseArtId))
       .reduce((acc, r) => acc + (r.timer ?? 0), 0);
     const sumMaskinEksisterende = db
       .select()
@@ -698,6 +702,7 @@ function MaskinRadModal({
     pauseMin,
     eksisterendeRad?.id,
     defaultProjectId,
+    organizationId,
   ]);
 
   function lagre() {
@@ -777,8 +782,8 @@ function MaskinRadModal({
             </Text>
             <ProsjektFelt
               prosjektNavn={valgtProsjekt?.name ?? null}
-              prosjektNummer={valgtProsjekt?.projectNumber ?? null}
               onTrykk={() => setVisProsjektVelger(true)}
+              laast={!!kortLaas}
             />
           </View>
 
@@ -862,6 +867,7 @@ function MaskinRadModal({
               placeholder={t("timer.velgUnderprosjekt")}
               onPress={() => setVisEcoVelger(true)}
               onClear={() => setValgtEcoId(null)}
+              laast={!!kortLaas}
             />
           </View>
 
@@ -911,6 +917,7 @@ function MaskinRadModal({
               {t("handling.lagre")}
             </Text>
           </Pressable>
+          {handlinger && <RadHandlinger handlinger={handlinger} />}
         </TastaturScrollView>
         <TastaturFerdig />
 
@@ -1015,8 +1022,17 @@ export function EquipmentVelgerModal({
   onLukk: () => void;
 }) {
   const { t } = useTranslation();
+  const { bruker } = useAuth();
   const [sok, setSok] = useState("");
   const [kategori, setKategori] = useState<MaskinKategori | null>(null);
+
+  // ORDRE 29: egne sist brukte maskiner (N = 5) øverst, merket «sist brukt».
+  const sistBrukt = useMemo(() => {
+    const db = hentDatabase();
+    if (!db || !bruker?.id) return [];
+    return sistBrukteMaskiner(db, bruker.id, organizationId);
+  }, [bruker?.id, organizationId]);
+  const sistSet = useMemo(() => new Set(sistBrukt), [sistBrukt]);
 
   const equipment = useMemo<Equipment[]>(() => {
     const db = hentDatabase();
@@ -1055,18 +1071,13 @@ export function EquipmentVelgerModal({
         (e.registreringsnummer ?? "").toLowerCase().includes(q)
       );
     });
-    // Sortering: brukt-på-seddelen først → internNummer (numerisk) → navn.
-    return treff.sort((a, b) => {
-      const aB = bruktSet.has(a.id);
-      const bB = bruktSet.has(b.id);
-      if (aB !== bB) return aB ? -1 : 1;
-      const nr = sammenlignInternNummer(a.internNummer, b.internNummer);
-      if (nr !== 0) return nr;
-      return `${a.merke ?? ""} ${a.modell ?? ""}`
-        .trim()
-        .localeCompare(`${b.merke ?? ""} ${b.modell ?? ""}`.trim(), "nb");
+    // Delt sortering (ORDRE 29): sist brukt → brukt-på-seddelen → internNummer → navn.
+    return sorterMaskiner(treff, {
+      sistBrukt,
+      bruktPaaSeddel: brukt,
+      navn: (e) => `${e.merke ?? ""} ${e.modell ?? ""}`.trim(),
     });
-  }, [equipment, sok, kategori, bruktSet]);
+  }, [equipment, sok, kategori, sistBrukt, brukt]);
 
   return (
     <Modal
@@ -1153,11 +1164,15 @@ export function EquipmentVelgerModal({
                 <View className="flex-1">
                   <Text className="text-base text-gray-900">{navn}</Text>
                   {meta && <Text className="text-xs text-gray-500">{meta}</Text>}
-                  {bruktSet.has(item.id) && (
+                  {bruktSet.has(item.id) ? (
                     <Text className="text-xs text-sitedoc-primary">
                       {t("timer.maskin.bruktPaaSeddel")}
                     </Text>
-                  )}
+                  ) : sistSet.has(item.id) ? (
+                    <Text className="text-xs text-gray-500">
+                      {t("timer.maskin.sistBrukt")}
+                    </Text>
+                  ) : null}
                 </View>
                 {item.id === valgtId && <Check size={18} color="#1e40af" />}
               </Pressable>

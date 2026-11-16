@@ -16,6 +16,7 @@ import {
   kortModusVisning,
   telteKortVarer,
   arvetByggeplassVisning,
+  varerForProsjekt,
 } from "./prosjektkortMobil";
 
 const SEDEL = "p-sedel";
@@ -106,6 +107,16 @@ describe("sendKnappTekst", () => {
       timer: 7.5,
     });
   });
+  it("kladd med reise → «Send dagen (7,5 t · reise 2 t)»", () => {
+    expect(sendKnappTekst("draft", 7.5, 2)).toEqual({
+      nokkel: "timer.prosjektkort.sendDagenMedReise",
+      timer: 7.5,
+      reise: 2,
+    });
+  });
+  it("returnert med reise → fortsatt «Send på nytt»", () => {
+    expect(sendKnappTekst("returned", 7.5, 2)).toEqual({ nokkel: "timer.detalj.sendPaaNytt" });
+  });
 });
 
 describe("formatKortTall — som web (1–2 desimaler, komma)", () => {
@@ -180,5 +191,21 @@ describe("arvetByggeplassVisning — rad-dialogen viser dagskortets faktiske byg
       navn: null,
       nokkel: "timer.byggeplass.ingenValgt",
     });
+  });
+});
+
+describe("varerForProsjekt — dagskortets lesevisning (K20)", () => {
+  const server = [
+    { id: "s1", projectId: "p1", antall: 2, vare: { navn: "Pukk", enhet: "tonn" } },
+    { id: "s2", projectId: "p2", antall: 1, vare: { navn: "Sand", enhet: "m3" } },
+  ];
+  it("🔴 kun prosjektets linjer, synket lokal linje telles én gang", () => {
+    const lokale = [
+      { id: "s1", projectId: "p1", antall: 2, vare: { navn: "Pukk", enhet: "tonn" } },
+      { id: "l1", projectId: "p1", antall: 4, vare: { navn: "Grus", enhet: "tonn" } },
+      { id: "l2", projectId: "p2", antall: 3, vare: { navn: "Grus", enhet: "tonn" } },
+    ];
+    expect(varerForProsjekt(server, lokale, "p1").map((v) => v.id)).toEqual(["s1", "l1"]);
+    expect(varerForProsjekt(server, lokale, "p3")).toEqual([]);
   });
 });

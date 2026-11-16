@@ -185,7 +185,7 @@ export const sheetTimerLocal = sqliteTable("sheet_timer_local", {
   reiseOppmotestedId: text("reise_oppmotested_id"), // svak FK → Oppmotested
   reiseKjoretidMin: integer("reise_kjoretid_min"), // matrisecellens kjøretid
   reiseAvstandM: integer("reise_avstand_m"), // matrisecellens avstand (meter)
-  reiseKilde: text("reise_kilde"), // "matrise" | "manuell" | null
+  reiseKilde: text("reise_kilde"), // "matrise" | "manuell" | "overforing" | null
   // JSON-snapshot av reise-regelen (ReiseRegelSnapshot) slik den var da raden
   // ble laget. Lagres som TEXT (JSON.stringify); server tar imot som Json.
   reiseRegel: text("reise_regel"),
@@ -223,6 +223,10 @@ export const sheetMachineLocal = sqliteTable("sheet_machine_local", {
   // idempotent via ALTER i migreringer.ts. Maskin følger samme prosjekt+ECO-
   // gruppe som arbeidstimer (T.7 låst 2026-05-16).
   externalCostObjectId: text("external_cost_object_id"),
+  // ORDRE 36b (2026-11-07) — maskin bærer prosjektkortets byggeplass selv. NULL = arver
+  // sedelens byggeplass (samme arv som sheetTimerLocal.byggeplassId). Speil av server
+  // sheet_machines.byggeplass_id; tilføyes idempotent via ALTER i migreringer.ts.
+  byggeplassId: text("byggeplass_id"),
   timer: real("timer").notNull(),
   mengde: real("mengde"),
   enhet: text("enhet"),
@@ -230,6 +234,10 @@ export const sheetMachineLocal = sqliteTable("sheet_machine_local", {
   // setter dem i T4-e.
   fraTid: text("fra_tid"),
   tilTid: text("til_tid"),
+  // Plan A (2026-11-13): sann når raden finnes på serveren (lagt inn av pull, eller med i en
+  // push serveren svarte `ok` på). NULL/usann = aldri bekreftet sendt. Pull legger tilbake
+  // slike rader når en overlapp-konflikt er løst på web. Lagt til via PAA_SERVER_KOLONNER.
+  paaServer: integer("paa_server", { mode: "boolean" }),
   sistEndretLokalt: integer("sist_endret_lokalt").notNull(),
 });
 
@@ -241,6 +249,14 @@ export const sheetTilleggLocal = sqliteTable("sheet_tillegg_local", {
   tilleggId: text("tillegg_id").notNull(),
   antall: real("antall").notNull(),
   kommentar: text("kommentar"),
+  // Tillegg/utlegg på prosjektkortet (2026-11-13): kortets byggeplass + underprosjekt.
+  // NULL = arv (byggeplass fra sedelen, intet underprosjekt). Lagt til via KORTVALG_LOCAL_KOLONNER.
+  byggeplassId: text("byggeplass_id"),
+  externalCostObjectId: text("external_cost_object_id"),
+  // Plan A (2026-11-13): sann når raden finnes på serveren (lagt inn av pull, eller med i en
+  // push serveren svarte `ok` på). NULL/usann = aldri bekreftet sendt. Pull legger tilbake
+  // slike rader når en overlapp-konflikt er løst på web. Lagt til via PAA_SERVER_KOLONNER.
+  paaServer: integer("paa_server", { mode: "boolean" }),
   sistEndretLokalt: integer("sist_endret_lokalt").notNull(),
 });
 
@@ -259,7 +275,10 @@ export const slettedeRaderLocal = sqliteTable("slettede_rader_local", {
   radId: text("rad_id").primaryKey(),
   dagsseddelId: text("dagsseddel_id").notNull(), // = server sheetId
   radType: text("rad_type", {
-    enum: ["timer", "tillegg", "maskin", "utlegg"],
+    // ORDRE 36e (pkt. 2): "sedel" = hele sedelen slettet i prosjektkortet
+    // (radId = dagsseddelId = sedel-id). Sendes som `slett` før pull, ikke i
+    // push-ens slettedeIder. Kolonnen er TEXT uten CHECK → ingen migrering.
+    enum: ["timer", "tillegg", "maskin", "utlegg", "sedel"],
   }).notNull(),
   // V19.9.1 (B'-1) — versjonen (`SheetTimer.updatedAt`) kopiert fra timer-raden da
   // den ble slettet lokalt. Sendes som `slettedeIder.timerVersjoner` → S1–S4
@@ -287,6 +306,9 @@ export const sheetTilleggVedleggLocal = sqliteTable(
     mimeType: text("mime_type").notNull(),
     filstorrelse: integer("filstorrelse"),
     sistEndretLokalt: integer("sist_endret_lokalt").notNull(),
+    // Telefontest A funn 2: tidspunktet serveren bekreftet vedlegget (Unix ms). NULL = ikke
+    // bekreftet ennå. Lagt til via VEDLEGG_REGISTRERT_KOLONNER, ingen backfill.
+    registrert: integer("registrert"),
   },
 );
 
@@ -310,6 +332,14 @@ export const sheetUtleggLocal = sqliteTable("sheet_utlegg_local", {
   kommentar: text("kommentar"),
   ordningVedFoering: text("ordning_ved_foering").notNull(), // "utlegg" | "fakturert" (aldri "lonnstillegg")
   foertVed: integer("foert_ved").notNull(), // Unix ms — føringstidspunkt (immutabelt)
+  // Tillegg/utlegg på prosjektkortet (2026-11-13): kortets byggeplass + underprosjekt.
+  // NULL = arv (byggeplass fra sedelen, intet underprosjekt). Lagt til via KORTVALG_LOCAL_KOLONNER.
+  byggeplassId: text("byggeplass_id"),
+  externalCostObjectId: text("external_cost_object_id"),
+  // Plan A (2026-11-13): sann når raden finnes på serveren (lagt inn av pull, eller med i en
+  // push serveren svarte `ok` på). NULL/usann = aldri bekreftet sendt. Pull legger tilbake
+  // slike rader når en overlapp-konflikt er løst på web. Lagt til via PAA_SERVER_KOLONNER.
+  paaServer: integer("paa_server", { mode: "boolean" }),
   sistEndretLokalt: integer("sist_endret_lokalt").notNull(),
 });
 
@@ -329,6 +359,9 @@ export const sheetUtleggVedleggLocal = sqliteTable(
     mimeType: text("mime_type").notNull(),
     filstorrelse: integer("filstorrelse"),
     sistEndretLokalt: integer("sist_endret_lokalt").notNull(),
+    // Telefontest A funn 2: tidspunktet serveren bekreftet vedlegget (Unix ms). NULL = ikke
+    // bekreftet ennå. Lagt til via VEDLEGG_REGISTRERT_KOLONNER, ingen backfill.
+    registrert: integer("registrert"),
   },
 );
 
@@ -419,6 +452,25 @@ export const arbeidsdagLocal = sqliteTable("arbeidsdag_local", {
   byggeplassId: text("byggeplass_id"),
   byggeplassNavn: text("byggeplass_navn"),
   sistEndretLokalt: integer("sist_endret_lokalt").notNull(),
+});
+
+/**
+ * L4-A (spec `timer-gps-lag3-4-spec.md` § 2.2): byggeplass-besøk gjennom dagen —
+ * bekreftede stopp, ikke sporing. KUN lokal, synkes aldri. Ingen lat/lng: posisjonen
+ * brukes i øyeblikket til gjenkjenning og kastes. Ryddes sammen med arbeidsdagen.
+ */
+export const arbeidsdagBesokLocal = sqliteTable("arbeidsdag_besok_local", {
+  id: text("id").primaryKey(),
+  arbeidsdagId: text("arbeidsdag_id").notNull(), // → arbeidsdag_local.id
+  rekkefolge: integer("rekkefolge").notNull(), // 1..n
+  byggeplassId: text("byggeplass_id"), // null = utenfor kjent byggeplass
+  byggeplassNavn: text("byggeplass_navn"), // snapshot for visning offline
+  prosjektId: text("prosjekt_id"), // byggeplassens prosjekt
+  ankomstAt: text("ankomst_at").notNull(), // ISO
+  avreiseAt: text("avreise_at"), // null til neste besøk/Slutt dag
+  kilde: text("kilde").notNull(), // 'start_dag' | 'gps_forslag' | 'manuell' | 'slutt_dag'
+  bekreftet: integer("bekreftet").notNull(), // 0 = forslag, 1 = arbeideren trykket
+  sistEndretLokalt: text("sist_endret_lokalt").notNull(), // ISO
 });
 
 export const aktivitetLocal = sqliteTable("aktivitet_local", {
@@ -519,6 +571,70 @@ export const oppmotestedLocal = sqliteTable("oppmotested_local", {
   radiusM: integer("radius_m").notNull().default(150),
   sistOppdatert: integer("sist_oppdatert").notNull(),
 });
+
+/**
+ * oppmote_periode_local — offline-cache av brukerens egne oppmøtested-perioder
+ * (POST 2026-11-15 (12) D). Delt resolver `løsOppmote` (@sitedoc/shared) leser
+ * herfra, så etterregistrering offline treffer perioden som gjaldt. KUN lokal,
+ * synkes aldri opp. Full overskriving pr. (bruker, firma) via
+ * oppmotePeriodeKatalog.refreshOppmotePeriodeKatalog. userId = synlighetsvakt.
+ */
+export const oppmotePeriodeLocal = sqliteTable("oppmote_periode_local", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  organizationId: text("organization_id").notNull(),
+  type: text("type").notNull(), // "kontor" | "byggeplass"
+  fast: integer("fast", { mode: "boolean" }).notNull().default(false),
+  oppmotestedId: text("oppmotested_id"),
+  projectId: text("project_id"),
+  fraDato: text("fra_dato").notNull(), // YYYY-MM-DD
+  tilDato: text("til_dato"), // YYYY-MM-DD, null = gjeldende
+  /** POST (13) del B: 'admin' | 'overforing'. NULL på gamle rader til neste refresh (= admin). */
+  kilde: text("kilde"),
+  sistOppdatert: integer("sist_oppdatert").notNull(),
+});
+
+/**
+ * oppmote_overforing_ko — utgående kø for overføring fra reise-kortet (POST
+ * 2026-11-15 (13) del B). Optimistisk skriving går til oppmote_periode_local;
+ * kallet `oppmotePeriode.overforing` legges her og sendes av TimerSyncProvider
+ * ETTER syncBatch (som ikke røres). id = klient-UUID = periodens id ved
+ * «start» (serveren er idempotent på den). Raden slettes ved suksess OG ved
+ * CONFLICT/NOT_FOUND/FORBIDDEN (serveren vinner; refresh overskriver cachen).
+ */
+export const oppmoteOverforingKo = sqliteTable("oppmote_overforing_ko", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  organizationId: text("organization_id").notNull(),
+  handling: text("handling").notNull(), // "start" | "slutt"
+  oppmotestedId: text("oppmotested_id"),
+  dato: text("dato").notNull(), // YYYY-MM-DD, ferdig utregnet (kl. 12-regelen)
+  opprettet: integer("opprettet").notNull(),
+  forsok: integer("forsok").notNull().default(0),
+  feilmelding: text("feilmelding"),
+});
+
+/**
+ * oppmotested_avstand_local — kontor↔kontor-kjøretid/avstand (L2, POST
+ * 2026-11-15 (13) 6b). Speiler server OppmotestedAvstand for overføring
+ * første/siste dag i midlertidig periode. Paret normalisert (fra < til);
+ * -1 = uoppnåelig, null = ukjent. Refresh via
+ * oppmotestedAvstandKatalog.refreshOppmotestedAvstandKatalog. KUN lokal.
+ */
+export const oppmotestedAvstandLocal = sqliteTable(
+  "oppmotested_avstand_local",
+  {
+    organizationId: text("organization_id").notNull(),
+    fraOppmotestedId: text("fra_oppmotested_id").notNull(),
+    tilOppmotestedId: text("til_oppmotested_id").notNull(),
+    kjoretidMin: integer("kjoretid_min"),
+    avstandM: integer("avstand_m"),
+    sistOppdatert: integer("sist_oppdatert").notNull(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.fraOppmotestedId, t.tilOppmotestedId] }),
+  }),
+);
 
 /**
  * byggeplass_local — offline-cache av firmaets byggeplasser (R4, 2026-06-11).
@@ -750,11 +866,11 @@ export const reiseGrensepunktLocal = sqliteTable(
  * fra `oppgave.hentForProsjekt` (uten byggeplassId → hele prosjektet, så lokal
  * lesing selv gjør byggeplass-scopingen serveren gjør med byggeplassFilterViaTegning).
  *
- * Byggeplass-nøkkelen: Task har INGEN egen byggeplassId — tilhørighet finnes kun
- * via tegningen (drawing.byggeplassId). Serverens TRE-ledds tegningsfilter kollapser
+ * Byggeplass-nøkkelen: Task har egen byggeplassId (ORDRE 28); eldre rader uten egen
+ * verdi arver tegningens (drawing.byggeplassId). Serverens FIRE-ledds filter kollapser
  * til den samme to-ledds «valgt ELLER byggeplass-løs»-regelen som Checklist bruker,
- * når vi utleder byggeplassId = drawing.byggeplass.id (ingen tegning / prosjekt-
- * tegning → null → gjelder hele prosjektet). Derfor er byggeplassId her den UTLEDETE
+ * når vi utleder byggeplassId = egen ?? drawing.byggeplass.id (begge null → gjelder
+ * hele prosjektet). Derfor er byggeplassId her den UTLEDETE
  * effektive byggeplassen, ikke en rå kolonne.
  *
  * Serverens tilgangsfilter + HMS-eksklusjon (domain ≠ hms) er allerede anvendt ved
@@ -960,9 +1076,34 @@ export const vareforbrukLocal = sqliteTable("vareforbruk_local", {
   enhet: text("enhet").notNull(),
   antall: real("antall").notNull(),
   byggeplassId: text("byggeplass_id"),
+  // ORDRE 36b (2026-11-07) — kortets underprosjekt. NULL = uten underprosjekt.
+  externalCostObjectId: text("external_cost_object_id"),
+  // Radform (2026-11-12) — timerraden linjen er ført fra. NULL = ikke koblet → «Uten rad».
+  sheetTimerId: text("sheet_timer_id"),
   syncStatus: text("sync_status", { enum: ["pending", "synced", "avvist"] })
     .notNull()
     .default("pending"),
   feilmelding: text("feilmelding"),
   sistEndretLokalt: integer("sist_endret_lokalt").notNull(),
+});
+
+/**
+ * prosjektkort_utkast_local — ikke bekreftet prosjektkort (Bekreft dag-skjermen).
+ * Lagrer KUN brukerens rettinger (delta) som opak JSON i `data`; forslaget
+ * beregnes på nytt ved gjenåpning og rettingene legges oppå. Nøkkel:
+ * `dato:YYYY-MM-DD` (manuell) eller `dag:<arbeidsdagId>` (GPS). Unik pr.
+ * (bruker, firma, nøkkel). KUN lokal — synkes aldri (vakt i prosjektkortUtkast.test.ts).
+ */
+export const prosjektkortUtkastLocal = sqliteTable("prosjektkort_utkast_local", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  organizationId: text("organization_id").notNull(),
+  nokkel: text("nokkel").notNull(),
+  dato: text("dato").notNull(), // YYYY-MM-DD — lista og opprydding
+  arbeidsdagId: text("arbeidsdag_id"), // kun GPS
+  skjemaVersjon: integer("skjema_versjon").notNull(),
+  data: text("data").notNull(), // JSON — UtkastData
+  kvitteringer: text("kvitteringer").notNull().default("[]"), // JSON-liste over lokalSti
+  opprettet: text("opprettet").notNull(),
+  sistEndret: text("sist_endret").notNull(),
 });

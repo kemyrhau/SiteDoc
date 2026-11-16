@@ -56,6 +56,61 @@ export const prosjektRouter = router({
       });
     }),
 
+  // POST 2026-11-15 (15): «Prosjekter i andre firma» — prosjekter brukeren er aktivt medlem
+  // av, men som eies av et firma brukeren IKKE er aktivt ansatt i (gjesteprosjekt, se
+  // `erGjesteprosjekt` i @sitedoc/shared). Uavhengig av valgt firma: prosjektvelgeren viser
+  // dem i egen gruppe, så de ikke forsvinner når brukeren bytter firma. Endrer ingen
+  // eksisterende liste og ingen tilgang — porten (verifiserProsjektmedlem) er den samme.
+  //
+  // `firmaKoblet`: et av brukerens aktive firma er koblet til prosjektet via
+  // ProjectOrganization. Da er prosjektet også firmaets (prosjektTilhørerFirmaWhere) og
+  // Timer vises som før (Kenneth-vedtak 1); ellers skjuler klienten Timer for gjesten.
+  hentGjesteprosjekter: protectedProcedure.query(async ({ ctx }) => {
+    const ansettelser = await ctx.prisma.organizationMember.findMany({
+      where: { userId: ctx.userId!, status: "aktiv" },
+      select: { organizationId: true },
+    });
+    const mineFirmaIder = ansettelser.map((a) => a.organizationId);
+    const deaktiverteOrgIder = await hentDeaktiverteOrgIder(ctx.userId!);
+    const prosjekter = await ctx.prisma.project.findMany({
+      where: {
+        members: { some: { userId: ctx.userId, ...aktivtMedlemWhere } },
+        status: "active",
+        AND: [
+          // Standalone (eier null) er aldri gjest; eget firma er ikke gjest.
+          { primaryOrganizationId: { not: null } },
+          { NOT: { primaryOrganizationId: { in: mineFirmaIder } } },
+          // L3: deaktivert ansettelse i eier-firma stenger porten — samme filter som hentMine.
+          ...(deaktiverteOrgIder.length > 0
+            ? [{ NOT: { primaryOrganizationId: { in: deaktiverteOrgIder } } }]
+            : []),
+        ],
+      },
+      orderBy: { updatedAt: "desc" },
+      select: {
+        id: true,
+        name: true,
+        projectNumber: true,
+        internalProjectNumber: true,
+        status: true,
+        description: true,
+        address: true,
+        latitude: true,
+        longitude: true,
+        primaryOrganizationId: true,
+        primaryOrganization: { select: { id: true, name: true } },
+        projectOrganizations: {
+          where: { organizationId: { in: mineFirmaIder } },
+          select: { organizationId: true },
+        },
+      },
+    });
+    return prosjekter.map(({ projectOrganizations, ...p }) => ({
+      ...p,
+      firmaKoblet: projectOrganizations.length > 0,
+    }));
+  }),
+
   // Fase 2 / T.10: prosjektvelger for Timer. Firma-skopet, IKKE medlemskaps-skopet: timer
   // er en firma-flate (et firma kan føre timer mot ethvert prosjekt det eier eller er koblet
   // til — jf. verifiserProsjekterTilhørerFirma).

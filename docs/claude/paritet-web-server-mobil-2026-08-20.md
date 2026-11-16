@@ -86,7 +86,7 @@ Web og arkiv-PDF bruker `ekspanderEndring` fra `@sitedoc/pdf`. Mobil har lokal
 vær-objekter som rå JSON, og kanoniske no-ops gir falske logglinjer som web og arkiv-PDF
 filtrerer bort. Observert i drift 2026-08-20.
 **Fiks (MÅL FØRST bekreftet):** mobil KAN importere `ekspanderEndring` — den importerer alt
-`byggSjekklisteHtml` fra `@sitedoc/pdf` (null-deps, mobil-bundlet). `formaterLoggVerdi` slettet;
+`byggSjekklisteHtml` fra `@sitedoc/pdf` (null-deps, mobil-bundlet; *historisk — slettet 2026-08-24, mobil-PDF går via `arkiv.rendr`*). `formaterLoggVerdi` slettet;
 endringsloggen bruker nå `ekspanderEndring` + `byggKolonnerPerFelt` + `segmenterTilTekst`, hopper
 over no-ops (tom liste), og én logglinje kan bli flere diff-rader (per endret repeater-celle).
 **Merk:** mobilens `EndringsloggRad`-type mangler `fieldId`, så repeater-KOLONNE-labels faller

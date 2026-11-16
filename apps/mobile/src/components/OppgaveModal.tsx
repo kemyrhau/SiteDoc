@@ -47,6 +47,8 @@ interface OppgaveModalProps {
   posisjonY: number;
   gpsPositionert?: boolean;
   templateId: string;
+  /** ORDRE 28: aktiv byggeplass (kontekst). Tegningens byggeplass vinner på serveren. */
+  byggeplassId?: string | null;
 }
 
 const PRIORITETER: { verdi: Prioritet; labelKey: string }[] = [
@@ -73,6 +75,7 @@ export function OppgaveModal({
   posisjonY,
   gpsPositionert,
   templateId,
+  byggeplassId,
 }: OppgaveModalProps) {
   const { t } = useTranslation();
   const { valgtProsjektId } = useProsjekt();
@@ -177,9 +180,9 @@ export function OppgaveModal({
       priority: prioritet,
       templateId,
       drawingId: tegningId,
+      byggeplassId: byggeplassId ?? undefined,
       positionX: posisjonX,
       positionY: posisjonY,
-
     });
   }, [
     oppretterFaggruppeId,
@@ -187,6 +190,7 @@ export function OppgaveModal({
     prioritet,
     templateId,
     tegningId,
+    byggeplassId,
     tegningNavn,
     posisjonX,
     posisjonY,

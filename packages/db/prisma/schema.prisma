@@ -134,6 +134,8 @@ model Organization {
   reiseGrenser        OrganizationReiseGrense[]
   avdelinger          Avdeling[]
   oppmotesteder       Oppmotested[]
+  oppmotePerioder     OppmotePeriode[]
+  oppmotestedAvstander OppmotestedAvstand[]
   kompetansetyper     Kompetansetype[]
   arbeidstidsKalender ArbeidstidsKalender[]
   seedPolicies        OrganizationSeedPolicy[]
@@ -280,6 +282,7 @@ model OrganizationMember {
   user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   avdeling     Avdeling?    @relation(fields: [avdelingId], references: [id], onDelete: SetNull)
+  oppmotePerioder OppmotePeriode[]
 
   @@unique([userId, organizationId])
   @@index([organizationId])
@@ -716,6 +719,7 @@ model Project {
   kontrollplaner       Kontrollplan[]
   godkjenninger        Godkjenning[]
   eksportJobber        EksportJobb[]
+  oppmotePerioder      OppmotePeriode[]
 
   @@index([trialExpiresAt])
   @@index([primaryOrganizationId])
@@ -1169,6 +1173,7 @@ model Byggeplass {
   pointClouds      PointCloud[]
   overflater       Overflate[]
   checklists       Checklist[]
+  tasks            Task[]
   ftdKontrakter    FtdKontrakt[]
   gruppeKoblinger  ProjectGroupByggeplass[]
   psiEr            Psi[]
@@ -1487,6 +1492,11 @@ model Task {
   number               Int?      @map("number")
   priority             String    @default("medium")
   dueDate              DateTime? @map("due_date")
+  // ORDRE 28 (2026-11-06): egen byggeplass — speiler Checklist.byggeplassId. Før fantes
+  // tilhørighet kun via tegningen, så en oppgave opprettet på aktiv byggeplass uten tegning
+  // havnet på «Hele prosjektet». Settes tegning med byggeplass, følger feltet tegningen
+  // (server, oppgave.ts). Backfill fra drawing.byggeplassId i migreringen.
+  byggeplassId         String?   @map("byggeplass_id")
   drawingId            String?   @map("drawing_id")
   positionX            Float?    @map("position_x")
   positionY            Float?    @map("position_y")
@@ -1525,6 +1535,7 @@ model Task {
   bestillerFaggruppe Faggruppe?         @relation("TaskBestillerFaggruppe", fields: [bestillerFaggruppeId], references: [id])
   utforerFaggruppe   Faggruppe?         @relation("TaskUtforerFaggruppe", fields: [utforerFaggruppeId], references: [id])
   eier               User?              @relation("TaskOwner", fields: [eierUserId], references: [id], onDelete: SetNull)
+  byggeplass         Byggeplass?        @relation(fields: [byggeplassId], references: [id], onDelete: SetNull)
   drawing            Drawing?           @relation(fields: [drawingId], references: [id])
   dokumentflyt       Dokumentflyt?      @relation(fields: [dokumentflytId], references: [id], onDelete: SetNull)
   checklist          Checklist?         @relation(fields: [checklistId], references: [id], onDelete: SetNull)
@@ -1549,6 +1560,7 @@ model Task {
   @@index([dokumentflytId, status])
   @@index([deletedAt])
   @@index([omradeId])
+  @@index([byggeplassId])
   @@map("tasks")
 }
 
@@ -2880,11 +2892,93 @@ model Oppmotested {
   organization     Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   avdeling         Avdeling?         @relation(fields: [avdelingId], references: [id], onDelete: SetNull)
   reisetidMatriser ReisetidMatrise[]
+  perioder         OppmotePeriode[]
+  avstanderFra     OppmotestedAvstand[] @relation("AvstandFra")
+  avstanderTil     OppmotestedAvstand[] @relation("AvstandTil")
 
   @@unique([organizationId, navn])
   @@index([organizationId, aktiv])
   @@index([avdelingId])
   @@map("oppmotesteder")
+}
+
+// ---------------------------------------------------------------------------
+// OppmotePeriode — hvor en ansatt møter, med perioder (POST 2026-11-15 (12) D).
+// Knyttes til ansattposten (OrganizationMember): det er den firmaadmin redigerer,
+// og FK gir cascade ved fjernet medlemskap. organizationId er denormalisert
+// (ReisetidMatrise-presedens) så firmaisolasjon filtreres uten join; serverlaget
+// skriver den alltid fra medlemmet.
+//
+//   type "kontor"     → oppmotestedId satt, projectId null
+//   type "byggeplass" → projectId satt, oppmotestedId null (ingen reise den dagen)
+//   fast=true         = fast oppmøtested (kun kontor). Åpent (tilDato null) = gjeldende,
+//                       maks ett pr. ansatt (partiell unik i SQL). Bytte av fast lukker
+//                       det forrige (tilDato = ny fraDato − 1) — historikken står.
+//   fast=false        = midlertidig kontor eller byggeplass-periode. Midlertidig kontor
+//                       har sluttdato når firmaadmin setter det; en overføring
+//                       (kilde='overforing') står åpen til Retur — maks én åpen pr. ansatt.
+//
+// Ingen backfill: tomt = «ikke valgt ennå». Resolveren er `løsOppmote` i
+// packages/shared/src/utils/oppmote.ts. sattAvUserId uten @relation (A.3-mønster,
+// audit-spor bevares ved User-sletting). Oppmøtested = Restrict (slett svarer
+// «I bruk — deaktiver i stedet»); prosjekt = Cascade (prosjektsletting blokkeres
+// ikke av timer-infra). CHECK-ene ligger i migreringens rå SQL.
+// ---------------------------------------------------------------------------
+
+model OppmotePeriode {
+  id                   String    @id @default(uuid())
+  organizationId       String    @map("organization_id")
+  organizationMemberId String    @map("organization_member_id")
+  type                 String
+  fast                 Boolean   @default(false)
+  oppmotestedId        String?   @map("oppmotested_id")
+  projectId            String?   @map("project_id")
+  fraDato              DateTime  @map("fra_dato") @db.Date
+  tilDato              DateTime? @map("til_dato") @db.Date
+  sattAvUserId         String    @map("satt_av_user_id")
+  sattVed              DateTime  @default(now()) @map("satt_ved")
+  /// 'admin' (satt av firmaadmin / eget førstevalg) | 'overforing' (Tur til annet
+  /// kontor i reise-kortet, POST (13) del B). Nullable (to-stegs-policy).
+  kilde                String?   @default("admin") @map("kilde")
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  member       OrganizationMember @relation(fields: [organizationMemberId], references: [id], onDelete: Cascade)
+  oppmotested  Oppmotested?       @relation(fields: [oppmotestedId], references: [id], onDelete: Restrict)
+  project      Project?           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([organizationMemberId, fraDato])
+  @@index([organizationId])
+  @@index([oppmotestedId])
+  @@index([projectId])
+  @@map("oppmote_perioder")
+}
+
+// ---------------------------------------------------------------------------
+// OppmotestedAvstand — kjøretid/avstand kontor → kontor (POST (12) TILLEGG:
+// overføringen gir reisetid). Én rad pr. par i fast rekkefølge (CHECK
+// fra_oppmotested_id < til_oppmotested_id) — avstanden er lik begge veier.
+// Fylles i L2 av samme OSRM /table som ReisetidMatrise; firmaadmin kan
+// overstyre (kilde "manuell…", recompute overskriver aldri — samme vakt som (10)).
+// Uoppnåelig par = -1 (ReisetidMatrise-konvensjonen). Begge FK Cascade.
+// ---------------------------------------------------------------------------
+
+model OppmotestedAvstand {
+  id               String   @id @default(uuid())
+  organizationId   String   @map("organization_id")
+  fraOppmotestedId String   @map("fra_oppmotested_id")
+  tilOppmotestedId String   @map("til_oppmotested_id")
+  kjoretidMin      Int      @map("kjoretid_min")
+  avstandM         Int?     @map("avstand_m")
+  kilde            String
+  beregnetAt       DateTime @default(now()) @map("beregnet_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  fra          Oppmotested  @relation("AvstandFra", fields: [fraOppmotestedId], references: [id], onDelete: Cascade)
+  til          Oppmotested  @relation("AvstandTil", fields: [tilOppmotestedId], references: [id], onDelete: Cascade)
+
+  @@unique([fraOppmotestedId, tilOppmotestedId])
+  @@index([organizationId])
+  @@map("oppmotested_avstand")
 }
 
 // ---------------------------------------------------------------------------

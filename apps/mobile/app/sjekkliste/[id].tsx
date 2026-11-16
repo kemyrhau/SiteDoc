@@ -13,11 +13,12 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ArrowLeft, Save, Check, AlertTriangle, Clock, CloudOff, Cloud, Trash2, ChevronDown, ChevronRight, Share2, MapPin, Eye } from "lucide-react-native";
-import { harBetingelse, harForelderObjekt, utledMinRolle, utledFlytRettighet, byggPosisjonsLedd, harBallenPosisjon, erAvsenderledd, erMedlemAvFlyt, retningsrettigheter, harMinstEttUtfyltFelt, harTegningsmarkor, harFeltVerdi, perspektivEtikett, TERMINALE_DOKUMENTSTATUSER } from "@sitedoc/shared";
-import type { FlytMedlemInfo, FlytMedlemRedigering, HarBallenDokument } from "@sitedoc/shared";
+import { harBetingelse, harForelderObjekt, utledMinRolle, utledFlytRettighet, byggPosisjonsLedd, harBallenPosisjon, erAvsenderledd, erMedlemAvFlyt, retningsrettigheter, harMinstEttUtfyltFelt, harTegningsmarkor, harFeltVerdi, perspektivEtikett, TERMINALE_DOKUMENTSTATUSER, STANDARD_PDF_VALG, visByggeplassIkkeValgt, byggeplassByttInput, kanVelgeByggeplassDirekte } from "@sitedoc/shared";
+import type { FlytMedlemInfo, FlytMedlemRedigering, HarBallenDokument, PdfValg } from "@sitedoc/shared";
 import { useTranslation } from "react-i18next";
 import { ModalFlate } from "../../src/components/ModalFlate";
 import { Flytlinje } from "../../src/components/Flytlinje";
+import { ByggeplassIkkeValgtLinje } from "../../src/components/ByggeplassIkkeValgtLinje";
 import type { FlytMedlem } from "../../src/components/Flytlinje";
 import { DokumentHandlingslinje } from "../../src/components/DokumentHandlingslinje";
 import { HmsBehandlingsflate, type HmsHandlingType } from "../../src/components/HmsBehandlingsflate";
@@ -51,7 +52,7 @@ import { TegningsVisning } from "../../src/components/TegningsVisning";
 import type { Markør } from "../../src/components/TegningsVisning";
 import { AUTH_CONFIG } from "../../src/config/auth";
 import { useDuErHer } from "../../src/hooks/useDuErHer";
-import { tegningBunnfelt } from "../../src/lib/tegningDuErHer";
+import { PUNKT_OMFANG, tegningBunnfelt } from "../../src/lib/tegningDuErHer";
 import * as Sharing from "expo-sharing";
 import * as FileSystem from "expo-file-system/legacy";
 import { eq } from "drizzle-orm";
@@ -129,6 +130,8 @@ export default function SjekklisteUtfylling() {
   // closure i mutasjon-callbacken).
   const arkivIntensjonRef = useRef<"del" | "forhandsvis">("del");
   const [pdfForhandsvisFil, settPdfForhandsvisFil] = useState<string | null>(null);
+  // PDF-1: utskriftsvalg — begge av som standard (STANDARD_PDF_VALG). Gjelder både deling og forhåndsvisning.
+  const [pdfValg, settPdfValg] = useState<PdfValg>(STANDARD_PDF_VALG);
   const [visLokasjonModal, setVisLokasjonModal] = useState(false);
   const [visLokByttTegning, setVisLokByttTegning] = useState(false);
   // D (bygg 50): endringsloggen skal ikke stå åpen — sammenleggbar, lukket som standard.
@@ -607,7 +610,11 @@ export default function SjekklisteUtfylling() {
       dokumenter: { manglendeVedlegg: string[] }[];
     }) => {
       try {
-        const filsti = `${FileSystem.cacheDirectory}${res.filnavn}`;
+        // PDF-1: unik undermappe pr. render — samme filnavn etter et valgbytte ville ellers
+        // gitt samme filUri, og WebView-en laster ikke den nye PDF-en.
+        const mappe = `${FileSystem.cacheDirectory}pdf-${Date.now()}/`;
+        await FileSystem.makeDirectoryAsync(mappe, { intermediates: true });
+        const filsti = `${mappe}${res.filnavn}`;
         await FileSystem.writeAsStringAsync(filsti, res.pdfBase64, {
           encoding: FileSystem.EncodingType.Base64,
         });
@@ -649,8 +656,8 @@ export default function SjekklisteUtfylling() {
     }
     arkivIntensjonRef.current = "del";
     settEksportMelding(null);
-    rendrArkiv.mutate({ dokumenter: [{ id, type: "sjekkliste" }] });
-  }, [id, erPaaNettet, rendrArkiv, t]);
+    rendrArkiv.mutate({ dokumenter: [{ id, type: "sjekkliste" }], ...pdfValg });
+  }, [id, erPaaNettet, rendrArkiv, t, pdfValg]);
 
   // Funn E: forhåndsvis PDF-en i appen (kontroll før sending). Samme server-
   // render som deling, men vises i WebView i stedet for share sheet.
@@ -662,8 +669,23 @@ export default function SjekklisteUtfylling() {
     }
     arkivIntensjonRef.current = "forhandsvis";
     settEksportMelding(null);
-    rendrArkiv.mutate({ dokumenter: [{ id, type: "sjekkliste" }] });
-  }, [id, erPaaNettet, rendrArkiv, t]);
+    rendrArkiv.mutate({ dokumenter: [{ id, type: "sjekkliste" }], ...pdfValg });
+  }, [id, erPaaNettet, rendrArkiv, t, pdfValg]);
+
+  // PDF-1: valgbytte i forhåndsvisningen → render på nytt med de nye valgene.
+  const endrePdfValg = useCallback(
+    (nye: { medOppgaver: boolean; medVedlegg: boolean }) => {
+      if (!id) return;
+      settPdfValg(nye);
+      if (!erPaaNettet) {
+        settEksportMelding({ type: "advarsel", tekst: t("eksport.kreverTilkobling") });
+        return;
+      }
+      arkivIntensjonRef.current = "forhandsvis";
+      rendrArkiv.mutate({ dokumenter: [{ id, type: "sjekkliste" }], ...nye });
+    },
+    [id, erPaaNettet, rendrArkiv, t],
+  );
 
   // Del den allerede-forhåndsviste fila (samme PDF, ingen ny server-render).
   const delForhåndsvistPdf = useCallback(async () => {
@@ -818,6 +840,53 @@ export default function SjekklisteUtfylling() {
         : leseModus && !harMarkorDok
           ? null
           : lokasjonTekst;
+
+  // Åpner lokasjonsvelgeren i redigeringsmodus — felles for lokasjonsfeltet og «Byggeplass ikke valgt · Velg».
+  // ORDRE (20b) punkt 3: «Velg» i «Byggeplass ikke valgt»-linja går rett til lista med
+  // byggeplassene øverst — ett trykk setter byggeplass, tegning er frivillig.
+  const aapneByggeplassValg = () => {
+    aapneLokasjonRedigering();
+    setVisLokByttTegning(true);
+  };
+
+  // (20b): ett trykk på en byggeplass lagrer den. Tegning/pin/område hører til den gamle
+  // byggeplassen og nullstilles (samme regel som web-chipen, `byggeplassByttInput`).
+  const velgByggeplass = (byggeplassId: string) => {
+    if (byggeplassId !== (sjekklisteDetalj?.byggeplass?.id ?? null)) {
+      oppdaterMutasjon.mutate({
+        id: id!,
+        ...byggeplassByttInput(sjekklisteDetalj?.lokasjonOmfang, byggeplassId),
+      });
+    }
+    setVisLokByttTegning(false);
+    setVisLokasjonModal(false);
+  };
+
+  const aapneLokasjonRedigering = () => {
+    // Initialiser temp-state fra nåværende lokasjon
+    const harLagretTegning = !!sjekklisteDetalj?.drawingId;
+    setLokTempTegningId(sjekklisteDetalj?.drawingId ?? null);
+    setLokTempBygningId(sjekklisteDetalj?.byggeplass?.id ?? null);
+    setLokTempPosX(sjekklisteDetalj?.positionX ?? null);
+    setLokTempPosY(sjekklisteDetalj?.positionY ?? null);
+
+    // Vei videre når lokasjon mangler: gå rett til tegning/kart i stedet
+    // for å lande på en tom «Ingen tegning valgt»-tilstand.
+    if (!harLagretTegning && tilgjengeligeTegninger.length === 1) {
+      // Én tegning/kart → åpne den direkte i tegningsvisningen
+      const t = tilgjengeligeTegninger[0]!;
+      setLokTempTegningId(t.id);
+      setLokTempBygningId(t.byggeplassId ?? t.byggeplass?.id ?? null);
+      setVisLokByttTegning(false);
+    } else if (!harLagretTegning && tilgjengeligeTegninger.length > 1) {
+      // Flere tegninger/kart → åpne velgeren direkte
+      setVisLokByttTegning(true);
+    } else {
+      // Har lagret tegning, eller ingen finnes → modalen viser rett tilstand
+      setVisLokByttTegning(false);
+    }
+    setVisLokasjonModal(true);
+  };
 
   return (
     // Annoteringseditoren sender ventende lagring før den fornyer en rå original (ORDRE 3, F1b).
@@ -986,37 +1055,19 @@ export default function SjekklisteUtfylling() {
                     setVisLokasjonModal(true);
                   }
                 : undefined)
-              : () => {
-              // Initialiser temp-state fra nåværende lokasjon
-              const harLagretTegning = !!sjekklisteDetalj?.drawingId;
-              setLokTempTegningId(sjekklisteDetalj?.drawingId ?? null);
-              setLokTempBygningId(sjekklisteDetalj?.byggeplass?.id ?? null);
-              setLokTempPosX(sjekklisteDetalj?.positionX ?? null);
-              setLokTempPosY(sjekklisteDetalj?.positionY ?? null);
-
-              // Vei videre når lokasjon mangler: gå rett til tegning/kart i stedet
-              // for å lande på en tom «Ingen tegning valgt»-tilstand.
-              if (!harLagretTegning && tilgjengeligeTegninger.length === 1) {
-                // Én tegning/kart → åpne den direkte i tegningsvisningen
-                const t = tilgjengeligeTegninger[0]!;
-                setLokTempTegningId(t.id);
-                setLokTempBygningId(t.byggeplassId ?? t.byggeplass?.id ?? null);
-                setVisLokByttTegning(false);
-              } else if (!harLagretTegning && tilgjengeligeTegninger.length > 1) {
-                // Flere tegninger/kart → åpne velgeren direkte
-                setVisLokByttTegning(true);
-              } else {
-                // Har lagret tegning, eller ingen finnes → modalen viser rett tilstand
-                setVisLokByttTegning(false);
-              }
-              setVisLokasjonModal(true);
-            }}
+              : aapneLokasjonRedigering}
             onBekreftForslag={({ tegningId, byggeplassId }) => {
               oppdaterMutasjon.mutate({ id: id!, drawingId: tegningId, byggeplassId });
               if (byggeplassId) settSistTegning(byggeplassId, tegningId);
             }}
           />
         )}
+        {visLokasjon(sjekklisteDetalj?.template) && visByggeplassIkkeValgt({
+          byggeplassId: sjekklisteDetalj?.byggeplass?.id ?? null,
+          antallByggeplasser: bygninger.length,
+          kanRedigere: !leseModus,
+          drawingId: sjekklisteDetalj?.drawingId ?? null,
+        }) && <ByggeplassIkkeValgtLinje onVelg={aapneByggeplassValg} />}
 
         {/* Emne — merkelapp for gjenfinning, synlig øverst i dokumentet også når tomt
             (ordre 2026-09-22). Redigerbart for den som kan redigere (samme leseModus),
@@ -1478,6 +1529,7 @@ export default function SjekklisteUtfylling() {
         tittel={sjekkliste?.title ?? t("eksport.forhandsvis")}
         onDel={delForhåndsvistPdf}
         onLukk={() => settPdfForhandsvisFil(null)}
+        valg={{ ...pdfValg, oppdaterer: rendrArkiv.isPending, onEndre: endrePdfValg }}
       />
 
       {/* Lokasjonsmodal — tegningsvisning med posisjonsprikk */}
@@ -1502,18 +1554,22 @@ export default function SjekklisteUtfylling() {
                 <View className="flex-1">
                   <View className="flex-row items-center justify-between bg-sitedoc-blue px-4 py-3">
                     <Pressable onPress={() => setVisLokByttTegning(false)} hitSlop={8}>
-                      <Text className="text-sm font-medium text-white">Tilbake</Text>
+                      <Text className="text-sm font-medium text-white">{t("handling.tilbake")}</Text>
                     </Pressable>
-                    <Text className="text-sm font-semibold text-white">Bytt tegning</Text>
+                    <Text className="text-sm font-semibold text-white">{t("felt.byttTegning")}</Text>
                     <View style={{ width: 50 }} />
                   </View>
                   <TegningVelgerListe
                     tegninger={tilgjengeligeTegninger}
                     bygninger={bygninger}
                     valgtTegningId={lokTempTegningId}
-                    onVelg={(t) => {
-                      setLokTempTegningId(t.id);
-                      setLokTempBygningId(t.byggeplassId ?? t.byggeplass?.id ?? null);
+                    valgtByggeplassId={sjekklisteDetalj?.byggeplass?.id ?? null}
+                    // ORDRE (21): med tegning følger byggeplassen tegningen — byttes ved å velge
+                    // en tegning fra en annen byggeplass, ikke direkte (byggeplassene skjules).
+                    onVelgByggeplass={kanVelgeByggeplassDirekte(sjekklisteDetalj?.drawingId) ? velgByggeplass : undefined}
+                    onVelg={(valgt) => {
+                      setLokTempTegningId(valgt.id);
+                      setLokTempBygningId(valgt.byggeplassId ?? valgt.byggeplass?.id ?? null);
                       setLokTempPosX(null);
                       setLokTempPosY(null);
                       setVisLokByttTegning(false);
@@ -1529,27 +1585,27 @@ export default function SjekklisteUtfylling() {
                 <View className="flex-1">
                   <View className="flex-row items-center justify-between bg-sitedoc-blue px-4 py-3">
                     <Pressable onPress={() => setVisLokasjonModal(false)} hitSlop={8}>
-                      <Text className="text-sm font-medium text-white">Avbryt</Text>
+                      <Text className="text-sm font-medium text-white">{t("handling.avbryt")}</Text>
                     </Pressable>
-                    <Text className="text-sm font-semibold text-white">Lokasjon</Text>
+                    <Text className="text-sm font-semibold text-white">{t("lokasjonVelger.etikett")}</Text>
                     <View style={{ width: 50 }} />
                   </View>
                   <View className="flex-1 items-center justify-center gap-3 px-8">
                     <MapPin size={32} color="#9ca3af" />
                     {tilgjengeligeTegninger.length === 0 ? (
                       <Text className="text-center text-sm text-gray-500">
-                        Prosjektet har ingen tegning eller kart å plassere posisjon på.
+                        {t("lokasjonVelger.ingenTegningEllerKart")}
                       </Text>
                     ) : (
                       <>
                         <Text className="text-center text-sm text-gray-500">
-                          Ingen tegning valgt. Velg en tegning eller kart for å markere posisjon.
+                          {t("lokasjonVelger.ingenTegningValgt")}
                         </Text>
                         <Pressable
                           onPress={() => setVisLokByttTegning(true)}
                           className="mt-2 rounded-lg bg-blue-700 px-6 py-2.5"
                         >
-                          <Text className="text-sm font-medium text-white">Velg tegning</Text>
+                          <Text className="text-sm font-medium text-white">{t("tegningsvelger.velgTegning")}</Text>
                         </Pressable>
                       </>
                     )}
@@ -1589,7 +1645,7 @@ export default function SjekklisteUtfylling() {
                 {bunnfelt.visning === "lagre" ? (
                 <View className="flex-row items-center justify-between border-t border-gray-200 bg-white px-5 py-4">
                   <Pressable onPress={() => setVisLokByttTegning(true)} hitSlop={12} className="rounded-lg px-3 py-2">
-                    <Text className="text-sm font-medium text-blue-600">Bytt tegning</Text>
+                    <Text className="text-sm font-medium text-blue-600">{t("felt.byttTegning")}</Text>
                   </Pressable>
                   <View className="flex-row items-center gap-3">
                   {bunnfelt.brukMinPosisjon && duErHer && (
@@ -1610,10 +1666,14 @@ export default function SjekklisteUtfylling() {
                     onPress={() => {
                       oppdaterMutasjon.mutate({
                         id: id!,
-                        byggeplassId: lokTempBygningId,
+                        // ORDRE (21): med tegning setter serveren byggeplassen fra tegningen;
+                        // prosjekt-tegning (uten byggeplass) sender undefined, ikke null.
+                        byggeplassId: lokTempTegningId ? (lokTempBygningId ?? undefined) : lokTempBygningId,
                         drawingId: lokTempTegningId,
                         positionX: lokTempPosX,
                         positionY: lokTempPosY,
+                        // Tegning valgt → omfang «punkt» (web-paritet); kun bygning → omfang urørt.
+                        ...(lokTempTegningId ? PUNKT_OMFANG : {}),
                       });
                       if (valgtProsjektId && lokTempBygningId && lokTempTegningId) {
                         import("expo-secure-store").then((ss) => {
@@ -1625,7 +1685,7 @@ export default function SjekklisteUtfylling() {
                     }}
                     className="rounded-lg bg-blue-700 px-6 py-2.5"
                   >
-                    <Text className="text-sm font-medium text-white">Lagre</Text>
+                    <Text className="text-sm font-medium text-white">{t("handling.lagre")}</Text>
                   </Pressable>
                   </View>
                 </View>

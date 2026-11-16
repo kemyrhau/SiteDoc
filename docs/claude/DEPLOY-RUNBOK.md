@@ -304,7 +304,7 @@ kommer i forgrunnen og når nettet kommer tilbake, maks hvert 5. min (`OtaProvid
 `OTA_STRUPING_MS` i `services/otaStatus.ts:37`). Den laster ned selv og viser «Ny versjon er klar · Oppdater».
 Trykk **Oppdater** (`Updates.reloadAsync`, `OtaProvider.tsx:72-75`). Ingen varsel? **Mer → «Se etter
 oppdatering»** sjekker med en gang, uten strupingen. Bekreft deretter `<hash> · OTA <id>` under Mer.
-Tving-lukk to–tre ganger (praksis fra 06.09) er nødutvei bare når varselet aldri kommer.
+Kommer verken varselet eller «Se etter oppdatering» med ny hash, er det en feil å melde — ikke tving-lukk appen.
 **Prosjektlista er tellingen.**
 
 ### Steg 6 — før ny rad i OTA-loggen

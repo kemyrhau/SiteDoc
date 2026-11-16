@@ -4,6 +4,7 @@ import {
   velgStandardByggeplass,
   byggeplassErEndret,
   byggeplassPayload,
+  radByggeplassLinje,
 } from "../timerByggeplass";
 
 const A1 = { id: "a1", projectId: "A", name: "Lab 16" };
@@ -86,5 +87,56 @@ describe("byggeplassErEndret / byggeplassPayload (ordre 12 B)", () => {
   it("ny rad sender alltid, også null", () => {
     const endret = byggeplassErEndret({ erNy: true, opprinnelig: null, byggeplassId: null });
     expect(byggeplassPayload({ endret, byggeplassId: null })).toEqual({ byggeplassId: null });
+  });
+});
+
+describe("V22 — «Prosjekt · Byggeplass»-linja på timeraden", () => {
+  const t = (k: string) => k;
+  const linje = (o: Partial<Parameters<typeof radByggeplassLinje>[0]>) =>
+    radByggeplassLinje({
+      radByggeplassId: null,
+      sedelByggeplassId: null,
+      projectId: "A",
+      byggeplasser: alle,
+      kortModus: false,
+      t,
+      ...o,
+    });
+
+  it("🔴 egen byggeplass på raden vises med navn, ikke nedtonet", () => {
+    expect(linje({ radByggeplassId: "a2", sedelByggeplassId: "a1" })).toEqual({
+      tekst: "Lab 17",
+      arvet: false,
+      ingen: false,
+    });
+  });
+
+  it("🔴 arvet fra dagskortet merkes «(fra dagskortet)»", () => {
+    expect(linje({ sedelByggeplassId: "a1" })).toEqual({
+      tekst: "Lab 16 (timer.byggeplass.fraDagskort)",
+      arvet: true,
+      ingen: false,
+    });
+  });
+
+  it("i prosjektkort-modus heter arven «fra dagen» (som mobil)", () => {
+    expect(linje({ sedelByggeplassId: "a1", kortModus: true }).tekst).toBe(
+      "Lab 16 (timer.byggeplass.fraDagen)",
+    );
+  });
+
+  it("🔴 dagskortets byggeplass på et annet prosjekt arves ikke", () => {
+    expect(linje({ sedelByggeplassId: "b1" })).toEqual({
+      tekst: "timer.byggeplass.ingenValgt",
+      arvet: false,
+      ingen: true,
+    });
+  });
+
+  it("🔴 mangler begge → «Ingen byggeplass»", () => {
+    expect(linje({}).ingen).toBe(true);
+    expect(linje({}).tekst).toBe("timer.byggeplass.ingenValgt");
+    expect(linje({ radByggeplassId: "slettet" }).ingen).toBe(true);
+    expect(linje({ sedelByggeplassId: "a1", byggeplasser: undefined }).ingen).toBe(true);
   });
 });

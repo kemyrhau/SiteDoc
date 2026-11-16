@@ -309,3 +309,30 @@ export function byggForsonInputFraValg(
 
   return { oppdateringer, nyeRader, slettinger };
 }
+
+/**
+ * Telefontest B funn 4: nøklene «hele dagen»-knappene setter — alle valgbare slots,
+ * også `slettet_pc` (sedel null). Web og mobil gjør det likt.
+ */
+export function helhetsvalgNokler(slots: readonly OverlappSlot[]): string[] {
+  return slots.filter((s) => s.valgbar).map((s) => s.nokkel);
+}
+
+/**
+ * Telefontest B funn 4: hvilket helhetsvalg som er aktivt. Alle valgbare slots på
+ * samme side (manglende valg = `standard`) → den siden; blandet eller ingen
+ * valgbare slots → null. Generisk over sidetypen (web `sedel`/`forslag`,
+ * mobil `server`/`lokal`).
+ */
+export function aktivtHelhetsvalg<S extends string>(
+  nokler: readonly string[],
+  valg: Readonly<Record<string, S>>,
+  standard: S,
+): S | null {
+  if (nokler.length === 0) return null;
+  const forste = valg[nokler[0]!] ?? standard;
+  for (const k of nokler) {
+    if ((valg[k] ?? standard) !== forste) return null;
+  }
+  return forste;
+}

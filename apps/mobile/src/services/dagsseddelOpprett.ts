@@ -1,6 +1,6 @@
 import { eq, and } from "drizzle-orm";
 import { randomUUID } from "expo-crypto";
-import { dagsseddelLocal } from "../db/schema";
+import { dagsseddelLocal, sheetTimerLocal } from "../db/schema";
 import { hentDatabase } from "../db/database";
 import { hentArbeidsdagTiderLokalt } from "./kalenderKatalog";
 
@@ -21,8 +21,11 @@ import { hentArbeidsdagTiderLokalt } from "./kalenderKatalog";
  *       sender segmentets egne tider og hopper over prefill.
  *
  * Setter ALDRI timer-/maskin-rader — det eier kalleren. Rører ALDRI en
- * eksisterende sedel (idempotent), så midnatt-splitt beholder eksisterende
- * dager urørt.
+ * eksisterende sedel med timer-rader (idempotent), så midnatt-splitt beholder
+ * eksisterende dager urørt. ORDRE 36e pkt. 3: en eksisterende sedel UTEN
+ * timer-rader får ramme og flagg fra de nye argumentene, som en ny draft —
+ * ellers lever et gammelt hode (`sluttTidKilde=system`, `deltVedMidnatt`,
+ * rammen 00:00–12:00) videre i en tom sedel.
  */
 
 type LokalDb = NonNullable<ReturnType<typeof hentDatabase>>;
@@ -60,6 +63,35 @@ export interface FinnEllerOpprettResultat {
   organizationId: string;
 }
 
+/** Datoen har allerede en sedel i et annet firma — avbryt, ikke legg rad på den. */
+export class SedelIAnnetFirmaFeil extends Error {
+  constructor(dato: string) {
+    super(`sedelIAnnetFirma: ${dato} har allerede en dagsseddel i et annet firma`);
+    this.name = "SedelIAnnetFirmaFeil";
+  }
+}
+
+/**
+ * Gate (34): første dato der brukeren har en sedel i et ANNET firma enn `orgId`
+ * (null = ingen). Samme regel som vakten i `finnEllerOpprettDagsseddel`, men uten
+ * å skrive — så en flerdato-skriving (Bekreft dag over midnatt) kan stoppe FØR
+ * første dato er lagret. Sedel uten org ("") er ukjent, ikke annet firma.
+ */
+export function finnSedelIAnnetFirma(
+  db: LokalDb,
+  args: { userId: string; orgId: string; datoer: string[] },
+): string | null {
+  for (const dato of args.datoer) {
+    const s = db
+      .select({ organizationId: dagsseddelLocal.organizationId })
+      .from(dagsseddelLocal)
+      .where(and(eq(dagsseddelLocal.userId, args.userId), eq(dagsseddelLocal.dato, dato)))
+      .all()[0];
+    if (s?.organizationId && s.organizationId !== args.orgId) return dato;
+  }
+  return null;
+}
+
 export function finnEllerOpprettDagsseddel(
   db: LokalDb,
   args: FinnEllerOpprettArgs,
@@ -80,6 +112,36 @@ export function finnEllerOpprettDagsseddel(
     )
     .all()[0];
   if (eksisterende) {
+    // POST (14) punkt 2: oppslaget er på userId+dato (DailySheet @@unique), men
+    // en rad skal aldri havne på en sedel i et annet firma. Eldre sedel uten
+    // org ("") er ukjent, ikke annet firma — slipper gjennom som før.
+    if (eksisterende.organizationId && eksisterende.organizationId !== args.orgId) {
+      throw new SedelIAnnetFirmaFeil(args.dato);
+    }
+    const tom =
+      (eksisterende.status === "draft" || eksisterende.status === "returned") &&
+      db
+        .select({ id: sheetTimerLocal.id })
+        .from(sheetTimerLocal)
+        .where(eq(sheetTimerLocal.dagsseddelId, eksisterende.id))
+        .limit(1)
+        .all().length === 0;
+    if (tom) {
+      const ramme = rammeFraArgs(args);
+      db.update(dagsseddelLocal)
+        .set({
+          startAt: ramme.startAt ?? null,
+          endAt: ramme.endAt ?? null,
+          pauseMin: 0,
+          autoGenerert: args.autoGenerert ?? null,
+          deltVedMidnatt: false,
+          sluttTidKilde: args.sluttTidKilde ?? "bruker",
+          syncStatus: "pending",
+          sistEndretLokalt: Date.now(),
+        })
+        .where(eq(dagsseddelLocal.id, eksisterende.id))
+        .run();
+    }
     return {
       id: eksisterende.id,
       eksisterte: true,
@@ -88,19 +150,7 @@ export function finnEllerOpprettDagsseddel(
     };
   }
 
-  // (c) Arbeidstid-prefill kun for felt som ikke er gitt (manuell inngang).
-  let startAt = args.startAt;
-  let endAt = args.endAt;
-  let pauseMin = args.pauseMin;
-  if (startAt === undefined || endAt === undefined || pauseMin === undefined) {
-    const effektiv = hentArbeidsdagTiderLokalt(
-      args.orgId,
-      new Date(`${args.dato}T00:00:00`),
-    );
-    if (startAt === undefined) startAt = hhmmTilIso(args.dato, effektiv.startTid);
-    if (endAt === undefined) endAt = hhmmTilIso(args.dato, effektiv.sluttTid);
-    if (pauseMin === undefined) pauseMin = effektiv.pauseMin;
-  }
+  const { startAt, endAt, pauseMin } = rammeFraArgs(args);
 
   const id = randomUUID();
   const naa = Date.now();
@@ -135,6 +185,27 @@ export function finnEllerOpprettDagsseddel(
     .run();
 
   return { id, eksisterte: false, status: "draft", organizationId: args.orgId };
+}
+
+/** (c) Arbeidstid-prefill kun for felt som ikke er gitt (manuell inngang). */
+function rammeFraArgs(args: FinnEllerOpprettArgs): {
+  startAt: string | null | undefined;
+  endAt: string | null | undefined;
+  pauseMin: number | undefined;
+} {
+  let startAt = args.startAt;
+  let endAt = args.endAt;
+  let pauseMin = args.pauseMin;
+  if (startAt === undefined || endAt === undefined || pauseMin === undefined) {
+    const effektiv = hentArbeidsdagTiderLokalt(
+      args.orgId,
+      new Date(`${args.dato}T00:00:00`),
+    );
+    if (startAt === undefined) startAt = hhmmTilIso(args.dato, effektiv.startTid);
+    if (endAt === undefined) endAt = hhmmTilIso(args.dato, effektiv.sluttTid);
+    if (pauseMin === undefined) pauseMin = effektiv.pauseMin;
+  }
+  return { startAt, endAt, pauseMin };
 }
 
 /** HH:MM (firmaets standardarbeidstid) + ISO-dato → ISO-timestamp. */

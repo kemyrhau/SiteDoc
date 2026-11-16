@@ -9,10 +9,14 @@ import { verifiserProsjektmedlem, verifiserAdmin } from "../trpc/tilgangskontrol
 import { hentTilgjengeligeMappeIder } from "../services/folder-tilgang";
 import { splittMalebrevPdf } from "../services/pdf-splitting";
 import { resolverSpråk, resolverAlleSpråk, finnArvendeUndermapper } from "../services/folder-spraak";
-import { prosesserDokument } from "../services/ftd-prosessering";
+import {
+  prosesserDokument,
+  genererBlokkerFraLagretFil,
+  utenLeserblokker,
+} from "../services/ftd-prosessering";
 import { embeddDokumentChunks } from "../services/embedding-service";
 import { STRANDET_MS, erStrandet, utenAktivtKjørendeWhere } from "../services/reprosessering";
-import { STOETTEDE_SPRAAK } from "@sitedoc/shared";
+import { STOETTEDE_SPRAAK, INGEN_LESERBLOKKER } from "@sitedoc/shared";
 
 const GYLDIGE_SPRAAK = new Set<string>(STOETTEDE_SPRAAK.map((s) => s.kode));
 
@@ -100,6 +104,8 @@ async function tvingReekstraksjonAv(
  * Reparer et dokumentsett (mappe eller helt prosjekt): full re-ekstraksjon kun
  * der søkbart innhold mangler (0 chunks / `failed`); ellers kun re-embedding av
  * chunks som ikke er ferdig embeddet. Kjørende/ikke-støttede hoppes over.
+ * PDF/DOCX som er søkbart men mangler leser-blokker (DL-1/DL-2) får i tillegg
+ * blokker fra lagret fil (`genererBlokkerFraLagretFil`).
  * Kalleren MÅ ha verifisert tilgang til prosjektet.
  */
 async function reparerDokumentSett(
@@ -107,7 +113,7 @@ async function reparerDokumentSett(
 ): Promise<{ ok: true; full: number; embedding: number }> {
   const dokumenter = await prisma.ftdDocument.findMany({
     where: utenAktivtKjørendeWhere(where),
-    select: { id: true, processingState: true },
+    select: { id: true, processingState: true, filename: true },
   });
   if (dokumenter.length === 0) return { ok: true, full: 0, embedding: 0 };
 
@@ -159,6 +165,15 @@ async function reparerDokumentSett(
   if (embeddingIder.length > 0) {
     kjørMedGrense(embeddingIder, REEKSTRAKSJON_SAMTIDIG, (id) =>
       embeddDokumentChunks(prisma, id),
+    );
+  }
+  const blokkIder = await utenLeserblokker(
+    prisma,
+    dokumenter.filter((d) => d.processingState === "completed" && !fullIder.includes(d.id)),
+  );
+  if (blokkIder.length > 0) {
+    kjørMedGrense(blokkIder, REEKSTRAKSJON_SAMTIDIG, (id) =>
+      genererBlokkerFraLagretFil(prisma, id),
     );
   }
   return { ok: true, full: fullIder.length, embedding: embeddingIder.length };
@@ -346,7 +361,19 @@ export const mappeRouter = router({
     .query(async ({ ctx, input }) => {
       const dok = await ctx.prisma.ftdDocument.findUnique({
         where: { id: input.documentId },
-        select: { projectId: true, folderId: true, filename: true, fileUrl: true, sourceLanguage: true },
+        select: {
+          projectId: true,
+          folderId: true,
+          filename: true,
+          fileUrl: true,
+          sourceLanguage: true,
+          // Klargjøringsstatus for leserens tom-tilstand (DL-1)
+          processingState: true,
+          processingError: true,
+          updatedAt: true,
+          // `sokbar` i «kan ikke vises»-tilstanden når blokkuttrekket ga 0 blokker (DL-2)
+          _count: { select: { chunks: true } },
+        },
       });
       if (!dok) throw new TRPCError({ code: "NOT_FOUND", message: "Dokumentet finnes ikke" });
       await verifiserMappeLesetilgang(ctx.userId, dok.projectId, dok.folderId);
@@ -387,6 +414,10 @@ export const mappeRouter = router({
         sourceLanguage: dok.sourceLanguage,
         projectId: dok.projectId,
         jobber: jobbRader,
+        processingState: dok.processingState,
+        processingError: dok.processingError,
+        antallChunks: dok._count.chunks,
+        updatedAt: dok.updatedAt,
       };
     }),
 
@@ -1114,7 +1145,7 @@ export const mappeRouter = router({
     .mutation(async ({ ctx, input }) => {
       const doc = await ctx.prisma.ftdDocument.findUniqueOrThrow({
         where: { id: input.documentId },
-        select: { id: true, projectId: true, processingState: true },
+        select: { id: true, projectId: true, processingState: true, filename: true },
       });
       await verifiserProsjektmedlem(ctx.userId, doc.projectId);
 
@@ -1141,6 +1172,13 @@ export const mappeRouter = router({
         embeddDokumentChunks(ctx.prisma, doc.id).catch((err) =>
           console.error(`Re-embedding feilet for ${doc.id}:`, err),
         );
+        // PDF/DOCX uten leser-blokker (DL-1/DL-2): lag blokker fra lagret fil i tillegg.
+        if ((await utenLeserblokker(ctx.prisma, [doc])).length > 0) {
+          genererBlokkerFraLagretFil(ctx.prisma, doc.id).catch((err) =>
+            console.error(`Blokkgenerering feilet for ${doc.id}:`, err),
+          );
+          return { ok: true, modus: "blokker" as const };
+        }
         return { ok: true, modus: "embedding" as const };
       }
 
@@ -1204,7 +1242,8 @@ export const mappeRouter = router({
    * «Prosesser alle dokumenter på nytt» og deaktiverer knappen mens noe kjører
    * (overlever sideoppdatering, siden tilstanden utledes av DB-radene, ikke klient-state).
    * `pågår` = dokumenter i pending/processing. `feilet` = røde dokumenter som IKKE kjører
-   * (failed, lagret feilårsak, eller minst én chunk med embedding `failed`). Disjunkte sett.
+   * (failed, lagret feilårsak unntatt markøren `INGEN_LESERBLOKKER`, eller minst én chunk
+   * med embedding `failed`). Disjunkte sett.
    */
   reprosesseringStatus: protectedProcedure
     .input(z.object({ projectId: z.string().uuid() }))
@@ -1229,7 +1268,9 @@ export const mappeRouter = router({
                    (d.processing_state NOT IN ('pending', 'processing')
                      AND (
                        d.processing_state = 'failed'
-                       OR d.processing_error IS NOT NULL
+                       -- markøren (tekstløs PDF/DOCX uten leser-blokker) er ikke en feil (DL-2)
+                       OR (d.processing_error IS NOT NULL
+                         AND d.processing_error IS DISTINCT FROM ${INGEN_LESERBLOKKER})
                        OR EXISTS (
                          SELECT 1 FROM ftd_document_chunks c
                          WHERE c.document_id = d.id AND c.embedding_state = 'failed'

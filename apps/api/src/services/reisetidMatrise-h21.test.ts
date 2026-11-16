@@ -16,6 +16,8 @@ const oppmotestedFindMany = vi.fn();
 const byggeplassFindMany = vi.fn();
 const matriseDeleteMany = vi.fn();
 const matriseUpsert = vi.fn();
+const matriseFindMany = vi.fn();
+const matriseUpdateMany = vi.fn();
 const transaction = vi.fn();
 
 vi.mock("@sitedoc/db", () => ({
@@ -25,6 +27,8 @@ vi.mock("@sitedoc/db", () => ({
     reisetidMatrise: {
       deleteMany: (...a: unknown[]) => matriseDeleteMany(...a),
       upsert: (...a: unknown[]) => matriseUpsert(...a),
+      findMany: (...a: unknown[]) => matriseFindMany(...a),
+      updateMany: (...a: unknown[]) => matriseUpdateMany(...a),
     },
     $transaction: (...a: unknown[]) => transaction(...a),
   },
@@ -49,6 +53,8 @@ beforeEach(() => {
   matriseDeleteMany.mockReset();
   matriseUpsert.mockReset().mockReturnValue(Promise.resolve({}));
   transaction.mockReset().mockResolvedValue([]);
+  matriseFindMany.mockReset().mockResolvedValue([]);
+  matriseUpdateMany.mockReset().mockResolvedValue({ count: 0 });
   hentKjoretidMatrise.mockReset();
 });
 
@@ -80,7 +86,12 @@ describe("recomputeMatrise — H21/C1: ingen prosjekt-arv", () => {
     await recomputeMatrise({ organizationId: ORG });
 
     expect(matriseDeleteMany).toHaveBeenCalledWith({
-      where: { organizationId: ORG, byggeplassId: { in: ["b2"] } },
+      // POST (10): manuelle verdier er unntatt stale-ryddingen.
+      where: {
+        organizationId: ORG,
+        byggeplassId: { in: ["b2"] },
+        NOT: { kilde: { startsWith: "manuell" } },
+      },
     });
   });
 

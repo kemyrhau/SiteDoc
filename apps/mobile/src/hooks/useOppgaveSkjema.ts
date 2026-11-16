@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useMemo, useEffect } from "react";
+import { AppState } from "react-native";
 import { eq } from "drizzle-orm";
 import { randomUUID } from "expo-crypto";
 import { trpc } from "../lib/trpc";
@@ -9,6 +10,7 @@ import { useOpplastingsKo } from "../providers/OpplastingsKoProvider";
 import { samleSignerteVedleggUrler, resolveSignerteUrler } from "../utils/signerteUrler";
 import { avvisningsVarsel, klassifiserLagreFeil, type AvvisningsVarsel } from "../utils/lagreFeil";
 import { useAuth } from "../providers/AuthProvider";
+import { lokalIsoDato } from "../utils/dato";
 import { lagreDokumentSpeil, hentDokumentSpeil } from "../services/dokumentSpeil";
 import { utledDokumentRettighet, beregnLaasteFelter, nesteBildeNr, nummererRepeaterBilder, sammenstillMedLokaleVedlegg, erObjektSynlig, løsKollisjonsVerdi, velgDokumentVisning } from "@sitedoc/shared";
 import { erstattetVedlegg, type AnnoteringsFelter } from "../lib/annoteringLagring";
@@ -351,7 +353,7 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
         ) {
           switch (objekt.type) {
             case "date":
-              autoVerdi = new Date().toISOString().split("T")[0];
+              autoVerdi = lokalIsoDato(new Date()); // lokal dato, ikke UTC (ordre (17) P4)
               break;
             case "date_time":
               autoVerdi = new Date().toISOString();
@@ -562,6 +564,29 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
       lagreInternRef.current();
     }
   }, [erPaaNettet, erInitialisert, synkStatus]);
+
+  // Ventende auto-lagring (debounce 2 s) skrives synkront til SQLite når skjermen
+  // forlates (unmount — også sveip-tilbake/`beforeRemove`, som går utenom
+  // `håndterTilbake`) og når appen går i bakgrunnen. Kun den synkrone delen:
+  // server-synken tas av «nett tilbake»-effekten over eller ved neste åpning
+  // (usynket SQLite leses inn). Ingen setState ved unmount. (C4, Redesign 2026-11-13)
+  useEffect(() => {
+    const flushVentende = (): boolean => {
+      if (!lagreTimerRef.current) return false;
+      clearTimeout(lagreTimerRef.current);
+      lagreTimerRef.current = null;
+      if (!oppgaveId) return false;
+      skrivTilSQLite(oppgaveId, lagreUtvalg(feltVerdierRef.current, basisRef.current).data, false);
+      return true;
+    };
+    const abonnement = AppState.addEventListener("change", (tilstand) => {
+      if (tilstand !== "active" && flushVentende()) settSynkStatus("lokalt_lagret");
+    });
+    return () => {
+      abonnement.remove();
+      flushVentende();
+    };
+  }, [oppgaveId]);
 
   // Oppdater én nøkkel i et felt og planlegg auto-lagring
   const oppdaterFelt = useCallback(

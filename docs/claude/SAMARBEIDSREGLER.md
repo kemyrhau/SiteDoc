@@ -5,8 +5,7 @@
 >
 > **Navn:** *orkestrator* er rollen som tidligere het «cowork» og «kontroll-Claude». *Fabel* er rollen som en
 > periode (18.09–06.10) het «design». Eldre filer, ordrer og historikk bruker de gamle navnene; reglene her
-> gjelder rollen uansett navn. *Renset 2026-10-28: historikk og motstridende eldre ordlyd er fjernet — git
-> har historien.*
+> gjelder rollen uansett navn.
 
 ## § 0 — KENNETHS FORVENTNINGER (2026-09-28)
 
@@ -51,8 +50,8 @@ STATUS-AKTUELT eller historikk, aldri her. *(Kenneth 2026-09-28: «du får kun l
 
 > **Kenneth 2026-10-28:** *«kan vi ordne det slik at du selv relayer til fabel og agenter. sjekker svarene. jeg beholder selv all kommunikasjon med server og bygg»* · *«husk at alle agenter må clear etter hver handling»* · *«se hvordan teamhunt kjører sitt område. jeg ønsker at du gjør det samme»*
 
-1. **Orkestrator starter agentene som side-økter under seg** (`start_session`, slik Jaktleder gjør i Teamhunt), samlet i sidepanel-gruppen «sitedoc»: én økt pr. rolle i sitt faste tre (§ 1). **Der `start_session` ikke finnes i orkestrator-økta:** samme rolle kjøres som subagent (Agent-verktøyet) med absolutte stier til treet.
-2. **Ordren skrives i `relay/inbox-<agent>.md` FØR den sendes** (§ 2). Orkestrator sender nudgen selv (`send_message`, fast form i § 2) og leser leveransen nederst i `relay/inbox-orkestrator.md`.
+1. **Orkestrator starter agentene som side-økter under seg** (`start_session`), samlet i sidepanel-gruppen «sitedoc»: én økt pr. rolle i sitt faste tre (§ 1). **Der `start_session` ikke finnes i orkestrator-økta:** samme rolle kjøres som subagent (Agent-verktøyet) med absolutte stier til treet.
+2. **Ordren skrives i `relay/inbox-<agent>.md` FØR den sendes** (§ 2). Orkestrator sender nudgen selv (`send_message`, fast form i § 2) til økt-ID-en (`local_…`) fra `list_sessions {linked: true}` — aldri via søk på tittel og leser leveransen nederst i `relay/inbox-orkestrator.md`.
 3. **/clear etter hver handling:** når leveransen er lest og gatet, tømmer orkestrator økta (`clear_session`). En subagent er ny pr. oppgave og trenger ingen tømming.
 4. **Kontrollør er alltid en egen økt/subagent**, aldri den som bygde koden.
 5. **Kenneth beholder:** beslutninger (produkt, skjema, rettigheter, prod) og alt mot server og bygg — deploy, OTA, EAS, `sudo`, migreringer, push til `main`. Orkestrator gir kommandoene i `bash`-blokker; ingen agent kjører dem.
@@ -63,13 +62,13 @@ STATUS-AKTUELT eller historikk, aldri her. *(Kenneth 2026-09-28: «du får kun l
 | Agent | Tre | Gjør | Gjør aldri |
 |---|---|---|---|
 | **Orkestrator** | hovedtreet `SiteDoc` (relay, lesing) + `SiteDoc-merge` (merge, docs-commits) | Skriver kode-ordrer, kontrollerer Fabels plan mot kode før den blir ordre, sender alle nudger, leser leveranser, merger og pusher `develop`, fører tavla, STATUS-AKTUELT og [FUNKSJONSENDRINGER.md](FUNKSJONSENDRINGER.md), gir Kenneth deploy-kommandoer | Skriver plan/design · gater kode den selv har skrevet · kjører `sudo`/deploy/OTA/EAS/migrering |
-| **Fabel** | `SiteDoc-design` (Desktop-økt «Fabel») | **Eier planen og designet** — modell, lagdeling, beslutningsliste, specs *(Kenneth-vedtak 2026-10-01)*. Skriver mal-ordrer og gater maler. Pusher egne `docs/design-<emne>`-brancher fra `origin/develop` | Merger · pusher `develop` · gater kode |
+| **Fabel** | `SiteDoc-fabel` (Desktop-økt «Fabel») | **Eier planen og designet** — modell, lagdeling, beslutningsliste, specs *(Kenneth-vedtak 2026-10-01)*. Skriver mal-ordrer og gater maler. Pusher egne docs-brancher fra `origin/develop` | Merger · pusher `develop` · gater kode |
 | **Kontrollør** | `SiteDoc-gate` | Uavhengig gate av kode-leveranser mot faktisk kode før merge. Stående ordre: `relay/inbox-kontrollor.md` | Skriver kode · merger |
 | **Redesign**, **Dokgen** | `SiteDoc-redesign`, `SiteDoc-dokgen` | Koder én oppgave på egen branch, pusher egen branch, leverer med SJEKKPUNKT | Pusher `develop`/`main` · rører filer ordren ikke gir dem |
 | **Kenneth** | — | Beslutninger, server, deploy, OTA, EAS, `sudo`, migreringer, push til `main` | Limer nudger (§ 0b.6) |
 
-- **Agentnavn, aldri mappenavn**, når noen omtales eller adresseres (Kenneth 2026-10-06). `SiteDoc-design` = Fabel, `SiteDoc-gate` = Kontrollør.
-- **Sovende trær** (`SiteDoc-kontrollplan`, `SiteDoc-mal`, `SiteDoc-simulator`) har ingen fast agent. Orkestrator kan starte en rolle der ved behov; den følger reglene for utviklere og får rad på tavla.
+- **Agentnavn, aldri mappenavn**, når noen omtales eller adresseres (Kenneth 2026-10-06). `SiteDoc-fabel` = Fabel, `SiteDoc-gate` = Kontrollør.
+- **Sovende trær** (`SiteDoc-kontrollplan`, `SiteDoc-mal`) har ingen fast agent. Orkestrator kan starte en rolle der ved behov; den følger reglene for utviklere og får rad på tavla.
 - 🔴 **Tavla i [STATUS-AKTUELT § TAVLA](STATUS-AKTUELT.md) er eneste register over hvilke agenter som finnes nå.** Tabellen over sier hva en rolle *har lov til*; tavla sier hvem som er der. Ordre gitt ⇒ rad skrives i samme handling. Merget og ryddet ⇒ raden fjernes. Tavla tømmes aldri ved rundeslutt. Føres fra måling (`git worktree list`, `git log origin/develop`), aldri fra hukommelse. Skriver Kenneth «tavla», svarer orkestrator med aktive rader: agent · branch · alder · venter på · hvem har ballen.
 - **Hvem avgjør ved uenighet:** Fabel — plan, design, tekst, malinnhold. Orkestrator — ordre, merge, rekkefølge, timing, kollisjoner. Kenneth — alt som endrer hva som bygges (innhold, skjema, rettigheter, prod) og grensesaker. **Maks én runde** mellom Fabel og orkestrator; deretter én melding til Kenneth med begge standpunkt, hva hver har målt, og rangert anbefaling.
 - **Orkestrator beslutter arbeidsledelse selv** — hvem, hvilket tre, hvilken rekkefølge, om en ordre skal skrives. Spørsmål til Kenneth er beslutninger i siste kolonne over, ikke arbeidsledelse.
@@ -82,7 +81,7 @@ STATUS-AKTUELT eller historikk, aldri her. *(Kenneth 2026-09-28: «du får kun l
 - 🔴 **Kanalen er HOVEDTREETS kopi med absolutt sti:** `~/Documents/Programmering/SiteDoc/relay/…`. `relay/` er gitignorert (`.gitignore:68`), følger ikke med en branch og synkes ikke mellom trær — skrevet relativt i et annet tre lander det der ingen leser.
 - **Nye poster føyes til NEDERST, bare nederst.** Leseren leser halen.
 - **Leveranser og SJEKKPUNKT** skrives nederst i `relay/inbox-orkestrator.md` med overskrift `## [dato] fra <Agent> → orkestrator: …`.
-- **Beslutninger hører i et repo-dokument, ikke i `relay/`** — særlig «ikke fjern dette»-vedtak. Relay er arbeidssedler.
+- 🔴 **Kenneths beslutning skrives i repo-dokumentet (fil fra DOC-MAP) i samme tur som den tas, ikke bare i `relay/`.** Gammel tekst byttes ut og blir ikke stående ved siden av. Det som ikke er bygget, merkes 🟡 med dato og ordre. Orkestrator viser endringen i sidepanelet før commit, senest før compact. Er beslutningen uklar, stilles et kontrollspørsmål i stedet for en tolkning. *(Kenneth 2026-11-16.)*
 - **Innboksene ryddes av orkestrator:** avsluttede poster til `relay/arkiv/<innboks>-til-<dato>.md` ved prod-deploy eller når en innboks passerer ~300 linjer; øverst står en peker til arkivet.
 - **Endres et filnavn**, føres det gamle navnet som DØDT i innboksen.
 
@@ -182,7 +181,7 @@ Venter et svar, står det under en egen **«KREVER SVAR»**-overskrift; er det i
 | 🔵 | Observasjon uten smerte i dag | BACKLOG |
 
   **Kontrollspørsmål før noe avbryter planen:** *kommer noen ikke videre uten dette?* Merket står i ordrens første linje.
-- **Målestokken er piloten:** [REDESIGN-MASTERPLAN.md](../redesign/REDESIGN-MASTERPLAN.md) § Rekkefølge (50 ansatte, mobil viktigst; funksjonelt produkt først, GDPR og lovkrav så godt vi kan). ⚠️ `docs/redesign/MASTERPLAN.md` har samme tittel og er utdatert — sjekk datoen.
+- **Målestokken er piloten:** [REDESIGN-MASTERPLAN.md](../redesign/REDESIGN-MASTERPLAN.md) § Rekkefølge (50 ansatte, mobil viktigst; funksjonelt produkt først, GDPR og lovkrav så godt vi kan).
 
 ### 🔴 DEPLOY KOSTER KENNETHS TID — MERGE GJØR IKKE (vedtak 2026-09-10)
 
@@ -404,16 +403,26 @@ git push origin HEAD:develop
 ### Rydding etter merge (Opus-livssyklus fase 4)
 
 ```sh
-git -C <agentens tre> checkout --detach origin/develop
+git -C ~/Documents/Programmering/SiteDoc-merge worktree remove <agentens tre>   # nekter ved endringer — da: meld
 git -C ~/Documents/Programmering/SiteDoc-merge branch -d <branch>     # -d, aldri -D
 git -C ~/Documents/Programmering/SiteDoc-merge push origin --delete <branch>
 ```
 
-- 🔴 **Mål `git worktree list` og tavla før rydding; rydd aldri et tre en agent står i**, og slett aldri `SiteDoc-merge`.
+- 🔴 **Treet fjernes når leveransen er merget og agenten ikke har mer i det** (Kenneth-vedtak 2026-11-11; før ble trær
+  bare satt detached og hopet seg opp — 34 trær 11.11). Faste rolletrær står: `SiteDoc-merge`, `SiteDoc-gate`,
+  `SiteDoc-fabel`. Neste ordre får et nytt tre fra `origin/develop`, ikke et gjenbrukt.
+- **App-trær** (`SiteDoc/.claude/worktrees/<navn>-xxxxxx`): arkiver økten først (Kenneth godkjenner) — arkivering
+  fjerner IKKE treet (målt 11.11), så kjør `worktree remove` etterpå.
+- `worktree remove` kan melde «Directory not empty» når Finder har mappa åpen: git har da meldt ut treet. Slett resten
+  først når `.git`-fila i mappa peker til en gitdir som ikke finnes.
+- **Plass måles med `df` før/etter, ikke `du` per tre** — pnpm hardlenker `node_modules`, så `du` teller samme fil i
+  hvert tre (20 trær «60 GB» frigjorde 9 GB, 11.11).
+- 🔴 **Mål `git worktree list` og tavla før rydding; rydd aldri et tre en agent står i** (`lsof -d cwd`), og slett aldri `SiteDoc-merge`.
 - Før du berger noe som ser tapt ut: `git log -S` og `merge-base --is-ancestor` — en «tapt» leveranse er oftest merget
   under et annet navn.
 - **Inventar ved hver lukking:** `git -C ~/Documents/Programmering/SiteDoc worktree list` + `git status --porcelain` og
-  `git stash list` i hvert tre. Et tre, en fil eller en stash ingen vet om, er et funn.
+  `git stash list` i hvert tre. Et tre, en fil eller en stash ingen vet om, er et funn. Et merget tre uten agent på
+  tavla ryddes.
 - **Hver økt som produserer en fil, får en git-vei for den i ordren** (docs-branch). En rapport som ikke committes,
   finnes ikke.
 
@@ -472,7 +481,6 @@ En `not.toMatch`/`not.toContain` som aldri har vært rød, er en tillatelse, ikk
 ### Diverse
 
 - **Aldri commit** `tests/e2e/*-state.json` (Playwright storage-state med session-cookies).
-- **Sandkasse:** en økt i Linux-sandkasse uten Mac-stiene ser alle trær som `prunable` — bedøm ikke worktree-tilstand derfra.
 
 ## § 7 — Exit-spørsmålene (ved avsluttet oppdrag)
 

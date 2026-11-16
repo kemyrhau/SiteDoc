@@ -8,8 +8,14 @@ import {
   sheetMachineLocal,
   sheetTimerLocal,
 } from "../db/schema";
-import { finnEllerOpprettDagsseddel } from "./dagsseddelOpprett";
+import { finnEllerOpprettDagsseddel, finnSedelIAnnetFirma } from "./dagsseddelOpprett";
 import { erReiseLonnsartLokalt } from "./timerKatalog";
+import { maskinerOverRad, skrivKobledeMaskiner, type NyMaskin } from "./kobledeMaskiner";
+import {
+  SIST_BRUKTE_MASKINER_ANTALL,
+  sisteUnikeMaskiner,
+  type ManuellReiseSpor,
+} from "@sitedoc/shared";
 
 /* ============================================================================
  *  «+» rett til timer-raden (ORDRE 17, 2026-11-06)
@@ -78,6 +84,79 @@ export function sistBrukteRadvalg(
   };
 }
 
+/** Prosjekt + byggeplass som foreslås for ny rad (ORDRE 29 pkt 1). */
+/**
+ * ORDRE 29: brukerens sist brukte maskiner i firmaet (nyeste først, unike, N = 5) —
+ * løftes øverst i maskinvelgeren. Kun EGNE sedler i firmaet; lokal SQLite, virker offline.
+ */
+export function sistBrukteMaskiner(
+  db: LokalDb,
+  userId: string,
+  organizationId: string,
+  n: number = SIST_BRUKTE_MASKINER_ANTALL,
+): string[] {
+  const rader = db
+    .select({ vehicleId: sheetMachineLocal.vehicleId })
+    .from(sheetMachineLocal)
+    .innerJoin(dagsseddelLocal, eq(sheetMachineLocal.dagsseddelId, dagsseddelLocal.id))
+    .where(and(eq(dagsseddelLocal.userId, userId), eq(dagsseddelLocal.organizationId, organizationId)))
+    .orderBy(desc(dagsseddelLocal.dato), desc(sheetMachineLocal.sistEndretLokalt))
+    .limit(50)
+    .all();
+  return sisteUnikeMaskiner(
+    rader.map((r) => r.vehicleId),
+    n,
+  );
+}
+
+export interface StedValg {
+  projectId: string;
+  byggeplassId: string | null;
+}
+
+interface StedKilder {
+  /** Toppbarens prosjekt + byggeplass (innlogget kontekst). */
+  innlogget: StedValg | null;
+  /** Geofence-treff (`useGeoProsjektForslag`). */
+  gps: StedValg | null;
+  /** Firmaets byggeplasser — kun byggeplass på radens prosjekt er gyldig. */
+  byggeplasser: readonly { id: string; projectId: string }[];
+}
+
+/**
+ * Byggeplass for ny rad på valgt prosjekt: innlogget byggeplass → GPS-treff →
+ * null (arv fra dagskortet). En byggeplass på et annet prosjekt forkastes.
+ * Speiler webs `velgStandardByggeplass` (toppbaren vinner når den er gyldig).
+ */
+export function byggeplassForNyRad(projectId: string, k: StedKilder): string | null {
+  const gyldig = (v: StedValg | null) =>
+    v?.projectId === projectId &&
+    !!v.byggeplassId &&
+    k.byggeplasser.some((b) => b.id === v.byggeplassId && b.projectId === projectId)
+      ? v.byggeplassId
+      : null;
+  return gyldig(k.innlogget) ?? gyldig(k.gps);
+}
+
+/**
+ * «+» uten prosjektliste (Kenneth 2026-11-06: «Jeg er innlogget på prosjekt/
+ * byggeplass -> Jeg trykker + for timer -> timer foreslås registrert på denne
+ * byggeplass»): innlogget prosjekt i firmaets liste → rett til raden; ellers
+ * eneste prosjekt; ellers null = vis lista (GPS-forslag forhåndsvalgt).
+ */
+export function startvalgForNyRad(
+  prosjektIder: readonly string[],
+  k: StedKilder,
+): StedValg | null {
+  const projectId =
+    k.innlogget && prosjektIder.includes(k.innlogget.projectId)
+      ? k.innlogget.projectId
+      : prosjektIder.length === 1
+        ? prosjektIder[0]!
+        : null;
+  return projectId ? { projectId, byggeplassId: byggeplassForNyRad(projectId, k) } : null;
+}
+
 export interface DagForDato {
   id: string;
   status: string;
@@ -99,12 +178,8 @@ export function erDagLaast(dag: DagForDato | null): boolean {
   return dag?.status === "sent" || dag?.status === "accepted";
 }
 
-/** P1 (maskin-i-rad): valgfri maskin fra timerrad-modalens maskin-seksjon. */
-export type NyMaskin = {
-  vehicleId: string;
-  mengde: number | null;
-  enhet: string | null;
-};
+/** NY BESLUTNING maskinkobling (2026-11-12): flere maskiner pr. rad, egne timer. */
+export type { NyMaskin } from "./kobledeMaskiner";
 
 export interface NyRad {
   projectId: string;
@@ -117,7 +192,14 @@ export interface NyRad {
   tilTid: string | null;
   beskrivelse: string | null;
   pauseMin: number;
-  maskin: NyMaskin | null;
+  /** 0, 1 eller flere koblede maskiner, hver med egne timer ≤ radens. */
+  maskiner: NyMaskin[];
+  /**
+   * Ordre (9): terskel/bånd-sporet fra «+ Reise» (`klassifiserManuellReise`).
+   * Satt → erReise/reiseKilde/avstand/oppmøtested/regel herfra (under terskel:
+   * erReise false på standard ordinær art). Udefinert → utledes fra lønnsarten.
+   */
+  reiseSpor?: ManuellReiseSpor;
 }
 
 /** Skriv én timer-rad (+ evt. maskin) på en sedel. Delt av sedelen og «+». */
@@ -127,6 +209,11 @@ export function settInnTimerRad(
   organizationId: string,
   rad: NyRad,
 ): string {
+  // NY BESLUTNING maskinkobling: maskin over radens timer avvises FØR noe
+  // skrives (rad-modalen sier fra først; dette er siste vern).
+  if (maskinerOverRad(rad.timer, rad.maskiner).length > 0) {
+    throw new Error("maskinOverRad: maskintimer over radens timer");
+  }
   // Del B pkt 1: fang timer-radens id så maskin-raden kan stemples med den.
   const timerRadId = randomUUID();
   // B4 (L2-B, valg A): arbeideren satte tiden selv → tidKilde="manuell".
@@ -134,7 +221,10 @@ export function settInnTimerRad(
   // M3). En manuell reise-rad får reiseKilde="manuell", reiseRetning/avstand/
   // kjøretid/regel null (retning er informasjon, ikke lønn — C2 krever retning
   // KUN for matrise-kilde). Ikke-reise → erReise=false, ingen reise-spor.
-  const manuellErReise = erReiseLonnsartLokalt(organizationId, rad.lonnsartId);
+  const spor = rad.reiseSpor;
+  const manuellErReise = spor
+    ? spor.erReise
+    : erReiseLonnsartLokalt(organizationId, rad.lonnsartId);
   db.insert(sheetTimerLocal)
     .values({
       id: timerRadId,
@@ -153,44 +243,52 @@ export function settInnTimerRad(
       // V20 PK2: radens matpause-bærer (avkrysningen = pauseMin > 0).
       pauseMin: rad.pauseMin,
       erReise: manuellErReise,
-      reiseKilde: manuellErReise ? "manuell" : null,
+      reiseKilde: spor ? spor.reiseKilde : manuellErReise ? "manuell" : null,
+      // Ordre (9): ikke-reise-rad bærer aldri avstand/oppmøtested (C2 + DB-CHECK);
+      // regelen lagres på begge så klassifiseringen kan etterprøves.
+      reiseAvstandM: spor?.erReise ? spor.reiseAvstandM : null,
+      reiseOppmotestedId: spor?.erReise ? spor.reiseOppmotestedId : null,
+      // POST (13) L2: reise-kortet regner retning og kjøretid — lagres på
+      // reise-rader (C2 tillater dem på manuell; overføring krever dem).
+      reiseRetning: spor?.erReise ? spor.reiseRetning : null,
+      reiseKjoretidMin: spor?.erReise ? spor.reiseKjoretidMin : null,
+      reiseRegel: spor ? JSON.stringify(spor.reiseRegel) : null,
       tidKilde: "manuell",
       sistEndretLokalt: Date.now(),
     })
     .run();
-  // P1 (maskin-i-rad): dual-innsetting. Er maskin valgt, skriv en sheet_machine-
-  // rad med timer = timerradens antall (herav-semantikk) i SAMME bucket
-  // (projectId + ECO) og med samme fra/til. Del B pkt 1: sheetTimerId = timer-
-  // radens id, så rediger-inngangen finner igjen «radens» maskin.
-  if (rad.maskin) {
-    db.insert(sheetMachineLocal)
-      .values({
-        id: randomUUID(),
-        dagsseddelId: sheetId,
-        sheetTimerId: timerRadId,
+  // NY BESLUTNING maskinkobling: hver maskin kobles til raden (sheetTimerId)
+  // med EGNE timer (≤ radens — rad-modalen avviser ellers). Samme skrivevei
+  // som rediger-banen (`skrivKobledeMaskiner`).
+  if (rad.maskiner.length > 0) {
+    skrivKobledeMaskiner(
+      db,
+      sheetId,
+      timerRadId,
+      {
         projectId: rad.projectId,
+        byggeplassId: rad.byggeplassId,
         externalCostObjectId: rad.externalCostObjectId,
-        vehicleId: rad.maskin.vehicleId,
         timer: rad.timer,
-        mengde: rad.maskin.mengde,
-        enhet: rad.maskin.enhet,
         fraTid: rad.fraTid,
         tilTid: rad.tilTid,
-        sistEndretLokalt: Date.now(),
-      })
-      .run();
+      },
+      { linjer: rad.maskiner.map((m) => ({ ...m, id: null })), fjernede: [] },
+    );
   }
   return timerRadId;
 }
 
 export type LagreNyRadResultat =
   | { ok: true; sheetId: string; eksisterte: boolean }
-  | { ok: false; grunn: "dagLaast"; sheetId: string };
+  | { ok: false; grunn: "dagLaast"; sheetId: string }
+  /** Gate (34): datoen har sedel i et annet firma — ingenting er skrevet. */
+  | { ok: false; grunn: "sedelIAnnetFirma"; sheetId: null };
 
 /**
  * Lagre fra opprettelsesmodus (§ 3.1): finn-eller-opprett sedelen for datoen,
- * så skriv raden. Sedelens aktivitet = radens (§ 4.3); primærprosjekt = radens
- * prosjekt på en NY sedel. En sendt/akseptert dag får ingen rad.
+ * så skriv raden. Sedelens aktivitet = radens (§ 4.3); primærprosjekt og
+ * byggeplass = radens på en NY sedel. En sendt/akseptert dag får ingen rad.
  */
 export function lagreNyTimerRad(
   db: LokalDb,
@@ -198,13 +296,23 @@ export function lagreNyTimerRad(
 ): LagreNyRadResultat {
   const fra = finnDagForDato(db, args.userId, args.dato);
   if (fra && erDagLaast(fra)) return { ok: false, grunn: "dagLaast", sheetId: fra.id };
+  // Maskin over radens timer: avvis før en tom sedel opprettes.
+  if (maskinerOverRad(args.rad.timer, args.rad.maskiner).length > 0) {
+    throw new Error("maskinOverRad: maskintimer over radens timer");
+  }
+  // Gate (34): sjekkes før sedelen finnes/opprettes — ingenting skrives.
+  if (finnSedelIAnnetFirma(db, { userId: args.userId, orgId: args.organizationId, datoer: [args.dato] })) {
+    return { ok: false, grunn: "sedelIAnnetFirma", sheetId: null };
+  }
   const sedel = finnEllerOpprettDagsseddel(db, {
     userId: args.userId,
     orgId: args.organizationId,
     dato: args.dato,
     prosjektId: args.rad.projectId,
     aktivitetId: args.rad.aktivitetId,
-    byggeplassId: null,
+    // ORDRE 29: NY sedel arver radens byggeplass (som primærprosjektet);
+    // en eksisterende sedel røres ikke.
+    byggeplassId: args.rad.byggeplassId,
     beskrivelse: null,
   });
   settInnTimerRad(db, sedel.id, args.organizationId, args.rad);

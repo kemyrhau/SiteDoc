@@ -1,4 +1,4 @@
-import { eq, and, gt, gte, lte, inArray } from "drizzle-orm";
+import { eq, and, gt, gte, lte, inArray, isNull, isNotNull } from "drizzle-orm";
 import { finnSedlerÅSlette } from "@sitedoc/shared";
 import { hentDatabase } from "../db/database";
 import {
@@ -11,9 +11,13 @@ import {
   sheetUtleggVedleggLocal,
   slettedeRaderLocal,
   vareforbrukLocal,
+  arbeidsdagLocal,
 } from "../db/schema";
 import type { trpc } from "../lib/trpc";
 import i18n from "../lib/i18n";
+import { varsleKoen } from "../lib/koTrigger";
+import { leggTilbakeUsendteLinjer, taLokaltOyeblikksbilde, type LokaltOyeblikksbilde } from "../lib/konfliktWebUsendte";
+import type { LokalDb } from "./dagsforslagInput";
 
 /**
  * LAG 2 (TILLEGG 1) — reise-/tid-spor på en pull-rad, ALLE valgfrie. En GAMMEL
@@ -28,7 +32,7 @@ type SporFelter = {
   reiseOppmotestedId?: string | null;
   reiseKjoretidMin?: number | null;
   reiseAvstandM?: number | null;
-  reiseKilde?: "matrise" | "manuell" | null;
+  reiseKilde?: "matrise" | "manuell" | "overforing" | null;
   reiseRegel?: unknown;
   tidKilde?: "stempel" | "utledet" | "manuell" | null;
   // V19.9.1 (B'-2): radversjonen fra pull (`SheetTimer.updatedAt`, ISO-ms). Mangler
@@ -41,7 +45,26 @@ type SporFelter = {
  * rader (serverraden er nyere). Speiles fra `hentMedId` etter at den synkrone
  * `anvendSvar` har kjørt. `naa` = sedelens nye `sistSynkronisert` (samme stempel).
  */
+/** Prosjektkortets felt på tillegg/utlegg (2026-11-13). null = arv. */
+type KortFelt = { byggeplassId: string | null; externalCostObjectId: string | null };
+
+/**
+ * Kortfeltene fra et pull-svar: serverens verdi når feltet FINNES (også null),
+ * ellers den lokale (gammel server utelater feltene — mangler ≠ null).
+ */
+export function kortFeltFraServer(server: Partial<KortFelt>, lokal: KortFelt | undefined): KortFelt {
+  return {
+    byggeplassId: server.byggeplassId !== undefined ? server.byggeplassId : (lokal?.byggeplassId ?? null),
+    externalCostObjectId:
+      server.externalCostObjectId !== undefined
+        ? server.externalCostObjectId
+        : (lokal?.externalCostObjectId ?? null),
+  };
+}
+
 type HoppetSpeiling = { sheetId: string; hoppedeIder: string[]; naa: number };
+/** ORDRE 36e: per sedel-id — `sistEndretLokalt` og tombstone-id-ene payloaden bar. */
+type LestVedBygg = { endret: Map<string, number>; tombstoneIder: Map<string, string[]> };
 
 /** Rå timer-rad fra `hentMedId` (full Prisma-rad). Smal cast FØR bruk (unngår TS2589). */
 type RaaTimerRad = {
@@ -61,7 +84,7 @@ type RaaTimerRad = {
   reiseOppmotestedId?: string | null;
   reiseKjoretidMin?: number | null;
   reiseAvstandM?: number | null;
-  reiseKilde?: "matrise" | "manuell" | null;
+  reiseKilde?: "matrise" | "manuell" | "overforing" | null;
   reiseRegel?: unknown;
   tidKilde?: "stempel" | "utledet" | "manuell" | null;
   updatedAt: string | Date;
@@ -152,15 +175,19 @@ export function tellPending(userId: string): number {
 /**
  * Antall conflict dagssedler — eksponeres via TimerSyncProvider for badge.
  */
-export function tellConflict(userId: string): number {
+export function tellConflict(userId: string, orgId?: string | null): number {
   const db = hentDatabase();
   if (!db) return 0;
+  // POST (14): med orgId → bare valgt firma (statusbar/Mer-merke). Uten →
+  // firma-bredt; brukes kun av TimerSyncProvider som endringssignal.
+  if (orgId === null) return 0;
   const rader = db
     .select({ id: dagsseddelLocal.id })
     .from(dagsseddelLocal)
     .where(
       and(
         eq(dagsseddelLocal.userId, userId),
+        orgId ? eq(dagsseddelLocal.organizationId, orgId) : undefined,
         eq(dagsseddelLocal.syncStatus, "conflict"),
       ),
     )
@@ -172,15 +199,19 @@ export function tellConflict(userId: string): number {
  * Antall avviste dagssedler (SYNC-1) — permanent avvist av server, terminal.
  * Eksponeres via TimerSyncProvider for rødt statusbar-varsel.
  */
-export function tellAvvist(userId: string): number {
+export function tellAvvist(userId: string, orgId?: string | null): number {
   const db = hentDatabase();
   if (!db) return 0;
+  // POST (14): med orgId → bare valgt firma (statusbar/Mer-merke). Uten →
+  // firma-bredt; brukes kun av TimerSyncProvider som endringssignal.
+  if (orgId === null) return 0;
   const rader = db
     .select({ id: dagsseddelLocal.id })
     .from(dagsseddelLocal)
     .where(
       and(
         eq(dagsseddelLocal.userId, userId),
+        orgId ? eq(dagsseddelLocal.organizationId, orgId) : undefined,
         eq(dagsseddelLocal.syncStatus, "avvist"),
       ),
     )
@@ -266,6 +297,114 @@ export async function syncTimer(
   // Utelatt (eldre kall) → serveren faller tilbake til brukerens medlemskap (bakoverkompat).
   firmaId?: string,
 ): Promise<SyncResultat> {
+  return kjorTimerSync(klient, userId, tidsavbruddMs, firmaId, null);
+}
+
+/**
+ * 36c-kort-3: push ÉN sedel nå (samme push-vei som `syncTimer`, uten pull) og
+ * si om den ble `synced`. «Endre kort» trenger server-sedelens timer-rad på
+ * målprosjektet før synkede varer kan flyttes (`vareforbruk.oppdater`).
+ * Sedelen må være `pending`; ellers sendes ingenting og svaret er dagens status.
+ */
+export async function pushEnSedel(
+  klient: TrpcKlient,
+  userId: string,
+  sheetId: string,
+  firmaId?: string,
+  tidsavbruddMs: number = SYNK_NETT_TIDSAVBRUDD_MS,
+): Promise<boolean> {
+  await kjorTimerSync(klient, userId, tidsavbruddMs, firmaId, sheetId);
+  const db = hentDatabase();
+  if (!db) return false;
+  const sedel = db.select().from(dagsseddelLocal).where(eq(dagsseddelLocal.id, sheetId)).all()[0];
+  return sedel?.syncStatus === "synced";
+}
+
+/**
+ * F1 (2026-11-13) — redning av foreldreløse utlegg. Før F1 re-nøklet ikke
+ * `forsonSedelIdentitet` `sheet_utlegg_local`; utlegg ble stående på en sedel-id
+ * som ikke lenger har noe hode, og ble aldri pushet.
+ *
+ * Koblingen gammel id → ny id lagres ingen steder. Den ENESTE gjenværende sporet
+ * er `arbeidsdag_local.generert_dagsseddel_id` (ble heller ikke re-nøklet før F1):
+ * den peker fortsatt på gammel id og bærer (userId, dato). Server har én sedel pr.
+ * (userId, dato) (`DailySheet @@unique([userId, dato])`), så den lokale sedelen på
+ * samme (userId, dato) er målet. Flytter KUN når koblingen er entydig (én dato,
+ * nøyaktig én lokal sedel); ellers står utlegget urørt — ingen gjetting.
+ * Rekkevidde: GPS-dager (manuell dag setter ikke pekeren), utlegg på dagens
+ * start-sedel, og arbeidsdager som ikke er ryddet (14 døgn, `RYDD_ETTER_MS`).
+ * En synket mål-sedel settes `pending` så utlegget pushes (og pull ikke erstatter
+ * radene med serverens sett). Returnerer antall flyttede utlegg.
+ */
+export function reddForeldreloseUtlegg(db: LokalDb, userId: string, naa: number): number {
+  const sedelIder = new Set(
+    db.select({ id: dagsseddelLocal.id }).from(dagsseddelLocal).all().map((r) => r.id),
+  );
+  const foreldrelose = [
+    ...new Set(
+      db
+        .select({ dagsseddelId: sheetUtleggLocal.dagsseddelId })
+        .from(sheetUtleggLocal)
+        .all()
+        .map((r) => r.dagsseddelId),
+    ),
+  ].filter((id) => !sedelIder.has(id));
+
+  let flyttet = 0;
+  for (const gammelId of foreldrelose) {
+    const dager = db
+      .select({ dato: arbeidsdagLocal.dato })
+      .from(arbeidsdagLocal)
+      .where(
+        and(
+          eq(arbeidsdagLocal.generertDagsseddelId, gammelId),
+          eq(arbeidsdagLocal.userId, userId),
+        ),
+      )
+      .all();
+    const datoer = [...new Set(dager.map((d) => d.dato))];
+    if (datoer.length !== 1) continue;
+    const kandidater = db
+      .select({ id: dagsseddelLocal.id, syncStatus: dagsseddelLocal.syncStatus })
+      .from(dagsseddelLocal)
+      .where(and(eq(dagsseddelLocal.userId, userId), eq(dagsseddelLocal.dato, datoer[0])))
+      .all();
+    if (kandidater.length !== 1) continue;
+    const maal = kandidater[0];
+    const antall = db
+      .select({ id: sheetUtleggLocal.id })
+      .from(sheetUtleggLocal)
+      .where(eq(sheetUtleggLocal.dagsseddelId, gammelId))
+      .all().length;
+    db.transaction((tx) => {
+      tx.update(sheetUtleggLocal)
+        .set({ dagsseddelId: maal.id })
+        .where(eq(sheetUtleggLocal.dagsseddelId, gammelId))
+        .run();
+      tx.update(arbeidsdagLocal)
+        .set({ generertDagsseddelId: maal.id })
+        .where(eq(arbeidsdagLocal.generertDagsseddelId, gammelId))
+        .run();
+      if (maal.syncStatus === "synced") {
+        tx.update(dagsseddelLocal)
+          .set({ syncStatus: "pending", sistEndretLokalt: naa })
+          .where(eq(dagsseddelLocal.id, maal.id))
+          .run();
+      }
+    });
+    flyttet += antall;
+  }
+  return flyttet;
+}
+
+/** Felles kropp. `kunSedelId` ≠ null: push bare den sedelen, og ingen pull. */
+async function kjorTimerSync(
+  klient: TrpcKlient,
+  userId: string,
+  tidsavbruddMs: number,
+  firmaId: string | undefined,
+  kunSedelId: string | null,
+): Promise<SyncResultat> {
   const db = hentDatabase();
   if (!db) {
     return { push: { ok: 0, merged: 0, conflict: 0, avvist: 0, feilet: 0 }, pull: { mottatt: 0, slettet: 0 } };
@@ -275,6 +414,9 @@ export async function syncTimer(
     push: { ok: 0, merged: 0, conflict: 0, avvist: 0, feilet: 0 },
     pull: { mottatt: 0, slettet: 0 },
   };
+  // ORDRE 36e (pkt. 1c): kjøringens start — pull-vakten under beskytter timer-
+  // rader skrevet MENS denne kjøringen pågår.
+  const kjoringStartet = Date.now();
 
   // Forson lokal sedel-identitet mot server-identiteten (2026-07-11).
   // Synk-identitet er clientUuid = lokal `id`. Når en lokal sedel har en ANNEN
@@ -285,43 +427,61 @@ export async function syncTimer(
   // dublett-hodet slettes. Brukes av M1 (conflict) og M2 (pull-guard).
   const forsonSedelIdentitet = (fraId: string, tilId: string): void => {
     if (fraId === tilId) return;
-    // Flytt arbeiderens rader til mål-identiteten. Rad-id er globalt unike
-    // (uuid) → ingen PK-kollisjon med målets egne rader.
-    db.update(sheetTimerLocal)
-      .set({ dagsseddelId: tilId })
-      .where(eq(sheetTimerLocal.dagsseddelId, fraId))
-      .run();
-    db.update(sheetTilleggLocal)
-      .set({ dagsseddelId: tilId })
-      .where(eq(sheetTilleggLocal.dagsseddelId, fraId))
-      .run();
-    db.update(sheetMachineLocal)
-      .set({ dagsseddelId: tilId })
-      .where(eq(sheetMachineLocal.dagsseddelId, fraId))
-      .run();
-    // S-A: flytt tombstones med, så slette-intensjonen følger den re-nøklede
-    // sedelen og propagerer på neste push (i stedet for å bli foreldreløs).
-    db.update(slettedeRaderLocal)
-      .set({ dagsseddelId: tilId })
-      .where(eq(slettedeRaderLocal.dagsseddelId, fraId))
-      .run();
-    // Prosjektkort L3: vareforbruk ført fra kortet følger sedelen (sendes med dagsseddelId).
-    db.update(vareforbrukLocal).set({ sheetId: tilId }).where(eq(vareforbrukLocal.sheetId, fraId)).run();
-    const maalFinnes = db
-      .select({ id: dagsseddelLocal.id })
-      .from(dagsseddelLocal)
-      .where(eq(dagsseddelLocal.id, tilId))
-      .all()[0];
-    if (maalFinnes) {
-      // Mål-sedelen finnes: radene er flyttet over — fjern dublett-hodet.
-      db.delete(dagsseddelLocal).where(eq(dagsseddelLocal.id, fraId)).run();
-    } else {
-      // Re-nøkle sedelhodet til mål-identiteten (behold alle felt).
-      db.update(dagsseddelLocal)
-        .set({ id: tilId })
-        .where(eq(dagsseddelLocal.id, fraId))
+    // F1 (2026-11-13): alt i ÉN transaksjon — en avbrutt forsoning skal aldri
+    // etterlate halvparten av radene på en id som ikke lenger har noe hode.
+    db.transaction((tx) => {
+      // Flytt arbeiderens rader til mål-identiteten. Rad-id er globalt unike
+      // (uuid) → ingen PK-kollisjon med målets egne rader.
+      tx.update(sheetTimerLocal)
+        .set({ dagsseddelId: tilId })
+        .where(eq(sheetTimerLocal.dagsseddelId, fraId))
         .run();
-    }
+      tx.update(sheetTilleggLocal)
+        .set({ dagsseddelId: tilId })
+        .where(eq(sheetTilleggLocal.dagsseddelId, fraId))
+        .run();
+      tx.update(sheetMachineLocal)
+        .set({ dagsseddelId: tilId })
+        .where(eq(sheetMachineLocal.dagsseddelId, fraId))
+        .run();
+      // S-A: flytt tombstones med, så slette-intensjonen følger den re-nøklede
+      // sedelen og propagerer på neste push (i stedet for å bli foreldreløs).
+      tx.update(slettedeRaderLocal)
+        .set({ dagsseddelId: tilId })
+        .where(eq(slettedeRaderLocal.dagsseddelId, fraId))
+        .run();
+      // Prosjektkort L3: vareforbruk ført fra kortet følger sedelen (sendes med dagsseddelId).
+      tx.update(vareforbrukLocal).set({ sheetId: tilId }).where(eq(vareforbrukLocal.sheetId, fraId)).run();
+      // F1 (2026-11-13): utlegg følger sedelen. Manglet før → utlegg ble stående
+      // på gammel id og ble aldri pushet (datatap). Vedlegg (`sheet_utlegg_vedlegg_local`,
+      // `sheet_tillegg_vedlegg_local`) og opplastingskøen peker på RAD-id, som ikke
+      // endres her → de følger raden uten egen omnøkling.
+      tx.update(sheetUtleggLocal)
+        .set({ dagsseddelId: tilId })
+        .where(eq(sheetUtleggLocal.dagsseddelId, fraId))
+        .run();
+      // F1: arbeidsdagens (svake) peker til sedelen den genererte følger også, så
+      // koblingen dag → sedel ikke peker på en id som ikke finnes.
+      tx.update(arbeidsdagLocal)
+        .set({ generertDagsseddelId: tilId })
+        .where(eq(arbeidsdagLocal.generertDagsseddelId, fraId))
+        .run();
+      const maalFinnes = tx
+        .select({ id: dagsseddelLocal.id })
+        .from(dagsseddelLocal)
+        .where(eq(dagsseddelLocal.id, tilId))
+        .all()[0];
+      if (maalFinnes) {
+        // Mål-sedelen finnes: radene er flyttet over — fjern dublett-hodet.
+        tx.delete(dagsseddelLocal).where(eq(dagsseddelLocal.id, fraId)).run();
+      } else {
+        // Re-nøkle sedelhodet til mål-identiteten (behold alle felt).
+        tx.update(dagsseddelLocal)
+          .set({ id: tilId })
+          .where(eq(dagsseddelLocal.id, fraId))
+          .run();
+      }
+    });
   };
 
   // V19.9.8 (B'-4) — etter push-`ok`/`conflict-overlapp`: skriv radversjonen
@@ -370,10 +530,16 @@ export async function syncTimer(
   // normal batch-send og per-item-fallback (gift-isolering ved permanent feil).
   // `byggetVed` = tidspunktet payloaden ble lest (før mutate) — styrer rad-
   // restemplingen (V19.9.8), så en mid-push-redigering ikke stemples som synket.
+  // ORDRE 36e (pkt. 1): `lest` = hva payloaden faktisk bar — sedelens
+  // `sistEndretLokalt` slik den ble lest, og tombstone-id-ene som ble sendt. En
+  // sedel endret MENS pushen var i luften (f.eks. «Bekreft dag») forblir pending,
+  // ellers erstatter pullen i samme kjøring radene med serverens og nye rader
+  // forsvinner stille. Sammenligner stempel mot stempel (ingen klokke-avhengighet).
   const anvendSvar = (
     svar: Awaited<ReturnType<typeof klient.timer.dagsseddel.syncBatch.mutate>>,
     naa: number,
     byggetVed: number,
+    lest: LestVedBygg,
   ): HoppetSpeiling[] => {
     // V19.9 (RETUR 1, vilkår 3): sedler der serveren HOPPET OVER rader (serverraden
     // er nyere). Delta-pullen henter dem ikke (hodets updatedAt er bumpet, men
@@ -382,9 +548,15 @@ export async function syncTimer(
     const speilinger: HoppetSpeiling[] = [];
     for (const r of svar.resultater) {
       if (r.resultat === "ok" && r.serverData) {
+        const naaEndret = db
+          .select({ sistEndretLokalt: dagsseddelLocal.sistEndretLokalt })
+          .from(dagsseddelLocal)
+          .where(eq(dagsseddelLocal.id, r.clientUuid))
+          .all()[0]?.sistEndretLokalt;
+        const endretUnderPush = naaEndret !== lest.endret.get(r.clientUuid);
         db.update(dagsseddelLocal)
           .set({
-            syncStatus: "synced",
+            syncStatus: endretUnderPush ? "pending" : "synced",
             status: r.serverData.status,
             lederKommentar: r.serverData.lederKommentar,
             attestertVed: r.serverData.attestertVed,
@@ -395,6 +567,14 @@ export async function syncTimer(
           .run();
         // V19.9.8: skriv versjon for skrevne rader (ikke hoppetOver) + restemple.
         skrivRadVersjoner(r.clientUuid, r.serverData.rader, naa, byggetVed);
+        // Plan A: linjene payloaden bar, finnes nå på serveren. En linje opprettet eller
+        // endret under pushen (stempel > byggetVed) merkes ikke — den sendes neste gang.
+        for (const tabell of [sheetTilleggLocal, sheetUtleggLocal, sheetMachineLocal] as const) {
+          db.update(tabell)
+            .set({ paaServer: true })
+            .where(and(eq(tabell.dagsseddelId, r.clientUuid), lte(tabell.sistEndretLokalt, byggetVed)))
+            .run();
+        }
         // V19.9 (RETUR 1, vilkår 3): hoppede rader må speiles fra serveren (ellers
         // står telefonen med stale innhold + stale versjon → neste redigering gir R4).
         if (r.serverData.hoppetOver && r.serverData.hoppetOver.length > 0) {
@@ -408,9 +588,19 @@ export async function syncTimer(
         // på de sendte slettedeIder. Rydd tombstones for sedelen KUN her (ikke
         // conflict/avvist/feilet). deleteMany er idempotent → en tapt rydding
         // (partiell batch) er trygg, tombstonen re-sendes bare neste tick.
-        db.delete(slettedeRaderLocal)
-          .where(eq(slettedeRaderLocal.dagsseddelId, r.clientUuid))
-          .run();
+        // ORDRE 36e: kun tombstones payloaden bar — en sletting gjort under pushen
+        // er ikke sendt og må leve til neste push (ellers gjenoppstår raden).
+        const sendte = lest.tombstoneIder.get(r.clientUuid) ?? [];
+        if (sendte.length > 0) {
+          db.delete(slettedeRaderLocal)
+            .where(
+              and(
+                eq(slettedeRaderLocal.dagsseddelId, r.clientUuid),
+                inArray(slettedeRaderLocal.radId, sendte),
+              ),
+            )
+            .run();
+        }
         resultat.push.ok++;
       } else if (r.resultat === "conflict" && r.serverData) {
         // V19-B (B-1): serveren sender nå EKSPLISITT `aarsak` på conflict (V19-A,
@@ -489,7 +679,11 @@ export async function syncTimer(
                 aarsak === "overlapp"
                   ? i18n.t("timer.sync.pcOgsaEndret")
                   : (r.feilmelding ?? null),
-              sistSynkronisert: naa,
+              // Telefontest A funn 1: `skrevet: false` = serveren skrev ingenting fra
+              // pushen (heller ikke tillegg/utlegg/maskin). Sist-synket står da, så
+              // forsoningen ser hvilke linjer som aldri ble sendt. Mangler feltet
+              // (eldre server) → som før.
+              ...(r.serverData.skrevet === false ? {} : { sistSynkronisert: naa }),
             })
             .where(eq(dagsseddelLocal.id, målId))
             .run();
@@ -614,6 +808,10 @@ export async function syncTimer(
     }
   };
 
+  // F1 (2026-11-13): redd utlegg som eldre app-versjoner lot ligge igjen på en
+  // forsonet (borte) sedel-id, FØR push-utvalget — så den reddede sedelen er med.
+  if (kunSedelId === null) reddForeldreloseUtlegg(db, userId, Date.now());
+
   /* ---------------- PUSH: lokale pending → server ----------------- */
   const pendingSedler = db
     .select()
@@ -622,21 +820,25 @@ export async function syncTimer(
       and(
         eq(dagsseddelLocal.userId, userId),
         eq(dagsseddelLocal.syncStatus, "pending"),
+        kunSedelId ? eq(dagsseddelLocal.id, kunSedelId) : undefined,
       ),
     )
     .all();
 
   if (pendingSedler.length > 0) {
-    // Bygg batch — opp til 100 sedler per kall (matcher server-grense)
-    const batches: typeof pendingSedler[] = [];
-    for (let i = 0; i < pendingSedler.length; i += 100) {
-      batches.push(pendingSedler.slice(i, i + 100));
-    }
+    // POST (14): grupper pr. firma FØR oppdeling i batcher à 100 (server-grense).
+    // Serveren lagrer hele batchen på `organizationId` — en blandet batch etter
+    // firmabytte ville lagt sedel fra firma A på firma B.
+    const batches = delPendingIBatcher(pendingSedler);
 
     for (const batch of batches) {
       // V19.9.8 (B'-4): tidspunktet payloaden LESES — styrer rad-restemplingen i
       // anvendSvar (en rad endret etter dette stemplet pushes på nytt, ikke synket).
       const byggetVed = Date.now();
+      const lest: LestVedBygg = {
+        endret: new Map(batch.map((sedel) => [sedel.id, sedel.sistEndretLokalt])),
+        tombstoneIder: new Map(),
+      };
       const sedlerMedRader = batch.map((sedel) => {
         const timer = db
           .select()
@@ -659,11 +861,17 @@ export async function syncTimer(
           .where(eq(sheetUtleggLocal.dagsseddelId, sedel.id))
           .all();
         // S-A: tombstones for lokalt slettede rader på denne sedelen.
+        // ORDRE 36e (pkt. 2): sedel-tombstones går via `slett`, aldri i push.
         const tombstones = db
           .select()
           .from(slettedeRaderLocal)
           .where(eq(slettedeRaderLocal.dagsseddelId, sedel.id))
-          .all();
+          .all()
+          .filter((t) => t.radType !== "sedel");
+        lest.tombstoneIder.set(
+          sedel.id,
+          tombstones.map((t) => t.radId),
+        );
 
         return {
           clientUuid: sedel.id,
@@ -729,7 +937,7 @@ export async function syncTimer(
             reiseOppmotestedId: t.reiseOppmotestedId ?? null,
             reiseKjoretidMin: t.reiseKjoretidMin ?? null,
             reiseAvstandM: t.reiseAvstandM ?? null,
-            reiseKilde: (t.reiseKilde ?? null) as "matrise" | "manuell" | null,
+            reiseKilde: (t.reiseKilde ?? null) as "matrise" | "manuell" | "overforing" | null,
             reiseRegel: t.reiseRegel
               ? (JSON.parse(t.reiseRegel) as unknown)
               : null,
@@ -754,6 +962,10 @@ export async function syncTimer(
             tilleggId: tl.tilleggId,
             antall: tl.antall,
             kommentar: tl.kommentar ?? null,
+            // Prosjektkortet (2026-11-13): kortets byggeplass + underprosjekt
+            // (null = arv). Gammel server stripper feltene stille.
+            byggeplassId: tl.byggeplassId ?? null,
+            externalCostObjectId: tl.externalCostObjectId ?? null,
           })),
           maskiner: maskiner.map((m) => ({
             id: m.id,
@@ -766,6 +978,8 @@ export async function syncTimer(
             // validering per (projectId, ECO). Drizzle-kolonnen ble lagt til
             // i T7-4a; sync-laget glemte å speile før T7-4e.
             externalCostObjectId: m.externalCostObjectId ?? null,
+            // ORDRE 36b: maskinens egen byggeplass (kortnøkkelen). null = arv fra sedelen.
+            byggeplassId: m.byggeplassId ?? null,
             vehicleId: m.vehicleId,
             timer: m.timer,
             mengde: m.mengde,
@@ -782,6 +996,8 @@ export async function syncTimer(
             expenseCategoryId: u.expenseCategoryId,
             belop: u.belop ?? null,
             kommentar: u.kommentar ?? null,
+            byggeplassId: u.byggeplassId ?? null,
+            externalCostObjectId: u.externalCostObjectId ?? null,
             ordningVedFoering: u.ordningVedFoering as
               | "lonnstillegg"
               | "utlegg"
@@ -823,9 +1039,9 @@ export async function syncTimer(
         };
       });
 
-      // Kenneth-vedtak 2026-10-09: sedelen lagres på SITT firma. En mobil-bruker har én
-      // aktiv org (hentBrukersOrg kaster på multi-org), så batchen er homogen — send
-      // sedelens egen org så serveren lagrer på riktig firma, ikke et avledet medlemskap.
+      // Kenneth-vedtak 2026-10-09: sedelen lagres på SITT firma. Batchen er homogen
+      // pr. firma (delPendingIBatcher, POST 14) — send sedlenes egen org så serveren
+      // lagrer på riktig firma, ikke et avledet medlemskap.
       const batchOrgId = batch[0]?.organizationId ?? firmaId;
       try {
         const svar = await medTimeout(
@@ -837,7 +1053,7 @@ export async function syncTimer(
         );
         // V19.9 (RETUR 1, vilkår 3): anvendSvar samler hoppede sedler; speil dem
         // fra hentMedId etterpå (async, utenfor den synkrone DB-skrivingen).
-        await speilHoppedeRader(anvendSvar(svar, Date.now(), byggetVed));
+        await speilHoppedeRader(anvendSvar(svar, Date.now(), byggetVed, lest));
       } catch (e) {
         if (!erPermanentFeil(e)) {
           // Transient (nettverk/5xx/401): behold ALLE pending — ingen quarantine,
@@ -875,7 +1091,7 @@ export async function syncTimer(
               tidsavbruddMs,
             );
             // Samme byggetVed — item ble lest i samme payload-bygg (over).
-            await speilHoppedeRader(anvendSvar(enkeltSvar, Date.now(), byggetVed));
+            await speilHoppedeRader(anvendSvar(enkeltSvar, Date.now(), byggetVed, lest));
           } catch (e2) {
             if (!erPermanentFeil(e2)) {
               // Transient midt i isolering — behold pending, prøv neste sedel.
@@ -906,8 +1122,56 @@ export async function syncTimer(
     }
   }
 
+  // Telefontest A funn 2: nye rader på serveren → vekk opplastingskøen, så en kvittering
+  // som fikk 404 fordi raden ikke fantes ennå, registreres nå og ikke etter backoff.
+  if (resultat.push.ok + resultat.push.merged > 0) varsleKoen();
+
+  if (kunSedelId) return resultat;
+
+  /* ---------------- SLETT: sedler slettet i prosjektkortet ---------------- */
+  // ORDRE 36e (pkt. 2): en sedel slettet lokalt (prosjektkortet) ligger som
+  // tombstone (radType "sedel") til serveren har svart. OK/NOT_FOUND → ryddes.
+  // Avslått (sendt/attestert i mellomtiden) → ryddes, sedelen hentes inn igjen
+  // av pull og får beskjeden. Nett-/ukjent feil → tombstonen lever, pull
+  // hopper over sedelen og neste tick prøver igjen.
+  const avslatteSlettinger = new Set<string>();
+  const sedelTombstones = db
+    .select({ radId: slettedeRaderLocal.radId })
+    .from(slettedeRaderLocal)
+    .where(eq(slettedeRaderLocal.radType, "sedel"))
+    .all();
+  for (const { radId } of sedelTombstones) {
+    let rydd = false;
+    try {
+      await medTimeout(klient.timer.dagsseddel.slett.mutate({ id: radId }), tidsavbruddMs);
+      rydd = true;
+    } catch (e) {
+      const code = (e as { data?: { code?: string } } | null)?.data?.code;
+      if (code === "NOT_FOUND") rydd = true;
+      // Server avviser sendt sedel med PRECONDITION_FAILED; FORBIDDEN = ikke lov.
+      if (code === "PRECONDITION_FAILED" || code === "FORBIDDEN") {
+        rydd = true;
+        avslatteSlettinger.add(radId);
+      }
+    }
+    if (rydd) {
+      db.delete(slettedeRaderLocal).where(eq(slettedeRaderLocal.radId, radId)).run();
+    }
+  }
+  // Tombstones som fortsatt lever (slett ikke bekreftet) — pull hopper over dem.
+  const levendeSedelTombstones = new Set(
+    db
+      .select({ radId: slettedeRaderLocal.radId })
+      .from(slettedeRaderLocal)
+      .where(eq(slettedeRaderLocal.radType, "sedel"))
+      .all()
+      .map((t) => t.radId),
+  );
+
   /* ---------------- PULL: server-endringer → lokal ---------------- */
-  const sistSynk = hentSistSynkronisert(userId);
+  // Avslått sletting: sedelen kan være uendret siden forrige pull → hent alt
+  // (som ved fersk innlogging) så den kommer tilbake. Sjelden.
+  const sistSynk = avslatteSlettinger.size > 0 ? null : hentSistSynkronisert(userId);
   try {
     const svar = await medTimeout(
       klient.timer.dagsseddel.hentEndringerSiden.query({
@@ -924,6 +1188,13 @@ export async function syncTimer(
     void naa;
 
     for (const serverSedel of svar.sedler) {
+      // ORDRE 36e (pkt. 2): sedel slettet lokalt, slett ikke bekreftet ennå.
+      if (
+        levendeSedelTombstones.has(serverSedel.clientUuid) ||
+        levendeSedelTombstones.has(serverSedel.id)
+      ) {
+        continue;
+      }
       // Synk-identitet (2026-07-11): clientUuid er den ene identiteten. Match
       // primært på clientUuid (invariant), fallback server-id for lokal data
       // pullet før invarianten (der lokal id = server-id).
@@ -992,6 +1263,35 @@ export async function syncTimer(
         continue;
       }
 
+      // ORDRE 36e (pkt. 1c) — sikkerhetsnett: en SYNCED sedel med en timer-rad som
+      // aldri er pushet (ingen serverVersjon) og som er skrevet under DENNE
+      // kjøringen, er nytt arbeid en skrivevei ikke fikk markert pending i tide.
+      // Radstatningen under ville slettet den → sett pending og hopp over; neste
+      // push sender den. Vinduet [kjoringStartet, nå] holder eldre rader uten
+      // versjon (før V19.9.8) og server-stemplede rader (klokkeavvik) utenfor.
+      if (lokal && lokal.syncStatus === "synced") {
+        const pullNaa = Date.now();
+        const upushet = db
+          .select({ id: sheetTimerLocal.id })
+          .from(sheetTimerLocal)
+          .where(
+            and(
+              eq(sheetTimerLocal.dagsseddelId, lokal.id),
+              isNull(sheetTimerLocal.serverVersjon),
+              gte(sheetTimerLocal.sistEndretLokalt, kjoringStartet),
+              lte(sheetTimerLocal.sistEndretLokalt, pullNaa),
+            ),
+          )
+          .all();
+        if (upushet.length > 0) {
+          db.update(dagsseddelLocal)
+            .set({ syncStatus: "pending" })
+            .where(eq(dagsseddelLocal.id, lokal.id))
+            .run();
+          continue;
+        }
+      }
+
       // 🔴 "conflict" (datatap-ordre 2026-09-30, AVVIK 1): server-wins-grenen
       // (:271-286) satte conflict FORDI serveren avviste pushen (accepted/sent-
       // vaktene i dagsseddel.ts returnerte FØR radene ble skrevet). Sedelens
@@ -1010,6 +1310,7 @@ export async function syncTimer(
       // projectId/dato/tider/beskrivelse røres IKKE — den lokale header-en er
       // del av det eneste eksemplaret til konflikten er løst, og skal ikke
       // klobbes av server-versjonen (presisering, orkestrator TILLEGG 5).
+      let webLostBilde: LokaltOyeblikksbilde | null = null;
       if (lokal && lokal.syncStatus === "conflict") {
         // V19.7b (B-3b): veien ut av lokal `conflict` når valget er tatt på PC.
         // Slipp raderstatningen KUN når (a) årsaken er "overlapp" OG (b) serveren
@@ -1027,6 +1328,10 @@ export async function syncTimer(
           lokal.konfliktAarsak === "overlapp" &&
           ss.konfliktVentendeSiden === null &&
           ss.antallForslag === 0;
+        if (overlappLostPaaPc) {
+          // Plan A: les telefonens linjer FØR raderstatningen sletter dem.
+          webLostBilde = taLokaltOyeblikksbilde(db, maalId);
+        }
         if (!overlappLostPaaPc) {
           // Minimalt hode: KUN status/lederKommentar/attestertVed/sistSynkronisert.
           db.update(dagsseddelLocal)
@@ -1158,6 +1463,16 @@ export async function syncTimer(
       // (upushet offline-arbeid eller server-wins-conflict der pushen ble avvist
       // før skriving). Vi sletter derfor kun rader på SYNCED-sedler, som per
       // definisjon stemmer med server.
+      // Prosjektkortet (2026-11-13): samme «mangler ≠ null»-regel for kortfeltene
+      // på tillegg/utlegg. En gammel server utelater dem → behold lokal verdi,
+      // ellers ville en pull flytte radene fra kortet til dagen uten at noen ser det.
+      const kortFor = new Map<string, KortFelt>(
+        [
+          ...db.select().from(sheetTilleggLocal).where(eq(sheetTilleggLocal.dagsseddelId, maalId)).all(),
+          ...db.select().from(sheetUtleggLocal).where(eq(sheetUtleggLocal.dagsseddelId, maalId)).all(),
+        ].map((r) => [r.id, { byggeplassId: r.byggeplassId, externalCostObjectId: r.externalCostObjectId }]),
+      );
+
       db.delete(sheetTimerLocal)
         .where(eq(sheetTimerLocal.dagsseddelId, maalId))
         .run();
@@ -1268,6 +1583,8 @@ export async function syncTimer(
             tilleggId: tl.tilleggId,
             antall: tl.antall,
             kommentar: tl.kommentar,
+            ...kortFeltFraServer(tl as unknown as Partial<KortFelt>, kortFor.get(tl.id)),
+            paaServer: true,
             sistEndretLokalt: serverTidMs,
           })
           .run();
@@ -1285,7 +1602,8 @@ export async function syncTimer(
             .all()[0];
           if (finnes) {
             db.update(sheetTilleggVedleggLocal)
-              .set({ serverUrl: v.fileUrl, sistEndretLokalt: serverTidMs })
+              // Funn 2: serveren har vedlegget → bekreftet.
+              .set({ serverUrl: v.fileUrl, registrert: serverTidMs, sistEndretLokalt: serverTidMs })
               .where(eq(sheetTilleggVedleggLocal.id, v.id))
               .run();
           } else {
@@ -1298,6 +1616,7 @@ export async function syncTimer(
                 filnavn: v.fileName,
                 mimeType: v.mimeType,
                 filstorrelse: v.fileSize,
+                registrert: serverTidMs,
                 sistEndretLokalt: serverTidMs,
               })
               .run();
@@ -1316,12 +1635,15 @@ export async function syncTimer(
             // T7-4e: skriv ECO på maskin lokalt. Server (T7-4b hentEndringerSiden)
             // returnerer feltet i maskiner-mappingen.
             externalCostObjectId: m.externalCostObjectId ?? null,
+            // ORDRE 36b: maskinens byggeplass fra server (null = arv fra sedel).
+            byggeplassId: m.byggeplassId ?? null,
             vehicleId: m.vehicleId,
             timer: m.timer,
             mengde: m.mengde,
             enhet: m.enhet,
             fraTid: m.fraTid ?? null,
             tilTid: m.tilTid ?? null,
+            paaServer: true,
             sistEndretLokalt: serverTidMs,
           })
           .run();
@@ -1346,6 +1668,8 @@ export async function syncTimer(
             kommentar: u.kommentar,
             ordningVedFoering: u.ordningVedFoering,
             foertVed: new Date(u.foertVed).getTime(),
+            ...kortFeltFraServer(u as unknown as Partial<KortFelt>, kortFor.get(u.id)),
+            paaServer: true,
             sistEndretLokalt: serverTidMs,
           })
           .run();
@@ -1357,7 +1681,8 @@ export async function syncTimer(
             .all()[0];
           if (finnes) {
             db.update(sheetUtleggVedleggLocal)
-              .set({ serverUrl: v.fileUrl, sistEndretLokalt: serverTidMs })
+              // Funn 2: serveren har vedlegget → bekreftet.
+              .set({ serverUrl: v.fileUrl, registrert: serverTidMs, sistEndretLokalt: serverTidMs })
               .where(eq(sheetUtleggVedleggLocal.id, v.id))
               .run();
           } else {
@@ -1370,10 +1695,41 @@ export async function syncTimer(
                 filnavn: v.fileName,
                 mimeType: v.mimeType,
                 filstorrelse: v.fileSize,
+                registrert: serverTidMs,
                 sistEndretLokalt: serverTidMs,
               })
               .run();
           }
+        }
+      }
+      // Plan A (2026-11-13): overlapp-konflikten er løst på web. Serveren avviste hele
+      // pushen (`skrevet: false`), så linjer som aldri nådde den, finnes bare i bildet.
+      // Legg dem tilbake (ikke de med `paaServer` — de er slettet på web) og koble
+      // maskiner/ventende varer om. Noe lagt tilbake → `pending`, neste push sender det.
+      if (webLostBilde) {
+        const ss = serverSedel as unknown as {
+          timer: Array<{ id: string }>;
+          tillegg: Array<{ id: string }>;
+          maskiner?: Array<{ id: string }>;
+          utlegg?: Array<{ id: string }>;
+        };
+        const serverIder = new Set(
+          [...ss.timer, ...ss.tillegg, ...(ss.maskiner ?? []), ...(ss.utlegg ?? [])].map((r) => r.id),
+        );
+        const { lagtTilbake } = leggTilbakeUsendteLinjer(
+          db,
+          maalId,
+          webLostBilde,
+          serverIder,
+          levendeTombstoneIder,
+          sedelProjectId,
+          Date.now(),
+        );
+        if (lagtTilbake > 0) {
+          db.update(dagsseddelLocal)
+            .set({ syncStatus: "pending" })
+            .where(eq(dagsseddelLocal.id, maalId))
+            .run();
         }
       }
     }
@@ -1418,12 +1774,122 @@ export async function syncTimer(
     }
     resultat.pull.slettet = skalSlettes.length;
 
+    // ORDRE 36e (pkt. 2): avslått sletting — sedelen er tilbake fra pull; si fra.
+    for (const id of avslatteSlettinger) {
+      db.update(dagsseddelLocal)
+        .set({ feilmelding: i18n.t("timer.sync.slettAvslaatt") })
+        .where(eq(dagsseddelLocal.id, id))
+        .run();
+    }
+
     resultat.pull.mottatt = svar.sedler.length;
   } catch (e) {
     resultat.feil = e instanceof Error ? e.message : "Pull feilet";
   }
 
+  await reddUregistrerteKvitteringer(db, klient, tidsavbruddMs);
+
   return resultat;
+}
+
+/**
+ * Telefontest A funn 2 — redning for kvitteringer køen allerede har gitt fra seg: fila er
+ * lastet opp (`serverUrl`), men serveren har aldri bekreftet raden (`registrert` er null).
+ * Det var tilstanden før funn 2 (registreringen kunne feile stille og lokalfila ble slettet
+ * likevel). Registreres på nytt via den idempotente serverruta (upsert på id), men kun på
+ * sedler som fortsatt kan endres (draft/returned). Feil svelges — neste sync prøver igjen.
+ */
+async function reddUregistrerteKvitteringer(
+  db: NonNullable<ReturnType<typeof hentDatabase>>,
+  klient: TrpcKlient,
+  tidsavbruddMs: number,
+): Promise<void> {
+  const aapne = ["draft", "returned"] as const;
+  const utlegg = db
+    .select({
+      id: sheetUtleggVedleggLocal.id,
+      radId: sheetUtleggVedleggLocal.sheetUtleggId,
+      serverUrl: sheetUtleggVedleggLocal.serverUrl,
+      filnavn: sheetUtleggVedleggLocal.filnavn,
+      mimeType: sheetUtleggVedleggLocal.mimeType,
+      filstorrelse: sheetUtleggVedleggLocal.filstorrelse,
+    })
+    .from(sheetUtleggVedleggLocal)
+    .innerJoin(sheetUtleggLocal, eq(sheetUtleggLocal.id, sheetUtleggVedleggLocal.sheetUtleggId))
+    .innerJoin(dagsseddelLocal, eq(dagsseddelLocal.id, sheetUtleggLocal.dagsseddelId))
+    .where(
+      and(
+        isNotNull(sheetUtleggVedleggLocal.serverUrl),
+        isNull(sheetUtleggVedleggLocal.registrert),
+        inArray(dagsseddelLocal.status, aapne),
+      ),
+    )
+    .all();
+  for (const v of utlegg) {
+    if (!v.serverUrl) continue;
+    try {
+      await medTimeout(
+        klient.timer.dagsseddel.tilfoyUtleggVedlegg.mutate({
+          id: v.id,
+          sheetUtleggId: v.radId,
+          fileUrl: v.serverUrl,
+          fileName: v.filnavn,
+          mimeType: v.mimeType,
+          fileSize: v.filstorrelse ?? 0,
+        }),
+        tidsavbruddMs,
+      );
+      db.update(sheetUtleggVedleggLocal)
+        .set({ registrert: Date.now() })
+        .where(eq(sheetUtleggVedleggLocal.id, v.id))
+        .run();
+    } catch (e) {
+      console.warn("[TIMER-SYNC] Utlegg-kvittering ikke registrert:", v.id, e instanceof Error ? e.message : e);
+    }
+  }
+
+  const tillegg = db
+    .select({
+      id: sheetTilleggVedleggLocal.id,
+      radId: sheetTilleggVedleggLocal.sheetTilleggId,
+      serverUrl: sheetTilleggVedleggLocal.serverUrl,
+      filnavn: sheetTilleggVedleggLocal.filnavn,
+      mimeType: sheetTilleggVedleggLocal.mimeType,
+      filstorrelse: sheetTilleggVedleggLocal.filstorrelse,
+    })
+    .from(sheetTilleggVedleggLocal)
+    .innerJoin(sheetTilleggLocal, eq(sheetTilleggLocal.id, sheetTilleggVedleggLocal.sheetTilleggId))
+    .innerJoin(dagsseddelLocal, eq(dagsseddelLocal.id, sheetTilleggLocal.dagsseddelId))
+    .where(
+      and(
+        isNotNull(sheetTilleggVedleggLocal.serverUrl),
+        isNull(sheetTilleggVedleggLocal.registrert),
+        inArray(dagsseddelLocal.status, aapne),
+      ),
+    )
+    .all();
+  for (const v of tillegg) {
+    if (!v.serverUrl) continue;
+    try {
+      await medTimeout(
+        klient.timer.dagsseddel.tilfoyTilleggVedlegg.mutate({
+          id: v.id,
+          sheetTilleggId: v.radId,
+          fileUrl: v.serverUrl,
+          fileName: v.filnavn,
+          mimeType: v.mimeType,
+          fileSize: v.filstorrelse ?? 0,
+        }),
+        tidsavbruddMs,
+      );
+      db.update(sheetTilleggVedleggLocal)
+        .set({ registrert: Date.now() })
+        .where(eq(sheetTilleggVedleggLocal.id, v.id))
+        .run();
+    } catch (e) {
+      console.warn("[TIMER-SYNC] Tillegg-kvittering ikke registrert:", v.id, e instanceof Error ? e.message : e);
+    }
+  }
 }
 
 /**
@@ -1433,9 +1899,20 @@ export async function syncTimer(
 export function bekreftConflict(sheetId: string): void {
   const db = hentDatabase();
   if (!db) return;
+  // Telefontest A funn 1: har forsoningen (anvendForsonetLokalt) satt `pending` fordi
+  // tillegg/utlegg/maskin aldri nådde serveren, står `pending` — neste push sender dem.
+  const naa = db
+    .select({ syncStatus: dagsseddelLocal.syncStatus })
+    .from(dagsseddelLocal)
+    .where(eq(dagsseddelLocal.id, sheetId))
+    .get();
   db.update(dagsseddelLocal)
     // V19-B (B-3): valget er tatt → synced, konflikt-årsak nulles.
-    .set({ syncStatus: "synced", konfliktAarsak: null, feilmelding: null })
+    .set({
+      syncStatus: naa?.syncStatus === "pending" ? "pending" : "synced",
+      konfliktAarsak: null,
+      feilmelding: null,
+    })
     .where(eq(dagsseddelLocal.id, sheetId))
     .run();
 }
@@ -1488,3 +1965,25 @@ export function pendingEldreEnn(userId: string, dagerTilbake: number): string[] 
 }
 
 void inArray;
+
+/**
+ * POST (14): ventende sedler gruppert pr. `organizationId` (første forekomst gir
+ * rekkefølgen), deretter delt i batcher à maks `maks` (server-grense 100). Hver
+ * batch har dermed ett firma, så `syncBatch({ organizationId })` blir riktig.
+ */
+export function delPendingIBatcher<T extends { organizationId: string }>(
+  sedler: readonly T[],
+  maks = 100,
+): T[][] {
+  const prFirma = new Map<string, T[]>();
+  for (const s of sedler) {
+    const liste = prFirma.get(s.organizationId);
+    if (liste) liste.push(s);
+    else prFirma.set(s.organizationId, [s]);
+  }
+  const batches: T[][] = [];
+  for (const liste of prFirma.values()) {
+    for (let i = 0; i < liste.length; i += maks) batches.push(liste.slice(i, i + maks));
+  }
+  return batches;
+}

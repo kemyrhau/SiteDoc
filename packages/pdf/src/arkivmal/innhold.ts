@@ -13,6 +13,7 @@
 import { renderFelt } from "../felt";
 import { byggRepeaterTabell } from "./repeater";
 import { byggRadkort, repeaterErRik } from "./radkort";
+import { byggOppgaveHenvisning } from "../hjelpere";
 import { nyBildeTeller, samleBildeNr } from "../hjelpere";
 import type { BildeTeller } from "../hjelpere";
 import type { TreObjekt, FeltVerdi, PdfConfig } from "../typer";
@@ -38,13 +39,17 @@ export function byggInnhold(
       // F7: send hele FeltVerdi (ikke bare .verdi) så objektnivå-kommentar/vedlegg
       // (festet på repeateren uten «Legg til rad») kan rendres i «Registrert utenfor rader».
       html += repeaterErRik(objekt)
-        ? byggRadkort(objekt, data[objekt.id]?.verdi, objekt.label, data[objekt.id], teller)
-        : byggRepeaterTabell(objekt, data[objekt.id]?.verdi, objekt.label, data[objekt.id], teller);
+        ? byggRadkort(objekt, data[objekt.id]?.verdi, objekt.label, data[objekt.id], teller, config)
+        : byggRepeaterTabell(objekt, data[objekt.id]?.verdi, objekt.label, data[objekt.id], teller, config);
+      // PDF-1: oppgaver festet på repeateren selv (ikke en rad) — under hele repeateren.
+      html += byggOppgaveHenvisning(objekt.id, config);
       continue;
     }
     // D2 (tegningsutsnitt) + D3 (instruksjonstyper) er FOLDET inn i renderFelt (2026-08-24) —
     // felt.ts-frysen ble opphevet, så intercept-i-innhold.ts trengs ikke lenger.
     html += renderFelt(objekt, data[objekt.id], config, teller);
+    // PDF-1: «Oppgaver: …» under feltet som har oppgaver (alltid, uavhengig av utskriftsvalg).
+    html += byggOppgaveHenvisning(objekt.id, config);
     // Nestede seksjoner: render barn etter overskriften.
     if (objekt.children && objekt.children.length > 0) {
       html += byggInnhold(objekt.children, data, config, teller);

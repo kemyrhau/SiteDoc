@@ -2,6 +2,7 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { verifiserProsjektmedlem, verifiserAdmin } from "../trpc/tilgangskontroll";
+import { verifiserByggeplassIProsjekt } from "../services/tegningVakt";
 
 const polygonPunktSchema = z.object({
   x: z.number().min(0).max(100),
@@ -125,6 +126,9 @@ export const omradeRouter = router({
     }))
     .mutation(async ({ ctx, input }) => {
       await verifiserAdmin(ctx.userId, input.projectId);
+      // ORDRE 29 #14: byggeplassen MÅ tilhøre prosjektet — ellers får området projectId X
+      // og byggeplass fra Y.
+      await verifiserByggeplassIProsjekt(ctx.prisma, input.byggeplassId, input.projectId);
       const maks = await ctx.prisma.omrade.aggregate({
         where: { byggeplassId: input.byggeplassId },
         _max: { sortering: true },

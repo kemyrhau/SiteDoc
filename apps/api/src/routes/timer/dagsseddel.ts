@@ -25,7 +25,11 @@ import {
 import {
   krevByggeplassIProsjekt,
   krevByggeplasserIProsjekt,
+  krevEcoerIProsjekt,
+  kortFeltVedSync,
   lagByggeplassVasker,
+  lagEcoVasker,
+  maskinByggeplassVedSync,
 } from "./byggeplass-rad";
 import {
   hentErReiseKontekst,
@@ -33,6 +37,8 @@ import {
   utledErReise,
   beregnReiseAvvik,
   validerReiseInvarianter,
+  lesOverforingRute,
+  overforingKontrollNokkel,
   arvReiseSpor,
   type ReiseRadInvariantInput,
   type ReiseSporKilde,
@@ -42,6 +48,7 @@ import {
   harGyldigMaskinforerbevisBatch,
 } from "../../services/kompetanse/maskinforerbevis";
 import {
+  arbeidUtenReise,
   beregnMaskinBrudd,
   type MaskinBrudd,
   tilErEtterFra,
@@ -63,6 +70,11 @@ import {
   pauseVinduForDag,
   hhmmTilMin,
   PAUSE_TERSKEL_TIMER,
+  sisteUnikeMaskiner,
+  parForRelink,
+  planleggLinjeRelink,
+  type ForsonRad,
+  type RelinkPar,
 } from "@sitedoc/shared";
 import {
   klassifiserSyncRader,
@@ -114,6 +126,58 @@ async function verifiserKjoretoyTilhørerFirma(
 }
 
 /**
+ * Post 2026-11-14 (7) punkt 1: firmavakt for katalog-ID-er. Lønnsart, aktivitet
+ * og tillegg er firma-eide kataloger; en ID fra et annet firma skal avvises før
+ * den kobles til sedelen. Samme mønster som tilfoyTimerRad/tilfoyTilleggRad:
+ * oppslag med `organizationId` i WHERE og avvisning når noe mangler. Tomme
+ * lister og null/undefined hoppes over (feltet endres ikke).
+ */
+export async function krevKatalogIFirma(
+  prismaTimer:
+    | Prisma.TransactionClient
+    | typeof import("@sitedoc/db-timer").prismaTimer,
+  organizationId: string,
+  ider: {
+    lonnsartIder?: ReadonlyArray<string | null | undefined>;
+    aktivitetIder?: ReadonlyArray<string | null | undefined>;
+    tilleggIder?: ReadonlyArray<string | null | undefined>;
+  },
+): Promise<void> {
+  const tx = prismaTimer as typeof import("@sitedoc/db-timer").prismaTimer;
+  const unike = (l?: ReadonlyArray<string | null | undefined>): string[] =>
+    [...new Set((l ?? []).filter((v): v is string => typeof v === "string" && v.length > 0))];
+  const lonnsartIder = unike(ider.lonnsartIder);
+  const aktivitetIder = unike(ider.aktivitetIder);
+  const tilleggIder = unike(ider.tilleggIder);
+  const [l, a, t] = await Promise.all([
+    lonnsartIder.length
+      ? tx.lonnsart
+          .findMany({ where: { id: { in: lonnsartIder }, organizationId }, select: { id: true } })
+          .then((r) => r.length)
+      : Promise.resolve(0),
+    aktivitetIder.length
+      ? tx.aktivitet
+          .findMany({ where: { id: { in: aktivitetIder }, organizationId }, select: { id: true } })
+          .then((r) => r.length)
+      : Promise.resolve(0),
+    tilleggIder.length
+      ? tx.tillegg
+          .findMany({ where: { id: { in: tilleggIder }, organizationId }, select: { id: true } })
+          .then((r) => r.length)
+      : Promise.resolve(0),
+  ]);
+  if (l !== lonnsartIder.length) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: "Lønnsart finnes ikke i firmaets katalog" });
+  }
+  if (a !== aktivitetIder.length) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: "Aktivitet finnes ikke i firmaets katalog" });
+  }
+  if (t !== tilleggIder.length) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: "Tillegg finnes ikke i firmaets katalog" });
+  }
+}
+
+/**
  * Status-livssyklus per Runde 1B-spec:
  *   draft     — redigerbar (av eier)
  *   sent      — låst (venter på leder)
@@ -161,6 +225,82 @@ async function krevProsjektLeder(userId: string, projectId: string): Promise<voi
       message: "Kun prosjektleder eller administrator kan godkjenne dagssedler",
     });
   }
+}
+
+/**
+ * Firma der brukeren kan attestere timer på prosjektet (H1, Kenneth 2026-11-08).
+ * Attestering følger arbeidsgiveren (`DailySheet.organizationId`), ikke prosjekteier:
+ * timer, lønnsart og prissnapshot er firmaets interne data. Rett i et firma gis av
+ * firma-admin der, eller aktiv ansatt der som også er prosjektadmin/`kanAttestere`.
+ * `null` = alle firma (sitedoc_admin).
+ */
+async function attesteringsFirmaer(userId: string, projectId: string): Promise<string[] | null> {
+  const bruker = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true },
+  });
+  if (!bruker) return [];
+  if (bruker.role === "sitedoc_admin") return null;
+
+  const [ansettelser, medlem] = await Promise.all([
+    prisma.organizationMember.findMany({
+      where: { userId },
+      select: { organizationId: true, status: true, firmaRoller: true },
+    }),
+    prisma.projectMember.findFirst({
+      where: aktivtProsjektmedlemWhere(userId, projectId),
+      select: { role: true, kanAttestere: true },
+    }),
+  ]);
+  const erLeder = medlem?.role === "admin" || medlem?.kanAttestere === true;
+  // Samme status-regler som erFirmaAdmin (ikke deaktivert) og erAnsattIFirma (aktiv).
+  return ansettelser
+    .filter(
+      (a) =>
+        (a.status !== "deaktivert" && a.firmaRoller.includes("firma_admin")) ||
+        (erLeder && a.status === "aktiv"),
+    )
+    .map((a) => a.organizationId);
+}
+
+/** Kaster FORBIDDEN med mindre brukeren kan attestere hver (sedel-firma, prosjekt). */
+async function krevAttesteringsrett(
+  userId: string,
+  rader: { organizationId: string; projectId: string }[],
+): Promise<void> {
+  const prosjektIder = Array.from(new Set(rader.map((r) => r.projectId)));
+  const firmaPerProsjekt = new Map(
+    await Promise.all(
+      prosjektIder.map(async (pid) => [pid, await attesteringsFirmaer(userId, pid)] as const),
+    ),
+  );
+  for (const r of rader) {
+    const firmaer = firmaPerProsjekt.get(r.projectId);
+    if (firmaer === null) continue;
+    if (!firmaer?.includes(r.organizationId)) {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "Timer attesteres av firmaet den ansatte jobber for",
+      });
+    }
+  }
+}
+
+/** Som `krevAttesteringsrett`, men slår opp sedlenes firma fra `sheetId`. */
+async function krevAttesteringsrettForRader(
+  prismaTimer: PrismaClientTimer,
+  userId: string,
+  rader: { sheetId: string; projectId: string }[],
+): Promise<void> {
+  const sedler = await prismaTimer.dailySheet.findMany({
+    where: { id: { in: Array.from(new Set(rader.map((r) => r.sheetId))) } },
+    select: { id: true, organizationId: true },
+  });
+  const orgPerSedel = new Map(sedler.map((s) => [s.id, s.organizationId]));
+  await krevAttesteringsrett(
+    userId,
+    rader.map((r) => ({ organizationId: orgPerSedel.get(r.sheetId) ?? "", projectId: r.projectId })),
+  );
 }
 
 /**
@@ -280,7 +420,23 @@ function byggTimerRadData(
   // skrivestiene sender ikke flagget, så kalleren utleder det (samme regel som
   // backfill/synk) og gir det hit. Ingen reise-rad fødes stille `false`.
   erReise: boolean,
+  // Ordre (6): «+ Reise» merker raden manuell. Kun satt når erReise = true
+  // (kalleren avviser ellers) — speiler validerReiseInvarianter.
+  reiseKilde: "manuell" | null = null,
+  // POST (13) L2 commit 8: web-reisekortet sender hele sporet (manuell/overføring).
+  // Ferdig C2-validert av byggReiseFelterForSynk — samme felter som synken skriver.
+  // Når satt overstyrer det `reiseKilde`; uten det er feltformen som før.
+  reiseSpor: ReiseFelter | null = null,
 ): Prisma.SheetTimerUncheckedCreateInput {
+  if (reiseSpor) {
+    const { tidKilde: _tidKilde, ...spor } = reiseSpor;
+    return {
+      ...byggTimerRadData(sheetId, r, erReise, null),
+      ...spor,
+      erReise,
+      reiseRegel: jsonEllerNull(spor.reiseRegel),
+    };
+  }
   return {
     sheetId,
     projectId: r.projectId,
@@ -295,8 +451,9 @@ function byggTimerRadData(
     externalCostObjectId: r.externalCostObjectId ?? null,
     vehicleId: r.vehicleId ?? null,
     // Interaktive web-rader bærer ikke reise-spor (kilde/retning/tall) — kun
-    // flagget utledes. reiseKilde forblir null (web klassifiserte ikke etappen).
+    // flagget utledes. reiseKilde er null, unntatt «+ Reise» (manuell).
     erReise,
+    reiseKilde: erReise ? reiseKilde : null,
   };
 }
 
@@ -347,7 +504,7 @@ type OverlappPayloadRad = {
   reiseOppmotestedId?: string | null;
   reiseKjoretidMin?: number | null;
   reiseAvstandM?: number | null;
-  reiseKilde?: "matrise" | "manuell" | null;
+  reiseKilde?: "matrise" | "manuell" | "overforing" | null;
   reiseRegel?: unknown;
   tidKilde?: "stempel" | "utledet" | "manuell" | null;
 };
@@ -518,9 +675,19 @@ export function vurderRadTimer(args: {
     return { pauseMin: pauseMinAngitt ?? 0, teller: null, kast: false };
   }
 
-  const stemmer = (pm: number) =>
+  // ORDRE 2026-11-13 «pausen trekkes etter 4 ARBEIDStimer»: bæreren har HELE
+  // pausen inne i raden (timer = spenn − pause), uansett klokkevindu. Gamle rader
+  // (vindu-formelen, delvis overlapp) godtas fortsatt — ingen nye avvik/kast på
+  // lagrede, sendte eller attesterte sedler (måling c).
+  const spennMin = hhmmTilMin(tilTid) - hhmmTilMin(fraTid);
+  const stemmerGammel = (pm: number) =>
     Math.abs(timer - effektiveTimerFraSpenn(fraTid, tilTid, pauseVindu, pm)) <=
     PAUSE_TOLERANSE;
+  const stemmerNy = (pm: number) =>
+    pm > 0 &&
+    spennMin > pm &&
+    Math.abs(timer - (spennMin - pm) / 60) <= PAUSE_TOLERANSE;
+  const stemmer = (pm: number) => stemmerGammel(pm) || stemmerNy(pm);
   const krysser =
     pauseOverlappMin(
       hhmmTilMin(fraTid),
@@ -546,7 +713,10 @@ export function vurderRadTimer(args: {
     if (stemmer(0)) {
       return { pauseMin: 0, teller: null, kast: false };
     }
-    if (krysser && stemmer(standardPauseMin)) {
+    if (
+      (krysser && stemmerGammel(standardPauseMin)) ||
+      stemmerNy(standardPauseMin)
+    ) {
       return finnesAlleredeBaerer
         ? { pauseMin: 0, teller: "to_baerere", kast: false }
         : { pauseMin: standardPauseMin, teller: "baerer", kast: false };
@@ -566,12 +736,31 @@ export function vurderRadTimer(args: {
  * delrad i samme rekkefølge som input.
  */
 export function fordelPauseVedSplitt(
-  nyeRader: readonly { fraTid?: string | null; tilTid?: string | null }[],
+  nyeRader: readonly {
+    fraTid?: string | null;
+    tilTid?: string | null;
+    timer?: number;
+  }[],
   originalPauseMin: number,
   pauseVindu: string,
 ): number[] {
   const fordeling = new Array<number>(nyeRader.length).fill(0);
   if (originalPauseMin <= 0 || nyeRader.length === 0) return fordeling;
+  // ORDRE 2026-11-13: delraden hvis timetall alt bærer HELE pausen
+  // (timer = spenn − pause) eier markøren — pausen ligger i raden, ikke i et
+  // klokkevindu. Ingen slik delrad → størst overlapp mot vinduet (gamle rader).
+  const baererIdx = nyeRader.findIndex((r) => {
+    if (!r.fraTid || !r.tilTid || r.timer === undefined) return false;
+    const spenn = hhmmTilMin(r.tilTid) - hhmmTilMin(r.fraTid);
+    return (
+      spenn > originalPauseMin &&
+      Math.abs(r.timer - (spenn - originalPauseMin) / 60) <= PAUSE_TOLERANSE
+    );
+  });
+  if (baererIdx >= 0) {
+    fordeling[baererIdx] = originalPauseMin;
+    return fordeling;
+  }
   const pauseFraMin = hhmmTilMin(pauseVindu);
   let beste = -1;
   let besteOverlapp = 0;
@@ -599,10 +788,12 @@ function avvisTimerAvvik(
   fraTid: string,
   tilTid: string,
   timer: number,
-  pauseVindu: string,
+  _pauseVindu: string,
   pauseMin: number,
 ): never {
-  const forventet = effektiveTimerFraSpenn(fraTid, tilTid, pauseVindu, pauseMin);
+  // ORDRE 2026-11-13: forventet etter ny regel — pausen ligger i raden
+  // (spenn − pause; pausepunkt = fra gir full overlapp).
+  const forventet = effektiveTimerFraSpenn(fraTid, tilTid, fraTid, pauseMin);
   throw new TRPCError({
     code: "BAD_REQUEST",
     message: `Antall timer (${timer}) stemmer ikke med tidsrommet ${fraTid}–${tilTid} (forventet ${forventet.toFixed(
@@ -669,7 +860,7 @@ type SynkTimerRad = {
   reiseOppmotestedId?: string | null;
   reiseKjoretidMin?: number | null;
   reiseAvstandM?: number | null;
-  reiseKilde?: "matrise" | "manuell" | null;
+  reiseKilde?: "matrise" | "manuell" | "overforing" | null;
   reiseRegel?: unknown;
   tidKilde?: "stempel" | "utledet" | "manuell" | null;
 };
@@ -734,6 +925,54 @@ async function byggReiseFelterForSynk(
     }
   }
 
+  // L2 6b: overføringer kontrolleres mot OppmotestedAvstand (kontor↔kontor)
+  // eller samme matrisecelle som over (kontor × byggeplass). Ett oppslag hver.
+  const kontorNokler = new Map<string, { fra: string; til: string }>();
+  const overforingNokkel = new Map<string, ReturnType<typeof overforingKontrollNokkel>>();
+  const ekstraMatrise = new Map<string, { oppmotestedId: string; byggeplassId: string }>();
+  for (const r of rader) {
+    if (r.erReise !== true || r.reiseKilde !== "overforing") continue;
+    const rute = lesOverforingRute(r.reiseRegel);
+    if (!rute) continue;
+    const n = overforingKontrollNokkel(rute, r.byggeplassId ?? sedelByggeplassId ?? null);
+    overforingNokkel.set(r.id, n);
+    if (n?.type === "kontor") kontorNokler.set(`${n.fra}::${n.til}`, n);
+    if (n?.type === "matrise") {
+      const k = `${n.oppmotestedId}::${n.byggeplassId}`;
+      if (!celleMap.has(k)) ekstraMatrise.set(k, n);
+    }
+  }
+  if (ekstraMatrise.size > 0) {
+    const celler = await prisma.reisetidMatrise.findMany({
+      where: { OR: Array.from(ekstraMatrise.values()) },
+      select: { oppmotestedId: true, byggeplassId: true, avstandM: true, kjoretidMin: true },
+    });
+    for (const c of celler) {
+      celleMap.set(`${c.oppmotestedId}::${c.byggeplassId}`, {
+        avstandM: c.avstandM,
+        kjoretidMin: c.kjoretidMin,
+      });
+    }
+  }
+  const kontorCelleMap = new Map<string, { avstandM: number | null; kjoretidMin: number | null }>();
+  if (kontorNokler.size > 0) {
+    const par = await prisma.oppmotestedAvstand.findMany({
+      where: {
+        OR: Array.from(kontorNokler.values()).map((n) => ({
+          fraOppmotestedId: n.fra,
+          tilOppmotestedId: n.til,
+        })),
+      },
+      select: { fraOppmotestedId: true, tilOppmotestedId: true, avstandM: true, kjoretidMin: true },
+    });
+    for (const p of par) {
+      kontorCelleMap.set(`${p.fraOppmotestedId}::${p.tilOppmotestedId}`, {
+        avstandM: p.avstandM,
+        kjoretidMin: p.kjoretidMin,
+      });
+    }
+  }
+
   const felter = new Map<string, ReiseFelter>();
   for (const r of rader) {
     if (r.erReise === undefined) {
@@ -780,6 +1019,23 @@ async function byggReiseFelterForSynk(
         { avstandM: r.reiseAvstandM ?? null, kjoretidMin: r.reiseKjoretidMin ?? null },
         celle,
       );
+    }
+    if (r.erReise && r.reiseKilde === "overforing") {
+      const n = overforingNokkel.get(r.id) ?? null;
+      const celle =
+        n?.type === "kontor"
+          ? kontorCelleMap.get(`${n.fra}::${n.til}`) ?? null
+          : n?.type === "matrise"
+            ? celleMap.get(`${n.oppmotestedId}::${n.byggeplassId}`) ?? null
+            : null;
+      // Uoppnåelig/ukjent celle (null/-1) gir ingen kontroll — ikke et avvik.
+      reiseAvvik =
+        celle && celle.kjoretidMin != null && celle.kjoretidMin >= 0
+          ? beregnReiseAvvik(
+              { avstandM: r.reiseAvstandM ?? null, kjoretidMin: r.reiseKjoretidMin ?? null },
+              { avstandM: celle.avstandM, kjoretidMin: celle.kjoretidMin },
+            )
+          : null;
     }
 
     felter.set(r.id, {
@@ -1039,17 +1295,40 @@ type ValiderRad = {
   projectId: string;
   externalCostObjectId: string | null;
   timer: number | Prisma.Decimal;
+  // Tillegg til post (7) punkt 5: reiserader og erstattede rader teller ikke
+  // som arbeid i maskin-kontrollen (samme regel som klienten, post (6) (b) 1).
+  // Gjelder kun timer-radene; maskin-rader har ikke feltene.
+  erReise?: boolean | null;
+  attestertStatus?: string | null;
 };
+
+/**
+ * RETUR 1 V3 — overgangsbryter for `syncBatch`s maskin-kontroll. `true` = reise
+ * teller som arbeid ved synk (den gamle regelen). Settes til `false` (og
+ * fjernes) når OTA-versjonen med «maskin mot arbeid uten reise» er i bruk.
+ */
+const SYNK_MASKIN_REISE_TELLER_SOM_ARBEID = true;
 
 /**
  * Delegerer til @sitedoc/shared `beregnMaskinBrudd` — samme bucket-regel,
  * epsilon og pause-modell brukes av klient-disable (web + mobil). Serveren
  * konverterer kun Decimal → number før den delte funksjonen kalles.
+ *
+ * Arbeid måles UTEN reise (post (7) punkt 5): hver timer-rad går gjennom den
+ * delte `arbeidUtenReise`, som gir 0 for reiserader og erstattede rader — den
+ * samme funksjonen web-klientens maskin-kontroll summerer bucketen med.
+ *
+ * `reiseTellerSomArbeid` (RETUR 1 V3) er KUN for `syncBatch`s overgangsperiode:
+ * eldre mobil-apper regner reise som arbeid, og en sedel de har lagret lokalt
+ * skal ikke avvises i sin helhet ved synk etter API-deployen. Fjernes når
+ * OTA-versjonen med den nye regelen er i bruk (docs/claude/timer.md § Maskin ≤
+ * arbeidstimer).
  */
 function validerMaskinUnderArbeid(
   timer: ValiderRad[],
   maskin: ValiderRad[],
   pauseMin = 0,
+  opts: { reiseTellerSomArbeid?: boolean } = {},
 ) {
   const tilNum = (v: ValiderRad["timer"]): number =>
     typeof v === "number" ? v : Number(v);
@@ -1058,7 +1337,18 @@ function validerMaskinUnderArbeid(
     externalCostObjectId: rad.externalCostObjectId,
     timer: tilNum(rad.timer),
   });
-  return beregnMaskinBrudd(timer.map(map), maskin.map(map), pauseMin);
+  const mapArbeid = (rad: ValiderRad) => ({
+    projectId: rad.projectId,
+    externalCostObjectId: rad.externalCostObjectId,
+    timer: arbeidUtenReise([
+      {
+        timer: tilNum(rad.timer),
+        erReise: opts.reiseTellerSomArbeid ? false : rad.erReise,
+        attestertStatus: rad.attestertStatus,
+      },
+    ]),
+  });
+  return beregnMaskinBrudd(timer.map(mapArbeid), maskin.map(map), pauseMin);
 }
 
 /**
@@ -1077,6 +1367,7 @@ async function hentRaderForValidering(
     projectId: string;
     externalCostObjectId: string | null;
     timer: Prisma.Decimal;
+    erReise: boolean;
   }>;
   maskin: Array<{
     id: string;
@@ -1094,6 +1385,7 @@ async function hentRaderForValidering(
         projectId: true,
         externalCostObjectId: true,
         timer: true,
+        erReise: true,
       },
     }),
     tx.sheetMachine.findMany({
@@ -1327,25 +1619,18 @@ async function opprettForsteTimerRadForslag(
   const tilTid = instantTilOsloHHMM(endAt);
 
   // V20/PK9: pausen hentes fra NORMEN (V16), ikke hodet, og skrives PÅ raden som
-  // bærer når regelen trigger (dagsbrutto > 5,5 t OG raden krysser pausevinduet).
-  // Pausevinduet (PK5) følger firmaets pauseReferanse. Ingen skjult fradrag.
+  // bærer når regelen trigger. ORDRE 2026-11-13 «pausen trekkes etter 4
+  // ARBEIDStimer»: sedelen er tom, så raden er dagens eneste — den bærer når
+  // dagsbrutto > 5,5 t og spennet er lengre enn pausen; pausen ligger i raden
+  // (timer = spenn − pause). Ingen skjult fradrag.
   const eff = await hentEffektivArbeidstid(orgId, dato);
-  const pauseVindu = pauseVinduForDag([{ fraTid }], {
-    startTid: eff.startTid,
-    pauseEtterTimer: eff.pauseEtterTimer,
-    pauseReferanse: eff.pauseReferanse,
-  });
   const bruttoTimer = (endAt.getTime() - startAt.getTime()) / 3_600_000;
-  const krysser =
-    pauseOverlappMin(
-      hhmmTilMin(fraTid),
-      hhmmTilMin(tilTid),
-      hhmmTilMin(pauseVindu),
-      eff.pauseMin,
-    ) > 0;
+  const spennMin = hhmmTilMin(tilTid) - hhmmTilMin(fraTid);
   const radPauseMin =
-    bruttoTimer > PAUSE_TERSKEL_TIMER && krysser ? eff.pauseMin : 0;
-  const timer = effektiveTimerFraSpenn(fraTid, tilTid, pauseVindu, radPauseMin);
+    bruttoTimer > PAUSE_TERSKEL_TIMER && spennMin > eff.pauseMin
+      ? eff.pauseMin
+      : 0;
+  const timer = effektiveTimerFraSpenn(fraTid, tilTid, fraTid, radPauseMin);
   if (timer <= 0) return;
 
   // LAG 2 (presisering 2): utled erReise også her. Standard-lønnsarten er normalt
@@ -1410,6 +1695,10 @@ const splittRadInput = z.discriminatedUnion("radType", [
           tilleggId: z.string().uuid(),
           antall: z.number().positive(),
           kommentar: z.string().nullable().optional(),
+          // Tillegg på prosjektkortet (spec § 6): utelatt = delen arver originalens
+          // kort når prosjektet er det samme (arvTilleggKort).
+          byggeplassId: z.string().uuid().nullable().optional(),
+          externalCostObjectId: z.string().uuid().nullable().optional(),
         }),
       )
       .min(2, "Splitt krever minst 2 nye rader"),
@@ -1435,6 +1724,36 @@ const splittRadInput = z.discriminatedUnion("radType", [
   }),
 ]);
 type SplittRadInput = z.infer<typeof splittRadInput>;
+
+type TilleggKortKilde = {
+  projectId: string;
+  byggeplassId: string | null;
+  externalCostObjectId: string | null;
+};
+
+/**
+ * Tillegg på prosjektkortet (spec § 3.3/§ 6, B5): en splitt-del arver originalens
+ * byggeplass og underprosjekt når klienten ikke sender feltene og delen står på
+ * samme prosjekt. Flyttes delen til et annet prosjekt, passer ikke originalens kort
+ * — da blir feltet NULL (arv fra sedelen). Oppgitt verdi (også null) vinner; den er
+ * validert mot prosjektet i validerSplittFelles.
+ */
+export function arvTilleggKort(
+  del: { projectId: string; byggeplassId?: string | null; externalCostObjectId?: string | null },
+  original: TilleggKortKilde,
+): { byggeplassId: string | null; externalCostObjectId: string | null } {
+  const sammeProsjekt = del.projectId === original.projectId;
+  return {
+    byggeplassId:
+      del.byggeplassId !== undefined ? del.byggeplassId : sammeProsjekt ? original.byggeplassId : null,
+    externalCostObjectId:
+      del.externalCostObjectId !== undefined
+        ? del.externalCostObjectId
+        : sammeProsjekt
+          ? original.externalCostObjectId
+          : null,
+  };
+}
 
 /**
  * Delt validerings-kjerne for splitt (P2). Kalles av begge splitt-innganger FØR
@@ -1470,8 +1789,23 @@ async function validerSplittFelles(
     input.nyeRader.map((r) => r.projectId),
     sheet.organizationId,
   );
-  // Ordre (12): byggeplassen må høre til radens prosjekt (tillegg-rader har ingen).
+  // Ordre (12): byggeplassen må høre til radens prosjekt.
   await krevByggeplasserIProsjekt(input.nyeRader);
+  // Post (7) punkt 1: nye splitt-rader må bruke firmaets egne katalog-ID-er.
+  if (input.radType === "timer") {
+    await krevKatalogIFirma(prismaTimer, sheet.organizationId, {
+      lonnsartIder: input.nyeRader.map((r) => r.lonnsartId),
+      aktivitetIder: input.nyeRader.map((r) => r.aktivitetId),
+    });
+  } else if (input.radType === "tillegg") {
+    await krevKatalogIFirma(prismaTimer, sheet.organizationId, {
+      tilleggIder: input.nyeRader.map((r) => r.tilleggId),
+    });
+  }
+  // Tillegg på prosjektkortet: et oppgitt underprosjekt må høre til radens prosjekt.
+  if (input.radType === "tillegg") {
+    await krevEcoerIProsjekt(input.nyeRader, sheet.organizationId);
+  }
   // Maskin-splitt tar nye vehicleId fra input — org-valider hver unik mot
   // firmaets maskinregister. Timer-splitt arver original-radens vehicleId.
   if (input.radType === "maskin") {
@@ -1521,6 +1855,87 @@ async function validerSplittFelles(
       });
     }
   }
+}
+
+/** Rad-utsnitt (SheetTimer/SheetTimerForslag) → ForsonRad for paring og relink. */
+type ForsonKilde = {
+  id: string;
+  projectId: string;
+  byggeplassId: string | null;
+  lonnsartId: string;
+  aktivitetId: string;
+  timer: Prisma.Decimal | number;
+  fraTid: string | null;
+  tilTid: string | null;
+  externalCostObjectId: string | null;
+  grunn?: string | null;
+};
+function tilForsonRad(r: ForsonKilde): ForsonRad {
+  return {
+    id: r.id,
+    projectId: r.projectId,
+    byggeplassId: r.byggeplassId,
+    lonnsartId: r.lonnsartId,
+    aktivitetId: r.aktivitetId,
+    timer: Number(r.timer),
+    fraTid: r.fraTid,
+    tilTid: r.tilTid,
+    externalCostObjectId: r.externalCostObjectId,
+    grunn: (r.grunn ?? null) as ForsonRad["grunn"],
+  };
+}
+
+/**
+ * Telefontest B funn 5: les paringen FØR rad-skrivingene (samme `parForslagMotSedel` som
+ * skjermen). Kun V19-A-par med ulike id-er gir relink.
+ */
+async function lesRelinkPar(tx: Prisma.TransactionClient, sheetId: string): Promise<RelinkPar[]> {
+  const [foer, forslag] = await Promise.all([
+    tx.sheetTimer.findMany({ where: { sheetId } }),
+    tx.sheetTimerForslag.findMany({ where: { sheetId } }),
+  ]);
+  return parForRelink((foer ?? []).map(tilForsonRad), (forslag ?? []).map(tilForsonRad));
+}
+
+/**
+ * Funn 5: maskinlinjer som hang på et forslag, følger raden som vant. `sheetTimerId`
+ * relinkes alltid; prosjekt/byggeplass/underprosjekt bare når linjen var lik forslaget
+ * (`planleggLinjeRelink`). Attesterte linjer røres aldri. Varer relinkes IKKE her —
+ * mobilen sender dem først etter forsoningen (orkestrator-STOPP 2026-11-13).
+ * Returnerer sluttradene med `relinketFra` (forslag-id-er slått inn i raden), så
+ * mobilen kan relinke sine lokale linjer. Fortsatt en array: eldre apper itererer svaret.
+ */
+async function utforLinjeRelink<R extends ForsonKilde>(
+  tx: Prisma.TransactionClient,
+  sheetId: string,
+  par: readonly RelinkPar[],
+  slutt: R[],
+): Promise<Array<R & { relinketFra: string[] }>> {
+  if (par.length > 0) {
+    const linjer = await tx.sheetMachine.findMany({
+      where: { sheetId, sheetTimerId: { in: par.map((p) => p.fra.id) } },
+      select: {
+        id: true,
+        sheetTimerId: true,
+        projectId: true,
+        byggeplassId: true,
+        externalCostObjectId: true,
+        attestertStatus: true,
+      },
+    });
+    const plan = planleggLinjeRelink(
+      par,
+      linjer.filter((l) => l.attestertStatus !== "attestert"),
+      slutt.map(tilForsonRad),
+    );
+    for (const p of plan) {
+      await tx.sheetMachine.update({ where: { id: p.id }, data: p.data });
+    }
+  }
+  return slutt.map((r) => ({
+    ...r,
+    relinketFra: par.filter((p) => p.tilId === r.id).map((p) => p.fra.id),
+  }));
 }
 
 export const dagsseddelRouter = router({
@@ -1640,6 +2055,21 @@ export const dagsseddelRouter = router({
         firmanavn = org?.name ?? null;
       }
       return { kanFoere, firmanavn };
+    }),
+
+  // ORDRE 29: brukerens sist brukte maskiner (nyeste først, unike, N = 5) — løftes
+  // øverst i maskinvelgeren. Kun EGNE sedler i firmaet; ikke ansatt → tom liste.
+  sistBrukteMaskiner: protectedProcedure
+    .input(z.object({ organizationId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      if (!(await erAnsattIFirma(ctx.userId, input.organizationId))) return [];
+      const rader = await ctx.prismaTimer.sheetMachine.findMany({
+        where: { sheet: { userId: ctx.userId, organizationId: input.organizationId } },
+        orderBy: [{ sheet: { dato: "desc" } }, { createdAt: "desc" }],
+        take: 50,
+        select: { vehicleId: true },
+      });
+      return sisteUnikeMaskiner(rader.map((r) => r.vehicleId));
     }),
 
   hentMedId: protectedProcedure
@@ -1909,6 +2339,9 @@ export const dagsseddelRouter = router({
 
       const data: Prisma.DailySheetUpdateInput = {};
       if (input.aktivitetId !== undefined) {
+        await krevKatalogIFirma(ctx.prismaTimer, sheet.organizationId, {
+          aktivitetIder: [input.aktivitetId],
+        });
         data.aktivitet = { connect: { id: input.aktivitetId } };
       }
       if (input.avdelingId !== undefined) data.avdelingId = input.avdelingId;
@@ -1963,6 +2396,18 @@ export const dagsseddelRouter = router({
         externalCostObjectId: z.string().uuid().nullable().optional(),
         // T.10: kostnadsbærer for maskinvedlikehold (svak FK → Equipment).
         vehicleId: z.string().uuid().nullable().optional(),
+        // Ordre 2026-11-14 (6): «+ Reise» sender kilden "manuell". Flagget
+        // erReise utledes fortsatt fra lønnsarten; kilden avvises hvis
+        // lønnsarten ikke er en reise-art (ingen falsk reise-rad).
+        // POST (13) L2 commit 8: reise-kortet kan også sende "overforing" og
+        // hele sporet. Sporet lagres KUN sammen med en kilde på en reise-art
+        // (C2-validert som i synken); uten kilde ignoreres feltene (null-spor).
+        reiseKilde: z.enum(["manuell", "overforing"]).optional(),
+        reiseRetning: z.enum(["ut", "retur"]).nullable().optional(),
+        reiseOppmotestedId: z.string().uuid().nullable().optional(),
+        reiseKjoretidMin: z.number().int().min(0).nullable().optional(),
+        reiseAvstandM: z.number().int().min(0).nullable().optional(),
+        reiseRegel: z.record(z.unknown()).nullable().optional(),
       }).superRefine(refineFraForTil),
     )
     .mutation(async ({ ctx, input }) => {
@@ -2020,15 +2465,64 @@ export const dagsseddelRouter = router({
       await verifiserProsjekterTilhørerFirma([input.projectId], sheet.organizationId);
       // Ordre (10): byggeplassen må høre til radens prosjekt.
       await krevByggeplassIProsjekt(input.byggeplassId, input.projectId);
+      // Gate (34): underprosjektet må høre til radens prosjekt og sedelens firma.
+      await krevEcoerIProsjekt([input], sheet.organizationId);
 
       // §2.D: vehicleId (maskinvedlikehold-kostnadsbærer) må tilhøre firmaet.
       if (input.vehicleId) {
         await verifiserKjoretoyTilhørerFirma(input.vehicleId, sheet.organizationId);
       }
 
+      // LAG 2 (presisering 2): utled erReise fra lønnsarten (web sender ikke
+      // flagget). Samme regel som backfill/synk; bruker navnet vi alt lastet.
+      const erReiseKtx = await hentErReiseKontekst(sheet.organizationId);
+      const erReise = utledErReise(input.lonnsartId, lonnsart.navn, erReiseKtx);
+      if (input.reiseKilde && !erReise) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Lønnsarten er ikke en reise-lønnsart",
+        });
+      }
+      // POST (13) L2 commit 8: sporet valideres (C2) og kontrolleres (C3) med
+      // SAMME funksjon som synken — oppmøtestedet må høre til sedelens firma,
+      // overføringen må ha retning/kjøretid/rute. Brudd → BAD_REQUEST, ingen rad.
+      let reiseSpor: ReiseFelter | null = null;
+      if (input.reiseKilde && erReise) {
+        const firmaOppmotesteder = await prisma.oppmotested.findMany({
+          where: { organizationId: sheet.organizationId },
+          select: { id: true },
+        });
+        const spor = await byggReiseFelterForSynk(
+          [
+            {
+              id: "ny",
+              lonnsartId: input.lonnsartId,
+              byggeplassId: input.byggeplassId ?? null,
+              erReise: true,
+              reiseKilde: input.reiseKilde,
+              reiseRetning: input.reiseRetning ?? null,
+              reiseOppmotestedId: input.reiseOppmotestedId ?? null,
+              reiseKjoretidMin: input.reiseKjoretidMin ?? null,
+              reiseAvstandM: input.reiseAvstandM ?? null,
+              reiseRegel: input.reiseRegel ?? null,
+              tidKilde: null,
+            },
+          ],
+          null,
+          erReiseKtx,
+          new Map([[input.lonnsartId, lonnsart.navn]]),
+          new Set(firmaOppmotesteder.map((o) => o.id)),
+        );
+        if (!spor.ok) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: spor.feilmelding });
+        }
+        reiseSpor = spor.felter.get("ny") ?? null;
+      }
+
       // T7-4b: valider sum(maskin) ≤ sum(timer) per (projectId, ECO).
       // Defensiv — å legge til en timer-rad kan kun øke timer-summen i
-      // bucket. Beholdes for konsistens på tvers av mutasjoner.
+      // bucket. Beholdes for konsistens på tvers av mutasjoner. Ny rad bærer
+      // sitt utledede erReise (post (7) punkt 5: reise teller ikke som arbeid).
       const naa = await hentRaderForValidering(ctx.prismaTimer, input.sheetId);
       const postTimer: ValiderRad[] = [
         ...naa.timer,
@@ -2036,6 +2530,7 @@ export const dagsseddelRouter = router({
           projectId: input.projectId,
           externalCostObjectId: input.externalCostObjectId ?? null,
           timer: input.timer,
+          erReise,
         },
       ];
       const brytt = validerMaskinUnderArbeid(postTimer, naa.maskin, sheet.pauseMin);
@@ -2054,11 +2549,6 @@ export const dagsseddelRouter = router({
         input.fraTid,
         input.tilTid,
       );
-
-      // LAG 2 (presisering 2): utled erReise fra lønnsarten (web sender ikke
-      // flagget). Samme regel som backfill/synk; bruker navnet vi alt lastet.
-      const erReiseKtx = await hentErReiseKontekst(sheet.organizationId);
-      const erReise = utledErReise(input.lonnsartId, lonnsart.navn, erReiseKtx);
 
       // V20/PK4a — vurder timetallet mot radens pause og pausevinduet. Vinduet
       // (PK5) regnes fra alle rader på dagen (ankomst = tidligste fraTid, inkl.
@@ -2103,6 +2593,8 @@ export const dagsseddelRouter = router({
             input.sheetId,
             { ...input, pauseMin: vurdering.pauseMin },
             erReise,
+            null,
+            reiseSpor,
           ),
         });
         await synkroniserHodePause(tx, input.sheetId);
@@ -2177,6 +2669,12 @@ export const dagsseddelRouter = router({
         krevRadInnenforTak(effektivTimer, lonnsart?.satsEnhet);
       }
 
+      // Post (7) punkt 1: katalog-ID-er må tilhøre sedelens firma før connect.
+      await krevKatalogIFirma(ctx.prismaTimer, sheet.organizationId, {
+        lonnsartIder: [input.lonnsartId],
+        aktivitetIder: [input.aktivitetId],
+      });
+
       const data: Prisma.SheetTimerUpdateInput = {};
       if (input.lonnsartId !== undefined) {
         data.lonnsart = { connect: { id: input.lonnsartId } };
@@ -2195,6 +2693,11 @@ export const dagsseddelRouter = router({
       if (input.timer !== undefined) data.timer = input.timer;
       if (input.beskrivelse !== undefined) data.beskrivelse = input.beskrivelse;
       if (input.externalCostObjectId !== undefined) {
+        // Gate (34): valideres mot RADENS prosjekt og sedelens firma.
+        await krevEcoerIProsjekt(
+          [{ externalCostObjectId: input.externalCostObjectId, projectId: rad.projectId }],
+          sheet.organizationId,
+        );
         data.externalCostObjectId = input.externalCostObjectId;
       }
       if (input.vehicleId !== undefined) {
@@ -2224,6 +2727,9 @@ export const dagsseddelRouter = router({
                   ? input.externalCostObjectId
                   : r.externalCostObjectId,
               timer: input.timer !== undefined ? input.timer : r.timer,
+              // Post (7) punkt 5: ny lønnsart kan gjøre raden til reise (eller arbeid).
+              erReise:
+                typeof data.erReise === "boolean" ? data.erReise : r.erReise,
             }
           : r,
       );
@@ -2439,11 +2945,14 @@ export const dagsseddelRouter = router({
                 "Dagsseddel ble låst under forsoningen — den er attestert. Be leder returnere den.",
             });
           }
-          await tx.sheetTimerForslag.deleteMany({ where: { sheetId: input.sheetId } });
-          return tx.sheetTimer.findMany({
+          const par = await lesRelinkPar(tx, input.sheetId);
+          const slutt = await tx.sheetTimer.findMany({
             where: { sheetId: input.sheetId },
             orderBy: { createdAt: "asc" },
           });
+          const svar = await utforLinjeRelink(tx, input.sheetId, par, slutt);
+          await tx.sheetTimerForslag.deleteMany({ where: { sheetId: input.sheetId } });
+          return svar;
         });
       }
 
@@ -2509,6 +3018,16 @@ export const dagsseddelRouter = router({
           });
         }
       }
+      // LAG 2 (presisering 2): utled erReise for hver rad (oppdatering = kan ha
+      // byttet lønnsart → re-utled; ny rad = utled). Ett oppslag for alle arter.
+      const erReiseMap = await hentErReiseForLonnsarter(
+        ctx.prismaTimer,
+        sheet.organizationId,
+        [
+          ...input.oppdateringer.map((o) => o.lonnsartId),
+          ...input.nyeRader.map((r) => r.lonnsartId),
+        ],
+      );
       const oppdatertEtterId = new Map(input.oppdateringer.map((o) => [o.id, o]));
       type SluttRad = {
         projectId: string;
@@ -2516,6 +3035,9 @@ export const dagsseddelRouter = router({
         timer: number;
         fraTid: string;
         tilTid: string;
+        // Post (7) punkt 5: maskin-vakten måler mot arbeid uten reise.
+        erReise: boolean;
+        attestertStatus: string | null;
       };
       const sluttTimer: SluttRad[] = [
         ...naavaerende.map((r): SluttRad => {
@@ -2527,6 +3049,8 @@ export const dagsseddelRouter = router({
                 timer: o.timer,
                 fraTid: o.fraTid,
                 tilTid: o.tilTid,
+                erReise: erReiseMap.get(o.lonnsartId) ?? false,
+                attestertStatus: r.attestertStatus,
               }
             : {
                 projectId: r.projectId,
@@ -2534,6 +3058,8 @@ export const dagsseddelRouter = router({
                 timer: Number(r.timer),
                 fraTid: r.fraTid ?? "",
                 tilTid: r.tilTid ?? "",
+                erReise: r.erReise,
+                attestertStatus: r.attestertStatus,
               };
         }),
         ...input.nyeRader.map((r): SluttRad => ({
@@ -2542,6 +3068,8 @@ export const dagsseddelRouter = router({
           timer: r.timer,
           fraTid: r.fraTid,
           tilTid: r.tilTid,
+          erReise: erReiseMap.get(r.lonnsartId) ?? false,
+          attestertStatus: null,
         })),
       ];
 
@@ -2568,6 +3096,8 @@ export const dagsseddelRouter = router({
           projectId: r.projectId,
           externalCostObjectId: r.externalCostObjectId,
           timer: r.timer,
+          erReise: r.erReise,
+          attestertStatus: r.attestertStatus,
         })),
         naa.maskin,
         sheet.pauseMin,
@@ -2584,16 +3114,8 @@ export const dagsseddelRouter = router({
       // attestering ser enten draft/returned (vi vinner) eller har alt committet accepted
       // (count=0 → vi kaster → ALT rulles tilbake). updateMany erstatter samtidig touchSedel
       // (begge bumper updatedAt). Alle rad-writes + sluttlesningen kjører på samme `tx`.
-      // LAG 2 (presisering 2): utled erReise for hver rad (oppdatering = kan ha
-      // byttet lønnsart → re-utled; ny rad = utled). Ett oppslag for alle arter.
-      const erReiseMap = await hentErReiseForLonnsarter(
-        ctx.prismaTimer,
-        sheet.organizationId,
-        [
-          ...input.oppdateringer.map((o) => o.lonnsartId),
-          ...input.nyeRader.map((r) => r.lonnsartId),
-        ],
-      );
+      // LAG 2 (presisering 2): erReiseMap er utledet over (før maskin-vakten,
+      // post (7) punkt 5) og gjenbrukes for rad-skrivingen.
 
       // V20/PK4a — vurder timetallet mot pause + vindu for hver skrevne rad.
       // Vinduet (PK5) regnes fra hele sluttsettet. Bæreren spores på tvers av
@@ -2663,6 +3185,8 @@ export const dagsseddelRouter = router({
               "Dagsseddel ble låst under forsoningen — den er attestert. Be leder returnere den.",
           });
         }
+        // Funn 5: paringen leses før skrivingene (relinken trenger før-bildet).
+        const relinkPar = await lesRelinkPar(tx, input.sheetId);
         // V19.9.7 (A'-7): valgte slettinger (slettet_telefon → «forslag») utføres i
         // SAMME tx, FØR rad-skrivingen og overlapp-vakten. Scopet på sheetId så
         // arbeideren aldri kan slette rader på en annen sedel. Etter dette kjører
@@ -2694,12 +3218,14 @@ export const dagsseddelRouter = router({
         }
         // V20/PK6: hodet = Σ rad etter alle skrivinger (slett + oppdater + ny).
         await synkroniserHodePause(tx, input.sheetId);
-        // V19 (A-5): forslaget er anvendt → slett det i samme tx.
-        await tx.sheetTimerForslag.deleteMany({ where: { sheetId: input.sheetId } });
         const forsonet = await tx.sheetTimer.findMany({
           where: { sheetId: input.sheetId },
           orderBy: { createdAt: "asc" },
         });
+        // Funn 5: linjer på forslaget følger raden som vant (før forslaget slettes).
+        const svar = await utforLinjeRelink(tx, input.sheetId, relinkPar, forsonet);
+        // V19 (A-5): forslaget er anvendt → slett det i samme tx.
+        await tx.sheetTimerForslag.deleteMany({ where: { sheetId: input.sheetId } });
         // V19 (A-5, vakt): forsoningen skal ALDRI etterlate en overlapp. Dette er
         // sluttsettet (alle rad-writes committet i tx-en over) — kjør den delte
         // regelen og kast (ruller tx tilbake) hvis den brøt. Et halvt anvendt valg
@@ -2714,7 +3240,7 @@ export const dagsseddelRouter = router({
               "Valget etterlater to overlappende tidsrom på dagsseddelen. Velg én side pr. tidsrom.",
           });
         }
-        return forsonet;
+        return svar;
       });
     }),
 
@@ -2854,6 +3380,9 @@ export const dagsseddelRouter = router({
         tilleggId: z.string().uuid(),
         antall: z.number().min(0),
         kommentar: z.string().nullable().optional(),
+        // Prosjektkortet: kortets byggeplass (null = arv) og underprosjekt.
+        byggeplassId: z.string().uuid().nullable().optional(),
+        externalCostObjectId: z.string().uuid().nullable().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -2868,6 +3397,11 @@ export const dagsseddelRouter = router({
       // fjerning av eksisterende rader gates IKKE — arbeid i gang skal aldri låses.
       await krevTimerAktivert(sheet.organizationId);
       await sjekkAldersgrense(sheet.organizationId, sheet.status, sheet.dato);
+      // H3: samme firma-grense på rad-projectId som tilfoyTimerRad.
+      await verifiserProsjekterTilhørerFirma([input.projectId], sheet.organizationId);
+      // Prosjektkortet: byggeplass og underprosjekt må høre til radens prosjekt.
+      await krevByggeplasserIProsjekt([input]);
+      await krevEcoerIProsjekt([input], sheet.organizationId);
 
       const tillegg = await ctx.prismaTimer.tillegg.findFirst({
         where: { id: input.tilleggId, organizationId: sheet.organizationId },
@@ -2888,6 +3422,8 @@ export const dagsseddelRouter = router({
             tilleggId: input.tilleggId,
             antall: input.antall,
             kommentar: input.kommentar ?? null,
+            byggeplassId: input.byggeplassId ?? null,
+            externalCostObjectId: input.externalCostObjectId ?? null,
           },
         }),
         touchSedel(ctx.prismaTimer, input.sheetId),
@@ -2902,6 +3438,9 @@ export const dagsseddelRouter = router({
         tilleggId: z.string().uuid().optional(),
         antall: z.number().min(0).optional(),
         kommentar: z.string().nullable().optional(),
+        // Utelatt = urørt; null = arv/uten underprosjekt.
+        byggeplassId: z.string().uuid().nullable().optional(),
+        externalCostObjectId: z.string().uuid().nullable().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -2921,10 +3460,26 @@ export const dagsseddelRouter = router({
 
       const data: Prisma.SheetTilleggUpdateInput = {};
       if (input.tilleggId !== undefined) {
+        // Post (7) punkt 1: tillegget må tilhøre sedelens firma.
+        await krevKatalogIFirma(ctx.prismaTimer, sheet.organizationId, {
+          tilleggIder: [input.tilleggId],
+        });
         data.tillegg = { connect: { id: input.tilleggId } };
       }
       if (input.antall !== undefined) data.antall = input.antall;
       if (input.kommentar !== undefined) data.kommentar = input.kommentar;
+      // Prosjektkortet: valideres mot RADENS prosjekt.
+      if (input.byggeplassId !== undefined) {
+        await krevByggeplasserIProsjekt([{ byggeplassId: input.byggeplassId, projectId: rad.projectId }]);
+        data.byggeplassId = input.byggeplassId;
+      }
+      if (input.externalCostObjectId !== undefined) {
+        await krevEcoerIProsjekt(
+          [{ externalCostObjectId: input.externalCostObjectId, projectId: rad.projectId }],
+          sheet.organizationId,
+        );
+        data.externalCostObjectId = input.externalCostObjectId;
+      }
 
       // F4-1d: rad-write + touchSedel atomisk.
       const [oppdatert] = await ctx.prismaTimer.$transaction([
@@ -3084,6 +3639,9 @@ export const dagsseddelRouter = router({
         // håndhever beløps-regelen — klienten kan ikke overstyre den.
         belop: z.number().min(0).nullable().optional(),
         kommentar: z.string().nullable().optional(),
+        // Prosjektkortet: kortets byggeplass (null = arv) og underprosjekt.
+        byggeplassId: z.string().uuid().nullable().optional(),
+        externalCostObjectId: z.string().uuid().nullable().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -3098,6 +3656,12 @@ export const dagsseddelRouter = router({
       // fjerning av eksisterende rader gates IKKE — arbeid i gang skal aldri låses.
       await krevTimerAktivert(sheet.organizationId);
       await sjekkAldersgrense(sheet.organizationId, sheet.status, sheet.dato);
+      // H3: samme firma-grense på rad-projectId som tilfoyTimerRad — før
+      // prosjekt-overstyringen under leses på projectId.
+      await verifiserProsjekterTilhørerFirma([input.projectId], sheet.organizationId);
+      // Prosjektkortet: byggeplass og underprosjekt må høre til radens prosjekt.
+      await krevByggeplasserIProsjekt([input]);
+      await krevEcoerIProsjekt([input], sheet.organizationId);
 
       const kategori = await ctx.prismaTimer.expenseCategory.findFirst({
         where: { id: input.expenseCategoryId, organizationId: sheet.organizationId },
@@ -3156,6 +3720,8 @@ export const dagsseddelRouter = router({
             belop,
             kommentar: input.kommentar ?? null,
             ordningVedFoering: ordning,
+            byggeplassId: input.byggeplassId ?? null,
+            externalCostObjectId: input.externalCostObjectId ?? null,
           },
         }),
         touchSedel(ctx.prismaTimer, input.sheetId),
@@ -3171,6 +3737,9 @@ export const dagsseddelRouter = router({
         id: z.string().uuid(),
         belop: z.number().min(0).nullable().optional(),
         kommentar: z.string().nullable().optional(),
+        // Utelatt = urørt; null = arv/uten underprosjekt.
+        byggeplassId: z.string().uuid().nullable().optional(),
+        externalCostObjectId: z.string().uuid().nullable().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -3211,6 +3780,18 @@ export const dagsseddelRouter = router({
         }
       }
       if (input.kommentar !== undefined) data.kommentar = input.kommentar;
+      // Prosjektkortet: valideres mot RADENS prosjekt.
+      if (input.byggeplassId !== undefined) {
+        await krevByggeplasserIProsjekt([{ byggeplassId: input.byggeplassId, projectId: rad.projectId }]);
+        data.byggeplassId = input.byggeplassId;
+      }
+      if (input.externalCostObjectId !== undefined) {
+        await krevEcoerIProsjekt(
+          [{ externalCostObjectId: input.externalCostObjectId, projectId: rad.projectId }],
+          sheet.organizationId,
+        );
+        data.externalCostObjectId = input.externalCostObjectId;
+      }
 
       const [oppdatert] = await ctx.prismaTimer.$transaction([
         ctx.prismaTimer.sheetUtlegg.update({ where: { id: input.id }, data }),
@@ -3437,12 +4018,15 @@ export const dagsseddelRouter = router({
     .input(z.object({ projectId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       await krevProsjektLeder(ctx.userId, input.projectId);
+      // H1: kun sedler fra firma brukeren attesterer for — aldri annet firmas timer.
+      const firmaer = await attesteringsFirmaer(ctx.userId, input.projectId);
 
       const sedler = await ctx.prismaTimer.dailySheet.findMany({
         where: {
           // T.1 (2026-05-11): projectId ligger på rad — filtrer via timer-relasjon.
           timer: { some: { projectId: input.projectId } },
           status: "sent",
+          ...(firmaer ? { organizationId: { in: firmaer } } : {}),
         },
         include: {
           aktivitet: { select: { id: true, navn: true, kode: true } },
@@ -3462,21 +4046,28 @@ export const dagsseddelRouter = router({
         where: { id: { in: userIder } },
         select: { id: true, name: true, email: true },
       });
+      // Ansattnummer hentes fra sedelens firma — ikke et vilkårlig firmas nummer.
+      const orgIder = Array.from(new Set(sedler.map((s) => s.organizationId)));
       const medlemmer = await prisma.organizationMember.findMany({
-        where: { userId: { in: userIder } },
-        select: { userId: true, ansattnummer: true },
+        where: { userId: { in: userIder }, organizationId: { in: orgIder } },
+        select: { userId: true, organizationId: true, ansattnummer: true },
       });
-      const ansattnummerMap = new Map(medlemmer.map((m) => [m.userId, m.ansattnummer]));
-      const brukerMap = new Map(
-        brukere.map((b) => [b.id, { ...b, ansattnummer: ansattnummerMap.get(b.id) ?? null }]),
+      const ansattnummerMap = new Map(
+        medlemmer.map((m) => [`${m.userId}:${m.organizationId}`, m.ansattnummer]),
       );
+      const brukerMap = new Map(brukere.map((b) => [b.id, b]));
 
-      return sedler.map((s) => ({
-        ...s,
-        ansatt: brukerMap.get(s.userId) ?? null,
-        totaltimer: s.timer.reduce((acc, t) => acc + Number(t.timer), 0),
-        antallRader: s.timer.length + s.tillegg.length,
-      }));
+      return sedler.map((s) => {
+        const bruker = brukerMap.get(s.userId);
+        return {
+          ...s,
+          ansatt: bruker
+            ? { ...bruker, ansattnummer: ansattnummerMap.get(`${s.userId}:${s.organizationId}`) ?? null }
+            : null,
+          totaltimer: s.timer.reduce((acc, t) => acc + Number(t.timer), 0),
+          antallRader: s.timer.length + s.tillegg.length,
+        };
+      });
     }),
 
   // Boolean-flagg som sidebar/UI bruker for å gate Attestering-lenken.
@@ -3551,6 +4142,9 @@ export const dagsseddelRouter = router({
 
       const sedler = await ctx.prismaTimer.dailySheet.findMany({
         where: {
+          // H1: firmaets egne sedler — en annen arbeidsgivers sedler på samme
+          // prosjekt attesteres av det firmaet, ikke her.
+          organizationId: input.organizationId,
           status: { in: statuser },
           timer: { some: { projectId: { in: prosjektIder } } },
           ...(datoFilter ? { dato: datoFilter } : {}),
@@ -3581,6 +4175,9 @@ export const dagsseddelRouter = router({
             select: {
               id: true,
               belop: true,
+              // Tillegg/utlegg på prosjektkortet (spec § 6): kortet raden hører til.
+              byggeplassId: true,
+              externalCostObjectId: true,
               expenseCategory: { select: { navn: true } },
             },
           },
@@ -3762,9 +4359,8 @@ export const dagsseddelRouter = router({
     }),
 
   // Hent én dagsseddel som prosjektleder (for attestering-detaljside).
-  // Skiller seg fra hentMedId ved at den autoriserer på krevProsjektLeder
-  // (ProjectMember.role="admin" eller kanAttestere=true) i stedet for
-  // eierskap. Beriker med ansatt-info fra kjernen.
+  // Skiller seg fra hentMedId ved at den autoriserer på krevAttesteringsrett
+  // (attesteringsrett i sedelens firma, H1) i stedet for eierskap. Beriker med ansatt-info fra kjernen.
   hentForAttestering: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
@@ -3807,13 +4403,9 @@ export const dagsseddelRouter = router({
           message: "Dagsseddel har ingen rader — kan ikke autorisere",
         });
       }
-      // T7-2b1 (2026-05-14): prosjektleder-auth som primær, firma-admin-fallback
-      // slik at firma-admin-detalj-siden også kan bruke samme query.
-      try {
-        await krevProsjektLeder(ctx.userId, projectId);
-      } catch {
-        await autoriserAdminForFirma(ctx.userId, sheet.organizationId);
-      }
+      // H1: attesteringsrett i sedelens firma (firma-admin der, eller ansatt der
+      // med prosjektleder-rett). Dekker også firma-admin-detalj-siden (T7-2b1).
+      await krevAttesteringsrett(ctx.userId, [{ organizationId: sheet.organizationId, projectId }]);
 
       // T7-2d (2026-05-16): Per-rad prosjekt-join. SheetTimer/Tillegg/Machine
       // har "svak FK" til Project (A.20 — ingen Prisma @relation pga cross-package).
@@ -3944,14 +4536,18 @@ export const dagsseddelRouter = router({
   flyttTimerRadEco: protectedProcedure
     .input(
       z.object({
+        // B7 (tillegg på prosjektkortet): `timerRadId` er rad-ID-en også for
+        // tillegg — navnet beholdes for bakoverkompatibilitet med eldre web.
         timerRadId: z.string().uuid(),
+        radType: z.enum(["timer", "tillegg"]).default("timer"),
         externalCostObjectId: z.string().uuid().nullable(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const rad = await ctx.prismaTimer.sheetTimer.findUnique({
-        where: { id: input.timerRadId },
-      });
+      const erTillegg = input.radType === "tillegg";
+      const rad = erTillegg
+        ? await ctx.prismaTimer.sheetTillegg.findUnique({ where: { id: input.timerRadId } })
+        : await ctx.prismaTimer.sheetTimer.findUnique({ where: { id: input.timerRadId } });
       if (!rad) throw new TRPCError({ code: "NOT_FOUND" });
 
       const sheet = await ctx.prismaTimer.dailySheet.findUnique({
@@ -3961,7 +4557,9 @@ export const dagsseddelRouter = router({
 
       // T.1 (2026-05-11): projectId ligger på rad — bruk rad.projectId
       // for auth og ECO-validering.
-      await krevProsjektLeder(ctx.userId, rad.projectId);
+      await krevAttesteringsrett(ctx.userId, [
+        { organizationId: sheet.organizationId, projectId: rad.projectId },
+      ]);
 
       // Status-vakt: kun "sent" tillates. "returned" er hos ansatten,
       // "accepted" er låst av snapshot, "draft" har aldri vært innom leder.
@@ -4007,10 +4605,15 @@ export const dagsseddelRouter = router({
       const fraEcoId = rad.externalCostObjectId;
       // F4-1d: rad-write + touchSedel atomisk.
       const [oppdatert] = await ctx.prismaTimer.$transaction([
-        ctx.prismaTimer.sheetTimer.update({
-          where: { id: input.timerRadId },
-          data: { externalCostObjectId: input.externalCostObjectId },
-        }),
+        erTillegg
+          ? ctx.prismaTimer.sheetTillegg.update({
+              where: { id: input.timerRadId },
+              data: { externalCostObjectId: input.externalCostObjectId },
+            })
+          : ctx.prismaTimer.sheetTimer.update({
+              where: { id: input.timerRadId },
+              data: { externalCostObjectId: input.externalCostObjectId },
+            }),
         touchSedel(ctx.prismaTimer, rad.sheetId),
       ]);
 
@@ -4021,9 +4624,9 @@ export const dagsseddelRouter = router({
             actorUserId: ctx.userId,
             organizationId: sheet.organizationId,
             projectId: rad.projectId,
-            targetType: "sheet_timer",
+            targetType: erTillegg ? "sheet_tillegg" : "sheet_timer",
             targetId: input.timerRadId,
-            action: "timer.eco-flyttet",
+            action: erTillegg ? "tillegg.eco-flyttet" : "timer.eco-flyttet",
             payload: {
               sheetId: sheet.id,
               fraEcoId,
@@ -4108,9 +4711,8 @@ export const dagsseddelRouter = router({
         });
       }
 
-      // Auth: én sjekk per unike projectId
-      const uniqueProjectIds = Array.from(new Set(alle.map((r) => r.projectId)));
-      await Promise.all(uniqueProjectIds.map((pid) => krevProsjektLeder(ctx.userId, pid)));
+      // Auth: attesteringsrett per (sedel-firma, prosjekt) — H1.
+      await krevAttesteringsrettForRader(ctx.prismaTimer, ctx.userId, alle);
 
       const naa = new Date();
       const uniqueSheetIds = Array.from(new Set(alle.map((r) => r.sheetId)));
@@ -4298,8 +4900,7 @@ export const dagsseddelRouter = router({
         });
       }
 
-      const uniqueProjectIds = Array.from(new Set(alle.map((r) => r.projectId)));
-      await Promise.all(uniqueProjectIds.map((pid) => krevProsjektLeder(ctx.userId, pid)));
+      await krevAttesteringsrettForRader(ctx.prismaTimer, ctx.userId, alle);
 
       const naa = new Date();
       const uniqueSheetIds = Array.from(new Set(alle.map((r) => r.sheetId)));
@@ -4351,7 +4952,7 @@ export const dagsseddelRouter = router({
   // sedel-nivå → status "sent" (tilbake i leder-køen for ny vurdering), alle
   // rader tilbake til "pending". Adskilt fra rad-retur (`returnerRader`), som er
   // for delvis flyt UNDER attestering. Speiler auth (unike projectId +
-  // krevProsjektLeder, som returnerRader) og rad-reset (som gjenaapneDagsseddel).
+  // krevAttesteringsrett, som returnerRader) og rad-reset (som gjenaapneDagsseddel).
   gjenaapneAttestering: protectedProcedure
     .input(z.object({ sheetId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
@@ -4371,7 +4972,7 @@ export const dagsseddelRouter = router({
       }
 
       // Leder-auth: samme oppslag som returnerRader — unike projectId fra
-      // sedelens rader, krevProsjektLeder på hver. En accepted-sedel har alltid
+      // sedelens rader, krevAttesteringsrett på hver (H1). En accepted-sedel har alltid
       // rader (ble accepted fordi alle ble attestert); tom sedel → kan ikke
       // autorisere (speiler hentForAttestering).
       const [timerRader, tilleggRader, maskinRader] = await Promise.all([
@@ -4399,8 +5000,9 @@ export const dagsseddelRouter = router({
           message: "Dagsseddel har ingen rader — kan ikke autorisere",
         });
       }
-      await Promise.all(
-        uniqueProjectIds.map((pid) => krevProsjektLeder(ctx.userId, pid)),
+      await krevAttesteringsrett(
+        ctx.userId,
+        uniqueProjectIds.map((pid) => ({ organizationId: sheet.organizationId, projectId: pid })),
       );
 
       // Reverser attesteringen (samme rad-reset som gjenaapneDagsseddel): alle
@@ -4481,6 +5083,9 @@ export const dagsseddelRouter = router({
               tilleggId: z.string().uuid(),
               antall: z.number().positive(),
               kommentar: z.string().nullable().optional(),
+              // Tillegg på prosjektkortet (spec § 6): som timer — `?? null`.
+              byggeplassId: z.string().uuid().nullable().optional(),
+              externalCostObjectId: z.string().uuid().nullable().optional(),
             }),
           ),
           maskin: z.array(
@@ -4547,7 +5152,13 @@ export const dagsseddelRouter = router({
         sheet.organizationId,
       );
       // Ordre (12): byggeplassen må høre til radens prosjekt (samme grense som ordre 10).
-      await krevByggeplasserIProsjekt([...input.nyeRader.timer, ...input.nyeRader.maskin]);
+      await krevByggeplasserIProsjekt([
+        ...input.nyeRader.timer,
+        ...input.nyeRader.maskin,
+        ...input.nyeRader.tillegg,
+      ]);
+      // Tillegg på prosjektkortet: underprosjektet må høre til radens prosjekt.
+      await krevEcoerIProsjekt(input.nyeRader.tillegg, sheet.organizationId);
 
       // §2.D: org-valider alle rad-vehicleId (maskin-kostnadsbærer) mot firmaets
       // maskinregister — timer-rad (nullable) + maskin-rad (påkrevd), samme
@@ -4641,6 +5252,13 @@ export const dagsseddelRouter = router({
       // som manglet taket helt (.positive(), intet maks, lastet ikke lønnsarten) —
       // en firma-admin kunne føre 25 timer her. Ett batch-oppslag på satsEnhet,
       // samme regel som de andre skrivestiene. Ukjent lønnsart → 24-tak.
+      // Post (7) punkt 1: aktivitet og tillegg i edit-settet må tilhøre sedelens
+      // firma. Lønnsarten sjekkes mot satsEnhet-oppslaget under (samme spørring,
+      // som før tålte en fremmed ID ved å gi satsEnhet=null).
+      await krevKatalogIFirma(ctx.prismaTimer, sheet.organizationId, {
+        aktivitetIder: input.nyeRader.timer.map((r) => r.aktivitetId),
+        tilleggIder: input.nyeRader.tillegg.map((r) => r.tilleggId),
+      });
       const redigerSatsEnhet = new Map<string, string | null>();
       if (input.nyeRader.timer.length > 0) {
         const redigerLonnsartIder = Array.from(
@@ -4653,6 +5271,12 @@ export const dagsseddelRouter = router({
           },
           select: { id: true, satsEnhet: true },
         });
+        if (redigerLonnsarter.length !== redigerLonnsartIder.length) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Lønnsart finnes ikke i firmaets katalog",
+          });
+        }
         for (const l of redigerLonnsarter) redigerSatsEnhet.set(l.id, l.satsEnhet);
         for (const r of input.nyeRader.timer) {
           krevRadInnenforTak(r.timer, redigerSatsEnhet.get(r.lonnsartId));
@@ -4707,6 +5331,13 @@ export const dagsseddelRouter = router({
       // (eksTimer/eksTillegg/eksMaskin hentes som pending; alle erstattes.)
       const eksisterendePendingTimerIder = new Set(eksTimer.map((r) => r.id));
       const eksisterendePendingMaskinIder = new Set(eksMaskin.map((r) => r.id));
+      // LAG 2 (presisering 2): utled erReise for de nye rad-ene (firma-admin
+      // rediger sender ikke flagget). Utledes FØR maskin-vakten (post (7) punkt 5). Ett oppslag for alle arter i edit-settet.
+      const redigerErReiseMap = await hentErReiseForLonnsarter(
+        ctx.prismaTimer,
+        sheet.organizationId,
+        input.nyeRader.timer.map((r) => r.lonnsartId),
+      );
       const baseline = await hentRaderForValidering(ctx.prismaTimer, sheet.id);
       const postTimer: ValiderRad[] = [
         ...baseline.timer.filter((r) => !eksisterendePendingTimerIder.has(r.id)),
@@ -4714,6 +5345,7 @@ export const dagsseddelRouter = router({
           projectId: r.projectId,
           externalCostObjectId: r.externalCostObjectId ?? null,
           timer: r.timer,
+          erReise: redigerErReiseMap.get(r.lonnsartId) ?? false,
         })),
       ];
       const postMaskin: ValiderRad[] = [
@@ -4764,13 +5396,6 @@ export const dagsseddelRouter = router({
         });
       }
 
-      // LAG 2 (presisering 2): utled erReise for de nye rad-ene (firma-admin
-      // rediger sender ikke flagget). Ett oppslag for alle arter i edit-settet.
-      const redigerErReiseMap = await hentErReiseForLonnsarter(
-        ctx.prismaTimer,
-        sheet.organizationId,
-        input.nyeRader.timer.map((r) => r.lonnsartId),
-      );
 
       // Transaksjon: marker alle eksisterende pending som "erstattet" + opprett nye
       await ctx.prismaTimer.$transaction([
@@ -4838,6 +5463,8 @@ export const dagsseddelRouter = router({
               projectId: rad.projectId,
               antall: rad.antall,
               kommentar: rad.kommentar ?? null,
+              byggeplassId: rad.byggeplassId ?? null,
+              externalCostObjectId: rad.externalCostObjectId ?? null,
               attestertStatus: "pending",
               parentRadId: rad.originalId,
             },
@@ -5069,6 +5696,7 @@ export const dagsseddelRouter = router({
                 projectId: rad.projectId,
                 antall: rad.antall,
                 kommentar: rad.kommentar ?? null,
+                ...arvTilleggKort(rad, original as TilleggKortKilde),
                 attestertStatus: "pending",
                 parentRadId: original.id,
               },
@@ -5278,6 +5906,7 @@ export const dagsseddelRouter = router({
                 projectId: rad.projectId,
                 antall: rad.antall,
                 kommentar: rad.kommentar ?? null,
+                ...arvTilleggKort(rad, original as TilleggKortKilde),
               },
             }),
           ),
@@ -5378,7 +6007,10 @@ export const dagsseddelRouter = router({
       }
 
       const uniqueProjectIds = Array.from(new Set(alle.map((r) => r.projectId)));
-      await Promise.all(uniqueProjectIds.map((pid) => krevProsjektLeder(ctx.userId, pid)));
+      await krevAttesteringsrett(
+        ctx.userId,
+        uniqueProjectIds.map((pid) => ({ organizationId: sheet.organizationId, projectId: pid })),
+      );
 
       const naa = new Date();
 
@@ -5499,7 +6131,7 @@ export const dagsseddelRouter = router({
           message: "Dagsseddel har ingen rader — kan ikke autorisere",
         });
       }
-      await krevProsjektLeder(ctx.userId, projectId);
+      await krevAttesteringsrett(ctx.userId, [{ organizationId: sheet.organizationId, projectId }]);
 
       return ctx.prismaTimer.dailySheet.update({
         where: { id: input.id },
@@ -5709,6 +6341,9 @@ export const dagsseddelRouter = router({
             tilleggId: tl.tilleggId,
             antall: Number(tl.antall),
             kommentar: tl.kommentar,
+            // Prosjektkortet: kortets byggeplass (null = arv) og underprosjekt.
+            byggeplassId: tl.byggeplassId,
+            externalCostObjectId: tl.externalCostObjectId,
             // Funn #2: kvittering-vedlegg per tillegg-rad (metadata).
             vedlegg: (vedleggPerRad.get(tl.id) ?? []).map((v) => ({
               id: v.id,
@@ -5722,6 +6357,8 @@ export const dagsseddelRouter = router({
             id: m.id,
             projectId: m.projectId,
             externalCostObjectId: m.externalCostObjectId,
+            // ORDRE 36b: maskinens byggeplass (kortet) — mobil skriver den lokalt.
+            byggeplassId: m.byggeplassId,
             // Del B pkt 1: returner koblingen så mobil beholder den ved pull.
             sheetTimerId: m.sheetTimerId,
             vehicleId: m.vehicleId,
@@ -5742,6 +6379,8 @@ export const dagsseddelRouter = router({
             kommentar: u.kommentar,
             ordningVedFoering: u.ordningVedFoering,
             foertVed: u.createdAt.toISOString(),
+            byggeplassId: u.byggeplassId,
+            externalCostObjectId: u.externalCostObjectId,
             vedlegg: (utleggVedleggPerRad.get(u.id) ?? []).map((v) => ({
               id: v.id,
               fileUrl: v.fileUrl,
@@ -5839,7 +6478,7 @@ export const dagsseddelRouter = router({
                 reiseOppmotestedId: z.string().uuid().nullable().optional(),
                 reiseKjoretidMin: z.number().int().nullable().optional(),
                 reiseAvstandM: z.number().int().nullable().optional(),
-                reiseKilde: z.enum(["matrise", "manuell"]).nullable().optional(),
+                reiseKilde: z.enum(["matrise", "manuell", "overforing"]).nullable().optional(),
                 // Json-snapshot av regelen. z.unknown() → vilkårlig Json; C2 krever
                 // at den finnes for matrise-rader.
                 reiseRegel: z.unknown().optional(),
@@ -5862,6 +6501,11 @@ export const dagsseddelRouter = router({
                 tilleggId: z.string().uuid(),
                 antall: z.number().min(0),
                 kommentar: z.string().nullable().optional(),
+                // Prosjektkortet (spec tillegg-utlegg-prosjektkort § 3.6): raden bærer
+                // kortets byggeplass og underprosjekt. Optional → eldre klienter uten
+                // feltene gir NULL (= arver sedelens byggeplass, uten underprosjekt).
+                byggeplassId: z.string().uuid().nullable().optional(),
+                externalCostObjectId: z.string().uuid().nullable().optional(),
               }),
             ),
             maskiner: z
@@ -5873,6 +6517,10 @@ export const dagsseddelRouter = router({
                   // Del B pkt 1: svak FK → timer-raden maskinen ble ført sammen med.
                   // Optional/nullable → eldre klienter uten feltet lar det stå null.
                   sheetTimerId: z.string().uuid().nullable().optional(),
+                  // ORDRE 36b: maskinen bærer kortets byggeplass (samme kort som
+                  // timer-raden). Optional → eldre klienter uten feltet beholder
+                  // sedel-arven (lokal.byggeplassId); null = eksplisitt ingen.
+                  byggeplassId: z.string().uuid().nullable().optional(),
                   vehicleId: z.string().uuid(),
                   timer: z.number().min(0).max(24),
                   mengde: z.number().min(0).nullable().optional(),
@@ -5899,6 +6547,9 @@ export const dagsseddelRouter = router({
                   belop: z.number().min(0).nullable().optional(),
                   kommentar: z.string().nullable().optional(),
                   ordningVedFoering: SYNC_ORDNING_ENUM,
+                  // Prosjektkortet (§ 3.6): som tillegg — utelatt = NULL = arv.
+                  byggeplassId: z.string().uuid().nullable().optional(),
+                  externalCostObjectId: z.string().uuid().nullable().optional(),
                   // Klientens føringstidspunkt (ISO). Skrives til createdAt så
                   // stempelet er reviderbart: «ført 3. aug, ordningen var X da» —
                   // ikke synk-dagen. Uten dette ville en rad som lå offline i tre
@@ -5997,6 +6648,12 @@ export const dagsseddelRouter = router({
           // `conflict/overlapp`. Valgfritt → eldre klient ignorerer dem.
           rader?: { id: string; updatedAt: string }[];
           hoppetOver?: string[];
+          // Telefontest A funn 1: false = serveren skrev INGENTING fra pushen (tidlig
+          // V19-A-overlapp, A-1a, laast) — heller ikke tillegg/utlegg/maskin. true =
+          // avvik-veien skrev hode, uomstridte rader, tillegg og utlegg. Mobilen lar da
+          // sist-synket stå og sender linjene på nytt etter forsoningen. Valgfritt →
+          // eldre klient ignorerer det.
+          skrevet?: boolean;
         };
         feilmelding?: string;
       };
@@ -6269,7 +6926,22 @@ export const dagsseddelRouter = router({
           const vaskByggeplass = await lagByggeplassVasker([
             lokal.byggeplassId,
             ...lokal.timer.map((t) => t.byggeplassId),
+            ...lokal.maskiner.map((m) => m.byggeplassId),
+            ...lokal.tillegg.map((tl) => tl.byggeplassId),
+            ...lokal.utlegg.map((u) => u.byggeplassId),
           ]);
+          // Prosjektkortet: tillegg/utlegg bærer underprosjekt — vaskes mot radens
+          // prosjekt og firmaet (fremmed → null, aldri avvisning: offline-køen).
+          // POST (14): også timer-/maskinrader — samme vasker, samme regel.
+          const vaskEco = await lagEcoVasker(
+            [
+              ...lokal.timer.map((t) => t.externalCostObjectId),
+              ...lokal.maskiner.map((m) => m.externalCostObjectId),
+              ...lokal.tillegg.map((tl) => tl.externalCostObjectId),
+              ...lokal.utlegg.map((u) => u.externalCostObjectId),
+            ],
+            orgId,
+          );
           let byggeplassVasket = 0;
           const vaskTell = (b: string | null | undefined, p: string | null): string | null => {
             const v = vaskByggeplass(b, p);
@@ -6285,7 +6957,9 @@ export const dagsseddelRouter = router({
           const syncMaskinByggeplass = new Map(
             lokal.maskiner.map((m) => [
               m.id,
-              vaskTell(lokal.byggeplassId, radProsjekt(m.projectId)),
+              maskinByggeplassVedSync(m, lokal.byggeplassId, (b) =>
+                vaskTell(b, radProsjekt(m.projectId)),
+              ),
             ]),
           );
           // Forslags-veiene (V19) lagrer payloadens egne byggeplass-felt — vask dem
@@ -6308,6 +6982,24 @@ export const dagsseddelRouter = router({
           if (byggeplassVasket > 0) {
             console.warn(
               `[timer_byggeplass_grense] sedel=${lokal.clientUuid} felt=${byggeplassVasket}: byggeplass utenfor radens prosjekt lagret som null (ordre 12)`,
+            );
+          }
+
+          // POST (14): underprosjekt på timer-/maskinrader vaskes mot radens
+          // prosjekt og sedelens firma FØR maskinvakten og skrivingen — fremmed
+          // → null, aldri avvisning (offline-køen), som tillegg/utlegg.
+          let ecoVasket = 0;
+          for (const r of [...lokal.timer, ...lokal.maskiner]) {
+            if (!r.externalCostObjectId) continue;
+            const v = vaskEco(r.externalCostObjectId, radProsjekt(r.projectId));
+            if (!v) {
+              r.externalCostObjectId = null;
+              ecoVasket++;
+            }
+          }
+          if (ecoVasket > 0) {
+            console.warn(
+              `[timer_eco_grense] sedel=${lokal.clientUuid} rader=${ecoVasket}: underprosjekt utenfor radens prosjekt/firma lagret som null (POST 14)`,
             );
           }
 
@@ -6408,38 +7100,6 @@ export const dagsseddelRouter = router({
             continue;
           }
 
-          // T7-4b: valider sum(maskin) ≤ sum(timer) per (projectId, ECO).
-          // syncBatch erstatter alle rader på sedelen — post-state = exakt
-          // det som er i lokal.timer + lokal.maskiner. Feil per sedel
-          // resulterer i "feilet" for KUN den sedelen, ikke batchen.
-          const syncPostTimer: ValiderRad[] = lokal.timer.map((t) => ({
-            projectId: radProsjekt(t.projectId)!,
-            externalCostObjectId: t.externalCostObjectId ?? null,
-            timer: t.timer,
-          }));
-          const syncPostMaskin: ValiderRad[] = lokal.maskiner.map((m) => ({
-            projectId: radProsjekt(m.projectId)!,
-            externalCostObjectId: m.externalCostObjectId ?? null,
-            timer: m.timer,
-          }));
-          const syncBrytt = validerMaskinUnderArbeid(
-            syncPostTimer,
-            syncPostMaskin,
-            // V20/PK6: buffer = Σ vurdert rad-pause (hodet er derivert). Men
-            // ALDRI mindre enn payloadens claimede hode-pause — maskin-regelen
-            // er en buffer (maskin ≤ arbeid + pause/60), så en eldre app skal
-            // aldri avvises STRENGERE enn før (ufravikelig: eldre app må synke).
-            Math.max(syncSumPause, lokal.pauseMin),
-          );
-          if (syncBrytt.length > 0) {
-            resultater.push({
-              clientUuid: lokal.clientUuid,
-              resultat: "avvist",
-              feilmelding: await feilMeldingMaskinOverstiger(syncBrytt),
-            });
-            continue;
-          }
-
           // LAG 2 (C1/C2/C3): bygg reise-sporet for sedelens rader. Eksplisitt
           // erReise valideres (C2) + matrise-rader kontrolleres (C3); ellers
           // utledes flagget (overgangsperioden). C2-brudd avviser HELE sedelen med
@@ -6463,6 +7123,47 @@ export const dagsseddelRouter = router({
           }
           const reiseFelterMap = reiseResultat.felter;
 
+          // T7-4b: valider sum(maskin) ≤ sum(timer) per (projectId, ECO).
+          // syncBatch erstatter alle rader på sedelen — post-state = exakt
+          // det som er i lokal.timer + lokal.maskiner. Feil per sedel
+          // resulterer i "feilet" for KUN den sedelen, ikke batchen.
+          const syncPostTimer: ValiderRad[] = lokal.timer.map((t) => ({
+            projectId: radProsjekt(t.projectId)!,
+            externalCostObjectId: t.externalCostObjectId ?? null,
+            timer: t.timer,
+            // Post (7) punkt 5: arbeid måles uten reise. Flagget er utledet/
+            // validert av byggReiseFelterForSynk over (derfor kjører maskin-
+            // vakten etter reise-sporet).
+            erReise: reiseFelterMap.get(t.id)?.erReise ?? false,
+          }));
+          const syncPostMaskin: ValiderRad[] = lokal.maskiner.map((m) => ({
+            projectId: radProsjekt(m.projectId)!,
+            externalCostObjectId: m.externalCostObjectId ?? null,
+            timer: m.timer,
+          }));
+          const syncBrytt = validerMaskinUnderArbeid(
+            syncPostTimer,
+            syncPostMaskin,
+            // V20/PK6: buffer = Σ vurdert rad-pause (hodet er derivert). Men
+            // ALDRI mindre enn payloadens claimede hode-pause — maskin-regelen
+            // er en buffer (maskin ≤ arbeid + pause/60), så en eldre app skal
+            // aldri avvises STRENGERE enn før (ufravikelig: eldre app må synke).
+            Math.max(syncSumPause, lokal.pauseMin),
+            // RETUR 1 V3 — OVERGANG: synk beholder den slakke regelen (reise
+            // teller som arbeid), så en eldre app ikke får hele sedelen avvist
+            // etter API-deployen. syncBatch kjenner ikke klientversjonen, så
+            // regelen gjelder all synk til overgangen fjernes (timer.md).
+            { reiseTellerSomArbeid: SYNK_MASKIN_REISE_TELLER_SOM_ARBEID },
+          );
+          if (syncBrytt.length > 0) {
+            resultater.push({
+              clientUuid: lokal.clientUuid,
+              resultat: "avvist",
+              feilmelding: await feilMeldingMaskinOverstiger(syncBrytt),
+            });
+            continue;
+          }
+
           // Per-seddel transaksjon: upsert sedel + erstatt rader atomisk
           // T.1 (2026-05-11): projectId/byggeplassId lagres på rad-nivå.
           // Mobil sender fortsatt lokal.projectId på sedel-nivå inntil mobil-PR
@@ -6484,6 +7185,7 @@ export const dagsseddelRouter = router({
                 aarsak: "overlapp" | "laast";
                 skrevneRader: { id: string; updatedAt: string }[];
                 hoppetOver: string[];
+                skrevet: boolean;
               };
           const txResultat: SyncTxResultat = await ctx.prismaTimer.$transaction(async (tx) => {
             // 2b (2026-07-16, TOCTOU-fiks): accepted-vakten (over) leser
@@ -6641,7 +7343,7 @@ export const dagsseddelRouter = router({
                   [...payloadMedGrunn, ...tombstoneForslag],
                   lokal.projectId ?? null,
                 );
-                return { slag: "overlapp", aarsak, skrevneRader: [], hoppetOver: hoppetOverIder };
+                return { slag: "overlapp", aarsak, skrevneRader: [], hoppetOver: hoppetOverIder, skrevet: false };
               }
             }
 
@@ -6850,6 +7552,7 @@ export const dagsseddelRouter = router({
                   tilleggId: tl.tilleggId,
                   antall: tl.antall,
                   kommentar: tl.kommentar ?? null,
+                  ...kortFeltVedSync(tl, radProsjekt(tl.projectId)!, vaskTell, vaskEco),
                 })),
               });
             }
@@ -6889,6 +7592,7 @@ export const dagsseddelRouter = router({
                   belop: u.belop ?? null,
                   kommentar: u.kommentar ?? null,
                   ordningVedFoering: u.ordningVedFoering,
+                  ...kortFeltVedSync(u, radProsjekt(u.projectId)!, vaskTell, vaskEco),
                   createdAt: new Date(u.foertVed),
                 })),
               });
@@ -6920,7 +7624,7 @@ export const dagsseddelRouter = router({
                 avvikForslag,
                 lokal.projectId ?? null,
               );
-              return { slag: "overlapp", aarsak, skrevneRader, hoppetOver: hoppetOverIder };
+              return { slag: "overlapp", aarsak, skrevneRader, hoppetOver: hoppetOverIder, skrevet: true };
             }
 
             return { slag: "ok", sedel, skrevneRader, hoppetOver: hoppetOverIder };
@@ -6950,6 +7654,7 @@ export const dagsseddelRouter = router({
                   updatedAt: serverSedel.updatedAt.toISOString(),
                   rader: txResultat.skrevneRader,
                   hoppetOver: txResultat.hoppetOver,
+                  skrevet: txResultat.skrevet,
                 },
               });
             } else {
@@ -7083,6 +7788,8 @@ export const dagsseddelRouter = router({
                     attestertVed:
                       eksisterende.attestertVed?.toISOString() ?? null,
                     updatedAt: eksisterende.updatedAt.toISOString(),
+                    // Funn 1: A-1a skriver ingenting fra pushen.
+                    skrevet: false,
                   },
                   // Ingen feilmelding: dette er et MASKINSIGNAL til mobilen om å
                   // forsone identiteten (re-nøkle + additiv re-push, timerSync M1),
@@ -7164,8 +7871,12 @@ export const dagsseddelRouter = router({
         // §2.D: vehicleId (maskin-kostnadsbærer) må tilhøre firmaet. Svak FK
         // mot Equipment (db-maskin) → org-isolasjon håndheves i app-lag.
         await verifiserKjoretoyTilhørerFirma(input.vehicleId, sheet.organizationId);
+        // POST (14): firma-grense på rad-projectId — som tilfoyTimerRad.
+        await verifiserProsjekterTilhørerFirma([input.projectId], sheet.organizationId);
         // Ordre (10): byggeplassen må høre til radens prosjekt.
         await krevByggeplassIProsjekt(input.byggeplassId, input.projectId);
+        // POST (14): underprosjektet må høre til radens prosjekt og sedelens firma.
+        await krevEcoerIProsjekt([input], sheet.organizationId);
 
         // T7-4b: valider post-state.
         const naa = await hentRaderForValidering(
@@ -7258,6 +7969,11 @@ export const dagsseddelRouter = router({
         if (input.mengde !== undefined) data.mengde = input.mengde;
         if (input.enhet !== undefined) data.enhet = input.enhet;
         if (input.externalCostObjectId !== undefined) {
+          // POST (14): valideres mot RADENS prosjekt og sedelens firma.
+          await krevEcoerIProsjekt(
+            [{ externalCostObjectId: input.externalCostObjectId, projectId: rad.projectId }],
+            sheet.organizationId,
+          );
           data.externalCostObjectId = input.externalCostObjectId;
         }
         if (input.fraTid !== undefined) data.fraTid = input.fraTid;

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
+import { verifiserByggeplassIProsjekt } from "../services/tegningVakt";
 
 export const kontraktRouter = router({
   hentForProsjekt: protectedProcedure
@@ -31,6 +32,10 @@ export const kontraktRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      // ORDRE 29 #14: byggeplassen MÅ tilhøre prosjektet.
+      if (input.byggeplassId) {
+        await verifiserByggeplassIProsjekt(ctx.prisma, input.byggeplassId, input.projectId);
+      }
       return ctx.prisma.ftdKontrakt.create({
         data: {
           projectId: input.projectId,
@@ -66,6 +71,10 @@ export const kontraktRouter = router({
         select: { projectId: true },
       });
       await verifiserProsjektmedlem(ctx.userId, kontrakt.projectId);
+      // ORDRE 29 #14: ny byggeplass MÅ tilhøre kontraktens prosjekt. `null` = fjern, ingen sjekk.
+      if (data.byggeplassId) {
+        await verifiserByggeplassIProsjekt(ctx.prisma, data.byggeplassId, kontrakt.projectId);
+      }
       return ctx.prisma.ftdKontrakt.update({
         where: { id },
         data,

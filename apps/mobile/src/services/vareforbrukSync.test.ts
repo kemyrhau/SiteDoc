@@ -58,6 +58,8 @@ import {
   lagreLokalVarelinje,
   hentLokaleVarelinjer,
   planleggVaresending,
+  vareModalEtterLagre,
+  hentLokaleVarelinjerForDag,
 } from "./vareforbrukSync";
 import {
   refreshVareKatalog,
@@ -213,7 +215,7 @@ describe("vareforbruk fra kortet — synk", () => {
 
   it("timerrad med projectId null arver sedelens prosjekt (legacy) → koblet", () => {
     const plan = planleggVaresending(
-      { id: "l1", sheetId: "s1", projectId: "p1", dato: "2026-11-06", vareId: "v1", antall: 1, byggeplassId: null },
+      { id: "l1", sheetId: "s1", projectId: "p1", dato: "2026-11-06", vareId: "v1", antall: 1, byggeplassId: null, externalCostObjectId: null },
       { id: "s1", projectId: "p1", syncStatus: "synced" },
       [{ projectId: null }],
     );
@@ -251,6 +253,18 @@ describe("vareforbruk fra kortet — synk", () => {
     const server = lagServer({ feil });
     await syncVareforbruk(server.klient, "u1");
     expect(linje("l1")).toMatchObject({ syncStatus: "avvist", feilmelding: "Varen er inaktiv" });
+    await syncVareforbruk(server.klient, "u1");
+    expect(server.kall()).toBe(1);
+  });
+
+  it("sedelen sendt før køen nådde fram (ORDRE 33, FORBIDDEN) → avvist med i18n-nøkkel, sendes ikke igjen", async () => {
+    seedSedel("s1", "synced");
+    seedTimerRad("t1", "s1");
+    nyLinje("l1", "s1");
+    const feil = Object.assign(new Error("vareforbruk.feil.sedelSendt"), { data: { code: "FORBIDDEN" } });
+    const server = lagServer({ feil });
+    await syncVareforbruk(server.klient, "u1");
+    expect(linje("l1")).toMatchObject({ syncStatus: "avvist", feilmelding: "vareforbruk.feil.sedelSendt" });
     await syncVareforbruk(server.klient, "u1");
     expect(server.kall()).toBe(1);
   });
@@ -410,5 +424,114 @@ describe("vare-katalog-cache", () => {
 
   it("låst kort (sendt) viser ikke knappen selv med Varelager på", () => {
     expect(visVareforbrukKnapp({ prosjektIderMedVarelager: ["p1"], projectId: "p1", erRedigerbar: false })).toBe(false);
+  });
+});
+
+describe("ORDRE 34 pkt 2 — vare-dialogen blir stående i Bekreft dag", () => {
+  it("🔴 forblirApen → nullstill (dialogen lukkes ikke); standard → lukk", () => {
+    expect(vareModalEtterLagre(true)).toBe("nullstill");
+    expect(vareModalEtterLagre(false)).toBe("lukk");
+  });
+
+  it("«Ført i dag» leser brukerens linjer for prosjekt + dato, ikke andres", () => {
+    nyLinje("l1", "s1");
+    nyLinje("l2", "s1", "p2");
+    expect(hentLokaleVarelinjerForDag("u1", "p1", "2026-11-06")).toEqual([
+      { navn: "Grus", antall: 2.5, enhet: "m3" },
+    ]);
+    expect(hentLokaleVarelinjerForDag("u2", "p1", "2026-11-06")).toEqual([]);
+    expect(hentLokaleVarelinjerForDag("u1", "p1", "2026-11-07")).toEqual([]);
+  });
+
+  it("🔴 ORDRE 35 C3: avvist linje vises ikke i «Ført i dag»; pending og synced gjør", () => {
+    nyLinje("l1", "s1");
+    nyLinje("l2", "s1");
+    nyLinje("l3", "s1");
+    db().update(vareforbrukLocal).set({ syncStatus: "avvist" }).where(eq(vareforbrukLocal.id, "l2")).run();
+    db().update(vareforbrukLocal).set({ syncStatus: "synced" }).where(eq(vareforbrukLocal.id, "l3")).run();
+    expect(hentLokaleVarelinjerForDag("u1", "p1", "2026-11-06")).toHaveLength(2);
+  });
+});
+
+describe("Radform (2026-11-12) — varelinjen husker timerraden", () => {
+  function linjeFraRad(id: string, sheetId: string, sheetTimerId: string | null, projectId = "p1") {
+    lagreLokalVarelinje({
+      id,
+      userId: "u1",
+      organizationId: "o1",
+      sheetId,
+      projectId,
+      dato: "2026-11-06",
+      vareId: "v1",
+      vareNavn: "Grus",
+      enhet: "m3",
+      antall: 2.5,
+      byggeplassId: null,
+      sheetTimerId,
+    });
+  }
+
+  it("ny vare fra en rad lagres lokalt med sheet_timer_id og leses tilbake", () => {
+    seedSedel("s1", "pending");
+    seedTimerRad("t1", "s1");
+    linjeFraRad("l1", "s1", "t1");
+    expect(linje("l1").sheetTimerId).toBe("t1");
+    expect(hentLokaleVarelinjer("s1")[0]?.sheetTimerId).toBe("t1");
+  });
+
+  it("gammel linje uten kobling har sheetTimerId null (→ «Uten rad»)", () => {
+    seedSedel("s1", "pending");
+    nyLinje("l1", "s1");
+    expect(hentLokaleVarelinjer("s1")[0]?.sheetTimerId).toBeNull();
+  });
+
+  it("synk sender sheetTimerId sammen med dagsseddelId når raden står på sedelen", async () => {
+    seedSedel("s1", "synced");
+    seedTimerRad("t1", "s1");
+    linjeFraRad("l1", "s1", "t1");
+    const server = lagServer();
+    await syncVareforbruk(server.klient, "u1");
+    expect(server.rader.get("l1")).toMatchObject({ dagsseddelId: "s1", sheetTimerId: "t1" });
+  });
+
+  it("negativkontroll: linje uten kobling sendes uten sheetTimerId", async () => {
+    seedSedel("s1", "synced");
+    seedTimerRad("t1", "s1");
+    nyLinje("l1", "s1");
+    const server = lagServer();
+    await syncVareforbruk(server.klient, "u1");
+    expect(server.rader.get("l1")).toMatchObject({ dagsseddelId: "s1" });
+    expect(server.rader.get("l1")).not.toHaveProperty("sheetTimerId");
+  });
+
+  it("raden slettet eller flyttet til annet prosjekt → sendes ukoblet, ikke avvist", async () => {
+    seedSedel("s1", "synced");
+    seedTimerRad("t1", "s1", "p-annet");
+    seedTimerRad("t2", "s1");
+    linjeFraRad("l1", "s1", "t1"); // t1 tilhører nå et annet prosjekt
+    linjeFraRad("l2", "s1", "t-borte"); // raden finnes ikke lenger
+    const server = lagServer();
+    await syncVareforbruk(server.klient, "u1");
+    expect(server.rader.get("l1")).not.toHaveProperty("sheetTimerId");
+    expect(server.rader.get("l2")).not.toHaveProperty("sheetTimerId");
+    expect(linje("l1").syncStatus).toBe("synced");
+  });
+
+  it("uten dagsseddelId sendes aldri sheetTimerId (sedel avvist → som på web)", () => {
+    const plan = planleggVaresending(
+      { id: "l1", sheetId: "s1", projectId: "p1", dato: "2026-11-06", vareId: "v1", antall: 1, byggeplassId: null, externalCostObjectId: null, sheetTimerId: "t1" },
+      { id: "s1", projectId: "p1", syncStatus: "avvist" },
+      [{ id: "t1", projectId: "p1" }],
+    );
+    expect(plan.handling).toBe("send");
+    if (plan.handling === "send") expect(plan.input).not.toHaveProperty("sheetTimerId");
+  });
+
+  it("server → mobil: sheetTimerId fra hentMineForDato beholdes ved sammenslåing", () => {
+    const flett = slaaSammenVarelinjer(
+      [{ id: "srv1", projectId: "p1", antall: 1, vare: { navn: "Grus", enhet: "m3" }, sheetTimerId: "t9" }],
+      [],
+    );
+    expect(flett[0]).toMatchObject({ sheetTimerId: "t9" });
   });
 });

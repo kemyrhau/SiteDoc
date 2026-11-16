@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo, Suspense } from "react";
 import dynamic from "next/dynamic";
+import { useSearchParams } from "next/navigation";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { trpc } from "@/lib/trpc";
 import { rensSvg } from "@/lib/sanitize";
 import { Button, Input, Select, Textarea, Modal, Spinner, EmptyState } from "@sitedoc/ui";
+import { AdresseTreffliste, type AdresseTreff } from "@/components/AdresseTreffliste";
 import { KnappMedForklaring } from "@/components/KnappMedForklaring";
 import { useTranslation } from "react-i18next";
 import {
@@ -1686,8 +1688,6 @@ function RedigerLokasjon({
 /* ------------------------------------------------------------------ */
 
 type GeofenceFelt = { latitude?: number | null; longitude?: number | null; radiusM?: number | null };
-/** Adressesøk-treff (speiler `bygning.geokod`-retur / rute-service AdresseTreff). */
-type AdresseTreff = { lat: number; lng: number; label: string };
 
 /** Geofence er «satt» når alle tre feltene finnes. */
 function harGeofence(lok: GeofenceFelt): boolean {
@@ -1786,9 +1786,28 @@ function PublisertLokasjonKort({
 /*  Hovedside                                                          */
 /* ------------------------------------------------------------------ */
 
+// `useSearchParams` krever Suspense-grense for statisk prerender (Next 14);
+// uten den feiler `next build` på denne siden.
 export default function LokasjonerSide() {
-  const { prosjektId, valgtProsjekt } = useProsjekt();
+  return (
+    <Suspense fallback={null}>
+      <LokasjonerSideInnhold />
+    </Suspense>
+  );
+}
+
+function LokasjonerSideInnhold() {
+  const { prosjektId, valgtProsjekt, velgProsjekt } = useProsjekt();
   const { t } = useTranslation();
+  // POST (8) punkt 2: lenkene fra «Dette må være på plass» (Reise-regelsett)
+  // åpner siden med riktig prosjekt valgt via `?prosjekt=<id>`. Tilgang
+  // sjekkes som før av serveren (prosjekt.hentMedId); siden blir stående.
+  const prosjektParam = useSearchParams().get("prosjekt");
+  useEffect(() => {
+    if (prosjektParam && prosjektParam !== prosjektId) velgProsjekt(prosjektParam);
+    // Kun når parameteren endres — ikke når brukeren senere bytter prosjekt.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prosjektParam]);
   const utils = trpc.useUtils();
   // C5(a): «mangler plassering»-merket vises KUN når Timer-modulen er aktiv for
   // firmaet — ellers betyr et manglende byggeplass-punkt ingenting for brukeren.
@@ -1802,6 +1821,8 @@ export default function LokasjonerSide() {
   const [visEndreNavnModal, setVisEndreNavnModal] = useState(false);
   // Geofence skilt ut til egen, synlig inngang (discoverability) — egen modal.
   const [visGeofenceModal, setVisGeofenceModal] = useState(false);
+  // (10) A: dialogen ble åpnet automatisk etter opprettelse → egen forklaring.
+  const [plasseringEtterOpprett, setPlasseringEtterOpprett] = useState(false);
   const [nyNavn, setNyNavn] = useState("");
   const [nyAdresse, setNyAdresse] = useState("");
   const [endreNavn, setEndreNavn] = useState("");
@@ -1815,7 +1836,7 @@ export default function LokasjonerSide() {
   );
 
   const opprettMutation = trpc.bygning.opprett.useMutation({
-    onSuccess: (_data: unknown, variabler: { name: string }) => {
+    onSuccess: (_data: unknown, variabler: { name: string; address?: string }) => {
       utils.bygning.hentForProsjekt.invalidate({ projectId: prosjektId! }).then(() => {
         const oppdatert = utils.bygning.hentForProsjekt.getData({ projectId: prosjektId! });
         const nytt = oppdatert?.find((a) => a.name === variabler.name);
@@ -1824,6 +1845,17 @@ export default function LokasjonerSide() {
         // tegnings-editoren — geofence er nå en synlig knapp.
         if (nytt) setValgtId(nytt.id);
       });
+      // POST 2026-11-14 (10) A: fikk den nye byggeplassen ikke punkt (adressen
+      // ga ikke nøyaktig ett treff, eller ingen adresse), åpnes plasserings-
+      // dialogen straks — avstandene til oppmøtestedene beregnes når punktet
+      // settes. Kun når Timer er aktiv; dialogen kan lukkes, og «mangler
+      // plassering»-merket står da på raden.
+      const opprettet = _data as GeofenceFelt & { id: string };
+      if (timerAktiv && opprettet.latitude == null) {
+        apneGeofence(opprettet);
+        setGeoAdresse(variabler.address ?? "");
+        setPlasseringEtterOpprett(true);
+      }
       setVisModal(false);
       setNyNavn("");
       setNyAdresse("");
@@ -1872,6 +1904,7 @@ export default function LokasjonerSide() {
       utils.bygning.hentForProsjekt.invalidate({ projectId: prosjektId! });
       setGeoFeil(null);
       setVisGeofenceModal(false);
+      setPlasseringEtterOpprett(false);
     },
     onError: (feil: { message: string }) => setGeoFeil(feil.message),
   });
@@ -2276,10 +2309,18 @@ export default function LokasjonerSide() {
       {/* Geofence modal — egen, tydelig inngang (skilt fra navne-endring) */}
       <Modal
         open={visGeofenceModal}
-        onClose={() => setVisGeofenceModal(false)}
+        onClose={() => {
+          setVisGeofenceModal(false);
+          setPlasseringEtterOpprett(false);
+        }}
         title={t("lokasjoner.geofence.tittel")}
       >
         <div className="flex flex-col">
+          {plasseringEtterOpprett && (
+            <p className="mb-2 text-sm text-gray-700">
+              {t("lokasjoner.geofence.etterOpprett")}
+            </p>
+          )}
           <p className="mb-3 text-xs text-gray-500">
             {t("lokasjoner.geofence.beskrivelse")}
           </p>
@@ -2317,22 +2358,7 @@ export default function LokasjonerSide() {
                   : t("lokasjoner.geofence.sok")}
               </Button>
             </div>
-            {geoAdresseTreff.length > 0 && (
-              <ul className="mt-1 overflow-hidden rounded-md border border-gray-200">
-                {geoAdresseTreff.map((treff, i) => (
-                  <li key={`${treff.label}-${i}`}>
-                    <button
-                      type="button"
-                      onClick={() => settGeoSenter(treff)}
-                      className="flex w-full items-center gap-2 border-b border-gray-100 px-2.5 py-1.5 text-left text-xs text-gray-700 last:border-b-0 hover:bg-blue-50 hover:text-blue-700"
-                    >
-                      <MapPin className="h-3 w-3 flex-shrink-0 text-gray-400" />
-                      <span className="truncate">{treff.label}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
+            <AdresseTreffliste treff={geoAdresseTreff} onVelg={settGeoSenter} />
             {geokodMelding && (
               <p className="mt-1 text-xs text-sitedoc-error">{geokodMelding}</p>
             )}

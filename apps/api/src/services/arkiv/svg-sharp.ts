@@ -16,7 +16,7 @@
  * (JPEG/PNG) i samme rør beholder vakten.
  */
 
-import sharp from "sharp";
+import sharp, { type Sharp, type SharpOptions } from "sharp";
 
 /** Er bufferen (XML-) SVG? Ser etter `<svg` i de første ~1 KB, forbi BOM/XML-prolog/whitespace. */
 export function erSvgBuffer(bytes: Buffer): boolean {
@@ -26,11 +26,11 @@ export function erSvgBuffer(bytes: Buffer): boolean {
 }
 
 /** sharp-input-opsjoner: `{ unlimited: true }` KUN for SVG (løft librsvg-grensa), ellers `{}`. */
-export function svgSharpOpsjoner(bytes: Buffer): sharp.SharpOptions {
+export function svgSharpOpsjoner(bytes: Buffer): SharpOptions {
   return erSvgBuffer(bytes) ? { unlimited: true } : {};
 }
 
 /** Åpne en bilde-buffer med sharp, trygt for store DWG-SVG-er (L7). */
-export function aapneBilde(bytes: Buffer): sharp.Sharp {
+export function aapneBilde(bytes: Buffer): Sharp {
   return sharp(bytes, svgSharpOpsjoner(bytes));
 }

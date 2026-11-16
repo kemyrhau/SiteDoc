@@ -164,7 +164,7 @@ apps/api/src/services/maskin/
 > [dagsseddel-design.md § Modul-avhengigheter](dagsseddel-design.md).
 > Timer eier dagsseddelen; Maskin integreres som betinget kostnadskilde.
 
-**Equipment-velger UX (2026-07-05, develop):** velgeren på dagsseddel har nå fritekstsøk + **kategori-filter** (Alle/Kjøretøy/Anleggsmaskin/Småutstyr, speiler `/dashbord/maskin`) + sortering **brukt-på-seddelen → internNummer → navn**. Web bruker den delte komponenten `MaskinVelger` (`apps/web/src/components/timer/MaskinVelger.tsx`) på alle fire callsites; mobil `EquipmentVelgerModal` har chip-rad + sortering. `trpc.maskin.equipment.list` returnerer allerede `kategori` + `internNummer`. Detaljer: [timer.md § Maskin-velger](timer.md).
+**Equipment-velger UX (2026-07-05, develop):** velgeren på dagsseddel har nå fritekstsøk + **kategori-filter** (Alle/Kjøretøy/Anleggsmaskin/Småutstyr, speiler `/dashbord/maskin`) + sortering **brukt-på-seddelen → internNummer → navn**. Web bruker den delte komponenten `MaskinVelger` (`apps/web/src/components/timer/MaskinVelger.tsx`) på alle fire callsites; mobil `EquipmentVelgerModal` har chip-rad + sortering. `trpc.maskin.equipment.list` returnerer allerede `kategori` + `internNummer`. Sist brukte maskiner (5, egne, i firmaet) løftes øverst med «sist brukt»-merke (ORDRE 29, 🟡 ikke merget, `sorterMaskiner` i `packages/shared`). Detaljer: [timer.md § Maskin-velger](timer.md).
 
 **Maskin ≤ arbeidstimer (kapasitet-regel):** per `(projectId, ECO)`-bucket må `sum(maskin.timer) ≤ sum(arbeid.timer) + pauseMin/60`. Delt sannhetskilde **`packages/shared/src/utils/maskinKapasitet.ts`** brukes av BÅDE server (`validerMaskinUnderArbeid`) og klient (proaktiv Lagre-disable + kapasitet-linje i maskin-modalen, web + mobil). Full regel: [timer.md § Maskin ≤ arbeidstimer](timer.md).
 
@@ -303,6 +303,16 @@ linje. Foldingen skjer i `byggDetaljRader` (`packages/shared/src/utils/timerDeta
 gren) → arvet likt av skjerm/PDF/Excel (flateparitet). Api-en bærer `utleieEnhet` ut via
 `detaljEksport` (`apps/api/src/routes/timer/rapport.ts`, `utleieEnhetMap`). Krever at maskinen har
 `sheetTimerId` satt (koblingen finnes) — rader ført før koblingen (`sheetTimerId = NULL`) står uendret.
+
+**Maskinrad fra «Bekreft dag» (L3-D 2026-11-06; PRESISERING TILLEGG 2026-11-13, `feat/timer-dagsoversikt-radform`, ⚠️ venter gate):** mobilens
+`/timer/bekreft-dag` fører maskin pr. arbeidsrad med antall timer — `sheetTimerId` = radens id, radens prosjekt,
+byggeplass og underprosjekt, `fraTid/tilTid = NULL` (`skrivTillegg` i `apps/mobile/src/utils/dagsforslagAnvend.ts`).
+Maskinens timer ≤ radens timer, summert pr. maskin (`maskinerOverRaden`, kun lokalt — serveren har bare bøtte-regelen).
+Ett maskinsett pr. prosjektkort, og et kort har én dato (ORDRE 24 + RETUR (24), Kenneth 2026-11-16): ved lagring fordeler
+`fordelTilleggPaaKort` (`apps/mobile/src/utils/tilleggPaaKort.ts`) maskinen fra kortets første arbeidsrad videre til neste rad på samme kort,
+med kapasitet pr. (maskin, rad). Detalj: `timer.md` § Dagsoversikt i radform, TILLEGG. Lokal vakt med samme regel som serveren
+(`beregnMaskinBrudd`, maskin ≤ arbeid pr. prosjekt+ECO) før skriving (`maskinBruddForTillegg`,
+`apps/mobile/src/utils/bekreftDagTillegg.ts`); serveren validerer på nytt ved sync.
 
 ## Tre kategorier
 

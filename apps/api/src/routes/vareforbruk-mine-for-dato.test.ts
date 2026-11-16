@@ -50,7 +50,7 @@ describe("vareforbruk.hentMineForDato", () => {
   it("filtrerer på firmaets prosjekter, egen bruker og datoen", async () => {
     projectFindMany.mockResolvedValue([{ id: "p1" }, { id: "p2" }]);
     const { ctx, findMany } = lagCtx([
-      { id: "v1", projectId: "p1", byggeplassId: null, dagsseddelId: null, antall: "2.50", vare: { id: "a", navn: "Grus", enhet: "m3" } },
+      { id: "v1", projectId: "p1", byggeplassId: null, externalCostObjectId: "eco-1", dagsseddelId: null, antall: "2.50", vare: { id: "a", navn: "Grus", enhet: "m3" } },
     ]);
     const res = await vareforbrukRouter
       .createCaller(ctx)
@@ -62,8 +62,26 @@ describe("vareforbruk.hentMineForDato", () => {
     expect(where.registrertAvUserId).toBe(BRUKER);
     expect(where.projectId).toEqual({ in: ["p1", "p2"] });
     expect(where.dato).toEqual(new Date("2026-11-05"));
+    // ORDRE 36b: underprosjektet hentes og returneres (dagsoversikten flytter raden).
+    expect(findMany.mock.calls[0]![0].select.externalCostObjectId).toBe(true);
+    expect(res[0]!.externalCostObjectId).toBe("eco-1");
     // Decimal → number for klienten.
     expect(res[0]!.antall).toBe(2.5);
+  });
+
+  it("punkt 7: attestert vare merkes låst uten at snapshotet sendes", async () => {
+    projectFindMany.mockResolvedValue([{ id: "p1" }]);
+    const { ctx, findMany } = lagCtx([
+      { id: "v1", projectId: "p1", byggeplassId: null, externalCostObjectId: null, dagsseddelId: null, sheetTimerId: null, antall: "1", attestertSnapshot: { pris: 10 }, vare: { id: "a", navn: "Grus", enhet: "m3" } },
+      { id: "v2", projectId: "p1", byggeplassId: null, externalCostObjectId: null, dagsseddelId: null, sheetTimerId: null, antall: "1", attestertSnapshot: null, vare: { id: "a", navn: "Grus", enhet: "m3" } },
+    ]);
+    const res = await vareforbrukRouter
+      .createCaller(ctx)
+      .hentMineForDato({ organizationId: ORG, dato: "2026-11-05" });
+    expect(findMany.mock.calls[0]![0].select.attestertSnapshot).toBe(true);
+    expect(res.map((r) => r.attestert)).toEqual([true, false]);
+    // Negativkontroll: snapshotet (pris o.l.) forlater aldri serveren.
+    expect(res.every((r) => !("attestertSnapshot" in r))).toBe(true);
   });
 
   it("firma uten prosjekter gir tom liste uten å spørre varelageret", async () => {

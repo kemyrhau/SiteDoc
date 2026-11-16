@@ -1,6 +1,10 @@
 import { describe, it, expect } from "vitest";
 import {
   beregnDagsforslag,
+  brukOppmoteResolver,
+  leggTilOverforinger,
+  byggOverforingOppslag,
+  type DagsforslagOverforingOppslag,
   avgjorSluttDagHandling,
   skalMarkereAvsluttet,
   type BeregnDagsforslagInput,
@@ -194,7 +198,7 @@ describe("beregnDagsforslag — karakterisering (1:1 med dagens genererForslag)"
     expect(arbeidsTimer(f)).toBeCloseTo(11.5, 5);
   });
 
-  it("3. pause-fordeling: terskelgate (<5,5t ⇒ 0 pause) + pause lander på lengste segment", () => {
+  it("3. pause-fordeling: terskelgate (<5,5t ⇒ 0 pause) + pause der summert arbeid passerer grensen", () => {
     // 3a: kort dag under 5,5t-terskelen ⇒ ingen pause trekkes.
     const kort = beregnDagsforslag(
       lagInput({ sluttIso: "2026-10-01T12:00:00" }), // 5t
@@ -209,7 +213,8 @@ describe("beregnDagsforslag — karakterisering (1:1 med dagens genererForslag)"
     expect(arbeidsTimer(lang)).toBeCloseTo(5.5, 5);
     expect(lang.datoer[0]!.pauseMin).toBe(30);
 
-    // 3c: midnatt-splitt [5t, 7t] ⇒ pausen lander HELT på det lengste segmentet.
+    // 3c: midnatt-splitt [5t, 7t] ⇒ ORDRE 2026-11-13 «pausen trekkes etter 4
+    // ARBEIDStimer»: 4 t arbeid er nådd 23:00 i seg0 ⇒ seg0 bærer hele pausen.
     const delt = beregnDagsforslag(
       lagInput({
         dag: {
@@ -226,9 +231,9 @@ describe("beregnDagsforslag — karakterisering (1:1 med dagens genererForslag)"
         },
       }),
     );
-    // seg0 = 5t (19→24), seg1 = 7t (00→07): pause→lengste (seg1).
-    expect(delt.datoer[0]!.pauseMin).toBe(0);
-    expect(delt.datoer[1]!.pauseMin).toBe(30);
+    // seg0 = 5t (19→24), seg1 = 7t (00→07): grensen passeres i seg0.
+    expect(delt.datoer[0]!.pauseMin).toBe(30);
+    expect(delt.datoer[1]!.pauseMin).toBe(0);
   });
 
   it("4. kappet glemt-dag: spenn > 16t kappes til start + dagsnorm, kilde = 'system'", () => {
@@ -453,6 +458,18 @@ describe("beregnDagsforslag — L1-B fasit-dager (etapper + vindu)", () => {
     expect(normalt!.fraTid).toBe("05:00");
   });
 
+  it("🔴 POST (13) B: reisetid-etappe uten reise-lønnsart → reiseAarsak = 'mangler_reise_lonnsart' (aldri stille null)", () => {
+    const f = dagMedReise({}, { fallbackReiseLonnsartId: null, grensepunkter: [] });
+    expect(f.reiseAarsak).toBe("mangler_reise_lonnsart");
+    expect(f.datoer[0]!.rader.filter((r) => r.erReise)).toHaveLength(0);
+  });
+
+  it("POST (13) B: med reise-lønnsart → ingen årsak, reise-raden føres", () => {
+    const f = dagMedReise();
+    expect(f.reiseAarsak).toBeNull();
+    expect(f.datoer[0]!.rader.filter((r) => r.erReise).length).toBeGreaterThan(0);
+  });
+
   it("§2 prosjektUkjent: ingen destinasjon OG ingen aktivtProsjektId → dagen åpen, prosjektId null", () => {
     const f = beregnDagsforslag(
       lagInput({ aktivtProsjektId: null, destinasjonProsjektId: null }),
@@ -528,9 +545,41 @@ function lagResultat(
     prosjektUkjent: false,
     ikkeAnsatt: false,
     manglerLonnsart: false,
+    lagredeDatoer: [],
+    blokkerteDatoer: [],
+    forsteLagredeSheetId: null,
     ...over,
   };
 }
+
+describe("DEL 5 a — delvis lagret: økten lukkes, brukeren får vite hva som ble lagret", () => {
+  it("🔴 9.11 sendt + 10.11 skrevet → delvisSendt, økten LUKKES, sedelen er den lagrede", () => {
+    const h = avgjorSluttDagHandling(
+      lagResultat({
+        startSheetId: "sedel-9-11",
+        blokkertSendt: true,
+        lagredeDatoer: ["2026-11-10"],
+        blokkerteDatoer: ["2026-11-09"],
+        forsteLagredeSheetId: "sedel-10-11",
+      }),
+    );
+    expect(h).toEqual({
+      type: "delvisSendt",
+      sheetId: "sedel-10-11",
+      lagret: ["2026-11-10"],
+      blokkert: ["2026-11-09"],
+    });
+    expect(skalMarkereAvsluttet(h)).toBe(true);
+  });
+
+  it("🔴 ingenting skrevet (alle datoer sendt) → blokkertSendt, økten står ÅPEN", () => {
+    const h = avgjorSluttDagHandling(
+      lagResultat({ blokkertSendt: true, blokkerteDatoer: ["2026-11-09"] }),
+    );
+    expect(h.type).toBe("blokkertSendt");
+    expect(skalMarkereAvsluttet(h)).toBe(false);
+  });
+});
 
 describe("H7 — avgjorSluttDagHandling: dagen lukkes kun når skrivingen lyktes", () => {
   it("blokkertSendt: dagen står ÅPEN (rød-først — i dag markeres avsluttet)", () => {
@@ -632,5 +681,249 @@ describe("Ikke ansatt / mangler lønnsart (ordre 2026-11-04 (8))", () => {
   it("(c) regresjon: med standard-lønnsart droppes ingenting", () => {
     const f = beregnDagsforslag(lagInput());
     expect(f.datoer[0].raderDroppetUtenLonnsart).toBe(0);
+  });
+});
+
+// POST 2026-11-15 (13) L2, beslutning 1: perioderesolveren styrer Bekreft dag.
+describe("brukOppmoteResolver", () => {
+  const dest = { type: "byggeplass" as const, byggeplassId: "bp" };
+  const ukjent = { type: "ukjent" as const, aarsak: "posisjon_utilgjengelig" as const };
+  const kontorGps = { type: "kontor" as const, oppmotestedId: "narvik", byggeplassId: null };
+
+  it("byggeplass-periode → start og slutt på byggeplassen (ingen reise)", () => {
+    const r = brukOppmoteResolver(kontorGps, kontorGps, dest, { kilde: "byggeplass", projectId: "p" });
+    expect(r.start).toEqual({ type: "byggeplass", byggeplassId: "bp" });
+    expect(r.slutt).toEqual({ type: "byggeplass", byggeplassId: "bp" });
+  });
+
+  it("ukjent GPS-start + midlertidig kontor → start på det kontoret", () => {
+    const r = brukOppmoteResolver(ukjent, ukjent, dest, { kilde: "midlertidig", oppmotestedId: "tromso" });
+    expect(r.start).toEqual({ type: "kontor", oppmotestedId: "tromso", byggeplassId: null });
+    expect(r.slutt).toEqual(ukjent); // retur oppfinnes ikke
+  });
+
+  it("ukjent GPS-start + fast kontor → start på det faste", () => {
+    const r = brukOppmoteResolver(ukjent, ukjent, dest, { kilde: "fast", oppmotestedId: "narvik" });
+    expect(r.start).toMatchObject({ type: "kontor", oppmotestedId: "narvik" });
+  });
+
+  it("GPS-start på byggeplass beholdes (V11) og ikkeValgt endrer ingenting", () => {
+    const paaPlass = { type: "byggeplass" as const, byggeplassId: "x" };
+    expect(brukOppmoteResolver(paaPlass, ukjent, dest, { kilde: "fast", oppmotestedId: "n" }).start).toEqual(paaPlass);
+    expect(brukOppmoteResolver(ukjent, ukjent, dest, { kilde: "ikkeValgt" }).start).toEqual(ukjent);
+  });
+
+  it("med beregnDagsforslag: ukjent start + fast kontor gir ut-etappe, byggeplass-periode gir ingen", () => {
+    const basis = lagInput({
+      dag: {
+        startAt: "2026-07-01T05:00:00",
+        startLat: 59.9,
+        startLng: 10.7,
+        oppmotestedId: null,
+        byggeplassId: null,
+      },
+      sluttIso: "2026-07-01T19:30:00",
+      endLat: 59.9,
+      endLng: 10.7,
+      destinasjonProsjektId: "p1",
+      effektivPerDato: { "2026-07-01": SOMMER_EFFEKTIV },
+      reiseOppslag: lagReise({
+        start: ukjent,
+        slutt: { type: "kontor", oppmotestedId: "kontor-1", byggeplassId: null },
+        utCelle: { kjoretidMin: 120, avstandM: 50000 },
+        returCelle: { kjoretidMin: 120, avstandM: 50000 },
+      }),
+    });
+    const oppslag = basis.reiseOppslag!;
+    const medFast = brukOppmoteResolver(ukjent, oppslag.slutt, oppslag.destinasjon, {
+      kilde: "fast",
+      oppmotestedId: "kontor-1",
+    });
+    const f1 = beregnDagsforslag({ ...basis, reiseOppslag: { ...oppslag, ...medFast } });
+    expect(f1.reiseAarsak).toBeNull();
+    expect(f1.datoer[0]!.rader.some((r) => r.erReise && r.reiseRetning === "ut")).toBe(true);
+
+    const paaPlass = brukOppmoteResolver(oppslag.start, oppslag.slutt, oppslag.destinasjon, {
+      kilde: "byggeplass",
+      projectId: "p",
+    });
+    const f2 = beregnDagsforslag({ ...basis, reiseOppslag: { ...oppslag, ...paaPlass } });
+    expect(f2.reiseAarsak).toBeNull();
+    expect(f2.datoer[0]!.rader.some((r) => r.erReise)).toBe(false);
+  });
+});
+
+describe("POST (13) L2 — overføring som forslagsrad (TILLEGG)", () => {
+  const DATO = "2026-10-01";
+  const PERIODE = {
+    id: "per1", type: "kontor" as const, fast: false, oppmotestedId: "tromso",
+    projectId: null, fraDato: DATO, tilDato: "2026-10-05",
+  };
+  const FAST = {
+    id: "fast1", type: "kontor" as const, fast: true, oppmotestedId: "narvik",
+    projectId: null, fraDato: "2026-01-01", tilDato: null,
+  };
+  /** Grunndag uten reise: arbeid 07:00–15:00. */
+  function grunnDag() {
+    return beregnDagsforslag(lagInput()).datoer;
+  }
+  function oppslag(over: Partial<DagsforslagOverforingOppslag> = {}): DagsforslagOverforingOppslag {
+    return {
+      dato: DATO,
+      overforing: {
+        retning: "ut",
+        fra: { type: "kontor", oppmotestedId: "narvik" },
+        til: { type: "kontor", oppmotestedId: "tromso" },
+        periodeId: "per1",
+      },
+      oppmotestedId: "narvik",
+      byggeplassId: null,
+      fraNavn: "Narvik",
+      tilNavn: "Tromsø",
+      celle: { kjoretidMin: 180, avstandM: 250000 },
+      ...over,
+    };
+  }
+  const CTX = {
+    regel: lagInput().regel,
+    grensepunkter: [],
+    fallbackReiseLonnsartId: L_REISE,
+    standardLonnsartId: L_NORMAL,
+    prosjektId: "p1",
+    aktivitetId: "a1",
+    eksisterendeSedelPerDato: {},
+    perDato: undefined,
+  };
+  const overf = (d: ReturnType<typeof leggTilOverforinger>) =>
+    d.datoer.flatMap((x) => x.rader).filter((r) => r.overforing);
+
+  it("første dag: ut legges FØR dagens start med kjøretiden som lengde, over terskel = reise", () => {
+    const r = overf(leggTilOverforinger(grunnDag(), [oppslag()], CTX));
+    expect(r).toHaveLength(1);
+    expect(r[0]).toMatchObject({
+      fraTid: "04:00", tilTid: "07:00", timer: 3, erReise: true, reiseRetning: "ut",
+      lonnsartId: L_REISE, reiseKilde: "overforing", reiseOppmotestedId: "narvik",
+      reiseKjoretidMin: 180, overforing: { retning: "ut", fraNavn: "Narvik", tilNavn: "Tromsø" },
+    });
+    expect(r[0].reiseRegel?.overforing).toEqual({
+      fra: { type: "kontor", oppmotestedId: "narvik" },
+      til: { type: "kontor", oppmotestedId: "tromso" },
+      periodeId: "per1",
+    });
+  });
+
+  it("siste dag: retur legges ETTER dagens slutt", () => {
+    const o = oppslag({ overforing: { ...oppslag().overforing, retning: "retur" } });
+    const r = overf(leggTilOverforinger(grunnDag(), [o], CTX));
+    expect(r[0]).toMatchObject({ fraTid: "15:00", tilTid: "18:00", reiseRetning: "retur" });
+  });
+
+  it("under terskel: ordinær rad på standard-lønnsart, ikke reise, men sporet beholdes", () => {
+    const o = oppslag({ celle: { kjoretidMin: 20, avstandM: 15000 } });
+    const r = overf(leggTilOverforinger(grunnDag(), [o], CTX));
+    expect(r[0]).toMatchObject({ erReise: false, lonnsartId: L_NORMAL, reiseKilde: null, reiseRetning: null });
+    expect(r[0].reiseRegel?.overforing?.periodeId).toBe("per1");
+  });
+
+  it("mangler kjøretid → ingen rad, årsak mangler_matrise", () => {
+    const res = leggTilOverforinger(grunnDag(), [oppslag({ celle: null })], CTX);
+    expect(overf(res)).toHaveLength(0);
+    expect(res.aarsak).toBe("mangler_matrise");
+  });
+
+  it("over terskel uten reise-lønnsart → årsak mangler_reise_lonnsart", () => {
+    const res = leggTilOverforinger(grunnDag(), [oppslag()], { ...CTX, fallbackReiseLonnsartId: null });
+    expect(overf(res)).toHaveLength(0);
+    expect(res.aarsak).toBe("mangler_reise_lonnsart");
+  });
+
+  it("fjernet av arbeideren → ingen rad (forslaget kan fjernes)", () => {
+    const res = leggTilOverforinger(grunnDag(), [oppslag()], {
+      ...CTX, perDato: { [DATO]: { fjernOverforing: ["ut"] } },
+    });
+    expect(overf(res)).toHaveLength(0);
+  });
+
+  it("(17) punkt 2: over midnatt → ingen rad, men varsel på dagen (aldri stille)", () => {
+    const lang = oppslag({ celle: { kjoretidMin: 8 * 60, avstandM: 600000 } });
+    const res = leggTilOverforinger(grunnDag(), [lang], CTX);
+    expect(overf(res)).toHaveLength(0);
+    expect(res.datoer[0]!.kjedeKonflikt).toEqual({ type: "overMidnatt", retning: "ut", erOverforing: true });
+  });
+
+  it("(17) punkt 2: overlapp med lagret rad → raden står, Bekreft sperres med begrunnelse", () => {
+    const f = beregnDagsforslag(
+      lagInput({
+        // Reise-lønnsarten kommer fra reise-oppslaget; ingen egen reise denne dagen.
+        reiseOppslag: lagReise({ utCelle: null }),
+        overforinger: [oppslag()],
+        eksisterendeSedelPerDato: {
+          [DATO]: { finnes: true, status: "draft", eksisterendeRader: [{ fraTid: "05:00", tilTid: "06:00" }] },
+        } as unknown as BeregnDagsforslagInput["eksisterendeSedelPerDato"],
+      }),
+    );
+    const d = f.datoer[0]!;
+    expect(d.rader.filter((r) => r.overforing)).toHaveLength(1);
+    expect(d.kjedeKonflikt).toMatchObject({ type: "overlapp", annenFraTid: "05:00", annenTilTid: "06:00" });
+  });
+
+  it("byggOverforingOppslag: første og siste dag av midlertidig kontor gir ut + retur med navn og kontor-celle", () => {
+    const felles = {
+      perioder: [FAST, PERIODE],
+      destinasjonByggeplassId: null,
+      kontekstByggeplassId: null,
+      byggeplasserForProsjekt: () => [],
+      kontorNavn: (id: string) => (id === "narvik" ? "Narvik" : "Tromsø"),
+      prosjektNavn: () => "P",
+      kontorAvstand: () => ({ kjoretidMin: 180, avstandM: 250000 }),
+      matrise: () => null,
+    };
+    const forste = byggOverforingOppslag({ ...felles, datoer: [DATO] });
+    expect(forste).toHaveLength(1);
+    expect(forste[0]).toMatchObject({ fraNavn: "Narvik", tilNavn: "Tromsø", oppmotestedId: "narvik" });
+    expect(forste[0].overforing.retning).toBe("ut");
+    const siste = byggOverforingOppslag({ ...felles, datoer: ["2026-10-05"] });
+    expect(siste[0]).toMatchObject({ fraNavn: "Tromsø", tilNavn: "Narvik" });
+    expect(siste[0].overforing.retning).toBe("retur");
+    expect(byggOverforingOppslag({ ...felles, datoer: ["2026-10-03"] })).toHaveLength(0);
+  });
+
+  it("byggOverforingOppslag: byggeplass-periode bruker kontekst-byggeplassen og matrisen; uten valg → celle null", () => {
+    const bpPeriode = {
+      id: "per2", type: "byggeplass" as const, fast: false, oppmotestedId: null,
+      projectId: "p1", fraDato: DATO, tilDato: "2026-10-05",
+    };
+    const felles = {
+      datoer: [DATO],
+      perioder: [FAST, bpPeriode],
+      destinasjonByggeplassId: null,
+      byggeplasserForProsjekt: () => [{ id: "b1", navn: "Bru" }, { id: "b2", navn: "Tunnel" }],
+      kontorNavn: () => "Narvik",
+      prosjektNavn: () => "Prosjekt",
+      kontorAvstand: () => null,
+      matrise: (_o: string, b: string) => (b === "b2" ? { kjoretidMin: 60, avstandM: 70000 } : null),
+    };
+    const medKontekst = byggOverforingOppslag({ ...felles, kontekstByggeplassId: "b2" });
+    expect(medKontekst[0]).toMatchObject({ byggeplassId: "b2", tilNavn: "Tunnel", celle: { kjoretidMin: 60 } });
+    const uten = byggOverforingOppslag({ ...felles, kontekstByggeplassId: null });
+    expect(uten[0]).toMatchObject({ byggeplassId: null, tilNavn: "Prosjekt", celle: null });
+  });
+  // Gate (32) vilkår 3: koblingen inn i beregnDagsforslag — ikke bare
+  // leggTilOverforinger isolert. Dreper M5 (datoer i stedet for
+  // medOverforing.datoer) og M7 (fjernet reiseAarsak ??= medOverforing.aarsak).
+  it("kobling: beregnDagsforslag med input.overforinger gir forslagsraden i datoer", () => {
+    const f = beregnDagsforslag(lagInput({ reiseOppslag: lagReise({ start: { type: "utenfor" } }), overforinger: [oppslag()] }));
+    const r = f.datoer.flatMap((x) => x.rader).filter((x) => x.overforing);
+    expect(r).toHaveLength(1);
+    expect(r[0]).toMatchObject({ fraTid: "04:00", tilTid: "07:00", erReise: true, lonnsartId: L_REISE });
+  });
+
+  it("kobling: beregnDagsforslag løfter overføringens årsak mangler_reise_lonnsart til reiseAarsak", () => {
+    const utenArt = lagReise({ start: { type: "utenfor" }, fallbackReiseLonnsartId: null });
+    // Negativkontroll: uten overføring gir samme dag ingen årsak.
+    expect(beregnDagsforslag(lagInput({ reiseOppslag: utenArt })).reiseAarsak).toBeNull();
+    const f = beregnDagsforslag(lagInput({ reiseOppslag: utenArt, overforinger: [oppslag()] }));
+    expect(f.reiseAarsak).toBe("mangler_reise_lonnsart");
+    expect(f.datoer.flatMap((x) => x.rader).filter((x) => x.overforing)).toHaveLength(0);
   });
 });

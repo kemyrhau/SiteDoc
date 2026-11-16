@@ -93,7 +93,11 @@ export function beregnKortSummer(
   return { arbeid, maskin: maskinSum, reise, varer: vareSum };
 }
 
-/** «Sum i dag» = alle timer-rader (arbeid + reise) som ikke er erstattet. */
+/**
+ * «Sum i dag» = alle timer-rader (arbeid + reise) som ikke er erstattet.
+ * Total for dagen — toppteksten og «Send dagen (X t)». Normsammenligningen
+ * bruker `sumlinjeMotNorm`, ikke denne.
+ */
 export function sumIDag(timer: readonly KortTimerRad[]): number {
   return timer.filter(gjelder).reduce((acc, r) => acc + tilTall(r.timer), 0);
 }
@@ -113,6 +117,17 @@ export type KortByggeplass =
   | { type: "flere"; antall: number };
 
 /**
+ * Prosjektsjekk for arv: med `arv` satt teller sedelens byggeplass bare for
+ * rader uten egen når den hører til kortets prosjekt (samme regel som webens
+ * `radByggeplassLinje`). Ukjent byggeplass teller ikke. Uten `arv`: dagens
+ * oppførsel (arv uten sjekk).
+ */
+export interface KortByggeplassArv {
+  projectId: string;
+  byggeplassProsjekt: (byggeplassId: string) => string | null | undefined;
+}
+
+/**
  * Distinkt byggeplass over kortets timer- og maskinrader. Rad uten egen
  * byggeplass arver sedelens (`null` = dagens byggeplass). Erstattede rader
  * teller ikke.
@@ -120,11 +135,15 @@ export type KortByggeplass =
 export function utledKortByggeplass(
   rader: readonly { byggeplassId: string | null; attestertStatus: string | null }[],
   sedelByggeplassId: string | null,
+  arv?: KortByggeplassArv,
 ): KortByggeplass {
+  const arvGjelder =
+    sedelByggeplassId != null &&
+    (!arv || arv.byggeplassProsjekt(sedelByggeplassId) === arv.projectId);
   const ider = new Set<string>();
   for (const r of rader) {
     if (!gjelder(r)) continue;
-    const id = r.byggeplassId ?? sedelByggeplassId;
+    const id = r.byggeplassId ?? (arvGjelder ? sedelByggeplassId : null);
     if (id) ider.add(id);
   }
   if (ider.size === 0) return { type: "ingen" };
@@ -159,6 +178,24 @@ export function trafikklysSone(
   const rundet = Math.round(registrert * 4) / 4;
   if (Math.abs(rundet - norm) < 0.001) return "grønn";
   return rundet > norm ? "gul" : "blå";
+}
+
+/**
+ * Sumlinja «Sum i dag X t av Y t» + trafikklys (Kenneth 2026-11-14, låst):
+ * reise er ikke overtid og teller ikke mot normen — samme regel som
+ * `foreslaOvertidSplitt`. Registrert-tallet er derfor arbeid uten reise
+ * (eksplisitt `erReise`-flagg, frosset fra `erReiseLonnsart`) og uten
+ * erstattede rader. Reisen vises fortsatt separat (« · reise X t»).
+ * Delt web/mobil — ingen lokal logikk på flatene.
+ */
+export function sumlinjeMotNorm(
+  timer: readonly KortTimerRad[],
+  norm: number | null,
+): { registrert: number; sone: ReturnType<typeof trafikklysSone> } {
+  const registrert = timer
+    .filter((r) => gjelder(r) && !r.erReise)
+    .reduce((acc, r) => acc + tilTall(r.timer), 0);
+  return { registrert, sone: trafikklysSone(registrert, norm) };
 }
 
 /* ------------------------------------------------------------------ */
@@ -197,17 +234,23 @@ export type KortVareforbrukInput = {
   vareId: string;
   antall: number;
   byggeplassId: string | null;
+  /** ORDRE 36b: kortets underprosjekt — sendes kun når kortet har ett. */
+  externalCostObjectId?: string;
   dagsseddelId?: string;
+  /** Radform (2026-11-12): timerraden varen er ført fra — kun sammen med `dagsseddelId`. */
+  sheetTimerId?: string;
 };
 
-/** Opprett-input fra kortet. Prosjektet er alltid kortets — kan ikke velges. */
+/** Opprett-input fra kortet. Prosjektet (og underprosjektet, 36b) er alltid kortets — kan ikke velges. */
 export function kortVareforbrukInput(args: {
   kortProsjektId: string;
   dato: string;
   vareId: string;
   antall: number;
   byggeplassId: string | null;
+  externalCostObjectId?: string | null;
   dagsseddelId?: string;
+  sheetTimerId?: string | null;
   id?: string;
 }): KortVareforbrukInput {
   return {
@@ -217,7 +260,9 @@ export function kortVareforbrukInput(args: {
     vareId: args.vareId,
     antall: args.antall,
     byggeplassId: args.byggeplassId,
+    ...(args.externalCostObjectId ? { externalCostObjectId: args.externalCostObjectId } : {}),
     ...(args.dagsseddelId ? { dagsseddelId: args.dagsseddelId } : {}),
+    ...(args.dagsseddelId && args.sheetTimerId ? { sheetTimerId: args.sheetTimerId } : {}),
   };
 }
 

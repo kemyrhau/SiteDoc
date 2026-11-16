@@ -48,7 +48,7 @@ import {
 const SIGNERT_URL = "https://signed.example/vedlegg.jpg?X-Amz-Signature=abc123";
 
 /** Task-rad (avvik/ruh): byggeplass via tegning (drawing.byggeplassId). */
-function task(over: { id: string; byggeplassId?: string | null; status?: string }) {
+function task(over: { id: string; byggeplassId?: string | null; status?: string; egenByggeplassId?: string | null }) {
   return {
     id: over.id,
     title: `Task ${over.id}`,
@@ -59,6 +59,8 @@ function task(over: { id: string; byggeplassId?: string | null; status?: string 
     template: { name: "Avvik", prefix: "AVV" },
     bestillerFaggruppe: { name: "Tømrer" },
     drawing: over.byggeplassId !== undefined ? { byggeplassId: over.byggeplassId } : null,
+    // ORDRE 28: Task har egen byggeplassId (null for eldre rader → tegningens som reserve).
+    byggeplassId: over.egenByggeplassId ?? null,
     // Signert vedleggs-URL i data — SKAL ALDRI havne i speilet.
     data: { bilder: [{ url: SIGNERT_URL }] },
   };
@@ -227,6 +229,21 @@ describe("refreshHmsKatalog + lesere", () => {
     expect(bp2.sja.map((x) => x.id)).toEqual(["sja-los"]);
     // Hele prosjektet: alt.
     expect(tellHmsLokalt("p1", U)).toBe(5);
+  });
+
+  it("🔴 ORDRE 28: Task med egen byggeplass scopes på den, også uten tegning", async () => {
+    await refreshHmsKatalog(
+      lagKlient({
+        avvik: [
+          task({ id: "avv-egen-bp2", egenByggeplassId: "bp2" }), // ingen tegning, egen bp2
+          task({ id: "avv-arv-bp1", byggeplassId: "bp1" }), // eldre rad: egen null → tegningens bp1
+        ],
+      }),
+      "p1",
+      U,
+    );
+    expect(hentHmsLokalt("p1", U, "bp1").avvik.map((x) => x.id)).toEqual(["avv-arv-bp1"]);
+    expect(hentHmsLokalt("p1", U, "bp2").avvik.map((x) => x.id)).toEqual(["avv-egen-bp2"]);
   });
 
   it("filter-hms: filterfeltene speiles og leses tilbake for alle tre fanene", async () => {

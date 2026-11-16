@@ -9,6 +9,7 @@ import { beregnHarBallen, filtrerPaaPeriode, filtrerRader, formaterNummer, type 
 import { DokumentPeriodeFilter } from "@/components/DokumentPeriodeFilter";
 import { useVerktoylinje } from "@/hooks/useVerktoylinje";
 import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
+import { ByggeplassFilterPort } from "@/components/ByggeplassFilterPort";
 import { useSistBrukteMal } from "@/hooks/useSistBrukteMal";
 import { Plus, Search, ChevronDown, ChevronRight, Scale } from "lucide-react";
 import { FlytIndikator, hentFlytLedd as hentAktivtLeddNavn } from "@/components/FlytIndikator";
@@ -19,6 +20,7 @@ import { FlyttbareKolonner, renderFlyttbartHode } from "@/components/FlyttbareKo
 import { omradeFilterAlternativer, visOmradeFilter } from "@/lib/omradeFilter";
 import { metadataFilterAlternativer, metadataFilterVerdi, metadataFlereVerdier, type MetadataRad } from "@/lib/dokumentMetadata";
 import { METADATA_KOLONNE_IDER, METADATA_NAVN_NOKKEL, byggMetadataKolonner } from "@/components/DokumentMetadataKolonner";
+import { oppgaveListeInput } from "@/lib/oppgaveListeInput";
 
 // --- Typer ---
 
@@ -55,6 +57,8 @@ interface OppgaveRad extends MetadataRad {
   bestillerFaggruppe: { name: string } | null;
   utforerFaggruppe: { name: string } | null;
   drawing: { name: string; floor: string | null; byggeplass: { id: string; name: string } | null } | null;
+  // ORDRE 28: oppgavens egen byggeplass (følger dokumentet); `drawing.byggeplass` er reserve.
+  byggeplass?: { id: string; name: string } | null;
   omrade?: { id: string; navn: string; type: string } | null;
   recipientUser: { id: string; name: string | null } | null;
   recipientGroup: { id: string; name: string } | null;
@@ -252,14 +256,14 @@ export default function OppgaverSide() {
   const [periodeFelt, setPeriodeFelt] = useState<PeriodeFelt>("opprettet");
   // Kontraktssak-segment (tavle 1): lever i komponent-tilstand (økt) — ikke localStorage, ikke DB.
   const [segment, setSegment] = useState<"alle" | "oppgaver" | "kontrakt">("alle");
-  // Oppgave-opprett tar kun drawingId (oppgave.opprett har ikke byggeplassId —
-  // byggeplass utledes via drawing.byggeplassId). Henter standardTegning som
-  // kontekst-default (V2); byggeplass-uten-aktiv-tegning kan ikke festes på
-  // oppgave uten server-endring (sak B, backlogget).
-  const { standardTegning } = useByggeplass();
+  // ORDRE 28: oppgave.opprett tar byggeplassId — aktiv byggeplass sendes, så en
+  // oppgave uten standardtegning likevel fester seg til byggeplassen. Tegningens
+  // byggeplass vinner på serveren når standardTegning er satt.
+  const { aktivByggeplass, opprettByggeplass, opprettTegning } = useByggeplass();
 
+  // TILLEGG ORDRE 28: listen følger toppbarens byggeplass (serveren scoper, 4 ledd).
   const oppgaveQuery = trpc.oppgave.hentForProsjekt.useQuery(
-    { projectId: params.prosjektId },
+    oppgaveListeInput(params.prosjektId, aktivByggeplass),
   );
   const oppgaver = oppgaveQuery.data as OppgaveRad[] | undefined;
   const isLoading = oppgaveQuery.isLoading;
@@ -413,7 +417,8 @@ export default function OppgaverSide() {
       title: navn ?? t("oppgaver.nyOppgaveFallback"),
       priority: "medium",
       dokumentflytId: k.flytId,
-      drawingId: standardTegning?.id,
+      drawingId: opprettTegning?.id,
+      byggeplassId: opprettByggeplass?.id,
     });
   }
 
@@ -429,7 +434,8 @@ export default function OppgaverSide() {
         templateId: malId,
         title: malMedDomain.name ?? t("oppgaver.hmsAvvikFallback"),
         priority: "medium",
-        drawingId: standardTegning?.id,
+        drawingId: opprettTegning?.id,
+        byggeplassId: opprettByggeplass?.id,
       });
       return;
     }
@@ -562,7 +568,7 @@ export default function OppgaverSide() {
         { value: "forfalt", label: t("kontrollplan.statusForfalt") },
       ],
       mal: bygg(oppgaver.map((o) => o.template?.name)),
-      bygning: bygg(oppgaver.map((o) => o.drawing?.byggeplass?.name)),
+      bygning: bygg(oppgaver.map((o) => o.byggeplass?.name ?? o.drawing?.byggeplass?.name)),
       etasje: bygg(oppgaver.map((o) => o.drawing?.floor)),
       omrade: omradeFilterAlternativer(oppgaver),
       tegning: bygg(oppgaver.map((o) => o.drawing?.name)),
@@ -626,7 +632,7 @@ export default function OppgaverSide() {
     }
     // Trinn 0 (dokumentsøk-mobil): delt filterpredikat (@sitedoc/shared) — samme
     // kilde som sjekklister/hms og mobilens filter-sheet. Verdi-uthentingen er
-    // oppgave-spesifikk (prioritet; byggeplass via `drawing`, ikke direkte) og
+    // oppgave-spesifikk (prioritet; byggeplass egen ?? `drawing`-ens) og
     // beholdes her — kun LØKKEN deles.
     resultat = filtrerRader(resultat, filterVerdier, {
       hentVerdi: (o, kolId) => {
@@ -640,7 +646,7 @@ export default function OppgaverSide() {
           case "bestillerFaggruppe": return o.bestillerFaggruppe?.name ?? "";
           case "utforerFaggruppe": return o.utforerFaggruppe?.name ?? "";
           case "mal": return o.template?.name ?? "";
-          case "bygning": return o.drawing?.byggeplass?.name ?? "";
+          case "bygning": return o.byggeplass?.name ?? o.drawing?.byggeplass?.name ?? "";
           case "etasje": return o.drawing?.floor ?? "";
           case "omrade": return o.omrade?.navn ?? "";
           case "tegning": return o.drawing?.name ?? "";
@@ -865,10 +871,11 @@ export default function OppgaverSide() {
       },
       bygning: {
         id: "bygning", header: t("tabell.bygning"),
-        celle: (rad) => rad.drawing?.byggeplass?.name
-          ? <span className="text-xs text-gray-600">{rad.drawing.byggeplass.name}</span>
+        // ORDRE 28: egen byggeplass først, tegningens som reserve (eldre rader).
+        celle: (rad) => (rad.byggeplass?.name ?? rad.drawing?.byggeplass?.name)
+          ? <span className="text-xs text-gray-600">{rad.byggeplass?.name ?? rad.drawing?.byggeplass?.name}</span>
           : <span className="text-gray-300">—</span>,
-        sorterbar: true, sorterVerdi: (rad) => rad.drawing?.byggeplass?.name ?? "",
+        sorterbar: true, sorterVerdi: (rad) => rad.byggeplass?.name ?? rad.drawing?.byggeplass?.name ?? "",
         filtrerbar: true, filterAlternativer: dynamiskFilter.bygning ?? [],
       },
       etasje: {
@@ -1043,6 +1050,7 @@ export default function OppgaverSide() {
         </div>
       )}
 
+      <ByggeplassFilterPort>
       {!oppgaver?.length ? (
         <EmptyState
           title={t("oppgaver.ingen")}
@@ -1069,6 +1077,7 @@ export default function OppgaverSide() {
           />
         </FlyttbareKolonner>
       )}
+      </ByggeplassFilterPort>
 
       <Modal
         open={visModal}

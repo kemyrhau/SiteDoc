@@ -9,6 +9,8 @@ import type { ProsjektForPdf, Utskriftsinnstillinger, Segment } from "@sitedoc/p
 import { byggObjektTre } from "@sitedoc/shared/types";
 import { Check, AlertCircle, Loader2, Pencil, ArrowLeft, ShieldAlert, Download, Clock, ChevronDown, ChevronRight, Anchor } from "lucide-react";
 import { trpc } from "@/lib/trpc";
+import { byggeplassByttInput } from "@/lib/dokument-lokasjon";
+import { ByggeplassIkkeValgtLinje } from "@/components/ByggeplassIkkeValgtLinje";
 import { finnMottakerNavn } from "@/lib/videresend-valg";
 import { useSjekklisteSkjema } from "@/hooks/useSjekklisteSkjema";
 import { useAutoVaer } from "@/hooks/useAutoVaer";
@@ -23,7 +25,7 @@ import { HmsHandlingsflate, type HmsHandlingType } from "@/components/HmsHandlin
 import { HmsMelderBanner } from "@/components/HmsMelderBanner";
 import { HmsMelderTillegg } from "@/components/HmsMelderTillegg";
 import { FlytIndikator } from "@/components/FlytIndikator";
-import { perspektivEtikett, kvitteringEtikett, harFeltVerdi, standardFeltNavn, formaterNummer, TERMINALE_DOKUMENTSTATUSER } from "@sitedoc/shared";
+import { perspektivEtikett, kvitteringEtikett, harFeltVerdi, standardFeltNavn, formaterNummer, TERMINALE_DOKUMENTSTATUSER, STANDARD_PDF_VALG, type PdfValg, visByggeplassIkkeValgt, kanVelgeByggeplassDirekte } from "@sitedoc/shared";
 import { useFlytKontekst, type MinFlytInfoUtsnitt } from "@/hooks/useFlytKontekst";
 import { LokasjonVelger } from "@/components/LokasjonVelger";
 import { EmneVelger } from "@/components/EmneVelger";
@@ -258,7 +260,12 @@ export default function SjekklisteDetaljSide() {
   // eksport-PDF: rendr dokumentet til én PDF og last den ned (vei 3b — PDF i respons).
   // Melding skilles bevisst: timeout → «prøv igjen» hjelper; manglende vedlegg →
   // dokumentet ER ufullstendig (last ned likevel, hullet er merket i PDF-en).
+  // ORDRE (20) linja: «Velg» i «Byggeplass ikke valgt» åpner byggeplass-chipens nedtrekk.
+  const [byggeplassÅpneSignal, setByggeplassÅpneSignal] = useState(0);
   const [eksportMelding, setEksportMelding] = useState<{ type: "feil" | "advarsel"; tekst: string } | null>(null);
+  // PDF-1: utskriftsvalg — begge av som standard (STANDARD_PDF_VALG). Velges i nedtrekket ved knappen.
+  const [pdfValg, setPdfValg] = useState<PdfValg>(STANDARD_PDF_VALG);
+  const [visPdfValg, setVisPdfValg] = useState(false);
   const rendrArkiv = trpc.arkiv.rendr.useMutation({
     onSuccess: (res: {
       pdfBase64: string;
@@ -606,6 +613,17 @@ export default function SjekklisteDetaljSide() {
     }
   }
 
+  // ORDRE (20b) linja: dokument uten byggeplass i et prosjekt som har byggeplasser. Kun der
+  // byggeplass-chipen kan brukes.
+  const visIkkeValgt = visByggeplassIkkeValgt({
+    byggeplassId: fullSjekkliste?.byggeplass?.id ?? null,
+    antallByggeplasser: bygninger.length,
+    kanRedigere: !leseModus && !erLaast,
+    drawingId: fullSjekkliste?.drawingId ?? null,
+  });
+  // ORDRE (21): med tegning følger byggeplassen tegningen — byttes kun ved å velge en annen tegning.
+  const byggeplassFolgerTegning = !kanVelgeByggeplassDirekte(fullSjekkliste?.drawingId);
+
   const kontekstChips: import("@/components/kontekst-chip/DokumentKontekstChipLinje").Chip[] = [
     {
       etikett: t("kontekstChip.prosjekt"),
@@ -614,15 +632,26 @@ export default function SjekklisteDetaljSide() {
     },
     {
       etikett: t("kontekstChip.byggeplass"),
-      verdi: fullSjekkliste?.byggeplass?.name ?? t("kontekstChip.heleProsjektet"),
+      // (20b) + TILLEGG (22): uten byggeplass på dokumentet vises «—».
+      verdi: fullSjekkliste?.byggeplass?.name ?? "—",
       type: "velger",
-      deaktivert: erLaast,
-      deaktivertGrunn: t("kontekstChip.byggeplassLaastGodkjent"),
+      deaktivert: erLaast || byggeplassFolgerTegning,
+      deaktivertGrunn: erLaast
+        ? t("kontekstChip.byggeplassLaastGodkjent")
+        : t("kontekstChip.byggeplassFolgerTegning"),
       valgtId: fullSjekkliste?.byggeplass?.id ?? null,
-      tomLabel: t("kontekstChip.heleProsjektet"),
+      åpneSignal: byggeplassÅpneSignal,
       alternativer: bygninger.map((b) => ({ id: b.id, navn: b.name })),
+      // ORDRE 29 #6: tegning, pin og område hører til den gamle byggeplassen og nullstilles.
       onVelg: (id) =>
-        oppdaterMutasjon.mutate({ id: params.sjekklisteId, byggeplassId: id, drawingId: null }),
+        oppdaterMutasjon.mutate({
+          id: params.sjekklisteId,
+          ...byggeplassByttInput(
+            (fullSjekkliste as unknown as { lokasjonOmfang?: "punkt" | "byggeplass" | "omrade" | null })
+              .lokasjonOmfang,
+            id,
+          ),
+        }),
     },
     {
       // Runde-2 (#6): «UTFØRER»-etikett → «Faggruppe» (relasjonell benevnelse; chip-verdien er selve
@@ -767,6 +796,11 @@ export default function SjekklisteDetaljSide() {
             byggeplass · faggruppe · mal. Skjult ved print. */}
         <div className="print-skjul mt-2">
           <DokumentKontekstChipLinje chips={kontekstChips} />
+          {visIkkeValgt && (
+            <div className="mt-1.5">
+              <ByggeplassIkkeValgtLinje onVelg={() => setByggeplassÅpneSignal((n) => n + 1)} />
+            </div>
+          )}
         </div>
 
         {/* Rad 2: FlytIndikator (full bredde på mobil).
@@ -861,13 +895,13 @@ export default function SjekklisteDetaljSide() {
             dokumentTittel={sjekkliste.title ?? undefined}
           />
           )}
-          <div className="ml-auto flex items-center gap-2">
+          <div className="relative ml-auto flex items-center">
             <button
               onClick={() =>
-                rendrArkiv.mutate({ dokumenter: [{ id: params.sjekklisteId, type: "sjekkliste" }] })
+                rendrArkiv.mutate({ dokumenter: [{ id: params.sjekklisteId, type: "sjekkliste" }], ...pdfValg })
               }
               disabled={rendrArkiv.isPending}
-              className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+              className="flex items-center gap-1.5 rounded-l-lg border border-gray-300 px-2.5 py-1.5 text-sm text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
               title={t("handling.lastNedPdf")}
             >
               {rendrArkiv.isPending ? (
@@ -877,6 +911,39 @@ export default function SjekklisteDetaljSide() {
               )}
               <span className="hidden sm:inline">{t("handling.lastNedPdf")}</span>
             </button>
+            {/* PDF-1: split-del — hva PDF-en tar med. */}
+            <button
+              onClick={() => setVisPdfValg((v) => !v)}
+              className="flex items-center self-stretch rounded-r-lg border border-l-0 border-gray-300 px-1.5 text-gray-600 hover:bg-gray-50"
+              title={t("eksport.pdfValg")}
+              aria-label={t("eksport.pdfValg")}
+              aria-expanded={visPdfValg}
+            >
+              <ChevronDown className="h-4 w-4" />
+            </button>
+            {visPdfValg && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setVisPdfValg(false)} />
+                <div className="absolute right-0 top-full z-20 mt-1 w-52 rounded-lg border border-gray-200 bg-white p-2 shadow-lg">
+                  {(
+                    [
+                      ["medOppgaver", t("eksport.medOppgaver")],
+                      ["medVedlegg", t("eksport.medVedlegg")],
+                    ] as const
+                  ).map(([nokkel, etikett]) => (
+                    <label key={nokkel} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm text-gray-700 hover:bg-gray-50">
+                      <input
+                        type="checkbox"
+                        checked={pdfValg[nokkel]}
+                        onChange={(e) => setPdfValg((v) => ({ ...v, [nokkel]: e.target.checked }))}
+                        className="h-4 w-4 rounded border-gray-300"
+                      />
+                      {etikett}
+                    </label>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         </div>
 
@@ -925,12 +992,13 @@ export default function SjekklisteDetaljSide() {
             lokasjonOmfang={(fullSjekkliste as unknown as { lokasjonOmfang?: "punkt" | "byggeplass" | "omrade" | null }).lokasjonOmfang ?? null}
             lokasjonFritekst={(fullSjekkliste as unknown as { lokasjonFritekst?: string | null }).lokasjonFritekst ?? null}
             omradeId={(fullSjekkliste as unknown as { omradeId?: string | null }).omradeId ?? null}
+            byggeplassId={fullSjekkliste?.byggeplass?.id ?? null}
             visPosisjon
             onLagre={(data) => {
               oppdaterMutasjon.mutate({
                 id: params.sjekklisteId,
                 drawingId: data.drawingId,
-                byggeplassId: data.byggeplassId ?? undefined,
+                byggeplassId: data.byggeplassId,
                 positionX: data.positionX ?? null,
                 positionY: data.positionY ?? null,
                 lokasjonOmfang: data.lokasjonOmfang ?? null,

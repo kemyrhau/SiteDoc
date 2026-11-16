@@ -8,10 +8,13 @@ import Animated, {
 import { ChevronDown, ChevronRight } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { eq } from "drizzle-orm";
-import { overstigerMaskinTak } from "@sitedoc/shared";
+import { arbeidOgReise } from "@sitedoc/shared";
 import { hentDatabase } from "../../db/database";
 import { byggeplassLocal, externalCostObjectLocal } from "../../db/schema";
 import { finnProsjektLokalt } from "../../services/prosjektKatalog";
+import { hentReiseLonnsartId } from "../../services/timerKatalog";
+import { erReiseRadVisning } from "../../utils/reiseRad";
+import { prosjektVisningsnavn } from "../../utils/prosjektNavn";
 import type {
   TimerRad,
   TilleggRad,
@@ -22,6 +25,7 @@ import { TimerSeksjon } from "./TimerSeksjon";
 import { TilleggSeksjon } from "./TilleggSeksjon";
 import { UtleggSeksjon } from "./UtleggSeksjon";
 import { MaskinSeksjon } from "./MaskinSeksjon";
+import { VareforbrukLesListe, type VisVarelinje } from "./VareforbrukLesListe";
 
 /**
  * Prosjekt-gruppe for dagsseddel-detaljen (T7-3b2/T7-4e): ECO-bøtter med timer
@@ -43,11 +47,13 @@ export function ProsjektGruppe({
   harMaskinforerbevis,
   redigerbar,
   onPauseToggle,
+  dagsnormTimer = null,
   timerRader,
   alleTimerRader,
   tilleggRader,
   maskinRader,
   utleggRader,
+  varer,
   onEndret,
 }: {
   projectId: string;
@@ -60,6 +66,9 @@ export function ProsjektGruppe({
   sedelByggeplassId: string | null;
   /** F5: dag-nivå matpause-toggle (videreføres til TimerSeksjon). */
   onPauseToggle: (radId: string, vilHa: boolean) => void;
+  /** V21: firmaets dagsnorm for dagen — overtidsforslaget i rad-dialogen.
+   *  null/udefinert = ingen forslagslinje. */
+  dagsnormTimer?: number | null;
   dato: string;
   /** Sedel-nivå pause (min) — inngår i maskin-kapasitet per bucket (Del 2). */
   pauseMin: number;
@@ -74,6 +83,8 @@ export function ProsjektGruppe({
   tilleggRader: TilleggRad[];
   maskinRader: MaskinRad[];
   utleggRader: UtleggRad[];
+  /** K20: dagskortets lesevisning. Prosjektkortet sender ikke — det har egen blokk. */
+  varer?: VisVarelinje[];
   onEndret: () => void;
 }) {
   const { t } = useTranslation();
@@ -151,9 +162,7 @@ export function ProsjektGruppe({
             )}
             <View className="flex-1">
               <Text className="text-sm font-semibold text-sitedoc-primary">
-                {prosjekt
-                  ? `${prosjekt.projectNumber ? prosjekt.projectNumber + " — " : ""}${prosjekt.name}`
-                  : projectId}
+                {prosjektVisningsnavn(prosjekt, t("timer.detalj.ukjentProsjekt"))}
               </Text>
               {byggeplassNavn && (
                 <Text className="text-xs text-gray-600">{byggeplassNavn}</Text>
@@ -183,6 +192,7 @@ export function ProsjektGruppe({
               ecoId={bucket.ecoId}
               sedelByggeplassId={sedelByggeplassId}
               onPauseToggle={onPauseToggle}
+              dagsnormTimer={dagsnormTimer}
               dato={dato}
               pauseMin={pauseMin}
               defaultAktivitetId={defaultAktivitetId}
@@ -217,6 +227,7 @@ export function ProsjektGruppe({
         redigerbar={redigerbar}
         onEndret={onEndret}
       />
+      {varer && varer.length > 0 ? <VareforbrukLesListe varer={varer} /> : null}
       {/* sedelProjectId brukes ikke direkte her — beholdt for fremtidig
           backfill av rader uten projectId. void for å unngå lint-warning. */}
       {void sedelProjectId}
@@ -237,6 +248,7 @@ function EcoBucket({
   ecoId,
   sedelByggeplassId,
   onPauseToggle,
+  dagsnormTimer,
   dato,
   pauseMin,
   defaultAktivitetId,
@@ -256,6 +268,7 @@ function EcoBucket({
   sedelByggeplassId: string | null;
   /** F5: dag-nivå matpause-toggle (videreføres til TimerSeksjon). */
   onPauseToggle: (radId: string, vilHa: boolean) => void;
+  dagsnormTimer: number | null;
   dato: string;
   pauseMin: number;
   defaultAktivitetId: string | null;
@@ -269,16 +282,24 @@ function EcoBucket({
   onEndret: () => void;
 }) {
   const { t } = useTranslation();
-  const sumTimer = useMemo(
-    () => timerRader.reduce((acc, r) => acc + r.timer, 0),
-    [timerRader],
+  // Ordre (6): arbeid og reise hver for seg — «Arbeidstimer (N t)» og
+  // maskin-kontrollen måles mot arbeid UTEN reise (delt regel).
+  const reiseLonnsartId = useMemo(() => hentReiseLonnsartId(organizationId), [organizationId]);
+  const { arbeid: sumTimer, reise: sumReise } = useMemo(
+    () =>
+      arbeidOgReise(
+        timerRader.map((r) => ({
+          timer: r.timer,
+          erReise: erReiseRadVisning(r.erReise, r.lonnsartId, reiseLonnsartId),
+        })),
+      ),
+    [timerRader, reiseLonnsartId],
   );
   const sumMaskin = useMemo(
     () => maskinRader.reduce((acc, r) => acc + r.timer, 0),
     [maskinRader],
   );
   // Delt regel (@sitedoc/shared) — samme epsilon + pause-modell som server.
-  const maskinOk = !overstigerMaskinTak(sumMaskin, sumTimer, pauseMin);
 
   // ECO-navn fra lokal cache (én lookup per bucket).
   const ecoNavn = useMemo(() => {
@@ -332,6 +353,12 @@ function EcoBucket({
       {/* Arbeidstimer (hovedpost) */}
       <Text className="mb-1 text-xs font-medium text-gray-700">
         {t("timer.gruppe.arbeidstimer")} ({sumTimer.toFixed(2)} {t("timer.tEnhet")})
+        {sumReise > 0 ? (
+          <Text className="font-normal text-gray-500">
+            {"  "}
+            {t("timer.gruppe.reise", { timer: sumReise.toFixed(2) })}
+          </Text>
+        ) : null}
       </Text>
       <TimerSeksjon
         sheetId={sheetId}
@@ -348,6 +375,7 @@ function EcoBucket({
         defaultAktivitetId={defaultAktivitetId}
         redigerbar={redigerbar}
         onPauseToggle={onPauseToggle}
+        dagsnormTimer={dagsnormTimer}
         onEndret={onEndret}
       />
 
@@ -371,28 +399,17 @@ function EcoBucket({
         onEndret={onEndret}
       />
 
-      {/* Sum-indikator: grønn når maskin ≤ arbeid, rød ellers — speiler T7-4b.
-          Del B pkt 3 (device-funn 2026-08-08): skjules når maskin = 0.00t. Et
-          «Herav maskin 0.00t av Xt arbeid»-banner uten maskininngang er selv-
-          motsigende og leses som at maskintimer ER ført. Ved maskin > 0 beholdes
-          dagens ordlyd (allerede omformulert én gang, jf. BACKLOG maskinAvArbeid). */}
+      {/* Ordre (6): «Maskin X t» — alltid nøytral (RETUR 1); sperren mot
+          maskin over arbeid står i rad-modalen. Skjult ved 0 t
+          (Del B pkt 3, device-funn 2026-08-08). */}
       {sumMaskin > 0 && (
         <View
-          className={`mt-3 rounded border px-3 py-1.5 ${
-            maskinOk
-              ? "border-green-200 bg-green-50"
-              : "border-red-300 bg-red-50"
-          }`}
+          className="mt-3 rounded border border-gray-200 bg-gray-50 px-3 py-1.5"
         >
           <Text
-            className={`text-xs font-medium ${
-              maskinOk ? "text-green-800" : "text-red-800"
-            }`}
+            className="text-xs font-medium text-gray-700"
           >
-            {t("timer.gruppe.maskinAvArbeid", {
-              maskin: sumMaskin.toFixed(2),
-              arbeid: sumTimer.toFixed(2),
-            })}
+            {t("timer.gruppe.maskin", { maskin: sumMaskin.toFixed(2) })}
           </Text>
         </View>
       )}

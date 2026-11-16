@@ -255,6 +255,25 @@ GPS-gjenkjennings-funksjoner. Rene funksjoner, ingen DB/RN/Node. Kontrakt A1–A
 og `resolverPrimaerByggeplass` er SLETTET i L1-B (`2e993250`) — A5 erstattet den. GPS-punkt-typen heter `GpsPunkt`
 (`Punkt` er opptatt av piksel-{x,y} i `maaling.ts`). Fasit: `sted.test.ts`.
 
+### Oppmøtested med perioder (`oppmote.ts`, POST 2026-11-15 (12))
+
+Delt mellom API, web og mobil (offline). Datoer er ISO `YYYY-MM-DD`-strenger; sammenlign aldri `Date`.
+
+| Funksjon | Beskrivelse |
+|----------|-------------|
+| `løsOppmote(dato, prosjektId, perioder, gpsStartKontorId)` → `OppmoteResultat` | Bindende rekkefølge: byggeplass-periode på dagens prosjekt → GPS-kontor → midlertidig → fast → `ikkeValgt`. Én test pr. trinn i `oppmote.test.ts` blir rød når trinnet fjernes |
+| `finnFastOppmotested(perioder)` | Id-en til det åpne faste stedet, ellers `null` |
+| `trengerOppmoteValg(antallAktiveKontorer, perioder)` | `true` når ≥ 2 aktive kontorer og intet fast sted — styrer «Hvor møter du vanligvis?» |
+| `finnPeriodeKonflikt(ny, øvrige)` | Overlapp innen samme slag (byggeplass pr. prosjekt, midlertidig, fast). Server og admin-UI bruker samme regel |
+| `tilIsoDato(d)` | `Date`/streng → `YYYY-MM-DD` (UTC) |
+| `finnOverforinger(dato, perioder)` → `Overforing[]` | Ut-overføring første dag og retur siste dag i en midlertidig eller byggeplass-periode, fra hjemstedet (`løsOppmote` uten perioden; `ikkeValgt` eller samme kontor gir ingenting). Mellomdager gir ingenting. Brukes av mobilens Bekreft dag (L2). Del B: åpen midlertidig kontorperiode tåles (gir ingen retur før `tilDato` settes); periode med `kilde='overforing'` gir aldri «ut» — Tur-raden i reise-kortet opprettet den |
+| `periodeDatoFraOverforing(dato, fraTid, retning)` | Kl. 12-regelen (POST (13) del B): Tur før 12:00 → periode fra samme dag, ellers dagen etter; Retur før 12:00 → slutt dagen før, ellers samme dag. Manglende `fraTid` = 00:00. Klienten regner ut datoen, serveren bruker den som gitt |
+| `leggTilDager(dato, n)` | `YYYY-MM-DD` ± n dager i UTC (ingen tidssone-drift) |
+| `byggOverforingOppslag(args)` → `DagsforslagOverforingOppslag[]` | Slår opp overføringens kontor-/byggeplass-ende, navn og kjøretid (kontor↔kontor eller matrise) for hver dato. Flyttet hit fra mobil `dagsforslag.ts` (som re-eksporterer) i L2 commit 8, så web-`ReiseKort` og mobil deler samme oppslag |
+| `erApenOverforing(p)` | Åpen midlertidig kontorperiode med `kilde='overforing'` (del B) |
+| `planleggOverforing(perioder, {handling, oppmotestedId, dato})` → `OverforingPlan` | Del B: én regel for server, mobil og web — `ingen`/`konflikt`/`lukket`/`slettet`/`opprettet`. Rører kun egen åpen overføring; åpen admin-midlertidig → `konflikt` |
+| `kontorOverforingOppsett(dato, prosjektId, perioder, aktiveKontorIder)` / `kontorOverforingRetning(oppsett, tilId)` | Del B: hva reise-kortet tilbyr (`null` ved < 2 kontorer, byggeplass-periode eller `ikkeValgt`); fast kontor = retur, ellers tur |
+
 ### Tegning-nedlasting (`tegningNedlasting.ts`, 2026-10-10)
 
 ÉN kilde for filnavn-regelen ved nedlasting av tegninger — brukt av web (enkeltfil,
@@ -267,6 +286,36 @@ og `resolverPrimaerByggeplass` er SLETTET i L1-B (`2e993250`) — A5 erstattet d
 | `filendelseFraUrl(url)` → `string` | Endelse (med punktum) fra URL/sti, ignorerer query-signatur |
 
 Fasit: `tegningNedlasting.test.ts`.
+
+### Reise-kort (`reiseManuell.ts`) — del B-tillegg
+
+`medOverforingPeriodeId(spor, periodeId)` setter `reiseRegel.overforing.periodeId` når perioden er kjent ved lagring (ny id ved start, lukket periode ved slutt); `null` → sporet urørt.
+
+### Reisekjede (`reiseKjede.ts`, ordre 2026-11-15 (17))
+
+| Funksjon | Hva |
+|----------|-----|
+| `sekvenserReisekjede(kort: KjedeKort[])` → `KjedeKort[]` | Legger overføring/reise/arbeid etter hverandre uten overlapp, minutter fra midnatt. Rettet kort (`rettet`, `rettetFra`/`rettetTil`) er fast punkt; beregnede naboer flytter seg. Uten retting står arbeid fast, reisene legges bakover og returen framover. Ingen klemming mot døgnet. Fasit: `reiseKjede.test.ts` |
+| `finnOverlappVarsel(rader)` → `OverlappVarsel \| null` (`tidsromValidering.ts`) | Første overlapp mellom rader med begge tider (til > fra), via `finnTidsromKonflikt`. Brukes til varsel i prosjektkortet (mobil + web). Fasit: `tidsromValidering.test.ts` |
+
+### Prosjekt- og byggeplassvelger (`standardByggeplass.ts`, `prosjektByggeplassValg.ts`, ordre 2026-11-15 (18))
+
+- `velgTimerByggeplass({ byggeplassIder, lagret, gpsNaermeste? })` → id | null: forbrukerverdien for mobil Bekreft dag, innsjekk og ny timer-rad. Lagret valg i lista, så GPS, ellers null — aldri «første» (GATE (42) vilkår 2). Ukjent liste (0 ider) gir renset lagret verdi. `velgByggeplassUtenGjett` er samme funksjon.
+- `velgFilterByggeplass(...)`: toppfilteret (web + mobil) — ny innsjekk → GPS → sist valgte → null («Velg byggeplass»). Aldri «første».
+- `rensLagretByggeplassValg(id)` → id | null: tom verdi og den utgåtte strengen eldre app-versjoner lagret for «hele prosjektet» (før TILLEGG (22), 2026-11-15) leses som intet valg (null). Verdien eksporteres ikke; den finnes kun som lest legacy-data.
+- `prosjektByggeplassValg.ts` er ren velgerlogikk for mobil `ProsjektVelger` og web `KontekstChip`:
+  - `velgByggeplassKilde`: server eller lokal katalog;
+  - `antallByggeplasser`;
+  - `vedProsjektTrykk`: markér, eller velg direkte ved 0 byggeplasser;
+  - `vedByggeplassTrykk`: prosjekt + byggeplass, lagret på riktig prosjekt-id;
+  - `erByggeplassAvhuket`;
+  - `oppdaterBygningMap`.
+- Tester med negativkontroll ligger i `.test.ts` ved siden av.
+
+### Byggeplass ikke valgt (`byggeplassIkkeValgt.ts`, ORDRE 2026-11-15 (20) + (20b))
+
+- `visByggeplassIkkeValgt({ byggeplassId, antallByggeplasser, kanRedigere })` → `boolean`: linja «Byggeplass ikke valgt · Velg» på web og mobil.
+- `byggeplassByttInput(naavaerendeOmfang, nyByggeplassId)`: oppdater-input ved bytte av byggeplass — nullstiller tegning, punkt og område, og omfang `omrade`/`punkt`. Brukt av web-chipen og mobil sjekkliste/oppgave.
 
 ## Fallgruver
 

@@ -89,7 +89,7 @@ export const bildeRouter = router({
           taskId: { not: null },
           task: {
             template: { projectId: input.projectId },
-            // Byggeplass-tilhørighet via tegning (mykt, 3 ledd), regel i byggeplassFilter.ts.
+            // Byggeplass-tilhørighet (mykt, 4 ledd: egen byggeplass, ellers via tegning), regel i byggeplassFilter.ts.
             ...(byggeplassFilterViaTegning(input.byggeplassId) ?? {}),
             ...(tilgangsFilter ?? {}),
           },

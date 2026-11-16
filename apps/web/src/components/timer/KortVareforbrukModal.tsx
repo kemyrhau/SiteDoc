@@ -47,7 +47,7 @@ export function KortVareforbrukModal({
       void utils.vareforbruk.hentMineForDato.invalidate();
       onClose();
     },
-    onError: (e: { message: string }) => setFeil(e.message),
+    onError: (e: { message: string }) => setFeil(t(e.message, { defaultValue: e.message })),
   });
 
   function lagre() {

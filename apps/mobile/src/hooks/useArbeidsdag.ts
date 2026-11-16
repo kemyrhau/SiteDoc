@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import { useFocusEffect } from "expo-router";
+import { useTranslation } from "react-i18next";
 import { randomUUID } from "expo-crypto";
 import * as Location from "expo-location";
 import { eq, and, desc } from "drizzle-orm";
@@ -11,7 +12,12 @@ import { gjenkjennSted, tilGeofencer } from "@sitedoc/shared";
 import { hentOppmotederLokalt } from "../services/oppmotestedKatalog";
 import { identifiserByggeplass } from "../services/byggeplassKatalog";
 import { hentOgCacheArbeidstidSvar } from "../services/arbeidstidSvarKatalog";
+import {
+  opprettArbeidsdagMedBesok,
+  ryddGamleArbeidsdager,
+} from "../services/arbeidsdagBesok";
 import { trpc } from "../lib/trpc";
+import { sjekkAnsattForNyRegistrering } from "../utils/ansattSjekk";
 
 /**
  * Delt arbeidsdag-tilstand for BÅDE «Start dag»-kortet (StartSluttDagKort, på
@@ -68,9 +74,9 @@ export async function fangGps(): Promise<{
  * Fase 1: identifiser hvilket oppmøtested arbeider startet på via GPS.
  * Nærmeste oppmøtested innenfor sin geofence-radius. Returnerer null hvis
  * ingen treff (da brukes prosjekt-deteksjon / manuell flyt som før).
- * KUN dokumentasjon + forslag — aldri lønnsgrunnlag.
- * Lag 1 (2026-10-02): GPS-treff brukes som FORSLAG til destinasjon via A5;
- * arbeider-valg (`aktivtProsjektId`) går foran.
+ * GPS gir FORSLAG til sted, prosjekt og reise. Forslaget blir lønnsgrunnlag
+ * først når arbeideren bekrefter i `/timer/bekreft-dag` (helhetsplan § 3 G1,
+ * Kenneth 2026-11-06). Arbeider-valget i skjermen er autoritativt.
  *
  * Tynn kaller av A2 (`gjenkjennSted`, LAG 1-A): kalleren filtrerer bort
  * kandidater uten komplett geofence; funksjonen gir nærmeste innenfor radius.
@@ -94,9 +100,13 @@ function identifiserOppmotested(
   return { id: treff.sted.id, navn: rad?.navn ?? "" };
 }
 
+/** L4-A: ryddingen (§ 2.2) kjøres én gang pr. app-prosess, ikke pr. fokus. */
+let ryddetDenneProsessen = false;
+
 export function useArbeidsdag() {
   const { bruker } = useAuth();
-  const { valgtFirmaId } = useFirma();
+  const { valgtFirmaId, valgtFirma, erAnsattIValgtFirma } = useFirma();
+  const { t } = useTranslation();
   const utils = trpc.useUtils();
 
   const [aktivDag, setAktivDag] = useState<AktivDag | null>(null);
@@ -133,6 +143,17 @@ export function useArbeidsdag() {
   }, [bruker?.id]);
 
   const refresh = useCallback(() => {
+    if (!ryddetDenneProsessen) {
+      const db = hentDatabase();
+      if (db) {
+        ryddetDenneProsessen = true;
+        try {
+          ryddGamleArbeidsdager(db, Date.now());
+        } catch (e) {
+          console.warn("[L4-A] Rydding av gamle arbeidsdager feilet:", e);
+        }
+      }
+    }
     setAktivDag(lesAktivDag());
   }, [lesAktivDag]);
 
@@ -142,39 +163,42 @@ export function useArbeidsdag() {
 
   const startDag = useCallback(async () => {
     if (!bruker?.id || behandler) return;
+    // POST (14) punkt 2: ikke ansatt i valgt firma → ingen arbeidsdag (samme
+    // sperre som «+» og Bekreft dag), før GPS fanges.
+    const ansatt = await sjekkAnsattForNyRegistrering({
+      erAnsattIValgtFirma,
+      orgId: valgtFirmaId ?? null,
+      firmaNavn: valgtFirma?.name ?? "",
+      t,
+    });
+    if (!ansatt) return;
     setBehandler(true);
     try {
       const { lat, lng } = await fangGps();
       const db = hentDatabase();
       if (!db) return;
-      // GPS-identifiser oppmøtested + byggeplass (dokumentasjon + forslag, aldri
-      // lønn/reise/prosjektvalg). L1: byggeplass speiler oppmøtested-mønsteret.
-      // Lag 1 (2026-10-02): GPS-treff brukes som FORSLAG til destinasjon via A5;
-      // arbeider-valg (`aktivtProsjektId`) går foran.
+      // GPS-identifiser oppmøtested + byggeplass. L1: byggeplass speiler
+      // oppmøtested-mønsteret. GPS gir FORSLAG til sted, prosjekt og reise.
+      // Forslaget blir lønnsgrunnlag først når arbeideren bekrefter i
+      // `/timer/bekreft-dag` (helhetsplan § 3 G1, Kenneth 2026-11-06).
+      // Arbeider-valget i skjermen er autoritativt.
       const oppm = identifiserOppmotested(lat, lng, valgtFirmaId ?? "");
       const bygg = identifiserByggeplass(lat, lng, valgtFirmaId ?? "");
       const naaIso = new Date().toISOString();
       const id = randomUUID();
-      db.insert(arbeidsdagLocal)
-        .values({
-          id,
-          userId: bruker.id,
-          dato: formatIsoDato(new Date()),
-          startAt: naaIso,
-          startLat: lat,
-          startLng: lng,
-          endAt: null,
-          endLat: null,
-          endLng: null,
-          status: "paagaar",
-          generertDagsseddelId: null,
-          oppmotestedId: oppm?.id ?? null,
-          oppmotestedNavn: oppm?.navn ?? null,
-          byggeplassId: bygg?.id ?? null,
-          byggeplassNavn: bygg?.navn ?? null,
-          sistEndretLokalt: Date.now(),
-        })
-        .run();
+      // L4-A (§ 2.2): arbeidsdag-raden + besøk 1 (dagens startsted) skrives sammen.
+      opprettArbeidsdagMedBesok(db, {
+        id,
+        besokId: randomUUID(),
+        userId: bruker.id,
+        dato: formatIsoDato(new Date()),
+        naaIso,
+        naaMs: Date.now(),
+        lat,
+        lng,
+        oppmotested: oppm,
+        bygg,
+      });
       setAktivDag({
         id,
         startAt: naaIso,
@@ -198,7 +222,7 @@ export function useArbeidsdag() {
     } finally {
       setBehandler(false);
     }
-  }, [bruker?.id, behandler, valgtFirmaId, utils]);
+  }, [bruker?.id, behandler, valgtFirmaId, valgtFirma?.name, erAnsattIValgtFirma, t, utils]);
 
   return { aktivDag, startDag, behandler, setBehandler, refresh };
 }

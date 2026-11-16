@@ -2,38 +2,40 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { View, Text, Pressable, ScrollView } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter, useFocusEffect } from "expo-router";
-import { ArrowLeft, Package } from "lucide-react-native";
+import { ArrowLeft, AlertTriangle, ChevronRight } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { eq } from "drizzle-orm";
 import { hentDatabase } from "../../../../src/db/database";
 import {
   dagsseddelLocal,
   sheetTimerLocal,
-  sheetTilleggLocal,
   sheetMachineLocal,
+  sheetTilleggLocal,
   sheetUtleggLocal,
   equipmentLocal,
   byggeplassLocal,
 } from "../../../../src/db/schema";
 import { useTimerSync } from "../../../../src/providers/TimerSyncProvider";
-import { useAuth } from "../../../../src/providers/AuthProvider";
 import { useNettverk } from "../../../../src/providers/NettverkProvider";
 import { trpc } from "../../../../src/lib/trpc";
 import { TimerStatusMerkelapp } from "../../../../src/components/TimerStatusMerkelapp";
-import { ProsjektGruppe } from "../../../../src/components/timer-detalj/ProsjektGruppe";
-import { BekreftFjernMatpauseModal } from "../../../../src/components/timer-detalj/BekreftFjernMatpauseModal";
-import { KortVareforbrukModal } from "../../../../src/components/timer-detalj/KortVareforbrukModal";
-import { KortHode } from "../../../../src/components/timer-detalj/ProsjektkortSamleside";
+import { TilleggSeksjon } from "../../../../src/components/timer-detalj/TilleggSeksjon";
+import { UtleggSeksjon } from "../../../../src/components/timer-detalj/UtleggSeksjon";
 import { ProsjektkortKontekst } from "../../../../src/components/timer-detalj/prosjektkortKontekst";
+import { HjelpIkon } from "../../../../src/components/HjelpIkon";
+import { BekreftFjernMatpauseModal } from "../../../../src/components/timer-detalj/BekreftFjernMatpauseModal";
+import type { VisVarelinje } from "../../../../src/components/timer-detalj/VareforbrukLesListe";
+import { ProsjektkortDagsoversikt } from "../../../../src/components/timer-detalj/prosjektkort/ProsjektkortDagsoversikt";
 import { finnProsjektLokalt } from "../../../../src/services/prosjektKatalog";
-import { hentReiseLonnsartId } from "../../../../src/services/timerKatalog";
+import { prosjektVisningsnavn } from "../../../../src/utils/prosjektNavn";
+import { hentDagsnormLokalt } from "../../../../src/services/arbeidstidSvarKatalog";
+import { finnUnderprosjektLokalt, hentReiseLonnsartId } from "../../../../src/services/timerKatalog";
 import { harMaskinforerbevisLokalt } from "../../../../src/services/maskinKatalog";
 import { hentVarelagerProsjekterLokalt } from "../../../../src/services/vareKatalog";
 import {
   hentLokaleVarelinjer,
   type LokalVarelinje,
 } from "../../../../src/services/vareforbrukSync";
-import { slaaSammenVarelinjer, visVareforbrukKnapp } from "@sitedoc/shared";
 import {
   flyttMatpauseVedAvhuking,
   settMatpauseBaerer,
@@ -41,18 +43,45 @@ import {
 } from "../../../../src/services/matpause";
 import { useMiniToast, MiniToast } from "../../../../src/components/MiniToast";
 import { useReLesVedSynk } from "../../../../src/hooks/useReLesVedSynk";
-import { formatNorskDato } from "../../../../src/utils/dato";
+import { formatNorskDato, isoTidspunktTilHHMM } from "../../../../src/utils/dato";
 import {
+  effektivByggeplass,
   formatKortTall,
+  fraRuteParam,
+  kortNokkel,
+  kortProsjektIder,
+  kortValgFor,
+  lagretByggeplassForKort,
+  raderPaaKort,
+  type KortValg,
+  type SedelKortKontekst,
   tilKortMaskinRader,
   tilKortTimerRader,
   tilKortVarer,
+  tilRuteParam,
+  varerForProsjekt,
 } from "../../../../src/lib/prosjektkortMobil";
+import { KortValgModal } from "../../../../src/components/timer-detalj/prosjektkort/KortValgModal";
+import { BekreftSlettModal } from "../../../../src/components/timer-detalj/prosjektkort/BekreftSlettModal";
+import {
+  flyttKort,
+  kortFinnesFraFor,
+  kortInnhold,
+  kortUtfallTekst,
+  slettKort,
+  vareFinnesPaaServer,
+  type KortDag,
+  type KortUtfall,
+} from "../../../../src/components/timer-detalj/prosjektkort/kortRadFlytt";
+import { KortHode } from "../../../../src/components/timer-detalj/prosjektkort/ProsjektkortSamleside";
+import { GjenaapneKnapp } from "../../../../src/components/timer-detalj/prosjektkort/GjenaapneKnapp";
+import { useGjenaapneDagsseddel } from "../../../../src/components/timer-detalj/prosjektkort/useGjenaapneDagsseddel";
+import { visSeHeleDagen } from "../../../../src/components/timer-detalj/prosjektkort/gjenaapne";
 import type {
   Sedel,
   TimerRad,
-  TilleggRad,
   MaskinRad,
+  TilleggRad,
   UtleggRad,
 } from "../../../../src/types/timer-detalj";
 
@@ -66,25 +95,34 @@ export default function ProsjektkortSkjerm() {
   const router = useRouter();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const params = useLocalSearchParams<{ id: string; projectId: string }>();
+  const params = useLocalSearchParams<{ id: string; projectId: string; bp?: string; up?: string }>();
   const sheetId = params.id ?? "";
   const projectId = params.projectId ?? "";
-  const { triggerSync, oppdaterTellere, sistSynkronisert } = useTimerSync();
+  // ORDRE 36b: kortet = (prosjekt, byggeplass, underprosjekt). Mangler `bp`
+  // (gammel rute) velges prosjektets første kort.
+  const bpParam = fraRuteParam(params.bp);
+  const upParam = fraRuteParam(params.up) ?? null;
+  const { triggerSync, pushSedel, oppdaterTellere, sistSynkronisert } = useTimerSync();
   const { erPaaNettet } = useNettverk();
 
   const [sedel, setSedel] = useState<Sedel | null>(null);
   const [timerRader, setTimerRader] = useState<TimerRad[]>([]);
-  const [tilleggRader, setTilleggRader] = useState<TilleggRad[]>([]);
   const [maskinRader, setMaskinRader] = useState<MaskinRad[]>([]);
+  const [tilleggRader, setTilleggRader] = useState<TilleggRad[]>([]);
   const [utleggRader, setUtleggRader] = useState<UtleggRad[]>([]);
   const [harEquipmentCache, setHarEquipmentCache] = useState(false);
   const [harMaskinforerbevis, setHarMaskinforerbevis] = useState(true);
   const { melding: pauseToast, vis: visPauseToast } = useMiniToast();
   const [bekreftFjernRadId, setBekreftFjernRadId] = useState<string | null>(null);
-  const { bruker } = useAuth();
   const [lokaleVarer, setLokaleVarer] = useState<LokalVarelinje[]>([]);
   const [varelagerProsjekter, setVarelagerProsjekter] = useState<string[]>([]);
-  const [visVareModal, setVisVareModal] = useState(false);
+  // ORDRE 36c-kort: «Endre kort» (KortValgModal, hele kortet) og «Slett kort».
+  const [visEndre, setVisEndre] = useState(false);
+  const [visSlett, setVisSlett] = useState(false);
+  const [kortFeil, setKortFeil] = useState<string | null>(null);
+  const [kortArbeider, setKortArbeider] = useState(false);
+  const oppdaterVare = trpc.vareforbruk.oppdater.useMutation();
+  const slettVare = trpc.vareforbruk.slett.useMutation();
 
   // Samme lesing som timer/[id] — alle dagens rader (overlapp og matpause
   // gjelder hele dagen); filtrering pr. prosjekt skjer ved visning.
@@ -104,11 +142,11 @@ export default function ProsjektkortSkjerm() {
     setTimerRader(
       db.select().from(sheetTimerLocal).where(eq(sheetTimerLocal.dagsseddelId, sheetId)).all(),
     );
-    setTilleggRader(
-      db.select().from(sheetTilleggLocal).where(eq(sheetTilleggLocal.dagsseddelId, sheetId)).all(),
-    );
     setMaskinRader(
       db.select().from(sheetMachineLocal).where(eq(sheetMachineLocal.dagsseddelId, sheetId)).all(),
+    );
+    setTilleggRader(
+      db.select().from(sheetTilleggLocal).where(eq(sheetTilleggLocal.dagsseddelId, sheetId)).all(),
     );
     setUtleggRader(
       db.select().from(sheetUtleggLocal).where(eq(sheetUtleggLocal.dagsseddelId, sheetId)).all(),
@@ -128,6 +166,13 @@ export default function ProsjektkortSkjerm() {
     }, [lesData]),
   );
   useReLesVedSynk(sistSynkronisert, lesData);
+
+  // ORDRE (23): sendt sedel skal kunne gjenåpnes herfra også — samme vei som samlesiden.
+  const [gjenaapneFeil, setGjenaapneFeil] = useState<string | null>(null);
+  const { gjenaapne, pending: gjenaapnerPending } = useGjenaapneDagsseddel(sheetId, {
+    onGjenaapnet: lesData,
+    onFeil: setGjenaapneFeil,
+  });
 
   useEffect(() => {
     const orgId = sedel?.organizationId;
@@ -167,7 +212,8 @@ export default function ProsjektkortSkjerm() {
     lesData();
   }, [sedel, sheetId, oppdaterTellere, triggerSync, lesData]);
 
-  // F5-matpausen er dag-nivå (kryss-kort), som på samlesiden.
+  // F5-matpausen er dag-nivå (kryss-kort), som på samlesiden. ORDRE 36b:
+  // avhukingen vises i rad-modalen (RadHandlinger), ikke på rad-kortet.
   const handterPauseToggle = useCallback(
     (radId: string, vilHa: boolean) => {
       if (!sedel) return;
@@ -194,11 +240,28 @@ export default function ProsjektkortSkjerm() {
     markerEndretOgLes();
   }, [sedel, sheetId, markerEndretOgLes]);
 
-  const iKortet = useCallback(
-    (r: { projectId: string | null }) =>
-      (r.projectId ?? sedel?.projectId) === projectId,
-    [sedel?.projectId, projectId],
-  );
+  const sedelKontekst = useMemo<SedelKortKontekst | null>(() => {
+    if (!sedel) return null;
+    const db = hentDatabase();
+    const bp =
+      db && sedel.byggeplassId
+        ? db
+            .select({ id: byggeplassLocal.id, projectId: byggeplassLocal.projectId })
+            .from(byggeplassLocal)
+            .where(eq(byggeplassLocal.id, sedel.byggeplassId))
+            .all()[0]
+        : undefined;
+    return {
+      projectId: sedel.projectId,
+      byggeplass: bp ? { id: bp.id, projectId: bp.projectId } : null,
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sedel?.projectId, sedel?.byggeplassId]);
+
+  const ecoNavn = useCallback((ecoId: string): string => {
+    const e = finnUnderprosjektLokalt(ecoId);
+    return e ? `${e.proAdmId} — ${e.kortNavn}` : ecoId;
+  }, []);
 
   const orgId = sedel?.organizationId;
   const reiseLonnsartId = useMemo(
@@ -213,30 +276,20 @@ export default function ProsjektkortSkjerm() {
   // som server-raden → telles én gang; offline vises de lokale alene.
   const varer = useMemo(
     () =>
-      slaaSammenVarelinjer<{
-        id: string;
-        projectId: string;
-        antall: number;
-        vare: { navn: string; enhet: string };
-        syncStatus?: LokalVarelinje["syncStatus"];
-        feilmelding?: string | null;
-      }>(
-        tilKortVarer(vareQuery.data ?? []).filter((v) => v.projectId === projectId),
-        lokaleVarer,
-      ),
+      varerForProsjekt<VisVarelinje>(tilKortVarer(vareQuery.data ?? []), lokaleVarer, projectId),
     [vareQuery.data, lokaleVarer, projectId],
   );
-  const kanForeVare = visVareforbrukKnapp({
-    prosjektIderMedVarelager: varelagerProsjekter,
-    projectId,
-    erRedigerbar,
-  });
+
+  // V21 (Kenneth 2026-11-12): dagsnormen til rad-modalens overtidsforslag —
+  // samme svar-cache som samlesida (`useProsjektkortSedel`), regner aldri.
+  const normTimer = useMemo(
+    () => (sedel ? hentDagsnormLokalt(sedel.organizationId, sedel.dato)?.dagsnorm ?? null : null),
+    [sedel],
+  );
 
   const prosjektNavn = useMemo(() => {
-    const p = finnProsjektLokalt(projectId);
-    if (!p) return projectId;
-    return `${p.projectNumber ? p.projectNumber + " — " : ""}${p.name}`;
-  }, [projectId]);
+    return prosjektVisningsnavn(finnProsjektLokalt(projectId), t("timer.detalj.ukjentProsjekt"));
+  }, [projectId, t]);
 
   const byggeplassNavn = useCallback((byggeplassId: string): string | null => {
     const db = hentDatabase();
@@ -247,6 +300,19 @@ export default function ProsjektkortSkjerm() {
         .from(byggeplassLocal)
         .where(eq(byggeplassLocal.id, byggeplassId))
         .all()[0]?.navn ?? null
+    );
+  }, []);
+
+  // Funn 3: byggeplassens prosjekt til kortoverskriften (arv på tvers av prosjekt teller ikke).
+  const byggeplassProsjekt = useCallback((byggeplassId: string): string | null => {
+    const db = hentDatabase();
+    if (!db) return null;
+    return (
+      db
+        .select({ projectId: byggeplassLocal.projectId })
+        .from(byggeplassLocal)
+        .where(eq(byggeplassLocal.id, byggeplassId))
+        .all()[0]?.projectId ?? null
     );
   }, []);
 
@@ -268,12 +334,141 @@ export default function ProsjektkortSkjerm() {
     );
   }
 
-  const kTimer = timerRader.filter(iKortet);
-  const kTillegg = tilleggRader.filter(iKortet);
-  const kMaskin = maskinRader.filter(iKortet);
-  const kUtlegg = utleggRader.filter(iKortet);
-  const tomt =
-    kTimer.length + kTillegg.length + kMaskin.length + kUtlegg.length === 0;
+  const kontekst = sedelKontekst ?? { projectId: sedel.projectId, byggeplass: null };
+  // Samme telling som samlesiden (useProsjektkortSedel.kortIder).
+  const antallProsjekter = kortProsjektIder(
+    sedel.projectId,
+    [timerRader, maskinRader, tilleggRader, utleggRader],
+    [],
+  ).length;
+  const iProsjektet = (r: { projectId: string | null }) =>
+    (r.projectId ?? sedel.projectId) === projectId;
+  const forste = [...timerRader, ...maskinRader].find(iProsjektet);
+  const valg: KortValg =
+    bpParam === undefined
+      ? forste
+        ? kortValgFor(forste, kontekst)
+        : { projectId, byggeplassId: effektivByggeplass(projectId, null, kontekst), ecoId: null }
+      : { projectId, byggeplassId: bpParam, ecoId: upParam };
+  const kTimer = raderPaaKort(timerRader, kontekst, valg);
+  const kMaskin = raderPaaKort(maskinRader, kontekst, valg);
+  const kVarer = raderPaaKort(varer, kontekst, valg);
+  // Spec tillegg-utlegg-prosjektkort § 3: tillegg og utlegg hører til kortet.
+  const kTillegg = raderPaaKort(tilleggRader, kontekst, valg);
+  const kUtlegg = raderPaaKort(utleggRader, kontekst, valg);
+  const tomt = kTimer.length + kMaskin.length + kVarer.length + kTillegg.length + kUtlegg.length === 0;
+
+  // ORDRE 36c-kort: kortets innhold (arbeid uten reise, maskin + koblet, varer,
+  // tillegg og utlegg — B4: Endre/Slett kort tar dem med).
+  const innhold = kortInnhold({
+    timerRader,
+    maskinRader,
+    varer,
+    tilleggRader,
+    utleggRader,
+    sedel: kontekst,
+    kort: valg,
+    reiseLonnsartId,
+  });
+  const dag: KortDag = {
+    sheetId,
+    organizationId: sedel.organizationId,
+    status: sedel.status,
+    pauseMin: sedel.pauseMin ?? 0,
+    sedel: kontekst,
+    timerRader,
+    maskinRader,
+    reiseLonnsartId,
+  };
+  const sperretOffline = !erPaaNettet && innhold.varer.some(vareFinnesPaaServer);
+  const kortNavn = (k: typeof valg) =>
+    [
+      prosjektVisningsnavn(finnProsjektLokalt(k.projectId), t("timer.detalj.ukjentProsjekt")),
+      k.byggeplassId ? byggeplassNavn(k.byggeplassId) ?? k.byggeplassId : t("timer.kortValg.utenByggeplass"),
+      k.ecoId ? ecoNavn(k.ecoId) : null,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+  // Siste kort: ingen andre arbeid-, maskin-, vare-, tillegg- eller utleggrader på dagen.
+  const iKortet = new Set(
+    [
+      ...innhold.timer,
+      ...innhold.maskin,
+      ...innhold.varer,
+      ...(innhold.tillegg ?? []),
+      ...(innhold.utlegg ?? []),
+    ].map((r) => r.id),
+  );
+  const sisteKort =
+    timerRader.every((r) => iKortet.has(r.id) || r.erReise === true || r.lonnsartId === reiseLonnsartId) &&
+    maskinRader.every((m) => iKortet.has(m.id)) &&
+    tilleggRader.every((r) => iKortet.has(r.id)) &&
+    utleggRader.every((r) => iKortet.has(r.id)) &&
+    [...(vareQuery.data ?? []), ...lokaleVarer].every((v) => iKortet.has(v.id));
+  const visUtfall = (u: KortUtfall, handling: "slett" | "flytt"): boolean => {
+    if (u.utfall === "ok") return true;
+    const tekst = kortUtfallTekst(u, handling);
+    const grunn = u.utfall === "delvis" && u.melding ? `\n${u.melding}` : "";
+    setKortFeil(tekst ? t(tekst, { defaultValue: tekst }) + grunn : null);
+    return false;
+  };
+  const utforEndre = async (til: typeof valg) => {
+    if (kortArbeider) return;
+    setKortArbeider(true);
+    const u = await flyttKort(hentDatabase()!, dag, innhold, valg, til, {
+      erPaaNettet,
+      pushSedel: () => pushSedel(sheetId),
+      flyttVare: async (id, maal) => {
+        await oppdaterVare.mutateAsync({
+          id,
+          projectId: maal.projectId,
+          byggeplassId: maal.byggeplassId,
+          externalCostObjectId: maal.ecoId,
+        });
+      },
+    });
+    setKortArbeider(false);
+    if (u.utfall === "delvis") {
+      // 36c-kort-3: timer er flyttet — les på nytt; modalen står med teksten,
+      // og «Flytt» igjen flytter varene som ble igjen på dette kortet.
+      lesData();
+      void vareQuery.refetch();
+    }
+    if (!visUtfall(u, "flytt")) return;
+    setVisEndre(false);
+    markerEndretOgLes();
+    void vareQuery.refetch();
+    router.replace(
+      `/timer/${sheetId}/kort/${til.projectId}?bp=${tilRuteParam(til.byggeplassId)}&up=${tilRuteParam(til.ecoId)}`,
+    );
+  };
+  const utforSlett = async () => {
+    if (kortArbeider) return;
+    setKortArbeider(true);
+    const u = await slettKort(hentDatabase()!, dag, innhold, {
+      erPaaNettet,
+      slettVare: async (id) => {
+        await slettVare.mutateAsync({ id });
+      },
+    });
+    setKortArbeider(false);
+    setVisSlett(false);
+    if (!visUtfall(u, "slett")) return;
+    markerEndretOgLes();
+    void vareQuery.refetch();
+    router.back();
+  };
+  const slettTekst = [
+    t("timer.kort.slettTekst", {
+      timer: formatKortTall(innhold.timer.reduce((a, r) => a + r.timer, 0)),
+      kort: kortNavn(valg),
+      dato: formatNorskDato(sedel.dato),
+    }),
+    sedel.status === "returned" ? t("timer.kort.slettReturnert") : t("timer.kort.slettUtkast"),
+    sisteKort ? t("timer.kort.slettSiste") : null,
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   return (
     <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
@@ -291,15 +486,30 @@ export default function ProsjektkortSkjerm() {
         <View className="mx-4 mt-4 rounded-lg border border-gray-200 bg-white p-4">
           <KortHode
             projectId={projectId}
-            navn={prosjektNavn}
+            navn={valg.ecoId ? `${prosjektNavn} · ${ecoNavn(valg.ecoId)}` : prosjektNavn}
             timer={tilKortTimerRader(kTimer, sedel.projectId, reiseLonnsartId)}
             maskin={tilKortMaskinRader(kMaskin, sedel.projectId)}
-            varer={varer}
+            varer={kVarer}
             utlegg={kUtlegg.length}
+            tillegg={kTillegg.length}
             sedelByggeplassId={sedel.byggeplassId ?? null}
             byggeplassNavn={byggeplassNavn}
+            byggeplassProsjekt={byggeplassProsjekt}
           />
         </View>
+
+        {/* T.11: soft-varsel når arbeider mangler gyldig maskinførerbevis
+            (som maskinseksjonen viste det: kun når maskin er ført). */}
+        {harEquipmentCache && !harMaskinforerbevis && kMaskin.length > 0 && (
+          <View className="mx-4 mt-3 rounded-lg border border-amber-200 bg-amber-50 p-2.5">
+            <View className="flex-row items-center gap-2">
+              <AlertTriangle size={14} color="#b45309" />
+              <Text className="flex-1 text-xs text-amber-800">
+                {t("timer.maskinforerbevis.arbeider")}
+              </Text>
+            </View>
+          </View>
+        )}
 
         {tomt && erRedigerbar && (
           <Text className="mx-4 mt-3 text-sm text-gray-500">
@@ -307,96 +517,162 @@ export default function ProsjektkortSkjerm() {
           </Text>
         )}
 
-        {/* Arbeidstimer (ECO-bøtter, maskin som underpost), tillegg og utlegg —
-            samme komponent som dagskortet, med prosjektet låst. */}
-        <ProsjektkortKontekst.Provider value={true}>
-          <ProsjektGruppe
-            projectId={projectId}
-            visHeader={false}
+        {/* ORDRE 36b: kortet er dagsoversikten for ett prosjekt — linjene
+            åpner de delte rad-modalene, skriving via radLagring. */}
+        <ProsjektkortDagsoversikt
+          enkeltProsjekt
+          sheetId={sheetId}
+          sedel={sedel}
+          kort={[valg]}
+          sedelKontekst={kontekst}
+          ecoNavn={ecoNavn}
+          timerRader={timerRader}
+          maskinRader={maskinRader}
+          varer={varer}
+          reiseLonnsartId={reiseLonnsartId}
+          harEquipmentCache={harEquipmentCache}
+          varelagerProsjekter={varelagerProsjekter}
+          normTimer={normTimer}
+          ramme={{
+            fra: isoTidspunktTilHHMM(sedel.startAt),
+            til: isoTidspunktTilHHMM(sedel.endAt),
+            pauseMin: sedel.pauseMin ?? 0,
+          }}
+          rammeByggeplassNavn={null}
+          prosjektNavn={() => prosjektNavn}
+          byggeplassNavn={byggeplassNavn}
+          redigerbar={erRedigerbar}
+          onPauseToggle={handterPauseToggle}
+          onEndret={markerEndretOgLes}
+          onVarerLagret={() => {
+            lesData();
+            void triggerSync();
+          }}
+        />
+
+        {/* Spec tillegg-utlegg-prosjektkort § 3/§ 5: tillegg og utlegg på kortet.
+            Kontekst-låsen viser kortets byggeplass/underprosjekt låst i modalen;
+            nye rader lagres med kortets felt (null = arv fra sedelen). */}
+        <ProsjektkortKontekst.Provider value={{ byggeplassId: valg.byggeplassId, ecoId: valg.ecoId }}>
+          <TilleggSeksjon
             sheetId={sheetId}
             organizationId={sedel.organizationId}
-            sedelProjectId={sedel.projectId}
-            sedelByggeplassId={sedel.byggeplassId ?? null}
-            dato={sedel.dato}
-            pauseMin={sedel.pauseMin}
-            defaultAktivitetId={sedel.aktivitetId ?? null}
-            harEquipmentCache={harEquipmentCache}
-            harMaskinforerbevis={harMaskinforerbevis}
+            projectId={projectId}
+            rader={kTillegg}
             redigerbar={erRedigerbar}
-            onPauseToggle={handterPauseToggle}
-            timerRader={kTimer}
-            alleTimerRader={timerRader}
-            tilleggRader={kTillegg}
-            maskinRader={kMaskin}
-            utleggRader={kUtlegg}
             onEndret={markerEndretOgLes}
+            hjelpIkon={<HjelpIkon tittel={t("hjelp.tillegg.tittel")} tekst={t("hjelp.tillegg.tekst")} />}
+            kortFelt={{ byggeplassId: lagretByggeplassForKort(valg, kontekst), externalCostObjectId: valg.ecoId }}
+          />
+          <UtleggSeksjon
+            sheetId={sheetId}
+            organizationId={sedel.organizationId}
+            projectId={projectId}
+            rader={kUtlegg}
+            redigerbar={erRedigerbar}
+            onEndret={markerEndretOgLes}
+            hjelpIkon={<HjelpIkon tittel={t("hjelp.utlegg.tittel")} tekst={t("hjelp.utlegg.tekst")} />}
+            kortFelt={{ byggeplassId: lagretByggeplassForKort(valg, kontekst), externalCostObjectId: valg.ecoId }}
           />
         </ProsjektkortKontekst.Provider>
 
-        {/* Vareforbruk (L3): føres fra kortet med prosjektet låst; linjene kan
-            ikke endres her — retting skjer i Varelager. */}
-        {(varer.length > 0 || kanForeVare) && (
-          <View className="mx-4 mt-4 rounded-lg border border-gray-200 bg-white p-4">
-            <View className="mb-2 flex-row items-center gap-2">
-              <Package size={16} color="#6b7280" />
-              <Text className="text-sm font-semibold text-gray-900">
-                {t("vareforbruk.tittel")}
-              </Text>
-            </View>
-            {varer.map((v) => (
-              <View key={v.id} className="py-1">
-                <View className="flex-row justify-between">
-                  <Text className="flex-1 text-sm text-gray-700">{v.vare.navn}</Text>
-                  {v.syncStatus === "pending" && (
-                    <Text className="mr-2 text-xs text-amber-700">{t("timer.sync.venter")}</Text>
-                  )}
-                  <Text className="text-sm text-gray-900">
-                    {formatKortTall(v.antall).replace(/,0$/, "")} {v.vare.enhet}
-                  </Text>
-                </View>
-                {v.syncStatus === "avvist" && v.feilmelding && (
-                  <Text className="text-xs text-red-600">{v.feilmelding}</Text>
-                )}
-              </View>
-            ))}
-            {kanForeVare && (
+        {/* ORDRE 36c-kort: hele kortet — kun når sedelen er redigerbar. */}
+        {erRedigerbar && !tomt && (
+          <View className="mx-4 mt-6">
+            <View className="flex-row gap-3">
               <Pressable
-                onPress={() => setVisVareModal(true)}
-                className="mt-2 self-start rounded-lg border border-blue-700 px-3 py-2 active:bg-blue-50"
+                disabled={sperretOffline || kortArbeider}
+                accessibilityState={{ disabled: sperretOffline || kortArbeider }}
+                onPress={() => {
+                  setKortFeil(null);
+                  setVisEndre(true);
+                }}
+                className="min-h-[44px] flex-1 items-center justify-center rounded-lg border border-gray-300 bg-white active:bg-gray-50"
               >
-                <Text className="text-sm font-medium text-blue-700">
-                  {t("timer.prosjektkort.nyVare")}
+                <Text className={`text-base ${sperretOffline ? "text-gray-400" : "text-gray-700"}`}>
+                  {t("timer.kort.endre")}
                 </Text>
               </Pressable>
+              <Pressable
+                disabled={sperretOffline || kortArbeider}
+                accessibilityState={{ disabled: sperretOffline || kortArbeider }}
+                onPress={() => {
+                  setKortFeil(null);
+                  setVisSlett(true);
+                }}
+                className="min-h-[44px] flex-1 items-center justify-center rounded-lg border border-gray-300 bg-white active:bg-gray-50"
+              >
+                <Text className={`text-base ${sperretOffline ? "text-gray-400" : "text-red-600"}`}>
+                  {t("timer.kort.slett")}
+                </Text>
+              </Pressable>
+            </View>
+            {sperretOffline && (
+              <Text className="mt-2 text-sm text-amber-700">
+                {t("timer.kort.offlineFlytt")} {t("timer.kort.offlineSlett")}
+              </Text>
             )}
+            {kortFeil && !visEndre && <Text className="mt-2 text-sm text-amber-700">{kortFeil}</Text>}
           </View>
         )}
+
+        {/* ORDRE (23): kortskjermen er aldri en blindvei — gjenåpne her, og
+            «Se hele dagen» til samlesiden når dagen har flere prosjekter. */}
+        {gjenaapneFeil && <Text className="mx-4 mt-4 text-sm text-red-600">{gjenaapneFeil}</Text>}
+        <View className="mx-4 mt-6 gap-2">
+          <GjenaapneKnapp
+            status={sedel.status}
+            syncStatus={sedel.syncStatus}
+            pending={gjenaapnerPending}
+            onGjenaapne={gjenaapne}
+          />
+          {visSeHeleDagen(antallProsjekter) && (
+            <Pressable
+              // Tilbake til samlesiden i stacken; finnes den ikke, erstattes kortet.
+              onPress={() => router.dismissTo(`/timer/${sheetId}/prosjektkort`)}
+              className="min-h-[44px] flex-row items-center justify-center gap-1 rounded-lg active:bg-gray-100"
+            >
+              <Text className="text-base text-sitedoc-primary">
+                {t("timer.kort.seHeleDagen", { antall: antallProsjekter })}
+              </Text>
+              <ChevronRight size={16} color="#1e40af" />
+            </Pressable>
+          )}
+        </View>
       </ScrollView>
+
+      {visEndre && (
+        <KortValgModal
+          organizationId={sedel.organizationId}
+          modus={{ type: "flytt", fra: valg, heleKortet: true }}
+          sedel={kontekst}
+          prosjektNavn={(id) => prosjektVisningsnavn(finnProsjektLokalt(id), t("timer.detalj.ukjentProsjekt"))}
+          feil={kortFeil}
+          merknad={(til) =>
+            kortNokkel(til) !== kortNokkel(valg) &&
+            kortFinnesFraFor([...timerRader.filter((r) => !iKortet.has(r.id)), ...maskinRader.filter((m) => !iKortet.has(m.id))], kontekst, til)
+              ? t("timer.kort.sammenslaa", { kort: kortNavn(til) })
+              : null
+          }
+          onVelg={(til) => void utforEndre(til)}
+          onLukk={() => setVisEndre(false)}
+        />
+      )}
+
+      <BekreftSlettModal
+        synlig={visSlett}
+        tittel={t("timer.kort.slettTittel")}
+        tekst={slettTekst}
+        bekreftTekst={t("timer.kort.slett")}
+        onAvbryt={() => setVisSlett(false)}
+        onBekreft={() => void utforSlett()}
+      />
 
       <BekreftFjernMatpauseModal
         synlig={bekreftFjernRadId !== null}
         onAvbryt={() => setBekreftFjernRadId(null)}
         onBekreft={bekreftFjernMatpause}
       />
-
-      {bruker?.id && (
-        <KortVareforbrukModal
-          synlig={visVareModal}
-          userId={bruker.id}
-          organizationId={sedel.organizationId}
-          sheetId={sheetId}
-          projectId={projectId}
-          prosjektNavn={prosjektNavn}
-          dato={sedel.dato}
-          sedelByggeplassId={sedel.byggeplassId ?? null}
-          onAvbryt={() => setVisVareModal(false)}
-          onLagret={() => {
-            setVisVareModal(false);
-            lesData();
-            void triggerSync();
-          }}
-        />
-      )}
 
       <MiniToast melding={pauseToast} />
     </View>

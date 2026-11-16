@@ -54,6 +54,9 @@ export type TimerRapportDetaljRad = {
   ansatt: string;
   ansattnr: string | null;
   prosjekt: string;
+  /** B8: effektiv byggeplass + underprosjekt (navn). Valgfritt = bakoverkompatibelt. */
+  byggeplass?: string | null;
+  underprosjekt?: string | null;
   betegnelse: string;
   aktivitet: string | null;
   fraTid: string | null;
@@ -141,6 +144,8 @@ export type TimerRapportTekster = {
   detaljer: string;
   subtotal: string; // gruppe-subtotal-etikett (fase 4)
   kolDato: string;
+  kolByggeplass: string;
+  kolUnderprosjekt: string;
   kolType: string;
   kolBetegnelse: string;
   kolAktivitet: string;
@@ -336,6 +341,17 @@ function kolonner(t: TimerRapportTekster, mottaker: TimerRapportMottaker): KolDe
       ? []
       : [{ id: "ansattnr", header: t.kolAnsattnr, num: false, alltid: true, tilstede: () => true, celle: (r: TimerRapportDetaljRad) => esc(r.ansattnr ?? "") } as KolDef]),
     { id: "prosjekt", header: t.prosjekt, num: false, alltid: true, tilstede: () => true, celle: (r) => esc(r.prosjekt) },
+    // B8 (tillegg-utlegg-prosjektkort-spec § 6): sted-dimensjonen, kun når radene bærer den.
+    {
+      id: "byggeplass", header: t.kolByggeplass, num: false, alltid: false,
+      tilstede: (rader) => rader.some((r) => harTekst(r.byggeplass ?? null)),
+      celle: (r) => esc(r.byggeplass ?? ""),
+    },
+    {
+      id: "underprosjekt", header: t.kolUnderprosjekt, num: false, alltid: false,
+      tilstede: (rader) => rader.some((r) => harTekst(r.underprosjekt ?? null)),
+      celle: (r) => esc(r.underprosjekt ?? ""),
+    },
     { id: "type", header: t.kolType, num: false, alltid: true, tilstede: () => true, celle: (r, tk) => esc(typeEtikett(r, tk)) },
     { id: "betegnelse", header: t.kolBetegnelse, num: false, alltid: true, tilstede: () => true, celle: (r, tk) => betegnelseCelle(r, tk, mottaker) },
     {

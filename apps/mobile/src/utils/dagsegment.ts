@@ -55,10 +55,50 @@ export function kappGlemtDagSlutt(
   if (!(spennTimer > opts.deteksjonsTimer)) {
     return { sluttIso, kappet: false };
   }
+  // DEL 5 d (Kenneth 2026-11-12): en estimert slutt fører aldri tid på neste
+  // dato — kappet stopper ved midnatt etter start.
+  const estimert = Math.min(
+    start + opts.kappLengdeTimer * 3_600_000,
+    nesteLokaleMidnatt(startIso).getTime(),
+  );
   return {
-    sluttIso: new Date(start + opts.kappLengdeTimer * 3_600_000).toISOString(),
+    sluttIso: new Date(estimert).toISOString(),
     kappet: true,
   };
+}
+
+/** Første lokale midnatt etter `iso` (00:00 neste kalenderdag). */
+export function nesteLokaleMidnatt(iso: string): Date {
+  const d = new Date(iso);
+  d.setHours(24, 0, 0, 0);
+  return d;
+}
+
+/**
+ * DEL 5 d — glemt dag: estimert slutt for en økt brukeren glemte å avslutte.
+ * Firmaets standard sluttid på startdatoen; ligger den før start, start +
+ * dagsnorm (7,5 t uten norm). Estimatet kappes ved midnatt etter start, så
+ * det føres aldri automatisk tid på neste dato. Brukeren kan selv rette
+ * sluttiden til etter midnatt i Bekreft dag (del c).
+ */
+export function estimerGlemtSlutt(
+  startIso: string,
+  standardSluttHHMM: string,
+  dagsnormTimer: number | null | undefined,
+): { sluttIso: string; kappetVedMidnatt: boolean } {
+  const start = new Date(startIso);
+  const [tt, mm] = standardSluttHHMM.split(":").map(Number);
+  let slutt = new Date(start);
+  slutt.setHours(tt ?? 0, mm ?? 0, 0, 0);
+  if (slutt.getTime() <= start.getTime()) {
+    const norm = dagsnormTimer && dagsnormTimer > 0 ? dagsnormTimer : 7.5;
+    slutt = new Date(start.getTime() + norm * 3_600_000);
+  }
+  const midnatt = nesteLokaleMidnatt(startIso);
+  if (slutt.getTime() > midnatt.getTime()) {
+    return { sluttIso: midnatt.toISOString(), kappetVedMidnatt: true };
+  }
+  return { sluttIso: slutt.toISOString(), kappetVedMidnatt: false };
 }
 
 /**

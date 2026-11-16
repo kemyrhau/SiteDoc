@@ -239,7 +239,8 @@ describe("V19 A-1b — eksisterende sedel, overlapp i tid", () => {
     expect(forslagCreateMany).toHaveBeenCalledTimes(1);
     expect(forslagCreateMany.mock.calls[0]![0].data).toHaveLength(1);
     expect(timerCreateMany).not.toHaveBeenCalled();
-    expect(timerDeleteMany).not.toHaveBeenCalled();
+    expect(timerDeleteMany).not.toHaveBeenCalled();    // Funn 1: ingenting fra pushen er skrevet → mobilen må sende linjene på nytt.
+    expect(r.serverData?.skrevet).toBe(false);
   });
 
   it("(2/V19.4) PC 07–11, mobil 12–15 (ingen overlapp) → ingen forslag, normal ok-skriving", async () => {
@@ -274,6 +275,7 @@ describe("V19 A-1a — S2 (første push, dag ført på PC først)", () => {
     expect(r.resultat).toBe("conflict");
     expect(r.aarsak).toBe("overlapp");
     expect(r.serverData?.clientUuid).toBe(SERVER_UUID);
+    expect(r.serverData?.skrevet).toBe(false); // funn 1
     // Idempotent erstatning: deleteMany før createMany.
     expect(forslagDeleteMany).toHaveBeenCalledTimes(1);
     expect(forslagCreateMany).toHaveBeenCalledTimes(1);

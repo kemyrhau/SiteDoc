@@ -27,6 +27,7 @@ import { StatusMerkelapp } from "../../src/components/StatusMerkelapp";
 import { StatusFilterRad } from "../../src/components/StatusFilterRad";
 import { OpprettVelger } from "../../src/components/OpprettVelger";
 import { ByggeplassChip } from "../../src/components/ByggeplassChip";
+import { VelgByggeplassTom, useMaaVelgeByggeplass } from "../../src/components/VelgByggeplassTom";
 import { ProsjektSokRad } from "../../src/components/sok/ProsjektSokRad";
 import { FilterOgSorteringSheet } from "../../src/components/dokumentliste/FilterOgSorteringSheet";
 import { AktiveFilterChips } from "../../src/components/dokumentliste/AktiveFilterChips";
@@ -59,6 +60,7 @@ export default function SjekklisteListe() {
   const { t } = useTranslation();
   const { valgtProsjektId } = useProsjekt();
   const { valgtBygningId } = useByggeplass();
+  const maaVelgeByggeplass = useMaaVelgeByggeplass();
   const { erPaaNettet } = useNettverk();
   const { bruker } = useAuth();
   const brukerId = bruker?.id;
@@ -191,11 +193,10 @@ export default function SjekklisteListe() {
         .filter(Boolean)
         .join(" · ");
 
-      // Kontekst-regel: HVER rad merkes når konteksten er bredere enn objektets hjem
-      // — «Hele prosjektet», eller under søk (som treffer hele prosjektet). Ellers
-      // (byggeplass valgt) merkes kun prosjekt-dokumenter grå.
-      const erProsjektDok = item.byggeplass == null;
-      const visBadge = søkerNaa || valgtBygningId == null || erProsjektDok;
+      // Kontekst-regel: raden viser byggeplassen når konteksten er bredere enn objektets
+      // hjem — under søk eller uten valgt byggeplass. Dokument uten byggeplass merkes
+      // ikke (TILLEGG (22)).
+      const visBadge = item.byggeplass != null && (søkerNaa || valgtBygningId == null);
 
       return (
         <Pressable
@@ -214,14 +215,8 @@ export default function SjekklisteListe() {
               <MedUtheving tekst={undertekst} tokens={søkeTokens} className="mt-0.5 text-xs text-gray-500" />
             ) : null}
             {visBadge ? (
-              <Text
-                className={
-                  erProsjektDok
-                    ? "mt-1 self-start rounded-full border border-gray-300 px-2 py-0.5 text-xs font-medium text-gray-500"
-                    : "mt-1 self-start rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700"
-                }
-              >
-                {erProsjektDok ? t("kontekstChip.heleProsjektet") : item.byggeplass!.name}
+              <Text className="mt-1 self-start rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
+                {item.byggeplass!.name}
               </Text>
             ) : null}
           </View>
@@ -340,7 +335,11 @@ export default function SjekklisteListe() {
         </View>
       )}
 
-      {sjekklisteQuery.isLoading && lokaleRader.length === 0 ? (
+      {/* (22) Uten byggeplassvalg: «Velg byggeplass». Søk gjelder
+          fortsatt hele prosjektet. */}
+      {!søkerNaa && maaVelgeByggeplass ? (
+        <VelgByggeplassTom />
+      ) : sjekklisteQuery.isLoading && lokaleRader.length === 0 ? (
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color="#1e40af" />
           <Text className="mt-3 text-sm text-gray-500">{t("handling.laster")}</Text>

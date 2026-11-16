@@ -1,6 +1,7 @@
 import { View, Text, Pressable, ActivityIndicator } from "react-native";
 import { WifiOff, Clock, Check, AlertTriangle, Lock } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
+import { aktivtHelhetsvalg } from "@sitedoc/shared";
 import type {
   Sammenligning,
   Side,
@@ -167,6 +168,12 @@ export function DagskortSammenligning({
   }
 
   const laast = resultat.slag === "modusC";
+  // Telefontest B funn 4: «hele dagen»-knappen som gjelder alle valgbare slots, vises
+  // fylt med hake (samme regel som web — `aktivtHelhetsvalg` i @sitedoc/shared).
+  const helhetNokler = resultat.rader
+    .filter((r) => r.valgbar !== false)
+    .map((r) => r.nokkel ?? r.tidsrom);
+  const aktivt = laast ? null : aktivtHelhetsvalg<Side>(helhetNokler, valg, "server");
 
   return (
     <View className="mx-4 mt-4 rounded-lg border border-red-200 bg-white p-3">
@@ -256,20 +263,36 @@ export function DagskortSammenligning({
           <Pressable
             onPress={() => onVelgAlle("lokal")}
             disabled={bekrefter}
-            className="flex-1 rounded-lg border border-gray-300 bg-white py-2.5"
+            className={`flex-1 flex-row items-center justify-center gap-1.5 rounded-lg border py-2.5 ${
+              aktivt === "lokal" ? "border-sitedoc-blue bg-sitedoc-blue" : "border-gray-300 bg-white"
+            }`}
             accessibilityRole="button"
+            accessibilityState={{ selected: aktivt === "lokal" }}
           >
-            <Text className="text-center text-sm font-medium text-gray-800">
+            {aktivt === "lokal" && <Check size={14} color="#ffffff" />}
+            <Text
+              className={`text-center text-sm font-medium ${
+                aktivt === "lokal" ? "text-white" : "text-gray-800"
+              }`}
+            >
               {t("timer.sammenlign.velgAlleAppen")}
             </Text>
           </Pressable>
           <Pressable
             onPress={() => onVelgAlle("server")}
             disabled={bekrefter}
-            className="flex-1 rounded-lg border border-gray-300 bg-white py-2.5"
+            className={`flex-1 flex-row items-center justify-center gap-1.5 rounded-lg border py-2.5 ${
+              aktivt === "server" ? "border-sitedoc-blue bg-sitedoc-blue" : "border-gray-300 bg-white"
+            }`}
             accessibilityRole="button"
+            accessibilityState={{ selected: aktivt === "server" }}
           >
-            <Text className="text-center text-sm font-medium text-gray-800">
+            {aktivt === "server" && <Check size={14} color="#ffffff" />}
+            <Text
+              className={`text-center text-sm font-medium ${
+                aktivt === "server" ? "text-white" : "text-gray-800"
+              }`}
+            >
               {t("timer.sammenlign.velgAllePc")}
             </Text>
           </Pressable>

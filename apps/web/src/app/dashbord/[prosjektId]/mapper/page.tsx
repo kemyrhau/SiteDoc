@@ -24,7 +24,7 @@ import {
   FileX,
 } from "lucide-react";
 import Link from "next/link";
-import { STOETTEDE_SPRAAK } from "@sitedoc/shared";
+import { STOETTEDE_SPRAAK, erProsesseringsfeil } from "@sitedoc/shared";
 import { beregnSynligeMapper } from "@sitedoc/shared/utils";
 import { SignertLenke, useSignertLenkeApner } from "@/components/SignertLenke";
 import type { MappeTilgangInput, BrukerTilgangInfo } from "@sitedoc/shared/utils";
@@ -833,8 +833,8 @@ function EmbeddingIndikator({ rad }: { rad: { processingState: string | null; pr
     );
   }
 
-  // Feil
-  if (rad.processingError) {
+  // Feil (markøren for «0 leser-blokker» er ikke en feil — DL-2)
+  if (erProsesseringsfeil(rad.processingError)) {
     return (
       <span title={`Feil: ${rad.processingError}`}>
         <AlertCircle className="h-3.5 w-3.5 text-red-500" />

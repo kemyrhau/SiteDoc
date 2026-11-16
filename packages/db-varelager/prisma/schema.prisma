@@ -82,6 +82,10 @@ model Vareforbruk {
   registrertAvUserId   String   @map("registrert_av_user_id") // svak FK; ingen @relation (A.3-mønster)
   kommentar            String?
   dagsseddelId         String?  @map("dagsseddel_id") // svak FK → daily_sheets (db-timer)
+  // Radform (Kenneth 2026-11-12): timerraden varen er ført fra. Svak FK → sheet_timer.id
+  // (db-timer). NULL = ikke koblet (eldre linjer, web, Bekreft dag uten rad) → vises
+  // under «Uten rad». Ingen backfill: koblingen kan ikke utledes uten å gjette.
+  sheetTimerId         String?  @map("sheet_timer_id")
 
   // Snapshot ved attestering (A.7) — {prisSnapshot, internkostnadSnapshot, varenavnSnapshot, enhetSnapshot, attestertVed}
   attestertSnapshot Json? @map("attestert_snapshot")
@@ -93,6 +97,7 @@ model Vareforbruk {
 
   @@index([projectId, dato])
   @@index([dagsseddelId])
+  @@index([sheetTimerId])
   @@index([externalCostObjectId])
   @@index([vareId])
   @@map("vareforbruk")

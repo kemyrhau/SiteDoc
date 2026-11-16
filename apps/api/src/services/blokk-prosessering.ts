@@ -1,8 +1,8 @@
 /**
- * Blokkbasert PDF-prosessering for flerspråklig dokumentvisning.
+ * Blokkbasert dokumentprosessering (PDF og DOCX) for flerspråklig dokumentvisning.
  *
  * Ekstraher ordnede blokker (heading, text, image, caption, table)
- * fra PDF-sider via pdfjs-dist. Bilder lagres til disk, tekst
+ * fra PDF-sider via pdfjs-dist, eller overskrifter/avsnitt fra DOCX. Bilder lagres til disk, tekst
  * lagres som FtdDocumentBlock med språk og rekkefølge.
  */
 import { join } from "node:path";
@@ -10,6 +10,7 @@ import { mkdir, writeFile, unlink, readFile } from "node:fs/promises";
 import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import type { PrismaClient } from "@sitedoc/db";
+import type { DocxBlokk } from "./ftd-prosessering";
 
 const UPLOADS_DIR = join(process.cwd(), "uploads");
 
@@ -36,7 +37,42 @@ export async function genererBlokker(
 ): Promise<number> {
   const råBlokker = await ekstraherBlokkerFraPdf(buffer, documentId);
   const blokker = slåSammenBildetekster(råBlokker);
+  return lagreBlokker(prisma, documentId, blokker, sourceLanguage);
+}
 
+/**
+ * Overskrift-/avsnittsblokker fra DOCX → leser-blokker. DOCX har ikke sider, så
+ * `pageNumber` er 1 (kolonnen er påkrevd). Ren funksjon — ingen DB.
+ */
+export function docxTilLeserblokker(docxBlokker: DocxBlokk[]): RåBlokk[] {
+  return docxBlokker.map((b) =>
+    b.type === "heading"
+      ? { type: "heading", content: b.text, pageNumber: 1, headingLevel: b.level ?? 2 }
+      : { type: "text", content: b.text, pageNumber: 1 },
+  );
+}
+
+/**
+ * Lagre leser-blokker for et DOCX-dokument (kildespråk). Returnerer antall blokker.
+ */
+export async function genererDocxBlokker(
+  prisma: PrismaClient,
+  documentId: string,
+  docxBlokker: DocxBlokk[],
+  sourceLanguage: string = "nb",
+): Promise<number> {
+  return lagreBlokker(prisma, documentId, docxTilLeserblokker(docxBlokker), sourceLanguage);
+}
+
+/**
+ * Erstatt kildespråk-blokkene for et dokument. Tom liste rører ikke eksisterende rader.
+ */
+async function lagreBlokker(
+  prisma: PrismaClient,
+  documentId: string,
+  blokker: RåBlokk[],
+  sourceLanguage: string,
+): Promise<number> {
   if (blokker.length === 0) return 0;
 
   // Slett eksisterende blokker for dette dokumentet (kildespråk)

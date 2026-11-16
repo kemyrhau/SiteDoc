@@ -170,9 +170,15 @@ export interface ForhaandslastResultat {
   serverManglerProsedyre: boolean;
 }
 
-/** NOT_FOUND / 404 fra tRPC = prosedyren finnes ikke på serveren (gammel kode). */
-function erProsedyreMangler(e: unknown): boolean {
-  const feil = e as { data?: { code?: string; httpStatus?: number }; message?: string };
+/**
+ * NOT_FOUND / 404 fra tRPC = prosedyren finnes ikke på serveren (gammel kode).
+ * ERRFMT: serveren oversetter nå «fant ikke raden» (Prisma P2025) til NOT_FOUND med
+ * `data.feilKode`. Det betyr ett slettet dokument, ikke manglende prosedyre — telles som
+ * enkelt-dokument-feil, ellers ville ett slettet dokument stoppe hele forhånds-nedlastingen.
+ */
+export function erProsedyreMangler(e: unknown): boolean {
+  const feil = e as { data?: { code?: string; httpStatus?: number; feilKode?: string }; message?: string };
+  if (feil?.data?.feilKode) return false;
   return (
     feil?.data?.code === "NOT_FOUND" ||
     feil?.data?.httpStatus === 404 ||

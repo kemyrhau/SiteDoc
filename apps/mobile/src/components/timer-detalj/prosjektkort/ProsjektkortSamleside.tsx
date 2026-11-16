@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import {
   beregnKortSummer,
   dagSummer,
+  arbeidOgReise,
   kortStatus,
   sumIDag,
   utledKortByggeplass,
@@ -16,7 +17,7 @@ import {
   telteKortVarer,
   pauseBaererProsjekt,
   sendKnappTekst,
-} from "../../lib/prosjektkortMobil";
+} from "../../../lib/prosjektkortMobil";
 
 /**
  * Prosjektkort L2 (spec § 4.2/§ 7): samlesiden for dagen i prosjektkort-modus.
@@ -68,7 +69,9 @@ export function ProsjektkortSamleside({
   const dagSum = sumIDag(timer);
   const dag = dagSummer(timer, maskin);
   const pauseKort = pauseBaererProsjekt(timer);
-  const send = sendKnappTekst(sedelStatus, dagSum);
+  // Ordre (6): Send-knappen viser arbeid uten reise, og reise separat.
+  const sendArbeidReise = arbeidOgReise(timer);
+  const send = sendKnappTekst(sedelStatus, sendArbeidReise.arbeid, sendArbeidReise.reise);
 
   return (
     <View className="mx-4 mt-4 gap-3">
@@ -179,7 +182,12 @@ export function ProsjektkortSamleside({
             <Text className="text-base font-semibold text-white">
               {send.nokkel === "timer.detalj.sendPaaNytt"
                 ? t(send.nokkel)
-                : t(send.nokkel, { timer: formatKortTall(send.timer) })}
+                : send.nokkel === "timer.prosjektkort.sendDagenMedReise"
+                  ? t(send.nokkel, {
+                      timer: formatKortTall(send.timer),
+                      reise: formatKortTall(send.reise),
+                    })
+                  : t(send.nokkel, { timer: formatKortTall(send.timer) })}
             </Text>
           </Pressable>
           <Text className="text-center text-xs text-gray-500">
@@ -203,8 +211,10 @@ export function KortHode({
   maskin,
   varer,
   utlegg,
+  tillegg = 0,
   sedelByggeplassId,
   byggeplassNavn,
+  byggeplassProsjekt,
   visChevron = false,
 }: {
   projectId: string;
@@ -213,8 +223,16 @@ export function KortHode({
   maskin: readonly KortMaskinRad[];
   varer: readonly (KortVareLinje & { syncStatus?: string | null })[];
   utlegg: number;
+  /** Spec tillegg-utlegg-prosjektkort § 3.1: antall lønnstillegg på kortet. */
+  tillegg?: number;
   sedelByggeplassId: string | null;
   byggeplassNavn: (byggeplassId: string) => string | null;
+  /**
+   * Telefontest A funn 3: byggeplassens prosjekt. Satt → arv fra sedelens
+   * byggeplass teller bare når den hører til kortets prosjekt (som web).
+   * Default undefined = dagens oppførsel.
+   */
+  byggeplassProsjekt?: (byggeplassId: string) => string | null;
   visChevron?: boolean;
 }) {
   const { t } = useTranslation();
@@ -223,7 +241,11 @@ export function KortHode({
   const kMaskin = maskin.filter((r) => r.projectId === projectId);
   const kVarer = telteKortVarer(varer, projectId);
   const summer = beregnKortSummer(kTimer, kMaskin, kVarer);
-  const bp = utledKortByggeplass([...kTimer, ...kMaskin], sedelByggeplassId);
+  const bp = utledKortByggeplass(
+    [...kTimer, ...kMaskin],
+    sedelByggeplassId,
+    byggeplassProsjekt ? { projectId, byggeplassProsjekt } : undefined,
+  );
   const status = kortStatus([...kTimer, ...kMaskin]);
   const chips: [string, string][] = [
     [t("timer.prosjektkort.kolonne.arbeid"), `${formatKortTall(summer.arbeid)} ${enhet}`],
@@ -241,6 +263,9 @@ export function KortHode({
   }
   if (summer.reise > 0) {
     chips.push([t("timer.prosjektkort.kolonne.reise"), `${formatKortTall(summer.reise)} ${enhet}`]);
+  }
+  if (tillegg > 0) {
+    chips.push([t("timer.prosjektkort.kolonne.tillegg"), String(tillegg)]);
   }
   if (utlegg > 0) {
     chips.push([t("timer.prosjektkort.kolonne.utlegg"), String(utlegg)]);

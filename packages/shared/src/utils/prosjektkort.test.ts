@@ -5,6 +5,7 @@ import {
   kortStatus,
   lesTimerModus,
   sumIDag,
+  sumlinjeMotNorm,
   trafikklysSone,
   utledKortByggeplass,
 } from "./prosjektkort";
@@ -121,6 +122,38 @@ describe("utledKortByggeplass", () => {
       ),
     ).toEqual({ type: "flere", antall: 2 });
   });
+
+  // Telefontest A funn 3: arv fra sedelens byggeplass gjelder bare når den
+  // hører til kortets prosjekt — samme regel som radByggeplassLinje (web).
+  const prosjektAv = (id: string) =>
+    ({ "bp-a": "prosjekt-a", "bp-b": "prosjekt-b" })[id] ?? null;
+
+  it("🔴 arvet rad på kort B med sedel-byggeplass i prosjekt A → ingen", () => {
+    expect(
+      utledKortByggeplass([t(1)], "bp-a", {
+        projectId: "prosjekt-b",
+        byggeplassProsjekt: prosjektAv,
+      }),
+    ).toEqual({ type: "ingen" });
+  });
+
+  it("negativkontroll: arvet rad på kort i samme prosjekt → en", () => {
+    expect(
+      utledKortByggeplass([t(1)], "bp-a", {
+        projectId: "prosjekt-a",
+        byggeplassProsjekt: prosjektAv,
+      }),
+    ).toEqual({ type: "en", id: "bp-a" });
+  });
+
+  it("egen byggeplass på raden teller uansett prosjektsjekken", () => {
+    expect(
+      utledKortByggeplass([t(1, { byggeplassId: "bp-a" }), t(1)], "bp-a", {
+        projectId: "prosjekt-b",
+        byggeplassProsjekt: prosjektAv,
+      }),
+    ).toEqual({ type: "en", id: "bp-a" });
+  });
 });
 
 describe("kortStatus", () => {
@@ -144,5 +177,24 @@ describe("trafikklysSone", () => {
     expect(trafikklysSone(7.55, 7.5)).toBe("grønn");
     expect(trafikklysSone(8, 7.5)).toBe("gul");
     expect(trafikklysSone(6, 7.5)).toBe("blå");
+  });
+});
+
+describe("sumlinjeMotNorm — reise teller ikke mot normen (Kenneth 2026-11-14)", () => {
+  it("eksempel 1: 7,5 arbeid + 2 reise, norm 7,5 → registrert 7,5, grønn", () => {
+    const rader = [t(7.5), t(2, { erReise: true })];
+    expect(sumlinjeMotNorm(rader, 7.5)).toEqual({ registrert: 7.5, sone: "grønn" });
+    // Totalen (topptekst / «Send dagen») beholder reisen.
+    expect(sumIDag(rader)).toBe(9.5);
+  });
+
+  it("erstattede rader teller ikke; mangler norm → grå", () => {
+    const rader = [t(4), t(3, { attestertStatus: "erstattet" }), t(1, { erReise: true })];
+    expect(sumlinjeMotNorm(rader, 7.5)).toEqual({ registrert: 4, sone: "blå" });
+    expect(sumlinjeMotNorm(rader, null).sone).toBe("grå");
+  });
+
+  it("arbeid over normen er fortsatt gul — reisen skjuler ikke overtid", () => {
+    expect(sumlinjeMotNorm([t(8.5), t(1, { erReise: true })], 7.5).sone).toBe("gul");
   });
 });

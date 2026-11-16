@@ -30,6 +30,7 @@ vi.mock("@sitedoc/shared", () => ({
 
 vi.mock("./reisetidMatrise", () => ({
   recomputeRadForByggeplass: vi.fn(),
+  koordinatEndret: () => true,
 }));
 
 import { oppdaterByggeplassGeofence } from "./byggeplassGeofence";

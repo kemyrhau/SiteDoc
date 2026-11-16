@@ -44,7 +44,7 @@ function lagPrisma(overstyr: Record<string, unknown> = {}) {
       create: vi.fn().mockResolvedValue({ id: BRUKER, email: "ny@firma.no", name: "Ny Person" }),
       update: vi.fn().mockResolvedValue({ id: BRUKER, email: "ny@firma.no", name: "Ny Person" }),
     },
-    organizationMember: { upsert: vi.fn().mockResolvedValue({}) },
+    organizationMember: { upsert: vi.fn().mockResolvedValue({}), findMany: vi.fn().mockResolvedValue([]) },
     projectMember: {
       findUnique: vi.fn().mockResolvedValue(null),
       create: vi.fn().mockResolvedValue({ id: "pm-1" }),
@@ -239,5 +239,75 @@ describe("medlem.registrer — kun én invitasjons-e-post", () => {
 
     expect((p.projectInvitation as { create: ReturnType<typeof vi.fn> }).create).not.toHaveBeenCalled();
     expect(sendInvitasjonsEpost).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * POST 2026-11-15 (15) test (c), Kenneth-vedtak 2: admin-grenen skal ikke kunne opprette en
+ * ANDRE ansettelse for en bruker som er aktivt ansatt i et annet firma.
+ */
+describe("medlem.registrer — én ansettelse pr. bruker (15)", () => {
+  const ORG_NY = "66666666-6666-6666-6666-666666666666";
+  const ORG_EGEN = "77777777-7777-7777-7777-777777777777";
+  const input = {
+    projectId: PROSJEKT,
+    userId: BRUKER,
+    email: "ny@firma.no",
+    firstName: "Ny",
+    lastName: "Person",
+    faggruppeIder: [],
+    gruppeIder: [],
+    flytBindinger: [],
+  };
+  function medAnsettelser(rader: Array<{ organizationId: string; status: string }>) {
+    return lagPrisma({
+      organizationMember: {
+        upsert: vi.fn().mockResolvedValue({}),
+        findMany: vi.fn().mockResolvedValue(rader),
+      },
+      // Skall-firma → prosjektadmin-veien (autoriserAdminForFirma kalles ikke).
+      organization: { findUnique: vi.fn().mockResolvedValue({ erKunde: false }) },
+    });
+  }
+  const upsertAv = (p: Record<string, unknown>) =>
+    (p.organizationMember as { upsert: ReturnType<typeof vi.fn> }).upsert;
+  const pmCreateAv = (p: Record<string, unknown>) =>
+    (p.projectMember as { create: ReturnType<typeof vi.fn> }).create;
+
+  it("🔴 aktivt ansatt i annet firma + organizationId → FORBIDDEN, ingen rad skrives", async () => {
+    const p = medAnsettelser([{ organizationId: ORG_EGEN, status: "aktiv" }]);
+    await expect(
+      lagCaller(p).registrer({ ...input, organizationId: ORG_NY }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN", message: expect.stringContaining("ansatt i et annet firma") });
+    expect(upsertAv(p)).not.toHaveBeenCalled();
+    expect(pmCreateAv(p)).not.toHaveBeenCalled();
+  });
+
+  it("negativkontroll: samme bruker UTEN organizationId → OK som gjest, ingen ansettelse opprettes", async () => {
+    const p = medAnsettelser([{ organizationId: ORG_EGEN, status: "aktiv" }]);
+    await lagCaller(p).registrer(input);
+    expect(upsertAv(p)).not.toHaveBeenCalled();
+    expect(pmCreateAv(p)).toHaveBeenCalledOnce();
+  });
+
+  it("allerede rad i samme firma → upsert no-op, slipper gjennom som før", async () => {
+    const p = medAnsettelser([
+      { organizationId: ORG_EGEN, status: "aktiv" },
+      { organizationId: ORG_NY, status: "aktiv" },
+    ]);
+    await lagCaller(p).registrer({ ...input, organizationId: ORG_NY });
+    expect(upsertAv(p)).toHaveBeenCalledOnce();
+  });
+
+  it("kun deaktivert ansettelse i annet firma → ny ansettelse tillatt", async () => {
+    const p = medAnsettelser([{ organizationId: ORG_EGEN, status: "deaktivert" }]);
+    await lagCaller(p).registrer({ ...input, organizationId: ORG_NY });
+    expect(upsertAv(p)).toHaveBeenCalledOnce();
+  });
+
+  it("ingen ansettelser fra før → ansettelse opprettes", async () => {
+    const p = medAnsettelser([]);
+    await lagCaller(p).registrer({ ...input, organizationId: ORG_NY });
+    expect(upsertAv(p)).toHaveBeenCalledOnce();
   });
 });

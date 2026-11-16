@@ -61,6 +61,7 @@ function serverOppgave(over: {
   subdomain?: string | null;
   byggeplassId?: string | null; // utledes via drawing.byggeplass.id
   drawingId?: string | null;
+  egenByggeplassId?: string | null; // ORDRE 28: Task.byggeplass (egen verdi)
 }) {
   const harTegning = over.drawingId !== undefined ? over.drawingId !== null : over.byggeplassId !== undefined;
   return {
@@ -76,6 +77,7 @@ function serverOppgave(over: {
     utforerFaggruppe: { name: "Tømrer" },
     // Tegning-ledd: null drawing → oppgave uten tegning (gjelder hele prosjektet).
     drawing: harTegning ? { byggeplass: over.byggeplassId ? { id: over.byggeplassId } : null } : null,
+    byggeplass: over.egenByggeplassId ? { id: over.egenByggeplassId } : null,
   };
 }
 
@@ -223,6 +225,26 @@ describe("refreshOppgaveKatalog + lesere", () => {
     expect(scopeBp2).toEqual(["prosjekt-tegning", "uten-tegning"]);
     // Hele prosjektet (ingen byggeplass): alle tre.
     expect(hentOppgaverLokalt("p1", U).length).toBe(3);
+  });
+
+  it("🔴 ORDRE 28: egen byggeplass styrer scoping også uten tegning / på prosjekt-tegning", async () => {
+    await refreshOppgaveKatalog(
+      lagKlient([
+        serverOppgave({ id: "egen-bp2-uten-tegning", drawingId: null, egenByggeplassId: "bp2" }),
+        serverOppgave({ id: "egen-bp2-prosjekt-tegning", byggeplassId: null, drawingId: "d2", egenByggeplassId: "bp2" }),
+        serverOppgave({ id: "los", drawingId: null }),
+      ]),
+      "p1",
+      U,
+    );
+    // Valgt bp1: de med egen bp2 er IKKE byggeplass-løse lenger → skjult.
+    expect(hentOppgaverLokalt("p1", U, "bp1").map((x) => x.id)).toEqual(["los"]);
+    // Valgt bp2: begge synlige + den løse.
+    expect(hentOppgaverLokalt("p1", U, "bp2").map((x) => x.id).sort()).toEqual([
+      "egen-bp2-prosjekt-tegning",
+      "egen-bp2-uten-tegning",
+      "los",
+    ]);
   });
 
   it("hentSistOppdatert gir prosjektets stempel, null når ikke cachet", async () => {

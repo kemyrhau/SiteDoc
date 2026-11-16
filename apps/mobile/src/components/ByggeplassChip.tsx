@@ -32,8 +32,7 @@ import { ByggeplassVelgerModal } from "./timer-detalj/ByggeplassVelger";
 export function ByggeplassChip() {
   const { t } = useTranslation();
   const { valgtProsjektId } = useProsjekt();
-  const { valgtBygningId, erHeleProsjektet, settBygning, velgHeleProsjektet, gpsByggeplassId } =
-    useByggeplass();
+  const { valgtBygningId, settBygning, gpsByggeplassId } = useByggeplass();
   const { erPaaNettet } = useNettverk();
   const { bruker } = useAuth();
   const brukerId = bruker?.id;
@@ -112,9 +111,8 @@ export function ByggeplassChip() {
     );
   }
 
-  const tittel = erHeleProsjektet
-    ? t("kontekstChip.heleProsjektet")
-    : valgt?.name ?? t("byggeplassVelger.velg");
+  // (22) Uten valg: «Velg byggeplass».
+  const tittel = valgt?.name ?? t("byggeplass.velgByggeplass");
 
   return (
     <>
@@ -128,14 +126,12 @@ export function ByggeplassChip() {
             {tittel}
           </Text>
           {/* Når en byggeplass filtrerer lista, si det eksplisitt — feltarbeideren
-              skal aldri se et avkortet sett uten å vite at noe er skjult (mobil-
-              speiling av webs «Viser: <byggeplass> · Vis hele prosjektet»). */}
+              skal aldri se et avkortet sett uten å vite at noe er skjult. */}
           {valgtBygningId != null && (
-            // Kortform (fabel-mockup panel 1): den lange «Viser denne byggeplassen
-            // + dokumenter for hele prosjektet» trunkeres til «…hele prosje…» på
-            // mobilbredde (Kenneth-skjermbilde). Kortformen overlever numberOfLines=1.
+            // Kortform (fabel-mockup panel 1): den lange linja trunkeres på mobilbredde
+            // (Kenneth-skjermbilde). Kortformen overlever numberOfLines=1.
             <Text className="text-xs text-amber-600" numberOfLines={1}>
-              {t("byggeplass.filtrererListeKort")}
+              {t("byggeplass.viserByggeplassOgUtenByggeplassKort")}
             </Text>
           )}
           {paaPlass && (
@@ -157,8 +153,6 @@ export function ByggeplassChip() {
           projectId={valgtProsjektId}
           valgtId={valgtBygningId}
           gpsForeslagId={gpsByggeplassId}
-          tillatIngen
-          ingenLabel={t("kontekstChip.heleProsjektet")}
           // Prosjekt-scopet server-kilde (samme som chippen viser) → velgeren er
           // uavhengig av timer-cachens org-oppslag, som var tomt for standalone.
           eksterneByggeplasser={byggeplasser.map((b) => ({
@@ -167,10 +161,8 @@ export function ByggeplassChip() {
             number: b.number ?? null,
           }))}
           onVelg={(id) => {
-            // «Hele prosjektet»-raden (id === null) gir samme utvei som webs
-            // globale velger: nullstiller filteret OG blokkerer GPS-autovalg.
+            // (22) Kun byggeplasser.
             if (id) settBygning(id);
-            else velgHeleProsjektet();
             setVisVelger(false);
           }}
           onLukk={() => setVisVelger(false)}

@@ -101,3 +101,33 @@ export function finnTidsromKonflikt<T extends Tidsrom>(
   }
   return null;
 }
+
+/** Overlapp mellom to lagrede rader, klar til visning i kortet. */
+export interface OverlappVarsel {
+  fra: string;
+  til: string;
+  annenFra: string;
+  annenTil: string;
+}
+
+/**
+ * Kenneth-vedtak 2026-11-15 (17): rader som overlapper skal vises med
+ * varsel i kortet, ikke droppes stille. Ren visningshjelper over
+ * `finnTidsromKonflikt` — rader uten begge tider eller med til ≤ fra hoppes
+ * over (de har egen validering). Endrer ingen lagringsregel.
+ */
+export function finnOverlappVarsel<T extends Tidsrom>(
+  rader: readonly T[],
+): OverlappVarsel | null {
+  const gyldige = rader.filter(
+    (r) => !!r.fraTid && !!r.tilTid && tilErEtterFra(r.fraTid, r.tilTid),
+  );
+  const k = finnTidsromKonflikt(gyldige);
+  if (!k || k.type !== "overlapp") return null;
+  return {
+    fra: k.rad.fraTid!,
+    til: k.rad.tilTid!,
+    annenFra: k.annen.fraTid!,
+    annenTil: k.annen.tilTid!,
+  };
+}

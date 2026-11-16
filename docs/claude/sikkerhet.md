@@ -25,7 +25,7 @@ er de en kjede.
 |---|---|---|---|
 | 1 | Sjekkliste-/oppgavebilder er **uautentisert tilgjengelige** på stien | målt 2026-08-12 | Åpen (se under) |
 | 2 | **Test skriver inn i PRODS uploads-katalog** | målt 2026-08-28 | Åpen |
-| 3 | `@fastify/static` mulig egen path traversal — kan nå filer **utenfor** `uploads/` uavhengig av vår gate | BACKLOG A2 (High) | Delvis: rot-lås verifisert, versjon ikke |
+| 3 | `@fastify/static` mulig egen path traversal — kan nå filer **utenfor** `uploads/` uavhengig av vår gate | BACKLOG A2 (High) | 🟡 Bumpet til 10.1.10 (S-PAK-1, venter gate); rot-lås + gate verifisert |
 | 4 | Omgåelse av vår egen signaturgate (`//`, `/./`, `%2e` → 200) | fikset 2026-08-12 | ✅ Lukket |
 
 **Kjeden:** test kan skrive en fil (2) inn i en katalog som serveres uautentisert (1),
@@ -154,8 +154,12 @@ innholdet under hadde drevet over til arkivmal-PDF. Flyttet hit 2026-08-28.
 ### 3. 🟠 BACKLOG A2 — `@fastify/static` path traversal (High)
 
 Eies av [BACKLOG](BACKLOG.md) § A2. **Halvparten er verifisert 2026-08-28:** rot-låsen
-er på plass (`server.ts:129`, `root: join(process.cwd(), "uploads")`). Gjenstår:
-`@fastify/static@9.3.0` er installert — om den er patchet krever oppslag i rådgivninger.
+er på plass (`server.ts:159`, `root: join(process.cwd(), "uploads")`). **S-PAK-1 (2026-11-10,
+branch `fix/sikkerhet-pakker-p1`, ⚠️ venter Kontrollør-gate):** bumpet til `@fastify/static`
+`^10.1.1` (lock 10.1.10, `@fastify/send` 4.2.1). v10 gir `setHeaders` en `FastifyReply` og kjører
+den etter send-headerne (`server.ts:161`), så vår `Content-Type`/CSP/`Cache-Control` vinner.
+Lokalt røyktestet: signert → 200 med `nosniff`, sandbox-CSP og `no-store` på `privat/`;
+usignert, feil signatur, `..`, `%2e%2e`, `//`, `/./` → 401/403/404.
 
 ### 4. 🟠 SSRF i pdf-render — krever en autentisert bruker
 
@@ -280,6 +284,40 @@ Auth sjekket oppgavens eget prosjekt, ikke tegningens — en fremmed `drawingId`
 - **Runde 3 (ORDRE 22):** `kontrollplan.opprettEllerHent` sjekket bare medlemskap i `input.projectId` — en byggeplass fra et annet prosjekt kunne kobles til planen og lekke navnet sitt inn i `navn`. Nå `verifiserByggeplassIProsjekt` før navn-lesing og upsert; test `kontrollplan-opprettellerhent.test.ts` (vakten fjernet → 1 rød).
 - **Test:** `services/tegningVakt.test.ts`, `routes/oppgave-tegningsvakt.test.ts`, `routes/sjekkliste-tegningsvakt.test.ts`. Negativkontroll: vakten fjernet → 3 røde (fremmed prosjekt skrives); hjelperen tilbake på byggeplass → løs tegning rød.
 
+### ✅ 8l. Byggeplass/område fra annet prosjekt på skrivende ruter (ORDRE 29 #13/#14, 2026-11-06, Redesign; 🟡 på `feat/byggeplass-kontekst-b` — venter gate)
+Et prosjektmedlem som kjente en fremmed id kunne skrive den inn — byggeplass på 14 prosedyrer, område på oppgave/sjekkliste/kontrollplan.
+- **#14 byggeplass:** `verifiserByggeplassIProsjekt` (`services/tegningVakt.ts`) før skriving i `psi.opprett`/`kopier`, `mannskap.sjekkInn`, `kontrakt.opprett`/`oppdater`, `vareforbruk.opprett`/`oppdater`, `tegning.opprett`/`oppdater`/`tilknyttByggeplass`, `omrade.opprett`, `punktsky.opprett`, `overflate.opprettFraPunktsky`/`lagreLandXML`. Test `byggeplass-vakt-skrivende.test.ts` (14); negativkontroll: hver vakt fjernet → sin test rød.
+- **#13 område:** ny `verifiserOmradeIProsjekt` (samme fil) — se kontrollplan.md § Prosjektisolering. Integrasjonstest `task-byggeplass.integration.test.ts` dekker også `oppgave.oppdater` med fremmed byggeplass (N6-mutanten var grønn før).
+- **Åpne oppfølgere:** kontrollplan kopier-punkter (`maalOmradeIder`) uten område-vakt; `omrade.opprett` tar `tegningId` uten tegning-vakt; ~~`sjekkliste.oppdater` sjekker område mot prosjekt, ikke mot byggeplass~~ og ~~`vareforbruk.opprett` sammenligner ikke dagsseddelens `userId` med innlogget bruker~~ — begge lukket i § 8m (ORDRE 33).
+
+### ✅ 8m. Vareforbruk på andres/sendte dagssedler + område på feil byggeplass (ORDRE 33, 2026-11-07, Redesign; 🟡 på `fix/vareforbruk-sedel-vakt` — venter gate)
+Ingen av de tre vareforbruk-mutasjonene sjekket sedelens eier eller status; område ble bare sjekket mot prosjekt.
+- **Sedel-vakt** `krevVareforbrukPaaSedel` (`routes/vareforbruk.ts`): linje med `dagsseddelId` krever at innlogget bruker eier sedelen og at den er `draft`/`returned` — ellers `sitedoc_admin`, prosjektadmin (`ProjectMember.role = "admin"`) eller `firma_admin` i **sedelens** firma (`erFirmaAdmin`, nå eksportert fra `tilgangskontroll.ts`; ikke prosjektets eier-firma). Gjelder `opprett` (etter idempotens-oppslaget, så en kø-replay etter innsending får sin rad) og `oppdater`/`slett` (Kenneth A, 2026-11-07 — funksjonsendring: eier kan ikke lenger endre linjer på sendt sedel). Linje uten sedel, eller sedel som er borte, er uberørt. Avvisning = `FORBIDDEN` med i18n-nøkkel `vareforbruk.feil.sedelSendt`/`annensSedel`; web (`KortVareforbrukModal`, vareforbruk-siden) og mobil (`VareforbrukLesListe`, `avvist`-linje via `erPermanentAvvisning`) oversetter med `t(melding, { defaultValue: melding })`.
+- **Område mot effektiv byggeplass:** `verifiserOmradeIProsjekt(..., byggeplassId)` kalles nå med byggeplassen dokumentet faktisk får — `oppgave.opprett`/`oppdater` etter `velgTaskByggeplass` (tegningen vinner), `sjekkliste.opprett`/`oppdater` også etter `velgTaskByggeplass` (ORDRE 2026-11-15 (21), 🟡 `fix/byggeplass-folger-tegning`, ikke merget — før: input eller radens verdi). Sjekkes også når bare byggeplassen flytter (ny byggeplass eller tegningsbytte) og området beholdes (Kenneth 2026-11-07).
+- **Test:** `routes/vareforbruk-sedel-vakt.test.ts` (V1–V12 + uten-sedel), `oppgave-tegningsvakt.test.ts` + `sjekkliste-tegningsvakt.test.ts` (O1–O6), `vareforbrukSync.test.ts` (FORBIDDEN → `avvist`). Negativkontroll M1–M7 i leveransen.
+
+### ✅ 8n. Timer-attestering og tillegg/utlegg på tvers av firma (ordre H1–H3, 2026-11-08, Firmagrense; Kenneth «ja»; 🟡 på `fix/firmagrense-attestering` — venter gate)
+Kilde: [timer-underentreprenor-utredning.md § 5](timer-underentreprenor-utredning.md). Hovedregel (Kenneth): prosjektdokumentasjon og kontaktinfo deles; firmaets interne timer- og lønnsdata deles ikke.
+- **H1:** prosjektleder/firma-admin i firma A så og attesterte sedler til firma B sine ansatte på A sitt prosjekt (inkl. prissnapshot). Nå krever alle ni attesterings-endepunkter `krevAttesteringsrett` mot **sedelens** firma, og listene filtreres på `DailySheet.organizationId` — se [timer.md § Firma-grense på attestering](timer.md).
+- **H2 utgår:** `hentFirmaAnsatteMedTimer` viser bare navn og e-post på fremmede ansatte, og det er kontaktinfo som skal deles (Kenneth 2026-11-08). Ansattnummer hentes nå kun fra eget firma.
+- **H3:** `tilfoyTilleggRad`/`tilfoyUtleggRad` godtok et prosjekt utenfor sedelens firma; nå `verifiserProsjekterTilhørerFirma` som `tilfoyTimerRad`.
+- **Test:** `routes/timer/firmagrense-attestering.test.ts` — 11 røde mot `origin/develop` `47a0875e`, grønne med fiks; RETUR 1 la til 6 som hver er røde mot sin mutant (`gjenaapneAttestering`, `flyttTimerRadEco` og `attester` med `krevProsjektLeder`; ansattnummer fra alle firma i `hentTilAttestering` og `hentFirmaAnsatteMedTimer`; leder uten `status: "aktiv"`); negativkontroller (A-leder med `kanAttestere` og A-firma-admin attesterer A sine rader, tillegg/utlegg på eget prosjekt skrives) grønne begge veier.
+
+### 🟢 8o. Firma-kataloger hentet fra brukerens EGET firma i stedet for valgt/sedelens firma (POST 2026-11-14 (5), Redesign; Kenneth «send organizationId: orgId»; klientdelen 🟢 FIKSET, merget til develop `8ece4b34` 2026-11-14; serverdelen 🟢 FIKSET i POST (7), merget til develop `1fb9b1fb` 2026-11-14)
+**Mekanismen:** katalog-endepunkter med valgfri `organizationId` (`lonnsart.list` `routes/timer/lonnsart.ts:19`, `aktivitet.list`, `tillegg.list`, `expenseCategory.list`, `maskin.equipment.list` `routes/maskin/equipment.ts:133`) faller tilbake på kallerens eget firma (`resolverOrgFraInput`/`krevBrukersOrg`, `trpc/tilgangskontroll.ts:312/329`) når klienten ikke sender firma-ID. Rammer i praksis bare `sitedoc_admin` som har valgt et annet firma enn sitt eget (andre roller får `valgtFirma` låst til eget firma, `kontekst/firma-kontekst.tsx:84-93`). Ingen data fra feil firma kan lagres via disse flatene der serveren validerer (`organisasjon.ts:1366` reise-lønnsart, `verifiserKjoretoyTilhørerFirma` `dagsseddel.ts:108`) — symptomet er feil valgliste og avvist lagring.
+
+🔴 **Regel: firmaadmin-sider og attesteringsflater sender alltid firma-ID-en eksplisitt** — `valgtFirma.id` på firma-sider, sedelens `organizationId` når en sedel redigeres. Aldri stol på serverens fallback til eget firma. Låst av `apps/web/src/__tests__/firma-katalog-org-vakt.test.ts` (skanner `app/dashbord/firma`, `components/timer`, `components/attestering`; negativkontroller for tomt argument, `undefined` og variabel uten `organizationId`).
+
+**Rettet (klient):** reise-lønnsart i `firma/innstillinger/page.tsx` (`ReiseSeksjon`); `RedigerTimerRad` (lønnsart + aktivitet), `RedigerTilleggRad` (tillegg) og `RedigerMaskinRad` (maskin) får påkrevd `organizationId`-prop, tråd fra `AttesteringDetalj_Edit` (sedelens firma), `SplittRadModal`, `SeddelKort` og `timer/[id]/page.tsx`.
+
+**Serverdel og resten (POST 2026-11-14 (7), Redesign, `fix/firma-katalog-server`):**
+- 🟢 **Server-vakt mot fremmede katalog-ID-er:** `krevKatalogIFirma` (`routes/timer/dagsseddel.ts:133`) krever at `lonnsartId`/`aktivitetId`/`tilleggId` tilhører **sedelens** firma, ellers `BAD_REQUEST` («… finnes ikke i firmaets katalog»). Kalt i `oppdaterTimerRad` (`:2547`), `redigerSedelRader` (`:5127`), og i tillegg `oppdater` (`:2262`), `oppdaterTilleggRad` (`:3333`) og `validerSplittFelles` (`:1716`/`:1721`). Test: `routes/timer/firma-katalog-server.test.ts` (splitt-vakten drives gjennom både leder-`splittRad` og eier-`splittRadEier`, timer og tillegg).
+- 🟢 **`eksternKostObjekt.list`** (`routes/eksternKostObjekt.ts:45`): `organizationId` oppgitt → `resolverOrgFraInput` (`:60`, kun eget firma); kun `projectId` → `verifiserProsjektmedlem` (`:62`) og firmaet utledes fra prosjektet; uten input → eget firma (mobil-cachen uendret). Filtrerer alltid på firma. Test: `routes/eksternKostObjekt-isolasjon.test.ts` (fremmed firma og fremmed prosjekt → `FORBIDDEN` uten oppslag; fremmed firmas underprosjekt på samme prosjekt kommer ikke med).
+- 🟢 **`timer/[id]/page.tsx`** sender sedelens firma til alle kataloger via `SedelFirmaKontekst` (`:762`); `timer/ny/page.tsx:73` sender `orgId` til `aktivitet.list`. Vakten `firma-katalog-org-vakt.test.ts` skanner nå også `app/dashbord/timer` og `eksternKostObjekt.list`.
+- 🟢 **`maskin.equipment.list`** (`routes/maskin/equipment.ts:164`): ikke-admin som ber om **eget** firma får lista (`tillatEgetFirma`, kun `list`); skrive-endepunktene krever fortsatt firmaadmin. Test: `routes/maskin/equipment-list-firma.test.ts`.
+- 🟢 **`verifiserOrganisasjonTilgang` slipper `sitedoc_admin` gjennom** (`trpc/tilgangskontroll.ts:873`), likt `autoriserAdminForFirma` (`:910`). 🔴 **Regel (Kenneth 2026-11-14):** når `sitedoc_admin` har valgt et firma, opptrer den som firmaadmin for det firmaet — serveren behandler de to hjelperne likt for rollen. De 12 kallerne (alle `.query`): `byggeplass.ts:30` hentForFirma · `organisasjon.ts:1214` hentArbeidstidDefaults (upsert av standardrad — akseptert, samme som firmaadmin ved første besøk) · `organisasjon.ts:1272` hentEffektivArbeidstid · `modul.ts:224` effektivTilstand · `oppmotested.ts:96` hentForFirma · `oppmotested.ts:116` hentMatriseForFirma · `vareforbruk.ts:230` katalogForFirma · `vareforbruk.ts:283` hentMineForDato · `maskin/vegvesenKo.ts:17` hentStatus · `maskin/ansvarlig.ts:28` list · `firma/kalender.ts:194` hentForAar · `firma/kalender.ts:492` hentForMobil. Vanlig bruker og `company_admin` utenfor firmaet får fortsatt `FORBIDDEN`. Test: `trpc/verifiser-org-tilgang-admin.test.ts`.
+- **Åpent:** `oppsett/prosjektoppsett/page.tsx:105` viser eget firmas utleggskategorier for et prosjekt som kan eies av et annet firma.
+
 ### ✅ 8c. ezdxf-SVG-visningen stolte 100 % på at markupen var render.py-generert (herding 2026-10-11, `fix/ezdxf-xss-vern`)
 Web beholdt SVG-ens egen `<style>` når den så `data-motor="ezdxf"` **i fila**, og mobil injiserte markupen rått via `innerHTML` i en WebView. DOMPurify saniterer ikke CSS, og mobil har ingen DOMPurify. Trygt i dag (render.py `html.escape`-er tekst/lag og skriver en fast `<style>`), men ingen sperre ved drift i render.py, en ny motor, eller en forfalsket SVG. Opplasting av SVG er dessuten ikke klient-tillatt (`ACCEPT` uten `.svg`), men `upload.ts:72` er en **blokkliste** — en direkte `.svg`-POST lagres med `fileType="svg"`. Herdet:
 - **Web motorvalg fra serverens markør, ikke fila:** `erEzdxfMotor = lesKonverteringMarkor(...).motor === "ezdxf"` (`tegninger/page.tsx`). En forfalsket SVG kan bære `data-motor="ezdxf"`, men får aldri server-markøren (`konverteringRapport.markor.motor`, skrevet kun av render.py/pdf) → behandles som «egen» → `<style>` strippes.
@@ -330,6 +368,16 @@ sjekker på andre akser (ikke tenant-hull som de fem over), og vurderes i frys-v
 (FL — prosjekt-livssyklus).
 
 ---
+
+## ✅ Lukket 2026-11-11 — rå Prisma-tekst til klienten (ERRFMT)
+
+**Funn (2026-09-24, BACKLOG):** tRPC hadde ingen `errorFormatter`; `findUniqueOrThrow`-feil gikk med rå tekst (`Invalid prisma.drawing.findUniqueOrThrow() invocation …`) til enhver flate som viser `error.message` — modellnavn og ORM gratis til rekognosering.
+
+**Fiks:** `formaterFeil` i `apps/api/src/trpc/feilformat.ts`, koblet i `trpc.ts`. Prisma-feil får nøytral norsk tekst + `NOT_FOUND`/`CONFLICT`/`INTERNAL_SERVER_ERROR`; ukjente feil er generiske i prod og `data.stack` slettes der. Originalen logges på serveren (`onError` i `server.ts` og web-ruten). Detaljer: [api.md § Feilformat](api.md).
+
+**Målt:** `feilformat.test.ts` (13 tester gjennom ekte `fetchRequestHandler`; mutanter: formatter frakoblet → 7 røde, P2025 fjernet → 3, prod-generalisering fjernet → 1, logging fjernet → 1, `instanceof` i stedet for navn → 1). e2e lokalt: `sjekkliste.hentMedId` med ukjent id via `/api/trpc` — før: `INTERNAL_SERVER_ERROR` + rå Prisma-tekst; etter: `NOT_FOUND`/404 «Fant ikke det du ba om. Det kan være slettet.», og `P2025 oversatt til NOT_FOUND` i serverloggen.
+
+⚠️ **Gjenstår (ikke del av denne fiksen):** i dev (`NODE_ENV≠production`) inneholder `data.stack` fortsatt Prisma-teksten — tRPC sin standard, og bare synlig lokalt.
 
 ## ✅ Verifisert trygt — med dato og metode
 

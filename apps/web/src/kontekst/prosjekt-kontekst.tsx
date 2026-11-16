@@ -10,6 +10,7 @@ import {
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { useFirma } from "./firma-kontekst";
+import { skalNullstilleProsjekt } from "@/lib/gjesteprosjekt";
 
 const STORAGE_KEY = "sitedoc-valgt-prosjekt";
 const SCOPE_STORAGE_KEY = "sitedoc-prosjekt-scope";
@@ -28,12 +29,23 @@ interface Prosjekt {
   primaryOrganizationId: string | null;
 }
 
+/** Prosjekt i et firma brukeren ikke er ansatt i, men er medlem av (POST (15)). */
+export interface Gjesteprosjekt extends Prosjekt {
+  primaryOrganization: { id: string; name: string } | null;
+  /** Eget firma er koblet til prosjektet (ProjectOrganization) → Timer vises som før. */
+  firmaKoblet: boolean;
+}
+
 export type ProsjektScope = "alle" | "mine" | "enkelt";
 
 interface ProsjektKontekstType {
   valgtProsjekt: Prosjekt | null;
   prosjekter: Prosjekt[];
   mineProsjekter: Prosjekt[];
+  /** «Prosjekter i andre firma» — uavhengig av valgt firma. Ikke i `prosjekter`/`mineProsjekter`-visningen. */
+  gjesteprosjekter: Gjesteprosjekt[];
+  /** Valgt prosjekt er et gjesteprosjekt (null når intet prosjekt er valgt). */
+  valgtGjest: { erGjest: boolean; firmaKoblet: boolean };
   isLoading: boolean;
   /** True mens `hentMedId` resolver et persistert prosjektId (fersk økt, før valgtProsjekt finnes). Funn 1b. */
   lasterValgtProsjekt: boolean;
@@ -94,6 +106,9 @@ export function ProsjektProvider({ children }: { children: ReactNode }) {
   });
   const mineProsjekter = mineProsjekterQuery.data as Prosjekt[] | undefined;
 
+  const gjesteQuery = trpc.prosjekt.hentGjesteprosjekter.useQuery();
+  const gjesteprosjekter = (gjesteQuery.data ?? []) as Gjesteprosjekt[];
+
   const valgtProsjektQuery = trpc.prosjekt.hentMedId.useQuery(
     { id: prosjektId! },
     { enabled: !!prosjektId, retry: false },
@@ -105,11 +120,21 @@ export function ProsjektProvider({ children }: { children: ReactNode }) {
   // aktivt prosjekt ikke tilhører valgt firma. Standalone-prosjekt
   // (primaryOrganizationId=null) regnes også som mismatch når et firma er
   // valgt — konsistent med Blokk A som filtrerer dem ut av ProsjektVelger.
+  // (15): gjesteprosjekter nullstilles ikke (skalNullstilleProsjekt).
+  const lasterGjester = gjesteQuery.isLoading;
+  const gjesteIder = gjesteprosjekter.map((p) => p.id);
+  const gjesteNokkel = gjesteIder.join(",");
   useEffect(() => {
-    if (!valgtFirma) return;
     if (lasterValgt) return;
-    if (!valgtProsjekt) return;
-    if (valgtProsjekt.primaryOrganizationId === valgtFirma.id) return;
+    if (
+      !skalNullstilleProsjekt({
+        valgtFirmaId: valgtFirma?.id ?? null,
+        prosjekt: valgtProsjekt ?? null,
+        gjesteIder: gjesteNokkel ? gjesteNokkel.split(",") : [],
+        lasterGjester,
+      })
+    )
+      return;
     setLagretProsjektId(null);
     localStorage.removeItem(STORAGE_KEY);
     // Kun tving tilbake til dashboard-roten når vi står på en prosjekt-scopet
@@ -120,9 +145,15 @@ export function ProsjektProvider({ children }: { children: ReactNode }) {
     valgtFirma,
     valgtProsjekt,
     lasterValgt,
+    lasterGjester,
+    gjesteNokkel,
     urlProsjektId,
     router,
   ]);
+
+  const valgtGjesteprosjekt = valgtProsjekt
+    ? gjesteprosjekter.find((p) => p.id === valgtProsjekt.id)
+    : undefined;
 
   function velgProsjekt(id: string) {
     setLagretProsjektId(id);
@@ -161,6 +192,11 @@ export function ProsjektProvider({ children }: { children: ReactNode }) {
         valgtProsjekt: valgtProsjekt ?? null,
         prosjekter: prosjekter ?? [],
         mineProsjekter: mineProsjekter ?? [],
+        gjesteprosjekter,
+        valgtGjest: {
+          erGjest: !!valgtGjesteprosjekt,
+          firmaKoblet: valgtGjesteprosjekt?.firmaKoblet ?? false,
+        },
         isLoading: lasterProsjekter || lasterValgt,
         lasterValgtProsjekt: lasterValgt,
         velgProsjekt,

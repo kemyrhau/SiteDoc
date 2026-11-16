@@ -10,6 +10,7 @@ import { Save, HelpCircle, X, Search } from "lucide-react";
 import { useFirma } from "@/kontekst/firma-kontekst";
 import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
 import { IngenFirmaValgt } from "@/components/firma/IngenFirmaValgt";
+import { løsReiseKnappLonnsart, reiseLonnsartKandidater } from "@sitedoc/shared";
 
 export default function FirmaInnstillinger() {
   const { t } = useTranslation();
@@ -1267,6 +1268,150 @@ function StandardArbeidstidSeksjon() {
  * terskel/lovlighet er avtale-avhengig (tariff). Reisetid = lønnsart-rad
  * (arbeidstid), ikke avstands-/godtgjørelse-sats.
  */
+type ReiseForutsetningerData = {
+  oppmotesteder: number;
+  byggeplasserMangler: {
+    id: string;
+    navn: string;
+    prosjektId: string;
+    prosjektNavn: string;
+    manglerPunkt: boolean;
+    manglerRadius: boolean;
+  }[];
+  parTotalt: number;
+  parManglerAvstand: number;
+  uoppnaaelige: { oppmotested: string; byggeplass: string; prosjekt: string }[];
+};
+
+/**
+ * POST 2026-11-14 (8) punkt 2 — «Dette må være på plass» øverst i
+ * Reise-regelsett. Én linje pr. forutsetning, grønn når den holder, gul/rød
+ * med lenke dit den rettes. Blokkerer aldri lagring. Reise-lønnsarten har sin
+ * egen status lenger ned (uendret).
+ */
+function ReiseForutsetninger({
+  data,
+  beregner,
+  onBeregn,
+}: {
+  data: ReiseForutsetningerData;
+  beregner: boolean;
+  onBeregn: () => void;
+}) {
+  const { t } = useTranslation();
+  const ingenOppmotested = data.oppmotesteder === 0;
+  const parMangler = data.parManglerAvstand > 0;
+  const parOk = !ingenOppmotested && !parMangler && data.uoppnaaelige.length === 0;
+
+  return (
+    <div className="mb-4 rounded-md border border-gray-200 p-4" data-testid="reise-forutsetninger">
+      <h3 className="mb-2 text-sm font-medium text-gray-700">
+        {t("firma.innstillinger.reise.forutsetninger.tittel")}
+      </h3>
+      <ul className="space-y-2 text-sm">
+        <li className="flex items-start gap-2">
+          <ForutsetningPrikk niva={ingenOppmotested ? "rod" : "ok"} />
+          <span className={ingenOppmotested ? "text-red-700" : "text-gray-700"}>
+            {ingenOppmotested
+              ? t("firma.innstillinger.reise.forutsetninger.ingenOppmotested")
+              : t("firma.innstillinger.reise.forutsetninger.oppmotesteder", {
+                  antall: data.oppmotesteder,
+                })}{" "}
+            <Link href="/dashbord/firma/oppmotesteder" className="text-sitedoc-primary hover:underline">
+              {t("firma.innstillinger.reise.forutsetninger.tilOppmotesteder")}
+            </Link>
+          </span>
+        </li>
+
+        <li className="flex items-start gap-2">
+          <ForutsetningPrikk niva={data.byggeplasserMangler.length > 0 ? "gul" : "ok"} />
+          <div className={data.byggeplasserMangler.length > 0 ? "text-amber-800" : "text-gray-700"}>
+            {data.byggeplasserMangler.length > 0
+              ? t("firma.innstillinger.reise.forutsetninger.byggeplasserMangler", {
+                  antall: data.byggeplasserMangler.length,
+                })
+              : t("firma.innstillinger.reise.forutsetninger.byggeplasserOk")}
+            {data.byggeplasserMangler.length > 0 && (
+              <ul className="mt-1 space-y-0.5 text-xs">
+                {data.byggeplasserMangler.map((b) => (
+                  <li key={b.id}>
+                    <Link
+                      href={`/dashbord/oppsett/byggeplasser?prosjekt=${b.prosjektId}`}
+                      className="text-sitedoc-primary hover:underline"
+                    >
+                      {b.navn} ({b.prosjektNavn})
+                    </Link>{" "}
+                    —{" "}
+                    {b.manglerPunkt && b.manglerRadius
+                      ? t("firma.innstillinger.reise.forutsetninger.manglerPunktOgRadius")
+                      : b.manglerPunkt
+                        ? t("firma.innstillinger.reise.forutsetninger.manglerPunkt")
+                        : t("firma.innstillinger.reise.forutsetninger.manglerRadius")}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </li>
+
+        {!ingenOppmotested && data.parTotalt > 0 && (
+          <li className="flex items-start gap-2">
+            <ForutsetningPrikk niva={parOk ? "ok" : data.uoppnaaelige.length > 0 ? "rod" : "gul"} />
+            <div className={parOk ? "text-gray-700" : "text-amber-800"}>
+              {parMangler ? (
+                <>
+                  {t("firma.innstillinger.reise.forutsetninger.parMangler", {
+                    antall: data.parManglerAvstand,
+                  })}{" "}
+                  <button
+                    type="button"
+                    onClick={onBeregn}
+                    disabled={beregner}
+                    className="text-sitedoc-primary hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {beregner
+                      ? t("firma.innstillinger.reise.matriseBeregner")
+                      : t("firma.innstillinger.reise.matriseBeregn")}
+                  </button>
+                </>
+              ) : (
+                t("firma.innstillinger.reise.forutsetninger.parOk", { antall: data.parTotalt })
+              )}
+              {" "}
+              <Link
+                href="/dashbord/firma/oppmotesteder?fane=avstander"
+                className="text-sitedoc-primary hover:underline"
+              >
+                {t("firma.avstander.seAvstander")}
+              </Link>
+              {data.uoppnaaelige.length > 0 && (
+                <div className="mt-1 text-red-700">
+                  {t("firma.innstillinger.reise.forutsetninger.uoppnaaelige", {
+                    antall: data.uoppnaaelige.length,
+                  })}
+                  <ul className="mt-0.5 space-y-0.5 text-xs">
+                    {data.uoppnaaelige.map((u) => (
+                      <li key={`${u.oppmotested}|${u.byggeplass}|${u.prosjekt}`}>
+                        {u.oppmotested} → {u.byggeplass} ({u.prosjekt})
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </li>
+        )}
+      </ul>
+    </div>
+  );
+}
+
+function ForutsetningPrikk({ niva }: { niva: "ok" | "gul" | "rod" }) {
+  const farge =
+    niva === "ok" ? "bg-sitedoc-success" : niva === "gul" ? "bg-amber-500" : "bg-red-500";
+  return <span aria-hidden className={`mt-1.5 inline-block h-2 w-2 shrink-0 rounded-full ${farge}`} />;
+}
+
 function ReiseSeksjon() {
   const { t } = useTranslation();
   const { valgtFirma } = useFirma();
@@ -1277,9 +1422,12 @@ function ReiseSeksjon() {
     { enabled: !!orgId },
   );
   // Reise-lønnsart velges fra firmaets ordinaer-arter (timeførte, ikke diett/godtgjørelse).
-  const { data: lonnsarter } = trpc.timer.lonnsart.list.useQuery(undefined, {
-    enabled: !!orgId,
-  });
+  // Send valgt firma eksplisitt — uten organizationId faller serveren tilbake på
+  // brukerens EGET firma (resolverOrgFraInput), mens innstillingen lagres på valgtFirma.
+  const { data: lonnsarter } = trpc.timer.lonnsart.list.useQuery(
+    { organizationId: orgId! },
+    { enabled: !!orgId },
+  );
   const utils = trpc.useUtils();
 
   const oppdater = trpc.organisasjon.oppdaterSetting.useMutation({
@@ -1294,8 +1442,16 @@ function ReiseSeksjon() {
   const beregnMatrise = trpc.oppmotested.beregnMatrise.useMutation({
     onSuccess: () => {
       utils.organisasjon.hentSetting.invalidate();
+      utils.organisasjon.hentReiseForutsetninger.invalidate();
     },
   });
+
+  // POST (8) punkt 2: «Dette må være på plass» — det reiseberegningen avhenger
+  // av som rettes på andre sider (oppmøtesteder, byggeplasser, avstandsmatrise).
+  const { data: forutsetninger } = trpc.organisasjon.hentReiseForutsetninger.useQuery(
+    { organizationId: orgId! },
+    { enabled: !!orgId },
+  );
 
   // Varselet gjelder bare når Timer er aktiv for firmaet — er modulen av, er
   // reise-lønnsart-oppsettet irrelevant og meldingen ville vært støy (samme
@@ -1377,16 +1533,45 @@ function ReiseSeksjon() {
     timerAktiv && !reiseArtValgt && !harBånd && antallReiseTreff === 0;
   const visTvetydigReiseArt =
     timerAktiv && !reiseArtValgt && !harBånd && antallReiseTreff >= 2;
+  // Ordre (11) C: reise som føres som arbeidstid (under eller over terskel) lander
+  // på firmaets standard ordinære lønnsart (delt `klassifiserManuellReise`). Mangler
+  // den, kan raden ikke lagres → varsellinje med lenke til feltet (stjerna).
+  const manglerStandardArt =
+    timerAktiv &&
+    (underType === "arbeidstid" || overType === "arbeidstid") &&
+    !((lonnsarter ?? []) as unknown as Array<{ aktiv: boolean; erStandardvalg: boolean }>).some(
+      (l) => l.aktiv && l.erStandardvalg,
+    );
+
+  // Ordre (6): status for «+ Reise» fra SAMME resolver som knappen (live mot
+  // nedtrekkets verdi). Nedtrekket grupperes: «Foreslått» = navne-treff,
+  // deretter «Andre lønnsarter».
+  const reiseForeslatt = reiseLonnsartKandidater(reiseArtKandidater);
+  const reiseForeslattIder = new Set(reiseForeslatt.map((l) => l.id));
+  const reiseAndre = reiseArtKandidater.filter((l) => !reiseForeslattIder.has(l.id));
+  const reiseAutoArt = reiseForeslatt.length === 1 ? reiseForeslatt[0]! : null;
+  const reiseKnapp = løsReiseKnappLonnsart(lonnsartId || null, reiseArtKandidater);
+  const reiseKnappNavn =
+    reiseKnapp.status === "valgt" || reiseKnapp.status === "automatisk"
+      ? (reiseArtKandidater.find((l) => l.id === reiseKnapp.lonnsartId)?.navn ?? "")
+      : "";
+  const reiseStatusTekst =
+    harBånd && reiseKnappNavn
+      ? t("firma.innstillinger.reise.statusBaand", { navn: reiseKnappNavn })
+      : reiseKnapp.status === "valgt"
+        ? t("firma.innstillinger.reise.statusValgt", { navn: reiseKnappNavn })
+        : reiseKnapp.status === "automatisk"
+          ? t("firma.innstillinger.reise.statusAutomatisk", { navn: reiseKnappNavn })
+          : reiseKnapp.status === "flere"
+            ? t("firma.innstillinger.reise.statusFlere")
+            : t("firma.innstillinger.reise.statusIngen");
+  const reiseStatusOk = reiseKnapp.status === "valgt" || reiseKnapp.status === "automatisk";
 
   // C5 (V14): datagrunnlag-tomhet synlig på matrise-flaten. H21 gikk uoppdaget i
   // fire måneder fordi disse tallene aldri ble vist. To uavhengige mangler:
   //  (1) byggeplasser i aktive prosjekter uten eget punkt → ingen reise beregnes
   //      (prosjekt-arven er fjernet i C1), gjelder uansett terskelenhet.
   //  (2) par markert uoppnåelig (ingen kjørbar rute) → reise kan ikke beregnes dit.
-  const byggeplasserUtenPunkt = setting.reiseByggeplasserUtenPunkt;
-  const parUoppnaaelige = setting.reiseParUoppnaaelige;
-  const visManglerPunkt = timerAktiv && byggeplasserUtenPunkt > 0;
-  const visUoppnaaelige = timerAktiv && parUoppnaaelige > 0;
 
   function lagre() {
     const min = Number(terskel);
@@ -1450,6 +1635,14 @@ function ReiseSeksjon() {
       <p className="mb-4 text-xs text-gray-500">
         {t("firma.innstillinger.reise.beskrivelse")}
       </p>
+
+      {timerAktiv && forutsetninger && (
+        <ReiseForutsetninger
+          data={forutsetninger}
+          beregner={beregnMatrise.isPending}
+          onBeregn={() => beregnMatrise.mutate({ organizationId: orgId })}
+        />
+      )}
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div>
@@ -1537,6 +1730,15 @@ function ReiseSeksjon() {
         </div>
       </div>
 
+      {manglerStandardArt && (
+        <p className="mt-3 text-xs font-medium text-amber-700" data-testid="reise-mangler-standardart">
+          {t("firma.innstillinger.reise.manglerStandardArt")}{" "}
+          <Link href="/dashbord/firma/timer/lonnsarter" className="underline hover:text-amber-900">
+            {t("firma.innstillinger.reise.settStandardArt")}
+          </Link>
+        </p>
+      )}
+
       {/* Forklarer hva «Under/Over terskel»-valgene faktisk gjør med timene —
           hvilken lønnsart de havner på (Kenneth-krav: forklar, ikke konfigurer). */}
       <div className="mt-3 space-y-1 rounded-md border border-gray-100 bg-gray-50 p-3 text-xs text-gray-600">
@@ -1571,13 +1773,36 @@ function ReiseSeksjon() {
           }}
           className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-sitedoc-primary focus:outline-none"
         >
-          <option value="">{t("firma.innstillinger.reise.lonnsartAuto")}</option>
-          {reiseArtKandidater.map((l) => (
-            <option key={l.id} value={l.id}>
-              {l.navn}
-            </option>
-          ))}
+          <option value="">
+            {reiseAutoArt
+              ? t("firma.innstillinger.reise.lonnsartAutoMed", { navn: reiseAutoArt.navn })
+              : t("firma.innstillinger.reise.lonnsartAuto")}
+          </option>
+          {reiseForeslatt.length > 0 && (
+            <optgroup label={t("firma.innstillinger.reise.gruppeForeslatt")}>
+              {reiseForeslatt.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.navn}
+                </option>
+              ))}
+            </optgroup>
+          )}
+          {reiseAndre.length > 0 && (
+            <optgroup label={t("firma.innstillinger.reise.gruppeAndre")}>
+              {reiseAndre.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.navn}
+                </option>
+              ))}
+            </optgroup>
+          )}
         </select>
+        <p
+          className={`mt-1 text-xs font-medium ${reiseStatusOk ? "text-gray-700" : "text-amber-700"}`}
+          data-testid="reise-status"
+        >
+          {reiseStatusTekst}
+        </p>
         <p className="mt-1 text-xs text-gray-500">
           {t("firma.innstillinger.reise.lonnsartHjelp")}
         </p>
@@ -1770,24 +1995,6 @@ function ReiseSeksjon() {
             </span>
           )}
         </div>
-        {visManglerPunkt && (
-          <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 p-4">
-            <p className="text-sm text-amber-800">
-              {t("firma.innstillinger.reise.matriseManglerPunkt", {
-                antall: byggeplasserUtenPunkt,
-              })}
-            </p>
-          </div>
-        )}
-        {visUoppnaaelige && (
-          <div className="mt-3 rounded-md border border-gray-200 bg-gray-50 p-4">
-            <p className="text-sm text-gray-600">
-              {t("firma.innstillinger.reise.matriseUoppnaaelige", {
-                antall: parUoppnaaelige,
-              })}
-            </p>
-          </div>
-        )}
       </div>
     </div>
   );

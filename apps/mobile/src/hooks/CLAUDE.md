@@ -90,6 +90,7 @@ Bruker endrer felt
 2. Hvis usynkronisert lokal data → **bruk den** (prioritert over server)
 3. Hvis synkronisert → hent fra server, oppdater lokal kopi
 4. Auto-fill for nye dokumenter (date→i dag, person→bruker, company→faggruppe)
+   - `date` fylles med **lokal** kalenderdato (`lokalIsoDato`, `utils/dato.ts`), aldri `toISOString()` — UTC ga gårsdagen 00:00–01:00 (vinter) / 00:00–02:00 (sommer). Web-visningen (`rapportobjekter/datoInput.ts`) leser likt. Vakt: `utils/lokalDatoSkjema.test.ts`, `rapportobjekter/datoInput.test.ts` (ordre 2026-11-15 (17) P4).
 
 ### Rekursiv synlighet
 

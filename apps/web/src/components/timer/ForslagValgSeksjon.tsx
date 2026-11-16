@@ -17,6 +17,8 @@ import { Check, Smartphone, Monitor } from "lucide-react";
 import {
   parForslagMotSedel,
   byggForsonInputFraValg,
+  aktivtHelhetsvalg,
+  helhetsvalgNokler,
   type ForsonRad,
   type ForsonSide,
   type ForsonInput,
@@ -141,11 +143,14 @@ export function ForslagValgSeksjon({
   // lønnsdata overskrives uten eksplisitt valg (samme default som helperen).
   const [valg, setValg] = useState<Record<string, ForsonSide>>({});
 
-  const parede = slots.filter((s) => s.valgbar && s.forslag && s.sedel);
+  // Telefontest B funn 4 (hjemmel Kenneth 2026-11-13): «hele dagen» gjelder alle
+  // valgbare slots, også slettet_pc — likt mobilens «Velg appen».
+  const helhetNokler = useMemo(() => helhetsvalgNokler(slots), [slots]);
+  const aktivt = aktivtHelhetsvalg<ForsonSide>(helhetNokler, valg, "sedel");
 
   const settAlle = (side: ForsonSide) => {
     const nytt: Record<string, ForsonSide> = {};
-    for (const s of parede) nytt[s.forslag!.id] = side;
+    for (const k of helhetNokler) nytt[k] = side;
     setValg(nytt);
   };
 
@@ -234,20 +239,24 @@ export function ForslagValgSeksjon({
 
       {!lesevisning && (
         <div className="mt-4 flex flex-wrap items-center gap-2">
-          {parede.length > 0 && (
+          {helhetNokler.length > 0 && (
             <>
               <Button
-                variant="secondary"
+                variant={aktivt === "sedel" ? "primary" : "secondary"}
+                aria-pressed={aktivt === "sedel"}
                 disabled={bekrefter}
                 onClick={() => settAlle("sedel")}
               >
+                {aktivt === "sedel" && <Check className="mr-1.5 h-4 w-4" aria-hidden />}
                 {t("timer.forslagValg.beholdPcDagen")}
               </Button>
               <Button
-                variant="secondary"
+                variant={aktivt === "forslag" ? "primary" : "secondary"}
+                aria-pressed={aktivt === "forslag"}
                 disabled={bekrefter}
                 onClick={() => settAlle("forslag")}
               >
+                {aktivt === "forslag" && <Check className="mr-1.5 h-4 w-4" aria-hidden />}
                 {t("timer.forslagValg.brukMobilDagen")}
               </Button>
             </>
@@ -256,6 +265,9 @@ export function ForslagValgSeksjon({
             {bekrefter ? t("handling.lagrer") : t("timer.forslagValg.bekreft")}
           </Button>
         </div>
+      )}
+      {!lesevisning && (
+        <p className="mt-2 text-xs text-gray-500">{t("timer.forslagValg.bekreftHjelp")}</p>
       )}
     </section>
   );

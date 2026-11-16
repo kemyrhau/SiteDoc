@@ -11,9 +11,10 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { inflateRawSync } from "node:zlib";
 import type { PrismaClient } from "@sitedoc/db";
+import { INGEN_LESERBLOKKER } from "@sitedoc/shared";
 import * as mammoth from "mammoth";
 import { splittMalebrevPdf } from "./pdf-splitting";
-import { genererBlokker } from "./blokk-prosessering";
+import { genererBlokker, genererDocxBlokker } from "./blokk-prosessering";
 import { embeddNyeBlokker, embeddDokumentChunks } from "./embedding-service";
 import { detekterSpraak } from "./spraak-deteksjon";
 import { lagLivstegn } from "./reprosessering";
@@ -257,6 +258,10 @@ export async function prosesserDokument(
       genererBlokkOgOversett(prisma, documentId, dok.folderId, buffer, ext).catch((err) => {
         console.error(`Blokkgenerering feilet for ${documentId}:`, err);
       });
+    } else if (ext === ".docx") {
+      genererDocxBlokkOgOversett(prisma, documentId, dok.folderId, buffer).catch((err) => {
+        console.error(`Blokkgenerering (DOCX) feilet for ${documentId}:`, err);
+      });
     }
   } catch (err) {
     const melding =
@@ -302,6 +307,95 @@ async function genererBlokkOgOversett(
   buffer: Buffer,
   ext: string,
 ): Promise<void> {
+  await blokkEtterløp(
+    prisma,
+    documentId,
+    folderId,
+    buffer.toString("utf-8").slice(0, 5000),
+    (kildeSpråk) => genererBlokker(prisma, documentId, buffer, ext, kildeSpråk),
+  );
+}
+
+/**
+ * Leser-blokker for DOCX (DL-1): overskrifter og avsnitt fra samme zip-bomb-trygge
+ * uttrekk som søket, og samme etterløp som PDF (språk, blokk-embedding, oversettelse).
+ * Språket detekteres fra uttrukket tekst — ikke fra zip-bytene.
+ */
+export async function genererDocxBlokkOgOversett(
+  prisma: PrismaClient,
+  documentId: string,
+  folderId: string | null,
+  buffer: Buffer,
+): Promise<void> {
+  const docxBlokker = await ekstraherDocxBlokker(buffer);
+  const tekst = docxBlokker.map((b) => b.text).join("\n").slice(0, 5000);
+  await blokkEtterløp(prisma, documentId, folderId, tekst, (kildeSpråk) =>
+    genererDocxBlokker(prisma, documentId, docxBlokker, kildeSpråk),
+  );
+}
+
+/**
+ * Lag leser-blokker for et allerede søkbart PDF- eller DOCX-dokument fra lagret fil,
+ * uten å ekstrahere chunks på nytt — samme blokkvei som ved opplasting. Brukes av
+ * reparasjonsstien for dokumenter som er completed med chunks men 0 blokker (DOCX før
+ * DL-1, PDF der blokkene aldri ble laget — DL-2). Bumper `updated_at` og nullstiller
+ * en eventuell `INGEN_LESERBLOKKER`-markør først, så leseren viser «klargjøres».
+ */
+export async function genererBlokkerFraLagretFil(
+  prisma: PrismaClient,
+  documentId: string,
+): Promise<void> {
+  const dok = await prisma.ftdDocument.update({
+    where: { id: documentId },
+    data: { processingError: null },
+    select: { fileUrl: true, filename: true, folderId: true },
+  });
+  const ext = extname(dok.filename ?? "").toLowerCase();
+  if (!dok.fileUrl || !LESERBLOKK_FILTYPER.includes(ext)) return;
+  const buffer = await readFile(join(UPLOADS_DIR, dok.fileUrl.replace(/^\/uploads\//, "")));
+  if (ext === ".pdf") {
+    await genererBlokkOgOversett(prisma, documentId, dok.folderId, buffer, ext);
+  } else {
+    await genererDocxBlokkOgOversett(prisma, documentId, dok.folderId, buffer);
+  }
+}
+
+/** Filtyper som får leser-blokker (PDF og DOCX). */
+export const LESERBLOKK_FILTYPER = [".pdf", ".docx"];
+
+/**
+ * Id-ene til PDF-/DOCX-dokumenter i `dokumenter` som ikke har én eneste leser-blokk
+ * (DOCX: DL-1, PDF: DL-2). Dokumenter med blokker røres ikke.
+ */
+export async function utenLeserblokker(
+  db: Pick<PrismaClient, "ftdDocumentBlock">,
+  dokumenter: Array<{ id: string; filename: string | null }>,
+): Promise<string[]> {
+  const ider = dokumenter
+    .filter((d) => LESERBLOKK_FILTYPER.some((ext) => (d.filename ?? "").toLowerCase().endsWith(ext)))
+    .map((d) => d.id);
+  if (ider.length === 0) return [];
+  const medBlokker = await db.ftdDocumentBlock.findMany({
+    where: { documentId: { in: ider } },
+    select: { documentId: true },
+    distinct: ["documentId"],
+  });
+  const harBlokker = new Set(medBlokker.map((b) => b.documentId));
+  return ider.filter((id) => !harBlokker.has(id));
+}
+
+/**
+ * Felles etterløp for leser-blokker (PDF og DOCX): språkdeteksjon fra `tekstForSpråk`,
+ * lagring av blokker via `lagBlokker`, blokk-embedding og oversettelsesoppdrag pr.
+ * mappens språk. Ved språkavvik ventes det på bekreftelse før oversettelse.
+ */
+async function blokkEtterløp(
+  prisma: PrismaClient,
+  documentId: string,
+  folderId: string | null,
+  tekstForSpråk: string,
+  lagBlokker: (kildeSpråk: string) => Promise<number>,
+): Promise<void> {
   // Hent prosjekt + mappeinfo for språkinnstillinger
   let languages: string[] = ["nb"];
   let prosjektKildespråk = "nb";
@@ -328,8 +422,7 @@ async function genererBlokkOgOversett(
   }
 
   // Alltid detekter språk fra innhold
-  const tekst = buffer.toString("utf-8").slice(0, 5000);
-  const detektert = detekterSpraak(tekst);
+  const detektert = detekterSpraak(tekstForSpråk);
 
   // Bruk detektert språk for blokker (det faktiske innholdet)
   const kildeSpråk = detektert;
@@ -350,8 +443,18 @@ async function genererBlokkOgOversett(
   }
 
   // Generer blokker med detektert språk (riktig merking)
-  const antall = await genererBlokker(prisma, documentId, buffer, ext, kildeSpråk);
+  const antall = await lagBlokker(kildeSpråk);
   console.log(`Blokkprosessering: ${antall} blokker for ${documentId} (kilde: ${kildeSpråk})`);
+
+  // 0 blokker (f.eks. PDF uten uttrekkbar tekst eller bilder): ærlig slutt-tilstand
+  // i stedet for at leseren venter i 10 min og viser «feilet» (DL-2). Markør, ikke feil.
+  if (antall === 0) {
+    await prisma.ftdDocument.update({
+      where: { id: documentId },
+      data: { processingError: INGEN_LESERBLOKKER },
+    });
+    return;
+  }
 
   // Generer embeddings for blokker (fire-and-forget)
   embeddNyeBlokker(prisma, documentId).catch((err) => {
@@ -1728,7 +1831,7 @@ function dekodHtmlEntiteter(s: string): string {
     .replace(/&#(\d+);/g, (_m, d) => String.fromCodePoint(Number(d)));
 }
 
-type DocxBlokk = { type: "heading" | "para"; level: number | null; text: string };
+export type DocxBlokk = { type: "heading" | "para"; level: number | null; text: string };
 
 /**
  * Parser mammoth-HTML til ordnede blokker. Overskrifter (`<h1>`–`<h6>`) bærer nivå;
@@ -1990,14 +2093,18 @@ function byggStoredZip(entries: { navn: string; data: Buffer }[]): Buffer {
   return Buffer.concat([lokalBlokk, sentralBlokk, eocd]);
 }
 
-/** Ekstraher søkbare chunks fra en DOCX-buffer. Ren funksjon — ingen DB. */
-export async function ekstraherDocxChunks(buffer: Buffer): Promise<DocxChunk[]> {
+/** Ekstraher ordnede overskrift-/avsnittsblokker fra en DOCX-buffer. Ren funksjon — ingen DB. */
+export async function ekstraherDocxBlokker(buffer: Buffer): Promise<DocxBlokk[]> {
   // RETUR 2: pakk ut selv med byte-budsjett og gi mammoth en ren, verifisert ZIP. Aldri gi
   // råbufferen til mammoth — jszip ville pakket ut hele bomba FØR noen størrelsessjekk.
   const rentZip = pakkUtDocxTrygg(buffer);
   const { value: html } = await mammoth.convertToHtml({ buffer: rentZip });
-  const blokker = parseDocxBlokker(html);
-  return byggDocxChunks(blokker);
+  return parseDocxBlokker(html);
+}
+
+/** Ekstraher søkbare chunks fra en DOCX-buffer. Ren funksjon — ingen DB. */
+export async function ekstraherDocxChunks(buffer: Buffer): Promise<DocxChunk[]> {
+  return byggDocxChunks(await ekstraherDocxBlokker(buffer));
 }
 
 async function prosesserDocx(

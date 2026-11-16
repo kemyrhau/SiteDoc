@@ -62,6 +62,10 @@ export {
   formaterDatoKort,
   fullBildeUrl,
   formaterNummer,
+  // PDF-1: oppgave-henvisning + vedlegg-filnavn (arkiv)
+  byggOppgaveHenvisning,
+  byggFilListe,
+  erPdfVedlegg,
   // Signatur-tvillingen (speiler @sitedoc/shared/signaturVerdi) — eksponert for paritetstest
   lesSignaturVerdiPdf,
   formaterSignaturLinjePdf,

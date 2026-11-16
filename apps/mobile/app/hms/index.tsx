@@ -27,6 +27,7 @@ import {
 import { StatusMerkelapp } from "../../src/components/StatusMerkelapp";
 import { StatusFilterRad } from "../../src/components/StatusFilterRad";
 import { ByggeplassChip } from "../../src/components/ByggeplassChip";
+import { VelgByggeplassTom, useMaaVelgeByggeplass } from "../../src/components/VelgByggeplassTom";
 import { ProsjektSokRad } from "../../src/components/sok/ProsjektSokRad";
 import { HmsMalVelger, type HmsMal, type HmsSubdomain } from "../../src/components/HmsMalVelger";
 import {
@@ -73,7 +74,8 @@ interface HmsDokumenter {
 export default function HmsListe() {
   const { t } = useTranslation();
   const { valgtProsjektId } = useProsjekt();
-  const { valgtBygningId } = useByggeplass();
+  const { valgtBygningId, kontekstByggeplassId } = useByggeplass();
+  const maaVelgeByggeplass = useMaaVelgeByggeplass();
   const { erPaaNettet } = useNettverk();
   const { bruker } = useAuth();
   const router = useRouter();
@@ -211,27 +213,37 @@ export default function HmsListe() {
     },
   });
 
+  // Lean mutate-signaturer (TS2589, docs/claude/api.md § TS/tRPC-fallgruver): med
+  // byggeplassId i oppgave.opprett-inputen (ORDRE 28) tåler ikke useCallback-deps de
+  // dype tRPC-typene — `as unknown as` FØR de brukes i callbacken.
+  type OpprettInn = { templateId: string; title: string; byggeplassId?: string };
+  const opprettOppgaveMutate = opprettOppgave.mutate as unknown as (inn: OpprettInn) => void;
+  const opprettSjekklisteMutate = opprettSjekkliste.mutate as unknown as (inn: OpprettInn) => void;
+
   // HMS-opprett: subdomain avstyrer tabell (avvik/RUH=oppgave, SJA=sjekkliste).
   // Ingen faggruppe — serveren auto-ruter HMS-dokumenter (speiler web).
   const håndterMal = useCallback(
     (mal: HmsMal) => {
       settVisMalVelger(false);
       if (mal.subdomain === "sja") {
-        // Kontekst-default (V2): aktiv byggeplass fra global kontekst settes ved
-        // opprettelse. sjekkliste.opprett tar byggeplassId direkte.
-        opprettSjekkliste.mutate({
+        // (20b): byggeplass uten gjett (lagret valg → GPS → ingen), aldri «første».
+        // sjekkliste.opprett tar byggeplassId direkte.
+        opprettSjekklisteMutate({
           templateId: mal.id,
           title: mal.name,
-          byggeplassId: valgtBygningId ?? undefined,
+          byggeplassId: kontekstByggeplassId ?? undefined,
         });
       } else {
-        // Avvik/RUH = oppgave. oppgave.opprett tar kun drawingId (ingen
-        // byggeplassId-felt), og mobil-HMS har ingen aktiv tegning-kilde →
-        // byggeplass festes ikke her (sak B, backlogget).
-        opprettOppgave.mutate({ templateId: mal.id, title: mal.name });
+        // Avvik/RUH = oppgave. ORDRE 28: oppgave.opprett tar byggeplassId — aktiv
+        // byggeplass festes som for SJA (mobil-HMS har ingen aktiv tegning-kilde).
+        opprettOppgaveMutate({
+          templateId: mal.id,
+          title: mal.name,
+          byggeplassId: kontekstByggeplassId ?? undefined,
+        });
       }
     },
-    [opprettOppgave, opprettSjekkliste, valgtBygningId],
+    [opprettOppgaveMutate, opprettSjekklisteMutate, kontekstByggeplassId],
   );
 
   const onRefresh = useCallback(() => {
@@ -422,7 +434,11 @@ export default function HmsListe() {
         </View>
       )}
 
-      {dokQuery.isLoading && lokalAntall === 0 ? (
+      {/* (22) Uten byggeplassvalg: «Velg byggeplass». Søk gjelder
+          fortsatt hele prosjektet. */}
+      {!søkerNaa && maaVelgeByggeplass ? (
+        <VelgByggeplassTom />
+      ) : dokQuery.isLoading && lokalAntall === 0 ? (
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color="#1e40af" />
           <Text className="mt-3 text-sm text-gray-500">{t("handling.laster")}</Text>

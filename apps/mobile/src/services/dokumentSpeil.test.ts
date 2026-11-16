@@ -50,6 +50,7 @@ import {
   forhaandslastDokumenter,
   FORHAANDSLAST_TAK,
   type ForhaandslastDokument,
+  erProsedyreMangler,
 } from "./dokumentSpeil";
 import { refreshSjekklisteKatalog, hentSjekklisterLokalt } from "./sjekklisteKatalog";
 
@@ -223,6 +224,34 @@ describe("forhaandslastDokumenter — tak + feiltoleranse + gammel server", () =
     expect(r.lastet).toBe(0);
     // Ikke talt som per-dokument-feil — det er ikke dokumentet som er galt.
     expect(r.feilet).toBe(0);
+  });
+
+  it("🔴 ERRFMT: slettet dokument (NOT_FOUND m/ feilKode) stopper IKKE resten", async () => {
+    const dok: ForhaandslastDokument[] = [
+      { id: "borte", type: "sjekkliste", status: "sent" },
+      { id: "ok", type: "oppgave", status: "sent" },
+    ];
+    const r = await forhaandslastDokumenter(
+      lagKlient((_t, id) => {
+        if (id === "borte") {
+          throw { message: "Fant ikke det du ba om. Det kan være slettet.", data: { code: "NOT_FOUND", httpStatus: 404, feilKode: "IKKE_FUNNET" } };
+        }
+        return { id };
+      }),
+      "p1",
+      A,
+      dok,
+    );
+    expect(r.serverManglerProsedyre).toBe(false);
+    expect(r.feilet).toBe(1);
+    expect(r.lastet).toBe(1);
+  });
+
+  it("gammel server: tRPCs egen manglende-prosedyre-feil gjenkjennes fortsatt", () => {
+    expect(
+      erProsedyreMangler({ message: 'No "query"-procedure on path "sjekkliste.hentForOffline"', data: { code: "NOT_FOUND", httpStatus: 404 } }),
+    ).toBe(true);
+    expect(erProsedyreMangler({ data: { code: "NOT_FOUND", httpStatus: 404, feilKode: "IKKE_FUNNET" } })).toBe(false);
   });
 });
 

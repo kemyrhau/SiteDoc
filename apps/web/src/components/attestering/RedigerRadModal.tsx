@@ -18,7 +18,11 @@ import { KnappMedForklaring } from "@/components/KnappMedForklaring";
 import { Trash2 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { rundTilNarmeste } from "@/lib/tidsrunding";
-import { overstigerMaskinTak, finnTidsromKonflikt } from "@sitedoc/shared";
+import {
+  arbeidUtenReise,
+  overstigerMaskinTak,
+  finnTidsromKonflikt,
+} from "@sitedoc/shared";
 import { MaskinVelger } from "@/components/timer/MaskinVelger";
 
 function tilTall(v: unknown): number {
@@ -126,7 +130,7 @@ export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
       }>
     | undefined;
   const { data: ecoListe } = trpc.eksternKostObjekt.list.useQuery(
-    { projectId },
+    { projectId, organizationId: sheet?.organizationId },
     { enabled: !!projectId },
   );
   const { data: setting } = trpc.organisasjon.hentSetting.useQuery(
@@ -165,6 +169,7 @@ export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
         fraTid: string | null;
         tilTid: string | null;
         timer: unknown;
+        erReise?: boolean;
       }>).filter((r) => r.attestertStatus === "pending"),
     [sheet?.timer],
   );
@@ -193,6 +198,8 @@ export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
         tilleggId: string;
         antall: unknown;
         kommentar: string | null;
+        byggeplassId?: string | null;
+        externalCostObjectId?: string | null;
       }>).filter((r) => r.attestertStatus === "pending"),
     [sheet?.tillegg],
   );
@@ -346,7 +353,8 @@ export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
     }
 
     // Bygg full payload: andre bukers pending-rader uendret + edit-rader for vår bucket.
-    // Tillegg er per-prosjekt (ingen ECO) — alltid uendret her.
+    // Tillegg redigeres ikke i denne modalen — sendes uendret, inkl. byggeplass og
+    // underprosjekt (utelatt felt nuller dem på serveren).
     const andreTimer = pendingTimer.filter((r) => !bucketPredikat(r));
     const andreMaskin = pendingMaskin.filter((r) => !bucketPredikat(r));
 
@@ -415,6 +423,8 @@ export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
           tilleggId: r.tilleggId,
           antall: tilTall(r.antall),
           kommentar: r.kommentar,
+          byggeplassId: r.byggeplassId ?? null,
+          externalCostObjectId: r.externalCostObjectId ?? null,
         })),
         maskin: [
           ...andreMaskin.map((r) => ({
@@ -619,9 +629,19 @@ export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
                 ) : (
                   <div className="space-y-1">
                     {(() => {
-                      const sumArbeid = editTimer.reduce(
-                        (a, r) => a + r.timer,
-                        0,
+                      // Ordre 2026-11-14 (6): maskin måles mot arbeid UTEN
+                      // reise. Redigerte rader bærer ikke erReise; lønnsarter
+                      // som er reise på sedelens originale rader teller som reise.
+                      const reiseLonnsartIder = new Set(
+                        pendingTimer
+                          .filter((r) => r.erReise === true)
+                          .map((r) => r.lonnsartId),
+                      );
+                      const sumArbeid = arbeidUtenReise(
+                        editTimer.map((r) => ({
+                          timer: r.timer,
+                          erReise: reiseLonnsartIder.has(r.lonnsartId),
+                        })),
                       );
                       const pauseMin = pauseMinutter(editPauseFra, editPauseTil);
                       return editMaskin.map((rad) => (

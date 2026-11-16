@@ -6,6 +6,9 @@ import {
   flatDetaljRader,
   losTimerKolonner,
   ALLE_RADTYPER,
+  TIMER_KOL_KEYS,
+  TIMER_KOL_I18N,
+  TIMER_KOL_BREDDE,
   type DetaljEksportKilde,
 } from "./timerDetaljRader";
 
@@ -569,5 +572,77 @@ describe("LAG 2 D2 — reise-spor følger raden til detaljeksport", () => {
     );
     expect(losTimerKolonner(km, "intern", [])).toContain("lonnsartType");
     expect(losTimerKolonner(km, "intern", [])).toContain("satsEnhet");
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/*  T13 (tillegg-utlegg-prosjektkort-spec § 9, B8) — byggeplass og     */
+/*  underprosjekt følger ALLE radtyper til detaljeksporten             */
+/* ------------------------------------------------------------------ */
+
+describe("T13 — byggeplass/underprosjekt på alle radtyper (B8)", () => {
+  const sted = { byggeplass: "Blokk A", underprosjekt: "1001 · Fundament" };
+  const fullKilde = kilde({
+    timerader: [
+      timerad({
+        ...sted,
+        maskiner: [
+          { id: "m1", navn: "Graver", timer: 2, mengde: null, enhet: null, radstatus: "attestert", utleieEnhet: "doegn", ...sted },
+        ],
+      }),
+    ],
+    maskinUtenTimerad: [
+      { id: "m2", navn: "Dumper", timer: 1, mengde: null, enhet: null, radstatus: "attestert", utleieEnhet: null, dato: "2026-08-10", ansatt: "Ola", ansattnr: "104", prosjekt: "Kai 12", ...sted },
+    ],
+    tillegg: [
+      { id: "ti1", dato: "2026-08-10", ansatt: "Ola", ansattnr: "104", prosjekt: "Kai 12", tillegg: "Smuss", antall: 1, kommentar: null, radstatus: "attestert", ...sted },
+    ],
+    utlegg: [
+      { id: "u1", dato: "2026-08-10", ansatt: "Ola", ansattnr: "104", prosjekt: "Kai 12", kategori: "Parkering", belop: 50, kommentar: null, seddelstatus: "attestert", ...sted },
+    ],
+  });
+
+  it("hver radtype bærer byggeplass og underprosjekt", () => {
+    const rader = byggDetaljRader(fullKilde, ALLE_RADTYPER);
+    expect(rader.map((r) => r.type).sort()).toEqual(["maskin", "maskin", "tillegg", "timer", "utlegg"]);
+    for (const r of rader) {
+      expect(r.byggeplass).toBe("Blokk A");
+      expect(r.underprosjekt).toBe("1001 · Fundament");
+    }
+  });
+
+  it("kilde uten feltene (eldre API) gir null, ikke undefined", () => {
+    const rader = byggDetaljRader(
+      kilde({
+        tillegg: [
+          { id: "ti1", dato: "2026-08-10", ansatt: "Ola", ansattnr: "104", prosjekt: "Kai 12", tillegg: "Smuss", antall: 1, kommentar: null, radstatus: "attestert" },
+        ],
+      }),
+      ALLE_RADTYPER,
+    );
+    expect(rader[0]!.byggeplass).toBeNull();
+    expect(rader[0]!.underprosjekt).toBeNull();
+  });
+
+  it("kolonnene finnes og vises i dynamisk modus kun når de har innhold, også for ekstern", () => {
+    expect(TIMER_KOL_KEYS).toContain("byggeplass");
+    expect(TIMER_KOL_KEYS).toContain("underprosjekt");
+    const med = byggDetaljRader(fullKilde, ALLE_RADTYPER);
+    for (const m of ["intern", "ekstern"] as const) {
+      const koler = losTimerKolonner(med, m, []);
+      expect(koler.indexOf("byggeplass")).toBe(koler.indexOf("prosjekt") + 1);
+      expect(koler.indexOf("underprosjekt")).toBe(koler.indexOf("prosjekt") + 2);
+    }
+    // Negativkontroll: rader uten sted → kolonnene droppes (vanlig timeliste uendret).
+    const uten = byggDetaljRader(kilde({ timerader: [timerad()] }), ALLE_RADTYPER);
+    expect(losTimerKolonner(uten, "intern", [])).not.toContain("byggeplass");
+    expect(losTimerKolonner(uten, "intern", [])).not.toContain("underprosjekt");
+  });
+
+  it("i18n-nøkkel og bredde finnes for begge kolonnene", () => {
+    expect(TIMER_KOL_I18N.byggeplass).toBe("kolByggeplass");
+    expect(TIMER_KOL_I18N.underprosjekt).toBe("kolUnderprosjekt");
+    expect(TIMER_KOL_BREDDE.byggeplass.excel).toBeGreaterThan(0);
+    expect(TIMER_KOL_BREDDE.underprosjekt.excel).toBeGreaterThan(0);
   });
 });

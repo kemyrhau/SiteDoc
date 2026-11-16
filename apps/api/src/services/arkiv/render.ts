@@ -17,7 +17,9 @@
  *      innen tidsvakten (gjelder hele PDF-en).
  */
 import { byggArkivSamling } from "@sitedoc/pdf";
-import { byggSjekklisteArkivHtml, byggOppgaveArkivHtml, type RammeData, type SammenstillingResultat, type SammenstillingOpts } from "./sammenstilling";
+import { PDFDocument } from "pdf-lib";
+import { byggSjekklisteArkivHtml, byggOppgaveArkivHtml, type RammeData, type SammenstillingResultat, type SammenstillingOpts, type PdfVedleggRef } from "./sammenstilling";
+import type { OppgaveTilgang } from "./oppgave-henvisning";
 import { hentBildeBytesFraDisk } from "./disk-bilde";
 import { byggRenderHeader, byggRenderFooter } from "./render-templates";
 import type { PrismaClient } from "@sitedoc/db";
@@ -78,6 +80,44 @@ export interface RenderOpts {
   /** YYYY-MM-DD til samleutskrift-filnavn (N>1). Kalleren eier klokka (Date). */
   datoForFilnavn: string;
   eksport?: boolean;
+  /**
+   * PDF-1 «Ta med oppgaver»: hver oppgave opprettet fra en sjekkliste legges etter den som egen
+   * del (`byggOppgaveArkivHtml`). Utelatt/av → kun henvisningslinja (som vises alltid).
+   */
+  medOppgaver?: boolean;
+  /** PDF-1 «Ta med vedlegg»: PDF-vedlegg legges bakerst (pdf-lib), andre filer med filnavn. */
+  medVedlegg?: boolean;
+  /** PDF-1: dokumenttilgang per oppgave (arkiv-ruten). */
+  oppgaveTilgang?: OppgaveTilgang;
+}
+
+/**
+ * PDF-1: legg PDF-vedleggene bakerst i den rendrede PDF-en. Fil som ikke kan leses eller
+ * tolkes → filnavnet returneres som manglende (samme mangel-kontrakt som bilder).
+ */
+export async function leggVedleggBakerst(
+  pdf: Buffer,
+  vedlegg: PdfVedleggRef[],
+  hentBytes: (url: string) => Promise<Buffer | null>,
+): Promise<{ pdf: Buffer; manglende: string[] }> {
+  if (vedlegg.length === 0) return { pdf, manglende: [] };
+  const manglende: string[] = [];
+  const samlet = await PDFDocument.load(pdf);
+  for (const v of vedlegg) {
+    const bytes = await hentBytes(v.url);
+    if (!bytes) {
+      manglende.push(v.filnavn);
+      continue;
+    }
+    try {
+      const kilde = await PDFDocument.load(bytes);
+      const sider = await samlet.copyPages(kilde, kilde.getPageIndices());
+      for (const side of sider) samlet.addPage(side);
+    } catch {
+      manglende.push(v.filnavn);
+    }
+  }
+  return { pdf: Buffer.from(await samlet.save()), manglende };
 }
 
 /** Rens en streng til trygt filnavn-fragment (ingen /, mellomrom, spesialtegn). */
@@ -119,22 +159,41 @@ export async function rendrArkivPdf(
   dokumenter: ArkivDokumentRef[],
   opts: RenderOpts,
 ): Promise<RenderResultat> {
+  const leserOpts: SammenstillingOpts = {
+    hentBildeBytes: hentBildeBytesFraDisk,
+    generertTekst: opts.generertTekst,
+    eksport: opts.eksport,
+    medVedlegg: opts.medVedlegg,
+    oppgaveTilgang: opts.oppgaveTilgang,
+  };
   const bygde = [];
+  // Sidene i rekkefølge: hoveddokument, så (med «Ta med oppgaver») dets oppgaver som egne deler.
+  const sider: string[] = [];
+  const pdfVedlegg: { eier: number; ref: PdfVedleggRef }[] = [];
   for (const dok of dokumenter) {
     const leser = LESER_PER_TYPE[dok.type];
     if (!leser) {
       throw new Error(`Arkivmal kan ikke rendre dokumenttype «${dok.type}».`);
     }
-    const r = await leser(prisma, dok.id, {
-      hentBildeBytes: hentBildeBytesFraDisk,
-      generertTekst: opts.generertTekst,
-      eksport: opts.eksport,
-    });
-    bygde.push({ dok, ...r });
+    const r = await leser(prisma, dok.id, leserOpts);
+    const manglendeVedlegg = [...r.manglendeVedlegg];
+    sider.push(r.side);
+    if (opts.medOppgaver) {
+      for (const oppgaveId of r.oppgaveIder) {
+        const del = await byggOppgaveArkivHtml(prisma, oppgaveId, leserOpts);
+        sider.push(del.side);
+        // Delens mangler tilhører hoveddokumentet (mangel-kontrakten per bestilt dokument).
+        manglendeVedlegg.push(...del.manglendeVedlegg);
+        for (const ref of del.pdfVedlegg) pdfVedlegg.push({ eier: bygde.length, ref });
+      }
+    }
+    for (const ref of r.pdfVedlegg) pdfVedlegg.push({ eier: bygde.length, ref });
+    bygde.push({ dok, ...r, manglendeVedlegg });
   }
 
+  // Ett BESTILT dokument (oppgavedelene teller ikke) → dokumentets egen ramme og filnavn.
   const enkelt = bygde.length === 1;
-  const html = byggArkivSamling(bygde.map((b) => b.side));
+  const html = byggArkivSamling(sider);
   // Enkeltdokument: per-dokument-header (dokumentreferanse). Samleutskrift:
   // mal-nivå-header — margin-headeren kan ikke variere per dokument (én template
   // for hele PDF-en), og hvert dokuments egen topptekst bærer identiteten.
@@ -156,7 +215,19 @@ export async function rendrArkivPdf(
   }
 
   const renderTimeout = respons.headers.get("x-render-komplett") === "false";
-  const pdf = Buffer.from(await respons.arrayBuffer());
+  let pdf: Buffer = Buffer.from(await respons.arrayBuffer());
+
+  // PDF-1: PDF-vedlegg bakerst (dedup på url på tvers av dokumentene).
+  if (opts.medVedlegg && pdfVedlegg.length > 0) {
+    const sett = new Set<string>();
+    const unike = pdfVedlegg.filter((v) => (sett.has(v.ref.url) ? false : (sett.add(v.ref.url), true)));
+    const res = await leggVedleggBakerst(pdf, unike.map((v) => v.ref), hentBildeBytesFraDisk);
+    pdf = res.pdf;
+    for (const navn of res.manglende) {
+      const eier = unike.find((v) => v.ref.filnavn === navn)?.eier ?? 0;
+      bygde[eier]!.manglendeVedlegg.push(navn);
+    }
+  }
 
   const dokStatus: ArkivDokumentStatus[] = bygde.map((b) => ({
     id: b.dok.id,

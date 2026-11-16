@@ -4,6 +4,8 @@ import { useState, useMemo } from "react";
 import { useParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
+import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
+import { vareforbrukFilter, vareforbrukStartByggeplass } from "@/lib/vareforbrukByggeplass";
 import { Button, Modal, Spinner } from "@sitedoc/ui";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
@@ -74,13 +76,25 @@ export default function VareforbrukSide() {
   const periodeDefault = useMemo(defaultPeriode, []);
   const [fra, setFra] = useState(periodeDefault.fra);
   const [til, setTil] = useState(periodeDefault.til);
-  const [byggeplassFilter, setByggeplassFilter] = useState<string>("");
+  // ORDRE 29 #8: `null` = ikke valgt ennå → filteret følger toppbarens byggeplass.
+  const [valgtByggeplassFilter, setByggeplassFilter] = useState<string | null>(null);
+  const { aktivByggeplass } = useByggeplass();
 
   const [visOpprett, setVisOpprett] = useState(false);
   const [redigerRad, setRedigerRad] = useState<VareforbrukRad | null>(null);
   const [slettRad, setSlettRad] = useState<VareforbrukRad | null>(null);
 
   const utils = trpc.useUtils();
+
+  const { data: byggeplasser } = trpc.bygning.hentForProsjekt.useQuery(
+    { projectId },
+    { enabled: !!projectId },
+  );
+  const byggeplassFilter = vareforbrukFilter({
+    valgt: valgtByggeplassFilter,
+    aktiv: aktivByggeplass?.id,
+    byggeplassIder: (byggeplasser as Byggeplass[] | undefined)?.map((b) => b.id),
+  });
 
   const { data: rader, isLoading, error } = trpc.vareforbruk.list.useQuery(
     {
@@ -92,17 +106,12 @@ export default function VareforbrukSide() {
     { enabled: !!projectId },
   );
 
-  const { data: byggeplasser } = trpc.bygning.hentForProsjekt.useQuery(
-    { projectId },
-    { enabled: !!projectId },
-  );
-
   const slett = trpc.vareforbruk.slett.useMutation({
     onSuccess: () => {
       void utils.vareforbruk.list.invalidate();
       setSlettRad(null);
     },
-    onError: (e: { message: string }) => alert(e.message),
+    onError: (e: { message: string }) => alert(t(e.message, { defaultValue: e.message })),
   });
 
   // Hvis trpc-error skyldes manglende modul, vis melding
@@ -274,6 +283,7 @@ export default function VareforbrukSide() {
         <ForbrukModal
           projectId={projectId}
           modus="opprett"
+          aktivByggeplassId={aktivByggeplass?.id ?? null}
           byggeplasser={(byggeplasser ?? []) as Byggeplass[]}
           onClose={() => setVisOpprett(false)}
         />
@@ -323,12 +333,15 @@ function ForbrukModal({
   projectId,
   modus,
   rad,
+  aktivByggeplassId,
   byggeplasser,
   onClose,
 }: {
   projectId: string;
   modus: "opprett" | "rediger";
   rad?: VareforbrukRad;
+  /** ORDRE 29 #8: ny rad forhåndsvelger toppbarens byggeplass. */
+  aktivByggeplassId?: string | null;
   byggeplasser: Byggeplass[];
   onClose: () => void;
 }) {
@@ -340,7 +353,9 @@ function ForbrukModal({
   );
   const [vareId, setVareId] = useState(rad?.vareId ?? "");
   const [antall, setAntall] = useState<string>(rad ? String(rad.antall) : "");
-  const [byggeplassId, setByggeplassId] = useState<string>(rad?.byggeplassId ?? "");
+  const [byggeplassId, setByggeplassId] = useState<string>(() =>
+    vareforbrukStartByggeplass(rad, aktivByggeplassId),
+  );
   const [externalCostObjectId, setExternalCostObjectId] = useState<string>(
     rad?.externalCostObjectId ?? "",
   );
@@ -369,14 +384,14 @@ function ForbrukModal({
       void utils.vareforbruk.list.invalidate();
       onClose();
     },
-    onError: (e: { message: string }) => setFeil(e.message),
+    onError: (e: { message: string }) => setFeil(t(e.message, { defaultValue: e.message })),
   });
   const oppdater = trpc.vareforbruk.oppdater.useMutation({
     onSuccess: () => {
       void utils.vareforbruk.list.invalidate();
       onClose();
     },
-    onError: (e: { message: string }) => setFeil(e.message),
+    onError: (e: { message: string }) => setFeil(t(e.message, { defaultValue: e.message })),
   });
 
   const isPending = opprett.isPending || oppdater.isPending;

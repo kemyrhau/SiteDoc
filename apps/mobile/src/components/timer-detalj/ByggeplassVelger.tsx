@@ -57,11 +57,9 @@ export function ByggeplassVelgerModal({
     number: number | null;
   }>;
   /** Vis en rad som nullstiller byggeplass-valget. Sedel-velgeren (dagsseddel)
-   *  bruker den som «Ingen byggeplass»; den globale byggeplass-chipen bruker den
-   *  som «Hele prosjektet»-utvei (default false → ikke vist). */
+   *  bruker den som «Ingen byggeplass» (default false → ikke vist). */
   tillatIngen?: boolean;
-  /** Etikett på nullstill-raden. Default «Ingen byggeplass» (sedel). Den globale
-   *  chipen sender «Hele prosjektet». */
+  /** Etikett på nullstill-raden. Default «Ingen byggeplass» (sedel). */
   ingenLabel?: string;
   /** Funn #2: `null` = «Ingen byggeplass» (nullstill). Sendes kun når
    *  `tillatIngen` er satt — ellers får kalleren aldri null. */

@@ -6,6 +6,7 @@ import { Prisma } from "@sitedoc/db";
 import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
+import { verifiserByggeplassIProsjekt } from "../services/tegningVakt";
 import { byggOverflateFraLas } from "../services/overflateService";
 import { parseLandXML } from "../services/landxmlParser";
 import { skrivTinFil, type TinData } from "../services/tinFil";
@@ -78,6 +79,10 @@ export const overflateRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      // ORDRE 29 #14: byggeplassen MÅ tilhøre prosjektet.
+      if (input.byggeplassId) {
+        await verifiserByggeplassIProsjekt(ctx.prisma, input.byggeplassId, input.projectId);
+      }
 
       const punktsky = await ctx.prisma.pointCloud.findUniqueOrThrow({
         where: { id: input.pointCloudId },
@@ -143,6 +148,10 @@ export const overflateRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      // ORDRE 29 #14: byggeplassen MÅ tilhøre prosjektet.
+      if (input.byggeplassId) {
+        await verifiserByggeplassIProsjekt(ctx.prisma, input.byggeplassId, input.projectId);
+      }
 
       let xml: string;
       try {

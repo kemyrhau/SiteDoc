@@ -33,6 +33,8 @@ const tekster: TimerRapportTekster = {
   detaljer: "Detaljer",
   subtotal: "Subtotal",
   kolDato: "Dato",
+  kolByggeplass: "Byggeplass",
+  kolUnderprosjekt: "Underprosjekt",
   kolType: "Type",
   kolBetegnelse: "Betegnelse",
   kolAktivitet: "Aktivitet",

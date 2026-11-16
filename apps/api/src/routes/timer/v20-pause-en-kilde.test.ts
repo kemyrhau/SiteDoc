@@ -130,13 +130,15 @@ describe("V20/PK4 — vurderRadTimer (beslutningsmatrise)", () => {
     expect(v).toEqual({ pauseMin: 0, teller: null, kast: false });
   });
 
-  it("test 16: synk, stemmer med ingen (07–11, 3,50) → skrevet uendret, telt avvik", () => {
+  it("test 16: synk, stemmer med ingen (07–11, 3,25) → skrevet uendret, telt avvik", () => {
+    // ORDRE 2026-11-13: 3,50 stemmer nå med pause 30 inne i raden (ny regel) —
+    // 3,25 stemmer med verken gammel eller ny formel.
     const v = vurderRadTimer({
       modus: "sync",
       satsEnhet: null,
       fraTid: "07:00",
       tilTid: "11:00",
-      timer: 3.5,
+      timer: 3.25,
       pauseMinAngitt: 0,
       pauseVindu: VINDU,
       standardPauseMin: STD,
@@ -435,6 +437,9 @@ function lagSplittCtx(opts: { status: string; eier?: boolean }) {
       },
     },
     prismaTimer: {
+      // Post (7) punkt 1: katalog-firmavakten slår opp lønnsart/aktivitet.
+      lonnsart: { findMany: vi.fn().mockResolvedValue([{ id: LONNSART }]) },
+      aktivitet: { findMany: vi.fn().mockResolvedValue([{ id: AKTIVITET }]) },
       sheetTimer: {
         findUnique: vi.fn().mockResolvedValue(original),
         findMany: vi.fn().mockResolvedValue([]), // ingen andre rader på dagen
@@ -491,5 +496,126 @@ describe("V20/RETUR1 — splittRad flytter bæreren (RETUR punkt 4)", () => {
     expect(rader[0]!.pauseMin).toBe(30);
     expect(rader[1]!.pauseMin).toBe(0);
     expect(hentHode()).toBe(30);
+  });
+});
+
+/**
+ * ORDRE 2026-11-13 «pausen trekkes etter 4 ARBEIDStimer» — Kenneth: «Morgen
+ * 07:00–10:00 og kveld 16:00–19:00 gir 0 pause og 3,0 t. -> dette kan ikke være
+ * rett -> dette er totalt 6 timer arbeid -> her er det krav om 0,5 timer pause».
+ * Fasit-radene fra klienten (pausen inne i bærer-raden) gir verken kast
+ * (interaktiv) eller avvik (synk), og gamle rader (vindu-formelen) godtas fortsatt.
+ */
+describe("ORDRE 2026-11-13 — vurderRadTimer godtar ny pauseregel og gamle rader", () => {
+  const fasit: Array<[string, string, number, number]> = [
+    ["16:00", "19:00", 2.5, 30], // kveld etter morgen 3 t
+    ["17:00", "19:00", 1.5, 30], // overtid-delen av samme kveld
+    ["16:00", "17:00", 1, 0],
+    ["16:45", "22:45", 6, 0], // morgen 07–15 bar pausen
+    ["07:00", "13:15", 5.75, 30], // 07:00–13:10, pause kl. 11:00
+    ["07:00", "10:30", 3, 30], // firmagrense 2 t → pause i morgenraden
+    ["16:00", "18:00", 1.5, 30], // lagret morgen 5 t p0 + kveld 2 t
+    ["16:00", "18:00", 2, 0], // 3 t + 2 t → ingen pause
+  ];
+  for (const [fra, til, timer, pm] of fasit) {
+    it(`${fra}–${til} ${timer} t pause ${pm}: interaktiv uten kast, synk uten avvik`, () => {
+      for (const modus of ["interaktiv", "sync"] as const) {
+        const v = vurderRadTimer({
+          modus,
+          satsEnhet: null,
+          fraTid: fra,
+          tilTid: til,
+          timer,
+          pauseMinAngitt: pm,
+          pauseVindu: VINDU,
+          standardPauseMin: STD,
+          finnesAlleredeBaerer: false,
+        });
+        expect(v).toEqual({ pauseMin: pm, teller: null, kast: false });
+      }
+    });
+  }
+
+  it("gammel rad med delvis overlapp mot vinduet (11:15–15:00, 3,50, pause 30) godtas fortsatt", () => {
+    for (const modus of ["interaktiv", "sync"] as const) {
+      const v = vurderRadTimer({
+        modus,
+        satsEnhet: null,
+        fraTid: "11:15",
+        tilTid: "15:00",
+        timer: 3.5,
+        pauseMinAngitt: 30,
+        pauseVindu: VINDU,
+        standardPauseMin: STD,
+        finnesAlleredeBaerer: false,
+      });
+      expect(v).toEqual({ pauseMin: 30, teller: null, kast: false });
+    }
+  });
+
+  it("synk uten oppgitt pause, 16:00–19:00 2,5 t (vinduet 11:00 utenfor) → bærer 30 etter ny regel", () => {
+    const v = vurderRadTimer({
+      modus: "sync",
+      satsEnhet: null,
+      fraTid: "16:00",
+      tilTid: "19:00",
+      timer: 2.5,
+      pauseMinAngitt: 0,
+      pauseVindu: VINDU,
+      standardPauseMin: STD,
+      finnesAlleredeBaerer: false,
+    });
+    expect(v).toEqual({ pauseMin: 30, teller: "baerer", kast: false });
+  });
+});
+
+describe("ORDRE 2026-11-14 — reise teller mot 5,5-grensen: serveren godtar dagen", () => {
+  // Bekreft dag: 06:00–07:00 reise (1 t) + 07:00–12:00 arbeid (4,5 t, pause 30)
+  // + 12:00–13:00 retur. Pausevinduet fra skiftstart 06:00 + 4 t = 10:00.
+  it("arbeidsraden 07–12, 4,50, pause 30 (interaktiv) → ikke kast", () => {
+    const v = vurderRadTimer({
+      modus: "interaktiv",
+      satsEnhet: "per_time",
+      fraTid: "07:00",
+      tilTid: "12:00",
+      timer: 4.5,
+      pauseMinAngitt: 30,
+      pauseVindu: "10:00",
+      standardPauseMin: STD,
+      finnesAlleredeBaerer: false,
+    });
+    expect(v).toEqual({ pauseMin: 30, teller: null, kast: false });
+  });
+
+  it("reise-radene (1,00, pause 0) → ikke kast, ingen bærer", () => {
+    for (const [fra, til] of [["06:00", "07:00"], ["12:00", "13:00"]] as const) {
+      const v = vurderRadTimer({
+        modus: "interaktiv",
+        satsEnhet: "per_time",
+        fraTid: fra,
+        tilTid: til,
+        timer: 1,
+        pauseMinAngitt: 0,
+        pauseVindu: "10:00",
+        standardPauseMin: STD,
+        finnesAlleredeBaerer: true,
+      });
+      expect(v).toEqual({ pauseMin: 0, teller: null, kast: false });
+    }
+  });
+
+  it("gammel sedel (07–12, 5,00, pause 0, synk) → intet nytt avvik", () => {
+    const v = vurderRadTimer({
+      modus: "sync",
+      satsEnhet: "per_time",
+      fraTid: "07:00",
+      tilTid: "12:00",
+      timer: 5,
+      pauseMinAngitt: 0,
+      pauseVindu: "10:00",
+      standardPauseMin: STD,
+      finnesAlleredeBaerer: false,
+    });
+    expect(v).toEqual({ pauseMin: 0, teller: null, kast: false });
   });
 });

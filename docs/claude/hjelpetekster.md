@@ -57,8 +57,8 @@ kilden — er den importert og rendret på siden, har siden `?`-hjelp.
 
 ## Mobil: Søk (`apps/mobile/app/sok/index.tsx`)
 
-Mobilappen har ingen `?`-komponent ennå (ingen `HjelpKnapp` i `apps/mobile`); teksten under er vedtatt
-hjelpetekst for søkeskjermen og brukes når mobil får hjelpe-ikon.
+Mobil har `HjelpIkon` (`apps/mobile/src/components/HjelpIkon.tsx`, se § Mobil: Tillegg og Utlegg), men søkeskjermen bruker
+den ikke ennå; teksten under er vedtatt hjelpetekst for søkeskjermen.
 
 - **Hva er dette?** Søk i hele prosjektet fra ett felt. Skriv minst to tegn og trykk Søk. Åpnes fra søke-ikonet på
   Hjem og i Mapper, eller fra raden «Søk … i hele prosjektet» under søkefeltet i oppgave-, sjekkliste- og HMS-lista
@@ -73,7 +73,7 @@ hjelpetekst for søkeskjermen og brukes når mobil får hjelpe-ikon.
 
 ## Mobil: Filter og sortering i sjekkliste-, oppgave-, innboks- og HMS-lista (`FilterOgSorteringSheet.tsx`)
 
-Ingen `?`-komponent på mobil ennå; vedtatt tekst for trakt-arket, brukes når mobil får hjelpe-ikon.
+Trakt-arket har ikke `HjelpIkon` ennå; vedtatt tekst, brukes når arket får ikonet.
 
 - **Hva er dette?** Snevre inn og ordne lista. Bare valg som finnes i lista vises.
 - Gjelder sjekklister, oppgaver og innboksen (innboksen har ikke prioritet).
@@ -93,6 +93,113 @@ Ingen `?`-komponent på mobil ennå; vedtatt tekst for trakt-arket, brukes når 
 - **Hvor:** område, tegning og dokumentflyt. Byggeplass velges med chipen over lista, ikke her.
 - Aktive filtre vises som chips over lista; trykk × for å fjerne ett, eller «nullstill filter» for alle.
 
+## Mobil: Prosjektkortet (`app/timer/[id]/kort/[projectId].tsx`, 36c-kort)
+
+Kortskjermen har ikke sidehjelp ennå; overskriftene «Tillegg» og «Utlegg» på kortskjermen har `HjelpIkon` (se § Mobil: Tillegg
+og Utlegg). Vedtatt tekst for kortskjermen:
+
+- **Hva er dette?** Ett kort = arbeid, maskiner, varer, tillegg og utlegg på ett prosjekt, én byggeplass og ett underprosjekt den dagen.
+- **Endre kort:** flytter hele kortet til et annet prosjekt, en annen byggeplass eller et annet underprosjekt. Finnes
+  kortet du velger fra før, slås de sammen. Tillegg og utlegg følger kortet; reise blir liggende på dagen. Får ikke telefonen flyttet
+  varene på serveren, blir timene flyttet og varene stående på det gamle kortet — trykk «Endre kort» der en gang til.
+- **Slett kort:** sletter arbeid, maskiner, varer, tillegg og utlegg på kortet. Reise beholdes. Er det dagens siste kort, blir dagsseddelen stående som tomt utkast.
+- Begge knappene finnes bare mens dagsseddelen er utkast eller returnert. Varer som alt er sendt, må endres på serveren —
+  uten dekning er knappene sperret.
+
+## Mobil: Tillegg og Utlegg (`HjelpIkon`, Bekreft dag + prosjektkortet)
+
+`HjelpIkon` (`apps/mobile/src/components/HjelpIkon.tsx`) er mobilens ?-ikon: står ved overskriften det forklarer, trykk
+åpner et ark med tittel og tekst. Brukt ved «Tillegg» og «Utlegg» i Bekreft dag (`BekreftDagLonnUtlegg.tsx`) og i
+kortskjermen (`app/timer/[id]/kort/[projectId].tsx`, spec tillegg-utlegg-prosjektkort, 🟡 `feat/timer-tillegg-utlegg-kort`). Tekstene ligger i i18n (`hjelp.tillegg.*`, `hjelp.utlegg.*`, 15 språk).
+
+- **Tillegg** (`hjelp.tillegg.tekst`, Kenneths tekst): «Tillegg er lønn du har krav på i tillegg til timelønnen, fordi
+  arbeidet ble gjort under bestemte forhold. Eksempler: smusstillegg, høydetillegg, kosttillegg, bastillegg. Tillegget føres på prosjektkortet og får kortets byggeplass og underprosjekt.»
+- **Utlegg** (`hjelp.utlegg.tekst`, Kenneths tekst): «Utlegg er penger du har lagt ut selv for firmaet, og som du skal ha
+  tilbake. Ta bilde av kvitteringen. Eksempler: parkering, bompenger, verktøy kjøpt i butikk, drivstoff til firmabil. Utlegget føres på prosjektkortet og får kortets byggeplass og underprosjekt.»
+- I Bekreft dag lagres linjene først ved [Bekreft og lagre], på første dato som ikke er sendt. Er alle datoene sendt,
+  får du beskjed, og ingenting lagres.
+- I Bekreft dag med flere kort viser hver linje kortvalget «Kort» (`timer.bekreftDag.lonnUtlegg.kortValg`): trykk på
+  kortet linja hører til. Forvalgt er kortet med flest timer. Ett kort → ingen valg.
+
+## Mobil: Bekreft dag — utkast (`app/timer/bekreft-dag.tsx`)
+
+`HjelpIkon` i toppen av Bekreft dag (`timer.bekreftDag.utkastHjelpTittel` / `utkastHjelpTekst`, 15 språk):
+«Det du fører lagres på telefonen mens du jobber. Går du ut, ligger det klart neste gang du åpner dagen. Ingen andre
+ser det før du trykker Bekreft. Forkast sletter det.»
+
+- Sekundærknappen heter «Fortsett senere» med hint «Lagres på telefonen. Lederen ser ingenting før du bekrefter.» når
+  noe er ført, ellers «Ikke nå».
+- «Fortsetter der du slapp (kl.)» øverst når et utkast er gjenopprettet; «Lagret automatisk» i handlingsfeltet.
+- **Reisekjeden (ordre (17)):** ingen ?-tekst — linjene forklarer seg selv. «Reise X → Y 06:30–07:00 · 30 min» /
+  «Overføring X → Y …» (`timer.bekreftDag.reiseRute` / `overforingRute` + `kjedeMin`); trykk på tiden for å rette,
+  merket «Rettet» (`kjedeRettet`) med Angre. «Ankomst» (`ankomst`) viser «Beregnet {tid}» (`beregnet`) og «Målt {tid}»
+  (`maalt`, kilde `maaltKilde.gps_forslag` = «Ankommet»). Konflikt: «Reisen 07:00–07:40 overlapper 07:30–15:00. Rett en
+  av tidene før du lagrer.» / «Reisen går over midnatt. Rett tidene før du lagrer.» (`kjedeKonflikt.*`); sperretekst på
+  «Bekreft og lagre»: `sperre.kjedeKonflikt`. Prosjektkortet viser overlapp mellom lagrede rader med `timer.feil.overlapp`.
+- Merke i Timer-lista (`DagsseddelListe.tsx`): «Ikke bekreftet» (`timer.utkast.ikkeBekreftet`) — ved siden av statusen, eller på egen rad med 0 t når datoen ikke har sedel.
+
+## Web: Avstander-fanen (`firma/oppmotesteder/page.tsx` + `AvstanderFane.tsx`, POST 2026-11-14 (10))
+
+?-ikonet på Oppmøtesteder viser egen hjelp når fanen «Avstander» er åpen (`firma.avstander.hjelp.*`):
+
+- **Hva er dette?** Kjøreavstand og kjøretid fra hvert oppmøtested til hver byggeplass med plassering i aktive prosjekter. Beregnes automatisk når byggeplassen får plassering.
+- **Måles i:** «Måles i» under Reise-regelsett avgjør hovedverdien — km gjør avstanden redigerbar, minutter gjør kjøretiden redigerbar. Den andre verdien vises grått.
+- **Manuell:** en rettet verdi merkes «Manuell», brukes i reiseberegningen og overskrives aldri av ny beregning. Flyttes byggeplassen eller oppmøtestedet, står verdien, men merkes. «Tilbakestill» fjerner den og beregner på nytt.
+- **Status:** «Ingen rute» = ingen kjørbar vei; «Ikke beregnet» = paret mangler verdi, trykk «Beregn».
+- **Kjøretid** vises som «1 t 35 min» over én time og «45 min» under (`timer.kjoretid.*`, ordre 2026-11-14 (11) B). Redigering skjer i minutter.
+- **Mellom oppmøtesteder** (`firma.avstander.hjelp.kontor`, POST 2026-11-15 (13) L2): kjøretid mellom firmaets oppmøtesteder, vist når firmaet har minst to. Brukes til overføringsforslaget i Bekreft dag første og siste dag i en midlertidig periode. Kan rettes («Manuell») og tilbakestilles som byggeplass-avstandene.
+
+## Web: Oppmøtested — adressesøk (`firma/oppmotesteder/OppmotestedModal.tsx`, TILLEGG 2026-11-15 (13) L2 del C)
+
+- «Geokod» søker i Kartverkets adresser (`oppmotested.geokod` → `sokAdresser`), samme søk og treffliste (`components/AdresseTreffliste.tsx`) som byggeplass. Ett treff settes direkte; flere vises som klikkbar liste. Valgt treff setter punktet og adresseteksten.
+- Skrivemåter som «sommerfeldtsgate», «Storgt.», «vn» og avsluttende «Norge» prøves automatisk normalisert når første søk gir 0 treff (gjelder også byggeplass).
+- 0 treff (`firma.oppmotested.geokodIngen`): «Fant ingen treff på adressen. Du kan likevel lagre stedet: klikk i kartet for å sette punktet.» Lagre sperres ikke av 0 treff — bare av manglende punkt.
+- Under lista: «Adressedata © Kartverket» (`georef.attribusjonKartverket`).
+
+## Web og mobil: «Prosjekter i andre firma» i prosjektvelgeren (POST 2026-11-15 (15))
+
+- **Gruppeoverskrift:** «Prosjekter i andre firma» (`prosjektVelger.andreFirma`).
+- **Forklaring:** «Du er medlem av disse prosjektene, men de eies av et firma du ikke er ansatt i.» (`prosjektVelger.andreFirmaHjelp`). På web står den som ?-ikon med tooltip ved overskriften (`KontekstChip.tsx`). På mobil står den som grå linje under overskriften (`ProsjektVelger.tsx`).
+- **Rad:** prosjektnavn · eierfirma (web på samme linje, mobil på linja under; eierfirma mangler offline).
+
+## Web og mobil: byggeplassfilteret husker siste valg (ORDRE 2026-11-15 (22), 🟡 ikke merget)
+
+Ingen ?-tekst og ingen toast — veiledningen står i lista:
+- **Liste uten valg:** «Velg byggeplass» (`byggeplass.velgByggeplass`) · «Velg byggeplassen du jobber på for å se lista.» (`byggeplass.velgForListe`) + én knapp pr. byggeplass. Web: `ByggeplassFilterPort.tsx`; mobil: `VelgByggeplassTom.tsx`.
+- **Prosjekt uten byggeplass (web):** «Prosjektet har ingen byggeplass» (`byggeplass.prosjektManglerByggeplass`) + lenke «Legg til byggeplass» (`byggeplass.leggTil`) for den som har rett.
+- **Toppvelger uten valg:** web-chip «· Velg byggeplass»; mobil-chip «Velg byggeplass».
+- **Filterlinje med valgt byggeplass:** web-sjekklister «Viser denne byggeplassen + dokumenter uten byggeplass» (`byggeplass.viserByggeplassOgUtenByggeplass`); mobil-chip og tegninger «+ dokumenter uten byggeplass» (`byggeplass.viserByggeplassOgUtenByggeplassKort`).
+- **Fjernet atferd (TILLEGG (22), Kenneth 2026-11-15 «fjern "hele prosjektet" fra alle referanser»):** «Hele prosjektet» finnes ikke lenger som filtervalg, chip-tekst eller merkelapp på dokumenter. Dokumenter uten byggeplass får ingen merkelapp i lister og «—» i detalj-chipen. Slettede nøkler: `kontekstChip.heleProsjektet`, `mannskap.heleProsjektet`, `byggeplass.filtrererListe`, `byggeplass.filtrererListeKort`, `sjekklister.viser`, `sjekklister.visHeleProsjektet`, `sjekklister.filtrerPaaByggeplass`. PSI («hele prosjektet» som PSI-omfang) og dokumentsøk («Søk … i hele prosjektet») er andre domener og står.
+
+## Web og mobil: «Byggeplass ikke valgt · Velg» på sjekkliste og oppgave (ORDRE 2026-11-15 (20) linja + (20b))
+
+- **Linje:** «Byggeplass ikke valgt» (`kontekstChip.byggeplassIkkeValgt`) · «Velg» (`handling.velg`). Amber linje under lokasjons-/kontekstfeltet, ingen toast eller banner.
+- **Forklaring:** «Dokumentet er ikke knyttet til en byggeplass. Velg byggeplassen det hører til.» (`kontekstChip.byggeplassIkkeValgtHjelp`). Web: tooltip på linja. Mobil: `accessibilityHint`.
+- **Vises når:** dokumentet mangler byggeplass, prosjektet har minst én og brukeren kan redigere (`visByggeplassIkkeValgt`, `@sitedoc/shared`).
+- **«Velg» åpner:** web sjekkliste → byggeplass-chipen (uten tomvalg); web oppgave → lokasjonsvelgeren; mobil sjekkliste og oppgave → velgeren med byggeplassene øverst («Byggeplass», `lokasjonVelger.byggeplassOverskrift`) over tegningene. Ett trykk på en byggeplass setter den; tegning er frivillig.
+- **Byggeplassen følger tegningen (ORDRE (21), 🟡 ikke merget):** med tegning er web-chipen deaktivert med tooltip «Byggeplassen følger tegningen. Velg en tegning fra en annen byggeplass for å bytte.» (`kontekstChip.byggeplassFolgerTegning`); mobil viser ikke byggeplassene øverst i lista.
+- **Web lokasjonsvelger uten byggeplass:** nedtrekket viser «Velg byggeplass …» (`lokasjonVelger.velgByggeplassPlassholder`). «Gjelder hele byggeplassen» og fritekst er sperret med forklaringen «Velg en byggeplass først» (`sperret.velgByggeplass`).
+
+## Reise: mangler standard lønnsart (ordre 2026-11-14 (11) C, web + mobil)
+
+Ingen ?-tekst — veiledningen står der feilen oppstår, uten toast eller banner:
+
+- **«+ Reise» under terskel** (web-dialogen og mobilens reise-kort `ReiseKort.tsx`, POST 2026-11-15 (13) L2): rød linje «Firmaet mangler standard lønnsart — be firmaadmin sette den» (`timer.reiseTerskel.manglerArt`); lagre er sperret. Firmaadmin på web ser i stedet «Firmaet mangler standard lønnsart» (`timer.reiseTerskel.manglerStandardArt`) med lenken «Sett standard lønnsart» (`timer.reiseTerskel.settStandardArt`) til reise-regelsettet (`/dashbord/firma/innstillinger#reise-regelsett`, fra POST (13) L2 web-reisekortet).
+- **«+ Reise» på web før regelsettet er hentet:** Lagre er sperret med forklaring «Henter firmaets reiseregler …» (`sperret.reiseRegelLaster`), eller «Fikk ikke hentet firmaets reiseregler — lukk og prøv igjen» (`sperret.reiseRegelFeilet`) ved feil.
+- **Firmainnstillinger → Reise:** gul linje (`firma.innstillinger.reise.manglerStandardArt`) med lenke (`firma.innstillinger.reise.settStandardArt`) når terskelen er i bruk og ingen lønnsart er merket som standard.
+
+## Mobil og web: reise-kortet («+ Reise», `ReiseKort.tsx`, POST 2026-11-15 (13) L2 § 7 C)
+
+Web (`apps/web/src/app/dashbord/timer/[id]/ReiseKort.tsx`) bruker samme nøkler og tekster som mobil; sperreteksten vises som rød linje i kortet og ved hover på den sperrede Lagre-knappen. Mobil viser samme røde linje i kortet.
+
+Ingen ?-tekst — kortet viser én resultatlinje og, når Lagre er sperret, én forklaring under knappen (`KnappMedForklaring`):
+
+- **Valg:** «Til byggeplass» / «Fra byggeplass» (`timer.reiseKort.tur` / `.retur`, ordre (17)); første og siste dag i en midlertidig periode også «Overføring X → Y» (`timer.reiseKort.overforing`), forhåndsvalgt.
+- **Oppmøtested** vises som tekst «Fra {navn}» (`timer.reiseKort.fraOppmotested`) bare når firmaet har flere — den ansatte velger det aldri.
+- **Resultat:** «08:00–08:45 · 45 min kjøring» (`timer.reiseKort.resultat`) + grå forklaringslinje (arbeid/reise og hvorfor).
+- **Sperretekster** (`timer.reiseKort.sperre.*`): «Møter på byggeplass, ingen reise» · «Oppmøtested er ikke valgt — koble til nett for å velge» · «Kjøretid mangler for denne strekningen — be firmaadmin legge den inn under Avstander» · «Før arbeidstid på dagen først — reisen legges før eller etter den» · «Reisen går over midnatt — før den på dagen den hører til» · «Firmaet har ikke satt opp reiseregler — be firmaadmin sette dem». Mangler standard lønnsart: `timer.reiseTerskel.manglerArt` (over).
+- **Overføring til annet kontor** (del B, POST (13)): seksjon «Overføring til annet kontor» (`timer.reiseKort.annetKontor`) med knapper «Til {navn}» (`timer.reiseKort.tilKontor`), bare ved ≥ 2 aktive kontorer. Åpen overføring vises som «Midlertidig: {navn} fra {dato}» (`timer.reiseKort.midlertidigLinje`) med «Avslutt» (`timer.reiseKort.avslutt`). Åpen admin-satt periode sperrer: «Firmaadmin har satt et midlertidig oppmøtested — be firmaadmin endre det» (`timer.reiseKort.sperre.adminMidlertidig`). Firmaadmin ser «via overføring» (`firma.ansatte.oppmote.viaOverforing`) på perioden.
+
 ## Web: HMS-flytkortet på Dokumentflyt-siden (`HmsFlytKort.tsx`, ordre 2026-11-05 (9))
 
 Siden `oppsett/produksjon/dokumentflyt/page.tsx` har ingen `?`-komponent for kortet ennå; vedtatt tekst, brukes når
@@ -105,6 +212,16 @@ det får hjelpe-ikon.
   Ansatte») når du holder musa over merket. En deaktivert ansatt vises ikke.
 - **Lagt til i prosjektet:** behandlere som bare gjelder dette prosjektet. X-en står alltid synlig, også på nettbrett,
   og fjerner personen bare fra prosjektets HMS-gruppe.
+
+## Web: Oppmøtested pr. ansatt (`firma/ansatte/_components/OppmotePerioder.tsx`, POST 2026-11-15 (12))
+
+Ansatte-siden har ingen `?`-komponent; teksten står i feltet (`firma.ansatte.oppmote.*`):
+
+- **Fast:** «Gjelder til et nytt fast sted settes. Det forrige faste stedet avsluttes dagen før.»
+- **Overlapp:** «Overlapper en eksisterende periode av samme type.» — Lagre er sperret.
+- **Slett:** «Datoene i perioden får ansattens øvrige oppmøtested. Sletter du et fast sted, gjelder det forrige faste stedet igjen.»
+- **Lukket fast sted** har ingen slettknapp. Avviser serveren likevel: «Et avsluttet fast sted er historikk og kan ikke slettes. Sett et nytt fast sted i stedet.»
+- **Spørsmålet til den ansatte (web + mobil, `timer.oppmote.*`):** «Hvor møter du vanligvis?» — «Velg stedet du møter på. Det brukes til å beregne reise. Firmaet kan endre det senere.»
 
 ## Web: Deaktiver ansatt (`firma/ansatte/_components/DeaktiverModal.tsx`, ordre 2026-11-05 (11), (12))
 

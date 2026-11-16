@@ -1380,7 +1380,195 @@ export function kjorMigreringer() {
     CREATE INDEX IF NOT EXISTS idx_vareforbruk_local_sheet
       ON vareforbruk_local(sheet_id);
   `);
+
+  // ORDRE 36b (2026-11-07) — prosjektkortet ER valget (prosjekt, byggeplass, underprosjekt).
+  // Maskin bærer kortets byggeplass selv (speil av server sheet_machines.byggeplass_id),
+  // vareforbruk bærer kortets underprosjekt (speil av vareforbruk.external_cost_object_id).
+  // Additiv, nullable, INGEN backfill (Kenneth 2026-11-07: gamle rader arver sedelen ved
+  // visning). Ingen data slettes. Idempotent via PRAGMA.
+  // Radform (Kenneth 2026-11-12): varelinjen husker timerraden den er ført fra
+  // (speil av server vareforbruk.sheet_timer_id). Samme regler: additiv, nullable,
+  // ingen backfill — gamle linjer vises under «Uten rad».
+  for (const [tabell, kol] of [...KORTVALG_LOCAL_KOLONNER, ...RADFORM_LOCAL_KOLONNER]) {
+    try {
+      const kolonner = db.getAllSync(`PRAGMA table_info(${tabell})`) as Array<{ name: string }>;
+      if (!kolonner.find((k) => k.name === kol)) {
+        db.execSync(`ALTER TABLE ${tabell} ADD COLUMN ${kol} TEXT`);
+      }
+    } catch (e) {
+      console.warn(`[MIG] ${kol} på ${tabell} feilet`, e);
+    }
+  }
+
+  // Telefontest A funn 2 (2026-11-13): kvitteringsvedlegg husker når serveren bekreftet dem.
+  // Additiv, nullable INTEGER, INGEN backfill — gamle vedlegg får tidspunktet ved neste pull
+  // (serveren har dem) eller av redningen i timerSync. Idempotent via PRAGMA.
+  for (const [tabell, kol] of VEDLEGG_REGISTRERT_KOLONNER) {
+    try {
+      const kolonner = db.getAllSync(`PRAGMA table_info(${tabell})`) as Array<{ name: string }>;
+      if (!kolonner.find((k) => k.name === kol)) {
+        db.execSync(`ALTER TABLE ${tabell} ADD COLUMN ${kol} INTEGER`);
+      }
+    } catch (e) {
+      console.warn(`[MIG] ${kol} på ${tabell} feilet`, e);
+    }
+  }
+
+  // Plan A (2026-11-13): tillegg/utlegg/maskin husker om serveren har raden. Additiv, nullable
+  // INTEGER, INGEN backfill — gamle rader får sann ved neste pull. Idempotent via PRAGMA.
+  for (const [tabell, kol] of PAA_SERVER_KOLONNER) {
+    try {
+      const kolonner = db.getAllSync(`PRAGMA table_info(${tabell})`) as Array<{ name: string }>;
+      if (!kolonner.find((k) => k.name === kol)) {
+        db.execSync(`ALTER TABLE ${tabell} ADD COLUMN ${kol} INTEGER`);
+      }
+    } catch (e) {
+      console.warn(`[MIG] ${kol} på ${tabell} feilet`, e);
+    }
+  }
+
+  // L4-A (2026-11-12, spec timer-gps-lag3-4 § 2.2): byggeplass-besøk gjennom dagen.
+  // KUN lokal, synkes aldri, ingen lat/lng. Ny tabell — eksisterende installasjoner
+  // får den uten å røre andre data. Idempotent via IF NOT EXISTS.
+  db.execSync(`
+    CREATE TABLE IF NOT EXISTS arbeidsdag_besok_local (
+      id TEXT PRIMARY KEY NOT NULL,
+      arbeidsdag_id TEXT NOT NULL,
+      rekkefolge INTEGER NOT NULL,
+      byggeplass_id TEXT,
+      byggeplass_navn TEXT,
+      prosjekt_id TEXT,
+      ankomst_at TEXT NOT NULL,
+      avreise_at TEXT,
+      kilde TEXT NOT NULL,
+      bekreftet INTEGER NOT NULL,
+      sist_endret_lokalt TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_arbeidsdag_besok_local_dag
+      ON arbeidsdag_besok_local(arbeidsdag_id);
+  `);
+
+  // Utkast for prosjektkort (2026-11-13): ikke bekreftet prosjektkort, KUN lokal.
+  // Unik (bruker, firma, nøkkel) — all skriving er upsert, så to utkast for samme
+  // dag kan ikke oppstå. Ny tabell, idempotent via IF NOT EXISTS.
+  db.execSync(`
+    CREATE TABLE IF NOT EXISTS prosjektkort_utkast_local (
+      id TEXT PRIMARY KEY NOT NULL,
+      user_id TEXT NOT NULL,
+      organization_id TEXT NOT NULL,
+      nokkel TEXT NOT NULL,
+      dato TEXT NOT NULL,
+      arbeidsdag_id TEXT,
+      skjema_versjon INTEGER NOT NULL,
+      data TEXT NOT NULL,
+      kvitteringer TEXT NOT NULL DEFAULT '[]',
+      opprettet TEXT NOT NULL,
+      sist_endret TEXT NOT NULL
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS ux_prosjektkort_utkast
+      ON prosjektkort_utkast_local(user_id, organization_id, nokkel);
+  `);
+
+  // Oppmøtested med perioder (POST 2026-11-15 (12) D): brukerens egne perioder,
+  // KUN lokal cache for den delte resolveren (offline etterregistrering). Ny
+  // tabell, idempotent via IF NOT EXISTS.
+  db.execSync(`
+    CREATE TABLE IF NOT EXISTS oppmote_periode_local (
+      id TEXT PRIMARY KEY NOT NULL,
+      user_id TEXT NOT NULL,
+      organization_id TEXT NOT NULL,
+      type TEXT NOT NULL,
+      fast INTEGER NOT NULL DEFAULT 0,
+      oppmotested_id TEXT,
+      project_id TEXT,
+      fra_dato TEXT NOT NULL,
+      til_dato TEXT,
+      sist_oppdatert INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_oppmote_periode_local_bruker_org
+      ON oppmote_periode_local(user_id, organization_id);
+  `);
+
+  // L2 (POST 2026-11-15 (13) 6b): kontor↔kontor-avstand for overføring
+  // (første/siste dag i midlertidig periode). Speiler server
+  // OppmotestedAvstand. Paret er normalisert (fra < til). KUN lokal.
+  db.execSync(`
+    CREATE TABLE IF NOT EXISTS oppmotested_avstand_local (
+      organization_id TEXT NOT NULL,
+      fra_oppmotested_id TEXT NOT NULL,
+      til_oppmotested_id TEXT NOT NULL,
+      kjoretid_min INTEGER,
+      avstand_m INTEGER,
+      sist_oppdatert INTEGER NOT NULL,
+      PRIMARY KEY (fra_oppmotested_id, til_oppmotested_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_oppmotested_avstand_local_org
+      ON oppmotested_avstand_local(organization_id);
+  `);
+
+  // POST (13) del B: `kilde` på periode-cachen (additiv, nullable TEXT, ingen
+  // backfill — neste refresh skriver verdien) + utgående overføringskø.
+  for (const [tabell, kol] of OPPMOTE_KILDE_KOLONNER) {
+    try {
+      const kolonner = db.getAllSync(`PRAGMA table_info(${tabell})`) as Array<{ name: string }>;
+      if (!kolonner.find((k) => k.name === kol)) {
+        db.execSync(`ALTER TABLE ${tabell} ADD COLUMN ${kol} TEXT`);
+      }
+    } catch (e) {
+      console.warn(`[MIG] ${kol} på ${tabell} feilet`, e);
+    }
+  }
+  db.execSync(`
+    CREATE TABLE IF NOT EXISTS ${OPPMOTE_OVERFORING_KO} (
+      id TEXT PRIMARY KEY NOT NULL,
+      user_id TEXT NOT NULL,
+      organization_id TEXT NOT NULL,
+      handling TEXT NOT NULL,
+      oppmotested_id TEXT,
+      dato TEXT NOT NULL,
+      opprettet INTEGER NOT NULL,
+      forsok INTEGER NOT NULL DEFAULT 0,
+      feilmelding TEXT
+    );
+  `);
 }
+
+/** POST (13) del B: periode-cachens kilde-kolonne (tabell, kolonne). */
+export const OPPMOTE_KILDE_KOLONNER = [["oppmote_periode_local", "kilde"]] as const;
+
+/** POST (13) del B: utgående kø for `oppmotePeriode.overforing`. */
+export const OPPMOTE_OVERFORING_KO = "oppmote_overforing_ko" as const;
+
+/** Utkast for prosjektkort: lokal tabell + unik indeks. */
+export const UTKAST_LOCAL_TABELL = "prosjektkort_utkast_local" as const;
+export const UTKAST_LOCAL_UNIK_INDEKS = "ux_prosjektkort_utkast" as const;
+
+/** ORDRE 36b: kortvalg-kolonner (tabell, kolonne) som legges til eksisterende tabeller. */
+export const KORTVALG_LOCAL_KOLONNER = [
+  ["sheet_machine_local", "byggeplass_id"],
+  ["vareforbruk_local", "external_cost_object_id"],
+  // Tillegg/utlegg på prosjektkortet (2026-11-13): NULL = arv, ingen backfill.
+  ["sheet_tillegg_local", "byggeplass_id"],
+  ["sheet_tillegg_local", "external_cost_object_id"],
+  ["sheet_utlegg_local", "byggeplass_id"],
+  ["sheet_utlegg_local", "external_cost_object_id"],
+] as const;
+
+/** Radform: varelinjens timerrad (tabell, kolonne). */
+export const RADFORM_LOCAL_KOLONNER = [["vareforbruk_local", "sheet_timer_id"]] as const;
+
+/** Telefontest A funn 2: serverens bekreftelse på kvitteringsvedlegg (tabell, kolonne). */
+export const VEDLEGG_REGISTRERT_KOLONNER = [
+  ["sheet_tillegg_vedlegg_local", "registrert"],
+  ["sheet_utlegg_vedlegg_local", "registrert"],
+] as const;
+
+/** Plan A (konflikt løst på web): «raden finnes på serveren» (tabell, kolonne). */
+export const PAA_SERVER_KOLONNER = [
+  ["sheet_machine_local", "paa_server"],
+  ["sheet_tillegg_local", "paa_server"],
+  ["sheet_utlegg_local", "paa_server"],
+] as const;
 
 /** Prosjektkort L3: lokale tabeller for vare-katalog og vareforbruk ført fra kortet. */
 export const VAREFORBRUK_LOCAL_TABELLER = ["vare_local", "vareforbruk_local"] as const;

@@ -14,12 +14,12 @@ import { metadataFraLokal, metadataTilLokal, type MetadataFelt } from "./dokumen
  *
  *  Henter HELE prosjektet (uten byggeplassId) slik at lokal lesing selv kan
  *  gjøre byggeplass-scopingen serveren gjør med byggeplassFilterViaTegning.
- *  Task har INGEN egen byggeplassId — tilhørighet finnes kun via tegningen
- *  (drawing.byggeplassId). Serverens TRE-ledds tegningsfilter (valgt byggeplass'
- *  tegning · prosjekt-tegning · ingen tegning) kollapser til den samme to-ledds
- *  «valgt ELLER byggeplass-løs»-regelen som Checklist bruker, når vi utleder
- *  byggeplassId = drawing.byggeplass.id (ingen/prosjekt-tegning → null → hele
- *  prosjektet). Serverens tilgangsfilter + HMS-eksklusjon (domain ≠ hms) er
+ *  Task har egen byggeplassId (ORDRE 28); eldre rader uten egen verdi arver
+ *  tegningens (drawing.byggeplassId). Serverens FIRE-ledds filter (egen = valgt ·
+ *  egen null + tegning på valgt · egen null + prosjekt-tegning · egen null + ingen
+ *  tegning) kollapser til den samme to-ledds «valgt ELLER byggeplass-løs»-regelen
+ *  som Checklist bruker, når vi utleder byggeplassId = egen ?? drawing.byggeplass.id
+ *  (begge null → hele prosjektet). Serverens tilgangsfilter + HMS-eksklusjon (domain ≠ hms) er
  *  allerede anvendt → radene er en tro kopi av det brukeren ville sett online.
  *
  *  Bærer KUN det lista viser/filtrerer på (målt mot app/oppgave/index.tsx og
@@ -96,6 +96,7 @@ export async function refreshOppgaveKatalog(
     recipientGroup?: { name: string | null } | null;
     dokumentflyt?: { name: string } | null;
     drawing: { name?: string | null; byggeplass: { id: string } | null } | null;
+    byggeplass?: { id: string } | null;
     omrade?: { navn: string } | null;
   } & MetadataFelt>;
 
@@ -118,8 +119,9 @@ export async function refreshOppgaveKatalog(
         createdAt: tilIso(r.createdAt) ?? new Date(naa).toISOString(),
         updatedAt: tilIso(r.updatedAt) ?? new Date(naa).toISOString(),
         dueDate: tilIso(r.dueDate),
-        // UTLEDET effektiv byggeplass (se filhode): drawing.byggeplass.id, ellers null.
-        byggeplassId: r.drawing?.byggeplass?.id ?? null,
+        // UTLEDET effektiv byggeplass (se filhode): egen byggeplass (ORDRE 28), ellers
+        // tegningens, ellers null.
+        byggeplassId: r.byggeplass?.id ?? r.drawing?.byggeplass?.id ?? null,
         templateName: r.template?.name ?? null,
         templatePrefix: r.template?.prefix ?? null,
         templateSubdomain: r.template?.subdomain ?? null,

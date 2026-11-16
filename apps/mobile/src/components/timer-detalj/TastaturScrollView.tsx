@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { forwardRef, type ReactNode } from "react";
 import { ScrollView, type ScrollViewProps } from "react-native";
 
 /**
@@ -8,16 +8,18 @@ import { ScrollView, type ScrollViewProps } from "react-native";
  * Erstatter `KeyboardAvoidingView` med `keyboardVerticalOffset={0}`, som løftet
  * for lite fordi pageSheet-arket starter et stykke ned fra toppen (16b, 2026-11-06).
  * Android: propen ignoreres; vinduet krymper som før (adjustResize).
+ *
+ * ORDRE 37: ref videresendes (varesøket ruller med `scrollTo`). Uten ref = som før.
  */
-export function TastaturScrollView({
-  children,
-  ...props
-}: Omit<ScrollViewProps, "automaticallyAdjustKeyboardInsets" | "keyboardShouldPersistTaps"> & {
-  children: ReactNode;
-}) {
+export const TastaturScrollView = forwardRef<
+  ScrollView,
+  Omit<ScrollViewProps, "automaticallyAdjustKeyboardInsets" | "keyboardShouldPersistTaps"> & {
+    children: ReactNode;
+  }
+>(function TastaturScrollView({ children, ...props }, ref) {
   return (
-    <ScrollView {...props} automaticallyAdjustKeyboardInsets keyboardShouldPersistTaps="handled">
+    <ScrollView {...props} ref={ref} automaticallyAdjustKeyboardInsets keyboardShouldPersistTaps="handled">
       {children}
     </ScrollView>
   );
-}
+});

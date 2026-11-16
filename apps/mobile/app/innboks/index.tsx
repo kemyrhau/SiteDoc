@@ -25,6 +25,7 @@ import { useByggeplass } from "../../src/kontekst/ByggeplassKontekst";
 import { StatusMerkelapp } from "../../src/components/StatusMerkelapp";
 import { StatusFilterRad } from "../../src/components/StatusFilterRad";
 import { ByggeplassChip } from "../../src/components/ByggeplassChip";
+import { VelgByggeplassTom, useMaaVelgeByggeplass } from "../../src/components/VelgByggeplassTom";
 import { FilterOgSorteringSheet } from "../../src/components/dokumentliste/FilterOgSorteringSheet";
 import { AktiveFilterChips } from "../../src/components/dokumentliste/AktiveFilterChips";
 import {
@@ -53,6 +54,7 @@ export default function InnboksListe() {
   const { t } = useTranslation();
   const { valgtProsjektId } = useProsjekt();
   const { valgtBygningId } = useByggeplass();
+  const maaVelgeByggeplass = useMaaVelgeByggeplass();
   const router = useRouter();
   const queryClient = useQueryClient();
   const insets = useSafeAreaInsets();
@@ -276,7 +278,11 @@ export default function InnboksListe() {
         />
       )}
 
-      {laster ? (
+      {/* (22) Uten byggeplassvalg: «Velg byggeplass». Søk gjelder
+          fortsatt hele prosjektet. */}
+      {!søkerNaa && maaVelgeByggeplass ? (
+        <VelgByggeplassTom />
+      ) : laster ? (
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color="#1e40af" />
           <Text className="mt-3 text-sm text-gray-500">{t("handling.laster")}</Text>

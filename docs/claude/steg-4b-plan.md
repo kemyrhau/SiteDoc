@@ -404,14 +404,14 @@ Per [terminologi.md § 0](terminologi.md):
 | Natursingel | 24 | Tonn | – |
 | Overskuddsmasser (ren) | 7 | m3 | – |
 | Overskuddsmasser (ren) | 25 | Tonn | – |
-| Pukk 0-11 | 33 | Tonn | – |
-| Pukk 0-11 | 34 | m3 | – |
-| Pukk 0-120 | 31 | m3 | – |
-| Pukk 0-120 | 31 | Tonn | – |
-| Pukk 22-120 | 32 | m3 | – |
-| Pukk 22-120 | 32 | Tonn | – |
-| Pukk 22-64 | 30 | m3 | – |
-| Pukk 22-64 | 30 | Tonn | – |
+| Knust fjell 0-11 | 33 | Tonn | – |
+| Knust fjell 0-11 | 34 | m3 | – |
+| Knust fjell 0-120 | 31 | m3 | – |
+| Knust fjell 0-120 | 31 | Tonn | – |
+| Grovpukk 22-120 | 32 | m3 | – |
+| Grovpukk 22-120 | 32 | Tonn | – |
+| Grovpukk 22-64 | 30 | m3 | – |
+| Grovpukk 22-64 | 30 | Tonn | – |
 | Pukk 8-22 | 4 | m3 | – |
 | Pukk 8-22 | 26 | Tonn | – |
 | Salt | 12 | kilo | – |
@@ -424,7 +424,7 @@ Per [terminologi.md § 0](terminologi.md):
 | Strøsand | 8 | m3 | – |
 | Strøsand | 29 | Tonn | – |
 
-⚠️ **Varenummer-duplikater i SmartDok-data:** Flere varer deler internt varenummer på tvers av enheter (eks. Pukk 0-120 har varenr 31 både som m3 og Tonn). Import-løsning: bruk `(orgId, varenummer + "-" + enhet)` som unique-nøkkel ved auto-suffiksering, eller la unique-constraint være `(orgId, navn, enhet)` — besluttes i Fase 5.
+⚠️ **Varenummer-duplikater i SmartDok-data:** Flere varer deler internt varenummer på tvers av enheter (eks. Knust fjell 0-120 har varenr 31 både som m3 og Tonn). Import-løsning: bruk `(orgId, varenummer + "-" + enhet)` som unique-nøkkel ved auto-suffiksering, eller la unique-constraint være `(orgId, navn, enhet)` — besluttes i Fase 5.
 
 ### Kategori: Diverse (8 varer — 7 importeres, 1 utelates pga ugyldig data)
 

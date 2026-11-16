@@ -1405,6 +1405,8 @@ export default function TegningerSide() {
         templateId: valgtMal,
         ...flytInput,
         title: "Ny oppgave",
+        // ORDRE 28: aktiv byggeplass som for sjekkliste-grenen; tegningens byggeplass vinner på serveren.
+        byggeplassId: aktivByggeplass?.id,
         drawingId: aktivTegning?.id,
         positionX: nyMarkør?.x,
         positionY: nyMarkør?.y,

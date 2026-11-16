@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
+  Redirect,
   useLocalSearchParams,
   useRouter,
   useFocusEffect,
@@ -53,21 +54,21 @@ import { TimerStatusMerkelapp } from "../../src/components/TimerStatusMerkelapp"
 import { DagstotalBanner } from "../../src/components/DagstotalBanner";
 import {
   ArbeidstidSeksjon,
-  RedigerArbeidstidModal,
 } from "../../src/components/timer-detalj/ArbeidstidSeksjon";
-import { ProsjektkortSamleside } from "../../src/components/timer-detalj/ProsjektkortSamleside";
 import { lesTimerModusLokalt } from "../../src/services/organizationSettingKatalog";
 import {
   kortProsjektIder,
-  tilKortMaskinRader,
-  tilKortTimerRader,
   tilKortVarer,
+  varerForProsjekt,
 } from "../../src/lib/prosjektkortMobil";
 import { SummeringsBanner } from "../../src/components/timer-detalj/SummeringsBanner";
 import { ProsjektVelgerModal } from "../../src/components/timer-detalj/ProsjektVelger";
 import { ByggeplassVelgerModal } from "../../src/components/timer-detalj/ByggeplassVelger";
+import { BekreftSendUtenPauseModal } from "../../src/components/timer-detalj/BekreftSendUtenPauseModal";
 import { ProsjektGruppe } from "../../src/components/timer-detalj/ProsjektGruppe";
+import type { VisVarelinje } from "../../src/components/timer-detalj/VareforbrukLesListe";
 import { finnProsjektLokalt } from "../../src/services/prosjektKatalog";
+import { prosjektVisningsnavn } from "../../src/utils/prosjektNavn";
 import {
   flyttMatpauseVedAvhuking,
   settMatpauseBaerer,
@@ -81,13 +82,12 @@ import {
 import {
   hentStandardLonnsartLokalt,
   harOvertidLonnsartLokalt,
-  hentReiseLonnsartId,
 } from "../../src/services/timerKatalog";
 import { harMaskinforerbevisLokalt } from "../../src/services/maskinKatalog";
 import { formatNorskDato, formatTidspunkt, isoTidspunktTilHHMM } from "../../src/utils/dato";
 import { kanGjenaapneDagsseddel } from "../../src/utils/gjenaapne-tilgang";
 import type { ForsonRad as DeltForsonRad } from "@sitedoc/shared";
-import { slaaSammenVarelinjer } from "@sitedoc/shared";
+import { arbeidOgReise, forsokInnsending, svarPaaPauseSporsmaal } from "@sitedoc/shared";
 import { hentLokaleVarelinjer } from "../../src/services/vareforbrukSync";
 import type {
   Sedel,
@@ -211,11 +211,11 @@ export default function DagsseddelDetalj() {
   const [visLeggTilProsjekt, setVisLeggTilProsjekt] = useState(false);
   // L1 / B6 sedel-nivå: byggeplass-velger for aktivt prosjekt.
   const [visByggeplassVelger, setVisByggeplassVelger] = useState(false);
-  // Prosjektkort L2: «Endre» i «Dagens ramme» åpner fra/til-modalen.
-  const [visRammeModal, setVisRammeModal] = useState(false);
   // F5: matpause-toast + bekreftelsesmodal ved fjerning (ingen kvalifisert rad).
   const { melding: pauseToast, vis: visPauseToast } = useMiniToast();
   const [bekreftFjernRadId, setBekreftFjernRadId] = useState<string | null>(null);
+  // Spørsmål ved innsending av dag over 5,5 t uten pause.
+  const [visPauseSporsmaal, setVisPauseSporsmaal] = useState(false);
   // UF-0: find-or-open fra «+ Ny» — subtil notis om at dagen alt fantes.
   const [visAapnetNotis, setVisAapnetNotis] = useState(
     params.aapnetEksisterende === "1",
@@ -554,6 +554,9 @@ export default function DagsseddelDetalj() {
     () => timerRader.reduce((sum, r) => sum + (r.timer ?? 0), 0),
     [timerRader],
   );
+  // Post 2026-11-14 (7) punkt 6: kun topp-banneret måler dekning på arbeid
+  // uten reise; reise vises separat. `totaltimer` er uendret for resten.
+  const bannerArbeidReise = useMemo(() => arbeidOgReise(timerRader), [timerRader]);
 
   // ③a fallback: auto-utkast der dagen nådde normaltid (overtid var aktuelt)
   // men firmaet mangler overtid-lønnsart → auto-gen kunne ikke føre overtid.
@@ -592,20 +595,6 @@ export default function DagsseddelDetalj() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [sedel?.organizationId, sistSynkronisert],
   );
-  const orgId = sedel?.organizationId;
-  const reiseLonnsartId = useMemo(
-    () => (orgId ? hentReiseLonnsartId(orgId) : null),
-    [orgId],
-  );
-  const kortTimer = useMemo(
-    () =>
-      sedel ? tilKortTimerRader(timerRader, sedel.projectId, reiseLonnsartId) : [],
-    [sedel, timerRader, reiseLonnsartId],
-  );
-  const kortMaskin = useMemo(
-    () => (sedel ? tilKortMaskinRader(maskinRader, sedel.projectId) : []),
-    [sedel, maskinRader],
-  );
   const kortIder = useMemo(
     () =>
       sedel
@@ -617,53 +606,21 @@ export default function DagsseddelDetalj() {
         : [],
     [sedel, timerRader, maskinRader, tilleggRader, utleggRader],
   );
-  const utleggAntall = useMemo(() => {
-    const m = new Map<string, number>();
-    if (!sedel) return m;
-    for (const r of utleggRader) {
-      const pid = r.projectId ?? sedel.projectId;
-      m.set(pid, (m.get(pid) ?? 0) + 1);
-    }
-    return m;
-  }, [sedel, utleggRader]);
-  // Vareforbruk: server-linjer (online) + linjer ført fra prosjektkortet lokalt
-  // (L3, også offline). Samme klient-id → telles én gang.
+  // Vareforbruk: server-linjer (online) + linjer ført lokalt fra prosjektkortet
+  // eller bekreft-dag (L3/L3-D, også offline). Samme klient-id → telles én gang.
+  // Begge moduser: dagskortet viser dem lesende per prosjekt (K20).
   const vareQuery = trpc.vareforbruk.hentMineForDato.useQuery(
     { organizationId: sedel?.organizationId ?? "", dato: sedel?.dato ?? "" },
-    { enabled: kortModus && erPaaNettet && !!sedel },
+    { enabled: erPaaNettet && !!sedel },
   );
-  const kortVarer = useMemo(
-    () =>
-      slaaSammenVarelinjer<{ id: string; projectId: string; antall: number; vare: { enhet: string } }>(
-        tilKortVarer(vareQuery.data ?? []),
-        kortModus && sedel ? hentLokaleVarelinjer(sedel.id) : [],
-      ),
-    [vareQuery.data, kortModus, sedel],
-  );
-  const byggeplassNavn = useCallback((byggeplassId: string): string | null => {
-    const db = hentDatabase();
-    if (!db) return null;
-    return (
-      db
-        .select({ navn: byggeplassLocal.navn })
-        .from(byggeplassLocal)
-        .where(eq(byggeplassLocal.id, byggeplassId))
-        .all()[0]?.navn ?? null
-    );
-  }, []);
-  const prosjektNavn = useCallback((projectId: string): string => {
-    const p = finnProsjektLokalt(projectId);
-    if (!p) return projectId;
-    return `${p.projectNumber ? p.projectNumber + " — " : ""}${p.name}`;
-  }, []);
+  const serverVarer = useMemo(() => tilKortVarer(vareQuery.data ?? []), [vareQuery.data]);
+  const lokaleVarer = useMemo(() => (sedel ? hentLokaleVarelinjer(sedel.id) : []), [sedel]);
 
   // L1 / B6: aktivt prosjekt-navn (sedelens primærprosjekt) for blå topp-oversikt.
   const sedelProsjektNavn = useMemo(() => {
     if (!sedel) return "";
-    const p = finnProsjektLokalt(sedel.projectId);
-    if (!p) return sedel.projectId;
-    return `${p.projectNumber ? p.projectNumber + " — " : ""}${p.name}`;
-  }, [sedel]);
+    return prosjektVisningsnavn(finnProsjektLokalt(sedel.projectId), t("timer.detalj.ukjentProsjekt"));
+  }, [sedel, t]);
 
   // L1 / B6 sedel-nivå byggeplass: navn til topp-oversikten + mismatch-deteksjon.
   // 1) Eksplisitt sedel-byggeplass (GPS ved «Start dag», eller valgt i velgeren)
@@ -691,9 +648,9 @@ export default function DagsseddelDetalj() {
             ? {
                 byggeplass: navn ?? sedel.byggeplassId,
                 gpsProsjekt:
-                  finnProsjektLokalt(bp.projectId)?.name ?? bp.projectId,
+                  prosjektVisningsnavn(finnProsjektLokalt(bp.projectId), t("timer.detalj.ukjentProsjekt")),
                 sedelProsjekt:
-                  finnProsjektLokalt(sedel.projectId)?.name ?? sedel.projectId,
+                  prosjektVisningsnavn(finnProsjektLokalt(sedel.projectId), t("timer.detalj.ukjentProsjekt")),
               }
             : null;
         return { navn, mismatch };
@@ -708,7 +665,7 @@ export default function DagsseddelDetalj() {
       return { navn: perProsjekt[0].navn, mismatch: null };
     }
     return { navn: null, mismatch: null };
-  }, [sedel]);
+  }, [sedel, t]);
 
   // L1 / B6: skriv valgt byggeplass på sedelen (sedel-nivå) + merk pending.
   // Sync-laget sender byggeplassId på sedel-nivå; server propagerer til rader.
@@ -788,12 +745,28 @@ export default function DagsseddelDetalj() {
     markerEndretOgLes();
   }, [sedel, sheetId, markerEndretOgLes]);
 
+  // Innsending: dag over 5,5 t uten pause → spørsmål først (Kenneth
+  // 2026-11-14 «still spørsmål, aksepter ved bekreftelse»). Delt flyt
+  // (`forsokInnsending`/`svarPaaPauseSporsmaal`) — samme som web.
   function sendTilAttestering() {
     if (!sedel) return;
     if (timerRader.length === 0) {
       setFeil(t("timer.feil.minstEnTimerRad"));
       return;
     }
+    forsokInnsending(timerRader, {
+      send: utforSendTilAttestering,
+      spor: () => setVisPauseSporsmaal(true),
+    });
+  }
+
+  function svarPauseSporsmaal(svar: "bekreft" | "avbryt") {
+    setVisPauseSporsmaal(false);
+    svarPaaPauseSporsmaal(svar, utforSendTilAttestering);
+  }
+
+  function utforSendTilAttestering() {
+    if (!sedel) return;
     const db = hentDatabase();
     if (!db) return;
     db.update(dagsseddelLocal)
@@ -947,6 +920,23 @@ export default function DagsseddelDetalj() {
     );
   }
 
+  // ORDRE 35 (I2): prosjektkort-modus har egen rute; dagskortet under er urørt.
+  if (kortModus) {
+    return (
+      <Redirect
+        href={{
+          pathname: "/timer/[id]/prosjektkort",
+          params: {
+            id: sheetId,
+            ...(params.aapnetEksisterende
+              ? { aapnetEksisterende: params.aapnetEksisterende }
+              : {}),
+          },
+        }}
+      />
+    );
+  }
+
   return (
     <SafeAreaView className="flex-1 bg-gray-50" edges={["top"]}>
       {/* Topp-bar */}
@@ -991,7 +981,8 @@ export default function DagsseddelDetalj() {
           alle tilstander, ikke bare ved redigerbar. */}
       <View className="mx-4 mt-3">
         <SummeringsBanner
-          totaltimer={totaltimer}
+          totaltimer={bannerArbeidReise.arbeid}
+          reiseTimer={bannerArbeidReise.reise}
           normTimer={normTimer}
           maskinTimer={totalMaskin}
         />
@@ -1001,9 +992,6 @@ export default function DagsseddelDetalj() {
         {/* L1 / B6 sedel-nivå: blå topp-oversikt — aktivt prosjekt + byggeplass.
             Pil-til-høyre åpner byggeplass-velger (kun redigerbar). Byggeplass er
             sedel-nivå (én/dag); per-rad/«splitt dagen» er Beslutning 6-oppfølger. */}
-        {/* Prosjektkort L2 (spec § 7): sedel-boksen faller bort i kortmodus —
-            byggeplass vises pr. kort, arv-kilden i «Dagens ramme». */}
-        {!kortModus && (
         <Pressable
           disabled={!erRedigerbar}
           onPress={() => setVisByggeplassVelger(true)}
@@ -1020,7 +1008,6 @@ export default function DagsseddelDetalj() {
           </View>
           {erRedigerbar && <ChevronRight size={18} color="#1e40af" />}
         </Pressable>
-        )}
 
         {/* Del 3: myk, ikke-blokkerende advisory — GPS-byggeplassen tilhører et
             annet prosjekt enn det valgte (G1: arbeider-valg er autoritativt). */}
@@ -1266,33 +1253,6 @@ export default function DagsseddelDetalj() {
           </View>
         )}
 
-        {kortModus ? (
-          <ProsjektkortSamleside
-            prosjektIder={kortIder}
-            timer={kortTimer}
-            maskin={kortMaskin}
-            varer={kortVarer}
-            utleggAntall={utleggAntall}
-            sedelByggeplassId={sedel.byggeplassId ?? null}
-            sedelStatus={sedel.status}
-            normTimer={normTimer}
-            ramme={{
-              fra: isoTidspunktTilHHMM(sedel.startAt),
-              til: isoTidspunktTilHHMM(sedel.endAt),
-              pauseMin: sedel.pauseMin ?? 0,
-            }}
-            rammeByggeplassNavn={byggeplassInfo.navn}
-            prosjektNavn={prosjektNavn}
-            byggeplassNavn={byggeplassNavn}
-            redigerbar={erRedigerbar}
-            onAapneKort={(pid) => router.push(`/timer/${sheetId}/kort/${pid}`)}
-            onNyttKort={() => setVisLeggTilProsjekt(true)}
-            onEndreRamme={() => setVisRammeModal(true)}
-            onEndreByggeplass={() => setVisByggeplassVelger(true)}
-            onSend={sendTilAttestering}
-          />
-        ) : (
-        <>
         <ArbeidstidSeksjon
           sheetId={sheetId}
           dato={sedel.dato}
@@ -1325,11 +1285,13 @@ export default function DagsseddelDetalj() {
             harMaskinforerbevis={harMaskinforerbevis}
             redigerbar={erRedigerbar}
             onPauseToggle={handterPauseToggle}
+            dagsnormTimer={normTimer}
             timerRader={timerRader.filter((r) => (r.projectId ?? sedel.projectId) === pid)}
             alleTimerRader={timerRader}
             tilleggRader={tilleggRader.filter((r) => (r.projectId ?? sedel.projectId) === pid)}
             maskinRader={maskinRader.filter((r) => (r.projectId ?? sedel.projectId) === pid)}
             utleggRader={utleggRader.filter((r) => (r.projectId ?? sedel.projectId) === pid)}
+            varer={varerForProsjekt<VisVarelinje>(serverVarer, lokaleVarer, pid)}
             onEndret={markerEndretOgLes}
           />
         ))}
@@ -1344,8 +1306,6 @@ export default function DagsseddelDetalj() {
               {t("timer.leggTilProsjekt")}
             </Text>
           </Pressable>
-        )}
-        </>
         )}
 
         {feil && (
@@ -1433,31 +1393,11 @@ export default function DagsseddelDetalj() {
           ekskluderIder={kortModus ? kortIder : aktiveProsjektIder}
           onVelg={(id) => {
             setVisLeggTilProsjekt(false);
-            // Kortmodus: nytt kort åpnes direkte; lagres når første rad legges til.
-            if (kortModus) {
-              router.push(`/timer/${sheetId}/kort/${id}`);
-              return;
-            }
             setEkstraProsjektIder((forrige) =>
               forrige.includes(id) ? forrige : [...forrige, id],
             );
           }}
           onLukk={() => setVisLeggTilProsjekt(false)}
-        />
-      )}
-
-      {visRammeModal && (
-        <RedigerArbeidstidModal
-          sheetId={sheetId}
-          dato={sedel.dato}
-          startAt={sedel.startAt}
-          endAt={sedel.endAt}
-          beskrivelse={sedel.beskrivelse ?? null}
-          onLukk={() => setVisRammeModal(false)}
-          onLagret={() => {
-            setVisRammeModal(false);
-            markerEndretOgLes();
-          }}
         />
       )}
 
@@ -1511,6 +1451,12 @@ export default function DagsseddelDetalj() {
           </View>
         </View>
       </Modal>
+
+      <BekreftSendUtenPauseModal
+        synlig={visPauseSporsmaal}
+        onAvbryt={() => svarPauseSporsmaal("avbryt")}
+        onBekreft={() => svarPauseSporsmaal("bekreft")}
+      />
 
       <MiniToast melding={pauseToast} />
     </SafeAreaView>

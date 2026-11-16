@@ -48,7 +48,7 @@ function lagCaller() {
   const finnDok = async ({ where }: { where: { id: string } }) => {
     const d = DOKUMENTER[where.id];
     return d
-      ? { projectId: PROSJEKT, folderId: d.folderId, filename: "x.pdf", fileUrl: "/uploads/x.pdf", sourceLanguage: "nb" }
+      ? { projectId: PROSJEKT, folderId: d.folderId, filename: "x.pdf", fileUrl: "/uploads/x.pdf", sourceLanguage: "nb", _count: { chunks: 0 } }
       : null;
   };
   const prisma = {

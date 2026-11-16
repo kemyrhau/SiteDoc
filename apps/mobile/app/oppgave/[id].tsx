@@ -39,10 +39,11 @@ import {
   Eye,
   Scale,
 } from "lucide-react-native";
-import { harBetingelse, harForelderObjekt, utledMinRolle, utledFlytRettighet, byggPosisjonsLedd, harBallenPosisjon, erAvsenderledd, erMedlemAvFlyt, retningsrettigheter, harMinstEttUtfyltFelt, harFeltVerdi, perspektivEtikett, TERMINALE_DOKUMENTSTATUSER } from "@sitedoc/shared";
+import { harBetingelse, harForelderObjekt, utledMinRolle, utledFlytRettighet, byggPosisjonsLedd, harBallenPosisjon, erAvsenderledd, erMedlemAvFlyt, retningsrettigheter, harMinstEttUtfyltFelt, harFeltVerdi, perspektivEtikett, TERMINALE_DOKUMENTSTATUSER, visByggeplassIkkeValgt, byggeplassByttInput, kanVelgeByggeplassDirekte } from "@sitedoc/shared";
 import type { FlytMedlemInfo, FlytMedlemRedigering, HarBallenDokument } from "@sitedoc/shared";
 import { useTranslation } from "react-i18next";
 import { Flytlinje } from "../../src/components/Flytlinje";
+import { ByggeplassIkkeValgtLinje } from "../../src/components/ByggeplassIkkeValgtLinje";
 import type { FlytMedlem } from "../../src/components/Flytlinje";
 import { DokumentHandlingslinje } from "../../src/components/DokumentHandlingslinje";
 import { EmneFelt } from "../../src/components/EmneFelt";
@@ -54,7 +55,7 @@ import type { LokasjonTegning } from "../../src/components/LokasjonSeksjon";
 import { useByggeplass } from "../../src/kontekst/ByggeplassKontekst";
 import { useAutoVaer } from "../../src/hooks/useAutoVaer";
 import { useDuErHer } from "../../src/hooks/useDuErHer";
-import { tegningBunnfelt } from "../../src/lib/tegningDuErHer";
+import { PUNKT_OMFANG, byttTegningInput, tegningBunnfelt } from "../../src/lib/tegningDuErHer";
 import { useOversettelse } from "../../src/hooks/useOversettelse";
 import { useOpplastingsKo } from "../../src/providers/OpplastingsKoProvider";
 import { useAuth } from "../../src/providers/AuthProvider";
@@ -153,8 +154,9 @@ export default function OppgaveDetalj() {
     transfers?: Transfer[];
     // fileUrl/imageWidth/imageHeight følger allerede med fra serveren (drawing-relasjonen
     // inkluderes uten select) — kun typingen manglet dem, derfor kunne ikke punktet åpnes.
-    drawing?: { id: string; name: string; drawingNumber?: string | null; fileUrl?: string | null; imageWidth?: number | null; imageHeight?: number | null } | null;
+    drawing?: { id: string; name: string; drawingNumber?: string | null; fileUrl?: string | null; imageWidth?: number | null; imageHeight?: number | null; byggeplassId?: string | null } | null;
     drawingId?: string | null;
+    byggeplassId?: string | null;
     positionX?: number | null;
     positionY?: number | null;
     lokasjonOmfang?: "punkt" | "byggeplass" | "omrade" | null;
@@ -935,12 +937,19 @@ export default function OppgaveDetalj() {
                     : undefined
               }
               onBekreftForslag={({ tegningId, byggeplassId }) => {
-                oppdaterMutasjon.mutate({ id: id!, drawingId: tegningId });
+                oppdaterMutasjon.mutate({ id: id!, drawingId: tegningId, ...PUNKT_OMFANG });
                 if (byggeplassId) settSistTegning(byggeplassId, tegningId);
               }}
             />
           );
         })()}
+        {/* ORDRE (20) linja: byggeplass satt = oppgavens egen eller tegningens. «Velg» åpner
+            tegningsvelgeren (mobil har ikke eget byggeplassvalg uten tegning). */}
+        {visLokasjon(oppgaveDetalj?.template) && visByggeplassIkkeValgt({
+          byggeplassId: oppgaveDetalj?.byggeplassId ?? oppgaveDetalj?.drawing?.byggeplassId ?? null,
+          antallByggeplasser: bygninger.length,
+          kanRedigere: kanRedigerePunkt && !leseModus,
+        }) && <ByggeplassIkkeValgtLinje onVelg={() => settVisTegningVelger(true)} />}
 
         {/* Tittel */}
         <View className="rounded-lg bg-white p-4">
@@ -1485,7 +1494,9 @@ export default function OppgaveDetalj() {
         </ModalFlate>
       </Modal>
 
-      {/* Tegningsvelger (ORDRE 19): oppgave uten lokasjon — valg lagrer tegningen. */}
+      {/* Tegningsvelger (ORDRE 19): oppgave uten lokasjon — valg lagrer tegningen. Åpnes også
+          fra «Bytt tegning» i tegningsmodalen (ORDRE 28): punktet nullstilles og byggeplassen
+          følger den nye tegningen på serveren. */}
       <Modal visible={visTegningVelger} animationType="slide" onRequestClose={() => settVisTegningVelger(false)}>
         <ModalFlate kanter={["top", "bottom"]} className="flex-1 bg-white">
           <View className="flex-row items-center justify-between bg-sitedoc-blue px-4 py-3">
@@ -1499,8 +1510,20 @@ export default function OppgaveDetalj() {
             tegninger={tilgjengeligeTegninger}
             bygninger={bygninger}
             valgtTegningId={null}
+            // ORDRE (20b) punkt 3: byggeplassene øverst — ett trykk setter byggeplass, tegning er
+            // frivillig. Tegning/pin/område nullstilles (samme regel som web-chipen); med
+            // drawingId null vinner ønsket byggeplass på serveren (velgTaskByggeplass).
+            valgtByggeplassId={oppgaveDetalj?.byggeplassId ?? oppgaveDetalj?.drawing?.byggeplassId ?? null}
+            // ORDRE (21): kun uten tegning — med tegning følger byggeplassen tegningen og byttes
+            // ved å velge en tegning fra en annen byggeplass (byggeplassene skjules).
+            onVelgByggeplass={kanVelgeByggeplassDirekte(oppgaveDetalj?.drawingId) ? (byggeplassId) => {
+              if (byggeplassId !== (oppgaveDetalj?.byggeplassId ?? oppgaveDetalj?.drawing?.byggeplassId ?? null)) {
+                oppdaterMutasjon.mutate({ id: id!, ...byggeplassByttInput(oppgaveDetalj?.lokasjonOmfang, byggeplassId) });
+              }
+              settVisTegningVelger(false);
+            } : undefined}
             onVelg={(valgt) => {
-              oppdaterMutasjon.mutate({ id: id!, drawingId: valgt.id });
+              oppdaterMutasjon.mutate(byttTegningInput(id!, valgt.id));
               const byggeplassId = valgt.byggeplassId ?? valgt.byggeplass?.id ?? null;
               if (byggeplassId) settSistTegning(byggeplassId, valgt.id);
               settVisTegningVelger(false);
@@ -1546,7 +1569,20 @@ export default function OppgaveDetalj() {
                   gpsMarkør={duErHer}
                 />
                 {bunnfelt.visning === "lagre" ? (
-                  <View className="flex-row items-center justify-end gap-3 border-t border-gray-200 bg-white px-5 py-4">
+                  <View className="flex-row items-center justify-between border-t border-gray-200 bg-white px-5 py-4">
+                    {/* Bytt tegning (ORDRE 28) — samme plass som i sjekklisten. Tegningsmodalen
+                        lukkes før velgeren åpnes (to Modaler oppå hverandre fryser iOS). */}
+                    <Pressable
+                      hitSlop={12}
+                      onPress={() => {
+                        settVisTegningModal(false);
+                        settVisTegningVelger(true);
+                      }}
+                      className="rounded-lg px-3 py-2"
+                    >
+                      <Text className="text-sm font-medium text-blue-600">{t("felt.byttTegning")}</Text>
+                    </Pressable>
+                    <View className="flex-row items-center gap-3">
                     {bunnfelt.brukMinPosisjon && duErHer && (
                       <Pressable
                         hitSlop={8}
@@ -1567,6 +1603,7 @@ export default function OppgaveDetalj() {
                           id: id!,
                           positionX: tegningTempPosX,
                           positionY: tegningTempPosY,
+                          ...PUNKT_OMFANG,
                         });
                         settVisTegningModal(false);
                       }}
@@ -1574,6 +1611,7 @@ export default function OppgaveDetalj() {
                     >
                       <Text className="text-sm font-medium text-white">{t("handling.lagre")}</Text>
                     </Pressable>
+                    </View>
                   </View>
                 ) : (
                   <View className="border-t border-gray-200 bg-white px-5 py-4">

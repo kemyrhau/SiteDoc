@@ -1,4 +1,4 @@
-import { Modal, View, Text, Pressable, ActivityIndicator } from "react-native";
+import { Modal, View, Text, Pressable, ActivityIndicator, Switch } from "react-native";
 import { ModalFlate } from "./ModalFlate";
 import { WebView } from "react-native-webview";
 import { X, Share2 } from "lucide-react-native";
@@ -12,6 +12,16 @@ interface EksportPdfForhandsvisningProps {
   tittel: string;
   onDel: () => void;
   onLukk: () => void;
+  /**
+   * PDF-1: utskriftsvalg (sjekkliste). Utelatt → ingen valgrad (oppgave-PDF).
+   * En endring rendrer PDF-en på nytt hos forelderen; `oppdaterer` viser spinner imens.
+   */
+  valg?: {
+    medOppgaver: boolean;
+    medVedlegg: boolean;
+    oppdaterer: boolean;
+    onEndre: (nye: { medOppgaver: boolean; medVedlegg: boolean }) => void;
+  };
 }
 
 /**
@@ -28,6 +38,7 @@ export function EksportPdfForhandsvisning({
   tittel,
   onDel,
   onLukk,
+  valg,
 }: EksportPdfForhandsvisningProps) {
   const { t } = useTranslation();
 
@@ -41,7 +52,7 @@ export function EksportPdfForhandsvisning({
   // så en ny filUri nullstiller feilen uten remontering.
   const [feilUri, settFeilUri] = useState<string | null>(null);
   const feil = filUri != null && feilUri === filUri;
-  const laster = filUri != null && lastetUri !== filUri && !feil;
+  const laster = (filUri != null && lastetUri !== filUri && !feil) || (valg?.oppdaterer ?? false);
 
   // Stabil source-referanse per filUri. Native reloader kun ved verdi-endring
   // (RNCWebViewImpl setSource: isEqualToDictionary), men et memoisert objekt
@@ -95,6 +106,30 @@ export function EksportPdfForhandsvisning({
             <Text style={{ fontSize: 14, fontWeight: "500", color: "#ffffff" }}>{t("eksport.del")}</Text>
           </Pressable>
         </View>
+
+        {/* PDF-1: valg for hva PDF-en tar med — endring rendrer på nytt (krever nett). */}
+        {valg && (
+          <View style={{ flexDirection: "row", gap: 20, backgroundColor: "#ffffff", paddingHorizontal: 16, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: "#e5e7eb" }}>
+            {(
+              [
+                ["medOppgaver", t("eksport.medOppgaver")],
+                ["medVedlegg", t("eksport.medVedlegg")],
+              ] as const
+            ).map(([nokkel, etikett]) => (
+              <View key={nokkel} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                <Switch
+                  value={valg[nokkel]}
+                  disabled={valg.oppdaterer}
+                  onValueChange={(ny) =>
+                    valg.onEndre({ medOppgaver: valg.medOppgaver, medVedlegg: valg.medVedlegg, [nokkel]: ny })
+                  }
+                  accessibilityLabel={etikett}
+                />
+                <Text style={{ fontSize: 13, color: "#111827" }}>{etikett}</Text>
+              </View>
+            ))}
+          </View>
+        )}
 
         {/* PDF-visning */}
         <View style={{ flex: 1, backgroundColor: "#f3f4f6" }}>

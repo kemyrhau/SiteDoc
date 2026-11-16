@@ -37,6 +37,8 @@ eller `sheet_machines` kan gjøres uten å lese alle tre dokumentene.
 Spesielt viktig fordi Timer er eier — endringer i Timer-schema rir
 oppstrøms til Vareforbruk- og Maskin-integrasjon.
 
+**Bekreft dag (L3-D, 2026-11-06, `feat/timer-bekreft-dag-maskin`, ⚠️ venter gate):** maskin (`sheet_machine_local`, `sheetTimerId = null`) og vareforbruk (`vareforbruk_local`, pending) kan føres i `/timer/bekreft-dag` og skrives på start-sedelen først ved [Bekreft og lagre]; ingen skjema-endring, samme synk-veier. Vilkår pr. modul: Maskin = utstyr i `equipment_local`, Varelager = prosjektet i varelager-lista. Se [timer-gps-lag3-4-spec.md § 3.5](timer-gps-lag3-4-spec.md).
+
 **Prosjektmedlemskap (L2a, 2026-11-05):** `verifiserProsjektmedlem` og `erProsjektLeder` (`apps/api/src/routes/timer/dagsseddel.ts`) krever aktivt prosjektmedlemskap (`periodeSlutt: null`); se [timer.md § Tilgangsstyring](timer.md).
 
 **Bakgrunn for regelen:** Aktivitet/maskinbruk/vareforbruk-konflikten i kveld

@@ -79,11 +79,13 @@ describe("L3: vare_local + vareforbruk_local", () => {
         "byggeplass_id",
         "dato",
         "enhet",
+        "external_cost_object_id", // ORDRE 36b — kortnøkkel
         "feilmelding",
         "id",
         "organization_id",
         "project_id",
         "sheet_id",
+        "sheet_timer_id", // radform 2026-11-12 — kobling til timerrad
         "sist_endret_lokalt",
         "sync_status",
         "user_id",

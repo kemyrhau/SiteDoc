@@ -61,6 +61,8 @@ const KOL_META: Record<KolKey, { i18n: string; num?: boolean; sub?: keyof Detalj
   ansatt: { i18n: "kolAnsatt" },
   ansattnr: { i18n: "kolAnsattnr" },
   prosjekt: { i18n: "kolProsjekt" },
+  byggeplass: { i18n: "kolByggeplass" },
+  underprosjekt: { i18n: "kolUnderprosjekt" },
   type: { i18n: "kolType" },
   betegnelse: { i18n: "kolBetegnelse" },
   lonnsartType: { i18n: "kolLonnsartType" },
@@ -158,6 +160,10 @@ export function TimerRapportDetaljer({
         return r.ansattnr ?? "";
       case "prosjekt":
         return r.prosjekt;
+      case "byggeplass":
+        return r.byggeplass ?? "";
+      case "underprosjekt":
+        return r.underprosjekt ?? "";
       case "type":
         return typeEtikett(t, r.type);
       case "betegnelse":

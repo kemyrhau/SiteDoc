@@ -67,10 +67,25 @@ const regnummerSchema = z
 async function hentMaskinOrgFraInput(
   userId: string,
   inputOrgId: string | undefined,
+  valg?: { tillatEgetFirma?: boolean },
 ): Promise<string> {
   if (inputOrgId) {
-    await autoriserAdminForFirma(userId, inputOrgId);
-    return inputOrgId;
+    try {
+      await autoriserAdminForFirma(userId, inputOrgId);
+      return inputOrgId;
+    } catch (feil) {
+      // Post 2026-11-14 (7) punkt 3 — KUN lesing (`list`): timer-sedelen sender
+      // sedelens firma. Eget firma gir samme resultat som uten input
+      // (krevBrukersOrg) — ingen ny rett, men en vanlig ansatt får ikke
+      // FORBIDDEN på egen sedel. Skrive-stiene bruker ikke valget.
+      if (
+        valg?.tillatEgetFirma &&
+        (await hentBrukersOrg(userId).catch(() => null)) === inputOrgId
+      ) {
+        return inputOrgId;
+      }
+      throw feil;
+    }
   }
   return krevBrukersOrg(userId);
 }
@@ -146,6 +161,7 @@ export const equipmentRouter = router({
       const organizationId = await hentMaskinOrgFraInput(
         ctx.userId,
         input?.organizationId,
+        { tillatEgetFirma: true },
       );
 
       const inkluderUtgaatt = input?.inkluderUtgaatt ?? false;

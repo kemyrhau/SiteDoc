@@ -4,6 +4,7 @@ import { useState, useMemo, useCallback, useRef } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { Button, Modal, Spinner, EmptyState, StatusBadge, Table } from "@sitedoc/ui";
+import { ByggeplassFilterPort } from "@/components/ByggeplassFilterPort";
 import { useVerktoylinje } from "@/hooks/useVerktoylinje";
 import { useSistBrukteMal } from "@/hooks/useSistBrukteMal";
 import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
@@ -234,7 +235,7 @@ export default function SjekklisteSide() {
   const statusFilter = searchParams.get("status");
   const sok = (searchParams.get("sok") ?? "").trim().toLowerCase();
   const utils = trpc.useUtils();
-  const { aktivByggeplass, standardTegning } = useByggeplass();
+  const { aktivByggeplass, opprettByggeplass, opprettTegning } = useByggeplass();
   const [visModal, setVisModal] = useState(false);
   const [mineOppgaver, setMineOppgaver] = useState(false);
   // B-0 (metadata-spec): periodefilter på opprettet/endret — samme delte logikk som mobilens filterark.
@@ -242,8 +243,6 @@ export default function SjekklisteSide() {
   const [periodeFelt, setPeriodeFelt] = useState<PeriodeFelt>("opprettet");
   // Kontrollplan-skille: "" = alle · "plan" = hører til kontrollplanen · "tillegg" = kommer i tillegg.
   const [planKoblingFilter, setPlanKoblingFilter] = useState<"" | "plan" | "tillegg">("");
-  // D7: av = filtrer lista på aktiv byggeplass (default); på = «Hele prosjektet».
-  const [byggeplassFilterAv, setByggeplassFilterAv] = useState(false);
   const [valgte, setValgte] = useState<Set<string>>(new Set());
   const [visSlettModal, setVisSlettModal] = useState(false);
   const [slettFeil, setSlettFeil] = useState<string | null>(null);
@@ -363,8 +362,8 @@ export default function SjekklisteSide() {
       dokumentflytId: k.flytId,
       // Kontekst-default: aktiv byggeplass/tegning fra header settes ved opprettelse
       // så dokumentet arver lokasjon (V2 — server tar begge på sjekkliste.opprett).
-      byggeplassId: aktivByggeplass?.id,
-      drawingId: standardTegning?.id,
+      byggeplassId: opprettByggeplass?.id,
+      drawingId: opprettTegning?.id,
     });
   }
 
@@ -438,9 +437,9 @@ export default function SjekklisteSide() {
     }
     return h;
     // eslint-disable-next-line
-  }, [valgte, params.prosjektId, router, aktivByggeplass?.id, standardTegning?.id]);
+  }, [valgte, params.prosjektId, router, opprettByggeplass?.id, opprettTegning?.id]);
 
-  useVerktoylinje(verktoylinjeHandlinger, [valgte.size, aktivByggeplass?.id, standardTegning?.id]);
+  useVerktoylinje(verktoylinjeHandlinger, [valgte.size, opprettByggeplass?.id, opprettTegning?.id]);
 
   // Verdier-kolonner fra maler
   const verdiFelter = useMemo<KolonneParam[]>(() => {
@@ -569,10 +568,10 @@ export default function SjekklisteSide() {
   const filtrerte = useMemo(() => {
     let resultat = (sjekklister ?? []);
     // D7: filtrer på aktiv byggeplass fra konteksten (mobil-paritet — mobil sender
-    // byggeplassId til serveren; web filtrerte ikke). «Hele prosjektet» =
-    // ufiltrert (byggeplassFilterAv). OR-null: dokumenter uten byggeplass vises i
-    // alle byggeplass-visninger (samme semantikk som serverfilteret sjekkliste.ts).
-    if (aktivByggeplass && !byggeplassFilterAv) {
+    // byggeplassId til serveren; web filtrerte ikke). (22) Ingen bryter for alle byggeplasser;
+    // uten valgt byggeplass viser ByggeplassFilterPort «Velg byggeplass». OR-null: dokumenter
+    // uten byggeplass vises i alle byggeplass-visninger (samme semantikk som sjekkliste.ts).
+    if (aktivByggeplass) {
       resultat = resultat.filter(
         (s) => s.byggeplass == null || s.byggeplass.id === aktivByggeplass.id,
       );
@@ -644,7 +643,7 @@ export default function SjekklisteSide() {
     });
     resultat = filtrerPaaPeriode(resultat, periode, periodeFelt);
     return resultat;
-  }, [sjekklister, statusFilter, filterVerdier, sok, mineOppgaver, minFlytInfo, planKoblingFilter, aktivByggeplass, byggeplassFilterAv, periode, periodeFelt]);
+  }, [sjekklister, statusFilter, filterVerdier, sok, mineOppgaver, minFlytInfo, planKoblingFilter, aktivByggeplass, periode, periodeFelt]);
 
   const handleFilterEndring = useCallback((kolonneId: string, verdi: string) => {
     setFilterVerdier((prev) => ({ ...prev, [kolonneId]: verdi }));
@@ -772,13 +771,12 @@ export default function SjekklisteSide() {
         bredde: "200px", sorterbar: true, sorterVerdi: (rad) => hentFlytLedd(rad),
         filtrerbar: true, filterAlternativer: dynamiskFilter.flyt ?? [] },
       // W1 (byggeplass-tilhørighet): tilhørighet vises som pille på raden — blå =
-      // byggeplassnavn, grå outline «Hele prosjektet» = prosjekt-dokument (byggeplassId
-      // null). Regelen «et objekt vises der det gjelder; raden viser tilhørighet når
+      // byggeplassnavn; dokument uten byggeplass får «—» som de andre tomme cellene (TILLEGG (22)). Regelen «et objekt vises der det gjelder; raden viser tilhørighet når
       // konteksten er bredere enn objektets hjem». På web bor pilla i den alltid-på
       // «Bygning»-kolonnen (kolonnetabell-idiom — samme informasjon, ny form).
       bygning: { id: "bygning", header: t("tabell.bygning"), celle: (rad) => rad.byggeplass?.name
         ? <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">{rad.byggeplass.name}</span>
-        : <span className="inline-flex items-center rounded-full border border-gray-300 px-2 py-0.5 text-xs font-medium text-gray-500">{t("kontekstChip.heleProsjektet")}</span>,
+        : <span className="text-gray-300">—</span>,
         sorterbar: true, sorterVerdi: (rad) => rad.byggeplass?.name ?? "", filtrerbar: true, filterAlternativer: dynamiskFilter.bygning ?? [] },
       etasje: { id: "etasje", header: t("tabell.etasje"), celle: (rad) => rad.drawing?.floor
         ? <span className="text-xs text-gray-600">{rad.drawing.floor}</span> : <span className="text-gray-300">—</span>,
@@ -893,37 +891,16 @@ export default function SjekklisteSide() {
         </div>
       )}
 
-      {/* D7: kontekstlinje — hvilken byggeplass lista er scopet til, med bytte
-          til «Hele prosjektet». Vises kun når en byggeplass er aktiv og det
-          finnes dokumenter. (Design-gates hos Kenneth/fabel.) */}
+      {/* D7: kontekstlinje — lista er scopet til aktiv byggeplass (mykt filter: + dokumenter
+          uten byggeplass). (22) Bryteren for alle byggeplasser er fjernet. */}
       {aktivByggeplass && !!sjekklister?.length && (
         <div className="mb-2 flex items-center gap-2 text-xs text-gray-500">
           <MapPin className="h-3.5 w-3.5 shrink-0 text-gray-400" />
-          <span>
-            {/* Del 2 (ærlig chip/banner): default-tilstanden viser byggeplassen PLUSS
-                prosjekt-dokumenter (mykt filter) — teksten skal ikke love en avgrensning
-                systemet ikke gjør. Toggle-tilstanden («Hele prosjektet») er allerede sann. */}
-            {byggeplassFilterAv ? (
-              <>
-                {t("sjekklister.viser")}:{" "}
-                <span className="font-medium text-gray-700">{t("kontekstChip.heleProsjektet")}</span>
-              </>
-            ) : (
-              t("byggeplass.filtrererListe")
-            )}
-          </span>
-          <button
-            type="button"
-            onClick={() => setByggeplassFilterAv((v) => !v)}
-            className="font-medium text-sitedoc-secondary hover:underline"
-          >
-            {byggeplassFilterAv
-              ? t("sjekklister.filtrerPaaByggeplass", { byggeplass: aktivByggeplass.name })
-              : t("sjekklister.visHeleProsjektet")}
-          </button>
+          <span>{t("byggeplass.viserByggeplassOgUtenByggeplass")}</span>
         </div>
       )}
 
+      <ByggeplassFilterPort>
       {!sjekklister?.length ? (
         <EmptyState title={t("sjekklister.ingen")} description={t("sjekklister.ingenBeskrivelse")}
           action={<Button onClick={åpneMalVelger}>{t("sjekklister.opprett")}</Button>} />
@@ -938,6 +915,7 @@ export default function SjekklisteSide() {
             renderKolonneHode={renderFlyttbartHode((navn) => t("kolonne.flytt", { navn }))} />
         </FlyttbareKolonner>
       )}
+      </ByggeplassFilterPort>
 
       <Modal open={visSlettModal} onClose={() => setVisSlettModal(false)} title={t("sjekklister.slettTittel")}>
         <div className="flex flex-col gap-4">

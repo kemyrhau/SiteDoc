@@ -3,7 +3,7 @@
  * Null avhengigheter — kun TypeScript-strenger.
  */
 
-import type { GrenseSnapshot, TilfoyelsePdf, VaerVerdi } from "./typer";
+import type { GrenseSnapshot, TilfoyelsePdf, VaerVerdi, PdfConfig, Vedlegg } from "./typer";
 
 /**
  * Fast tidssone for alle instant→tekst-formaterere her.
@@ -26,6 +26,38 @@ export function esc(tekst: string): string {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+/**
+ * Oppgave-henvisning under et felt eller en repeater-rad (PDF-1, 2026-11-12). Linja er bygd
+ * ferdig av api-et (`PdfConfig.oppgaveHenvisninger`); ingen oppgaver → "".
+ */
+export function byggOppgaveHenvisning(nokkel: string, config: PdfConfig | undefined): string {
+  const linje = config?.oppgaveHenvisninger?.[nokkel];
+  return linje ? `<div class="ark-oppgave-henvisning">${esc(linje)}</div>` : "";
+}
+
+/** PDF-vedlegg (filendelse) — legges bakerst i utskriften når «Ta med vedlegg» er på. */
+export function erPdfVedlegg(v: Partial<Pick<Vedlegg, "filnavn" | "url">>): boolean {
+  return /\.pdf$/i.test(v.filnavn ?? "") || /\.pdf(\?|$)/i.test(v.url ?? "");
+}
+
+/**
+ * Ikke-bilde-filer: med «Ta med vedlegg» (`config.vedleggFilnavn`) listes filnavnene, PDF-er
+ * merket «(vedlagt bakerst)»; ellers dagens teller (`fallback`). Ingen filer → "".
+ */
+export function byggFilListe(filer: Partial<Pick<Vedlegg, "filnavn" | "url">>[], config: PdfConfig | undefined, fallback: string): string {
+  if (filer.length === 0) return "";
+  const valg = config?.vedleggFilnavn;
+  if (!valg) return fallback;
+  const linjer = filer
+    .map((f) => {
+      const navn = esc(f.filnavn || "fil");
+      return erPdfVedlegg(f) ? `${navn} (${esc(valg.bakerstMerke)})` : navn;
+    })
+    .map((n) => `<div>📎 ${n}</div>`)
+    .join("");
+  return `<div class="vedlegg-teller vedlegg-filnavn">${linjer}</div>`;
 }
 
 /**
