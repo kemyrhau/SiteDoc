@@ -188,6 +188,8 @@ export function arvetByggeplassVisning(
  */
 // Delt kilde i shared (kort-id-spec § 2.3); re-eksportert så ingen kaller endres.
 export { kortNokkel, fraKortNokkel, type KortValg, type KortNokkel } from "@sitedoc/shared";
+import { radProsjektId } from "@sitedoc/shared";
+export { radProsjektId };
 
 const INGEN = "ingen";
 
@@ -210,26 +212,36 @@ export type SedelKortKontekst = {
 
 /** Effektiv byggeplass: radens egen, ellers sedelens når den hører til prosjektet. */
 export function effektivByggeplass(
-  projectId: string,
+  projectId: string | null,
   byggeplassId: string | null | undefined,
   sedel: SedelKortKontekst,
 ): string | null {
+  if (projectId === null) return null; // fraværskortet har ingen byggeplass (K8)
   if (byggeplassId) return byggeplassId;
   return sedel.byggeplass && sedel.byggeplass.projectId === projectId ? sedel.byggeplass.id : null;
 }
 
 export type KortRad = {
   projectId: string | null;
+  /** Fraværskortet (spec § 11.2): bevisst ført uten prosjekt. Bare timerrader. */
+  utenProsjekt?: boolean | null;
   byggeplassId?: string | null;
   externalCostObjectId?: string | null;
 };
 
+/** Et prosjektkort — alle kort unntatt fraværskortet (prosjekt `null`, spec § 11.2). */
+export type ProsjektKortValg = KortValg & { projectId: string };
+
+export function erProsjektKort(k: KortValg): k is ProsjektKortValg {
+  return k.projectId !== null;
+}
+
 export function kortValgFor(rad: KortRad, sedel: SedelKortKontekst): KortValg {
-  const projectId = rad.projectId ?? sedel.projectId;
+  const projectId = radProsjektId(rad, sedel);
   return {
     projectId,
     byggeplassId: effektivByggeplass(projectId, rad.byggeplassId, sedel),
-    ecoId: rad.externalCostObjectId ?? null,
+    ecoId: projectId === null ? null : (rad.externalCostObjectId ?? null),
   };
 }
 
@@ -283,7 +295,7 @@ export function kortNokler(
   sortering: KortSortering,
 ): KortValg[] {
   const valg = new Map<KortNokkel, KortValg>();
-  const prosjektRekkefolge: string[] = [];
+  const prosjektRekkefolge: (string | null)[] = [];
   const legg = (k: KortValg) => {
     if (!prosjektRekkefolge.includes(k.projectId)) prosjektRekkefolge.push(k.projectId);
     valg.set(kortNokkel(k), k);
@@ -299,9 +311,12 @@ export function kortNokler(
     if (b === null) return ingenSist ? -1 : 1;
     return a.localeCompare(b, "nb", { numeric: true });
   };
+  // Fraværskortet (prosjekt `null`) står alltid sist (spec § 11.4).
+  const plass = (pid: string | null) =>
+    pid === null ? Number.MAX_SAFE_INTEGER : prosjektRekkefolge.indexOf(pid);
   return Array.from(valg.values()).sort(
     (a, b) =>
-      prosjektRekkefolge.indexOf(a.projectId) - prosjektRekkefolge.indexOf(b.projectId) ||
+      plass(a.projectId) - plass(b.projectId) ||
       sammenlign(bpNavn(a.byggeplassId), bpNavn(b.byggeplassId), true) ||
       sammenlign(ecoNavn(a.ecoId), ecoNavn(b.ecoId), false),
   );
@@ -309,7 +324,7 @@ export function kortNokler(
 
 /** Rute uten `bp`/`up`: prosjektets første kort (eller et tomt kort på prosjektet). */
 export function forsteKortFor(
-  projectId: string,
+  projectId: string | null,
   kort: readonly KortValg[],
   sedel: SedelKortKontekst,
 ): KortValg {

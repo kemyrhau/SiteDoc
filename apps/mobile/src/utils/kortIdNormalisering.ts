@@ -3,6 +3,7 @@ import {
   kortIdNokkel,
   kortPaaSedelFraRader,
   losKortId,
+  radProsjektId,
   utledKortId,
 } from "@sitedoc/shared";
 
@@ -41,6 +42,8 @@ export type LokalKortRad = {
   ecoId: string | null;
   /** Bare timer. */
   erReise?: boolean | null;
+  /** Bare timer: fraværskortet (spec § 11.2) — prosjektleddet blir «ingen». */
+  utenProsjekt?: boolean | null;
   /** Bare maskin/vare. */
   sheetTimerId?: string | null;
 };
@@ -65,27 +68,21 @@ export function normaliserKortIder(
 ): Map<string, string | null> {
   const ordnet = TYPE_REKKEFOLGE.flatMap((t) => rader.filter((r) => r.type === t));
   const alder = new Map(ordnet.map((r, i) => [r.id, i]));
-  const prosjekt = (r: LokalKortRad) => r.projectId ?? sedel.projectId;
-  const nokkel = (r: LokalKortRad) => {
+  const prosjekt = (r: LokalKortRad) => radProsjektId(r, sedel);
+  // Fraværskortet (K8): ingen byggeplass eller underprosjekt, uansett hva raden bærer.
+  const kortNokkelFelt = (r: LokalKortRad) => {
     const pid = prosjekt(r);
-    return kortIdNokkel({
-      projectId: pid,
-      byggeplassId: effektivKortByggeplass(pid, r.byggeplassId, sedel.byggeplass),
-      ecoId: r.ecoId,
-    });
+    return pid === null
+      ? { projectId: null, byggeplassId: null, ecoId: null }
+      : {
+          projectId: pid,
+          byggeplassId: effektivKortByggeplass(pid, r.byggeplassId, sedel.byggeplass),
+          ecoId: r.ecoId,
+        };
   };
-  const utledet = (r: LokalKortRad) => {
-    const pid = prosjekt(r);
-    return utledKortId({
-      userId: sedel.userId,
-      dato: sedel.dato,
-      nokkel: {
-        projectId: pid,
-        byggeplassId: effektivKortByggeplass(pid, r.byggeplassId, sedel.byggeplass),
-        ecoId: r.ecoId,
-      },
-    });
-  };
+  const nokkel = (r: LokalKortRad) => kortIdNokkel(kortNokkelFelt(r));
+  const utledet = (r: LokalKortRad) =>
+    utledKortId({ userId: sedel.userId, dato: sedel.dato, nokkel: kortNokkelFelt(r) });
   const erReise = (r: LokalKortRad) => r.type === "timer" && r.erReise === true;
 
   // Kortets nøkkel: flest rader, likt → eldste rad.
@@ -200,11 +197,12 @@ export function backfillLokalKortId(db: RaaSqlite): number {
           byggeplassId: tekst(r.byggeplass_id),
           ecoId: tekst(r.external_cost_object_id),
           erReise: r.er_reise == null ? null : Number(r.er_reise) === 1,
+          utenProsjekt: r.uten_prosjekt == null ? null : Number(r.uten_prosjekt) === 1,
           sheetTimerId: tekst(r.sheet_timer_id),
         }),
       );
     const rader = [
-      ...les("timer", ", er_reise"),
+      ...les("timer", ", er_reise, uten_prosjekt"),
       ...les("tillegg", ""),
       ...les("utlegg", ""),
       ...les("maskin", ", sheet_timer_id"),

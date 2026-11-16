@@ -523,6 +523,8 @@ export async function flyttKort(
 ): Promise<KortUtfall> {
   if (!erRedigerbar(dag.status)) return { utfall: "laast" };
   if (kortNokkel(fra) === kortNokkel(til)) return { utfall: "uendret" };
+  // Spec § 11.4: fraværskortet (prosjekt `null`) flyttes ikke og er aldri mål.
+  if (fra.projectId === null || til.projectId === null) return { utfall: "uendret" };
   if (girNyttBrudd(dag, innhold, til)) return { utfall: "brudd" };
   // Varer har ingen sedel-arv: kortets effektive byggeplass lagres (RETUR 4).
   const vareMaal: FlyttMaal = { projectId: til.projectId, byggeplassId: vareByggeplassForKort(til), ecoId: til.ecoId };

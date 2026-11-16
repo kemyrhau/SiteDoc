@@ -6,7 +6,7 @@ import { hentUnderprosjekterLokalt } from "../../../services/timerKatalog";
 import {
   effektivByggeplass,
   kortNokkel,
-  type KortValg,
+  type ProsjektKortValg,
   type SedelKortKontekst,
 } from "../../../lib/prosjektkortMobil";
 import { ProsjektVelgerModal } from "../ProsjektVelger";
@@ -20,13 +20,13 @@ import { ProsjektVelgerModal } from "../ProsjektVelger";
  *  - `flytt`: «Flytt raden». Prosjekt kan byttes, byggeplass og underprosjekt
  *    som chips; «Flytt» er avslått til valget skiller seg fra radens kort.
  *
- * Byggeplass i `KortValg` er den EFFEKTIVE. «Uten byggeplass» tilbys alltid
+ * Byggeplass i `ProsjektKortValg` er den EFFEKTIVE. «Uten byggeplass» tilbys alltid
  * (RETUR 36c-2 P1 a2): når dagens byggeplass hører til samme prosjekt løftes
  * arven ut ved lagring (`loftByggeplassArv`), så raden blir ekte «uten».
  */
 export type KortValgModus =
   | { type: "ny"; projectId: string; forslagByggeplassId: string | null }
-  | { type: "flytt"; fra: KortValg; /** 36c-kort: «Endre kort» flytter hele kortet. */ heleKortet?: boolean };
+  | { type: "flytt"; fra: ProsjektKortValg; /** 36c-kort: «Endre kort» flytter hele kortet. */ heleKortet?: boolean };
 
 export function kanVelgeUtenByggeplass(_projectId: string, _sedel: SedelKortKontekst): boolean {
   return true;
@@ -57,12 +57,12 @@ export function KortValgModal({
   /** Kallerens avslag (f.eks. maskinkapasitet ved flytt) — vises over knappen. */
   feil?: string | null;
   /** 36c-kort: grå forklaring for valget (f.eks. at kortene slås sammen). */
-  merknad?: (valg: KortValg) => string | null;
-  onVelg: (kort: KortValg) => void;
+  merknad?: (valg: ProsjektKortValg) => string | null;
+  onVelg: (kort: ProsjektKortValg) => void;
   onLukk: () => void;
 }) {
   const { t } = useTranslation();
-  const start: KortValg =
+  const start: ProsjektKortValg =
     modus.type === "flytt"
       ? modus.fra
       : {
@@ -70,7 +70,7 @@ export function KortValgModal({
           byggeplassId: modus.forslagByggeplassId ?? effektivByggeplass(modus.projectId, null, sedel),
           ecoId: null,
         };
-  const [valg, setValg] = useState<KortValg>(start);
+  const [valg, setValg] = useState<ProsjektKortValg>(start);
   const [visProsjektVelger, setVisProsjektVelger] = useState(false);
 
   const byggeplasser = useMemo(

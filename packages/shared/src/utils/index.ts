@@ -600,6 +600,7 @@ export {
   type KortByggeplass,
   kortNokkel,
   fraKortNokkel,
+  radProsjektId,
   type KortValg,
   type KortNokkel,
 } from "./prosjektkort";

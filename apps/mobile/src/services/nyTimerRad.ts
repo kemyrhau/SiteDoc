@@ -183,7 +183,11 @@ export function erDagLaast(dag: DagForDato | null): boolean {
 export type { NyMaskin } from "./kobledeMaskiner";
 
 export interface NyRad {
-  projectId: string;
+  /**
+   * `null` = fraværskortet (spec § 11.2): raden lagres med `uten_prosjekt`, uten
+   * byggeplass og underprosjekt, og arver aldri sedelens prosjekt.
+   */
+  projectId: string | null;
   byggeplassId: string | null;
   lonnsartId: string;
   aktivitetId: string;
@@ -231,12 +235,13 @@ export function settInnTimerRad(
       id: timerRadId,
       dagsseddelId: sheetId,
       projectId: rad.projectId,
+      utenProsjekt: rad.projectId === null,
       // F3: per-rad byggeplass. null = arv fra dagskortet (server propagerer
-      // sedel-verdien ved sync).
-      byggeplassId: rad.byggeplassId,
+      // sedel-verdien ved sync). Fraværskortet: aldri byggeplass/underprosjekt (K8).
+      byggeplassId: rad.projectId === null ? null : rad.byggeplassId,
       lonnsartId: rad.lonnsartId,
       aktivitetId: rad.aktivitetId,
-      externalCostObjectId: rad.externalCostObjectId,
+      externalCostObjectId: rad.projectId === null ? null : rad.externalCostObjectId,
       timer: rad.timer,
       fraTid: rad.fraTid,
       tilTid: rad.tilTid,
@@ -261,7 +266,8 @@ export function settInnTimerRad(
   // NY BESLUTNING maskinkobling: hver maskin kobles til raden (sheetTimerId)
   // med EGNE timer (≤ radens — rad-modalen avviser ellers). Samme skrivevei
   // som rediger-banen (`skrivKobledeMaskiner`).
-  if (rad.maskiner.length > 0) {
+  // Fraværskortet bærer aldri maskin (K8).
+  if (rad.maskiner.length > 0 && rad.projectId !== null) {
     skrivKobledeMaskiner(
       db,
       sheetId,
@@ -311,7 +317,8 @@ export function lagreNyTimerRad(
     userId: args.userId,
     orgId: args.organizationId,
     dato: args.dato,
-    prosjektId: args.rad.projectId,
+    // Dag med bare fravær: sedel uten prosjekt (`""`, som dagens tomme sedel; spec § 11.3).
+    prosjektId: args.rad.projectId ?? "",
     aktivitetId: args.rad.aktivitetId,
     // ORDRE 29: NY sedel arver radens byggeplass (som primærprosjektet);
     // en eksisterende sedel røres ikke.

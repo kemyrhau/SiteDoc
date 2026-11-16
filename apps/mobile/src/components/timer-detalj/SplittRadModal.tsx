@@ -292,6 +292,8 @@ export function SplittRadModal(props: Props) {
             id: randomUUID(),
             dagsseddelId: o.dagsseddelId,
             projectId: o.projectId,
+            // M18 / spec § 11.4: deler av en fraværsrad forblir i fraværskortet.
+            utenProsjekt: o.utenProsjekt,
             lonnsartId: d.lonnsartId,
             aktivitetId: d.aktivitetId,
             externalCostObjectId: d.externalCostObjectId,

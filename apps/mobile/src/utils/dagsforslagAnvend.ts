@@ -468,7 +468,8 @@ function skrivTillegg(
         userId: ctx.userId,
         organizationId: ctx.orgId,
         sheetId: ctx.sheetId,
-        projectId: kort.projectId,
+        // Tillegg står bare på arbeidsrader (prosjekt satt); fraværsrader bærer aldri varer (K8).
+        projectId: kort.projectId ?? rad.projectId,
         dato: ctx.dato,
         vareId: v.vareId,
         vareNavn: v.vareNavn,

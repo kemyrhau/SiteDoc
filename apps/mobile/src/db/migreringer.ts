@@ -1539,6 +1539,20 @@ export function kjorMigreringer() {
     );
   `);
 
+  // Fraværskortet (prosjektkort-kortid-spec § 11.2, ordre c2): timerrad bevisst ført uten
+  // prosjekt. Additiv, DEFAULT 0 = alle eksisterende rader er prosjektrader; ingen backfill,
+  // ingen rad slettes. Før kort_id-backfillen, så den leser flagget. Idempotent via PRAGMA.
+  for (const [tabell, kol] of UTEN_PROSJEKT_LOCAL_KOLONNER) {
+    try {
+      const kolonner = db.getAllSync(`PRAGMA table_info(${tabell})`) as Array<{ name: string }>;
+      if (!kolonner.find((k) => k.name === kol)) {
+        db.execSync(`ALTER TABLE ${tabell} ADD COLUMN ${kol} INTEGER NOT NULL DEFAULT 0`);
+      }
+    } catch (e) {
+      console.warn(`[MIG] ${kol} på ${tabell} feilet`, e);
+    }
+  }
+
   // Kort-id (prosjektkort-kortid-spec § 3.3, Kenneth 2026-11-16): `kort_id` på de fem lokale
   // radtabellene + lokal backfill i SAMME kjøring med shared `utledKortId` (samme id som
   // serverens backfill). Additiv, nullable; ingen rad slettes, ingen annen kolonne endres.
@@ -1590,6 +1604,9 @@ export const KORTID_LOCAL_KOLONNER = [
   ["sheet_utlegg_local", "kort_id"],
   ["vareforbruk_local", "kort_id"],
 ] as const;
+
+/** Fraværskortet (spec § 11.2): timerrad ført uten prosjekt (tabell, kolonne). Bare timer (K8). */
+export const UTEN_PROSJEKT_LOCAL_KOLONNER = [["sheet_timer_local", "uten_prosjekt"]] as const;
 
 /** Radform: varelinjens timerrad (tabell, kolonne). */
 export const RADFORM_LOCAL_KOLONNER = [["vareforbruk_local", "sheet_timer_id"]] as const;

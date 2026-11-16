@@ -48,6 +48,8 @@ import {
   effektivByggeplass,
   formatKortTall,
   fraRuteParam,
+  erProsjektKort,
+  radProsjektId,
   kortNokkel,
   kortProsjektIder,
   kortValgFor,
@@ -341,8 +343,8 @@ export default function ProsjektkortSkjerm() {
     [timerRader, maskinRader, tilleggRader, utleggRader],
     [],
   ).length;
-  const iProsjektet = (r: { projectId: string | null }) =>
-    (r.projectId ?? sedel.projectId) === projectId;
+  const iProsjektet = (r: { projectId: string | null; utenProsjekt?: boolean | null }) =>
+    radProsjektId(r, sedel) === projectId;
   const forste = [...timerRader, ...maskinRader].find(iProsjektet);
   const valg: KortValg =
     bpParam === undefined
@@ -383,7 +385,9 @@ export default function ProsjektkortSkjerm() {
   const sperretOffline = !erPaaNettet && innhold.varer.some(vareFinnesPaaServer);
   const kortNavn = (k: typeof valg) =>
     [
-      prosjektVisningsnavn(finnProsjektLokalt(k.projectId), t("timer.detalj.ukjentProsjekt")),
+      k.projectId === null
+        ? t("timer.detalj.fravaerUtenProsjekt")
+        : prosjektVisningsnavn(finnProsjektLokalt(k.projectId), t("timer.detalj.ukjentProsjekt")),
       k.byggeplassId ? byggeplassNavn(k.byggeplassId) ?? k.byggeplassId : t("timer.kortValg.utenByggeplass"),
       k.ecoId ? ecoNavn(k.ecoId) : null,
     ]
@@ -641,7 +645,7 @@ export default function ProsjektkortSkjerm() {
         </View>
       </ScrollView>
 
-      {visEndre && (
+      {visEndre && erProsjektKort(valg) && (
         <KortValgModal
           organizationId={sedel.organizationId}
           modus={{ type: "flytt", fra: valg, heleKortet: true }}
