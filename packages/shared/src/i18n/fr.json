@@ -1553,6 +1553,7 @@
   "3d.modeller": "Modèles",
   "3d.lastOpp": "Télécharger",
   "3d.snitt": "Section",
+  "3d.snittHjelp": "Double-cliquez sur une surface pour créer une section",
   "3d.synk": "Synchroniser",
   "3d.georeferert": "Géoréférencé",
   "3d.gpsKalibrert": "GPS calibré",

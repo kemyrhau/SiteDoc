@@ -1553,6 +1553,7 @@
   "3d.modeller": "Models",
   "3d.lastOpp": "Upload",
   "3d.snitt": "Section",
+  "3d.snittHjelp": "Double-click a surface to create a section",
   "3d.synk": "Sync",
   "3d.georeferert": "Georeferenced",
   "3d.gpsKalibrert": "GPS calibrated",
