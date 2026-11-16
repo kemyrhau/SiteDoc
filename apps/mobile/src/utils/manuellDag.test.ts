@@ -192,7 +192,9 @@ describe("ORDRE 36c — manuellDag (ren)", () => {
     expect(lesManuellGrunnlag(lokalDb(), BRUKER, DATO)).toBeNull();
     seedSedel();
     // ORDRE (27b): også arbeid som alt bruker av normen (rad1 = 7,5 t).
-    expect(lesManuellGrunnlag(lokalDb(), BRUKER, DATO)).toEqual({ tilTider: ["15:00"], hodePauseMin: 30, bruktAvNorm: 7.5 });
+    expect(lesManuellGrunnlag(lokalDb(), BRUKER, DATO)).toEqual({ tilTider: ["15:00"], hodePauseMin: 30 });
+    // ORDRE (29) a2: normgrunnlaget leses i `lesEksisterendeSedel` (delt med GPS-dagen).
+    expect(forberedManuellDag(lokalDb(), manuellKontekst()).input.eksisterendeSedelPerDato[DATO]!.bruktAvNorm).toBe(7.5);
   });
 });
 
@@ -695,6 +697,127 @@ describe("ORDRE (27b) — manuelt kort regnes mot døgnets registreringer", () =
     expect(r.map((x) => [x.fraTid, x.tilTid, x.timer, nivaa(x)])).toEqual([["17:00", "18:00", 1, "normal"]]);
   });
 
+  // ORDRE (29) a2, T2 (spec § 9) + L4: GPS-dagen i Bekreft dag får samme grunnlag
+  // som manuelt kort — `lesEksisterendeSedel` bærer `bruktAvNorm`.
+  const gpsKontekst = (fra: string, til: string) => ({
+    userId: BRUKER, orgId: ORG,
+    dag: { startAt: new Date(`${DATO}T${fra}:00`).toISOString(), startLat: null, startLng: null, oppmotestedId: null, byggeplassId: null },
+    sluttIso: new Date(`${DATO}T${til}:00`).toISOString(),
+    endLat: null, endLng: null, kontekstByggeplassId: null, aktivtProsjektId: "p1",
+    sisteSegmentKilde: "bruker" as const,
+  });
+  const gpsArbeid = (fra: string, til: string) =>
+    forberedBekreftDag(lokalDb(), gpsKontekst(fra, til)).forslag.datoer[0]!.rader.filter((r) => !r.erReise);
+
+  it("🔴 a2 T2 GPS: Kenneths dag, GPS-økt 17–18 → Overtid 50 %; eksisterende rader uendret etter lagring (L5)", () => {
+    settNorm();
+    kennethsDag();
+    const { forslag } = forberedBekreftDag(lokalDb(), gpsKontekst("17:00", "18:00"));
+    expect(forslag.datoer[0]!.rader.filter((r) => !r.erReise).map((x) => [x.fraTid, x.tilTid, x.timer, nivaa(x)]))
+      .toEqual([["17:00", "18:00", 1, "OT50"]]);
+    expect(bekreftDag(lokalDb(), medBeskrivelse(forslag), skriveCtx(gpsKontekst("17:00", "18:00").sluttIso)).handling.type)
+      .toBe("suksess");
+    expect(rader().filter((r) => ["rad1", "rad2"].includes(r.id)).map((r) => [r.id, r.fraTid, r.tilTid, r.timer, r.lonnsartId]))
+      .toEqual([["rad1", "07:00", "15:00", 7.5, "L-normal"], ["rad2", "15:00", "17:00", 2, L_OT50]]);
+    const nye = rader().filter((r) => !["rad1", "rad2"].includes(r.id) && !r.erReise);
+    expect(nye.map((r) => [r.fraTid, r.tilTid, r.timer, nivaa(r)])).toEqual([["17:00", "18:00", 1, "OT50"]]);
+  });
+
+  it("🔴 a2 T2 GPS: delvis brukt norm (6 t), GPS 13:30–16 → 1,5 normal + 1 overtid", () => {
+    settNorm();
+    sedelMed([{ id: "rad1", timer: 6, fra: "07:00", til: "13:30", pause: 30 }]);
+    expect(gpsArbeid("13:30", "16:00").map((x) => [x.fraTid, x.tilTid, x.timer, nivaa(x)])).toEqual([
+      ["13:30", "15:00", 1.5, "normal"],
+      ["15:00", "16:00", 1, "OT50"],
+    ]);
+  });
+
+  it("🔴 a2 T2 GPS: reise teller ikke mot normen", () => {
+    settNorm();
+    sedelMed([
+      { id: "reise1", timer: 2, fra: "05:00", til: "07:00", erReise: true },
+      { id: "rad1", timer: 6, fra: "07:00", til: "13:30", pause: 30 },
+    ]);
+    expect(gpsArbeid("13:30", "16:00").map((x) => [x.timer, nivaa(x)])).toEqual([[1.5, "normal"], [1, "OT50"]]);
+  });
+
+  it("a2 T2 GPS: fravær teller ikke mot normen (B8)", () => {
+    settNorm();
+    db().insert(lonnsartLocal).values({
+      id: "L-fravaer", organizationId: ORG, type: "fravaer", navn: "Velferdspermisjon",
+      aktiv: true, rekkefolge: 9, sistOppdatert: 1,
+    }).run();
+    sedelMed([{ id: "frav1", timer: 6, fra: "07:00", til: "13:30", pause: 30, lonnsart: "L-fravaer" }]);
+    expect(gpsArbeid("13:30", "16:00").map((x) => [x.timer, nivaa(x)])).toEqual([[2.5, "normal"]]);
+  });
+
+  // RETUR (29) A1: manuelle timer INNE i GPS-arbeidsvinduet ligger alt i
+  // `arbeidstimer` — de skal ikke i tillegg bruke normen (dobbelttelling).
+  const gpsDag = (fra: string, til: string) => {
+    const dag = forberedBekreftDag(lokalDb(), gpsKontekst(fra, til)).forslag.datoer[0]!;
+    return {
+      rader: dag.rader.filter((r) => !r.erReise).map((x) => [x.fraTid, x.tilTid, x.timer, nivaa(x)]),
+      vek: dag.vekForOverlapp.map((v) => [v.fraTid, v.tilTid]),
+    };
+  };
+
+  it("🔴 RETUR (29) A1: manuell 07–09 + GPS 07–18 → klassifisert 7,5 normal + 3 OT (ikke 5 t OT)", () => {
+    settNorm();
+    sedelMed([{ id: "m1", timer: 2, fra: "07:00", til: "09:00" }]);
+    // Normallinja 07–15 overlapper m1 og viker (eldre atferd, 1b); overtiden 15–18 står.
+    expect(gpsDag("07:00", "18:00")).toEqual({
+      rader: [["15:00", "18:00", 3, "OT50"]],
+      vek: [["07:00", "15:00"]],
+    });
+  });
+
+  it("RETUR (29) A1: uten overlapp (manuell 07–09 + GPS 09–18) → 5,5 normal + 3 OT, uendret", () => {
+    settNorm();
+    sedelMed([{ id: "m1", timer: 2, fra: "07:00", til: "09:00" }]);
+    const d = gpsDag("09:00", "18:00");
+    expect(d.vek).toEqual([]);
+    expect(d.rader.map((r) => [r[2], r[3]])).toEqual([[5.5, "normal"], [3, "OT50"]]);
+  });
+
+  it("🔴 RETUR (29) A1: delvis overlapp (manuell 06–08 + GPS 07–18) → bare 06–07 bruker normen", () => {
+    settNorm();
+    sedelMed([{ id: "m1", timer: 2, fra: "06:00", til: "08:00" }]);
+    // 10,5 t i vinduet, 1 t brukt utenfor → rest 6,5 normal (07–14), 4 t OT (14–18).
+    expect(gpsDag("07:00", "18:00")).toEqual({
+      rader: [["14:00", "18:00", 4, "OT50"]],
+      vek: [["07:00", "14:00"]],
+    });
+  });
+
+  it("🔴 RETUR (29) A1, manuelt kort: kort 07–17 oppå rad 07–15 → normen brukes ikke to ganger", () => {
+    settNorm();
+    sedelMed([{ id: "rad1", timer: 7.5, fra: "07:00", til: "15:00", pause: 30 }]);
+    const d = forberedManuellDag(lokalDb(), manuellKontekst(), {
+      perDato: { [DATO]: { arbeidFra: "07:00", arbeidTil: "17:00" } },
+    }).forslag.datoer[0]!;
+    // Klassifisert 7,5 normal (07–14:30, kortet har ingen pause — raden bærer den)
+    // + 2,5 OT (14:30–17). Før: rest 0 → hele 07–17 som ett overtidsvindu.
+    // Begge vinduene overlapper rad1 og viker (1b, eldre atferd — utenfor A1).
+    expect(d.vekForOverlapp.map((v) => [v.fraTid, v.tilTid])).toEqual([
+      ["07:00", "14:30"],
+      ["14:30", "17:00"],
+    ]);
+  });
+
+  it("a2 GPS uten rader fra før → som i dag", () => {
+    settNorm();
+    expect(gpsArbeid("07:00", "09:00").map((x) => [x.timer, nivaa(x)])).toEqual([[2, "normal"]]);
+  });
+
+  it("a2 GPS: GPS-dagen og manuelt kort gir samme bruktAvNorm (én kilde)", () => {
+    settNorm();
+    kennethsDag();
+    const gps = forberedBekreftDag(lokalDb(), gpsKontekst("17:00", "18:00")).input;
+    const man = forberedManuellDag(lokalDb(), manuellKontekst()).input;
+    expect(gps.eksisterendeSedelPerDato[DATO]!.bruktAvNorm).toBe(9.5);
+    expect(man.eksisterendeSedelPerDato[DATO]!.bruktAvNorm).toBe(9.5);
+  });
+
   it("negativkontroll: uten brukt norm i forslaget (dagens kode) blir 17–18 Timelønn", () => {
     settNorm();
     kennethsDag();
@@ -899,7 +1022,7 @@ describe("ORDRE (28) — lønnsart pr. linje før lagring, fravær bruker ikke n
     settNorm();
     arter();
     sedelMed([{ id: "rad1", timer: 7.5, fra: "07:00", til: "15:00", lonnsart: L_EGEN, pause: 30 }]);
-    expect(lesManuellGrunnlag(lokalDb(), BRUKER, DATO)!.bruktAvNorm).toBe(0);
+    expect(forberedManuellDag(lokalDb(), manuellKontekst()).input.eksisterendeSedelPerDato[DATO]!.bruktAvNorm).toBe(0);
     expect(vis(arbeid({ perDato: { [DATO]: { arbeidFra: "15:00", arbeidTil: "17:00" } } }))).toEqual([
       ["15:00", "17:00", 2, "L-normal"],
     ]);

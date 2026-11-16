@@ -1,5 +1,4 @@
-import { OVERTID_NIVAA_50, velgOvertidLonnsart } from "@sitedoc/shared";
-import { bruktAvNorm, type DognRad } from "./overtidMotDognet";
+import { OVERTID_NIVAA_50, bruktAvNorm, velgOvertidLonnsart, type DognRad } from "@sitedoc/shared";
 import type {
   ArbeidLinje,
   DagsforslagDag,

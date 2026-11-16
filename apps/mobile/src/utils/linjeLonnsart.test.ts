@@ -10,7 +10,7 @@ import {
   utenLinje,
   velgLinjeLonnsart,
 } from "./linjeLonnsart";
-import { bruktAvNorm } from "./overtidMotDognet";
+import { bruktAvNorm } from "@sitedoc/shared";
 import type { DagsforslagLonnsart } from "./dagsforslag";
 
 /**
