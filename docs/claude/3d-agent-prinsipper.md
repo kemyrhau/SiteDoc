@@ -54,7 +54,7 @@ Status fylles inn av orkestrator ved merge. ⚪ ikke målt · 🔵 målt · 🟢
 
 | # | Funn | Status |
 |---|---|---|
-| M1 | Pan virker ikke i én modell på prod; i en annen modell på test virker den | 🔵 samme viewer-kode på test og prod; kamerakonstanter følger ikke modellen (H1/H2) — venter på prod-modellen |
+| M1 | Pan virker ikke i én modell på prod; i en annen modell på test virker den | 🔵 samme viewer-kode på test og prod; **Kenneth 2026-11-16: test og prod er to forskjellige modeller** → modellavhengig, kamerakonstanter følger ikke modellen (H1/H2) — venter på prod-modellen |
 | M2 | Zoom med to fingre er 50–60 % for rask på prod, OK på test | 🔵 som M1 |
 | M3 | Rotere objektet virker ikke på prod, virker på test | 🔵 som M1 |
 | M4 | Saks / «beskjær bygget» er svært ustabil | 🔵 dobbelttapp gir objektvalg + nye plan; kameralås under dra må måles på touch |
