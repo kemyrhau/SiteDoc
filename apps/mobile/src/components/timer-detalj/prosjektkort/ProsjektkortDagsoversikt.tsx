@@ -28,6 +28,7 @@ import {
   linjerForProsjekt,
   statusOrd,
   dagsoversiktSum,
+  dagSumTimer,
   type OversiktTimerRad,
   type OversiktMaskinRad,
   type ProsjektLinjer,
@@ -799,7 +800,9 @@ export function ProsjektkortDagsoversikt({
     );
   }
 
-  const sendTekst = sendKnappTekst(sedel.status, sum.arbeid, sum.reise);
+  // TILLEGG (33) pkt 3: «Sum i dag» og Send-knappen leser samme tall (`dagSumTimer`).
+  const dagSum = dagSumTimer({ arbeid: sum.arbeid, fravaer: fravaerRader.reduce((a, r) => a + r.timer, 0) });
+  const sendTekst = sendKnappTekst(sedel.status, dagSum, sum.reise);
 
   return (
     <ProsjektkortKontekst.Provider value={true}>
@@ -871,7 +874,7 @@ export function ProsjektkortDagsoversikt({
             <View className="flex-row items-baseline justify-between">
               <Text className="text-sm text-gray-500">{t("timer.dagsoversikt.sumIDag")}</Text>
               <Text className="text-base font-semibold text-gray-900" style={{ fontVariant: ["tabular-nums"] }}>
-                {t2(sum.arbeid)}
+                {t2(dagSum)}
               </Text>
             </View>
             {overtidSum > 0 || (sum.maskin != null && sum.maskin > 0) || sum.reise > 0 ? (

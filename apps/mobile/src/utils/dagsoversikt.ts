@@ -160,3 +160,12 @@ export function dagsoversiktSum(linjer: readonly ProsjektLinjer<OversiktVare>[])
   }
   return { arbeid, maskin: linjer.some((l) => l.visMaskin) ? maskin : null, reise };
 }
+
+/**
+ * TILLEGG (33) pkt 3 — timetallet i «Sum i dag» og på «Send dagen (N t)» i prosjektkort-modus.
+ * Én kilde for begge. Fravær (`uten_prosjekt`) telles IKKE i dag: om det skal med, ligger hos
+ * Kenneth (specen sier ikke noe). Når svaret kommer, er endringen denne ene linja.
+ */
+export function dagSumTimer(a: { arbeid: number; fravaer: number }): number {
+  return a.arbeid;
+}
