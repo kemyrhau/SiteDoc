@@ -31,7 +31,7 @@ import {
   settWebifcKonstanter,
   finnIfcTypeKode,
 } from "@/app/dashbord/[prosjektId]/3d-visning/hjelpefunksjoner";
-import { flyttLangsBlikk, hjulAvstand, orbitPunkt, panTargetPaaModellDybde } from "@/lib/tredKamera";
+import { avstandEtterSteg, flyttLangsBlikk, hjulAvstand, orbitPunkt, panTargetPaaModellDybde } from "@/lib/tredKamera";
 
 /* ------------------------------------------------------------------ */
 /*  Kontekst-type                                                       */
@@ -374,8 +374,9 @@ export function ViewerCanvas({
         world.camera.controls?.setLookAt(20, 20, 20, 0, 0, 0);
         // Senter av alle lastede modeller — settes når modellene er lastet (brukes av pan, W4)
         let modellSenter: InstanceType<typeof THREE.Vector3> | null = null;
-        // Rotasjon rundt skjermmidten: avstand til siste orbit-punkt, og raycast fra
-        // skjermmidten mot synlige modeller (settes når raycasting er klar lenger ned)
+        // Avstand til flaten midt på skjermen, sist målt (orbit-punkt for rotasjon og
+        // grunnlag for zoom-farten), og raycast fra skjermmidten mot synlige modeller
+        // (settes når raycasting er klar lenger ned)
         let sisteOrbitAvstand = 10;
         let finnTreffISkjermmidten: (() => Promise<InstanceType<typeof THREE.Vector3> | null>) | null = null;
         if (world.camera.controls) {
@@ -421,9 +422,25 @@ export function ViewerCanvas({
             const retning = blikkretning();
             const t = new THREE.Vector3();
             ctrl.getTarget(t);
-            const nyttTarget = flyttLangsBlikk(t, retning, hjulAvstand(e.deltaY));
+            // Farten følger avstanden til flaten midt på skjermen (§ 3b punkt 2). Til neste
+            // raycast svarer, trekkes steget fra; bom beholder avstanden fra sist.
+            const steg = hjulAvstand(e.deltaY, sisteOrbitAvstand);
+            sisteOrbitAvstand = avstandEtterSteg(sisteOrbitAvstand, steg);
+            const nyttTarget = flyttLangsBlikk(t, retning, steg);
             ctrl.moveTo(nyttTarget.x, nyttTarget.y, nyttTarget.z, false);
+            maalAvstandTilMidten();
           }, { passive: false });
+
+          // Én raycast om gangen; svaret gir avstanden fra kameraet slik det står da
+          let midtRaycastPaagaar = false;
+          function maalAvstandTilMidten() {
+            if (midtRaycastPaagaar || !finnTreffISkjermmidten) return;
+            midtRaycastPaagaar = true;
+            void finnTreffISkjermmidten()
+              .then((treff) => { if (treff) sisteOrbitAvstand = treff.distanceTo(cam.position); })
+              .catch(() => { /* bom — behold avstanden */ })
+              .finally(() => { midtRaycastPaagaar = false; });
+          }
 
           // ── Høyre/midtre knapp (pan/dolly): legg target på dybden brukeren ser på ──
           // Pan-farten i camera-controls er proporsjonal med avstanden kamera→target.
