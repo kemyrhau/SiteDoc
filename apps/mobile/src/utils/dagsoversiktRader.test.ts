@@ -219,3 +219,44 @@ describe("(27b) kildevakter — dagskortet og V5a", () => {
     expect(flat).not.toContain("onPress={() => onRett({ overtidLonnsartId: l.id })}");
   });
 });
+
+// RETUR (27b), Kenneth 2026-11-16: «varens og maskinens måte å bli registrert i
+// kortet fungerte godt» — som før dd1d2926 (`radBoks` på 05c5488e).
+describe("(27b RETUR) kildevakter — maskin/varer pr. linje, navn-trykk", () => {
+  const her = dirname(fileURLToPath(import.meta.url));
+  const OVERSIKT = readFileSync(join(her, "../components/timer-detalj/prosjektkort/ProsjektkortDagsoversikt.tsx"), "utf-8");
+  const blokk = (navn: string) => {
+    const start = OVERSIKT.indexOf(`function ${navn}(`);
+    expect(start).toBeGreaterThan(-1);
+    return OVERSIKT.slice(start, OVERSIKT.indexOf("\n  }\n", start)).replace(/\s+/g, " ");
+  };
+
+  it("🔴 «+ Vare» står ved hver linje og ny vare får linjas id", () => {
+    const linje = blokk("kortLinje");
+    expect(linje).toContain("{ rad, maskin, varer: radVarer }");
+    expect(linje).toContain("setVareRadId(rad.id); setVareKort(valg);");
+    expect(linje).toContain('t("timer.dagsoversikt.leggTilVare")');
+  });
+
+  it("🔴 linjas maskin og varer vises under linja", () => {
+    const linje = blokk("kortLinje");
+    expect(linje).toContain("{maskin.map((m) => maskinLinje(");
+    expect(linje).toContain("{radVarer.map(vareLinje)}");
+  });
+
+  it("🔴 kortet har ingen «+ Vare» koblet til første linje, og samler ikke linjenes maskin/varer", () => {
+    const kort = blokk("prosjektkort");
+    expect(kort).not.toContain("setVareRadId(forsteRad.id)");
+    expect(kort).not.toContain("rader.flatMap((b) => b.maskin)");
+    expect(kort).not.toContain("rader.flatMap((b) => b.varer)");
+    // Kort uten arbeidsrad beholder «+ Maskin»/«+ Vare» (vare uten rad).
+    expect(kort).toContain('t("timer.prosjektkort.leggTilMaskin")');
+    expect(kort).toContain("setVareRadId(null);");
+  });
+
+  it("🔴 eneste prosjekt: navnet åpner raden (kortets første linje); ellers kortet", () => {
+    expect(blokk("prosjektkort")).toContain(
+      "enkeltProsjekt ? forsteRad && aapneTimer(valg, forsteRad.id) : onAapneKort?.(valg)",
+    );
+  });
+});

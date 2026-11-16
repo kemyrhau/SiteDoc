@@ -612,23 +612,39 @@ export function ProsjektkortDagsoversikt({
   // ORDRE (27b): én linje pr. rad i kortet — «07:00–15:00 · 7,5 t · Timelønn».
   // Overtid er en linje som de andre; trykk åpner rad-vinduet for raden.
   // Kalles som funksjon (ikke komponent) så linjene ikke remountes ved hver render.
-  function kortLinje({ rad }: (typeof dag.rader)[number], valg: KortValg) {
+  // RETUR (27b), Kenneth 2026-11-16: maskin og varer registreres som før — under
+  // linja de ble ført fra, med «+ Vare» koblet til linja (`setVareRadId(rad.id)`).
+  function kortLinje({ rad, maskin, varer: radVarer }: (typeof dag.rader)[number], valg: KortValg) {
     const lonnsart =
       rad.overtidsnivaa != null
         ? t("timer.dagsoversikt.overtid", { prosent: rad.overtidsnivaa })
         : finnLonnsartLokalt(timerRad(rad.id)?.lonnsartId ?? "")?.navn ?? null;
     return (
-      <Pressable
-        key={rad.id}
-        onPress={() => aapneTimer(valg, rad.id)}
-        accessibilityRole="button"
-        className="min-h-[44px] flex-row items-center gap-2 active:bg-gray-50"
-      >
-        <Clock size={16} color="#6b7280" />
-        <Text className="flex-1 text-sm text-gray-900" style={{ fontVariant: ["tabular-nums"] }}>
-          {[tidTekst(rad), t2(rad.timer), lonnsart].filter(Boolean).join(" · ")}
-        </Text>
-      </Pressable>
+      <View key={rad.id}>
+        <Pressable
+          onPress={() => aapneTimer(valg, rad.id)}
+          accessibilityRole="button"
+          className="min-h-[44px] flex-row items-center gap-2 active:bg-gray-50"
+        >
+          <Clock size={16} color="#6b7280" />
+          <Text className="flex-1 text-sm text-gray-900" style={{ fontVariant: ["tabular-nums"] }}>
+            {[tidTekst(rad), t2(rad.timer), lonnsart].filter(Boolean).join(" · ")}
+          </Text>
+        </Pressable>
+        {maskin.map((m) => maskinLinje(maskinRader.find((x) => x.id === m.id)!))}
+        {radVarer.map(vareLinje)}
+        {kanForeVare(rad.projectId) && (
+          <Pressable
+            onPress={() => {
+              setVareRadId(rad.id);
+              setVareKort(valg);
+            }}
+            className="min-h-[44px] justify-center active:bg-gray-50"
+          >
+            <Text className="text-sm font-medium text-gray-700">{t("timer.dagsoversikt.leggTilVare")}</Text>
+          </Pressable>
+        )}
+      </View>
     );
   }
 
@@ -649,8 +665,12 @@ export function ProsjektkortDagsoversikt({
         className="mx-4 mt-3 rounded-lg border border-gray-200 bg-white px-4 py-3"
         style={utenTekst && redigerbar ? { borderLeftWidth: 3, borderLeftColor: "#f59e0b" } : undefined}
       >
+        {/* Som før (05c5488e `radBoks`): eneste prosjekt → navnet åpner raden (her kortets
+            første linje); ellers åpner det kortet. Kort uten linjer: ingen handling, som før. */}
         <Pressable
-          onPress={() => !enkeltProsjekt && onAapneKort?.(valg)}
+          onPress={() =>
+            enkeltProsjekt ? forsteRad && aapneTimer(valg, forsteRad.id) : onAapneKort?.(valg)
+          }
           className="min-h-[44px] justify-center active:bg-gray-50"
         >
           <View className="flex-row items-baseline justify-between">
@@ -674,8 +694,6 @@ export function ProsjektkortDagsoversikt({
             {tekst}
           </Text>
         ))}
-        {rader.flatMap((b) => b.maskin).map((m) => maskinLinje(maskinRader.find((x) => x.id === m.id)!))}
-        {rader.flatMap((b) => b.varer).map(vareLinje)}
         {/* Beslutning B: ukoblede (gamle) maskin- og varelinjer vises alltid, i kortet de hører til. */}
         {(utenRad.maskin.length > 0 || utenRad.varer.length > 0) && (
           <View>
@@ -684,20 +702,7 @@ export function ProsjektkortDagsoversikt({
             {utenRad.varer.map(vareLinje)}
           </View>
         )}
-        {forsteRad ? (
-          kanForeVare(valg.projectId) && (
-            // Ny vare kobles til kortets første linje (varer kobles til rad, beslutning B).
-            <Pressable
-              onPress={() => {
-                setVareRadId(forsteRad.id);
-                setVareKort(valg);
-              }}
-              className="min-h-[44px] justify-center active:bg-gray-50"
-            >
-              <Text className="text-sm font-medium text-gray-700">{t("timer.dagsoversikt.leggTilVare")}</Text>
-            </Pressable>
-          )
-        ) : (
+        {forsteRad ? null : (
           // Kort uten arbeidsrad (nytt kort, eller bare maskin/varer/tillegg/utlegg):
           // «+ Legg til arbeid», så kortet ikke forsvinner.
           <>
