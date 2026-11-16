@@ -55,6 +55,8 @@ export interface TimerRadTabellFilter {
   sok?: (kolonne: TimerTabellKolKey) => { verdi: string; onChange: (v: string) => void } | undefined;
 }
 
+export type TimerRadTabellSortering = { k: TimerTabellKolKey; retning: SorterRetning };
+
 interface Props<R> {
   /** Synlige kolonner i visningsrekkefølge. */
   kolonner: readonly TimerTabellKolKey[];
@@ -72,6 +74,9 @@ interface Props<R> {
   /** Sorteringsverdi. Utelatt → ingen sortering (rapporten, R19). */
   sorterVerdi?: (k: TimerTabellKolKey, data: R) => string | number | null;
   filter?: TimerRadTabellFilter;
+  /** Styrt sortering (brikke med × over tabellen). Utelatt → tabellen holder den selv. */
+  sortering?: TimerRadTabellSortering | null;
+  onSortering?: (s: TimerRadTabellSortering | null) => void;
   /** Fast venstrekolonne (avkrysning). Bredde i px. */
   venstre?: { bredde: number; hode?: ReactNode; celle: (data: R) => ReactNode };
   /** Fast høyrekolonne (knapper). Bredde i px. */
@@ -123,6 +128,8 @@ function Tabell<R>({
   onRekkefolgeEndring,
   sorterVerdi,
   filter,
+  sortering,
+  onSortering,
   venstre,
   hoyre,
   linjeKlasse,
@@ -134,7 +141,9 @@ function Tabell<R>({
   const hodeRef = useRef<Record<string, HTMLDivElement | null>>({});
 
   // Sortering gjelder besøket (R7) — aldri lagret.
-  const [sort, setSort] = useState<{ k: TimerTabellKolKey; retning: SorterRetning } | null>(null);
+  const [egenSort, setEgenSort] = useState<TimerRadTabellSortering | null>(null);
+  const sort = onSortering ? (sortering ?? null) : egenSort;
+  const setSort = (ny: TimerRadTabellSortering | null) => (onSortering ? onSortering(ny) : setEgenSort(ny));
   // Bredde under dragning (vises straks, lagres ved slipp).
   const [liveBredder, setLiveBredder] = useState<Record<string, number>>({});
   const breddeAlle = useMemo(() => ({ ...bredder, ...liveBredder }), [bredder, liveBredder]);
@@ -197,7 +206,7 @@ function Tabell<R>({
 
   function klikkSorter(k: TimerTabellKolKey) {
     if (!sorterVerdi) return;
-    setSort((s) => (s?.k !== k ? { k, retning: "asc" } : s.retning === "asc" ? { k, retning: "desc" } : null));
+    setSort(sort?.k !== k ? { k, retning: "asc" } : sort.retning === "asc" ? { k, retning: "desc" } : null);
   }
 
   const fastVenstre: CSSProperties = { position: "sticky", left: 0, zIndex: 2 };

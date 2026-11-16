@@ -1,8 +1,8 @@
 "use client";
 
-// T7-4f-3 (2026-05-16): Firma-attestering-liste — mockup v7.
-// Uke-navigasjon, filter-pills, gruppering per prosjekt, kompakt sedel-kort
-// via SeddelKort (T7-4f-3b 2026-05-17 — flat tabell, ikke ProsjektSectionAttest).
+// T7-4f-3 (2026-05-16): Firma-attestering-liste. Sedler-visningen er fra d2b-1
+// (spec prosjektkort-kortid § 12.8.5) tabellen AttesteringTabell; pivotvisningene
+// (Per prosjekt / Per ansatt) beholder uke-navigasjon og nedtrekk.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
@@ -11,28 +11,29 @@ import { trpc } from "@/lib/trpc";
 import { Button, Modal, Spinner } from "@sitedoc/ui";
 import {
   AlertCircle,
-  Check,
   ChevronLeft,
   ChevronRight,
   LayoutList,
   FolderKanban,
   Users,
 } from "lucide-react";
-import { beregnUkeAvvik, mandagIso, type UkeAvvik, type NormtakBruddData } from "@sitedoc/shared";
+import { avvikRetning, beregnUkeAvvik, mandagIso, type UkeAvvik, type NormtakBruddData } from "@sitedoc/shared";
 import { useFirma } from "@/kontekst/firma-kontekst";
 import {
   ProsjektPivot,
   AnsattPivot,
 } from "@/components/attestering/AttesteringPivot";
-import { tilPivotRad } from "@/components/attestering/DagsKort";
+import { tilPivotRad, useKatalogNavn } from "@/components/attestering/DagsKort";
 import type {
   MaskinRad,
   RadProsjekt,
   TilleggRad,
   TimerRad,
 } from "@/components/attestering/attestering-buckets";
-import { SeddelKort } from "@/components/attestering/SeddelKort";
-import { sedelKreverVurdering } from "@/components/attestering/sedel-vurdering";
+import { AttesteringTabell } from "@/components/attestering/AttesteringTabell";
+import { byggAttesteringModell, type AttSedel } from "@/components/attestering/attestering-tabell";
+import { normtakBruddLinje } from "@/lib/normtakBrudd";
+import { HjelpKnapp, HjelpFane } from "@/components/hjelp/HjelpModal";
 
 /* ------------------------------------------------------------------ */
 /*  Typer                                                               */
@@ -64,7 +65,7 @@ type AttesteringRad = {
   dagsnorm: number;
   redigerTillatt: boolean;
   // B5 (2026-05-27): pauseMin trengs for maskin-av-arbeid-invarianten
-  // i SeddelKort. Server returnerer feltet via ...s-spread i
+  // i tabellen. Server returnerer feltet via ...s-spread i
   // hentTilAttesteringFirma — eksplisitt her for type-fanging.
   pauseMin: number;
   beskrivelse: string | null;
@@ -79,10 +80,10 @@ type AttesteringRad = {
   // T.11: leder-synlighet — maskinarbeid uten gyldig maskinførerbevis.
   manglerMaskinforerbevis: boolean;
   // LAG 2 D1: sedelens norm-status (DailySheet.normStatus, via ...s-spread i
-  // hentTilAttesteringFirma). Driver norm-banneret i SeddelKort.
+  // hentTilAttesteringFirma). Driver norm-merket i dagsumraden.
   normStatus: "server" | "cachet" | "ukjent" | null;
   // V19-C (C-2): uavklart PC/mobil-overlapp (DailySheet.konfliktVentendeSiden, via
-  // ...s-spread). Blokkerer ✓ i SeddelKort. Lista leser ALDRI forslagsradene (M15).
+  // ...s-spread). Blokkerer ✓ i tabellen. Lista leser ALDRI forslagsradene (M15).
   konfliktVentendeSiden: Date | string | null;
   // B10 (§ 11.10.4): fravær med tak over dagsnormen; null = intet brudd. Sperrer ✓.
   fravaerNormtakBrudd: NormtakBruddData | null;
@@ -148,7 +149,7 @@ function formatDato(d: Date | string): string {
 /* ------------------------------------------------------------------ */
 
 export default function FirmaAttesteringSide() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { valgtFirma } = useFirma();
   const orgId = valgtFirma?.id;
   const utils = trpc.useUtils();
@@ -281,8 +282,8 @@ export default function FirmaAttesteringSide() {
     [sentRader, acceptedRader, passererFilter],
   );
 
-  // ORDRE 2 STEG 3 ledd 2 (D2): uke-avvik pr. (ansatt + uke) for SeddelKort-
-  // badgen på Sedler-visningen. Regnet på HELE ukens grunnlag (union sent+
+  // ORDRE 2 STEG 3 ledd 2 (D2): uke-avvik pr. (ansatt + uke) for tabellens
+  // avvikstekst på Sedler-visningen. Regnet på HELE ukens grunnlag (union sent+
   // accepted) — samme kilde og funksjon som AnsattPivot-badgen, så de aldri
   // drifter. Nøkkel = ansatt + mandag (lista er én uke, men nøkkelen er robust).
   const avvikPerNokkel = useMemo(() => {
@@ -318,76 +319,39 @@ export default function FirmaAttesteringSide() {
     [avvikPerNokkel],
   );
 
-  // Ekspander-modell (2026-08-23) løftet til page-nivå så «Kollaps alle»/«Utvid alle»/«Krever
-  // vurdering» styrer alle SeddelKort. To lag så MANUELLE toggles OVERLEVER en re-fetch: å
-  // attestere ÉN sedel skal ikke kollapse en annen brukeren har åpnet (samme tapte kontekst som
-  // «Tilbake til oversikt» fikset; attestering er hyppigste handling).
-  //  - `baseModus`: hva knappene setter (standard = krever-vurdering / alle / ingen).
-  //  - `overstyringer`: per-sedel bruker-toggles OPPÅ basen, sheet-id-nøklet → persisterer på
-  //    tvers av re-fetch. Basen leses LIVE fra gjeldende data, så urørte/nye sedler følger den.
-  //  - Hver knapp nullstiller overstyringene (bulk-reset). «Kollaps alle» nullstiller begge lag.
-  const [baseModus, setBaseModus] = useState<"standard" | "alle" | "ingen">("standard");
-  const [overstyringer, setOverstyringer] = useState<Map<string, boolean>>(new Map());
-  const erApen = useCallback(
-    (s: AttesteringRad): boolean => {
-      const o = overstyringer.get(s.id);
-      if (o !== undefined) return o;
-      if (baseModus === "alle") return true;
-      if (baseModus === "ingen") return false;
-      return sedelKreverVurdering(s); // standard: B ∪ C
-    },
-    [overstyringer, baseModus],
-  );
-  const utvidAlle = () => {
-    setBaseModus("alle");
-    setOverstyringer(new Map());
-  };
-  const kollapsAlle = () => {
-    setBaseModus("ingen");
-    setOverstyringer(new Map());
-  };
-  const utvidKreverVurdering = () => {
-    setBaseModus("standard");
-    setOverstyringer(new Map());
-  };
-  const toggleSedel = (s: AttesteringRad) => {
-    const ny = !erApen(s);
-    setOverstyringer((prev) => new Map(prev).set(s.id, ny));
-  };
-  const alleUtvidet = filtrerteSedler.length > 0 && filtrerteSedler.every(erApen);
-  const ingenUtvidet = filtrerteSedler.every((s) => !erApen(s));
-
-  // Gruppering per prosjekt
-  const grupper = useMemo(() => {
-    const m = new Map<string, AttesteringRad[]>();
-    for (const s of filtrerteSedler) {
-      // Kort-id-spec § 11.4: sedel med bare fravær uten prosjekt grupperes som «Fravær».
-      const bareFravaer =
-        !s.prosjekt && s.timer.length > 0 && s.timer.every((r) => r.projectId === null);
-      const key = s.prosjekt?.id ?? (bareFravaer ? "fravaer" : "—");
-      const liste = m.get(key) ?? [];
-      liste.push(s);
-      m.set(key, liste);
-    }
-    return Array.from(m.entries()).map(([prosjektId, sedler]) => ({
-      prosjektId,
-      prosjektNavn:
-        sedler[0]?.prosjekt?.name ??
-        (prosjektId === "fravaer"
-          ? t("timer.detalj.fravaerUtenProsjekt")
-          : t("timer.detalj.ukjentProsjekt")),
-      prosjektNummer: sedler[0]?.prosjekt?.internalProjectNumber ?? null,
-      sedler,
-      arbeidstimer: sedler.reduce(
-        (acc, s) => acc + s.timer.reduce((a, r) => a + Number(r.timer), 0),
-        0,
-      ),
-      maskintimer: sedler.reduce(
-        (acc, s) => acc + s.maskiner.reduce((a, r) => a + Number(r.timer), 0),
-        0,
-      ),
-    }));
-  }, [filtrerteSedler, t]);
+  // Sedler-fanen som tabell (spec prosjektkort-kortid d2b-1, § 12.8.5): dagseddel →
+  // prosjektsedler → linjer. Ekspander-knappene og «Attester gruppe» er erstattet av
+  // «Bare oversiktsrader», Avvik-filteret («Krever vurdering») og «Attester utvalget».
+  const katalog = useKatalogNavn(orgId);
+  const dager = useMemo(() => {
+    const avdNavn = new Map((avdelinger ?? []).map((a) => [a.id, a.navn]));
+    return byggAttesteringModell(filtrerteSedler as unknown as AttSedel[], {
+      ...katalog,
+      avdelingNavn: (id) => (id ? avdNavn.get(id) ?? null : null),
+      normtakLinje: (s) => normtakBruddLinje(t, (s as unknown as AttesteringRad).fravaerNormtakBrudd, i18n.language),
+      ukeAvvikTekst: (s) => {
+        const avvik = avvikFor(s as unknown as AttesteringRad);
+        const retning = avvik ? avvikRetning(avvik) : null;
+        if (!avvik || !retning) return null;
+        const uke = ukeNummer(new Date(s.dato));
+        return retning === "over"
+          ? t("timer.attestering.tabell.ukeAvvikOver", { uke, timer: avvik.avvikTimer.toFixed(1), norm: avvik.norm.toFixed(1) })
+          : t("timer.attestering.tabell.ukeAvvikUnder", { uke, norm: avvik.norm.toFixed(1) });
+      },
+      tekst: {
+        forslagSperre: t("timer.forslagValg.attesterBlokkert"),
+        maskinUtenTimerad: t("timer.attestering.tabell.maskinUtenTimerad"),
+        maskinforerbevis: t("timer.maskinforerbevis.leder"),
+        tilleggskrav: t("timer.attestering.sedel.tilleggskrav"),
+        tilByggherre: t("timer.gruppe.tilByggherre"),
+        fravaerUtenProsjekt: t("timer.detalj.fravaerUtenProsjekt"),
+        reise: t("timer.attestering.tabell.type.reise"),
+        statusVenter: t("timer.attestering.tabell.status.venter"),
+        statusAttestert: t("timer.attestering.tabell.status.attestert"),
+        statusReturnert: t("timer.attestering.tabell.status.returnert"),
+      },
+    });
+  }, [filtrerteSedler, katalog, avdelinger, t, i18n.language, avvikFor]);
 
   const attester = trpc.timer.dagsseddel.attester.useMutation({
     onSuccess: () => {
@@ -400,14 +364,15 @@ export default function FirmaAttesteringSide() {
   // Bær retur-konteksten som EKSPLISITTE verdier (?fraVisning/fraUke/fraFane), ikke en
   // encodet retur-URL — sistnevnte er et open-redirect-mønster som må valideres. Detaljsiden
   // bygger tilbakeUrl av det lukkede settet; ugyldige verdier faller til standard.
-  const aapneSedel = (sheetId: string) => {
+  const sedelUrl = (sheetId: string) => {
     const qp = new URLSearchParams({
       fraVisning: visning,
       fraUke: String(ukeOffset),
       fraFane: aktivFane,
     });
-    router.push(`/dashbord/firma/timer/attestering/${sheetId}?${qp.toString()}`);
+    return `/dashbord/firma/timer/attestering/${sheetId}?${qp.toString()}`;
   };
+  const aapneSedel = (sheetId: string) => router.push(sedelUrl(sheetId));
   const attesterMange = (sheetIds: string[]) => {
     setFeil(null);
     for (const id of sheetIds) attester.mutate({ id });
@@ -439,11 +404,76 @@ export default function FirmaAttesteringSide() {
     );
   }
 
+  const visningVelger = (
+    <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-0.5">
+      {(
+        [
+          { id: "sedler", ikon: LayoutList },
+          { id: "prosjekt", ikon: FolderKanban },
+          { id: "ansatt", ikon: Users },
+        ] as const
+      ).map((v) => (
+        <button
+          key={v.id}
+          onClick={() => setVisning(v.id)}
+          className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+            visning === v.id
+              ? "bg-white text-blue-700 shadow-sm"
+              : "text-gray-500 hover:text-gray-700"
+          }`}
+        >
+          <v.ikon className="h-3.5 w-3.5" />
+          {t(`timer.attestering.visning.${v.id}`)}
+        </button>
+      ))}
+    </div>
+  );
+  const ukeNav = (
+    <div className="flex items-center gap-2">
+      <button
+        onClick={() => setUkeOffset((o) => o - 1)}
+        className="rounded border border-gray-300 p-1.5 hover:bg-gray-50"
+        aria-label={t("timer.attestering.uke.label", { nr: ukeNr - 1 })}
+      >
+        <ChevronLeft className="h-4 w-4" />
+      </button>
+      <div className="min-w-[220px] text-center text-sm font-medium text-gray-900">
+        {t("timer.attestering.uke.label", { nr: ukeNr })}{" "}
+        <span className="text-gray-500">
+          · {formatDato(ukestart)}–{formatDato(ukeslutt)}
+        </span>
+      </div>
+      <button
+        onClick={() => setUkeOffset((o) => o + 1)}
+        className="rounded border border-gray-300 p-1.5 hover:bg-gray-50"
+        aria-label={t("timer.attestering.uke.label", { nr: ukeNr + 1 })}
+      >
+        <ChevronRight className="h-4 w-4" />
+      </button>
+      {ukeOffset !== 0 && (
+        <button
+          onClick={() => setUkeOffset(0)}
+          className="ml-2 text-xs text-blue-600 hover:underline"
+        >
+          {t("timer.attestering.uke.iDag")}
+        </button>
+      )}
+    </div>
+  );
+
   return (
     <div>
-      <p className="mb-4 text-sm text-gray-600">
-        {t("firma.timer.attesteringBeskrivelse")}
-      </p>
+      <div className="mb-2 flex justify-end">
+        <HjelpKnapp>
+          <HjelpFane tittel={t("timer.attestering.tabell.hjelp.tittel")}>
+            <p>{t("firma.timer.attesteringBeskrivelse")}</p>
+            <p className="mt-2">{t("timer.attestering.tabell.hjelp.struktur")}</p>
+            <p className="mt-2">{t("timer.attestering.tabell.hjelp.handlinger")}</p>
+            <p className="mt-2">{t("timer.attestering.tabell.hjelp.retting")}</p>
+            <p className="mt-2">{t("timer.attestering.tabell.hjelp.verktoy")}</p>
+          </HjelpFane>
+        </HjelpKnapp>
+      </div>
 
       {/* T7-5e: Fane-toggle [Venter på attestering ●N] [Attestert ●M] */}
       <div className="mb-4 flex gap-2 border-b border-gray-200">
@@ -491,101 +521,51 @@ export default function FirmaAttesteringSide() {
         </button>
       </div>
 
-      {/* ORDRE 2 STEG 2: visningsvelger — samme uke/filtre på alle tre */}
-      <div className="mb-4 inline-flex rounded-lg border border-gray-200 bg-gray-50 p-0.5">
-        {(
-          [
-            { id: "sedler", ikon: LayoutList },
-            { id: "prosjekt", ikon: FolderKanban },
-            { id: "ansatt", ikon: Users },
-          ] as const
-        ).map((v) => (
-          <button
-            key={v.id}
-            onClick={() => setVisning(v.id)}
-            className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-              visning === v.id
-                ? "bg-white text-blue-700 shadow-sm"
-                : "text-gray-500 hover:text-gray-700"
-            }`}
-          >
-            <v.ikon className="h-3.5 w-3.5" />
-            {t(`timer.attestering.visning.${v.id}`)}
-          </button>
-        ))}
-      </div>
+      {visning !== "sedler" && (
+        <div className="mb-4 space-y-4">
+          {visningVelger}
+          {ukeNav}
+          <div className="mb-4 flex flex-wrap gap-2">
+            <select
+              value={valgtProsjektId}
+              onChange={(e) => setValgtProsjektId(e.target.value)}
+              className="rounded-full border border-gray-300 bg-white px-3 py-1.5 text-xs"
+            >
+              <option value="">{t("timer.attestering.filter.alleProsjekter")}</option>
+              {prosjekterIRader.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+            <select
+              value={valgtAnsattId}
+              onChange={(e) => setValgtAnsattId(e.target.value)}
+              className="rounded-full border border-gray-300 bg-white px-3 py-1.5 text-xs"
+            >
+              <option value="">{t("timer.attestering.filter.alleAnsatte")}</option>
+              {ansatteIRader.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.navn}
+                </option>
+              ))}
+            </select>
+            <select
+              value={valgtAvdelingId}
+              onChange={(e) => setValgtAvdelingId(e.target.value)}
+              className="rounded-full border border-gray-300 bg-white px-3 py-1.5 text-xs"
+            >
+              <option value="">{t("timer.attestering.filter.alleAvdelinger")}</option>
+              {avdelinger?.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.navn}
+                </option>
+              ))}
+            </select>
+          </div>
 
-      {/* Uke-navigasjon */}
-      <div className="mb-4 flex items-center gap-2">
-        <button
-          onClick={() => setUkeOffset((o) => o - 1)}
-          className="rounded border border-gray-300 p-1.5 hover:bg-gray-50"
-          aria-label={t("timer.attestering.uke.label", { nr: ukeNr - 1 })}
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </button>
-        <div className="min-w-[220px] text-center text-sm font-medium text-gray-900">
-          {t("timer.attestering.uke.label", { nr: ukeNr })}{" "}
-          <span className="text-gray-500">
-            · {formatDato(ukestart)}–{formatDato(ukeslutt)}
-          </span>
         </div>
-        <button
-          onClick={() => setUkeOffset((o) => o + 1)}
-          className="rounded border border-gray-300 p-1.5 hover:bg-gray-50"
-          aria-label={t("timer.attestering.uke.label", { nr: ukeNr + 1 })}
-        >
-          <ChevronRight className="h-4 w-4" />
-        </button>
-        {ukeOffset !== 0 && (
-          <button
-            onClick={() => setUkeOffset(0)}
-            className="ml-2 text-xs text-blue-600 hover:underline"
-          >
-            {t("timer.attestering.uke.iDag")}
-          </button>
-        )}
-      </div>
-
-      {/* Filter-pills */}
-      <div className="mb-4 flex flex-wrap gap-2">
-        <select
-          value={valgtProsjektId}
-          onChange={(e) => setValgtProsjektId(e.target.value)}
-          className="rounded-full border border-gray-300 bg-white px-3 py-1.5 text-xs"
-        >
-          <option value="">{t("timer.attestering.filter.alleProsjekter")}</option>
-          {prosjekterIRader.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-        </select>
-        <select
-          value={valgtAnsattId}
-          onChange={(e) => setValgtAnsattId(e.target.value)}
-          className="rounded-full border border-gray-300 bg-white px-3 py-1.5 text-xs"
-        >
-          <option value="">{t("timer.attestering.filter.alleAnsatte")}</option>
-          {ansatteIRader.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.navn}
-            </option>
-          ))}
-        </select>
-        <select
-          value={valgtAvdelingId}
-          onChange={(e) => setValgtAvdelingId(e.target.value)}
-          className="rounded-full border border-gray-300 bg-white px-3 py-1.5 text-xs"
-        >
-          <option value="">{t("timer.attestering.filter.alleAvdelinger")}</option>
-          {avdelinger?.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.navn}
-            </option>
-          ))}
-        </select>
-      </div>
+      )}
 
       {feil && <p className="mb-4 text-sm text-red-600">{feil}</p>}
 
@@ -612,56 +592,26 @@ export default function FirmaAttesteringSide() {
           attesterPending={attester.isPending}
           readOnly={readOnly}
         />
-      ) : grupper.length === 0 ? (
-        <div className="rounded-lg border border-gray-200 bg-white p-12 text-center">
-          <p className="text-sm text-gray-500">
-            {t("timer.attestering.ingenSedler")}
-          </p>
-        </div>
       ) : (
-        <div className="space-y-3">
-          {/* Ekspander-kontroller (2026-08-23): to knapper + gjenopprett standard-settet. */}
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={kollapsAlle}
-              disabled={ingenUtvidet}
-              className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-40"
-            >
-              {t("timer.attestering.ekspander.kollapsAlle")}
-            </button>
-            <button
-              onClick={utvidAlle}
-              disabled={alleUtvidet}
-              className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-40"
-            >
-              {t("timer.attestering.ekspander.utvidAlle")}
-            </button>
-            <button
-              onClick={utvidKreverVurdering}
-              className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
-            >
-              {t("timer.attestering.ekspander.kreverVurdering")}
-            </button>
-          </div>
-          <div className="space-y-6">
-            {grupper.map((g) => (
-              <ProsjektGruppe
-                key={g.prosjektId}
-                gruppe={g}
-                onAttester={(id) => {
-                  setFeil(null);
-                  attester.mutate({ id });
-                }}
-                onReturner={(id) => setReturnerId(id)}
-                attesterPending={attester.isPending}
-                readOnly={readOnly}
-                erApen={erApen}
-                onToggleSedel={toggleSedel}
-                avvikFor={avvikFor}
-              />
-            ))}
-          </div>
-        </div>
+        <AttesteringTabell
+          dager={dager}
+          orgId={orgId}
+          readOnly={readOnly}
+          verktoy={<>{visningVelger}{ukeNav}</>}
+          ukeoversikt={
+            <AnsattPivot
+              visningsRader={filtrerteSedler.map(tilPivotRad)}
+              ukeGrunnlag={ukeGrunnlag.map(tilPivotRad)}
+              ukestart={ukestart}
+              onAapneSedel={aapneSedel}
+              onAttesterMange={attesterMange}
+              attesterPending={attester.isPending}
+              readOnly={readOnly}
+            />
+          }
+          sedelUrl={sedelUrl}
+          onReturnerDag={(id) => setReturnerId(id)}
+        />
       )}
 
       {returnerId && (
@@ -673,95 +623,6 @@ export default function FirmaAttesteringSide() {
     </div>
   );
 }
-
-/* ------------------------------------------------------------------ */
-/*  ProsjektGruppe                                                      */
-/* ------------------------------------------------------------------ */
-
-function ProsjektGruppe({
-  gruppe,
-  onAttester,
-  onReturner,
-  attesterPending,
-  readOnly,
-  erApen,
-  onToggleSedel,
-  avvikFor,
-}: {
-  gruppe: {
-    prosjektId: string;
-    prosjektNavn: string;
-    prosjektNummer: string | null;
-    sedler: AttesteringRad[];
-    arbeidstimer: number;
-    maskintimer: number;
-  };
-  erApen: (s: AttesteringRad) => boolean;
-  onToggleSedel: (s: AttesteringRad) => void;
-  onAttester: (sheetId: string) => void;
-  onReturner: (sheetId: string) => void;
-  attesterPending: boolean;
-  readOnly: boolean;
-  avvikFor: (s: AttesteringRad) => UkeAvvik | null;
-}) {
-  const { t } = useTranslation();
-
-  return (
-    <section>
-      <header className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-t-lg border border-gray-200 bg-gray-100 px-4 py-2">
-        <div className="flex items-baseline gap-2">
-          <h2 className="text-sm font-semibold text-gray-900">
-            {gruppe.prosjektNavn}
-          </h2>
-          {gruppe.prosjektNummer && (
-            <span className="text-xs text-gray-500">{gruppe.prosjektNummer}</span>
-          )}
-        </div>
-        <div className="flex items-center gap-3 text-xs text-gray-600">
-          <span>
-            {t("timer.attestering.gruppe.sedler", { antall: gruppe.sedler.length })}
-          </span>
-          <span className="font-mono">
-            {gruppe.arbeidstimer.toFixed(2)}t {t("timer.gruppe.arbeidstimer")}
-          </span>
-          <span className="font-mono">
-            {gruppe.maskintimer.toFixed(2)}t {t("timer.gruppe.maskintimer")}
-          </span>
-          {!readOnly && (
-            <Button
-              size="sm"
-              onClick={() => {
-                for (const s of gruppe.sedler) onAttester(s.id);
-              }}
-              disabled={attesterPending}
-            >
-              <Check className="mr-1 h-3.5 w-3.5" />
-              {t("timer.attestering.gruppe.attesterGruppe", {
-                antall: gruppe.sedler.length,
-              })}
-            </Button>
-          )}
-        </div>
-      </header>
-      <div className="space-y-3">
-        {gruppe.sedler.map((s) => (
-          <SeddelKort
-            key={s.id}
-            sedel={s}
-            onAttester={() => onAttester(s.id)}
-            onReturner={() => onReturner(s.id)}
-            attesterPending={attesterPending}
-            readOnly={readOnly}
-            expanded={erApen(s)}
-            onToggleExpand={() => onToggleSedel(s)}
-            ukeAvvik={avvikFor(s)}
-          />
-        ))}
-      </div>
-    </section>
-  );
-}
-
 
 /* ------------------------------------------------------------------ */
 /*  ReturnerDialog                                                      */

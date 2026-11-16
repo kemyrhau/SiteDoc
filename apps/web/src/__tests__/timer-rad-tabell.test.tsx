@@ -111,7 +111,7 @@ describe("R22/R25 — faste kanter og skillet mellom linjer", () => {
     const { container, getAllByRole } = render(<TimerRadTabell {...props} kolonner={[...props.kolonner]} />);
     const berit = container.querySelector('[data-linje="b"]') as HTMLElement;
     expect(berit.style.gridTemplateRows).toBe("repeat(2, auto)");
-    const [venstre] = Array.from(berit.children) as HTMLElement[];
+    const venstre = berit.firstElementChild as HTMLElement;
     const hoyre = berit.lastElementChild as HTMLElement;
     expect(venstre.style.position).toBe("sticky");
     expect(venstre.style.left).toBe("0px");

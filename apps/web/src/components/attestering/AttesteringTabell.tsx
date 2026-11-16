@@ -1,0 +1,674 @@
+"use client";
+
+import { useMemo, useState, type ReactNode, type KeyboardEvent } from "react";
+import Link from "next/link";
+import { useTranslation } from "react-i18next";
+import { Check, CornerUpLeft, RotateCcw, Scissors, Pencil, X, SlidersHorizontal, ExternalLink } from "lucide-react";
+import { Button, Modal } from "@sitedoc/ui";
+import {
+  TIMER_TABELL_KOL,
+  TIMER_TABELL_KOL_KEYS,
+  TIMER_TABELL_STANDARD,
+  timerTabellVerdi,
+  type TimerTabellKolKey,
+} from "@sitedoc/shared";
+import { trpc } from "@/lib/trpc";
+import { formaterNorsk } from "@/lib/timer-rapport-eksport";
+import { useTabelloppsett } from "@/hooks/useTabelloppsett";
+import { KolonneVelger } from "@/components/ui/KolonneVelger";
+import {
+  TimerRadTabell,
+  type TimerRadTabellRad,
+  type TimerRadTabellSortering,
+} from "@/components/timer/TimerRadTabell";
+import { SplittRadModal } from "@/components/timer/SplittRadModal";
+import type { ProsjektValg } from "@/components/timer/rediger-types";
+import { RedigerRadModal } from "./RedigerRadModal";
+import { ReiseRadMerke } from "./ReiseRadMerke";
+import {
+  AVVIK_FILTER,
+  FILTER_KOLONNER,
+  antallRader,
+  byggUtvalg,
+  filterAlternativer,
+  filtrerModell,
+  slaaSammen,
+  sumLinjer,
+  type AttDag,
+  type AttKort,
+  type AttLinje,
+  type AttSedel,
+  type RadIder,
+} from "./attestering-tabell";
+
+/**
+ * Firma-attesteringens Sedler-fane som tabell (spec prosjektkort-kortid d2b-1, § 12.8.5).
+ *
+ * Dagseddel → prosjektsedler (kort) → linjer. Hvert kort har en oversiktsrad (R4) med ✓,
+ * retur og gjenåpne for kortet; linjene har sine egne (R10, R23); dagseddelens sum står i
+ * en rad nederst med «Attester dagen» / «Gjenåpne dagen» og lenke til sedelen — uten
+ * retting (Kenneth runde 3). Retting skjer i cella på linja (R21).
+ *
+ * Én verktøylinje (R17): sidens uke/gruppering/fane kommer inn som `verktoy`, resten
+ * eies her. Filter, sortering og «bare oversiktsrader» gjelder besøket (R7).
+ */
+
+type Felt = "fraTid" | "tilTid" | "timer" | "pauseMin" | "lonnsartId" | "aktivitetId" | "vehicleId" | "mengde" | "enhet" | "antall";
+type Mal = { radType: "timer" | "maskin" | "tillegg"; radId: string; felt: Felt; verdi: string; type: "tekst" | "tall" | "heltall" | "valg" };
+
+const LISTE = "timer-attestering";
+const STANDARD = new Set<string>(TIMER_TABELL_STANDARD);
+const VENSTRE = 36;
+const HOYRE = 176;
+
+interface Props {
+  dager: AttDag[];
+  orgId: string;
+  readOnly: boolean;
+  /** Uke, gruppering og fane — sidens del av verktøylinja. */
+  verktoy: ReactNode;
+  /** Ukeoversikten (R18), åpnes fra verktøylinja. */
+  ukeoversikt: ReactNode;
+  /** Lenke til sedelen (dagens «Rediger»-meny). */
+  sedelUrl: (sheetId: string) => string;
+  onReturnerDag: (sheetId: string) => void;
+  /** Prosjektkontekst (F1). Firmaattesteringen har ingen. */
+  prosjektKontekst?: string;
+}
+
+export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt, sedelUrl, onReturnerDag, prosjektKontekst }: Props) {
+  const { t } = useTranslation();
+  const utils = trpc.useUtils();
+  const oppsett = useTabelloppsett({ liste: LISTE, standardKolonner: STANDARD, kanoniskRekkefolge: TIMER_TABELL_KOL_KEYS });
+  const kolonner = useMemo(
+    () => oppsett.kolonneRekkefolge.filter((k): k is TimerTabellKolKey => k in TIMER_TABELL_KOL),
+    [oppsett.kolonneRekkefolge],
+  );
+  const overskrift = (k: TimerTabellKolKey) => t(`timer.eksport.${TIMER_TABELL_KOL[k].i18n}`);
+
+  // Besøkets tilstand (R7): aldri lagret.
+  const [filterVerdier, setFilterVerdier] = useState<Record<string, string>>({});
+  const [beskrivelseSok, setBeskrivelseSok] = useState("");
+  const [sortering, setSortering] = useState<TimerRadTabellSortering | null>(null);
+  const [bareOversikt, setBareOversikt] = useState(false);
+  const [visVelger, setVisVelger] = useState(false);
+  const [visUke, setVisUke] = useState(false);
+  const [valgte, setValgte] = useState<Set<string>>(new Set());
+  const [melding, setMelding] = useState<string | null>(null);
+  const [returner, setReturner] = useState<RadIder | null>(null);
+  const [gjenaapneDag, setGjenaapneDag] = useState<string | null>(null);
+  const [splitt, setSplitt] = useState<AttLinje | null>(null);
+  const [rediger, setRediger] = useState<AttLinje | null>(null);
+  const [redigerer, setRedigerer] = useState<{ nokkel: string; mal: Mal } | null>(null);
+  const [celleFeil, setCelleFeil] = useState<Record<string, string>>({});
+
+  const sedelFor = useMemo(() => {
+    const m = new Map<string, AttSedel>();
+    for (const d of dager) m.set(d.sedel.id, d.sedel);
+    return (id: string) => m.get(id);
+  }, [dager]);
+
+  const synlige = useMemo(
+    () => filtrerModell(dager, { verdier: filterVerdier, beskrivelseSok }),
+    [dager, filterVerdier, beskrivelseSok],
+  );
+  const alleLinjer = useMemo(() => dager.flatMap((d) => d.kort.flatMap((k) => k.linjer)), [dager]);
+  const synligeLinjer = useMemo(() => synlige.flatMap((d) => d.kort.flatMap((k) => k.linjer)), [synlige]);
+
+  // Utvalget (R10): avkryssede linjer blant de synlige; ingen avkrysset → alle synlige.
+  const utvalgGrunnlag = useMemo(() => {
+    const krysset = synligeLinjer.filter((l) => valgte.has(l.nokkel));
+    return krysset.length > 0 ? krysset : synligeLinjer;
+  }, [synligeLinjer, valgte]);
+  const utvalg = useMemo(() => byggUtvalg(utvalgGrunnlag, sedelFor, prosjektKontekst), [utvalgGrunnlag, sedelFor, prosjektKontekst]);
+
+  // Kataloger til valg-cellene (samme spørringer som useKatalogNavn — delt cache).
+  const katalogInput = { organizationId: orgId };
+  const { data: lonnsarter } = trpc.timer.lonnsart.list.useQuery(katalogInput);
+  const { data: aktiviteter } = trpc.timer.aktivitet.list.useQuery(katalogInput);
+  const { data: utstyrRaw } = trpc.maskin.equipment.list.useQuery(katalogInput);
+  const utstyr = utstyrRaw as unknown as Array<{ id: string; merke: string; modell: string; internNavn: string | null }> | undefined;
+  const { data: prosjekterRaw } = trpc.prosjekt.hentAlle.useQuery({ organizationId: orgId, inkluderFrosne: true });
+  const prosjekter = (prosjekterRaw ?? []) as unknown as ProsjektValg[];
+  const { data: innstilling } = trpc.organisasjon.hentSetting.useQuery({ organizationId: orgId });
+  const tidsrunding = (innstilling as { tidsrundingMinutter?: number | null } | undefined)?.tidsrundingMinutter ?? null;
+
+  const oppfrisk = () => {
+    void utils.timer.dagsseddel.hentTilAttesteringFirma.invalidate();
+    void utils.timer.dagsseddel.hentTilAttestering.invalidate();
+  };
+  const feil = (e: { message: string }) => setMelding(e.message);
+  const attesterRader = trpc.timer.dagsseddel.attesterRader.useMutation({ onSuccess: (_d: unknown) => { setValgte(new Set()); oppfrisk(); }, onError: feil });
+  const gjenaapneRader = trpc.timer.dagsseddel.gjenaapneRader.useMutation({ onSuccess: (_d: unknown) => oppfrisk(), onError: feil });
+  const attesterDag = trpc.timer.dagsseddel.attester.useMutation({ onSuccess: (_d: unknown) => oppfrisk(), onError: feil });
+  const rettRadFelt = trpc.timer.dagsseddel.rettRadFelt.useMutation();
+  const opptatt = attesterRader.isPending || gjenaapneRader.isPending || attesterDag.isPending;
+
+  function attester(radIder: RadIder) {
+    if (antallRader(radIder) === 0) return;
+    setMelding(null);
+    attesterRader.mutate({ radIder });
+  }
+  function gjenaapne(radIder: RadIder) {
+    if (antallRader(radIder) === 0) return;
+    setMelding(null);
+    gjenaapneRader.mutate({ radIder });
+  }
+  function attesterUtvalget() {
+    setMelding(utvalg.stoende > 0 ? t("timer.attestering.tabell.stoende", { count: utvalg.stoende }) : null);
+    if (antallRader(utvalg.radIder) > 0) attesterRader.mutate({ radIder: utvalg.radIder });
+  }
+
+  /* ---------------- Retting i cella (R21, T61) ---------------- */
+
+  function malFor(k: TimerTabellKolKey, l: AttLinje, under: number): Mal | null {
+    const s = sedelFor(l.sheetId);
+    if (readOnly || !s?.redigerTillatt || !l.ventende || !l.harHandling) return null;
+    const kilde = l.kilde;
+    if (kilde.type === "timer" && under === 0) {
+      const r = kilde.rad;
+      const m = (felt: Felt, verdi: unknown, type: Mal["type"]): Mal => ({ radType: "timer", radId: r.id, felt, verdi: verdi == null ? "" : String(verdi), type });
+      if (k === "fraTid") return m("fraTid", r.fraTid, "tekst");
+      if (k === "tilTid") return m("tilTid", r.tilTid, "tekst");
+      if (k === "timer") return m("timer", r.timer, "tall");
+      if (k === "pause") return m("pauseMin", r.pauseMin, "heltall");
+      if (k === "betegnelse") return m("lonnsartId", r.lonnsartId, "valg");
+      if (k === "aktivitet") return m("aktivitetId", r.aktivitetId, "valg");
+    }
+    const maskin = kilde.type === "timer" ? kilde.maskiner[under] : kilde.type === "maskin" && under === 0 ? kilde.rad : undefined;
+    if (maskin) {
+      const m = (felt: Felt, verdi: unknown, type: Mal["type"]): Mal => ({ radType: "maskin", radId: maskin.id, felt, verdi: verdi == null ? "" : String(verdi), type });
+      if (k === "maskin") return m("vehicleId", maskin.vehicleId, "valg");
+      if (k === "maskintimer") return m("timer", maskin.timer, "tall");
+      if (k === "mengde") return m("mengde", maskin.mengde, "tall");
+      if (k === "enhet") return m("enhet", maskin.enhet, "tekst");
+    }
+    if (kilde.type === "tillegg" && under === 0 && k === "antall") {
+      return { radType: "tillegg", radId: kilde.rad.id, felt: "antall", verdi: String(kilde.rad.antall ?? ""), type: "tall" };
+    }
+    return null;
+  }
+
+  function lagre(nokkel: string, mal: Mal, verdi: string) {
+    setRedigerer(null);
+    if (verdi === mal.verdi) return;
+    const tolket: string | number | null =
+      mal.type === "tall" ? (verdi.trim() === "" ? null : Number(verdi.replace(",", "."))) :
+      mal.type === "heltall" ? Number.parseInt(verdi, 10) :
+      verdi.trim() === "" ? null : verdi.trim();
+    if (typeof tolket === "number" && Number.isNaN(tolket)) {
+      setCelleFeil((f) => ({ ...f, [nokkel]: t("timer.attestering.tabell.ugyldigTall") }));
+      return;
+    }
+    setCelleFeil(({ [nokkel]: _bort, ...rest }) => rest);
+    const felter = { [mal.felt]: tolket };
+    const input =
+      mal.radType === "timer" ? { radType: "timer" as const, radId: mal.radId, felter } :
+      mal.radType === "maskin" ? { radType: "maskin" as const, radId: mal.radId, felter } :
+      { radType: "tillegg" as const, radId: mal.radId, felter };
+    rettRadFelt.mutate(input as Parameters<typeof rettRadFelt.mutate>[0], {
+      onSuccess: (_d: unknown) => oppfrisk(),
+      // Avviser serveren, står den gamle verdien og cella viser grunnen (T61).
+      onError: (e: { message: string }) => setCelleFeil((f) => ({ ...f, [nokkel]: e.message })),
+    });
+  }
+
+  function valgAlternativer(felt: Felt): { value: string; label: string }[] {
+    if (felt === "lonnsartId") return (lonnsarter ?? []).map((l) => ({ value: l.id, label: l.navn }));
+    if (felt === "aktivitetId") return (aktiviteter ?? []).map((a) => ({ value: a.id, label: a.navn }));
+    if (felt === "vehicleId") return (utstyr ?? []).map((e) => ({ value: e.id, label: `${e.merke} ${e.modell}`.trim() || e.internNavn || e.id }));
+    return [];
+  }
+
+  /* ---------------- Celler ---------------- */
+
+  const typeTekst = (type: string) => t(`timer.attestering.tabell.type.${type}`);
+
+  function visning(k: TimerTabellKolKey, l: AttLinje, under: number): ReactNode {
+    const v = timerTabellVerdi(k, l.linje, under);
+    if (k === "type") return under === 0 ? typeTekst(l.linje.type) : null;
+    if (k === "avvik") {
+      return under === 0 && l.linje.avvik.length > 0 ? <span className="whitespace-normal text-amber-700">{l.linje.avvik.join(" · ")}</span> : null;
+    }
+    if (k === "betegnelse" && under === 0 && l.kilde.type === "timer" && l.kilde.rad.erReise) {
+      return <span className="inline-flex items-center gap-1">{l.linje.betegnelse}<ReiseRadMerke rad={l.kilde.rad} /></span>;
+    }
+    if (v === null) return null;
+    if (typeof v === "number") return k === "pause" ? String(v) : formaterNorsk(v);
+    return v;
+  }
+
+  // «var 5,00» (T57): verdien før retting, i synlig tekst.
+  function varTekst(k: TimerTabellKolKey, l: AttLinje, under: number): string | null {
+    const kilde = l.kilde;
+    const maskinId = kilde.type === "timer" ? kilde.maskiner[under]?.id : kilde.type === "maskin" && under === 0 ? kilde.rad.id : undefined;
+    const nokkel =
+      under === 0 && ({ fraTid: "fraTid", tilTid: "tilTid", timer: "timer", pause: "pauseMin", antall: "antall", betegnelse: "lonnsartId", aktivitet: "aktivitetId" } as Record<string, string>)[k];
+    let foer: string | number | null | undefined;
+    if (kilde.type !== "maskin" && nokkel) foer = l.rettet[nokkel];
+    const mFelt = ({ maskin: "vehicleId", maskintimer: "timer", mengde: "mengde", enhet: "enhet" } as Record<string, string>)[k];
+    if (maskinId && mFelt) foer = l.rettet[`maskin.${maskinId}.${mFelt}`];
+    if (foer === undefined) return null;
+    if (foer === null || foer === "") return t("timer.attestering.tabell.var", { verdi: "—" });
+    const tekst =
+      nokkel === "lonnsartId" ? (lonnsarter ?? []).find((x) => x.id === foer)?.navn ?? String(foer) :
+      nokkel === "aktivitetId" ? (aktiviteter ?? []).find((x) => x.id === foer)?.navn ?? String(foer) :
+      typeof foer === "number" ? formaterNorsk(foer) : String(foer);
+    return t("timer.attestering.tabell.var", { verdi: tekst });
+  }
+
+  function celle(k: TimerTabellKolKey, l: AttLinje, under: number): ReactNode {
+    const nokkel = `${l.nokkel}:${under}:${k}`;
+    const mal = malFor(k, l, under);
+    const varT = varTekst(k, l, under);
+    const feilT = celleFeil[nokkel];
+    const innhold = visning(k, l, under);
+    if (redigerer?.nokkel === nokkel && mal) {
+      return <CelleRedigering mal={mal} alternativer={valgAlternativer(mal.felt)} onLagre={(v) => lagre(nokkel, mal, v)} onAngre={() => setRedigerer(null)} />;
+    }
+    const tekst = (
+      <>
+        {innhold}
+        {varT && <span className="block text-[11px] text-gray-500">{varT}</span>}
+        {feilT && <span className="block whitespace-normal text-[11px] text-red-600">{feilT}</span>}
+      </>
+    );
+    if (!mal) return tekst;
+    return (
+      <button
+        type="button"
+        onClick={() => setRedigerer({ nokkel, mal })}
+        className="-mx-1 block w-full min-w-0 truncate rounded px-1 text-inherit hover:bg-blue-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+        title={t("timer.attestering.tabell.rettCelle")}
+      >
+        {tekst}
+      </button>
+    );
+  }
+
+  /* ---------------- Rader ---------------- */
+
+  const etikettKol: TimerTabellKolKey | undefined =
+    (["betegnelse", "prosjekt", "ansatt", "dato"] as const).find((k) => kolonner.includes(k)) ?? kolonner[0];
+  const avvikKol: TimerTabellKolKey | undefined = (["avvik", "beskrivelse", "betegnelse"] as const).find((k) => kolonner.includes(k));
+
+  function handlingKnapp(props: { ikon: ReactNode; tekst: string; onClick: () => void; disabled?: boolean; tittel?: string; farge?: string }) {
+    return (
+      <button
+        type="button"
+        onClick={props.onClick}
+        disabled={props.disabled}
+        title={props.tittel ?? props.tekst}
+        aria-label={props.tekst}
+        className={`inline-flex h-7 w-7 items-center justify-center rounded border border-gray-200 bg-white disabled:cursor-not-allowed disabled:opacity-40 ${props.farge ?? "text-gray-600 hover:bg-gray-50"}`}
+      >
+        {props.ikon}
+      </button>
+    );
+  }
+
+  function kortHandlinger(kort: AttKort) {
+    const ventende = kort.linjer.filter((l) => l.harHandling && l.ventende);
+    const attesterte = kort.linjer.filter((l) => l.harHandling && l.attestert);
+    const sperre = kort.linjer.find((l) => l.sperre)?.sperre;
+    return (
+      <span className="flex items-center gap-1">
+        {!readOnly && ventende.length > 0 && (
+          <>
+            {handlingKnapp({ ikon: <Check className="h-4 w-4" />, tekst: t("timer.attestering.tabell.attesterKort"), tittel: sperre ?? undefined, disabled: opptatt || !!sperre, onClick: () => attester(slaaSammen(ventende)), farge: "text-green-700 hover:bg-green-50" })}
+            {handlingKnapp({ ikon: <CornerUpLeft className="h-4 w-4" />, tekst: t("timer.attestering.tabell.returnerKort"), onClick: () => setReturner(slaaSammen(ventende)) })}
+          </>
+        )}
+        {attesterte.length > 0 &&
+          handlingKnapp({ ikon: <RotateCcw className="h-4 w-4" />, tekst: t("timer.attestering.tabell.gjenaapneKort"), disabled: opptatt, onClick: () => gjenaapne(slaaSammen(attesterte)) })}
+      </span>
+    );
+  }
+
+  function dagHandlinger(dag: AttDag) {
+    const s = dag.sedel;
+    return (
+      <span className="flex items-center gap-1">
+        {!readOnly && (
+          <>
+            <Button size="sm" onClick={() => { setMelding(null); attesterDag.mutate({ id: s.id }); }} disabled={opptatt || !!dag.sperre} title={dag.sperre ?? undefined}>
+              <Check className="mr-1 h-3.5 w-3.5" />
+              {t("timer.attestering.tabell.attesterDagen")}
+            </Button>
+            {handlingKnapp({ ikon: <CornerUpLeft className="h-4 w-4" />, tekst: t("timer.attestering.returner"), onClick: () => onReturnerDag(s.id) })}
+          </>
+        )}
+        {readOnly && (
+          <Button size="sm" variant="secondary" onClick={() => setGjenaapneDag(s.id)}>
+            <RotateCcw className="mr-1 h-3.5 w-3.5" />
+            {t("timer.attestering.tabell.gjenaapneDagen")}
+          </Button>
+        )}
+        <Link href={sedelUrl(s.id)} title={t("timer.attestering.meny.rediger")} aria-label={t("timer.attestering.meny.rediger")} className="inline-flex h-7 w-7 items-center justify-center rounded border border-gray-200 bg-white text-gray-600 hover:bg-gray-50">
+          <ExternalLink className="h-3.5 w-3.5" />
+        </Link>
+      </span>
+    );
+  }
+
+  function linjeHandlinger(l: AttLinje) {
+    const kanSplitte = !readOnly && l.ventende && l.projectId !== null && (l.kilde.type === "timer" || l.kilde.type === "maskin" || l.kilde.type === "tillegg");
+    return (
+      <span className="flex items-center gap-1">
+        {l.harHandling && !readOnly && l.ventende && (
+          <>
+            {handlingKnapp({ ikon: <Check className="h-4 w-4" />, tekst: t("timer.attestering.attester"), tittel: l.sperre ?? undefined, disabled: opptatt || !!l.sperre, onClick: () => attester(l.radIder), farge: "text-green-700 hover:bg-green-50" })}
+            {handlingKnapp({ ikon: <CornerUpLeft className="h-4 w-4" />, tekst: t("timer.attestering.returner"), onClick: () => setReturner(l.radIder) })}
+          </>
+        )}
+        {l.harHandling && l.attestert &&
+          handlingKnapp({ ikon: <RotateCcw className="h-4 w-4" />, tekst: t("timer.attestering.tabell.gjenaapneLinje"), disabled: opptatt, onClick: () => gjenaapne(l.radIder) })}
+        {kanSplitte && handlingKnapp({ ikon: <Scissors className="h-3.5 w-3.5" />, tekst: t("timer.attestering.meny.splittRad"), onClick: () => setSplitt(l) })}
+        {!readOnly && l.ventende && l.projectId !== null && l.kilde.type !== "utlegg" &&
+          handlingKnapp({ ikon: <Pencil className="h-3.5 w-3.5" />, tekst: t("timer.attestering.meny.rediger"), onClick: () => setRediger(l) })}
+      </span>
+    );
+  }
+
+  const rader = useMemo<TimerRadTabellRad<AttLinje>[]>(() => {
+    const ut: TimerRadTabellRad<AttLinje>[] = [];
+    for (const dag of synlige) {
+      const s = dag.sedel;
+      for (const kort of dag.kort) {
+        const sum = sumLinjer(kort.linjer);
+        const avvik = [...new Set(kort.linjer.flatMap((l) => l.linje.avvik))];
+        const dagen = t("timer.attestering.tabell.dagenAvNorm", { timer: formaterNorsk(s.totaltimer), norm: formaterNorsk(s.dagsnorm) });
+        ut.push({
+          kind: "sum",
+          nokkel: `o:${kort.nokkel}`,
+          hoyre: kortHandlinger(kort),
+          celle: (k) => {
+            switch (k) {
+              case "dato": return dag.dato;
+              case "ansatt": return dag.ansatt;
+              case "ansattnr": return dag.ansattnr ?? "";
+              case "prosjektnummer": return kort.prosjektnummer;
+              case "prosjekt": return kort.prosjekt;
+              case "byggeplass": return kort.byggeplass ?? "";
+              case "underprosjekt": return kort.underprosjekt ?? "";
+              case "timer": return formaterNorsk(sum.timer);
+              case "maskintimer": return sum.maskintimer > 0 ? formaterNorsk(sum.maskintimer) : "";
+              default:
+                return k === avvikKol ? <span className="whitespace-normal font-normal text-gray-700">{[dagen, ...avvik].join(" · ")}</span> : "";
+            }
+          },
+        });
+        if (!bareOversikt) for (const l of kort.linjer) ut.push({ kind: "linje", nokkel: l.nokkel, data: l, underlinjer: Math.max(1, l.linje.maskiner.length, l.linje.varer.length) });
+      }
+      // Dagseddelens sum nederst (§ 12.8.5): bare sum og handlinger.
+      const alle = dag.kort.flatMap((k) => k.linjer);
+      const sum = sumLinjer(alle);
+      const merker = [
+        dag.sperre,
+        s.normStatus === "cachet" ? t("timer.attestering.norm.cachet") : s.normStatus === "ukjent" ? t("timer.attestering.norm.ukjent") : null,
+      ].filter(Boolean);
+      ut.push({
+        kind: "sum",
+        nokkel: `d:${s.id}`,
+        sterk: true,
+        hoyre: dagHandlinger(dag),
+        celle: (k) =>
+          k === etikettKol ? t("timer.attestering.tabell.dagsum", { dato: dag.dato, ansatt: dag.ansatt }) :
+          k === "timer" ? formaterNorsk(sum.timer) :
+          k === "maskintimer" ? (sum.maskintimer > 0 ? formaterNorsk(sum.maskintimer) : "") :
+          k === avvikKol && merker.length > 0 ? <span className="whitespace-normal font-normal text-amber-700">{merker.join(" · ")}</span> : "",
+      });
+    }
+    return ut;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- handlingene leser fersk tilstand ved klikk
+  }, [synlige, bareOversikt, t, readOnly, opptatt, etikettKol, avvikKol]);
+
+  /* ---------------- Filter i hodet (R8) ---------------- */
+
+  const filter = {
+    verdier: filterVerdier,
+    onEndring: (k: TimerTabellKolKey, v: string) => setFilterVerdier((f) => ({ ...f, [k]: v })),
+    alternativer: (k: TimerTabellKolKey) => {
+      if (k === "avvik") return [
+        { value: AVVIK_FILTER.kreverVurdering, label: t("timer.attestering.ekspander.kreverVurdering") },
+        { value: AVVIK_FILTER.harAvvik, label: t("timer.attestering.tabell.harAvvik") },
+      ];
+      if (!FILTER_KOLONNER.includes(k)) return undefined;
+      return filterAlternativer(dager, k).map((v) => ({ value: v, label: k === "type" ? typeTekst(v) : v }));
+    },
+    sok: (k: TimerTabellKolKey) => (k === "beskrivelse" ? { verdi: beskrivelseSok, onChange: setBeskrivelseSok } : undefined),
+  };
+
+  const brikker: { nokkel: string; tekst: string; fjern: () => void }[] = [
+    ...Object.entries(filterVerdier)
+      .filter(([, v]) => v)
+      .map(([k, v]) => {
+        const kk = k as TimerTabellKolKey;
+        const etiketter = v.split(",").map((x) => (filter.alternativer(kk) ?? []).find((a) => a.value === x)?.label ?? x);
+        return { nokkel: `f:${k}`, tekst: `${overskrift(kk)}: ${etiketter.join(", ")}`, fjern: () => setFilterVerdier((f) => ({ ...f, [k]: "" })) };
+      }),
+    ...(beskrivelseSok ? [{ nokkel: "sok", tekst: `${overskrift("beskrivelse")}: «${beskrivelseSok}»`, fjern: () => setBeskrivelseSok("") }] : []),
+    ...(sortering
+      ? [{ nokkel: "sort", tekst: `${overskrift(sortering.k)} ${sortering.retning === "asc" ? "↑" : "↓"}`, fjern: () => setSortering(null) }]
+      : []),
+  ];
+
+  const velgerGrupper = useMemo(
+    () => [{ id: "alle", navn: t("timer.attestering.tabell.kolonner"), felter: TIMER_TABELL_KOL_KEYS.map((k) => ({ id: k, navn: t(`timer.eksport.${TIMER_TABELL_KOL[k].i18n}`) })) }],
+    [t],
+  );
+
+  const kanVelges = (l: AttLinje) => l.harHandling && l.ventende && !readOnly && !l.sperre;
+  const valgbare = synligeLinjer.filter(kanVelges);
+  const alleValgt = valgbare.length > 0 && valgbare.every((l) => valgte.has(l.nokkel));
+
+  return (
+    <div className="flex flex-col gap-2">
+      {/* Én verktøylinje (R17) */}
+      <div className="flex flex-wrap items-center gap-2">
+        {verktoy}
+        <button type="button" onClick={() => setVisVelger(true)} className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">
+          <SlidersHorizontal className="h-3.5 w-3.5" />
+          {t("timer.attestering.tabell.velgParameter")}
+        </button>
+        <label className="inline-flex items-center gap-1.5 text-xs text-gray-700">
+          <input type="checkbox" checked={bareOversikt} onChange={(e) => setBareOversikt(e.target.checked)} className="h-3.5 w-3.5 rounded" />
+          {t("timer.attestering.tabell.bareOversikt")}
+        </label>
+        <button type="button" onClick={() => setVisUke((v) => !v)} aria-pressed={visUke} className={`rounded-md border px-2.5 py-1.5 text-xs font-medium ${visUke ? "border-blue-300 bg-blue-50 text-blue-700" : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"}`}>
+          {t("timer.attestering.tabell.ukeoversikt")}
+        </button>
+        {brikker.map((b) => (
+          <span key={b.nokkel} className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-1 text-xs text-blue-800">
+            {b.tekst}
+            <button type="button" onClick={b.fjern} aria-label={t("timer.attestering.tabell.fjernFilter", { navn: b.tekst })} className="rounded-full p-0.5 hover:bg-blue-100">
+              <X className="h-3 w-3" />
+            </button>
+          </span>
+        ))}
+        <span className="ml-auto text-xs text-gray-500">
+          {t("timer.attestering.tabell.teller", { n: synligeLinjer.length, m: alleLinjer.length })}
+        </span>
+        {!readOnly && (
+          <Button size="sm" onClick={attesterUtvalget} disabled={opptatt || utvalg.antallLinjer === 0}>
+            <Check className="mr-1 h-3.5 w-3.5" />
+            {t("timer.attestering.tabell.attesterUtvalget", { antall: utvalg.antallLinjer })}
+          </Button>
+        )}
+      </div>
+
+      {melding && <p className="text-sm text-red-600">{melding}</p>}
+      {visUke && <div>{ukeoversikt}</div>}
+
+      {dager.length === 0 ? (
+        <div className="rounded-lg border border-gray-200 bg-white p-12 text-center text-sm text-gray-500">{t("timer.attestering.ingenSedler")}</div>
+      ) : (
+        <TimerRadTabell<AttLinje>
+          kolonner={kolonner}
+          rader={rader}
+          celle={celle}
+          bredder={oppsett.kolonneBredder}
+          onBreddeEndring={oppsett.handleBreddeEndring}
+          onRekkefolgeEndring={oppsett.handleRekkefolgeEndring}
+          sorterVerdi={(k, l) => timerTabellVerdi(k, l.linje, 0)}
+          sortering={sortering}
+          onSortering={setSortering}
+          filter={filter}
+          rammeKlasse="h-[calc(100vh-15rem)] min-h-[320px]"
+          venstre={{
+            bredde: VENSTRE,
+            hode: readOnly ? undefined : (
+              <input
+                type="checkbox"
+                aria-label={t("timer.attestering.tabell.velgAlle")}
+                checked={alleValgt}
+                onChange={(e) => setValgte(e.target.checked ? new Set(valgbare.map((l) => l.nokkel)) : new Set())}
+                className="h-3.5 w-3.5 rounded"
+              />
+            ),
+            celle: (l) =>
+              kanVelges(l) ? (
+                <input
+                  type="checkbox"
+                  aria-label={t("timer.attestering.tabell.velgLinje")}
+                  checked={valgte.has(l.nokkel)}
+                  onChange={(e) => setValgte((v) => { const ny = new Set(v); if (e.target.checked) ny.add(l.nokkel); else ny.delete(l.nokkel); return ny; })}
+                  className="mt-0.5 h-3.5 w-3.5 rounded"
+                />
+              ) : null,
+          }}
+          hoyre={{ bredde: HOYRE, celle: linjeHandlinger }}
+        />
+      )}
+
+      <KolonneVelger
+        apen={visVelger}
+        onLukk={() => setVisVelger(false)}
+        aktive={oppsett.aktiveKolonner}
+        onToggle={oppsett.handleToggleKolonne}
+        grupper={velgerGrupper}
+        sorterbar
+        rekkefolge={oppsett.kolonneRekkefolge}
+        onRekkefolgeEndring={oppsett.handleRekkefolgeEndring}
+        flyttTekst={(navn) => t("kolonne.flytt", { navn })}
+        fjernTekst={(navn) => t("kolonne.fjern", { navn })}
+        sokPlaceholder={t("handling.sok")}
+        nullstillTekst={t("handling.nullstill")}
+        okTekst={t("handling.ok")}
+      />
+
+      {returner && <ReturnerRaderDialog radIder={returner} onLukk={() => setReturner(null)} onFerdig={() => { setReturner(null); oppfrisk(); }} />}
+      {gjenaapneDag && <GjenaapneDagDialog sheetId={gjenaapneDag} onLukk={() => setGjenaapneDag(null)} onFerdig={() => { setGjenaapneDag(null); oppfrisk(); }} />}
+      {splitt && splitt.kilde.type !== "vare" && splitt.kilde.type !== "utlegg" && (
+        <SplittFor linje={splitt} orgId={orgId} prosjekter={prosjekter} tidsrunding={tidsrunding} onLukk={() => setSplitt(null)} onLagret={() => { setSplitt(null); oppfrisk(); }} />
+      )}
+      {rediger && rediger.projectId !== null && (
+        <RedigerRadModal
+          sheetId={rediger.sheetId}
+          projectId={rediger.projectId}
+          ecoId={rediger.kilde.type === "timer" || rediger.kilde.type === "maskin" ? rediger.kilde.rad.externalCostObjectId : null}
+          onLukk={() => setRediger(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+
+function CelleRedigering({ mal, alternativer, onLagre, onAngre }: { mal: Mal; alternativer: { value: string; label: string }[]; onLagre: (v: string) => void; onAngre: () => void }) {
+  const [verdi, setVerdi] = useState(mal.verdi);
+  const tast = (e: KeyboardEvent<HTMLInputElement | HTMLSelectElement>) => {
+    // Enter eller Tab lagrer cella i ett kall; Esc angrer (R21, T61).
+    if (e.key === "Enter" || e.key === "Tab") {
+      if (e.key === "Enter") e.preventDefault();
+      onLagre(verdi);
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      onAngre();
+    }
+  };
+  const klasse = "w-full rounded border border-blue-400 bg-white px-1 py-0.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
+  if (mal.type === "valg") {
+    return (
+      <select autoFocus value={verdi} onChange={(e) => setVerdi(e.target.value)} onKeyDown={tast} onBlur={onAngre} className={klasse}>
+        {alternativer.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
+      </select>
+    );
+  }
+  return (
+    <input
+      autoFocus
+      value={verdi}
+      inputMode={mal.type === "tekst" ? undefined : "decimal"}
+      onChange={(e) => setVerdi(e.target.value)}
+      onKeyDown={tast}
+      onBlur={onAngre}
+      className={klasse}
+    />
+  );
+}
+
+function SplittFor({ linje, orgId, prosjekter, tidsrunding, onLukk, onLagret }: {
+  linje: AttLinje; orgId: string; prosjekter: ProsjektValg[]; tidsrunding: number | null; onLukk: () => void; onLagret: () => void;
+}) {
+  const felles = { sheetId: linje.sheetId, organizationId: orgId, prosjekter, tidsrundingMinutter: tidsrunding, onLukk, onLagret };
+  const k = linje.kilde;
+  if (k.type === "timer") return <SplittRadModal radType="timer" original={{ ...k.rad, projectId: k.rad.projectId ?? "" }} {...felles} />;
+  if (k.type === "maskin") return <SplittRadModal radType="maskin" original={k.rad} {...felles} />;
+  if (k.type === "tillegg") return <SplittRadModal radType="tillegg" original={k.rad} {...felles} />;
+  return null;
+}
+
+function ReturnerRaderDialog({ radIder, onLukk, onFerdig }: { radIder: RadIder; onLukk: () => void; onFerdig: () => void }) {
+  const { t } = useTranslation();
+  const [kommentar, setKommentar] = useState("");
+  const [feil, setFeil] = useState<string | null>(null);
+  const returner = trpc.timer.dagsseddel.returnerRader.useMutation({
+    onSuccess: (_d: unknown) => onFerdig(),
+    onError: (e: { message: string }) => setFeil(e.message),
+  });
+  return (
+    <Modal open onClose={onLukk} title={t("timer.attestering.returnerTittel")}>
+      <form
+        onSubmit={(e) => { e.preventDefault(); if (kommentar.trim()) returner.mutate({ radIder, kommentar: kommentar.trim() }); }}
+        className="space-y-4"
+      >
+        <p className="text-sm text-gray-600">{t("timer.attestering.tabell.returnerLinjer", { count: antallRader(radIder) })}</p>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">{t("timer.attestering.kommentar")}</label>
+          <textarea value={kommentar} onChange={(e) => setKommentar(e.target.value)} rows={4} placeholder={t("timer.attestering.kommentarPlaceholder")} className="w-full rounded border border-gray-300 px-3 py-2 text-sm" autoFocus required />
+        </div>
+        {feil && <p className="text-sm text-red-600">{feil}</p>}
+        <div className="flex justify-end gap-3 pt-2">
+          <Button type="button" variant="secondary" onClick={onLukk}>{t("handling.avbryt")}</Button>
+          <Button type="submit" disabled={returner.isPending || !kommentar.trim()}>{returner.isPending ? t("handling.lagrer") : t("timer.attestering.returner")}</Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+/** Gjenåpne hele sedelen — samme vindu og samme kall som i dag (HM52). */
+function GjenaapneDagDialog({ sheetId, onLukk, onFerdig }: { sheetId: string; onLukk: () => void; onFerdig: () => void }) {
+  const { t } = useTranslation();
+  const [feil, setFeil] = useState<string | null>(null);
+  const gjenaapne = trpc.timer.dagsseddel.gjenaapneAttestering.useMutation({
+    onSuccess: (_d: unknown) => onFerdig(),
+    onError: (e: { message: string }) => setFeil(e.message),
+  });
+  return (
+    <Modal open onClose={onLukk} title={t("timer.attestering.gjenaapne.tittel")}>
+      <div className="space-y-4">
+        <p className="text-sm text-gray-600">{t("timer.attestering.gjenaapne.beskrivelse")}</p>
+        {feil && <p className="text-sm text-red-600">{feil}</p>}
+        <div className="flex justify-end gap-3 pt-2">
+          <Button type="button" variant="secondary" onClick={onLukk}>{t("handling.avbryt")}</Button>
+          <Button type="button" disabled={gjenaapne.isPending} onClick={() => gjenaapne.mutate({ sheetId })}>
+            {gjenaapne.isPending ? t("handling.lagrer") : t("timer.attestering.gjenaapne.bekreft")}
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
