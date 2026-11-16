@@ -109,7 +109,9 @@ import { trpc } from "../../src/lib/trpc";
 import { DatoVelgerFelt } from "../../src/components/DatoVelgerFelt";
 import { formatNorskDato, lokalIsoDato } from "../../src/utils/dato";
 import { BekreftDagBeskrivelse } from "../../src/components/timer-detalj/BekreftDagBeskrivelse";
-import { kortMedArbeid, kortMedFlestTimer, arbeidsraderPerKort, type BeskrivelseKort } from "../../src/utils/beskrivelseKort";
+import { kortMedArbeid, kortMedFlestTimer, arbeidsraderPerKort, foreldreloseBeskrivelser, type BeskrivelseKort } from "../../src/utils/beskrivelseKort";
+import { angreKortDeling, delTilEgetKort, delingsVindu } from "../../src/utils/kortIdForslag";
+import { DelKortModal } from "../../src/components/timer-detalj/DelKortModal";
 import { knyttLonnUtleggTilKort } from "../../src/utils/lonnUtleggKort";
 import { kortNokkel } from "../../src/lib/prosjektkortMobil";
 import { sisteBeskrivelser, beskrivelseChips } from "../../src/services/beskrivelseForslag";
@@ -527,6 +529,22 @@ export default function BekreftDagSkjerm() {
     () => (beregnet ? arbeidsraderPerKort(beregnet.forslag) : new Map<string, never[]>()),
     [beregnet],
   );
+  // Ordre c: to kort på samme prosjekt, byggeplass og dato (etter «Del til eget
+  // kort») skilles med tidsrommet: «Prosjekt A · 07:00–12:00».
+  const kortNavn = useCallback(
+    (k: BeskrivelseKort) => {
+      const navn = kortEtikett(k);
+      const sammeSted = arbeidKort.some(
+        (x) => x.nokkel !== k.nokkel && x.projectId === k.projectId && x.byggeplassId === k.byggeplassId && x.dato === k.dato,
+      );
+      if (!sammeSted) return navn;
+      const tider = (raderPerKort.get(k.nokkel) ?? []).filter((r) => r.fraTid && r.tilTid);
+      if (tider.length === 0) return navn;
+      const tidsrom = `${tider[0]!.fraTid}–${tider[tider.length - 1]!.tilTid}`;
+      return [navn, tidsrom].filter(Boolean).join(" · ");
+    },
+    [kortEtikett, arbeidKort, raderPerKort],
+  );
   // TILLEGG (33) pkt 4.1 — fraværskortet, U1 inngang 2: samme kort som på dagskortet, for
   // datoen som står åpen (manuell: valgt dato, også fram i tid — U12; GPS: dagens første dato).
   // Lagres i kortet selv (`lagreFravaerKort`), ikke i utkastet: det har verken prosjekt eller
@@ -563,6 +581,37 @@ export default function BekreftDagSkjerm() {
     setRetting((r) => ({ ...r, beskrivelse: { ...r.beskrivelse, [nokkel]: tekst } }));
     endret();
   }, [endret]);
+
+  // Ordre c (spec § 5.1): «Del til eget kort» og underprosjekt pr. kort.
+  const [delKort, setDelKort] = useState<BeskrivelseKort | null>(null);
+  const delKortNaa = useCallback(
+    (kl: string) => {
+      const k = delKort;
+      setDelKort(null);
+      if (!k?.kortId) return;
+      setRetting((r) => delTilEgetKort(r, { dato: k.dato, fraKortId: k.kortId!, fra: kl }, randomUUID));
+      endret();
+    },
+    [delKort, endret],
+  );
+  const angreDeling = useCallback(
+    (k: BeskrivelseKort) => {
+      if (!k.kortId) return;
+      setRetting((r) => angreKortDeling(r, k.kortId!));
+      endret();
+    },
+    [endret],
+  );
+  const fjernForeldrelos = useCallback(
+    (nokkel: string) => {
+      setRetting((r) => {
+        const { [nokkel]: _fjernet, ...resten } = r.beskrivelse ?? {};
+        return { ...r, beskrivelse: resten };
+      });
+      endret();
+    },
+    [endret],
+  );
 
   // Rød ramme + rull til første tomme felt + fokus. Ingen Alert, ingen toast.
   const visTomBeskrivelse = useCallback((nokler: string[]) => {
@@ -629,6 +678,34 @@ export default function BekreftDagSkjerm() {
     [manuell, prosjektId],
   );
   const [ecoId, setEcoId] = useState<string | null>(null);
+  // Ordre c (spec § 5.1): underprosjekt pr. kort — også i GPS-modus. Kortets
+  // valg står i `retting.ecoPerKort`; uten eget valg gjelder dagens valg over
+  // (manuell modus, forslagets prosjekt), ellers «Uten».
+  const underprosjekterPerProsjekt = useMemo(() => {
+    const ut = new Map<string, Array<{ id: string; navn: string }>>();
+    for (const k of arbeidKort) {
+      if (ut.has(k.projectId)) continue;
+      ut.set(
+        k.projectId,
+        hentUnderprosjekterLokalt(k.projectId)
+          .map((e) => ({ id: e.id, navn: `${e.proAdmId} — ${e.kortNavn}` }))
+          .sort((a, b) => a.navn.localeCompare(b.navn, "nb", { numeric: true })),
+      );
+    }
+    return ut;
+  }, [arbeidKort]);
+  const antallKortPaaProsjekt = useCallback(
+    (projectId: string | null) => arbeidKort.filter((k) => k.projectId === projectId).length,
+    [arbeidKort],
+  );
+  const ecoForKort = useCallback(
+    (k: BeskrivelseKort): string | null => {
+      const valgt = retting.ecoPerKort?.[k.nokkel];
+      if (valgt !== undefined) return valgt;
+      return manuell && k.projectId === prosjektId ? ecoId : null;
+    },
+    [retting.ecoPerKort, manuell, prosjektId, ecoId],
+  );
   // Prosjektbytte nullstiller underprosjektet — men ikke et valg gjenopprettet
   // fra utkastet: grunnlinjen settes først når utkastet er lest.
   const ecoProsjektRef = useRef<string | null | undefined>(undefined);
@@ -736,6 +813,8 @@ export default function BekreftDagSkjerm() {
     });
   }, [prosjektId]);
 
+  // Ordre c: beskrivelser uten kort — vises for seg; Bekreft stopper på dem.
+  const foreldrelose = useMemo(() => (beregnet ? foreldreloseBeskrivelser(beregnet.forslag) : []), [beregnet]);
   // Linjer på en rad som ikke finnes lenger — vises for seg; Bekreft stopper på dem.
   const utenRad = useMemo(
     () => (beregnet ? tilleggUtenRad(beregnet.forslag, tilleggPerRad) : []),
@@ -940,6 +1019,8 @@ export default function BekreftDagSkjerm() {
         naa: Date.now,
         arbeidsdagId: manuell ? null : params.arbeidsdagId,
         ecoId: manuell ? ecoId : null,
+        // Ordre c: underprosjekt pr. kort (også GPS-modus).
+        ecoPerKort: retting.ecoPerKort,
         // RETUR 36c-3: eksplisitt «Ingen byggeplass» i manuell modus løfter
         // arven på en eksisterende sedel med byggeplass. GPS-veien: som før.
         utenByggeplassValgt: manuell && retting.byggeplassId === null,
@@ -1396,7 +1477,8 @@ export default function BekreftDagSkjerm() {
                         : t("timer.bekreftDag.gpsForeslar", { byggeplass: gpsLinje.byggeplass })}
                     </Text>
                   ) : null}
-                  {underprosjekter.length > 0 ? (
+                  {/* Ordre c: med flere kort på prosjektet velges underprosjekt pr. kort (under hvert kort). */}
+                  {underprosjekter.length > 0 && antallKortPaaProsjekt(prosjektId) <= 1 ? (
                     <View className="gap-1">
                       <Text className="text-sm text-gray-500">{t("timer.felt.underprosjekt")}</Text>
                       <View className="flex-row flex-wrap gap-2">
@@ -1480,13 +1562,70 @@ export default function BekreftDagSkjerm() {
                 onFokus={() => rullTilBeskrivelse(k.nokkel)}
                 onFeltY={(y) => beskrivelseFeltY.current.set(k.nokkel, y)}
                 onInnholdEndret={() => rullTilBeskrivelse(k.nokkel)}
-                prosjektNavn={kortEtikett(k) || null}
+                prosjektNavn={kortNavn(k) || null}
                 visProsjekt={arbeidKort.length > 1}
                 verdi={retting.beskrivelse?.[k.nokkel] ?? ""}
                 chips={beskrivelseChipsPerProsjekt.get(k.projectId) ?? []}
                 visFeil={forsoktBekreft && manglerNokler.includes(k.nokkel)}
                 onEndre={(tekst) => settBeskrivelse(k.nokkel, tekst)}
-                tillegg={(() => {
+                tillegg={<>{(() => {
+                  // Ordre c (spec § 5.1): underprosjekt pr. kort + «Del til eget kort».
+                  if (alleSendt || ikkeAnsatt || tomt) return null;
+                  const ups = underprosjekterPerProsjekt.get(k.projectId) ?? [];
+                  const visEco = ups.length > 0 && (!manuell || antallKortPaaProsjekt(k.projectId) > 1);
+                  const vindu = k.kortId
+                    ? delingsVindu(
+                        (raderPerKort.get(k.nokkel) ?? []).map((r) => ({ fraTid: r.fraTid, tilTid: r.tilTid, erReise: false })),
+                        input.regel?.tidsrundingMinutter ?? null,
+                      )
+                    : null;
+                  if (!visEco && !vindu && !k.egetKort) return null;
+                  const valgtEco = ecoForKort(k);
+                  const settEco = (id: string | null) => {
+                    setRetting((r) => ({ ...r, ecoPerKort: { ...r.ecoPerKort, [k.nokkel]: id } }));
+                    endret();
+                  };
+                  return (
+                    <View className="gap-2">
+                      {visEco ? (
+                        <View className="gap-1">
+                          <Text className="text-sm text-gray-500">{t("timer.felt.underprosjekt")}</Text>
+                          <View className="flex-row flex-wrap gap-2">
+                            {[{ id: null as string | null, navn: t("timer.bekreftDag.kort.utenUnderprosjekt") }, ...ups].map((e) => {
+                              const valgt = valgtEco === e.id;
+                              return (
+                                <Pressable
+                                  key={e.id ?? "uten"}
+                                  onPress={() => settEco(e.id)}
+                                  accessibilityState={{ selected: valgt }}
+                                  className={`min-h-[36px] justify-center rounded-full border px-3 ${
+                                    valgt ? "border-gray-900 bg-gray-900" : "border-gray-300 bg-white active:bg-gray-50"
+                                  }`}
+                                >
+                                  <Text className={`text-sm ${valgt ? "text-white" : "text-gray-700"}`}>{e.navn}</Text>
+                                </Pressable>
+                              );
+                            })}
+                          </View>
+                        </View>
+                      ) : null}
+                      {vindu || k.egetKort ? (
+                        <View className="flex-row flex-wrap gap-4">
+                          {vindu ? (
+                            <Pressable onPress={() => setDelKort(k)} className="min-h-[36px] justify-center active:opacity-60">
+                              <Text className="text-sm font-medium text-blue-700">{t("timer.bekreftDag.kort.delTilEgetKort")}</Text>
+                            </Pressable>
+                          ) : null}
+                          {k.egetKort ? (
+                            <Pressable onPress={() => angreDeling(k)} className="min-h-[36px] justify-center active:opacity-60">
+                              <Text className="text-sm font-medium text-gray-600">{t("timer.bekreftDag.kort.slaaSammen")}</Text>
+                            </Pressable>
+                          ) : null}
+                        </View>
+                      ) : null}
+                    </View>
+                  );
+                })()}{(() => {
                   // ORDRE 24 (Kenneth 2026-11-16): ETT sett maskin/varer pr. kort.
                   // Holdes under første arbeidsrads nøkkel; fordeles på radene ved
                   // Bekreft (`fordelTilleggPaaKort`). Vakten: maskin ≤ kortets sum.
@@ -1517,9 +1656,29 @@ export default function BekreftDagSkjerm() {
                       }}
                     />
                   );
-                })()}
+                })()}</>}
               />
             ))}
+
+            {foreldrelose.length > 0 ? (
+              // Ordre c (spec § 5.1, T14): tekst hvis kort ikke finnes lenger (delingen
+              // angret, tiden flyttet, gammelt utkast) — droppes aldri stille.
+              <View className="gap-1.5 rounded-lg border border-amber-300 bg-amber-50 p-3">
+                <Text className="text-sm text-amber-900">{t("timer.bekreftDag.kort.utenKortMelding")}</Text>
+                {foreldrelose.map((n) => (
+                  <View key={n} className="flex-row items-center gap-2">
+                    <Text className="flex-1 text-sm text-gray-900">{retting.beskrivelse?.[n]}</Text>
+                    <Pressable
+                      onPress={() => fjernForeldrelos(n)}
+                      accessibilityLabel={t("timer.bekreftDag.kort.fjernTekst")}
+                      className="h-9 w-9 items-center justify-center rounded-full active:bg-amber-100"
+                    >
+                      <Trash2 size={16} color="#92400e" />
+                    </Pressable>
+                  </View>
+                ))}
+              </View>
+            ) : null}
 
             {utenRad.length > 0 ? (
               // PRESISERING TILLEGG: raden forsvant (fjernet arbeid, færre rader) —
@@ -1661,7 +1820,7 @@ export default function BekreftDagSkjerm() {
                 prosjektValg={prosjekter.map((p) => ({ id: p.id, navn: p.name }))}
                 kort={arbeidKort}
                 standardKortFor={standardKortFor}
-                kortEtikett={kortEtikett}
+                kortEtikett={kortNavn}
                 onFjernKvittering={fjernKvittering}
               />
             ) : null}
@@ -1719,6 +1878,20 @@ export default function BekreftDagSkjerm() {
             </Pressable>
           </View>
         ) : null}
+        <DelKortModal
+          synlig={delKort !== null}
+          vindu={
+            delKort
+              ? delingsVindu(
+                  (raderPerKort.get(delKort.nokkel) ?? []).map((r) => ({ fraTid: r.fraTid, tilTid: r.tilTid, erReise: false })),
+                  input?.regel?.tidsrundingMinutter ?? null,
+                )
+              : null
+          }
+          tidsrunding={input?.regel?.tidsrundingMinutter ?? null}
+          onAvbryt={() => setDelKort(null)}
+          onDel={delKortNaa}
+        />
         {fravaerKortApen && fravaerDag && fravaerDato && bruker?.id && orgId ? (
           <FravaerKortModal
             userId={bruker.id}

@@ -329,7 +329,10 @@ describe("ORDRE 36c rettelse S2 — valgfritt underprosjekt på kortet", () => {
   it("🔴 skjermen: valget bare i manuell modus og bare med underprosjekter; tomt ved åpning, kan tømmes", () => {
     const skjerm = fs.readFileSync(path.join(__dirname, "../../app/timer/bekreft-dag.tsx"), "utf8");
     expect(skjerm).toContain("manuell && prosjektId\n        ? hentUnderprosjekterLokalt(prosjektId)");
-    expect(skjerm).toContain("{underprosjekter.length > 0 ? (");
+    // Ordre c (prosjektkort-kortid-spec § 5.1): hode-valget vises fortsatt bare i
+    // manuell modus — men bare når prosjektet har ett kort. Med flere kort (og i
+    // GPS-modus) velges underprosjekt pr. kort, med «Uten» valgt.
+    expect(skjerm).toContain("{underprosjekter.length > 0 && antallKortPaaProsjekt(prosjektId) <= 1 ? (");
     // Aldri forhåndsvalgt — heller ikke med ett underprosjekt.
     expect(skjerm).toContain("const [ecoId, setEcoId] = useState<string | null>(null);");
     // Prosjektbytte tømmer fortsatt valget (utkast-gjenoppretting er grunnlinjen).

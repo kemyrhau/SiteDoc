@@ -28,6 +28,7 @@
  * Selve persisteringen ligger i `anvendDagsforslag` (`dagsforslagAnvend.ts`) og
  * kjører kun ved [Bekreft og lagre] (`bekreftDag.ts`).
  */
+import { tildelKortIder } from "./kortIdForslag";
 import {
   klassifiserReise,
   velgOvertidLonnsart,
@@ -267,6 +268,12 @@ export type DagsforslagEksisterendeSedel = {
     normTimer?: number;
   }>;
   /**
+   * Ordre c (spec § 5.1): kortene som alt finnes på sedelen — effektiv nøkkel
+   * uten underprosjekt, eldste først. Et forslagskort med samme prosjekt og
+   * byggeplass får det første kortets id. Utelatt = ingen.
+   */
+  kort?: Array<{ kortId: string; projectId: string; byggeplassId: string | null }>;
+  /**
    * ORDRE (27b), spec § 6 L1: timer som alt bruker av normen (alle kort, også
    * overtid; ikke reise, ikke `erstattet`, ikke fravær — B8). Satt av
    * `lesEksisterendeSedel` (`services/dagsforslagInput.ts`) for GPS-dagen og
@@ -335,6 +342,14 @@ export type DagsforslagRad = {
   kjedeNokkel?: string;
   /** Ordre (17): kjedesiden — før arbeid («ut») eller etter («retur»). */
   kjedeSide?: "ut" | "retur";
+  /**
+   * Ordre c (prosjektkort-kortid-spec § 5.1): kortets id. Satt på arbeidsrader
+   * av `tildelKortIder` (`kortIdForslag.ts`); utelatt på reise-rader (§ 2.2).
+   * `anvendDagsforslag` skriver den på raden.
+   */
+  kortId?: string;
+  /** Ordre c: raden ligger i et kort arbeideren har delt ut («Del til eget kort»). */
+  egetKort?: boolean;
 };
 
 /**
@@ -482,6 +497,8 @@ export type BeregnDagsforslagInput = {
    * autoritativt — det vinner over destinasjon, aktivt prosjekt og default.
    */
   retting?: DagsforslagRetting;
+  /** Ordre c: brukeren — grunnlag for utledet kort-id (`utledKortId`). Utelatt = ingen kort-id. */
+  userId?: string;
 };
 
 /** L3-A: rettedybde B — prosjekt, byggeplass, aktivitet og per dato fra/til, pause, fjern. */
@@ -494,12 +511,36 @@ export type DagsforslagRetting = {
   /** ORDRE 36a/36b: beskrivelse pr. kort (påkrevd før Bekreft) — se `beskrivelsePerKort`. */
   beskrivelse?: Record<string, string>;
   /**
+   * Ordre c (spec § 5.1): «Del til eget kort». Hver deling flytter
+   * arbeidstiden fra og med `fra` i kortet `fraKortId` (på `dato`) til et nytt
+   * kort `kortId` (tilfeldig UUID fra klienten). Anvendes i rekkefølge, så et
+   * delt kort kan deles igjen. Se `tildelKortIder`.
+   */
+  kortDeling?: DagsforslagKortDeling[];
+  /**
+   * Ordre c (spec § 5.1): underprosjekt pr. kort, nøkkel = kortets nøkkel i
+   * `beskrivelsePerKort`. Utelatt for et kort = `ecoId` i utkastet (dagens
+   * valg for forslagets prosjekt), som før.
+   */
+  ecoPerKort?: Record<string, string | null>;
+  /**
    * POST 2026-11-14 (8) punkt 1: «+ Reise» i Nytt prosjektkort (manuell modus).
    * Reise-rader arbeideren har ført selv; legges på første åpne dato som
    * `erReise` + `reiseKilde "manuell"` — samme spor som `settInnTimerRad` gir
    * fra det lagrede kortet (`DagSeksjon`). Rører ikke arbeidsradene.
    */
   manuellReise?: DagsforslagManuellReise[];
+};
+
+/** Ordre c: én «Del til eget kort». */
+export type DagsforslagKortDeling = {
+  dato: string;
+  /** Kortet som deles. */
+  fraKortId: string;
+  /** "HH:MM" — tiden fra og med dette klokkeslettet går til det nye kortet. */
+  fra: string;
+  /** Det nye kortets id. */
+  kortId: string;
 };
 
 /** Én manuelt ført reise-rad (fra `TimerRadModal` i reise-modus). */
@@ -1449,11 +1490,18 @@ export function beregnDagsforslag(input: BeregnDagsforslagInput): Dagsforslag {
           ...input,
           retting: { ...input.retting, perDato: { ...perDato, ...injisert } },
         });
+  const sekvensert = forslag.datoer.map((d) =>
+    sekvenserDag(d, perDato[d.dato], input.eksisterendeSedelPerDato[d.dato]?.eksisterendeRader ?? []),
+  );
   return {
     ...forslag,
-    datoer: forslag.datoer.map((d) =>
-      sekvenserDag(d, perDato[d.dato], input.eksisterendeSedelPerDato[d.dato]?.eksisterendeRader ?? []),
-    ),
+    // Ordre c (spec § 5.1): kort-id pr. kort + «Del til eget kort», etter at
+    // tidene er endelige.
+    datoer: tildelKortIder(sekvensert, {
+      userId: input.userId,
+      eksisterendeSedelPerDato: input.eksisterendeSedelPerDato,
+      kortDeling: input.retting?.kortDeling ?? [],
+    }),
   };
 }
 

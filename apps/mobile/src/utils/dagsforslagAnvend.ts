@@ -11,9 +11,9 @@
  * Funksjonen returnerer utfallet («ble noe faktisk skrevet?») så kalleren kan
  * markere arbeidsdagen `avsluttet` FØRST når skrivingen lyktes (H7).
  */
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { hentDatabase } from "../db/database";
-import { beskrivelseForRad } from "./beskrivelseKort";
+import { beskrivelseForRad, kortForRad, kortMedArbeid, type BeskrivelseKort } from "./beskrivelseKort";
 import {
   sheetTimerLocal,
   dagsseddelLocal,
@@ -80,6 +80,11 @@ export function anvendDagsforslag(
      * arbeidsrader, maskin og varer. Utelatt/null = uten, som før.
      */
     ecoId?: string | null;
+    /**
+     * Ordre c (spec § 5.1): underprosjekt pr. kort (nøkkel = kortets nøkkel i
+     * `beskrivelsePerKort`). Utelatt for et kort = `ecoId`.
+     */
+    ecoPerKort?: Record<string, string | null>;
     /**
      * RETUR 36c-3: brukeren valgte «Ingen byggeplass» eksplisitt (manuell
      * Bekreft dag). Har en eksisterende sedel byggeplass A, løftes arven
@@ -152,6 +157,36 @@ export function anvendDagsforslag(
     .map((l) => l.dato)
     .filter((dato): dato is string => dato !== undefined && !aapneDatoer.has(dato));
   if (harLonnUtlegg(lonnUtlegg) && utenAapenDato.length > 0) throw new DatokortUtenSedelFeil(utenAapenDato);
+
+  const ecoForKort = (k: BeskrivelseKort | undefined | null): string | null => {
+    const valgt = k ? ctx.ecoPerKort?.[k.nokkel] : undefined;
+    return valgt !== undefined ? valgt : (ctx.ecoId ?? null);
+  };
+  // Ordre c: forslagets kort-id → id-en som skrives pr. sedel. Har sedelen alt
+  // et kort med id-en, men med annet prosjekt eller underprosjekt (K2/K3),
+  // får forslagskortet en ny id — det eksisterende kortet røres aldri.
+  const skrevetKortId = new Map<string, string>();
+  const kortIdForSkriving = (
+    sheetId: string,
+    kortId: string | undefined,
+    projectId: string,
+    eco: string | null,
+  ): string | null => {
+    if (!kortId) return null;
+    const memo = `${sheetId}|${kortId}|${eco ?? ""}`;
+    const kjent = skrevetKortId.get(memo);
+    if (kjent) return kjent;
+    const sedelProsjekt = sedelKontekstLokalt(db, sheetId)?.projectId ?? null;
+    const brudd = db
+      .select({ projectId: sheetTimerLocal.projectId, eco: sheetTimerLocal.externalCostObjectId })
+      .from(sheetTimerLocal)
+      .where(and(eq(sheetTimerLocal.dagsseddelId, sheetId), eq(sheetTimerLocal.kortId, kortId)))
+      .all()
+      .some((r) => (r.projectId ?? sedelProsjekt) !== projectId || (r.eco ?? null) !== eco);
+    const ut = brudd ? ctx.nyId() : kortId;
+    skrevetKortId.set(memo, ut);
+    return ut;
+  };
 
   for (const d of forslag.datoer) {
     // UF-0/UF-1: sedel-opprettelse + idempotens via delt helper (org-backfill
@@ -229,7 +264,9 @@ export function anvendDagsforslag(
 
     for (const rad of d.rader) {
       const radId = ctx.nyId();
-      const radEco = rad.erReise ? null : (ctx.ecoId ?? null);
+      const radKort = rad.erReise ? undefined : kortForRad(forslag, rad, d);
+      const radEco = rad.erReise ? null : ecoForKort(radKort);
+      const radKortId = rad.erReise ? null : kortIdForSkriving(resultat.id, rad.kortId, rad.projectId, radEco);
       const radByggeplass = rad.erReise ? rad.byggeplassId : (rad.byggeplassId ?? eksplisittByggeplassId);
       db.insert(sheetTimerLocal)
         .values({
@@ -259,6 +296,8 @@ export function anvendDagsforslag(
           reiseKilde: rad.reiseKilde,
           reiseRegel: rad.reiseRegel ? JSON.stringify(rad.reiseRegel) : null,
           tidKilde: rad.tidKilde,
+          // Ordre c (spec § 5.1): kortets id; reise har ikke kort (§ 2.2).
+          kortId: radKortId,
           sistEndretLokalt: ctx.naa(),
         })
         .run();
@@ -300,15 +339,21 @@ export function anvendDagsforslag(
     // byggeplass (effektiv). Lik sedelens → null (arv), som timeradene
     // (`lagretByggeplassForKort`). Underprosjektet er dagens valg og settes
     // bare på dagens prosjekt — et ECO tilhører alltid sitt prosjekt.
-    const plassering = (l: { projectId: string; byggeplassId?: string | null; dato?: string }) => {
+    // Ordre c: linja med valgt kort (`kortId`) får kortets underprosjekt og id.
+    const alleKort = kortMedArbeid(forslag);
+    const plassering = (l: { projectId: string; byggeplassId?: string | null; dato?: string; kortId?: string }) => {
       const sheetId = l.dato !== undefined ? sedelPerDato.get(l.dato)! : forste;
       const sedel = sedelKontekstLokalt(db, sheetId);
       const bp = l.byggeplassId ?? null;
+      const kort = l.kortId ? alleKort.find((k) => k.kortId === l.kortId) : undefined;
+      const eco = kort ? ecoForKort(kort) : l.projectId === forslag.prosjektId ? (ctx.ecoId ?? null) : null;
+      const kortId = kort ? kortIdForSkriving(sheetId, kort.kortId, l.projectId, eco) : null;
       return {
         sheetId,
         felt: {
           byggeplassId: sedel ? lagretByggeplassForKort({ projectId: l.projectId, byggeplassId: bp, ecoId: null }, sedel) : bp,
-          externalCostObjectId: l.projectId === forslag.prosjektId ? (ctx.ecoId ?? null) : null,
+          externalCostObjectId: eco,
+          ...(kortId ? { kortId } : {}),
         },
       };
     };

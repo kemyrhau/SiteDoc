@@ -20,7 +20,14 @@ import type { NyttLonnstillegg, NyttUtlegg } from "../services/tilleggUtleggSkri
  * dagskortet) bruker kun `utkastDatoer`/`listUtkast`, aldri formatet.
  */
 
-export const UTKAST_SKJEMA_VERSJON = 1;
+/**
+ * 2 (ordre c, prosjektkort-kortid-spec § 5.1): rettingen kan bære
+ * `kortDeling` («Del til eget kort») og `ecoPerKort`. Grunnkortenes nøkler i
+ * `beskrivelse` er uendret fra 1 (dato + prosjekt + byggeplass), så et utkast
+ * fra 1 lastes uten omskriving; et utdelt kort nøkles på sin `kortId`. Tekst
+ * uten kort vises som foreldreløs (`foreldreloseBeskrivelser`), aldri droppet.
+ */
+export const UTKAST_SKJEMA_VERSJON = 2;
 
 export type UtkastData = {
   retting: DagsforslagRetting;
@@ -41,6 +48,8 @@ export type LagretUtkast = {
   dato: string;
   arbeidsdagId: string | null;
   data: UtkastData;
+  /** Ordre c: versjonen utkastet ble skrevet med (`UTKAST_SKJEMA_VERSJON`). */
+  skjemaVersjon: number;
   kvitteringer: string[];
   opprettet: string;
   sistEndret: string;
@@ -75,6 +84,9 @@ function harTekst(r: Record<string, string> | undefined): boolean {
 export function erTomtUtkast(data: UtkastData): boolean {
   const r = data.retting ?? {};
   if (r.prosjektId !== undefined || r.aktivitetId !== undefined || r.byggeplassId !== undefined) return false;
+  // Ordre c: delte kort og underprosjekt pr. kort er rettinger.
+  if ((r.kortDeling?.length ?? 0) > 0) return false;
+  if (Object.keys(r.ecoPerKort ?? {}).length > 0) return false;
   // ORDRE 24: et gammelt utkasts `beskrivelsePerRad` leses ikke — teller ikke som innhold.
   if (harTekst(r.beskrivelse)) return false;
   if ((r.manuellReise?.length ?? 0) > 0) return false;
@@ -137,6 +149,7 @@ export function finnUtkast(db: LokalDb, args: UtkastEier & { nokkel: string }): 
     dato: rad.dato,
     arbeidsdagId: rad.arbeidsdagId,
     data,
+    skjemaVersjon: rad.skjemaVersjon,
     kvitteringer: parseListe(rad.kvitteringer),
     opprettet: rad.opprettet,
     sistEndret: rad.sistEndret,
