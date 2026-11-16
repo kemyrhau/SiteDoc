@@ -138,6 +138,8 @@ sist_verifisert_mot_kode: 2026-08-09
 | **Dokgen** | `SiteDoc-dokgen` | `feat/arbeidstegning-prod-klar` `954a2ac0` | ikke målt denne runden |
 | **Kontrollplan** | `SiteDoc-kontrollplan` | `feat/v17b-soner` `301da63e` | ikke målt denne runden |
 | **Mal-Opus** | `SiteDoc-mal` | `feat/mal-7b-standardnavn-vakt27` `eb5af56a` | ikke målt denne runden |
+| **3D-web** | app-tre (økt «3D-web: mål W1–W5») | `3d-web-maaling` fra `cf0b5b4b` | 🔵 ORDRE GITT 2026-11-16 — måling W1–W5, ingen kode ([3d-agent-prinsipper.md](3d-agent-prinsipper.md)) |
+| **3D-mobil** | app-tre (økt «3D-mobil: mål M1–M6») | `3d-mobil-maaling` fra `cf0b5b4b` | 🔵 ORDRE GITT 2026-11-16 — måling M1–M6, ingen kode |
 | **Merge** | `SiteDoc-merge` | detached på develop | ⚪ LEDIG |
 
 **Tilstander:** ⚪ LEDIG · 🟠 FERDIGSKREVET (ikke relayet) · 🔵 ORDRE GITT · 🟢 LEVERT · 🔴 BLOKKERT
