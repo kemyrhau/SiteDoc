@@ -197,9 +197,10 @@ export {
   OVERTID_NIVAA_50,
   OVERTID_NIVAA_100,
   klassifiserArbeidstid,
+  bruktAvNorm,
   velgOvertidLonnsart,
 } from "./lonnsregel";
-export type { ArbeidstidSegment, OvertidLonnsartKandidat } from "./lonnsregel";
+export type { ArbeidstidSegment, DognRad, OvertidLonnsartKandidat } from "./lonnsregel";
 export { foreslaOvertidSplitt } from "./overtidForslag";
 export type {
   OvertidForslagRad,
@@ -261,10 +262,26 @@ export type { Slettevindu, LokalSedelUtsnitt } from "./timerSyncSletting";
 export { carveArbeidstider } from "./carveArbeidstid";
 export type { CarveSegment, CarvetVindu } from "./carveArbeidstid";
 export { beregnUkenorm, mandagIso } from "./ukenorm";
+export {
+  harNormtak,
+  erFravaerArt,
+  restForFravaerMedTak,
+  vurderFravaerNormtak,
+  erNormtakBrudd,
+  NORMTAK_TOLERANSE,
+  byggNormtakBruddLinje,
+} from "./fravaerNormtak";
+export type {
+  NormtakLonnsart,
+  NormtakRad,
+  FravaerNormtakVurdering,
+  NormtakBruddData,
+} from "./fravaerNormtak";
 export type { UkenormResultat, UkenormDag } from "./ukenorm";
 export { STANDARD_ARBEIDSTID_FALLBACK } from "./arbeidstidDefault";
 export {
   beregnOvertidsgrunnlag,
+  beregnUkeOvertidsgrunnlag,
   lesOvertidsgrunnlagFraSnapshot,
   beregnUkeAvvik,
   avvikRetning,
@@ -581,6 +598,10 @@ export {
   type VareSum,
   type KortSummer,
   type KortByggeplass,
+  kortNokkel,
+  fraKortNokkel,
+  type KortValg,
+  type KortNokkel,
 } from "./prosjektkort";
 
 export {
@@ -623,3 +644,26 @@ export {
   visByggeplassIkkeValgt, byggeplassByttInput, kanVelgeByggeplassDirekte,
 } from "./byggeplassIkkeValgt";
 export type { ByggeplassIkkeValgtInput } from "./byggeplassIkkeValgt";
+
+export {
+  md5Hex,
+  kortIdNokkel,
+  effektivKortByggeplass,
+  utledKortId,
+  losKortId,
+  kortPaaSedelFraRader,
+  validerKortInvariant,
+  type KortNokkelFelt,
+  type KortPaaSedel,
+  type KortInvariantRad,
+  type KortInvariantBrudd,
+} from "./kortId";
+
+// Fravær uten prosjekt (kort-id-spec § 11.2).
+export {
+  validerUtenProsjekt,
+  UTEN_PROSJEKT_MELDING,
+  type UtenProsjektGrunn,
+  type UtenProsjektRad,
+  type UtenProsjektResultat,
+} from "./utenProsjekt";

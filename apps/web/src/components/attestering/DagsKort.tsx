@@ -75,7 +75,8 @@ export function tilPivotRad(r: RaaSedel): PivotRad {
     prosjekt: r.prosjekt ?? null,
     timer: r.timer.map((rad) => ({
       id: rad.id,
-      projectId: rad.projectId,
+      // Kort-id-spec § 11.4: fravær uten prosjekt får tom nøkkel («Fravær» i pivoten).
+      projectId: rad.projectId ?? "",
       timer: Number(rad.timer),
       aktivitetId: rad.aktivitetId,
       lonnsartId: rad.lonnsartId,

@@ -64,6 +64,8 @@ const TIMER_RADER = [
   ...r,
   lonnsart: { id: "l", kode: "100", navn: "Ordinær", type: "timer", prisMotKunde: null, internkostnad: null, sats: null, satsEnhet: "time" },
   aktivitet: { id: "akt", kode: "A", navn: "Arbeid" },
+  // Relasjonen Prisma alltid gir når den velges (ukegrunnlaget grupperer pr. dato, F-F1).
+  sheet: { dato: new Date("2026-05-12T00:00:00.000Z") },
 }));
 
 // Matcher et Prisma-filter enkelt: verdi, { in: [...] } eller { not: ... }.
@@ -95,7 +97,10 @@ function modell(eget: Record<string, unknown> = {}) {
   });
 }
 
-const mocks = vi.hoisted(() => ({ create: vi.fn() }));
+// create returnerer raden som Prisma gjør (kort-id-veien leser `rad.id` etter skriving).
+const mocks = vi.hoisted(() => ({
+  create: vi.fn(async (a?: { data?: Record<string, unknown> }) => ({ id: "ny-rad", ...(a?.data ?? {}) })),
+}));
 
 vi.mock("@sitedoc/db", () => {
   const prisma = new Proxy(

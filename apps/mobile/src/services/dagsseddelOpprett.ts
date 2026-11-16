@@ -92,6 +92,27 @@ export function finnSedelIAnnetFirma(
   return null;
 }
 
+/**
+ * ORDRE (26): datoene blant `datoer` der arbeiderens lokale sedel nå er sendt
+ * (status utenfor draft/returned) — samme oppslag som `finnEllerOpprettDagsseddel`
+ * (userId + dato), lest ferskt fra db. Rekkefølgen følger `datoer`.
+ */
+export function finnSendteDatoer(
+  db: LokalDb,
+  args: { userId: string; datoer: string[] },
+): string[] {
+  const sendte: string[] = [];
+  for (const dato of new Set(args.datoer)) {
+    const s = db
+      .select({ status: dagsseddelLocal.status })
+      .from(dagsseddelLocal)
+      .where(and(eq(dagsseddelLocal.userId, args.userId), eq(dagsseddelLocal.dato, dato)))
+      .all()[0];
+    if (s && s.status !== "draft" && s.status !== "returned") sendte.push(dato);
+  }
+  return sendte;
+}
+
 export function finnEllerOpprettDagsseddel(
   db: LokalDb,
   args: FinnEllerOpprettArgs,

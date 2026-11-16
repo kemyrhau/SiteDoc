@@ -260,3 +260,35 @@ brukes når de får hjelpe-ikon.
 - **Tegningslista:** hver tegning viser revisjon, status, opprinnelig filformat (DWG, PDF …) og utgivelsesdato når de
   finnes. Under søket kan du snevre inn på status, filformat og georeferanse — bare valg som finnes i lista vises.
   Byggeplasser uten treff skjules mens et filter er satt.
+
+## Firma → Timer → Lønnsarter: «Fravær med tak» (kort-id-spec § 11.10 B10, ordre (30) b3, 🟡 ikke merget)
+
+Avkrysning i lønnsart-skjemaet når typen er Fravær (`apps/web/src/app/dashbord/firma/timer/lonnsarter/page.tsx`, kolonnen `Lonnsart.fravaerNormtak`, standard på):
+
+- **Ledetekst:** «Fraværet kan høyst fylle resten av dagsnormen» (`firma.timer.felt.fravaerNormtak`).
+- **Hint under:** «Slå på for fravær arbeidsgiver betaler i stedet for arbeid: egenmelding, sykemelding og barns sykdom. Uten avkrysning — for eksempel ferie og privat ærend — føres fraværet fullt, og arbeid samme dag kommer i tillegg.» (`…fravaerNormtakHint`).
+- **Typekolonnen** viser «Fravær · med tak» / «Fravær · uten tak» (`firma.timer.normtak.medTak`/`utenTak`).
+- **?-fane «Fravær med tak»:** «Fravær med tak kan høyst fylle det som er igjen av dagsnormen etter arbeid og annet fravær samme dag. Eksempel med norm 7,5 t: 2 t arbeid gir høyst 5,5 t egenmelding. Fravær uten tak — ferie og privat ærend — føres fullt. En dag over taket kan ikke attesteres før fraværet er rettet; attestanten returnerer sedelen eller retter timene.» (`firma.timer.normtak.hjelpTittel`/`hjelpTekst`).
+
+## Attestering: dag over taket (kort-id-spec § 11.10.4, F9 = A, ordre (30) b3, 🟡 ikke merget)
+
+- **Bruddlinje** (amber) i seddelkortet, attesteringsdetaljen og prosjektattesteringen: «Egenmelding 7,5 t + arbeid 2,0 t = 9,5 t — over dagsnormen 7,5 t» (`timer.normtak.leddArt`/`leddArbeid`/`leddAnnet`/`brudd`, tallene fra serverens `fravaerNormtakBrudd`).
+- **✓ er sperret** med tooltip «Datoen kan ikke attesteres før fraværet er rettet. Returner sedelen, eller rett timene.» (`timer.normtak.attesterSperret`). Serveren avviser uansett (`krevIngenNormtakBrudd`).
+
+## Firmainnstillinger → Timeføring: «Prosjektleder kan attestere fravær» (kort-id-spec § 11.9 F1, ordre (30) b2, 🟡 ikke merget)
+
+Avkrysning under Timeføring-hjelpeteksten (`apps/web/src/app/dashbord/firma/innstillinger/page.tsx`, kolonnen `Organization.fravaerAttesteresAvProsjektleder`):
+
+- **Ledetekst:** «Prosjektleder kan attestere fravær» (`firma.innstillinger.timeforing.fravaerProsjektleder`).
+- **Hint under:** «Uten avkrysning attesterer bare lønnsansvarlig fravær. Med avkrysning kan også prosjektlederen som attesterer resten av dagen, attestere fraværet.» (`…fravaerProsjektlederHint`).
+- **?-ikon:** «Gjelder fravær ført uten prosjekt. Valget virker fra neste attestering; attesterte timer endres ikke.» (`…fravaerProsjektlederHjelpIkon`).
+- Serveren avgjør (`krevAttesteringsrett` i `apps/api/src/routes/timer/dagsseddel.ts`) og sender `fravaerKanAttesteres` pr. sedel; attesteringslistene viser fraværsraden nedtonet når den er `false`. Fravær uten prosjekt heter «Fravær» (`timer.detalj.fravaerUtenProsjekt`) overalt på web.
+
+## Firma → Timer → Rapport: «Ta med uattesterte» (ordre (31), 🟡 ikke merget)
+
+Avkrysning i eksportmenyen, rett over CSV/Excel/PDF, og i mal-redigereren (`apps/web/src/app/dashbord/firma/timer/rapport/page.tsx`). Av som standard; valget lagres i utskriftsmalen.
+
+- **Ledetekst:** «Ta med uattesterte» (`firma.timer.rapport.eksport.taMedUattesterte`).
+- **Hint** (tooltip i menyen, tekst under i redigereren): «Uten avkrysning tar Excel, CSV og PDF bare med attesterte timer, maskiner og tillegg, og utlegg fra attesterte sedler. Med avkrysning kommer også det som venter på attestering.» (`…taMedUattesterteHint`).
+- Skjermen viser fortsatt alle rader, med status i egen kolonne; bare eksporten filtreres. Eksempel: Ola har 7,5 t attestert og 2 t som venter — Excel uten avkrysning viser 7,5 t, med avkrysning 9,5 t.
+- Rapportsiden har ennå ikke `HjelpKnapp` (?-ikon); teksten over er vedtatt hjelpetekst for eksportvalget når siden får ikonet.

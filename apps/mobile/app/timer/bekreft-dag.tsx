@@ -38,7 +38,22 @@ import {
   identifiserByggeplass,
 } from "../../src/services/byggeplassKatalog";
 import { gpsForslagLinje } from "../../src/utils/gpsForslagLinje";
-import { hentUnderprosjekterLokalt, hentReiseKnappLokalt } from "../../src/services/timerKatalog";
+import {
+  hentUnderprosjekterLokalt,
+  hentReiseKnappLokalt,
+  hentLonnsarterLokalt,
+  erReiseLonnsartLokalt,
+} from "../../src/services/timerKatalog";
+import { LonnsartVelgerModal } from "../../src/components/timer-detalj/TimerSeksjon";
+import {
+  MAKS_LINJE_CHIPS,
+  grupperLinjeLonnsarter,
+  linjerIDag,
+  lonnsarterForLinje,
+  ryddLonnsartPerLinje,
+  utenLinje,
+  velgLinjeLonnsart,
+} from "../../src/utils/linjeLonnsart";
 import { ReiseKort } from "../../src/components/timer-detalj/ReiseKort";
 import { hentWebUrl } from "../../src/config/auth";
 import { apnLenke } from "../../src/lib/apnLenke";
@@ -109,8 +124,11 @@ import {
   leggTilOvertidRetting,
   overtidEditorFra,
   stegOvertidFra,
+  vekslOvertidNivaa,
 } from "../../src/utils/dagsforslag";
 import type {
+  ArbeidLinje,
+  DagsforslagLinjeUtenLonnsart,
   DagsforslagRetting,
   DagsforslagRettingDato,
   DagsforslagDag,
@@ -379,6 +397,9 @@ export default function BekreftDagSkjerm() {
   // LES + REGN på nytt ved hver retting. Ingen skriving.
   // (17, P2): kjeden beregnes på nytt når periode-cachen skrives (overføring/refresh).
   const periodeVersjon = useOppmotePeriodeVersjon();
+  // ORDRE (26): Bekreft stoppet fordi en dato ble sendt mens skjermen sto →
+  // regn forslaget ut på nytt (useMemo-en har ingen sync-avhengighet).
+  const [sendtNonce, settSendtNonce] = useState(0);
   const beregnet = useMemo(() => {
     const db = hentDatabase();
     if (!db || !bruker?.id) return null;
@@ -416,8 +437,17 @@ export default function BekreftDagSkjerm() {
       retting,
     );
     return { ...lest, sluttIso: brukSluttIso };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- normNonce: re-les svar-cachen (funn 3)
-  }, [manuell, manuellDato, normNonce, dag, bruker?.id, orgId, sluttIso, rettetSluttIso, endLat, endLng, valgtBygningId, valgtProsjektId, sisteSegmentKilde, valgtByggeplassId, retting, periodeVersjon]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- normNonce: re-les svar-cachen (funn 3); sendtNonce: re-les sedel-status (ORDRE 26)
+  }, [manuell, manuellDato, normNonce, dag, bruker?.id, orgId, sluttIso, rettetSluttIso, endLat, endLng, valgtBygningId, valgtProsjektId, sisteSegmentKilde, valgtByggeplassId, retting, periodeVersjon, sendtNonce]);
+  // ORDRE (28) V4-⚠️: artene en linje kan få — firmaets aktive ordinære
+  // (med og uten overtidsnivå) og fravær; reise-arter ute.
+  const linjeArter = useMemo(
+    () =>
+      orgId
+        ? lonnsarterForLinje(hentLonnsarterLokalt(orgId), (l) => erReiseLonnsartLokalt(orgId, l.id))
+        : [],
+    [orgId],
+  );
   // DEL 5 c: panelet for anslått slutt — GPS-veien, slutten satt av systemet
   // (glemt dag) eller kappet. Står også etter retting, så arbeideren ser tiden.
   const sluttPanel =
@@ -458,18 +488,6 @@ export default function BekreftDagSkjerm() {
   const arbeidKort = useMemo(
     () => (beregnet ? kortMedArbeid(beregnet.forslag) : []),
     [beregnet],
-  );
-  // Tillegg/utlegg (T12) har ingen dato: ett valg pr. kort-sted (prosjekt +
-  // byggeplass), første datos kort — uendret av RETUR (24).
-  const lonnUtleggKort = useMemo(
-    () =>
-      arbeidKort
-        .filter(
-          (k, i) =>
-            arbeidKort.findIndex((x) => x.projectId === k.projectId && x.byggeplassId === k.byggeplassId) === i,
-        )
-        .map((k) => ({ ...k, visDato: false })),
-    [arbeidKort],
   );
   // Kortets navn: prosjekt, byggeplassen når flere kort deler prosjektet, og
   // datoen når prosjektet har kort på flere datoer (RETUR 24: nattevakt 21–06
@@ -709,6 +727,17 @@ export default function BekreftDagSkjerm() {
     },
     [endret],
   );
+  // ORDRE (28) V7: forsvinner en linje (tidene endret), faller valget bort med den.
+  useEffect(() => {
+    if (!beregnet) return;
+    for (const d of beregnet.forslag.datoer) {
+      const rett = retting.perDato?.[d.dato];
+      if (d.blokkert || rett?.fjernArbeid) continue;
+      const rydd = ryddLonnsartPerLinje(rett?.lonnsartPerLinje, linjerIDag(d));
+      if (rydd) rettDato(d.dato, rydd);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- kun når forslaget er regnet på nytt
+  }, [beregnet]);
   const fjernKvittering = useCallback((sti: string) => {
     fjernetKvitteringer.current.add(sti);
   }, []);
@@ -832,6 +861,11 @@ export default function BekreftDagSkjerm() {
       sluttIkkeGodkjent,
       // Ordre (17) punkt 2: overlapp/over midnatt sperrer lagring; begrunnelsen står i kortet.
       kjedeKonflikt: beregnet?.forslag.datoer.some((d) => !d.blokkert && d.kjedeKonflikt) ?? false,
+      // ORDRE (28) V2/T19: linje med «Velg lønnsart» sperrer til arbeideren har valgt.
+      manglerLonnsart:
+        beregnet?.forslag.datoer.some(
+          (d) => !d.blokkert && !retting.perDato?.[d.dato]?.fjernArbeid && (d.linjerUtenLonnsart?.length ?? 0) > 0,
+        ) ?? false,
     });
     if (sperre || !db || !beregnet || !bruker?.id) {
       Alert.alert(
@@ -880,6 +914,18 @@ export default function BekreftDagSkjerm() {
         Alert.alert(
           t("timer.bekreftDag.tilleggUtlegg.utenDagTittel"),
           t("timer.bekreftDag.tilleggUtlegg.utenDagTekst"),
+        );
+        return;
+      }
+      if (handling.type === "datoSendtUnderveis") {
+        // ORDRE (26): ingenting er skrevet — datoen ble sendt mens skjermen sto.
+        // Kortene regnes ut på nytt uten den; nytt trykk på Bekreft er en ren retry.
+        settSendtNonce((n) => n + 1);
+        Alert.alert(
+          t("timer.bekreftDag.sendtUnderveis.tittel"),
+          t("timer.bekreftDag.sendtUnderveis.tekst", {
+            datoer: handling.datoer.map(formatNorskDato).join(", "),
+          }),
         );
         return;
       }
@@ -1366,6 +1412,10 @@ export default function BekreftDagSkjerm() {
                 overtidValg={overtidValg}
                 alleLonnsarter={input.alleLonnsarter}
                 rettetOvertidFra={retting.perDato?.[d.dato]?.overtidFra}
+                rettetFravaerTil={retting.perDato?.[d.dato]?.fravaerTil}
+                overtidAv={retting.perDato?.[d.dato]?.overtidAv === true}
+                lonnsartPerLinje={retting.perDato?.[d.dato]?.lonnsartPerLinje}
+                linjeArter={linjeArter}
                 rettetArbeidFra={retting.perDato?.[d.dato]?.arbeidFra}
                 rettetReiseTid={retting.perDato?.[d.dato]?.reiseTid ?? {}}
                 maaltAnkomst={maaltAnkomst(besok, d.dato)}
@@ -1559,7 +1609,7 @@ export default function BekreftDagSkjerm() {
               />
             ) : null}
 
-            {/* ORDRE Tillegg/Utlegg i Bekreft dag — skrives på første åpne dato sin sedel. */}
+            {/* ORDRE Tillegg/Utlegg i Bekreft dag — ORDRE 25: hver linje velger datokort og skrives på den datoens sedel. */}
             {!alleSendt && !ikkeAnsatt && !tomt && lonnUtleggProsjekt ? (
               <BekreftDagLonnUtlegg
                 verdi={lonnUtlegg}
@@ -1567,7 +1617,7 @@ export default function BekreftDagSkjerm() {
                 organizationId={orgId}
                 defaultProjectId={lonnUtleggProsjekt}
                 prosjektValg={prosjekter.map((p) => ({ id: p.id, navn: p.name }))}
-                kort={lonnUtleggKort}
+                kort={arbeidKort}
                 standardKortFor={standardKortFor}
                 kortEtikett={kortEtikett}
                 onFjernKvittering={fjernKvittering}
@@ -1718,6 +1768,115 @@ function kortDato(iso: string): string {
   return `${iso.slice(8, 10)}.${iso.slice(5, 7)}.`;
 }
 
+/**
+ * ORDRE (28), spec § 6.1 V1–V3: arbeidslinjene i kortet — «07:00–15:00 · 7,5 t ·
+ * Timelønn ▾». Trykk åpner valget: chips (≤ 6 aktuelle arter) gruppert
+ * Ordinær · Overtid · Fravær, ellers den søkbare lista (`LonnsartVelgerModal`).
+ * Linje uten lønnsart (firmaet mangler arten) vises amber «Velg lønnsart» (V2).
+ */
+function ArbeidLinjer({
+  arbeid,
+  utenLonnsart,
+  alleLonnsarter,
+  linjeArter,
+  onVelg,
+}: {
+  arbeid: DagsforslagRad[];
+  utenLonnsart: DagsforslagLinjeUtenLonnsart[];
+  alleLonnsarter: DagsforslagLonnsart[];
+  linjeArter: DagsforslagLonnsart[];
+  onVelg: (linje: ArbeidLinje, art: DagsforslagLonnsart) => void;
+}) {
+  const { t } = useTranslation();
+  const [aapen, setAapen] = useState<string | null>(null);
+  const linjer = [
+    ...arbeid
+      .filter((r) => r.linje)
+      .map((r) => ({
+        nokkel: `${r.linje}-${r.fraTid}`,
+        linje: r.linje!,
+        fraTid: r.fraTid ?? "",
+        tilTid: r.tilTid ?? "",
+        timer: r.timer,
+        lonnsartId: r.lonnsartId as string | null,
+      })),
+    ...utenLonnsart.map((l) => ({ nokkel: `${l.linje}-${l.fraTid}`, ...l, lonnsartId: null as string | null })),
+  ].sort((a, b) => a.fraTid.localeCompare(b.fraTid));
+  if (linjer.length === 0) return null;
+  const aapenLinje = linjer.find((l) => l.nokkel === aapen) ?? null;
+  // RETUR 2 (28): `arbeid`-linja (arbeid etter fravær) tilbys ikke fravær —
+  // mer fravær føres med «Fravær til» (`beregnSegment` godtar det ikke der).
+  const arterFor = (linje: ArbeidLinje) =>
+    linje === "arbeid" ? linjeArter.filter((a) => a.type !== "fravaer") : linjeArter;
+  const chips = aapenLinje ? arterFor(aapenLinje.linje).length <= MAKS_LINJE_CHIPS : true;
+  const velg = (linje: ArbeidLinje, art: DagsforslagLonnsart) => {
+    onVelg(linje, art);
+    setAapen(null);
+  };
+  return (
+    <View className="gap-1">
+      {linjer.map((l) => {
+        const navn = l.lonnsartId ? alleLonnsarter.find((a) => a.id === l.lonnsartId)?.navn ?? null : null;
+        return (
+          <View key={l.nokkel} className="gap-1">
+            <Pressable
+              onPress={() => setAapen((v) => (v === l.nokkel ? null : l.nokkel))}
+              accessibilityHint={t("timer.bekreftDag.linjeLonnsartHint")}
+              className={`flex-row items-center justify-between rounded px-2 py-1 ${navn ? "bg-white" : "border border-amber-300 bg-amber-50"}`}
+            >
+              <Text className="text-xs text-gray-700">
+                {t("timer.bekreftDag.linje", { fra: l.fraTid, til: l.tilTid, timer: formatTimer(l.timer) })}
+              </Text>
+              <Text className={`text-xs font-medium ${navn ? "text-blue-700" : "text-amber-800"}`}>
+                {navn ?? t("timer.bekreftDag.velgLonnsart")} ▾
+              </Text>
+            </Pressable>
+            {aapen === l.nokkel && chips ? (
+              <View className="gap-1 rounded-md border border-gray-200 bg-white p-2">
+                {grupperLinjeLonnsarter(arterFor(l.linje)).map((g) => (
+                  <View key={g.gruppe} className="gap-1">
+                    <Text className="text-xs font-semibold text-gray-500">
+                      {t(`timer.bekreftDag.lonnsartGruppe.${g.gruppe}`)}
+                    </Text>
+                    <View className="flex-row flex-wrap gap-2">
+                      {g.arter.map((art) => {
+                        const valgt = art.id === l.lonnsartId;
+                        return (
+                          <Pressable
+                            key={art.id}
+                            onPress={() => velg(l.linje, art)}
+                            accessibilityState={{ selected: valgt }}
+                            className={`rounded-full border px-3 py-1 ${valgt ? "border-blue-600 bg-blue-50" : "border-gray-300"}`}
+                          >
+                            <Text className={`text-xs ${valgt ? "font-semibold text-blue-700" : "text-gray-700"}`}>
+                              {art.navn ?? art.id}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  </View>
+                ))}
+              </View>
+            ) : null}
+          </View>
+        );
+      })}
+      {aapenLinje && !chips ? (
+        <LonnsartVelgerModal
+          valgtId={aapenLinje.lonnsartId ?? ""}
+          kandidatIder={arterFor(aapenLinje.linje).map((a) => a.id)}
+          onVelg={(id) => {
+            const art = arterFor(aapenLinje.linje).find((a) => a.id === id);
+            if (art) velg(aapenLinje.linje, art);
+          }}
+          onLukk={() => setAapen(null)}
+        />
+      ) : null}
+    </View>
+  );
+}
+
 function DatoKort({
   dag,
   visDato,
@@ -1727,6 +1886,10 @@ function DatoKort({
   overtidValg,
   alleLonnsarter,
   rettetOvertidFra,
+  rettetFravaerTil,
+  overtidAv,
+  lonnsartPerLinje,
+  linjeArter,
   rettetArbeidFra,
   rettetReiseTid,
   maaltAnkomst: maalt,
@@ -1742,6 +1905,14 @@ function DatoKort({
   overtidValg: Array<{ id: string; navn: string }>;
   alleLonnsarter: DagsforslagLonnsart[];
   rettetOvertidFra: string | undefined;
+  /** RETUR (28) B9: arbeiderens «Fravær til». */
+  rettetFravaerTil: string | undefined;
+  /** ORDRE (27b) V5a: overtiden er slått av med nivå-knappen. */
+  overtidAv: boolean;
+  /** ORDRE (28) V7: arbeiderens lønnsart pr. linje. */
+  lonnsartPerLinje: Partial<Record<ArbeidLinje, string>> | undefined;
+  /** ORDRE (28) V4-⚠️: artene en linje kan få (firmaets, uten reise). */
+  linjeArter: DagsforslagLonnsart[];
   /** Ordre (17): arbeiderens rettede arbeidsstart (ankomst). */
   rettetArbeidFra: string | undefined;
   /** Ordre (17): rettede kjedekort pr. nøkkel — fast punkt i kjeden. */
@@ -1804,7 +1975,10 @@ function DatoKort({
       </View>
     ) : null;
   const arbeidTimer = arbeid.reduce((s, r) => s + r.timer, 0);
-  const forsteOt = arbeid.find((r) => otNivaa.get(r.lonnsartId) != null);
+  // ORDRE (28) V5: overtidslinja er linja etter normen / «Overtid fra» — også
+  // når arbeideren har valgt en ordinær art på den (V6), så editoren står.
+  const forsteOt = arbeid.find((r) => r.linje === "overtid");
+  const forsteOtNivaa = forsteOt ? otNivaa.get(forsteOt.lonnsartId) ?? null : null;
   const otFra = overtidEditorFra(forsteOt?.fraTid, rettetOvertidFra);
   // Fra/til vises fra radene; ved «fjernet» fra arbeidsvinduet mellom reisene.
   const fra = arbeid[0]?.fraTid ?? ut?.tilTid ?? tilHHMM(dag.segmentStartIso);
@@ -1856,6 +2030,59 @@ function DatoKort({
             onFraEndret={(hhmm) => onRett({ arbeidFra: hhmm })}
             onTilEndret={(hhmm) => onRett({ arbeidTil: hhmm })}
           />
+          {/* ORDRE (28) V1: hver arbeidslinje med lønnsart, valgbar før lagring. */}
+          <ArbeidLinjer
+            arbeid={arbeid}
+            utenLonnsart={dag.linjerUtenLonnsart ?? []}
+            alleLonnsarter={alleLonnsarter}
+            linjeArter={linjeArter}
+            onVelg={(linje, art) => {
+              const nabo = linje === "normal" ? "overtid" : "normal";
+              onRett(
+                velgLinjeLonnsart({
+                  linje,
+                  art,
+                  rettDato: { lonnsartPerLinje, overtidFra: rettetOvertidFra, fravaerTil: rettetFravaerTil },
+                  // RETUR (28) B9: mens fraværet deler kortet slås linjer aldri sammen.
+                  naboArtId: dag.fravaerTil
+                    ? null
+                    : arbeid.find((r) => r.linje === nabo)?.lonnsartId ?? null,
+                  overtidFra: forsteOt?.fraTid ?? null,
+                  arbeidFra: fra,
+                  linjeTil:
+                    arbeid.find((r) => r.linje === linje)?.tilTid ??
+                    dag.linjerUtenLonnsart?.find((l) => l.linje === linje)?.tilTid ??
+                    null,
+                }),
+              );
+            }}
+          />
+          {/* RETUR (28) B9: fraværet på normallinja bruker ikke normen — slutten flyttes her. */}
+          {dag.fravaerTil ? (
+            <View className="flex-row items-center justify-between">
+              <Text className="text-sm text-gray-700">{t("timer.bekreftDag.fravaerTil")}</Text>
+              <View className="flex-row items-center gap-3">
+                {/* RETUR 3 (28) A3: punktene kommer fra beregningen — samme grense, hopper over pausen. */}
+                <Pressable
+                  onPress={() => dag.fravaerSteg?.ned && onRett({ fravaerTil: dag.fravaerSteg.ned })}
+                  disabled={!dag.fravaerSteg?.ned}
+                  hitSlop={8}
+                  className="rounded-full border border-gray-300 p-1 disabled:opacity-40"
+                >
+                  <Minus size={16} color="#374151" />
+                </Pressable>
+                <Text className="w-16 text-center text-sm text-gray-900">{dag.fravaerTil}</Text>
+                <Pressable
+                  onPress={() => dag.fravaerSteg?.opp && onRett({ fravaerTil: dag.fravaerSteg.opp })}
+                  disabled={!dag.fravaerSteg?.opp}
+                  hitSlop={8}
+                  className="rounded-full border border-gray-300 p-1 disabled:opacity-40"
+                >
+                  <Plus size={16} color="#374151" />
+                </Pressable>
+              </View>
+            </View>
+          ) : null}
           {visAnkomst && maalt ? (
             <View className="flex-row flex-wrap items-center gap-2">
               <Text className="text-xs text-gray-600">{t("timer.bekreftDag.ankomst")}</Text>
@@ -1891,16 +2118,15 @@ function DatoKort({
               className="self-start rounded bg-amber-100 px-2 py-0.5"
             >
               <Text className="text-xs font-medium text-amber-800">
-                {t("timer.bekreftDag.overtid", {
-                  nivaa: otNivaa.get(forsteOt.lonnsartId),
-                  fra: forsteOt.fraTid,
-                })}
+                {forsteOtNivaa != null
+                  ? t("timer.bekreftDag.overtid", { nivaa: forsteOtNivaa, fra: forsteOt.fraTid })
+                  : t("timer.bekreftDag.etterNormen", { fra: forsteOt.fraTid })}
               </Text>
             </Pressable>
           ) : null}
           {/* ORDRE 35 del B: ingen overtid ennå → start den fra arbeidsstart; samme motor
               (segmenterVedOvertidFra). Uten OT50 velges første nivå (leggTilOvertidRetting). */}
-          {!forsteOt && overtidValg.length > 0 ? (
+          {!forsteOt && !dag.fravaerTil && overtidValg.length > 0 && !(redigerOvertid && overtidAv) ? (
             <Pressable
               onPress={() => {
                 onRett(leggTilOvertidRetting(fra, alleLonnsarter, overtidValg));
@@ -1917,6 +2143,9 @@ function DatoKort({
           ) : null}
           {redigerOvertid && otFra ? (
             <View className="gap-2 rounded-md border border-amber-200 bg-white p-2">
+              {/* ORDRE (27b) V5a: overtiden av → «Overtid fra» skjules, nivå-knappene står. */}
+              {/* RETUR (28) B9: under fraværsdeling følger overtiden normen — «Overtid fra» leses ikke. */}
+              {!overtidAv && !dag.fravaerTil ? (
               <View className="flex-row items-center justify-between">
                 <Text className="text-sm text-gray-700">{t("timer.bekreftDag.overtidFra")}</Text>
                 <View className="flex-row items-center gap-3">
@@ -1941,6 +2170,7 @@ function DatoKort({
                   </Pressable>
                 </View>
               </View>
+              ) : null}
               <Text className="text-sm text-gray-700">{t("timer.bekreftDag.overtidNivaa")}</Text>
               <View className="flex-row flex-wrap gap-2">
                 {overtidValg.map((l) => {
@@ -1948,7 +2178,22 @@ function DatoKort({
                   return (
                     <Pressable
                       key={l.id}
-                      onPress={() => onRett({ overtidLonnsartId: l.id })}
+                      // V5a: blå knapp av, hvit knapp på (fra forrige «Overtid fra», ellers arbeidsstart).
+                      // ORDRE (28) V5: nivået er samme valg som overtidslinjas lønnsart —
+                      // et nivå-trykk erstatter et linjevalg på overtidslinja.
+                      onPress={() =>
+                        onRett({
+                          ...vekslOvertidNivaa({
+                            trykketId: l.id,
+                            valgtId: forsteOt?.lonnsartId ?? null,
+                            forsteOtFra: forsteOt?.fraTid ?? null,
+                            rettetOvertidFra,
+                            arbeidFra: fra,
+                          }),
+                          lonnsartPerLinje: utenLinje(lonnsartPerLinje, "overtid"),
+                        })
+                      }
+                      accessibilityState={{ selected: valgt }}
                       className={`rounded-full border px-3 py-1 ${valgt ? "border-blue-600 bg-blue-50" : "border-gray-300"}`}
                     >
                       <Text className={`text-xs ${valgt ? "font-semibold text-blue-700" : "text-gray-700"}`}>

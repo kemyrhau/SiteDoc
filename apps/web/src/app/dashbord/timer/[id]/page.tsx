@@ -732,8 +732,11 @@ export default function DagsseddelDetaljSide() {
       pauseVisning,
       byggeplassNavn,
       radLinje: {
+        // Kort-id-spec § 11.6: rad uten prosjekt (null) er fravær, ikke «Ukjent prosjekt».
         prosjektNavn:
-          prosjektNavnMap.get(projectId)?.name ?? t("timer.detalj.ukjentProsjekt"),
+          projectId === null
+            ? t("timer.detalj.fravaerUtenProsjekt")
+            : (prosjektNavnMap.get(projectId)?.name ?? t("timer.detalj.ukjentProsjekt")),
         projectId,
         sedelByggeplassId:
           (sheet as { byggeplassId?: string | null }).byggeplassId ?? null,
@@ -759,6 +762,8 @@ export default function DagsseddelDetaljSide() {
 
   // Prosjektkort L1: kortnavn «nr — navn» (overlapp-meldingen og pausebæreren).
   const kortNavn = (projectId: string) => {
+    // Kort-id-spec § 11.6: gruppen uten prosjekt heter «Fravær».
+    if (projectId === null) return t("timer.detalj.fravaerUtenProsjekt");
     const p = prosjektNavnMap.get(projectId);
     if (!p) return t("timer.detalj.ukjentProsjekt");
     return p.internalProjectNumber
@@ -1937,7 +1942,11 @@ function ProsjektGruppe({
   // Hent ECO-katalog for å mappe ID → kortNavn (kun for ECO-er som faktisk
   // brukes på dette prosjektet i en gruppe).
   const sedelFirmaId = useSedelFirma();
-  const { data: ecoer } = trpc.eksternKostObjekt.list.useQuery({ projectId, organizationId: sedelFirmaId });
+  // § 11.6: gruppen uten prosjekt (fravær) har ingen underprosjekter å slå opp.
+  const { data: ecoer } = trpc.eksternKostObjekt.list.useQuery(
+    { projectId, organizationId: sedelFirmaId },
+    { enabled: !!projectId },
+  );
   const ecoNavnMap = new Map<string, { kortNavn: string; proAdmId: string }>(
     (ecoer ?? []).map((e) => [e.id, { kortNavn: e.kortNavn, proAdmId: e.proAdmId }]),
   );
@@ -1952,7 +1961,9 @@ function ProsjektGruppe({
       {!iKort && (
       <div className="mb-4 border-b border-gray-100 pb-3">
         <h2 className="text-base font-semibold text-gray-900">
-          {prosjektNavn?.name ?? t("timer.detalj.ukjentProsjekt")}
+          {projectId === null
+            ? t("timer.detalj.fravaerUtenProsjekt")
+            : (prosjektNavn?.name ?? t("timer.detalj.ukjentProsjekt"))}
           {prosjektNavn?.internalProjectNumber && (
             <span className="ml-2 text-sm font-normal text-gray-500">
               ({prosjektNavn.internalProjectNumber})
@@ -2736,10 +2747,11 @@ function TimerRadDialog({
   const [valgtProjectId, setValgtProjectId] = useState<string>(
     rad?.projectId ?? projectId,
   );
-  const { data: ecoer } = trpc.eksternKostObjekt.list.useQuery({
-    projectId: valgtProjectId,
-    organizationId: sedelFirmaId,
-  });
+  const { data: ecoer } = trpc.eksternKostObjekt.list.useQuery(
+    { projectId: valgtProjectId, organizationId: sedelFirmaId },
+    // § 11.6: en fraværsrad uten prosjekt har ingen underprosjekter.
+    { enabled: !!valgtProjectId },
+  );
   // Ordre (10): følger valgt prosjekt — prosjektbytte nullstiller ugyldig valg.
   const bp = useRadByggeplass({ byggeplasser, projectId: valgtProjectId, rad });
 
@@ -3707,7 +3719,11 @@ function useRadSted(args: {
     rad: rad ? { byggeplassId: rad.byggeplassId ?? null } : undefined,
   });
   const sedelFirmaId = useSedelFirma();
-  const { data: ecoer } = trpc.eksternKostObjekt.list.useQuery({ projectId, organizationId: sedelFirmaId });
+  // § 11.6: gruppen uten prosjekt (fravær) har ingen underprosjekter å slå opp.
+  const { data: ecoer } = trpc.eksternKostObjekt.list.useQuery(
+    { projectId, organizationId: sedelFirmaId },
+    { enabled: !!projectId },
+  );
   const opprinneligEco = rad?.externalCostObjectId ?? null;
   const [ecoId, setEcoId] = useState<string | null>(opprinneligEco);
   const ecoEndret = !rad || ecoId !== opprinneligEco;
@@ -4768,7 +4784,11 @@ function MaskinRadDialog({
     | undefined;
   // T7-4c: ECO-katalog for prosjektet — maskin følger samme prosjekt+ECO-
   // gruppe som arbeidstimer (T.7 låst 2026-05-16).
-  const { data: ecoer } = trpc.eksternKostObjekt.list.useQuery({ projectId, organizationId: sedelFirmaId });
+  // § 11.6: gruppen uten prosjekt (fravær) har ingen underprosjekter å slå opp.
+  const { data: ecoer } = trpc.eksternKostObjekt.list.useQuery(
+    { projectId, organizationId: sedelFirmaId },
+    { enabled: !!projectId },
+  );
   // Ordre (10): samme regel som timer-raden.
   const bp = useRadByggeplass({ byggeplasser, projectId, rad });
 

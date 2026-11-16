@@ -26,7 +26,8 @@ import {
   Scissors,
 } from "lucide-react";
 import type { UkeAvvik } from "@sitedoc/shared";
-import { overlappBlokkererAttestering } from "@sitedoc/shared";
+import { overlappBlokkererAttestering, type NormtakBruddData } from "@sitedoc/shared";
+import { normtakBruddLinje } from "@/lib/normtakBrudd";
 import { useFirma } from "@/kontekst/firma-kontekst";
 import { Avviksbadge } from "./Avviksbadge";
 import { ReiseRadMerke } from "./ReiseRadMerke";
@@ -91,6 +92,9 @@ export type SeddelKortData = {
   // hentForAttestering gjør det); feltet alene bærer blokkeringen her. Full side-om-
   // side-visning av forslaget skjer i detaljen (AttesteringDetalj).
   konfliktVentendeSiden?: Date | string | null;
+  // B10 (§ 11.10.4, F9 = A): fravær med tak over dagsnormen. Satt ⇔ serveren sperrer
+  // attestering av datoen; retur er utveien.
+  fravaerNormtakBrudd?: NormtakBruddData | null;
 };
 
 function initialer(navn: string | null | undefined, email: string | undefined): string {
@@ -143,8 +147,11 @@ export function SeddelKort({
   // uken av forelderen). Badgen vises kun ved avvik (Avviksbadge → null ellers).
   ukeAvvik?: UkeAvvik | null;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { valgtFirma } = useFirma();
+  // B10: bruddlinja (null = intet brudd). Sperrer ✓ som overlappen gjør.
+  const normtakLinje = normtakBruddLinje(t, sedel.fravaerNormtakBrudd, i18n.language);
+  const normtakBlokkert = normtakLinje !== null;
 
   // V19-C (C-2): uavklart PC/mobil-overlapp blokkerer attestering. Serveren er
   // sannheten (A-4 kaster PRECONDITION_FAILED uansett); dette gater ✓ i UI-et og
@@ -257,7 +264,7 @@ export function SeddelKort({
   // ECO-katalog for første prosjekt (flertallet av sedler er ett prosjekt).
   // Multi-prosjekt-sedler vil få "—" for ECO-er som ligger på andre prosjekter.
   const førsteProsjektId =
-    sedel.timer[0]?.projectId ?? sedel.maskiner[0]?.projectId;
+    sedel.timer.find((r) => r.projectId)?.projectId ?? sedel.maskiner[0]?.projectId;
   const { data: ecoListe } = trpc.eksternKostObjekt.list.useQuery(
     { projectId: førsteProsjektId ?? "", organizationId: orgId },
     { enabled: !!førsteProsjektId },
@@ -439,7 +446,7 @@ export function SeddelKort({
               e.stopPropagation();
               onAttester();
             }}
-            disabled={attesterPending || forslagBlokkert}
+            disabled={attesterPending || forslagBlokkert || normtakBlokkert}
             className={`rounded p-1 disabled:opacity-40 ${
               oransje
                 ? "text-orange-700 hover:bg-orange-100"
@@ -448,7 +455,9 @@ export function SeddelKort({
             title={
               forslagBlokkert
                 ? t("timer.forslagValg.attesterBlokkert")
-                : t("timer.attestering.attester")
+                : normtakBlokkert
+                  ? t("timer.normtak.attesterSperret")
+                  : t("timer.attestering.attester")
             }
             aria-label={t("timer.attestering.attester")}
           >
@@ -538,6 +547,14 @@ export function SeddelKort({
           aria-hidden="true"
         />
       </header>
+
+      {/* B10: bruddlinja vises også sammenslått — den forklarer hvorfor ✓ er sperret. */}
+      {normtakLinje && (
+        <div className="flex items-start gap-1.5 border-t border-amber-100 bg-amber-50 px-4 py-1.5 text-xs text-amber-900">
+          <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
+          <span>{normtakLinje}</span>
+        </div>
+      )}
 
       {/* ---------- Expanded innhold ---------- */}
       {expanded && (
@@ -646,14 +663,17 @@ export function SeddelKort({
                           </td>
                           <td className="px-3 py-2 text-right font-mono text-gray-900">
                             <span className="inline-flex items-center justify-end gap-1.5">
-                              {/* T7-5e: penn/✂ skjult i read-only-modus */}
-                              {!readOnly && (
+                              {/* T7-5e: penn/✂ skjult i read-only-modus.
+                                  Kort-id-spec § 11.4: fravær uten prosjekt har ingen
+                                  prosjekt-bøtte å redigere eller splitte i — rettes
+                                  via «Rediger sedel» på detaljsiden. */}
+                              {!readOnly && rad.projectId !== null && (
                                 <>
                                   <button
                                     type="button"
                                     onClick={() =>
                                       setRedigerBucket({
-                                        projectId: rad.projectId,
+                                        projectId: rad.projectId ?? "",
                                         ecoId: rad.externalCostObjectId,
                                       })
                                     }
@@ -810,7 +830,8 @@ export function SeddelKort({
       {splittAktiv?.radType === "timer" && (
         <SplittRadModal
           radType="timer"
-          original={splittAktiv.original}
+          // ✂ vises bare for rader med prosjekt (se over), så projectId er satt.
+          original={{ ...splittAktiv.original, projectId: splittAktiv.original.projectId ?? "" }}
           sheetId={sedel.id}
           organizationId={orgId!}
           prosjekter={prosjekter}

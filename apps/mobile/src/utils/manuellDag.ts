@@ -24,7 +24,10 @@ import {
  * Brukeren retter tidene i skjermen som ellers.
  */
 
-export type ManuellGrunnlag = { tilTider: (string | null)[]; hodePauseMin: number };
+export type ManuellGrunnlag = {
+  tilTider: (string | null)[];
+  hodePauseMin: number;
+};
 
 const tilHhmm = (min: number) =>
   `${String(Math.floor(min / 60)).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}`;
@@ -33,7 +36,7 @@ const tilHhmm = (min: number) =>
 export function manuellDag(
   dato: string,
   tider: { startTid: string; sluttTid: string; pauseMin: number },
-  eksisterende: ManuellGrunnlag | null,
+  eksisterende: Pick<ManuellGrunnlag, "tilTider" | "hodePauseMin"> | null,
 ): { startAt: string; sluttIso: string; pauseMin: number } {
   const seneste = (eksisterende?.tilTider ?? [])
     .filter((t): t is string => !!t)
@@ -49,8 +52,17 @@ export function manuellDag(
   };
 }
 
-/** LES: datoens sedel (pause i hodet + radenes sluttider), null = ingen sedel. */
-export function lesManuellGrunnlag(db: LokalDb, userId: string, dato: string): ManuellGrunnlag | null {
+/**
+ * LES: datoens sedel (pause i hodet + radenes sluttider), null = ingen sedel.
+ * Normgrunnlaget (`bruktAvNorm`, spec § 6 L1) leses ikke her: ORDRE (29) a2
+ * flyttet det til `lesEksisterendeSedel` (`services/dagsforslagInput.ts`), som
+ * GPS-dagen og manuelt kort deler (L4).
+ */
+export function lesManuellGrunnlag(
+  db: LokalDb,
+  userId: string,
+  dato: string,
+): ManuellGrunnlag | null {
   const sedel = db
     .select({ id: dagsseddelLocal.id, pauseMin: dagsseddelLocal.pauseMin })
     .from(dagsseddelLocal)
@@ -62,7 +74,10 @@ export function lesManuellGrunnlag(db: LokalDb, userId: string, dato: string): M
     .from(sheetTimerLocal)
     .where(eq(sheetTimerLocal.dagsseddelId, sedel.id))
     .all();
-  return { tilTider: rader.map((r) => r.tilTid), hodePauseMin: sedel.pauseMin ?? 0 };
+  return {
+    tilTider: rader.map((r) => r.tilTid),
+    hodePauseMin: sedel.pauseMin ?? 0,
+  };
 }
 
 /**
@@ -84,7 +99,8 @@ export function forberedManuellDag(
   retting?: DagsforslagRetting,
 ): { input: BeregnDagsforslagInput; forslag: Dagsforslag; sluttIso: string } {
   const tider = hentArbeidsdagTiderLokalt(p.orgId, new Date(`${p.dato}T00:00:00`));
-  const md = manuellDag(p.dato, tider, lesManuellGrunnlag(db, p.userId, p.dato));
+  const grunnlag = lesManuellGrunnlag(db, p.userId, p.dato);
+  const md = manuellDag(p.dato, tider, grunnlag);
   const lest = samleDagsforslagInput(db, {
     userId: p.userId,
     orgId: p.orgId,
@@ -98,8 +114,12 @@ export function forberedManuellDag(
     valgtByggeplassId: p.valgtByggeplassId,
   });
   const dagEff = lest.effektivPerDato[p.dato];
-  const input: BeregnDagsforslagInput = dagEff
+  const medPause: BeregnDagsforslagInput = dagEff
     ? { ...lest, effektivPerDato: { ...lest.effektivPerDato, [p.dato]: { ...dagEff, pauseMin: md.pauseMin } } }
     : lest;
+  // ORDRE (27b) L1–L2 / (29) a2: kortet regnes mot det som er igjen av normen
+  // etter døgnets registrerte arbeid — `eksisterendeSedelPerDato[dato].bruktAvNorm`
+  // fra `samleDagsforslagInput`, samme lesning som GPS-dagen.
+  const input = medPause;
   return { input, forslag: beregnDagsforslag({ ...input, retting }), sluttIso: md.sluttIso };
 }

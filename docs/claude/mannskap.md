@@ -42,7 +42,13 @@ Elektronisk oversiktsliste per byggeplass — hvem er på plassen, med hvilket f
 - **Oppbevaring:** 6 måneder etter prosjektslutt — deretter automatisk sletting
 - **Tilgang:** Prosjektleder, verneombud, Arbeidstilsynet, skattemyndigheter
 - **Databehandleravtale:** SiteDoc er databehandler — DPA med byggherre (behandlingsansvarlig)
-- **Aldri registrer:** Personnummer, GPS-posisjon til person, helsedata, fagforeningstilhørighet
+- **Aldri registrer:** Personnummer, ~~GPS-posisjon til person~~, helsedata, fagforeningstilhørighet
+  - **⚠️ PRESISERT 2026-11-15 (Kenneth):** *GPS-posisjon* (koordinater, rute) registreres fortsatt aldri — hverken lokalt
+    eller på server. Det som åpnes er *geofence-hendelse ved kjent sted* (sted-id + forlot/ankom + klokkeslett), kun i
+    telefonens SQLite, slettet ved synk-kvittering, som forslag til reisetid i Timer. Krever firmabryter pr. ansatt og
+    OS-tillatelse «Alltid». Grunnlag (samtykke vs. kontrolltiltak) er åpent — se
+    [timer-geofence-avreise-ankomst-spec.md § 6](timer-geofence-avreise-ankomst-spec.md). Fase C-forbeholdet i linje 19
+    («krever juridisk sign-off») står for PSI; Timer-sporet har egen spec.
 
 ## Arkitektur
 

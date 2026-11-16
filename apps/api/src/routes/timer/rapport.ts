@@ -40,7 +40,53 @@ const periodeSchema = z.object({
   til: z.string(),
   prosjektId: z.string().uuid().optional(),
   ansattId: z.string().uuid().optional(),
+  // Kort-id-spec § 11.4 (FM10): navnet på fravær uten prosjekt, oversatt fra
+  // klienten (ingen server-i18n). Utelatt → «Fravær» (samme mønster som «(ukjent)»).
+  fravaerEtikett: z.string().max(60).optional(),
 });
+
+const FRAVAER_ETIKETT_STANDARD = "Fravær";
+
+// Ordre (31), Kenneth-vedtak 2026-11-16: eksporten (Excel, CSV, PDF) tar som standard
+// bare attesterte rader. `taMedUattesterte: true` = avkryssingen «Ta med uattesterte»
+// i eksportdialogen (dagens atferd før vedtaket). Utvalg pr. radtype:
+//  - timer, maskin, tillegg: radens attestertStatus = "attestert"
+//  - utlegg (ingen egen status): sedelens status = "accepted" (attestert sedel)
+// Skjermrapporten sender `true` (viser alle rader); bare eksport-veien filtrerer.
+const eksportUtvalgSchema = { taMedUattesterte: z.boolean().optional() };
+const RAD_ATTESTERT = "attestert";
+const SEDEL_ATTESTERT = "accepted";
+// Ordre (32): erstattet-rader er historikk og telles aldri (samme filter som
+// detaljEksport). Ingen kodesti skriver verdien i dag (rediger/splitt flytter til
+// SheetRadHistorikk siden 2026-07-13), men aggregat og detalj skal ha samme utvalg.
+const IKKE_ERSTATTET = { attestertStatus: { not: "erstattet" } };
+// Sedelstatus (`dagsseddel.ts` STATUS_VERDIER) → visningsnøkkel i statusFordeling.
+// draft og returned ligger hos arbeideren (REDIGERBARE_STATUSER) → kladd.
+function statusNokkel(status: string): "kladd" | "sent" | "attestert" {
+  if (status === "draft" || status === "returned") return "kladd";
+  if (status === "sent") return "sent";
+  return "attestert";
+}
+
+/**
+ * Kort-id-spec § 11.4: utvalget av sedler for rapport/eksport. Med valgt prosjekt
+ * er det uendret (fravær uten prosjekt utelates — BEVARES). Uten prosjektfilter
+ * kommer også sedler med fravær uten prosjekt med — firma-isolert på sedelens eier.
+ */
+function sedelUtvalgRapport(
+  orgId: string,
+  prosjektIder: string[],
+  prosjektFilter: string | undefined,
+) {
+  const medProsjekt = { timer: { some: { projectId: { in: prosjektIder }, ...IKKE_ERSTATTET } } };
+  if (prosjektFilter) return medProsjekt;
+  return {
+    OR: [
+      medProsjekt,
+      { organizationId: orgId, timer: { some: { utenProsjekt: true, ...IKKE_ERSTATTET } } },
+    ],
+  };
+}
 
 // Alle synlige PDF-overskrifter/etiketter injiseres oversatt fra klienten
 // (api har ingen server-i18n; samme mønster som arkiv-PDF). Speiler
@@ -103,7 +149,9 @@ export const rapportRouter = router({
     // ekskluderer lønnsarter med skalEksporteres=false, så aggregatet matcher
     // detalj-arkene (ingen «to sannheter»). SKJERMEN kaller uten flagget = alle
     // timer (attestering/oversikt trenger å se alt). Ordren gjelder eksporter.
-    .input(periodeSchema.extend({ kunEksporterbare: z.boolean().optional() }))
+    // taMedUattesterte (ordre (31)) virker bare sammen med kunEksporterbare: eksport-
+    // veiens aggregat bruker SAMME radutvalg som detaljEksport. Skjermen er uendret.
+    .input(periodeSchema.extend({ kunEksporterbare: z.boolean().optional(), ...eksportUtvalgSchema }))
     .query(async ({ ctx, input }) => {
       if (!ctx.userId) throw new TRPCError({ code: "UNAUTHORIZED" });
       const orgId = await verifiserFirmaAdmin(ctx.userId, input.organizationId);
@@ -156,19 +204,20 @@ export const rapportRouter = router({
           // cross-firma-lekkasje på delte prosjekter. Cross-org-invitert
           // arbeiders sedel (annet org) ekskluderes bevisst.
           organizationId: orgId,
-          timer: { some: { projectId: { in: prosjektIder } } },
+          ...sedelUtvalgRapport(orgId, prosjektIder, input.prosjektId),
           dato: { gte: fraDato, lte: tilDato },
           ...(input.ansattId ? { userId: input.ansattId } : {}),
         },
         include: {
           // lonnsart.skalEksporteres for kunEksporterbare-filteret (time-summen).
           // where på rad-nivå: kun det filtrerte prosjektets rader (tomt = alle).
+          // Ordre (32): erstattet-rader ekskluderes (som detaljEksport).
           timer: {
-            where: radProsjektFilter,
+            where: { ...IKKE_ERSTATTET, ...radProsjektFilter },
             include: { lonnsart: { select: { skalEksporteres: true } } },
           },
-          tillegg: { where: radProsjektFilter },
-          maskiner: { where: radProsjektFilter },
+          tillegg: { where: { ...IKKE_ERSTATTET, ...radProsjektFilter } },
+          maskiner: { where: { ...IKKE_ERSTATTET, ...radProsjektFilter } },
         },
         orderBy: [{ dato: "asc" }, { createdAt: "asc" }],
       });
@@ -193,7 +242,7 @@ export const rapportRouter = router({
         email: string;
         ansattnummer: string | null;
         totalTimer: number;
-        perProsjekt: Map<string, number>; // prosjektId → timer
+        perProsjekt: Map<string | null, number>; // prosjektId → timer (null = fravær uten prosjekt)
         perDag: Map<string, number>; // YYYY-MM-DD → timer
         statusFordeling: { kladd: number; sent: number; attestert: number };
         antallSedler: number;
@@ -233,6 +282,15 @@ export const rapportRouter = router({
           if (input.kunEksporterbare && t.lonnsart?.skalEksporteres === false) {
             continue;
           }
+          // Ordre (31): eksport-veien tar bare attesterte timerader (samme utvalg som
+          // detaljEksport), med mindre «Ta med uattesterte» er krysset av.
+          if (
+            input.kunEksporterbare &&
+            !input.taMedUattesterte &&
+            t.attestertStatus !== RAD_ATTESTERT
+          ) {
+            continue;
+          }
           const radTimer = Number(t.timer);
           sedelTimer += radTimer;
           a.perProsjekt.set(
@@ -246,12 +304,7 @@ export const rapportRouter = router({
         const datoNok = sedel.dato.toISOString().slice(0, 10);
         a.perDag.set(datoNok, (a.perDag.get(datoNok) ?? 0) + sedelTimer);
 
-        const status =
-          sedel.status === "kladd"
-            ? "kladd"
-            : sedel.status === "sent"
-              ? "sent"
-              : "attestert";
+        const status = statusNokkel(sedel.status);
         a.statusFordeling[status] += 1;
         statusFordeling[status] += 1;
 
@@ -273,11 +326,15 @@ export const rapportRouter = router({
         statusFordeling: a.statusFordeling,
         perProsjekt: Array.from(a.perProsjekt.entries()).map(([pid, timer]) => ({
           prosjektId: pid,
-          prosjektNavn: prosjektMap.get(pid)?.name ?? "(ukjent)",
+          prosjektNavn:
+            pid === null
+              ? (input.fravaerEtikett ?? FRAVAER_ETIKETT_STANDARD)
+              : (prosjektMap.get(pid)?.name ?? "(ukjent)"),
           // SD (prosjektNummer) beholdes for Excel-eksport (stabil, unik nøkkel
           // til regnskap). Internt vises brukervendt. Beslutning 3 + terminologi.md.
-          prosjektNummer: prosjektMap.get(pid)?.projectNumber ?? null,
-          internProsjektNummer: prosjektMap.get(pid)?.internalProjectNumber ?? null,
+          prosjektNummer: pid === null ? null : (prosjektMap.get(pid)?.projectNumber ?? null),
+          internProsjektNummer:
+            pid === null ? null : (prosjektMap.get(pid)?.internalProjectNumber ?? null),
           timer,
         })),
         perDag: Array.from(a.perDag.entries())
@@ -317,7 +374,7 @@ export const rapportRouter = router({
    * + ett filter (utvid periodeSchema + where under). Ikke bygget nå.
    */
   detaljEksport: protectedProcedure
-    .input(periodeSchema)
+    .input(periodeSchema.extend(eksportUtvalgSchema))
     .query(async ({ ctx, input }) => {
       if (!ctx.userId) throw new TRPCError({ code: "UNAUTHORIZED" });
       const orgId = await verifiserFirmaAdmin(ctx.userId, input.organizationId);
@@ -358,10 +415,16 @@ export const rapportRouter = router({
       // ut av huset i et fakturagrunnlag). KUN når prosjektId er satt (kryss-
       // prosjekt-rader utenfor firmaet skal ikke stille droppes uten filter).
       const radProsjektFilter = input.prosjektId ? { projectId: input.prosjektId } : {};
+      // Ordre (31): standard bare attesterte rader. Maskin og tillegg filtreres i DB;
+      // timer i KODE (under), så maskin på en utelatt timerad kan klassifiseres.
+      const kunAttesterte = !input.taMedUattesterte;
+      const radStatusFilter = kunAttesterte
+        ? { attestertStatus: RAD_ATTESTERT }
+        : { attestertStatus: { not: "erstattet" } };
       const sedler = await ctx.prismaTimer.dailySheet.findMany({
         where: {
           organizationId: orgId,
-          timer: { some: { projectId: { in: prosjektIder } } },
+          ...sedelUtvalgRapport(orgId, prosjektIder, input.prosjektId),
           dato: { gte: fraDato, lte: tilDato },
           ...(input.ansattId ? { userId: input.ansattId } : {}),
         },
@@ -385,13 +448,13 @@ export const rapportRouter = router({
           },
           tillegg: {
             where: {
-              attestertStatus: { not: "erstattet" },
+              ...radStatusFilter,
               tillegg: { skalEksporteres: true },
               ...radProsjektFilter,
             },
             include: { tillegg: { select: { navn: true } } },
           },
-          maskiner: { where: { attestertStatus: { not: "erstattet" }, ...radProsjektFilter } },
+          maskiner: { where: { ...radStatusFilter, ...radProsjektFilter } },
           // SheetUtlegg har ingen attestertStatus → intet erstattet-filter.
           // Bredere select enn attesterings-lista (kommentar med for eksport-ark),
           // men fortsatt IKKE vedlegg (svak FK uten @relation → umulig via query).
@@ -429,7 +492,7 @@ export const rapportRouter = router({
       // alle unike projectId og slå opp navn for dem også (ellers «ukjent»).
       const alleProsjektIder = new Set<string>(prosjektIder);
       for (const s of sedler) {
-        for (const r of s.timer) alleProsjektIder.add(r.projectId);
+        for (const r of s.timer) if (r.projectId) alleProsjektIder.add(r.projectId);
         for (const r of s.tillegg) alleProsjektIder.add(r.projectId);
         for (const r of s.maskiner) alleProsjektIder.add(r.projectId);
         for (const r of s.utlegg) alleProsjektIder.add(r.projectId);
@@ -442,7 +505,11 @@ export const rapportRouter = router({
         });
         for (const p of ekstra) prosjektMap.set(p.id, p);
       }
-      const prosjektNavn = (id: string): string => prosjektMap.get(id)?.name ?? "(ukjent)";
+      // FM10: navnet er alltid en streng — null-prosjekt = fravær uten prosjekt.
+      const prosjektNavn = (id: string | null): string =>
+        id === null
+          ? (input.fravaerEtikett ?? FRAVAER_ETIKETT_STANDARD)
+          : (prosjektMap.get(id)?.name ?? "(ukjent)");
 
       // Maskin-navn (kryss-modul → db-maskin). Samme navn-form som dagskortet.
       const vehicleIder = Array.from(
@@ -545,8 +612,15 @@ export const rapportRouter = router({
         brukerMap.get(userId)?.name ?? brukerMap.get(userId)?.email ?? "(ukjent)";
 
       // skalEksporteres-filter i kode: false → timeraden ut av eksporten.
-      const eksporterbar = (r: { lonnsart: { skalEksporteres: boolean } | null }): boolean =>
-        r.lonnsart?.skalEksporteres !== false;
+      // Ordre (31): uattestert timerad er også ute (med mindre «Ta med uattesterte»).
+      // En attestert maskin på en slik rad havner da i «Maskin på ikke-eksporterbar
+      // timerad» — aldri i «uten timerad» (anomali-signalet), og aldri tapt.
+      const eksporterbar = (r: {
+        lonnsart: { skalEksporteres: boolean } | null;
+        attestertStatus: string | null;
+      }): boolean =>
+        r.lonnsart?.skalEksporteres !== false &&
+        (!kunAttesterte || r.attestertStatus === RAD_ATTESTERT);
 
       // LAG 2 D2 — valider DB-strengen mot det tillatte settet før den types som
       // union (ingen `as unknown as`): ukjent/korrupt verdi faller til null, ærlig.
@@ -683,23 +757,26 @@ export const rapportRouter = router({
         })),
       );
 
-      const utlegg = sedler.flatMap((s) =>
-        s.utlegg.map((r) => ({
-          id: r.id,
-          dato: iso(s.dato),
-          ansatt: ansatt(s.userId),
-          ansattnr: ansattnummerMap.get(s.userId) ?? null,
-          prosjekt: prosjektNavn(r.projectId),
-          byggeplass: effektivByggeplass(s, r),
-          underprosjekt: underprosjektNavn(r.externalCostObjectId),
-          kategori: r.expenseCategory?.navn ?? "(ukjent)",
-          belop: r.belop === null ? null : Number(r.belop),
-          kommentar: r.kommentar,
-          // SheetUtlegg har INGEN rad-status → sedel-status (kolonnen heter
-          // «Seddelstatus» på utlegg-arket, ikke «Radstatus» — ulik betydning).
-          seddelstatus: s.status,
-        })),
-      );
+      // Utlegg har ingen rad-status → følger sedelen: bare attestert sedel ("accepted").
+      const utlegg = sedler
+        .filter((s) => !kunAttesterte || s.status === SEDEL_ATTESTERT)
+        .flatMap((s) =>
+          s.utlegg.map((r) => ({
+            id: r.id,
+            dato: iso(s.dato),
+            ansatt: ansatt(s.userId),
+            ansattnr: ansattnummerMap.get(s.userId) ?? null,
+            prosjekt: prosjektNavn(r.projectId),
+            byggeplass: effektivByggeplass(s, r),
+            underprosjekt: underprosjektNavn(r.externalCostObjectId),
+            kategori: r.expenseCategory?.navn ?? "(ukjent)",
+            belop: r.belop === null ? null : Number(r.belop),
+            kommentar: r.kommentar,
+            // SheetUtlegg har INGEN rad-status → sedel-status (kolonnen heter
+            // «Seddelstatus» på utlegg-arket, ikke «Radstatus» — ulik betydning).
+            seddelstatus: s.status,
+          })),
+        );
 
       return { timerader, maskinUtenTimerad, maskinIkkeEksporterbar, tillegg, utlegg };
     }),
@@ -729,6 +806,7 @@ export const rapportRouter = router({
         footerAv: z.string(),
         // Radvalg fra Tilpasset-modalen — hvilke radtyper som skal med (fase 2).
         // Utelatt/tom → alle fire (samme som de direkte format-knappene = full).
+        // (Ordre (31): radutvalget attestert/alle bæres av taMedUattesterte.)
         radTyper: z
           .array(z.enum(["timer", "maskin", "tillegg", "utlegg"]))
           .min(1)
@@ -759,6 +837,7 @@ export const rapportRouter = router({
             ]),
           )
           .optional(),
+        ...eksportUtvalgSchema,
         tekster: teksterSchema,
       }),
     )
@@ -773,6 +852,7 @@ export const rapportRouter = router({
         til: input.til,
         prosjektId: input.prosjektId,
         ansattId: input.ansattId,
+        taMedUattesterte: input.taMedUattesterte,
       };
       const caller = rapportRouter.createCaller(ctx);
       const aggregat = await caller.firmaPeriodeRapport({ ...filtre, kunEksporterbare: true });
@@ -795,6 +875,9 @@ export const rapportRouter = router({
       const mottaker = input.mottaker ?? "intern";
       const gruppering: Gruppering = input.gruppering ?? "ingen";
       const flateRader = byggDetaljRader(detalj, valgteRadTyper);
+      // Ordre (34): ingen rader i utvalget (typisk: ingen attesterte i perioden) gir et
+      // svar klienten viser som melding — aldri en PDF som bare sier «ingen data».
+      if (flateRader.length === 0) return { tomtUtvalg: true as const };
       const grupper = grupperDetaljRader(flateRader, gruppering).map((g) => ({
         overskrift: g.overskrift,
         subtotal: g.subtotal,
@@ -885,7 +968,7 @@ export const rapportRouter = router({
       const footer = `<div style="width:100%;box-sizing:border-box;padding:0 16mm;${stil};display:flex;justify-content:space-between"><span>${esc(input.footerGenerert)}</span><span>${esc(input.footerSide)} <span class="pageNumber"></span> ${esc(input.footerAv)} <span class="totalPages"></span></span></div>`;
 
       const { pdf } = await renderPdfViaContainer(html, header, footer, liggende);
-      return { pdf: pdf.toString("base64"), filnavn: input.filnavn };
+      return { tomtUtvalg: false as const, pdf: pdf.toString("base64"), filnavn: input.filnavn };
     }),
 
   /**
@@ -909,7 +992,7 @@ export const rapportRouter = router({
       // T.1 (2026-05-11): DailySheet har ikke projectId — bruk SheetTimer.
       const medTimer = await ctx.prismaTimer.sheetTimer.groupBy({
         by: ["projectId"],
-        where: { projectId: { in: prosjektIder } },
+        where: { projectId: { in: prosjektIder }, ...IKKE_ERSTATTET },
         _count: { _all: true },
       });
       const prosjektIdSett = new Set(medTimer.map((m) => m.projectId));
@@ -943,7 +1026,8 @@ export const rapportRouter = router({
       // T.1 (2026-05-11): DailySheet har ikke projectId — filtrer via SheetTimer.
       const sedler = await ctx.prismaTimer.dailySheet.groupBy({
         by: ["userId"],
-        where: { timer: { some: { projectId: { in: prosjektIder } } } },
+        // Kort-id-spec § 11.4: ansatt med bare fravær uten prosjekt kommer også med.
+        where: sedelUtvalgRapport(orgId, prosjektIder, undefined),
         _count: { _all: true },
       });
       const userIder = sedler.map((s) => s.userId);

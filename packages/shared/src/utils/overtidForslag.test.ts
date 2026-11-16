@@ -193,7 +193,7 @@ describe("foreslaOvertidSplitt", () => {
     expect(f[0]!.overtidLonnsart.id).toBe("ot50");
   });
 
-  it("rad som alt står på overtid teller mot summen, men får ikke forslag", () => {
+  it("rad som alt står på overtid får ikke forslag og fyller ikke normen", () => {
     const f = foreslaOvertidSplitt(
       [
         rad("a", "07:00", "15:00", { pauseMin: 30 }),
@@ -205,6 +205,34 @@ describe("foreslaOvertidSplitt", () => {
       PAUSE,
     );
     expect(f.map((x) => x.radId)).toEqual(["c"]);
+  });
+
+  it("🔴 B3/F-L1: tidlig overtidsrad + full normaldag → ingen forslag (2 t over norm er alt ført)", () => {
+    const f = foreslaOvertidSplitt(
+      [
+        rad("tidlig", "05:00", "07:00", { overtidsnivaa: 50 }),
+        rad("a", "07:00", "15:00", { pauseMin: 30 }),
+      ],
+      7.5,
+      LONNSARTER,
+      PAUSE,
+    );
+    expect(f).toEqual([]);
+  });
+
+  it("🔴 B3/F-L1: tidlig overtidsrad + 07–16 → forslaget gjelder bare timen over normen (15–16)", () => {
+    const f = foreslaOvertidSplitt(
+      [
+        rad("tidlig", "05:00", "07:00", { overtidsnivaa: 50 }),
+        rad("a", "07:00", "16:00", { pauseMin: 30 }),
+      ],
+      7.5,
+      LONNSARTER,
+      PAUSE,
+    );
+    expect(f.map((x) => [x.radId, x.overTimer, x.normal?.tilTid, x.overtid.fraTid])).toEqual([
+      ["a", 1, "15:00", "15:00"],
+    ]);
   });
 
   it("pausen følger overtid-delen når splitten faller før lunsj", () => {

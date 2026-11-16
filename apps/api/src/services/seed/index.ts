@@ -55,7 +55,9 @@ async function harEgenKatalogPolicy(
 //  Per timer.md § Lønnsart-katalog Nivå 1
 // ============================================================================
 
-const LONNSART_NIVAA_1 = [
+// B10 (kort-id-spec § 11.10.2): `fravaerNormtak: false` = fravær uten tak (ubetalt, og F10: ferie
+// m/lønn og bevegelig helligdag). Alle andre fravær-arter har tak (standard true).
+const LONNSART_NIVAA_1: { type: string; navn: string; fravaerNormtak?: boolean }[] = [
   { type: "ordinaer",   navn: "Fastlønn (månedslønn)" },
   { type: "ordinaer",   navn: "Timelønn" },
   { type: "ordinaer",   navn: "Overtid 50%" },
@@ -65,11 +67,11 @@ const LONNSART_NIVAA_1 = [
   { type: "fravaer",    navn: "Sykemelding fra dag 17" },
   { type: "fravaer",    navn: "Egenmelding inntil 3 dager" },
   { type: "fravaer",    navn: "Barns sykdom" },
-  { type: "fravaer",    navn: "Ferie m/lønn" },
-  { type: "fravaer",    navn: "Ferie u/lønn" },
+  { type: "fravaer",    navn: "Ferie m/lønn", fravaerNormtak: false },
+  { type: "fravaer",    navn: "Ferie u/lønn", fravaerNormtak: false },
   { type: "fravaer",    navn: "Permittering m/lønn" },
-  { type: "fravaer",    navn: "Permittering u/lønn" },
-  { type: "fravaer",    navn: "Bevegelig helligdag" },
+  { type: "fravaer",    navn: "Permittering u/lønn", fravaerNormtak: false },
+  { type: "fravaer",    navn: "Bevegelig helligdag", fravaerNormtak: false },
   { type: "feriepenger", navn: "Feriepenger 12%" },
   { type: "feriepenger", navn: "Feriepenger ved avslutning (inneværende år)" },
 ];
@@ -94,6 +96,7 @@ export async function seedLonnsartNivaa1(organizationId: string): Promise<SeedRe
     navn: rad.navn,
     rekkefolge: idx,
     seedNivaa: 1,
+    fravaerNormtak: rad.fravaerNormtak ?? true,
     // Variant B: «Timelønn» er default auto-valgt lønnsart på ny timer-rad.
     // Firma-admin kan flytte default til en annen lønnsart (f.eks. «Fastlønn»
     // for fastlønnede firma) via lonnsart.settStandard.
@@ -109,7 +112,7 @@ export async function seedLonnsartNivaa1(organizationId: string): Promise<SeedRe
 //  Per timer.md § Lønnsart-katalog Nivå 2
 // ============================================================================
 
-const LONNSART_NIVAA_2 = [
+const LONNSART_NIVAA_2: { type: string; navn: string; fravaerNormtak?: boolean }[] = [
   { type: "fravaer",  navn: "Velferdspermisjon" },
   { type: "ordinaer", navn: "Reise 7,5–15 km" },
   { type: "ordinaer", navn: "Reise 15–30 km" },
@@ -164,6 +167,7 @@ export async function seedLonnsartNivaa2(organizationId: string): Promise<SeedRe
     navn: rad.navn,
     rekkefolge: startRekkefolge + idx,
     seedNivaa: 2,
+    fravaerNormtak: rad.fravaerNormtak ?? true,
   }));
 
   const resultat = await prismaTimer.lonnsart.createMany({ data });

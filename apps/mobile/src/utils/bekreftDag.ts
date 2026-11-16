@@ -33,7 +33,7 @@ import { fordelTilleggPaaKort } from "./tilleggPaaKort";
 import { kortNokkel } from "../lib/prosjektkortMobil";
 import { avsluttBesok, type BesokSted } from "../services/arbeidsdagBesok";
 import { slettUtkastRad } from "./prosjektkortUtkast";
-import { finnSedelIAnnetFirma } from "../services/dagsseddelOpprett";
+import { finnSedelIAnnetFirma, finnSendteDatoer } from "../services/dagsseddelOpprett";
 
 /**
  * L3-D: maskin > arbeid + pause → ingenting skrives, skjermen står (spec § 8 nr. 21).
@@ -47,7 +47,28 @@ export type BekreftDagHandling =
   | { type: "manglerBeskrivelse"; nokler: string[] }
   | { type: "tilleggUtenRad"; nokler: string[] }
   | { type: "tilleggUtleggUtenDag" }
-  | { type: "sedelIAnnetFirma"; dato: string };
+  | { type: "sedelIAnnetFirma"; dato: string }
+  | { type: "datoSendtUnderveis"; datoer: string[] };
+
+/**
+ * ORDRE (26): datoene skjermens forslag regnet som åpne (timer, beskrivelse,
+ * maskin/varer) pluss datoen hver tillegg-/utleggslinje er knyttet til
+ * (`knyttLonnUtleggTilKort`), der den lokale sedelen NÅ er sendt — f.eks.
+ * sendt fra web eller en annen enhet og hentet av timerSync mens Bekreft dag
+ * sto åpen (forslaget er en useMemo uten sync-avhengighet). Tom = ingen konflikt.
+ */
+export function datoerSendtUnderveis(
+  db: LokalDb,
+  userId: string,
+  forslag: Dagsforslag,
+  lonnUtlegg?: LonnUtlegg,
+): string[] {
+  const datoer = forslag.datoer.filter((d) => !d.blokkert).map((d) => d.dato);
+  for (const l of [...(lonnUtlegg?.tillegg ?? []), ...(lonnUtlegg?.utlegg ?? [])]) {
+    if (l.dato !== undefined) datoer.push(l.dato);
+  }
+  return finnSendteDatoer(db, { userId, datoer });
+}
 
 /**
  * ORDRE 36a (spec § 3): prosjektene som har arbeid (ikke reise) på en åpen
@@ -195,7 +216,8 @@ export function bekreftDag(
   | { handling: { type: "maskinBrudd"; brudd: MaskinBrudd[] }; resultat: null }
   | { handling: { type: "manglerBeskrivelse"; nokler: string[] }; resultat: null }
   | { handling: { type: "tilleggUtenRad"; nokler: string[] }; resultat: null }
-  | { handling: { type: "sedelIAnnetFirma"; dato: string }; resultat: null } {
+  | { handling: { type: "sedelIAnnetFirma"; dato: string }; resultat: null }
+  | { handling: { type: "datoSendtUnderveis"; datoer: string[] }; resultat: null } {
   // ORDRE 36a: beskrivelsen er påkrevd — sjekkes først, ingenting skrives.
   const mangler = manglerBeskrivelse(forslag);
   if (mangler.length > 0) {
@@ -250,6 +272,14 @@ export function bekreftDag(
   });
   if (annetFirma) {
     return { handling: { type: "sedelIAnnetFirma", dato: annetFirma }, resultat: null };
+  }
+  // ORDRE (26): en dato skjermen regnet som åpen er sendt siden forslaget ble
+  // tegnet → stopp FØR første skriving; ingenting skrives. Skjermen regner
+  // forslaget ut på nytt, og nytt trykk er en ren retry. Veien herfra til
+  // skrivingen er synkron, så vakt og skriving er ett udelt steg.
+  const sendtUnderveis = datoerSendtUnderveis(db, ctx.userId, forslag, lonnUtlegg);
+  if (sendtUnderveis.length > 0) {
+    return { handling: { type: "datoSendtUnderveis", datoer: sendtUnderveis }, resultat: null };
   }
   const resultat = anvendDagsforslag(db, forslag, ctx, tillegg, lonnUtlegg);
   // RETUR (Kontrollør M3): alle datoer ble sendt mellom forslag og Bekreft →
@@ -374,7 +404,8 @@ export type BekreftSperre =
   | "dagLukket"
   | "manglerProsjekt"
   | "sluttIkkeGodkjent"
-  | "kjedeKonflikt";
+  | "kjedeKonflikt"
+  | "manglerLonnsart";
 
 export function bekreftSperre(a: {
   harDb: boolean;
@@ -387,6 +418,8 @@ export function bekreftSperre(a: {
   sluttIkkeGodkjent: boolean;
   /** Ordre (17) punkt 2: reisekjeden overlapper eller går over midnatt. */
   kjedeKonflikt?: boolean;
+  /** ORDRE (28) V2/T19: en linje står med «Velg lønnsart» — aldri stille droppet. */
+  manglerLonnsart?: boolean;
 }): BekreftSperre | null {
   if (!a.harDb) return "ikkeKlar";
   if (!a.harBruker) return "ikkeInnlogget";
@@ -395,6 +428,7 @@ export function bekreftSperre(a: {
   if (a.manglerProsjekt) return "manglerProsjekt";
   if (a.sluttIkkeGodkjent) return "sluttIkkeGodkjent";
   if (a.kjedeKonflikt) return "kjedeKonflikt";
+  if (a.manglerLonnsart) return "manglerLonnsart";
   return null;
 }
 

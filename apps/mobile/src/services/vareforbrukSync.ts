@@ -3,6 +3,7 @@ import { kortDagsseddelId, kortVareforbrukInput, type KortVareforbrukInput } fro
 import { hentDatabase } from "../db/database";
 import { dagsseddelLocal, sheetTimerLocal, vareforbrukLocal } from "../db/schema";
 import type { trpc } from "../lib/trpc";
+import { sikreLokalKortId } from "./kortIdLokal";
 
 /* ============================================================================
  *  Vareforbruk fra prosjektkortet — offline-kø (Prosjektkort L3, 2026-11-06)
@@ -217,6 +218,8 @@ export function lagreLokalVarelinje(args: {
       sistEndretLokalt: Date.now(),
     })
     .run();
+  // Kort-id (prosjektkort-kortid-spec § 2.4, M9): samme regel som serveren (regel 3, K6).
+  sikreLokalKortId(db, args.sheetId);
 }
 /** Arbeiderens valg i vare-modalen (før det er bundet til en sedel). */
 export type VarelinjeValg = {

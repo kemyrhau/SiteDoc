@@ -33,7 +33,8 @@ type TimerRad = {
   lonnsartId: string;
   aktivitetId: string;
   externalCostObjectId: string | null;
-  projectId: string;
+  // Kort-id-spec § 11.4: null = fravær uten prosjekt.
+  projectId: string | null;
   byggeplassId: string | null;
   fraTid: string | null;
   tilTid: string | null;
@@ -73,7 +74,7 @@ type MaskinRad = {
 
 // T7-2c3: hva som er aktiv splitt-handling (null = ingen modal åpen).
 type SplittAktiv =
-  | { radType: "timer"; original: TimerRad }
+  | { radType: "timer"; original: TimerRad & { projectId: string } }
   | { radType: "tillegg"; original: TilleggRad }
   | { radType: "maskin"; original: MaskinRad }
   | null;
@@ -132,10 +133,19 @@ export function AttesteringDetaljEdit({
   const pendingTillegg = tilleggRader.filter((r) => r.attestertStatus === "pending");
   const pendingMaskin = maskinRader.filter((r) => r.attestertStatus === "pending");
 
+  // Kort-id-spec § 11.4: fraværsrader uten prosjekt bæres gjennom redigeringen
+  // under tom prosjektnøkkel og sendes tilbake som `projectId: null` — ellers
+  // ville «Lagre» stoppe på manglende prosjekt eller miste raden.
+  const utenProsjektIder = new Set(
+    pendingTimer.filter((r) => r.projectId === null).map((r) => r.id),
+  );
+  const erUtenProsjekt = (r: { projectId: string; originalId?: string | null }) =>
+    !r.projectId && !!r.originalId && utenProsjektIder.has(r.originalId);
+
   const initTimer: RedigerTimerRadData[] = pendingTimer.map((r) => ({
     key: r.id,
     originalId: r.id,
-    projectId: r.projectId,
+    projectId: r.projectId ?? "",
     lonnsartId: r.lonnsartId,
     aktivitetId: r.aktivitetId,
     externalCostObjectId: r.externalCostObjectId,
@@ -216,7 +226,7 @@ export function AttesteringDetaljEdit({
   });
 
   const førsteProsjektId =
-    editTimer[0]?.projectId ??
+    editTimer.find((r) => r.projectId)?.projectId ??
     editTillegg[0]?.projectId ??
     editMaskin[0]?.projectId ??
     prosjektValg[0]?.id ??
@@ -327,7 +337,12 @@ export function AttesteringDetaljEdit({
     setFeil(null);
     // Validering: ingen tomme dropdown-verdier på timer/tillegg/maskin
     for (const r of editTimer) {
-      if (!r.projectId || !r.lonnsartId || !r.aktivitetId || r.timer <= 0) {
+      if (
+        (!r.projectId && !erUtenProsjekt(r)) ||
+        !r.lonnsartId ||
+        !r.aktivitetId ||
+        r.timer <= 0
+      ) {
         setFeil(t("timer.rediger.feil.timerInkomplett"));
         return;
       }
@@ -350,7 +365,8 @@ export function AttesteringDetaljEdit({
       nyeRader: {
         timer: editTimer.map((r) => ({
           originalId: r.originalId,
-          projectId: r.projectId,
+          projectId: erUtenProsjekt(r) ? null : r.projectId,
+          utenProsjekt: erUtenProsjekt(r) ? true : undefined,
           lonnsartId: r.lonnsartId,
           aktivitetId: r.aktivitetId,
           externalCostObjectId: r.externalCostObjectId,
@@ -454,8 +470,9 @@ export function AttesteringDetaljEdit({
         prosjektRekkefolge.map((pid) => {
           const ecoKeys = prosjektEcoMap.get(pid) ?? [""];
           const ecoListe = ecoKeys.length > 0 ? ecoKeys : [""];
-          const prosjektNavn =
-            prosjektValg.find((p) => p.id === pid)?.name ?? pid;
+          const prosjektNavn = !pid
+            ? t("timer.detalj.fravaerUtenProsjekt")
+            : (prosjektValg.find((p) => p.id === pid)?.name ?? pid);
           return (
             <ProsjektSectionEdit
               organizationId={organizationId}
@@ -596,7 +613,7 @@ type EditBucketRef = {
 };
 
 type SplittAktivLokal =
-  | { radType: "timer"; original: TimerRad }
+  | { radType: "timer"; original: TimerRad & { projectId: string } }
   | { radType: "tillegg"; original: TilleggRad }
   | { radType: "maskin"; original: MaskinRad };
 
@@ -855,8 +872,11 @@ function EcoBucketEdit({
               const original = rad.originalId
                 ? pendingTimer.find((r) => r.id === rad.originalId)
                 : null;
+              // Kort-id-spec § 11.4: fravær uten prosjekt splittes ikke her.
               const kanSplittes =
-                original && (original.parentRadId ?? null) === null;
+                original &&
+                original.projectId !== null &&
+                (original.parentRadId ?? null) === null;
               return (
                 <RedigerTimerRad
                   key={rad.key}
@@ -868,7 +888,11 @@ function EcoBucketEdit({
                   onSlett={() => slettTimer(rad.key)}
                   onSplitt={
                     kanSplittes && original
-                      ? () => aapneSplitt({ radType: "timer", original })
+                      ? () =>
+                          aapneSplitt({
+                            radType: "timer",
+                            original: { ...original, projectId: original.projectId ?? "" },
+                          })
                       : undefined
                   }
                 />

@@ -24,9 +24,12 @@ import {
   tolkSlutt,
   velgDestinasjon,
   tilGeofencer,
+  erReiseLonnsart,
   løsOppmote,
+  bruktAvNorm,
   type Destinasjon,
 } from "@sitedoc/shared";
+import { erReiseRadVisning } from "../utils/reiseRad";
 import { hentOppmotePerioderLokalt } from "./oppmotePeriodeKatalog";
 import { hentProsjekterLokalt } from "./prosjektKatalog";
 import { hentArbeidsdagTiderLokalt } from "./kalenderKatalog";
@@ -123,6 +126,17 @@ export function samleDagsforslagInput(
   const standardLonnsartId = hentStandardLonnsartLokalt(orgId)?.id ?? null;
 
   const regelRad = hentOrganizationSettingLokalt(orgId);
+  // RETUR (28) A1: reise-artene (samme regel som `erReiseLonnsartLokalt`) —
+  // en arbeidslinje kan aldri velges til reise (`godtattLinjeLonnsart`).
+  const reiseKtx = {
+    reiseLonnsartId: regelRad?.reiseLonnsartId ?? null,
+    grensepunktLonnsartIds: hentReiseGrensepunkterLokalt(orgId)
+      .map((g) => g.lonnsartId)
+      .filter((id): id is string => id != null),
+  };
+  const reiseLonnsartIder = alleLonnsarter
+    .filter((l) => erReiseLonnsart(l.id, l.navn ?? "", reiseKtx))
+    .map((l) => l.id);
   const regel = regelRad
     ? {
         reiseTerskelEnhet: regelRad.reiseTerskelEnhet,
@@ -292,11 +306,14 @@ export function samleDagsforslagInput(
     string,
     DagsforslagEksisterendeSedel
   > = {};
+  // ORDRE (29) a2 L4: GPS-dagen og manuelt kort leser normgrunnlaget her.
+  const reiseLonnsartIdForNorm = hentReiseLonnsartId(orgId);
   for (const seg of segmenter) {
     eksisterendeSedelPerDato[seg.dato] = lesEksisterendeSedel(
       db,
       p.userId,
       seg.dato,
+      reiseLonnsartIdForNorm,
     );
   }
 
@@ -320,6 +337,7 @@ export function samleDagsforslagInput(
     aktiviteter,
     alleLonnsarter,
     standardLonnsartId,
+    ...(reiseLonnsartIder.length > 0 ? { reiseLonnsartIder } : {}),
     regel,
     reiseOppslag,
     effektivPerDato,
@@ -332,11 +350,18 @@ export function samleDagsforslagInput(
  * den, hvilken status, og hvilke tidsrom bærer radene (for overlapp-vakten).
  * Speiler lesningene det gamle `opprettDagsseddelForSegment` gjorde (idempotens-
  * treff via `finnEllerOpprettDagsseddel` + eksisterende-rad-spørringen).
+ *
+ * ORDRE (29) a2, spec § 6 L1/L4: bærer også `bruktAvNorm` — timer som alt står
+ * på datoen (`bruktAvNorm` i `@sitedoc/shared`): ikke reise
+ * (`erReiseRadVisning`, eldre rader uten flagg via `reiseLonnsartId`), ikke
+ * fravær (B8). `erstattet`-rader finnes ikke lokalt (pull filtrerer dem bort).
+ * Samme lesning for GPS-dagen og manuelt kort (`forberedManuellDag`).
  */
 function lesEksisterendeSedel(
   db: LokalDb,
   userId: string,
   dato: string,
+  reiseLonnsartId: string | null,
 ): DagsforslagEksisterendeSedel {
   const sedel = db
     .select({ id: dagsseddelLocal.id, status: dagsseddelLocal.status })
@@ -352,9 +377,39 @@ function lesEksisterendeSedel(
       tilTid: sheetTimerLocal.tilTid,
       pauseMin: sheetTimerLocal.pauseMin,
       erReise: sheetTimerLocal.erReise,
+      timer: sheetTimerLocal.timer,
+      lonnsartId: sheetTimerLocal.lonnsartId,
     })
     .from(sheetTimerLocal)
     .where(eq(sheetTimerLocal.dagsseddelId, sedel.id))
     .all();
-  return { finnes: true, status: sedel.status, eksisterendeRader: rader };
+  // B8: fravær bruker ikke normen. Lønnsart-id er global — typen slås opp
+  // uten firmafilter.
+  const fravaerIder = new Set(
+    db
+      .select({ id: lonnsartLocal.id })
+      .from(lonnsartLocal)
+      .where(eq(lonnsartLocal.type, "fravaer"))
+      .all()
+      .map((l) => l.id),
+  );
+  const dognRader = rader.map((r) => ({
+    timer: r.timer,
+    erReise: erReiseRadVisning(r.erReise, r.lonnsartId, reiseLonnsartId),
+    erFravaer: r.lonnsartId != null && fravaerIder.has(r.lonnsartId),
+  }));
+  return {
+    finnes: true,
+    status: sedel.status,
+    // RETUR (29) A1: `normTimer` = radens del av `bruktAvNorm` (samme regel),
+    // så `beregnSegment` kan trekke fra timer som ligger i kortets vindu.
+    eksisterendeRader: rader.map((r, i) => ({
+      fraTid: r.fraTid,
+      tilTid: r.tilTid,
+      pauseMin: r.pauseMin,
+      erReise: r.erReise,
+      normTimer: bruktAvNorm([dognRader[i]!]),
+    })),
+    bruktAvNorm: bruktAvNorm(dognRader),
+  };
 }

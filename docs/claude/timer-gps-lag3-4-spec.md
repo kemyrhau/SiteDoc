@@ -3,7 +3,7 @@ name: timer-gps-lag3-4-spec
 description: Spesifikasjon for LAG 3 (bekreft dag — den menneskelige porten) og LAG 4 (flere byggeplasser pr. dag) i timer-GPS-helhetsplanen. Besøksmodell uten posisjonssporing, bekreft-dag-skjermen (2 klikk), reiseregler V1–V15 ved flere byggeplasser, løsning på G1-konflikten, leveransedeling og åpne spørsmål til Kenneth. Skrevet av fabel 2026-11-06 på orkestrators ordre (Kenneth «Ja, begge»), gates av orkestrator; Kenneth godkjenner før kode-ordre.
 sist_verifisert_mot_kode: 2026-11-06
 eier: fabel (kontroll-Claude) — orkestrator gater
-status: 🟢 L4-A levert `feat/timer-l4a-besok` (merget `4ac2cb4a`). 🟢 L4-A2 levert `fix/timer-l4a2-s1-montering` (⚠️ venter Kontrollør-gate) — S1 også ved montering, prosessvakt, testhull K1/K9/K12/K13/K14. 🟢 L3-A levert `feat/timer-bekreft-dag` (⚠️ venter Kontrollør-gate, ikke merget). 🟢 L3-D levert `feat/timer-bekreft-dag-maskin` (⚠️ venter Kontrollør-gate, ikke merget) — lesevisning av varer i `ProsjektGruppe` + dom 57 m1–m3 levert i L3-D2 `feat/timer-bekreft-dag-d2` (⚠️ venter gate). 🟢 VEDTATT 2026-11-06 (Kenneth «ja alle fire»: K11 a+c · K13 · K15 · K18 A · K19 nei (maskin pr. prosjekt, antall) · K20 ja (varer pr. prosjekt) · K21 a; K12/K14/K16/K17 tas ved gate som anbefalt). Tillegg samme dag: maskin/redskap + varer i bekreft-skjermen (§ 3.5, leveranse L3-D). ORDRE-tekst L3-A klar i § 10. Nye spørsmål K19–K21 (§ 9) gjelder L3-D, ikke L3-A.
+status: ⚠️ 2026-11-15 § 2.3/§ 2.4/§ 2.5 reversert mht. S3 (bakgrunns-geofence) — se `timer-geofence-avreise-ankomst-spec.md`. 🟢 L4-A levert `feat/timer-l4a-besok` (merget `4ac2cb4a`). 🟢 L4-A2 levert `fix/timer-l4a2-s1-montering` (⚠️ venter Kontrollør-gate) — S1 også ved montering, prosessvakt, testhull K1/K9/K12/K13/K14. 🟢 L3-A levert `feat/timer-bekreft-dag` (⚠️ venter Kontrollør-gate, ikke merget). 🟢 L3-D levert `feat/timer-bekreft-dag-maskin` (⚠️ venter Kontrollør-gate, ikke merget) — lesevisning av varer i `ProsjektGruppe` + dom 57 m1–m3 levert i L3-D2 `feat/timer-bekreft-dag-d2` (⚠️ venter gate). 🟢 VEDTATT 2026-11-06 (Kenneth «ja alle fire»: K11 a+c · K13 · K15 · K18 A · K19 nei (maskin pr. prosjekt, antall) · K20 ja (varer pr. prosjekt) · K21 a; K12/K14/K16/K17 tas ved gate som anbefalt). Tillegg samme dag: maskin/redskap + varer i bekreft-skjermen (§ 3.5, leveranse L3-D). ORDRE-tekst L3-A klar i § 10. Nye spørsmål K19–K21 (§ 9) gjelder L3-D, ikke L3-A.
 ---
 
 # LAG 3 + LAG 4 — bekreft dag, og flere byggeplasser pr. dag
@@ -105,13 +105,18 @@ arbeidsdag_besok_local
 | Skriver | `arbeidsdag_besok_local` `kilde='gps_forslag'`, `bekreftet=1` ved [Ankommet]; [Nei] skriver ingenting og demper samme byggeplass i 30 min | `kilde='manuell'`, `bekreftet=1` |
 
 Begge finnes. S1 er hovedveien («ett klikk»), S2 er reserven når telefonen ikke åpnes eller GPS er av (V12-ånden:
-manuell føring er hovedvei, ikke reserve). **Avvist: S3 bakgrunnssporing** — `mannskap.md:19/45`, batteri, og
-ingen personvernvurdering finnes. Avvist: automatisk besøk uten trykk (`mannskap.md:197`).
+manuell føring er hovedvei, ikke reserve). ~~**Avvist: S3 bakgrunnssporing** — `mannskap.md:19/45`, batteri, og
+ingen personvernvurdering finnes.~~ **⚠️ REVERSERT 2026-11-15 (Kenneth, ordre til Fabel):** bakgrunns-*geofence* rundt
+kjente steder (oppmøtested/byggeplass) spesifiseres i [timer-geofence-avreise-ankomst-spec.md](timer-geofence-avreise-ankomst-spec.md)
+som **S3-kilde for målt avreise/ankomst** — hendelse (sted-id + forlot/ankom + klokkeslett) lagres kun i SQLite, aldri
+posisjon, aldri til server; krever firmabryter pr. ansatt + OS «Alltid». Kontinuerlig sporing er fortsatt utenfor.
+Avvist står: automatisk besøk uten trykk (`mannskap.md:197`).
 
 ### 2.4 Batteri og offline
 
-- Null bakgrunnsforbruk. Målinger: Start dag, Slutt dag, app-åpning (≤ 1 pr. 10 min, kun når dagen pågår), knapp S2.
-  Ingen `watchPositionAsync`.
+- Null bakgrunnsforbruk *i S1/S2*. Målinger: Start dag, Slutt dag, app-åpning (≤ 1 pr. 10 min, kun når dagen pågår),
+  knapp S2. Ingen `watchPositionAsync`. **⚠️ 2026-11-15:** S3 (OS-geofence, egen spec) legger til OS-region-vekking ved
+  kryssing av kjent sted — ikke kontinuerlig måling; batteri måles i G3 ([spec § 2.3](timer-geofence-avreise-ankomst-spec.md)).
 - Alt lokalt: kataloger (`byggeplass_local`, `hentByggeplasserForFirmaLokalt`) er alt offline. Besøkslogg, beregn og
   bekreft fungerer uten nett; `anvend` skriver lokalt og `TimerSyncProvider` synker som før.
 - Polygon-geofence (V17-C) mangler på mobil → S1 gjenkjenner kun sirkler til V17-C er levert. Ikke blokkerende.
@@ -119,9 +124,12 @@ ingen personvernvurdering finnes. Avvist: automatisk besøk uten trykk (`mannska
 ### 2.5 Personvern og gjerder
 
 - Det som lagres er *byggeplass + klokkeslett*, bekreftet av arbeideren selv — samme opplysning som arbeideren alt
-  fører manuelt på en timerad. Ingen posisjon, ingen bevegelse mellom stopp.
-- Grunnlag som for timer ellers (`mannskap.md:34/40`: GDPR art. 6(1)(c), ikke samtykke). Lokal besøkslogg er
-  arbeiderens egen telefon; serveren får bare bekreftede rader.
+  fører manuelt på en timerad. Ingen posisjon, ~~ingen bevegelse mellom stopp~~ **⚠️ REVERSERT 2026-11-15:** S3 lagrer
+  *hendelse ved kjent sted* (forlot/ankom + klokkeslett) lokalt — fortsatt ingen posisjon, ingen rute
+  ([timer-geofence-avreise-ankomst-spec.md § 3](timer-geofence-avreise-ankomst-spec.md)).
+- Grunnlag som for timer ellers (`mannskap.md:34/40`: GDPR art. 6(1)(c), ikke samtykke) *for S1/S2*. Lokal besøkslogg er
+  arbeiderens egen telefon; serveren får bare bekreftede rader. **⚠️ 2026-11-15:** grunnlaget for S3 (samtykke vs.
+  kontrolltiltak aml. kap. 9) er åpent — B1 i geofence-specen § 10, Kenneths avgjørelse.
 - **PSI-innsjekk brukes ikke som kilde for besøk** (ennå). *«Foreslår aldri timer» er opphevet* — **Kenneth-vedtak 2026-11-15 (ordre 17) — erstatter «tilstedeværelse ≠ arbeidstid / innsjekk foreslår aldri arbeidstid»:** målte tidspunkter (GPS-geofence, PSI-innsjekk/utsjekk) KAN foreslås for arbeideren, også for reisens slutt og arbeidstid. Arbeideren bestemmer alltid: forslaget vises med kilde, settes aldri stille og kan rettes. Overlapp mellom kort samme dag gir varsel. PSI som tidskilde
   er egen ordre (⏳); i (17) er målt ankomst kun `arbeidsdag_besok_local`.
 - Kjent gjerde som lag 4 gjør mer synlig: `hentTilAttestering` viser timer-linjer på tvers av prosjekt for

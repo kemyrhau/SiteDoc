@@ -10,6 +10,7 @@ import {
   type MaskinEndringer,
   type NyMaskin,
 } from "../../../services/kobledeMaskiner";
+import { sikreLokalKortId } from "../../../services/kortIdLokal";
 
 /* ============================================================================
  *  ORDRE 36b (lagring C, Kenneth 2026-11-07): skrivestien for timer- og
@@ -169,6 +170,8 @@ export function oppdaterTimerRad(
       maskiner,
     );
   }
+  // Kort-id: endret nøkkel (prosjekt/byggeplass/underprosjekt) → regel 3; koblede maskiner følger (K6).
+  sikreLokalKortId(db, sheetId);
   return { ok: true };
 }
 
@@ -214,10 +217,12 @@ export function leggTilMaskinRad(db: LokalDb, { sheetId }: RadKontekst, felt: Ma
       sistEndretLokalt: Date.now(),
     })
     .run();
+  // Kort-id (prosjektkort-kortid-spec § 2.4, M9): samme regel som serveren (regel 3, K6).
+  sikreLokalKortId(db, sheetId);
   return id;
 }
 
-export function oppdaterMaskinRad(db: LokalDb, _kontekst: RadKontekst, radId: string, felt: MaskinRadFelt): void {
+export function oppdaterMaskinRad(db: LokalDb, { sheetId }: RadKontekst, radId: string, felt: MaskinRadFelt): void {
   const { projectId: radProjectId, ecoId, vehicleId, timer, mengde, enhet, fraTid, tilTid } = felt;
   db.update(sheetMachineLocal)
     .set({
@@ -233,6 +238,8 @@ export function oppdaterMaskinRad(db: LokalDb, _kontekst: RadKontekst, radId: st
     })
     .where(eq(sheetMachineLocal.id, radId))
     .run();
+  // Kort-id: endret nøkkel → regel 3.
+  sikreLokalKortId(db, sheetId);
 }
 
 /** Slett maskin-rad + tombstone ATOMISK (S-A). Maskin-tombstonen har ingen serverVersjon. */

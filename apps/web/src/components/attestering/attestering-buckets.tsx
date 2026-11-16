@@ -22,6 +22,22 @@ import { MatpauseRadMerke } from "./MatpauseRadMerke";
 /* ------------------------------------------------------------------ */
 
 // T7-2d: per-rad prosjekt-join fra hentForAttestering / hentTilAttesteringFirma.
+
+/**
+ * Kort-id-spec § 11.4: kan raden velges i denne konteksten? Firma-kontekst: alltid.
+ * Prosjektkontekst: radens prosjekt, eller fravær uten prosjekt når serveren sier
+ * `fravaerKanAttesteres` (F1). Ellers synlig og nedtonet som i dag.
+ */
+export function radIKontekst(
+  projectId: string | null,
+  prosjektKontekst: string | undefined,
+  fravaerKanAttesteres: boolean | undefined,
+): boolean {
+  if (!prosjektKontekst) return true;
+  if (projectId === prosjektKontekst) return true;
+  return projectId === null && fravaerKanAttesteres === true;
+}
+
 export type RadProsjekt = {
   id: string;
   name: string;
@@ -33,7 +49,8 @@ export type TimerRad = {
   lonnsartId: string;
   aktivitetId: string;
   externalCostObjectId: string | null;
-  projectId: string;
+  // Kort-id-spec § 11.4: null = fravær uten prosjekt.
+  projectId: string | null;
   byggeplassId: string | null;
   fraTid: string | null;
   tilTid: string | null;
@@ -142,12 +159,15 @@ function RadStatusBadge({ status }: { status: string | null }) {
 function TimerRaderLeder({
   rader,
   prosjektKontekst,
+  fravaerKanAttesteres,
   valgte,
   onToggle,
   kanFlytte,
 }: {
   rader: TimerRad[];
   prosjektKontekst?: string;
+  /** Kort-id-spec § 11.4 (F1): fra serveren — fraværsrad uten prosjekt kan velges. */
+  fravaerKanAttesteres?: boolean;
   valgte: Set<string>;
   onToggle: (id: string) => void;
   kanFlytte: boolean;
@@ -201,7 +221,7 @@ function TimerRaderLeder({
         {rader.map((rad) => {
           const pending = (rad.attestertStatus ?? "pending") === "pending";
           const tilgjengelig =
-            pending && (!prosjektKontekst || rad.projectId === prosjektKontekst);
+            pending && radIKontekst(rad.projectId, prosjektKontekst, fravaerKanAttesteres);
           const valgt = valgte.has(rad.id);
           const ecoNavn = ecoEtikett(rad.externalCostObjectId);
           return (
@@ -314,12 +334,15 @@ function TimerRaderLeder({
 function TilleggRaderLeder({
   rader,
   prosjektKontekst,
+  fravaerKanAttesteres,
   valgte,
   onToggle,
   kanFlytte,
 }: {
   rader: TilleggRad[];
   prosjektKontekst?: string;
+  /** Kort-id-spec § 11.4 (F1): fra serveren — fraværsrad uten prosjekt kan velges. */
+  fravaerKanAttesteres?: boolean;
   valgte: Set<string>;
   onToggle: (id: string) => void;
   kanFlytte: boolean;
@@ -364,7 +387,7 @@ function TilleggRaderLeder({
       {rader.map((rad) => {
         const pending = (rad.attestertStatus ?? "pending") === "pending";
         const tilgjengelig =
-          pending && (!prosjektKontekst || rad.projectId === prosjektKontekst);
+          pending && radIKontekst(rad.projectId, prosjektKontekst, fravaerKanAttesteres);
         const valgt = valgte.has(rad.id);
         const info = infoFor(rad.tilleggId);
         const ecoNavn = ecoEtikett(rad.externalCostObjectId);
@@ -451,11 +474,14 @@ function TilleggRaderLeder({
 function MaskinRaderLeder({
   rader,
   prosjektKontekst,
+  fravaerKanAttesteres,
   valgte,
   onToggle,
 }: {
   rader: MaskinRad[];
   prosjektKontekst?: string;
+  /** Kort-id-spec § 11.4 (F1): fra serveren — fraværsrad uten prosjekt kan velges. */
+  fravaerKanAttesteres?: boolean;
   valgte: Set<string>;
   onToggle: (id: string) => void;
 }) {
@@ -486,7 +512,7 @@ function MaskinRaderLeder({
       {rader.map((rad) => {
         const pending = (rad.attestertStatus ?? "pending") === "pending";
         const tilgjengelig =
-          pending && (!prosjektKontekst || rad.projectId === prosjektKontekst);
+          pending && radIKontekst(rad.projectId, prosjektKontekst, fravaerKanAttesteres);
         const valgt = valgte.has(rad.id);
         return (
           <li
@@ -557,6 +583,7 @@ export function ProsjektSectionAttest({
   bucketMap,
   tillegg,
   prosjektKontekst,
+  fravaerKanAttesteres,
   valgteTimer,
   valgteMaskin,
   valgteTillegg,
@@ -572,6 +599,8 @@ export function ProsjektSectionAttest({
   bucketMap: Map<string, EcoBucketAttestProps>;
   tillegg: TilleggRad[];
   prosjektKontekst?: string;
+  /** Kort-id-spec § 11.4 (F1): fra serveren — fraværsrad uten prosjekt kan velges. */
+  fravaerKanAttesteres?: boolean;
   valgteTimer: Set<string>;
   valgteMaskin: Set<string>;
   valgteTillegg: Set<string>;
@@ -600,7 +629,10 @@ export function ProsjektSectionAttest({
   return (
     <section className="mb-6 rounded-lg border border-gray-200 bg-white p-5">
       <h2 className="mb-4 text-base font-semibold text-gray-900">
-        {prosjektNavn?.name ?? t("timer.detalj.ukjentProsjekt")}
+        {/* Kort-id-spec § 11.4: tom nøkkel = fravær uten prosjekt. */}
+        {!projectId
+          ? t("timer.detalj.fravaerUtenProsjekt")
+          : (prosjektNavn?.name ?? t("timer.detalj.ukjentProsjekt"))}
         {prosjektNavn?.internalProjectNumber && (
           <span className="ml-2 text-sm font-normal text-gray-500">
             ({prosjektNavn.internalProjectNumber})
@@ -625,6 +657,7 @@ export function ProsjektSectionAttest({
               timer={bucket.timer}
               maskin={bucket.maskin}
               prosjektKontekst={prosjektKontekst}
+              fravaerKanAttesteres={fravaerKanAttesteres}
               valgteTimer={valgteTimer}
               valgteMaskin={valgteMaskin}
               onToggleTimer={onToggleTimer}
@@ -645,6 +678,7 @@ export function ProsjektSectionAttest({
           <TilleggRaderLeder
             rader={tillegg}
             prosjektKontekst={prosjektKontekst}
+            fravaerKanAttesteres={fravaerKanAttesteres}
             valgte={valgteTillegg}
             onToggle={onToggleTillegg}
             kanFlytte={kanFlytte}
@@ -661,6 +695,7 @@ export function EcoBucketAttest({
   timer,
   maskin,
   prosjektKontekst,
+  fravaerKanAttesteres,
   valgteTimer,
   valgteMaskin,
   onToggleTimer,
@@ -673,6 +708,8 @@ export function EcoBucketAttest({
   timer: TimerRad[];
   maskin: MaskinRad[];
   prosjektKontekst?: string;
+  /** Kort-id-spec § 11.4 (F1): fra serveren — fraværsrad uten prosjekt kan velges. */
+  fravaerKanAttesteres?: boolean;
   valgteTimer: Set<string>;
   valgteMaskin: Set<string>;
   onToggleTimer: (id: string) => void;
@@ -732,6 +769,7 @@ export function EcoBucketAttest({
           <TimerRaderLeder
             rader={timer}
             prosjektKontekst={prosjektKontekst}
+            fravaerKanAttesteres={fravaerKanAttesteres}
             valgte={valgteTimer}
             onToggle={onToggleTimer}
             kanFlytte={kanFlytte}
@@ -755,6 +793,7 @@ export function EcoBucketAttest({
           <MaskinRaderLeder
             rader={maskin}
             prosjektKontekst={prosjektKontekst}
+            fravaerKanAttesteres={fravaerKanAttesteres}
             valgte={valgteMaskin}
             onToggle={onToggleMaskin}
           />

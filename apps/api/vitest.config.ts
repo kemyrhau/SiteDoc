@@ -11,5 +11,7 @@ export default defineConfig({
   test: {
     include: ["src/**/*.test.ts"],
     exclude: ["src/**/*.integration.test.ts"],
+    // Kort-id-tjenestens DB-del byttes ut i enhetstestene (se fila); ekte i integrasjon.
+    setupFiles: ["src/test-harness/kortIdEnhetsmock.ts"],
   },
 });

@@ -10,8 +10,10 @@
  *   - reise er ALDRI overtid og teller ikke mot normen (V1, LAG 2)
  *   - nivå + lønnsart via `klassifiserArbeidstid` + `velgOvertidLonnsart`
  *     (strukturert `overtidsnivaa`, aldri navn). Ingen lønnsart → ingen forslag
- *   - rader som alt står på en overtid-lønnsart teller mot dagens sum, men får
- *     ikke forslag
+ *   - rader som alt står på en overtid-lønnsart får ikke forslag og fyller
+ *     ikke normen: forslaget gjelder bare `sum − norm − alt ført som overtid`
+ *     (ORDRE (29) a2, B3 / F-L1 i `prosjektkort-kortid-spec.md` — en tidlig
+ *     overtidsrad ga før forslag om å gjøre normaltid etter den til overtid)
  *   - raden som krysser normen deles (to deler); rad som ligger helt etter
  *     normen får forslag om å bytte lønnsart alene (`normal: null`)
  *
@@ -102,9 +104,12 @@ export function foreslaOvertidSplitt<
     .filter((r) => r.effMin > 0)
     .sort((a, b) => a.fraMin - b.fraMin);
 
-  const totalMin = arbeid.reduce((s, r) => s + r.effMin, 0);
+  // B3 / F-L1: bare rader på normaltid fyller normen; overtidsrader er alt ført.
+  const normalMin = arbeid
+    .filter((r) => r.rad.overtidsnivaa == null)
+    .reduce((s, r) => s + r.effMin, 0);
   const nivaa = klassifiserArbeidstid({
-    arbeidstimer: totalMin / 60,
+    arbeidstimer: normalMin / 60,
     dagsnorm: norm,
   }).find((s) => s.overtidsnivaa != null)?.overtidsnivaa;
   if (nivaa == null) return [];
@@ -115,9 +120,10 @@ export function foreslaOvertidSplitt<
   const forslag: OvertidForslag<L>[] = [];
   let brukt = 0;
   for (const { rad, fraMin, tilMin, effMin, pauseFra, pauseFraMin } of arbeid) {
+    if (rad.overtidsnivaa != null) continue;
     const foer = brukt;
     brukt += effMin;
-    if (rad.overtidsnivaa != null || brukt <= normMin) continue;
+    if (brukt <= normMin) continue;
 
     if (foer >= normMin) {
       const timer = effektiveTimerFraSpenn(

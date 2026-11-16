@@ -13,6 +13,7 @@ import {
   vareforbrukLocal,
   arbeidsdagLocal,
 } from "../db/schema";
+import { sikreLokalKortId } from "./kortIdLokal";
 import type { trpc } from "../lib/trpc";
 import i18n from "../lib/i18n";
 import { varsleKoen } from "../lib/koTrigger";
@@ -47,6 +48,15 @@ type SporFelter = {
  */
 /** Prosjektkortets felt på tillegg/utlegg (2026-11-13). null = arv. */
 type KortFelt = { byggeplassId: string | null; externalCostObjectId: string | null };
+
+/**
+ * Kort-id fra en server-rad (prosjektkort-kortid-spec § 4.1). Eldre server utelater feltet →
+ * null her; `sikreLokalKortId` etter pull fyller det med samme regel som serveren.
+ * Cast via unknown (dyp tRPC-type → TS2589).
+ */
+function kortIdFraServer(rad: unknown): string | null {
+  return (rad as { kortId?: string | null }).kortId ?? null;
+}
 
 /**
  * Kortfeltene fra et pull-svar: serverens verdi når feltet FINNES (også null),
@@ -494,14 +504,15 @@ async function kjorTimerSync(
   // 🔴 Aldri sett versjon på en rad hvis innholdet ikke ble lagret (hoppetOver/feil).
   const skrivRadVersjoner = (
     dagsseddelId: string,
-    rader: ReadonlyArray<{ id: string; updatedAt: string }> | undefined,
+    rader: ReadonlyArray<{ id: string; updatedAt: string; kortId?: string | null }> | undefined,
     naa: number,
     byggetVed: number,
   ) => {
     if (!rader || rader.length === 0) return;
     for (const rad of rader) {
       db.update(sheetTimerLocal)
-        .set({ serverVersjon: rad.updatedAt })
+        // Kort-id: serverens løste id (regel 1–3) når svaret bærer den; eldre server → urørt.
+        .set({ serverVersjon: rad.updatedAt, ...(rad.kortId !== undefined ? { kortId: rad.kortId } : {}) })
         .where(
           and(
             eq(sheetTimerLocal.id, rad.id),
@@ -772,6 +783,8 @@ async function kjorTimerSync(
               lonnsartId: s.lonnsartId,
               aktivitetId: s.aktivitetId,
               externalCostObjectId: s.externalCostObjectId ?? null,
+              // Kort-id: V19.9 — hoppet rad står med serverens lagrede id.
+              kortId: kortIdFraServer(s),
               timer: Number(s.timer),
               fraTid: s.fraTid ?? null,
               tilTid: s.tilTid ?? null,
@@ -840,6 +853,8 @@ async function kjorTimerSync(
         tombstoneIder: new Map(),
       };
       const sedlerMedRader = batch.map((sedel) => {
+        // Kort-id (spec § 4.1): sedelens rader gyldige (K1–K4, K6) før de leses til payload.
+        sikreLokalKortId(db, sedel.id);
         const timer = db
           .select()
           .from(sheetTimerLocal)
@@ -918,6 +933,8 @@ async function kjorTimerSync(
             lonnsartId: t.lonnsartId,
             aktivitetId: t.aktivitetId,
             externalCostObjectId: t.externalCostObjectId ?? null,
+            // Kort-id (spec § 4.1, regel 1). Reise sender null; eldre server stripper feltet.
+            kortId: t.kortId ?? null,
             timer: t.timer,
             fraTid: t.fraTid ?? null,
             tilTid: t.tilTid ?? null,
@@ -966,6 +983,7 @@ async function kjorTimerSync(
             // (null = arv). Gammel server stripper feltene stille.
             byggeplassId: tl.byggeplassId ?? null,
             externalCostObjectId: tl.externalCostObjectId ?? null,
+            kortId: tl.kortId ?? null,
           })),
           maskiner: maskiner.map((m) => ({
             id: m.id,
@@ -980,6 +998,7 @@ async function kjorTimerSync(
             externalCostObjectId: m.externalCostObjectId ?? null,
             // ORDRE 36b: maskinens egen byggeplass (kortnøkkelen). null = arv fra sedelen.
             byggeplassId: m.byggeplassId ?? null,
+            kortId: m.kortId ?? null,
             vehicleId: m.vehicleId,
             timer: m.timer,
             mengde: m.mengde,
@@ -998,6 +1017,7 @@ async function kjorTimerSync(
             kommentar: u.kommentar ?? null,
             byggeplassId: u.byggeplassId ?? null,
             externalCostObjectId: u.externalCostObjectId ?? null,
+            kortId: u.kortId ?? null,
             ordningVedFoering: u.ordningVedFoering as
               | "lonnstillegg"
               | "utlegg"
@@ -1532,6 +1552,7 @@ async function kjorTimerSync(
             lonnsartId: t.lonnsartId,
             aktivitetId: t.aktivitetId,
             externalCostObjectId: t.externalCostObjectId,
+            kortId: kortIdFraServer(t),
             timer: t.timer,
             fraTid: t.fraTid ?? null,
             tilTid: t.tilTid ?? null,
@@ -1584,6 +1605,7 @@ async function kjorTimerSync(
             antall: tl.antall,
             kommentar: tl.kommentar,
             ...kortFeltFraServer(tl as unknown as Partial<KortFelt>, kortFor.get(tl.id)),
+            kortId: kortIdFraServer(tl),
             paaServer: true,
             sistEndretLokalt: serverTidMs,
           })
@@ -1637,6 +1659,7 @@ async function kjorTimerSync(
             externalCostObjectId: m.externalCostObjectId ?? null,
             // ORDRE 36b: maskinens byggeplass fra server (null = arv fra sedel).
             byggeplassId: m.byggeplassId ?? null,
+            kortId: kortIdFraServer(m),
             vehicleId: m.vehicleId,
             timer: m.timer,
             mengde: m.mengde,
@@ -1669,6 +1692,7 @@ async function kjorTimerSync(
             ordningVedFoering: u.ordningVedFoering,
             foertVed: new Date(u.foertVed).getTime(),
             ...kortFeltFraServer(u as unknown as Partial<KortFelt>, kortFor.get(u.id)),
+            kortId: kortIdFraServer(u),
             paaServer: true,
             sistEndretLokalt: serverTidMs,
           })
@@ -1732,6 +1756,8 @@ async function kjorTimerSync(
             .run();
         }
       }
+      // Kort-id: rader fra eldre server (uten feltet) og linjer lagt tilbake får id her.
+      sikreLokalKortId(db, maalId);
     }
 
     // ORDRE 1a: delete-propagering server→mobil. Serveren oppga et EKSPLISITT

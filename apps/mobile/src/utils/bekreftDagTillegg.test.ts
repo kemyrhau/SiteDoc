@@ -41,11 +41,12 @@ vi.mock("../db/database", () => ({
 import { drizzle } from "drizzle-orm/sql-js";
 import * as schema from "../db/schema";
 import { kjorMigreringer } from "../db/migreringer";
-import { kortMedArbeid, arbeidsraderPerKort } from "./beskrivelseKort";
+import { kortMedArbeid, arbeidsraderPerKort, kortMedFlestTimer } from "./beskrivelseKort";
+import { kortForLinje, knyttLonnUtleggTilKort } from "./lonnUtleggKort";
 import { kortArbeidstimer, fordelTilleggPaaKort } from "./tilleggPaaKort";
 import { forberedBekreftDag, bekreftDag, prosjekterMedArbeid, prosjektMedFlestTimer } from "./bekreftDag";
 import { skrivUtlegg, type NyttUtlegg } from "../services/tilleggUtleggSkriv";
-import type { LonnUtlegg } from "./dagsforslagAnvend";
+import { anvendDagsforslag, DatokortUtenSedelFeil, type LonnUtlegg } from "./dagsforslagAnvend";
 import type { Dagsforslag, DagsforslagRad } from "./dagsforslag";
 
 /** ORDRE 36a: beskrivelse er påkrevd ved Bekreft — testene her måler noe annet. */
@@ -779,7 +780,7 @@ describe("ORDRE Tillegg/Utlegg i Bekreft dag (GO 2026-11-13)", () => {
     expect(db().select().from(arbeidsdagLocal).all()[0]!.status).toBe("paagaar");
   });
 
-  it("🔴 RETUR M3: datoen sendes mellom forslag og Bekreft → tilleggUtleggUtenDag, ingenting skrevet, dagen åpen", () => {
+  it("🔴 RETUR M3 + ORDRE 26: datoen sendes mellom forslag og Bekreft → datoSendtUnderveis, ingenting skrevet, dagen åpen; ny utregning → tilleggUtleggUtenDag", () => {
     // Forslaget regnes mens datoen er åpen ...
     const { forslag } = forberedBekreftDag(lokalDb(), kontekst());
     expect(forslag.datoer.some((d) => !d.blokkert)).toBe(true);
@@ -790,22 +791,29 @@ describe("ORDRE Tillegg/Utlegg i Bekreft dag (GO 2026-11-13)", () => {
     }).run();
     const timerFor = db().select().from(schema.sheetTimerLocal).all().length;
     const { handling, resultat } = bekreftDag(lokalDb(), medBeskrivelse(forslag), skriveCtx(), {}, LINJER);
-    expect(handling).toEqual({ type: "tilleggUtleggUtenDag" });
-    expect(resultat?.lonnUtleggSkrevet).toBe(false);
-    expect(resultat?.lagredeDatoer).toEqual([]);
+    // ORDRE 26: vakten stopper FØR anvendDagsforslag (før: tilleggUtleggUtenDag etter et forsøk).
+    expect(handling).toEqual({ type: "datoSendtUnderveis", datoer: [DATO] });
+    expect(resultat).toBeNull();
     expect(tell()).toEqual(INGEN);
     expect(db().select().from(schema.sheetTimerLocal).all()).toHaveLength(timerFor);
     expect(db().select().from(arbeidsdagLocal).all()[0]!.status).toBe("paagaar");
+    // Skjermen regner ut på nytt → datoen er blokkert → samme stopp som før 26.
+    const { forslag: nytt } = forberedBekreftDag(lokalDb(), kontekst());
+    const igjen = bekreftDag(lokalDb(), medBeskrivelse(nytt), skriveCtx(), {}, LINJER);
+    expect(igjen.handling).toEqual({ type: "tilleggUtleggUtenDag" });
+    expect(tell()).toEqual(INGEN);
   });
 
-  it("negativkontroll M3: samme race uten linjer → blokkertSendt som før", () => {
+  it("negativkontroll M3: samme race uten linjer → datoSendtUnderveis (ORDRE 26); etter ny utregning blokkertSendt som før", () => {
     const { forslag } = forberedBekreftDag(lokalDb(), kontekst());
     db().insert(dagsseddelLocal).values({
       id: "sendt1", userId: BRUKER, organizationId: ORG, projectId: "p1", aktivitetId: "a1",
       dato: DATO, status: "sent", sistEndretLokalt: 1,
     }).run();
     const { handling } = bekreftDag(lokalDb(), medBeskrivelse(forslag), skriveCtx(), {});
-    expect(handling.type).toBe("blokkertSendt");
+    expect(handling).toEqual({ type: "datoSendtUnderveis", datoer: [DATO] });
+    const { forslag: nytt } = forberedBekreftDag(lokalDb(), kontekst());
+    expect(bekreftDag(lokalDb(), medBeskrivelse(nytt), skriveCtx(), {}).handling.type).toBe("blokkertSendt");
   });
 
   it("negativkontroll: samme sendte dato uten linjer → blokkertSendt som før (ingen ny sperre)", () => {
@@ -1073,6 +1081,188 @@ describe("RETUR (24) — kort over midnatt", () => {
     const kort = kortMedArbeid(forslag);
     expect(kort.map((k) => [k.nokkel, k.visDato])).toEqual([["p1", false]]);
     expect(kortArbeidstimer(arbeidsraderPerKort(forslag).get("p1") ?? [])).toBe(7.5);
+  });
+});
+
+describe("ORDRE 25 — tillegg og utlegg følger datokortet på nattevakt", () => {
+  const NATT_SLUTT = "2026-07-02T06:00:00";
+  beforeEach(() => {
+    holder.raw.run("DELETE FROM sheet_tillegg_local; DELETE FROM sheet_utlegg_local; DELETE FROM sheet_utlegg_vedlegg_local;");
+  });
+  function natt() {
+    holder.raw.run("DELETE FROM arbeidsdag_local;");
+    seedArbeidsdag("2026-07-01T21:00:00");
+    const ctx = kontekst({
+      dag: { startAt: "2026-07-01T21:00:00", startLat: null, startLng: null, oppmotestedId: null, byggeplassId: null },
+      sluttIso: NATT_SLUTT,
+    });
+    const { forslag } = forberedBekreftDag(lokalDb(), ctx);
+    const neste = forslag.datoer.find((d) => !d.erStartSegment)!.dato;
+    return { forslag: medBeskrivelseAlleKort(forslag), neste, ctx: { ...skriveCtx(), sluttIso: NATT_SLUTT } };
+  }
+  /** Tekst på alle kortene (begge datoer) — sperren for tom beskrivelse er ikke det som testes her. */
+  function medBeskrivelseAlleKort(f: Dagsforslag): Dagsforslag {
+    return { ...f, beskrivelsePerKort: Object.fromEntries(kortMedArbeid(f).map((k) => [k.nokkel, "Arbeid"])) };
+  }
+  const tillegg = (dato?: string): LonnUtlegg["tillegg"][number] => ({
+    lokalId: "lt-1", projectId: "p1", tilleggId: "t-smuss", antall: 1, kommentar: null, byggeplassId: null,
+    ...(dato !== undefined ? { dato } : {}),
+  });
+  const utlegg = (dato?: string): NyttUtlegg => ({
+    id: "utl-1", projectId: "p1", expenseCategoryId: "kat-1", belop: 250, kommentar: null,
+    ordningVedFoering: "utlegg", foertVed: 500, kvittering: null, byggeplassId: null,
+    ...(dato !== undefined ? { dato } : {}),
+  });
+  const datoFor = (sheetId: string) => db().select().from(dagsseddelLocal).all().find((x) => x.id === sheetId)?.dato;
+  const lagre = (forslag: Dagsforslag, ctx: ReturnType<typeof skriveCtx>, l: LonnUtlegg) =>
+    bekreftDag(lokalDb(), forslag, ctx, {}, knyttLonnUtleggTilKort(l, kortMedArbeid(forslag), forslag));
+
+  it("🔴 nattevakt 21–06: tillegg på 17.11-kortet → 17.11-sedelen; utlegg på 16.11-kortet → 16.11-sedelen", () => {
+    const { forslag, neste, ctx } = natt();
+    const r = lagre(forslag, ctx, { tillegg: [tillegg(neste)], utlegg: [utlegg(DATO)] });
+    expect(r.handling.type).toBe("suksess");
+    const t = db().select().from(schema.sheetTilleggLocal).all();
+    const u = db().select().from(schema.sheetUtleggLocal).all();
+    expect(t.map((x) => datoFor(x.dagsseddelId))).toEqual([neste]);
+    expect(u.map((x) => datoFor(x.dagsseddelId))).toEqual([DATO]);
+  });
+
+  it("🔴 kortvalget er datokortene med dato i etiketten; ny linje får startdatoens kort (forvalg)", () => {
+    const { forslag, neste } = natt();
+    const kort = kortMedArbeid(forslag);
+    expect(kort.map((k) => [k.dato, k.visDato, k.paaStartDato])).toEqual([[DATO, true, true], [neste, true, false]]);
+    expect(kortMedFlestTimer(forslag, "p1")).toMatchObject({ dato: DATO });
+  });
+
+  it("🔴 dato 1 blokkert (sendt) → bare 17.11 valgbart; linje valgt på 16.11 lagres på 17.11, sendt sedel urørt", () => {
+    db().insert(dagsseddelLocal).values({
+      id: "sendt1", userId: BRUKER, organizationId: ORG, projectId: "p1", aktivitetId: "a1",
+      dato: DATO, status: "sent", sistEndretLokalt: 1,
+    }).run();
+    const { forslag, neste, ctx } = natt();
+    const kort = kortMedArbeid(forslag);
+    expect(kort.map((k) => k.dato)).toEqual([neste]);
+    expect(kortForLinje(tillegg(DATO), kort, forslag)).toMatchObject({ dato: neste });
+    const r = lagre(forslag, ctx, { tillegg: [tillegg(DATO)], utlegg: [utlegg()] });
+    expect(r.resultat?.lonnUtleggSkrevet).toBe(true);
+    const alle = [...db().select().from(schema.sheetTilleggLocal).all(), ...db().select().from(schema.sheetUtleggLocal).all()];
+    expect(alle.map((x) => datoFor(x.dagsseddelId))).toEqual([neste, neste]);
+    expect(alle.some((x) => x.dagsseddelId === "sendt1")).toBe(false);
+  });
+
+  it("🔴 utkast fra før 25 (linje uten dato) → startdatoens kort, aldri kastet", () => {
+    const { forslag, ctx } = natt();
+    const gammelUtenBp = { ...tillegg(), lokalId: "lt-2" };
+    delete (gammelUtenBp as { byggeplassId?: string | null }).byggeplassId;
+    const r = lagre(forslag, ctx, { tillegg: [tillegg(), gammelUtenBp], utlegg: [utlegg()] });
+    expect(r.handling.type).toBe("suksess");
+    const alle = [...db().select().from(schema.sheetTilleggLocal).all(), ...db().select().from(schema.sheetUtleggLocal).all()];
+    expect(alle).toHaveLength(3);
+    expect(alle.map((x) => datoFor(x.dagsseddelId))).toEqual([DATO, DATO, DATO]);
+  });
+
+  it("🔴 dagsvakt: ett kort uten dato (ingen kortvalg), lagring på første åpne sedel som før", () => {
+    const forslag = medBeskrivelse(toRader(VANLIG));
+    const kort = kortMedArbeid(forslag);
+    expect(kort.map((k) => [k.dato, k.visDato])).toEqual([[DATO, false]]);
+    const r = lagre(forslag, skriveCtx(), { tillegg: [tillegg()], utlegg: [utlegg()] });
+    const sedel = r.resultat!.forsteLagredeSheetId!;
+    expect(db().select().from(schema.sheetTilleggLocal).all().map((x) => x.dagsseddelId)).toEqual([sedel]);
+    expect(db().select().from(schema.sheetUtleggLocal).all().map((x) => x.dagsseddelId)).toEqual([sedel]);
+  });
+
+  /**
+   * ORDRE (26) (Kenneth 2026-11-16, timer.md «Tillegg og utlegg følger
+   * datokortet»): forslaget er tegnet; så blir en dato sendt (timerSync-pull,
+   * f.eks. sendt fra web) før arbeideren trykker Bekreft.
+   */
+  describe("ORDRE 26 — dato sendt mens Bekreft dag står", () => {
+    const sendSedel = (dato: string, id = `sendt-${dato}`) =>
+      db().insert(dagsseddelLocal).values({
+        id, userId: BRUKER, organizationId: ORG, projectId: "p1", aktivitetId: "a1",
+        dato, status: "sent", sistEndretLokalt: 1,
+      }).run();
+    const tell = () => ({
+      sedler: db().select().from(dagsseddelLocal).all().length,
+      timer: db().select().from(sheetTimerLocal).all().length,
+      tillegg: db().select().from(schema.sheetTilleggLocal).all().length,
+      utlegg: db().select().from(schema.sheetUtleggLocal).all().length,
+    });
+    const dagStatus = () => db().select().from(arbeidsdagLocal).all()[0]?.status;
+
+    it("🔴 17.11 sendt mellom tegning og trykk → stopp, 0 skrivinger, datoen navngitt", () => {
+      const { forslag, neste, ctx } = natt();
+      sendSedel(neste);
+      const r = lagre(forslag, ctx, { tillegg: [tillegg(neste)], utlegg: [utlegg(DATO)] });
+      expect(r.handling).toEqual({ type: "datoSendtUnderveis", datoer: [neste] });
+      expect(r.resultat).toBeNull();
+      expect(tell()).toEqual({ sedler: 1, timer: 0, tillegg: 0, utlegg: 0 });
+      expect(dagStatus()).toBe("paagaar");
+    });
+
+    it("🔴 bare linjas dato er sendt (16.11, timene på begge datoer) → stopp før timene skrives", () => {
+      const { forslag, ctx } = natt();
+      sendSedel(DATO);
+      const r = lagre(forslag, ctx, { tillegg: [], utlegg: [utlegg(DATO)] });
+      expect(r.handling).toEqual({ type: "datoSendtUnderveis", datoer: [DATO] });
+      expect(tell()).toEqual({ sedler: 1, timer: 0, tillegg: 0, utlegg: 0 });
+    });
+
+    it("🔴 etter ny utregning: 17.11 vises sendt, linja står på 16.11-kortet og lagres der; ny Bekreft er ren", () => {
+      const { forslag, neste, ctx } = natt();
+      sendSedel(neste);
+      const linjer = { tillegg: [tillegg(neste)], utlegg: [utlegg(neste)] };
+      expect(lagre(forslag, ctx, linjer).handling.type).toBe("datoSendtUnderveis");
+      // Skjermen regner ut på nytt (sendtNonce) — samme dag, samme slutt.
+      const kontekstNatt = kontekst({
+        dag: { startAt: "2026-07-01T21:00:00", startLat: null, startLng: null, oppmotestedId: null, byggeplassId: null },
+        sluttIso: NATT_SLUTT,
+      });
+      const nytt = medBeskrivelseAlleKort(forberedBekreftDag(lokalDb(), kontekstNatt).forslag);
+      expect(nytt.datoer.find((d) => d.dato === neste)?.blokkert).toBe(true);
+      const kort = kortMedArbeid(nytt);
+      expect(kort.map((k) => k.dato)).toEqual([DATO]);
+      expect(kortForLinje(linjer.tillegg[0]!, kort, nytt)).toMatchObject({ dato: DATO });
+      const r = lagre(nytt, ctx, linjer);
+      expect(r.handling.type).toBe("delvisSendt");
+      const alle = [...db().select().from(schema.sheetTilleggLocal).all(), ...db().select().from(schema.sheetUtleggLocal).all()];
+      expect(alle.map((x) => datoFor(x.dagsseddelId))).toEqual([DATO, DATO]);
+      expect(alle.some((x) => x.dagsseddelId === `sendt-${neste}`)).toBe(false);
+    });
+
+    it("dagsvakt uten konflikt: vakten slipper gjennom, lagring som før", () => {
+      const forslag = medBeskrivelse(toRader(VANLIG));
+      const r = lagre(forslag, skriveCtx(), { tillegg: [tillegg()], utlegg: [] });
+      expect(r.handling.type).toBe("suksess");
+      expect(tell().tillegg).toBe(1);
+    });
+
+    describe("reserven `forsteLagredeSheetId`", () => {
+      it("🔴 linje uten kort (prosjekt uten arbeid, ingen dato) → startdatoens sedel på nattevakt", () => {
+        const { forslag, ctx } = natt();
+        const utenKort = { ...tillegg(), projectId: "p2" };
+        const r = lagre(forslag, ctx, { tillegg: [utenKort], utlegg: [] });
+        expect(r.handling.type).toBe("suksess");
+        const t = db().select().from(schema.sheetTilleggLocal).all();
+        expect(t.map((x) => x.dagsseddelId)).toEqual([r.resultat!.forsteLagredeSheetId]);
+        expect(t.map((x) => datoFor(x.dagsseddelId))).toEqual([DATO]);
+      });
+
+      it("🔴 linje MED dato som ikke er åpen i forslaget → feil før noe skrives, aldri flyttet", () => {
+        const { forslag, ctx } = natt();
+        const l = { tillegg: [tillegg("2026-07-05")], utlegg: [] };
+        expect(() => anvendDagsforslag(lokalDb(), forslag, ctx, undefined, l)).toThrow(DatokortUtenSedelFeil);
+        expect(tell()).toEqual({ sedler: 0, timer: 0, tillegg: 0, utlegg: 0 });
+      });
+
+      it("🔴 vakten forbigått (dato sendt under skrivingen) → linja flyttes ikke til den andre datoen", () => {
+        const { forslag, neste, ctx } = natt();
+        sendSedel(neste);
+        const l = { tillegg: [tillegg(neste)], utlegg: [utlegg(neste)] };
+        expect(() => anvendDagsforslag(lokalDb(), forslag, ctx, undefined, l)).toThrow(DatokortUtenSedelFeil);
+        expect(tell().tillegg + tell().utlegg).toBe(0);
+      });
+    });
   });
 });
 

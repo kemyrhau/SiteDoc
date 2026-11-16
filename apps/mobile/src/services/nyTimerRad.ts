@@ -16,6 +16,7 @@ import {
   sisteUnikeMaskiner,
   type ManuellReiseSpor,
 } from "@sitedoc/shared";
+import { sikreLokalKortId } from "./kortIdLokal";
 
 /* ============================================================================
  *  «+» rett til timer-raden (ORDRE 17, 2026-11-06)
@@ -276,6 +277,8 @@ export function settInnTimerRad(
       { linjer: rad.maskiner.map((m) => ({ ...m, id: null })), fjernede: [] },
     );
   }
+  // Kort-id (prosjektkort-kortid-spec § 2.4, M9): samme regel som serveren (regel 3, K6).
+  sikreLokalKortId(db, sheetId);
   return timerRadId;
 }
 

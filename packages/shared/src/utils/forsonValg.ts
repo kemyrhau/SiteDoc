@@ -62,7 +62,9 @@ export function overlappBlokkererAttestering(
  */
 export interface ForsonRad {
   id: string;
-  projectId: string;
+  /** `null` bare for fravær uten prosjekt (`utenProsjekt`, kort-id-spec § 11.3). */
+  projectId: string | null;
+  utenProsjekt?: boolean;
   byggeplassId?: string | null;
   lonnsartId: string;
   aktivitetId: string;
@@ -80,7 +82,9 @@ export interface ForsonRad {
 /** En `forsonDagskort.oppdateringer`-rad (erstatt serverrad in-place på dens id). */
 export interface ForsonOppdatering {
   id: string;
-  projectId: string;
+  /** `null` bare for fravær uten prosjekt (`utenProsjekt`, kort-id-spec § 11.3). */
+  projectId: string | null;
+  utenProsjekt?: boolean;
   byggeplassId?: string | null;
   lonnsartId: string;
   aktivitetId: string;

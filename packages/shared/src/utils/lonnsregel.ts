@@ -39,13 +39,25 @@ export type ArbeidstidSegment = {
  * Nivå 0-regel: `timelønn = min(arbeid, norm)`, `overtid50 = resten`.
  * Bytt KUN denne funksjonens kropp for Nivå 1-2 (terskler/tier-liste/dag-
  * regler) — retur-kontrakten (segment-liste) holder call-sites uendret.
+ *
+ * ORDRE (29) a2, spec `prosjektkort-kortid-spec.md` § 6 L1–L3: `bruktAvNorm`
+ * = timer døgnet alt har registrert (`bruktAvNorm(rader)` under). Arbeidet
+ * får normaltid opp til resten av normen, deretter overtid. Rest 0 → alt
+ * overtid; ukjent norm (`dagsnorm ≤ 0`) → alt normaltid uansett brukt — to
+ * ulike grener. Utelatt/0 → nøyaktig som før (alle kallere uten feltet).
  */
 export function klassifiserArbeidstid(input: {
   arbeidstimer: number;
   dagsnorm: number;
+  bruktAvNorm?: number;
 }): ArbeidstidSegment[] {
-  const { arbeidstimer, dagsnorm } = input;
+  const { arbeidstimer } = input;
   if (arbeidstimer <= 0) return [];
+  const brukt = input.dagsnorm > 0 ? Math.max(0, input.bruktAvNorm || 0) : 0;
+  const dagsnorm =
+    brukt > 0 ? Math.round((input.dagsnorm - brukt) * 100) / 100 : input.dagsnorm;
+  if (brukt > 0 && dagsnorm <= 0)
+    return [{ overtidsnivaa: OVERTID_NIVAA_50, timer: arbeidstimer }];
   const norm = dagsnorm > 0 ? dagsnorm : arbeidstimer;
   const timelonn = Math.min(arbeidstimer, norm);
   const overtid = Math.round((arbeidstimer - timelonn) * 100) / 100;
@@ -54,6 +66,33 @@ export function klassifiserArbeidstid(input: {
   if (overtid > 0)
     segmenter.push({ overtidsnivaa: OVERTID_NIVAA_50, timer: overtid });
   return segmenter;
+}
+
+/** Minste radform `bruktAvNorm` leser — lokale rader, serverrader og forslagsrader. */
+export type DognRad = {
+  timer: number;
+  /** Ferdig avgjort reise — reise teller aldri (V1). */
+  erReise: boolean;
+  /** Lokale rader bærer ikke status; serverrader kan være `erstattet`. */
+  attestertStatus?: string | null;
+  /**
+   * B8 (Kenneth 2026-11-16): raden står på en fravær-art (`type = 'fravaer'`).
+   * Fravær bruker ikke normen — arbeid etter fravær er vanlig arbeidstid.
+   * Udefinert = arbeid.
+   */
+  erFravaer?: boolean;
+};
+
+/**
+ * L1 (ORDRE (29) a2): timer døgnet alt bruker av normen — alle kort, også
+ * overtidsrader. Reise, `erstattet` og fravær (B8) teller ikke. Inndata til
+ * `klassifiserArbeidstid({ bruktAvNorm })`.
+ */
+export function bruktAvNorm(rader: readonly DognRad[]): number {
+  const sum = rader
+    .filter((r) => !r.erReise && !r.erFravaer && r.attestertStatus !== "erstattet")
+    .reduce((s, r) => s + (Number.isFinite(r.timer) ? r.timer : 0), 0);
+  return Math.round(sum * 100) / 100;
 }
 
 /** Minimum felter en lønnsart må ha for overtid-valg. */

@@ -27,11 +27,13 @@ import type { Dagsforslag, AnvendDagsforslagResultat } from "./dagsforslag";
 import { radTilleggNokkel, sedelKontekstForRad, sedelKontekstLokalt, type BekreftDagTillegg, type TilleggPerRad } from "./bekreftDagTillegg";
 import { skrivLonnstillegg, skrivUtlegg, type NyttLonnstillegg, type NyttUtlegg } from "../services/tilleggUtleggSkriv";
 import type { NyKoOppforing } from "../providers/OpplastingsKoProvider";
+import { sikreLokalKortId } from "../services/kortIdLokal";
 
 /**
  * ORDRE Tillegg/Utlegg i Bekreft dag: lønnstillegg og utlegg holdt i minnet på
- * skjermen. Knyttet til sedel + prosjekt (ikke rad) — skrives på første åpne
- * dato sin sedel (`forsteLagredeSheetId`).
+ * skjermen. Knyttet til sedel + prosjekt (ikke rad). ORDRE 25: skrives på
+ * sedelen for linjas datokort (`dato`); uten dato på første åpne dato sin sedel
+ * (`forsteLagredeSheetId`). ORDRE 26: dato uten åpen sedel → `DatokortUtenSedelFeil`.
  */
 export type LonnUtlegg = { tillegg: NyttLonnstillegg[]; utlegg: NyttUtlegg[] };
 
@@ -42,6 +44,18 @@ export function harLonnUtlegg(l: LonnUtlegg | undefined): l is LonnUtlegg {
 type LokalDb = NonNullable<ReturnType<typeof hentDatabase>>;
 
 export type { AnvendDagsforslagResultat };
+
+/**
+ * ORDRE (26): en tillegg-/utleggslinje med datokort finner ingen åpen sedel for
+ * datoen. `bekreftDag` stopper dette før skriving (`datoerSendtUnderveis`);
+ * feilen betyr at vakten er forbigått — linja flyttes aldri til en annen dato.
+ */
+export class DatokortUtenSedelFeil extends Error {
+  constructor(readonly datoer: string[]) {
+    super(`Tillegg/utlegg på datokort uten åpen sedel: ${datoer.join(", ")}`);
+    this.name = "DatokortUtenSedelFeil";
+  }
+}
 
 /**
  * Anvend et beregnet dagsforslag: skriv sedler + rader. Injiserbare `nyId`/`naa`
@@ -93,6 +107,8 @@ export function anvendDagsforslag(
   const lagredeDatoer: string[] = [];
   const blokkerteDatoer: string[] = [];
   let forsteLagredeSheetId: string | null = null;
+  /** ORDRE 25: åpen sedel pr. dato — tillegg/utlegg lagres på datokortets sedel. */
+  const sedelPerDato = new Map<string, string>();
 
   if (ctx.erAnsatt === false) {
     return {
@@ -128,6 +144,14 @@ export function anvendDagsforslag(
       forsteLagredeSheetId: null,
     };
   }
+
+  // ORDRE (26): en linje med datokort må peke på en åpen dato i forslaget —
+  // sjekkes FØR noe skrives (ren sjekk, ingen db). Se `DatokortUtenSedelFeil`.
+  const aapneDatoer = new Set(forslag.datoer.filter((d) => !d.blokkert).map((d) => d.dato));
+  const utenAapenDato = [...(lonnUtlegg?.tillegg ?? []), ...(lonnUtlegg?.utlegg ?? [])]
+    .map((l) => l.dato)
+    .filter((dato): dato is string => dato !== undefined && !aapneDatoer.has(dato));
+  if (harLonnUtlegg(lonnUtlegg) && utenAapenDato.length > 0) throw new DatokortUtenSedelFeil(utenAapenDato);
 
   for (const d of forslag.datoer) {
     // UF-0/UF-1: sedel-opprettelse + idempotens via delt helper (org-backfill
@@ -166,6 +190,7 @@ export function anvendDagsforslag(
     }
     lagredeDatoer.push(d.dato);
     forsteLagredeSheetId ??= resultat.id;
+    sedelPerDato.set(d.dato, resultat.id);
     if (d.raderDroppetUtenLonnsart > 0) manglerLonnsart = true;
 
     // RETUR 36c pkt 1: arbeidsrader arver sedelens byggeplass (null). Fantes
@@ -255,33 +280,52 @@ export function anvendDagsforslag(
     vekForOverlapp.push(...d.vekForOverlapp);
   }
 
-  // ORDRE Tillegg/Utlegg i Bekreft dag: på første åpne dato sin sedel. Ingen
-  // åpen sedel (alt ble blokkert under skrivingen) → `lonnUtleggSkrevet` false;
-  // `bekreftDag` gjør det til stoppen `tilleggUtleggUtenDag`, og skjermen blir
-  // stående med linjene — aldri stille tap.
+  // ORDRE Tillegg/Utlegg i Bekreft dag. ORDRE 25 (Kenneth 2026-11-16): hver
+  // linje på sedelen for sitt datokort (`dato`, satt av `knyttLonnUtleggTilKort`).
+  // Uten dato (prosjekt uten arbeid) → første åpne dato sin sedel, som før 25.
+  // ORDRE (26): en linje MED dato flyttes aldri til en annen dato. Er datoen
+  // ikke lagret her, er vakten `datoerSendtUnderveis` i `bekreftDag` forbigått
+  // → feil kastes FØR noen linje skrives. Ingen åpen sedel (alt ble blokkert)
+  // → `lonnUtleggSkrevet` false; `bekreftDag` gjør det til stoppen
+  // `tilleggUtleggUtenDag`, og skjermen blir stående med linjene.
   let lonnUtleggSkrevet = false;
   const utleggKo: NyKoOppforing[] = [];
   if (harLonnUtlegg(lonnUtlegg) && forsteLagredeSheetId) {
+    const forste = forsteLagredeSheetId;
+    const utenSedel = [...lonnUtlegg.tillegg, ...lonnUtlegg.utlegg]
+      .map((l) => l.dato)
+      .filter((dato): dato is string => dato !== undefined && !sedelPerDato.has(dato));
+    if (utenSedel.length > 0) throw new DatokortUtenSedelFeil(utenSedel);
     // T12 (spec tillegg-utlegg-prosjektkort § 5, B6): linja bærer kortets
     // byggeplass (effektiv). Lik sedelens → null (arv), som timeradene
     // (`lagretByggeplassForKort`). Underprosjektet er dagens valg og settes
     // bare på dagens prosjekt — et ECO tilhører alltid sitt prosjekt.
-    const sedel = sedelKontekstLokalt(db, forsteLagredeSheetId);
-    const kortFelt = (l: { projectId: string; byggeplassId?: string | null }) => {
+    const plassering = (l: { projectId: string; byggeplassId?: string | null; dato?: string }) => {
+      const sheetId = l.dato !== undefined ? sedelPerDato.get(l.dato)! : forste;
+      const sedel = sedelKontekstLokalt(db, sheetId);
       const bp = l.byggeplassId ?? null;
       return {
-        byggeplassId: sedel ? lagretByggeplassForKort({ projectId: l.projectId, byggeplassId: bp, ecoId: null }, sedel) : bp,
-        externalCostObjectId: l.projectId === forslag.prosjektId ? (ctx.ecoId ?? null) : null,
+        sheetId,
+        felt: {
+          byggeplassId: sedel ? lagretByggeplassForKort({ projectId: l.projectId, byggeplassId: bp, ecoId: null }, sedel) : bp,
+          externalCostObjectId: l.projectId === forslag.prosjektId ? (ctx.ecoId ?? null) : null,
+        },
       };
     };
-    for (const l of lonnUtlegg.tillegg) skrivLonnstillegg(db, forsteLagredeSheetId, { ...l, ...kortFelt(l) }, ctx.naa());
+    for (const l of lonnUtlegg.tillegg) {
+      const { sheetId, felt } = plassering(l);
+      skrivLonnstillegg(db, sheetId, { ...l, ...felt }, ctx.naa());
+    }
     for (const u of lonnUtlegg.utlegg) {
-      const ko = skrivUtlegg(db, forsteLagredeSheetId, { ...u, ...kortFelt(u) }, ctx.nyId);
+      const { sheetId, felt } = plassering(u);
+      const ko = skrivUtlegg(db, sheetId, { ...u, ...felt }, ctx.nyId);
       if (ko) utleggKo.push(ko);
     }
     lonnUtleggSkrevet = true;
   }
 
+  // Kort-id (prosjektkort-kortid-spec § 2.4, M9): samme regel som serveren (regel 3, K6).
+  for (const sheetId of new Set(sedelPerDato.values())) sikreLokalKortId(db, sheetId);
   return {
     lonnUtleggSkrevet,
     utleggKo,

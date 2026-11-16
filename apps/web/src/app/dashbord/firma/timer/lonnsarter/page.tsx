@@ -12,6 +12,7 @@ import { useFirma } from "@/kontekst/firma-kontekst";
 import { DeaktiverKnapp } from "@/components/deaktiver/DeaktiverKnapp";
 import { VisInaktiveToggle } from "@/components/deaktiver/VisInaktiveToggle";
 import { HjelpKnapp, HjelpFane } from "@/components/hjelp/HjelpModal";
+import { lonnsartTypeEtikett } from "@/lib/lonnsartTypeEtikett";
 
 const TYPE_VERDIER = ["ordinaer", "fravaer", "feriepenger", "diett"] as const;
 type LonnsartType = (typeof TYPE_VERDIER)[number];
@@ -34,6 +35,8 @@ type LonnsartRad = {
   aktiv: boolean;
   erStandardvalg: boolean;
   overtidsnivaa: number | null;
+  // B10 (kort-id-spec § 11.10.2): leses bare for type fravær.
+  fravaerNormtak: boolean;
   seedNivaa: number | null;
 };
 
@@ -128,6 +131,9 @@ export default function LonnsarterSide() {
             <HjelpFane tittel={t("deaktiver.hjelp.tittel")}>
               <p>{t("deaktiver.hjelp.tekst")}</p>
             </HjelpFane>
+            <HjelpFane tittel={t("firma.timer.normtak.hjelpTittel")}>
+              <p>{t("firma.timer.normtak.hjelpTekst")}</p>
+            </HjelpFane>
           </HjelpKnapp>
           <Button onClick={() => setVisOpprett(true)}>
             <Plus className="mr-1.5 h-4 w-4" />
@@ -200,7 +206,7 @@ export default function LonnsarterSide() {
                     </span>
                   </td>
                   <td className="px-3 py-2 text-gray-600">
-                    {t(`firma.timer.type.${rad.type}`)}
+                    {lonnsartTypeEtikett(rad, t)}
                   </td>
                   <td className="px-3 py-2 text-gray-600">
                     {rad.overtidsnivaa
@@ -333,6 +339,8 @@ function LonnsartDialog({
   );
   const [skalEksporteres, setSkalEksporteres] = useState(rad?.skalEksporteres ?? true);
   const [tvungenKommentar, setTvungenKommentar] = useState(rad?.tvungenKommentar ?? false);
+  // B10: standard med tak (feil vei koster minst, § 11.10.2).
+  const [fravaerNormtak, setFravaerNormtak] = useState(rad?.fravaerNormtak ?? true);
   // ③a: overtid-nivå — kun for type=ordinaer. null = ikke overtid.
   const [overtidsnivaa, setOvertidsnivaa] = useState<50 | 100 | null>(
     (rad?.overtidsnivaa as 50 | 100 | null) ?? null,
@@ -379,6 +387,8 @@ function LonnsartDialog({
       tvungenKommentar,
       // Overtid-nivå gir kun mening for ordinær tid — tving null ellers.
       overtidsnivaa: type === "ordinaer" ? overtidsnivaa : null,
+      // B10: sendes bare for fravær — andre typer leser aldri markøren.
+      ...(type === "fravaer" ? { fravaerNormtak } : {}),
       organizationId: orgId!,
     };
 
@@ -515,6 +525,22 @@ function LonnsartDialog({
             />
             {t("firma.timer.felt.tvungenKommentar")}
           </label>
+          {type === "fravaer" && (
+            <label className="flex items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={fravaerNormtak}
+                onChange={(e) => setFravaerNormtak(e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-gray-300"
+              />
+              <span>
+                {t("firma.timer.felt.fravaerNormtak")}
+                <span className="block text-xs text-gray-500">
+                  {t("firma.timer.felt.fravaerNormtakHint")}
+                </span>
+              </span>
+            </label>
+          )}
         </div>
 
         {feil && <p className="text-sm text-red-600">{feil}</p>}

@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { randomUUID } from "expo-crypto";
 import type { hentDatabase } from "../db/database";
 import { sheetMachineLocal, slettedeRaderLocal } from "../db/schema";
+import { sikreLokalKortId } from "./kortIdLokal";
 
 /* ============================================================================
  *  NY BESLUTNING maskinkobling (Kenneth 2026-11-12) — erstatter «én maskin pr
@@ -167,4 +168,6 @@ export function skrivKobledeMaskiner(
         .run();
     }
   });
+  // Kort-id (prosjektkort-kortid-spec § 2.4, M9): samme regel som serveren (regel 3, K6).
+  sikreLokalKortId(db, sheetId);
 }

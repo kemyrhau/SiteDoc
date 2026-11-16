@@ -62,6 +62,7 @@ import { SplittRadModal } from "./SplittRadModal";
 import { RadHandlinger, type RadHandlingerProps } from "./prosjektkort/RadHandlinger";
 import { useAuth } from "../../providers/AuthProvider";
 import { sistBrukteMaskiner } from "../../services/nyTimerRad";
+import { sikreLokalKortId } from "../../services/kortIdLokal";
 
 type MaskinKategori = "kjoretoy" | "anleggsmaskin" | "smautstyr";
 const MASKIN_KATEGORIER: MaskinKategori[] = [
@@ -147,6 +148,8 @@ export function MaskinSeksjon({
           sistEndretLokalt: Date.now(),
         })
         .run();
+      // Kort-id (prosjektkort-kortid-spec § 2.4, M9): samme regel som serveren. Ingen visning endres.
+      sikreLokalKortId(db, sheetId);
       onEndret();
     },
     [sheetId, onEndret],

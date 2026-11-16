@@ -470,6 +470,10 @@ model OrganizationSetting {
   // splittet (kan skyve totalen til overtid). Default false: reise er separat rad
   // utenfor overtid-fordelingen.
   reisetidTellerOvertid Boolean @default(false) @map("reisetid_teller_overtid")
+  // F1 (prosjektkort-kortid-spec.md § 11.2/§ 11.4, Kenneth 2026-11-16): hvem attesterer fravær
+  // uten prosjekt. false (standard) = bare lønnsansvarlig (firma-admin); true = også prosjektlederen
+  // som attesterer resten av dagen. Leses alltid fra SEDELENS firma.
+  fravaerAttesteresAvProsjektleder Boolean @default(false) @map("fravaer_attesteres_av_prosjektleder")
   // Konkret reise-lønnsart (svak FK → timer.Lonnsart, A.20-mønster, ingen @relation
   // — ligger i db-timer). NULL → fallback til navne-match ("reise/transport").
   reiseLonnsartId       String? @map("reise_lonnsart_id")
