@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 
 /**
@@ -16,6 +16,7 @@ const les = (fil: string) => readFileSync(resolve(rot, fil), "utf8");
 const VERKTOY = "packages/ui/src/tabellverktoy.tsx";
 const TABLE = "packages/ui/src/table.tsx";
 const FLYTT = "apps/web/src/components/FlyttbareKolonner.tsx";
+const TIMER_TABELL = "apps/web/src/components/timer/TimerRadTabell.tsx";
 
 describe("T51 — hodets verktøy finnes ett sted og deles", () => {
   it("tabellverktoy.tsx eier sorterpil, filternedtrekk og bredde-dragning", () => {
@@ -49,5 +50,18 @@ describe("T51 — hodets verktøy finnes ett sted og deles", () => {
     expect(f).toContain("export function useFlyttbarKolonne");
     expect(f.match(/useSortable\(/g)?.length).toBe(1);
     expect(f).toMatch(/function FlyttbartHode[\s\S]*useFlyttbarKolonne\(/);
+  });
+
+  it("TimerRadTabell bruker de samme delene (ingen egne kopier)", () => {
+    expect(existsSync(resolve(rot, TIMER_TABELL)), TIMER_TABELL).toBe(true);
+    const k = les(TIMER_TABELL);
+    expect(k).toMatch(/from "@sitedoc\/ui"/);
+    for (const navn of ["SorterPil", "KolonneFilter", "useBreddeDragning", "BreddeHandtak"]) {
+      expect(k, navn).toMatch(new RegExp(`\\b${navn}\\b`));
+    }
+    expect(k).toMatch(/useFlyttbarKolonne/);
+    expect(k).not.toMatch(/<svg|"mousemove"|useSortable\(|cursor-col-resize/);
+    // Tekstene i verktøyene via t() (R20).
+    expect(k).toMatch(/tekster=\{[^}]*t\(/);
   });
 });
