@@ -80,6 +80,7 @@ import {
 } from "./kortRadFlytt";
 import { KortValgModal } from "./KortValgModal";
 import { FravaerKortModal } from "./FravaerKortModal";
+import { skrivKortBeskrivelse } from "./kortBeskrivelse";
 import { BekreftSlettModal } from "./BekreftSlettModal";
 import { TastaturFerdig, TASTATUR_FERDIG_ID } from "../TastaturFerdig";
 import type { Sedel, TimerRad, MaskinRad } from "../../../types/timer-detalj";
@@ -1101,6 +1102,8 @@ export function ProsjektkortDagsoversikt({
               : leggTilTimerRad(db(), k, felt, maskin.linjer);
             // Koblet maskin følger raden også på byggeplass (GO punkt 5).
             foelgKobletMaskin(db(), radId);
+            // K5 (c1): én beskrivelse pr. kort — teksten skrives på kortets øvrige arbeidsrader.
+            skrivKortBeskrivelse(db(), { sheetId: k.sheetId, radId, beskrivelse });
             setTimerModal(null);
             onEndret();
           }}

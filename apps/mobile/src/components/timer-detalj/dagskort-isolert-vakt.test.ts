@@ -74,6 +74,8 @@ const BEKREFT_DAG_PROPS = [
   "restForRad",
   "normtakBrudd",
   "normtakGrense",
+  // ORDRE (33) c1 K5: én beskrivelse pr. kort — kun prosjektkort-modus (dagskort-modus røres ikke).
+  "skrivKortBeskrivelse",
 ];
 
 describe("ORDRE 34 — dagskortet er isolert fra Bekreft dag", () => {
