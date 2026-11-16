@@ -106,6 +106,14 @@ og Utlegg). Vedtatt tekst for kortskjermen:
 - Begge knappene finnes bare mens dagsseddelen er utkast eller returnert. Varer som alt er sendt, må endres på serveren —
   uten dekning er knappene sperret.
 
+## Mobil: Kort-id og fraværskort (kort-id-spec § 8.2, ordre c, 🟡 ikke merget)
+
+Ingen ?-tekst; knappene forklarer seg selv (i18n, 15 språk):
+- **«Del til eget kort»** (`timer.bekreftDag.kort.delTilEgetKort`) i Bekreft dag: «Tiden før klokkeslettet blir i dette kortet. Tiden etter blir et nytt kort på samme prosjekt, med egen beskrivelse.» (`delTekst`). −/+ i firmaets tidsrunding, «Del kl. {kl}». «Slå sammen igjen» (`slaaSammen`) angrer før lagring.
+- **«+ Fravær»** (`timer.fravaerKort.leggTil`) på dagskortet og i Bekreft dag: fraværskort uten prosjekt — fraværsart, timer (forhåndsutfylt med resten av dagsnormen; tomt når normen er ukjent eller brukt opp) og beskrivelse (påkrevd, F4). −/+ går i firmaets tidsrunding, uten runding 0,5 t (🟡 agentens valg 2026-11-16). Sperretekster `timer.fravaerKort.sperret.*`.
+- **«Flytt til nytt kort»** (`timer.kortValg.flyttNyttKort`) i «Flytt raden»: raden får et nytt kort, også når prosjekt, byggeplass og underprosjekt er de samme som et kort som finnes. Vises bare for timerrader, og bare når det gir en forskjell.
+- 🟡 **«Endre kort»-teksten over («slås de sammen»)** stemmer ikke i c: kortet beholder sin id og står som eget kort ved siden av det som finnes. Merknaden `timer.kort.sammenslaa` vises fortsatt. Venter Kenneth.
+
 ## Mobil: Tillegg og Utlegg (`HjelpIkon`, Bekreft dag + prosjektkortet)
 
 `HjelpIkon` (`apps/mobile/src/components/HjelpIkon.tsx`) er mobilens ?-ikon: står ved overskriften det forklarer, trykk

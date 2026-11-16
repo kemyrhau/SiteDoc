@@ -733,6 +733,10 @@ Denne seksjonen er fasit for hva et prosjektkort og et dagskort er. Tekst lenger
 - **Avvik 3** — Kortet har ingen egen identitet: det utledes av `kortNokkel` = prosjekt|byggeplass|underprosjekt (`apps/mobile/src/lib/prosjektkortMobil.ts`). To kort på samme prosjekt med samme byggeplass og underprosjekt (grøft/skifer) kan derfor ikke skilles. **Kenneth 2026-11-16: «ja, legg til kort-id».** Hver rad (timer, maskin, varer, tillegg/utlegg som hører til kortet) skal bære kortets id, så to kort på samme prosjekt, byggeplass og underprosjekt holdes adskilt. Skjemaendring (additiv migrering, Kenneth kjører); spec før kode.
 - **Avvik 5** — Splitt av foreslått føring til eget prosjektkort: ikke målt om «Del opp» (`SplittRadModal`) kan gi et nytt kort.
 
+### Kort-id på telefonen og fraværskortet (ordre c) — 🟡 `feat/kortid-c-mobil` (2026-11-16, ikke merget)
+
+Avvik 3 over er løst på mobil: dagskortet, kortskjermen og Bekreft dag grupperer på kort-id (`KortValg.kortId`, `kortNokkel` i `apps/mobile/src/lib/prosjektkortMobil.ts`), så to kort på samme prosjekt, byggeplass og underprosjekt holdes adskilt. Bekreft dag har «Del til eget kort» (`tildelKortIder`, `apps/mobile/src/utils/kortIdForslag.ts`); «Flytt raden» har «Flytt til nytt kort»; «+ Nytt prosjektkort» gir alltid nytt kort. Fravær føres i eget fraværskort uten prosjekt («+ Fravær», `apps/mobile/src/utils/fravaerKort.ts`, `prosjektkort/fravaerKortLagring.ts`) med B10-taket; «Fravær til» (a3) er fjernet (F12 = A). Dagskort-modus viser fravær uten prosjekt i en lese-gruppe (F6, `apps/mobile/src/utils/dagskortFravaer.ts`). Full kode-liste, tester og avvik: [prosjektkort-kortid-spec.md § 8.2](prosjektkort-kortid-spec.md).
+
 ### Prosjektkort-rute — egen skjerm for samlesiden (ORDRE 35, I2) — 🟡 `feat/prosjektkort-isolert` (2026-11-07, ikke merget)
 
 Kenneth-vedtak I2: prosjektkortets samleside på mobil er flyttet ut av dagskortet til egen rute, så endringer i prosjektkortet ikke kan treffe dagskortet.

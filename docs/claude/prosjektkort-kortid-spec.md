@@ -1,5 +1,5 @@
 ---
-status: 🟢 VEDTATT 2026-11-16 — B1–B10 besvart av Kenneth (§ 10 «Kenneths svar»); B6 snudd: fravær føres på prosjektkort. Ingen kode. Ingen funksjon fjernes uten hjemmel (§ 7, § 11.4). TILLEGG 2026-11-16 (lønnsartvalg pr. linje) ført inn som § 6.1. TILLEGG 2026-11-16 (fraværskort uten prosjekt, § 11) og TILLEGG 2026-11-16 (B10 — fravær med tak mot dagsnormen, § 11.10): 🟢 VEDTATT 2026-11-16 — F1–F11 besvart av Kenneth og ført inn i brødteksten. ✅ F12 = A (Kenneth 2026-11-16, § 11.9): «Fravær til» fjernes i ordre c. 🔨 Ordre b under bygging på `feat/kortid-b-skjema` (Kort-id-b): b1 + b2 + b3 bygget, ikke merget (§ 8.1). TILLEGG 2026-11-16 («kortet følger hele veien» — attestering, eksport/fakturering, rapport, § 12): H1–H10 besvart av Kenneth 2026-11-16 (§ 12.8.1; H10 SNUDD: timeraden med sin maskin og sine varer på én linje); 🟡 H11–H13 åpne; R/G/E-reglene ikke ført om ennå; ingen kode. Omfanget er hele attesteringen (TILLEGG 2) og rapportens Detaljer-tabell (TILLEGG 3).
+status: 🟢 VEDTATT 2026-11-16 — B1–B10 besvart av Kenneth (§ 10 «Kenneths svar»); B6 snudd: fravær føres på prosjektkort. Ingen kode. Ingen funksjon fjernes uten hjemmel (§ 7, § 11.4). TILLEGG 2026-11-16 (lønnsartvalg pr. linje) ført inn som § 6.1. TILLEGG 2026-11-16 (fraværskort uten prosjekt, § 11) og TILLEGG 2026-11-16 (B10 — fravær med tak mot dagsnormen, § 11.10): 🟢 VEDTATT 2026-11-16 — F1–F11 besvart av Kenneth og ført inn i brødteksten. ✅ F12 = A (Kenneth 2026-11-16, § 11.9): «Fravær til» fjernes i ordre c. ✅ Ordre b merget til develop (`eca8dd1f`) og deployet til test (§ 8.1). 🔨 Ordre c bygget på `feat/kortid-c-mobil` (Kort-id-c), ikke merget (§ 8.2). TILLEGG 2026-11-16 («kortet følger hele veien» — attestering, eksport/fakturering, rapport, § 12): H1–H10 besvart av Kenneth 2026-11-16 (§ 12.8.1; H10 SNUDD: timeraden med sin maskin og sine varer på én linje); 🟡 H11–H13 åpne; R/G/E-reglene ikke ført om ennå; ingen kode. Omfanget er hele attesteringen (TILLEGG 2) og rapportens Detaljer-tabell (TILLEGG 3).
 sist_verifisert_mot_kode: 2026-11-16 (develop @ e3aea58f — målt på 140c19cb, linjereferanser i `bekreft-dag.tsx` og `dagsforslagAnvend.ts` oppdatert etter (26)-mergen `780f388c`; § 11 målt mot develop @ dc5833dc; § 11.10 målt mot develop @ e3c7d6cf; § 11-rettingen FM27–FM29 (F1, F4, F8) målt mot develop @ b4dac1b8; § 12 målt mot develop @ 10d343ce, HM22–HM25 mot 0783cf1d, HM26–HM30 mot f465d7d5, HM31–HM41 mot a49821ca)
 eier: Fabel (spec) → Timer-feilsøk/Redesign (kode)
 ordre: «ORDRE — spec: prosjektkort med kort-id, dagskortet som sum av prosjektkort, lønnsart-forslag fra døgnets registreringer — orkestrator 2026-11-16» + «TILLEGG … valg av lønnsart ved manuell registrering» + «ORDRE 2026-11-16 — SPEC-TILLEGG: fraværskort uten prosjekt» + «SPEC-TILLEGG 2026-11-16 — B10 betalt fravær i ordre b» + «SPEC-RETTING 2026-11-16 — § 11 til VEDTATT med Kenneths svar F1–F11» + «SPEC-TILLEGG 2026-11-16 — «kortet følger hele veien»» + «TILLEGG til SPEC-TILLEGG … Kenneths krav til attesteringsvisningen» + «TILLEGG 2 … TOTAL OVERHALING av attesteringen» + «TILLEGG 3 … rapportens Detaljer-tabell og sjekklistenes verktøy» (relay/inbox-fabel.md)
@@ -433,7 +433,7 @@ a og b rører ulike filer og kan gå parallelt hvis to agenter er ledige. Mellom
 samme prosjektkort (B5). **Fraværskort uten prosjekt** og **taket for betalt fravær (B10)** rir på b, c og d — fordelingen står i § 11.8. **Kortet gjennom attestering, eksport og rapport** — med total overhaling av attesteringen — er egne ordrer d2a, d2b-1, d2b-2, d3 og c2 — § 12.6 (🟡 forslag).
 
 
-### 8.1 Bygget — ordre b (Kort-id-b, `feat/kortid-b-skjema`, ikke merget)
+### 8.1 Bygget — ordre b (Kort-id-b, merget `eca8dd1f`)
 
 **b1 — kort-id (2026-11-16).** Migreringene er ikke kjørt mot test eller prod.
 
@@ -494,6 +494,54 @@ Avvik og funn, meldt i SJEKKPUNKT b3:
 - **`attester` og `attesterRader` sjekker hele datoen** (RETUR (30) A1: alt attestert fravær kan komme i brudd når arbeid føres senere, N5). Normen slås bare opp når datoen har fravær med tak.
 - **Lønnseksporten tar også uattesterte rader** (`rapport.ts` `detaljEksport`/`firmaPeriodeRapport` filtrerer bare `erstattet`; radstatus er en kolonne). En dag i brudd kan derfor stå i eksporten som `pending`. Ikke endret.
 - Fixture i `firmagrense-attestering.test.ts` fikk `sheet.dato` fordi ukegrunnlaget nå grupperer pr. dato.
+
+### 8.2 Bygget — ordre c (Kort-id-c, `feat/kortid-c-mobil`, ikke merget)
+
+🟡 Bygget 2026-11-16, ikke merget, ikke sendt som OTA. Bare `apps/mobile`, `packages/shared` og docs; ingen server-, web- eller skjemaendring. Krever at b (API) er i prod før OTA (§ 8).
+
+**c3 — B10 på telefon og F12 = A.**
+
+| Del | Kode |
+|---|---|
+| F12 = A: «Fravær til» fjernet, fravær-arter ut av linjevelgeren (F5) | `apps/mobile/app/timer/bekreft-dag.tsx`, `apps/mobile/src/utils/dagsforslag.ts`, `apps/mobile/src/utils/linjeLonnsart.ts` (`2f713760`) |
+| Lokal katalogkolonne `fravaer_normtak` (TF20) | `apps/mobile/src/db/schema.ts`, `migreringer.ts`, `apps/mobile/src/services/timerKatalog.ts` (`dccff918`) |
+| Bruddlinje med ett-trykks retting, send-sperre, tak i rad-vinduet, F5 for ny rad, brudd i attesteringslista (TF23, TF24) | `apps/mobile/src/utils/fravaerNormtakMobil.ts`, `TimerSeksjon.tsx`, `ProsjektkortDagsoversikt.tsx`, `apps/mobile/app/timer/attestering/index.tsx` (`5da573ce`) |
+| U12: taket leser bare datoens eget dagsnorm-svar | `hentDagsnormLokalt(…, { kunEksakt })` i `apps/mobile/src/services/arbeidstidSvarKatalog.ts` (`a1eac3f5`); vakt `normtakEksakt-vakt.test.ts` |
+
+**c2 — fraværskort uten prosjekt (§ 11.5).**
+
+| Del | Kode |
+|---|---|
+| Datalaget: `uten_prosjekt` lokalt, synk, kort-id-nøkkel «ingen» | `KortValg.projectId: string \| null` og `radProsjektId` i `packages/shared/src/utils/prosjektkort.ts`; `sheet_timer_local.uten_prosjekt` i `schema.ts`/`migreringer.ts`; `apps/mobile/src/utils/utenProsjektSynk.ts`, `timerSync.ts`, `forsoningSpeil.ts`, `kortIdNormalisering.ts` (`486c9658`) |
+| U6 aktivitet, «Del opp» på fraværsrad | `fravaerAktivitetId` i `apps/mobile/src/services/nyTimerRad.ts`; `apps/mobile/src/utils/splittFravaer.ts`, `SplittRadModal.tsx` (`a1eac3f5`) |
+| Fraværskortet på dagskortet: «+ Fravær», art/timer/beskrivelse, tak, lagring (TF3, TF9, TF22, TF27) | `apps/mobile/src/utils/fravaerKort.ts`, `prosjektkort/FravaerKortModal.tsx`, `prosjektkort/fravaerKortLagring.ts`, `ProsjektkortDagsoversikt.tsx` (`29cf31ff`) |
+| «+ Fravær» i Bekreft dag (U1 inngang 2), U8 bare for arbeidskort | `prosjektkort/fravaerKortDag.ts`, `bekreft-dag.tsx` (`0c92afd3`) |
+| F6: dagskort-modus viser fravær uten prosjekt i lese-gruppa «Fravær» (TF10) | `apps/mobile/src/utils/dagskortFravaer.ts`, `apps/mobile/app/timer/[id].tsx` (`0d3e9dc6`) |
+| «Sum i dag» og «Send dagen» fra én funksjon (verdi uendret, TILLEGG pkt 3) | `dagSumTimer` i `apps/mobile/src/utils/dagsoversikt.ts` (`bc4fddb4`) |
+
+**c1 — kort-id i UI (§ 5.1, § 5.2).**
+
+| Del | Kode |
+|---|---|
+| T13/M18: «Del opp» beholder radens byggeplass og kort-id | `splittFravaer.ts`, `SplittRadModal.tsx` (`04c4ca9a`) |
+| K5: én beskrivelse pr. kort i prosjektkort-modus | `prosjektkort/kortBeskrivelse.ts` (`ee602f74`) |
+| T10/T14: Bekreft dag — «Del til eget kort», underprosjekt pr. kort, «Slå sammen igjen», utkast skjemaversjon 2 (v1 lastes uendret) | `tildelKortIder` i `apps/mobile/src/utils/kortIdForslag.ts`, `retting.kortDeling` i `dagsforslag.ts`, `beskrivelseKort.ts`, `dagsforslagAnvend.ts`, `prosjektkortUtkast.ts` (`UTKAST_SKJEMA_VERSJON = 2`), `DelKortModal.tsx` (`38b643b0`) |
+| T11: dagskort og kortskjerm grupperer på kort-id; rute `kort=<kortId>` | `KortValg.kortId`, `kortNokkel`, `utenIdTilKort`, `kortRute`/`kortForRute` i `apps/mobile/src/lib/prosjektkortMobil.ts`; ny rad skrives med kortets id i `nyTimerRad.ts` (`de162384`) |
+| T12: «Flytt til nytt kort», «+ Nytt prosjektkort» gir alltid nytt kort, «Endre kort» beholder id | `FlyttMaal.kortId` i `prosjektkort/kortRadFlytt.ts`; `nyttKort` i `KortValgModal.tsx`; `retting.nyttKort` → `tildelKortIder` (`7a5cb7c7`) |
+
+**Tester:** T10/T12/T14 `bekreftDagKortId.test.ts`, `kortIdForslag.test.ts`; T11 `prosjektkortMobil.kortid.test.ts`; T12 `kortRadFlytt.test.ts`; T13 `splittKortId.test.ts`, `splittFravaer.test.ts`; TF3/TF9/TF22/TF27 `fravaerKort.test.ts`, `fravaerKortLagring.test.ts`, `fravaerKortDag.test.ts`; TF10 `dagskortFravaer.test.ts`, `radProsjektId-vakt.test.ts`, `packages/shared/src/utils/fravaerKort.test.ts`; TF20 `timerKatalog-fravaerNormtak.test.ts`; TF23/TF24 `fravaerNormtakMobil.test.ts`, `radform-vakt.test.ts`; TF21 (A-vakt) `dagsforslag.retting.test.ts`, `manuellDag.test.ts`; T16 vaktene `dagskort-isolert-vakt.test.ts`, `radLagring-glue-vakt`, `prosjektkort-glue-vakt`, `attesteringNormtak-vakt.test.ts`, `normtakEksakt-vakt.test.ts`.
+
+Avvik og valg, meldt i SJEKKPUNKT c:
+- **Grunnkortet beholder utledet nøkkel i Bekreft dag**; bare utdelte kort nøkles på kort-id. Eksisterende kort på sedelen gjenbrukes.
+- **Delt kort får radIndeks i steg på 10 000 × (n + 1)** for tillegg pr. rad (`tilleggPerRad`).
+- **Foreldreløs beskrivelse vises og sperrer ikke Bekreft**; den droppes aldri.
+- **Ingen byggeplassvalg pr. delt kort** — delen arver kildens byggeplass.
+- **Rad flyttet til en nøkkel uten kort får tilfeldig UUID** (§ 2.4: kort laget av brukeren).
+- **«Slå sammen igjen»** (`angreKortDeling`) er ny og ikke nevnt i ordren — angrer «Del til eget kort» før lagring. Meldt.
+- **«Endre kort» til en nøkkel som alt har kort beholder id** → to kort med samme nøkkel (K7). Merknaden `timer.kort.sammenslaa` («slås sammen») stemmer da ikke. Venter Kenneth.
+- **«Del opp» (`SplittRadModal`) er delt med dagskort-modus**, så T13-rettingen (byggeplass og kort-id arves) gjelder der også. Datakorrigering uten synlig endring.
+- **Fraværskortets −/+ går i firmaets tidsrunding; uten tidsrunding 0,5 t** (`fravaerSteg` i `fravaerKort.ts`). Agentens valg 🟡 2026-11-16, ikke vedtatt.
+- **«Send dagen (0 t)» og «Sum i dag» på en dag med bare fravær** er ikke endret (TILLEGG pkt 3). Venter Kenneth.
 
 ---
 
