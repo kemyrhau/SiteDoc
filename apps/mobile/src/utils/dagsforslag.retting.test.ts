@@ -371,6 +371,19 @@ describe("ORDRE 35 RETUR 1 — firma med OT100 uten OT50", () => {
   });
 });
 
+describe("RETUR 3 (28) A3 — «Fravær til»-stepperen bruker beregningens grense", () => {
+  it("🔴 kildevakt: «−»/«+» tar punktene fra dag.fravaerSteg og er sperret uten dem", () => {
+    const her = dirname(fileURLToPath(import.meta.url));
+    const flat = readFileSync(join(her, "../../app/timer/bekreft-dag.tsx"), "utf-8").replace(/\s+/g, " ");
+    expect(flat).toContain("onPress={() => dag.fravaerSteg?.ned && onRett({ fravaerTil: dag.fravaerSteg.ned })}");
+    expect(flat).toContain("disabled={!dag.fravaerSteg?.ned}");
+    expect(flat).toContain("onPress={() => dag.fravaerSteg?.opp && onRett({ fravaerTil: dag.fravaerSteg.opp })}");
+    expect(flat).toContain("disabled={!dag.fravaerSteg?.opp}");
+    // Egen klokke-stepping på «Fravær til» ville gå forbi grensen / inn i pausen.
+    expect(flat).not.toMatch(/fravaerTil: stegOvertidFra\(/);
+  });
+});
+
 /**
  * ORDRE 36e pkt. 4 — pausevinduet etter arbeidsslutt (kort dag) ga en rad uten
  * klokke-gap: timene trekt for pausen, men ingen rad bar den (F5). Klemmen

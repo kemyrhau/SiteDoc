@@ -1163,4 +1163,86 @@ describe("ORDRE (28) — lønnsart pr. linje før lagring, fravær bruker ikke n
     expect(dag.rader.some((r) => r.lonnsartId === L_SYK)).toBe(false);
     sjekkB9(dag, L_EGEN, "10:00");
   });
+
+  // RETUR 3 (28) — Kontrollør GATE (59) A3: fastStart-firma (start 07:00,
+  // pause etter 5,5 t = 12:30), kort 12:30–17:00, pause 30 ligger ved
+  // arbeidsstart. Tidligste punkt med fravær > 0 er 13:15 (forbi pausen) —
+  // «−» skal aldri gi hele kortet som fravær.
+  const settNormFastStart = () =>
+    db().insert(schema.arbeidstidSvarLocal).values({
+      organizationId: ORG, dato: DATO, dagsnorm: 7.5, startTid: "07:00", sluttTid: "15:00", pauseMin: 30,
+      normKilde: "fast", pauseEtterTimer: 5.5, pauseReferanse: "fastStart", hentetAt: Date.now(),
+    }).run();
+
+  it.each([
+    ["12:30", {}], ["12:45", {}], ["13:00", {}],
+    ["12:30", { overtidFra: "14:00" }], ["12:45", { overtidFra: "14:00" }], ["13:00", { overtidFra: "14:00" }],
+  ])("🔴 A3: pause ved arbeidsstart — «Fravær til» %s %j klemmes til 13:15, aldri hele kortet", (fravaerTil, ekstra) => {
+    settNormFastStart();
+    arter();
+    const dag = dagMed({
+      arbeidFra: "12:30", arbeidTil: "17:00", pauseMin: 30, ...ekstra,
+      fravaerTil, lonnsartPerLinje: { normal: L_EGEN },
+    });
+    const r = sjekkB9(dag, L_EGEN, "13:15");
+    const fravaer = r.filter((x) => x.lonnsartId === L_EGEN).reduce((s, x) => s + x.timer, 0);
+    expect(fravaer).toBeCloseTo(0.25, 5);
+    expect(r.reduce((s, x) => s + x.timer, 0)).toBeCloseTo(4, 5);
+    // Stepperen: «−» sperret på grensen, «+» neste punkt som endrer timene.
+    expect(dag.fravaerSteg).toEqual({ ned: null, opp: "13:30" });
+  });
+
+  it("🔴 A3 stepper: fra 13:30 går «−» til grensen 13:15, aldri forbi", () => {
+    settNormFastStart();
+    arter();
+    const dag = dagMed({
+      arbeidFra: "12:30", arbeidTil: "17:00", pauseMin: 30,
+      fravaerTil: "13:30", lonnsartPerLinje: { normal: L_EGEN },
+    });
+    sjekkB9(dag, L_EGEN, "13:30");
+    expect(dag.fravaerSteg).toEqual({ ned: "13:15", opp: "13:45" });
+  });
+
+  it("A3: kort kortere enn grensen (12:30–13:00, kun pause-tid) → hele kortet som fravær, stepper sperret", () => {
+    settNormFastStart();
+    arter();
+    const dag = dagMed({
+      arbeidFra: "12:30", arbeidTil: "13:10", pauseMin: 30,
+      fravaerTil: "12:45", lonnsartPerLinje: { normal: L_EGEN },
+    });
+    const r = dag.rader.filter((x) => !x.erReise);
+    expect(r.every((x) => x.lonnsartId === L_EGEN)).toBe(true);
+    expect(dag.fravaerSteg?.ned ?? null).toBeNull();
+  });
+
+  it("🔴 A3 feilklasse: pause slutter på punktet (08:00, pause 13:30–14:00) — stepperen hopper over pausen, sitter aldri fast", () => {
+    settNorm();
+    arter();
+    const dag = dagMed({
+      arbeidFra: "08:00", arbeidTil: "17:00", pauseMin: 30,
+      fravaerTil: "14:00", lonnsartPerLinje: { normal: L_EGEN },
+    });
+    // Fraværsraden slutter før pausen (5,5 t); «Fravær til» viser 13:30.
+    const r = sjekkB9(dag, L_EGEN, "13:30");
+    expect(r.filter((x) => x.lonnsartId === L_EGEN).reduce((s, x) => s + x.timer, 0)).toBeCloseTo(5.5, 5);
+    // «+» fra den viste verdien må gi mer fravær — ikke tilbake til 13:30.
+    expect(dag.fravaerSteg).toEqual({ ned: "13:15", opp: "14:15" });
+    const fraVist = dagMed({
+      arbeidFra: "08:00", arbeidTil: "17:00", pauseMin: 30,
+      fravaerTil: "13:30", lonnsartPerLinje: { normal: L_EGEN },
+    });
+    expect(fraVist.fravaerSteg?.opp).toBe("14:15");
+  });
+
+  it("A3 feilklasse: pause midt i fraværet (08:00, «Fravær til» 15:00) — pausen trekkes, fravær 6,5 t", () => {
+    settNorm();
+    arter();
+    const dag = dagMed({
+      arbeidFra: "08:00", arbeidTil: "17:00", pauseMin: 30,
+      fravaerTil: "15:00", lonnsartPerLinje: { normal: L_EGEN },
+    });
+    const r = sjekkB9(dag, L_EGEN, "15:00");
+    expect(r.filter((x) => x.lonnsartId === L_EGEN).reduce((s, x) => s + x.timer, 0)).toBeCloseTo(6.5, 5);
+    expect(dag.fravaerSteg).toEqual({ ned: "14:45", opp: "15:15" });
+  });
 });

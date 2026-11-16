@@ -386,6 +386,12 @@ export type DagsforslagDag = {
    * fraværet dekker hele kortet). Utelatt = normallinja står ikke på fravær.
    */
   fravaerTil?: string;
+  /**
+   * RETUR 3 (28) A3: stepperens neste punkter for «Fravær til» — hvert endrer
+   * fraværstimene; `ned` går aldri under tidligste punkt med fravær > 0.
+   * `null` = knappen er sperret. Satt sammen med `fravaerTil`.
+   */
+  fravaerSteg?: { ned: string | null; opp: string | null };
   rader: DagsforslagRad[];
   /** Ordre (17) punkt 2: satt → Bekreft sperres med begrunnelse. */
   kjedeKonflikt?: DagsforslagKjedeKonflikt | null;
@@ -1744,6 +1750,7 @@ function beregnSegment(a: {
   let raderDroppetUtenLonnsart = 0;
   const linjerUtenLonnsart: DagsforslagLinjeUtenLonnsart[] = [];
   let fravaerTil: string | null = null;
+  let fravaerStegUt: { ned: string | null; opp: string | null } | null = null;
   const eksisterendeTidsrom = eksisterende.eksisterendeRader;
 
   // Auto-fordeling normaltid/overtid (per dag). Overtid velges strukturert på
@@ -1801,22 +1808,42 @@ function beregnSegment(a: {
       a.lonnsartPerLinje?.normal,
       a.reiseLonnsartIder,
     );
+    // RETUR 3 (28) A3: tidligste punkt er det første steget som gir mer enn
+    // 0 t fravær — forbi pausen når den ligger ved arbeidsstart. Hele kortet
+    // som fravær bare når intet punkt før kortets slutt gir fravær. Stepperen
+    // får sine neste punkter herfra (`fravaerSteg`): hvert steg endrer
+    // fraværstimene (hopper over pausen), og «−» går aldri under grensen.
     let fravaerSeg: ArbeidstidSegment | undefined;
+    let fravaerPunktMin: number | null = null;
+    const fravaerSteg = a.tidsrundingMinutter && a.tidsrundingMinutter > 0 ? a.tidsrundingMinutter : 15;
+    const sluttMinFravaer = Math.min(hhmmTilMin(tilHHMM(new Date(arbeidssluttMs).toISOString())), 23 * 60 + 59);
+    const fravaerTimerVed = (punktMin: number): number => {
+      const forste = segmenterVedOvertidFra({
+        arbeidstimer,
+        arbeidsstartHHMM,
+        overtidFra: minTilHhmm(Math.min(punktMin, 23 * 60 + 59)),
+        pauseFra,
+        pauseMin: a.pauseMin,
+      })[0];
+      return forste?.overtidsnivaa === null ? forste.timer : 0;
+    };
+    let tidligstMin: number | null = null;
+    for (let p = hhmmTilMin(arbeidsstartHHMM) + fravaerSteg; p < sluttMinFravaer; p += fravaerSteg) {
+      if (fravaerTimerVed(p) > 0) {
+        tidligstMin = p;
+        break;
+      }
+    }
     if (normalValg?.type === "fravaer") {
       if (a.fravaerTil) {
-        const steg = a.tidsrundingMinutter && a.tidsrundingMinutter > 0 ? a.tidsrundingMinutter : 15;
-        const tidligst = hhmmTilMin(arbeidsstartHHMM) + steg;
-        const klemt = Math.max(hhmmTilMin(a.fravaerTil), tidligst);
-        const delt = segmenterVedOvertidFra({
-          arbeidstimer,
-          arbeidsstartHHMM,
-          overtidFra: minTilHhmm(Math.min(klemt, 23 * 60 + 59)),
-          pauseFra,
-          pauseMin: a.pauseMin,
-        })[0];
-        // Dekker pausen hele første steg, er fraværet hele kortet (aldri 0 t).
-        fravaerSeg =
-          delt?.overtidsnivaa === null ? delt : { overtidsnivaa: null, timer: arbeidstimer };
+        if (tidligstMin == null) {
+          fravaerSeg = { overtidsnivaa: null, timer: arbeidstimer };
+          fravaerPunktMin = sluttMinFravaer;
+        } else {
+          fravaerPunktMin = Math.min(Math.max(hhmmTilMin(a.fravaerTil), tidligstMin), sluttMinFravaer);
+          const t = fravaerPunktMin >= sluttMinFravaer ? arbeidstimer : fravaerTimerVed(fravaerPunktMin);
+          fravaerSeg = { overtidsnivaa: null, timer: t };
+        }
       } else if (vanlige[0]?.overtidsnivaa === null) {
         fravaerSeg = vanlige[0];
       }
@@ -1858,7 +1885,39 @@ function beregnSegment(a: {
       pauseMin: a.pauseMin,
       segmenter,
     });
-    if (medFravaerDeling && carvet[0]) fravaerTil = carvet[0].tilTid;
+    if (medFravaerDeling && carvet[0]) {
+      fravaerTil = carvet[0].tilTid;
+      // Stepperens neste punkter: første steg som endrer fraværstimene.
+      const naaMin = fravaerPunktMin ?? hhmmTilMin(carvet[0].tilTid);
+      const naaTimer = segmenter[0]!.timer;
+      let ned: string | null = null;
+      if (tidligstMin != null) {
+        for (let p = naaMin - fravaerSteg; p >= tidligstMin; p -= fravaerSteg) {
+          if (fravaerTimerVed(p) < naaTimer) {
+            ned = minTilHhmm(p);
+            break;
+          }
+        }
+        // Står punktet mellom grensen og første steg (ikke på gridet): grensen.
+        if (ned == null && naaMin > tidligstMin && fravaerTimerVed(tidligstMin) < naaTimer) {
+          ned = minTilHhmm(tidligstMin);
+        }
+      }
+      let opp: string | null = null;
+      if (naaTimer < arbeidstimer) {
+        for (let p = naaMin + fravaerSteg; ; p += fravaerSteg) {
+          if (p >= sluttMinFravaer) {
+            opp = minTilHhmm(sluttMinFravaer);
+            break;
+          }
+          if (fravaerTimerVed(p) > naaTimer) {
+            opp = minTilHhmm(p);
+            break;
+          }
+        }
+      }
+      fravaerStegUt = { ned, opp };
+    }
     const valgtOvertid = godtattOvertidLonnsart(a.alleLonnsarter, a.overtidLonnsartId);
     for (const [radIndeks, vindu] of carvet.entries()) {
       const linje: ArbeidLinje = segmenter[radIndeks]!.linje;
@@ -1983,6 +2042,7 @@ function beregnSegment(a: {
     raderDroppetUtenLonnsart,
     ...(linjerUtenLonnsart.length > 0 ? { linjerUtenLonnsart } : {}),
     ...(fravaerTil ? { fravaerTil } : {}),
+    ...(fravaerStegUt ? { fravaerSteg: fravaerStegUt } : {}),
     rader,
   };
 }

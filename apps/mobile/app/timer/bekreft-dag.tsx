@@ -2062,22 +2062,21 @@ function DatoKort({
             <View className="flex-row items-center justify-between">
               <Text className="text-sm text-gray-700">{t("timer.bekreftDag.fravaerTil")}</Text>
               <View className="flex-row items-center gap-3">
+                {/* RETUR 3 (28) A3: punktene kommer fra beregningen — samme grense, hopper over pausen. */}
                 <Pressable
-                  onPress={() =>
-                    onRett({ fravaerTil: stegOvertidFra(dag.fravaerTil!, -1, fra, til, tidsrunding) })
-                  }
+                  onPress={() => dag.fravaerSteg?.ned && onRett({ fravaerTil: dag.fravaerSteg.ned })}
+                  disabled={!dag.fravaerSteg?.ned}
                   hitSlop={8}
-                  className="rounded-full border border-gray-300 p-1"
+                  className="rounded-full border border-gray-300 p-1 disabled:opacity-40"
                 >
                   <Minus size={16} color="#374151" />
                 </Pressable>
                 <Text className="w-16 text-center text-sm text-gray-900">{dag.fravaerTil}</Text>
                 <Pressable
-                  onPress={() =>
-                    onRett({ fravaerTil: stegOvertidFra(dag.fravaerTil!, 1, fra, til, tidsrunding) })
-                  }
+                  onPress={() => dag.fravaerSteg?.opp && onRett({ fravaerTil: dag.fravaerSteg.opp })}
+                  disabled={!dag.fravaerSteg?.opp}
                   hitSlop={8}
-                  className="rounded-full border border-gray-300 p-1"
+                  className="rounded-full border border-gray-300 p-1 disabled:opacity-40"
                 >
                   <Plus size={16} color="#374151" />
                 </Pressable>
