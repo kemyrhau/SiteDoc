@@ -262,19 +262,29 @@ export function tilleggUtenRad(forslag: Dagsforslag, perRad: TilleggPerRad): str
   return Object.keys(perRad).filter((k) => harLinjer(perRad[k]) && !finnes.has(k));
 }
 
-/** Regel 2: maskinens egne timer ≤ radens (standard = radens, lavere tillatt). */
+/**
+ * Regel 2: maskinens egne timer ≤ radens (standard = radens, lavere tillatt).
+ * Pr. kjøretøy: flere linjer med samme `vehicleId` på samme rad summeres
+ * (V1, GATE 50 — én maskin kan ikke gå flere timer enn raden). Bruddet
+ * bærer summen i `maskin.timer`.
+ */
 export function maskinerOverRaden(
   forslag: Dagsforslag,
   perRad: TilleggPerRad,
 ): Array<{ nokkel: string; projectId: string; radTimer: number; maskin: TilleggMaskin }> {
-  return tilleggRader(forslag).flatMap((r) =>
-    maskinerOverRad(r.timer, perRad[r.nokkel]?.maskiner ?? []).map((maskin) => ({
+  return tilleggRader(forslag).flatMap((r) => {
+    const pr = new Map<string, TilleggMaskin>();
+    for (const m of perRad[r.nokkel]?.maskiner ?? []) {
+      const f = pr.get(m.vehicleId);
+      pr.set(m.vehicleId, f ? { ...f, timer: f.timer + m.timer } : m);
+    }
+    return maskinerOverRad(r.timer, [...pr.values()]).map((maskin) => ({
       nokkel: r.nokkel,
       projectId: r.projectId,
       radTimer: r.timer,
       maskin,
-    })),
-  );
+    }));
+  });
 }
 
 /** Maskinene som skrives på datoens sedel, med radens prosjekt (for sum-vakten). */

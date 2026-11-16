@@ -87,7 +87,8 @@ export function prosjektMedFlestTimer(forslag: Dagsforslag): string | null {
 /**
  * ORDRE 36a/36b: kortnøklene der kortet står uten beskrivelse. Ett kort =
  * én beskrivelse (Kenneth 2026-11-16, ORDRE 24) — også når overtid deler
- * kortet i flere arbeidsrader. Ett kort pr. prosjekt → nøkkelen er projectId.
+ * kortet i flere arbeidsrader. Ett kort pr. (dato, prosjekt) — RETUR (24): første
+ * datos kort har nøkkelen projectId, senere datoer `${dato}|${projectId}`.
  */
 export function manglerBeskrivelse(forslag: Dagsforslag): string[] {
   return kortMedArbeid(forslag)

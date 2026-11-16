@@ -13,8 +13,8 @@ import type { Dagsforslag } from "./dagsforslag";
  * `fordelTilleggPaaKort` linjene på radene:
  *  - varer → første arbeidsrad (`sheetTimerId`);
  *  - maskin → første arbeidsrad opp til radens timer, resten på neste rad
- *    (fyll i radrekkefølge), så regelen maskin ≤ radens timer
- *    (`kobledeMaskiner.maskinerOverRad`) holder på hver rad.
+ *    (fyll i radrekkefølge, kapasitet pr. kjøretøy og rad), så regelen
+ *    maskin ≤ radens timer (`maskinerOverRaden`) holder på hver rad.
  */
 
 const EPS = 1e-6;
@@ -59,10 +59,16 @@ export function kortArbeidstimer(rader: readonly KortRad[]): number {
 
 const rund = (t: number) => Math.round(t * 100) / 100;
 
-/** Én maskin fordelt på radene: fyll første rad, resten videre. Siste rad tar resten. */
+/**
+ * Én maskin fordelt på radene: fyll første rad, resten videre. Siste rad tar
+ * resten. `brukt` er timene samme kjøretøy (vehicleId) allerede har fått pr.
+ * rad på kortet — V1 (GATE 50): to linjer med samme maskin fyller ikke begge
+ * første rad fra null.
+ */
 function fordelMaskin(
   m: TilleggMaskin,
   rader: readonly { tilleggNokkel: string; timer: number }[],
+  brukt: Map<string, number>,
 ): Array<{ nokkel: string; maskin: TilleggMaskin }> {
   if (!(m.timer > EPS)) return [{ nokkel: rader[0]!.tilleggNokkel, maskin: m }];
   const ut: Array<{ nokkel: string; maskin: TilleggMaskin }> = [];
@@ -70,8 +76,11 @@ function fordelMaskin(
   for (let i = 0; i < rader.length && rest > EPS; i++) {
     const r = rader[i]!;
     const siste = i === rader.length - 1;
-    const del = siste ? rest : Math.min(rest, r.timer);
+    const bruktNokkel = `${m.vehicleId}|${r.tilleggNokkel}`;
+    const ledig = Math.max(0, r.timer - (brukt.get(bruktNokkel) ?? 0));
+    const del = siste ? rest : Math.min(rest, ledig);
     if (!(del > EPS)) continue;
+    brukt.set(bruktNokkel, (brukt.get(bruktNokkel) ?? 0) + del);
     ut.push({
       nokkel: r.tilleggNokkel,
       maskin: { ...m, lokalId: ut.length === 0 ? m.lokalId : `${m.lokalId}#${ut.length + 1}`, timer: rund(del) },
@@ -83,7 +92,9 @@ function fordelMaskin(
 
 /**
  * Lagring: kortets sett (uansett hvilken av kortets radnøkler linjene står
- * under) fordeles på kortets arbeidsrader. Nøkler som ikke hører til noe kort
+ * under) fordeles på kortets arbeidsrader. Kortet er dato-bundet (RETUR 24,
+ * `arbeidsraderPerKort`), så fordelingen krysser aldri midnatt — ingen
+ * automatisk flytting mellom kort. Nøkler som ikke hører til noe kort
  * røres ikke — `tilleggUtenRad` stopper fortsatt på dem.
  */
 export function fordelTilleggPaaKort(forslag: Dagsforslag, perRad: TilleggPerRad): TilleggPerRad {
@@ -96,8 +107,9 @@ export function fordelTilleggPaaKort(forslag: Dagsforslag, perRad: TilleggPerRad
     if (samlet.maskiner.length === 0 && samlet.varer.length === 0) continue;
     const hent = (n: string) => (ut[n] ??= { maskiner: [], varer: [] });
     if (samlet.varer.length > 0) hent(medNokkel[0]!.tilleggNokkel).varer.push(...samlet.varer);
+    const brukt = new Map<string, number>();
     for (const m of samlet.maskiner) {
-      for (const d of fordelMaskin(m, medNokkel)) hent(d.nokkel).maskiner.push(d.maskin);
+      for (const d of fordelMaskin(m, medNokkel, brukt)) hent(d.nokkel).maskiner.push(d.maskin);
     }
   }
   return ut;
