@@ -2570,6 +2570,8 @@
   "firma.timer.rapport.eksport.csv": "CSV (.csv)",
   "firma.timer.rapport.eksport.excel": "Excel (.xlsx)",
   "firma.timer.rapport.eksport.pdf": "PDF (.pdf)",
+  "firma.timer.rapport.eksport.taMedUattesterte": "Nicht genehmigte Daten einbeziehen",
+  "firma.timer.rapport.eksport.taMedUattesterteHint": "Ungeprüft enthalten Excel, CSV und PDF nur genehmigte Stunden, Maschinen und Zulagen sowie Ausgaben aus genehmigten Stundenzetteln. Geprüft enthalten sie auch, was noch auf Genehmigung wartet.",
   "firma.timer.rapport.pdf.dokumentTittel": "Zeitbericht",
   "firma.timer.rapport.pdf.periode": "Zeitraum",
   "firma.timer.rapport.pdf.prosjekt": "Projekt",

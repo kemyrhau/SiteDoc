@@ -2570,6 +2570,8 @@
   "firma.timer.rapport.eksport.csv": "CSV (.csv)",
   "firma.timer.rapport.eksport.excel": "Excel (.xlsx)",
   "firma.timer.rapport.eksport.pdf": "PDF (.pdf)",
+  "firma.timer.rapport.eksport.taMedUattesterte": "Inkludera ej godkända",
+  "firma.timer.rapport.eksport.taMedUattesterteHint": "Avmarkerat, Excel, CSV och PDF inkluderar endast godkända timmar, maskiner och ersättningar samt utgifter från godkända tidrapporter. Kontrollerat, de inkluderar även det som fortfarande väntar på godkännande.",
   "firma.timer.rapport.pdf.dokumentTittel": "Tidsrapport",
   "firma.timer.rapport.pdf.periode": "Period",
   "firma.timer.rapport.pdf.prosjekt": "Projekt",

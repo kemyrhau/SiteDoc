@@ -2570,6 +2570,8 @@
   "firma.timer.rapport.eksport.csv": "CSV (.csv)",
   "firma.timer.rapport.eksport.excel": "Excel (.xlsx)",
   "firma.timer.rapport.eksport.pdf": "PDF (.pdf)",
+  "firma.timer.rapport.eksport.taMedUattesterte": "Включити незатверджені",
+  "firma.timer.rapport.eksport.taMedUattesterteHint": "Якщо не позначено, Excel, CSV і PDF включають лише затверджені години, машини та надбавки, а також витрати із затверджених табелів. Перевірено, вони також містять те, що ще очікує на затвердження.",
   "firma.timer.rapport.pdf.dokumentTittel": "Звіт про час",
   "firma.timer.rapport.pdf.periode": "Крапка",
   "firma.timer.rapport.pdf.prosjekt": "Демонструвати",

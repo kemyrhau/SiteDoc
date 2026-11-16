@@ -79,6 +79,9 @@ type MalConfig = {
   /** configVersion 3: valgt kolonnesett + rekkefølge (rekkefølgen I arrayet ER
    *  kolonnerekkefølgen). Tom → standardsett i standardrekkefølge (uendret atferd). */
   kolonner: TimerKolKey[];
+  /** configVersion 4 (ordre (31)): «Ta med uattesterte». false (standard) → eksporten
+   *  tar bare attesterte rader; true → alle (atferden før vedtaket 2026-11-16). */
+  taMedUattesterte: boolean;
 };
 
 /** En lagret mal slik list-endepunktet returnerer den (config er Json). */
@@ -96,6 +99,7 @@ function lesConfig(config: unknown): MalConfig {
     orientering?: unknown;
     topptekst?: unknown;
     kolonner?: unknown;
+    taMedUattesterte?: unknown;
   };
   const radTyper = Array.isArray(c.radTyper)
     ? c.radTyper.filter((r): r is DetaljRadType =>
@@ -126,6 +130,8 @@ function lesConfig(config: unknown): MalConfig {
         : "auto",
     topptekst: linjer && linjer.length > 0 ? { linjer } : null,
     kolonner,
+    // Utelatt (v1–v3-maler) → false: eksport-standarden er bare attesterte rader.
+    taMedUattesterte: c.taMedUattesterte === true,
   };
 }
 
@@ -160,6 +166,7 @@ function byggInnebygde(t: (k: string) => string): InnebygdMal[] {
         // Full eksport = alle kolonner i standardrekkefølge (eksplisitt sett → alle
         // tre flater viser det samme, jf. flateparitet-vedtaket).
         kolonner: [...TIMER_KOL_KEYS],
+        taMedUattesterte: false,
       },
     },
     {
@@ -173,6 +180,7 @@ function byggInnebygde(t: (k: string) => string): InnebygdMal[] {
         orientering: "auto",
         topptekst: null,
         kolonner: [...TIMER_KOL_KEYS],
+        taMedUattesterte: false,
       },
     },
     {
@@ -200,6 +208,7 @@ function byggInnebygde(t: (k: string) => string): InnebygdMal[] {
           "dato", "prosjekt", "type", "betegnelse", "aktivitet",
           "timer", "maskintimer", "antall", "belop", "mengde", "enhet", "beskrivelse",
         ],
+        taMedUattesterte: false,
       },
     },
   ];
@@ -348,6 +357,9 @@ export default function TimerRapportSide() {
   // config v3: valgt kolonnesett + rekkefølge. Tom → dynamisk standardsett. Styrer
   // detaljvisningen (skjerm) live og skrives ut av Excel/PDF (flateparitet).
   const [valgteKolonner, setValgteKolonner] = useState<TimerKolKey[]>([]);
+  // Ordre (31): «Ta med uattesterte» — av som standard (eksporten tar bare attesterte
+  // rader). Delt av eksportmenyen og mal-redigereren; lagres i malen (config v4).
+  const [taMedUattesterte, setTaMedUattesterte] = useState(false);
   const [visKolonneVelger, setVisKolonneVelger] = useState(false);
   // Egen åpne-tilstand for velgeren i detalj-filterraden (samme `valgteKolonner`
   // som mal-editoren, men egen popover så de to ikke slår hverandre av/på).
@@ -391,6 +403,8 @@ export default function TimerRapportSide() {
         prosjektId: valgtProsjektId || undefined,
         ansattId: valgtAnsattId || undefined,
         fravaerEtikett: t("timer.detalj.fravaerUtenProsjekt"),
+        // Skjermen viser alle rader (ordre (31) gjelder eksporten, ikke skjermen).
+        taMedUattesterte: true,
       },
       { enabled: !!orgId && harTimer },
     );
@@ -513,6 +527,7 @@ export default function TimerRapportSide() {
     // Tom → dynamisk standardsett (dagens atferd for de direkte format-knappene og
     // en blank ny mal); brukeren materialiserer et eksplisitt sett i kolonnevelgeren.
     kolonner: [],
+    taMedUattesterte: false,
   };
 
   /** `utFormat` = filtypen som produseres (csv|xlsx|pdf). `cfg` bærer fase 4-aksene
@@ -557,6 +572,7 @@ export default function TimerRapportSide() {
           orientering: cfg.orientering,
           topptekstLinjer: cfg.topptekst?.linjer,
           kolonner: cfg.kolonner.length > 0 ? cfg.kolonner : undefined,
+          taMedUattesterte: cfg.taMedUattesterte,
           tekster: byggPdfTekster(t, byggStatusEtiketter(t)),
         });
         lastNedBase64(res.pdf, res.filnavn, "application/pdf");
@@ -576,6 +592,8 @@ export default function TimerRapportSide() {
         ansattId: valgtAnsattId || undefined,
         fravaerEtikett: t("timer.detalj.fravaerUtenProsjekt"),
         kunEksporterbare: true,
+        // Ordre (31): aggregat-arkene får SAMME radutvalg som detalj-arkene.
+        taMedUattesterte: cfg.taMedUattesterte,
       });
       const input = {
         ansatte: eksportRapport.ansatte.map((a) => ({
@@ -604,6 +622,7 @@ export default function TimerRapportSide() {
           prosjektId: valgtProsjektId || undefined,
           ansattId: valgtAnsattId || undefined,
           fravaerEtikett: t("timer.detalj.fravaerUtenProsjekt"),
+          taMedUattesterte: cfg.taMedUattesterte,
         });
         await mod.eksporterXlsx(input, detalj, t, {
           radTyper,
@@ -634,6 +653,7 @@ export default function TimerRapportSide() {
     setOrientering(cfg.orientering);
     setTopptekstTekst(cfg.topptekst ? cfg.topptekst.linjer.join("\n") : "");
     setValgteKolonner([...cfg.kolonner]);
+    setTaMedUattesterte(cfg.taMedUattesterte);
   }
 
   /** Bygg config fra gjeldende modal-tilstand. Topptekst: én linje pr. rad, tomme
@@ -651,6 +671,7 @@ export default function TimerRapportSide() {
       orientering,
       topptekst: linjer.length > 0 ? { linjer } : null,
       kolonner: valgteKolonner,
+      taMedUattesterte,
     };
   }
 
@@ -827,6 +848,19 @@ export default function TimerRapportSide() {
                   {/* «Skriv ut det som vises»: eksporterer skjermens gjeldende akser
                       (radvalg · mottaker · gruppering), ikke en egen full-default. */}
                   <div className="my-1 border-t border-gray-100" />
+                  {/* Ordre (31): radutvalget for CSV/Excel/PDF under. Av = bare attesterte. */}
+                  <label
+                    className="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+                    title={t("firma.timer.rapport.eksport.taMedUattesterteHint")}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={taMedUattesterte}
+                      onChange={(e) => setTaMedUattesterte(e.target.checked)}
+                      className="h-4 w-4 rounded border-gray-300 text-sitedoc-primary"
+                    />
+                    {t("firma.timer.rapport.eksport.taMedUattesterte")}
+                  </label>
                   <button
                     type="button"
                     onClick={() => håndterEksport("csv", skjermConfig("xlsx"))}
@@ -882,6 +916,8 @@ export default function TimerRapportSide() {
           setTopptekstTekst={setTopptekstTekst}
           valgteKolonner={valgteKolonner}
           setValgteKolonner={setValgteKolonner}
+          taMedUattesterte={taMedUattesterte}
+          setTaMedUattesterte={setTaMedUattesterte}
           visKolonneVelger={visKolonneVelger}
           setVisKolonneVelger={setVisKolonneVelger}
           redigererEksisterende={redigererMalId !== null}
@@ -1513,6 +1549,8 @@ function TilpassetModal({
   setTopptekstTekst,
   valgteKolonner,
   setValgteKolonner,
+  taMedUattesterte,
+  setTaMedUattesterte,
   visKolonneVelger,
   setVisKolonneVelger,
   redigererEksisterende,
@@ -1541,6 +1579,8 @@ function TilpassetModal({
   setTopptekstTekst: (v: string) => void;
   valgteKolonner: TimerKolKey[];
   setValgteKolonner: (v: TimerKolKey[]) => void;
+  taMedUattesterte: boolean;
+  setTaMedUattesterte: (v: boolean) => void;
   visKolonneVelger: boolean;
   setVisKolonneVelger: (v: boolean) => void;
   redigererEksisterende: boolean;
@@ -1617,6 +1657,22 @@ function TilpassetModal({
                 </label>
               ))}
             </div>
+          </div>
+
+          {/* Ordre (31): radutvalg — av = bare attesterte rader (eksport-standard). */}
+          <div>
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={taMedUattesterte}
+                onChange={(e) => setTaMedUattesterte(e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300 text-sitedoc-primary"
+              />
+              {t("firma.timer.rapport.eksport.taMedUattesterte")}
+            </label>
+            <p className="mt-1.5 text-xs text-gray-500">
+              {t("firma.timer.rapport.eksport.taMedUattesterteHint")}
+            </p>
           </div>
 
           {/* Mottaker (fase 4) — regel, ikke avhuking. Ekstern fjerner status+ID strukturelt. */}

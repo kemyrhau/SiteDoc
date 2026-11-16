@@ -2570,6 +2570,8 @@
   "firma.timer.rapport.eksport.csv": "CSV (.csv)",
   "firma.timer.rapport.eksport.excel": "Excel (.xlsx)",
   "firma.timer.rapport.eksport.pdf": "PDF (.pdf)",
+  "firma.timer.rapport.eksport.taMedUattesterte": "Включить неодобренные",
+  "firma.timer.rapport.eksport.taMedUattesterteHint": "Если флажок снят, Excel, CSV и PDF включают только утвержденные часы, машины и надбавки, а также расходы из утвержденных табелей учета рабочего времени. Проверено, они также включают в себя то, что еще ожидает одобрения.",
   "firma.timer.rapport.pdf.dokumentTittel": "Отчет о времени",
   "firma.timer.rapport.pdf.periode": "Период",
   "firma.timer.rapport.pdf.prosjekt": "Проект",
