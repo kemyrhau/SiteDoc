@@ -156,8 +156,13 @@ describe("T12 — Bekreft dag fører tillegg og utlegg pr. kort (B6)", () => {
     "...nyttKort(projectId)",
     "...nyttKort(u.projectId)",
   ];
-  // ORDRE 25: linja skrives på datokortets sedel; første åpne sedel bare som reserve.
-  const KRAV_ANVEND = ["sedelPerDato.set(d.dato, resultat.id);", "const sheetId = (l.dato !== undefined ? sedelPerDato.get(l.dato) : undefined) ?? forste;"];
+  // ORDRE 25: linja skrives på datokortets sedel. ORDRE 26: første åpne sedel er
+  // reserve KUN for linje uten dato; dato uten åpen sedel → feil, aldri flytting.
+  const KRAV_ANVEND = [
+    "sedelPerDato.set(d.dato, resultat.id);",
+    "const sheetId = l.dato !== undefined ? sedelPerDato.get(l.dato)! : forste;",
+    "if (utenSedel.length > 0) throw new DatokortUtenSedelFeil(utenSedel);",
+  ];
 
   it("🔴 skjermen gir linjene kort ved lagring, og komponenten viser kortvalg ved flere kort", () => {
     for (const k of KRAV_SKJERM) expect(SKJERM).toContain(k);
@@ -173,5 +178,18 @@ describe("T12 — Bekreft dag fører tillegg og utlegg pr. kort (B6)", () => {
     expect(uten).not.toContain(KRAV_LONN[3]);
     const udatert = ANVEND.replace(KRAV_ANVEND[1]!, "const sheetId = forste;");
     expect(udatert).not.toContain(KRAV_ANVEND[1]);
+    const gammelReserve = ANVEND.replace(KRAV_ANVEND[1]!, "const sheetId = (l.dato !== undefined ? sedelPerDato.get(l.dato) : undefined) ?? forste;");
+    expect(gammelReserve).not.toContain(KRAV_ANVEND[1]);
+  });
+
+  // ORDRE 26: stoppen «dato sendt underveis» regner forslaget ut på nytt.
+  const KRAV_SENDT = [
+    'handling.type === "datoSendtUnderveis"',
+    "settSendtNonce((n) => n + 1);",
+    "periodeVersjon, sendtNonce]);",
+  ];
+  it("🔴 ORDRE 26: skjermen regner forslaget ut på nytt når en dato ble sendt underveis", () => {
+    for (const k of KRAV_SENDT) expect(SKJERM).toContain(k);
+    expect(SKJERM.replace(KRAV_SENDT[2]!, "periodeVersjon]);")).not.toContain(KRAV_SENDT[2]);
   });
 });

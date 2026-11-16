@@ -31,8 +31,8 @@ import type { NyKoOppforing } from "../providers/OpplastingsKoProvider";
 /**
  * ORDRE Tillegg/Utlegg i Bekreft dag: lønnstillegg og utlegg holdt i minnet på
  * skjermen. Knyttet til sedel + prosjekt (ikke rad). ORDRE 25: skrives på
- * sedelen for linjas datokort (`dato`); uten dato, eller datoen ble blokkert
- * under skrivingen, på første åpne dato sin sedel (`forsteLagredeSheetId`).
+ * sedelen for linjas datokort (`dato`); uten dato på første åpne dato sin sedel
+ * (`forsteLagredeSheetId`). ORDRE 26: dato uten åpen sedel → `DatokortUtenSedelFeil`.
  */
 export type LonnUtlegg = { tillegg: NyttLonnstillegg[]; utlegg: NyttUtlegg[] };
 
@@ -43,6 +43,18 @@ export function harLonnUtlegg(l: LonnUtlegg | undefined): l is LonnUtlegg {
 type LokalDb = NonNullable<ReturnType<typeof hentDatabase>>;
 
 export type { AnvendDagsforslagResultat };
+
+/**
+ * ORDRE (26): en tillegg-/utleggslinje med datokort finner ingen åpen sedel for
+ * datoen. `bekreftDag` stopper dette før skriving (`datoerSendtUnderveis`);
+ * feilen betyr at vakten er forbigått — linja flyttes aldri til en annen dato.
+ */
+export class DatokortUtenSedelFeil extends Error {
+  constructor(readonly datoer: string[]) {
+    super(`Tillegg/utlegg på datokort uten åpen sedel: ${datoer.join(", ")}`);
+    this.name = "DatokortUtenSedelFeil";
+  }
+}
 
 /**
  * Anvend et beregnet dagsforslag: skriv sedler + rader. Injiserbare `nyId`/`naa`
@@ -131,6 +143,14 @@ export function anvendDagsforslag(
       forsteLagredeSheetId: null,
     };
   }
+
+  // ORDRE (26): en linje med datokort må peke på en åpen dato i forslaget —
+  // sjekkes FØR noe skrives (ren sjekk, ingen db). Se `DatokortUtenSedelFeil`.
+  const aapneDatoer = new Set(forslag.datoer.filter((d) => !d.blokkert).map((d) => d.dato));
+  const utenAapenDato = [...(lonnUtlegg?.tillegg ?? []), ...(lonnUtlegg?.utlegg ?? [])]
+    .map((l) => l.dato)
+    .filter((dato): dato is string => dato !== undefined && !aapneDatoer.has(dato));
+  if (harLonnUtlegg(lonnUtlegg) && utenAapenDato.length > 0) throw new DatokortUtenSedelFeil(utenAapenDato);
 
   for (const d of forslag.datoer) {
     // UF-0/UF-1: sedel-opprettelse + idempotens via delt helper (org-backfill
@@ -261,20 +281,26 @@ export function anvendDagsforslag(
 
   // ORDRE Tillegg/Utlegg i Bekreft dag. ORDRE 25 (Kenneth 2026-11-16): hver
   // linje på sedelen for sitt datokort (`dato`, satt av `knyttLonnUtleggTilKort`).
-  // Uten dato (prosjekt uten arbeid) eller datoen ble blokkert under skrivingen
-  // → første åpne dato sin sedel, som før 25 — aldri stille tap. Ingen åpen
-  // sedel (alt ble blokkert) → `lonnUtleggSkrevet` false; `bekreftDag` gjør det
-  // til stoppen `tilleggUtleggUtenDag`, og skjermen blir stående med linjene.
+  // Uten dato (prosjekt uten arbeid) → første åpne dato sin sedel, som før 25.
+  // ORDRE (26): en linje MED dato flyttes aldri til en annen dato. Er datoen
+  // ikke lagret her, er vakten `datoerSendtUnderveis` i `bekreftDag` forbigått
+  // → feil kastes FØR noen linje skrives. Ingen åpen sedel (alt ble blokkert)
+  // → `lonnUtleggSkrevet` false; `bekreftDag` gjør det til stoppen
+  // `tilleggUtleggUtenDag`, og skjermen blir stående med linjene.
   let lonnUtleggSkrevet = false;
   const utleggKo: NyKoOppforing[] = [];
   if (harLonnUtlegg(lonnUtlegg) && forsteLagredeSheetId) {
     const forste = forsteLagredeSheetId;
+    const utenSedel = [...lonnUtlegg.tillegg, ...lonnUtlegg.utlegg]
+      .map((l) => l.dato)
+      .filter((dato): dato is string => dato !== undefined && !sedelPerDato.has(dato));
+    if (utenSedel.length > 0) throw new DatokortUtenSedelFeil(utenSedel);
     // T12 (spec tillegg-utlegg-prosjektkort § 5, B6): linja bærer kortets
     // byggeplass (effektiv). Lik sedelens → null (arv), som timeradene
     // (`lagretByggeplassForKort`). Underprosjektet er dagens valg og settes
     // bare på dagens prosjekt — et ECO tilhører alltid sitt prosjekt.
     const plassering = (l: { projectId: string; byggeplassId?: string | null; dato?: string }) => {
-      const sheetId = (l.dato !== undefined ? sedelPerDato.get(l.dato) : undefined) ?? forste;
+      const sheetId = l.dato !== undefined ? sedelPerDato.get(l.dato)! : forste;
       const sedel = sedelKontekstLokalt(db, sheetId);
       const bp = l.byggeplassId ?? null;
       return {

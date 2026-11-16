@@ -5608,6 +5608,8 @@
   "hjelp.utlegg.tekst": "Wydatki to pieniądze, które poniosłeś sam w imieniu firmy i które podlegają zwrotowi. Zrób zdjęcie paragonu. Przykłady: parking, opłaty drogowe, narzędzia zakupione w sklepie, paliwo do samochodu służbowego. Wydatek jest wpisywany na karcie projektu i pobiera plac budowy oraz podprojekt z karty.",
   "timer.bekreftDag.tilleggUtlegg.utenDagTittel": "Nie zaoszczędzono na dodatkach i wydatkach",
   "timer.bekreftDag.tilleggUtlegg.utenDagTekst": "Wszystkie dni zostały już wysłane, więc diety i wydatki nie mają grafiku, na którym można by zapisać. Nic nie zostało zapisane. Usuń je lub wpisz na karcie projektu.",
+  "timer.bekreftDag.sendtUnderveis.tittel": "Nic nie zostało zapisane – data została przesłana",
+  "timer.bekreftDag.sendtUnderveis.tekst": "{{datoer}} został przesłany do zatwierdzenia, gdy ten ekran był otwarty. Karty zostały zaktualizowane bez tej daty. Sprawdź karty i ponownie dotknij „Potwierdź i zapisz”.",
   "timer.bekreftDag.lonnUtlegg.kortValg": "Karta",
   "timer.dagsoversikt.endreMengde": "Zmień ilość",
   "timer.dagsoversikt.slettVare": "Usuń element",
