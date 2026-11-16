@@ -61,3 +61,23 @@ export const HJUL_STEG = 2.5;
 export function hjulAvstand(deltaY: number): number {
   return (-deltaY / 100) * HJUL_STEG;
 }
+
+/**
+ * Rotasjon rundt skjermmidten (Kenneth 2026-11-17).
+ *
+ * Orbit-punktet legges på blikklinja gjennom skjermmidten: på treffets avstand når
+ * raycasten fra midten traff modellen, ellers på samme avstand som sist.
+ * Punktet ligger alltid på blikklinja, så kameraet snur seg ikke når target settes.
+ *
+ * @param retning enhetsvektor for blikkretningen
+ * @param treffAvstand avstand kamera→treffpunkt, eller `null` når midten ikke traff noe
+ */
+export function orbitPunkt(
+  kamera: Vec3,
+  retning: Vec3,
+  treffAvstand: number | null,
+  sisteAvstand: number,
+): { punkt: Vec3; avstand: number } {
+  const avstand = treffAvstand !== null && treffAvstand > 0 ? treffAvstand : sisteAvstand;
+  return { punkt: flyttLangsBlikk(kamera, retning, avstand), avstand };
+}
