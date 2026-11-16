@@ -57,7 +57,7 @@ Status fylles inn av orkestrator ved merge. ⚪ ikke målt · 🔵 målt · 🟢
 |---|---|---|
 | M1 | Pan virker ikke i én modell på prod; i en annen modell på test virker den | 🔵 samme viewer-kode på test og prod; **Kenneth 2026-11-16: test og prod er to forskjellige modeller** → modellavhengig. **Prod-modellen (Kenneth 2026-11-16): ikke georeferert, omtrent samme størrelse som test-modellen, åpner liten og litt ned mot venstre, nær midten** |
 | M2 | Zoom med to fingre er 50–60 % for rask på prod, OK på test | 🔵 som M1 |
-| M3 | Rotere objektet virker ikke på prod, virker på test | 🔵 som M1**Kenneth 2026-11-17:** rotasjon virker på begge, men rundt et punkt utenfor bygget; inne i bygget forsvinner det ut av skjermen og zoom nær er for rask (ønske: rask langt unna, sakte nær). Objekter langt unna bygget er ofte feil-eksport (arkitektens informasjonsfiler). 🟡 Rotasjonspunkt og skjuling av objekter langt unna venter på Kenneths valg. |
+| M3 | Rotere objektet virker ikke på prod, virker på test | 🔵 som M1. **Kenneth 2026-11-17:** rotasjon virker på begge, men rundt et punkt utenfor bygget; inne i bygget forsvinner det ut av skjermen og zoom nær er for rask (ønske: rask langt unna, sakte nær). Objekter langt unna bygget er ofte feil-eksport (arkitektens informasjonsfiler). 🟡 Vedtatt § 3b; RETUR 3D-mobil 3 sendt. |
 | M4 | Saks / «beskjær bygget» er svært ustabil | 🔵 dobbelttapp gir objektvalg + nye plan; kameralås under dra må måles på touch |
 | M5 | Objektinfo viser ingen detaljer, egenskaper eller mål | 🟢 (1) merget `1dfb6191` (ikke deployet); (2) bare direkte attributter, felles uttrekk med W3 |
 | M6 | Måling mangler | 🔵 fravær målt; felles med W5 |

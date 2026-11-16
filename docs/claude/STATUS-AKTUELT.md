@@ -31,7 +31,7 @@ sist_verifisert_mot_kode: 2026-08-09
 > ⚠️ **IKKE i prod:** DWG retur 2 (auto-rotasjon, startutsnitt, LEADER) · DWG retur 4 (fullstendighet: ATTRIB-tegning + `konvertering_rapport` + gate-test, branch `fix/dwg-retur4-strek`) · snap-retur 1 — under arbeid. DWG-3 (georeferanse fire hjørner) ikke levert — se § 2026-09-24 under.
 
 > ✅ **Gjestevern ved firmabytte, mobil (19) MERGET 2026-11-15** (merge `1a287c5d` av `38f4dffa`; Kontrollør GODKJENT GATE (44) nederst i `inbox-orkestrator.md`). `skalNullstilleProsjekt` flyttet til `@sitedoc/shared` (`gjesteprosjekt.ts`, web re-eksporterer); mobil `ProsjektKontekst.tsx` holder ventende firmabytte til gjestelista er lastet (`firmabyttProsjekt.ts` `firmabyttUtfall`) — gjesteprosjekt beholdes ved firmabytte. **Ikke deployet.** Lukker (18) åpent punkt (b).
-> ✅ **Kort-id d2b-1 + 3D-web W1/W4/W2 MERGET 2026-11-17** (merge `80f165cf` av `65389b4c`, gate (77) + Kenneths ja på B1; merge `470f9d57` av `d6d0b453`, gate (79)+(80)). Regel 10 på `470f9d57`: testleddet rødt parallelt-lastet på `pdfjs-node20`-flaken, api alene 204/204 grønt (målt etter push). Ikke deployet. (81) 3D-mobil kamera venter på Kenneths valg av rotasjonspunkt.
+> ✅ **Kort-id d2b-1 + 3D-web W1/W4/W2 MERGET 2026-11-17** (merge `80f165cf` av `65389b4c`, gate (77) + Kenneths ja på B1; merge `470f9d57` av `d6d0b453`, gate (79)+(80)). Regel 10 på `470f9d57`: testleddet rødt parallelt-lastet på `pdfjs-node20`-flaken, api alene 204/204 grønt (målt etter push). Ikke deployet. (81) 3D-mobil kamera: Kenneth valgte 2026-11-17 «Ja til begge» (§ 3b) → RETUR 3D-mobil 3.
 
 > ✅ **3D M5 (1) objektinfo fra cache MERGET 2026-11-16** (merge `1dfb6191` av `63fb5bc8`; Kontrollør GODKJENT GATE (78) `inbox-orkestrator.md:30818`). `mobil-viewer/page.tsx` + `ifcRaadata.ts`. Krever web-deploy til test før Kenneth tester på telefon (klikkplan i leveransen). Oppfølger anbefalt av Kontrollør: lagre råfila med fragmentene / hent ved første tapp (mobildata).
 
@@ -142,8 +142,8 @@ sist_verifisert_mot_kode: 2026-08-09
 | **Dokgen** | `SiteDoc-dokgen` | `feat/arbeidstegning-prod-klar` `954a2ac0` | ikke målt denne runden |
 | **Kontrollplan** | `SiteDoc-kontrollplan` | `feat/v17b-soner` `301da63e` | ikke målt denne runden |
 | **Mal-Opus** | `SiteDoc-mal` | `feat/mal-7b-standardnavn-vakt27` `eb5af56a` | ikke målt denne runden |
-| **3D-web** | app-tre `3d-web-maaling-a15d10` | `feat/3d-web-reparasjon` merget `470f9d57` | ⚪ LEDIG — neste: hover-tekst Snitt, W6, W3 ([3d-agent-prinsipper.md](3d-agent-prinsipper.md)) |
-| **3D-mobil** | app-tre `3d-mobil-maaling-a07340` | `fix/3d-mobil-kamera` `3977c19d` | 🔴 BLOKKERT — gate (81) grønn teknisk, venter Kenneths valg av rotasjonspunkt |
+| **3D-web** | app-tre `3d-web-maaling-a15d10` | `feat/3d-web-kamera` (ny) | 🟡 ORDRE 3D-web 3 sendt 2026-11-17: Snitt-hovertekst, W6, rotasjon rundt skjermmidten ([3d-agent-prinsipper.md](3d-agent-prinsipper.md) § 3b) |
+| **3D-mobil** | app-tre `3d-mobil-maaling-a07340` | `fix/3d-mobil-kamera` `3977c19d` | 🟡 RETUR 3D-mobil 3 sendt 2026-11-17: rotasjon rundt skjermmidten, zoom etter avstand, skjul objekter langt unna + shared-funksjoner (§ 3b) |
 | **Merge** | `SiteDoc-merge` | detached på develop | ⚪ LEDIG |
 
 **Tilstander:** ⚪ LEDIG · 🟠 FERDIGSKREVET (ikke relayet) · 🔵 ORDRE GITT · 🟢 LEVERT · 🔴 BLOKKERT
