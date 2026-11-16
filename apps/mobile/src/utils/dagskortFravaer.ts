@@ -2,7 +2,7 @@
  * TILLEGG (33) pkt 4.2 — F6 (kort-id-spec § 11.4 raden «Dagskort-modus-skjermen», § 11.9 F6:
  * «vise nå, opprette senere», Kenneth 2026-11-16). Dagskort-modus-skjermen (`app/timer/[id].tsx`)
  * viser rader uten prosjekt i en egen lese-gruppe «Fravær» i stedet for at de faller på sedelens
- * prosjekt via `r.projectId ?? sedel.projectId`. Ingen oppretting, ingen redigering, intet tak (F11).
+ * prosjekt via sedelens prosjekt-fallback. Ingen oppretting, ingen redigering, intet tak (F11).
  */
 
 /** Fraværsrader (`uten_prosjekt`) ut av prosjektgruppene; alt annet som før. */
