@@ -727,6 +727,8 @@ Sammenslått IFC-viewer som laster ALLE prosjektets IFC-modeller i én @thatopen
 
 **IFC-funksjonalitet:** Klient-side WASM-parsing, objektvelging med highlight, klippeplan (snitt). Norske IFC-kategorinavn i egenskapspanelet. Prioriterte attributter vises øverst. Scrollbart panel med større visningsområde.
 
+**Mus (camera-controls via OBC `SimpleCamera`):** venstre = rotasjon rundt eget ståsted (target 2 enheter foran kamera, `oppdaterTarget` i `tred-viewer-kontekst.tsx`) · høyre = pan · midtre = dolly · hjul = `ctrl.forward`. Pan-farten følger avstanden kamera→target, så ved høyre/midtre `pointerdown` flyttes target til modellsenterets dybde langs blikket (`panTargetPaaModellDybde`, `lib/tredKamera.ts`, W4 2026-11-16). Ligger senteret bak eller under 2 enheter foran, beholdes target.
+
 **3D-visning som modul:** 3D-visning er en modul (`3d-visning`, kategori `funksjon`) i `PROSJEKT_MODULER`. Deaktivert som standard — aktiveres per prosjekt via Innstillinger > Feltarbeid > Moduler. Sidebar-ikonet for 3D skjules når modulen er deaktivert.
 
 **@thatopen initialisering (kritisk rekkefølge):**

@@ -31,6 +31,7 @@ import {
   settWebifcKonstanter,
   finnIfcTypeKode,
 } from "@/app/dashbord/[prosjektId]/3d-visning/hjelpefunksjoner";
+import { panTargetPaaModellDybde } from "@/lib/tredKamera";
 
 /* ------------------------------------------------------------------ */
 /*  Kontekst-type                                                       */
@@ -368,6 +369,8 @@ export function ViewerCanvas({
         world.renderer = new OBC.SimpleRenderer(components, container);
         world.camera = new OBC.SimpleCamera(components);
         world.camera.controls?.setLookAt(20, 20, 20, 0, 0, 0);
+        // Senter av alle lastede modeller — settes når modellene er lastet (brukes av pan, W4)
+        let modellSenter: InstanceType<typeof THREE.Vector3> | null = null;
         if (world.camera.controls) {
           const ctrl = world.camera.controls;
           const cam = world.camera.three;
@@ -396,9 +399,21 @@ export function ViewerCanvas({
             ctrl.forward(steg * 2.5, false);
           }, { passive: false });
 
+          // ── Høyre/midtre knapp (pan/dolly): legg target på dybden brukeren ser på ──
+          // Pan-farten i camera-controls er proporsjonal med avstanden kamera→target.
+          // Venstreklikk og controlend legger target 2 enheter foran kamera (rotasjon
+          // rundt ståsted), så uten dette ble pan ~2 % av forventet på en bygning sett
+          // på avstand (W4). Regelen: panTargetPaaModellDybde (lib/tredKamera.ts).
+          function settTargetPaaModellDybde() {
+            if (!modellSenter) return;
+            const t = panTargetPaaModellDybde(cam.position, blikkretning(), modellSenter);
+            if (t) ctrl.setTarget(t.x, t.y, t.z, false);
+          }
+
           // ── Venstreklikk: sett target nær kamera → rotasjon rundt ståsted ──
           container.addEventListener("pointerdown", (e: PointerEvent) => {
             if (e.button === 0) oppdaterTarget();
+            else if (e.button === 1 || e.button === 2) settTargetPaaModellDybde();
           });
 
           // ── Etter all interaksjon: oppdater target for neste rotasjon ──
@@ -523,6 +538,7 @@ export function ViewerCanvas({
         // Tilpass kamera og dybdebuffer
         if (!totalBbox.isEmpty()) {
           const center = totalBbox.getCenter(new THREE.Vector3());
+          modellSenter = center.clone();
           const size = totalBbox.getSize(new THREE.Vector3());
           const maxDim = Math.max(size.x, size.y, size.z);
           // Sett near/far basert på modellstørrelse for å unngå z-fighting/flimring

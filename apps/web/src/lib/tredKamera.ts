@@ -1,0 +1,38 @@
+/**
+ * Kamera-regler for 3D-vieweren (ren geometri, uten three.js — testbar).
+ */
+
+export interface Vec3 {
+  x: number;
+  y: number;
+  z: number;
+}
+
+/** Minste dybde (scene-enheter) før pan-target flyttes; matcher «2 enheter foran» for rotasjon. */
+export const MIN_PAN_DYBDE = 2;
+
+/**
+ * W4 — orbit-target for pan (høyre/midtre museknapp).
+ *
+ * camera-controls panorerer med fart proporsjonal med avstanden kamera→target. Vieweren
+ * legger target 2 enheter foran kamera for rotasjon rundt eget ståsted; da blir pan
+ * nesten stillestående på en bygning sett på avstand. For pan legges target i stedet på
+ * modellsenterets dybde langs blikkretningen (senteret projisert på blikklinja).
+ *
+ * Returnerer `null` når target skal beholdes: senteret ligger bak kamera eller nærmere
+ * enn `MIN_PAN_DYBDE` langs blikket (f.eks. inne i bygget med ryggen mot senteret).
+ *
+ * @param retning enhetsvektor for blikkretningen
+ */
+export function panTargetPaaModellDybde(kamera: Vec3, retning: Vec3, modellSenter: Vec3): Vec3 | null {
+  const dybde =
+    (modellSenter.x - kamera.x) * retning.x +
+    (modellSenter.y - kamera.y) * retning.y +
+    (modellSenter.z - kamera.z) * retning.z;
+  if (!(dybde > MIN_PAN_DYBDE)) return null;
+  return {
+    x: kamera.x + retning.x * dybde,
+    y: kamera.y + retning.y * dybde,
+    z: kamera.z + retning.z * dybde,
+  };
+}
