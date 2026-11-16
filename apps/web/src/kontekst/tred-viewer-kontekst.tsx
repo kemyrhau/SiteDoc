@@ -320,6 +320,9 @@ export function ViewerCanvas({
   onObjektValgtRef.current = setValgtObjekt;
   const onModellStatusRef = useRef(oppdaterModellStatus);
   onModellStatusRef.current = oppdaterModellStatus;
+  // Snitt-modus (Snitt-knappen) — lest fra klikk-handleren i scenen (W2)
+  const klippModusRef = useRef(klippModus);
+  klippModusRef.current = klippModus;
 
   const tegningerIds = tegninger.map((t) => t.id).join(",");
 
@@ -431,6 +434,10 @@ export function ViewerCanvas({
         const clipper = components.get(OBC.Clipper);
         clipper.setup();
         clipper.enabled = false;
+        // W2 (1): opprett raycasteren for verdenen nå. OBC lager musesporingen
+        // (pointermove) først ved Raycasters.get(world); uten dette skjedde det ved
+        // første dobbeltklikk i clipper.create, og første snitt traff skjermens midte.
+        components.get(OBC.Raycasters).get(world);
 
         const ifcLoader = components.get(OBC.IfcLoader);
         ifcLoader.settings.autoSetWasm = false;
@@ -634,6 +641,11 @@ export function ViewerCanvas({
 
         async function handleKlikk(event: MouseEvent) {
           if (renset) return;
+          // W2 (2): i snitt-modus lages snitt med dobbeltklikk, som også gir to click.
+          // Ingen objektvalg, markør eller egenskapskort da. Sperren følger Snitt-knappen
+          // (klippModus), ikke klipperens enabled-flagg — etasjeklipp i tegning-3d slår på
+          // klipperen uten at objektvalg skal forsvinne.
+          if (klippModusRef.current) return;
           if (mouseDownPos) {
             const dx = event.clientX - mouseDownPos.x;
             const dy = event.clientY - mouseDownPos.y;
