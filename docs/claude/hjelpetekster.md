@@ -147,6 +147,14 @@ ser det før du trykker Bekreft. Forkast sletter det.»
   «Bekreft og lagre»: `sperre.kjedeKonflikt`. Prosjektkortet viser overlapp mellom lagrede rader med `timer.feil.overlapp`.
 - Merke i Timer-lista (`DagsseddelListe.tsx`): «Ikke bekreftet» (`timer.utkast.ikkeBekreftet`) — ved siden av statusen, eller på egen rad med 0 t når datoen ikke har sedel.
 
+## Web: Timerad på maskin (`dashbord/timer/[id]/page.tsx`, ordre d2c-1, 🟡 ikke merget)
+
+Dagsseddel-siden på web har ikke ?-ikon. Hjelpen står i skjemaet der valget tas (`timer.felt.timerad`, `timer.maskinTimerad.*`, `timer.fjernTimerRad.*`, 15 språk):
+- **Maskinvinduet, «Timerad»:** nedtrekk med kortets timerader («07:00–11:00 · 4 t»), forvalgt når kortet har én. Står «(valgfritt)» når maskinen leies pr. døgn.
+- **Uten valgt timerad:** «Velg timeraden maskinen gikk på.»
+- **Kortet har ingen arbeidsrad:** «Før timeraden maskinen gikk på først — maskinen står på den.» (også som hint under feltet)
+- **Slett timerad med maskin:** tittel «Slette timeraden?», teksten «Raden har 2 maskiner: Volvo EC220E, Dumper. De slettes sammen med raden.» og knappen «Slett rad og maskiner». Døgn-maskiner nevnes ikke; de blir stående uten timerad.
+
 ## Web: Avstander-fanen (`firma/oppmotesteder/page.tsx` + `AvstanderFane.tsx`, POST 2026-11-14 (10))
 
 ?-ikonet på Oppmøtesteder viser egen hjelp når fanen «Avstander» er åpen (`firma.avstander.hjelp.*`):

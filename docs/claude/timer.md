@@ -754,6 +754,16 @@ Skriveveiene (commit 2):
 - R24: en maskin som krever timerad kan ikke stå igjen uten kobling etter en retting.
 - `vareforbruk.oppdater` logger antallet før, og sperrer en vare på attestert timerad.
 
+### Sperren ved føring på PC (ordre d2c-1) — 🟡 `feat/kortid-d2c1-kobling` (2026-11-16, ikke merget)
+
+R24 gjelder nå også når arbeideren fører på PC (`apps/api/src/routes/timer/dagsseddel.ts`):
+- `maskin.tilfoy` og `maskin.oppdater` tar `sheetTimerId`. De avviser en maskin som krever timerad (alt unntatt `doegn`, H15 = A) når den mangler gyldig kobling. En oppgitt kobling må være gyldig også for døgn-maskin. Koblet maskin følger timeradens kort-id.
+- `fjernTimerRad` tar `slettMaskiner`. Står det maskiner som krever raden på den, avvises slettingen uten flagget, og maskinene navngis. Med flagget slettes de sammen med raden. Døgn-maskiner og varer blir stående uten kobling.
+- `oppdaterTimerRad` avviser reise og 0 timer på en rad som bærer en slik maskin.
+- Web (`timer/[id]/page.tsx`): maskin ført i timerad-vinduet får radens id. Maskinvinduet har nedtrekket «Timerad», forvalgt når kortet har én arbeidsrad. Sletting av en timerad med maskin krever bekreftelse som navngir maskinene.
+
+Telefonen fører lokalt og synker med `syncBatch`, som er uendret (vakt i `kortid-d2c1.integration.test.ts`). Telefonens sperre kommer i d2c-2. Kode og tester: [prosjektkort-kortid-spec.md § 12.10](prosjektkort-kortid-spec.md).
+
 ### Kort-id på telefonen og fraværskortet (ordre c) — 🟡 `feat/kortid-c-mobil` (2026-11-16, ikke merget)
 
 Avvik 3 over er løst på mobil: dagskortet, kortskjermen og Bekreft dag grupperer på kort-id (`KortValg.kortId`, `kortNokkel` i `apps/mobile/src/lib/prosjektkortMobil.ts`), så to kort på samme prosjekt, byggeplass og underprosjekt holdes adskilt. Bekreft dag har «Del til eget kort» (`tildelKortIder`, `apps/mobile/src/utils/kortIdForslag.ts`); «Flytt raden» har «Flytt til nytt kort»; «+ Nytt prosjektkort» gir alltid nytt kort. «Endre kort» til et prosjekt som alt har kort sjekker tidskollisjon med samme regel som lagring av en rad (`finnKortKollisjon` i `prosjektkort/kortRadFlytt.ts`); uten overlapp står kortene hver for seg med egen beskrivelse (Kenneth 2026-11-16, E1). «Sum i dag» og «Send dagen (N t)» tar med fraværstimer (`dagSumTimer`, E2). Maskin og vare som flyttes alene («Flytt raden»), og synkede varer etter server-flytt, får målkortets id (`flyttMaskinRad`/`flyttVareLokalt`, gate (70) A1). Fravær føres i eget fraværskort uten prosjekt («+ Fravær», `apps/mobile/src/utils/fravaerKort.ts`, `prosjektkort/fravaerKortLagring.ts`) med B10-taket; «Fravær til» (a3) er fjernet (F12 = A). Dagskort-modus viser fravær uten prosjekt i en lese-gruppe (F6, `apps/mobile/src/utils/dagskortFravaer.ts`). Full kode-liste, tester og avvik: [prosjektkort-kortid-spec.md § 8.2](prosjektkort-kortid-spec.md).

@@ -403,8 +403,9 @@ describe("T5 — server-skriveveier fyller kort_id (reise = null)", () => {
 
   it("maskin.tilfoy: maskin (og timerraden på sedelen) får kort-id", async () => {
     const sid = await nySedel();
-    await raTimer(sid);
-    const rad = await dag().maskin.tilfoy({ sheetId: sid, projectId: P1, vehicleId: MASKIN, timer: 2 });
+    // Ordre d2c-1 (R24): maskin uten satt enhet føres på timeraden den gikk på.
+    const tid = await raTimer(sid);
+    const rad = await dag().maskin.tilfoy({ sheetId: sid, projectId: P1, vehicleId: MASKIN, timer: 2, sheetTimerId: tid });
     expect(rad.kortId).not.toBeNull();
     const { timer, maskin } = await kortPaaSedel(sid);
     forventAlleMedKort([...timer, ...maskin]);
@@ -412,9 +413,10 @@ describe("T5 — server-skriveveier fyller kort_id (reise = null)", () => {
 
   it("maskin.oppdater: maskin uten kort-id får kort-id", async () => {
     const sid = await nySedel();
-    await raTimer(sid);
+    // Ordre d2c-1 (R24): maskinen står på timeraden (endring krever gyldig kobling).
+    const tid = await raTimer(sid);
     const m = await prismaTimer.sheetMachine.create({
-      data: { sheetId: sid, projectId: P1, vehicleId: MASKIN, timer: 2 },
+      data: { sheetId: sid, projectId: P1, vehicleId: MASKIN, timer: 2, sheetTimerId: tid },
     });
     await dag().maskin.oppdater({ id: m.id, timer: 3 });
     forventAlleMedKort((await kortPaaSedel(sid)).maskin);
