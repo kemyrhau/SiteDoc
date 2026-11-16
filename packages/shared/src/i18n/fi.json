@@ -5692,7 +5692,6 @@
   "timer.bekreftDag.velgLonnsart": "Valitse palkkatyyppi",
   "timer.bekreftDag.linjeLonnsartHint": "Valitse tämän rivin palkkatyyppi napauttamalla",
   "timer.bekreftDag.etterNormen": "Yli normin {{fra}}",
-  "timer.bekreftDag.fravaerTil": "Poissaolo asti",
   "timer.bekreftDag.lonnsartGruppe.ordinaer": "Tavallinen",
   "timer.bekreftDag.lonnsartGruppe.overtid": "Ylitöitä",
   "timer.bekreftDag.lonnsartGruppe.fravaer": "Poissaolo",
@@ -5706,5 +5705,13 @@
   "timer.normtak.leddArbeid": "työ {{timer}} h",
   "timer.normtak.leddAnnet": "muu poissaolo {{timer}} h",
   "timer.normtak.brudd": "{{ledd}} = {{sum}} h — yli päivittäisen normin {{norm}} h",
-  "timer.normtak.attesterSperret": "Päivämäärää ei voida hyväksyä ennen kuin poissaolo on korjattu. Palauta arkki tai korjaa tunnit."
+  "timer.normtak.attesterSperret": "Päivämäärää ei voida hyväksyä ennen kuin poissaolo on korjattu. Palauta arkki tai korjaa tunnit.",
+  "timer.normtak.rettTil": "Korjaa {{timer}} h",
+  "timer.normtak.slettFravaer": "Poista poissaolo",
+  "timer.normtak.hoyst": "Enintään {{timer}} h – {{fort}} jo rekisteröity",
+  "timer.normtak.hoystUtenFort": "Korkeintaan {{timer}} h",
+  "timer.normtak.fortArbeid": "{{timer}} tuntia työtä",
+  "timer.normtak.fortAnnet": "{{timer}} h muuta poissaoloa",
+  "timer.normtak.fortBegge": "{{arbeid}} h työtä ja {{annet}} h muuta poissaoloa",
+  "timer.normtak.normFylt": "Päivittäinen normi täyttyy"
 }

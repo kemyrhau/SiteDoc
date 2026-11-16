@@ -4,6 +4,7 @@ import { Clock } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import {
   beregnMaskinBrudd,
+  byggNormtakBruddLinje,
   overstigerMaskinTak,
   visVareforbrukKnapp,
 } from "@sitedoc/shared";
@@ -18,7 +19,8 @@ import { useAuth } from "../../../providers/AuthProvider";
 import { trpc } from "../../../lib/trpc";
 import { useTimerSync } from "../../../providers/TimerSyncProvider";
 import { useNettverk } from "../../../providers/NettverkProvider";
-import { finnLonnsartLokalt } from "../../../services/timerKatalog";
+import { finnLonnsartLokalt, finnNormtakArtLokalt } from "../../../services/timerKatalog";
+import { bruddForDag } from "../../../utils/fravaerNormtakMobil";
 import { finnEquipmentLokalt } from "../../../services/maskinKatalog";
 import { erReiseRadVisning } from "../../../utils/reiseRad";
 import { formatNorskDato } from "../../../utils/dato";
@@ -345,6 +347,23 @@ export function ProsjektkortDagsoversikt({
   );
   // Beslutning 3: Send sperres når en arbeidsrad mangler beskrivelse.
   const manglerBeskrivelse = redigerbar ? forsteRadUtenBeskrivelse(dag.rader.map((b) => b.rad)) : null;
+  // B10 (ORDRE (33) c3, § 11.10.4): fravær med tak over resten av dagsnormen — det eneste
+  // varselet om fravær og arbeid samme dag (N10). Ett trykk retter siste linje med tak;
+  // med F9 = A sperres Send til bruddet er rettet. Hele dagens rader teller (N5).
+  const normtakBrudd = useMemo(
+    () =>
+      bruddForDag({
+        dagsnorm: normTimer,
+        rader: timerRader.map((r) => ({
+          id: r.id,
+          lonnsartId: r.lonnsartId,
+          timer: r.timer,
+          erReise: erReiseRadVisning(r.erReise, r.lonnsartId, reiseLonnsartId),
+        })),
+        finnArt: finnNormtakArtLokalt,
+      }),
+    [normTimer, timerRader, reiseLonnsartId],
+  );
 
   const timerRad = (id: string | null) => (id ? timerRader.find((r) => r.id === id) ?? null : null);
   const maskinNavn = (vehicleId: string) => {
@@ -386,6 +405,31 @@ export function ProsjektkortDagsoversikt({
   };
 
   const db = () => hentDatabase()!;
+  // Ett trykk retter fraværslinja (N5/N6): ned til `rettTil`, eller slett ved 0.
+  // Fra–til som ikke lenger stemmer med timene, tas bort (FM23: fravær uten klokkeslett).
+  const rettNormtakBrudd = () => {
+    if (!normtakBrudd || !redigerbar) return;
+    const r = timerRad(normtakBrudd.radId);
+    if (!r) return;
+    if (normtakBrudd.rettTil <= 0) {
+      fjernTimerRad(db(), k, r.id);
+    } else {
+      const res = oppdaterTimerRad(db(), k, r.id, {
+        projectId: r.projectId ?? sedel.projectId,
+        byggeplassId: r.byggeplassId ?? null,
+        lonnsartId: r.lonnsartId,
+        aktivitetId: r.aktivitetId,
+        timer: normtakBrudd.rettTil,
+        externalCostObjectId: r.externalCostObjectId ?? null,
+        fraTid: null,
+        tilTid: null,
+        beskrivelse: r.beskrivelse,
+        pauseMin: r.pauseMin,
+      });
+      if (!res.ok) return;
+    }
+    onEndret();
+  };
   const redigert = timerRad(timerModal?.radId ?? null);
 
   // RETUR 36c-2 P1 (a2): «Uten byggeplass» på en sedel med byggeplass —
@@ -619,6 +663,7 @@ export function ProsjektkortDagsoversikt({
       rad.overtidsnivaa != null
         ? t("timer.dagsoversikt.overtid", { prosent: rad.overtidsnivaa })
         : finnLonnsartLokalt(timerRad(rad.id)?.lonnsartId ?? "")?.navn ?? null;
+    const iBrudd = normtakBrudd?.radId === rad.id;
     return (
       <View key={rad.id}>
         <Pressable
@@ -627,7 +672,10 @@ export function ProsjektkortDagsoversikt({
           className="min-h-[44px] flex-row items-center gap-2 active:bg-gray-50"
         >
           <Clock size={16} color="#6b7280" />
-          <Text className="flex-1 text-sm text-gray-900" style={{ fontVariant: ["tabular-nums"] }}>
+          <Text
+            className={`flex-1 text-sm ${iBrudd ? "text-amber-700" : "text-gray-900"}`}
+            style={{ fontVariant: ["tabular-nums"] }}
+          >
             {[tidTekst(rad), t2(rad.timer), lonnsart].filter(Boolean).join(" · ")}
           </Text>
         </Pressable>
@@ -828,14 +876,39 @@ export function ProsjektkortDagsoversikt({
                 </Text>
               </Pressable>
             )}
+            {normtakBrudd && (
+              <View className="py-1">
+                <Text className="text-sm text-amber-700" style={{ fontVariant: ["tabular-nums"] }}>
+                  {byggNormtakBruddLinje(t, normtakBrudd.data, formatKortTall)}
+                </Text>
+                {redigerbar && (
+                  <Pressable
+                    onPress={rettNormtakBrudd}
+                    accessibilityRole="button"
+                    className="min-h-[44px] justify-center active:bg-gray-50"
+                  >
+                    <Text className="text-sm font-semibold text-amber-700">
+                      {normtakBrudd.rettTil > 0
+                        ? t("timer.normtak.rettTil", { timer: formatKortTall(normtakBrudd.rettTil) })
+                        : t("timer.normtak.slettFravaer")}
+                    </Text>
+                  </Pressable>
+                )}
+              </View>
+            )}
             {redigerbar && (
               <Pressable
                 onPress={() =>
                   manglerBeskrivelse
                     ? aapneTimer(kortFor.timer.get(manglerBeskrivelse.id)!, manglerBeskrivelse.id, true)
-                    : onSend?.()
+                    : normtakBrudd
+                      ? undefined
+                      : onSend?.()
                 }
-                className="mt-2 min-h-[44px] items-center justify-center rounded-lg bg-gray-900 active:bg-gray-700"
+                disabled={normtakBrudd != null && !manglerBeskrivelse}
+                className={`mt-2 min-h-[44px] items-center justify-center rounded-lg ${
+                  normtakBrudd != null && !manglerBeskrivelse ? "bg-gray-400" : "bg-gray-900 active:bg-gray-700"
+                }`}
               >
                 <Text className="text-base font-semibold text-white">
                   {sendTekst.nokkel === "timer.detalj.sendPaaNytt"

@@ -5692,7 +5692,6 @@
   "timer.bekreftDag.velgLonnsart": "Valige palgatüüp",
   "timer.bekreftDag.linjeLonnsartHint": "Puudutage selle rea palgatüübi valimiseks",
   "timer.bekreftDag.etterNormen": "Üle normi alates {{fra}}",
-  "timer.bekreftDag.fravaerTil": "Puudub kuni",
   "timer.bekreftDag.lonnsartGruppe.ordinaer": "Tavaline",
   "timer.bekreftDag.lonnsartGruppe.overtid": "Ületunnitöö",
   "timer.bekreftDag.lonnsartGruppe.fravaer": "Puudumine",
@@ -5706,5 +5705,13 @@
   "timer.normtak.leddArbeid": "töö {{timer}} h",
   "timer.normtak.leddAnnet": "muu puudumine {{timer}} h",
   "timer.normtak.brudd": "{{ledd}} = {{sum}} h — üle päevanormi {{norm}} h",
-  "timer.normtak.attesterSperret": "Kuupäeva ei saa kinnitada enne, kui puudumine on parandatud. Tagasta leht või paranda tunnid."
+  "timer.normtak.attesterSperret": "Kuupäeva ei saa kinnitada enne, kui puudumine on parandatud. Tagasta leht või paranda tunnid.",
+  "timer.normtak.rettTil": "Õige {{timer}} h",
+  "timer.normtak.slettFravaer": "Kustutage puudumine",
+  "timer.normtak.hoyst": "Maksimaalselt {{timer}} h – {{fort}} on juba registreerunud",
+  "timer.normtak.hoystUtenFort": "Maksimaalselt {{timer}} h",
+  "timer.normtak.fortArbeid": "{{timer}} h tööd",
+  "timer.normtak.fortAnnet": "{{timer}} h muud puudumist",
+  "timer.normtak.fortBegge": "{{arbeid}} h tööd ja {{annet}} h muud puudumist",
+  "timer.normtak.normFylt": "Päevanorm on täidetud"
 }

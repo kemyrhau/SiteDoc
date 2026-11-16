@@ -5692,7 +5692,6 @@
   "timer.bekreftDag.velgLonnsart": "Alegeți tipul de salariu",
   "timer.bekreftDag.linjeLonnsartHint": "Atingeți pentru a alege tipul de salariu pentru această linie",
   "timer.bekreftDag.etterNormen": "Dincolo de norma de la {{fra}}",
-  "timer.bekreftDag.fravaerTil": "Absența până la",
   "timer.bekreftDag.lonnsartGruppe.ordinaer": "Comun",
   "timer.bekreftDag.lonnsartGruppe.overtid": "Peste orar",
   "timer.bekreftDag.lonnsartGruppe.fravaer": "Absența",
@@ -5706,5 +5705,13 @@
   "timer.normtak.leddArbeid": "lucru {{timer}} h",
   "timer.normtak.leddAnnet": "altă absență {{timer}} h",
   "timer.normtak.brudd": "{{ledd}} = {{sum}} h — peste norma zilnică de {{norm}} h",
-  "timer.normtak.attesterSperret": "Data nu poate fi aprobată până când absența nu este corectată. Returnează foaia sau corectează orele."
+  "timer.normtak.attesterSperret": "Data nu poate fi aprobată până când absența nu este corectată. Returnează foaia sau corectează orele.",
+  "timer.normtak.rettTil": "Corectați la {{timer}} h",
+  "timer.normtak.slettFravaer": "Ștergeți absența",
+  "timer.normtak.hoyst": "Cel mult {{timer}} h — {{fort}} deja înregistrat",
+  "timer.normtak.hoystUtenFort": "Cel mult {{timer}} h",
+  "timer.normtak.fortArbeid": "{{timer}} h de lucru",
+  "timer.normtak.fortAnnet": "{{timer}} h de altă absență",
+  "timer.normtak.fortBegge": "{{arbeid}} h de muncă și {{annet}} h de altă absență",
+  "timer.normtak.normFylt": "Norma zilnică este umplută"
 }

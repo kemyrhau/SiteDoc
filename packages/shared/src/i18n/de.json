@@ -5692,7 +5692,6 @@
   "timer.bekreftDag.velgLonnsart": "Wählen Sie die Lohnart",
   "timer.bekreftDag.linjeLonnsartHint": "Tippen Sie, um die Lohnart für diese Zeile auszuwählen",
   "timer.bekreftDag.etterNormen": "Über die Norm hinaus von {{fra}}",
-  "timer.bekreftDag.fravaerTil": "Abwesenheit bis",
   "timer.bekreftDag.lonnsartGruppe.ordinaer": "Normal",
   "timer.bekreftDag.lonnsartGruppe.overtid": "Im Laufe der Zeit",
   "timer.bekreftDag.lonnsartGruppe.fravaer": "Abwesenheit",
@@ -5706,5 +5705,13 @@
   "timer.normtak.leddArbeid": "Arbeit {{timer}} Stunden",
   "timer.normtak.leddAnnet": "andere Abwesenheit {{timer}} h",
   "timer.normtak.brudd": "{{ledd}} = {{sum}} h – über der Tagesnorm von {{norm}} h",
-  "timer.normtak.attesterSperret": "Der Termin kann erst genehmigt werden, wenn die Abwesenheit korrigiert ist. Geben Sie das Blatt zurück oder korrigieren Sie die Stunden."
+  "timer.normtak.attesterSperret": "Der Termin kann erst genehmigt werden, wenn die Abwesenheit korrigiert ist. Geben Sie das Blatt zurück oder korrigieren Sie die Stunden.",
+  "timer.normtak.rettTil": "Korrigieren Sie auf {{timer}} Stunden",
+  "timer.normtak.slettFravaer": "Löschen Sie die Abwesenheit",
+  "timer.normtak.hoyst": "Höchstens {{timer}} Std. – {{fort}} bereits registriert",
+  "timer.normtak.hoystUtenFort": "Höchstens {{timer}} Std",
+  "timer.normtak.fortArbeid": "{{timer}} Stunden Arbeit",
+  "timer.normtak.fortAnnet": "{{timer}} h anderer Abwesenheit",
+  "timer.normtak.fortBegge": "{{arbeid}} h Arbeit und {{annet}} h sonstiger Abwesenheit",
+  "timer.normtak.normFylt": "Die Tagesnorm ist erfüllt"
 }

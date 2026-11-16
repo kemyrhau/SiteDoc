@@ -5692,7 +5692,6 @@
   "timer.bekreftDag.velgLonnsart": "Wybierz rodzaj wynagrodzenia",
   "timer.bekreftDag.linjeLonnsartHint": "Kliknij, aby wybrać rodzaj wynagrodzenia dla tej linii",
   "timer.bekreftDag.etterNormen": "Poza normą od {{fra}}",
-  "timer.bekreftDag.fravaerTil": "Nieobecność do",
   "timer.bekreftDag.lonnsartGruppe.ordinaer": "Zwykły",
   "timer.bekreftDag.lonnsartGruppe.overtid": "Nadgodziny",
   "timer.bekreftDag.lonnsartGruppe.fravaer": "Brak",
@@ -5706,5 +5705,13 @@
   "timer.normtak.leddArbeid": "praca {{timer}} godz",
   "timer.normtak.leddAnnet": "inna nieobecność {{timer}} godz",
   "timer.normtak.brudd": "{{ledd}} = {{sum}} godz — powyżej dziennej normy wynoszącej {{norm}} godz",
-  "timer.normtak.attesterSperret": "Do czasu uzupełnienia nieobecności nie można zatwierdzić terminu. Zwróć arkusz lub popraw godziny."
+  "timer.normtak.attesterSperret": "Do czasu uzupełnienia nieobecności nie można zatwierdzić terminu. Zwróć arkusz lub popraw godziny.",
+  "timer.normtak.rettTil": "Popraw do {{timer}} godz",
+  "timer.normtak.slettFravaer": "Usuń nieobecność",
+  "timer.normtak.hoyst": "Co najwyżej {{timer}} godz — {{fort}} już zarejestrowany",
+  "timer.normtak.hoystUtenFort": "Co najwyżej {{timer}} godz",
+  "timer.normtak.fortArbeid": "{{timer}} godz. pracy",
+  "timer.normtak.fortAnnet": "{{timer}} godz. innej nieobecności",
+  "timer.normtak.fortBegge": "{{arbeid}} godz. pracy i {{annet}} godz. innych nieobecności",
+  "timer.normtak.normFylt": "Norma dzienna jest wypełniona"
 }

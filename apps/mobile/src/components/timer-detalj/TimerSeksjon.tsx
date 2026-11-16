@@ -67,7 +67,9 @@ import {
   hentUnderprosjekterLokalt,
   hentLonnsarterLokalt,
   hentFravaerLonnsartIderLokalt,
+  finnNormtakArtLokalt,
 } from "../../services/timerKatalog";
+import { restForRad, normtakGrenseTekst } from "../../utils/fravaerNormtakMobil";
 import { hentOrganizationSettingLokalt } from "../../services/organizationSettingKatalog";
 import { erReiseRadVisning } from "../../utils/reiseRad";
 import { radManglerBeskrivelse } from "../../utils/dagsoversiktRader";
@@ -1238,6 +1240,10 @@ export function TimerRadModal({
       const reiseId = hentReiseLonnsartId(organizationId);
       // Fravær slås opp uten aktiv-filter: en deaktivert fravær-art er fortsatt fravær.
       const fravaerIder = hentFravaerLonnsartIderLokalt();
+      // ORDRE (33) F5: forrige rad på en fravær-art arves ikke — ny rad fra et
+      // prosjektkort tilbyr ikke fravær-arter (fravær føres i fraværskortet).
+      const standardId =
+        sisteRad?.lonnsartId && fravaerIder.has(sisteRad.lonnsartId) ? firmaDefaultLonnsartId : forrigeValg;
       return {
         lonnsartId: forhaandsvalgNyRad({
           dagsnorm: dagsnormTimer,
@@ -1247,7 +1253,7 @@ export function TimerRadModal({
             erFravaer: r.lonnsartId != null && fravaerIder.has(r.lonnsartId),
           })),
           katalog,
-          standardId: forrigeValg,
+          standardId,
         }),
         aktivitetId: sisteRad?.aktivitetId ?? defaultAktivitetId ?? "",
       };
@@ -1502,6 +1508,32 @@ export function TimerRadModal({
     );
   }, [valgtLonnsartId]);
 
+  // ORDRE (33) c3 B10 (§ 11.10.4 «Rad-vinduet i prosjektkort-modus»): en lagret
+  // fraværsrad med tak har resten av dagsnormen som øvre grense. Bare
+  // prosjektkort-modus — dagskort-modus har ingen grense (F11).
+  const normtakGrense = useMemo(
+    () =>
+      kortModus
+        ? restForRad({
+            dagsnorm: dagsnormTimer ?? null,
+            rader: alleTimerRader.map((r) => ({
+              id: r.id,
+              lonnsartId: r.lonnsartId,
+              timer: r.timer,
+              erReise: erReiseRadVisning(r.erReise ?? null, r.lonnsartId, hentReiseLonnsartId(organizationId)),
+            })),
+            radId: eksisterendeRad?.id ?? null,
+            lonnsartId: valgtLonnsartId || null,
+            finnArt: finnNormtakArtLokalt,
+          })
+        : null,
+    [kortModus, dagsnormTimer, alleTimerRader, eksisterendeRad?.id, valgtLonnsartId, organizationId],
+  );
+  // F5: fravær-arter tilbys ikke i rad-vinduet i prosjektkort-modus — unntatt når
+  // raden som åpnes alt står på en fravær-art (ført før c / fra PC).
+  const skjulFravaerArter =
+    kortModus && !(eksisterendeRad?.lonnsartId && finnNormtakArtLokalt(eksisterendeRad.lonnsartId)?.type === "fravaer");
+
   const valgtAktivitet = useMemo(() => {
     if (!valgtAktivitetId) return null;
     const db = hentDatabase();
@@ -1691,6 +1723,43 @@ export function TimerRadModal({
       setBeskrivelseFeil(true);
       beskrivelseRef.current?.focus();
       return;
+    }
+    // ORDRE (33) c3 B10: fravær med tak over resten sperres med samme linje som
+    // under feltet. Stemmer ikke fra–til med timene, lagres raden uten klokkeslett
+    // (FM23: fravær har ingen klokkeslett).
+    if (normtakGrense) {
+      const tallN = parseFloat(timer.replace(",", "."));
+      if (isNaN(tallN) || tallN <= 0 || tallN > 24) {
+        setFeil(t("timer.feil.ugyldigTimer"));
+        return;
+      }
+      if (tallN - normtakGrense.rest > 0.01) {
+        setFeil(normtakGrenseTekst(t, normtakGrense, formaterTimer));
+        return;
+      }
+      const stemmer =
+        !!fraTid &&
+        !!tilTid &&
+        tilErEtterFra(fraTid, tilTid) &&
+        Math.abs(
+          effektiveTimerFraSpenn(fraTid, tilTid, pauseFraFor(fraTid, tilTid), radPauseMinFor(fraTid, tilTid)) - tallN,
+        ) <= 0.01;
+      if (!stemmer) {
+        onLagre(
+          valgtProjectId,
+          valgtByggeplassId,
+          valgtLonnsartId,
+          valgtAktivitetId,
+          tallN,
+          valgtEcoId,
+          null,
+          null,
+          beskrivelse.trim() || null,
+          0,
+          { linjer: [], fjernede: [] },
+        );
+        return;
+      }
     }
     // Fra/til obligatorisk på timer-rader (2026-07-13) — reverserer a2. Tid-løse
     // rader er ufullstendige lønnsdata + usynlige for overlapp-vakten.
@@ -1973,6 +2042,11 @@ export function TimerRadModal({
               inputAccessoryViewID={TASTATUR_FERDIG_ID}
               className="rounded-lg border border-gray-300 bg-white px-3 py-3 text-base text-gray-900"
             />
+            {normtakGrense && (
+              <Text className="mt-1 text-sm text-gray-500" style={{ fontVariant: ["tabular-nums"] }}>
+                {normtakGrenseTekst(t, normtakGrense, formaterTimer)}
+              </Text>
+            )}
           </View>
 
           {/* T4-e: Fra-/til-tid per rad. Forhåndsutfylling fra kalender +
@@ -2245,6 +2319,7 @@ export function TimerRadModal({
           <LonnsartVelgerModal
             valgtId={valgtLonnsartId}
             organizationId={organizationId}
+            skjulFravaer={skjulFravaerArter}
             onVelg={(id) => {
               setValgtLonnsartId(id);
               setVisLonnsartVelger(false);
@@ -2340,12 +2415,15 @@ export function LonnsartVelgerModal({
   valgtId,
   organizationId,
   kandidatIder,
+  skjulFravaer = false,
   onVelg,
   onLukk,
 }: {
   valgtId: string;
   organizationId?: string;
   kandidatIder?: readonly string[];
+  /** ORDRE (33) F5: rad-vinduet i prosjektkort-modus. Standard false = som før. */
+  skjulFravaer?: boolean;
   onVelg: (id: string) => void;
   onLukk: () => void;
 }) {
@@ -2358,11 +2436,11 @@ export function LonnsartVelgerModal({
     const aktive = filtrerVelgerLonnsarter(
       db.select().from(lonnsartLocal).where(eq(lonnsartLocal.aktiv, true)).all(),
       organizationId,
-    );
+    ).filter((l) => !skjulFravaer || l.type !== "fravaer");
     if (!kandidatIder) return aktive;
     const tillatt = new Set(kandidatIder);
     return aktive.filter((l) => tillatt.has(l.id)).sort((a, b) => a.rekkefolge - b.rekkefolge);
-  }, [organizationId, kandidatIder]);
+  }, [organizationId, kandidatIder, skjulFravaer]);
 
   const filtrert = useMemo(() => {
     if (!sok.trim()) return lonnsarter;

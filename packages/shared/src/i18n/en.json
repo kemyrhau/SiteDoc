@@ -5692,7 +5692,6 @@
   "timer.bekreftDag.velgLonnsart": "Choose wage type",
   "timer.bekreftDag.linjeLonnsartHint": "Tap to choose the wage type for this line",
   "timer.bekreftDag.etterNormen": "Beyond the norm from {{fra}}",
-  "timer.bekreftDag.fravaerTil": "Absence until",
   "timer.bekreftDag.lonnsartGruppe.ordinaer": "Ordinary",
   "timer.bekreftDag.lonnsartGruppe.overtid": "Overtime",
   "timer.bekreftDag.lonnsartGruppe.fravaer": "Absence",
@@ -5706,5 +5705,13 @@
   "timer.normtak.leddArbeid": "work {{timer}} h",
   "timer.normtak.leddAnnet": "other absence {{timer}} h",
   "timer.normtak.brudd": "{{ledd}} = {{sum}} h — over the daily norm of {{norm}} h",
-  "timer.normtak.attesterSperret": "The date cannot be approved until the absence is corrected. Return the sheet, or correct the hours."
+  "timer.normtak.attesterSperret": "The date cannot be approved until the absence is corrected. Return the sheet, or correct the hours.",
+  "timer.normtak.rettTil": "Correct to {{timer}} h",
+  "timer.normtak.slettFravaer": "Delete the absence",
+  "timer.normtak.hoyst": "At most {{timer}} h — {{fort}} already registered",
+  "timer.normtak.hoystUtenFort": "At most {{timer}} h",
+  "timer.normtak.fortArbeid": "{{timer}} h of work",
+  "timer.normtak.fortAnnet": "{{timer}} h of other absence",
+  "timer.normtak.fortBegge": "{{arbeid}} h of work and {{annet}} h of other absence",
+  "timer.normtak.normFylt": "The daily norm is filled"
 }

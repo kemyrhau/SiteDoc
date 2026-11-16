@@ -407,6 +407,18 @@ export function finnLonnsartLokalt(id: string) {
   return rader[0] ?? null;
 }
 
+/**
+ * B10 (ORDRE (33) c3): lønnsarten slik taket trenger den — type, navn og
+ * `fravaerNormtak` (NULL = tak, lest bare via `harNormtak`). Uten aktiv-filter:
+ * en deaktivert fravær-art er fortsatt fravær.
+ */
+export function finnNormtakArtLokalt(
+  id: string | null,
+): { type: string; navn: string; fravaerNormtak: boolean | null } | null {
+  const l = id ? finnLonnsartLokalt(id) : null;
+  return l ? { type: l.type, navn: l.navn, fravaerNormtak: l.fravaerNormtak ?? null } : null;
+}
+
 export function finnTilleggLokalt(id: string) {
   const db = hentDatabase();
   if (!db) return null;

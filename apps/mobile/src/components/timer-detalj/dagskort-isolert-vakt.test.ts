@@ -67,6 +67,13 @@ const BEKREFT_DAG_PROPS = [
   "linjerUtenLonnsart",
   "ArbeidLinjer",
   "kandidatIder",
+  // ORDRE (33) c3 B10: brudd-linja, taket i rad-vinduet og send-sperren — kun
+  // prosjektkort-modus (F11: dagskort-modus-skjermen har ingen grense).
+  "fravaerNormtakMobil",
+  "bruddForDag",
+  "restForRad",
+  "normtakBrudd",
+  "normtakGrense",
 ];
 
 describe("ORDRE 34 — dagskortet er isolert fra Bekreft dag", () => {
@@ -97,6 +104,15 @@ describe("ORDRE 34 — dagskortet er isolert fra Bekreft dag", () => {
       expect(PROSJEKTGRUPPE).not.toContain(navn);
     },
   );
+
+  it("🔴 TF24 (ORDRE (33) c3): taket og F5 i rad-vinduet gjelder bare prosjektkort-modus", () => {
+    const seksjon = les("TimerSeksjon.tsx");
+    // Standard = som før: velgeren skjuler ingen arter uten prop.
+    expect(seksjon).toMatch(/skjulFravaer = false/);
+    // Grensen regnes bare i prosjektkort-modus (dagskort-modus: ingen grense, F11).
+    expect(seksjon).toMatch(/const normtakGrense = useMemo\(\s*\(\) =>\s*kortModus\s*\?\s*restForRad/);
+    expect(seksjon).toMatch(/const skjulFravaerArter =\s*kortModus &&/);
+  });
 
   it("🔴 (17) FraTilTidFelt: standard kompakt = false, og dagskortets seksjoner sender den ikke", () => {
     const felt = les("FraTilTidFelt.tsx");

@@ -5692,7 +5692,6 @@
   "timer.bekreftDag.velgLonnsart": "Zgjidhni llojin e pagës",
   "timer.bekreftDag.linjeLonnsartHint": "Trokit për të zgjedhur llojin e pagës për këtë linjë",
   "timer.bekreftDag.etterNormen": "Përtej normës nga {{fra}}",
-  "timer.bekreftDag.fravaerTil": "Mungesa deri në",
   "timer.bekreftDag.lonnsartGruppe.ordinaer": "E zakonshme",
   "timer.bekreftDag.lonnsartGruppe.overtid": "Jashtë orarit",
   "timer.bekreftDag.lonnsartGruppe.fravaer": "Mungesa",
@@ -5706,5 +5705,13 @@
   "timer.normtak.leddArbeid": "punë {{timer}} h",
   "timer.normtak.leddAnnet": "mungesë tjetër {{timer}} h",
   "timer.normtak.brudd": "{{ledd}} = {{sum}} h - mbi normën ditore prej {{norm}} h",
-  "timer.normtak.attesterSperret": "Data nuk mund të miratohet derisa mungesa të korrigjohet. Kthejeni fletën ose korrigjoni orët."
+  "timer.normtak.attesterSperret": "Data nuk mund të miratohet derisa mungesa të korrigjohet. Kthejeni fletën ose korrigjoni orët.",
+  "timer.normtak.rettTil": "Korrigjohet në {{timer}} h",
+  "timer.normtak.slettFravaer": "Fshij mungesën",
+  "timer.normtak.hoyst": "Më së shumti {{timer}} orë — {{fort}} tashmë është regjistruar",
+  "timer.normtak.hoystUtenFort": "Më së shumti {{timer}} orë",
+  "timer.normtak.fortArbeid": "{{timer}} orë pune",
+  "timer.normtak.fortAnnet": "{{timer}} orë mungesë tjetër",
+  "timer.normtak.fortBegge": "{{arbeid}} orë punë dhe {{annet}} orë mungesë të tjera",
+  "timer.normtak.normFylt": "Norma ditore është e mbushur"
 }

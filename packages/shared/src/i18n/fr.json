@@ -5692,7 +5692,6 @@
   "timer.bekreftDag.velgLonnsart": "Choisissez le type de salaire",
   "timer.bekreftDag.linjeLonnsartHint": "Appuyez pour choisir le type de salaire pour cette ligne",
   "timer.bekreftDag.etterNormen": "Au-delà de la norme de {{fra}}",
-  "timer.bekreftDag.fravaerTil": "Absence jusqu'à",
   "timer.bekreftDag.lonnsartGruppe.ordinaer": "Ordinaire",
   "timer.bekreftDag.lonnsartGruppe.overtid": "Au fil du temps",
   "timer.bekreftDag.lonnsartGruppe.fravaer": "Absence",
@@ -5706,5 +5705,13 @@
   "timer.normtak.leddArbeid": "travailler {{timer}} h",
   "timer.normtak.leddAnnet": "autre absence {{timer}} h",
   "timer.normtak.brudd": "{{ledd}} = {{sum}} h — au-dessus de la norme quotidienne de {{norm}} h",
-  "timer.normtak.attesterSperret": "La date ne peut être approuvée tant que l’absence n’est pas corrigée. Renvoyez la feuille, ou corrigez les heures."
+  "timer.normtak.attesterSperret": "La date ne peut être approuvée tant que l’absence n’est pas corrigée. Renvoyez la feuille, ou corrigez les heures.",
+  "timer.normtak.rettTil": "Corriger à {{timer}} h",
+  "timer.normtak.slettFravaer": "Supprimer l'absence",
+  "timer.normtak.hoyst": "Au plus {{timer}} h — {{fort}} déjà inscrits",
+  "timer.normtak.hoystUtenFort": "Au plus {{timer}} h",
+  "timer.normtak.fortArbeid": "{{timer}} heures de travail",
+  "timer.normtak.fortAnnet": "{{timer}} h d'autre absence",
+  "timer.normtak.fortBegge": "{{arbeid}} h de travail et {{annet}} h d'autre absence",
+  "timer.normtak.normFylt": "La norme quotidienne est remplie"
 }

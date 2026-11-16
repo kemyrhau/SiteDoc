@@ -5692,7 +5692,6 @@
   "timer.bekreftDag.velgLonnsart": "Виберіть вид заробітної плати",
   "timer.bekreftDag.linjeLonnsartHint": "Натисніть, щоб вибрати тип оплати для цього рядка",
   "timer.bekreftDag.etterNormen": "Понад норму від {{fra}}",
-  "timer.bekreftDag.fravaerTil": "Відсутність до",
   "timer.bekreftDag.lonnsartGruppe.ordinaer": "Звичайний",
   "timer.bekreftDag.lonnsartGruppe.overtid": "Понаднормова робота",
   "timer.bekreftDag.lonnsartGruppe.fravaer": "Відсутність",
@@ -5706,5 +5705,13 @@
   "timer.normtak.leddArbeid": "робота {{timer}} год",
   "timer.normtak.leddAnnet": "інша відсутність {{timer}} год",
   "timer.normtak.brudd": "{{ledd}} = {{sum}} h — понад добову норму {{norm}} h",
-  "timer.normtak.attesterSperret": "Дата не може бути затверджена, доки відсутність не буде виправлена. Поверніть аркуш, або виправте години."
+  "timer.normtak.attesterSperret": "Дата не може бути затверджена, доки відсутність не буде виправлена. Поверніть аркуш, або виправте години.",
+  "timer.normtak.rettTil": "Виправити на {{timer}} год",
+  "timer.normtak.slettFravaer": "Видалити відсутність",
+  "timer.normtak.hoyst": "Максимум {{timer}} год — {{fort}} уже зареєстровано",
+  "timer.normtak.hoystUtenFort": "Не більше {{timer}} год",
+  "timer.normtak.fortArbeid": "{{timer}} год роботи",
+  "timer.normtak.fortAnnet": "{{timer}} год іншої відсутності",
+  "timer.normtak.fortBegge": "{{arbeid}} год роботи та {{annet}} год іншої відсутності",
+  "timer.normtak.normFylt": "Добова норма заповнена"
 }

@@ -5692,7 +5692,6 @@
   "timer.bekreftDag.velgLonnsart": "Izvēlieties algas veidu",
   "timer.bekreftDag.linjeLonnsartHint": "Pieskarieties, lai izvēlētos šīs līnijas algas veidu",
   "timer.bekreftDag.etterNormen": "Pārsniedz normu no {{fra}}",
-  "timer.bekreftDag.fravaerTil": "Prombūtne līdz",
   "timer.bekreftDag.lonnsartGruppe.ordinaer": "Parasta",
   "timer.bekreftDag.lonnsartGruppe.overtid": "Virsstundas",
   "timer.bekreftDag.lonnsartGruppe.fravaer": "Prombūtne",
@@ -5706,5 +5705,13 @@
   "timer.normtak.leddArbeid": "darbs {{timer}} st",
   "timer.normtak.leddAnnet": "cita prombūtne {{timer}} st",
   "timer.normtak.brudd": "{{ledd}} = {{sum}} h — virs dienas normas {{norm}} h",
-  "timer.normtak.attesterSperret": "Datumu nevar apstiprināt, kamēr prombūtne nav novērsta. Atgrieziet lapu vai labojiet stundas."
+  "timer.normtak.attesterSperret": "Datumu nevar apstiprināt, kamēr prombūtne nav novērsta. Atgrieziet lapu vai labojiet stundas.",
+  "timer.normtak.rettTil": "Pareizi uz {{timer}} h",
+  "timer.normtak.slettFravaer": "Dzēst prombūtni",
+  "timer.normtak.hoyst": "Ne vairāk kā {{timer}} h — {{fort}} jau reģistrēts",
+  "timer.normtak.hoystUtenFort": "Ne vairāk kā {{timer}} h",
+  "timer.normtak.fortArbeid": "{{timer}} h darba",
+  "timer.normtak.fortAnnet": "{{timer}} h citas prombūtnes",
+  "timer.normtak.fortBegge": "{{arbeid}} h darba un {{annet}} h cita prombūtne",
+  "timer.normtak.normFylt": "Dienas norma ir aizpildīta"
 }

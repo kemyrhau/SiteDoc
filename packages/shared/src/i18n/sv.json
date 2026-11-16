@@ -5692,7 +5692,6 @@
   "timer.bekreftDag.velgLonnsart": "Välj löneart",
   "timer.bekreftDag.linjeLonnsartHint": "Tryck för att välja lönetyp för den här raden",
   "timer.bekreftDag.etterNormen": "Bortom normen från {{fra}}",
-  "timer.bekreftDag.fravaerTil": "Frånvaro till kl",
   "timer.bekreftDag.lonnsartGruppe.ordinaer": "Vanlig",
   "timer.bekreftDag.lonnsartGruppe.overtid": "Övertid",
   "timer.bekreftDag.lonnsartGruppe.fravaer": "Frånvaro",
@@ -5706,5 +5705,13 @@
   "timer.normtak.leddArbeid": "arbeta {{timer}} h",
   "timer.normtak.leddAnnet": "annan frånvaro {{timer}} h",
   "timer.normtak.brudd": "{{ledd}} = {{sum}} h — över den dagliga normen på {{norm}} h",
-  "timer.normtak.attesterSperret": "Datumet kan inte godkännas förrän frånvaron är rättad. Lämna tillbaka bladet eller korrigera timmarna."
+  "timer.normtak.attesterSperret": "Datumet kan inte godkännas förrän frånvaron är rättad. Lämna tillbaka bladet eller korrigera timmarna.",
+  "timer.normtak.rettTil": "Korrigera till {{timer}} h",
+  "timer.normtak.slettFravaer": "Ta bort frånvaron",
+  "timer.normtak.hoyst": "Som mest {{timer}} h — {{fort}} redan registrerad",
+  "timer.normtak.hoystUtenFort": "Högst {{timer}} h",
+  "timer.normtak.fortArbeid": "{{timer}} timmars arbete",
+  "timer.normtak.fortAnnet": "{{timer}} h annan frånvaro",
+  "timer.normtak.fortBegge": "{{arbeid}} timmars arbete och {{annet}} timmars annan frånvaro",
+  "timer.normtak.normFylt": "Dagsnormen är fylld"
 }

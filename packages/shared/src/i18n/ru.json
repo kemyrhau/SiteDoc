@@ -5692,7 +5692,6 @@
   "timer.bekreftDag.velgLonnsart": "Выберите тип оплаты",
   "timer.bekreftDag.linjeLonnsartHint": "Нажмите, чтобы выбрать тип оплаты для этой строки",
   "timer.bekreftDag.etterNormen": "За пределами нормы от {{fra}}",
-  "timer.bekreftDag.fravaerTil": "Отсутствие до",
   "timer.bekreftDag.lonnsartGruppe.ordinaer": "Обычный",
   "timer.bekreftDag.lonnsartGruppe.overtid": "Через некоторое время",
   "timer.bekreftDag.lonnsartGruppe.fravaer": "Отсутствие",
@@ -5706,5 +5705,13 @@
   "timer.normtak.leddArbeid": "работа {{timer}} ч",
   "timer.normtak.leddAnnet": "другое отсутствие {{timer}} ч",
   "timer.normtak.brudd": "{{ledd}} = {{sum}} ч — сверх дневной нормы {{norm}} ч",
-  "timer.normtak.attesterSperret": "Дата не может быть утверждена до тех пор, пока отсутствие не будет исправлено. Верните лист или исправьте часы."
+  "timer.normtak.attesterSperret": "Дата не может быть утверждена до тех пор, пока отсутствие не будет исправлено. Верните лист или исправьте часы.",
+  "timer.normtak.rettTil": "Исправить до {{timer}} ч.",
+  "timer.normtak.slettFravaer": "Удалить отсутствие",
+  "timer.normtak.hoyst": "Не более {{timer}} ч — {{fort}} уже зарегистрировано",
+  "timer.normtak.hoystUtenFort": "Не более {{timer}} ч.",
+  "timer.normtak.fortArbeid": "{{timer}} час работы",
+  "timer.normtak.fortAnnet": "{{timer}} ч другого отсутствия",
+  "timer.normtak.fortBegge": "{{arbeid}} час работы и {{annet}} час простоя",
+  "timer.normtak.normFylt": "Суточная норма заполнена"
 }
