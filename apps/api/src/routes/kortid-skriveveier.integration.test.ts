@@ -464,8 +464,10 @@ describe("T5 — server-skriveveier fyller kort_id (reise = null)", () => {
         { projectId: P1, lonnsartId: ORD, aktivitetId: AKT, fraTid: "09:00", tilTid: "11:00", timer: 2 },
       ],
     });
-    const aktive = (await kortPaaSedel(sid)).timer.filter((t) => t.id !== rid);
+    // Ordre d2a: første del beholder originalens id (koblingene står), den andre er ny.
+    const aktive = (await kortPaaSedel(sid)).timer;
     expect(aktive).toHaveLength(2);
+    expect(aktive.map((t) => t.id)).toContain(rid);
     forventAlleMedKort(aktive);
   });
 

@@ -12,6 +12,7 @@
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
 **Sist oppdatert:** 2026-11-16
+- 2026-11-16 — **`prosjektkort-kortid-spec.md` § 12.9 + `timer.md` + `api.md`: ordre d2a commit 2 — retting på stedet i `redigerSedelRader`, `rettRadFelt`, `gjenaapneRader`, splitt som beholder koblingene og vare-retting med antallet før** (branch `feat/kortid-d2a-grunnlag`, kode + docs, Kort-id-d2a). Ingen fil opprettet eller slettet i docs/claude — tellingene er uendret.
 - 2026-11-16 — **`prosjektkort-kortid-spec.md` § 12.9 + `timer.md` + `api.md`: ordre d2a commit 1 — kort-gruppering, maskin-kobling, prosjektnummer, ukeavvik-rader og de tre attesteringsleserne** (branch `feat/kortid-d2a-grunnlag`, kode + docs, Kort-id-d2a). Ingen fil opprettet eller slettet i docs/claude — tellingene er uendret.
 - 2026-11-16 — **Merge ordre (33) c mobil kort-id** (`5f2004f5`) + Fabel § 12 del 4 (`72e18715`) + Kenneths svar H15 (`e435ead2`): FUNKSJONSENDRINGER + STATUS-AKTUELT ført.
 - 2026-11-16 — **`prosjektkort-kortid-spec.md` § 8.2: TILLEGG 2 til RETUR (33) c — A3 «Fjern teksten» fjernet** (branch `feat/kortid-c-mobil`, kode + docs, Kort-id-c): foreldreløs beskrivelse vises uten slett-knapp; nøkkelen `timer.bekreftDag.kort.fjernTekst` fjernet i 15 språk. Ingen fil opprettet/slettet i docs/claude — tellinger uendret.
