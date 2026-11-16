@@ -1108,7 +1108,7 @@ gå på OTA foran fraværskortet, fordi «Fravær til» da verken får tak eller
 ## 12. TILLEGG — kortet følger hele veien: attestering, eksport/fakturering og rapport (Kenneth 2026-11-16)
 
 > **Status:** 🟢 H1–H14, H2-skissen og mal-raden er besvart av Kenneth 2026-11-16 (§ 12.8.1 og § 12.8.3) og ført inn i
-> reglene under (del 3 og del 4). 🟡 Åpent til Kenneth: H15, maskiner uten satt enhet (§ 12.8.4). Ingen kode. **FUNKSJONSENDRING**; hjemmel:
+> reglene under (del 3 og del 4). H15 besvart av Kenneth 2026-11-16 (A, § 12.8.3). Ingen H-er åpne. Ingen kode. **FUNKSJONSENDRING**; hjemmel:
 > Kenneth 2026-11-16, ført i § 5.4 som ⚠️ SNUDD (`10d343ce`), «Visningskrav» (`0783cf1d`) og «Total overhaling»
 > (`f465d7d5`). Hjemmel for del 2: Kenneths ord under («Rapportens Detaljer som mønster»). Hjemmel for del 3: § 12.8.1.
 > Hjemmel for del 4: § 12.8.3.
@@ -1122,7 +1122,7 @@ gå på OTA foran fraværskortet, fordi «Fravær til» da verken får tak eller
 > er timeregistreringen med sin maskin og sine varer, ikke én rad pr. registrering. Der del 1 og 2 sa «egne rader», er
 > teksten skrevet om. Del 4 (TILLEGG 5): Kenneths svar i § 12.8.3. **H12 er en sperre ved føring** (R24), H14 er
 > underlinjer med tydelig skille (R25), og H2-skissen er regel (R22). Ordreteksten for d2a står i § 12.6.1. Ett nytt
-> spørsmål står åpent: H15 (§ 12.8.4). Det låser ingen ordre.
+> spørsmål, H15 (§ 12.8.4), er besvart A (§ 12.8.3).
 >
 > **Kenneths ord:** *«jeg finner det umulig å se hva som er feil i timeføringen -> gjeldende rader er ikke merket»* ·
 > *«hvis en av prosjektradene skal faktureres med sine maskintimer -> hvordan finner jeg rett timerad. prosjektkortet
@@ -1824,7 +1824,7 @@ en splitt i attesteringen løsner i dag maskiner og varer fra timeraden.
    R16. En timelinje bærer `maskiner[]` og `varer[]` i ført rekkefølge. Egne linjer er maskin og vare uten gyldig
    kobling, tillegg og utlegg. Reise i egen blokk, rader uten `kortId` i «Uten kort». Antall rader inn = antall ut.
 2. `packages/shared/src/utils/maskinKobling.ts` (ny), R24: `maskinKreverTimerad(utleieEnhet)` — «time» ja, «doegn»
-   nei, ikke satt ja (H15 er åpen; hold det i én linje). `finnMaskinerUtenTimerad(maskiner, timerader)` gir maskinene
+   nei, ikke satt ja (H15 = A, Kenneth 2026-11-16). `finnMaskinerUtenTimerad(maskiner, timerader)` gir maskinene
    som krever timerad og mangler gyldig kobling. Gyldig = timerad på samme sedel og i samme kort, ikke reise, ikke
    fravær uten prosjekt, mer enn 0 timer. Bruk samme «arbeid» som maskin-taket
    (`packages/shared/src/utils/reiseSkille.ts:107`). Maskin-taket i `maskinKapasitet.ts` røres ikke.
@@ -2070,6 +2070,9 @@ H13.
 | **H14** | *«jeg kan akseptere dette -> men da med tydelig skille på hvilke rader som hører sammen»* | **A, underlinjer.** Kravet er et **tydelig visuelt skille** mellom linjer som hører sammen og nabolinjene. Én timeregistrering med sine maskiner og varer skal leses som én enhet, for eksempel med felles ramme eller bakgrunn og innrykk. Fabel tegner skillet. |
 | **H2-skissen** | **«enig»** | Knappene for godkjenning, retur og gjenåpning står fast helt til høyre, rett til venstre for det loddrette rullefeltet, som skissen i § 12.2 viser. |
 | **A3** (ordre c, «Fjern teksten») | *«enig -> beskrivelse eksisterer ikke uten timer»* | Knappen «Fjern teksten» i Bekreft dag fjernes. En beskrivelse hører alltid til timer. Den droppes ikke og slettes ikke av en egen knapp. |
+| **H15** | **«enig»** (A) | Maskiner **uten satt enhet** krever koblet timerad med arbeidstimer, akkurat som maskiner som selges pr. time. Bare maskiner med enheten «døgn» kan føres uten timerad. Aggregat, Heatwork, meisel og lignende må merkes «Utleieobjekt» med enheten døgn for å kunne føres uten timer. |
+| **Tekst uten kort** (ordre c, utkast) | **«ok»** (nei til automatisk rydding) | En beskrivelse som blir liggende i utkastet etter at kortet er borte, for eksempel etter «Slå sammen igjen», nytt prosjekt for dagen eller arbeid satt til 0 t, ryddes **ikke** bort automatisk. Den vises som i dag, sperrer ikke Bekreft og droppes aldri (§ 8.2). |
+| **«Flytt raden» — kollisjonssjekk** (ordre c) | **«enig»** | «Flytt raden» får samme sjekk av kolliderende tider som «Endre kort» (`finnKortKollisjon` → `finnOverlappendeTidsrom`, samme regel som ved lagring). Dette blir egen liten mobilordre. |
 
 #### 12.8.4 Åpent etter del 4 — til Kenneth
 
@@ -2094,4 +2097,4 @@ Ett spørsmål. Det låser ingen ordre, men bør være besvart før sperren går
 7. **Du kan ikke koble en gammel maskinrad til en timerad fra attesteringen.** Du returnerer den, og den ansatte
    velger timerad.
 
-**Låser d2a, d2b-1, d2b-2 og d3:** ingen. **d2c-1 og d2c-2:** H15 endrer én linje; bygges med A til du svarer.
+**Låser d2a, d2b-1, d2b-2 og d3:** ingen. **d2c-1 og d2c-2:** H15 = A (besvart 2026-11-16).
