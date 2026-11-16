@@ -5,8 +5,8 @@ import { hentByggeplasserForProsjektLokalt } from "../../../services/byggeplassK
 import { hentUnderprosjekterLokalt } from "../../../services/timerKatalog";
 import {
   effektivByggeplass,
-  kortNokkel,
-  type KortValg,
+  utledetKortNokkel,
+  type ProsjektKortValg,
   type SedelKortKontekst,
 } from "../../../lib/prosjektkortMobil";
 import { ProsjektVelgerModal } from "../ProsjektVelger";
@@ -19,14 +19,15 @@ import { ProsjektVelgerModal } from "../ProsjektVelger";
  *    byggeplass: chips + «Åpne».
  *  - `flytt`: «Flytt raden». Prosjekt kan byttes, byggeplass og underprosjekt
  *    som chips; «Flytt» er avslått til valget skiller seg fra radens kort.
+ *    Ordre c (T12): «Flytt til nytt kort» (`nyttKort`) gir raden en ny kort-id.
  *
- * Byggeplass i `KortValg` er den EFFEKTIVE. «Uten byggeplass» tilbys alltid
+ * Byggeplass i `ProsjektKortValg` er den EFFEKTIVE. «Uten byggeplass» tilbys alltid
  * (RETUR 36c-2 P1 a2): når dagens byggeplass hører til samme prosjekt løftes
  * arven ut ved lagring (`loftByggeplassArv`), så raden blir ekte «uten».
  */
 export type KortValgModus =
   | { type: "ny"; projectId: string; forslagByggeplassId: string | null }
-  | { type: "flytt"; fra: KortValg; /** 36c-kort: «Endre kort» flytter hele kortet. */ heleKortet?: boolean };
+  | { type: "flytt"; fra: ProsjektKortValg; /** 36c-kort: «Endre kort» flytter hele kortet. */ heleKortet?: boolean };
 
 export function kanVelgeUtenByggeplass(_projectId: string, _sedel: SedelKortKontekst): boolean {
   return true;
@@ -47,6 +48,7 @@ export function KortValgModal({
   prosjektNavn,
   feil = null,
   merknad,
+  nyttKort,
   onVelg,
   onLukk,
 }: {
@@ -57,12 +59,17 @@ export function KortValgModal({
   /** Kallerens avslag (f.eks. maskinkapasitet ved flytt) — vises over knappen. */
   feil?: string | null;
   /** 36c-kort: grå forklaring for valget (f.eks. at kortene slås sammen). */
-  merknad?: (valg: KortValg) => string | null;
-  onVelg: (kort: KortValg) => void;
+  merknad?: (valg: ProsjektKortValg) => string | null;
+  /**
+   * Ordre c (T12): «Flytt raden» til et NYTT kort (ny kort-id) — også med samme
+   * prosjekt/byggeplass/underprosjekt som et kort som finnes. Utelatt = ingen knapp.
+   */
+  nyttKort?: { tillatt: (valg: ProsjektKortValg) => boolean; onVelg: (kort: ProsjektKortValg) => void };
+  onVelg: (kort: ProsjektKortValg) => void;
   onLukk: () => void;
 }) {
   const { t } = useTranslation();
-  const start: KortValg =
+  const start: ProsjektKortValg =
     modus.type === "flytt"
       ? modus.fra
       : {
@@ -70,7 +77,7 @@ export function KortValgModal({
           byggeplassId: modus.forslagByggeplassId ?? effektivByggeplass(modus.projectId, null, sedel),
           ecoId: null,
         };
-  const [valg, setValg] = useState<KortValg>(start);
+  const [valg, setValg] = useState<ProsjektKortValg>(start);
   const [visProsjektVelger, setVisProsjektVelger] = useState(false);
 
   const byggeplasser = useMemo(
@@ -113,7 +120,8 @@ export function KortValgModal({
   const heleKortet = modus.type === "flytt" && modus.heleKortet === true;
   // `ny` med flere byggeplasser: raden åpner kortet. Ellers chips + knapp.
   const byggeplassSomRader = !flytt && byggeplassRader.length > 1;
-  const kanBekrefte = flytt ? kortNokkel(valg) !== kortNokkel(modus.fra) : true;
+  // Ordre c (T11): valget arver kildens kort-id — sammenlign prosjekt/byggeplass/underprosjekt.
+  const kanBekrefte = flytt ? utledetKortNokkel(valg) !== utledetKortNokkel(modus.fra) : true;
 
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onLukk}>
@@ -171,6 +179,7 @@ export function KortValgModal({
           {!byggeplassSomRader && (
             <Pressable
               disabled={!kanBekrefte}
+              accessibilityRole="button"
               accessibilityState={{ disabled: !kanBekrefte }}
               onPress={() => onVelg(valg)}
               className={`mt-3 min-h-[44px] items-center justify-center rounded-lg ${
@@ -179,6 +188,21 @@ export function KortValgModal({
             >
               <Text className="text-base font-semibold text-white">
                 {heleKortet ? t("timer.kort.flyttKnapp") : flytt ? t("handling.flytt") : t("timer.aapne")}
+              </Text>
+            </Pressable>
+          )}
+          {flytt && !heleKortet && nyttKort && (
+            <Pressable
+              disabled={!nyttKort.tillatt(valg)}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: !nyttKort.tillatt(valg) }}
+              onPress={() => nyttKort.onVelg(valg)}
+              className={`mt-2 min-h-[44px] items-center justify-center rounded-lg border ${
+                nyttKort.tillatt(valg) ? "border-gray-900 active:bg-gray-50" : "border-gray-200"
+              }`}
+            >
+              <Text className={`text-base font-semibold ${nyttKort.tillatt(valg) ? "text-gray-900" : "text-gray-300"}`}>
+                {t("timer.kortValg.flyttNyttKort")}
               </Text>
             </Pressable>
           )}

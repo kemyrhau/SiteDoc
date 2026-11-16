@@ -40,8 +40,8 @@ import { eq } from "drizzle-orm";
 import * as schema from "../db/schema";
 import { kjorMigreringer } from "../db/migreringer";
 import { bekreftDag, bekreftSperre, forberedBekreftDag, prosjekterMedArbeid } from "./bekreftDag";
-import { linjerIDag, ryddLonnsartPerLinje, velgLinjeLonnsart } from "./linjeLonnsart";
-import { hentFravaerLonnsartIderLokalt } from "../services/timerKatalog";
+import { grupperLinjeLonnsarter, linjerIDag, lonnsarterForLinje, ryddLonnsartPerLinje, velgLinjeLonnsart } from "./linjeLonnsart";
+import { hentFravaerLonnsartIderLokalt, hentLonnsarterLokalt } from "../services/timerKatalog";
 import { manuellDag, lesManuellGrunnlag, forberedManuellDag } from "./manuellDag";
 import { beregnDagsforslag, vekslOvertidNivaa, type Dagsforslag } from "./dagsforslag";
 import { entydigByggeplass, radTilleggNokkel, type BekreftDagTillegg, type TilleggPerRad } from "./bekreftDagTillegg";
@@ -329,7 +329,10 @@ describe("ORDRE 36c rettelse S2 — valgfritt underprosjekt på kortet", () => {
   it("🔴 skjermen: valget bare i manuell modus og bare med underprosjekter; tomt ved åpning, kan tømmes", () => {
     const skjerm = fs.readFileSync(path.join(__dirname, "../../app/timer/bekreft-dag.tsx"), "utf8");
     expect(skjerm).toContain("manuell && prosjektId\n        ? hentUnderprosjekterLokalt(prosjektId)");
-    expect(skjerm).toContain("{underprosjekter.length > 0 ? (");
+    // Ordre c (prosjektkort-kortid-spec § 5.1): hode-valget vises fortsatt bare i
+    // manuell modus — men bare når prosjektet har ett kort. Med flere kort (og i
+    // GPS-modus) velges underprosjekt pr. kort, med «Uten» valgt.
+    expect(skjerm).toContain("{underprosjekter.length > 0 && antallKortPaaProsjekt(prosjektId) <= 1 ? (");
     // Aldri forhåndsvalgt — heller ikke med ett underprosjekt.
     expect(skjerm).toContain("const [ecoId, setEcoId] = useState<string | null>(null);");
     // Prosjektbytte tømmer fortsatt valget (utkast-gjenoppretting er grunnlinjen).
@@ -565,7 +568,9 @@ describe("ORDRE 36c — kildevakter for inngangene", () => {
 
   it("🔴 P4: «+ Nytt prosjektkort» sender kortets dato og låser den", () => {
     const kort = les("../../app/timer/[id]/prosjektkort.tsx");
-    expect(kort).toContain('params: { opprinnelse: "manuell", dato: sedel.dato, laastDato: "1" }');
+    // Ordre c (T12): + `nyttKort: "1"` — alltid nytt kort, også på prosjekt som alt har kort.
+    // Dato og låsing (P4) er uendret.
+    expect(kort).toContain('params: { opprinnelse: "manuell", dato: sedel.dato, laastDato: "1", nyttKort: "1" }');
     expect(kort).not.toContain("ProsjektVelgerModal");
   });
 
@@ -931,22 +936,6 @@ describe("ORDRE (28) — lønnsart pr. linje før lagring, fravær bruker ikke n
     holder.raw.run("DELETE FROM arbeidstid_svar_local;");
   });
 
-  it("🔴 Kenneths flyt: «+» → nytt kort 08–15 → «Egenmelding» på linja → lagret med fravær-art, uten rad-vinduet", () => {
-    settNorm();
-    arter();
-    const tider = { arbeidFra: "08:00", arbeidTil: "15:00" };
-    const linje = arbeid({ perDato: { [DATO]: tider } });
-    expect(vis(linje)).toEqual([["08:00", "15:00", 6.5, "L-normal"]]);
-    expect(linje[0]!.linje).toBe("normal");
-    const valg = velgLinjeLonnsart({
-      linje: "normal", art: egenmelding, rettDato: tider, naboArtId: null, overtidFra: null, arbeidFra: "08:00",
-    });
-    const retting = { perDato: { [DATO]: { ...tider, ...valg } } };
-    expect(vis(arbeid(retting))).toEqual([["08:00", "15:00", 6.5, L_EGEN]]);
-    expect(lagreManuelt(retting).handling.type).toBe("suksess");
-    expect(nye().map((r) => [r.fraTid, r.tilTid, r.timer, r.lonnsartId])).toEqual([["08:00", "15:00", 6.5, L_EGEN]]);
-  });
-
   it("negativkontroll: uten valg på linja lagres standardarten (dagens oppførsel)", () => {
     settNorm();
     arter();
@@ -1028,7 +1017,7 @@ describe("ORDRE (28) — lønnsart pr. linje før lagring, fravær bruker ikke n
     ]);
   });
 
-  it("🔴 B8: 3 t arbeid + 4,5 t sykdom lagres begge, ingen sperre", () => {
+  it("🔴 TF21 (A-vakt, F5/F12 = A): fravær-art på linja godtas ikke — linja står på standardarten, ingen deling", () => {
     settNorm();
     arter();
     sedelMed([{ id: "rad1", timer: 3, fra: "07:00", til: "10:00" }]);
@@ -1036,15 +1025,23 @@ describe("ORDRE (28) — lønnsart pr. linje før lagring, fravær bruker ikke n
     const valg = velgLinjeLonnsart({
       linje: "normal", art: sykdom, rettDato: tider, naboArtId: null, overtidFra: null, arbeidFra: "10:00",
     });
+    // Valget huskes i rettingen (velgeren tilbyr det aldri, `lonnsarterForLinje`),
+    // men beregningen godtar ikke fravær på en linje (`godtattLinjeLonnsart`).
+    expect("fravaerTil" in valg).toBe(false);
     const retting = { perDato: { [DATO]: { ...tider, ...valg } } };
     const dag = forslag(retting).datoer[0]!;
-    expect(dag.kjedeKonflikt ?? null).toBeNull();
-    expect(dag.linjerUtenLonnsart).toBeUndefined();
-    expect(lagreManuelt(retting).handling.type).toBe("suksess");
-    expect(rader().sort((a, b) => a.fraTid!.localeCompare(b.fraTid!)).map((r) => [r.timer, r.lonnsartId])).toEqual([
-      [3, "L-normal"],
-      [4.5, L_SYK],
-    ]);
+    expect("fravaerTil" in dag).toBe(false);
+    expect("fravaerSteg" in dag).toBe(false);
+    expect(dag.rader.filter((r) => !r.erReise).every((r) => r.lonnsartId !== L_SYK)).toBe(true);
+    expect(vis(arbeid(retting))).toEqual([["10:00", "14:30", 4.5, "L-normal"]]);
+  });
+
+  it("🔴 TF21 (A-vakt): velgeren på linjene tilbyr ikke fravær-arter (F5)", () => {
+    arter();
+    const linjeArter = lonnsarterForLinje(hentLonnsarterLokalt(ORG), () => false);
+    expect(linjeArter.some((l) => l.type === "fravaer")).toBe(false);
+    expect(linjeArter.map((l) => l.id)).toContain("L-normal");
+    expect(grupperLinjeLonnsarter(linjeArter).map((g) => g.gruppe)).not.toContain("fravaer");
   });
 
   it("🔴 ukjent eller fremmed art i linjevalget faller tilbake til forhåndsvalget", () => {
@@ -1070,116 +1067,6 @@ describe("ORDRE (28) — lønnsart pr. linje før lagring, fravær bruker ikke n
     ]);
   });
 
-  it("🔴 B9: kort 08–17 med fravær 08–15:30 → 7,5 t fravær + 1,5 t normaltid + 0 overtid", () => {
-    settNorm();
-    arter();
-    const tider = { arbeidFra: "08:00", arbeidTil: "17:00", pauseMin: 0 };
-    const før = arbeid({ perDato: { [DATO]: tider } });
-    expect(vis(før)).toEqual([
-      ["08:00", "15:30", 7.5, "L-normal"],
-      ["15:30", "17:00", 1.5, L_OT50],
-    ]);
-    const valg = velgLinjeLonnsart({
-      linje: "normal", art: egenmelding, rettDato: tider, naboArtId: null,
-      overtidFra: "15:30", arbeidFra: "08:00", linjeTil: før[0]!.tilTid,
-    });
-    expect(valg.fravaerTil).toBe("15:30");
-    const retting = { perDato: { [DATO]: { ...tider, ...valg } } };
-    const dag = forslag(retting).datoer[0]!;
-    expect(vis(dag.rader.filter((r) => !r.erReise))).toEqual([
-      ["08:00", "15:30", 7.5, L_EGEN],
-      ["15:30", "17:00", 1.5, "L-normal"],
-    ]);
-    expect(dag.rader.map((r) => r.linje)).toEqual(["normal", "arbeid"]);
-    expect(dag.fravaerTil).toBe("15:30");
-    expect(lagreManuelt(retting).handling.type).toBe("suksess");
-    expect(nye().map((r) => [r.fraTid, r.tilTid, r.timer, r.lonnsartId])).toEqual([
-      ["08:00", "15:30", 7.5, L_EGEN],
-      ["15:30", "17:00", 1.5, "L-normal"],
-    ]);
-  });
-
-  it("🔴 B9: kort 08–19 med fravær 08–10 → 9 t arbeid = 7,5 t normaltid + 1,5 t overtid", () => {
-    settNorm();
-    arter();
-    // Arbeiderens vei: «Overtid fra» 10:00 gir normallinja 08–10, fravær velges på den.
-    const tider = { arbeidFra: "08:00", arbeidTil: "19:00", pauseMin: 0, overtidFra: "10:00" };
-    const før = arbeid({ perDato: { [DATO]: tider } });
-    expect(vis(før)).toEqual([
-      ["08:00", "10:00", 2, "L-normal"],
-      ["10:00", "19:00", 9, L_OT50],
-    ]);
-    const valg = velgLinjeLonnsart({
-      linje: "normal", art: egenmelding, rettDato: tider, naboArtId: null,
-      overtidFra: "10:00", arbeidFra: "08:00", linjeTil: før[0]!.tilTid,
-    });
-    const forventet = [
-      ["08:00", "10:00", 2, L_EGEN],
-      ["10:00", "17:30", 7.5, "L-normal"],
-      ["17:30", "19:00", 1.5, L_OT50],
-    ];
-    expect(vis(arbeid({ perDato: { [DATO]: { ...tider, ...valg } } }))).toEqual(forventet);
-    // Samme svar med «Fravær til» alene (uten «Overtid fra»).
-    expect(vis(arbeid({ perDato: { [DATO]: {
-      arbeidFra: "08:00", arbeidTil: "19:00", pauseMin: 0, fravaerTil: "10:00", lonnsartPerLinje: { normal: L_EGEN },
-    } } }))).toEqual(forventet);
-  });
-
-  it("🔴 B9: dagen alt fylt med 7,5 t arbeid — nytt kort med fravær 1 t + arbeid 1 t → 1 t overtid", () => {
-    settNorm();
-    arter();
-    sedelMed([{ id: "rad1", timer: 7.5, fra: "07:00", til: "15:00", pause: 30 }]);
-    const tider = { arbeidFra: "15:00", arbeidTil: "17:00", pauseMin: 0, overtidFra: "16:00" };
-    const før = arbeid({ perDato: { [DATO]: tider } });
-    expect(vis(før)).toEqual([
-      ["15:00", "16:00", 1, "L-normal"],
-      ["16:00", "17:00", 1, L_OT50],
-    ]);
-    const valg = velgLinjeLonnsart({
-      linje: "normal", art: sykdom, rettDato: tider, naboArtId: null,
-      overtidFra: "16:00", arbeidFra: "15:00", linjeTil: før[0]!.tilTid,
-    });
-    expect(vis(arbeid({ perDato: { [DATO]: { ...tider, ...valg } } }))).toEqual([
-      ["15:00", "16:00", 1, L_SYK],
-      ["16:00", "17:00", 1, L_OT50],
-    ]);
-  });
-
-  it("🔴 B9/V7: annen art på normallinja fjerner fraværsdelingen; valget på arbeidslinja ryddes når linja forsvinner", () => {
-    settNorm();
-    arter();
-    const tider = { arbeidFra: "08:00", arbeidTil: "17:00", pauseMin: 0 };
-    const medFravaer = { ...tider, lonnsartPerLinje: { normal: L_EGEN, arbeid: L_REGNING }, fravaerTil: "15:30" };
-    expect(vis(arbeid({ perDato: { [DATO]: medFravaer } }))).toEqual([
-      ["08:00", "15:30", 7.5, L_EGEN],
-      ["15:30", "17:00", 1.5, L_REGNING],
-    ]);
-    const tilbake = velgLinjeLonnsart({
-      linje: "normal", art: timelonn, rettDato: medFravaer, naboArtId: null,
-      overtidFra: null, arbeidFra: "08:00", linjeTil: "15:30",
-    });
-    expect(tilbake.fravaerTil).toBeUndefined();
-    const dag = forslag({ perDato: { [DATO]: { ...medFravaer, ...tilbake } } }).datoer[0]!;
-    expect(vis(dag.rader.filter((r) => !r.erReise))).toEqual([
-      ["08:00", "15:30", 7.5, "L-normal"],
-      ["15:30", "17:00", 1.5, L_OT50],
-    ]);
-    expect(dag.fravaerTil).toBeUndefined();
-    expect(ryddLonnsartPerLinje({ normal: "L-normal", arbeid: L_REGNING }, linjerIDag(dag))).toEqual({
-      lonnsartPerLinje: { normal: "L-normal" },
-    });
-  });
-
-  it("🔴 B9: fravær «Fravær til» = kortets slutt → hele kortet fravær, delingspunktet står", () => {
-    settNorm();
-    arter();
-    const dag = forslag({ perDato: { [DATO]: {
-      arbeidFra: "08:00", arbeidTil: "17:00", pauseMin: 0, fravaerTil: "17:00", lonnsartPerLinje: { normal: L_EGEN },
-    } } }).datoer[0]!;
-    expect(vis(dag.rader.filter((r) => !r.erReise))).toEqual([["08:00", "17:00", 9, L_EGEN]]);
-    expect(dag.fravaerTil).toBe("17:00");
-  });
-
   it("🔴 V8-merknad: fravær slås opp også når arten er deaktivert", () => {
     arter();
     db().insert(lonnsartLocal).values({
@@ -1189,183 +1076,4 @@ describe("ORDRE (28) — lønnsart pr. linje før lagring, fravær bruker ikke n
     expect([...ider].sort()).toEqual(["L-gammel-fravaer", L_EGEN, L_SYK].sort());
   });
 
-  // RETUR 2 (28) — Kontrollør GATE (58) A2: fravær bruker ALDRI normen, uansett
-  // hvor «Fravær til» står. Punktet klemmes til tidligst arbeidsstart + 15 min
-  // (ingen tidsrunding i testfirmaet). Målt med og uten pause.
-  const sjekkB9 = (dag: Dagsforslag["datoer"][number], fravaerArt: string, fravaerTil: string) => {
-    const r = dag.rader.filter((x) => !x.erReise);
-    const fravaer = r.filter((x) => x.lonnsartId === fravaerArt);
-    const arbeidRader = r.filter((x) => x.lonnsartId !== fravaerArt);
-    const arbeidSum = arbeidRader.reduce((s, x) => s + x.timer, 0);
-    const ot = arbeidRader.filter((x) => x.lonnsartId === L_OT50).reduce((s, x) => s + x.timer, 0);
-    const normal = arbeidRader.filter((x) => x.lonnsartId === "L-normal").reduce((s, x) => s + x.timer, 0);
-    expect(dag.fravaerTil).toBe(fravaerTil); // «Fravær til» synlig
-    expect(fravaer).toHaveLength(1);
-    expect(fravaer[0]!.linje).toBe("normal");
-    expect(fravaer[0]!.tilTid).toBe(fravaerTil);
-    // Overtid først når faktisk arbeid har brukt normen (7,5 t).
-    expect(Math.round(normal * 100) / 100).toBe(Math.min(7.5, Math.round(arbeidSum * 100) / 100));
-    expect(Math.round(ot * 100) / 100).toBe(Math.max(0, Math.round((arbeidSum - 7.5) * 100) / 100));
-    // Ingen overtidsrad før siste normaltidsrad.
-    const forsteOt = r.findIndex((x) => x.lonnsartId === L_OT50);
-    if (forsteOt >= 0) expect(r.slice(forsteOt).every((x) => x.lonnsartId === L_OT50)).toBe(true);
-    return r;
-  };
-  const dagMed = (rett: Record<string, unknown>) => forslag({ perDato: { [DATO]: rett } }).datoer[0]!;
-
-  it.each([
-    ["uten pause", 0],
-    ["med pause", 30],
-  ])("🔴 A2 (a): «Fravær til» = arbeidsstart, med og uten husket «Overtid fra» — %s", (_navn, pauseMin) => {
-    settNorm();
-    arter();
-    for (const ekstra of [{}, { overtidFra: "10:00" }]) {
-      const dag = dagMed({
-        arbeidFra: "08:00", arbeidTil: "17:00", pauseMin, ...ekstra,
-        fravaerTil: "08:00", lonnsartPerLinje: { normal: L_EGEN },
-      });
-      const r = sjekkB9(dag, L_EGEN, "08:15");
-      expect(r[0]!.fraTid).toBe("08:00");
-    }
-  });
-
-  it.each([
-    ["uten pause", 0],
-    ["med pause", 30],
-  ])("🔴 A2 (b): «Fravær til» før arbeidsstart, med og uten husket «Overtid fra» — %s", (_navn, pauseMin) => {
-    settNorm();
-    arter();
-    for (const ekstra of [{}, { overtidFra: "10:00" }]) {
-      sjekkB9(
-        dagMed({
-          arbeidFra: "08:00", arbeidTil: "17:00", pauseMin, ...ekstra,
-          fravaerTil: "06:30", lonnsartPerLinje: { normal: L_EGEN },
-        }),
-        L_EGEN,
-        "08:15",
-      );
-    }
-  });
-
-  it.each([
-    ["uten pause", 0],
-    ["med pause", 30],
-  ])("🔴 A2 (c): arbeidsstart flyttet forbi punktet — %s", (_navn, pauseMin) => {
-    settNorm();
-    arter();
-    const dag = dagMed({
-      arbeidFra: "09:00", arbeidTil: "17:00", pauseMin, overtidFra: "10:00",
-      fravaerTil: "08:30", lonnsartPerLinje: { normal: L_EGEN },
-    });
-    const r = sjekkB9(dag, L_EGEN, "09:15");
-    expect(r[0]!.fraTid).toBe("09:00");
-  });
-
-  it("🔴 A2 (d): Sykdom på arbeid-linja godtas ikke — arbeidet fyller normen, overtid først etter 7,5 t", () => {
-    settNorm();
-    arter();
-    const dag = dagMed({
-      arbeidFra: "08:00", arbeidTil: "19:00", pauseMin: 0,
-      fravaerTil: "10:00", lonnsartPerLinje: { normal: L_EGEN, arbeid: L_SYK },
-    });
-    expect(vis(dag.rader.filter((r) => !r.erReise))).toEqual([
-      ["08:00", "10:00", 2, L_EGEN],
-      ["10:00", "17:30", 7.5, "L-normal"],
-      ["17:30", "19:00", 1.5, L_OT50],
-    ]);
-    sjekkB9(dag, L_EGEN, "10:00");
-  });
-
-  it("🔴 A2 (d) med pause: Sykdom på arbeid-linja godtas ikke", () => {
-    settNorm();
-    arter();
-    const dag = dagMed({
-      arbeidFra: "08:00", arbeidTil: "19:00", pauseMin: 30,
-      fravaerTil: "10:00", lonnsartPerLinje: { normal: L_EGEN, arbeid: L_SYK },
-    });
-    expect(dag.rader.some((r) => r.lonnsartId === L_SYK)).toBe(false);
-    sjekkB9(dag, L_EGEN, "10:00");
-  });
-
-  // RETUR 3 (28) — Kontrollør GATE (59) A3: fastStart-firma (start 07:00,
-  // pause etter 5,5 t = 12:30), kort 12:30–17:00, pause 30 ligger ved
-  // arbeidsstart. Tidligste punkt med fravær > 0 er 13:15 (forbi pausen) —
-  // «−» skal aldri gi hele kortet som fravær.
-  const settNormFastStart = () =>
-    db().insert(schema.arbeidstidSvarLocal).values({
-      organizationId: ORG, dato: DATO, dagsnorm: 7.5, startTid: "07:00", sluttTid: "15:00", pauseMin: 30,
-      normKilde: "fast", pauseEtterTimer: 5.5, pauseReferanse: "fastStart", hentetAt: Date.now(),
-    }).run();
-
-  it.each([
-    ["12:30", {}], ["12:45", {}], ["13:00", {}],
-    ["12:30", { overtidFra: "14:00" }], ["12:45", { overtidFra: "14:00" }], ["13:00", { overtidFra: "14:00" }],
-  ])("🔴 A3: pause ved arbeidsstart — «Fravær til» %s %j klemmes til 13:15, aldri hele kortet", (fravaerTil, ekstra) => {
-    settNormFastStart();
-    arter();
-    const dag = dagMed({
-      arbeidFra: "12:30", arbeidTil: "17:00", pauseMin: 30, ...ekstra,
-      fravaerTil, lonnsartPerLinje: { normal: L_EGEN },
-    });
-    const r = sjekkB9(dag, L_EGEN, "13:15");
-    const fravaer = r.filter((x) => x.lonnsartId === L_EGEN).reduce((s, x) => s + x.timer, 0);
-    expect(fravaer).toBeCloseTo(0.25, 5);
-    expect(r.reduce((s, x) => s + x.timer, 0)).toBeCloseTo(4, 5);
-    // Stepperen: «−» sperret på grensen, «+» neste punkt som endrer timene.
-    expect(dag.fravaerSteg).toEqual({ ned: null, opp: "13:30" });
-  });
-
-  it("🔴 A3 stepper: fra 13:30 går «−» til grensen 13:15, aldri forbi", () => {
-    settNormFastStart();
-    arter();
-    const dag = dagMed({
-      arbeidFra: "12:30", arbeidTil: "17:00", pauseMin: 30,
-      fravaerTil: "13:30", lonnsartPerLinje: { normal: L_EGEN },
-    });
-    sjekkB9(dag, L_EGEN, "13:30");
-    expect(dag.fravaerSteg).toEqual({ ned: "13:15", opp: "13:45" });
-  });
-
-  it("A3: kort kortere enn grensen (12:30–13:00, kun pause-tid) → hele kortet som fravær, stepper sperret", () => {
-    settNormFastStart();
-    arter();
-    const dag = dagMed({
-      arbeidFra: "12:30", arbeidTil: "13:10", pauseMin: 30,
-      fravaerTil: "12:45", lonnsartPerLinje: { normal: L_EGEN },
-    });
-    const r = dag.rader.filter((x) => !x.erReise);
-    expect(r.every((x) => x.lonnsartId === L_EGEN)).toBe(true);
-    expect(dag.fravaerSteg?.ned ?? null).toBeNull();
-  });
-
-  it("🔴 A3 feilklasse: pause slutter på punktet (08:00, pause 13:30–14:00) — stepperen hopper over pausen, sitter aldri fast", () => {
-    settNorm();
-    arter();
-    const dag = dagMed({
-      arbeidFra: "08:00", arbeidTil: "17:00", pauseMin: 30,
-      fravaerTil: "14:00", lonnsartPerLinje: { normal: L_EGEN },
-    });
-    // Fraværsraden slutter før pausen (5,5 t); «Fravær til» viser 13:30.
-    const r = sjekkB9(dag, L_EGEN, "13:30");
-    expect(r.filter((x) => x.lonnsartId === L_EGEN).reduce((s, x) => s + x.timer, 0)).toBeCloseTo(5.5, 5);
-    // «+» fra den viste verdien må gi mer fravær — ikke tilbake til 13:30.
-    expect(dag.fravaerSteg).toEqual({ ned: "13:15", opp: "14:15" });
-    const fraVist = dagMed({
-      arbeidFra: "08:00", arbeidTil: "17:00", pauseMin: 30,
-      fravaerTil: "13:30", lonnsartPerLinje: { normal: L_EGEN },
-    });
-    expect(fraVist.fravaerSteg?.opp).toBe("14:15");
-  });
-
-  it("A3 feilklasse: pause midt i fraværet (08:00, «Fravær til» 15:00) — pausen trekkes, fravær 6,5 t", () => {
-    settNorm();
-    arter();
-    const dag = dagMed({
-      arbeidFra: "08:00", arbeidTil: "17:00", pauseMin: 30,
-      fravaerTil: "15:00", lonnsartPerLinje: { normal: L_EGEN },
-    });
-    const r = sjekkB9(dag, L_EGEN, "15:00");
-    expect(r.filter((x) => x.lonnsartId === L_EGEN).reduce((s, x) => s + x.timer, 0)).toBeCloseTo(6.5, 5);
-    expect(dag.fravaerSteg).toEqual({ ned: "14:45", opp: "15:15" });
-  });
 });

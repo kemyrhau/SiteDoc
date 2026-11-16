@@ -106,9 +106,10 @@ describe("T10 — dagskortet får verken kortFelt eller kortlås (B1)", () => {
 // Dag-seksjonen på samlesiden har dem ikke lenger.
 const KORTSKJERM = flat(les("../../../app/timer/[id]/kort/[projectId].tsx"));
 const DAGSEKSJON = les("prosjektkort/DagSeksjon.tsx");
+// Ordre c (T11): kortet kan bære kort-id; linjer uten id går til første kort med lik nøkkel (`utenId`).
 const KORTSKJERM_KRAV = [
-  "const kTillegg = raderPaaKort(tilleggRader, kontekst, valg);",
-  "const kUtlegg = raderPaaKort(utleggRader, kontekst, valg);",
+  "const kTillegg = raderPaaKort(tilleggRader, kontekst, valg, utenId);",
+  "const kUtlegg = raderPaaKort(utleggRader, kontekst, valg, utenId);",
   "kTillegg.length + kUtlegg.length === 0",
   "tilleggRader, utleggRader, sedel: kontekst, kort: valg,",
   "<ProsjektkortKontekst.Provider value={{ byggeplassId: valg.byggeplassId, ecoId: valg.ecoId }}>",
@@ -128,7 +129,7 @@ describe("T7 — kortskjermen fører tillegg og utlegg", () => {
   });
 
   it("negativkontroll: gammel kortskjerm (utlegg={0}, ingen seksjoner) fanges", () => {
-    const gammel = KORTSKJERM.replace("const kTillegg = raderPaaKort(tilleggRader, kontekst, valg);", "").replace(
+    const gammel = KORTSKJERM.replace("const kTillegg = raderPaaKort(tilleggRader, kontekst, valg, utenId);", "").replace(
       "rader={kTillegg}",
       "",
     );

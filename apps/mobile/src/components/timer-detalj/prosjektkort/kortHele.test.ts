@@ -43,10 +43,10 @@ import * as schema from "../../../db/schema";
 import { kjorMigreringer } from "../../../db/migreringer";
 import {
   flyttKort,
-  kortFinnesFraFor,
   erIkkeFunnet,
   kortInnhold,
   kortUtfallTekst,
+  kortUtfallParametre,
   radInnhold,
   slettKort,
   vareFinnesPaaServer,
@@ -485,12 +485,11 @@ describe("flyttKort", () => {
     for (const id of ["v-1", "v-2", "v-3"]) expect(vare(id)).toMatchObject({ projectId: "p2", byggeplassId: "bp2" });
   });
 
-  it("sammenslåing: målkortet finnes → radene får samme nøkkel og beholder beskrivelsene", async () => {
+  it("rader uten kort-id: målnøkkelen finnes → radene får samme nøkkel og beholder beskrivelsene", async () => {
     const { a, nabo } = byggDag();
+    // ORDRE (35): kollisjonssjekken er alltid på — naboen flyttes ut av A-radens tid (lagring sperrer overlapp).
+    db().update(sheetTimerLocal).set({ fraTid: "15:00", tilTid: "22:30" }).where(eq(sheetTimerLocal.id, nabo)).run();
     const B: KortValg = { projectId: "p2", byggeplassId: null, ecoId: null };
-    const utenfor = timerAlle().filter((r) => !innholdFor(A).timer.some((k) => k.id === r.id));
-    expect(kortFinnesFraFor(utenfor, SEDEL, B)).toBe(true);
-    expect(kortFinnesFraFor(utenfor, SEDEL, { projectId: "p3", byggeplassId: null, ecoId: null })).toBe(false);
     expect(await flyttKort(db(), dagFor(), innholdFor(A), A, B, SERVER_OK)).toEqual({ utfall: "ok" });
     expect(innholdFor(B).timer.map((r) => [r.id, r.beskrivelse]).sort()).toEqual(
       [
@@ -568,7 +567,8 @@ describe("RETUR 36c-kort-2 — feiltekst og NOT_FOUND", () => {
     expect(blokk.match(/u\.utfall/g)).toEqual(["u.utfall", "u.utfall"]);
     expect(blokk).toContain('u.utfall === "ok"');
     expect(blokk).toContain('const grunn = u.utfall === "delvis" && u.melding ? `\\n${u.melding}` : "";');
-    expect(blokk).toContain("setKortFeil(tekst ? t(tekst, { defaultValue: tekst }) + grunn : null);");
+    // RETUR (33) c pkt 1: interpolasjonen (overlapp-tidene) kommer fra kortUtfallParametre.
+    expect(blokk).toContain("setKortFeil(tekst ? t(tekst, { defaultValue: tekst, ...kortUtfallParametre(u) }) + grunn : null);");
     expect(kort).toContain('visUtfall(u, "flytt")');
     expect(kort).toContain('visUtfall(u, "slett")');
   });
@@ -598,7 +598,7 @@ describe("kildevakter — kortskjermen", () => {
       expect(kort).not.toMatch(new RegExp(`>\\s*${tekst}`));
       expect(kort).not.toMatch(new RegExp(`["'\`]${tekst}`));
     }
-    for (const n of ["slettTittel", "slettTekst", "slettUtkast", "slettReturnert", "slettSiste", "sammenslaa", "offlineFlytt", "offlineSlett"])
+    for (const n of ["slettTittel", "slettTekst", "slettUtkast", "slettReturnert", "slettSiste", "offlineFlytt", "offlineSlett"])
       expect(kort).toContain(`t("timer.kort.${n}"`);
   });
 
@@ -665,5 +665,57 @@ describe("TILLEGG 2026-11-12 regel 1 — flytt av ÉN rad tar med maskiner og va
     expect(await flyttKort(db(), dagFor(), innhold, A, TIL, SERVER_OK)).toEqual({ utfall: "ok" });
     expect(timerRad(r1)).toMatchObject({ projectId: "p2" });
     expect(vare("v-r1")).toMatchObject({ projectId: "p1", byggeplassId: "bp1" });
+  });
+});
+
+describe("RETUR (33) c pkt 1 — «Endre kort» til en nøkkel som alt har kort", () => {
+  const B: KortValg = { projectId: "p2", byggeplassId: null, ecoId: null };
+  const A_ID: KortValg = { ...A, kortId: "k-a" };
+  /** Kort A (k-a) og et kort på B (k-b) med egne beskrivelser og gitte tider. */
+  function toKort(bFra: string, bTil: string) {
+    const a = leggTilTimerRad(db(), K, { ...felt, fraTid: "07:00", tilTid: "11:00", timer: 4 }, []);
+    const b = leggTilTimerRad(db(), K, { ...felt, projectId: "p2", byggeplassId: null, beskrivelse: "Støping", fraTid: bFra, tilTid: bTil, timer: 4 }, []);
+    db().update(sheetTimerLocal).set({ kortId: "k-a" }).where(eq(sheetTimerLocal.id, a)).run();
+    db().update(sheetTimerLocal).set({ kortId: "k-b" }).where(eq(sheetTimerLocal.id, b)).run();
+    return { a, b };
+  }
+  const endre = () =>
+    flyttKort(db(), dagFor(), innholdFor(A_ID), A_ID, { ...B, kortId: "k-a" }, SERVER_OK);
+
+  it("uten overlapp: to kort på samme nøkkel, hver med sin id og sin beskrivelse", async () => {
+    const { a, b } = toKort("11:00", "15:00"); // berøring i endepunkt er ikke overlapp
+    expect(await endre()).toEqual({ utfall: "ok" });
+    expect(timerRad(a)).toMatchObject({ projectId: "p2", kortId: "k-a", beskrivelse: "Graving" });
+    expect(timerRad(b)).toMatchObject({ projectId: "p2", kortId: "k-b", beskrivelse: "Støping" });
+    expect(innholdFor({ ...B, kortId: "k-a" }).timer.map((r) => r.id)).toEqual([a]);
+    expect(innholdFor({ ...B, kortId: "k-b" }).timer.map((r) => r.id)).toEqual([b]);
+  });
+
+  it("med overlapp: samme regel som lagring av en rad i dag (sperre, `timer.feil.overlapp`) — ingen skriving", async () => {
+    const { a } = toKort("10:00", "15:00");
+    const u = await endre();
+    expect(u).toEqual({ utfall: "overlapp", fra: "07:00", til: "11:00", annenFra: "10:00", annenTil: "15:00" });
+    expect(kortUtfallTekst(u, "flytt")).toBe("timer.feil.overlapp");
+    expect(kortUtfallParametre(u)).toEqual({ fra: "07:00", til: "11:00", annenFra: "10:00", annenTil: "15:00" });
+    expect(timerRad(a)).toMatchObject({ projectId: "p1", byggeplassId: "bp1", kortId: "k-a" });
+  });
+
+  it("negativkontroll: overlapp med et kort på en ANNEN nøkkel stopper ikke «Endre kort»", async () => {
+    const { a } = toKort("10:00", "15:00");
+    const C: KortValg = { projectId: "p3", byggeplassId: null, ecoId: null, kortId: "k-a" };
+    expect(await flyttKort(db(), dagFor(), innholdFor(A_ID), A_ID, C, SERVER_OK)).toEqual({ utfall: "ok" });
+    expect(timerRad(a)).toMatchObject({ projectId: "p3", kortId: "k-a" });
+  });
+
+  it("kortskjermen kaller flyttKort (sjekken er alltid på — ORDRE (35)), og merknaden om sammenslåing er borte", () => {
+    const skjerm = fs.readFileSync(path.join(__dirname, "../../../../app/timer/[id]/kort/[projectId].tsx"), "utf8");
+    expect(skjerm).toContain("await flyttKort(");
+    expect(fs.readFileSync(path.join(__dirname, "kortRadFlytt.ts"), "utf8")).not.toContain("kollisjonssjekk");
+    expect(skjerm).not.toContain("sammenslaa");
+    expect(skjerm).not.toContain("kortFinnesFraFor");
+    const i18nDir = path.join(__dirname, "../../../../../../packages/shared/src/i18n");
+    const filer = fs.readdirSync(i18nDir).filter((f) => f.endsWith(".json"));
+    expect(filer).toHaveLength(15);
+    for (const f of filer) expect(fs.readFileSync(path.join(i18nDir, f), "utf8")).not.toContain("timer.kort.sammenslaa");
   });
 });

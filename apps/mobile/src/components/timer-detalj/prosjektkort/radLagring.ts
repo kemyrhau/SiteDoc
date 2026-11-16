@@ -33,7 +33,11 @@ export interface RadKontekst {
 
 /** Feltene timer-modalen lagrer (samme argumenter som TimerSeksjon). */
 export interface TimerRadFelt {
-  projectId: string;
+  /**
+   * `null` bare for fraværskortets rader (spec § 11.2). Oppdatering rører aldri
+   * `uten_prosjekt`, så en fraværsrad forblir i fraværskortet.
+   */
+  projectId: string | null;
   byggeplassId: string | null;
   lonnsartId: string;
   aktivitetId: string;
@@ -44,6 +48,8 @@ export interface TimerRadFelt {
   beskrivelse: string | null;
   /** V20 PK2: radens matpause-bærer (0 ellers), avgjort i RadSkjema. */
   pauseMin: number;
+  /** Ordre c (T11): kortets id ved NY rad. `oppdaterTimerRad` rører den aldri. */
+  kortId?: string | null;
 }
 
 /** Feltene maskin-modalen lagrer (samme argumenter som MaskinSeksjon). */
@@ -162,13 +168,15 @@ export function oppdaterTimerRad(
   // NY BESLUTNING: bare maskinlinjene modalen sender, skrives. Koblede maskiner
   // som ikke er nevnt, røres ikke. undefined = ingen maskin røres.
   if (maskiner !== undefined) {
-    skrivKobledeMaskiner(
-      db,
-      sheetId,
-      radId,
-      { projectId: radProjectId, byggeplassId, externalCostObjectId, timer, fraTid, tilTid },
-      maskiner,
-    );
+    // Fraværskortet bærer aldri maskin (K8).
+    if (radProjectId !== null)
+      skrivKobledeMaskiner(
+        db,
+        sheetId,
+        radId,
+        { projectId: radProjectId, byggeplassId, externalCostObjectId, timer, fraTid, tilTid },
+        maskiner,
+      );
   }
   // Kort-id: endret nøkkel (prosjekt/byggeplass/underprosjekt) → regel 3; koblede maskiner følger (K6).
   sikreLokalKortId(db, sheetId);

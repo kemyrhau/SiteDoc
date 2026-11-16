@@ -3,7 +3,7 @@
  * skrivingen ligger i `anvendDagsforslag` og kjører først ved «Bekreft og
  * lagre» i `/timer/bekreft-dag`.
  */
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import type { hentDatabase } from "../db/database";
 import {
   dagsseddelLocal,
@@ -27,6 +27,7 @@ import {
   erReiseLonnsart,
   løsOppmote,
   bruktAvNorm,
+  radProsjektId,
   type Destinasjon,
 } from "@sitedoc/shared";
 import { erReiseRadVisning } from "../utils/reiseRad";
@@ -318,6 +319,7 @@ export function samleDagsforslagInput(
   }
 
   return {
+    userId: p.userId,
     dag: {
       startAt: dag.startAt,
       startLat: dag.startLat,
@@ -364,7 +366,12 @@ function lesEksisterendeSedel(
   reiseLonnsartId: string | null,
 ): DagsforslagEksisterendeSedel {
   const sedel = db
-    .select({ id: dagsseddelLocal.id, status: dagsseddelLocal.status })
+    .select({
+      id: dagsseddelLocal.id,
+      status: dagsseddelLocal.status,
+      projectId: dagsseddelLocal.projectId,
+      byggeplassId: dagsseddelLocal.byggeplassId,
+    })
     .from(dagsseddelLocal)
     .where(and(eq(dagsseddelLocal.userId, userId), eq(dagsseddelLocal.dato, dato)))
     .all()[0];
@@ -379,9 +386,14 @@ function lesEksisterendeSedel(
       erReise: sheetTimerLocal.erReise,
       timer: sheetTimerLocal.timer,
       lonnsartId: sheetTimerLocal.lonnsartId,
+      projectId: sheetTimerLocal.projectId,
+      radByggeplassId: sheetTimerLocal.byggeplassId,
+      kortId: sheetTimerLocal.kortId,
+      utenProsjekt: sheetTimerLocal.utenProsjekt,
     })
     .from(sheetTimerLocal)
     .where(eq(sheetTimerLocal.dagsseddelId, sedel.id))
+    .orderBy(sql`rowid`)
     .all();
   // B8: fravær bruker ikke normen. Lønnsart-id er global — typen slås opp
   // uten firmafilter.
@@ -411,5 +423,28 @@ function lesEksisterendeSedel(
       normTimer: bruktAvNorm([dognRader[i]!]),
     })),
     bruktAvNorm: bruktAvNorm(dognRader),
+    kort: eksisterendeKort(sedel, rader, dognRader),
   };
+}
+
+/**
+ * Ordre c (spec § 5.1): kortene på sedelen, eldste først (rowid, som
+ * `kortIdLokal`). Bare arbeidsrader med prosjekt; reise og fraværskortet har
+ * ikke prosjektkort her. Effektiv byggeplass: radens egen, ellers sedelens når
+ * raden har sedelens prosjekt (M1).
+ */
+function eksisterendeKort(
+  sedel: { projectId: string; byggeplassId: string | null },
+  rader: Array<{ kortId: string | null; projectId: string | null; radByggeplassId: string | null; utenProsjekt: boolean }>,
+  dognRader: Array<{ erReise: boolean; erFravaer: boolean }>,
+): NonNullable<DagsforslagEksisterendeSedel["kort"]> {
+  const ut: NonNullable<DagsforslagEksisterendeSedel["kort"]> = [];
+  rader.forEach((r, i) => {
+    const projectId = radProsjektId(r, sedel);
+    if (!r.kortId || !projectId || dognRader[i]?.erReise) return;
+    if (ut.some((k) => k.kortId === r.kortId)) return;
+    const byggeplassId = r.radByggeplassId ?? (projectId === sedel.projectId ? sedel.byggeplassId : null);
+    ut.push({ kortId: r.kortId, projectId, byggeplassId });
+  });
+  return ut;
 }

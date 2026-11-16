@@ -40,9 +40,16 @@ export type BeskrivelseKort = {
    * tillegg-/utleggslinje uten dato (utkast fra før 25) hører hit.
    */
   paaStartDato: boolean;
+  /**
+   * Ordre c (spec § 5.1): kortets id (`tildelKortIder`). Utelatt når forslaget
+   * er regnet uten bruker (ingen id å gi).
+   */
+  kortId?: string;
+  /** Ordre c: kortet er delt ut av arbeideren («Del til eget kort»). Nøkkelen er `kortId`. */
+  egetKort: boolean;
 };
 
-type RadKortGrunnlag = { projectId: string; byggeplassId: string | null };
+type RadKortGrunnlag = { projectId: string; byggeplassId: string | null; kortId?: string; egetKort?: boolean };
 type DatoGrunnlag = Pick<DagsforslagDag, "byggeplassId" | "dato">;
 
 function radKortNokkel(rad: RadKortGrunnlag, d: Pick<DagsforslagDag, "byggeplassId">): string {
@@ -53,12 +60,18 @@ function radKortNokkel(rad: RadKortGrunnlag, d: Pick<DagsforslagDag, "byggeplass
   });
 }
 
-/** Kortets identitet: dato + prosjekt + effektiv byggeplass. */
+/**
+ * Kortets identitet: dato + prosjekt + effektiv byggeplass. Ordre c: et kort
+ * arbeideren har delt ut («Del til eget kort») er sin egen id — det deler
+ * prosjekt og byggeplass med kortet det kom fra (K7).
+ */
 function radKortId(rad: RadKortGrunnlag, d: DatoGrunnlag): string {
+  if (rad.egetKort && rad.kortId) return `eget|${rad.kortId}`;
   return `${d.dato}|${radKortNokkel(rad, d)}`;
 }
 
 function kortId(k: BeskrivelseKort): string {
+  if (k.egetKort && k.kortId) return `eget|${k.kortId}`;
   return `${k.dato}|${kortNokkel({ projectId: k.projectId, byggeplassId: k.byggeplassId, ecoId: null })}`;
 }
 
@@ -69,7 +82,15 @@ function forslagStartDato(forslag: Dagsforslag): string | null {
 
 /** Kortene med arbeid (ikke reise) på åpne datoer, i forslagets rekkefølge — ett pr. dato. */
 export function kortMedArbeid(forslag: Dagsforslag): BeskrivelseKort[] {
-  const kort: { id: string; sted: string; dato: string; projectId: string; byggeplassId: string | null }[] = [];
+  const kort: {
+    id: string;
+    sted: string;
+    dato: string;
+    projectId: string;
+    byggeplassId: string | null;
+    kortId?: string;
+    egetKort: boolean;
+  }[] = [];
   for (const d of forslag.datoer) {
     if (d.blokkert) continue;
     for (const r of d.rader) {
@@ -82,22 +103,43 @@ export function kortMedArbeid(forslag: Dagsforslag): BeskrivelseKort[] {
         dato: d.dato,
         projectId: r.projectId,
         byggeplassId: r.byggeplassId ?? d.byggeplassId ?? null,
+        ...(r.kortId ? { kortId: r.kortId } : {}),
+        egetKort: !!(r.egetKort && r.kortId),
       });
     }
   }
   const startDato = forslagStartDato(forslag);
+  // Ordre c: grunnkortenes nøkler regnes som før (utkast fra før kort-id finner
+  // kortet sitt, T14). Et utdelt kort nøkles på sin id og rører dem ikke.
+  const grunnKort = kort.filter((k) => !k.egetKort);
   return kort.map((k) => {
-    const egne = kort.filter((x) => x.projectId === k.projectId);
+    const felles = { projectId: k.projectId, byggeplassId: k.byggeplassId, dato: k.dato, ...(k.kortId ? { kortId: k.kortId } : {}), egetKort: k.egetKort };
+    const egne = grunnKort.filter((x) => x.projectId === k.projectId);
     const delerProsjekt = new Set(egne.map((x) => x.sted)).size > 1;
     const visDato = new Set(egne.map((x) => x.dato)).size > 1;
+    if (k.egetKort) {
+      return { ...felles, nokkel: k.kortId!, delerProsjekt, visDato, paaStartDato: k.dato === startDato };
+    }
     const grunn = delerProsjekt ? k.sted : k.projectId;
     // RETUR 2 (24): grunnøkkelen uten dato tilhører KUN startdatoens kort —
     // også når det kortet mangler (0 t / blokkert). Ellers arvet kortet
     // 00–06 teksten fra 21–24 og arbeiderens egen tekst lå skjult.
     const paaStartDato = k.dato === startDato;
     const nokkel = paaStartDato ? grunn : `${k.dato}|${grunn}`;
-    return { nokkel, projectId: k.projectId, byggeplassId: k.byggeplassId, dato: k.dato, delerProsjekt, visDato, paaStartDato };
+    return { ...felles, nokkel, delerProsjekt, visDato, paaStartDato };
   });
+}
+
+/**
+ * Ordre c, spec § 5.1 / T14: nøkler i `beskrivelsePerKort` med tekst som ikke
+ * hører til noe kort (kortet ble angret, tiden flyttet, gammelt utkast). Vises
+ * i Bekreft dag — teksten droppes aldri stille.
+ */
+export function foreldreloseBeskrivelser(forslag: Dagsforslag): string[] {
+  const b = forslag.beskrivelsePerKort;
+  if (!b) return [];
+  const kjent = new Set(kortMedArbeid(forslag).map((k) => k.nokkel));
+  return Object.keys(b).filter((n) => !kjent.has(n) && (b[n] ?? "").trim() !== "");
 }
 
 /**
@@ -148,6 +190,16 @@ export function arbeidsraderPerKort(forslag: Dagsforslag): Map<string, Beskrivel
  * utkast med `beskrivelsePerRad` (radform 2026-11-12) leses ikke. Kortet
  * er dato-bundet (RETUR 24): raden får teksten til kortet på sin egen dato.
  */
+/** Ordre c: kortet en arbeidsrad på dato `d` hører til. Reise og 0 t → undefined. */
+export function kortForRad(
+  forslag: Dagsforslag,
+  rad: RadKortGrunnlag,
+  d: DatoGrunnlag,
+): BeskrivelseKort | undefined {
+  const id = radKortId(rad, d);
+  return kortMedArbeid(forslag).find((x) => kortId(x) === id);
+}
+
 export function beskrivelseForRad(
   forslag: Dagsforslag,
   rad: RadKortGrunnlag,
@@ -161,8 +213,15 @@ export function beskrivelseForRad(
   return b[nokkel]?.trim() || null;
 }
 
+/** Summeringsnøkkel: kort-stedet (over alle datoer) — et utdelt kort er sitt eget (ordre c). */
 function kortNokkelFraKort(k: BeskrivelseKort): string {
+  if (k.egetKort && k.kortId) return `eget|${k.kortId}`;
   return kortNokkel({ projectId: k.projectId, byggeplassId: k.byggeplassId, ecoId: null });
+}
+
+function radSumNokkel(r: RadKortGrunnlag, d: Pick<DagsforslagDag, "byggeplassId">): string {
+  if (r.egetKort && r.kortId) return `eget|${r.kortId}`;
+  return radKortNokkel(r, d);
 }
 
 /**
@@ -180,7 +239,7 @@ export function kortMedFlestTimer(forslag: Dagsforslag, projectId?: string): Bes
     if (d.blokkert) continue;
     for (const r of d.rader) {
       if (r.erReise || !(r.timer > 0)) continue;
-      const k = radKortNokkel(r, d);
+      const k = radSumNokkel(r, d);
       sum.set(k, (sum.get(k) ?? 0) + r.timer);
     }
   }

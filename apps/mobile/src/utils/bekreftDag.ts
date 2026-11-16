@@ -193,6 +193,8 @@ export function bekreftDag(
     arbeidsdagId: string | null;
     /** ORDRE 36c: valgt underprosjekt i manuell modus. Utelatt/null = uten. */
     ecoId?: string | null;
+    /** Ordre c (spec § 5.1): underprosjekt pr. kort, nøkkel = kortets nøkkel. Utelatt for et kort = `ecoId`. */
+    ecoPerKort?: Record<string, string | null>;
     /** RETUR 36c-3: eksplisitt «Ingen byggeplass» (manuell) — løfter sedelens arv. */
     utenByggeplassValgt?: boolean;
     sluttIso: string;

@@ -36,6 +36,11 @@ export type NyttUtlegg = {
    * startdatoens kort (`kortForLinje`). Skrives ikke til DB.
    */
   dato?: string;
+  /**
+   * Ordre c (spec § 5.1): kortet linja hører til (Bekreft dag: valgt kort).
+   * Skrives på raden; utelatt = regel 3 (`sikreLokalKortId`), som før.
+   */
+  kortId?: string;
 };
 
 /**
@@ -63,6 +68,7 @@ export function skrivUtlegg(
       foertVed: u.foertVed,
       byggeplassId: u.byggeplassId ?? null,
       externalCostObjectId: u.externalCostObjectId ?? null,
+      kortId: u.kortId ?? null,
       sistEndretLokalt: u.foertVed,
     })
     .run();
@@ -116,6 +122,11 @@ export type NyttLonnstillegg = {
    * startdatoens kort (`kortForLinje`). Skrives ikke til DB.
    */
   dato?: string;
+  /**
+   * Ordre c (spec § 5.1): kortet linja hører til (Bekreft dag: valgt kort).
+   * Skrives på raden; utelatt = regel 3 (`sikreLokalKortId`), som før.
+   */
+  kortId?: string;
 };
 
 /** Skriver lønnstillegget på `sheetId` — samme verdier som prosjektkortets `leggTil`. */
@@ -130,6 +141,7 @@ export function skrivLonnstillegg(db: LokalDb, sheetId: string, l: NyttLonnstill
       kommentar: l.kommentar,
       byggeplassId: l.byggeplassId ?? null,
       externalCostObjectId: l.externalCostObjectId ?? null,
+      kortId: l.kortId ?? null,
       sistEndretLokalt: naa,
     })
     .run();

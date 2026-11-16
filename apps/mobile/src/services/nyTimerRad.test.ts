@@ -49,6 +49,7 @@ import {
   lagreNyTimerRad,
   sistBrukteMaskiner,
   sistBrukteRadvalg,
+  fravaerAktivitetId,
   startvalgForNyRad,
   type NyRad,
 } from "./nyTimerRad";
@@ -242,6 +243,52 @@ describe("sistBrukteRadvalg", () => {
     // Negativkontroll: én aktiv aktivitet → den velges.
     holder.raw.run("DELETE FROM aktivitet_local WHERE id = 'a2'");
     expect(sistBrukteRadvalg(db(), "u1", "p1", "o1").aktivitetId).toBe("a1");
+  });
+});
+
+describe("U6 (ORDRE (33) SVAR pkt 1) — fravaerAktivitetId: fraværsradens skjulte aktivitet", () => {
+  function seedAkt(id: string, o: { navn?: string; kode?: string | null; seedNivaa?: number | null; aktiv?: boolean; org?: string } = {}) {
+    db()
+      .insert(aktivitetLocal)
+      .values({
+        id,
+        organizationId: o.org ?? "o1",
+        navn: o.navn ?? id,
+        kode: o.kode ?? null,
+        seedNivaa: o.seedNivaa ?? null,
+        aktiv: o.aktiv ?? true,
+        sistOppdatert: 1,
+      })
+      .run();
+  }
+  it("gren 1: samme standard som ny arbeidsrad — «Anleggsarbeid» vinner over seedNivaa 1", () => {
+    seedAkt("a-seed1", { navn: "Maskintimer", seedNivaa: 1, kode: "01" });
+    seedAkt("a-anl", { navn: "Anleggsarbeid", seedNivaa: 2, kode: "09" });
+    expect(fravaerAktivitetId(db(), "o1")).toBe("a-anl");
+  });
+  it("gren 1: eneste aktive aktivitet", () => {
+    seedAkt("a-eneste", { navn: "Garanti" });
+    seedAkt("a-inaktiv", { navn: "Anleggsarbeid", aktiv: false });
+    expect(fravaerAktivitetId(db(), "o1")).toBe("a-eneste");
+  });
+  it("gren 2: ingen standard → første aktive etter seedNivaa (1, 2, null), så kode, så navn", () => {
+    seedAkt("a-null", { navn: "Aaa", seedNivaa: null, kode: "00" });
+    seedAkt("a-2b", { navn: "B", seedNivaa: 2, kode: "20" });
+    seedAkt("a-2a", { navn: "C", seedNivaa: 2, kode: "10" });
+    expect(fravaerAktivitetId(db(), "o1")).toBe("a-2a");
+    seedAkt("a-1", { navn: "Z", seedNivaa: 1, kode: "99" });
+    expect(fravaerAktivitetId(db(), "o1")).toBe("a-1");
+  });
+  it("gren 2: lik seedNivaa og kode → navn avgjør; annet firmas aktivitet teller ikke", () => {
+    seedAkt("a-y", { navn: "Ybb", seedNivaa: null });
+    seedAkt("a-x", { navn: "Xaa", seedNivaa: null });
+    seedAkt("a-annet", { navn: "Anleggsarbeid", seedNivaa: 1, org: "o2" });
+    expect(fravaerAktivitetId(db(), "o1")).toBe("a-x");
+  });
+  it("gren 3: ingen aktiv aktivitet i firmaet → null (aldri \"\" mot serveren)", () => {
+    seedAkt("a-inaktiv", { navn: "Anleggsarbeid", aktiv: false });
+    seedAkt("a-annet", { navn: "Anleggsarbeid", org: "o2" });
+    expect(fravaerAktivitetId(db(), "o1")).toBeNull();
   });
 });
 

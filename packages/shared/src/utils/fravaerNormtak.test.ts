@@ -51,6 +51,12 @@ describe("TF14 harNormtak", () => {
       "apps/api/src/services/seed/index.ts",
       "apps/api/src/services/katalog/importerKatalog.ts",
       "apps/web/src/app/dashbord/firma/timer/lonnsarter/page.tsx",
+      // Ordre c3 (B10 på telefon, TF20): lokal katalogkolonne — skjema, migrering, skriving i
+      // refreshKatalog og select i finnNormtakArtLokalt; typen sendes videre til harNormtak.
+      "apps/mobile/src/db/schema.ts",
+      "apps/mobile/src/db/migreringer.ts",
+      "apps/mobile/src/services/timerKatalog.ts",
+      "apps/mobile/src/utils/fravaerNormtakMobil.ts",
     ];
     const kataloger = ["apps/api/src", "apps/web/src", "apps/mobile/src", "apps/mobile/app", "packages/shared/src", "packages/db/scripts"];
     const treff: string[] = [];

@@ -44,6 +44,8 @@ export type ForsonetServerRad = {
   externalCostObjectId: string | null;
   // Kort-id (spec § 4.1): id-en følger forslagsraden tilbake. Mangler mot eldre API.
   kortId?: string | null;
+  // Fraværskortet (spec § 11.3): forsoningen bærer flagget. Mangler mot eldre API.
+  utenProsjekt?: boolean | null;
   timer: number | string;
   fraTid: string | null;
   tilTid: string | null;
@@ -123,7 +125,8 @@ export function anvendForsonetLokalt(
       .values({
         id: r.id,
         dagsseddelId: sheetId,
-        projectId: r.projectId,
+        projectId: r.utenProsjekt ? null : r.projectId,
+        utenProsjekt: r.utenProsjekt === true,
         byggeplassId: r.byggeplassId,
         lonnsartId: r.lonnsartId,
         aktivitetId: r.aktivitetId,
