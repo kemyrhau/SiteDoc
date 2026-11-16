@@ -12,6 +12,7 @@
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
 **Sist oppdatert:** 2026-11-16
+- 2026-11-16 — **Prod `85ff903c` + OTA production `ac933d8b`; merge (35) `d799072e` + d2a `274be011`**: STATUS-AKTUELT + FUNKSJONSENDRINGER ført.
 - 2026-11-16 — **`prosjektkort-kortid-spec.md` § 8.2 + `timer.md`: ORDRE (35) — «Flytt raden» får kollisjonssjekk** (branch `feat/flytt-raden-kollisjon`, kode + docs, Kort-id-c): `flyttKort` kjører `finnKortKollisjon` alltid (valget `kollisjonssjekk` fjernet); maskin/vare alene uendret.
 - 2026-11-16 — **`prosjektkort-kortid-spec.md` § 12.9 + `timer.md` + `api.md`: ordre d2a commit 2 — retting på stedet i `redigerSedelRader`, `rettRadFelt`, `gjenaapneRader`, splitt som beholder koblingene og vare-retting med antallet før** (branch `feat/kortid-d2a-grunnlag`, kode + docs, Kort-id-d2a). Ingen fil opprettet eller slettet i docs/claude — tellingene er uendret.
 - 2026-11-16 — **`prosjektkort-kortid-spec.md` § 12.9 + `timer.md` + `api.md`: ordre d2a commit 1 — kort-gruppering, maskin-kobling, prosjektnummer, ukeavvik-rader og de tre attesteringsleserne** (branch `feat/kortid-d2a-grunnlag`, kode + docs, Kort-id-d2a). Ingen fil opprettet eller slettet i docs/claude — tellingene er uendret.
