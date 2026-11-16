@@ -43,7 +43,14 @@ import {
   hentReiseKnappLokalt,
   hentLonnsarterLokalt,
   erReiseLonnsartLokalt,
+  finnLonnsartLokalt,
 } from "../../src/services/timerKatalog";
+import { FravaerKortModal } from "../../src/components/timer-detalj/prosjektkort/FravaerKortModal";
+import {
+  forslagSomDagRader,
+  fravaerVedBekreft,
+  hentFravaerKortDag,
+} from "../../src/components/timer-detalj/prosjektkort/fravaerKortDag";
 import { LonnsartVelgerModal } from "../../src/components/timer-detalj/TimerSeksjon";
 import {
   MAKS_LINJE_CHIPS,
@@ -97,7 +104,7 @@ import {
 import { HjelpIkon } from "../../src/components/HjelpIkon";
 import { useOpplastingsKo } from "../../src/providers/OpplastingsKoProvider";
 import { forberedManuellDag } from "../../src/utils/manuellDag";
-import { hentOgCacheArbeidstidSvar } from "../../src/services/arbeidstidSvarKatalog";
+import { hentDagsnormLokalt, hentOgCacheArbeidstidSvar } from "../../src/services/arbeidstidSvarKatalog";
 import { trpc } from "../../src/lib/trpc";
 import { DatoVelgerFelt } from "../../src/components/DatoVelgerFelt";
 import { formatNorskDato, lokalIsoDato } from "../../src/utils/dato";
@@ -520,6 +527,24 @@ export default function BekreftDagSkjerm() {
     () => (beregnet ? arbeidsraderPerKort(beregnet.forslag) : new Map<string, never[]>()),
     [beregnet],
   );
+  // TILLEGG (33) pkt 4.1 — fraværskortet, U1 inngang 2: samme kort som på dagskortet, for
+  // datoen som står åpen (manuell: valgt dato, også fram i tid — U12; GPS: dagens første dato).
+  // Lagres i kortet selv (`lagreFravaerKort`), ikke i utkastet: det har verken prosjekt eller
+  // klokkeslett (F2/F3) og vises derfor også uten valgt prosjekt.
+  const fravaerDato = manuell ? manuellDato : (beregnet?.forslag.datoer[0]?.dato ?? null);
+  const [fravaerKortApen, setFravaerKortApen] = useState<{ nyLinje: boolean } | null>(null);
+  const [fravaerNonce, settFravaerNonce] = useState(0);
+  const fravaerDag = useMemo(() => {
+    const db = hentDatabase();
+    return db && bruker?.id && fravaerDato ? hentFravaerKortDag(db, { userId: bruker.id, dato: fravaerDato }) : null;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fravaerNonce/sendtNonce: les datoen på nytt etter lagring/sending
+  }, [bruker?.id, fravaerDato, fravaerNonce, sendtNonce]);
+  // U12/U3: bare datoens eksakte norm — ukjent norm gir tomt felt og intet tak, aldri en annen dags.
+  const fravaerNorm = useMemo(
+    () => (orgId && fravaerDato ? (hentDagsnormLokalt(orgId, fravaerDato, undefined, { kunEksakt: true })?.dagsnorm ?? null) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- normNonce: svaret for datoen er hentet og cachet
+    [orgId, fravaerDato, normNonce],
+  );
   const chipDato = beregnet?.forslag.datoer[0]?.dato ?? null;
   const aktivitetIdForChip = beregnet?.forslag.aktivitetId ?? null;
   const beskrivelseChipsPerProsjekt = useMemo(() => {
@@ -850,6 +875,24 @@ export default function BekreftDagSkjerm() {
     const db = hentDatabase();
     // Dobbelttrykk mens lagring pågår: knappen viser laste-indikator.
     if (lagrer) return;
+    // TILLEGG (33) pkt 4.1: fraværskortet uten beskrivelse sperrer (F4, TF9). Intet prosjekt
+    // valgt i manuell modus, men fraværskortet er lagret → arbeidskortet er ikke påbegynt, og
+    // `manglerProsjekt` gjelder bare arbeidskort (U8): skjermen går til dagen. GPS-dagen har
+    // arbeid som skal lagres, så der gjelder sperren som før.
+    const fravaerUtfall = fravaerVedBekreft({
+      manglerProsjekt: manuell && beregnet?.forslag.prosjektId == null,
+      fravaerRader: fravaerDag?.fravaerRader ?? [],
+    });
+    if (fravaerUtfall === "manglerBeskrivelse") {
+      Alert.alert(t("timer.bekreftDag.sperre.tittel"), t("timer.fravaerKort.sperret.manglerBeskrivelse"));
+      setFravaerKortApen({ nyLinje: false });
+      return;
+    }
+    if (fravaerUtfall === "tilDagen" && fravaerDag?.sheetId) {
+      if (laastDato) router.back();
+      else router.replace(`/timer/${fravaerDag.sheetId}`);
+      return;
+    }
     // DEL 5 a: ingen sperre er stille — hver sier hva som mangler.
     const sperre = bekreftSperre({
       harDb: db != null,
@@ -1035,7 +1078,7 @@ export default function BekreftDagSkjerm() {
     } finally {
       setLagrer(false);
     }
-  }, [beregnet, bruker?.id, manuell, laastDato, ecoId, params.arbeidsdagId, lagrer, orgId, erAnsatt, effSluttIso, endLat, endLng, oppdaterTellere, triggerSync, router, t, valgtFirma?.name, tilleggPerRad, visTomBeskrivelse, retting.byggeplassId, sluttIkkeGodkjent, lonnUtlegg, arbeidKort, leggIKo, skrivUtkastNaa, utkastNokkel]);
+  }, [beregnet, bruker?.id, manuell, laastDato, ecoId, params.arbeidsdagId, lagrer, orgId, erAnsatt, effSluttIso, endLat, endLng, oppdaterTellere, triggerSync, router, t, valgtFirma?.name, tilleggPerRad, visTomBeskrivelse, retting.byggeplassId, sluttIkkeGodkjent, lonnUtlegg, arbeidKort, leggIKo, skrivUtkastNaa, utkastNokkel, fravaerDag]);
 
   // A4-grenen (isolert): sedelen for den sendte datoen, for lenken.
   const sendtSedelId = useMemo(() => {
@@ -1639,6 +1682,68 @@ export default function BekreftDagSkjerm() {
               {t(manuell ? "timer.bekreftDag.manuell.hjelp" : "timer.bekreftDag.hjelp")}
             </Text>
           </>
+        ) : null}
+        {/* TILLEGG (33) pkt 4.1 — U1 inngang 2: «+ Fravær» i lenkeraden, også uten valgt prosjekt
+            (U8). Kortet viser art og timer pr. linje og én beskrivelse (U5, U10, U11). */}
+        {!alleSendt && !ikkeAnsatt && fravaerDag && !fravaerDag.laast ? (
+          <View className="rounded-lg border border-gray-200 bg-white">
+            {fravaerDag.fravaerRader.length > 0 ? (
+              <Pressable
+                onPress={() => setFravaerKortApen({ nyLinje: false })}
+                className="border-b border-gray-100 px-4 py-2 active:bg-gray-50"
+              >
+                <Text className="text-sm font-semibold text-gray-900">{t("timer.fravaerKort.tittel")}</Text>
+                {fravaerDag.fravaerRader.map((r) => (
+                  <Text key={r.id} className="py-0.5 text-sm text-gray-700" style={{ fontVariant: ["tabular-nums"] }}>
+                    {t("timer.fravaerKort.linje", {
+                      timer: formatTimer(r.timer),
+                      art: finnLonnsartLokalt(r.lonnsartId)?.navn ?? "",
+                    })}
+                  </Text>
+                ))}
+                {fravaerVedBekreft({ manglerProsjekt: false, fravaerRader: fravaerDag.fravaerRader }) ===
+                "manglerBeskrivelse" ? (
+                  <Text className="py-0.5 text-sm text-amber-700">{t("timer.dagsoversikt.manglerBeskrivelse")}</Text>
+                ) : (
+                  <Text className="py-0.5 text-sm text-gray-900">
+                    {fravaerDag.fravaerRader.find((r) => r.beskrivelse)?.beskrivelse}
+                  </Text>
+                )}
+              </Pressable>
+            ) : null}
+            <Pressable
+              onPress={() => setFravaerKortApen({ nyLinje: true })}
+              className="min-h-[44px] justify-center px-4 active:bg-gray-50"
+            >
+              <Text className="text-sm font-medium text-gray-700">{t("timer.fravaerKort.leggTil")}</Text>
+            </Pressable>
+          </View>
+        ) : null}
+        {fravaerKortApen && fravaerDag && fravaerDato && bruker?.id && orgId ? (
+          <FravaerKortModal
+            userId={bruker.id}
+            organizationId={orgId}
+            dato={fravaerDato}
+            dagsnorm={fravaerNorm}
+            dagRader={[
+              ...fravaerDag.andreRader,
+              // U3: arbeidet som står i Bekreft dag for datoen teller før det er lagret.
+              ...forslagSomDagRader(
+                forslag.datoer
+                  .filter((d) => d.dato === fravaerDato && !d.blokkert && !retting.perDato?.[d.dato]?.fjernArbeid)
+                  .flatMap((d) => d.rader),
+              ),
+            ]}
+            eksisterende={fravaerDag.fravaerRader}
+            nyLinje={fravaerKortApen.nyLinje}
+            onLagret={() => {
+              setFravaerKortApen(null);
+              settFravaerNonce((n) => n + 1);
+              oppdaterTellere();
+              void triggerSync();
+            }}
+            onLukk={() => setFravaerKortApen(null)}
+          />
         ) : null}
         {/* RETUR 36c-2 (D4): luft under siste felt mens tastaturet er oppe, så
             rullingen til feltet ikke klemmes mot bunnen. */}
