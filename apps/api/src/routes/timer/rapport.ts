@@ -875,6 +875,9 @@ export const rapportRouter = router({
       const mottaker = input.mottaker ?? "intern";
       const gruppering: Gruppering = input.gruppering ?? "ingen";
       const flateRader = byggDetaljRader(detalj, valgteRadTyper);
+      // Ordre (34): ingen rader i utvalget (typisk: ingen attesterte i perioden) gir et
+      // svar klienten viser som melding — aldri en PDF som bare sier «ingen data».
+      if (flateRader.length === 0) return { tomtUtvalg: true as const };
       const grupper = grupperDetaljRader(flateRader, gruppering).map((g) => ({
         overskrift: g.overskrift,
         subtotal: g.subtotal,
@@ -965,7 +968,7 @@ export const rapportRouter = router({
       const footer = `<div style="width:100%;box-sizing:border-box;padding:0 16mm;${stil};display:flex;justify-content:space-between"><span>${esc(input.footerGenerert)}</span><span>${esc(input.footerSide)} <span class="pageNumber"></span> ${esc(input.footerAv)} <span class="totalPages"></span></span></div>`;
 
       const { pdf } = await renderPdfViaContainer(html, header, footer, liggende);
-      return { pdf: pdf.toString("base64"), filnavn: input.filnavn };
+      return { tomtUtvalg: false as const, pdf: pdf.toString("base64"), filnavn: input.filnavn };
     }),
 
   /**
