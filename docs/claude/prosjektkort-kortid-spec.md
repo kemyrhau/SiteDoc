@@ -1,8 +1,8 @@
 ---
-status: 🟢 VEDTATT 2026-11-16 — B1–B7 besvart av Kenneth (§ 10 «Kenneths svar»); B6 snudd: fravær føres på prosjektkort. Ingen kode. Ingen funksjon fjernes. TILLEGG 2026-11-16 (lønnsartvalg pr. linje) ført inn som § 6.1. TILLEGG 2026-11-16 (fraværskort uten prosjekt) ført inn som § 11 — 🟡 FORSLAG, F1–F8 til Kenneth.
-sist_verifisert_mot_kode: 2026-11-16 (develop @ e3aea58f — målt på 140c19cb, linjereferanser i `bekreft-dag.tsx` og `dagsforslagAnvend.ts` oppdatert etter (26)-mergen `780f388c`; § 11 målt mot develop @ dc5833dc)
+status: 🟢 VEDTATT 2026-11-16 — B1–B7 besvart av Kenneth (§ 10 «Kenneths svar»); B6 snudd: fravær føres på prosjektkort. Ingen kode. Ingen funksjon fjernes. TILLEGG 2026-11-16 (lønnsartvalg pr. linje) ført inn som § 6.1. TILLEGG 2026-11-16 (fraværskort uten prosjekt) ført inn som § 11 — 🟡 FORSLAG, F1–F8 til Kenneth. TILLEGG 2026-11-16 (B10 — betalt fravær og dagsnormen) ført inn som § 11.10 — 🟡 FORSLAG, F9–F11 til Kenneth.
+sist_verifisert_mot_kode: 2026-11-16 (develop @ e3aea58f — målt på 140c19cb, linjereferanser i `bekreft-dag.tsx` og `dagsforslagAnvend.ts` oppdatert etter (26)-mergen `780f388c`; § 11 målt mot develop @ dc5833dc; § 11.10 målt mot develop @ e3c7d6cf)
 eier: Fabel (spec) → Timer-feilsøk/Redesign (kode)
-ordre: «ORDRE — spec: prosjektkort med kort-id, dagskortet som sum av prosjektkort, lønnsart-forslag fra døgnets registreringer — orkestrator 2026-11-16» + «TILLEGG … valg av lønnsart ved manuell registrering» + «ORDRE 2026-11-16 — SPEC-TILLEGG: fraværskort uten prosjekt» (relay/inbox-fabel.md)
+ordre: «ORDRE — spec: prosjektkort med kort-id, dagskortet som sum av prosjektkort, lønnsart-forslag fra døgnets registreringer — orkestrator 2026-11-16» + «TILLEGG … valg av lønnsart ved manuell registrering» + «ORDRE 2026-11-16 — SPEC-TILLEGG: fraværskort uten prosjekt» + «SPEC-TILLEGG 2026-11-16 — B10 betalt fravær i ordre b» (relay/inbox-fabel.md)
 ---
 
 # Spec — prosjektkort med kort-id, dagskortet som sum av prosjektkort, lønnsart-forslag fra døgnets registreringer
@@ -16,7 +16,7 @@ ordre: «ORDRE — spec: prosjektkort med kort-id, dagskortet som sum av prosjek
 
 **Hva specen legger til:** hvor kort-id bor og hvem som bærer den (§ 2), migrering (§ 3), synk og API med eldre
 klient (§ 4), flater og paritet (§ 5), én regel for lønnsart-forslag (§ 6) med lønnsartvalg pr. linje (§ 6.1), funksjonsinventar (§ 7), ordre-oppdeling
-(§ 8), tester (§ 9), beslutninger til Kenneth (§ 10) og fraværskort uten prosjekt (§ 11, tillegg).
+(§ 8), tester (§ 9), beslutninger til Kenneth (§ 10) og fraværskort uten prosjekt (§ 11, tillegg) med taket for betalt fravær (§ 11.10, B10).
 
 ---
 
@@ -414,7 +414,7 @@ Ingen funksjon fjernes. «ENDRES» betyr at funksjonen virker som før for bruke
 
 Rekkefølge: a → a2 → a3 → b → c → d → e. a3 trenger ikke kort-id og kan leveres før skjemaet; den rører `bekreft-dag.tsx` og må derfor ikke gå samtidig med c. **b må i prod (API) før c sendes som OTA.**
 a og b rører ulike filer og kan gå parallelt hvis to agenter er ledige. Mellom c og d viser web grøft og skifer i
-samme prosjektkort (B5). **Fraværskort uten prosjekt** rir på b, c og d — fordelingen står i § 11.8.
+samme prosjektkort (B5). **Fraværskort uten prosjekt** og **taket for betalt fravær (B10)** rir på b, c og d — fordelingen står i § 11.8.
 
 ---
 
@@ -475,7 +475,7 @@ gate som anbefalt.
 | B7 | Som anbefalt: nei, ikke nå. |
 | B8 | **Fravær bruker ikke opp normen, og registreringer tillates** (Kenneth 2026-11-16): «her må vi trå forsiktig. her er mange nyanser. en ansatt som er på ferie og skriver timer. da er normen at slikt arbeid enten lønnes med avspasering eller med lønn (evt + overtid) -> vi må behandle arbeidstiden som vanlig arbeidstid -> ikke overtid. En ansatt som er syk, skal ikke jobbe samtidig. … man kan være på jobb 3 timer -> for så å gi seg å gå hjem fordi en ble syk … jeg tror vi lar dette bli opp til ansatte og lønnsansvarlige å bestemme. vi tillater registreringer» Fravær teller ikke i L1. Systemet sperrer ikke kombinasjoner av fravær og arbeid samme dag (ferie + arbeid, 3 t arbeid + syk resten); det er opp til den ansatte og lønnsansvarlig. Ingen ny sperre eller varsel. |
 | B9 | **Fravær på en linje frigjør normen også i samme kort** (Kenneth 2026-11-16: «Jeg anbefaler ja. Da blir 15:30–17 normaltid, i tråd med vedtaket ditt om at fravær ikke bruker opp normen»; begrunnelse: *«regelen er at hver dag fylles med normal arbeidstid etter firmaets dagsnorm … etter normal arbeidstid må den ansatte jobbe inn fraværstiden»* — privat ærend skal ikke gi overtid). Kort 08–17 med fravær 08–15:30 → 15:30–17 normaltid. Overtid først når faktisk arbeidet tid passerer normen. Sykdom/barns sykdom + arbeid samme dag er kanttilfeller som overlates til ansatt og lønnsansvarlig (B8). Bygget i RETUR (28): `beregnSegment` (`apps/mobile/src/utils/dagsforslag.ts`) regner arbeidet etter en fravær-normallinje på nytt mot normresten (linja `arbeid`), fraværets slutt i `DagsforslagRettingDato.fravaerTil` («Fravær til» i Bekreft dag) (🟡 `fix/kort-a3-lonnsart-linje`, ikke merget). ⚠️ **Avgrenset av B10 (Kenneth 2026-11-16):** gjelder bare ubetalt fravær. Eksempelet «08–17 med fravær 08–15:30 → 15:30–17 normaltid» er feil for egenmelding/sykdom. |
-| B10 | **Betalt fravær + arbeid kan til sammen ikke overstige dagsnormen; ubetalt fravær frigjør normen som i B9** (Kenneth 2026-11-16, svar «1. ok» på forslaget). Kenneths begrunnelse: *«vi kan ikke registrere 7,5 timer egenmelding, for så å utbetale lønn 2 timer -> konsekvens-> arbeidsgiver betaler for 9,5 timer for 2 timer produksjon -> dette er å utnytte sykesystemet i arbeidstakers favør»*. Betalt fravær (egenmelding, sykemelding, barns sykdom) fyller bare den delen av normen som ikke er arbeidet: 2 t arbeid + egenmelding gir høyst 5,5 t egenmelding (norm 7,5). Ubetalt fravær (privat ærend, permisjon uten lønn) frigjør normen, og arbeidet etter er normaltid (B9). Krever markør «betalt» på fravær-lønnsarter (i dag finnes bare `Lonnsart.type`, `packages/db-timer/prisma/schema.prisma`) — skjemaendring, bygges i ordre b. 🟡 Ikke bygget. a3 (`6d611b05`) behandler alt fravær som ubetalt; test-OTA holdes til B10 er bygget (Kenneth 2026-11-16: «bygg ota regelen, trenger ingen endring med en gang»). |
+| B10 | **Betalt fravær + arbeid kan til sammen ikke overstige dagsnormen; ubetalt fravær frigjør normen som i B9** (Kenneth 2026-11-16, svar «1. ok» på forslaget). Kenneths begrunnelse: *«vi kan ikke registrere 7,5 timer egenmelding, for så å utbetale lønn 2 timer -> konsekvens-> arbeidsgiver betaler for 9,5 timer for 2 timer produksjon -> dette er å utnytte sykesystemet i arbeidstakers favør»*. Betalt fravær (egenmelding, sykemelding, barns sykdom) fyller bare den delen av normen som ikke er arbeidet: 2 t arbeid + egenmelding gir høyst 5,5 t egenmelding (norm 7,5). Ubetalt fravær (privat ærend, permisjon uten lønn) frigjør normen, og arbeidet etter er normaltid (B9). Krever markør «betalt» på fravær-lønnsarter (i dag finnes bare `Lonnsart.type`, `packages/db-timer/prisma/schema.prisma`) — skjemaendring. 🟡 Spesifisert i § 11.10 (markør `fravaer_normtak`, regel pr. flate, F9–F11); bygges i b, c og d. Ikke bygget. a3 (`6d611b05`) behandler alt fravær som ubetalt; test-OTA holdes til B10 er bygget (Kenneth 2026-11-16: «bygg ota regelen, trenger ingen endring med en gang»). |
 
 
 ---
@@ -487,6 +487,7 @@ gate som anbefalt.
 > fravær bruker ikke opp normen, og ingen kombinasjon av fravær og arbeid sperres (B8).
 > **Grense:** a3 (lønnsart pr. linje, fravær i velgeren, fravær på prosjektkortets prosjekt inntil videre) endres
 > ikke av dette tillegget. Det som står her bygges i b, c og d (§ 11.8).
+> **B10 (Kenneth 2026-11-16):** betalt fravær + arbeid kan til sammen ikke overstige dagsnormen — § 11.10, F9–F11.
 
 ### 11.1 Målt mot koden (develop @ dc5833dc)
 
@@ -614,7 +615,7 @@ typesjekken ut hver leser i api og web (kald bygging, jf. TS2589-fallgruven).
 | Perioderapport, Excel og PDF | `firmaPeriodeRapport` (`rapport.ts:159`, `:238–241`, `:276`), `detaljEksport`/`pdfEksport` (`:364`, `:432–445`, `:573`, `:722`), `hentFirmaAnsatteMedTimer` (`:946`) | **ENDRES:** uten prosjektfilter kommer fravær uten prosjekt med, under navnet «Fravær» (i18n) — ikke «(ukjent)». Prosjektnavnet er fortsatt alltid en streng (FM10). **BEVARES:** med valgt prosjekt utelates de. |
 | Prosjektliste i rapportfilteret, prosjektsidene, vareforbruk pr. prosjekt | `hentFirmaProsjekterMedTimer` (`rapport.ts:910–915`); `vareforbruk.ts:83`, `:468`, `:607–614` | **BEVARES** — fravær uten prosjekt teller ikke på noe prosjekt og kan ikke bære vare. |
 | Maskin-tak | `validerMaskinUnderArbeid` (`:1327–1351`), `maskinKapasitet.ts:41` | **BEVARES** — fravær gir ingen maskinkapasitet (FM16). |
-| Overtidsgrunnlag på server | `byggUkeOvertidsgrunnlag` (`:1248–1263`), `beregnOvertidsgrunnlag` (`:4295`) | 🟡 **Funn F-F1, ENDRES med hjemmel B8:** fravær teller ikke som arbeid. Uten rettingen flagger attesteringslista avvik på en dag med 4,5 t egenmelding + 3 t arbeid. Gjelder fravær med og uten prosjekt. |
+| Overtidsgrunnlag på server | `byggUkeOvertidsgrunnlag` (`:1248–1263`), `beregnOvertidsgrunnlag` (`:4295`) | 🟡 **Funn F-F1, ENDRES med hjemmel B8:** på dag-nivå teller fravær ikke som arbeid. Uten rettingen regnes en dag med 7,5 t fravær + 1,5 t arbeid (B9-dagen) som 9 t arbeid og får 1,5 t «beregnet overtid». På uke-nivå fyller fravær dagens norm, aldri mer — presisert i § 11.10.4 sammen med taket for betalt fravær (B10). Gjelder fravær med og uten prosjekt. *(Rettet 2026-11-16: det tidligere eksempelet 4,5 t + 3 t gir ikke avvik, § 11.10.1.)* |
 | Legg til, del opp, firma-admin-redigering, forsoning | `tilfoyTimerRad` (`:2377`), `splittRad`/`splittRadEier` (`:5541`, `:5779`), `redigerSedelRader` (`:5043`), `forsonDagskort` (`:2859`) | **ENDRES:** valgfritt `utenProsjekt`; prosjekt blir da ikke påkrevd i Zod. Deler av en fraværsrad forblir uten prosjekt. |
 | Flytt rad til underprosjekt | `flyttTimerRadEco` (`:4536–4591`) | **BEVARES;** rad uten prosjekt avvises med egen melding. |
 | Ny sedel | `opprett` (`:2186`) | **BEVARES** — godtar alt tom sedel. |
@@ -643,13 +644,13 @@ typesjekken ut hver leser i api og web (kald bygging, jf. TS2589-fallgruven).
 |---|---|
 | U1 | **To innganger, samme kort.** (1) «+ Fravær» på dagskortet, rett under «+ Nytt prosjektkort» (`ProsjektkortDagsoversikt.tsx:757–761`). (2) «+ Fravær» i Bekreft dag, i lenkeraden der «+ Reise» står (`bekreft-dag.tsx:1495–1501`) — vist også når prosjekt ikke er valgt (raden krever i dag `prosjektId`, `:1454`). GPS-dag og manuell dag likt. |
 | U2 | **Forhåndsdefinerte valg:** fraværskortet viser firmaets aktive arter med `type = 'fravaer'` som chips når de er inntil seks, ellers den søkbare lista (samme regel som V3, med firmafilter, F-L2). Ingen fritekst. |
-| U3 | **Timer er forhåndsutfylt:** `max(0, dagsnorm − arbeid ført på datoen)`. Hel fraværsdag → hele normen. Gikk hjem syk etter 3 t → 4,5 t. Ukjent norm (M17) eller rest 0 → tomt felt som må fylles. −/+ i firmaets tidsrunding. Ingen klokkeslett (F3). |
+| U3 | **Timer er forhåndsutfylt:** `max(0, dagsnorm − arbeid ført på datoen)`. Hel fraværsdag → hele normen. Gikk hjem syk etter 3 t → 4,5 t. Ukjent norm (M17) eller rest 0 → tomt felt som må fylles. −/+ i firmaets tidsrunding. Ingen klokkeslett (F3). For betalt art er resten også øvre grense (B10, § 11.10.4). |
 | U4 | **Raskeste vei:** «+ Fravær» → art → «Bekreft» = tre trykk, ingen tekst. |
 | U5 | **Kortet viser ikke** prosjekt, byggeplass, underprosjekt, aktivitet, maskin, varer, tillegg eller beskrivelse. |
 | U6 | **Aktivitet** er påkrevd på raden (FM14): raden får samme standard som en ny arbeidsrad får i dag, uten at feltet vises. Koderen måler kilden til standarden før ordre c og melder hvis den ikke finnes for et firma. |
 | U7 | **Flere arter samme dag:** «+ Legg til fravær» i kortet gir ny linje. Linjer slås aldri sammen. |
 | U8 | **Manuell Bekreft dag med bare fraværskort lagres uten prosjekt.** Sperren `manglerProsjekt` (`bekreftDag.ts:425`) gjelder bare arbeidskort med tid. |
-| U9 | **Ingen sperre og ingen varsel** når fravær og arbeid står på samme dag (B8). |
+| U9 | **Ingen sperre og ingen varsel** når fravær og arbeid står på samme dag (B8). Avgrenset av B10: kombinasjonen tillates fortsatt, men betalt fravær kan ikke overstige resten av normen (§ 11.10). |
 | U10 | **Linjeform:** «7,5 t · Egenmelding». Lønnsarten kan byttes på linja (samme velger som U2). |
 
 ```
@@ -687,11 +688,24 @@ prosjekt er forhåndsvalgt.
 | TF5 | Attesteringsrett: prosjektleder kan ikke attestere rad uten prosjekt; firma-admin kan. Sedel med bare fravær står i firmakøen og kan åpnes, attesteres og returneres. Blandet sedel velter ikke lista. | b |
 | TF6 | Rapport, Excel og PDF uten prosjektfilter: fraværsrad uten prosjekt er med under «Fravær»; med prosjektfilter er den ikke med; prosjektnavnet er aldri `null`. | b |
 | TF7 | Firma-isolasjon: rad uten prosjekt fra et annet firmas sedel er ikke synlig eller attesterbar (tilgang går via sedelens firma). | b |
-| TF8 | Overtidsgrunnlag: 4,5 t fravær + 3 t arbeid gir ikke avvik (rød i dag, FM15). | b |
+| TF8 | Overtidsgrunnlag, dag-nivå: 7,5 t fravær + 1,5 t arbeid gir ikke avvik (rød i dag, FM15). Uke-nivå: TF16. | b |
 | TF9 | Mobil: «+ Fravær» på dag med 3 t arbeid og norm 7,5 → 4,5 t forhåndsutfylt; lagret rad har `uten_prosjekt` og havner i fraværskortet, ikke på sedelens prosjekt; bare-fravær-dag lagres uten prosjekt; send sperres ikke av manglende beskrivelse. | c |
 | TF10 | Mobil: `kortNokkel` med tomt prosjekt gir `ingen\|ingen\|ingen` og rundtur via `fraKortNokkel`; glue-vakt mot ny `?? sedel.projectId`; dagskort-modus viser gruppen «Fravær» og er ellers uendret (vakt). | c |
 | TF11 | `lonnsart.oppdater`: type bort fra fravær avvises når arten står på en rad uten prosjekt; ellers som i dag. | b |
 | TF12 | Web: dagsseddel og attestering viser «Fravær» for rad uten prosjekt; «+ Fravær» sender `utenProsjekt` og ikke prosjekt. | b (visning), d (oppretting) |
+| TF13 | **B10.** Migrering: hver fravær-art har verdi etter backfill; navn med «u/lønn», «uten lønn», «ubetalt», «privat» (og F10-leddene) er `false`, øvrige `true`. Seed nivå 1 og 2 gir verdiene i § 11.10.2. `opprett`, `oppdater` og import uten feltet → `true`. | b |
+| TF14 | **B10.** `harNormtak`: fravær + `false` → nei; fravær + `true`/`null`/udefinert → ja; ordinær → nei uansett verdi. Glue-vakt: ingen annen leser av feltet. | b |
+| TF15 | **B10.** `vurderFravaerNormtak`, norm 7,5: arbeid 2 + egenmelding 7,5 → tak 5,5, over 2; arbeid 7,5 → tak 0, hele fraværet over; ubetalt 7,5 + arbeid 2 → over 0; to betalte linjer summeres; reise og `erstattet` teller ikke; norm 0 → tak `null`, over 0. | b |
+| TF16 | **B10 / F-F1.** Ukegrunnlag: mandag 7,5 t egenmelding + fire dager 9,5 t med 2 t ført overtid gir ikke ukeavvik (grønn i dag — vakt mot å stryke fravær helt). Mandag 7,5 t ubetalt + 1,5 t arbeid, resten normal uke, gir ikke ukeavvik (rød i dag). | b |
+| TF17 | **B10.** Interaktive skriveveier: betalt fraværsrad over taket avvises med tallene; arbeidsrad på dag med betalt fravær avvises aldri; senking av fraværsrad på dag i brudd godtas. `syncBatch` lagrer og returnerer bruddet. Firma-isolasjon: norm og arter leses fra sedelens firma. | b |
+| TF18 | **B10 (F9 = A).** `attester` og `attesterRader` avvises for dato i brudd og går gjennom etter retting; `returner` virker; attestert snapshot er uendret. | b |
+| TF19 | **B10.** Oppsettet på web: avkrysningen vises bare for type fravær, lagres, og typekolonnen viser med/uten tak. | b |
+| TF20 | **B10.** Mobil katalog: kolonnen legges til på eksisterende installasjon; `refreshKatalog` skriver feltet; mangler feltet i svaret → `NULL` → tak. | c |
+| TF21 | **B10.** Bekreft dag: kort 08–17, «Fravær til» 15:30, egenmelding, norm 7,5, 1,5 t arbeid etter punktet → fraværsrad 6,0 t **uten klokkeslett**, arbeid 15:30–17 normaltid (rød i dag). Samme med ubetalt art → uendret a3 (vinduets timer, med klokkeslett). Arbeid etter punktet ≥ norm → ingen fraværsrad, delingen står, «Overtid fra» leses ikke. Datoens arbeid fra før teller i taket. | c |
+| TF22 | **B10.** Fraværskortet: betalt art → «+» stopper på taket; bytte ubetalt → betalt klemmer; tak 0 → betalte arter nedtonet; ubetalt art → ingen grense; ukjent norm → ingen grense. | c |
+| TF23 | **B10.** Brudd etter at arbeid legges til: dagskortet viser fraværslinja amber med «Rett til 5,5 t»; ett trykk retter raden; uten trykket endres raden aldri; sending sperret til rettet (F9 = A). | c |
+| TF24 | **B10.** Rad-vinduet i prosjektkort-modus: betalt art over taket sperrer lagring; dagskort-modus uendret (vakt, F11). | c |
+| TF25 | **B10.** Web: attesteringslista viser bruddlinja; rad-dialogen og «+ Fravær» viser «Høyst X t» og sperrer over taket. | b (visning), d (føring) |
 
 ### 11.8 Plass i ordrerekkefølgen (ordrepunkt 5)
 
@@ -700,9 +714,9 @@ prosjekt er forhåndsvalgt.
 | Ordre | Tillegg fra § 11 | Skjema |
 |---|---|---|
 | **a3** | Ingen. Fravær føres på prosjektkortets prosjekt inntil c er levert. | Nei |
-| **b** | Skjema (§ 11.2) i **samme** `db-timer`-migrering som `kort_id`; `validerUtenProsjekt`; `syncBatch` og eldre klient (§ 11.3); alle server-lesere og -skriveveier (§ 11.4); F-F1; web tåler `null` og viser «Fravær» (§ 11.6); i18n. | **Ja — fortsatt to migreringer, ingen ekstra kjøring** |
-| **c** | Mobil: lokal kolonne, `radProsjektId`, «+ Fravær», fraværskortet i Bekreft dag, dagskort og kortskjerm, synk, utkast (§ 11.5). F5 trer i kraft her. | Nei (SQLite med OTA) |
-| **d** | Web: «+ Fravær», rad-dialog, ny sedel (§ 11.6). | Nei |
+| **b** | Skjema (§ 11.2) i **samme** `db-timer`-migrering som `kort_id`; `validerUtenProsjekt`; `syncBatch` og eldre klient (§ 11.3); alle server-lesere og -skriveveier (§ 11.4); F-F1; web tåler `null` og viser «Fravær» (§ 11.6); i18n. **B10 (§ 11.10):** kolonnen `fravaer_normtak` med backfill i samme `db-timer`-migrering, seed og import, `harNormtak`/`vurderFravaerNormtak` i shared, lønnsartoppsettet på web, dag- og ukegrunnlaget, avvisning i interaktive skriveveier, bruddet i `syncBatch`-svaret og attesteringslista, attesteringssperren (F9). | **Ja — fortsatt to migreringer, ingen ekstra kjøring** |
+| **c** | Mobil: lokal kolonne, `radProsjektId`, «+ Fravær», fraværskortet i Bekreft dag, dagskort og kortskjerm, synk, utkast (§ 11.5). F5 trer i kraft her. **B10:** lokal katalogkolonne, taket i fraværskortet, Bekreft dag («Fravær til») og rad-vinduet, brudd-linja med ett-trykks retting, send-sperren (§ 11.10.4). Kan skilles ut som egen ordre rett etter b (§ 11.10.5). | Nei (SQLite med OTA) |
+| **d** | Web: «+ Fravær», rad-dialog, ny sedel (§ 11.6). **B10:** «Høyst X t» i rad-dialogen og i «+ Fravær». | Nei |
 | **e** | Urørt. Fravær-`CHECK` ligger alt i b. | — |
 
 Rekkefølge som før: a → a2 → a3 → b → c → d → e. **b må være i prod før c sendes som OTA** (§ 11.3). Mellom c og d
@@ -725,7 +739,173 @@ Rangert etter hvor mye de låser.
 | **F6** | **Dagskort-modus** (firma uten prosjektkort): vise fravær uten prosjekt nå og la oppretting vente, eller gi skjermen «+ Fravær» med en gang? | **Vise nå, opprette senere.** Skjermen er vernet (dagskort isolert). Fravær kan fortsatt føres der med prosjekt som i dag. |
 | **F7** | **Sperre endring av lønnsartens type** bort fra fravær når arten står på en rad uten prosjekt? | **Ja.** Ellers kan en arbeidsart stå uten prosjekt etter en endring i oppsettet. Firmaet lager en ny lønnsart i stedet. |
 | **F8** | **Fravær over flere dager** (ferie, sykemelding): ett trykk pr. dag, eller «gjelder til og med dato»? | **Ikke i denne runden.** Én dag om gangen nå; flerdagers fravær som egen ordre etter d. |
+| **F9** | **B10 — hvor hardt håndheves taket?** A: telefon og PC klemmer ved føring; en dag over taket kan ikke sendes fra ny app og kan ikke attesteres før fraværet er rettet; synken lagrer alltid. B: klemming ved føring og varsel til attestanten, som kan attestere likevel. C: som A, og serveren avviser også i synken. | **A.** «Kan ikke» holder da helt fram til lønn — også for eldre app og dagskort-modus — uten at en dag ført offline spretter. B lar 9,5 t gå til lønn hvis attestanten trykker forbi. C kan stoppe timeføringen for ansatte med eldre app. Konsekvens av A: uattesterte dager som alt bryter taket når b deployes, må rettes før de kan attesteres (antall: gate-SQL D, § 11.10.2). |
+| **F10** | **B10 — hvilke standardarter har taket?** Du navnga egenmelding, sykemelding og barns sykdom (tak) og ubetalt fravær (ikke tak). Ikke navngitt: Ferie m/lønn, Bevegelig helligdag, Permittering m/lønn, Velferdspermisjon. | **Tak: Permittering m/lønn og Velferdspermisjon** — arbeidsgiver betaler fraværet, som ved sykdom. **Ikke tak: Ferie m/lønn og Bevegelig helligdag** — B8: arbeid på en feriedag lønnes «med avspasering eller med lønn», altså i tillegg til feriedagen; med tak ville 2 t arbeid kutte feriedagen til 5,5 t. Firmaet kan snu hver art i oppsettet. Derfor heter markøren «tak mot dagsnormen», ikke «betalt». |
+| **F11** | **B10 — dagskort-modus** (firma uten prosjektkort): skal rad-vinduet der få taket i c, eller senere? | **Senere.** Skjermen er vernet (dagskort isolert). Med F9 = A stoppes en dag over taket uansett ved attestering. |
 
-**Låser ordre b: F1** (F7 kan tas ved gate som anbefalt). **Låser ordre c: F2–F5.** F6 og F8 kan vente.
+**Låser ordre b: F1, F9 og F10** (F7 kan tas ved gate som anbefalt). **Låser ordre c: F2–F5.** F6, F8 og F11 kan vente.
 Følger av B8 og bygges uten ny beslutning med mindre Kenneth sier nei: F-F1 (overtidsgrunnlaget på server teller
 ikke fravær) og at dagens sum viser arbeid og fravær hver for seg.
+
+### 11.10 B10 — betalt fravær og dagsnormen (TILLEGG, Kenneth 2026-11-16)
+
+> **Status:** 🟡 FORSLAG — regelen er vedtatt (B10, § 10); F9–F11 til Kenneth (§ 11.9). Ingen kode. Målt mot
+> develop @ e3c7d6cf. **Bygges i b (skjema, server, oppsett), c (mobil) og d (web-føring)** — § 11.8.
+> **Uendret:** fravær bruker aldri normen for arbeidet (L1, B8). B10 legger et tak på *fraværstimene*, ikke på arbeidet.
+
+**B10 i én setning:** arbeidet regnes som før — normaltid til normen, deretter overtid, og fravær teller ikke.
+Det nye er at **betalt fravær bare kan fylle det som er igjen av normen etter arbeidet.** 2 t arbeid + egenmelding,
+norm 7,5 → høyst 5,5 t egenmelding. Ubetalt fravær har ikke tak (B9).
+
+#### 11.10.1 Målt mot koden (develop @ e3c7d6cf)
+
+Stiforkortelser som i § 11.1. `lonnsarter/page.tsx` = `apps/web/src/app/dashbord/firma/timer/lonnsarter/page.tsx`.
+
+| # | Funn | Referanse |
+|---|---|---|
+| FM17 | `Lonnsart` har ingen markør for betalt/ubetalt — bare `type`. | `schema.prisma:22–53` (`type` `:25`) |
+| FM18 | Standardkatalogen har elleve fravær-arter: ti i nivå 1, én i nivå 2 («Velferdspermisjon»). To heter «u/lønn». «Privat ærend» og «Permisjon uten lønn» finnes ikke i seed. Importerte kataloger har egne navn (ikke målt mot data). | `apps/api/src/services/seed/index.ts:58–75`, `:112–113`; `apps/api/src/services/katalog/importerKatalog.ts:335–343` |
+| FM19 | Lønnsarter opprettes fire steder: oppsettet, seed nivå 1 og 2, katalogimport og demo-seed. Typen kan endres i `oppdater`. `list` returnerer hele raden uten `select` — et nytt felt følger med til web og mobil uten endring i ruten. | `lonnsart.ts:19`, `:41`, `:99`; `seed/index.ts:103`, `:169`; `importerKatalog.ts:335`; `packages/db/scripts/seed-timer-demo.ts:372` |
+| FM20 | Mobil: `lonnsart_local` har ikke feltet. `refreshKatalog` sletter og skriver hele tabellen ved hver katalogsynk; nye kolonner legges til med `ALTER` i `migreringer.ts` (mønster `er_standardvalg`). | `src/db/schema.ts:400–419`; `src/services/timerKatalog.ts:86–106`; `src/db/migreringer.ts:275–284` |
+| FM21 | a3 behandler alt fravær likt. Bekreft dag: fravær på normallinja får timene til vinduet fram til «Fravær til», og arbeidet etter regnes mot normresten — fraværstimene måles aldri mot arbeidet. Fravær-arter slås opp på `type` alene, tre steder. | `src/utils/dagsforslag.ts:1851–1886`; `src/utils/overtidMotDognet.ts:37–42`; `src/utils/manuellDag.ts:90–97`, `src/services/timerKatalog.ts:226–237`, `src/components/timer-detalj/TimerSeksjon.tsx:1240–1248` |
+| FM22 | Rad-vinduet (mobil og web) godtar et hvilket som helst timetall på en fravær-art; ingen grense mot normen. | `LonnsartVelgerModal` (`TimerSeksjon.tsx:2339`); `page.tsx:3343–3356` |
+| FM23 | 🔴 **En rad med fra–til og timer som ikke stemmer med spennet tåles ikke.** Interaktive skriveveier avviser («Antall timer … stemmer ikke med tidsrommet»). Synken lagrer, teller avviket, og gjør raden til **pausebærer** når differansen er lik standardpausen. En rad uten fra–til vurderes ikke. | `vurderRadTimer` (`dagsseddel.ts:649–726`), `avvisTimerAvvik` (`:787–803`) |
+| FM24 | Server-overtidsgrunnlaget kjenner ikke lønnsart-type: alle rader som ikke er reise, er arbeid — på dag-nivå (attesteringslista) og uke-nivå (snapshot ved attestering). Ukesbadgen summerer `totaltimer`. «Krever vurdering» slår alt i dag ut når `totaltimer ≠ dagsnorm`. | `dagsseddel.ts:1223–1275`, `:4295–4304`; kallere `:4501`, `:4742`, `:6020`; `packages/shared/src/utils/overtidsgrunnlag.ts:59–92`, `:181–193` (kallere: web `firma/timer/attestering/page.tsx:302`, `AttesteringPivot.tsx:447`; mobil `app/timer/attestering/index.tsx:104`); `apps/web/src/components/attestering/sedel-vurdering.ts:39–41` |
+| FM25 | Dagsnormen har én kilde: `hentEffektivArbeidstid(organizationId, dato)` — pr. firma og dato, ikke pr. ansatt. Telefonen cacher svaret pr. dato. | `apps/api/src/services/timer/arbeidstid.ts:45–48` |
+| FM26 | `bruktAvNorm` og `klassifiserMotDognet` bor i mobilen, ikke i `packages/shared` (0 treff på `bruktAvNorm` i `packages/shared`, `apps/api`, `apps/web`) — a2 er ikke bygget. Bare manuell dag fyller `eksisterende.bruktAvNorm`. | `src/utils/overtidMotDognet.ts`; `src/utils/manuellDag.ts:101`, `:157` |
+
+🔴 **Retting av § 11 slik den sto:** eksempelet «4,5 t egenmelding + 3 t arbeid gir avvik» (F-F1 og TF8) var feil —
+summen er 7,5 t, lik normen, og gir ikke avvik i dag. Riktig rødt tilfelle er B9-eksempelet: 7,5 t fravær + 1,5 t
+arbeid regnes i dag som 9 t arbeid og gir 1,5 t «beregnet overtid» (`overtidsgrunnlag.ts:66–82`). F-F1-raden
+(§ 11.4) og TF8 (§ 11.7) er rettet.
+
+#### 11.10.2 Markøren (ordre b)
+
+| | |
+|---|---|
+| **Felt** | `Lonnsart.fravaerNormtak Boolean @default(true) @map("fravaer_normtak")` → `timer.lonnsarter.fravaer_normtak BOOLEAN NOT NULL DEFAULT true`. I **samme** `db-timer`-migrering som `kort_id` og `uten_prosjekt` — ingen ekstra kjøring for Kenneth. Additiv (to-stegs-policyen). |
+| **Betydning** | Leses bare når `type = 'fravaer'`. `true` = fravær + arbeid kan til sammen ikke overstige dagsnormen («betalt fravær» i B10). `false` = fraværet føres fullt («ubetalt», B9). I resten av § 11.10 betyr *betalt fravær* «fravær-art med tak». |
+| **Hvorfor ikke `betalt`** | Navnet sier hva feltet gjør. «Ferie m/lønn» er betalt, men skal etter anbefalingen i F10 ikke ha tak (B8). Svarer Kenneth at ferie også har tak, er navnet fortsatt riktig. |
+| **Én leser** | `harNormtak(lonnsart)` i `packages/shared`: `type === 'fravaer' && fravaerNormtak !== false`. Ingen annen kode leser feltet (glue-vakt). Ukjent verdi — mobil før første katalogsynk, ny mobil mot gammel API — gir tak. |
+| **Hvorfor standard `true`** | Feil vei koster ulikt. Ubetalt art merket med tak: fraværstimene klemmes, ingen lønnseffekt. Betalt art uten tak: 9,5 t betalt for 2 t arbeid — det B10 skal hindre. |
+| **Backfill** (samme migrering, diskriminerende `WHERE`) | `UPDATE timer.lonnsarter SET fravaer_normtak = false WHERE type = 'fravaer' AND (navn ILIKE '%u/lønn%' OR navn ILIKE '%uten lønn%' OR navn ILIKE '%ubetalt%' OR navn ILIKE '%privat%' OR navn ILIKE 'ferie m/lønn%' OR navn ILIKE '%helligdag%')` — de to siste leddene følger F10 og strykes hvis Kenneth svarer «tak». Alle andre fravær-arter står med `true`. |
+| **Stille tomhet** | (a) `NOT NULL` — ingen rad mangler verdi; (b) backfill over; (c) gate-SQL C: Kenneth leser lista over hver fravær-art med verdien **før c sendes som OTA**; (d) test TF13. Verdien på en art som ikke er fravær leses aldri (TF14). |
+| **Forkastet** | Nullable kolonne + `CHECK ((type = 'fravaer') = (fravaer_normtak IS NOT NULL))`. Sterkere garanti, men gammel API skriver fravær-arter uten feltet i vinduet mellom `migrate` og `up` og etter en tilbakerulling — oppsett, typeendring og seed ved nytt firma ville feile (B2-problemet). |
+
+**Hvor firma setter den:** lønnsartoppsettet på web (`lonnsarter/page.tsx`). I dialogen vises en avkrysning bare når
+typen er fravær — samme mønster som overtidsnivå, som bare vises for ordinær (`:474–500`). I tabellen vises verdien i
+typekolonnen («Fravær · med tak» / «Fravær · uten tak»), ingen ny kolonne. `opprett` og `oppdater` (`lonnsart.ts:41`,
+`:99`) får `fravaerNormtak: z.boolean().optional()`; uten feltet → `true`. Katalogimporten får samme valgfrie felt i
+fixturen. Sidens ?-hjelpetekst og `hjelpetekster.md` oppdateres i samme commit; nøkler i `nb.json` + `en.json`.
+
+Tekstforslag (endelig ordlyd etter `tooltip-hjelpetekst-veileder.md`): avkrysning **«Fravær og arbeid kan til sammen
+ikke overstige dagsnormen»**, hint «Slå på for betalt fravær som egenmelding, sykemelding og barns sykdom. Uten
+avkrysning — for eksempel privat ærend — føres fraværet fullt, og arbeid etterpå er normaltid.»
+
+**Endring av markøren på en art i bruk** virker framover fra neste katalogsynk. Uattesterte dager vurderes mot ny
+verdi; attesterte rader og snapshots røres ikke.
+
+**Seed-verdier for standardartene** (`seed/index.ts`; begge seed-listene får feltet):
+
+| Art | Tak | Hjemmel |
+|---|---|---|
+| Sykemelding 1–16 dager (fastlønn) · Sykemelding 1–16 dager (timelønn) · Sykemelding fra dag 17 · Egenmelding inntil 3 dager · Barns sykdom | **Ja** | B10 — navngitt av Kenneth |
+| Ferie u/lønn · Permittering u/lønn | **Nei** | B10 — ubetalt |
+| Permittering m/lønn · Velferdspermisjon | **Ja** | 🟡 F10 — ikke navngitt; arbeidsgiver betaler fraværet |
+| Ferie m/lønn · Bevegelig helligdag | **Nei** | 🟡 F10 — B8: arbeid på en feriedag lønnes i tillegg |
+
+**Gate-SQL Kenneth kjører etter migrering** (i tillegg til A og B i § 11.2):
+
+```sql
+-- C) hver fravær-art pr. firma med verdien — leses før c sendes som OTA
+select organization_id, navn, kode, aktiv, fravaer_normtak from timer.lonnsarter
+ where type = 'fravaer' order by organization_id, fravaer_normtak, navn;
+-- D) til orientering: dager som bryter taket i dag, pr. sedelstatus (fast dagsnorm fra firmainnstillingen;
+--    firma med kalendernorm kan avvike noe). Tallet sier hvor mange dager som må rettes før attestering (F9).
+select s.status, count(*) from (
+  select ds.id, ds.status, os.dagsnorm,
+         sum(t.timer) filter (where l.type = 'fravaer' and l.fravaer_normtak) as betalt_fravaer,
+         sum(t.timer) filter (where l.type <> 'fravaer' and not t.er_reise) as arbeid
+    from timer.daily_sheets ds
+    join timer.sheet_timer t on t.sheet_id = ds.id and t.attestert_status is distinct from 'erstattet'
+    join timer.lonnsarter l on l.id = t.lonnsart_id
+    join organization_settings os on os.organization_id = ds.organization_id
+   group by ds.id, ds.status, os.dagsnorm
+) s where s.dagsnorm > 0 and coalesce(s.betalt_fravaer, 0) > greatest(0, s.dagsnorm - coalesce(s.arbeid, 0)) + 0.01
+ group by s.status;
+```
+
+#### 11.10.3 Regelen — én kilde (ordre b)
+
+Ny ren modul i `packages/shared` (`fravaerNormtak.ts`), brukt av server, web og mobil. Pr. ansatt pr. dato:
+
+| Størrelse | Definisjon |
+|---|---|
+| **arbeid** | L1-grunnlaget: timer på rader som ikke er reise, ikke fravær og ikke `erstattet`. Overtidsrader teller. |
+| **betalt fravær** | Timer på rader med fravær-art med tak (`harNormtak`), ikke `erstattet`. Flere linjer summeres. |
+| **tak** | `max(0, dagsnorm − arbeid)`, to desimaler. Ukjent norm (`dagsnorm ≤ 0`, L3) → **intet tak**: ingenting klemmes, ingenting flagges. |
+| **brudd** | `betalt fravær − tak > 0,01`. |
+
+| # | Regel |
+|---|---|
+| N1 | **Arbeidet regnes som før.** Fravær — med eller uten tak — bruker aldri normen for arbeidet (L1, B8, B9). 2 t arbeid etter egenmelding er normaltid. Overtid først når arbeidet alene passerer normen. |
+| N2 | **Betalt fravær kan høyst være taket.** Flere betalte fraværslinjer samme dag deler det. |
+| N3 | **Ubetalt fravær har ikke tak** og måles aldri (B9). |
+| N4 | **Arbeid avvises aldri av taket.** Den ansatte skal alltid kunne føre tiden som er arbeidet (B8). Det er fraværet som viker. |
+| N5 | **Eksisterende rader endres aldri stille** (L5). Føres arbeid etter at betalt fravær alt står på dagen, oppstår brudd. Det vises, og den som fører retter fraværet med ett trykk (§ 11.10.4). |
+| N6 | **Arbeidet alene fyller normen** (tak 0): betalt fravær kan ikke føres på dagen. Står det der fra før, er hele fraværslinja brudd, og rettingen er å slette linja. Arbeidet røres ikke. |
+| N7 | **Taket er eksakt,** ikke rundet til firmaets tidsrunding: norm 7,5 − arbeid 2,25 = 5,25 t. Stepperen stopper på taket også utenfor gridet. |
+| N8 | **Reise teller ikke som arbeid i taket** — følger L1 og V1 (reise bruker aldri normen). |
+| N9 | **Normen er firmaets dagsnorm for datoen** (FM25), samme norm som L1–L3. 🟡 Det finnes ingen norm pr. ansatt; en deltidsansatt måles mot firmaets norm, som i overtidsregelen i dag. |
+
+Funksjoner: `harNormtak(lonnsart)` · `restForBetaltFravaer({ dagsnorm, arbeid, annetBetaltFravaer })` → timer eller
+`null` (intet tak) · `vurderFravaerNormtak({ dagsnorm, rader })` → `{ arbeid, betaltFravaer, tak, overTak }`.
+
+#### 11.10.4 Regelen pr. flate
+
+**Mobil (ordre c)**
+
+| Flate | Regel |
+|---|---|
+| **Fraværskortet** (§ 11.5; etter F2–F5) | U3 forhåndsutfyller alt med resten av normen. Nytt: for betalt art er resten også øvre grense — «+» stopper på taket, med linja «Høyst 5,5 t — 2,0 t er ført som arbeid». Bytte fra ubetalt til betalt art klemmer timene til taket før lagring. Tak 0: betalte arter vises nedtonet med «Normen er fylt av arbeid»; ubetalte kan fortsatt velges. Ubetalt art: ingen grense. |
+| **Bekreft dag — fravær på normallinja med «Fravær til»** (a3; lever til F5 flytter fravær ut av prosjektkortet) | Betalt art: fraværslinjas timer = `min(vinduets timer, tak)`, der arbeid = datoens arbeid fra før + kortets arbeid etter punktet. Punktet styrer fortsatt hvor arbeidet starter, og arbeidet etter er normaltid mot normresten (N1) — delingen i `beregnSegment` står. Linja viser «08:00–15:30 · 6,0 t · Egenmelding» og under den «Betalt fravær fyller resten av normen (7,5 t − 1,5 t arbeid)». 🔴 En klemt linje lagres **uten klokkeslett** — bare timer og art (FM23); uklemt linje lagres som i dag. Tak 0: ingen fraværsrad lagres, linja vises med «Normen er fylt av arbeid», og delingen står (en husket «Overtid fra» leses ikke, a3 A2). Ubetalt art: uendret a3. |
+| **Rad-vinduet i prosjektkort-modus** | Betalt art valgt: timefeltet har taket som øvre grense (arbeid og annet betalt fravær = datoens øvrige rader). Over taket sperres lagring med samme linje som over. Stemmer ikke fra–til med klemte timer, lagres raden uten klokkeslett (FM23). |
+| **Brudd som oppstår etterpå** (N5: arbeid ført etter fraværet, eller rad kommet fra PC) | Dagskortet viser fraværslinja amber: «Betalt fravær 7,5 t + arbeid 2,0 t er over normen 7,5 t» med knappen **«Rett til 5,5 t»** (tak 0: **«Slett fraværet»**). Ett trykk retter raden. Med F9 = A sperres sending av dagen til bruddet er rettet — samme mønster som send-sperren for manglende beskrivelse. |
+| **Dagskort-modus-skjermen** | Urørt i c (dagskort isolert, F11). Brudd derfra fanges på server. |
+| **Lønnsartkatalogen** | Ny lokal kolonne `fravaer_normtak INTEGER` (nullable) med `ALTER` i `migreringer.ts`; `refreshKatalog` skriver `l.fravaerNormtak ?? null`. De tre oppslagene i FM21 leser `harNormtak` i tillegg til type. |
+
+**Web**
+
+| Flate | Regel | Ordre |
+|---|---|---|
+| Lønnsartoppsettet | Markøren (§ 11.10.2). | b |
+| Attestering | En dag i brudd viser «Betalt fravær 7,5 t + arbeid 2,0 t = 9,5 t — over dagsnormen 7,5 t» der overtidsvarselet står i dag (banneret i `AttesteringDetalj.tsx:408–418`), og i attesteringslista på telefon (`apps/mobile/app/timer/attestering/index.tsx`). Sedelen ligger alt under «Krever vurdering» (FM24). Med F9 = A er attestering av datoen sperret mens bruddet står; attestanten returnerer sedelen, eller firma-admin retter timene (`redigerSedelRader`). | b |
+| Dagsseddel-siden, rad-dialogen | Betalt art valgt: timefeltet viser «Høyst 5,5 t» og sperrer lagring over taket. I b viser dialogen bare serverens avvisning; grensen i feltet kommer i d. | b / d |
+| «+ Fravær» (§ 11.6) | Samme grense som fraværskortet på telefon. | d |
+
+**Server (ordre b)**
+
+| Hva | Regel |
+|---|---|
+| **Avledning** | `vurderFravaerNormtak` kjøres der dag-grunnlaget bygges i dag (`hentTilAttesteringFirma`, `:4295`) og returneres ved siden av `overtidsgrunnlag`. De to andre attesteringsleserne får samme felt: `hentTilAttestering` (`:4017`, bærer ikke dag-grunnlag i dag) og `hentForAttestering` (`:4364`, bærer bare ukegrunnlaget, `:4501`). Radutvalget utvides med `lonnsart.type` og `lonnsart.fravaerNormtak`. Normen er `hentEffektivArbeidstid` for datoen — aldri den flate kolonnen. |
+| **F-F1 på dag-nivå** | `OvertidRad` får `erFravaer` (påkrevd i typen, som `erReise`). Fravær holdes utenfor `arbeidstimer`, `sumOrdinaert`, `sumOvertid` og beregnet overtid, og summeres i nytt `fravaerTimer`. Betalt og ubetalt likt (N1). Eldre snapshots uten feltet leses som `fravaerTimer = 0` — det som faktisk ble attestert. |
+| **F-F1 på uke-nivå** | 🟡 Fravær kan ikke bare strykes fra ukegrunnlaget. Mandag 7,5 t egenmelding + tirsdag–fredag 9,5 t med 2 t ført overtid hver dag gir 38 t arbeid mot ukenorm 37,5 → beregnet 0,5 t, ført 8 t → falskt avvik. I dag er dette tilfellet riktig, fordi fraværet telles. Regel: **i ukesummen fyller fravær dagens norm, aldri mer** — hver dag teller `arbeid + min(fravær, max(0, dagsnorm − arbeid))`, betalt og ubetalt likt. Da er både tilfellet over og B9-dagen (7,5 t privat + 1,5 t arbeid) riktige. Krever dato og type i utvalget i `byggUkeOvertidsgrunnlag` (`:1247–1264`), og at ukesbadgen (`beregnUkeAvvik`, `overtidsgrunnlag.ts:181–193`, tre kallere i FM24) får dagens klemte sum i stedet for `totaltimer`. |
+| **Interaktive skriveveier** (web) | `tilfoyTimerRad` (`:2377`), `oppdaterTimerRad` (`:2606`), `redigerSedelRader` (`:5043`): en **betalt fraværsrad** som etter skrivingen ligger over taket, avvises med tallene («Betalt fravær kan høyst være 5,5 t denne dagen — 2,0 t er ført som arbeid»). En arbeidsrad avvises aldri (N4). En skriving som senker en fraværsrad på en dag som alt er i brudd, godtas — ellers kan ingen rette dagen. |
+| **`syncBatch`** (`:6409`) | Lagrer alltid — en offline-dag eller en eldre app skal ikke sprette (SYNC-1). Bruddet følger med i svaret, så ny mobil viser det. |
+| **Attestering** | Med F9 = A: `attester` (`:5945`) og `attesterRader` (`:4657`) avvises for en dato i brudd, med tallene. `returner`, `returnerRader` og `redigerSedelRader` virker. Attesterte rader og snapshots røres ikke. |
+| **Eksport og rapport** | Uendret. 🟡 Ikke målt: om lønnseksporten bare tar attesterte rader. Koderen måler det i b; tar den også uattesterte, meldes det før levering — da holder ikke «stoppes ved attestering» alene. |
+
+#### 11.10.5 Eldre klient og rekkefølge
+
+| Situasjon | Hva skjer |
+|---|---|
+| Eldre mobil (uten B10) fører 7,5 t egenmelding + 2 t arbeid | Lagres som i dag. Dagen står i brudd i attesteringslista; med F9 = A stopper attesteringen til den er rettet. |
+| Ny mobil mot gammel API (feltet finnes ikke) | Alle fravær-arter får tak (`harNormtak` ved ukjent verdi). Ubetalt fravær klemmes til b er ute. Enda en grunn til «b før c». |
+| Ny mobil før første katalogsynk | Lokal kolonne er `NULL` → tak. Rettes ved neste katalogsynk. |
+| Gammel API etter tilbakerulling | Skriver nye fravær-arter uten feltet → `true` (standard). Ingen feil. |
+| Dagskort-modus | Skjermen har ingen grense (F11). Bruddet fanges på server som for eldre mobil. |
+
+**Test-OTA og a3:** a3 ligger på develop uten B10 og behandler alt fravær som ubetalt; test-OTA holdes. Med
+fordelingen i § 11.8 blir første OTA som bærer a3, c-leveransen. 🟡 Til orkestrator (ikke Kenneth): B10-delen av c —
+katalogkolonnen, Bekreft dag, rad-vinduet og brudd-linja — trenger verken kort-id eller fraværskortet. Den kan
+skilles ut som egen mobilordre rett etter b, så a3 + B10 kan gå som test-OTA uten å vente på resten av c.
