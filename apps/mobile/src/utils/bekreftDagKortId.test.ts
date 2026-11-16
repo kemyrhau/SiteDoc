@@ -221,6 +221,38 @@ describe("T10 — «Del til eget kort» lagres som to kort", () => {
   });
 });
 
+describe("T12 — «+ Nytt prosjektkort» på prosjekt som alt har kort", () => {
+  const kveld = () =>
+    kontekst({ sluttIso: "2026-07-01T18:00:00", dag: { startAt: "2026-07-01T16:00:00", startLat: null, startLng: null, oppmotestedId: null, byggeplassId: null } });
+  const forsteKort = () => {
+    const forst = forberedBekreftDag(lokalDb(), kontekst(), { beskrivelse: { p1: "Grøft" } }).forslag;
+    bekreftDag(lokalDb(), forst, { ...skriveCtx(), ecoId: null });
+    db().update(arbeidsdagLocal).set({ status: "paagaar" }).run();
+    return db().select().from(sheetTimerLocal).all().map((r) => [r.id, r.kortId] as const);
+  };
+
+  it("samme prosjekt, byggeplass og underprosjekt → to kort; det første røres ikke", () => {
+    const foer = forsteKort();
+    const andre = forberedBekreftDag(lokalDb(), kveld(), { beskrivelse: { p1: "Skifer" }, nyttKort: "frø-1" }).forslag;
+    bekreftDag(lokalDb(), andre, { ...skriveCtx(), ecoId: null });
+    const etter = db().select().from(sheetTimerLocal).all();
+    for (const [id, kortId] of foer) expect(etter.find((r) => r.id === id)?.kortId).toBe(kortId);
+    const nye = etter.filter((r) => !foer.some(([id]) => id === r.id) && !r.erReise);
+    expect(nye.length).toBeGreaterThan(0);
+    expect(new Set(nye.map((r) => r.kortId)).size).toBe(1);
+    expect(nye[0]!.kortId).not.toBe(KORT1);
+    expect(nye.every((r) => r.beskrivelse === "Skifer")).toBe(true);
+  });
+
+  it("kontroll: uten «+ Nytt prosjektkort» (vanlig «+») legges raden i kortet som finnes", () => {
+    forsteKort();
+    const andre = forberedBekreftDag(lokalDb(), kveld(), { beskrivelse: { p1: "Skifer" } }).forslag;
+    bekreftDag(lokalDb(), andre, { ...skriveCtx(), ecoId: null });
+    const ider = new Set(db().select().from(sheetTimerLocal).all().filter((r) => !r.erReise).map((r) => r.kortId));
+    expect([...ider]).toEqual([KORT1]);
+  });
+});
+
 describe("T14 — gammelt utkast (før kort-id) lastes", () => {
   const eier = { userId: BRUKER, orgId: ORG };
 

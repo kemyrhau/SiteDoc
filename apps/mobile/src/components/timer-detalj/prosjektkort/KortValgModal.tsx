@@ -19,6 +19,7 @@ import { ProsjektVelgerModal } from "../ProsjektVelger";
  *    byggeplass: chips + «Åpne».
  *  - `flytt`: «Flytt raden». Prosjekt kan byttes, byggeplass og underprosjekt
  *    som chips; «Flytt» er avslått til valget skiller seg fra radens kort.
+ *    Ordre c (T12): «Flytt til nytt kort» (`nyttKort`) gir raden en ny kort-id.
  *
  * Byggeplass i `ProsjektKortValg` er den EFFEKTIVE. «Uten byggeplass» tilbys alltid
  * (RETUR 36c-2 P1 a2): når dagens byggeplass hører til samme prosjekt løftes
@@ -47,6 +48,7 @@ export function KortValgModal({
   prosjektNavn,
   feil = null,
   merknad,
+  nyttKort,
   onVelg,
   onLukk,
 }: {
@@ -58,6 +60,11 @@ export function KortValgModal({
   feil?: string | null;
   /** 36c-kort: grå forklaring for valget (f.eks. at kortene slås sammen). */
   merknad?: (valg: ProsjektKortValg) => string | null;
+  /**
+   * Ordre c (T12): «Flytt raden» til et NYTT kort (ny kort-id) — også med samme
+   * prosjekt/byggeplass/underprosjekt som et kort som finnes. Utelatt = ingen knapp.
+   */
+  nyttKort?: { tillatt: (valg: ProsjektKortValg) => boolean; onVelg: (kort: ProsjektKortValg) => void };
   onVelg: (kort: ProsjektKortValg) => void;
   onLukk: () => void;
 }) {
@@ -172,6 +179,7 @@ export function KortValgModal({
           {!byggeplassSomRader && (
             <Pressable
               disabled={!kanBekrefte}
+              accessibilityRole="button"
               accessibilityState={{ disabled: !kanBekrefte }}
               onPress={() => onVelg(valg)}
               className={`mt-3 min-h-[44px] items-center justify-center rounded-lg ${
@@ -180,6 +188,21 @@ export function KortValgModal({
             >
               <Text className="text-base font-semibold text-white">
                 {heleKortet ? t("timer.kort.flyttKnapp") : flytt ? t("handling.flytt") : t("timer.aapne")}
+              </Text>
+            </Pressable>
+          )}
+          {flytt && !heleKortet && nyttKort && (
+            <Pressable
+              disabled={!nyttKort.tillatt(valg)}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: !nyttKort.tillatt(valg) }}
+              onPress={() => nyttKort.onVelg(valg)}
+              className={`mt-2 min-h-[44px] items-center justify-center rounded-lg border ${
+                nyttKort.tillatt(valg) ? "border-gray-900 active:bg-gray-50" : "border-gray-200"
+              }`}
+            >
+              <Text className={`text-base font-semibold ${nyttKort.tillatt(valg) ? "text-gray-900" : "text-gray-300"}`}>
+                {t("timer.kortValg.flyttNyttKort")}
               </Text>
             </Pressable>
           )}

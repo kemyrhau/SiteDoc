@@ -5606,6 +5606,7 @@
   "timer.kortValg.utenByggeplass": "Ingen byggarbetsplats",
   "timer.kortValg.uten": "Ingen",
   "timer.kortValg.flyttTittel": "Flytta rad till",
+  "timer.kortValg.flyttNyttKort": "Flytta till nytt kort",
   "timer.kort.endre": "Byt kort",
   "timer.kort.seHeleDagen": "Se hela dagen ({{antall}} projekt)",
   "timer.kort.slett": "Ta bort kort",

@@ -5606,6 +5606,7 @@
   "timer.kortValg.utenByggeplass": "Нет строительной площадки",
   "timer.kortValg.uten": "Никто",
   "timer.kortValg.flyttTittel": "Переместить строку в",
+  "timer.kortValg.flyttNyttKort": "Перейти на новую карту",
   "timer.kort.endre": "Сменить карту",
   "timer.kort.seHeleDagen": "Посмотреть весь день ({{antall}} проектов)",
   "timer.kort.slett": "Удалить карту",

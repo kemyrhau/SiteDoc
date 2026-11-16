@@ -198,6 +198,8 @@ export default function BekreftDagSkjerm() {
     opprinnelse?: string;
     dato?: string;
     laastDato?: string;
+    /** Ordre c (T12): åpnet fra «+ Nytt prosjektkort» — raden blir et nytt kort. */
+    nyttKort?: string;
   }>();
   const manuell = params.opprinnelse === "manuell";
   const laastDato = params.laastDato === "1";
@@ -219,7 +221,13 @@ export default function BekreftDagSkjerm() {
   const sisteSegmentKilde: "bruker" | "system" =
     params.sisteSegmentKilde === "system" ? "system" : "bruker";
 
-  const [retting, setRetting] = useState<DagsforslagRetting>({});
+  // Ordre c (T12): «+ Nytt prosjektkort» gir et nytt kort, også på et prosjekt som alt har kort.
+  const nyttKortFroe = useCallback(
+    (r: DagsforslagRetting): DagsforslagRetting =>
+      manuell && params.nyttKort === "1" && !r.nyttKort ? { ...r, nyttKort: randomUUID() } : r,
+    [manuell, params.nyttKort],
+  );
+  const [retting, setRetting] = useState<DagsforslagRetting>(() => nyttKortFroe({}));
   const [manuellDato, setManuellDato] = useState(params.dato ?? lokalIsoDato(new Date()));
   const [visDatoVelger, setVisDatoVelger] = useState(false);
   // Funn 3 (telefontest 13.11): manuell modus («+», «+ Nytt prosjektkort») har
@@ -761,7 +769,7 @@ export default function BekreftDagSkjerm() {
     const u = finnUtkast(db, { userId: bruker.id, orgId, nokkel });
     if (u) {
       const d = u.data;
-      setRetting(d.retting ?? {});
+      setRetting(nyttKortFroe(d.retting ?? {}));
       setTilleggPerRad(d.tilleggPerRad ?? {});
       setLonnUtlegg(d.lonnUtlegg ?? { tillegg: [], utlegg: [] });
       setValgtByggeplassId(d.valgtByggeplassId ?? undefined);
@@ -770,7 +778,7 @@ export default function BekreftDagSkjerm() {
       setGjenopprettetTid(formaterKlokke(new Date(u.sistEndret)));
     }
     setUtkastLastet(true);
-  }, [utkastLastet, bruker?.id, orgId, manuell, dag, manuellDato, params.arbeidsdagId]);
+  }, [utkastLastet, bruker?.id, orgId, manuell, dag, manuellDato, params.arbeidsdagId, nyttKortFroe]);
 
   // L3-D: vakten leser datoens sedel (om den finnes) + forslagets nye rader.
   const grunnlagPerDato = useMemo(() => {

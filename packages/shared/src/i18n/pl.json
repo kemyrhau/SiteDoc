@@ -5606,6 +5606,7 @@
   "timer.kortValg.utenByggeplass": "Brak placu budowy",
   "timer.kortValg.uten": "Nic",
   "timer.kortValg.flyttTittel": "Przenieś wiersz do",
+  "timer.kortValg.flyttNyttKort": "Przejdź na nową kartę",
   "timer.kort.endre": "Zmień kartę",
   "timer.kort.seHeleDagen": "Zobacz cały dzień ({{antall}} projektów)",
   "timer.kort.slett": "Usuń kartę",

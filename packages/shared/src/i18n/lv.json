@@ -5606,6 +5606,7 @@
   "timer.kortValg.utenByggeplass": "Nav būvlaukuma",
   "timer.kortValg.uten": "Nav",
   "timer.kortValg.flyttTittel": "Pārvietot rindu uz",
+  "timer.kortValg.flyttNyttKort": "Pāriet uz jaunu karti",
   "timer.kort.endre": "Mainīt karti",
   "timer.kort.seHeleDagen": "Skatīt visu dienu ({{antall}} projekti)",
   "timer.kort.slett": "Dzēst karti",

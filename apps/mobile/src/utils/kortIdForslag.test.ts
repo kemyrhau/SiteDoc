@@ -116,6 +116,32 @@ describe("tildelKortIder — kort-id pr. kort (§ 5.1)", () => {
     expect(d!.rader.filter((r) => !r.erReise).every((r) => r.kortId === "eldst")).toBe(true);
   });
 
+  // T12 (spec § 7 rad «+ Nytt prosjektkort»): prosjektet har alt et kort med
+  // samme byggeplass — det nye kortet får ny id, aldri det eksisterende.
+  it("T12: «+ Nytt prosjektkort» på prosjekt som alt har kort → ny id, stabil ved omregning", () => {
+    const eks = {
+      [DATO]: {
+        finnes: true,
+        status: "draft",
+        eksisterendeRader: [],
+        kort: [{ kortId: "eldst", projectId: P, byggeplassId: null }],
+      },
+    };
+    const regn = () =>
+      tildelKortIder([dagSyvTilFem()], { userId: USER, eksisterendeSedelPerDato: eks, kortDeling: [], nyttKort: "frø-1" })[0]!
+        .rader.filter((r) => !r.erReise)
+        .map((r) => r.kortId);
+    const ider = regn();
+    expect(new Set(ider).size).toBe(1);
+    expect(ider[0]).not.toBe("eldst");
+    expect(ider[0]).not.toBe(UTLEDET);
+    expect(regn()).toEqual(ider);
+    // Nytt frø = nytt kort (to «+ Nytt prosjektkort» samme dag blir to kort).
+    const annet = tildelKortIder([dagSyvTilFem()], { userId: USER, eksisterendeSedelPerDato: eks, kortDeling: [], nyttKort: "frø-2" })[0]!
+      .rader.find((r) => !r.erReise)!.kortId;
+    expect(annet).not.toBe(ider[0]);
+  });
+
   it("uten userId: ingen kort-id (ingenting gjettes)", () => {
     const [d] = tildelKortIder([dagSyvTilFem()], { userId: undefined, eksisterendeSedelPerDato: {}, kortDeling: [] });
     expect(d!.rader.every((r) => r.kortId === undefined)).toBe(true);

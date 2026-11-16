@@ -5606,6 +5606,7 @@
   "timer.kortValg.utenByggeplass": "Asnjë kantier ndërtimi",
   "timer.kortValg.uten": "Asnjë",
   "timer.kortValg.flyttTittel": "Zhvendos rreshtin te",
+  "timer.kortValg.flyttNyttKort": "Kaloni në kartën e re",
   "timer.kort.endre": "Ndrysho kartën",
   "timer.kort.seHeleDagen": "Shiko gjithë ditën ({{antall}} projekte)",
   "timer.kort.slett": "Fshi kartën",

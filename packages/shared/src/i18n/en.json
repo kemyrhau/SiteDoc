@@ -5606,6 +5606,7 @@
   "timer.kortValg.utenByggeplass": "No building site",
   "timer.kortValg.uten": "None",
   "timer.kortValg.flyttTittel": "Move row to",
+  "timer.kortValg.flyttNyttKort": "Move to new card",
   "timer.kort.endre": "Change card",
   "timer.kort.seHeleDagen": "See the whole day ({{antall}} projects)",
   "timer.kort.slett": "Delete card",

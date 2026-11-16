@@ -2,6 +2,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import { View, Text, Pressable, Modal, TextInput } from "react-native";
 import { Clock } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
+import { randomUUID } from "expo-crypto";
 import {
   beregnMaskinBrudd,
   byggNormtakBruddLinje,
@@ -41,6 +42,7 @@ import {
   kortValgFor,
   utenIdTilKort,
   utledetKortNokkel,
+  raderPaaKort,
   lagretByggeplassForKort,
   vareByggeplassForKort,
   sendKnappTekst,
@@ -479,8 +481,25 @@ export function ProsjektkortDagsoversikt({
     if (trengerByggeplassLoft(kort, sedelKontekst)) loftByggeplassArv(db(), sheetId, sedelKontekst);
   };
 
-  const utforFlytt = async (til: ProsjektKortValg) => {
+  // Ordre c (T12): «Flytt raden» får målkortets id — første kort med nøkkelen
+  // (samme regel som kortlista). Finnes ikke noe kort der, eller «Flytt til nytt
+  // kort»: ny id (spec § 2.4: nytt kort laget av brukeren får tilfeldig UUID).
+  const flyttMaalKort = (til: ProsjektKortValg, nytt: boolean): ProsjektKortValg => ({
+    ...til,
+    kortId: (nytt ? undefined : utenId.get(utledetKortNokkel(til))) ?? randomUUID(),
+  });
+  // «Flytt til nytt kort» gjør en forskjell bare når det finnes et kort med
+  // nøkkelen — og på samme nøkkel bare når kildekortet har flere arbeidsrader.
+  const nyttKortTillatt = (fra: ProsjektKortValg) => (valg: ProsjektKortValg) =>
+    utenId.has(utledetKortNokkel(valg)) &&
+    (utledetKortNokkel(valg) !== utledetKortNokkel(fra) ||
+      raderPaaKort(timerRader, sedelKontekst, fra, utenId).filter(
+        (r) => !erReiseRadVisning(r.erReise, r.lonnsartId, reiseLonnsartId),
+      ).length > 1);
+
+  const utforFlytt = async (valgt: ProsjektKortValg, nytt = false) => {
     if (!flytt) return;
+    const til = flytt.radType === "timer" ? flyttMaalKort(valgt, nytt) : valgt;
     loftArvVedBehov(til);
     const maal: FlyttMaal = {
       projectId: til.projectId,
@@ -1377,6 +1396,11 @@ export function ProsjektkortDagsoversikt({
           prosjektNavn={prosjektNavn}
           feil={flyttFeil}
           onVelg={(til) => void utforFlytt(til)}
+          nyttKort={
+            flytt.radType === "timer"
+              ? { tillatt: nyttKortTillatt(flytt.fra), onVelg: (til) => void utforFlytt(til, true) }
+              : undefined
+          }
           onLukk={() => setFlytt(null)}
         />
       )}

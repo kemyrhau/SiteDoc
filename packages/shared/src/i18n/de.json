@@ -5606,6 +5606,7 @@
   "timer.kortValg.utenByggeplass": "Keine Baustelle",
   "timer.kortValg.uten": "Keiner",
   "timer.kortValg.flyttTittel": "Zeile verschieben nach",
+  "timer.kortValg.flyttNyttKort": "Auf neue Karte verschieben",
   "timer.kort.endre": "Karte wechseln",
   "timer.kort.seHeleDagen": "Den ganzen Tag ansehen ({{antall}} Projekte)",
   "timer.kort.slett": "Karte löschen",

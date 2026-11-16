@@ -23,6 +23,7 @@ import {
 import { erReiseRadVisning } from "../../../utils/reiseRad";
 import type { MaskinRad, TimerRad } from "../../../types/timer-detalj";
 import { oppdaterTimerRad, type RadKontekst } from "./radLagring";
+import { sikreLokalKortId } from "../../../services/kortIdLokal";
 
 type LokalDb = NonNullable<ReturnType<typeof hentDatabase>>;
 
@@ -40,6 +41,12 @@ export type FlyttMaal = {
   projectId: string;
   byggeplassId: string | null;
   ecoId: string | null;
+  /**
+   * Ordre c (T12, spec § 7 «Flytt raden»): målkortets id — et kort som finnes,
+   * eller en ny id («Flytt til nytt kort»). Utelatt = id-en avgjøres av
+   * normaliseringen (regel 3: eldste kort med nøkkelen, ellers utledet).
+   */
+  kortId?: string;
 };
 
 /**
@@ -102,7 +109,13 @@ export function flyttTimerRad(db: LokalDb, kontekst: RadKontekst, rad: TimerRad,
     beskrivelse: rad.beskrivelse,
     pauseMin: rad.pauseMin,
   });
+  if (til.kortId) {
+    // T12: raden får målkortets id. Koblet maskin/vare får timerradens id (K6) i
+    // normaliseringen under — de følger raden til kortet.
+    db.update(sheetTimerLocal).set({ kortId: til.kortId }).where(eq(sheetTimerLocal.id, rad.id)).run();
+  }
   foelgKobletMaskin(db, rad.id);
+  if (til.kortId) sikreLokalKortId(db, kontekst.sheetId);
 }
 
 /**
@@ -522,9 +535,13 @@ export async function flyttKort(
   },
 ): Promise<KortUtfall> {
   if (!erRedigerbar(dag.status)) return { utfall: "laast" };
-  // Ordre c (T12): «Endre kort» sammenligner prosjekt/byggeplass/underprosjekt —
-  // kortets id beholdes (målet kan bære samme id som kilden).
-  if (utledetKortNokkel(fra) === utledetKortNokkel(til)) return { utfall: "uendret" };
+  // Ordre c (T12): målets id skrives på alle radene som flyttes. «Endre kort»:
+  // målet bærer kildens id → id-en beholdes. «Flytt raden»: målkortets id eller
+  // en ny id («Flytt til nytt kort») — da er samme nøkkel ingen no-op.
+  const maalKortId = til.kortId ?? fra.kortId ?? undefined;
+  if (utledetKortNokkel(fra) === utledetKortNokkel(til) && maalKortId === (fra.kortId ?? undefined)) {
+    return { utfall: "uendret" };
+  }
   // Spec § 11.4: fraværskortet (prosjekt `null`) flyttes ikke og er aldri mål.
   if (fra.projectId === null || til.projectId === null) return { utfall: "uendret" };
   if (girNyttBrudd(dag, innhold, til)) return { utfall: "brudd" };
@@ -555,6 +572,18 @@ export async function flyttKort(
     const felt = { projectId: maal.projectId, byggeplassId: maal.byggeplassId, externalCostObjectId: maal.ecoId, sistEndretLokalt: naa };
     for (const r of innhold.tillegg ?? []) t.update(sheetTilleggLocal).set(felt).where(eq(sheetTilleggLocal.id, r.id)).run();
     for (const r of innhold.utlegg ?? []) t.update(sheetUtleggLocal).set(felt).where(eq(sheetUtleggLocal.id, r.id)).run();
+    if (maalKortId) {
+      // T12: hver rad-lagring over normaliserer sedelen mens kortet er halvveis
+      // flyttet (kortets nøkkel = flertallets), så en tidlig rad kan ha fått ny
+      // id. Mål-id-en skrives derfor på alle flyttede rader til slutt.
+      const kortId = maalKortId;
+      for (const r of innhold.timer) t.update(sheetTimerLocal).set({ kortId }).where(eq(sheetTimerLocal.id, r.id)).run();
+      for (const m of innhold.maskin) t.update(sheetMachineLocal).set({ kortId }).where(eq(sheetMachineLocal.id, m.id)).run();
+      for (const r of innhold.tillegg ?? []) t.update(sheetTilleggLocal).set({ kortId }).where(eq(sheetTilleggLocal.id, r.id)).run();
+      for (const r of innhold.utlegg ?? []) t.update(sheetUtleggLocal).set({ kortId }).where(eq(sheetUtleggLocal.id, r.id)).run();
+      for (const v of innhold.varer) if (!vareFinnesPaaServer(v)) t.update(vareforbrukLocal).set({ kortId }).where(eq(vareforbrukLocal.id, v.id)).run();
+      sikreLokalKortId(t, dag.sheetId);
+    }
     if (serverVarer.length > 0) {
       t.update(dagsseddelLocal)
         .set({ sistEndretLokalt: Date.now(), syncStatus: "pending" })

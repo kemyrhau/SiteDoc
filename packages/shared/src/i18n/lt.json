@@ -5606,6 +5606,7 @@
   "timer.kortValg.utenByggeplass": "Nėra statybvietės",
   "timer.kortValg.uten": "Nėra",
   "timer.kortValg.flyttTittel": "Perkelti eilutę į",
+  "timer.kortValg.flyttNyttKort": "Perkelti į naują kortelę",
   "timer.kort.endre": "Keisti kortelę",
   "timer.kort.seHeleDagen": "Peržiūrėkite visą dieną ({{antall}} projektai)",
   "timer.kort.slett": "Ištrinti kortelę",

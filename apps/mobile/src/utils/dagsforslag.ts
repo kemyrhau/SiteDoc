@@ -518,6 +518,12 @@ export type DagsforslagRetting = {
    */
   kortDeling?: DagsforslagKortDeling[];
   /**
+   * Ordre c (T12): Bekreft dag er åpnet fra «+ Nytt prosjektkort». Frø (UUID)
+   * for kortets nye id — raden legges i et NYTT kort selv om prosjektet og
+   * byggeplassen alt har kort på datoen. Følger utkastet. Se `tildelKortIder`.
+   */
+  nyttKort?: string;
+  /**
    * Ordre c (spec § 5.1): underprosjekt pr. kort, nøkkel = kortets nøkkel i
    * `beskrivelsePerKort`. Utelatt for et kort = `ecoId` i utkastet (dagens
    * valg for forslagets prosjekt), som før.
@@ -1501,6 +1507,7 @@ export function beregnDagsforslag(input: BeregnDagsforslagInput): Dagsforslag {
       userId: input.userId,
       eksisterendeSedelPerDato: input.eksisterendeSedelPerDato,
       kortDeling: input.retting?.kortDeling ?? [],
+      ...(input.retting?.nyttKort ? { nyttKort: input.retting.nyttKort } : {}),
     }),
   };
 }

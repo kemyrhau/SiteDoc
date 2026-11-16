@@ -5606,6 +5606,7 @@
   "timer.kortValg.utenByggeplass": "Žádné staveniště",
   "timer.kortValg.uten": "Žádný",
   "timer.kortValg.flyttTittel": "Přesunout řádek do",
+  "timer.kortValg.flyttNyttKort": "Přesunout na novou kartu",
   "timer.kort.endre": "Vyměňte kartu",
   "timer.kort.seHeleDagen": "Zobrazit celý den ({{antall}} projekty)",
   "timer.kort.slett": "Smazat kartu",

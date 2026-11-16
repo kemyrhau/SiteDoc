@@ -5606,6 +5606,7 @@
   "timer.kortValg.utenByggeplass": "Fără șantier",
   "timer.kortValg.uten": "Nici unul",
   "timer.kortValg.flyttTittel": "Mutați rândul la",
+  "timer.kortValg.flyttNyttKort": "Treceți la un card nou",
   "timer.kort.endre": "Schimbați cardul",
   "timer.kort.seHeleDagen": "Vedeți toată ziua ({{antall}} proiecte)",
   "timer.kort.slett": "Ștergeți cardul",

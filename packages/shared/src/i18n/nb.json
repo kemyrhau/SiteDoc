@@ -5606,6 +5606,7 @@
   "timer.kortValg.utenByggeplass": "Uten byggeplass",
   "timer.kortValg.uten": "Uten",
   "timer.kortValg.flyttTittel": "Flytt raden til",
+  "timer.kortValg.flyttNyttKort": "Flytt til nytt kort",
   "timer.kort.endre": "Endre kort",
   "timer.kort.seHeleDagen": "Se hele dagen ({{antall}} prosjekter)",
   "timer.kort.slett": "Slett kort",

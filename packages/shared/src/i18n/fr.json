@@ -5606,6 +5606,7 @@
   "timer.kortValg.utenByggeplass": "Pas de chantier",
   "timer.kortValg.uten": "Aucune",
   "timer.kortValg.flyttTittel": "Déplacer la ligne vers",
+  "timer.kortValg.flyttNyttKort": "Passer à une nouvelle carte",
   "timer.kort.endre": "Changer de carte",
   "timer.kort.seHeleDagen": "See the whole day ({{antall}} projects)",
   "timer.kort.slett": "Supprimer la carte",

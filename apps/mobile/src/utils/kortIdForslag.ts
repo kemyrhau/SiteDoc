@@ -15,6 +15,7 @@ import type {
  *      effektive byggeplass (eldste først) — ellers utledet id (`utledKortId`,
  *      underprosjekt «ingen»). Samme id ved hver omregning, så utkastet og
  *      skjermen holder kortene stabile. Reise får aldri kort (§ 2.2).
+ *      «+ Nytt prosjektkort» (`nyttKort`): alltid ny id, aldri et eksisterende kort.
  *   2. «Del til eget kort» (`retting.kortDeling`), i rekkefølge: radene i
  *      `fraKortId` fra og med klokkeslettet går til det nye kortet. En rad som
  *      krysser klokkeslettet deles i to. Normaltid/overtid er alt regnet over
@@ -32,6 +33,8 @@ type TildelArgs = {
   userId: string | undefined;
   eksisterendeSedelPerDato: Record<string, DagsforslagEksisterendeSedel>;
   kortDeling: readonly DagsforslagKortDeling[];
+  /** «+ Nytt prosjektkort» (`retting.nyttKort`): frø for kortets nye id. Utelatt = grunnkort som før. */
+  nyttKort?: string;
 };
 
 function grunnKortId(
@@ -39,8 +42,15 @@ function grunnKortId(
   d: DagsforslagDag,
   userId: string,
   eksisterende: DagsforslagEksisterendeSedel | undefined,
+  nyttKort: string | undefined,
 ): string {
   const byggeplassId = rad.byggeplassId ?? d.byggeplassId ?? null;
+  // T12 (spec § 5.2, § 7 rad «+ Nytt prosjektkort»): et nytt kort slås aldri
+  // sammen med et kort som alt står på sedelen — også med lik nøkkel. Id-en er
+  // utledet fra frøet, så den er stabil ved omregning og ny for sedelen.
+  if (nyttKort) {
+    return utledKortId({ userId: `${userId}|nytt|${nyttKort}`, dato: d.dato, nokkel: { projectId: rad.projectId, byggeplassId, ecoId: null } });
+  }
   const finnes = eksisterende?.kort?.find((k) => k.projectId === rad.projectId && k.byggeplassId === byggeplassId);
   if (finnes) return finnes.kortId;
   return utledKortId({ userId, dato: d.dato, nokkel: { projectId: rad.projectId, byggeplassId, ecoId: null } });
@@ -102,7 +112,7 @@ export function tildelKortIder(datoer: DagsforslagDag[], args: TildelArgs): Dags
   return datoer.map((d) => {
     const eksisterende = args.eksisterendeSedelPerDato[d.dato];
     let rader = d.rader.map((r) =>
-      r.erReise ? r : { ...r, kortId: grunnKortId(r, d, userId, eksisterende) },
+      r.erReise ? r : { ...r, kortId: grunnKortId(r, d, userId, eksisterende, args.nyttKort) },
     );
     args.kortDeling.forEach((deling, nr) => {
       if (deling.dato === d.dato) rader = anvendDeling(rader, deling, nr);

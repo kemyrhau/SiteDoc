@@ -5606,6 +5606,7 @@
   "timer.kortValg.utenByggeplass": "Ei rakennustyömaa",
   "timer.kortValg.uten": "Ei mitään",
   "timer.kortValg.flyttTittel": "Siirrä rivi kohteeseen",
+  "timer.kortValg.flyttNyttKort": "Siirrä uudelle kortille",
   "timer.kort.endre": "Vaihda kortti",
   "timer.kort.seHeleDagen": "Katso koko päivä ({{antall}} projektia)",
   "timer.kort.slett": "Poista kortti",

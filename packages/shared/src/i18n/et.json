@@ -5606,6 +5606,7 @@
   "timer.kortValg.utenByggeplass": "Ehitusplats puudub",
   "timer.kortValg.uten": "Mitte ühtegi",
   "timer.kortValg.flyttTittel": "Teisalda rida asukohta",
+  "timer.kortValg.flyttNyttKort": "Liigu uuele kaardile",
   "timer.kort.endre": "Vaheta kaarti",
   "timer.kort.seHeleDagen": "Vaadake tervet päeva ({{antall}} projekti)",
   "timer.kort.slett": "Kustuta kaart",

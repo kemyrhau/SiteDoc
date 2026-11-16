@@ -376,9 +376,10 @@ export default function ProsjektkortSkjerm() {
           onAapneKort={aapneKort}
           onNyttKort={() =>
             // ORDRE 36c: samme skjerm som «Start dag», uten GPS; datoen er kortets.
+            // Ordre c (T12): `nyttKort` — et nytt kort, også på et prosjekt som alt har kort.
             router.push({
               pathname: "/timer/bekreft-dag",
-              params: { opprinnelse: "manuell", dato: sedel.dato, laastDato: "1" },
+              params: { opprinnelse: "manuell", dato: sedel.dato, laastDato: "1", nyttKort: "1" },
             })
           }
           onEndreRamme={() => setVisRammeModal(true)}

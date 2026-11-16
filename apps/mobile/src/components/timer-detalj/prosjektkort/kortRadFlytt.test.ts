@@ -41,6 +41,11 @@ import { drizzle } from "drizzle-orm/sql-js";
 import * as schema from "../../../db/schema";
 import { kjorMigreringer } from "../../../db/migreringer";
 import {
+  flyttKort,
+  kortInnhold,
+  radInnhold,
+  slettKortLokalt,
+  type KortDag,
   flyttMaskinRad,
   flyttTimerRad,
   endreVareMengde,
@@ -390,5 +395,94 @@ describe("Punkt 7 — «Endre mengde» og «Slett» i vare-arket", () => {
     expect(kilde).toMatch(/slettVarelinje\(/);
     expect(kilde).toMatch(/endreVareMengde\(/);
     expect(kilde).toMatch(/trpc\.vareforbruk\.slett\.useMutation/);
+  });
+});
+
+/* ============================================================================
+ *  Ordre c — T12 (prosjektkort-kortid-spec § 9): «Flytt raden» til nytt kort
+ *  gir ny id og tar med koblet maskin/vare; «Endre kort» beholder id; «Slett
+ *  kort» sletter bare kortets rader — også når to kort har samme nøkkel.
+ *  🔴 Skrevet etter koden; negativkontroll i leveransen.
+ * ============================================================================ */
+describe("T12 — Flytt/Endre/Slett pr. kort-id", () => {
+  const SEDEL = { projectId: "p1", byggeplass: null };
+  const server = { erPaaNettet: true, pushSedel: async () => true, flyttVare: async () => {} };
+  type Rad = Parameters<typeof radInnhold>[0]["rad"];
+  const alleTimer = () => db().select().from(sheetTimerLocal).all() as unknown as Rad[];
+  const dag = (): KortDag => ({
+    sheetId: "s1",
+    organizationId: "o1",
+    status: "draft",
+    pauseMin: 0,
+    sedel: SEDEL,
+    timerRader: alleTimer(),
+    maskinRader: [],
+    reiseLonnsartId: null,
+  });
+  const kortA = { projectId: "p1", byggeplassId: null, ecoId: null, kortId: "A" };
+  const toRaderPaaA = () => {
+    const r1 = leggTilTimerRad(db(), K, { ...felt, kortId: "A", fraTid: "07:00", tilTid: "11:00", timer: 4, pauseMin: 0 }, [
+      { vehicleId: "v1", timer: 4, mengde: null, enhet: null },
+    ]);
+    const r2 = leggTilTimerRad(db(), K, { ...felt, kortId: "A", fraTid: "11:00", tilTid: "15:00", timer: 4, pauseMin: 0 }, []);
+    db()
+      .insert(vareforbrukLocal)
+      .values({ id: "v-k", userId: "u1", organizationId: "o1", sheetId: "s1", projectId: "p1", sheetTimerId: r1, dato: "2026-11-07", vareId: "x", vareNavn: "Pukk", enhet: "t", antall: 2, syncStatus: "pending", sistEndretLokalt: 1 })
+      .run();
+    return { r1, r2 };
+  };
+  const flyttRad = (radId: string, til: typeof kortA) =>
+    flyttKort(
+      db(),
+      dag(),
+      radInnhold({ rad: timerRad(radId) as unknown as Rad, maskinRader: maskinRader() as never, varer: [{ ...vare("v-k")!, syncStatus: "pending" as const }] }),
+      kortA,
+      til,
+      server,
+    );
+
+  it("«Flytt til nytt kort» med samme nøkkel: raden får ny id, koblet maskin og vare følger; resten blir på kortet", async () => {
+    const { r1, r2 } = toRaderPaaA();
+    expect(await flyttRad(r1, { ...kortA, kortId: "NY" })).toEqual({ utfall: "ok" });
+    expect(timerRad(r1)!.kortId).toBe("NY");
+    expect(timerRad(r2)!.kortId).toBe("A");
+    expect(maskinRader()[0]!.kortId).toBe("NY");
+    expect(vare("v-k")!.kortId).toBe("NY");
+  });
+
+  it("«Flytt raden» til et kort som finnes: raden får det kortets id — også når den var kortets eneste rad", async () => {
+    const r1 = leggTilTimerRad(db(), K, { ...felt, kortId: "A", timer: 4 }, []);
+    leggTilTimerRad(db(), K, { ...felt, projectId: "p2", kortId: "B", timer: 2 }, []);
+    const tilB = { projectId: "p2", byggeplassId: null, ecoId: null, kortId: "B" };
+    expect(await flyttKort(db(), dag(), radInnhold({ rad: timerRad(r1) as unknown as Rad, maskinRader: [], varer: [] }), kortA, tilB, server)).toEqual({ utfall: "ok" });
+    expect(timerRad(r1)!.kortId).toBe("B");
+  });
+
+  it("negativkontroll: samme nøkkel og samme id → uendret, ingenting skrives", async () => {
+    const { r1 } = toRaderPaaA();
+    const foer = timerRad(r1)!.sistEndretLokalt;
+    expect(await flyttRad(r1, kortA)).toEqual({ utfall: "uendret" });
+    expect(timerRad(r1)!.sistEndretLokalt).toBe(foer);
+  });
+
+  it("«Endre kort» beholder id-en (hele kortet til ny nøkkel)", async () => {
+    const { r1, r2 } = toRaderPaaA();
+    const innhold = kortInnhold({ timerRader: alleTimer(), maskinRader: maskinRader() as never, varer: [], sedel: SEDEL, kort: kortA, reiseLonnsartId: null });
+    const til = { ...kortA, projectId: "p2" };
+    expect(await flyttKort(db(), dag(), innhold, kortA, til, server)).toEqual({ utfall: "ok" });
+    expect([timerRad(r1)!.kortId, timerRad(r2)!.kortId]).toEqual(["A", "A"]);
+    expect(timerRad(r1)!.projectId).toBe("p2");
+  });
+
+  it("«Slett kort» på ett av to kort med samme nøkkel sletter bare det kortets rader", async () => {
+    const { r1, r2 } = toRaderPaaA();
+    await flyttRad(r1, { ...kortA, kortId: "NY" });
+    const kortNy = { ...kortA, kortId: "NY" };
+    const innhold = kortInnhold({ timerRader: alleTimer(), maskinRader: maskinRader() as never, varer: [], sedel: SEDEL, kort: kortNy, reiseLonnsartId: null });
+    expect(innhold.timer.map((r) => r.id)).toEqual([r1]);
+    slettKortLokalt(db(), "s1", innhold);
+    expect(timerRad(r1)).toBeUndefined();
+    expect(timerRad(r2)!.kortId).toBe("A");
+    expect(maskinRader()).toHaveLength(0);
   });
 });
