@@ -31,7 +31,18 @@ import {
   settWebifcKonstanter,
   finnIfcTypeKode,
 } from "@/app/dashbord/[prosjektId]/3d-visning/hjelpefunksjoner";
-import { avstandEtterSteg, flyttLangsBlikk, hjulAvstand, orbitPunkt, panTargetPaaModellDybde } from "@/lib/tredKamera";
+import { finnUtliggere, type Boks3 } from "@sitedoc/shared";
+import {
+  avstandEtterSteg,
+  flyttLangsBlikk,
+  hjulAvstand,
+  orbitPunkt,
+  panTargetPaaModellDybde,
+  utliggereBlant,
+  utliggereSomKanVises,
+  utliggerePrModell,
+  type IderPrModell,
+} from "@/lib/tredKamera";
 
 /* ------------------------------------------------------------------ */
 /*  Kontekst-type                                                       */
@@ -46,11 +57,17 @@ interface TreDViewerKontekstType {
   skjulteObjekter: SkjultObjekt[];
   aktiveFiltre: AktivtFilter[];
   klippModus: boolean;
+  /** Antall objekter langt unna bygget (0 = ingen bryter) */
+  antallUtliggere: number;
+  /** Bryteren «Vis objekter langt unna» — av som standard */
+  visUtliggere: boolean;
   lasterTegninger: boolean;
   lasterPunktskyer: boolean;
   viewerRef: React.MutableRefObject<ViewerAPI | null>;
   setValgtObjekt: (obj: ValgtObjekt | null) => void;
   setKlippModus: (aktiv: boolean) => void;
+  setAntallUtliggere: (antall: number) => void;
+  settVisUtliggere: (vis: boolean) => Promise<void>;
   toggleSynlighet: (id: string) => void;
   soloModell: (id: string) => void;
   oppdaterModellStatus: (id: string, status: Partial<ModellStatus>) => void;
@@ -106,6 +123,8 @@ export function TreDViewerProvider({ children }: { children: ReactNode }) {
   const [valgtObjekt, setValgtObjekt] = useState<ValgtObjekt | null>(null);
   const [lasterOpp, setLasterOpp] = useState(false);
   const [klippModus, setKlippModus] = useState(false);
+  const [antallUtliggere, setAntallUtliggere] = useState(0);
+  const [visUtliggere, setVisUtliggere] = useState(false);
   const [modellStatuser, setModellStatuser] = useState<ModellStatus[]>([]);
   const [skjulteObjekter, setSkjulteObjekter] = useState<SkjultObjekt[]>([]);
   const [aktiveFiltre, setAktiveFiltre] = useState<AktivtFilter[]>([]);
@@ -232,6 +251,11 @@ export function TreDViewerProvider({ children }: { children: ReactNode }) {
     await viewerRef.current?.visObjekt(obj.modelId, obj.localId);
   }, []);
 
+  const settVisUtliggere = useCallback(async (vis: boolean) => {
+    setVisUtliggere(vis);
+    await viewerRef.current?.settUtliggereSynlige(vis, aktiveFiltre, skjulteObjekter);
+  }, [aktiveFiltre, skjulteObjekter]);
+
   const nullstillAlt = useCallback(async () => {
     // Les aktive filtre og skjulte objekter fra state direkte
     setAktiveFiltre((prevFiltre) => {
@@ -271,11 +295,15 @@ export function TreDViewerProvider({ children }: { children: ReactNode }) {
         skjulteObjekter,
         aktiveFiltre,
         klippModus,
+        antallUtliggere,
+        visUtliggere,
         lasterTegninger,
         lasterPunktskyer,
         viewerRef,
         setValgtObjekt,
         setKlippModus,
+        setAntallUtliggere,
+        settVisUtliggere,
         toggleSynlighet,
         soloModell,
         oppdaterModellStatus,
@@ -307,7 +335,9 @@ export function ViewerCanvas({
     tegninger,
     viewerRef,
     klippModus,
+    visUtliggere,
     setValgtObjekt,
+    setAntallUtliggere,
     oppdaterModellStatus,
   } = useTreDViewer();
 
@@ -323,6 +353,11 @@ export function ViewerCanvas({
   // Snitt-modus (Snitt-knappen) — lest fra klikk-handleren i scenen (W2)
   const klippModusRef = useRef(klippModus);
   klippModusRef.current = klippModus;
+  // Objekter langt unna: bryterens verdi når modellene lastes på nytt, og telleren ut
+  const visUtliggereRef = useRef(visUtliggere);
+  visUtliggereRef.current = visUtliggere;
+  const setAntallUtliggereRef = useRef(setAntallUtliggere);
+  setAntallUtliggereRef.current = setAntallUtliggere;
 
   const tegningerIds = tegninger.map((t) => t.id).join(",");
 
@@ -433,14 +468,14 @@ export function ViewerCanvas({
 
           // Én raycast om gangen; svaret gir avstanden fra kameraet slik det står da
           let midtRaycastPaagaar = false;
-          function maalAvstandTilMidten() {
+          const maalAvstandTilMidten = () => {
             if (midtRaycastPaagaar || !finnTreffISkjermmidten) return;
             midtRaycastPaagaar = true;
             void finnTreffISkjermmidten()
               .then((treff) => { if (treff) sisteOrbitAvstand = treff.distanceTo(cam.position); })
               .catch(() => { /* bom — behold avstanden */ })
               .finally(() => { midtRaycastPaagaar = false; });
-          }
+          };
 
           // ── Høyre/midtre knapp (pan/dolly): legg target på dybden brukeren ser på ──
           // Pan-farten i camera-controls er proporsjonal med avstanden kamera→target.
@@ -488,6 +523,12 @@ export function ViewerCanvas({
         const synligeModeller = new Set<string>();
         const ifcDataMap = ifcDataMapRef;
         const totalBbox = new THREE.Box3();
+        // Boksen kamera og innramming bruker: samlet boks uten objekter langt unna (§ 3b punkt 3)
+        const kameraBoks = new THREE.Box3();
+        // Rom/åpninger skjult ved lasting, og objekter langt unna bygget — pr. modell
+        const romIds = new Map<string, Set<number>>();
+        let utliggerIds: IderPrModell = new Map();
+        let utliggereSynlige = visUtliggereRef.current;
         let lastet = 0;
 
         for (const tegning of tegninger) {
@@ -564,6 +605,7 @@ export function ViewerCanvas({
                 for (let si = 0; si < lineIds.size(); si++) skjulIds.push(lineIds.get(si));
               }
               if (skjulIds.length > 0) await model.setVisible(skjulIds, false);
+              romIds.set(fragModelId, new Set(skjulIds));
             } catch { /* Ikke kritisk */ }
 
             lastet++;
@@ -577,17 +619,57 @@ export function ViewerCanvas({
         setLasterNavn(null);
         if (renset) return;
 
-        // Tilpass kamera og dybdebuffer
-        if (!totalBbox.isEmpty()) {
-          const center = totalBbox.getCenter(new THREE.Vector3());
+        // Objekter langt unna bygget: finn dem fra objektboksene (regel felles med mobil),
+        // skjul dem som standard og ramm inn uten dem
+        {
+          const alle: Boks3[] = [];
+          const eiere: { modelId: string; localId: number }[] = [];
+          for (const [mid, model] of fragmentsManager.list) {
+            if (!synligeModeller.has(mid)) continue;
+            const mf = model as unknown as {
+              getItemsIdsWithGeometry: () => Promise<number[]>;
+              getBoxes: (ids?: number[]) => Promise<Boks3[]>;
+            };
+            let ids: number[] = [];
+            let bokser: Boks3[] = [];
+            try {
+              ids = await mf.getItemsIdsWithGeometry();
+              bokser = await mf.getBoxes(ids);
+            } catch { ids = []; bokser = []; /* modellen telles ikke — samlet boks brukes */ }
+            if (bokser.length !== ids.length) continue;
+            bokser.forEach((b, i) => { alle.push(b); eiere.push({ modelId: mid, localId: ids[i]! }); });
+          }
+          if (renset) return;
+          const robust = finnUtliggere(alle);
+          utliggerIds = utliggerePrModell(robust?.utliggere ?? [], eiere);
+          setAntallUtliggereRef.current(robust?.utliggere.length ?? 0);
+          if (!utliggereSynlige) {
+            for (const [mid, ids] of utliggerIds) {
+              try { await fragmentsManager.list.get(mid)?.setVisible(ids, false); } catch { /* */ }
+            }
+          }
+          if (robust) {
+            kameraBoks.set(
+              new THREE.Vector3(robust.boks.min.x, robust.boks.min.y, robust.boks.min.z),
+              new THREE.Vector3(robust.boks.max.x, robust.boks.max.y, robust.boks.max.z),
+            );
+          } else {
+            kameraBoks.copy(totalBbox);
+          }
+        }
+
+        // Tilpass kamera og dybdebuffer til boksen uten objekter langt unna
+        if (!kameraBoks.isEmpty()) {
+          const center = kameraBoks.getCenter(new THREE.Vector3());
           modellSenter = center.clone();
-          const size = totalBbox.getSize(new THREE.Vector3());
+          const size = kameraBoks.getSize(new THREE.Vector3());
           const maxDim = Math.max(size.x, size.y, size.z);
           // Startkameraet ser på senteret; første rotasjon som bommer, går rundt det
           sisteOrbitAvstand = new THREE.Vector3(maxDim * 0.6, maxDim * 0.4, maxDim * 0.6).length() || sisteOrbitAvstand;
           // Sett near/far basert på modellstørrelse for å unngå z-fighting/flimring
           threeCamera.near = maxDim * 0.001;
-          threeCamera.far = maxDim * 20;
+          // far rekker også objekter langt unna, så bryteren kan vise dem
+          threeCamera.far = Math.max(maxDim * 20, totalBbox.getSize(new THREE.Vector3()).length() * 2);
           threeCamera.updateProjectionMatrix();
           world.camera.controls?.setLookAt(
             center.x + maxDim * 0.6, center.y + maxDim * 0.4, center.z + maxDim * 0.6,
@@ -1139,6 +1221,14 @@ export function ViewerCanvas({
           return resultat;
         }
 
+        /** Står bryteren av, skjules utliggere på nytt når et filter eller et enkeltobjekt vises igjen. */
+        async function skjulUtliggereIgjen(viste: Map<string, number[]>) {
+          if (utliggereSynlige) return;
+          for (const [mid, ids] of utliggereBlant(utliggerIds, viste)) {
+            try { await fragmentsManager.list.get(mid)?.setVisible(ids, false); } catch { /* */ }
+          }
+        }
+
         // Viewer-referanser
         viewerRef.current = {
           toggleModell: (tegningId: string, synlig: boolean) => {
@@ -1162,6 +1252,7 @@ export function ViewerCanvas({
           visObjekt: async (mid: string, lid: number) => {
             const model = fragmentsManager.list.get(mid);
             if (model) await model.setVisible([lid], true);
+            await skjulUtliggereIgjen(new Map([[mid, [lid]]]));
           },
           skjulAlleAvKategori: async (kategoriKode: number) => {
             const iderPerModell = await hentIderForType(kategoriKode);
@@ -1176,6 +1267,7 @@ export function ViewerCanvas({
               const model = fragmentsManager.list.get(fragId);
               if (model && ids.length > 0) await model.setVisible(ids, true);
             }
+            await skjulUtliggereIgjen(iderPerModell);
           },
           skjulAlleAvLag: async (lagNavn: string) => {
             const iderPerModell = await hentIderForLag(lagNavn);
@@ -1190,6 +1282,7 @@ export function ViewerCanvas({
               const model = fragmentsManager.list.get(fragId);
               if (model && ids.length > 0) await model.setVisible(ids, true);
             }
+            await skjulUtliggereIgjen(iderPerModell);
           },
           skjulAlleAvSystem: async (systemNavn: string) => {
             const iderPerModell = await hentIderForSystem(systemNavn);
@@ -1204,15 +1297,16 @@ export function ViewerCanvas({
               const model = fragmentsManager.list.get(fragId);
               if (model && ids.length > 0) await model.setVisible(ids, true);
             }
+            await skjulUtliggereIgjen(iderPerModell);
           },
           flyTil: (x: number, _y: number, z: number, gulvY?: number): Promise<void> => {
             const ctrl = world.camera.controls!;
             if (!ctrl) return Promise.resolve();
-            const erMm = Math.max(...totalBbox.getSize(new THREE.Vector3()).toArray()) > 1000;
+            const erMm = Math.max(...kameraBoks.getSize(new THREE.Vector3()).toArray()) > 1000;
             const øye = erMm ? 1600 : 1.6;
             const fremover = erMm ? 5000 : 5;
-            const kameraY = (gulvY != null ? gulvY : totalBbox.getCenter(new THREE.Vector3()).y) + øye;
-            const senter = totalBbox.getCenter(new THREE.Vector3());
+            const kameraY = (gulvY != null ? gulvY : kameraBoks.getCenter(new THREE.Vector3()).y) + øye;
+            const senter = kameraBoks.getCenter(new THREE.Vector3());
             const dx = senter.x - x;
             const dz = senter.z - z;
             const len = Math.sqrt(dx * dx + dz * dz) || 1;
@@ -1236,6 +1330,32 @@ export function ViewerCanvas({
                 resolve();
               }, 3000);
             });
+          },
+          settUtliggereSynlige: async (vis, aktiveFiltre, skjulteObjekter) => {
+            utliggereSynlige = vis;
+            // Skjult av en annen grunn vises aldri av bryteren: rom/åpninger, filtre, enkeltobjekter
+            const skjultAvAnnet = new Map<string, Set<number>>();
+            const leggTil = (mid: string, ids: Iterable<number>) => {
+              const s = skjultAvAnnet.get(mid) ?? new Set<number>();
+              for (const id of ids) s.add(id);
+              skjultAvAnnet.set(mid, s);
+            };
+            if (vis) {
+              for (const [mid, ids] of romIds) leggTil(mid, ids);
+              for (const o of skjulteObjekter) leggTil(o.modelId, [o.localId]);
+              for (const f of aktiveFiltre) {
+                let ider = new Map<string, number[]>();
+                if (f.type === "kategori") {
+                  const kode = finnIfcTypeKode(f.verdi);
+                  if (kode !== null) ider = await hentIderForType(kode);
+                } else if (f.type === "lag") ider = await hentIderForLag(f.verdi);
+                else if (f.type === "system") ider = await hentIderForSystem(f.verdi);
+                for (const [mid, ids] of ider) leggTil(mid, ids);
+              }
+            }
+            for (const [mid, ids] of utliggereSomKanVises(utliggerIds, skjultAvAnnet)) {
+              try { await fragmentsManager.list.get(mid)?.setVisible(ids, vis); } catch { /* */ }
+            }
           },
           sisteKlikkPunkt: () => sisteKlikkPunkt3D,
           hentKameraPosisjon: () => {

@@ -2,7 +2,8 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { zoomSteg, ZOOM_MIN_STEG_M } from "@sitedoc/shared";
-import { avstandEtterSteg, flyttLangsBlikk, hjulAvstand, orbitPunkt, panTargetPaaModellDybde, MIN_PAN_DYBDE } from "../tredKamera";
+import {
+  avstandEtterSteg, flyttLangsBlikk, hjulAvstand, orbitPunkt, utliggereBlant, utliggereSomKanVises, utliggerePrModell, panTargetPaaModellDybde, MIN_PAN_DYBDE } from "../tredKamera";
 
 /** W4 — pan-target legges på modellens dybde, ikke 2 enheter foran kamera. */
 describe("panTargetPaaModellDybde", () => {
@@ -143,13 +144,86 @@ describe("kobling i tred-viewer-kontekst", () => {
   it("zoom-fart: hjulsteget regnes fra avstanden til flaten midt på skjermen, som måles på nytt", () => {
     expect(kilde).toContain("const steg = hjulAvstand(e.deltaY, sisteOrbitAvstand);");
     expect(kilde).toContain("sisteOrbitAvstand = avstandEtterSteg(sisteOrbitAvstand, steg);");
-    const hjul = kilde.slice(kilde.indexOf('addEventListener("wheel"'), kilde.indexOf("function maalAvstandTilMidten"));
+    const hjul = kilde.slice(kilde.indexOf('addEventListener("wheel"'), kilde.indexOf("const maalAvstandTilMidten = () =>"));
     expect(hjul).toContain("maalAvstandTilMidten();");
-    const maal = kilde.slice(kilde.indexOf("function maalAvstandTilMidten"));
+    const maal = kilde.slice(kilde.indexOf("const maalAvstandTilMidten = () =>"));
     expect(maal.slice(0, 600)).toContain("if (treff) sisteOrbitAvstand = treff.distanceTo(cam.position);");
   });
 
   it("modellsenteret settes fra samlet bbox når modellene er lastet", () => {
     expect(kilde).toContain("modellSenter = center.clone();");
+  });
+});
+
+/** § 3b punkt 3 — objekter langt unna: kobling mot andre skjulekilder. */
+describe("objekter langt unna (utliggere)", () => {
+  const eiere = [
+    { modelId: "A", localId: 10 },
+    { modelId: "A", localId: 11 },
+    { modelId: "B", localId: 20 },
+    { modelId: "B", localId: 21 },
+  ];
+
+  it("indekser fra finnUtliggere fordeles på modell og localId", () => {
+    expect(utliggerePrModell([0, 2, 3], eiere)).toEqual(new Map([["A", [10]], ["B", [20, 21]]]));
+    expect(utliggerePrModell([], eiere).size).toBe(0);
+  });
+
+  it("bryteren viser ikke utliggere som er skjult av en annen grunn (rom, filter, enkeltobjekt)", () => {
+    const utliggere = new Map([["A", [10, 11]], ["B", [20]]]);
+    const skjultAvAnnet = new Map([["A", new Set([11])], ["B", new Set([20])]]);
+    expect(utliggereSomKanVises(utliggere, skjultAvAnnet)).toEqual(new Map([["A", [10]]]));
+  });
+
+  it("uten andre skjulekilder vises alle utliggere", () => {
+    const utliggere = new Map([["A", [10, 11]]]);
+    expect(utliggereSomKanVises(utliggere, new Map())).toEqual(utliggere);
+  });
+
+  it("når et filter fjernes, finnes utliggerne blant objektene som ble vist", () => {
+    const utliggere = new Map([["A", [10]], ["B", [20]]]);
+    const viste = new Map([["A", [1, 2, 10]], ["C", [10]]]);
+    expect(utliggereBlant(utliggere, viste)).toEqual(new Map([["A", [10]]]));
+  });
+});
+
+describe("utliggere — kobling i tred-viewer-kontekst og 3d-visning", () => {
+  const kilde = readFileSync(resolve(__dirname, "../../kontekst/tred-viewer-kontekst.tsx"), "utf8");
+  const side = readFileSync(resolve(__dirname, "../../app/dashbord/[prosjektId]/3d-visning/page.tsx"), "utf8");
+
+  it("utliggere finnes med den felles regelen og skjules som standard", () => {
+    expect(kilde).toContain("const robust = finnUtliggere(alle);");
+    expect(kilde).toContain("let utliggereSynlige = visUtliggereRef.current;");
+    expect(kilde).toContain("const [visUtliggere, setVisUtliggere] = useState(false);");
+  });
+
+  it("kamera og flyTil bruker boksen uten utliggere", () => {
+    expect(kilde).toContain("if (!kameraBoks.isEmpty()) {");
+    expect(kilde).toContain("const center = kameraBoks.getCenter(new THREE.Vector3());");
+    const flyTil = kilde.slice(kilde.indexOf("flyTil: (x: number"), kilde.indexOf("sisteKlikkPunkt: () =>"));
+    expect(flyTil).not.toContain("totalBbox");
+  });
+
+  it("bryteren unntar rom/åpninger, filtre og enkeltskjulte objekter", () => {
+    const fn = kilde.slice(kilde.indexOf("settUtliggereSynlige: async"), kilde.indexOf("sisteKlikkPunkt: () =>"));
+    expect(fn).toContain("for (const [mid, ids] of romIds) leggTil(mid, ids);");
+    expect(fn).toContain("for (const o of skjulteObjekter) leggTil(o.modelId, [o.localId]);");
+    expect(fn).toContain("for (const f of aktiveFiltre) {");
+    expect(fn).toContain("utliggereSomKanVises(utliggerIds, skjultAvAnnet)");
+  });
+
+  it("vis-operasjonene skjuler utliggere igjen når bryteren står av", () => {
+    for (const navn of ["visObjekt", "visAlleAvKategori", "visAlleAvLag", "visAlleAvSystem"]) {
+      const start = kilde.indexOf(`${navn}: async`);
+      expect(start).toBeGreaterThan(-1);
+      const kropp = kilde.slice(start, kilde.indexOf("\n          },", start));
+      expect(kropp).toContain("await skjulUtliggereIgjen(");
+    }
+  });
+
+  it("3d-visning viser bryteren bare når det finnes utliggere, med antall", () => {
+    expect(side).toContain("{antallUtliggere > 0 && (");
+    expect(side).toContain('{t("3d.visObjekterLangtUnna")} ({antallUtliggere})');
+    expect(side).toContain("void settVisUtliggere(e.target.checked);");
   });
 });

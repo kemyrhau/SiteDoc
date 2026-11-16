@@ -94,3 +94,61 @@ export function orbitPunkt(
   const avstand = treffAvstand !== null && treffAvstand > 0 ? treffAvstand : sisteAvstand;
   return { punkt: flyttLangsBlikk(kamera, retning, avstand), avstand };
 }
+
+/* ------------------------------------------------------------------ */
+/*  Objekter langt unna bygget (§ 3b punkt 3)                          */
+/*  Hvilke objekter som er utliggere avgjør `finnUtliggere` i           */
+/*  @sitedoc/shared; her ligger koblingen mot andre skjulekilder.       */
+/* ------------------------------------------------------------------ */
+
+/** Objekt-id-er pr. modell (fragments modelId → localId-er). */
+export type IderPrModell = Map<string, number[]>;
+
+/** Fordel indekser fra `finnUtliggere` tilbake på modell og localId. */
+export function utliggerePrModell(
+  utliggere: number[],
+  eiere: { modelId: string; localId: number }[],
+): IderPrModell {
+  const ut: IderPrModell = new Map();
+  for (const i of utliggere) {
+    const e = eiere[i];
+    if (!e) continue;
+    const liste = ut.get(e.modelId) ?? [];
+    liste.push(e.localId);
+    ut.set(e.modelId, liste);
+  }
+  return ut;
+}
+
+/**
+ * Utliggerne bryteren «Vis objekter langt unna» kan vise: alle unntatt de som er skjult
+ * av en annen grunn (rom/åpninger, filter-chips, enkeltobjekter brukeren har skjult).
+ */
+export function utliggereSomKanVises(
+  utliggere: IderPrModell,
+  skjultAvAnnet: Map<string, Set<number>>,
+): IderPrModell {
+  const ut: IderPrModell = new Map();
+  for (const [mid, ids] of utliggere) {
+    const unntak = skjultAvAnnet.get(mid);
+    const kan = unntak ? ids.filter((id) => !unntak.has(id)) : ids;
+    if (kan.length > 0) ut.set(mid, kan);
+  }
+  return ut;
+}
+
+/**
+ * Utliggerne blant objekter som nettopp ble vist (filter fjernet, enkeltobjekt vist igjen).
+ * Står bryteren av, skal disse skjules på nytt.
+ */
+export function utliggereBlant(utliggere: IderPrModell, viste: IderPrModell): IderPrModell {
+  const ut: IderPrModell = new Map();
+  for (const [mid, ids] of viste) {
+    const u = utliggere.get(mid);
+    if (!u) continue;
+    const us = new Set(u);
+    const treff = ids.filter((id) => us.has(id));
+    if (treff.length > 0) ut.set(mid, treff);
+  }
+  return ut;
+}
