@@ -73,6 +73,7 @@ import {
   flyttMaskinRad,
   flyttVareLokalt,
   kortUtfallTekst,
+  kortUtfallParametre,
   kanEndreVare,
   slettVarelinje,
   endreVareMengde,
@@ -544,7 +545,8 @@ export function ProsjektkortDagsoversikt({
       const feil = kortUtfallTekst(u, "flytt");
       if (u.utfall !== "ok" && u.utfall !== "uendret") onEndret();
       if (feil) {
-        setFlyttFeil(t(feil, { defaultValue: feil }));
+        // ORDRE (35): overlapp bærer tidene, som på kortskjermen.
+        setFlyttFeil(t(feil, { defaultValue: feil, ...kortUtfallParametre(u) }));
         if (u.utfall === "delvis") onVarerLagret();
         return;
       }
