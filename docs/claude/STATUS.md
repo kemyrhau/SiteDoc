@@ -13,6 +13,7 @@
 
 **Sist oppdatert:** 2026-11-16
 - 2026-11-16 — **`STATUS-AKTUELT.md` + `FUNKSJONSENDRINGER.md`: (26) Bekreft dag-vakt for sendt dato merget (`780f388c`)** (develop, docs-only, orkestrator).
+- 2026-11-16 — **`prosjektkort-kortid-spec.md`: ny spec — prosjektkort med kort-id, dagskortet som sum av prosjektkort, lønnsart-forslag fra døgnets registreringer** (branch `docs/fabel`, docs-only, Fabel, 🟡 UTKAST, B1–B5 til Kenneth): `kort_id` på radene (timer, maskin, tillegg, utlegg, vareforbruk, forslag) i `db-timer`/`db-varelager`, additiv migrering med backfill fra dagens `kortNokkel` og gate-SQL, `løsKortId` for eldre klient, flater/paritet web–mobil, én regel i `klassifiserArbeidstid` (`bruktAvNorm`), funksjonsinventar (ingen fjernet), ordre a–e, 16 tester. Målt mot develop @ e3aea58f. Registrert i DOC-MAP. 🔄 Under arbeid 23 → 24, totalt 59 → 60.
 - 2026-11-16 — **`STATUS-AKTUELT.md` + `FUNKSJONSENDRINGER.md`: prod-deploy `a01ba576` + (25) tillegg/utlegg følger datokortet merget (`0aa1b3ef`)** (develop, docs-only, orkestrator).
 - 2026-11-16 — **`eas-build-veileder.md`: OTA test `d7dfcce8`** (develop, docs-only, orkestrator): group `8e663eee-…`, bærer (24).
 - 2026-11-16 — **`STATUS-AKTUELT.md` + `FUNKSJONSENDRINGER.md`: (24) prosjektkort én beskrivelse / aldri to datoer merget (`3417d893`)** (develop, docs-only, orkestrator): ✅-innslag, funksjonsendring ført.
@@ -380,11 +381,11 @@ T7-3a/b1/b2 er deployet til prod (`223afc17` på main, server-route-endringer ak
 |---|---:|
 | ✅ Verifisert mot kode | 6 |
 | ⚠️ Drift identifisert | 4 |
-| 🔄 Under arbeid | 23 |
+| 🔄 Under arbeid | 24 |
 | ❌ Ikke screenet | 21 |
 | ✔️ Ferdig brukt (lukket) | 3 |
 | 📦 Arkivert | 8 |
-| **Totalt** | **59** |
+| **Totalt** | **60** |
 
 ---
 
@@ -417,6 +418,7 @@ T7-3a/b1/b2 er deployet til prod (`223afc17` på main, server-route-endringer ak
 
 | Fil | Sist verifisert | Kommentar |
 |---|---|---|
+| prosjektkort-kortid-spec.md | 2026-11-16 | **🟡 UTKAST 2026-11-16 (Fabel, spec, ingen kode; B1–B5 til Kenneth):** kort-id som kolonne på radene (anbefalt A) eller egen tabell (B); to additive migreringer (`db-timer`, `db-varelager`) med backfill fra dagens `kortNokkel` og gate-SQL; `løsKortId` holder eldre klient bakoverkompatibel; Bekreft dag/dagskort/web pr. kort-id med «Del til eget kort»; lønnsart-forslag fra døgnets registreringer via `klassifiserArbeidstid` (`bruktAvNorm`); bygger på ORDRE (27). Målt mot develop @ e3aea58f. |
 | timer-geofence-avreise-ankomst-spec.md | 2026-11-15 | **🟡 UTKAST 2026-11-15 (Fabel, spec, ingen kode; B1–B10 til Kenneth):** målt avreise/ankomst via OS-geofence rundt kjente steder (oppmøtested/byggeplass); hendelse uten posisjon kun i SQLite, slettet ved synk-kvittering (14 d reserve); firmabryter på `OrganizationMember` + samtykke/info-logg; krever `expo-task-manager` + plugin-opsjoner → ett EAS-bygg (Kenneth); kobles til (17) via `MaaltTidspunkt.kilde='geofence'`. Målt mot develop @ d409fca4. |
 | tillegg-utlegg-prosjektkort-spec.md | 2026-11-13 | **🟡 UTKAST 2026-11-13 (Fabel, spec, ingen kode; B1–B8 til Kenneth):** tillegg og utlegg bærer byggeplass + underprosjekt og føres på prosjektkortet (reverserer 36b GO 4). Dagskort urørt (vakt utvidet), Bekreft dag beholdes med kortvalg, ingen backfill. Målt mot develop @ 665806e2. |
 | fase-M-forarbeid-testmaler-ns3420-malbygger-2026-07-16.md | 2026-07-16 | **Beviskilde fase M.** Måling av testmaler + NS3420-inventar + MalBygger-kapabilitet (redesign-Opus, kun lesing). Rå-vedlegg i samme mappe: `ns3420-mal-dump-raw.json`, `ns3420-dok-inventar.json`, `ns3420-dok-inventar-raw.json`. Levde 5 dager utenfor git i repo-rota; versjonert 2026-07-16 |
