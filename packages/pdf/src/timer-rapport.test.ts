@@ -138,3 +138,76 @@ describe("byggTimerRapportHtml — mottaker-gating", () => {
     expect(html).toContain("GRAVEMASKIN_NAVN"); // maskinnavn (uten merkelapp)
   });
 });
+
+/* ============================================================================
+ *  ORDRE (36) 2026-11-16 — kolonnebredder i Detaljer (feltfunn Fakturagrunnlag):
+ *  Dato/Type/tall ble brutt bokstav for bokstav fordi alle kolonner fikk prosent av
+ *  min·(1+vekt) med table-layout:fixed. Nå: korte kolonner (vekt 0) har `kort` +
+ *  nowrap og krymper til innholdet; tekstkolonner med innhold deler prosent etter
+ *  vekt; tom tekstkolonne får ingen bredde. Verifisert i Chromium (liggende 1002 px,
+ *  stående 673 px: korte kolonner på én linje, tabellen holder sidebredden).
+ *  🔴 Rød før koden.
+ * ============================================================================ */
+describe("byggTimerRapportHtml — kolonnebredder (ORDRE 36)", () => {
+  // Formen til @sitedoc/shared `TIMER_KOL_BREDDE` (api sender den ordrett).
+  const BREDDE: Record<string, { min: number; vekt: number }> = {
+    dato: { min: 90, vekt: 0 }, ansatt: { min: 120, vekt: 2 }, ansattnr: { min: 74, vekt: 0 },
+    prosjekt: { min: 120, vekt: 2 }, type: { min: 78, vekt: 0 }, betegnelse: { min: 150, vekt: 4 },
+    aktivitet: { min: 110, vekt: 2 }, fraTid: { min: 54, vekt: 0 }, tilTid: { min: 54, vekt: 0 },
+    timer: { min: 72, vekt: 0 }, maskintimer: { min: 92, vekt: 0 }, antall: { min: 68, vekt: 0 },
+    belop: { min: 88, vekt: 0 }, mengde: { min: 72, vekt: 0 }, enhet: { min: 56, vekt: 0 },
+    beskrivelse: { min: 200, vekt: 6 }, status: { min: 100, vekt: 0 },
+  };
+  const KORTE = ["dato", "type", "timer", "maskintimer", "antall", "belop", "mengde", "enhet"];
+  const KOLONNER = ["dato", "ansatt", "prosjekt", "type", "betegnelse", "aktivitet", "timer", "maskintimer", "antall", "belop", "mengde", "enhet", "beskrivelse"];
+  const html = (o: Partial<TimerRapportData> = {}) =>
+    byggTimerRapportHtml(
+      {
+        ...data("ekstern"),
+        grupper: [{ overskrift: null, rader: [{ ...timerRad, aktivitet: null }, { ...maskinUtenRad, aktivitet: null }], subtotal: { timer: 7.5, maskintimer: 4, antall: null, belop: null } }],
+        valgteKolonner: KOLONNER,
+        kolBredder: BREDDE,
+        ...o,
+      },
+      tekster,
+    );
+  /** Detaljer-tabellen: <col>-ene og overskriftscellene i kolonnerekkefølge. */
+  const detaljer = (h: string) => {
+    const tab = h.slice(h.lastIndexOf("<table"));
+    const cols = (tab.match(/<colgroup>(.*?)<\/colgroup>/)?.[1] ?? "").match(/<col[^>]*>/g) ?? [];
+    const ths = (tab.match(/<thead>(.*?)<\/thead>/s)?.[1] ?? "").match(/<th[^>]*>/g) ?? [];
+    const forsteRad = (tab.match(/<tbody><tr[^>]*>(.*?)<\/tr>/s)?.[1] ?? "").match(/<td[^>]*>/g) ?? [];
+    return { tab, cols, ths, forsteRad };
+  };
+
+  it("korte kolonner (dato, type, tall, enhet) har `kort`-klasse på overskrift og celle, og CSS-en gir nowrap", () => {
+    const h = html();
+    const { ths, forsteRad, cols } = detaljer(h);
+    for (const id of KORTE) {
+      const i = KOLONNER.indexOf(id);
+      expect(ths[i], id).toMatch(/class="[^"]*\bkort\b/);
+      expect(forsteRad[i], id).toMatch(/class="[^"]*\bkort\b/);
+      expect(cols[i], id).toBe('<col style="width:1px">');
+    }
+    expect(h).toMatch(/table\.vekt \.kort \{ white-space: nowrap;/);
+    expect(h).not.toContain("table-layout: fixed");
+  });
+
+  it("tekstkolonner med innhold deler bredden etter vekt; tom tekstkolonne (Aktivitet) får ingen bredde", () => {
+    const { cols, ths } = detaljer(html());
+    // ansatt 2 · prosjekt 2 · betegnelse 4 · beskrivelse 6 = 14 (aktivitet er tom → 0)
+    const pst = (id: string) => cols[KOLONNER.indexOf(id)];
+    expect(pst("ansatt")).toBe('<col style="width:14.29%">');
+    expect(pst("prosjekt")).toBe('<col style="width:14.29%">');
+    expect(pst("betegnelse")).toBe('<col style="width:28.57%">');
+    expect(pst("beskrivelse")).toBe('<col style="width:42.86%">');
+    expect(pst("aktivitet")).toBe("<col>");
+    expect(ths[KOLONNER.indexOf("beskrivelse")]).toBe("<th>");
+  });
+
+  it("negativkontroll: uten kolBredder er tabellen som før (ingen colgroup, ingen kort-klasse)", () => {
+    const { tab } = detaljer(html({ kolBredder: undefined }));
+    expect(tab).not.toContain("<colgroup>");
+    expect(tab).not.toContain("kort");
+  });
+});

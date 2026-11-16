@@ -914,11 +914,8 @@ export const rapportRouter = router({
         valgteKolonner: input.kolonner,
         // Bredde-vekt pr. kolonne (flateparitet): PDF importerer bevisst ikke
         // @sitedoc/shared, så den delte bredde-intensjonen sendes inn som data.
-        // Vekt = min·(1+vekt) → fritekst-kolonner (Beskrivelse/Betegnelse) får mest
-        // plass, koder/tall holdes smale — samme intensjon som skjerm/Excel arver.
-        kolBredder: Object.fromEntries(
-          Object.entries(TIMER_KOL_BREDDE).map(([k, b]) => [k, b.min * (1 + b.vekt)]),
-        ),
+        // ORDRE (36): sendes ordrett — vekt 0 = kort kolonne (nowrap), ellers tekst.
+        kolBredder: TIMER_KOL_BREDDE,
         topptekstLinjer,
         ansatte: aggregat.ansatte.map((a) => ({
           navn: a.navn ?? a.email,
