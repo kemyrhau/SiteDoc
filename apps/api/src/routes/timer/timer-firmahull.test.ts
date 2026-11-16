@@ -120,6 +120,10 @@ function lagMaskinCtx() {
     userId: USER,
     req: { log: { info: vi.fn(), warn: vi.fn() } },
     prisma: {},
+    // Ordre d2c-1: døgn-maskin — R24 (krever timerad) er ikke det som måles her.
+    prismaMaskin: {
+      equipment: { findMany: vi.fn().mockResolvedValue([{ id: VEHICLE, merke: "Volvo", modell: "EC220E", internNavn: null, utleieEnhet: "doegn" }]) },
+    },
     prismaTimer: {
       $transaction: vi.fn((arg: unknown) => Promise.all(arg as Promise<unknown>[])),
       dailySheet: { findUnique: vi.fn().mockResolvedValue(sheet), update: vi.fn().mockResolvedValue({}) },
@@ -131,7 +135,7 @@ function lagMaskinCtx() {
       },
       sheetMachine: {
         findMany: vi.fn().mockResolvedValue([]),
-        findUnique: vi.fn().mockResolvedValue({ id: RAD, sheetId: SHEET, projectId: PROSJEKT_A, externalCostObjectId: null, timer: 1 }),
+        findUnique: vi.fn().mockResolvedValue({ id: RAD, sheetId: SHEET, projectId: PROSJEKT_A, externalCostObjectId: null, timer: 1, vehicleId: VEHICLE, sheetTimerId: null }),
         create: maskinCreate,
         update: maskinUpdate,
       },

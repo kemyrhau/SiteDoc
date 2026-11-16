@@ -2143,3 +2143,21 @@ Grenser:
 - **`rettRadFelt`** avvises når en ventende timerad på sedelen mangler lønnsart eller aktivitet; da rettes hele sedelen.
 - **Endret kort-nøkkel** ved retting går gjennom samme kort-id-regel som før (`kortIdForSkriving`, så `sikreKortId`); det er ingen egen kollisjonssjekk mot andre kort.
 
+
+### 12.10 Bygget — ordre d2c-1 (Kort-id-d2c1, 🟡 ikke merget)
+
+**Kobling og sperre ved føring på PC (2026-11-16).** Ingen migrering. `syncBatch` er uendret.
+
+| Del | Kode |
+|---|---|
+| R24 ved føring | `apps/api/src/routes/timer/dagsseddel.ts` — `krevKoblingVedFoering`. Uten timerad avvises maskin som krever den (H15 = A: bare `doegn` slipper), og meldingen navngir maskinen. En oppgitt kobling må alltid være gyldig, også for døgn-maskin: samme sedel, samme prosjekt, ikke reise og mer enn 0 timer (`erGyldigTimeradKobling`). Koblet maskin får timeradens kort-id (K6) |
+| `maskin.tilfoy` | Tar `sheetTimerId`. En oppgitt `kortId` som ikke er timeradens, avvises |
+| `maskin.oppdater` | Tar `sheetTimerId` (utelatt = urørt, null = uten timerad). Raden slik den blir etter endringen, må ha gyldig kobling når maskinen krever timerad. Det gjelder også en eldre ukoblet rad som endres |
+| `fjernTimerRad` | Tar `slettMaskiner`. `maskinerSomKreverRaden` finner maskinene som krever raden. Uten flagget avvises slettingen med PRECONDITION_FAILED, og maskinene navngis. Med flagget slettes de i samme transaksjon som raden. Døgn-maskiner får koblingen nullet. Varer på raden får koblingen nullet etter transaksjonen (egen database) |
+| `oppdaterTimerRad` | En rad som bærer maskin som krever timerad, kan ikke bli reise eller 0 timer. Kontrollen kjøres før maskin-taket, så meldingen navngir maskinen |
+| Web | `apps/web/src/app/dashbord/timer/[id]/page.tsx` — timerad-vinduet sender den lagrede radens id (`lagreRad`, og normal-delen i `brukOvertidForslag`). `MaskinRadDialog` har nedtrekket «Timerad» med kortets arbeidsrader, forvalgt når det er én. `RaderTimer` viser en bekreftelse som navngir maskinene før `fjernTimerRad` sendes med `slettMaskiner` |
+| Tester | `apps/api/src/routes/kortid-d2c1.integration.test.ts` (20 tester, inkludert vakt for `syncBatch`). Nytt premiss i `kortid-skriveveier.integration.test.ts` T5: maskin uten satt enhet føres på en timerad. Mockene i `firma-katalog-server.test.ts` og `timer-firmahull.test.ts` har fått en døgn-maskin, fordi R24 ikke er det de tester |
+
+Grenser:
+- **Døgn-maskin ved sletting:** bekreftelsen navngir bare maskinene som krever raden. Døgn-maskiner blir stående uten kobling, som på telefonen (d2c-2). Spec-raden for PC sier «sletter dem», uten å skille mellom enhetene. Tolkningen følger telefon-raden.
+- **Kortet i nedtrekket** er prosjektets timerader på sedelen. Serveren avviser en kobling til et annet prosjekt.

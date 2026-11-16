@@ -2075,6 +2075,74 @@ function feilMaskinUtenTimerad(navn: string): TRPCError {
 }
 
 /**
+ * Ordre d2c-1 (R24 ved føring på PC, spec § 12.6 «Sperren ved føring»): maskin som
+ * krever timerad må ha gyldig kobling; en oppgitt kobling må alltid være gyldig
+ * (også for døgn-maskin). Gir timeradens kort-id (K6) når maskinen er koblet,
+ * ellers null. Bare web kaller veiene som bruker den — syncBatch er uendret.
+ */
+async function krevKoblingVedFoering(
+  prismaTimer: PrismaTimerKlient,
+  prismaMaskin: Parameters<typeof hentUtstyrOppslag>[0],
+  m: { sheetId: string; projectId: string; vehicleId: string; sheetTimerId: string | null },
+): Promise<{ kortId: string | null } | null> {
+  const utstyr = await hentUtstyrOppslag(prismaMaskin, [m.vehicleId]);
+  const navn = utstyr.navn.get(m.vehicleId) ?? m.vehicleId;
+  if (!m.sheetTimerId) {
+    if (maskinKreverTimerad(utstyr.utleieEnhet.get(m.vehicleId) ?? null)) {
+      throw new TRPCError({
+        code: "BAD_REQUEST",
+        message: `Maskinen «${navn}» må stå på en timerad. Velg timeraden den gikk på.`,
+      });
+    }
+    return null;
+  }
+  const t = await prismaTimer.sheetTimer.findUnique({
+    where: { id: m.sheetTimerId },
+    select: { id: true, sheetId: true, kortId: true, projectId: true, timer: true, erReise: true, attestertStatus: true },
+  });
+  const gyldig =
+    !!t &&
+    t.sheetId === m.sheetId &&
+    t.projectId === m.projectId &&
+    erGyldigTimeradKobling(
+      { sheetId: m.sheetId, kortId: t.kortId, sheetTimerId: t.id },
+      [{ ...t, timer: Number(t.timer) }],
+    );
+  if (!t || !gyldig) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: `Maskinen «${navn}» kan bare stå på en timerad med arbeid i samme prosjekt på denne dagsseddelen.`,
+    });
+  }
+  return { kortId: t.kortId };
+}
+
+/**
+ * Ordre d2c-1: maskinene på en timerad som krever timerad (R24), med navn.
+ * Døgn-maskiner gis ikke tilbake — de kan stå uten timerad.
+ */
+async function maskinerSomKreverRaden(
+  prismaTimer: PrismaTimerKlient,
+  prismaMaskin: Parameters<typeof hentUtstyrOppslag>[0],
+  sheetId: string,
+  sheetTimerId: string,
+): Promise<{ alle: string[]; krever: Array<{ id: string; navn: string }> }> {
+  const koblede = await prismaTimer.sheetMachine.findMany({
+    where: { sheetId, sheetTimerId },
+    select: { id: true, vehicleId: true },
+    orderBy: { createdAt: "asc" },
+  });
+  if (koblede.length === 0) return { alle: [], krever: [] };
+  const utstyr = await hentUtstyrOppslag(prismaMaskin, koblede.map((m) => m.vehicleId));
+  return {
+    alle: koblede.map((m) => m.id),
+    krever: koblede
+      .filter((m) => maskinKreverTimerad(utstyr.utleieEnhet.get(m.vehicleId) ?? null))
+      .map((m) => ({ id: m.id, navn: utstyr.navn.get(m.vehicleId) ?? m.vehicleId })),
+  };
+}
+
+/**
  * R24 i attestantens retting: etter planen skal ingen maskin som krever timerad
  * stå uten gyldig kobling. Vurderes bare for maskinrader som er nye, endret, eller
  * som mister en kobling de hadde — en uendret ukoblet rad slipper (eldre data).
@@ -4180,6 +4248,21 @@ export const dagsseddelRouter = router({
         data.byggeplassId = input.byggeplassId;
       }
 
+      // Ordre d2c-1 (R24): en timerad som bærer maskin som krever timerad, kan
+      // ikke bli reise eller 0 timer. Sjekkes før taket — meldingen navngir maskinen.
+      const blirReise = typeof data.erReise === "boolean" ? data.erReise : rad.erReise;
+      const blirTimer = input.timer !== undefined ? input.timer : Number(rad.timer);
+      if (blirReise || blirTimer <= 0) {
+        const { krever } = await maskinerSomKreverRaden(ctx.prismaTimer, ctx.prismaMaskin, rad.sheetId, rad.id);
+        if (krever.length > 0) {
+          const navn = krever.map((m) => `«${m.navn}»`).join(", ");
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: `Raden bærer ${krever.length === 1 ? "maskinen" : "maskinene"} ${navn} og kan ikke bli ${blirReise ? "reise" : "0 timer"}. Flytt maskinen til en annen timerad, eller fjern den først.`,
+          });
+        }
+      }
+
       // T7-4b: valider post-state. Reduksjon av timer eller flytting til
       // annen ECO kan få maskin-totalen til å overstige.
       const naa = await hentRaderForValidering(ctx.prismaTimer, rad.sheetId);
@@ -4291,7 +4374,14 @@ export const dagsseddelRouter = router({
     }),
 
   fjernTimerRad: protectedProcedure
-    .input(z.object({ id: z.string().uuid() }))
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        // Ordre d2c-1: arbeideren har bekreftet at maskinene som krever raden
+        // (navngitt i bekreftelsen), slettes sammen med den.
+        slettMaskiner: z.boolean().optional(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const rad = await ctx.prismaTimer.sheetTimer.findUnique({
         where: { id: input.id },
@@ -4306,13 +4396,42 @@ export const dagsseddelRouter = router({
         });
       }
 
+      // Ordre d2c-1 (R24): maskiner som krever raden, slettes bare etter bekreftelse
+      // som navngir dem. Døgn-maskiner og varer blir stående uten kobling.
+      const maskiner = await maskinerSomKreverRaden(ctx.prismaTimer, ctx.prismaMaskin, rad.sheetId, rad.id);
+      if (maskiner.krever.length > 0 && !input.slettMaskiner) {
+        const n = maskiner.krever.length;
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: `Raden har ${n} ${n === 1 ? "maskin" : "maskiner"}: ${maskiner.krever.map((m) => m.navn).join(", ")}. ${n === 1 ? "Den slettes" : "De slettes"} sammen med raden.`,
+        });
+      }
+      const slettMaskinIder = maskiner.krever.map((m) => m.id);
+
       // F4-1d: rad-write + hode-synk (PK6) atomisk — sletting kan fjerne
       // bæreren, så hodet må re-utledes (Σ rad).
       const slettet = await ctx.prismaTimer.$transaction(async (tx) => {
+        if (maskiner.alle.length > 0) {
+          await tx.sheetMachine.deleteMany({ where: { id: { in: slettMaskinIder } } });
+          await tx.sheetMachine.updateMany({
+            where: { sheetId: rad.sheetId, sheetTimerId: rad.id },
+            data: { sheetTimerId: null },
+          });
+        }
         const s = await tx.sheetTimer.delete({ where: { id: input.id } });
         await synkroniserHodePause(tx, rad.sheetId);
         return s;
       });
+      // Varer på raden: koblingen nulles (egen database — kan ikke være i samme
+      // transaksjon). Feiler det, står varen som «uten kobling» i leseren.
+      try {
+        await ctx.prismaVarelager.vareforbruk.updateMany({
+          where: { dagsseddelId: rad.sheetId, sheetTimerId: rad.id },
+          data: { sheetTimerId: null },
+        });
+      } catch (e) {
+        ctx.req.log.error({ err: e, sheetId: rad.sheetId }, "[fjern_timer_rad] vare-kobling ikke nullet");
+      }
       return slettet;
     }),
 
@@ -9674,6 +9793,9 @@ export const dagsseddelRouter = router({
           tilTid: z.string().nullable().optional(),
           // Kort-id (spec § 4.3): valgfri. Uten → regel 3.
           kortId: z.string().uuid().nullable().optional(),
+          // Ordre d2c-1 (R24): timeraden maskinen gikk på. Påkrevd for maskin som
+          // krever timerad; da følger maskinen radens kort (K6).
+          sheetTimerId: z.string().uuid().nullable().optional(),
         }).superRefine(refineFraForTil),
       )
       .mutation(async ({ ctx, input }) => {
@@ -9721,6 +9843,20 @@ export const dagsseddelRouter = router({
           });
         }
 
+        // Ordre d2c-1 (R24): kobling til timerad før skriving.
+        const kobling = await krevKoblingVedFoering(ctx.prismaTimer, ctx.prismaMaskin, {
+          sheetId: input.sheetId,
+          projectId: input.projectId,
+          vehicleId: input.vehicleId,
+          sheetTimerId: input.sheetTimerId ?? null,
+        });
+        if (kobling && input.kortId && input.kortId !== kobling.kortId) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Maskinen må stå i samme prosjektkort som timeraden den går på.",
+          });
+        }
+
         // Kort-id (spec § 4.3): oppgitt id valideres før skriving; uten → regel 3.
         const kortKontekst = await lastSedelKortKontekst(ctx.prismaTimer, input.sheetId);
         await validerOppgittKortId(ctx.prismaTimer, kortKontekst, input.kortId, {
@@ -9742,7 +9878,8 @@ export const dagsseddelRouter = router({
               enhet: input.enhet ?? null,
               fraTid: input.fraTid ?? null,
               tilTid: input.tilTid ?? null,
-              kortId: input.kortId ?? null,
+              kortId: input.kortId ?? kobling?.kortId ?? null,
+              sheetTimerId: kobling ? (input.sheetTimerId ?? null) : null,
             },
           }),
           touchSedel(ctx.prismaTimer, input.sheetId),
@@ -9767,6 +9904,8 @@ export const dagsseddelRouter = router({
           tilTid: z.string().nullable().optional(),
           // Ordre (10): som oppdaterTimerRad — utelatt = urørt, null = tøm.
           byggeplassId: z.string().uuid().nullable().optional(),
+          // Ordre d2c-1 (R24): utelatt = urørt, null = uten timerad.
+          sheetTimerId: z.string().uuid().nullable().optional(),
         }).superRefine(refineFraForTil),
       )
       .mutation(async ({ ctx, input }) => {
@@ -9837,10 +9976,20 @@ export const dagsseddelRouter = router({
           });
         }
 
+        // Ordre d2c-1 (R24): raden slik den blir, må ha gyldig kobling når maskinen
+        // krever timerad — også en eldre ukoblet rad som endres.
+        const kobling = await krevKoblingVedFoering(ctx.prismaTimer, ctx.prismaMaskin, {
+          sheetId: rad.sheetId,
+          projectId: rad.projectId,
+          vehicleId: input.vehicleId ?? rad.vehicleId,
+          sheetTimerId: input.sheetTimerId !== undefined ? input.sheetTimerId : rad.sheetTimerId,
+        });
+        if (input.sheetTimerId !== undefined) data.sheetTimerId = kobling ? input.sheetTimerId : null;
+
         // F4-1d: rad-write + touchSedel atomisk. Kort-id: uendret nøkkel → står; ellers
         // regel 3 (koblet maskin følger raden, K6).
         const kortKontekst = await lastSedelKortKontekst(ctx.prismaTimer, rad.sheetId);
-        data.kortId = kortIdForSkriving(kortKontekst, {
+        data.kortId = kobling ? kobling.kortId : kortIdForSkriving(kortKontekst, {
           lagret: rad,
           ny: {
             projectId: rad.projectId,
