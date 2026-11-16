@@ -56,6 +56,17 @@ const FRAVAER_ETIKETT_STANDARD = "Fravær";
 const eksportUtvalgSchema = { taMedUattesterte: z.boolean().optional() };
 const RAD_ATTESTERT = "attestert";
 const SEDEL_ATTESTERT = "accepted";
+// Ordre (32): erstattet-rader er historikk og telles aldri (samme filter som
+// detaljEksport). Ingen kodesti skriver verdien i dag (rediger/splitt flytter til
+// SheetRadHistorikk siden 2026-07-13), men aggregat og detalj skal ha samme utvalg.
+const IKKE_ERSTATTET = { attestertStatus: { not: "erstattet" } };
+// Sedelstatus (`dagsseddel.ts` STATUS_VERDIER) → visningsnøkkel i statusFordeling.
+// draft og returned ligger hos arbeideren (REDIGERBARE_STATUSER) → kladd.
+function statusNokkel(status: string): "kladd" | "sent" | "attestert" {
+  if (status === "draft" || status === "returned") return "kladd";
+  if (status === "sent") return "sent";
+  return "attestert";
+}
 
 /**
  * Kort-id-spec § 11.4: utvalget av sedler for rapport/eksport. Med valgt prosjekt
@@ -67,10 +78,13 @@ function sedelUtvalgRapport(
   prosjektIder: string[],
   prosjektFilter: string | undefined,
 ) {
-  const medProsjekt = { timer: { some: { projectId: { in: prosjektIder } } } };
+  const medProsjekt = { timer: { some: { projectId: { in: prosjektIder }, ...IKKE_ERSTATTET } } };
   if (prosjektFilter) return medProsjekt;
   return {
-    OR: [medProsjekt, { organizationId: orgId, timer: { some: { utenProsjekt: true } } }],
+    OR: [
+      medProsjekt,
+      { organizationId: orgId, timer: { some: { utenProsjekt: true, ...IKKE_ERSTATTET } } },
+    ],
   };
 }
 
@@ -197,12 +211,13 @@ export const rapportRouter = router({
         include: {
           // lonnsart.skalEksporteres for kunEksporterbare-filteret (time-summen).
           // where på rad-nivå: kun det filtrerte prosjektets rader (tomt = alle).
+          // Ordre (32): erstattet-rader ekskluderes (som detaljEksport).
           timer: {
-            where: radProsjektFilter,
+            where: { ...IKKE_ERSTATTET, ...radProsjektFilter },
             include: { lonnsart: { select: { skalEksporteres: true } } },
           },
-          tillegg: { where: radProsjektFilter },
-          maskiner: { where: radProsjektFilter },
+          tillegg: { where: { ...IKKE_ERSTATTET, ...radProsjektFilter } },
+          maskiner: { where: { ...IKKE_ERSTATTET, ...radProsjektFilter } },
         },
         orderBy: [{ dato: "asc" }, { createdAt: "asc" }],
       });
@@ -289,12 +304,7 @@ export const rapportRouter = router({
         const datoNok = sedel.dato.toISOString().slice(0, 10);
         a.perDag.set(datoNok, (a.perDag.get(datoNok) ?? 0) + sedelTimer);
 
-        const status =
-          sedel.status === "kladd"
-            ? "kladd"
-            : sedel.status === "sent"
-              ? "sent"
-              : "attestert";
+        const status = statusNokkel(sedel.status);
         a.statusFordeling[status] += 1;
         statusFordeling[status] += 1;
 
@@ -979,7 +989,7 @@ export const rapportRouter = router({
       // T.1 (2026-05-11): DailySheet har ikke projectId — bruk SheetTimer.
       const medTimer = await ctx.prismaTimer.sheetTimer.groupBy({
         by: ["projectId"],
-        where: { projectId: { in: prosjektIder } },
+        where: { projectId: { in: prosjektIder }, ...IKKE_ERSTATTET },
         _count: { _all: true },
       });
       const prosjektIdSett = new Set(medTimer.map((m) => m.projectId));
