@@ -12,6 +12,7 @@
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
 **Sist oppdatert:** 2026-11-16
+- 2026-11-16 — **`prosjektkort-kortid-spec.md` § 12.10 + `timer.md` + `web.md` + `shared-pakker.md` + `hjelpetekster.md`: ordre d2b-1 — attesteringstabellen** (branch `feat/kortid-d2b1-tabell`, kode + docs, Kort-id-c): Sedler-fanen er tabell med dag → prosjektsedler → linjer, dagsumrad, retting i cella, sperrer i Avvik, «Attester utvalget»; rapportens Detaljer på samme `TimerRadTabell`. Ingen fil opprettet/slettet i docs/claude — tellinger uendret.
 - 2026-11-16 — **Merge (36) timerapport-PDF kolonner** (`1bac9f7f`): STATUS-AKTUELT + FUNKSJONSENDRINGER ført.
 - 2026-11-16 — **`timer.md` + `retningslinjer/ui-standarder.md`: TILLEGG (36) — tomme valgte kolonner skjules i timerapport-PDF** (branch `fix/rapport-pdf-kolonner`, kode + docs, Kort-id-c): unntak fra flateparitet skrevet inn; skjerm og Excel uendret (B1); høyrejusterte tall-overskrifter (SVAR (72) A1) dokumentert. Ingen fil opprettet/slettet i docs/claude — tellinger uendret.
 - 2026-11-16 — **`timer.md`: ORDRE (36) funn 1 — kolonnebredder i timerapport-PDF** (branch `fix/rapport-pdf-kolonner`, kode + docs, Kort-id-c): korte kolonner nowrap og innholdsbredde, tekstkolonner deler resten etter vekt; `rapport.ts` sender `TIMER_KOL_BREDDE` ordrett. Funn 2 (sammendraget) venter på Kenneth.

@@ -754,6 +754,20 @@ Skriveveiene (commit 2):
 - R24: en maskin som krever timerad kan ikke stå igjen uten kobling etter en retting.
 - `vareforbruk.oppdater` logger antallet før, og sperrer en vare på attestert timerad.
 
+### Attesteringstabellen (ordre d2b-1) — 🟡 `feat/kortid-d2b1-tabell` (2026-11-16, ikke merget)
+
+Sedler-fanen på `/dashbord/firma/timer/attestering` er en tabell (`AttesteringTabell.tsx`, modell `attestering-tabell.ts` i `apps/web/src/components/attestering/`):
+- Én dag er én dagsseddel. Under den står prosjektsedlene, hver med en oversiktsrad (✓ / ↩ / ↺ for hele kortet), og linjene. Reise står som eget kort først.
+- Dagsumraden nederst har «Attester dagen» (`attester`), i attestert-fanen «Gjenåpne dagen» (`gjenaapneAttestering`, samme vindu som før), og lenke til sedelen. Ingen retting der (§ 12.8.5).
+- Linja har ✓ / ↩ / ↺ (`attesterRader` / `returnerRader` / `gjenaapneRader`), ✂ (`SplittRadModal`) og penn (`RedigerRadModal`) som synlige knapper i den faste høyrekolonnen.
+- Retting i cella (`rettRadFelt`) når firmaet tillater retting ved attestering og linja venter: Enter eller Tab lagrer, Esc angrer. Avvisning står i cella. Rettede felt viser «var …».
+- Sperrer (B10 fraværstak, V19 uavklart forslag) står i Avvik og stopper ✓. «Attester utvalget» tar de avkryssede linjene, eller alle synlige ventende, og sier hvor mange som ble stående.
+- Én verktøylinje: uke, visning, «Velg parameter», «Bare oversiktsrader», «Ukeoversikt» (ansattpivoten, lukket som standard), filterbrikker og teller. Filter, sortering og «Bare oversiktsrader» gjelder besøket; kolonnevalg, rekkefølge og bredde lagres under `timer-attestering`.
+- Erstatter `SeddelKort`, ekspanderknappene og «Attester gruppe». Matpause vises i Pause-kolonnen. Pivotvisningene er uendret.
+- Rapportens Detaljer bruker samme `TimerRadTabell` og kolonneliste (`TIMER_TABELL_KOL`), uten sortering og filter.
+
+Kode og tester: [prosjektkort-kortid-spec.md § 12.10](prosjektkort-kortid-spec.md).
+
 ### Kort-id på telefonen og fraværskortet (ordre c) — 🟡 `feat/kortid-c-mobil` (2026-11-16, ikke merget)
 
 Avvik 3 over er løst på mobil: dagskortet, kortskjermen og Bekreft dag grupperer på kort-id (`KortValg.kortId`, `kortNokkel` i `apps/mobile/src/lib/prosjektkortMobil.ts`), så to kort på samme prosjekt, byggeplass og underprosjekt holdes adskilt. Bekreft dag har «Del til eget kort» (`tildelKortIder`, `apps/mobile/src/utils/kortIdForslag.ts`); «Flytt raden» har «Flytt til nytt kort»; «+ Nytt prosjektkort» gir alltid nytt kort. «Endre kort» til et prosjekt som alt har kort sjekker tidskollisjon med samme regel som lagring av en rad (`finnKortKollisjon` i `prosjektkort/kortRadFlytt.ts`); uten overlapp står kortene hver for seg med egen beskrivelse (Kenneth 2026-11-16, E1). «Sum i dag» og «Send dagen (N t)» tar med fraværstimer (`dagSumTimer`, E2). Maskin og vare som flyttes alene («Flytt raden»), og synkede varer etter server-flytt, får målkortets id (`flyttMaskinRad`/`flyttVareLokalt`, gate (70) A1). Fravær føres i eget fraværskort uten prosjekt («+ Fravær», `apps/mobile/src/utils/fravaerKort.ts`, `prosjektkort/fravaerKortLagring.ts`) med B10-taket; «Fravær til» (a3) er fjernet (F12 = A). Dagskort-modus viser fravær uten prosjekt i en lese-gruppe (F6, `apps/mobile/src/utils/dagskortFravaer.ts`). Full kode-liste, tester og avvik: [prosjektkort-kortid-spec.md § 8.2](prosjektkort-kortid-spec.md).
