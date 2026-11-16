@@ -836,7 +836,8 @@ Erstatter separate `/punktskyer` og `/modeller`-ruter. Gamle URLer redirectes vi
 3. **680+ console errors** fra 3D-debug og IFC-feil på ikke-3D-sider
 
 **Nåværende arkitektur:**
-- `layout.tsx` sjekker `er3DVisning` (pathname slutter med `/3d-visning` eller `/tegning-3d`)
+- `layout.tsx` sjekker `er3DVisning` via `erTreDVisning(pathname)` (`lib/tredLayout.ts`: pathname slutter med `/3d-visning` eller `/tegning-3d`)
+- **Høyde (W1, 2026-11-16):** `dashbord/layout.tsx` pakker sidene i en blokk-`<main>` (`flex-1 overflow-y-auto`, `cebe06f1`), så `flex-1` gir ingen høyde. På 3D-sidene får prosjekt-layoutens rot `h-full` (`prosjektLayoutRotKlasse`, `lib/tredLayout.ts`), ellers ble lerretet bare så høyt som modellista. Andre sider beholder innholdshøyde og scroll i `main`. Vakt: `lib/__tests__/tredLayout.test.ts`.
 - `TreDViewerProvider` + `ViewerCanvas` wraps kun innholdet når `er3DVisning === true`
 - Andre sider (økonomi, sjekklister, etc.) får ren layout uten 3D-overhead
 - **Konsekvens:** 3D-scenen re-initialiseres ved navigasjon til/fra 3D-sider (IFC-modeller caches i `ifcFilCache` for rask re-lasting)

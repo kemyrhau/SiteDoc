@@ -7,6 +7,7 @@ import { trpc } from "@/lib/trpc";
 import { Spinner } from "@sitedoc/ui";
 import { Verktoylinje } from "@/components/layout/Verktoylinje";
 import { TreDViewerProvider, ViewerCanvas } from "@/kontekst/tred-viewer-kontekst";
+import { erTreDVisning, prosjektLayoutRotKlasse } from "@/lib/tredLayout";
 
 export default function ProsjektLayout({
   children,
@@ -37,7 +38,7 @@ export default function ProsjektLayout({
     }
   }, [params.prosjektId]);
 
-  const er3DVisning = (pathname?.endsWith("/3d-visning") || pathname?.endsWith("/tegning-3d")) ?? false;
+  const er3DVisning = erTreDVisning(pathname);
 
   if (isLoading) {
     return (
@@ -91,7 +92,7 @@ export default function ProsjektLayout({
   }
 
   const innhold = (
-    <div className="flex flex-1 flex-col overflow-hidden">
+    <div className={prosjektLayoutRotKlasse(er3DVisning)}>
       <Verktoylinje />
       <div className="relative flex flex-1 overflow-hidden">
         {er3DVisning && (
