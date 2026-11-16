@@ -523,3 +523,55 @@ describe("RETUR 4 (28) A4 — kort som slutter ved midnatt", () => {
     expect(d1!.fravaerSteg).toEqual({ ned: "23:45", opp: null });
   });
 });
+
+/**
+ * RETUR 5 (28) — Kontrollør GATE (61). A5: et punkt før arbeidsstart på et
+ * kort over midnatt er bare «etter midnatt» når det da ligger i kortet; ellers
+ * vanlig klemme (arbeidsstart + ett steg). B1: stepperen går i hele kvarter
+ * fra klokka, ikke fra arbeidsstart.
+ */
+describe("RETUR 5 (28) A5/B1 — punkt før start over midnatt, steg på klokke-kvarter", () => {
+  const L_EGEN = "L-egen";
+  const gps = (startAt: string, sluttIso: string, rett: Record<string, unknown>) =>
+    beregnDagsforslag(
+      lagInput({
+        dag: { startAt, startLat: 59.9, startLng: 10.7, oppmotestedId: "o1", byggeplassId: null },
+        sluttIso,
+        reiseOppslag: null,
+        alleLonnsarter: [
+          { id: L_NORMAL, overtidsnivaa: null, aktiv: true, type: "ordinaer", rekkefolge: 0 },
+          { id: L_OT50, overtidsnivaa: 50, aktiv: true, type: "ordinaer", rekkefolge: 1 },
+          { id: L_EGEN, overtidsnivaa: null, aktiv: true, type: "fravaer", rekkefolge: 2 },
+        ],
+        effektivPerDato: {
+          "2026-07-01": { ...SOMMER, pauseMin: 0, dagsnorm: 7.5 },
+          "2026-07-02": { ...SOMMER, pauseMin: 0, dagsnorm: 7.5 },
+        },
+        retting: { perDato: { "2026-07-01": { lonnsartPerLinje: { normal: L_EGEN }, ...rett } } },
+      }),
+    ).datoer[0]!;
+  const fravaerTimer = (d: ReturnType<typeof gps>) =>
+    d.rader.filter((r) => !r.erReise && r.lonnsartId === L_EGEN).reduce((s, r) => s + r.timer, 0);
+
+  it.each(["19:00", "19:30"])(
+    "🔴 A5: GPS 18–02, arbeidsstart rettet 20:00, «Fravær til» %s → klemt til 20:15, 0,25 t",
+    (fravaerTil) => {
+      const d = gps("2026-07-01T18:00:00", "2026-07-02T02:00:00", { arbeidFra: "20:00", fravaerTil });
+      expect(d.fravaerTil).toBe("20:15");
+      expect(fravaerTimer(d)).toBeCloseTo(0.25, 5);
+      expect(d.fravaerSteg).toEqual({ ned: null, opp: "20:30" });
+    },
+  );
+
+  it("A5: «Fravær til» 00:00 (linjas slutt) på samme kort → fortsatt hele kortet, «−» 23:45", () => {
+    const d = gps("2026-07-01T18:00:00", "2026-07-02T02:00:00", { arbeidFra: "20:00", fravaerTil: "00:00" });
+    expect(fravaerTimer(d)).toBeCloseTo(4, 5);
+    expect(d.fravaerSteg).toEqual({ ned: "23:45", opp: null });
+  });
+
+  it("🔴 B1: GPS 07:53–17, «Fravær til» 10:00 → stepper på klokke-kvarter 09:45/10:15", () => {
+    const d = gps("2026-07-01T07:53:00", "2026-07-01T17:00:00", { fravaerTil: "10:00" });
+    expect(d.fravaerTil).toBe("10:00");
+    expect(d.fravaerSteg).toEqual({ ned: "09:45", opp: "10:15" });
+  });
+});
