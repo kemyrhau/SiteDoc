@@ -12,6 +12,7 @@
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
 **Sist oppdatert:** 2026-11-16
+- 2026-11-16 — **NY fil `3d-agent-prinsipper.md` (+1) + `SAMARBEIDSREGLER.md` § 1/§ /clear-REGELEN C + `CLAUDE.md` + `DOC-MAP.md`** (develop, docs-only, orkestrator): Kenneths bestilling — to 3D-agenter (web, mobil), hard grense mot DWG→DXF-konvertering og DXF-filer, mål først, funnliste W1–W5/M1–M6, filkart.
 - 2026-11-16 — **Merge d2c-1** (`274e7fb2`): STATUS-AKTUELT + FUNKSJONSENDRINGER ført.
 - 2026-11-16 — **Merge (37) sammendraget teller dagssedler med rader**: STATUS-AKTUELT + FUNKSJONSENDRINGER ført.
 - 2026-11-16 — **`prosjektkort-kortid-spec.md` § 12.8.5 + `timer.md`: ORDRE (37) — sammendraget i PDF/Excel teller dagssedler med rader i eksporttabellen** (branch `fix/rapport-sammendrag-sedler`, kode + docs, Kort-id-d2c1): `harRadIEksporttabellen` på eksportveien; skjermen uendret.
@@ -502,6 +503,7 @@ T7-3a/b1/b2 er deployet til prod (`223afc17` på main, server-route-endringer ak
 | aktivitetsfeed.md | 2026-05-01 | **Planlagt fase** (etter Maskin Fase 1 + Timer Fase 3). Activity-tabell finnes i prod (E.1 `13a746a7`), ingen produsent-kode skrevet ennå |
 | ai-integrasjon.md | — | — |
 | ai-sok.md | 2026-11-10 | § Filtyper DOCX i dokumentleseren (`fix/dokumentleser-docx`), § SØK-2 flere treff/forrige-neste/M3 (`feat/sok2-flere-treff`), § Filtyper GAB-rensing + rens 2 (`fix/sok-ramme-gab-rens`), § Visning F3/F1b (merget `46b390c8`) + F1a-varsel (merget `24ddc0b1`) + hel-avsnitt-markering (merget `ea2b4090`) + blokk-ramme (`fix/sok-ramme-gab-rens`) |
+| 3d-agent-prinsipper.md | 2026-11-16 | **Arbeidsanker:** 3D-web/3D-mobil leser ved hver oppstart/compact/clear — DWG/DXF-grense, arbeidsform, funnliste med status, filkart |
 | api.md | — | Drift mtp UX-runde + Vareforbruk-modul: nye routere `vareKategori`/`vare`/`vareforbruk`/`vareImport`/`firmaIntegrasjon`/`timer.rapport` ikke dokumentert |
 | bibliotek.md | — | Peker til kontrollplan.md (konsolidert) |
 | byggeplass-strategi.md | — | Planlagt fase. Fase 0.5 §§ 1-3 + § 5 implementert 2026-05-01. ByggeplassMedlemskap utsatt til Fase 4 (Mannskap) |

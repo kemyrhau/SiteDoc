@@ -23,6 +23,7 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 | [arkitektur.md](docs/claude/arkitektur.md) | DB-skjema, roller/tilgang, migreringsregler, modul-plassering |
 | [api.md](docs/claude/api.md) · [web.md](docs/claude/web.md) · [mobil.md](docs/claude/mobil.md) · [shared-pakker.md](docs/claude/shared-pakker.md) | Lagene: tRPC-routere · Next.js-UI · React Native/offline · delte typer + i18n |
 | [infrastruktur.md](docs/claude/infrastruktur.md) · [sikkerhet.md](docs/claude/sikkerhet.md) · [lokal-dev.md](docs/claude/lokal-dev.md) | Server/env/OAuth · samlet sikkerhetsvurdering · lokal dev-flate |
+| [3d-agent-prinsipper.md](docs/claude/3d-agent-prinsipper.md) | 🔴 3D-web/3D-mobil leser ved hver oppstart/compact/clear: DWG/DXF røres ikke, mål først, funnliste |
 | [retningslinjer/ui-standarder.md](docs/claude/retningslinjer/ui-standarder.md) · [retningslinjer/tooltip-hjelpetekst-veileder.md](docs/claude/retningslinjer/tooltip-hjelpetekst-veileder.md) · [hjelpetekster.md](docs/claude/hjelpetekster.md) | UI-prinsipper + fargepalett · mikrotekst-standard + husstil · ?-ikon-hjelpetekst per side |
 
 Modul- og plan-dokumenter (timer, maskin, kontrollplan, dokumentflyt, økonomi, AI-søk, planlegger, fase-0, redesign m.fl.) er registrert i [STATUS.md](docs/claude/STATUS.md) og rutes via [DOC-MAP.md](docs/claude/DOC-MAP.md). Malbygger: [MALBYGGER.md](MALBYGGER.md).
