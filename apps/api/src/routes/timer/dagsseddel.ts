@@ -83,6 +83,9 @@ import {
   planleggLinjeRelink,
   type ForsonRad,
   type RelinkPar,
+  validerUtenProsjekt,
+  UTEN_PROSJEKT_MELDING,
+  type UtenProsjektRad,
 } from "@sitedoc/shared";
 import {
   klassifiserSyncRader,
@@ -271,18 +274,134 @@ async function attesteringsFirmaer(userId: string, projectId: string): Promise<s
     .map((a) => a.organizationId);
 }
 
-/** Kaster FORBIDDEN med mindre brukeren kan attestere hver (sedel-firma, prosjekt). */
+/**
+ * F1 (prosjektkort-kortid-spec.md § 11.4, Kenneth 2026-11-16): rett til å attestere fravær UTEN
+ * prosjekt på en sedel. Standard: bare lønnsansvarlig (firma-admin i sedelens firma) og
+ * sitedoc_admin. Med firmavalget `fravaerAttesteresAvProsjektleder` (lest fra SEDELENS firma, aldri
+ * attestantens): også den som har attesteringsrett (FM7) på minst ett prosjekt sedelen har en
+ * ikke-erstattet timerrad på. Sedel med bare fravær → bare firma-admin. Ingen oppslag på
+ * prosjektmedlemskap med `null`.
+ */
+async function kanAttestereFravaer(
+  userId: string,
+  organizationId: string,
+  prosjekterPaaSedel: readonly string[],
+): Promise<boolean> {
+  const bruker = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
+  if (!bruker) return false;
+  if (bruker.role === "sitedoc_admin") return true;
+  const ansettelse = await prisma.organizationMember.findUnique({
+    where: { userId_organizationId: { userId, organizationId } },
+    select: { status: true, firmaRoller: true },
+  });
+  if (ansettelse && ansettelse.status !== "deaktivert" && ansettelse.firmaRoller.includes("firma_admin")) {
+    return true;
+  }
+  if (prosjekterPaaSedel.length === 0) return false;
+  const setting = await prisma.organizationSetting.findUnique({
+    where: { organizationId },
+    select: { fravaerAttesteresAvProsjektleder: true },
+  });
+  if (!setting?.fravaerAttesteresAvProsjektleder) return false;
+  for (const pid of prosjekterPaaSedel) {
+    const firmaer = await attesteringsFirmaer(userId, pid);
+    if (firmaer === null || firmaer.includes(organizationId)) return true;
+  }
+  return false;
+}
+
+/** Prosjektene hver sedel har en ikke-erstattet timerrad på (F1-grunnlaget). */
+async function prosjekterPaaSedler(
+  prismaTimer: PrismaTimerKlient,
+  sheetIds: readonly string[],
+): Promise<Map<string, string[]>> {
+  const ut = new Map<string, string[]>();
+  if (sheetIds.length === 0) return ut;
+  const rader = await prismaTimer.sheetTimer.findMany({
+    where: {
+      sheetId: { in: Array.from(new Set(sheetIds)) },
+      projectId: { not: null },
+      attestertStatus: { not: "erstattet" },
+    },
+    select: { sheetId: true, projectId: true },
+    distinct: ["sheetId", "projectId"],
+  });
+  for (const r of rader) {
+    if (!r.projectId) continue;
+    const liste = ut.get(r.sheetId) ?? [];
+    liste.push(r.projectId);
+    ut.set(r.sheetId, liste);
+  }
+  return ut;
+}
+
+/**
+ * `fravaerKanAttesteres` pr. sedel (F1) — samme regel som serveren håndhever, så klienten aldri
+ * regner retten selv. `timer` er sedelens rader (erstattede hoppes over).
+ */
+async function fravaerRettPrSedel(
+  userId: string,
+  sedler: readonly {
+    id: string;
+    organizationId: string;
+    timer: readonly { projectId: string | null; attestertStatus?: string | null }[];
+  }[],
+): Promise<Map<string, boolean>> {
+  const ut = new Map<string, boolean>();
+  const cache = new Map<string, boolean>();
+  for (const s of sedler) {
+    const prosjekter = Array.from(
+      new Set(
+        s.timer.flatMap((r) =>
+          r.projectId && r.attestertStatus !== "erstattet" ? [r.projectId] : [],
+        ),
+      ),
+    ).sort();
+    const nokkel = `${s.organizationId}|${prosjekter.join(",")}`;
+    let ok = cache.get(nokkel);
+    if (ok === undefined) {
+      ok = await kanAttestereFravaer(userId, s.organizationId, prosjekter);
+      cache.set(nokkel, ok);
+    }
+    ut.set(s.id, ok);
+  }
+  return ut;
+}
+
+/**
+ * Kaster FORBIDDEN med mindre brukeren kan attestere hver (sedel-firma, prosjekt).
+ * Rad uten prosjekt (fravær, § 11.2) avgjøres av `kanAttestereFravaer` med
+ * `prosjekterPaaSedel` (kalleren oppgir dem; mangler de, gjelder bare firma-admin).
+ */
 async function krevAttesteringsrett(
   userId: string,
-  rader: { organizationId: string; projectId: string }[],
+  rader: { organizationId: string; projectId: string | null; prosjekterPaaSedel?: readonly string[] }[],
 ): Promise<void> {
-  const prosjektIder = Array.from(new Set(rader.map((r) => r.projectId)));
+  const prosjektIder = Array.from(
+    new Set(rader.flatMap((r) => (r.projectId ? [r.projectId] : []))),
+  );
   const firmaPerProsjekt = new Map(
     await Promise.all(
       prosjektIder.map(async (pid) => [pid, await attesteringsFirmaer(userId, pid)] as const),
     ),
   );
+  const fravaerSjekket = new Map<string, boolean>();
   for (const r of rader) {
+    if (r.projectId === null) {
+      const nokkel = `${r.organizationId}|${(r.prosjekterPaaSedel ?? []).join(",")}`;
+      let ok = fravaerSjekket.get(nokkel);
+      if (ok === undefined) {
+        ok = await kanAttestereFravaer(userId, r.organizationId, r.prosjekterPaaSedel ?? []);
+        fravaerSjekket.set(nokkel, ok);
+      }
+      if (!ok) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Fravær uten prosjekt attesteres av lønnsansvarlig",
+        });
+      }
+      continue;
+    }
     const firmaer = firmaPerProsjekt.get(r.projectId);
     if (firmaer === null) continue;
     if (!firmaer?.includes(r.organizationId)) {
@@ -294,20 +413,28 @@ async function krevAttesteringsrett(
   }
 }
 
-/** Som `krevAttesteringsrett`, men slår opp sedlenes firma fra `sheetId`. */
+/** Som `krevAttesteringsrett`, men slår opp sedlenes firma (og F1-grunnlaget) fra `sheetId`. */
 async function krevAttesteringsrettForRader(
   prismaTimer: PrismaClientTimer,
   userId: string,
-  rader: { sheetId: string; projectId: string }[],
+  rader: { sheetId: string; projectId: string | null }[],
 ): Promise<void> {
   const sedler = await prismaTimer.dailySheet.findMany({
     where: { id: { in: Array.from(new Set(rader.map((r) => r.sheetId))) } },
     select: { id: true, organizationId: true },
   });
   const orgPerSedel = new Map(sedler.map((s) => [s.id, s.organizationId]));
+  const prosjekter = await prosjekterPaaSedler(
+    prismaTimer,
+    rader.filter((r) => r.projectId === null).map((r) => r.sheetId),
+  );
   await krevAttesteringsrett(
     userId,
-    rader.map((r) => ({ organizationId: orgPerSedel.get(r.sheetId) ?? "", projectId: r.projectId })),
+    rader.map((r) => ({
+      organizationId: orgPerSedel.get(r.sheetId) ?? "",
+      projectId: r.projectId,
+      prosjekterPaaSedel: prosjekter.get(r.sheetId) ?? [],
+    })),
   );
 }
 
@@ -410,7 +537,9 @@ function touchSedel(
 function byggTimerRadData(
   sheetId: string,
   r: {
-    projectId: string;
+    // § 11.2: null = fravær uten prosjekt (kalleren har validert med krevGyldigUtenProsjekt).
+    projectId: string | null;
+    utenProsjekt?: boolean;
     byggeplassId?: string | null;
     lonnsartId: string;
     aktivitetId: string;
@@ -448,6 +577,7 @@ function byggTimerRadData(
   return {
     sheetId,
     projectId: r.projectId,
+    utenProsjekt: r.utenProsjekt === true,
     byggeplassId: r.byggeplassId ?? null,
     lonnsartId: r.lonnsartId,
     aktivitetId: r.aktivitetId,
@@ -497,6 +627,8 @@ function jsonEllerNull(
 type OverlappPayloadRad = {
   id: string;
   projectId?: string | null;
+  /** Kort-id-spec § 11.3: fravær uten prosjekt — ingen sedel-fallback i forslaget. */
+  utenProsjekt?: boolean;
   byggeplassId?: string | null;
   lonnsartId: string;
   aktivitetId: string;
@@ -572,8 +704,10 @@ async function lagreOverlappForslag(
         // garanterer at minst én er satt når vi når hit.
         id: r.id,
         sheetId,
-        projectId: (r.projectId ?? sedelProjectId)!,
-        byggeplassId: r.byggeplassId ?? null,
+        projectId: r.utenProsjekt ? null : (r.projectId ?? sedelProjectId)!,
+        utenProsjekt: r.utenProsjekt === true,
+        // CHECK (§ 11.2) gjelder også forslaget: ingen knytning uten prosjekt.
+        byggeplassId: r.utenProsjekt ? null : (r.byggeplassId ?? null),
         lonnsartId: r.lonnsartId,
         aktivitetId: r.aktivitetId,
         fraTid: r.fraTid ?? null,
@@ -581,11 +715,11 @@ async function lagreOverlappForslag(
         timer: r.timer,
         pauseMin: r.pauseMin ?? 0,
         beskrivelse: r.beskrivelse ?? null,
-        externalCostObjectId: r.externalCostObjectId ?? null,
-        vehicleId: r.vehicleId ?? null,
+        externalCostObjectId: r.utenProsjekt ? null : (r.externalCostObjectId ?? null),
+        vehicleId: r.utenProsjekt ? null : (r.vehicleId ?? null),
         // Lag 2-sporet lagres slik mobilen sendte det (ingen C2/C3-kontroll —
         // forslaget er ikke lønnsdata; forsonDagskort re-utleder reise ved valget).
-        erReise: r.erReise ?? false,
+        erReise: r.utenProsjekt ? false : (r.erReise ?? false),
         reiseRetning: r.reiseRetning ?? null,
         reiseOppmotestedId: r.reiseOppmotestedId ?? null,
         reiseKjoretidMin: r.reiseKjoretidMin ?? null,
@@ -796,6 +930,24 @@ export function fordelPauseVedSplitt(
 }
 
 /** PK4a — interaktiv avvisning når timetallet ikke stemmer med oppgitt pause. */
+/**
+ * Kort-id-spec § 11.2/F7: brukes lønnsarten på en rad eller et forslag uten prosjekt?
+ * Bor her fordi forslagstabellen bare skal leses i denne fila (V19-vakt 1d), og er en
+ * eksistenssjekk (id, take 1) — ingen rader bæres videre. Kalles fra `lonnsart.oppdater`
+ * før typen endres bort fra fravær.
+ */
+export async function lonnsartBruktUtenProsjekt(
+  pt: PrismaClientTimer,
+  lonnsartId: string,
+): Promise<boolean> {
+  const hvor = { lonnsartId, utenProsjekt: true };
+  const [paaRad, paaForslag] = await Promise.all([
+    pt.sheetTimer.findMany({ where: hvor, select: { id: true }, take: 1 }),
+    pt.sheetTimerForslag.findMany({ where: hvor, select: { id: true }, take: 1 }),
+  ]);
+  return paaRad.length + paaForslag.length > 0;
+}
+
 function avvisTimerAvvik(
   fraTid: string,
   tilTid: string,
@@ -1093,7 +1245,7 @@ async function sjekkAldersgrense(
 // Returtype matcher Prisma.InputJsonValue så payload kan brukes direkte i activity.create.
 type TimerSnapshot = {
   id: string;
-  projectId: string;
+  projectId: string | null;
   lonnsartId: string;
   aktivitetId: string;
   externalCostObjectId: string | null;
@@ -1127,7 +1279,7 @@ type MaskinSnapshot = {
 
 type TimerRow = {
   id: string;
-  projectId: string;
+  projectId: string | null;
   lonnsartId: string;
   aktivitetId: string;
   externalCostObjectId: string | null;
@@ -1304,7 +1456,7 @@ async function byggUkeOvertidsgrunnlag(
 // ============================================================================
 
 type ValiderRad = {
-  projectId: string;
+  projectId: string | null;
   externalCostObjectId: string | null;
   timer: number | Prisma.Decimal;
   // Tillegg til post (7) punkt 5: reiserader og erstattede rader teller ikke
@@ -1376,7 +1528,7 @@ async function hentRaderForValidering(
 ): Promise<{
   timer: Array<{
     id: string;
-    projectId: string;
+    projectId: string | null;
     externalCostObjectId: string | null;
     timer: Prisma.Decimal;
     erReise: boolean;
@@ -1442,6 +1594,37 @@ function byggHistorikkPost(
  * Bolk (g), 2026-07-09 — fra/til-gyldighet: når begge tider er satt, må til > fra.
  * Delt superRefine for timer- og maskin-rad-inputene (tilfoy + oppdater).
  */
+/**
+ * Kort-id-spec § 11.2/§ 11.4: skriveveier som tar fravær uten prosjekt. Prosjekt
+ * er påkrevd som før, unntatt når `utenProsjekt` er satt — da skal det være tomt.
+ * Eldre klient sender alltid prosjekt og aldri flagget (uendret kontrakt).
+ */
+const utenProsjektFelter = {
+  projectId: z.string().uuid().nullable().optional(),
+  utenProsjekt: z.boolean().optional(),
+};
+
+function refineProsjektEllerFravaer(
+  val: { projectId?: string | null; utenProsjekt?: boolean },
+  ctx: z.RefinementCtx,
+): void {
+  if (!val.utenProsjekt && !val.projectId) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: UTEN_PROSJEKT_MELDING.manglerProsjekt,
+      path: ["projectId"],
+    });
+  }
+}
+
+/** § 11.2: lønnsarten må være fravær når flagget er satt (CHECK kan ikke lese den). */
+function krevGyldigUtenProsjekt(rad: UtenProsjektRad, lonnsartType: string | null | undefined): void {
+  const res = validerUtenProsjekt(rad, lonnsartType);
+  if (!res.ok) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: UTEN_PROSJEKT_MELDING[res.grunn] });
+  }
+}
+
 function refineFraForTil(
   val: { fraTid?: string | null; tilTid?: string | null },
   ctx: z.RefinementCtx,
@@ -1504,7 +1687,10 @@ async function sjekkTimerOverlapp(
 async function feilMeldingMaskinOverstiger(
   brytt: MaskinBrudd[],
 ): Promise<string> {
-  const projectIds = Array.from(new Set(brytt.map((b) => b.projectId)));
+  // Fravær uten prosjekt bærer aldri maskin (FM16), så null-bøtta gir ingen brudd.
+  const projectIds = Array.from(
+    new Set(brytt.flatMap((b) => (b.projectId ? [b.projectId] : []))),
+  );
   const ecoIds = Array.from(
     new Set(
       brytt
@@ -1531,10 +1717,10 @@ async function feilMeldingMaskinOverstiger(
 
   return brytt
     .map((b) => {
-      const p = pMap.get(b.projectId);
+      const p = b.projectId ? pMap.get(b.projectId) : undefined;
       const pNavn = p
-        ? `${p.projectNumber ?? ""} ${p.name}`.trim() || b.projectId
-        : b.projectId;
+        ? `${p.projectNumber ?? ""} ${p.name}`.trim() || (b.projectId ?? "")
+        : (b.projectId ?? "");
       let suffix = "";
       if (b.externalCostObjectId) {
         const e = eMap.get(b.externalCostObjectId);
@@ -1687,7 +1873,9 @@ const splittRadInput = z.discriminatedUnion("radType", [
     nyeRader: z
       .array(
         z.object({
-          projectId: z.string().uuid(),
+          // § 11.4: deler av en fraværsrad uten prosjekt forblir uten prosjekt —
+          // prosjekt/flagg løses mot originalen i validerSplittFelles.
+          ...utenProsjektFelter,
           lonnsartId: z.string().uuid(),
           aktivitetId: z.string().uuid(),
           externalCostObjectId: z.string().uuid().nullable().optional(),
@@ -1788,14 +1976,17 @@ async function validerSplittFelles(
     | typeof import("@sitedoc/db-timer").prismaTimer,
   input: SplittRadInput,
   sheet: { id: string; organizationId: string; pauseMin: number },
-  original: { id: string; sum: number },
+  original: { id: string; sum: number; utenProsjekt?: boolean },
 ): Promise<void> {
   // Fra/til obligatorisk på timer-rader (2026-07-13). REVERSERER a2-
   // degraderingen (2026-07-06). Nye split-rader er NYE rader → må ha begge
   // tider (tid-løse rader er ufullstendige lønnsdata + usynlige for overlapp-
   // vakten). Gjelder KUN timer-splitt; maskin/tillegg-rader er unntatt.
   if (input.radType === "timer") {
-    const manglerTid = input.nyeRader.some((r) => !r.fraTid || !r.tilTid);
+    // Unntak: deler av fravær uten prosjekt føres bare med timer (F3, FM14).
+    const manglerTid = input.nyeRader.some(
+      (r) => !(original.utenProsjekt || r.utenProsjekt) && (!r.fraTid || !r.tilTid),
+    );
     if (manglerTid) {
       throw new TRPCError({
         code: "BAD_REQUEST",
@@ -1804,13 +1995,38 @@ async function validerSplittFelles(
     }
   }
 
+  // § 11.4: timer-deler — en del er uten prosjekt når originalen er det (fravær
+  // flyttes ikke til et prosjekt) eller delen selv har flagget; da må arten være fravær.
+  // Typen trengs bare når en del blir uten prosjekt (validerUtenProsjekt krever ellers
+  // kun projectId), så vanlig splitt slår ikke opp lønnsarten.
+  const delerUtenProsjekt =
+    input.radType === "timer" &&
+    (original.utenProsjekt === true || input.nyeRader.some((r) => r.utenProsjekt === true));
+  if (input.radType === "timer") {
+    const typer = new Map(
+      !delerUtenProsjekt
+        ? []
+        : (
+            await prismaTimer.lonnsart.findMany({
+              where: { id: { in: input.nyeRader.map((r) => r.lonnsartId) } },
+              select: { id: true, type: true },
+            })
+          ).map((l) => [l.id, l.type]),
+    );
+    for (const del of input.nyeRader) {
+      const utenProsjekt = original.utenProsjekt === true || del.utenProsjekt === true;
+      krevGyldigUtenProsjekt({ ...del, utenProsjekt }, typer.get(del.lonnsartId));
+    }
+  }
+  const nyeMedProsjekt = (input.nyeRader as { projectId?: string | null; byggeplassId?: string | null }[])
+    .flatMap((r) => (r.projectId ? [{ ...r, projectId: r.projectId }] : []));
   // Firma-grense på alle nye projectId (delt helper).
   await verifiserProsjekterTilhørerFirma(
-    input.nyeRader.map((r) => r.projectId),
+    nyeMedProsjekt.map((r) => r.projectId),
     sheet.organizationId,
   );
   // Ordre (12): byggeplassen må høre til radens prosjekt.
-  await krevByggeplasserIProsjekt(input.nyeRader);
+  await krevByggeplasserIProsjekt(nyeMedProsjekt);
   // Post (7) punkt 1: nye splitt-rader må bruke firmaets egne katalog-ID-er.
   if (input.radType === "timer") {
     await krevKatalogIFirma(prismaTimer, sheet.organizationId, {
@@ -1880,7 +2096,8 @@ async function validerSplittFelles(
 /** Rad-utsnitt (SheetTimer/SheetTimerForslag) → ForsonRad for paring og relink. */
 type ForsonKilde = {
   id: string;
-  projectId: string;
+  projectId: string | null;
+  utenProsjekt?: boolean;
   byggeplassId: string | null;
   lonnsartId: string;
   aktivitetId: string;
@@ -1894,6 +2111,7 @@ function tilForsonRad(r: ForsonKilde): ForsonRad {
   return {
     id: r.id,
     projectId: r.projectId,
+    ...(r.utenProsjekt ? { utenProsjekt: true } : {}),
     byggeplassId: r.byggeplassId,
     lonnsartId: r.lonnsartId,
     aktivitetId: r.aktivitetId,
@@ -2129,7 +2347,7 @@ export const dagsseddelRouter = router({
       ]);
       // T.1 (2026-05-11): DailySheet har ikke projectId. Bruk første rad som proxy.
       const projectId =
-        timer[0]?.projectId ??
+        timer.find((t) => t.projectId)?.projectId ??
         maskiner[0]?.projectId ??
         tillegg[0]?.projectId ??
         utlegg[0]?.projectId ??
@@ -2398,7 +2616,8 @@ export const dagsseddelRouter = router({
     .input(
       z.object({
         sheetId: z.string().uuid(),
-        projectId: z.string().uuid(),
+        // § 11.4: valgfritt `utenProsjekt` (fravær); prosjekt påkrevd ellers.
+        ...utenProsjektFelter,
         byggeplassId: z.string().uuid().nullable().optional(),
         lonnsartId: z.string().uuid(),
         aktivitetId: z.string().uuid(),
@@ -2430,14 +2649,16 @@ export const dagsseddelRouter = router({
         reiseRegel: z.record(z.unknown()).nullable().optional(),
         // Kort-id (spec § 4.3): valgfri. Uten → regel 3 (eldste kort med samme nøkkel).
         kortId: z.string().uuid().nullable().optional(),
-      }).superRefine(refineFraForTil),
+      }).superRefine(refineFraForTil).superRefine(refineProsjektEllerFravaer),
     )
     .mutation(async ({ ctx, input }) => {
       // Fra/til obligatorisk på timer-rader (2026-07-13). REVERSERER a2-
       // degraderingen (2026-07-06) som gjorde per-rad fra/til valgfritt —
       // bevisst reversering: tid-løse timer-rader er ufullstendige lønnsdata
       // OG usynlige for overlapp-vakten (Kenneth-klassifisert bug, fabel-vedtak).
-      if (!input.fraTid || !input.tilTid) {
+      // Unntak: fravær uten prosjekt føres bare med timer (kort-id-spec F3, Kenneth
+      // 2026-11-16); en rad uten klokkeslett vurderes ikke mot overlapp (FM14).
+      if (!input.utenProsjekt && (!input.fraTid || !input.tilTid)) {
         throw new TRPCError({
           code: "BAD_REQUEST",
           message: "Fra- og til-tid er påkrevd på timer-rader",
@@ -2483,12 +2704,19 @@ export const dagsseddelRouter = router({
       // LAG 0a (H5): lønnsart-bevisst tak. per_km → km-tak, ellers 24 timer.
       krevRadInnenforTak(input.timer, lonnsart.satsEnhet);
 
-      // Fase 1b: firma-grense på rad-projectId (lukker cross-firma-lekkasje).
-      await verifiserProsjekterTilhørerFirma([input.projectId], sheet.organizationId);
-      // Ordre (10): byggeplassen må høre til radens prosjekt.
-      await krevByggeplassIProsjekt(input.byggeplassId, input.projectId);
-      // Gate (34): underprosjektet må høre til radens prosjekt og sedelens firma.
-      await krevEcoerIProsjekt([input], sheet.organizationId);
+      // § 11.2: fravær uten prosjekt krever fravær-art og ingen knytning.
+      const utenProsjekt = input.utenProsjekt === true;
+      krevGyldigUtenProsjekt(input, lonnsart.type);
+      const projectId = utenProsjekt ? null : (input.projectId as string);
+
+      if (projectId) {
+        // Fase 1b: firma-grense på rad-projectId (lukker cross-firma-lekkasje).
+        await verifiserProsjekterTilhørerFirma([projectId], sheet.organizationId);
+        // Ordre (10): byggeplassen må høre til radens prosjekt.
+        await krevByggeplassIProsjekt(input.byggeplassId, projectId);
+        // Gate (34): underprosjektet må høre til radens prosjekt og sedelens firma.
+        await krevEcoerIProsjekt([{ ...input, projectId }], sheet.organizationId);
+      }
 
       // §2.D: vehicleId (maskinvedlikehold-kostnadsbærer) må tilhøre firmaet.
       if (input.vehicleId) {
@@ -2499,6 +2727,8 @@ export const dagsseddelRouter = router({
       // flagget). Samme regel som backfill/synk; bruker navnet vi alt lastet.
       const erReiseKtx = await hentErReiseKontekst(sheet.organizationId);
       const erReise = utledErReise(input.lonnsartId, lonnsart.navn, erReiseKtx);
+      // § 11.2: rad uten prosjekt kan ikke være reise (CHECK + K-regel).
+      if (utenProsjekt && erReise) krevGyldigUtenProsjekt({ ...input, erReise }, lonnsart.type);
       if (input.reiseKilde && !erReise) {
         throw new TRPCError({
           code: "BAD_REQUEST",
@@ -2549,7 +2779,7 @@ export const dagsseddelRouter = router({
       const postTimer: ValiderRad[] = [
         ...naa.timer,
         {
-          projectId: input.projectId,
+          projectId,
           externalCostObjectId: input.externalCostObjectId ?? null,
           timer: input.timer,
           erReise,
@@ -2597,7 +2827,8 @@ export const dagsseddelRouter = router({
           (r) => (r.pauseMin ?? 0) > 0,
         ),
       });
-      if (vurdering.kast) {
+      // kast forutsetter fra og til (vurderRadTimer) — vakten smalner bare typen.
+      if (vurdering.kast && input.fraTid && input.tilTid) {
         avvisTimerAvvik(
           input.fraTid,
           input.tilTid,
@@ -2614,7 +2845,7 @@ export const dagsseddelRouter = router({
           data: {
             ...byggTimerRadData(
               input.sheetId,
-              { ...input, pauseMin: vurdering.pauseMin },
+              { ...input, projectId, utenProsjekt, pauseMin: vurdering.pauseMin },
               erReise,
               null,
               reiseSpor,
@@ -2659,21 +2890,23 @@ export const dagsseddelRouter = router({
       }).superRefine(refineFraForTil),
     )
     .mutation(async ({ ctx, input }) => {
-      // Fra/til obligatorisk på timer-rader (2026-07-13). REVERSERER a2-
-      // degraderingen (2026-07-06) som gjorde per-rad fra/til valgfritt —
-      // bevisst reversering: tid-løse timer-rader er ufullstendige lønnsdata
-      // OG usynlige for overlapp-vakten (Kenneth-klassifisert bug, fabel-vedtak).
-      if (!input.fraTid || !input.tilTid) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Fra- og til-tid er påkrevd på timer-rader",
-        });
-      }
 
       const rad = await ctx.prismaTimer.sheetTimer.findUnique({
         where: { id: input.id },
       });
       if (!rad) throw new TRPCError({ code: "NOT_FOUND" });
+      // Fra/til obligatorisk på timer-rader (2026-07-13). REVERSERER a2-
+      // degraderingen (2026-07-06) som gjorde per-rad fra/til valgfritt —
+      // bevisst reversering: tid-løse timer-rader er ufullstendige lønnsdata
+      // OG usynlige for overlapp-vakten (Kenneth-klassifisert bug, fabel-vedtak).
+      // Unntak: fravær uten prosjekt føres bare med timer (kort-id-spec F3, Kenneth
+      // 2026-11-16); en rad uten klokkeslett vurderes ikke mot overlapp (FM14).
+      if (!rad.utenProsjekt && (!input.fraTid || !input.tilTid)) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Fra- og til-tid er påkrevd på timer-rader",
+        });
+      }
 
       const sheet = await hentEgenDagsseddel(ctx.prismaTimer, ctx.userId, rad.sheetId);
       if (!erRedigerbar(sheet.status)) {
@@ -2722,12 +2955,32 @@ export const dagsseddelRouter = router({
       }
       if (input.timer !== undefined) data.timer = input.timer;
       if (input.beskrivelse !== undefined) data.beskrivelse = input.beskrivelse;
+      // Fravær uten prosjekt (kort-id-spec § 11.2): har aldri underprosjekt eller byggeplass.
+      if (
+        rad.projectId === null &&
+        (input.externalCostObjectId || input.byggeplassId || input.vehicleId)
+      ) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Fravær uten prosjekt kan ikke ha underprosjekt, byggeplass eller maskin",
+        });
+      }
+      // § 11.2: lønnsarten på en rad uten prosjekt må forbli fravær (CHECK kan ikke lese den).
+      if (rad.utenProsjekt && input.lonnsartId !== undefined && input.lonnsartId !== rad.lonnsartId) {
+        const nyArt = await ctx.prismaTimer.lonnsart.findFirst({
+          where: { id: input.lonnsartId, organizationId: sheet.organizationId },
+          select: { type: true },
+        });
+        krevGyldigUtenProsjekt({ utenProsjekt: true, projectId: null }, nyArt?.type ?? null);
+      }
       if (input.externalCostObjectId !== undefined) {
         // Gate (34): valideres mot RADENS prosjekt og sedelens firma.
-        await krevEcoerIProsjekt(
-          [{ externalCostObjectId: input.externalCostObjectId, projectId: rad.projectId }],
-          sheet.organizationId,
-        );
+        if (rad.projectId !== null) {
+          await krevEcoerIProsjekt(
+            [{ externalCostObjectId: input.externalCostObjectId, projectId: rad.projectId }],
+            sheet.organizationId,
+          );
+        }
         data.externalCostObjectId = input.externalCostObjectId;
       }
       if (input.vehicleId !== undefined) {
@@ -2741,7 +2994,7 @@ export const dagsseddelRouter = router({
       if (input.tilTid !== undefined) data.tilTid = input.tilTid;
       if (input.byggeplassId !== undefined) {
         // Ordre (10): mot radens prosjekt — projectId endres ikke her.
-        await krevByggeplassIProsjekt(input.byggeplassId, rad.projectId);
+        if (rad.projectId !== null) await krevByggeplassIProsjekt(input.byggeplassId, rad.projectId);
         data.byggeplassId = input.byggeplassId;
       }
 
@@ -2814,7 +3067,8 @@ export const dagsseddelRouter = router({
         standardPauseMin,
         finnesAlleredeBaerer: andreRader.some((r) => (r.pauseMin ?? 0) > 0),
       });
-      if (vurdering.kast) {
+      // kast forutsetter fra og til (vurderRadTimer) — vakten smalner bare typen.
+      if (vurdering.kast && input.fraTid && input.tilTid) {
         avvisTimerAvvik(
           input.fraTid,
           input.tilTid,
@@ -2912,7 +3166,8 @@ export const dagsseddelRouter = router({
             z
               .object({
                 id: z.string().uuid(),
-                projectId: z.string().uuid(),
+                // § 11.3/§ 11.4: forslaget bærer flagget for fravær uten prosjekt.
+                ...utenProsjektFelter,
                 byggeplassId: z.string().uuid().nullable().optional(),
                 lonnsartId: z.string().uuid(),
                 aktivitetId: z.string().uuid(),
@@ -2929,14 +3184,15 @@ export const dagsseddelRouter = router({
                 // ellers regel 2/3.
                 kortId: z.string().uuid().nullable().optional(),
               })
-              .superRefine(refineFraForTil),
+              .superRefine(refineFraForTil)
+              .superRefine(refineProsjektEllerFravaer),
           )
           .default([]),
         nyeRader: z
           .array(
             z
               .object({
-                projectId: z.string().uuid(),
+                ...utenProsjektFelter,
                 byggeplassId: z.string().uuid().nullable().optional(),
                 lonnsartId: z.string().uuid(),
                 aktivitetId: z.string().uuid(),
@@ -2953,7 +3209,8 @@ export const dagsseddelRouter = router({
                 // ellers regel 2/3.
                 kortId: z.string().uuid().nullable().optional(),
               })
-              .superRefine(refineFraForTil),
+              .superRefine(refineFraForTil)
+              .superRefine(refineProsjektEllerFravaer),
           )
           .default([]),
         // V19.9.7 (A'-7): serverrad-id-er arbeideren valgte å SLETTE (valg «forslag»
@@ -3011,12 +3268,15 @@ export const dagsseddelRouter = router({
 
       // Firma-grenser (samme regler som rad-mutasjonene): prosjekt, lønnsart, aktivitet og
       // evt. kjøretøy må tilhøre sedelens firma.
+      const raderMedProsjekt = alleRader.flatMap((r) =>
+        r.projectId ? [{ ...r, projectId: r.projectId }] : [],
+      );
       await verifiserProsjekterTilhørerFirma(
-        Array.from(new Set(alleRader.map((r) => r.projectId))),
+        Array.from(new Set(raderMedProsjekt.map((r) => r.projectId))),
         sheet.organizationId,
       );
       // Ordre (12): byggeplassen må høre til radens prosjekt (samme grense som ordre 10).
-      await krevByggeplasserIProsjekt(alleRader);
+      await krevByggeplasserIProsjekt(raderMedProsjekt);
       const lonnsartIder = Array.from(new Set(alleRader.map((r) => r.lonnsartId)));
       const aktivitetIder = Array.from(new Set(alleRader.map((r) => r.aktivitetId)));
       const [lonnsartTreff, aktivitetTreff] = await Promise.all([
@@ -3024,7 +3284,7 @@ export const dagsseddelRouter = router({
           where: { id: { in: lonnsartIder }, organizationId: sheet.organizationId },
           // LAG 0a (H5): satsEnhet lastes for det lønnsart-bevisste taket (én
           // spørring for alle rader, ikke pr. rad).
-          select: { id: true, satsEnhet: true },
+          select: { id: true, satsEnhet: true, type: true },
         }),
         ctx.prismaTimer.aktivitet.findMany({
           where: { id: { in: aktivitetIder }, organizationId: sheet.organizationId },
@@ -3043,6 +3303,11 @@ export const dagsseddelRouter = router({
       );
       for (const r of alleRader) {
         krevRadInnenforTak(r.timer, satsEnhetEtterLonnsart.get(r.lonnsartId));
+      }
+      // § 11.2: fravær uten prosjekt krever fravær-art og ingen knytning.
+      const typeEtterLonnsart = new Map(lonnsartTreff.map((l) => [l.id, l.type]));
+      for (const r of alleRader) {
+        krevGyldigUtenProsjekt(r, typeEtterLonnsart.get(r.lonnsartId));
       }
       const kjoretoyIder = Array.from(
         new Set(alleRader.map((r) => r.vehicleId).filter((v): v is string => !!v)),
@@ -3083,7 +3348,7 @@ export const dagsseddelRouter = router({
       );
       const oppdatertEtterId = new Map(input.oppdateringer.map((o) => [o.id, o]));
       type SluttRad = {
-        projectId: string;
+        projectId: string | null;
         externalCostObjectId: string | null;
         timer: number;
         fraTid: string;
@@ -3097,7 +3362,7 @@ export const dagsseddelRouter = router({
           const o = oppdatertEtterId.get(r.id);
           return o
             ? {
-                projectId: o.projectId,
+                projectId: o.projectId ?? null,
                 externalCostObjectId: o.externalCostObjectId ?? null,
                 timer: o.timer,
                 fraTid: o.fraTid,
@@ -3106,7 +3371,7 @@ export const dagsseddelRouter = router({
                 attestertStatus: r.attestertStatus,
               }
             : {
-                projectId: r.projectId,
+                projectId: r.projectId ?? null,
                 externalCostObjectId: r.externalCostObjectId,
                 timer: Number(r.timer),
                 fraTid: r.fraTid ?? "",
@@ -3116,7 +3381,7 @@ export const dagsseddelRouter = router({
               };
         }),
         ...input.nyeRader.map((r): SluttRad => ({
-          projectId: r.projectId,
+          projectId: r.projectId ?? null,
           externalCostObjectId: r.externalCostObjectId ?? null,
           timer: r.timer,
           fraTid: r.fraTid,
@@ -3146,7 +3411,7 @@ export const dagsseddelRouter = router({
       const naa = await hentRaderForValidering(ctx.prismaTimer, input.sheetId);
       const brytt = validerMaskinUnderArbeid(
         sluttTimer.map((r) => ({
-          projectId: r.projectId,
+          projectId: r.projectId ?? null,
           externalCostObjectId: r.externalCostObjectId,
           timer: r.timer,
           erReise: r.erReise,
@@ -3260,7 +3525,7 @@ export const dagsseddelRouter = router({
         const brukteForslag = new Set<string>();
         const forslagFor = (r: {
           id?: string;
-          projectId: string;
+          projectId?: string | null;
           byggeplassId?: string | null;
           externalCostObjectId?: string | null;
           fraTid: string;
@@ -3271,7 +3536,7 @@ export const dagsseddelRouter = router({
             forslagKort.find(
               (x) =>
                 !brukteForslag.has(x.id) &&
-                x.projectId === r.projectId &&
+                x.projectId === (r.projectId ?? null) &&
                 (x.byggeplassId ?? null) === (r.byggeplassId ?? null) &&
                 (x.externalCostObjectId ?? null) === (r.externalCostObjectId ?? null) &&
                 x.fraTid === r.fraTid &&
@@ -3295,7 +3560,7 @@ export const dagsseddelRouter = router({
             data: {
               ...byggTimerRadData(
                 input.sheetId,
-                { ...o, pauseMin: oppdateringPause.get(o.id) ?? 0 },
+                { ...o, projectId: o.projectId ?? null, pauseMin: oppdateringPause.get(o.id) ?? 0 },
                 erReise,
               ),
               kortId: erReise
@@ -3304,7 +3569,7 @@ export const dagsseddelRouter = router({
                     oppgittKortId: o.kortId ?? forslagFor(o),
                     lagret: lagredeForOppdatering.get(o.id) ?? null,
                     ny: {
-                      projectId: o.projectId,
+                      projectId: o.projectId ?? null,
                       byggeplassId: o.byggeplassId ?? null,
                       externalCostObjectId: o.externalCostObjectId ?? null,
                     },
@@ -3319,7 +3584,7 @@ export const dagsseddelRouter = router({
             data: {
               ...byggTimerRadData(
                 input.sheetId,
-                { ...r, pauseMin: nyRadPause[i] ?? 0 },
+                { ...r, projectId: r.projectId ?? null, pauseMin: nyRadPause[i] ?? 0 },
                 erReise,
               ),
               kortId: erReise ? null : (r.kortId ?? forslagFor(r)),
@@ -4222,11 +4487,15 @@ export const dagsseddelRouter = router({
         medlemmer.map((m) => [`${m.userId}:${m.organizationId}`, m.ansattnummer]),
       );
       const brukerMap = new Map(brukere.map((b) => [b.id, b]));
+      // F1 (kort-id-spec § 11.4): fraværsraden er valgbar for prosjektlederen bare når
+      // sedelens firma har slått på valget; ellers synlig og nedtonet.
+      const fravaerRett = await fravaerRettPrSedel(ctx.userId, sedler);
 
       return sedler.map((s) => {
         const bruker = brukerMap.get(s.userId);
         return {
           ...s,
+          fravaerKanAttesteres: fravaerRett.get(s.id) ?? false,
           ansatt: bruker
             ? { ...bruker, ansattnummer: ansattnummerMap.get(`${s.userId}:${s.organizationId}`) ?? null }
             : null,
@@ -4312,7 +4581,11 @@ export const dagsseddelRouter = router({
           // prosjekt attesteres av det firmaet, ikke her.
           organizationId: input.organizationId,
           status: { in: statuser },
-          timer: { some: { projectId: { in: prosjektIder } } },
+          // Kort-id-spec § 11.4: en sedel med bare fravær uten prosjekt står i firmakøen.
+          OR: [
+            { timer: { some: { projectId: { in: prosjektIder } } } },
+            { timer: { some: { utenProsjekt: true } } },
+          ],
           ...(datoFilter ? { dato: datoFilter } : {}),
         },
         include: {
@@ -4359,7 +4632,7 @@ export const dagsseddelRouter = router({
       // timer/tillegg/maskiner i én findMany.
       const radProjectIder = new Set<string>();
       for (const s of sedler) {
-        for (const r of s.timer) radProjectIder.add(r.projectId);
+        for (const r of s.timer) if (r.projectId) radProjectIder.add(r.projectId);
         for (const r of s.tillegg) radProjectIder.add(r.projectId);
         for (const r of s.maskiner) radProjectIder.add(r.projectId);
       }
@@ -4455,8 +4728,12 @@ export const dagsseddelRouter = router({
         );
       }
 
+      // F1: firma-admin har alltid rett; samme regel som serveren håndhever.
+      const fravaerRett = await fravaerRettPrSedel(ctx.userId, sedler);
+
       return sedler.map((s) => {
-        const projectId = s.timer[0]?.projectId ?? null;
+        // Første rad MED prosjekt (fravær uten prosjekt bærer ikke sedelens prosjekt).
+        const projectId = s.timer.find((r) => r.projectId)?.projectId ?? null;
         const isoDato = s.dato.toISOString().slice(0, 10);
         const overtidsgrunnlag: Overtidsgrunnlag = beregnOvertidsgrunnlag(
           s.timer.map((r) => ({
@@ -4470,7 +4747,7 @@ export const dagsseddelRouter = router({
         const ukenorm = ukenormMap.get(mandagIso(s.dato)) ?? 0;
         const timerMedProsjekt = s.timer.map((r) => ({
           ...r,
-          project: prosjektMap.get(r.projectId) ?? null,
+          project: r.projectId ? (prosjektMap.get(r.projectId) ?? null) : null,
         }));
         const tilleggMedProsjekt = s.tillegg.map((r) => ({
           ...r,
@@ -4482,6 +4759,7 @@ export const dagsseddelRouter = router({
         }));
         return {
           ...s,
+          fravaerKanAttesteres: fravaerRett.get(s.id) ?? false,
           timer: timerMedProsjekt,
           tillegg: tilleggMedProsjekt,
           maskiner: maskinerMedProsjekt,
@@ -4561,9 +4839,15 @@ export const dagsseddelRouter = router({
           orderBy: { mottattAt: "asc" },
         }),
       ]);
+      // Kort-id-spec § 11.4: første rad MED prosjekt; en sedel med bare fravær uten
+      // prosjekt autoriseres på fraværsregelen (F1) i stedet for å velte.
       const projectId =
-        timer[0]?.projectId ?? maskiner[0]?.projectId ?? tillegg[0]?.projectId;
-      if (!projectId) {
+        timer.find((r) => r.projectId)?.projectId ??
+        maskiner[0]?.projectId ??
+        tillegg[0]?.projectId ??
+        null;
+      const harFravaerUtenProsjekt = timer.some((r) => r.projectId === null);
+      if (!projectId && !harFravaerUtenProsjekt) {
         throw new TRPCError({
           code: "PRECONDITION_FAILED",
           message: "Dagsseddel har ingen rader — kan ikke autorisere",
@@ -4571,7 +4855,18 @@ export const dagsseddelRouter = router({
       }
       // H1: attesteringsrett i sedelens firma (firma-admin der, eller ansatt der
       // med prosjektleder-rett). Dekker også firma-admin-detalj-siden (T7-2b1).
-      await krevAttesteringsrett(ctx.userId, [{ organizationId: sheet.organizationId, projectId }]);
+      // Sedel med bare fravær → F1-regelen (bare firma-admin).
+      const fravaerRett = await fravaerRettPrSedel(ctx.userId, [
+        { id: sheet.id, organizationId: sheet.organizationId, timer },
+      ]);
+      if (projectId) {
+        await krevAttesteringsrett(ctx.userId, [{ organizationId: sheet.organizationId, projectId }]);
+      } else if (!fravaerRett.get(sheet.id)) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Fravær uten prosjekt attesteres av lønnsansvarlig",
+        });
+      }
 
       // T7-2d (2026-05-16): Per-rad prosjekt-join. SheetTimer/Tillegg/Machine
       // har "svak FK" til Project (A.20 — ingen Prisma @relation pga cross-package).
@@ -4579,7 +4874,7 @@ export const dagsseddelRouter = router({
       // legg på rad som rad.project = { id, name, projectNumber }.
       const alleProjectIds = Array.from(
         new Set([
-          ...timer.map((r) => r.projectId),
+          ...timer.flatMap((r) => (r.projectId ? [r.projectId] : [])),
           ...tillegg.map((r) => r.projectId),
           ...maskiner.map((r) => r.projectId),
         ]),
@@ -4592,10 +4887,12 @@ export const dagsseddelRouter = router({
                 where: { id: sheet.aktivitetId },
               })
             : Promise.resolve(null),
-          ctx.prisma.project.findUnique({
-            where: { id: projectId },
-            select: { id: true, name: true, projectNumber: true, internalProjectNumber: true },
-          }),
+          projectId
+            ? ctx.prisma.project.findUnique({
+                where: { id: projectId },
+                select: { id: true, name: true, projectNumber: true, internalProjectNumber: true },
+              })
+            : Promise.resolve(null),
           // T7-2d: per-rad prosjekt-lookup
           alleProjectIds.length > 0
             ? ctx.prisma.project.findMany({
@@ -4631,7 +4928,7 @@ export const dagsseddelRouter = router({
       const prosjektMap = new Map(prosjekterPerRad.map((p) => [p.id, p]));
       const timerMedProsjekt = timer.map((r) => ({
         ...r,
-        project: prosjektMap.get(r.projectId) ?? null,
+        project: r.projectId ? (prosjektMap.get(r.projectId) ?? null) : null,
       }));
       const tilleggMedProsjekt = tillegg.map((r) => ({
         ...r,
@@ -4691,6 +4988,9 @@ export const dagsseddelRouter = router({
         // V19 (A-7/C-2): forslaget lederen SER (ikke velger) + konfliktVentendeSiden
         // (fra ...sheet) som blokkerer attester-knappen. Tomt når ingen overlapp.
         forslag,
+        // Kort-id-spec § 11.4 (F1): serverens svar på om brukeren kan attestere
+        // fraværsrader uten prosjekt på denne sedelen — klienten regner det aldri selv.
+        fravaerKanAttesteres: fravaerRett.get(sheet.id) ?? false,
       };
     }),
 
@@ -4721,6 +5021,13 @@ export const dagsseddelRouter = router({
       });
       if (!sheet) throw new TRPCError({ code: "NOT_FOUND" });
 
+      // § 11.4: fravær uten prosjekt har ikke underprosjekt — flytt avvises.
+      if (rad.projectId === null) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Fravær uten prosjekt kan ikke flyttes til et underprosjekt",
+        });
+      }
       // T.1 (2026-05-11): projectId ligger på rad — bruk rad.projectId
       // for auth og ECO-validering.
       await krevAttesteringsrett(ctx.userId, [
@@ -5186,9 +5493,15 @@ export const dagsseddelRouter = router({
           message: "Dagsseddel har ingen rader — kan ikke autorisere",
         });
       }
+      // § 11.4/F1: rad uten prosjekt (null) avgjøres av fraværsregelen.
+      const prosjekterPaaSedel = uniqueProjectIds.filter((p): p is string => p !== null);
       await krevAttesteringsrett(
         ctx.userId,
-        uniqueProjectIds.map((pid) => ({ organizationId: sheet.organizationId, projectId: pid })),
+        uniqueProjectIds.map((pid) => ({
+          organizationId: sheet.organizationId,
+          projectId: pid,
+          prosjekterPaaSedel,
+        })),
       );
 
       // Reverser attesteringen (samme rad-reset som gjenaapneDagsseddel): alle
@@ -5248,7 +5561,9 @@ export const dagsseddelRouter = router({
           timer: z.array(
             z.object({
               originalId: z.string().uuid().nullable(),
-              projectId: z.string().uuid(),
+              // § 11.4: valgfritt `utenProsjekt`; en kjent fraværsrad uten prosjekt
+              // beholder flagget når prosjekt ikke sendes (løses mot originalen).
+              ...utenProsjektFelter,
               lonnsartId: z.string().uuid(),
               aktivitetId: z.string().uuid(),
               externalCostObjectId: z.string().uuid().nullable().optional(),
@@ -5331,7 +5646,7 @@ export const dagsseddelRouter = router({
       // Fase 1b: firma-grense på alle nye-rad projectIds (delt helper).
       await verifiserProsjekterTilhørerFirma(
         [
-          ...input.nyeRader.timer.map((r) => r.projectId),
+          ...input.nyeRader.timer.flatMap((r) => (r.projectId ? [r.projectId] : [])),
           ...input.nyeRader.tillegg.map((r) => r.projectId),
           ...input.nyeRader.maskin.map((r) => r.projectId),
         ],
@@ -5339,7 +5654,7 @@ export const dagsseddelRouter = router({
       );
       // Ordre (12): byggeplassen må høre til radens prosjekt (samme grense som ordre 10).
       await krevByggeplasserIProsjekt([
-        ...input.nyeRader.timer,
+        ...input.nyeRader.timer.flatMap((r) => (r.projectId ? [{ ...r, projectId: r.projectId }] : [])),
         ...input.nyeRader.maskin,
         ...input.nyeRader.tillegg,
       ]);
@@ -5414,8 +5729,10 @@ export const dagsseddelRouter = router({
       // DELTE helper som syncBatch (`finnTidsromKonflikt`: fra<til + overlapp
       // innad i settet) + mangler-tid-vakt (gjenbruk fra validerSplittFelles,
       // ikke duplisert regel-logikk). Maskin/tillegg unntatt (som splitt).
+      // Unntak: fravær uten prosjekt føres bare med timer (F3, FM14). En rad uten
+      // prosjekt som ikke er gyldig fravær, avvises av krevGyldigUtenProsjekt under.
       const manglerTid = input.nyeRader.timer.some(
-        (r) => !r.fraTid || !r.tilTid,
+        (r) => !!r.projectId && (!r.fraTid || !r.tilTid),
       );
       if (manglerTid) {
         throw new TRPCError({
@@ -5455,13 +5772,23 @@ export const dagsseddelRouter = router({
             id: { in: redigerLonnsartIder },
             organizationId: sheet.organizationId,
           },
-          select: { id: true, satsEnhet: true },
+          select: { id: true, satsEnhet: true, type: true },
         });
         if (redigerLonnsarter.length !== redigerLonnsartIder.length) {
           throw new TRPCError({
             code: "BAD_REQUEST",
             message: "Lønnsart finnes ikke i firmaets katalog",
           });
+        }
+        // § 11.2/§ 11.4: fravær uten prosjekt — flagget, eller en kjent rad uten
+        // prosjekt som sendes uten prosjekt. Arten må være fravær; ellers prosjekt.
+        const typeFor = new Map(redigerLonnsarter.map((l) => [l.id, l.type]));
+        const eksUten = new Set(eksTimer.filter((r) => r.utenProsjekt).map((r) => r.id));
+        for (const r of input.nyeRader.timer) {
+          const utenProsjekt =
+            r.utenProsjekt === true ||
+            (!r.projectId && r.originalId !== null && eksUten.has(r.originalId));
+          krevGyldigUtenProsjekt({ ...r, utenProsjekt }, typeFor.get(r.lonnsartId));
         }
         for (const l of redigerLonnsarter) redigerSatsEnhet.set(l.id, l.satsEnhet);
         for (const r of input.nyeRader.timer) {
@@ -5528,7 +5855,7 @@ export const dagsseddelRouter = router({
       const postTimer: ValiderRad[] = [
         ...baseline.timer.filter((r) => !eksisterendePendingTimerIder.has(r.id)),
         ...input.nyeRader.timer.map((r) => ({
-          projectId: r.projectId,
+          projectId: r.projectId ?? null,
           externalCostObjectId: r.externalCostObjectId ?? null,
           timer: r.timer,
           erReise: redigerErReiseMap.get(r.lonnsartId) ?? false,
@@ -5591,14 +5918,14 @@ export const dagsseddelRouter = router({
       );
       const arvKortId = (rad: {
         originalId: string | null;
-        projectId: string;
+        projectId?: string | null;
         byggeplassId?: string | null;
         externalCostObjectId?: string | null;
       }) =>
         kortIdForSkriving(redigerKortKontekst, {
           lagret: rad.originalId ? (originalKort.get(rad.originalId) ?? null) : null,
           ny: {
-            projectId: rad.projectId,
+            projectId: rad.projectId ?? null,
             byggeplassId: rad.byggeplassId ?? null,
             externalCostObjectId: rad.externalCostObjectId ?? null,
           },
@@ -5646,7 +5973,9 @@ export const dagsseddelRouter = router({
               sheetId: sheet.id,
               lonnsartId: rad.lonnsartId,
               aktivitetId: rad.aktivitetId,
-              projectId: rad.projectId,
+              // § 11.4: validert over — uten prosjekt ⇔ gyldig fraværsrad.
+              projectId: rad.projectId ?? null,
+              utenProsjekt: !rad.projectId,
               externalCostObjectId: rad.externalCostObjectId ?? null,
               byggeplassId: rad.byggeplassId ?? null,
               fraTid: rad.fraTid ?? null,
@@ -5822,13 +6151,14 @@ export const dagsseddelRouter = router({
       await validerSplittFelles(ctx.prismaTimer, input, sheet, {
         id: original.id,
         sum: originalSum,
+        utenProsjekt: (original as { utenProsjekt?: boolean }).utenProsjekt === true,
       });
 
       // Kort-id (spec § 4.3): delene beholder originalens id når nøkkelen er lik; `egetKort`
       // gir ny id; ellers regel 3 (sikreKortId etter skrivingen). Reise får aldri kort.
       const splittKontekst = await lastSedelKortKontekst(ctx.prismaTimer, sheet.id);
       const splittKort = (del: {
-        projectId: string;
+        projectId?: string | null;
         byggeplassId?: string | null;
         externalCostObjectId?: string | null;
         egetKort?: boolean;
@@ -5838,12 +6168,12 @@ export const dagsseddelRouter = router({
         return kortIdForSkriving(splittKontekst, {
           lagret: original as {
             kortId: string | null;
-            projectId: string;
+            projectId: string | null;
             byggeplassId: string | null;
             externalCostObjectId: string | null;
           },
           ny: {
-            projectId: del.projectId,
+            projectId: del.projectId ?? null,
             byggeplassId: del.byggeplassId ?? null,
             externalCostObjectId: del.externalCostObjectId ?? null,
           },
@@ -5896,7 +6226,9 @@ export const dagsseddelRouter = router({
                 sheetId: sheet.id,
                 lonnsartId: rad.lonnsartId,
                 aktivitetId: rad.aktivitetId,
-                projectId: rad.projectId,
+                // § 11.4: validerSplittFelles har løst flagget (uten prosjekt ⇔ fravær-del).
+                projectId: rad.projectId ?? null,
+                utenProsjekt: !rad.projectId,
                 externalCostObjectId: rad.externalCostObjectId ?? null,
                 byggeplassId: rad.byggeplassId ?? null,
                 fraTid: rad.fraTid ?? null,
@@ -6075,13 +6407,14 @@ export const dagsseddelRouter = router({
       await validerSplittFelles(ctx.prismaTimer, input, sheet, {
         id: original.id,
         sum: originalSum,
+        utenProsjekt: (original as { utenProsjekt?: boolean }).utenProsjekt === true,
       });
 
       // Kort-id (spec § 4.3): delene beholder originalens id når nøkkelen er lik; `egetKort`
       // gir ny id; ellers regel 3 (sikreKortId etter skrivingen). Reise får aldri kort.
       const splittKontekst = await lastSedelKortKontekst(ctx.prismaTimer, sheet.id);
       const splittKort = (del: {
-        projectId: string;
+        projectId?: string | null;
         byggeplassId?: string | null;
         externalCostObjectId?: string | null;
         egetKort?: boolean;
@@ -6091,12 +6424,12 @@ export const dagsseddelRouter = router({
         return kortIdForSkriving(splittKontekst, {
           lagret: original as {
             kortId: string | null;
-            projectId: string;
+            projectId: string | null;
             byggeplassId: string | null;
             externalCostObjectId: string | null;
           },
           ny: {
-            projectId: del.projectId,
+            projectId: del.projectId ?? null,
             byggeplassId: del.byggeplassId ?? null,
             externalCostObjectId: del.externalCostObjectId ?? null,
           },
@@ -6143,7 +6476,9 @@ export const dagsseddelRouter = router({
                 sheetId: sheet.id,
                 lonnsartId: rad.lonnsartId,
                 aktivitetId: rad.aktivitetId,
-                projectId: rad.projectId,
+                // § 11.4: validerSplittFelles har løst flagget (uten prosjekt ⇔ fravær-del).
+                projectId: rad.projectId ?? null,
+                utenProsjekt: !rad.projectId,
                 externalCostObjectId: rad.externalCostObjectId ?? null,
                 byggeplassId: rad.byggeplassId ?? null,
                 fraTid: rad.fraTid ?? null,
@@ -6279,9 +6614,16 @@ export const dagsseddelRouter = router({
       }
 
       const uniqueProjectIds = Array.from(new Set(alle.map((r) => r.projectId)));
+      // § 11.4/F1: rad uten prosjekt (null) avgjøres av fraværsregelen med sedelens prosjekter.
+      const prosjekterPaaSedel =
+        (await prosjekterPaaSedler(ctx.prismaTimer, [input.id])).get(input.id) ?? [];
       await krevAttesteringsrett(
         ctx.userId,
-        uniqueProjectIds.map((pid) => ({ organizationId: sheet.organizationId, projectId: pid })),
+        uniqueProjectIds.map((pid) => ({
+          organizationId: sheet.organizationId,
+          projectId: pid,
+          prosjekterPaaSedel,
+        })),
       );
 
       const naa = new Date();
@@ -6387,7 +6729,15 @@ export const dagsseddelRouter = router({
     .mutation(async ({ ctx, input }) => {
       const sheet = await ctx.prismaTimer.dailySheet.findUnique({
         where: { id: input.id },
-        include: { timer: { take: 1, select: { projectId: true } } },
+        // § 11.4: sortert, ikke-erstattede rader — første rad MED prosjekt autoriserer;
+        // en sedel med bare fravær uten prosjekt autoriseres på F1 (firma-admin).
+        include: {
+          timer: {
+            where: { attestertStatus: { not: "erstattet" } },
+            orderBy: { createdAt: "asc" },
+            select: { projectId: true },
+          },
+        },
       });
       if (!sheet) throw new TRPCError({ code: "NOT_FOUND" });
       if (sheet.status !== "sent") {
@@ -6396,14 +6746,20 @@ export const dagsseddelRouter = router({
           message: `Kun innsendte dagssedler kan returneres (status: ${sheet.status})`,
         });
       }
-      const projectId = sheet.timer[0]?.projectId;
-      if (!projectId) {
+      if (sheet.timer.length === 0) {
         throw new TRPCError({
           code: "PRECONDITION_FAILED",
           message: "Dagsseddel har ingen rader — kan ikke autorisere",
         });
       }
-      await krevAttesteringsrett(ctx.userId, [{ organizationId: sheet.organizationId, projectId }]);
+      const projectId = sheet.timer.find((t) => t.projectId)?.projectId ?? null;
+      await krevAttesteringsrett(ctx.userId, [
+        {
+          organizationId: sheet.organizationId,
+          projectId,
+          prosjekterPaaSedel: projectId ? [projectId] : [],
+        },
+      ]);
 
       return ctx.prismaTimer.dailySheet.update({
         where: { id: input.id },
@@ -6547,7 +6903,9 @@ export const dagsseddelRouter = router({
           userId: s.userId,
           organizationId: s.organizationId,
           // T.1 (2026-05-11): projectId på rad-nivå — proxy via første rad.
-          projectId: s.timer[0]?.projectId ?? s.maskiner[0]?.projectId ?? null,
+          // § 11.4: første rad MED prosjekt (en fraværsrad uten prosjekt først skal ikke gi null).
+          projectId:
+            s.timer.find((t) => t.projectId)?.projectId ?? s.maskiner[0]?.projectId ?? null,
           aktivitetId: s.aktivitetId,
           avdelingId: s.avdelingId,
           byggeplassId: s.byggeplassId,
@@ -6729,6 +7087,10 @@ export const dagsseddelRouter = router({
               z.object({
                 id: z.string().uuid(),
                 projectId: z.string().uuid().optional(),
+                // Kort-id-spec § 11.3: fravær uten prosjekt. true → prosjekt, byggeplass,
+                // underprosjekt og maskin lagres NULL; ingen sedel-fallback. Eldre klient
+                // sender ikke feltet (se kjentUtenProsjekt under).
+                utenProsjekt: z.boolean().optional(),
                 lonnsartId: z.string().uuid(),
                 aktivitetId: z.string().uuid(),
                 externalCostObjectId: z.string().uuid().nullable().optional(),
@@ -6947,6 +7309,9 @@ export const dagsseddelRouter = router({
           skrevet?: boolean;
         };
         feilmelding?: string;
+        // Kort-id-spec § 11.3: maskinlesbar grunn på avvisning. Valgfritt → eldre
+        // klient ignorerer feltet.
+        grunn?: "utenProsjektKreverFravaer";
       };
 
       const resultater: ResultatRad[] = [];
@@ -7049,7 +7414,8 @@ export const dagsseddelRouter = router({
               : ctx.prismaTimer.lonnsart.findMany({
                   where: { id: { in: lonnsartIder }, organizationId: orgId },
                   // LAG 0a (H5): satsEnhet for det lønnsart-bevisste taket.
-                  select: { id: true, satsEnhet: true },
+                  // § 11.3: type for fravær uten prosjekt.
+                  select: { id: true, satsEnhet: true, type: true },
                 }),
             aktivitetIderIRader.length === 0
               ? Promise.resolve([])
@@ -7155,6 +7521,57 @@ export const dagsseddelRouter = router({
             continue;
           }
 
+          // Kort-id-spec § 11.3: fravær uten prosjekt. Ny klient sender flagget; en
+          // eldre klient sender raden med sedelens prosjekt (eller uten), og da beholder
+          // en rad serveren kjenner som uten prosjekt flagget så lenge arten fortsatt er
+          // fravær. Byttet art → vanlig arbeidsrad på prosjektet klienten sendte.
+          const syncLonnsartType = new Map(lonnsartTreff.map((l) => [l.id, l.type]));
+          // Bare rader med fraværsart uten flagg kan arve det (eldre klient) — andre
+          // trenger ikke oppslaget, så en vanlig sync koster ingen ekstra spørring.
+          const kandidaterUtenFlagg = lokal.timer
+            .filter(
+              (t) => t.utenProsjekt !== true && syncLonnsartType.get(t.lonnsartId) === "fravaer",
+            )
+            .map((t) => t.id);
+          const kjentUtenProsjekt = new Set(
+            kandidaterUtenFlagg.length === 0
+              ? []
+              : (
+                  await ctx.prismaTimer.sheetTimer.findMany({
+                    where: {
+                      id: { in: kandidaterUtenFlagg },
+                      utenProsjekt: true,
+                      sheet: { userId: ctx.userId },
+                    },
+                    select: { id: true },
+                  })
+                ).map((r) => r.id),
+          );
+          const utenProsjektIder = new Set<string>();
+          const utenProsjektUtenFravaer = lokal.timer.find(
+            (t) => t.utenProsjekt === true && syncLonnsartType.get(t.lonnsartId) !== "fravaer",
+          );
+          if (utenProsjektUtenFravaer) {
+            resultater.push({
+              clientUuid: lokal.clientUuid,
+              resultat: "avvist",
+              grunn: "utenProsjektKreverFravaer",
+              feilmelding: UTEN_PROSJEKT_MELDING.utenProsjektKreverFravaer,
+            });
+            continue;
+          }
+          for (const t of lokal.timer) {
+            const fravaer = syncLonnsartType.get(t.lonnsartId) === "fravaer";
+            if (t.utenProsjekt === true || (kjentUtenProsjekt.has(t.id) && fravaer)) {
+              utenProsjektIder.add(t.id);
+              // CHECK (§ 11.2): ingen knytning på en rad uten prosjekt.
+              t.projectId = undefined;
+              t.byggeplassId = null;
+              t.externalCostObjectId = null;
+              t.vehicleId = null;
+            }
+          }
+
           // T7-3b1: verifiser medlemskap på alle unike per-rad-projectId.
           // Sedel-nivå er allerede sjekket (linje 1970); rad-nivå-IDer som
           // avviker fra sedel-nivå må sjekkes separat. Hopper over rad-IDer
@@ -7180,8 +7597,13 @@ export const dagsseddelRouter = router({
           // og lagres som bart sedelhode.
           const radProsjekt = (radId: string | undefined): string | null =>
             radId ?? lokal.projectId ?? null;
+          // § 11.3: en rad uten prosjekt har bevisst ingen prosjekt — ingen sedel-fallback.
+          const timerProsjekt = (t: { id: string; projectId?: string }): string | null =>
+            utenProsjektIder.has(t.id) ? null : radProsjekt(t.projectId);
           const alleRadProsjekt = [
-            ...lokal.timer.map((t) => radProsjekt(t.projectId)),
+            ...lokal.timer
+              .filter((t) => !utenProsjektIder.has(t.id))
+              .map((t) => radProsjekt(t.projectId)),
             ...lokal.tillegg.map((tl) => radProsjekt(tl.projectId)),
             ...lokal.maskiner.map((m) => radProsjekt(m.projectId)),
             ...lokal.utlegg.map((u) => radProsjekt(u.projectId)),
@@ -7242,7 +7664,9 @@ export const dagsseddelRouter = router({
           const syncTimerByggeplass = new Map(
             lokal.timer.map((t) => [
               t.id,
-              vaskTell(t.byggeplassId ?? lokal.byggeplassId, radProsjekt(t.projectId)),
+              utenProsjektIder.has(t.id)
+                ? null
+                : vaskTell(t.byggeplassId ?? lokal.byggeplassId, radProsjekt(t.projectId)),
             ]),
           );
           const syncMaskinByggeplass = new Map(
@@ -7419,7 +7843,7 @@ export const dagsseddelRouter = router({
           // det som er i lokal.timer + lokal.maskiner. Feil per sedel
           // resulterer i "feilet" for KUN den sedelen, ikke batchen.
           const syncPostTimer: ValiderRad[] = lokal.timer.map((t) => ({
-            projectId: radProsjekt(t.projectId)!,
+            projectId: timerProsjekt(t),
             externalCostObjectId: t.externalCostObjectId ?? null,
             timer: t.timer,
             // Post (7) punkt 5: arbeid måles uten reise. Flagget er utledet/
@@ -7519,7 +7943,8 @@ export const dagsseddelRouter = router({
                 id: t.id,
                 serverVersjon: t.serverVersjon ?? null,
                 endretLokalt: t.endretLokalt,
-                projectId: radProsjekt(t.projectId),
+                projectId: timerProsjekt(t),
+                utenProsjekt: utenProsjektIder.has(t.id),
                 byggeplassId: syncTimerByggeplass.get(t.id) ?? null,
                 lonnsartId: t.lonnsartId,
                 aktivitetId: t.aktivitetId,
@@ -7559,7 +7984,10 @@ export const dagsseddelRouter = router({
 
               // Bygg forslags-radene: payload-kilde = telefonens rad; server-kilde
               // (slettet_telefon) = KOPI av serverraden (samme id, V19.9.6).
-              const payloadById = new Map(lokal.timer.map((t) => [t.id, t]));
+              // § 11.3: flagget løst over (også eldre klients kjente fraværsrad).
+              const payloadById = new Map(
+                lokal.timer.map((t) => [t.id, { ...t, utenProsjekt: utenProsjektIder.has(t.id) }]),
+              );
               avvikForslag = klass.avvik.map((a) => {
                 if (a.kilde === "payload") {
                   return { ...payloadById.get(a.id)!, grunn: a.grunn };
@@ -7568,6 +7996,7 @@ export const dagsseddelRouter = router({
                 return {
                   id: s.id,
                   projectId: s.projectId,
+                  utenProsjekt: s.utenProsjekt,
                   byggeplassId: s.byggeplassId,
                   lonnsartId: s.lonnsartId,
                   aktivitetId: s.aktivitetId,
@@ -7733,7 +8162,7 @@ export const dagsseddelRouter = router({
             const kortVedSync = (
               id: string,
               oppgitt: string | null | undefined,
-              ny: { projectId: string; byggeplassId: string | null; externalCostObjectId: string | null },
+              ny: { projectId: string | null; byggeplassId: string | null; externalCostObjectId: string | null },
             ) => kortIdForSkriving(kortKontekst, { oppgittKortId: oppgitt, lagret: lagretKort.get(id) ?? null, ny });
             const oppgitteKortIder = [
               ...skrivTimerListe,
@@ -7822,7 +8251,8 @@ export const dagsseddelRouter = router({
                   return {
                     id: t.id,
                     sheetId: sedel.id,
-                    projectId: radProsjekt(t.projectId)!,
+                    projectId: timerProsjekt(t),
+                    utenProsjekt: utenProsjektIder.has(t.id),
                     // F3: per-rad byggeplass overstyrer sedel-nivå; null → arv
                     // fra dagskortet (sedel-verdien). Bakoverkompat: eldre klient
                     // sender ikke feltet → t.byggeplassId undefined → sedel-nivå.
@@ -7854,7 +8284,7 @@ export const dagsseddelRouter = router({
                     kortId: rf.erReise
                       ? null
                       : kortVedSync(t.id, t.kortId, {
-                          projectId: radProsjekt(t.projectId)!,
+                          projectId: timerProsjekt(t),
                           byggeplassId: syncTimerByggeplass.get(t.id) ?? null,
                           externalCostObjectId: t.externalCostObjectId ?? null,
                         }),
@@ -8111,7 +8541,8 @@ export const dagsseddelRouter = router({
                   return await lagreOverlappForslag(
                     tx,
                     eksisterende.id,
-                    lokal.timer,
+                    // § 11.3: flagget følger raden inn i forslaget.
+                    lokal.timer.map((t) => ({ ...t, utenProsjekt: t.utenProsjekt === true })),
                     lokal.projectId ?? null,
                   );
                 });
@@ -8468,7 +8899,8 @@ export const dagsseddelRouter = router({
       // for å beholde dagens UI-kontrakt («Du har ført Xt på N prosjekter»).
       type SheetProsjektRad = {
         sheetId: string;
-        projectId: string;
+        // Kort-id-spec § 11.4: null = fravær uten prosjekt (egen bøtte «Fravær»).
+        projectId: string | null;
         status: string;
         timer: number;
       };
@@ -8490,7 +8922,9 @@ export const dagsseddelRouter = router({
         }
       }
       const projektIder = Array.from(
-        new Set(Array.from(radPerProsjekt.values()).map((r) => r.projectId)),
+        new Set(
+          Array.from(radPerProsjekt.values()).flatMap((r) => (r.projectId ? [r.projectId] : [])),
+        ),
       );
       const prosjekter =
         projektIder.length === 0
@@ -8504,8 +8938,8 @@ export const dagsseddelRouter = router({
       const perProsjekt = Array.from(radPerProsjekt.values()).map((r) => ({
         sheetId: r.sheetId,
         projectId: r.projectId,
-        projectNavn: prosjektMap.get(r.projectId)?.name ?? null,
-        projectNummer: prosjektMap.get(r.projectId)?.projectNumber ?? null,
+        projectNavn: r.projectId ? (prosjektMap.get(r.projectId)?.name ?? null) : null,
+        projectNummer: r.projectId ? (prosjektMap.get(r.projectId)?.projectNumber ?? null) : null,
         status: r.status,
         timer: r.timer,
       }));

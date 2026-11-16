@@ -260,3 +260,12 @@ brukes når de får hjelpe-ikon.
 - **Tegningslista:** hver tegning viser revisjon, status, opprinnelig filformat (DWG, PDF …) og utgivelsesdato når de
   finnes. Under søket kan du snevre inn på status, filformat og georeferanse — bare valg som finnes i lista vises.
   Byggeplasser uten treff skjules mens et filter er satt.
+
+## Firmainnstillinger → Timeføring: «Prosjektleder kan attestere fravær» (kort-id-spec § 11.9 F1, ordre (30) b2, 🟡 ikke merget)
+
+Avkrysning under Timeføring-hjelpeteksten (`apps/web/src/app/dashbord/firma/innstillinger/page.tsx`, kolonnen `Organization.fravaerAttesteresAvProsjektleder`):
+
+- **Ledetekst:** «Prosjektleder kan attestere fravær» (`firma.innstillinger.timeforing.fravaerProsjektleder`).
+- **Hint under:** «Uten avkrysning attesterer bare lønnsansvarlig fravær. Med avkrysning kan også prosjektlederen som attesterer resten av dagen, attestere fraværet.» (`…fravaerProsjektlederHint`).
+- **?-ikon:** «Gjelder fravær ført uten prosjekt. Valget virker fra neste attestering; attesterte timer endres ikke.» (`…fravaerProsjektlederHjelpIkon`).
+- Serveren avgjør (`krevAttesteringsrett` i `apps/api/src/routes/timer/dagsseddel.ts`) og sender `fravaerKanAttesteres` pr. sedel; attesteringslistene viser fraværsraden nedtonet når den er `false`. Fravær uten prosjekt heter «Fravær» (`timer.detalj.fravaerUtenProsjekt`) overalt på web.

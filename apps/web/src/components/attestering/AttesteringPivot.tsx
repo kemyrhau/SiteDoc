@@ -407,7 +407,9 @@ export function AnsattPivot({
     const m = new Map<string, string>();
     for (const s of ukeGrunnlag) if (s.prosjekt) m.set(s.prosjekt.id, s.prosjekt.name);
     return (projectId: string): string =>
-      m.get(projectId) ?? t("timer.attestering.pivot.annetProsjekt");
+      !projectId
+        ? t("timer.detalj.fravaerUtenProsjekt")
+        : (m.get(projectId) ?? t("timer.attestering.pivot.annetProsjekt"));
   }, [ukeGrunnlag, t]);
 
   if (ansatte.length === 0) return <TomPivot />;

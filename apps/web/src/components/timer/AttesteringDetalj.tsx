@@ -29,6 +29,7 @@ import {
   type RadProsjekt,
   type TilleggRad,
   type TimerRad,
+  radIKontekst,
 } from "@/components/attestering/attestering-buckets";
 
 function formatDato(d: Date | string): string {
@@ -116,10 +117,11 @@ export function AttesteringDetalj({
   const tilleggRader = (sheet?.tillegg ?? []) as unknown as TilleggRad[];
   const maskinRader = (sheet?.maskiner ?? []) as unknown as MaskinRad[];
 
-  const radTilgjengelig = (rad: { projectId: string; attestertStatus: string | null }) => {
+  // Kort-id-spec § 11.4 (F1): serveren sier om fravær uten prosjekt kan attesteres her.
+  const fravaerKanAttesteres = sheet?.fravaerKanAttesteres === true;
+  const radTilgjengelig = (rad: { projectId: string | null; attestertStatus: string | null }) => {
     if (rad.attestertStatus !== "pending") return false;
-    if (prosjektKontekst && rad.projectId !== prosjektKontekst) return false;
-    return true;
+    return radIKontekst(rad.projectId, prosjektKontekst, fravaerKanAttesteres);
   };
 
   // Pre-utvalg: alle pending-rader leder har tilgang til
@@ -261,7 +263,10 @@ export function AttesteringDetalj({
             {formatDato(sheet.dato)}
           </h1>
           <p className="mt-1 text-sm text-gray-600">
-            {sheet.prosjekt?.name ?? t("timer.detalj.ukjentProsjekt")}
+            {sheet.prosjekt?.name ??
+              (timerRader.length > 0 && timerRader.every((r) => r.projectId === null)
+                ? t("timer.detalj.fravaerUtenProsjekt")
+                : t("timer.detalj.ukjentProsjekt"))}
             {sheet.prosjekt?.internalProjectNumber
               ? ` (${sheet.prosjekt.internalProjectNumber})`
               : ""}
@@ -516,8 +521,10 @@ export function AttesteringDetalj({
         };
 
         for (const r of timerRader) {
-          noterBucket(r.projectId, r.externalCostObjectId, r.project);
-          bucketMap.get(bucketKey(r.projectId, r.externalCostObjectId))!.timer.push(r);
+          // Kort-id-spec § 11.4: fravær uten prosjekt samles under tom nøkkel («Fravær»).
+          const pid = r.projectId ?? "";
+          noterBucket(pid, r.externalCostObjectId, r.project);
+          bucketMap.get(bucketKey(pid, r.externalCostObjectId))!.timer.push(r);
         }
         for (const r of maskinRader) {
           noterBucket(r.projectId, r.externalCostObjectId, r.project);
@@ -547,6 +554,7 @@ export function AttesteringDetalj({
             bucketMap={bucketMap}
             tillegg={tilleggPerProsjekt.get(pid) ?? []}
             prosjektKontekst={prosjektKontekst}
+            fravaerKanAttesteres={fravaerKanAttesteres}
             valgteTimer={valgteTimer}
             valgteMaskin={valgteMaskin}
             valgteTillegg={valgteTillegg}

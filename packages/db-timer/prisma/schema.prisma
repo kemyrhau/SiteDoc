@@ -231,9 +231,13 @@ model SheetTimer {
   // Per-rad aktivitet (C9 2026-05-02). Backfill ved migrasjon: parent.aktivitetId.
   // NOT NULL — alle nye rader må ha aktivitet. Klient sender alltid (default fra sedel).
   aktivitetId           String   @map("aktivitet_id")
-  // T.2 (PR 1B, 2026-05-11) — Per-rad prosjekttilhørighet. NOT NULL etter backfill i PR 1A.
-  // Svak FK uten @relation (A.20-mønster).
-  projectId             String   @map("project_id")
+  // T.2 (PR 1B, 2026-05-11) — Per-rad prosjekttilhørighet. Svak FK uten @relation (A.20-mønster).
+  // Fraværskort (prosjektkort-kortid-spec.md § 11.2, Kenneth 2026-11-16, B6/B8): NULL bare når
+  // `utenProsjekt = true` (DB-CHECK `sheet_timer_uten_prosjekt_chk`). Tomt prosjekt betyr ALDRI
+  // «arv sedelens» her — den betydningen finnes bare i klientens fallback (FM4).
+  projectId             String?  @map("project_id")
+  // § 11.2: «bevisst ført uten prosjekt» — bare fravær-art (validerUtenProsjekt i shared).
+  utenProsjekt          Boolean  @default(false) @map("uten_prosjekt")
   // T.2 — Per-rad byggeplass. Forblir nullable (A.30: byggeplass-NULL er gyldig).
   byggeplassId          String?  @map("byggeplass_id")
   // T.4 — Per-rad tid HH:MM. Server validerer fraTid < tilTid i PR 2.
@@ -348,8 +352,10 @@ model SheetTimerForslag {
   // = mobilens rad-id (idempotent erstatning). Ikke @default — settes fra payload.
   id                   String   @id
   sheetId              String   @map("sheet_id")
-  // Speil av SheetTimers payload-felt (samme navn/typer).
-  projectId            String   @map("project_id")
+  // Speil av SheetTimers payload-felt (samme navn/typer). NULL bare for fravær uten prosjekt
+  // (§ 11.2, samme CHECK som sheet_timer).
+  projectId            String?  @map("project_id")
+  utenProsjekt         Boolean  @default(false) @map("uten_prosjekt")
   byggeplassId         String?  @map("byggeplass_id")
   lonnsartId           String   @map("lonnsart_id")
   aktivitetId          String   @map("aktivitet_id")

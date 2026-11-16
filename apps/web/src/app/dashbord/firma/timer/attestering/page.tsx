@@ -355,7 +355,10 @@ export default function FirmaAttesteringSide() {
   const grupper = useMemo(() => {
     const m = new Map<string, AttesteringRad[]>();
     for (const s of filtrerteSedler) {
-      const key = s.prosjekt?.id ?? "—";
+      // Kort-id-spec § 11.4: sedel med bare fravær uten prosjekt grupperes som «Fravær».
+      const bareFravaer =
+        !s.prosjekt && s.timer.length > 0 && s.timer.every((r) => r.projectId === null);
+      const key = s.prosjekt?.id ?? (bareFravaer ? "fravaer" : "—");
       const liste = m.get(key) ?? [];
       liste.push(s);
       m.set(key, liste);
@@ -363,7 +366,10 @@ export default function FirmaAttesteringSide() {
     return Array.from(m.entries()).map(([prosjektId, sedler]) => ({
       prosjektId,
       prosjektNavn:
-        sedler[0]?.prosjekt?.name ?? t("timer.detalj.ukjentProsjekt"),
+        sedler[0]?.prosjekt?.name ??
+        (prosjektId === "fravaer"
+          ? t("timer.detalj.fravaerUtenProsjekt")
+          : t("timer.detalj.ukjentProsjekt")),
       prosjektNummer: sedler[0]?.prosjekt?.internalProjectNumber ?? null,
       sedler,
       arbeidstimer: sedler.reduce(

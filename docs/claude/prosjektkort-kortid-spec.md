@@ -447,6 +447,27 @@ Avvik fra specen, meldt i SJEKKPUNKT b1:
 - **Lokal alder er typeorden + rowid**, fordi telefonen ikke har et felles opprettet-tidspunkt.
 - **Lokal normalisering endrer verken `syncStatus` eller `sistEndretLokalt`.**
 
+**b2 — fravær uten prosjekt og F1 (2026-11-16).** Migreringene er ikke kjørt mot test eller prod.
+
+| Del | Kode |
+|---|---|
+| Migrering db-timer (`uten_prosjekt`, `project_id` nullable, CHECK på timer og forslag) | samme fil som b1: `packages/db-timer/prisma/migrations/20261116120000_kortid_fravaer_normtak/migration.sql` |
+| Migrering db (F1) | `packages/db/prisma/migrations/20261116120200_fravaer_attesteres_av_prosjektleder/migration.sql` — `organization_settings.fravaer_attesteres_av_prosjektleder`, default `false` |
+| Regel (shared) | `packages/shared/src/utils/utenProsjekt.ts` — `validerUtenProsjekt` (lønnsart = fravær; CHECK kan ikke lese lønnsarten) |
+| Server, skriveveier og eldre klient (§ 11.3) | `apps/api/src/routes/timer/dagsseddel.ts` — `krevGyldigUtenProsjekt` i `tilfoyTimerRad`, `oppdaterTimerRad`, `redigerSedelRader`, splitt og `syncBatch` (`kjentUtenProsjekt`: kjent uten-prosjekt-rad med fraværsart beholder flagget; oppslaget kjøres bare for fraværsrader uten flagg) |
+| Server, F1 | samme fil — `kanAttestereFravaer`, `fravaerRettPrSedel`, `krevAttesteringsrett`; `hentForAttestering` returnerer `fravaerKanAttesteres`. Firmavalget i `apps/api/src/routes/organisasjon.ts`; F7 i `apps/api/src/routes/timer/lonnsart.ts` (kaller `lonnsartBruktUtenProsjekt`) |
+| Lesere | `apps/api/src/routes/timer/rapport.ts` (`sedelUtvalgRapport`, `fravaerEtikett`); web `apps/web/src/lib/timer-rapport-eksport.ts` |
+| Web (b-visning) | «Fravær» for null-prosjekt i `apps/web/src/components/attestering/attestering-buckets.tsx` (`radIKontekst`), `AttesteringPivot.tsx`, `DagsKort.tsx`, `SeddelKort.tsx`, `apps/web/src/components/timer/AttesteringDetalj.tsx`, `AttesteringDetalj_Edit.tsx`, `apps/web/src/app/dashbord/firma/timer/attestering/page.tsx`, `apps/web/src/app/dashbord/timer/[id]/page.tsx`. F1-avkrysning i `apps/web/src/app/dashbord/firma/innstillinger/page.tsx` (hjelpetekst i `hjelpetekster.md`) |
+| Tester | TF1–TF7, TF11, TF26, TF27 i `apps/api/src/routes/fravaer-uten-prosjekt.integration.test.ts` (29); regelen i `packages/shared/src/utils/utenProsjekt.test.ts` (10) |
+
+Avvik og funn, meldt i SJEKKPUNKT b2:
+- **Fra/til-sperren unntar rader uten prosjekt** i `tilfoyTimerRad`, `oppdaterTimerRad`, splitt og `redigerSedelRader`. Hjemmel F3 (bare timer på fravær) og FM14; specen sier det ikke uttrykkelig.
+- **Penn og ✂ er skjult for fraværsrader på web** (SeddelKort, rediger-splitt). Ingen eksisterende funksjon er fjernet; radene er nye. Nye fraværsrader legges ikke til via web-redigering (ordre d).
+- **`oppdaterTimerRad` avviser** prosjekt, underprosjekt, byggeplass eller maskin på en uten-prosjekt-rad, og bytte til en lønnsart som ikke er fravær.
+- **F7-sjekken (`lonnsartBruktUtenProsjekt`) bor i `dagsseddel.ts`**, ikke i `lonnsart.ts`, fordi V19-vakten (1d) bare tillater forslagstabellen der. Den er en eksistenssjekk (`findMany`, `id`, `take: 1`).
+- **`hentTilAttesteringFirma` gir tom liste når firmaet har null prosjekter**, også om det finnes fraværssedler. Kantfall, ikke rettet.
+- **Gate-SQL § 3.4 gate 2** står uten `coalesce(project_id,'ingen')` i specteksten; § 11.2 sier at den skal endres. Målt med coalesce.
+
 ---
 
 ## 9. Tester som skal feile først (gate-krav)

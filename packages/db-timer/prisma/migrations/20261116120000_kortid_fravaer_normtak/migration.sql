@@ -78,3 +78,27 @@ CREATE INDEX "sheet_timer_forslag_sheet_id_kort_id_idx" ON "timer"."sheet_timer_
 CREATE INDEX "sheet_machines_sheet_id_kort_id_idx"      ON "timer"."sheet_machines"("sheet_id", "kort_id");
 CREATE INDEX "sheet_tillegg_sheet_id_kort_id_idx"       ON "timer"."sheet_tillegg"("sheet_id", "kort_id");
 CREATE INDEX "sheet_utlegg_sheet_id_kort_id_idx"        ON "timer"."sheet_utlegg"("sheet_id", "kort_id");
+
+-- ===========================================================================
+-- Fraværskort uten prosjekt (prosjektkort-kortid-spec.md § 11.2, Kenneth 2026-11-16, B6/B8).
+-- Additiv: en NOT NULL-sperre løsnes og en kolonne legges til; ingen data flyttes.
+-- Ingen backfill trengs: hver eksisterende rad har prosjekt (NOT NULL fram til nå), så
+-- uten_prosjekt = false (DEFAULT) er sant for alle. CHECK legges på NÅ (ikke i ordre e):
+-- gammel API skriver alltid prosjekt og aldri flagget, så den passerer sperren.
+-- Eksisterende fravær-rader med prosjekt (FM3) røres ikke.
+-- ===========================================================================
+ALTER TABLE "timer"."sheet_timer"         ALTER COLUMN "project_id" DROP NOT NULL;
+ALTER TABLE "timer"."sheet_timer"         ADD COLUMN "uten_prosjekt" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "timer"."sheet_timer_forslag" ALTER COLUMN "project_id" DROP NOT NULL;
+ALTER TABLE "timer"."sheet_timer_forslag" ADD COLUMN "uten_prosjekt" BOOLEAN NOT NULL DEFAULT false;
+
+ALTER TABLE "timer"."sheet_timer" ADD CONSTRAINT "sheet_timer_uten_prosjekt_chk" CHECK (
+  ("uten_prosjekt" = false AND "project_id" IS NOT NULL)
+  OR ("uten_prosjekt" = true AND "project_id" IS NULL AND "byggeplass_id" IS NULL
+      AND "external_cost_object_id" IS NULL AND "vehicle_id" IS NULL AND "er_reise" = false)
+);
+ALTER TABLE "timer"."sheet_timer_forslag" ADD CONSTRAINT "sheet_timer_forslag_uten_prosjekt_chk" CHECK (
+  ("uten_prosjekt" = false AND "project_id" IS NOT NULL)
+  OR ("uten_prosjekt" = true AND "project_id" IS NULL AND "byggeplass_id" IS NULL
+      AND "external_cost_object_id" IS NULL AND "vehicle_id" IS NULL AND "er_reise" = false)
+);

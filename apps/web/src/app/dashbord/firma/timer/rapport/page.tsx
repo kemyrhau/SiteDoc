@@ -373,6 +373,7 @@ export default function TimerRapportSide() {
       til,
       prosjektId: valgtProsjektId || undefined,
       ansattId: valgtAnsattId || undefined,
+      fravaerEtikett: t("timer.detalj.fravaerUtenProsjekt"),
     },
     { enabled: !!orgId && harTimer },
   );
@@ -389,6 +390,7 @@ export default function TimerRapportSide() {
         til,
         prosjektId: valgtProsjektId || undefined,
         ansattId: valgtAnsattId || undefined,
+        fravaerEtikett: t("timer.detalj.fravaerUtenProsjekt"),
       },
       { enabled: !!orgId && harTimer },
     );
@@ -539,6 +541,7 @@ export default function TimerRapportSide() {
           til,
           prosjektId: valgtProsjektId || undefined,
           ansattId: valgtAnsattId || undefined,
+          fravaerEtikett: t("timer.detalj.fravaerUtenProsjekt"),
           firmanavn: valgtFirma?.name ?? "firma",
           filnavn: `SiteDoc-${t("firma.timer.rapport.pdf.filnavn")}-${fra}-${til}.pdf`,
           footerGenerert: t("firma.timer.rapport.pdf.footerGenerert", {
@@ -571,6 +574,7 @@ export default function TimerRapportSide() {
         til,
         prosjektId: valgtProsjektId || undefined,
         ansattId: valgtAnsattId || undefined,
+        fravaerEtikett: t("timer.detalj.fravaerUtenProsjekt"),
         kunEksporterbare: true,
       });
       const input = {
@@ -599,6 +603,7 @@ export default function TimerRapportSide() {
           til,
           prosjektId: valgtProsjektId || undefined,
           ansattId: valgtAnsattId || undefined,
+          fravaerEtikett: t("timer.detalj.fravaerUtenProsjekt"),
         });
         await mod.eksporterXlsx(input, detalj, t, {
           radTyper,

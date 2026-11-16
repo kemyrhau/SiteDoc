@@ -40,7 +40,29 @@ const periodeSchema = z.object({
   til: z.string(),
   prosjektId: z.string().uuid().optional(),
   ansattId: z.string().uuid().optional(),
+  // Kort-id-spec § 11.4 (FM10): navnet på fravær uten prosjekt, oversatt fra
+  // klienten (ingen server-i18n). Utelatt → «Fravær» (samme mønster som «(ukjent)»).
+  fravaerEtikett: z.string().max(60).optional(),
 });
+
+const FRAVAER_ETIKETT_STANDARD = "Fravær";
+
+/**
+ * Kort-id-spec § 11.4: utvalget av sedler for rapport/eksport. Med valgt prosjekt
+ * er det uendret (fravær uten prosjekt utelates — BEVARES). Uten prosjektfilter
+ * kommer også sedler med fravær uten prosjekt med — firma-isolert på sedelens eier.
+ */
+function sedelUtvalgRapport(
+  orgId: string,
+  prosjektIder: string[],
+  prosjektFilter: string | undefined,
+) {
+  const medProsjekt = { timer: { some: { projectId: { in: prosjektIder } } } };
+  if (prosjektFilter) return medProsjekt;
+  return {
+    OR: [medProsjekt, { organizationId: orgId, timer: { some: { utenProsjekt: true } } }],
+  };
+}
 
 // Alle synlige PDF-overskrifter/etiketter injiseres oversatt fra klienten
 // (api har ingen server-i18n; samme mønster som arkiv-PDF). Speiler
@@ -156,7 +178,7 @@ export const rapportRouter = router({
           // cross-firma-lekkasje på delte prosjekter. Cross-org-invitert
           // arbeiders sedel (annet org) ekskluderes bevisst.
           organizationId: orgId,
-          timer: { some: { projectId: { in: prosjektIder } } },
+          ...sedelUtvalgRapport(orgId, prosjektIder, input.prosjektId),
           dato: { gte: fraDato, lte: tilDato },
           ...(input.ansattId ? { userId: input.ansattId } : {}),
         },
@@ -193,7 +215,7 @@ export const rapportRouter = router({
         email: string;
         ansattnummer: string | null;
         totalTimer: number;
-        perProsjekt: Map<string, number>; // prosjektId → timer
+        perProsjekt: Map<string | null, number>; // prosjektId → timer (null = fravær uten prosjekt)
         perDag: Map<string, number>; // YYYY-MM-DD → timer
         statusFordeling: { kladd: number; sent: number; attestert: number };
         antallSedler: number;
@@ -273,11 +295,15 @@ export const rapportRouter = router({
         statusFordeling: a.statusFordeling,
         perProsjekt: Array.from(a.perProsjekt.entries()).map(([pid, timer]) => ({
           prosjektId: pid,
-          prosjektNavn: prosjektMap.get(pid)?.name ?? "(ukjent)",
+          prosjektNavn:
+            pid === null
+              ? (input.fravaerEtikett ?? FRAVAER_ETIKETT_STANDARD)
+              : (prosjektMap.get(pid)?.name ?? "(ukjent)"),
           // SD (prosjektNummer) beholdes for Excel-eksport (stabil, unik nøkkel
           // til regnskap). Internt vises brukervendt. Beslutning 3 + terminologi.md.
-          prosjektNummer: prosjektMap.get(pid)?.projectNumber ?? null,
-          internProsjektNummer: prosjektMap.get(pid)?.internalProjectNumber ?? null,
+          prosjektNummer: pid === null ? null : (prosjektMap.get(pid)?.projectNumber ?? null),
+          internProsjektNummer:
+            pid === null ? null : (prosjektMap.get(pid)?.internalProjectNumber ?? null),
           timer,
         })),
         perDag: Array.from(a.perDag.entries())
@@ -361,7 +387,7 @@ export const rapportRouter = router({
       const sedler = await ctx.prismaTimer.dailySheet.findMany({
         where: {
           organizationId: orgId,
-          timer: { some: { projectId: { in: prosjektIder } } },
+          ...sedelUtvalgRapport(orgId, prosjektIder, input.prosjektId),
           dato: { gte: fraDato, lte: tilDato },
           ...(input.ansattId ? { userId: input.ansattId } : {}),
         },
@@ -429,7 +455,7 @@ export const rapportRouter = router({
       // alle unike projectId og slå opp navn for dem også (ellers «ukjent»).
       const alleProsjektIder = new Set<string>(prosjektIder);
       for (const s of sedler) {
-        for (const r of s.timer) alleProsjektIder.add(r.projectId);
+        for (const r of s.timer) if (r.projectId) alleProsjektIder.add(r.projectId);
         for (const r of s.tillegg) alleProsjektIder.add(r.projectId);
         for (const r of s.maskiner) alleProsjektIder.add(r.projectId);
         for (const r of s.utlegg) alleProsjektIder.add(r.projectId);
@@ -442,7 +468,11 @@ export const rapportRouter = router({
         });
         for (const p of ekstra) prosjektMap.set(p.id, p);
       }
-      const prosjektNavn = (id: string): string => prosjektMap.get(id)?.name ?? "(ukjent)";
+      // FM10: navnet er alltid en streng — null-prosjekt = fravær uten prosjekt.
+      const prosjektNavn = (id: string | null): string =>
+        id === null
+          ? (input.fravaerEtikett ?? FRAVAER_ETIKETT_STANDARD)
+          : (prosjektMap.get(id)?.name ?? "(ukjent)");
 
       // Maskin-navn (kryss-modul → db-maskin). Samme navn-form som dagskortet.
       const vehicleIder = Array.from(
@@ -943,7 +973,8 @@ export const rapportRouter = router({
       // T.1 (2026-05-11): DailySheet har ikke projectId — filtrer via SheetTimer.
       const sedler = await ctx.prismaTimer.dailySheet.groupBy({
         by: ["userId"],
-        where: { timer: { some: { projectId: { in: prosjektIder } } } },
+        // Kort-id-spec § 11.4: ansatt med bare fravær uten prosjekt kommer også med.
+        where: sedelUtvalgRapport(orgId, prosjektIder, undefined),
         _count: { _all: true },
       });
       const userIder = sedler.map((s) => s.userId);

@@ -4,6 +4,7 @@ import { Prisma } from "@sitedoc/db-timer";
 import { router, protectedProcedure } from "../../trpc/trpc";
 import { autoriserAdminForFirma, resolverOrgFraInput } from "../../trpc/tilgangskontroll";
 import { krevTimerAktivert } from "../../services/timer";
+import { lonnsartBruktUtenProsjekt } from "./dagsseddel";
 
 const TYPE_VERDIER = ["ordinaer", "fravaer", "feriepenger", "diett"] as const;
 const SATS_ENHET_VERDIER = ["per_dag", "per_natt", "per_km", "per_time"] as const;
@@ -129,6 +130,22 @@ export const lonnsartRouter = router({
           code: "NOT_FOUND",
           message: "Lønnsart finnes ikke eller tilhører ikke ditt firma",
         });
+      }
+
+      // Kort-id-spec § 11.2/F7: typen kan ikke endres bort fra fravær mens arten står på
+      // en rad uten prosjekt (databasens CHECK kan ikke lese lønnsarten; FM2).
+      if (
+        input.type !== undefined &&
+        input.type !== "fravaer" &&
+        eksisterende.type === "fravaer"
+      ) {
+        if (await lonnsartBruktUtenProsjekt(ctx.prismaTimer, input.id)) {
+          throw new TRPCError({
+            code: "PRECONDITION_FAILED",
+            message:
+              "Lønnsarten brukes på fravær uten prosjekt og kan ikke endres til en annen type",
+          });
+        }
       }
 
       const data: Prisma.LonnsartUpdateInput = {};

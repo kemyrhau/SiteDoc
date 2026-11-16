@@ -943,6 +943,8 @@ function StandardArbeidstidSeksjon() {
   const [pauseReferanse, setPauseReferanse] = useState<string>("ankomst");
   // Prosjektkort L1: visningsmodus for timeføring (dagskort | prosjektkort).
   const [modus, setModus] = useState<"dagskort" | "prosjektkort">("dagskort");
+  // Kort-id-spec § 11.4 (F1): prosjektleder kan attestere fravær uten prosjekt.
+  const [fravaerProsjektleder, setFravaerProsjektleder] = useState(false);
   const [skitten, setSkitten] = useState(false);
 
   useEffect(() => {
@@ -958,6 +960,7 @@ function StandardArbeidstidSeksjon() {
       setNormKilde(setting.normKilde ?? "fast");
       setPauseReferanse(setting.pauseReferanse ?? "ankomst");
       setModus(setting.timerRegistreringsmodus === "prosjektkort" ? "prosjektkort" : "dagskort");
+      setFravaerProsjektleder(setting.fravaerAttesteresAvProsjektleder === true);
       setSkitten(false);
     }
   }, [setting]);
@@ -987,6 +990,7 @@ function StandardArbeidstidSeksjon() {
         normKilde: normKilde as "fast" | "kalender",
         pauseReferanse: pauseReferanse as "fastStart" | "ankomst",
         timerRegistreringsmodus: modus,
+        fravaerAttesteresAvProsjektleder: fravaerProsjektleder,
       },
       { onSuccess: () => setSkitten(false) },
     );
@@ -1225,6 +1229,33 @@ function StandardArbeidstidSeksjon() {
         <p className="mt-2 text-xs text-gray-500">
           {t("firma.innstillinger.timeforing.hjelp")}
         </p>
+
+        {/* Kort-id-spec § 11.4 (F1): hvem attesterer fravær uten prosjekt. */}
+        <label className="mt-4 flex cursor-pointer items-start gap-2.5">
+          <input
+            type="checkbox"
+            checked={fravaerProsjektleder}
+            onChange={(e) => {
+              setFravaerProsjektleder(e.target.checked);
+              setSkitten(true);
+            }}
+            className="mt-0.5 accent-sitedoc-primary"
+          />
+          <span>
+            <span className="flex items-center gap-1.5 text-sm font-medium text-gray-900">
+              {t("firma.innstillinger.timeforing.fravaerProsjektleder")}
+              <span title={t("firma.innstillinger.timeforing.fravaerProsjektlederHjelpIkon")}>
+                <HelpCircle
+                  className="h-3.5 w-3.5 text-gray-400"
+                  aria-label={t("firma.innstillinger.timeforing.fravaerProsjektlederHjelpIkon")}
+                />
+              </span>
+            </span>
+            <span className="mt-0.5 block text-xs text-gray-600">
+              {t("firma.innstillinger.timeforing.fravaerProsjektlederHint")}
+            </span>
+          </span>
+        </label>
       </div>
 
       {skitten && startTid >= sluttTid && (

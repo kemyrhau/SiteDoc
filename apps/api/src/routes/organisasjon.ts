@@ -1318,6 +1318,8 @@ export const organisasjonRouter = router({
           reiseUnderTerskelType: true,
           reiseOverTerskelType: true,
           reisetidTellerOvertid: true,
+          // Kort-id-spec § 11.4 (F1): prosjektleder kan attestere fravær uten prosjekt.
+          fravaerAttesteresAvProsjektleder: true,
           reiseLonnsartId: true,
           // Prosjektkort L1: visningsmodus for sedelen (dagskort | prosjektkort).
           timerRegistreringsmodus: true,
@@ -1422,6 +1424,9 @@ export const organisasjonRouter = router({
         reiseUnderTerskelType: z.enum(["arbeidstid", "reisetid"]).optional(),
         reiseOverTerskelType: z.enum(["arbeidstid", "reisetid"]).optional(),
         reisetidTellerOvertid: z.boolean().optional(),
+        // Kort-id-spec § 11.4 (F1): bare firma-admin skriver (verifiserFirmaAdmin under).
+        // Virker fra neste attestering; attesterte rader røres ikke.
+        fravaerAttesteresAvProsjektleder: z.boolean().optional(),
         // null = nullstill (fallback til navne-match), uuid = peker på lønnsart.
         reiseLonnsartId: z.string().uuid().nullable().optional(),
         // B Kloss 2b (2026-07-24): auto-prosjektadmin. "alle_firma_admins" →

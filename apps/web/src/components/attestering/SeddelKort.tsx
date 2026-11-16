@@ -257,7 +257,7 @@ export function SeddelKort({
   // ECO-katalog for første prosjekt (flertallet av sedler er ett prosjekt).
   // Multi-prosjekt-sedler vil få "—" for ECO-er som ligger på andre prosjekter.
   const førsteProsjektId =
-    sedel.timer[0]?.projectId ?? sedel.maskiner[0]?.projectId;
+    sedel.timer.find((r) => r.projectId)?.projectId ?? sedel.maskiner[0]?.projectId;
   const { data: ecoListe } = trpc.eksternKostObjekt.list.useQuery(
     { projectId: førsteProsjektId ?? "", organizationId: orgId },
     { enabled: !!førsteProsjektId },
@@ -646,14 +646,17 @@ export function SeddelKort({
                           </td>
                           <td className="px-3 py-2 text-right font-mono text-gray-900">
                             <span className="inline-flex items-center justify-end gap-1.5">
-                              {/* T7-5e: penn/✂ skjult i read-only-modus */}
-                              {!readOnly && (
+                              {/* T7-5e: penn/✂ skjult i read-only-modus.
+                                  Kort-id-spec § 11.4: fravær uten prosjekt har ingen
+                                  prosjekt-bøtte å redigere eller splitte i — rettes
+                                  via «Rediger sedel» på detaljsiden. */}
+                              {!readOnly && rad.projectId !== null && (
                                 <>
                                   <button
                                     type="button"
                                     onClick={() =>
                                       setRedigerBucket({
-                                        projectId: rad.projectId,
+                                        projectId: rad.projectId ?? "",
                                         ecoId: rad.externalCostObjectId,
                                       })
                                     }
@@ -810,7 +813,8 @@ export function SeddelKort({
       {splittAktiv?.radType === "timer" && (
         <SplittRadModal
           radType="timer"
-          original={splittAktiv.original}
+          // ✂ vises bare for rader med prosjekt (se over), så projectId er satt.
+          original={{ ...splittAktiv.original, projectId: splittAktiv.original.projectId ?? "" }}
           sheetId={sedel.id}
           organizationId={orgId!}
           prosjekter={prosjekter}

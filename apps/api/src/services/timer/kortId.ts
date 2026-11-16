@@ -108,7 +108,7 @@ async function settKortId(tx: Tx, tabell: Tabell, kortId: string | null, ider: s
 export type LagretKortRad = {
   id: string;
   kortId: string | null;
-  projectId: string;
+  projectId: string | null;
   byggeplassId: string | null;
   externalCostObjectId: string | null;
 };

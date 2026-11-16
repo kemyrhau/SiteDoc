@@ -20,14 +20,15 @@ export const EPSILON_MASKIN_TIMER = 0.001;
 
 /** Rad brukt i bucket-gruppering. `timer` må være konvertert til number. */
 export type MaskinKapasitetRad = {
-  projectId: string;
+  /** `null` = fravær uten prosjekt (kort-id-spec § 11.2) — egen bøtte uten maskin (FM16). */
+  projectId: string | null;
   externalCostObjectId: string | null;
   timer: number;
 };
 
 /** Ett brudd på maskin ≤ arbeid-regelen for en gitt bucket. */
 export type MaskinBrudd = {
-  projectId: string;
+  projectId: string | null;
   externalCostObjectId: string | null;
   maskinSum: number;
   timerSum: number;
@@ -35,10 +36,10 @@ export type MaskinBrudd = {
 
 /** Bucket-nøkkel — identisk med serverens `${pid}|${eco ?? ""}`. */
 export function maskinBucketNokkel(
-  projectId: string,
+  projectId: string | null,
   externalCostObjectId: string | null,
 ): string {
-  return `${projectId}|${externalCostObjectId ?? ""}`;
+  return `${projectId ?? "ingen"}|${externalCostObjectId ?? ""}`;
 }
 
 /**

@@ -47,7 +47,7 @@ export type AnsattRapportRad = {
   sistRegistrert: string | null;
   statusFordeling: StatusFordeling;
   perProsjekt: Array<{
-    prosjektId: string;
+    prosjektId: string | null; // null = fravær uten prosjekt (kort-id-spec § 11.4)
     prosjektNavn: string;
     // SD (unik nøkkel til regnskap) + internt (nummeret menneskene kjenner igjen).
     prosjektNummer: string | null;

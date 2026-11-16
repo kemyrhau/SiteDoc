@@ -642,3 +642,12 @@ export {
   type KortInvariantRad,
   type KortInvariantBrudd,
 } from "./kortId";
+
+// Fravær uten prosjekt (kort-id-spec § 11.2).
+export {
+  validerUtenProsjekt,
+  UTEN_PROSJEKT_MELDING,
+  type UtenProsjektGrunn,
+  type UtenProsjektRad,
+  type UtenProsjektResultat,
+} from "./utenProsjekt";
