@@ -294,8 +294,12 @@ finnes kortene alt.
 - **Web dagsseddel:** samlesiden går fra kort pr. prosjekt (M13) til kort pr. `kortId`, med samme linjeform som
   mobil, «+ Nytt prosjektkort» (også på prosjekt som har kort) og underprosjekt/byggeplass i kortets hode.
   `TimerRadDialog` sender `kortId` når den åpnes fra et kort.
-- **Attestering:** viser fortsatt bøtter pr. (prosjekt, underprosjekt). Ingen kortvisning i denne specen.
-- **Eksport/rapport/PDF:** urørt. Ingen leser grupperer på kort (M3), og alle beløp følger radenes egne felt.
+> ⚠️ **SNUDD av Kenneth 2026-11-16** (etter test av attestering på test.sitedoc.no, `3ac572e2`): *«det er svært viktig at det førte prosjektkortet -> følger hele veien -> attestering -> fakturering -> timer skal deles opp. prosjektnummer henger heller ikke sammen med timeradene»*. Målt samme dag: attesteringskortet grupperer bare på (prosjekt, underprosjekt) (`SeddelKort.tsx:297`), timerader står i lagringsrekkefølge, maskinrader står samlet etter alle timerader (`:704`) selv om `sheetTimerId` kobler dem til sin timerad, og ukevarselet «overtid ført under norm» (`Avviksbadge.tsx`) peker ikke på raden. 🟡 **Ikke bygget — Fabel spesifiserer (SPEC-TILLEGG 2026-11-16 «kortet følger hele veien»), deretter ordre.** Det forkastede står under.
+>
+> ~~**Attestering:** viser fortsatt bøtter pr. (prosjekt, underprosjekt). Ingen kortvisning i denne specen.~~
+> ~~**Eksport/rapport/PDF:** urørt. Ingen leser grupperer på kort (M3), og alle beløp følger radenes egne felt.~~
+
+- **Attestering, eksport/fakturering og rapport (🟡 ny retning 2026-11-16):** prosjektkortet slik det ble ført (`kortId`) skal følge raden hele veien: kortet vises samlet i attesteringen, med timer, maskin og varer under sin timerad, og fakturering/eksport skal kunne dele opp timene pr. kort. Detaljene kommer i SPEC-TILLEGGET.
 
 ### 5.5 Paritetsmatrise
 
