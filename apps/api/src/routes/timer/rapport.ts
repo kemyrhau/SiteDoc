@@ -221,11 +221,30 @@ export const rapportRouter = router({
             where: { ...IKKE_ERSTATTET, ...radProsjektFilter },
             include: { lonnsart: { select: { skalEksporteres: true } } },
           },
-          tillegg: { where: { ...IKKE_ERSTATTET, ...radProsjektFilter } },
+          // Ordre (37): tillegg.skalEksporteres + utlegg-id-er avgjør om sedelen har en
+          // rad i eksporttabellen (samme utvalg som detaljEksport).
+          tillegg: {
+            where: { ...IKKE_ERSTATTET, ...radProsjektFilter },
+            include: { tillegg: { select: { skalEksporteres: true } } },
+          },
           maskiner: { where: { ...IKKE_ERSTATTET, ...radProsjektFilter } },
+          utlegg: { where: radProsjektFilter, select: { id: true } },
         },
         orderBy: [{ dato: "asc" }, { createdAt: "asc" }],
       });
+
+      // Ordre (37), spec § 12.8.5: på eksportveien teller sammendraget («Sedler» og
+      // kladd/sendt/attestert) bare sedler med minst én rad i eksporttabellen — samme
+      // radutvalg som detaljEksport (timer, maskin, tillegg, utlegg). Skjermen teller alle.
+      const kunAttesterte = !input.taMedUattesterte;
+      const radMed = (attestertStatus: string | null) =>
+        !kunAttesterte || attestertStatus === RAD_ATTESTERT;
+      const harRadIEksporttabellen = (s: (typeof sedler)[number]): boolean =>
+        s.timer.some((t) => t.lonnsart?.skalEksporteres !== false && radMed(t.attestertStatus)) ||
+        s.maskiner.some((m) => radMed(m.attestertStatus)) ||
+        s.tillegg.some((t) => t.tillegg?.skalEksporteres === true && radMed(t.attestertStatus)) ||
+        (s.utlegg.length > 0 && (!kunAttesterte || s.status === SEDEL_ATTESTERT));
+      let antallSedler = 0;
 
       // Berik med ansatt-data fra kjerne-DB
       const userIder = Array.from(new Set(sedler.map((s) => s.userId)));
@@ -281,9 +300,9 @@ export const rapportRouter = router({
         let sedelTimer = 0;
         for (const t of sedel.timer) {
           // Eksport-veien: hopp over lønnsarter merket skalEksporteres=false, så
-          // aggregatets time-sum matcher detalj-arkene. Sedel-metadata
-          // (statusFordeling/antallSedler/sistRegistrert) filtreres IKKE — en
-          // sedel med kun ikke-eksporterbare timer er fortsatt en reell sedel.
+          // aggregatets time-sum matcher detalj-arkene. Sedeltellingen
+          // (statusFordeling/antallSedler) følger eksporttabellen fra ordre (37) —
+          // se harRadIEksporttabellen; sistRegistrert filtreres ikke.
           if (input.kunEksporterbare && t.lonnsart?.skalEksporteres === false) {
             continue;
           }
@@ -309,11 +328,14 @@ export const rapportRouter = router({
         const datoNok = sedel.dato.toISOString().slice(0, 10);
         a.perDag.set(datoNok, (a.perDag.get(datoNok) ?? 0) + sedelTimer);
 
-        const status = statusNokkel(sedel.status);
-        a.statusFordeling[status] += 1;
-        statusFordeling[status] += 1;
-
-        a.antallSedler += 1;
+        // Ordre (37): eksportveien teller bare sedler med rad i eksporttabellen.
+        if (!input.kunEksporterbare || harRadIEksporttabellen(sedel)) {
+          const status = statusNokkel(sedel.status);
+          a.statusFordeling[status] += 1;
+          statusFordeling[status] += 1;
+          a.antallSedler += 1;
+          antallSedler += 1;
+        }
         if (!a.sistRegistrert || sedel.dato > a.sistRegistrert) {
           a.sistRegistrert = sedel.dato;
         }
@@ -357,7 +379,7 @@ export const rapportRouter = router({
           nummer: p.projectNumber,
         })),
         totalTimer,
-        antallSedler: sedler.length,
+        antallSedler,
         statusFordeling,
       };
     }),

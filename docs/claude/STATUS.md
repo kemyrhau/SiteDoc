@@ -12,6 +12,7 @@
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
 **Sist oppdatert:** 2026-11-16
+- 2026-11-16 — **`prosjektkort-kortid-spec.md` § 12.8.5 + `timer.md`: ORDRE (37) — sammendraget i PDF/Excel teller dagssedler med rader i eksporttabellen** (branch `fix/rapport-sammendrag-sedler`, kode + docs, Kort-id-d2c1): `harRadIEksporttabellen` på eksportveien; skjermen uendret.
 - 2026-11-16 — **Merge (36) timerapport-PDF kolonner** (`1bac9f7f`): STATUS-AKTUELT + FUNKSJONSENDRINGER ført.
 - 2026-11-16 — **`timer.md` + `retningslinjer/ui-standarder.md`: TILLEGG (36) — tomme valgte kolonner skjules i timerapport-PDF** (branch `fix/rapport-pdf-kolonner`, kode + docs, Kort-id-c): unntak fra flateparitet skrevet inn; skjerm og Excel uendret (B1); høyrejusterte tall-overskrifter (SVAR (72) A1) dokumentert. Ingen fil opprettet/slettet i docs/claude — tellinger uendret.
 - 2026-11-16 — **`timer.md`: ORDRE (36) funn 1 — kolonnebredder i timerapport-PDF** (branch `fix/rapport-pdf-kolonner`, kode + docs, Kort-id-c): korte kolonner nowrap og innholdsbredde, tekstkolonner deler resten etter vekt; `rapport.ts` sender `TIMER_KOL_BREDDE` ordrett. Funn 2 (sammendraget) venter på Kenneth.
