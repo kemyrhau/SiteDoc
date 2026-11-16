@@ -1049,15 +1049,19 @@ som egen mobilordre rett etter b.
 
 ## 12. TILLEGG — kortet følger hele veien: attestering, eksport/fakturering og rapport (Kenneth 2026-11-16)
 
-> **Status:** 🟡 FORSLAG 2026-11-16 — H1–H9 og H11–H13 til Kenneth (§ 12.8). Ingen kode. **FUNKSJONSENDRING**; hjemmel:
+> **Status:** 🟢 H1–H10 besvart av Kenneth 2026-11-16 (§ 12.8.1) og ført inn i reglene under (del 3). 🟡 Åpent til
+> Kenneth: H2-skissen, H12, H13 og H14 (§ 12.8.2). Ingen kode. **FUNKSJONSENDRING**; hjemmel:
 > Kenneth 2026-11-16, ført i § 5.4 som ⚠️ SNUDD (`10d343ce`), «Visningskrav» (`0783cf1d`) og «Total overhaling»
-> (`f465d7d5`). Hjemmel for del 2: Kenneths ord under («Rapportens Detaljer som mønster»).
-> Målt mot develop @ `10d343ce`; HM22–HM25 mot `0783cf1d`; HM26–HM30 mot `f465d7d5`; HM31–HM41 mot `a49821ca`.
+> (`f465d7d5`). Hjemmel for del 2: Kenneths ord under («Rapportens Detaljer som mønster»). Hjemmel for del 3: § 12.8.1.
+> Målt mot develop @ `10d343ce`; HM22–HM25 mot `0783cf1d`; HM26–HM30 mot `f465d7d5`; HM31–HM41 mot `a49821ca`;
+> HM42–HM56 mot `12d9ae8d`.
 >
 > **Omfang:** hele attesteringen — fanene Sedler, Etter prosjekt og Etter ansatt, firma- og prosjektattesteringen — og
 > rapportens Detaljer-tabell, som får samme tabell og samme verktøy.
-> **Levert i to deler.** Del 1: modell og beslutningsliste. Del 2 (TILLEGG 3): H10 er avgjort, attesteringen og
-> rapportens Detaljer deler tabell, og verktøyene følger sjekklistene. d2b-2 låses endelig når H4 er besvart.
+> **Levert i tre deler.** Del 1: modell og beslutningsliste. Del 2 (TILLEGG 3): attesteringen og rapportens Detaljer
+> deler tabell, og verktøyene følger sjekklistene. Del 3 (TILLEGG 4): Kenneths svar H1–H10. **H10 er snudd:** én linje
+> er timeregistreringen med sin maskin og sine varer, ikke én rad pr. registrering. Der del 1 og 2 sa «egne rader», er
+> teksten skrevet om.
 >
 > **Kenneths ord:** *«jeg finner det umulig å se hva som er feil i timeføringen -> gjeldende rader er ikke merket»* ·
 > *«hvis en av prosjektradene skal faktureres med sine maskintimer -> hvordan finner jeg rett timerad. prosjektkortet
@@ -1172,6 +1176,34 @@ Flere forkortelser: `TD` = `W/components/timer/TimerRapportDetaljer.tsx`, `RP` =
 | HM40 | Kolonnedefinisjonen har et **fjerde** sted i tillegg til de tre i HM30: rapportskjermen har egen `KOL_META` og egen `celle()`. Rapportens kolonnevalg og rekkefølge lagres i eksportmalen, ikke pr. bruker. | `TD:59–90`, `:153–220`; `RP:1155–1162`, `:1257–1272` |
 | HM41 | **Eksportens tilbakemelding:** menyen lukkes straks og knappen viser en spinner. En feil vises som rød linje øverst på siden, over filterraden — ikke ved knappen. Når eksporten lykkes, sies ingenting; fila lastes bare ned. Feilen Kenneth så (PDF uten fil og uten melding) er ORDRE (34) og er ikke målt her. | `RP:540–544`, `:578`, `:634–642`, `:779–782`, `:939–943` |
 
+**Linja, cellerettingen, eksportmalene og kortet som faktureringsenhet (del 3, målt mot `12d9ae8d`)**
+
+Flere forkortelser: `PK` = `M/components/timer-detalj/prosjektkort/ProsjektkortDagsoversikt.tsx`, `RM` =
+`A/RedigerRadModal.tsx`, `EO` = `apps/api/src/routes/timer/eksportOppsett.ts`, `VF` =
+`apps/api/src/routes/vareforbruk.ts`, `ST` = `packages/db-timer/prisma/schema.prisma`.
+
+| # | Funn | Referanse |
+|---|---|---|
+| HM42 | **Mobilens prosjektkort viser timeraden som én linje** («07:00–15:00 · 7,5 t · lønnsart»). Rett under står **én tekstlinje pr. koblet maskin** («navn · timer») og så **én pr. koblet vare** («navn antall enhet»). Maskinens mengde, enhet og fra–til vises ikke der. Det er ingen grense for antall maskiner eller varer på en rad, verken i skjermen, i synken eller i skjemaet. | `PK:579–609`, `:617–646`; `M/utils/dagsoversiktRader.ts:55–65`; `D:7445–7468`; `ST:621` |
+| HM43 | **Flere maskiner og flere varer på én timerad kan føres i dag.** Radvinduet har «+ Legg til» for maskin, og hver rad har «+ Vare». Hver maskin kan ha høyst radens timer. | `M/components/timer-detalj/TimerSeksjon.tsx:1365–1385`, `:2107–2186`; `M/services/kobledeMaskiner.ts:56–58`, `:111–137`; `PK:636–646` |
+| HM44 | **Maskin og vare uten timerad** står i kortet sitt, etter kortets rader, under den grå overskriften «Uten rad». Det er ikke noe varsel. Koblingen regnes som brutt når `sheetTimerId` mangler, peker på en rad som ikke finnes, eller på en rad med annet prosjekt. | `dagsoversiktRader.ts:60–61`; `PK:697–704`; `packages/shared/src/i18n/nb.json:5585` |
+| HM45 | **Fra Bekreft dag er koblingen en fordeling, ikke et valg.** Kortets varer legges på kortets første rad. Maskinene fyller første rad og renner over til neste. Hvilken rad en vare står på, sier derfor lite når kortet har flere rader og er ført fra Bekreft dag. | `M/utils/tilleggPaaKort.ts:100–116`; `M/utils/dagsforslagAnvend.ts:444–480` |
+| HM46 | **Tillegg og utlegg bærer `kortId`, men ingen kobling til en timerad.** Vareforbruk bærer `dagsseddelId`, `sheetTimerId` og `kortId`. På telefonen står tillegg og utlegg som antall i kortets hode på dagsoversikten og som lister på kortskjermen. | `ST:435`, `:513`, `:587`, `:617`; `packages/db-varelager/prisma/schema.prisma:84`, `:88`, `:91`; `PK:558–573`; `apps/mobile/app/timer/[id]/kort/[projectId].tsx:553–575` |
+| HM47 | **«Utstyr» er ikke en egen radtype.** Det er kategorien `smautstyr` i maskinregisteret, ved siden av `kjoretoy` og `anleggsmaskin`, og føres som en vanlig maskinrad. | `packages/db-maskin/prisma/schema.prisma:23`; `M/components/timer-detalj/MaskinSeksjon.tsx:67–76` |
+| HM48 | **Rapporten har alt flere maskiner på én linje, men uten å skille dem:** foldes flere time-maskiner inn på en timerad, summeres timene, navnene står kommaskilt, og mengde og enhet blir tomme. | `TR:267–272`, `:307–310` |
+| HM49 | **Attestantens rettevei i dag er `redigerSedelRader`.** Den krever firmaadministrator, at firmaet har «rediger ved attestering» på (`OrganizationSetting.tillattRedigerVedAttestering`, standard på), at sedelen er sendt, og den rører bare ventende rader. Vinduet bak pennen (`RedigerRadModal`) retter timerader og maskinrader i én bøtte: tid, lønnsart, aktivitet, timer, pause, maskin, og slett rad. **Maskinens mengde og enhet, og beskrivelsen, kan ikke rettes der.** Mengde og enhet kan rettes på detaljsiden (`RedigerMaskinRad`), som bruker samme prosedyre. | `D:5883–5898`, `:5945–5955`; `packages/db/prisma/schema.prisma:428`; `RM:157–158`, `:779–873`, `:972–1028`; `W/components/timer/RedigerMaskinRad.tsx:142–160`; `W/components/timer/AttesteringDetalj_Edit.tsx:218` |
+| HM50 | 🔴 **Retteveien bytter ut hele sedelens ventende rader, og koblingen maskin → timerad går tapt.** Hver retting sletter **alle** sedelens ventende timer-, tilleggs- og maskinrader og lager dem på nytt med ny id. De nye maskinradene får ikke `sheetTimerId` (0 treff i `D:5801–6345`). Timeradene får ny id, så varenes `sheetTimerId` peker på en rad som ikke finnes. `kortId` arves. Etter én retting i attesteringen står altså sedelens maskiner og varer «Uten rad». **Ikke målt i databasen** — lest i koden. | `D:6238–6306` (maskin `:6290–6306`); `D:6268`, `:6284`, `:6303` |
+| HM51 | **Historikken skrives, men ingen leser den.** `SheetRadHistorikk` får én post pr. utbyttet rad med hele raden slik den var — ikke pr. felt. Fordi retteveien bytter alle ventende rader (HM50), får også uendrede rader en post. Skrivere: `redigerSedelRader` og `splittRad`. Attester, returner, gjenåpne og eierens egne endringer skriver ingen post. Eneste leser (`lesRevisjoner`) har ingen kaller, og ingen skjerm viser «endret fra 5 til 6». | `ST:650–666`; `D:1782–1798`, `:6227–6237`; `apps/api/src/services/arkiv/logg-lesere.ts:160` (0 kallere) |
+| HM52 | **Gjenåpning finnes bare for en hel, ferdig attestert sedel.** `gjenaapneAttestering` tar `sheetId`, krever at sedelen er godkjent, og setter alle radene tilbake til ventende. Den krever attesteringsrett på sedelens prosjekter og logger ingenting. Gjenåpning av én rad eller ett kort finnes ikke. Knappen står bare i attestert-fanen. | `D:5708–5786`; `A/SeddelKort.tsx:526–539` |
+| HM53 | **En vare kan rettes av andre enn den som førte den.** På en sendt sedel kan firmaadministrator og prosjektadministrator endre antallet (`vareforbruk.oppdater`). Loggen får det **nye** antallet, ikke det gamle. Varen har ingen egen status; `attestertSnapshot` sperrer endring, men ingen kode setter den (HM5). | `VF:31–49`, `:565–620`, `:703–716` |
+| HM54 | **Utlegg har ingen egen status og ingen rettevei for attestanten.** Utlegget følger sedelen: det er med i eksporten når hele sedelen er attestert. | `ST:487–530` (0 treff på `attestertStatus`); `R:50–58` |
+| HM55 | **Eksportmalene har alt to nivåer, og de kan redigeres.** `EksportOppsett.eierId` tom = firmamal, satt = personlig. Lista gir firmaets maler og brukerens egne. En mal kan lagres som «min» eller som firmamal, få nytt navn og nytt innhold, og slettes. En firmamal kan endres av enhver firmaadministrator; en personlig bare av eieren. En mal kan ikke bytte nivå — den lagres som ny. De tre innebygde malene (Full eksport, Lønnsgrunnlag, Fakturagrunnlag) ligger i koden og kan bare brukes som utgangspunkt for en ny. **Firmanivået krever ingen migrering.** | `ST:688–704`; `EO:84–95`, `:102–141`, `:147–183`, `:190–219`; `RP:154–215`, `:688–764`, `:1793–1826`; `docs/claude/timer.md:1015–1017` |
+| HM56 | **Malens innhold (config v4):** radtyper, format (xlsx eller pdf), mottaker, gruppering, orientering, topptekst, kolonner med rekkefølge, og «Ta med uattesterte». Den ligger som JSON; eldre maler leses med standardverdier, uten migrering. **Kolonnenøklene (30) holdes like for hånd tre steder.** Lista mangler prosjektnummer, pause, maskin og vare som egne kolonner, og kort. | `EO:61–74`; `RP:93–136`; nøklene: `TR:503–536`, `EO:52–59`, `R:823–838` |
+| HM57 | **Hele rapport- og eksportflaten er for firmaadministrator.** Malene, rapporten og eksporten krever alle firmaadministrator. «Egne maler» er derfor hver firmaadministrators egne. En attestant som ikke er firmaadministrator, har ingen eksport. | `EO:28–31`; `R:380`; `docs/claude/timer.md:1017` |
+| HM58 | **Rapporten og eksporten kan avgrenses på periode, prosjekt og ansatt — ikke på underprosjekt og ikke på kort.** | `R:37–46` |
+| HM59 | **Prosjektnummer:** firmaets eget nummer er `Project.internalProjectNumber` (valgfritt). SD-nummeret er `Project.projectNumber` (alltid satt, unikt, `SD-ÅÅÅÅMMDD-XXXX`). Prosjektet har en bryter for om SD-nummeret skal vises (`visSiteDocNummer`). Attesteringen viser internnummeret i dag; rapportens detaljrad viser bare navnet. | `packages/db/prisma/schema.prisma:672`, `:678`, `:681–684`; `packages/shared/src/utils/index.ts:415–425`; `page.tsx:379`; `R:509–512` |
+| HM60 | **Ingen kolonne står fast sidelengs i dag.** Rapportens tabell har en ramme som ruller begge veier, med hodet fast øverst. Den delte `Table` likeså. | `TD:258–263`; `TB:365–367` |
+
 **Én gruppering finnes ikke.** Fem steder grupperer på hver sin måte: `SeddelKort` (underprosjekt), `attestering-buckets`
 (prosjekt + underprosjekt), `DagsKort` (`sheetTimerId`), `timerDetaljRader` (blokk pr. timerad) og mobilens detalj
 (radtype).
@@ -1189,11 +1221,18 @@ Flere forkortelser: `TD` = `W/components/timer/TimerRapportDetaljer.tsx`, `RP` =
 - Maskin etter alle timerader (`SeddelKort.tsx:704`) er bekreftet. Detaljsiden og mobil har samme feil (HM13, HM21).
 - **«Én rad per registrering, slik rapportens Detaljer viser det»** (TILLEGG 3) stemmer med ett unntak: time-maskinen
   som er koblet til en timerad, står på timeradens linje (HM33). De fire maskinradene på Kenneths bilde sto alene fordi
-  de mangler koblingen. Unntaket er lagt til Kenneth som H11.
+  de mangler koblingen. Unntaket ble lagt til Kenneth som H11, som er lukket i del 3: det følger av H10.
 - **«Maskinradene har ikke `sheetTimerId` i data»** er ikke en datafeil. Web og dagskort-modus skriver aldri koblingen
   (HM36). «Maskin under sin timerad» kan derfor bare virke for rader ført i mobilens prosjektkort-modus.
 - **«Gjenbruk sjekklistenes tabell»:** rapportens Detaljer og sjekklistene er to ulike tabeller (HM31). Verktøyene i
   hodet kan gjenbrukes; selve tabellen til sjekklistene mangler det attesteringen trenger mest (HM38). Se R1.
+- **«Attestanten retter en celle og godkjenner linja»** (TILLEGG 4) kan ikke bygges på dagens rettevei. Den bytter ut
+  alle sedelens ventende rader og bryter koblingen mellom maskin, vare og timerad (HM50). Linja ville falt fra
+  hverandre ved første retting. Se R21.
+- **«Bevar historikken»:** historikken skrives i dag, men ingen leser den og ingen skjerm viser den (HM51).
+- **«Gjenåpning» på linja** finnes ikke på serveren. Gjenåpning gjelder bare en hel, ferdig attestert sedel (HM52).
+- **«Firmanivået kan kreve migrering»:** nei. Firmamal og egen mal finnes alt (HM55).
+- **«Utstyr»** er maskinrader med kategorien småutstyr, ikke noe eget (HM47).
 
 ### 12.2 Modell
 
@@ -1205,10 +1244,10 @@ Ingen flate skal ha egen bøtting etterpå (T35).
 |---|---|
 | G1 Gruppa | Rader på samme sedel med samme `kortId` er ett kort. **`kortId` bestemmer kortet; `sheetTimerId` bestemmer linja i kortet.** |
 | G2 Hode (oversiktsraden, R4) | Prosjektnummer + prosjektnavn · underprosjekt (`proAdmId · kortNavn`) · byggeplass, lest fra kortets første arbeidsrad (K2–K4 gjør dem like). Fraværskort uten prosjekt får hodet «Fravær» (§ 11). Hodet har kortets sum for arbeid og maskin og kortets status (attestert n av m). |
-| G3 Linjer | Timeradene sorteres på `fraTid`. Rader uten fra-tid står etter dem, i opprettet-rekkefølge. Likt → opprettet, så id. |
-| G4 Hos timeraden | Maskin og varer med `sheetTimerId` som peker på en timerad **i samme kort**, står som egne rader rett etter den timeraden: maskin først, så varer (R3, H10). |
-| G5 Uten kobling | Maskin og varer i kortet uten gyldig kobling (ingen `sheetTimerId`, eller raden finnes ikke i kortet) står etter kortets timerader, sortert på egen fra-tid; uten tid sist. De er vanlige rader med Type — ingen egen blokk. Dette er det vanlige for alt som er ført på web og i dagskort-modus (HM36). Kortet finner de via `kortId` (§ 2.4 regel 3). |
-| G6 Tillegg og utlegg | Står i kortet de bærer `kortId` til, etter timer-, maskin- og varerader. De har ingen kobling til en rad (M5). |
+| G3 Linjer | **Én linje er én timerad med maskinene og varene som er koblet til den** (H10, R3). Linjene sorteres på timeradens `fraTid`. Linjer uten fra-tid står etter dem, i opprettet-rekkefølge. Likt → opprettet, så id. |
+| G4 På timeradens linje | Maskin og varer med `sheetTimerId` som peker på en timerad **i samme kort**, står **på timeradens linje** — ikke som egne rader. Er det flere maskiner eller flere varer, står de i den rekkefølgen de er ført (opprettet, så id); R3 sier hvordan de tegnes. Slik viser telefonens prosjektkort dem (HM42). |
+| G5 Uten kobling | Maskin og varer i kortet uten gyldig kobling (ingen `sheetTimerId`, eller raden finnes ikke i kortet) er **egne linjer** etter kortets timelinjer, med Type «Maskin» eller «Vare», sortert på egen fra-tid; uten tid sist. De flyttes aldri inn på en timelinje av visningen — det ville vært å gjette. Slik viser telefonen dem under «Uten rad» (HM44). Dette er det vanlige for alt som er ført på web og i dagskort-modus (HM36). Kortet finner de via `kortId` (§ 2.4 regel 3). |
+| G6 Tillegg og utlegg | Egne linjer i kortet de bærer `kortId` til, etter time-, maskin- og varelinjene. De har ingen kobling til en timerad (M5, HM46). |
 | G7 Kortenes rekkefølge | Første linjes `fraTid`. Kort uten tid etter dem. Likt → eldste rad, så `kortId`. |
 | G8 Reise | Reiserader har `kortId = NULL` (§ 2.2). De vises i egen blokk «Reise» på sedelen, sortert på `fraTid`, med reise-merket som i dag. |
 | G9 Uten kort | Andre rader med `kortId = NULL` samles i «Uten kort» nederst på sedelen. Ingen rad skjules; antall rader inn = antall rader ut. |
@@ -1221,25 +1260,108 @@ overhaling» og pekepinnen mot rapporten). Gjelder firma- og prosjektattestering
 | Regel | Innhold |
 |---|---|
 | R1 Én tabell, to steder | Attesteringen og rapportens Detaljer bruker **samme tabellkomponent**: rapportens virtualiserte tabell (HM31), løftet ut til `TimerRadTabell` (ny, `W/components/timer/`). Verktøyene i hodet er sjekklistenes (HM37) — sorterpil, filternedtrekk, bredde-håndtak og flytte-håndtak løftes ut av `table.tsx` og `FlyttbareKolonner.tsx` og brukes av begge tabellene, ikke kopiert (T51). `Table` oppfører seg som før; sjekklister, oppgaver, HMS, mapper og faggrupper ser like ut (T46). Ingen ny pakke. **Endret fra del 1,** som bygde attesteringen på `Table`: den mangler grupper, summer og virtualisering (HM38), og rapporten har alle tre. En uke i et firma med femti ansatte kan være over tusen rader (anslag, ikke målt). |
-| R2 Raden bærer alt | Kolonnene har rapportens navn og rekkefølge: Dato · Ansatt · Ansattnr · Prosjektnr · Prosjekt · Byggeplass · Underprosjekt · Type · Betegnelse · Aktivitet · Fra · Til · Timer · Pause · Maskintimer · Antall · Beløp · Mengde · Enhet · Beskrivelse · Status · Avvik. Nye mot rapporten i dag: Prosjektnr (E4), Pause og Avvik. **Betegnelse** er lønnsarten på en timerad, maskinens navn på en maskinrad, tilleggets navn, utleggets kategori og varens navn — som i rapporten (`TR:137–138`). Maskinraden viser sin egen fra–til (retter HM34). Rapportens øvrige kolonner (lønnsarttype, reisefeltene) og Avdeling kan slås på. Prosjekt, ansatt og dato gjentas på hver rad. **Ingenting ligger bak innrykk, tooltip, hover eller klikk.** |
-| R3 Hva er én rad (H10 — avgjort) | **Én rad pr. registrering,** slik rapportens Detaljer viser det. Timerad, maskinrad, varerad, tillegg og utlegg er hver sin rad, og kolonnen Type sier hva raden er: Timer, Maskin, Vare, Tillegg eller Utlegg. Reise er en timerad med reise-merket (G8); kolonnen Reise fra rapporten kan slås på. Maskin og vare står rett etter timeraden de er koblet til (G4); uten kobling etter kortets timerader (G5). Rapportens ene unntak — time-maskinen på timeradens linje (HM33) — er H11. |
+| R2 Linja bærer alt | **Standard kolonnerekkefølge** (H9): Dato · Ansatt · Ansattnr · Prosjektnr · Prosjekt · Byggeplass · Underprosjekt · Type · Betegnelse · Aktivitet · Fra · Til · Timer · Pause · **Maskin · Maskintimer** · Maskinmengde · Maskinenhet · **Vare · Vareenhet · Varemengde** · Antall · Beløp · Beskrivelse · Status · Avvik. Maskinen og maskinens timer står side om side. Varen, enheten og mengden står side om side. Brukeren kan flytte dem (H7); dette er utgangspunktet. **Prosjektnr** er firmaets interne prosjektnummer; mangler det, vises SD-nummeret (H6, E4). **Betegnelse** er lønnsarten på en timelinje, tilleggets navn og utleggets kategori. **Maskinmengde og Maskinenhet** er det rapporten i dag kaller Mengde og Enhet — tallet som er ført på maskinen (HM22). Nøklene er de samme, overskriften sier nå hva tallet hører til, fordi varen har sin egen mengde på samme linje. Antall og Beløp gjelder tillegg og utlegg. Rapportens øvrige kolonner (lønnsarttype, reisefeltene) og Avdeling kan slås på. Prosjekt, ansatt og dato gjentas på hver linje. **Ingenting ligger bak innrykk, tooltip, hover eller klikk.** |
+| R3 Hva er én linje (H10 — ⚠️ SNUDD) | **Én linje er timeregistreringen slik prosjektkortet viser den: timeraden med sin maskin og sine varer på samme linje.** Maskinen står i kolonnene Maskin, Maskintimer, Maskinmengde og Maskinenhet, og varen i Vare, Vareenhet og Varemengde, på timeradens linje. Tegningen står under tabellen. **Flere maskiner eller varer på samme timerad** (HM43) står som **underlinjer** i samme linje: første maskin og første vare på linjas første tekstlinje, neste maskin og neste vare på tekstlinja under, bare i sine egne kolonner (H14). Linja er én enhet: én avkrysning, én ✓, én plass i sorteringen. **Egne linjer** er bare det som ikke hører til en timerad: maskin og vare uten kobling (G5), tillegg og utlegg (G6). Kolonnen Type sier hva linja er: Timer, Maskin, Vare, Tillegg eller Utlegg. Reise er en timelinje med reise-merket (G8); kolonnen Reise fra rapporten kan slås på. Det gjelder alle maskiner som er koblet til timeraden, også de som leies ut pr. døgn (se «Maskinen på timeradens linje» under). |
 | R4 Kortet og oversiktsraden | I standardrekkefølgen står kortets rader etter hverandre (G1–G9) under én **oversiktsrad**: prosjektnummer + navn · underprosjekt · byggeplass · dato · ansatt · kortets timer og maskintimer · dagens timer mot dagsnorm med ledetekst («Dagen: 14,00 t av dagsnorm 7,50 t») · status · ✓ og retur. |
 | R5 Fast hode | Kolonneoverskriften står fast øverst hele tiden. Tabellramma fyller resten av vinduet under verktøylinja og ruller selv, så hodet har noe å stå fast i (HM38 d). |
 | R6 Flytte, bredde, av og på | Som i sjekklistene (HM37): «Velg parameter» slår kolonner av og på og gir rekkefølgen, kolonnene dras i hodet, og bredden dras i høyre kant av hodet. Standardbredden er `TIMER_KOL_BREDDE` (HM32); dratt bredde vinner. Lagres pr. bruker i `tabelloppsett` under liste-nøkkelen `timer-attestering` (H7). Ingen ny lagring, ingen migrering. En celle som er kuttet, leses ved å dra kolonnen bredere; Beskrivelse brytes over flere linjer som i rapporten. |
 | R7 Sortere | Klikk i hodet: stigende, så synkende, så tilbake til kortrekkefølgen. Pila i hodet viser retningen. Sortert tabell er en flat liste uten oversiktsrader; hver rad er fortsatt fullstendig (R2). **Sortering og filter gjelder besøket og huskes ikke** — et glemt filter skjuler rader som venter på attestering. Endret fra del 1; lagringen skriver heller ikke sortering i dag (HM38 a). |
 | R8 Filtrere | **Filterikonet står i kolonnehodet.** Det åpner avkryssing blant verdiene som finnes i utvalget; Beskrivelse har tekstsøk i samme nedtrekk. Det finnes ingen egen filterrad. Kortene består under filter; kort uten treff vises ikke. Dagens nedtrekk for prosjekt, ansatt og avdeling og «krever vurdering» blir slike filtre. Prosjektfilteret treffer radens prosjekt (retter HM8). |
 | R9 Bare oversiktsrader | Én bryter viser bare oversiktsradene — dagens «kollaps alle». Standard er alle rader synlige. |
-| R10 Handlinger | **Rad:** avkrysning, ✓ og retur — hver registrering for seg. Varerader har ingen ✓ (H2). **Kort:** ✓ og retur i oversiktsraden tar alle kortets ventende rader (H1). **Dag:** «Attester dagen» i oversiktsraden — hele sedelen, som ✓ på sedelen i dag. **Utvalg:** «Attester utvalget (n)» tar alle ventende rader som vises etter filter; den erstatter «Attester gruppe» og «Attester alle». Penn, ✂ og gjenåpne står synlig i en handlingskolonne, ikke bak hover (HM27). Avkrysningen står fast til venstre og handlingskolonnen fast til høyre når tabellen rulles sidelengs. |
+| R10 Handlinger | **Linje:** avkrysning, ✓ og retur gjelder **hele linja** — timeraden og maskinene på den (H10). Klienten sender timeradens id og maskinradenes id-er i samme kall. Varene på linja har ingen egen status og følger linja (se «Varer» under). En egen maskinlinje og en tilleggslinje attesteres for seg. En egen varelinje og en utleggslinje har ingen ✓; de følger kortet. **Kort:** ✓ og retur i oversiktsraden tar alle kortets ventende linjer (H1). **Dag:** «Attester dagen» i oversiktsraden — hele sedelen, som ✓ på sedelen i dag. **Utvalg:** «Attester utvalget (n)» tar alle ventende linjer som vises etter filter; den erstatter «Attester gruppe» og «Attester alle». **Gjenåpne** står på attesterte linjer og kort (R23). ✂ og penn står synlig, ikke bak hover (HM27). Knappene står fast når tabellen rulles (R22). |
 | R11 Sperrer | Brudd på fraværstaket (B10, F9) og uavklart forslag (V19) sperrer datoen som i dag. Radene viser grunnen i Avvik, ✓ er av, og utvalget hopper over dem og sier hvor mange som ble stående. Klienten sender aldri sperrede rader — serveren avviser hele kallet (HM30). F1 og `radIKontekst` avgjør hva en prosjektleder kan velge. Serveren er siste vakt og endres ikke. |
 | R12 Fanene (H4) | «Sedler», «Etter prosjekt» og «Etter ansatt» er **samme tabell med tre grupperinger**: dag (ansatt + dato), prosjekt og ansatt. Alle viser hele raden. Tallene pivotene viser i dag — timer pr. dag, ukesum, ukenorm, avvik — blir en **ukeoversikt** som åpnes med én knapp over tabellen (R18). Klikk på en celle filtrerer tabellen til den dagen. Statusfanene venter og attestert består; attestert er skrivebeskyttet. |
 | R13 Prosjektattesteringen | Samme tabell, låst til prosjektet, uten mellomlista (HM29). Rader på andre prosjekter vises nedtonet og kan ikke velges, som på detaljsiden i dag. |
 | R14 Detaljsiden | Består for det tabellen ikke bærer: forslaget attestanten leser (V19), flytt underprosjekt, vedlegg på utlegg, rediger sedel. Radene der tegnes med samme tabell. |
-| R15 Mobil | Attestering i volum hører på web. Telefonen viser kortene med de samme feltene, brutt over to linjer pr. rad, uten flytting, sortering og filter. Attester og returner som i dag. |
-| R16 Én radbygger, én kolonneliste | Radene lages av én ren funksjon i `packages/shared` (`byggKortRader`, oppå `grupperPaaKort`). Kolonnene — nøkkel, overskrift, verdi og hvilke radtyper de gjelder — defineres ett sted, ved `TIMER_KOL_KEYS`. Attestering, rapportskjerm, Excel og PDF bruker begge. De fire listene i HM30 og HM40 blir én. Radtypen `vare` legges til. Foldingen av time-maskinen (HM33) er en parameter til radbyggeren, så H11 ikke låser den. |
+| R15 Mobil | Attestering i volum hører på web. Telefonen viser kortene med de samme feltene: timeraden, og under den maskinene og varene som hører til den, slik prosjektkortet gjør (HM42). Ingen flytting, sortering, filter eller retting i cellen. Attester og returner som i dag. |
+| R16 Én radbygger, én kolonneliste | Radene lages av én ren funksjon i `packages/shared` (`byggKortRader`, oppå `grupperPaaKort`). Kolonnene — nøkkel, overskrift, verdi og hvilke radtyper de gjelder — defineres ett sted, ved `TIMER_KOL_KEYS`. Attestering, rapportskjerm, Excel og PDF bruker begge. De fire listene i HM30 og HM40 og de tre håndholdte nøkkellistene i HM56 blir én. Radtypen `vare` legges til. **Radbyggeren gir linjer:** hver timelinje bærer `maskiner[]` og `varer[]`, i ført rekkefølge. Hvordan flere tegnes (H14), er visningens sak og låser ikke radbyggeren. Nye kolonnenøkler: prosjektnummer, pause, maskin, vare, vareenhet, varemengde, kort og avvik. |
 | R17 Én verktøylinje | Alt over tabellen står på **én linje** (to på smal skjerm): uke med ◀ ▶ · gruppering (Sedler · Etter prosjekt · Etter ansatt, H4) · Venter / Attestert · «Velg parameter» · «Bare oversiktsrader» · «Ukeoversikt» · brikker for aktive filtre og sortering, hver med × · teller «n av m rader» · «Attester utvalget (n)» til høyre. De seks båndene i HM39 blir denne linja. Beskrivelsen øverst på siden flyttes til ?-hjelpen. Mesteparten av siden er rader. |
 | R18 Ukeoversikten er lukket | Ukeoversikten (R12) åpnes og lukkes med knappen i verktøylinja og er lukket når siden åpnes. Avvikene den viser, står uansett i kolonnen Avvik og i oversiktsraden. |
 | R19 Rapportens Detaljer får verktøyene | Fordi tabellen er delt (R1), får rapporten **bredde som kan dras** og **flytting i hodet** i samme ordre som attesteringen. Bredden lagres pr. bruker (liste-nøkkel `timer-rapport-detaljer`). Flytting i hodet skriver samme kolonnevalg som «Velg parameter» gjør i dag — eksportmalen (HM40). PDF og Excel bruker standardbreddene som før. **Sortering og kolonnefilter slås ikke på i rapporten:** «Eksporter» skal skrive ut det skjermen viser (`RP:1104–1106`), og eksporten kjenner verken sortering eller filter. De kan komme med «Eksporter det jeg ser» (H8 C). |
 | R20 Tekster i verktøyene | Alle tekster i hodets verktøy går via `t()`. «Filtrer» og «Alle» er hardkodet i dag (HM38 c) og får nøkler når delene løftes ut. Den norske teksten sjekklistene viser, endres ikke. |
+| R21 Rette i cellen (H10) | Attestanten klikker i en celle, skriver ny verdi og lagrer med Enter eller Tab; Esc angrer. **Hver retting lagres med en gang**, for seg — ikke sammen med ✓. Etterpå godkjennes linja med ✓. **Celler som kan rettes:** på timeraden Betegnelse (lønnsart), Aktivitet, Fra, Til, Timer og Pause; på maskinen Maskin, Maskintimer, Maskinmengde og Maskinenhet; på varen Varemengde; på tillegg Antall. Prosjekt, underprosjekt og byggeplass rettes ikke i cellen — de er kortets (K2–K4) og flyttes med «Flytt underprosjekt». Beskrivelse og utlegg har ingen rettevei for attestanten i dag (HM49, HM54) og får ingen her. **Hvem og når — som i dag** (HM49, HM53): firmaadministrator, når firmaet har «rediger ved attestering» på, på en sendt sedel og en ventende linje. For andre er cellene bare lesbare. En attestert linje må gjenåpnes før den kan rettes (R23). **Lagring:** se «Retting i cellen — lagring og logg» under. |
+| R22 Knappene står fast (H2) | Kolonnen med ✓, retur, gjenåpne, ✂ og penn **står fast ved tabellens høyre kant**, rett til venstre for det loddrette rullefeltet. Den ruller ikke med når linja rulles sidelengs. Avkrysningen står fast til venstre. Hodet står fast øverst (R5). Det vannrette rullefeltet står alltid synlig nederst i tabellramma og ruller bare kolonnene mellom avkrysningen og knappene. I dag står ingen kolonne fast (HM60). Skissen står under tabellen og er lagt til Kenneth som ja eller nei (§ 12.8.2). |
+| R23 Gjenåpne linje og kort (H1, H2) | En attestert linje har **gjenåpne** der ✓ sto. Oversiktsraden har gjenåpne for kortets attesterte linjer. Gjenåpning setter linjene tilbake til ventende; var sedelen ferdig attestert, går den tilbake til sendt. Gjenåpning av hele sedelen består (HM52). Den som kan attestere linja, kan gjenåpne den — samme krav som i dag. Serveren har bare gjenåpning av hel sedel; d2a legger til gjenåpning av rader (`gjenaapneRader`, samme inndata som `attesterRader`). Gjenåpningen logges med hvem og når. I dag logges den ikke. |
+
+**Linja, tegnet med standard kolonnerekkefølge.** Kolonnene Ansattnr, Byggeplass, Pause, Antall, Beløp, Status og Avvik er
+tatt ut av tegningen for å få plass. Tallene er eksempler.
+
+```
+Dato   Ansatt  Prosjektnr  Prosjekt  Underprosjekt  Type    Betegnelse     Aktivitet  Fra    Til    Timer │ Maskin         Maskintimer  Maskinmengde  Maskinenhet │ Vare        Vareenhet  Varemengde │ Beskrivelse
+─────────────────────────────────────────────────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────┼───────────────────────────────────┼─────────────
+▸ 1042 Storgata · 12 Grøft · Felt B · lø 07.11 · Ola N. · 7,50 t · maskin 7,50 t · Dagen: 14,00 t av dagsnorm 7,50 t          (oversiktsrad for kortet)
+07.11  Ola N.  1042        Storgata  12 · Grøft     Timer   Timelønn       Graving    07:00  12:00   5,00 │ Volvo EC220E         3,00          6,00  m3          │ Pukk 8–16   tonn            12,00 │ Grøft felt B
+                                                                                                          │ Hoppetusse           2,00                            │ Fiberduk    m2              20,00 │
+07.11  Ola N.  1042        Storgata  12 · Grøft     Timer   Overtid 50 %   Graving    12:30  15:00   2,50 │                                                     │                                   │ Tilbakefylling
+07.11  Ola N.  1042        Storgata  12 · Grøft     Maskin                                                │ Aggregat 6 kVA       2,50                            │                                   │
+07.11  Ola N.  1042        Storgata  12 · Grøft     Tillegg Smusstillegg                                  │                                                     │                                   │
+```
+
+- **Linje 1** er én timerad med to maskiner og to varer. Den andre maskinen og den andre varen står på tekstlinja under,
+  i sine egne kolonner. Hele blokka er én linje: én ✓ godkjenner timene og begge maskinene.
+- **Linje 2** er en timerad uten maskin og vare.
+- **Linje 3** er en maskin uten timerad (G5): egen linje, Type «Maskin», tidskolonnene tomme. Har maskinen egen
+  fra–til, står den i Fra og Til.
+- **Linje 4** er et tillegg (G6), med antallet i kolonnen Antall.
+
+**Flere maskiner eller varer på én timerad — tre måter, én anbefalt (H14).**
+
+| | Slik blir det | For | Mot |
+|---|---|---|---|
+| **A — underlinjer (anbefalt)** | Som tegningen: én tekstlinje pr. maskin og pr. vare inne i linja. | Hver maskin og hver vare har egne celler, så «maskinmengde 5 → 6» kan rettes på riktig maskin. Slik viser telefonens prosjektkort dem (HM42). | Linja blir høyere når det er flere. |
+| B — alt i én celle | «Volvo EC220E, Hoppetusse» i Maskin og summen 5,00 i Maskintimer. Slik folder rapporten i dag (HM48). | Alle linjer like høye. | Timene pr. maskin forsvinner, mengden blir tom, og cellen kan ikke rettes. |
+| C — egne kolonner | Maskin 1 · Maskin 2 · Vare 1 · Vare 2 … | Alt på én tekstlinje. | Tabellen blir bredere for alle linjer, og de fleste cellene står tomme. Antallet har ingen grense (HM42). |
+
+- **I Excel** blir hver underlinje en egen regnearkrad. Dato, ansatt, prosjekt, underprosjekt, byggeplass og kort
+  gjentas, så filter og pivot virker. Timer, Pause, Fra og Til står bare på første rad, så summen av timer er riktig.
+- **I PDF** tegnes linja som på skjermen.
+- **Sortering og filter:** linja flyttes som én enhet og sorteres på første underlinje. Et filter treffer linja når én
+  av underlinjene treffer.
+
+**Faste knapper — skisse til Kenneth (H2, R22).** Kenneths ord: *«godkjenning og gjenåpning til venstre for vertikal
+scroll og til høyre for horisontal scroll»*. Lest slik: knappene står helt til høyre, rett til venstre for det
+loddrette rullefeltet, og til høyre for alt som ruller sidelengs.
+
+```
+        står fast │◀──────────────── ruller sidelengs ─────────────────▶│ står fast  │ loddrett
+                  │                                                      │            │ rullefelt
+┌───┬─────────────────────────────────────────────────────────────────┬────────────┬─┐
+│ ☐ │ Dato   Ansatt   Prosjektnr   Prosjekt   …   Maskin   Maskintimer  │            │▲│ ← hodet står fast øverst
+├───┼─────────────────────────────────────────────────────────────────┼────────────┤█│
+│ ☐ │ ▸ 1042 Storgata · 12 Grøft · Felt B · lø 07.11 · Ola N. · 7,50 t  │ ✓  ↩       │█│ ← oversiktsrad: hele kortet
+│ ☐ │ 07.11  Ola N.   1042   Storgata   …   Volvo EC220E   3,00   …     │ ✓  ↩  ✂  ✎ │ │ ← ventende linje
+│ ☐ │ 07.11  Ola N.   1042   Storgata   …                               │ ✓  ↩  ✂  ✎ │ │
+│   │ 06.11  Kari L.  1042   Storgata   …   Dumper A25     4,00   …     │ ↺ gjenåpne │ │ ← attestert linje
+│   │                                                                   │            │▼│
+├───┴─────────────────────────────────────────────────────────────────┴────────────┴─┤
+│   ◀ ▓▓▓▓▓▓▓▓▓▓▓░░░░░░░░░░░░░░░░░░░░░░░░ ▶    vannrett rullefelt, alltid synlig         │
+└────────────────────────────────────────────────────────────────────────────────────┘
+  ✓ godkjenn   ↩ returner   ✂ del opp   ✎ rediger i vindu   ↺ gjenåpne
+```
+
+- Rulles tabellen ned, står hodet. Rulles den sidelengs, står avkrysningen til venstre og knappene til høyre.
+- Den andre lesningen av ordene er at knappene står fast til **venstre**, ved avkrysningen, foran første kolonne.
+  Den er ikke tegnet. Sier Kenneth nei til skissen, bygges den i stedet; ingenting annet i § 12 endres.
+
+**Retting i cellen — lagring og logg (R21).**
+
+- **Ny, smal prosedyre** (`rettRadFelt`, d2a): én rad og de feltene som er endret. Raden **oppdateres der den står** —
+  samme id, samme `kortId`, samme `sheetTimerId`. Linja holder sammen etter rettingen.
+- **Samme krav og samme kontroller som `redigerSedelRader` i dag** (HM49), for den ene raden: firmaadministrator,
+  firmavalget på, sendt sedel, ventende rad, fra–til uten overlapp, satstak, pause, fraværstak og maskin ≤ arbeid.
+  Feiler en kontroll, står den gamle verdien og cellen viser grunnen.
+- **Historikk:** én post i `SheetRadHistorikk` med raden slik den var **før** rettingen, hvem som rettet og når. Bare
+  den rettede raden får post. Tabellen brukes som den er; ingen migrering.
+- **Varen:** antallet rettes med `vareforbruk.oppdater`, som finnes (HM53). Loggen får også antallet **før** rettingen.
+  En vare på en attestert linje kan ikke rettes; serveren avviser det (i dag ser den bare på sedelens status).
+- **Synlig i tabellen:** en rettet celle viser den nye verdien og under den hva som sto før: «var 5,00». Avvik-kolonnen
+  sier «Rettet av ‹navn› ‹dato›». Leserne i d2a gir derfor hver rad lista over rettede felter, regnet ut ved å
+  sammenligne raden med siste historikkpost. Uendrede rader som fikk post av dagens rettevei (HM51), gir tom liste.
+- **Vinduet bak pennen består** (`RedigerRadModal`, `redigerSedelRader`), for det cellen ikke kan: slette en rad og
+  rette pausevinduet for sedelen. 🔴 **Det må slutte å bryte linja** (HM50): etter en retting der skal maskinene ha
+  `sheetTimerId` til den nye timeraden, og varene som pekte på den gamle, peke på den nye (T58). Rettes i d2a.
+- **Den ansatte** ser den rettede verdien etter neste synk, som i dag. Ingen skjerm viser historikken til den ansatte
+  (HM51); det er ikke med her.
 
 **Serveren** leverer det grupperingen trenger, i de tre leserne i HM1, HM3 og HM4:
 
@@ -1251,30 +1373,49 @@ overhaling» og pekepinnen mot rapporten). Gjelder firma- og prosjektattestering
   Bare sedler brukeren alt har rett til å se; er varelager-modulen av, er lista tom.
 - `hentForAttestering` får utlegg (samme fem felt som firmalista) og `hentTilAttestering` får maskiner, så alle tre
   flatene viser samme kort.
+- Hver rad får lista over rettede felter (R21): felt, verdien før, hvem og når.
+- Nye prosedyrer i d2a: `rettRadFelt` (R21) og `gjenaapneRader` (R23). `redigerSedelRader` beholder koblingen
+  maskin → timerad og flytter varenes kobling til den nye timeraden (HM50).
 - Ingen prosedyre får nytt navn. Feltene legges til; eldre klienter ser dem ikke.
 
 **Summer pr. prosjekt** regnes på radens prosjekt i alle grupperinger og i ukeoversikten. En dag med kort på to
 prosjekter teller på begge, med hver sine timer. Dette retter HM8 og HM12.
 
 **Attestering pr. kort** (H1): oversiktsraden får ✓ og retur. De kaller `attesterRader`/`returnerRader` med kortets
-ventende timer-, maskin- og tilleggsrader. Serveren endres ikke. Attestering pr. rad og pr. sedel består.
+ventende timer-, maskin- og tilleggsrader. Attestering pr. linje og pr. sedel består. Retur krever kommentar som i dag;
+kommentaren lagres på sedelen, ikke på linja (`D:5609`, `:5660–5694`).
 
-**Varer** (H2): står som egen rad rett etter sin timerad (R3) og har ingen egen attestering. I eksporten følger de
-sedelen slik utlegg gjør i dag (`R:762`): med når sedelen er attestert, eller når «Ta med uattesterte» er krysset.
+**Varer** (H2): står **på timeradens linje** (R3), også i eksporten. De har ingen egen attestering (HM5).
+
+- En vare på en timelinje følger linja: den er med i eksporten når timeraden er attestert.
+- En vare uten timerad og et utlegg følger **kortet**: de er med når ingen linje i kortet venter.
+- ⚠️ **ENDRES for utlegg.** I dag følger utlegget hele sedelen (HM54, ordre (31)). Hjemmel: H1 og H5 — et kort skal
+  kunne attesteres og faktureres for seg, med alt som ble brukt i jobben. Utlegg og varer uten kort følger sedelen som
+  i dag. «Ta med uattesterte» tar alt med, som i dag.
+- Prisen på varen låses ikke ved attestering. Det er vedtatt fra før og ikke bygget (HM5), og er ikke med her. Varen
+  står derfor med mengde og enhet, uten beløp.
 
 **Maskin uten kobling til timerad** (HM35, HM36). Dette er det vanlige i dag, ikke unntaket: alt som føres på web og i
 dagskort-modus, mangler koblingen.
 
-- **Plass:** raden står i kortet sitt, etter kortets timerader (G5). Kortet er det som bærer fakturaen; maskinens egen
-  fra–til viser hvilken del av dagen den gjelder.
+- **Plass:** maskinen er egen linje i kortet sitt, etter kortets timelinjer (G5), slik telefonen viser den under
+  «Uten rad» (HM44). Kortet er det som bærer fakturaen; maskinens egen fra–til viser hvilken del av dagen den gjelder.
 - **Varsel** (H12): «⚠ Maskin uten timerad» vises bare når kortet ikke har noen arbeidsrad. Da er maskinen faktisk
   ført uten registrert arbeid. I dag står varselet på hver maskinrad uten kobling.
 - **Skriveveiene** (H13): web og dagskort-modus kan skrive koblingen fremover. Det er en egen ordre (d2c) og ikke en
-  forutsetning for tabellen.
+  forutsetning for tabellen. Uten den står maskiner ført på PC som egne linjer, ikke på timeradens linje.
 
-**Time-maskinen på timeradens linje** (H11). Rapporten folder en maskin som leies ut pr. time, inn på timeraden den er
-koblet til (HM33). Radbyggeren tar dette som parameter (R16). Følger attesteringen rapporten, attesteres og returneres
-en slik linje samlet — klienten sender begge rad-id-ene, serveren endres ikke. Uten kobling er maskinen alltid egen rad.
+**Maskinen på timeradens linje** (H10; H11 er lukket). Alle maskiner som er koblet til en timerad, står på timeradens
+linje, og linja attesteres og returneres samlet — klienten sender alle rad-id-ene.
+
+- **H11 følger av H10 og H2** og er ikke lenger et eget valg: attesteringen, rapporten og eksporten bruker samme linje
+  (R16, E8). Alternativene B og C i H11 strider begge mot H10.
+- ⚠️ **ENDRES for maskiner som leies ut pr. døgn.** Rapporten setter dem i dag på egen linje under timeraden, også når
+  de er koblet (`TR:264–266`, `:312`; regelen fra 2026-09-01, `docs/claude/maskin.md:263–275`). Etter H10 står en
+  koblet døgn-maskin på timeradens linje, slik prosjektkortet viser den (`PK:634` skiller ikke på enhet). En døgn-maskin
+  uten kobling er egen linje uten varsel, som regelen fra september sier.
+- **Flere time-maskiner på én timerad** vises hver for seg (H14 A). Rapporten slår dem i dag sammen til én celle (HM48).
+- Uten kobling er maskinen alltid egen linje.
 
 **Avvik pekes ut**
 
@@ -1293,26 +1434,32 @@ har ukas rader og regner selv. Detaljsiden har bare én sedel; serverens ukegrun
 og returnerer hvilke rader på sedelen som er merket. Regnestykket for selve avviket endres ikke. Det finnes to normer — dagsnorm og ukenorm (HM24). Hvert varsel sier
 hvilken det gjelder, i synlig tekst.
 
-### 12.3 Eksport og fakturering — hva «dele opp timene pr. kort» betyr
+### 12.3 Eksport og fakturering — kortet er faktureringsenheten
+
+Kenneth (H5): *«betyr at et prosjektkort kan faktureres for seg selv uten at hele dagskortet er med. Typisk eksempel er
+et registrert underprosjekt. Med timer, varer, tillegg, maskiner og utstyr som ble brukt i jobben»*. Og (H3):
+*«dynamiske eksportmaler iht timekortets kolonner … Noen firma-eksportmaler og noen den enkelte kan lage selv.»*
 
 Kortet har ingen synlig id. Det som skiller to kort på samme prosjekt i en eksport, er **dato + kortnummer**, og i
-korthodet klokkeslett og beskrivelse (H3).
+oversiktsraden klokkeslett og beskrivelse.
 
 | Del | Regel |
 |---|---|
-| E1 Rekkefølge (alltid) | Detaljradene sorteres så et kort står samlet: dato → ansatt → kort (G7) → linje (G3), med maskin og varer hos sin timerad (R3) og tillegg/utlegg sist i kortet. Gjelder Excel «Detaljer», PDF og rapportskjermen. |
-| E2 Kolonnen «Kort» (valgfri) | Løpenummer pr. dato innenfor eksportens gruppe: 1, 2, 3 … Tom for reise og rader uten kort. Dato + nummer (+ gruppe) er entydig i dokumentet, også når ansatt ikke vises. |
-| E3 «Oversiktsrad og delsum pr. prosjektkort» (valg i eksportmenyen og malene) | Hvert kort får samme oversiktsrad som attesteringen (R4) — prosjektnummer og -navn · underprosjekt · byggeplass · dato · fra–til · «Kort n» — og en delsum for timer og maskintimer. Ansatt følger regelen for ekstern mottaker som i dag. Config v5, standard av. |
-| E4 Prosjektnummer | To valgfrie kolonner på detaljradene, de samme som aggregatarket har (SD-nummer og internt nummer). Gruppering på prosjekt bruker prosjektets **id** som nøkkel og viser nummer + navn i overskriften. |
-| E5 Varer | Varen er egen rad med Type «Vare», rett etter timeraden den er koblet til, ellers etter kortets timerader (R3, G5). Radtypen «vare» i `radTyper` slår dem av og på, og rapportskjermen får en femte avkrysning. Ingen beløp — prisen er ikke låst før vareattestering er bygget (H2). |
-| E6 Malene | «Fakturagrunnlag» får oversiktsrad og delsum pr. prosjektkort på, og radtypen vare. «Lønnsgrunnlag» får bare ny rekkefølge (E1). Lagrede maler leses som v4 med valget av og uten nye kolonner. |
-| E7 Urørt | CSV (sammendrag), arkene «Sammendrag», «Etter prosjekt» og «Etter dag», `firmaPeriodeRapport`, regelen «bare attesterte» fra (31) og kladd-visningen fra (32). |
-| E8 Samme struktur til kunden | Fakturagrunnlaget bygges av samme radbygger og samme kolonneliste som attesteringen (R16): samme kort, samme rader, samme ord. Det attestanten godkjente, er det kunden får — uten ansatt og status når mottakeren er ekstern. Foldingen av time-maskinen (HM33) består i rapport og eksport; om attesteringen folder likt, er H11. |
+| E1 Rekkefølge (alltid) | Linjene sorteres så et kort står samlet: dato → ansatt → kort (G7) → linje (G3), med maskin og varer **på** sin timerad (R3) og egne maskin- og varelinjer, tillegg og utlegg sist i kortet. Gjelder Excel «Detaljer», PDF og rapportskjermen. |
+| E2 Kolonnen «Kort» | En vanlig kolonne i kolonnelista, **valgt i malen** (H3) og av som standard. Løpenummer pr. dato innenfor eksportens gruppe: 1, 2, 3 … Tom for reise og linjer uten kort. Dato + nummer (+ gruppe) er entydig i dokumentet, også når ansatt ikke vises. |
+| E3 «Oversiktsrad og delsum pr. prosjektkort» | **Et valg i malen** (H3), standard av. Hvert kort får samme oversiktsrad som attesteringen (R4) — prosjektnummer og -navn · underprosjekt · byggeplass · dato · fra–til · «Kort n» — og en delsum for timer og maskintimer. Ansatt følger regelen for ekstern mottaker som i dag. |
+| E4 Prosjektnummer (H6) | **Én kolonne «Prosjektnr»:** firmaets interne nummer (`Project.internalProjectNumber`). Mangler det, vises SD-nummeret (`Project.projectNumber`). Har prosjektet slått av visning av SD-nummer (`visSiteDocNummer`, HM59), står cella da tom. Samme regel i oversiktsraden, i gruppeoverskriften og i attesteringen, fra én delt funksjon i `packages/shared`. Aggregatarket «Etter prosjekt» har begge numrene som i dag. Gruppering på prosjekt bruker prosjektets **id** som nøkkel og viser nummer + navn i overskriften. |
+| E5 Varer (H2) | Varen står **på timeradens linje**, i kolonnene Vare · Vareenhet · Varemengde. En vare uten timerad er egen linje med Type «Vare» (G5). Radtypen «vare» slår dem av og på, og rapportskjermen får en femte avkrysning. Ingen beløp — prisen låses ikke ved attestering (§ 12.2 «Varer»). |
+| E6 Dynamiske maler (H3) | **Malens kolonner er attesteringstabellens kolonner** — samme liste, samme ord (R16). Brukeren velger hvilke som er med og rekkefølgen, med «Velg parameter» som i dag. **To nivåer:** firmamaler og egne maler. Begge finnes (HM55), og en mal kan lages, få nytt navn, endres, lagres som ny og slettes som i dag. **Nytt i malen (config v5):** de nye kolonnene (R16), radtypen vare, og valget i E3. Malen ligger som JSON; en eldre mal leses som før, uten de nye kolonnene og med valget av. **Ingen migrering.** **De innebygde:** «Fakturagrunnlag» får Prosjektnr, maskin- og varekolonnene, oversiktsrad og delsum pr. kort. «Lønnsgrunnlag» får ny rekkefølge (E1). «Full eksport» får alle kolonnene. De innebygde endres fortsatt bare ved å lagre som ny mal. **Hvem:** firmaadministrator, som i dag (HM57). Om et klikk på en mal også skal eksportere, er spørsmålet i ORDRE (34) og avgjøres ikke her. |
+| E7 Urørt | CSV (sammendrag), arkene «Sammendrag», «Etter prosjekt» og «Etter dag», `firmaPeriodeRapport`, regelen «bare attesterte» fra (31) for timer, maskin og tillegg, og kladd-visningen fra (32). Utlegg følger kortet i stedet for sedelen (§ 12.2 «Varer»). |
+| E8 Samme struktur til kunden | Fakturagrunnlaget bygges av samme radbygger og samme kolonneliste som attesteringen (R16): samme kort, samme linjer, samme ord. Det attestanten godkjente, er det kunden får — uten ansatt og status når mottakeren er ekstern. Hvilke kolonner som er med og i hvilken rekkefølge, er malens og ikke skjermens (H8). |
 | E9 Eksporten svarer alltid | Hver eksport ender i ett av to synlige svar **ved eksportknappen**: «Lastet ned: ‹filnavn›» eller en feilmelding som sier hva som gikk galt. Mens den går, viser knappen det. Et tomt utvalg gir «Ingen rader i utvalget», ikke stillhet. Valgene står etter en feil, så nytt forsøk er ett klikk. I dag står feilen øverst på siden, og en vellykket eksport sier ingenting (HM41). Feilen i ORDRE (34) rettes der; regelen her gjelder alle formater. |
-| E10 Maskinens fra–til | `detaljEksport` sender maskinradens fra–til, og radbyggeren viser dem i kolonnene Fra og Til (retter HM34). |
+| E10 Maskinens fra–til | `detaljEksport` sender maskinradens fra–til. De vises i Fra og Til når maskinen er egen linje (retter HM34). På en timelinje er Fra og Til timeradens. |
 | E11 «⚠ Maskin uten timerad» | Følger H12: merket settes bare når kortet ikke har arbeidsrad. Merket «ikke eksporterbar» (`R:735–736`) er uendret. |
+| E12 Fakturagrunnlag for ett kort eller ett underprosjekt (H5) | Rapporten og eksporten får to nye avgrensninger; i dag finnes bare periode, prosjekt og ansatt (HM58). **Underprosjekt:** et filter ved siden av prosjekt. **Kort:** avkrysning på oversiktsradene i rapportens Detaljer, og «Eksporter valgte kort (n)» i eksportmenyen. **Alt på kortet følger med:** timer, maskiner og utstyr (småutstyr er maskinrader, HM47), varer, tillegg og utlegg. Resten av dagen kommer ikke med. Regelen «bare attesterte» fra (31) består: bare kortets attesterte linjer, med varer og utlegg etter regelen i § 12.2 «Varer». |
+| E13 Radtypene | Avkrysningene Timer, Maskin, Vare, Tillegg og Utlegg virker som i dag. Uten Maskin er maskinkolonnene tomme og egne maskinlinjer skjult. Uten Timer, med Maskin, står maskinene som egne linjer (`TR:313–316`). Vare følger samme regel. |
 
-En delvis attestert sedel gir et kort med bare de attesterte radene; delsummen gjelder radene som er med.
+En delvis attestert sedel gir et kort med bare de attesterte linjene; delsummen gjelder linjene som er med.
 
 ### 12.4 Paritetsmatrise
 
@@ -1327,18 +1474,19 @@ alle tre fanene og prosjektattesteringen (R12, R13). Paritet er ikke likhet: vol
 | Prosjektnummer etter | Kortets hode | Kortets hode | Kortets hode | Kolonne + korthode |
 | Underprosjekt og byggeplass etter | Kortets hode | Kortets hode | Kortets hode | Kolonner (finnes) + korthode |
 | Timerader sortert på fra-tid | Nei → ja | Nei → ja | Nei → ja | Nei → ja |
-| Maskin rett etter sin timerad (når koblingen finnes, HM36) | Nei → ja | Nei → ja | Nei → ja | Ja (står) |
-| Maskin uten kobling | Etter alle timerader i bøtta → i kortet, etter kortets timerader (G5) | Egen liste → som web | Egen seksjon → som web | Egen blokk med ⚠ → i kortet; ⚠ bare uten arbeidsrad (E11) |
-| Varer rett etter sin timerad | Finnes ikke → ja | Finnes ikke → ja | Finnes ikke → ja | Finnes ikke → ja (E5) |
+| Maskin på sin timerads linje (når koblingen finnes, HM36) | Etter alle timerader → på linja | Egen liste → på linja | Egen seksjon → under timeraden, som i prosjektkortet (R15) | Time-maskin: ja (står). Døgn-maskin: egen linje → på linja |
+| Maskin uten kobling | Etter alle timerader i bøtta → egen linje i kortet, etter kortets timelinjer (G5) | Egen liste → som web | Egen seksjon → som web | Egen blokk med ⚠ → egen linje i kortet; ⚠ bare uten arbeidsrad (E11) |
+| Varer på sin timerads linje (H2) | Finnes ikke → ja | Finnes ikke → ja | Finnes ikke → under timeraden | Finnes ikke → ja (E5) |
 | Tillegg i kortet | Nederst på sedel → i kortet | Pr. prosjekt → i kortet | Egen seksjon → i kortet | Egne blokker → i kortet |
 | Utlegg i kortet | Bare hover → i kortet | Finnes ikke → i kortet | Finnes ikke → i kortet | Egne blokker → i kortet |
 | Ukeavvik peker på rad | Nei → ja | Nei → ja | Nei → ja | — |
 | Varsel navngir normen med tall i teksten | Nei → ja | Nei → ja | Nei → ja | — |
 | Fast kolonnehode, alltid synlig | Nei → ja | Nei → ja | — (R15) | Ja (står) |
-| Én rad pr. registrering med alle feltene (R2, R3) | Fire kolonner, maskin i fritekst → ja | Tre lister → ja | Bare timer og matpause → samme felter på to linjer | Ja (står); vare kommer til |
-| Time-maskin på timeradens linje (HM33) | H11 | H11 | H11 | Ja (står) |
-| Maskinens mengde og enhet i egne kolonner | Parentes → ja | Egen liste → ja | Nei → ja | Ja (står) |
-| Maskinens fra–til | Bare når begge er satt → kolonnene Fra og Til | Som web | Nei → ja | Mangler → ja (E10) |
+| Én linje pr. timeregistrering, med maskin og varer på linja og alle feltene (R2, R3) | Fire kolonner, maskin i fritekst → ja | Tre lister → ja | Bare timer og matpause → samme felter, maskin og varer under timeraden | Time-maskin på linja (står); døgn-maskin og vare kommer til |
+| Flere maskiner eller varer på én timerad | Finnes ikke → underlinjer (H14) | Finnes ikke → underlinjer | Én tekstlinje hver, som i prosjektkortet (HM42) | Navn kommaskilt og timer summert (HM48) → underlinjer; i Excel egne rader |
+| Time-maskin på timeradens linje (HM33) | Nei → ja (H10) | Nei → ja | Nei → under timeraden | Ja (står) |
+| Maskinens mengde og enhet i egne kolonner, ved siden av maskinen (H9) | Parentes → ja | Egen liste → ja | Nei → ja | Ja (står) |
+| Maskinens fra–til (egen maskinlinje) | Bare når begge er satt → kolonnene Fra og Til | Som web | Nei → ja | Mangler → ja (E10) |
 | Oversiktsrad pr. kort | Nei → ja | Nei → ja | Nei → ja | Nei → ja (E3) |
 | Flyttbare kolonner | Nei → ja, pr. bruker | Nei → ja, samme oppsett | Nei (R15) | Ja, pr. mal (står). Rapportskjerm: også i hodet (R19) |
 | Kolonnebredde som kan dras | Nei → ja, pr. bruker | Nei → ja | Nei (R15) | Rapportskjerm: nei → ja, pr. bruker (R19). PDF og Excel: standardbredder som før |
@@ -1348,6 +1496,12 @@ alle tre fanene og prosjektattesteringen (R12, R13). Paritet er ikke likhet: vol
 | Etter prosjekt og Etter ansatt viser radene | Bare dagssummer → hele raden | — | — | — |
 | Attester utvalget etter filter | Gruppe og «Attester alle», hele sedler → rader i utvalget | — | Nei | — |
 | Attester og returner pr. kort (H1) | Nei → ja | Nei → ja | Nei → ja | — |
+| Rette i cellen (R21) | Vindu bak pennen → i cellen; vinduet består | Egen redigeringsmodus → i cellen | Nei (R15) | — |
+| En rettet verdi viser hva som sto før | Nei → ja | Nei → ja | Nei | — |
+| Knappene står fast når tabellen rulles (R22) | Nei → ja | Nei → ja | — | — |
+| Gjenåpne linje og kort (R23) | Bare hel sedel → ja | Bare hel sedel → ja | Som i dag (R15) | — |
+| Fakturagrunnlag for ett kort eller ett underprosjekt (E12) | — | — | — | Nei → ja |
+| Eksportmaler på tabellens kolonner, firmaets og egne (E6) | — | — | — | Finnes med 30 kolonner (HM56) → samme kolonneliste som attesteringen |
 
 ### 12.5 Funksjonsinventar
 
@@ -1363,7 +1517,7 @@ Ingen funksjon fjernes. Finner koderen en funksjon som ikke står her og som må
 | Beskrivelsen øverst på attesteringssiden | `page.tsx:444` | **ENDRES:** flyttes til ?-hjelpen (R17). Teksten består. |
 | Rapportens Detaljer-tabell: virtualisering, gruppering, delsum, totalsum, radtelling, regelen for ekstern mottaker, «Velg parameter» lagret i malen | `TD`; `RP:1109–1177`, `:1223–1297` | **BEVARES.** **ENDRES:** tabellen blir den delte `TimerRadTabell` (R1); bredden kan dras og kolonner flyttes i hodet (R19). Ingen sortering eller filter i rapporten. |
 | Delte kolonnebredder for skjerm, PDF og Excel | `TR:605–637` | **BEVARES** for PDF og Excel. **ENDRES** på skjerm: standard til brukeren drar (R6, R19). |
-| Time-maskin foldet inn på timeradens linje i rapport og eksport | `TR:255–312` | **BEVARES.** Om attesteringen folder likt, er H11. |
+| Time-maskin foldet inn på timeradens linje i rapport og eksport | `TR:255–312` | **BEVARES**, og gjelder nå også attesteringen (H10). **ENDRES:** koblede døgn-maskiner står også på linja, ikke under den, og flere maskiner vises hver for seg i stedet for kommaskilt med summert tid (HM48, H14). |
 | Varselet «⚠ Maskin uten timerad» | `R:732–739`; `TR:321–323` | **ENDRES** (H12): bare når kortet ikke har arbeidsrad. Rader uten kobling står i kortet sitt (G5). |
 | Eksportens feilmelding øverst på rapportsiden | `RP:634–642`, `:939–943` | **ENDRES** (E9): svaret står ved knappen, og en vellykket eksport kvitteres med filnavn. |
 | «Utvid alle» · «Kollaps alle» · fold ut det som krever vurdering | `page.tsx:322–345`; `sedel-vurdering.ts:64` | **ENDRES:** radene er alltid synlige. «Kollaps alle» = «Bare oversiktsrader» (R9); «krever vurdering» = filter i Avvik (R8). |
@@ -1371,22 +1525,31 @@ Ingen funksjon fjernes. Finner koderen en funksjon som ikke står her og som må
 | Prosjektets attesteringsliste med ✓, retur og lenke | `[prosjektId]/timer/attestering/page.tsx:120–175` | **ENDRES** (R13): samme tabell, låst til prosjektet. ✓, retur og veien til detaljen består. |
 | Prosjektgrupper i Sedler-visningen med sum og «Attester gruppe» | `page.tsx:360–390`, `:734–740` | **ENDRES** (H4): prosjektgruppene er grupperingen «Etter prosjekt», med sum på radens prosjekt. «Attester gruppe» = «Attester utvalget» (R10) — gruppas rader, ikke hele sedlene. |
 | ✓ og retur pr. sedel, gjenåpne | `SeddelKort.tsx`; `D:6829`, `:7007`, `:5708` | **BEVARES.** |
-| Avkrysning og ✓/retur pr. rad på detaljsiden | `attestering-buckets.tsx:159`, `:474`; `D:5407`, `:5601` | **BEVARES**, og finnes nå også i tabellen: hver registrering attesteres og returneres for seg (H10). **ENDRES bare med H11 = A:** en time-maskin på timeradens linje attesteres og returneres sammen med timene. |
-| Penn (rediger rader) | `SeddelKort.tsx:185–188`, `:867`; `RedigerRadModal.tsx` | **ENDRES:** synlig uten hover (R10); åpnes for kortets rader. `redigerSedelRader` er urørt. Kan modalen ikke avgrenses uten serverendring: STOPP og meld. |
+| Avkrysning og ✓/retur pr. rad på detaljsiden | `attestering-buckets.tsx:159`, `:474`; `D:5407`, `:5601` | **BEVARES** på serveren: `attesterRader` og `returnerRader` tar fortsatt rader. **ENDRES** i tabellen (H10): timeraden og maskinene på linja attesteres og returneres samlet. Egne maskinlinjer og tillegg attesteres for seg. |
+| Penn (rediger rader) | `SeddelKort.tsx:185–188`, `:867`; `RedigerRadModal.tsx` | **BEVARES**, synlig uten hover (R22) — for å slette en rad og rette pausevinduet. **ENDRES:** `redigerSedelRader` skal beholde koblingen maskin og vare → timerad (HM50, T58). Vanlig retting skjer i cellen (R21). |
+| Redigering på detaljsiden, også maskinens mengde og enhet | `W/components/timer/AttesteringDetalj_Edit.tsx:218`; `W/components/timer/RedigerMaskinRad.tsx:142–160` | **BEVARES** (R14). |
+| Firmavalget «rediger ved attestering» | `packages/db/prisma/schema.prisma:428`; `W/app/dashbord/firma/innstillinger/page.tsx:840–867` | **BEVARES.** Styrer også retting i cellen (R21). |
+| Radhistorikken ved retting og splitt | `ST:650–666`; `D:1782–1798`, `:6227–6237` | **BEVARES.** **ENDRES:** retting i cellen skriver én post for raden som ble rettet, og tabellen viser hva som sto før (R21). |
+| Gjenåpne en ferdig attestert sedel | `D:5708–5786`; `SeddelKort.tsx:526–539` | **BEVARES.** Nytt ved siden av: gjenåpne linje og kort (R23). |
+| Retting av vare på sendt sedel (firma- og prosjektadministrator) | `VF:31–49`, `:565–620` | **BEVARES.** **ENDRES:** loggen får også antallet før rettingen, og en vare på en attestert linje kan ikke rettes (R21). |
 | ✂ Del opp | `SeddelKort.tsx:689`, `:744`; `D:2094`, `:6434–6444` | **BEVARES**, synlig uten hover. Delene arver `kortId` (§ 4.3). «Eget kort» i attesteringen avhenger av H5. |
 | Flytt underprosjekt | `flyttTimerRadEco` (§ 4.3) | **BEVARES.** Raden bytter kort etter regel 3 og vises der. |
 | Merket «→ til byggherre» på underprosjekt | `SeddelKort.tsx:630–635`; `attestering-buckets.tsx:742–747` | **BEVARES** — i kortets hode. |
 | Hover-dagskortet fra navn og pivotceller | `DagsKort.tsx:195`, `:322` | **BEVARES** i ukeoversikten, med prosjekt i hodet og samme radbygger. Tabellen trenger det ikke — alt står på raden. |
 | Tabellen i `SeddelKort`: lønnsart · aktivitet · fra–til · timer, én overskrift pr. sedel | `SeddelKort.tsx:598–614` | **ENDRES:** alle feltene på raden (R2), ett fast hode (R5). Alt som vises i dag, vises fortsatt. |
 | Sjekklister, oppgaver, HMS, mapper og faggrupper på den delte tabellen | `packages/ui/src/table.tsx`; `FlyttbareKolonner.tsx`; `useTabelloppsett.ts` | **BEVARES** uendret. Hodets verktøy løftes ut av `table.tsx` og `FlyttbareKolonner.tsx` uten endret oppførsel, og attesteringen og rapporten er nye liste-nøkler i samme lagring (R1, T46, T51). «Filtrer» og «Alle» får i18n-nøkler med samme norske tekst (R20). |
-| Kolonnevalg og rekkefølge i eksportmalene | `KolonneVelger.tsx`; `EksportOppsett.config.kolonner` | **BEVARES** (H8). |
+| Kolonnevalg og rekkefølge i eksportmalene | `KolonneVelger.tsx`; `EksportOppsett.config.kolonner` | **BEVARES** (H8). **ENDRES:** kolonnelista er attesteringstabellens (E6). |
+| Firmamaler og egne maler: lag, gi navn, endre, «Lagre som min», «Lagre som firma», slett; innebygde maler som utgangspunkt | `EO:84–219`; `RP:154–215`, `:688–764`, `:1793–1826` | **BEVARES** (H3). **ENDRES:** config v5 med de nye kolonnene, radtypen vare og valget oversiktsrad og delsum pr. kort (E6). |
+| Utlegg er med i eksporten når sedelen er attestert | `R:50–58` | **ENDRES** (H1, H5): utlegg med kort følger kortet. Utlegg uten kort følger sedelen som i dag (§ 12.2 «Varer»). |
+| Rapportens avgrensning: periode, prosjekt, ansatt | `R:37–46` | **BEVARES.** Nytt: underprosjekt og valgte kort (E12). |
+| Kolonnene «Mengde» og «Enhet» i rapport og eksport | `TR:503–536` | **ENDRES:** overskriftene blir «Maskinmengde» og «Maskinenhet» (R2). Nøklene er de samme, så lagrede maler virker som før. |
 | Reise-merke, matpause-merke | `ReiseRadMerke.tsx`, `MatpauseRadMerke.tsx` | **BEVARES.** |
 | Normtak-sperre (B10), forslag-sperre (V19), skrivebeskyttet modus, fold ut ved avvik | `SeddelKort.tsx`; `sedel-vurdering.ts` | **BEVARES.** |
 | Fravær uten prosjekt, F1-regelen `radIKontekst` | `attestering-buckets.tsx:31–39` | **BEVARES** — et kort har ett prosjekt (K2), så regelen gjelder kortet. |
 | Ukeavvik-merket | `Avviksbadge.tsx` | **ENDRES:** uke i teksten, rad merkes, hode bare ved merket rad (§ 12.2). |
 | Mobil attesteringsliste | `attestering/index.tsx` | **BEVARES.** Ukeavviket får uke i teksten. |
 | Mobil attesteringsdetalj | `AttesteringDetaljMobil.tsx` | **ENDRES:** kort i stedet for tre seksjoner. Attester og returner som i dag. |
-| Eksport: formater, mottaker, kolonnevalg, maler, «Ta med uattesterte» | `timer-rapport-eksport.ts`; `eksportOppsett.ts:52–71` | **BEVARES.** **ENDRES:** rekkefølge (E1), tre nye valgfrie kolonner, valget «Delsum pr. prosjektkort», radtypen vare. |
+| Eksport: formater, mottaker, kolonnevalg, maler, «Ta med uattesterte» | `timer-rapport-eksport.ts`; `eksportOppsett.ts:52–71` | **BEVARES.** **ENDRES:** rekkefølge (E1), nye valgfrie kolonner (R16), valget «Oversiktsrad og delsum pr. prosjektkort», radtypen vare, og avgrensning på underprosjekt og kort (E12). |
 | Gruppering «prosjekt» i eksport | `timerDetaljRader.ts:776–777` | **ENDRES:** nøkkel = id; overskrift med nummer (E4). |
 | Rapportens aggregat og CSV | `R:147`; `timer-rapport-eksport.ts:281` | **BEVARES** uendret. |
 | § 7-raden «Attestering, eksport, rapport, PDF — BEVARES uendret» | § 7 | **Erstattet av denne tabellen.** |
@@ -1399,12 +1562,12 @@ d2a + d2b-1. Fanene, prosjektattesteringen, eksporten og mobil kommer etter.
 
 | Ordre | Innhold | Rører | Skjema | Kenneth ser etterpå |
 |---|---|---|---|---|
-| **d2a** | Grunnlaget: `grupperPaaKort`, `byggKortRader`, `ukeAvvikRader`, `kortLeser.ts`, de tre leserne med varer, navn på underprosjekt og byggeplass, og merkede rader (§ 12.2). Bare tillegg i svarene. | `packages/shared/src/utils/kortGruppering.ts` (ny), `overtidsgrunnlag.ts`, `apps/api/src/services/timer/kortLeser.ts` (ny), `D` | Nei | Ingenting. |
-| **d2b-1** | **Attesteringstabellen** i firma-attesteringens Sedler-fane: R1–R11 og R17–R20 — den delte `TimerRadTabell`, én rad pr. registrering med alle feltene, fast hode, oversiktsrad pr. kort, én verktøylinje, «Velg parameter», filterikon og sortering i hodet, bredde som dras, flytting, ✓ pr. rad, kort, dag og utvalg, sperrene, varsler som navngir normen. **Rapportens Detaljer bytter til samme tabell** og får bredde-dragning og flytting i hodet (R19). Hjelpeteksten for siden i samme commit. | `W/components/timer/TimerRadTabell.tsx` (ny), `TD`, `TB` og `W/components/FlyttbareKolonner.tsx` (verktøyene løftes ut, ingen endret oppførsel), `A/*`, `W/app/dashbord/firma/timer/attestering/page.tsx`, `RP` (bare byttet av tabell), i18n. Bruker `useTabelloppsett.ts` og `KolonneVelger.tsx` uten å endre dem. | Nei | Attesteringen ser ut som rapportens Detaljer: én rad pr. registrering med prosjektnummer, timer, maskin, vare, mengde og avvik. Én verktøylinje, resten er rader. Kolonnene kan dras bredere, flyttes, sorteres og filtreres. Bredden kan dras også i rapporten. |
+| **d2a** | Grunnlaget, bare server og delt kode: `grupperPaaKort`, `byggKortRader` med linjemodellen (timelinja bærer `maskiner[]` og `varer[]`, R16), `ukeAvvikRader`, `kortLeser.ts`, de tre leserne med varer, navn på underprosjekt og byggeplass, merkede rader og rettede felter (§ 12.2). **Nytt i del 3:** `rettRadFelt` (R21), `gjenaapneRader` (R23), `redigerSedelRader` beholder koblingen maskin og vare → timerad (HM50), vare-rettingen logger antallet før og avviser vare på attestert linje, og delt funksjon for prosjektnummer (E4). | `packages/shared/src/utils/kortGruppering.ts` (ny), `overtidsgrunnlag.ts`, `apps/api/src/services/timer/kortLeser.ts` (ny), `D`, `VF` | Nei | Én ting: en retting i vinduet bak pennen løsner ikke lenger maskiner og varer fra timeraden. Ellers ingenting. |
+| **d2b-1** | **Attesteringstabellen** i firma-attesteringens Sedler-fane: R1–R11 og R17–R23 — den delte `TimerRadTabell`, **én linje pr. timeregistrering med maskin og varer på linja** (H10), underlinjer for flere (H14), standard kolonnerekkefølge (H9), fast hode, oversiktsrad pr. kort, én verktøylinje, «Velg parameter», filterikon og sortering i hodet, bredde som dras, flytting, **retting i cellen** (R21), **knappene fast ved høyre kant** (R22), ✓ pr. linje, kort, dag og utvalg, gjenåpne linje og kort (R23), sperrene, varsler som navngir normen. **Rapportens Detaljer bytter til samme tabell** og får bredde-dragning og flytting i hodet (R19); rapportens rader og kolonner endres først i d3. Hjelpeteksten for siden i samme commit. | `W/components/timer/TimerRadTabell.tsx` (ny), `TD`, `TB` og `W/components/FlyttbareKolonner.tsx` (verktøyene løftes ut, ingen endret oppførsel), `A/*`, `W/app/dashbord/firma/timer/attestering/page.tsx`, `RP` (bare byttet av tabell), i18n. Bruker `useTabelloppsett.ts` og `KolonneVelger.tsx` uten å endre dem. | Nei | Attesteringen er én tabell. Hver linje er timeregistreringen med maskin og varer ved siden av hverandre. Du retter i cellen og godkjenner linja. Knappene står fast når du ruller. Kolonnene kan dras bredere, flyttes, sorteres og filtreres. Bredden kan dras også i rapporten. |
 | **d2b-2** | Resten av attesteringen på samme tabell: «Etter prosjekt» og «Etter ansatt» som grupperinger, ukeoversikten, prosjektattesteringen, detaljsiden, hover-kortet (R12–R14). | `A/AttesteringPivot.tsx`, `A/DagsKort.tsx`, `W/components/timer/AttesteringDetalj.tsx`, `A/attestering-buckets.tsx`, prosjektets attesteringssider, i18n | Nei | Samme tabell i alle fanene og i prosjektet. Ukesummene står over tabellen. |
-| **d3** | Eksport og fakturagrunnlag på samme radbygger og kolonneliste (R16, § 12.3): `detaljEksport` (`kortId`, prosjektnummer, varer, maskinens fra–til), `byggDetaljRader`, Excel, PDF, rapportskjerm, config v5, malene, varselet for maskin uten timerad (E11) og eksportens svar (E9). | `R`, `timerDetaljRader.ts`, `W/lib/timer-rapport-eksport.ts`, rapportsiden, `eksportOppsett.ts`, `packages/pdf/src/timer-rapport.ts`, i18n | Nei | Fakturagrunnlag med samme rader som attesteringen, oversiktsrad og delsum pr. kort. Eksporten sier alltid fra: fil eller feil. |
+| **d3** | Eksport og fakturagrunnlag på samme radbygger og kolonneliste (R16, § 12.3): `detaljEksport` (`kortId`, prosjektnummer, varer, maskinens fra–til), linjemodellen i `byggDetaljRader`, Excel, PDF og rapportskjerm, **dynamiske maler med config v5** (E6), **fakturagrunnlag for ett kort eller ett underprosjekt** (E12), utlegg følger kortet, varselet for maskin uten timerad (E11) og eksportens svar (E9). | `R`, `timerDetaljRader.ts`, `W/lib/timer-rapport-eksport.ts`, rapportsiden, `EO`, `packages/pdf/src/timer-rapport.ts`, i18n | Nei | Fakturagrunnlag med samme linjer som attesteringen, for ett kort eller ett underprosjekt, med timer, maskiner, varer, tillegg og utlegg. Malene bygges av tabellens kolonner. Eksporten sier alltid fra: fil eller feil. |
 | **d2c** (bare hvis H13 = A) | Koblingen maskin → timerad skrives også på web og i dagskort-modus, og delene i en splitt arver den. Forvalgt når kortet har én arbeidsrad. | `D` (`maskin.tilfoy`, `maskin.oppdater`, `splittRad`, `splittRadEier`, `redigerSedelRader`), `W/app/dashbord/timer/[id]/page.tsx`, `M/components/timer-detalj/MaskinSeksjon.tsx`, `M/components/timer-detalj/SplittRadModal.tsx` | Nei | Ny maskinføring står rett etter sin timerad, også når den er ført på PC. |
-| **c2** | Mobilens attesteringsdetalj på kort (R15). | `AttesteringDetaljMobil.tsx`, `attestering/index.tsx`, i18n | Nei | Samme kort på telefonen. |
+| **c2** | Mobilens attesteringsdetalj på kort (R15): timeraden med maskin og varer under, som i prosjektkortet (HM42). | `AttesteringDetaljMobil.tsx`, `attestering/index.tsx`, i18n | Nei | Samme kort på telefonen. |
 
 - **Samtidig med c:** d2a. Ordre c rører ingen API-fil. Eneste felles fil er `packages/shared/src/utils/index.ts`
   (én eksportlinje hver).
@@ -1412,8 +1575,14 @@ d2a + d2b-1. Fanene, prosjektattesteringen, eksporten og mobil kommer etter.
   til deler begge tabellene bruker; `Table` skal tegne det samme som før, og T46 holder de andre sidene uendret. Ingen
   annen ordre må røre fila samtidig.
 - **d2b-1 rører rapportens tabell (`TD`) og én linje i rapportsiden (`RP`).** ORDRE (34) retter PDF-eksporten på samme
-  side. (34) bør merges først; `fix/rapport-pdf-eksport` finnes bare lokalt og uten commits pr. `a49821ca`.
-- **d2a låses ikke av noen beslutning.** H10 er avgjort, og foldingen i H11 er en parameter (R16).
+  side. (34) bør merges først; `fix/rapport-pdf-eksport` @ `8c0ca1a2` er pushet og ikke merget pr. `12d9ae8d`.
+- **d2a låses ikke av noen beslutning og kan bestilles nå.** Radbyggeren gir `maskiner[]` og `varer[]` uansett hvordan
+  flere tegnes (H14). d2a er blitt større i del 3 (`rettRadFelt`, `gjenaapneRader`, rettingen av `redigerSedelRader`);
+  orkestrator kan dele den i to ordrer på samme fil (`D`) hvis den blir for stor for én gate.
+- **d2b-1 låses av H2-skissen (ja eller nei) og H14.** H12 styrer bare ett varsel og kan bygges sist. H1, H5, H6, H7 og
+  H9 er besvart, og H11 er lukket.
+- **d2b-2 låses ikke av noen beslutning** (H4 er besvart). **d3 låses av H14 og H12.** **d2c låses av H13.**
+- **d2a rører `apps/api/src/routes/vareforbruk.ts`.** Ingen annen ordre i § 12 rører den.
 - **d2c og d** rører begge `timer/[id]/page.tsx`. Sier Kenneth A på H13, legges webdelen av d2c inn i ordre d eller rett
   etter den. Mobildelen går etter c.
 - **d2b-2 etter d2b-1** — samme komponenter. **d3 etter d2a og d2b-1:** d3 rører rapportsiden, som d2b-1 bytter tabell
@@ -1425,33 +1594,35 @@ d2a + d2b-1. Fanene, prosjektattesteringen, eksporten og mobil kommer etter.
   fordi attesteringen er 🔴 hos Kenneth.
 - **Deploy:** d2a + d2b-1 er web og API — én test-deploy gir Kenneth tabellen. d2b-2 og d3 kan samles i neste.
   c2 går med neste OTA etter c.
-- Sier Kenneth B på H2 (vareattestering) eller B på H9 (hva maskinens mengde gjelder), blir de egne ordrer etter d3.
+- **Ikke med i noen ordre her:** prislåsing av varer ved attestering (vedtatt fra før, ikke bygget, HM5), et felt for
+  hva maskinens mengde gjelder (H9 B), eksport og egne maler for andre enn firmaadministrator (HM57), og visning av
+  historikken for den ansatte (HM51). Hver av dem er en egen ordre hvis Kenneth vil ha den.
 
 ### 12.7 Tester som skal feile først
 
 | # | Test | Ordre |
 |---|---|---|
 | T21 | `grupperPaaKort`: to kort med samme prosjekt, underprosjekt og byggeplass gir to grupper. Linjene er sortert på `fraTid` uansett rekkefølge inn; rader uten tid står sist; kortene i rekkefølge etter første linje. | d2a |
-| T22 | `grupperPaaKort`: maskin og vare med `sheetTimerId` står under sin timerad. Peker koblingen på en rad i et annet kort, eller mangler den, står linja etter kortets timerader i sitt eget kort (G5). Reise i egen blokk. Rad uten `kortId` i «Uten kort». Antall rader inn = antall ut. | d2a |
+| T22 | `grupperPaaKort`: maskin og vare med `sheetTimerId` står **på** sin timerads linje (`maskiner[]`, `varer[]`), i ført rekkefølge. Peker koblingen på en rad i et annet kort, eller mangler den, er de egne linjer etter kortets timelinjer i sitt eget kort (G5). Reise i egen blokk. Rad uten `kortId` i «Uten kort». Antall rader inn = antall ut. | d2a |
 | T23 | Rader uten underprosjekt fra to prosjekter på samme sedel gir to kort med hver sin oversiktsrad (rød i dag, HM9). | d2a, d2b-1 |
 | T24 | `hentTilAttesteringFirma`, `hentForAttestering` og `hentTilAttestering` returnerer sedelens varer med `sheetTimerId` og `kortId`, utlegg i detaljen og maskiner i prosjektlista. Vare på en annen brukers eller et annet firmas sedel kommer aldri med. Varelager av → tom liste, ingen feil. | d2a |
 | T25 | Leserne returnerer underprosjekt og byggeplass med navn for **alle** sedelens prosjekter (rød i dag: bare id). | d2a |
 | T26 | `ukeAvvikRader`: «ført under norm» gir alle ukas overtidsrader og ingen andre; «over norm» gir de ordinære radene etter passert norm; uten avvik tom liste. Fravær følger F-F1. | d2a |
-| T27 | Web: en sedel med kort på tre prosjekter viser tre oversiktsrader, og **hver rad** har prosjektnummer, prosjekt, underprosjekt og byggeplass. Maskin og vare står som egne rader rett etter sin timerad, med Type (H10). `kortId` finnes ikke i den tegnede teksten. | d2b-1 |
+| T27 | Web: en sedel med kort på tre prosjekter viser tre oversiktsrader, og **hver linje** har prosjektnummer, prosjekt, underprosjekt og byggeplass. **En timerad med koblet maskin og vare er én linje:** maskinen står i Maskin og Maskintimer og varen i Vare, Vareenhet og Varemengde, på samme linje som timene. Det finnes ingen egen maskin- eller varerad for dem (H10). I standardrekkefølgen står Maskin og Maskintimer side om side, og Vare, Vareenhet og Varemengde side om side (H9). `kortId` finnes ikke i den tegnede teksten. | d2b-1 |
 | T28 | Web: en dag med kort på A og B gir i «Etter prosjekt» rader under begge prosjektene, med bare det prosjektets rader. Prosjektsum = summen av radene. Filter på B finner radene (rød i dag, HM8). Ukeoversikten fører timene på radens prosjekt (rød i dag, HM12). | d2b-1, d2b-2 |
 | T29 | Web: ukeavviket har ukenummer i teksten, raden er merket, og et kort uten merket rad har ikke varselet i oversiktsraden (rød i dag: alle sedler i uka). | d2b-1 |
-| T30 | ✓ på kortet kaller `attesterRader` med nøyaktig kortets ventende timer-, maskin- og tilleggsrader. Sedelens andre kort står som ventende. I prosjektkontekst kan et kort på et annet prosjekt ikke velges. | d2b-1, d2b-2 |
+| T30 | ✓ på en linje sender timeradens id og id-ene til maskinene på linja, og ingen andre. ✓ på kortet kaller `attesterRader` med nøyaktig kortets ventende timer-, maskin- og tilleggsrader. Sedelens andre kort står som ventende. I prosjektkontekst kan et kort på et annet prosjekt ikke velges. | d2b-1, d2b-2 |
 | T31 | `byggDetaljRader`: radene i ett kort står samlet og i tidsrekkefølge uansett rekkefølge inn (rød i dag). Kolonnen «Kort» gir ulike nummer for to kort på samme prosjekt samme dag, også når ansatt ikke vises. | d3 |
 | T32 | Gruppering på prosjekt: to prosjekter med samme navn gir to grupper (rød i dag, HM16). Detaljradene har prosjektnummer når kolonnen er valgt. | d3 |
 | T33 | «Delsum pr. prosjektkort»: hodelinje og delsum pr. kort, med samme tall i Excel, PDF og på skjerm. Lagret mal uten valget gir samme kolonner som før. | d3 |
-| T34 | Vare i eksporten: med under sin timerad når sedelen er attestert, ute når den ikke er det, med når «Ta med uattesterte» er krysset. Testene fra (31) og (32) er grønne uendret. | d3 |
+| T34 | Vare i eksporten står på sin timerads linje: med når timeraden er attestert, ute når den ikke er det, med når «Ta med uattesterte» er krysset. En vare uten timerad og et utlegg er med når ingen linje i kortet venter, også når et annet kort på sedelen venter (rød i dag: de følger sedelen). Testene fra (31) og (32) er grønne uendret, unntatt tilfellet for utlegg, som skrives om etter denne regelen. | d3 |
 | T35 | Vakt: attesteringstabellen, `DagsKort`, `AttesteringDetalj`, `AttesteringDetaljMobil` og `timerDetaljRader` bruker `grupperPaaKort`/`byggKortRader`, og ingen av dem har egen bøtting på underprosjekt eller radtype. | d2b-1, d2b-2, d3, c2 |
-| T36 | Mobil: detaljen viser kort med prosjektnummer i hodet, linjer på fra-tid og maskin under sin timerad. | c2 |
-| T37 | `byggKortRader`: timerad med én koblet døgn-maskin og én koblet vare gir **tre** rader i rekkefølgen timer, maskin, vare. Hver har Type, ansatt, dato og prosjektfeltene utfylt; mengde og enhet står i egne felter, ingen parentes (rød i dag, HM22). Maskinraden har sin egen fra–til. Summen av Timer og av Maskintimer er lik kildens. Med folding på gir en koblet time-maskin én linje med Maskintimer på timeraden; med folding av gir den to rader (H11). | d2a |
+| T36 | Mobil: detaljen viser kort med prosjektnummer i hodet, linjer på fra-tid, og maskin og varer under sin timerad. | c2 |
+| T37 | `byggKortRader`: en timerad med én koblet døgn-maskin og én koblet vare gir **én** linje med én maskin og én vare — ikke tre rader. En timerad med to maskiner og tre varer gir én linje med to og tre, i ført rekkefølge. Maskinens mengde og enhet står i egne felter, ingen parentes (rød i dag, HM22). En maskin uten kobling gir egen linje med egen fra–til. Summen av Timer og av Maskintimer er lik kildens. | d2a |
 | T38 | Web: en kolonne flyttes i hodet, rekkefølgen lagres under attesteringens liste-nøkkel i `tabelloppsett` og står etter ny innlasting. Oppsettet for sjekklister og oppgaver er urørt. Radrekkefølgen i kortet endres ikke. | d2b-1 |
 | T39 | Varselteksten inneholder normens navn (dagsnorm eller ukenorm) og tallene i synlig tekst, ikke bare i `title` (rød i dag, HM24). | d2b-1, c2 |
 | T40 | Vakt: attesteringens kolonner og eksportens kolonner bruker samme nøkler og samme overskrifter (én kolonneliste, R16). Fakturagrunnlagets oversiktsrad har de samme feltene som attesteringens, minus ansatt og status for ekstern mottaker. | d2b-1, d3 |
-| T41 | Web: sortering på en kolonne gir en flat liste uten oversiktsrader, der hver rad fortsatt har ansatt, dato og prosjekt. Tredje klikk, eller × på sorteringsbrikken, gir kortene tilbake i G-rekkefølgen. | d2b-1 |
+| T41 | Web: sortering på en kolonne gir en flat liste uten oversiktsrader, der hver linje fortsatt har ansatt, dato og prosjekt. En linje med underlinjer flyttes samlet og sorteres på første underlinje; et filter treffer linja når én underlinje treffer. Tredje klikk, eller × på sorteringsbrikken, gir kortene tilbake i G-rekkefølgen. | d2b-1 |
 | T42 | Web: kolonnefilteret tilbyr verdiene som finnes i utvalget. Filter på en lønnsart viser bare de radene, kortene består, og kort uten treff vises ikke. «Krever vurdering» er et filter og gir samme sedler som `sedelKreverVurdering` i dag. | d2b-1 |
 | T43 | Web: «Attester utvalget» sender nøyaktig de ventende radene som vises etter filter, i ett kall. Rader på en dato med B10-brudd eller uavklart forslag sendes ikke; meldingen sier hvor mange som ble stående. I attestert-fanen finnes ingen ✓. | d2b-1 |
 | T44 | Web: ingenting attestanten trenger, ligger bare i `title`, bak hover eller bak klikk — penn og ✂ er synlige, og hvert felt i R2 finnes som celle i raden (rød i dag, HM27). | d2b-1 |
@@ -1462,11 +1633,26 @@ d2a + d2b-1. Fanene, prosjektattesteringen, eksporten og mobil kommer etter.
 | T49 | Web: over attesteringstabellen står én verktøylinje. Det finnes ingen nedtrekk for prosjekt, ansatt eller avdeling utenfor tabellen. Et filter settes fra ikonet i kolonnehodet og vises som brikke med ×. Tabellramma fyller resten av vinduet, og hodet står fast når radene rulles (rød i dag, HM39). | d2b-1 |
 | T50 | Web: klikk i hodet gir stigende, synkende og så kortrekkefølgen. Etter ny innlasting står kortrekkefølgen og ingen filtre; kolonner, rekkefølge og bredder står. | d2b-1 |
 | T51 | Vakt: sorterpil, filternedtrekk, bredde-håndtak og flytte-håndtak finnes ett sted hver og brukes av både `Table` og `TimerRadTabell`. Tekstene i dem går via `t()` (rød i dag, HM38 c). | d2b-1 |
-| T52 | `grupperPaaKort` og `byggKortRader`: en maskin uten `sheetTimerId`, med `kortId`, står i kortet sitt etter kortets timerader — ikke i «Uten kort». Merket «uten timerad» settes bare når kortet ikke har arbeidsrad (rød i dag i rapporten: alle uten kobling merkes, HM35). | d2a, d3 |
+| T52 | `grupperPaaKort` og `byggKortRader`: en maskin uten `sheetTimerId`, med `kortId`, er egen linje i kortet sitt etter kortets timelinjer — ikke i «Uten kort», og ikke flyttet inn på en timelinje. Merket «uten timerad» settes bare når kortet ikke har arbeidsrad (rød i dag i rapporten: alle uten kobling merkes, HM35). | d2a, d3 |
 | T53 | Eksport: hver vei ender i synlig kvittering med filnavn eller synlig feil ved knappen. Tomt utvalg gir melding. Valgene står etter en feil (rød i dag, HM41). | d3 |
 | T54 | Bare med H13 = A: en maskin ført på web eller i dagskort-modus på et kort med én arbeidsrad får `sheetTimerId` til den raden. Delene i en splitt arver originalens kobling. En eldre klient som ikke sender feltet, gir `null` som i dag. | d2c |
+| T55 | En timerad med to maskiner og to varer tegnes som én linje med to underlinjer. Hver maskin har egne celler for navn, timer, mengde og enhet. Linja har én avkrysning og én ✓. Excel gir to rader der Timer bare står på den første, og summen av Timer er lik kildens (H14). | d2b-1, d3 |
+| T56 | `rettRadFelt`: maskinmengde 5 → 6 på en ventende rad på en sendt sedel. Raden har samme id, samme `kortId` og samme `sheetTimerId` etterpå. Det er skrevet én historikkpost, med 5, for den raden og ingen for andre rader. Sedelen er fortsatt sendt. Avvist, og verdien står: ikke firmaadministrator, firmavalget av, attestert rad, sedel som ikke er sendt. Overlapp i tid og maskin over arbeid avvises som i `redigerSedelRader`. | d2a |
+| T57 | Leserne gir en rettet rad feltet, verdien før, hvem og når. En rad som bare fikk historikkpost fordi en annen rad ble rettet i vinduet bak pennen, gir tom liste. Web: cellen viser «var 5,00» i synlig tekst, ikke bare i `title`. | d2a, d2b-1 |
+| T58 | `redigerSedelRader`: etter en retting har maskinene `sheetTimerId` til den nye timeraden, og varene som pekte på den gamle timeraden, peker på den nye (rød i dag, HM50). | d2a |
+| T59 | `gjenaapneRader`: attesterte rader blir ventende, en ferdig attestert sedel blir sendt, og andre rader er urørt. Uten attesteringsrett: avvist. Gjenåpningen er loggført med hvem og når. Web: gjenåpne står på attestert linje og i oversiktsraden. | d2a, d2b-1 |
+| T60 | Web: når tabellen rulles sidelengs, står avkrysningen til venstre og knappekolonnen til høyre. Når den rulles ned, står hodet. ✓ er synlig for hver linje uten å rulle sidelengs, også når tabellen er bredere enn vinduet (rød i dag, HM60). | d2b-1 |
+| T61 | Web: Enter eller Tab lagrer én celle i ett kall, Esc angrer. Avviser serveren, står den gamle verdien og cellen viser grunnen. For en bruker uten rett er cellene ikke redigerbare. En attestert linje kan ikke rettes før den er gjenåpnet. | d2b-1 |
+| T62 | Vare: en administrator retter antallet på en sendt sedel, og loggen har antallet før og etter (rød i dag: bare etter, HM53). En vare på en attestert timerad kan ikke rettes. | d2a |
+| T63 | Prosjektnummer: internnummeret vises. Uten internnummer vises SD-nummeret. Uten internnummer og med SD-visning slått av på prosjektet er feltet tomt. Attestering, oversiktsrad og eksport bruker samme funksjon. | d2a, d2b-1, d3 |
+| T64 | Maler: en mal lagret som v4 gir samme kolonner og samme fil som før. En ny mal med Maskin, Vare og «Kort» gir de kolonnene i valgt rekkefølge i Excel og PDF. En firmamal vises for en annen firmaadministrator; en egen mal vises bare for eieren. | d3 |
+| T65 | Fakturagrunnlag for ett kort: bare kortets linjer, med timer, maskiner, varer, tillegg og utlegg; dagens andre kort er ikke med. Avgrensning på underprosjekt gir bare det underprosjektets kort. Kortets utlegg er med når kortet er attestert, også når et annet kort på sedelen venter. | d3 |
+| T66 | Rapport og eksport: en koblet døgn-maskin står på timeradens linje (rød i dag: egen linje under). To time-maskiner på én timerad vises hver for seg med egne timer (rød i dag: summert og kommaskilt, HM48). | d3 |
 
 ### 12.8 Beslutninger til Kenneth
+
+Tabellen står slik den ble lagt fram. **H1–H10 er besvart i § 12.8.1, og svarene går foran anbefalingene her.** H11 er
+lukket. Det som står åpent etter del 3, står i § 12.8.2.
 
 | # | Spørsmål | Anbefaling |
 |---|---|---|
@@ -1481,8 +1667,8 @@ d2a + d2b-1. Fanene, prosjektattesteringen, eksporten og mobil kommer etter.
 | **H8** | **Skal attesteringen og eksporten dele kolonneoppsett?** Kolonnene defineres uansett ett sted, med samme ord (R16). Spørsmålet er rekkefølgen og utvalget. A: hver for seg — skjermen huskes pr. bruker, eksporten pr. mal, som i dag. B: eksporten følger det brukeren har på skjermen. C: som A, pluss en knapp «Eksporter det jeg ser» i attesteringen. | **A nå, C som egen ordre hvis du vil ha det.** Det du sender kunden, bør ikke endre seg fordi én attestant flyttet en kolonne. Malen holder fakturagrunnlaget likt hver gang. |
 | **H9** | **Maskinradens mengde («6 m3») sier ikke hva som er målt** (HM22). A: vis tallet i kolonnene Mengde og Enhet på maskinraden, som det er ført. B: maskinskjemaet får i tillegg et felt for hva mengden gjelder (masse eller vare), så raden kan leses «6 m³ pukk». | **A nå, B som egen ordre hvis du vil ha det.** A gjør det lesbart at tallet hører til maskinen. B er en ny funksjon i føringen på mobil og web, ikke i attesteringen. |
 
-| **H10** | 🟢 **Avgjort av Kenneths pekepinn 2026-11-16** (*«attesteringen må bli noe lignende som dette tror jeg»*, om rapportens Detaljer). **Hver registrering er egen rad** — timerad, så maskinrad, så varerad — med Type-kolonne og prosjekt, ansatt og dato gjentatt på alle. Hver rad attesteres for seg, og kortets ✓ tar hele kortet. | Ført inn som R3. Min tidligere anbefaling — maskin og vare i timeradens rad — er forlatt. Du skrev «tror jeg»: si fra om du mente noe annet. |
-| **H11** | **Rapporten du viste, har ett unntak fra «én rad pr. registrering»:** en maskin som leies ut pr. time og er koblet til en timerad, står på **timeradens linje** — maskintimene i kolonnen Maskintimer og maskinnavnet etter lønnsarten (din regel fra 2026-09-01: de beskriver samme arbeid). Radene på bildet ditt sto alene fordi de mangler koblingen. A: attesteringen gjør som rapporten. En slik linje attesteres og returneres samlet. B: attesteringen viser alltid maskinen som egen rad; rapport og eksport folder som i dag. C: ingen folder — heller ikke rapport og eksport. | **A.** Da er raden du attesterer, den samme raden kunden får. B gir to rader i attesteringen og én i fakturagrunnlaget for samme føring. C snur regelen din fra september og endrer lønns- og fakturagrunnlaget. |
+| **H10** | ⚠️ **SNUDD av Kenneth 2026-11-16, se § 12.8.1.** Del 2 førte dette som «hver registrering er egen rad — timerad, så maskinrad, så varerad». Kenneths svar: én linje er timeregistreringen slik prosjektkortet viser den, med maskin og varer på samme linje. | Ført inn som R3, G4 og R10 i del 3. «Egne rader» er forlatt. |
+| **H11** | 🟢 **Lukket — følger av H10 og H2.** Spørsmålet var om attesteringen skulle sette time-maskinen på timeradens linje slik rapporten gjør (A), alltid vise den som egen rad (B), eller om heller ikke rapporten skulle folde (C). | **A følger av H10:** maskinen står på timeradens linje i attestering, rapport og eksport. B og C strider mot H10. Se § 12.2 «Maskinen på timeradens linje». |
 | **H12** | **Varselet «⚠ Maskin uten timerad».** I dag står det på hver maskin som mangler kobling til en timerad — og alt som føres på PC og i dagskort-modus, mangler den (HM36). Varselet roper altså på helt vanlig føring. A: maskinen står i prosjektkortet sitt, etter kortets timerader, uten varsel. Varselet vises bare når kortet ikke har noen arbeidsrad. B: som i dag. | **A.** Da betyr varselet det det sier: maskin brukt uten registrert arbeid. Kortet viser uansett hvilke timer maskinen hører sammen med. |
 | **H13** | **Skal maskinen kobles til timeraden også når den føres på PC og i dagskort-modus?** A: ja, fremover — skjemaet velger timerad, forvalgt når kortet har én. Gamle rader står som de er. B: som A, og gamle rader kobles der kortet har nøyaktig én arbeidsrad (du kjører en dataretting). C: nei; maskinen står i kortet sitt uten kobling. | **A, som egen ordre (d2c).** Uten den blir «maskin rett etter sin timerad» bare sant for det som er ført i prosjektkort-modus på telefonen. B hjelper lite: lørdagskortet har fem timerader og kan ikke kobles automatisk. |
 
@@ -1505,3 +1691,29 @@ d2a + d2b-1. Fanene, prosjektattesteringen, eksporten og mobil kommer etter.
 
 **Låser d2a:** ingen. **Låser d2b-1:** H1, H5, H6, H7, H11, H12. **Låser d2b-2:** H4. **Låser d3:** H2, H3, H8, H11, H12.
 **Låser d2c:** H13. H9 låser ingen; A er det d2b-1 bygger uansett.
+
+#### 12.8.2 Åpent etter del 3 — til Kenneth
+
+Viktigst først. De to første låser attesteringstabellen (d2b-1).
+
+| # | Spørsmål | Anbefaling |
+|---|---|---|
+| **H2-skissen** | **Står knappene riktig?** Skissen i § 12.2 «Faste knapper» setter godkjenn, returner og gjenåpne **fast helt til høyre**, rett til venstre for det loddrette rullefeltet. De ruller ikke med når linja rulles sidelengs. Ja: bygges som skissen. Nei: knappene står fast til **venstre**, ved avkrysningen. | **Ja.** Det er slik jeg leser ordene dine: til venstre for det loddrette rullefeltet og til høyre for det som ruller sidelengs. |
+| **H14** | **Flere maskiner eller flere varer på samme timerad** — det kan føres i dag (HM43). A: underlinjer inne i linja, én tekstlinje pr. maskin og pr. vare, hver med egne celler. B: alt i én celle, navnene kommaskilt og timene summert. C: egne kolonner — Maskin 1, Maskin 2, Vare 1, Vare 2. Tegning og tabell står i § 12.2. | **A.** Bare A lar deg rette «maskinmengde 5 → 6» på riktig maskin. Det er også slik telefonens prosjektkort viser dem. |
+| **H12** | **Varselet «⚠ Maskin uten timerad».** Uendret fra § 12.8. Etter H10 er en maskin uten timerad en egen linje i kortet sitt (G5). Spørsmålet er bare varselet. A: varselet vises bare når kortet ikke har noen arbeidsrad. B: som i dag, på hver maskin uten kobling. | **A.** Telefonens prosjektkort viser slike maskiner under «Uten rad» uten varsel (HM44). |
+| **H13** | **Skal maskinen kobles til timeraden også når den føres på PC og i dagskort-modus?** Uendret fra § 12.8, men betyr mer etter H10: uten koblingen står en maskin ført på PC som egen linje, ikke på timeradens linje. A: ja, fremover. B: som A, og gamle rader kobles der kortet har nøyaktig én arbeidsrad. C: nei. | **A, som egen ordre (d2c).** |
+
+**Følger av svarene dine. Dette er ikke spørsmål, men si fra hvis du mente noe annet:**
+
+1. **Maskin som leies ut pr. døgn og er ført på en timerad, står på timeradens linje** — også i rapport og
+   fakturagrunnlag. Regelen fra september satte den på egen linje. Ført uten timerad står den alene, uten varsel.
+2. **Utlegg, og varer uten timerad, følger kortet i eksporten** — ikke hele sedelen. Ellers mangler de i
+   fakturagrunnlaget for et kort til resten av dagen er attestert. Dette endrer regelen fra (31) for utlegg.
+3. **Bare firmaadministrator kan rette i cellen**, og bare når firmaet har «rediger ved attestering» på. Slik er det
+   i dag. En attestant som ikke er firmaadministrator, må returnere linja.
+4. **Egne eksportmaler er hver firmaadministrators.** Hele rapport- og eksportsiden er for firmaadministrator i dag.
+5. **Varen står med mengde og enhet, uten beløp.** Prisen låses ikke ved attestering; det er vedtatt fra før og ikke
+   bygget.
+
+**Låser d2a:** ingen — kan bestilles nå. **Låser d2b-1:** H2-skissen og H14; H12 styrer bare ett varsel.
+**Låser d2b-2:** ingen. **Låser d3:** H14 og H12. **Låser d2c:** H13.
