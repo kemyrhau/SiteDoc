@@ -237,6 +237,9 @@ export default function MobilViewer() {
       // Zoom-fart etter avstanden til flaten midt på skjermen (§ 3b punkt 2):
       // orbit-punktet ligger på den flaten, så avstanden dit styrer dolly-farten.
       // Kurven er felles med web (`zoomSteg` / `dollyFartForAvstand` i @sitedoc/shared).
+      // Pinch zoomer mot skjermmidten, ikke mot fingrene — PRØVE (§ 3b punkt 2b, Kenneth
+      // 2026-11-17). OBC setter true som standard; slett linja for å gå tilbake.
+      if (world.camera.controls) world.camera.controls.dollyToCursor = false;
       world.camera.controls?.addEventListener("update", () => {
         const ctrl = world.camera.controls;
         if (ctrl) ctrl.dollySpeed = dollyFartForAvstand(ctrl.distance);

@@ -85,6 +85,10 @@ describe("mobil-viewer: vakt", () => {
     expect(kilde).toContain("ctrl.dollySpeed = dollyFartForAvstand(ctrl.distance)");
   });
 
+  it("pinch zoomer mot skjermmidten, ikke fingrene (prøve § 3b punkt 2b)", () => {
+    expect(kilde).toContain("world.camera.controls.dollyToCursor = false");
+  });
+
   it("objekter langt unna skjult som standard; bryter viser dem, rom/åpninger forblir skjult", () => {
     expect(kilde).toContain("const [visUtliggere, setVisUtliggere] = useState(false)");
     expect(kilde).toContain("let utliggereSynlige = false");
