@@ -302,7 +302,7 @@ describe("ORDRE 36b — beskrivelse pr. kort (prosjekt + byggeplass)", () => {
   it("🔴 regresjon: ett kort pr. prosjekt → nøkkel = projectId, som 36a", () => {
     const { forslag } = forberedBekreftDag(lokalDb(), kontekst());
     expect(kortMedArbeid(forslag)).toEqual([
-      { nokkel: "p1", projectId: "p1", byggeplassId: null, dato: DATO, delerProsjekt: false, visDato: false },
+      { nokkel: "p1", projectId: "p1", byggeplassId: null, dato: DATO, delerProsjekt: false, visDato: false, paaStartDato: true },
     ]);
     const to = medEkstraProsjekt(forslag, "p2");
     expect(kortMedArbeid(to).map((k) => k.nokkel)).toEqual(["p1", "p2"]);

@@ -141,23 +141,37 @@ describe("T7 — kortskjermen fører tillegg og utlegg", () => {
 describe("T12 — Bekreft dag fører tillegg og utlegg pr. kort (B6)", () => {
   const SKJERM = flat(les("../../../app/timer/bekreft-dag.tsx"));
   const LONN = flat(les("BekreftDagLonnUtlegg.tsx"));
+  const ANVEND = flat(les("../../utils/dagsforslagAnvend.ts"));
   const KRAV_SKJERM = [
     "knyttLonnUtleggTilKort(lonnUtlegg, arbeidKort, forslag)",
-    // RETUR (24): tillegg/utlegg har ingen dato — ett valg pr. kort-sted.
-    "kort={lonnUtleggKort}",
+    // ORDRE 25 (Kenneth 2026-11-16): kortvalget er datokortene — samme kort
+    // og etikett som beskrivelse/maskin («Prosjekt · 16.11.» på nattevakt).
+    "kort={arbeidKort}",
     "kortMedFlestTimer(beregnet.forslag)?.projectId",
   ];
-  const KRAV_LONN = ["const visKortValg = kort.length > 1;", "byggeplassId: k.byggeplassId", "...nyttKort(projectId)", "...nyttKort(u.projectId)"];
+  const KRAV_LONN = [
+    "const visKortValg = kort.length > 1;",
+    "byggeplassId: k.byggeplassId, dato: k.dato",
+    "dato: k?.dato",
+    "...nyttKort(projectId)",
+    "...nyttKort(u.projectId)",
+  ];
+  // ORDRE 25: linja skrives på datokortets sedel; første åpne sedel bare som reserve.
+  const KRAV_ANVEND = ["sedelPerDato.set(d.dato, resultat.id);", "const sheetId = (l.dato !== undefined ? sedelPerDato.get(l.dato) : undefined) ?? forste;"];
 
   it("🔴 skjermen gir linjene kort ved lagring, og komponenten viser kortvalg ved flere kort", () => {
     for (const k of KRAV_SKJERM) expect(SKJERM).toContain(k);
     for (const k of KRAV_LONN) expect(LONN).toContain(k);
+    for (const k of KRAV_ANVEND) expect(ANVEND).toContain(k);
+    expect(SKJERM).not.toContain("kort={lonnUtleggKort}");
   });
 
   it("negativkontroll: gammel lagring (lonnUtlegg rett inn) og linje uten kort fanges", () => {
     const gammel = SKJERM.replace("knyttLonnUtleggTilKort(lonnUtlegg, arbeidKort, forslag)", "lonnUtlegg");
     expect(gammel).not.toContain(KRAV_SKJERM[0]);
     const uten = LONN.replace("...nyttKort(projectId)", "projectId");
-    expect(uten).not.toContain(KRAV_LONN[2]);
+    expect(uten).not.toContain(KRAV_LONN[3]);
+    const udatert = ANVEND.replace(KRAV_ANVEND[1]!, "const sheetId = forste;");
+    expect(udatert).not.toContain(KRAV_ANVEND[1]);
   });
 });

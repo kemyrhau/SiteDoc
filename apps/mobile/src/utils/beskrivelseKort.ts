@@ -35,6 +35,11 @@ export type BeskrivelseKort = {
   delerProsjekt: boolean;
   /** Prosjektet har kort på flere datoer (nattevakt) → etiketten trenger dato. */
   visDato: boolean;
+  /**
+   * Kortet står på forslagets startdato (nøkkelen uten dato). ORDRE 25: en
+   * tillegg-/utleggslinje uten dato (utkast fra før 25) hører hit.
+   */
+  paaStartDato: boolean;
 };
 
 type RadKortGrunnlag = { projectId: string; byggeplassId: string | null };
@@ -89,8 +94,9 @@ export function kortMedArbeid(forslag: Dagsforslag): BeskrivelseKort[] {
     // RETUR 2 (24): grunnøkkelen uten dato tilhører KUN startdatoens kort —
     // også når det kortet mangler (0 t / blokkert). Ellers arvet kortet
     // 00–06 teksten fra 21–24 og arbeiderens egen tekst lå skjult.
-    const nokkel = k.dato === startDato ? grunn : `${k.dato}|${grunn}`;
-    return { nokkel, projectId: k.projectId, byggeplassId: k.byggeplassId, dato: k.dato, delerProsjekt, visDato };
+    const paaStartDato = k.dato === startDato;
+    const nokkel = paaStartDato ? grunn : `${k.dato}|${grunn}`;
+    return { nokkel, projectId: k.projectId, byggeplassId: k.byggeplassId, dato: k.dato, delerProsjekt, visDato, paaStartDato };
   });
 }
 
@@ -164,8 +170,9 @@ function kortNokkelFraKort(k: BeskrivelseKort): string {
  * standardkort for en ny tillegg-/utleggslinje i Bekreft dag. Med `projectId`
  * velges blant det prosjektets kort. Lik sum → første kort. Ingen arbeid → null.
  * Summen er pr. kort-sted (prosjekt + byggeplass) over alle datoene, og et
- * sted med kort på flere datoer gir første datos kort — tillegg/utlegg har
- * ingen dato, så valget er uendret av RETUR (24).
+ * sted med kort på flere datoer gir første åpne datos kort. ORDRE 25: linja
+ * lagres på det kortets dato — samme sedel som før 25 når første åpne dato har
+ * kortet, så dagsvakten og nattevaktens forvalg er uendret.
  */
 export function kortMedFlestTimer(forslag: Dagsforslag, projectId?: string): BeskrivelseKort | null {
   const sum = new Map<string, number>();

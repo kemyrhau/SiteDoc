@@ -99,5 +99,7 @@ describe("T12 — linja knyttes til et kort som finnes", () => {
     expect(ut.tillegg.map((x) => x.byggeplassId)).toEqual(["b2", null]);
     expect(ut.utlegg[0]!.byggeplassId).toBe("b2");
     expect(ut.tillegg[0]!.projectId).toBe("p1");
+    // ORDRE 25: linja får kortets dato; uten kort ingen dato (arver første åpne sedel).
+    expect(ut.tillegg.map((x) => x.dato)).toEqual(["2026-07-01", undefined]);
   });
 });

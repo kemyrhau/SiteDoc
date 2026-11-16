@@ -14,14 +14,17 @@ import { kortForLinje } from "../../utils/lonnUtleggKort";
 
 /**
  * ORDRE Tillegg/Utlegg i Bekreft dag: lønnstillegg og utlegg føres her og holdes
- * i minnet (`verdi`) til [Bekreft og lagre] — da skrives de på første åpne dato
- * sin sedel. Linjene er knyttet til sedel + prosjekt, ikke til en arbeidsrad.
+ * i minnet (`verdi`) til [Bekreft og lagre] — da skrives de på sedelen for
+ * linjas datokort. Linjene er knyttet til sedel + prosjekt, ikke til en arbeidsrad.
  * Modalene er de samme som i prosjektkortet; tillegg-vedlegg legges til
  * etterpå i prosjektkortet (B1).
  *
  * T12 (spec tillegg-utlegg-prosjektkort § 5, B6): hver linje hører til ett
- * kort (prosjekt + byggeplass). Ny linje får prosjektets kort med flest timer
- * (`standardKortFor`). Med flere kort vises kortvalg pr. linje.
+ * kort (prosjekt + byggeplass + dato). Ny linje får prosjektets kort med
+ * flest timer (`standardKortFor`). Med flere kort vises kortvalg pr. linje.
+ * ORDRE 25 (Kenneth 2026-11-16): på en nattevakt er kortene datokortene
+ * («Prosjekt · 16.11.» / «Prosjekt · 17.11.»); linja lagres på valgt dato.
+ * Blokkert (sendt) dato har ikke kort (`kortMedArbeid`) og kan ikke velges.
  */
 export function BekreftDagLonnUtlegg({
   verdi,
@@ -58,9 +61,12 @@ export function BekreftDagLonnUtlegg({
   const prosjektNavn = (id: string) => prosjektValg.find((p) => p.id === id)?.navn ?? "";
   const visKortValg = kort.length > 1;
   const flereProsjekter = !visKortValg && prosjektValg.length > 1;
-  const nyttKort = (projectId: string) => ({ projectId, byggeplassId: standardKortFor(projectId)?.byggeplassId ?? null });
+  const nyttKort = (projectId: string) => {
+    const k = standardKortFor(projectId);
+    return { projectId, byggeplassId: k?.byggeplassId ?? null, dato: k?.dato };
+  };
   const kortVelger = (
-    linje: { projectId: string; byggeplassId?: string | null },
+    linje: { projectId: string; byggeplassId?: string | null; dato?: string },
     velg: (k: BeskrivelseKort) => void,
   ) => {
     if (!visKortValg) return null;
@@ -112,7 +118,7 @@ export function BekreftDagLonnUtlegg({
               onEndre((f) => ({
                 ...f,
                 tillegg: f.tillegg.map((x) =>
-                  x.lokalId === l.lokalId ? { ...x, projectId: k.projectId, byggeplassId: k.byggeplassId } : x,
+                  x.lokalId === l.lokalId ? { ...x, projectId: k.projectId, byggeplassId: k.byggeplassId, dato: k.dato } : x,
                 ),
               })),
             )}
@@ -153,7 +159,7 @@ export function BekreftDagLonnUtlegg({
               onEndre((f) => ({
                 ...f,
                 utlegg: f.utlegg.map((x) =>
-                  x.id === u.id ? { ...x, projectId: k.projectId, byggeplassId: k.byggeplassId } : x,
+                  x.id === u.id ? { ...x, projectId: k.projectId, byggeplassId: k.byggeplassId, dato: k.dato } : x,
                 ),
               })),
             )}
