@@ -66,6 +66,7 @@ import {
   erReiseLonnsartLokalt,
   hentUnderprosjekterLokalt,
   hentLonnsarterLokalt,
+  hentFravaerLonnsartIderLokalt,
 } from "../../services/timerKatalog";
 import { hentOrganizationSettingLokalt } from "../../services/organizationSettingKatalog";
 import { erReiseRadVisning } from "../../utils/reiseRad";
@@ -1235,13 +1236,15 @@ export function TimerRadModal({
     if (kortModus) {
       const katalog = hentLonnsarterLokalt(organizationId);
       const reiseId = hentReiseLonnsartId(organizationId);
+      // Fravær slås opp uten aktiv-filter: en deaktivert fravær-art er fortsatt fravær.
+      const fravaerIder = hentFravaerLonnsartIderLokalt();
       return {
         lonnsartId: forhaandsvalgNyRad({
           dagsnorm: dagsnormTimer,
           rader: alleTimerRader.map((r) => ({
             timer: r.timer,
             erReise: erReiseRadVisning(r.erReise ?? null, r.lonnsartId, reiseId),
-            erFravaer: katalog.find((l) => l.id === r.lonnsartId)?.type === "fravaer",
+            erFravaer: r.lonnsartId != null && fravaerIder.has(r.lonnsartId),
           })),
           katalog,
           standardId: forrigeValg,

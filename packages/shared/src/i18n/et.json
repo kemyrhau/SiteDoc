@@ -5682,6 +5682,7 @@
   "timer.bekreftDag.velgLonnsart": "Valige palgatüüp",
   "timer.bekreftDag.linjeLonnsartHint": "Puudutage selle rea palgatüübi valimiseks",
   "timer.bekreftDag.etterNormen": "Üle normi alates {{fra}}",
+  "timer.bekreftDag.fravaerTil": "Puudub kuni",
   "timer.bekreftDag.lonnsartGruppe.ordinaer": "Tavaline",
   "timer.bekreftDag.lonnsartGruppe.overtid": "Ületunnitöö",
   "timer.bekreftDag.lonnsartGruppe.fravaer": "Puudumine"

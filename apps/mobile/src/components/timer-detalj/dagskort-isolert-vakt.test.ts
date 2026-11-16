@@ -43,6 +43,9 @@ const BEKREFT_DAG_PROPS = [
   "HjelpIkon",
   "onOpprett=",
   "lonnUtlegg",
+  // RETUR (28) B9: fraværsdelingen i et kort — kun Bekreft dag.
+  "fravaerTil",
+  "FravaerTil",
   "BekreftDagLonnUtlegg",
   // POST 2026-11-14 (8) punkt 1: «+ Reise» i Nytt prosjektkort — kun Bekreft dag.
   "manuellReise",
@@ -375,5 +378,10 @@ describe("ORDRE (28) — rad-vinduet og velgeren", () => {
     expect(flat).toContain("<LonnsartVelgerModal valgtId={valgtLonnsartId} organizationId={organizationId}");
     const splitt = les("SplittRadModal.tsx").replace(/\s+/g, " ");
     expect(splitt).toContain("<LonnsartVelgerModal valgtId={del.lonnsartId} organizationId={organizationId}");
+  });
+  it("🔴 RETUR (28) V8-merknad: fravær i forhåndsvalget slås opp uten aktiv-filter", () => {
+    expect(flat).toContain("const fravaerIder = hentFravaerLonnsartIderLokalt();");
+    expect(flat).toContain("erFravaer: r.lonnsartId != null && fravaerIder.has(r.lonnsartId),");
+    expect(flat).not.toContain("katalog.find((l) => l.id === r.lonnsartId)?.type === \"fravaer\"");
   });
 });

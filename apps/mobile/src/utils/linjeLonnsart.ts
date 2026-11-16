@@ -77,6 +77,10 @@ export function utenLinje(
  *    nivå-chipsene, V5); linjevalget fjernes.
  *  - Ellers (ordinær/fravær, eller hva som helst på normallinja) → huskes i
  *    `lonnsartPerLinje` (V7). Ordinær art etter normen = overstyring (V6).
+ *  - RETUR (28) B9: fravær på normallinja husker linjas slutt i `fravaerTil`
+ *    (står det alt et fravær der, beholdes punktet); annen art på normallinja
+ *    fjerner punktet. Naboregelen gjelder ikke mens fraværet deler kortet —
+ *    kalleren sender da `naboArtId: null`.
  */
 export function velgLinjeLonnsart(args: {
   linje: ArbeidLinje;
@@ -87,6 +91,8 @@ export function velgLinjeLonnsart(args: {
   /** Overtidslinjas fra-tid (forslaget), til minnet ved sammenslåing. */
   overtidFra: string | null;
   arbeidFra: string;
+  /** Linjas slutt-tid (forslaget) — fraværets slutt når fravær velges (B9). */
+  linjeTil?: string | null;
 }): DagsforslagRettingDato {
   const { linje, art, rettDato } = args;
   const perLinje = rettDato?.lonnsartPerLinje;
@@ -95,6 +101,8 @@ export function velgLinjeLonnsart(args: {
     return {
       overtidAv: true,
       overtidFra: huskFra,
+      // Én linje — ingen fraværsdeling å huske.
+      fravaerTil: undefined,
       // Normallinja bærer valget videre; overtidslinjas valg er brukt opp.
       lonnsartPerLinje:
         linje === "normal"
@@ -105,7 +113,13 @@ export function velgLinjeLonnsart(args: {
   if (linje === "overtid" && art.overtidsnivaa != null) {
     return { overtidLonnsartId: art.id, lonnsartPerLinje: utenLinje(perLinje, "overtid") };
   }
-  return { lonnsartPerLinje: { ...perLinje, [linje]: art.id } };
+  const valg: DagsforslagRettingDato = { lonnsartPerLinje: { ...perLinje, [linje]: art.id } };
+  if (linje !== "normal") return valg;
+  return {
+    ...valg,
+    fravaerTil:
+      art.type === "fravaer" ? (rettDato?.fravaerTil ?? args.linjeTil ?? undefined) : undefined,
+  };
 }
 
 /** Linjene datoen har nå — rader og linjer uten lønnsart. */

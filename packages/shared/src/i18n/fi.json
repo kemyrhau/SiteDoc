@@ -5682,6 +5682,7 @@
   "timer.bekreftDag.velgLonnsart": "Valitse palkkatyyppi",
   "timer.bekreftDag.linjeLonnsartHint": "Valitse tämän rivin palkkatyyppi napauttamalla",
   "timer.bekreftDag.etterNormen": "Yli normin {{fra}}",
+  "timer.bekreftDag.fravaerTil": "Poissaolo asti",
   "timer.bekreftDag.lonnsartGruppe.ordinaer": "Tavallinen",
   "timer.bekreftDag.lonnsartGruppe.overtid": "Ylitöitä",
   "timer.bekreftDag.lonnsartGruppe.fravaer": "Poissaolo"

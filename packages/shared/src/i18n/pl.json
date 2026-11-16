@@ -5682,6 +5682,7 @@
   "timer.bekreftDag.velgLonnsart": "Wybierz rodzaj wynagrodzenia",
   "timer.bekreftDag.linjeLonnsartHint": "Kliknij, aby wybrać rodzaj wynagrodzenia dla tej linii",
   "timer.bekreftDag.etterNormen": "Poza normą od {{fra}}",
+  "timer.bekreftDag.fravaerTil": "Nieobecność do",
   "timer.bekreftDag.lonnsartGruppe.ordinaer": "Zwykły",
   "timer.bekreftDag.lonnsartGruppe.overtid": "Nadgodziny",
   "timer.bekreftDag.lonnsartGruppe.fravaer": "Brak"

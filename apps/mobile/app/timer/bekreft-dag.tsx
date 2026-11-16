@@ -1412,6 +1412,7 @@ export default function BekreftDagSkjerm() {
                 overtidValg={overtidValg}
                 alleLonnsarter={input.alleLonnsarter}
                 rettetOvertidFra={retting.perDato?.[d.dato]?.overtidFra}
+                rettetFravaerTil={retting.perDato?.[d.dato]?.fravaerTil}
                 overtidAv={retting.perDato?.[d.dato]?.overtidAv === true}
                 lonnsartPerLinje={retting.perDato?.[d.dato]?.lonnsartPerLinje}
                 linjeArter={linjeArter}
@@ -1881,6 +1882,7 @@ function DatoKort({
   overtidValg,
   alleLonnsarter,
   rettetOvertidFra,
+  rettetFravaerTil,
   overtidAv,
   lonnsartPerLinje,
   linjeArter,
@@ -1899,6 +1901,8 @@ function DatoKort({
   overtidValg: Array<{ id: string; navn: string }>;
   alleLonnsarter: DagsforslagLonnsart[];
   rettetOvertidFra: string | undefined;
+  /** RETUR (28) B9: arbeiderens «Fravær til». */
+  rettetFravaerTil: string | undefined;
   /** ORDRE (27b) V5a: overtiden er slått av med nivå-knappen. */
   overtidAv: boolean;
   /** ORDRE (28) V7: arbeiderens lønnsart pr. linje. */
@@ -2034,14 +2038,48 @@ function DatoKort({
                 velgLinjeLonnsart({
                   linje,
                   art,
-                  rettDato: { lonnsartPerLinje, overtidFra: rettetOvertidFra },
-                  naboArtId: arbeid.find((r) => r.linje === nabo)?.lonnsartId ?? null,
+                  rettDato: { lonnsartPerLinje, overtidFra: rettetOvertidFra, fravaerTil: rettetFravaerTil },
+                  // RETUR (28) B9: mens fraværet deler kortet slås linjer aldri sammen.
+                  naboArtId: dag.fravaerTil
+                    ? null
+                    : arbeid.find((r) => r.linje === nabo)?.lonnsartId ?? null,
                   overtidFra: forsteOt?.fraTid ?? null,
                   arbeidFra: fra,
+                  linjeTil:
+                    arbeid.find((r) => r.linje === linje)?.tilTid ??
+                    dag.linjerUtenLonnsart?.find((l) => l.linje === linje)?.tilTid ??
+                    null,
                 }),
               );
             }}
           />
+          {/* RETUR (28) B9: fraværet på normallinja bruker ikke normen — slutten flyttes her. */}
+          {dag.fravaerTil ? (
+            <View className="flex-row items-center justify-between">
+              <Text className="text-sm text-gray-700">{t("timer.bekreftDag.fravaerTil")}</Text>
+              <View className="flex-row items-center gap-3">
+                <Pressable
+                  onPress={() =>
+                    onRett({ fravaerTil: stegOvertidFra(dag.fravaerTil!, -1, fra, til, tidsrunding) })
+                  }
+                  hitSlop={8}
+                  className="rounded-full border border-gray-300 p-1"
+                >
+                  <Minus size={16} color="#374151" />
+                </Pressable>
+                <Text className="w-16 text-center text-sm text-gray-900">{dag.fravaerTil}</Text>
+                <Pressable
+                  onPress={() =>
+                    onRett({ fravaerTil: stegOvertidFra(dag.fravaerTil!, 1, fra, til, tidsrunding) })
+                  }
+                  hitSlop={8}
+                  className="rounded-full border border-gray-300 p-1"
+                >
+                  <Plus size={16} color="#374151" />
+                </Pressable>
+              </View>
+            </View>
+          ) : null}
           {visAnkomst && maalt ? (
             <View className="flex-row flex-wrap items-center gap-2">
               <Text className="text-xs text-gray-600">{t("timer.bekreftDag.ankomst")}</Text>
@@ -2085,7 +2123,7 @@ function DatoKort({
           ) : null}
           {/* ORDRE 35 del B: ingen overtid ennå → start den fra arbeidsstart; samme motor
               (segmenterVedOvertidFra). Uten OT50 velges første nivå (leggTilOvertidRetting). */}
-          {!forsteOt && overtidValg.length > 0 && !(redigerOvertid && overtidAv) ? (
+          {!forsteOt && !dag.fravaerTil && overtidValg.length > 0 && !(redigerOvertid && overtidAv) ? (
             <Pressable
               onPress={() => {
                 onRett(leggTilOvertidRetting(fra, alleLonnsarter, overtidValg));
@@ -2103,7 +2141,8 @@ function DatoKort({
           {redigerOvertid && otFra ? (
             <View className="gap-2 rounded-md border border-amber-200 bg-white p-2">
               {/* ORDRE (27b) V5a: overtiden av → «Overtid fra» skjules, nivå-knappene står. */}
-              {!overtidAv ? (
+              {/* RETUR (28) B9: under fraværsdeling følger overtiden normen — «Overtid fra» leses ikke. */}
+              {!overtidAv && !dag.fravaerTil ? (
               <View className="flex-row items-center justify-between">
                 <Text className="text-sm text-gray-700">{t("timer.bekreftDag.overtidFra")}</Text>
                 <View className="flex-row items-center gap-3">

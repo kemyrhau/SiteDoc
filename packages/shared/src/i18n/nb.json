@@ -5682,6 +5682,7 @@
   "timer.bekreftDag.velgLonnsart": "Velg lønnsart",
   "timer.bekreftDag.linjeLonnsartHint": "Trykk for å velge lønnsart for denne linja",
   "timer.bekreftDag.etterNormen": "Etter normen fra {{fra}}",
+  "timer.bekreftDag.fravaerTil": "Fravær til",
   "timer.bekreftDag.lonnsartGruppe.ordinaer": "Ordinær",
   "timer.bekreftDag.lonnsartGruppe.overtid": "Overtid",
   "timer.bekreftDag.lonnsartGruppe.fravaer": "Fravær"

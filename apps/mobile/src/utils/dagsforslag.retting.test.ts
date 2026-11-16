@@ -302,7 +302,7 @@ describe("ORDRE 35 del B — «Legg til overtid» i Bekreft dag", () => {
     expect(i).toBeGreaterThan(0);
     const knapp = flat.slice(flat.lastIndexOf("{!forsteOt", i), i);
     // ORDRE (27b) V5a: skjules mens nivå-knappene står åpne med overtiden av.
-    expect(knapp).toContain("{!forsteOt && overtidValg.length > 0 && !(redigerOvertid && overtidAv) ? (");
+    expect(knapp).toContain("{!forsteOt && !dag.fravaerTil && overtidValg.length > 0 && !(redigerOvertid && overtidAv) ? (");
     expect(knapp).toContain("onRett(leggTilOvertidRetting(fra, alleLonnsarter, overtidValg));");
     expect(knapp).toContain("setRedigerOvertid(true);");
   });

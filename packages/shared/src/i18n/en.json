@@ -5682,6 +5682,7 @@
   "timer.bekreftDag.velgLonnsart": "Choose wage type",
   "timer.bekreftDag.linjeLonnsartHint": "Tap to choose the wage type for this line",
   "timer.bekreftDag.etterNormen": "Beyond the norm from {{fra}}",
+  "timer.bekreftDag.fravaerTil": "Absence until",
   "timer.bekreftDag.lonnsartGruppe.ordinaer": "Ordinary",
   "timer.bekreftDag.lonnsartGruppe.overtid": "Overtime",
   "timer.bekreftDag.lonnsartGruppe.fravaer": "Absence"

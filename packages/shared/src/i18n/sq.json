@@ -5682,6 +5682,7 @@
   "timer.bekreftDag.velgLonnsart": "Zgjidhni llojin e pagës",
   "timer.bekreftDag.linjeLonnsartHint": "Trokit për të zgjedhur llojin e pagës për këtë linjë",
   "timer.bekreftDag.etterNormen": "Përtej normës nga {{fra}}",
+  "timer.bekreftDag.fravaerTil": "Mungesa deri në",
   "timer.bekreftDag.lonnsartGruppe.ordinaer": "E zakonshme",
   "timer.bekreftDag.lonnsartGruppe.overtid": "Jashtë orarit",
   "timer.bekreftDag.lonnsartGruppe.fravaer": "Mungesa"

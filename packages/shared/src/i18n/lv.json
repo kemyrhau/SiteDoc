@@ -5682,6 +5682,7 @@
   "timer.bekreftDag.velgLonnsart": "Izvēlieties algas veidu",
   "timer.bekreftDag.linjeLonnsartHint": "Pieskarieties, lai izvēlētos šīs līnijas algas veidu",
   "timer.bekreftDag.etterNormen": "Pārsniedz normu no {{fra}}",
+  "timer.bekreftDag.fravaerTil": "Prombūtne līdz",
   "timer.bekreftDag.lonnsartGruppe.ordinaer": "Parasta",
   "timer.bekreftDag.lonnsartGruppe.overtid": "Virsstundas",
   "timer.bekreftDag.lonnsartGruppe.fravaer": "Prombūtne"

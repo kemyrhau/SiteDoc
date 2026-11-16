@@ -216,7 +216,7 @@ describe("(27b) kildevakter — dagskortet og V5a", () => {
     // ORDRE (28) V5: nivå-trykket erstatter også et linjevalg på overtidslinja.
     expect(flat).toContain("onRett({ ...vekslOvertidNivaa({ trykketId: l.id, valgtId: forsteOt?.lonnsartId ?? null,");
     expect(flat).toContain('lonnsartPerLinje: utenLinje(lonnsartPerLinje, "overtid"),');
-    expect(flat).toContain("{!overtidAv ? ( <View className=\"flex-row items-center justify-between\">");
+    expect(flat).toContain("{!overtidAv && !dag.fravaerTil ? ( <View className=\"flex-row items-center justify-between\">");
     expect(flat).toContain("overtidAv={retting.perDato?.[d.dato]?.overtidAv === true}");
     expect(flat).not.toContain("onPress={() => onRett({ overtidLonnsartId: l.id })}");
   });

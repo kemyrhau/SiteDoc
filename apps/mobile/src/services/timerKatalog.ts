@@ -218,6 +218,25 @@ export function hentLonnsarterLokalt(organizationId: string) {
 }
 
 /**
+ * RETUR (28) / B8: id-ene til fravær-arter — også deaktiverte, så en rad på en
+ * art som senere er slått av fortsatt ikke teller som arbeid mot normen. Samme
+ * oppslag som `lesManuellGrunnlag` (`utils/manuellDag.ts`): uten aktiv-filter,
+ * uten firmafilter (lønnsart-id er global).
+ */
+export function hentFravaerLonnsartIderLokalt(): Set<string> {
+  const db = hentDatabase();
+  if (!db) return new Set();
+  return new Set(
+    db
+      .select({ id: lonnsartLocal.id })
+      .from(lonnsartLocal)
+      .where(eq(lonnsartLocal.type, "fravaer"))
+      .all()
+      .map((l) => l.id),
+  );
+}
+
+/**
  * Variant B: hent firmaets default-lønnsart (erStandardvalg=true) fra lokal
  * cache. Brukes til å forhåndsvelge lønnsart på første rad av en tom sedel.
  * Returnerer null hvis ingen er markert (f.eks. migrerte firma med tom katalog).

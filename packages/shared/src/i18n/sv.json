@@ -5682,6 +5682,7 @@
   "timer.bekreftDag.velgLonnsart": "Välj löneart",
   "timer.bekreftDag.linjeLonnsartHint": "Tryck för att välja lönetyp för den här raden",
   "timer.bekreftDag.etterNormen": "Bortom normen från {{fra}}",
+  "timer.bekreftDag.fravaerTil": "Frånvaro till kl",
   "timer.bekreftDag.lonnsartGruppe.ordinaer": "Vanlig",
   "timer.bekreftDag.lonnsartGruppe.overtid": "Övertid",
   "timer.bekreftDag.lonnsartGruppe.fravaer": "Frånvaro"

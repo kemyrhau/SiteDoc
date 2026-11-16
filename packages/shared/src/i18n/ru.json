@@ -5682,6 +5682,7 @@
   "timer.bekreftDag.velgLonnsart": "Выберите тип оплаты",
   "timer.bekreftDag.linjeLonnsartHint": "Нажмите, чтобы выбрать тип оплаты для этой строки",
   "timer.bekreftDag.etterNormen": "За пределами нормы от {{fra}}",
+  "timer.bekreftDag.fravaerTil": "Отсутствие до",
   "timer.bekreftDag.lonnsartGruppe.ordinaer": "Обычный",
   "timer.bekreftDag.lonnsartGruppe.overtid": "Через некоторое время",
   "timer.bekreftDag.lonnsartGruppe.fravaer": "Отсутствие"

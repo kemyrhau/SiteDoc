@@ -5682,6 +5682,7 @@
   "timer.bekreftDag.velgLonnsart": "Wählen Sie die Lohnart",
   "timer.bekreftDag.linjeLonnsartHint": "Tippen Sie, um die Lohnart für diese Zeile auszuwählen",
   "timer.bekreftDag.etterNormen": "Über die Norm hinaus von {{fra}}",
+  "timer.bekreftDag.fravaerTil": "Abwesenheit bis",
   "timer.bekreftDag.lonnsartGruppe.ordinaer": "Normal",
   "timer.bekreftDag.lonnsartGruppe.overtid": "Im Laufe der Zeit",
   "timer.bekreftDag.lonnsartGruppe.fravaer": "Abwesenheit"

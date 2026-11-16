@@ -5682,6 +5682,7 @@
   "timer.bekreftDag.velgLonnsart": "Виберіть вид заробітної плати",
   "timer.bekreftDag.linjeLonnsartHint": "Натисніть, щоб вибрати тип оплати для цього рядка",
   "timer.bekreftDag.etterNormen": "Понад норму від {{fra}}",
+  "timer.bekreftDag.fravaerTil": "Відсутність до",
   "timer.bekreftDag.lonnsartGruppe.ordinaer": "Звичайний",
   "timer.bekreftDag.lonnsartGruppe.overtid": "Понаднормова робота",
   "timer.bekreftDag.lonnsartGruppe.fravaer": "Відсутність"

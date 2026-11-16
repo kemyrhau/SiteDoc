@@ -5682,6 +5682,7 @@
   "timer.bekreftDag.velgLonnsart": "Choisissez le type de salaire",
   "timer.bekreftDag.linjeLonnsartHint": "Appuyez pour choisir le type de salaire pour cette ligne",
   "timer.bekreftDag.etterNormen": "Au-delà de la norme de {{fra}}",
+  "timer.bekreftDag.fravaerTil": "Absence jusqu'à",
   "timer.bekreftDag.lonnsartGruppe.ordinaer": "Ordinaire",
   "timer.bekreftDag.lonnsartGruppe.overtid": "Au fil du temps",
   "timer.bekreftDag.lonnsartGruppe.fravaer": "Absence"
