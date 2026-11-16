@@ -5676,5 +5676,14 @@
   "timer.reiseKort.midlertidigLinje": "Tymczasowo: {{navn}} z {{dato}}",
   "timer.reiseKort.avslutt": "Koniec",
   "timer.reiseKort.sperre.adminMidlertidig": "Administrator firmy ustalił tymczasowe miejsce spotkania — poproś administratora firmy o zmianę",
-  "firma.ansatte.oppmote.viaOverforing": "poprzez przelew"
+  "firma.ansatte.oppmote.viaOverforing": "poprzez przelew",
+  "timer.bekreftDag.sperre.manglerLonnsart": "Wiersz nie ma typu wynagrodzenia. Kliknij «Wybierz rodzaj wynagrodzenia» w wierszu i wybierz jedno.",
+  "timer.bekreftDag.linje": "{{fra}}–{{til}} · {{timer}} godz",
+  "timer.bekreftDag.velgLonnsart": "Wybierz rodzaj wynagrodzenia",
+  "timer.bekreftDag.linjeLonnsartHint": "Kliknij, aby wybrać rodzaj wynagrodzenia dla tej linii",
+  "timer.bekreftDag.etterNormen": "Poza normą od {{fra}}",
+  "timer.bekreftDag.fravaerTil": "Nieobecność do",
+  "timer.bekreftDag.lonnsartGruppe.ordinaer": "Zwykły",
+  "timer.bekreftDag.lonnsartGruppe.overtid": "Nadgodziny",
+  "timer.bekreftDag.lonnsartGruppe.fravaer": "Brak"
 }

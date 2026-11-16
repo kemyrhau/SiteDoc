@@ -43,6 +43,9 @@ const BEKREFT_DAG_PROPS = [
   "HjelpIkon",
   "onOpprett=",
   "lonnUtlegg",
+  // RETUR (28) B9: fraværsdelingen i et kort — kun Bekreft dag.
+  "fravaerTil",
+  "FravaerTil",
   "BekreftDagLonnUtlegg",
   // POST 2026-11-14 (8) punkt 1: «+ Reise» i Nytt prosjektkort — kun Bekreft dag.
   "manuellReise",
@@ -58,6 +61,12 @@ const BEKREFT_DAG_PROPS = [
   "kjedeKonflikt",
   "finnOverlappVarsel",
   "useOppmotePeriodeVersjon",
+  // ORDRE (28) a3: lønnsart pr. linje — kun Bekreft dag.
+  "lonnsartPerLinje",
+  "velgLinjeLonnsart",
+  "linjerUtenLonnsart",
+  "ArbeidLinjer",
+  "kandidatIder",
 ];
 
 describe("ORDRE 34 — dagskortet er isolert fra Bekreft dag", () => {
@@ -350,5 +359,29 @@ describe("ORDRE 36c — reise-forslag og manuell Bekreft dag rører ikke dagskor
     const mutant = flat(TIMER_SEKSJON).replace("const erReiseRad = !!reise;", "const erReiseRad = true;");
     expect(mutant).not.toContain("const erReiseRad = !!reise;");
     expect(flat(TIMER_SEKSJON).replace(REISE_PAUSE, "avgjorRadPauseMin({")).not.toContain(REISE_PAUSE);
+  });
+});
+
+// ORDRE (28) a3 — rad-vinduets forhåndsvalg (V8) gjelder bare prosjektkortet;
+// velgeren viser bare innlogget firmas arter (F-L2).
+describe("ORDRE (28) — rad-vinduet og velgeren", () => {
+  const SEKSJON = les("TimerSeksjon.tsx");
+  const flat = SEKSJON.replace(/\s+/g, " ");
+  it("🔴 V8/T20: forhåndsvalget etter brukt norm ligger bak kortModus — dagskort-modus som før", () => {
+    const i = flat.indexOf("forhaandsvalgNyRad({");
+    expect(i).toBeGreaterThan(0);
+    expect(flat.slice(flat.lastIndexOf("if (", i), i)).toContain("if (kortModus) {");
+    expect(flat).toContain("return { lonnsartId: forrigeValg, aktivitetId: sisteRad?.aktivitetId ?? defaultAktivitetId ?? \"\", };");
+  });
+  it("🔴 F-L2: velgeren filtrerer på firma, og rad-vinduet og «Del opp» sender firmaet", () => {
+    expect(flat).toContain("filtrerVelgerLonnsarter( db.select().from(lonnsartLocal).where(eq(lonnsartLocal.aktiv, true)).all(), organizationId, )");
+    expect(flat).toContain("<LonnsartVelgerModal valgtId={valgtLonnsartId} organizationId={organizationId}");
+    const splitt = les("SplittRadModal.tsx").replace(/\s+/g, " ");
+    expect(splitt).toContain("<LonnsartVelgerModal valgtId={del.lonnsartId} organizationId={organizationId}");
+  });
+  it("🔴 RETUR (28) V8-merknad: fravær i forhåndsvalget slås opp uten aktiv-filter", () => {
+    expect(flat).toContain("const fravaerIder = hentFravaerLonnsartIderLokalt();");
+    expect(flat).toContain("erFravaer: r.lonnsartId != null && fravaerIder.has(r.lonnsartId),");
+    expect(flat).not.toContain("katalog.find((l) => l.id === r.lonnsartId)?.type === \"fravaer\"");
   });
 });

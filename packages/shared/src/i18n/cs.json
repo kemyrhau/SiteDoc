@@ -5676,5 +5676,14 @@
   "timer.reiseKort.midlertidigLinje": "Dočasně: {{navn}} od {{dato}}",
   "timer.reiseKort.avslutt": "Konec",
   "timer.reiseKort.sperre.adminMidlertidig": "Administrátor společnosti nastavil dočasný bod setkání – požádejte správce společnosti, aby jej změnil",
-  "firma.ansatte.oppmote.viaOverforing": "prostřednictvím převodu"
+  "firma.ansatte.oppmote.viaOverforing": "prostřednictvím převodu",
+  "timer.bekreftDag.sperre.manglerLonnsart": "Řádek nemá mzdový druh. Klepněte na řádek «Vybrat druh mzdy» a vyberte jeden.",
+  "timer.bekreftDag.linje": "{{fra}} – {{til}} · {{timer}} h",
+  "timer.bekreftDag.velgLonnsart": "Vyberte typ mzdy",
+  "timer.bekreftDag.linjeLonnsartHint": "Klepnutím vyberte typ mzdy pro tento řádek",
+  "timer.bekreftDag.etterNormen": "Nad rámec normy z {{fra}}",
+  "timer.bekreftDag.fravaerTil": "Nepřítomnost do",
+  "timer.bekreftDag.lonnsartGruppe.ordinaer": "Obyčejný",
+  "timer.bekreftDag.lonnsartGruppe.overtid": "Přesčas",
+  "timer.bekreftDag.lonnsartGruppe.fravaer": "Absence"
 }

@@ -5676,5 +5676,14 @@
   "timer.reiseKort.midlertidigLinje": "E përkohshme: {{navn}} nga {{dato}}",
   "timer.reiseKort.avslutt": "fund",
   "timer.reiseKort.sperre.adminMidlertidig": "Një administrator i kompanisë ka vendosur një pikë takimi të përkohshëm — kërkoni nga një administrator i kompanisë që ta ndryshojë atë",
-  "firma.ansatte.oppmote.viaOverforing": "nëpërmjet transferimit"
+  "firma.ansatte.oppmote.viaOverforing": "nëpërmjet transferimit",
+  "timer.bekreftDag.sperre.manglerLonnsart": "Një linjë nuk ka lloj pagash. Prekni \"Zgjidhni llojin e pagës\" në linjë dhe zgjidhni një.",
+  "timer.bekreftDag.linje": "{{fra}}–{{til}} · {{timer}} h",
+  "timer.bekreftDag.velgLonnsart": "Zgjidhni llojin e pagës",
+  "timer.bekreftDag.linjeLonnsartHint": "Trokit për të zgjedhur llojin e pagës për këtë linjë",
+  "timer.bekreftDag.etterNormen": "Përtej normës nga {{fra}}",
+  "timer.bekreftDag.fravaerTil": "Mungesa deri në",
+  "timer.bekreftDag.lonnsartGruppe.ordinaer": "E zakonshme",
+  "timer.bekreftDag.lonnsartGruppe.overtid": "Jashtë orarit",
+  "timer.bekreftDag.lonnsartGruppe.fravaer": "Mungesa"
 }

@@ -5676,5 +5676,14 @@
   "timer.reiseKort.midlertidigLinje": "Temporär: {{navn}} von {{dato}}",
   "timer.reiseKort.avslutt": "Ende",
   "timer.reiseKort.sperre.adminMidlertidig": "Ein Firmenadministrator hat einen temporären Treffpunkt festgelegt – bitten Sie einen Firmenadministrator, diesen zu ändern",
-  "firma.ansatte.oppmote.viaOverforing": "per Überweisung"
+  "firma.ansatte.oppmote.viaOverforing": "per Überweisung",
+  "timer.bekreftDag.sperre.manglerLonnsart": "Eine Zeile hat keine Lohnart. Tippen Sie in der Zeile auf „Lohnart wählen“ und wählen Sie eine aus.",
+  "timer.bekreftDag.linje": "{{fra}}–{{til}} · {{timer}} h",
+  "timer.bekreftDag.velgLonnsart": "Wählen Sie die Lohnart",
+  "timer.bekreftDag.linjeLonnsartHint": "Tippen Sie, um die Lohnart für diese Zeile auszuwählen",
+  "timer.bekreftDag.etterNormen": "Über die Norm hinaus von {{fra}}",
+  "timer.bekreftDag.fravaerTil": "Abwesenheit bis",
+  "timer.bekreftDag.lonnsartGruppe.ordinaer": "Normal",
+  "timer.bekreftDag.lonnsartGruppe.overtid": "Im Laufe der Zeit",
+  "timer.bekreftDag.lonnsartGruppe.fravaer": "Abwesenheit"
 }

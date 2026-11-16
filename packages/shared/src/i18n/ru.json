@@ -5676,5 +5676,14 @@
   "timer.reiseKort.midlertidigLinje": "Временно: {{navn}} от {{dato}}",
   "timer.reiseKort.avslutt": "Конец",
   "timer.reiseKort.sperre.adminMidlertidig": "Администратор компании назначил временное место встречи — попросите администратора компании изменить его.",
-  "firma.ansatte.oppmote.viaOverforing": "через трансфер"
+  "firma.ansatte.oppmote.viaOverforing": "через трансфер",
+  "timer.bekreftDag.sperre.manglerLonnsart": "Строка не имеет вида оплаты. Нажмите на строку «Выбрать вид оплаты» и выберите его.",
+  "timer.bekreftDag.linje": "{{fra}}–{{til}} · {{timer}} ч",
+  "timer.bekreftDag.velgLonnsart": "Выберите тип оплаты",
+  "timer.bekreftDag.linjeLonnsartHint": "Нажмите, чтобы выбрать тип оплаты для этой строки",
+  "timer.bekreftDag.etterNormen": "За пределами нормы от {{fra}}",
+  "timer.bekreftDag.fravaerTil": "Отсутствие до",
+  "timer.bekreftDag.lonnsartGruppe.ordinaer": "Обычный",
+  "timer.bekreftDag.lonnsartGruppe.overtid": "Через некоторое время",
+  "timer.bekreftDag.lonnsartGruppe.fravaer": "Отсутствие"
 }

@@ -24,6 +24,7 @@ import {
   tolkSlutt,
   velgDestinasjon,
   tilGeofencer,
+  erReiseLonnsart,
   løsOppmote,
   type Destinasjon,
 } from "@sitedoc/shared";
@@ -123,6 +124,17 @@ export function samleDagsforslagInput(
   const standardLonnsartId = hentStandardLonnsartLokalt(orgId)?.id ?? null;
 
   const regelRad = hentOrganizationSettingLokalt(orgId);
+  // RETUR (28) A1: reise-artene (samme regel som `erReiseLonnsartLokalt`) —
+  // en arbeidslinje kan aldri velges til reise (`godtattLinjeLonnsart`).
+  const reiseKtx = {
+    reiseLonnsartId: regelRad?.reiseLonnsartId ?? null,
+    grensepunktLonnsartIds: hentReiseGrensepunkterLokalt(orgId)
+      .map((g) => g.lonnsartId)
+      .filter((id): id is string => id != null),
+  };
+  const reiseLonnsartIder = alleLonnsarter
+    .filter((l) => erReiseLonnsart(l.id, l.navn ?? "", reiseKtx))
+    .map((l) => l.id);
   const regel = regelRad
     ? {
         reiseTerskelEnhet: regelRad.reiseTerskelEnhet,
@@ -320,6 +332,7 @@ export function samleDagsforslagInput(
     aktiviteter,
     alleLonnsarter,
     standardLonnsartId,
+    ...(reiseLonnsartIder.length > 0 ? { reiseLonnsartIder } : {}),
     regel,
     reiseOppslag,
     effektivPerDato,

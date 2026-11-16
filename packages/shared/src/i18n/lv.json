@@ -5676,5 +5676,14 @@
   "timer.reiseKort.midlertidigLinje": "Pagaidu: {{navn}} no {{dato}}",
   "timer.reiseKort.avslutt": "Beigas",
   "timer.reiseKort.sperre.adminMidlertidig": "Uzņēmuma administrators ir iestatījis pagaidu tikšanās punktu — lūdziet uzņēmuma administratoram to mainīt",
-  "firma.ansatte.oppmote.viaOverforing": "izmantojot pārskaitījumu"
+  "firma.ansatte.oppmote.viaOverforing": "izmantojot pārskaitījumu",
+  "timer.bekreftDag.sperre.manglerLonnsart": "Rindai nav algas veida. Pieskarieties rindā “Izvēlēties algas veidu” un izvēlieties vienu.",
+  "timer.bekreftDag.linje": "{{fra}}–{{til}} · {{timer}} h",
+  "timer.bekreftDag.velgLonnsart": "Izvēlieties algas veidu",
+  "timer.bekreftDag.linjeLonnsartHint": "Pieskarieties, lai izvēlētos šīs līnijas algas veidu",
+  "timer.bekreftDag.etterNormen": "Pārsniedz normu no {{fra}}",
+  "timer.bekreftDag.fravaerTil": "Prombūtne līdz",
+  "timer.bekreftDag.lonnsartGruppe.ordinaer": "Parasta",
+  "timer.bekreftDag.lonnsartGruppe.overtid": "Virsstundas",
+  "timer.bekreftDag.lonnsartGruppe.fravaer": "Prombūtne"
 }

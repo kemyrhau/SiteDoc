@@ -5676,5 +5676,14 @@
   "timer.reiseKort.midlertidigLinje": "Ajutine: {{navn}} alates {{dato}}",
   "timer.reiseKort.avslutt": "Lõpp",
   "timer.reiseKort.sperre.adminMidlertidig": "Ettevõtte administraator on määranud ajutise kohtumispunkti – paluge ettevõtte administraatoril seda muuta",
-  "firma.ansatte.oppmote.viaOverforing": "ülekande kaudu"
+  "firma.ansatte.oppmote.viaOverforing": "ülekande kaudu",
+  "timer.bekreftDag.sperre.manglerLonnsart": "Real puudub palgaliik. Puudutage real \"Vali palgatüüp\" ja valige üks.",
+  "timer.bekreftDag.linje": "{{fra}}–{{til}} · {{timer}} h",
+  "timer.bekreftDag.velgLonnsart": "Valige palgatüüp",
+  "timer.bekreftDag.linjeLonnsartHint": "Puudutage selle rea palgatüübi valimiseks",
+  "timer.bekreftDag.etterNormen": "Üle normi alates {{fra}}",
+  "timer.bekreftDag.fravaerTil": "Puudub kuni",
+  "timer.bekreftDag.lonnsartGruppe.ordinaer": "Tavaline",
+  "timer.bekreftDag.lonnsartGruppe.overtid": "Ületunnitöö",
+  "timer.bekreftDag.lonnsartGruppe.fravaer": "Puudumine"
 }

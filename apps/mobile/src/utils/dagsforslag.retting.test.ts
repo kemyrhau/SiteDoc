@@ -295,6 +295,14 @@ describe("ORDRE 35 del B — «Legg til overtid» i Bekreft dag", () => {
     expect(sum(rader)).toBe(6);
   });
 
+  it("🔴 RETUR 2 (28): arbeid-linja tilbys ikke fravær i velgeren (chips og liste)", () => {
+    const her = dirname(fileURLToPath(import.meta.url));
+    const flat = readFileSync(join(her, "../../app/timer/bekreft-dag.tsx"), "utf-8").replace(/\s+/g, " ");
+    expect(flat).toContain('linje === "arbeid" ? linjeArter.filter((a) => a.type !== "fravaer") : linjeArter;');
+    expect(flat).toContain("grupperLinjeLonnsarter(arterFor(l.linje))");
+    expect(flat).toContain("kandidatIder={arterFor(aapenLinje.linje).map((a) => a.id)}");
+  });
+
   it("🔴 knappen: vises kun uten overtid og med nivå-valg; starter overtid fra arbeidsstart og åpner editoren", () => {
     const her = dirname(fileURLToPath(import.meta.url));
     const flat = readFileSync(join(her, "../../app/timer/bekreft-dag.tsx"), "utf-8").replace(/\s+/g, " ");
@@ -302,7 +310,7 @@ describe("ORDRE 35 del B — «Legg til overtid» i Bekreft dag", () => {
     expect(i).toBeGreaterThan(0);
     const knapp = flat.slice(flat.lastIndexOf("{!forsteOt", i), i);
     // ORDRE (27b) V5a: skjules mens nivå-knappene står åpne med overtiden av.
-    expect(knapp).toContain("{!forsteOt && overtidValg.length > 0 && !(redigerOvertid && overtidAv) ? (");
+    expect(knapp).toContain("{!forsteOt && !dag.fravaerTil && overtidValg.length > 0 && !(redigerOvertid && overtidAv) ? (");
     expect(knapp).toContain("onRett(leggTilOvertidRetting(fra, alleLonnsarter, overtidValg));");
     expect(knapp).toContain("setRedigerOvertid(true);");
   });
@@ -360,6 +368,19 @@ describe("ORDRE 35 RETUR 1 — firma med OT100 uten OT50", () => {
     expect(flat).toContain("{redigerOvertid && otFra ? (");
     expect(flat).toContain("rettetOvertidFra={retting.perDato?.[d.dato]?.overtidFra}");
     expect(flat).not.toContain("redigerOvertid && forsteOt");
+  });
+});
+
+describe("RETUR 3 (28) A3 — «Fravær til»-stepperen bruker beregningens grense", () => {
+  it("🔴 kildevakt: «−»/«+» tar punktene fra dag.fravaerSteg og er sperret uten dem", () => {
+    const her = dirname(fileURLToPath(import.meta.url));
+    const flat = readFileSync(join(her, "../../app/timer/bekreft-dag.tsx"), "utf-8").replace(/\s+/g, " ");
+    expect(flat).toContain("onPress={() => dag.fravaerSteg?.ned && onRett({ fravaerTil: dag.fravaerSteg.ned })}");
+    expect(flat).toContain("disabled={!dag.fravaerSteg?.ned}");
+    expect(flat).toContain("onPress={() => dag.fravaerSteg?.opp && onRett({ fravaerTil: dag.fravaerSteg.opp })}");
+    expect(flat).toContain("disabled={!dag.fravaerSteg?.opp}");
+    // Egen klokke-stepping på «Fravær til» ville gå forbi grensen / inn i pausen.
+    expect(flat).not.toMatch(/fravaerTil: stegOvertidFra\(/);
   });
 });
 
@@ -451,5 +472,106 @@ describe("(15) gjesteprosjekt som aktivt prosjekt", () => {
     for (const fil of dagskort) {
       expect(readFileSync(join(her, fil), "utf8")).not.toMatch(/beregnDagsforslag/);
     }
+  });
+});
+
+/**
+ * RETUR 4 (28) — Kontrollør GATE (60) A4: nattskift fra GPS deles ved midnatt
+ * (`dagsegment.ts`), så dag 1 slutter 00:00. Kortets slutt regnes fra
+ * arbeidsstart + varighet; 00:00 = 0 min ga hele kortet som fravær og en
+ * sperret stepper. (Manuell «til» 00:00 legges på samme dato og gir et tomt
+ * kort — den veien finnes ikke.)
+ */
+describe("RETUR 4 (28) A4 — kort som slutter ved midnatt", () => {
+  const L_EGEN = "L-egen";
+  const natt = (rett: Record<string, unknown>) =>
+    beregnDagsforslag(
+      lagInput({
+        dag: { startAt: "2026-07-01T20:00:00", startLat: 59.9, startLng: 10.7, oppmotestedId: "o1", byggeplassId: null },
+        sluttIso: "2026-07-02T02:00:00",
+        reiseOppslag: null,
+        alleLonnsarter: [
+          { id: L_NORMAL, overtidsnivaa: null, aktiv: true, type: "ordinaer", rekkefolge: 0 },
+          { id: L_OT50, overtidsnivaa: 50, aktiv: true, type: "ordinaer", rekkefolge: 1 },
+          { id: L_EGEN, overtidsnivaa: null, aktiv: true, type: "fravaer", rekkefolge: 2 },
+        ],
+        effektivPerDato: {
+          "2026-07-01": { ...SOMMER, pauseMin: 0, dagsnorm: 7.5 },
+          "2026-07-02": { ...SOMMER, pauseMin: 0, dagsnorm: 7.5 },
+        },
+        retting: { perDato: { "2026-07-01": { lonnsartPerLinje: { normal: L_EGEN }, ...rett } } },
+      }),
+    ).datoer;
+  const vis = (rader: { fraTid: string | null; tilTid: string | null; timer: number; lonnsartId: string }[]) =>
+    rader.map((r) => [r.fraTid, r.tilTid, r.timer, r.lonnsartId]);
+
+  it("🔴 nattskift 20–02, dag 1 med «Fravær til» 22:00 → 2 t fravær + 2 t normal, stepper 21:45/22:15", () => {
+    const [d1, d2] = natt({ fravaerTil: "22:00" });
+    expect(vis(d1!.rader.filter((r) => !r.erReise))).toEqual([
+      ["20:00", "22:00", 2, L_EGEN],
+      ["22:00", "23:59", 2, L_NORMAL],
+    ]);
+    expect(d1!.fravaerTil).toBe("22:00");
+    expect(d1!.fravaerSteg).toEqual({ ned: "21:45", opp: "22:15" });
+    // Dag 2 er urørt.
+    expect(vis(d2!.rader.filter((r) => !r.erReise))).toEqual([["00:00", "02:00", 2, L_NORMAL]]);
+  });
+
+  it("🔴 «Fravær til» 00:00 (linjas slutt over midnatt) → hele kortet fravær, «−» virker", () => {
+    const [d1] = natt({ fravaerTil: "00:00" });
+    expect(vis(d1!.rader.filter((r) => !r.erReise))).toEqual([["20:00", "23:59", 4, L_EGEN]]);
+    expect(d1!.fravaerSteg).toEqual({ ned: "23:45", opp: null });
+  });
+});
+
+/**
+ * RETUR 5 (28) — Kontrollør GATE (61). A5: et punkt før arbeidsstart på et
+ * kort over midnatt er bare «etter midnatt» når det da ligger i kortet; ellers
+ * vanlig klemme (arbeidsstart + ett steg). B1: stepperen går i hele kvarter
+ * fra klokka, ikke fra arbeidsstart.
+ */
+describe("RETUR 5 (28) A5/B1 — punkt før start over midnatt, steg på klokke-kvarter", () => {
+  const L_EGEN = "L-egen";
+  const gps = (startAt: string, sluttIso: string, rett: Record<string, unknown>) =>
+    beregnDagsforslag(
+      lagInput({
+        dag: { startAt, startLat: 59.9, startLng: 10.7, oppmotestedId: "o1", byggeplassId: null },
+        sluttIso,
+        reiseOppslag: null,
+        alleLonnsarter: [
+          { id: L_NORMAL, overtidsnivaa: null, aktiv: true, type: "ordinaer", rekkefolge: 0 },
+          { id: L_OT50, overtidsnivaa: 50, aktiv: true, type: "ordinaer", rekkefolge: 1 },
+          { id: L_EGEN, overtidsnivaa: null, aktiv: true, type: "fravaer", rekkefolge: 2 },
+        ],
+        effektivPerDato: {
+          "2026-07-01": { ...SOMMER, pauseMin: 0, dagsnorm: 7.5 },
+          "2026-07-02": { ...SOMMER, pauseMin: 0, dagsnorm: 7.5 },
+        },
+        retting: { perDato: { "2026-07-01": { lonnsartPerLinje: { normal: L_EGEN }, ...rett } } },
+      }),
+    ).datoer[0]!;
+  const fravaerTimer = (d: ReturnType<typeof gps>) =>
+    d.rader.filter((r) => !r.erReise && r.lonnsartId === L_EGEN).reduce((s, r) => s + r.timer, 0);
+
+  it.each(["19:00", "19:30"])(
+    "🔴 A5: GPS 18–02, arbeidsstart rettet 20:00, «Fravær til» %s → klemt til 20:15, 0,25 t",
+    (fravaerTil) => {
+      const d = gps("2026-07-01T18:00:00", "2026-07-02T02:00:00", { arbeidFra: "20:00", fravaerTil });
+      expect(d.fravaerTil).toBe("20:15");
+      expect(fravaerTimer(d)).toBeCloseTo(0.25, 5);
+      expect(d.fravaerSteg).toEqual({ ned: null, opp: "20:30" });
+    },
+  );
+
+  it("A5: «Fravær til» 00:00 (linjas slutt) på samme kort → fortsatt hele kortet, «−» 23:45", () => {
+    const d = gps("2026-07-01T18:00:00", "2026-07-02T02:00:00", { arbeidFra: "20:00", fravaerTil: "00:00" });
+    expect(fravaerTimer(d)).toBeCloseTo(4, 5);
+    expect(d.fravaerSteg).toEqual({ ned: "23:45", opp: null });
+  });
+
+  it("🔴 B1: GPS 07:53–17, «Fravær til» 10:00 → stepper på klokke-kvarter 09:45/10:15", () => {
+    const d = gps("2026-07-01T07:53:00", "2026-07-01T17:00:00", { fravaerTil: "10:00" });
+    expect(d.fravaerTil).toBe("10:00");
+    expect(d.fravaerSteg).toEqual({ ned: "09:45", opp: "10:15" });
   });
 });
