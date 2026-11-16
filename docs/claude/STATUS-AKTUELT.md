@@ -31,6 +31,8 @@ sist_verifisert_mot_kode: 2026-08-09
 > ⚠️ **IKKE i prod:** DWG retur 2 (auto-rotasjon, startutsnitt, LEADER) · DWG retur 4 (fullstendighet: ATTRIB-tegning + `konvertering_rapport` + gate-test, branch `fix/dwg-retur4-strek`) · snap-retur 1 — under arbeid. DWG-3 (georeferanse fire hjørner) ikke levert — se § 2026-09-24 under.
 
 > ✅ **Gjestevern ved firmabytte, mobil (19) MERGET 2026-11-15** (merge `1a287c5d` av `38f4dffa`; Kontrollør GODKJENT GATE (44) nederst i `inbox-orkestrator.md`). `skalNullstilleProsjekt` flyttet til `@sitedoc/shared` (`gjesteprosjekt.ts`, web re-eksporterer); mobil `ProsjektKontekst.tsx` holder ventende firmabytte til gjestelista er lastet (`firmabyttProsjekt.ts` `firmabyttUtfall`) — gjesteprosjekt beholdes ved firmabytte. **Ikke deployet.** Lukker (18) åpent punkt (b).
+> ✅ **3D M5 (1) objektinfo fra cache MERGET 2026-11-16** (merge `1dfb6191` av `63fb5bc8`; Kontrollør GODKJENT GATE (78) `inbox-orkestrator.md:30818`). `mobil-viewer/page.tsx` + `ifcRaadata.ts`. Krever web-deploy til test før Kenneth tester på telefon (klikkplan i leveransen). Oppfølger anbefalt av Kontrollør: lagre råfila med fragmentene / hent ved første tapp (mobildata).
+
 
 > ✅ **Kort-id d2c-1 MERGET 2026-11-16** (merge `274e7fb2` av `c2badc8f`; Kontrollør GODKJENT GATE (75) `inbox-orkestrator.md:30527`). PC: maskin som krever timerad (R24, H12/H13/H15 A) lagres ikke uten koblet timerad; nedtrekk «Timerad» i maskinvinduet; sletting av timerad med maskiner bekreftes og sletter dem i samme transaksjon; timerad med slik maskin kan ikke bli reise eller 0 t. `syncBatch` uendret. Merknad: dialogen viser «—» når maskinlista ikke er lastet (kosmetisk). Ikke deployet.
 
@@ -138,8 +140,8 @@ sist_verifisert_mot_kode: 2026-08-09
 | **Dokgen** | `SiteDoc-dokgen` | `feat/arbeidstegning-prod-klar` `954a2ac0` | ikke målt denne runden |
 | **Kontrollplan** | `SiteDoc-kontrollplan` | `feat/v17b-soner` `301da63e` | ikke målt denne runden |
 | **Mal-Opus** | `SiteDoc-mal` | `feat/mal-7b-standardnavn-vakt27` `eb5af56a` | ikke målt denne runden |
-| **3D-web** | app-tre (økt «3D-web: mål W1–W5») | `3d-web-maaling` fra `cf0b5b4b` | 🔵 ORDRE GITT 2026-11-16 — måling W1–W5, ingen kode ([3d-agent-prinsipper.md](3d-agent-prinsipper.md)) |
-| **3D-mobil** | app-tre (økt «3D-mobil: mål M1–M6») | `3d-mobil-maaling` fra `cf0b5b4b` | 🔵 ORDRE GITT 2026-11-16 — måling M1–M6, ingen kode |
+| **3D-web** | app-tre (økt «3D-web: mål W1–W5») | `3d-web-maaling` fra `cf0b5b4b` | 🟠 RETUR V1 (gate 79) — `feat/3d-web-reparasjon` W1+W4+W2 ([3d-agent-prinsipper.md](3d-agent-prinsipper.md)) |
+| **3D-mobil** | app-tre `3d-mobil-maaling-a07340` | M5 (1) merget `1dfb6191`; `fix/3d-mobil-kamera` | 🔵 ORDRE GITT 2026-11-16 — ORDRE 3 M1–M3 kamera |
 | **Merge** | `SiteDoc-merge` | detached på develop | ⚪ LEDIG |
 
 **Tilstander:** ⚪ LEDIG · 🟠 FERDIGSKREVET (ikke relayet) · 🔵 ORDRE GITT · 🟢 LEVERT · 🔴 BLOKKERT

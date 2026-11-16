@@ -45,20 +45,21 @@ Status fylles inn av orkestrator ved merge. ⚪ ikke målt · 🔵 målt · 🟢
 | # | Funn | Status |
 |---|---|---|
 | W1 | 3D-visningen fyller bare deler av skjermen; verre på høyere oppløsning (lerretet slutter ~y=700 av 1213 px) | 🔵 regresjon `cebe06f1`: `dashbord/layout.tsx:53` `<main>` er blokk, lerretet får innholdets høyde — ordre 3D-web 2 |
-| W2 | Snitt virker dårlig eller ikke på PC | 🔵 første dobbeltklikk treffer midten (Raycasters lages for sent) + objektvalg spretter opp — ordre 3D-web 2; hjelpetekst venter på Kenneth |
+| W2 | Snitt virker dårlig eller ikke på PC | 🔵 første dobbeltklikk treffer midten (Raycasters lages for sent) + objektvalg spretter opp — ordre 3D-web 2. **Kenneth 2026-11-16: hjelpetekst «Dobbeltklikk på en flate for å lage snitt» som hover på Snitt-knappen** 🟡 ikke bygget |
 | W3 | Egenskapskortet viser for få egenskaper — mange lagrede vises ikke | 🔵 type-egenskaper kastes (`tred-viewer-kontekst.tsx:838-876`), kortet kuttes av W1; felles uttrekk med M5 (2) |
 | W4 | Pan med høyre museknapp virker ikke | 🔵 target settes 2 m foran kameraet (`tred-viewer-kontekst.tsx:386`) → pan ~2 % fart — ordre 3D-web 2 |
-| W5 | Måling i modellen mangler | 🔵 fravær målt; felles med M6 |
+| W5 | Måling i modellen mangler | 🔵 fravær målt; felles med M6. **Kenneth 2026-11-16: første runde = punkt–punkt med avstand + høydeforskjell, uten snapping** |
+| W6 | Med Snitt aktivert: zoomer man inn, begynner modellen å drifte ned og ut av skjermen når man nærmer seg (Kenneth 2026-11-16) | ⚪ ikke målt — mistanke: scrollhjulet kjøres dobbelt (`ctrl.forward` + camera-controls `dollyToCursor`) |
 
 ### Mobil
 
 | # | Funn | Status |
 |---|---|---|
-| M1 | Pan virker ikke i én modell på prod; i en annen modell på test virker den | 🔵 samme viewer-kode på test og prod; **Kenneth 2026-11-16: test og prod er to forskjellige modeller** → modellavhengig, kamerakonstanter følger ikke modellen (H1/H2) — venter på prod-modellen |
+| M1 | Pan virker ikke i én modell på prod; i en annen modell på test virker den | 🔵 samme viewer-kode på test og prod; **Kenneth 2026-11-16: test og prod er to forskjellige modeller** → modellavhengig. **Prod-modellen (Kenneth 2026-11-16): ikke georeferert, omtrent samme størrelse som test-modellen, åpner liten og litt ned mot venstre, nær midten** |
 | M2 | Zoom med to fingre er 50–60 % for rask på prod, OK på test | 🔵 som M1 |
 | M3 | Rotere objektet virker ikke på prod, virker på test | 🔵 som M1 |
 | M4 | Saks / «beskjær bygget» er svært ustabil | 🔵 dobbelttapp gir objektvalg + nye plan; kameralås under dra må måles på touch |
-| M5 | Objektinfo viser ingen detaljer, egenskaper eller mål | 🔵 (1) fragment-cache fyller aldri `ifcDataMap` — ordre 3D-mobil 2; (2) bare direkte attributter, felles uttrekk med W3 |
+| M5 | Objektinfo viser ingen detaljer, egenskaper eller mål | 🟢 (1) merget `1dfb6191` (ikke deployet); (2) bare direkte attributter, felles uttrekk med W3 |
 | M6 | Måling mangler | 🔵 fravær målt; felles med W5 |
 
 W3 og M5 deler kilde i **klienten** (web-ifc i nettleseren), ikke i `ifcMetadata.ts` (som bare lagrer fil-metadata). Felles uttrekk legges i `@sitedoc/shared` av 3D-web; 3D-mobil bruker det.
