@@ -62,6 +62,17 @@ describe("radform — kildevakter", () => {
 
   it("Send sperres og peker til raden som mangler beskrivelse", () => {
     expect(OVERSIKT).toMatch(/forsteRadUtenBeskrivelse\(dag\.rader\.map/);
-    expect(OVERSIKT).toMatch(/manglerBeskrivelse\s*\?\s*aapneTimer\(kortFor\.timer\.get\(manglerBeskrivelse\.id\)!, manglerBeskrivelse\.id, true\)\s*:\s*onSend\?\.\(\)/);
+    // ORDRE (33) c2 (TF9, U11/F4): fraværskortet uten beskrivelse sperrer også — trykket åpner kortet.
+    expect(OVERSIKT).toMatch(/manglerBeskrivelse\s*\?\s*aapneTimer\(kortFor\.timer\.get\(manglerBeskrivelse\.id\)!, manglerBeskrivelse\.id, true\)\s*:\s*fravaerManglerBeskrivelse\s*\?\s*setFravaerKort\(\{ nyLinje: false \}\)\s*:\s*normtakBrudd\s*\?\s*undefined\s*:\s*onSend\?\.\(\)/);
+    expect(OVERSIKT).toMatch(/fravaerRader\.some\(\(r\) => !\(r\.beskrivelse \?\? ""\)\.trim\(\)\)/);
+  });
+
+  it("🔴 TF23 (ORDRE (33) c3, F9 = A): brudd på fravær med tak sperrer Send; brudd-linja har ett-trykks retting", () => {
+    // SVAR (33) pkt 2 (U12): taket bruker datoens eksakte norm, ikke cachet fallback.
+    expect(OVERSIKT).toMatch(/bruddForDag\(\{\s*dagsnorm: normtakTimer/);
+    expect(OVERSIKT).toMatch(/disabled=\{normtakBrudd != null && !manglerBeskrivelse\}/);
+    expect(OVERSIKT).toContain("byggNormtakBruddLinje(t, normtakBrudd.data, formatKortTall)");
+    expect(OVERSIKT).toMatch(/onPress=\{rettNormtakBrudd\}/);
+    expect(OVERSIKT).toContain('t("timer.normtak.slettFravaer")');
   });
 });

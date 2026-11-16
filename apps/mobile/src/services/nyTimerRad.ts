@@ -75,14 +75,51 @@ export function sistBrukteRadvalg(
       ? siste.aktivitetId
       : null;
 
-  const standardAktivitet =
-    aktiveAktiviteter.find((a) => a.navn === "Anleggsarbeid")?.id ??
-    (aktiveAktiviteter.length === 1 ? aktiveAktiviteter[0]!.id : null);
-
   return {
     lonnsartId: sistLonnsart ?? aktiveLonnsarter.find((l) => l.erStandardvalg)?.id ?? null,
-    aktivitetId: sistAktivitet ?? standardAktivitet,
+    aktivitetId: sistAktivitet ?? standardAktivitet(aktiveAktiviteter),
   };
+}
+
+/**
+ * Firmaets standard-aktivitet for en ny rad (Q5 steg 2): «Anleggsarbeid», ellers den
+ * eneste aktive. `null` = ingen standard. Kalleren gir firmaets AKTIVE aktiviteter.
+ */
+export function standardAktivitet(aktive: readonly { id: string; navn: string }[]): string | null {
+  return (
+    aktive.find((a) => a.navn === "Anleggsarbeid")?.id ?? (aktive.length === 1 ? aktive[0]!.id : null)
+  );
+}
+
+/**
+ * U6 (ORDRE (33) SVAR pkt 1, spec § 11.5): aktiviteten fraværsraden får uten at feltet
+ * vises. «Sist brukte» hoppes over (den er prosjektbundet).
+ *  1. `standardAktivitet` — samme som en ny arbeidsrad;
+ *  2. ellers firmaets første aktive etter `seedNivaa` (1, 2, deretter null), så `kode`,
+ *     så `navn`;
+ *  3. ingen aktiv aktivitet → `null`: «+ Fravær» kan ikke lagre (aldri `""` mot serveren).
+ */
+export function fravaerAktivitetId(db: LokalDb, organizationId: string): string | null {
+  const aktive = db
+    .select({
+      id: aktivitetLocal.id,
+      navn: aktivitetLocal.navn,
+      kode: aktivitetLocal.kode,
+      seedNivaa: aktivitetLocal.seedNivaa,
+    })
+    .from(aktivitetLocal)
+    .where(and(eq(aktivitetLocal.organizationId, organizationId), eq(aktivitetLocal.aktiv, true)))
+    .all();
+  const standard = standardAktivitet(aktive);
+  if (standard) return standard;
+  const nivaa = (n: number | null) => (n == null ? Number.POSITIVE_INFINITY : n);
+  const sortert = [...aktive].sort(
+    (a, b) =>
+      nivaa(a.seedNivaa) - nivaa(b.seedNivaa) ||
+      (a.kode ?? "\uffff").localeCompare(b.kode ?? "\uffff") ||
+      a.navn.localeCompare(b.navn, "nb"),
+  );
+  return sortert[0]?.id ?? null;
 }
 
 /** Prosjekt + byggeplass som foreslås for ny rad (ORDRE 29 pkt 1). */
@@ -183,7 +220,11 @@ export function erDagLaast(dag: DagForDato | null): boolean {
 export type { NyMaskin } from "./kobledeMaskiner";
 
 export interface NyRad {
-  projectId: string;
+  /**
+   * `null` = fraværskortet (spec § 11.2): raden lagres med `uten_prosjekt`, uten
+   * byggeplass og underprosjekt, og arver aldri sedelens prosjekt.
+   */
+  projectId: string | null;
   byggeplassId: string | null;
   lonnsartId: string;
   aktivitetId: string;
@@ -201,6 +242,11 @@ export interface NyRad {
    * erReise false på standard ordinær art). Udefinert → utledes fra lønnsarten.
    */
   reiseSpor?: ManuellReiseSpor;
+  /**
+   * Ordre c (T11): kortet raden føres på, når kortet har id (kortskjermen /
+   * dagskortets kort). Udefinert → regel 3 (`sikreLokalKortId`) som før.
+   */
+  kortId?: string | null;
 }
 
 /** Skriv én timer-rad (+ evt. maskin) på en sedel. Delt av sedelen og «+». */
@@ -231,12 +277,13 @@ export function settInnTimerRad(
       id: timerRadId,
       dagsseddelId: sheetId,
       projectId: rad.projectId,
+      utenProsjekt: rad.projectId === null,
       // F3: per-rad byggeplass. null = arv fra dagskortet (server propagerer
-      // sedel-verdien ved sync).
-      byggeplassId: rad.byggeplassId,
+      // sedel-verdien ved sync). Fraværskortet: aldri byggeplass/underprosjekt (K8).
+      byggeplassId: rad.projectId === null ? null : rad.byggeplassId,
       lonnsartId: rad.lonnsartId,
       aktivitetId: rad.aktivitetId,
-      externalCostObjectId: rad.externalCostObjectId,
+      externalCostObjectId: rad.projectId === null ? null : rad.externalCostObjectId,
       timer: rad.timer,
       fraTid: rad.fraTid,
       tilTid: rad.tilTid,
@@ -255,13 +302,16 @@ export function settInnTimerRad(
       reiseKjoretidMin: spor?.erReise ? spor.reiseKjoretidMin : null,
       reiseRegel: spor ? JSON.stringify(spor.reiseRegel) : null,
       tidKilde: "manuell",
+      // Fraværskortet er ett kort (spec § 11.2) — id-en settes av regel 3.
+      kortId: rad.projectId === null ? null : (rad.kortId ?? null),
       sistEndretLokalt: Date.now(),
     })
     .run();
   // NY BESLUTNING maskinkobling: hver maskin kobles til raden (sheetTimerId)
   // med EGNE timer (≤ radens — rad-modalen avviser ellers). Samme skrivevei
   // som rediger-banen (`skrivKobledeMaskiner`).
-  if (rad.maskiner.length > 0) {
+  // Fraværskortet bærer aldri maskin (K8).
+  if (rad.maskiner.length > 0 && rad.projectId !== null) {
     skrivKobledeMaskiner(
       db,
       sheetId,
@@ -311,7 +361,8 @@ export function lagreNyTimerRad(
     userId: args.userId,
     orgId: args.organizationId,
     dato: args.dato,
-    prosjektId: args.rad.projectId,
+    // Dag med bare fravær: sedel uten prosjekt (`""`, som dagens tomme sedel; spec § 11.3).
+    prosjektId: args.rad.projectId ?? "",
     aktivitetId: args.rad.aktivitetId,
     // ORDRE 29: NY sedel arver radens byggeplass (som primærprosjektet);
     // en eksisterende sedel røres ikke.

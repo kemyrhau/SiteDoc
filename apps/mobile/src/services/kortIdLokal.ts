@@ -52,6 +52,7 @@ export function sikreLokalKortId(db: LokalDb, dagsseddelId: string): number {
       byggeplassId: sheetTimerLocal.byggeplassId,
       ecoId: sheetTimerLocal.externalCostObjectId,
       erReise: sheetTimerLocal.erReise,
+      utenProsjekt: sheetTimerLocal.utenProsjekt,
     })
     .from(sheetTimerLocal)
     .where(eq(sheetTimerLocal.dagsseddelId, dagsseddelId))

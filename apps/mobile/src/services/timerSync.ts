@@ -1,3 +1,4 @@
+import { prosjektFeltFraServer, prosjektFeltTilServer } from "../utils/utenProsjektSynk";
 import { eq, and, gt, gte, lte, inArray, isNull, isNotNull } from "drizzle-orm";
 import { finnSedlerÅSlette } from "@sitedoc/shared";
 import { hentDatabase } from "../db/database";
@@ -778,7 +779,11 @@ async function kjorTimerSync(
             .values({
               id: s.id,
               dagsseddelId: sp.sheetId,
-              projectId: s.projectId ?? "",
+              // Fraværskortet (spec § 11.3): hoppet rad uten prosjekt står uten prosjekt.
+              ...prosjektFeltFraServer(
+                { projectId: s.projectId ?? "", utenProsjekt: (s as { utenProsjekt?: boolean | null }).utenProsjekt },
+                "",
+              ),
               byggeplassId: s.byggeplassId ?? null,
               lonnsartId: s.lonnsartId,
               aktivitetId: s.aktivitetId,
@@ -929,10 +934,19 @@ async function kjorTimerSync(
             id: t.id,
             // F4-4: rad-fallback må ikke bli "" (sedel.projectId kan være "").
             // Tom → undefined (utelates; rad-nivå-input er .uuid().optional()).
-            projectId: t.projectId || sedel.projectId || undefined,
+            // Fraværskortet (spec § 11.3): `utenProsjekt: true`, intet prosjekt,
+            // byggeplass eller underprosjekt. Eldre server stripper flagget (M7).
+            ...prosjektFeltTilServer(
+              {
+                projectId: t.projectId,
+                utenProsjekt: t.utenProsjekt,
+                byggeplassId: t.byggeplassId ?? null,
+                externalCostObjectId: t.externalCostObjectId ?? null,
+              },
+              sedel.projectId,
+            ),
             lonnsartId: t.lonnsartId,
             aktivitetId: t.aktivitetId,
-            externalCostObjectId: t.externalCostObjectId ?? null,
             // Kort-id (spec § 4.1, regel 1). Reise sender null; eldre server stripper feltet.
             kortId: t.kortId ?? null,
             timer: t.timer,
@@ -940,8 +954,7 @@ async function kjorTimerSync(
             tilTid: t.tilTid ?? null,
             // T.12: fritekst per rad («hva jeg gjorde»).
             beskrivelse: t.beskrivelse ?? null,
-            // F3: per-rad byggeplass (null = arv fra sedel-nivå på server).
-            byggeplassId: t.byggeplassId ?? null,
+            // F3: per-rad byggeplass (null = arv fra sedel-nivå på server) — i spreaden over.
             // F5: per-rad matpause-bærer (min). 0 = ingen pause på raden.
             pauseMin: t.pauseMin ?? 0,
             // LAG 2 (B1): reise-sporet opp til server (M6 — MÅ sendes eksplisitt
@@ -1548,7 +1561,11 @@ async function kjorTimerSync(
           .values({
             id: t.id,
             dagsseddelId: maalId,
-            projectId: t.projectId ?? sedelProjectId,
+            // Fraværskortet (spec § 11.3): serverens `utenProsjekt` vinner over sedelens prosjekt.
+            ...prosjektFeltFraServer(
+              { projectId: t.projectId, utenProsjekt: (t as { utenProsjekt?: boolean | null }).utenProsjekt },
+              sedelProjectId,
+            ),
             lonnsartId: t.lonnsartId,
             aktivitetId: t.aktivitetId,
             externalCostObjectId: t.externalCostObjectId,

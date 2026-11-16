@@ -12,13 +12,16 @@ import { useTranslation } from "react-i18next";
 import {
   beregnUkeAvvik,
   avvikRetning,
+  byggNormtakBruddLinje,
   mandagIso,
+  type NormtakBruddData,
   type UkeAvvik,
 } from "@sitedoc/shared";
 import { trpc } from "../../../src/lib/trpc";
 import { useFirma } from "../../../src/kontekst/FirmaKontekst";
 import { formatNorskDato } from "../../../src/utils/dato";
 import { prosjektVisningsnavn } from "../../../src/utils/prosjektNavn";
+import { formatKortTall } from "../../../src/lib/prosjektkortMobil";
 
 type AttesteringRad = {
   id: string;
@@ -47,6 +50,9 @@ type AttesteringRad = {
     avvik: boolean;
   } | null;
   ukenorm?: number;
+  // ORDRE (33) c3 B10 (§ 11.10.4): serverens brudd på fravær med tak (ordre b,
+  // `hentTilAttesteringFirma`). null/udefinert = intet brudd (eller eldre API).
+  fravaerNormtakBrudd?: NormtakBruddData | null;
 };
 
 /**
@@ -201,6 +207,12 @@ function SedelKort({
           {" · "}
           {rad.antallRader} rader
         </Text>
+        {/* B10: dagen er i brudd — samme linje som web (attestering sperret, F9 = A). */}
+        {rad.fravaerNormtakBrudd && (
+          <Text className="mt-1 text-xs text-amber-700" style={{ fontVariant: ["tabular-nums"] }}>
+            {byggNormtakBruddLinje(t, rad.fravaerNormtakBrudd, formatKortTall)}
+          </Text>
+        )}
         {/* D2-attestantvarsel (ledd 2): uke-avvik-badge — kun badgen på mobil. */}
         {retning && avvik && (
           <View className="mt-1.5 flex-row items-center gap-1 self-start rounded bg-amber-50 px-1.5 py-0.5">

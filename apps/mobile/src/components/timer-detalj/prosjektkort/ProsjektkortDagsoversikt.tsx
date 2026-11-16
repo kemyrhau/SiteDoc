@@ -2,8 +2,10 @@ import { useMemo, useState, type ReactNode } from "react";
 import { View, Text, Pressable, Modal, TextInput } from "react-native";
 import { Clock } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
+import { randomUUID } from "expo-crypto";
 import {
   beregnMaskinBrudd,
+  byggNormtakBruddLinje,
   overstigerMaskinTak,
   visVareforbrukKnapp,
 } from "@sitedoc/shared";
@@ -18,14 +20,17 @@ import { useAuth } from "../../../providers/AuthProvider";
 import { trpc } from "../../../lib/trpc";
 import { useTimerSync } from "../../../providers/TimerSyncProvider";
 import { useNettverk } from "../../../providers/NettverkProvider";
-import { finnLonnsartLokalt } from "../../../services/timerKatalog";
+import { finnLonnsartLokalt, finnNormtakArtLokalt } from "../../../services/timerKatalog";
+import { bruddForDag } from "../../../utils/fravaerNormtakMobil";
 import { finnEquipmentLokalt } from "../../../services/maskinKatalog";
+import { sikreLokalKortId } from "../../../services/kortIdLokal";
 import { erReiseRadVisning } from "../../../utils/reiseRad";
 import { formatNorskDato } from "../../../utils/dato";
 import {
   linjerForProsjekt,
   statusOrd,
   dagsoversiktSum,
+  dagSumTimer,
   type OversiktTimerRad,
   type OversiktMaskinRad,
   type ProsjektLinjer,
@@ -36,11 +41,17 @@ import {
   kortNokkel,
   kortNokkelFor,
   kortValgFor,
+  utenIdTilKort,
+  utledetKortNokkel,
+  raderPaaKort,
   lagretByggeplassForKort,
   vareByggeplassForKort,
   sendKnappTekst,
   type KortRad,
   type KortValg,
+  type ProsjektKortValg,
+  erProsjektKort,
+  radProsjektId,
   type SedelKortKontekst,
 } from "../../../lib/prosjektkortMobil";
 import { TimerRadModal } from "../TimerSeksjon";
@@ -73,6 +84,8 @@ import {
   type FlyttMaal,
 } from "./kortRadFlytt";
 import { KortValgModal } from "./KortValgModal";
+import { FravaerKortModal } from "./FravaerKortModal";
+import { skrivKortBeskrivelse } from "./kortBeskrivelse";
 import { BekreftSlettModal } from "./BekreftSlettModal";
 import { TastaturFerdig, TASTATUR_FERDIG_ID } from "../TastaturFerdig";
 import type { Sedel, TimerRad, MaskinRad } from "../../../types/timer-detalj";
@@ -95,19 +108,19 @@ import type { Sedel, TimerRad, MaskinRad } from "../../../types/timer-detalj";
 
 type TimerModal = {
   radId: string | null;
-  kort: KortValg;
+  kort: ProsjektKortValg;
   fokusBeskrivelse: boolean;
 };
 
 type Flytt =
-  | { radType: "timer"; rad: TimerRad; fra: KortValg }
-  | { radType: "maskin"; rad: MaskinRad; fra: KortValg }
-  | { radType: "vare"; vare: VisVarelinje; fra: KortValg };
+  | { radType: "timer"; rad: TimerRad; fra: ProsjektKortValg }
+  | { radType: "maskin"; rad: MaskinRad; fra: ProsjektKortValg }
+  | { radType: "vare"; vare: VisVarelinje; fra: ProsjektKortValg };
 
-type KortBlokk = { valg: KortValg; linjer: ProsjektLinjer<VisVarelinje> };
+type KortBlokk = { valg: ProsjektKortValg; linjer: ProsjektLinjer<VisVarelinje> };
 
 /** Effektiv byggeplass i kortlåsen — modalen viser kortets byggeplass. */
-const laasFor = (k: KortValg): KortLaas => ({ byggeplassId: k.byggeplassId, ecoId: k.ecoId });
+const laasFor = (k: ProsjektKortValg): KortLaas => ({ byggeplassId: k.byggeplassId, ecoId: k.ecoId });
 
 type Splitt =
   | { radType: "timer"; original: TimerRad }
@@ -117,7 +130,7 @@ export function ProsjektkortDagsoversikt({
   sheetId,
   sedel,
   sedelKontekst,
-  kort,
+  kort: alleKort,
   timerRader,
   maskinRader,
   varer,
@@ -125,6 +138,7 @@ export function ProsjektkortDagsoversikt({
   harEquipmentCache,
   varelagerProsjekter,
   normTimer,
+  normtakTimer,
   ramme,
   rammeByggeplassNavn,
   prosjektNavn,
@@ -157,6 +171,8 @@ export function ProsjektkortDagsoversikt({
   harEquipmentCache: boolean;
   varelagerProsjekter: string[];
   normTimer: number | null;
+  /** U12: datoens eksakte norm (ukjent → null → intet tak). Bare B10 leser den. */
+  normtakTimer: number | null;
   ramme: { fra: string; til: string; pauseMin: number };
   rammeByggeplassNavn: string | null;
   prosjektNavn: (projectId: string) => string;
@@ -186,14 +202,18 @@ export function ProsjektkortDagsoversikt({
   const { t } = useTranslation();
   const { bruker } = useAuth();
   const k: RadKontekst = { sheetId, organizationId: sedel.organizationId };
+  // Spec § 11.2: fraværskortet (prosjekt `null`) har egen visning; resten er prosjektkort.
+  const kort = useMemo(() => alleKort.filter(erProsjektKort), [alleKort]);
 
   const [timerModal, setTimerModal] = useState<TimerModal | null>(null);
+  // ORDRE (33) c2: fraværskortet (spec § 11.5). `nyLinje` = åpnet fra «+ Fravær».
+  const [fravaerKort, setFravaerKort] = useState<{ nyLinje: boolean } | null>(null);
   const [maskinModal, setMaskinModal] = useState<MaskinRad | null>(null);
   const [splitt, setSplitt] = useState<Splitt | null>(null);
-  const [vareKort, setVareKort] = useState<KortValg | null>(null);
+  const [vareKort, setVareKort] = useState<ProsjektKortValg | null>(null);
   // Radform: ny vare ført fra en rad kobles til raden (`sheetTimerId`).
   const [vareRadId, setVareRadId] = useState<string | null>(null);
-  const [vareValgt, setVareValgt] = useState<{ vare: VisVarelinje; kort: KortValg } | null>(null);
+  const [vareValgt, setVareValgt] = useState<{ vare: VisVarelinje; kort: ProsjektKortValg } | null>(null);
   const [flytt, setFlytt] = useState<Flytt | null>(null);
   const [flyttFeil, setFlyttFeil] = useState<string | null>(null);
   const oppdaterVare = trpc.vareforbruk.oppdater.useMutation();
@@ -231,12 +251,14 @@ export function ProsjektkortDagsoversikt({
 
   const oversiktTimer = useMemo<OversiktTimerRad[]>(
     () =>
-      timerRader.map((r) => ({
+      // Fraværskortets rader (spec § 11.2) er ikke prosjektrader — egen seksjon.
+      timerRader.filter((r) => !r.utenProsjekt).map((r) => ({
         id: r.id,
-        projectId: r.projectId ?? sedel.projectId,
+        projectId: radProsjektId(r, sedel) ?? "",
         // Lagret verdi: null = arver dagens byggeplass (kortnøkkelen avgjør).
         byggeplassId: r.byggeplassId ?? null,
         externalCostObjectId: r.externalCostObjectId ?? null,
+        kortId: r.kortId ?? null,
         timer: r.timer,
         fraTid: r.fraTid,
         tilTid: r.tilTid,
@@ -255,11 +277,24 @@ export function ProsjektkortDagsoversikt({
         projectId: r.projectId ?? sedel.projectId,
         byggeplassId: r.byggeplassId ?? null,
         externalCostObjectId: r.externalCostObjectId ?? null,
+        kortId: r.kortId ?? null,
         vehicleId: r.vehicleId,
         timer: r.timer,
         attestertStatus: null,
       })),
     [maskinRader, sedel.projectId],
+  );
+  // Ordre c (T11): rader uten kort-id (varer fra serveren) → første kort med lik
+  // nøkkel; samme regel som kortlista (`kortNokler`).
+  const utenId = useMemo(
+    () =>
+      utenIdTilKort(sedelKontekst, [
+        timerRader.filter((r) => !r.utenProsjekt),
+        maskinRader,
+        tilleggRader ?? [],
+        utleggRader ?? [],
+      ]),
+    [sedelKontekst, timerRader, maskinRader, tilleggRader, utleggRader],
   );
   // Kortene grupperes pr. prosjekt (kortNokler sorterer prosjektene samlet).
   // Reise hører til dagen og telles bare i sum-kortet.
@@ -275,14 +310,14 @@ export function ProsjektkortDagsoversikt({
         utlegg: 0,
         harEquipmentCache,
         harVarelager: varelagerProsjekter.includes(valg.projectId),
-        kort: { valg, sedel: sedelKontekst },
+        kort: { valg, sedel: sedelKontekst, utenId },
       });
       const siste = ut[ut.length - 1];
       if (siste?.projectId === valg.projectId) siste.blokker.push({ valg, linjer });
       else ut.push({ projectId: valg.projectId, blokker: [{ valg, linjer }] });
     }
     return ut;
-  }, [kort, oversiktTimer, oversiktMaskin, varer, harEquipmentCache, varelagerProsjekter, sedelKontekst]);
+  }, [kort, oversiktTimer, oversiktMaskin, varer, harEquipmentCache, varelagerProsjekter, sedelKontekst, utenId]);
   const reiseSum = oversiktTimer.filter((r) => r.erReise).reduce((a, r) => a + r.timer, 0);
   const sum = {
     ...dagsoversiktSum(grupper.flatMap((g) => g.blokker.map((b) => b.linjer))),
@@ -293,9 +328,9 @@ export function ProsjektkortDagsoversikt({
   // Radform (Kenneth 2026-11-12): kortet hver linje hører til (kortlås i
   // modalene) — samme filtrering som før via linjerForProsjekt.
   const kortFor = useMemo(() => {
-    const timer = new Map<string, KortValg>();
-    const maskin = new Map<string, KortValg>();
-    const vare = new Map<string, KortValg>();
+    const timer = new Map<string, ProsjektKortValg>();
+    const maskin = new Map<string, ProsjektKortValg>();
+    const vare = new Map<string, ProsjektKortValg>();
     for (const g of grupper) {
       for (const b of g.blokker) {
         for (const r of [...b.linjer.arbeid, ...b.linjer.overtid]) timer.set(r.id, b.valg);
@@ -321,7 +356,7 @@ export function ProsjektkortDagsoversikt({
   // ORDRE (27b): radene samles i prosjektkortet sitt (linjer i tidsrekkefølge).
   // «Uten rad» (gamle, ukoblede linjer) står i kortet linja selv hører til.
   const kortGrupper = useMemo(() => {
-    const nokkel = (m: Map<string, KortValg>) => (id: string) => {
+    const nokkel = (m: Map<string, ProsjektKortValg>) => (id: string) => {
       const v = m.get(id);
       return v ? kortNokkel(v) : undefined;
     };
@@ -333,7 +368,7 @@ export function ProsjektkortDagsoversikt({
   }, [dag, kortFor]);
   const kortEtterNokkel = useMemo(() => new Map(kort.map((v) => [kortNokkel(v), v])), [kort]);
   const kortUtenRader = kort.filter((valg) => !kortGrupper.some((g) => g.nokkel === kortNokkel(valg)));
-  const blokkFor = (valg: KortValg) =>
+  const blokkFor = (valg: ProsjektKortValg) =>
     grupper.flatMap((g) => g.blokker).find((b) => kortNokkel(b.valg) === kortNokkel(valg));
   const overtidSum = dag.rader.reduce((a, b) => a + (b.rad.overtidsnivaa != null ? b.rad.timer : 0), 0);
   const maskinOverTak = grupper.flatMap((g) =>
@@ -345,6 +380,27 @@ export function ProsjektkortDagsoversikt({
   );
   // Beslutning 3: Send sperres når en arbeidsrad mangler beskrivelse.
   const manglerBeskrivelse = redigerbar ? forsteRadUtenBeskrivelse(dag.rader.map((b) => b.rad)) : null;
+  // ORDRE (33) c2 (U11/F4, TF9): fraværskortet teller i beskrivelses-sperren — ett felt pr. kort.
+  const fravaerRader = timerRader.filter((r) => r.utenProsjekt);
+  const fravaerManglerBeskrivelse =
+    redigerbar && fravaerRader.some((r) => !(r.beskrivelse ?? "").trim());
+  // B10 (ORDRE (33) c3, § 11.10.4): fravær med tak over resten av dagsnormen — det eneste
+  // varselet om fravær og arbeid samme dag (N10). Ett trykk retter siste linje med tak;
+  // med F9 = A sperres Send til bruddet er rettet. Hele dagens rader teller (N5).
+  const normtakBrudd = useMemo(
+    () =>
+      bruddForDag({
+        dagsnorm: normtakTimer,
+        rader: timerRader.map((r) => ({
+          id: r.id,
+          lonnsartId: r.lonnsartId,
+          timer: r.timer,
+          erReise: erReiseRadVisning(r.erReise, r.lonnsartId, reiseLonnsartId),
+        })),
+        finnArt: finnNormtakArtLokalt,
+      }),
+    [normtakTimer, timerRader, reiseLonnsartId],
+  );
 
   const timerRad = (id: string | null) => (id ? timerRader.find((r) => r.id === id) ?? null : null);
   const maskinNavn = (vehicleId: string) => {
@@ -354,23 +410,30 @@ export function ProsjektkortDagsoversikt({
   };
   const t2 = (n: number) => `${formatKortTall(n)} ${t("timer.tEnhet")}`;
 
-  const aapneTimer = (kortValg: KortValg, radId: string | null, fokusBeskrivelse = false) => {
+  const aapneTimer = (kortValg: ProsjektKortValg, radId: string | null, fokusBeskrivelse = false) => {
     if (!redigerbar) return;
     setTimerModal({ radId, kort: kortValg, fokusBeskrivelse });
   };
+  // Maskinrader bærer aldri `uten_prosjekt` (K8) → alltid et prosjektkort.
   const kortForRad = (r: {
     projectId: string | null;
     byggeplassId?: string | null;
     externalCostObjectId?: string | null;
-  }) =>
-    kortValgFor(
+    kortId?: string | null;
+  }): ProsjektKortValg => {
+    const valg = kortValgFor(
       {
-        projectId: r.projectId ?? sedel.projectId,
+        projectId: r.projectId,
         byggeplassId: r.byggeplassId ?? null,
         externalCostObjectId: r.externalCostObjectId ?? null,
+        kortId: r.kortId ?? null,
       },
       sedelKontekst,
     );
+    // T11: linje uten id (vare fra serveren) → kortet den vises i.
+    const kortId = valg.kortId ?? utenId.get(utledetKortNokkel(valg));
+    return { ...valg, projectId: valg.projectId ?? "", ...(kortId ? { kortId } : {}) };
+  };
   /**
    * Koblet = vises under en rad (samme regel som `raderForDag`: raden finnes og
    * prosjektet stemmer). Ellers «Uten rad» med egen flytt som før.
@@ -378,7 +441,7 @@ export function ProsjektkortDagsoversikt({
   const erKoblet = (x: { sheetTimerId?: string | null; projectId: string | null }) =>
     x.sheetTimerId != null &&
     timerRader.some(
-      (r) => r.id === x.sheetTimerId && (r.projectId ?? sedel.projectId) === (x.projectId ?? sedel.projectId),
+      (r) => r.id === x.sheetTimerId && radProsjektId(r, sedel) === (x.projectId ?? sedel.projectId),
     );
   const startFlytt = (f: Flytt) => {
     setFlyttFeil(null);
@@ -386,21 +449,65 @@ export function ProsjektkortDagsoversikt({
   };
 
   const db = () => hentDatabase()!;
+  // Ett trykk retter fraværslinja (N5/N6): ned til `rettTil`, eller slett ved 0.
+  // Fra–til som ikke lenger stemmer med timene, tas bort (FM23: fravær uten klokkeslett).
+  const rettNormtakBrudd = () => {
+    if (!normtakBrudd || !redigerbar) return;
+    const r = timerRad(normtakBrudd.radId);
+    if (!r) return;
+    if (normtakBrudd.rettTil <= 0) {
+      fjernTimerRad(db(), k, r.id);
+    } else {
+      const res = oppdaterTimerRad(db(), k, r.id, {
+        projectId: radProsjektId(r, sedel),
+        byggeplassId: r.byggeplassId ?? null,
+        lonnsartId: r.lonnsartId,
+        aktivitetId: r.aktivitetId,
+        timer: normtakBrudd.rettTil,
+        externalCostObjectId: r.externalCostObjectId ?? null,
+        fraTid: null,
+        tilTid: null,
+        beskrivelse: r.beskrivelse,
+        pauseMin: r.pauseMin,
+      });
+      if (!res.ok) return;
+    }
+    onEndret();
+  };
   const redigert = timerRad(timerModal?.radId ?? null);
 
   // RETUR 36c-2 P1 (a2): «Uten byggeplass» på en sedel med byggeplass —
   // løft arven ut før lagring, så NULL på raden betyr ekte «uten».
-  const loftArvVedBehov = (kort: KortValg) => {
+  const loftArvVedBehov = (kort: ProsjektKortValg) => {
     if (trengerByggeplassLoft(kort, sedelKontekst)) loftByggeplassArv(db(), sheetId, sedelKontekst);
   };
 
-  const utforFlytt = async (til: KortValg) => {
+  // Ordre c (T12): «Flytt raden» får målkortets id — første kort med nøkkelen
+  // (samme regel som kortlista). Finnes ikke noe kort der, eller «Flytt til nytt
+  // kort»: ny id (spec § 2.4: nytt kort laget av brukeren får tilfeldig UUID).
+  const flyttMaalKort = (til: ProsjektKortValg, nytt: boolean): ProsjektKortValg => ({
+    ...til,
+    kortId: (nytt ? undefined : utenId.get(utledetKortNokkel(til))) ?? randomUUID(),
+  });
+  // «Flytt til nytt kort» gjør en forskjell bare når det finnes et kort med
+  // nøkkelen — og på samme nøkkel bare når kildekortet har flere arbeidsrader.
+  const nyttKortTillatt = (fra: ProsjektKortValg) => (valg: ProsjektKortValg) =>
+    utenId.has(utledetKortNokkel(valg)) &&
+    (utledetKortNokkel(valg) !== utledetKortNokkel(fra) ||
+      raderPaaKort(timerRader, sedelKontekst, fra, utenId).filter(
+        (r) => !erReiseRadVisning(r.erReise, r.lonnsartId, reiseLonnsartId),
+      ).length > 1);
+
+  const utforFlytt = async (valgt: ProsjektKortValg, nytt = false) => {
     if (!flytt) return;
+    // Kontrollør A1: også maskin og vare som flyttes alene får målkortets id.
+    const til = flyttMaalKort(valgt, nytt);
     loftArvVedBehov(til);
     const maal: FlyttMaal = {
       projectId: til.projectId,
       byggeplassId: lagretByggeplassForKort(til, sedelKontekst),
       ecoId: til.ecoId,
+      kortId: til.kortId ?? undefined,
     };
     if (flytt.radType === "timer") {
       // TILLEGG 2026-11-12 regel 1: raden tar med koblede maskiner OG varer,
@@ -452,7 +559,7 @@ export function ProsjektkortDagsoversikt({
         timerRader
           .filter((r) => !erReiseRadVisning(r.erReise, r.lonnsartId, reiseLonnsartId))
           .map((r) => ({
-          projectId: r.projectId ?? sedel.projectId,
+          projectId: radProsjektId(r, sedel),
           externalCostObjectId: r.externalCostObjectId ?? null,
           timer: r.timer,
         })),
@@ -472,6 +579,7 @@ export function ProsjektkortDagsoversikt({
         return;
       }
       flyttMaskinRad(db(), flytt.rad.id, maal);
+      sikreLokalKortId(db(), sheetId);
     } else {
       const v = flytt.vare;
       // Varer har ingen sedel-arv: kortets effektive byggeplass lagres (RETUR 4).
@@ -492,6 +600,7 @@ export function ProsjektkortDagsoversikt({
         }
       }
       flyttVareLokalt(db(), v.id, vareMaal);
+      sikreLokalKortId(db(), sheetId);
       setFlytt(null);
       onVarerLagret();
       return;
@@ -555,9 +664,9 @@ export function ProsjektkortDagsoversikt({
     }
   };
 
-  const antallPaaKort = (rader: readonly KortRad[] | undefined, valg: KortValg) =>
+  const antallPaaKort = (rader: readonly KortRad[] | undefined, valg: ProsjektKortValg) =>
     (rader ?? []).filter((r) => kortNokkelFor(r, sedelKontekst) === kortNokkel(valg)).length;
-  const kortHode = (valg: KortValg) => {
+  const kortHode = (valg: ProsjektKortValg) => {
     const tillegg = antallPaaKort(tilleggRader, valg);
     const utlegg = antallPaaKort(utleggRader, valg);
     return [
@@ -614,11 +723,12 @@ export function ProsjektkortDagsoversikt({
   // Kalles som funksjon (ikke komponent) så linjene ikke remountes ved hver render.
   // RETUR (27b), Kenneth 2026-11-16: maskin og varer registreres som før — under
   // linja de ble ført fra, med «+ Vare» koblet til linja (`setVareRadId(rad.id)`).
-  function kortLinje({ rad, maskin, varer: radVarer }: (typeof dag.rader)[number], valg: KortValg) {
+  function kortLinje({ rad, maskin, varer: radVarer }: (typeof dag.rader)[number], valg: ProsjektKortValg) {
     const lonnsart =
       rad.overtidsnivaa != null
         ? t("timer.dagsoversikt.overtid", { prosent: rad.overtidsnivaa })
         : finnLonnsartLokalt(timerRad(rad.id)?.lonnsartId ?? "")?.navn ?? null;
+    const iBrudd = normtakBrudd?.radId === rad.id;
     return (
       <View key={rad.id}>
         <Pressable
@@ -627,7 +737,10 @@ export function ProsjektkortDagsoversikt({
           className="min-h-[44px] flex-row items-center gap-2 active:bg-gray-50"
         >
           <Clock size={16} color="#6b7280" />
-          <Text className="flex-1 text-sm text-gray-900" style={{ fontVariant: ["tabular-nums"] }}>
+          <Text
+            className={`flex-1 text-sm ${iBrudd ? "text-amber-700" : "text-gray-900"}`}
+            style={{ fontVariant: ["tabular-nums"] }}
+          >
             {[tidTekst(rad), t2(rad.timer), lonnsart].filter(Boolean).join(" · ")}
           </Text>
         </Pressable>
@@ -651,7 +764,7 @@ export function ProsjektkortDagsoversikt({
   // ORDRE (27b), timer.md § «Prosjektkort og dagskort — definisjon»: ett kort pr.
   // (prosjekt, byggeplass, underprosjekt) med linjene i tidsrekkefølge, én
   // beskrivelse og ett sett maskin/varer. Overtid deler aldri kortet.
-  function prosjektkort(valg: KortValg, gruppe: (typeof kortGrupper)[number] | undefined) {
+  function prosjektkort(valg: ProsjektKortValg, gruppe: (typeof kortGrupper)[number] | undefined) {
     const rader = gruppe?.rader ?? [];
     const utenRad = gruppe?.utenRad ?? { maskin: [], varer: [] };
     const sumTimer = rader.reduce((a, b) => a + b.rad.timer, 0);
@@ -732,7 +845,9 @@ export function ProsjektkortDagsoversikt({
     );
   }
 
-  const sendTekst = sendKnappTekst(sedel.status, sum.arbeid, sum.reise);
+  // TILLEGG (33) pkt 3: «Sum i dag» og Send-knappen leser samme tall (`dagSumTimer`).
+  const dagSum = dagSumTimer({ arbeid: sum.arbeid, fravaer: fravaerRader.reduce((a, r) => a + r.timer, 0) });
+  const sendTekst = sendKnappTekst(sedel.status, dagSum, sum.reise);
 
   return (
     <ProsjektkortKontekst.Provider value={true}>
@@ -744,6 +859,33 @@ export function ProsjektkortDagsoversikt({
         return valg ? prosjektkort(valg, g) : null;
       })}
       {kortUtenRader.map((valg) => prosjektkort(valg, undefined))}
+
+      {/* ORDRE (33) c2 — fraværskortet (U5/U10): art og timer pr. linje, én beskrivelse. */}
+      {!enkeltProsjekt && fravaerRader.length > 0 && (
+        <Pressable
+          onPress={() => (redigerbar ? setFravaerKort({ nyLinje: false }) : undefined)}
+          className="mx-4 mt-3 rounded-lg border border-gray-200 bg-white px-4 py-3 active:bg-gray-50"
+        >
+          <Text className="text-base font-semibold text-gray-900">{t("timer.fravaerKort.tittel")}</Text>
+          {fravaerRader.map((r) => (
+            <Text
+              key={r.id}
+              className={`py-1 text-sm ${normtakBrudd?.radId === r.id ? "text-amber-700" : "text-gray-700"}`}
+              style={{ fontVariant: ["tabular-nums"] }}
+            >
+              {t("timer.fravaerKort.linje", {
+                timer: formatKortTall(r.timer),
+                art: finnLonnsartLokalt(r.lonnsartId)?.navn ?? "",
+              })}
+            </Text>
+          ))}
+          {fravaerManglerBeskrivelse ? (
+            <Text className="py-1 text-sm text-amber-700">{t("timer.dagsoversikt.manglerBeskrivelse")}</Text>
+          ) : (
+            <Text className="py-1 text-sm text-gray-900">{fravaerRader.find((r) => r.beskrivelse)?.beskrivelse}</Text>
+          )}
+        </Pressable>
+      )}
 
       {redigerbar && enkeltProsjekt && kort[0] && (
         <Pressable
@@ -761,6 +903,15 @@ export function ProsjektkortDagsoversikt({
               <Text className="text-base font-medium text-sitedoc-primary">{t("timer.prosjektkort.nyttKort")}</Text>
             </Pressable>
           )}
+          {/* U1 inngang 1: «+ Fravær» rett under «+ Nytt prosjektkort». */}
+          {redigerbar && (
+            <Pressable
+              onPress={() => setFravaerKort({ nyLinje: true })}
+              className="mx-4 min-h-[44px] justify-center active:bg-gray-50"
+            >
+              <Text className="text-base font-medium text-sitedoc-primary">{t("timer.fravaerKort.leggTil")}</Text>
+            </Pressable>
+          )}
 
           {dagSeksjon}
 
@@ -768,7 +919,7 @@ export function ProsjektkortDagsoversikt({
             <View className="flex-row items-baseline justify-between">
               <Text className="text-sm text-gray-500">{t("timer.dagsoversikt.sumIDag")}</Text>
               <Text className="text-base font-semibold text-gray-900" style={{ fontVariant: ["tabular-nums"] }}>
-                {t2(sum.arbeid)}
+                {t2(dagSum)}
               </Text>
             </View>
             {overtidSum > 0 || (sum.maskin != null && sum.maskin > 0) || sum.reise > 0 ? (
@@ -828,14 +979,49 @@ export function ProsjektkortDagsoversikt({
                 </Text>
               </Pressable>
             )}
+            {!manglerBeskrivelse && fravaerManglerBeskrivelse && (
+              <Pressable
+                onPress={() => setFravaerKort({ nyLinje: false })}
+                className="min-h-[44px] justify-center active:bg-gray-50"
+              >
+                <Text className="text-sm text-amber-700">{t("timer.fravaerKort.sendSperret")}</Text>
+              </Pressable>
+            )}
+            {normtakBrudd && (
+              <View className="py-1">
+                <Text className="text-sm text-amber-700" style={{ fontVariant: ["tabular-nums"] }}>
+                  {byggNormtakBruddLinje(t, normtakBrudd.data, formatKortTall)}
+                </Text>
+                {redigerbar && (
+                  <Pressable
+                    onPress={rettNormtakBrudd}
+                    accessibilityRole="button"
+                    className="min-h-[44px] justify-center active:bg-gray-50"
+                  >
+                    <Text className="text-sm font-semibold text-amber-700">
+                      {normtakBrudd.rettTil > 0
+                        ? t("timer.normtak.rettTil", { timer: formatKortTall(normtakBrudd.rettTil) })
+                        : t("timer.normtak.slettFravaer")}
+                    </Text>
+                  </Pressable>
+                )}
+              </View>
+            )}
             {redigerbar && (
               <Pressable
                 onPress={() =>
                   manglerBeskrivelse
                     ? aapneTimer(kortFor.timer.get(manglerBeskrivelse.id)!, manglerBeskrivelse.id, true)
-                    : onSend?.()
+                    : fravaerManglerBeskrivelse
+                      ? setFravaerKort({ nyLinje: false })
+                      : normtakBrudd
+                        ? undefined
+                        : onSend?.()
                 }
-                className="mt-2 min-h-[44px] items-center justify-center rounded-lg bg-gray-900 active:bg-gray-700"
+                disabled={normtakBrudd != null && !manglerBeskrivelse}
+                className={`mt-2 min-h-[44px] items-center justify-center rounded-lg ${
+                  normtakBrudd != null && !manglerBeskrivelse ? "bg-gray-400" : "bg-gray-900 active:bg-gray-700"
+                }`}
               >
                 <Text className="text-base font-semibold text-white">
                   {sendTekst.nokkel === "timer.detalj.sendPaaNytt"
@@ -864,7 +1050,7 @@ export function ProsjektkortDagsoversikt({
           sheetPauseMin={sedel.pauseMin}
           harEquipmentCache={harEquipmentCache}
           eksisterendeRader={timerRader.filter(
-            (r) => (r.projectId ?? sedel.projectId) === timerModal.kort.projectId,
+            (r) => radProsjektId(r, sedel) === timerModal.kort.projectId,
           )}
           alleTimerRader={timerRader}
           defaultAktivitetId={sedel.aktivitetId ?? null}
@@ -876,6 +1062,7 @@ export function ProsjektkortDagsoversikt({
           // som dagskortets TimerSeksjon. Normal-delen lagres via onLagre,
           // overtid-delen som ny rad på samme kort (ingen koblet maskin).
           dagsnormTimer={normTimer}
+          normtakDagsnorm={normtakTimer}
           onLeggTilOvertidDel={(
             projectId,
             _byggeplassId,
@@ -902,6 +1089,7 @@ export function ProsjektkortDagsoversikt({
                 tilTid,
                 beskrivelse,
                 pauseMin,
+                kortId: timerModal.kort.kortId ?? null,
               },
               [],
             );
@@ -956,9 +1144,11 @@ export function ProsjektkortDagsoversikt({
             };
             const radId = redigert
               ? (oppdaterTimerRad(db(), k, redigert.id, felt, maskin), redigert.id)
-              : leggTilTimerRad(db(), k, felt, maskin.linjer);
+              : leggTilTimerRad(db(), k, { ...felt, kortId: timerModal.kort.kortId ?? null }, maskin.linjer);
             // Koblet maskin følger raden også på byggeplass (GO punkt 5).
             foelgKobletMaskin(db(), radId);
+            // K5 (c1): én beskrivelse pr. kort — teksten skrives på kortets øvrige arbeidsrader.
+            skrivKortBeskrivelse(db(), { sheetId: k.sheetId, radId, beskrivelse });
             setTimerModal(null);
             onEndret();
           }}
@@ -1175,6 +1365,34 @@ export function ProsjektkortDagsoversikt({
         onBekreft={() => void bekreftSlettVare()}
       />
 
+      {fravaerKort && (
+        <FravaerKortModal
+          userId={sedel.userId}
+          organizationId={sedel.organizationId}
+          dato={sedel.dato}
+          dagsnorm={normtakTimer}
+          dagRader={timerRader
+            .filter((r) => !r.utenProsjekt)
+            .map((r) => ({
+              id: r.id,
+              lonnsartId: r.lonnsartId,
+              timer: r.timer,
+              erReise: erReiseRadVisning(r.erReise, r.lonnsartId, reiseLonnsartId),
+            }))}
+          eksisterende={fravaerRader.map((r) => ({
+            id: r.id,
+            lonnsartId: r.lonnsartId,
+            timer: r.timer,
+            beskrivelse: r.beskrivelse,
+          }))}
+          nyLinje={fravaerKort.nyLinje}
+          onLagret={() => {
+            setFravaerKort(null);
+            onEndret();
+          }}
+          onLukk={() => setFravaerKort(null)}
+        />
+      )}
       {flytt && (
         <KortValgModal
           organizationId={sedel.organizationId}
@@ -1183,6 +1401,11 @@ export function ProsjektkortDagsoversikt({
           prosjektNavn={prosjektNavn}
           feil={flyttFeil}
           onVelg={(til) => void utforFlytt(til)}
+          nyttKort={
+            flytt.radType === "timer"
+              ? { tillatt: nyttKortTillatt(flytt.fra), onVelg: (til) => void utforFlytt(til, true) }
+              : undefined
+          }
           onLukk={() => setFlytt(null)}
         />
       )}

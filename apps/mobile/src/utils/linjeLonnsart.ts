@@ -17,29 +17,31 @@ import type {
 export const MAKS_LINJE_CHIPS = 6;
 
 /**
- * V4-⚠️ (Kenneth B6): artene en linje kan få — aktive, ordinær (med og uten
- * overtidsnivå) og fravær. Reise-arter (valgt reiseart, båndarter, navne-match)
- * tilbys ikke — reise føres med «+ Reise». Feriepenger og diett tilbys ikke.
- * `alle` er firmaets katalog (firmafiltrert av kalleren). Katalogorden.
+ * Artene en linje kan få — aktive `ordinaer` (med og uten overtidsnivå).
+ * ORDRE (33) F5 (Kenneth 2026-11-16): fravær-arter tilbys ikke lenger på
+ * prosjektkortets linjer — fravær føres i fraværskortet («+ Fravær»). Reise-arter
+ * (valgt reiseart, båndarter, navne-match) tilbys ikke — reise føres med
+ * «+ Reise». Feriepenger og diett tilbys ikke. `alle` er firmaets katalog
+ * (firmafiltrert av kalleren). Katalogorden.
  */
 export function lonnsarterForLinje<T extends DagsforslagLonnsart>(
   alle: readonly T[],
   erReise: (l: T) => boolean,
 ): T[] {
   return alle
-    .filter((l) => l.aktiv && (l.type === "ordinaer" || l.type === "fravaer") && !erReise(l))
+    .filter((l) => l.aktiv && l.type === "ordinaer" && !erReise(l))
     .sort((a, b) => a.rekkefolge - b.rekkefolge);
 }
 
-export type LinjeLonnsartGruppe = "ordinaer" | "overtid" | "fravaer";
+export type LinjeLonnsartGruppe = "ordinaer" | "overtid";
 
-/** V3: grupperingen i velgeren — Ordinær · Overtid · Fravær (tomme grupper utelates). */
+/** V3: grupperingen i velgeren — Ordinær · Overtid (tomme grupper utelates). */
 export function grupperLinjeLonnsarter<
   T extends { type: string; overtidsnivaa: number | null },
 >(arter: readonly T[]): Array<{ gruppe: LinjeLonnsartGruppe; arter: T[] }> {
   const gruppeFor = (l: T): LinjeLonnsartGruppe =>
-    l.type === "fravaer" ? "fravaer" : l.overtidsnivaa != null ? "overtid" : "ordinaer";
-  const rekkefolge: LinjeLonnsartGruppe[] = ["ordinaer", "overtid", "fravaer"];
+    l.overtidsnivaa != null ? "overtid" : "ordinaer";
+  const rekkefolge: LinjeLonnsartGruppe[] = ["ordinaer", "overtid"];
   return rekkefolge
     .map((gruppe) => ({ gruppe, arter: arter.filter((l) => gruppeFor(l) === gruppe) }))
     .filter((g) => g.arter.length > 0);
@@ -74,12 +76,10 @@ export function utenLinje(
  *    det er forslaget som regnes på nytt.
  *  - Overtidsart på overtidslinja → `overtidLonnsartId` (samme valg som
  *    nivå-chipsene, V5); linjevalget fjernes.
- *  - Ellers (ordinær/fravær, eller hva som helst på normallinja) → huskes i
- *    `lonnsartPerLinje` (V7). Ordinær art etter normen = overstyring (V6).
- *  - RETUR (28) B9: fravær på normallinja husker linjas slutt i `fravaerTil`
- *    (står det alt et fravær der, beholdes punktet); annen art på normallinja
- *    fjerner punktet. Naboregelen gjelder ikke mens fraværet deler kortet —
- *    kalleren sender da `naboArtId: null`.
+ *  - Ellers → huskes i `lonnsartPerLinje` (V7). Ordinær art etter normen =
+ *    overstyring (V6).
+ *  ORDRE (33) F12 = A: «Fravær til» (RETUR (28) B9) er fjernet — ingen
+ *  fraværsdeling å huske.
  */
 export function velgLinjeLonnsart(args: {
   linje: ArbeidLinje;
@@ -90,8 +90,6 @@ export function velgLinjeLonnsart(args: {
   /** Overtidslinjas fra-tid (forslaget), til minnet ved sammenslåing. */
   overtidFra: string | null;
   arbeidFra: string;
-  /** Linjas slutt-tid (forslaget) — fraværets slutt når fravær velges (B9). */
-  linjeTil?: string | null;
 }): DagsforslagRettingDato {
   const { linje, art, rettDato } = args;
   const perLinje = rettDato?.lonnsartPerLinje;
@@ -100,8 +98,6 @@ export function velgLinjeLonnsart(args: {
     return {
       overtidAv: true,
       overtidFra: huskFra,
-      // Én linje — ingen fraværsdeling å huske.
-      fravaerTil: undefined,
       // Normallinja bærer valget videre; overtidslinjas valg er brukt opp.
       lonnsartPerLinje:
         linje === "normal"
@@ -112,13 +108,7 @@ export function velgLinjeLonnsart(args: {
   if (linje === "overtid" && art.overtidsnivaa != null) {
     return { overtidLonnsartId: art.id, lonnsartPerLinje: utenLinje(perLinje, "overtid") };
   }
-  const valg: DagsforslagRettingDato = { lonnsartPerLinje: { ...perLinje, [linje]: art.id } };
-  if (linje !== "normal") return valg;
-  return {
-    ...valg,
-    fravaerTil:
-      art.type === "fravaer" ? (rettDato?.fravaerTil ?? args.linjeTil ?? undefined) : undefined,
-  };
+  return { lonnsartPerLinje: { ...perLinje, [linje]: art.id } };
 }
 
 /** Linjene datoen har nå — rader og linjer uten lønnsart. */

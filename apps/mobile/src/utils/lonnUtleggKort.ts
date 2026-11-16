@@ -2,7 +2,7 @@ import type { Dagsforslag } from "./dagsforslag";
 import type { LonnUtlegg } from "./dagsforslagAnvend";
 import { kortMedFlestTimer, type BeskrivelseKort } from "./beskrivelseKort";
 
-type LinjeKort = { projectId: string; byggeplassId?: string | null; dato?: string };
+type LinjeKort = { projectId: string; byggeplassId?: string | null; dato?: string; kortId?: string };
 
 /**
  * Bekreft dag (spec tillegg-utlegg-prosjektkort § 5, B6): hver tillegg-/
@@ -21,6 +21,13 @@ export function kortForLinje(
   kort: BeskrivelseKort[],
   forslag?: Dagsforslag,
 ): BeskrivelseKort | null {
+  // Ordre c (spec § 5.1): linja har valgt et kort med id → det kortet, også når
+  // to kort deler prosjekt og byggeplass. Finnes det ikke lenger, regnes valget
+  // som før (kortvalget viser det, så ingenting flyttes skjult).
+  if (linje.kortId) {
+    const medId = kort.find((k) => k.kortId === linje.kortId && k.projectId === linje.projectId);
+    if (medId) return medId;
+  }
   if (linje.byggeplassId !== undefined) {
     const sted = kort.filter((k) => k.projectId === linje.projectId && k.byggeplassId === (linje.byggeplassId ?? null));
     const paaDato = sted.find((k) => (linje.dato === undefined ? k.paaStartDato : k.dato === linje.dato));
@@ -43,7 +50,7 @@ export function knyttLonnUtleggTilKort(
 ): LonnUtlegg {
   const felt = (l: LinjeKort) => {
     const k = kortForLinje(l, kort, forslag);
-    return { byggeplassId: k?.byggeplassId ?? null, dato: k?.dato };
+    return { byggeplassId: k?.byggeplassId ?? null, dato: k?.dato, kortId: k?.kortId };
   };
   return {
     tillegg: lonnUtlegg.tillegg.map((l) => ({ ...l, ...felt(l) })),

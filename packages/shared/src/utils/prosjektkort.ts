@@ -286,7 +286,8 @@ export function slaaSammenVarelinjer<T extends { id: string }>(
 
 /** Kortets nøkkel: prosjekt + effektiv byggeplass + underprosjekt. `null` skrives «ingen». */
 export type KortValg = {
-  projectId: string;
+  /** `null` bare for fraværskortet (spec § 11.2, K8). */
+  projectId: string | null;
   byggeplassId: string | null;
   ecoId: string | null;
 };
@@ -295,14 +296,32 @@ export type KortNokkel = string;
 const KORT_INGEN = "ingen";
 
 export function kortNokkel(k: KortValg): KortNokkel {
-  return `${k.projectId}|${k.byggeplassId ?? KORT_INGEN}|${k.ecoId ?? KORT_INGEN}`;
+  return `${k.projectId ?? KORT_INGEN}|${k.byggeplassId ?? KORT_INGEN}|${k.ecoId ?? KORT_INGEN}`;
 }
 
 export function fraKortNokkel(nokkel: KortNokkel): KortValg {
-  const [projectId = "", bp, up] = nokkel.split("|");
+  const [pid, bp, up] = nokkel.split("|");
   return {
-    projectId,
+    // Bare «ingen» er fraværskortet; tom streng (eldre sedel) forblir «Ukjent prosjekt».
+    projectId: pid === KORT_INGEN ? null : (pid ?? ""),
     byggeplassId: !bp || bp === KORT_INGEN ? null : bp,
     ecoId: !up || up === KORT_INGEN ? null : up,
   };
+}
+
+/**
+ * Radens prosjekt (spec § 11.2, FM4). `utenProsjekt` → `null` (fraværskortet);
+ * ellers radens eget prosjekt, så sedelens. ENESTE sted sedelens prosjekt arves for en timerrad —
+ * glue-vakt i mobil (`radProsjektId-vakt.test.ts`).
+ *
+ * Tom streng (eldre sedel uten prosjekt) beholdes som `""` — «Ukjent prosjekt»
+ * som i dag. Ble den `null`, fikk en slik rad fraværskortets nøkkel
+ * (`ingen|…`) og ble slått sammen med det.
+ */
+export function radProsjektId(
+  rad: { projectId?: string | null; utenProsjekt?: boolean | null },
+  sedel: { projectId?: string | null },
+): string | null {
+  if (rad.utenProsjekt) return null;
+  return rad.projectId ?? sedel.projectId ?? null;
 }

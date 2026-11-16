@@ -43,7 +43,14 @@ import {
   hentReiseKnappLokalt,
   hentLonnsarterLokalt,
   erReiseLonnsartLokalt,
+  finnLonnsartLokalt,
 } from "../../src/services/timerKatalog";
+import { FravaerKortModal } from "../../src/components/timer-detalj/prosjektkort/FravaerKortModal";
+import {
+  forslagSomDagRader,
+  fravaerVedBekreft,
+  hentFravaerKortDag,
+} from "../../src/components/timer-detalj/prosjektkort/fravaerKortDag";
 import { LonnsartVelgerModal } from "../../src/components/timer-detalj/TimerSeksjon";
 import {
   MAKS_LINJE_CHIPS,
@@ -97,12 +104,14 @@ import {
 import { HjelpIkon } from "../../src/components/HjelpIkon";
 import { useOpplastingsKo } from "../../src/providers/OpplastingsKoProvider";
 import { forberedManuellDag } from "../../src/utils/manuellDag";
-import { hentOgCacheArbeidstidSvar } from "../../src/services/arbeidstidSvarKatalog";
+import { hentDagsnormLokalt, hentOgCacheArbeidstidSvar } from "../../src/services/arbeidstidSvarKatalog";
 import { trpc } from "../../src/lib/trpc";
 import { DatoVelgerFelt } from "../../src/components/DatoVelgerFelt";
 import { formatNorskDato, lokalIsoDato } from "../../src/utils/dato";
 import { BekreftDagBeskrivelse } from "../../src/components/timer-detalj/BekreftDagBeskrivelse";
-import { kortMedArbeid, kortMedFlestTimer, arbeidsraderPerKort, type BeskrivelseKort } from "../../src/utils/beskrivelseKort";
+import { kortMedArbeid, kortMedFlestTimer, arbeidsraderPerKort, foreldreloseBeskrivelser, type BeskrivelseKort } from "../../src/utils/beskrivelseKort";
+import { angreKortDeling, delTilEgetKort, delingsVindu, nyttKortFroe as nyttKortFroeRegel } from "../../src/utils/kortIdForslag";
+import { DelKortModal } from "../../src/components/timer-detalj/DelKortModal";
 import { knyttLonnUtleggTilKort } from "../../src/utils/lonnUtleggKort";
 import { kortNokkel } from "../../src/lib/prosjektkortMobil";
 import { sisteBeskrivelser, beskrivelseChips } from "../../src/services/beskrivelseForslag";
@@ -189,6 +198,8 @@ export default function BekreftDagSkjerm() {
     opprinnelse?: string;
     dato?: string;
     laastDato?: string;
+    /** Ordre c (T12): åpnet fra «+ Nytt prosjektkort» — raden blir et nytt kort. */
+    nyttKort?: string;
   }>();
   const manuell = params.opprinnelse === "manuell";
   const laastDato = params.laastDato === "1";
@@ -210,7 +221,14 @@ export default function BekreftDagSkjerm() {
   const sisteSegmentKilde: "bruker" | "system" =
     params.sisteSegmentKilde === "system" ? "system" : "bruker";
 
-  const [retting, setRetting] = useState<DagsforslagRetting>({});
+  // Ordre c (T12): «+ Nytt prosjektkort» gir et nytt kort, også på et prosjekt som alt har kort.
+  // Kontrollør A2: uten nyttKort=1 fjernes et frø som fulgte med utkastet (nøkkelen er bare datoen).
+  const nyttKortFroe = useCallback(
+    (r: DagsforslagRetting): DagsforslagRetting =>
+      nyttKortFroeRegel(r, { manuell, nyttKortParam: params.nyttKort }, randomUUID),
+    [manuell, params.nyttKort],
+  );
+  const [retting, setRetting] = useState<DagsforslagRetting>(() => nyttKortFroe({}));
   const [manuellDato, setManuellDato] = useState(params.dato ?? lokalIsoDato(new Date()));
   const [visDatoVelger, setVisDatoVelger] = useState(false);
   // Funn 3 (telefontest 13.11): manuell modus («+», «+ Nytt prosjektkort») har
@@ -520,6 +538,40 @@ export default function BekreftDagSkjerm() {
     () => (beregnet ? arbeidsraderPerKort(beregnet.forslag) : new Map<string, never[]>()),
     [beregnet],
   );
+  // Ordre c: to kort på samme prosjekt, byggeplass og dato (etter «Del til eget
+  // kort») skilles med tidsrommet: «Prosjekt A · 07:00–12:00».
+  const kortNavn = useCallback(
+    (k: BeskrivelseKort) => {
+      const navn = kortEtikett(k);
+      const sammeSted = arbeidKort.some(
+        (x) => x.nokkel !== k.nokkel && x.projectId === k.projectId && x.byggeplassId === k.byggeplassId && x.dato === k.dato,
+      );
+      if (!sammeSted) return navn;
+      const tider = (raderPerKort.get(k.nokkel) ?? []).filter((r) => r.fraTid && r.tilTid);
+      if (tider.length === 0) return navn;
+      const tidsrom = `${tider[0]!.fraTid}–${tider[tider.length - 1]!.tilTid}`;
+      return [navn, tidsrom].filter(Boolean).join(" · ");
+    },
+    [kortEtikett, arbeidKort, raderPerKort],
+  );
+  // TILLEGG (33) pkt 4.1 — fraværskortet, U1 inngang 2: samme kort som på dagskortet, for
+  // datoen som står åpen (manuell: valgt dato, også fram i tid — U12; GPS: dagens første dato).
+  // Lagres i kortet selv (`lagreFravaerKort`), ikke i utkastet: det har verken prosjekt eller
+  // klokkeslett (F2/F3) og vises derfor også uten valgt prosjekt.
+  const fravaerDato = manuell ? manuellDato : (beregnet?.forslag.datoer[0]?.dato ?? null);
+  const [fravaerKortApen, setFravaerKortApen] = useState<{ nyLinje: boolean } | null>(null);
+  const [fravaerNonce, settFravaerNonce] = useState(0);
+  const fravaerDag = useMemo(() => {
+    const db = hentDatabase();
+    return db && bruker?.id && fravaerDato ? hentFravaerKortDag(db, { userId: bruker.id, dato: fravaerDato }) : null;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fravaerNonce/sendtNonce: les datoen på nytt etter lagring/sending
+  }, [bruker?.id, fravaerDato, fravaerNonce, sendtNonce]);
+  // U12/U3: bare datoens eksakte norm — ukjent norm gir tomt felt og intet tak, aldri en annen dags.
+  const fravaerNorm = useMemo(
+    () => (orgId && fravaerDato ? (hentDagsnormLokalt(orgId, fravaerDato, undefined, { kunEksakt: true })?.dagsnorm ?? null) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- normNonce: svaret for datoen er hentet og cachet
+    [orgId, fravaerDato, normNonce],
+  );
   const chipDato = beregnet?.forslag.datoer[0]?.dato ?? null;
   const aktivitetIdForChip = beregnet?.forslag.aktivitetId ?? null;
   const beskrivelseChipsPerProsjekt = useMemo(() => {
@@ -538,6 +590,27 @@ export default function BekreftDagSkjerm() {
     setRetting((r) => ({ ...r, beskrivelse: { ...r.beskrivelse, [nokkel]: tekst } }));
     endret();
   }, [endret]);
+
+  // Ordre c (spec § 5.1): «Del til eget kort» og underprosjekt pr. kort.
+  const [delKort, setDelKort] = useState<BeskrivelseKort | null>(null);
+  const delKortNaa = useCallback(
+    (kl: string) => {
+      const k = delKort;
+      setDelKort(null);
+      if (!k?.kortId) return;
+      setRetting((r) => delTilEgetKort(r, { dato: k.dato, fraKortId: k.kortId!, fra: kl }, randomUUID));
+      endret();
+    },
+    [delKort, endret],
+  );
+  const angreDeling = useCallback(
+    (k: BeskrivelseKort) => {
+      if (!k.kortId) return;
+      setRetting((r) => angreKortDeling(r, k.kortId!));
+      endret();
+    },
+    [endret],
+  );
 
   // Rød ramme + rull til første tomme felt + fokus. Ingen Alert, ingen toast.
   const visTomBeskrivelse = useCallback((nokler: string[]) => {
@@ -604,6 +677,34 @@ export default function BekreftDagSkjerm() {
     [manuell, prosjektId],
   );
   const [ecoId, setEcoId] = useState<string | null>(null);
+  // Ordre c (spec § 5.1): underprosjekt pr. kort — også i GPS-modus. Kortets
+  // valg står i `retting.ecoPerKort`; uten eget valg gjelder dagens valg over
+  // (manuell modus, forslagets prosjekt), ellers «Uten».
+  const underprosjekterPerProsjekt = useMemo(() => {
+    const ut = new Map<string, Array<{ id: string; navn: string }>>();
+    for (const k of arbeidKort) {
+      if (ut.has(k.projectId)) continue;
+      ut.set(
+        k.projectId,
+        hentUnderprosjekterLokalt(k.projectId)
+          .map((e) => ({ id: e.id, navn: `${e.proAdmId} — ${e.kortNavn}` }))
+          .sort((a, b) => a.navn.localeCompare(b.navn, "nb", { numeric: true })),
+      );
+    }
+    return ut;
+  }, [arbeidKort]);
+  const antallKortPaaProsjekt = useCallback(
+    (projectId: string | null) => arbeidKort.filter((k) => k.projectId === projectId).length,
+    [arbeidKort],
+  );
+  const ecoForKort = useCallback(
+    (k: BeskrivelseKort): string | null => {
+      const valgt = retting.ecoPerKort?.[k.nokkel];
+      if (valgt !== undefined) return valgt;
+      return manuell && k.projectId === prosjektId ? ecoId : null;
+    },
+    [retting.ecoPerKort, manuell, prosjektId, ecoId],
+  );
   // Prosjektbytte nullstiller underprosjektet — men ikke et valg gjenopprettet
   // fra utkastet: grunnlinjen settes først når utkastet er lest.
   const ecoProsjektRef = useRef<string | null | undefined>(undefined);
@@ -659,7 +760,7 @@ export default function BekreftDagSkjerm() {
     const u = finnUtkast(db, { userId: bruker.id, orgId, nokkel });
     if (u) {
       const d = u.data;
-      setRetting(d.retting ?? {});
+      setRetting(nyttKortFroe(d.retting ?? {}));
       setTilleggPerRad(d.tilleggPerRad ?? {});
       setLonnUtlegg(d.lonnUtlegg ?? { tillegg: [], utlegg: [] });
       setValgtByggeplassId(d.valgtByggeplassId ?? undefined);
@@ -668,7 +769,7 @@ export default function BekreftDagSkjerm() {
       setGjenopprettetTid(formaterKlokke(new Date(u.sistEndret)));
     }
     setUtkastLastet(true);
-  }, [utkastLastet, bruker?.id, orgId, manuell, dag, manuellDato, params.arbeidsdagId]);
+  }, [utkastLastet, bruker?.id, orgId, manuell, dag, manuellDato, params.arbeidsdagId, nyttKortFroe]);
 
   // L3-D: vakten leser datoens sedel (om den finnes) + forslagets nye rader.
   const grunnlagPerDato = useMemo(() => {
@@ -711,6 +812,8 @@ export default function BekreftDagSkjerm() {
     });
   }, [prosjektId]);
 
+  // Ordre c: beskrivelser uten kort — vises for seg; Bekreft stopper på dem.
+  const foreldrelose = useMemo(() => (beregnet ? foreldreloseBeskrivelser(beregnet.forslag) : []), [beregnet]);
   // Linjer på en rad som ikke finnes lenger — vises for seg; Bekreft stopper på dem.
   const utenRad = useMemo(
     () => (beregnet ? tilleggUtenRad(beregnet.forslag, tilleggPerRad) : []),
@@ -850,6 +953,24 @@ export default function BekreftDagSkjerm() {
     const db = hentDatabase();
     // Dobbelttrykk mens lagring pågår: knappen viser laste-indikator.
     if (lagrer) return;
+    // TILLEGG (33) pkt 4.1: fraværskortet uten beskrivelse sperrer (F4, TF9). Intet prosjekt
+    // valgt i manuell modus, men fraværskortet er lagret → arbeidskortet er ikke påbegynt, og
+    // `manglerProsjekt` gjelder bare arbeidskort (U8): skjermen går til dagen. GPS-dagen har
+    // arbeid som skal lagres, så der gjelder sperren som før.
+    const fravaerUtfall = fravaerVedBekreft({
+      manglerProsjekt: manuell && beregnet?.forslag.prosjektId == null,
+      fravaerRader: fravaerDag?.fravaerRader ?? [],
+    });
+    if (fravaerUtfall === "manglerBeskrivelse") {
+      Alert.alert(t("timer.bekreftDag.sperre.tittel"), t("timer.fravaerKort.sperret.manglerBeskrivelse"));
+      setFravaerKortApen({ nyLinje: false });
+      return;
+    }
+    if (fravaerUtfall === "tilDagen" && fravaerDag?.sheetId) {
+      if (laastDato) router.back();
+      else router.replace(`/timer/${fravaerDag.sheetId}`);
+      return;
+    }
     // DEL 5 a: ingen sperre er stille — hver sier hva som mangler.
     const sperre = bekreftSperre({
       harDb: db != null,
@@ -897,6 +1018,8 @@ export default function BekreftDagSkjerm() {
         naa: Date.now,
         arbeidsdagId: manuell ? null : params.arbeidsdagId,
         ecoId: manuell ? ecoId : null,
+        // Ordre c: underprosjekt pr. kort (også GPS-modus).
+        ecoPerKort: retting.ecoPerKort,
         // RETUR 36c-3: eksplisitt «Ingen byggeplass» i manuell modus løfter
         // arven på en eksisterende sedel med byggeplass. GPS-veien: som før.
         utenByggeplassValgt: manuell && retting.byggeplassId === null,
@@ -1035,7 +1158,7 @@ export default function BekreftDagSkjerm() {
     } finally {
       setLagrer(false);
     }
-  }, [beregnet, bruker?.id, manuell, laastDato, ecoId, params.arbeidsdagId, lagrer, orgId, erAnsatt, effSluttIso, endLat, endLng, oppdaterTellere, triggerSync, router, t, valgtFirma?.name, tilleggPerRad, visTomBeskrivelse, retting.byggeplassId, sluttIkkeGodkjent, lonnUtlegg, arbeidKort, leggIKo, skrivUtkastNaa, utkastNokkel]);
+  }, [beregnet, bruker?.id, manuell, laastDato, ecoId, params.arbeidsdagId, lagrer, orgId, erAnsatt, effSluttIso, endLat, endLng, oppdaterTellere, triggerSync, router, t, valgtFirma?.name, tilleggPerRad, visTomBeskrivelse, retting.byggeplassId, sluttIkkeGodkjent, lonnUtlegg, arbeidKort, leggIKo, skrivUtkastNaa, utkastNokkel, fravaerDag]);
 
   // A4-grenen (isolert): sedelen for den sendte datoen, for lenken.
   const sendtSedelId = useMemo(() => {
@@ -1353,7 +1476,8 @@ export default function BekreftDagSkjerm() {
                         : t("timer.bekreftDag.gpsForeslar", { byggeplass: gpsLinje.byggeplass })}
                     </Text>
                   ) : null}
-                  {underprosjekter.length > 0 ? (
+                  {/* Ordre c: med flere kort på prosjektet velges underprosjekt pr. kort (under hvert kort). */}
+                  {underprosjekter.length > 0 && antallKortPaaProsjekt(prosjektId) <= 1 ? (
                     <View className="gap-1">
                       <Text className="text-sm text-gray-500">{t("timer.felt.underprosjekt")}</Text>
                       <View className="flex-row flex-wrap gap-2">
@@ -1412,7 +1536,6 @@ export default function BekreftDagSkjerm() {
                 overtidValg={overtidValg}
                 alleLonnsarter={input.alleLonnsarter}
                 rettetOvertidFra={retting.perDato?.[d.dato]?.overtidFra}
-                rettetFravaerTil={retting.perDato?.[d.dato]?.fravaerTil}
                 overtidAv={retting.perDato?.[d.dato]?.overtidAv === true}
                 lonnsartPerLinje={retting.perDato?.[d.dato]?.lonnsartPerLinje}
                 linjeArter={linjeArter}
@@ -1438,13 +1561,70 @@ export default function BekreftDagSkjerm() {
                 onFokus={() => rullTilBeskrivelse(k.nokkel)}
                 onFeltY={(y) => beskrivelseFeltY.current.set(k.nokkel, y)}
                 onInnholdEndret={() => rullTilBeskrivelse(k.nokkel)}
-                prosjektNavn={kortEtikett(k) || null}
+                prosjektNavn={kortNavn(k) || null}
                 visProsjekt={arbeidKort.length > 1}
                 verdi={retting.beskrivelse?.[k.nokkel] ?? ""}
                 chips={beskrivelseChipsPerProsjekt.get(k.projectId) ?? []}
                 visFeil={forsoktBekreft && manglerNokler.includes(k.nokkel)}
                 onEndre={(tekst) => settBeskrivelse(k.nokkel, tekst)}
-                tillegg={(() => {
+                tillegg={<>{(() => {
+                  // Ordre c (spec § 5.1): underprosjekt pr. kort + «Del til eget kort».
+                  if (alleSendt || ikkeAnsatt || tomt) return null;
+                  const ups = underprosjekterPerProsjekt.get(k.projectId) ?? [];
+                  const visEco = ups.length > 0 && (!manuell || antallKortPaaProsjekt(k.projectId) > 1);
+                  const vindu = k.kortId
+                    ? delingsVindu(
+                        (raderPerKort.get(k.nokkel) ?? []).map((r) => ({ fraTid: r.fraTid, tilTid: r.tilTid, erReise: false })),
+                        input.regel?.tidsrundingMinutter ?? null,
+                      )
+                    : null;
+                  if (!visEco && !vindu && !k.egetKort) return null;
+                  const valgtEco = ecoForKort(k);
+                  const settEco = (id: string | null) => {
+                    setRetting((r) => ({ ...r, ecoPerKort: { ...r.ecoPerKort, [k.nokkel]: id } }));
+                    endret();
+                  };
+                  return (
+                    <View className="gap-2">
+                      {visEco ? (
+                        <View className="gap-1">
+                          <Text className="text-sm text-gray-500">{t("timer.felt.underprosjekt")}</Text>
+                          <View className="flex-row flex-wrap gap-2">
+                            {[{ id: null as string | null, navn: t("timer.bekreftDag.kort.utenUnderprosjekt") }, ...ups].map((e) => {
+                              const valgt = valgtEco === e.id;
+                              return (
+                                <Pressable
+                                  key={e.id ?? "uten"}
+                                  onPress={() => settEco(e.id)}
+                                  accessibilityState={{ selected: valgt }}
+                                  className={`min-h-[36px] justify-center rounded-full border px-3 ${
+                                    valgt ? "border-gray-900 bg-gray-900" : "border-gray-300 bg-white active:bg-gray-50"
+                                  }`}
+                                >
+                                  <Text className={`text-sm ${valgt ? "text-white" : "text-gray-700"}`}>{e.navn}</Text>
+                                </Pressable>
+                              );
+                            })}
+                          </View>
+                        </View>
+                      ) : null}
+                      {vindu || k.egetKort ? (
+                        <View className="flex-row flex-wrap gap-4">
+                          {vindu ? (
+                            <Pressable onPress={() => setDelKort(k)} className="min-h-[36px] justify-center active:opacity-60">
+                              <Text className="text-sm font-medium text-blue-700">{t("timer.bekreftDag.kort.delTilEgetKort")}</Text>
+                            </Pressable>
+                          ) : null}
+                          {k.egetKort ? (
+                            <Pressable onPress={() => angreDeling(k)} className="min-h-[36px] justify-center active:opacity-60">
+                              <Text className="text-sm font-medium text-gray-600">{t("timer.bekreftDag.kort.slaaSammen")}</Text>
+                            </Pressable>
+                          ) : null}
+                        </View>
+                      ) : null}
+                    </View>
+                  );
+                })()}{(() => {
                   // ORDRE 24 (Kenneth 2026-11-16): ETT sett maskin/varer pr. kort.
                   // Holdes under første arbeidsrads nøkkel; fordeles på radene ved
                   // Bekreft (`fordelTilleggPaaKort`). Vakten: maskin ≤ kortets sum.
@@ -1475,9 +1655,20 @@ export default function BekreftDagSkjerm() {
                       }}
                     />
                   );
-                })()}
+                })()}</>}
               />
             ))}
+
+            {foreldrelose.length > 0 ? (
+              // Ordre c (spec § 5.1, T14): tekst hvis kort ikke finnes lenger (delingen
+              // angret, tiden flyttet, gammelt utkast) — droppes aldri stille.
+              <View className="gap-1.5 rounded-lg border border-amber-300 bg-amber-50 p-3">
+                <Text className="text-sm text-amber-900">{t("timer.bekreftDag.kort.utenKortMelding")}</Text>
+                {foreldrelose.map((n) => (
+                  <Text key={n} className="text-sm text-gray-900">{retting.beskrivelse?.[n]}</Text>
+                ))}
+              </View>
+            ) : null}
 
             {utenRad.length > 0 ? (
               // PRESISERING TILLEGG: raden forsvant (fjernet arbeid, færre rader) —
@@ -1619,7 +1810,7 @@ export default function BekreftDagSkjerm() {
                 prosjektValg={prosjekter.map((p) => ({ id: p.id, navn: p.name }))}
                 kort={arbeidKort}
                 standardKortFor={standardKortFor}
-                kortEtikett={kortEtikett}
+                kortEtikett={kortNavn}
                 onFjernKvittering={fjernKvittering}
               />
             ) : null}
@@ -1640,6 +1831,82 @@ export default function BekreftDagSkjerm() {
               {t(manuell ? "timer.bekreftDag.manuell.hjelp" : "timer.bekreftDag.hjelp")}
             </Text>
           </>
+        ) : null}
+        {/* TILLEGG (33) pkt 4.1 — U1 inngang 2: «+ Fravær» i lenkeraden, også uten valgt prosjekt
+            (U8). Kortet viser art og timer pr. linje og én beskrivelse (U5, U10, U11). */}
+        {!alleSendt && !ikkeAnsatt && fravaerDag && !fravaerDag.laast ? (
+          <View className="rounded-lg border border-gray-200 bg-white">
+            {fravaerDag.fravaerRader.length > 0 ? (
+              <Pressable
+                onPress={() => setFravaerKortApen({ nyLinje: false })}
+                className="border-b border-gray-100 px-4 py-2 active:bg-gray-50"
+              >
+                <Text className="text-sm font-semibold text-gray-900">{t("timer.fravaerKort.tittel")}</Text>
+                {fravaerDag.fravaerRader.map((r) => (
+                  <Text key={r.id} className="py-0.5 text-sm text-gray-700" style={{ fontVariant: ["tabular-nums"] }}>
+                    {t("timer.fravaerKort.linje", {
+                      timer: formatTimer(r.timer),
+                      art: finnLonnsartLokalt(r.lonnsartId)?.navn ?? "",
+                    })}
+                  </Text>
+                ))}
+                {fravaerVedBekreft({ manglerProsjekt: false, fravaerRader: fravaerDag.fravaerRader }) ===
+                "manglerBeskrivelse" ? (
+                  <Text className="py-0.5 text-sm text-amber-700">{t("timer.dagsoversikt.manglerBeskrivelse")}</Text>
+                ) : (
+                  <Text className="py-0.5 text-sm text-gray-900">
+                    {fravaerDag.fravaerRader.find((r) => r.beskrivelse)?.beskrivelse}
+                  </Text>
+                )}
+              </Pressable>
+            ) : null}
+            <Pressable
+              onPress={() => setFravaerKortApen({ nyLinje: true })}
+              className="min-h-[44px] justify-center px-4 active:bg-gray-50"
+            >
+              <Text className="text-sm font-medium text-gray-700">{t("timer.fravaerKort.leggTil")}</Text>
+            </Pressable>
+          </View>
+        ) : null}
+        <DelKortModal
+          synlig={delKort !== null}
+          vindu={
+            delKort
+              ? delingsVindu(
+                  (raderPerKort.get(delKort.nokkel) ?? []).map((r) => ({ fraTid: r.fraTid, tilTid: r.tilTid, erReise: false })),
+                  input?.regel?.tidsrundingMinutter ?? null,
+                )
+              : null
+          }
+          tidsrunding={input?.regel?.tidsrundingMinutter ?? null}
+          onAvbryt={() => setDelKort(null)}
+          onDel={delKortNaa}
+        />
+        {fravaerKortApen && fravaerDag && fravaerDato && bruker?.id && orgId ? (
+          <FravaerKortModal
+            userId={bruker.id}
+            organizationId={orgId}
+            dato={fravaerDato}
+            dagsnorm={fravaerNorm}
+            dagRader={[
+              ...fravaerDag.andreRader,
+              // U3: arbeidet som står i Bekreft dag for datoen teller før det er lagret.
+              ...forslagSomDagRader(
+                forslag.datoer
+                  .filter((d) => d.dato === fravaerDato && !d.blokkert && !retting.perDato?.[d.dato]?.fjernArbeid)
+                  .flatMap((d) => d.rader),
+              ),
+            ]}
+            eksisterende={fravaerDag.fravaerRader}
+            nyLinje={fravaerKortApen.nyLinje}
+            onLagret={() => {
+              setFravaerKortApen(null);
+              settFravaerNonce((n) => n + 1);
+              oppdaterTellere();
+              void triggerSync();
+            }}
+            onLukk={() => setFravaerKortApen(null)}
+          />
         ) : null}
         {/* RETUR 36c-2 (D4): luft under siste felt mens tastaturet er oppe, så
             rullingen til feltet ikke klemmes mot bunnen. */}
@@ -1804,11 +2071,7 @@ function ArbeidLinjer({
   ].sort((a, b) => a.fraTid.localeCompare(b.fraTid));
   if (linjer.length === 0) return null;
   const aapenLinje = linjer.find((l) => l.nokkel === aapen) ?? null;
-  // RETUR 2 (28): `arbeid`-linja (arbeid etter fravær) tilbys ikke fravær —
-  // mer fravær føres med «Fravær til» (`beregnSegment` godtar det ikke der).
-  const arterFor = (linje: ArbeidLinje) =>
-    linje === "arbeid" ? linjeArter.filter((a) => a.type !== "fravaer") : linjeArter;
-  const chips = aapenLinje ? arterFor(aapenLinje.linje).length <= MAKS_LINJE_CHIPS : true;
+  const chips = aapenLinje ? linjeArter.length <= MAKS_LINJE_CHIPS : true;
   const velg = (linje: ArbeidLinje, art: DagsforslagLonnsart) => {
     onVelg(linje, art);
     setAapen(null);
@@ -1833,7 +2096,7 @@ function ArbeidLinjer({
             </Pressable>
             {aapen === l.nokkel && chips ? (
               <View className="gap-1 rounded-md border border-gray-200 bg-white p-2">
-                {grupperLinjeLonnsarter(arterFor(l.linje)).map((g) => (
+                {grupperLinjeLonnsarter(linjeArter).map((g) => (
                   <View key={g.gruppe} className="gap-1">
                     <Text className="text-xs font-semibold text-gray-500">
                       {t(`timer.bekreftDag.lonnsartGruppe.${g.gruppe}`)}
@@ -1865,9 +2128,9 @@ function ArbeidLinjer({
       {aapenLinje && !chips ? (
         <LonnsartVelgerModal
           valgtId={aapenLinje.lonnsartId ?? ""}
-          kandidatIder={arterFor(aapenLinje.linje).map((a) => a.id)}
+          kandidatIder={linjeArter.map((a) => a.id)}
           onVelg={(id) => {
-            const art = arterFor(aapenLinje.linje).find((a) => a.id === id);
+            const art = linjeArter.find((a) => a.id === id);
             if (art) velg(aapenLinje.linje, art);
           }}
           onLukk={() => setAapen(null)}
@@ -1886,7 +2149,6 @@ function DatoKort({
   overtidValg,
   alleLonnsarter,
   rettetOvertidFra,
-  rettetFravaerTil,
   overtidAv,
   lonnsartPerLinje,
   linjeArter,
@@ -1905,8 +2167,6 @@ function DatoKort({
   overtidValg: Array<{ id: string; navn: string }>;
   alleLonnsarter: DagsforslagLonnsart[];
   rettetOvertidFra: string | undefined;
-  /** RETUR (28) B9: arbeiderens «Fravær til». */
-  rettetFravaerTil: string | undefined;
   /** ORDRE (27b) V5a: overtiden er slått av med nivå-knappen. */
   overtidAv: boolean;
   /** ORDRE (28) V7: arbeiderens lønnsart pr. linje. */
@@ -2042,47 +2302,14 @@ function DatoKort({
                 velgLinjeLonnsart({
                   linje,
                   art,
-                  rettDato: { lonnsartPerLinje, overtidFra: rettetOvertidFra, fravaerTil: rettetFravaerTil },
-                  // RETUR (28) B9: mens fraværet deler kortet slås linjer aldri sammen.
-                  naboArtId: dag.fravaerTil
-                    ? null
-                    : arbeid.find((r) => r.linje === nabo)?.lonnsartId ?? null,
+                  rettDato: { lonnsartPerLinje, overtidFra: rettetOvertidFra },
+                  naboArtId: arbeid.find((r) => r.linje === nabo)?.lonnsartId ?? null,
                   overtidFra: forsteOt?.fraTid ?? null,
                   arbeidFra: fra,
-                  linjeTil:
-                    arbeid.find((r) => r.linje === linje)?.tilTid ??
-                    dag.linjerUtenLonnsart?.find((l) => l.linje === linje)?.tilTid ??
-                    null,
                 }),
               );
             }}
           />
-          {/* RETUR (28) B9: fraværet på normallinja bruker ikke normen — slutten flyttes her. */}
-          {dag.fravaerTil ? (
-            <View className="flex-row items-center justify-between">
-              <Text className="text-sm text-gray-700">{t("timer.bekreftDag.fravaerTil")}</Text>
-              <View className="flex-row items-center gap-3">
-                {/* RETUR 3 (28) A3: punktene kommer fra beregningen — samme grense, hopper over pausen. */}
-                <Pressable
-                  onPress={() => dag.fravaerSteg?.ned && onRett({ fravaerTil: dag.fravaerSteg.ned })}
-                  disabled={!dag.fravaerSteg?.ned}
-                  hitSlop={8}
-                  className="rounded-full border border-gray-300 p-1 disabled:opacity-40"
-                >
-                  <Minus size={16} color="#374151" />
-                </Pressable>
-                <Text className="w-16 text-center text-sm text-gray-900">{dag.fravaerTil}</Text>
-                <Pressable
-                  onPress={() => dag.fravaerSteg?.opp && onRett({ fravaerTil: dag.fravaerSteg.opp })}
-                  disabled={!dag.fravaerSteg?.opp}
-                  hitSlop={8}
-                  className="rounded-full border border-gray-300 p-1 disabled:opacity-40"
-                >
-                  <Plus size={16} color="#374151" />
-                </Pressable>
-              </View>
-            </View>
-          ) : null}
           {visAnkomst && maalt ? (
             <View className="flex-row flex-wrap items-center gap-2">
               <Text className="text-xs text-gray-600">{t("timer.bekreftDag.ankomst")}</Text>
@@ -2126,7 +2353,7 @@ function DatoKort({
           ) : null}
           {/* ORDRE 35 del B: ingen overtid ennå → start den fra arbeidsstart; samme motor
               (segmenterVedOvertidFra). Uten OT50 velges første nivå (leggTilOvertidRetting). */}
-          {!forsteOt && !dag.fravaerTil && overtidValg.length > 0 && !(redigerOvertid && overtidAv) ? (
+          {!forsteOt && overtidValg.length > 0 && !(redigerOvertid && overtidAv) ? (
             <Pressable
               onPress={() => {
                 onRett(leggTilOvertidRetting(fra, alleLonnsarter, overtidValg));
@@ -2144,8 +2371,7 @@ function DatoKort({
           {redigerOvertid && otFra ? (
             <View className="gap-2 rounded-md border border-amber-200 bg-white p-2">
               {/* ORDRE (27b) V5a: overtiden av → «Overtid fra» skjules, nivå-knappene står. */}
-              {/* RETUR (28) B9: under fraværsdeling følger overtiden normen — «Overtid fra» leses ikke. */}
-              {!overtidAv && !dag.fravaerTil ? (
+              {!overtidAv ? (
               <View className="flex-row items-center justify-between">
                 <Text className="text-sm text-gray-700">{t("timer.bekreftDag.overtidFra")}</Text>
                 <View className="flex-row items-center gap-3">
