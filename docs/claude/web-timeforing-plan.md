@@ -3,7 +3,7 @@ name: web-timeforing-plan
 description: Plan med bilder steg for steg for timeføring på web — én samlet registrering pr. jobb (fra/til, lønnsart, hva gjorde du, maskiner, varer, tillegg, utlegg), prosjekt og byggeplass utledet, maskin med timer og uten fra–til, overtid som egen linje, underprosjekt i jobbens hode, og attestering med kjernelinje som åpner registreringen og lar attestanten dele opp. Målt mot dagens web og telefon. B1–B11 til Kenneth.
 sist_verifisert_mot_kode: 2026-11-17 (develop @ `3b0f1abb`)
 eier: fabel (plan) — orkestrator gater kode; Kenneth vedtar B1–B11 (§ 8)
-status: 🟡 FORSLAG 2026-11-17, versjon 3 — bygger på Kenneths føringer (§ 1) og svaret hans på versjon 2 (§ 1.1). Ingen kode. B1–B11 er åpne.
+status: 🟡 FORSLAG 2026-11-17, versjon 3 — bygger på Kenneths føringer (§ 1) og svaret hans på versjon 2 (§ 1.1). Ingen kode. B1–B8, B10, B11 besvart 2026-11-17 (§ 8.1); B9 åpen.
 ---
 
 # Timeføring på web — plan med bilder (FORSLAG)
@@ -438,6 +438,22 @@ dagskortet).
 | **B9** | **Kjernen på attesteringslinja** (bilde 6): dato · ansatt · prosjektnr · underprosjekt · lønnsart · fra–til · timer · maskin · maskintimer · vare med mengde · avvik. De andre kolonnene kan slås på. I dag er alle 26 på, og Maskin og Vare ligger utenfor skjermen. A: kjernen som standard. B: behold alle 26, og legg bare til trykket som åpner registreringen. **Mangler noe i kjernen?** | **A.** Det er det du sa i dag. Det snur «ingen ting kan utelates» fra 16.11; alt står fortsatt i registreringen. |
 | **B10** | **Hvem får rette og dele opp i attesteringen?** A: alle som kan attestere linja, også en prosjektleder, når firmaet har «rediger ved attestering» på. B: bare firmaadministrator, som i dag. | **A.** Du skrev «den som attesterer». Firmavalget styrer fortsatt av og på. |
 | **B11** | **Underprosjekt på jobben:** A: «Uten» er forhåndsvalgt, og arbeideren trykker på underprosjektet når jobben hører til ett — som telefonen. B: sist brukte underprosjekt på prosjektet er forhåndsvalgt. | **A.** Feil underprosjekt gir feil faktura til byggherren. A er vedtatt for telefonen. |
+
+### 8.1 Kenneths svar 2026-11-17 (vedtak — Fabel arbeider dem inn i versjon 4)
+
+| # | Svar (Kenneths ord i anførsel) | Hva det betyr for planen |
+|---|---|---|
+| **B1** | *«hvorfor ikke bare + registrer timer. kun registrer timer på et prosjekt -> dagen summerer vi etterhvert som vi registrerer»* | Ikke «Ny dag». Én knapp «+ Registrer timer» åpner en jobb på et prosjekt; dagsseddelen er ikke et eget steg for brukeren, dagen summeres etter hvert som jobber føres. Fabel måler hvordan det kartlegges mot dagsseddel-modellen (opprettes stille ved første jobb?) og hva som skjer med skjemaet «Annen dato eller annet prosjekt». |
+| **B2** | A | Rekkefølgen telefonens dag → innsjekk-loggen → toppen → skjema. |
+| **B3** | A | GPS-loggen sendes ikke til serveren. |
+| **B4** | A. *«pausen er ikke 60 minutter, det er 30 minutter overtid fordi dagsnormen i firmainstilnger er 7,5 timer (kan være 7 timer vinter og 8 timer sommer i firmainstillinger/kalender)»* | 07:00–15:30 med 30 min pause = 8,0 t = 7,5 t norm + 0,5 t overtid. Normen leses fra firmaets innstillinger/kalender for datoen, aldri hardkodet 7,5. Sommer/vinter-markører finnes i kalenderen (`packages/db/prisma/schema.prisma:3134–3135`); om normleseren bruker dem, er umålt. |
+| **B5** | *«la firma (firmainstillinger) velge om maskin registereres med fra/til»* | Ny firmainnstilling: maskin med eller uten fra–til. Gjelder begge moduser. Ny innstilling = funksjonsendring med hjemmel herfra; krever trolig skjemafelt (umålt). |
+| **B6** | A | «Hva gjorde du?» påkrevd på web. |
+| **B7** | A. *«kan dette bli et merke med en hover?»* | Korte merker; forklaringen vises ved hover (trykk på berøringsskjerm). |
+| **B8** | Ja | Overtid som egen linje med én gang. |
+| **B9** | 🟡 Åpen — Kenneth ba om forklaring. | Uendret til svar. |
+| **B10** | Ja | Alle som kan attestere linja, får rette og dele opp når «rediger ved attestering» er på. |
+| **B11** | Ja. *«jeg foretrekker underprosjekt som nedtreksmeny dersom det blir for mange underprosjekter -> disse bør være søkbare»* | «Uten» forhåndsvalgt. Få underprosjekter: knapper. Mange: søkbar nedtrekk (adaptiv nedtrekk, `retningslinjer/ui-standarder.md`). |
 
 **Følger som ikke er spørsmål, men si fra hvis du mente noe annet:**
 
