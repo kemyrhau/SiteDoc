@@ -9,6 +9,8 @@ import {
 import { hentIfcRaadata, lagRaadataLager, lesAttributter } from "./ifcRaadata";
 import { beregnInnramming, dollyFartMobil, orbitAvstand, type Boks } from "./kameraInnramming";
 import { DIAG_LAGRINGSNØKKEL, diagFraUrlEllerLager, lagDiagHemmeligTrykk } from "./diagnose";
+import { lagTrykkTolk, type TrykkUtfall } from "./trykkTolk";
+import { forstørrPilTreff } from "./snittPilTreff";
 import { flyttSnittpilerTilMidten } from "@/lib/tredSnittPil";
 import { hentModellEnheter, type IfcEgenskapsApi } from "@/lib/ifcEgenskaper";
 
@@ -116,10 +118,19 @@ export default function MobilViewer() {
       const clipper = components.get(OBC.Clipper);
       clipper.setup();
       clipper.enabled = false;
+      // Raycasteren som `clipper.create` bruker sporer fingeren (OBC `Mouse`: pointermove/touchstart)
+      // først fra den opprettes. Opprettes den ved første dobbelttrykk, har den ingen posisjon og
+      // skyter fra skjermmidten — første snitt havnet feil eller uteble. Samme grep som web (W2). ORDRE 10
+      components.get(OBC.Raycasters).get(world);
       // Snittpilen flyttes dit planet krysser skjermmidten når kameraet har stoppet (§ 3d,
       // samme regel som web). Ikke mens pilen dras, og ikke mens en finger er nede.
       let snittDras = false;
+      // Trykket startet på snittpilen (TransformControls grep den i samme pointerdown) — ORDRE 10
+      let pilGrepet = false;
       clipper.onBeforeDrag.add(() => { snittDras = true; });
+      clipper.onBeforeDrag.add(() => { pilGrepet = true; });
+      // Større treffflate på pilen for fingre; synlig pil uendret (ORDRE 10)
+      clipper.onAfterCreate.add((plan) => { forstørrPilTreff(plan.controls); });
       clipper.onAfterDrag.add(() => { snittDras = false; });
       const flyttSnittpiler = () => {
         const ctrl = world.camera.controls;
@@ -325,16 +336,60 @@ export default function MobilViewer() {
         }).catch(() => { /* diagnose */ });
       });
 
+      // Med saksen aktiv tolkes trykkene her i stedet for click/dblclick (ORDRE 10):
+      // enkelttrykk utenfor pilen = objektvalg (etter dobbelttrykk-vinduet), dobbelttrykk = snitt.
+      const trykkTolk = lagTrykkTolk();
+      let enkeltTimer: ReturnType<typeof setTimeout> | null = null;
+      const utførEnkelt = (p: { x: number; y: number } | null) => {
+        if (!p || !clipper.enabled || renset) return;
+        void velgObjektPå(p.x, p.y, klokke(), performance.now(), "saks · ");
+      };
+      const lagSnitt = async (tekst: string) => {
+        try {
+          const plan = await clipper.create(world);
+          live.trykk = `${tekst} → ${plan ? "snitt laget" : "traff ingen flate"}`;
+        } catch { live.trykk = `${tekst} → feil`; }
+        tegnLive(true);
+      };
+      const vedTolketSlipp = (u: TrykkUtfall) => {
+        if (!clipper.enabled) return; // uten saks: click som før
+        const tid = klokke();
+        if (u.type === "venter") {
+          if (enkeltTimer) clearTimeout(enkeltTimer);
+          enkeltTimer = setTimeout(() => { enkeltTimer = null; utførEnkelt(trykkTolk.utløp(performance.now())); }, u.fristMs + 20);
+          live.trykk = `${tid} saks · trykk, venter ${u.fristMs} ms på dobbelttrykk`;
+        } else if (u.type === "dobbelt") {
+          if (enkeltTimer) { clearTimeout(enkeltTimer); enkeltTimer = null; }
+          live.trykk = `${tid} saks · dobbelttrykk (${u.mellomromMs} ms mellom) → snitt`;
+          void lagSnitt(`${tid} saks · dobbelttrykk (${u.mellomromMs} ms mellom)`);
+        } else if (u.type === "pil") {
+          live.trykk = `${tid} saks · trykk på snittpilen, ikke objektvalg`;
+        } else if (u.grunn !== "fingre igjen") {
+          live.trykk = `${tid} saks · ikke et trykk (${u.grunn})`;
+        }
+        tegnLive(true);
+      };
+
       const slippFinger = (e: PointerEvent) => { fingre.delete(e.pointerId); };
       rendererDom.addEventListener("pointerdown", (e: PointerEvent) => {
         if (e.pointerType === "touch") fingre.add(e.pointerId);
+        if (e.isPrimary) pilGrepet = false;
         mouseDownPos = { x: e.clientX, y: e.clientY };
         live.trykk = `${klokke()} ned · venter på klikk`;
         tegnLive(true);
         void settOrbitPunkt();
+        const løst = trykkTolk.ned(e.pointerId, e.clientX, e.clientY, performance.now());
+        if (løst) {
+          if (enkeltTimer) { clearTimeout(enkeltTimer); enkeltTimer = null; }
+          utførEnkelt(løst);
+        }
       });
       rendererDom.addEventListener("pointerup", slippFinger);
       rendererDom.addEventListener("pointercancel", slippFinger);
+      rendererDom.addEventListener("pointerup", (e: PointerEvent) => {
+        vedTolketSlipp(trykkTolk.opp(e.pointerId, e.clientX, e.clientY, performance.now(), pilGrepet));
+      });
+      rendererDom.addEventListener("pointercancel", (e: PointerEvent) => { trykkTolk.avbryt(e.pointerId); });
 
       // Slå diagnosen av/på fra appen uten OTA: 5 raske trykk øverst til venstre (huskes)
       const hemmeligTrykk = lagDiagHemmeligTrykk(() => {
@@ -348,6 +403,8 @@ export default function MobilViewer() {
 
       async function handleKlikk(event: MouseEvent) {
         if (renset) return;
+        // Med saksen aktiv tar trykk-tolken over (ORDRE 10)
+        if (clipper.enabled) return;
         const klikkStart = performance.now();
         const klikkTid = klokke();
         if (mouseDownPos) {
@@ -359,6 +416,11 @@ export default function MobilViewer() {
             return;
           }
         }
+        await velgObjektPå(event.clientX, event.clientY, klikkTid, klikkStart, "");
+      }
+
+      /** Objektvalg i et skjermpunkt: utheving + `objektValgt`/`objektFjernet` til appen */
+      async function velgObjektPå(x: number, y: number, klikkTid: string, klikkStart: number, kilde: "" | "saks · ") {
         const ms = () => `${Math.round(performance.now() - klikkStart)} ms`;
 
         if (currentHighlight) {
@@ -370,11 +432,11 @@ export default function MobilViewer() {
         }
 
         try {
-          const hitResult = await raycastSynlige(event.clientX, event.clientY);
+          const hitResult = await raycastSynlige(x, y);
 
           if (!hitResult) {
             sendTilApp({ type: "objektFjernet" });
-            live.trykk = `${klikkTid} klikk · traff ingenting → objektFjernet (${ms()})`;
+            live.trykk = `${klikkTid} ${kilde}klikk · traff ingenting → objektFjernet (${ms()})`;
             tegnLive(true);
             return;
           }
@@ -415,22 +477,20 @@ export default function MobilViewer() {
             data: { localId, modelId: hitModel.modelId, kategori, attributter, grupper,
               punkt: { x: hitResult.point.x, y: hitResult.point.y, z: hitResult.point.z } },
           });
-          live.trykk = `${klikkTid} klikk · objektValgt ${kategori ?? "uten kategori"}, ` +
+          live.trykk = `${klikkTid} ${kilde}klikk · objektValgt ${kategori ?? "uten kategori"}, ` +
             `${Object.keys(attributter).length} egenskaper, ${grupper.length} grupper, råfil ${rawData ? "ja" : "nei"} (${ms()})`;
           tegnLive(true);
         } catch {
           sendTilApp({ type: "objektFjernet" });
-          live.trykk = `${klikkTid} klikk · feil → objektFjernet (${ms()})`;
+          live.trykk = `${klikkTid} ${kilde}klikk · feil → objektFjernet (${ms()})`;
           tegnLive(true);
         }
       }
 
       rendererDom.addEventListener("click", handleKlikk);
 
-      rendererDom.addEventListener("dblclick", async () => {
-        if (!clipper.enabled || renset) return;
-        await clipper.create(world);
-      });
+      // Dobbelttrykk med saksen aktiv lager snitt via trykk-tolken over (ORDRE 10), ikke `dblclick`:
+      // nettleserens dblclick kom i tillegg til to click (objektvalg) og var upålitelig på iOS.
 
       /** Åpne råfila i web-ifc én gang pr. modell */
       function åpneIfc(fragModelId: string, ifcData: Uint8Array): number {
@@ -728,6 +788,7 @@ export default function MobilViewer() {
         window.removeEventListener("message", handleMessage);
         window.removeEventListener("pointerdown", vedHemmeligTrykk, true);
         rendererDom.removeEventListener("click", handleKlikk);
+        if (enkeltTimer) clearTimeout(enkeltTimer);
         document.removeEventListener("visibilitychange", handleVisibility);
         if (animFrameId !== null) cancelAnimationFrame(animFrameId);
       };
