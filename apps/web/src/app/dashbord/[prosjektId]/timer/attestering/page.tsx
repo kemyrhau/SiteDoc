@@ -74,6 +74,7 @@ export default function AttesteringSide() {
               <p className="mt-2">{t("timer.attestering.tabell.hjelp.struktur")}</p>
               <p className="mt-2">{t("timer.attestering.tabell.hjelp.handlinger")}</p>
               <p className="mt-2">{t("timer.attestering.tabell.hjelp.retting")}</p>
+              <p className="mt-2">{t("timer.attestering.tabell.hjelp.kvittering")}</p>
             </HjelpFane>
           </HjelpKnapp>
         </div>

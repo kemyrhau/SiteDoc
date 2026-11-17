@@ -3,7 +3,7 @@
 import { useMemo, useState, type ReactNode, type KeyboardEvent } from "react";
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
-import { Check, CornerUpLeft, RotateCcw, Scissors, Pencil, X, SlidersHorizontal, ExternalLink } from "lucide-react";
+import { Check, CornerUpLeft, RotateCcw, Scissors, Pencil, X, SlidersHorizontal, ExternalLink, Paperclip } from "lucide-react";
 import { Button, Modal } from "@sitedoc/ui";
 import {
   TIMER_TABELL_KOL,
@@ -13,6 +13,8 @@ import {
   type TimerTabellKolKey,
 } from "@sitedoc/shared";
 import { trpc } from "@/lib/trpc";
+import { SignertBilde } from "@/components/SignertBilde";
+import { SignertLenke } from "@/components/SignertLenke";
 import { formaterNorsk } from "@/lib/timer-rapport-eksport";
 import { useTabelloppsett } from "@/hooks/useTabelloppsett";
 import { KolonneVelger } from "@/components/ui/KolonneVelger";
@@ -40,6 +42,7 @@ import {
   type AttKort,
   type AttLinje,
   type AttSedel,
+  type AttVedlegg,
   type Gruppering,
   type RadIder,
 } from "./attestering-tabell";
@@ -415,6 +418,7 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
     const kanSplitte = !readOnly && l.ventende && l.projectId !== null && (l.kilde.type === "timer" || l.kilde.type === "maskin" || l.kilde.type === "tillegg");
     return (
       <span className="flex items-center gap-1">
+        {l.kilde.type === "utlegg" && <Kvitteringer vedlegg={l.kilde.rad.vedlegg ?? []} />}
         {l.harHandling && !readOnly && l.ventende && (
           <>
             {handlingKnapp({ ikon: <Check className="h-4 w-4" />, tekst: t("timer.attestering.attester"), tittel: l.sperre ?? undefined, disabled: opptatt || !!l.sperre, onClick: () => attester(l.radIder), farge: "text-green-700 hover:bg-green-50" })}
@@ -757,5 +761,35 @@ function GjenaapneDagDialog({ sheetId, onLukk, onFerdig }: { sheetId: string; on
         </div>
       </div>
     </Modal>
+  );
+}
+
+/**
+ * Kvitteringene på et utlegg (ordre d2b-3, d): attestanten åpner og kontrollerer dem før
+ * ✓ — «ellers godkjenner vi noe vi ikke har lest». Samme visning som timer-detaljen
+ * (`SignertLenke` + `SignertBilde`, signatur fra serveren, selvfornyende). Bilde vises som
+ * miniatyr; annet (PDF) som binders. Begge åpner fila i ny fane.
+ */
+function Kvitteringer({ vedlegg }: { vedlegg: readonly AttVedlegg[] }) {
+  const { t } = useTranslation();
+  if (vedlegg.length === 0) return null;
+  return (
+    <>
+      {vedlegg.map((v) => (
+        <SignertLenke
+          key={v.id}
+          url={v.fileUrl}
+          nyFane
+          title={t("timer.attestering.tabell.aapneKvittering", { fil: v.fileName })}
+          className="inline-flex shrink-0 items-center rounded hover:opacity-80"
+        >
+          {v.mimeType.startsWith("image/") ? (
+            <SignertBilde url={v.fileUrl} alt={t("timer.vedlegg.tittel")} className="h-6 w-6 rounded border border-gray-200 object-cover" />
+          ) : (
+            <Paperclip className="h-4 w-4 text-gray-600" />
+          )}
+        </SignertLenke>
+      ))}
+    </>
   );
 }

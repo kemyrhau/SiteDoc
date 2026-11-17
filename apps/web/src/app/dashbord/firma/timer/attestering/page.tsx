@@ -383,6 +383,8 @@ export default function FirmaAttesteringSide() {
             <p className="mt-2">{t("timer.attestering.tabell.hjelp.retting")}</p>
             <p className="mt-2">{t("timer.attestering.tabell.hjelp.verktoy")}</p>
             <p className="mt-2">{t("timer.attestering.tabell.hjelp.grupperinger")}</p>
+            <p className="mt-2">{t("timer.attestering.tabell.hjelp.ukeavvik")}</p>
+            <p className="mt-2">{t("timer.attestering.tabell.hjelp.kvittering")}</p>
           </HjelpFane>
         </HjelpKnapp>
       </div>

@@ -2235,3 +2235,17 @@ Grenser og endret atferd (meldt i leveransen):
 - **Vedlegg på utlegg** finnes ikke i web-attesteringen i dag; R14 kunne derfor ikke «beholde» det.
 - **Ukeavviket** regnes på hele ukens sedler (sendt + attestert). Før fulgte det nedtrekksfiltrene.
 - **`AttesteringPivot.tsx` og `SeddelKort.tsx`** har ingen importører lenger; sletting avventer orkestrator.
+
+### 12.13 Bygget — ordre d2b-3 (Kort-id d2b-3, 🟡 `feat/kortid-d2b3`, ikke merget)
+
+Branch `feat/kortid-d2b3` (2026-11-17), oppfølgeren til § 12.6.0. Ingen migrering, ingen skjemaendring.
+
+| Del | Kode |
+|---|---|
+| (e) Ukeavviket sier «uka» | i18n `timer.attestering.pivot.{norm,avvikOver,avvikUnder,avvikTooltip}` og `timer.attestering.tabell.ukeAvvik{Over,Under}`: «Avvik denne uka …», «… over ukenorm». Kolonnen i ukeoversikten heter «Avvik denne uka». Hjelp: `timer.attestering.tabell.hjelp.ukeavvik`. `pivot.avvikOver/Under` brukes også av mobilens attesteringsliste (samme ukeavvik) |
+| (c) Dagsnorm på detaljsiden | `hentForAttestering` gir `dagsnorm` fra `hentEffektivArbeidstid` (samme kilde som `dagsnormerFor`/firmalista) og `tilleggHarKrav`. `AttesteringDetalj.tsx` sender dem til tabellen (0 = ukjent → ingen norm). «Krever vurdering» teller da «over normen». Feilretting: ukjent dagsnorm ga `POSITIVE_INFINITY` i `filtrerModell` (d2b-2), som gjorde «ført ≠ norm» sant for alt; nå 0 = ikke vurdert |
+| (d) Kvittering på utlegg | Server: `utleggVedleggForAttestant` i `dagsseddel.ts` — vedlegg bare på rader brukeren kan attestere (prosjektrad: `attesteringsFirmaer` inneholder sedelens firma; rad uten prosjekt: firma-admin), URL signert med `signerHvisPrivat` (samme lagring og signering som mobilens `signerUtleggVedlegg`). I `hentTilAttestering`, `hentTilAttesteringFirma` (+ `projectId` på utlegget) og `hentForAttestering`. Web: `Kvitteringer` i `AttesteringTabell.tsx` — miniatyr (bilde) eller binders (annet) med `SignertLenke`/`SignertBilde` (selvfornyende, G3); åpner i ny fane. Gjelder tabellen og detaljsiden. Hjelp: `…tabell.hjelp.kvittering` |
+| Tilgangssjekk | `navnSynlighet` i `dagsseddel.ts`: navn på prosjekt, underprosjekt og byggeplass sendes når brukeren har tilgang til radens prosjekt (`verifiserProsjektmedlem`, som d2b-2) eller er firma-admin i sedelens firma (lønnsansvarlig — ser dem allerede i firmalista). Ellers `project: null`, `byggeplassNavn: null`, `underprosjekt: null`; id-ene står. `berikRad`/`berikMaskinRad` tar `navnSynlig`. Brukt i `hentForAttestering` og `hentTilAttestering`; firmalista er uendret (brukeren er alltid firma-admin der) |
+| Ubrukt kode slettet | `AttesteringPivot.tsx`, `SeddelKort.tsx`; `DagsKort.tsx` beholder bare `useKatalogNavn` og `HoverKort` (`DagsKort`, `tilPivotRad`, `harKortInnhold`, `RaaSedel` slettet). Målt med `git grep` før sletting: ingen importører |
+| Tester | `apps/api/src/routes/timer/attestering-navn-vedlegg.test.ts` (8): navn skjult for lederen uten tilgang (`JSON.stringify`), synlig med tilgang og for firma-admin, vedlegg bare på egne rader, ingen usignert `/uploads/`, dagsnorm. Negativkontroll: `navnSynlighet` → alltid sann og vedleggsretten → alltid sann gir 3 røde. Web: `attestering-tabell.test.tsx` d2b-3 (kvittering, kontekst, dagsnorm/«Krever vurdering», «Avvik denne uka») |
+

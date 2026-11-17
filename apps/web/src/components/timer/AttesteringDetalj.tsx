@@ -474,8 +474,9 @@ export function AttesteringDetalj({
             sedel={{
               ...(sheet as unknown as AttSedel),
               totaltimer: timerRader.reduce((s, r) => s + Number(r.timer), 0),
-              dagsnorm: null,
-              tilleggHarKrav: false,
+              // Ordre d2b-3 (c): firmaets effektive dagsnorm fra serveren (samme kilde som
+              // listene); 0 = ukjent → ingen «av norm»-tekst.
+              dagsnorm: sheet.dagsnorm > 0 ? sheet.dagsnorm : null,
             }}
             orgId={sheet.organizationId}
             readOnly={sheet.status !== "sent"}

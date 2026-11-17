@@ -14,7 +14,7 @@ function les(rel: string): string {
 const flater: [string, string][] = [
   ["web EcoGruppe (timer/[id]/page.tsx)", "../app/dashbord/timer/[id]/page.tsx"],
   ["web attestering-buckets", "../components/attestering/attestering-buckets.tsx"],
-  ["web SeddelKort", "../components/attestering/SeddelKort.tsx"],
+  // SeddelKort.tsx er slettet i ordre d2b-3 (erstattet av AttesteringTabell, d2b-2).
   ["web AttesteringDetalj_Edit", "../components/timer/AttesteringDetalj_Edit.tsx"],
   [
     "mobil ProsjektGruppe",

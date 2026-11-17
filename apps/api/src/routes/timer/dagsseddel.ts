@@ -356,6 +356,85 @@ async function kanAttestereFravaer(
   return false;
 }
 
+/**
+ * Ordre d2b-3 (spec prosjektkort-kortid § 12.6.0): hvem som får se navnet på radens prosjekt,
+ * underprosjekt og byggeplass i attesteringen. Samme regel som `hentTilAttestering` (d2b-2):
+ * tilgang til prosjektet (`verifiserProsjektmedlem`). I tillegg ser firma-admin i sedelens firma
+ * (lønnsansvarlig) navnene på alle sedelens rader — de står allerede i firmalista
+ * (`hentTilAttesteringFirma`), så detaljen viser ikke mindre. Rad uten prosjekt (fravær): synlig.
+ */
+async function navnSynlighet(
+  userId: string,
+  sedelOrgIder: Iterable<string>,
+  prosjektIder: Iterable<string>,
+): Promise<(organizationId: string, projectId: string | null | undefined) => boolean> {
+  const orgIder = Array.from(new Set(sedelOrgIder));
+  const [medTilgang, adminSvar] = await Promise.all([
+    prosjekterMedTilgang(userId, prosjektIder),
+    Promise.all(orgIder.map(async (org) => [org, await kanAttestereFravaer(userId, org, [])] as const)),
+  ]);
+  const adminI = new Set(adminSvar.filter(([, ok]) => ok).map(([org]) => org));
+  return (organizationId, projectId) =>
+    !projectId || adminI.has(organizationId) || medTilgang.has(projectId);
+}
+
+/** Vedlegget attestanten får åpne: signert URL (aldri rå `/uploads/`-sti, S1). */
+export interface AttesteringVedlegg {
+  id: string;
+  fileName: string;
+  mimeType: string;
+  fileUrl: string;
+}
+
+/**
+ * Ordre d2b-3 (d): kvitteringene på utleggene, bare for rader brukeren kan attestere —
+ * prosjektrad: attesteringsrett i sedelens firma på radens prosjekt (H1, `attesteringsFirmaer`);
+ * rad uten prosjekt: lønnsansvarlig (firma-admin) i sedelens firma. Andre rader får `[]`.
+ * URL-en signeres her (samme mønster som `signerUtleggVedlegg`, som mobilen bruker).
+ */
+async function utleggVedleggForAttestant(
+  prismaTimer: PrismaTimerKlient,
+  userId: string,
+  rader: ReadonlyArray<{ id: string; projectId: string | null; organizationId: string }>,
+): Promise<Map<string, AttesteringVedlegg[]>> {
+  const ut = new Map<string, AttesteringVedlegg[]>();
+  if (rader.length === 0) return ut;
+  const rettCache = new Map<string, boolean>();
+  const kanAttestere = async (org: string, pid: string | null): Promise<boolean> => {
+    const nokkel = `${org}|${pid ?? ""}`;
+    let ok = rettCache.get(nokkel);
+    if (ok === undefined) {
+      if (pid) {
+        const firmaer = await attesteringsFirmaer(userId, pid);
+        ok = firmaer === null || firmaer.includes(org);
+      } else {
+        ok = await kanAttestereFravaer(userId, org, []);
+      }
+      rettCache.set(nokkel, ok);
+    }
+    return ok;
+  };
+  const tillatte: string[] = [];
+  for (const r of rader) if (await kanAttestere(r.organizationId, r.projectId)) tillatte.push(r.id);
+  if (tillatte.length === 0) return ut;
+  const vedlegg = await prismaTimer.sheetUtleggVedlegg.findMany({
+    where: { sheetUtleggId: { in: tillatte } },
+    select: { id: true, sheetUtleggId: true, fileName: true, mimeType: true, fileUrl: true },
+    orderBy: { createdAt: "asc" },
+  });
+  for (const v of vedlegg) {
+    const liste = ut.get(v.sheetUtleggId) ?? [];
+    liste.push({
+      id: v.id,
+      fileName: v.fileName,
+      mimeType: v.mimeType,
+      fileUrl: signerHvisPrivat(v.fileUrl) ?? v.fileUrl,
+    });
+    ut.set(v.sheetUtleggId, liste);
+  }
+  return ut;
+}
+
 /** Prosjektene hver sedel har en ikke-erstattet timerrad på (F1-grunnlaget). */
 async function prosjekterPaaSedler(
   prismaTimer: PrismaTimerKlient,
@@ -1810,9 +1889,14 @@ async function lastKortBerikelse(
   return { sted, utstyr, varer, rettede, ukeAvvik };
 }
 
-/** Navn på byggeplass/underprosjekt + rettede felter. Bare nye felt. */
-function berikRad<R extends RadMedKort>(b: KortBerikelse, rad: R) {
-  return { ...rad, ...stedFelter(b.sted, rad), rettedeFelter: b.rettede.get(rad.id) ?? [] };
+/**
+ * Navn på byggeplass/underprosjekt + rettede felter. Bare nye felt.
+ * `navnSynlig = false` (ordre d2b-3): raden står på et prosjekt brukeren ikke har tilgang til —
+ * navnene sendes ikke (id-ene står, som før).
+ */
+function berikRad<R extends RadMedKort>(b: KortBerikelse, rad: R, navnSynlig = true) {
+  const sted = navnSynlig ? stedFelter(b.sted, rad) : { byggeplassNavn: null, underprosjekt: null };
+  return { ...rad, ...sted, rettedeFelter: b.rettede.get(rad.id) ?? [] };
 }
 
 /** Som berikRad + maskinens enhet og «mangler påkrevd timerad» (R24). */
@@ -1820,6 +1904,7 @@ function berikMaskinRad<R extends MaskinRadForBerikelse>(
   b: KortBerikelse,
   rad: R,
   timer: ReadonlyArray<TimerRadForBerikelse>,
+  navnSynlig = true,
 ) {
   const utleieEnhet = b.utstyr.utleieEnhet.get(rad.vehicleId) ?? null;
   const manglerTimerad =
@@ -1836,7 +1921,7 @@ function berikMaskinRad<R extends MaskinRadForBerikelse>(
         attestertStatus: t.attestertStatus,
       })),
     );
-  return { ...berikRad(b, rad), utleieEnhet, manglerTimerad };
+  return { ...berikRad(b, rad, navnSynlig), utleieEnhet, manglerTimerad };
 }
 
 /** Rekkefølgen radene vises i (ordre d2a): fraTid, så opprettet. */
@@ -5795,7 +5880,7 @@ export const dagsseddelRouter = router({
           // Ordre d2a: maskinene med i prosjektlista.
           maskiner: { where: { attestertStatus: { not: "erstattet" } }, orderBy: RAD_REKKEFOLGE },
           // Ordre d2b-2 (R13): utleggene i tabellen. Samme felt som firmalista + kort og
-          // prosjekt; ingen vedlegg (svak FK, ses i detaljen).
+          // prosjekt. Ordre d2b-3: + vedlegg (svak FK, slås opp under med tilgangssjekk).
           utlegg: {
             select: {
               id: true,
@@ -5825,10 +5910,18 @@ export const dagsseddelRouter = router({
         for (const r of s.maskiner) radProsjektIder.add(r.projectId);
         for (const r of s.utlegg) if (r.projectId) radProsjektIder.add(r.projectId);
       }
-      radProsjektIder.delete(input.projectId);
-      const synlige = await prosjekterMedTilgang(ctx.userId, radProsjektIder);
-      synlige.add(input.projectId);
+      radProsjektIder.add(input.projectId);
       const sedelOrgIder = Array.from(new Set(sedler.map((s) => s.organizationId)));
+      // Ordre d2b-3: samme regel for prosjekt-, underprosjekt- og byggeplassnavn (navnSynlighet).
+      const synlig = await navnSynlighet(ctx.userId, sedelOrgIder, radProsjektIder);
+      const synlige = new Set(
+        Array.from(radProsjektIder).filter((pid) => sedler.some((s) => synlig(s.organizationId, pid))),
+      );
+      const utleggVedlegg = await utleggVedleggForAttestant(
+        ctx.prismaTimer,
+        ctx.userId,
+        sedler.flatMap((s) => s.utlegg.map((u) => ({ id: u.id, projectId: u.projectId, organizationId: s.organizationId }))),
+      );
       const [synligeProsjekter, orgSettings] = await Promise.all([
         prisma.project.findMany({
           where: { id: { in: Array.from(synlige) } },
@@ -5841,8 +5934,8 @@ export const dagsseddelRouter = router({
         }),
       ]);
       const prosjektMap = new Map(synligeProsjekter.map((p) => [p.id, p]));
-      const prosjektFor = (projectId: string | null) =>
-        projectId ? (prosjektMap.get(projectId) ?? null) : null;
+      const prosjektFor = (org: string, projectId: string | null) =>
+        projectId && synlig(org, projectId) ? (prosjektMap.get(projectId) ?? null) : null;
       const redigerMap = new Map(
         orgSettings.map((o) => [o.organizationId, o.tillattRedigerVedAttestering]),
       );
@@ -5897,18 +5990,28 @@ export const dagsseddelRouter = router({
           totaltimer: s.timer.reduce((acc, t) => acc + Number(t.timer), 0),
           antallRader: s.timer.length + s.tillegg.length,
           // Ordre d2a: kort-feltene (bare nye felt). Ordre d2b-2: + `project` pr. rad.
-          timer: s.timer.map((r) => ({ ...berikRad(kort, r), project: prosjektFor(r.projectId) })),
-          tillegg: s.tillegg.map((r) => ({ ...berikRad(kort, r), project: prosjektFor(r.projectId) })),
+          timer: s.timer.map((r) => ({
+            ...berikRad(kort, r, synlig(s.organizationId, r.projectId)),
+            project: prosjektFor(s.organizationId, r.projectId),
+          })),
+          tillegg: s.tillegg.map((r) => ({
+            ...berikRad(kort, r, synlig(s.organizationId, r.projectId)),
+            project: prosjektFor(s.organizationId, r.projectId),
+          })),
           maskiner: s.maskiner.map((r) => ({
-            ...berikMaskinRad(kort, r, s.timer),
-            project: prosjektFor(r.projectId),
+            ...berikMaskinRad(kort, r, s.timer, synlig(s.organizationId, r.projectId)),
+            project: prosjektFor(s.organizationId, r.projectId),
           })),
           varer: kort.varer.get(s.id) ?? [],
           ukeAvvikRadIder: kort.ukeAvvik.get(s.id) ?? [],
           // Ordre d2b-2 (R13): feltene tabellen trenger, med samme regler som
           // hentForAttestering/hentTilAttesteringFirma. Bare lesing.
-          utlegg: s.utlegg.map((u) => ({ ...u, project: prosjektFor(u.projectId) })),
-          prosjekt: prosjektFor(input.projectId),
+          utlegg: s.utlegg.map((u) => ({
+            ...u,
+            project: prosjektFor(s.organizationId, u.projectId),
+            vedlegg: utleggVedlegg.get(u.id) ?? [],
+          })),
+          prosjekt: prosjektFor(s.organizationId, input.projectId),
           tilleggHarKrav: s.tillegg.length > 0,
           dagsnorm: normFor(s.organizationId, s.dato),
           redigerTillatt: redigerMap.get(s.organizationId) ?? false,
@@ -6031,6 +6134,8 @@ export const dagsseddelRouter = router({
           utlegg: {
             select: {
               id: true,
+              // Ordre d2b-3: prosjektet avgjør attesteringsretten til kvitteringen.
+              projectId: true,
               belop: true,
               // Tillegg/utlegg på prosjektkortet (spec § 6): kortet raden hører til.
               byggeplassId: true,
@@ -6149,6 +6254,12 @@ export const dagsseddelRouter = router({
       // F1: firma-admin har alltid rett; samme regel som serveren håndhever.
       const fravaerRett = await fravaerRettPrSedel(ctx.userId, sedler);
       const kort = await lastKortBerikelse(ctx, sedler);
+      // Ordre d2b-3 (d): kvitteringene i tabellen — firma-admin attesterer alle radene.
+      const utleggVedlegg = await utleggVedleggForAttestant(
+        ctx.prismaTimer,
+        ctx.userId,
+        sedler.flatMap((s) => s.utlegg.map((u) => ({ id: u.id, projectId: u.projectId, organizationId: s.organizationId }))),
+      );
 
       return sedler.map((s) => {
         // Første rad MED prosjekt (fravær uten prosjekt bærer ikke sedelens prosjekt).
@@ -6185,6 +6296,8 @@ export const dagsseddelRouter = router({
         }));
         return {
           ...s,
+          // Ordre d2b-3 (d): kvitteringene pr. utlegg.
+          utlegg: s.utlegg.map((u) => ({ ...u, vedlegg: utleggVedlegg.get(u.id) ?? [] })),
           // Ordre d2a: varer pr. sedel og radene ukeavviket peker på.
           varer: kort.varer.get(s.id) ?? [],
           ukeAvvikRadIder: kort.ukeAvvik.get(s.id) ?? [],
@@ -6383,20 +6496,48 @@ export const dagsseddelRouter = router({
         () => frosset,
       );
 
-      // T7-2d: bygg map og berik radene
+      // T7-2d: bygg map og berik radene. Ordre d2b-3: navn på prosjekt, underprosjekt og
+      // byggeplass bare der brukeren har tilgang (navnSynlighet); ellers `project: null` og
+      // navnefeltene null — klienten viser «Annet prosjekt». Id-ene står.
+      const synlig = await navnSynlighet(ctx.userId, [sheet.organizationId], [
+        ...alleProjectIds,
+        ...utlegg.flatMap((u) => (u.projectId ? [u.projectId] : [])),
+      ]);
+      const navnSynlig = (pid: string | null) => synlig(sheet.organizationId, pid);
       const prosjektMap = new Map(prosjekterPerRad.map((p) => [p.id, p]));
+      const utleggProsjektIder = utlegg.flatMap((u) => (u.projectId && !prosjektMap.has(u.projectId) ? [u.projectId] : []));
+      const utleggProsjektMap = new Map(
+        (utleggProsjektIder.length > 0
+          ? await ctx.prisma.project.findMany({
+              where: { id: { in: utleggProsjektIder } },
+              select: { id: true, name: true, projectNumber: true, internalProjectNumber: true },
+            })
+          : []
+        ).map((p) => [p.id, p]),
+      );
+      const prosjektFor = (pid: string | null) =>
+        pid && navnSynlig(pid) ? (prosjektMap.get(pid) ?? utleggProsjektMap.get(pid) ?? null) : null;
       const timerMedProsjekt = timer.map((r) => ({
-        ...berikRad(kortBerikelse, r),
-        project: r.projectId ? (prosjektMap.get(r.projectId) ?? null) : null,
+        ...berikRad(kortBerikelse, r, navnSynlig(r.projectId)),
+        project: prosjektFor(r.projectId),
       }));
       const tilleggMedProsjekt = tillegg.map((r) => ({
-        ...berikRad(kortBerikelse, r),
-        project: prosjektMap.get(r.projectId) ?? null,
+        ...berikRad(kortBerikelse, r, navnSynlig(r.projectId)),
+        project: prosjektFor(r.projectId),
       }));
       const maskinerMedProsjekt = maskiner.map((r) => ({
-        ...berikMaskinRad(kortBerikelse, r, timer),
-        project: prosjektMap.get(r.projectId) ?? null,
+        ...berikMaskinRad(kortBerikelse, r, timer, navnSynlig(r.projectId)),
+        project: prosjektFor(r.projectId),
       }));
+      // Ordre d2b-3 (d): kvitteringene, bare på rader brukeren kan attestere.
+      const utleggVedlegg = await utleggVedleggForAttestant(
+        ctx.prismaTimer,
+        ctx.userId,
+        utlegg.map((u) => ({ id: u.id, projectId: u.projectId, organizationId: sheet.organizationId })),
+      );
+      // Ordre d2b-3 (c): dagsnormen fra firmaets innstillinger — samme kilde som listene
+      // (`hentEffektivArbeidstid`, via dagsnormerFor i hentTilAttestering).
+      const { dagsnorm } = await hentEffektivArbeidstid(sheet.organizationId, sheet.dato);
 
       const ansatt = brukerData
         ? { ...brukerData, ansattnummer: ansattMedlem?.ansattnummer ?? null }
@@ -6447,9 +6588,17 @@ export const dagsseddelRouter = router({
         maskiner: maskinerMedProsjekt,
         // Ordre d2a: varer, utlegg og radene ukeavviket peker på.
         varer: kortBerikelse.varer.get(sheet.id) ?? [],
-        utlegg,
+        // Ordre d2b-3: + prosjekt pr. utlegg (samme synlighet) og kvitteringene.
+        utlegg: utlegg.map((u) => ({
+          ...u,
+          project: prosjektFor(u.projectId),
+          vedlegg: utleggVedlegg.get(u.id) ?? [],
+        })),
         ukeAvvikRadIder: kortBerikelse.ukeAvvik.get(sheet.id) ?? [],
-        prosjekt,
+        prosjekt: prosjekt && navnSynlig(prosjekt.id) ? prosjekt : null,
+        // Ordre d2b-3 (c): effektiv dagsnorm for datoen; 0 = ukjent (klienten viser ingen norm).
+        dagsnorm,
+        tilleggHarKrav: tillegg.length > 0,
         ansatt,
         redigerTillatt,
         // Slice 4b-2: terskel for arbeidstids-varsel-badge i attestering.
