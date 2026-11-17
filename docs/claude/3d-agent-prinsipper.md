@@ -91,6 +91,14 @@ Testet på test (test-modellen) og prod (prod-modellen), web og telefon. Virker:
 
 🟢 (i)–(v) merget `000f08c1` (gate (88)), ikke deployet. Tillegg: kameraet flyr ikke lenger forbi bygget når skjermmidten bommer (`ctrl.distance`). Prod-modellen kan bare verifiseres av Kenneth i prod.
 
+### 3d. Test 2026-11-17 (`3b0f1abb` på test) og vedtak om snittpilen
+
+Kenneth: web *«svært bra funksjonalitet på test»*; telefon: modellen fyller skjermen, zoom og bevegelse *«fungerer godt»*. Lastetiden på telefon er fortsatt lang (ikke språkfiler — bare nb lastes; motor + `web-ifc.wasm` + modell). Diagnoselinjen viser om modellen kommer fra lagret kopi.
+
+**Feil:** snittpilen står i klikkpunktet (`@thatopen/components` 3.3.3 `createPlaneFromIntersection`, `index.mjs:16464`). Zoomer eller panorerer man inn i et rom, havner pilen utenfor bildet, på web og telefon.
+
+**Vedtak (Kenneth 2026-11-17: «ja, bygg snittpilen»):** når kameraet slipper etter zoom, pan eller rotasjon, flyttes pilen i samme plan dit planet krysser skjermmidten (står planet parallelt med siktet: nærmeste punkt på planet). Snittet endres ikke — samme normal, punkt i samme plan, via offentlig `setFromNormalAndCoplanarPoint` (`:16015`). Ikke mens pilen dras. Ren funksjon i `@sitedoc/shared/tred`, brukt av web-viseren og `mobil-viewer` (rulles ut med web-deploy, ikke OTA). 🟡 Ikke bygget.
+
 
 ## 4. Filkart (målt 2026-11-16)
 
