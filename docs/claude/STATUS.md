@@ -12,6 +12,7 @@
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
 **Sist oppdatert:** 2026-11-16
+- 2026-11-17 — **3D-web ORDRE 4 merget `4a5e1663`** (gate (85)): FUNKSJONSENDRINGER, prinsippfil § 3b web 🟢, tavla ORDRE 3D-web 5 (develop, docs-only, orkestrator).
 - 2026-11-17 — **3D-mobil bundle-import merget `dd415207`** (gate (84)); tavla: ORDRE 3D-mobil 6 (språkfiler lazy), GATE (85) 3D-web (develop, docs-only, orkestrator).
 - 2026-11-17 — **3D-web ORDRE 3 (`23427bdb`) + 3D-mobil kamera (`5266492e`) merget**: FUNKSJONSENDRINGER, STATUS-AKTUELT, tavla, `3d-agent-prinsipper.md` status, `mobil.md` pinch mot midten (gate (83) M1) (develop, docs-only, orkestrator).
 - 2026-11-17 — **`3d-agent-prinsipper.md` § 3b punkt 2b: zoom mot skjermmidten på web og mobil som prøve (Kenneth; muspeker/fingre er hans normale preferanse)** (develop, docs-only, orkestrator).

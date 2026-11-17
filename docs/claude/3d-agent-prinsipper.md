@@ -72,7 +72,7 @@ Gjelder **både web og mobil** (paritet):
 2b. **Zoom går mot midten av skjermen på både web og mobil — som prøve** (Kenneth 2026-11-17: *«ja, midten på begge -> la oss prøve det. normalt liker jeg zoom mot muspeker og zoom mot midt mellom fingre -> det er egentlig bedre»*). Web-hjulet går langs blikket; mobil får `dollyToCursor = false`. Vurderes på nytt etter Kenneths test; snus det, er alternativet zoom mot muspeker (web) og mot midt mellom fingrene (mobil).
 3. **Objekter langt unna bygget skjules som standard**, med bryteren «Vis objekter langt unna». Begrunnelse (Kenneth): ofte feil-eksport DWG→IFC; arkitekter legger informasjonsfiler langt unna tegningen. Innramming og kamera ser bort fra dem uansett. Utligger-regelen er én ren funksjon i `@sitedoc/shared`, brukt av begge flater.
 
-🟢 Mobil: punkt 1, 2, 2b, 3 merget `5266492e`. Web: punkt 1 og 2b merget `23427bdb`; punkt 2 (fart etter avstand) og 3 (objekter langt unna) 🟡 ikke bygget på web. Ingenting deployet.
+🟢 Mobil: punkt 1, 2, 2b, 3 merget `5266492e`. Web: punkt 1 og 2b merget `23427bdb`; punkt 2 og 3 merget `4a5e1663`. Ingenting deployet.
 
 ## 4. Filkart (målt 2026-11-16)
 
