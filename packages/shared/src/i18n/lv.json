@@ -5813,5 +5813,11 @@
   "timer.normtak.fortArbeid": "{{timer}} h darba",
   "timer.normtak.fortAnnet": "{{timer}} h citas prombūtnes",
   "timer.normtak.fortBegge": "{{arbeid}} h darba un {{annet}} h cita prombūtne",
-  "timer.normtak.normFylt": "Dienas norma ir aizpildīta"
+  "timer.normtak.normFylt": "Dienas norma ir aizpildīta",
+  "timer.attestering.tabell.hjelp.grupperinger": "“Loksnes”, “Pēc projekta” un “Pēc darbinieka” tiek rādītas vienas un tās pašas līnijas, tikai grupētas atšķirīgi. Sadaļā “Pēc projekta” tiek apkopotas rindas projektā, kurā tie ir reģistrēti, un grupas rindā tiek rādīta projekta kopsumma. “Nedēļas pārskats” virs tabulas parāda stundas dienā; noklikšķiniet uz dienas, lai parādītu tikai šo dienu, un virziet kursoru virs cipara, lai redzētu dienas kartīti.",
+  "timer.attestering.tabell.gruppeSum": "{{timer}} st",
+  "timer.attestering.tabell.attesterProsjektetsDel": "Apstiprināt projekta daļu",
+  "timer.attestering.uke.filtrerDag": "Rādīt tabulā tikai šo dienu",
+  "timer.attestering.prosjekt.hjelp.laast": "Šeit jūs apstiprināt šim projektam reģistrētās stundas. Rindas, kuras darbinieks tajā pašā dienā reģistrējis citos projektos, tiek aptumšotas, un tās nevar atlasīt. Ja jums nav piekļuves citam projektam, tiek rakstīts “Cits projekts”.",
+  "timer.attestering.detalj.tabellHint": "Apstipriniet, atgrieziet vai atveriet atkārtoti tabulā: pa rindiņai, katrai projekta lapai vai visu dienu."
 }

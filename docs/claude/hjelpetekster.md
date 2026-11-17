@@ -328,3 +328,10 @@ Avkrysning i eksportmenyen, rett over CSV/Excel/PDF, og i mal-redigereren (`apps
 - **Retting:** klikk i cella på en ventende linje når firmaet tillater retting; Enter/Tab lagrer, Esc angrer; «var …» viser gammel verdi (`…hjelp.retting`).
 - **Verktøy:** «Velg parameter», sortering og filter i kolonnehodet, «Attester utvalget» = avkryssede linjer, ellers alle synlige ventende; gjelder besøket (`…hjelp.verktoy`).
 - **Mikrotekst i tabellen** (`timer.attestering.tabell.*`): «Attester utvalget (n)», «n linjer har sperre og ble stående.», «Dagen: X t av dagsnorm Y t», «Uke N: X t overtid ikke ført (ukenorm Y t)», «var X», «Bare oversiktsrader», «Ukeoversikt».
+- **Grupperinger og ukeoversikt** (d2b-2, 🟡 ikke merget): «Sedler», «Etter prosjekt» og «Etter ansatt» viser de samme linjene, bare gruppert ulikt; ukeoversikten viser timene pr. dag, klikk på en dag viser bare den dagen, hold over et tall for dagskortet (`…hjelp.grupperinger`). Grupperaden viser «X t» (`timer.attestering.tabell.gruppeSum`); dagknappen i ukeoversikten har «Vis bare denne dagen i tabellen» (`timer.attestering.uke.filtrerDag`).
+
+## Prosjekt → Timer → Attestering (d2b-2, 🟡 ikke merget)
+
+`apps/web/src/app/dashbord/[prosjektId]/timer/attestering/page.tsx` har `HjelpKnapp` (fanen «Attestering»). Første avsnitt: «Her attesterer du timene som er ført på dette prosjektet. Linjer den ansatte har ført på andre prosjekter samme dag, står nedtonet og kan ikke velges. Har du ikke tilgang til det andre prosjektet, står det «Annet prosjekt».» (`timer.attestering.prosjekt.hjelp.laast`); deretter struktur, handlinger og retting som på firmasiden. Dagsumraden har «Attester prosjektets del» (`timer.attestering.tabell.attesterProsjektetsDel`).
+
+Detaljsiden (`AttesteringDetalj.tsx`) har under tabellen: «Attester, returner eller gjenåpne i tabellen: pr. linje, pr. prosjektseddel eller hele dagen.» (`timer.attestering.detalj.tabellHint`).

@@ -5813,5 +5813,11 @@
   "timer.normtak.fortArbeid": "{{timer}} t arbeid",
   "timer.normtak.fortAnnet": "{{timer}} t annet fravær",
   "timer.normtak.fortBegge": "{{arbeid}} t arbeid og {{annet}} t annet fravær",
-  "timer.normtak.normFylt": "Dagsnormen er fylt"
+  "timer.normtak.normFylt": "Dagsnormen er fylt",
+  "timer.attestering.tabell.hjelp.grupperinger": "«Sedler», «Etter prosjekt» og «Etter ansatt» viser de samme linjene, bare gruppert ulikt. «Etter prosjekt» samler linjene på prosjektet de er ført på, med prosjektets sum i grupperaden. «Ukeoversikt» viser timene pr. dag over tabellen; klikk på en dag for å vise bare den dagen, og hold over et tall for å se dagskortet.",
+  "timer.attestering.tabell.gruppeSum": "{{timer}} t",
+  "timer.attestering.tabell.attesterProsjektetsDel": "Attester prosjektets del",
+  "timer.attestering.uke.filtrerDag": "Vis bare denne dagen i tabellen",
+  "timer.attestering.prosjekt.hjelp.laast": "Her attesterer du timene som er ført på dette prosjektet. Linjer den ansatte har ført på andre prosjekter samme dag, står nedtonet og kan ikke velges. Har du ikke tilgang til det andre prosjektet, står det «Annet prosjekt».",
+  "timer.attestering.detalj.tabellHint": "Attester, returner eller gjenåpne i tabellen: pr. linje, pr. prosjektseddel eller hele dagen."
 }

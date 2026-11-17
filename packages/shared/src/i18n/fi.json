@@ -5813,5 +5813,11 @@
   "timer.normtak.fortArbeid": "{{timer}} tuntia työtä",
   "timer.normtak.fortAnnet": "{{timer}} h muuta poissaoloa",
   "timer.normtak.fortBegge": "{{arbeid}} h työtä ja {{annet}} h muuta poissaoloa",
-  "timer.normtak.normFylt": "Päivittäinen normi täyttyy"
+  "timer.normtak.normFylt": "Päivittäinen normi täyttyy",
+  "timer.attestering.tabell.hjelp.grupperinger": "Taulukot, Projektin mukaan ja Työntekijän mukaan näyttävät samat rivit, mutta ne on ryhmitelty eri tavalla. \"Projektin mukaan\" kerää rivit projektista, johon ne on rekisteröity, ja projektin kokonaissumma ryhmärivillä. \"Viikon yleiskatsaus\" näyttää tunnit päivässä taulukon yläpuolella; Napsauta päivää näyttääksesi vain sen päivän, ja vie hiiri numeron päälle nähdäksesi päiväkortin.",
+  "timer.attestering.tabell.gruppeSum": "{{timer}} h",
+  "timer.attestering.tabell.attesterProsjektetsDel": "Hyväksy hankkeen osa",
+  "timer.attestering.uke.filtrerDag": "Näytä vain tämä päivä taulukossa",
+  "timer.attestering.prosjekt.hjelp.laast": "Täällä hyväksyt tähän projektiin rekisteröidyt tunnit. Rivit, jotka työntekijä on rekisteröitynyt muihin projekteihin samana päivänä, näkyvät himmennettyinä, eikä niitä voi valita. Jos sinulla ei ole pääsyä toiseen projektiin, siinä lukee \"Muu projekti\".",
+  "timer.attestering.detalj.tabellHint": "Hyväksy, palauta tai avaa uudelleen taulukossa: riviä kohden, projektilehteä kohti tai koko päiväksi."
 }

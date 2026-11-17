@@ -5813,5 +5813,11 @@
   "timer.normtak.fortArbeid": "{{timer}} godz. pracy",
   "timer.normtak.fortAnnet": "{{timer}} godz. innej nieobecności",
   "timer.normtak.fortBegge": "{{arbeid}} godz. pracy i {{annet}} godz. innych nieobecności",
-  "timer.normtak.normFylt": "Norma dzienna jest wypełniona"
+  "timer.normtak.normFylt": "Norma dzienna jest wypełniona",
+  "timer.attestering.tabell.hjelp.grupperinger": "„Arkusze”, „Według projektu” i „Wg pracownika” pokazują te same linie, tylko inaczej pogrupowane. „Według projektu” zbiera wiersze dotyczące projektu, w którym są zarejestrowane, z sumą projektu w wierszu grupy. „Przegląd tygodnia” pokazuje godziny dziennie nad tabelą; kliknij dzień, aby wyświetlić tylko ten dzień, i najedź kursorem na liczbę, aby wyświetlić kartę dnia.",
+  "timer.attestering.tabell.gruppeSum": "{{timer}} godz",
+  "timer.attestering.tabell.attesterProsjektetsDel": "Zatwierdź część projektu",
+  "timer.attestering.uke.filtrerDag": "Pokaż w tabeli tylko ten dzień",
+  "timer.attestering.prosjekt.hjelp.laast": "Tutaj zatwierdzasz godziny zarejestrowane w tym projekcie. Linie, które pracownik zarejestrował tego samego dnia w innych projektach, są przyciemnione i nie można ich wybrać. Jeśli nie masz dostępu do innego projektu, wyświetli się komunikat „Inny projekt”.",
+  "timer.attestering.detalj.tabellHint": "Zatwierdź, zwróć lub otwórz ponownie w tabeli: według wiersza, dla arkusza projektu lub dla całego dnia."
 }

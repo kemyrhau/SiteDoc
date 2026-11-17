@@ -5813,5 +5813,11 @@
   "timer.normtak.fortArbeid": "{{timer}} heures de travail",
   "timer.normtak.fortAnnet": "{{timer}} h d'autre absence",
   "timer.normtak.fortBegge": "{{arbeid}} h de travail et {{annet}} h d'autre absence",
-  "timer.normtak.normFylt": "La norme quotidienne est remplie"
+  "timer.normtak.normFylt": "La norme quotidienne est remplie",
+  "timer.attestering.tabell.hjelp.grupperinger": "« Fiches », « Par projet » et « Par employé » affichent les mêmes lignes, mais regroupées différemment. « Par projet » rassemble les lignes du projet auquel elles sont enregistrées, avec le total du projet dans la ligne du groupe. « Aperçu de la semaine » affiche les heures par jour au-dessus du tableau ; cliquez sur un jour pour afficher uniquement ce jour et survolez un numéro pour voir la carte du jour.",
+  "timer.attestering.tabell.gruppeSum": "{{timer}} h",
+  "timer.attestering.tabell.attesterProsjektetsDel": "Approuver la partie du projet",
+  "timer.attestering.uke.filtrerDag": "Afficher uniquement ce jour dans le tableau",
+  "timer.attestering.prosjekt.hjelp.laast": "Ici, vous approuvez les heures enregistrées pour ce projet. Les lignes que l'employé a inscrites à d'autres projets le même jour sont grisées et ne peuvent pas être sélectionnées. Si vous n'avez pas accès à l'autre projet, il est indiqué « Autre projet ».",
+  "timer.attestering.detalj.tabellHint": "Valider, retourner ou rouvrir dans le tableau : par ligne, par fiche projet ou pour la journée entière."
 }

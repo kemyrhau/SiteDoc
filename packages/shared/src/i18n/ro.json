@@ -5813,5 +5813,11 @@
   "timer.normtak.fortArbeid": "{{timer}} h de lucru",
   "timer.normtak.fortAnnet": "{{timer}} h de altă absență",
   "timer.normtak.fortBegge": "{{arbeid}} h de muncă și {{annet}} h de altă absență",
-  "timer.normtak.normFylt": "Norma zilnică este umplută"
+  "timer.normtak.normFylt": "Norma zilnică este umplută",
+  "timer.attestering.tabell.hjelp.grupperinger": "„Foaie”, „După proiect” și „După angajat” arată aceleași rânduri, doar grupate diferit. „După proiect” colectează liniile de pe proiectul la care sunt înscriși, cu totalul proiectului în rândul grupului. „Prezentarea generală a săptămânii” arată orele pe zi deasupra tabelului; faceți clic pe o zi pentru a afișa numai ziua respectivă și plasați cursorul peste un număr pentru a vedea cardul zilei.",
+  "timer.attestering.tabell.gruppeSum": "{{timer}} h",
+  "timer.attestering.tabell.attesterProsjektetsDel": "Aprobați partea din proiect",
+  "timer.attestering.uke.filtrerDag": "Afișați doar această zi în tabel",
+  "timer.attestering.prosjekt.hjelp.laast": "Aici aprobi orele înregistrate la acest proiect. Liniile angajatului înregistrat la alte proiecte în aceeași zi sunt estompate și nu pot fi selectate. Dacă nu aveți acces la celălalt proiect, apare „Alt proiect”.",
+  "timer.attestering.detalj.tabellHint": "Aprobați, returnați sau redeschideți în tabel: pe linie, pe fișă de proiect sau toată ziua."
 }

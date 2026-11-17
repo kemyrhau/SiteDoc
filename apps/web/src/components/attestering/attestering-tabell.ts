@@ -57,13 +57,16 @@ export type AttUtlegg = {
   expenseCategory: { navn: string } | null;
   kortId: string | null;
   projectId?: string | null;
+  /** Ordre d2b-2: prosjektlista gir prosjektet; `null` = annet prosjekt uten tilgang. */
+  project?: MedProsjektnummer["project"];
 };
 
 export type AttSedel = {
   id: string;
   dato: Date | string;
   totaltimer: number;
-  dagsnorm: number;
+  /** Dagsnormen; null der kilden ikke har den (detaljsiden) — da står ingen «av norm»-tekst. */
+  dagsnorm: number | null;
   pauseMin: number;
   tilleggHarKrav: boolean;
   redigerTillatt: boolean;
@@ -99,6 +102,8 @@ export interface AttDeps {
     tilleggskrav: string;
     tilByggherre: string;
     fravaerUtenProsjekt: string;
+    /** Rad på et prosjekt brukeren ikke har tilgang til (R13: navnet sendes ikke). */
+    annetProsjekt: string;
     reise: string;
     statusVenter: string;
     statusAttestert: string;
@@ -135,6 +140,8 @@ export interface AttLinje {
 export interface AttKort {
   nokkel: string;
   sheetId: string;
+  /** Kortets prosjekt (K2: ett prosjekt pr. kort); null = fravær uten prosjekt. */
+  projectId: string | null;
   prosjektnummer: string;
   prosjekt: string;
   underprosjekt: string | null;
@@ -224,12 +231,16 @@ function byggDag(s: AttSedel, deps: AttDeps): AttDag {
     utlegg: s.utlegg,
   });
 
-  const felles = (projectId: string | null, prosjekt: MedProsjektnummer["project"], beriket: Partial<Beriket> & { externalCostObjectId?: string | null }) => ({
+  // `prosjekt`: objektet = navn og nummer; `null` med projectId = annet prosjekt uten
+  // tilgang (prosjektlista, R13); `undefined` = ikke oppgitt (vare, firmalistens utlegg).
+  const felles = (projectId: string | null | undefined, prosjekt: MedProsjektnummer["project"], beriket: Partial<Beriket> & { externalCostObjectId?: string | null }) => ({
     dato,
     ansatt,
     ansattnr,
     prosjektnummer: visProsjektnummer(prosjekt ?? null) || null,
-    prosjekt: prosjekt?.name ?? (projectId === null ? deps.tekst.fravaerUtenProsjekt : ""),
+    prosjekt:
+      prosjekt?.name ??
+      (projectId === null ? deps.tekst.fravaerUtenProsjekt : projectId && prosjekt === null ? deps.tekst.annetProsjekt : ""),
     avdeling,
     byggeplass: beriket.byggeplassNavn ?? null,
     underprosjekt: beriket.externalCostObjectId ? underprosjektTekst(beriket, deps.tekst.tilByggherre) : null,
@@ -332,7 +343,7 @@ function byggDag(s: AttSedel, deps: AttDeps): AttDag {
         attestert: v.attestert,
         projectId: v.projectId,
         rettet: {},
-        linje: tomLinje(v.id, "vare", { ...felles(v.projectId, null, {}), varer: [vareTilLinje(v)], status: v.attestert ? deps.tekst.statusAttestert : deps.tekst.statusVenter, avvik }),
+        linje: tomLinje(v.id, "vare", { ...felles(v.projectId, undefined, {}), varer: [vareTilLinje(v)], status: v.attestert ? deps.tekst.statusAttestert : deps.tekst.statusVenter, avvik }),
       };
     }
     const u = g.rad;
@@ -347,7 +358,7 @@ function byggDag(s: AttSedel, deps: AttDeps): AttDag {
       projectId: u.projectId ?? null,
       rettet: {},
       linje: tomLinje(u.id, "utlegg", {
-        ...felles(u.projectId ?? null, null, {}),
+        ...felles(u.projectId, u.project, {}),
         betegnelse: u.expenseCategory?.navn ?? "",
         belop: tall(u.belop),
         status: "",
@@ -363,6 +374,7 @@ function byggDag(s: AttSedel, deps: AttDeps): AttDag {
     kort.push({
       nokkel,
       sheetId: s.id,
+      projectId: linjer[0]!.projectId,
       prosjektnummer: forste.prosjektnummer ?? "",
       prosjekt: forste.prosjekt,
       underprosjekt: forste.underprosjekt,
@@ -472,7 +484,9 @@ function linjeTreffer(l: AttLinje, sedel: AttSedel, f: AttFilter): boolean {
     const valgt = new Set(verdi.split(","));
     if (k === "avvik") {
       const ok =
-        (valgt.has(AVVIK_FILTER.kreverVurdering) && sedelKreverVurdering(sedel)) ||
+        (valgt.has(AVVIK_FILTER.kreverVurdering) &&
+          // Uten kjent dagsnorm (detaljsiden) vurderes ikke «over normen».
+          sedelKreverVurdering({ ...sedel, dagsnorm: sedel.dagsnorm ?? Number.POSITIVE_INFINITY })) ||
         (valgt.has(AVVIK_FILTER.harAvvik) && l.linje.avvik.length > 0);
       if (!ok) return false;
       continue;
@@ -533,4 +547,139 @@ export function byggUtvalg(
   });
   const sendes = kandidater.filter((l) => !l.sperre);
   return { radIder: slaaSammen(sendes), antallLinjer: sendes.length, stoende: kandidater.length - sendes.length };
+}
+
+/* ------------------------------------------------------------------ */
+/*  Grupperinger (R12, d2b-2): dag · prosjekt · ansatt                   */
+/* ------------------------------------------------------------------ */
+
+export type Gruppering = "dag" | "prosjekt" | "ansatt";
+
+export interface AttGruppe {
+  nokkel: string;
+  tittel: string;
+  dager: AttDag[];
+}
+
+const UTEN_PROSJEKT = "uten-prosjekt";
+
+/**
+ * Samme modell, annen gruppering. «Etter prosjekt» grupperer på **radens** prosjekt
+ * (HM12/T28): et kort deles om radene står på flere prosjekter, så hver gruppe har bare
+ * sitt prosjekts rader. «Etter ansatt» samler den ansattes dager. «dag» = ingen gruppe.
+ */
+export function grupperModell(dager: readonly AttDag[], gruppering: Gruppering): AttGruppe[] | null {
+  if (gruppering === "dag") return null;
+  const grupper = new Map<string, { tittel: string; dager: Map<string, AttDag> }>();
+  const iGruppe = (nokkel: string, tittel: string) => {
+    let g = grupper.get(nokkel);
+    if (!g) {
+      g = { tittel, dager: new Map() };
+      grupper.set(nokkel, g);
+    }
+    return g;
+  };
+
+  for (const d of dager) {
+    if (gruppering === "ansatt") {
+      const id = d.sedel.ansatt?.id ?? d.ansatt;
+      const tittel = d.ansattnr ? `${d.ansatt} (${d.ansattnr})` : d.ansatt;
+      iGruppe(id, tittel).dager.set(d.sedel.id, d);
+      continue;
+    }
+    for (const k of d.kort) {
+      // K2: ett prosjekt pr. kort — delingen slår bare til om et kort likevel har flere.
+      const pidAv = (l: AttLinje) => l.projectId ?? UTEN_PROSJEKT;
+      const pider = [...new Set(k.linjer.map(pidAv))];
+      for (const pid of pider) {
+        const linjer = k.linjer.filter((l) => pidAv(l) === pid);
+        const forste = linjer[0]!.linje;
+        const tittel = [forste.prosjektnummer, forste.prosjekt].filter(Boolean).join(" ");
+        const g = iGruppe(pid, tittel);
+        const delKort: AttKort = {
+          ...k,
+          nokkel: pider.length > 1 ? `${k.nokkel}:${pid}` : k.nokkel,
+          projectId: pid === UTEN_PROSJEKT ? null : pid,
+          prosjektnummer: forste.prosjektnummer ?? "",
+          prosjekt: forste.prosjekt,
+          linjer,
+        };
+        const dag = g.dager.get(d.sedel.id);
+        g.dager.set(d.sedel.id, dag ? { ...dag, kort: [...dag.kort, delKort] } : { ...d, kort: [delKort] });
+      }
+    }
+  }
+
+  return [...grupper.entries()]
+    .map(([nokkel, g]) => ({ nokkel, tittel: g.tittel, dager: [...g.dager.values()] }))
+    .sort(
+      (a, b) =>
+        Number(a.nokkel === UTEN_PROSJEKT) - Number(b.nokkel === UTEN_PROSJEKT) ||
+        a.tittel.localeCompare(b.tittel, "nb", { numeric: true }),
+    );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Ukeoversikten (R12, R18, T45)                                      */
+/* ------------------------------------------------------------------ */
+
+export interface UkeRad {
+  nokkel: string;
+  navn: string;
+  /** Ansatt-id når raden er én ansatt (norm og hover-dagskort). */
+  ansattId: string | null;
+  /** Timer pr. dato (ISO) = summen av tabellens timerlinjer den dagen (T45). */
+  perDag: Record<string, number>;
+  sum: number;
+  /** Dagene raden bygger på, pr. dato — hover-dagskortet. */
+  dagerPrDato: Record<string, AttDag[]>;
+  under: UkeRad[];
+}
+
+type Bidrag = { nokkel: string; navn: string; ansattId: string | null; dato: string; timer: number; dag: AttDag };
+
+function samle(bidrag: readonly Bidrag[]): UkeRad[] {
+  const rader = new Map<string, UkeRad>();
+  for (const b of bidrag) {
+    let r = rader.get(b.nokkel);
+    if (!r) {
+      r = { nokkel: b.nokkel, navn: b.navn, ansattId: b.ansattId, perDag: {}, sum: 0, dagerPrDato: {}, under: [] };
+      rader.set(b.nokkel, r);
+    }
+    r.perDag[b.dato] = (r.perDag[b.dato] ?? 0) + b.timer;
+    r.sum += b.timer;
+    const liste = r.dagerPrDato[b.dato] ?? [];
+    if (!liste.includes(b.dag)) liste.push(b.dag);
+    r.dagerPrDato[b.dato] = liste;
+  }
+  return [...rader.values()].sort((a, b) => a.navn.localeCompare(b.navn, "nb", { numeric: true }));
+}
+
+/**
+ * Ukeoversiktens rader fra tabellens linjer: timene føres på **radens** prosjekt (HM12)
+ * og er summen av tabellens timerlinjer for samme dag (T45). Akse «ansatt» har prosjektene
+ * under hver ansatt; akse «prosjekt» har de ansatte under hvert prosjekt.
+ */
+export function byggUkeoversikt(dager: readonly AttDag[], akse: "ansatt" | "prosjekt"): UkeRad[] {
+  const bidrag: (Bidrag & { under: Omit<Bidrag, "dag"> })[] = [];
+  for (const d of dager) {
+    const ansattId = d.sedel.ansatt?.id ?? d.ansatt;
+    for (const k of d.kort) {
+      for (const l of k.linjer) {
+        if (l.linje.type !== "timer") continue;
+        const timer = l.linje.timer ?? 0;
+        const pid = l.projectId ?? UTEN_PROSJEKT;
+        const pNavn = [l.linje.prosjektnummer, l.linje.prosjekt].filter(Boolean).join(" ");
+        const ansatt = { nokkel: ansattId, navn: d.ansatt, ansattId };
+        const prosjekt = { nokkel: pid, navn: pNavn, ansattId: null };
+        const [topp, under] = akse === "ansatt" ? [ansatt, prosjekt] : [prosjekt, ansatt];
+        bidrag.push({ ...topp, dato: d.dato, timer, dag: d, under: { ...under, dato: d.dato, timer } });
+      }
+    }
+  }
+  const topp = samle(bidrag);
+  for (const r of topp) {
+    r.under = samle(bidrag.filter((b) => b.nokkel === r.nokkel).map((b) => ({ ...b.under, dag: b.dag })));
+  }
+  return topp;
 }

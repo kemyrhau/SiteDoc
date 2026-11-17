@@ -68,7 +68,7 @@ const deps: AttDeps = {
   ukeAvvikTekst: () => null,
   tekst: {
     forslagSperre: "Uavklart forslag", maskinUtenTimerad: "Maskin uten timerad", maskinforerbevis: "Mangler bevis",
-    tilleggskrav: "Tilleggskrav", tilByggherre: "Til byggherre", fravaerUtenProsjekt: "Fravær", reise: "Reise",
+    tilleggskrav: "Tilleggskrav", tilByggherre: "Til byggherre", fravaerUtenProsjekt: "Fravær", annetProsjekt: "Annet prosjekt", reise: "Reise",
     statusVenter: "Venter", statusAttestert: "Attestert", statusReturnert: "Returnert",
   },
 };
@@ -96,7 +96,7 @@ function vis(sedler: AttSedel[], readOnly = false) {
       orgId="org1"
       readOnly={readOnly}
       verktoy={<span>uke-og-fane</span>}
-      ukeoversikt={<div>ukeoversikt-innhold</div>}
+      ukeoversikt={() => <div>ukeoversikt-innhold</div>}
       sedelUrl={(id) => `/sedel/${id}`}
       onReturnerDag={() => {}}
     />,
@@ -236,14 +236,13 @@ describe("T38 — kolonneoppsettet lagres under attesteringens egen liste-nøkke
   });
 });
 
-describe("T49 — én verktøylinje, ingen nedtrekk utenfor tabellen i Sedler-visningen", () => {
+describe("T49 — én verktøylinje, ingen nedtrekk utenfor tabellen", () => {
   const side = readFileSync(resolve(__dirname, "../app/dashbord/firma/timer/attestering/page.tsx"), "utf8");
 
-  it("prosjekt/ansatt/avdeling-nedtrekkene står bare i pivotvisningene", () => {
-    const sedlerGren = side.slice(side.indexOf("<AttesteringTabell"));
-    expect(sedlerGren).not.toMatch(/<select/);
-    expect(side).toMatch(/visning !== "sedler" && \(/);
-    expect(side).not.toMatch(/<ProsjektGruppe|<SeddelKort|attesterGruppe/);
+  it("d2b-2 § 12.5: ingen nedtrekk og ingen pivot — alle visningene er tabellen", () => {
+    expect(side).not.toMatch(/<select/);
+    expect(side).not.toMatch(/<ProsjektPivot|<AnsattPivot|<ProsjektGruppe|<SeddelKort|attesterGruppe/);
+    expect(side).toMatch(/gruppering=\{visning === "sedler" \? "dag" : visning\}/);
   });
 
   it("sidens uke, visning og fane går inn i tabellens verktøylinje; ramma fyller vinduet", () => {
@@ -262,5 +261,90 @@ describe("T49 — én verktøylinje, ingen nedtrekk utenfor tabellen i Sedler-vi
 
   it("hjelpeteksten står på siden (?-ikonet), ikke som løs beskrivelse over tabellen", () => {
     expect(side).toMatch(/<HjelpKnapp>[\s\S]*firma\.timer\.attesteringBeskrivelse[\s\S]*<\/HjelpKnapp>/);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/*  Ordre d2b-2 (R12, R13): grupperinger, ukeoversikt, prosjektkontekst  */
+/* ------------------------------------------------------------------ */
+
+const Q = { id: "pB", name: "Prosjekt B", internalProjectNumber: null, projectNumber: "SD-2" };
+const toProsjekter = () => sedel({ timer: [timer("t1"), timer("t2", { projectId: "pB", project: Q, kortId: "kB" })] });
+
+function visMed(sedler: AttSedel[], props: Partial<Parameters<typeof AttesteringTabell>[0]> = {}) {
+  return render(
+    <AttesteringTabell
+      dager={byggAttesteringModell(sedler, deps)}
+      orgId="org1"
+      readOnly={false}
+      verktoy={null}
+      sedelUrl={(id) => `/sedel/${id}`}
+      onReturnerDag={() => {}}
+      {...props}
+    />,
+  );
+}
+
+describe("T30/R13 — prosjektattesteringen er låst til prosjektet", () => {
+  it("linja på et annet prosjekt står nedtonet uten avkrysning og handlinger; utvalget tar bare prosjektets linjer", () => {
+    const { container, getByRole } = visMed([toProsjekter()], { prosjektKontekst: "pA" });
+    const annen = linje(container, "s1:timer:t2");
+    expect(annen.className).toMatch(/opacity-50/);
+    expect(within(annen).queryByRole("checkbox")).toBeNull();
+    expect(within(annen).queryAllByRole("button")).toHaveLength(0);
+    expect(within(linje(container, "s1:timer:t1")).getByRole("checkbox")).toBeTruthy();
+    fireEvent.click(getByRole("button", { name: /attesterUtvalget/ }));
+    expect(kallTil("attesterRader")[0]!.input).toEqual({ radIder: { timerIder: ["t1"], maskinIder: [], tilleggIder: [] } });
+  });
+
+  it("dagsumraden attesterer prosjektets del — aldri hele sedelen", () => {
+    const { getByRole, queryByRole } = visMed([toProsjekter()], { prosjektKontekst: "pA" });
+    expect(queryByRole("button", { name: /attesterDagen/ })).toBeNull();
+    fireEvent.click(getByRole("button", { name: /attesterProsjektetsDel/ }));
+    expect(kallTil("attester")).toHaveLength(0);
+    expect(kallTil("attesterRader")[0]!.input).toEqual({ radIder: { timerIder: ["t1"], maskinIder: [], tilleggIder: [] } });
+  });
+
+  it("negativkontroll: uten kontekst (firmaet) kan begge linjene velges", () => {
+    const { container } = visMed([toProsjekter()]);
+    expect(linje(container, "s1:timer:t2").className).not.toMatch(/opacity-50/);
+    expect(within(linje(container, "s1:timer:t2")).getByRole("checkbox")).toBeTruthy();
+  });
+});
+
+describe("R12 — «Etter prosjekt» og «Etter ansatt» er grupperinger av samme rader", () => {
+  it("«Etter prosjekt» har én grupperad pr. prosjekt med prosjektets sum, og ingen dagsumrad (T28)", () => {
+    const { getByText, queryByText, container } = visMed([toProsjekter()], { gruppering: "prosjekt" });
+    expect(getByText("1001 Prosjekt A")).toBeTruthy();
+    expect(getByText("SD-2 Prosjekt B")).toBeTruthy();
+    expect(queryByText(/timer\.attestering\.tabell\.dagsum/)).toBeNull();
+    expect(linje(container, "s1:timer:t1")).toBeTruthy();
+    expect(linje(container, "s1:timer:t2")).toBeTruthy();
+  });
+
+  it("«Etter ansatt» viser de samme linjene som dag for dag (T45)", () => {
+    const s = [toProsjekter(), sedel({ id: "s2", ansatt: { id: "u2", name: "Ola", email: "o@x", ansattnummer: null, avdelingId: null }, timer: [timer("t3")] })];
+    const linjer = (c: HTMLElement) => Array.from(c.querySelectorAll("[data-linje]")).map((e) => e.getAttribute("data-linje")).sort();
+    const dag = linjer(visMed(s).container);
+    cleanup();
+    const ansatt = visMed(s, { gruppering: "ansatt" });
+    expect(linjer(ansatt.container)).toEqual(dag);
+    expect(ansatt.getByText("Kari Nordmann (12)")).toBeTruthy();
+    expect(ansatt.getAllByText("Ola").length).toBeGreaterThan(0);
+  });
+
+  it("ukeoversikten får tabellens dager, og klikk på en dag filtrerer tabellen til den dagen", () => {
+    const s = [toProsjekter(), sedel({ id: "s2", dato: "2026-11-17", timer: [timer("t3")] })];
+    const { getByRole, container, getByText } = visMed(s, {
+      ukeoversikt: (api) => (
+        <button type="button" onClick={() => api.velgDato("2026-11-17")}>{`dager:${api.dager.length}`}</button>
+      ),
+    });
+    fireEvent.click(getByRole("button", { name: "timer.attestering.tabell.ukeoversikt" }));
+    fireEvent.click(getByText("dager:2"));
+    expect(linje(container, "s1:timer:t1")).toBeNull();
+    expect(linje(container, "s2:timer:t3")).toBeTruthy();
+    // Ukeoversikten teller fortsatt hele uken (datofilteret holdes utenfor).
+    expect(getByText("dager:2")).toBeTruthy();
   });
 });

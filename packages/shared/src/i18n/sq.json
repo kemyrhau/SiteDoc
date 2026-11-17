@@ -5813,5 +5813,11 @@
   "timer.normtak.fortArbeid": "{{timer}} orë pune",
   "timer.normtak.fortAnnet": "{{timer}} orë mungesë tjetër",
   "timer.normtak.fortBegge": "{{arbeid}} orë punë dhe {{annet}} orë mungesë të tjera",
-  "timer.normtak.normFylt": "Norma ditore është e mbushur"
+  "timer.normtak.normFylt": "Norma ditore është e mbushur",
+  "timer.attestering.tabell.hjelp.grupperinger": "\"Fletët\", \"Sipas projektit\" dhe \"Nga punonjësi\" tregojnë të njëjtat rreshta, vetëm të grupuara ndryshe. “Sipas projektit” mbledh linjat në projektin ku janë regjistruar, me totalin e projektit në rreshtin e grupit. “Përmbledhja e javës” tregon orët në ditë mbi tabelë; klikoni një ditë për të shfaqur vetëm atë ditë dhe rri pezull mbi një numër për të parë kartën e ditës.",
+  "timer.attestering.tabell.gruppeSum": "{{timer}} h",
+  "timer.attestering.tabell.attesterProsjektetsDel": "Miratimi i pjesës së projektit",
+  "timer.attestering.uke.filtrerDag": "Trego vetëm këtë ditë në tabelë",
+  "timer.attestering.prosjekt.hjelp.laast": "Këtu ju miratoni orët e regjistruara në këtë projekt. Linjat që punonjësi regjistroi në projekte të tjera në të njëjtën ditë janë të zbehta dhe nuk mund të zgjidhen. Nëse nuk keni akses në projektin tjetër, ai thotë \"Projekt tjetër\".",
+  "timer.attestering.detalj.tabellHint": "Mirato, ktheje ose rihap në tabelë: për rresht, për fletë projekti ose gjatë gjithë ditës."
 }

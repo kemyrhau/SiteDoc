@@ -1,8 +1,9 @@
 "use client";
 
-// T7-4f-3 (2026-05-16): Firma-attestering-liste. Sedler-visningen er fra d2b-1
-// (spec prosjektkort-kortid § 12.8.5) tabellen AttesteringTabell; pivotvisningene
-// (Per prosjekt / Per ansatt) beholder uke-navigasjon og nedtrekk.
+// T7-4f-3 (2026-05-16): Firma-attestering-liste. Alle tre visningene er den delte
+// tabellen AttesteringTabell (spec prosjektkort-kortid d2b-1 § 12.8.5, d2b-2 R12):
+// «Per prosjekt» og «Per ansatt» er grupperinger av samme rader, og ukeoversikten over
+// tabellen erstatter pivotene. Nedtrekkene er kolonnefiltre i tabellhodet (§ 12.5).
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
@@ -19,20 +20,15 @@ import {
 } from "lucide-react";
 import { avvikRetning, beregnUkeAvvik, mandagIso, type UkeAvvik, type NormtakBruddData } from "@sitedoc/shared";
 import { useFirma } from "@/kontekst/firma-kontekst";
-import {
-  ProsjektPivot,
-  AnsattPivot,
-} from "@/components/attestering/AttesteringPivot";
-import { tilPivotRad, useKatalogNavn } from "@/components/attestering/DagsKort";
 import type {
   MaskinRad,
-  RadProsjekt,
   TilleggRad,
   TimerRad,
 } from "@/components/attestering/attestering-buckets";
 import { AttesteringTabell } from "@/components/attestering/AttesteringTabell";
-import { byggAttesteringModell, type AttSedel } from "@/components/attestering/attestering-tabell";
-import { normtakBruddLinje } from "@/lib/normtakBrudd";
+import { Ukeoversikt } from "@/components/attestering/Ukeoversikt";
+import { useAttesteringModell } from "@/components/attestering/useAttesteringModell";
+import type { AttSedel } from "@/components/attestering/attestering-tabell";
 import { HjelpKnapp, HjelpFane } from "@/components/hjelp/HjelpModal";
 
 /* ------------------------------------------------------------------ */
@@ -140,19 +136,14 @@ function formatDato(d: Date | string): string {
   });
 }
 
-// tilPivotRad (AttesteringRad → PivotRad) er nå delt fra DagsKort.tsx, så
-// pivotene og Sedler-lista bruker samme mapping. AttesteringRad er strukturelt
-// en RaaSedel.
-
 /* ------------------------------------------------------------------ */
 /*  Hovedside                                                           */
 /* ------------------------------------------------------------------ */
 
 export default function FirmaAttesteringSide() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const { valgtFirma } = useFirma();
   const orgId = valgtFirma?.id;
-  const utils = trpc.useUtils();
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
@@ -169,11 +160,7 @@ export default function FirmaAttesteringSide() {
     const u = Number(searchParams.get("uke"));
     return Number.isInteger(u) ? u : 0;
   });
-  const [valgtProsjektId, setValgtProsjektId] = useState<string>("");
-  const [valgtAnsattId, setValgtAnsattId] = useState<string>("");
-  const [valgtAvdelingId, setValgtAvdelingId] = useState<string>("");
   const [returnerId, setReturnerId] = useState<string | null>(null);
-  const [feil, setFeil] = useState<string | null>(null);
   // T7-5e: fane-toggle mellom venter på attestering ("sent") og attestert
   // ("accepted"). Attestert-fanen er read-only — knapper og redigering skjult.
   const [aktivFane, setAktivFane] = useState<"sent" | "accepted">(() =>
@@ -223,64 +210,15 @@ export default function FirmaAttesteringSide() {
       },
       { enabled: !!orgId && kanAttestere },
     );
-  const sentRader = (sentRaderRaw ?? []) as unknown as AttesteringRad[];
-  const acceptedRader = (acceptedRaderRaw ?? []) as unknown as AttesteringRad[];
+  const sentRader = useMemo(() => (sentRaderRaw ?? []) as unknown as AttesteringRad[], [sentRaderRaw]);
+  const acceptedRader = useMemo(() => (acceptedRaderRaw ?? []) as unknown as AttesteringRad[], [acceptedRaderRaw]);
   const rader = aktivFane === "sent" ? sentRader : acceptedRader;
   const isLoading = aktivFane === "sent" ? sentLaster : acceptedLaster;
   const readOnly = aktivFane === "accepted";
 
-  const { data: avdelinger } = trpc.avdeling.hentAlle.useQuery(
-    { organizationId: orgId! },
-    { enabled: !!orgId && kanAttestere },
-  );
-
-  // Distinct verdier til pills
-  const prosjekterIRader = useMemo(() => {
-    const m = new Map<string, NonNullable<RadProsjekt>>();
-    for (const s of rader) {
-      if (s.prosjekt) m.set(s.prosjekt.id, s.prosjekt);
-    }
-    return Array.from(m.values());
-  }, [rader]);
-
-  const ansatteIRader = useMemo(() => {
-    const m = new Map<string, { id: string; navn: string }>();
-    for (const s of rader) {
-      if (s.ansatt) {
-        m.set(s.ansatt.id, {
-          id: s.ansatt.id,
-          navn: s.ansatt.name ?? s.ansatt.email,
-        });
-      }
-    }
-    return Array.from(m.values());
-  }, [rader]);
-
-  // Ett filter-predikat, to bruk: visning (aktiv fane) og avviksgrunnlag
-  // (hele uken). Delt så de aldri drifter.
-  const passererFilter = useCallback(
-    (s: AttesteringRad): boolean => {
-      if (valgtProsjektId && s.prosjekt?.id !== valgtProsjektId) return false;
-      if (valgtAnsattId && s.ansatt?.id !== valgtAnsattId) return false;
-      if (valgtAvdelingId && s.ansatt?.avdelingId !== valgtAvdelingId) return false;
-      return true;
-    },
-    [valgtProsjektId, valgtAnsattId, valgtAvdelingId],
-  );
-
-  const filtrerteSedler = useMemo(
-    () => rader.filter(passererFilter),
-    [rader, passererFilter],
-  );
-
-  // ORDRE 2 STEG 2 (fabel-gate-fiks): avviksbadgen skal gjelde HELE uken, ikke
-  // den aktive fanen. page snevrer `rader` til aktiv fane for visning, men både
-  // sent- og accepted-settet er alt lastet (to parallelle queries over). Union
-  // med samme pill-filter → korrekt norm-avvik selv når uken er delvis attestert.
-  const ukeGrunnlag = useMemo(
-    () => [...sentRader, ...acceptedRader].filter(passererFilter),
-    [sentRader, acceptedRader, passererFilter],
-  );
+  // Avviksbadgen og -teksten gjelder HELE uken (sendt + attestert), ikke den aktive
+  // fanen (ORDRE 2 STEG 2). Kolonnefiltrene snevrer bare visningen, ikke ukeavviket.
+  const ukeGrunnlag = useMemo(() => [...sentRader, ...acceptedRader], [sentRader, acceptedRader]);
 
   // ORDRE 2 STEG 3 ledd 2 (D2): uke-avvik pr. (ansatt + uke) for tabellens
   // avvikstekst på Sedler-visningen. Regnet på HELE ukens grunnlag (union sent+
@@ -319,48 +257,26 @@ export default function FirmaAttesteringSide() {
     [avvikPerNokkel],
   );
 
-  // Sedler-fanen som tabell (spec prosjektkort-kortid d2b-1, § 12.8.5): dagseddel →
-  // prosjektsedler → linjer. Ekspander-knappene og «Attester gruppe» er erstattet av
-  // «Bare oversiktsrader», Avvik-filteret («Krever vurdering») og «Attester utvalget».
-  const katalog = useKatalogNavn(orgId);
-  const dager = useMemo(() => {
-    const avdNavn = new Map((avdelinger ?? []).map((a) => [a.id, a.navn]));
-    return byggAttesteringModell(filtrerteSedler as unknown as AttSedel[], {
-      ...katalog,
-      avdelingNavn: (id) => (id ? avdNavn.get(id) ?? null : null),
-      normtakLinje: (s) => normtakBruddLinje(t, (s as unknown as AttesteringRad).fravaerNormtakBrudd, i18n.language),
-      ukeAvvikTekst: (s) => {
-        const avvik = avvikFor(s as unknown as AttesteringRad);
-        const retning = avvik ? avvikRetning(avvik) : null;
-        if (!avvik || !retning) return null;
-        const uke = ukeNummer(new Date(s.dato));
-        return retning === "over"
-          ? t("timer.attestering.tabell.ukeAvvikOver", { uke, timer: avvik.avvikTimer.toFixed(1), norm: avvik.norm.toFixed(1) })
-          : t("timer.attestering.tabell.ukeAvvikUnder", { uke, norm: avvik.norm.toFixed(1) });
-      },
-      tekst: {
-        forslagSperre: t("timer.forslagValg.attesterBlokkert"),
-        maskinUtenTimerad: t("timer.attestering.tabell.maskinUtenTimerad"),
-        maskinforerbevis: t("timer.maskinforerbevis.leder"),
-        tilleggskrav: t("timer.attestering.sedel.tilleggskrav"),
-        tilByggherre: t("timer.gruppe.tilByggherre"),
-        fravaerUtenProsjekt: t("timer.detalj.fravaerUtenProsjekt"),
-        reise: t("timer.attestering.tabell.type.reise"),
-        statusVenter: t("timer.attestering.tabell.status.venter"),
-        statusAttestert: t("timer.attestering.tabell.status.attestert"),
-        statusReturnert: t("timer.attestering.tabell.status.returnert"),
-      },
-    });
-  }, [filtrerteSedler, katalog, avdelinger, t, i18n.language, avvikFor]);
-
-  const attester = trpc.timer.dagsseddel.attester.useMutation({
-    onSuccess: () => {
-      void utils.timer.dagsseddel.hentTilAttesteringFirma.invalidate();
+  // Tabellen (spec prosjektkort-kortid d2b-1 § 12.8.5, d2b-2 R12): dagseddel →
+  // prosjektsedler → linjer, i alle tre visningene; visningen er bare grupperingen.
+  const ukeAvvikTekst = useCallback(
+    (s: AttSedel) => {
+      const avvik = avvikFor(s as unknown as AttesteringRad);
+      const retning = avvik ? avvikRetning(avvik) : null;
+      if (!avvik || !retning) return null;
+      const uke = ukeNummer(new Date(s.dato));
+      return retning === "over"
+        ? t("timer.attestering.tabell.ukeAvvikOver", { uke, timer: avvik.avvikTimer.toFixed(1), norm: avvik.norm.toFixed(1) })
+        : t("timer.attestering.tabell.ukeAvvikUnder", { uke, norm: avvik.norm.toFixed(1) });
     },
-    onError: (e: { message: string }) => setFeil(e.message),
-  });
+    [avvikFor, t],
+  );
+  const dager = useAttesteringModell(orgId, rader as unknown as AttSedel[], { medAvdeling: kanAttestere, ukeAvvikTekst });
+  const avvikForAnsatt = useCallback(
+    (ansattId: string) => avvikPerNokkel.get(`${ansattId}-${mandagIso(isoDato(ukestart))}`) ?? null,
+    [avvikPerNokkel, ukestart],
+  );
 
-  // ORDRE 2 STEG 2: pivot-callbacks. Celle-klikk → sedel-detalj; batch per rad.
   // Bær retur-konteksten som EKSPLISITTE verdier (?fraVisning/fraUke/fraFane), ikke en
   // encodet retur-URL — sistnevnte er et open-redirect-mønster som må valideres. Detaljsiden
   // bygger tilbakeUrl av det lukkede settet; ugyldige verdier faller til standard.
@@ -371,11 +287,6 @@ export default function FirmaAttesteringSide() {
       fraFane: aktivFane,
     });
     return `/dashbord/firma/timer/attestering/${sheetId}?${qp.toString()}`;
-  };
-  const aapneSedel = (sheetId: string) => router.push(sedelUrl(sheetId));
-  const attesterMange = (sheetIds: string[]) => {
-    setFeil(null);
-    for (const id of sheetIds) attester.mutate({ id });
   };
 
   if (tilgangLaster) {
@@ -471,6 +382,7 @@ export default function FirmaAttesteringSide() {
             <p className="mt-2">{t("timer.attestering.tabell.hjelp.handlinger")}</p>
             <p className="mt-2">{t("timer.attestering.tabell.hjelp.retting")}</p>
             <p className="mt-2">{t("timer.attestering.tabell.hjelp.verktoy")}</p>
+            <p className="mt-2">{t("timer.attestering.tabell.hjelp.grupperinger")}</p>
           </HjelpFane>
         </HjelpKnapp>
       </div>
@@ -521,94 +433,25 @@ export default function FirmaAttesteringSide() {
         </button>
       </div>
 
-      {visning !== "sedler" && (
-        <div className="mb-4 space-y-4">
-          {visningVelger}
-          {ukeNav}
-          <div className="mb-4 flex flex-wrap gap-2">
-            <select
-              value={valgtProsjektId}
-              onChange={(e) => setValgtProsjektId(e.target.value)}
-              className="rounded-full border border-gray-300 bg-white px-3 py-1.5 text-xs"
-            >
-              <option value="">{t("timer.attestering.filter.alleProsjekter")}</option>
-              {prosjekterIRader.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-            <select
-              value={valgtAnsattId}
-              onChange={(e) => setValgtAnsattId(e.target.value)}
-              className="rounded-full border border-gray-300 bg-white px-3 py-1.5 text-xs"
-            >
-              <option value="">{t("timer.attestering.filter.alleAnsatte")}</option>
-              {ansatteIRader.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.navn}
-                </option>
-              ))}
-            </select>
-            <select
-              value={valgtAvdelingId}
-              onChange={(e) => setValgtAvdelingId(e.target.value)}
-              className="rounded-full border border-gray-300 bg-white px-3 py-1.5 text-xs"
-            >
-              <option value="">{t("timer.attestering.filter.alleAvdelinger")}</option>
-              {avdelinger?.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.navn}
-                </option>
-              ))}
-            </select>
-          </div>
-
-        </div>
-      )}
-
-      {feil && <p className="mb-4 text-sm text-red-600">{feil}</p>}
-
       {isLoading ? (
         <div className="flex items-center justify-center py-12">
           <Spinner />
         </div>
-      ) : visning === "prosjekt" ? (
-        <ProsjektPivot
-          visningsRader={filtrerteSedler.map(tilPivotRad)}
-          ukestart={ukestart}
-          onAapneSedel={aapneSedel}
-          onAttesterMange={attesterMange}
-          attesterPending={attester.isPending}
-          readOnly={readOnly}
-        />
-      ) : visning === "ansatt" ? (
-        <AnsattPivot
-          visningsRader={filtrerteSedler.map(tilPivotRad)}
-          ukeGrunnlag={ukeGrunnlag.map(tilPivotRad)}
-          ukestart={ukestart}
-          onAapneSedel={aapneSedel}
-          onAttesterMange={attesterMange}
-          attesterPending={attester.isPending}
-          readOnly={readOnly}
-        />
       ) : (
         <AttesteringTabell
           dager={dager}
           orgId={orgId}
           readOnly={readOnly}
+          gruppering={visning === "sedler" ? "dag" : visning}
           verktoy={<>{visningVelger}{ukeNav}</>}
-          ukeoversikt={
-            <AnsattPivot
-              visningsRader={filtrerteSedler.map(tilPivotRad)}
-              ukeGrunnlag={ukeGrunnlag.map(tilPivotRad)}
+          ukeoversikt={(api) => (
+            <Ukeoversikt
+              api={api}
               ukestart={ukestart}
-              onAapneSedel={aapneSedel}
-              onAttesterMange={attesterMange}
-              attesterPending={attester.isPending}
-              readOnly={readOnly}
+              akse={visning === "prosjekt" ? "prosjekt" : "ansatt"}
+              avvikFor={avvikForAnsatt}
             />
-          }
+          )}
           sedelUrl={sedelUrl}
           onReturnerDag={(id) => setReturnerId(id)}
         />

@@ -778,6 +778,13 @@ Sedler-fanen på `/dashbord/firma/timer/attestering` er en tabell (`AttesteringT
 
 Kode og tester: [prosjektkort-kortid-spec.md § 12.11](prosjektkort-kortid-spec.md).
 
+### Attesteringen på samme tabell overalt (ordre d2b-2) — 🟡 `feat/kortid-d2b2-attestering` (2026-11-17, ikke merget)
+
+- «Sedler», «Etter prosjekt» og «Etter ansatt» på `/dashbord/firma/timer/attestering` er samme tabell med ulik gruppering (`gruppering`-prop i `AttesteringTabell.tsx`, `grupperModell` i `attestering-tabell.ts`). Pivotene og nedtrekkene er borte; filtrering skjer i kolonnehodet.
+- «Ukeoversikt» (`Ukeoversikt.tsx`) står over tabellen: timer pr. dag fra tabellens linjer, norm og avviksbadge pr. ansatt, klikk på dag filtrerer tabellen, hover på tallet viser dagskortet med prosjektet i hodet.
+- Prosjektattesteringen (`/dashbord/[prosjektId]/timer/attestering`) og detaljsiden (`AttesteringDetalj.tsx`) bruker samme tabell. I prosjektet står andre prosjekters linjer nedtonet og kan ikke velges; uten tilgang heter de «Annet prosjekt» (serveren sender ikke navnet).
+- Detaljer og grenser: [prosjektkort-kortid-spec.md § 12.12](prosjektkort-kortid-spec.md).
+
 ### Kort-id på telefonen og fraværskortet (ordre c) — 🟡 `feat/kortid-c-mobil` (2026-11-16, ikke merget)
 
 Avvik 3 over er løst på mobil: dagskortet, kortskjermen og Bekreft dag grupperer på kort-id (`KortValg.kortId`, `kortNokkel` i `apps/mobile/src/lib/prosjektkortMobil.ts`), så to kort på samme prosjekt, byggeplass og underprosjekt holdes adskilt. Bekreft dag har «Del til eget kort» (`tildelKortIder`, `apps/mobile/src/utils/kortIdForslag.ts`); «Flytt raden» har «Flytt til nytt kort»; «+ Nytt prosjektkort» gir alltid nytt kort. «Endre kort» til et prosjekt som alt har kort sjekker tidskollisjon med samme regel som lagring av en rad (`finnKortKollisjon` i `prosjektkort/kortRadFlytt.ts`); uten overlapp står kortene hver for seg med egen beskrivelse (Kenneth 2026-11-16, E1). «Sum i dag» og «Send dagen (N t)» tar med fraværstimer (`dagSumTimer`, E2). Maskin og vare som flyttes alene («Flytt raden»), og synkede varer etter server-flytt, får målkortets id (`flyttMaskinRad`/`flyttVareLokalt`, gate (70) A1). Fravær føres i eget fraværskort uten prosjekt («+ Fravær», `apps/mobile/src/utils/fravaerKort.ts`, `prosjektkort/fravaerKortLagring.ts`) med B10-taket; «Fravær til» (a3) er fjernet (F12 = A). Dagskort-modus viser fravær uten prosjekt i en lese-gruppe (F6, `apps/mobile/src/utils/dagskortFravaer.ts`). Full kode-liste, tester og avvik: [prosjektkort-kortid-spec.md § 8.2](prosjektkort-kortid-spec.md).
