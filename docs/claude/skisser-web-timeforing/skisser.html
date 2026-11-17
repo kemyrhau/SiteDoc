@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="nb">
+<head>
+<meta charset="utf-8">
+<title>Skisser — timeføring på web, bilde 1–6</title>
+<!--
+  FORSLAG (Fabel 2026-11-17), ikke bygget. Kilde for PNG-ene i denne mappa.
+  Ett bilde:   skisser.html?steg=s1 … s6      (bredde 900 css-px, 2x)
+  Oversikten:  skisser.html?steg=alle         (alle seks side om side)
+  Tegnet med Chrome uten vindu:
+    "Google Chrome" --headless=new --hide-scrollbars --force-device-scale-factor=2 \
+      --window-size=900,<høyde> --screenshot=bilde-N.png "file://…/skisser.html?steg=sN"
+  Scenario: arbeider 07:00–15:30, Volvo 4 t, betong 4 m3. Tallene er eksempler.
+-->
+<style>
+  :root { --bg:#f3f4f6; --kant:#e5e7eb; --tekst:#111827; --demp:#6b7280; --demp2:#9ca3af;
+          --primar:#1e40af; --lys:#eff6ff; --gronn:#10b981; --rod:#dc2626; --amber:#b45309; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--tekst); font:17px/1.4 -apple-system, "Segoe UI", Inter, sans-serif; }
+  .steg { display:none; width:900px; padding:22px 24px 26px; }
+  .steg.vis { display:block; }
+  body.alle { display:grid; grid-template-columns:repeat(3, 900px); align-items:start; width:2700px; }
+  body.alle .steg { display:block; }
+
+  .hode { display:flex; align-items:center; gap:12px; margin-bottom:14px; }
+  .nr { background:var(--primar); color:#fff; font-weight:800; font-size:15px; letter-spacing:.04em; padding:5px 12px; border-radius:999px; white-space:nowrap; }
+  .tittel { font-size:22px; font-weight:700; }
+
+  /* nettleserflate */
+  .flate { background:#fff; border:1px solid #d1d5db; border-radius:12px; overflow:hidden; box-shadow:0 8px 24px rgba(0,0,0,.08); }
+  .topp { background:var(--primar); color:#fff; padding:10px 16px; display:flex; gap:14px; align-items:center; font-size:15px; }
+  .topp b { font-size:16px; }
+  .topp .pille { background:#fff; color:var(--primar); font-weight:700; font-size:13px; padding:3px 10px; border-radius:6px; }
+  .innhold { padding:18px 18px 20px; background:#f9fafb; position:relative; }
+  h3 { margin:0 0 4px; font-size:24px; }
+  .under { color:var(--demp); font-size:15px; margin:0 0 12px; }
+
+  .knapp { display:inline-flex; align-items:center; gap:6px; border-radius:8px; padding:9px 14px; font-weight:600; font-size:16px; white-space:nowrap; }
+  .knapp.blaa { background:var(--primar); color:#fff; }
+  .knapp.graa { background:#f3f4f6; color:#374151; border:1px solid var(--kant); }
+  .knapp.liten { padding:5px 10px; font-size:14px; }
+  .lenke { color:#2563eb; font-weight:600; font-size:15px; white-space:nowrap; }
+  .k { display:inline-flex; width:26px; height:26px; border-radius:50%; background:var(--rod); color:#fff; font-size:15px; font-weight:800; align-items:center; justify-content:center; box-shadow:0 1px 4px rgba(0,0,0,.35); flex:none; vertical-align:middle; margin-left:6px; }
+
+  .kort { background:#fff; border:1.5px solid #93c5fd; border-radius:10px; }
+  .kort .kh { display:flex; justify-content:space-between; align-items:center; padding:12px 14px; border-bottom:1px solid var(--kant); }
+  .kort .kh b { font-size:18px; }
+  .sum { display:flex; gap:18px; font-size:13px; color:var(--demp); text-transform:uppercase; letter-spacing:.04em; }
+  .sum span b { display:block; font-size:17px; color:var(--tekst); text-transform:none; letter-spacing:0; }
+
+  /* linja: timerad | maskin | vare */
+  .linje { display:grid; grid-template-columns: 82px 112px 54px 56px 44px 50px 1px 128px 46px 1px 1fr; column-gap:6px; align-items:center; padding:9px 14px; font-size:15.5px; white-space:nowrap; }
+  .linje.h { font-size:12px; color:var(--demp); text-transform:uppercase; letter-spacing:.04em; padding-top:10px; padding-bottom:4px; }
+  .linje .skille { background:var(--kant); height:100%; min-height:26px; }
+  .linje.h .skille { background:transparent; }
+  .linje + .linje { border-top:1px solid #f3f4f6; }
+  .tall { font-variant-numeric:tabular-nums; }
+  .hoy { text-align:right; }
+  .celle-aktiv { border:2px solid #2563eb; border-radius:6px; padding:2px 5px; background:#fff; box-shadow:0 0 0 3px #dbeafe; }
+  .forh { background:#fef9c3; border-radius:4px; padding:1px 4px; }   /* forhåndsutfylt */
+  .pluss { color:#2563eb; font-weight:600; font-size:15px; white-space:nowrap; }
+  .besk { padding:0 14px 10px; color:var(--demp2); font-size:15px; }
+  .handl { display:flex; gap:18px; padding:10px 14px 12px; border-top:1px solid var(--kant); }
+  .bunn { display:flex; justify-content:space-between; align-items:center; margin-top:12px; background:#fff; border:1px solid var(--kant); border-radius:10px; padding:12px 14px; }
+  .prikk { display:inline-block; width:11px; height:11px; border-radius:50%; background:var(--gronn); margin-right:8px; }
+  .stiplet { margin-top:10px; border:1.5px dashed #d1d5db; border-radius:10px; padding:10px; text-align:center; color:#374151; font-weight:600; font-size:15px; }
+
+  /* lite vindu ved raden */
+  .pop { margin:6px 14px 12px auto; width:470px; background:#fff; border:1px solid #cbd5e1; border-radius:10px; box-shadow:0 10px 28px rgba(0,0,0,.18); padding:12px 14px 14px; }
+  .pop .pt { font-weight:700; font-size:17px; display:flex; justify-content:space-between; }
+  .sok { border:1px solid #d1d5db; border-radius:8px; padding:8px 10px; color:var(--demp2); margin:8px 0; font-size:15px; }
+  .sok.skrevet { color:var(--tekst); border-color:#2563eb; }
+  .gr { font-size:12px; color:var(--demp); letter-spacing:.05em; margin:8px 0 2px; }
+  .valg { display:flex; justify-content:space-between; align-items:center; padding:7px 8px; border-radius:6px; font-size:16px; }
+  .valg.valgt { background:var(--lys); font-weight:600; }
+  .valg small { color:var(--demp); font-size:13px; font-weight:400; }
+  .felt { display:flex; align-items:center; gap:8px; margin-top:10px; font-size:15px; color:#374151; flex-wrap:wrap; }
+  .inn { border:1px solid #d1d5db; border-radius:8px; padding:6px 10px; min-width:70px; font-size:17px; color:var(--tekst); background:#fff; }
+  .inn.aktiv { border:2px solid #2563eb; box-shadow:0 0 0 3px #dbeafe; }
+  .inn.tom { color:var(--demp2); }
+  .borte { margin-top:10px; font-size:13.5px; color:var(--demp); border-top:1px dashed var(--kant); padding-top:8px; }
+  .borte s { color:#9ca3af; }
+
+  /* teksten under bildet */
+  .tekst { margin-top:14px; background:#fff; border:1px solid var(--kant); border-radius:10px; padding:12px 16px 14px; font-size:16px; }
+  .tekst .trykk { display:inline-block; background:#fee2e2; color:#991b1b; font-weight:800; padding:3px 10px; border-radius:999px; font-size:15px; margin-bottom:8px; }
+  .tekst .idag { display:inline-block; background:#f3f4f6; color:#4b5563; font-weight:600; padding:3px 10px; border-radius:999px; font-size:14px; margin-left:6px; }
+  .tekst table { border-collapse:collapse; width:100%; }
+  .tekst td { vertical-align:top; padding:5px 8px 5px 0; border-top:1px solid #f3f4f6; }
+  .tekst td:first-child { font-weight:700; white-space:nowrap; width:1%; }
+  .tekst .hv { color:var(--demp); font-size:14.5px; display:block; }
+  .tekst p { margin:6px 0 0; }
+
+  .liste { background:#fff; border:1px solid var(--kant); border-radius:10px; }
+  .liste .r { display:flex; justify-content:space-between; padding:10px 14px; border-top:1px solid #f3f4f6; font-size:16px; }
+  .liste .r:first-child { border-top:0; }
+  .merke { font-size:13px; font-weight:700; padding:2px 9px; border-radius:999px; background:#e0e7ff; color:#3730a3; }
+  .merke.gr { background:#dcfce7; color:#166534; margin:0; letter-spacing:0; }
+  .merke.utk { background:#f3f4f6; color:#4b5563; }
+
+  .att { display:grid; grid-template-columns: 46px 58px 54px 74px 44px 44px 44px 118px 60px 88px 48px; column-gap:6px; padding:8px 12px; font-size:14px; align-items:center; white-space:nowrap; }
+  .att.h { font-size:11px; color:var(--demp); text-transform:uppercase; letter-spacing:.03em; border-bottom:1px solid var(--kant); }
+</style>
+</head>
+<body>
+
+<!-- ───────────── BILDE 1 ───────────── -->
+<div class="steg" id="s1">
+  <div class="hode"><span class="nr">BILDE 1 AV 6</span><span class="tittel">Mine timer → «Ny dag»</span></div>
+  <div class="flate">
+    <div class="topp"><b>SiteDoc</b><span>Test prosjekt SiteDoc Røstbakken · NRK</span><span class="pille">PROSJEKT ▾</span></div>
+    <div class="innhold">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+        <div><h3>Mine timer</h3><p class="under">Uke 47 · 16.–22. november</p></div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="knapp blaa">+ Ny dag · i dag</span><span class="k">1</span>
+          <span class="knapp graa liten">Annen dato eller annet prosjekt ▾</span>
+        </div>
+      </div>
+      <div class="liste">
+        <div class="r"><span>man. 16. nov · Test prosjekt SiteDoc Røstbakken</span><span><span class="tall">7,5 t</span> &nbsp;<span class="merke gr">Sendt</span></span></div>
+        <div class="r"><span style="color:#6b7280">tir. 17. nov · ingen føring ennå</span><span style="color:#9ca3af">—</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="tekst">
+    <span class="trykk">1 trykk</span><span class="idag">i dag: 2 trykk og et skjema imellom</span>
+    <table>
+      <tr><td>Dato</td><td>I dag.<span class="hv">Hentes fra klokka. De fleste fører samme dag.</span></td></tr>
+      <tr><td>Prosjekt</td><td>Test prosjekt SiteDoc Røstbakken.<span class="hv">Hentes fra prosjektet som står øverst i den blå linja. Det er der du jobber nå.</span></td></tr>
+      <tr><td>Byggeplass</td><td>NRK.<span class="hv">Hentes fra samme sted. I dag får den første raden ingen byggeplass.</span></td></tr>
+    </table>
+    <p>Dagen opprettes og åpnes med én gang. Skjemaet «Ny dagsseddel» ligger bak den grå knappen, for annen dato eller annet prosjekt.</p>
+  </div>
+</div>
+
+<!-- ───────────── BILDE 2 ───────────── -->
+<div class="steg" id="s2">
+  <div class="hode"><span class="nr">BILDE 2 AV 6</span><span class="tittel">Dagen er åpnet — første rad står ferdig utfylt</span></div>
+  <div class="flate">
+    <div class="topp"><b>SiteDoc</b><span>Test prosjekt SiteDoc Røstbakken · NRK</span></div>
+    <div class="innhold">
+      <div style="display:flex;justify-content:space-between"><h3>tirsdag 17. november 2026</h3><span class="merke utk" style="align-self:center">Utkast</span></div>
+      <p class="under">Prosjektkort (1)</p>
+      <div class="kort">
+        <div class="kh"><b>Test prosjekt SiteDoc Røstbakken · NRK</b>
+          <div class="sum"><span>Arbeid<b>8,0 t</b></span><span>Maskin<b>—</b></span><span>Varer<b>—</b></span></div></div>
+        <div class="linje h"><span>Lønnsart</span><span>Aktivitet</span><span>Fra</span><span>Til</span><span>Pause</span><span class="hoy">Timer</span><span class="skille"></span><span>Maskin</span><span class="hoy">Timer</span><span class="skille"></span><span>Vare</span></div>
+        <div class="linje">
+          <span><span class="forh">Timelønn</span></span><span><span class="forh">Anleggsarbeid</span></span>
+          <span class="tall"><span class="forh">07:00</span></span>
+          <span class="tall"><span class="celle-aktiv">15:30</span></span>
+          <span class="tall"><span class="forh">30</span></span>
+          <span class="tall hoy"><b>8,0</b></span>
+          <span class="skille"></span>
+          <span class="pluss">+ Maskin</span><span></span>
+          <span class="skille"></span>
+          <span class="pluss">+ Vare</span>
+        </div>
+        <div class="besk">Hva gjorde du? (valgfritt)</div>
+        <div class="handl"><span class="lenke">+ Timerad</span><span class="lenke">+ Reise</span><span class="lenke">+ Tillegg/Utlegg</span></div>
+      </div>
+      <div style="margin-top:8px;font-size:14.5px;color:#374151">Du retter rett i raden: trykk på <b>15:00</b>, skriv <b>15:30</b> <span class="k" style="width:22px;height:22px;font-size:13px">2</span> — timene regnes ut selv.</div>
+    </div>
+  </div>
+  <div class="tekst">
+    <span class="trykk">1 felt</span><span class="idag">0 hvis firmaets arbeidstid er 07:00–15:30</span>
+    <table>
+      <tr><td>Fra · Til · Pause</td><td>07:00 · 15:00 · 30 min.<span class="hv">Hentes fra firmaets arbeidstid (Firma → Innstillinger). Lønnsarten bærer ingen tid i dag. Se spørsmål B2.</span></td></tr>
+      <tr><td>Lønnsart</td><td>Timelønn.<span class="hv">Hentes fra lønnsarten firmaet har merket som standardvalg. Den brukes på de fleste rader.</span></td></tr>
+      <tr><td>Aktivitet</td><td>Anleggsarbeid.<span class="hv">Hentes fra aktivitetslista: «Anleggsarbeid» hvis den finnes, ellers den første.</span></td></tr>
+      <tr><td>Timer</td><td>8,0.<span class="hv">Regnes ut: til − fra − pause. Du skriver aldri timene selv.</span></td></tr>
+    </table>
+    <p>Gult = fylt ut for deg. Raden har alt nå plass til maskin og vare på samme linje.</p>
+  </div>
+</div>
+
+<!-- ───────────── BILDE 3 ───────────── -->
+<div class="steg" id="s3">
+  <div class="hode"><span class="nr">BILDE 3 AV 6</span><span class="tittel">«+ Maskin» på raden → Volvo, 4 timer</span></div>
+  <div class="flate">
+    <div class="topp"><b>SiteDoc</b><span>Test prosjekt SiteDoc Røstbakken · NRK</span></div>
+    <div class="innhold">
+      <div class="kort">
+        <div class="kh"><b>Test prosjekt SiteDoc Røstbakken · NRK</b>
+          <div class="sum"><span>Arbeid<b>8,0 t</b></span><span>Maskin<b>—</b></span><span>Varer<b>—</b></span></div></div>
+        <div class="linje h"><span>Lønnsart</span><span>Aktivitet</span><span>Fra</span><span>Til</span><span>Pause</span><span class="hoy">Timer</span><span class="skille"></span><span>Maskin</span><span class="hoy">Timer</span><span class="skille"></span><span>Vare</span></div>
+        <div class="linje">
+          <span>Timelønn</span><span>Anleggsarbeid</span><span class="tall">07:00</span><span class="tall">15:30</span><span class="tall">30</span><span class="tall hoy"><b>8,0</b></span>
+          <span class="skille"></span>
+          <span class="pluss">+ Maskin<span class="k">3</span></span><span></span>
+          <span class="skille"></span>
+          <span class="pluss">+ Vare</span>
+        </div>
+        <div class="pop">
+          <div class="pt"><span>Maskin på raden 07:00–15:30</span><span class="lenke">Avbryt</span></div>
+          <div class="sok">Søk utstyr …</div>
+          <div class="gr">SIST BRUKT</div>
+          <div class="valg valgt"><span>Volvo EC220E<span class="k">4</span></span><small>M-12 · i går</small></div>
+          <div class="valg"><span>Hoppetusse</span><small>S-04 · 12. nov</small></div>
+          <div class="valg"><span>Dumper A25</span><small>M-07 · 9. nov</small></div>
+          <div class="gr">ALLE (24)</div>
+          <div class="felt">Timer <span class="inn aktiv tall">4</span><span class="k">5</span> <span style="color:#6b7280;font-size:14px">sto 8,0 = radens timer · høyst 8,0</span></div>
+          <div class="felt">Mengde <span class="inn tom">—</span> <span class="inn tom">enhet</span> <span style="color:#6b7280;font-size:14px">valgfritt · Enter lagrer</span></div>
+          <div class="borte">Borte fra dagens vindu: <s>Timerad (valgfritt)</s> · <s>Byggeplass</s> · <s>Fra kl.</s> · <s>Til kl.</s> · <s>Underprosjekt</s> · <s>«ledig: 8 t»</s></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="tekst">
+    <span class="trykk">2 trykk + 1 felt</span><span class="idag">i dag: 4 trykk + 1 felt, i eget vindu</span>
+    <table>
+      <tr><td>Timerad</td><td>Raden du trykket på.<span class="hv">Derfor finnes ikke feltet «Timerad». Maskinen kan ikke havne uten timer.</span></td></tr>
+      <tr><td>Sist brukt</td><td>Dine fem sist brukte maskiner, øverst.<span class="hv">Hentes fra dine egne dagssedler. De fleste kjører samme maskin flere dager.</span></td></tr>
+      <tr><td>Timer</td><td>8,0 — du skriver 4.<span class="hv">Hentes fra radens timer, som på telefonen. Maskinen kan ikke ha flere timer enn raden.</span></td></tr>
+      <tr><td>Byggeplass, underprosjekt</td><td>Som raden.<span class="hv">Maskinen hører til raden og arver dem.</span></td></tr>
+    </table>
+    <p><b>Fra–til på maskin er borte.</b> Maskin = utstyr + timer, knyttet til timeraden.</p>
+  </div>
+</div>
+
+<!-- ───────────── BILDE 4 ───────────── -->
+<div class="steg" id="s4">
+  <div class="hode"><span class="nr">BILDE 4 AV 6</span><span class="tittel">«+ Vare» på raden → betong, 4 m3</span></div>
+  <div class="flate">
+    <div class="topp"><b>SiteDoc</b><span>Test prosjekt SiteDoc Røstbakken · NRK</span></div>
+    <div class="innhold">
+      <div class="kort">
+        <div class="kh"><b>Test prosjekt SiteDoc Røstbakken · NRK</b>
+          <div class="sum"><span>Arbeid<b>8,0 t</b></span><span>Maskin<b>4,0 t</b></span><span>Varer<b>—</b></span></div></div>
+        <div class="linje h"><span>Lønnsart</span><span>Aktivitet</span><span>Fra</span><span>Til</span><span>Pause</span><span class="hoy">Timer</span><span class="skille"></span><span>Maskin</span><span class="hoy">Timer</span><span class="skille"></span><span>Vare</span></div>
+        <div class="linje">
+          <span>Timelønn</span><span>Anleggsarbeid</span><span class="tall">07:00</span><span class="tall">15:30</span><span class="tall">30</span><span class="tall hoy"><b>8,0</b></span>
+          <span class="skille"></span>
+          <span>Volvo EC220E</span><span class="tall hoy">4,0</span>
+          <span class="skille"></span>
+          <span class="pluss">+ Vare<span class="k">6</span></span>
+        </div>
+        <div class="pop">
+          <div class="pt"><span>Vare på raden 07:00–15:30</span><span class="lenke">Avbryt</span></div>
+          <div class="sok skrevet">bet|</div>
+          <div class="gr">TREFF</div>
+          <div class="valg valgt"><span>Betong B30<span class="k">7</span></span><small>m3</small></div>
+          <div class="valg"><span>Betongstein 20×20</span><small>stk</small></div>
+          <div class="felt">Mengde <span class="inn aktiv tall">4</span><span class="k">8</span> <b>m3</b> <span style="color:#6b7280;font-size:14px">enheten følger varen · Enter lagrer</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="tekst">
+    <span class="trykk">2 trykk + 2 felt</span><span class="idag">i dag: 3 trykk + 1 felt, og varen havner ikke på raden</span>
+    <table>
+      <tr><td>Timerad</td><td>Raden du trykket på.<span class="hv">I dag lagres varen på dagen, uten rad. Da står den alene i attesteringen.</span></td></tr>
+      <tr><td>Enhet</td><td>m3.<span class="hv">Hentes fra varen i varelageret. Du velger den aldri selv.</span></td></tr>
+      <tr><td>Prosjekt, byggeplass</td><td>Som raden.<span class="hv">Varen er brukt i jobben raden beskriver.</span></td></tr>
+    </table>
+    <p>Skriv noen bokstaver og velg. En liste «Sist brukt» som for maskin sparer skrivingen; den finnes ikke for varer i dag.</p>
+  </div>
+</div>
+
+<!-- ───────────── BILDE 5 ───────────── -->
+<div class="steg" id="s5">
+  <div class="hode"><span class="nr">BILDE 5 AV 6</span><span class="tittel">Raden er ferdig → «Send dagen»</span></div>
+  <div class="flate">
+    <div class="topp"><b>SiteDoc</b><span>Test prosjekt SiteDoc Røstbakken · NRK</span></div>
+    <div class="innhold">
+      <div style="display:flex;justify-content:space-between"><h3>tirsdag 17. november 2026</h3><span class="merke utk" style="align-self:center">Utkast</span></div>
+      <p class="under">Prosjektkort (1)</p>
+      <div class="kort">
+        <div class="kh"><b>Test prosjekt SiteDoc Røstbakken · NRK</b>
+          <div class="sum"><span>Arbeid<b>8,0 t</b></span><span>Maskin<b>4,0 t</b></span><span>Varer<b>1</b></span></div></div>
+        <div class="linje h"><span>Lønnsart</span><span>Aktivitet</span><span>Fra</span><span>Til</span><span>Pause</span><span class="hoy">Timer</span><span class="skille"></span><span>Maskin</span><span class="hoy">Timer</span><span class="skille"></span><span>Vare</span></div>
+        <div class="linje">
+          <span>Timelønn</span><span>Anleggsarbeid</span><span class="tall">07:00</span><span class="tall">15:30</span><span class="tall">30</span><span class="tall hoy"><b>8,0</b></span>
+          <span class="skille"></span>
+          <span>Volvo EC220E</span><span class="tall hoy">4,0</span>
+          <span class="skille"></span>
+          <span>Betong B30 &nbsp;<b class="tall">4 m3</b></span>
+        </div>
+        <div class="linje" style="padding-top:2px;padding-bottom:8px;border-top:0">
+          <span></span><span></span><span></span><span></span><span></span><span></span><span class="skille" style="min-height:18px"></span>
+          <span class="pluss" style="font-size:14px">+ Maskin</span><span></span><span class="skille" style="min-height:18px"></span><span class="pluss" style="font-size:14px">+ Vare</span>
+        </div>
+        <div class="besk">Hva gjorde du? (valgfritt)</div>
+        <div class="handl"><span class="lenke">+ Timerad</span><span class="lenke">+ Reise</span><span class="lenke">+ Tillegg/Utlegg</span></div>
+      </div>
+      <div class="stiplet">+ Nytt prosjektkort</div>
+      <div class="bunn"><span><span class="prikk"></span>Sum i dag 8,0 t av 7,5 t</span>
+        <span><span class="knapp graa">Slett dagsseddel</span> &nbsp;<span class="knapp blaa">Send dagen (8,0 t)</span><span class="k">9</span></span></div>
+    </div>
+  </div>
+  <div class="tekst">
+    <span class="trykk">1 trykk</span><span class="idag">som i dag</span>
+    <table>
+      <tr><td>Linja</td><td>Arbeid, maskin og vare står på samme linje.<span class="hv">I dag står maskinen etter timeradene og varen i en egen liste under kortet.</span></td></tr>
+      <tr><td>Sum</td><td>8,0 t av 7,5 t.<span class="hv">7,5 t er firmaets dagsnorm. 07:00–15:30 med 30 min pause er 8,0 t. Se spørsmål B2.</span></td></tr>
+    </table>
+    <p>Flere maskiner eller varer: «+ Maskin» og «+ Vare» står igjen under linja.</p>
+  </div>
+</div>
+
+<!-- ───────────── BILDE 6 ───────────── -->
+<div class="steg" id="s6">
+  <div class="hode"><span class="nr">BILDE 6 AV 6</span><span class="tittel">Sendt — og slik ser attestanten den</span></div>
+  <div class="flate">
+    <div class="topp"><b>SiteDoc</b><span>Test prosjekt SiteDoc Røstbakken · NRK</span></div>
+    <div class="innhold">
+      <div style="display:flex;justify-content:space-between"><h3>tirsdag 17. november 2026</h3><span class="merke gr" style="align-self:center">Sendt</span></div>
+      <p class="under">Dagen er sendt til attestering. Den kan ikke endres før den er returnert.</p>
+      <div class="kort" style="border-color:#e5e7eb">
+        <div class="linje h"><span>Lønnsart</span><span>Aktivitet</span><span>Fra</span><span>Til</span><span>Pause</span><span class="hoy">Timer</span><span class="skille"></span><span>Maskin</span><span class="hoy">Timer</span><span class="skille"></span><span>Vare</span></div>
+        <div class="linje">
+          <span>Timelønn</span><span>Anleggsarbeid</span><span class="tall">07:00</span><span class="tall">15:30</span><span class="tall">30</span><span class="tall hoy"><b>8,0</b></span>
+          <span class="skille"></span><span>Volvo EC220E</span><span class="tall hoy">4,0</span><span class="skille"></span><span>Betong B30 &nbsp;<b class="tall">4 m3</b></span>
+        </div>
+      </div>
+      <p class="under" style="margin:16px 0 6px;color:#111827;font-weight:700">Attesteringen — samme linje, samme rekkefølge</p>
+      <div class="kort" style="border-color:#e5e7eb">
+        <div class="att h"><span>Dato</span><span>Ansatt</span><span>Type</span><span>Betegnelse</span><span>Fra</span><span>Til</span><span>Timer</span><span>Maskin</span><span>Maskint.</span><span>Vare</span><span>Mengde</span></div>
+        <div class="att"><span class="tall">17.11</span><span>Ola N.</span><span>Arbeid</span><span>Timelønn</span><span class="tall">07:00</span><span class="tall">15:30</span><span class="tall"><b>8,00</b></span><span>Volvo EC220E</span><span class="tall">4,00</span><span>Betong B30</span><span class="tall">4 m3</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="tekst">
+    <span class="trykk">0 trykk</span>
+    <table>
+      <tr><td>Attesteringen</td><td>Én linje: arbeid, Volvo 4 t og betong 4 m3.<span class="hv">Maskinen og varen er koblet til timeraden da de ble ført. Derfor står de på timeradens linje hos attestanten.</span></td></tr>
+      <tr><td>I alt</td><td><b>6 trykk og 3–4 felt</b>, ingen egne vinduer.<span class="hv">I dag: 10 trykk og 3 felt, to skjermer før første rad og tre vinduer — og varen står alene.</span></td></tr>
+    </table>
+  </div>
+</div>
+
+<script>
+  const q = new URLSearchParams(location.search).get('steg') || 's1';
+  if (q === 'alle') document.body.classList.add('alle');
+  else document.getElementById(q).classList.add('vis');
+  const maal = q === 'alle' ? document.body : document.getElementById(q);
+  document.title = String(Math.ceil(maal.getBoundingClientRect().height)) + 'x' + String(Math.ceil(maal.getBoundingClientRect().width));
+</script>
+</body>
+</html>
