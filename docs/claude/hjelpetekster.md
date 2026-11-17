@@ -357,6 +357,12 @@ Fra w5 i web-timeføring (🟡 ikke merget, `feat/web-timer-w5`), begge sidene:
 - **Handlinger** (`…hjelp.handlinger`, endret): dagknappen heter «Attester» (full tekst som tooltip), og «Gjenåpne» (`timer.attestering.tabell.gjenaapne`).
 - Registreringens mikrotekst: `timer.attestering.registrering.*` (delene, «Uten», «Del opp», «Del ved», «Jobb A»/«Jobb B»).
 
+Fra w5b i web-timeføring (🟡 ikke merget, `feat/web-timer-w5b`, B14 A), begge sidene:
+
+- **Struktur** (`…hjelp.struktur`, endret): «Hver dag står i sin egen ramme. Den blå dagsraden øverst viser dato, ansatt, dagens sum og avvik. Har dagen flere jobber, får hver jobb en egen rad og en egen kantfarge, med linjene under. Med én jobb står jobbens prosjekt og underprosjekt i dagsraden. Et merke som «+0,5 t» betyr at dagen avviker fra dagsnormen; hold pekeren over merket for å se hele setningen.»
+- **Handlinger** (`…hjelp.handlinger`, endret): knappene på en jobbrad gjelder hele jobben; «Attester» på dagsraden gjelder hele dagsseddelen.
+- Mikrotekst: «N jobb/jobber» (`timer.attestering.tabell.antallJobber_one/_other`), normmerket «+0,5 t» (`timer.attestering.tabell.normMerke`). «Dagen: X t av dagsnorm Y t» står nå bare ved hover på merket. `timer.attestering.tabell.dagsum` er fjernet.
+
 ## Prosjekt → Timer → Attestering (d2b-2, 🟡 ikke merget)
 
 `apps/web/src/app/dashbord/[prosjektId]/timer/attestering/page.tsx` har `HjelpKnapp` (fanen «Attestering»). Første avsnitt: «Her attesterer du timene som er ført på dette prosjektet. Linjer den ansatte har ført på andre prosjekter samme dag, står nedtonet og kan ikke velges. Har du ikke tilgang til det andre prosjektet, står det «Annet prosjekt».» (`timer.attestering.prosjekt.hjelp.laast`); deretter struktur, handlinger og retting som på firmasiden. Dagsumraden har «Attester prosjektets del» (`timer.attestering.tabell.attesterProsjektetsDel`).

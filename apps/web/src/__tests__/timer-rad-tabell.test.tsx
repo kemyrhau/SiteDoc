@@ -170,3 +170,67 @@ describe("T47/R19 — rapportens Detaljer bruker samme tabell og kolonneliste", 
     expect(side).toMatch(/<TimerRapportDetaljer[\s\S]*?onKolonneRekkefolge=\{setValgteKolonner\}/);
   });
 });
+
+/* ------------------------------------------------------------------ */
+/*  w5b (B14 A) — blokkvisningen er valgfri; timerapporten står urørt   */
+/* ------------------------------------------------------------------ */
+
+describe("w5b — vakttest: uten blokk tegnes tabellen nøyaktig som før (timerapporten)", () => {
+  // Klassene sammenlignes uten hensyn til mellomrom; alt annet i DOM-en er likt tegn for tegn.
+  // Øyeblikksbildet er laget med TimerRadTabell fra develop @ e8ed2d6e (før w5b).
+  const normaliser = (html: string) => html.replace(/class="([^"]*)"/g, (_m, c: string) => `class="${c.trim().split(/\s+/).join(" ")}"`);
+  const props = {
+    kolonner: ["ansatt", "maskin", "timer"] as const,
+    rader,
+    celle,
+    venstre: { bredde: 40, celle: (d: D) => <input type="checkbox" aria-label={`velg ${d.navn}`} /> },
+    hoyre: { bredde: 120, celle: (d: D) => <button>✓ {d.navn}</button> },
+    innrykk: (k: string, d: D) => k === "ansatt" && d.navn === null,
+  };
+
+  it("overskrift, linjer med underlinjer og sumrad gir samme DOM som før w5b", () => {
+    const { container } = render(<TimerRadTabell {...props} kolonner={[...props.kolonner]} />);
+    expect(normaliser(container.innerHTML)).toMatchSnapshot();
+  });
+
+  it("rapportens Detaljer sender ingen av de nye radfeltene", () => {
+    const td = readFileSync(resolve(__dirname, "../components/timer/TimerRapportDetaljer.tsx"), "utf8");
+    expect(td).not.toMatch(/\bblokk\b|\bvariant:|\bskjul\b/);
+  });
+});
+
+describe("w5b — blokkvisningen", () => {
+  const blokkRader: TimerRadTabellRad<D>[] = [
+    { kind: "sum", nokkel: "d", variant: "dag", blokk: { kant: "border-blue-700" }, celle: (k) => (k === "ansatt" ? "Dag" : "") },
+    { kind: "linje", nokkel: "b", data: { navn: "Berit", timer: 2, maskiner: [] }, underlinjer: 1, blokk: { kant: "border-blue-400" }, skjul: ["ansatt"] },
+    { kind: "linje", nokkel: "a", data: { navn: "Anne", timer: 3, maskiner: [] }, underlinjer: 1, blokk: { kant: "border-amber-500", slutt: true }, skjul: ["ansatt"] },
+  ];
+  const vis = (sorter = false) =>
+    render(
+      <TimerRadTabell kolonner={["ansatt", "timer"]} rader={blokkRader} celle={celle}
+        venstre={{ bredde: 40, celle: () => null }} hoyre={{ bredde: 80, celle: () => null }}
+        sorterVerdi={sorter ? (k, d) => (k === "ansatt" ? d.navn : d.timer) : undefined} />,
+    );
+
+  it("kantfargen står på linja, linjene veksler ikke, og luften kommer etter siste rad", () => {
+    const { container } = vis();
+    const l = (n: string) => container.querySelector(`[data-linje="${n}"]`) as HTMLElement;
+    expect((l("b").firstElementChild as HTMLElement).className).toContain("border-blue-400");
+    expect((l("a").firstElementChild as HTMLElement).className).toContain("border-amber-500");
+    expect(l("a").className).toContain("bg-white");
+    const slutt = container.querySelectorAll("[data-blokk-slutt]");
+    expect(slutt).toHaveLength(1);
+    expect(slutt[0]!.className).toContain("pb-3");
+    expect(slutt[0]!.querySelector('[data-linje="a"]')).toBeTruthy();
+    expect((container.querySelector('[data-rad="dag"]') as HTMLElement).className).toContain("bg-blue-50");
+  });
+
+  it("skjulte kolonner står tomme i blokka og vises igjen når tabellen sorteres", () => {
+    const { container, getByText } = vis(true);
+    const l = (n: string) => container.querySelector(`[data-linje="${n}"]`) as HTMLElement;
+    expect(l("b").textContent).not.toContain("Berit");
+    fireEvent.click(getByText("timer.eksport.kolTimer"));
+    expect(container.querySelector('[data-rad="dag"]')).toBeNull();
+    expect(l("b").textContent).toContain("Berit");
+  });
+});
