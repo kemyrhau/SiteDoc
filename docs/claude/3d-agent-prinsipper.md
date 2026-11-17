@@ -46,7 +46,7 @@ Status fylles inn av orkestrator ved merge. ⚪ ikke målt · 🔵 målt · 🟢
 |---|---|---|
 | W1 | 3D-visningen fyller bare deler av skjermen; verre på høyere oppløsning (lerretet slutter ~y=700 av 1213 px) | 🟢 merget `470f9d57` (ikke deployet) |
 | W2 | Snitt virker dårlig eller ikke på PC | 🟢 (1)(2) merget `470f9d57` (ikke deployet). hovertekst «Dobbeltklikk på en flate for å lage snitt» 🟢 merget `23427bdb` |
-| W3 | Egenskapskortet viser for få egenskaper — mange lagrede vises ikke | 🔵 type-egenskaper kastes (`tred-viewer-kontekst.tsx:838-876`), kortet kuttes av W1; felles uttrekk med M5 (2) |
+| W3 | Egenskapskortet viser for få egenskaper — mange lagrede vises ikke | 🟢 merget `59efcf5a` (ikke deployet): felles uttrekk `packages/shared/src/tred/ifc-egenskaper.ts`, type-egenskaper via `HasPropertySets`, enhet fra modellen |
 | W4 | Pan med høyre museknapp virker ikke | 🟢 merget `470f9d57` (ikke deployet) |
 | W5 | Måling i modellen mangler | 🔵 fravær målt; felles med M6. **Kenneth 2026-11-16: første runde = punkt–punkt med avstand + høydeforskjell, uten snapping** |
 | W6 | Med Snitt aktivert: zoomer man inn, begynner modellen å drifte ned og ut av skjermen når man nærmer seg (Kenneth 2026-11-16) | 🟢 merget `23427bdb`: rotårsak `ctrl.forward()` flyttet vannrett + camera-controls' egen hjul-dolly på samme hakk; hjulet går nå langs blikket |
@@ -59,7 +59,7 @@ Status fylles inn av orkestrator ved merge. ⚪ ikke målt · 🔵 målt · 🟢
 | M2 | Zoom med to fingre er 50–60 % for rask på prod, OK på test | 🟢 merget `5266492e` · som M1 |
 | M3 | Rotere objektet virker ikke på prod, virker på test | 🔵 som M1. **Kenneth 2026-11-17:** rotasjon virker på begge, men rundt et punkt utenfor bygget; inne i bygget forsvinner det ut av skjermen og zoom nær er for rask (ønske: rask langt unna, sakte nær). Objekter langt unna bygget er ofte feil-eksport (arkitektens informasjonsfiler). 🟢 § 3b merget `5266492e` (ikke deployet). |
 | M4 | Saks / «beskjær bygget» er svært ustabil | 🔵 dobbelttapp gir objektvalg + nye plan; kameralås under dra må måles på touch |
-| M5 | Objektinfo viser ingen detaljer, egenskaper eller mål | 🟢 (1) merget `1dfb6191` (ikke deployet); (2) bare direkte attributter, felles uttrekk med W3 |
+| M5 | Objektinfo viser ingen detaljer, egenskaper eller mål | 🟢 (1) merget `1dfb6191`; (2) mobil-viewer sender `grupper` — merget `59efcf5a`; appens kort (`apps/mobile/src/components/IfcViewer.tsx`) gjenstår, 3D-mobil |
 | M6 | Måling mangler | 🔵 fravær målt; felles med W5 |
 
 W3 og M5 deler kilde i **klienten** (web-ifc i nettleseren), ikke i `ifcMetadata.ts` (som bare lagrer fil-metadata). Felles uttrekk legges i `@sitedoc/shared` av 3D-web; 3D-mobil bruker det.

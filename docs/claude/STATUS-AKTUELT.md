@@ -31,6 +31,8 @@ sist_verifisert_mot_kode: 2026-08-09
 > ⚠️ **IKKE i prod:** DWG retur 2 (auto-rotasjon, startutsnitt, LEADER) · DWG retur 4 (fullstendighet: ATTRIB-tegning + `konvertering_rapport` + gate-test, branch `fix/dwg-retur4-strek`) · snap-retur 1 — under arbeid. DWG-3 (georeferanse fire hjørner) ikke levert — se § 2026-09-24 under.
 
 > ✅ **Gjestevern ved firmabytte, mobil (19) MERGET 2026-11-15** (merge `1a287c5d` av `38f4dffa`; Kontrollør GODKJENT GATE (44) nederst i `inbox-orkestrator.md`). `skalNullstilleProsjekt` flyttet til `@sitedoc/shared` (`gjesteprosjekt.ts`, web re-eksporterer); mobil `ProsjektKontekst.tsx` holder ventende firmabytte til gjestelista er lastet (`firmabyttProsjekt.ts` `firmabyttUtfall`) — gjesteprosjekt beholdes ved firmabytte. **Ikke deployet.** Lukker (18) åpent punkt (b).
+> ✅ **3D egenskaper ved klikk (W3/M5 (2)) MERGET 2026-11-17** (merge `59efcf5a` av `2b7d129f`, gate (93)). Regel 10 kaldt: 11/11, tsc 0, build 0, test 7/7 seriell. Ikke deployet (test = `b3dc6ec8`). Neste: 3D-mobil-ordre for appens objektinfo-kort (`IfcViewer.tsx`, felt `grupper`).
+
 > ✅ **3D snittpil MERGET 2026-11-17** (merge `1b3edab6` av `956696ef`, gate (92)). Regel 10 kaldt: 11/11, tsc 0, build 0, test 7/7 seriell. First Load 3d-visning 332 kB, mobil-viewer 114 kB. Ikke deployet (web-deploy, ikke OTA).
 
 > ✅ **Kort-id d2b-3 MERGET 2026-11-17** (merge `30ca2935` av `87c2e8ed`, gate (91)). Regel 10 kaldt: 11/11, tsc 0, build 0, test 7/7 seriell. Ikke deployet. Neste i specen: d3 (eksport/fakturagrunnlag), d, c2, e.
@@ -156,7 +158,7 @@ sist_verifisert_mot_kode: 2026-08-09
 | **Dokgen** | `SiteDoc-dokgen` | `feat/arbeidstegning-prod-klar` `954a2ac0` | ikke målt denne runden |
 | **Kontrollplan** | `SiteDoc-kontrollplan` | `feat/v17b-soner` `301da63e` | ikke målt denne runden |
 | **Mal-Opus** | `SiteDoc-mal` | `feat/mal-7b-standardnavn-vakt27` `eb5af56a` | ikke målt denne runden |
-| **3D-web** | nytt app-tre fra `fa8ad527` | `feat/3d-egenskaper` | 🟡 ORDRE 9 W3/M5 (2) egenskaper ved klikk, gitt 2026-11-17 (`inbox-3d-web.md`) — neste: W5/M6 måling |
+| **3D-web** | app-tre `3d-web-maaling-a15d10` | `feat/3d-egenskaper` merget `59efcf5a` | ⚪ LEDIG — neste: W5/M6 måling |
 | **3D-mobil** | app-tre `3d-mobil-maaling-a07340` | `feat/3d-mobil-pinch-diag` merget `000f08c1` | ⚪ LEDIG |
 | **Kort-id d2b-2/3** | app-tre `kortid-d2b2-c544cf` | `feat/kortid-d2b3` merget `30ca2935` | ⚪ LEDIG — neste i specen: d3 |
 | **Kort-id d2c-2** | app-tre `kortid-d2c2-4fb489` | `feat/kortid-d2c2-mobil` merget `338de16a` | ⚪ LEDIG |
