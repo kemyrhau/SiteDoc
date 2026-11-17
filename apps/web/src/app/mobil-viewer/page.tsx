@@ -755,6 +755,9 @@ export default function MobilViewer() {
         } else if (msg.type === "klippmodus") {
           clipper.enabled = msg.aktiv;
           clipper.visible = msg.aktiv;
+          // Trykk fra før saksen ble slått av/på skal ikke tolkes etterpå (RETUR 1, ORDRE 10)
+          trykkTolk.nullstill();
+          if (enkeltTimer) { clearTimeout(enkeltTimer); enkeltTimer = null; }
           if (!msg.aktiv) clipper.deleteAll();
         } else if (msg.type === "flyTil") {
           const { x, y, z } = msg;

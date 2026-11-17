@@ -88,6 +88,17 @@ export function lagTrykkTolk() {
       if (aktive.size === 0) { gest = null; venter = null; }
     },
 
+    /**
+     * Glem alt (fingre, påbegynt trykk, ventende enkelttrykk). Kalles når saksen slås av eller på
+     * (RETUR 1, ORDRE 10): et trykk gjort uten saks skal aldri bli objektvalg eller halvparten av
+     * et dobbelttrykk etter at saksen er slått på.
+     */
+    nullstill() {
+      aktive.clear();
+      gest = null;
+      venter = null;
+    },
+
     /** Kalles når fristen er ute. Gir enkelttrykket hvis ingen andre finger kom i tide. */
     utløp(t: number): EnkeltTrykk | null {
       if (!venter || venter.andreNede || t - venter.slipp < DOBBELT_VINDU_MS) return null;

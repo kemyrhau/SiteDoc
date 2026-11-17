@@ -131,6 +131,36 @@ function treffer(kontroller: TransformControls, x: number, y: number) {
   return axis === "Z";
 }
 
+describe("trykk-tolken glemmer trykk fra før saksen (RETUR 1, ORDRE 3D-mobil 10)", () => {
+  it("trykk uten saks gir ikke enkelttrykk etter at saksen slås på", () => {
+    const tolk = lagTrykkTolk();
+    // Trykk uten saks: tolken mates også da (pointerup), og setter et ventende trykk
+    expect(trykk(tolk, 0, { x: 100, y: 200 }).ut.type).toBe("venter");
+    tolk.nullstill(); // saksen slås på (handleMessage «klippmodus»)
+    // Nytt trykk et annet sted, utenfor dobbelttrykk-avstanden
+    const { løst, ut } = trykk(tolk, 200, { x: 300, y: 500 });
+    expect(løst).toBeNull(); // det gamle punktet blir ikke objektvalg
+    expect(ut).toEqual({ type: "venter", x: 300, y: 500, fristMs: DOBBELT_VINDU_MS });
+    expect(tolk.utløp(280 + DOBBELT_VINDU_MS)).toEqual({ type: "enkelt", x: 300, y: 500 });
+  });
+
+  it("trykk uten saks blir ikke første halvdel av et dobbelttrykk etter at saksen slås på", () => {
+    const tolk = lagTrykkTolk();
+    trykk(tolk, 0);
+    tolk.nullstill();
+    const { løst, ut } = trykk(tolk, 80 + 150, { x: 105, y: 200 });
+    expect(løst).toBeNull();
+    expect(ut.type).toBe("venter");
+  });
+
+  it("finger som var nede da saksen ble slått på, gir ikke et trykk", () => {
+    const tolk = lagTrykkTolk();
+    tolk.ned(1, 100, 200, 0);
+    tolk.nullstill();
+    expect(tolk.opp(1, 100, 200, 80, false)).toEqual({ type: "ingen", grunn: "ukjent finger" });
+  });
+});
+
 describe("snittpilens treffflate (ORDRE 3D-mobil 10)", () => {
   it("bytter begge treffkjeglene ut med sylindre med fast radius; synlig pil uendret", () => {
     const kontroller = lagPilScene();
@@ -165,6 +195,13 @@ describe("mobil-viewer bruker trykk-tolken med saksen aktiv", () => {
     expect(kilde).toMatch(/if \(clipper\.enabled\) return;/);
     expect(kilde).toMatch(/forstørrPilTreff\(plan\.controls\)/);
     expect(kilde).toMatch(/trykkTolk\.opp\(/);
+  });
+  it("saksen av/på i handleMessage nullstiller tolken og ventende enkelttrykk (RETUR 1)", () => {
+    const start = kilde.indexOf('msg.type === "klippmodus"');
+    expect(start).toBeGreaterThan(-1);
+    const gren = kilde.slice(start, kilde.indexOf("msg.type ===", start + 10));
+    expect(gren).toMatch(/trykkTolk\.nullstill\(\);/);
+    expect(gren).toMatch(/clearTimeout\(enkeltTimer\)/);
   });
   it("raycasteren for clipper.create opprettes ved oppsett, før første trykk", () => {
     const oppsett = kilde.indexOf("components.get(OBC.Raycasters).get(world)");
