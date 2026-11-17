@@ -5,28 +5,95 @@
  * packages/shared/src/tred/*.test.ts.
  */
 import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { createRequire } from "node:module";
+import { dirname, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { beregnInnramming, orbitAvstand, type Boks } from "../app/mobil-viewer/kameraInnramming";
+import { dollyFartForAvstand, zoomSteg } from "@sitedoc/shared/tred";
+import {
+  beregnInnramming, dollyFartMobil, FYLL_MARGIN, orbitAvstand, PINCH_KOMPENSASJON,
+  type Boks, type Innramming, type Punkt,
+} from "../app/mobil-viewer/kameraInnramming";
+
+/** Skjermkoordinat (−1..1) for et punkt sett fra innrammingens kamera. */
+function projiser(inn: Innramming, p: Punkt, vfovGrader: number, aspect: number) {
+  const f = { x: inn.target.x - inn.posisjon.x, y: inn.target.y - inn.posisjon.y, z: inn.target.z - inn.posisjon.z };
+  const fl = Math.hypot(f.x, f.y, f.z);
+  const fn = { x: f.x / fl, y: f.y / fl, z: f.z / fl };
+  const hl = Math.hypot(fn.x, fn.z);
+  const h = { x: -fn.z / hl, y: 0, z: fn.x / hl };
+  const o = { x: h.y * fn.z - h.z * fn.y, y: h.z * fn.x - h.x * fn.z, z: h.x * fn.y - h.y * fn.x };
+  const r = { x: p.x - inn.posisjon.x, y: p.y - inn.posisjon.y, z: p.z - inn.posisjon.z };
+  const dot = (a: Punkt, b: Punkt) => a.x * b.x + a.y * b.y + a.z * b.z;
+  const tv = Math.tan((vfovGrader * Math.PI) / 360);
+  return { x: dot(r, h) / dot(r, fn) / (tv * aspect), y: dot(r, o) / dot(r, fn) / tv };
+}
+
+function hjørnerAv(b: Boks): Punkt[] {
+  const p: Punkt[] = [];
+  for (const x of [b.min.x, b.max.x]) for (const y of [b.min.y, b.max.y]) for (const z of [b.min.z, b.max.z]) p.push({ x, y, z });
+  return p;
+}
+
+/** Største |x| og |y| på skjermen for alle hjørner. */
+function fyll(inn: Innramming, bokser: Boks[], vfov: number, aspect: number) {
+  let x = 0, y = 0;
+  for (const b of bokser) for (const p of hjørnerAv(b)) {
+    const s = projiser(inn, p, vfov, aspect);
+    x = Math.max(x, Math.abs(s.x)); y = Math.max(y, Math.abs(s.y));
+  }
+  return { x, y };
+}
 
 describe("beregnInnramming", () => {
   const b: Boks = { min: { x: 0, y: 0, z: 0 }, max: { x: 100, y: 20, z: 60 } };
 
-  it("hele kula får plass i smaleste synsvinkel (stående telefon)", () => {
+  it("ORDRE 8 (v): boksen fyller skjermen — alle hjørner innenfor, kanten nås på én akse (stående)", () => {
     const aspect = 0.46;
     const inn = beregnInnramming(b, 60, aspect);
-    const radius = Math.sqrt(100 ** 2 + 20 ** 2 + 60 ** 2) / 2;
-    const hfov = 2 * Math.atan(Math.tan(Math.PI / 6) * aspect);
-    expect(inn.avstand).toBeCloseTo(radius / Math.sin(hfov / 2), 6);
+    const s = fyll(inn, [b], 60, aspect);
+    expect(Math.max(s.x, s.y)).toBeCloseTo(1 - FYLL_MARGIN, 6);
+    expect(s.x).toBeLessThanOrEqual(1 - FYLL_MARGIN + 1e-9);
+    expect(s.y).toBeLessThanOrEqual(1 - FYLL_MARGIN + 1e-9);
     const d = Math.hypot(inn.posisjon.x - inn.target.x, inn.posisjon.y - inn.target.y, inn.posisjon.z - inn.target.z);
     expect(d).toBeCloseTo(inn.avstand, 6);
-    expect(inn.target).toEqual({ x: 50, y: 10, z: 30 });
   });
 
-  it("liggende skjerm: vertikal vinkel styrer", () => {
-    const inn = beregnInnramming(b, 60, 2);
-    const radius = Math.sqrt(100 ** 2 + 20 ** 2 + 60 ** 2) / 2;
-    expect(inn.avstand).toBeCloseTo(radius / Math.sin(Math.PI / 6), 6);
+  it("ORDRE 8 (v): nærmere enn den gamle kula (som ga ~68 % bredde på E3 ARK)", () => {
+    const aspect = 390 / 844;
+    const e3: Boks = { min: { x: -28, y: -3, z: -104.6 }, max: { x: 17.5, y: 8.2, z: 4.4 } };
+    const inn = beregnInnramming(e3, 60, aspect);
+    const radius = Math.hypot(45.5, 11.2, 109) / 2;
+    const hfov = 2 * Math.atan(Math.tan(Math.PI / 6) * aspect);
+    expect(inn.avstand).toBeLessThan(radius / Math.sin(hfov / 2));
+  });
+
+  it("ORDRE 8 (v): objektboksene styrer — L-form rammes tettere enn samlet boks", () => {
+    const aspect = 0.46;
+    const l: Boks[] = [
+      { min: { x: 0, y: 0, z: 0 }, max: { x: 100, y: 10, z: 10 } },
+      { min: { x: 90, y: 0, z: 0 }, max: { x: 100, y: 10, z: 100 } },
+    ];
+    const samlet: Boks = { min: { x: 0, y: 0, z: 0 }, max: { x: 100, y: 10, z: 100 } };
+    const medObjekter = beregnInnramming(samlet, 60, aspect, l);
+    const kunBoks = beregnInnramming(samlet, 60, aspect);
+    expect(medObjekter.avstand).toBeLessThan(kunBoks.avstand);
+    const s = fyll(medObjekter, l, 60, aspect);
+    expect(Math.max(s.x, s.y)).toBeCloseTo(1 - FYLL_MARGIN, 6);
+  });
+
+  it("liggende skjerm: høyden kan styre, fortsatt innenfor", () => {
+    const flat: Boks = { min: { x: 0, y: 0, z: 0 }, max: { x: 10, y: 40, z: 10 } };
+    const inn = beregnInnramming(flat, 60, 2);
+    const s = fyll(inn, [flat], 60, 2);
+    expect(s.y).toBeCloseTo(1 - FYLL_MARGIN, 6);
+    expect(s.x).toBeLessThan(1 - FYLL_MARGIN);
+  });
+
+  it("degenerert modell (ett punkt) faller tilbake til kula", () => {
+    const punkt: Boks = { min: { x: 5, y: 5, z: 5 }, max: { x: 5, y: 5, z: 5 } };
+    const inn = beregnInnramming(punkt, 60, 1);
+    expect(inn.avstand).toBeCloseTo(0.005 / Math.sin(Math.PI / 6), 9);
+    expect(inn.target).toEqual({ x: 5, y: 5, z: 5 });
   });
 
   it("near/far har samme forhold som z-fighting-fiksen (near = maks·0,001)", () => {
@@ -81,8 +148,26 @@ describe("mobil-viewer: vakt", () => {
     expect(kilde).not.toContain("gestPunkt");
   });
 
-  it("zoom-fart følger avstanden til orbit-punktet", () => {
-    expect(kilde).toContain("ctrl.dollySpeed = dollyFartForAvstand(ctrl.distance)");
+  it("zoom-fart følger avstanden til orbit-punktet, pinch kompensert", () => {
+    expect(kilde).toContain("ctrl.dollySpeed = dollyFartMobil(ctrl.distance, fingre.size)");
+    expect(kilde).toContain('if (e.pointerType === "touch") fingre.add(e.pointerId)');
+    expect(kilde).toContain('rendererDom.addEventListener("pointerup", slippFinger)');
+    expect(kilde).toContain('rendererDom.addEventListener("pointercancel", slippFinger)');
+  });
+
+  it("innramming får objektboksene uten utliggere", () => {
+    expect(kilde).toContain("beregnInnramming(boks, threeCamera.fov, threeCamera.aspect || 1, med)");
+    expect(kilde).toContain("!utliggerSett.has(i) && erGyldigBoks(b)");
+  });
+
+  it("diagnose: usynlig uten flagget; levende linje med flate, radius, steg, trykk og kilde", () => {
+    expect(kilde).toContain("diagPåRef.current = diagFraUrlEllerLager(window.location.search)");
+    expect(kilde).toContain("{diagPå && (");
+    expect(kilde).toContain("if (!diagPåRef.current) return;");
+    expect(kilde).toContain("klikk · objektValgt");
+    expect(kilde).toContain('kildeTekst = "lagret kopi feilet → IFC"');
+    expect(kilde).toContain('window.addEventListener("pointerdown", vedHemmeligTrykk, true)');
+    expect(kilde).toContain('window.removeEventListener("pointerdown", vedHemmeligTrykk, true)');
   });
 
   it("pinch zoomer mot skjermmidten, ikke fingrene (prøve § 3b punkt 2b)", () => {
@@ -103,7 +188,41 @@ describe("mobil-viewer: vakt", () => {
     expect(kilde).toContain("punkt: { x: hitResult.point.x, y: hitResult.point.y, z: hitResult.point.z }");
     expect(kilde).toContain("await clipper.create(world)");
     expect(kilde).toContain('msg.type === "toggleModell"');
-    expect(kilde).toContain('get("diag") === "1"');
+    expect(kilde).toContain("diagFraUrlEllerLager(window.location.search)");
     expect(kilde).toContain("rendererDom.addEventListener(\"pointerdown\"");
+  });
+});
+
+describe("ORDRE 8 (i): pinch i riktig fart", () => {
+  it("to fingre: dobbel dollySpeed; én finger/hjul: kurven uendret", () => {
+    for (const d of [200, 50, 10, 2, 0.5]) {
+      expect(dollyFartMobil(d, 0)).toBe(dollyFartForAvstand(d));
+      expect(dollyFartMobil(d, 1)).toBe(dollyFartForAvstand(d));
+      expect(dollyFartMobil(d, 2)).toBeCloseTo(dollyFartForAvstand(d) * PINCH_KOMPENSASJON, 12);
+    }
+  });
+
+  it("8 px endret fingeravstand gir zoomSteg — slik camera-controls 3.1.2 regner pinch", () => {
+    // camera-controls: delta = (halv fingeravstand) · 1/8 pr. px, flytt = radius · (1 − 0,95^(delta·fart))
+    for (const d of [100, 20, 5, 1]) {
+      const delta = (8 / 2) * (1 / 8);
+      const flytt = d * (1 - Math.pow(0.95, delta * dollyFartMobil(d, 2)));
+      expect(flytt).toBeCloseTo(Math.min(zoomSteg(d), d / 2), 9);
+    }
+  });
+
+  it("vakt: premisset i camera-controls (halv fingeravstand, 1/8 pr. px) står", () => {
+    const krev = createRequire(import.meta.url);
+    const obc = krev.resolve("@thatopen/components");
+    // package.json er ikke eksportert — gå opp fra hovedfila til pakkemappa
+    let ccMappe = dirname(createRequire(obc).resolve("camera-controls"));
+    while (!ccMappe.endsWith("camera-controls")) ccMappe = dirname(ccMappe);
+    const ccPakke = resolve(ccMappe, "package.json");
+    const versjon = (JSON.parse(readFileSync(ccPakke, "utf-8")) as { version: string }).version;
+    expect(versjon).toBe("3.1.2");
+    const cc = readFileSync(resolve(dirname(ccPakke), "dist/camera-controls.module.js"), "utf-8");
+    expect(cc).toContain("const TOUCH_DOLLY_FACTOR = 1 / 8;");
+    expect(cc).toContain("const dx = _v2.x - this._activePointers[1].clientX;");
+    expect(cc).toContain("this._dollyInternal(dollyDelta * TOUCH_DOLLY_FACTOR, dollyX, dollyY);");
   });
 });
