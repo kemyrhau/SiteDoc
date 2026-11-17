@@ -1,8 +1,8 @@
 "use client";
 
 // D2-attestantvarsel (ORDRE 2 STEG 3 ledd 2) — delt tallfestet avviksbadge.
-// Én visning brukt av både AnsattPivot (norm-kolonne) og SeddelKort (Sedler-
-// visningen), så varselet ser likt ut uansett fane. Regnestykket + retningen
+// Vist i ukeoversiktens «Avvik denne uka»-kolonne (Ukeoversikt.tsx, d2b-2/d2b-3);
+// teksten sier at avviket gjelder uka (Kenneth 2026-11-17, spec § 12.6.0). Regnestykket + retningen
 // bor i @sitedoc/shared (beregnUkeAvvik/avvikRetning) — badgen er ren visning.
 
 import { useTranslation } from "react-i18next";

@@ -54,9 +54,15 @@ vi.mock("@/components/ui/KolonneVelger", () => ({
 }));
 vi.mock("@/components/timer/SplittRadModal", () => ({ SplittRadModal: () => <div>splitt-modal</div> }));
 vi.mock("@/components/attestering/RedigerRadModal", () => ({ RedigerRadModal: () => <div>rediger-modal</div> }));
+vi.mock("@/components/SignertLenke", () => ({
+  SignertLenke: ({ url, title, children }: { url: string; title?: string; children: ReactNode }) => <a href={url} title={title}>{children}</a>,
+}));
+vi.mock("@/components/SignertBilde", () => ({
+  SignertBilde: ({ url, alt }: { url: string; alt?: string }) => <img data-url={url} alt={alt} />,
+}));
 
 import { AttesteringTabell } from "@/components/attestering/AttesteringTabell";
-import { byggAttesteringModell, type AttDeps, type AttSedel, type AttTimer } from "@/components/attestering/attestering-tabell";
+import { byggAttesteringModell, filtrerModell, AVVIK_FILTER, type AttDeps, type AttSedel, type AttTimer } from "@/components/attestering/attestering-tabell";
 
 const deps: AttDeps = {
   lonnsartNavn: () => "Ordinær",
@@ -346,5 +352,67 @@ describe("R12 — «Etter prosjekt» og «Etter ansatt» er grupperinger av samm
     expect(linje(container, "s2:timer:t3")).toBeTruthy();
     // Ukeoversikten teller fortsatt hele uken (datofilteret holdes utenfor).
     expect(getByText("dager:2")).toBeTruthy();
+  });
+});
+
+describe("d2b-3 (d) — kvitteringen på utlegget åpnes i tabellen", () => {
+  const medUtlegg = (vedlegg: { id: string; fileName: string; mimeType: string; fileUrl: string }[]) =>
+    sedel({ utlegg: [{ id: "u1", belop: 120, expenseCategory: { navn: "Parkering" }, kortId: "kA", projectId: "pA", project: P, vedlegg }] });
+
+  it("bilde som miniatyr og PDF som binders — begge lenker til den signerte fila", () => {
+    const { container } = visMed([
+      medUtlegg([
+        { id: "v1", fileName: "kvittering.jpg", mimeType: "image/jpeg", fileUrl: "/uploads/k.jpg?sig=1" },
+        { id: "v2", fileName: "faktura.pdf", mimeType: "application/pdf", fileUrl: "/uploads/f.pdf?sig=2" },
+      ]),
+    ]);
+    const lenker = Array.from(linje(container, "s1:utlegg:u1").querySelectorAll("a"));
+    expect(lenker.map((a) => a.getAttribute("href"))).toEqual(["/uploads/k.jpg?sig=1", "/uploads/f.pdf?sig=2"]);
+    expect(lenker[0]!.title).toMatch(/aapneKvittering.*kvittering\.jpg/);
+    expect(lenker[0]!.querySelector("img")?.getAttribute("data-url")).toBe("/uploads/k.jpg?sig=1");
+    expect(lenker[1]!.querySelector("img")).toBeNull();
+  });
+
+  it("negativkontroll: uten vedlegg (eller utenfor prosjektkonteksten) ingen lenke", () => {
+    const { container } = visMed([medUtlegg([])]);
+    expect(linje(container, "s1:utlegg:u1").querySelectorAll("a")).toHaveLength(0);
+    const annet = visMed(
+      [sedel({ utlegg: [{ id: "u2", belop: 80, expenseCategory: null, kortId: "kB", projectId: "pB", project: null, vedlegg: [{ id: "v3", fileName: "b.jpg", mimeType: "image/jpeg", fileUrl: "/uploads/b.jpg?sig=3" }] }] })],
+      { prosjektKontekst: "pA" },
+    );
+    expect(linje(annet.container, "s1:utlegg:u2").querySelectorAll("a")).toHaveLength(0);
+  });
+});
+
+describe("d2b-3 (c, e) — dagsnorm på detaljen og ukeavvikets tekst", () => {
+  const kilde = (rel: string) => readFileSync(resolve(__dirname, rel), "utf-8");
+
+  it("detaljen bruker serverens dagsnorm og tilleggskrav — ingen overstyring til null/false", () => {
+    const d = kilde("../components/timer/AttesteringDetalj.tsx");
+    expect(d).toMatch(/dagsnorm: sheet\.dagsnorm > 0 \? sheet\.dagsnorm : null/);
+    expect(d).not.toMatch(/dagsnorm: null/);
+    expect(d).not.toMatch(/tilleggHarKrav: false/);
+  });
+
+  it("med dagsnorm teller «over normen» i «Krever vurdering», og dagteksten står", () => {
+    const { container } = visMed([sedel({ totaltimer: 9, dagsnorm: 7.5 })]);
+    expect(container.textContent).toMatch(/dagenAvNorm/);
+    const uten = visMed([sedel({ totaltimer: 9, dagsnorm: null })]);
+    expect(uten.container.textContent).not.toMatch(/dagenAvNorm/);
+    const vurder = (dagsnorm: number | null) =>
+      filtrerModell(byggAttesteringModell([sedel({ totaltimer: 9, dagsnorm })], deps), {
+        verdier: { avvik: AVVIK_FILTER.kreverVurdering },
+        beskrivelseSok: "",
+      }).length;
+    expect(vurder(7.5)).toBe(1);
+    expect(vurder(null)).toBe(0);
+  });
+
+  it("teksten sier at avviket gjelder uka (nb)", () => {
+    const nb = JSON.parse(kilde("../../../../packages/shared/src/i18n/nb.json")) as Record<string, string>;
+    for (const k of ["timer.attestering.tabell.ukeAvvikOver", "timer.attestering.tabell.ukeAvvikUnder", "timer.attestering.pivot.avvikTooltip", "timer.attestering.pivot.norm"]) {
+      expect(nb[k]).toMatch(/Avvik denne uka/);
+    }
+    expect(nb["timer.attestering.pivot.avvikOver"]).toMatch(/ukenorm/);
   });
 });

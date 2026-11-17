@@ -794,6 +794,7 @@ Kode og tester: [prosjektkort-kortid-spec.md § 12.11](prosjektkort-kortid-spec.
 - «Ukeoversikt» (`Ukeoversikt.tsx`) står over tabellen: timer pr. dag fra tabellens linjer, norm og avviksbadge pr. ansatt, klikk på dag filtrerer tabellen, hover på tallet viser dagskortet med prosjektet i hodet.
 - Prosjektattesteringen (`/dashbord/[prosjektId]/timer/attestering`) og detaljsiden (`AttesteringDetalj.tsx`) bruker samme tabell. I prosjektet står andre prosjekters linjer nedtonet og kan ikke velges; uten tilgang heter de «Annet prosjekt» (serveren sender ikke navnet).
 - Detaljer og grenser: [prosjektkort-kortid-spec.md § 12.12](prosjektkort-kortid-spec.md).
+- 🟡 Oppfølger d2b-3 (`feat/kortid-d2b3`, ikke merget): ukeavviket heter «Avvik denne uka», detaljsiden har dagsnorm fra firmaets innstillinger, kvitteringen på et utlegg åpnes fra linja (miniatyr/binders, signert, bare for den som kan attestere raden), og navn på andre prosjekter, underprosjekter og byggeplasser sendes ikke uten tilgang — [prosjektkort-kortid-spec.md § 12.13](prosjektkort-kortid-spec.md).
 
 ### Kort-id på telefonen og fraværskortet (ordre c) — 🟡 `feat/kortid-c-mobil` (2026-11-16, ikke merget)
 

@@ -59,7 +59,13 @@ export type AttUtlegg = {
   projectId?: string | null;
   /** Ordre d2b-2: prosjektlista gir prosjektet; `null` = annet prosjekt uten tilgang. */
   project?: MedProsjektnummer["project"];
+  /**
+   * Ordre d2b-3 (d): kvitteringene, server-signert. Serveren sender dem bare på rader
+   * brukeren kan attestere; ellers `[]`.
+   */
+  vedlegg?: AttVedlegg[];
 };
+export type AttVedlegg = { id: string; fileName: string; mimeType: string; fileUrl: string };
 
 export type AttSedel = {
   id: string;
@@ -485,8 +491,9 @@ function linjeTreffer(l: AttLinje, sedel: AttSedel, f: AttFilter): boolean {
     if (k === "avvik") {
       const ok =
         (valgt.has(AVVIK_FILTER.kreverVurdering) &&
-          // Uten kjent dagsnorm (detaljsiden) vurderes ikke «over normen».
-          sedelKreverVurdering({ ...sedel, dagsnorm: sedel.dagsnorm ?? Number.POSITIVE_INFINITY })) ||
+          // Uten kjent dagsnorm vurderes ikke «over normen»: predikatet krever dagsnorm > 0,
+          // så 0 = ukjent. (d2b-2 sendte uendelig, som ga «ført ≠ norm» på alt — rettet i d2b-3.)
+          sedelKreverVurdering({ ...sedel, dagsnorm: sedel.dagsnorm ?? 0 })) ||
         (valgt.has(AVVIK_FILTER.harAvvik) && l.linje.avvik.length > 0);
       if (!ok) return false;
       continue;

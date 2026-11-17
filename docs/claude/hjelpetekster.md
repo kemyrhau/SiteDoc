@@ -343,4 +343,6 @@ Avkrysning i eksportmenyen, rett over CSV/Excel/PDF, og i mal-redigereren (`apps
 
 `apps/web/src/app/dashbord/[prosjektId]/timer/attestering/page.tsx` har `HjelpKnapp` (fanen «Attestering»). Første avsnitt: «Her attesterer du timene som er ført på dette prosjektet. Linjer den ansatte har ført på andre prosjekter samme dag, står nedtonet og kan ikke velges. Har du ikke tilgang til det andre prosjektet, står det «Annet prosjekt».» (`timer.attestering.prosjekt.hjelp.laast`); deretter struktur, handlinger og retting som på firmasiden. Dagsumraden har «Attester prosjektets del» (`timer.attestering.tabell.attesterProsjektetsDel`).
 
+Fra d2b-3 (🟡 ikke merget) har firmasiden også «Avvik denne uka»-avsnittet (`timer.attestering.tabell.hjelp.ukeavvik`: «sammenligner hele ukas timer (sendt og attestert) med ukenormen — ikke bare dagen eller linjene du ser») og kvitteringsavsnittet (`…hjelp.kvittering`: «Et utlegg med kvittering viser et miniatyrbilde eller en binders på linjen. Klikk for å åpne kvitteringen og kontrollere den før du attesterer.»); prosjektsiden har kvitteringsavsnittet. Lenken har tittelen «Åpne kvitteringen (filnavn)» (`…tabell.aapneKvittering`).
+
 Detaljsiden (`AttesteringDetalj.tsx`) har under tabellen: «Attester, returner eller gjenåpne i tabellen: pr. linje, pr. prosjektseddel eller hele dagen.» (`timer.attestering.detalj.tabellHint`).
