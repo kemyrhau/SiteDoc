@@ -21,6 +21,7 @@ import { useTreDViewer } from "@/kontekst/tred-viewer-kontekst";
 import { EgenskapsPopup } from "./komponenter/EgenskapsPopup";
 import { FilterChipBar } from "./komponenter/FilterChipBar";
 import { rammeEtikett } from "./hjelpefunksjoner";
+import { HjelpFane, HjelpKnapp } from "@/components/hjelp/HjelpModal";
 import type {
   Fane,
   OverflateData,
@@ -293,6 +294,29 @@ function Fane3DModell() {
               </button>
             )}
           </div>
+          <HjelpKnapp>
+            <HjelpFane tittel={t("3d.hjelp.hvaTittel")}>
+              <div className="space-y-4 text-sm text-gray-600">
+                <p>{t("3d.hjelp.hva")}</p>
+                <div>
+                  <h4 className="font-semibold text-gray-900">{t("3d.hjelp.musTittel")}</h4>
+                  <ul className="mt-1 list-disc space-y-1 pl-5">
+                    <li>{t("3d.hjelp.venstre")}</li>
+                    <li>{t("3d.hjelp.hoyre")}</li>
+                    <li>{t("3d.hjelp.hjul")}</li>
+                  </ul>
+                </div>
+                <div>
+                  <h4 className="font-semibold text-gray-900">{t("3d.hjelp.snittTittel")}</h4>
+                  <p className="mt-1">{t("3d.hjelp.snitt")}</p>
+                </div>
+                <div>
+                  <h4 className="font-semibold text-gray-900">{t("3d.hjelp.langtUnnaTittel")}</h4>
+                  <p className="mt-1">{t("3d.hjelp.langtUnna")}</p>
+                </div>
+              </div>
+            </HjelpFane>
+          </HjelpKnapp>
         </div>
 
         {/* Filter-chip-bar */}

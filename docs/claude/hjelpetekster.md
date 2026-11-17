@@ -155,6 +155,15 @@ Dagsseddel-siden på web har ikke ?-ikon. Hjelpen står i skjemaet der valget ta
 - **Kortet har ingen arbeidsrad:** «Før timeraden maskinen gikk på først — maskinen står på den.» (også som hint under feltet)
 - **Slett timerad med maskin:** tittel «Slette timeraden?», teksten «Raden har 2 maskiner: Volvo EC220E, Dumper. De slettes sammen med raden.» og knappen «Slett rad og maskiner». Døgn-maskiner nevnes ikke; de blir stående uten timerad.
 
+## Web: 3d-visning (`dashbord/[prosjektId]/3d-visning/page.tsx:297-319`, ORDRE 3D-web 5 / gate (85) M3, 🟡 ikke merget)
+
+Siden hadde ikke ?-ikon før. `HjelpKnapp` står sist i verktøylinja, etter Snitt-gruppa (`3d.hjelp.*`, 15 språk):
+- **Hva er dette?** Prosjektets IFC-modeller i 3D; klikk på et objekt for egenskaper.
+- **Mus:** venstre knapp roterer rundt det som er midt på skjermen (legg det du vil se på midt i bildet først); høyre knapp flytter bildet; hjulet går fram og tilbake mot midten av skjermen — raskt langt unna, sakte nær en flate ([3d-agent-prinsipper.md § 3b](3d-agent-prinsipper.md) punkt 1, 2, 2b).
+- **Snitt:** trykk Snitt og dobbeltklikk på en flate; «Fjern alle» tar bort snittene.
+- **Objekter langt unna:** skjult som standard; ofte feil i eksporten fra arkitektens tegning (informasjonsfiler lagt et stykke unna). Kryss av «Vis objekter langt unna»; tallet viser hvor mange. Bryteren vises bare når modellen har slike objekter (§ 3b punkt 3).
+- Vakt: `apps/web/src/lib/__tests__/tred-hjelpetekst.test.ts`.
+
 ## Web: Avstander-fanen (`firma/oppmotesteder/page.tsx` + `AvstanderFane.tsx`, POST 2026-11-14 (10))
 
 ?-ikonet på Oppmøtesteder viser egen hjelp når fanen «Avstander» er åpen (`firma.avstander.hjelp.*`):
