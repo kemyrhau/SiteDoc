@@ -159,7 +159,8 @@ sist_verifisert_mot_kode: 2026-08-09
 | **Kontrollplan** | `SiteDoc-kontrollplan` | `feat/v17b-soner` `301da63e` | ikke målt denne runden |
 | **Mal-Opus** | `SiteDoc-mal` | `feat/mal-7b-standardnavn-vakt27` `eb5af56a` | ikke målt denne runden |
 | **3D-web** | app-tre `3d-web-maaling-a15d10` | `feat/3d-egenskaper` merget `59efcf5a` | ⚪ LEDIG — neste: W5/M6 måling |
-| **3D-mobil** | app-tre `3d-mobil-maaling-a07340` | `feat/3d-mobil-pinch-diag` merget `000f08c1` | ⚪ LEDIG |
+| **3D-mobil** | app-tre `3d-mobil-maaling-a07340` | `feat/3d-mobil-egenskaper` | 🟡 ORDRE 9 M5 (2) objektinfo-kortet viser egenskapsgruppene, gitt 2026-11-17 (`inbox-3d-mobil.md`) |
+| **web-timer-w1** | eget app-tre | `feat/web-timer-w1` | 🟡 ORDRE w1 (vare på jobben, avviksmerker, dd.mm., årsvelger), gitt 2026-11-17 (`inbox-web-timer-w1.md`) |
 | **Kort-id d2b-2/3** | app-tre `kortid-d2b2-c544cf` | `feat/kortid-d2b3` merget `30ca2935` | ⚪ LEDIG — neste i specen: d3 |
 | **Kort-id d2c-2** | app-tre `kortid-d2c2-4fb489` | `feat/kortid-d2c2-mobil` merget `338de16a` | ⚪ LEDIG |
 | **Merge** | `SiteDoc-merge` | detached på develop | ⚪ LEDIG |
