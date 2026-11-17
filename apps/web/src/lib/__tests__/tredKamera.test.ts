@@ -68,6 +68,27 @@ describe("hjul-zoom langs blikket", () => {
 });
 
 /** § 3b punkt 2 — zoom-farten følger avstanden til flaten midt på skjermen (kurve felles med mobil). */
+describe("orbitPunkt med byggets boks (§ 3c (iv))", () => {
+  const bygg = { min: { x: -10, y: 0, z: -10 }, max: { x: 30, y: 10, z: 10 } };
+  const inne = { x: 20, y: 1.6, z: 0 };
+  const motX = { x: 1, y: 0, z: 0 };
+
+  it("treff utenfor bygget fra kamera inne: punktet legges på veggen", () => {
+    const o = orbitPunkt(inne, motX, 35, 50, bygg);
+    expect(o.avstand).toBeCloseTo(10, 9);
+    expect(o.punkt.x).toBeCloseTo(30, 9);
+  });
+
+  it("bom inne: forrige store avstand kortes til veggen", () => {
+    expect(orbitPunkt(inne, motX, null, 80, bygg).avstand).toBeCloseTo(10, 9);
+  });
+
+  it("uten boks: som før", () => {
+    expect(orbitPunkt(inne, motX, 35, 50).avstand).toBe(35);
+    expect(orbitPunkt(inne, motX, null, 50).avstand).toBe(50);
+  });
+});
+
 describe("zoom-fart etter avstand", () => {
   it("ett hjulhakk = zoomSteg(avstand) fra @sitedoc/shared", () => {
     for (const d of [0.1, 1, 5, 20, 100, 2000]) expect(hjulAvstand(-100, d)).toBeCloseTo(zoomSteg(d));
@@ -134,13 +155,25 @@ describe("kobling i tred-viewer-kontekst", () => {
   });
 
   it("orbit-punktet: først samme avstand som sist, så treffet fra skjermmidten", () => {
-    expect(kilde).toContain("orbitPunkt(cam.position, blikkretning(), null, sisteOrbitAvstand)");
-    expect(kilde).toContain("orbitPunkt(cam.position, blikkretning(), treff.distanceTo(kameraVedStart), sisteOrbitAvstand)");
+    expect(kilde).toContain("orbitPunkt(cam.position, blikkretning(), null, sisteOrbitAvstand, kameraBoks)");
+    expect(kilde).toContain("orbitPunkt(cam.position, blikkretning(), treff.distanceTo(kameraVedStart), sisteOrbitAvstand, kameraBoks)");
     expect(kilde).toContain("sisteOrbitAvstand = o.avstand;");
     // Raycasten går fra midten av lerretet mot synlige modeller
     expect(kilde).toContain("new THREE.Vector2(rect.left + rect.width / 2, rect.top + rect.height / 2)");
     const fn = kilde.slice(kilde.indexOf("finnTreffISkjermmidten = async"), kilde.indexOf("let mouseDownPos"));
     expect(fn).toContain("if (!synligeModeller.has(mid)) continue;");
+  });
+
+  it("orbit-punktet holdes innenfor bygget: kameraBoks finnes før settOrbitPunkt (§ 3c (iv))", () => {
+    expect(kilde.indexOf("const kameraBoks = new THREE.Box3();")).toBeGreaterThan(-1);
+    expect(kilde.indexOf("const kameraBoks = new THREE.Box3();")).toBeLessThan(kilde.indexOf("async function settOrbitPunkt()"));
+  });
+
+  it("flyTil har ingen mm-gren — scenen er alltid i meter (ORDRE 3D-web 5 M1)", () => {
+    expect(kilde).not.toContain("erMm");
+    const fly = kilde.slice(kilde.indexOf("flyTil: (x: number"), kilde.indexOf("flyTil: (x: number") + 600);
+    expect(fly).toContain("const øye = 1.6;");
+    expect(fly).toContain("const fremover = 5;");
   });
 
   it("zoom-fart: hjulsteget regnes fra avstanden til flaten midt på skjermen, som måles på nytt", () => {
