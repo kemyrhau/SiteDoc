@@ -4,7 +4,7 @@
  *
  * - Har meldingen `grupper` (IfcEgenskapsGruppe[] fra `trekkUtIfcEgenskaper`, web 2026-11-17),
  *   vises én seksjon pr. gruppe: objektets attributter uten tittel, deretter egenskapssett,
- *   type og mengder med tittel som på web (`EgenskapsPopup.tsx`).
+ *   type og mengder med tittel som på web (`EgenskapsPopup.tsx`): gruppenavnet uendret.
  * - Mangler `grupper` (eldre web-bygg) eller er den tom (råfila ikke hentet), vises de direkte
  *   attributtene som før M5 (2): én seksjon uten tittel, maks 8 rader.
  */
@@ -38,9 +38,10 @@ function etikett(navn: string, t: Oversett): string {
   return t(`ifc.attributt.${navn}`, { defaultValue: navn });
 }
 
+/** Tittel som `EgenskapsPopup.tsx` på web: gruppenavnet vises rått (Pset_WallCommon), aldri oversatt */
 function gruppeTittel(gruppe: IfcEgenskapsGruppe, t: Oversett): string | null {
   if (gruppe.art === "attributter") return null;
-  const navn = gruppe.navn ? etikett(gruppe.navn, t) : null;
+  const navn = gruppe.navn || null;
   const artTekst = gruppe.art === "type" ? t("3d.egenskaper.type")
     : gruppe.art === "mengder" ? t("3d.egenskaper.mengder")
     : navn ? null : t("3d.egenskaper.egenskapssett");

@@ -42,7 +42,16 @@ describe("lagObjektinfoSeksjoner — med grupper (M5 (2))", () => {
   it("én seksjon pr. ikke-tom gruppe, i meldingens rekkefølge, med titler som på web", () => {
     const s = lagObjektinfoSeksjoner({ attributter: { Name: "Vegg" }, grupper }, t);
     expect(s.map((x) => x.tittel)).toEqual([
-      null, "Veggegenskaper", "Egenskapssett", "Type: Basic Wall", "Mengder: Qto_WallBaseQuantities",
+      null, "Pset_WallCommon", "Egenskapssett", "Type: Basic Wall", "Mengder: Qto_WallBaseQuantities",
+    ]);
+  });
+
+  it("gruppetittelen oversettes aldri, selv når navnet har en ifc.attributt-nøkkel (paritet med web)", () => {
+    const oversetterAlt: Oversett = (n, v) =>
+      n.startsWith("ifc.attributt.") ? "OVERSATT" : tekster[n] ?? v?.defaultValue ?? n;
+    const s = lagObjektinfoSeksjoner({ grupper }, oversetterAlt);
+    expect(s.map((x) => x.tittel)).toEqual([
+      null, "Pset_WallCommon", "Egenskapssett", "Type: Basic Wall", "Mengder: Qto_WallBaseQuantities",
     ]);
   });
 
