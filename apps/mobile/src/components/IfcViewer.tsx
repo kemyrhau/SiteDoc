@@ -7,6 +7,8 @@ import { hentSessionToken } from "../services/auth";
 import { lastNedIfc } from "../services/ifcCache";
 import { Box, Eye, EyeOff, Scissors, X, ChevronLeft, Download } from "lucide-react-native";
 import i18n from "../lib/i18n";
+import { lagObjektinfoSeksjoner, type Oversett } from "../lib/objektinfoRader";
+import type { IfcEgenskapsGruppe } from "@sitedoc/shared/tred";
 
 interface IfcModell {
   id: string;
@@ -20,6 +22,8 @@ interface ValgtObjekt {
   modelId: string;
   kategori: string | null;
   attributter: Record<string, unknown>;
+  /** M5 (2): egenskapsgruppene fra /mobil-viewer; mangler fra eldre web-bygg */
+  grupper?: IfcEgenskapsGruppe[];
   punkt: { x: number; y: number; z: number };
 }
 
@@ -33,47 +37,6 @@ interface IfcViewerProps {
 function oversettKategori(kategori: string | null): string {
   if (!kategori) return i18n.t("ifc.kategori.objekt");
   return i18n.t(`ifc.kategori.${kategori}`, { defaultValue: kategori.replace("Ifc", "") });
-}
-
-/** Oversett og filtrer IFC-attributter til lesbare etiketter. Etiketten slås opp via i18n
-    (ukjent felt faller tilbake til rå-feltnavnet = data). */
-function filtrerAttributter(attr: Record<string, unknown>): [string, string][] {
-  const skjult = new Set([
-    "expressID", "type", "GlobalId", "Tag", "OwnerHistory",
-    "ObjectPlacement", "Representation", "CompositionType", "ShapeType",
-    "Name", // Vises allerede i header
-  ]);
-
-  const resultat: [string, string][] = [];
-
-  // Prioriterte felter først
-  const prioritert = ["ObjectType", "Description", "Material", "Reference", "IsExternal", "LoadBearing", "FireRating"];
-  for (const nøkkel of prioritert) {
-    const verdi = attr[nøkkel];
-    if (verdi != null) {
-      const s = String(verdi);
-      if (s && s !== "NOTDEFINED" && s !== "null" && s !== "undefined" && s !== "ELEMENT") {
-        const label = i18n.t(`ifc.attributt.${nøkkel}`, { defaultValue: nøkkel });
-        // Formater boolske verdier
-        const visnVerdi = s === "true" || s === ".T." ? i18n.t("ifc.verdi.ja") : s === "false" || s === ".F." ? i18n.t("ifc.verdi.nei") : s;
-        resultat.push([label, visnVerdi]);
-      }
-    }
-  }
-
-  // Øvrige felter
-  for (const [k, v] of Object.entries(attr)) {
-    if (skjult.has(k) || prioritert.includes(k)) continue;
-    const s = String(v);
-    if (!s || s === "NOTDEFINED" || s === "null" || s === "undefined" || s === "ELEMENT") continue;
-    if (/^[0-9a-f]{8}-[0-9a-f]{4}/i.test(s)) continue;
-    if (resultat.length >= 8) break;
-    const label = i18n.t(`ifc.attributt.${k}`, { defaultValue: k });
-    const visnVerdi = s === "true" || s === ".T." ? i18n.t("ifc.verdi.ja") : s === "false" || s === ".F." ? i18n.t("ifc.verdi.nei") : s;
-    resultat.push([label, visnVerdi]);
-  }
-
-  return resultat;
 }
 
 export function IfcViewer({ modeller, onTilbake }: IfcViewerProps) {
@@ -347,11 +310,18 @@ export function IfcViewer({ modeller, onTilbake }: IfcViewerProps) {
                 <X size={18} color="#6b7280" />
               </TouchableOpacity>
             </View>
-            <ScrollView style={styles.objektScroll} showsVerticalScrollIndicator={false}>
-              {filtrerAttributter(valgtObjekt.attributter).map(([label, verdi]) => (
-                <View key={label} style={styles.objektRad}>
-                  <Text style={styles.objektLabel}>{label}</Text>
-                  <Text style={styles.objektVerdi}>{verdi}</Text>
+            <ScrollView style={styles.objektScroll} showsVerticalScrollIndicator>
+              {lagObjektinfoSeksjoner(valgtObjekt, i18n.t.bind(i18n) as Oversett).map((seksjon, si) => (
+                <View key={`s${si}`}>
+                  {seksjon.tittel != null && (
+                    <Text style={styles.objektSeksjonTittel}>{seksjon.tittel}</Text>
+                  )}
+                  {seksjon.rader.map((rad, ri) => (
+                    <View key={`s${si}r${ri}`} style={styles.objektRad}>
+                      <Text style={styles.objektLabel}>{rad.etikett}</Text>
+                      <Text style={styles.objektVerdi} selectable>{rad.verdi}</Text>
+                    </View>
+                  ))}
                 </View>
               ))}
             </ScrollView>
@@ -482,13 +452,26 @@ const styles = StyleSheet.create({
   objektKategori: { fontSize: 15, fontWeight: "700", color: "#1e40af" },
   objektNavn: { fontSize: 13, color: "#374151", marginTop: 2 },
   lukkBtn: { padding: 6, marginLeft: 8 },
-  objektScroll: { maxHeight: 200 },
+  // Rullbart innenfor panelets maxHeight (50 %); før M5 (2) var det låst til 200 px
+  objektScroll: { flexShrink: 1 },
+  objektSeksjonTittel: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#1e40af",
+    textTransform: "uppercase",
+    paddingTop: 14,
+    paddingBottom: 4,
+  },
+  // Store rader (≥ 44 pt) så kortet kan leses og rulles med hansker
   objektRad: {
     flexDirection: "row",
-    paddingVertical: 8,
+    alignItems: "center",
+    minHeight: 44,
+    paddingVertical: 10,
+    gap: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#f0f0f0",
+    borderBottomColor: "#e5e7eb",
   },
-  objektLabel: { width: 110, fontSize: 13, fontWeight: "500", color: "#6b7280" },
-  objektVerdi: { flex: 1, fontSize: 13, color: "#111" },
+  objektLabel: { width: "42%", fontSize: 15, fontWeight: "500", color: "#6b7280" },
+  objektVerdi: { flex: 1, fontSize: 15, color: "#111" },
 });
