@@ -59,7 +59,7 @@ Status fylles inn av orkestrator ved merge. ⚪ ikke målt · 🔵 målt · 🟢
 | M2 | Zoom med to fingre er 50–60 % for rask på prod, OK på test | 🟢 merget `5266492e` · som M1 |
 | M3 | Rotere objektet virker ikke på prod, virker på test | 🔵 som M1. **Kenneth 2026-11-17:** rotasjon virker på begge, men rundt et punkt utenfor bygget; inne i bygget forsvinner det ut av skjermen og zoom nær er for rask (ønske: rask langt unna, sakte nær). Objekter langt unna bygget er ofte feil-eksport (arkitektens informasjonsfiler). 🟢 § 3b merget `5266492e` (ikke deployet). |
 | M4 | Saks / «beskjær bygget» er svært ustabil | 🔵 dobbelttapp gir objektvalg + nye plan; kameralås under dra må måles på touch |
-| M5 | Objektinfo viser ingen detaljer, egenskaper eller mål | 🟢 (1) merget `1dfb6191`; (2) mobil-viewer sender `grupper` — merget `59efcf5a`; appens kort (`apps/mobile/src/components/IfcViewer.tsx`) gjenstår, 3D-mobil |
+| M5 | Objektinfo viser ingen detaljer, egenskaper eller mål | 🟢 (1) merget `1dfb6191`; (2) mobil-viewer sender `grupper` — merget `59efcf5a`; appens kort (`apps/mobile/src/lib/objektinfoRader.ts`, `IfcViewer.tsx`) merget `86e395c6` (krever OTA, ikke deployet) |
 | M6 | Måling mangler | 🔵 fravær målt; felles med W5 |
 
 W3 og M5 deler kilde i **klienten** (web-ifc i nettleseren), ikke i `ifcMetadata.ts` (som bare lagrer fil-metadata). Felles uttrekk legges i `@sitedoc/shared` av 3D-web; 3D-mobil bruker det.
