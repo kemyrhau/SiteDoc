@@ -5817,5 +5817,11 @@
   "timer.normtak.fortArbeid": "{{timer}} timmars arbete",
   "timer.normtak.fortAnnet": "{{timer}} h annan frånvaro",
   "timer.normtak.fortBegge": "{{arbeid}} timmars arbete och {{annet}} timmars annan frånvaro",
-  "timer.normtak.normFylt": "Dagsnormen är fylld"
+  "timer.normtak.normFylt": "Dagsnormen är fylld",
+  "timer.attestering.tabell.hjelp.grupperinger": "\"Sheets\", \"Per project\" och \"Per anställd\" visar samma rader, bara grupperade på olika sätt. \"By projekt\" samlar raderna på projektet de är registrerade på, med projektsumman i gruppraden. \"Veckoöversikt\" visar timmarna per dag ovanför tabellen; klicka på en dag för att bara visa den dagen och håll muspekaren över en siffra för att se dagkortet.",
+  "timer.attestering.tabell.gruppeSum": "{{timer}} h",
+  "timer.attestering.tabell.attesterProsjektetsDel": "Godkänn projektets del",
+  "timer.attestering.uke.filtrerDag": "Visa endast denna dag i tabellen",
+  "timer.attestering.prosjekt.hjelp.laast": "Här godkänner du de timmar som registrerats för detta projekt. Rader som den anställde registrerade till andra projekt samma dag är nedtonade och kan inte väljas. Om du inte har tillgång till det andra projektet står det \"Annat projekt\".",
+  "timer.attestering.detalj.tabellHint": "Godkänn, returnera eller öppna igen i tabellen: per rad, per projektblad eller hela dagen."
 }

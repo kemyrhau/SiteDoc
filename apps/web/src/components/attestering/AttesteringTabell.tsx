@@ -32,14 +32,24 @@ import {
   byggUtvalg,
   filterAlternativer,
   filtrerModell,
+  grupperModell,
+  linjeIKontekst,
   slaaSammen,
   sumLinjer,
   type AttDag,
   type AttKort,
   type AttLinje,
   type AttSedel,
+  type Gruppering,
   type RadIder,
 } from "./attestering-tabell";
+
+/** Det ukeoversikten får fra tabellen (R12): tabellens dager uten datofilteret, og klikk på en dag. */
+export interface UkeoversiktApi {
+  dager: AttDag[];
+  velgDato: (iso: string) => void;
+  valgtDato: string | null;
+}
 
 /**
  * Firma-attesteringens Sedler-fane som tabell (spec prosjektkort-kortid d2b-1, § 12.8.5).
@@ -67,16 +77,22 @@ interface Props {
   readOnly: boolean;
   /** Uke, gruppering og fane — sidens del av verktøylinja. */
   verktoy: ReactNode;
-  /** Ukeoversikten (R18), åpnes fra verktøylinja. */
-  ukeoversikt: ReactNode;
-  /** Lenke til sedelen (dagens «Rediger»-meny). */
-  sedelUrl: (sheetId: string) => string;
-  onReturnerDag: (sheetId: string) => void;
-  /** Prosjektkontekst (F1). Firmaattesteringen har ingen. */
+  /** Ukeoversikten (R12, R18), åpnes fra verktøylinja. Prosjektattesteringen har ingen. */
+  ukeoversikt?: (api: UkeoversiktApi) => ReactNode;
+  /** «Etter prosjekt» / «Etter ansatt» (R12): samme rader, gruppert. Standard: dag for dag. */
+  gruppering?: Gruppering;
+  /** Lenke til sedelen (dagens «Rediger»-meny). Utelates på detaljsiden, som er sedelen. */
+  sedelUrl?: (sheetId: string) => string;
+  /** Returner hele sedelen (firmaet). I prosjektkontekst returneres bare prosjektets linjer. */
+  onReturnerDag?: (sheetId: string) => void;
+  /**
+   * Prosjektkontekst (F1, R13): bare prosjektets linjer kan velges og attesteres; linjer på
+   * andre prosjekter vises nedtonet uten handlinger (T30). Firmaattesteringen har ingen.
+   */
   prosjektKontekst?: string;
 }
 
-export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt, sedelUrl, onReturnerDag, prosjektKontekst }: Props) {
+export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt, gruppering = "dag", sedelUrl, onReturnerDag, prosjektKontekst }: Props) {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
   const oppsett = useTabelloppsett({ liste: LISTE, standardKolonner: STANDARD, kanoniskRekkefolge: TIMER_TABELL_KOL_KEYS });
@@ -107,6 +123,11 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
     for (const d of dager) m.set(d.sedel.id, d.sedel);
     return (id: string) => m.get(id);
   }, [dager]);
+  const iKontekst = (l: AttLinje) => {
+    if (!prosjektKontekst) return true;
+    const s = sedelFor(l.sheetId);
+    return !!s && linjeIKontekst(l, s, prosjektKontekst);
+  };
 
   const synlige = useMemo(
     () => filtrerModell(dager, { verdier: filterVerdier, beskrivelseSok }),
@@ -114,6 +135,11 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
   );
   const alleLinjer = useMemo(() => dager.flatMap((d) => d.kort.flatMap((k) => k.linjer)), [dager]);
   const synligeLinjer = useMemo(() => synlige.flatMap((d) => d.kort.flatMap((k) => k.linjer)), [synlige]);
+  // Ukeoversikten teller tabellens rader uten datofilteret (T45); klikk på en dag setter det (R12).
+  const ukeDager = useMemo(
+    () => filtrerModell(dager, { verdier: { ...filterVerdier, dato: "" }, beskrivelseSok }),
+    [dager, filterVerdier, beskrivelseSok],
+  );
 
   // Utvalget (R10): avkryssede linjer blant de synlige; ingen avkrysset → alle synlige.
   const utvalgGrunnlag = useMemo(() => {
@@ -136,6 +162,7 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
   const oppfrisk = () => {
     void utils.timer.dagsseddel.hentTilAttesteringFirma.invalidate();
     void utils.timer.dagsseddel.hentTilAttestering.invalidate();
+    void utils.timer.dagsseddel.hentForAttestering.invalidate();
   };
   const feil = (e: { message: string }) => setMelding(e.message);
   const attesterRader = trpc.timer.dagsseddel.attesterRader.useMutation({ onSuccess: (_d: unknown) => { setValgte(new Set()); oppfrisk(); }, onError: feil });
@@ -163,7 +190,7 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
 
   function malFor(k: TimerTabellKolKey, l: AttLinje, under: number): Mal | null {
     const s = sedelFor(l.sheetId);
-    if (readOnly || !s?.redigerTillatt || !l.ventende || !l.harHandling) return null;
+    if (readOnly || !s?.redigerTillatt || !l.ventende || !l.harHandling || !iKontekst(l)) return null;
     const kilde = l.kilde;
     if (kilde.type === "timer" && under === 0) {
       const r = kilde.rad;
@@ -308,8 +335,9 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
   }
 
   function kortHandlinger(kort: AttKort) {
-    const ventende = kort.linjer.filter((l) => l.harHandling && l.ventende);
-    const attesterte = kort.linjer.filter((l) => l.harHandling && l.attestert);
+    const egne = kort.linjer.filter(iKontekst);
+    const ventende = egne.filter((l) => l.harHandling && l.ventende);
+    const attesterte = egne.filter((l) => l.harHandling && l.attestert);
     const sperre = kort.linjer.find((l) => l.sperre)?.sperre;
     return (
       <span className="flex items-center gap-1">
@@ -321,12 +349,45 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
         )}
         {attesterte.length > 0 &&
           handlingKnapp({ ikon: <RotateCcw className="h-4 w-4" />, tekst: t("timer.attestering.tabell.gjenaapneKort"), disabled: opptatt, onClick: () => gjenaapne(slaaSammen(attesterte)) })}
+        {/* «Etter prosjekt» har ingen dagsum-rad, så lenken til sedelen står på kortet. */}
+        {gruppering === "prosjekt" && sedelLenke(kort.sheetId)}
       </span>
+    );
+  }
+
+  function sedelLenke(sheetId: string) {
+    if (!sedelUrl) return null;
+    return (
+      <Link href={sedelUrl(sheetId)} title={t("timer.attestering.meny.rediger")} aria-label={t("timer.attestering.meny.rediger")} className="inline-flex h-7 w-7 items-center justify-center rounded border border-gray-200 bg-white text-gray-600 hover:bg-gray-50">
+        <ExternalLink className="h-3.5 w-3.5" />
+      </Link>
     );
   }
 
   function dagHandlinger(dag: AttDag) {
     const s = dag.sedel;
+    if (prosjektKontekst) {
+      // Prosjektet attesterer bare sine egne linjer (R13, T30) — aldri hele sedelen.
+      const linjer = dag.kort.flatMap((k) => k.linjer);
+      const egne = byggUtvalg(linjer, sedelFor, prosjektKontekst);
+      const attesterte = slaaSammen(linjer.filter((l) => iKontekst(l) && l.harHandling && l.attestert));
+      return (
+        <span className="flex items-center gap-1">
+          {!readOnly && egne.antallLinjer > 0 && (
+            <>
+              <Button size="sm" onClick={() => attester(egne.radIder)} disabled={opptatt}>
+                <Check className="mr-1 h-3.5 w-3.5" />
+                {t("timer.attestering.tabell.attesterProsjektetsDel")}
+              </Button>
+              {handlingKnapp({ ikon: <CornerUpLeft className="h-4 w-4" />, tekst: t("timer.attestering.tabell.returnerKort"), onClick: () => setReturner(egne.radIder) })}
+            </>
+          )}
+          {antallRader(attesterte) > 0 &&
+            handlingKnapp({ ikon: <RotateCcw className="h-4 w-4" />, tekst: t("timer.attestering.tabell.gjenaapneKort"), disabled: opptatt, onClick: () => gjenaapne(attesterte) })}
+          {sedelLenke(s.id)}
+        </span>
+      );
+    }
     return (
       <span className="flex items-center gap-1">
         {!readOnly && (
@@ -335,7 +396,7 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
               <Check className="mr-1 h-3.5 w-3.5" />
               {t("timer.attestering.tabell.attesterDagen")}
             </Button>
-            {handlingKnapp({ ikon: <CornerUpLeft className="h-4 w-4" />, tekst: t("timer.attestering.returner"), onClick: () => onReturnerDag(s.id) })}
+            {handlingKnapp({ ikon: <CornerUpLeft className="h-4 w-4" />, tekst: t("timer.attestering.returner"), onClick: () => onReturnerDag?.(s.id) })}
           </>
         )}
         {readOnly && (
@@ -344,14 +405,13 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
             {t("timer.attestering.tabell.gjenaapneDagen")}
           </Button>
         )}
-        <Link href={sedelUrl(s.id)} title={t("timer.attestering.meny.rediger")} aria-label={t("timer.attestering.meny.rediger")} className="inline-flex h-7 w-7 items-center justify-center rounded border border-gray-200 bg-white text-gray-600 hover:bg-gray-50">
-          <ExternalLink className="h-3.5 w-3.5" />
-        </Link>
+        {sedelLenke(s.id)}
       </span>
     );
   }
 
   function linjeHandlinger(l: AttLinje) {
+    if (!iKontekst(l)) return null;
     const kanSplitte = !readOnly && l.ventende && l.projectId !== null && (l.kilde.type === "timer" || l.kilde.type === "maskin" || l.kilde.type === "tillegg");
     return (
       <span className="flex items-center gap-1">
@@ -372,12 +432,27 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
 
   const rader = useMemo<TimerRadTabellRad<AttLinje>[]>(() => {
     const ut: TimerRadTabellRad<AttLinje>[] = [];
-    for (const dag of synlige) {
+    const grupper = grupperModell(synlige, gruppering) ?? [{ nokkel: "", tittel: "", dager: synlige }];
+    for (const gruppe of grupper) {
+    if (gruppe.nokkel) {
+      const gSum = sumLinjer(gruppe.dager.flatMap((d) => d.kort.flatMap((k) => k.linjer)));
+      ut.push({
+        kind: "overskrift",
+        nokkel: `g:${gruppe.nokkel}`,
+        innhold: (
+          <span className="flex items-center justify-between gap-4">
+            <span>{gruppe.tittel}</span>
+            <span className="tabular-nums">{t("timer.attestering.tabell.gruppeSum", { timer: formaterNorsk(gSum.timer) })}</span>
+          </span>
+        ),
+      });
+    }
+    for (const dag of gruppe.dager) {
       const s = dag.sedel;
       for (const kort of dag.kort) {
         const sum = sumLinjer(kort.linjer);
         const avvik = [...new Set(kort.linjer.flatMap((l) => l.linje.avvik))];
-        const dagen = t("timer.attestering.tabell.dagenAvNorm", { timer: formaterNorsk(s.totaltimer), norm: formaterNorsk(s.dagsnorm) });
+        const dagen = s.dagsnorm == null ? null : t("timer.attestering.tabell.dagenAvNorm", { timer: formaterNorsk(s.totaltimer), norm: formaterNorsk(s.dagsnorm) });
         ut.push({
           kind: "sum",
           nokkel: `o:${kort.nokkel}`,
@@ -394,12 +469,14 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
               case "timer": return formaterNorsk(sum.timer);
               case "maskintimer": return sum.maskintimer > 0 ? formaterNorsk(sum.maskintimer) : "";
               default:
-                return k === avvikKol ? <span className="whitespace-normal font-normal text-gray-700">{[dagen, ...avvik].join(" · ")}</span> : "";
+                return k === avvikKol ? <span className="whitespace-normal font-normal text-gray-700">{[dagen, ...avvik].filter(Boolean).join(" · ")}</span> : "";
             }
           },
         });
         if (!bareOversikt) for (const l of kort.linjer) ut.push({ kind: "linje", nokkel: l.nokkel, data: l, underlinjer: Math.max(1, l.linje.maskiner.length, l.linje.varer.length) });
       }
+      // «Etter prosjekt» viser bare prosjektets del av dagen — en dagsum der ville villede (T28).
+      if (gruppering === "prosjekt") continue;
       // Dagseddelens sum nederst (§ 12.8.5): bare sum og handlinger.
       const alle = dag.kort.flatMap((k) => k.linjer);
       const sum = sumLinjer(alle);
@@ -419,9 +496,10 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
           k === avvikKol && merker.length > 0 ? <span className="whitespace-normal font-normal text-amber-700">{merker.join(" · ")}</span> : "",
       });
     }
+    }
     return ut;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- handlingene leser fersk tilstand ved klikk
-  }, [synlige, bareOversikt, t, readOnly, opptatt, etikettKol, avvikKol]);
+  }, [synlige, gruppering, bareOversikt, t, readOnly, opptatt, etikettKol, avvikKol, prosjektKontekst]);
 
   /* ---------------- Filter i hodet (R8) ---------------- */
 
@@ -458,7 +536,7 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
     [t],
   );
 
-  const kanVelges = (l: AttLinje) => l.harHandling && l.ventende && !readOnly && !l.sperre;
+  const kanVelges = (l: AttLinje) => l.harHandling && l.ventende && !readOnly && !l.sperre && iKontekst(l);
   const valgbare = synligeLinjer.filter(kanVelges);
   const alleValgt = valgbare.length > 0 && valgbare.every((l) => valgte.has(l.nokkel));
 
@@ -475,9 +553,9 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
           <input type="checkbox" checked={bareOversikt} onChange={(e) => setBareOversikt(e.target.checked)} className="h-3.5 w-3.5 rounded" />
           {t("timer.attestering.tabell.bareOversikt")}
         </label>
-        <button type="button" onClick={() => setVisUke((v) => !v)} aria-pressed={visUke} className={`rounded-md border px-2.5 py-1.5 text-xs font-medium ${visUke ? "border-blue-300 bg-blue-50 text-blue-700" : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"}`}>
+        {ukeoversikt && <button type="button" onClick={() => setVisUke((v) => !v)} aria-pressed={visUke} className={`rounded-md border px-2.5 py-1.5 text-xs font-medium ${visUke ? "border-blue-300 bg-blue-50 text-blue-700" : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"}`}>
           {t("timer.attestering.tabell.ukeoversikt")}
-        </button>
+        </button>}
         {brikker.map((b) => (
           <span key={b.nokkel} className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-1 text-xs text-blue-800">
             {b.tekst}
@@ -498,7 +576,15 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
       </div>
 
       {melding && <p className="text-sm text-red-600">{melding}</p>}
-      {visUke && <div>{ukeoversikt}</div>}
+      {visUke && ukeoversikt && (
+        <div>
+          {ukeoversikt({
+            dager: ukeDager,
+            valgtDato: filterVerdier.dato || null,
+            velgDato: (iso) => setFilterVerdier((f) => ({ ...f, dato: f.dato === iso ? "" : iso })),
+          })}
+        </div>
+      )}
 
       {dager.length === 0 ? (
         <div className="rounded-lg border border-gray-200 bg-white p-12 text-center text-sm text-gray-500">{t("timer.attestering.ingenSedler")}</div>
@@ -538,6 +624,7 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
               ) : null,
           }}
           hoyre={{ bredde: HOYRE, celle: linjeHandlinger }}
+          linjeKlasse={(l) => (iKontekst(l) ? undefined : "opacity-50")}
         />
       )}
 

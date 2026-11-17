@@ -5817,5 +5817,11 @@
   "timer.normtak.fortArbeid": "{{timer}} h tööd",
   "timer.normtak.fortAnnet": "{{timer}} h muud puudumist",
   "timer.normtak.fortBegge": "{{arbeid}} h tööd ja {{annet}} h muud puudumist",
-  "timer.normtak.normFylt": "Päevanorm on täidetud"
+  "timer.normtak.normFylt": "Päevanorm on täidetud",
+  "timer.attestering.tabell.hjelp.grupperinger": "\"Lehed\", \"Projekti järgi\" ja \"Töötaja järgi\" näitavad samu ridu, ainult rühmitatud erinevalt. \"Projekti järgi\" kogub read projekti kohta, kuhu nad on registreeritud, kusjuures rühmareal on projekti kogusumma. \"Nädala ülevaade\" näitab tabeli kohal tunde päevas; klõpsake päeval, et kuvada ainult see päev, ja hõljutage kursorit numbri kohal, et näha päevakaarti.",
+  "timer.attestering.tabell.gruppeSum": "{{timer}} h",
+  "timer.attestering.tabell.attesterProsjektetsDel": "Kinnitada projekti osa",
+  "timer.attestering.uke.filtrerDag": "Kuva tabelis ainult see päev",
+  "timer.attestering.prosjekt.hjelp.laast": "Siin kinnitate selle projekti jaoks registreeritud tunnid. Read, mille töötaja registreeris samal päeval teistesse projektidesse, on tuhmid ja neid ei saa valida. Kui teil pole juurdepääsu teisele projektile, on kirjas \"Muu projekt\".",
+  "timer.attestering.detalj.tabellHint": "Kinnitage, tagastage või avage uuesti tabelis: rea, projektilehe või terve päeva kohta."
 }

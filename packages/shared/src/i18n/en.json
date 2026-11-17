@@ -5817,5 +5817,11 @@
   "timer.normtak.fortArbeid": "{{timer}} h of work",
   "timer.normtak.fortAnnet": "{{timer}} h of other absence",
   "timer.normtak.fortBegge": "{{arbeid}} h of work and {{annet}} h of other absence",
-  "timer.normtak.normFylt": "The daily norm is filled"
+  "timer.normtak.normFylt": "The daily norm is filled",
+  "timer.attestering.tabell.hjelp.grupperinger": "“Sheets”, “By project” and “By employee” show the same lines, only grouped differently. “By project” collects the lines on the project they are registered to, with the project total in the group row. “Week overview” shows the hours per day above the table; click a day to show only that day, and hover over a number to see the day card.",
+  "timer.attestering.tabell.gruppeSum": "{{timer}} h",
+  "timer.attestering.tabell.attesterProsjektetsDel": "Approve the project's part",
+  "timer.attestering.uke.filtrerDag": "Show only this day in the table",
+  "timer.attestering.prosjekt.hjelp.laast": "Here you approve the hours registered to this project. Lines the employee registered to other projects the same day are dimmed and cannot be selected. If you do not have access to the other project, it says “Other project”.",
+  "timer.attestering.detalj.tabellHint": "Approve, return or reopen in the table: per line, per project sheet or the whole day."
 }

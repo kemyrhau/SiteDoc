@@ -1,63 +1,45 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
+// Prosjektattesteringen (spec prosjektkort-kortid § 12.2 R13, ordre d2b-2): samme tabell
+// som firmaet, låst til prosjektet. Linjer på andre prosjekter står nedtonet og kan ikke
+// velges (T30); uten tilgang til det andre prosjektet heter de «Annet prosjekt» —
+// serveren sender aldri navn eller nummer (hentTilAttestering, api.md).
+
+import { useMemo } from "react";
 import { useParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
-import { Button, Modal, Spinner } from "@sitedoc/ui";
-import { Check, RotateCcw, ChevronRight, AlertCircle } from "lucide-react";
+import { Spinner } from "@sitedoc/ui";
+import { AlertCircle } from "lucide-react";
 import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
-import type { NormtakBruddData } from "@sitedoc/shared";
-import { normtakBruddLinje } from "@/lib/normtakBrudd";
+import { HjelpKnapp, HjelpFane } from "@/components/hjelp/HjelpModal";
+import { AttesteringTabell } from "@/components/attestering/AttesteringTabell";
+import { useAttesteringModell } from "@/components/attestering/useAttesteringModell";
+import type { AttSedel } from "@/components/attestering/attestering-tabell";
 
-type AttesteringRad = {
-  id: string;
-  dato: Date | string;
-  status: string;
-  totaltimer: number;
-  antallRader: number;
-  // B10 (§ 11.10.4, F9 = A): fravær med tak over dagsnormen; null = intet brudd.
-  fravaerNormtakBrudd?: NormtakBruddData | null;
-  aktivitet: { id: string; navn: string; kode: string | null } | null;
-  ansatt: {
-    id: string;
-    name: string | null;
-    email: string;
-    ansattnummer: string | null;
-  } | null;
-};
-
-function formatDato(d: Date | string): string {
-  return new Date(d).toLocaleDateString("no-NB", {
-    day: "2-digit",
-    month: "short",
-    weekday: "short",
-  });
-}
+type ProsjektSedel = AttSedel & { organizationId?: string };
 
 export default function AttesteringSide() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const params = useParams<{ prosjektId: string }>();
-  const utils = trpc.useUtils();
-
-  const [returnerId, setReturnerId] = useState<string | null>(null);
-  const [feil, setFeil] = useState<string | null>(null);
 
   const { data: kanAttestere, isLoading: tilgangLaster } =
     trpc.timer.dagsseddel.kanAttestere.useQuery({ projectId: params.prosjektId });
 
-  const { data: rader, isLoading } = trpc.timer.dagsseddel.hentTilAttestering.useQuery(
+  const { data: raderRaw, isLoading } = trpc.timer.dagsseddel.hentTilAttestering.useQuery(
     { projectId: params.prosjektId },
     { enabled: kanAttestere === true },
   );
 
-  const attester = trpc.timer.dagsseddel.attester.useMutation({
-    onSuccess: (_data: unknown) => {
-      void utils.timer.dagsseddel.hentTilAttestering.invalidate();
-    },
-    onError: (e: { message: string }) => setFeil(e.message),
-  });
+  // Katalogene (lønnsart, aktivitet, maskin) er firmaets: én tabell pr. firma.
+  const prFirma = useMemo(() => {
+    const m = new Map<string, ProsjektSedel[]>();
+    for (const s of (raderRaw ?? []) as unknown as ProsjektSedel[]) {
+      const org = s.organizationId ?? "";
+      m.set(org, [...(m.get(org) ?? []), s]);
+    }
+    return [...m.entries()];
+  }, [raderRaw]);
 
   if (tilgangLaster) {
     return (
@@ -79,197 +61,58 @@ export default function AttesteringSide() {
   }
 
   return (
-    <div className="max-w-5xl p-6">
+    <div className="p-6">
       <SonetonetSidehode sone="prosjekt" className="mb-6">
-        <div>
-          <h1 className="text-2xl font-semibold text-gray-900">
-            {t("timer.attestering.tittel")}
-          </h1>
-          <p className="mt-1 text-sm text-gray-600">
-            {t("timer.attestering.beskrivelse")}
-          </p>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-semibold text-gray-900">{t("timer.attestering.tittel")}</h1>
+            <p className="mt-1 text-sm text-gray-600">{t("timer.attestering.beskrivelse")}</p>
+          </div>
+          <HjelpKnapp>
+            <HjelpFane tittel={t("timer.attestering.tabell.hjelp.tittel")}>
+              <p>{t("timer.attestering.prosjekt.hjelp.laast")}</p>
+              <p className="mt-2">{t("timer.attestering.tabell.hjelp.struktur")}</p>
+              <p className="mt-2">{t("timer.attestering.tabell.hjelp.handlinger")}</p>
+              <p className="mt-2">{t("timer.attestering.tabell.hjelp.retting")}</p>
+            </HjelpFane>
+          </HjelpKnapp>
         </div>
       </SonetonetSidehode>
-
-      {feil && <p className="mb-4 text-sm text-red-600">{feil}</p>}
 
       {isLoading ? (
         <div className="flex items-center justify-center py-12">
           <Spinner />
         </div>
-      ) : !rader || rader.length === 0 ? (
+      ) : prFirma.length === 0 ? (
         <div className="rounded-lg border border-gray-200 bg-white p-12 text-center">
-          <p className="text-sm text-gray-500">
-            {t("timer.attestering.ingenSedler")}
-          </p>
+          <p className="text-sm text-gray-500">{t("timer.attestering.ingenSedler")}</p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
-          <table className="w-full text-sm">
-            <thead className="border-b border-gray-200 bg-gray-50">
-              <tr className="text-left text-xs font-medium uppercase tracking-wide text-gray-500">
-                <th className="px-3 py-3">{t("timer.attestering.kol.dato")}</th>
-                <th className="px-3 py-3">{t("timer.attestering.kol.ansatt")}</th>
-                <th className="px-3 py-3">{t("timer.kol.aktivitet")}</th>
-                <th className="px-3 py-3 text-right">{t("timer.kol.timer")}</th>
-                <th className="px-3 py-3 text-right">{t("timer.kol.rader")}</th>
-                <th className="px-3 py-3 text-right">{t("handling.handlinger")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(rader as unknown as AttesteringRad[]).map((rad) => {
-                const normtakLinje = normtakBruddLinje(t, rad.fravaerNormtakBrudd, i18n.language);
-                return (
-                <tr
-                  key={rad.id}
-                  className="border-b border-gray-100 last:border-b-0 hover:bg-gray-50"
-                >
-                  <td className="px-3 py-2 font-medium text-gray-900">
-                    {formatDato(rad.dato)}
-                    {normtakLinje && (
-                      <div className="mt-0.5 flex items-start gap-1 text-xs font-normal text-amber-800">
-                        <AlertCircle className="mt-0.5 h-3 w-3 shrink-0" />
-                        <span>{normtakLinje}</span>
-                      </div>
-                    )}
-                  </td>
-                  <td className="px-3 py-2">
-                    <div className="text-gray-900">
-                      {rad.ansatt?.name ?? rad.ansatt?.email ?? "—"}
-                    </div>
-                    {rad.ansatt?.ansattnummer && (
-                      <div className="text-xs text-gray-500">
-                        #{rad.ansatt.ansattnummer}
-                      </div>
-                    )}
-                  </td>
-                  <td className="px-3 py-2 text-gray-600">
-                    {rad.aktivitet?.navn ?? "—"}
-                  </td>
-                  <td className="px-3 py-2 text-right font-mono text-gray-900">
-                    {rad.totaltimer.toFixed(2)}
-                  </td>
-                  <td className="px-3 py-2 text-right text-gray-600">
-                    {rad.antallRader}
-                  </td>
-                  <td className="px-3 py-2">
-                    <div className="flex items-center justify-end gap-1">
-                      <Link
-                        href={`/dashbord/${params.prosjektId}/timer/attestering/${rad.id}`}
-                        className="rounded p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
-                        title={t("timer.aapne")}
-                      >
-                        <ChevronRight className="h-4 w-4" />
-                      </Link>
-                      <button
-                        onClick={() => setReturnerId(rad.id)}
-                        disabled={attester.isPending}
-                        className="rounded p-1.5 text-amber-600 hover:bg-amber-50 disabled:opacity-40"
-                        title={t("timer.attestering.returner")}
-                      >
-                        <RotateCcw className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => {
-                          setFeil(null);
-                          attester.mutate({ id: rad.id });
-                        }}
-                        disabled={attester.isPending || normtakLinje !== null}
-                        className="rounded p-1.5 text-green-600 hover:bg-green-50 disabled:opacity-40"
-                        title={
-                          normtakLinje
-                            ? t("timer.normtak.attesterSperret")
-                            : t("timer.attestering.attester")
-                        }
-                      >
-                        <Check className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-                );
-              })}
-            </tbody>
-          </table>
+        <div className="flex flex-col gap-6">
+          {prFirma.map(([orgId, sedler]) => (
+            <FirmaTabell
+              key={orgId}
+              orgId={orgId}
+              sedler={sedler}
+              prosjektId={params.prosjektId}
+            />
+          ))}
         </div>
-      )}
-
-      {returnerId && (
-        <ReturnerDialog
-          sheetId={returnerId}
-          onLukk={() => setReturnerId(null)}
-        />
       )}
     </div>
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  ReturnerDialog                                                      */
-/* ------------------------------------------------------------------ */
-
-function ReturnerDialog({
-  sheetId,
-  onLukk,
-}: {
-  sheetId: string;
-  onLukk: () => void;
-}) {
-  const { t } = useTranslation();
-  const utils = trpc.useUtils();
-  const [kommentar, setKommentar] = useState("");
-  const [feil, setFeil] = useState<string | null>(null);
-
-  const returner = trpc.timer.dagsseddel.returner.useMutation({
-    onSuccess: (_data: unknown) => {
-      void utils.timer.dagsseddel.hentTilAttestering.invalidate();
-      onLukk();
-    },
-    onError: (e: { message: string }) => setFeil(e.message),
-  });
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setFeil(null);
-    if (!kommentar.trim()) {
-      setFeil(t("timer.attestering.kommentarPaakrevd"));
-      return;
-    }
-    returner.mutate({ id: sheetId, kommentar: kommentar.trim() });
-  }
-
+function FirmaTabell({ orgId, sedler, prosjektId }: { orgId: string; sedler: ProsjektSedel[]; prosjektId: string }) {
+  const dager = useAttesteringModell(orgId || undefined, sedler);
   return (
-    <Modal open={true} onClose={onLukk} title={t("timer.attestering.returnerTittel")}>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <p className="text-sm text-gray-600">
-          {t("timer.attestering.returnerBeskrivelse")}
-        </p>
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
-            {t("timer.attestering.kommentar")}
-          </label>
-          <textarea
-            value={kommentar}
-            onChange={(e) => setKommentar(e.target.value)}
-            rows={4}
-            placeholder={t("timer.attestering.kommentarPlaceholder")}
-            className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
-            autoFocus
-            required
-          />
-        </div>
-        {feil && <p className="text-sm text-red-600">{feil}</p>}
-        <div className="flex justify-end gap-3 pt-2">
-          <Button type="button" variant="secondary" onClick={onLukk}>
-            {t("handling.avbryt")}
-          </Button>
-          <Button type="submit" disabled={returner.isPending || !kommentar.trim()}>
-            {returner.isPending
-              ? t("handling.lagrer")
-              : t("timer.attestering.returner")}
-          </Button>
-        </div>
-      </form>
-    </Modal>
+    <AttesteringTabell
+      dager={dager}
+      orgId={orgId}
+      readOnly={false}
+      verktoy={null}
+      prosjektKontekst={prosjektId}
+      sedelUrl={(id) => `/dashbord/${prosjektId}/timer/attestering/${id}`}
+    />
   );
 }

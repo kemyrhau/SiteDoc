@@ -7,6 +7,8 @@ import {
   filterAlternativer,
   byggUtvalg,
   sumLinjer,
+  grupperModell,
+  byggUkeoversikt,
   AVVIK_FILTER,
   type AttDeps,
   type AttSedel,
@@ -34,6 +36,7 @@ const deps: AttDeps = {
     tilleggskrav: "Tilleggskrav",
     tilByggherre: "Til byggherre",
     fravaerUtenProsjekt: "Fravær",
+    annetProsjekt: "Annet prosjekt",
     reise: "Reise",
     statusVenter: "Venter",
     statusAttestert: "Attestert",
@@ -213,5 +216,99 @@ describe("T35 — vakt: ingen egen bøtting på underprosjekt eller radtype", ()
     const kilde = readFileSync(resolve(__dirname, "../components/attestering/attestering-tabell.ts"), "utf8");
     expect(kilde).toMatch(/grupperPaaKort</);
     expect(kilde).not.toMatch(/externalCostObjectId \?\? "|new Map<string, AttLinje/);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/*  Ordre d2b-2 (R12, R13, T28, T35, T45)                              */
+/* ------------------------------------------------------------------ */
+
+const enkel = (over: Partial<AttSedel> = {}) => sedel({ maskiner: [], varer: [], ukeAvvikRadIder: [], ...over });
+
+describe("T28 — «Etter prosjekt» grupperer på radens prosjekt", () => {
+  const m = byggAttesteringModell([enkel()], deps);
+
+  it("én gruppe pr. prosjekt, bare prosjektets rader, og gruppesummen er summen av radene", () => {
+    const g = grupperModell(m, "prosjekt")!;
+    expect(g.map((x) => x.tittel)).toEqual(["1001 Prosjekt A", "SD-pB Prosjekt B"]);
+    const linjerA = g[0]!.dager.flatMap((d) => d.kort.flatMap((k) => k.linjer));
+    expect(linjerA.map((l) => l.projectId)).toEqual(["pA"]);
+    expect(sumLinjer(linjerA).timer).toBe(7.5);
+  });
+
+  it("et kort med rader på to prosjekter deles, så hver gruppe har bare sitt prosjekts rader", () => {
+    const delt = byggAttesteringModell([enkel({ timer: [timer("t1", "k1", A), timer("t2", "k1", B)] })], deps);
+    const g = grupperModell(delt, "prosjekt")!;
+    expect(g.map((x) => x.dager[0]!.kort.flatMap((k) => k.linjer.map((l) => l.projectId)))).toEqual([["pA"], ["pB"]]);
+  });
+
+  it("«Etter ansatt» samler den ansattes dager; «dag» gir ingen gruppering", () => {
+    const to = byggAttesteringModell([enkel(), enkel({ id: "s2", dato: "2026-11-17" })], deps);
+    const g = grupperModell(to, "ansatt")!;
+    expect(g).toHaveLength(1);
+    expect(g[0]!.tittel).toBe("Kari Nordmann (12)");
+    expect(g[0]!.dager.map((d) => d.sedel.id)).toEqual(["s1", "s2"]);
+    expect(grupperModell(to, "dag")).toBeNull();
+  });
+});
+
+describe("T45 — ukeoversikten er summen av tabellens timerlinjer pr. dag", () => {
+  const m = byggAttesteringModell([enkel(), enkel({ id: "s2", dato: "2026-11-17", timer: [timer("t9", "kA", A, { timer: "4" })] })], deps);
+
+  it("ansattaksen: dagens tall = summen av dagens timerlinjer; prosjektene under", () => {
+    const [kari] = byggUkeoversikt(m, "ansatt");
+    for (const d of m) {
+      const tabell = d.kort.flatMap((k) => k.linjer).filter((l) => l.linje.type === "timer").reduce((s, l) => s + (l.linje.timer ?? 0), 0);
+      expect(kari!.perDag[d.dato]).toBe(tabell);
+    }
+    expect(kari!.sum).toBe(19);
+    expect(kari!.under.map((u) => [u.navn, u.sum])).toEqual([["1001 Prosjekt A", 11.5], ["SD-pB Prosjekt B", 7.5]]);
+  });
+
+  it("prosjektaksen: timene føres på radens prosjekt (HM12), med de ansatte under", () => {
+    const rader = byggUkeoversikt(m, "prosjekt");
+    expect(rader.map((r) => [r.nokkel, r.perDag])).toEqual([
+      ["pA", { "2026-11-16": 7.5, "2026-11-17": 4 }],
+      ["pB", { "2026-11-16": 7.5 }],
+    ]);
+    expect(rader[0]!.under.map((u) => u.ansattId)).toEqual(["u1"]);
+  });
+});
+
+describe("R13 — rad på prosjekt uten tilgang heter «Annet prosjekt»", () => {
+  it("serveren sendte project: null → «Annet prosjekt», uten nummer", () => {
+    const [d] = byggAttesteringModell([enkel({ timer: [timer("t1", "kX", A, { projectId: "pX", project: null })] })], deps);
+    expect(d!.kort[0]!.prosjekt).toBe("Annet prosjekt");
+    expect(d!.kort[0]!.linjer[0]!.linje.prosjektnummer).toBeNull();
+  });
+
+  it("utlegg følger samme grense; firmalistens utlegg uten prosjekt får ikke fraværsteksten", () => {
+    const [d] = byggAttesteringModell(
+      [enkel({ timer: [], utlegg: [
+        { id: "u1", belop: 80, expenseCategory: { navn: "Bom" }, kortId: null, projectId: "pX", project: null },
+        { id: "u2", belop: 50, expenseCategory: { navn: "Parkering" }, kortId: null },
+      ] })],
+      deps,
+    );
+    const tekst = d!.kort.flatMap((k) => k.linjer).map((l) => [l.linje.id, l.linje.prosjekt]);
+    expect(tekst).toContainEqual(["u1", "Annet prosjekt"]);
+    expect(tekst.find(([id]) => id === "u2")![1]).not.toBe("Fravær");
+  });
+});
+
+describe("T35 — vakt: dagskortet, detaljsiden og ukeoversikten leser modellen, ingen egen bøtting", () => {
+  const les = (sti: string) => readFileSync(resolve(__dirname, sti), "utf8");
+  it("ukeoversikten og hover-dagskortet bygger på byggUkeoversikt/AttDag", () => {
+    const kilde = les("../components/attestering/Ukeoversikt.tsx");
+    expect(kilde).toMatch(/byggUkeoversikt\(/);
+    expect(kilde).not.toMatch(/bucketMap|new Map<string, AttLinje|grupperPerProsjekt|maskinPerTimer/);
+  });
+  it("detaljsiden tegner radene med AttesteringTabell, ikke prosjekt/ECO-bøttene", () => {
+    const kilde = les("../components/timer/AttesteringDetalj.tsx");
+    expect(kilde).toMatch(/<AttesteringTabell/);
+    expect(kilde).not.toMatch(/ProsjektSectionAttest|bucketMap|EcoBucketAttestProps/);
+  });
+  it("firmasiden har ingen pivot", () => {
+    expect(les("../app/dashbord/firma/timer/attestering/page.tsx")).not.toMatch(/AttesteringPivot|tilPivotRad/);
   });
 });

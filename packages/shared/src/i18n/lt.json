@@ -5817,5 +5817,11 @@
   "timer.normtak.fortArbeid": "{{timer}} darbo val",
   "timer.normtak.fortAnnet": "{{timer}} val. kito nebuvimo",
   "timer.normtak.fortBegge": "{{arbeid}} val. darbo ir {{annet}} val. kito nebuvimo",
-  "timer.normtak.normFylt": "Dienos norma užpildyta"
+  "timer.normtak.normFylt": "Dienos norma užpildyta",
+  "timer.attestering.tabell.hjelp.grupperinger": "„Lakštai“, „Pagal projektą“ ir „Pagal darbuotoją“ rodo tas pačias eilutes, tik sugrupuotas skirtingai. „Pagal projektą“ renka projekto, kuriame jie yra užregistruoti, eilutes, o projekto bendra suma yra grupės eilutėje. „Savaitės apžvalgoje“ virš lentelės rodomos valandos per dieną; spustelėkite dieną, kad būtų rodoma tik ta diena, ir užveskite pelės žymeklį virš skaičiaus, kad pamatytumėte dienos kortelę.",
+  "timer.attestering.tabell.gruppeSum": "{{timer}} val",
+  "timer.attestering.tabell.attesterProsjektetsDel": "Patvirtinti projekto dalį",
+  "timer.attestering.uke.filtrerDag": "Lentelėje rodyti tik šią dieną",
+  "timer.attestering.prosjekt.hjelp.laast": "Čia patvirtinate šiame projekte užregistruotas valandas. Eilutės, kurias darbuotojas tą pačią dieną registravo kituose projektuose, yra pritemdytos ir negali būti pasirinktos. Jei neturite prieigos prie kito projekto, rašoma „Kitas projektas“.",
+  "timer.attestering.detalj.tabellHint": "Patvirtinkite, grąžinkite arba atidarykite iš naujo lentelėje: eilutėje, projekto lape arba visą dieną."
 }

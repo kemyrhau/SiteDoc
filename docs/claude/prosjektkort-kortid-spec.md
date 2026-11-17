@@ -2212,3 +2212,26 @@ Grenser:
 - **`SeddelKort.tsx`** står, men siden bruker den ikke lenger.
 - **Hover-dagskortet over ansattnavnet** (gammel `SeddelKort.tsx`) er fjernet i Sedler-fanen: tabellen viser linjene og dagsummen direkte. Godtatt av Kenneth 2026-11-16 (gate (77) B1). Pivotvisningene har det fortsatt.
 
+
+### 12.12 Bygget — ordre d2b-2 (Kort-id d2b-2, 🟡 `feat/kortid-d2b2-attestering`, ikke merget)
+
+Branch `feat/kortid-d2b2-attestering` (2026-11-17). Ingen migrering. API: bare lesing i `hentTilAttestering` (vilkårene fra orkestrator 2026-11-17, [api.md](api.md)).
+
+| Del | Kode |
+|---|---|
+| R13 API: prosjektlista gir det tabellen trenger | `apps/api/src/routes/timer/dagsseddel.ts` `hentTilAttestering` + `prosjekterMedTilgang`: `project` pr. rad (null uten tilgang), `utlegg`, `dagsnorm`, `tilleggHarKrav`, `redigerTillatt`, `manglerMaskinforerbevis`, `prosjekt`. Test `apps/api/src/routes/timer/prosjektliste-isolasjon.test.ts` |
+| R12: grupperinger | `attestering-tabell.ts` `grupperModell` (dag · prosjekt · ansatt; prosjekt = radens prosjekt, kort deles om radene står på flere); `AttesteringTabell.tsx` prop `gruppering` gir grupperad med sum, og «Etter prosjekt» har ingen dagsumrad |
+| R12, R18: ukeoversikten | `attestering-tabell.ts` `byggUkeoversikt`; `Ukeoversikt.tsx` (7 dager, sum, norm + `Avviksbadge` på ansattraden, underrader på motsatt akse). Klikk på dag setter datofilteret (`UkeoversiktApi.velgDato`); oversikten teller tabellens dager uten datofilteret |
+| § 12.5: hover-kortet | `Ukeoversikt.tsx` `DagKort` — på tallcellene, prosjektet i hodet, linjene fra modellen (T35). Gjeninnført bare i ukeoversikten; Sedler-tabellen har det ikke (B1) |
+| § 12.5: nedtrekk → kolonnefilter | `apps/web/src/app/dashbord/firma/timer/attestering/page.tsx`: nedtrekkene og pivotene er borte; alle tre visningene er `AttesteringTabell`. Modelloppslagene er felles i `useAttesteringModell.ts` |
+| R13: prosjektattesteringen | `apps/web/src/app/dashbord/[prosjektId]/timer/attestering/page.tsx`: én tabell pr. firma med `prosjektKontekst`. Andre prosjekters linjer: `opacity-50`, ingen avkrysning, ingen knapper, ingen retting i cella. Dagsumraden har «Attester prosjektets del» (`attesterRader`) og retur av prosjektets linjer (`returnerRader`) — aldri hele sedelen |
+| R14: detaljsiden | `apps/web/src/components/timer/AttesteringDetalj.tsx`: radene er `AttesteringTabell` for én sedel (`DetaljTabell`). Bannerne, forslaget (V19), «Rediger sedel» og «Gjenåpne» står. Flytt underprosjekt = pennen (`RedigerRadModal`) |
+| Tester | T28, T45, R13-tekst, T35-vakt: `attestering-tabell-modell.test.ts`; T30/R13, R12 grupperinger, ukeoversiktens dagklikk, T49 (ingen nedtrekk/pivot): `attestering-tabell.test.tsx`. Negativkontroll: prosjektlåsen av (`iKontekst` → alltid sann) gir rødt i T30 |
+
+Grenser og endret atferd (meldt i leveransen):
+- **Prosjektlederens retur** er nå retur av prosjektets linjer, ikke hele sedelen (R13/T30). Før d2b-2 returnerte prosjektsiden hele sedelen med `returner`.
+- **Detaljsiden** sender ikke lenger tilbake til lista etter attestering; tabellen oppdateres på stedet. Avkrysning + «Attester valgte»/«Returner valgte» er erstattet av tabellens utvalg, ✓/↩ pr. linje og kort, og ↩ på dagsumraden (alle ventende rader i konteksten).
+- **Detaljsiden** har ingen dagsnorm fra `hentForAttestering`; kortraden viser derfor ikke «Dagen: X t av dagsnorm Y t» der, og «Krever vurdering» vurderer ikke «over normen».
+- **Vedlegg på utlegg** finnes ikke i web-attesteringen i dag; R14 kunne derfor ikke «beholde» det.
+- **Ukeavviket** regnes på hele ukens sedler (sendt + attestert). Før fulgte det nedtrekksfiltrene.
+- **`AttesteringPivot.tsx` og `SeddelKort.tsx`** har ingen importører lenger; sletting avventer orkestrator.

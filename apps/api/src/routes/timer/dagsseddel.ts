@@ -301,6 +301,26 @@ async function attesteringsFirmaer(userId: string, projectId: string): Promise<s
 }
 
 /**
+ * Ordre d2b-2 (R13): prosjektene i `ider` som brukeren har tilgang til (samme regel som
+ * `verifiserProsjektmedlem`). Prosjektattesteringen viser rader på andre prosjekter nedtonet;
+ * navn og nummer gis bare for prosjekter brukeren selv har tilgang til (prosjektisolering).
+ */
+async function prosjekterMedTilgang(userId: string, ider: Iterable<string>): Promise<Set<string>> {
+  const unike = Array.from(new Set(ider));
+  const svar = await Promise.all(
+    unike.map(async (id) => {
+      try {
+        await verifiserProsjektmedlem(userId, id);
+        return id;
+      } catch {
+        return null;
+      }
+    }),
+  );
+  return new Set(svar.filter((id): id is string => id !== null));
+}
+
+/**
  * F1 (prosjektkort-kortid-spec.md § 11.4, Kenneth 2026-11-16): rett til å attestere fravær UTEN
  * prosjekt på en sedel. Standard: bare lønnsansvarlig (firma-admin i sedelens firma) og
  * sitedoc_admin. Med firmavalget `fravaerAttesteresAvProsjektleder` (lest fra SEDELENS firma, aldri
@@ -5774,12 +5794,72 @@ export const dagsseddelRouter = router({
           tillegg: { where: { attestertStatus: { not: "erstattet" } }, orderBy: { createdAt: "asc" } },
           // Ordre d2a: maskinene med i prosjektlista.
           maskiner: { where: { attestertStatus: { not: "erstattet" } }, orderBy: RAD_REKKEFOLGE },
+          // Ordre d2b-2 (R13): utleggene i tabellen. Samme felt som firmalista + kort og
+          // prosjekt; ingen vedlegg (svak FK, ses i detaljen).
+          utlegg: {
+            select: {
+              id: true,
+              projectId: true,
+              belop: true,
+              kortId: true,
+              byggeplassId: true,
+              externalCostObjectId: true,
+              expenseCategory: { select: { navn: true } },
+            },
+            orderBy: { createdAt: "asc" },
+          },
         },
         orderBy: [{ dato: "asc" }, { createdAt: "asc" }],
       });
       const kort = await lastKortBerikelse(ctx, sedler);
       // B10: effektiv dagsnorm pr. (firma, dato) for bruddlinja.
       const normFor = await dagsnormerFor(sedler);
+
+      // Ordre d2b-2 (R13): prosjekt pr. rad. Rader på andre prosjekter får navn og nummer
+      // bare når brukeren har tilgang til det prosjektet; ellers `project: null` (klienten
+      // viser «Annet prosjekt», nedtonet — raden bærer fortsatt `projectId`).
+      const radProsjektIder = new Set<string>();
+      for (const s of sedler) {
+        for (const r of s.timer) if (r.projectId) radProsjektIder.add(r.projectId);
+        for (const r of s.tillegg) radProsjektIder.add(r.projectId);
+        for (const r of s.maskiner) radProsjektIder.add(r.projectId);
+        for (const r of s.utlegg) if (r.projectId) radProsjektIder.add(r.projectId);
+      }
+      radProsjektIder.delete(input.projectId);
+      const synlige = await prosjekterMedTilgang(ctx.userId, radProsjektIder);
+      synlige.add(input.projectId);
+      const sedelOrgIder = Array.from(new Set(sedler.map((s) => s.organizationId)));
+      const [synligeProsjekter, orgSettings] = await Promise.all([
+        prisma.project.findMany({
+          where: { id: { in: Array.from(synlige) } },
+          select: { id: true, name: true, projectNumber: true, internalProjectNumber: true },
+        }),
+        // Samme regel som hentForAttestering: sedelens firma avgjør om rediger er tillatt.
+        prisma.organizationSetting.findMany({
+          where: { organizationId: { in: sedelOrgIder } },
+          select: { organizationId: true, tillattRedigerVedAttestering: true },
+        }),
+      ]);
+      const prosjektMap = new Map(synligeProsjekter.map((p) => [p.id, p]));
+      const prosjektFor = (projectId: string | null) =>
+        projectId ? (prosjektMap.get(projectId) ?? null) : null;
+      const redigerMap = new Map(
+        orgSettings.map((o) => [o.organizationId, o.tillattRedigerVedAttestering]),
+      );
+      // T.11: samme regel som hentForAttestering — maskinarbeid uten gyldig bevis i sedelens firma.
+      const bevisPrOrg = new Map<string, Map<string, boolean>>();
+      await Promise.all(
+        sedelOrgIder.map(async (org) => {
+          const eiere = Array.from(
+            new Set(
+              sedler
+                .filter((s) => s.organizationId === org && s.maskiner.length > 0)
+                .map((s) => s.userId),
+            ),
+          );
+          if (eiere.length > 0) bevisPrOrg.set(org, await harGyldigMaskinforerbevisBatch(eiere, org));
+        }),
+      );
 
       // Berik med ansatt-navn (cross-package: må slå opp i kjernen-DB)
       const userIder = Array.from(new Set(sedler.map((s) => s.userId)));
@@ -5816,12 +5896,24 @@ export const dagsseddelRouter = router({
             : null,
           totaltimer: s.timer.reduce((acc, t) => acc + Number(t.timer), 0),
           antallRader: s.timer.length + s.tillegg.length,
-          // Ordre d2a: kort-feltene (bare nye felt).
-          timer: s.timer.map((r) => berikRad(kort, r)),
-          tillegg: s.tillegg.map((r) => berikRad(kort, r)),
-          maskiner: s.maskiner.map((r) => berikMaskinRad(kort, r, s.timer)),
+          // Ordre d2a: kort-feltene (bare nye felt). Ordre d2b-2: + `project` pr. rad.
+          timer: s.timer.map((r) => ({ ...berikRad(kort, r), project: prosjektFor(r.projectId) })),
+          tillegg: s.tillegg.map((r) => ({ ...berikRad(kort, r), project: prosjektFor(r.projectId) })),
+          maskiner: s.maskiner.map((r) => ({
+            ...berikMaskinRad(kort, r, s.timer),
+            project: prosjektFor(r.projectId),
+          })),
           varer: kort.varer.get(s.id) ?? [],
           ukeAvvikRadIder: kort.ukeAvvik.get(s.id) ?? [],
+          // Ordre d2b-2 (R13): feltene tabellen trenger, med samme regler som
+          // hentForAttestering/hentTilAttesteringFirma. Bare lesing.
+          utlegg: s.utlegg.map((u) => ({ ...u, project: prosjektFor(u.projectId) })),
+          prosjekt: prosjektFor(input.projectId),
+          tilleggHarKrav: s.tillegg.length > 0,
+          dagsnorm: normFor(s.organizationId, s.dato),
+          redigerTillatt: redigerMap.get(s.organizationId) ?? false,
+          manglerMaskinforerbevis:
+            s.maskiner.length > 0 && !bevisPrOrg.get(s.organizationId)?.get(s.userId),
         };
       });
     }),

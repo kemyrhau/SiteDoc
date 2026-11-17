@@ -5817,5 +5817,11 @@
   "timer.normtak.fortArbeid": "{{timer}} h práce",
   "timer.normtak.fortAnnet": "{{timer}} h jiné nepřítomnosti",
   "timer.normtak.fortBegge": "{{arbeid}} h práce a {{annet}} h jiné nepřítomnosti",
-  "timer.normtak.normFylt": "Denní norma je naplněna"
+  "timer.normtak.normFylt": "Denní norma je naplněna",
+  "timer.attestering.tabell.hjelp.grupperinger": "„Tabulky“, „Podle projektu“ a „Podle zaměstnance“ zobrazují stejné řádky, pouze jsou jinak seskupeny. „Podle projektu“ shromažďuje řádky na projektu, ke kterému jsou registrováni, s celkovým počtem projektů na řádku skupiny. „Přehled týdne“ zobrazuje hodiny za den nad tabulkou; kliknutím na den zobrazíte pouze tento den a podržením kurzoru nad číslem zobrazíte kartu dne.",
+  "timer.attestering.tabell.gruppeSum": "{{timer}} h",
+  "timer.attestering.tabell.attesterProsjektetsDel": "Schválit část projektu",
+  "timer.attestering.uke.filtrerDag": "Zobrazit v tabulce pouze tento den",
+  "timer.attestering.prosjekt.hjelp.laast": "Zde schvalujete hodiny registrované do tohoto projektu. Řádky, které zaměstnanec zaregistroval do jiných projektů téhož dne, jsou ztlumené a nelze je vybrat. Pokud nemáte přístup k jinému projektu, zobrazí se „Jiný projekt“.",
+  "timer.attestering.detalj.tabellHint": "Schválit, vrátit nebo znovu otevřít v tabulce: na řádek, na list projektu nebo celý den."
 }
