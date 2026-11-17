@@ -31,7 +31,7 @@ import {
   settWebifcKonstanter,
   finnIfcTypeKode,
 } from "@/app/dashbord/[prosjektId]/3d-visning/hjelpefunksjoner";
-import { finnUtliggere, type Boks3 } from "@sitedoc/shared";
+import { finnUtliggere, type Boks3 } from "@sitedoc/shared/tred";
 import {
   avstandEtterSteg,
   flyttLangsBlikk,
