@@ -6,7 +6,7 @@ import { prisma } from "@sitedoc/db";
 import { router, protectedProcedure } from "../../trpc/trpc";
 import type { Context } from "../../trpc/context";
 import { signerHvisPrivat } from "../../utils/hmac";
-import { planleggJobbDeling, JOBB_DELING_FEILTEKST } from "./jobb-deling";
+import { planleggJobbDeling, maskinKrysserKl, JOBB_DELING_FEILTEKST } from "./jobb-deling";
 import {
   autoriserAdminForFirma,
   verifiserProsjektmedlem,
@@ -6986,6 +6986,14 @@ export const dagsseddelRouter = router({
       // Maskin følger timeraden den er koblet til (K6); koblet til en delt rad → del A.
       const tilB = new Set(plan.tilB);
       const maskinTilB = maskiner.filter((m) => m.sheetTimerId && tilB.has(m.sheetTimerId)).map((m) => m.id);
+      // En maskin som går over klokkeslettet, kan ikke stå på én del (w5, gate 98).
+      const kryssende = maskiner.find((m) => maskinKrysserKl(m.fraTid, m.tilTid, input.kl));
+      if (kryssende) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: `En maskin går ${kryssende.fraTid}–${kryssende.tilTid}, over klokkeslettet ${input.kl}. Rett maskinens tid først.`,
+        });
+      }
       // Maskintimer på en delt rad kan ikke overstige del A (maskin høyst radens timer, WM32).
       for (const d of plan.delt) {
         const sum = maskiner.filter((m) => m.sheetTimerId === d.id).reduce((s, m) => s + Number(m.timer), 0);

@@ -17,6 +17,11 @@ interface UseTabelloppsettParams {
   standardKolonner: Set<string>;
   /** Sidens standardrekkefølge for alle kolonner; brukes for oppsett lagret uten rekkefølge. */
   kanoniskRekkefolge: readonly string[];
+  /**
+   * true = standardkolonnene (ny bruker og «Nullstill») vises i sin egen rekkefølge og lagres
+   * med `rekkefolge: true`. Uten flagget følger standarden `kanoniskRekkefolge` som før.
+   */
+  standardMedRekkefolge?: boolean;
   /** localStorage-nøkkel for migrering av eksisterende innstillinger */
   migrerNokkel?: string;
   migrerBreddeNokkel?: string;
@@ -31,10 +36,14 @@ export function useTabelloppsett({
   liste,
   standardKolonner,
   kanoniskRekkefolge,
+  standardMedRekkefolge,
   migrerNokkel,
   migrerBreddeNokkel,
 }: UseTabelloppsettParams) {
   const standardArr = [...standardKolonner];
+  const standardOppsett: LagretKolonner = standardMedRekkefolge
+    ? { kolonner: standardArr, rekkefolge: true }
+    : { kolonner: standardArr };
 
   // Hent fra API
   const { data: serverOppsett, isLoading } = trpc.bruker.hentTabelloppsett.useQuery(
@@ -44,7 +53,7 @@ export function useTabelloppsett({
 
   // Migrer fra localStorage ved første lasting
   const [initialisert, setInitialisert] = useState(false);
-  const [lagretKolonner, setLagretKolonner] = useState<LagretKolonner>({ kolonner: standardArr });
+  const [lagretKolonner, setLagretKolonner] = useState<LagretKolonner>(standardOppsett);
   const [kolonneBredder, setKolonneBredder] = useState<Record<string, number>>({});
   const [sortering, setSortering] = useState<{ kolonne: string; retning: "asc" | "desc" } | null>(null);
 
@@ -88,7 +97,7 @@ export function useTabelloppsett({
   // Debounced lagring til API
   const lagreMutation = trpc.bruker.lagreTabelloppsett.useMutation();
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
-  const sisteOppsett = useRef<Tabelloppsett>({ kolonner: standardArr, bredder: {}, sortering: null });
+  const sisteOppsett = useRef<Tabelloppsett>({ ...standardOppsett, bredder: {}, sortering: null });
 
   const lagreTilServer = useCallback(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -119,16 +128,15 @@ export function useTabelloppsett({
 
   const handleToggleKolonne = useCallback((id: string) => {
     if (id === "__reset__") {
-      // Standard: standardkolonnene i sidens standardrekkefølge.
-      const standard = { kolonner: standardArr };
-      setLagretKolonner(standard);
+      // Standard: standardkolonnene i sidens standardrekkefølge (eller sin egen, se flagget).
+      setLagretKolonner(standardOppsett);
       setKolonneBredder({});
-      oppdaterOgLagre(standard, {});
+      oppdaterOgLagre(standardOppsett, {});
       return;
     }
     // En kolonne som slås på, havner sist.
     handleRekkefolgeEndring(vekslKolonne(kolonneRekkefolge, id));
-  }, [standardArr, oppdaterOgLagre, handleRekkefolgeEndring, kolonneRekkefolge]);
+  }, [standardOppsett, oppdaterOgLagre, handleRekkefolgeEndring, kolonneRekkefolge]);
 
   const handleBreddeEndring = useCallback((bredder: Record<string, number>) => {
     setKolonneBredder(bredder);

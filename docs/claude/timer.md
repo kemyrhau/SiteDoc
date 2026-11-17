@@ -757,7 +757,7 @@ Skriveveiene (commit 2):
 Web-timeføring w5 (🟡 `feat/web-timer-w5`, ikke merget, `apps/api/src/routes/timer/dagsseddel.ts`):
 - **B10:** retting ved attestering (`redigerSedelRader`, `rettRadFelt`, `delJobb`) krever attesteringsrett på prosjektene som røres (`krevRettingVedAttestering` → `krevAttesteringsrett`), ikke lenger firma-admin. Firma- og prosjektgrensen sjekkes som før, og «rediger ved attestering» må være på.
 - `flyttTimerRadEco` tar `helJobb`: alle rader på kortet (timer, maskin, tillegg, utlegg, varer) får underprosjektet; kortets id beholdes.
-- `delJobb` deler en jobb ved et klokkeslett (`jobb-deling.ts`). Del A beholder kortet, del B får ny kort-id og valgt underprosjekt. `forhandsvis: true` skriver ingenting. Bare innsendte sedler der alle jobbens linjer venter. Vakt: `w5-retting-ved-attestering.integration.test.ts`.
+- `delJobb` deler en jobb ved et klokkeslett (`jobb-deling.ts`). Del A beholder kortet, del B får ny kort-id og valgt underprosjekt. `forhandsvis: true` skriver ingenting. Bare innsendte sedler der alle jobbens linjer venter. Avvises når en maskin på jobben går over klokkeslettet (`maskinKrysserKl`) eller maskintimene på en delt rad er flere enn del A. Vakt: `w5-retting-ved-attestering.integration.test.ts`.
 
 ### Sperren ved føring på PC (ordre d2c-1) — 🟢 merget `274e7fb2` 2026-11-16, ikke deployet
 

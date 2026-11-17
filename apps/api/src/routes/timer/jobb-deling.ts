@@ -86,6 +86,17 @@ export function planleggJobbDeling(
   return plan;
 }
 
+/**
+ * true når en maskin med klokkeslett går over klokkeslettet (`fraTid < kl < tilTid`).
+ * En slik maskin kan ikke stå på én del uten at tiden blir feil, så delingen avvises (w5,
+ * gate 98). Maskin uten fra eller til sjekkes bare på timer.
+ */
+export function maskinKrysserKl(fraTid: string | null, tilTid: string | null, kl: string): boolean {
+  if (!fraTid || !tilTid) return false;
+  const k = tilMin(kl);
+  return tilMin(fraTid) < k && k < tilMin(tilTid);
+}
+
 /** Feilteksten serveren sender (norsk, som resten av timer-ruterens meldinger). */
 export const JOBB_DELING_FEILTEKST: Record<JobbDelingFeil, string> = {
   manglerKlokkeslett: "Jobben kan bare deles ved et klokkeslett når alle timeradene har fra og til",

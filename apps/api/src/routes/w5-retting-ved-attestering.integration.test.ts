@@ -275,6 +275,40 @@ describe("w5 — «Del opp» ved klokkeslett", () => {
     ).rejects.toThrow(/mellom jobbens start og slutt/);
   });
 
+  /** Alt delingen kan skrive: timerrader, maskinen og historikken. Lik før og etter = ingenting skrevet. */
+  const tilstand = async (j: Awaited<ReturnType<typeof nyJobb>>) => ({
+    timer: (await prismaTimer.sheetTimer.findMany({ where: { sheetId: j.sheetId }, orderBy: { fraTid: "asc" } })).map((r) => [
+      r.id, r.fraTid, r.tilTid, Number(r.timer), r.pauseMin, r.kortId, r.externalCostObjectId, r.attestertStatus,
+    ]),
+    maskin: await prismaTimer.sheetMachine.findUniqueOrThrow({ where: { id: j.maskin } }),
+    historikk: await prismaTimer.sheetRadHistorikk.count({ where: { sheetId: j.sheetId } }),
+  });
+
+  it("maskin som går over klokkeslettet avvises — også i forhåndsvisningen — og ingenting skrives", async () => {
+    const j = await nyJobb();
+    // Kontrollørens eksempel (gate 98): rad 07–11, maskin 09:00–10:00, delt kl. 09:30.
+    // Maskinens 1 t er under del A (2,5 t), så bare klokkeslettsjekken kan avvise.
+    await prismaTimer.sheetMachine.update({ where: { id: j.maskin }, data: { fraTid: "09:00", tilTid: "10:00", timer: 1 } });
+    const for_ = await tilstand(j);
+    for (const forhandsvis of [true, false]) {
+      await expect(
+        dag(ATT).delJobb({ sheetId: j.sheetId, kortId: j.kortId, kl: "09:30", externalCostObjectIdB: ECO_1, forhandsvis }),
+      ).rejects.toThrow(/over klokkeslettet 09:30/);
+    }
+    expect(await tilstand(j)).toEqual(for_);
+  });
+
+  it("maskintimer over del A avvises (timesjekken står) og ingenting skrives", async () => {
+    const j = await nyJobb();
+    // Maskin uten klokkeslett med 3,5 t på første rad; delt kl. 10:00 gir del A 3 t.
+    await prismaTimer.sheetMachine.update({ where: { id: j.maskin }, data: { fraTid: null, tilTid: null, timer: 3.5 } });
+    const for_ = await tilstand(j);
+    await expect(
+      dag(ATT).delJobb({ sheetId: j.sheetId, kortId: j.kortId, kl: "10:00", externalCostObjectIdB: ECO_1 }),
+    ).rejects.toThrow(/mer enn del A/);
+    expect(await tilstand(j)).toEqual(for_);
+  });
+
   it("rader uten kort-id er ingen jobb — ukjent kort avvises", async () => {
     const j = await nyJobb();
     await expect(

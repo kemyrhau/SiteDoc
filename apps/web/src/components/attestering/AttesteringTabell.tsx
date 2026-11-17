@@ -75,11 +75,6 @@ type Mal = { radType: "timer" | "maskin" | "tillegg"; radId: string; felt: Felt;
 
 const LISTE = "timer-attestering";
 const STANDARD = new Set<string>(TIMER_TABELL_STANDARD);
-/**
- * Visningsrekkefølgen for oppsett uten egen rekkefølge (ny bruker og «Tilbakestill til
- * standard»): kjernekolonnene i standardrekkefølgen først, så resten i listas rekkefølge (w5).
- */
-const KANONISK: readonly string[] = [...TIMER_TABELL_STANDARD, ...TIMER_TABELL_KOL_KEYS.filter((k) => !STANDARD.has(k))];
 const VENSTRE = 36;
 // ✓ ↩ ✂ penn, og «Attester dagen» ↩ ↗ på sumraden — smalere brytes knappen og raden blir dobbelt høy (målt w5).
 const HOYRE = 176;
@@ -136,7 +131,14 @@ interface Props {
 export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt, gruppering = "dag", sedelUrl, onReturnerDag, prosjektKontekst }: Props) {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
-  const oppsett = useTabelloppsett({ liste: LISTE, standardKolonner: STANDARD, kanoniskRekkefolge: KANONISK });
+  const oppsett = useTabelloppsett({
+    liste: LISTE,
+    standardKolonner: STANDARD,
+    // Lagrede oppsett uten egen rekkefølge følger listas rekkefølge som før w5 (WM69).
+    kanoniskRekkefolge: TIMER_TABELL_KOL_KEYS,
+    // Standarden (ny bruker og «Tilbakestill til standard») har sin egen rekkefølge (w5).
+    standardMedRekkefolge: true,
+  });
   const kolonner = useMemo(
     () => oppsett.kolonneRekkefolge.filter((k): k is TimerTabellKolKey => k in TIMER_TABELL_KOL),
     [oppsett.kolonneRekkefolge],

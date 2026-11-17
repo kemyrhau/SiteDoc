@@ -449,7 +449,34 @@ describe("w5 — kjernekolonner og «Tilbakestill til standard»", () => {
     }
   });
 
-  it("«Tilbakestill til standard» lagrer standardlista uten egen rekkefølge og uten bredder", () => {
+  it("et gammelt oppsett med 26-kolonnersstandarden uten rekkefølge vises i samme rekkefølge som før w5 (WM69)", () => {
+    // Develop-standarden før w5. Den lagres uten `rekkefolge` når brukeren drar en bredde,
+    // sorterer eller trykker «Nullstill» — slike oppsett finnes i drift.
+    const gammelStandard = [
+      "dato", "ansatt", "ansattnr", "prosjektnummer", "prosjekt", "byggeplass", "underprosjekt",
+      "type", "betegnelse", "aktivitet", "fraTid", "tilTid", "timer", "pause",
+      "maskin", "maskintimer", "mengde", "enhet",
+      "vare", "vareenhet", "varemengde",
+      "antall", "belop", "beskrivelse", "status", "avvik",
+    ];
+    vi.useFakeTimers();
+    try {
+      h.data["bruker.hentTabelloppsett"] = { kolonner: gammelStandard, bredder: { timer: 90 }, sortering: null };
+      const { container } = vis([sedel()]);
+      act(() => { vi.advanceTimersByTime(2000); });
+      // Målt med effektivRekkefolge på develop (52d795f7): listas rekkefølge, ikke standardens.
+      expect(hodeKolonner(container)).toEqual([
+        "dato", "ansatt", "ansattnr", "prosjekt", "byggeplass", "underprosjekt", "type", "betegnelse",
+        "aktivitet", "fraTid", "tilTid", "timer", "maskintimer", "antall", "belop", "mengde", "enhet",
+        "beskrivelse", "status", "prosjektnummer", "pause", "maskin", "vare", "vareenhet", "varemengde", "avvik",
+      ]);
+      expect(kallTil("lagreTabelloppsett")).toHaveLength(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("«Tilbakestill til standard» lagrer standardlista i sin egen rekkefølge og uten bredder", () => {
     vi.useFakeTimers();
     try {
       h.data["bruker.hentTabelloppsett"] = { kolonner: ["timer", "ansatt"], rekkefolge: true, bredder: { timer: 200 }, sortering: null };
@@ -459,9 +486,11 @@ describe("w5 — kjernekolonner og «Tilbakestill til standard»", () => {
       const k = kallTil("lagreTabelloppsett");
       expect(k).toHaveLength(1);
       const oppsett = (k[0]!.input as { oppsett: { kolonner: string[]; rekkefolge?: boolean; bredder: Record<string, number> } }).oppsett;
-      expect(oppsett.kolonner).toContain("fraTil");
-      expect(oppsett.kolonner).toHaveLength(13);
-      expect(oppsett.rekkefolge).toBeUndefined();
+      expect(oppsett.kolonner).toEqual([
+        "dato", "ansatt", "prosjektnummer", "underprosjekt", "betegnelse", "fraTil", "timer",
+        "maskin", "maskintimer", "vareOgMengde", "antall", "belop", "avvik",
+      ]);
+      expect(oppsett.rekkefolge).toBe(true);
       expect(oppsett.bredder).toEqual({});
       expect(hodeKolonner(container)[0]).toBe("dato");
     } finally {
