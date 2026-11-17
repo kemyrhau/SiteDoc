@@ -154,7 +154,8 @@ Vakt: `src/components/__tests__/person-navn.test.tsx`.
 - `SpraakSynkroniserer` i Providers — synkroniserer localStorage ↔ DB
 - `bruker.hentSpraak` / `bruker.oppdaterSpraak` — tRPC-endepunkter
 - `User.language` felt i Prisma (default "nb")
-- Lazy-loading: kun nb og en er statisk importert, andre lastes on-demand
+- **Bare valgt språk lastes** (2026-11-17, ORDRE 3D-mobil 6; før lå alle 15 statisk i root layout, ~1,5 MB gzip på hver side): `nb` er statisk (fallback); de 14 andre er hver sin chunk via dynamisk `import()` i `lastere` (`apps/web/src/lib/i18n.ts`). `spraakKlart` henter lagret språk (`sitedoc-language`) ved oppstart; `byttSpraak` henter → `addResourceBundle` → `changeLanguage` → lagrer (feiler hentingen, beholdes gjeldende språk). i18next starter alltid på `nb`, så klientens første render matcher server-HTML-en.
+- **Ingen nb-blink:** `Providers` rendrer `SPRAAK_VENTER_SKRIPT` inline øverst; det skjuler siden (`visibility:hidden` på `<body>`, som har `suppressHydrationWarning`) før første maling **bare** når lagret språk ≠ nb, og `Providers` viser den igjen (`visSiden`) når `spraakKlart` er ferdig og nytt språk er tegnet — senest etter 4 s uansett. nb-brukere venter aldri. Unntak: første innlogging der språket bare finnes i DB (`SpraakSynkroniserer`) viser nb til fila er hentet, som før til `hentSpraak` svarte. Test: `apps/web/src/lib/__tests__/i18n-lazy.test.ts`.
 - `StatusBadge` i `packages/ui` bruker `useTranslation()` direkte. Tar valgfri `lestAvMottakerVed`-prop — viser «Lest» med dato-tooltip når status er `sent` og mottaker har åpnet dokumentet
 
 **Konvensjoner:**
