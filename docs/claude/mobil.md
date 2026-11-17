@@ -290,6 +290,10 @@ Timeregistrering for feltarbeider. Skjermene ligger i `apps/mobile/app/timer/` (
 
 Prosjektkort-modus grupperer på kort-id i stedet for prosjekt|byggeplass|underprosjekt: lokal kolonne `kort_id` (ordre b) normaliseres etter hver skriving (`sikreLokalKortId`), og ruten til kortskjermen bærer `kort=<kortId>`. Fraværsrader uten prosjekt har lokal `sheet_timer_local.uten_prosjekt` og synkes uten prosjekt (`apps/mobile/src/utils/utenProsjektSynk.ts`); `radProsjektId` (`packages/shared/src/utils/prosjektkort.ts`) er eneste sted en rad arver sedelens prosjekt (vakt `radProsjektId-vakt.test.ts`). Lokal katalogkolonne `fravaer_normtak` bærer B10-taket. «Endre kort» til en nøkkel som alt har kort beholder kort-id-en etter kollisjonssjekk (`finnKortKollisjon`, samme overlappsregel som lagring av en rad). Krever ordre b i prod før OTA. Detaljer: [timer.md](timer.md) og [prosjektkort-kortid-spec.md § 8.2](prosjektkort-kortid-spec.md).
 
+### Maskin koblet til timerad (ordre d2c-2, 🟡 `feat/kortid-d2c2-mobil`, ikke merget)
+
+Lokal kolonne `equipment_local.utleie_enhet` (`MASKIN_ENHET_LOCAL_KOLONNER`, `apps/mobile/src/db/migreringer.ts`) fylles av `refreshMaskinKatalog`. `MaskinRadModal` har feltet «Timerad» (`TimeradVelgerModal`) med regelen i `apps/mobile/src/utils/maskinTimerad.ts` og oppslag i `apps/mobile/src/services/maskinKoblingLokal.ts`. Prosjektkort-modus: sletting av rad med maskiner (`fjernTimerRadMedMaskiner`), «Flytt» til timerad. Dagskort-modus får bare feltet (vakt `dagskort-isolert-vakt.test.ts`). Detaljer: [prosjektkort-kortid-spec.md § 12.12](prosjektkort-kortid-spec.md).
+
 ## Flerspråklig (i18n)
 
 **Oppsett:** i18next + react-i18next, gjenbruker JSON-filer fra `packages/shared/src/i18n/` (samme språk og nøkler som web — kanon-liste i `STOETTEDE_SPRAAK`).

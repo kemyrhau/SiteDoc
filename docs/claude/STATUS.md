@@ -11,7 +11,8 @@
 > - `Arbeidsanker:` — bruks-aktiv (pågående arbeid, endres ofte)
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
-**Sist oppdatert:** 2026-11-16
+**Sist oppdatert:** 2026-11-17
+- 2026-11-17 — **`prosjektkort-kortid-spec.md` § 12.12 + `timer.md` + `mobil.md` + `hjelpetekster.md`: ordre d2c-2 — maskin koblet til timerad på telefonen** (branch `feat/kortid-d2c2-mobil`, kode + docs, Kort-id-d2c2): lokal enhet `equipment_local.utleie_enhet`, feltet «Timerad» i maskinvinduet, sletting/flytt/splitt i prosjektkort-modus, reise-sperre. Ingen fil opprettet eller slettet i docs/claude — tellingene er uendret.
 - 2026-11-17 — **3D-web ORDRE 5 merget `73ae7b0d`** (gate (87)): FUNKSJONSENDRINGER, tavla (develop, docs-only, orkestrator).
 - 2026-11-17 — **Web laster bare valgt språk merget `d3b7bfe8`** (gate (86)): FUNKSJONSENDRINGER, tavla, GATE (87) 3D-web (develop, docs-only, orkestrator).
 - 2026-11-17 — **3D-web ORDRE 4 merget `4a5e1663`** (gate (85)): FUNKSJONSENDRINGER, prinsippfil § 3b web 🟢, tavla ORDRE 3D-web 5 (develop, docs-only, orkestrator).

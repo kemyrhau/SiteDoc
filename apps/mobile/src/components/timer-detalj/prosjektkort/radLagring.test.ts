@@ -137,6 +137,7 @@ const maskinFelt: MaskinRadFelt = {
   enhet: "m3",
   fraTid: "07:00",
   tilTid: "10:00",
+  sheetTimerId: null,
 };
 
 const timerRad = (id: string) => db().select().from(sheetTimerLocal).where(eq(sheetTimerLocal.id, id)).all()[0];

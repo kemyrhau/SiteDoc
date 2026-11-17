@@ -538,6 +538,12 @@ export const equipmentLocal = sqliteTable("equipment_local", {
   internNummer: text("intern_nummer"),
   registreringsnummer: text("registreringsnummer"),
   status: text("status").notNull().default("tilgjengelig"),
+  /**
+   * Kort-id d2c-2 (spec § 12.2 R24): enheten maskinen leies ut i — «time», «doegn»
+   * eller null (ukjent). Fylles av `refreshMaskinKatalog`. Null før første henting
+   * etter oppdatering → krever timerad (H15 = A).
+   */
+  utleieEnhet: text("utleie_enhet"),
   sistOppdatert: integer("sist_oppdatert").notNull(),
 });
 

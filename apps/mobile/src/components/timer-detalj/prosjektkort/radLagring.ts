@@ -62,6 +62,8 @@ export interface MaskinRadFelt {
   enhet: string | null;
   fraTid: string | null;
   tilTid: string | null;
+  /** Kort-id d2c-2 (R24): timeraden maskinen står på (null = uten timerad). */
+  sheetTimerId: string | null;
 }
 
 /** Ny timer-rad (+ 0..n koblede maskiner). Returnerer radens id. */
@@ -208,12 +210,13 @@ export function fjernTimerRad(db: LokalDb, { sheetId }: RadKontekst, radId: stri
 
 /** Ny frittstående maskin-rad. Returnerer radens id. */
 export function leggTilMaskinRad(db: LokalDb, { sheetId }: RadKontekst, felt: MaskinRadFelt): string {
-  const { projectId: radProjectId, ecoId, vehicleId, timer, mengde, enhet, fraTid, tilTid } = felt;
+  const { projectId: radProjectId, ecoId, vehicleId, timer, mengde, enhet, fraTid, tilTid, sheetTimerId } = felt;
   const id = randomUUID();
   db.insert(sheetMachineLocal)
     .values({
       id,
       dagsseddelId: sheetId,
+      sheetTimerId,
       projectId: radProjectId,
       externalCostObjectId: ecoId,
       vehicleId,
@@ -231,9 +234,10 @@ export function leggTilMaskinRad(db: LokalDb, { sheetId }: RadKontekst, felt: Ma
 }
 
 export function oppdaterMaskinRad(db: LokalDb, { sheetId }: RadKontekst, radId: string, felt: MaskinRadFelt): void {
-  const { projectId: radProjectId, ecoId, vehicleId, timer, mengde, enhet, fraTid, tilTid } = felt;
+  const { projectId: radProjectId, ecoId, vehicleId, timer, mengde, enhet, fraTid, tilTid, sheetTimerId } = felt;
   db.update(sheetMachineLocal)
     .set({
+      sheetTimerId,
       projectId: radProjectId,
       externalCostObjectId: ecoId,
       vehicleId,
@@ -246,7 +250,7 @@ export function oppdaterMaskinRad(db: LokalDb, { sheetId }: RadKontekst, radId: 
     })
     .where(eq(sheetMachineLocal.id, radId))
     .run();
-  // Kort-id: endret nøkkel → regel 3.
+  // Kort-id: endret nøkkel → regel 3. Koblet maskin får timeradens kort-id (K6).
   sikreLokalKortId(db, sheetId);
 }
 

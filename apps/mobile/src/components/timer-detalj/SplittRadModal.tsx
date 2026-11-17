@@ -383,6 +383,9 @@ export function SplittRadModal(props: Props) {
           .values({
             id: randomUUID(),
             dagsseddelId: o.dagsseddelId,
+            // Kort-id d2c-2 (R24): delene arver koblingen til timeraden (del 1
+            // beholder den, siden original-raden oppdateres).
+            sheetTimerId: o.sheetTimerId ?? null,
             projectId: o.projectId,
             externalCostObjectId: d.externalCostObjectId,
             vehicleId: d.vehicleId,

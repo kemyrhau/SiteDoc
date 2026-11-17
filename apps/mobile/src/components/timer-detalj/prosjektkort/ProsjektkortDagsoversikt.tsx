@@ -6,6 +6,7 @@ import { randomUUID } from "expo-crypto";
 import {
   beregnMaskinBrudd,
   byggNormtakBruddLinje,
+  maskinKreverTimerad,
   overstigerMaskinTak,
   visVareforbrukKnapp,
 } from "@sitedoc/shared";
@@ -55,7 +56,9 @@ import {
   type SedelKortKontekst,
 } from "../../../lib/prosjektkortMobil";
 import { TimerRadModal } from "../TimerSeksjon";
-import { MaskinRadModal } from "../MaskinSeksjon";
+import { MaskinRadModal, TimeradVelgerModal } from "../MaskinSeksjon";
+import { maskinerSomKreverRadenLokalt, utleieEnhetLokalt } from "../../../services/maskinKoblingLokal";
+import { arbeidsraderForMaskin, type TimeradKandidat } from "../../../utils/maskinTimerad";
 import { SplittRadModal } from "../SplittRadModal";
 import { KortVareforbrukModal } from "../KortVareforbrukModal";
 import type { VisVarelinje } from "../VareforbrukLesListe";
@@ -71,6 +74,7 @@ import {
 import {
   flyttKort,
   flyttMaskinRad,
+  fjernTimerRadMedMaskiner,
   flyttVareLokalt,
   kortUtfallTekst,
   kortUtfallParametre,
@@ -217,6 +221,17 @@ export function ProsjektkortDagsoversikt({
   const [vareValgt, setVareValgt] = useState<{ vare: VisVarelinje; kort: ProsjektKortValg } | null>(null);
   const [flytt, setFlytt] = useState<Flytt | null>(null);
   const [flyttFeil, setFlyttFeil] = useState<string | null>(null);
+  // Kort-id d2c-2 (R24): «Flytt» av maskin som krever timerad — velg raden i målkortet.
+  const [flyttTimerad, setFlyttTimerad] = useState<{
+    radId: string;
+    maal: FlyttMaal;
+    kandidater: TimeradKandidat[];
+  } | null>(null);
+  // Kort-id d2c-2 (R24): sletting av timerad som bærer maskiner som krever den.
+  const [slettTimerad, setSlettTimerad] = useState<{
+    radId: string;
+    maskiner: Array<{ id: string; navn: string }>;
+  } | null>(null);
   const oppdaterVare = trpc.vareforbruk.oppdater.useMutation();
   // Punkt 7: «Endre mengde» (tekst i feltet; null = lukket) og «Slett» i vare-arket.
   const slettVare = trpc.vareforbruk.slett.useMutation();
@@ -444,6 +459,19 @@ export function ProsjektkortDagsoversikt({
     timerRader.some(
       (r) => r.id === x.sheetTimerId && radProsjektId(r, sedel) === (x.projectId ?? sedel.projectId),
     );
+  // Kort-id d2c-2 (R24): kortets arbeidsrader — timeradene en maskin kan stå på.
+  const arbeidsraderPaaKort = (kortValg: ProsjektKortValg): TimeradKandidat[] =>
+    arbeidsraderForMaskin(
+      raderPaaKort(timerRader, sedelKontekst, kortValg, utenId).map((r) => ({
+        id: r.id,
+        projectId: radProsjektId(r, sedel),
+        kortId: r.kortId ?? null,
+        timer: r.timer,
+        erReise: erReiseRadVisning(r.erReise, r.lonnsartId, reiseLonnsartId),
+        fraTid: r.fraTid,
+        tilTid: r.tilTid,
+      })),
+    );
   const startFlytt = (f: Flytt) => {
     setFlyttFeil(null);
     setFlytt(f);
@@ -580,7 +608,22 @@ export function ProsjektkortDagsoversikt({
         setFlyttFeil(t("timer.maskin.overstigerArbeid"));
         return;
       }
-      flyttMaskinRad(db(), flytt.rad.id, maal);
+      // Kort-id d2c-2 (R24): maskin som krever timerad flyttes til en timerad i
+      // målkortet — én rad: den; flere: brukeren velger; ingen: avvist med grunn.
+      if (maskinKreverTimerad(utleieEnhetLokalt(db(), flytt.rad.vehicleId))) {
+        const kandidater = arbeidsraderPaaKort(til);
+        if (kandidater.length === 0) {
+          setFlyttFeil(t("timer.maskinTimerad.flyttIngenArbeidsrad"));
+          return;
+        }
+        if (kandidater.length > 1) {
+          setFlyttTimerad({ radId: flytt.rad.id, maal, kandidater });
+          return;
+        }
+        flyttMaskinRad(db(), flytt.rad.id, maal, kandidater[0]!.id);
+      } else {
+        flyttMaskinRad(db(), flytt.rad.id, maal);
+      }
       sikreLokalKortId(db(), sheetId);
     } else {
       const v = flytt.vare;
@@ -1109,6 +1152,13 @@ export function ProsjektkortDagsoversikt({
                     setSplitt({ radType: "timer", original: redigert });
                   },
                   onSlett: () => {
+                    // Kort-id d2c-2 (R24): maskiner som krever raden slettes med den —
+                    // bekreftelsen navngir dem. Uten slike maskiner: som før.
+                    const maskiner = maskinerSomKreverRadenLokalt(db(), redigert.id);
+                    if (maskiner.length > 0) {
+                      setSlettTimerad({ radId: redigert.id, maskiner });
+                      return;
+                    }
                     fjernTimerRad(db(), k, redigert.id);
                     setTimerModal(null);
                     onEndret();
@@ -1169,6 +1219,7 @@ export function ProsjektkortDagsoversikt({
           dato={sedel.dato}
           pauseMin={sedel.pauseMin}
           eksisterendeRad={maskinModal}
+          kortArbeidsrader={arbeidsraderPaaKort(kortForRad(maskinModal))}
           handlinger={{
             // TILLEGG 2026-11-12 regel 1: koblet maskin følger raden (flyttes med den).
             ...(erKoblet(maskinModal)
@@ -1189,7 +1240,7 @@ export function ProsjektkortDagsoversikt({
               onEndret();
             },
           }}
-          onLagre={(projectId, ecoId, vehicleId, timer, mengde, enhet, fraTid, tilTid) => {
+          onLagre={(projectId, ecoId, vehicleId, timer, mengde, enhet, fraTid, tilTid, sheetTimerId) => {
             oppdaterMaskinRad(db(), k, maskinModal.id, {
               projectId,
               ecoId,
@@ -1199,6 +1250,7 @@ export function ProsjektkortDagsoversikt({
               enhet,
               fraTid,
               tilTid,
+              sheetTimerId,
             });
             setMaskinModal(null);
             onEndret();
@@ -1366,6 +1418,44 @@ export function ProsjektkortDagsoversikt({
         onAvbryt={() => setVareSlett(false)}
         onBekreft={() => void bekreftSlettVare()}
       />
+
+      <BekreftSlettModal
+        synlig={!!slettTimerad}
+        tittel={t("timer.fjernTimerRad.tittel")}
+        tekst={t("timer.fjernTimerRad.maskiner", {
+          count: slettTimerad?.maskiner.length ?? 0,
+          navn: slettTimerad?.maskiner.map((m) => m.navn).join(", ") ?? "",
+        })}
+        bekreftTekst={t("timer.fjernTimerRad.bekreft")}
+        onAvbryt={() => setSlettTimerad(null)}
+        onBekreft={() => {
+          if (!slettTimerad) return;
+          fjernTimerRadMedMaskiner(
+            db(),
+            k,
+            slettTimerad.radId,
+            slettTimerad.maskiner.map((m) => m.id),
+          );
+          setSlettTimerad(null);
+          setTimerModal(null);
+          onEndret();
+        }}
+      />
+
+      {flyttTimerad && (
+        <TimeradVelgerModal
+          rader={flyttTimerad.kandidater}
+          valgtId={null}
+          onVelg={(id) => {
+            flyttMaskinRad(db(), flyttTimerad.radId, flyttTimerad.maal, id);
+            sikreLokalKortId(db(), sheetId);
+            setFlyttTimerad(null);
+            setFlytt(null);
+            onEndret();
+          }}
+          onLukk={() => setFlyttTimerad(null)}
+        />
+      )}
 
       {fravaerKort && (
         <FravaerKortModal

@@ -2172,6 +2172,27 @@ Grenser:
 Grenser:
 - **Døgn-maskin ved sletting:** bekreftelsen navngir bare maskinene som krever raden. Døgn-maskiner blir stående uten kobling, som på telefonen (d2c-2). Spec-raden for PC sier «sletter dem», uten å skille mellom enhetene. Tolkningen følger telefon-raden.
 - **Kortet i nedtrekket** er prosjektets timerader på sedelen. Serveren avviser en kobling til et annet prosjekt.
+### 12.12 Bygget — ordre d2c-2 (Kort-id-d2c2, 🟡 ikke merget)
+
+**Kobling og sperre ved føring på telefonen (2026-11-17).** Branch `feat/kortid-d2c2-mobil`. Ingen servermigrering, ingen endring i API-et; `syncBatch` er urørt. Telefonen bruker den delte regelen (`maskinKreverTimerad`, `erGyldigTimeradKobling` i `packages/shared/src/utils/maskinKobling.ts`). Alt virker uten nett.
+
+| Del | Kode |
+|---|---|
+| Lokal enhet | `equipment_local.utleie_enhet` (`apps/mobile/src/db/schema.ts`, `MASKIN_ENHET_LOCAL_KOLONNER` i `apps/mobile/src/db/migreringer.ts`, uten backfill). Maskinlista fyller den (`refreshMaskinKatalog`, `apps/mobile/src/services/maskinKatalog.ts`). Ukjent maskin eller enhet krever timerad (H15 = A) |
+| Regler | `apps/mobile/src/utils/maskinTimerad.ts` — `arbeidsraderForMaskin` (sortert på fra-tid), `forvalgtTimeradId` (egen kobling, ellers den eneste), `timeradSperre` («velg» / «ingenArbeidsrad», som PC) |
+| Oppslag | `apps/mobile/src/services/maskinKoblingLokal.ts` — `arbeidsraderIBotteLokalt` (dagskort-modus: prosjekt + underprosjekt), `maskinerSomKreverRadenLokalt`, `utleieEnhetLokalt`, `maskinNavnLokalt` |
+| Maskinvinduet | `MaskinRadModal` (`MaskinSeksjon.tsx`) har feltet «Timerad» i begge moduser (`TimeradVelgerModal`). Prosjektkortet sender kortets arbeidsrader (`kortArbeidsrader`); dagskortet leser bøttas fra SQLite. Lagring sender `sheetTimerId`; `MaskinSeksjon.leggTil/oppdater` og `radLagring.leggTilMaskinRad/oppdaterMaskinRad` skriver den, og koblet maskin får timeradens kort-id (K6) |
+| Sletting (prosjektkort) | `ProsjektkortDagsoversikt.tsx`: rad med maskiner som krever den → `BekreftSlettModal` som navngir dem (`timer.fjernTimerRad.*`) → `fjernTimerRadMedMaskiner` (`kortRadFlytt.ts`): raden først, så maskinene i én transaksjon med tombstone. Døgn-maskiner blir stående |
+| «Flytt» av maskin | Krever maskinen timerad: målkortets arbeidsrader. Én → flyttes dit; flere → `TimeradVelgerModal`; ingen → avvist med `timer.maskinTimerad.flyttIngenArbeidsrad`. Døgn-maskin flyttes uten kobling som før. `flyttMaskinRad` tar `sheetTimerId` |
+| Splitt | `SplittRadModal.tsx`: delene arver koblingen (`sheetTimerId: o.sheetTimerId`) |
+| Reise | `TimerRadModal.lagre()` (`TimerSeksjon.tsx`, begge moduser): en rad som bærer maskin som krever timerad, kan ikke bli reise; meldingen navngir maskinen (`timer.maskinTimerad.reiseSperre_*`). 0 timer stoppes alt av `timer.feil.ugyldigTimer` |
+| Tester | `services/maskinKoblingLokal.test.ts` (sql.js, 11), `utils/maskinTimerad.test.ts` (15), `db/migreringer.maskinEnhetLocal.test.ts` (4), `components/timer-detalj/kortid-d2c2-vakt.test.ts` (7); `dagskort-isolert-vakt.test.ts` utvidet |
+
+Grenser:
+- **Sletting i dagskort-modus** er uendret (spec-raden gjelder prosjektkort-modus). En døgn-maskin eller eldre maskin på en slettet rad vises under «Uten rad».
+- **«Uten rad»:** maskinen kan alltid slettes; lagring krever valgt timerad når maskinen krever det.
+- **Reise-sperren** står i `TimerSeksjon.tsx`, som ikke var i ordrens filliste. Spec-raden for «gjøre en timerad om til reise» peker på d2c-2.
+
 ### 12.11 Bygget — ordre d2b-1 (Kort-id-c, 🟢 merget 2026-11-16, ikke deployet)
 
 Branch `feat/kortid-d2b1-tabell`, fem commits (2026-11-16). Ingen migrering, ingen endring i API-et.
