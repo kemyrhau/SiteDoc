@@ -636,6 +636,240 @@ export const TIMER_KOL_BREDDE: Record<TimerKolKey, TimerKolBredde> = {
   status: { min: 100, vekt: 0, excel: 12 },
 };
 
+/* ------------------------------------------------------------------ */
+/*  R16 — ÉN kolonneliste for tabellene (attestering + rapportskjerm)  */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Nye kolonnenøkler for linjetabellen (spec prosjektkort-kortid R16, ordre d2b-1).
+ * De kommer i tillegg til `TIMER_KOL_KEYS`, som eksporten (Excel, PDF, malene) bruker
+ * uendret til d3 flytter den over hit. `avdeling` er med fordi avdelingsfilteret blir
+ * et kolonnefilter (R8) og Avdeling kan slås på (R2).
+ */
+export const TIMER_TABELL_NYE_KOL = [
+  "prosjektnummer",
+  "avdeling",
+  "pause",
+  "maskin",
+  "vare",
+  "vareenhet",
+  "varemengde",
+  "kort",
+  "avvik",
+] as const;
+
+export type TimerTabellKolKey = TimerKolKey | (typeof TIMER_TABELL_NYE_KOL)[number];
+export type TimerTabellRadType = "timer" | "maskin" | "vare" | "tillegg" | "utlegg";
+
+export const TIMER_TABELL_KOL_KEYS: readonly TimerTabellKolKey[] = [...TIMER_KOL_KEYS, ...TIMER_TABELL_NYE_KOL];
+
+const ALLE_TYPER: readonly TimerTabellRadType[] = ["timer", "maskin", "vare", "tillegg", "utlegg"];
+
+/**
+ * Kolonnedefinisjon: overskrift (i18n-nøkkel under `timer.eksport.`), om den er et tall
+ * (høyrejustert), om den har underlinjer (maskin- og varekolonnene, H14), og hvilke
+ * radtyper den gjelder (R16).
+ */
+export type TimerTabellKolDef = {
+  i18n: string;
+  num: boolean;
+  /** Kolonnen viser én verdi pr. maskin eller vare på linja (underlinjer, H14). */
+  under: boolean;
+  radtyper: readonly TimerTabellRadType[];
+};
+
+const def = (i18n: string, radtyper: readonly TimerTabellRadType[] = ALLE_TYPER, num = false, under = false): TimerTabellKolDef => ({ i18n, num, under, radtyper });
+
+/**
+ * Kolonnelista. Overskriftene er de samme som eksporten (`TIMER_KOL_I18N`) med ett
+ * bevisst unntak til d3: på skjerm heter maskinens `mengde`/`enhet` «Maskinmengde» og
+ * «Maskinenhet» (R2, HM22), fordi varen har egen mengde på samme linje. Eksporten
+ * beholder «Mengde»/«Enhet» til d3 (orkestrator 2026-11-16, beslutning 2).
+ */
+export const TIMER_TABELL_KOL: Record<TimerTabellKolKey, TimerTabellKolDef> = {
+  dato: def(TIMER_KOL_I18N.dato),
+  ansatt: def(TIMER_KOL_I18N.ansatt),
+  ansattnr: def(TIMER_KOL_I18N.ansattnr),
+  prosjektnummer: def("kolProsjektnummer"),
+  prosjekt: def(TIMER_KOL_I18N.prosjekt),
+  avdeling: def("kolAvdeling"),
+  byggeplass: def(TIMER_KOL_I18N.byggeplass),
+  underprosjekt: def(TIMER_KOL_I18N.underprosjekt),
+  kort: def("kolKort"),
+  type: def(TIMER_KOL_I18N.type),
+  betegnelse: def(TIMER_KOL_I18N.betegnelse),
+  lonnsartType: def(TIMER_KOL_I18N.lonnsartType, ["timer"]),
+  satsEnhet: def(TIMER_KOL_I18N.satsEnhet, ["tillegg"]),
+  aktivitet: def(TIMER_KOL_I18N.aktivitet, ["timer"]),
+  fraTid: def(TIMER_KOL_I18N.fraTid, ["timer", "maskin"]),
+  tilTid: def(TIMER_KOL_I18N.tilTid, ["timer", "maskin"]),
+  timer: def(TIMER_KOL_I18N.timer, ["timer"], true),
+  pause: def("kolPause", ["timer"], true),
+  maskin: def("kolMaskin", ["timer", "maskin"], false, true),
+  maskintimer: def(TIMER_KOL_I18N.maskintimer, ["timer", "maskin"], true, true),
+  mengde: def("kolMaskinmengde", ["timer", "maskin"], true, true),
+  enhet: def("kolMaskinenhet", ["timer", "maskin"], false, true),
+  vare: def("kolVare", ["timer", "vare"], false, true),
+  vareenhet: def("kolVareenhet", ["timer", "vare"], false, true),
+  varemengde: def("kolVaremengde", ["timer", "vare"], true, true),
+  antall: def(TIMER_KOL_I18N.antall, ["tillegg"], true),
+  belop: def(TIMER_KOL_I18N.belop, ["utlegg"], true),
+  reise: def(TIMER_KOL_I18N.reise, ["timer"]),
+  retning: def(TIMER_KOL_I18N.retning, ["timer"]),
+  fraSted: def(TIMER_KOL_I18N.fraSted, ["timer"]),
+  tilSted: def(TIMER_KOL_I18N.tilSted, ["timer"]),
+  avstandKm: def(TIMER_KOL_I18N.avstandKm, ["timer"], true),
+  kjoretidMin: def(TIMER_KOL_I18N.kjoretidMin, ["timer"], true),
+  reiseKilde: def(TIMER_KOL_I18N.reiseKilde, ["timer"]),
+  tidKilde: def(TIMER_KOL_I18N.tidKilde, ["timer"]),
+  normStatus: def(TIMER_KOL_I18N.normStatus, ["timer"]),
+  beskrivelse: def(TIMER_KOL_I18N.beskrivelse),
+  status: def(TIMER_KOL_I18N.status),
+  avvik: def("kolAvvik"),
+};
+
+/**
+ * Standard kolonnerekkefølge i attesteringen (H9, R2): maskin og maskintimer side om
+ * side, vare, vareenhet og varemengde side om side. Øvrige kolonner (avdeling,
+ * lønnsarttype, reisefeltene, kort) kan slås på i «Velg parameter».
+ */
+export const TIMER_TABELL_STANDARD: readonly TimerTabellKolKey[] = [
+  "dato", "ansatt", "ansattnr", "prosjektnummer", "prosjekt", "byggeplass", "underprosjekt",
+  "type", "betegnelse", "aktivitet", "fraTid", "tilTid", "timer", "pause",
+  "maskin", "maskintimer", "mengde", "enhet",
+  "vare", "vareenhet", "varemengde",
+  "antall", "belop", "beskrivelse", "status", "avvik",
+];
+
+/** Standardbredde pr. kolonne (R6): eksportens bredder + de nye nøklene. Dratt bredde vinner. */
+export const TIMER_TABELL_KOL_BREDDE: Record<TimerTabellKolKey, TimerKolBredde> = {
+  ...TIMER_KOL_BREDDE,
+  prosjektnummer: { min: 90, vekt: 0, excel: 12 },
+  avdeling: { min: 110, vekt: 1, excel: 18 },
+  pause: { min: 64, vekt: 0, excel: 8 },
+  maskin: { min: 140, vekt: 2, excel: 22 },
+  vare: { min: 140, vekt: 2, excel: 22 },
+  vareenhet: { min: 72, vekt: 0, excel: 9 },
+  varemengde: { min: 88, vekt: 0, excel: 11 },
+  kort: { min: 140, vekt: 2, excel: 24 },
+  avvik: { min: 180, vekt: 3, excel: 30 },
+};
+
+/** Én maskin på en linje (R3). `navn` er oppslått; `kortId` skrives aldri ut (G11). */
+export interface TimerTabellMaskin {
+  id: string;
+  navn: string | null;
+  fraTid: string | null;
+  tilTid: string | null;
+  timer: number | null;
+  mengde: number | null;
+  enhet: string | null;
+  /** R24/T69: maskin som krever timerad og mangler gyldig kobling. */
+  utenTimerad: boolean;
+}
+
+/** Én vare på en linje (R3). */
+export interface TimerTabellVare {
+  id: string;
+  navn: string | null;
+  enhet: string | null;
+  mengde: number | null;
+}
+
+/**
+ * Én linje i attesteringstabellen (R2/R3): timeregistreringen med maskiner og varer
+ * på linja. Hver linje er fullstendig — prosjekt, ansatt og dato står på hver linje.
+ */
+export interface TimerTabellLinje {
+  id: string;
+  type: TimerTabellRadType;
+  dato: string;
+  ansatt: string;
+  ansattnr: string | null;
+  prosjektnummer: string | null;
+  prosjekt: string;
+  avdeling: string | null;
+  byggeplass: string | null;
+  underprosjekt: string | null;
+  kort: string | null;
+  betegnelse: string;
+  aktivitet: string | null;
+  fraTid: string | null;
+  tilTid: string | null;
+  timer: number | null;
+  pauseMin: number | null;
+  maskiner: TimerTabellMaskin[];
+  varer: TimerTabellVare[];
+  antall: number | null;
+  belop: number | null;
+  lonnsartType: string | null;
+  satsEnhet: string | null;
+  erReise: boolean | null;
+  beskrivelse: string | null;
+  status: string;
+  /** Avvik i synlig tekst (R2, T44): ferdige tekster, aldri bare i `title`. */
+  avvik: string[];
+}
+
+/**
+ * Råverdien i en celle — brukt til sortering, filter og visning. `under` er
+ * underlinja (0 = første tekstlinje): maskin- og varekolonnene tar maskin/vare nr.
+ * `under`; andre kolonner har verdi bare på første tekstlinje (H14).
+ */
+export function timerTabellVerdi(
+  k: TimerTabellKolKey,
+  l: TimerTabellLinje,
+  under = 0,
+): string | number | null {
+  const m = l.maskiner[under];
+  const v = l.varer[under];
+  if (TIMER_TABELL_KOL[k].under) {
+    switch (k) {
+      case "maskin": return m?.navn ?? null;
+      case "maskintimer": return m?.timer ?? null;
+      case "mengde": return m?.mengde ?? null;
+      case "enhet": return m?.enhet ?? null;
+      case "vare": return v?.navn ?? null;
+      case "vareenhet": return v?.enhet ?? null;
+      case "varemengde": return v?.mengde ?? null;
+      default: return null;
+    }
+  }
+  if (under > 0) return null;
+  switch (k) {
+    case "dato": return l.dato;
+    case "ansatt": return l.ansatt;
+    case "ansattnr": return l.ansattnr;
+    case "prosjektnummer": return l.prosjektnummer;
+    case "prosjekt": return l.prosjekt;
+    case "avdeling": return l.avdeling;
+    case "byggeplass": return l.byggeplass;
+    case "underprosjekt": return l.underprosjekt;
+    case "kort": return l.kort;
+    case "type": return l.type;
+    case "betegnelse": return l.betegnelse;
+    case "lonnsartType": return l.lonnsartType;
+    case "satsEnhet": return l.satsEnhet;
+    case "aktivitet": return l.aktivitet;
+    case "fraTid": return l.fraTid;
+    case "tilTid": return l.tilTid;
+    case "timer": return l.timer;
+    case "pause": return l.pauseMin;
+    case "antall": return l.antall;
+    case "belop": return l.belop;
+    case "reise": return l.erReise === null ? null : l.erReise ? "ja" : "nei";
+    case "beskrivelse": return l.beskrivelse;
+    case "status": return l.status;
+    case "avvik": return l.avvik.length > 0 ? l.avvik.join(" · ") : null;
+    default: return null;
+  }
+}
+
+/** Antall tekstlinjer en linje tar (H14): flest av maskiner og varer, minst én. */
+export function antallUnderlinjer(l: Pick<TimerTabellLinje, "maskiner" | "varer">): number {
+  return Math.max(1, l.maskiner.length, l.varer.length);
+}
+
 /**
  * Løs de aktive detalj-kolonnene, i rekkefølge. ÉN sannhet for alle tre flater.
  *

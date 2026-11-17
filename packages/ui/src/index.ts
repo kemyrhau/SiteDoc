@@ -11,4 +11,13 @@ export { EmptyState } from "./empty-state";
 export { Tooltip } from "./tooltip";
 export { SidebarIkon } from "./sidebar-ikon";
 export { Table, type KolonneHode } from "./table";
+export {
+  SorterPil,
+  KolonneFilter,
+  BreddeHandtak,
+  useBreddeDragning,
+  STANDARD_FILTER_TEKSTER,
+  type SorterRetning,
+  type KolonneFilterTekster,
+} from "./tabellverktoy";
 export { SearchInput } from "./search-input";

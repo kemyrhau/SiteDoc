@@ -64,7 +64,7 @@ STATUS-AKTUELT eller historikk, aldri her. *(Kenneth 2026-09-28: «du får kun l
 | **Orkestrator** | hovedtreet `SiteDoc` (relay, lesing) + `SiteDoc-merge` (merge, docs-commits) | Skriver kode-ordrer, kontrollerer Fabels plan mot kode før den blir ordre, sender alle nudger, leser leveranser, merger og pusher `develop`, fører tavla, STATUS-AKTUELT og [FUNKSJONSENDRINGER.md](FUNKSJONSENDRINGER.md), gir Kenneth deploy-kommandoer | Skriver plan/design · gater kode den selv har skrevet · kjører `sudo`/deploy/OTA/EAS/migrering |
 | **Fabel** | `SiteDoc-fabel` (Desktop-økt «Fabel») | **Eier planen og designet** — modell, lagdeling, beslutningsliste, specs *(Kenneth-vedtak 2026-10-01)*. Skriver mal-ordrer og gater maler. Pusher egne docs-brancher fra `origin/develop` | Merger · pusher `develop` · gater kode |
 | **Kontrollør** | `SiteDoc-gate` | Uavhengig gate av kode-leveranser mot faktisk kode før merge. Stående ordre: `relay/inbox-kontrollor.md` | Skriver kode · merger |
-| **Redesign**, **Dokgen** | `SiteDoc-redesign`, `SiteDoc-dokgen` | Koder én oppgave på egen branch, pusher egen branch, leverer med SJEKKPUNKT | Pusher `develop`/`main` · rører filer ordren ikke gir dem |
+| **Redesign**, **Dokgen**, **3D-web**, **3D-mobil** | `SiteDoc-redesign`, `SiteDoc-dokgen`; 3D-agentene i eget app-tre pr. ordre (`SiteDoc/.claude/worktrees/…`) | Koder én oppgave på egen branch, pusher egen branch, leverer med SJEKKPUNKT | Pusher `develop`/`main` · rører filer ordren ikke gir dem |
 | **Kenneth** | — | Beslutninger, server, deploy, OTA, EAS, `sudo`, migreringer, push til `main` | Limer nudger (§ 0b.6) |
 
 - **Agentnavn, aldri mappenavn**, når noen omtales eller adresseres (Kenneth 2026-10-06). `SiteDoc-fabel` = Fabel, `SiteDoc-gate` = Kontrollør.
@@ -132,7 +132,7 @@ Neste steg: <én setning, eller «vent på ordre»>
 
 #### C. Agenten etter /clear: les før du gjør noe
 
-1. Denne regelen.
+1. Denne regelen. **3D-web og 3D-mobil:** deretter hele [3d-agent-prinsipper.md](3d-agent-prinsipper.md) (hard grense mot DWG/DXF).
 2. Posten nudgen navngir, i egen innboks (søk på overskriften). Finnes den ikke: **STOPP og meld «posten finnes ikke»**.
 3. Siste `SJEKKPUNKT <Agent>` i `relay/inbox-orkestrator.md`.
 4. `git -C <worktree> status` + `git log -1`. Avviker treet fra sjekkpunktet: **meld avviket før du gjør noe.**

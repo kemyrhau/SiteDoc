@@ -31,6 +31,26 @@ sist_verifisert_mot_kode: 2026-08-09
 > ⚠️ **IKKE i prod:** DWG retur 2 (auto-rotasjon, startutsnitt, LEADER) · DWG retur 4 (fullstendighet: ATTRIB-tegning + `konvertering_rapport` + gate-test, branch `fix/dwg-retur4-strek`) · snap-retur 1 — under arbeid. DWG-3 (georeferanse fire hjørner) ikke levert — se § 2026-09-24 under.
 
 > ✅ **Gjestevern ved firmabytte, mobil (19) MERGET 2026-11-15** (merge `1a287c5d` av `38f4dffa`; Kontrollør GODKJENT GATE (44) nederst i `inbox-orkestrator.md`). `skalNullstilleProsjekt` flyttet til `@sitedoc/shared` (`gjesteprosjekt.ts`, web re-eksporterer); mobil `ProsjektKontekst.tsx` holder ventende firmabytte til gjestelista er lastet (`firmabyttProsjekt.ts` `firmabyttUtfall`) — gjesteprosjekt beholdes ved firmabytte. **Ikke deployet.** Lukker (18) åpent punkt (b).
+> ✅ **3D-web ORDRE 5 MERGET 2026-11-17** (merge `73ae7b0d` av `c628bd5f`, gate (87)): subpath-import, ?-hjelp i 3d-visning, vakter (scenen alltid i meter; raycast hopper over skjulte). Regel 10 kaldt 11/11, tsc 0, build 0, test 7/7. Ikke deployet. Åpent: `erMm`-grenen i `flyTil` (`tred-viewer-kontekst.tsx:1305-1307`) død og feil — fjernes i neste 3D-web-ordre.
+
+> ✅ **Web laster bare valgt språk MERGET 2026-11-17** (merge `d3b7bfe8` av `bd79053a`, gate (86)). Regel 10 kaldt: 11/11, tsc 0, build 0, test 7/7 seriell. Ikke deployet.
+
+> ✅ **3D-web ORDRE 4 MERGET 2026-11-17** (merge `4a5e1663` av `5aa828ca`, gate (85)): zoom-fart etter avstand + objekter langt unna skjult med bryter på web. Regel 10 kaldt: 11/11, tsc 0, build 0, test 7/7 seriell. Ikke deployet. Kontrollørens merknader M1–M4 (mm-modeller, subpath-import, ?-hjelpetekst, raycast mot skjulte) → ORDRE 3D-web 5.
+
+> ✅ **3D-web ORDRE 3 + 3D-mobil kamera MERGET 2026-11-17** (merge `23427bdb` av `48be4d58`, gate (82); merge `5266492e` av `ac5d7e71`, gate (81)+(83)). Regel 10 kaldt på `5266492e`: typecheck 11/11, web tsc 0, build 0, test `--concurrency=1` 7/7. Ikke deployet. M2 (`/mobil-viewer` 92 → 284 kB) lukket: merge `dd415207` av `ee376ee4`, gate (84) — First Load 111 kB, faktisk nedlasting uendret ~1,8 MB gzip (M2 var ingen reell regresjon). 1,5 MB av den er språkfilene i root layout → ORDRE 3D-mobil 6 (Kenneth «ok, kjør»).
+
+> ✅ **Kort-id d2b-1 + 3D-web W1/W4/W2 MERGET 2026-11-17** (merge `80f165cf` av `65389b4c`, gate (77) + Kenneths ja på B1; merge `470f9d57` av `d6d0b453`, gate (79)+(80)). Regel 10 på `470f9d57`: testleddet rødt parallelt-lastet på `pdfjs-node20`-flaken, api alene 204/204 grønt (målt etter push). Ikke deployet. (81) 3D-mobil kamera: Kenneth valgte 2026-11-17 «Ja til begge» (§ 3b) → RETUR 3D-mobil 3.
+
+> ✅ **3D M5 (1) objektinfo fra cache MERGET 2026-11-16** (merge `1dfb6191` av `63fb5bc8`; Kontrollør GODKJENT GATE (78) `inbox-orkestrator.md:30818`). `mobil-viewer/page.tsx` + `ifcRaadata.ts`. Krever web-deploy til test før Kenneth tester på telefon (klikkplan i leveransen). Oppfølger anbefalt av Kontrollør: lagre råfila med fragmentene / hent ved første tapp (mobildata).
+
+
+> ✅ **Kort-id d2c-1 MERGET 2026-11-16** (merge `274e7fb2` av `c2badc8f`; Kontrollør GODKJENT GATE (75) `inbox-orkestrator.md:30527`). PC: maskin som krever timerad (R24, H12/H13/H15 A) lagres ikke uten koblet timerad; nedtrekk «Timerad» i maskinvinduet; sletting av timerad med maskiner bekreftes og sletter dem i samme transaksjon; timerad med slik maskin kan ikke bli reise eller 0 t. `syncBatch` uendret. Merknad: dialogen viser «—» når maskinlista ikke er lastet (kosmetisk). Ikke deployet.
+
+> ✅ **Sammendraget teller dagssedler med rader (37) MERGET 2026-11-16** (merge av `dc0056b2`; Kontrollør GODKJENT GATE (76) `inbox-orkestrator.md:30504`). Eksportveien (PDF/Excel) teller «Sedler» + Kladd/Sendt/Attestert bare for dagssedler med rader i tabellen; skjermen uendret (spec § 12.8.5). Ikke deployet. Ustabile tester identifisert: `pdfjs-node20` og `bilde-inliner` går ut på tid ved parallell kjøring, grønne med `--concurrency=1`.
+
+> ✅ **Timerapport-PDF kolonner (36) MERGET 2026-11-16** (merge `1bac9f7f` av `f9214e2d`; Kontrollør GODKJENT GATE (72) A1 godtatt + GATE (74) `inbox-orkestrator.md:30179`). Korte kolonner brytes ikke; valgte kolonner tomme for alle rader skjules i PDF (unntak fra B1, kun PDF, Kenneth 2026-11-16); th høyrejustert over tall. Ikke deployet (følger d2a). **Venter Kenneth:** funn 2 — skal sammendragets «Sedler»/statusfordeling i PDF/Excel telle bare sedler med rader i tabellen?
+
+> 🚀 **PROD 2026-11-16:** api/web `85ff903c` (release av develop @ `24c607fd`: kort-id b (30), (31), (32), PDF-eksport (34), a/a2/a3/(25)/(26)); tre migreringer kjørt (`kortid_fravaer_normtak`, `kortid_vareforbruk`, `fravaer_attesteres_av_prosjektleder`). Gate-SQL mot `sitedoc`: 1, 2, 3a, 3b = 0; C = 23 fravær-arter, verdier etter backfill-regelen. Innlogget verifisert av Kenneth. **OTA production** fra main `ac933d8b` (c mobil (33) + (35) «Flytt raden» kollisjonssjekk), update group `c2682d69`. ✅ **(35) MERGET** `d799072e` (GATE (71)). ✅ **d2a MERGET** `274be011` (GATE (73) `inbox-orkestrator.md:30077`) — server/shared, ikke deployet. (36) funn 1 gatet (72) med avvik A1 (th høyrejustert) — venter Kenneth. FTD-testen `ftd-reprosess-modus` rød på develop fra før — uten eier.
 
 > ✅ **Kort-id ordre c (mobil) MERGET 2026-11-16** (merge `5f2004f5` av `4ac20759`; Kontrollør GODKJENT GATE (70) `inbox-orkestrator.md:29792`). Kort-id i mobilens prosjektkort-modus + fraværskort (spec § 8.2, § 11). Ingen server- eller skjemaendring. **Ikke ute:** krever OTA etter at b er i prod. Neste: liten mobilordre «Flytt raden» med kollisjonssjekk; d2a (server+shared, spec § 12.6.1).
 
@@ -130,6 +150,8 @@ sist_verifisert_mot_kode: 2026-08-09
 | **Dokgen** | `SiteDoc-dokgen` | `feat/arbeidstegning-prod-klar` `954a2ac0` | ikke målt denne runden |
 | **Kontrollplan** | `SiteDoc-kontrollplan` | `feat/v17b-soner` `301da63e` | ikke målt denne runden |
 | **Mal-Opus** | `SiteDoc-mal` | `feat/mal-7b-standardnavn-vakt27` `eb5af56a` | ikke målt denne runden |
+| **3D-web** | app-tre `3d-web-maaling-a15d10` | `feat/3d-web-oppfolging` merget `73ae7b0d` | ⚪ LEDIG — neste: fjern død `erMm`-gren i `flyTil`; W3/M5 (2) egenskaper; W5/M6 måling |
+| **3D-mobil** | app-tre `3d-mobil-maaling-a07340` | `perf/web-spraak-lazy` merget `d3b7bfe8` | ⚪ LEDIG |
 | **Merge** | `SiteDoc-merge` | detached på develop | ⚪ LEDIG |
 
 **Tilstander:** ⚪ LEDIG · 🟠 FERDIGSKREVET (ikke relayet) · 🔵 ORDRE GITT · 🟢 LEVERT · 🔴 BLOKKERT

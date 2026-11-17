@@ -24,6 +24,11 @@ import { esc, byggTimerRapportHtml, type TimerRapportData } from "@sitedoc/pdf";
 import { router, protectedProcedure } from "../../trpc/trpc";
 import { autoriserAdminForFirma } from "../../trpc/tilgangskontroll";
 import { krevTimerAktivert } from "../../services/timer";
+import {
+  hentByggeplassNavn,
+  hentUnderprosjektNavn,
+  hentUtstyrOppslag,
+} from "../../services/timer/kortLeser";
 import { renderPdfViaContainer } from "../../services/pdf-render-klient";
 
 async function verifiserFirmaAdmin(
@@ -216,11 +221,30 @@ export const rapportRouter = router({
             where: { ...IKKE_ERSTATTET, ...radProsjektFilter },
             include: { lonnsart: { select: { skalEksporteres: true } } },
           },
-          tillegg: { where: { ...IKKE_ERSTATTET, ...radProsjektFilter } },
+          // Ordre (37): tillegg.skalEksporteres + utlegg-id-er avgjør om sedelen har en
+          // rad i eksporttabellen (samme utvalg som detaljEksport).
+          tillegg: {
+            where: { ...IKKE_ERSTATTET, ...radProsjektFilter },
+            include: { tillegg: { select: { skalEksporteres: true } } },
+          },
           maskiner: { where: { ...IKKE_ERSTATTET, ...radProsjektFilter } },
+          utlegg: { where: radProsjektFilter, select: { id: true } },
         },
         orderBy: [{ dato: "asc" }, { createdAt: "asc" }],
       });
+
+      // Ordre (37), spec § 12.8.5: på eksportveien teller sammendraget («Sedler» og
+      // kladd/sendt/attestert) bare sedler med minst én rad i eksporttabellen — samme
+      // radutvalg som detaljEksport (timer, maskin, tillegg, utlegg). Skjermen teller alle.
+      const kunAttesterte = !input.taMedUattesterte;
+      const radMed = (attestertStatus: string | null) =>
+        !kunAttesterte || attestertStatus === RAD_ATTESTERT;
+      const harRadIEksporttabellen = (s: (typeof sedler)[number]): boolean =>
+        s.timer.some((t) => t.lonnsart?.skalEksporteres !== false && radMed(t.attestertStatus)) ||
+        s.maskiner.some((m) => radMed(m.attestertStatus)) ||
+        s.tillegg.some((t) => t.tillegg?.skalEksporteres === true && radMed(t.attestertStatus)) ||
+        (s.utlegg.length > 0 && (!kunAttesterte || s.status === SEDEL_ATTESTERT));
+      let antallSedler = 0;
 
       // Berik med ansatt-data fra kjerne-DB
       const userIder = Array.from(new Set(sedler.map((s) => s.userId)));
@@ -276,9 +300,9 @@ export const rapportRouter = router({
         let sedelTimer = 0;
         for (const t of sedel.timer) {
           // Eksport-veien: hopp over lønnsarter merket skalEksporteres=false, så
-          // aggregatets time-sum matcher detalj-arkene. Sedel-metadata
-          // (statusFordeling/antallSedler/sistRegistrert) filtreres IKKE — en
-          // sedel med kun ikke-eksporterbare timer er fortsatt en reell sedel.
+          // aggregatets time-sum matcher detalj-arkene. Sedeltellingen
+          // (statusFordeling/antallSedler) følger eksporttabellen fra ordre (37) —
+          // se harRadIEksporttabellen; sistRegistrert filtreres ikke.
           if (input.kunEksporterbare && t.lonnsart?.skalEksporteres === false) {
             continue;
           }
@@ -304,11 +328,14 @@ export const rapportRouter = router({
         const datoNok = sedel.dato.toISOString().slice(0, 10);
         a.perDag.set(datoNok, (a.perDag.get(datoNok) ?? 0) + sedelTimer);
 
-        const status = statusNokkel(sedel.status);
-        a.statusFordeling[status] += 1;
-        statusFordeling[status] += 1;
-
-        a.antallSedler += 1;
+        // Ordre (37): eksportveien teller bare sedler med rad i eksporttabellen.
+        if (!input.kunEksporterbare || harRadIEksporttabellen(sedel)) {
+          const status = statusNokkel(sedel.status);
+          a.statusFordeling[status] += 1;
+          statusFordeling[status] += 1;
+          a.antallSedler += 1;
+          antallSedler += 1;
+        }
         if (!a.sistRegistrert || sedel.dato > a.sistRegistrert) {
           a.sistRegistrert = sedel.dato;
         }
@@ -352,7 +379,7 @@ export const rapportRouter = router({
           nummer: p.projectNumber,
         })),
         totalTimer,
-        antallSedler: sedler.length,
+        antallSedler,
         statusFordeling,
       };
     }),
@@ -512,25 +539,16 @@ export const rapportRouter = router({
           : (prosjektMap.get(id)?.name ?? "(ukjent)");
 
       // Maskin-navn (kryss-modul → db-maskin). Samme navn-form som dagskortet.
-      const vehicleIder = Array.from(
-        new Set(sedler.flatMap((s) => s.maskiner.map((m) => m.vehicleId))),
-      );
-      const utstyrMap = new Map<string, string>();
       // utleieEnhet ("time" | "doegn" | null) styrer om en nøstet maskin foldes
       // inn på operatørens timerad (maskin.md § faktureringsenheten). null =
       // ukjent → ALDRI gjettet (byggDetaljRader lar den stå på egen linje).
-      const utleieEnhetMap = new Map<string, string | null>();
-      if (vehicleIder.length > 0) {
-        const utstyr = await ctx.prismaMaskin.equipment.findMany({
-          where: { id: { in: vehicleIder } },
-          select: { id: true, merke: true, modell: true, internNavn: true, utleieEnhet: true },
-        });
-        for (const e of utstyr) {
-          const base = `${e.merke ?? ""} ${e.modell ?? ""}`.trim();
-          utstyrMap.set(e.id, base || e.internNavn || e.id);
-          utleieEnhetMap.set(e.id, e.utleieEnhet ?? null);
-        }
-      }
+      // Ordre d2a: oppslaget bor i kortLeser (felles med attesteringens lesere).
+      const utstyrOppslag = await hentUtstyrOppslag(
+        ctx.prismaMaskin,
+        sedler.flatMap((s) => s.maskiner.map((m) => m.vehicleId)),
+      );
+      const utstyrMap = utstyrOppslag.navn;
+      const utleieEnhetMap = utstyrOppslag.utleieEnhet;
 
       // LAG 2 D2 — oppmøtested- og byggeplass-navn for reise-radenes fra/til-sted.
       // Svak cross-table FK (A.20-mønster): ingen @relation, slås opp via kjerne-
@@ -551,28 +569,17 @@ export const rapportRouter = router({
         for (const o of steder) oppmotestedMap.set(o.id, o.navn);
       }
       // B8 (tillegg/utlegg på prosjektkortet): byggeplass-navn for ALLE radtyper
-      // og sedelens egen (arv når radens er NULL, A.30).
-      const byggeplassIder = Array.from(
-        new Set(
-          sedler
-            .flatMap((s) => [
-              s.byggeplassId,
-              ...s.timer.map((r) => r.byggeplassId),
-              ...s.maskiner.map((r) => r.byggeplassId),
-              ...s.tillegg.map((r) => r.byggeplassId),
-              ...s.utlegg.map((r) => r.byggeplassId),
-            ])
-            .filter((id): id is string => id != null),
-        ),
+      // og sedelens egen (arv når radens er NULL, A.30). Ordre d2a: via kortLeser.
+      const byggeplassMap = await hentByggeplassNavn(
+        prisma,
+        sedler.flatMap((s) => [
+          s.byggeplassId,
+          ...s.timer.map((r) => r.byggeplassId),
+          ...s.maskiner.map((r) => r.byggeplassId),
+          ...s.tillegg.map((r) => r.byggeplassId),
+          ...s.utlegg.map((r) => r.byggeplassId),
+        ]),
       );
-      const byggeplassMap = new Map<string, string>();
-      if (byggeplassIder.length > 0) {
-        const plasser = await prisma.byggeplass.findMany({
-          where: { id: { in: byggeplassIder } },
-          select: { id: true, name: true },
-        });
-        for (const b of plasser) byggeplassMap.set(b.id, b.name);
-      }
       const oppmotestedNavn = (id: string | null): string | null =>
         id == null ? null : (oppmotestedMap.get(id) ?? null);
       const byggeplassNavn = (id: string | null): string | null =>
@@ -584,26 +591,18 @@ export const rapportRouter = router({
       ): string | null => byggeplassNavn(r.byggeplassId ?? s.byggeplassId);
 
       // B8: underprosjekt-navn («proAdmId · kortNavn») for alle radtyper, firma-scopet.
-      const ecoIder = Array.from(
-        new Set(
-          sedler
-            .flatMap((s) => [
-              ...s.timer.map((r) => r.externalCostObjectId),
-              ...s.maskiner.map((r) => r.externalCostObjectId),
-              ...s.tillegg.map((r) => r.externalCostObjectId),
-              ...s.utlegg.map((r) => r.externalCostObjectId),
-            ])
-            .filter((id): id is string => id != null),
-        ),
+      // Ordre d2a: via kortLeser.
+      const ecoOppslag = await hentUnderprosjektNavn(
+        prisma,
+        sedler.flatMap((s) => [
+          ...s.timer.map((r) => r.externalCostObjectId),
+          ...s.maskiner.map((r) => r.externalCostObjectId),
+          ...s.tillegg.map((r) => r.externalCostObjectId),
+          ...s.utlegg.map((r) => r.externalCostObjectId),
+        ]),
+        orgId,
       );
-      const ecoMap = new Map<string, string>();
-      if (ecoIder.length > 0) {
-        const ecoer = await prisma.externalCostObject.findMany({
-          where: { id: { in: ecoIder }, organizationId: orgId },
-          select: { id: true, kortNavn: true, proAdmId: true },
-        });
-        for (const e of ecoer) ecoMap.set(e.id, `${e.proAdmId} · ${e.kortNavn}`);
-      }
+      const ecoMap = new Map(Array.from(ecoOppslag, ([id, e]) => [id, e.navn]));
       const underprosjektNavn = (id: string | null): string | null =>
         id == null ? null : (ecoMap.get(id) ?? null);
 
@@ -937,11 +936,8 @@ export const rapportRouter = router({
         valgteKolonner: input.kolonner,
         // Bredde-vekt pr. kolonne (flateparitet): PDF importerer bevisst ikke
         // @sitedoc/shared, så den delte bredde-intensjonen sendes inn som data.
-        // Vekt = min·(1+vekt) → fritekst-kolonner (Beskrivelse/Betegnelse) får mest
-        // plass, koder/tall holdes smale — samme intensjon som skjerm/Excel arver.
-        kolBredder: Object.fromEntries(
-          Object.entries(TIMER_KOL_BREDDE).map(([k, b]) => [k, b.min * (1 + b.vekt)]),
-        ),
+        // ORDRE (36): sendes ordrett — vekt 0 = kort kolonne (nowrap), ellers tekst.
+        kolBredder: TIMER_KOL_BREDDE,
         topptekstLinjer,
         ansatte: aggregat.ansatte.map((a) => ({
           navn: a.navn ?? a.email,

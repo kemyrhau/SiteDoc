@@ -121,6 +121,10 @@ function lagCtx(opts: {
   const ctx = {
     userId: USER,
     req: { log: { info: vi.fn(), warn: vi.fn() } },
+    // Ordre d2c-1: døgn-maskin — R24 (krever timerad) er ikke det som måles her.
+    prismaMaskin: {
+      equipment: { findMany: vi.fn().mockResolvedValue([{ id: UTSTYR, merke: "Volvo", modell: "EC220E", internNavn: null, utleieEnhet: "doegn" }]) },
+    },
     prisma: {
       organizationSetting: {
         findUnique: vi.fn().mockResolvedValue({ tillattRedigerVedAttestering: true }),

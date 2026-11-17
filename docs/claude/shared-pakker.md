@@ -143,6 +143,8 @@ Når en nøkkel mangler i ett språk men finnes i et annet, **verifiser kode-bru
 - `rensLagretByggeplassValg(id)` (`standardByggeplass.ts`, TILLEGG (22)) — tom verdi og den utgåtte strengen fra før TILLEGG (22) (lagret «hele prosjektet»-valg) leses som `null` (intet valg). Brukes av `velgTimerByggeplass`, web `byggeplass-kontekst.tsx` og mobil `byggeplassFilterValg.ts`.
 - `velgTimerByggeplass` (timer) — lagret valg (renset) → GPS → null. TILLEGG (22): en lagret utgått streng gir nå GPS i stedet for null. `velgStandardByggeplass` og eksporten `HELE_PROSJEKTET_VALG` er fjernet (TILLEGG (22)).
 
+- `TIMER_TABELL_KOL` / `TIMER_TABELL_KOL_KEYS` / `TIMER_TABELL_STANDARD` / `timerTabellVerdi(k, linje, under)` / `antallUnderlinjer` (`timerDetaljRader.ts`, ordre d2b-1, 🟡 ikke merget) — kolonnelista for attesteringstabellen og rapportens Detaljer: overskrift (`timer.eksport.<i18n>`), tall-justering, hvilke radtyper kolonnen gjelder, og verdien pr. tekstlinje (maskin og vare nr. 2 står på underlinja).
+
 ### Søk-utsnitt (`packages/shared/src/sok/`)
 
 `utsnitt.ts` — ren logikk for treffutsnitt og ordmarkering i FTD-søket, delt av web (`apps/web/src/components/ftd-sok/`, re-eksport) og mobilsøket (`apps/mobile/src/components/sok/`): `byggUtsnitt`, `posisjonsEtikett`, `finnOverlapp`, `delOppTermer`, `søkeTermer`. Test: `utsnitt.test.ts`. Detaljer: [ai-sok.md](ai-sok.md), [mobil.md](mobil.md).

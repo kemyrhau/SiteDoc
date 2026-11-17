@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams } from "next/navigation";
 import { trpc } from "@/lib/trpc";
-import { Spinner } from "@sitedoc/ui";
+import { Spinner, Tooltip } from "@sitedoc/ui";
 import {
   Upload,
   Box,
@@ -21,6 +21,7 @@ import { useTreDViewer } from "@/kontekst/tred-viewer-kontekst";
 import { EgenskapsPopup } from "./komponenter/EgenskapsPopup";
 import { FilterChipBar } from "./komponenter/FilterChipBar";
 import { rammeEtikett } from "./hjelpefunksjoner";
+import { HjelpFane, HjelpKnapp } from "@/components/hjelp/HjelpModal";
 import type {
   Fane,
   OverflateData,
@@ -110,6 +111,9 @@ function Fane3DModell() {
     skjulteObjekter,
     aktiveFiltre,
     klippModus,
+    antallUtliggere,
+    visUtliggere,
+    settVisUtliggere,
     lasterTegninger,
     lasterPunktskyer,
     viewerRef,
@@ -125,6 +129,16 @@ function Fane3DModell() {
     lastOppIfc,
     lasterOpp,
   } = useTreDViewer();
+
+  // Snitt-modus lever i provideren, som deles med tegning-3d. Når 3d-visning
+  // forlates, slås snittet av slik «Fjern alle» gjør — ellers sperrer klippModus
+  // objektvalg i tegning-3d, som ikke har noen Snitt-knapp (GATE (79) V1).
+  useEffect(() => {
+    return () => {
+      viewerRef.current?.fjernAlleKlippeplan();
+      setKlippModus(false);
+    };
+  }, [viewerRef, setKlippModus]);
 
   if (lasterTegninger || lasterPunktskyer) {
     return (
@@ -240,21 +254,34 @@ function Fane3DModell() {
             {t("3d.modellAntall", { antall: tegninger.length })}
           </span>
           <div className="flex-1" />
+          {/* Objekter langt unna bygget skjules som standard (§ 3b punkt 3) */}
+          {antallUtliggere > 0 && (
+            <label className="flex cursor-pointer items-center gap-1.5 border-r border-gray-200 pr-3 text-xs text-gray-600">
+              <input
+                type="checkbox"
+                className="h-3.5 w-3.5 accent-sitedoc-primary"
+                checked={visUtliggere}
+                onChange={(e) => { void settVisUtliggere(e.target.checked); }}
+              />
+              {t("3d.visObjekterLangtUnna")} ({antallUtliggere})
+            </label>
+          )}
           <div className="flex items-center gap-1 border-r border-gray-200 pr-3">
-            <button
-              onClick={() => {
-                const nyModus = !klippModus;
-                setKlippModus(nyModus);
-                if (nyModus) viewerRef.current?.settKlipperSynlig(true);
-              }}
-              className={`flex items-center gap-1 rounded px-2 py-1 text-xs ${
-                klippModus ? "bg-sitedoc-primary text-white" : "text-gray-600 hover:bg-gray-100"
-              }`}
-              title={t("3d.snitt")}
-            >
-              <Scissors className="h-3.5 w-3.5" />
-              {t("3d.snitt")}
-            </button>
+            <Tooltip tekst={t("3d.snittHjelp")} side="bottom">
+              <button
+                onClick={() => {
+                  const nyModus = !klippModus;
+                  setKlippModus(nyModus);
+                  if (nyModus) viewerRef.current?.settKlipperSynlig(true);
+                }}
+                className={`flex items-center gap-1 rounded px-2 py-1 text-xs ${
+                  klippModus ? "bg-sitedoc-primary text-white" : "text-gray-600 hover:bg-gray-100"
+                }`}
+              >
+                <Scissors className="h-3.5 w-3.5" />
+                {t("3d.snitt")}
+              </button>
+            </Tooltip>
             {klippModus && (
               <button
                 onClick={() => {
@@ -267,6 +294,29 @@ function Fane3DModell() {
               </button>
             )}
           </div>
+          <HjelpKnapp>
+            <HjelpFane tittel={t("3d.hjelp.hvaTittel")}>
+              <div className="space-y-4 text-sm text-gray-600">
+                <p>{t("3d.hjelp.hva")}</p>
+                <div>
+                  <h4 className="font-semibold text-gray-900">{t("3d.hjelp.musTittel")}</h4>
+                  <ul className="mt-1 list-disc space-y-1 pl-5">
+                    <li>{t("3d.hjelp.venstre")}</li>
+                    <li>{t("3d.hjelp.hoyre")}</li>
+                    <li>{t("3d.hjelp.hjul")}</li>
+                  </ul>
+                </div>
+                <div>
+                  <h4 className="font-semibold text-gray-900">{t("3d.hjelp.snittTittel")}</h4>
+                  <p className="mt-1">{t("3d.hjelp.snitt")}</p>
+                </div>
+                <div>
+                  <h4 className="font-semibold text-gray-900">{t("3d.hjelp.langtUnnaTittel")}</h4>
+                  <p className="mt-1">{t("3d.hjelp.langtUnna")}</p>
+                </div>
+              </div>
+            </HjelpFane>
+          </HjelpKnapp>
         </div>
 
         {/* Filter-chip-bar */}

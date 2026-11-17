@@ -61,6 +61,7 @@ import {
   løsReiseKnappLonnsart,
   arbeidOgReise,
   arbeidUtenReise,
+  maskinKreverTimerad,
   sendDagenTekst,
   type ForsonRad,
   type ErReiseKontekst,
@@ -190,6 +191,8 @@ type MaskinRad = {
   mengde: unknown;
   enhet: string | null;
   attestertStatus: string | null;
+  // Ordre d2c-1 (R24): timeraden maskinen står på. Valgfri så eldre respons ikke bryter.
+  sheetTimerId?: string | null;
 };
 
 // V22: det timer-radens sekundærlinje trenger fra sedelen og gruppa.
@@ -1986,6 +1989,7 @@ function ProsjektGruppe({
             }
             timer={bucket.timer}
             maskin={bucket.maskin}
+            maskinIProsjekt={ecoBuckets.flatMap((b) => b.maskin)}
             tillegg={bucket.tillegg}
             utlegg={bucket.utlegg}
             projectId={projectId}
@@ -2065,6 +2069,7 @@ function EcoGruppe({
   ecoNavn,
   timer,
   maskin,
+  maskinIProsjekt,
   tillegg,
   utlegg,
   projectId,
@@ -2086,6 +2091,9 @@ function EcoGruppe({
   ecoNavn: { kortNavn: string; proAdmId: string } | null;
   timer: TimerRad[];
   maskin: MaskinRad[];
+  // Ordre d2c-1: alle maskinrader i prosjektet — en timerads maskiner kan stå i
+  // en annen underprosjekt-bøtte, men aldri i et annet prosjekt (R24).
+  maskinIProsjekt: MaskinRad[];
   tillegg: TilleggRad[];
   utlegg: UtleggRad[];
   projectId: string;
@@ -2164,6 +2172,7 @@ function EcoGruppe({
             {timer.length > 0 && (
               <RaderTimer
                 rader={timer}
+                maskinIProsjekt={maskinIProsjekt}
                 erRedigerbar={erRedigerbar}
                 pauseVisning={pauseVisning}
                 radLinje={radLinje}
@@ -2255,6 +2264,7 @@ function Definisjon({
 
 function RaderTimer({
   rader,
+  maskinIProsjekt,
   erRedigerbar,
   pauseVisning,
   radLinje,
@@ -2262,6 +2272,7 @@ function RaderTimer({
   onSplitt,
 }: {
   rader: TimerRad[];
+  maskinIProsjekt: MaskinRad[];
   erRedigerbar: boolean;
   // V20/PK3: dagens pause-kontekst → kryss/tom avkrysning pr. rad.
   pauseVisning: PauseVisning;
@@ -2280,7 +2291,61 @@ function RaderTimer({
     onError: (e: { message: string }) => alert(e.message),
   });
 
+  // Ordre d2c-1 (R24): maskiner som krever raden, slettes bare etter en
+  // bekreftelse som navngir dem. Døgn-maskiner blir stående (serveren nuller koblingen).
+  const { data: equipmentRaw } = trpc.maskin.equipment.list.useQuery({ organizationId: sedelFirmaId });
+  const equipment = equipmentRaw as unknown as
+    | Array<{ id: string; merke: string | null; modell: string | null; internNavn: string | null; utleieEnhet?: string | null }>
+    | undefined;
+  const [bekreftSlett, setBekreftSlett] = useState<{ radId: string; navn: string[] } | null>(null);
+  function slettRad(rad: TimerRad) {
+    const navn = maskinIProsjekt
+      .filter((m) => m.sheetTimerId === rad.id)
+      .flatMap((m) => {
+        const e = equipment?.find((x) => x.id === m.vehicleId);
+        if (e && !maskinKreverTimerad(e.utleieEnhet)) return [];
+        const merkeModell = [e?.merke, e?.modell].filter(Boolean).join(" ");
+        return [merkeModell || e?.internNavn || "—"];
+      });
+    if (navn.length > 0) setBekreftSlett({ radId: rad.id, navn });
+    else fjern.mutate({ id: rad.id });
+  }
+
   return (
+    <>
+    {bekreftSlett && (
+      <Modal
+        open={true}
+        onClose={() => setBekreftSlett(null)}
+        title={t("timer.fjernTimerRad.tittel")}
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-700">
+            {t("timer.fjernTimerRad.maskiner", {
+              count: bekreftSlett.navn.length,
+              navn: bekreftSlett.navn.join(", "),
+            })}
+          </p>
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => setBekreftSlett(null)}>
+              {t("handling.avbryt")}
+            </Button>
+            <Button
+              variant="danger"
+              loading={fjern.isPending}
+              onClick={() =>
+                fjern.mutate(
+                  { id: bekreftSlett.radId, slettMaskiner: true },
+                  { onSettled: () => setBekreftSlett(null) },
+                )
+              }
+            >
+              {t("timer.fjernTimerRad.bekreft")}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+    )}
     <ul className="divide-y divide-gray-100">
       {rader.map((rad) => {
         const lonnsart = lonnsarter?.find((l) => l.id === rad.lonnsartId);
@@ -2394,7 +2459,7 @@ function RaderTimer({
                     <Split className="h-4 w-4" />
                   </button>
                   <button
-                    onClick={() => fjern.mutate({ id: rad.id })}
+                    onClick={() => slettRad(rad)}
                     disabled={fjern.isPending}
                     className="rounded p-1.5 text-gray-500 hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
                     title={t("handling.slett")}
@@ -2408,6 +2473,7 @@ function RaderTimer({
         );
       })}
     </ul>
+    </>
   );
 }
 
@@ -3124,6 +3190,8 @@ function TimerRadDialog({
       vehicleId: erInternt ? vehicleId : null,
       beskrivelse: beskrivelse.trim() || null,
     };
+    // Ordre d2c-1: maskinen føres på normal-delen (timeraden den gikk på).
+    let normalRadId: string | null = null;
     try {
       if (rad) {
         await oppdaterDel.mutateAsync({
@@ -3134,7 +3202,7 @@ function TimerRadDialog({
           ...byggeplassPayload(bp),
         });
       } else {
-        await tilfoy.mutateAsync({
+        const normal: unknown = await tilfoy.mutateAsync({
           sheetId,
           projectId: valgtProjectId,
           ...felles,
@@ -3142,6 +3210,7 @@ function TimerRadDialog({
           ...f.normal,
           byggeplassId: bp.byggeplassId,
         });
+        normalRadId = (normal as { id: string }).id;
       }
       await tilfoy.mutateAsync({
         sheetId,
@@ -3162,6 +3231,7 @@ function TimerRadDialog({
       maskinTilfoy.mutate({
         sheetId,
         projectId: valgtProjectId,
+        sheetTimerId: normalRadId,
         externalCostObjectId: ecoId,
         vehicleId: maskinVehicleId,
         timer: tNum,
@@ -3279,12 +3349,14 @@ function TimerRadDialog({
           byggeplassId: bp.byggeplassId,
         },
         {
-          onSuccess: () => {
+          onSuccess: (lagret: unknown) => {
             utils.timer.dagsseddel.hentMedId.invalidate();
             if (maskinVehicleId) {
               maskinTilfoy.mutate({
                 sheetId,
                 projectId: valgtProjectId,
+                // Ordre d2c-1: maskinen står på timeraden som nettopp ble lagret.
+                sheetTimerId: (lagret as { id: string }).id,
                 externalCostObjectId: ecoId,
                 vehicleId: maskinVehicleId,
                 timer: tNum,
@@ -4780,6 +4852,7 @@ function MaskinRadDialog({
         internNavn: string | null;
         internNummer: string | null;
         kategori: string | null;
+        utleieEnhet?: string | null;
       }>
     | undefined;
   // T7-4c: ECO-katalog for prosjektet — maskin følger samme prosjekt+ECO-
@@ -4831,6 +4904,25 @@ function MaskinRadDialog({
     rad?.externalCostObjectId ?? defaultEcoId ?? null,
   );
   const [feil, setFeil] = useState<string | null>(null);
+
+  // Ordre d2c-1 (R24): timeraden maskinen gikk på — kortets arbeidsrader (samme
+  // prosjekt, ikke reise, mer enn 0 timer). Forvalgt når kortet har én.
+  const arbeidsrader = useMemo(
+    () =>
+      alleTimerRader
+        .filter((r) => r.projectId === projectId && arbeidUtenReise([r]) > 0)
+        .sort((a, b) => (a.fraTid ?? "").localeCompare(b.fraTid ?? "")),
+    [alleTimerRader, projectId],
+  );
+  const [sheetTimerId, setSheetTimerId] = useState<string>(() => {
+    if (rad?.sheetTimerId && arbeidsrader.some((r) => r.id === rad.sheetTimerId)) {
+      return rad.sheetTimerId;
+    }
+    return arbeidsrader.length === 1 ? arbeidsrader[0]!.id : "";
+  });
+  const valgtUtstyr = equipment?.find((e) => e.id === vehicleId);
+  // Utstyret er ikke lastet ennå → ukjent; serveren avgjør (H15 A).
+  const kreverTimerad = valgtUtstyr ? maskinKreverTimerad(valgtUtstyr.utleieEnhet) : false;
 
   // T7-2e-mønster: tving step ≤ 1800 (30 min) slik at minutt-selektor vises
   // selv om firmaet har tidsrunding på 60 min — Chrome skjuler minutter ved
@@ -4940,6 +5032,15 @@ function MaskinRadDialog({
       setFeil(t("timer.feil.ugyldigInput"));
       return;
     }
+    // Ordre d2c-1 (R24): samme regel som serveren — maskin som krever timerad.
+    if (kreverTimerad && !sheetTimerId) {
+      setFeil(
+        arbeidsrader.length === 0
+          ? t("timer.maskinTimerad.ingenArbeidsrad")
+          : t("timer.maskinTimerad.velg"),
+      );
+      return;
+    }
     // B2 (bolk e): når begge tider er satt MÅ antall stemme med (spenn − pause).
     // Standardvalget er «maskinen gikk hele økta»; kortere drift krever justert
     // fra/til. Bolk (g): krev FØRST til > fra (lukker 0==0-hullet).
@@ -4975,6 +5076,8 @@ function MaskinRadDialog({
       tilTid: tilTid || null,
       // Ordre (10): kun ved endring — mobilens byggeplass overskrives ikke.
       ...byggeplassPayload(bp),
+      // Ordre d2c-1: tom = uten timerad (bare døgn-maskin slipper gjennom).
+      sheetTimerId: sheetTimerId || null,
     };
     if (rad) {
       oppdater.mutate({ id: rad.id, ...data });
@@ -5005,6 +5108,38 @@ function MaskinRadDialog({
             bruktPaaSeddel={alleMaskinRader.map((m) => m.vehicleId)}
             sistBrukt={sistBrukteMaskiner}
           />
+        </div>
+        {/* Ordre d2c-1 (R24): timeraden maskinen gikk på. */}
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">
+            {t("timer.felt.timerad")}{" "}
+            {!kreverTimerad && (
+              <span className="text-xs text-gray-400">
+                ({t("label.valgfritt")})
+              </span>
+            )}
+          </label>
+          <select
+            value={sheetTimerId}
+            onChange={(e) => setSheetTimerId(e.target.value)}
+            className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+          >
+            <option value="">—</option>
+            {arbeidsrader.map((r) => (
+              <option key={r.id} value={r.id}>
+                {t("timer.maskinTimerad.valg", {
+                  fra: r.fraTid ?? "",
+                  til: r.tilTid ?? "",
+                  timer: tilTall(r.timer),
+                })}
+              </option>
+            ))}
+          </select>
+          {kreverTimerad && arbeidsrader.length === 0 && (
+            <p className="mt-1 text-xs text-gray-500">
+              {t("timer.maskinTimerad.ingenArbeidsrad")}
+            </p>
+          )}
         </div>
         <RadByggeplassFelt
           kandidater={bp.kandidater}

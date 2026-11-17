@@ -147,6 +147,23 @@ ser det før du trykker Bekreft. Forkast sletter det.»
   «Bekreft og lagre»: `sperre.kjedeKonflikt`. Prosjektkortet viser overlapp mellom lagrede rader med `timer.feil.overlapp`.
 - Merke i Timer-lista (`DagsseddelListe.tsx`): «Ikke bekreftet» (`timer.utkast.ikkeBekreftet`) — ved siden av statusen, eller på egen rad med 0 t når datoen ikke har sedel.
 
+## Web: Timerad på maskin (`dashbord/timer/[id]/page.tsx`, ordre d2c-1, 🟡 ikke merget)
+
+Dagsseddel-siden på web har ikke ?-ikon. Hjelpen står i skjemaet der valget tas (`timer.felt.timerad`, `timer.maskinTimerad.*`, `timer.fjernTimerRad.*`, 15 språk):
+- **Maskinvinduet, «Timerad»:** nedtrekk med kortets timerader («07:00–11:00 · 4 t»), forvalgt når kortet har én. Står «(valgfritt)» når maskinen leies pr. døgn.
+- **Uten valgt timerad:** «Velg timeraden maskinen gikk på.»
+- **Kortet har ingen arbeidsrad:** «Før timeraden maskinen gikk på først — maskinen står på den.» (også som hint under feltet)
+- **Slett timerad med maskin:** tittel «Slette timeraden?», teksten «Raden har 2 maskiner: Volvo EC220E, Dumper. De slettes sammen med raden.» og knappen «Slett rad og maskiner». Døgn-maskiner nevnes ikke; de blir stående uten timerad.
+
+## Web: 3d-visning (`dashbord/[prosjektId]/3d-visning/page.tsx:297-319`, ORDRE 3D-web 5 / gate (85) M3, 🟡 ikke merget)
+
+Siden hadde ikke ?-ikon før. `HjelpKnapp` står sist i verktøylinja, etter Snitt-gruppa (`3d.hjelp.*`, 15 språk):
+- **Hva er dette?** Prosjektets IFC-modeller i 3D; klikk på et objekt for egenskaper.
+- **Mus:** venstre knapp roterer rundt det som er midt på skjermen (legg det du vil se på midt i bildet først); høyre knapp flytter bildet; hjulet går fram og tilbake mot midten av skjermen — raskt langt unna, sakte nær en flate ([3d-agent-prinsipper.md § 3b](3d-agent-prinsipper.md) punkt 1, 2, 2b).
+- **Snitt:** trykk Snitt og dobbeltklikk på en flate; «Fjern alle» tar bort snittene.
+- **Objekter langt unna:** skjult som standard; ofte feil i eksporten fra arkitektens tegning (informasjonsfiler lagt et stykke unna). Kryss av «Vis objekter langt unna»; tallet viser hvor mange. Bryteren vises bare når modellen har slike objekter (§ 3b punkt 3).
+- Vakt: `apps/web/src/lib/__tests__/tred-hjelpetekst.test.ts`.
+
 ## Web: Avstander-fanen (`firma/oppmotesteder/page.tsx` + `AvstanderFane.tsx`, POST 2026-11-14 (10))
 
 ?-ikonet på Oppmøtesteder viser egen hjelp når fanen «Avstander» er åpen (`firma.avstander.hjelp.*`):
@@ -301,3 +318,13 @@ Avkrysning i eksportmenyen, rett over CSV/Excel/PDF, og i mal-redigereren (`apps
 - **Hint** (tooltip i menyen, tekst under i redigereren): «Uten avkrysning tar Excel, CSV og PDF bare med attesterte timer, maskiner og tillegg, og utlegg fra attesterte sedler. Med avkrysning kommer også det som venter på attestering.» (`…taMedUattesterteHint`).
 - Skjermen viser fortsatt alle rader, med status i egen kolonne; bare eksporten filtreres. Eksempel: Ola har 7,5 t attestert og 2 t som venter — Excel uten avkrysning viser 7,5 t, med avkrysning 9,5 t.
 - Rapportsiden har ennå ikke `HjelpKnapp` (?-ikon); teksten over er vedtatt hjelpetekst for eksportvalget når siden får ikonet.
+
+## Firma → Timer → Attestering: Sedler som tabell (kort-id-spec d2b-1, § 12.8.5, 🟡 ikke merget)
+
+`apps/web/src/app/dashbord/firma/timer/attestering/page.tsx` har `HjelpKnapp` med fanen «Attestering» (`timer.attestering.tabell.hjelp.tittel`). Den løse beskrivelsen over fanene er flyttet inn som første avsnitt (`firma.timer.attesteringBeskrivelse`). Øvrige avsnitt:
+
+- **Struktur:** «Hver dag er én dagsseddel. Under den står prosjektsedlene med en oversiktsrad, og linjene under hver prosjektseddel. Nederst på dagen står summen for dagsseddelen.» (`…hjelp.struktur`)
+- **Handlinger:** ✓/↩/↺ på linje, oversiktsrad og dag; sperren står i Avvik-kolonnen og stopper ✓ (`…hjelp.handlinger`).
+- **Retting:** klikk i cella på en ventende linje når firmaet tillater retting; Enter/Tab lagrer, Esc angrer; «var …» viser gammel verdi (`…hjelp.retting`).
+- **Verktøy:** «Velg parameter», sortering og filter i kolonnehodet, «Attester utvalget» = avkryssede linjer, ellers alle synlige ventende; gjelder besøket (`…hjelp.verktoy`).
+- **Mikrotekst i tabellen** (`timer.attestering.tabell.*`): «Attester utvalget (n)», «n linjer har sperre og ble stående.», «Dagen: X t av dagsnorm Y t», «Uke N: X t overtid ikke ført (ukenorm Y t)», «var X», «Bare oversiktsrader», «Ukeoversikt».

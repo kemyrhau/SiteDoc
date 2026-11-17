@@ -422,6 +422,11 @@ function lagSplittCtx(opts: { status: string; eier?: boolean }) {
         opprettede.push(args.data);
         return Promise.resolve(args.data);
       }),
+      // Ordre d2a: første del skrives som oppdatering av originalen (samme id).
+      update: vi.fn((args: { data: Record<string, unknown> }) => {
+        opprettede.push(args.data);
+        return Promise.resolve(args.data);
+      }),
       aggregate: vi.fn(async () => ({
         _sum: {
           pauseMin: opprettede.reduce((s, r) => s + ((r.pauseMin as number) ?? 0), 0),

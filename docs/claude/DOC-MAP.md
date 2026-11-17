@@ -38,6 +38,7 @@ sist_verifisert_mot_kode: 2026-05-16
 | Dokumentflyt-regler endres | `dokumentflyt.md` |
 | Domeneflyt/arbeidsflyt endres | `domene-arbeidsflyt.md` |
 | Mobil-spec endres | `mobil.md` |
+| 3D-visning (web/mobil): funnstatus, grense mot DWG/DXF, 3D-agentenes arbeidsform | `3d-agent-prinsipper.md` |
 | EAS-bygg/credentials-endring | `eas-build-veileder.md` |
 | Dev-login/agent-testing-endring (testbrukere, `/dev-login`, secrets) | `dev-login-agent.md` |
 | **Deploy-KOMMANDO (test/prod/OTA/env-filer/rollback)** | 🔴 `DEPLOY-RUNBOK.md` — ENESTE kilde; andre filer peker hit og bærer kun *hvorfor* |

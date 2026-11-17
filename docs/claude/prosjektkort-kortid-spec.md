@@ -2099,3 +2099,84 @@ Ett spørsmål. Det låser ingen ordre, men bør være besvart før sperren går
    velger timerad.
 
 **Låser d2a, d2b-1, d2b-2 og d3:** ingen. **d2c-1 og d2c-2:** H15 = A (besvart 2026-11-16).
+
+
+#### 12.8.5 Kenneths svar 2026-11-16, runde 3 — prosjektseddelen er enheten (ordrett der det står i anførselstegn)
+
+- **Enheten:** «attestering og utskrifer må utføres pr prosjektseddel». Prosjektseddel = kortet (ansatt · dag · prosjekt · byggeplass · underprosjekt). Inne i kortet står H10: én linje pr. timeregistrering med maskin og varer på linja.
+- **Visning og dagsum:** «når vi samler prosjektsedlene slik at dagseddelsum er nederst, så kan vi attestere pr dagseddel». Dagens prosjektsedler grupperes, og dagseddelens sum står i en rad nederst. Fra den raden kan hele dagen attesteres (eller gjenåpnes).
+- **Redigering:** «redigering må utføres pr prosjektseddel». Retting skjer på linjene inne i et kort (R21). Dagsum-raden er bare sum og handlinger, uten redigering.
+- **Følge for d2b-1:** ✓ pr. linje, kort, dag og utvalg står. «Dag» ligger i dagsum-raden nederst.
+- **Sammendraget i PDF/Excel:** «ja, dagssedler med rader i tabellen». «Sedler» og statusfordelingen (kladd/sendt/attestert) teller dagssedler med minst én rad i eksporttabellen. Skjermen beholder dagens telling. 🟡 Kodet, ikke merget (ORDRE (37), branch `fix/rapport-sammendrag-sedler`): `apps/api/src/routes/timer/rapport.ts` `firmaPeriodeRapport` — `harRadIEksporttabellen` brukes når `kunEksporterbare` er satt. Test: `apps/api/src/routes/rapport-sammendrag-sedler.integration.test.ts`.
+
+### 12.9 Bygget — ordre d2a (Kort-id-d2a, 🟡 ikke merget)
+
+**Commit 1 — gruppering, kobling og lesere (2026-11-16).** Ingen migrering, ingen skjermendring.
+
+| Del | Kode |
+|---|---|
+| Gruppering G1–G11, linjer R3/R16 | `packages/shared/src/utils/kortGruppering.ts` — `grupperPaaKort`, `byggKortRader` |
+| R24 maskin krever timerad | `packages/shared/src/utils/maskinKobling.ts` — `maskinKreverTimerad` (bare `doegn` slipper, H15 = A), `erGyldigTimeradKobling`, `finnMaskinerUtenTimerad`. Arbeid = `arbeidUtenReise`; `maskinKapasitet.ts` er urørt |
+| E4 prosjektnummer | `packages/shared/src/utils/prosjektnummer.ts` — `visProsjektnummer` |
+| Rader ukeavviket peker på | `packages/shared/src/utils/overtidsgrunnlag.ts` — `ukeAvvikRader`; regnestykket er uendret |
+| Felles oppslag | `apps/api/src/services/timer/kortLeser.ts` — maskinnavn og enhet, byggeplass- og underprosjektnavn (flyttet fra `rapport.ts` `detaljEksport`), varer pr. sedel, rettede felter |
+| Lesere | `apps/api/src/routes/timer/dagsseddel.ts` — `hentTilAttestering`, `hentTilAttesteringFirma`, `hentForAttestering` via `lastKortBerikelse`/`berikRad`/`berikMaskinRad`. Nye felt: `varer[]`, `ukeAvvikRadIder`; pr. rad `byggeplassNavn`, `underprosjekt`, `rettedeFelter`; pr. maskinrad `utleieEnhet`, `manglerTimerad`; `utlegg` i detaljen; `maskiner` i prosjektlista. Radene sorteres på `fraTid`, så `createdAt`. Ingen felt fjernet eller omdøpt |
+| Tester | T21–T23, T37, T52 `kortGruppering.test.ts`; T67 `maskinKobling.test.ts`; T63 `prosjektnummer.test.ts`; T26 `ukeAvvikRader.test.ts`; T24, T25, T57, T69, ukeavvik og vakt for `detaljEksport` i `apps/api/src/routes/kortid-d2a.integration.test.ts` |
+
+Grenser:
+- **Varer** kommer bare fra sedelens eget firmas varekatalog, og lista er tom når varelager er av for firmaet.
+- **`ukeAvvikRadIder`** gir bare sedelens egne rader. På ferdig attestert sedel leser detaljen det frosne grunnlaget; listene regner fra dagens rader.
+
+**Commit 2 — skriveveiene (2026-11-16).** Ingen migrering, ingen skjermendring, ingen ny i18n-nøkkel.
+
+| Del | Kode |
+|---|---|
+| Punkt 9, valg (a): retting på stedet | `apps/api/src/routes/timer/dagsseddel.ts` — `utforRedigerSedelRader` (kroppen til `redigerSedelRader`), `planleggRedigering`. En rad med `originalId` oppdateres og beholder id, kort-id og koblingen (maskin og vare → timerad). Bare endrede og slettede rader får historikkpost; uendrede røres ikke. Flere rader med samme `originalId` (deling) opprettes med `parentRadId` = originalen, og maskindelene arver `sheetTimerId`. Slettet timerad: maskiner og varer som sto på den, får koblingen nullet (varer etter transaksjonen, egen database). Målt før valget: telefonen bytter ut alle radene på en sedel ved henting, og nettleseren leser bare `parentRadId` (`kanSplittes`) |
+| R24 i rettingen | `krevMaskinKoblingEtterRetting` — ny eller endret maskinrad, eller en som mister en gyldig kobling, avvises når maskinen krever timerad (`feilMaskinUtenTimerad`). En uendret ukoblet rad slipper |
+| R21 `rettRadFelt` | Samme vei: hele sedelens ventende rader med bare den ene raden endret går gjennom `utforRedigerSedelRader`, så kontrollene er de samme (firmaadministrator, firmavalget, sendt sedel, overlapp, maskin innenfor arbeid, katalog, maskinregister, R24). Raden må vente på attestering. Logg `rett_rad_felt` |
+| R23 `gjenaapneRader` | Attesterte rader → ventende (attestant og tidspunkt nulles); ferdig attestert sedel → sendt. Samme tilgang som attesteringen (`krevAttesteringsrettForRader`). Én historikkpost pr. rad med `hendelse: "gjenaapnet"`, som leseren ikke viser som retting. Logg `gjenaapne_rader`. `gjenaapneAttestering` er urørt |
+| Splitt (HM70) | `splittRad` og `splittRadEier`: første del av en timerad oppdaterer originalen på stedet, så maskiner og varer står på første del. Delte maskinrader arver originalens `sheetTimerId` |
+| Vare-retting | `apps/api/src/routes/vareforbruk.ts` `oppdater`: loggen `vare.endret` har `antallFoer`; en vare på attestert timerad kan ikke rettes |
+| Tester | T56, T58, T59, T62, T68, T70 i `apps/api/src/routes/kortid-d2a.integration.test.ts`. `kortid-skriveveier.integration.test.ts` (T5 splitt) har nytt premiss: første del beholder originalens id |
+
+Grenser:
+- **`rettRadFelt`** avvises når en ventende timerad på sedelen mangler lønnsart eller aktivitet; da rettes hele sedelen.
+- **Endret kort-nøkkel** ved retting går gjennom samme kort-id-regel som før (`kortIdForSkriving`, så `sikreKortId`); det er ingen egen kollisjonssjekk mot andre kort.
+
+
+### 12.10 Bygget — ordre d2c-1 (Kort-id-d2c1, 🟢 merget `274e7fb2` 2026-11-16, ikke deployet)
+
+**Kobling og sperre ved føring på PC (2026-11-16).** Ingen migrering. `syncBatch` er uendret.
+
+| Del | Kode |
+|---|---|
+| R24 ved føring | `apps/api/src/routes/timer/dagsseddel.ts` — `krevKoblingVedFoering`. Uten timerad avvises maskin som krever den (H15 = A: bare `doegn` slipper), og meldingen navngir maskinen. En oppgitt kobling må alltid være gyldig, også for døgn-maskin: samme sedel, samme prosjekt, ikke reise og mer enn 0 timer (`erGyldigTimeradKobling`). Koblet maskin får timeradens kort-id (K6) |
+| `maskin.tilfoy` | Tar `sheetTimerId`. En oppgitt `kortId` som ikke er timeradens, avvises |
+| `maskin.oppdater` | Tar `sheetTimerId` (utelatt = urørt, null = uten timerad). Raden slik den blir etter endringen, må ha gyldig kobling når maskinen krever timerad. Det gjelder også en eldre ukoblet rad som endres |
+| `fjernTimerRad` | Tar `slettMaskiner`. `maskinerSomKreverRaden` finner maskinene som krever raden. Uten flagget avvises slettingen med PRECONDITION_FAILED, og maskinene navngis. Med flagget slettes de i samme transaksjon som raden. Døgn-maskiner får koblingen nullet. Varer på raden får koblingen nullet etter transaksjonen (egen database) |
+| `oppdaterTimerRad` | En rad som bærer maskin som krever timerad, kan ikke bli reise eller 0 timer. Kontrollen kjøres før maskin-taket, så meldingen navngir maskinen |
+| Web | `apps/web/src/app/dashbord/timer/[id]/page.tsx` — timerad-vinduet sender den lagrede radens id (`lagreRad`, og normal-delen i `brukOvertidForslag`). `MaskinRadDialog` har nedtrekket «Timerad» med kortets arbeidsrader, forvalgt når det er én. `RaderTimer` viser en bekreftelse som navngir maskinene før `fjernTimerRad` sendes med `slettMaskiner` |
+| Tester | `apps/api/src/routes/kortid-d2c1.integration.test.ts` (20 tester, inkludert vakt for `syncBatch`). Nytt premiss i `kortid-skriveveier.integration.test.ts` T5: maskin uten satt enhet føres på en timerad. Mockene i `firma-katalog-server.test.ts` og `timer-firmahull.test.ts` har fått en døgn-maskin, fordi R24 ikke er det de tester |
+
+Grenser:
+- **Døgn-maskin ved sletting:** bekreftelsen navngir bare maskinene som krever raden. Døgn-maskiner blir stående uten kobling, som på telefonen (d2c-2). Spec-raden for PC sier «sletter dem», uten å skille mellom enhetene. Tolkningen følger telefon-raden.
+- **Kortet i nedtrekket** er prosjektets timerader på sedelen. Serveren avviser en kobling til et annet prosjekt.
+### 12.11 Bygget — ordre d2b-1 (Kort-id-c, 🟢 merget 2026-11-16, ikke deployet)
+
+Branch `feat/kortid-d2b1-tabell`, fem commits (2026-11-16). Ingen migrering, ingen endring i API-et.
+
+| Del | Kode |
+|---|---|
+| T46, T51: hodets verktøy ut av `Table` | `packages/ui/src/tabellverktoy.tsx` (`SorterPil`, `KolonneFilter`, `useBreddeDragning`, `BreddeHandtak`); `Table` bruker dem uendret; `apps/web/src/components/FlyttbareKolonner.tsx` |
+| R16, H9, H14: kolonnelista | `packages/shared/src/utils/timerDetaljRader.ts` — `TIMER_TABELL_KOL`, `TIMER_TABELL_KOL_KEYS`, `TIMER_TABELL_STANDARD`, `timerTabellVerdi`, `antallUnderlinjer`. Maskinmengde/Maskinenhet på skjermen; eksporten beholder «Mengde»/«Enhet» til d3 |
+| R1, R5–R7, R19, R22, R25: én tabell | `apps/web/src/components/timer/TimerRadTabell.tsx` — klebrig hode, faste venstre-/høyrekolonner over alle tekstlinjer, vekslende bakgrunn pr. linje, bredde og flytting i hodet, sortering og filter pr. besøk. Rapportens Detaljer (`TimerRapportDetaljer.tsx`) bruker den uten sortering og filter |
+| R2–R4, R8–R11, R17, R18, R20, R21, R23, § 12.8.5: Sedler-fanen | `apps/web/src/components/attestering/attestering-tabell.ts` (modell: dag → kort → linjer, sperrer, filter, utvalg) og `AttesteringTabell.tsx` (oversiktsrad pr. kort, dagsumrad, handlinger, retting i cella, verktøylinje). Siden: `apps/web/src/app/dashbord/firma/timer/attestering/page.tsx` |
+| Tester | T46 `apps/web/src/__tests__/table-uendret-t46.test.tsx`; T40, T47, H9, H14 `timerTabellKol.test.ts`; T47, T48, T50, R22/R25 `timer-rad-tabell.test.tsx`; T51 `tabellverktoy-t51.test.ts`; T23, T27, T29, T30, T35, T39, T41–T43, T55, T63, T69 `attestering-tabell-modell.test.ts`; T38, T43, T44, T49, T59 (web), T60, T61 `attestering-tabell.test.tsx` |
+
+Grenser:
+- **Varemengde** kan ikke rettes i cella: `rettRadFelt` har ingen vare-radtype.
+- **T63 tredje tilfelle** (SD-visning av → tomt) er ikke oppfylt: leseren gir ikke prosjektets `visSiteDocNummer`.
+- **Pivotvisningene** (Per prosjekt / Per ansatt) er urørt og har fortsatt nedtrekkene (d2b-2).
+- **`SeddelKort.tsx`** står, men siden bruker den ikke lenger.
+- **Hover-dagskortet over ansattnavnet** (gammel `SeddelKort.tsx`) er fjernet i Sedler-fanen: tabellen viser linjene og dagsummen direkte. Godtatt av Kenneth 2026-11-16 (gate (77) B1). Pivotvisningene har det fortsatt.
+

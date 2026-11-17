@@ -1,19 +1,19 @@
 "use client";
 
-import { useMemo, useRef } from "react";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   byggDetaljRader,
   grupperDetaljRader,
   flatDetaljRader,
   losTimerKolonner,
-  TIMER_KOL_BREDDE,
   type DetaljRad,
   type DetaljRadType,
   type DetaljSubtotal,
   type Gruppering,
   type TimerKolKey,
+  type TimerTabellKolKey,
+  TIMER_TABELL_KOL,
 } from "@sitedoc/shared";
 import {
   type DetaljEksport,
@@ -21,10 +21,11 @@ import {
   betegnelse,
   lonnsartTypeEtikett,
   satsEnhetEtikett,
-  kolTekst,
   formaterNorsk,
   byggStatusEtiketter,
 } from "@/lib/timer-rapport-eksport";
+import { TimerRadTabell, type TimerRadTabellRad } from "@/components/timer/TimerRadTabell";
+import { useTabelloppsett } from "@/hooks/useTabelloppsett";
 
 /**
  * Detaljvisning på timer-rapporten — SKJERMENS speiling av det Excel/PDF skriver ut.
@@ -33,6 +34,12 @@ import {
  * ER radene i dokumentet. Kolonnerekkefølge og mottaker-regel (ekstern skjuler
  * Ansattnr + Status, demper maskin-anomalimerker, beholder ↳-innrykk) speiler PDF/Excel
  * via de delte celle-hjelperne (`typeEtikett`/`betegnelse`), ikke en egen skjerm-kopi.
+ *
+ * Tabellen er den delte `TimerRadTabell` (spec prosjektkort-kortid R1/R19): samme
+ * komponent og kolonneliste som attesteringen. Bredden dras i hodet og lagres pr. bruker
+ * (liste `timer-rapport-detaljer`); flytting i hodet skriver malens kolonnevalg, samme
+ * som «Velg parameter». Ingen sortering eller kolonnefilter her — «Eksporter» skriver ut
+ * det skjermen viser, og eksporten kjenner ingen av delene (R19).
  *
  * Radsettet virtualiseres (`@tanstack/react-virtual`) — et stort firma over
  * inneværende måned er tusenvis av rader, og et egendefinert år-spenn titusener.
@@ -51,42 +58,15 @@ const TOM_KILDE: DetaljEksport = {
 };
 
 type KolKey = TimerKolKey;
+const TOM_SETT = new Set<string>();
 
-/** i18n-nøkkel (delt med Excel via `kolTekst`), høyrejustering (tall), og hvilket
- *  subtotal-felt kolonnen summerer (om noen). Kolonnebredden bor IKKE her — den
- *  leses fra den delte `TIMER_KOL_BREDDE` (@sitedoc/shared), samme kilde som PDF og
- *  Excel arver, så flatene ikke driver fra hverandre (flateparitet 2026-09-01). */
-const KOL_META: Record<KolKey, { i18n: string; num?: boolean; sub?: keyof DetaljSubtotal }> = {
-  dato: { i18n: "kolDato" },
-  ansatt: { i18n: "kolAnsatt" },
-  ansattnr: { i18n: "kolAnsattnr" },
-  prosjekt: { i18n: "kolProsjekt" },
-  byggeplass: { i18n: "kolByggeplass" },
-  underprosjekt: { i18n: "kolUnderprosjekt" },
-  type: { i18n: "kolType" },
-  betegnelse: { i18n: "kolBetegnelse" },
-  lonnsartType: { i18n: "kolLonnsartType" },
-  satsEnhet: { i18n: "kolSatsEnhet" },
-  aktivitet: { i18n: "kolAktivitet" },
-  fraTid: { i18n: "kolFra" },
-  tilTid: { i18n: "kolTil" },
-  timer: { i18n: "kolTimer", num: true, sub: "timer" },
-  maskintimer: { i18n: "kolMaskintimer", num: true, sub: "maskintimer" },
-  antall: { i18n: "kolAntall", num: true, sub: "antall" },
-  belop: { i18n: "kolBelop", num: true, sub: "belop" },
-  mengde: { i18n: "kolMengde", num: true },
-  enhet: { i18n: "kolEnhet" },
-  reise: { i18n: "kolReise" },
-  retning: { i18n: "kolRetning" },
-  fraSted: { i18n: "kolFraSted" },
-  tilSted: { i18n: "kolTilSted" },
-  avstandKm: { i18n: "kolAvstandKm", num: true },
-  kjoretidMin: { i18n: "kolKjoretidMin", num: true },
-  reiseKilde: { i18n: "kolReiseKilde" },
-  tidKilde: { i18n: "kolTidKilde" },
-  normStatus: { i18n: "kolNormStatus" },
-  beskrivelse: { i18n: "kolBeskrivelse" },
-  status: { i18n: "kolStatus" },
+/** Hvilket subtotal-felt kolonnen summerer (om noen). Overskrift, justering og bredde
+ *  leses fra den delte kolonnelista `TIMER_TABELL_KOL` i `TimerRadTabell` (R16). */
+const SUB_FELT: Partial<Record<KolKey, keyof DetaljSubtotal>> = {
+  timer: "timer",
+  maskintimer: "maskintimer",
+  antall: "antall",
+  belop: "belop",
 };
 
 interface Props {
@@ -97,6 +77,8 @@ interface Props {
   gruppering: Gruppering;
   /** Malens `config.kolonner` — valgt kolonnesett + rekkefølge. Tom → standardsett. */
   valgteKolonner?: string[];
+  /** Flytting i hodet: ny kolonnerekkefølge — samme kolonnevalg som «Velg parameter» (R19). */
+  onKolonneRekkefolge?: (ny: TimerKolKey[]) => void;
 }
 
 export function TimerRapportDetaljer({
@@ -106,13 +88,14 @@ export function TimerRapportDetaljer({
   mottaker,
   gruppering,
   valgteKolonner,
+  onKolonneRekkefolge,
 }: Props) {
   const { t } = useTranslation();
-  const parentRef = useRef<HTMLDivElement>(null);
+  // Bare bredden lagres her (pr. bruker). Kolonnevalget er malens (`valgteKolonner`).
+  const oppsett = useTabelloppsett({ liste: "timer-rapport-detaljer", standardKolonner: TOM_SETT, kanoniskRekkefolge: [] });
 
   const ekstern = mottaker === "ekstern";
   const statusMap = useMemo(() => byggStatusEtiketter(t), [t]);
-  const kol = useMemo(() => kolTekst(t), [t]);
 
   // Bygg radsettet med SAMME delte funksjoner som eksporten, og flat grupperingen
   // til én indeksert liste virtualiseringen kan iterere over.
@@ -128,27 +111,6 @@ export function TimerRapportDetaljer({
 
     return { rader: byggeteRader, flate: flatListe, aktiveKoler: koler };
   }, [detalj, valgteRadTyper, gruppering, mottaker, valgteKolonner]);
-
-  // Bredden følger innholdstypen (delt `TIMER_KOL_BREDDE`): faste kolonner (vekt 0 —
-  // dato/klokkeslett/koder/tall) står på sin min-bredde; fritekst-kolonner
-  // (Beskrivelse/Betegnelse/Aktivitet/navn) deler ledig plass etter vekt via
-  // `minmax(min, vekt·fr)`. Grid-en fyller containeren når det er rom, og scroller
-  // horisontalt først når den kommer under summen av min-breddene. `truncate` er da
-  // et sikkerhetsnett, ikke normaltilstand (Kenneth 2026-09-01).
-  const gridTemplate = aktiveKoler
-    .map((k) => {
-      const b = TIMER_KOL_BREDDE[k];
-      return b.vekt === 0 ? `${b.min}px` : `minmax(${b.min}px, ${b.vekt}fr)`;
-    })
-    .join(" ");
-  const totalBredde = aktiveKoler.reduce((s, k) => s + TIMER_KOL_BREDDE[k].min, 0);
-
-  const virtualizer = useVirtualizer({
-    count: flate.length,
-    getScrollElement: () => parentRef.current,
-    estimateSize: () => 34,
-    overscan: 12,
-  });
 
   function celle(k: KolKey, r: DetaljRad): string {
     switch (k) {
@@ -220,7 +182,7 @@ export function TimerRapportDetaljer({
   }
 
   function subtotalCelle(k: KolKey, sub: DetaljSubtotal): string {
-    const felt = KOL_META[k].sub;
+    const felt = SUB_FELT[k];
     if (!felt) return "";
     const verdi = sub[felt];
     if (verdi === null) return "";
@@ -246,133 +208,38 @@ export function TimerRapportDetaljer({
     );
   }
 
-  const virtuelle = virtualizer.getVirtualItems();
+  const tabellRader: TimerRadTabellRad<DetaljRad>[] = flate.map((rad, i) => {
+    if (rad.kind === "header") return { kind: "overskrift", nokkel: `h${i}`, innhold: rad.overskrift };
+    if (rad.kind === "rad") return { kind: "linje", nokkel: `r${i}`, data: rad.rad, underlinjer: 1 };
+    const erGrand = rad.kind === "grandtotal";
+    return {
+      kind: "sum",
+      nokkel: `s${i}`,
+      sterk: erGrand,
+      celle: (k: TimerTabellKolKey) =>
+        k === etikettKol
+          ? erGrand
+            ? t("firma.timer.rapport.detaljer.grandTotal")
+            : t("firma.timer.rapport.detaljer.subtotal", { navn: rad.kind === "subtotal" ? rad.nokkel : "" })
+          : subtotalCelle(k as KolKey, rad.subtotal),
+    };
+  });
 
   return (
     <div>
       <div className="mb-2 text-xs font-medium text-gray-500">
         {t("firma.timer.rapport.detaljer.radtelling", { count: rader.length })}
       </div>
-      <div
-        ref={parentRef}
-        className="max-h-[70vh] overflow-auto rounded-lg border border-gray-200 bg-white"
-      >
-        {/* Kolonneoverskrift — sticky topp, følger horisontal scroll */}
-        <div
-          className="sticky top-0 z-10 grid border-b border-gray-200 bg-gray-50 text-xs font-semibold uppercase tracking-wide text-gray-500"
-          style={{ gridTemplateColumns: gridTemplate, minWidth: totalBredde }}
-        >
-          {aktiveKoler.map((k) => (
-            <div
-              key={k}
-              className={`px-2 py-2 ${KOL_META[k].num ? "text-right" : "text-left"}`}
-            >
-              {kol(KOL_META[k].i18n)}
-            </div>
-          ))}
-        </div>
-
-        {/* Virtualisert kropp */}
-        <div
-          style={{
-            height: virtualizer.getTotalSize(),
-            minWidth: totalBredde,
-            position: "relative",
-          }}
-        >
-          {virtuelle.map((vi) => {
-            const rad = flate[vi.index];
-            if (!rad) return null;
-            const felles = {
-              "data-index": vi.index,
-              ref: virtualizer.measureElement,
-              style: {
-                position: "absolute" as const,
-                top: 0,
-                left: 0,
-                width: "100%",
-                transform: `translateY(${vi.start}px)`,
-              },
-            };
-
-            if (rad.kind === "header") {
-              return (
-                <div
-                  key={vi.key}
-                  {...felles}
-                  className="flex items-center border-b border-gray-200 bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700"
-                >
-                  {rad.overskrift}
-                </div>
-              );
-            }
-
-            if (rad.kind === "rad") {
-              const r = rad.rad;
-              return (
-                <div
-                  key={vi.key}
-                  {...felles}
-                  className="grid border-b border-gray-100 text-sm text-gray-800"
-                  style={{ ...felles.style, gridTemplateColumns: gridTemplate }}
-                >
-                  {aktiveKoler.map((k) => {
-                    const nøsting = k === "betegnelse" && r.nivaa === 1;
-                    return (
-                      <div
-                        key={k}
-                        className={`min-w-0 px-2 py-1.5 ${KOL_META[k].num ? "text-right tabular-nums" : "text-left"} ${
-                          k === "beskrivelse" ? "whitespace-pre-wrap break-words" : "truncate"
-                        } ${nøsting ? "pl-5 text-gray-500" : ""}`}
-                        title={KOL_META[k].num ? undefined : celle(k, r)}
-                      >
-                        {celle(k, r)}
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            }
-
-            // subtotal / grandtotal — samme grid, tall justert under sine kolonner
-            const erGrand = rad.kind === "grandtotal";
-            return (
-              <div
-                key={vi.key}
-                {...felles}
-                className={`grid text-sm ${
-                  erGrand
-                    ? "border-t-2 border-gray-300 bg-gray-50 font-semibold text-gray-900"
-                    : "border-t border-gray-200 bg-gray-50/60 font-medium text-gray-700"
-                }`}
-                style={{ ...felles.style, gridTemplateColumns: gridTemplate }}
-              >
-                {aktiveKoler.map((k) => {
-                  if (k === etikettKol) {
-                    return (
-                      <div key={k} className="truncate px-2 py-1.5 text-left">
-                        {erGrand
-                          ? t("firma.timer.rapport.detaljer.grandTotal")
-                          : t("firma.timer.rapport.detaljer.subtotal", {
-                              navn: rad.kind === "subtotal" ? rad.nokkel : "",
-                            })}
-                      </div>
-                    );
-                  }
-                  return (
-                    <div
-                      key={k}
-                      className={`px-2 py-1.5 ${KOL_META[k].num ? "text-right tabular-nums" : ""}`}
-                    >
-                      {subtotalCelle(k, rad.subtotal)}
-                    </div>
-                  );
-                })}
-              </div>
-            );
-          })}
-        </div>
-      </div>
+      <TimerRadTabell
+        kolonner={aktiveKoler}
+        rader={tabellRader}
+        celle={(k, r) => celle(k as KolKey, r)}
+        celleTittel={(k, r) => (TIMER_TABELL_KOL[k].num ? undefined : celle(k as KolKey, r))}
+        innrykk={(k, r) => k === "betegnelse" && r.nivaa === 1}
+        bredder={oppsett.kolonneBredder}
+        onBreddeEndring={oppsett.handleBreddeEndring}
+        onRekkefolgeEndring={onKolonneRekkefolge ? (ny) => onKolonneRekkefolge(ny as KolKey[]) : undefined}
+      />
     </div>
   );
 }

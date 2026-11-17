@@ -177,6 +177,13 @@ export {
   TIMER_KOL_BREDDE,
   INTERNE_TIMER_KOLONNER,
   ALLE_RADTYPER,
+  TIMER_TABELL_NYE_KOL,
+  TIMER_TABELL_KOL_KEYS,
+  TIMER_TABELL_KOL,
+  TIMER_TABELL_STANDARD,
+  TIMER_TABELL_KOL_BREDDE,
+  timerTabellVerdi,
+  antallUnderlinjer,
 } from "./timerDetaljRader";
 export type {
   DetaljRadType,
@@ -192,6 +199,12 @@ export type {
   DetaljSubtotal,
   DetaljGruppe,
   DetaljVisuellRad,
+  TimerTabellKolKey,
+  TimerTabellRadType,
+  TimerTabellKolDef,
+  TimerTabellMaskin,
+  TimerTabellVare,
+  TimerTabellLinje,
 } from "./timerDetaljRader";
 export {
   OVERTID_NIVAA_50,
@@ -285,13 +298,36 @@ export {
   lesOvertidsgrunnlagFraSnapshot,
   beregnUkeAvvik,
   avvikRetning,
+  ukeAvvikRader,
 } from "./overtidsgrunnlag";
 export type {
   OvertidRad,
   Overtidsgrunnlag,
   UkeSedelInput,
   UkeAvvik,
+  UkeAvvikRadInput,
 } from "./overtidsgrunnlag";
+// Kort-id-spec § 12 (ordre d2a): kort-gruppering, maskin → timerad (R24), prosjektnummer (E4).
+export { grupperPaaKort, byggKortRader } from "./kortGruppering";
+export type {
+  KortRadBase,
+  KortTimerInn,
+  KortKobletInn,
+  KortInn,
+  KortLinjeGruppe,
+  KortGruppe,
+  KortGruppering,
+  KortRadTimerInn,
+  KortRadMaskinInn,
+  KortRadVareInn,
+  KortLinjeMaskin,
+  KortLinjeVare,
+  KortRadLinje,
+} from "./kortGruppering";
+export { maskinKreverTimerad, erGyldigTimeradKobling, finnMaskinerUtenTimerad } from "./maskinKobling";
+export type { KoblingTimerRad, KoblingMaskinRad } from "./maskinKobling";
+export { visProsjektnummer } from "./prosjektnummer";
+export type { ProsjektnummerKilde } from "./prosjektnummer";
 export {
   harFeltVerdi,
   beregnLaasteFelter,
