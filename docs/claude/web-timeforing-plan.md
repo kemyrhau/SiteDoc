@@ -621,6 +621,13 @@ Tabellen står som orkestrator førte den. Det den kaller umålt (B1, B4, B5), e
 20. **Med firmavalget «Ja» er maskinens fra–til forhåndsutfylt og valgfri,** som i dagens maskinvindu. Timene regnes
     av klokkeslettene.
 
+### 8.2 Kenneths svar 2026-11-17 etter w5 (vedtak, ikke spesifisert)
+
+| # | Spørsmål | Kenneths svar (ordrett) | Status |
+|---|---|---|---|
+| **B14** | Skal en dag med én jobb vises som én rad i attesteringen (i dag oversikt + jobb + dagsum)? | *«jeg mener raden kan deles opp. men det må være tydelig skille dag til dag. det må også være tydelig hvilke registreringer som hører sammen. Oversiktlig visning er det viktigste. men hvis vi ikke klarer å løse det på en bedre måte med en linje av gangen, da må vi bare gjøre det. men jeg ser helst at flere linjer som viser sammenhengende informsjon er en bedre måte å gi attestrator informasjon.»* | Flere linjer pr. dag er førstevalg; krav: tydelig dagskille og tydelig hvilke rader som hører sammen. Én rad bare hvis det ikke løses bedre. Fabel skisserer. |
+| **B15** | Skal en attestant sperres fra å rette/attestere egne timer (B10 åpner for det i dag)? | *«kant tilfelle. men leder bør attestere attestants timer dersom denne har timelønn. dette bør være et firmavalg i firmainstillinger.»* | Nytt firmavalg: en attestant med timelønn får egne timer attestert av leder. Krever trolig migrering (Kenneth). Fabel spesifiserer hvem «leder» er og om valget også gjelder retting. |
+
 ## 9. Rekkefølge
 
 Dette er forslag til oppdeling, ikke ordrer. **w6 krever en migrering** (ny kolonne i firmainnstillingene, B5), som
