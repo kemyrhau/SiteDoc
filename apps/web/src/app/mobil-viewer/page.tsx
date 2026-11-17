@@ -6,6 +6,7 @@ import { erGyldigBoks, finnUtliggere, orbitAvstandIBygg, zoomSteg } from "@sited
 import { hentIfcRaadata, lagRaadataLager, lesAttributter } from "./ifcRaadata";
 import { beregnInnramming, dollyFartMobil, orbitAvstand, type Boks } from "./kameraInnramming";
 import { DIAG_LAGRINGSNØKKEL, diagFraUrlEllerLager, lagDiagHemmeligTrykk } from "./diagnose";
+import { flyttSnittpilerTilMidten } from "@/lib/tredSnittPil";
 
 /**
  * Standalone IFC 3D-viewer for bruk i React Native WebView.
@@ -109,6 +110,21 @@ export default function MobilViewer() {
       const clipper = components.get(OBC.Clipper);
       clipper.setup();
       clipper.enabled = false;
+      // Snittpilen flyttes dit planet krysser skjermmidten når kameraet har stoppet (§ 3d,
+      // samme regel som web). Ikke mens pilen dras, og ikke mens en finger er nede.
+      let snittDras = false;
+      clipper.onBeforeDrag.add(() => { snittDras = true; });
+      clipper.onAfterDrag.add(() => { snittDras = false; });
+      const flyttSnittpiler = () => {
+        const ctrl = world.camera.controls;
+        if (snittDras || !clipper.enabled || !ctrl || ctrl.currentAction !== 0) return;
+        const cam = world.camera.three;
+        flyttSnittpilerTilMidten(clipper.list.values(), cam.position, cam.getWorldDirection(new THREE.Vector3()));
+      };
+      world.camera.controls?.addEventListener("rest", flyttSnittpiler);
+      world.camera.controls?.addEventListener("sleep", flyttSnittpiler);
+      // Holdes kameraet i ro før slipp, kom rest/sleep mens knappen var nede: slippet teller også
+      world.camera.controls?.addEventListener("controlend", flyttSnittpiler);
 
       const ifcLoader = components.get(OBC.IfcLoader);
       ifcLoader.settings.autoSetWasm = false;

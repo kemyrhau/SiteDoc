@@ -151,7 +151,9 @@ describe("kobling i tred-viewer-kontekst", () => {
 
   it("rotasjon rundt ståsted er erstattet: ingen target 2 enheter foran, ingen controlend-nullstilling", () => {
     expect(kilde).not.toContain("oppdaterTarget");
-    expect(kilde).not.toContain('addEventListener("controlend"');
+    // Eneste controlend-lytter er snittpilen (§ 3d) — den rører ikke target
+    const controlend = kilde.match(/addEventListener\("controlend",[^)]*\)/g) ?? [];
+    expect(controlend).toEqual(['addEventListener("controlend", flyttSnittpiler)']);
   });
 
   it("orbit-punktet: først samme avstand som sist, så treffet fra skjermmidten", () => {
