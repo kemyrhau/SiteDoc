@@ -97,7 +97,7 @@ Kenneth: web *«svært bra funksjonalitet på test»*; telefon: modellen fyller 
 
 **Feil:** snittpilen står i klikkpunktet (`@thatopen/components` 3.3.3 `createPlaneFromIntersection`, `index.mjs:16464`). Zoomer eller panorerer man inn i et rom, havner pilen utenfor bildet, på web og telefon.
 
-**Vedtak (Kenneth 2026-11-17: «ja, bygg snittpilen»):** når kameraet slipper etter zoom, pan eller rotasjon, flyttes pilen i samme plan dit planet krysser skjermmidten (står planet parallelt med siktet: nærmeste punkt på planet). Snittet endres ikke — samme normal, punkt i samme plan, via offentlig `setFromNormalAndCoplanarPoint` (`:16015`). Ikke mens pilen dras. Ren funksjon i `@sitedoc/shared/tred`, brukt av web-viseren og `mobil-viewer` (rulles ut med web-deploy, ikke OTA). 🟡 Ikke bygget.
+**Vedtak (Kenneth 2026-11-17: «ja, bygg snittpilen»):** når kameraet slipper etter zoom, pan eller rotasjon, flyttes pilen i samme plan dit planet krysser skjermmidten (står planet parallelt med siktet: nærmeste punkt på planet). Snittet endres ikke — samme normal, punkt i samme plan, via offentlig `setFromNormalAndCoplanarPoint` (`:16015`). Ikke mens pilen dras. Ren funksjon i `@sitedoc/shared/tred`, brukt av web-viseren og `mobil-viewer` (rulles ut med web-deploy, ikke OTA). 🟢 Merget `1b3edab6` (gate (92)), ikke deployet. Åpent: står planet bak kameraet (kameraet har krysset planet), havner pilen utenfor bildet — vurderes etter Kenneths test.
 
 
 ## 4. Filkart (målt 2026-11-16)
