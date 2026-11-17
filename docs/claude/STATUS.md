@@ -12,6 +12,7 @@
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
 **Sist oppdatert:** 2026-11-16
+- 2026-11-17 — **3D-web ORDRE 5 merget `73ae7b0d`** (gate (87)): FUNKSJONSENDRINGER, tavla (develop, docs-only, orkestrator).
 - 2026-11-17 — **Web laster bare valgt språk merget `d3b7bfe8`** (gate (86)): FUNKSJONSENDRINGER, tavla, GATE (87) 3D-web (develop, docs-only, orkestrator).
 - 2026-11-17 — **3D-web ORDRE 4 merget `4a5e1663`** (gate (85)): FUNKSJONSENDRINGER, prinsippfil § 3b web 🟢, tavla ORDRE 3D-web 5 (develop, docs-only, orkestrator).
 - 2026-11-17 — **3D-mobil bundle-import merget `dd415207`** (gate (84)); tavla: ORDRE 3D-mobil 6 (språkfiler lazy), GATE (85) 3D-web (develop, docs-only, orkestrator).

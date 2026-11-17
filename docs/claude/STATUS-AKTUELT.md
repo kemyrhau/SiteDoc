@@ -31,6 +31,8 @@ sist_verifisert_mot_kode: 2026-08-09
 > ⚠️ **IKKE i prod:** DWG retur 2 (auto-rotasjon, startutsnitt, LEADER) · DWG retur 4 (fullstendighet: ATTRIB-tegning + `konvertering_rapport` + gate-test, branch `fix/dwg-retur4-strek`) · snap-retur 1 — under arbeid. DWG-3 (georeferanse fire hjørner) ikke levert — se § 2026-09-24 under.
 
 > ✅ **Gjestevern ved firmabytte, mobil (19) MERGET 2026-11-15** (merge `1a287c5d` av `38f4dffa`; Kontrollør GODKJENT GATE (44) nederst i `inbox-orkestrator.md`). `skalNullstilleProsjekt` flyttet til `@sitedoc/shared` (`gjesteprosjekt.ts`, web re-eksporterer); mobil `ProsjektKontekst.tsx` holder ventende firmabytte til gjestelista er lastet (`firmabyttProsjekt.ts` `firmabyttUtfall`) — gjesteprosjekt beholdes ved firmabytte. **Ikke deployet.** Lukker (18) åpent punkt (b).
+> ✅ **3D-web ORDRE 5 MERGET 2026-11-17** (merge `73ae7b0d` av `c628bd5f`, gate (87)): subpath-import, ?-hjelp i 3d-visning, vakter (scenen alltid i meter; raycast hopper over skjulte). Regel 10 kaldt 11/11, tsc 0, build 0, test 7/7. Ikke deployet. Åpent: `erMm`-grenen i `flyTil` (`tred-viewer-kontekst.tsx:1305-1307`) død og feil — fjernes i neste 3D-web-ordre.
+
 > ✅ **Web laster bare valgt språk MERGET 2026-11-17** (merge `d3b7bfe8` av `bd79053a`, gate (86)). Regel 10 kaldt: 11/11, tsc 0, build 0, test 7/7 seriell. Ikke deployet.
 
 > ✅ **3D-web ORDRE 4 MERGET 2026-11-17** (merge `4a5e1663` av `5aa828ca`, gate (85)): zoom-fart etter avstand + objekter langt unna skjult med bryter på web. Regel 10 kaldt: 11/11, tsc 0, build 0, test 7/7 seriell. Ikke deployet. Kontrollørens merknader M1–M4 (mm-modeller, subpath-import, ?-hjelpetekst, raycast mot skjulte) → ORDRE 3D-web 5.
@@ -148,7 +150,7 @@ sist_verifisert_mot_kode: 2026-08-09
 | **Dokgen** | `SiteDoc-dokgen` | `feat/arbeidstegning-prod-klar` `954a2ac0` | ikke målt denne runden |
 | **Kontrollplan** | `SiteDoc-kontrollplan` | `feat/v17b-soner` `301da63e` | ikke målt denne runden |
 | **Mal-Opus** | `SiteDoc-mal` | `feat/mal-7b-standardnavn-vakt27` `eb5af56a` | ikke målt denne runden |
-| **3D-web** | app-tre `3d-web-maaling-a15d10` | `feat/3d-web-oppfolging` @ `c628bd5f` | 🟡 GATE (87) hos Kontrollør — ORDRE 3D-web 5: gate (85) M1–M4 — enheter i mm-modeller, subpath-import, ?-hjelpetekst for bryteren, raycast mot skjulte objekter |
+| **3D-web** | app-tre `3d-web-maaling-a15d10` | `feat/3d-web-oppfolging` merget `73ae7b0d` | ⚪ LEDIG — neste: fjern død `erMm`-gren i `flyTil`; W3/M5 (2) egenskaper; W5/M6 måling |
 | **3D-mobil** | app-tre `3d-mobil-maaling-a07340` | `perf/web-spraak-lazy` merget `d3b7bfe8` | ⚪ LEDIG |
 | **Merge** | `SiteDoc-merge` | detached på develop | ⚪ LEDIG |
 
