@@ -76,8 +76,8 @@ describe("zoom-fart etter avstand", () => {
   it("rask langt unna, sakte nær", () => {
     expect(hjulAvstand(-100, 200)).toBeGreaterThan(hjulAvstand(-100, 20));
     expect(hjulAvstand(-100, 20)).toBeGreaterThan(hjulAvstand(-100, 2));
-    // Nær en vegg (1 m) er steget under 1 cm-skala ganger fem — man går ikke gjennom den
-    expect(hjulAvstand(-100, 1)).toBeLessThan(0.05);
+    // Nær en vegg (1 m) er steget gulvet, 5 cm (vedtak § 3c (ii))
+    expect(hjulAvstand(-100, 1)).toBe(ZOOM_MIN_STEG_M);
   });
 
   it("halvt hakk (styreflate) gir halvt steg", () => {
@@ -90,7 +90,7 @@ describe("zoom-fart etter avstand", () => {
     expect(avstandEtterSteg(0.01, 1)).toBe(ZOOM_MIN_STEG_M);
   });
 
-  it("innzoom mot en vegg 10 m unna bremser ned nær veggen, og kommer gjennom med minstesteget", () => {
+  it("innzoom mot en vegg 10 m unna bremser ned nær veggen, og kommer gjennom med minstesteget (§ 3c (ii))", () => {
     let avstand = 10;
     let gått = 0;
     const steg: number[] = [];
@@ -101,13 +101,15 @@ describe("zoom-fart etter avstand", () => {
       avstand = avstandEtterSteg(avstand, s);
     }
     expect(steg[0]).toBeCloseTo(zoomSteg(10));
-    // 100 hakk: nesten fram (målt 8,6 m), ikke forbi
-    expect(gått).toBeGreaterThan(8);
-    expect(gått).toBeLessThan(10);
+    // 100 hakk: fram til og gjennom veggen (målt 11,1 m; med nærhet 5 m / gulv 2 cm var det 8,6 m)
+    expect(gått).toBeGreaterThan(10);
+    expect(gått).toBeLessThan(12);
+    // Gulvet nås etter under halvparten av hakkene (målt hakk 46)
+    expect(steg.indexOf(ZOOM_MIN_STEG_M)).toBeLessThan(50);
     // Steget avtar for hvert hakk og ender ved minstesteget — kontrollert inn mot/gjennom veggen
     for (let i = 1; i < steg.length; i++) expect(steg[i]).toBeLessThanOrEqual(steg[i - 1]!);
-    expect(steg[99]).toBeLessThan(steg[0]! / 10);
-    expect(steg[99]).toBeGreaterThanOrEqual(ZOOM_MIN_STEG_M);
+    expect(steg[99]).toBe(ZOOM_MIN_STEG_M);
+    expect(steg[99]).toBeLessThan(steg[0]! / 9);
   });
 });
 
