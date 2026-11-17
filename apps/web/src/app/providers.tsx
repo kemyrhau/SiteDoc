@@ -5,7 +5,7 @@ import { SessionProvider } from "next-auth/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { trpc, opprettTrpcKlient } from "@/lib/trpc";
 import "@/lib/i18n"; // Initialiserer i18next
-import { byttSpraak, hentLagretSpraak } from "@/lib/i18n";
+import { byttSpraak, hentLagretSpraak, spraakKlart, visSiden, SPRAAK_VENTER_SKRIPT } from "@/lib/i18n";
 import type { SpraakKode } from "@sitedoc/shared";
 
 function SpraakSynkroniserer() {
@@ -40,7 +40,21 @@ export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient());
   const [trpcClient] = useState(() => opprettTrpcKlient());
 
+  // Lagret språk (≠ nb) lastes dynamisk; siden er skjult av SPRAAK_VENTER_SKRIPT til det er
+  // aktivert og tegnet på nytt — ingen ser norsk tekst først (ORDRE 3D-mobil 6).
+  useEffect(() => {
+    let avbrutt = false;
+    void spraakKlart.then(() => {
+      // setTimeout, ikke requestAnimationFrame: rAF står stille i skjulte faner/WebView-er.
+      // 30 ms gir React tid til å tegne på nytt etter changeLanguage før siden vises.
+      if (!avbrutt) setTimeout(visSiden, 30);
+    });
+    return () => { avbrutt = true; };
+  }, []);
+
   return (
+    <>
+    <script dangerouslySetInnerHTML={{ __html: SPRAAK_VENTER_SKRIPT }} />
     <trpc.Provider client={trpcClient} queryClient={queryClient}>
       <QueryClientProvider client={queryClient}>
         <SessionProvider>
@@ -49,5 +63,6 @@ export function Providers({ children }: { children: React.ReactNode }) {
         </SessionProvider>
       </QueryClientProvider>
     </trpc.Provider>
+    </>
   );
 }
