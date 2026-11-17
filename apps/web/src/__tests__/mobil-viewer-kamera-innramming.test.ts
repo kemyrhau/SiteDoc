@@ -144,6 +144,9 @@ describe("mobil-viewer: vakt", () => {
     expect(kilde).toContain("raycastSynlige(rect.left + rect.width / 2, rect.top + rect.height / 2)");
     expect(kilde).toContain("orbitAvstandIBygg(kamera, retning, treffAvstand, forrige, byggBoks)");
     expect(kilde).toContain("orbitAvstand(iBygg, forrige, minDistanceNå)");
+    // Bom bruker gjeldende radius (ikke avstanden fra før siste zoom)
+    expect(kilde).toContain("const forrige = Number.isFinite(ctrl.distance) && ctrl.distance > 0 ? ctrl.distance : sisteOrbitAvstand;");
+    expect(kilde).not.toContain("sisteOrbitAvstand || ctrl.distance");
     expect(kilde).toContain("byggBoks = { min: { x: boks.min.x");
     expect(kilde).toContain("ctrl.setOrbitPoint(punkt.x, punkt.y, punkt.z)");
     expect(kilde).toContain("void settOrbitPunkt()");

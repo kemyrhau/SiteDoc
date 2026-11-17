@@ -265,7 +265,10 @@ export default function MobilViewer() {
             const retning = threeCamera.getWorldDirection(new THREE.Vector3());
             // Står kameraet inne i bygget, kortes treff utenfor og bom til byggets vegg
             // (`orbitAvstandIBygg`, felles med web); deretter mobilens gulv 1,5·minDistance.
-            const forrige = sisteOrbitAvstand || ctrl.distance;
+            // Ved bom: gjeldende radius, ikke sist satte avstand — etter zoom er den gamle
+            // avstanden for lang og la punktet langt bak bygget (målt ORDRE 8: hver pinch
+            // flyttet kameraet 166 m forbi E3). Radius er riktig etter pan, rotasjon og zoom.
+            const forrige = Number.isFinite(ctrl.distance) && ctrl.distance > 0 ? ctrl.distance : sisteOrbitAvstand;
             const iBygg = orbitAvstandIBygg(kamera, retning, treffAvstand, forrige, byggBoks);
             const avstand = orbitAvstand(iBygg, forrige, minDistanceNå);
             const punkt = kamera.clone().addScaledVector(retning, avstand);
