@@ -5836,5 +5836,11 @@
   "timer.attestering.tabell.hjelp.merker": "Deviations are shown as short tags. Hover over a tag, or tap it on a touch screen, to see the full explanation. “No time entry”: the machine is not linked to a time entry and is shown as a separate line. “No operator certificate”: machine work without a registered operator certificate, flagged for visibility. Both lines can be approved.",
   "timer.attestering.tabell.hjelp.dato": "The date is shown as dd.mm. If the table has days from more than one year, the year is included. The export always shows the full date with the year.",
   "timer.attestering.tabell.hjelp.aar": "The year is next to the week selector. Choose another year to go to the same week that year.",
-  "timer.attestering.uke.aar": "Year"
+  "timer.attestering.uke.aar": "Year",
+  "timer.registrerTimer": "Register hours",
+  "timer.prosjektkort.registrerTimer": "+ Register hours",
+  "timer.prosjektkort.registrerTimerHint": "next job, same or another project",
+  "timer.mine.hjelp.registrer": "“+ Register hours” records a job on the project selected at the top. The first time on a date, the day is created for you, with the company's working hours and the site selected at the top. If no project is selected at the top, you choose the project first.",
+  "timer.mine.hjelp.dagen": "The next job is added to the same day, with From where the previous job ended. If the day has been sent, reopen it first. If your manager has approved anything, the manager must return the day. “Send the day” sends all jobs on the date together.",
+  "timer.mine.hjelp.dato": "The date is shown as dd.mm. If the list spans several years, the year is included."
 }

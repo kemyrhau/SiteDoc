@@ -3876,9 +3876,14 @@ export const dagsseddelRouter = router({
         // `eksisterte: true` så klienten kan redirecte + vise notis. P2002 kan
         // treffe enten @@unique([userId, dato]) eller clientUuid — findUnique på
         // (userId, dato) dekker begge (samme dato = samme sedel).
+        // w2 (2026-11-17): kjennes igjen på `name` + `code`, ikke `instanceof` — bundlet i
+        // Next (web-ruta /api/trpc) kaster timer-klientens runtime en annen feilklasse enn
+        // `Prisma` herfra, så duplikat-dato ble 409 «Dette finnes allerede» i stedet for
+        // `eksisterte: true` (samme grunn som `somPrismaFeil` i trpc/feilformat.ts).
         if (
-          e instanceof Prisma.PrismaClientKnownRequestError &&
-          e.code === "P2002"
+          e instanceof Error &&
+          e.name === "PrismaClientKnownRequestError" &&
+          (e as { code?: unknown }).code === "P2002"
         ) {
           const eksisterende = await ctx.prismaTimer.dailySheet.findUnique({
             where: { userId_dato: { userId: ctx.userId, dato } },

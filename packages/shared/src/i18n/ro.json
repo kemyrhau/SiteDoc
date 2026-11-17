@@ -5836,5 +5836,11 @@
   "timer.attestering.tabell.hjelp.merker": "Abaterile sunt afișate ca etichete scurte. Plasați cursorul peste o etichetă sau atingeți-o pe un ecran tactil pentru a vedea explicația completă. „Fără introducere de timp”: aparatul nu este legat de o intrare de timp și este afișat ca o linie separată. „Fără certificat de operator”: mașină de lucru fără un certificat de operator înregistrat, marcată pentru vizibilitate. Ambele linii pot fi aprobate.",
   "timer.attestering.tabell.hjelp.dato": "Data este afișată ca dd.mm. Dacă tabelul are zile din mai mult de un an, anul este inclus. Exportul arată întotdeauna data completă cu anul.",
   "timer.attestering.tabell.hjelp.aar": "Anul este lângă selectorul de săptămâni. Alege un alt an pentru a merge la aceeași săptămână în acel an.",
-  "timer.attestering.uke.aar": "An"
+  "timer.attestering.uke.aar": "An",
+  "timer.registrerTimer": "Înregistrați orele",
+  "timer.prosjektkort.registrerTimer": "+ Înregistrați orele",
+  "timer.prosjektkort.registrerTimerHint": "următorul job, același sau alt proiect",
+  "timer.mine.hjelp.registrer": "„+ Înregistrează ore” înregistrează un loc de muncă pe proiectul selectat în partea de sus. Prima dată la o dată, ziua este creată pentru tine, cu programul de lucru al companiei și site-ul selectat în partea de sus. Dacă nu este selectat niciun proiect în partea de sus, alegeți mai întâi proiectul.",
+  "timer.mine.hjelp.dagen": "Următorul loc de muncă este adăugat în aceeași zi, cu De unde s-a încheiat jobul anterior. Dacă ziua a fost trimisă, redeschideți-o mai întâi. Dacă managerul tău a aprobat ceva, managerul trebuie să revină ziua. „Trimite ziua” trimite împreună toate joburile de la data.",
+  "timer.mine.hjelp.dato": "Data este afișată ca dd.mm. Dacă lista se întinde pe mai mulți ani, anul este inclus."
 }

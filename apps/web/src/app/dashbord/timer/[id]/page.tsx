@@ -28,6 +28,9 @@ import { StatusBadge } from "@/components/timer/StatusBadge";
 import { ForslagValgSeksjon } from "@/components/timer/ForslagValgSeksjon";
 import { SplittRadModal } from "@/components/timer/SplittRadModal";
 import { ProsjektRadVelger } from "@/components/timer/ProsjektRadVelger";
+import { OppmoteSporsmaalModal } from "@/components/timer/OppmoteSporsmaalModal";
+import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
+import { nyKortId, registrerTimerSteg } from "@/lib/registrerTimer";
 import { MaskinVelger } from "@/components/timer/MaskinVelger";
 import { KortVareforbrukModal } from "@/components/timer/KortVareforbrukModal";
 import {
@@ -356,6 +359,10 @@ export default function DagsseddelDetaljSide() {
         // Ordre 2026-11-14 (6): «+ Reise» — lønnsarten er låst til den løste
         // reise-lønnsarten, og raden lagres med reiseKilde «manuell».
         reise?: { id: string; navn: string };
+        // w2 (B1, WM59): «+ Registrer timer» — ny jobb = nytt kort, og prosjektet kan
+        // byttes i vinduet (annet prosjekt uten eget steg).
+        kortId?: string;
+        aapentProsjekt?: boolean;
       }
     // U3: unified velger — «Legg til på dagsseddelen» (8a). Ruter til
     // tillegg-dialog (laastTilleggId) eller utlegg-dialog etter valg.
@@ -375,7 +382,9 @@ export default function DagsseddelDetaljSide() {
         defaultTilTid?: string | null;
         rad?: MaskinRad;
       }
-    | { type: "nyProsjekt" }
+    // w2: `forJobb` = «+ Registrer timer» uten kjent prosjekt — alle prosjekter
+    // (også de som alt har kort, WM47), og valget åpner timervinduet for jobben.
+    | { type: "nyProsjekt"; forJobb?: boolean }
     | null
   >(null);
   // P2 (arbeider-splitt): egen rad splittes til N plain rader via splittRadEier.
@@ -391,6 +400,20 @@ export default function DagsseddelDetaljSide() {
     nyttProsjektParam ? [nyttProsjektParam] : [],
   );
   const [notisAvvist, setNotisAvvist] = useState(false);
+  // w2 (B1): dagen åpnet fra «+ Registrer timer» (`registrer=1`). Flyten kjøres én gang når
+  // sedelen og firmaets modus er lastet: ny jobb, prosjektvalg eller gjenåpning først.
+  // «etterGjenaapning» venter på at dagen er gjenåpnet, og åpner så jobben.
+  const fraRegistrer = searchParams.get("registrer") === "1";
+  const registrerEksisterte = searchParams.get("eksisterte") === "1";
+  const [registrer, setRegistrer] = useState<"start" | "etterGjenaapning" | null>(() =>
+    fraRegistrer ? "start" : null,
+  );
+  const registrerFlyt = useRef<() => void>(() => {});
+  useEffect(() => {
+    registrerFlyt.current();
+  });
+  // B2 trinn 3: prosjektet i toppen er forvalget for neste jobb på dagen.
+  const { prosjektId: toppProsjektId } = useProsjekt();
   const [feil, setFeil] = useState<string | null>(null);
   // Bytter native confirm() til ekte modal for slett-bekreftelse
   // (CLAUDE.md § Slett-bekreftelse — confirm() blokkerer testing/automatisering).
@@ -689,6 +712,7 @@ export default function DagsseddelDetaljSide() {
     projectId: string,
     ecoId: string | null,
     reise?: { id: string; navn: string },
+    jobb?: { kortId: string; aapentProsjekt: boolean },
   ) => {
     const sisteTil = timerRader
       .map((r) => r.tilTid)
@@ -705,7 +729,47 @@ export default function DagsseddelDetaljSide() {
       defaultFraTid: sisteTil ?? effektivStart,
       defaultTilTid: effektivSlutt,
       reise,
+      ...jobb,
     });
+  };
+
+  // w2 (B1, WM59): ny jobb = nytt kort (ny kort-id), Fra etter siste til-tid (WM6).
+  // NB: dagssiden grupperer fortsatt pr. prosjekt — jobb 2 på samme prosjekt står i
+  // samme prosjektkort her til w3, men er eget kort på serveren og i attesteringen.
+  const aapneNyJobb = (projectId: string) => {
+    setEkstraProsjektIder((prev) => (prev.includes(projectId) ? prev : [...prev, projectId]));
+    setAapentKort(projectId);
+    aapneNyTimerRad(projectId, null, undefined, { kortId: nyKortId(), aapentProsjekt: true });
+  };
+  const startRegistrering = () => {
+    if (toppProsjektId && prosjektNavnMap.has(toppProsjektId)) aapneNyJobb(toppProsjektId);
+    else setAktivModal({ type: "nyProsjekt", forJobb: true });
+  };
+  registrerFlyt.current = () => {
+    if (!registrer || !arbeidstidDefaults || !prosjekterRaw) return;
+    if (!prosjektkortModus) {
+      setRegistrer(null);
+      return;
+    }
+    const kjent =
+      nyttProsjektParam && prosjektNavnMap.has(nyttProsjektParam) ? nyttProsjektParam : null;
+    const steg = registrerTimerSteg({
+      eksisterte: registrer === "etterGjenaapning" || registrerEksisterte,
+      status: sheet.status,
+      harAttestertRad,
+      projectId: kjent,
+    });
+    // Venter på gjenåpningen (statusen er fortsatt «sendt»).
+    if (registrer === "etterGjenaapning" && steg === "gjenaapne") return;
+    setRegistrer(steg === "gjenaapne" ? "etterGjenaapning" : null);
+    if (steg === "gjenaapne") {
+      setGjenaapneFeil(null);
+      setVisGjenaapneModal(true);
+    } else if (steg === "nyJobb" && kjent) {
+      aapneNyJobb(kjent);
+    } else if (steg === "velgProsjekt") {
+      setAktivModal({ type: "nyProsjekt", forJobb: true });
+    }
   };
 
   // Props for én ProsjektGruppe — samme i dagskortet og i et åpent prosjektkort.
@@ -778,6 +842,8 @@ export default function DagsseddelDetaljSide() {
   return (
     <SedelFirmaKontekst.Provider value={sheet.organizationId ?? undefined}>
     <div className="max-w-3xl p-6">
+      {/* w2: skjemaet hoppes over i prosjektkort-modus — spørsmålet følger med hit. */}
+      {fraRegistrer && <OppmoteSporsmaalModal organizationId={sheet.organizationId ?? null} />}
       <Link
         href="/dashbord/timer/mine"
         className="mb-3 inline-flex items-center gap-1 text-sm text-sitedoc-primary hover:underline"
@@ -989,7 +1055,7 @@ export default function DagsseddelDetaljSide() {
           byggeplassNavn={byggeplassNavn}
           byggeplasser={byggeplasser}
           erRedigerbar={erRedigerbar}
-          kanLeggeTilKort={ledigeProsjekter.length > 0}
+          kanLeggeTilKort={prosjekterForVelger.length > 0}
           ramme={{
             fra: harRaderMedTid
               ? arbeidstidVisning.startTid ?? "—"
@@ -1039,7 +1105,7 @@ export default function DagsseddelDetaljSide() {
           onLeggTil={(projectId) => setAktivModal({ type: "leggTil", projectId })}
           varelagerProsjekter={vareKatalog?.prosjektIderMedVarelager}
           onNyVare={setVareModalProsjekt}
-          onNyttKort={() => setAktivModal({ type: "nyProsjekt" })}
+          onNyttKort={startRegistrering}
           onEndreRamme={() => setRedigerHeader(true)}
           onSlett={() => setVisSlettModal(true)}
           onSend={sendMedPauseSporsmaal}
@@ -1190,7 +1256,8 @@ export default function DagsseddelDetaljSide() {
           alleTimerRader={timerRader}
           // Prosjektkort L1: inne i et kort er prosjektet låst, og overlapp-
           // meldingen navngir det andre kortet.
-          laastProsjekt={prosjektkortModus}
+          laastProsjekt={prosjektkortModus && !aktivModal.aapentProsjekt}
+          kortId={aktivModal.kortId}
           kortNavn={prosjektkortModus ? kortNavnMap : undefined}
           // P1 (maskin-i-rad): sedelens maskin-rader + sedel-pause for den valgfrie
           // maskin-seksjonen (bucket-kapasitet, samme regel som MaskinRadDialog).
@@ -1304,7 +1371,18 @@ export default function DagsseddelDetaljSide() {
           onLukk={() => setAktivModal(null)}
         />
       )}
-      {aktivModal?.type === "nyProsjekt" && (
+      {aktivModal?.type === "nyProsjekt" && aktivModal.forJobb && (
+        <NyProsjektDialog
+          tittel={t("timer.registrerTimer")}
+          ledigeProsjekter={prosjekterForVelger}
+          onLukk={() => setAktivModal(null)}
+          onVelg={(id) => {
+            setAktivModal(null);
+            aapneNyJobb(id);
+          }}
+        />
+      )}
+      {aktivModal?.type === "nyProsjekt" && !aktivModal.forJobb && (
         <NyProsjektDialog
           ledigeProsjekter={ledigeProsjekter}
           onLukk={() => setAktivModal(null)}
@@ -1402,7 +1480,10 @@ export default function DagsseddelDetaljSide() {
       {visGjenaapneModal && (
         <Modal
           open={true}
-          onClose={() => setVisGjenaapneModal(false)}
+          onClose={() => {
+            setVisGjenaapneModal(false);
+            setRegistrer(null);
+          }}
           title={t("timer.gjenaapne.bekreftTittel")}
         >
           <div className="space-y-4">
@@ -1415,7 +1496,10 @@ export default function DagsseddelDetaljSide() {
             <div className="flex justify-end gap-2">
               <Button
                 variant="secondary"
-                onClick={() => setVisGjenaapneModal(false)}
+                onClick={() => {
+                  setVisGjenaapneModal(false);
+                  setRegistrer(null);
+                }}
               >
                 {t("handling.avbryt")}
               </Button>
@@ -1788,7 +1872,8 @@ function ProsjektkortSamleside({
           onClick={onNyttKort}
           className="mt-3 w-full rounded-lg border border-dashed border-gray-300 p-3 text-sm font-medium text-gray-600 hover:border-gray-400 hover:bg-gray-50"
         >
-          {t("timer.prosjektkort.nyttKort")}
+          <span className="text-gray-900">{t("timer.prosjektkort.registrerTimer")}</span>
+          <span className="font-normal text-gray-500"> · {t("timer.prosjektkort.registrerTimerHint")}</span>
         </button>
       )}
 
@@ -2714,6 +2799,7 @@ function TimerRadDialog({
   pauseReferanse,
   normTimer,
   reiseKontekst,
+  kortId,
   onLukk,
 }: {
   sheetId: string;
@@ -2752,6 +2838,9 @@ function TimerRadDialog({
   // reise-kontekst (reise er aldri overtid).
   normTimer: number | null;
   reiseKontekst: ErReiseKontekst;
+  /** w2 (B1, WM59): «+ Registrer timer» — ny jobb = nytt kort. Sendes på alle nye
+   *  rader dialogen lager (også overtid-delen), så jobben står samlet på ett kort. */
+  kortId?: string;
   onLukk: () => void;
 }) {
   const { t, i18n } = useTranslation();
@@ -3206,6 +3295,7 @@ function TimerRadDialog({
         const normal: unknown = await tilfoy.mutateAsync({
           sheetId,
           projectId: valgtProjectId,
+          ...(kortId ? { kortId } : {}),
           ...felles,
           lonnsartId,
           ...f.normal,
@@ -3216,6 +3306,7 @@ function TimerRadDialog({
       await tilfoy.mutateAsync({
         sheetId,
         projectId: valgtProjectId,
+        ...(kortId ? { kortId } : {}),
         ...felles,
         lonnsartId: f.overtidLonnsart.id,
         ...f.overtid,
@@ -3337,6 +3428,7 @@ function TimerRadDialog({
         {
           sheetId,
           projectId: valgtProjectId,
+          ...(kortId ? { kortId } : {}),
           lonnsartId: lagreLonnsartId,
           aktivitetId,
           timer: tNum,
@@ -5472,10 +5564,12 @@ function RedigerHeaderDialog({
 /* ------------------------------------------------------------------ */
 
 function NyProsjektDialog({
+  tittel,
   ledigeProsjekter,
   onVelg,
   onLukk,
 }: {
+  tittel?: string;
   ledigeProsjekter: Array<{ id: string; name: string; internalProjectNumber: string | null }>;
   onVelg: (id: string) => void;
   onLukk: () => void;
@@ -5484,7 +5578,7 @@ function NyProsjektDialog({
   const [valgtId, setValgtId] = useState<string | null>(null);
 
   return (
-    <Modal open={true} onClose={onLukk} title={t("timer.leggTilProsjekt")}>
+    <Modal open={true} onClose={onLukk} title={tittel ?? t("timer.leggTilProsjekt")}>
       <div className="space-y-4">
         <ProsjektRadVelger
           valgtId={valgtId}

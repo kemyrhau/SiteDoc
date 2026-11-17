@@ -5836,5 +5836,11 @@
   "timer.attestering.tabell.hjelp.merker": "Avvikelser visas som korta taggar. Håll muspekaren över en tagg eller tryck på den på en pekskärm för att se hela förklaringen. \"Ingen tidsinmatning\": maskinen är inte kopplad till en tidsinmatning och visas som en separat rad. ”Inget operatörscertifikat”: maskinarbete utan registrerat operatörscertifikat, flaggad för synlighet. Båda linjerna kan godkännas.",
   "timer.attestering.tabell.hjelp.dato": "Datumet visas som dd.mm. Om tabellen har dagar från mer än ett år ingår året. Exporten visar alltid hela datumet med året.",
   "timer.attestering.tabell.hjelp.aar": "Årtalet står bredvid veckoväljaren. Välj ett annat år att gå till samma vecka det året.",
-  "timer.attestering.uke.aar": "År"
+  "timer.attestering.uke.aar": "År",
+  "timer.registrerTimer": "Registrera timmar",
+  "timer.prosjektkort.registrerTimer": "+ Registrera timmar",
+  "timer.prosjektkort.registrerTimerHint": "nästa jobb, samma eller annat projekt",
+  "timer.mine.hjelp.registrer": "\"+ Registrera timmar\" registrerar ett jobb på det projekt som valts överst. Första gången på ett datum skapas dagen åt dig, med företagets arbetstider och sajten vald högst upp. Om inget projekt är valt överst väljer du projektet först.",
+  "timer.mine.hjelp.dagen": "Nästa jobb läggs till samma dag, med Från där det föregående jobbet slutade. Om dagen har skickats, öppna den igen först. Om din chef har godkänt något ska chefen lämna tillbaka dagen. \"Skicka dagen\" skickar alla jobb på datumet tillsammans.",
+  "timer.mine.hjelp.dato": "Datumet visas som dd.mm. Om listan sträcker sig över flera år ingår årtalet."
 }

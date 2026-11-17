@@ -32,6 +32,11 @@ const h = vi.hoisted(() => ({
   feil: new Set<string>(),
 }));
 
+// w2: dagssiden leser prosjektet fra toppen (useProsjekt) for «+ Registrer timer».
+vi.mock("@/kontekst/prosjekt-kontekst", () => ({
+  useProsjekt: () => ({ prosjektId: null }),
+}));
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: () => {}, replace: () => {}, back: () => {} }),
   useParams: () => ({ id: "s1" }),

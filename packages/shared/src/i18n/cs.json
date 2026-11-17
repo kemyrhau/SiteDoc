@@ -5836,5 +5836,11 @@
   "timer.attestering.tabell.hjelp.merker": "Odchylky jsou zobrazeny jako krátké značky. Chcete-li zobrazit úplné vysvětlení, umístěte ukazatel myši na značku nebo na ni klepněte na dotykové obrazovce. „Žádný časový údaj“: stroj není propojen se záznamem času a je zobrazen jako samostatný řádek. „Žádný certifikát operátora“: práce stroje bez registrovaného certifikátu operátora, označeno pro viditelnost. Obě linky lze schválit.",
   "timer.attestering.tabell.hjelp.dato": "Datum je zobrazeno jako dd.mm. Pokud tabulka obsahuje dny z více než jednoho roku, je zahrnut rok. Export zobrazuje vždy celé datum s rokem.",
   "timer.attestering.tabell.hjelp.aar": "Rok je vedle voliče týdne. Vyberte si jiný rok a přejděte na stejný týden toho roku.",
-  "timer.attestering.uke.aar": "Rok"
+  "timer.attestering.uke.aar": "Rok",
+  "timer.registrerTimer": "Registrovat hodiny",
+  "timer.prosjektkort.registrerTimer": "+ Registrovat hodiny",
+  "timer.prosjektkort.registrerTimerHint": "další práce, stejný nebo jiný projekt",
+  "timer.mine.hjelp.registrer": "„+ Registrovat hodiny“ zaznamenává úlohu v projektu vybraném nahoře. Poprvé na rande se pro vás vytvoří den s pracovní dobou společnosti a webem vybraným nahoře. Pokud není nahoře vybrán žádný projekt, vyberte projekt jako první.",
+  "timer.mine.hjelp.dagen": "Další úloha je přidána ke stejnému dni s textem Odkud skončila předchozí úloha. Pokud byl den odeslán, nejprve jej znovu otevřete. Pokud váš manažer něco schválil, manažer musí vrátit den. „Odeslat den“ odešle všechny úlohy v daný den společně.",
+  "timer.mine.hjelp.dato": "Datum je zobrazeno jako dd.mm. Pokud seznam zahrnuje několik let, je zahrnut i rok."
 }

@@ -22,6 +22,11 @@ vi.mock("react-i18next", () => ({
   }),
 }));
 
+// w2: dagssiden leser prosjektet fra toppen (useProsjekt) for «+ Registrer timer».
+vi.mock("@/kontekst/prosjekt-kontekst", () => ({
+  useProsjekt: () => ({ prosjektId: null }),
+}));
+
 vi.mock("@/lib/trpc", () => {
   const lag = (sti: string[]): unknown =>
     new Proxy(() => {}, {
@@ -148,10 +153,28 @@ describe("timer-sedel — visningsmodus", () => {
     expect(html).toContain("timer.prosjektkort.ramme");
     expect(html).toContain("timer.prosjektkort.pauseBaeres{&quot;kort&quot;:&quot;2050 — Barnehage&quot;}");
     expect(html).toContain("timer.prosjektkort.sendDagen{&quot;timer&quot;:&quot;8&quot;}");
-    expect(html).toContain("timer.prosjektkort.nyttKort");
+    // w2: knappen nederst er «+ Registrer timer» (neste jobb, samme eller annet prosjekt).
+    expect(html).toContain("timer.prosjektkort.registrerTimer");
+    expect(html).toContain("timer.prosjektkort.registrerTimerHint");
+    expect(html).not.toContain("timer.prosjektkort.nyttKort");
     expect(html).not.toContain("timer.summering");
     expect(html).not.toContain("timer.leggTilProsjekt");
     expect(html).not.toContain("timer.detalj.sendTilLeder");
+  });
+
+  it("w2: jobb 2 på samme prosjekt (egen kortId) ligger i samme prosjektkort på PC fram til w3", () => {
+    const [r1, r2] = sheet.timer;
+    const html = rendre("prosjektkort", {
+      timer: [
+        { ...r1!, kortId: "k1" },
+        { ...r2!, projectId: "p1", kortId: "k2" },
+      ],
+    } as unknown as Partial<typeof sheet>);
+    expect(html).toContain("timer.prosjektkort.overskrift{&quot;antall&quot;:1}");
+    expect(html.split("2041 — Skole").length - 1).toBeGreaterThanOrEqual(1);
+    expect(html).not.toContain("2050 — Barnehage");
+    // Knappen for neste jobb vises selv om alle prosjektene med timer har kort.
+    expect(html).toContain("timer.prosjektkort.registrerTimer");
   });
 
   it("dagskortets Detaljer-seksjon er skjult i prosjektkort-modus", () => {

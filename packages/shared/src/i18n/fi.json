@@ -5836,5 +5836,11 @@
   "timer.attestering.tabell.hjelp.merker": "Poikkeamat näytetään lyhyinä tunnisteina. Vie hiiri tunnisteen päälle tai napauta sitä kosketusnäytöllä nähdäksesi täydellisen selityksen. \"Ei ajan syöttöä\": konetta ei ole linkitetty aikamerkintään ja se näkyy erillisenä rivinä. \"Ei kuljettajatodistusta\": konetyö ilman rekisteröityä käyttäjätodistusta, merkitty näkyvyyden vuoksi. Molemmat rivit voidaan hyväksyä.",
   "timer.attestering.tabell.hjelp.dato": "Päivämäärä näytetään muodossa pp.mm. Jos taulukossa on päiviä useammalta kuin yhdeltä vuodelta, vuosi otetaan mukaan. Viennissä näkyy aina koko päivämäärä ja vuosi.",
   "timer.attestering.tabell.hjelp.aar": "Vuosi on viikonvalitsimen vieressä. Valitse toinen vuosi mennäksesi samalle viikolle samana vuonna.",
-  "timer.attestering.uke.aar": "vuosi"
+  "timer.attestering.uke.aar": "vuosi",
+  "timer.registrerTimer": "Ilmoittaudu tunnit",
+  "timer.prosjektkort.registrerTimer": "+ Ilmoittaudu tunnit",
+  "timer.prosjektkort.registrerTimerHint": "seuraava työ, sama tai toinen projekti",
+  "timer.mine.hjelp.registrer": "\"+ Rekisteröi tunnit\" tallentaa työn ylhäältä valittuun projektiin. Ensimmäistä kertaa treffeillä päivä luodaan sinulle siten, että yrityksen työaika ja toimipaikka valitaan ylhäältä. Jos yläreunasta ei ole valittuna yhtään projektia, valitse projekti ensin.",
+  "timer.mine.hjelp.dagen": "Seuraava työ lisätään samalle päivälle, jossa on Mistä edellinen työ päättyi. Jos päivä on lähetetty, avaa se ensin uudelleen. Jos esimiehesi on hyväksynyt jotain, esimiehen on palautettava päivä. \"Lähetä päivä\" lähettää kaikki päivämäärän työt yhdessä.",
+  "timer.mine.hjelp.dato": "Päivämäärä näytetään muodossa pp.mm. Jos luettelo kattaa useita vuosia, vuosi otetaan mukaan."
 }

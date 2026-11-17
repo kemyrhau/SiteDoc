@@ -9,6 +9,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({ data: {} as Record<string, unknown> }));
 
+// w2: dagssiden leser prosjektet fra toppen (useProsjekt) for «+ Registrer timer».
+vi.mock("@/kontekst/prosjekt-kontekst", () => ({
+  useProsjekt: () => ({ prosjektId: null }),
+}));
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: () => {}, replace: () => {}, back: () => {} }),
   useParams: () => ({ id: "s1" }),

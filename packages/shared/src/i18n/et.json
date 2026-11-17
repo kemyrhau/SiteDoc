@@ -5836,5 +5836,11 @@
   "timer.attestering.tabell.hjelp.merker": "Kõrvalekalded kuvatakse lühikeste siltidena. Täieliku selgituse nägemiseks hõljutage kursorit sildi kohal või puudutage seda puuteekraanil. “Aja sisestus puudub”: masin ei ole ajakirjega seotud ja kuvatakse eraldi reana. “Operaatori sertifikaat puudub”: masinatöö ilma registreeritud operaatori sertifikaadita, nähtavuse huvides märgistatud. Mõlemat rida saab kinnitada.",
   "timer.attestering.tabell.hjelp.dato": "Kuupäeva näidatakse pp.mm. Kui tabelis on päevi rohkem kui ühest aastast, kaasatakse aasta. Ekspordis kuvatakse alati täiskuupäev koos aastaga.",
   "timer.attestering.tabell.hjelp.aar": "Aasta on nädala valija kõrval. Valige teine ​​aasta, et minna samal nädalal samal aastal.",
-  "timer.attestering.uke.aar": "aasta"
+  "timer.attestering.uke.aar": "aasta",
+  "timer.registrerTimer": "Registreeri tunnid",
+  "timer.prosjektkort.registrerTimer": "+ Registreeri tunnid",
+  "timer.prosjektkort.registrerTimerHint": "järgmine töö, sama või mõni muu projekt",
+  "timer.mine.hjelp.registrer": "„+ Registreeri tunnid” salvestab töö üleval valitud projektis. Esimest korda kohtingul luuakse teie jaoks päev, mille ülaosas on valitud ettevõtte tööaeg ja koht. Kui ülaosas pole ühtegi projekti valitud, valite kõigepealt projekti.",
+  "timer.mine.hjelp.dagen": "Järgmine töökoht lisatakse samale päevale, kus on Kust eelmine töökoht lõppes. Kui päev on saadetud, avage see kõigepealt uuesti. Kui teie juht on midagi heaks kiitnud, peab juhataja päeva tagasi saatma. \"Saada päev\" saadab kõik kuupäeval olevad tööd koos.",
+  "timer.mine.hjelp.dato": "Kuupäeva näidatakse pp.mm. Kui loend hõlmab mitut aastat, siis aasta on lisatud."
 }

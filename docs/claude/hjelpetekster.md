@@ -147,6 +147,16 @@ ser det før du trykker Bekreft. Forkast sletter det.»
   «Bekreft og lagre»: `sperre.kjedeKonflikt`. Prosjektkortet viser overlapp mellom lagrede rader med `timer.feil.overlapp`.
 - Merke i Timer-lista (`DagsseddelListe.tsx`): «Ikke bekreftet» (`timer.utkast.ikkeBekreftet`) — ved siden av statusen, eller på egen rad med 0 t når datoen ikke har sedel.
 
+## Web: Mine timer — «+ Registrer timer» (w2 i web-timeføring, 🟡 ikke merget, `feat/web-timer-w2`)
+
+`apps/web/src/app/dashbord/timer/mine/page.tsx` har `HjelpKnapp` (fanen «Mine timer», `timer.mine.tittel`) ved knappen:
+
+- **Registrer** (`timer.mine.hjelp.registrer`): «+ Registrer timer» fører en jobb på prosjektet i toppen; første gang på en dato lages dagen med firmaets arbeidstid og byggeplassen i toppen; uten prosjekt i toppen velges prosjekt først.
+- **Dagen** (`timer.mine.hjelp.dagen`): neste jobb legges på samme dag med Fra der forrige jobb sluttet; sendt dag gjenåpnes først; attestert → lederen må returnere; «Send dagen» sender alle jobbene samlet.
+- **Dato** (`timer.mine.hjelp.dato`): dd.mm., med år når lista spenner over flere år.
+
+Knappetekster: «Registrer timer» (`timer.registrerTimer`, også tittelen på prosjektvelgeren når dagen åpnes uten prosjekt) og nederst på dagen «+ Registrer timer» · «neste jobb, samme eller annet prosjekt» (`timer.prosjektkort.registrerTimer`, `…registrerTimerHint`). Dagskort-modus viser «Ny dagsseddel» som før.
+
 ## Web: Timerad på maskin (`dashbord/timer/[id]/page.tsx`, ordre d2c-1, 🟡 ikke merget)
 
 Dagsseddel-siden på web har ikke ?-ikon. Hjelpen står i skjemaet der valget tas (`timer.felt.timerad`, `timer.maskinTimerad.*`, `timer.fjernTimerRad.*`, 15 språk):

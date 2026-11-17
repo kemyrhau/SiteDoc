@@ -1,0 +1,95 @@
+/**
+ * w2 «+ Registrer timer»: ren logikk for knappen og dagssiden.
+ */
+import { describe, expect, it } from "vitest";
+import {
+  byggeplassForRegistrering,
+  nyKortId,
+  registrerLenke,
+  registrerTimerSteg,
+  spennerFlereAar,
+  standardAktivitetId,
+  visDagDato,
+  visTimerTall,
+} from "../registrerTimer";
+
+describe("registrerTimerSteg", () => {
+  it("ny dag med prosjekt: serveren laget første jobb — ingenting mer å åpne", () => {
+    expect(registrerTimerSteg({ eksisterte: false, status: "draft", harAttestertRad: false, projectId: "p1" })).toBe("ferdig");
+  });
+  it("dagen fantes: neste jobb åpnes i timervinduet", () => {
+    expect(registrerTimerSteg({ eksisterte: true, status: "draft", harAttestertRad: false, projectId: "p1" })).toBe("nyJobb");
+    expect(registrerTimerSteg({ eksisterte: true, status: "returned", harAttestertRad: false, projectId: "p1" })).toBe("nyJobb");
+  });
+  it("uten prosjekt fra toppen: velg prosjekt først", () => {
+    expect(registrerTimerSteg({ eksisterte: true, status: "draft", harAttestertRad: false, projectId: null })).toBe("velgProsjekt");
+  });
+  it("sendt dag uten attestert rad: gjenåpne først", () => {
+    expect(registrerTimerSteg({ eksisterte: true, status: "sent", harAttestertRad: false, projectId: "p1" })).toBe("gjenaapne");
+  });
+  it("sendt dag med attestert rad, eller godkjent: låst", () => {
+    expect(registrerTimerSteg({ eksisterte: true, status: "sent", harAttestertRad: true, projectId: "p1" })).toBe("laast");
+    expect(registrerTimerSteg({ eksisterte: true, status: "accepted", harAttestertRad: false, projectId: "p1" })).toBe("laast");
+  });
+});
+
+describe("standardAktivitetId", () => {
+  it("Anleggsarbeid når aktiv, ellers første aktive, ellers første", () => {
+    expect(standardAktivitetId([{ id: "a", navn: "X", aktiv: true }, { id: "b", navn: "Anleggsarbeid", aktiv: true }])).toBe("b");
+    expect(standardAktivitetId([{ id: "a", navn: "X", aktiv: false }, { id: "b", navn: "Anleggsarbeid", aktiv: false }, { id: "c", navn: "Y", aktiv: true }])).toBe("c");
+    expect(standardAktivitetId([{ id: "a", navn: "X", aktiv: false }])).toBe("a");
+    expect(standardAktivitetId([])).toBeNull();
+    expect(standardAktivitetId(undefined)).toBeNull();
+  });
+});
+
+describe("byggeplassForRegistrering", () => {
+  const byggeplasser = [{ id: "b1", projectId: "p1" }, { id: "b2", projectId: "p2" }];
+  it("byggeplassen fra toppen følger med når den hører til prosjektet", () => {
+    expect(byggeplassForRegistrering({ toppbarByggeplassId: "b1", projectId: "p1", byggeplasser })).toBe("b1");
+  });
+  it("annet prosjekts byggeplass, ukjent byggeplass eller uten prosjekt: null", () => {
+    expect(byggeplassForRegistrering({ toppbarByggeplassId: "b2", projectId: "p1", byggeplasser })).toBeNull();
+    expect(byggeplassForRegistrering({ toppbarByggeplassId: "bx", projectId: "p1", byggeplasser })).toBeNull();
+    expect(byggeplassForRegistrering({ toppbarByggeplassId: "b1", projectId: null, byggeplasser })).toBeNull();
+    expect(byggeplassForRegistrering({ toppbarByggeplassId: null, projectId: "p1", byggeplasser })).toBeNull();
+  });
+});
+
+describe("registrerLenke", () => {
+  it("bærer registrer=1, prosjektet og om dagen fantes", () => {
+    expect(registrerLenke({ sheetId: "s1", projectId: "p1", eksisterte: true })).toBe(
+      "/dashbord/timer/s1?registrer=1&nyttProsjekt=p1&eksisterte=1",
+    );
+    expect(registrerLenke({ sheetId: "s1", projectId: null, eksisterte: false })).toBe("/dashbord/timer/s1?registrer=1");
+  });
+});
+
+describe("nyKortId", () => {
+  it("gir en ny UUID hver gang", () => {
+    const a = nyKortId();
+    expect(a).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+    expect(nyKortId()).not.toBe(a);
+  });
+});
+
+describe("komma og dd.mm.", () => {
+  it("timer med komma og to desimaler", () => {
+    expect(visTimerTall(7.5)).toBe("7,50");
+    expect(visTimerTall(0)).toBe("0,00");
+    expect(visTimerTall(12.25)).toBe("12,25");
+  });
+  it("dato som dd.mm., med år ved behov", () => {
+    expect(visDagDato("2026-11-17", false)).toBe("17.11.");
+    expect(visDagDato("2026-11-17", true)).toBe("17.11.2026");
+    expect(visDagDato("2026-11-17T00:00:00.000Z", false)).toBe("17.11.");
+    // Lokal midnatt (ukestart på prosjektets Timer-side) skal ikke bli dagen før.
+    expect(visDagDato(new Date(2026, 10, 16), false)).toBe("16.11.");
+    expect(visDagDato(new Date(2026, 0, 1), true)).toBe("01.01.2026");
+  });
+  it("år vises bare når lista spenner over flere år", () => {
+    expect(spennerFlereAar(["2026-11-17", "2026-11-18"])).toBe(false);
+    expect(spennerFlereAar(["2026-12-31", "2027-01-01"])).toBe(true);
+    expect(spennerFlereAar([])).toBe(false);
+  });
+});

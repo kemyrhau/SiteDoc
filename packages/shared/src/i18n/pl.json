@@ -5836,5 +5836,11 @@
   "timer.attestering.tabell.hjelp.merker": "Odchylenia są pokazane jako krótkie znaczniki. Najedź kursorem na tag lub dotknij go na ekranie dotykowym, aby zobaczyć pełne wyjaśnienie. „Brak wpisu czasu”: urządzenie nie jest powiązane z wpisem czasu i jest wyświetlane w osobnej linii. „Brak certyfikatu operatora”: praca maszyny bez certyfikatu zarejestrowanego operatora, oznaczona dla widoczności. Obie linie mogą zostać zatwierdzone.",
   "timer.attestering.tabell.hjelp.dato": "Data jest wyświetlana jako dd.mm. Jeśli tabela zawiera dni z więcej niż jednego roku, uwzględniany jest rok. Eksport zawsze pokazuje pełną datę wraz z rokiem.",
   "timer.attestering.tabell.hjelp.aar": "Rok znajduje się obok selektora tygodnia. Wybierz inny rok, aby przejść do tego samego tygodnia w tym roku.",
-  "timer.attestering.uke.aar": "Rok"
+  "timer.attestering.uke.aar": "Rok",
+  "timer.registrerTimer": "Zarejestruj godziny",
+  "timer.prosjektkort.registrerTimer": "+ Zarejestruj godziny",
+  "timer.prosjektkort.registrerTimerHint": "następna praca, ten sam lub inny projekt",
+  "timer.mine.hjelp.registrer": "„+ Zarejestruj godziny” rejestruje pracę w projekcie wybranym na górze. Kiedy jesteś na pierwszej randce, dzień jest tworzony dla Ciebie, z godzinami pracy firmy i stroną wybraną na górze. Jeśli na górze nie jest wybrany żaden projekt, najpierw wybierasz projekt.",
+  "timer.mine.hjelp.dagen": "Następne zadanie zostanie dodane tego samego dnia, z podaniem miejsca, w którym zakończyło się poprzednie zadanie. Jeśli dzień został wysłany, najpierw otwórz go ponownie. Jeżeli Twój menadżer coś zatwierdził, musi zwrócić dany dzień. „Wyślij dzień” powoduje jednoczesne wysłanie wszystkich zadań danego dnia.",
+  "timer.mine.hjelp.dato": "Data jest wyświetlana jako dd.mm. Jeżeli lista obejmuje kilka lat, uwzględnia się rok."
 }

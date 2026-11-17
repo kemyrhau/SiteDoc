@@ -5836,5 +5836,11 @@
   "timer.attestering.tabell.hjelp.merker": "Novirzes tiek parādītas kā īsas atzīmes. Virziet kursoru virs atzīmes vai pieskarieties tai skārienekrānā, lai skatītu pilnu skaidrojumu. “Nav laika ievades”: iekārta nav saistīta ar laika ierakstu un tiek parādīta kā atsevišķa rinda. “Nav operatora sertifikāta”: mašīnas darbs bez reģistrēta operatora sertifikāta, atzīmēts redzamības dēļ. Abas līnijas var apstiprināt.",
   "timer.attestering.tabell.hjelp.dato": "Datums tiek parādīts kā dd.mm. Ja tabulā ir dienas no vairāk nekā viena gada, tiek iekļauts gads. Eksports vienmēr parāda pilnu datumu ar gadu.",
   "timer.attestering.tabell.hjelp.aar": "Gads ir blakus nedēļas atlasītājam. Izvēlieties citu gadu, lai pārietu uz to pašu nedēļu tajā gadā.",
-  "timer.attestering.uke.aar": "gads"
+  "timer.attestering.uke.aar": "gads",
+  "timer.registrerTimer": "Reģistrēt stundas",
+  "timer.prosjektkort.registrerTimer": "+ Reģistrējieties stundas",
+  "timer.prosjektkort.registrerTimerHint": "nākamais darbs, tas pats vai cits projekts",
+  "timer.mine.hjelp.registrer": "“+ Reģistrēt stundas” ieraksta darbu augšdaļā atlasītajā projektā. Pirmo reizi randiņā diena tiek izveidota jums, augšpusē izvēloties uzņēmuma darba laiku un vietni. Ja augšpusē nav atlasīts neviens projekts, vispirms izvēlieties projektu.",
+  "timer.mine.hjelp.dagen": "Nākamais darbs tiek pievienots tai pašai dienai ar norādi No kurienes beidzās iepriekšējais darbs. Ja diena ir nosūtīta, vispirms atveriet to vēlreiz. Ja jūsu vadītājs kaut ko ir apstiprinājis, vadītājam ir jāatgriež diena. “Dienas nosūtīšana” visus datuma darbus nosūta kopā.",
+  "timer.mine.hjelp.dato": "Datums tiek parādīts kā dd.mm. Ja saraksts aptver vairākus gadus, tiek iekļauts gads."
 }
