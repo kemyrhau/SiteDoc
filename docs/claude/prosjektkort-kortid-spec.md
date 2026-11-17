@@ -1794,6 +1794,17 @@ d2a + d2b-1. Fanene, prosjektattesteringen, eksporten og mobil kommer etter.
   historikken for den ansatte (HM51), et tak pr. timerad på serveren, en strengere synk for eldre apper, og en handling
   i attesteringen som kobler en gammel maskinrad til en timerad. Hver av dem er en egen ordre hvis Kenneth vil ha den.
 
+#### 12.6.0 Kenneths beslutninger om d2b-2 (2026-11-17, «ja til alle tre»)
+
+Gjelder endret atferd a–e meldt i d2b-2-leveransen (`relay/inbox-orkestrator.md:32168`):
+- **a, b, e godtatt.** Prosjektlederens retur gjelder prosjektets linjer. Detaljsiden blir stående og oppdaterer på stedet. Ukeavviket regnes på hele uka. 🔴 **Teksten skal si at avviket gjelder uka**, f.eks. «Avvik denne uka».
+- **c godtatt med krav:** dagsnormen hentes fra firmaets innstillinger og gjenbrukes, med samme kilde som ellers. Detaljsiden skal vise «Dagen: X t av Y t», og «over normen» skal telle i «Krever vurdering».
+- **d — ny funksjon (hjemmel):** vedlegg på utlegg **må kunne åpnes og kontrolleres i attesteringen**. Kenneth: *«ellers godkjenner vi noe vi ikke har lest»*.
+- **Ubrukt kode slettes i oppfølgeren:** `AttesteringPivot.tsx`, `SeddelKort.tsx`, `DagsKort`/`tilPivotRad`.
+- **Tilgangssjekk (egen sak):** `hentForAttestering` og `berikRad` skal ikke sende navn på andre prosjekter, underprosjekter eller byggeplasser til en bruker uten `harProsjektTilgang`. Samme regel som `hentTilAttestering` i d2b-2.
+
+Alt dette er én oppfølger, **d2b-3**, etter at d2b-2 er merget.
+
 #### 12.6.1 Ordretekst d2a — klar til å sendes
 
 Teksten under er skrevet for å limes inn som post i koderens innboks, uendret. Orkestrator setter bare inn
