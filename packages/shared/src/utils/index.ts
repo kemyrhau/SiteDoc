@@ -183,6 +183,7 @@ export {
   TIMER_TABELL_STANDARD,
   TIMER_TABELL_KOL_BREDDE,
   timerTabellVerdi,
+  vareOgMengdeTekst,
   antallUnderlinjer,
 } from "./timerDetaljRader";
 export type {

@@ -10,6 +10,7 @@ import {
   TIMER_TABELL_KOL_BREDDE,
   timerTabellVerdi,
   antallUnderlinjer,
+  vareOgMengdeTekst,
   type TimerTabellLinje,
 } from "./timerDetaljRader";
 
@@ -52,12 +53,31 @@ describe("T40 — samme nøkler og overskrifter som eksporten", () => {
   });
 });
 
-describe("H9 — standardrekkefølgen", () => {
-  it("maskin og maskintimer side om side, vare/vareenhet/varemengde side om side", () => {
+describe("H9 / w5 — standardkolonnene", () => {
+  it("w5: de 13 kjernekolonnene pluss Antall og Beløp, i kjernerekkefølge", () => {
+    expect([...TIMER_TABELL_STANDARD]).toEqual([
+      "dato", "ansatt", "prosjektnummer", "underprosjekt", "betegnelse",
+      "fraTil", "timer", "maskin", "maskintimer", "vareOgMengde",
+      "antall", "belop", "avvik",
+    ]);
+  });
+
+  it("w5: fra–til er én kolonne; Fra og Til hver for seg står i «Velg parameter»", () => {
+    expect(TIMER_TABELL_STANDARD).not.toContain("fraTid");
+    expect(TIMER_TABELL_KOL_KEYS).toContain("fraTid");
+    expect(TIMER_TABELL_KOL_KEYS).toContain("tilTid");
+  });
+
+  it("maskin og maskintimer side om side", () => {
     const i = (k: string) => TIMER_TABELL_STANDARD.indexOf(k as never);
     expect(i("maskintimer")).toBe(i("maskin") + 1);
-    expect(i("vareenhet")).toBe(i("vare") + 1);
-    expect(i("varemengde")).toBe(i("vare") + 2);
+  });
+
+  it("alle kolonner som var standard før w5, finnes fortsatt i «Velg parameter»", () => {
+    for (const k of ["ansattnr", "prosjekt", "byggeplass", "type", "aktivitet", "pause", "mengde", "enhet",
+      "vare", "vareenhet", "varemengde", "beskrivelse", "status"]) {
+      expect(TIMER_TABELL_KOL_KEYS, k).toContain(k);
+    }
   });
 
   it("standardlista har bare kjente nøkler, uten duplikater", () => {
@@ -92,6 +112,19 @@ describe("H14 — underlinjer pr. maskin og vare", () => {
     expect(timerTabellVerdi("mengde", linje, 0)).toBe(12);
     expect(timerTabellVerdi("vare", linje, 0)).toBe("Pukk 8-16");
     expect(timerTabellVerdi("vare", linje, 1)).toBeNull();
+  });
+
+  it("w5: «Vare og mengde» i én celle — navn · mengde enhet, komma som desimaltegn", () => {
+    expect(timerTabellVerdi("vareOgMengde", linje, 0)).toBe("Pukk 8-16 · 20 tonn");
+    expect(timerTabellVerdi("vareOgMengde", linje, 1)).toBeNull();
+    expect(vareOgMengdeTekst({ id: "v", navn: "Betong", enhet: "m3", mengde: 4.5 })).toBe("Betong · 4,5 m3");
+    expect(vareOgMengdeTekst({ id: "v", navn: "Betong", enhet: "m3", mengde: null })).toBe("Betong");
+  });
+
+  it("w5: «Fra–til» i én celle, tom når linja ikke har klokkeslett", () => {
+    expect(timerTabellVerdi("fraTil", linje, 0)).toBe("07:00–15:00");
+    expect(timerTabellVerdi("fraTil", linje, 1)).toBeNull();
+    expect(timerTabellVerdi("fraTil", { ...linje, fraTid: null, tilTid: null }, 0)).toBeNull();
   });
 
   it("øvrige kolonner har verdi bare på første tekstlinje", () => {

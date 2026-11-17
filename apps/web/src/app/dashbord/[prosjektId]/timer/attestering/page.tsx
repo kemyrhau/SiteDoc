@@ -61,7 +61,7 @@ export default function AttesteringSide() {
   }
 
   return (
-    <div className="p-6">
+    <div className="min-w-0 p-6">
       <SonetonetSidehode sone="prosjekt" className="mb-6">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -76,6 +76,8 @@ export default function AttesteringSide() {
               <p className="mt-2">{t("timer.attestering.tabell.hjelp.handlinger")}</p>
               <p className="mt-2">{t("timer.attestering.tabell.hjelp.merker")}</p>
               <p className="mt-2">{t("timer.attestering.tabell.hjelp.retting")}</p>
+              <p className="mt-2">{t("timer.attestering.tabell.hjelp.registrering")}</p>
+              <p className="mt-2">{t("timer.attestering.tabell.hjelp.verktoy")}</p>
               <p className="mt-2">{t("timer.attestering.tabell.hjelp.kvittering")}</p>
             </HjelpFane>
           </HjelpKnapp>
