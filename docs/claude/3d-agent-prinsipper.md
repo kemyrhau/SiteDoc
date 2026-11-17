@@ -72,7 +72,23 @@ Gjelder **både web og mobil** (paritet):
 2b. **Zoom går mot midten av skjermen på både web og mobil — som prøve** (Kenneth 2026-11-17: *«ja, midten på begge -> la oss prøve det. normalt liker jeg zoom mot muspeker og zoom mot midt mellom fingre -> det er egentlig bedre»*). Web-hjulet går langs blikket; mobil får `dollyToCursor = false`. Vurderes på nytt etter Kenneths test; snus det, er alternativet zoom mot muspeker (web) og mot midt mellom fingrene (mobil).
 3. **Objekter langt unna bygget skjules som standard**, med bryteren «Vis objekter langt unna». Begrunnelse (Kenneth): ofte feil-eksport DWG→IFC; arkitekter legger informasjonsfiler langt unna tegningen. Innramming og kamera ser bort fra dem uansett. Utligger-regelen er én ren funksjon i `@sitedoc/shared`, brukt av begge flater.
 
-🟢 Mobil: punkt 1, 2, 2b, 3 merget `5266492e`. Web: punkt 1 og 2b merget `23427bdb`; punkt 2 og 3 merget `4a5e1663`. Ingenting deployet.
+🟢 Mobil: punkt 1, 2, 2b, 3 merget `5266492e`. Web: punkt 1 og 2b merget `23427bdb`; punkt 2 og 3 merget `4a5e1663`. Deployet test `59606595` og prod `2319102e` 2026-11-17.
+
+### 3c. Kenneths test 2026-11-17 og vedtak «kjør i–v»
+
+Testet på test (test-modellen) og prod (prod-modellen), web og telefon. Virker: lerret fyller skjermen, høyre-pan, Snitt uten drift, ?-hjelp, språkbytte, pan med to fingre i begge modeller, bryteren for objekter langt unna. Feil:
+- Zoom inne i bygget for treg på web og mobil (utenfor OK).
+- Prod-modellen: innzoomet roterer bildet rundt et punkt utenfor bygget (web + mobil). Test-modellen: OK.
+- Mobil åpner modellen for liten: test-modellen ~30 % for liten, prod-modellen liten midt på.
+- Objektinfo på mobil («3D»): kortet viser bare navnet («Tak»), ingen egenskaper (Kenneth: «a») = W3/M5 (2), ikke i denne runden.
+
+**Vedtak (Kenneth 2026-11-17: «a, kjør i–v»):**
+- (i) Pinch på mobil i riktig fart: camera-controls måler fingeravstand fra midtpunkt til finger 2, så én enhet er 16 px, ikke 8.
+- (ii) Zoom-kurven: `ZOOM_NAERHET_M` 5 → 1, `ZOOM_MIN_STEG_M` 0,02 → 0,05 (web + mobil). Steg pr. enhet: 50 m 2,45 · 20 m 0,95 · 10 m 0,45 · 5 m 0,21 · 2 m 0,07 · 1 m 0,05.
+- (iii) Diagnoselinje `?diag=1` på mobil: avstand, steg, om trykket kommer fram, om modellen lastes fra lagret kopi.
+- (iv) Orbit-punktet holdes innenfor byggets boks (ren funksjon i `@sitedoc/shared/tred`, web + mobil).
+- (v) Innramming på mobil: modellen skal fylle skjermen ved åpning; finn hvorfor prod-modellen åpner enda mindre.
+
 
 ## 4. Filkart (målt 2026-11-16)
 
