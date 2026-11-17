@@ -36,6 +36,8 @@ vi.mock("../../services/timer", () => ({
 }));
 vi.mock("@sitedoc/db", () => ({
   prisma: {
+    // w5 (B10): retting ved attestering krever attesteringsrett; sitedoc_admin har den overalt.
+    user: { findUnique: vi.fn().mockResolvedValue({ role: "sitedoc_admin" }) },
     organizationSetting: { findUnique: vi.fn().mockResolvedValue({ reiseLonnsartId: null }) },
     organizationReiseGrense: { findMany: vi.fn().mockResolvedValue([]) },
     reisetidMatrise: { findMany: vi.fn().mockResolvedValue([]) },

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, useCallback, type ReactNode, type CSSProperties, type MouseEvent as ReactMouseEvent } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback, type ReactNode, type CSSProperties, type MouseEvent as ReactMouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
@@ -36,6 +36,8 @@ import { FlyttbareKolonner, useFlyttbarKolonne } from "@/components/FlyttbareKol
 export type TimerRadTabellRad<R> =
   | { kind: "linje"; nokkel: string; data: R; underlinjer: number }
   | { kind: "overskrift"; nokkel: string; innhold: ReactNode }
+  /** w5 (bilde 7): innhold under en linje i tabellens synlige bredde (registreringen åpnet). */
+  | { kind: "panel"; nokkel: string; innhold: ReactNode }
   | {
       kind: "sum";
       nokkel: string;
@@ -87,13 +89,37 @@ interface Props<R> {
   rammeKlasse?: string;
   /** Innrykk i Betegnelse (rapportens ↳-rader). */
   innrykk?: (k: TimerTabellKolKey, data: R) => boolean;
+  /**
+   * w5 (bilde 7): klikk på linja (ikke på knapper, felt eller lenker i den). Utelatt →
+   * linja er ikke klikkbar.
+   */
+  onLinjeKlikk?: (data: R) => void;
+  /** Linja som har registreringen åpen (markeres). */
+  erAapen?: (data: R) => boolean;
+  /** Standardbredde pr. kolonne når kalleren vil ha andre enn den delte lista (px). */
+  standardBredder?: Partial<Record<TimerTabellKolKey, number>>;
+  /**
+   * Kompakt hode (smale kolonner, w5): vanlige bokstaver i stedet for versaler, og overskriften
+   * brytes over inntil to linjer ved mellomrom eller myk bindestrek i stedet for å kuttes.
+   */
+  hodeBrytes?: boolean;
+  /** Kortere overskrift pr. kolonne i hodet; full tittel vises ved hover. */
+  hodeTekst?: (k: TimerTabellKolKey) => string | undefined;
 }
+
+/** Klikk på disse i en linje er cellens egne og åpner ikke registreringen. */
+const INTERAKTIV = "button,input,select,textarea,a,label,[role=button],[data-avvik-merke]";
 
 const UNDERLINJE_HOYDE = 30;
 
-function standardBredde(k: TimerTabellKolKey): string {
+function minBredde(k: TimerTabellKolKey, egne?: Partial<Record<TimerTabellKolKey, number>>): number {
+  return egne?.[k] ?? TIMER_TABELL_KOL_BREDDE[k].min;
+}
+
+function standardBredde(k: TimerTabellKolKey, egne?: Partial<Record<TimerTabellKolKey, number>>): string {
   const b = TIMER_TABELL_KOL_BREDDE[k];
-  return b.vekt === 0 ? `${b.min}px` : `minmax(${b.min}px, ${b.vekt}fr)`;
+  const min = minBredde(k, egne);
+  return b.vekt === 0 ? `${min}px` : `minmax(${min}px, ${b.vekt}fr)`;
 }
 
 function sammenlign(a: string | number | null, b: string | number | null): number {
@@ -135,6 +161,11 @@ function Tabell<R>({
   linjeKlasse,
   rammeKlasse = "max-h-[70vh]",
   innrykk,
+  onLinjeKlikk,
+  erAapen,
+  standardBredder,
+  hodeBrytes = false,
+  hodeTekst,
 }: Props<R>) {
   const { t } = useTranslation();
   const parentRef = useRef<HTMLDivElement>(null);
@@ -182,7 +213,18 @@ function Tabell<R>({
     return m;
   }, [synlige]);
 
-  const midtKolonner = kolonner.map((k) => (breddeAlle[k] ? `${breddeAlle[k]}px` : standardBredde(k)));
+  // Synlig bredde (panelet under en linje står i den, uansett sidelengs rulling).
+  const [synligBredde, setSynligBredde] = useState<number | null>(null);
+  useEffect(() => {
+    const el = parentRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const obs = new ResizeObserver(() => setSynligBredde(el.clientWidth));
+    obs.observe(el);
+    setSynligBredde(el.clientWidth);
+    return () => obs.disconnect();
+  }, []);
+
+  const midtKolonner = kolonner.map((k) => (breddeAlle[k] ? `${breddeAlle[k]}px` : standardBredde(k, standardBredder)));
   const gridTemplate = [
     ...(venstre ? [`${venstre.bredde}px`] : []),
     ...midtKolonner,
@@ -191,7 +233,7 @@ function Tabell<R>({
   const totalBredde =
     (venstre?.bredde ?? 0) +
     (hoyre?.bredde ?? 0) +
-    kolonner.reduce((s, k) => s + (breddeAlle[k] ?? TIMER_TABELL_KOL_BREDDE[k].min), 0);
+    kolonner.reduce((s, k) => s + (breddeAlle[k] ?? minBredde(k, standardBredder)), 0);
   const forskyvning = venstre ? 1 : 0;
 
   const virtualizer = useVirtualizer({
@@ -209,6 +251,8 @@ function Tabell<R>({
     setSort(sort?.k !== k ? { k, retning: "asc" } : sort.retning === "asc" ? { k, retning: "desc" } : null);
   }
 
+  // Kompakt (w5): smalere sidemarg i cellene, så kjernen får plass på 1 440.
+  const celleX = hodeBrytes ? "px-1.5" : "px-2";
   const fastVenstre: CSSProperties = { position: "sticky", left: 0, zIndex: 2 };
   const fastHoyre: CSSProperties = { position: "sticky", right: 0, zIndex: 2 };
 
@@ -216,7 +260,9 @@ function Tabell<R>({
     <div ref={parentRef} className={`${rammeKlasse} overflow-auto rounded-lg border border-gray-200 bg-white`}>
       {/* Hodet — fast øverst (R5) */}
       <div
-        className="sticky top-0 z-10 grid border-b border-gray-200 bg-gray-50 text-xs font-semibold uppercase tracking-wide text-gray-500"
+        className={`sticky top-0 z-10 grid border-b border-gray-200 bg-gray-50 text-xs font-semibold text-gray-500 ${
+          hodeBrytes ? "" : "uppercase tracking-wide"
+        }`}
         style={{ gridTemplateColumns: gridTemplate, minWidth: totalBredde }}
       >
         {venstre && (
@@ -229,12 +275,14 @@ function Tabell<R>({
             key={k}
             k={k}
             overskrift={t(`timer.eksport.${TIMER_TABELL_KOL[k].i18n}`)}
+            kort={hodeTekst?.(k)}
             num={TIMER_TABELL_KOL[k].num}
             flyttbar={!!onRekkefolgeEndring}
             sortRetning={sort?.k === k ? sort.retning : null}
             onSorter={sorterVerdi ? () => klikkSorter(k) : undefined}
             filter={filter}
             hodeRef={(el) => { hodeRef.current[k] = el; }}
+            brytes={hodeBrytes}
             bredde={onBreddeEndring ? { aktiv: dragning.aktivId === k, start: (e) => dragning.start(e, k) } : undefined}
           />
         ))}
@@ -272,6 +320,14 @@ function Tabell<R>({
             );
           }
 
+          if (rad.kind === "panel") {
+            return (
+              <div key={vi.key} data-index={vi.index} ref={virtualizer.measureElement} style={plass} className="border-b border-gray-200 bg-blue-50/40">
+                <div style={{ position: "sticky", left: 0, width: synligBredde ?? "100%" }}>{rad.innhold}</div>
+              </div>
+            );
+          }
+
           if (rad.kind === "sum") {
             const bg = rad.sterk ? "bg-gray-50" : "bg-gray-100";
             return (
@@ -290,7 +346,7 @@ function Tabell<R>({
                 {kolonner.map((k) => (
                   <div
                     key={k}
-                    className={`min-w-0 truncate px-2 py-1.5 ${TIMER_TABELL_KOL[k].num ? "text-right tabular-nums" : "text-left"}`}
+                    className={`min-w-0 truncate ${celleX} py-1.5 ${TIMER_TABELL_KOL[k].num ? "text-right tabular-nums" : "text-left"}`}
                   >
                     {rad.celle(k)}
                   </div>
@@ -305,13 +361,19 @@ function Tabell<R>({
           const n = Math.max(1, rad.underlinjer);
           const odde = (linjeIndeks.get(rad.nokkel) ?? 0) % 2 === 1;
           const bg = odde ? "bg-gray-50" : "bg-white";
-          const ekstra = linjeKlasse?.(d) ?? "";
+          const aapen = erAapen?.(d) ?? false;
+          const ekstra = `${linjeKlasse?.(d) ?? ""} ${onLinjeKlikk ? "cursor-pointer hover:bg-blue-50/60" : ""} ${aapen ? "!bg-blue-50" : ""}`;
           return (
             <div
               key={vi.key}
               data-index={vi.index}
               ref={virtualizer.measureElement}
               data-linje={rad.nokkel}
+              data-aapen={aapen ? "" : undefined}
+              onClick={onLinjeKlikk ? (e) => {
+                if ((e.target as HTMLElement).closest(INTERAKTIV)) return;
+                onLinjeKlikk(d);
+              } : undefined}
               className={`grid border-b border-gray-200 text-sm text-gray-800 ${bg} ${ekstra}`}
               style={{ ...plass, gridTemplateColumns: gridTemplate, gridTemplateRows: `repeat(${n}, auto)` }}
             >
@@ -330,7 +392,7 @@ function Tabell<R>({
                   return (
                     <div
                       key={`${under}-${k}`}
-                      className={`min-w-0 px-2 py-1.5 ${num ? "text-right tabular-nums" : "text-left"} ${
+                      className={`min-w-0 ${celleX} py-1.5 ${num ? "text-right tabular-nums" : "text-left"} ${
                         k === "beskrivelse" ? "whitespace-pre-wrap break-words" : "truncate"
                       } ${nøsting ? "pl-5 text-gray-500" : ""}`}
                       style={{ gridColumn: ki + 1 + forskyvning, gridRow: under + 1 }}
@@ -367,10 +429,14 @@ function Hodecelle({
   filter,
   hodeRef,
   bredde,
+  brytes,
+  kort,
 }: {
   k: TimerTabellKolKey;
   overskrift: string;
+  kort?: string;
   num: boolean;
+  brytes?: boolean;
   flyttbar: boolean;
   sortRetning: SorterRetning | null;
   onSorter?: () => void;
@@ -384,7 +450,9 @@ function Hodecelle({
   const innhold = (
     <>
       <span className={`inline-flex min-w-0 items-center gap-1 ${num ? "justify-end" : ""}`}>
-        <span className="truncate">{overskrift}</span>
+        <span className={brytes ? "line-clamp-2 leading-tight [overflow-wrap:normal]" : "truncate"} title={overskrift}>
+          {kort ?? overskrift}
+        </span>
         {sortRetning && <SorterPil retning={sortRetning} />}
       </span>
       {filter && (alternativer || sok) && (
@@ -399,7 +467,7 @@ function Hodecelle({
       {bredde && <BreddeHandtak aktiv={bredde.aktiv} onMouseDown={bredde.start} />}
     </>
   );
-  const klasse = `group relative flex items-center px-2 py-2 ${num ? "justify-end text-right" : "text-left"} ${
+  const klasse = `group relative flex items-center ${brytes ? "pl-1.5 pr-1" : "px-2"} py-2 ${num ? "justify-end text-right" : "text-left"} ${
     onSorter ? "cursor-pointer select-none hover:text-gray-700" : ""
   }`;
   if (flyttbar) {

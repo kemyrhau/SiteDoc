@@ -349,6 +349,14 @@ Avkrysning i eksportmenyen, rett over CSV/Excel/PDF, og i mal-redigereren (`apps
 - **Mikrotekst i tabellen** (`timer.attestering.tabell.*`): «Attester utvalget (n)», «n linjer har sperre og ble stående.», «Dagen: X t av dagsnorm Y t», «Uke N: X t overtid ikke ført (ukenorm Y t)», «var X», «Bare oversiktsrader», «Ukeoversikt».
 - **Grupperinger og ukeoversikt** (d2b-2, 🟡 ikke merget): «Sedler», «Etter prosjekt» og «Etter ansatt» viser de samme linjene, bare gruppert ulikt; ukeoversikten viser timene pr. dag, klikk på en dag viser bare den dagen, hold over et tall for dagskortet (`…hjelp.grupperinger`). Grupperaden viser «X t» (`timer.attestering.tabell.gruppeSum`); dagknappen i ukeoversikten har «Vis bare denne dagen i tabellen» (`timer.attestering.uke.filtrerDag`).
 
+Fra w5 i web-timeføring (🟡 ikke merget, `feat/web-timer-w5`), begge sidene:
+
+- **Registreringen** (`…hjelp.registrering`, nytt): «Klikk på en linje for å åpne registreringen slik den ansatte førte den. Hver retting lagres med en gang. Underprosjektet gjelder hele jobben. «Del opp» deler jobben ved et klokkeslett: del A er jobben som var, del B blir et eget kort. Timene regnes fra klokkeslettene, og summen er den samme.»
+- **Retting** (`…hjelp.retting`, endret): sier at den som attesterer linjen kan rette, og at verken blyant eller saks vises når retting ikke er tillatt.
+- **Verktøy** (`…hjelp.verktoy`, endret, nå også på prosjektsiden): «Tilbakestill til standard» gir standardkolonnene tilbake.
+- **Handlinger** (`…hjelp.handlinger`, endret): dagknappen heter «Attester» (full tekst som tooltip), og «Gjenåpne» (`timer.attestering.tabell.gjenaapne`).
+- Registreringens mikrotekst: `timer.attestering.registrering.*` (delene, «Uten», «Del opp», «Del ved», «Jobb A»/«Jobb B»).
+
 ## Prosjekt → Timer → Attestering (d2b-2, 🟡 ikke merget)
 
 `apps/web/src/app/dashbord/[prosjektId]/timer/attestering/page.tsx` har `HjelpKnapp` (fanen «Attestering»). Første avsnitt: «Her attesterer du timene som er ført på dette prosjektet. Linjer den ansatte har ført på andre prosjekter samme dag, står nedtonet og kan ikke velges. Har du ikke tilgang til det andre prosjektet, står det «Annet prosjekt».» (`timer.attestering.prosjekt.hjelp.laast`); deretter struktur, handlinger og retting som på firmasiden. Dagsumraden har «Attester prosjektets del» (`timer.attestering.tabell.attesterProsjektetsDel`).

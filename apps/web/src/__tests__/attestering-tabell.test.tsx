@@ -421,3 +421,134 @@ describe("d2b-3 (c, e) — dagsnorm på detaljen og ukeavvikets tekst", () => {
     expect(nb["timer.attestering.pivot.avvikOver"]).toMatch(/ukenorm/);
   });
 });
+
+describe("w5 — kjernekolonner og «Tilbakestill til standard»", () => {
+  const hodeKolonner = (c: HTMLElement) =>
+    [...new Set(Array.from(c.querySelectorAll("[data-kolonne]")).map((e) => e.getAttribute("data-kolonne")))];
+  afterEach(() => { delete h.data["bruker.hentTabelloppsett"]; });
+
+  it("uten lagret oppsett vises de 13 standardkolonnene, Fra og Til i én", () => {
+    const { container } = vis([sedel()]);
+    expect(hodeKolonner(container)).toEqual([
+      "dato", "ansatt", "prosjektnummer", "underprosjekt", "betegnelse", "fraTil", "timer",
+      "maskin", "maskintimer", "vareOgMengde", "antall", "belop", "avvik",
+    ]);
+    expect(h.velger.props!.nullstillTekst).toBe("timer.attestering.tabell.tilbakestillStandard");
+  });
+
+  it("et lagret oppsett vises som det er og lagres ikke på nytt (WM69)", () => {
+    vi.useFakeTimers();
+    try {
+      h.data["bruker.hentTabelloppsett"] = { kolonner: ["timer", "ansatt", "fraTid"], rekkefolge: true, bredder: {}, sortering: null };
+      const { container } = vis([sedel()]);
+      act(() => { vi.advanceTimersByTime(2000); });
+      expect(hodeKolonner(container)).toEqual(["timer", "ansatt", "fraTid"]);
+      expect(kallTil("lagreTabelloppsett")).toHaveLength(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("«Tilbakestill til standard» lagrer standardlista uten egen rekkefølge og uten bredder", () => {
+    vi.useFakeTimers();
+    try {
+      h.data["bruker.hentTabelloppsett"] = { kolonner: ["timer", "ansatt"], rekkefolge: true, bredder: { timer: 200 }, sortering: null };
+      const { container } = vis([sedel()]);
+      act(() => (h.velger.props!.onToggle as (id: string) => void)("__reset__"));
+      act(() => { vi.advanceTimersByTime(900); });
+      const k = kallTil("lagreTabelloppsett");
+      expect(k).toHaveLength(1);
+      const oppsett = (k[0]!.input as { oppsett: { kolonner: string[]; rekkefolge?: boolean; bredder: Record<string, number> } }).oppsett;
+      expect(oppsett.kolonner).toContain("fraTil");
+      expect(oppsett.kolonner).toHaveLength(13);
+      expect(oppsett.rekkefolge).toBeUndefined();
+      expect(oppsett.bredder).toEqual({});
+      expect(hodeKolonner(container)[0]).toBe("dato");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("Fra–til-cella har to knapper, så fra og til rettes hver for seg", () => {
+    const { container } = vis([sedel()]);
+    const l = within(linje(container, "s1:timer:t1"));
+    const fra = l.getByRole("button", { name: /07:00/ });
+    const til = l.getByRole("button", { name: /15:00/ });
+    expect(fra).not.toBe(til);
+    // Samme celle: begge står under samme flex-span.
+    expect(fra.parentElement!.parentElement).toBe(til.parentElement!.parentElement);
+  });
+});
+
+describe("w5 — klikk på linja åpner registreringen", () => {
+  afterEach(() => { delete h.data["eksternKostObjekt.list"]; });
+
+  it("klikk åpner, nytt klikk lukker; avkrysning åpner ikke", () => {
+    const { container } = vis([sedel()]);
+    const l = () => linje(container, "s1:timer:t1");
+    fireEvent.click(within(l()).getByRole("checkbox"));
+    expect(container.querySelector("[data-registrering]")).toBeNull();
+    fireEvent.click(l());
+    expect(container.querySelector("[data-registrering]")).not.toBeNull();
+    fireEvent.click(l());
+    expect(container.querySelector("[data-registrering]")).toBeNull();
+  });
+
+  it("underprosjekt-knapp flytter hele jobben (helJobb)", () => {
+    h.data["eksternKostObjekt.list"] = [{ id: "e1", proAdmId: "100", kortNavn: "Grunn" }, { id: "e2", proAdmId: "200", kortNavn: "Tak" }];
+    const { container } = vis([sedel()]);
+    fireEvent.click(linje(container, "s1:timer:t1"));
+    const panel = container.querySelector("[data-registrering]") as HTMLElement;
+    const tak = within(panel).getAllByRole("button").find((b) => b.textContent?.includes("Tak"))!;
+    fireEvent.click(tak);
+    expect(kallTil("flyttTimerRadEco")[0]!.input).toEqual({ timerRadId: "t1", radType: "timer", externalCostObjectId: "e2", helJobb: true });
+  });
+
+  it("uten kortId (eldre rad) kan hele jobben ikke flyttes og del opp vises ikke", () => {
+    h.data["eksternKostObjekt.list"] = [{ id: "e1", proAdmId: "100", kortNavn: "Grunn" }];
+    const { container } = vis([sedel({ timer: [timer("t1", { kortId: null })] })]);
+    fireEvent.click(linje(container, "s1:timer:t1"));
+    const panel = container.querySelector("[data-registrering]") as HTMLElement;
+    const grunn = within(panel).getAllByRole("button").find((b) => b.textContent?.includes("Grunn"));
+    expect(grunn === undefined || (grunn as HTMLButtonElement).disabled).toBe(true);
+    expect(within(panel).queryByRole("button", { name: /registrering\.delOpp/ })).toBeNull();
+  });
+
+  it("«Del opp»: klokkeslettet forhåndsvises på serveren, deretter deles jobben", () => {
+    const { container } = vis([sedel()]);
+    fireEvent.click(linje(container, "s1:timer:t1"));
+    const panel = container.querySelector("[data-registrering]") as HTMLElement;
+    fireEvent.click(within(panel).getByRole("button", { name: /registrering\.delOpp/ }));
+    const skjema = panel.querySelector("[data-del-opp]") as HTMLElement;
+    fireEvent.change(within(skjema).getByPlaceholderText("11:00"), { target: { value: "10:00" } });
+    const fv = kallTil("delJobb");
+    expect(fv).toHaveLength(1);
+    expect(fv[0]!.input).toEqual({ sheetId: "s1", kortId: "kA", kl: "10:00", externalCostObjectIdB: null, forhandsvis: true });
+    act(() => fv[0]!.opts!.onSuccess!({ forhandsvisning: { timerA: 2.5, timerB: 5, maskinPaaA: 0, maskinTilB: 0 } }));
+    expect(skjema.textContent).toContain("2,50 t");
+    const knapper = within(skjema).getAllByRole("button", { name: /registrering\.delOpp/ });
+    fireEvent.click(knapper[knapper.length - 1]!);
+    const alle = kallTil("delJobb");
+    expect(alle).toHaveLength(2);
+    expect(alle[1]!.input).toEqual({ sheetId: "s1", kortId: "kA", kl: "10:00", externalCostObjectIdB: null });
+  });
+});
+
+describe("w5 / WM54 — penn og ✂ bare når «rediger ved attestering» er på", () => {
+  it("av: verken penn, ✂ eller retting i registreringen", () => {
+    const { container } = vis([sedel({ redigerTillatt: false })]);
+    const l = linje(container, "s1:timer:t1");
+    expect(within(l).queryByRole("button", { name: "timer.attestering.meny.splittRad" })).toBeNull();
+    expect(within(l).queryByRole("button", { name: "timer.attestering.meny.rediger" })).toBeNull();
+    fireEvent.click(l);
+    const panel = container.querySelector("[data-registrering]") as HTMLElement;
+    expect(within(panel).queryByRole("button", { name: /registrering\.delOpp/ })).toBeNull();
+  });
+
+  it("på: penn og ✂ vises på ventende linje", () => {
+    const { container } = vis([sedel()]);
+    const l = linje(container, "s1:timer:t1");
+    expect(within(l).getByRole("button", { name: "timer.attestering.meny.splittRad" })).toBeTruthy();
+    expect(within(l).getByRole("button", { name: "timer.attestering.meny.rediger" })).toBeTruthy();
+  });
+});

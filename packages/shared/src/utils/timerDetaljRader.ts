@@ -656,6 +656,10 @@ export const TIMER_TABELL_NYE_KOL = [
   "varemengde",
   "kort",
   "avvik",
+  // w5 (B13 A): vare og mengde i én kolonne — «Betong · 4 m3».
+  "vareOgMengde",
+  // w5 (B9): fra–til i én kolonne — «07:00–13:00». Fra og Til hver for seg står i «Velg parameter».
+  "fraTil",
 ] as const;
 
 export type TimerTabellKolKey = TimerKolKey | (typeof TIMER_TABELL_NYE_KOL)[number];
@@ -703,6 +707,7 @@ export const TIMER_TABELL_KOL: Record<TimerTabellKolKey, TimerTabellKolDef> = {
   aktivitet: def(TIMER_KOL_I18N.aktivitet, ["timer"]),
   fraTid: def(TIMER_KOL_I18N.fraTid, ["timer", "maskin"]),
   tilTid: def(TIMER_KOL_I18N.tilTid, ["timer", "maskin"]),
+  fraTil: def("kolFraTil", ["timer", "maskin"]),
   timer: def(TIMER_KOL_I18N.timer, ["timer"], true),
   pause: def("kolPause", ["timer"], true),
   maskin: def("kolMaskin", ["timer", "maskin"], false, true),
@@ -712,6 +717,7 @@ export const TIMER_TABELL_KOL: Record<TimerTabellKolKey, TimerTabellKolDef> = {
   vare: def("kolVare", ["timer", "vare"], false, true),
   vareenhet: def("kolVareenhet", ["timer", "vare"], false, true),
   varemengde: def("kolVaremengde", ["timer", "vare"], true, true),
+  vareOgMengde: def("kolVareOgMengde", ["timer", "vare"], false, true),
   antall: def(TIMER_KOL_I18N.antall, ["tillegg"], true),
   belop: def(TIMER_KOL_I18N.belop, ["utlegg"], true),
   reise: def(TIMER_KOL_I18N.reise, ["timer"]),
@@ -729,16 +735,19 @@ export const TIMER_TABELL_KOL: Record<TimerTabellKolKey, TimerTabellKolDef> = {
 };
 
 /**
- * Standard kolonnerekkefølge i attesteringen (H9, R2): maskin og maskintimer side om
- * side, vare, vareenhet og varemengde side om side. Øvrige kolonner (avdeling,
- * lønnsarttype, reisefeltene, kort) kan slås på i «Velg parameter».
+ * Standardkolonnene i attesteringen — de 13 kjernekolonnene (web-timeføring w5, B9 + B13 A):
+ * dato · ansatt · prosjektnr · underprosjekt · lønnsart (betegnelse) · fra–til (`fraTil`) · timer ·
+ * maskin · maskintimer · vare med mengde · avvik, pluss Antall (tillegg) og Beløp (utlegg).
+ * Maskin og maskintimer står side om side (H9). Alle øvrige kolonner (prosjekt, byggeplass,
+ * pause, vare/vareenhet/varemengde hver for seg, beskrivelse, status …) kan slås på i
+ * «Velg parameter». Lagret oppsett pr. bruker røres ikke (WM69).
  */
 export const TIMER_TABELL_STANDARD: readonly TimerTabellKolKey[] = [
-  "dato", "ansatt", "ansattnr", "prosjektnummer", "prosjekt", "byggeplass", "underprosjekt",
-  "type", "betegnelse", "aktivitet", "fraTid", "tilTid", "timer", "pause",
-  "maskin", "maskintimer", "mengde", "enhet",
-  "vare", "vareenhet", "varemengde",
-  "antall", "belop", "beskrivelse", "status", "avvik",
+  "dato", "ansatt", "prosjektnummer", "underprosjekt", "betegnelse",
+  "fraTil", "timer",
+  "maskin", "maskintimer",
+  "vareOgMengde",
+  "antall", "belop", "avvik",
 ];
 
 /** Standardbredde pr. kolonne (R6): eksportens bredder + de nye nøklene. Dratt bredde vinner. */
@@ -751,6 +760,8 @@ export const TIMER_TABELL_KOL_BREDDE: Record<TimerTabellKolKey, TimerKolBredde> 
   vare: { min: 140, vekt: 2, excel: 22 },
   vareenhet: { min: 72, vekt: 0, excel: 9 },
   varemengde: { min: 88, vekt: 0, excel: 11 },
+  vareOgMengde: { min: 150, vekt: 2, excel: 26 },
+  fraTil: { min: 96, vekt: 0, excel: 13 },
   kort: { min: 140, vekt: 2, excel: 24 },
   avvik: { min: 180, vekt: 3, excel: 30 },
 };
@@ -812,6 +823,17 @@ export interface TimerTabellLinje {
 }
 
 /**
+ * «Betong · 4 m3» (w5, B13 A). Mengden med komma som desimaltegn; uten mengde bare navnet.
+ */
+export function vareOgMengdeTekst(v: TimerTabellVare): string | null {
+  const navn = v.navn ?? null;
+  if (v.mengde === null || v.mengde === undefined) return navn;
+  const mengde = String(v.mengde).replace(".", ",");
+  const del = [mengde, v.enhet].filter(Boolean).join(" ");
+  return navn ? `${navn} · ${del}` : del;
+}
+
+/**
  * Råverdien i en celle — brukt til sortering, filter og visning. `under` er
  * underlinja (0 = første tekstlinje): maskin- og varekolonnene tar maskin/vare nr.
  * `under`; andre kolonner har verdi bare på første tekstlinje (H14).
@@ -832,6 +854,7 @@ export function timerTabellVerdi(
       case "vare": return v?.navn ?? null;
       case "vareenhet": return v?.enhet ?? null;
       case "varemengde": return v?.mengde ?? null;
+      case "vareOgMengde": return v ? vareOgMengdeTekst(v) : null;
       default: return null;
     }
   }
@@ -853,6 +876,7 @@ export function timerTabellVerdi(
     case "aktivitet": return l.aktivitet;
     case "fraTid": return l.fraTid;
     case "tilTid": return l.tilTid;
+    case "fraTil": return l.fraTid || l.tilTid ? `${l.fraTid ?? ""}–${l.tilTid ?? ""}` : null;
     case "timer": return l.timer;
     case "pause": return l.pauseMin;
     case "antall": return l.antall;
