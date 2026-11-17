@@ -89,6 +89,8 @@ Testet på test (test-modellen) og prod (prod-modellen), web og telefon. Virker:
 - (iv) Orbit-punktet holdes innenfor byggets boks (ren funksjon i `@sitedoc/shared/tred`, web + mobil).
 - (v) Innramming på mobil: modellen skal fylle skjermen ved åpning; finn hvorfor prod-modellen åpner enda mindre.
 
+🟢 (i)–(v) merget `000f08c1` (gate (88)), ikke deployet. Tillegg: kameraet flyr ikke lenger forbi bygget når skjermmidten bommer (`ctrl.distance`). Prod-modellen kan bare verifiseres av Kenneth i prod.
+
 
 ## 4. Filkart (målt 2026-11-16)
 
