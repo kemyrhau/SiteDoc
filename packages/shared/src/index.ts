@@ -29,3 +29,4 @@ export * from "./dokument/pdf-valg";
 export * from "./tred/utliggere";
 export * from "./tred/zoom-fart";
 export * from "./tred/orbit";
+export * from "./tred/snitt-pil";

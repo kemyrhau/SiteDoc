@@ -32,6 +32,7 @@ import {
   finnIfcTypeKode,
 } from "@/app/dashbord/[prosjektId]/3d-visning/hjelpefunksjoner";
 import { finnUtliggere, type Boks3 } from "@sitedoc/shared/tred";
+import { flyttSnittpilerTilMidten } from "@/lib/tredSnittPil";
 import {
   avstandEtterSteg,
   flyttLangsBlikk,
@@ -507,6 +508,21 @@ export function ViewerCanvas({
         const clipper = components.get(OBC.Clipper);
         clipper.setup();
         clipper.enabled = false;
+        // Snittpilen flyttes dit planet krysser skjermmidten når kameraet har stoppet (§ 3d).
+        // Ikke mens pilen dras, og ikke mens en knapp er nede (`currentAction` 0 = ingen).
+        let snittDras = false;
+        clipper.onBeforeDrag.add(() => { snittDras = true; });
+        clipper.onAfterDrag.add(() => { snittDras = false; });
+        const flyttSnittpiler = () => {
+          const ctrl = world.camera.controls;
+          if (snittDras || !clipper.enabled || !ctrl || ctrl.currentAction !== 0) return;
+          const cam = world.camera.three;
+          flyttSnittpilerTilMidten(clipper.list.values(), cam.position, cam.getWorldDirection(new THREE.Vector3()));
+        };
+        world.camera.controls?.addEventListener("rest", flyttSnittpiler);
+        world.camera.controls?.addEventListener("sleep", flyttSnittpiler);
+        // Holdes kameraet i ro før slipp, kom rest/sleep mens knappen var nede: slippet teller også
+        world.camera.controls?.addEventListener("controlend", flyttSnittpiler);
         // W2 (1): opprett raycasteren for verdenen nå. OBC lager musesporingen
         // (pointermove) først ved Raycasters.get(world); uten dette skjedde det ved
         // første dobbeltklikk i clipper.create, og første snitt traff skjermens midte.
