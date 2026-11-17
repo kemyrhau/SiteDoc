@@ -3,7 +3,7 @@ name: web-timeforing-plan
 description: Plan med bilder steg for steg for timeføring på web — én samlet registrering pr. jobb (fra/til, lønnsart, hva gjorde du, maskiner, varer, tillegg, utlegg), prosjekt og byggeplass utledet, maskin med timer og uten fra–til, overtid som egen linje, underprosjekt i jobbens hode, og attestering med kjernelinje som åpner registreringen og lar attestanten dele opp. Målt mot dagens web og telefon. B1–B11 til Kenneth.
 sist_verifisert_mot_kode: 2026-11-17 (develop @ `3b0f1abb`)
 eier: fabel (plan) — orkestrator gater kode; Kenneth vedtar B1–B11 (§ 8)
-status: 🟡 FORSLAG 2026-11-17, versjon 3 — bygger på Kenneths føringer (§ 1) og svaret hans på versjon 2 (§ 1.1). Ingen kode. B1–B8, B10, B11 besvart 2026-11-17 (§ 8.1); B9 åpen.
+status: 🟡 FORSLAG 2026-11-17, versjon 3 — bygger på Kenneths føringer (§ 1) og svaret hans på versjon 2 (§ 1.1). Ingen kode. B1–B11 besvart 2026-11-17 (§ 8.1).
 ---
 
 # Timeføring på web — plan med bilder (FORSLAG)
@@ -451,7 +451,8 @@ dagskortet).
 | **B6** | A | «Hva gjorde du?» påkrevd på web. |
 | **B7** | A. *«kan dette bli et merke med en hover?»* | Korte merker; forklaringen vises ved hover (trykk på berøringsskjerm). |
 | **B8** | Ja | Overtid som egen linje med én gang. |
-| **B9** | 🟡 Åpen — Kenneth ba om forklaring. | Uendret til svar. |
+| **B9** | A. *«men la bruker legge til /fjerne rader etter eget behov slik vi har det i dag. -> Klikk på timer åpner hele registreringen for inspeksjon/oppdeling»* | De 11 kjernekolonnene er standard. «Velg parameter» (legg til/fjern kolonner pr. bruker) består som i dag. Klikk på linja åpner hele registreringen for inspeksjon og oppdeling. |
+| **Tillegg** | *«vi viser i dag åååå.mm.dd, vi trenger bare dd.mm. for å bytte år så gjør vi heller det som en egen handling.»* | Datokolonnen i attesteringen viser dd.mm. Året velges som egen handling (årsvelger/filter), ikke i hver linje. |
 | **B10** | Ja | Alle som kan attestere linja, får rette og dele opp når «rediger ved attestering» er på. |
 | **B11** | Ja. *«jeg foretrekker underprosjekt som nedtreksmeny dersom det blir for mange underprosjekter -> disse bør være søkbare»* | «Uten» forhåndsvalgt. Få underprosjekter: knapper. Mange: søkbar nedtrekk (adaptiv nedtrekk, `retningslinjer/ui-standarder.md`). |
 
