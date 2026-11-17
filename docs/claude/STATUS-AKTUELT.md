@@ -31,6 +31,8 @@ sist_verifisert_mot_kode: 2026-08-09
 > ⚠️ **IKKE i prod:** DWG retur 2 (auto-rotasjon, startutsnitt, LEADER) · DWG retur 4 (fullstendighet: ATTRIB-tegning + `konvertering_rapport` + gate-test, branch `fix/dwg-retur4-strek`) · snap-retur 1 — under arbeid. DWG-3 (georeferanse fire hjørner) ikke levert — se § 2026-09-24 under.
 
 > ✅ **Gjestevern ved firmabytte, mobil (19) MERGET 2026-11-15** (merge `1a287c5d` av `38f4dffa`; Kontrollør GODKJENT GATE (44) nederst i `inbox-orkestrator.md`). `skalNullstilleProsjekt` flyttet til `@sitedoc/shared` (`gjesteprosjekt.ts`, web re-eksporterer); mobil `ProsjektKontekst.tsx` holder ventende firmabytte til gjestelista er lastet (`firmabyttProsjekt.ts` `firmabyttUtfall`) — gjesteprosjekt beholdes ved firmabytte. **Ikke deployet.** Lukker (18) åpent punkt (b).
+> ✅ **Web-timeføring w2 + w5 og 3D-mobil trykk MERGET 2026-11-17** (merge `1e792946` av `566da356`, gate (97); merge `3ef97e7f` av `1cdc98f2`, gate (96); merge `2347af8a` av `9729c584`, gate (98) runde 2). Regel 10 kaldt for hver: 11/11, tsc 0, build 0, test 7/7 seriell. Ikke deployet (test = `52d795f7`); 3D-trykk går med web-deploy, ikke OTA. Til Kenneth: radtredobling i attesteringen (én jobb = tre rader) og sperre mot retting av egne rader etter B10.
+
 > ✅ **Web-timeføring w1 + 3D-mobil egenskaper MERGET 2026-11-17** (merge `7abb7155` av `f0a35019`, gate (95); merge `86e395c6` av `64f19353`, gate (94)). Regel 10 kaldt: 11/11, tsc 0, build 0, test 7/7 seriell. Ikke deployet (test = `b3dc6ec8`); 3D-mobil krever OTA. Åpent fra w1: årsvelger i prosjektets attestering krever periode i `hentTilAttestering` (ikke bestilt).
 
 > ✅ **3D egenskaper ved klikk (W3/M5 (2)) MERGET 2026-11-17** (merge `59efcf5a` av `2b7d129f`, gate (93)). Regel 10 kaldt: 11/11, tsc 0, build 0, test 7/7 seriell. Ikke deployet (test = `b3dc6ec8`). Neste: 3D-mobil-ordre for appens objektinfo-kort (`IfcViewer.tsx`, felt `grupper`).
@@ -161,8 +163,9 @@ sist_verifisert_mot_kode: 2026-08-09
 | **Kontrollplan** | `SiteDoc-kontrollplan` | `feat/v17b-soner` `301da63e` | ikke målt denne runden |
 | **Mal-Opus** | `SiteDoc-mal` | `feat/mal-7b-standardnavn-vakt27` `eb5af56a` | ikke målt denne runden |
 | **3D-web** | app-tre `3d-web-maaling-a15d10` | `feat/3d-egenskaper` merget `59efcf5a` | ⚪ LEDIG — neste: W5/M6 måling |
-| **3D-mobil** | app-tre `3d-mobil-maaling-a07340` | `feat/3d-mobil-egenskaper` merget `86e395c6` | ⚪ LEDIG — neste: M6 måling |
-| **web-timer-w1** | app-tre `web-timer-w1-2396e3` | `feat/web-timer-w1` merget `7abb7155` | ⚪ LEDIG — neste i planen: w2 «+ Registrer timer» |
+| **3D-mobil** | app-tre `3d-mobil-maaling-a07340` | `feat/3d-mobil-trykk` merget `3ef97e7f` | ⚪ LEDIG — neste: M6 måling |
+| **web-timer-w1** | app-tre `web-timer-w1-2396e3` | `feat/web-timer-w2` merget `1e792946` | ⚪ LEDIG — neste i planen: w3 jobben som én flate |
+| **web-timer-w5** | app-tre `web-timer-w5-c80b84` | `feat/web-timer-w5` merget `2347af8a` | ⚪ LEDIG |
 | **Kort-id d2b-2/3** | app-tre `kortid-d2b2-c544cf` | `feat/kortid-d2b3` merget `30ca2935` | ⚪ LEDIG — neste i specen: d3 |
 | **Kort-id d2c-2** | app-tre `kortid-d2c2-4fb489` | `feat/kortid-d2c2-mobil` merget `338de16a` | ⚪ LEDIG |
 | **Merge** | `SiteDoc-merge` | detached på develop | ⚪ LEDIG |
