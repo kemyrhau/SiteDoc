@@ -142,7 +142,9 @@ describe("mobil-viewer: vakt", () => {
 
   it("orbit-punkt fra raycast midt på skjermen, ikke fra fingrene", () => {
     expect(kilde).toContain("raycastSynlige(rect.left + rect.width / 2, rect.top + rect.height / 2)");
-    expect(kilde).toContain("orbitAvstand(treffAvstand, sisteOrbitAvstand || ctrl.distance, minDistanceNå)");
+    expect(kilde).toContain("orbitAvstandIBygg(kamera, retning, treffAvstand, forrige, byggBoks)");
+    expect(kilde).toContain("orbitAvstand(iBygg, forrige, minDistanceNå)");
+    expect(kilde).toContain("byggBoks = { min: { x: boks.min.x");
     expect(kilde).toContain("ctrl.setOrbitPoint(punkt.x, punkt.y, punkt.z)");
     expect(kilde).toContain("void settOrbitPunkt()");
     expect(kilde).not.toContain("gestPunkt");

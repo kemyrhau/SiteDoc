@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { erGyldigBoks, finnUtliggere, zoomSteg } from "@sitedoc/shared/tred";
+import { erGyldigBoks, finnUtliggere, orbitAvstandIBygg, zoomSteg } from "@sitedoc/shared/tred";
 import { hentIfcRaadata, lagRaadataLager, lesAttributter } from "./ifcRaadata";
 import { beregnInnramming, dollyFartMobil, orbitAvstand, type Boks } from "./kameraInnramming";
 import { DIAG_LAGRINGSNØKKEL, diagFraUrlEllerLager, lagDiagHemmeligTrykk } from "./diagnose";
@@ -176,6 +176,8 @@ export default function MobilViewer() {
       let minDistanceNå = 0.05;
       // Avstand til orbit-punktet sist — brukes når midten av skjermen ikke treffer noe
       let sisteOrbitAvstand = 0;
+      // Byggets boks uten utliggere (fra innrammingen) — orbit-punktet holdes innenfor (§ 3c (iv))
+      let byggBoks: Boks | null = null;
       // Pr. modell: objekter langt unna (skjult som standard) og rom/åpninger (alltid skjult)
       const utliggerIds = new Map<string, number[]>();
       const skjulteRomIds = new Map<string, Set<number>>();
@@ -260,8 +262,12 @@ export default function MobilViewer() {
             const treffAvstand = treff ? kamera.distanceTo(treff.point) : null;
             live.flateForan = treffAvstand;
             live.flateTid = klokke();
-            const avstand = orbitAvstand(treffAvstand, sisteOrbitAvstand || ctrl.distance, minDistanceNå);
             const retning = threeCamera.getWorldDirection(new THREE.Vector3());
+            // Står kameraet inne i bygget, kortes treff utenfor og bom til byggets vegg
+            // (`orbitAvstandIBygg`, felles med web); deretter mobilens gulv 1,5·minDistance.
+            const forrige = sisteOrbitAvstand || ctrl.distance;
+            const iBygg = orbitAvstandIBygg(kamera, retning, treffAvstand, forrige, byggBoks);
+            const avstand = orbitAvstand(iBygg, forrige, minDistanceNå);
             const punkt = kamera.clone().addScaledVector(retning, avstand);
             ctrl.setOrbitPoint(punkt.x, punkt.y, punkt.z);
             sisteOrbitAvstand = avstand;
@@ -606,6 +612,7 @@ export default function MobilViewer() {
         threeCamera.far = inn.far;
         threeCamera.updateProjectionMatrix();
         minDistanceNå = inn.minDistance;
+        byggBoks = { min: { x: boks.min.x, y: boks.min.y, z: boks.min.z }, max: { x: boks.max.x, y: boks.max.y, z: boks.max.z } };
         sisteOrbitAvstand = inn.avstand;
         innrammingsSenter = new THREE.Vector3(inn.target.x, inn.target.y, inn.target.z);
         const ctrl = world.camera.controls;
