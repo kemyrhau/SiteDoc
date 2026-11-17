@@ -5064,7 +5064,7 @@
   "timer.attestering.tabell.hjelp.retting": "Lorsque l'entreprise autorise les corrections lors de l'approbation, cliquez sur une cellule d'une ligne en attente, saisissez la nouvelle valeur et appuyez sur Entrée ou Tab. Esc annule. L'ancienne valeur est affichée ci-dessous sous la forme \"était…\".",
   "timer.attestering.tabell.hjelp.verktoy": "\"Sélectionner les paramètres\" choisit les colonnes. Cliquez sur un en-tête de colonne pour trier, sur l'entonnoir pour filtrer. \"Approuver la sélection\" approuve les lignes cochées, ou toutes les lignes en attente visibles lorsqu'aucune n'est cochée. Les filtres et le tri s'appliquent uniquement à cette visite.",
   "timer.attestering.tabell.kolonner": "Colonnes",
-  "timer.attestering.tabell.maskinUtenTimerad": "Machine sans heures de travail",
+  "timer.attestering.tabell.maskinUtenTimerad": "Machine sans saisie de temps",
   "timer.attestering.tabell.rettCelle": "Cliquez pour corriger",
   "timer.attestering.tabell.returnerKort": "Renvoyer la fiche projet",
   "timer.attestering.tabell.returnerLinjer_one": "La ligne {{count}} est renvoyée à l'employé.",
@@ -5829,5 +5829,12 @@
   "timer.attestering.detalj.tabellHint": "Valider, retourner ou rouvrir dans le tableau : par ligne, par fiche projet ou pour la journée entière.",
   "timer.attestering.tabell.aapneKvittering": "Ouvrez le reçu ({{fil}})",
   "timer.attestering.tabell.hjelp.ukeavvik": "« Écart cette semaine » compare les heures de la semaine entière (soumises et approuvées) avec la norme hebdomadaire, pas seulement le jour ou les lignes que vous voyez.",
-  "timer.attestering.tabell.hjelp.kvittering": "Une dépense avec reçu affiche une vignette ou un trombone sur la ligne. Cliquez pour ouvrir le reçu et vérifiez-le avant de l'approuver."
+  "timer.attestering.tabell.hjelp.kvittering": "Une dépense avec reçu affiche une vignette ou un trombone sur la ligne. Cliquez pour ouvrir le reçu et vérifiez-le avant de l'approuver.",
+  "timer.attestering.tabell.merke.utenTimerad": "Pas de saisie de temps",
+  "timer.attestering.tabell.merke.utenTimeradForklaring": "La machine n'est pas liée à une saisie de temps, elle est donc affichée sur une ligne distincte. La ligne peut être approuvée.",
+  "timer.attestering.tabell.merke.utenForerbevis": "Pas de certificat d'opérateur",
+  "timer.attestering.tabell.hjelp.merker": "Les écarts sont affichés sous forme de balises courtes. Passez la souris sur une balise ou appuyez dessus sur un écran tactile pour voir l'explication complète. « Pas de saisie de temps » : la machine n'est pas liée à une saisie de temps et est affichée sur une ligne distincte. « Pas de certificat d'opérateur » : travaux sur machines sans certificat d'opérateur enregistré, signalés pour être visibles. Les deux lignes peuvent être approuvées.",
+  "timer.attestering.tabell.hjelp.dato": "La date est affichée sous la forme jj.mm. Si le tableau comporte des jours sur plus d’un an, l’année est incluse. L'export affiche toujours la date complète avec l'année.",
+  "timer.attestering.tabell.hjelp.aar": "L'année est à côté du sélecteur de semaine. Choisissez une autre année pour aller à la même semaine cette année-là.",
+  "timer.attestering.uke.aar": "Année"
 }

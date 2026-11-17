@@ -144,6 +144,7 @@ Når en nøkkel mangler i ett språk men finnes i et annet, **verifiser kode-bru
 - `velgTimerByggeplass` (timer) — lagret valg (renset) → GPS → null. TILLEGG (22): en lagret utgått streng gir nå GPS i stedet for null. `velgStandardByggeplass` og eksporten `HELE_PROSJEKTET_VALG` er fjernet (TILLEGG (22)).
 
 - `TIMER_TABELL_KOL` / `TIMER_TABELL_KOL_KEYS` / `TIMER_TABELL_STANDARD` / `timerTabellVerdi(k, linje, under)` / `antallUnderlinjer` (`timerDetaljRader.ts`, ordre d2b-1, 🟡 ikke merget) — kolonnelista for attesteringstabellen og rapportens Detaljer: overskrift (`timer.eksport.<i18n>`), tall-justering, hvilke radtyper kolonnen gjelder, og verdien pr. tekstlinje (maskin og vare nr. 2 står på underlinja).
+- `vareTimerader(timer, projectId)` (`prosjektkort.ts`, w1 i web-timeføring, 🟡 ikke merget) — timeradene en vare ført på PC kan kobles til: jobbens arbeidsrader (samme prosjekt, ikke reise, over 0 timer, ikke erstattet), sortert på fra-tid. Web `KortVareforbrukModal` forvalger den første og sender den som `sheetTimerId` via `kortVareforbrukInput`. Fasit: `apps/web/src/__tests__/web-timer-w1.test.tsx`.
 
 ### Søk-utsnitt (`packages/shared/src/sok/`)
 

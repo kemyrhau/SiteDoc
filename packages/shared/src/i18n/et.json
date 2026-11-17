@@ -5064,7 +5064,7 @@
   "timer.attestering.tabell.hjelp.retting": "Kui ettevõte lubab kinnitamise ajal parandusi, klõpsake ootel real lahtrit, tippige uus väärtus ja vajutage sisestusklahvi või tabeldusklahvi. Esc tühistab. Vana väärtus on allpool näidatud kui \"oli …\".",
   "timer.attestering.tabell.hjelp.verktoy": "\"Vali parameetrid\" valib veerud. Sortimiseks klikkige veeru pealkirjal ja filtreerimiseks lehtril. \"Kinnita valik\" kinnitab märgitud read või kõik nähtavad ootel read, kui ükski pole märgitud. Filtrid ja sortimine kehtivad ainult selle külastuse kohta.",
   "timer.attestering.tabell.kolonner": "Veerud",
-  "timer.attestering.tabell.maskinUtenTimerad": "Masin ilma töötundideta",
+  "timer.attestering.tabell.maskinUtenTimerad": "Masin ilma aja sisestuseta",
   "timer.attestering.tabell.rettCelle": "Klõpsake parandamiseks",
   "timer.attestering.tabell.returnerKort": "Tagasta projektileht",
   "timer.attestering.tabell.returnerLinjer_one": "Töötajale tagastatakse {{count}} rida.",
@@ -5829,5 +5829,12 @@
   "timer.attestering.detalj.tabellHint": "Kinnitage, tagastage või avage uuesti tabelis: rea, projektilehe või terve päeva kohta.",
   "timer.attestering.tabell.aapneKvittering": "Ava kviitung ({{fil}})",
   "timer.attestering.tabell.hjelp.ukeavvik": "„Selle nädala kõrvalekalle” võrdleb kogu nädala tunde (esitatud ja kinnitatud) nädala normiga – mitte ainult päeva või kuvatavate joontega.",
-  "timer.attestering.tabell.hjelp.kvittering": "Kviitungiga kulu näitab joonel pisipilti või kirjaklambrit. Klõpsake kviitungi avamiseks ja kontrollige seda enne kinnitamist."
+  "timer.attestering.tabell.hjelp.kvittering": "Kviitungiga kulu näitab joonel pisipilti või kirjaklambrit. Klõpsake kviitungi avamiseks ja kontrollige seda enne kinnitamist.",
+  "timer.attestering.tabell.merke.utenTimerad": "Aja sisestamine puudub",
+  "timer.attestering.tabell.merke.utenTimeradForklaring": "Masin pole ajakirjega seotud, seega kuvatakse see eraldi reana. Liin saab heaks kiita.",
+  "timer.attestering.tabell.merke.utenForerbevis": "Operaatorsertifikaat puudub",
+  "timer.attestering.tabell.hjelp.merker": "Kõrvalekalded kuvatakse lühikeste siltidena. Täieliku selgituse nägemiseks hõljutage kursorit sildi kohal või puudutage seda puuteekraanil. “Aja sisestus puudub”: masin ei ole ajakirjega seotud ja kuvatakse eraldi reana. “Operaatori sertifikaat puudub”: masinatöö ilma registreeritud operaatori sertifikaadita, nähtavuse huvides märgistatud. Mõlemat rida saab kinnitada.",
+  "timer.attestering.tabell.hjelp.dato": "Kuupäeva näidatakse pp.mm. Kui tabelis on päevi rohkem kui ühest aastast, kaasatakse aasta. Ekspordis kuvatakse alati täiskuupäev koos aastaga.",
+  "timer.attestering.tabell.hjelp.aar": "Aasta on nädala valija kõrval. Valige teine ​​aasta, et minna samal nädalal samal aastal.",
+  "timer.attestering.uke.aar": "aasta"
 }

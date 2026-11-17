@@ -5064,7 +5064,7 @@
   "timer.attestering.tabell.hjelp.retting": "Wenn das Unternehmen während der Genehmigung Korrekturen zulässt, klicken Sie auf eine Zelle in einer ausstehenden Zeile, geben Sie den neuen Wert ein und drücken Sie die Eingabetaste oder die Tabulatortaste. Esc bricht ab. Der alte Wert wird unten als „war …“ angezeigt.",
   "timer.attestering.tabell.hjelp.verktoy": "„Parameter auswählen“ wählt Spalten aus. Klicken Sie zum Sortieren auf eine Spaltenüberschrift und zum Filtern auf den Trichter. „Auswahl genehmigen“ genehmigt die markierten Zeilen oder alle sichtbaren ausstehenden Zeilen, wenn keine aktiviert sind. Filter und Sortierung gelten nur für diesen Besuch.",
   "timer.attestering.tabell.kolonner": "Spalten",
-  "timer.attestering.tabell.maskinUtenTimerad": "Maschine ohne Arbeitszeiten",
+  "timer.attestering.tabell.maskinUtenTimerad": "Maschine ohne Zeiteintrag",
   "timer.attestering.tabell.rettCelle": "Klicken Sie zum Korrigieren",
   "timer.attestering.tabell.returnerKort": "Geben Sie das Projektblatt zurück",
   "timer.attestering.tabell.returnerLinjer_one": "{{count}} Zeile wird an den Mitarbeiter zurückgegeben.",
@@ -5829,5 +5829,12 @@
   "timer.attestering.detalj.tabellHint": "Genehmigen, zurückgeben oder erneut öffnen in der Tabelle: pro Zeile, pro Projektblatt oder den ganzen Tag.",
   "timer.attestering.tabell.aapneKvittering": "Öffnen Sie die Quittung ({{fil}})",
   "timer.attestering.tabell.hjelp.ukeavvik": "„Abweichung diese Woche“ vergleicht die Stunden der gesamten Woche (eingereicht und genehmigt) mit der wöchentlichen Norm – nicht nur den Tag oder die Linien, die Sie sehen.",
-  "timer.attestering.tabell.hjelp.kvittering": "Bei einer Ausgabe mit Beleg ist auf der Zeile ein Miniaturbild oder eine Büroklammer zu sehen. Klicken Sie hier, um die Quittung zu öffnen und zu prüfen, bevor Sie sie genehmigen."
+  "timer.attestering.tabell.hjelp.kvittering": "Bei einer Ausgabe mit Beleg ist auf der Zeile ein Miniaturbild oder eine Büroklammer zu sehen. Klicken Sie hier, um die Quittung zu öffnen und zu prüfen, bevor Sie sie genehmigen.",
+  "timer.attestering.tabell.merke.utenTimerad": "Kein Zeiteintrag",
+  "timer.attestering.tabell.merke.utenTimeradForklaring": "Die Maschine ist nicht mit einem Zeiteintrag verknüpft und wird daher als separate Zeile angezeigt. Die Linie kann genehmigt werden.",
+  "timer.attestering.tabell.merke.utenForerbevis": "Kein Betreiberzertifikat",
+  "timer.attestering.tabell.hjelp.merker": "Abweichungen werden als kurze Tags angezeigt. Bewegen Sie den Mauszeiger über ein Tag oder tippen Sie auf einem Touchscreen darauf, um die vollständige Erklärung anzuzeigen. „Kein Zeiteintrag“: Die Maschine ist nicht mit einem Zeiteintrag verknüpft und wird als separate Zeile angezeigt. „Kein Bedienerzertifikat“: Maschinenarbeiten ohne registriertes Bedienerzertifikat, gekennzeichnet zur Sichtbarkeit. Beide Linien können genehmigt werden.",
+  "timer.attestering.tabell.hjelp.dato": "Das Datum wird als dd.mm angezeigt. Wenn die Tabelle Tage aus mehr als einem Jahr enthält, wird das Jahr einbezogen. Beim Export wird immer das vollständige Datum mit Jahresangabe angezeigt.",
+  "timer.attestering.tabell.hjelp.aar": "Das Jahr befindet sich neben der Wochenauswahl. Wählen Sie ein anderes Jahr, um zur gleichen Woche in diesem Jahr zu gelangen.",
+  "timer.attestering.uke.aar": "Jahr"
 }

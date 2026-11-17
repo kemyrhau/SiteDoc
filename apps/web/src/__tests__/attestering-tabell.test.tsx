@@ -74,6 +74,7 @@ const deps: AttDeps = {
   ukeAvvikTekst: () => null,
   tekst: {
     forslagSperre: "Uavklart forslag", maskinUtenTimerad: "Maskin uten timerad", maskinforerbevis: "Mangler bevis",
+    merkeUtenTimerad: "Uten timerad", merkeUtenTimeradForklaring: "Maskinen er ikke koblet til en timerad.", merkeUtenForerbevis: "Uten førerbevis",
     tilleggskrav: "Tilleggskrav", tilByggherre: "Til byggherre", fravaerUtenProsjekt: "Fravær", annetProsjekt: "Annet prosjekt", reise: "Reise",
     statusVenter: "Venter", statusAttestert: "Attestert", statusReturnert: "Returnert",
   },
@@ -246,7 +247,11 @@ describe("T49 — én verktøylinje, ingen nedtrekk utenfor tabellen", () => {
   const side = readFileSync(resolve(__dirname, "../app/dashbord/firma/timer/attestering/page.tsx"), "utf8");
 
   it("d2b-2 § 12.5: ingen nedtrekk og ingen pivot — alle visningene er tabellen", () => {
-    expect(side).not.toMatch(/<select/);
+    // w1 (plan web-timeføring bilde 6, tillegget til B7): årsvelgeren ved ukevalget er den
+    // eneste nedtrekken — ingen filternedtrekk for prosjekt, ansatt eller avdeling (T49).
+    const nedtrekk = side.match(/<select[\s\S]*?className/g) ?? [];
+    expect(nedtrekk).toHaveLength(1);
+    expect(nedtrekk[0]).toMatch(/aria-label=\{t\("timer\.attestering\.uke\.aar"\)\}/);
     expect(side).not.toMatch(/<ProsjektPivot|<AnsattPivot|<ProsjektGruppe|<SeddelKort|attesterGruppe/);
     expect(side).toMatch(/gruppering=\{visning === "sedler" \? "dag" : visning\}/);
   });

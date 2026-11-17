@@ -5064,7 +5064,7 @@
   "timer.attestering.tabell.hjelp.retting": "Kun yritys sallii korjaukset hyväksynnän aikana, napsauta odottavalla rivillä olevaa solua, kirjoita uusi arvo ja paina Enter tai Tab. Esc peruuttaa. Vanha arvo näkyy alla muodossa \"oli ...\".",
   "timer.attestering.tabell.hjelp.verktoy": "\"Valitse parametrit\" valitsee sarakkeet. Napsauta sarakkeen otsikkoa lajitellaksesi ja suppiloa suodattaaksesi. \"Hyväksy valinta\" hyväksyy valitut rivit tai kaikki näkyvät odottavat rivit, kun niitä ei ole valittu. Suodattimet ja lajittelu koskevat vain tätä käyntiä.",
   "timer.attestering.tabell.kolonner": "Sarakkeet",
-  "timer.attestering.tabell.maskinUtenTimerad": "Kone ilman työtunteja",
+  "timer.attestering.tabell.maskinUtenTimerad": "Kone ilman aikamerkintää",
   "timer.attestering.tabell.rettCelle": "Napsauta korjataksesi",
   "timer.attestering.tabell.returnerKort": "Palauta projektilomake",
   "timer.attestering.tabell.returnerLinjer_one": "{{count}} rivi palautetaan työntekijälle.",
@@ -5829,5 +5829,12 @@
   "timer.attestering.detalj.tabellHint": "Hyväksy, palauta tai avaa uudelleen taulukossa: riviä kohden, projektilehteä kohti tai koko päiväksi.",
   "timer.attestering.tabell.aapneKvittering": "Avaa kuitti ({{fil}})",
   "timer.attestering.tabell.hjelp.ukeavvik": "\"Poikkeama tällä viikolla\" vertaa koko viikon tunteja (lähetetty ja hyväksytty) viikoittaiseen normiin – ei vain päivään tai näkemiisi riveihin.",
-  "timer.attestering.tabell.hjelp.kvittering": "Kuitilla varustetun kulun rivillä näkyy pikkukuva tai paperiliitin. Napsauta avataksesi kuitin ja tarkista se ennen hyväksymistä."
+  "timer.attestering.tabell.hjelp.kvittering": "Kuitilla varustetun kulun rivillä näkyy pikkukuva tai paperiliitin. Napsauta avataksesi kuitin ja tarkista se ennen hyväksymistä.",
+  "timer.attestering.tabell.merke.utenTimerad": "Ei ajansyöttöä",
+  "timer.attestering.tabell.merke.utenTimeradForklaring": "Konetta ei ole linkitetty aikamerkintään, joten se näkyy erillisenä rivinä. Linja voidaan hyväksyä.",
+  "timer.attestering.tabell.merke.utenForerbevis": "Ei operaattoritodistusta",
+  "timer.attestering.tabell.hjelp.merker": "Poikkeamat näytetään lyhyinä tunnisteina. Vie hiiri tunnisteen päälle tai napauta sitä kosketusnäytöllä nähdäksesi täydellisen selityksen. \"Ei ajan syöttöä\": konetta ei ole linkitetty aikamerkintään ja se näkyy erillisenä rivinä. \"Ei kuljettajatodistusta\": konetyö ilman rekisteröityä käyttäjätodistusta, merkitty näkyvyyden vuoksi. Molemmat rivit voidaan hyväksyä.",
+  "timer.attestering.tabell.hjelp.dato": "Päivämäärä näytetään muodossa pp.mm. Jos taulukossa on päiviä useammalta kuin yhdeltä vuodelta, vuosi otetaan mukaan. Viennissä näkyy aina koko päivämäärä ja vuosi.",
+  "timer.attestering.tabell.hjelp.aar": "Vuosi on viikonvalitsimen vieressä. Valitse toinen vuosi mennäksesi samalle viikolle samana vuonna.",
+  "timer.attestering.uke.aar": "vuosi"
 }

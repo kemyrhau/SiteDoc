@@ -4,7 +4,7 @@ import { useMemo, useState, type ReactNode, type KeyboardEvent } from "react";
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import { Check, CornerUpLeft, RotateCcw, Scissors, Pencil, X, SlidersHorizontal, ExternalLink, Paperclip } from "lucide-react";
-import { Button, Modal } from "@sitedoc/ui";
+import { Button, Modal, Tooltip } from "@sitedoc/ui";
 import {
   TIMER_TABELL_KOL,
   TIMER_TABELL_KOL_KEYS,
@@ -37,12 +37,15 @@ import {
   grupperModell,
   linjeIKontekst,
   slaaSammen,
+  spennerFlereAar,
   sumLinjer,
+  visDato,
   type AttDag,
   type AttKort,
   type AttLinje,
   type AttSedel,
   type AttVedlegg,
+  type AvvikMerke,
   type Gruppering,
   type RadIder,
 } from "./attestering-tabell";
@@ -137,6 +140,9 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
     [dager, filterVerdier, beskrivelseSok],
   );
   const alleLinjer = useMemo(() => dager.flatMap((d) => d.kort.flatMap((k) => k.linjer)), [dager]);
+  // w1: datoen som «17.11.»; året står med bare når tabellen spenner over flere år.
+  const medAar = useMemo(() => spennerFlereAar(dager), [dager]);
+  const dato = (iso: string) => visDato(iso, medAar);
   const synligeLinjer = useMemo(() => synlige.flatMap((d) => d.kort.flatMap((k) => k.linjer)), [synlige]);
   // Ukeoversikten teller tabellens rader uten datofilteret (T45); klikk på en dag setter det (R12).
   const ukeDager = useMemo(
@@ -258,8 +264,9 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
     const v = timerTabellVerdi(k, l.linje, under);
     if (k === "type") return under === 0 ? typeTekst(l.linje.type) : null;
     if (k === "avvik") {
-      return under === 0 && l.linje.avvik.length > 0 ? <span className="whitespace-normal text-amber-700">{l.linje.avvik.join(" · ")}</span> : null;
+      return under === 0 && l.avvikMerker.length > 0 ? <AvvikMerker merker={l.avvikMerker} /> : null;
     }
+    if (k === "dato") return under === 0 && typeof v === "string" ? dato(v) : null;
     if (k === "betegnelse" && under === 0 && l.kilde.type === "timer" && l.kilde.rad.erReise) {
       return <span className="inline-flex items-center gap-1">{l.linje.betegnelse}<ReiseRadMerke rad={l.kilde.rad} /></span>;
     }
@@ -455,7 +462,7 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
       const s = dag.sedel;
       for (const kort of dag.kort) {
         const sum = sumLinjer(kort.linjer);
-        const avvik = [...new Set(kort.linjer.flatMap((l) => l.linje.avvik))];
+        const avvik = unikeMerker(kort.linjer.flatMap((l) => l.avvikMerker));
         const dagen = s.dagsnorm == null ? null : t("timer.attestering.tabell.dagenAvNorm", { timer: formaterNorsk(s.totaltimer), norm: formaterNorsk(s.dagsnorm) });
         ut.push({
           kind: "sum",
@@ -463,7 +470,7 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
           hoyre: kortHandlinger(kort),
           celle: (k) => {
             switch (k) {
-              case "dato": return dag.dato;
+              case "dato": return dato(dag.dato);
               case "ansatt": return dag.ansatt;
               case "ansattnr": return dag.ansattnr ?? "";
               case "prosjektnummer": return kort.prosjektnummer;
@@ -473,7 +480,12 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
               case "timer": return formaterNorsk(sum.timer);
               case "maskintimer": return sum.maskintimer > 0 ? formaterNorsk(sum.maskintimer) : "";
               default:
-                return k === avvikKol ? <span className="whitespace-normal font-normal text-gray-700">{[dagen, ...avvik].filter(Boolean).join(" · ")}</span> : "";
+                return k === avvikKol ? (
+                  <span className="inline-flex flex-wrap items-center gap-1 whitespace-normal font-normal text-gray-700">
+                    {dagen}
+                    {avvik.length > 0 && <AvvikMerker merker={avvik} />}
+                  </span>
+                ) : "";
             }
           },
         });
@@ -494,7 +506,7 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
         sterk: true,
         hoyre: dagHandlinger(dag),
         celle: (k) =>
-          k === etikettKol ? t("timer.attestering.tabell.dagsum", { dato: dag.dato, ansatt: dag.ansatt }) :
+          k === etikettKol ? t("timer.attestering.tabell.dagsum", { dato: dato(dag.dato), ansatt: dag.ansatt }) :
           k === "timer" ? formaterNorsk(sum.timer) :
           k === "maskintimer" ? (sum.maskintimer > 0 ? formaterNorsk(sum.maskintimer) : "") :
           k === avvikKol && merker.length > 0 ? <span className="whitespace-normal font-normal text-amber-700">{merker.join(" · ")}</span> : "",
@@ -503,7 +515,7 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
     }
     return ut;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- handlingene leser fersk tilstand ved klikk
-  }, [synlige, gruppering, bareOversikt, t, readOnly, opptatt, etikettKol, avvikKol, prosjektKontekst]);
+  }, [synlige, gruppering, bareOversikt, t, readOnly, opptatt, etikettKol, avvikKol, prosjektKontekst, medAar]);
 
   /* ---------------- Filter i hodet (R8) ---------------- */
 
@@ -516,7 +528,7 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
         { value: AVVIK_FILTER.harAvvik, label: t("timer.attestering.tabell.harAvvik") },
       ];
       if (!FILTER_KOLONNER.includes(k)) return undefined;
-      return filterAlternativer(dager, k).map((v) => ({ value: v, label: k === "type" ? typeTekst(v) : v }));
+      return filterAlternativer(dager, k).map((v) => ({ value: v, label: k === "type" ? typeTekst(v) : k === "dato" ? dato(v) : v }));
     },
     sok: (k: TimerTabellKolKey) => (k === "beskrivelse" ? { verdi: beskrivelseSok, onChange: setBeskrivelseSok } : undefined),
   };
@@ -792,4 +804,36 @@ function Kvitteringer({ vedlegg }: { vedlegg: readonly AttVedlegg[] }) {
       ))}
     </>
   );
+}
+
+/** Avvikene på én linje (w1, B7): korte merker med forklaringen på hover/trykk; øvrige som tekst. */
+function AvvikMerker({ merker }: { merker: readonly AvvikMerke[] }) {
+  return (
+    // Én linje (flex uten bryting): maskinlinjene blir like høye som de andre (WM21).
+    <span className="inline-flex items-center gap-1 text-amber-700">
+      {merker.map((m, i) =>
+        m.forklaring ? (
+          <Tooltip key={`${i}:${m.tekst}`} tekst={m.forklaring} side="bottom" delayMs={150}>
+            <span
+              data-avvik-merke=""
+              className="cursor-help whitespace-nowrap rounded-full border border-amber-300 bg-amber-50 px-1.5 py-px text-[11px] font-medium leading-4 text-amber-800"
+            >
+              {m.tekst}
+            </span>
+          </Tooltip>
+        ) : (
+          <span key={`${i}:${m.tekst}`} className="whitespace-normal">
+            {m.tekst}
+          </span>
+        ),
+      )}
+    </span>
+  );
+}
+
+/** Kortets oversiktsrad viser hvert avvik én gang. */
+function unikeMerker(merker: readonly AvvikMerke[]): AvvikMerke[] {
+  const sett = new Map<string, AvvikMerke>();
+  for (const m of merker) if (!sett.has(m.tekst)) sett.set(m.tekst, m);
+  return [...sett.values()];
 }

@@ -241,6 +241,22 @@ export type KortVareforbrukInput = {
   sheetTimerId?: string;
 };
 
+/**
+ * w1 (plan web-timeføring § 6 (g), WM11): timeradene en vare ført på PC kan kobles til —
+ * jobbens arbeidsrader (samme prosjekt, ikke reise, mer enn 0 timer, ikke erstattet), sortert
+ * på fra-tid. Samme utvalg som maskinvinduets timerad (d2c-1). Den første er forvalgt, så
+ * varen står på jobbens ordinære linje i attesteringen uten ekstra trykk (føring 3);
+ * mobilen kobler til linja «+ Vare» trykkes fra (`ProsjektkortDagsoversikt`).
+ */
+export function vareTimerader<T extends { id: string; projectId: string; fraTid?: string | null; timer: Tall; erReise?: boolean | null; attestertStatus?: string | null }>(
+  timer: readonly T[],
+  projectId: string,
+): T[] {
+  return timer
+    .filter((r) => r.projectId === projectId && r.attestertStatus !== "erstattet" && !r.erReise && Number(r.timer) > 0)
+    .sort((a, b) => (a.fraTid ?? "").localeCompare(b.fraTid ?? ""));
+}
+
 /** Opprett-input fra kortet. Prosjektet (og underprosjektet, 36b) er alltid kortets — kan ikke velges. */
 export function kortVareforbrukInput(args: {
   kortProsjektId: string;

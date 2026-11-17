@@ -5064,7 +5064,7 @@
   "timer.attestering.tabell.hjelp.retting": "Jeśli firma zezwala na wprowadzanie poprawek podczas zatwierdzania, kliknij komórkę w oczekującej linii, wpisz nową wartość i naciśnij klawisz Enter lub Tab. Esc anuluje. Stara wartość jest pokazana poniżej jako „było…”.",
   "timer.attestering.tabell.hjelp.verktoy": "„Wybierz parametry” wybiera kolumny. Kliknij nagłówek kolumny, aby posortować, lub ścieżkę, aby przefiltrować. „Zatwierdź wybór” zatwierdza zaznaczone linie lub wszystkie widoczne oczekujące linie, jeśli żadna nie jest zaznaczona. Filtry i sortowanie dotyczą tylko tej wizyty.",
   "timer.attestering.tabell.kolonner": "Kolumny",
-  "timer.attestering.tabell.maskinUtenTimerad": "Maszyna bez godzin pracy",
+  "timer.attestering.tabell.maskinUtenTimerad": "Maszyna bez wpisu czasu",
   "timer.attestering.tabell.rettCelle": "Kliknij, aby poprawić",
   "timer.attestering.tabell.returnerKort": "Zwróć arkusz projektu",
   "timer.attestering.tabell.returnerLinjer_one": "Linia {{count}} jest zwracana pracownikowi.",
@@ -5829,5 +5829,12 @@
   "timer.attestering.detalj.tabellHint": "Zatwierdź, zwróć lub otwórz ponownie w tabeli: według wiersza, dla arkusza projektu lub dla całego dnia.",
   "timer.attestering.tabell.aapneKvittering": "Otwórz paragon ({{fil}})",
   "timer.attestering.tabell.hjelp.ukeavvik": "„Odchylenie w tym tygodniu” porównuje godziny pracy w całym tygodniu (przesłane i zatwierdzone) z normą tygodniową — nie tylko z dniem lub widocznymi liniami.",
-  "timer.attestering.tabell.hjelp.kvittering": "Wydatek z paragonem zawiera miniaturę lub spinacz do papieru na linii. Kliknij, aby otworzyć paragon i sprawdzić go przed zatwierdzeniem."
+  "timer.attestering.tabell.hjelp.kvittering": "Wydatek z paragonem zawiera miniaturę lub spinacz do papieru na linii. Kliknij, aby otworzyć paragon i sprawdzić go przed zatwierdzeniem.",
+  "timer.attestering.tabell.merke.utenTimerad": "Brak wpisu czasu",
+  "timer.attestering.tabell.merke.utenTimeradForklaring": "Maszyna nie jest powiązana z wpisem czasu, dlatego jest pokazana jako osobna linia. Linia może zostać zatwierdzona.",
+  "timer.attestering.tabell.merke.utenForerbevis": "Brak certyfikatu operatora",
+  "timer.attestering.tabell.hjelp.merker": "Odchylenia są pokazane jako krótkie znaczniki. Najedź kursorem na tag lub dotknij go na ekranie dotykowym, aby zobaczyć pełne wyjaśnienie. „Brak wpisu czasu”: urządzenie nie jest powiązane z wpisem czasu i jest wyświetlane w osobnej linii. „Brak certyfikatu operatora”: praca maszyny bez certyfikatu zarejestrowanego operatora, oznaczona dla widoczności. Obie linie mogą zostać zatwierdzone.",
+  "timer.attestering.tabell.hjelp.dato": "Data jest wyświetlana jako dd.mm. Jeśli tabela zawiera dni z więcej niż jednego roku, uwzględniany jest rok. Eksport zawsze pokazuje pełną datę wraz z rokiem.",
+  "timer.attestering.tabell.hjelp.aar": "Rok znajduje się obok selektora tygodnia. Wybierz inny rok, aby przejść do tego samego tygodnia w tym roku.",
+  "timer.attestering.uke.aar": "Rok"
 }

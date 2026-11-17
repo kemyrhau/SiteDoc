@@ -30,6 +30,7 @@ import { Ukeoversikt } from "@/components/attestering/Ukeoversikt";
 import { useAttesteringModell } from "@/components/attestering/useAttesteringModell";
 import type { AttSedel } from "@/components/attestering/attestering-tabell";
 import { HjelpKnapp, HjelpFane } from "@/components/hjelp/HjelpModal";
+import { aarValg, isoUke, ukeOffsetForAar } from "@/components/attestering/ukevalg";
 
 /* ------------------------------------------------------------------ */
 /*  Typer                                                               */
@@ -180,6 +181,8 @@ export default function FirmaAttesteringSide() {
   const ukestart = useMemo(() => getUkestart(ukeOffset), [ukeOffset]);
   const ukeslutt = useMemo(() => getUkeslutt(ukestart), [ukestart]);
   const ukeNr = useMemo(() => ukeNummer(ukestart), [ukestart]);
+  // w1: året står i årsvelgeren (datoen i tabellen er «17.11.»).
+  const visAar = useMemo(() => isoUke(ukestart).aar, [ukestart]);
 
   const { data: tilgang, isLoading: tilgangLaster } =
     trpc.timer.dagsseddel.kanAttestereFirma.useQuery(
@@ -361,6 +364,19 @@ export default function FirmaAttesteringSide() {
       >
         <ChevronRight className="h-4 w-4" />
       </button>
+      {/* w1: bytt år i én handling — samme uke i det valgte året. */}
+      <select
+        value={visAar}
+        onChange={(e) => setUkeOffset(ukeOffsetForAar(ukestart, Number(e.target.value)))}
+        aria-label={t("timer.attestering.uke.aar")}
+        className="rounded border border-gray-300 bg-white px-2 py-1 text-sm text-gray-900 hover:bg-gray-50"
+      >
+        {aarValg(new Date(), visAar).map((a) => (
+          <option key={a} value={a}>
+            {a}
+          </option>
+        ))}
+      </select>
       {ukeOffset !== 0 && (
         <button
           onClick={() => setUkeOffset(0)}
@@ -379,7 +395,9 @@ export default function FirmaAttesteringSide() {
           <HjelpFane tittel={t("timer.attestering.tabell.hjelp.tittel")}>
             <p>{t("firma.timer.attesteringBeskrivelse")}</p>
             <p className="mt-2">{t("timer.attestering.tabell.hjelp.struktur")}</p>
+            <p className="mt-2">{t("timer.attestering.tabell.hjelp.dato")} {t("timer.attestering.tabell.hjelp.aar")}</p>
             <p className="mt-2">{t("timer.attestering.tabell.hjelp.handlinger")}</p>
+            <p className="mt-2">{t("timer.attestering.tabell.hjelp.merker")}</p>
             <p className="mt-2">{t("timer.attestering.tabell.hjelp.retting")}</p>
             <p className="mt-2">{t("timer.attestering.tabell.hjelp.verktoy")}</p>
             <p className="mt-2">{t("timer.attestering.tabell.hjelp.grupperinger")}</p>
