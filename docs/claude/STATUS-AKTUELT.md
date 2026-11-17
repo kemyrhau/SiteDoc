@@ -156,7 +156,7 @@ sist_verifisert_mot_kode: 2026-08-09
 | **Dokgen** | `SiteDoc-dokgen` | `feat/arbeidstegning-prod-klar` `954a2ac0` | ikke målt denne runden |
 | **Kontrollplan** | `SiteDoc-kontrollplan` | `feat/v17b-soner` `301da63e` | ikke målt denne runden |
 | **Mal-Opus** | `SiteDoc-mal` | `feat/mal-7b-standardnavn-vakt27` `eb5af56a` | ikke målt denne runden |
-| **3D-web** | app-tre `3d-web-maaling-a15d10` | `feat/3d-snittpil` merget `1b3edab6` | ⚪ LEDIG — neste: W3/M5 (2) egenskaper; W5/M6 måling |
+| **3D-web** | nytt app-tre fra `fa8ad527` | `feat/3d-egenskaper` | 🟡 ORDRE 9 W3/M5 (2) egenskaper ved klikk, gitt 2026-11-17 (`inbox-3d-web.md`) — neste: W5/M6 måling |
 | **3D-mobil** | app-tre `3d-mobil-maaling-a07340` | `feat/3d-mobil-pinch-diag` merget `000f08c1` | ⚪ LEDIG |
 | **Kort-id d2b-2/3** | app-tre `kortid-d2b2-c544cf` | `feat/kortid-d2b3` merget `30ca2935` | ⚪ LEDIG — neste i specen: d3 |
 | **Kort-id d2c-2** | app-tre `kortid-d2c2-4fb489` | `feat/kortid-d2c2-mobil` merget `338de16a` | ⚪ LEDIG |
