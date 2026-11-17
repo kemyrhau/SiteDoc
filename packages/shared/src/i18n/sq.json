@@ -5836,5 +5836,11 @@
   "timer.attestering.tabell.hjelp.merker": "Devijimet shfaqen si etiketa të shkurtra. Zhvendosni pezull mbi një etiketë ose prekni atë në një ekran me prekje, për të parë shpjegimin e plotë. \"Nuk ka hyrje në kohë\": makina nuk është e lidhur me një hyrje kohore dhe shfaqet si një rresht i veçantë. “Pa certifikatë operatori”: puna e makinerisë pa certifikatë të regjistruar operatori, e shënuar për dukshmëri. Të dy linjat mund të miratohen.",
   "timer.attestering.tabell.hjelp.dato": "Data tregohet si dd.mm. Nëse tabela ka ditë nga më shumë se një vit, përfshihet viti. Eksporti tregon gjithmonë datën e plotë me vitin.",
   "timer.attestering.tabell.hjelp.aar": "Viti është ngjitur me përzgjedhësin e javës. Zgjidhni një vit tjetër për të shkuar në të njëjtën javë të atij viti.",
-  "timer.attestering.uke.aar": "viti"
+  "timer.attestering.uke.aar": "viti",
+  "timer.registrerTimer": "Orari i regjistrimit",
+  "timer.prosjektkort.registrerTimer": "+ Orari i regjistrimit",
+  "timer.prosjektkort.registrerTimerHint": "puna tjetër, i njëjti ose një projekt tjetër",
+  "timer.mine.hjelp.registrer": "\"+ Regjistro orë\" regjistron një punë në projektin e zgjedhur në krye. Herën e parë në një datë, dita krijohet për ju, me orarin e punës së kompanisë dhe faqen e zgjedhur në krye. Nëse asnjë projekt nuk është zgjedhur në krye, ju së pari zgjidhni projektin.",
+  "timer.mine.hjelp.dagen": "Puna tjetër shtohet në të njëjtën ditë, me Nga ku mbaroi puna e mëparshme. Nëse dita është dërguar, rihape së pari. Nëse menaxheri juaj ka miratuar ndonjë gjë, menaxheri duhet të kthejë ditën. \"Send the day\" dërgon të gjitha punët në datën së bashku.",
+  "timer.mine.hjelp.dato": "Data tregohet si dd.mm. Nëse lista përfshin disa vjet, viti përfshihet."
 }

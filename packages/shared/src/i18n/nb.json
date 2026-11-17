@@ -5836,5 +5836,11 @@
   "timer.attestering.tabell.hjelp.merker": "Avvik står som korte merker. Hold pekeren over et merke, eller trykk på det på en berøringsskjerm, for å se hele forklaringen. «Uten timerad»: maskinen er ikke koblet til en timerad og står som egen linje. «Uten førerbevis»: maskinarbeid uten registrert maskinførerbevis, flagget for synlighet. Begge linjene kan attesteres.",
   "timer.attestering.tabell.hjelp.dato": "Datoen står som dd.mm. Har tabellen dager fra flere år, står året med. Eksporten viser alltid hele datoen med år.",
   "timer.attestering.tabell.hjelp.aar": "Året står ved ukevalget. Velg et annet år for å gå til samme uke det året.",
-  "timer.attestering.uke.aar": "År"
+  "timer.attestering.uke.aar": "År",
+  "timer.registrerTimer": "Registrer timer",
+  "timer.prosjektkort.registrerTimer": "+ Registrer timer",
+  "timer.prosjektkort.registrerTimerHint": "neste jobb, samme eller annet prosjekt",
+  "timer.mine.hjelp.registrer": "«+ Registrer timer» fører en jobb på prosjektet i toppen. Første gang på en dato lages dagen for deg, med firmaets arbeidstid og byggeplassen i toppen. Er ingen prosjekt valgt i toppen, velger du prosjekt først.",
+  "timer.mine.hjelp.dagen": "Neste jobb legges på samme dag, med Fra der forrige jobb sluttet. Er dagen sendt, gjenåpner du den først. Har lederen attestert noe, må lederen returnere dagen. «Send dagen» sender alle jobbene på datoen samlet.",
+  "timer.mine.hjelp.dato": "Datoen står som dd.mm. Spenner lista over flere år, står året med."
 }

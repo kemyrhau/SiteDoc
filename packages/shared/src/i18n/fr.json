@@ -5836,5 +5836,11 @@
   "timer.attestering.tabell.hjelp.merker": "Les écarts sont affichés sous forme de balises courtes. Passez la souris sur une balise ou appuyez dessus sur un écran tactile pour voir l'explication complète. « Pas de saisie de temps » : la machine n'est pas liée à une saisie de temps et est affichée sur une ligne distincte. « Pas de certificat d'opérateur » : travaux sur machines sans certificat d'opérateur enregistré, signalés pour être visibles. Les deux lignes peuvent être approuvées.",
   "timer.attestering.tabell.hjelp.dato": "La date est affichée sous la forme jj.mm. Si le tableau comporte des jours sur plus d’un an, l’année est incluse. L'export affiche toujours la date complète avec l'année.",
   "timer.attestering.tabell.hjelp.aar": "L'année est à côté du sélecteur de semaine. Choisissez une autre année pour aller à la même semaine cette année-là.",
-  "timer.attestering.uke.aar": "Année"
+  "timer.attestering.uke.aar": "Année",
+  "timer.registrerTimer": "Horaires d'inscription",
+  "timer.prosjektkort.registrerTimer": "+ Horaires d'inscription",
+  "timer.prosjektkort.registrerTimerHint": "prochain emploi, même projet ou un autre projet",
+  "timer.mine.hjelp.registrer": "« + Enregistrer les heures » enregistre un travail sur le projet sélectionné en haut. Lors d'une première date, le jour est créé pour vous, avec les horaires de travail de l'entreprise et le site sélectionné en haut. Si aucun projet n'est sélectionné en haut, vous choisissez d'abord le projet.",
+  "timer.mine.hjelp.dagen": "Le travail suivant est ajouté le même jour, avec De là où le travail précédent s'est terminé. Si le jour a été envoyé, rouvrez-le d'abord. Si votre responsable a approuvé quelque chose, il doit revenir le jour même. « Envoyer le jour » envoie toutes les tâches à la date ensemble.",
+  "timer.mine.hjelp.dato": "La date est affichée sous la forme jj.mm. Si la liste s'étend sur plusieurs années, l'année est incluse."
 }

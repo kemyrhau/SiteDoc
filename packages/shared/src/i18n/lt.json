@@ -5836,5 +5836,11 @@
   "timer.attestering.tabell.hjelp.merker": "Nukrypimai rodomi kaip trumpos žymos. Užveskite pelės žymeklį virš žymos arba palieskite ją jutikliniame ekrane, kad pamatytumėte visą paaiškinimą. „Nėra laiko įvesties“: aparatas nesusietas su laiko įrašu ir rodomas kaip atskira eilutė. „Nėra operatoriaus pažymėjimo“: mašinos darbas be registruoto operatoriaus pažymėjimo, pažymėtas matomumui. Abi eilutės gali būti patvirtintos.",
   "timer.attestering.tabell.hjelp.dato": "Data rodoma kaip dd.mm. Jei lentelėje yra daugiau nei vienerių metų dienų, įtraukiami metai. Eksportuojant visada rodoma visa data su metais.",
   "timer.attestering.tabell.hjelp.aar": "Metai yra šalia savaitės parinkiklio. Pasirinkite kitus metus, kad pereitumėte į tą pačią tų metų savaitę.",
-  "timer.attestering.uke.aar": "Metai"
+  "timer.attestering.uke.aar": "Metai",
+  "timer.registrerTimer": "Registruokitės valandas",
+  "timer.prosjektkort.registrerTimer": "+ Registruokitės valandas",
+  "timer.prosjektkort.registrerTimerHint": "kitas darbas, tas pats ar kitas projektas",
+  "timer.mine.hjelp.registrer": "„+ Registruoti valandas“ įrašo užduotį viršuje pasirinktame projekte. Pirmą kartą pasimatymo metu diena sukuriama jums, viršuje pasirenkamas įmonės darbo laikas ir svetainė. Jei viršuje nepasirinktas joks projektas, pirmiausia pasirenkate projektą.",
+  "timer.mine.hjelp.dagen": "Kitas darbas pridedamas prie tos pačios dienos, nurodant Iš kur baigėsi ankstesnis darbas. Jei diena išsiųsta, pirmiausia atidarykite ją iš naujo. Jei jūsų vadovas ką nors patvirtino, vadovas turi grąžinti dieną. „Siųsti dieną“ siunčia visus tos dienos darbus kartu.",
+  "timer.mine.hjelp.dato": "Data rodoma kaip dd.mm. Jei sąrašas apima keletą metų, įtraukiami metai."
 }

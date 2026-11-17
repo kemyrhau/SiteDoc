@@ -8,7 +8,11 @@ import { useFirma } from "@/kontekst/firma-kontekst";
 import { skalVarsleSkjulteTimer } from "@sitedoc/shared";
 import { Spinner, Input, Modal, Button } from "@sitedoc/ui";
 import { MultiComboks } from "@/components/ui/MultiComboks";
-import { Clock, FileText, Briefcase, Activity, Plus, Info, ChevronRight, Trash2 } from "lucide-react";
+import { RegistrerTimerKnapp } from "@/components/timer/RegistrerTimerKnapp";
+import { HjelpKnapp, HjelpFane } from "@/components/hjelp/HjelpModal";
+import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
+import { spennerFlereAar, visDagDato, visTimerTall } from "@/lib/registrerTimer";
+import { Clock, FileText, Briefcase, Activity, Info, ChevronRight, Trash2 } from "lucide-react";
 
 /**
  * «Mine timer» — personlig rapport-visning på tvers av prosjekter
@@ -132,6 +136,8 @@ export default function MineTimerSide() {
   // både prosjektliste og dagsseddel-lista.
   const { valgtFirma, erSitedocAdmin } = useFirma();
   const orgId = valgtFirma?.id ?? undefined;
+  // w2 (B2 trinn 3): prosjektet i toppen er forvalget for «+ Registrer timer».
+  const { prosjektId: aktivProsjektId } = useProsjekt();
   const utils = trpc.useUtils();
 
   // TILLEGG 2/3: hydrer filter fra localStorage (lazy init — kun på klient).
@@ -230,6 +236,9 @@ export default function MineTimerSide() {
     });
   }, [alleRader, statusFilter, valgteProsjekter, fritekst, prosjektListe]);
 
+  // w2: dd.mm. som i attesteringen — året står med når lista spenner over flere år.
+  const listeMedAar = useMemo(() => spennerFlereAar(liste.map((r) => r.dato)), [liste]);
+
   const kanSlettes = (r: ListeRad) =>
     r.status === "draft" || (r.status === "returned" && !r.attestertVed);
 
@@ -306,25 +315,18 @@ export default function MineTimerSide() {
             {t("timer.mine.beskrivelse")}
           </p>
         </div>
-        {/* D8: «Ny»-inngang. Prosjekt velges på ny-siden (D7), ikke her.
-            Kenneth-vedtak 2026-10-09 (2): deaktivert (synlig) hvis ikke ansatt. */}
-        {kanFoereTimer ? (
-          <Link
-            href="/dashbord/timer/ny"
-            className="inline-flex shrink-0 items-center gap-1 rounded bg-sitedoc-primary px-3 py-2 text-sm font-medium text-white hover:bg-sitedoc-primary/90"
-          >
-            <Plus className="h-4 w-4" />
-            {t("timer.nyDagsseddel")}
-          </Link>
-        ) : (
-          <span
-            className="inline-flex shrink-0 cursor-not-allowed items-center gap-1 rounded bg-gray-200 px-3 py-2 text-sm font-medium text-gray-400"
-            title={t("timer.ikkeAnsatt", { firma: ansattFirmanavn })}
-          >
-            <Plus className="h-4 w-4" />
-            {t("timer.nyDagsseddel")}
-          </span>
-        )}
+        {/* w2 (B1): «+ Registrer timer» i prosjektkort-modus; dagskort-modus beholder
+            «Ny dagsseddel» + skjemaet. Deaktivert (synlig) hvis ikke ansatt (2026-10-09 (2)). */}
+        <div className="flex items-start gap-1">
+          <RegistrerTimerKnapp organizationId={orgId ?? null} projectId={aktivProsjektId} />
+          <HjelpKnapp>
+            <HjelpFane tittel={t("timer.mine.tittel")}>
+              <p>{t("timer.mine.hjelp.registrer")}</p>
+              <p className="mt-2">{t("timer.mine.hjelp.dagen")}</p>
+              <p className="mt-2">{t("timer.mine.hjelp.dato")}</p>
+            </HjelpFane>
+          </HjelpKnapp>
+        </div>
       </div>
 
       {!kanFoereTimer && (
@@ -446,7 +448,7 @@ export default function MineTimerSide() {
         <OppsummeringKort
           ikon={<Clock className="h-4 w-4 text-blue-600" />}
           label={t("timer.mine.totaltTimer")}
-          verdi={`${oppsummering.totalt.toFixed(2)}t`}
+          verdi={`${visTimerTall(oppsummering.totalt)} t`}
         />
         <OppsummeringKort
           ikon={<FileText className="h-4 w-4 text-purple-600" />}
@@ -500,7 +502,7 @@ export default function MineTimerSide() {
                   <tr key={a.navn} className="border-b border-gray-100 last:border-b-0">
                     <td className="py-1.5 text-gray-700">{a.navn}</td>
                     <td className="py-1.5 text-right font-mono text-gray-900">
-                      {a.timer.toFixed(2)}t
+                      {visTimerTall(a.timer)} t
                     </td>
                     <td className="py-1.5 pl-2 text-right text-xs text-gray-500">
                       {oppsummering.totalt > 0
@@ -527,7 +529,7 @@ export default function MineTimerSide() {
                     </td>
                     <td className="py-1.5 text-right text-gray-600">{s.antall}</td>
                     <td className="py-1.5 pl-2 text-right font-mono text-gray-900">
-                      {s.timer.toFixed(2)}t
+                      {visTimerTall(s.timer)} t
                     </td>
                   </tr>
                 ))}
@@ -558,7 +560,7 @@ export default function MineTimerSide() {
                     className="border-b border-gray-100 last:border-b-0 hover:bg-gray-50"
                   >
                     <td className="px-2 py-1.5 font-medium text-gray-900">
-                      {formatDato(rad.dato)}
+                      {visDagDato(rad.dato, listeMedAar)}
                     </td>
                     <td className="px-2 py-1.5 text-gray-700">
                       {rad.prosjektIder
@@ -570,7 +572,7 @@ export default function MineTimerSide() {
                       {rad.aktivitet?.navn ?? "—"}
                     </td>
                     <td className="px-2 py-1.5 text-right font-mono text-gray-900">
-                      {rad.totaltimer.toFixed(2)}
+                      {visTimerTall(rad.totaltimer)}
                     </td>
                     <td className="px-2 py-1.5 text-xs text-gray-500">
                       {t(`timer.statusType.${rad.status}`)}

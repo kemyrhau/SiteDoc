@@ -5836,5 +5836,11 @@
   "timer.attestering.tabell.hjelp.merker": "Abweichungen werden als kurze Tags angezeigt. Bewegen Sie den Mauszeiger über ein Tag oder tippen Sie auf einem Touchscreen darauf, um die vollständige Erklärung anzuzeigen. „Kein Zeiteintrag“: Die Maschine ist nicht mit einem Zeiteintrag verknüpft und wird als separate Zeile angezeigt. „Kein Bedienerzertifikat“: Maschinenarbeiten ohne registriertes Bedienerzertifikat, gekennzeichnet zur Sichtbarkeit. Beide Linien können genehmigt werden.",
   "timer.attestering.tabell.hjelp.dato": "Das Datum wird als dd.mm angezeigt. Wenn die Tabelle Tage aus mehr als einem Jahr enthält, wird das Jahr einbezogen. Beim Export wird immer das vollständige Datum mit Jahresangabe angezeigt.",
   "timer.attestering.tabell.hjelp.aar": "Das Jahr befindet sich neben der Wochenauswahl. Wählen Sie ein anderes Jahr, um zur gleichen Woche in diesem Jahr zu gelangen.",
-  "timer.attestering.uke.aar": "Jahr"
+  "timer.attestering.uke.aar": "Jahr",
+  "timer.registrerTimer": "Stunden anmelden",
+  "timer.prosjektkort.registrerTimer": "+ Stunden registrieren",
+  "timer.prosjektkort.registrerTimerHint": "nächster Job, dasselbe oder ein anderes Projekt",
+  "timer.mine.hjelp.registrer": "„+ Stunden registrieren“ erfasst einen Auftrag für das oben ausgewählte Projekt. Beim ersten Mal an einem Datum wird der Tag für Sie erstellt, wobei oben die Arbeitszeiten des Unternehmens und der Standort ausgewählt sind. Wenn oben kein Projekt ausgewählt ist, wählen Sie zuerst das Projekt aus.",
+  "timer.mine.hjelp.dagen": "Der nächste Auftrag wird am selben Tag hinzugefügt, mit „Von“ an der Stelle, an der der vorherige Auftrag endete. Wenn der Tag gesendet wurde, öffnen Sie ihn zunächst erneut. Wenn Ihr Manager etwas genehmigt hat, muss der Manager den Tag zurückgeben. „Tag senden“ sendet alle Aufträge am Datum gemeinsam.",
+  "timer.mine.hjelp.dato": "Das Datum wird als dd.mm angezeigt. Wenn die Liste mehrere Jahre umfasst, ist das Jahr enthalten."
 }
