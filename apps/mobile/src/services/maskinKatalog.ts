@@ -73,6 +73,8 @@ export async function refreshMaskinKatalog(klient: TrpcKlient): Promise<{
         internNummer: e.internNummer ?? null,
         registreringsnummer: e.registreringsnummer ?? null,
         status: e.status,
+        // Kort-id d2c-2 (R24): enheten styrer om maskinen krever timerad.
+        utleieEnhet: e.utleieEnhet ?? null,
         sistOppdatert: naa,
       })
       .run();

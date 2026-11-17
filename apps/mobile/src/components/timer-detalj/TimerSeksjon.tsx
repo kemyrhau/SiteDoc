@@ -90,6 +90,7 @@ import {
   effektiveTimerFraSpenn,
   hhmmTilMin,
   maskinBucketKapasitet,
+  maskinKreverTimerad,
   pauseOverlappMin,
   tilFraAntall,
   tilErEtterFra,
@@ -122,6 +123,7 @@ import {
   type MaskinEndringer,
   type MaskinLinje,
 } from "../../services/kobledeMaskiner";
+import { maskinNavnLokalt, utleieEnhetLokalt } from "../../services/maskinKoblingLokal";
 import { DatoVelgerFelt } from "../DatoVelgerFelt";
 import { formatNorskDato } from "../../utils/dato";
 import { prosjektVisningsnavn } from "../../utils/prosjektNavn";
@@ -1843,6 +1845,22 @@ export function TimerRadModal({
         mengde: isNaN(mengdeNum) ? null : mengdeNum,
         enhet: l.enhet || null,
       });
+    }
+    // Kort-id d2c-2 (R24, spec § 12.2): en timerad som bærer maskin som krever
+    // timerad, kan ikke bli reise — som serveren (d2c-1). Meldingen navngir maskinen.
+    // 0 timer stoppes alt over (ugyldigTimer).
+    const dbR24 = hentDatabase();
+    if (dbR24 && (erReiseRad || erReiseLonnsartLokalt(organizationId, valgtLonnsartId))) {
+      const krever = linjer.filter((l) => maskinKreverTimerad(utleieEnhetLokalt(dbR24, l.vehicleId)));
+      if (krever.length > 0) {
+        setFeil(
+          t("timer.maskinTimerad.reiseSperre", {
+            count: krever.length,
+            navn: krever.map((l) => `«${maskinNavnLokalt(dbR24, l.vehicleId)}»`).join(", "),
+          }),
+        );
+        return;
+      }
     }
     const over = maskinerOverRad(radTimerLagret, linjer)[0];
     if (over) {

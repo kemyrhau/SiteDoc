@@ -309,6 +309,7 @@ describe("T5 mobil — lokale skriveveier setter kort_id", () => {
       timer: 1,
       mengde: null,
       enhet: null,
+      sheetTimerId: null,
       fraTid: null,
       tilTid: null,
     });

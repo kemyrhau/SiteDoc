@@ -155,6 +155,15 @@ Dagsseddel-siden på web har ikke ?-ikon. Hjelpen står i skjemaet der valget ta
 - **Kortet har ingen arbeidsrad:** «Før timeraden maskinen gikk på først — maskinen står på den.» (også som hint under feltet)
 - **Slett timerad med maskin:** tittel «Slette timeraden?», teksten «Raden har 2 maskiner: Volvo EC220E, Dumper. De slettes sammen med raden.» og knappen «Slett rad og maskiner». Døgn-maskiner nevnes ikke; de blir stående uten timerad.
 
+## Mobil: Timerad på maskin (`MaskinSeksjon.tsx`, `ProsjektkortDagsoversikt.tsx`, ordre d2c-2, 🟡 ikke merget)
+
+Samme tekster som PC (d2c-1). Hjelpen står i skjemaet der valget tas (`timer.felt.timerad`, `timer.maskinTimerad.*`, `timer.fjernTimerRad.*`, 15 språk):
+- **Maskinvinduet, «Timerad»:** felt som åpner lista over arbeidsradene («07:00–11:00 · 4 t»), tomt felt viser «— Velg timerad —». Forvalgt når det er én. «(valgfritt)» når maskinen leies pr. døgn, og da kan valget tømmes.
+- **Ingen arbeidsrad:** «Før timeraden maskinen gikk på først — maskinen står på den.» under feltet.
+- **«Flytt» av maskin til et kort uten arbeidsrad:** «Kortet har ingen timerad maskinen kan stå på. Før timeraden der først, eller velg et annet kort.»
+- **Timerad gjøres om til reise:** «Raden bærer maskinen «Volvo EC220E» og kan ikke bli reise. Flytt maskinen til en annen timerad, eller fjern den først.»
+- **Slett timerad med maskin (prosjektkort-modus):** som PC — «Slette timeraden?» og «Slett rad og maskiner».
+
 ## Web: 3d-visning (`dashbord/[prosjektId]/3d-visning/page.tsx:297-319`, ORDRE 3D-web 5 / gate (85) M3, 🟡 ikke merget)
 
 Siden hadde ikke ?-ikon før. `HjelpKnapp` står sist i verktøylinja, etter Snitt-gruppa (`3d.hjelp.*`, 15 språk):

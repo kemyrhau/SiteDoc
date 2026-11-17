@@ -39,6 +39,7 @@ import {
   effektiveTimerFraSpenn,
   hhmmTilMin,
   maskinBucketKapasitet,
+  maskinKreverTimerad,
   overstigerMaskinTak,
   pauseVinduFra,
   tilFraAntall,
@@ -63,6 +64,12 @@ import { RadHandlinger, type RadHandlingerProps } from "./prosjektkort/RadHandli
 import { useAuth } from "../../providers/AuthProvider";
 import { sistBrukteMaskiner } from "../../services/nyTimerRad";
 import { sikreLokalKortId } from "../../services/kortIdLokal";
+import { arbeidsraderIBotteLokalt } from "../../services/maskinKoblingLokal";
+import {
+  forvalgtTimeradId,
+  timeradSperre,
+  type TimeradKandidat,
+} from "../../utils/maskinTimerad";
 
 type MaskinKategori = "kjoretoy" | "anleggsmaskin" | "smautstyr";
 const MASKIN_KATEGORIER: MaskinKategori[] = [
@@ -130,6 +137,8 @@ export function MaskinSeksjon({
       enhet: string | null,
       fraTid: string | null,
       tilTid: string | null,
+      // Kort-id d2c-2 (R24): timeraden maskinen står på (null = uten timerad).
+      sheetTimerId: string | null,
     ) => {
       const db = hentDatabase();
       if (!db) return;
@@ -137,6 +146,7 @@ export function MaskinSeksjon({
         .values({
           id: randomUUID(),
           dagsseddelId: sheetId,
+          sheetTimerId,
           projectId: radProjectId,
           externalCostObjectId: ecoId,
           vehicleId,
@@ -166,11 +176,13 @@ export function MaskinSeksjon({
       enhet: string | null,
       fraTid: string | null,
       tilTid: string | null,
+      sheetTimerId: string | null,
     ) => {
       const db = hentDatabase();
       if (!db) return;
       db.update(sheetMachineLocal)
         .set({
+          sheetTimerId,
           projectId: radProjectId,
           externalCostObjectId: ecoId,
           vehicleId,
@@ -183,9 +195,11 @@ export function MaskinSeksjon({
         })
         .where(eq(sheetMachineLocal.id, radId))
         .run();
+      // Kort-id d2c-2: koblet maskin får timeradens kort-id (K6), som ved ny rad.
+      sikreLokalKortId(db, sheetId);
       onEndret();
     },
-    [onEndret],
+    [onEndret, sheetId],
   );
 
   const fjern = useCallback(
@@ -287,6 +301,7 @@ export function MaskinSeksjon({
             enhet,
             fraTid,
             tilTid,
+            sheetTimerId,
           ) => {
             if (redigerRadId) {
               oppdater(
@@ -299,6 +314,7 @@ export function MaskinSeksjon({
                 enhet,
                 fraTid,
                 tilTid,
+                sheetTimerId,
               );
             } else {
               leggTil(
@@ -310,6 +326,7 @@ export function MaskinSeksjon({
                 enhet,
                 fraTid,
                 tilTid,
+                sheetTimerId,
               );
             }
             setVisModal(false);
@@ -449,6 +466,7 @@ export function MaskinRadModal({
   pauseMin,
   eksisterendeRad,
   handlinger,
+  kortArbeidsrader,
   onLagre,
   onLukk,
 }: {
@@ -462,6 +480,9 @@ export function MaskinRadModal({
   /** ORDRE 36b: «Del opp»/«Slett» — kun fra prosjektkort-flyten. Udefinert
    *  (dagskortet) = ingen knapper, modalen som før. */
   handlinger?: RadHandlingerProps;
+  /** Kort-id d2c-2 (R24): kortets arbeidsrader — kun fra prosjektkort-flyten.
+   *  Udefinert (dagskortet) = bøttas arbeidsrader leses fra SQLite. */
+  kortArbeidsrader?: TimeradKandidat[];
   onLagre: (
     projectId: string,
     ecoId: string | null,
@@ -471,6 +492,7 @@ export function MaskinRadModal({
     enhet: string | null,
     fraTid: string | null,
     tilTid: string | null,
+    sheetTimerId: string | null,
   ) => void;
   onLukk: () => void;
 }) {
@@ -575,6 +597,10 @@ export function MaskinRadModal({
   const [visEquipmentVelger, setVisEquipmentVelger] = useState(false);
   const [visEnhetVelger, setVisEnhetVelger] = useState(false);
   const [visEcoVelger, setVisEcoVelger] = useState(false);
+  // Kort-id d2c-2 (R24): valgt timerad. undefined = ikke rørt (forvalg gjelder),
+  // null = bevisst tom (bare mulig når maskinen ikke krever timerad).
+  const [timeradValg, setTimeradValg] = useState<string | null | undefined>(undefined);
+  const [visTimeradVelger, setVisTimeradVelger] = useState(false);
 
   // B1/B2-synk (M5, 2026-07-10): pause-bevisst auto-synk antall ↔ fra/til, sist-
   // rørte felt vinner. Bruker standardPauseMin (B1: maskin følger føreren).
@@ -641,6 +667,29 @@ export function MaskinRadModal({
         .all()[0] ?? null
     );
   }, [valgtEcoId]);
+
+  // Kort-id d2c-2 (R24): timeradene maskinen kan stå på. Prosjektkortet sender
+  // kortets; dagskortet leser bøttas (prosjekt + underprosjekt) fra SQLite.
+  const arbeidsrader = useMemo<TimeradKandidat[]>(() => {
+    if (kortArbeidsrader) return kortArbeidsrader;
+    const db = hentDatabase();
+    if (!db) return [];
+    return arbeidsraderIBotteLokalt(
+      db,
+      sheetId,
+      { projectId: valgtProjectId, ecoId: valgtEcoId, sedelProjectId: defaultProjectId },
+      hentReiseLonnsartId(organizationId),
+    );
+  }, [kortArbeidsrader, sheetId, valgtProjectId, valgtEcoId, defaultProjectId, organizationId]);
+  const kreverTimerad = maskinKreverTimerad(valgtEquipment?.utleieEnhet ?? null);
+  const valgtTimeradId =
+    timeradValg === null
+      ? null
+      : forvalgtTimeradId(
+          timeradValg === undefined ? eksisterendeRad?.sheetTimerId : timeradValg,
+          arbeidsrader,
+        );
+  const valgtTimerad = arbeidsrader.find((r) => r.id === valgtTimeradId) ?? null;
 
   // Del 1: maskiner allerede brukt på seddelen — løftes øverst i velgeren.
   const bruktVehicleIds = useMemo(() => {
@@ -718,6 +767,12 @@ export function MaskinRadModal({
       setFeil(t("timer.feil.utstyrPaakrevd"));
       return;
     }
+    // Kort-id d2c-2 (R24): samme regel som serveren og PC (d2c-1).
+    const sperre = timeradSperre(valgtEquipment?.utleieEnhet ?? null, valgtTimeradId, arbeidsrader);
+    if (sperre) {
+      setFeil(t(`timer.maskinTimerad.${sperre}`));
+      return;
+    }
     const tall = parseFloat(timer.replace(",", "."));
     if (isNaN(tall) || tall <= 0 || tall > 24) {
       setFeil(t("timer.feil.ugyldigTimer"));
@@ -755,6 +810,7 @@ export function MaskinRadModal({
       enhet || null,
       fraTid,
       tilTid,
+      valgtTimeradId,
     );
   }
 
@@ -810,6 +866,26 @@ export function MaskinRadModal({
                   : null
               }
             />
+          </View>
+
+          {/* Kort-id d2c-2 (R24): timeraden maskinen gikk på. Påkrevd unntatt for
+              døgn-maskin; forvalgt når det bare er én arbeidsrad. */}
+          <View>
+            <Text className="mb-1 text-sm font-medium text-gray-700">
+              {t("timer.felt.timerad")}
+              {kreverTimerad ? " *" : ` (${t("label.valgfritt")})`}
+            </Text>
+            <VelgerFelt
+              verdi={valgtTimerad ? timeradTekst(t, valgtTimerad) : null}
+              placeholder={t("timer.maskinTimerad.placeholder")}
+              onPress={() => setVisTimeradVelger(true)}
+              onClear={!kreverTimerad && valgtTimerad ? () => setTimeradValg(null) : undefined}
+            />
+            {kreverTimerad && arbeidsrader.length === 0 && (
+              <Text className="mt-1 text-xs text-amber-700">
+                {t("timer.maskinTimerad.ingenArbeidsrad")}
+              </Text>
+            )}
           </View>
 
           <View>
@@ -934,6 +1010,18 @@ export function MaskinRadModal({
               setVisEquipmentVelger(false);
             }}
             onLukk={() => setVisEquipmentVelger(false)}
+          />
+        )}
+
+        {visTimeradVelger && (
+          <TimeradVelgerModal
+            rader={arbeidsrader}
+            valgtId={valgtTimeradId}
+            onVelg={(id) => {
+              setTimeradValg(id);
+              setVisTimeradVelger(false);
+            }}
+            onLukk={() => setVisTimeradVelger(false)}
           />
         )}
 
@@ -1241,6 +1329,71 @@ export function EnhetVelgerModal({
           >
             <Text className="flex-1 text-base text-gray-900">{e}</Text>
             {valgt === e && <Check size={18} color="#1e40af" />}
+          </Pressable>
+        ))}
+      </SafeAreaView>
+    </Modal>
+  );
+}
+
+/** Kort-id d2c-2: visningstekst for en timerad, som PC («07:00–11:00 · 4 t»). */
+export function timeradTekst(
+  t: (k: string, o?: Record<string, unknown>) => string,
+  r: Pick<TimeradKandidat, "fraTid" | "tilTid" | "timer">,
+): string {
+  return t("timer.maskinTimerad.valg", {
+    fra: r.fraTid ?? "",
+    til: r.tilTid ?? "",
+    timer: Number(r.timer.toFixed(2)).toString(),
+  });
+}
+
+/** Kort-id d2c-2: velg timeraden maskinen gikk på (maskinvinduet og «Flytt»). */
+export function TimeradVelgerModal({
+  rader,
+  valgtId,
+  tittel,
+  onVelg,
+  onLukk,
+}: {
+  rader: readonly TimeradKandidat[];
+  valgtId: string | null;
+  tittel?: string;
+  onVelg: (id: string) => void;
+  onLukk: () => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <Modal
+      visible={true}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={onLukk}
+    >
+      <SafeAreaView className="flex-1 bg-white" edges={["top"]}>
+        <View className="flex-row items-center gap-2 border-b border-gray-200 px-4 py-3">
+          <Text className="flex-1 text-lg font-semibold text-gray-900">
+            {tittel ?? t("timer.felt.timerad")}
+          </Text>
+          <Pressable onPress={onLukk} hitSlop={12}>
+            <X size={24} color="#1f2937" />
+          </Pressable>
+        </View>
+        {rader.length === 0 && (
+          <Text className="px-4 py-3 text-sm text-gray-500">
+            {t("timer.maskinTimerad.ingenArbeidsrad")}
+          </Text>
+        )}
+        {rader.map((r) => (
+          <Pressable
+            key={r.id}
+            onPress={() => onVelg(r.id)}
+            className={`flex-row items-center border-b border-gray-100 px-4 py-3 ${
+              valgtId === r.id ? "bg-blue-50" : ""
+            }`}
+          >
+            <Text className="flex-1 text-base text-gray-900">{timeradTekst(t, r)}</Text>
+            {valgtId === r.id && <Check size={18} color="#1e40af" />}
           </Pressable>
         ))}
       </SafeAreaView>

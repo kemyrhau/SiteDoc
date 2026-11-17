@@ -76,6 +76,11 @@ const BEKREFT_DAG_PROPS = [
   "normtakGrense",
   // ORDRE (33) c1 K5: én beskrivelse pr. kort — kun prosjektkort-modus (dagskort-modus røres ikke).
   "skrivKortBeskrivelse",
+  // Kort-id d2c-2 (R24): kortets arbeidsrader, slett-bekreftelsen med maskiner og
+  // «Flytt» til timerad — kun prosjektkort-modus. Dagskort-modus får bare feltet «Timerad».
+  "kortArbeidsrader",
+  "fjernTimerRadMedMaskiner",
+  "maskinerSomKreverRadenLokalt",
 ];
 
 describe("ORDRE 34 — dagskortet er isolert fra Bekreft dag", () => {

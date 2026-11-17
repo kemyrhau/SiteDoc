@@ -764,6 +764,16 @@ R24 gjelder nå også når arbeideren fører på PC (`apps/api/src/routes/timer/
 
 Telefonen fører lokalt og synker med `syncBatch`, som er uendret (vakt i `kortid-d2c1.integration.test.ts`). Telefonens sperre kommer i d2c-2. Kode og tester: [prosjektkort-kortid-spec.md § 12.10](prosjektkort-kortid-spec.md).
 
+### Sperren ved føring på telefonen (ordre d2c-2) — 🟡 `feat/kortid-d2c2-mobil`, ikke merget
+
+R24 gjelder nå også når arbeideren fører på telefonen, uten nett:
+- Maskinlista lagrer maskinens utleieenhet lokalt (`equipment_local.utleie_enhet`). Ukjent enhet krever timerad.
+- Maskinvinduet har feltet «Timerad» i begge moduser, forvalgt når det er én arbeidsrad. Uten valgt timerad lagres ikke en maskin som krever det. Døgn-maskin kan stå uten.
+- Prosjektkort-modus: sletting av en timerad med maskin krever bekreftelse som navngir maskinene, og de slettes sammen med raden. «Flytt» av maskin går til en timerad i målkortet. Splitt arver koblingen.
+- En timerad som bærer en slik maskin, kan ikke bli reise.
+
+Kode og tester: [prosjektkort-kortid-spec.md § 12.12](prosjektkort-kortid-spec.md).
+
 ### Attesteringstabellen (ordre d2b-1) — 🟢 merget 2026-11-16, ikke deployet
 
 Sedler-fanen på `/dashbord/firma/timer/attestering` er en tabell (`AttesteringTabell.tsx`, modell `attestering-tabell.ts` i `apps/web/src/components/attestering/`):

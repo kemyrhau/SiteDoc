@@ -22,7 +22,7 @@ import {
 } from "../../../lib/prosjektkortMobil";
 import { erReiseRadVisning } from "../../../utils/reiseRad";
 import type { MaskinRad, TimerRad } from "../../../types/timer-detalj";
-import { oppdaterTimerRad, type RadKontekst } from "./radLagring";
+import { fjernTimerRad, oppdaterTimerRad, type RadKontekst } from "./radLagring";
 import { sikreLokalKortId } from "../../../services/kortIdLokal";
 
 type LokalDb = NonNullable<ReturnType<typeof hentDatabase>>;
@@ -119,25 +119,66 @@ export function flyttTimerRad(db: LokalDb, kontekst: RadKontekst, rad: TimerRad,
 }
 
 /**
- * Flytt en maskin-rad alene. Er den koblet til en timer-rad, kobles den løs
- * (`sheetTimerId = null`) — ellers ville neste lagring av timer-raden dratt
- * den tilbake. Kapasitetssjekken gjøres av kalleren før flytt.
+ * Flytt en maskin-rad alene. Kapasitetssjekken gjøres av kalleren før flytt.
+ * Kort-id d2c-2 (R24): `sheetTimerId` er timeraden i målkortet maskinen skal stå
+ * på — kalleren har valgt den for en maskin som krever timerad. Utelatt (døgn-
+ * maskin) → maskinen kobles løs som før, ellers ville neste lagring av den gamle
+ * timer-raden dratt den tilbake.
  * Kontrollør A1 (ordre c): kort-id-en følger flyttet — målkortets id når den er
  * gitt, ellers `null` så normaliseringen (`sikreLokalKortId`, kalleren) utleder
  * den på nytt. Den gamle id-en blir aldri stående på en ny nøkkel.
  */
-export function flyttMaskinRad(db: LokalDb, radId: string, til: FlyttMaal): void {
+export function flyttMaskinRad(
+  db: LokalDb,
+  radId: string,
+  til: FlyttMaal,
+  sheetTimerId: string | null = null,
+): void {
   db.update(sheetMachineLocal)
     .set({
       projectId: til.projectId,
       byggeplassId: til.byggeplassId,
       externalCostObjectId: til.ecoId,
-      sheetTimerId: null,
+      sheetTimerId,
       kortId: til.kortId ?? null,
       sistEndretLokalt: Date.now(),
     })
     .where(eq(sheetMachineLocal.id, radId))
     .run();
+}
+
+/**
+ * Kort-id d2c-2 (spec § 12.2 «Sperren ved føring», HM67 a): slett en timerad og
+ * maskinene som krever den (R24). Kalleren har vist bekreftelsen som navngir dem
+ * (`maskinerSomKreverRadenLokalt`). Døgn-maskiner og varer blir stående i kortet
+ * uten rad, som før. Raden slettes først (samme sti som før, `fjernTimerRad`); så
+ * maskinene, med tombstone, i én transaksjon. Stopper det mellom de to, står
+ * maskinene under «Uten rad» som før — ingenting slettes uten at raden er borte.
+ */
+export function fjernTimerRadMedMaskiner(
+  db: LokalDb,
+  kontekst: RadKontekst,
+  radId: string,
+  maskinIder: readonly string[],
+): void {
+  fjernTimerRad(db, kontekst, radId);
+  if (maskinIder.length === 0) return;
+  db.transaction((tx) => {
+    for (const id of maskinIder) {
+      // Bare maskiner som faktisk sto på raden — en id fra et gammelt skjermbilde røres ikke.
+      const [m] = tx
+        .select({ sheetTimerId: sheetMachineLocal.sheetTimerId })
+        .from(sheetMachineLocal)
+        .where(eq(sheetMachineLocal.id, id))
+        .all();
+      if (!m || m.sheetTimerId !== radId) continue;
+      tx.delete(sheetMachineLocal).where(eq(sheetMachineLocal.id, id)).run();
+      tx.insert(slettedeRaderLocal)
+        .values({ radId: id, dagsseddelId: kontekst.sheetId, radType: "maskin", slettetVed: Date.now() })
+        .onConflictDoNothing()
+        .run();
+    }
+  });
 }
 
 /**
