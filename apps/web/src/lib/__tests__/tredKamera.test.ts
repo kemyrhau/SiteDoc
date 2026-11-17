@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { zoomSteg, ZOOM_MIN_STEG_M } from "@sitedoc/shared";
+import { zoomSteg, ZOOM_MIN_STEG_M } from "@sitedoc/shared/tred";
 import {
   avstandEtterSteg, flyttLangsBlikk, hjulAvstand, orbitPunkt, utliggereBlant, utliggereSomKanVises, utliggerePrModell, panTargetPaaModellDybde, MIN_PAN_DYBDE } from "../tredKamera";
 
@@ -226,4 +226,15 @@ describe("utliggere — kobling i tred-viewer-kontekst og 3d-visning", () => {
     expect(side).toContain('{t("3d.visObjekterLangtUnna")} ({antallUtliggere})');
     expect(side).toContain("void settVisUtliggere(e.target.checked);");
   });
+});
+
+/** Gate (85) M2 — 3D-hjelperne hentes fra subpathen, ikke barrel-en (zod, nb.json m.m.). */
+describe("import fra @sitedoc/shared/tred", () => {
+  for (const fil of ["../tredKamera.ts", "../../kontekst/tred-viewer-kontekst.tsx"]) {
+    it(`${fil} importerer 3D-hjelperne fra subpathen`, () => {
+      const kilde = readFileSync(resolve(__dirname, fil), "utf8");
+      expect(kilde).toMatch(/from "@sitedoc\/shared\/tred";/);
+      expect(kilde).not.toMatch(/from "@sitedoc\/shared";/);
+    });
+  }
 });

@@ -2,7 +2,7 @@
  * Kamera-regler for 3D-vieweren (ren geometri, uten three.js — testbar).
  */
 
-import { ZOOM_MIN_STEG_M, zoomSteg } from "@sitedoc/shared";
+import { ZOOM_MIN_STEG_M, zoomSteg } from "@sitedoc/shared/tred";
 
 export interface Vec3 {
   x: number;
