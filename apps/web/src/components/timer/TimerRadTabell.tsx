@@ -520,12 +520,14 @@ function Hodecelle({
       {bredde && <BreddeHandtak aktiv={bredde.aktiv} onMouseDown={bredde.start} />}
     </>
   );
-  const klasse = `group relative flex items-center ${brytes ? "pl-1.5 pr-1" : "px-2"} py-2 ${num ? "justify-end text-right" : "text-left"} ${
+  // Kompakt (w5b retur 1): filterikonet uten egen venstremarg, så korte overskrifter som
+  // «Avvik» står hele ved 1 440 (målt).
+  const klasse = `group relative flex items-center ${brytes ? "pl-1.5 pr-1 [&>div>button]:ml-0" : "px-2"} py-2 ${num ? "justify-end text-right" : "text-left"} ${
     onSorter ? "cursor-pointer select-none hover:text-gray-700" : ""
   }`;
   if (flyttbar) {
     return (
-      <FlyttbarHodecelle k={k} overskrift={overskrift} klasse={klasse} hodeRef={hodeRef} onClick={onSorter}>
+      <FlyttbarHodecelle k={k} overskrift={overskrift} klasse={klasse} kompakt={brytes} hodeRef={hodeRef} onClick={onSorter}>
         {innhold}
       </FlyttbarHodecelle>
     );
@@ -541,6 +543,7 @@ function FlyttbarHodecelle({
   k,
   overskrift,
   klasse,
+  kompakt,
   hodeRef,
   onClick,
   children,
@@ -548,6 +551,8 @@ function FlyttbarHodecelle({
   k: TimerTabellKolKey;
   overskrift: string;
   klasse: string;
+  /** Kompakt hode: innrykket er nøyaktig håndtakets bredde (left-0.5 + 12 px = 14 px). */
+  kompakt?: boolean;
   hodeRef: (el: HTMLDivElement | null) => void;
   onClick?: () => void;
   children: ReactNode;
@@ -557,7 +562,7 @@ function FlyttbarHodecelle({
   return (
     <div
       ref={(el) => { hodeRef(el); setNodeRef(el); }}
-      className={`${klasse} pl-4`}
+      className={`${klasse} ${kompakt ? "pl-3.5" : "pl-4"}`}
       style={flyttStil}
       onClick={onClick}
       data-kolonne={k}

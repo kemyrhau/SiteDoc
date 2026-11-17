@@ -87,7 +87,10 @@ const HOYRE = 176;
  * overskrifter (`HODE_KORT`). Dratt bredde vinner fortsatt (R6). Rapportens Detaljer bruker
  * den delte lista uendret. w5b: dato og ansatt er bredere så dagsraden viser «ons. 18.11.» og
  * et vanlig navn helt (målt 1 440); plassen er tatt fra Vare og mengde, Maskintimer,
- * Betegnelse, Pr.nr., Maskin og Avvik, så summen er den samme.
+ * Betegnelse, Pr.nr., Maskin og Avvik, så summen er den samme. w5b retur 1: alle
+ * overskriftene står hele ved 1 440 — det kompakte hodet har 14 px innrykk og filterikonet
+ * uten venstremarg (`TimerRadTabell`), og Avvik/Maskintimer har fått 2/4 px fra Vare og
+ * mengde, Timer og Antall (målt: ingen hodecelle med scrollWidth > clientWidth).
  */
 const ATTESTERING_BREDDE: Partial<Record<TimerTabellKolKey, number>> = {
   dato: 84,
@@ -98,16 +101,15 @@ const ATTESTERING_BREDDE: Partial<Record<TimerTabellKolKey, number>> = {
   fraTil: 94,
   fraTid: 56,
   tilTid: 56,
-  timer: 56,
+  timer: 54,
   maskin: 78,
-  maskintimer: 62,
-  vareOgMengde: 70,
-  antall: 56,
+  maskintimer: 66,
+  vareOgMengde: 68,
+  antall: 54,
   belop: 54,
-  avvik: 66,
+  avvik: 68,
 };
 
-/** Kolonner med kortere overskrift i hodet; full tittel ved hover. */
 /**
  * Kantfargene i en dagsblokk (w5b, B14 A): dagsraden har mørk blå; jobbene får hver sin farge
  * i rekkefølge, så to jobber samme dag skilles fra hverandre.
@@ -115,6 +117,7 @@ const ATTESTERING_BREDDE: Partial<Record<TimerTabellKolKey, number>> = {
 const DAG_KANT = "border-blue-700";
 const KORT_KANT = ["border-blue-400", "border-amber-500", "border-emerald-500", "border-violet-500", "border-rose-500"] as const;
 
+/** Kolonner med kortere overskrift i hodet; full tittel ved hover. */
 const HODE_KORT: ReadonlySet<TimerTabellKolKey> = new Set<TimerTabellKolKey>(["prosjektnummer", "underprosjekt", "betegnelse", "maskintimer"]);
 
 interface Props {

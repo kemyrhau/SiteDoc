@@ -77,7 +77,7 @@ type AttesteringRad = {
   // T.11: leder-synlighet — maskinarbeid uten gyldig maskinførerbevis.
   manglerMaskinforerbevis: boolean;
   // LAG 2 D1: sedelens norm-status (DailySheet.normStatus, via ...s-spread i
-  // hentTilAttesteringFirma). Driver norm-merket i dagsumraden.
+  // hentTilAttesteringFirma). Driver norm-merket i dagsraden.
   normStatus: "server" | "cachet" | "ukjent" | null;
   // V19-C (C-2): uavklart PC/mobil-overlapp (DailySheet.konfliktVentendeSiden, via
   // ...s-spread). Blokkerer ✓ i tabellen. Lista leser ALDRI forslagsradene (M15).
