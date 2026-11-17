@@ -2,8 +2,8 @@
 name: web-timeforing-plan
 description: Plan med bilder steg for steg for timeføring på web — «+ Registrer timer» åpner én samlet registrering pr. jobb (fra/til, lønnsart, hva gjorde du, maskiner, varer, tillegg, utlegg), prosjekt og byggeplass utledet, dagen summeres etter hvert, overtid som egen linje mot dagsnormen for datoen, underprosjekt i jobbens hode, firmavalg for maskin med fra–til, og attestering med 11 kjernekolonner der et klikk åpner registreringen og lar attestanten dele opp. Målt mot dagens web og telefon. B1–B11 vedtatt; B12–B13 åpne.
 sist_verifisert_mot_kode: 2026-11-17 (develop @ `b8b16571`; timer-koden er uendret siden `3b0f1abb`)
-eier: fabel (plan) — orkestrator gater kode; Kenneth vedtar B12–B13 (§ 8)
-status: 🟡 FORSLAG 2026-11-17, versjon 4 — Kenneths svar på B1–B11 (§ 8.1) er arbeidet inn som føringer (§ 1.2). Ingen kode. Åpent: B12–B13 (§ 8).
+eier: fabel (plan) — orkestrator gater kode; Kenneth har vedtatt B1–B13 (§ 8.1)
+status: 🟡 FORSLAG 2026-11-17, versjon 4 — Kenneths svar på B1–B11 (§ 8.1) er arbeidet inn som føringer (§ 1.2). Ingen kode. B12–B13 besvart 2026-11-17 (A, § 8.1). Ingen åpne spørsmål.
 ---
 
 # Timeføring på web — plan med bilder (FORSLAG)
@@ -583,6 +583,8 @@ B1–B11 er besvart (§ 8.1) og står som føringer i § 1.2. To spørsmål er �
 | **Tillegg** | *«vi viser i dag åååå.mm.dd, vi trenger bare dd.mm. for å bytte år så gjør vi heller det som en egen handling.»* | Datokolonnen i attesteringen viser dd.mm. Året velges som egen handling (årsvelger/filter), ikke i hver linje. |
 | **B10** | Ja | Alle som kan attestere linja, får rette og dele opp når «rediger ved attestering» er på. |
 | **B11** | Ja. *«jeg foretrekker underprosjekt som nedtreksmeny dersom det blir for mange underprosjekter -> disse bør være søkbare»* | «Uten» forhåndsvalgt. Få underprosjekter: knapper. Mange: søkbar nedtrekk (adaptiv nedtrekk, `retningslinjer/ui-standarder.md`). |
+| **B12** | A (Kenneth 2026-11-17) | Ved innføring: «Ja» for firma i dagskort-modus (beholder feltene), «Nei» for firma i prosjektkort-modus og for nye firma. Låser w6. |
+| **B13** | A (Kenneth 2026-11-17) | Antall (tillegg) og Beløp (utlegg) legges i kjernen — 13 kolonner som standard. Låser w5. |
 
 Tabellen står som orkestrator førte den. Det den kaller umålt (B1, B4, B5), er målt i versjon 4: WM57–WM67.
 
