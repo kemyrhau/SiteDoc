@@ -156,8 +156,8 @@ describe("T44 — ingenting attestanten trenger ligger bare i title eller bak ho
   });
 });
 
-describe("T59 (web) — gjenåpne står på attestert linje og i oversiktsraden", () => {
-  it("↺ på linja sender linjas rader; oversiktsraden har sin egen ↺", () => {
+describe("T59 (web) — gjenåpne står på attestert linje og for jobben", () => {
+  it("↺ på linja sender linjas rader; jobben har sin egen ↺ (w5b: i dagsraden når dagen har én jobb)", () => {
     const { container, getAllByRole } = vis([sedel({ timer: [timer("t1", { attestertStatus: "attestert" })] })]);
     fireEvent.click(within(linje(container, "s1:timer:t1")).getByRole("button", { name: "timer.attestering.tabell.gjenaapneLinje" }));
     expect(kallTil("gjenaapneRader")[0]!.input).toEqual({ radIder: { timerIder: ["t1"], maskinIder: [], tilleggIder: [] } });
@@ -399,11 +399,14 @@ describe("d2b-3 (c, e) — dagsnorm på detaljen og ukeavvikets tekst", () => {
     expect(d).not.toMatch(/tilleggHarKrav: false/);
   });
 
-  it("med dagsnorm teller «over normen» i «Krever vurdering», og dagteksten står", () => {
+  it("med dagsnorm teller «over normen» i «Krever vurdering», og dagteksten står (w5b: på hover av merket)", () => {
     const { container } = visMed([sedel({ totaltimer: 9, dagsnorm: 7.5 })]);
-    expect(container.textContent).toMatch(/dagenAvNorm/);
+    expect(container.textContent).toMatch(/normMerke/);
+    expect(document.body.textContent).toMatch(/dagenAvNorm/);
+    cleanup();
     const uten = visMed([sedel({ totaltimer: 9, dagsnorm: null })]);
-    expect(uten.container.textContent).not.toMatch(/dagenAvNorm/);
+    expect(uten.container.textContent).not.toMatch(/normMerke/);
+    expect(document.body.textContent).not.toMatch(/dagenAvNorm/);
     const vurder = (dagsnorm: number | null) =>
       filtrerModell(byggAttesteringModell([sedel({ totaltimer: 9, dagsnorm })], deps), {
         verdier: { avvik: AVVIK_FILTER.kreverVurdering },
@@ -579,5 +582,142 @@ describe("w5 / WM54 — penn og ✂ bare når «rediger ved attestering» er på
     const l = linje(container, "s1:timer:t1");
     expect(within(l).getByRole("button", { name: "timer.attestering.meny.splittRad" })).toBeTruthy();
     expect(within(l).getByRole("button", { name: "timer.attestering.meny.rediger" })).toBeTruthy();
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/*  w5b (B14 A) — dagsrad øverst, jobbrad når dagen har flere jobber    */
+/* ------------------------------------------------------------------ */
+
+describe("w5b — dagsvisningen, alternativ A", () => {
+  const dagsrader = (c: HTMLElement) => Array.from(c.querySelectorAll('[data-rad="dag"]')) as HTMLElement[];
+  const jobbrader = (c: HTMLElement) => Array.from(c.querySelectorAll('[data-rad="jobb"]')) as HTMLElement[];
+  const venstreKant = (el: HTMLElement) => (el.firstElementChild as HTMLElement).className.match(/border-(blue|amber|emerald|violet|rose)-\d+/)?.[0];
+
+  it("én jobb: dagsraden bærer dato med ukedag, ansatt, pr.nr., «1 jobb», sum og dagens knapper — ingen jobbrad", () => {
+    const { container } = vis([sedel()]);
+    const [dag] = dagsrader(container);
+    expect(dagsrader(container)).toHaveLength(1);
+    expect(jobbrader(container)).toHaveLength(0);
+    expect(dag!.textContent).toMatch(/\S+ 16\.11\./);
+    expect(dag!.textContent).toContain("Kari Nordmann");
+    expect(dag!.textContent).toContain("1001");
+    expect(dag!.textContent).toContain('antallJobber{"count":1}');
+    expect(dag!.textContent).toContain("7,50");
+    expect(within(dag!).getByRole("button", { name: "timer.attestering.tabell.attesterDagen" })).toBeTruthy();
+    expect(within(dag!).getByRole("button", { name: "timer.attestering.returner" })).toBeTruthy();
+    // Dagsummen nederst er borte, og jobbens ✓ ↩ står ikke som egne knapper (dagens dekker dem).
+    expect(container.textContent).not.toMatch(/tabell\.dagsum/);
+    expect(container.querySelectorAll('[aria-label="timer.attestering.tabell.attesterKort"]')).toHaveLength(0);
+    // Linja skriver ikke dato, ansatt og pr.nr. på nytt.
+    const l = linje(container, "s1:timer:t1");
+    expect(l.textContent).not.toContain("16.11.");
+    expect(l.textContent).not.toContain("Kari Nordmann");
+    expect(l.textContent).not.toContain("1001");
+    expect(l.textContent).toContain("7,50");
+  });
+
+  it("to jobber: én dagsrad, så hver jobb med egen jobbrad, egen kantfarge og egne knapper", () => {
+    const { container } = vis([toProsjekter()]);
+    const [dag] = dagsrader(container);
+    const jobb = jobbrader(container);
+    expect(dagsrader(container)).toHaveLength(1);
+    expect(jobb).toHaveLength(2);
+    expect(dag!.textContent).toContain('antallJobber{"count":2}');
+    expect(dag!.textContent).not.toContain("1001");
+    expect(dag!.textContent).toContain("15,00");
+    expect(jobb[0]!.textContent).toContain("1001");
+    expect(jobb[1]!.textContent).toContain("SD-2");
+    for (const j of jobb) {
+      expect(within(j).getByRole("button", { name: "timer.attestering.tabell.attesterKort" })).toBeTruthy();
+      expect(within(j).getByRole("button", { name: "timer.attestering.tabell.returnerKort" })).toBeTruthy();
+    }
+    // Rekkefølgen: dagsrad, jobb A, linja på A, jobb B, linja på B.
+    const rekke = Array.from(container.querySelectorAll("[data-rad], [data-linje]")).map((e) => e.getAttribute("data-rad") ?? e.getAttribute("data-linje"));
+    expect(rekke).toEqual(["dag", "jobb", "s1:timer:t1", "jobb", "s1:timer:t2"]);
+    // Kortene skilles: hver sin kantfarge på jobbraden og linjene, og strek over jobbraden.
+    const a = venstreKant(jobb[0]!), b = venstreKant(jobb[1]!);
+    expect(a).toBeTruthy();
+    expect(b).toBeTruthy();
+    expect(a).not.toBe(b);
+    expect(venstreKant(linje(container, "s1:timer:t1"))).toBe(a);
+    expect(venstreKant(linje(container, "s1:timer:t2"))).toBe(b);
+    for (const j of jobb) expect(j.className).toContain("border-t");
+    // Én ramme pr. dag: luften kommer etter dagens siste rad, ikke mellom jobbene.
+    const slutt = container.querySelectorAll("[data-blokk-slutt]");
+    expect(slutt).toHaveLength(1);
+    expect(slutt[0]!.querySelector('[data-linje="s1:timer:t2"]')).toBeTruthy();
+    // Linja på jobb B skriver ikke pr.nr. når det er likt jobbens.
+    expect(linje(container, "s1:timer:t2").textContent).not.toContain("SD-2");
+  });
+
+  it("to dager gir to blokker med luft etter hver", () => {
+    const { container } = vis([sedel(), sedel({ id: "s2", dato: "2026-11-17", timer: [timer("t9")] })]);
+    expect(dagsrader(container)).toHaveLength(2);
+    expect(container.querySelectorAll("[data-blokk-slutt]")).toHaveLength(2);
+  });
+
+  it("«Bare oversiktsrader»: én jobb blir én rad; to jobber gir dagsrad og jobbrader", () => {
+    const { container, getByLabelText } = vis([sedel(), sedel({ id: "s2", dato: "2026-11-17", timer: [timer("t3"), timer("t4", { projectId: "pB", project: Q, kortId: "kB" })] })]);
+    fireEvent.click(getByLabelText("timer.attestering.tabell.bareOversikt"));
+    expect(container.querySelectorAll("[data-linje]")).toHaveLength(0);
+    expect(dagsrader(container)).toHaveLength(2);
+    expect(jobbrader(container)).toHaveLength(2);
+    // Dagen med én jobb er nå én rad: dagsraden er også blokkens siste rad.
+    const slutt = Array.from(container.querySelectorAll("[data-blokk-slutt]"));
+    expect(slutt).toHaveLength(2);
+    expect(slutt[0]!.querySelector('[data-rad="dag"]')).toBeTruthy();
+  });
+
+  it("sortering gir flat liste: bare linjer, og dato, ansatt og pr.nr. står på hver linje igjen", () => {
+    const { container, getByText } = vis([toProsjekter()]);
+    fireEvent.click(getByText("timer.eksport.kolTimer"));
+    expect(container.querySelectorAll("[data-rad]")).toHaveLength(0);
+    expect(container.querySelectorAll("[data-blokk-slutt]")).toHaveLength(0);
+    const l = linje(container, "s1:timer:t1");
+    expect(l.textContent).toContain("16.11.");
+    expect(l.textContent).toContain("Kari Nordmann");
+    expect(l.textContent).toContain("1001");
+    expect(l.className).not.toMatch(/border-amber|border-emerald/);
+  });
+
+  it("normen står som merke bare når dagen avviker, med fortegn", () => {
+    const over = vis([sedel({ totaltimer: 8, dagsnorm: 7.5 })]);
+    expect(dagsrader(over.container)[0]!.textContent).toContain('normMerke{"avvik":"+0,5"}');
+    cleanup();
+    const under = vis([sedel({ totaltimer: 6, dagsnorm: 7.5 })]);
+    expect(dagsrader(under.container)[0]!.textContent).toContain('normMerke{"avvik":"−1,5"}');
+    cleanup();
+    const lik = vis([sedel({ totaltimer: 7.5, dagsnorm: 7.5 })]);
+    expect(lik.container.textContent).not.toMatch(/normMerke|dagenAvNorm/);
+  });
+
+  it("«Etter prosjekt»: ingen dagsrad med «N jobber» — hver jobb er en blokk med dato og ansatt", () => {
+    const { container } = visMed([toProsjekter()], { gruppering: "prosjekt" });
+    const blokker = dagsrader(container);
+    expect(blokker).toHaveLength(2);
+    for (const b of blokker) {
+      expect(b.textContent).toContain("16.11.");
+      expect(b.textContent).toContain("Kari Nordmann");
+      expect(b.textContent).not.toMatch(/antallJobber/);
+      expect(within(b).getByRole("button", { name: "timer.attestering.tabell.attesterKort" })).toBeTruthy();
+    }
+    expect(container.querySelectorAll("[data-blokk-slutt]")).toHaveLength(2);
+  });
+
+  it("prosjektets attestering: dagsradens «Attester» gjelder prosjektets del, og jobbradene står", () => {
+    const { container } = visMed([toProsjekter()], { prosjektKontekst: "pA" });
+    const [dag] = dagsrader(container);
+    expect(within(dag!).getByRole("button", { name: /attesterProsjektetsDel/ })).toBeTruthy();
+    expect(jobbrader(container)).toHaveLength(2);
+    // Jobben på det andre prosjektet har ingen knapper.
+    expect(within(jobbrader(container)[1]!).queryAllByRole("button")).toHaveLength(0);
+  });
+
+  it("klikk på en linje åpner registreringen inne i blokka, før dagens luft", () => {
+    const { container } = vis([sedel()]);
+    fireEvent.click(linje(container, "s1:timer:t1"));
+    const slutt = container.querySelector("[data-blokk-slutt]") as HTMLElement;
+    expect(slutt.querySelector("[data-registrering]")).toBeTruthy();
   });
 });

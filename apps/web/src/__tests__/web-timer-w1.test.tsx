@@ -279,16 +279,20 @@ describe("w1 — datoen som «17.11.»", () => {
     expect(spennerFlereAar([{ dato: "2026-12-31" }, { dato: "2027-01-01" }])).toBe(true);
   });
 
-  it("tabellen viser 17.11. i linja og oversiktsraden — ikke 2026-11-17", () => {
+  // w5b (B14 A): datoen står én gang, i dagsraden; linja skriver den ikke på nytt.
+  const dagsrad = (c: HTMLElement, i: number) => c.querySelectorAll('[data-rad="dag"]')[i] as HTMLElement;
+
+  it("tabellen viser 17.11. i dagsraden — ikke 2026-11-17", () => {
     const { container } = vis([sedel()]);
-    expect(linje(container, "s1:timer:t1")!.textContent).toContain("17.11.");
+    expect(dagsrad(container, 0).textContent).toContain("17.11.");
     expect(container.textContent).not.toContain("2026-11-17");
   });
 
   it("dager fra to år (prosjektets attestering har ikke ukevalg): året står med", () => {
     const { container } = vis([sedel(), sedel({ id: "s0", dato: "2025-11-17" })]);
-    expect(linje(container, "s1:timer:t1")!.textContent).toContain("17.11.2026");
-    expect(linje(container, "s0:timer:t1")!.textContent).toContain("17.11.2025");
+    const tekst = [dagsrad(container, 0).textContent, dagsrad(container, 1).textContent].join(" | ");
+    expect(tekst).toContain("17.11.2026");
+    expect(tekst).toContain("17.11.2025");
   });
 
   it("eksporten (Excel/CSV/PDF) bruker ikke skjermens formatering — året står", () => {

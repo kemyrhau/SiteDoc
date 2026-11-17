@@ -61,10 +61,11 @@ export interface UkeoversiktApi {
 /**
  * Firma-attesteringens Sedler-fane som tabell (spec prosjektkort-kortid d2b-1, § 12.8.5).
  *
- * Dagseddel → prosjektsedler (kort) → linjer. Hvert kort har en oversiktsrad (R4) med ✓,
- * retur og gjenåpne for kortet; linjene har sine egne (R10, R23); dagseddelens sum står i
- * en rad nederst med «Attester dagen» / «Gjenåpne dagen» og lenke til sedelen — uten
- * retting (Kenneth runde 3). Retting skjer i cella på linja (R21).
+ * Dagseddel → prosjektsedler (kort) → linjer, som én blokk pr. dag (w5b, B14 A): en blå
+ * dagsrad øverst med dato, ansatt, dagens sum, normmerket og «Attester dagen» / «Gjenåpne
+ * dagen» og lenke til sedelen. Har dagen flere kort, får hvert kort en jobbrad med ✓, retur
+ * og gjenåpne (R4) og sin egen kantfarge; med ett kort står kortets felt og ↺ i dagsraden.
+ * Linjene har sine egne knapper (R10, R23). Retting skjer i cella på linja (R21).
  *
  * Én verktøylinje (R17): sidens uke/gruppering/fane kommer inn som `verktoy`, resten
  * eies her. Filter, sortering og «bare oversiktsrader» gjelder besøket (R7).
@@ -84,25 +85,37 @@ const HOYRE = 176;
  * kjernekolonnene står uten sidelengs rulling på en skjerm på 1 440 (målt: 1 170 px til
  * tabellen ved fast meny, minus 36 + 176 til de faste kolonnene). Hodet er kompakt med korte
  * overskrifter (`HODE_KORT`). Dratt bredde vinner fortsatt (R6). Rapportens Detaljer bruker
- * den delte lista uendret.
+ * den delte lista uendret. w5b: dato og ansatt er bredere så dagsraden viser «ons. 18.11.» og
+ * et vanlig navn helt (målt 1 440); plassen er tatt fra Vare og mengde, Maskintimer,
+ * Betegnelse, Pr.nr., Maskin og Avvik, så summen er den samme. w5b retur 1: alle
+ * overskriftene står hele ved 1 440 — det kompakte hodet har 14 px innrykk og filterikonet
+ * uten venstremarg (`TimerRadTabell`), og Avvik/Maskintimer har fått 2/4 px fra Vare og
+ * mengde, Timer og Antall (målt: ingen hodecelle med scrollWidth > clientWidth).
  */
 const ATTESTERING_BREDDE: Partial<Record<TimerTabellKolKey, number>> = {
-  dato: 68,
-  ansatt: 86,
-  prosjektnummer: 72,
+  dato: 84,
+  ansatt: 104,
+  prosjektnummer: 70,
   underprosjekt: 88,
-  betegnelse: 78,
+  betegnelse: 74,
   fraTil: 94,
   fraTid: 56,
   tilTid: 56,
-  timer: 56,
-  maskin: 82,
-  maskintimer: 68,
-  vareOgMengde: 84,
-  antall: 56,
+  timer: 54,
+  maskin: 78,
+  maskintimer: 66,
+  vareOgMengde: 68,
+  antall: 54,
   belop: 54,
-  avvik: 70,
+  avvik: 68,
 };
+
+/**
+ * Kantfargene i en dagsblokk (w5b, B14 A): dagsraden har mørk blå; jobbene får hver sin farge
+ * i rekkefølge, så to jobber samme dag skilles fra hverandre.
+ */
+const DAG_KANT = "border-blue-700";
+const KORT_KANT = ["border-blue-400", "border-amber-500", "border-emerald-500", "border-violet-500", "border-rose-500"] as const;
 
 /** Kolonner med kortere overskrift i hodet; full tittel ved hover. */
 const HODE_KORT: ReadonlySet<TimerTabellKolKey> = new Set<TimerTabellKolKey>(["prosjektnummer", "underprosjekt", "betegnelse", "maskintimer"]);
@@ -129,7 +142,7 @@ interface Props {
 }
 
 export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt, gruppering = "dag", sedelUrl, onReturnerDag, prosjektKontekst }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const utils = trpc.useUtils();
   const oppsett = useTabelloppsett({
     liste: LISTE,
@@ -396,7 +409,6 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
   function kortHandlinger(kort: AttKort) {
     const egne = kort.linjer.filter(iKontekst);
     const ventende = egne.filter((l) => l.harHandling && l.ventende);
-    const attesterte = egne.filter((l) => l.harHandling && l.attestert);
     const sperre = kort.linjer.find((l) => l.sperre)?.sperre;
     return (
       <span className="flex items-center gap-1">
@@ -406,12 +418,18 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
             {handlingKnapp({ ikon: <CornerUpLeft className="h-4 w-4" />, tekst: t("timer.attestering.tabell.returnerKort"), onClick: () => setReturner(slaaSammen(ventende)) })}
           </>
         )}
-        {attesterte.length > 0 &&
-          handlingKnapp({ ikon: <RotateCcw className="h-4 w-4" />, tekst: t("timer.attestering.tabell.gjenaapneKort"), disabled: opptatt, onClick: () => gjenaapne(slaaSammen(attesterte)) })}
-        {/* «Etter prosjekt» har ingen dagsum-rad, så lenken til sedelen står på kortet. */}
+        {kortGjenaapne(kort)}
+        {/* «Etter prosjekt» har ingen dagsrad, så lenken til sedelen står på kortet. */}
         {gruppering === "prosjekt" && sedelLenke(kort.sheetId)}
       </span>
     );
+  }
+
+  /** Jobbens ↺: gjenåpner de attesterte linjene på kortet (innenfor prosjektkonteksten). */
+  function kortGjenaapne(kort: AttKort) {
+    const attesterte = kort.linjer.filter((l) => iKontekst(l) && l.harHandling && l.attestert);
+    if (attesterte.length === 0) return null;
+    return handlingKnapp({ ikon: <RotateCcw className="h-4 w-4" />, tekst: t("timer.attestering.tabell.gjenaapneKort"), disabled: opptatt, onClick: () => gjenaapne(slaaSammen(attesterte)) });
   }
 
   function sedelLenke(sheetId: string) {
@@ -423,7 +441,11 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
     );
   }
 
-  function dagHandlinger(dag: AttDag) {
+  /**
+   * Dagsradens knapper. Med én jobb (`enKort`) vises ikke jobbraden: dagens «Attester» og ↩
+   * dekker de samme linjene, og jobbens ↺ står her (w5b, B14 A punkt 2).
+   */
+  function dagHandlinger(dag: AttDag, enKort?: AttKort) {
     const s = dag.sedel;
     if (prosjektKontekst) {
       // Prosjektet attesterer bare sine egne linjer (R13, T30) — aldri hele sedelen.
@@ -459,6 +481,7 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
             {handlingKnapp({ ikon: <CornerUpLeft className="h-4 w-4" />, tekst: t("timer.attestering.returner"), onClick: () => onReturnerDag?.(s.id) })}
           </>
         )}
+        {enKort && kortGjenaapne(enKort)}
         {readOnly && (
           <Button size="sm" variant="secondary" className="whitespace-nowrap" onClick={() => setGjenaapneDag(s.id)} title={t("timer.attestering.tabell.gjenaapneDagen")} aria-label={t("timer.attestering.tabell.gjenaapneDagen")}>
             <RotateCcw className="mr-1 h-3.5 w-3.5" />
@@ -512,8 +535,74 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
     );
   }
 
+  /* ---------------- Dagsblokkene (w5b, B14 A) ---------------- */
+
+  // Ukedag foran datoen i dagsraden: «tir. 17.11.».
+  const ukedagDato = (iso: string) => {
+    const d = new Date(`${iso}T12:00:00`);
+    const ukedag = Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString(i18n.language, { weekday: "short" });
+    return ukedag ? `${ukedag} ${dato(iso)}` : dato(iso);
+  };
+
+  /** Normen som merke (w5b): bare når dagen avviker; hele setningen på hover (mønsteret fra B7). */
+  function normMerke(s: AttSedel): AvvikMerke | null {
+    if (s.dagsnorm == null) return null;
+    const diff = Math.round((s.totaltimer - s.dagsnorm) * 100) / 100;
+    if (diff === 0) return null;
+    const tall = formaterNorsk(Math.abs(diff)).replace(/,?0+$/, "");
+    return {
+      tekst: t("timer.attestering.tabell.normMerke", { avvik: `${diff > 0 ? "+" : "−"}${tall}` }),
+      forklaring: t("timer.attestering.tabell.dagenAvNorm", { timer: formaterNorsk(s.totaltimer), norm: formaterNorsk(s.dagsnorm) }),
+    };
+  }
+
+  /** Kortets felt slik raden over viser dem — linja skriver dem ikke på nytt når de er like. */
+  function kortVerdi(k: TimerTabellKolKey, kort: AttKort): string | null {
+    if (k === "prosjektnummer") return kort.prosjektnummer;
+    if (k === "prosjekt") return kort.prosjekt;
+    if (k === "underprosjekt") return kort.underprosjekt ?? "";
+    if (k === "byggeplass") return kort.byggeplass ?? "";
+    return null;
+  }
+  function skjulPaaLinje(l: AttLinje, kort: AttKort): TimerTabellKolKey[] {
+    const ut: TimerTabellKolKey[] = ["dato", "ansatt", "ansattnr"];
+    for (const k of ["prosjektnummer", "prosjekt", "underprosjekt", "byggeplass"] as const) {
+      const v = timerTabellVerdi(k, l.linje, 0);
+      if ((v == null ? "" : String(v)) === kortVerdi(k, kort)) ut.push(k);
+    }
+    return ut;
+  }
+
+  /** Jobbens felt (pr.nr., prosjekt, underprosjekt, byggeplass) i en dags- eller jobbrad. */
+  function kortCelle(k: TimerTabellKolKey, kort: AttKort | undefined): ReactNode | undefined {
+    if (k === "prosjektnummer" || k === "prosjekt" || k === "underprosjekt" || k === "byggeplass") return kort ? kortVerdi(k, kort) : "";
+    return undefined;
+  }
+
+  function avvikCelle(merker: AvvikMerke[], tekster: string[] = []) {
+    if (merker.length === 0 && tekster.length === 0) return "";
+    return (
+      // Én linje (w5): bryting gjorde raden dobbelt høy.
+      <span className="inline-flex items-center gap-1 whitespace-nowrap font-normal text-gray-700" title={tekster.length > 0 ? tekster.join(" · ") : undefined}>
+        {merker.length > 0 && <AvvikMerker merker={merker} />}
+        {tekster.length > 0 && <span className="text-amber-700">{tekster.join(" · ")}</span>}
+      </span>
+    );
+  }
+
   const rader = useMemo<TimerRadTabellRad<AttLinje>[]>(() => {
     const ut: TimerRadTabellRad<AttLinje>[] = [];
+    const avsluttBlokk = () => {
+      const siste = ut[ut.length - 1];
+      if (siste && siste.kind !== "overskrift" && siste.blokk) siste.blokk = { ...siste.blokk, slutt: true };
+    };
+    const linjerFor = (kort: AttKort, s: AttSedel, kant: string) => {
+      if (bareOversikt) return;
+      for (const l of kort.linjer) {
+        ut.push({ kind: "linje", nokkel: l.nokkel, data: l, underlinjer: Math.max(1, l.linje.maskiner.length, l.linje.varer.length), blokk: { kant }, skjul: skjulPaaLinje(l, kort) });
+        if (aapenLinje === l.nokkel) ut.push({ kind: "panel", nokkel: `p:${l.nokkel}`, innhold: registrering(kort, s), blokk: { kant } });
+      }
+    };
     const grupper = grupperModell(synlige, gruppering) ?? [{ nokkel: "", tittel: "", dager: synlige }];
     for (const gruppe of grupper) {
     if (gruppe.nokkel) {
@@ -531,66 +620,105 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
     }
     for (const dag of gruppe.dager) {
       const s = dag.sedel;
-      for (const kort of dag.kort) {
-        const sum = sumLinjer(kort.linjer);
-        const avvik = unikeMerker(kort.linjer.flatMap((l) => l.avvikMerker));
-        const dagen = s.dagsnorm == null ? null : t("timer.attestering.tabell.dagenAvNorm", { timer: formaterNorsk(s.totaltimer), norm: formaterNorsk(s.dagsnorm) });
-        ut.push({
-          kind: "sum",
-          nokkel: `o:${kort.nokkel}`,
-          hoyre: kortHandlinger(kort),
-          celle: (k) => {
-            switch (k) {
-              case "dato": return dato(dag.dato);
-              case "ansatt": return dag.ansatt;
-              case "ansattnr": return dag.ansattnr ?? "";
-              case "prosjektnummer": return kort.prosjektnummer;
-              case "prosjekt": return kort.prosjekt;
-              case "byggeplass": return kort.byggeplass ?? "";
-              case "underprosjekt": return kort.underprosjekt ?? "";
-              case "timer": return formaterNorsk(sum.timer);
-              case "maskintimer": return sum.maskintimer > 0 ? formaterNorsk(sum.maskintimer) : "";
-              default:
-                return k === avvikKol ? (
-                  // Én linje (w5): bryting gjorde oversiktsraden dobbelt høy og ga luke under dagen.
-                  <span className="inline-flex items-center gap-1 whitespace-nowrap font-normal text-gray-700" title={dagen ?? undefined}>
-                    {dagen}
-                    {avvik.length > 0 && <AvvikMerker merker={avvik} />}
-                  </span>
-                ) : "";
-            }
-          },
-        });
-        if (!bareOversikt) for (const l of kort.linjer) {
-          ut.push({ kind: "linje", nokkel: l.nokkel, data: l, underlinjer: Math.max(1, l.linje.maskiner.length, l.linje.varer.length) });
-          if (aapenLinje === l.nokkel) ut.push({ kind: "panel", nokkel: `p:${l.nokkel}`, innhold: registrering(kort, s) });
+
+      // «Etter prosjekt» viser bare prosjektets del av dagen — en dagsrad der ville villede (T28).
+      // Hver jobb er sin egen blokk; jobbraden bærer dato og ansatt og har dagsradens utseende.
+      if (gruppering === "prosjekt") {
+        for (const kort of dag.kort) {
+          const sum = sumLinjer(kort.linjer);
+          const norm = normMerke(s);
+          ut.push({
+            kind: "sum",
+            nokkel: `o:${kort.nokkel}`,
+            variant: "dag",
+            blokk: { kant: DAG_KANT },
+            hoyre: kortHandlinger(kort),
+            celle: (k) => {
+              const kc = kortCelle(k, kort);
+              if (kc !== undefined) return kc;
+              switch (k) {
+                case "dato": return ukedagDato(dag.dato);
+                case "ansatt": return dag.ansatt;
+                case "ansattnr": return dag.ansattnr ?? "";
+                case "timer": return formaterNorsk(sum.timer);
+                case "maskintimer": return sum.maskintimer > 0 ? formaterNorsk(sum.maskintimer) : "";
+                default:
+                  return k === avvikKol ? avvikCelle([...(norm ? [norm] : []), ...unikeMerker(kort.linjer.flatMap((l) => l.avvikMerker))]) : "";
+              }
+            },
+          });
+          linjerFor(kort, s, KORT_KANT[0]);
+          avsluttBlokk();
         }
+        continue;
       }
-      // «Etter prosjekt» viser bare prosjektets del av dagen — en dagsum der ville villede (T28).
-      if (gruppering === "prosjekt") continue;
-      // Dagseddelens sum nederst (§ 12.8.5): bare sum og handlinger.
+
+      // Dagsraden øverst (B14 A): dato, ansatt, dagens sum, avvik og dagens knapper. Med én jobb
+      // står jobbens pr.nr. og underprosjekt her, og jobbraden vises ikke.
+      const enKort = dag.kort.length === 1 ? dag.kort[0] : undefined;
       const alle = dag.kort.flatMap((k) => k.linjer);
-      const sum = sumLinjer(alle);
-      const merker = [
+      const dagSum = sumLinjer(alle);
+      const norm = normMerke(s);
+      const dagMerker = [
+        ...(norm ? [norm] : []),
+        ...(enKort ? unikeMerker(enKort.linjer.flatMap((l) => l.avvikMerker)) : []),
+      ];
+      const dagTekster = [
         dag.sperre,
         s.normStatus === "cachet" ? t("timer.attestering.norm.cachet") : s.normStatus === "ukjent" ? t("timer.attestering.norm.ukjent") : null,
-      ].filter(Boolean);
+      ].filter((x): x is string => !!x);
       ut.push({
         kind: "sum",
         nokkel: `d:${s.id}`,
-        sterk: true,
-        hoyre: dagHandlinger(dag),
-        celle: (k) =>
-          k === etikettKol ? t("timer.attestering.tabell.dagsum", { dato: dato(dag.dato), ansatt: dag.ansatt }) :
-          k === "timer" ? formaterNorsk(sum.timer) :
-          k === "maskintimer" ? (sum.maskintimer > 0 ? formaterNorsk(sum.maskintimer) : "") :
-          k === avvikKol && merker.length > 0 ? <span className="font-normal text-amber-700" title={merker.join(" · ")}>{merker.join(" · ")}</span> : "",
+        variant: "dag",
+        blokk: { kant: DAG_KANT },
+        hoyre: dagHandlinger(dag, enKort),
+        celle: (k) => {
+          const kc = kortCelle(k, enKort);
+          if (kc !== undefined) return kc;
+          switch (k) {
+            case "dato": return ukedagDato(dag.dato);
+            case "ansatt": return dag.ansatt;
+            case "ansattnr": return dag.ansattnr ?? "";
+            case "timer": return formaterNorsk(dagSum.timer);
+            case "maskintimer": return dagSum.maskintimer > 0 ? formaterNorsk(dagSum.maskintimer) : "";
+            default:
+              if (k === avvikKol) return avvikCelle(dagMerker, dagTekster);
+              if (k === etikettKol) return <span className="font-normal text-gray-500">{t("timer.attestering.tabell.antallJobber", { count: dag.kort.length })}</span>;
+              return "";
+          }
+        },
       });
+
+      dag.kort.forEach((kort, i) => {
+        const kant = KORT_KANT[i % KORT_KANT.length]!;
+        // Flere jobber samme dag (Kenneths tillegg til B14): hver jobb sin jobbrad og sin kantfarge.
+        if (!enKort) {
+          const sum = sumLinjer(kort.linjer);
+          ut.push({
+            kind: "sum",
+            nokkel: `o:${kort.nokkel}`,
+            variant: "jobb",
+            blokk: { kant },
+            hoyre: kortHandlinger(kort),
+            celle: (k) => {
+              const kc = kortCelle(k, kort);
+              if (kc !== undefined) return kc;
+              if (k === "timer") return formaterNorsk(sum.timer);
+              if (k === "maskintimer") return sum.maskintimer > 0 ? formaterNorsk(sum.maskintimer) : "";
+              if (k === avvikKol) return avvikCelle(unikeMerker(kort.linjer.flatMap((l) => l.avvikMerker)));
+              return "";
+            },
+          });
+        }
+        linjerFor(kort, s, kant);
+      });
+      avsluttBlokk();
     }
     }
     return ut;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- handlingene leser fersk tilstand ved klikk
-  }, [synlige, gruppering, bareOversikt, t, readOnly, opptatt, etikettKol, avvikKol, prosjektKontekst, medAar, aapenLinje, lonnsarter]);
+  }, [synlige, gruppering, bareOversikt, t, readOnly, opptatt, etikettKol, avvikKol, prosjektKontekst, medAar, aapenLinje, lonnsarter, i18n.language]);
 
   /* ---------------- Filter i hodet (R8) ---------------- */
 
