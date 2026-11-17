@@ -345,4 +345,9 @@ Avkrysning i eksportmenyen, rett over CSV/Excel/PDF, og i mal-redigereren (`apps
 
 Fra d2b-3 (🟡 ikke merget) har firmasiden også «Avvik denne uka»-avsnittet (`timer.attestering.tabell.hjelp.ukeavvik`: «sammenligner hele ukas timer (sendt og attestert) med ukenormen — ikke bare dagen eller linjene du ser») og kvitteringsavsnittet (`…hjelp.kvittering`: «Et utlegg med kvittering viser et miniatyrbilde eller en binders på linjen. Klikk for å åpne kvitteringen og kontrollere den før du attesterer.»); prosjektsiden har kvitteringsavsnittet. Lenken har tittelen «Åpne kvitteringen (filnavn)» (`…tabell.aapneKvittering`).
 
+Fra w1 i web-timeføring (🟡 ikke merget, `feat/web-timer-w1`) har begge sidene avsnittene om dato og avviksmerker, og firmasiden i tillegg om årsvelgeren:
+
+- **Dato** (`…hjelp.dato`): «Datoen står som dd.mm. Har tabellen dager fra flere år, står året med. Eksporten viser alltid hele datoen med år.» Firmasiden legger til (`…hjelp.aar`): «Året står ved ukevalget. Velg et annet år for å gå til samme uke det året.»
+- **Merker** (`…hjelp.merker`): avvik står som korte merker; hold pekeren over eller trykk for hele forklaringen. «Uten timerad» (`…merke.utenTimerad`, forklaring `…merke.utenTimeradForklaring`) og «Uten førerbevis» (`…merke.utenForerbevis`, forklaring `timer.maskinforerbevis.leder`). Hele teksten i Avvik-filteret og ukeoversikten er «Maskin uten timerad» (`timer.attestering.tabell.maskinUtenTimerad`, WM22). Årsvelgerens etikett: «År» (`timer.attestering.uke.aar`).
+
 Detaljsiden (`AttesteringDetalj.tsx`) har under tabellen: «Attester, returner eller gjenåpne i tabellen: pr. linje, pr. prosjektseddel eller hele dagen.» (`timer.attestering.detalj.tabellHint`).

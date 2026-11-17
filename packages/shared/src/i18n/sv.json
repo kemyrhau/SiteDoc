@@ -5064,7 +5064,7 @@
   "timer.attestering.tabell.hjelp.retting": "När företaget tillåter korrigeringar under godkännande klickar du på en cell på en väntande rad, skriver det nya värdet och trycker på Enter eller Tab. Esc avbryter. Det gamla värdet visas nedan som \"var …\".",
   "timer.attestering.tabell.hjelp.verktoy": "\"Välj parametrar\" väljer kolumner. Klicka på en kolumnrubrik för att sortera, tratten för att filtrera. \"Godkänn urval\" godkänner de markerade raderna, eller alla synliga väntande rader när ingen är markerad. Filter och sortering gäller endast detta besök.",
   "timer.attestering.tabell.kolonner": "Kolumner",
-  "timer.attestering.tabell.maskinUtenTimerad": "Maskin utan arbetstid",
+  "timer.attestering.tabell.maskinUtenTimerad": "Maskin utan tidsangivelse",
   "timer.attestering.tabell.rettCelle": "Klicka för att korrigera",
   "timer.attestering.tabell.returnerKort": "Lämna tillbaka projektbladet",
   "timer.attestering.tabell.returnerLinjer_one": "{{count}} rad returneras till medarbetaren.",
@@ -5829,5 +5829,12 @@
   "timer.attestering.detalj.tabellHint": "Godkänn, returnera eller öppna igen i tabellen: per rad, per projektblad eller hela dagen.",
   "timer.attestering.tabell.aapneKvittering": "Öppna kvittot ({{fil}})",
   "timer.attestering.tabell.hjelp.ukeavvik": "\"Avvikelse denna vecka\" jämför hela veckans timmar (inlämnade och godkända) med veckonormen - inte bara dagen eller raderna du ser.",
-  "timer.attestering.tabell.hjelp.kvittering": "En utgift med ett kvitto visar en miniatyrbild eller ett gem på linjen. Klicka för att öppna kvittot och kontrollera det innan du godkänner."
+  "timer.attestering.tabell.hjelp.kvittering": "En utgift med ett kvitto visar en miniatyrbild eller ett gem på linjen. Klicka för att öppna kvittot och kontrollera det innan du godkänner.",
+  "timer.attestering.tabell.merke.utenTimerad": "Ingen tidsinmatning",
+  "timer.attestering.tabell.merke.utenTimeradForklaring": "Maskinen är inte kopplad till en tidsinmatning, så den visas som en separat rad. Linjen kan godkännas.",
+  "timer.attestering.tabell.merke.utenForerbevis": "Inget operatörscertifikat",
+  "timer.attestering.tabell.hjelp.merker": "Avvikelser visas som korta taggar. Håll muspekaren över en tagg eller tryck på den på en pekskärm för att se hela förklaringen. \"Ingen tidsinmatning\": maskinen är inte kopplad till en tidsinmatning och visas som en separat rad. ”Inget operatörscertifikat”: maskinarbete utan registrerat operatörscertifikat, flaggad för synlighet. Båda linjerna kan godkännas.",
+  "timer.attestering.tabell.hjelp.dato": "Datumet visas som dd.mm. Om tabellen har dagar från mer än ett år ingår året. Exporten visar alltid hela datumet med året.",
+  "timer.attestering.tabell.hjelp.aar": "Årtalet står bredvid veckoväljaren. Välj ett annat år att gå till samma vecka det året.",
+  "timer.attestering.uke.aar": "År"
 }

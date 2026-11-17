@@ -72,7 +72,9 @@ export default function AttesteringSide() {
             <HjelpFane tittel={t("timer.attestering.tabell.hjelp.tittel")}>
               <p>{t("timer.attestering.prosjekt.hjelp.laast")}</p>
               <p className="mt-2">{t("timer.attestering.tabell.hjelp.struktur")}</p>
+              <p className="mt-2">{t("timer.attestering.tabell.hjelp.dato")}</p>
               <p className="mt-2">{t("timer.attestering.tabell.hjelp.handlinger")}</p>
+              <p className="mt-2">{t("timer.attestering.tabell.hjelp.merker")}</p>
               <p className="mt-2">{t("timer.attestering.tabell.hjelp.retting")}</p>
               <p className="mt-2">{t("timer.attestering.tabell.hjelp.kvittering")}</p>
             </HjelpFane>

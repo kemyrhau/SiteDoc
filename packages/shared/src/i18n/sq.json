@@ -5064,7 +5064,7 @@
   "timer.attestering.tabell.hjelp.retting": "Kur kompania lejon korrigjimet gjatë miratimit, klikoni një qelizë në një linjë në pritje, shkruani vlerën e re dhe shtypni Enter ose Tab. Esc anulon. Vlera e vjetër tregohet më poshtë si \"ishte ...\".",
   "timer.attestering.tabell.hjelp.verktoy": "\"Zgjidh parametrat\" ​​zgjedh kolonat. Klikoni një kolonë që shkon për të renditur, gypin për të filtruar. \"Aprovo përzgjedhjen\" miraton linjat e kontrolluara ose të gjitha linjat e dukshme në pritje kur asnjë nuk është e kontrolluar. Filtrat dhe renditja zbatohen vetëm për këtë vizitë.",
   "timer.attestering.tabell.kolonner": "Kolonat",
-  "timer.attestering.tabell.maskinUtenTimerad": "Makina pa orar pune",
+  "timer.attestering.tabell.maskinUtenTimerad": "Makinë pa hyrje në kohë",
   "timer.attestering.tabell.rettCelle": "Kliko për të korrigjuar",
   "timer.attestering.tabell.returnerKort": "Kthejeni fletën e projektit",
   "timer.attestering.tabell.returnerLinjer_one": "Linja {{count}} i kthehet punonjësit.",
@@ -5829,5 +5829,12 @@
   "timer.attestering.detalj.tabellHint": "Mirato, ktheje ose rihap në tabelë: për rresht, për fletë projekti ose gjatë gjithë ditës.",
   "timer.attestering.tabell.aapneKvittering": "Hap faturën ({{fil}})",
   "timer.attestering.tabell.hjelp.ukeavvik": "\"Devijimi i kësaj jave\" krahason orët e gjithë javës (të dorëzuara dhe të miratuara) me normën javore - jo vetëm ditën ose rreshtat që shihni.",
-  "timer.attestering.tabell.hjelp.kvittering": "Një shpenzim me një faturë tregon një miniaturë ose një kapëse letre në linjë. Klikoni për të hapur faturën dhe kontrolloni atë përpara se ta miratoni."
+  "timer.attestering.tabell.hjelp.kvittering": "Një shpenzim me një faturë tregon një miniaturë ose një kapëse letre në linjë. Klikoni për të hapur faturën dhe kontrolloni atë përpara se ta miratoni.",
+  "timer.attestering.tabell.merke.utenTimerad": "Nuk ka hyrje në kohë",
+  "timer.attestering.tabell.merke.utenTimeradForklaring": "Makina nuk është e lidhur me një hyrje kohore, kështu që shfaqet si një linjë e veçantë. Linja mund të miratohet.",
+  "timer.attestering.tabell.merke.utenForerbevis": "Nuk ka certifikatë operatori",
+  "timer.attestering.tabell.hjelp.merker": "Devijimet shfaqen si etiketa të shkurtra. Zhvendosni pezull mbi një etiketë ose prekni atë në një ekran me prekje, për të parë shpjegimin e plotë. \"Nuk ka hyrje në kohë\": makina nuk është e lidhur me një hyrje kohore dhe shfaqet si një rresht i veçantë. “Pa certifikatë operatori”: puna e makinerisë pa certifikatë të regjistruar operatori, e shënuar për dukshmëri. Të dy linjat mund të miratohen.",
+  "timer.attestering.tabell.hjelp.dato": "Data tregohet si dd.mm. Nëse tabela ka ditë nga më shumë se një vit, përfshihet viti. Eksporti tregon gjithmonë datën e plotë me vitin.",
+  "timer.attestering.tabell.hjelp.aar": "Viti është ngjitur me përzgjedhësin e javës. Zgjidhni një vit tjetër për të shkuar në të njëjtën javë të atij viti.",
+  "timer.attestering.uke.aar": "viti"
 }

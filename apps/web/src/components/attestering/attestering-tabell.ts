@@ -105,6 +105,10 @@ export interface AttDeps {
     forslagSperre: string;
     maskinUtenTimerad: string;
     maskinforerbevis: string;
+    /** w1 (B7): korte merker i Avvik på skjerm; forklaringen vises på hover/trykk. */
+    merkeUtenTimerad: string;
+    merkeUtenTimeradForklaring: string;
+    merkeUtenForerbevis: string;
     tilleggskrav: string;
     tilByggherre: string;
     fravaerUtenProsjekt: string;
@@ -124,6 +128,13 @@ export type AttKilde =
   | { type: "tillegg"; rad: AttTillegg }
   | { type: "utlegg"; rad: AttUtlegg };
 
+/**
+ * Ett avvik slik skjermen viser det (w1, B7). Med `forklaring` tegnes et kort merke på
+ * én linje, og forklaringen vises når pekeren holdes over (trykk på berøringsskjerm).
+ * Uten `forklaring` står teksten som før.
+ */
+export type AvvikMerke = { tekst: string; forklaring: string | null };
+
 export interface AttLinje {
   nokkel: string;
   sheetId: string;
@@ -141,6 +152,8 @@ export interface AttLinje {
   projectId: string | null;
   /** Felt → verdien før retting (T57: «var 5,00» i cella). */
   rettet: Record<string, string | number | null>;
+  /** Avvikene som merker på skjermen (w1). `linje.avvik` bærer hele teksten (filter, ukeoversikt). */
+  avvikMerker: AvvikMerke[];
 }
 
 export interface AttKort {
@@ -169,6 +182,23 @@ const tall = (v: unknown): number | null => (v === null || v === undefined || v 
 export function isoDato(d: Date | string): string {
   if (typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
   return new Date(d).toISOString().slice(0, 10);
+}
+
+/**
+ * Datoen slik attesteringens skjerm viser den (w1, tillegget til B7): «17.11.». Året står
+ * i årsvelgeren ved ukevalget. Spenner tabellen over flere år (prosjektets attestering har
+ * ikke ukevalg), står året med — «17.11.2026» — så to datoer aldri ser like ut.
+ * Eksporten har egen formatering og beholder året (`timer-rapport-eksport.ts`).
+ */
+export function visDato(iso: string, medAar: boolean): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  if (!m) return iso;
+  return medAar ? `${m[3]}.${m[2]}.${m[1]}` : `${m[3]}.${m[2]}.`;
+}
+
+/** Har tabellen dager fra mer enn ett kalenderår? Da må året stå i datoen. */
+export function spennerFlereAar(dager: readonly { dato: string }[]): boolean {
+  return new Set(dager.map((d) => d.dato.slice(0, 4))).size > 1;
 }
 
 function underprosjektTekst(rad: Partial<Beriket> & { externalCostObjectId?: string | null }, tilByggherre: string): string | null {
@@ -255,15 +285,25 @@ function byggDag(s: AttSedel, deps: AttDeps): AttDag {
 
   const lagLinje = (g: KortLinjeGruppe<AttTimer, AttMaskin, AttVare, AttTillegg, AttUtlegg>, kortNokkel: string, i: number): AttLinje => {
     const avvik: string[] = [];
+    const avvikMerker: AvvikMerke[] = [];
+    // Hele teksten i `avvik`; merket (kort tekst + forklaring) i `avvikMerker`.
+    const leggTilAvvik = (tekst: string, merke?: AvvikMerke) => {
+      avvik.push(tekst);
+      avvikMerker.push(merke ?? { tekst, forklaring: null });
+    };
+    const utenTimerad = () =>
+      leggTilAvvik(deps.tekst.maskinUtenTimerad, { tekst: deps.tekst.merkeUtenTimerad, forklaring: deps.tekst.merkeUtenTimeradForklaring });
+    const utenForerbevis = () =>
+      leggTilAvvik(deps.tekst.maskinforerbevis, { tekst: deps.tekst.merkeUtenForerbevis, forklaring: deps.tekst.maskinforerbevis });
     const nokkel = `${s.id}:${g.type}:${g.rad.id}`;
-    const base = { nokkel, sheetId: s.id, kortNokkel, sperre };
+    const base = { nokkel, sheetId: s.id, kortNokkel, sperre, avvikMerker };
     if (g.type === "timer") {
       const r = g.rad;
       const maskiner = g.maskiner.map((m) => maskinTilLinje(m, deps));
-      if (sperre) avvik.push(sperre);
-      if (ukeTekst && ukeIder.has(r.id)) avvik.push(ukeTekst);
-      if (maskiner.some((m) => m.utenTimerad)) avvik.push(deps.tekst.maskinUtenTimerad);
-      if (maskiner.length > 0 && s.manglerMaskinforerbevis) avvik.push(deps.tekst.maskinforerbevis);
+      if (sperre) leggTilAvvik(sperre);
+      if (ukeTekst && ukeIder.has(r.id)) leggTilAvvik(ukeTekst);
+      if (maskiner.some((m) => m.utenTimerad)) utenTimerad();
+      if (maskiner.length > 0 && s.manglerMaskinforerbevis) utenForerbevis();
       const ventende = r.attestertStatus === "pending";
       return {
         ...base,
@@ -300,9 +340,9 @@ function byggDag(s: AttSedel, deps: AttDeps): AttDag {
     if (g.type === "maskin") {
       const m = g.rad;
       const ml = maskinTilLinje(m, deps);
-      if (sperre) avvik.push(sperre);
-      if (ml.utenTimerad) avvik.push(deps.tekst.maskinUtenTimerad);
-      if (s.manglerMaskinforerbevis) avvik.push(deps.tekst.maskinforerbevis);
+      if (sperre) leggTilAvvik(sperre);
+      if (ml.utenTimerad) utenTimerad();
+      if (s.manglerMaskinforerbevis) utenForerbevis();
       return {
         ...base,
         kilde: { type: "maskin", rad: m },
@@ -317,8 +357,8 @@ function byggDag(s: AttSedel, deps: AttDeps): AttDag {
     }
     if (g.type === "tillegg") {
       const r = g.rad;
-      if (sperre) avvik.push(sperre);
-      if (s.tilleggHarKrav) avvik.push(deps.tekst.tilleggskrav);
+      if (sperre) leggTilAvvik(sperre);
+      if (s.tilleggHarKrav) leggTilAvvik(deps.tekst.tilleggskrav);
       return {
         ...base,
         kilde: { type: "tillegg", rad: r },

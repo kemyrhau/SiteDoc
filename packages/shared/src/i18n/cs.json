@@ -5064,7 +5064,7 @@
   "timer.attestering.tabell.hjelp.retting": "Když společnost povolí opravy během schvalování, klikněte na buňku na nevyřízeném řádku, zadejte novou hodnotu a stiskněte Enter nebo Tab. Esc zruší. Stará hodnota je níže zobrazena jako „byl…“.",
   "timer.attestering.tabell.hjelp.verktoy": "\"Vybrat parametry\" vybírá sloupce. Kliknutím na záhlaví sloupce seřadíte, na cestu filtrujete. \"Schválit výběr\" schválí zaškrtnuté řádky nebo všechny viditelné čekající řádky, pokud žádný není zaškrtnutý. Filtry a řazení se vztahují pouze na tuto návštěvu.",
   "timer.attestering.tabell.kolonner": "Sloupce",
-  "timer.attestering.tabell.maskinUtenTimerad": "Stroj bez pracovní doby",
+  "timer.attestering.tabell.maskinUtenTimerad": "Stroj bez zadání času",
   "timer.attestering.tabell.rettCelle": "Klikněte pro opravu",
   "timer.attestering.tabell.returnerKort": "Vraťte projektový list",
   "timer.attestering.tabell.returnerLinjer_one": "{{count}} řádek je vrácen zaměstnanci.",
@@ -5829,5 +5829,12 @@
   "timer.attestering.detalj.tabellHint": "Schválit, vrátit nebo znovu otevřít v tabulce: na řádek, na list projektu nebo celý den.",
   "timer.attestering.tabell.aapneKvittering": "Otevřete účtenku ({{fil}})",
   "timer.attestering.tabell.hjelp.ukeavvik": "„Odchylka tento týden“ porovnává hodiny celého týdne (předložené a schválené) s týdenní normou – nejen den nebo řádky, které vidíte.",
-  "timer.attestering.tabell.hjelp.kvittering": "Výdajka s účtenkou zobrazuje na řádku miniaturu nebo kancelářskou sponku. Kliknutím otevřete účtenku a před schválením ji zkontrolujte."
+  "timer.attestering.tabell.hjelp.kvittering": "Výdajka s účtenkou zobrazuje na řádku miniaturu nebo kancelářskou sponku. Kliknutím otevřete účtenku a před schválením ji zkontrolujte.",
+  "timer.attestering.tabell.merke.utenTimerad": "Bez zadání času",
+  "timer.attestering.tabell.merke.utenTimeradForklaring": "Stroj není spojen se záznamem času, takže je zobrazen jako samostatný řádek. Linka může být schválena.",
+  "timer.attestering.tabell.merke.utenForerbevis": "Žádný certifikát operátora",
+  "timer.attestering.tabell.hjelp.merker": "Odchylky jsou zobrazeny jako krátké značky. Chcete-li zobrazit úplné vysvětlení, umístěte ukazatel myši na značku nebo na ni klepněte na dotykové obrazovce. „Žádný časový údaj“: stroj není propojen se záznamem času a je zobrazen jako samostatný řádek. „Žádný certifikát operátora“: práce stroje bez registrovaného certifikátu operátora, označeno pro viditelnost. Obě linky lze schválit.",
+  "timer.attestering.tabell.hjelp.dato": "Datum je zobrazeno jako dd.mm. Pokud tabulka obsahuje dny z více než jednoho roku, je zahrnut rok. Export zobrazuje vždy celé datum s rokem.",
+  "timer.attestering.tabell.hjelp.aar": "Rok je vedle voliče týdne. Vyberte si jiný rok a přejděte na stejný týden toho roku.",
+  "timer.attestering.uke.aar": "Rok"
 }

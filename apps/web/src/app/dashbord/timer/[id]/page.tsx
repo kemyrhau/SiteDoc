@@ -1230,6 +1230,7 @@ export default function DagsseddelDetaljSide() {
           prosjektNavn={kortNavn(vareModalProsjekt)}
           dato={new Date(sheet.dato).toISOString().slice(0, 10)}
           dagsseddelId={kortDagsseddelId(sheet.id, timerRader, vareModalProsjekt)}
+          timerRader={timerRader}
           varer={vareKatalog.varer}
           byggeplasser={byggeplasser}
           onClose={() => setVareModalProsjekt(null)}

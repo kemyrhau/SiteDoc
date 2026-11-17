@@ -5064,7 +5064,7 @@
   "timer.attestering.tabell.hjelp.retting": "When the company allows corrections during approval, click a cell on a pending line, type the new value and press Enter or Tab. Esc cancels. The old value is shown below as \"was …\".",
   "timer.attestering.tabell.hjelp.verktoy": "\"Select parameters\" chooses columns. Click a column heading to sort, the funnel to filter. \"Approve selection\" approves the checked lines, or all visible pending lines when none are checked. Filters and sorting apply to this visit only.",
   "timer.attestering.tabell.kolonner": "Columns",
-  "timer.attestering.tabell.maskinUtenTimerad": "Machine without work hours",
+  "timer.attestering.tabell.maskinUtenTimerad": "Machine without a time entry",
   "timer.attestering.tabell.rettCelle": "Click to correct",
   "timer.attestering.tabell.returnerKort": "Return the project sheet",
   "timer.attestering.tabell.returnerLinjer_one": "{{count}} line is returned to the employee.",
@@ -5829,5 +5829,12 @@
   "timer.attestering.detalj.tabellHint": "Approve, return or reopen in the table: per line, per project sheet or the whole day.",
   "timer.attestering.tabell.aapneKvittering": "Open the receipt ({{fil}})",
   "timer.attestering.tabell.hjelp.ukeavvik": "“Deviation this week” compares the whole week's hours (submitted and approved) with the weekly norm — not just the day or the lines you see.",
-  "timer.attestering.tabell.hjelp.kvittering": "An expense with a receipt shows a thumbnail or a paperclip on the line. Click to open the receipt and check it before you approve."
+  "timer.attestering.tabell.hjelp.kvittering": "An expense with a receipt shows a thumbnail or a paperclip on the line. Click to open the receipt and check it before you approve.",
+  "timer.attestering.tabell.merke.utenTimerad": "No time entry",
+  "timer.attestering.tabell.merke.utenTimeradForklaring": "The machine is not linked to a time entry, so it is shown as a separate line. The line can be approved.",
+  "timer.attestering.tabell.merke.utenForerbevis": "No operator certificate",
+  "timer.attestering.tabell.hjelp.merker": "Deviations are shown as short tags. Hover over a tag, or tap it on a touch screen, to see the full explanation. “No time entry”: the machine is not linked to a time entry and is shown as a separate line. “No operator certificate”: machine work without a registered operator certificate, flagged for visibility. Both lines can be approved.",
+  "timer.attestering.tabell.hjelp.dato": "The date is shown as dd.mm. If the table has days from more than one year, the year is included. The export always shows the full date with the year.",
+  "timer.attestering.tabell.hjelp.aar": "The year is next to the week selector. Choose another year to go to the same week that year.",
+  "timer.attestering.uke.aar": "Year"
 }

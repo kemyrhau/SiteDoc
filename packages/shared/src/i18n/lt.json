@@ -5064,7 +5064,7 @@
   "timer.attestering.tabell.hjelp.retting": "Kai įmonė leidžia taisyti patvirtinimo metu, spustelėkite laukimo eilutės langelį, įveskite naują reikšmę ir paspauskite Enter arba Tab. Esc atšaukia. Žemiau senoji vertė rodoma kaip „buvo ...“.",
   "timer.attestering.tabell.hjelp.verktoy": "„Pasirinkti parametrus“ pasirenka stulpelius. Spustelėkite stulpelio antraštę, kad rūšiuotumėte, o kanalą filtruotumėte. „Patvirtinti pasirinkimą“ patvirtina pažymėtas eilutes arba visas matomas laukiančias eilutes, kai nė viena nepažymėta. Filtrai ir rūšiavimas taikomi tik šiam apsilankymui.",
   "timer.attestering.tabell.kolonner": "Stulpeliai",
-  "timer.attestering.tabell.maskinUtenTimerad": "Mašina be darbo valandų",
+  "timer.attestering.tabell.maskinUtenTimerad": "Mašina be laiko įrašo",
   "timer.attestering.tabell.rettCelle": "Spustelėkite, kad pataisytumėte",
   "timer.attestering.tabell.returnerKort": "Grąžinkite projekto lapą",
   "timer.attestering.tabell.returnerLinjer_one": "{{count}} eilutė grąžinama darbuotojui.",
@@ -5829,5 +5829,12 @@
   "timer.attestering.detalj.tabellHint": "Patvirtinkite, grąžinkite arba atidarykite iš naujo lentelėje: eilutėje, projekto lape arba visą dieną.",
   "timer.attestering.tabell.aapneKvittering": "Atidarykite kvitą ({{fil}})",
   "timer.attestering.tabell.hjelp.ukeavvik": "„Nukrypimas šią savaitę“ lygina visos savaitės valandas (pateiktas ir patvirtintas) su savaitės norma – ne tik diena ar matomomis eilutėmis.",
-  "timer.attestering.tabell.hjelp.kvittering": "Išlaidos su kvitu rodo miniatiūrą arba sąvaržėlę ant linijos. Spustelėkite, kad atidarytumėte kvitą ir patikrintumėte jį prieš patvirtindami."
+  "timer.attestering.tabell.hjelp.kvittering": "Išlaidos su kvitu rodo miniatiūrą arba sąvaržėlę ant linijos. Spustelėkite, kad atidarytumėte kvitą ir patikrintumėte jį prieš patvirtindami.",
+  "timer.attestering.tabell.merke.utenTimerad": "Nėra laiko įvedimo",
+  "timer.attestering.tabell.merke.utenTimeradForklaring": "Aparatas nesusietas su laiko įrašu, todėl rodomas kaip atskira eilutė. Linija gali būti patvirtinta.",
+  "timer.attestering.tabell.merke.utenForerbevis": "Nėra operatoriaus pažymėjimo",
+  "timer.attestering.tabell.hjelp.merker": "Nukrypimai rodomi kaip trumpos žymos. Užveskite pelės žymeklį virš žymos arba palieskite ją jutikliniame ekrane, kad pamatytumėte visą paaiškinimą. „Nėra laiko įvesties“: aparatas nesusietas su laiko įrašu ir rodomas kaip atskira eilutė. „Nėra operatoriaus pažymėjimo“: mašinos darbas be registruoto operatoriaus pažymėjimo, pažymėtas matomumui. Abi eilutės gali būti patvirtintos.",
+  "timer.attestering.tabell.hjelp.dato": "Data rodoma kaip dd.mm. Jei lentelėje yra daugiau nei vienerių metų dienų, įtraukiami metai. Eksportuojant visada rodoma visa data su metais.",
+  "timer.attestering.tabell.hjelp.aar": "Metai yra šalia savaitės parinkiklio. Pasirinkite kitus metus, kad pereitumėte į tą pačią tų metų savaitę.",
+  "timer.attestering.uke.aar": "Metai"
 }

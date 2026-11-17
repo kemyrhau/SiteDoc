@@ -5064,7 +5064,7 @@
   "timer.attestering.tabell.hjelp.retting": "Kad uzņēmums apstiprināšanas laikā atļauj labojumus, noklikšķiniet uz šūnas gaidīšanas rindā, ierakstiet jauno vērtību un nospiediet taustiņu Enter vai Tab. Esc atceļ. Vecā vērtība zemāk tiek parādīta kā \"bija ...\".",
   "timer.attestering.tabell.hjelp.verktoy": "\"Atlasīt parametrus\" izvēlas kolonnas. Noklikšķiniet uz kolonnas virsraksta, lai kārtotu, un uz piltuves, lai filtrētu. \"Apstiprināt atlasi\" apstiprina atzīmētās rindas vai visas redzamās gaidošās rindas, ja neviena nav atzīmēta. Filtri un šķirošana attiecas tikai uz šo apmeklējumu.",
   "timer.attestering.tabell.kolonner": "Kolonnas",
-  "timer.attestering.tabell.maskinUtenTimerad": "Mašīna bez darba laika",
+  "timer.attestering.tabell.maskinUtenTimerad": "Mašīna bez laika ieraksta",
   "timer.attestering.tabell.rettCelle": "Noklikšķiniet, lai labotu",
   "timer.attestering.tabell.returnerKort": "Atgrieziet projekta lapu",
   "timer.attestering.tabell.returnerLinjer_one": "{{count}} rinda tiek atgriezta darbiniekam.",
@@ -5829,5 +5829,12 @@
   "timer.attestering.detalj.tabellHint": "Apstipriniet, atgrieziet vai atveriet atkārtoti tabulā: pa rindiņai, katrai projekta lapai vai visu dienu.",
   "timer.attestering.tabell.aapneKvittering": "Atveriet kvīti ({{fil}})",
   "timer.attestering.tabell.hjelp.ukeavvik": "“Novirze šajā nedēļā” salīdzina visas nedēļas stundas (iesniegtās un apstiprinātās) ar nedēļas normu — ne tikai dienu vai redzamajām līnijām.",
-  "timer.attestering.tabell.hjelp.kvittering": "Izdevumos ar kvīti uz līnijas ir redzams sīktēls vai saspraude. Noklikšķiniet, lai atvērtu kvīti un pārbaudītu to pirms apstiprināšanas."
+  "timer.attestering.tabell.hjelp.kvittering": "Izdevumos ar kvīti uz līnijas ir redzams sīktēls vai saspraude. Noklikšķiniet, lai atvērtu kvīti un pārbaudītu to pirms apstiprināšanas.",
+  "timer.attestering.tabell.merke.utenTimerad": "Nav laika ievades",
+  "timer.attestering.tabell.merke.utenTimeradForklaring": "Iekārta nav saistīta ar laika ierakstu, tāpēc tā tiek parādīta kā atsevišķa rinda. Līniju var apstiprināt.",
+  "timer.attestering.tabell.merke.utenForerbevis": "Nav operatora sertifikāta",
+  "timer.attestering.tabell.hjelp.merker": "Novirzes tiek parādītas kā īsas atzīmes. Virziet kursoru virs atzīmes vai pieskarieties tai skārienekrānā, lai skatītu pilnu skaidrojumu. “Nav laika ievades”: iekārta nav saistīta ar laika ierakstu un tiek parādīta kā atsevišķa rinda. “Nav operatora sertifikāta”: mašīnas darbs bez reģistrēta operatora sertifikāta, atzīmēts redzamības dēļ. Abas līnijas var apstiprināt.",
+  "timer.attestering.tabell.hjelp.dato": "Datums tiek parādīts kā dd.mm. Ja tabulā ir dienas no vairāk nekā viena gada, tiek iekļauts gads. Eksports vienmēr parāda pilnu datumu ar gadu.",
+  "timer.attestering.tabell.hjelp.aar": "Gads ir blakus nedēļas atlasītājam. Izvēlieties citu gadu, lai pārietu uz to pašu nedēļu tajā gadā.",
+  "timer.attestering.uke.aar": "gads"
 }

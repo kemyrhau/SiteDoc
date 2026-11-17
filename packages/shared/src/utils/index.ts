@@ -625,6 +625,7 @@ export {
   visVareforbrukKnapp,
   kortDagsseddelId,
   kortVareforbrukInput,
+  vareTimerader,
   slaaSammenVarelinjer,
   type KortVareforbrukInput,
   type TimerModus,

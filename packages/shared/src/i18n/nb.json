@@ -5064,7 +5064,7 @@
   "timer.attestering.tabell.hjelp.retting": "Når firmaet tillater retting ved attestering, klikker du i en celle på en linje som venter, skriver ny verdi og trykker Enter eller Tab. Esc angrer. Den gamle verdien vises under som «var …».",
   "timer.attestering.tabell.hjelp.verktoy": "«Velg parameter» velger kolonner. Klikk på en kolonneoverskrift for å sortere, trakten for å filtrere. «Attester utvalget» attesterer de avkryssede linjene, eller alle synlige linjer som venter når ingen er krysset av. Filter og sortering gjelder bare dette besøket.",
   "timer.attestering.tabell.kolonner": "Kolonner",
-  "timer.attestering.tabell.maskinUtenTimerad": "Maskin uten arbeidstimer",
+  "timer.attestering.tabell.maskinUtenTimerad": "Maskin uten timerad",
   "timer.attestering.tabell.rettCelle": "Klikk for å rette",
   "timer.attestering.tabell.returnerKort": "Returner prosjektseddelen",
   "timer.attestering.tabell.returnerLinjer_one": "{{count}} linje returneres til den ansatte.",
@@ -5829,5 +5829,12 @@
   "timer.attestering.detalj.tabellHint": "Attester, returner eller gjenåpne i tabellen: pr. linje, pr. prosjektseddel eller hele dagen.",
   "timer.attestering.tabell.aapneKvittering": "Åpne kvitteringen ({{fil}})",
   "timer.attestering.tabell.hjelp.ukeavvik": "«Avvik denne uka» sammenligner hele ukas timer (sendt og attestert) med ukenormen — ikke bare dagen eller linjene du ser.",
-  "timer.attestering.tabell.hjelp.kvittering": "Et utlegg med kvittering viser et miniatyrbilde eller en binders på linjen. Klikk for å åpne kvitteringen og kontrollere den før du attesterer."
+  "timer.attestering.tabell.hjelp.kvittering": "Et utlegg med kvittering viser et miniatyrbilde eller en binders på linjen. Klikk for å åpne kvitteringen og kontrollere den før du attesterer.",
+  "timer.attestering.tabell.merke.utenTimerad": "Uten timerad",
+  "timer.attestering.tabell.merke.utenTimeradForklaring": "Maskinen er ikke koblet til en timerad, og står derfor som egen linje. Linja kan attesteres.",
+  "timer.attestering.tabell.merke.utenForerbevis": "Uten førerbevis",
+  "timer.attestering.tabell.hjelp.merker": "Avvik står som korte merker. Hold pekeren over et merke, eller trykk på det på en berøringsskjerm, for å se hele forklaringen. «Uten timerad»: maskinen er ikke koblet til en timerad og står som egen linje. «Uten førerbevis»: maskinarbeid uten registrert maskinførerbevis, flagget for synlighet. Begge linjene kan attesteres.",
+  "timer.attestering.tabell.hjelp.dato": "Datoen står som dd.mm. Har tabellen dager fra flere år, står året med. Eksporten viser alltid hele datoen med år.",
+  "timer.attestering.tabell.hjelp.aar": "Året står ved ukevalget. Velg et annet år for å gå til samme uke det året.",
+  "timer.attestering.uke.aar": "År"
 }
