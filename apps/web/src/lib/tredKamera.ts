@@ -2,7 +2,7 @@
  * Kamera-regler for 3D-vieweren (ren geometri, uten three.js — testbar).
  */
 
-import { ZOOM_MIN_STEG_M, zoomSteg } from "@sitedoc/shared/tred";
+import { orbitAvstandIBygg, ZOOM_MIN_STEG_M, zoomSteg, type Boks3 } from "@sitedoc/shared/tred";
 
 export interface Vec3 {
   x: number;
@@ -79,19 +79,23 @@ export function avstandEtterSteg(avstand: number, steg: number): number {
  * Rotasjon rundt skjermmidten (Kenneth 2026-11-17).
  *
  * Orbit-punktet legges på blikklinja gjennom skjermmidten: på treffets avstand når
- * raycasten fra midten traff modellen, ellers på samme avstand som sist.
- * Punktet ligger alltid på blikklinja, så kameraet snur seg ikke når target settes.
+ * raycasten fra midten traff modellen, ellers på samme avstand som sist. Står kameraet inne
+ * i bygget, kortes avstanden til byggets vegg i blikkretningen (`orbitAvstandIBygg` i
+ * @sitedoc/shared/tred, § 3c (iv)). Punktet ligger alltid på blikklinja, så kameraet snur
+ * seg ikke når target settes.
  *
  * @param retning enhetsvektor for blikkretningen
  * @param treffAvstand avstand kamera→treffpunkt, eller `null` når midten ikke traff noe
+ * @param bygg byggets boks uten objekter langt unna (`kameraBoks`), eller `null`
  */
 export function orbitPunkt(
   kamera: Vec3,
   retning: Vec3,
   treffAvstand: number | null,
   sisteAvstand: number,
+  bygg: Boks3 | null = null,
 ): { punkt: Vec3; avstand: number } {
-  const avstand = treffAvstand !== null && treffAvstand > 0 ? treffAvstand : sisteAvstand;
+  const avstand = orbitAvstandIBygg(kamera, retning, treffAvstand, sisteAvstand, bygg);
   return { punkt: flyttLangsBlikk(kamera, retning, avstand), avstand };
 }
 

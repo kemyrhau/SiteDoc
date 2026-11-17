@@ -413,6 +413,9 @@ export function ViewerCanvas({
         // grunnlag for zoom-farten), og raycast fra skjermmidten mot synlige modeller
         // (settes når raycasting er klar lenger ned)
         let sisteOrbitAvstand = 10;
+        // Boksen kamera, innramming og orbit-punkt bruker: samlet boks uten objekter langt unna
+        // (§ 3b punkt 3). Tom til modellene er lastet; orbit-punktet holdes innenfor den (§ 3c (iv)).
+        const kameraBoks = new THREE.Box3();
         let finnTreffISkjermmidten: (() => Promise<InstanceType<typeof THREE.Vector3> | null>) | null = null;
         if (world.camera.controls) {
           const ctrl = world.camera.controls;
@@ -435,14 +438,14 @@ export function ViewerCanvas({
           let orbitTeller = 0;
           async function settOrbitPunkt() {
             const nr = ++orbitTeller;
-            const start = orbitPunkt(cam.position, blikkretning(), null, sisteOrbitAvstand);
+            const start = orbitPunkt(cam.position, blikkretning(), null, sisteOrbitAvstand, kameraBoks);
             ctrl.setTarget(start.punkt.x, start.punkt.y, start.punkt.z, false);
             if (!finnTreffISkjermmidten) return;
             const kameraVedStart = cam.position.clone();
             const treff = await finnTreffISkjermmidten();
             if (nr !== orbitTeller || !treff) return;
             // Kameraet kan ha rotert litt mens raycasten gikk: legg punktet på blikklinja slik den er nå
-            const o = orbitPunkt(cam.position, blikkretning(), treff.distanceTo(kameraVedStart), sisteOrbitAvstand);
+            const o = orbitPunkt(cam.position, blikkretning(), treff.distanceTo(kameraVedStart), sisteOrbitAvstand, kameraBoks);
             sisteOrbitAvstand = o.avstand;
             ctrl.setTarget(o.punkt.x, o.punkt.y, o.punkt.z, false);
           }
@@ -523,8 +526,6 @@ export function ViewerCanvas({
         const synligeModeller = new Set<string>();
         const ifcDataMap = ifcDataMapRef;
         const totalBbox = new THREE.Box3();
-        // Boksen kamera og innramming bruker: samlet boks uten objekter langt unna (§ 3b punkt 3)
-        const kameraBoks = new THREE.Box3();
         // Rom/åpninger skjult ved lasting, og objekter langt unna bygget — pr. modell
         const romIds = new Map<string, Set<number>>();
         let utliggerIds: IderPrModell = new Map();
@@ -1302,9 +1303,9 @@ export function ViewerCanvas({
           flyTil: (x: number, _y: number, z: number, gulvY?: number): Promise<void> => {
             const ctrl = world.camera.controls!;
             if (!ctrl) return Promise.resolve();
-            const erMm = Math.max(...kameraBoks.getSize(new THREE.Vector3()).toArray()) > 1000;
-            const øye = erMm ? 1600 : 1.6;
-            const fremover = erMm ? 5000 : 5;
+            // Scenen er alltid i meter (web-ifc skalerer IFC-enheten, ORDRE 3D-web 5 M1)
+            const øye = 1.6;
+            const fremover = 5;
             const kameraY = (gulvY != null ? gulvY : kameraBoks.getCenter(new THREE.Vector3()).y) + øye;
             const senter = kameraBoks.getCenter(new THREE.Vector3());
             const dx = senter.x - x;
