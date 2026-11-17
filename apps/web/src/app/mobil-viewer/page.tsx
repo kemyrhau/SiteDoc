@@ -2,11 +2,15 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { erGyldigBoks, finnUtliggere, orbitAvstandIBygg, zoomSteg } from "@sitedoc/shared/tred";
+import {
+  erGyldigBoks, finnUtliggere, orbitAvstandIBygg, trekkUtIfcEgenskaper, zoomSteg,
+  type IfcEgenskapsGruppe, type IfcEnheter,
+} from "@sitedoc/shared/tred";
 import { hentIfcRaadata, lagRaadataLager, lesAttributter } from "./ifcRaadata";
 import { beregnInnramming, dollyFartMobil, orbitAvstand, type Boks } from "./kameraInnramming";
 import { DIAG_LAGRINGSNØKKEL, diagFraUrlEllerLager, lagDiagHemmeligTrykk } from "./diagnose";
 import { flyttSnittpilerTilMidten } from "@/lib/tredSnittPil";
+import { hentModellEnheter, type IfcEgenskapsApi } from "@/lib/ifcEgenskaper";
 
 /**
  * Standalone IFC 3D-viewer for bruk i React Native WebView.
@@ -21,7 +25,8 @@ import { flyttSnittpilerTilMidten } from "@/lib/tredSnittPil";
  *     { type: "klar" }
  *     { type: "modellLastet", index: number, navn: string, totalt: number }
  *     { type: "alleLastet", antall: number }
- *     { type: "objektValgt", data: { localId, modelId, kategori, attributter } }
+ *     { type: "objektValgt", data: { localId, modelId, kategori, attributter, grupper, punkt } }
+ *       grupper: IfcEgenskapsGruppe[] fra `trekkUtIfcEgenskaper` (@sitedoc/shared/tred), ren JSON
  *     { type: "objektFjernet" }
  *     { type: "feil", melding: string }
  */
@@ -66,6 +71,7 @@ export default function MobilViewer() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let propsApi: any = null;
     const openModelIds = new Map<string, number>();
+    const enhetCache = new Map<number, IfcEnheter>();
 
     async function init() {
       const [OBC, THREE, WEBIFC] = await Promise.all([
@@ -387,21 +393,30 @@ export default function MobilViewer() {
           // fortsatt hentes i bakgrunnen (modell lastet fra fragment-cache).
           const rawData = await raadata.hent(hitModel.modelId);
           let attributter: Record<string, unknown> = {};
+          // W3/M5 (2): samme uttrekk som egenskapskortet på web (attributter, egenskapssett, type, mengder)
+          let grupper: IfcEgenskapsGruppe[] = [];
           if (rawData && propsApi) {
             try {
               const modelId = åpneIfc(hitModel.modelId, rawData);
-              const itemProps = await propsApi.properties.getItemProperties(modelId, localId, true).catch(() => null);
+              const api = propsApi as unknown as IfcEgenskapsApi;
+              const [itemProps, egenskapssett, typer] = await Promise.all([
+                api.properties.getItemProperties(modelId, localId, true).catch(() => null),
+                api.properties.getPropertySets(modelId, localId, true).catch(() => []),
+                api.properties.getTypeProperties(modelId, localId, true).catch(() => []),
+              ]);
               attributter = lesAttributter(itemProps);
+              const enheter = hentModellEnheter(api, modelId, WEBIFC.IFCUNITASSIGNMENT, enhetCache);
+              grupper = trekkUtIfcEgenskaper({ objekt: itemProps, egenskapssett, typer, enheter });
             } catch { /* */ }
           }
 
           sendTilApp({
             type: "objektValgt",
-            data: { localId, modelId: hitModel.modelId, kategori, attributter,
+            data: { localId, modelId: hitModel.modelId, kategori, attributter, grupper,
               punkt: { x: hitResult.point.x, y: hitResult.point.y, z: hitResult.point.z } },
           });
           live.trykk = `${klikkTid} klikk · objektValgt ${kategori ?? "uten kategori"}, ` +
-            `${Object.keys(attributter).length} egenskaper, råfil ${rawData ? "ja" : "nei"} (${ms()})`;
+            `${Object.keys(attributter).length} egenskaper, ${grupper.length} grupper, råfil ${rawData ? "ja" : "nei"} (${ms()})`;
           tegnLive(true);
         } catch {
           sendTilApp({ type: "objektFjernet" });

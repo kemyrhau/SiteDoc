@@ -1,3 +1,5 @@
+import type { IfcEgenskapsArt } from "@sitedoc/shared/tred";
+
 /* ------------------------------------------------------------------ */
 /*  Typer for 3D-visning                                                */
 /* ------------------------------------------------------------------ */
@@ -16,10 +18,14 @@ export interface TegningRad {
 export interface EgenskapVerdi {
   value: unknown;
   type?: string;
+  /** Enhet fra modellen (W3), f.eks. "mm" */
+  enhet?: string;
 }
 
 export interface EgenskapGruppe {
   navn: string;
+  /** Gruppens art fra det felles uttrekket (W3); mangler for koordinater, overordnet og materialer */
+  art?: IfcEgenskapsArt;
   egenskaper: Record<string, EgenskapVerdi>;
 }
 

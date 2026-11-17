@@ -1,15 +1,22 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   X,
   ChevronRight,
   ChevronDown,
   EyeOff,
 } from "lucide-react";
-import type { ValgtObjekt, EgenskapGruppe } from "../typer";
+import type { ValgtObjekt, EgenskapGruppe, EgenskapVerdi } from "../typer";
 import { INTERNE_FELT } from "../konstanter";
 import { formaterVerdi } from "../hjelpefunksjoner";
+
+/** Verdi med modellens enhet (W3), f.eks. «990 mm» */
+function verdiTekst(v: EgenskapVerdi): string {
+  const tekst = formaterVerdi(v.value);
+  return v.enhet ? `${tekst} ${v.enhet}` : tekst;
+}
 
 export function EgenskapsPopup({
   objekt,
@@ -85,7 +92,7 @@ export function EgenskapsPopup({
                     <td className="py-0.5 pr-2 text-gray-500">{k}</td>
                     <td className="py-0.5 font-medium text-gray-900">
                       <span className="flex items-center gap-1">
-                        {formaterVerdi(v.value)}
+                        {verdiTekst(v)}
                         {erFiltrerbar && (
                           <button
                             onClick={() => {
@@ -107,15 +114,22 @@ export function EgenskapsPopup({
         </table>
       </div>
 
-      {objekt.relasjoner.map((gruppe) => (
-        <EgenskapsGruppeVis key={gruppe.navn} gruppe={gruppe} />
+      {objekt.relasjoner.map((gruppe, i) => (
+        <EgenskapsGruppeVis key={`${i}-${gruppe.navn}`} gruppe={gruppe} />
       ))}
     </div>
   );
 }
 
 function EgenskapsGruppeVis({ gruppe }: { gruppe: EgenskapGruppe }) {
+  const { t } = useTranslation();
   const [utvidet, setUtvidet] = useState(true);
+  // Type- og mengdesett merkes, så de skilles fra objektets egne egenskapssett
+  const artTekst = gruppe.art === "type" ? t("3d.egenskaper.type")
+    : gruppe.art === "mengder" ? t("3d.egenskaper.mengder")
+    : gruppe.art === "egenskapssett" && !gruppe.navn ? t("3d.egenskaper.egenskapssett")
+    : null;
+  const tittel = artTekst && gruppe.navn ? `${artTekst}: ${gruppe.navn}` : (artTekst ?? gruppe.navn);
 
   return (
     <div className="border-b border-gray-100 last:border-b-0">
@@ -128,7 +142,7 @@ function EgenskapsGruppeVis({ gruppe }: { gruppe: EgenskapGruppe }) {
         ) : (
           <ChevronRight className="h-3 w-3 text-gray-400" />
         )}
-        <span className="text-xs font-semibold text-gray-700">{gruppe.navn}</span>
+        <span className="min-w-0 break-words text-xs font-semibold text-gray-700">{tittel}</span>
       </button>
       {utvidet && (
         <div className="px-4 pb-2">
@@ -138,7 +152,7 @@ function EgenskapsGruppeVis({ gruppe }: { gruppe: EgenskapGruppe }) {
                 <tr key={k}>
                   <td className="py-0.5 pr-2 text-gray-500">{k}</td>
                   <td className="py-0.5 font-medium text-gray-900">
-                    {formaterVerdi(v.value)}
+                    {verdiTekst(v)}
                   </td>
                 </tr>
               ))}

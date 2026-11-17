@@ -26,12 +26,11 @@ import type {
 } from "@/app/dashbord/[prosjektId]/3d-visning/typer";
 import { INTERNE_FELT, ifcFilCache } from "@/app/dashbord/[prosjektId]/3d-visning/konstanter";
 import {
-  hentNavn,
-  hentVerdi,
   settWebifcKonstanter,
   finnIfcTypeKode,
 } from "@/app/dashbord/[prosjektId]/3d-visning/hjelpefunksjoner";
-import { finnUtliggere, type Boks3 } from "@sitedoc/shared/tred";
+import { finnUtliggere, trekkUtIfcEgenskaper, type Boks3, type IfcEnheter } from "@sitedoc/shared/tred";
+import { hentModellEnheter, type IfcEgenskapsApi } from "@/lib/ifcEgenskaper";
 import { flyttSnittpilerTilMidten } from "@/lib/tredSnittPil";
 import {
   avstandEtterSteg,
@@ -380,6 +379,7 @@ export function ViewerCanvas({
       };
     } | null = null;
     const openModelIds = new Map<string, number>();
+    const enhetCache = new Map<number, IfcEnheter>();
     const ifcDataMapRef = new Map<string, Uint8Array>();
 
     Promise.all([
@@ -957,9 +957,16 @@ export function ViewerCanvas({
                   }
                 } catch { /* Ikke kritisk */ }
 
-                const allPropertySets = [...propertySets, ...parentPropertySets];
-                const allTypeProps = [...typeProps, ...parentTypeProps];
                 const allMaterials = [...materials, ...parentMaterials];
+
+                // W3: felles uttrekk (attributter, egenskapssett, type, mengder) med modellens enheter
+                const enheter = hentModellEnheter(
+                  propsApiRef as unknown as IfcEgenskapsApi, modelId, WEBIFC.IFCUNITASSIGNMENT, enhetCache,
+                );
+                const egneGrupper = trekkUtIfcEgenskaper({ objekt: itemProps, egenskapssett: propertySets, typer: typeProps, enheter });
+                const foreldreGrupper = parentProps
+                  ? trekkUtIfcEgenskaper({ egenskapssett: parentPropertySets, typer: parentTypeProps, enheter })
+                  : [];
 
                 const attributter: Record<string, EgenskapVerdi> = {};
                 if (itemProps) {
@@ -968,14 +975,9 @@ export function ViewerCanvas({
                     const n = (nameVal as { value: unknown }).value;
                     if (n != null && n !== "") attributter["Name"] = { value: n };
                   }
-                  for (const [k, v] of Object.entries(itemProps)) {
-                    if (INTERNE_FELT.has(k)) continue;
-                    if (v && typeof v === "object" && "value" in (v as Record<string, unknown>)) {
-                      const val = (v as { value: unknown }).value;
-                      if (val === null || val === undefined || val === "") continue;
-                      attributter[k] = { value: val };
-                    }
-                  }
+                }
+                for (const e of egneGrupper.find((g) => g.art === "attributter")?.egenskaper ?? []) {
+                  attributter[e.navn] = e.enhet ? { value: e.verdi, enhet: e.enhet } : { value: e.verdi };
                 }
                 if (typeName) attributter["Type"] = { value: typeName };
                 if (layerName) attributter["Layer"] = { value: layerName };
@@ -1018,45 +1020,12 @@ export function ViewerCanvas({
                   }
                 }
 
-                // PropertySets
-                for (const pset of [...allPropertySets, ...allTypeProps]) {
-                  const psetNavn = pset.Name && typeof pset.Name === "object" && "value" in (pset.Name as Record<string, unknown>)
-                    ? String((pset.Name as { value: unknown }).value) : "Egenskaper";
+                // Egenskapssett, type-egenskaper og mengder (objektet først, så overordnet element)
+                for (const g of [...egneGrupper, ...foreldreGrupper]) {
+                  if (g.art === "attributter") continue;
                   const egenskaper: Record<string, EgenskapVerdi> = {};
-                  const hasProps = pset.HasProperties as Record<string, unknown>[] | undefined;
-                  if (Array.isArray(hasProps)) {
-                    for (const prop of hasProps) {
-                      const propNavn = hentNavn(prop);
-                      const nestedProps = prop.HasProperties as Record<string, unknown>[] | undefined;
-                      if (Array.isArray(nestedProps)) {
-                        for (const nested of nestedProps) {
-                          const nestedNavn = hentNavn(nested);
-                          const nestedVerdi = hentVerdi(nested);
-                          if (nestedVerdi !== null) egenskaper[`${propNavn}.${nestedNavn}`] = { value: nestedVerdi };
-                        }
-                      } else {
-                        const verdi = hentVerdi(prop);
-                        if (verdi !== null) egenskaper[propNavn] = { value: verdi };
-                      }
-                    }
-                  }
-                  const hasQuant = (pset.Quantities ?? pset.HasQuantities) as Record<string, unknown>[] | undefined;
-                  if (Array.isArray(hasQuant)) {
-                    for (const q of hasQuant) {
-                      const qNavn = hentNavn(q);
-                      const verdi = hentVerdi(q);
-                      if (verdi !== null) egenskaper[qNavn] = { value: verdi };
-                    }
-                  }
-                  const hasTemplates = pset.HasPropertyTemplates as Record<string, unknown>[] | undefined;
-                  if (Array.isArray(hasTemplates)) {
-                    for (const tmpl of hasTemplates) {
-                      const tmplNavn = hentNavn(tmpl);
-                      const verdi = hentVerdi(tmpl);
-                      if (verdi !== null) egenskaper[tmplNavn] = { value: verdi };
-                    }
-                  }
-                  if (Object.keys(egenskaper).length > 0) relasjoner.push({ navn: psetNavn, egenskaper });
+                  for (const e of g.egenskaper) egenskaper[e.navn] = e.enhet ? { value: e.verdi, enhet: e.enhet } : { value: e.verdi };
+                  relasjoner.push({ navn: g.navn ?? "", art: g.art, egenskaper });
                 }
 
                 // Materialer
