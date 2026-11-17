@@ -110,6 +110,9 @@ function Fane3DModell() {
     skjulteObjekter,
     aktiveFiltre,
     klippModus,
+    antallUtliggere,
+    visUtliggere,
+    settVisUtliggere,
     lasterTegninger,
     lasterPunktskyer,
     viewerRef,
@@ -250,6 +253,18 @@ function Fane3DModell() {
             {t("3d.modellAntall", { antall: tegninger.length })}
           </span>
           <div className="flex-1" />
+          {/* Objekter langt unna bygget skjules som standard (§ 3b punkt 3) */}
+          {antallUtliggere > 0 && (
+            <label className="flex cursor-pointer items-center gap-1.5 border-r border-gray-200 pr-3 text-xs text-gray-600">
+              <input
+                type="checkbox"
+                className="h-3.5 w-3.5 accent-sitedoc-primary"
+                checked={visUtliggere}
+                onChange={(e) => { void settVisUtliggere(e.target.checked); }}
+              />
+              {t("3d.visObjekterLangtUnna")} ({antallUtliggere})
+            </label>
+          )}
           <div className="flex items-center gap-1 border-r border-gray-200 pr-3">
             <Tooltip tekst={t("3d.snittHjelp")} side="bottom">
               <button

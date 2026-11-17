@@ -139,6 +139,11 @@ export interface ViewerAPI {
   settEtasjeKlipp: (nedre: number, øvre: number) => void;
   /** Fjern etasje-klippeplan */
   fjernEtasjeKlipp: () => void;
+  /**
+   * Vis/skjul objekter langt unna bygget (§ 3b punkt 3). Viser aldri objekter som er
+   * skjult av en annen grunn: rom/åpninger, aktive filtre eller enkeltskjulte objekter.
+   */
+  settUtliggereSynlige: (vis: boolean, aktiveFiltre: AktivtFilter[], skjulteObjekter: SkjultObjekt[]) => Promise<void>;
   /** Hent kameraposisjon, target og blikkretning */
   hentKameraPosisjon: () => { pos: { x: number; y: number; z: number }; target: { x: number; y: number; z: number }; retning: { x: number; y: number; z: number } } | null;
 }
