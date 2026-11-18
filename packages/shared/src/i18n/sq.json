@@ -5876,5 +5876,11 @@
   "timer.attestering.registrering.jobbB": "Puna B",
   "timer.attestering.registrering.somFor": "Nënprojekt i pandryshuar",
   "timer.attestering.registrering.maskinBlir_one": "{{count}} makina qëndron këtu",
-  "timer.attestering.registrering.maskinBlir_other": "{{count}} makina qëndrojnë këtu"
+  "timer.attestering.registrering.maskinBlir_other": "{{count}} makina qëndrojnë këtu",
+  "timer.attestering.egneTimer.merke": "Orari i vet",
+  "timer.attestering.egneTimer.forklaring": "Orari juaj miratohet nga dikush tjetër. Korrigjojini ato në orët e mia.",
+  "firma.innstillinger.selvAttestering.tittel": "Miratuesit mund të miratojnë orarin e tyre",
+  "firma.innstillinger.selvAttestering.hintNei": "Jo: orët e veta miratohen nga dikush tjetër me të drejta miratimi. Nëse askush tjetër nuk ka të drejtë, orët mbesin si \"Prerje\".",
+  "firma.innstillinger.selvAttestering.hintJa": "Po: një miratues mund të miratojë, të kthehet dhe të korrigjojë orët e veta.",
+  "firma.innstillinger.selvAttestering.hjelpIkon": "Zbatohet për të gjithë ata që mund të miratojnë, duke përfshirë administratorët e kompanisë. Orari i vet korrigjohet te Orari i mia."
 }

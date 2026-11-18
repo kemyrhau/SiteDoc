@@ -5876,5 +5876,11 @@
   "timer.attestering.registrering.jobbB": "Job B",
   "timer.attestering.registrering.somFor": "Subproject unchanged",
   "timer.attestering.registrering.maskinBlir_one": "{{count}} machine stays here",
-  "timer.attestering.registrering.maskinBlir_other": "{{count}} machines stay here"
+  "timer.attestering.registrering.maskinBlir_other": "{{count}} machines stay here",
+  "timer.attestering.egneTimer.merke": "Own hours",
+  "timer.attestering.egneTimer.forklaring": "Your own hours are approved by someone else. Correct them in My hours.",
+  "firma.innstillinger.selvAttestering.tittel": "Approvers can approve their own hours",
+  "firma.innstillinger.selvAttestering.hintNei": "No: own hours are approved by someone else with approval rights. If nobody else has the right, the hours stay as «Pending».",
+  "firma.innstillinger.selvAttestering.hintJa": "Yes: an approver can approve, return and correct their own hours.",
+  "firma.innstillinger.selvAttestering.hjelpIkon": "Applies to everyone who can approve, including company administrators. Own hours are corrected in My hours."
 }

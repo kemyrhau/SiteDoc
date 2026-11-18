@@ -5876,5 +5876,11 @@
   "timer.attestering.registrering.jobbB": "Job B",
   "timer.attestering.registrering.somFor": "Teilprojekt unverändert",
   "timer.attestering.registrering.maskinBlir_one": "{{count}} Maschine bleibt hier",
-  "timer.attestering.registrering.maskinBlir_other": "{{count}} Maschinen bleiben hier"
+  "timer.attestering.registrering.maskinBlir_other": "{{count}} Maschinen bleiben hier",
+  "timer.attestering.egneTimer.merke": "Eigene Stunden",
+  "timer.attestering.egneTimer.forklaring": "Ihre eigenen Stunden werden von jemand anderem genehmigt. Korrigiere sie in Meinen Stunden.",
+  "firma.innstillinger.selvAttestering.tittel": "Genehmiger können ihre eigenen Stunden genehmigen",
+  "firma.innstillinger.selvAttestering.hintNei": "Nein: Eigene Stunden werden von einer anderen Person mit Genehmigungsrechten genehmigt. Wenn niemand anderes das Recht hat, bleiben die Stunden auf „Ausstehend“.",
+  "firma.innstillinger.selvAttestering.hintJa": "Ja: Ein Genehmiger kann seine eigenen Stunden genehmigen, zurückgeben und korrigieren.",
+  "firma.innstillinger.selvAttestering.hjelpIkon": "Gilt für alle, die genehmigen können, einschließlich Unternehmensadministratoren. Eigene Stunden werden in Meine Stunden korrigiert."
 }

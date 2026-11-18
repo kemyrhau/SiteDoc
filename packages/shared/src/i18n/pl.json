@@ -5876,5 +5876,11 @@
   "timer.attestering.registrering.jobbB": "Praca B",
   "timer.attestering.registrering.somFor": "Podprojekt bez zmian",
   "timer.attestering.registrering.maskinBlir_one": "{{count}} maszyna tu zostaje",
-  "timer.attestering.registrering.maskinBlir_other": "Zostaje tu {{count}} maszyn"
+  "timer.attestering.registrering.maskinBlir_other": "Zostaje tu {{count}} maszyn",
+  "timer.attestering.egneTimer.merke": "Własne godziny",
+  "timer.attestering.egneTimer.forklaring": "Twoje godziny pracy są zatwierdzane przez kogoś innego. Popraw je w Moich godzinach.",
+  "firma.innstillinger.selvAttestering.tittel": "Osoby zatwierdzające mogą zatwierdzać własne godziny pracy",
+  "firma.innstillinger.selvAttestering.hintNei": "Nie: własne godziny pracy są zatwierdzane przez osobę posiadającą uprawnienia do zatwierdzania. Jeżeli nikt inny nie ma do tego prawa, godziny pozostają w stanie „Oczekujące”.",
+  "firma.innstillinger.selvAttestering.hintJa": "Tak: osoba zatwierdzająca może zatwierdzać, zwracać i korygować własne godziny pracy.",
+  "firma.innstillinger.selvAttestering.hjelpIkon": "Dotyczy wszystkich, którzy mogą zatwierdzać, w tym administratorów firmy. Własne godziny są korygowane w Moich godzinach."
 }

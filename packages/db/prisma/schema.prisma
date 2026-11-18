@@ -413,8 +413,10 @@ model OrganizationSetting {
   // (IKKE blokkering). Default 13 (AML § 10-6 alminnelig/utvidet); firma hever
   // til 16 ved tariff via samme felt. SiteDoc flagger, firmaets HMS eier ansvaret.
   arbeidstidVarselTimer        Int     @default(13) @map("arbeidstid_varsel_timer")
-  // Tillater ansatte å attestere egen dagsseddel (selv-attestering)
-  tillattSelvAttestering       Boolean @default(true) @map("tillatt_selv_attestering")
+  // w7 (2026-11-18, B15/§ 8.5) — «Attestant kan attestere egne timer». Nei (false) = ingen
+  // attestant attesterer, returnerer, gjenåpner, retter eller deler sedler der eieren er seg selv
+  // (`krevIkkeEgenSedel` i dagsseddel.ts). Default false; migrering 20261118120000 satte alle til false.
+  tillattSelvAttestering       Boolean @default(false) @map("tillatt_selv_attestering")
   // Antall dager før dagsseddel låses for endring (NULL = ingen alders-grense, status styrer låsing)
   timerLockEtterDager          Int?    @map("timer_lock_etter_dager")
   // T.5 (2026-05-11) — Tidsrunding i minutter ved timer-registrering.

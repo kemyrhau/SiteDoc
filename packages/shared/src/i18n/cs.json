@@ -5876,5 +5876,11 @@
   "timer.attestering.registrering.jobbB": "Práce B",
   "timer.attestering.registrering.somFor": "Dílčí projekt beze změny",
   "timer.attestering.registrering.maskinBlir_one": "{{count}} stroj zde zůstává",
-  "timer.attestering.registrering.maskinBlir_other": "{{count}} strojů zde zůstane"
+  "timer.attestering.registrering.maskinBlir_other": "{{count}} strojů zde zůstane",
+  "timer.attestering.egneTimer.merke": "Vlastní hodiny",
+  "timer.attestering.egneTimer.forklaring": "Vaše vlastní otevírací doba je schválena někým jiným. Opravte je v mých hodinách.",
+  "firma.innstillinger.selvAttestering.tittel": "Schvalovatelé mohou schvalovat vlastní otevírací dobu",
+  "firma.innstillinger.selvAttestering.hintNei": "Ne: vlastní otevírací dobu schvaluje někdo jiný s právem schvalování. Pokud nikdo jiný nemá právo, hodiny zůstanou jako „Nevyřízeno“.",
+  "firma.innstillinger.selvAttestering.hintJa": "Ano: schvalovatel může schválit, vrátit a opravit vlastní otevírací dobu.",
+  "firma.innstillinger.selvAttestering.hjelpIkon": "Platí pro každého, kdo může schvalovat, včetně firemních administrátorů. Vlastní hodiny jsou opraveny v části Moje hodiny."
 }

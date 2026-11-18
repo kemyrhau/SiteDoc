@@ -52,6 +52,9 @@ vi.mock("@sitedoc/db-maskin", () => ({
 import { dagsseddelRouter, krevKatalogIFirma } from "./dagsseddel";
 
 const USER = "user-1";
+
+// w7 (B15): egne timer attesteres/rettes av en annen — lederveiene kalles av en annen enn eieren.
+const ATTESTANT = "attestant-1";
 const ORG = "11111111-1111-1111-1111-111111111111";
 const ORG_B = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
 const SHEET = "22222222-2222-2222-2222-222222222222";
@@ -298,12 +301,14 @@ describe("redigerSedelRader — katalog-firmavakt (punkt 1)", () => {
     ["tillegg", { tillegg: [tilleggRad(FREMMED_TILLEGG)] }, /Tillegg finnes ikke i firmaets katalog/],
   ])("🔴 fremmed %s: BAD_REQUEST, ingen transaksjon", async (_navn, nyeRader, feil) => {
     const { ctx } = lagCtx({ status: "sent" });
+    ctx.userId = ATTESTANT;
     await expect(kjør(ctx, nyeRader)).rejects.toThrow(feil);
     expect(ctx.prismaTimer.$transaction).not.toHaveBeenCalled();
   });
 
   it("egne ID-er passerer katalog-vakten", async () => {
     const { ctx } = lagCtx({ status: "sent" });
+    ctx.userId = ATTESTANT;
     // Senere steg i redigeringen er utenfor denne testens mock; kravet er at
     // katalog-vakten slår opp med firma-filter og ikke avviser egne ID-er.
     const feil = await kjør(ctx, {
@@ -368,6 +373,7 @@ describe("splitt — katalog-firmavakt i validerSplittFelles (RETUR 1 V2)", () =
     ["leder, timer, fremmed aktivitet", "sent", "splittRad", { radType: "timer", radId: RAD, nyeRader: timerDeler(LONNSART, FREMMED_AKTIVITET) }, /Aktivitet finnes ikke i firmaets katalog/],
   ] as const)("🔴 %s: BAD_REQUEST, ingen transaksjon", async (_navn, status, inngang, input, feil) => {
     const { ctx } = lagCtx({ status });
+    if (inngang === "splittRad") ctx.userId = ATTESTANT;
     const c = caller(ctx) as unknown as Record<string, (i: unknown) => Promise<unknown>>;
     await expect(c[inngang]!(input)).rejects.toMatchObject({ code: "BAD_REQUEST", message: expect.stringMatching(feil) });
     expect(ctx.prismaTimer.$transaction).not.toHaveBeenCalled();
@@ -379,6 +385,7 @@ describe("splitt — katalog-firmavakt i validerSplittFelles (RETUR 1 V2)", () =
     ["leder, timer", "sent", "splittRad", { radType: "timer", radId: RAD, nyeRader: timerDeler(LONNSART, AKTIVITET) }],
   ] as const)("%s med egne ID-er: slipper forbi vakten (transaksjonen startes)", async (_navn, status, inngang, input) => {
     const { ctx } = lagCtx({ status });
+    if (inngang === "splittRad") ctx.userId = ATTESTANT;
     const c = caller(ctx) as unknown as Record<string, (i: unknown) => Promise<unknown>>;
     // Transaksjons-mocken dekker ikke splitt-skrivingen; det som måles er at vakten slapp gjennom.
     const feil = await c[inngang]!(input).then(() => null, (e: unknown) => e as Error);

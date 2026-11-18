@@ -21,6 +21,9 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const ORG = "11111111-1111-1111-1111-111111111111";
 const ANNET_ORG = "12121212-1212-1212-1212-121212121212";
 const USER = "user-1";
+
+// w7 (B15): egne timer attesteres/rettes av en annen — lederveiene kalles av en annen enn eieren.
+const ATTESTANT = "attestant-1";
 const SHEET = "22222222-2222-2222-2222-222222222222";
 const PROSJEKT_A = "33333333-3333-3333-3333-333333333333";
 const PROSJEKT_B = "99999999-9999-9999-9999-999999999999";
@@ -439,6 +442,7 @@ describe("T4 — splitt og rediger av tillegg", () => {
 
     it(`🔴 redigerSedelRader: tillegg med ${Object.keys(felt)[0]} fra annet prosjekt avvises, ingen transaksjon`, async () => {
       const { ctx, transaction } = lagCtx({ status: "sent" });
+      ctx.userId = ATTESTANT;
       await expect(
         caller(ctx).redigerSedelRader({
           sheetId: SHEET,
@@ -457,6 +461,7 @@ describe("T4 — splitt og rediger av tillegg", () => {
 describe("B7 — flyttTimerRadEco for tillegg", () => {
   it("radType tillegg: sheet_tillegg oppdateres, sheet_timer røres ikke, logges som tillegg", async () => {
     const { ctx, tilleggUpdate, timerUpdate } = lagCtx({ status: "sent" });
+    ctx.userId = ATTESTANT;
     await caller(ctx).flyttTimerRadEco({ timerRadId: RAD, radType: "tillegg", externalCostObjectId: null });
     expect(tilleggUpdate).toHaveBeenCalledWith({ where: { id: RAD }, data: { externalCostObjectId: null } });
     expect(timerUpdate).not.toHaveBeenCalled();
@@ -467,6 +472,7 @@ describe("B7 — flyttTimerRadEco for tillegg", () => {
 
   it("uten radType (eldre web): timer-veien som før", async () => {
     const { ctx, tilleggUpdate, timerUpdate } = lagCtx({ status: "sent" });
+    ctx.userId = ATTESTANT;
     await caller(ctx).flyttTimerRadEco({ timerRadId: RAD, externalCostObjectId: ECO_A });
     expect(timerUpdate).toHaveBeenCalledWith({ where: { id: RAD }, data: { externalCostObjectId: ECO_A } });
     expect(tilleggUpdate).not.toHaveBeenCalled();
@@ -475,6 +481,7 @@ describe("B7 — flyttTimerRadEco for tillegg", () => {
 
   it("🔴 tillegg: underprosjekt fra annet prosjekt avvises, ingen oppdatering", async () => {
     const { ctx, tilleggUpdate } = lagCtx({ status: "sent" });
+    ctx.userId = ATTESTANT;
     await expect(
       caller(ctx).flyttTimerRadEco({ timerRadId: RAD, radType: "tillegg", externalCostObjectId: ECO_B }),
     ).rejects.toThrow(/samme prosjekt/);
@@ -483,6 +490,7 @@ describe("B7 — flyttTimerRadEco for tillegg", () => {
 
   it("tillegg på utkast (ikke innsendt) avvises som for timer", async () => {
     const { ctx, tilleggUpdate } = lagCtx({ status: "draft" });
+    ctx.userId = ATTESTANT;
     await expect(
       caller(ctx).flyttTimerRadEco({ timerRadId: RAD, radType: "tillegg", externalCostObjectId: null }),
     ).rejects.toThrow(/innsendte/);

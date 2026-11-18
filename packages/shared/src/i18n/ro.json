@@ -5876,5 +5876,11 @@
   "timer.attestering.registrering.jobbB": "Job B",
   "timer.attestering.registrering.somFor": "Subproiect neschimbat",
   "timer.attestering.registrering.maskinBlir_one": "{{count}} aparat rămâne aici",
-  "timer.attestering.registrering.maskinBlir_other": "{{count}} aparate rămân aici"
+  "timer.attestering.registrering.maskinBlir_other": "{{count}} aparate rămân aici",
+  "timer.attestering.egneTimer.merke": "Programul propriu",
+  "timer.attestering.egneTimer.forklaring": "Programul tău este aprobat de altcineva. Corectează-le în orele Mele.",
+  "firma.innstillinger.selvAttestering.tittel": "Aprobatorii își pot aproba propriile ore",
+  "firma.innstillinger.selvAttestering.hintNei": "Nu: orele proprii sunt aprobate de altcineva cu drepturi de aprobare. Dacă nimeni altcineva nu are dreptul, orele rămân ca „În așteptare”.",
+  "firma.innstillinger.selvAttestering.hintJa": "Da: un autorizator își poate aproba, returna și corecta propriile ore de lucru.",
+  "firma.innstillinger.selvAttestering.hjelpIkon": "Se aplică tuturor celor care pot aproba, inclusiv administratorilor companiei. Orele proprii sunt corectate în Orele Mele."
 }

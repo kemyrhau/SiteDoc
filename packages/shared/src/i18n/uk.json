@@ -5876,5 +5876,11 @@
   "timer.attestering.registrering.jobbB": "Робота Б",
   "timer.attestering.registrering.somFor": "Підпроект без змін",
   "timer.attestering.registrering.maskinBlir_one": "{{count}} машина залишається тут",
-  "timer.attestering.registrering.maskinBlir_other": "{{count}} машин залишаються тут"
+  "timer.attestering.registrering.maskinBlir_other": "{{count}} машин залишаються тут",
+  "timer.attestering.egneTimer.merke": "Власні години",
+  "timer.attestering.egneTimer.forklaring": "Ваші власні години схвалені кимось іншим. Виправте їх у Моїх годинах.",
+  "firma.innstillinger.selvAttestering.tittel": "Особи, які затверджують, можуть затверджувати власні години",
+  "firma.innstillinger.selvAttestering.hintNei": "Ні: власні години схвалені кимось іншим із правами схвалення. Якщо ніхто інший не має права, години залишаються як «Очікують».",
+  "firma.innstillinger.selvAttestering.hintJa": "Так: особа, яка затверджує, може затверджувати, повертати та виправляти власні години роботи.",
+  "firma.innstillinger.selvAttestering.hjelpIkon": "Застосовується до всіх, хто може схвалити, включно з адміністраторами компанії. Власні години коригуються в Мої години."
 }

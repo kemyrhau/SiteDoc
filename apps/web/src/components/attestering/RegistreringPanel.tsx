@@ -294,6 +294,10 @@ export function RegistreringPanel({ kort, sedel, orgId, kanAttestere, kanRette, 
       {!kanRette && kanAttestere && !sedel.redigerTillatt && (
         <p className="border-t border-gray-100 px-4 py-2 text-xs text-gray-500">{t("timer.attestering.registrering.rettingAv")}</p>
       )}
+      {/* w7 (B15): egen sedel — knappene er borte; si hvorfor og hvor timene rettes. */}
+      {sedel.egneTimer && (
+        <p className="border-t border-gray-100 px-4 py-2 text-xs text-gray-500">{t("timer.attestering.egneTimer.forklaring")}</p>
+      )}
     </div>
   );
 }

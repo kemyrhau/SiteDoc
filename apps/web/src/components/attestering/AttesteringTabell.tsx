@@ -182,9 +182,10 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
     return (id: string) => m.get(id);
   }, [dager]);
   const iKontekst = (l: AttLinje) => {
-    if (!prosjektKontekst) return true;
     const s = sedelFor(l.sheetId);
-    return !!s && linjeIKontekst(l, s, prosjektKontekst);
+    // w7 (B15): egen sedel er utenfor konteksten også i firmaattesteringen.
+    if (!s) return !prosjektKontekst;
+    return linjeIKontekst(l, s, prosjektKontekst);
   };
 
   const synlige = useMemo(
@@ -469,9 +470,11 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
         </span>
       );
     }
+    // w7 (B15): egen sedel — ingen attester/returner/gjenåpne; merket i avvikskolonnen forklarer.
+    const egen = s.egneTimer === true;
     return (
       <span className="flex items-center gap-1">
-        {!readOnly && (
+        {!readOnly && !egen && (
           <>
             {/* Kort tekst (w5): raden heter alt «Sum <dato> · <ansatt>»; full tekst som tittel. */}
             <Button size="sm" className="whitespace-nowrap" onClick={() => { setMelding(null); attesterDag.mutate({ id: s.id }); }} disabled={opptatt || !!dag.sperre} title={dag.sperre ?? t("timer.attestering.tabell.attesterDagen")} aria-label={t("timer.attestering.tabell.attesterDagen")}>
@@ -482,7 +485,7 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
           </>
         )}
         {enKort && kortGjenaapne(enKort)}
-        {readOnly && (
+        {readOnly && !egen && (
           <Button size="sm" variant="secondary" className="whitespace-nowrap" onClick={() => setGjenaapneDag(s.id)} title={t("timer.attestering.tabell.gjenaapneDagen")} aria-label={t("timer.attestering.tabell.gjenaapneDagen")}>
             <RotateCcw className="mr-1 h-3.5 w-3.5" />
             {t("timer.attestering.tabell.gjenaapne")}
@@ -543,6 +546,11 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
     const ukedag = Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString(i18n.language, { weekday: "short" });
     return ukedag ? `${ukedag} ${dato(iso)}` : dato(iso);
   };
+
+  /** w7 (B15): «Egne timer» på attestantens egen sedel; forklaringen på hover. */
+  function egneMerke(s: AttSedel): AvvikMerke[] {
+    return s.egneTimer ? [{ tekst: t("timer.attestering.egneTimer.merke"), forklaring: t("timer.attestering.egneTimer.forklaring") }] : [];
+  }
 
   /** Normen som merke (w5b): bare når dagen avviker; hele setningen på hover (mønsteret fra B7). */
   function normMerke(s: AttSedel): AvvikMerke | null {
@@ -643,7 +651,7 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
                 case "timer": return formaterNorsk(sum.timer);
                 case "maskintimer": return sum.maskintimer > 0 ? formaterNorsk(sum.maskintimer) : "";
                 default:
-                  return k === avvikKol ? avvikCelle([...(norm ? [norm] : []), ...unikeMerker(kort.linjer.flatMap((l) => l.avvikMerker))]) : "";
+                  return k === avvikKol ? avvikCelle([...egneMerke(s), ...(norm ? [norm] : []), ...unikeMerker(kort.linjer.flatMap((l) => l.avvikMerker))]) : "";
               }
             },
           });
@@ -660,6 +668,7 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
       const dagSum = sumLinjer(alle);
       const norm = normMerke(s);
       const dagMerker = [
+        ...egneMerke(s),
         ...(norm ? [norm] : []),
         ...(enKort ? unikeMerker(enKort.linjer.flatMap((l) => l.avvikMerker)) : []),
       ];

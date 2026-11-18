@@ -721,3 +721,47 @@ describe("w5b — dagsvisningen, alternativ A", () => {
     expect(slutt.querySelector("[data-registrering]")).toBeTruthy();
   });
 });
+
+describe("w7 (B15) — egne timer: synlige, merket, uten handlinger", () => {
+  const egen = () => sedel({ id: "egen", egneTimer: true, timer: [timer("e1")] });
+  const andres = () => sedel({ id: "andres", dato: "2026-11-17", timer: [timer("a1")] });
+
+  it("firmaattesteringen: egen linje nedtonet uten avkrysning og knapper; dagen har merket, ingen «Attester»", () => {
+    const { container, getAllByText, getAllByRole } = visMed([egen(), andres()]);
+    const l = linje(container, "egen:timer:e1");
+    expect(l.className).toMatch(/opacity-50/);
+    expect(within(l).queryByRole("checkbox")).toBeNull();
+    expect(within(l).queryAllByRole("button")).toHaveLength(0);
+    expect(getAllByText("timer.attestering.egneTimer.merke").length).toBe(1);
+    // Én «Attester dagen» — den andres dag.
+    expect(getAllByRole("button", { name: "timer.attestering.tabell.attesterDagen" })).toHaveLength(1);
+  });
+
+  it("«Attester utvalget» hopper over egen sedel", () => {
+    const { getByRole } = visMed([egen(), andres()]);
+    fireEvent.click(getByRole("button", { name: /attesterUtvalget/ }));
+    expect(kallTil("attesterRader")[0]!.input).toEqual({ radIder: { timerIder: ["a1"], maskinIder: [], tilleggIder: [] } });
+  });
+
+  it("attestert-fanen: ingen «Gjenåpne dagen» og ingen ↺ på egen sedel", () => {
+    const { queryByRole, queryAllByRole } = visMed(
+      [sedel({ id: "egen", egneTimer: true, timer: [timer("e1", { attestertStatus: "attestert" })] })],
+      { readOnly: true },
+    );
+    expect(queryByRole("button", { name: /gjenaapneDagen/ })).toBeNull();
+    expect(queryAllByRole("button", { name: /gjenaapne/ })).toHaveLength(0);
+  });
+
+  it("prosjektattesteringen: egen sedel er utenfor konteksten også der", () => {
+    const { container, queryByRole } = visMed([egen()], { prosjektKontekst: "pA" });
+    expect(within(linje(container, "egen:timer:e1")).queryByRole("checkbox")).toBeNull();
+    expect(queryByRole("button", { name: /attesterProsjektetsDel/ })).toBeNull();
+  });
+
+  it("negativkontroll: uten flagget har den samme sedelen knappene og intet merke", () => {
+    const { container, queryByText } = visMed([sedel({ id: "egen", egneTimer: false, timer: [timer("e1")] })]);
+    expect(within(linje(container, "egen:timer:e1")).getByRole("checkbox")).toBeTruthy();
+    expect(within(linje(container, "egen:timer:e1")).getByRole("button", { name: "timer.attestering.attester" })).toBeTruthy();
+    expect(queryByText("timer.attestering.egneTimer.merke")).toBeNull();
+  });
+});
