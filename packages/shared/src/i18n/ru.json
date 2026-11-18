@@ -5876,5 +5876,11 @@
   "timer.attestering.registrering.jobbB": "Работа Б",
   "timer.attestering.registrering.somFor": "Подпроект без изменений",
   "timer.attestering.registrering.maskinBlir_one": "{{count}} машина остаётся здесь",
-  "timer.attestering.registrering.maskinBlir_other": "{{count}} машин остаются здесь"
+  "timer.attestering.registrering.maskinBlir_other": "{{count}} машин остаются здесь",
+  "timer.attestering.egneTimer.merke": "Собственные часы",
+  "timer.attestering.egneTimer.forklaring": "Ваши собственные часы утверждены кем-то другим. Исправь их в Мои часы.",
+  "firma.innstillinger.selvAttestering.tittel": "Утверждающие могут утверждать свои собственные часы",
+  "firma.innstillinger.selvAttestering.hintNei": "Нет: собственные часы утверждаются кем-то другим, имеющим право на утверждение. Если никто другой не имеет на это права, часы остаются в состоянии «Ожидание».",
+  "firma.innstillinger.selvAttestering.hintJa": "Да: утверждающий может утвердить, вернуть и исправить свои часы.",
+  "firma.innstillinger.selvAttestering.hjelpIkon": "Применяется ко всем, кто может одобрить, включая администраторов компании. Собственные часы корректируются в Моих часах."
 }

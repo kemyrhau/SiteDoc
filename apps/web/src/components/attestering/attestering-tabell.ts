@@ -88,6 +88,8 @@ export type AttSedel = {
   varer?: AttVare[];
   ukeAvvikRadIder?: string[];
   fravaerKanAttesteres?: boolean;
+  /** w7 (B15): sedelen er attestantens egen og firmaet sier Nei — vises, men kan ikke attesteres/rettes. */
+  egneTimer?: boolean;
 };
 
 /** Oppslag og tekster modellen trenger (komponenten sender `t()` og katalogene). */
@@ -574,8 +576,13 @@ export function slaaSammen(linjer: readonly AttLinje[]): RadIder {
 
 export const antallRader = (r: RadIder) => r.timerIder.length + r.maskinIder.length + r.tilleggIder.length;
 
-/** Kan linja velges i denne konteksten (F1, `radIKontekst`)? Firmaattesteringen har ingen kontekst. */
+/**
+ * Kan linja velges i denne konteksten (F1, `radIKontekst`)? Firmaattesteringen har ingen kontekst.
+ * w7 (B15): aldri på attestantens egen sedel (`egneTimer`) — knappene skjules, linja tones ned og
+ * «Attester utvalget» hopper over den. Serveren håndhever det samme (`krevIkkeEgenSedel`).
+ */
 export function linjeIKontekst(l: AttLinje, sedel: AttSedel, prosjektKontekst?: string): boolean {
+  if (sedel.egneTimer) return false;
   return radIKontekst(l.projectId, prosjektKontekst, sedel.fravaerKanAttesteres);
 }
 

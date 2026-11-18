@@ -5876,5 +5876,11 @@
   "timer.attestering.registrering.jobbB": "Jobb B",
   "timer.attestering.registrering.somFor": "Delprojekt oförändrat",
   "timer.attestering.registrering.maskinBlir_one": "{{count}} maskin stannar här",
-  "timer.attestering.registrering.maskinBlir_other": "{{count}} maskiner stannar här"
+  "timer.attestering.registrering.maskinBlir_other": "{{count}} maskiner stannar här",
+  "timer.attestering.egneTimer.merke": "Egna timmar",
+  "timer.attestering.egneTimer.forklaring": "Dina egna timmar är godkända av någon annan. Rätta dem under Mina timmar.",
+  "firma.innstillinger.selvAttestering.tittel": "Godkännare kan godkänna sina egna timmar",
+  "firma.innstillinger.selvAttestering.hintNei": "Nej: egna timmar godkänns av någon annan med godkännanderätt. Om ingen annan har rätt, förblir timmarna som \"Väntande\".",
+  "firma.innstillinger.selvAttestering.hintJa": "Ja: en godkännare kan godkänna, returnera och korrigera sina egna timmar.",
+  "firma.innstillinger.selvAttestering.hjelpIkon": "Gäller alla som kan godkänna, även företagsadministratörer. Egna timmar korrigeras i Mina timmar."
 }

@@ -5876,5 +5876,11 @@
   "timer.attestering.registrering.jobbB": "Työ B",
   "timer.attestering.registrering.somFor": "Osaprojekti ennallaan",
   "timer.attestering.registrering.maskinBlir_one": "{{count}} kone jää tänne",
-  "timer.attestering.registrering.maskinBlir_other": "{{count}} konetta jää tänne"
+  "timer.attestering.registrering.maskinBlir_other": "{{count}} konetta jää tänne",
+  "timer.attestering.egneTimer.merke": "Omat tunnit",
+  "timer.attestering.egneTimer.forklaring": "Omat aukioloajat ovat jonkun muun hyväksymiä. Korjaa ne Minun aukioloaikoinani.",
+  "firma.innstillinger.selvAttestering.tittel": "Hyväksyjät voivat hyväksyä omat aukioloaikansa",
+  "firma.innstillinger.selvAttestering.hintNei": "Ei: omat tunnit hyväksyy joku muu, jolla on hyväksymisoikeudet. Jos kenelläkään muulla ei ole oikeutta, tunnit pysyvät \"Odottaa\".",
+  "firma.innstillinger.selvAttestering.hintJa": "Kyllä: Hyväksyjä voi hyväksyä, palauttaa ja korjata omat aukioloaikansa.",
+  "firma.innstillinger.selvAttestering.hjelpIkon": "Koskee kaikkia, jotka voivat hyväksyä, mukaan lukien yrityksen järjestelmänvalvojat. Omat tunnit on korjattu Omassa tunnissa."
 }

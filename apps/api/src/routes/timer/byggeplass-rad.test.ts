@@ -55,6 +55,9 @@ import {
 } from "./byggeplass-rad";
 
 const USER = "user-1";
+
+// w7 (B15): egne timer attesteres/rettes av en annen — lederveiene kalles av en annen enn eieren.
+const ATTESTANT = "attestant-1";
 const ORG = "11111111-1111-1111-1111-111111111111";
 const SHEET = "22222222-2222-2222-2222-222222222222";
 const PROSJEKT_A = "33333333-3333-3333-3333-333333333333";
@@ -239,6 +242,7 @@ describe("byggeplass-grense i de øvrige skriveveiene (ordre 12)", () => {
     ]) {
       const { ctx, sheet, transaction } = lagCtx();
       sheet.status = "sent";
+      ctx.userId = ATTESTANT;
       await expect(
         caller(ctx).redigerSedelRader({ sheetId: SHEET, nyeRader }),
       ).rejects.toThrow(AVVIST);

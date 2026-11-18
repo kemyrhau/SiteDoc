@@ -5876,5 +5876,11 @@
   "timer.attestering.registrering.jobbB": "Darbs B",
   "timer.attestering.registrering.somFor": "Apakšprojekts nemainīgs",
   "timer.attestering.registrering.maskinBlir_one": "Šeit paliek {{count}} mašīna",
-  "timer.attestering.registrering.maskinBlir_other": "Šeit paliek {{count}} mašīnas"
+  "timer.attestering.registrering.maskinBlir_other": "Šeit paliek {{count}} mašīnas",
+  "timer.attestering.egneTimer.merke": "Pašas stundas",
+  "timer.attestering.egneTimer.forklaring": "Jūsu darbalaiku apstiprina kāds cits. Labojiet tos sadaļā Manas stundas.",
+  "firma.innstillinger.selvAttestering.tittel": "Apstiprinātāji var apstiprināt savu darbalaiku",
+  "firma.innstillinger.selvAttestering.hintNei": "Nē: savu darba laiku apstiprina kāds cits ar apstiprināšanas tiesībām. Ja nevienam citam nav tiesību, stundas paliek kā \"Gaida\".",
+  "firma.innstillinger.selvAttestering.hintJa": "Jā: apstiprinātājs var apstiprināt, atgriezt un labot savu darba laiku.",
+  "firma.innstillinger.selvAttestering.hjelpIkon": "Attiecas uz visiem, kas var apstiprināt, tostarp uzņēmuma administratoriem. Pašu darba laiks tiek labots sadaļā Manas stundas."
 }

@@ -592,6 +592,60 @@ async function krevRettingVedAttestering(
   );
 }
 
+/** w7 (B15): feilteksten når en attestant prøver å attestere/rette egne timer. */
+export const EGNE_TIMER_FEILTEKST = "Egne timer attesteres av en annen. Rett dem i Mine timer.";
+
+/**
+ * w7 (web-timeforing-plan.md § 8.3 B15/B16 A/B20 A, § 8.5): hvilke av sedlene som er brukerens
+ * EGNE og sperret for attestering — eieren (`userId`) er den innloggede, og SEDELENS firma har
+ * «Attestant kan attestere egne timer» = Nei (`tillattSelvAttestering`). Manglende innstillingsrad
+ * leses som Nei. Gjelder alle roller, også firmaadministrator og sitedoc_admin: regelen handler om
+ * eierskap, ikke rett. Brukes både av vakten (`krevIkkeEgenSedel`) og av listenes `egneTimer`-flagg.
+ */
+export async function egneSperredeSedler(
+  sedler: readonly { id: string; userId: string; organizationId: string }[],
+  userId: string,
+): Promise<Set<string>> {
+  const egne = sedler.filter((s) => s.userId === userId);
+  if (egne.length === 0) return new Set();
+  const orgIder = Array.from(new Set(egne.map((s) => s.organizationId)));
+  const tillatt = await prisma.organizationSetting.findMany({
+    where: { organizationId: { in: orgIder }, tillattSelvAttestering: true },
+    select: { organizationId: true },
+  });
+  const tillattOrg = new Set(tillatt.map((t) => t.organizationId));
+  return new Set(egne.filter((s) => !tillattOrg.has(s.organizationId)).map((s) => s.id));
+}
+
+/**
+ * w7 (B15): kaster FORBIDDEN hvis én av sedlene er den innloggedes egen og firmaet sier Nei.
+ * Kalles i alle prosedyrene som attesterer, returnerer, gjenåpner, retter eller deler, rett
+ * etter attesteringsvakten, med sedelen kalleren alt har lastet (eier + firma). Eierens egne
+ * handlinger i Mine timer (`gjenaapneDagsseddel`, `splittRadEier`, `syncBatch`) og lesing
+ * (`hentForAttestering`) sperres ikke.
+ */
+async function krevIkkeEgenSedel(
+  userId: string,
+  sedler: readonly { id: string; userId: string; organizationId: string }[],
+): Promise<void> {
+  if ((await egneSperredeSedler(sedler, userId)).size > 0) {
+    throw new TRPCError({ code: "FORBIDDEN", message: EGNE_TIMER_FEILTEKST });
+  }
+}
+
+/** Som `krevIkkeEgenSedel`, men slår opp eier og firma fra sedel-id-ene (rad-baserte prosedyrer). */
+async function krevIkkeEgenSedelPaaId(
+  prismaTimer: PrismaTimerKlient,
+  userId: string,
+  sheetIder: readonly string[],
+): Promise<void> {
+  const sedler = await prismaTimer.dailySheet.findMany({
+    where: { id: { in: Array.from(new Set(sheetIder)) } },
+    select: { id: true, userId: true, organizationId: true },
+  });
+  await krevIkkeEgenSedel(userId, sedler);
+}
+
 /**
  * Underprosjektet en rad eller jobb flyttes til: finnes, samme firma og prosjekt, aktivt og
  * åpent for timer. `null` (Uten) er alltid gyldig. Felles for `flyttTimerRadEco` og `delJobb`.
@@ -3148,6 +3202,7 @@ async function utforRedigerSedelRader(
       ...input.nyeRader.maskin.map((r) => r.projectId),
     ];
   await krevRettingVedAttestering(ctx.prismaTimer, ctx.userId, sheet, prosjekterSomRores);
+  await krevIkkeEgenSedel(ctx.userId, [sheet]);
 
   // Gate: flagget må være på
   const setting = await ctx.prisma.organizationSetting.findUnique({
@@ -6137,12 +6192,16 @@ export const dagsseddelRouter = router({
       // F1 (kort-id-spec § 11.4): fraværsraden er valgbar for prosjektlederen bare når
       // sedelens firma har slått på valget; ellers synlig og nedtonet.
       const fravaerRett = await fravaerRettPrSedel(ctx.userId, sedler);
+      // w7 (B15): egne sedler vises, men kan ikke attesteres/rettes når firmaet sier Nei.
+      const egne = await egneSperredeSedler(sedler, ctx.userId);
 
       return sedler.map((s) => {
         const bruker = brukerMap.get(s.userId);
         return {
           ...s,
           fravaerKanAttesteres: fravaerRett.get(s.id) ?? false,
+          // w7 (B15): sedelen er den innloggedes egen og firmaet sier Nei — PC/telefon skjuler knappene.
+          egneTimer: egne.has(s.id),
           // B10: bruddlinja (null = intet brudd).
           fravaerNormtakBrudd: vurderSedelNormtak(
             s.timer.map((r) => ({ timer: Number(r.timer), erReise: r.erReise, lonnsart: r.lonnsart })),
@@ -6417,6 +6476,8 @@ export const dagsseddelRouter = router({
 
       // F1: firma-admin har alltid rett; samme regel som serveren håndhever.
       const fravaerRett = await fravaerRettPrSedel(ctx.userId, sedler);
+      // w7 (B15): egne sedler vises, men kan ikke attesteres/rettes når firmaet sier Nei.
+      const egne = await egneSperredeSedler(sedler, ctx.userId);
       const kort = await lastKortBerikelse(ctx, sedler);
       // Ordre d2b-3 (d): kvitteringene i tabellen — firma-admin attesterer alle radene.
       const utleggVedlegg = await utleggVedleggForAttestant(
@@ -6466,6 +6527,8 @@ export const dagsseddelRouter = router({
           varer: kort.varer.get(s.id) ?? [],
           ukeAvvikRadIder: kort.ukeAvvik.get(s.id) ?? [],
           fravaerKanAttesteres: fravaerRett.get(s.id) ?? false,
+          // w7 (B15): sedelen er den innloggedes egen og firmaet sier Nei — PC/telefon skjuler knappene.
+          egneTimer: egne.has(s.id),
           timer: timerMedProsjekt,
           tillegg: tilleggMedProsjekt,
           maskiner: maskinerMedProsjekt,
@@ -6778,6 +6841,8 @@ export const dagsseddelRouter = router({
         // Kort-id-spec § 11.4 (F1): serverens svar på om brukeren kan attestere
         // fraværsrader uten prosjekt på denne sedelen — klienten regner det aldri selv.
         fravaerKanAttesteres: fravaerRett.get(sheet.id) ?? false,
+        // w7 (B15): sedelen er den innloggedes egen og firmaet sier Nei — lesing er lov (B18 A).
+        egneTimer: (await egneSperredeSedler([sheet], ctx.userId)).has(sheet.id),
         // B10: tallene bak «Egenmelding 7,5 t + arbeid 2,0 t = 9,5 t — over dagsnormen 7,5 t»; null = intet brudd.
         fravaerNormtakBrudd,
       };
@@ -6824,6 +6889,7 @@ export const dagsseddelRouter = router({
       await krevAttesteringsrett(ctx.userId, [
         { organizationId: sheet.organizationId, projectId: rad.projectId },
       ]);
+      await krevIkkeEgenSedel(ctx.userId, [sheet]);
 
       // Status-vakt: kun "sent" tillates. "returned" er hos ansatten,
       // "accepted" er låst av snapshot, "draft" har aldri vært innom leder.
@@ -6948,6 +7014,7 @@ export const dagsseddelRouter = router({
         throw new TRPCError({ code: "BAD_REQUEST", message: "Fravær uten prosjekt kan ikke deles på underprosjekter" });
       }
       await krevRettingVedAttestering(pt, ctx.userId, sheet, [projectId]);
+      await krevIkkeEgenSedel(ctx.userId, [sheet]);
 
       const setting = await ctx.prisma.organizationSetting.findUnique({
         where: { organizationId: sheet.organizationId },
@@ -7177,6 +7244,7 @@ export const dagsseddelRouter = router({
 
       // Auth: attesteringsrett per (sedel-firma, prosjekt) — H1.
       await krevAttesteringsrettForRader(ctx.prismaTimer, ctx.userId, alle);
+      await krevIkkeEgenSedelPaaId(ctx.prismaTimer, ctx.userId, alle.map((r) => r.sheetId));
 
       const naa = new Date();
       const uniqueSheetIds = Array.from(new Set(alle.map((r) => r.sheetId)));
@@ -7367,6 +7435,7 @@ export const dagsseddelRouter = router({
       }
 
       await krevAttesteringsrettForRader(ctx.prismaTimer, ctx.userId, alle);
+      await krevIkkeEgenSedelPaaId(ctx.prismaTimer, ctx.userId, alle.map((r) => r.sheetId));
 
       const naa = new Date();
       const uniqueSheetIds = Array.from(new Set(alle.map((r) => r.sheetId)));
@@ -7476,6 +7545,7 @@ export const dagsseddelRouter = router({
           prosjekterPaaSedel,
         })),
       );
+      await krevIkkeEgenSedel(ctx.userId, [sheet]);
 
       // Reverser attesteringen (samme rad-reset som gjenaapneDagsseddel): alle
       // rader → "pending", nullstill attestertAvUserId/attestertVed; sedel →
@@ -7598,6 +7668,7 @@ export const dagsseddelRouter = router({
       const nyttProsjekt = "projectId" in input.felter ? (input.felter.projectId ?? null) : undefined;
       const rorte = [funnet.projectId, ...(nyttProsjekt !== undefined ? [nyttProsjekt] : [])];
       await krevRettingVedAttestering(pt, ctx.userId, { id: sheetId, organizationId: sedel.organizationId }, rorte);
+      await krevIkkeEgenSedelPaaId(pt, ctx.userId, [sheetId]);
       if (funnet.attestertStatus !== "pending") {
         throw new TRPCError({
           code: "PRECONDITION_FAILED",
@@ -7731,6 +7802,7 @@ export const dagsseddelRouter = router({
         ctx.userId,
         alle.map((r) => ({ sheetId: r.sheetId, projectId: r.projectId })),
       );
+      await krevIkkeEgenSedelPaaId(ctx.prismaTimer, ctx.userId, alle.map((r) => r.sheetId));
 
       const naa = new Date();
       const sheetIder = [...new Set(alle.map((r) => r.sheetId))];
@@ -7841,6 +7913,7 @@ export const dagsseddelRouter = router({
         original.projectId,
         ...input.nyeRader.map((r) => ("projectId" in r ? (r.projectId ?? null) : original.projectId)),
       ]);
+      await krevIkkeEgenSedel(ctx.userId, [sheet]);
 
       // 4) Gate: tillattRedigerVedAttestering må være på
       const setting = await ctx.prisma.organizationSetting.findUnique({
@@ -8360,6 +8433,7 @@ export const dagsseddelRouter = router({
           prosjekterPaaSedel,
         })),
       );
+      await krevIkkeEgenSedel(ctx.userId, [{ id: input.id, userId: sheet.userId, organizationId: sheet.organizationId }]);
 
       // B10 (F9 = A): dato i brudd attesteres ikke — uansett hvilke rader som er
       // pending. Fravær som alt er attestert, kan komme i brudd når arbeid føres
@@ -8503,6 +8577,7 @@ export const dagsseddelRouter = router({
           prosjekterPaaSedel: projectId ? [projectId] : [],
         },
       ]);
+      await krevIkkeEgenSedel(ctx.userId, [sheet]);
 
       return ctx.prismaTimer.dailySheet.update({
         where: { id: input.id },

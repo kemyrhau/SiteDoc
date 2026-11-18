@@ -60,6 +60,9 @@ import {
 } from "./rad-tak";
 
 const USER = "user-1";
+
+// w7 (B15): egne timer attesteres/rettes av en annen — lederveiene kalles av en annen enn eieren.
+const ATTESTANT = "attestant-1";
 const ORG = "11111111-1111-1111-1111-111111111111";
 const SHEET = "22222222-2222-2222-2222-222222222222";
 const PROSJEKT = "33333333-3333-3333-3333-333333333333";
@@ -204,7 +207,7 @@ function lagRedigerCtx(satsEnhet: string | null) {
     .fn()
     .mockResolvedValue([{ id: LONNSART, satsEnhet }]);
   const ctx = {
-    userId: USER,
+    userId: ATTESTANT,
     req: { log: { info: vi.fn(), warn: vi.fn() } },
     prisma: {
       organizationSetting: {

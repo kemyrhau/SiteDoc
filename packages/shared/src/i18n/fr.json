@@ -5876,5 +5876,11 @@
   "timer.attestering.registrering.jobbB": "Emploi B",
   "timer.attestering.registrering.somFor": "Sous-projet inchangé",
   "timer.attestering.registrering.maskinBlir_one": "{{count}} machine reste ici",
-  "timer.attestering.registrering.maskinBlir_other": "{{count}} machines restent ici"
+  "timer.attestering.registrering.maskinBlir_other": "{{count}} machines restent ici",
+  "timer.attestering.egneTimer.merke": "Horaires personnels",
+  "timer.attestering.egneTimer.forklaring": "Vos propres heures sont approuvées par quelqu'un d'autre. Corrigez-les pendant Mes heures.",
+  "firma.innstillinger.selvAttestering.tittel": "Les approbateurs peuvent approuver leurs propres heures",
+  "firma.innstillinger.selvAttestering.hintNei": "Non : vos propres heures sont approuvées par quelqu'un d'autre disposant de droits d'approbation. Si personne d'autre n'en a le droit, les heures restent comme « En attente ».",
+  "firma.innstillinger.selvAttestering.hintJa": "Oui : un approbateur peut approuver, retourner et corriger ses propres heures.",
+  "firma.innstillinger.selvAttestering.hjelpIkon": "S'applique à toutes les personnes pouvant approuver, y compris les administrateurs de l'entreprise. Les heures personnelles sont corrigées dans Mes heures."
 }

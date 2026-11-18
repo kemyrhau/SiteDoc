@@ -5876,5 +5876,11 @@
   "timer.attestering.registrering.jobbB": "Jobb B",
   "timer.attestering.registrering.somFor": "Underprosjekt som før",
   "timer.attestering.registrering.maskinBlir_one": "{{count}} maskin blir her",
-  "timer.attestering.registrering.maskinBlir_other": "{{count}} maskiner blir her"
+  "timer.attestering.registrering.maskinBlir_other": "{{count}} maskiner blir her",
+  "timer.attestering.egneTimer.merke": "Egne timer",
+  "timer.attestering.egneTimer.forklaring": "Egne timer attesteres av en annen. Rett dem i Mine timer.",
+  "firma.innstillinger.selvAttestering.tittel": "Attestant kan attestere egne timer",
+  "firma.innstillinger.selvAttestering.hintNei": "Nei: egne timer attesteres av en annen med attesteringsrett. Har ingen andre rett, står timene som «Venter».",
+  "firma.innstillinger.selvAttestering.hintJa": "Ja: en attestant kan attestere, returnere og rette sine egne timer.",
+  "firma.innstillinger.selvAttestering.hjelpIkon": "Gjelder alle som kan attestere, også firmaadministrator. Egne timer rettes i Mine timer."
 }

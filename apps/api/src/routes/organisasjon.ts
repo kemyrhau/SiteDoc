@@ -1382,6 +1382,9 @@ export const organisasjonRouter = router({
           .optional(),
         // T7-2b2 (2026-05-14): default false. Settings-UI i T7-2b3.
         tillattRedigerVedAttestering: z.boolean().optional(),
+        // w7 (B15, § 8.5): «Attestant kan attestere egne timer». Default false (Nei). Bare
+        // firma-admin skriver (verifiserFirmaAdmin under). Håndheves i dagsseddel.ts (`krevIkkeEgenSedel`).
+        tillattSelvAttestering: z.boolean().optional(),
         // T.4 (2026-05-16): firma-default for normal arbeidsdag.
         standardStartTid: z
           .string()

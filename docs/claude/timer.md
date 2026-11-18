@@ -71,7 +71,7 @@ Verifisert mot kodebase 2026-05-01. Hver påstand i resten av dette dokumentet r
 | `arbeidstidskalender`-tabell | 🟡 **T.9 BESLUTTET 2026-05-15** — implementasjon neste fase. Variant B (dynamisk), plassert i `packages/db` (kjernen), ikke `db-timer`. Se [fase-0-beslutninger.md § T.9](fase-0-beslutninger.md). | «`arbeidstidskalender`» |
 | `OrganizationSetting.overtidsmatTerskel` | ✅ Tilføyd 2026-05-01 (Infrastruktur-commit, default 9.0) | Kreves av tilleggsregler-spec |
 | `OrganizationSetting.dagsnorm` | ✅ Tilføyd 2026-05-01 (Infrastruktur-commit, default 7.5) | Kreves av auto-fordeling |
-| `OrganizationSetting.tillattSelvAttestering` | ✅ Tilføyd 2026-05-01 (Infrastruktur-commit, default true) | Selv-attestering-policy |
+| `OrganizationSetting.tillattSelvAttestering` | 🟡 Tilføyd 2026-05-01 (default true, ubrukt). w7 (`feat/web-timer-w7`, ikke merget): «Attestant kan attestere egne timer», `schema.prisma:417` `@default(false)`; migrering `20261118120000_selvattestering_nei` setter standard og alle rader til `false` — **ikke kjørt** mot test/prod. Manglende rad = Nei | B15: attestant attesterer ikke egne timer (`web-timeforing-plan.md` § 8.5) |
 | `OrganizationSetting.timerLockEtterDager` | ✅ Tilføyd 2026-05-01 (Infrastruktur-commit, Int? null = ingen alders-grense; status styrer låsing per Variant A) | Status-basert låsing |
 | `OrganizationSetting.tidsrundingMinutter` | ✅ Tilføyd 2026-05-12 (T.5, PR 1A commit `862c70c3`, Int? @default(15)) — støttede verdier: 15, 30, 60, null (ingen avrunding) | T.5: Tidsrunding ved timer-registrering |
 | `OrganizationSetting.timerRegistreringsmodus` | 🟡 Tilføyd 2026-11-05 (Prosjektkort L1, `feat/prosjektkort-l1`, `schema.prisma:488`, String @default("dagskort")) — `dagskort` \| `prosjektkort`; kun admin skriver (`organisasjon.oppdaterSetting`), alle medlemmer leser via `hentArbeidstidDefaults`. Migrering `20261105120000_timer_registreringsmodus` — **ikke kjørt** mot test/prod | Prosjektkort L1: visningsmodus for web-sedelen |
@@ -450,7 +450,7 @@ Utlegg           → kategori + beløp + valgfritt kvitteringsbilde
 [Lagre utkast]   [Send til leder]
 ```
 
-**Selv-attestering vs send-til-leder:** To knapper — kunden velger via `OrganizationSetting.tillattSelvAttestering` om begge tillates, eller kun «Send til leder».
+**Selv-attestering:** Den gamle planen (arbeideren velger «Selv-attester» eller «Send til leder») ble ikke bygd. `tillattSelvAttestering` betyr fra w7 om en attestant kan attestere sine **egne** timer — se «Web-timeføring w7» under.
 
 ### Pause-bevisst tid-synk på timer-rader (mobil) — implementert 2026-07-08 (develop `f385ba99`)
 
@@ -758,6 +758,12 @@ Web-timeføring w5 (🟡 `feat/web-timer-w5`, ikke merget, `apps/api/src/routes/
 - **B10:** retting ved attestering (`redigerSedelRader`, `rettRadFelt`, `delJobb`) krever attesteringsrett på prosjektene som røres (`krevRettingVedAttestering` → `krevAttesteringsrett`), ikke lenger firma-admin. Firma- og prosjektgrensen sjekkes som før, og «rediger ved attestering» må være på.
 - `flyttTimerRadEco` tar `helJobb`: alle rader på kortet (timer, maskin, tillegg, utlegg, varer) får underprosjektet; kortets id beholdes.
 - `delJobb` deler en jobb ved et klokkeslett (`jobb-deling.ts`). Del A beholder kortet, del B får ny kort-id og valgt underprosjekt. `forhandsvis: true` skriver ingenting. Bare innsendte sedler der alle jobbens linjer venter. Avvises når en maskin på jobben går over klokkeslettet (`maskinKrysserKl`) eller maskintimene på en delt rad er flere enn del A. Vakt: `w5-retting-ved-attestering.integration.test.ts`.
+
+Web-timeføring w7 — B15 egne timer (🟡 `feat/web-timer-w7`, ikke merget, `apps/api/src/routes/timer/dagsseddel.ts`):
+- `krevIkkeEgenSedel`/`krevIkkeEgenSedelPaaId` avviser (FORBIDDEN, `EGNE_TIMER_FEILTEKST`) når attestanten eier sedelen og firmaet har «Attestant kan attestere egne timer» = Nei (standard; manglende innstillingsrad = Nei). Gjelder elleve prosedyrer: `redigerSedelRader`, `flyttTimerRadEco`, `delJobb`, `attesterRader`, `returnerRader`, `gjenaapneRader`, `gjenaapneAttestering`, `rettRadFelt`, `splittRad`, `attester`, `returner`. Et utvalg med én egen sedel avvises helt. Eierens egne veier (`gjenaapneDagsseddel`, `splittRadEier`, `syncBatch`) og lesing sperres ikke.
+- `hentTilAttestering`, `hentTilAttesteringFirma` og `hentForAttestering` setter `egneTimer` pr. sedel (`egneSperredeSedler`). Web: linjen er utenfor konteksten (`linjeIKontekst`), uten avkrysning og knapper; merket «Egne timer» står i handlingscellen der knappene ellers står (`egenMerke`, `AttesteringTabell.tsx`), ikke i Avvik-kolonnen (for smal ved 1 440). Mobil: knappene skjules og merket vises (krever OTA).
+- Firma → Innstillinger, under «Rediger ved attestering»: Ja/Nei-bryter (`organisasjon.oppdaterSetting.tillattSelvAttestering`). Advarselen om attestant uten annen attestant (§ 4.3) er ikke med.
+- Vakter: `w7-egne-timer.integration.test.ts` (alle elleve med Nei/annen attestant/Ja), `selvattestering-migrering.test.ts`, `attestering-tabell.test.tsx` § w7.
 
 ### Sperren ved føring på PC (ordre d2c-1) — 🟢 merget `274e7fb2` 2026-11-16, ikke deployet
 

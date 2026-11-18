@@ -490,8 +490,9 @@ export function AttesteringDetalj({
 
       {sheet.status === "sent" ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white p-5">
-          <p className="text-sm text-gray-600">{t("timer.attestering.detalj.tabellHint")}</p>
-          {sheet.redigerTillatt && (
+          {/* w7 (B15): egen sedel — tabellen har ingen knapper; si hvorfor i stedet for hintet. */}
+          <p className="text-sm text-gray-600">{sheet.egneTimer ? t("timer.attestering.egneTimer.forklaring") : t("timer.attestering.detalj.tabellHint")}</p>
+          {sheet.redigerTillatt && !sheet.egneTimer && (
             <Button variant="secondary" onClick={() => setRedigerModus(true)}>
               <Pencil className="mr-1 h-4 w-4" />
               {t("timer.rediger.knapp")}
@@ -506,7 +507,7 @@ export function AttesteringDetalj({
             })}
           </p>
           {/* F4-2: leder kan angre en fullført attestering (accepted → sent). */}
-          {sheet.status === "accepted" && (
+          {sheet.status === "accepted" && !sheet.egneTimer && (
             <Button
               variant="secondary"
               onClick={() => {
