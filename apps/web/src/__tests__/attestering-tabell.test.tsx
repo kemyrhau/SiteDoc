@@ -733,6 +733,8 @@ describe("w7 (B15) — egne timer: synlige, merket, uten handlinger", () => {
     expect(within(l).queryByRole("checkbox")).toBeNull();
     expect(within(l).queryAllByRole("button")).toHaveLength(0);
     expect(getAllByText("timer.attestering.egneTimer.merke").length).toBe(1);
+    // Retur 1: merket står i handlingscellen (høyre, der knappene ellers står), ikke i Avvik-kolonnen.
+    expect(getAllByText("timer.attestering.egneTimer.merke")[0]!.closest("div.justify-end")).toBeTruthy();
     // Én «Attester dagen» — den andres dag.
     expect(getAllByRole("button", { name: "timer.attestering.tabell.attesterDagen" })).toHaveLength(1);
   });

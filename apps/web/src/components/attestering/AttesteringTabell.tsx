@@ -407,12 +407,14 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
     );
   }
 
-  function kortHandlinger(kort: AttKort) {
+  /** `s` bare når kortet står uten dagsrad («Etter prosjekt»): da bærer kortet «Egne timer». */
+  function kortHandlinger(kort: AttKort, s?: AttSedel) {
     const egne = kort.linjer.filter(iKontekst);
     const ventende = egne.filter((l) => l.harHandling && l.ventende);
     const sperre = kort.linjer.find((l) => l.sperre)?.sperre;
     return (
       <span className="flex items-center gap-1">
+        {s && egenMerke(s)}
         {!readOnly && ventende.length > 0 && (
           <>
             {handlingKnapp({ ikon: <Check className="h-4 w-4" />, tekst: t("timer.attestering.tabell.attesterKort"), tittel: sperre ?? undefined, disabled: opptatt || !!sperre, onClick: () => attester(slaaSammen(ventende)), farge: "text-green-700 hover:bg-green-50" })}
@@ -455,6 +457,7 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
       const attesterte = slaaSammen(linjer.filter((l) => iKontekst(l) && l.harHandling && l.attestert));
       return (
         <span className="flex items-center gap-1">
+          {egenMerke(s)}
           {!readOnly && egne.antallLinjer > 0 && (
             <>
               <Button size="sm" className="whitespace-nowrap" onClick={() => attester(egne.radIder)} disabled={opptatt} title={t("timer.attestering.tabell.attesterProsjektetsDel")} aria-label={t("timer.attestering.tabell.attesterProsjektetsDel")}>
@@ -470,10 +473,11 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
         </span>
       );
     }
-    // w7 (B15): egen sedel — ingen attester/returner/gjenåpne; merket i avvikskolonnen forklarer.
+    // w7 (B15): egen sedel — ingen attester/returner/gjenåpne; merket der knappene ellers står forklarer.
     const egen = s.egneTimer === true;
     return (
       <span className="flex items-center gap-1">
+        {egenMerke(s)}
         {!readOnly && !egen && (
           <>
             {/* Kort tekst (w5): raden heter alt «Sum <dato> · <ansatt>»; full tekst som tittel. */}
@@ -547,9 +551,13 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
     return ukedag ? `${ukedag} ${dato(iso)}` : dato(iso);
   };
 
-  /** w7 (B15): «Egne timer» på attestantens egen sedel; forklaringen på hover. */
-  function egneMerke(s: AttSedel): AvvikMerke[] {
-    return s.egneTimer ? [{ tekst: t("timer.attestering.egneTimer.merke"), forklaring: t("timer.attestering.egneTimer.forklaring") }] : [];
+  /**
+   * w7 (B15): «Egne timer» på attestantens egen sedel, forklaringen på hover. Merket står i
+   * handlingscellen der knappene ellers står — Avvik-kolonnen kuttet det ved 1 440 (w7 retur 1).
+   */
+  function egenMerke(s: AttSedel): ReactNode {
+    if (!s.egneTimer) return null;
+    return <AvvikMerker merker={[{ tekst: t("timer.attestering.egneTimer.merke"), forklaring: t("timer.attestering.egneTimer.forklaring") }]} />;
   }
 
   /** Normen som merke (w5b): bare når dagen avviker; hele setningen på hover (mønsteret fra B7). */
@@ -640,7 +648,7 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
             nokkel: `o:${kort.nokkel}`,
             variant: "dag",
             blokk: { kant: DAG_KANT },
-            hoyre: kortHandlinger(kort),
+            hoyre: kortHandlinger(kort, s),
             celle: (k) => {
               const kc = kortCelle(k, kort);
               if (kc !== undefined) return kc;
@@ -651,7 +659,7 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
                 case "timer": return formaterNorsk(sum.timer);
                 case "maskintimer": return sum.maskintimer > 0 ? formaterNorsk(sum.maskintimer) : "";
                 default:
-                  return k === avvikKol ? avvikCelle([...egneMerke(s), ...(norm ? [norm] : []), ...unikeMerker(kort.linjer.flatMap((l) => l.avvikMerker))]) : "";
+                  return k === avvikKol ? avvikCelle([...(norm ? [norm] : []), ...unikeMerker(kort.linjer.flatMap((l) => l.avvikMerker))]) : "";
               }
             },
           });
@@ -668,7 +676,6 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
       const dagSum = sumLinjer(alle);
       const norm = normMerke(s);
       const dagMerker = [
-        ...egneMerke(s),
         ...(norm ? [norm] : []),
         ...(enKort ? unikeMerker(enKort.linjer.flatMap((l) => l.avvikMerker)) : []),
       ];
