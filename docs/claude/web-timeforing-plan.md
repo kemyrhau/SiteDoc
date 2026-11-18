@@ -800,6 +800,10 @@ Kenneth 2026-11-18: *«lønn til fastansatte er neppe et sitedoc ansvar -> lønn
 - **B20 A står:** har ingen andre attesteringsrett, blir timene stående som «Venter».
 - **Utsatt:** regler for fastlønnede bygges først når et firma som trenger dem, kan være med og diskutere dem.
 
+### 8.5 w7 migrering vedtatt 2026-11-18
+
+Kenneth 2026-11-18: «Ja, (a)». Firmavalget «Attestant kan attestere egne timer» bruker `tillattSelvAttestering` (`packages/db/prisma/schema.prisma:417`), som i dag har standard `true` uten at noen kode har lest eller skrevet feltet. Prisma-migreringen setter standarden til `false` og setter alle eksisterende rader til `false`. Kenneth kjører migreringen. Advarselen om attestant uten annen attestant (§ 4.3) tas ikke med i w7; den blir egen oppfølger. Løsningen før kode: `relay/inbox-orkestrator.md` § LØSNING FØR KODE — ORDRE w7.
+
 ## 9. Rekkefølge
 
 Dette er forslag til oppdeling, ikke ordrer. **w1, w2 og w5 er merget** (§ 9.1–9.3). **w6 krever en migrering** (ny
