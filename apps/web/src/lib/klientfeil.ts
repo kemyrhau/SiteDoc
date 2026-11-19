@@ -7,6 +7,9 @@
  *   fra proxyen med HTML/tom kropp → JSON-parsing feiler).
  * - Sesjon utløpt: tRPC-kode `UNAUTHORIZED`.
  *
+ * - Serverfeil med `data.feilNokkel` (w9, S1): teksten vises på brukerens språk med
+ *   `t(feilNokkel, feilParam)`. Serverens norske `message` står når nøkkelen ikke finnes.
+ *
  * Alle andre feil (også serverens egne norske meldinger) slipper gjennom uendret.
  */
 
@@ -47,6 +50,21 @@ export function klientfeilNokkel(err: unknown): KlientfeilNokkel | null {
   return null;
 }
 
+/**
+ * w9 (S1): serverens oversettbare feil — `data.feilNokkel` + `data.feilParam`. `null` når
+ * feilen ikke har nøkkel, eller nøkkelen ikke finnes i språkfilene (da står `message`).
+ */
+export function serverfeilTekst(
+  err: unknown,
+  oversett: { exists: (n: string) => boolean; t: (n: string, p?: Record<string, unknown>) => string } = i18next,
+): string | null {
+  const data = hentFelt(err, "data");
+  const nokkel = hentFelt(data, "feilNokkel");
+  if (typeof nokkel !== "string" || !oversett.exists(nokkel)) return null;
+  const param = hentFelt(data, "feilParam");
+  return oversett.t(nokkel, param && typeof param === "object" ? (param as Record<string, unknown>) : undefined);
+}
+
 /** tRPC-link som bytter meldingen på feil `klientfeilNokkel` kjenner igjen. */
 export const klientfeilLink: TRPCLink<AppRouter> = () => ({ op, next }) =>
   observable((observer) =>
@@ -56,6 +74,10 @@ export const klientfeilLink: TRPCLink<AppRouter> = () => ({ op, next }) =>
       error: (err) => {
         const nokkel = klientfeilNokkel(err);
         if (nokkel) err.message = i18next.t(nokkel);
+        else {
+          const tekst = serverfeilTekst(err);
+          if (tekst) err.message = tekst;
+        }
         observer.error(err);
       },
     }),

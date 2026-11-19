@@ -8,6 +8,11 @@ import type { Context } from "../../trpc/context";
 import { signerHvisPrivat } from "../../utils/hmac";
 import { planleggJobbDeling, maskinKrysserKl, JOBB_DELING_FEILTEKST } from "./jobb-deling";
 import {
+  lesMaskinJobbTilstand,
+  krevIngenNyeMaskinBrudd,
+  type MaskinJobbTilstand,
+} from "../../services/timer/maskinJobbVakt";
+import {
   autoriserAdminForFirma,
   verifiserProsjektmedlem,
   verifiserProsjekterTilhørerFirma,
@@ -70,9 +75,6 @@ import {
   harGyldigMaskinforerbevisBatch,
 } from "../../services/kompetanse/maskinforerbevis";
 import {
-  arbeidUtenReise,
-  beregnMaskinBrudd,
-  type MaskinBrudd,
   tilErEtterFra,
   finnOverlappendeTidsrom,
   finnTidsromKonflikt,
@@ -717,13 +719,17 @@ async function flyttHeleJobben(
   }
   const ider = (l: { id: string }[]) => ({ id: { in: l.map((r) => r.id) } });
   const data = { externalCostObjectId: ecoId };
-  await pt.$transaction([
-    pt.sheetTimer.updateMany({ where: ider(timer), data }),
-    pt.sheetTillegg.updateMany({ where: ider(tillegg), data }),
-    pt.sheetMachine.updateMany({ where: ider(maskiner), data }),
-    pt.sheetUtlegg.updateMany({ where: ider(utlegg), data }),
-    touchSedel(pt, sheet.id),
-  ]);
+  // w9 (WM97): hele jobben flyttes samlet; vakten i samme transaksjon (kort-id står).
+  await pt.$transaction(async (tx) => {
+    const maskinFoer = await lesMaskinJobbTilstand(tx, ctx.prismaMaskin, sheet.id);
+    await tx.sheetTimer.updateMany({ where: ider(timer), data });
+    await tx.sheetTillegg.updateMany({ where: ider(tillegg), data });
+    await tx.sheetMachine.updateMany({ where: ider(maskiner), data });
+    await tx.sheetUtlegg.updateMany({ where: ider(utlegg), data });
+    await touchSedel(tx, sheet.id);
+    await sikreKortId(tx, sheet.id);
+    await krevIngenNyeMaskinBrudd(tx, ctx.prismaMaskin, sheet.id, maskinFoer);
+  });
   if (varer.length > 0) {
     await ctx.prismaVarelager.vareforbruk.updateMany({ where: ider(varer), data });
   }
@@ -2121,132 +2127,6 @@ function berikMaskinRad<R extends MaskinRadForBerikelse>(
 /** Rekkefølgen radene vises i (ordre d2a): fraTid, så opprettet. */
 const RAD_REKKEFOLGE = [{ fraTid: "asc" as const }, { createdAt: "asc" as const }];
 
-// ============================================================================
-//  T7-4b (2026-05-16) — validerMaskinUnderArbeid
-//
-//  Per T.7-vedtak (låst 2026-05-16): maskin er utstyrsbidrag av samme
-//  tidsperiode som arbeidstimer, ikke additivt. Invariant per sedel:
-//
-//      sum(SheetMachine.timer) ≤ sum(SheetTimer.timer)
-//
-//  beregnet per (projectId, externalCostObjectId)-gruppe.
-//
-//  Grandfather: kun nye/redigerte rader valideres. Eksisterende sedler
-//  med maskin > arbeid (registrert før T7-4b-deploy) berøres ikke før
-//  de aktivt redigeres. Validering kjøres på POST-state — alle aktive
-//  rader (alle attestertStatus unntatt "erstattet") + den foreslåtte
-//  endringen, og rejected ved overshoot.
-// ============================================================================
-
-type ValiderRad = {
-  projectId: string | null;
-  externalCostObjectId: string | null;
-  timer: number | Prisma.Decimal;
-  // Tillegg til post (7) punkt 5: reiserader og erstattede rader teller ikke
-  // som arbeid i maskin-kontrollen (samme regel som klienten, post (6) (b) 1).
-  // Gjelder kun timer-radene; maskin-rader har ikke feltene.
-  erReise?: boolean | null;
-  attestertStatus?: string | null;
-};
-
-/**
- * RETUR 1 V3 — overgangsbryter for `syncBatch`s maskin-kontroll. `true` = reise
- * teller som arbeid ved synk (den gamle regelen). Settes til `false` (og
- * fjernes) når OTA-versjonen med «maskin mot arbeid uten reise» er i bruk.
- */
-const SYNK_MASKIN_REISE_TELLER_SOM_ARBEID = true;
-
-/**
- * Delegerer til @sitedoc/shared `beregnMaskinBrudd` — samme bucket-regel,
- * epsilon og pause-modell brukes av klient-disable (web + mobil). Serveren
- * konverterer kun Decimal → number før den delte funksjonen kalles.
- *
- * Arbeid måles UTEN reise (post (7) punkt 5): hver timer-rad går gjennom den
- * delte `arbeidUtenReise`, som gir 0 for reiserader og erstattede rader — den
- * samme funksjonen web-klientens maskin-kontroll summerer bucketen med.
- *
- * `reiseTellerSomArbeid` (RETUR 1 V3) er KUN for `syncBatch`s overgangsperiode:
- * eldre mobil-apper regner reise som arbeid, og en sedel de har lagret lokalt
- * skal ikke avvises i sin helhet ved synk etter API-deployen. Fjernes når
- * OTA-versjonen med den nye regelen er i bruk (docs/claude/timer.md § Maskin ≤
- * arbeidstimer).
- */
-function validerMaskinUnderArbeid(
-  timer: ValiderRad[],
-  maskin: ValiderRad[],
-  pauseMin = 0,
-  opts: { reiseTellerSomArbeid?: boolean } = {},
-) {
-  const tilNum = (v: ValiderRad["timer"]): number =>
-    typeof v === "number" ? v : Number(v);
-  const map = (rad: ValiderRad) => ({
-    projectId: rad.projectId,
-    externalCostObjectId: rad.externalCostObjectId,
-    timer: tilNum(rad.timer),
-  });
-  const mapArbeid = (rad: ValiderRad) => ({
-    projectId: rad.projectId,
-    externalCostObjectId: rad.externalCostObjectId,
-    timer: arbeidUtenReise([
-      {
-        timer: tilNum(rad.timer),
-        erReise: opts.reiseTellerSomArbeid ? false : rad.erReise,
-        attestertStatus: rad.attestertStatus,
-      },
-    ]),
-  });
-  return beregnMaskinBrudd(timer.map(mapArbeid), maskin.map(map), pauseMin);
-}
-
-/**
- * Henter alle aktive rader (alle attestertStatus unntatt "erstattet") for
- * validerings-formål. Brukes som baseline for å bygge post-state ved
- * insert/update/delete-mutasjoner.
- */
-async function hentRaderForValidering(
-  prismaTimer:
-    | Prisma.TransactionClient
-    | typeof import("@sitedoc/db-timer").prismaTimer,
-  sheetId: string,
-): Promise<{
-  timer: Array<{
-    id: string;
-    projectId: string | null;
-    externalCostObjectId: string | null;
-    timer: Prisma.Decimal;
-    erReise: boolean;
-  }>;
-  maskin: Array<{
-    id: string;
-    projectId: string;
-    externalCostObjectId: string | null;
-    timer: Prisma.Decimal;
-  }>;
-}> {
-  const tx = prismaTimer as typeof import("@sitedoc/db-timer").prismaTimer;
-  const [timer, maskin] = await Promise.all([
-    tx.sheetTimer.findMany({
-      where: { sheetId, attestertStatus: { not: "erstattet" } },
-      select: {
-        id: true,
-        projectId: true,
-        externalCostObjectId: true,
-        timer: true,
-        erReise: true,
-      },
-    }),
-    tx.sheetMachine.findMany({
-      where: { sheetId, attestertStatus: { not: "erstattet" } },
-      select: {
-        id: true,
-        projectId: true,
-        externalCostObjectId: true,
-        timer: true,
-      },
-    }),
-  ]);
-  return { timer, maskin };
-}
 
 /**
  * T7-2b-oppfølger (2026-07-13): bygg en SheetRadHistorikk-post fra en
@@ -2598,60 +2478,6 @@ async function sjekkTimerOverlapp(
 }
 
 /**
- * Berik brytt-resultat med prosjekt- og ECO-navn fra kjernen-databasen og
- * formater til menneskelesbar feilmelding. Én linje per (projectId, ECO)-
- * gruppe som bryter invariant.
- */
-async function feilMeldingMaskinOverstiger(
-  brytt: MaskinBrudd[],
-): Promise<string> {
-  // Fravær uten prosjekt bærer aldri maskin (FM16), så null-bøtta gir ingen brudd.
-  const projectIds = Array.from(
-    new Set(brytt.flatMap((b) => (b.projectId ? [b.projectId] : []))),
-  );
-  const ecoIds = Array.from(
-    new Set(
-      brytt
-        .map((b) => b.externalCostObjectId)
-        .filter((e): e is string => e !== null),
-    ),
-  );
-  const [prosjekter, ecoer] = await Promise.all([
-    projectIds.length > 0
-      ? prisma.project.findMany({
-          where: { id: { in: projectIds } },
-          select: { id: true, name: true, projectNumber: true },
-        })
-      : Promise.resolve([]),
-    ecoIds.length > 0
-      ? prisma.externalCostObject.findMany({
-          where: { id: { in: ecoIds } },
-          select: { id: true, kortNavn: true, proAdmId: true },
-        })
-      : Promise.resolve([]),
-  ]);
-  const pMap = new Map(prosjekter.map((p) => [p.id, p]));
-  const eMap = new Map(ecoer.map((e) => [e.id, e]));
-
-  return brytt
-    .map((b) => {
-      const p = b.projectId ? pMap.get(b.projectId) : undefined;
-      const pNavn = p
-        ? `${p.projectNumber ?? ""} ${p.name}`.trim() || (b.projectId ?? "")
-        : (b.projectId ?? "");
-      let suffix = "";
-      if (b.externalCostObjectId) {
-        const e = eMap.get(b.externalCostObjectId);
-        suffix = e
-          ? ` / underprosjekt ${e.proAdmId} · ${e.kortNavn}`
-          : ` / underprosjekt ${b.externalCostObjectId}`;
-      }
-      return `Maskintimer (${b.maskinSum.toFixed(2)}t) overstiger arbeidstimer (${b.timerSum.toFixed(2)}t) for prosjekt ${pNavn}${suffix}`;
-    })
-    .join("\n");
-}
-
-/**
  * a2 (2026-07-06): Bygg en absolutt instant som representerer et veggur-
  * tidspunkt (HH:MM) på gitt dato i norsk tidssone (Europe/Oslo, DST-bevisst).
  * Serveren kjører UTC i Docker, så en naiv `new Date(`${dato}T${hhmm}`)` ville
@@ -2985,30 +2811,8 @@ async function validerSplittFelles(
       message: `Sum av split-rader (${nySum}) matcher ikke original (${original.sum})`,
     });
   }
-  // Maskin-splitt: revalider post-state maskin ≤ arbeid (nye rader kan ha annet
-  // ECO/prosjekt → forskyve buckets).
-  if (input.radType === "maskin") {
-    const baseline = await hentRaderForValidering(prismaTimer, sheet.id);
-    const postMaskin: ValiderRad[] = [
-      ...baseline.maskin.filter((r) => r.id !== original.id),
-      ...input.nyeRader.map((rad) => ({
-        projectId: rad.projectId,
-        externalCostObjectId: rad.externalCostObjectId ?? null,
-        timer: rad.timer,
-      })),
-    ];
-    const brytt = validerMaskinUnderArbeid(
-      baseline.timer,
-      postMaskin,
-      sheet.pauseMin,
-    );
-    if (brytt.length > 0) {
-      throw new TRPCError({
-        code: "BAD_REQUEST",
-        message: await feilMeldingMaskinOverstiger(brytt),
-      });
-    }
-  }
+  // w9: maskin høyst jobbens arbeid sjekkes i transaksjonen etter skrivingen
+  // (krevIngenNyeMaskinBrudd i splittRad/splittRadEier), for alle radtyper.
 }
 
 /** Rad-utsnitt (SheetTimer/SheetTimerForslag) → ForsonRad for paring og relink. */
@@ -3423,13 +3227,8 @@ async function utforRedigerSedelRader(
 
   const naa = new Date();
 
-  // T7-4b: valider post-state FØR transaksjon. Post-state = ikke-erstattede
-  // rader EKSKLUSIV de pending vi nå skal erstatte, PLUSS nyeRader.
-  // (eksTimer/eksTillegg/eksMaskin hentes som pending; alle erstattes.)
-  const eksisterendePendingTimerIder = new Set(eksTimer.map((r) => r.id));
-  const eksisterendePendingMaskinIder = new Set(eksMaskin.map((r) => r.id));
   // LAG 2 (presisering 2): utled erReise for de nye rad-ene (firma-admin
-  // rediger sender ikke flagget). Utledes FØR maskin-vakten (post (7) punkt 5). Ett oppslag for alle arter i edit-settet.
+  // rediger sender ikke flagget). Ett oppslag for alle arter i edit-settet.
   const redigerErReiseMap = await hentErReiseForLonnsarter(
     ctx.prismaTimer,
     sheet.organizationId,
@@ -3448,24 +3247,6 @@ async function utforRedigerSedelRader(
       })),
     ]);
   }
-  const baseline = await hentRaderForValidering(ctx.prismaTimer, sheet.id);
-  const postTimer: ValiderRad[] = [
-    ...baseline.timer.filter((r) => !eksisterendePendingTimerIder.has(r.id)),
-    ...input.nyeRader.timer.map((r) => ({
-      projectId: r.projectId ?? null,
-      externalCostObjectId: r.externalCostObjectId ?? null,
-      timer: r.timer,
-      erReise: redigerErReiseMap.get(r.lonnsartId) ?? false,
-    })),
-  ];
-  const postMaskin: ValiderRad[] = [
-    ...baseline.maskin.filter((r) => !eksisterendePendingMaskinIder.has(r.id)),
-    ...input.nyeRader.maskin.map((r) => ({
-      projectId: r.projectId,
-      externalCostObjectId: r.externalCostObjectId ?? null,
-      timer: r.timer,
-    })),
-  ];
   // Pause-modell (2026-05-17): beregn pauseMin fra pauseFra/pauseTil.
   // Hvis begge undefined: ikke rør pause-feltene.
   // Hvis null eller delvis null: nullstill begge + pauseMin = 0.
@@ -3496,15 +3277,7 @@ async function utforRedigerSedelRader(
     }
   }
 
-  // Pause-aware maskin-validering: hodet pauseMin = Σ rad (redigerSumPause).
-  const effektivPauseMin = redigerSumPause;
-  const brytt = validerMaskinUnderArbeid(postTimer, postMaskin, effektivPauseMin);
-  if (brytt.length > 0) {
-    throw new TRPCError({
-      code: "BAD_REQUEST",
-      message: await feilMeldingMaskinOverstiger(brytt),
-    });
-  }
+  // w9: maskin høyst jobbens arbeid sjekkes sist i transaksjonen under.
 
 
   // Kort-id (spec § 4.3): ny rad med `parentRadId` arver originalens id når nøkkelen
@@ -3595,6 +3368,7 @@ async function utforRedigerSedelRader(
 
   const slettedeTimerIder = plan.timer.slett.map((r) => r.id);
   await ctx.prismaTimer.$transaction(async (tx) => {
+    const maskinFoer = await lesMaskinJobbTilstand(tx, ctx.prismaMaskin, sheet.id);
     // F4-1d: oppdater sedelen ALLTID (ikke bare ved pause-endring) — ellers
     // bumpes ikke updatedAt når leder kun redigerer rader, og de nye radene
     // blir usynlige for mobil inkrementell pull (updatedAt > sistSynk).
@@ -3666,6 +3440,9 @@ async function utforRedigerSedelRader(
         },
       });
     }
+    // w9: kort-id før vakten, så nye rader vurderes i jobben de havner i.
+    await sikreKortId(tx, sheet.id, { kontekst: redigerKortKontekst });
+    await krevIngenNyeMaskinBrudd(tx, ctx.prismaMaskin, sheet.id, maskinFoer);
   });
   // Varer på en slettet timerad: koblingen nulles (egen database — kan ikke
   // være i samme transaksjon). Feiler det, står varen som «uten kobling» i
@@ -4162,9 +3939,16 @@ export const dagsseddelRouter = router({
         data.sluttTidKilde = "bruker";
       }
 
-      return ctx.prismaTimer.dailySheet.update({
-        where: { id: input.id },
-        data,
+      // w9 (WM97): pausen i hodet teller bare for eldre rader uten jobb (bøtteregelen).
+      // En pause-reduksjon som lager eller øker et brudd der, avvises.
+      if (input.pauseMin === undefined) {
+        return ctx.prismaTimer.dailySheet.update({ where: { id: input.id }, data });
+      }
+      return ctx.prismaTimer.$transaction(async (tx) => {
+        const maskinFoer = await lesMaskinJobbTilstand(tx, ctx.prismaMaskin, input.id);
+        const oppdatert = await tx.dailySheet.update({ where: { id: input.id }, data });
+        await krevIngenNyeMaskinBrudd(tx, ctx.prismaMaskin, input.id, maskinFoer);
+        return oppdatert;
       });
     }),
 
@@ -4337,27 +4121,7 @@ export const dagsseddelRouter = router({
         reiseSpor = spor.felter.get("ny") ?? null;
       }
 
-      // T7-4b: valider sum(maskin) ≤ sum(timer) per (projectId, ECO).
-      // Defensiv — å legge til en timer-rad kan kun øke timer-summen i
-      // bucket. Beholdes for konsistens på tvers av mutasjoner. Ny rad bærer
-      // sitt utledede erReise (post (7) punkt 5: reise teller ikke som arbeid).
-      const naa = await hentRaderForValidering(ctx.prismaTimer, input.sheetId);
-      const postTimer: ValiderRad[] = [
-        ...naa.timer,
-        {
-          projectId,
-          externalCostObjectId: input.externalCostObjectId ?? null,
-          timer: input.timer,
-          erReise,
-        },
-      ];
-      const brytt = validerMaskinUnderArbeid(postTimer, naa.maskin, sheet.pauseMin);
-      if (brytt.length > 0) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: await feilMeldingMaskinOverstiger(brytt),
-        });
-      }
+      // w9: maskin høyst jobbens arbeid sjekkes sist i transaksjonen under.
 
       // Bolk (g): overlapp-vakt — ny rads spenn kan ikke overlappe en annen
       // timer-rad på sedelen (på tvers av prosjekt/ECO).
@@ -4407,6 +4171,7 @@ export const dagsseddelRouter = router({
       // F4-1d: rad-write + hode-synk (PK6) atomisk så mobil pull ser den nye
       // raden og hodet = Σ rad i samme skriving.
       const rad = await ctx.prismaTimer.$transaction(async (tx) => {
+        const maskinFoer = await lesMaskinJobbTilstand(tx, ctx.prismaMaskin, input.sheetId);
         const ny = await tx.sheetTimer.create({
           data: {
             ...byggTimerRadData(
@@ -4425,6 +4190,7 @@ export const dagsseddelRouter = router({
           kast: true,
           oppgitteKortIder: input.kortId ? [input.kortId] : [],
         });
+        await krevIngenNyeMaskinBrudd(tx, ctx.prismaMaskin, input.sheetId, maskinFoer);
         return { ...ny, kortId: kortIdFor.get(ny.id) ?? ny.kortId };
       });
       return rad;
@@ -4587,31 +4353,7 @@ export const dagsseddelRouter = router({
         }
       }
 
-      // T7-4b: valider post-state. Reduksjon av timer eller flytting til
-      // annen ECO kan få maskin-totalen til å overstige.
-      const naa = await hentRaderForValidering(ctx.prismaTimer, rad.sheetId);
-      const postTimer: ValiderRad[] = naa.timer.map((r) =>
-        r.id === input.id
-          ? {
-              projectId: r.projectId, // projectId endres ikke i oppdaterTimerRad
-              externalCostObjectId:
-                input.externalCostObjectId !== undefined
-                  ? input.externalCostObjectId
-                  : r.externalCostObjectId,
-              timer: input.timer !== undefined ? input.timer : r.timer,
-              // Post (7) punkt 5: ny lønnsart kan gjøre raden til reise (eller arbeid).
-              erReise:
-                typeof data.erReise === "boolean" ? data.erReise : r.erReise,
-            }
-          : r,
-      );
-      const brytt = validerMaskinUnderArbeid(postTimer, naa.maskin, sheet.pauseMin);
-      if (brytt.length > 0) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: await feilMeldingMaskinOverstiger(brytt),
-        });
-      }
+      // w9: maskin høyst jobbens arbeid sjekkes sist i transaksjonen under.
 
       // Bolk (g): overlapp-vakt på post-state fra/til (delvis oppdatering →
       // fall tilbake til radens eksisterende verdi). Egen rad ekskluderes.
@@ -4670,6 +4412,7 @@ export const dagsseddelRouter = router({
 
       // F4-1d: rad-write + hode-synk (PK6) atomisk.
       const oppdatert = await ctx.prismaTimer.$transaction(async (tx) => {
+        const maskinFoer = await lesMaskinJobbTilstand(tx, ctx.prismaMaskin, rad.sheetId);
         // Kort-id (spec § 4.3): uendret nøkkel → id står; endret nøkkel (underprosjekt/
         // byggeplass) eller arbeid↔reise → regel 3 i sikreKortId.
         const postErReise = typeof data.erReise === "boolean" ? data.erReise : rad.erReise;
@@ -4692,6 +4435,7 @@ export const dagsseddelRouter = router({
         });
         await synkroniserHodePause(tx, rad.sheetId);
         const { kortIdFor } = await sikreKortId(tx, rad.sheetId);
+        await krevIngenNyeMaskinBrudd(tx, ctx.prismaMaskin, rad.sheetId, maskinFoer);
         return { ...o, kortId: kortIdFor.get(input.id) ?? o?.kortId ?? null };
       });
       return oppdatert;
@@ -4735,6 +4479,7 @@ export const dagsseddelRouter = router({
       // F4-1d: rad-write + hode-synk (PK6) atomisk — sletting kan fjerne
       // bæreren, så hodet må re-utledes (Σ rad).
       const slettet = await ctx.prismaTimer.$transaction(async (tx) => {
+        const maskinFoer = await lesMaskinJobbTilstand(tx, ctx.prismaMaskin, rad.sheetId);
         if (maskiner.alle.length > 0) {
           await tx.sheetMachine.deleteMany({ where: { id: { in: slettMaskinIder } } });
           await tx.sheetMachine.updateMany({
@@ -4744,6 +4489,8 @@ export const dagsseddelRouter = router({
         }
         const s = await tx.sheetTimer.delete({ where: { id: input.id } });
         await synkroniserHodePause(tx, rad.sheetId);
+        // w9 (WM97): å slette arbeid kan få jobbens maskiner over arbeidet.
+        await krevIngenNyeMaskinBrudd(tx, ctx.prismaMaskin, rad.sheetId, maskinFoer);
         return s;
       });
       // Varer på raden: koblingen nulles (egen database — kan ikke være i samme
@@ -4762,7 +4509,7 @@ export const dagsseddelRouter = router({
   // U-BEKREFT steg 2 (2026-10-01): FORSON et dagskort i konflikt. Arbeideren har valgt
   // pr. tidsrom i sammenligningsvisningen; her anvendes valgene ATOMISK på det redigerbare
   // web-kortet. Komponerer de SAMME skrivereglene som tilfoy/oppdaterTimerRad (byggTimerRadData
-  // + erRedigerbar + firma-grenser + finnOverlappendeTidsrom + validerMaskinUnderArbeid), men i
+  // + erRedigerbar + firma-grenser + finnOverlappendeTidsrom + maskinvakten krevIngenNyeMaskinBrudd), men i
   // ÉN $transaction så en halvveis feil etterlater kortet UENDRET — et halvt anvendt valg på
   // lønnsdata er en tredje tilstand ingen har designet.
   //
@@ -5032,22 +4779,7 @@ export const dagsseddelRouter = router({
         }
       }
 
-      // Maskin-under-arbeid på SLUTT-settet (samme delte bucket-regel).
-      const naa = await hentRaderForValidering(ctx.prismaTimer, input.sheetId);
-      const brytt = validerMaskinUnderArbeid(
-        sluttTimer.map((r) => ({
-          projectId: r.projectId ?? null,
-          externalCostObjectId: r.externalCostObjectId,
-          timer: r.timer,
-          erReise: r.erReise,
-          attestertStatus: r.attestertStatus,
-        })),
-        naa.maskin,
-        sheet.pauseMin,
-      );
-      if (brytt.length > 0) {
-        throw new TRPCError({ code: "BAD_REQUEST", message: await feilMeldingMaskinOverstiger(brytt) });
-      }
+      // w9: maskin høyst jobbens arbeid sjekkes sist i transaksjonen under.
 
       // 🔴 ATOMISK + TOCTOU-lukket: erRedigerbar leses over (:1638) UTENFOR transaksjonen. Blir
       // sedelen attestert i vinduet mellom validering og skriving, ville en array-$transaction
@@ -5113,6 +4845,7 @@ export const dagsseddelRouter = router({
       }
 
       return ctx.prismaTimer.$transaction(async (tx) => {
+        const maskinFoer = await lesMaskinJobbTilstand(tx, ctx.prismaMaskin, input.sheetId);
         const laast = await tx.dailySheet.updateMany({
           where: { id: input.sheetId, status: { in: [...REDIGERBARE_STATUSER] } },
           // V19 (A-3/A-5): forsoningen avslutter overlappen → null
@@ -5250,6 +4983,8 @@ export const dagsseddelRouter = router({
               "Valget etterlater to overlappende tidsrom på dagsseddelen. Velg én side pr. tidsrom.",
           });
         }
+        // w9: etter relinken og kort-id, så maskinene vurderes i jobben de står i.
+        await krevIngenNyeMaskinBrudd(tx, ctx.prismaMaskin, input.sheetId, maskinFoer);
         return svar;
       });
     }),
@@ -6926,24 +6661,27 @@ export const dagsseddelRouter = router({
             });
       // Kort-id skrives bare når den endres (uendret id = ingen kolonne i data).
       const kortData = (rad.kortId ?? null) !== nyKortId ? { kortId: nyKortId } : {};
-      // F4-1d: rad-write + touchSedel atomisk.
-      const [oppdatertRad] = await ctx.prismaTimer.$transaction([
-        erTillegg
-          ? ctx.prismaTimer.sheetTillegg.update({
+      // F4-1d: rad-write + touchSedel atomisk. w9 (WM97): kort-id og maskinvakten i samme
+      // transaksjon — én timerad som bytter underprosjekt, kan ta arbeid fra jobbens maskiner.
+      const oppdatert = await ctx.prismaTimer.$transaction(async (tx) => {
+        const maskinFoer = await lesMaskinJobbTilstand(tx, ctx.prismaMaskin, rad.sheetId);
+        const oppdatertRad = erTillegg
+          ? await tx.sheetTillegg.update({
               where: { id: input.timerRadId },
               data: { externalCostObjectId: input.externalCostObjectId, ...kortData },
             })
-          : ctx.prismaTimer.sheetTimer.update({
+          : await tx.sheetTimer.update({
               where: { id: input.timerRadId },
               data: { externalCostObjectId: input.externalCostObjectId, ...kortData },
-            }),
-        touchSedel(ctx.prismaTimer, rad.sheetId),
-      ]);
-      const { kortIdFor } = await sikreKortId(ctx.prismaTimer, rad.sheetId, { kontekst: kortKontekst });
-      const oppdatert = {
-        ...oppdatertRad,
-        kortId: kortIdFor.get(input.timerRadId) ?? oppdatertRad?.kortId ?? null,
-      };
+            });
+        await touchSedel(tx, rad.sheetId);
+        const { kortIdFor } = await sikreKortId(tx, rad.sheetId, { kontekst: kortKontekst });
+        await krevIngenNyeMaskinBrudd(tx, ctx.prismaMaskin, rad.sheetId, maskinFoer);
+        return {
+          ...oppdatertRad,
+          kortId: kortIdFor.get(input.timerRadId) ?? oppdatertRad?.kortId ?? null,
+        };
+      });
 
       // Activity-log (best-effort — ikke blokker ved skrivefeil)
       try {
@@ -7089,6 +6827,7 @@ export const dagsseddelRouter = router({
       const naa = new Date();
       const originaler = new Map(timer.map((r) => [r.id, r]));
       await pt.$transaction(async (tx) => {
+        const maskinFoer = await lesMaskinJobbTilstand(tx, ctx.prismaMaskin, sheet.id);
         // Den opprinnelige jobben lagres i historikken (som ved retting i dag).
         await tx.sheetRadHistorikk.createMany({
           data: [...plan.delt.map((d) => d.id), ...plan.tilB].map((id) =>
@@ -7136,6 +6875,10 @@ export const dagsseddelRouter = router({
           });
         }
         await synkroniserHodePause(tx, sheet.id);
+        // w9 (WM98): begge delene sjekkes etter delingen — også maskiner uten klokkeslett
+        // eller uten kobling til en delt rad, som de to vaktene over slipper.
+        await sikreKortId(tx, sheet.id);
+        await krevIngenNyeMaskinBrudd(tx, ctx.prismaMaskin, sheet.id, maskinFoer);
       });
       // Varer koblet til rader som gikk til del B, følger dem (eget skjema, egen klient).
       if (plan.tilB.length > 0) {
@@ -8009,6 +7752,7 @@ export const dagsseddelRouter = router({
           });
         }
         await ctx.prismaTimer.$transaction(async (tx) => {
+          const maskinFoer = await lesMaskinJobbTilstand(tx, ctx.prismaMaskin, sheet.id);
           // T7-2b-oppfølger (2026-07-13): MOVE originalen til historikk (INSERT
           // snapshot) + slett fra hovedtabellen i SAMME tx — ikke status="erstattet".
           await tx.sheetRadHistorikk.createMany({
@@ -8049,6 +7793,9 @@ export const dagsseddelRouter = router({
           }
           // PK6: hodet = Σ rad etter splitten (bumper updatedAt).
           await synkroniserHodePause(tx, sheet.id);
+          // w9: kort-id før vakten, så delene vurderes i jobben de havner i.
+          await sikreKortId(tx, sheet.id, { kontekst: splittKontekst });
+          await krevIngenNyeMaskinBrudd(tx, ctx.prismaMaskin, sheet.id, maskinFoer);
         });
       } else if (input.radType === "tillegg") {
         await ctx.prismaTimer.$transaction([
@@ -8075,17 +7822,17 @@ export const dagsseddelRouter = router({
           ),
         ]);
       } else {
-        // T7-4b maskin ≤ arbeid post-state er allerede validert i
-        // validerSplittFelles (steg 6) — går rett på transaksjonen.
-        await ctx.prismaTimer.$transaction([
+        // w9: maskin høyst jobbens arbeid sjekkes sist i transaksjonen.
+        await ctx.prismaTimer.$transaction(async (tx) => {
+          const maskinFoer = await lesMaskinJobbTilstand(tx, ctx.prismaMaskin, sheet.id);
           // T7-2b-oppfølger (2026-07-13): MOVE originalen til historikk + slett
           // fra hovedtabellen i SAMME tx — ikke status="erstattet".
-          ctx.prismaTimer.sheetRadHistorikk.createMany({
+          await tx.sheetRadHistorikk.createMany({
             data: [byggHistorikkPost("maskin", original, ctx.userId, naa)],
-          }),
-          ctx.prismaTimer.sheetMachine.delete({ where: { id: original.id } }),
-          ...input.nyeRader.map((rad) =>
-            ctx.prismaTimer.sheetMachine.create({
+          });
+          await tx.sheetMachine.delete({ where: { id: original.id } });
+          for (const rad of input.nyeRader) {
+            await tx.sheetMachine.create({
               data: {
                 sheetId: sheet.id,
                 vehicleId: rad.vehicleId,
@@ -8103,9 +7850,12 @@ export const dagsseddelRouter = router({
                 sheetTimerId: (original as { sheetTimerId: string | null }).sheetTimerId ?? null,
                 kortId: splittKort(rad),
               },
-            }),
-          ),
-        ]);
+            });
+          }
+          // w9: kort-id før vakten, så delene vurderes i jobben de havner i.
+          await sikreKortId(tx, sheet.id, { kontekst: splittKontekst });
+          await krevIngenNyeMaskinBrudd(tx, ctx.prismaMaskin, sheet.id, maskinFoer);
+        });
       }
 
       // F4-1d: bump sedelens updatedAt så de nye split-radene når mobil pull.
@@ -8270,6 +8020,7 @@ export const dagsseddelRouter = router({
           });
         }
         await ctx.prismaTimer.$transaction(async (tx) => {
+          const maskinFoer = await lesMaskinJobbTilstand(tx, ctx.prismaMaskin, sheet.id);
           // Ordre d2a: første del oppdaterer originalen på stedet (samme id), så
           // maskiner og varer som sto på timeraden, står på første del. De andre
           // delene opprettes.
@@ -8303,6 +8054,9 @@ export const dagsseddelRouter = router({
           }
           // PK6: hodet = Σ rad etter splitten (bumper updatedAt).
           await synkroniserHodePause(tx, sheet.id);
+          // w9: kort-id før vakten, så delene vurderes i jobben de havner i.
+          await sikreKortId(tx, sheet.id, { kontekst: splittKontekst });
+          await krevIngenNyeMaskinBrudd(tx, ctx.prismaMaskin, sheet.id, maskinFoer);
         });
       } else if (input.radType === "tillegg") {
         await ctx.prismaTimer.$transaction([
@@ -8322,10 +8076,11 @@ export const dagsseddelRouter = router({
           ),
         ]);
       } else {
-        await ctx.prismaTimer.$transaction([
-          ctx.prismaTimer.sheetMachine.delete({ where: { id: original.id } }),
-          ...input.nyeRader.map((rad) =>
-            ctx.prismaTimer.sheetMachine.create({
+        await ctx.prismaTimer.$transaction(async (tx) => {
+          const maskinFoer = await lesMaskinJobbTilstand(tx, ctx.prismaMaskin, sheet.id);
+          await tx.sheetMachine.delete({ where: { id: original.id } });
+          for (const rad of input.nyeRader) {
+            await tx.sheetMachine.create({
               data: {
                 sheetId: sheet.id,
                 vehicleId: rad.vehicleId,
@@ -8341,9 +8096,12 @@ export const dagsseddelRouter = router({
                 sheetTimerId: (original as { sheetTimerId: string | null }).sheetTimerId ?? null,
                 kortId: splittKort(rad),
               },
-            }),
-          ),
-        ]);
+            });
+          }
+          // w9: kort-id før vakten, så delene vurderes i jobben de havner i.
+          await sikreKortId(tx, sheet.id, { kontekst: splittKontekst });
+          await krevIngenNyeMaskinBrudd(tx, ctx.prismaMaskin, sheet.id, maskinFoer);
+        });
       }
 
       // F4-1d: bump sedelens updatedAt så de nye split-radene når mobil pull.
@@ -9589,11 +9347,6 @@ export const dagsseddelRouter = router({
               `[timer_avvik_sync] sedel=${lokal.clientUuid} rader=${syncAvvikAntall}: timetall uten bevist pause skrevet uendret (V20/PK4b-3)`,
             );
           }
-          const syncSumPause = Array.from(syncPauseEtterId.values()).reduce(
-            (s, p) => s + p,
-            0,
-          );
-
           // Klient kan ikke sette accepted — lederen attesterer på server
           // Klient kan sette draft, sent (etter "send"-knapp), eller behold returned
           const innkommendeStatus =
@@ -9659,46 +9412,10 @@ export const dagsseddelRouter = router({
           }
           const reiseFelterMap = reiseResultat.felter;
 
-          // T7-4b: valider sum(maskin) ≤ sum(timer) per (projectId, ECO).
-          // syncBatch erstatter alle rader på sedelen — post-state = exakt
-          // det som er i lokal.timer + lokal.maskiner. Feil per sedel
-          // resulterer i "feilet" for KUN den sedelen, ikke batchen.
-          const syncPostTimer: ValiderRad[] = lokal.timer.map((t) => ({
-            projectId: timerProsjekt(t),
-            externalCostObjectId: t.externalCostObjectId ?? null,
-            timer: t.timer,
-            // Post (7) punkt 5: arbeid måles uten reise. Flagget er utledet/
-            // validert av byggReiseFelterForSynk over (derfor kjører maskin-
-            // vakten etter reise-sporet).
-            erReise: reiseFelterMap.get(t.id)?.erReise ?? false,
-          }));
-          const syncPostMaskin: ValiderRad[] = lokal.maskiner.map((m) => ({
-            projectId: radProsjekt(m.projectId)!,
-            externalCostObjectId: m.externalCostObjectId ?? null,
-            timer: m.timer,
-          }));
-          const syncBrytt = validerMaskinUnderArbeid(
-            syncPostTimer,
-            syncPostMaskin,
-            // V20/PK6: buffer = Σ vurdert rad-pause (hodet er derivert). Men
-            // ALDRI mindre enn payloadens claimede hode-pause — maskin-regelen
-            // er en buffer (maskin ≤ arbeid + pause/60), så en eldre app skal
-            // aldri avvises STRENGERE enn før (ufravikelig: eldre app må synke).
-            Math.max(syncSumPause, lokal.pauseMin),
-            // RETUR 1 V3 — OVERGANG: synk beholder den slakke regelen (reise
-            // teller som arbeid), så en eldre app ikke får hele sedelen avvist
-            // etter API-deployen. syncBatch kjenner ikke klientversjonen, så
-            // regelen gjelder all synk til overgangen fjernes (timer.md).
-            { reiseTellerSomArbeid: SYNK_MASKIN_REISE_TELLER_SOM_ARBEID },
-          );
-          if (syncBrytt.length > 0) {
-            resultater.push({
-              clientUuid: lokal.clientUuid,
-              resultat: "avvist",
-              feilmelding: await feilMeldingMaskinOverstiger(syncBrytt),
-            });
-            continue;
-          }
+          // w9 (B22 A, WM99/WM100): maskin høyst jobbens arbeid sjekkes INNE i
+          // transaksjonen etter skrivingen og kort-id, på det som faktisk er lagret
+          // (ikke payloaden). Brudd → TRPCError → sedelen rulles tilbake og blir
+          // `avvist`. Reise teller ikke som arbeid (S3: overgangsbryteren er fjernet).
 
           // Per-seddel transaksjon: upsert sedel + erstatt rader atomisk
           // T.1 (2026-05-11): projectId/byggeplassId lagres på rad-nivå.
@@ -9736,6 +9453,10 @@ export const dagsseddelRouter = router({
               where: { clientUuid: lokal.clientUuid },
               select: { id: true },
             });
+            // w9: tilstanden før synken (ny sedel: tom).
+            const maskinFoer: MaskinJobbTilstand = eksisterendeITx
+              ? await lesMaskinJobbTilstand(tx, ctx.prismaMaskin, eksisterendeITx.id)
+              : { timer: [], maskin: [], pauseMin: 0 };
 
             // V19.9 (A-1b) — klassifiser payload-radene og tombstones mot
             // serverradene FØR noe skrives (spec § 9.3, inni tx-en). Resultatet
@@ -10190,6 +9911,8 @@ export const dagsseddelRouter = router({
             // K1–K4 over hele sedelens post-tilstand (skrevne + hoppede rader). Brudd →
             // TRPCError `kortUlikeRader` → tx rulles tilbake → `avvist` (SYNC-1, catch under).
             await sikreKortId(tx, sedel.id, { kast: true, oppgitteKortIder, kontekst: kortKontekst });
+            // w9 (B22 A): ny regel fra første dag også ved synk.
+            await krevIngenNyeMaskinBrudd(tx, ctx.prismaMaskin, sedel.id, maskinFoer);
 
             // V19.9.8 (A'-5): les tilbake versjonene for radene som FAKTISK ble
             // skrevet (etter createMany → updatedAt er satt). Mobilen skriver dem
@@ -10491,26 +10214,7 @@ export const dagsseddelRouter = router({
         // POST (14): underprosjektet må høre til radens prosjekt og sedelens firma.
         await krevEcoerIProsjekt([input], sheet.organizationId);
 
-        // T7-4b: valider post-state.
-        const naa = await hentRaderForValidering(
-          ctx.prismaTimer,
-          input.sheetId,
-        );
-        const postMaskin: ValiderRad[] = [
-          ...naa.maskin,
-          {
-            projectId: input.projectId,
-            externalCostObjectId: input.externalCostObjectId ?? null,
-            timer: input.timer,
-          },
-        ];
-        const brytt = validerMaskinUnderArbeid(naa.timer, postMaskin, sheet.pauseMin);
-        if (brytt.length > 0) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: await feilMeldingMaskinOverstiger(brytt),
-          });
-        }
+        // w9: maskin høyst jobbens arbeid sjekkes sist i transaksjonen under.
 
         // Ordre d2c-1 (R24): kobling til timerad før skriving.
         const kobling = await krevKoblingVedFoering(ctx.prismaTimer, ctx.prismaMaskin, {
@@ -10534,8 +10238,9 @@ export const dagsseddelRouter = router({
           externalCostObjectId: input.externalCostObjectId ?? null,
         });
         // F4-1d: rad-write + touchSedel atomisk.
-        const [rad] = await ctx.prismaTimer.$transaction([
-          ctx.prismaTimer.sheetMachine.create({
+        const rad = await ctx.prismaTimer.$transaction(async (tx) => {
+          const maskinFoer = await lesMaskinJobbTilstand(tx, ctx.prismaMaskin, input.sheetId);
+          const ny = await tx.sheetMachine.create({
             data: {
               sheetId: input.sheetId,
               projectId: input.projectId,
@@ -10550,11 +10255,13 @@ export const dagsseddelRouter = router({
               kortId: input.kortId ?? kobling?.kortId ?? null,
               sheetTimerId: kobling ? (input.sheetTimerId ?? null) : null,
             },
-          }),
-          touchSedel(ctx.prismaTimer, input.sheetId),
-        ]);
-        const { kortIdFor } = await sikreKortId(ctx.prismaTimer, input.sheetId, { kontekst: kortKontekst });
-        return { ...rad, kortId: kortIdFor.get(rad.id) ?? rad.kortId ?? null };
+          });
+          await touchSedel(tx, input.sheetId);
+          const { kortIdFor } = await sikreKortId(tx, input.sheetId, { kontekst: kortKontekst });
+          await krevIngenNyeMaskinBrudd(tx, ctx.prismaMaskin, input.sheetId, maskinFoer);
+          return { ...ny, kortId: kortIdFor.get(ny.id) ?? ny.kortId ?? null };
+        });
+        return rad;
       }),
 
     oppdater: protectedProcedure
@@ -10622,28 +10329,7 @@ export const dagsseddelRouter = router({
           data.byggeplassId = input.byggeplassId;
         }
 
-        // T7-4b: valider post-state. Endring av timer eller ECO på maskin
-        // kan bryte sum(maskin) ≤ sum(timer)-invariant.
-        const naa = await hentRaderForValidering(ctx.prismaTimer, rad.sheetId);
-        const postMaskin: ValiderRad[] = naa.maskin.map((r) =>
-          r.id === input.id
-            ? {
-                projectId: r.projectId, // projectId endres ikke i maskin.oppdater
-                externalCostObjectId:
-                  input.externalCostObjectId !== undefined
-                    ? input.externalCostObjectId
-                    : r.externalCostObjectId,
-                timer: input.timer !== undefined ? input.timer : r.timer,
-              }
-            : r,
-        );
-        const brytt = validerMaskinUnderArbeid(naa.timer, postMaskin, sheet.pauseMin);
-        if (brytt.length > 0) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: await feilMeldingMaskinOverstiger(brytt),
-          });
-        }
+        // w9: maskin høyst jobbens arbeid sjekkes sist i transaksjonen under.
 
         // Ordre d2c-1 (R24): raden slik den blir, må ha gyldig kobling når maskinen
         // krever timerad — også en eldre ukoblet rad som endres.
@@ -10667,15 +10353,14 @@ export const dagsseddelRouter = router({
               input.externalCostObjectId !== undefined ? input.externalCostObjectId : rad.externalCostObjectId,
           },
         });
-        const [oppdatert] = await ctx.prismaTimer.$transaction([
-          ctx.prismaTimer.sheetMachine.update({
-            where: { id: input.id },
-            data,
-          }),
-          touchSedel(ctx.prismaTimer, rad.sheetId),
-        ]);
-        const { kortIdFor } = await sikreKortId(ctx.prismaTimer, rad.sheetId, { kontekst: kortKontekst });
-        return { ...oppdatert, kortId: kortIdFor.get(input.id) ?? oppdatert.kortId ?? null };
+        return ctx.prismaTimer.$transaction(async (tx) => {
+          const maskinFoer = await lesMaskinJobbTilstand(tx, ctx.prismaMaskin, rad.sheetId);
+          const oppdatert = await tx.sheetMachine.update({ where: { id: input.id }, data });
+          await touchSedel(tx, rad.sheetId);
+          const { kortIdFor } = await sikreKortId(tx, rad.sheetId, { kontekst: kortKontekst });
+          await krevIngenNyeMaskinBrudd(tx, ctx.prismaMaskin, rad.sheetId, maskinFoer);
+          return { ...oppdatert, kortId: kortIdFor.get(input.id) ?? oppdatert.kortId ?? null };
+        });
       }),
 
     fjern: protectedProcedure

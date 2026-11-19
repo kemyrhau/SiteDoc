@@ -164,8 +164,23 @@ export {
   overstigerMaskinTak,
   maskinBucketKapasitet,
   beregnMaskinBrudd,
+  maskinJobbNokkel,
+  jobbArbeidSum,
+  beregnJobbMaskinBrudd,
+  nyeEllerOkteBrudd,
+  maskinHoyst,
+  maskinHoystPerRad,
+  overMaskinHoyst,
+  doegnOverArbeid,
 } from "./maskinKapasitet";
-export type { MaskinKapasitetRad, MaskinBrudd } from "./maskinKapasitet";
+export type {
+  MaskinKapasitetRad,
+  MaskinBrudd,
+  JobbArbeidRad,
+  JobbMaskinRad,
+  MaskinJobbBrudd,
+  DoegnOverArbeid,
+} from "./maskinKapasitet";
 export {
   byggDetaljRader,
   kolonnerMedInnhold,

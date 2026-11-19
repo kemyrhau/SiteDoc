@@ -67,3 +67,38 @@ describe("klientfeilLink — forståelig tekst", () => {
       .toBe("x is not a function");
   });
 });
+
+describe("w9 S1 — serverfeil med feilNokkel vises på brukerens språk", () => {
+  function nokkelFeil(feilNokkel: string, feilParam: Record<string, string>, message: string) {
+    return async () =>
+      new Response(
+        JSON.stringify([
+          { error: { message, code: -32600, data: { code: "BAD_REQUEST", httpStatus: 400, feilNokkel, feilParam } } },
+        ]),
+        { status: 400, headers: { "content-type": "application/json" } },
+      );
+  }
+  const param = { jobb: "1001 Bygg A", maskin: "7,5", arbeid: "4,5" };
+
+  it("🔴 kjent nøkkel → t(feilNokkel, feilParam), ikke serverens tekst", async () => {
+    i18next.addResourceBundle("en", "translation", { "timer.maskin.overArbeidAvvist": "{{jobb}}: machine {{maskin}} h, work {{arbeid}} h." }, true, true);
+    await i18next.changeLanguage("en");
+    try {
+      expect(await feilmelding(nokkelFeil("timer.maskin.overArbeidAvvist", param, "norsk servertekst")))
+        .toBe("1001 Bygg A: machine 7,5 h, work 4,5 h.");
+    } finally {
+      await i18next.changeLanguage("nb");
+    }
+  });
+
+  it("nb-teksten bruker parameterne", async () => {
+    const tekst = await feilmelding(nokkelFeil("timer.maskin.overArbeidAvvist", param, "norsk servertekst"));
+    expect(tekst).toContain("1001 Bygg A");
+    expect(tekst).toContain("7,5");
+    expect(tekst).not.toBe("norsk servertekst");
+  });
+
+  it("negativkontroll: ukjent nøkkel → serverens message står", async () => {
+    expect(await feilmelding(nokkelFeil("finnes.ikke", param, "norsk servertekst"))).toBe("norsk servertekst");
+  });
+});

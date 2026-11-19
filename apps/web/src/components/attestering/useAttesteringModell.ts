@@ -35,6 +35,11 @@ export function useAttesteringModell(
       normtakLinje: (s) =>
         normtakBruddLinje(t, (s as unknown as { fravaerNormtakBrudd?: NormtakBruddData | null }).fravaerNormtakBrudd ?? null, i18n.language),
       ukeAvvikTekst: ukeAvvikTekst ?? (() => null),
+      maskinOverArbeidForklaring: (maskin, arbeid) =>
+        t("timer.attestering.forklaringMaskinOverArbeid", {
+          maskin: maskin.toLocaleString(i18n.language, { maximumFractionDigits: 2 }),
+          arbeid: arbeid.toLocaleString(i18n.language, { maximumFractionDigits: 2 }),
+        }),
       tekst: {
         forslagSperre: t("timer.forslagValg.attesterBlokkert"),
         maskinUtenTimerad: t("timer.attestering.tabell.maskinUtenTimerad"),
@@ -42,6 +47,7 @@ export function useAttesteringModell(
         merkeUtenTimerad: t("timer.attestering.tabell.merke.utenTimerad"),
         merkeUtenTimeradForklaring: t("timer.attestering.tabell.merke.utenTimeradForklaring"),
         merkeUtenForerbevis: t("timer.attestering.tabell.merke.utenForerbevis"),
+        merkeMaskinOverArbeid: t("timer.attestering.merkeMaskinOverArbeid"),
         tilleggskrav: t("timer.attestering.sedel.tilleggskrav"),
         tilByggherre: t("timer.gruppe.tilByggherre"),
         fravaerUtenProsjekt: t("timer.detalj.fravaerUtenProsjekt"),

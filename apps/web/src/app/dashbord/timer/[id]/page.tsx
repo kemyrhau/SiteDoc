@@ -43,8 +43,8 @@ import {
   type ByggeplassValg,
 } from "@/lib/timerByggeplass";
 import {
-  maskinBucketKapasitet,
-  overstigerMaskinTak,
+  maskinHoystPerRad,
+  overMaskinHoyst,
   DEFAULT_PAUSE_ETTER_TIMER,
   pauseVinduFra,
   effektiveTimerFraSpenn,
@@ -139,6 +139,8 @@ type TimerRad = {
   erReise?: boolean;
   // POST (13) L2: sporet — overføringsretninger som alt finnes tilbys ikke igjen.
   reiseKilde?: string | null;
+  // w9: jobben (prosjektkortet) raden hører til — «høyst» regnes pr. jobb.
+  kortId?: string | null;
   reiseRetning?: string | null;
 };
 
@@ -196,6 +198,8 @@ type MaskinRad = {
   attestertStatus: string | null;
   // Ordre d2c-1 (R24): timeraden maskinen står på. Valgfri så eldre respons ikke bryter.
   sheetTimerId?: string | null;
+  // w9: jobben maskinen hører til (K6: følger timeraden).
+  kortId?: string | null;
 };
 
 // V22: det timer-radens sekundærlinje trenger fra sedelen og gruppa.
@@ -2202,8 +2206,6 @@ function EcoGruppe({
   // og maskin-kontrollen bruker arbeid UTEN reise (og uten erstattede rader).
   const { arbeid: sumTimer, reise: sumReise } = arbeidOgReise(timer);
   const sumMaskin = maskin.reduce((acc, r) => acc + tilTall(r.timer), 0);
-  // D6 (web-paritet): bruk delt overstigerMaskinTak MED pause-buffer — identisk
-  // med attestering (`attestering-buckets.tsx`) og server.
 
   return (
     <div
@@ -3003,6 +3005,7 @@ function TimerRadDialog({
         internNavn: string | null;
         internNummer: string | null;
         kategori: string | null;
+        utleieEnhet?: string | null;
       }>
     | undefined;
   // Speiler resolveren: maskin-modulens firmatak (ingen prosjektId → firmatak
@@ -3097,29 +3100,52 @@ function TimerRadDialog({
     }
   }
 
-  // P1 (maskin-i-rad): bucket-kapasitet for den valgfrie maskin-seksjonen.
-  // Samme (projectId, ECO)-bøtte-regel som MaskinRadDialog — arbeidSum og
-  // maskin-sum for gjeldende (valgtProjectId, ecoId), ledig via delt regel.
-  const maskinKapasitet = useMemo(() => {
-    const iBucket = (r: {
-      projectId: string;
-      externalCostObjectId: string | null;
-    }) =>
-      r.projectId === valgtProjectId &&
-      (r.externalCostObjectId ?? null) === (ecoId ?? null);
-    // Ordre 2026-11-14 (6): maskin måles mot arbeid UTEN reise og uten
-    // erstattede rader (delt regel).
-    const arbeidSum = arbeidUtenReise(alleTimerRader.filter(iBucket));
-    const sumMaskin = alleMaskinRader
-      .filter(iBucket)
-      .reduce((acc, r) => acc + tilTall(r.timer), 0);
-    const { ledig } = maskinBucketKapasitet({
-      arbeidSum,
-      sumMaskinEksisterende: sumMaskin,
-      pauseMin,
-    });
-    return { arbeidSum, sumMaskin, ledig };
-  }, [alleTimerRader, alleMaskinRader, valgtProjectId, ecoId, pauseMin]);
+  // w9 (2c): «høyst X t» for maskinen på den nye timeraden. Maskinen får radens
+  // timer og følger radens jobb (K6). Jobben er den eldste med samme prosjekt,
+  // byggeplass og underprosjekt (regel 3), ellers en ny jobb uten andre maskiner.
+  // Delt regel med serveren (maskinHoystPerRad); serveren avgjør til slutt.
+  const maskinHoyst = useMemo(() => {
+    if (!maskinVehicleId) return null;
+    const utstyr = maskinEquipment?.find((e) => e.id === maskinVehicleId);
+    if (!utstyr) return null;
+    const jobb = alleTimerRader.find(
+      (r) =>
+        r.kortId &&
+        r.erReise !== true &&
+        r.projectId === valgtProjectId &&
+        (r.externalCostObjectId ?? null) === (ecoId ?? null) &&
+        (r.byggeplassId ?? null) === (bp.byggeplassId ?? null),
+    );
+    const kortId = jobb?.kortId ?? "ny-jobb";
+    const nyTimer = parseFloat(timer);
+    const nyTimerTall = isNaN(nyTimer) ? 0 : nyTimer;
+    const enhetFor = (vehicleIdArg: string) =>
+      maskinEquipment?.find((e) => e.id === vehicleIdArg)?.utleieEnhet ?? null;
+    const [denne] = maskinHoystPerRad(
+      [
+        ...alleTimerRader.map((r) => ({
+          kortId: r.kortId ?? null,
+          projectId: r.projectId,
+          externalCostObjectId: r.externalCostObjectId,
+          timer: tilTall(r.timer),
+          erReise: r.erReise === true,
+        })),
+        { kortId, projectId: valgtProjectId, externalCostObjectId: ecoId, timer: nyTimerTall, erReise: false },
+      ],
+      [
+        { kortId, projectId: valgtProjectId, externalCostObjectId: ecoId, timer: nyTimerTall, utleieEnhet: utstyr.utleieEnhet ?? null },
+        ...alleMaskinRader.map((r) => ({
+          kortId: r.kortId ?? null,
+          projectId: r.projectId,
+          externalCostObjectId: r.externalCostObjectId,
+          timer: tilTall(r.timer),
+          utleieEnhet: enhetFor(r.vehicleId),
+        })),
+      ],
+    );
+    return denne ?? null;
+  }, [maskinVehicleId, maskinEquipment, alleTimerRader, alleMaskinRader, valgtProjectId, ecoId, bp.byggeplassId, timer]);
+  const maskinOverHoyst = overMaskinHoyst(parseFloat(timer) || 0, maskinHoyst);
 
   // Sist-rørte felt vinner (mobil-atferd): endrer fra/til → regn antall;
   // skriver antall → regn til (pausevinduet skyves inn ved lunsj-kryssing).
@@ -3815,13 +3841,14 @@ function TimerRadDialog({
                     </select>
                   </div>
                 </div>
-                <p className="text-xs text-gray-500">
-                  {t("timer.maskinSeksjon.kapasitet", {
-                    arbeid: maskinKapasitet.arbeidSum.toFixed(2),
-                    maskin: maskinKapasitet.sumMaskin.toFixed(2),
-                    ledig: maskinKapasitet.ledig.toFixed(2),
-                  })}
-                </p>
+                {maskinHoyst !== null && (
+                  <p
+                    data-testid="maskin-hoyst"
+                    className={`text-xs ${maskinOverHoyst ? "font-medium text-red-600" : "text-gray-500"}`}
+                  >
+                    {t("timer.maskin.hoyst", { timer: formatTimer(maskinHoyst) })}
+                  </p>
+                )}
                 <p className="text-xs text-gray-400">
                   {t("timer.maskinSeksjon.hint")}
                 </p>
@@ -3849,7 +3876,9 @@ function TimerRadDialog({
                 !timer ||
                 // Fra/til obligatorisk på timer-rader (2026-07-13) — reverserer a2.
                 !fraTid ||
-                !tilTid
+                !tilTid ||
+                // w9 (2c): maskinen over jobbens «høyst».
+                maskinOverHoyst
               }
             >
               {lagrer ? t("handling.lagrer") : t("handling.lagre")}
@@ -4917,8 +4946,8 @@ function MaskinRadDialog({
   defaultTilTid?: string | null;
   tidsrundingMinutter?: number | null;
   rad?: MaskinRad;
-  // Del 2 (maskin ≤ arbeid): hele sedelens rader + sedel-pause, for reaktiv
-  // bucket-kapasitet. Samme regel som server (validerMaskinUnderArbeid).
+  // w9 (maskin ≤ arbeid): hele sedelens rader + sedel-pause, for «høyst» pr. jobb
+  // (maskinHoystPerRad). Samme regel som serveren (krevIngenNyeMaskinBrudd).
   alleTimerRader: TimerRad[];
   alleMaskinRader: MaskinRad[];
   /** ORDRE 29: egne sist brukte maskiner (nyeste først) — øverst i velgeren. */
@@ -5063,43 +5092,49 @@ function MaskinRadDialog({
     }
   }
 
-  // Del 2 (maskin ≤ arbeid): reaktiv bucket-kapasitet for gjeldende
-  // (projectId, ecoId). Bruker delt @sitedoc/shared-regel — identisk med
-  // serverens validerMaskinUnderArbeid (samme epsilon + pause-modell).
-  const kapasitet = useMemo(() => {
-    const iBucket = (r: {
-      projectId: string;
-      externalCostObjectId: string | null;
-    }) =>
-      r.projectId === projectId &&
-      (r.externalCostObjectId ?? null) === (ecoId ?? null);
-    // Ordre 2026-11-14 (6): arbeid uten reise og uten erstattede rader.
-    const arbeidSum = arbeidUtenReise(alleTimerRader.filter(iBucket));
-    const sumMaskinEksisterende = alleMaskinRader
-      .filter((r) => iBucket(r) && r.id !== rad?.id)
-      .reduce((acc, r) => acc + tilTall(r.timer), 0);
-    const { tak, ledig } = maskinBucketKapasitet({
-      arbeidSum,
-      sumMaskinEksisterende,
-      pauseMin,
-    });
+  // w9 (2c): «høyst X t» = jobbens arbeid − de andre førermaskinene på jobben.
+  // Jobben er timeradens (K6), ellers radens egen; uten jobb gjelder bøtta med pause.
+  // Delt regel med serveren (maskinHoystPerRad). Døgn-maskin: ingen grense.
+  const hoyst = useMemo(() => {
+    const kobletTimerrad = alleTimerRader.find((r) => r.id === sheetTimerId);
+    const kortId = kreverTimerad
+      ? (kobletTimerrad?.kortId ?? rad?.kortId ?? null)
+      : (rad?.kortId ?? null);
+    const enhetFor = (vehicleIdArg: string) =>
+      equipment?.find((e) => e.id === vehicleIdArg)?.utleieEnhet ?? null;
     const nyTimer = parseFloat(timer);
-    const nyBidrag = isNaN(nyTimer) ? 0 : nyTimer;
-    const overstiger = overstigerMaskinTak(
-      sumMaskinEksisterende + nyBidrag,
-      arbeidSum,
+    const [denne] = maskinHoystPerRad(
+      alleTimerRader.map((r) => ({
+        kortId: r.kortId ?? null,
+        projectId: r.projectId,
+        externalCostObjectId: r.externalCostObjectId,
+        timer: tilTall(r.timer),
+        erReise: r.erReise === true,
+      })),
+      [
+        {
+          kortId,
+          projectId,
+          externalCostObjectId: kortId ? (kobletTimerrad?.externalCostObjectId ?? ecoId) : ecoId,
+          timer: isNaN(nyTimer) ? 0 : nyTimer,
+          utleieEnhet: valgtUtstyr ? (valgtUtstyr.utleieEnhet ?? null) : null,
+        },
+        ...alleMaskinRader
+          .filter((r) => r.id !== rad?.id)
+          .map((r) => ({
+            kortId: r.kortId ?? null,
+            projectId: r.projectId,
+            externalCostObjectId: r.externalCostObjectId,
+            timer: tilTall(r.timer),
+            utleieEnhet: enhetFor(r.vehicleId),
+          })),
+      ],
       pauseMin,
     );
-    return { arbeidSum, sumMaskinEksisterende, tak, ledig, overstiger };
-  }, [
-    alleTimerRader,
-    alleMaskinRader,
-    projectId,
-    ecoId,
-    rad?.id,
-    pauseMin,
-    timer,
-  ]);
+    // Utstyret ikke lastet: ukjent enhet → ingen tekst; serveren avgjør (H15 A).
+    return valgtUtstyr ? (denne ?? null) : null;
+  }, [alleTimerRader, alleMaskinRader, sheetTimerId, kreverTimerad, rad?.kortId, rad?.id, equipment, timer, projectId, ecoId, valgtUtstyr, pauseMin]);
+  const overHoyst = overMaskinHoyst(parseFloat(timer) || 0, hoyst);
 
   const tilfoy = trpc.timer.dagsseddel.maskin.tilfoy.useMutation({
     onSuccess: () => {
@@ -5251,7 +5286,17 @@ function MaskinRadDialog({
             value={timer}
             onChange={(e) => endreTimer(e.target.value)}
             required
+            aria-invalid={overHoyst || undefined}
+            className={overHoyst ? "!border-red-500 !text-red-600" : undefined}
           />
+          {hoyst !== null && (
+            <p
+              data-testid="maskin-hoyst"
+              className={`mt-1 text-xs ${overHoyst ? "font-medium text-red-600" : "text-gray-500"}`}
+            >
+              {t("timer.maskin.hoyst", { timer: formatTimer(hoyst) })}
+            </p>
+          )}
         </div>
         {/* Maskin-fra-til = maskinens driftsvindu. B1/B2 (bolk e): antall er
             pause-bevisst avledet av spennet og validert mot det. Prefill fra
@@ -5358,26 +5403,6 @@ function MaskinRadDialog({
             )}
           </div>
         </div>
-        {/* Del 2: inline kapasitet-linje — arbeid/maskin/ledig for bucketen.
-            Rød når inntastet verdi overstiger taket; Lagre disables da. */}
-        <div
-          className={`rounded border px-3 py-2 text-xs ${
-            kapasitet.overstiger
-              ? "border-sitedoc-error/40 bg-sitedoc-error/5 text-sitedoc-error"
-              : "border-gray-200 bg-gray-50 text-gray-500"
-          }`}
-        >
-          {t("timer.maskin.kapasitet", {
-            arbeid: formatTimer(kapasitet.arbeidSum),
-            maskin: formatTimer(kapasitet.sumMaskinEksisterende),
-            ledig: formatTimer(Math.max(0, kapasitet.ledig)),
-          })}
-          {kapasitet.overstiger && (
-            <span className="mt-0.5 block font-medium">
-              {t("timer.maskin.overstigerArbeid")}
-            </span>
-          )}
-        </div>
         {feil && <p className="text-sm text-red-600">{feil}</p>}
         <div className="flex justify-end gap-3 pt-2">
           <Button type="button" variant="secondary" onClick={onLukk}>
@@ -5389,7 +5414,7 @@ function MaskinRadDialog({
           >
             <Button
               type="submit"
-              disabled={lagrer || !vehicleId || !timer || kapasitet.overstiger}
+              disabled={lagrer || !vehicleId || !timer || overHoyst}
             >
               {lagrer ? t("handling.lagrer") : t("handling.lagre")}
             </Button>

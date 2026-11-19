@@ -165,6 +165,13 @@ Dagsseddel-siden på web har ikke ?-ikon. Hjelpen står i skjemaet der valget ta
 - **Kortet har ingen arbeidsrad:** «Før timeraden maskinen gikk på først — maskinen står på den.» (også som hint under feltet)
 - **Slett timerad med maskin:** tittel «Slette timeraden?», teksten «Raden har 2 maskiner: Volvo EC220E, Dumper. De slettes sammen med raden.» og knappen «Slett rad og maskiner». Døgn-maskiner nevnes ikke; de blir stående uten timerad.
 
+## Web: Maskin høyst jobbens arbeid (web-timeføring w9, 🟡 ikke merget)
+
+Ingen ?-fane; teksten står ved feltet og i attesteringen (`timer.maskin.*`, `timer.attestering.*`, 15 språk):
+- **Ved maskinens timer-felt** (registreringen, Rediger sedel, dagssidens maskinvindu og timerad-vindu): «høyst 4,5 t» (`timer.maskin.hoyst`). Rød når tallet er over; Lagre er da sperret med forklaringen «En maskin har flere timer enn høyst-grensen for jobben. Rett maskintimene først.» (`timer.maskin.overHoystSperret`). Døgn-maskiner har ingen grense.
+- **Når serveren avviser:** «END-002: maskin 7,5 t, arbeid 4,5 t. En maskin med fører kan ikke ha flere timer enn arbeidet på jobben. Rett maskintimene, eller flytt hele jobben.» (`timer.maskin.overArbeidAvvist`, på brukerens språk).
+- **Attestering, jobbraden:** merket «Maskin over arbeid» (`timer.attestering.merkeMaskinOverArbeid`) med hover «Maskin 7,5 t, arbeid 4,5 t» (`timer.attestering.forklaringMaskinOverArbeid`). Jobben kan attesteres.
+
 ## Mobil: Timerad på maskin (`MaskinSeksjon.tsx`, `ProsjektkortDagsoversikt.tsx`, ordre d2c-2, 🟡 ikke merget)
 
 Samme tekster som PC (d2c-1). Hjelpen står i skjemaet der valget tas (`timer.felt.timerad`, `timer.maskinTimerad.*`, `timer.fjernTimerRad.*`, 15 språk):

@@ -2108,6 +2108,8 @@ kontekst — leder må vurdere hva som skjer med maskin og varer når
 timer-raden splittes (følger nye timer-rad? deles? blir på original?).
 
 **Sammenheng-validering (låst 2026-05-17, utvidet 2026-05-18):**
+
+> 🔵 **Endret 2026-11-19 (Kenneth, w9 — B21 A / B22 A / B23 B):** regelen er nå pr. jobb (`kortId`): maskiner som krever fører ≤ jobbens arbeid, uten reise og **uten pausen**. Døgn-maskiner sperres aldri, men får merket «Maskin over arbeid». Bøtta med pause under gjelder bare eldre rader uten jobb. Serveren (`krevIngenNyeMaskinBrudd`, alle veier og synken) avviser bare brudd en skriving lager eller øker; ventende jobber med gamle brudd kan attesteres med merket. Detalj: [timer.md § Maskin ≤ arbeidstimer](timer.md). Teksten under er historikk.
 - `sum(maskin.timer) ≤ sum(arbeidstimer) + pauseMin/60` PER prosjekt+ECO-gruppe
 - Pause-buffer-tillegget (utvidelse 2026-05-18) er nødvendig fordi
   døgn-utleide maskiner (se § utleie_enhet-prinsipp under) går mens

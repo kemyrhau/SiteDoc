@@ -7,7 +7,8 @@
 //
 //  «Arbeid» er det samme som maskin-taket bruker: `arbeidUtenReise` i
 //  reiseSkille.ts (reise og erstattede rader gir 0). Maskin-taket
-//  (maskinKapasitet.ts) er uendret — sperren kommer i tillegg.
+//  (maskinKapasitet.ts, pr. jobb fra w9) kommer i tillegg, og bruker
+//  maskinKreverTimerad for hvilke maskiner som krever fører.
 // ============================================================================
 
 import { arbeidUtenReise } from "./reiseSkille";

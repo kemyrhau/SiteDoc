@@ -3,7 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { Prisma } from "@sitedoc/db";
 import { router, publicProcedure } from "./trpc";
-import { formaterFeil, loggTrpcFeil, FEILTEKST } from "./feilformat";
+import { formaterFeil, loggTrpcFeil, FEILTEKST, nokkelFeil } from "./feilformat";
 import type { Context } from "./context";
 
 /**
@@ -63,6 +63,14 @@ const appRouter = router({
   egenMedÅrsak: publicProcedure.query(() => {
     throw new TRPCError({ code: "CONFLICT", message: "Dagsseddelen er allerede godkjent", cause: new Error("rå") });
   }),
+  // w9 (S1): egen feil med i18n-nøkkel.
+  medNokkel: publicProcedure.query(() => {
+    throw nokkelFeil("BAD_REQUEST", "END-002: maskin 7,5 t, arbeid 4,5 t.", "timer.maskin.overArbeidAvvist", {
+      jobb: "END-002",
+      maskin: "7,5",
+      arbeid: "4,5",
+    });
+  }),
   // Reelt tilfelle: maskin/equipment.ts — egen tekst over en rå årsak.
   egenInternMedÅrsak: publicProcedure.query(() => {
     throw new TRPCError({
@@ -90,7 +98,18 @@ async function kall(sti: string, metode: "GET" | "POST" = "GET", nodeEnv = "prod
       onError: ({ error, path }) => loggTrpcFeil(log, error, path),
     });
     const body = (await res.json()) as {
-      error: { message: string; code: number; data: { code: string; httpStatus: number; stack?: string; feilKode?: string } };
+      error: {
+        message: string;
+        code: number;
+        data: {
+          code: string;
+          httpStatus: number;
+          stack?: string;
+          feilKode?: string;
+          feilNokkel?: string;
+          feilParam?: Record<string, string | number>;
+        };
+      };
     };
     return { status: res.status, feil: body.error, log };
   } finally {
@@ -193,6 +212,23 @@ describe("ERRFMT — egne TRPCError slipper uendret", () => {
     expect(status).toBe(500);
     expect(feil.message).toBe("Kunne ikke kontakte Vegvesen");
     expect(feil.data.feilKode).toBeUndefined();
+  });
+});
+
+describe("w9 S1 — egen feil med i18n-nøkkel", () => {
+  it("nb-tekst i message, nøkkel og parametre i data", async () => {
+    const { status, feil, log } = await kall("medNokkel");
+    expect(status).toBe(400);
+    expect(feil.message).toBe("END-002: maskin 7,5 t, arbeid 4,5 t.");
+    expect(feil.data.feilNokkel).toBe("timer.maskin.overArbeidAvvist");
+    expect(feil.data.feilParam).toEqual({ jobb: "END-002", maskin: "7,5", arbeid: "4,5" });
+    expect(feil.data.feilKode).toBeUndefined();
+    expect(log.error).not.toHaveBeenCalled();
+  });
+
+  it("negativkontroll: egen feil uten nøkkel får ingen feilNokkel", async () => {
+    const { feil } = await kall("egenMedÅrsak");
+    expect(feil.data.feilNokkel).toBeUndefined();
   });
 });
 

@@ -4,6 +4,9 @@ import {
   overlappBlokkererAttestering,
   timerTabellVerdi,
   antallUnderlinjer,
+  beregnJobbMaskinBrudd,
+  doegnOverArbeid,
+  maskinJobbNokkel,
   type TimerTabellLinje,
   type TimerTabellKolKey,
   type TimerTabellMaskin,
@@ -103,6 +106,8 @@ export interface AttDeps {
   normtakLinje: (s: AttSedel) => string | null;
   /** Ukeavvikets tekst med ukenummer og normens navn (T29/T39), eller null. */
   ukeAvvikTekst: (s: AttSedel) => string | null;
+  /** w9: forklaringen på merket «Maskin over arbeid» — «Maskin 7,5 t, arbeid 4,5 t». */
+  maskinOverArbeidForklaring: (maskinTimer: number, arbeidTimer: number) => string;
   tekst: {
     forslagSperre: string;
     maskinUtenTimerad: string;
@@ -111,6 +116,8 @@ export interface AttDeps {
     merkeUtenTimerad: string;
     merkeUtenTimeradForklaring: string;
     merkeUtenForerbevis: string;
+    /** w9 (B21 A / B23 B): jobbens maskiner har flere timer enn arbeidet. */
+    merkeMaskinOverArbeid: string;
     tilleggskrav: string;
     tilByggherre: string;
     fravaerUtenProsjekt: string;
@@ -240,6 +247,47 @@ function rettetMap(r: Partial<Beriket> | undefined): Record<string, string | num
   return ut;
 }
 
+/**
+ * w9 (B21 A, B23 B, S2): merket «Maskin over arbeid» pr. jobb (`maskinJobbNokkel`).
+ * Førermaskinene (sum) over jobbens arbeid = gammelt brudd; hver døgn-maskin for seg
+ * over arbeidet = varsel. Samme delte regel som serveren. Bare jobber med ventende
+ * rader får merket — det stopper ikke ✓. Eldre rader uten jobb vurderes i bøtta
+ * (prosjekt + underprosjekt, med pause) og merkes på samlekortet.
+ */
+export function maskinOverArbeidMerker(s: AttSedel, deps: AttDeps): Map<string, AvvikMerke> {
+  const timer = s.timer.map((r) => ({
+    kortId: r.kortId,
+    projectId: r.projectId,
+    externalCostObjectId: r.externalCostObjectId ?? null,
+    timer: tall(r.timer) ?? 0,
+    erReise: r.erReise === true,
+  }));
+  const maskin = s.maskiner.map((m) => ({
+    kortId: m.kortId,
+    projectId: m.projectId,
+    externalCostObjectId: m.externalCostObjectId ?? null,
+    timer: tall(m.timer) ?? 0,
+    utleieEnhet: m.utleieEnhet ?? null,
+  }));
+  const ventende = new Set(
+    [...s.timer, ...s.maskiner]
+      .filter((r) => r.attestertStatus === "pending")
+      .map((r) => maskinJobbNokkel({ kortId: r.kortId, projectId: r.projectId, externalCostObjectId: r.externalCostObjectId ?? null })),
+  );
+  const forklaringer = new Map<string, string[]>();
+  const legg = (nokkel: string, maskinTimer: number, arbeidTimer: number) => {
+    if (!ventende.has(nokkel)) return;
+    const liste = forklaringer.get(nokkel) ?? [];
+    liste.push(deps.maskinOverArbeidForklaring(maskinTimer, arbeidTimer));
+    forklaringer.set(nokkel, liste);
+  };
+  for (const b of beregnJobbMaskinBrudd(timer, maskin, s.pauseMin)) legg(b.nokkel, b.maskinSum, b.arbeidSum);
+  for (const d of doegnOverArbeid(timer, maskin, s.pauseMin)) legg(d.nokkel, d.maskinTimer, d.arbeidSum);
+  return new Map(
+    [...forklaringer].map(([nokkel, liste]) => [nokkel, { tekst: deps.tekst.merkeMaskinOverArbeid, forklaring: liste.join(" · ") }]),
+  );
+}
+
 /** Bygg dag → kort → linjer for sedlene (sortert på dato, så ansatt). */
 export function byggAttesteringModell(sedler: readonly AttSedel[], deps: AttDeps): AttDag[] {
   const sortert = [...sedler].sort(
@@ -260,6 +308,7 @@ function byggDag(s: AttSedel, deps: AttDeps): AttDag {
   const sperre = [normtak, forslag].filter(Boolean).join(" · ") || null;
   const ukeTekst = deps.ukeAvvikTekst(s);
   const ukeIder = new Set(s.ukeAvvikRadIder ?? []);
+  const maskinOverArbeid = maskinOverArbeidMerker(s, deps);
 
   const gruppering = grupperPaaKort<AttTimer, AttMaskin, AttVare, AttTillegg, AttUtlegg>({
     timer: s.timer,
@@ -299,6 +348,11 @@ function byggDag(s: AttSedel, deps: AttDeps): AttDag {
       leggTilAvvik(deps.tekst.maskinforerbevis, { tekst: deps.tekst.merkeUtenForerbevis, forklaring: deps.tekst.maskinforerbevis });
     const nokkel = `${s.id}:${g.type}:${g.rad.id}`;
     const base = { nokkel, sheetId: s.id, kortNokkel, sperre, avvikMerker };
+    // w9: «Maskin over arbeid» på jobbens linjer med maskin; jobbraden samler merkene.
+    const overArbeid = (rad: { kortId: string | null; projectId: string | null; externalCostObjectId?: string | null }) => {
+      const merke = maskinOverArbeid.get(maskinJobbNokkel({ ...rad, externalCostObjectId: rad.externalCostObjectId ?? null }));
+      if (merke) leggTilAvvik(`${merke.tekst} (${merke.forklaring ?? ""})`, merke);
+    };
     if (g.type === "timer") {
       const r = g.rad;
       const maskiner = g.maskiner.map((m) => maskinTilLinje(m, deps));
@@ -306,6 +360,7 @@ function byggDag(s: AttSedel, deps: AttDeps): AttDag {
       if (ukeTekst && ukeIder.has(r.id)) leggTilAvvik(ukeTekst);
       if (maskiner.some((m) => m.utenTimerad)) utenTimerad();
       if (maskiner.length > 0 && s.manglerMaskinforerbevis) utenForerbevis();
+      if (maskiner.length > 0) overArbeid(r);
       const ventende = r.attestertStatus === "pending";
       return {
         ...base,
@@ -345,6 +400,7 @@ function byggDag(s: AttSedel, deps: AttDeps): AttDag {
       if (sperre) leggTilAvvik(sperre);
       if (ml.utenTimerad) utenTimerad();
       if (s.manglerMaskinforerbevis) utenForerbevis();
+      overArbeid(m);
       return {
         ...base,
         kilde: { type: "maskin", rad: m },

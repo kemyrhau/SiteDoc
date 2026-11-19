@@ -29,13 +29,14 @@ const deps: AttDeps = {
   avdelingNavn: (id) => (id === "avd1" ? "Anlegg" : null),
   normtakLinje: (s) => (s.id === "sperret" ? "Fravær over dagsnorm" : null),
   ukeAvvikTekst: () => "Uke 47: 2,50 t over ukenorm 37,50 t",
+  maskinOverArbeidForklaring: (m: number, a: number) => `Maskin ${String(m).replace(".", ",")} t, arbeid ${String(a).replace(".", ",")} t`,
   tekst: {
     forslagSperre: "Uavklart forslag",
     maskinUtenTimerad: "Maskin uten timerad",
     maskinforerbevis: "Mangler maskinførerbevis",
     merkeUtenTimerad: "Uten timerad",
     merkeUtenTimeradForklaring: "Maskinen er ikke koblet til en timerad.",
-    merkeUtenForerbevis: "Uten førerbevis",
+    merkeUtenForerbevis: "Uten førerbevis", merkeMaskinOverArbeid: "Maskin over arbeid",
     tilleggskrav: "Tilleggskrav",
     tilByggherre: "Til byggherre",
     fravaerUtenProsjekt: "Fravær",
@@ -313,5 +314,85 @@ describe("T35 — vakt: dagskortet, detaljsiden og ukeoversikten leser modellen,
   });
   it("firmasiden har ingen pivot", () => {
     expect(les("../app/dashbord/firma/timer/attestering/page.tsx")).not.toMatch(/AttesteringPivot|tilPivotRad/);
+  });
+});
+
+describe("w9 — merket «Maskin over arbeid» på jobbraden (B21 A, B23 B)", () => {
+  // Jobbraden samler linjenes merker unikt pr. tekst (AttesteringTabell `unikeMerker`).
+  const merkerFor = (s: AttSedel, kortId = "kA") => {
+    const [dag] = byggAttesteringModell([s], deps);
+    const kort = dag!.kort.find((k) => k.nokkel === `${s.id}:${kortId}`)!;
+    const unike = new Map(
+      kort.linjer.flatMap((l) => l.avvikMerker).filter((m) => m.tekst === "Maskin over arbeid").map((m) => [m.tekst, m]),
+    );
+    return [...unike.values()];
+  };
+  // Kenneths eksempel: Ola Tømrer, arbeid 4,5 t, maskin 7,5 t på samme jobb.
+  const ola = (over: Partial<AttSedel> = {}) =>
+    sedel({
+      timer: [timer("t1", "kA", A, { timer: "4.5" })],
+      maskiner: [maskin("m1", "kA", "t1", "v1", { timer: "7.5", utleieEnhet: "time" })],
+      varer: [],
+      ukeAvvikRadIder: [],
+      ...over,
+    });
+
+  it("🔴 førermaskin 7,5 t mot arbeid 4,5 t → merket med forklaringen", () => {
+    const merker = merkerFor(ola());
+    expect(merker).toHaveLength(1);
+    expect(merker[0]!.forklaring).toBe("Maskin 7,5 t, arbeid 4,5 t");
+  });
+
+  it("merket teller som avvik (filteret «har avvik»)", () => {
+    const [dag] = byggAttesteringModell([ola()], deps);
+    expect(dag!.kort[0]!.linjer[0]!.linje.avvik.some((a) => a.startsWith("Maskin over arbeid"))).toBe(true);
+  });
+
+  it("døgn-maskin over arbeidet får varsel-merket, hver maskin for seg (S2)", () => {
+    const merker = merkerFor(
+      ola({
+        maskiner: [
+          maskin("m1", "kA", "t1", "v1", { timer: "9", utleieEnhet: "doegn" }),
+          maskin("m2", "kA", null, "v2", { timer: "3", utleieEnhet: "doegn" }),
+        ],
+      }),
+    );
+    expect(merker).toHaveLength(1);
+    expect(merker[0]!.forklaring).toBe("Maskin 9 t, arbeid 4,5 t");
+  });
+
+  it("negativkontroll: maskin innenfor arbeidet → intet merke", () => {
+    expect(merkerFor(ola({ maskiner: [maskin("m1", "kA", "t1", "v1", { timer: "4.5", utleieEnhet: "time" })] }))).toHaveLength(0);
+  });
+
+  it("negativkontroll: attestert jobb uten ventende rader → intet merke", () => {
+    expect(
+      merkerFor(
+        ola({
+          timer: [timer("t1", "kA", A, { timer: "4.5", attestertStatus: "attestert" })],
+          maskiner: [maskin("m1", "kA", "t1", "v1", { timer: "7.5", utleieEnhet: "time", attestertStatus: "attestert" })],
+        }),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("reise teller ikke som arbeid", () => {
+    const merker = merkerFor(
+      ola({
+        timer: [timer("t1", "kA", A, { timer: "4.5" }), timer("t9", "kA", A, { timer: "4", erReise: true })],
+      }),
+    );
+    expect(merker.map((m) => m.forklaring)).toEqual(["Maskin 7,5 t, arbeid 4,5 t"]);
+  });
+
+  it("en annen jobbs brudd merker ikke denne jobben", () => {
+    const s = sedel({
+      timer: [timer("t1", "kA", A, { timer: "4.5" }), timer("t2", "kB", B, { timer: "8" })],
+      maskiner: [maskin("m1", "kA", "t1", "v1", { timer: "7.5", utleieEnhet: "time" })],
+      varer: [],
+      ukeAvvikRadIder: [],
+    });
+    expect(merkerFor(s, "kA")).toHaveLength(1);
+    expect(merkerFor(s, "kB")).toHaveLength(0);
   });
 });
