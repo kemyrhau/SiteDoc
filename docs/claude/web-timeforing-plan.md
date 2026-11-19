@@ -1528,6 +1528,11 @@ Kenneth 2026-11-18: «Ja, (a)». Firmavalget «Attestant kan attestere egne time
 - **Reise — Kenneth er uenig med § 4.7.** «En reisekostnad knyttes til en kostnad for et prosjekt. Det er reisekostnaden til/fra et prosjekt og bør knyttes til prosjektet kostnaden tilhører.» 🟡 § 4.7 er skrevet om i versjon 9. Målt: reiseraden bærer alt et prosjekt, og kostnaden og attesteringsretten følger det (FA28, FA29). Attesteringen viser det dårlig: én blokk pr. dag med det første prosjektets nummer (FA18). Om reisen skal stå som egen rad under prosjektet eller inn i jobbens kort, er B32. Hvilket prosjekt som bærer ut- og returreisen på en dag med to prosjekter, er B33.
 - **Beskrivelsen i kortet.** Kenneth: beskrivelsen må være med i kortet, og «denne er svært viktig ved attestering». Orkestrator har målt: kortet viser `rad.beskrivelse` og faller tilbake til aktiviteten (`RegistreringPanel.tsx:109`). På test 13.05. står beskrivelsen i sedelens kommentar, og kortet viser derfor «Anleggsarbeid». 🟡 Målt og spesifisert i § 4.9 (FA34–FA44): kortet viser alltid radenes «Hva gjorde du?», aldri aktiviteten i stedet, og dagens «Kommentar» under. Ikke bygget; w10 del A punkt A6.
 
+### 8.10 Kenneths svar på B32–B33, 2026-11-20
+
+- **B32 → B.** Reisen legges inn i jobbens kort på prosjektet og attesteres sammen med jobben. Dette snur vedtaket fra 16.11. om at reise ikke har kort-id. Det krever migrering av eksisterende reiserader (to-stegs, backfill, Kenneth kjører) og endring på telefonen. Fabel spesifiserer det som egen leveranse. w10 A10 utgår og erstattes av den leveransen.
+- **B33 → A.** På en dag med to prosjekter føres utreisen på dagens første prosjekt og returen på dagens siste. Det gjelder telefonen og timer-GPS-sporet, ikke w10.
+
 ## 9. Rekkefølge
 
 Dette er forslag til oppdeling, ikke ordrer. **w1, w2 og w5 er merget** (§ 9.1–9.3). **w6 krever en migrering** (ny
