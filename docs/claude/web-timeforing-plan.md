@@ -1,9 +1,9 @@
 ---
 name: web-timeforing-plan
-description: Plan med bilder steg for steg for timeføring på web — «+ Registrer timer» åpner én samlet registrering pr. jobb (fra/til, lønnsart, hva gjorde du, maskiner, varer, tillegg, utlegg), prosjekt og byggeplass utledet, dagen summeres etter hvert, overtid som egen linje mot dagsnormen for datoen, underprosjekt i jobbens hode, firmavalg for maskin med fra–til, og attestering med 13 kjernekolonner der et klikk åpner registreringen og lar attestanten dele opp. Versjon 5: dagsvisningen i attesteringen (B14) og firmavalget for attestantens egne timer (B15). Versjon 6: maskintimer høyst jobbens arbeidstimer, med unntak for døgn-maskiner (w9, § 4.4). Målt mot dagens web og telefon. B1–B23 besvart. Versjon 7: KS av attesteringen mot bilde 6–8 (§ 4.5) — avviksliste K1–K14, bilde 6 og 7 tegnet slik de gjelder, og retteordren w10. Versjon 8: én attestering på firmanivå for prosjektledere (§ 4.6) og hover-tekster (§ 4.8). Versjon 9: B29–B31 besvart — «Attestering» under Prosjekt fjernes med dødkode-liste (§ 4.10), reisen hører til prosjektet (§ 4.7), beskrivelsen står alltid i kortet (§ 4.9); B32–B33 åpne.
-sist_verifisert_mot_kode: 2026-11-19 (WM1–WM73: develop @ `b8b16571`; WM74–WM92: develop @ `ee7146e5`, etter w1, w2 og w5; WM93–WM108: develop @ `1afb318a`, etter w5b og w7; K1–K14 i § 4.5: develop @ `eedbc7cd`, etter w8, w9 og w9m; FA1–FA27 i § 4.6–4.8: develop @ `57770fc0`; FA16–FA21 på nytt, FA28–FA44 og DK1–DK15 i § 4.7, § 4.9 og § 4.10: develop @ `a5483f48`, 2026-11-20)
+description: Plan med bilder steg for steg for timeføring på web — «+ Registrer timer» åpner én samlet registrering pr. jobb (fra/til, lønnsart, hva gjorde du, maskiner, varer, tillegg, utlegg), prosjekt og byggeplass utledet, dagen summeres etter hvert, overtid som egen linje mot dagsnormen for datoen, underprosjekt i jobbens hode, firmavalg for maskin med fra–til, og attestering med 13 kjernekolonner der et klikk åpner registreringen og lar attestanten dele opp. Versjon 5: dagsvisningen i attesteringen (B14) og firmavalget for attestantens egne timer (B15). Versjon 6: maskintimer høyst jobbens arbeidstimer, med unntak for døgn-maskiner (w9, § 4.4). Målt mot dagens web og telefon. B1–B23 besvart. Versjon 7: KS av attesteringen mot bilde 6–8 (§ 4.5) — avviksliste K1–K14, bilde 6 og 7 tegnet slik de gjelder, og retteordren w10. Versjon 8: én attestering på firmanivå for prosjektledere (§ 4.6) og hover-tekster (§ 4.8). Versjon 9: B29–B31 besvart — «Attestering» under Prosjekt fjernes med dødkode-liste (§ 4.10), reisen hører til prosjektet (§ 4.7), beskrivelsen står alltid i kortet (§ 4.9). Versjon 10: B32 B og B33 A besvart — reisen ligger i jobbens kort og attesteres med jobben, utreisen på dagens første prosjekt og returen på dagens siste (§ 4.11, w12 og w12m, med migrering); B34 åpen.
+sist_verifisert_mot_kode: 2026-11-19 (WM1–WM73: develop @ `b8b16571`; WM74–WM92: develop @ `ee7146e5`, etter w1, w2 og w5; WM93–WM108: develop @ `1afb318a`, etter w5b og w7; K1–K14 i § 4.5: develop @ `eedbc7cd`, etter w8, w9 og w9m; FA1–FA27 i § 4.6–4.8: develop @ `57770fc0`; FA16–FA21 på nytt, FA28–FA44 og DK1–DK15 i § 4.7, § 4.9 og § 4.10: develop @ `a5483f48`, 2026-11-20; FA45–FA59 i § 4.11: develop @ `bdf2320f`, 2026-11-20)
 eier: fabel (plan) — orkestrator gater kode; Kenneth har vedtatt B1–B13 (§ 8.1)
-status: 🟡 FORSLAG 2026-11-20, versjon 9 — w1, w2, w5, w5b, w7, w8, w9 og w9m er merget (§ 9.1–9.4; develop `eedbc7cd`); w3, w4, w6, w10 og w11 er ikke bygget. Nytt i versjon 9, uten kode: Kenneths svar på B29–B31 arbeidet inn (§ 4.5, § 8.9), dødkode-lista for Prosjekt › Attestering (§ 4.10), reise skrevet om etter Kenneths innsigelse (§ 4.7), beskrivelsen i kortet (§ 4.9) og w10 oppdatert (§ 9). Åpent til Kenneth: B32–B33 (§ 8), begge om reise.
+status: 🟡 FORSLAG 2026-11-20, versjon 10 — w1, w2, w5, w5b, w7, w8, w9 og w9m er merget (§ 9.1–9.4; develop `eedbc7cd`); w3, w4, w6, w10, w11, w12 og w12m er ikke bygget. Nytt i versjon 10, uten kode: Kenneths svar på B32–B33 arbeidet inn (§ 8.10) — reisen i jobbens kort med regel, migrering, eldre apper og tester (§ 4.11), w12 og w12m i § 9, w10 A10 utgått og A1/A6 justert. Åpent til Kenneth: B34 (§ 8), om reisen følger jobbens underprosjekt.
 ---
 
 # Timeføring på web — plan med bilder (FORSLAG)
@@ -32,6 +32,8 @@ status: 🟡 FORSLAG 2026-11-20, versjon 9 — w1, w2, w5, w5b, w7, w8, w9 og w9
 > attestering slik en prosjektleder ser den (§ 4.6). Hover-tekstene i venstremargen står i § 4.8.
 > **Versjon 9:** `ks-attestering.png` er tegnet om etter svarene på B29–B31 (§ 8.9): «Attestering» finnes bare
 > under Firma (§ 4.10), kortet viser alltid beskrivelsen (§ 4.9), og reisen står under prosjektet sitt (§ 4.7).
+> **Versjon 10:** `ks-attestering.png` er tegnet om etter svarene på B32–B33 (§ 8.10): reisen ligger i jobbens
+> kort og attesteres med jobben (§ 4.11).
 
 ## 1. Kenneths føringer (2026-11-17, ordrett)
 
@@ -965,6 +967,9 @@ Målt mot develop @ `57770fc0`. `TK` = `apps/api/src/trpc/tilgangskontroll.ts`, 
 **Kenneth 2026-11-20, uenig i versjon 8:** *«En reisekostnad knyttes til en kostnad for et prosjekt. Det er
 reisekostnaden til/fra et prosjekt og bør knyttes til prosjektet kostnaden tilhører.»*
 
+⚠️ **Versjon 10: Kenneth svarte B32 → B og B33 → A (§ 8.10).** Punkt 2–5 under er snudd: reisen ligger i
+jobbens kort. Det som gjelder, står i **§ 4.11**. Punkt 1, 6, 7 og 9 står. FA16–FA33 er målingene, og de står.
+
 ⚠️ Versjon 8 sa «reise hører til dagen, ikke til en jobb». Det var bare halve bildet. Målingen under viser at
 reiseraden alt bærer et prosjekt, og at kostnaden og attesteringsretten følger det. Det attesteringen mangler, er å
 vise det. Målt mot develop @ `a5483f48`. `RK` = `apps/web/src/app/dashbord/timer/[id]/ReiseKort.tsx`.
@@ -988,9 +993,9 @@ vise det. Målt mot develop @ `a5483f48`. `RK` = `apps/web/src/app/dashbord/time
 
 1. **Reisen hører til prosjektet den går til eller fra.** Kostnaden, rapporten og attesteringsretten følger
    prosjektet på raden (FA28, FA29). Det er slik i dag og endres ikke.
-2. **Reisen hører ikke til en jobb.** Den har ikke kort-id (B1 = A og G8, Kenneth 2026-11-16). Et prosjekt kan ha
+2. ⚠️ **Snudd av B32 B (§ 4.11).** ~~Reisen hører ikke til en jobb.~~ Den har ikke kort-id (B1 = A og G8, Kenneth 2026-11-16). Et prosjekt kan ha
    flere jobber samme dag, og reisen gjelder prosjektet, ikke én av dem. Om dette skal snus, er **B32**.
-3. **Attesteringen viser én blå rad «Reise» for hvert prosjekt** (anbefalt svar på B32). 🟡 Ikke bygget.
+3. ⚠️ **Utgått (B32 B).** ~~Attesteringen viser én blå rad «Reise» for hvert prosjekt~~ (anbefalt svar på B32). Bygges ikke.
    - Raden sier «Reise» og viser prosjektnummeret, underprosjektet når reisen har ett, og sum reisetimer.
    - Den står rett over den første jobben på samme prosjekt. Har prosjektet ingen jobb den dagen, står den først
      på dagen.
@@ -998,7 +1003,7 @@ vise det. Målt mot develop @ `a5483f48`. `RK` = `apps/web/src/app/dashbord/time
    - Raden har ✓, ↩, ↺ og avkrysning, som en jobbrad (B24 B, B30 A). Reiselinjene under har ingen knapper.
    - En prosjektleder attesterer reisen på prosjektene han leder. Reise på et annet prosjekt står nedtonet og uten
      knapper, som andre rader utenfor omfanget hans (§ 4.6).
-4. **Den blå raden åpner et eget kort for reisen:**
+4. ⚠️ **Utgått (B32 B).** Reisen er del 8 i jobbens kort (§ 4.11 del C). ~~Den blå raden åpner et eget kort for reisen:~~
    - Hodet viser prosjektet og byggeplassen.
    - Ruta står der «Hva gjorde du?» står i jobbens kort: retning, fra-sted → til-sted, km, minutter og kilde
      (FA31). Reise har ingen beskrivelse; telefonen skriver den aldri (`M/utils/dagsforslagAnvend.ts:284`).
@@ -1006,10 +1011,10 @@ vise det. Målt mot develop @ `a5483f48`. `RK` = `apps/web/src/app/dashbord/time
    - Lønnsartvalget tilbyr bare reisearter (punkt 6).
    - Underprosjektet vises, men kan ikke byttes i kortet («flytt hele jobben» tar ikke reise, `D:704`).
    - Maskiner, varer, tillegg og «Del opp» hører ikke hjemme der.
-5. **En dag med én jobb og reise har to blå rader under dagsraden.** Da åpner dagsraden ingenting; jobbraden åpner
+5. ⚠️ **Gjelder til w12 er bygget.** **En dag med én jobb og reise har to blå rader under dagsraden.** Da åpner dagsraden ingenting; jobbraden åpner
    jobben og reiseraden åpner reisen (`AT:687`, `:705–706`). Slik er det i dag.
-6. **Lønnsartvalget i kortet holder reise og arbeid fra hverandre** (FA21). Kortet for reisen tilbyr bare
-   reisearter, og kortet for en jobb tilbyr ikke reisearter. Det er samme regel som i føringen (V4 og B6 i
+6. **Lønnsartvalget i kortet holder reise og arbeid fra hverandre** (FA21). ⚠️ Versjon 10: regelen leser
+   linja, ikke kortet — en reiselinje tilbyr bare reisearter, og en arbeidslinje tilbyr ikke reisearter. Det er samme regel som i føringen (V4 og B6 i
    kort-id-specen). 🟡 Ikke bygget; w10 del A punkt A1.
 7. **Reise mellom to prosjekter** er vedtatt (V9, FA32): tiden er arbeidstid og bæres av prosjektet man kommer
    til. Når det bygges (timer-GPS lag 4), blir etappen en arbeidslinje i jobben på det prosjektet, ikke en
@@ -1017,11 +1022,12 @@ vise det. Målt mot develop @ `a5483f48`. `RK` = `apps/web/src/app/dashbord/time
    han velger. **Krever ikke svar.**
 8. **En dag med to prosjekter:** telefonen legger i dag både ut- og returreisen på ett prosjekt (FA20). Etter
    ordene dine hører utreisen til prosjektet du reiser til, og returen til prosjektet du reiser fra. Det er
-   **B33**. Det gjelder føringen på telefonen, ikke attesteringen, og ligger utenfor w10.
+   **B33**. Det gjelder føringen på telefonen, ikke attesteringen, og ligger utenfor w10. ✅ Besvart A
+   (§ 8.10); spesifisert i § 4.11 del G.
 9. **Kilometer og kjøregodtgjørelse er ikke reisetid.** De føres som lønnsart pr. km eller som utlegg, og følger
    jobben de er ført på. Målt av leseagent, ikke stikkprøvd.
 
-**Hvis B32 besvares med B** (reisen inn i jobbens kort), må dette til:
+**Hvis B32 besvares med B** (reisen inn i jobbens kort), må dette til — ✅ besvart B; spesifisert i § 4.11:
 - Reise får kort-id. Det snur B1 = A, § 2.2 og G8 i kort-id-specen, og serveren som tømmer kort-id på reise
   (`kortId.ts:231–232`, `D:1058`).
 - Reiseradene som finnes, må få kort-id. Det er en migrering med backfill, som Kenneth kjører.
@@ -1253,6 +1259,279 @@ har prosjekt på utleggsradene (DK11) er ikke lest til bunns. Linjene i del D er
 alle kallene til `hentTilAttestering` og `kanAttestere`, `SE:178–188`, `:258–261`, `:317–323`, `:355–359`,
 omdirigeringen i `godkjenning`, de tre i18n-nøklene, `sok-dekning.test.ts:70–78` og `dype-sider.tsx:43–50`.
 
+### 4.11 Reisen i jobbens kort (B32 B) og første og siste prosjekt (B33 A) — w12 og w12m (versjon 10)
+
+**Kenneth 2026-11-20 (§ 8.10):** B32 → B: reisen legges inn i jobbens kort og attesteres sammen med jobben.
+B33 → A: utreisen føres på dagens første prosjekt, returen på dagens siste.
+
+🟡 Ikke bygget. Delen heter **w12** (server, delt kode, migrering og web) og **w12m** (telefonen, med B33).
+
+**Dette snus:**
+- § 4.7 punkt 2–5 i denne planen: «reisen hører ikke til en jobb», blå rad «Reise» pr. prosjekt og eget reisekort.
+- Kort-id-specen: § 2.2 («Reise-rader: alltid `NULL`»), `CHECK`-teksten i § 3.4, G8 og E2 (B1 = A, Kenneth 2026-11-16).
+- w10 A10 utgår.
+
+**Dette står:** kostnaden og attesteringsretten følger prosjektet på reiseraden (§ 4.7 punkt 1). Reise er aldri
+arbeid i maskinregelen, normen eller overtiden (FA19). Lønnsartvalget holder reise og arbeid fra hverandre
+(§ 4.7 punkt 6). Mellometappen er arbeidstid (V9).
+
+Målt mot develop @ `bdf2320f`. `RK` = `apps/web/src/app/dashbord/timer/[id]/ReiseKort.tsx`, `KI` =
+`apps/api/src/services/timer/kortId.ts`, `KG` = `packages/shared/src/utils/kortGruppering.ts`.
+
+| # | Målt | Hvor |
+|---|---|---|
+| **FA45** | **Databasen har ingen sperre mot kort-id på reise.** Kolonnen `kort_id` finnes på timeradene og forslagsradene, kan være tom og har indeks. Den eneste `CHECK`-en gjelder rader uten prosjekt. B32 B trenger derfor ingen ny kolonne, bare utfylling. | `ST:318–321`, `:395–398`; `packages/db-timer/prisma/migrations/20261116120000_kortid_fravaer_normtak/migration.sql:11`, `:14–18`, `:24–30`, `:76–77`, `:95–104`. Søkt av Fabel. |
+| **FA46** | **Regelen «reise har aldri kort» bor i koden.** `sikreKortId` tømmer kort-id på reise, holder reise utenfor tildeling og validering, og svarer med tom verdi. Hver skrivevei setter tom verdi selv. | `KI:232`, `:234`, `:298` (lest av Fabel); `D:4142`, `:9787`, `:3287` (lest av Fabel); `D:4375–4379`, `:7662`, `:7931`, `:6609`, `:4881`, `:4905`, `:1049`, `:1058` (leseagent) |
+| **FA47** | **Valideringen krever lik nøkkel for alle rader i et kort:** prosjekt, byggeplass og underprosjekt. Reiseraden bærer sin egen byggeplass (stedet det ble reist til) og et valgfritt underprosjekt. Med kort-id ville den blitt avvist i dag. | `packages/shared/src/utils/kortId.ts:233–253` (lest av Fabel) |
+| **FA48** | **Attesteringen går på rad-id-er.** `attesterRader`, `returnerRader` og `gjenaapneRader` tar lister med id-er. Serveren har ingen regel om at en jobb attesteres hel. Web bygger lista fra jobbens linjer. Dagsradens ✓ uten prosjektomfang attesterer hele dagsseddelen. | `D:6888`, `:7083`, `:7466`, `:8075` (leseagent); `AT:417–442`, `:482–506` (dagsraden lest av Fabel) |
+| **FA49** | **Serverkode som leser jobben på kort-id:** «flytt hele jobben» og «Del opp» holder reise utenfor med eget filter. Maskinregelen gir reise 0 timer, også med samme kort-id. En maskin kan ikke kobles til en reiserad. Oppslaget av timerad for en vare har ikke reisefilter. Sletting av en timerad kjører ikke `sikreKortId`. | `D:704`, `:6699` (lest av Fabel); `packages/shared/src/utils/maskinKapasitet.ts:97–111` (lest av Fabel); `maskinKobling.ts:58–60`; `KI:321`, `:399`; `D:4401–4472` (søkt av Fabel: ingen kall) |
+| **FA50** | **Den delte grupperingen** legger reise i egen bøtte før kort-id leses. Kortets hode leses fra første timelinje, og kortenes rekkefølge fra første linjes fra-tid. Bare attesteringen på web kaller den. Telefonen har sin egen gruppering. | `KG:124`, `:170`, `:175–186` (lest av Fabel); `AM:313`; `M/utils/dagsoversiktRader.ts:132` (leseagent) |
+| **FA51** | **Attesteringen på web:** reiseblokken er et vanlig kort med egen nøkkel. Summene tar med reise i jobbsum og dagsum. Typekolonnen viser «Arbeid» på reiselinja. Kortet har ingen reisesjekk: fra–til, sum, underprosjekt og beskrivelse regnes fra alle timelinjene i blokken. | `AM:490–494`, `:539–547`; `RP:52–70`, `:105–141` (lest av Fabel); `AT:320–331` (leseagent) |
+| **FA52** | **PC-føringen:** «+ Reise» står én gang i hvert prosjektkort, ikke pr. jobb, og sender ingen kort-id. Brukeren kan velge underprosjekt på reisen. Reise under terskelen blir en vanlig arbeidsrad. | `WS:1815–1823`; `RK:87`, `:171–201`, `:354`; `packages/shared/src/utils/reiseManuell.ts:8–15` (leseagent; `RK:87`, `:177`, `:354` søkt av Fabel) |
+| **FA53** | **Telefonen tømmer kort-id på reise** etter hver lokal skriving, før hver sending og etter hver henting. En eldre app sender derfor alltid reise uten kort-id, også etter at serveren har satt den. | `M/utils/kortIdNormalisering.ts:86`, `:108`; `M/services/timerSync.ts:951–952` (lest av Fabel); `timerSync.ts:863`, `:1778` (leseagent) |
+| **FA54** | **Telefonens føring:** manuell reise får prosjektet med flest arbeidstimer. Brukeren velger tur eller retur, byggeplass når prosjektet har flere, og underprosjekt. GPS-forslaget har én destinasjon pr. økt, og begge reisene får forslagets ene prosjekt. Forslaget kjenner ikke flere opphold; det er lag 4 (L4-B), som er spesifisert og ikke bygget. | `M/components/timer-detalj/prosjektkort/DagSeksjon.tsx:80–96`; `M/components/timer-detalj/ReiseKort.tsx:104`, `:304–309` (søkt av Fabel); `M/utils/dagsforslag.ts:1166–1171`, `:1964–1987` (leseagent); `timer-gps-helhetsplan.md:419` |
+| **FA55** | **Retningen kan mangle.** Serveren krever retning bare for reise fra matrisen og for overføring. En manuell reise er gyldig uten. Telefonen fjerner retningen når en reise som ikke kom fra matrisen, redigeres. | `apps/api/src/routes/timer/reise-sporbarhet.ts:314–330`; `M/components/timer-detalj/prosjektkort/radLagring.ts:171–179` (lest av Fabel) |
+| **FA56** | **Telefonen: sletting og flytting av en jobb tar ikke reisen med.** Reisen blir stående på prosjektet den er ført på. | `M/components/timer-detalj/prosjektkort/kortRadFlytt.ts:351` (lest av Fabel); `:539–560`, `:600–700` (leseagent) |
+| **FA57** | **Rapport og eksport leser ikke kort-id.** Summene følger prosjektet og underprosjektet på raden. | `apps/api/src/routes/timer/rapport.ts` (leseagent: ingen treff); `apps/web/src/lib/timer-rapport-eksport.ts:116` |
+| **FA58** | **Telefonens attestering** viser alle timerader i én liste, uten reisemerke, og attesterer pr. rad. | `M/components/timer-attestering/AttesteringDetaljMobil.tsx:141–146`, `:296–320` (leseagent) |
+| **FA59** | **Tester som låser «reise har ikke kort»** og må snus. | `apps/api/src/routes/kortid-skriveveier.integration.test.ts:333`, `:492`; `kortid-migrering.integration.test.ts:171`; `packages/shared/src/utils/kortId.test.ts:120`; `kortGruppering.test.ts:193` (leseagent) |
+
+#### A. Regelen — hvilken jobb reisen står i
+
+1. **Reiseraden bærer alltid en kort-id.** Etter w12 har ingen timerad tom kort-id.
+2. **Brukeren velger aldri jobb for reisen.** Én delt funksjon i `packages/shared` regner den ut, og serveren og
+   telefonen bruker den samme. Kort-id som klienten sender på en reiserad, leses ikke.
+3. **Kandidatene** er jobbene på samme dagsseddel som har arbeid på reisens prosjekt. De ordnes slik kortene
+   vises: første arbeidsrads fra-tid, jobber uten klokkeslett sist, deretter eldste rad (FA50).
+   - **Utreisen** står i prosjektets **første** jobb den dagen.
+   - **Returen** står i prosjektets **siste** jobb.
+   - **Uten retning** (FA55): starter reisen før prosjektets første arbeid, står den i første jobb. Ellers i
+     siste. Har den verken retning eller klokkeslett, står den i første.
+   - **Prosjektet har ingen jobb den dagen:** reisen står alene i sitt eget kort på prosjektet. Kort-id-en
+     utledes av reisens egen nøkkel, slik `utledKortId` gjør for andre rader.
+4. **Regelen kjøres på nytt hver gang dagsseddelen skrives** (i `sikreKortId` på serveren og i
+   `sikreLokalKortId` på telefonen). Følgene:
+   - Føres en tidligere jobb på prosjektet, flytter utreisen dit.
+   - Slettes jobben, går reisen til en annen jobb på prosjektet. Finnes ingen, står reisen alene. Reisen slettes
+     ikke med jobben (som i dag, FA56).
+   - Etter «Del opp» står utreisen i første del og returen i siste.
+   - **Attesterte og erstattede reiserader flyttes aldri.**
+5. **Reisen bytter ikke prosjekt av seg selv.** Flyttes jobben til et annet prosjekt, blir reisen stående på
+   prosjektet den er ført på (som i dag), og punkt 3 kobler den på nytt. Byggeplassen og kjøretiden på reisen
+   gjelder det gamle stedet og kan ikke flyttes med.
+6. **Invariantene i kort-id-specen § 2.3 for en reiserad i et kort:**
+   - K1 (samme dagsseddel) og K2 (samme prosjekt) gjelder.
+   - K4 (byggeplass) gjelder ikke reise. Reisens byggeplass er stedet det ble reist til eller fra, og brukes
+     mot reisematrisen.
+   - K3 (underprosjekt) er **B34**.
+   - K5 (beskrivelsen) gjelder ikke reise. K6 står: maskin og vare kan ikke kobles til en reiserad.
+   - Reiseraden teller ikke når kortets nøkkel avgjøres.
+7. **Alt kortet regner, regnes av arbeidsradene:** hodet, klokkeslettene, rekkefølgen, sum arbeidstimer,
+   «høyst X t», normen og beskrivelsen. Reise teller aldri som arbeid (FA19, FA49).
+
+#### B. Hvor koblingen settes
+
+| Sted | I dag | Etter w12 | Del |
+|---|---|---|---|
+| `sikreKortId` (`KI:176–300`) | Tømmer kort-id på reise (FA46). | Kjører regelen i A, og validerer K1 og K2 for reise. Rører ikke attesterte rader. | w12 |
+| Skriveveiene i FA46 | Setter tom verdi selv. | Hver vei ender med reisen koblet. Én test pr. vei. | w12 |
+| Sletting av timerad (`D:4401–4472`) | Kjører ikke `sikreKortId` (FA49). | Kjører den, så reisen ikke blir hengende på en jobb uten arbeid når prosjektet har en annen jobb. | w12 |
+| Vareoppslaget (`KI:399`) | Uten reisefilter. | Finner bare arbeidsrader. | w12 |
+| «Del opp» (`D:6699`) | Holder reise utenfor. | Uendret kode. Regelen flytter returen til siste del (A punkt 4). | w12 |
+| «Flytt hele jobben» (`D:704`) | Holder reise utenfor. | Følger B34: med A følger reisen jobbens underprosjekt, med B står den. | w12 |
+| Synken (`D:9671–9675`, `:9787`) | Kort-id fra klienten på reise sjekkes mot andre dagssedler og tømmes så. | Verdien leses ikke og sjekkes ikke. Serveren regner selv. | w12 |
+| Forslagsradene (V19, `D:1049–1058`) | Reise uten kort-id. | Uendret i tabellen. Reisen kobles når forslaget forsones (`D:4881–4905`). | w12 |
+| PC-føringen (`RK`, `WS:1815–1823`) | «+ Reise» pr. prosjektkort, uten kort-id. | Uendret plass. Serveren kobler. Med B34 A tas underprosjektvalget ut av reisevinduet. | w12 |
+| Den delte grupperingen (`KG:124`) | Reise i egen bøtte. | Reise med kort-id ligger i kortet, sist. Reise uten kort-id ligger i bøtta som før. Hode og rekkefølge leses fra arbeidsradene. | w12 |
+| Attesteringen på web | Egen reiseblokk pr. dag (FA51). | Del C. | w12 |
+| Telefonen lokalt (`kortIdNormalisering.ts:86–123`, `dagsforslagAnvend.ts:267–269`, `nyTimerRad.ts:310`) | Tømmer kort-id på reise. | Samme regel som serveren, og lokal utfylling av radene som finnes. | w12m |
+| Telefonens kort (`kortRadFlytt.ts:351`, `ProsjektkortDagsoversikt.tsx:315–340`, `DagSeksjon.tsx:119–137`) | Reisen står i «Dagen». | Del D. | w12m |
+| Dagsforslaget | Reise uten kort (`dagsforslagAnvend.ts:267`). | Reisen kobles når forslaget lagres. Hvilket prosjekt den får, er del G. | w12m og L4-B |
+
+#### C. Attesteringen på web
+
+1. **Reiselinja står i jobben, sist** — etter utlegg, utreise før retur. Den viser lønnsart, fra–til, timer og
+   rutemerket som i dag. Typekolonnen sier «Reise» (teksten finnes, FA51). Linja har ingen knapper og ingen
+   avkrysning, som de andre linjene (B24 B, B30 A).
+2. **Reiseblokken forsvinner.** En dag med én jobb og reise har ett kort, og dagsraden åpner det. «N jobber»
+   teller jobber, ikke reise.
+3. **✓, ↩ og ↺ på jobbraden tar reisen med.** Klienten sender reiseradenes id-er sammen med jobbens (FA48).
+   Ingen ny prosedyre på serveren. «Attester utvalget» gjør det samme.
+4. **Jobbraden viser arbeidstimene** i «Timer». Reisetimene står på reiselinja, og jobbraden sier
+   «reise 1,00 t» i grått. Dagsraden summerer alt, som i dag. Slik stemmer jobbradens tall med «høyst X t».
+5. **Kortet får del 8, «Reise»,** som bare vises når jobben har reise. For hver reiserad:
+   - «Utreise», «Retur» eller «Reise», og ruta: fra-sted → til-sted, km, minutter og kilde (FA31).
+   - Fra og til som felt. Timene regnes ut, som i del 2 (w10 A1).
+   - Lønnsartvalget tilbyr bare reisearter.
+   - ✂ ved linja, som på en arbeidslinje. Delene av en delt reise følger regelen i A.
+   - Ingen beskrivelse, ingen maskiner og ingen varer.
+6. **Del 1–7 regnes av arbeidsradene** (A punkt 7). I dag ville en reise i kortet endret fra–til, summen og
+   underprosjektet (FA51).
+7. **Reise alene i et kort** vises som en jobbrad med prosjektnummer og teksten «Reise». Kortet har hodet og
+   del 8. Underprosjektvalget og «Del opp» vises ikke der.
+8. **Prosjektlederen** attesterer reisen sammen med jobben. Reisen står på jobbens prosjekt, så omfanget i
+   § 4.6 trenger ingen egen regel.
+9. **En reiserad uten kort-id** skal ikke finnes etter migreringen. Finnes den likevel, vises den som egen
+   blokk som i dag. Den skjules aldri.
+10. Den sorterte tabellen, «Etter prosjekt» og ukeoversikten står som i dag.
+
+#### D. Telefonen (w12m)
+
+1. **Samme regel lokalt.** `kortIdNormalisering.ts` bruker den delte funksjonen. Radene som alt ligger på
+   telefonen, fylles ut ved første oppstart etter oppdateringen.
+2. **Reisen vises i jobbens kort,** nederst, med retning, klokkeslett og timer. «Dagen» beholder «+ Reise» og
+   overlappvarselet, men lister ikke reisene en gang til. En reise som står alene, vises som eget kort «Reise»
+   med prosjektet.
+3. **Sletting av en jobb sletter ikke reisen** (som i dag). Regelen kobler den på nytt.
+4. **Bekreft dag står urørt:** én utreise og én retur vises rundt arbeidet (`BD:2221–2247`).
+5. **Dagskort-modus står urørt** (regelen fra 07.11.). Radene får kort-id av normaliseringen, og ingenting
+   vises annerledes.
+6. **Kortets sum, «høyst X t» og beskrivelsen** regnes uten reise, som i dag
+   (`ProsjektkortDagsoversikt.tsx:318`, `kortBeskrivelse.ts:25`).
+7. Koderen leverer løsning med skjermbilde av kortet før kode. Telefonskjermen er ikke tegnet her.
+
+#### E. Migrering (w12) — Kenneth kjører
+
+Ingen ny kolonne (FA45). Migreringen er en utfylling i `packages/db-timer`. Den følger to-stegs-regelen.
+
+**Steg 1, i w12:**
+- **Diskriminerende WHERE:** bare `er_reise = true AND kort_id IS NULL`. Rader som har kort-id, røres ikke.
+- **Setning 1 — reise med jobb:** reisen får kort-id-en til en jobb på samme dagsseddel og samme prosjekt, valgt
+  etter A punkt 3. Med B34 A må jobben også ha samme underprosjekt som reisen, for utfyllingen endrer aldri
+  underprosjektet på en rad. Med B34 B holder samme prosjekt.
+- **Setning 2 — reise uten jobb:** resten får utledet kort-id av sin egen nøkkel (bruker, dato, prosjekt,
+  byggeplass, underprosjekt), med samme formel som kort-id-specen § 3.2. De står alene i sitt kort.
+- Attesterte og erstattede rader får også kort-id. Ingen andre felt endres.
+- Migreringen skriver ikke `updated_at`. Ingen dagsseddel skal se endret ut for synken.
+- Kjørt to ganger gir den samme resultat.
+- Forslagstabellen røres ikke (del B).
+
+**Steg 2, neste utgivelse:** samme utfylling én gang til, og så `CHECK (kort_id IS NOT NULL)` på timeradene.
+Den erstatter `CHECK`-teksten i kort-id-specen § 3.4, som krevde tom kort-id på reise. Den er ikke lagt på
+(FA45), så ingenting må fjernes først.
+
+**Telling før w12 bygges** (bare lesing; Kenneth kjører mot `sitedoc_test` og `sitedoc`):
+
+```sql
+with reise as (
+  select id, sheet_id, project_id, external_cost_object_id as eco, reise_retning, fra_tid
+    from timer.sheet_timer where er_reise = true and kort_id is null
+), jobb as (
+  select distinct sheet_id, project_id, external_cost_object_id as eco
+    from timer.sheet_timer
+   where er_reise = false and kort_id is not null and attestert_status is distinct from 'erstattet'
+)
+select count(*) as reiserader,
+  count(*) filter (where exists (select 1 from jobb j where j.sheet_id = r.sheet_id
+     and j.project_id = r.project_id and j.eco is not distinct from r.eco)) as jobb_samme_underprosjekt,
+  count(*) filter (where exists (select 1 from jobb j where j.sheet_id = r.sheet_id
+     and j.project_id = r.project_id) and not exists (select 1 from jobb j where j.sheet_id = r.sheet_id
+     and j.project_id = r.project_id and j.eco is not distinct from r.eco)) as jobb_annet_underprosjekt,
+  count(*) filter (where not exists (select 1 from jobb j where j.sheet_id = r.sheet_id
+     and j.project_id = r.project_id)) as ingen_jobb,
+  count(*) filter (where r.reise_retning is null) as uten_retning,
+  count(*) filter (where r.reise_retning is null and r.fra_tid is null) as uten_retning_og_tid
+from reise r;
+```
+
+`jobb_annet_underprosjekt` og `ingen_jobb` er radene som blir stående alene i eget kort. Kolonnenavnene er
+lest i `ST:232–318`; koderen kjører spørringen mot lokal base før den går til Kenneth.
+
+**Gate-SQL etter migreringen** (1–3 skal gi 0; 4 er til orientering):
+
+```sql
+-- 1) timerad uten kort
+select count(*) from timer.sheet_timer where kort_id is null;
+-- 2) reise i et kort med arbeid på et annet prosjekt
+select count(*) from timer.sheet_timer r join timer.sheet_timer t
+    on t.sheet_id = r.sheet_id and t.kort_id = r.kort_id and t.er_reise = false
+ where r.er_reise = true and t.project_id is distinct from r.project_id;
+-- 3) bare med B34 A: reise i et kort med arbeid på et annet underprosjekt
+select count(*) from timer.sheet_timer r join timer.sheet_timer t
+    on t.sheet_id = r.sheet_id and t.kort_id = r.kort_id and t.er_reise = false
+ where r.er_reise = true and t.external_cost_object_id is distinct from r.external_cost_object_id;
+-- 4) reise som står alene i kortet sitt
+select count(*) from timer.sheet_timer r where r.er_reise = true and not exists (
+  select 1 from timer.sheet_timer t where t.sheet_id = r.sheet_id and t.kort_id = r.kort_id and t.er_reise = false);
+```
+
+Spørring 1 kjøres en gang til etter at ny server er oppe. Den gamle serveren tømmer kort-id på reise (FA46) og
+kan ha skrevet rader i vinduet mellom migrering og oppstart. Er tallet over 0, kjøres utfyllingen på nytt.
+
+**«Stille tomhet er forbudt»:** (a) utfyllingen over, (b) `CHECK` i steg 2, og (c) tester som er røde når
+kolonnen er tom — del H punkt 1–3.
+
+#### F. Eldre apper og eldre server
+
+| Situasjon | Hva skjer |
+|---|---|
+| Eldre app sender reise uten kort-id | Serveren regner kort-id selv (A punkt 2). Reisen står i jobbens kort i attesteringen. Ingenting avvises. |
+| Eldre app henter rader med kort-id på reise | Den tømmer verdien lokalt og sender tom verdi neste gang (FA53). Serveren regner samme svar på nytt. Raden skal ikke se endret ut av det; koderen måler det mot radversjonene (V19.9) og melder. |
+| Eldre app viser reisen | I «Dagen», som i dag. |
+| Eldre app og B33 | Den legger fortsatt ut og retur på prosjektet med flest timer. Serveren flytter ikke reise mellom prosjekter (A punkt 5). |
+| Eldre app og B34 A | Serveren skriver jobbens underprosjekt på reisen. Et underprosjekt arbeideren valgte på reisen i den gamle appen, erstattes. |
+| Ny app mot eldre server | Den gamle serveren tømmer kort-id på reise (FA46). Ingenting feiler. Serveren deployes først. |
+
+Telefonen sender ingen versjon (WM100). Regelen trenger ingen, fordi serveren regner likt for alle.
+
+#### G. B33 A — utreisen på dagens første prosjekt, returen på dagens siste
+
+- **Manuell reise på telefonen** (`DagSeksjon.tsx:80–96`): «flest arbeidstimer» erstattes. Tur får prosjektet
+  til dagens første jobb, retur får prosjektet til dagens siste. Rekkefølgen er den samme som i A punkt 3.
+  Byggeplassen og kjøretiden regnes mot det prosjektet. Bytter brukeren mellom tur og retur i reisevinduet,
+  byttes prosjektet med. Har dagen ett prosjekt, er alt som i dag. Hører til **w12m**: samme fil og samme
+  rekkefølgefunksjon som regelen i A.
+- **Reise ført i Bekreft dag** (`BD:1768–1772`) gjelder ett prosjekt og står uendret.
+- **GPS-forslaget** kjenner bare én destinasjon pr. økt (FA54). Regelen kan først bygges når forslaget kjenner
+  flere opphold. Det er **L4-B** i timer-GPS-sporet, der den alt er vedtatt: første etappe går til første
+  besøk, og returen regnes fra siste besøk (V7, `timer-gps-helhetsplan.md:371–372`). B33 A bekrefter det.
+- **PC:** «+ Reise» står i prosjektkortet, og arbeideren velger dermed prosjektet selv. Uendret.
+- **Serveren håndhever ikke B33.** Regelen er et forvalg i føringen.
+- **Eldre apper:** som i dag, til de er oppdatert (del F). Attestanten ser hvilket prosjekt reisen står på,
+  fordi den ligger i jobbens kort.
+
+#### H. Tester som skal feile først
+
+1. **Pr. skrivevei på serveren** (ekte Postgres): etter kallet har ingen reiserad på dagsseddelen tom kort-id.
+   Veiene er de i FA46, og sletting av timerad. Rød i dag.
+2. **Utfyllingen:** en fast dagsseddel med utreise og retur på et prosjekt med to jobber, reise på et prosjekt
+   uten jobb, reise uten retning med og uten klokkeslett, og en attestert reise. Riktig kort pr. rad, kjørt to
+   ganger gir samme svar, `updated_at` er urørt, og gate-SQL 1–3 gir 0.
+3. **Telefonen, pr. lokal skrivevei:** ny reise, redigert reise, lagret forslag, og rader hentet fra serveren.
+   Reisen har kort-id etterpå. Rød i dag (FA53).
+4. **Den delte regelen:** første og siste jobb etter klokkeslett; uten retning; ingen jobb; attestert rad
+   flyttes ikke; ny tidligere jobb flytter utreisen; slettet jobb.
+5. **Eldre app:** to synker på rad med reise uten kort-id, og med tom kort-id etter henting. Raden står med
+   jobbens kort-id etter hver synk, og ingenting avvises.
+6. **Isolasjon:** reisen kobles aldri til en jobb på en annen dagsseddel, et annet prosjekt eller et annet
+   firma. En prosjektleder får ikke attestert en reise utenfor omfanget sitt ved å sende id-en.
+7. **Maskinregelen:** «høyst X t» og «Maskin over arbeid» er like før og etter at reisen har jobbens kort-id
+   (testen finnes, `apps/web/src/__tests__/attestering-tabell-modell.test.ts:379`).
+8. **Attesteringen:** reiselinja står sist i jobben uten knapper; ✓ på jobben sender reisens id; jobbradens
+   timer er uten reise; kortets del 1–7 er uendret av reisen; del 8 vises; reise alene vises som eget kort.
+9. **Lønnsartvalget:** reiselinja tilbyr bare reisearter, arbeidslinja ingen.
+10. Testene i FA59 snus.
+
+#### I. Funksjonsinventar
+
+- **BEVARES:** «+ Reise» der den står på PC og telefon, tur og retur, overføring, reise under terskel som
+  arbeidsrad, rutemerket med km, minutter og kilde, avviksvarselet mot matrisen, klokkevinduet på reise (V8),
+  reise utenfor norm, overtid og maskinregel, sletting og deling av en reiserad, ✂ på reiselinja, retting av
+  reise i «Rediger jobben», reisekolonnen i rapport og eksport, Bekreft dag, dagskort-modus, telefonens
+  attestering, og at reise ikke slettes med jobben.
+- **FLYTTES:** reisen fra egen blokk til jobbens kort i attesteringen; fra «Dagen» til jobbens kort på
+  telefonen.
+- **FJERNES:** reiseblokkens egne ✓ ↩ ↺ og avkrysning (reisen attesteres med jobben, B32 B). Med B34 A også
+  underprosjektvalget i reisevinduet på PC og telefon (FA52, FA54).
+- **Fjerner koderen noe annet: STOPP og meld.**
+
+#### J. Rapport og eksport
+
+Koblingen endrer ingen sum (FA57). Timerapporten og detaljeksporten følger prosjektet og underprosjektet på
+raden, som før. Kolonnen «Kort» i eksporten (E2 i kort-id-specen, ikke bygget) skulle stå tom for reise; den
+får jobbens nummer. Med B34 A følger reisetimene jobbens underprosjekt i rapporten for rader ført eller endret
+etter w12. Attesterte rader røres ikke.
+
 ## 5. Maskintimer er en del av arbeidstiden — hva som må endres (føring 4)
 
 | Del | I dag | Endring | Fjerner noe? |
@@ -1342,15 +1621,32 @@ dagskortet). Ett unntak: firmavalget «maskin føres med fra–til» gjelder beg
 
 ## 8. Åpne spørsmål til Kenneth
 
-B1–B31 er besvart (§ 8.1–8.9). **To spørsmål er åpne etter versjon 9: B32 og B33.** Begge gjelder reise
-(§ 4.7). Bildet står i § 4.5.
+B1–B33 er besvart (§ 8.1–8.10). **Ett spørsmål er åpent etter versjon 10: B34.** Det gjelder reisen i
+jobbens kort (§ 4.11). Bildet står i § 4.5.
 
 | # | Spørsmål | Alternativer | Anbefaling |
 |---|---|---|---|
-| **B32** | **Hvor skal reisen stå i attesteringen?** Reiseraden bærer alt et prosjekt, og kostnaden følger det (FA28). I dag vises all reise som én blokk for dagen, med nummeret til det første prosjektet (FA18). | **A:** egen blå rad «Reise» for hvert prosjekt, rett over jobbene på prosjektet. Raden viser prosjektnummeret, har eget kort og egen ✓, og attesteres av lederen for prosjektet. Ingen migrering. **B:** reisen legges inn i jobbens kort som egen del og attesteres sammen med jobben. Da må reise få kort-id. Det snur vedtaket fra 16.11. (B1 = A og G8), krever en migrering av reiseradene som finnes, endring på telefonen, og en regel for hvilken jobb reisen havner i når prosjektet har flere jobber samme dag. | **A.** Reisen blir knyttet til prosjektet og synlig der, uten at vedtak snus eller data røres. Reisen gjelder prosjektet, ikke én av jobbene på det. |
-| **B33** | **En dag med to prosjekter: hvilket prosjekt bærer utreisen og returen?** Telefonen legger i dag begge på ett prosjekt: det med flest arbeidstimer, eller GPS-forslagets ene destinasjon (FA20). | **A:** utreisen føres på dagens første prosjekt, og returen på dagens siste. **B:** som i dag: begge på ett prosjekt. | **A.** Det følger ordene dine: reisen til et prosjekt hører til det prosjektet, og reisen fra et prosjekt hører til det. Endringen gjelder føringen på telefonen og hører til timer-GPS-sporet, ikke w10. Etappen mellom de to prosjektene er alt vedtatt (V9): arbeidstid på prosjektet du kommer til. |
+| **B34** | **Skal reisen følge jobbens underprosjekt?** I dag kan arbeideren velge underprosjekt på reisen, på PC og telefon (FA52, FA54). De fleste reiser står uten, altså på hovedprosjektet. Et kort har ellers ett underprosjekt (K3). | **A:** ja. Reisen får alltid underprosjektet til jobben den står i. Flytter du jobben til et annet underprosjekt, følger reisen med. Reisetimene kostnadsføres da på underprosjektet, også når jobben er en endring eller et tillegg. Valget «Underprosjekt» tas ut av reisevinduet på PC og telefon. **B:** nei. Reisen beholder det arbeideren valgte, og står ellers på hovedprosjektet. Kortet viser det når reisen har et annet underprosjekt enn jobben. «Flytt hele jobben» lar reisen stå. | **A.** Kortet rettes samlet (begrunnelsen din for B24), og ordene dine 20.11. knytter reisen til kostnaden den hører til. Arbeideren får ett valg mindre. Med A flyttes ingen gamle rader: utfyllingen endrer aldri underprosjektet på en rad som finnes (§ 4.11 del E). **Si fra hvis reise aldri skal faktureres på en endring** — da er det B. |
 
-**Følger som ikke er spørsmål, men si fra hvis du mente noe annet:**
+**Følger av B32 B og B33 A som ikke er spørsmål, men si fra hvis du mente noe annet:**
+
+1. Arbeideren velger aldri jobb for reisen. Utreisen står i prosjektets første jobb den dagen, returen i den
+   siste (§ 4.11 del A).
+2. Har prosjektet ingen jobb den dagen, står reisen alene i sitt eget kort på prosjektet og attesteres for seg.
+3. Sletter arbeideren jobben, slettes ikke reisen (som i dag). Flyttes jobben til et annet prosjekt, blir reisen
+   stående på prosjektet den er ført på (som i dag).
+4. Reiselinja står sist i jobben, og jobbraden viser arbeidstimene. Reisetimene står på reiselinja og i
+   dagsummen (§ 4.11 del C).
+5. På telefonen flytter reisen fra «Dagen» til jobbens kort. «+ Reise» står der den står (§ 4.11 del D).
+6. Reiser som alt er ført, kobles til jobben av migreringen. Underprosjektet på dem endres ikke. De som ikke
+   har en jobb å stå i, står alene i eget kort (§ 4.11 del E).
+7. En eldre app virker som før. Serveren kobler reisen selv (§ 4.11 del F).
+8. B33 A for GPS-forslaget bygges med lag 4 (L4-B), der regelen alt er vedtatt (V7). Manuell reise på
+   telefonen får regelen i w12m (§ 4.11 del G).
+9. Telefonens attestering attesterer fortsatt pr. rad og kan ta jobben uten reisen (FA58). Det rettes i samme
+   ordre som FA43, ikke i w12.
+
+**Står fra versjon 9:**
 
 1. Dagens «Kommentar» vises i kortet under «Hva gjorde du?», i hvert kort den dagen (§ 4.9 punkt 4).
 2. Aktiviteten flyttes til kortets hode. Mangler beskrivelsen, står det «Ikke utfylt» (§ 4.9 punkt 2 og 3).
@@ -1365,6 +1661,13 @@ B1–B31 er besvart (§ 8.1–8.9). **To spørsmål er åpne etter versjon 9: B3
 10. Står fra versjon 8: ↗ heter «Åpne dagsseddelen». Detaljsiden og «Rediger sedel» der står urørt til w3. ↺ står
     på jobbraden og dagsraden. Prosjektlederen får ikke ukeavvik og ukeoversikt i w10 (§ 4.6 punkt 5).
     Telefonens attestering er fortsatt bare for firmaadministrator. Ny testdata (§ 8.7) bestilles nå.
+
+**Besvart i versjon 9 — B32–B33 slik de ble stilt** (svarene står i § 8.10; B32 ble besvart mot anbefalingen):
+
+| # | Spørsmål | Alternativer | Anbefaling |
+|---|---|---|---|
+| **B32** | **Hvor skal reisen stå i attesteringen?** Reiseraden bærer alt et prosjekt, og kostnaden følger det (FA28). I dag vises all reise som én blokk for dagen, med nummeret til det første prosjektet (FA18). | **A:** egen blå rad «Reise» for hvert prosjekt, rett over jobbene på prosjektet. Raden viser prosjektnummeret, har eget kort og egen ✓, og attesteres av lederen for prosjektet. Ingen migrering. **B:** reisen legges inn i jobbens kort som egen del og attesteres sammen med jobben. Da må reise få kort-id. Det snur vedtaket fra 16.11. (B1 = A og G8), krever en migrering av reiseradene som finnes, endring på telefonen, og en regel for hvilken jobb reisen havner i når prosjektet har flere jobber samme dag. | **A.** Reisen blir knyttet til prosjektet og synlig der, uten at vedtak snus eller data røres. Reisen gjelder prosjektet, ikke én av jobbene på det. |
+| **B33** | **En dag med to prosjekter: hvilket prosjekt bærer utreisen og returen?** Telefonen legger i dag begge på ett prosjekt: det med flest arbeidstimer, eller GPS-forslagets ene destinasjon (FA20). | **A:** utreisen føres på dagens første prosjekt, og returen på dagens siste. **B:** som i dag: begge på ett prosjekt. | **A.** Det følger ordene dine: reisen til et prosjekt hører til det prosjektet, og reisen fra et prosjekt hører til det. Endringen gjelder føringen på telefonen og hører til timer-GPS-sporet, ikke w10. Etappen mellom de to prosjektene er alt vedtatt (V9): arbeidstid på prosjektet du kommer til. |
 
 **Besvart i versjon 8 — B29–B31 slik de ble stilt** (svarene står i § 8.9; B29 ble besvart mot anbefalingen):
 
@@ -1530,12 +1833,12 @@ Kenneth 2026-11-18: «Ja, (a)». Firmavalget «Attestant kan attestere egne time
 
 ### 8.10 Kenneths svar på B32–B33, 2026-11-20
 
-- **B32 → B.** Reisen legges inn i jobbens kort på prosjektet og attesteres sammen med jobben. Dette snur vedtaket fra 16.11. om at reise ikke har kort-id. Det krever migrering av eksisterende reiserader (to-stegs, backfill, Kenneth kjører) og endring på telefonen. Fabel spesifiserer det som egen leveranse. w10 A10 utgår og erstattes av den leveransen.
-- **B33 → A.** På en dag med to prosjekter føres utreisen på dagens første prosjekt og returen på dagens siste. Det gjelder telefonen og timer-GPS-sporet, ikke w10.
+- **B32 → B.** Reisen legges inn i jobbens kort på prosjektet og attesteres sammen med jobben. Dette snur vedtaket fra 16.11. om at reise ikke har kort-id. Det krever migrering av eksisterende reiserader (to-stegs, backfill, Kenneth kjører) og endring på telefonen. Fabel spesifiserer det som egen leveranse. w10 A10 utgår og erstattes av den leveransen. 🟡 Spesifisert i § 4.11 (versjon 10) som w12 og w12m; ikke bygget. Om reisen følger jobbens underprosjekt, er B34.
+- **B33 → A.** På en dag med to prosjekter føres utreisen på dagens første prosjekt og returen på dagens siste. Det gjelder telefonen og timer-GPS-sporet, ikke w10. 🟡 Spesifisert i § 4.11 del G: manuell reise i w12m, GPS-forslaget i L4-B. Ikke bygget.
 
 ## 9. Rekkefølge
 
-Dette er forslag til oppdeling, ikke ordrer. **w1, w2 og w5 er merget** (§ 9.1–9.3). **w6 krever en migrering** (ny
+Dette er forslag til oppdeling, ikke ordrer. **w1, w2 og w5 er merget** (§ 9.1–9.3). **w12 krever en migrering** (utfylling av kort-id på reise, § 4.11 del E), som Kenneth kjører. **w6 krever en migrering** (ny
 kolonne i firmainnstillingene, B5), som Kenneth kjører. **w7 hadde en migrering** (§ 8.5). **w9 krever en migrering bare hvis B21 besvares med B.** De andre
 delene krever ingen.
 
@@ -1551,8 +1854,10 @@ delene krever ingen.
 | **w8** | Kenneth 2026-11-19 (§ 8.6 punkt 1): jobbraden åpner registreringen, timeradene gjør det ikke. Datoen i dagsraden står hel ved 1 440. Retting av «null null» for utstyr uten merke og modell, og av den kuttede «Ansattnr»-overskriften. | `AT`, `TR`, `apps/web/src/components/attestering/utstyr-navn.ts`, `DagsKort.tsx`, `attestering-buckets.tsx`, i18n (`timer.attestering.tabell.hjelp.registrering`), `hjelpetekster.md` | Ett klikk på jobbraden åpner jobben; «man. 16.11.» står hel. |
 | **w7** | Attestantens egne timer (B15, § 4.3): firmavalget på innstillingssiden, sperren på serveren i de elleve prosedyrene (WM89), flagg pr. seddel i de tre listene, og merket «Egne timer» på PC og telefon. Med B17 A: lønnsform på den ansatte (**migrering, Kenneth**), feltet på ansattkortet og attestantlista på innstillingssiden. | `packages/db` (bare med B17 A), `D`, `apps/api/src/routes/organisasjon.ts`, `apps/web/src/app/dashbord/firma/innstillinger/page.tsx`, `AT`, `AM`, `apps/mobile/app/timer/attestering/`, `apps/mobile/src/components/timer-attestering/`, i18n, hjelpeteksten, `timer.md` | Egne timer står med «Egne timer» og uten ✓ når firmaet har valgt «Nei». |
 | **w9** | Maskintimer høyst jobbens arbeidstimer (§ 4.4): den delte regelen pr. jobb uten pausen og uten døgn-maskiner, de åtte stedene og de sju hullene på serveren (WM96, WM97), «Del opp», avviksmerket «Maskin over arbeid» og «høyst» ved feltene på PC. Deretter telefonen (**w9m**): Bekreft dag, dagskort-modus og dagsoversikten, og til slutt synken (B22). | `packages/shared/src/utils/maskinKapasitet.ts`, `D`, `apps/api/src/routes/timer/jobb-deling.ts`, `WS`, `apps/web/src/components/attestering/*` (`RegistreringPanel.tsx`, `RedigerRadModal.tsx`, `attestering-tabell.ts`), i18n, hjelpeteksten, `timer.md`, `maskin.md`, `KS` (B4, R24), `fase-0-beslutninger.md`. w9m: `BD`, `M/utils/bekreftDag.ts`, `M/utils/bekreftDagTillegg.ts`, `M/services/kobledeMaskiner.ts`, `M/components/timer-detalj/MaskinSeksjon.tsx`, `M/components/timer-detalj/ProsjektkortDagsoversikt.tsx`. Med B21 B: `packages/db-maskin` (**migrering, Kenneth**) og maskinkortet. | Ola Tømrer 14.05. står med «Maskin over arbeid» og kan attesteres med merket (B23 B). ✂ og bytte av underprosjekt som ville gitt samme tilstand, avvises med forklaring. En Heatwork kan føres med flere timer enn arbeidet. **D1 (w9m, Kenneth 2026-11-19, B21 A):** «Kun maskiner som heatwork eller utleie maskiner/materiell kan ha timer/døgn leie uten at arbeidstimer tilsvarende eller flere er registrert» — telefonens rad-regel «maskin ≤ radens timer» (`maskinerOverRad`) gjelder derfor bare maskiner med fører. |
-| **w10** | Retteordren etter KS (§ 4.5) og Kenneths svar (§ 8.8, § 8.9). ⚠️ Skrevet om i versjon 9: B29–B31 er arbeidet inn, beskrivelsen (§ 4.9) og fjerningen av prosjektets side (§ 4.10) er lagt til. **Del A — kortet og knappene** (web, og én linje på serveren): (A1) fra, til og pause som felt i kortet, timene regnes ut, timefeltet ut (K7); lønnsartvalget holder reise og arbeid fra hverandre (§ 4.7 punkt 6); (A2) ✓, ↩, ↺, ✂ og ✎ bort fra linjene: ✓ ↩ ↺ står bare på de blå radene (B24 B), ✂ ved timelinja i kortet og «✎ Rediger jobben» øverst i kortet (B27 A); (A3) kjernekolonnene for alle (K1, B26 A); (A4) cellene på linja kan bare leses (B25 A), bygges etter A1; (A5) ↗ heter «Åpne dagsseddelen», og detaljsidens tabell får full bredde (K8, K11); (A6) beskrivelsen: del 3 viser radenes «Hva gjorde du?», aldri aktiviteten; «Ikke utfylt» når den mangler; aktiviteten i kortets hode; dagens «Kommentar» under (§ 4.9); (A7) avkrysningen på de blå radene, og «Attester utvalget» tar hele jobber (B30 A); (A8) kvitteringen vises også i kortet, og ikonet står på utleggslinja (B31 B); (A9) ✂ arver beskrivelsen (FA42) — den ene linja på serveren; (A10) ⏸ reiseraden: én blå rad «Reise» for hvert prosjekt, med prosjektnummer og eget kort med ruta (§ 4.7 punkt 3 og 4) — **venter på B32**. **Del B — én attestering på firmanivå** (§ 4.6): (B1–B6) omfanget regnes på serveren, firmaets liste og detaljside åpnes for prosjektledere, «Attestering» blir menypunkt under Firma, og firmaets tidsrunding følger med lista; (B7) «Attestering» under Prosjekt fjernes (B29 B): DK1–DK15 i § 4.10, gamle adresser sender videre, isolasjonstestene flyttes først. B7 er siste commit i del B. Ingen migrering. | Del A: `RP`, `AT`, `AD`, `AM`, `D` (bare `splittRad`, A9), i18n, `hjelpetekster.md`, `apps/web/src/__tests__/attestering-tabell.test.tsx`. Del B: `D` (`hentTilAttesteringFirma`, `kanAttestereFirma`, ny hjelper for omfanget; ut: `hentTilAttestering`, `kanAttestere`, `krevProsjektLeder`, `erProsjektLeder`, `dagsnormerFor`), `FS`, `apps/web/src/app/dashbord/firma/timer/attestering/[id]/page.tsx`, ruta og rammen (§ 4.6 punkt 7), `FN`, `SE`, `apps/web/src/components/layout/dype-sider.tsx`, `apps/web/src/app/dashbord/[prosjektId]/timer/attestering/` og `…/godkjenning/` (blir omdirigeringer), `useAktivSeksjon.ts`, `navigasjon-kontekst.tsx`, `BU` (DK14), `AT` (`prosjektKontekst` som mengde), i18n (15 språkfiler for nøklene som slettes), testene i § 4.10 del D, `sok-dekning.test.ts`, `hjelpetekster.md`, `timer.md`, `api.md`, `web.md`, `arkitektur.md`, `redesign-paritetssjekkliste.md`, kort-id-specen. Ikke `apps/mobile`. | Bildet `ks-attestering.png`: en prosjektleder ser alle prosjektene sine på én side, linjene har ingen knapper, jobben rettes i kortet, og kortet viser hva arbeideren skrev. «Attestering» finnes bare under Firma. |
+| **w10** | Retteordren etter KS (§ 4.5) og Kenneths svar (§ 8.8, § 8.9). ⚠️ Skrevet om i versjon 9: B29–B31 er arbeidet inn, beskrivelsen (§ 4.9) og fjerningen av prosjektets side (§ 4.10) er lagt til. **Del A — kortet og knappene** (web, og én linje på serveren): (A1) fra, til og pause som felt i kortet, timene regnes ut, timefeltet ut (K7); lønnsartvalget holder reise og arbeid fra hverandre, og regelen leser linja (`erReise`), ikke hvilket kort som er åpent (§ 4.7 punkt 6, versjon 10); (A2) ✓, ↩, ↺, ✂ og ✎ bort fra linjene: ✓ ↩ ↺ står bare på de blå radene (B24 B), ✂ ved timelinja i kortet og «✎ Rediger jobben» øverst i kortet (B27 A); (A3) kjernekolonnene for alle (K1, B26 A); (A4) cellene på linja kan bare leses (B25 A), bygges etter A1; (A5) ↗ heter «Åpne dagsseddelen», og detaljsidens tabell får full bredde (K8, K11); (A6) beskrivelsen: del 3 viser radenes «Hva gjorde du?», aldri aktiviteten; «Ikke utfylt» når den mangler; aktiviteten i kortets hode; dagens «Kommentar» under (§ 4.9); del 3 vises ikke når kortet bare har reise (versjon 10); (A7) avkrysningen på de blå radene, og «Attester utvalget» tar hele jobber (B30 A); (A8) kvitteringen vises også i kortet, og ikonet står på utleggslinja (B31 B); (A9) ✂ arver beskrivelsen (FA42) — den ene linja på serveren; (A10) ⚠️ **utgått** (B32 B, § 8.10): reiseblokken står som i dag, én pr. dag, til w12 legger reisen i jobbens kort. **Del B — én attestering på firmanivå** (§ 4.6): (B1–B6) omfanget regnes på serveren, firmaets liste og detaljside åpnes for prosjektledere, «Attestering» blir menypunkt under Firma, og firmaets tidsrunding følger med lista; (B7) «Attestering» under Prosjekt fjernes (B29 B): DK1–DK15 i § 4.10, gamle adresser sender videre, isolasjonstestene flyttes først. B7 er siste commit i del B. Ingen migrering. | Del A: `RP`, `AT`, `AD`, `AM`, `D` (bare `splittRad`, A9), i18n, `hjelpetekster.md`, `apps/web/src/__tests__/attestering-tabell.test.tsx`. Del B: `D` (`hentTilAttesteringFirma`, `kanAttestereFirma`, ny hjelper for omfanget; ut: `hentTilAttestering`, `kanAttestere`, `krevProsjektLeder`, `erProsjektLeder`, `dagsnormerFor`), `FS`, `apps/web/src/app/dashbord/firma/timer/attestering/[id]/page.tsx`, ruta og rammen (§ 4.6 punkt 7), `FN`, `SE`, `apps/web/src/components/layout/dype-sider.tsx`, `apps/web/src/app/dashbord/[prosjektId]/timer/attestering/` og `…/godkjenning/` (blir omdirigeringer), `useAktivSeksjon.ts`, `navigasjon-kontekst.tsx`, `BU` (DK14), `AT` (`prosjektKontekst` som mengde), i18n (15 språkfiler for nøklene som slettes), testene i § 4.10 del D, `sok-dekning.test.ts`, `hjelpetekster.md`, `timer.md`, `api.md`, `web.md`, `arkitektur.md`, `redesign-paritetssjekkliste.md`, kort-id-specen. Ikke `apps/mobile`. | Bildet `ks-attestering.png` uten reisen i kortet (den kommer med w12): en prosjektleder ser alle prosjektene sine på én side, linjene har ingen knapper, jobben rettes i kortet, og kortet viser hva arbeideren skrev. «Attestering» finnes bare under Firma. |
 | **w11** | Hover-forklaring på menypunktene i venstremargen (§ 4.8, hjemmel Kenneth 2026-11-19): feltet `hjelpNokkel` på menypunktene, `Tooltip` rundt raden i full og smal bredde, og 37 tekster (38 før B29 B tok ut Prosjekt › Attestering). | `SE`, `FN`, `NS`, i18n (`nav.hjelp.*`, `firmaNav.hjelp.*`), `docs/claude/retningslinjer/tooltip-hjelpetekst-veileder.md`, `hjelpetekster.md` | Hold pekeren over «Timer» under Prosjekt og under Firma: teksten sier hva som skiller dem. |
+| **w12** | Reisen i jobbens kort (B32 B, § 4.11). **Delt regel:** én funksjon som velger jobben for en reiserad (del A). **Server:** `sikreKortId` kjører regelen i stedet for å tømme kort-id; skriveveiene i FA46, sletting av timerad, vareoppslaget og synken (del B); valideringen kjenner reise (K1, K2; K3 etter B34). **Migrering (Kenneth):** utfylling av kort-id på reiseradene som finnes, ingen ny kolonne (del E). **Web:** grupperingen legger reisen i kortet, reiseblokken forsvinner, reiselinja står sist i jobben uten knapper, ✓ ↩ ↺ på jobben tar reisen med, og kortet får del 8 «Reise» (del C). Med B34 A tas underprosjektvalget ut av reisevinduet på PC. **B34 må være besvart før w12 bestilles.** `CHECK (kort_id IS NOT NULL)` kommer i neste utgivelse (steg 2). | `packages/shared/src/utils/` (ny regel, `kortGruppering.ts`, `kortId.ts`), `KI`, `D`, `apps/api/src/routes/timer/jobb-deling.ts` (bare hvis testene krever det), `packages/db-timer/prisma/migrations/` (ny, bare data), `AM`, `AT`, `RP`, `RK` (med B34 A), i18n, testene i FA59 og § 4.11 del H, `hjelpetekster.md`, `timer.md`, `api.md`, `web.md`, `shared-pakker.md`, `arkitektur.md`, `KS` (§ 2.2, § 2.3, § 3.4, G8, E2). Ikke `apps/mobile`. | Bildet `ks-attestering.png`: reisen står som linje i jobben, ✓ på jobben attesterer den, og kortet viser ruta under «Reise». En dag med én jobb og reise åpnes fra dagsraden. |
+| **w12m** | Telefonen etter w12 (§ 4.11 del D og G). Samme regel lokalt (`kortIdNormalisering.ts`) med utfylling av radene som ligger på telefonen; forslaget og «+ Reise» lagrer reisen koblet; reisen vises i jobbens kort i stedet for i «Dagen». **B33 A:** manuell tur får prosjektet til dagens første jobb, retur får dagens siste (`DagSeksjon.tsx:80–96`). Bekreft dag og dagskort-modus står urørt. Ingen migrering på serveren. Krever OTA. | `M/utils/kortIdNormalisering.ts`, `M/services/kortIdLokal.ts`, `M/db/migreringer.ts`, `M/utils/dagsforslagAnvend.ts`, `M/services/nyTimerRad.ts`, `M/components/timer-detalj/prosjektkort/` (`DagSeksjon.tsx`, `kortRadFlytt.ts`, `ProsjektkortDagsoversikt.tsx`, `radLagring.ts`), `M/components/timer-detalj/ReiseKort.tsx` (med B34 A), `M/utils/dagsoversiktRader.ts`, i18n, `mobil.md`, `timer.md`, `hjelpetekster.md`. Ikke `apps/api`, ikke `apps/web`. | Reisen står i jobbens kort på telefonen. På en dag med to prosjekter står turen på det første og returen på det siste. |
 
 - **w10 går før w3, w4 og w6.** Den justerer det som er bygget, tilbake til bilde 6–8. Del A går først. Den er web,
   med én linje på serveren (A9). Del B går rett etter, på de samme filene (`AT`), og får egen gate: den endrer hvem
@@ -1560,8 +1865,16 @@ delene krever ingen.
   forsvinner før kortet har feltene.
 - **I del B er fjerningen (B7) siste commit.** Prosjektets side er prosjektlederens eneste vei til attesteringen i
   dag. Den tas ut først når firmaets side er åpnet for ham og isolasjonstestene er flyttet og grønne (§ 4.10).
-- **Bare A10 (reiseraden) venter på svar** (B32). Alt annet i del A og hele del B kan starte nå. B33 gjelder
-  telefonen og hører ikke til w10.
+- **A10 er utgått** (B32 B). Hele del A og hele del B kan starte nå. Reiseblokken røres ikke i w10; den
+  forsvinner i w12.
+- **w12 går etter w10 del B.** Den rører de samme filene som begge delene (`D`, `AM`, `AT`, `RP`) og bygger
+  på kortet slik del A etterlater det. Den har en migrering og gjelder attestering av lønn, så regel 10 kjøres
+  uavhengig. **B34 må være besvart før w12 bestilles.**
+- **w12m går etter w12.** Den trenger den delte regelen, og serveren må være oppe før appen sender. Den rører
+  bare `apps/mobile` og kan gå samtidig med w11. B33 A for manuell reise ligger i w12m, fordi den rører samme
+  fil og bruker samme rekkefølge på jobbene. B33 A for GPS-forslaget ligger i L4-B (timer-GPS-sporet).
+- **w12 går før w3.** w3 bygger jobben som én flate på PC, og reisen skal da stå i jobben der også.
+- **Tellingen i § 4.11 del E kjøres før w12 bygges,** mot test og prod.
 - **w11 går etter w10 del B,** fordi menypunktet Firma › Attestering må finnes først, og Prosjekt › Attestering
   må være borte (37 tekster). Den rører ikke attesteringens
   filer. i18n-generatoren kjøres aldri samtidig med en annen del.
@@ -1710,3 +2023,19 @@ Tester: `attestering-tabell.test.tsx` («w5b — dagsvisningen, alternativ A»),
 - Hvor mange dager i test og prod som har reise på mer enn ett prosjekt (FA18), og hvor mange sedler som har
   tekst i dagens «Kommentar» uten tekst på radene.
 - § 4.10: se «Ikke målt» nederst i delen.
+- **Versjon 10:** ingenting er kjørt i nettleser, på telefon eller mot en database. Tellingen i § 4.11 del E er
+  ikke kjørt; hvor mange reiserader som blir stående alene i eget kort, er ukjent.
+- FA45–FA59 er målt av tre leseagenter. Lest eller søkt av Fabel: `KI:176–300`, `KG:60–324`, `D:698–708`,
+  `:3284–3288`, `:4138–4147`, `:6697–6701`, `:9668–9676`, `:9783–9789`, at sletting av timerad ikke kaller
+  `sikreKortId`, `AM:473–505`, `:539–547`, `RP:52–70`, `:105–141`, `AT:482–490`,
+  `packages/shared/src/utils/kortId.ts:225–262`, `maskinKapasitet.ts:90–112`, `reise-sporbarhet.ts:285–345`,
+  `kortIdNormalisering.ts:78–126`, `radLagring.ts:166–182`, `timerSync.ts:946–954`, `kortRadFlytt.ts:345–355`,
+  `dagsforslagAnvend.ts:264–271`, `BD:2219–2225`, underprosjektvalget i de to reisevinduene, og at ingen
+  migrering har `CHECK` på kort-id.
+- Ikke stikkprøvd: linjene i FA46 utenom tre, `D:6888`, `:7083`, `:7466`, `dagsforslag.ts:1166–1171` og
+  `:1964–1987`, `AttesteringDetaljMobil.tsx`, testlinjene i FA59 og `rapport.ts`.
+- Om en rad ser endret ut for synken når en eldre app sender tom kort-id på en reise serveren har koblet
+  (§ 4.11 del F). Koderen måler mot radversjonene.
+- Om en reiserad kan få nytt prosjekt i attesteringen i dag (står fra versjon 9).
+- Hvor byggeplassen på en reiserad settes i synken, og om den alltid hører til reisens prosjekt.
+- Telefonens kort med reisen er ikke tegnet. Koderen leverer skjermbilde i løsningen før kode (§ 4.11 del D).
