@@ -918,6 +918,12 @@ Kenneth 2026-11-18: «Ja, (a)». Firmavalget «Attestant kan attestere egne time
 1. **Klikk åpner registreringen fra jobben, ikke fra hver timerad.** Kenneth: «jeg klikker på 4 forskjellige timerader og får opp samme kort -> er det ikke bedre å trykke på toppraden, så kommer kortet opp som er felles for alle radene? … Menneske ser ikke umidelbart at det er samme kort.» Toppraden for jobben (jobbraden, eller dagsraden når dagen har én jobb) åpner registreringen; timeradene åpner den ikke. 🟡 Løsningen er godkjent 2026-11-19 (`relay/inbox-orkestrator.md` § LØSNING FØR KODE w8) og bygd i w8 (`feat/web-timer-w8`, ikke merget): registreringen står rett under raden som ble klikket, raden har ▸/▾ i venstrekolonnen og er mørkere når den er åpen, og «Etter prosjekt» og «Bare oversikt» følger samme regel (`AT` `aapne()`, `TR` sumradens `onKlikk`/`aapen`).
 2. **Maskintimer kan ikke overstige arbeidstimer på samme jobb.** Kenneth: «arbeid 4,5 timer, maskin 7,5 timer -> det er ikke lov. Kun maskiner som heatwork eller utleie maskiner/materiell kan ha timer/døgn leie uten at arbeidstimer tilsvarende eller flere er registrert.» Eksempel på test: Ola Tømrer 14.05, jobb END-002 med 4,50 arbeid og 7,50 maskin. Unntak: heatwork og utleie av maskin/materiell (timer- eller døgnleie). 🟡 Målt og spesifisert i versjon 6: WM93–WM108 (§ 3), forslaget i § 4.4, delen w9 i § 9 og B21–B23 i § 8. Eksempelet ble lagt inn med SQL 17.05.2026 og har aldri vært gjennom serverens tak (WM93).
 
+### 8.7 Kenneths svar på B21–B23, 2026-11-19
+
+- **B21:** Kenneth: «Kan vi varsle attestator dersom utleiemaskin har flere timer enn timer arbeidet?» Utleiemaskiner sperres ikke, men attestanten skal få et varsel når maskinen har flere timer enn arbeidet på jobben. 🟡 Orkestratorens tolkning, til bekreftelse: unntaket er A (enheten «døgn»), og døgn-maskiner med flere timer enn jobbens arbeidstimer får avviksmerket «Maskin over arbeid». Merket er et varsel; jobben kan attesteres.
+- **B22:** Kenneth ba om bedre forklaring. Ikke besvart.
+- **B23: B** (Kenneth 2026-11-19). Jobber som allerede bryter regelen, får bare avviksmerket. De kan attesteres.
+
 ## 9. Rekkefølge
 
 Dette er forslag til oppdeling, ikke ordrer. **w1, w2 og w5 er merget** (§ 9.1–9.3). **w6 krever en migrering** (ny
