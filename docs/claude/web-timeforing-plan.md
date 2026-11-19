@@ -1,9 +1,9 @@
 ---
 name: web-timeforing-plan
-description: Plan med bilder steg for steg for timeføring på web — «+ Registrer timer» åpner én samlet registrering pr. jobb (fra/til, lønnsart, hva gjorde du, maskiner, varer, tillegg, utlegg), prosjekt og byggeplass utledet, dagen summeres etter hvert, overtid som egen linje mot dagsnormen for datoen, underprosjekt i jobbens hode, firmavalg for maskin med fra–til, og attestering med 13 kjernekolonner der et klikk åpner registreringen og lar attestanten dele opp. Versjon 5: dagsvisningen i attesteringen (B14) og firmavalget for attestantens egne timer (B15). Versjon 6: maskintimer høyst jobbens arbeidstimer, med unntak for døgn-maskiner (w9, § 4.4). Målt mot dagens web og telefon. B1–B23 besvart. Versjon 7: KS av attesteringen mot bilde 6–8 (§ 4.5) — avviksliste K1–K14, bilde 6 og 7 tegnet slik de gjelder, og retteordren w10; B24–B28 åpne.
-sist_verifisert_mot_kode: 2026-11-19 (WM1–WM73: develop @ `b8b16571`; WM74–WM92: develop @ `ee7146e5`, etter w1, w2 og w5; WM93–WM108: develop @ `1afb318a`, etter w5b og w7; K1–K14 i § 4.5: develop @ `eedbc7cd`, etter w8, w9 og w9m; FA1–FA27 i § 4.6–4.8: develop @ `57770fc0`)
+description: Plan med bilder steg for steg for timeføring på web — «+ Registrer timer» åpner én samlet registrering pr. jobb (fra/til, lønnsart, hva gjorde du, maskiner, varer, tillegg, utlegg), prosjekt og byggeplass utledet, dagen summeres etter hvert, overtid som egen linje mot dagsnormen for datoen, underprosjekt i jobbens hode, firmavalg for maskin med fra–til, og attestering med 13 kjernekolonner der et klikk åpner registreringen og lar attestanten dele opp. Versjon 5: dagsvisningen i attesteringen (B14) og firmavalget for attestantens egne timer (B15). Versjon 6: maskintimer høyst jobbens arbeidstimer, med unntak for døgn-maskiner (w9, § 4.4). Målt mot dagens web og telefon. B1–B23 besvart. Versjon 7: KS av attesteringen mot bilde 6–8 (§ 4.5) — avviksliste K1–K14, bilde 6 og 7 tegnet slik de gjelder, og retteordren w10. Versjon 8: én attestering på firmanivå for prosjektledere (§ 4.6) og hover-tekster (§ 4.8). Versjon 9: B29–B31 besvart — «Attestering» under Prosjekt fjernes med dødkode-liste (§ 4.10), reisen hører til prosjektet (§ 4.7), beskrivelsen står alltid i kortet (§ 4.9); B32–B33 åpne.
+sist_verifisert_mot_kode: 2026-11-19 (WM1–WM73: develop @ `b8b16571`; WM74–WM92: develop @ `ee7146e5`, etter w1, w2 og w5; WM93–WM108: develop @ `1afb318a`, etter w5b og w7; K1–K14 i § 4.5: develop @ `eedbc7cd`, etter w8, w9 og w9m; FA1–FA27 i § 4.6–4.8: develop @ `57770fc0`; FA16–FA21 på nytt, FA28–FA44 og DK1–DK15 i § 4.7, § 4.9 og § 4.10: develop @ `a5483f48`, 2026-11-20)
 eier: fabel (plan) — orkestrator gater kode; Kenneth har vedtatt B1–B13 (§ 8.1)
-status: 🟡 FORSLAG 2026-11-19, versjon 8 — w1, w2, w5, w5b, w7, w8, w9 og w9m er merget (§ 9.1–9.4; develop `eedbc7cd`); w3, w4, w6, w10 og w11 er ikke bygget. Nytt i versjon 8, uten kode: Kenneths svar på B24–B28 arbeidet inn (§ 4.5, § 8.8), én attestering på firmanivå for prosjektledere (§ 4.6), reise i kortet (§ 4.7), hover-tekster i venstremargen (§ 4.8, w11) og w10 skrevet om i to deler (§ 9). Åpent til Kenneth: B29–B31 (§ 8).
+status: 🟡 FORSLAG 2026-11-20, versjon 9 — w1, w2, w5, w5b, w7, w8, w9 og w9m er merget (§ 9.1–9.4; develop `eedbc7cd`); w3, w4, w6, w10 og w11 er ikke bygget. Nytt i versjon 9, uten kode: Kenneths svar på B29–B31 arbeidet inn (§ 4.5, § 8.9), dødkode-lista for Prosjekt › Attestering (§ 4.10), reise skrevet om etter Kenneths innsigelse (§ 4.7), beskrivelsen i kortet (§ 4.9) og w10 oppdatert (§ 9). Åpent til Kenneth: B32–B33 (§ 8), begge om reise.
 ---
 
 # Timeføring på web — plan med bilder (FORSLAG)
@@ -30,6 +30,8 @@ status: 🟡 FORSLAG 2026-11-19, versjon 8 — w1, w2, w5, w5b, w7, w8, w9 og w9
 > `ks-attestering.png` (§ 4.5). Kilde: `skisser-ks.html`.
 > **Versjon 8:** `ks-attestering.png` er tegnet om etter Kenneths svar på B24–B28 (§ 8.8) og viser firmaets
 > attestering slik en prosjektleder ser den (§ 4.6). Hover-tekstene i venstremargen står i § 4.8.
+> **Versjon 9:** `ks-attestering.png` er tegnet om etter svarene på B29–B31 (§ 8.9): «Attestering» finnes bare
+> under Firma (§ 4.10), kortet viser alltid beskrivelsen (§ 4.9), og reisen står under prosjektet sitt (§ 4.7).
 
 ## 1. Kenneths føringer (2026-11-17, ordrett)
 
@@ -738,8 +740,9 @@ TILL-001, der arbeidet er ført.
 ![Bilde 6 og 7 slik de gjelder](skisser-web-timeforing/ks-attestering.png)
 
 Kilde: `skisser-web-timeforing/skisser-ks.html`. Bildet er en skisse, ikke et skjermbilde. Det er tegnet om i
-versjon 8 etter Kenneths svar på B24–B28 (§ 8.8). Det viser firmaets attestering slik en prosjektleder ser den
-(§ 4.6), med de anbefalte svarene på B29–B31.
+versjon 9 etter Kenneths svar på B29–B31 (§ 8.9). Det viser firmaets attestering slik en prosjektleder ser den
+(§ 4.6), med beskrivelsen i kortet (§ 4.9) og reisen som blå rad under prosjektet sitt (§ 4.7, anbefalt svar på
+B32).
 
 **Kenneth 2026-11-19** (test `eedbc7cd`, prosjektets attestering): *«Koden gjør ikke det Fabels opprinnelige bilder
 viser i seksjon 4 bilde 6 … linjeknappenes funksjon (de ekstra ikonene) ble ikke flyttet til topplinja. I stedet ble
@@ -774,7 +777,7 @@ Målt mot develop @ `eedbc7cd`. `RP` = `apps/web/src/components/attestering/Regi
 | **K6** | Bilde 7: «Hele registreringen åpnes … slik den ble ført: samme sju deler». Tegnet med felt for underprosjekt, lønnsart, maskintimer og varemengde. Fra–til er tegnet som tekst. | Kan rettes i kortet: underprosjekt (`RP:169`), lønnsart (`:225`), timer (`:236`), maskintimer (`:263`), antall på tillegg (`:295`) og «Del opp» (`:181`). Kan bare leses: fra–til og pause (`:192–200`), «Hva gjorde du?» (`:250`), hvilken maskin (`:261`), varer (`:273–284`) og utlegg (`:304–315`). Ingenting kan legges til eller slettes. | w5 `799ea86c` | Nei. Koden følger planens punkter. Planen sa ikke at fra–til skal kunne rettes i kortet. **Hull i planen.** | Fra, til og pause blir felt (serveren tar dem alt: `D:7312–7315`). «Rediger jobben» i kortet for resten (B27). |
 | **K7** | Bilde 7: «Timer, maskintimer og mengde rettes i feltene, som i cellen i dag.» | Timefeltet sender bare `timer` (`RP:143–145`, `:236–241`). Serveren krever at timene stemmer med fra–til minus pause og avviser (`D:3155–3175`, `:1464–1479`). Feltet blir stående med det som ble skrevet, fordi det bare nullstilles når serveren gir ny verdi (`RP:344–346`, `:126–129`). Bilde 113: feltet viser 8, linja 7,50. Cellen «Timer» på linja går samme vei (`AT:268`, `:304`). | w5 `799ea86c` (kortet), d2b-1 (cellen) | Nei. **Feil.** Planen tok ikke hensyn til serverens regel. | Timefeltet tas ut. Fra og til rettes, timene regnes ut og sendes i samme kall. Avvist retting setter feltet tilbake. |
 | **K8** | § 4.1 (R14): detaljsiden består «for redigering av hele sedelen». § 7: retting i cellen, ✂ og penn bevares. Kortet kommer i tillegg. | Fem veier til å rette: cellen (`AT:259–309`), kortet (`RP`), ✎ → vindu (`AT:526–527`, `:907`), ✂ → vindu (`AT:525`, `:903`), og ↗ → detaljsiden → «Rediger sedel» (`AT:444–451`, `AD:495–499`). Tre av dem heter «Rediger sedel»: ↗ og ✎ deler nøkkelen `timer.attestering.meny.rediger`, og knappen har `timer.rediger.knapp`. | T7-2b2 (14.05.), T7-2c2 (16.05.), T7-5d (17.05.), d2b-1 (16.11.), w5 (17.11.) | Hver for seg, ja. At alle fem skulle stå samtidig, er planens «BEVARES», ikke Kenneths valg. | Kortet er stedet å rette (K4, K6, K7). ↗ får eget navn. **B25 → A:** cellene kan bare leses. |
-| **K9** | Bilde 6 A er tegnet på et prosjekt, med «Uke 47 · 2026 · Denne uka». Følge 19: prosjektets attestering «får samme årsvelger». | Prosjektets side har ingen verktøy (`PS:118`). Lista tar bare `projectId` og henter alle sendte sedler uansett dato (`D:5765–5777`). Firmaets side har uke, år og «Denne uka» (`FS:160–164`, `:345–385`). | w1 `f0a35019`, ført som «ikke bygget» i § 9.1 | Nei. Meldt i planen, aldri lagt fram for Kenneth. | ⚠️ **Erstattet 19.11. (§ 8.8):** attesteringen samles på firmaets side, som åpnes for prosjektledere (§ 4.6). Hva som skjer med prosjektets side, er B29. |
+| **K9** | Bilde 6 A er tegnet på et prosjekt, med «Uke 47 · 2026 · Denne uka». Følge 19: prosjektets attestering «får samme årsvelger». | Prosjektets side har ingen verktøy (`PS:118`). Lista tar bare `projectId` og henter alle sendte sedler uansett dato (`D:5765–5777`). Firmaets side har uke, år og «Denne uka» (`FS:160–164`, `:345–385`). | w1 `f0a35019`, ført som «ikke bygget» i § 9.1 | Nei. Meldt i planen, aldri lagt fram for Kenneth. | ⚠️ **Erstattet 19.11. (§ 8.8):** attesteringen samles på firmaets side, som åpnes for prosjektledere (§ 4.6). **B29 → B (§ 8.9):** prosjektets side og menypunktet fjernes (§ 4.10). |
 | **K10** | R23 står: gjenåpne på attestert linje og jobb. Bilde 6 har merket «Venter» øverst til høyre. | ↺ finnes på attestert linje, jobb og dag (`AT:438–442`, `:497–503`, `:523–524`, `:994`). Firmaets side har fanene «Venter på attestering» og «Attestert» (`FS:167`, `:197–220`, `:411–446`), men krever firmaadministrator (`D:5979`). Prosjektets side henter bare `status: "sent"` (`D:5776`). Når siste linje på en dag er attestert, forsvinner dagen fra siden, og det finnes ingen liste å hente den fra. | T7-5e (fanene, firma), d2b-1 (↺) | Nei. Planen sa ikke hvor attesterte linjer vises i prosjektet. **Hull i planen.** | ⚠️ **Erstattet 19.11. (§ 8.8):** fanene finnes på firmaets side, som prosjektlederen får (§ 4.6). ↺ står på jobbraden og dagsraden (B24 B). |
 | **K11** | R14: detaljsiden tegner radene med samme tabell. | Tabellen ligger i en smalere ramme (`AD:216`, `max-w-6xl`). Kolonner og tekst kuttes («Anleggsarbeic», tomme kolonnehoder; bilde 114, 115, 119). Lest fra bildene og koden, ikke målt i nettleser. | d2b-2 `769e9a49`, breddene fra w5 | Nei. **Feil.** | Tabellen på detaljsiden får full bredde. |
 | **K12** | Bilde 6: maskinen står på timelinja, med bare timer. | Koden gjør det for maskiner koblet til en timerad (R3). Testdagene er lagt inn med SQL uten kobling (WM93), så maskinen står på egen linje, med fra–til (bilde 117). Firmavalget for fra–til på maskin (w6) er ikke bygget. | Testdata 17.05.; w6 ikke bestilt | — (ikke kode) | Ny testdata gjennom serverens skriveveier (§ 8.7), som nå kan bestilles fordi w9 er merget. w6 for seg. |
@@ -823,18 +826,30 @@ Målt mot develop @ `eedbc7cd`. `RP` = `apps/web/src/components/attestering/Regi
    - Hver linje hører til en blå rad: jobben (kort-id), blokken «Reise» (§ 4.7) eller blokken for rader uten
      kort-id (`attestering-tabell.ts:490–502`). Ingen linje blir stående uten vei til ✓.
    - En sortert tabell er en flat liste uten blå rader (WM82). Der kan det leses og letes, men ikke attesteres pr.
-     jobb. «Attester utvalget» virker der også (B30).
+     jobb. «Attester utvalget» virker der også, og tar da alle jobbene som vises (B30 A).
    - Serverens kall for enkeltrader (`attesterRader`, `returnerRader`, `gjenaapneRader`) står. Telefonen bruker de
      to første (`AttesteringDetaljMobil.tsx:77`, `ReturnerModal.tsx:28`).
-   - **To ting på linja er ikke avgjort:** avkrysningen (B30) og kvitteringsikonet på utleggslinja (B31).
+   - **Avkrysningen står på de blå radene, ikke på linjene** (B30 A, § 8.9). Den står på jobbraden, på raden
+     «Reise» og på dagsraden. Et kryss på dagsraden velger alle jobbene på dagen. «Attester utvalget» tar hele
+     jobber: de avkryssede, eller alle jobbene som vises når ingen er krysset av. En jobb der filteret skjuler noen
+     linjer, attesteres likevel hel. Knappen teller jobber, ikke linjer. I dag teller og sender den linjer
+     (`AT:212–217`, `:866–875`). 🟡 Ikke bygget; w10 del A.
+   - **Kvitteringsikonet står på utleggslinja** (B31 B, § 8.9). Det er det eneste på en linje som kan trykkes.
+     Kvitteringen vises også i kortet under «Utlegg», med samme komponent (`Kvitteringer`, `AT:1018–1045`).
+     🟡 Kortet viser ikke kvitteringen i dag (`RP:304–315`); w10 del A.
 6. **Attesteringen ligger på firmaets side, også for prosjektledere** (Kenneth 19.11., § 4.6). Siden har uke, år,
    «Denne uka» og fanene «Venter» og «Attestert». Begge fanene følger uka (B28 A); slik virker firmaets side alt
    (`FS:196–215`).
 7. **↗ på den blå linja heter «Åpne dagsseddelen».** Detaljsiden står for forslaget (V19), vedlegg og historikk.
    «Rediger sedel» der står urørt til w3 er bygget.
-8. **«Hva gjorde du?», varer og utlegg kan leses i kortet, ikke rettes.** Slik er det i dag. Varemengden følger w3.
+8. **Beskrivelsen står alltid i kortet** (Kenneth 2026-11-20, § 4.9). Del 3 «Hva gjorde du?» viser det arbeideren
+   skrev, aldri aktiviteten i stedet. Mangler teksten, står det «Ikke utfylt». Dagens «Kommentar» vises under.
+   Beskrivelsen, varer og utlegg kan leses i kortet, ikke rettes. Varemengden følger w3.
 9. **Kjernekolonnene er det attestanten ser** (B26 A). Lagrede oppsett for attesteringslista settes til kjernen
    én gang.
+10. **«Attestering» under Prosjekt fjernes** (B29 B, § 8.9). Timer attesteres ett sted på PC: Firma ›
+    Attestering. Gamle adresser sender videre dit. Hva som blir dødt, og rekkefølgen, står i § 4.10.
+11. **Reisen står som blå rad «Reise» under prosjektet den hører til** (§ 4.7). Hvordan, er B32.
 
 **Ikke målt:**
 - Dagsraden for 13.05. er om lag tre ganger så høy som dagsraden for 14.05., og maskinlinja er dobbelt så høy som
@@ -914,13 +929,17 @@ Målt mot develop @ `57770fc0`. `TK` = `apps/api/src/trpc/tilgangskontroll.ts`, 
 6. **Menyen.** Firma-sonen i venstremargen får punktet **«Attestering»**. Det vises for firmaadministrator og for
    prosjektleder med omfang, når firmaet har timer-modulen. For en prosjektleder uten adminrolle er det eneste
    punkt i Firma-sonen (sammen med Maskin når firmaet har den modulen). Fanen «Attestering» på Firma › Timer står
-   for firmaadministrator. Søket (`dype-sider.tsx:43–50`) følger samme vilkår som menypunktet.
+   for firmaadministrator. Søket (`dype-sider.tsx:43–50`) følger samme vilkår som menypunktet. Menypunktet
+   «Attestering» under Prosjekt fjernes (B29 B), så navnet står bare ett sted i margen.
 7. **Prosjektlederen slipper bare inn på attesteringen.** Siden ligger bak firmaadministrator-rammen (FA7).
    Kravet er at ingen annen firmaside åpnes for ham, og at han ikke ser fanene Oppsett, Lønnsarter, Aktiviteter,
    Tillegg og Utleggskategorier. Koderen foreslår hvordan i løsningen før kode. Anbefalt: attesteringen får en
    rute utenfor firmaadministrator-rammen, så sperren i `firma/layout.tsx` står urørt, og den gamle adressen
    sender videre. Detaljsiden for én dag følger med (FA6).
-8. **Prosjektets side** er B29. Til B29 er besvart, står den som i dag.
+8. **Prosjektets side fjernes** (B29 → B, § 8.9). Den, detaljsiden, menypunktet og serverens kall for ett
+   prosjekt tas ut, og gamle adresser sender videre til firmaets side. Lista over hva som blir dødt, hva som
+   består, og testene som må flyttes, står i § 4.10. Fjerningen gjøres sist i del B, når prosjektlederen har
+   firmaets side.
 9. **Den som attesterer for flere firma,** ser ett firma om gangen. Er han ikke firmaadministrator, kan han i dag
    ikke velge firma (FA14). Prosjektets side viser i dag én tabell pr. firma (FA9). Kravet er at ingen mister
    tilgang: koderen måler om tilfellet finnes i testdata, og foreslår velger eller én tabell pr. firma.
@@ -939,38 +958,77 @@ Målt mot develop @ `57770fc0`. `TK` = `apps/api/src/trpc/tilgangskontroll.ts`, 
 - Omfanget er likt `attesteringsFirmaer` pr. prosjekt.
 - `kanAttestereFirma.kanAttestere` er usann for prosjektlederen (telefonen).
 
-### 4.7 Reise i kortet (versjon 8)
+### 4.7 Reise — hører til prosjektet (versjon 9)
 
 **Kenneth 2026-11-19 (B24):** kortet rettes samlet — «… utlegg, tillegg og eventuelt reise».
 
-**Reise hører ikke til jobbens kort. Den hører til dagen, og det er vedtatt.** Målt mot develop @ `57770fc0`:
+**Kenneth 2026-11-20, uenig i versjon 8:** *«En reisekostnad knyttes til en kostnad for et prosjekt. Det er
+reisekostnaden til/fra et prosjekt og bør knyttes til prosjektet kostnaden tilhører.»*
+
+⚠️ Versjon 8 sa «reise hører til dagen, ikke til en jobb». Det var bare halve bildet. Målingen under viser at
+reiseraden alt bærer et prosjekt, og at kostnaden og attesteringsretten følger det. Det attesteringen mangler, er å
+vise det. Målt mot develop @ `a5483f48`. `RK` = `apps/web/src/app/dashbord/timer/[id]/ReiseKort.tsx`.
 
 | # | Målt | Hvor |
 |---|---|---|
-| **FA16** | Reisetid er en vanlig timerad merket `erReise`, med prosjekt og byggeplass. Den har aldri kort-id. | `packages/db-timer/prisma/schema.prisma:283–318`; `prosjektkort-kortid-spec.md` § 2.2 (B1 = A) og G8 (`:1346`); serveren tømmer kort-id på reise (`apps/api/src/services/timer/kortId.ts:231–232`, `D:4141–4142`). Målt av leseagent; skjemaet og G8 er stikkprøvd. |
+| **FA16** | Reisetid er en vanlig timerad merket `erReise`. **Den bærer alltid et prosjekt** — en rad uten prosjekt kan ikke være reise. Den bærer også byggeplass, valgfritt underprosjekt, retning (ut eller retur), oppmøtested, kjøretid, avstand og kilde. Den har aldri kort-id. | `ST:241–254`, `:286–307`, `:317–318`; `D:4026–4029`; `prosjektkort-kortid-spec.md` § 2.2 (B1 = A) og G8 (`:1346`); `apps/api/src/services/timer/kortId.ts:231–232`. Skjemaet og `D:4029` er lest av Fabel. |
 | **FA17** | Grupperingen legger reise i en egen bøtte før kort-id leses. Reise kan ikke havne i en jobb. | `packages/shared/src/utils/kortGruppering.ts:123–126` |
-| **FA18** | Attesteringen viser reisen som en egen blokk først på dagen, med egen blå rad og ✓ ↩ ↺. Et klikk på raden åpner et kort med bare reiseradene. | `attestering-tabell.ts:490–494`; `AT:417–442`, `:630–633` |
+| **FA18** | ⚠️ Rettet i versjon 9. Attesteringen lager **én reiseblokk pr. dag**, uansett prosjekt. Den blå raden får prosjektnummer, underprosjekt og byggeplass fra den første reiselinja. Den sier ikke «Reise»; teksten finnes (`timer.attestering.tabell.type.reise`), men brukes ikke i tabellen. En dag med reise på to prosjekter viser derfor bare det første prosjektet på den blå raden. | `AM:473–494`; `AT:581–600`, `:724–745`; `AM:126`. Lest av Fabel. |
 | **FA19** | Reise teller ikke som arbeid i maskinregelen (w9), i normen eller i taket. | `packages/shared/src/utils/reiseSkille.ts:85–109`; `maskinKapasitet.ts:31–33` |
-| **FA20** | På telefonen føres reise i dag-seksjonen under kortene («reise hører til dagen, ikke kortene», ordre 36b). På PC står «+ Reise» i prosjektkortet og gir raden kortets prosjekt, men ingen kort-id. | `apps/mobile/src/components/timer-detalj/prosjektkort/DagSeksjon.tsx:20–28`; `apps/web/src/app/dashbord/timer/[id]/ReiseKort.tsx:171–188`. Målt av leseagent. |
+| **FA20** | **Hvem setter prosjektet på reisen:** På PC står «+ Reise» i prosjektkortet og gir raden kortets prosjekt, med valgfritt underprosjekt. På telefonen føres reise i dag-seksjonen og får prosjektet med flest arbeidstimer den dagen. GPS-forslaget gir ut- og returreisen samme prosjekt: dagens ene destinasjon. Ingen av stedene har prosjektvelger på reisen. Serveren har ingen regel for hvilket prosjekt reisen skal ha. | `RK:171–188`; `apps/mobile/src/components/timer-detalj/prosjektkort/DagSeksjon.tsx:80–96`; `M/utils/dagsforslag.ts:1168–1171` (lest av Fabel), `:1407–1408`, `:1953–1986` (leseagent); `D:4013–4042` |
 | **FA21** | I kortet for reiseblokken kan lønnsarten byttes til en hvilken som helst lønnsart, også en arbeidsart. Motsatt kan en arbeidslinje i en jobb byttes til en reiseart. | `RP:225–233`. Hva serveren da gjør med raden, er lest (`D:3185–3200`, `:3286–3287`), ikke kjørt. |
+| **FA28** | **Kostnaden følger radens prosjekt i dag.** Timerapporten summerer timer på radens prosjekt og skiller ikke ut reise. Detaljeksporten har én linje pr. reiserad med prosjekt, fra-sted, til-sted, km og minutter. | `apps/api/src/routes/timer/rapport.ts:298–323`, `:631–668`. Målt av leseagent; summeringen er stikkprøvd. |
+| **FA29** | **Attesteringsretten følger radens prosjekt, også for reise.** Det finnes ingen særregel for `erReise`. Reisen attesteres altså av lederen for prosjektet reisen står på. | `D:506–544`, `:279–306`, `:6931–6946`. Målt av leseagent; `krevAttesteringsrett` er stikkprøvd tidligere. |
+| **FA30** | I visningen «Etter prosjekt» står reisen alt under prosjektet sitt: hvert kort deles på radens prosjekt. | `AM:693–720`. Lest av Fabel. |
+| **FA31** | Fra-sted og til-sted er ikke egne felt. De utledes ved visning av retningen, oppmøtestedet og byggeplassen. Ruta vises på reiselinja som merke. | `apps/web/src/components/attestering/ReiseRadMerke.tsx:42–90`; `rapport.ts:635–640`. Målt av leseagent. |
+| **FA32** | **Reise mellom to prosjekter finnes ikke i koden.** Retningen er bare ut eller retur. Vedtaket finnes: en mellometappe i ordinær tid er arbeidstid og bæres av prosjektet man kommer til (V9, Kenneth 2026-10-01). Det er ikke bygget. | `packages/shared/src/utils/reise.ts:28–29`; `timer-gps-helhetsplan.md:147`, `:406`; `timer-gps-lag3-4-spec.md` § 4.3 og M6 (`:46`). Vedtaket er lest av Fabel. |
+| **FA33** | Reise hjemmefra kompenseres ikke. Reisen regnes fra kontor eller oppmøtested til byggeplass, og mellom byggeplasser. | `fase-0-beslutninger.md:1054` (T.10) |
 
-**Følgen for attesteringen:**
+**Slik gjelder det:**
 
-1. **Reisen står som egen blå rad «Reise» først på dagen,** slik den gjør i dag. Etter B24 B har den raden ✓ og ↩,
-   og reiselinjene under har ingen knapper. Reisen attesteres altså for seg, ikke sammen med en jobb.
-2. **Den blå raden åpner et eget kort for reisen:** fra–til, reisens lønnsart og timer. Underprosjekt, maskiner,
-   varer, tillegg og «Del opp» hører ikke hjemme der.
-3. **En dag med én jobb og reise har to blå rader under dagsraden.** Da åpner dagsraden ingenting; jobbraden åpner
+1. **Reisen hører til prosjektet den går til eller fra.** Kostnaden, rapporten og attesteringsretten følger
+   prosjektet på raden (FA28, FA29). Det er slik i dag og endres ikke.
+2. **Reisen hører ikke til en jobb.** Den har ikke kort-id (B1 = A og G8, Kenneth 2026-11-16). Et prosjekt kan ha
+   flere jobber samme dag, og reisen gjelder prosjektet, ikke én av dem. Om dette skal snus, er **B32**.
+3. **Attesteringen viser én blå rad «Reise» for hvert prosjekt** (anbefalt svar på B32). 🟡 Ikke bygget.
+   - Raden sier «Reise» og viser prosjektnummeret, underprosjektet når reisen har ett, og sum reisetimer.
+   - Den står rett over den første jobben på samme prosjekt. Har prosjektet ingen jobb den dagen, står den først
+     på dagen.
+   - En dag med reise på to prosjekter får to rader «Reise», én for hvert prosjekt (i dag én, FA18).
+   - Raden har ✓, ↩, ↺ og avkrysning, som en jobbrad (B24 B, B30 A). Reiselinjene under har ingen knapper.
+   - En prosjektleder attesterer reisen på prosjektene han leder. Reise på et annet prosjekt står nedtonet og uten
+     knapper, som andre rader utenfor omfanget hans (§ 4.6).
+4. **Den blå raden åpner et eget kort for reisen:**
+   - Hodet viser prosjektet og byggeplassen.
+   - Ruta står der «Hva gjorde du?» står i jobbens kort: retning, fra-sted → til-sted, km, minutter og kilde
+     (FA31). Reise har ingen beskrivelse; telefonen skriver den aldri (`M/utils/dagsforslagAnvend.ts:284`).
+   - Fra og til er felt, og timene regnes ut, som i jobbens kort.
+   - Lønnsartvalget tilbyr bare reisearter (punkt 6).
+   - Underprosjektet vises, men kan ikke byttes i kortet («flytt hele jobben» tar ikke reise, `D:704`).
+   - Maskiner, varer, tillegg og «Del opp» hører ikke hjemme der.
+5. **En dag med én jobb og reise har to blå rader under dagsraden.** Da åpner dagsraden ingenting; jobbraden åpner
    jobben og reiseraden åpner reisen (`AT:687`, `:705–706`). Slik er det i dag.
-4. **Lønnsartvalget i kortet holder reise og arbeid fra hverandre** (FA21). Kortet for reisen tilbyr bare
+6. **Lønnsartvalget i kortet holder reise og arbeid fra hverandre** (FA21). Kortet for reisen tilbyr bare
    reisearter, og kortet for en jobb tilbyr ikke reisearter. Det er samme regel som i føringen (V4 og B6 i
-   kort-id-specen: reisearter tilbys ikke på en linje i prosjektkortet). 🟡 Ikke bygget; ligger i w10 punkt 1.
-5. **Kilometer og kjøregodtgjørelse er ikke reisetid.** De føres som lønnsart pr. km eller som utlegg, og følger
+   kort-id-specen). 🟡 Ikke bygget; w10 del A punkt A1.
+7. **Reise mellom to prosjekter** er vedtatt (V9, FA32): tiden er arbeidstid og bæres av prosjektet man kommer
+   til. Når det bygges (timer-GPS lag 4), blir etappen en arbeidslinje i jobben på det prosjektet, ikke en
+   reiserad. Til da lager systemet ingen slik rad selv. Fører arbeideren den for hånd, havner den på prosjektet
+   han velger. **Krever ikke svar.**
+8. **En dag med to prosjekter:** telefonen legger i dag både ut- og returreisen på ett prosjekt (FA20). Etter
+   ordene dine hører utreisen til prosjektet du reiser til, og returen til prosjektet du reiser fra. Det er
+   **B33**. Det gjelder føringen på telefonen, ikke attesteringen, og ligger utenfor w10.
+9. **Kilometer og kjøregodtgjørelse er ikke reisetid.** De føres som lønnsart pr. km eller som utlegg, og følger
    jobben de er ført på. Målt av leseagent, ikke stikkprøvd.
 
-Å legge reisen inn i jobbens kort krever at reise får kort-id. Det snur vedtaket «reise skilt fra arbeid»
-(2026-11-14), § 2.2 og G8 i kort-id-specen, og telefonens dag-seksjon. Det foreslås ikke. **Krever ikke svar**
-med mindre Kenneth vil snu vedtaket.
+**Hvis B32 besvares med B** (reisen inn i jobbens kort), må dette til:
+- Reise får kort-id. Det snur B1 = A, § 2.2 og G8 i kort-id-specen, og serveren som tømmer kort-id på reise
+  (`kortId.ts:231–232`, `D:1058`).
+- Reiseradene som finnes, må få kort-id. Det er en migrering med backfill, som Kenneth kjører.
+- Telefonens dag-seksjon og GPS-forslaget må velge jobb, ikke bare prosjekt.
+- Det må finnes en regel for hvilken jobb reisen havner i når prosjektet har flere jobber samme dag, og for en
+  dag der prosjektet har reise, men ingen jobb.
+- ✓ på jobben attesterer da også reisen.
 
 ### 4.8 Hover-forklaring på menypunktene i venstremargen (versjon 8, w11)
 
@@ -985,7 +1043,7 @@ Målt mot develop @ `57770fc0`:
 | **FA23** | Menypunktene er data, ikke hardkodet: `SidebarElement` (`SE:54–65`, lista `:67–239`) og `FirmaNavElement` (`FN:33–40`, lista `:42–65`). «Innstillinger» er hardkodet (`NS:287–300`). De samme listene brukes av søket og av mobilmenyen (`Toppbar.tsx:46–56`). | Målt av leseagent; `FN:33–65` og `SE:166–190` er stikkprøvd. |
 | **FA24** | I full bredde har menypunktene ingen hover-tekst. I smal bredde vises bare ikonet, med navnet som nettleserens `title` (`NS:166`, `:201`, `:290`). | Målt av leseagent. |
 | **FA25** | `Tooltip` i `packages/ui/src/tooltip.tsx` har tittel og tekst over flere linjer, forsinkelse, og vises ved tastaturfokus og ved trykk på berøringsskjerm. Den brukes alt i attesteringen (`AT:1059`). | Målt av leseagent. |
-| **FA26** | Samme navn står to steder i dag: **Timer** (`nav.timer` under Prosjekt, `firmaNav.timer` under Firma) og **HMS** (`nav.hms`, `firmaNav.hms`). **Attestering** står bare under Prosjekt i margen; under Firma er den en fane (FA8). Med § 4.6 punkt 6 står den begge steder. | `SE:173–187`; `FN:49`, `:58` |
+| **FA26** | Samme navn står to steder i dag: **Timer** (`nav.timer` under Prosjekt, `firmaNav.timer` under Firma) og **HMS** (`nav.hms`, `firmaNav.hms`). **Attestering** står bare under Prosjekt i margen; under Firma er den en fane (FA8). Med § 4.6 punkt 6 og B29 B (§ 8.9) står den bare under Firma. | `SE:173–187`; `FN:49`, `:58` |
 | **FA27** | Bare 8 av sidene har ?-hjelp. To menypunkter heter noe annet enn siden de åpner: «Fakturering» åpner «Lagring», og «Firmaprofil» åpner «Innstillinger» (hardkodet). | Målt av leseagent, ikke stikkprøvd. |
 
 **Regelen for teksten** (føres inn i `tooltip-hjelpetekst-veileder.md` av ordren som bygger den):
@@ -1011,8 +1069,8 @@ Målt mot develop @ `57770fc0`:
 |---|---|---|---|
 | Prosjekt › **Timer** | `nav.hjelp.timer` | Dine egne timer på dette prosjektet. Her registrerer du timer og ser dagene dine. | `[prosjektId]/timer/page.tsx:103–110`; alle prosjektmedlemmer når modulen er på (`SE:173–179`) |
 | Firma › **Timer** | `firmaNav.hjelp.timer` | Oppsett for timeføringen i hele firmaet: lønnsarter, aktiviteter og tillegg. For firmaadministrator. Egne timer fører du under Prosjekt › Timer. | `firma/timer/layout.tsx:26–36`, `:83`; `FN:58`, `:82` |
-| Prosjekt › **Attestering** | `nav.hjelp.timerAttestering` | Timer som venter på attestering i dette prosjektet. For deg som leder prosjektet. Alle prosjektene dine ser du under Firma › Attestering. | `SE:181–187`; `D:246–261`. Siste setning forutsetter § 4.6. Med B29 A åpner punktet firmaets attestering med prosjektet valgt. |
-| Firma › **Attestering** (nytt, § 4.6) | `firmaNav.hjelp.attestering` | Attester timer for alle prosjektene du leder, uke for uke. Firmaadministrator ser hele firmaet. | § 4.6 punkt 2 og 6 |
+| ~~Prosjekt › **Attestering**~~ | — | ⚠️ Utgår (B29 B, § 8.9): menypunktet fjernes, så det får ingen tekst. Nøkkelen `nav.hjelp.timerAttestering` lages ikke. | § 4.10 |
+| Firma › **Attestering** (nytt, § 4.6) | `firmaNav.hjelp.attestering` | Attester timer for alle prosjektene du leder, uke for uke. Firmaadministrator ser hele firmaet. | § 4.6 punkt 2 og 6. Etter B29 B er dette det eneste stedet timer attesteres på PC. |
 | Prosjekt › **HMS** | `nav.hjelp.hms` | Meld avvik, SJA og RUH på dette prosjektet, og se det som er meldt. | `[prosjektId]/hms/page.tsx:360–434` |
 | Firma › **HMS** | `firmaNav.hjelp.hms` | HMS samlet for alle firmaets prosjekter. For firmaadministrator og HMS-ansvarlig. | `firma/hms/page.tsx:145–148`, `:176–177` |
 
@@ -1061,6 +1119,139 @@ Resten av Firma-sonen (alle er for firmaadministrator unntatt Maskin; teksten si
 Tekstene for Timer, Attestering og HMS bygger på sider og sperrer som er lest. De andre bygger på leseagentens
 gjennomgang av hver side (overskrift, beskrivelse og hva siden lar deg gjøre) og er ikke stikkprøvd. Koderen holder
 hver tekst mot siden før nøkkelen legges inn, og melder avvik i stedet for å skrive om.
+
+### 4.9 Beskrivelsen i kortet (versjon 9)
+
+**Kenneth 2026-11-20:** *«Jeg glemte at vi også må ha med beskrivelse i kortet. Denne er svært viktig ved
+attestering.»*
+
+Målt mot develop @ `a5483f48`:
+
+| # | Målt | Hvor |
+|---|---|---|
+| **FA34** | **Det finnes to tekstfelt.** Dagsseddelen har ett for hele dagen, som heter «Kommentar» på skjermen. Hver timerad har ett, som heter «Hva gjorde du?». Begge er valgfrie i databasen. Ingen kode kopierer mellom dem. Maskinraden har ingen tekst. | `ST:191`, `:251`; `packages/shared/src/i18n/nb.json:496` (`timer.felt.beskrivelse`), `:654` (`timer.felt.radBeskrivelse`). Lest av Fabel. |
+| **FA35** | **Telefonen skriver «Hva gjorde du?» på timeradene.** I prosjektkort-modus er det én tekst pr. jobb. Den er påkrevd og lagres på alle jobbens arbeidsrader, også overtidsraden. Reiserader får ingen. I dagskort-modus er teksten pr. rad og påkrevd i radvinduet. | `M/utils/dagsforslagAnvend.ts:284`, `M/utils/beskrivelseKort.ts:202–212` (lest av Fabel); `M/components/timer-detalj/prosjektkort/kortBeskrivelse.ts:16–40`, `M/utils/bekreftDag.ts:115–119`, `M/components/timer-detalj/TimerSeksjon.tsx:1751–1761` (leseagent) |
+| **FA36** | **Web skriver «Hva gjorde du?» på raden, og feltet er valgfritt.** Teksten kopieres ikke til de andre radene i jobben. B6 (påkrevd pr. jobb) er vedtatt og bygges i w3. | `WS:3758–3771` (lest av Fabel); `WS:3187`, `:3201`, `:3303–3341` (leseagent) |
+| **FA37** | **«Kommentar» for dagen skrives et annet sted:** i skjemaet «Ny dagsseddel» og på dagssiden på web, og i vinduet for arbeidstid på telefonen. Returkommentaren har sitt eget felt og blandes ikke inn. | `NY:345–356`; `WS:5562–5570`; `M/components/timer-detalj/ArbeidstidSeksjon.tsx:204`; `ST:192` (`lederKommentar`). Målt av leseagent. |
+| **FA38** | **Kortet leser bare radenes tekst.** En rad uten tekst gir aktivitetsnavnet i stedet. Tekstene skjøtes med « · ». En jobb med én rad med tekst og én uten viser «Graving … · Anleggsarbeid». En jobb uten tekst viser bare «Anleggsarbeid», og attestanten ser ikke at beskrivelsen mangler. | `RP:109`, `:250–252`. Lest av Fabel. |
+| **FA39** | **Dagens «Kommentar» vises ikke i lista eller i kortet.** Den står bare på detaljsiden. Begge listene sender den til nettleseren. | `AD:454–459` (lest av Fabel); `D:5779–5788`, `:5893`, `:6022–6036`, `:6215` (leseagent) |
+| **FA40** | Tabellen har en kolonne «Beskrivelse» som leser radens tekst. Den er ikke blant kjernekolonnene og må slås på med «Velg parameter». | `packages/shared/src/utils/timerDetaljRader.ts:745–751` (lest av Fabel); `AM:391` |
+| **FA41** | **Attestanten kan ikke rette beskrivelsen.** Rettekallet har ikke feltet, og «Rediger»-vinduet tar det ikke for nye rader. | `D:7299–7320` (lest av Fabel); `D:2874–2892` |
+| **FA42** | **✂ mister beskrivelsen.** Den første delen beholder den, fordi originalraden oppdateres. De andre delene lages uten tekst. «Del opp» ved klokkeslett kopierer teksten. | `D:7722–7748`, `:6813`. Lest av Fabel. |
+| **FA43** | **Telefonens attestering viser dagens «Kommentar», men ikke radens «Hva gjorde du?».** | `M/components/timer-attestering/AttesteringDetaljMobil.tsx:268–271` (lest av Fabel), `:300–314` |
+| **FA44** | Testdagen 13.05. har teksten i dagens «Kommentar», ikke på radene (målt av orkestrator på test). Dagen ble lagt inn med SQL (WM93). Teksten finnes ikke i noe skript i repoet. Databasen er ikke lest av Fabel. | `relay/inbox-fabel.md` ordre 2026-11-20 (3) |
+
+**Hvorfor kortet viste «Anleggsarbeid»:** testdagen har ingen tekst på radene (FA44), og kortet setter da inn
+aktiviteten (FA38). Ekte dager ført på telefonen har teksten på radene (FA35). Feilen i koden er at aktiviteten
+tar beskrivelsens plass, og at dagens kommentar ikke vises.
+
+**Slik skal det være** (w10 del A punkt A6):
+
+1. **Del 3 «Hva gjorde du?» viser det arbeideren skrev på jobben.** Det er teksten på jobbens timerader, hver
+   tekst én gang, i rekkefølge etter klokkeslett.
+2. **Aktiviteten står aldri der beskrivelsen skal stå.** Har ingen av jobbens rader tekst, står det
+   **«Ikke utfylt»**, uthevet, så attestanten ser at beskrivelsen mangler og kan returnere jobben.
+3. **Aktiviteten flyttes til kortets hode,** ved siden av byggeplassen. Den forsvinner ikke fra kortet.
+4. **Dagens «Kommentar» vises i kortet,** under del 3, med ledeteksten «Kommentar til dagen». Den vises i hvert
+   kort den dagen, også reisens. Er den tom, vises ingenting.
+5. **Beskrivelsen kan leses, ikke rettes, i w10.** Slik er det i dag (FA41). Er den feil eller mangler, returneres
+   jobben med kommentar. Retting av teksten følger w3, der jobben føres som én flate.
+6. **✂ arver beskrivelsen** (FA42). De nye delene får originalens tekst, slik «Del opp» alt gjør. Det er én linje
+   på serveren og lukker et hull: i dag mister de nye delene teksten i rapporten og eksporten.
+7. **Kolonnen «Beskrivelse» står som i dag.** Den er ikke i kjernen (B13 A, 13 kolonner), og kan slås på.
+8. **Reisens kort har ingen «Hva gjorde du?».** Der står ruta (§ 4.7 punkt 4).
+
+**Utenfor w10:**
+- Telefonens attestering viser ikke radens beskrivelse (FA43). Det bør rettes i en egen liten ordre for
+  telefonen. Hjemmelen er Kenneths ord over.
+- «Hva gjorde du?» blir påkrevd på web i w3 (B6).
+- Ny testdata (§ 8.7) skriver beskrivelsen på radene, gjennom serverens egne skriveveier. Det står alt i kravet.
+
+### 4.10 «Attestering» under Prosjekt fjernes — hva som blir dødt (B29 B, versjon 9)
+
+**Kenneth 2026-11-20:** B29 → B. *«fjern eventuell kode som nå er, eller skal bli død.»*
+
+Lista er målt mot develop @ `a5483f48`. For hver post er kallere søkt i web, telefon, API med tester og
+`packages/*`. `PA` = `apps/web/src/app/dashbord/[prosjektId]/timer/attestering`, `BU` =
+`apps/web/src/components/attestering/attestering-buckets.tsx`.
+
+**Rekkefølgen er ufravikelig.** Prosjektets side er i dag den eneste veien en prosjektleder har til
+attesteringen. Den fjernes derfor **sist i w10 del B**, etter at firmaets side er åpnet for prosjektledere (§ 4.6)
+og isolasjonstestene er flyttet og grønne. Fjernes den før, mister prosjektlederen attesteringen.
+
+**A. Blir dødt — fjernes**
+
+| # | Hva | Hvor | Kallere målt |
+|---|---|---|---|
+| **DK1** | Prosjektets attesteringsside | `PA/page.tsx` (123 linjer) | Eneste inngang er menypunktet (DK4) og omdirigeringen fra `godkjenning` (DK3). Ingen lenker fra Mine timer, dagssiden, rapporten, e-post, varsler eller telefonen. Fila blir en omdirigering (del C). |
+| **DK2** | Prosjektets detaljside for én dag | `PA/[id]/page.tsx` (48 linjer) | Lenkes bare fra DK1 (`:120`). Fila blir en omdirigering (del C). |
+| **DK3** | Den gamle omdirigeringen fra «godkjenning» | `apps/web/src/app/dashbord/[prosjektId]/timer/godkjenning/page.tsx:8` | Peker til DK1. Pekes rett til firmaets side, så ingen sendes to ganger. |
+| **DK4** | Menypunktet «Attestering» under Prosjekt | `SE:180–187` (elementet), `:259–260` (adressen), `:48` (`MODUL_EIERSKAP`) | Margen, mobilmenyen, ⇄-paringen og søket får punktet fra samme liste (`NS:128`, `Toppbar.tsx:46–49`, `KontekstChip.tsx:107`, `hooks/useSokRegistry.ts:111–115`). De trenger ingen egen endring. |
+| **DK5** | Feltet `kreverTimerLeder` og sjekken som bruker det | `SE:64`, `:319–322`, `:357–358` | Bare DK4 bruker feltet. |
+| **DK6** | Spesialtilfellet for aktiv seksjon, og typen | `apps/web/src/hooks/useAktivSeksjon.ts:60–63`; `apps/web/src/kontekst/navigasjon-kontekst.tsx:27` | Slår bare til for DK4. Kommentaren i `KontekstChip.tsx:117–118` rettes. |
+| **DK7** | Serverens liste for ett prosjekt, `hentTilAttestering` | `D:5765–5937` | Web: bare DK1 (`PA/page.tsx:29`). Telefonen: ingen. `packages/*`: ingen. Seks steder i web nullstiller bare hurtiglageret og må fjernes samtidig, ellers feiler typesjekken: `AD:92`, `:614`, `AttesteringDetalj_Edit.tsx:221`, `SplittRadModal.tsx:200`, `AT:232`, `RedigerRadModal.tsx:337`. API-testene står i del D. |
+| **DK8** | Serverens flagg for ett prosjekt, `kanAttestere` | `D:5940–5944` | Web: DK1 (`:27`), DK2 (`:18`) og DK5 (`SE:319`). Telefonen: ingen (den bruker `kanAttestereFirma`). Én API-test (del D). |
+| **DK9** | Hjelperne `krevProsjektLeder` og `erProsjektLeder` | `D:263`, `:246` | Bare DK7 og DK8 kaller dem. ⚠️ Regelen de bærer (aktivt medlem med admin eller «kan attestere», FA3) flyttes til den nye hjelperen for omfanget (§ 4.6 punkt 3) før de slettes. |
+| **DK10** | Hjelperen `dagsnormerFor` | `D:1425` | Bare DK7 (`:5812`). ⚠️ Før sletting: bekreft at firmaets liste gir dagsnormen tabellen viser som merke. |
+| **DK11** | Kodeblokkene i DK7 for navneskjul og for prosjekt og kort-id på utlegg | `D:5795–5806`, `:5814–5849`, `:5924–5928` | Bare i DK7. ⚠️ Innholdet flyttes til firmaets liste i del B (FA11). Hjelperen `navnSynlighet` (`D:371–384`) består; detaljkallet bruker den (`D:6421`). |
+| **DK12** | i18n: `timer.attestering.beskrivelse` og `timer.attestering.prosjekt.hjelp.laast` | `nb.json:732`, `:5833`, og de 14 andre språkfilene | Bare DK1 (`PA/page.tsx:69`, `:73`). |
+| **DK13** | «Én tabell pr. firma» på prosjektets side | `PA/page.tsx:35–42`, `:111–123` | Bare DK1. ⚠️ Se § 4.6 punkt 9: ingen som attesterer for flere firma, skal miste tilgang. |
+| **DK14** | **Død i dag, før B29:** `ProsjektSectionAttest`, `EcoBucketAttest` og radkomponentene de alene bruker | `BU:580`, `:693`; `BU:136`, `:160`, `:335`, `:475` | Ingen kallere utenfor fila (søkt av Fabel). En test vokter at de ikke brukes (`attestering-tabell-modell.test.ts:313`). `radIKontekst` (`BU:32–40`) og typene i samme fil er i bruk og består. Koderen måler hver eksport før den slettes. |
+| **DK15** | Docs som beskriver prosjektets side som noe som finnes | `hjelpetekster.md:378–384`, `:328`, `:338`; `timer.md:127`, `:750`, `:776`, `:819`, `:1073`, `:1078`; `web.md:56`; `api.md:40`; `arkitektur.md:388`; `redesign-paritetssjekkliste.md:109`, `:222`, `:225`; `prosjektkort-kortid-spec.md:2222`, `:2227` | Rettes i samme commit. `api.md:40` nevner også `hentTilGodkjenning` og `kanGodkjenne`, som ikke finnes i koden. De strykes. |
+
+**B. Ser dødt ut, men består**
+
+| Hva | Hvor | Hvorfor det består |
+|---|---|---|
+| `prosjektKontekst` i tabellen og detaljsiden, med «dagens Attester tar bare prosjektets del» | `AT:147–150`, `:193–194`, `:217`, `:459–480`, `:753`; `AD:51–58`, `:111`, `:483`, `:683–694`; `BU:32–40`; `AM:640–656` | Bare prosjektets side setter den i dag. **Del B gjør den til en mengde prosjekter** og bruker den for prosjektlederen på firmaets side (§ 4.6 punkt 3 og 4). Den slettes ikke. |
+| Teksten «Attester prosjektets del» | `timer.attestering.tabell.attesterProsjektetsDel`, `nb.json:5831`; `AT:469` | Følger grenen over. Teksten må passe flere prosjekter; koderen foreslår ny ordlyd i løsningen før kode. |
+| `navnSynlighet`, `prosjekterMedTilgang`, `attesteringsFirmaer`, `kanAttestereFravaer` | `D:371–384`, `:313`, `:279`, `:351–360` | Brukes av detaljkallet, handlingene og den nye hjelperen. |
+| `nav.timerAttestering` | `nb.json:30` | Brukes av søket (`dype-sider.tsx:45`). |
+| `timer.attestering.tittel`, `.ingenSedler`, `.ingenTilgang` og `timer.attestering.tabell.hjelp.*` | `nb.json:731–734` | Deles med firmaets side og telefonen. |
+| Listenøkkelen `"timer-attestering"` for lagret kolonneoppsett | `AT:78` | Har samme navn som menypunktet, men er noe annet. B26 A gir den ny nøkkel i del A. |
+| Retten prosjektlederen har på serveren, firmavalget for fravær (F1) og bryteren «kan attestere» på personkortet | `D:297–303`; `firma/innstillinger/page.tsx:997`; `oppsett/brukere/_components/PersonKort.tsx:136` | De er grunnlaget for omfanget i § 4.6. |
+
+**C. Gamle adresser sender videre**
+
+Mønsteret finnes: en `page.tsx` som bare kaller `redirect()` og står for eldre bokmerker
+(`apps/web/src/app/dashbord/[prosjektId]/timer/[id]/page.tsx:8–10`; med id: `firma/malarkiv/[malId]/page.tsx:7–9`).
+
+| Gammel adresse | Sender til |
+|---|---|
+| `/dashbord/[prosjektId]/timer/attestering` | Firmaets attestering (adressen del B velger, § 4.6 punkt 7) |
+| `/dashbord/[prosjektId]/timer/attestering/[id]` | Firmaets detaljside for samme dag, med samme id |
+| `/dashbord/[prosjektId]/timer/godkjenning` | Firmaets attestering, direkte |
+
+- Prosjektet tas ikke med som filter. Det var alternativ A i B29, og Kenneth valgte B.
+- `apps/web/src/hooks/__tests__/sok-dekning.test.ts:70–78` går gjennom alle sider og krever at hver enten er
+  søkbar eller står i unntakslista. De to nye omdirigeringene føres i lista, og grunnen for `godkjenning` rettes.
+  Ellers feiler testen.
+
+**D. Tester — kravene flyttes, de slettes ikke**
+
+Testene under kaller `hentTilAttestering` eller `kanAttestere`. De som er merket 🔴, bærer isolasjon mellom firma
+og prosjekter. Kravet skrives om mot firmaets liste med prosjektleder-omfang, og skal være grønt **før** DK7 og
+DK8 slettes. Ingen 🔴-test slettes uten at den nye er vist rød uten sperren.
+
+| Test | Hva den bærer |
+|---|---|
+| 🔴 `apps/api/src/routes/timer/prosjektliste-isolasjon.test.ts` (hele fila, `:177–229`) | Firmagrensen (lederen i A ser ikke B sin sedel), R13 (rader på prosjekt uten tilgang røper ikke navn eller nummer), feltene tabellen trenger. |
+| 🔴 `apps/api/src/routes/timer/attestering-navn-vedlegg.test.ts:196`, `:213`, `:219` | Samme navneskjul for underprosjekt og byggeplass i lista. Testene for detaljen (`:203`, `:229`, `:241–260`) står urørt. |
+| 🔴 `apps/api/src/routes/timer/firmagrense-attestering.test.ts:197–200`, `:212–215`, `:306–309` | H1 (A-leder ser ikke B sin sedel), ansattnummer fra sedelens firma (M7). |
+| 🔴 `apps/api/src/trpc/firmaadmin-eierfirma.test.ts:117–126` | Firmaadministrator i et deltakerfirma får ikke attesteringsrett. Flyttes til hjelperen for omfanget. |
+| 🔴 `apps/api/src/routes/fravaer-uten-prosjekt.integration.test.ts:565–572` (TF5) | F1: fravær uten prosjekt i prosjektlederens kø, i begge stillinger av firmavalget. |
+| `apps/api/src/routes/kortid-d2a.integration.test.ts:355`, `:393`, `:456`, `:477` | «Alle tre leserne gir samme kort-id» — blir to lesere, eller tre med prosjektleder-omfanget. |
+| `apps/api/src/routes/fravaer-normtak.integration.test.ts:567` (TF18); `apps/api/src/routes/w7-egne-timer.integration.test.ts:381–387` | Normbruddet og «egne timer» vises i lista. Flyttes til firmaets liste. |
+| 🔴 `apps/web/src/__tests__/attestering-tabell.test.tsx:300–325`, `:382–390`, `:781`, `:832` | T30/R13: tabellen er låst til prosjektet, dagens «Attester» tar bare prosjektets del, egen sedel er utenfor. Skrives om til en mengde prosjekter. |
+| `apps/web/src/__tests__/attestering-tabell-modell.test.ts:127–132` | Et kort på et annet prosjekt kan ikke velges. Skrives om til en mengde. |
+
+**Bakoverkompatibilitet:** telefonen kaller verken `hentTilAttestering` eller `kanAttestere` (søkt av Fabel i
+`apps/mobile`). Ingen eldre app mister noe når de to kallene fjernes. Web og API deployes sammen.
+
+**Ikke målt:** `ProsjektSectionAttest` og `EcoBucketAttest` er søkt, ikke bygget uten. Om firmaets liste i dag
+har prosjekt på utleggsradene (DK11) er ikke lest til bunns. Linjene i del D er målt av leseagent; stikkprøvd er
+alle kallene til `hentTilAttestering` og `kanAttestere`, `SE:178–188`, `:258–261`, `:317–323`, `:355–359`,
+omdirigeringen i `godkjenning`, de tre i18n-nøklene, `sok-dekning.test.ts:70–78` og `dype-sider.tsx:43–50`.
 
 ## 5. Maskintimer er en del av arbeidstiden — hva som må endres (føring 4)
 
@@ -1129,7 +1320,12 @@ dagskortet). Ett unntak: firmavalget «maskin føres med fra–til» gjelder beg
 | Ukevalget i firmaets attestering | `apps/web/src/app/dashbord/firma/timer/attestering/page.tsx:345–369` | **BEVARES.** Nytt: årsvelger ved siden av. |
 | Avvik-setningene i tabellen | `packages/shared/src/i18n/nb.json:5064`, `:4607` | **ENDRES** (B7): korte merker i cellen. Setningene består som forklaring på hover. |
 | Retting i cellen, «var …», ✓, ↩, ✂, penn, gjenåpne | `apps/web/src/components/attestering/AttesteringTabell.tsx` | **BEVARES.** Nytt: klikk på linja åpner registreringen (bilde 7). Kravet om firmaadministrator blir attesteringsrett (B10). ⚠️ **Snudd 2026-11-19 (§ 8.8):** retting i cellen går ut (B25 A). ✓, ↩ og gjenåpne står bare på jobbraden og dagsraden (B24 B). ✂ og penn flyttes inn i kortet (B27 A). |
-| Detaljsiden for én dag, «Rediger hele sedelen» | `apps/web/src/components/timer/AttesteringDetalj.tsx` | **BEVARES.** |
+| Detaljsiden for én dag, «Rediger hele sedelen» | `apps/web/src/components/timer/AttesteringDetalj.tsx` | **BEVARES** under Firma. ⚠️ Prosjektets adresse til den sender videre dit (B29 B, § 4.10). |
+| «Attestering» under Prosjekt: siden for ett prosjekt, menypunktet og søketreffet | `apps/web/src/app/dashbord/[prosjektId]/timer/attestering/`; `SE:180–187` | ⚠️ **UT** (B29 B, Kenneth 2026-11-20). Prosjektlederen attesterer på Firma › Attestering (§ 4.6). Gamle adresser sender videre. Dødkode-lista står i § 4.10. |
+| Avkrysning pr. linje og «Attester utvalget» | `AT:212–217`, `:866–875` | ⚠️ **ENDRES** (B30 A): avkrysningen står på jobbraden, reiseraden og dagsraden, og knappen tar hele jobber. En enkelt linje kan ikke lenger attesteres den veien. |
+| Kvitteringsikonet på utleggslinja | `AT:516`, `:1018–1045` | **BEVARES** (B31 B). Nytt: kvitteringen vises også i kortet. |
+| «Hva gjorde du?» i kortet, med aktiviteten som erstatning når teksten mangler | `RP:109`, `:250–252` | ⚠️ **ENDRES** (Kenneth 2026-11-20, § 4.9): aktiviteten står ikke lenger i beskrivelsens plass. Den flyttes til kortets hode. Mangler teksten, står «Ikke utfylt». Dagens «Kommentar» vises under. |
+| Reiseblokken i attesteringen: én pr. dag | `AM:489–494` | **ENDRES** (§ 4.7, venter på B32): én blå rad «Reise» for hvert prosjekt, med prosjektnummeret. Kort, ✓ og ↩ består. |
 | «Flytt underprosjekt» på serveren | `D:6627` | **BEVARES.** ⚠️ Må utvides: i dag flytter den bare timer- og tilleggsrader (WM52). Underprosjekt for hele jobben flytter også maskin, vare og utlegg. |
 | «Del opp» pr. rad i attesteringen | `apps/web/src/components/timer/SplittRadModal.tsx` | **BEVARES.** Nytt ved siden av: «Del opp» ved klokkeslett for hele jobben (bilde 8). ⚠️ 2026-11-19: ✂ som åpner vinduet, står i kortet (§ 4.5 punkt 4). |
 | Dagskort-modus på web og telefon | `WS`; `M/components/timer-detalj/MaskinSeksjon.tsx` | **BEVARES.** Fra–til på maskin følger firmavalget (B5); med anbefalingen i B12 står feltene som i dag. |
@@ -1146,8 +1342,31 @@ dagskortet). Ett unntak: firmavalget «maskin føres med fra–til» gjelder beg
 
 ## 8. Åpne spørsmål til Kenneth
 
-B1–B28 er besvart (§ 8.1–8.8). **Tre spørsmål er åpne etter versjon 8: B29–B31.** De følger av svarene på B24 og
-av at attesteringen samles på firmaets side (§ 4.6). Bildet står i § 4.5.
+B1–B31 er besvart (§ 8.1–8.9). **To spørsmål er åpne etter versjon 9: B32 og B33.** Begge gjelder reise
+(§ 4.7). Bildet står i § 4.5.
+
+| # | Spørsmål | Alternativer | Anbefaling |
+|---|---|---|---|
+| **B32** | **Hvor skal reisen stå i attesteringen?** Reiseraden bærer alt et prosjekt, og kostnaden følger det (FA28). I dag vises all reise som én blokk for dagen, med nummeret til det første prosjektet (FA18). | **A:** egen blå rad «Reise» for hvert prosjekt, rett over jobbene på prosjektet. Raden viser prosjektnummeret, har eget kort og egen ✓, og attesteres av lederen for prosjektet. Ingen migrering. **B:** reisen legges inn i jobbens kort som egen del og attesteres sammen med jobben. Da må reise få kort-id. Det snur vedtaket fra 16.11. (B1 = A og G8), krever en migrering av reiseradene som finnes, endring på telefonen, og en regel for hvilken jobb reisen havner i når prosjektet har flere jobber samme dag. | **A.** Reisen blir knyttet til prosjektet og synlig der, uten at vedtak snus eller data røres. Reisen gjelder prosjektet, ikke én av jobbene på det. |
+| **B33** | **En dag med to prosjekter: hvilket prosjekt bærer utreisen og returen?** Telefonen legger i dag begge på ett prosjekt: det med flest arbeidstimer, eller GPS-forslagets ene destinasjon (FA20). | **A:** utreisen føres på dagens første prosjekt, og returen på dagens siste. **B:** som i dag: begge på ett prosjekt. | **A.** Det følger ordene dine: reisen til et prosjekt hører til det prosjektet, og reisen fra et prosjekt hører til det. Endringen gjelder føringen på telefonen og hører til timer-GPS-sporet, ikke w10. Etappen mellom de to prosjektene er alt vedtatt (V9): arbeidstid på prosjektet du kommer til. |
+
+**Følger som ikke er spørsmål, men si fra hvis du mente noe annet:**
+
+1. Dagens «Kommentar» vises i kortet under «Hva gjorde du?», i hvert kort den dagen (§ 4.9 punkt 4).
+2. Aktiviteten flyttes til kortets hode. Mangler beskrivelsen, står det «Ikke utfylt» (§ 4.9 punkt 2 og 3).
+3. Attestanten kan lese beskrivelsen, ikke rette den, i w10. Mangler den, returneres jobben (§ 4.9 punkt 5).
+4. ✂ arver beskrivelsen til de nye delene. I dag mister de den (FA42).
+5. Gamle adresser til prosjektets attestering sender videre til firmaets side, uten prosjektet som filter
+   (§ 4.10 del C).
+6. Prosjektets side fjernes sist i w10 del B, når prosjektlederen har firmaets side (§ 4.10).
+7. Kode som alt er død i dag, fjernes i samme ordre (DK14).
+8. Hover-teksten for Prosjekt › Attestering utgår. w11 har 37 tekster (§ 4.8).
+9. Telefonens attestering viser ikke radens beskrivelse (FA43). Det rettes i en egen liten ordre, ikke i w10.
+10. Står fra versjon 8: ↗ heter «Åpne dagsseddelen». Detaljsiden og «Rediger sedel» der står urørt til w3. ↺ står
+    på jobbraden og dagsraden. Prosjektlederen får ikke ukeavvik og ukeoversikt i w10 (§ 4.6 punkt 5).
+    Telefonens attestering er fortsatt bare for firmaadministrator. Ny testdata (§ 8.7) bestilles nå.
+
+**Besvart i versjon 8 — B29–B31 slik de ble stilt** (svarene står i § 8.9; B29 ble besvart mot anbefalingen):
 
 | # | Spørsmål | Alternativer | Anbefaling |
 |---|---|---|---|
@@ -1155,23 +1374,15 @@ av at attesteringen samles på firmaets side (§ 4.6). Bildet står i § 4.5.
 | **B30** | **Avkrysningen står på hver linje, og «Attester utvalget» attesterer de avkryssede linjene (`AT:212–217`, `:866–875`). Skal den følge B24 B?** | **A:** avkrysningen flyttes til jobbraden og dagsraden. «Attester utvalget» tar hele jobber: de avkryssede, eller alle jobbene som vises når ingen er krysset av. En jobb der filteret skjuler noen linjer, attesteres likevel hel. Knappen teller jobber. **B:** avkrysningen står på linjene som i dag. Da kan en enkelt linje fortsatt attesteres den veien. | **A.** Det følger begrunnelsen din for B24: jobben attesteres samlet. Med B finnes det en bakvei til det du valgte bort. |
 | **B31** | **Kvitteringsikonet på utleggslinja (`AT:516`) er den eneste knappen som blir igjen på en linje.** Kortet viser i dag utlegget uten kvittering (`RP:304–315`). | **A:** kvitteringen vises bare i kortet, under «Utlegg». Ikonet tas bort fra linja. Det blir ett klikk mer for å se den. **B:** ikonet står på utleggslinja som i dag, og kvitteringen vises i tillegg i kortet. | **B.** Kvitteringen er et bilag du ser på, ikke en handling på timene. Beløpet ble lagt i kjernen av samme grunn (B13 A). |
 
-**Følger som ikke er spørsmål, men si fra hvis du mente noe annet:**
-
-1. ↗ på den blå linja heter «Åpne dagsseddelen», ikke «Rediger sedel».
-2. Detaljsiden og «Rediger sedel» der står urørt til w3 er bygget.
-3. «Hva gjorde du?», varer og utlegg kan leses i kortet, ikke rettes, som i dag.
-4. Den som kan attestere en jobb, kan gjenåpne den (R23). ↺ står på jobbraden og dagsraden, ikke på linja.
-5. Ny testdata (§ 8.7) bestilles nå, fordi w9 er merget. Uten den står maskinen fortsatt på egen linje på test.
-6. Reisen står som egen blå rad med eget kort, slik den gjør i dag (§ 4.7). Den legges ikke inn i jobbens kort.
-7. Prosjektlederen får ikke ukeavvik og ukeoversikt på firmaets side i w10 (§ 4.6 punkt 5). Prosjektets side har
-   dem ikke i dag.
-8. Telefonens attestering er fortsatt bare for firmaadministrator (§ 4.6 punkt 11).
-
 **Besvart i versjon 7 — B24–B28 slik de ble stilt** (svarene står i § 8.8; B24 ble besvart mot anbefalingen):
 
 | # | Spørsmål | Alternativer | Anbefaling |
 |---|---|---|---|
-
+| **B24** | **Skal ✓ og ↩ stå på hver linje?** Du skrev at knappene på linjene i bilde 6 «er erstattet av knapper som fungerer bedre». Det kan leses begge veier. | **A:** ✓ og ↩ står på hver linje, som i bilde 6 og i dag. Ordinær tid kan attesteres og overtiden returneres hver for seg. **B:** de fjernes. Attestering og retur skjer bare pr. jobb (jobbraden) og pr. dag (dagsraden). En enkelt linje kan da ikke returneres alene. | **A.** Det er bilde 6, og ingen funksjon forsvinner. ✂ og ✎ flyttes uansett inn i kortet. |
+| **B25** | **Skal cellene på linja fortsatt kunne rettes ved klikk?** I dag åpnes Fra, Til, Timer, Pause, lønnsart, aktivitet, maskin, maskintimer og antall for retting når du klikker i cellen (vedtatt 16.11., R21). | **A:** nei. Linja kan bare leses, og kortet er det ene stedet å rette. Aktivitet og bytte av maskin rettes da i «Rediger jobben». **B:** ja, ved siden av kortet. | **A.** Det følger ordene dine: det er unødvendig at hver rad kan åpnes for redigering. |
+| **B26** | **Du ser ikke de 13 kjernekolonnene, fordi brukeren din har et lagret kolonneoppsett fra før w5.** Planen lot lagrede oppsett stå (følge 16). | **A:** alle lagrede oppsett for attesteringen settes til kjernen én gang. Den som vil ha flere kolonner, legger dem til igjen med «Velg parameter». **B:** som i dag. Hver bruker trykker «Tilbakestill til standard» selv. | **A.** Prod har bare testbrukere, og kjernen er det planen viser. |
+| **B27** | **Hvordan legger attestanten til og sletter linjer, maskiner og tillegg fra kortet?** Kortet kan i dag bare rette verdier som finnes. | **A:** knappen «Rediger jobben» øverst i kortet åpner vinduet pennen åpner i dag, for hele jobben. «+» og «✕» rett i kortet kommer med w3, når føringen bygges som én flate og kortet blir samme flate. **B:** «+» og «✕» bygges rett i kortet nå, og vinduet bak pennen tas ut. Det er større, og må gjøres om når w3 kommer. | **A.** Det er en justering av det som finnes. Alt som rettes ofte (fra–til, lønnsart, maskintimer, underprosjekt, del opp), gjøres rett i kortet. |
+| **B28** | **Prosjektets attestering får uke, år og fanene «Venter» og «Attestert». Hva viser «Venter»?** I dag viser siden alt som venter, uansett uke. | **A:** begge fanene følger uka, som firmaets side og bilde 6. Det som venter fra tidligere uker, ser du når du blar tilbake. **B:** «Venter» viser alt som venter, uansett uke, som i dag. Ukevalget gjelder bare «Attestert». | **A.** Samme side og samme regel i firma og prosjekt. Med A kan en gammel dag bli liggende usett; med B oppfører de to fanene seg ulikt. |
 
 **Besvart i versjon 6 — B21–B23 slik de ble stilt** (svarene står i § 8.7):
 
@@ -1300,22 +1511,22 @@ Kenneth 2026-11-18: «Ja, (a)». Firmavalget «Attestant kan attestere egne time
 
 ### 8.8 Kenneths svar på B24–B28, 2026-11-19
 
-- **B24 → B.** ✓ og ↩ står bare på jobbraden og dagsraden. Linjene viser tall og har ingen knapper. Kenneths begrunnelse: kortet rettes samlet (prosjekt, byggeplass, underprosjekt, arbeidstimer, maskiner pr. time/døgn, varer med type, enhet og mengde, utlegg, tillegg og eventuelt reise), og «det gir ingen mening å attestere timer dersom maskintimene har feil». Reise er målt i § 4.7: den hører til dagen (vedtatt 2026-11-14) og står som egen blå rad med eget kort, ikke i jobbens kort. 🟡 B24 B er ikke bygget; følgene står i § 4.5 punkt 5, og to av dem er B30 og B31.
+- **B24 → B.** ✓ og ↩ står bare på jobbraden og dagsraden. Linjene viser tall og har ingen knapper. Kenneths begrunnelse: kortet rettes samlet (prosjekt, byggeplass, underprosjekt, arbeidstimer, maskiner pr. time/døgn, varer med type, enhet og mengde, utlegg, tillegg og eventuelt reise), og «det gir ingen mening å attestere timer dersom maskintimene har feil». Reise er målt i § 4.7. ⚠️ Kenneth var uenig i versjon 8 sin tekst om reise 20.11. (§ 8.9); § 4.7 er skrevet om i versjon 9, og plasseringen er B32. 🟡 B24 B er ikke bygget; følgene står i § 4.5 punkt 5. B30 og B31 er besvart (§ 8.9).
 - **B25 → A.** Cellene på linja åpnes ikke for retting. Kortet er det ene stedet du retter.
 - **B26 → A** (Kenneth var usikker; forklart 19.11.). Lagrede kolonneoppsett for attesteringslista settes til kjernekolonnene én gang. Kolonner kan legges til igjen med «Velg parameter».
 - **B27 → A, og pennen beholdes.** «Rediger jobben» i kortet vises med pennen (✎) som ikon. «+» og «✕» direkte i kortet kommer med w3.
 - **B28 → A.** «Venter» følger uka.
 - **Nytt ønske (hjemmel Kenneth 19.11.):** hover-forklaring på menypunktene i venstre marg, særlig der samme navn står både under Prosjekt og Firma (Attestering, Timer). Teksten skal si hva siden gjør og hvem den er for. Fabel skriver tekstene etter `tooltip-hjelpetekst-veileder.md`. 🟡 Tekstene og plasseringen i koden står i § 4.8; delen heter w11 og er ikke bygget.
 
-- **Prosjektleder med flere prosjekter (Kenneth 19.11.).** Målt: prosjektets attestering henter bare ett prosjekt (`hentTilAttestering`, `dagsseddel.ts:5765`). Firmaets side krever firmaadministrator (`autoriserAdminForFirma`, `dagsseddel.ts:5979`). En prosjektleder for fire prosjekter må derfor bytte prosjekt fire ganger. Kenneth: da bør attesteringen flyttes til firmaattesteringen, der prosjektlederen får opp sine ansatte i sine prosjekter. 🟡 Spesifisert i § 4.6 (versjon 8); bygges som w10 del B. Hva som skjer med prosjektets side, er B29.
+- **Prosjektleder med flere prosjekter (Kenneth 19.11.).** Målt: prosjektets attestering henter bare ett prosjekt (`hentTilAttestering`, `dagsseddel.ts:5765`). Firmaets side krever firmaadministrator (`autoriserAdminForFirma`, `dagsseddel.ts:5979`). En prosjektleder for fire prosjekter må derfor bytte prosjekt fire ganger. Kenneth: da bør attesteringen flyttes til firmaattesteringen, der prosjektlederen får opp sine ansatte i sine prosjekter. 🟡 Spesifisert i § 4.6 (versjon 8); bygges som w10 del B. Prosjektets side fjernes (B29 → B, § 8.9 og § 4.10).
 
 ### 8.9 Kenneths svar på B29–B31 og innspill til v8, 2026-11-20
 
-- **B29 → B.** «Attestering» under Prosjekt fjernes, og attesteringen finnes bare under Firma. Kenneth: «fjern eventuell kode som nå er, eller skal bli død». Fabel lager en liste over hva som blir dødt (side, rute, kall, nøkler, tester), og sjekker kallere i web, telefon og API før noe føres som dødt.
-- **B30 → A.** Avkrysningen flyttes til jobbraden og dagsraden. «Attester utvalget» tar hele jobber.
-- **B31 → B.** Kvitteringsikonet står på utleggslinja, og kvitteringen vises også i kortet.
-- **Reise — Kenneth er uenig med § 4.7.** «En reisekostnad knyttes til en kostnad for et prosjekt. Det er reisekostnaden til/fra et prosjekt og bør knyttes til prosjektet kostnaden tilhører.» § 4.7 («reise hører ikke til en jobb») må vurderes på nytt mot dette. Det er ikke avklart om reisen skal inn i en jobb eller stå som egen rad under prosjektet.
-- **Beskrivelsen i kortet.** Kenneth: beskrivelsen må være med i kortet, og «denne er svært viktig ved attestering». Orkestrator har målt: kortet viser `rad.beskrivelse` og faller tilbake til aktiviteten (`RegistreringPanel.tsx:109`). På test 13.05. står beskrivelsen i sedelens kommentar, og kortet viser derfor «Anleggsarbeid».
+- **B29 → B.** «Attestering» under Prosjekt fjernes, og attesteringen finnes bare under Firma. Kenneth: «fjern eventuell kode som nå er, eller skal bli død». 🟡 Ikke bygget. Lista over hva som blir dødt, hva som består, omdirigeringene og testene som må flyttes, står i § 4.10 (DK1–DK15). Fjerningen er siste steg i w10 del B.
+- **B30 → A.** Avkrysningen flyttes til jobbraden og dagsraden. «Attester utvalget» tar hele jobber. 🟡 Ikke bygget; § 4.5 punkt 5, w10 del A.
+- **B31 → B.** Kvitteringsikonet står på utleggslinja, og kvitteringen vises også i kortet. 🟡 Kortet viser den ikke i dag; § 4.5 punkt 5, w10 del A.
+- **Reise — Kenneth er uenig med § 4.7.** «En reisekostnad knyttes til en kostnad for et prosjekt. Det er reisekostnaden til/fra et prosjekt og bør knyttes til prosjektet kostnaden tilhører.» 🟡 § 4.7 er skrevet om i versjon 9. Målt: reiseraden bærer alt et prosjekt, og kostnaden og attesteringsretten følger det (FA28, FA29). Attesteringen viser det dårlig: én blokk pr. dag med det første prosjektets nummer (FA18). Om reisen skal stå som egen rad under prosjektet eller inn i jobbens kort, er B32. Hvilket prosjekt som bærer ut- og returreisen på en dag med to prosjekter, er B33.
+- **Beskrivelsen i kortet.** Kenneth: beskrivelsen må være med i kortet, og «denne er svært viktig ved attestering». Orkestrator har målt: kortet viser `rad.beskrivelse` og faller tilbake til aktiviteten (`RegistreringPanel.tsx:109`). På test 13.05. står beskrivelsen i sedelens kommentar, og kortet viser derfor «Anleggsarbeid». 🟡 Målt og spesifisert i § 4.9 (FA34–FA44): kortet viser alltid radenes «Hva gjorde du?», aldri aktiviteten i stedet, og dagens «Kommentar» under. Ikke bygget; w10 del A punkt A6.
 
 ## 9. Rekkefølge
 
@@ -1335,15 +1546,19 @@ delene krever ingen.
 | **w8** | Kenneth 2026-11-19 (§ 8.6 punkt 1): jobbraden åpner registreringen, timeradene gjør det ikke. Datoen i dagsraden står hel ved 1 440. Retting av «null null» for utstyr uten merke og modell, og av den kuttede «Ansattnr»-overskriften. | `AT`, `TR`, `apps/web/src/components/attestering/utstyr-navn.ts`, `DagsKort.tsx`, `attestering-buckets.tsx`, i18n (`timer.attestering.tabell.hjelp.registrering`), `hjelpetekster.md` | Ett klikk på jobbraden åpner jobben; «man. 16.11.» står hel. |
 | **w7** | Attestantens egne timer (B15, § 4.3): firmavalget på innstillingssiden, sperren på serveren i de elleve prosedyrene (WM89), flagg pr. seddel i de tre listene, og merket «Egne timer» på PC og telefon. Med B17 A: lønnsform på den ansatte (**migrering, Kenneth**), feltet på ansattkortet og attestantlista på innstillingssiden. | `packages/db` (bare med B17 A), `D`, `apps/api/src/routes/organisasjon.ts`, `apps/web/src/app/dashbord/firma/innstillinger/page.tsx`, `AT`, `AM`, `apps/mobile/app/timer/attestering/`, `apps/mobile/src/components/timer-attestering/`, i18n, hjelpeteksten, `timer.md` | Egne timer står med «Egne timer» og uten ✓ når firmaet har valgt «Nei». |
 | **w9** | Maskintimer høyst jobbens arbeidstimer (§ 4.4): den delte regelen pr. jobb uten pausen og uten døgn-maskiner, de åtte stedene og de sju hullene på serveren (WM96, WM97), «Del opp», avviksmerket «Maskin over arbeid» og «høyst» ved feltene på PC. Deretter telefonen (**w9m**): Bekreft dag, dagskort-modus og dagsoversikten, og til slutt synken (B22). | `packages/shared/src/utils/maskinKapasitet.ts`, `D`, `apps/api/src/routes/timer/jobb-deling.ts`, `WS`, `apps/web/src/components/attestering/*` (`RegistreringPanel.tsx`, `RedigerRadModal.tsx`, `attestering-tabell.ts`), i18n, hjelpeteksten, `timer.md`, `maskin.md`, `KS` (B4, R24), `fase-0-beslutninger.md`. w9m: `BD`, `M/utils/bekreftDag.ts`, `M/utils/bekreftDagTillegg.ts`, `M/services/kobledeMaskiner.ts`, `M/components/timer-detalj/MaskinSeksjon.tsx`, `M/components/timer-detalj/ProsjektkortDagsoversikt.tsx`. Med B21 B: `packages/db-maskin` (**migrering, Kenneth**) og maskinkortet. | Ola Tømrer 14.05. står med «Maskin over arbeid» og kan attesteres med merket (B23 B). ✂ og bytte av underprosjekt som ville gitt samme tilstand, avvises med forklaring. En Heatwork kan føres med flere timer enn arbeidet. **D1 (w9m, Kenneth 2026-11-19, B21 A):** «Kun maskiner som heatwork eller utleie maskiner/materiell kan ha timer/døgn leie uten at arbeidstimer tilsvarende eller flere er registrert» — telefonens rad-regel «maskin ≤ radens timer» (`maskinerOverRad`) gjelder derfor bare maskiner med fører. |
-| **w10** | Retteordren etter KS (§ 4.5) og Kenneths svar (§ 8.8). ⚠️ Skrevet om i versjon 8: ✓ og ↩ bort fra linjene (B24 B), og punkt 3 fra versjon 7 (uke, år og faner på prosjektets side) er erstattet av del B. **Del A — kortet og knappene** (bare web): (1) fra, til og pause som felt i kortet, timene regnes ut, timefeltet ut (K7); lønnsartvalget holder reise og arbeid fra hverandre (§ 4.7 punkt 4); (2) ✓, ↩, ↺, ✂ og ✎ bort fra linjene: ✓ ↩ ↺ står bare på jobbraden og dagsraden (B24 B), ✂ ved timelinja i kortet og «✎ Rediger jobben» øverst i kortet (B27 A); (3) kjernekolonnene for alle (K1, B26 A); (4) cellene på linja kan bare leses (B25 A), bygges etter (1); (5) ↗ heter «Åpne dagsseddelen», og detaljsidens tabell får full bredde (K8, K11). **Del B — én attestering på firmanivå** (§ 4.6): omfanget regnes på serveren, firmaets liste og detaljside åpnes for prosjektledere, «Attestering» blir menypunkt under Firma, og firmaets tidsrunding følger med lista. **Venter på svar:** avkrysningen (B30), kvitteringsikonet (B31) og prosjektets side (B29). Ingen migrering. | Del A: `RP`, `AT`, `AD`, `apps/web/src/components/attestering/attestering-tabell.ts`, i18n, `hjelpetekster.md`, `apps/web/src/__tests__/attestering-tabell.test.tsx`. Del B: `D` (`hentTilAttesteringFirma`, `kanAttestereFirma`, ny hjelper for omfanget), `FS`, `apps/web/src/app/dashbord/firma/timer/attestering/[id]/page.tsx`, ruta og rammen (§ 4.6 punkt 7), `FN`, `apps/web/src/components/layout/dype-sider.tsx`, `AT` (`prosjektKontekst` som mengde), i18n, `hjelpetekster.md`, `timer.md`, `api.md`, isolasjonstester. Ikke `apps/mobile`. | Bildet `ks-attestering.png`: en prosjektleder ser alle prosjektene sine på én side, linjene har ingen knapper, og jobben rettes i kortet. |
-| **w11** | Hover-forklaring på menypunktene i venstremargen (§ 4.8, hjemmel Kenneth 2026-11-19): feltet `hjelpNokkel` på menypunktene, `Tooltip` rundt raden i full og smal bredde, og 38 tekster. | `SE`, `FN`, `NS`, i18n (`nav.hjelp.*`, `firmaNav.hjelp.*`), `docs/claude/retningslinjer/tooltip-hjelpetekst-veileder.md`, `hjelpetekster.md` | Hold pekeren over «Timer» under Prosjekt og under Firma: teksten sier hva som skiller dem. |
+| **w10** | Retteordren etter KS (§ 4.5) og Kenneths svar (§ 8.8, § 8.9). ⚠️ Skrevet om i versjon 9: B29–B31 er arbeidet inn, beskrivelsen (§ 4.9) og fjerningen av prosjektets side (§ 4.10) er lagt til. **Del A — kortet og knappene** (web, og én linje på serveren): (A1) fra, til og pause som felt i kortet, timene regnes ut, timefeltet ut (K7); lønnsartvalget holder reise og arbeid fra hverandre (§ 4.7 punkt 6); (A2) ✓, ↩, ↺, ✂ og ✎ bort fra linjene: ✓ ↩ ↺ står bare på de blå radene (B24 B), ✂ ved timelinja i kortet og «✎ Rediger jobben» øverst i kortet (B27 A); (A3) kjernekolonnene for alle (K1, B26 A); (A4) cellene på linja kan bare leses (B25 A), bygges etter A1; (A5) ↗ heter «Åpne dagsseddelen», og detaljsidens tabell får full bredde (K8, K11); (A6) beskrivelsen: del 3 viser radenes «Hva gjorde du?», aldri aktiviteten; «Ikke utfylt» når den mangler; aktiviteten i kortets hode; dagens «Kommentar» under (§ 4.9); (A7) avkrysningen på de blå radene, og «Attester utvalget» tar hele jobber (B30 A); (A8) kvitteringen vises også i kortet, og ikonet står på utleggslinja (B31 B); (A9) ✂ arver beskrivelsen (FA42) — den ene linja på serveren; (A10) ⏸ reiseraden: én blå rad «Reise» for hvert prosjekt, med prosjektnummer og eget kort med ruta (§ 4.7 punkt 3 og 4) — **venter på B32**. **Del B — én attestering på firmanivå** (§ 4.6): (B1–B6) omfanget regnes på serveren, firmaets liste og detaljside åpnes for prosjektledere, «Attestering» blir menypunkt under Firma, og firmaets tidsrunding følger med lista; (B7) «Attestering» under Prosjekt fjernes (B29 B): DK1–DK15 i § 4.10, gamle adresser sender videre, isolasjonstestene flyttes først. B7 er siste commit i del B. Ingen migrering. | Del A: `RP`, `AT`, `AD`, `AM`, `D` (bare `splittRad`, A9), i18n, `hjelpetekster.md`, `apps/web/src/__tests__/attestering-tabell.test.tsx`. Del B: `D` (`hentTilAttesteringFirma`, `kanAttestereFirma`, ny hjelper for omfanget; ut: `hentTilAttestering`, `kanAttestere`, `krevProsjektLeder`, `erProsjektLeder`, `dagsnormerFor`), `FS`, `apps/web/src/app/dashbord/firma/timer/attestering/[id]/page.tsx`, ruta og rammen (§ 4.6 punkt 7), `FN`, `SE`, `apps/web/src/components/layout/dype-sider.tsx`, `apps/web/src/app/dashbord/[prosjektId]/timer/attestering/` og `…/godkjenning/` (blir omdirigeringer), `useAktivSeksjon.ts`, `navigasjon-kontekst.tsx`, `BU` (DK14), `AT` (`prosjektKontekst` som mengde), i18n (15 språkfiler for nøklene som slettes), testene i § 4.10 del D, `sok-dekning.test.ts`, `hjelpetekster.md`, `timer.md`, `api.md`, `web.md`, `arkitektur.md`, `redesign-paritetssjekkliste.md`, kort-id-specen. Ikke `apps/mobile`. | Bildet `ks-attestering.png`: en prosjektleder ser alle prosjektene sine på én side, linjene har ingen knapper, jobben rettes i kortet, og kortet viser hva arbeideren skrev. «Attestering» finnes bare under Firma. |
+| **w11** | Hover-forklaring på menypunktene i venstremargen (§ 4.8, hjemmel Kenneth 2026-11-19): feltet `hjelpNokkel` på menypunktene, `Tooltip` rundt raden i full og smal bredde, og 37 tekster (38 før B29 B tok ut Prosjekt › Attestering). | `SE`, `FN`, `NS`, i18n (`nav.hjelp.*`, `firmaNav.hjelp.*`), `docs/claude/retningslinjer/tooltip-hjelpetekst-veileder.md`, `hjelpetekster.md` | Hold pekeren over «Timer» under Prosjekt og under Firma: teksten sier hva som skiller dem. |
 
-- **w10 går før w3, w4 og w6.** Den justerer det som er bygget, tilbake til bilde 6–8. Del A går først og er bare
-  web. Del B går rett etter, på de samme filene (`AT`), og får egen gate: den endrer hvem som får se timer og
-  lønnsart, så regel 10 kjøres uavhengig. I del A bygges punkt 4 etter punkt 1, så ingen rettevei forsvinner før
-  kortet har feltene. Avkrysningen (B30), kvitteringsikonet (B31) og prosjektets side (B29) står urørt til de er
-  besvart; alt annet kan starte nå.
-- **w11 går etter w10 del B,** fordi menypunktet Firma › Attestering må finnes først. Den rører ikke attesteringens
+- **w10 går før w3, w4 og w6.** Den justerer det som er bygget, tilbake til bilde 6–8. Del A går først. Den er web,
+  med én linje på serveren (A9). Del B går rett etter, på de samme filene (`AT`), og får egen gate: den endrer hvem
+  som får se timer og lønnsart, så regel 10 kjøres uavhengig. I del A bygges A4 etter A1, så ingen rettevei
+  forsvinner før kortet har feltene.
+- **I del B er fjerningen (B7) siste commit.** Prosjektets side er prosjektlederens eneste vei til attesteringen i
+  dag. Den tas ut først når firmaets side er åpnet for ham og isolasjonstestene er flyttet og grønne (§ 4.10).
+- **Bare A10 (reiseraden) venter på svar** (B32). Alt annet i del A og hele del B kan starte nå. B33 gjelder
+  telefonen og hører ikke til w10.
+- **w11 går etter w10 del B,** fordi menypunktet Firma › Attestering må finnes først, og Prosjekt › Attestering
+  må være borte (37 tekster). Den rører ikke attesteringens
   filer. i18n-generatoren kjøres aldri samtidig med en annen del.
 - **w1 kan gå først og alene.** Den retter det Kenneth så i attesteringen, uten å vente på resten.
 - **w1 → w2 → w3 → w4 går etter hverandre:** alle rører `WS`.
@@ -1475,3 +1690,18 @@ Tester: `attestering-tabell.test.tsx` («w5b — dagsvisningen, alternativ A»),
 - Hover-tekstene utenom Timer, Attestering og HMS er ikke holdt mot sidene av Fabel (§ 4.8).
 - Hvordan en prosjektleder slipper inn på attesteringen uten at firmaadministrator-rammen åpnes (§ 4.6 punkt 7).
   Koderen foreslår det i løsningen før kode.
+- **Versjon 9:** ingenting er kjørt i nettleser eller mot en database. Testdagen 13.05. er ikke lest av Fabel;
+  at teksten står i dagens «Kommentar», er målt av orkestrator (FA44).
+- FA16 (skjemaet og `D:4029`), FA18, FA30, FA34, FA38, FA40, FA42 og deler av FA20, FA35, FA36, FA39, FA41 og FA43
+  er lest av Fabel. Resten av FA20 og FA28–FA33, FA35–FA37 og FA39 er målt av leseagenter; stikkprøvd er
+  `DagSeksjon.tsx:80–96`, `dagsforslag.ts:1168–1171`, V9 og K8 i `timer-gps-helhetsplan.md`,
+  `fase-0-beslutninger.md:1054`, `rapport.ts:298–323`, `D:700–706` og `D:1055–1059`.
+- Ikke stikkprøvd: `ReiseRadMerke.tsx`, `rapport.ts:631–668`, `kortBeskrivelse.ts`, `bekreftDag.ts:115–119`,
+  `TimerSeksjon.tsx:1751–1761`, `NY:345–356`, `WS:5562–5570` og `ArbeidstidSeksjon.tsx:204`.
+- Om «Rediger jobben» (`redigerSedelRader`) mister beskrivelsen når en rad slettes og legges til på nytt (FA41).
+  Koderen måler og melder.
+- Om en reiserad kan få nytt prosjekt i attesteringen i dag (pennen på en reiselinje), og hva som da skjer med
+  retning og rute.
+- Hvor mange dager i test og prod som har reise på mer enn ett prosjekt (FA18), og hvor mange sedler som har
+  tekst i dagens «Kommentar» uten tekst på radene.
+- § 4.10: se «Ikke målt» nederst i delen.
