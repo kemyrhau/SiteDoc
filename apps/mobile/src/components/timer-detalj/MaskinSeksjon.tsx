@@ -38,9 +38,7 @@ import {
   DEFAULT_PAUSE_ETTER_TIMER,
   effektiveTimerFraSpenn,
   hhmmTilMin,
-  maskinBucketKapasitet,
   maskinKreverTimerad,
-  overstigerMaskinTak,
   pauseVinduFra,
   tilFraAntall,
   tilErEtterFra,
@@ -50,7 +48,6 @@ import { finnProsjektLokalt } from "../../services/prosjektKatalog";
 import { hentArbeidsdagTiderLokalt } from "../../services/kalenderKatalog";
 import { hentOrganizationSettingLokalt } from "../../services/organizationSettingKatalog";
 import { hentReiseLonnsartId } from "../../services/timerKatalog";
-import { erReiseRadVisning } from "../../utils/reiseRad";
 import { ENHETER } from "../../lib/enheter";
 import type { MaskinRad, Equipment } from "../../types/timer-detalj";
 import { ProsjektVelgerModal, ProsjektFelt } from "./ProsjektVelger";
@@ -65,6 +62,16 @@ import { useAuth } from "../../providers/AuthProvider";
 import { sistBrukteMaskiner } from "../../services/nyTimerRad";
 import { sikreLokalKortId } from "../../services/kortIdLokal";
 import { arbeidsraderIBotteLokalt } from "../../services/maskinKoblingLokal";
+import {
+  bruddTekst,
+  hoystForMaskin,
+  jobbTall,
+  lesJobbGrunnlag,
+  medMaskin,
+  nyeMaskinBrudd,
+  NY_MASKIN_ID,
+  type JobbMaskinLokal,
+} from "../../services/maskinJobbLokalt";
 import {
   forvalgtTimeradId,
   timeradSperre,
@@ -97,8 +104,6 @@ interface MaskinSeksjonProps {
   visHeader?: boolean;
   /** ISO YYYY-MM-DD — dato på dagsseddelen. Brukes til kalender-utleting (T4-e). */
   dato: string;
-  /** Sedel-nivå pause (min) — inngår i maskin ≤ arbeid-kapasitet (Del 2). */
-  pauseMin: number;
   harEquipmentCache: boolean;
   /** T.11: false når innlogget bruker mangler gyldig maskinførerbevis i org.
    *  Styrer soft-varsel — påvirker ALDRI synlighet eller lagring. */
@@ -115,7 +120,6 @@ export function MaskinSeksjon({
   defaultEcoId = null,
   visHeader = true,
   dato,
-  pauseMin,
   harEquipmentCache,
   harMaskinforerbevis,
   redigerbar,
@@ -286,7 +290,6 @@ export function MaskinSeksjon({
           defaultProjectId={projectId}
           defaultEcoId={defaultEcoId}
           dato={dato}
-          pauseMin={pauseMin}
           eksisterendeRad={
             redigerRadId
               ? rader.find((r) => r.id === redigerRadId) ?? null
@@ -463,7 +466,6 @@ export function MaskinRadModal({
   defaultProjectId,
   defaultEcoId,
   dato,
-  pauseMin,
   eksisterendeRad,
   handlinger,
   kortArbeidsrader,
@@ -475,7 +477,6 @@ export function MaskinRadModal({
   defaultProjectId: string;
   defaultEcoId: string | null;
   dato: string;
-  pauseMin: number;
   eksisterendeRad: MaskinRad | null;
   /** ORDRE 36b: «Del opp»/«Slett» — kun fra prosjektkort-flyten. Udefinert
    *  (dagskortet) = ingen knapper, modalen som før. */
@@ -499,7 +500,7 @@ export function MaskinRadModal({
   const { t } = useTranslation();
   // T.5 + B1 (M5, 2026-07-10): firma-tidsrunding + pause-parametre fra lokal
   // cache. Maskin følger FØRERENS pause (B1) → standardPauseMin (firma-default),
-  // IKKE sedel-`pauseMin` (som er Del 2 bucket-taket). Speiler TimerSeksjon.
+  // IKKE sedel-`pauseMin` (som bare teller for eldre rader uten jobb, w9m). Speiler TimerSeksjon.
   const { tidsrundingMinutter, standardPauseMin, pauseEtterTimer } = useMemo(() => {
     const setting = hentOrganizationSettingLokalt(organizationId);
     return {
@@ -703,58 +704,39 @@ export function MaskinRadModal({
       .map((r) => r.vehicleId);
   }, [sheetId]);
 
-  // Del 2 (maskin ≤ arbeid): reaktiv bucket-kapasitet for gjeldende
-  // (valgtProjectId, valgtEcoId). Leser sedelens rader fra SQLite så den
-  // er korrekt også når bruker bytter prosjekt/ECO i modalen. Delt
-  // @sitedoc/shared-regel — identisk med serverens validerMaskinUnderArbeid.
-  const kapasitet = useMemo(() => {
+  // w9m (plan § 4.4, B21 A): maskinregelen pr. jobb, likt med serveren
+  // (`krevIngenNyeMaskinBrudd`). Jobben er kortet til timeraden maskinen står
+  // på. Førermaskin: «høyst X t», og et nytt eller økt brudd stopper Lagre.
+  // Døgn-maskin: ingen grense. Leser sedelen fra SQLite, så den er riktig også
+  // når brukeren bytter prosjekt, underprosjekt eller timerad i modalen.
+  const jobb = useMemo(() => {
     const db = hentDatabase();
-    if (!db)
-      return { arbeidSum: 0, sumMaskinEksisterende: 0, ledig: 0, overstiger: false };
-    const iBucket = (r: {
-      projectId: string | null;
-      externalCostObjectId: string | null;
-    }) =>
-      (r.projectId ?? defaultProjectId) === valgtProjectId &&
-      (r.externalCostObjectId ?? null) === (valgtEcoId ?? null);
-    // Ordre (6): maskin måles mot arbeid UTEN reise.
-    const reiseArtId = hentReiseLonnsartId(organizationId);
-    const arbeidSum = db
-      .select()
-      .from(sheetTimerLocal)
-      .where(eq(sheetTimerLocal.dagsseddelId, sheetId))
-      .all()
-      .filter((r) => iBucket(r) && !erReiseRadVisning(r.erReise, r.lonnsartId, reiseArtId))
-      .reduce((acc, r) => acc + (r.timer ?? 0), 0);
-    const sumMaskinEksisterende = db
-      .select()
-      .from(sheetMachineLocal)
-      .where(eq(sheetMachineLocal.dagsseddelId, sheetId))
-      .all()
-      .filter((r) => iBucket(r) && r.id !== eksisterendeRad?.id)
-      .reduce((acc, r) => acc + (r.timer ?? 0), 0);
-    const { ledig } = maskinBucketKapasitet({
-      arbeidSum,
-      sumMaskinEksisterende,
-      pauseMin,
-    });
-    const nyTimer = parseFloat(timer.replace(",", "."));
-    const nyBidrag = isNaN(nyTimer) ? 0 : nyTimer;
-    const overstiger = overstigerMaskinTak(
-      sumMaskinEksisterende + nyBidrag,
-      arbeidSum,
-      pauseMin,
-    );
-    return { arbeidSum, sumMaskinEksisterende, ledig, overstiger };
+    if (!db) return { hoyst: null as number | null, bruddTekst: null as string | null };
+    const foer = lesJobbGrunnlag(db, sheetId, hentReiseLonnsartId(organizationId));
+    const tall = parseFloat(timer.replace(",", "."));
+    const rad: JobbMaskinLokal = {
+      id: eksisterendeRad?.id ?? NY_MASKIN_ID,
+      kortId: valgtTimerad?.kortId ?? null,
+      projectId: valgtProjectId,
+      externalCostObjectId: valgtEcoId ?? null,
+      timer: isNaN(tall) ? 0 : tall,
+      utleieEnhet: valgtEquipment?.utleieEnhet ?? null,
+    };
+    const brudd = nyeMaskinBrudd(foer, medMaskin(foer, rad));
+    return {
+      hoyst: hoystForMaskin(foer, rad),
+      bruddTekst: brudd.length > 0 ? bruddTekst(t, db, brudd) : null,
+    };
   }, [
     sheetId,
+    organizationId,
+    eksisterendeRad?.id,
+    valgtTimerad?.kortId,
     valgtProjectId,
     valgtEcoId,
     timer,
-    pauseMin,
-    eksisterendeRad?.id,
-    defaultProjectId,
-    organizationId,
+    valgtEquipment?.utleieEnhet,
+    t,
   ]);
 
   function lagre() {
@@ -785,6 +767,10 @@ export function MaskinRadModal({
         setFeil(t("timer.feil.ugyldigMengde"));
         return;
       }
+    }
+    if (jobb.bruddTekst) {
+      setFeil(jobb.bruddTekst);
+      return;
     }
     // T4-e: fraTid < tilTid hvis begge satt. Delt regel (@sitedoc/shared).
     if (!tilErEtterFra(fraTid, tilTid)) {
@@ -898,8 +884,15 @@ export function MaskinRadModal({
               placeholder="0,00"
               keyboardType="decimal-pad"
               inputAccessoryViewID={TASTATUR_FERDIG_ID}
-              className="rounded-lg border border-gray-300 bg-white px-3 py-3 text-base text-gray-900"
+              className={`rounded-lg border bg-white px-3 py-3 text-base text-gray-900 ${
+                jobb.bruddTekst ? "border-red-400" : "border-gray-300"
+              }`}
             />
+            {jobb.hoyst !== null && (
+              <Text className="mt-1 text-xs text-gray-500">
+                {t("timer.maskin.hoyst", { timer: jobbTall(jobb.hoyst) })}
+              </Text>
+            )}
           </View>
 
           <View>
@@ -950,47 +943,24 @@ export function MaskinRadModal({
             />
           </View>
 
-          {/* Del 2: inline kapasitet-linje for bucketen. Rød ved overskridelse;
-              Lagre disables da (samme regel som server). */}
-          <View
-            className={`rounded-lg border px-3 py-2 ${
-              kapasitet.overstiger
-                ? "border-red-300 bg-red-50"
-                : "border-gray-200 bg-gray-50"
-            }`}
-          >
-            <Text
-              className={`text-xs ${
-                kapasitet.overstiger ? "text-red-800" : "text-gray-500"
-              }`}
-            >
-              {t("timer.maskin.kapasitet", {
-                arbeid: kapasitet.arbeidSum.toFixed(2),
-                maskin: kapasitet.sumMaskinEksisterende.toFixed(2),
-                ledig: Math.max(0, kapasitet.ledig).toFixed(2),
-              })}
-            </Text>
-            {kapasitet.overstiger && (
-              <Text className="mt-0.5 text-xs font-medium text-red-800">
-                {t("timer.maskin.overstigerArbeid")}
-              </Text>
-            )}
-          </View>
+          {jobb.bruddTekst && (
+            <Text className="text-sm font-medium text-red-700">{jobb.bruddTekst}</Text>
+          )}
 
           {feil && <Text className="text-sm text-red-600">{feil}</Text>}
 
           <Pressable
             onPress={lagre}
-            disabled={kapasitet.overstiger}
+            disabled={!!jobb.bruddTekst}
             className={`mt-4 items-center rounded-lg px-6 py-4 ${
-              kapasitet.overstiger
+              jobb.bruddTekst
                 ? "bg-gray-300"
                 : "bg-blue-600 active:bg-blue-700"
             }`}
           >
             <Text
               className={`text-base font-semibold ${
-                kapasitet.overstiger ? "text-gray-500" : "text-white"
+                jobb.bruddTekst ? "text-gray-500" : "text-white"
               }`}
             >
               {t("handling.lagre")}

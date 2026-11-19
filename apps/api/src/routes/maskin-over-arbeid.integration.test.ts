@@ -329,6 +329,21 @@ describe("w9 — avvisning pr. skrivevei", () => {
     );
   });
 
+  it("forsonDagskort: forslaget senker jobbens arbeid under maskinen → avvist (w9m)", async () => {
+    const sid = await nySedel();
+    const k = randomUUID();
+    const tid = await timerRad(sid, { fra: "07:00", til: "11:30", timer: 4.5, kortId: k });
+    await maskinRad(sid, { timer: 4.5, kortId: k, sheetTimerId: tid });
+    await forventAvvist(sid, () =>
+      dag().forsonDagskort({
+        sheetId: sid,
+        oppdateringer: [
+          { id: tid, projectId: P1, lonnsartId: ORD, aktivitetId: AKT, timer: 2, fraTid: "07:00", tilTid: "09:00", pauseMin: 0, kortId: k },
+        ],
+      }),
+    );
+  });
+
   it("forsonDagskort: et gammelt brudd i en annen jobb stopper ikke ny føring (negativkontroll)", async () => {
     const sid = await nySedel();
     const k = randomUUID();
@@ -421,6 +436,38 @@ describe("w9 — avvisning pr. skrivevei", () => {
     expect(s.timer[0]!.externalCostObjectId).toBe(ECO_1);
     expect(s.maskin[0]!.externalCostObjectId).toBe(ECO_1);
   });
+
+  // RETUR 1 V1 (w9m): flyttHeleJobben beholder kortId, så jobbens summer er uendret. Et nytt
+  // brudd kan bare oppstå når sikreKortId slår en rad UTEN kortId (eldre data, regel 3) inn i
+  // jobben fordi den nå har samme nøkkel. Vakten i samme transaksjon avviser det.
+  it("flyttTimerRadEco helJobb: eldre førermaskin uten jobb på målet slås inn → nytt brudd → avvist", async () => {
+    const sid = await nySedel({ status: "sent" });
+    const k = randomUUID();
+    const r1 = await timerRad(sid, { fra: "07:00", til: "11:30", timer: 4.5, kortId: k });
+    await maskinRad(sid, { timer: 4.5, kortId: k, sheetTimerId: r1 });
+    await prismaTimer.sheetMachine.create({
+      data: { sheetId: sid, projectId: P1, vehicleId: MASKIN, timer: 3, kortId: null, externalCostObjectId: ECO_1 },
+    });
+    await forventAvvist(sid, () =>
+      dag(ADMIN).flyttTimerRadEco({ timerRadId: r1, externalCostObjectId: ECO_1, helJobb: true }),
+    );
+  });
+
+  it("flyttTimerRadEco helJobb: førermaskin i en annen jobb på målet slås ikke sammen (negativkontroll)", async () => {
+    const sid = await nySedel({ status: "sent" });
+    const k = randomUUID();
+    const k2 = randomUUID();
+    const r1 = await timerRad(sid, { fra: "07:00", til: "11:30", timer: 4.5, kortId: k });
+    await maskinRad(sid, { timer: 4.5, kortId: k, sheetTimerId: r1 });
+    const r2 = await timerRad(sid, { fra: "12:00", til: "13:00", timer: 1, kortId: k2 });
+    await prismaTimer.sheetTimer.update({ where: { id: r2 }, data: { externalCostObjectId: ECO_1 } });
+    await prismaTimer.sheetMachine.create({
+      data: { sheetId: sid, projectId: P1, vehicleId: MASKIN, timer: 3, kortId: k2, sheetTimerId: r2, externalCostObjectId: ECO_1 },
+    });
+    await dag(ADMIN).flyttTimerRadEco({ timerRadId: r1, externalCostObjectId: ECO_1, helJobb: true });
+    const s = await tilstand(sid);
+    expect(new Set(s.maskin.map((m) => m.kortId))).toEqual(new Set([k, k2]));
+  });
 });
 
 describe("w9 — reise teller ikke som arbeid (flyttet fra enhetstestene)", () => {
@@ -473,6 +520,9 @@ describe("w9 — syncBatch (B22 A)", () => {
     const svar = await sync(sedel(cu, nyDato(), randomUUID(), 7.5));
     expect(svar.resultat).toBe("avvist");
     expect(svar.feilmelding).toMatch(/maskin 7,5 t, arbeid 4,5 t/);
+    // w9m (plan § 5): nøkkel + parametre ved siden av nb-teksten, så telefonen viser brukerens språk.
+    expect(svar.feilNokkel).toBe(NOKKEL);
+    expect(svar.feilParam).toMatchObject({ maskin: "7,5", arbeid: "4,5" });
     expect(await prismaTimer.dailySheet.findUnique({ where: { clientUuid: cu } })).toBeNull();
   });
 
@@ -507,6 +557,7 @@ describe("w9 — syncBatch (B22 A)", () => {
   it("døgn-maskin over arbeidet → ok (negativkontroll)", async () => {
     const svar = await sync(sedel(randomUUID(), nyDato(), randomUUID(), 24, DOEGN));
     expect(svar.resultat).toBe("ok");
+    expect(svar.feilNokkel).toBeUndefined();
   });
 });
 

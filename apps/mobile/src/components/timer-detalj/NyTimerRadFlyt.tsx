@@ -190,7 +190,6 @@ export function NyTimerRadFlyt({ onLukk }: { onLukk: () => void }) {
       defaultByggeplassId={byggeplassId}
       defaultEcoId={null}
       dato={dato}
-      sheetPauseMin={dag?.pauseMin ?? 0}
       harEquipmentCache={harEquipmentCache}
       eksisterendeRader={dag?.rader ?? []}
       alleTimerRader={dag?.rader ?? []}

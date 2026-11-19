@@ -10,7 +10,7 @@ import {
 } from "../db/schema";
 import { finnEllerOpprettDagsseddel, finnSedelIAnnetFirma } from "./dagsseddelOpprett";
 import { erReiseLonnsartLokalt } from "./timerKatalog";
-import { maskinerOverRad, skrivKobledeMaskiner, type NyMaskin } from "./kobledeMaskiner";
+import { enhetLokalt, maskinerOverRad, skrivKobledeMaskiner, type NyMaskin } from "./kobledeMaskiner";
 import {
   SIST_BRUKTE_MASKINER_ANTALL,
   sisteUnikeMaskiner,
@@ -258,7 +258,7 @@ export function settInnTimerRad(
 ): string {
   // NY BESLUTNING maskinkobling: maskin over radens timer avvises FØR noe
   // skrives (rad-modalen sier fra først; dette er siste vern).
-  if (maskinerOverRad(rad.timer, rad.maskiner).length > 0) {
+  if (maskinerOverRad(rad.timer, rad.maskiner, enhetLokalt(db)).length > 0) {
     throw new Error("maskinOverRad: maskintimer over radens timer");
   }
   // Del B pkt 1: fang timer-radens id så maskin-raden kan stemples med den.
@@ -350,7 +350,7 @@ export function lagreNyTimerRad(
   const fra = finnDagForDato(db, args.userId, args.dato);
   if (fra && erDagLaast(fra)) return { ok: false, grunn: "dagLaast", sheetId: fra.id };
   // Maskin over radens timer: avvis før en tom sedel opprettes.
-  if (maskinerOverRad(args.rad.timer, args.rad.maskiner).length > 0) {
+  if (maskinerOverRad(args.rad.timer, args.rad.maskiner, enhetLokalt(db)).length > 0) {
     throw new Error("maskinOverRad: maskintimer over radens timer");
   }
   // Gate (34): sjekkes før sedelen finnes/opprettes — ingenting skrives.

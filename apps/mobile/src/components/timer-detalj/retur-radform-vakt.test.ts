@@ -42,7 +42,7 @@ function beskrivelseSperret(kilde: string): boolean {
 function splittAvviserMaskinOverDel1(kilde: string): boolean {
   const del1 = kilde.indexOf("const del1Timer = tilTall(timerDeler[0]!.timerTekst);");
   const sjekk = kilde.search(
-    /const overDel1 = maskinerOverRad\(del1Timer, hentKobledeMaskiner\(db, o\.id\)\);\s*if \(overDel1\.length > 0\) \{[\s\S]*?setFeil\(t\("timer\.maskinSeksjon\.overRad"[\s\S]*?return;\s*\}/,
+    /const overDel1 = maskinerOverRad\(del1Timer, hentKobledeMaskiner\(db, o\.id\), enhetLokalt\(db\)\);\s*if \(overDel1\.length > 0\) \{[\s\S]*?setFeil\(t\("timer\.maskinSeksjon\.overRad"[\s\S]*?return;\s*\}/,
   );
   const skriv = kilde.indexOf("db.update(sheetTimerLocal)");
   return del1 >= 0 && sjekk > del1 && skriv > sjekk;

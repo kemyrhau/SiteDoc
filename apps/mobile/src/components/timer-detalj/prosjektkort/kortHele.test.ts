@@ -343,7 +343,7 @@ describe("slettKort", () => {
   it("nytt maskinbrudd stopper uten skriving; brudd som fantes fra før blokkerer ikke", async () => {
     const a = leggTilTimerRad(db(), K, felt, []);
     lagMaskin("m-c", "p1", "bp2", 6); // annet kort, samme bøtte (p1) — dekkes bare av kort A
-    expect(await slettKort(db(), dagFor(), innholdFor(A), SERVER_OK)).toEqual({ utfall: "brudd" });
+    expect(await slettKort(db(), dagFor(), innholdFor(A), SERVER_OK)).toMatchObject({ utfall: "brudd" });
     expect(timerRad(a)).toBeDefined();
     expect(tombstones()).toHaveLength(0);
     // Eksisterende brudd i p2 hindrer ikke sletting når p1 ikke får nytt brudd.
@@ -356,7 +356,7 @@ describe("slettKort", () => {
     const a = leggTilTimerRad(db(), K, felt, []);
     leggTilTimerRad(db(), K, { ...felt, byggeplassId: "bp2", lonnsartId: "l-reise", timer: 7 }, []);
     lagMaskin("m-c", "p1", "bp2", 6); // 6 t maskin ≤ 7 t reise, men reise er ikke arbeid
-    expect(await slettKort(db(), dagFor(), innholdFor(A), SERVER_OK)).toEqual({ utfall: "brudd" });
+    expect(await slettKort(db(), dagFor(), innholdFor(A), SERVER_OK)).toMatchObject({ utfall: "brudd" });
     expect(timerRad(a)).toBeDefined();
   });
 });
@@ -503,7 +503,7 @@ describe("flyttKort", () => {
   it("nytt maskinbrudd stopper uten skriving", async () => {
     const a = leggTilTimerRad(db(), K, felt, []);
     lagMaskin("m-c", "p1", "bp2", 6);
-    expect(await flyttKort(db(), dagFor(), innholdFor(A), A, TIL, SERVER_OK)).toEqual({ utfall: "brudd" });
+    expect(await flyttKort(db(), dagFor(), innholdFor(A), A, TIL, SERVER_OK)).toMatchObject({ utfall: "brudd" });
     expect(timerRad(a)).toMatchObject({ projectId: "p1", byggeplassId: "bp1" });
   });
 
@@ -537,7 +537,7 @@ describe("RETUR 36c-kort-2 — feiltekst og NOT_FOUND", () => {
     expect(kortUtfallTekst({ utfall: "offline" }, "slett")).toBe("timer.kort.offlineSlett");
     expect(kortUtfallTekst({ utfall: "offline" }, "flytt")).toBe("timer.kort.offlineFlytt");
     expect(kortUtfallTekst({ utfall: "delvis" }, "flytt")).toBe("timer.kort.delvisFlyttet");
-    const stopp: KortUtfall[] = [{ utfall: "laast" }, { utfall: "brudd" }, { utfall: "serverFeil", melding: "x" }, { utfall: "delvis" }];
+    const stopp: KortUtfall[] = [{ utfall: "laast" }, { utfall: "brudd", jobb: "P1", maskin: "8", arbeid: "7,5" }, { utfall: "serverFeil", melding: "x" }, { utfall: "delvis" }];
     for (const u of stopp) for (const h of ["slett", "flytt"] as const) expect(kortUtfallTekst(u, h)).toBeTruthy();
     expect(kortUtfallTekst({ utfall: "ok" }, "slett")).toBeNull();
   });
@@ -552,7 +552,7 @@ describe("RETUR 36c-kort-2 — feiltekst og NOT_FOUND", () => {
     }
     for (const sprak of ["nb", "en"]) {
       const json = JSON.parse(fs.readFileSync(path.join(i18n, `${sprak}.json`), "utf8")) as Record<string, string>;
-      for (const n of ["timer.kort.offlineSlett", "timer.kort.offlineFlytt", "timer.detalj.laast", "timer.maskin.overstigerArbeid"])
+      for (const n of ["timer.kort.offlineSlett", "timer.kort.offlineFlytt", "timer.detalj.laast", "timer.maskin.overArbeidAvvist"])
         expect(json[n], `${sprak}:${n}`).toBeTruthy();
     }
   });

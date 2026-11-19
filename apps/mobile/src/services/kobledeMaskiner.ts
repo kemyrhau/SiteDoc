@@ -1,8 +1,10 @@
 import { eq } from "drizzle-orm";
 import { randomUUID } from "expo-crypto";
+import { maskinKreverTimerad } from "@sitedoc/shared";
 import type { hentDatabase } from "../db/database";
 import { sheetMachineLocal, slettedeRaderLocal } from "../db/schema";
 import { sikreLokalKortId } from "./kortIdLokal";
+import { utleieEnhetLokalt } from "./maskinKoblingLokal";
 
 /* ============================================================================
  *  NY BESLUTNING maskinkobling (Kenneth 2026-11-12) — erstatter «én maskin pr
@@ -52,9 +54,25 @@ export type RadForMaskin = {
   tilTid: string | null;
 };
 
-/** Ren: linjene som har flere timer enn raden (tom = gyldig). */
-export function maskinerOverRad<T extends { timer: number }>(radTimer: number, linjer: T[]): T[] {
-  return linjer.filter((l) => l.timer > radTimer + EPS);
+/** Maskinens leieenhet (`utleieEnhet`) fra id — `null` = ikke satt. */
+export type EnhetFor = (vehicleId: string) => string | null;
+
+/** Leieenheten fra den lokale utstyrsbufferen. */
+export function enhetLokalt(db: LokalDb): EnhetFor {
+  return (vehicleId) => utleieEnhetLokalt(db, vehicleId);
+}
+
+/**
+ * Ren: linjene som har flere timer enn raden (tom = gyldig). D1 (Kenneth
+ * 2026-11-19, B21 A): gjelder KUN maskiner med fører (`maskinKreverTimerad`) —
+ * en døgn-maskin (heatwork, utleie) kan ha timer uten tilsvarende arbeid.
+ */
+export function maskinerOverRad<T extends { timer: number; vehicleId: string }>(
+  radTimer: number,
+  linjer: T[],
+  enhetFor: EnhetFor,
+): T[] {
+  return linjer.filter((l) => maskinKreverTimerad(enhetFor(l.vehicleId)) && l.timer > radTimer + EPS);
 }
 
 /** Koblede maskiner for raden, i lagret rekkefølge. */
@@ -85,7 +103,7 @@ export function maskinerOverRadEtterLagring(
       }),
     ...(endringer?.linjer ?? []).filter((l) => !l.id).map((l) => ({ id: null, vehicleId: l.vehicleId, timer: l.timer })),
   ];
-  return maskinerOverRad(radTimer, etter);
+  return maskinerOverRad(radTimer, etter, enhetLokalt(db));
 }
 
 /**

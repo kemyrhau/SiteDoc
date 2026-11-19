@@ -1,12 +1,17 @@
 import { and, eq, inArray } from "drizzle-orm";
-import {
-  beregnMaskinBrudd,
-  type MaskinBrudd,
-  type MaskinKapasitetRad,
-} from "@sitedoc/shared";
-import { byggeplassLocal, dagsseddelLocal, sheetTimerLocal, sheetMachineLocal } from "../db/schema";
+import { type MaskinJobbBrudd } from "@sitedoc/shared";
+import { byggeplassLocal, dagsseddelLocal } from "../db/schema";
 import type { LokalDb } from "../services/dagsforslagInput";
-import { maskinerOverRad } from "../services/kobledeMaskiner";
+import { maskinerOverRad, type EnhetFor } from "../services/kobledeMaskiner";
+import {
+  lesJobbGrunnlag,
+  nyeMaskinBrudd,
+  TOMT_JOBB_GRUNNLAG,
+  type JobbGrunnlag,
+  type JobbMaskinLokal,
+} from "../services/maskinJobbLokalt";
+import { utleieEnhetLokalt } from "../services/maskinKoblingLokal";
+import { hentReiseLonnsartId } from "../services/timerKatalog";
 import type { SedelKortKontekst } from "../lib/prosjektkortMobil";
 import type { Dagsforslag } from "./dagsforslag";
 
@@ -26,6 +31,8 @@ export type TilleggMaskin = {
   timer: number;
   mengde: number | null;
   enhet: string | null;
+  /** w9m: radens kort (jobb). Settes når linjen knyttes til en rad (`maskinerForDato`). */
+  kortId?: string | null;
 };
 
 export type TilleggVare = {
@@ -98,16 +105,22 @@ export function entydigByggeplass(forslag: Dagsforslag, projectId: string): stri
   return ider.size === 1 ? [...ider][0]! : null;
 }
 
+/**
+ * w9m (plan § 4.4): grunnlaget for jobb-regelen på datoens sedel. `foer` =
+ * sedelen slik den står; `etter` = med forslagets nye rader (uten de nye
+ * maskinene). `enhet` gir maskinens leieenhet (døgn-maskiner har ingen grense).
+ */
 export type VaktGrunnlag = {
-  timerRader: MaskinKapasitetRad[];
-  maskinRader: MaskinKapasitetRad[];
-  pauseMin: number;
+  foer: JobbGrunnlag;
+  etter: JobbGrunnlag;
+  enhet: (vehicleId: string) => string | null;
 };
 
 /**
  * KUN LESING. Grunnlaget serveren validerer på etter Bekreft: datoens sedels
  * eksisterende timer- og maskinrader (append på draft/returned) + forslagets
- * rader for start-datoen. null = ingen start-sedel å skrive på (sendt/ingen).
+ * rader for datoen, med kort-id-en `tildelKortIder` ga dem. null = ingen
+ * dato å skrive på (blokkert/ingen).
  */
 export function vaktGrunnlag(
   db: LokalDb,
@@ -118,12 +131,13 @@ export function vaktGrunnlag(
 ): VaktGrunnlag | null {
   const d = forslag.datoer.find((x) => (dato ? x.dato === dato : x.erStartSegment));
   if (!d || d.blokkert || forslag.prosjektId == null) return null;
-  // Ordre (6): maskin måles mot arbeid UTEN reise — reise-rader er ikke grunnlag.
-  // Strengere enn serveren (som fortsatt teller reise), aldri løsere.
-  const nyeTimer = d.rader.filter((r) => !r.erReise).map((r) => ({
+  const nyeTimer = d.rader.map((r, i) => ({
+    id: `forslag:${i}`,
+    kortId: r.kortId ?? null,
     projectId: r.projectId,
     externalCostObjectId: null,
     timer: r.timer,
+    erReise: r.erReise,
   }));
   const nyPause = d.rader.reduce((s, r) => s + r.pauseMin, 0);
   const sedel = db
@@ -137,31 +151,20 @@ export function vaktGrunnlag(
       ),
     )
     .all()[0];
-  if (!sedel) return { timerRader: nyeTimer, maskinRader: [], pauseMin: d.pauseMin };
-  // Lokal rad uten prosjekt arver sedelens (samme bøtte som serveren ser etter sync).
-  const tilRad = (r: { projectId: string | null; externalCostObjectId: string | null; timer: number }) => ({
-    projectId: r.projectId ?? sedel.projectId,
-    externalCostObjectId: r.externalCostObjectId,
-    timer: Number(r.timer),
-  });
-  const eksTimer = db
-    .select()
-    .from(sheetTimerLocal)
-    .where(eq(sheetTimerLocal.dagsseddelId, sedel.id))
-    .all()
-    .filter((r) => r.erReise !== true)
-    .map(tilRad);
-  const eksMaskin = db
-    .select()
-    .from(sheetMachineLocal)
-    .where(eq(sheetMachineLocal.dagsseddelId, sedel.id))
-    .all()
-    .map(tilRad);
+  const enhet = (vehicleId: string) => utleieEnhetLokalt(db, vehicleId);
+  // RETUR 1 M1: eldre rader med `erReise` null og reise-lønnsart er reise, som på serveren.
+  const foer = sedel
+    ? lesJobbGrunnlag(db, sedel.id, hentReiseLonnsartId(sedel.organizationId))
+    : TOMT_JOBB_GRUNNLAG;
   return {
-    timerRader: [...eksTimer, ...nyeTimer],
-    maskinRader: eksMaskin,
-    // PK6: serverens hode-pause = Σ rad-pause, også etter append.
-    pauseMin: (sedel.pauseMin ?? 0) + nyPause,
+    foer,
+    etter: {
+      timer: [...foer.timer, ...nyeTimer],
+      maskin: foer.maskin,
+      // PK6: serverens hode-pause = Σ rad-pause, også etter append (kun eldre rader uten kort).
+      pauseMin: sedel ? foer.pauseMin + nyPause : d.pauseMin,
+    },
+    enhet,
   };
 }
 
@@ -234,7 +237,14 @@ export function radTilleggNokkel(
 /** Maskin og varer pr. arbeidsrad, nøkkel fra `radTilleggNokkel`. */
 export type TilleggPerRad = Record<string, BekreftDagTillegg>;
 
-export type TilleggRad = { nokkel: string; dato: string; projectId: string; timer: number };
+export type TilleggRad = {
+  nokkel: string;
+  dato: string;
+  projectId: string;
+  timer: number;
+  /** w9m: radens kort (jobb) — maskinene på raden måles mot jobben. */
+  kortId: string | null;
+};
 
 /** Arbeidsradene på åpne datoer som kan bære maskin og varer. */
 export function tilleggRader(forslag: Dagsforslag): TilleggRad[] {
@@ -243,7 +253,9 @@ export function tilleggRader(forslag: Dagsforslag): TilleggRad[] {
     if (d.blokkert) continue;
     for (const r of d.rader) {
       const nokkel = radTilleggNokkel(d.dato, r);
-      if (nokkel && r.timer > 0) ut.push({ nokkel, dato: d.dato, projectId: r.projectId, timer: r.timer });
+      if (nokkel && r.timer > 0) {
+        ut.push({ nokkel, dato: d.dato, projectId: r.projectId, timer: r.timer, kortId: r.kortId ?? null });
+      }
     }
   }
   return ut;
@@ -263,7 +275,7 @@ export function tilleggUtenRad(forslag: Dagsforslag, perRad: TilleggPerRad): str
 }
 
 /**
- * Regel 2: maskinens egne timer ≤ radens (standard = radens, lavere tillatt).
+ * Regel 2: maskinens egne timer ≤ radens (standard = radens, lavere tillatt) — D1: kun maskiner med fører.
  * Pr. kjøretøy: flere linjer med samme `vehicleId` på samme rad summeres
  * (V1, GATE 50 — én maskin kan ikke gå flere timer enn raden). Bruddet
  * bærer summen i `maskin.timer`.
@@ -271,41 +283,50 @@ export function tilleggUtenRad(forslag: Dagsforslag, perRad: TilleggPerRad): str
 export function maskinerOverRaden(
   forslag: Dagsforslag,
   perRad: TilleggPerRad,
-): Array<{ nokkel: string; projectId: string; radTimer: number; maskin: TilleggMaskin }> {
+  /** D1: kun maskiner med fører har radens timer som grense. */
+  enhetFor: EnhetFor,
+): Array<{ nokkel: string; projectId: string; kortId: string | null; radTimer: number; maskin: TilleggMaskin }> {
   return tilleggRader(forslag).flatMap((r) => {
     const pr = new Map<string, TilleggMaskin>();
     for (const m of perRad[r.nokkel]?.maskiner ?? []) {
       const f = pr.get(m.vehicleId);
       pr.set(m.vehicleId, f ? { ...f, timer: f.timer + m.timer } : m);
     }
-    return maskinerOverRad(r.timer, [...pr.values()]).map((maskin) => ({
+    return maskinerOverRad(r.timer, [...pr.values()], enhetFor).map((maskin) => ({
       nokkel: r.nokkel,
       projectId: r.projectId,
+      kortId: r.kortId,
       radTimer: r.timer,
       maskin,
     }));
   });
 }
 
-/** Maskinene som skrives på datoens sedel, med radens prosjekt (for sum-vakten). */
+/** Maskinene som skrives på datoens sedel, med radens prosjekt og kort (jobb-vakten). */
 export function maskinerForDato(forslag: Dagsforslag, perRad: TilleggPerRad, dato: string): TilleggMaskin[] {
   return tilleggRader(forslag)
     .filter((r) => r.dato === dato)
-    .flatMap((r) => (perRad[r.nokkel]?.maskiner ?? []).map((m) => ({ ...m, projectId: r.projectId })));
+    .flatMap((r) =>
+      (perRad[r.nokkel]?.maskiner ?? []).map((m) => ({ ...m, projectId: r.projectId, kortId: r.kortId })),
+    );
 }
 
-/** Samme regel som serveren (`beregnMaskinBrudd`). Nye maskiner har ingen ECO. */
+/**
+ * Samme regel som serveren (`krevIngenNyeMaskinBrudd`): maskinene med fører
+ * ≤ jobbens arbeid; bare nye eller økte brudd stopper. Nye maskiner har ingen ECO.
+ */
 export function maskinBruddForTillegg(
   grunnlag: VaktGrunnlag | null,
   nyeMaskiner: TilleggMaskin[],
-): MaskinBrudd[] {
+): MaskinJobbBrudd[] {
   if (!grunnlag || nyeMaskiner.length === 0) return [];
-  return beregnMaskinBrudd(
-    grunnlag.timerRader,
-    [
-      ...grunnlag.maskinRader,
-      ...nyeMaskiner.map((m) => ({ projectId: m.projectId, externalCostObjectId: null, timer: m.timer })),
-    ],
-    grunnlag.pauseMin,
-  );
+  const nye = nyeMaskiner.map<JobbMaskinLokal>((m) => ({
+    id: `tillegg:${m.lokalId}`,
+    kortId: m.kortId ?? null,
+    projectId: m.projectId,
+    externalCostObjectId: null,
+    timer: m.timer,
+    utleieEnhet: grunnlag.enhet(m.vehicleId),
+  }));
+  return nyeMaskinBrudd(grunnlag.foer, { ...grunnlag.etter, maskin: [...grunnlag.etter.maskin, ...nye] });
 }

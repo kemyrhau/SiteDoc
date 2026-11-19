@@ -48,7 +48,7 @@ describe("Kort-id d2c-2: maskin koblet til timerad", () => {
     expect(PK).toContain("fjernTimerRadMedMaskiner(");
     expect(PK).toContain('t("timer.fjernTimerRad.maskiner"');
     expect(PK).toContain('t("timer.maskinTimerad.flyttIngenArbeidsrad")');
-    expect(PK).toContain("flyttMaskinRad(db(), flytt.rad.id, maal, kandidater[0]!.id)");
+    expect(PK).toContain("flyttMaskinMedVakt(flytt.rad.id, maal, kandidater[0]!.id)");
   });
 
   it("🔴 splitt arver koblingen", () => {

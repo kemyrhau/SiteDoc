@@ -5,6 +5,7 @@ import { AlertTriangle } from "lucide-react-native";
 import { finnOverlappVarsel } from "@sitedoc/shared";
 import { hentDatabase } from "../../../db/database";
 import { hentReiseKnappLokalt } from "../../../services/timerKatalog";
+import { bruddTekst } from "../../../services/maskinJobbLokalt";
 import { trpc } from "../../../lib/trpc";
 import { hentWebUrl } from "../../../config/auth";
 import { apnLenke } from "../../../lib/apnLenke";
@@ -216,7 +217,6 @@ export function DagSeksjon({
           defaultProjectId={forslagProsjekt}
           defaultEcoId={null}
           dato={sedel.dato}
-          sheetPauseMin={sedel.pauseMin}
           harEquipmentCache={harEquipmentCache}
           eksisterendeRader={reiseRader}
           alleTimerRader={timerRader}
@@ -261,7 +261,11 @@ export function DagSeksjon({
               beskrivelse,
               pauseMin,
             };
-            if (reiseModal.rad) oppdaterTimerRad(db(), k, reiseModal.rad.id, felt, maskin);
+            if (reiseModal.rad) {
+              // w9m (WM108): stoppet → modalen står med teksten, ingenting skrevet.
+              const res = oppdaterTimerRad(db(), k, reiseModal.rad.id, felt, maskin);
+              if (!res.ok && res.grunn === "maskinOverArbeid") return bruddTekst(t, db(), res.brudd);
+            }
             setReiseModal(null);
             onEndret();
           }}
