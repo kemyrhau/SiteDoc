@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="nb">
+<head>
+<meta charset="utf-8">
+<title>Skisse — attesteringen etter KS 2026-11-19 (bilde 6 og 7 slik de gjelder)</title>
+<!--
+  FORSLAG (Fabel 2026-11-19), ikke bygget. Kilde for ks-attestering.png.
+  Viser bilde 6 og 7 med vedtakene som kom etter at de ble tegnet (B13 A, B14 A, § 8.6 punkt 1)
+  og med anbefalte svar på B24–B28 (web-timeforing-plan.md § 4.5).
+  Tegnet med Chrome uten vindu:
+    "Google Chrome" --headless=new --hide-scrollbars --force-device-scale-factor=2 \
+      --window-size=1444,<høyde> --screenshot=ks-attestering.png "file://…/skisser-ks.html"
+-->
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#f3f4f6;font-family:-apple-system,"Inter","Segoe UI",Helvetica,Arial,sans-serif;color:#111827;font-size:13.5px}
+.ark{width:1400px;padding:22px}
+.tittel{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.pille{background:#1e40af;color:#fff;font-weight:700;border-radius:999px;padding:5px 13px;font-size:12.5px;letter-spacing:.04em}
+.tittel h1{font-size:21px;margin:0}
+.flate{background:#fafbfc;border:1px solid #d1d5db;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.topp{background:#1e40af;color:#fff;padding:10px 18px;display:flex;gap:14px;align-items:baseline}
+.topp b{font-size:15px}
+.innhold{padding:16px 18px 18px}
+h3{font-size:19px;margin:0 0 10px}
+.verktoy{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+.boks{border:1px solid #d1d5db;background:#fff;border-radius:7px;padding:5px 10px;font-weight:600}
+.gul{background:#fef9c3;border-color:#fde047}
+.lenke{color:#1d4ed8;font-weight:600}
+.fane{border-radius:999px;padding:5px 12px;font-weight:600;border:1px solid #d1d5db;background:#fff;color:#374151}
+.fane.paa{background:#1e40af;border-color:#1e40af;color:#fff}
+.fane small{background:rgba(255,255,255,.25);border-radius:999px;padding:1px 6px;margin-left:5px;font-weight:700}
+.fane:not(.paa) small{background:#e5e7eb}
+.k{display:inline-flex;align-items:center;justify-content:center;width:21px;height:21px;border-radius:50%;background:#dc2626;color:#fff;font-weight:700;font-size:12px;margin:0 4px;vertical-align:middle;flex:none}
+.tab{border:1px solid #e5e7eb;border-radius:9px;background:#fff;overflow:hidden}
+.r{display:grid;grid-template-columns:96px 104px 50px 84px 100px 96px 50px 116px 46px 92px 40px 50px 1fr 150px;align-items:center;column-gap:6px;padding:6px 10px;border-bottom:1px solid #f1f5f9}
+.r.h{font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:#6b7280;background:#f9fafb;border-bottom:1px solid #e5e7eb}
+.r.dag{background:#eff6ff;border-left:4px solid #1d4ed8;font-weight:700;padding-left:6px}
+.r.dag.aapen{background:#dbeafe}
+.r.jobb{background:#f8fafc;border-left:4px solid #60a5fa;font-weight:600;padding-left:6px}
+.r.jobb.b{border-left-color:#f59e0b}
+.r.l{border-left:4px solid #60a5fa;padding-left:6px}
+.r.l.b{border-left-color:#f59e0b}
+.tall{font-variant-numeric:tabular-nums}
+.hk{display:flex;justify-content:flex-end;gap:5px;align-items:center}
+.ik{display:inline-flex;align-items:center;justify-content:center;width:25px;height:25px;border:1px solid #e5e7eb;border-radius:5px;background:#fff;font-size:13px;color:#4b5563;font-weight:400}
+.ik.g{color:#15803d}
+.att{white-space:nowrap;background:#1e40af;color:#fff;border-radius:6px;padding:4px 10px;font-weight:600;font-size:12.5px}
+.merke{background:#fef3c7;color:#92400e;border-radius:999px;padding:1px 8px;font-size:11.5px;font-weight:600;white-space:nowrap}
+.kort{margin:8px 12px 10px 16px;border:1.5px solid #93c5fd;border-radius:9px;background:#fff}
+.kh{display:flex;justify-content:space-between;align-items:center;padding:8px 14px;border-bottom:1px solid #e5e7eb}
+.kh b{font-size:14.5px}
+.knapp{border:1px solid #d1d5db;background:#f9fafb;border-radius:6px;padding:4px 10px;font-weight:600;font-size:12.5px;color:#374151}
+.up{display:flex;align-items:center;gap:8px;padding:8px 14px;background:#f9fafb;border-bottom:1px solid #f1f5f9}
+.chip{border:1px solid #d1d5db;border-radius:999px;padding:3px 11px;background:#fff;font-size:12.5px;font-weight:600;color:#374151}
+.chip.valgt{background:#1d4ed8;border-color:#1d4ed8;color:#fff}
+.sek{display:flex;align-items:flex-start;gap:10px;padding:8px 14px;border-bottom:1px solid #f1f5f9}
+.sek:last-child{border-bottom:0}
+.sn{width:20px;height:20px;border-radius:50%;background:#f3f4f6;color:#4b5563;font-weight:700;font-size:11px;display:inline-flex;align-items:center;justify-content:center;flex:none;margin-top:2px}
+.sl{width:132px;font-weight:600;flex:none;padding-top:2px}
+.sv{flex:1;display:flex;flex-direction:column;gap:6px}
+.ll{display:flex;align-items:center;gap:8px}
+.inn{border:1px solid #9ca3af;border-radius:5px;padding:3px 8px;background:#fff;min-width:54px;text-align:right;display:inline-block}
+.inn.v{min-width:150px;text-align:left}
+.graa{color:#6b7280}
+.forkl{background:#fff;border:1px solid #e5e7eb;border-radius:12px;margin-top:14px;padding:14px 18px}
+.forkl .rad{display:flex;gap:14px;padding:7px 0;border-bottom:1px solid #f1f5f9}
+.forkl .rad:last-child{border-bottom:0}
+.forkl .rad b{width:270px;flex:none}
+.forkl small{display:block;color:#6b7280;font-size:12.5px;margin-top:2px}
+.rod{background:#fee2e2;color:#991b1b;border-radius:999px;padding:4px 12px;font-weight:700;display:inline-block;margin-bottom:6px}
+</style>
+</head>
+<body>
+<div class="ark">
+<div class="tittel"><span class="pille">BILDE 6 OG 7 · SLIK DE GJELDER</span><h1>Attesteringen — den blå linja åpner kortet, og kortet er stedet du retter</h1></div>
+
+<div class="flate">
+<div class="topp"><b>SiteDoc</b><span>Sitedoc Boligfelt B12 · prosjektets attestering</span></div>
+<div class="innhold">
+<h3>Attestering</h3>
+<div class="verktoy">
+  <span class="boks">‹ &nbsp;Uke 20&nbsp; ›</span><span class="boks gul">2026 ▾</span><span class="lenke">Denne uka</span><span class="k">A</span>
+  <span style="flex:1"></span>
+  <span class="fane paa">Venter <small>3</small></span><span class="fane">Attestert <small>5</small></span><span class="k">B</span>
+  <span class="boks">Velg parameter</span>
+</div>
+
+<div class="tab">
+<div class="r h"><span>Dato</span><span>Ansatt</span><span>Pr.nr</span><span>Underpr.</span><span>Lønnsart</span><span>Fra–til</span><span>Timer</span><span>Maskin</span><span>M.t.</span><span>Vare</span><span>Ant.</span><span>Beløp</span><span>Avvik</span><span></span></div>
+
+<div class="r dag aapen"><span>▾ ons. 13.05.</span><span>Per Prosjekt</span><span class="tall">B12</span><span>Uten</span><span class="graa" style="font-weight:400">1 jobb</span><span></span><span class="tall">8,50</span><span></span><span class="tall">9,00</span><span></span><span></span><span></span><span><span class="merke">+1,0 t</span></span><span class="hk"><span class="k">1</span><span class="att">✓ Attester</span><span class="ik">↩</span><span class="ik">↗</span></span></div>
+
+<div class="kort">
+  <div class="kh"><b>Sitedoc Boligfelt B12</b><span style="display:flex;gap:8px;align-items:center"><span class="graa">ført av Per P. · telefon</span><span class="knapp">✎ Rediger jobben</span><span class="k">4</span><span class="ik">✕</span></span></div>
+  <div class="up"><b>Underprosjekt</b><span class="chip valgt">Uten</span><span class="chip">END-002 · Drenering</span><span class="chip">TILL-001 · Kantstein</span></div>
+  <div class="sek"><span class="sn">1</span><span class="sl">Fra–til</span><div class="sv"><div class="ll"><span class="tall">07:00–16:00</span><span class="graa">· pause 30 ·</span><b class="tall">8,5 t</b><span style="flex:1"></span><span class="knapp">✂ Del opp</span></div></div></div>
+  <div class="sek"><span class="sn">2</span><span class="sl">Lønnsart</span><div class="sv">
+    <div class="ll"><span class="inn tall">07:00</span>–<span class="inn tall">15:00</span><span class="k">2</span><span class="graa">pause</span><span class="inn tall" style="min-width:38px">30</span><b class="tall">= 7,5 t</b><span class="inn v">Timelønn ▾</span><span class="ik">✂</span><span class="k">3</span></div>
+    <div class="ll"><span class="inn tall">15:00</span>–<span class="inn tall">16:00</span><span style="width:21px;margin:0 4px"></span><span class="graa" style="visibility:hidden">pause</span><span class="inn tall" style="min-width:38px;visibility:hidden">30</span><b class="tall">= 1,0 t</b><span class="inn v">Overtid 50 % ▾</span><span class="ik">✂</span></div>
+  </div></div>
+  <div class="sek"><span class="sn">3</span><span class="sl">Hva gjorde du?</span><div class="sv">Graving av grøft langs Storgata østside, tilkobling kum 3 og 4.</div></div>
+  <div class="sek"><span class="sn">4</span><span class="sl">Maskiner</span><div class="sv"><div class="ll"><span style="width:150px">Heatwork 7626</span><span class="inn tall">9,0</span> t <span class="graa">døgn-maskin · ingen grense</span></div></div></div>
+  <div class="sek"><span class="sn">5</span><span class="sl">Varer</span><div class="sv graa">—</div></div>
+  <div class="sek"><span class="sn">6</span><span class="sl">Tillegg</span><div class="sv"><div class="ll"><span style="width:150px">Overtidsmat</span><span class="inn tall">1</span></div></div></div>
+  <div class="sek"><span class="sn">7</span><span class="sl">Utlegg</span><div class="sv graa">—</div></div>
+</div>
+
+<div class="r l"><span></span><span></span><span></span><span></span><span>Timelønn</span><span class="tall">07:00–15:00</span><span class="tall"><b>7,50</b></span><span><b>Heatwork 7626</b></span><span class="tall"><b>9,00</b></span><span></span><span></span><span></span><span></span><span class="hk"><span class="k">5</span><span class="ik g">✓</span><span class="ik">↩</span></span></div>
+<div class="r l"><span></span><span></span><span></span><span></span><span>Overtid 50 %</span><span class="tall">15:00–16:00</span><span class="tall"><b>1,00</b></span><span></span><span></span><span></span><span></span><span></span><span></span><span class="hk"><span class="ik g">✓</span><span class="ik">↩</span></span></div>
+<div class="r l" style="border-bottom:10px solid #f3f4f6"><span></span><span></span><span></span><span></span><span>Overtidsmat</span><span></span><span></span><span></span><span></span><span></span><span class="tall">1</span><span></span><span></span><span class="hk"><span class="ik g">✓</span><span class="ik">↩</span></span></div>
+
+<div class="r dag"><span>tor. 14.05.</span><span>Ola Tømrer</span><span></span><span></span><span class="graa" style="font-weight:400">2 jobber</span><span></span><span class="tall">7,50</span><span></span><span class="tall">7,50</span><span></span><span></span><span></span><span></span><span class="hk"><span class="att">✓ Attester</span><span class="ik">↩</span><span class="ik">↗</span></span></div>
+<div class="r jobb"><span>▸</span><span></span><span class="tall">B12</span><span>END-002</span><span></span><span></span><span class="tall">4,50</span><span></span><span class="tall">7,50</span><span></span><span></span><span></span><span><span class="merke">Maskin over arbeid</span></span><span class="hk"><span class="ik g">✓</span><span class="ik">↩</span></span></div>
+<div class="r l"><span></span><span></span><span></span><span></span><span>Timelønn</span><span class="tall">07:00–12:00</span><span class="tall"><b>4,50</b></span><span><b>Volvo EC220E</b></span><span class="tall"><b>7,50</b></span><span></span><span></span><span></span><span></span><span class="hk"><span class="ik g">✓</span><span class="ik">↩</span></span></div>
+<div class="r jobb b"><span>▸</span><span></span><span class="tall">B12</span><span>TILL-001</span><span></span><span></span><span class="tall">3,00</span><span></span><span></span><span></span><span></span><span></span><span></span><span class="hk"><span class="ik g">✓</span><span class="ik">↩</span></span></div>
+<div class="r l b" style="border-bottom:0"><span></span><span></span><span></span><span></span><span>Timelønn</span><span class="tall">12:00–15:00</span><span class="tall"><b>3,00</b></span><span></span><span></span><span></span><span></span><span></span><span></span><span class="hk"><span class="ik g">✓</span><span class="ik">↩</span></span></div>
+</div>
+
+<p style="margin:14px 0 6px;font-weight:700">Fanen «Attestert» — samme uke, samme tabell: her hentes en linje som er attestert feil, tilbake <span class="k">B</span></p>
+<div class="tab">
+<div class="r dag"><span>man. 11.05.</span><span>Kari Betong</span><span class="tall">B12</span><span>Uten</span><span class="graa" style="font-weight:400">1 jobb</span><span></span><span class="tall">7,50</span><span></span><span></span><span></span><span></span><span></span><span></span><span class="hk"><span class="knapp">↺ Gjenåpne</span><span class="ik">↗</span></span></div>
+<div class="r l" style="border-bottom:0"><span></span><span></span><span></span><span></span><span>Timelønn</span><span class="tall">07:00–15:00</span><span class="tall"><b>7,50</b></span><span></span><span></span><span>Betong · 4 m3</span><span></span><span></span><span></span><span class="hk"><span class="ik">↺</span></span></div>
+</div>
+</div>
+</div>
+
+<div class="forkl">
+<span class="rod">1 trykk åpner kortet · rettingen gjøres i kortet</span>
+<div class="rad"><b><span class="k">1</span> Den blå linja</b><span>Åpner hele registreringen for jobben. Timelinjene åpner ingenting.<small>Bygget (w8). Dagen har én jobb: dagsraden åpner. Flere jobber: hver jobbrad åpner sitt kort.</small></span></div>
+<div class="rad"><b><span class="k">2</span> Fra–til rettes, timene regnes</b><span>Fra, til og pause er felt. Timene står som tekst og følger klokkeslettene.<small>I dag: timefeltet kan endres alene, serveren avviser, og feltet blir stående med feil tall. Timefeltet går ut.</small></span></div>
+<div class="rad"><b><span class="k">3</span> <span class="k">4</span> ✂ og ✎ står i kortet</b><span>✂ deler én linje. «Rediger jobben» åpner vinduet for å legge til og slette linjer, maskiner og tillegg.<small>I dag står ✂ og ✎ på hver linje i tabellen. Funksjonene er de samme; de flyttes.</small></span></div>
+<div class="rad"><b><span class="k">5</span> Linja</b><span>Bare ✓ og ↩ (B24). Ingen celle på linja åpnes for retting (B25).<small>Som i bilde 6. Ordinær tid og overtid attesteres og returneres hver for seg.</small></span></div>
+<div class="rad"><b><span class="k">A</span> <span class="k">B</span> Uke, år og «Attestert»</b><span>Prosjektets attestering får det firmaets attestering har: uke, år og fanene Venter og Attestert.<small>I dag viser prosjektets side bare det som venter, uten periode. En dag som er ferdig attestert, forsvinner fra siden.</small></span></div>
+</div>
+</div>
+</body>
+</html>

@@ -1,9 +1,9 @@
 ---
 name: web-timeforing-plan
-description: Plan med bilder steg for steg for timeføring på web — «+ Registrer timer» åpner én samlet registrering pr. jobb (fra/til, lønnsart, hva gjorde du, maskiner, varer, tillegg, utlegg), prosjekt og byggeplass utledet, dagen summeres etter hvert, overtid som egen linje mot dagsnormen for datoen, underprosjekt i jobbens hode, firmavalg for maskin med fra–til, og attestering med 13 kjernekolonner der et klikk åpner registreringen og lar attestanten dele opp. Versjon 5: dagsvisningen i attesteringen (B14) og firmavalget for attestantens egne timer (B15). Versjon 6: maskintimer høyst jobbens arbeidstimer, med unntak for døgn-maskiner (w9, § 4.4). Målt mot dagens web og telefon. B1–B20 besvart; B21–B23 åpne.
-sist_verifisert_mot_kode: 2026-11-19 (WM1–WM73: develop @ `b8b16571`; WM74–WM92: develop @ `ee7146e5`, etter w1, w2 og w5; WM93–WM108: develop @ `1afb318a`, etter w5b og w7)
+description: Plan med bilder steg for steg for timeføring på web — «+ Registrer timer» åpner én samlet registrering pr. jobb (fra/til, lønnsart, hva gjorde du, maskiner, varer, tillegg, utlegg), prosjekt og byggeplass utledet, dagen summeres etter hvert, overtid som egen linje mot dagsnormen for datoen, underprosjekt i jobbens hode, firmavalg for maskin med fra–til, og attestering med 13 kjernekolonner der et klikk åpner registreringen og lar attestanten dele opp. Versjon 5: dagsvisningen i attesteringen (B14) og firmavalget for attestantens egne timer (B15). Versjon 6: maskintimer høyst jobbens arbeidstimer, med unntak for døgn-maskiner (w9, § 4.4). Målt mot dagens web og telefon. B1–B23 besvart. Versjon 7: KS av attesteringen mot bilde 6–8 (§ 4.5) — avviksliste K1–K14, bilde 6 og 7 tegnet slik de gjelder, og retteordren w10; B24–B28 åpne.
+sist_verifisert_mot_kode: 2026-11-19 (WM1–WM73: develop @ `b8b16571`; WM74–WM92: develop @ `ee7146e5`, etter w1, w2 og w5; WM93–WM108: develop @ `1afb318a`, etter w5b og w7; K1–K14 i § 4.5: develop @ `eedbc7cd`, etter w8, w9 og w9m)
 eier: fabel (plan) — orkestrator gater kode; Kenneth har vedtatt B1–B13 (§ 8.1)
-status: 🟡 FORSLAG 2026-11-19, versjon 6 — w1, w2, w5, w5b og w7 er merget (§ 9.1–9.4; w5b `1aa91654`, w7 `692ec011`); w3, w4, w6 og w9 er ikke bygget. Nytt i versjon 6, uten kode: maskintimer høyst jobbens arbeidstimer (§ 4.4, w9), etter Kenneths ord 19.11. (§ 8.6 punkt 2). Åpent til Kenneth: B21–B23 (§ 8).
+status: 🟡 FORSLAG 2026-11-19, versjon 7 — w1, w2, w5, w5b, w7, w8, w9 og w9m er merget (§ 9.1–9.4; develop `eedbc7cd`); w3, w4, w6 og w10 er ikke bygget. Nytt i versjon 7, uten kode: KS av attesteringen mot bilde 6–8 etter Kenneths ord 19.11. (§ 4.5) og forslag til retteordre w10 (§ 9). Åpent til Kenneth: B24–B28 (§ 8).
 ---
 
 # Timeføring på web — plan med bilder (FORSLAG)
@@ -26,6 +26,8 @@ status: 🟡 FORSLAG 2026-11-19, versjon 6 — w1, w2, w5, w5b og w7 er merget (
 > § 10 (maskin-tak pr. kort i skjermen). Planen bygger på dem. Der planen går lenger, står avviket i § 4.1 med
 > hjemmelen fra Kenneth. Det som fortsatt er åpent, står i § 8.
 > **Versjon 6:** Kenneths ord 19.11. om maskintimer (§ 8.6 punkt 2) går lenger enn B4. Forslaget står i § 4.4 (w9).
+> **Versjon 7:** bilde 6 og 7 er tegnet før B13 A, B14 A og § 8.6 punkt 1. Slik de gjelder nå, står de i
+> `ks-attestering.png` (§ 4.5). Kilde: `skisser-ks.html`.
 
 ## 1. Kenneths føringer (2026-11-17, ordrett)
 
@@ -436,6 +438,9 @@ dagsseddelen:
 
 ![Bilde 6](skisser-web-timeforing/bilde-6.png)
 
+> **Gjelder med endringene i § 4.5** (2026-11-19): dagsrad og jobbrad etter B14 A, 13 kolonner etter B13 A, og
+> uke, år og «Attestert» også på prosjektets side. Bildet under er det opprinnelige.
+
 **1 trykk åpner registreringen.** I dag gjør et trykk på linja ingenting (WM49).
 
 - **De 11 kjernekolonnene er standard** (B9): dato · ansatt · prosjektnr · underprosjekt · lønnsart · fra–til ·
@@ -469,6 +474,9 @@ dagsseddelen:
 
 ![Bilde 7](skisser-web-timeforing/bilde-7.png)
 
+> **Gjelder med endringene i § 4.5** (2026-11-19): den blå linja åpner kortet (§ 8.6 punkt 1), fra–til er felt og
+> timene regnes ut, ✂ og «Rediger jobben» står i kortet, og «Endre» øverst i kortet er «Rediger jobben».
+
 **2 trykk:** åpne, og velg underprosjekt. I dag: om lag fire trykk via en egen side, og ikke fra lista (WM52).
 
 - **Hele registreringen åpnes under linja,** slik den ble ført: samme sju deler, samme rekkefølge. Attestanten
@@ -501,7 +509,8 @@ handlinger, og timene må regnes for hånd (WM53).
   bruker det ikke (WM48).
 - **Den opprinnelige jobben lagres i historikken,** som ved retting i dag. Den ansatte ser delingen etter neste synk.
 - **Den ansatte kan dele sin egen jobb på samme måte** før dagen sendes («✂ Del jobben», bilde 5).
-- ✂ på linja kan bestå for å dele én rad; «Del opp» i registreringen deler hele jobben.
+- ✂ for å dele én rad står i kortet, ved timelinja, ikke på linja i tabellen (§ 4.5 punkt 4, Kenneth 2026-11-19).
+  «Del opp» i registreringen deler hele jobben.
 
 ### Bilde 9 — firmainnstillingene som styrer føringen
 
@@ -717,6 +726,100 @@ TILL-001, der arbeidet er ført.
 5. En Heatwork eller et aggregat må stå som «Utleieobjekt» med enheten døgn i maskinregisteret for å være unntatt
    (H15). Står enheten tom, regnes maskinen som en maskin med fører.
 
+### 4.5 KS av attesteringen mot bilde 6–8 (2026-11-19) — avvik, hull og retting (w10)
+
+![Bilde 6 og 7 slik de gjelder](skisser-web-timeforing/ks-attestering.png)
+
+Kilde: `skisser-web-timeforing/skisser-ks.html`. Bildet er en skisse med de anbefalte svarene på B24–B28, ikke et
+skjermbilde.
+
+**Kenneth 2026-11-19** (test `eedbc7cd`, prosjektets attestering): *«Koden gjør ikke det Fabels opprinnelige bilder
+viser i seksjon 4 bilde 6 … linjeknappenes funksjon (de ekstra ikonene) ble ikke flyttet til topplinja. I stedet ble
+det introdusert en ny redigeringsmåte … vi trenger bare å åpne de blå linjene. Det bør åpne hele registreringskortet,
+og da kan vi redigere direkte … Jeg kan heller ikke hente tilbake en linje som er attestert feil … Det finnes ingen
+perioder å hente frem … Har planen hull, må vi tette dem, ikke rekode noe annet.»*
+
+Målt mot develop @ `eedbc7cd`. `RP` = `apps/web/src/components/attestering/RegistreringPanel.tsx`, `PS` =
+`apps/web/src/app/dashbord/[prosjektId]/timer/attestering/page.tsx`, `FS` =
+`apps/web/src/app/dashbord/firma/timer/attestering/page.tsx`, `AD` = `apps/web/src/components/timer/AttesteringDetalj.tsx`.
+
+**Er det B-spørsmålene som gjør at koden ikke viser det bildene viser? Bare delvis.** Det er tre årsaker:
+
+1. **Bilde 6 og 7 ble ikke tegnet om etter tre vedtak som endret utseendet:** B13 A (13 kolonner), B14 A (dagsrad
+   og jobbrad, med eget bilde `b14-a.png`) og § 8.6 punkt 1 (den blå linja åpner kortet). Der følger koden
+   vedtakene, men bildene viser noe annet (K2, K3).
+2. **Planen la kortet til som en ny måte å rette på og lot de fire gamle stå** (§ 7: «BEVARES», og § 4.1). Det er
+   planens feil, ikke et B-svar. Ingen ba om fem veier (K4, K6, K8).
+3. **Noe er ikke bygget, eller ikke synlig hos Kenneth:** prosjektets attestering har ikke uke, år eller
+   «Attestert» (K9, K10). Brukeren hans har et lagret kolonneoppsett og ser ikke kjernekolonnene (K1). Testdagene
+   er lagt inn med SQL, så maskinen står på egen linje (K12).
+
+**Avvikslista:**
+
+| # | Planen sier | Koden gjør | Kom fra | Vedtatt av Kenneth? | Minst som skal til |
+|---|---|---|---|---|---|
+| **K1** | Bilde 6: 11 kjernekolonner (13 etter B13 A) er standard. Følge 16: lagret oppsett beholdes. | Lagret oppsett vinner over standarden (`apps/web/src/hooks/useTabelloppsett.ts:56–92`; `AT:153–160`). Kenneths skjerm viser Ansattnr, Prosjekt, Byggeplass, Type, Aktivitet, Fra og Til som egne kolonner; Maskin, Vare og Avvik står utenfor skjermen (bilde 113, 117). | w5 `799ea86c`, retur 1 `9729c584` | Nei. Lagt fram som følge («si fra hvis feil»), ikke som spørsmål. | B26. Med A: attesteringslistas lagrede oppsett nullstilles én gang (ny listenøkkel, `AT:78`). |
+| **K2** | Bilde 6: jobben er én tekstlinje («▸ 1042 · … · 8,0 t · maskin 4,0 t»), og hver linje gjentar dato, ansatt og pr.nr. | Dagsrad først, jobbrad bare når dagen har flere jobber, og linjene gjentar ikke det raden over viser (`AT:589–596`, `:615–753`). | w5b `4a3d9e3a` | **Ja**, B14 A 17.11. (§ 8.3), valgt etter bildet `b14-a.png`. | Ingen kodeendring. Bildet er tegnet på nytt (over). |
+| **K3** | Bilde 7: «klikk på linja». | Jobbraden åpner kortet, eller dagsraden når dagen har én jobb. Timelinjene åpner ingenting (`AT:630–633`, `:664`, `:706`, `:735`). | w5 `799ea86c` → w8 `46076897` | **Ja**, 19.11. (§ 8.6 punkt 1). | Ingen. |
+| **K4** | Bildet viser bare ✓ og ↩ på linja. Teksten sier at ✂ består (§ 4.1, R10) og at pennen bevares (§ 7). | ✂ og ✎ står på hver ventende linje (`AT:525–527`). | d2b-1 `ab2f58c5` (R10 og R22 i kort-id-specen). Videreført i ordrene for w5 og w8 («✓/↩/✂/penn står uendret»). | Ja 16.11. (R10: «✂ og penn står synlig»). **Snudd 19.11.:** funksjonen skal til topplinja. | ✂ og ✎ flyttes inn i kortet og tas bort fra linjene. Funksjonene er de samme. |
+| **K5** | Bilde 6: ✓ og ↩ på hver linje. | ✓ og ↩ på hver ventende linje (`AT:517–521`). I tillegg ✓ ↩ på jobbraden og «Attester» ↩ på dagsraden (`AT:417–435`, `:457–507`). | d2b-1 `ab2f58c5`, w5b | Ja 16.11. (R10). Kenneths ord 19.11. kan leses begge veier. | B24. Anbefalt: ingen endring. |
+| **K6** | Bilde 7: «Hele registreringen åpnes … slik den ble ført: samme sju deler». Tegnet med felt for underprosjekt, lønnsart, maskintimer og varemengde. Fra–til er tegnet som tekst. | Kan rettes i kortet: underprosjekt (`RP:169`), lønnsart (`:225`), timer (`:236`), maskintimer (`:263`), antall på tillegg (`:295`) og «Del opp» (`:181`). Kan bare leses: fra–til og pause (`:192–200`), «Hva gjorde du?» (`:250`), hvilken maskin (`:261`), varer (`:273–284`) og utlegg (`:304–315`). Ingenting kan legges til eller slettes. | w5 `799ea86c` | Nei. Koden følger planens punkter. Planen sa ikke at fra–til skal kunne rettes i kortet. **Hull i planen.** | Fra, til og pause blir felt (serveren tar dem alt: `D:7312–7315`). «Rediger jobben» i kortet for resten (B27). |
+| **K7** | Bilde 7: «Timer, maskintimer og mengde rettes i feltene, som i cellen i dag.» | Timefeltet sender bare `timer` (`RP:143–145`, `:236–241`). Serveren krever at timene stemmer med fra–til minus pause og avviser (`D:3155–3175`, `:1464–1479`). Feltet blir stående med det som ble skrevet, fordi det bare nullstilles når serveren gir ny verdi (`RP:344–346`, `:126–129`). Bilde 113: feltet viser 8, linja 7,50. Cellen «Timer» på linja går samme vei (`AT:268`, `:304`). | w5 `799ea86c` (kortet), d2b-1 (cellen) | Nei. **Feil.** Planen tok ikke hensyn til serverens regel. | Timefeltet tas ut. Fra og til rettes, timene regnes ut og sendes i samme kall. Avvist retting setter feltet tilbake. |
+| **K8** | § 4.1 (R14): detaljsiden består «for redigering av hele sedelen». § 7: retting i cellen, ✂ og penn bevares. Kortet kommer i tillegg. | Fem veier til å rette: cellen (`AT:259–309`), kortet (`RP`), ✎ → vindu (`AT:526–527`, `:907`), ✂ → vindu (`AT:525`, `:903`), og ↗ → detaljsiden → «Rediger sedel» (`AT:444–451`, `AD:495–499`). Tre av dem heter «Rediger sedel»: ↗ og ✎ deler nøkkelen `timer.attestering.meny.rediger`, og knappen har `timer.rediger.knapp`. | T7-2b2 (14.05.), T7-2c2 (16.05.), T7-5d (17.05.), d2b-1 (16.11.), w5 (17.11.) | Hver for seg, ja. At alle fem skulle stå samtidig, er planens «BEVARES», ikke Kenneths valg. | Kortet er stedet å rette (K4, K6, K7). ↗ får eget navn. Cellene: B25. |
+| **K9** | Bilde 6 A er tegnet på et prosjekt, med «Uke 47 · 2026 · Denne uka». Følge 19: prosjektets attestering «får samme årsvelger». | Prosjektets side har ingen verktøy (`PS:118`). Lista tar bare `projectId` og henter alle sendte sedler uansett dato (`D:5765–5777`). Firmaets side har uke, år og «Denne uka» (`FS:160–164`, `:345–385`). | w1 `f0a35019`, ført som «ikke bygget» i § 9.1 | Nei. Meldt i planen, aldri lagt fram for Kenneth. | Prosjektets side får firmaets ukevalg og årsvelger. `hentTilAttestering` får valgfri periode, som firmalista har (`D:5957–5975`). |
+| **K10** | R23 står: gjenåpne på attestert linje og jobb. Bilde 6 har merket «Venter» øverst til høyre. | ↺ finnes på attestert linje, jobb og dag (`AT:438–442`, `:497–503`, `:523–524`, `:994`). Firmaets side har fanene «Venter på attestering» og «Attestert» (`FS:167`, `:197–220`, `:411–446`), men krever firmaadministrator (`D:5979`). Prosjektets side henter bare `status: "sent"` (`D:5776`). Når siste linje på en dag er attestert, forsvinner dagen fra siden, og det finnes ingen liste å hente den fra. | T7-5e (fanene, firma), d2b-1 (↺) | Nei. Planen sa ikke hvor attesterte linjer vises i prosjektet. **Hull i planen.** | Prosjektets side får fanene «Venter» og «Attestert». `hentTilAttestering` får valgfri `status`, som firmalista. ↺ er alt bygget. |
+| **K11** | R14: detaljsiden tegner radene med samme tabell. | Tabellen ligger i en smalere ramme (`AD:216`, `max-w-6xl`). Kolonner og tekst kuttes («Anleggsarbeic», tomme kolonnehoder; bilde 114, 115, 119). Lest fra bildene og koden, ikke målt i nettleser. | d2b-2 `769e9a49`, breddene fra w5 | Nei. **Feil.** | Tabellen på detaljsiden får full bredde. |
+| **K12** | Bilde 6: maskinen står på timelinja, med bare timer. | Koden gjør det for maskiner koblet til en timerad (R3). Testdagene er lagt inn med SQL uten kobling (WM93), så maskinen står på egen linje, med fra–til (bilde 117). Firmavalget for fra–til på maskin (w6) er ikke bygget. | Testdata 17.05.; w6 ikke bestilt | — (ikke kode) | Ny testdata gjennom serverens skriveveier (§ 8.7), som nå kan bestilles fordi w9 er merget. w6 for seg. |
+| **K13** | Bilde 7 har lenken «Endre» øverst i kortet. Teksten forklarer den ikke. | Finnes ikke. Kortet har bare ✕ (`RP:160–162`). | w5 `799ea86c` | Nei. **Hull i planen.** | «Endre» er «Rediger jobben» (B27). |
+| **K14** | Bilde 7 viser varemengden som felt. | Varene kan bare leses (`RP:273–284`). `rettRadFelt` har ingen vare (`D:7299–7355`). | w5 `799ea86c` | Nei. Teksten i bilde 7 sa «mengde», som i cellen er maskinens mengde (WM51). **Uklart i planen.** | Ingen endring i w10. Varemengden følger w3, der varen føres på jobben. |
+
+**De fire punktene:**
+
+- **(a) Hvorfor har hver linje knapper og blyant?** ✓ ↩ ✂ ✎ på hver linje ble vedtatt 16.11. (R10 og R22 i
+  kort-id-specen) og bygget i d2b-1. Planen videreførte dem i teksten (§ 4.1 og § 7), selv om bilde 6 bare viser
+  ✓ og ↩. Kenneths ord 19.11. ble ført som «klikket flyttes til toppraden» (§ 8.6 punkt 1). Ordren for w8 ba
+  uttrykkelig om at knappene skulle stå. At knappenes funksjon skulle følge med til toppraden, ble ikke ført noe
+  sted. Koden følger altså ordren, og ordren fulgte planen. Det er planen som er feil (K4).
+- **(b) Hvorfor åpner ikke den blå linja et kort der alt kan rettes?** Den blå linja åpner kortet (w8). Kortet har
+  ikke felt for fra–til og kan ikke legge til eller slette noe (K6). Det eneste stedet som retter alt, er
+  detaljsiden → «Rediger sedel». Planen lot den veien stå «for redigering av hele sedelen» (R14). Ikonet ↗ på den
+  blå linja heter «Rediger sedel», men åpner bare detaljsiden. Derfor fire trykk (K8).
+- **(c) Gjenåpning, oversikt over attesterte linjer og periode.** Gjenåpning er bygget for linje, jobb og dag.
+  Oversikten med uke og år finnes bare på firmaets side og krever firmaadministrator. Prosjektets side viser bare
+  det som venter, uten periode. Der forsvinner en dag i det siste linje er attestert. Planen tegnet uke og år på
+  et prosjekt, men w1 bygde det bare for firmaet og førte resten som «ikke bygget» (K9, K10).
+- **(d) Kortet lar deg endre timer uten fra–til.** Feltet finnes, men serveren godtar aldri timer som ikke stemmer
+  med klokkeslettene. Rettingen avvises, og feltet blir stående med tallet som ble skrevet (K7).
+
+**Slik gjelder bilde 6–8 fra nå (hullene tettet):**
+
+1. **Den blå linja åpner kortet.** Det er jobbraden, eller dagsraden når dagen har én jobb. Timelinjene åpner
+   ingenting. Dette er bygget (w8).
+2. **Kortet er stedet å rette.** Underprosjekt, fra, til, pause, lønnsart, maskintimer og antall på tillegg er felt
+   i kortet. Hver retting lagres med en gang, som i dag.
+3. **Timer rettes aldri alene.** Fra og til rettes, og timene regnes ut med samme regel som serveren
+   (`effektiveTimerFraSpenn`, `packages/shared/src/utils/pauseBeregning.ts:94`). Timene står som tekst. Avviser
+   serveren, går feltet tilbake til det som er lagret, og grunnen står ved feltet.
+4. **✂ og ✎ står i kortet, ikke på linjene.** ✂ står ved hver timelinje i kortet og deler den linja (vinduet som
+   finnes). «Rediger jobben» står øverst i kortet og åpner vinduet pennen åpner i dag, for hele jobben: legge til
+   og slette linjer, maskiner og tillegg, bytte maskin og aktivitet. «Del opp» ved klokkeslett står som i bilde 8.
+5. **Linja har ✓ og ↩,** og ↺ når den er attestert (B24). Cellene på linja åpnes ikke for retting (B25).
+6. **Prosjektets attestering har uke, år og «Denne uka», og fanene «Venter» og «Attestert»,** som firmaets side.
+   I «Attestert» står ↺ på linje og jobb, og «Gjenåpne» på dagen. Tilgangen er som i dag: den som kan attestere
+   på prosjektet, og bare sedler fra firma han attesterer for.
+7. **↗ på den blå linja heter «Åpne dagsseddelen».** Detaljsiden står for forslaget (V19), vedlegg og historikk.
+   «Rediger sedel» der står urørt til w3 er bygget.
+8. **«Hva gjorde du?», varer og utlegg kan leses i kortet, ikke rettes.** Slik er det i dag. Varemengden følger w3.
+9. **Kjernekolonnene er det attestanten ser** (B26).
+
+**Ikke målt:**
+- Dagsraden for 13.05. er om lag tre ganger så høy som dagsraden for 14.05., og maskinlinja er dobbelt så høy som
+  de andre (bilde 113–115). Årsaken er ikke funnet i koden; koderen måler i nettleser.
+- Om en prosjektleder uten firmaadministrator-rolle kan åpne en ferdig attestert seddel på detaljsiden hvis han
+  har adressen.
+- Om `vareforbruk.oppdater` slipper inn en attestant (K14).
+- K7 for cellen på linja og K11 er lest, ikke kjørt.
+
 ## 5. Maskintimer er en del av arbeidstiden — hva som må endres (føring 4)
 
 | Del | I dag | Endring | Fjerner noe? |
@@ -801,8 +904,26 @@ dagskortet). Ett unntak: firmavalget «maskin føres med fra–til» gjelder beg
 
 ## 8. Åpne spørsmål til Kenneth
 
-B1–B13 er besvart (§ 8.1). B14–B20 er besvart (§ 8.3–8.5). **Tre spørsmål er åpne etter versjon 6: B21–B23**, alle
-om maskintimer høyst jobbens arbeidstimer (§ 4.4).
+B1–B13 er besvart (§ 8.1). B14–B20 er besvart (§ 8.3–8.5). B21–B23 er besvart (§ 8.7). **Fem spørsmål er åpne
+etter versjon 7: B24–B28**, alle om attesteringen (§ 4.5). Bildet står i § 4.5.
+
+| # | Spørsmål | Alternativer | Anbefaling |
+|---|---|---|---|
+| **B24** | **Skal ✓ og ↩ stå på hver linje?** Du skrev at knappene på linjene i bilde 6 «er erstattet av knapper som fungerer bedre». Det kan leses begge veier. | **A:** ✓ og ↩ står på hver linje, som i bilde 6 og i dag. Ordinær tid kan attesteres og overtiden returneres hver for seg. **B:** de fjernes. Attestering og retur skjer bare pr. jobb (jobbraden) og pr. dag (dagsraden). En enkelt linje kan da ikke returneres alene. | **A.** Det er bilde 6, og ingen funksjon forsvinner. ✂ og ✎ flyttes uansett inn i kortet. |
+| **B25** | **Skal cellene på linja fortsatt kunne rettes ved klikk?** I dag åpnes Fra, Til, Timer, Pause, lønnsart, aktivitet, maskin, maskintimer og antall for retting når du klikker i cellen (vedtatt 16.11., R21). | **A:** nei. Linja kan bare leses, og kortet er det ene stedet å rette. Aktivitet og bytte av maskin rettes da i «Rediger jobben». **B:** ja, ved siden av kortet. | **A.** Det følger ordene dine: det er unødvendig at hver rad kan åpnes for redigering. |
+| **B26** | **Du ser ikke de 13 kjernekolonnene, fordi brukeren din har et lagret kolonneoppsett fra før w5.** Planen lot lagrede oppsett stå (følge 16). | **A:** alle lagrede oppsett for attesteringen settes til kjernen én gang. Den som vil ha flere kolonner, legger dem til igjen med «Velg parameter». **B:** som i dag. Hver bruker trykker «Tilbakestill til standard» selv. | **A.** Prod har bare testbrukere, og kjernen er det planen viser. |
+| **B27** | **Hvordan legger attestanten til og sletter linjer, maskiner og tillegg fra kortet?** Kortet kan i dag bare rette verdier som finnes. | **A:** knappen «Rediger jobben» øverst i kortet åpner vinduet pennen åpner i dag, for hele jobben. «+» og «✕» rett i kortet kommer med w3, når føringen bygges som én flate og kortet blir samme flate. **B:** «+» og «✕» bygges rett i kortet nå, og vinduet bak pennen tas ut. Det er større, og må gjøres om når w3 kommer. | **A.** Det er en justering av det som finnes. Alt som rettes ofte (fra–til, lønnsart, maskintimer, underprosjekt, del opp), gjøres rett i kortet. |
+| **B28** | **Prosjektets attestering får uke, år og fanene «Venter» og «Attestert». Hva viser «Venter»?** I dag viser siden alt som venter, uansett uke. | **A:** begge fanene følger uka, som firmaets side og bilde 6. Det som venter fra tidligere uker, ser du når du blar tilbake. **B:** «Venter» viser alt som venter, uansett uke, som i dag. Ukevalget gjelder bare «Attestert». | **A.** Samme side og samme regel i firma og prosjekt. Med A kan en gammel dag bli liggende usett; med B oppfører de to fanene seg ulikt. |
+
+**Følger som ikke er spørsmål, men si fra hvis du mente noe annet:**
+
+1. ↗ på den blå linja heter «Åpne dagsseddelen», ikke «Rediger sedel».
+2. Detaljsiden og «Rediger sedel» der står urørt til w3 er bygget.
+3. «Hva gjorde du?», varer og utlegg kan leses i kortet, ikke rettes, som i dag.
+4. Den som kan attestere en linje, kan gjenåpne den, som i dag (R23).
+5. Ny testdata (§ 8.7) bestilles nå, fordi w9 er merget. Uten den står maskinen fortsatt på egen linje på test.
+
+**Besvart i versjon 6 — B21–B23 slik de ble stilt** (svarene står i § 8.7):
 
 | # | Spørsmål | Alternativer | Anbefaling |
 |---|---|---|---|
@@ -943,9 +1064,12 @@ delene krever ingen.
 | **w5b** | Dagsvisningen i attesteringen (B14, § 4.2) etter alternativet Kenneth velger. Med A: dagsraden øverst, jobbrad bare når dagen har flere jobber, farget kant pr. jobb, ramme og luft pr. dag, og normen som merke. | `AT`, `TR` (ny valgfri radvariant; timerapporten urørt), i18n (`timer.attestering.tabell.hjelp.struktur`, `.handlinger`), `hjelpetekster.md`, `apps/web/src/__tests__/attestering-tabell.test.tsx` | Bildet `b14-a.png`. |
 | **w8** | Kenneth 2026-11-19 (§ 8.6 punkt 1): jobbraden åpner registreringen, timeradene gjør det ikke. Datoen i dagsraden står hel ved 1 440. Retting av «null null» for utstyr uten merke og modell, og av den kuttede «Ansattnr»-overskriften. | `AT`, `TR`, `apps/web/src/components/attestering/utstyr-navn.ts`, `DagsKort.tsx`, `attestering-buckets.tsx`, i18n (`timer.attestering.tabell.hjelp.registrering`), `hjelpetekster.md` | Ett klikk på jobbraden åpner jobben; «man. 16.11.» står hel. |
 | **w7** | Attestantens egne timer (B15, § 4.3): firmavalget på innstillingssiden, sperren på serveren i de elleve prosedyrene (WM89), flagg pr. seddel i de tre listene, og merket «Egne timer» på PC og telefon. Med B17 A: lønnsform på den ansatte (**migrering, Kenneth**), feltet på ansattkortet og attestantlista på innstillingssiden. | `packages/db` (bare med B17 A), `D`, `apps/api/src/routes/organisasjon.ts`, `apps/web/src/app/dashbord/firma/innstillinger/page.tsx`, `AT`, `AM`, `apps/mobile/app/timer/attestering/`, `apps/mobile/src/components/timer-attestering/`, i18n, hjelpeteksten, `timer.md` | Egne timer står med «Egne timer» og uten ✓ når firmaet har valgt «Nei». |
-
 | **w9** | Maskintimer høyst jobbens arbeidstimer (§ 4.4): den delte regelen pr. jobb uten pausen og uten døgn-maskiner, de åtte stedene og de sju hullene på serveren (WM96, WM97), «Del opp», avviksmerket «Maskin over arbeid» og «høyst» ved feltene på PC. Deretter telefonen (**w9m**): Bekreft dag, dagskort-modus og dagsoversikten, og til slutt synken (B22). | `packages/shared/src/utils/maskinKapasitet.ts`, `D`, `apps/api/src/routes/timer/jobb-deling.ts`, `WS`, `apps/web/src/components/attestering/*` (`RegistreringPanel.tsx`, `RedigerRadModal.tsx`, `attestering-tabell.ts`), i18n, hjelpeteksten, `timer.md`, `maskin.md`, `KS` (B4, R24), `fase-0-beslutninger.md`. w9m: `BD`, `M/utils/bekreftDag.ts`, `M/utils/bekreftDagTillegg.ts`, `M/services/kobledeMaskiner.ts`, `M/components/timer-detalj/MaskinSeksjon.tsx`, `M/components/timer-detalj/ProsjektkortDagsoversikt.tsx`. Med B21 B: `packages/db-maskin` (**migrering, Kenneth**) og maskinkortet. | Ola Tømrer 14.05. står med «Maskin over arbeid» og kan attesteres med merket (B23 B). ✂ og bytte av underprosjekt som ville gitt samme tilstand, avvises med forklaring. En Heatwork kan føres med flere timer enn arbeidet. **D1 (w9m, Kenneth 2026-11-19, B21 A):** «Kun maskiner som heatwork eller utleie maskiner/materiell kan ha timer/døgn leie uten at arbeidstimer tilsvarende eller flere er registrert» — telefonens rad-regel «maskin ≤ radens timer» (`maskinerOverRad`) gjelder derfor bare maskiner med fører. |
+| **w10** | Retteordren etter KS (§ 4.5), i denne rekkefølgen: (1) fra–til og pause som felt i kortet, timene regnes ut, timefeltet ut (K7); (2) ✂ og «Rediger jobben» i kortet, ✂ og ✎ bort fra linjene (K4, K8, B27); (3) prosjektets attestering får uke, år, «Denne uka» og fanene «Venter» og «Attestert» (K9, K10, B28); (4) kjernekolonnene for alle (K1, B26); (5) cellene på linja kan bare leses (B25); (6) ↗ heter «Åpne dagsseddelen», og detaljsidens tabell får full bredde (K8, K11). Ingen migrering. | `RP`, `AT`, `PS`, `AD`, `apps/web/src/components/attestering/ukevalg.ts`, `D` (`hentTilAttestering`: valgfri periode og status; uten dem som i dag), i18n, `hjelpetekster.md`, `apps/web/src/__tests__/attestering-tabell.test.tsx` | Bildet `ks-attestering.png`. |
 
+- **w10 går før w3, w4 og w6.** Den justerer det som er bygget, tilbake til bilde 6–8. Punkt 1, 2 og 6 kan bygges med
+  én gang; punkt 3 venter på B28, punkt 4 på B26 og punkt 5 på B25. Punkt 5 bygges etter punkt 1, så ingen rettevei
+  forsvinner før kortet har feltene.
 - **w1 kan gå først og alene.** Den retter det Kenneth så i attesteringen, uten å vente på resten.
 - **w1 → w2 → w3 → w4 går etter hverandre:** alle rører `WS`.
 - **w5 går etter w1** (samme filer i attesteringen), og er uavhengig av w2–w4. **B13 må være besvart før w5.**
