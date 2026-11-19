@@ -436,6 +436,38 @@ describe("w9 — avvisning pr. skrivevei", () => {
     expect(s.timer[0]!.externalCostObjectId).toBe(ECO_1);
     expect(s.maskin[0]!.externalCostObjectId).toBe(ECO_1);
   });
+
+  // RETUR 1 V1 (w9m): flyttHeleJobben beholder kortId, så jobbens summer er uendret. Et nytt
+  // brudd kan bare oppstå når sikreKortId slår en rad UTEN kortId (eldre data, regel 3) inn i
+  // jobben fordi den nå har samme nøkkel. Vakten i samme transaksjon avviser det.
+  it("flyttTimerRadEco helJobb: eldre førermaskin uten jobb på målet slås inn → nytt brudd → avvist", async () => {
+    const sid = await nySedel({ status: "sent" });
+    const k = randomUUID();
+    const r1 = await timerRad(sid, { fra: "07:00", til: "11:30", timer: 4.5, kortId: k });
+    await maskinRad(sid, { timer: 4.5, kortId: k, sheetTimerId: r1 });
+    await prismaTimer.sheetMachine.create({
+      data: { sheetId: sid, projectId: P1, vehicleId: MASKIN, timer: 3, kortId: null, externalCostObjectId: ECO_1 },
+    });
+    await forventAvvist(sid, () =>
+      dag(ADMIN).flyttTimerRadEco({ timerRadId: r1, externalCostObjectId: ECO_1, helJobb: true }),
+    );
+  });
+
+  it("flyttTimerRadEco helJobb: førermaskin i en annen jobb på målet slås ikke sammen (negativkontroll)", async () => {
+    const sid = await nySedel({ status: "sent" });
+    const k = randomUUID();
+    const k2 = randomUUID();
+    const r1 = await timerRad(sid, { fra: "07:00", til: "11:30", timer: 4.5, kortId: k });
+    await maskinRad(sid, { timer: 4.5, kortId: k, sheetTimerId: r1 });
+    const r2 = await timerRad(sid, { fra: "12:00", til: "13:00", timer: 1, kortId: k2 });
+    await prismaTimer.sheetTimer.update({ where: { id: r2 }, data: { externalCostObjectId: ECO_1 } });
+    await prismaTimer.sheetMachine.create({
+      data: { sheetId: sid, projectId: P1, vehicleId: MASKIN, timer: 3, kortId: k2, sheetTimerId: r2, externalCostObjectId: ECO_1 },
+    });
+    await dag(ADMIN).flyttTimerRadEco({ timerRadId: r1, externalCostObjectId: ECO_1, helJobb: true });
+    const s = await tilstand(sid);
+    expect(new Set(s.maskin.map((m) => m.kortId))).toEqual(new Set([k, k2]));
+  });
 });
 
 describe("w9 — reise teller ikke som arbeid (flyttet fra enhetstestene)", () => {

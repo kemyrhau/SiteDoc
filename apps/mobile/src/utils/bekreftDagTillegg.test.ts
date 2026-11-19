@@ -435,6 +435,35 @@ describe("L3-D § 8 nr. 21 / w9m — maskin med fører ≤ jobbens arbeid (samme
   });
 });
 
+describe("RETUR 1 M1 — vakten skiller eldre reise-rader som serveren", () => {
+  it("🔴 eldre rad med erReise null og reise-lønnsart teller ikke som arbeid", () => {
+    db().insert(organizationSettingLocal).values({
+      organizationId: ORG, reiseLonnsartId: "L-reise", sistOppdatert: 1,
+    } as typeof organizationSettingLocal.$inferInsert).run();
+    db().insert(lonnsartLocal).values({
+      id: "L-reise", organizationId: ORG, type: "ordinaer", navn: "Reisetid",
+      aktiv: true, erStandardvalg: false, sistOppdatert: 1,
+    }).run();
+    db().insert(dagsseddelLocal).values({
+      id: "eks", userId: BRUKER, organizationId: ORG, projectId: "p1", aktivitetId: "a1",
+      dato: DATO, status: "draft", pauseMin: 0, sistEndretLokalt: 1,
+    }).run();
+    db().insert(sheetTimerLocal).values([
+      { id: "t-reise", dagsseddelId: "eks", projectId: "p2", aktivitetId: "a1", lonnsartId: "L-reise", timer: 2, erReise: null, kortId: "k-eks", sistEndretLokalt: 1 },
+      { id: "t-arb", dagsseddelId: "eks", projectId: "p2", aktivitetId: "a1", lonnsartId: "L-normal", timer: 3, erReise: false, kortId: "k-eks", sistEndretLokalt: 1 },
+    ]).run();
+    const { forslag } = forberedBekreftDag(lokalDb(), kontekst());
+    const grunnlag = vaktGrunnlag(lokalDb(), BRUKER, forslag)!;
+    expect(grunnlag.foer.timer.filter((t) => t.kortId === "k-eks").map((t) => t.erReise).sort()).toEqual([false, true]);
+    // Maskin 4 t på jobben: arbeid er 3 t (reisen teller ikke) → brudd, som serveren.
+    // Jobben står på p2, så forslagets p1-rader blir ikke med i den.
+    const ni = [{ ...MASKIN_3.maskiner[0]!, timer: 4, kortId: "k-eks" }];
+    expect(maskinBruddForTillegg(grunnlag, ni)).toMatchObject([{ kortId: "k-eks", arbeidSum: 3, maskinSum: 4 }]);
+    // Negativkontroll: 3 t er lov.
+    expect(maskinBruddForTillegg(grunnlag, [{ ...ni[0]!, timer: 3 }])).toEqual([]);
+  });
+});
+
 describe("Vedtak C — sendt start-sedel", () => {
   it("sendt start-sedel → ingen maskin/varer skrives", () => {
     db().insert(dagsseddelLocal).values({

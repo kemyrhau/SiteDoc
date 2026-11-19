@@ -11,6 +11,7 @@ import {
   type JobbMaskinLokal,
 } from "../services/maskinJobbLokalt";
 import { utleieEnhetLokalt } from "../services/maskinKoblingLokal";
+import { hentReiseLonnsartId } from "../services/timerKatalog";
 import type { SedelKortKontekst } from "../lib/prosjektkortMobil";
 import type { Dagsforslag } from "./dagsforslag";
 
@@ -151,7 +152,10 @@ export function vaktGrunnlag(
     )
     .all()[0];
   const enhet = (vehicleId: string) => utleieEnhetLokalt(db, vehicleId);
-  const foer = sedel ? lesJobbGrunnlag(db, sedel.id, null) : TOMT_JOBB_GRUNNLAG;
+  // RETUR 1 M1: eldre rader med `erReise` null og reise-lønnsart er reise, som på serveren.
+  const foer = sedel
+    ? lesJobbGrunnlag(db, sedel.id, hentReiseLonnsartId(sedel.organizationId))
+    : TOMT_JOBB_GRUNNLAG;
   return {
     foer,
     etter: {
