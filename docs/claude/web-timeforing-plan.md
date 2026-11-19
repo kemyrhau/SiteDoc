@@ -1047,6 +1047,16 @@ Kenneth 2026-11-18: «Ja, (a)». Firmavalget «Attestant kan attestere egne time
 - **Døgn-maskiner føres uten fra–til** (Kenneth 2026-11-19: «døgnleiemaskiner skal ikke registrere fra /til de heller»). Maskiner med enheten «døgn» får bare timer, også når firmaet har valgt «maskin føres med fra–til» (B5). 🟡 Ikke bygget; hører til w6, som eier fra–til på maskin.
 - **Ny testdata etter w9** (Kenneth 2026-11-19: «Ja, etter w9»). Dagene på test ble lagt inn med SQL (WM93) og følger ikke reglene, blant annet fordi maskinene mangler kobling til timerad (R24). Etter at w9 er merget, lager en agent nye testdager gjennom serverens egne skriveveier. Dagene skal vise jobber med arbeid, maskiner med og uten fører, døgn-maskiner, flere jobber på én dag og noen bevisste brudd som viser merket «Maskin over arbeid». Hver jobb får en beskrivelse av arbeidet («hva gjorde du») som passer til aktiviteten, for eksempel «Graving av grøft for drenering, 40 m» (Kenneth 2026-11-19: «få med en beskrivelse av arbeidet i testdata»). Leveransen tar også med en oversikt over hvilken ansatt og dato som viser hvilket tilfelle. Skriptet kjøres bare mot `sitedoc_test`, og Kenneth kjører det. De gamle SQL-dagene slettes ikke uten Kenneths ja. 🟡 Ikke bestilt.
 
+
+### 8.8 Kenneths svar på B24–B28, 2026-11-19
+
+- **B24 — åpent.** Kenneth: kortet redigeres samlet: prosjekt, byggeplass, underprosjekt, arbeidstimer, maskiner (timer/døgn), varer (type, enhet, mengde), utlegg, tillegg og eventuelt reise. «Det gir ingen mening å attestere timer dersom maskintimene har feil.» Han spør om A betyr at bare den ene linja kan redigeres. Svaret er nei: rettingen skjer alltid i kortet for hele jobben. ✓ og ↩ på linja gjelder bare attestering og retur. Orkestrators anbefaling etter Kenneths begrunnelse er **B**: attestering og retur bare pr. jobb og pr. dag. Venter på Kenneth.
+- **B25 → A.** Cellene på linja åpnes ikke for retting. Kortet er det ene stedet du retter.
+- **B26 → A** (Kenneth var usikker; forklart 19.11.). Lagrede kolonneoppsett for attesteringslista settes til kjernekolonnene én gang. Kolonner kan legges til igjen med «Velg parameter».
+- **B27 → A, og pennen beholdes.** «Rediger jobben» i kortet vises med pennen (✎) som ikon. «+» og «✕» direkte i kortet kommer med w3.
+- **B28 → A.** «Venter» følger uka.
+- **Nytt ønske (hjemmel Kenneth 19.11.):** hover-forklaring på menypunktene i venstre marg, særlig der samme navn står både under Prosjekt og Firma (Attestering, Timer). Teksten skal si hva siden gjør og hvem den er for. Fabel skriver tekstene etter `tooltip-hjelpetekst-veileder.md`.
+
 ## 9. Rekkefølge
 
 Dette er forslag til oppdeling, ikke ordrer. **w1, w2 og w5 er merget** (§ 9.1–9.3). **w6 krever en migrering** (ny
