@@ -1309,6 +1309,14 @@ Kenneth 2026-11-18: «Ja, (a)». Firmavalget «Attestant kan attestere egne time
 
 - **Prosjektleder med flere prosjekter (Kenneth 19.11.).** Målt: prosjektets attestering henter bare ett prosjekt (`hentTilAttestering`, `dagsseddel.ts:5765`). Firmaets side krever firmaadministrator (`autoriserAdminForFirma`, `dagsseddel.ts:5979`). En prosjektleder for fire prosjekter må derfor bytte prosjekt fire ganger. Kenneth: da bør attesteringen flyttes til firmaattesteringen, der prosjektlederen får opp sine ansatte i sine prosjekter. 🟡 Spesifisert i § 4.6 (versjon 8); bygges som w10 del B. Hva som skjer med prosjektets side, er B29.
 
+### 8.9 Kenneths svar på B29–B31 og innspill til v8, 2026-11-20
+
+- **B29 → B.** «Attestering» under Prosjekt fjernes, og attesteringen finnes bare under Firma. Kenneth: «fjern eventuell kode som nå er, eller skal bli død». Fabel lager en liste over hva som blir dødt (side, rute, kall, nøkler, tester), og sjekker kallere i web, telefon og API før noe føres som dødt.
+- **B30 → A.** Avkrysningen flyttes til jobbraden og dagsraden. «Attester utvalget» tar hele jobber.
+- **B31 → B.** Kvitteringsikonet står på utleggslinja, og kvitteringen vises også i kortet.
+- **Reise — Kenneth er uenig med § 4.7.** «En reisekostnad knyttes til en kostnad for et prosjekt. Det er reisekostnaden til/fra et prosjekt og bør knyttes til prosjektet kostnaden tilhører.» § 4.7 («reise hører ikke til en jobb») må vurderes på nytt mot dette. Det er ikke avklart om reisen skal inn i en jobb eller stå som egen rad under prosjektet.
+- **Beskrivelsen i kortet.** Kenneth: beskrivelsen må være med i kortet, og «denne er svært viktig ved attestering». Orkestrator har målt: kortet viser `rad.beskrivelse` og faller tilbake til aktiviteten (`RegistreringPanel.tsx:109`). På test 13.05. står beskrivelsen i sedelens kommentar, og kortet viser derfor «Anleggsarbeid».
+
 ## 9. Rekkefølge
 
 Dette er forslag til oppdeling, ikke ordrer. **w1, w2 og w5 er merget** (§ 9.1–9.3). **w6 krever en migrering** (ny
