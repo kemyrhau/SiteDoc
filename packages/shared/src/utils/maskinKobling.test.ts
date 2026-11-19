@@ -6,7 +6,7 @@ import {
   velgTimeradForMaskin,
   type KoblingTimerRad,
 } from "./maskinKobling";
-import { beregnMaskinBrudd } from "./maskinKapasitet";
+import { beregnJobbMaskinBrudd } from "./maskinKapasitet";
 
 // T67 (kort-id-spec § 12.7): R24 / H15 = A.
 describe("maskinKreverTimerad", () => {
@@ -66,16 +66,17 @@ describe("finnMaskinerUtenTimerad", () => {
   });
 
   it("maskin-taket gir samme svar som før for de samme radene", () => {
-    const brudd = beregnMaskinBrudd(
-      [{ projectId: "p1", externalCostObjectId: null, timer: 4 }],
-      [{ projectId: "p1", externalCostObjectId: null, timer: 5 }],
+    // w9m: eldre rader uten jobb (kortId null) — bøtte-veien i jobb-regelen.
+    const brudd = beregnJobbMaskinBrudd(
+      [{ kortId: null, projectId: "p1", externalCostObjectId: null, timer: 4 }],
+      [{ kortId: null, projectId: "p1", externalCostObjectId: null, timer: 5, utleieEnhet: "time" }],
       0,
     );
     expect(brudd).toHaveLength(1);
     expect(
-      beregnMaskinBrudd(
-        [{ projectId: "p1", externalCostObjectId: null, timer: 4 }],
-        [{ projectId: "p1", externalCostObjectId: null, timer: 4 }],
+      beregnJobbMaskinBrudd(
+        [{ kortId: null, projectId: "p1", externalCostObjectId: null, timer: 4 }],
+        [{ kortId: null, projectId: "p1", externalCostObjectId: null, timer: 4, utleieEnhet: "time" }],
         0,
       ),
     ).toEqual([]);

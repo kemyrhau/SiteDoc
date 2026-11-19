@@ -18,7 +18,7 @@ import {
 import { anvendDagsforslag, harLonnUtlegg, type LonnUtlegg } from "./dagsforslagAnvend";
 import { nesteLokaleMidnatt } from "./dagsegment";
 import { lokalIsoDato } from "./dato";
-import type { MaskinBrudd } from "@sitedoc/shared";
+import type { MaskinJobbBrudd } from "@sitedoc/shared";
 import {
   maskinBruddForTillegg,
   maskinerForDato,
@@ -29,6 +29,7 @@ import {
   type TilleggPerRad,
 } from "./bekreftDagTillegg";
 import { kortMedArbeid } from "./beskrivelseKort";
+import { enhetLokalt } from "../services/kobledeMaskiner";
 import { fordelTilleggPaaKort } from "./tilleggPaaKort";
 import { kortNokkel } from "../lib/prosjektkortMobil";
 import { avsluttBesok, type BesokSted } from "../services/arbeidsdagBesok";
@@ -36,14 +37,14 @@ import { slettUtkastRad } from "./prosjektkortUtkast";
 import { finnSedelIAnnetFirma, finnSendteDatoer } from "../services/dagsseddelOpprett";
 
 /**
- * L3-D: maskin > arbeid + pause → ingenting skrives, skjermen står (spec § 8 nr. 21).
+ * L3-D / w9m: maskin med fører > jobbens arbeid (uten pause) → ingenting skrives, skjermen står.
  * ORDRE 36a: tom beskrivelse på et prosjekt med arbeid → ingenting skrives.
  * PRESISERING TILLEGG: maskin/vare på en rad som ikke finnes lenger → ingenting
  * skrives; linjene kastes aldri stille.
  */
 export type BekreftDagHandling =
   | SluttDagHandling
-  | { type: "maskinBrudd"; brudd: MaskinBrudd[] }
+  | { type: "maskinBrudd"; brudd: MaskinJobbBrudd[] }
   | { type: "manglerBeskrivelse"; nokler: string[] }
   | { type: "tilleggUtenRad"; nokler: string[] }
   | { type: "tilleggUtleggUtenDag" }
@@ -215,7 +216,7 @@ export function bekreftDag(
 ):
   | { handling: SluttDagHandling; resultat: AnvendDagsforslagResultat }
   | { handling: { type: "tilleggUtleggUtenDag" }; resultat: AnvendDagsforslagResultat | null }
-  | { handling: { type: "maskinBrudd"; brudd: MaskinBrudd[] }; resultat: null }
+  | { handling: { type: "maskinBrudd"; brudd: MaskinJobbBrudd[] }; resultat: null }
   | { handling: { type: "manglerBeskrivelse"; nokler: string[] }; resultat: null }
   | { handling: { type: "tilleggUtenRad"; nokler: string[] }; resultat: null }
   | { handling: { type: "sedelIAnnetFirma"; dato: string }; resultat: null }
@@ -240,17 +241,19 @@ export function bekreftDag(
     if (utenRad.length > 0) {
       return { handling: { type: "tilleggUtenRad", nokler: utenRad }, resultat: null };
     }
-    // Regel 2: maskinens egne timer ≤ radens.
-    const over = maskinerOverRaden(forslag, tillegg);
+    // Regel 2: maskinens egne timer ≤ radens (D1: kun maskiner med fører).
+    const over = maskinerOverRaden(forslag, tillegg, enhetLokalt(db));
     if (over.length > 0) {
       return {
         handling: {
           type: "maskinBrudd",
           brudd: over.map((o) => ({
+            nokkel: o.kortId ? `kort:${o.kortId}` : o.nokkel,
+            kortId: o.kortId,
             projectId: o.projectId,
             externalCostObjectId: ctx.ecoId ?? null,
             maskinSum: o.maskin.timer,
-            timerSum: o.radTimer,
+            arbeidSum: o.radTimer,
           })),
         },
         resultat: null,

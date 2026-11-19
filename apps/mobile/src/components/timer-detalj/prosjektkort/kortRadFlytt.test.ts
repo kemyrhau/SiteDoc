@@ -559,7 +559,10 @@ describe("Kontrollør A1 — maskin eller vare flyttet alene får målkortets id
     const blokk = kilde.slice(kilde.indexOf("const utforFlytt = async"), kilde.indexOf("onVarerLagret();\n", kilde.indexOf("flyttVareLokalt(db(), v.id")));
     expect(blokk).toContain("const til = flyttMaalKort(valgt, nytt);");
     expect(blokk).toContain("kortId: til.kortId");
-    expect(blokk.match(/sikreLokalKortId\(db\(\), sheetId\)/g)).toHaveLength(2);
+    // w9m: maskin-flyttet normaliseres i maskinvakten (`flyttMaskinMedVakt` →
+    // `skrivMedMaskinVakt` → `sikreLokalKortId`); varen normaliseres her.
+    expect(blokk.match(/sikreLokalKortId\(db\(\), sheetId\)/g)).toHaveLength(1);
+    expect(blokk).toContain("flyttMaskinMedVakt(flytt.rad.id, maal");
   });
 });
 

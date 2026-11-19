@@ -294,6 +294,8 @@ Prosjektkort-modus grupperer på kort-id i stedet for prosjekt|byggeplass|underp
 
 Lokal kolonne `equipment_local.utleie_enhet` (`MASKIN_ENHET_LOCAL_KOLONNER`, `apps/mobile/src/db/migreringer.ts`) fylles av `refreshMaskinKatalog`. `MaskinRadModal` har feltet «Timerad» (`TimeradVelgerModal`) med regelen i `apps/mobile/src/utils/maskinTimerad.ts` og oppslag i `apps/mobile/src/services/maskinKoblingLokal.ts`. Prosjektkort-modus: sletting av rad med maskiner (`fjernTimerRadMedMaskiner`), «Flytt» til timerad. Dagskort-modus får bare feltet (vakt `dagskort-isolert-vakt.test.ts`). Detaljer: [prosjektkort-kortid-spec.md § 12.12](prosjektkort-kortid-spec.md).
 
+**Maskin ≤ jobbens arbeid på telefonen (w9m, 🟡 `feat/web-timer-w9m`, ikke merget):** skrivevakten `skrivMedMaskinVakt` (`apps/mobile/src/services/maskinJobbLokalt.ts`) regner serverens jobbregel lokalt og ruller tilbake ved nytt eller økt brudd; rad-regelen `maskinerOverRad` gjelder bare maskiner med fører (D1); synkfeil med nøkkel lagres i `dagsseddel_local.feilmelding` som `nokkel:{…}` uten migrering (`apps/mobile/src/utils/synkFeil.ts`). Bøtte-kapasiteten og infolinja «Arbeid i gruppen …» er fjernet. Detaljer: [timer.md § Maskin ≤ arbeidstimer — pr. jobb](timer.md).
+
 ## Flerspråklig (i18n)
 
 **Oppsett:** i18next + react-i18next, gjenbruker JSON-filer fra `packages/shared/src/i18n/` (samme språk og nøkler som web — kanon-liste i `STOETTEDE_SPRAAK`).

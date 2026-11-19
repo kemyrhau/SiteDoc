@@ -28,6 +28,7 @@ import {
   type KortValg,
 } from "../../../src/lib/prosjektkortMobil";
 import { formatNorskDato, formatTidspunkt, isoTidspunktTilHHMM } from "../../../src/utils/dato";
+import { feilmeldingTekst } from "../../../src/utils/synkFeil";
 import { GjenaapneKnapp } from "../../../src/components/timer-detalj/prosjektkort/GjenaapneKnapp";
 
 /**
@@ -187,7 +188,7 @@ export default function ProsjektkortSkjerm() {
               </Text>
             </View>
             <Text className="mt-1 text-sm text-red-800">
-              {sedel.feilmelding ?? t("timer.sync.avvistBeskrivelse")}
+              {feilmeldingTekst(t, sedel.feilmelding) ?? t("timer.sync.avvistBeskrivelse")}
             </Text>
           </View>
         )}
@@ -197,7 +198,7 @@ export default function ProsjektkortSkjerm() {
           <View className="mx-4 mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3">
             <View className="flex-row items-start gap-2">
               <AlertTriangle size={16} color="#b45309" style={{ marginTop: 1 }} />
-              <Text className="flex-1 text-sm text-amber-900">{sedel.feilmelding}</Text>
+              <Text className="flex-1 text-sm text-amber-900">{feilmeldingTekst(t, sedel.feilmelding)}</Text>
             </View>
           </View>
         )}
@@ -238,7 +239,7 @@ export default function ProsjektkortSkjerm() {
               <RotateCcw size={14} color="#a16207" />
               <Text className="flex-1 text-sm text-yellow-800">
                 {sedel.feilmelding
-                  ? t("timer.sync.venterFeil", { feilmelding: sedel.feilmelding })
+                  ? t("timer.sync.venterFeil", { feilmelding: feilmeldingTekst(t, sedel.feilmelding) })
                   : t("timer.sync.venterEn")}
               </Text>
             </View>

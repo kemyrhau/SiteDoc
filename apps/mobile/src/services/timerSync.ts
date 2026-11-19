@@ -20,6 +20,7 @@ import i18n from "../lib/i18n";
 import { varsleKoen } from "../lib/koTrigger";
 import { leggTilbakeUsendteLinjer, taLokaltOyeblikksbilde, type LokaltOyeblikksbilde } from "../lib/konfliktWebUsendte";
 import type { LokalDb } from "./dagsforslagInput";
+import { kodSynkFeil } from "../utils/synkFeil";
 
 /**
  * LAG 2 (TILLEGG 1) — reise-/tid-spor på en pull-rad, ALLE valgfrie. En GAMMEL
@@ -719,7 +720,7 @@ async function kjorTimerSync(
         db.update(dagsseddelLocal)
           .set({
             syncStatus: "avvist",
-            feilmelding: r.feilmelding ?? "Avvist av server",
+            feilmelding: kodSynkFeil(r, "Avvist av server"),
             sistSynkronisert: naa,
           })
           .where(eq(dagsseddelLocal.id, r.clientUuid))
@@ -728,7 +729,7 @@ async function kjorTimerSync(
       } else {
         // "feilet" — transient, behold pending, lagre feilmelding, retry neste tick
         db.update(dagsseddelLocal)
-          .set({ feilmelding: r.feilmelding ?? "Ukjent feil" })
+          .set({ feilmelding: kodSynkFeil(r, "Ukjent feil") })
           .where(eq(dagsseddelLocal.id, r.clientUuid))
           .run();
         resultat.push.feilet++;

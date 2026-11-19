@@ -118,6 +118,7 @@ import { sisteBeskrivelser, beskrivelseChips } from "../../src/services/beskrive
 import {
   vaktGrunnlag,
   maskinerForDato,
+  tilleggRader,
   tilleggUtenRad,
   type BekreftDagTillegg,
   type TilleggPerRad,
@@ -128,6 +129,7 @@ import {
   TilleggLinjer,
   useTilleggKatalog,
 } from "../../src/components/timer-detalj/BekreftDagRadTillegg";
+import { bruddTekst } from "../../src/services/maskinJobbLokalt";
 import { kortArbeidstimer, settTilleggPaaKort, tilleggPaaKort } from "../../src/utils/tilleggPaaKort";
 import {
   leggTilOvertidRetting,
@@ -1064,7 +1066,7 @@ export default function BekreftDagSkjerm() {
       }
       if (handling.type === "maskinBrudd") {
         // Ingenting er skrevet — skjermen står, arbeideren justerer maskintimene.
-        Alert.alert(t("timer.bekreftDag.tillegg.bruddTittel"), t("timer.maskin.overstigerArbeid"));
+        Alert.alert(t("timer.bekreftDag.tillegg.bruddTittel"), bruddTekst(t, hentDatabase(), handling.brudd));
         return;
       }
       if (handling.type === "manglerBeskrivelse") {
@@ -1643,6 +1645,7 @@ export default function BekreftDagSkjerm() {
                       dato={forste.dato}
                       byggeplassId={forste.byggeplassId}
                       radTimer={kortArbeidstimer(rader)}
+                      kortId={tilleggRader(forslag).find((x) => x.nokkel === forste.tilleggNokkel)?.kortId ?? null}
                       grunnlag={grunnlagPerDato.get(forste.dato) ?? null}
                       andreMaskiner={maskinerForDato(forslag, tilleggPerRad, forste.dato).filter(
                         (m) => !egne.maskiner.some((e) => e.lokalId === m.lokalId),

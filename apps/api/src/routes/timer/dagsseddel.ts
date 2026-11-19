@@ -4,6 +4,7 @@ import { TRPCError } from "@trpc/server";
 import { Prisma, type PrismaClient as PrismaClientTimer } from "@sitedoc/db-timer";
 import { prisma } from "@sitedoc/db";
 import { router, protectedProcedure } from "../../trpc/trpc";
+import { NokkelFeil, type FeilParam } from "../../trpc/feilformat";
 import type { Context } from "../../trpc/context";
 import { signerHvisPrivat } from "../../utils/hmac";
 import { planleggJobbDeling, maskinKrysserKl, JOBB_DELING_FEILTEKST } from "./jobb-deling";
@@ -8841,6 +8842,10 @@ export const dagsseddelRouter = router({
           skrevet?: boolean;
         };
         feilmelding?: string;
+        // w9m (plan § 5): i18n-nøkkel + parametre når avvisningen bærer en
+        // `NokkelFeil` (S1). Valgfritt → eldre klient viser `feilmelding` som før.
+        feilNokkel?: string;
+        feilParam?: FeilParam;
         // Kort-id-spec § 11.3: maskinlesbar grunn på avvisning. Valgfritt → eldre
         // klient ignorerer feltet.
         grunn?: "utenProsjektKreverFravaer";
@@ -10010,6 +10015,9 @@ export const dagsseddelRouter = router({
               clientUuid: lokal.clientUuid,
               resultat: "avvist",
               feilmelding: e.message,
+              ...(e.cause instanceof NokkelFeil
+                ? { feilNokkel: e.cause.feilNokkel, feilParam: e.cause.feilParam }
+                : {}),
             });
             continue;
           }

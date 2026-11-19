@@ -154,12 +154,17 @@ describe("ORDRE 36b — dagsoversiktens kilderegler", () => {
     const lokal = b.indexOf("flyttVareLokalt(db(), v.id, vareMaal)");
     return server > 0 && avbryt > server && b.indexOf("return;", avbryt) < lokal && lokal > avbryt;
   };
-  /** Maskinkapasitet sjekkes før maskin-raden flyttes. */
-  const maskinRekkefolge = (b: string) => {
-    const brudd = b.indexOf("beregnMaskinBrudd(");
-    const avslag = b.indexOf('setFlyttFeil(t("timer.maskin.overstigerArbeid"))');
-    const flytt = b.indexOf("flyttMaskinRad(db(), flytt.rad.id, maal)");
-    return brudd > 0 && avslag > brudd && flytt > avslag;
+  /**
+   * w9m (WM108): maskin-raden flyttes bare gjennom vakten — skrivingen rulles
+   * tilbake ved nytt/økt brudd, og teksten vises. Ingen direkte flytt utenom.
+   */
+  const maskinRekkefolge = (b: string) =>
+    b.includes("const avvist = flyttMaskinMedVakt(flytt.rad.id, maal") &&
+    b.includes("setFlyttFeil(avvist)") &&
+    !b.includes("flyttMaskinRad(db()");
+  const vaktKropp = (kilde: string) => {
+    const fra = kilde.indexOf("const flyttMaskinMedVakt = ");
+    return flat(kilde.slice(fra, kilde.indexOf("\n  };\n", fra)));
   };
 
   it("🔴 flytt: byggeplass lagres som kortets lagrede verdi (arv = null)", () => {
@@ -177,8 +182,11 @@ describe("ORDRE 36b — dagsoversiktens kilderegler", () => {
     expect(b).toContain('if (v.syncStatus !== "pending" && v.syncStatus !== "avvist") {');
   });
 
-  it("🔴 flytt av maskin: kapasitet sjekkes før skriving", () => {
+  it("🔴 flytt av maskin: går gjennom maskinvakten (rull tilbake ved brudd)", () => {
     expect(maskinRekkefolge(flyttBlokk(OVERSIKT))).toBe(true);
+    const v = vaktKropp(OVERSIKT);
+    expect(v).toContain("skrivMedMaskinVakt(db(), sheetId, reiseLonnsartId, (tx) => flyttMaskinRad(tx, radId, maal");
+    expect(v).toContain("bruddTekst(t, db(), brudd)");
   });
 
   it("negativkontroll: lokal vare-flytt før server, og maskin-flytt før sjekk, fanges", () => {
@@ -187,10 +195,9 @@ describe("ORDRE 36b — dagsoversiktens kilderegler", () => {
       .replace("flyttVareLokalt(db(), v.id, vareMaal);", "")
       .replace("await oppdaterVare.mutateAsync(", "flyttVareLokalt(db(), v.id, vareMaal); await oppdaterVare.mutateAsync(");
     expect(vareRekkefolge(lokalForst)).toBe(false);
-    const maskinForst = b
-      .replace("flyttMaskinRad(db(), flytt.rad.id, maal);", "")
-      .replace("const brudd = beregnMaskinBrudd(", "flyttMaskinRad(db(), flytt.rad.id, maal); const brudd = beregnMaskinBrudd(");
-    expect(maskinRekkefolge(maskinForst)).toBe(false);
+    const maskinUtenVakt = b.replace("const avvist = flyttMaskinMedVakt(flytt.rad.id, maal", "const avvist = flyttMaskinRad(db(), flytt.rad.id, maal");
+    expect(maskinUtenVakt).not.toBe(b);
+    expect(maskinRekkefolge(maskinUtenVakt)).toBe(false);
   });
 
   it("🔴 RETUR 4: varer bruker kortets EFFEKTIVE byggeplass — ikke lagret (null = arv)", () => {

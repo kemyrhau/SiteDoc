@@ -70,7 +70,7 @@ export function ProsjektGruppe({
    *  null/udefinert = ingen forslagslinje. */
   dagsnormTimer?: number | null;
   dato: string;
-  /** Sedel-nivå pause (min) — inngår i maskin-kapasitet per bucket (Del 2). */
+  /** Sedel-nivå pause (min). w9m: teller bare for eldre maskinrader uten jobb. */
   pauseMin: number;
   defaultAktivitetId: string | null;
   harEquipmentCache: boolean;
@@ -391,7 +391,6 @@ function EcoBucket({
         defaultEcoId={ecoId}
         visHeader={false}
         dato={dato}
-        pauseMin={pauseMin}
         rader={maskinRader}
         harEquipmentCache={harEquipmentCache}
         harMaskinforerbevis={harMaskinforerbevis}

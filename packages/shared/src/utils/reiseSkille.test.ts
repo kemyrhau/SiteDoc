@@ -5,7 +5,7 @@ import {
   arbeidOgReise,
   sendDagenTekst,
 } from "./reiseSkille";
-import { overstigerMaskinTak } from "./maskinKapasitet";
+import { overMaskinHoyst } from "./maskinKapasitet";
 import { sumlinjeMotNorm, dagSummer } from "./prosjektkort";
 
 const ord = (id: string, navn: string, aktiv = true, type = "ordinaer") => ({ id, navn, type, aktiv });
@@ -52,8 +52,8 @@ describe("maskin-kontrollen måles mot arbeid uten reise", () => {
     expect(arbeidOgReise(rader)).toEqual({ arbeid: 7.5, reise: 2 });
   });
   it("maskin 9 t over 7,5 t arbeid er brudd selv med 2 t reise", () => {
-    expect(overstigerMaskinTak(9, arbeidUtenReise(rader))).toBe(true);
-    expect(overstigerMaskinTak(7.5, arbeidUtenReise(rader))).toBe(false);
+    expect(overMaskinHoyst(9, arbeidUtenReise(rader))).toBe(true);
+    expect(overMaskinHoyst(7.5, arbeidUtenReise(rader))).toBe(false);
   });
 });
 

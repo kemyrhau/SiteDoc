@@ -161,9 +161,6 @@ export type { SignaturVerdi } from "./signaturVerdi";
 export {
   EPSILON_MASKIN_TIMER,
   maskinBucketNokkel,
-  overstigerMaskinTak,
-  maskinBucketKapasitet,
-  beregnMaskinBrudd,
   maskinJobbNokkel,
   jobbArbeidSum,
   beregnJobbMaskinBrudd,
@@ -174,8 +171,6 @@ export {
   doegnOverArbeid,
 } from "./maskinKapasitet";
 export type {
-  MaskinKapasitetRad,
-  MaskinBrudd,
   JobbArbeidRad,
   JobbMaskinRad,
   MaskinJobbBrudd,

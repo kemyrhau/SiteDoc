@@ -2,7 +2,9 @@ import { eq } from "drizzle-orm";
 import { randomUUID } from "expo-crypto";
 import type { hentDatabase } from "../../../db/database";
 import { sheetTimerLocal, sheetMachineLocal, slettedeRaderLocal } from "../../../db/schema";
-import { erReiseLonnsartLokalt } from "../../../services/timerKatalog";
+import { erReiseLonnsartLokalt, hentReiseLonnsartId } from "../../../services/timerKatalog";
+import { skrivMedMaskinVakt } from "../../../services/maskinJobbLokalt";
+import type { MaskinJobbBrudd } from "@sitedoc/shared";
 import { settInnTimerRad, type NyRad } from "../../../services/nyTimerRad";
 import {
   maskinerOverRadEtterLagring,
@@ -78,7 +80,10 @@ export function leggTilTimerRad(
   return settInnTimerRad(db, sheetId, organizationId, { ...felt, maskiner, reiseSpor });
 }
 
-export type OppdaterRadResultat = { ok: true } | { ok: false; grunn: "maskinOverRad" };
+export type OppdaterRadResultat =
+  | { ok: true }
+  | { ok: false; grunn: "maskinOverRad" }
+  | { ok: false; grunn: "maskinOverArbeid"; brudd: MaskinJobbBrudd[] };
 
 /**
  * Oppdater en timer-rad. `maskiner` (NY BESLUTNING maskinkobling 2026-11-12):
@@ -90,11 +95,41 @@ export type OppdaterRadResultat = { ok: true } | { ok: false; grunn: "maskinOver
  */
 export function oppdaterTimerRad(
   db: LokalDb,
-  { sheetId, organizationId }: RadKontekst,
+  kontekst: RadKontekst,
   radId: string,
   felt: TimerRadFelt,
   maskiner?: MaskinEndringer,
 ): OppdaterRadResultat {
+  const { sheetId, organizationId } = kontekst;
+  const { timer } = felt;
+  // NY BESLUTNING maskinkobling (Kenneth 2026-11-12): maskintimer følger ALDRI
+  // raden stille. Ville en koblet maskin fått flere timer enn raden, avvises
+  // hele lagringen før noe skrives (rad-modalen sier fra og ber om retting).
+  if (maskinerOverRadEtterLagring(db, radId, timer, maskiner).length > 0) {
+    return { ok: false as const, grunn: "maskinOverRad" as const };
+  }
+  // w9m (WM108): senkes arbeidet så en maskin på jobben blir over, stopper
+  // lagringen her — samme vakt som serveren, regnet etter kort-id-utledningen.
+  const brudd = skrivMedMaskinVakt(db, sheetId, hentReiseLonnsartId(organizationId), (tx) =>
+    skrivTimerRadUtenVakt(tx, kontekst, radId, felt, maskiner),
+  );
+  if (brudd.length > 0) return { ok: false, grunn: "maskinOverArbeid", brudd };
+  return { ok: true };
+}
+
+/**
+ * Selve skrivingen i `oppdaterTimerRad`, uten maskinvakt. KUN for kallere som
+ * selv vakter hele skrivingen: «Flytt kort» (`flyttKort` sjekker
+ * `girNyttBrudd` på hele flyttet før transaksjonen) — en vakt pr. rad ville sett
+ * kortet halvveis flyttet og rullet tilbake.
+ */
+export function skrivTimerRadUtenVakt(
+  tx: LokalDb,
+  { sheetId, organizationId }: RadKontekst,
+  radId: string,
+  felt: TimerRadFelt,
+  maskiner?: MaskinEndringer,
+): void {
   const {
     projectId: radProjectId,
     byggeplassId,
@@ -108,7 +143,7 @@ export function oppdaterTimerRad(
     pauseMin,
   } = felt;
   // B4 (L2-B): tidKilde = manuell kun når fra/til FAKTISK endres.
-  const gammel = db
+  const gammel = tx
     .select({
       fraTid: sheetTimerLocal.fraTid,
       tilTid: sheetTimerLocal.tilTid,
@@ -143,13 +178,7 @@ export function oppdaterTimerRad(
           reiseAvstandM: null,
           reiseRegel: null,
         };
-  // NY BESLUTNING maskinkobling (Kenneth 2026-11-12): maskintimer følger ALDRI
-  // raden stille. Ville en koblet maskin fått flere timer enn raden, avvises
-  // hele lagringen før noe skrives (rad-modalen sier fra og ber om retting).
-  if (maskinerOverRadEtterLagring(db, radId, timer, maskiner).length > 0) {
-    return { ok: false as const, grunn: "maskinOverRad" as const };
-  }
-  db.update(sheetTimerLocal)
+  tx.update(sheetTimerLocal)
     .set({
       projectId: radProjectId,
       byggeplassId,
@@ -173,16 +202,15 @@ export function oppdaterTimerRad(
     // Fraværskortet bærer aldri maskin (K8).
     if (radProjectId !== null)
       skrivKobledeMaskiner(
-        db,
+        tx,
         sheetId,
         radId,
         { projectId: radProjectId, byggeplassId, externalCostObjectId, timer, fraTid, tilTid },
         maskiner,
       );
   }
-  // Kort-id: endret nøkkel (prosjekt/byggeplass/underprosjekt) → regel 3; koblede maskiner følger (K6).
-  sikreLokalKortId(db, sheetId);
-  return { ok: true };
+  // Kort-id (regel 3, K6): utledes etter hver rad-lagring, som før w9m.
+  sikreLokalKortId(tx, sheetId);
 }
 
 /** Slett timer-rad + tombstone med radens serverVersjon, ATOMISK (V19.9.1 / S-A). */

@@ -72,7 +72,9 @@ function skriveNokler(kilde: string): string[] {
 const TOKENS = [
   "settInnTimerRad(",
   "erReiseLonnsartLokalt(",
-  "db.update(sheetTimerLocal)",
+  // w9m: timeraden skrives inne i maskinvakten (skrivMedMaskinVakt) i begge kopier.
+  "tx.update(sheetTimerLocal)",
+  "skrivMedMaskinVakt(",
   "db.update(sheetMachineLocal)",
   "db.insert(sheetMachineLocal)",
   "tx.delete(sheetTimerLocal)",

@@ -87,6 +87,7 @@ import {
 import { dagskortStandardProsjekt, delDagskortRader } from "../../src/utils/dagskortFravaer";
 import { harMaskinforerbevisLokalt } from "../../src/services/maskinKatalog";
 import { formatNorskDato, formatTidspunkt, isoTidspunktTilHHMM } from "../../src/utils/dato";
+import { feilmeldingTekst } from "../../src/utils/synkFeil";
 import { kanGjenaapneDagsseddel } from "../../src/utils/gjenaapne-tilgang";
 import type { ForsonRad as DeltForsonRad } from "@sitedoc/shared";
 import { arbeidOgReise, forsokInnsending, svarPaaPauseSporsmaal } from "@sitedoc/shared";
@@ -1101,7 +1102,7 @@ export default function DagsseddelDetalj() {
               </Text>
             </View>
             <Text className="mt-1 text-sm text-red-800">
-              {sedel.feilmelding ?? t("timer.sync.avvistBeskrivelse")}
+              {feilmeldingTekst(t, sedel.feilmelding) ?? t("timer.sync.avvistBeskrivelse")}
             </Text>
           </View>
         )}
@@ -1151,7 +1152,7 @@ export default function DagsseddelDetalj() {
                   feilen når den finnes, ellers dagens «venter»-tekst. */}
               <Text className="flex-1 text-sm text-yellow-800">
                 {sedel.feilmelding
-                  ? t("timer.sync.venterFeil", { feilmelding: sedel.feilmelding })
+                  ? t("timer.sync.venterFeil", { feilmelding: feilmeldingTekst(t, sedel.feilmelding) })
                   : t("timer.sync.venterEn")}
               </Text>
             </View>

@@ -1,3 +1,4 @@
+import type { JobbGrunnlag } from "../services/maskinJobbLokalt";
 import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
 import { createRequire } from "node:module";
 import * as path from "node:path";
@@ -363,19 +364,32 @@ describe("L3-D § 8 nr. 20 — byggeplass", () => {
   });
 });
 
-describe("L3-D § 8 nr. 21 — maskin ≤ arbeid + pause (samme regel som serveren)", () => {
-  it("🔴 9,0 maskintimer mot 3,4 t arbeid + 0,5 t pause → brudd", () => {
-    const grunnlag = {
-      timerRader: [{ projectId: "p1", externalCostObjectId: null, timer: 3.4 }],
-      maskinRader: [],
+describe("L3-D § 8 nr. 21 / w9m — maskin med fører ≤ jobbens arbeid (samme regel som serveren)", () => {
+  const jobbGrunnlag = (enhet: string | null) => ({
+    foer: { timer: [], maskin: [], pauseMin: 0 },
+    etter: {
+      timer: [{ kortId: "k1", projectId: "p1", externalCostObjectId: null, timer: 3.4, erReise: false }],
+      maskin: [],
       pauseMin: 30,
-    };
-    const ni = [{ ...MASKIN_3.maskiner[0]!, timer: 9 }];
+    },
+    enhet: () => enhet,
+  });
+  it("🔴 9,0 maskintimer mot 3,4 t arbeid på jobben → brudd; pausen teller ikke på jobb", () => {
+    const grunnlag = jobbGrunnlag(null);
+    const ni = [{ ...MASKIN_3.maskiner[0]!, timer: 9, kortId: "k1" }];
     const brudd = maskinBruddForTillegg(grunnlag, ni);
     expect(brudd).toHaveLength(1);
-    expect(brudd[0]).toMatchObject({ projectId: "p1", timerSum: 3.4, maskinSum: 9 });
-    const tre9 = [{ ...MASKIN_3.maskiner[0]!, timer: 3.9 }];
-    expect(maskinBruddForTillegg(grunnlag, tre9)).toEqual([]);
+    expect(brudd[0]).toMatchObject({ kortId: "k1", projectId: "p1", arbeidSum: 3.4, maskinSum: 9 });
+    // 3,9 t var innenfor arbeid + pause i bøtteregelen — på jobb er det brudd nå.
+    expect(maskinBruddForTillegg(grunnlag, [{ ...ni[0]!, timer: 3.9 }])).toHaveLength(1);
+    // Negativkontroll: lik arbeidet er lov.
+    expect(maskinBruddForTillegg(grunnlag, [{ ...ni[0]!, timer: 3.4 }])).toEqual([]);
+  });
+
+  it("🔴 døgn-maskin stopper aldri (B21 A)", () => {
+    const ni = [{ ...MASKIN_3.maskiner[0]!, timer: 24, kortId: "k1" }];
+    expect(maskinBruddForTillegg(jobbGrunnlag("doegn"), ni)).toEqual([]);
+    expect(maskinBruddForTillegg(jobbGrunnlag("time"), ni)).toHaveLength(1);
   });
 
   it("🔴 Bekreft med brudd skriver ingenting og dagen står paagaar", () => {
@@ -405,11 +419,19 @@ describe("L3-D § 8 nr. 21 — maskin ≤ arbeid + pause (samme regel som server
       id: "m-eks", dagsseddelId: "eks", projectId: "p1", vehicleId: "eq-9", timer: 7.5,
       sistEndretLokalt: 1,
     }).run();
+    db().insert(sheetTimerLocal).values({
+      id: "t-eks7", dagsseddelId: "eks", projectId: "p1", aktivitetId: "a1", lonnsartId: "L-normal",
+      timer: 7.5, sistEndretLokalt: 1,
+    }).run();
     const { forslag } = forberedBekreftDag(lokalDb(), kontekst());
     const grunnlag = vaktGrunnlag(lokalDb(), BRUKER, forslag);
-    expect(grunnlag!.maskinRader).toEqual([{ projectId: "p1", externalCostObjectId: null, timer: 7.5 }]);
-    // 7,5 eksisterende + 3 nye > forslagets arbeid (7,5 t) + pause.
-    expect(maskinBruddForTillegg(grunnlag, MASKIN_3.maskiner)).toHaveLength(1);
+    expect(grunnlag!.foer.maskin).toMatchObject([{ id: "m-eks", projectId: "p1", externalCostObjectId: null, timer: 7.5 }]);
+    // Eldre rader uten jobb (bøtte): 7,5 eksisterende + 9 nye = 16,5 > 7,5 + 7,5 arbeid.
+    const ni = [{ ...MASKIN_3.maskiner[0]!, timer: 9 }];
+    expect(maskinBruddForTillegg(grunnlag, ni)).toHaveLength(1);
+    // Negativkontroll: uten den eksisterende maskinraden er 9 innenfor 15.
+    const utenEks = { ...grunnlag!, foer: { ...grunnlag!.foer, maskin: [] }, etter: { ...grunnlag!.etter, maskin: [] } };
+    expect(maskinBruddForTillegg(utenEks, ni)).toEqual([]);
   });
 });
 
@@ -496,12 +518,22 @@ describe("Dom (57) m1 — M7: lokal maskinrad uten prosjekt arver sedelens", () 
       id: "m-null", dagsseddelId: "eks", projectId: null, vehicleId: "eq-9", timer: 7.5,
       sistEndretLokalt: 1,
     }).run();
+    db().insert(sheetTimerLocal).values({
+      id: "t-eks7", dagsseddelId: "eks", projectId: "p1", aktivitetId: "a1", lonnsartId: "L-normal",
+      timer: 7.5, sistEndretLokalt: 1,
+    }).run();
     const { forslag } = forberedBekreftDag(lokalDb(), kontekst());
     const grunnlag = vaktGrunnlag(lokalDb(), BRUKER, forslag);
-    expect(grunnlag!.maskinRader).toEqual([{ projectId: "p1", externalCostObjectId: null, timer: 7.5 }]);
-    // 7,5 arvet + 3 nye på p1 > forslagets arbeid + pause → brudd. Uten arv havner
-    // raden i en egen null-bøtte og bruddet forsvinner.
-    expect(maskinBruddForTillegg(grunnlag, MASKIN_3.maskiner)).toHaveLength(1);
+    expect(grunnlag!.foer.maskin).toMatchObject([{ id: "m-null", projectId: "p1", externalCostObjectId: null, timer: 7.5 }]);
+    // 7,5 arvet + 9 nye på p1 = 16,5 > 7,5 + 7,5 arbeid → brudd. Uten arv havner
+    // raden i en egen null-bøtte og bruddet forsvinner (negativkontroll under).
+    const ni = [{ ...MASKIN_3.maskiner[0]!, timer: 9 }];
+    expect(maskinBruddForTillegg(grunnlag, ni)).toHaveLength(1);
+    const utenArv = (g: JobbGrunnlag): JobbGrunnlag => ({
+      ...g,
+      maskin: g.maskin.map((m) => (m.id === "m-null" ? { ...m, projectId: null } : m)),
+    });
+    expect(maskinBruddForTillegg({ ...grunnlag!, foer: utenArv(grunnlag!.foer), etter: utenArv(grunnlag!.etter) }, ni)).toEqual([]);
   });
 });
 
@@ -1311,10 +1343,12 @@ describe("RETUR (24) V1 — samme maskin to ganger på ett kort", () => {
         varer: [],
       },
     };
-    const brudd = maskinerOverRaden(forslag, perRad);
+    const brudd = maskinerOverRaden(forslag, perRad, () => null);
     expect(brudd.map((b) => [b.radTimer, b.maskin.timer])).toEqual([[4, 6]]);
     // negativkontroll: ulike maskiner 3 + 3 på samme rad er hver for seg innenfor
     const ulike = { [radNokkel(forslag, 0)]: { ...perRad[radNokkel(forslag, 0)]!, maskiner: perRad[radNokkel(forslag, 0)]!.maskiner.map((m, i) => ({ ...m, vehicleId: `eq-${i}` })) } };
-    expect(maskinerOverRaden(forslag, ulike)).toEqual([]);
+    expect(maskinerOverRaden(forslag, ulike, () => null)).toEqual([]);
+    // D1 (Kenneth 2026-11-19): døgn-maskin over raden er lov — ingen fører.
+    expect(maskinerOverRaden(forslag, perRad, () => "doegn")).toEqual([]);
   });
 });

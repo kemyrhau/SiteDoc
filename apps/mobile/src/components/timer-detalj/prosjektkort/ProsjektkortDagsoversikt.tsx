@@ -4,10 +4,9 @@ import { Clock } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { randomUUID } from "expo-crypto";
 import {
-  beregnMaskinBrudd,
+  beregnJobbMaskinBrudd,
   byggNormtakBruddLinje,
   maskinKreverTimerad,
-  overstigerMaskinTak,
   visVareforbrukKnapp,
 } from "@sitedoc/shared";
 import {
@@ -58,6 +57,7 @@ import {
 import { TimerRadModal } from "../TimerSeksjon";
 import { MaskinRadModal, TimeradVelgerModal } from "../MaskinSeksjon";
 import { maskinerSomKreverRadenLokalt, utleieEnhetLokalt } from "../../../services/maskinKoblingLokal";
+import { bruddTekst, lesJobbGrunnlag, skrivMedMaskinVakt } from "../../../services/maskinJobbLokalt";
 import { arbeidsraderForMaskin, type TimeradKandidat } from "../../../utils/maskinTimerad";
 import { SplittRadModal } from "../SplittRadModal";
 import { KortVareforbrukModal } from "../KortVareforbrukModal";
@@ -387,12 +387,28 @@ export function ProsjektkortDagsoversikt({
   const blokkFor = (valg: ProsjektKortValg) =>
     grupper.flatMap((g) => g.blokker).find((b) => kortNokkel(b.valg) === kortNokkel(valg));
   const overtidSum = dag.rader.reduce((a, b) => a + (b.rad.overtidsnivaa != null ? b.rad.timer : 0), 0);
+  // w9m (plan § 4.4): varselet pr. jobb, likt med serveren — førermaskiner mot
+  // jobbens arbeid uten reise og uten pause. Døgn-maskiner varsles ikke her.
+  const jobbBrudd = useMemo(() => {
+    const d = hentDatabase();
+    if (!d) return [];
+    const g = lesJobbGrunnlag(d, sheetId, reiseLonnsartId);
+    return beregnJobbMaskinBrudd(g.timer, g.maskin, g.pauseMin);
+    // Radene og pausen er grunnlaget (lest fra SQLite) — ny lesing når de endres.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sheetId, reiseLonnsartId, timerRader, maskinRader, sedel.pauseMin]);
   const maskinOverTak = grupper.flatMap((g) =>
-    g.blokker.filter(
-      (b) =>
-        b.linjer.summer.maskin > 0 &&
-        overstigerMaskinTak(b.linjer.summer.maskin, b.linjer.summer.arbeid, sedel.pauseMin),
-    ),
+    g.blokker.flatMap((b) => {
+      const brudd = jobbBrudd.find(
+        (j) =>
+          j.nokkel === kortNokkel(b.valg) ||
+          (!b.valg.kortId &&
+            !j.kortId &&
+            j.projectId === b.valg.projectId &&
+            (j.externalCostObjectId ?? null) === (b.valg.ecoId ?? null)),
+      );
+      return brudd ? [{ valg: b.valg, maskinSum: brudd.maskinSum }] : [];
+    }),
   );
   // Beslutning 3: Send sperres når en arbeidsrad mangler beskrivelse.
   const manglerBeskrivelse = redigerbar ? forsteRadUtenBeskrivelse(dag.rader.map((b) => b.rad)) : null;
@@ -514,6 +530,15 @@ export function ProsjektkortDagsoversikt({
   // Ordre c (T12): «Flytt raden» får målkortets id — første kort med nøkkelen
   // (samme regel som kortlista). Finnes ikke noe kort der, eller «Flytt til nytt
   // kort»: ny id (spec § 2.4: nytt kort laget av brukeren får tilfeldig UUID).
+  // w9m (plan § 4.4): flytt maskinen med serverens vakt — gir flyttingen et nytt
+  // eller økt brudd på jobben, rulles den tilbake og teksten vises. Kort-id-en
+  // utledes i vakten (`sikreLokalKortId`).
+  const flyttMaskinMedVakt = (radId: string, maal: FlyttMaal, timeradId?: string): string | null => {
+    const brudd = skrivMedMaskinVakt(db(), sheetId, reiseLonnsartId, (tx) =>
+      flyttMaskinRad(tx, radId, maal, timeradId ?? null),
+    );
+    return brudd.length > 0 ? bruddTekst(t, db(), brudd) : null;
+  };
   const flyttMaalKort = (til: ProsjektKortValg, nytt: boolean): ProsjektKortValg => ({
     ...til,
     kortId: (nytt ? undefined : utenId.get(utledetKortNokkel(til))) ?? randomUUID(),
@@ -583,31 +608,6 @@ export function ProsjektkortDagsoversikt({
       onVarerLagret();
       return;
     } else if (flytt.radType === "maskin") {
-      // Samme bøtte-regel (prosjekt, underprosjekt) som ved ny rad og på server.
-      // Ordre (6): maskin måles mot arbeid UTEN reise.
-      const brudd = beregnMaskinBrudd(
-        timerRader
-          .filter((r) => !erReiseRadVisning(r.erReise, r.lonnsartId, reiseLonnsartId))
-          .map((r) => ({
-          projectId: radProsjektId(r, sedel),
-          externalCostObjectId: r.externalCostObjectId ?? null,
-          timer: r.timer,
-        })),
-        maskinRader.map((m) =>
-          m.id === flytt.rad.id
-            ? { projectId: til.projectId, externalCostObjectId: til.ecoId, timer: m.timer }
-            : {
-                projectId: m.projectId ?? sedel.projectId,
-                externalCostObjectId: m.externalCostObjectId ?? null,
-                timer: m.timer,
-              },
-        ),
-        sedel.pauseMin,
-      );
-      if (brudd.some((b) => b.projectId === til.projectId && (b.externalCostObjectId ?? null) === til.ecoId)) {
-        setFlyttFeil(t("timer.maskin.overstigerArbeid"));
-        return;
-      }
       // Kort-id d2c-2 (R24): maskin som krever timerad flyttes til en timerad i
       // målkortet — én rad: den; flere: brukeren velger; ingen: avvist med grunn.
       if (maskinKreverTimerad(utleieEnhetLokalt(db(), flytt.rad.vehicleId))) {
@@ -620,11 +620,18 @@ export function ProsjektkortDagsoversikt({
           setFlyttTimerad({ radId: flytt.rad.id, maal, kandidater });
           return;
         }
-        flyttMaskinRad(db(), flytt.rad.id, maal, kandidater[0]!.id);
+        const avvist = flyttMaskinMedVakt(flytt.rad.id, maal, kandidater[0]!.id);
+        if (avvist) {
+          setFlyttFeil(avvist);
+          return;
+        }
       } else {
-        flyttMaskinRad(db(), flytt.rad.id, maal);
+        const avvist = flyttMaskinMedVakt(flytt.rad.id, maal);
+        if (avvist) {
+          setFlyttFeil(avvist);
+          return;
+        }
       }
-      sikreLokalKortId(db(), sheetId);
     } else {
       const v = flytt.vare;
       // Varer har ingen sedel-arv: kortets effektive byggeplass lagres (RETUR 4).
@@ -983,7 +990,7 @@ export function ProsjektkortDagsoversikt({
             {maskinOverTak.map((b) => (
               <Text key={kortNokkel(b.valg)} className="text-sm text-amber-700">
                 {prosjektNavn(b.valg.projectId)} ·{" "}
-                {t("timer.gruppe.maskin", { maskin: formatKortTall(b.linjer.summer.maskin) })} ·{" "}
+                {t("timer.gruppe.maskin", { maskin: formatKortTall(b.maskinSum) })} ·{" "}
                 {t("timer.rediger.maskinOverstiger")}
               </Text>
             ))}
@@ -1092,7 +1099,6 @@ export function ProsjektkortDagsoversikt({
           defaultProjectId={timerModal.kort.projectId}
           defaultEcoId={timerModal.kort.ecoId}
           dato={sedel.dato}
-          sheetPauseMin={sedel.pauseMin}
           harEquipmentCache={harEquipmentCache}
           eksisterendeRader={timerRader.filter(
             (r) => radProsjektId(r, sedel) === timerModal.kort.projectId,
@@ -1194,8 +1200,13 @@ export function ProsjektkortDagsoversikt({
               beskrivelse,
               pauseMin,
             };
+            if (redigert) {
+              // w9m (WM108): stoppet → modalen står med teksten, ingenting skrevet.
+              const res = oppdaterTimerRad(db(), k, redigert.id, felt, maskin);
+              if (!res.ok && res.grunn === "maskinOverArbeid") return bruddTekst(t, db(), res.brudd);
+            }
             const radId = redigert
-              ? (oppdaterTimerRad(db(), k, redigert.id, felt, maskin), redigert.id)
+              ? redigert.id
               : leggTilTimerRad(db(), k, { ...felt, kortId: timerModal.kort.kortId ?? null }, maskin.linjer);
             // Koblet maskin følger raden også på byggeplass (GO punkt 5).
             foelgKobletMaskin(db(), radId);
@@ -1217,7 +1228,6 @@ export function ProsjektkortDagsoversikt({
           defaultProjectId={maskinModal.projectId ?? sedel.projectId}
           defaultEcoId={maskinModal.externalCostObjectId ?? null}
           dato={sedel.dato}
-          pauseMin={sedel.pauseMin}
           eksisterendeRad={maskinModal}
           kortArbeidsrader={arbeidsraderPaaKort(kortForRad(maskinModal))}
           handlinger={{
@@ -1447,9 +1457,12 @@ export function ProsjektkortDagsoversikt({
           rader={flyttTimerad.kandidater}
           valgtId={null}
           onVelg={(id) => {
-            flyttMaskinRad(db(), flyttTimerad.radId, flyttTimerad.maal, id);
-            sikreLokalKortId(db(), sheetId);
+            const avvist = flyttMaskinMedVakt(flyttTimerad.radId, flyttTimerad.maal, id);
             setFlyttTimerad(null);
+            if (avvist) {
+              setFlyttFeil(avvist);
+              return;
+            }
             setFlytt(null);
             onEndret();
           }}
