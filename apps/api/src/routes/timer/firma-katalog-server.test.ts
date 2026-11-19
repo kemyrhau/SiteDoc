@@ -339,13 +339,8 @@ describe("maskin-kontrollen måles mot arbeid uten reise (punkt 5)", () => {
     expect(maskinCreate).toHaveBeenCalled();
   });
 
-  it("🔴 maskin 8 / arbeid 7 / reise 2: avvises (reise teller ikke som arbeid)", async () => {
-    const { ctx, maskinCreate } = lagCtx({ timerRader: ARBEID_OG_REISE });
-    await expect(
-      caller(ctx).maskin.tilfoy({ sheetId: SHEET, projectId: PROSJEKT, vehicleId: UTSTYR, timer: 8 }),
-    ).rejects.toThrow(/Maskintimer \(8\.00t\) overstiger arbeidstimer \(7\.00t\)/);
-    expect(maskinCreate).not.toHaveBeenCalled();
-  });
+  // w9: avvisningen (maskin 8 / arbeid 7 / reise 2) måles nå mot ekte Postgres —
+  // routes/maskin-over-arbeid.integration.test.ts («reise teller ikke som arbeid»).
 });
 
 /**

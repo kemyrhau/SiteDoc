@@ -244,17 +244,29 @@ const tilfoy = (sheetId: string, f: { vehicleId?: string; sheetTimerId?: string 
 //  maskin.tilfoy
 // ════════════════════════════════════════════════════════════════════════════
 describe("maskin.tilfoy — kobling ved føring", () => {
-  it("time-maskin uten timerad avvises og navngir maskinen", async () => {
+  // w9-tillegget: uten oppgitt timerad kobler serveren maskinen til jobbens timerad.
+  it("time-maskin uten timerad kobles til jobbens timerad", async () => {
     const sid = await nySedel();
-    await timerRad(sid);
-    await expect(tilfoy(sid)).rejects.toThrow(/Volvo EC220E/);
-    expect(await prismaTimer.sheetMachine.count({ where: { sheetId: sid } })).toBe(0);
+    const t = await timerRad(sid);
+    const svar = await tilfoy(sid);
+    expect(svar.sheetTimerId).toBe(t);
+    expect((await prismaTimer.sheetMachine.findUniqueOrThrow({ where: { id: svar.id } })).sheetTimerId).toBe(t);
   });
 
-  it("maskin uten satt enhet krever timerad (H15 A)", async () => {
+  it("maskin uten satt enhet krever timerad (H15 A) — kobles også", async () => {
     const sid = await nySedel();
-    await timerRad(sid);
-    await expect(tilfoy(sid, { vehicleId: M_UKJENT })).rejects.toThrow(/Dumper/);
+    const t = await timerRad(sid);
+    const svar = await tilfoy(sid, { vehicleId: M_UKJENT });
+    expect((await prismaTimer.sheetMachine.findUniqueOrThrow({ where: { id: svar.id } })).sheetTimerId).toBe(t);
+  });
+
+  it("time-maskin på jobb uten arbeid avvises og navngir maskinen; ingenting lagres", async () => {
+    const sid = await nySedel();
+    await timerRad(sid, { fra: "06:00", til: "07:00", timer: 1, lonnsartId: REISE, erReise: true });
+    const feil = await tilfoy(sid).catch((e: unknown) => e);
+    expect(String((feil as Error).message)).toMatch(/Volvo EC220E/);
+    expect((feil as { cause?: { feilNokkel?: string } }).cause?.feilNokkel).toBe("timer.maskin.utenArbeidAvvist");
+    expect(await prismaTimer.sheetMachine.count({ where: { sheetId: sid } })).toBe(0);
   });
 
   it("time-maskin med gyldig timerad lagres med radens id og kort", async () => {
@@ -308,30 +320,41 @@ describe("maskin.tilfoy — kobling ved føring", () => {
 //  maskin.oppdater
 // ════════════════════════════════════════════════════════════════════════════
 describe("maskin.oppdater — kobling ved endring", () => {
-  it("eldre ukoblet time-maskin: endring uten timerad avvises, med timerad lagres", async () => {
+  // w9-tillegget: en endret time-maskin uten gyldig kobling kobles til jobbens timerad.
+  it("eldre ukoblet time-maskin: endring kobler den til jobbens timerad", async () => {
     const sid = await nySedel();
     const t = await timerRad(sid);
     const m = await maskinRad(sid);
-    await expect(dag().maskin.oppdater({ id: m, mengde: 3 })).rejects.toThrow(/Volvo EC220E/);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await dag().maskin.oppdater({ id: m, mengde: 3, sheetTimerId: t } as any);
-    const lagret = await prismaTimer.sheetMachine.findUniqueOrThrow({ where: { id: m } });
-    expect(lagret.sheetTimerId).toBe(t);
+    const svar = await dag().maskin.oppdater({ id: m, mengde: 3 });
+    expect(svar.sheetTimerId).toBe(t);
+    expect((await prismaTimer.sheetMachine.findUniqueOrThrow({ where: { id: m } })).sheetTimerId).toBe(t);
   });
 
-  it("å fjerne koblingen på en time-maskin avvises", async () => {
+  it("å fjerne koblingen på en time-maskin gir ny kobling i samme jobb", async () => {
     const sid = await nySedel();
     const t = await timerRad(sid);
     const m = await maskinRad(sid, { sheetTimerId: t });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await expect(dag().maskin.oppdater({ id: m, sheetTimerId: null } as any)).rejects.toThrow(/Volvo EC220E/);
+    await dag().maskin.oppdater({ id: m, sheetTimerId: null } as any);
+    expect((await prismaTimer.sheetMachine.findUniqueOrThrow({ where: { id: m } })).sheetTimerId).toBe(t);
   });
 
-  it("bytte fra døgn- til time-maskin uten timerad avvises", async () => {
+  it("bytte fra døgn- til time-maskin uten timerad kobles til jobbens timerad", async () => {
     const sid = await nySedel();
-    await timerRad(sid);
+    const t = await timerRad(sid);
+    const m = await maskinRad(sid, { vehicleId: M_DOEGN });
+    await dag().maskin.oppdater({ id: m, vehicleId: M_TIME });
+    const lagret = await prismaTimer.sheetMachine.findUniqueOrThrow({ where: { id: m } });
+    expect(lagret.vehicleId).toBe(M_TIME);
+    expect(lagret.sheetTimerId).toBe(t);
+  });
+
+  it("bytte fra døgn- til time-maskin på jobb uten arbeid avvises; døgn-maskinen står", async () => {
+    const sid = await nySedel();
+    await timerRad(sid, { fra: "06:00", til: "07:00", timer: 1, lonnsartId: REISE, erReise: true, kortId: "kort-1" });
     const m = await maskinRad(sid, { vehicleId: M_DOEGN });
     await expect(dag().maskin.oppdater({ id: m, vehicleId: M_TIME })).rejects.toThrow(/Volvo EC220E/);
+    expect((await prismaTimer.sheetMachine.findUniqueOrThrow({ where: { id: m } })).vehicleId).toBe(M_DOEGN);
   });
 
   it("koblet time-maskin kan endres uten å sende koblingen på nytt", async () => {

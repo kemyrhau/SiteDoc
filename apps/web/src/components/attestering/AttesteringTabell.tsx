@@ -1044,17 +1044,22 @@ function Kvitteringer({ vedlegg }: { vedlegg: readonly AttVedlegg[] }) {
   );
 }
 
-/** Avvikene på én linje (w1, B7): korte merker med forklaringen på hover/trykk; øvrige som tekst. */
+/**
+ * Avvikene som korte merker (w1, B7) med forklaringen på hover/trykk; øvrige som tekst.
+ * w9 retur 1 (valg A): hvert merke står helt ved 1 440 i Avvik (68 px, ingen annen kolonne har
+ * luft — målt). Merketekstene er korte («Uten bevis», «Over arbeid»), hele teksten står på hover.
+ * Merkene stables når de ikke får plass ved siden av hverandre, og et merke bredere enn kolonnen
+ * brytes ved mellomrom. Cella er `truncate`, så beholderen setter bryting på igjen.
+ */
 function AvvikMerker({ merker }: { merker: readonly AvvikMerke[] }) {
   return (
-    // Én linje (flex uten bryting): maskinlinjene blir like høye som de andre (WM21).
-    <span className="inline-flex items-center gap-1 text-amber-700">
+    <span className="flex flex-wrap items-start gap-1 whitespace-normal text-amber-700">
       {merker.map((m, i) =>
         m.forklaring ? (
           <Tooltip key={`${i}:${m.tekst}`} tekst={m.forklaring} side="bottom" delayMs={150}>
             <span
               data-avvik-merke=""
-              className="cursor-help whitespace-nowrap rounded-full border border-amber-300 bg-amber-50 px-1.5 py-px text-[11px] font-medium leading-4 text-amber-800"
+              className="max-w-full cursor-help rounded-lg border border-amber-300 bg-amber-50 px-1 py-px text-[11px] font-medium leading-4 text-amber-800"
             >
               {m.tekst}
             </span>

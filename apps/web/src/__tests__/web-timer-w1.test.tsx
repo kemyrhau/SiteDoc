@@ -78,13 +78,14 @@ const deps: AttDeps = {
   avdelingNavn: () => null,
   normtakLinje: () => null,
   ukeAvvikTekst: () => null,
+  maskinOverArbeidForklaring: (m: number, a: number) => `Maskin ${String(m).replace(".", ",")} t, arbeid ${String(a).replace(".", ",")} t`,
   tekst: {
     forslagSperre: "Uavklart forslag",
     maskinUtenTimerad: "Maskin uten timerad",
     maskinforerbevis: "Maskinarbeid uten registrert maskinførerbevis — flagget for synlighet.",
     merkeUtenTimerad: "Uten timerad",
     merkeUtenTimeradForklaring: "Maskinen er ikke koblet til en timerad, og står derfor som egen linje.",
-    merkeUtenForerbevis: "Uten førerbevis",
+    merkeUtenForerbevis: "Uten førerbevis", merkeMaskinOverArbeid: "Maskin over arbeid",
     tilleggskrav: "Tilleggskrav", tilByggherre: "Til byggherre", fravaerUtenProsjekt: "Fravær", annetProsjekt: "Annet prosjekt",
     reise: "Reise", statusVenter: "Venter", statusAttestert: "Attestert", statusReturnert: "Returnert",
   },
@@ -231,8 +232,11 @@ describe("w1 (B7) — avvik som korte merker på én linje", () => {
     const merker = Array.from(l.querySelectorAll("[data-avvik-merke]")).map((m) => m.textContent);
     expect(merker).toEqual(["Uten timerad", "Uten førerbevis"]);
     expect(l.textContent).not.toContain("flagget for synlighet");
-    // Merkene står på én linje: beholderen bryter ikke.
-    expect(l.querySelector("[data-avvik-merke]")!.closest("span.inline-flex")!.className).not.toContain("flex-wrap");
+    // w9 retur 1: merkene står hele — beholderen bryter heller enn å kutte (cella er `truncate`).
+    const beholder = l.querySelector("[data-avvik-merke]")!.closest("span.flex")!;
+    expect(beholder.className).toContain("flex-wrap");
+    expect(beholder.className).toContain("whitespace-normal");
+    for (const m of Array.from(l.querySelectorAll("[data-avvik-merke]"))) expect(m.className).not.toContain("whitespace-nowrap");
   });
 
   it("forklaringen vises når pekeren holdes over merket", () => {

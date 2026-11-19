@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, type KeyboardEvent, type ReactNode } from
 import { useTranslation } from "react-i18next";
 import { Scissors, X } from "lucide-react";
 import { Button } from "@sitedoc/ui";
+import { maskinHoystPerRad, overMaskinHoyst } from "@sitedoc/shared";
 import { trpc } from "@/lib/trpc";
 import { formaterNorsk } from "@/lib/timer-rapport-eksport";
 import type { AttKort, AttLinje, AttMaskin, AttSedel } from "./attestering-tabell";
@@ -75,6 +76,29 @@ export function RegistreringPanel({ kort, sedel, orgId, kanAttestere, kanRette, 
     }
     return ut;
   }, [kort.linjer]);
+  // w9 (2c): «høyst X t» pr. maskin — jobbens arbeid minus de andre førermaskinene,
+  // regnet på hele sedelen med samme delte regel som serveren. Døgn-maskin: null.
+  const hoystFor = useMemo(() => {
+    const maskinRader = sedel.maskiner;
+    const hoyst = maskinHoystPerRad(
+      sedel.timer.map((r) => ({
+        kortId: r.kortId,
+        projectId: r.projectId,
+        externalCostObjectId: r.externalCostObjectId ?? null,
+        timer: Number(r.timer ?? 0),
+        erReise: r.erReise === true,
+      })),
+      maskinRader.map((m) => ({
+        kortId: m.kortId,
+        projectId: m.projectId,
+        externalCostObjectId: m.externalCostObjectId ?? null,
+        timer: Number(m.timer ?? 0),
+        utleieEnhet: m.utleieEnhet ?? null,
+      })),
+      sedel.pauseMin,
+    );
+    return new Map(maskinRader.map((m, i) => [m.id, hoyst[i] ?? null]));
+  }, [sedel.timer, sedel.maskiner, sedel.pauseMin]);
   const varer = kort.linjer.flatMap((l) => l.linje.type === "timer" || l.linje.type === "vare" ? l.linje.varer : []);
   const tillegg = kort.linjer.filter((l) => l.kilde.type === "tillegg");
   const utlegg = kort.linjer.filter((l) => l.kilde.type === "utlegg");
@@ -236,7 +260,7 @@ export function RegistreringPanel({ kort, sedel, orgId, kanAttestere, kanRette, 
                 <div key={m.id} className="flex flex-wrap items-center gap-3">
                   <span className="w-48 truncate">{navn ?? "—"}</span>
                   {kan ? (
-                    <TallFelt etikett={t("timer.eksport.kolMaskintimer")} verdi={m.timer == null ? null : Number(m.timer)} enhet="t" onLagre={(v) => rettFelt("maskin", m.id, "timer", v)} />
+                    <TallFelt etikett={t("timer.eksport.kolMaskintimer")} verdi={m.timer == null ? null : Number(m.timer)} enhet="t" hoyst={hoystFor.get(m.id) ?? null} onLagre={(v) => rettFelt("maskin", m.id, "timer", v)} />
                   ) : <span className="tabular-nums">{m.timer == null ? "—" : `${formaterNorsk(Number(m.timer))} t`}</span>}
                   {m.mengde != null && <span className="text-gray-600">{formaterNorsk(Number(m.mengde))} {m.enhet ?? ""}</span>}
                 </div>
@@ -314,15 +338,20 @@ function Del({ nr, navn, hoyre, sist, children }: { nr: number; navn: string; ho
 }
 
 /** Tallfelt som lagres ved Enter, Tab eller når feltet forlates (hver retting lagres med en gang). */
-function TallFelt({ etikett, verdi, enhet, onLagre }: { etikett: string; verdi: number | null; enhet?: string; onLagre: (v: number | null) => void }) {
+function TallFelt({ etikett, verdi, enhet, hoyst = null, onLagre }: { etikett: string; verdi: number | null; enhet?: string; hoyst?: number | null; onLagre: (v: number | null) => void }) {
+  const { t } = useTranslation();
   const start = verdi == null ? "" : String(verdi).replace(".", ",");
   const [tekst, setTekst] = useState(start);
   // Ny verdi fra serveren (lagret retting, del opp) erstatter feltet.
   useEffect(() => setTekst(start), [start]);
+  const tolket = tekst.trim() === "" ? null : Number(tekst.replace(",", "."));
+  // w9 (2c): over «høyst» blir teksten rød og rettingen lagres ikke.
+  const over = tolket !== null && !Number.isNaN(tolket) && overMaskinHoyst(tolket, hoyst);
   const lagre = () => {
     if (tekst === start) return;
-    const v = tekst.trim() === "" ? null : Number(tekst.replace(",", "."));
+    const v = tolket;
     if (v !== null && Number.isNaN(v)) { setTekst(start); return; }
+    if (over) return;
     onLagre(v);
   };
   const tast = (e: KeyboardEvent<HTMLInputElement>) => {
@@ -338,9 +367,15 @@ function TallFelt({ etikett, verdi, enhet, onLagre }: { etikett: string; verdi: 
         onChange={(e) => setTekst(e.target.value)}
         onBlur={lagre}
         onKeyDown={tast}
-        className="w-16 rounded border border-gray-300 px-1.5 py-0.5 text-right text-sm tabular-nums focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        aria-invalid={over || undefined}
+        className={`w-16 rounded border px-1.5 py-0.5 text-right text-sm tabular-nums focus:outline-none focus:ring-2 ${over ? "border-red-500 text-red-600 focus:ring-red-500" : "border-gray-300 focus:border-blue-400 focus:ring-blue-500"}`}
       />
       {enhet && <span className="text-gray-600">{enhet}</span>}
+      {hoyst !== null && (
+        <span data-testid="maskin-hoyst" className={`text-xs ${over ? "font-medium text-red-600" : "text-gray-500"}`}>
+          {t("timer.maskin.hoyst", { timer: formaterNorsk(hoyst) })}
+        </span>
+      )}
     </span>
   );
 }

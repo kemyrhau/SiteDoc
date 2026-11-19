@@ -19,9 +19,9 @@ import { Trash2 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { rundTilNarmeste } from "@/lib/tidsrunding";
 import {
-  arbeidUtenReise,
-  overstigerMaskinTak,
   finnTidsromKonflikt,
+  maskinHoystPerRad,
+  overMaskinHoyst,
 } from "@sitedoc/shared";
 import { MaskinVelger } from "@/components/timer/MaskinVelger";
 
@@ -127,6 +127,7 @@ export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
         internNavn: string | null;
         internNummer: string | null;
         kategori: string | null;
+        utleieEnhet?: string | null;
       }>
     | undefined;
   const { data: ecoListe } = trpc.eksternKostObjekt.list.useQuery(
@@ -170,6 +171,7 @@ export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
         tilTid: string | null;
         timer: unknown;
         erReise?: boolean;
+        kortId?: string | null;
       }>).filter((r) => r.attestertStatus === "pending"),
     [sheet?.timer],
   );
@@ -186,6 +188,8 @@ export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
         timer: unknown;
         mengde: unknown;
         enhet: string | null;
+        kortId?: string | null;
+        utleieEnhet?: string | null;
       }>).filter((r) => r.attestertStatus === "pending"),
     [sheet?.maskiner],
   );
@@ -459,6 +463,83 @@ export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
     });
   }
 
+  // w9 (2c): «høyst X t» per maskinrad = jobbens arbeid − de andre førermaskinene
+  // på jobben. Samme delte regel som serveren (maskinHoystPerRad). Radene utenfor
+  // bøtta (også attesterte) teller med uendret, slik serveren leser dem.
+  const maskinHoyst = useMemo(() => {
+    type R = {
+      id: string;
+      projectId: string;
+      externalCostObjectId: string | null;
+      attestertStatus: string | null;
+      timer: unknown;
+      erReise?: boolean;
+      kortId?: string | null;
+      lonnsartId?: string;
+      vehicleId?: string;
+      utleieEnhet?: string | null;
+    };
+    const alleTimer = (sheet?.timer ?? []) as R[];
+    const alleMaskin = (sheet?.maskiner ?? []) as R[];
+    const iBotta = new Set(initTimer.map((r) => r.originalId));
+    const iBottaMaskin = new Set(initMaskin.map((r) => r.originalId));
+    const timerById = new Map(alleTimer.map((r) => [r.id, r]));
+    const maskinById = new Map(alleMaskin.map((r) => [r.id, r]));
+    // Redigerte rader bærer ikke erReise; lønnsarter som er reise på sedelens
+    // rader teller som reise (ordre 2026-11-14 (6)).
+    const reiseLonnsartIder = new Set(
+      alleTimer.filter((r) => r.erReise === true).map((r) => r.lonnsartId),
+    );
+    const enhetFor = (vehicleId: string, fallback: string | null | undefined) =>
+      equipment?.find((e) => e.id === vehicleId)?.utleieEnhet ?? fallback ?? null;
+    const timer = [
+      ...alleTimer
+        .filter((r) => !iBotta.has(r.id))
+        .map((r) => ({
+          kortId: r.kortId ?? null,
+          projectId: r.projectId,
+          externalCostObjectId: r.externalCostObjectId,
+          timer: tilTall(r.timer),
+          erReise: r.erReise === true,
+        })),
+      ...editTimer.map((r) => ({
+        kortId: timerById.get(r.originalId)?.kortId ?? null,
+        projectId,
+        externalCostObjectId: ecoId,
+        timer: r.timer,
+        erReise: reiseLonnsartIder.has(r.lonnsartId),
+      })),
+    ];
+    const andre = alleMaskin
+      .filter((r) => !iBottaMaskin.has(r.id))
+      .map((r) => ({
+        kortId: r.kortId ?? null,
+        projectId: r.projectId,
+        externalCostObjectId: r.externalCostObjectId,
+        timer: tilTall(r.timer),
+        utleieEnhet: r.utleieEnhet ?? null,
+      }));
+    const redigert = editMaskin.map((r) => {
+      const original = maskinById.get(r.originalId);
+      return {
+        kortId: original?.kortId ?? null,
+        projectId,
+        externalCostObjectId: ecoId,
+        timer: r.timer,
+        utleieEnhet: enhetFor(r.vehicleId, original?.utleieEnhet),
+      };
+    });
+    const hoyst = maskinHoystPerRad(
+      timer,
+      [...redigert, ...andre],
+      pauseMinutter(editPauseFra, editPauseTil),
+    );
+    return new Map(editMaskin.map((r, i) => [r.key, hoyst[i] ?? null]));
+  }, [sheet?.timer, sheet?.maskiner, initTimer, initMaskin, editTimer, editMaskin, equipment, projectId, ecoId, editPauseFra, editPauseTil]);
+  const maskinOverHoyst = editMaskin.some((r) =>
+    overMaskinHoyst(r.timer, maskinHoyst.get(r.key) ?? null),
+  );
+
   // Navn-oppslag for header.
   const ecoNavn = useMemo(() => {
     if (!ecoId) return null;
@@ -504,13 +585,17 @@ export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
                 {/* T7-5f: grønn farge når harEndringer for å signalere at
                     klikk vil lagre. Samme mønster som AttesteringDetalj_Edit. */}
                 <KnappMedForklaring
-                  sperret={!harEndringer && !lagre.isPending}
-                  forklaring={t("sperret.ingenEndringer")}
+                  sperret={(!harEndringer || maskinOverHoyst) && !lagre.isPending}
+                  forklaring={
+                    maskinOverHoyst
+                      ? t("timer.maskin.overHoystSperret")
+                      : t("sperret.ingenEndringer")
+                  }
                 >
                   <Button
                     size="sm"
                     onClick={handleLagre}
-                    disabled={lagre.isPending || !harEndringer}
+                    disabled={lagre.isPending || !harEndringer || maskinOverHoyst}
                     className={
                       harEndringer
                         ? "!bg-green-600 hover:!bg-green-700 focus:!ring-green-500"
@@ -628,52 +713,28 @@ export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
                   </p>
                 ) : (
                   <div className="space-y-1">
-                    {(() => {
-                      // Ordre 2026-11-14 (6): maskin måles mot arbeid UTEN
-                      // reise. Redigerte rader bærer ikke erReise; lønnsarter
-                      // som er reise på sedelens originale rader teller som reise.
-                      const reiseLonnsartIder = new Set(
-                        pendingTimer
-                          .filter((r) => r.erReise === true)
-                          .map((r) => r.lonnsartId),
-                      );
-                      const sumArbeid = arbeidUtenReise(
-                        editTimer.map((r) => ({
-                          timer: r.timer,
-                          erReise: reiseLonnsartIder.has(r.lonnsartId),
-                        })),
-                      );
-                      const pauseMin = pauseMinutter(editPauseFra, editPauseTil);
-                      return editMaskin.map((rad) => (
-                        <KompaktMaskinRad
-                          key={rad.key}
-                          rad={rad}
-                          equipment={equipment}
-                          timeStep={timeStep}
-                          tidsrundingMinutter={tidsrundingMinutter}
-                          // Delt regel (@sitedoc/shared) — per-rad-advarsel, samme
-                          // epsilon + pause-modell som server. Ikke-blokkerende her.
-                          overstigerArbeid={overstigerMaskinTak(
-                            rad.timer,
-                            sumArbeid,
-                            pauseMin,
-                          )}
-                          pauseMin={pauseMin}
-                          onChange={(felt) =>
-                            setEditMaskin((rader) =>
-                              rader.map((r) =>
-                                r.key === rad.key ? { ...r, ...felt } : r,
-                              ),
-                            )
-                          }
-                          onSlett={() =>
-                            setEditMaskin((rader) =>
-                              rader.filter((r) => r.key !== rad.key),
-                            )
-                          }
-                        />
-                      ));
-                    })()}
+                    {editMaskin.map((rad) => (
+                      <KompaktMaskinRad
+                        key={rad.key}
+                        rad={rad}
+                        equipment={equipment}
+                        timeStep={timeStep}
+                        tidsrundingMinutter={tidsrundingMinutter}
+                        hoyst={maskinHoyst.get(rad.key) ?? null}
+                        onChange={(felt) =>
+                          setEditMaskin((rader) =>
+                            rader.map((r) =>
+                              r.key === rad.key ? { ...r, ...felt } : r,
+                            ),
+                          )
+                        }
+                        onSlett={() =>
+                          setEditMaskin((rader) =>
+                            rader.filter((r) => r.key !== rad.key),
+                          )
+                        }
+                      />
+                    ))}
                   </div>
                 )}
               </section>
@@ -937,8 +998,7 @@ function KompaktMaskinRad({
   equipment,
   timeStep,
   tidsrundingMinutter,
-  overstigerArbeid,
-  pauseMin,
+  hoyst,
   onChange,
   onSlett,
 }: {
@@ -955,13 +1015,14 @@ function KompaktMaskinRad({
     | undefined;
   timeStep: number;
   tidsrundingMinutter: number | null;
-  overstigerArbeid: boolean;
-  pauseMin: number;
+  /** w9 (2c): jobbens grense for denne maskinen; `null` = døgn-maskin, ingen tekst. */
+  hoyst: number | null;
   onChange: (felt: Partial<EditMaskin>) => void;
   onSlett: () => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [timerStr, setTimerStr] = useState(String(rad.timer));
+  const over = overMaskinHoyst(rad.timer, hoyst);
   useEffect(() => {
     setTimerStr(String(rad.timer));
   }, [rad.timer]);
@@ -1028,13 +1089,14 @@ function KompaktMaskinRad({
           <Trash2 className="h-3.5 w-3.5" />
         </button>
       </div>
-      {/* Info-rad: maskin > arbeid antyder mannsbetjent maskin + pause-fradrag.
-          Ingen automatisk korreksjon (krever kreverForer-flagg, egen PR). */}
-      {overstigerArbeid && (
-        <div className="ml-2 text-[11px] text-amber-700">
-          {pauseMin > 0
-            ? t("timer.rediger.maskinOverstigerMedPause", { pauseMin })
-            : t("timer.rediger.maskinOverstiger")}
+      {hoyst !== null && (
+        <div
+          className={`ml-2 text-[11px] ${over ? "font-medium text-red-600" : "text-gray-500"}`}
+          data-testid="maskin-hoyst"
+        >
+          {t("timer.maskin.hoyst", {
+            timer: hoyst.toLocaleString(i18n.language, { maximumFractionDigits: 2 }),
+          })}
         </div>
       )}
     </div>

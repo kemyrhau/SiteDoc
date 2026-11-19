@@ -125,7 +125,12 @@ function lagMaskinCtx() {
       equipment: { findMany: vi.fn().mockResolvedValue([{ id: VEHICLE, merke: "Volvo", modell: "EC220E", internNavn: null, utleieEnhet: "doegn" }]) },
     },
     prismaTimer: {
-      $transaction: vi.fn((arg: unknown) => Promise.all(arg as Promise<unknown>[])),
+      // w9: maskin.tilfoy/oppdater kjører interaktiv transaksjon (maskinvakten); tx = klienten selv.
+      $transaction: vi.fn((arg: unknown): Promise<unknown> =>
+        typeof arg === "function"
+          ? (arg as (tx: unknown) => Promise<unknown>)(ctx.prismaTimer)
+          : Promise.all(arg as Promise<unknown>[]),
+      ),
       dailySheet: { findUnique: vi.fn().mockResolvedValue(sheet), update: vi.fn().mockResolvedValue({}) },
       sheetTimer: {
         findMany: vi.fn().mockResolvedValue([

@@ -1,4 +1,5 @@
-import type { TRPCDefaultErrorShape, TRPCError, TRPC_ERROR_CODE_KEY } from "@trpc/server";
+import { TRPCError } from "@trpc/server";
+import type { TRPCDefaultErrorShape, TRPC_ERROR_CODE_KEY } from "@trpc/server";
 import { TRPC_ERROR_CODES_BY_KEY } from "@trpc/server/rpc";
 
 /**
@@ -66,8 +67,37 @@ export function klassifiserFeil(error: TRPCError): FeilKlassifisering {
   return { type: "egen" };
 }
 
+/** Parametre til en i18n-nøkkel (tall og tekst). */
+export type FeilParam = Record<string, string | number>;
+
+/**
+ * w9 (S1, orkestrator 2026-11-19): en egen feil med i18n-nøkkel. Bæres som `cause` på en
+ * `TRPCError`; formatteren legger `feilNokkel` + `feilParam` i `data`. `message` er
+ * fortsatt nb-teksten, så eldre apper (som viser `message`) står uendret.
+ */
+export class NokkelFeil extends Error {
+  constructor(
+    message: string,
+    readonly feilNokkel: string,
+    readonly feilParam: FeilParam = {},
+  ) {
+    super(message);
+    this.name = "NokkelFeil";
+  }
+}
+
+/** `TRPCError` med nb-tekst i `message` og i18n-nøkkel i `data.feilNokkel`. */
+export function nokkelFeil(
+  code: TRPC_ERROR_CODE_KEY,
+  message: string,
+  feilNokkel: string,
+  feilParam: FeilParam = {},
+): TRPCError {
+  return new TRPCError({ code, message, cause: new NokkelFeil(message, feilNokkel, feilParam) });
+}
+
 export type FormatertFeil = TRPCDefaultErrorShape & {
-  data: TRPCDefaultErrorShape["data"] & { feilKode?: FeilKode };
+  data: TRPCDefaultErrorShape["data"] & { feilKode?: FeilKode; feilNokkel?: string; feilParam?: FeilParam };
 };
 
 export function formaterFeil(
@@ -75,7 +105,13 @@ export function formaterFeil(
   erProd: boolean = process.env.NODE_ENV === "production",
 ): FormatertFeil {
   const k = klassifiserFeil(error);
-  if (k.type === "egen") return shape;
+  if (k.type === "egen") {
+    const aarsak = error.cause;
+    if (aarsak instanceof NokkelFeil) {
+      return { ...shape, data: { ...shape.data, feilNokkel: aarsak.feilNokkel, feilParam: aarsak.feilParam } };
+    }
+    return shape;
+  }
 
   const mapping = k.type === "prisma" ? k.mapping : INTERN;
   // Ukjent feil i dev beholder detaljene (krav 3); Prisma-tekst når aldri brukeren.
