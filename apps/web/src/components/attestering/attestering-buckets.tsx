@@ -16,6 +16,7 @@ import { useFirma } from "@/kontekst/firma-kontekst";
 import { Check, RotateCcw, X } from "lucide-react";
 import { ReiseRadMerke } from "./ReiseRadMerke";
 import { MatpauseRadMerke } from "./MatpauseRadMerke";
+import { merkeModell } from "./utstyr-navn";
 
 /* ------------------------------------------------------------------ */
 /*  Typer                                                               */
@@ -495,15 +496,15 @@ function MaskinRaderLeder({
   const equipment = equipmentRaw as unknown as
     | Array<{
         id: string;
-        merke: string;
-        modell: string;
+        merke: string | null;
+        modell: string | null;
         internNavn: string | null;
       }>
     | undefined;
   const equipmentMap = new Map<string, string>(
     (equipment ?? []).map((e) => [
       e.id,
-      `${e.merke} ${e.modell}${e.internNavn ? ` (${e.internNavn})` : ""}`,
+      merkeModell(e) ? `${merkeModell(e)}${e.internNavn ? ` (${e.internNavn})` : ""}` : (e.internNavn ?? ""),
     ]),
   );
 

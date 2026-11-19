@@ -28,6 +28,7 @@ import type { ProsjektValg } from "@/components/timer/rediger-types";
 import { RedigerRadModal } from "./RedigerRadModal";
 import { RegistreringPanel } from "./RegistreringPanel";
 import { ReiseRadMerke } from "./ReiseRadMerke";
+import { merkeModell } from "./utstyr-navn";
 import {
   AVVIK_FILTER,
   FILTER_KOLONNER,
@@ -91,18 +92,23 @@ const HOYRE = 176;
  * overskriftene står hele ved 1 440 — det kompakte hodet har 14 px innrykk og filterikonet
  * uten venstremarg (`TimerRadTabell`), og Avvik/Maskintimer har fått 2/4 px fra Vare og
  * mengde, Timer og Antall (målt: ingen hodecelle med scrollWidth > clientWidth).
+ * w8: dato 84 → 92, så «man. 16.11.» (bredeste ukedag, halvfet) står hel; de 8 px er tatt fra
+ * Pr.nr. (−4), Timer (−2) og Maskin (−2), der hode og celler har luft. Ansattnr (ikke i
+ * standardutvalget) får 86 px, så overskriften ikke klippes til «Ansatt». Målt ved 1 440 i
+ * firma, «Etter prosjekt» og prosjektet: ingen dato- eller hodecelle med scrollWidth > clientWidth.
  */
 const ATTESTERING_BREDDE: Partial<Record<TimerTabellKolKey, number>> = {
-  dato: 84,
+  dato: 92,
+  ansattnr: 86,
   ansatt: 104,
-  prosjektnummer: 70,
+  prosjektnummer: 66,
   underprosjekt: 88,
   betegnelse: 74,
   fraTil: 94,
   fraTid: 56,
   tilTid: 56,
-  timer: 54,
-  maskin: 78,
+  timer: 52,
+  maskin: 76,
   maskintimer: 66,
   vareOgMengde: 68,
   antall: 54,
@@ -173,8 +179,8 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
   const [rediger, setRediger] = useState<AttLinje | null>(null);
   const [redigerer, setRedigerer] = useState<{ nokkel: string; mal: Mal } | null>(null);
   const [celleFeil, setCelleFeil] = useState<Record<string, string>>({});
-  // w5 (bilde 7): linja som har registreringen åpen under seg. Besøkets tilstand.
-  const [aapenLinje, setAapenLinje] = useState<string | null>(null);
+  // w8: jobben (kortet) som har registreringen åpen under jobbraden. Besøkets tilstand.
+  const [aapenKort, setAapenKort] = useState<string | null>(null);
 
   const sedelFor = useMemo(() => {
     const m = new Map<string, AttSedel>();
@@ -215,7 +221,7 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
   const { data: lonnsarter } = trpc.timer.lonnsart.list.useQuery(katalogInput);
   const { data: aktiviteter } = trpc.timer.aktivitet.list.useQuery(katalogInput);
   const { data: utstyrRaw } = trpc.maskin.equipment.list.useQuery(katalogInput);
-  const utstyr = utstyrRaw as unknown as Array<{ id: string; merke: string; modell: string; internNavn: string | null }> | undefined;
+  const utstyr = utstyrRaw as unknown as Array<{ id: string; merke: string | null; modell: string | null; internNavn: string | null }> | undefined;
   const { data: prosjekterRaw } = trpc.prosjekt.hentAlle.useQuery({ organizationId: orgId, inkluderFrosne: true });
   const prosjekter = (prosjekterRaw ?? []) as unknown as ProsjektValg[];
   const { data: innstilling } = trpc.organisasjon.hentSetting.useQuery({ organizationId: orgId });
@@ -305,7 +311,7 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
   function valgAlternativer(felt: Felt): { value: string; label: string }[] {
     if (felt === "lonnsartId") return (lonnsarter ?? []).map((l) => ({ value: l.id, label: l.navn }));
     if (felt === "aktivitetId") return (aktiviteter ?? []).map((a) => ({ value: a.id, label: a.navn }));
-    if (felt === "vehicleId") return (utstyr ?? []).map((e) => ({ value: e.id, label: `${e.merke} ${e.modell}`.trim() || e.internNavn || e.id }));
+    if (felt === "vehicleId") return (utstyr ?? []).map((e) => ({ value: e.id, label: merkeModell(e) || e.internNavn || e.id }));
     return [];
   }
 
@@ -523,7 +529,7 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
     );
   }
 
-  /** Registreringen åpnet under linja (bilde 7): hele jobben (kortet) linja står på. */
+  /** Registreringen åpnet under jobbraden (w8): hele jobben (kortet). */
   function registrering(kort: AttKort, s: AttSedel) {
     const egne = kort.linjer.filter((l) => iKontekst(l) && l.harHandling);
     const kanAttestere = !readOnly && egne.length > 0;
@@ -537,7 +543,7 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
         kanRette={kanAttestere && s.redigerTillatt && egne.some((l) => l.ventende)}
         lonnsarter={lonnsarter ?? []}
         onEndret={oppfrisk}
-        onLukk={() => setAapenLinje(null)}
+        onLukk={() => setAapenKort(null)}
       />
     );
   }
@@ -612,13 +618,19 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
       const siste = ut[ut.length - 1];
       if (siste && siste.kind !== "overskrift" && siste.blokk) siste.blokk = { ...siste.blokk, slutt: true };
     };
+    // w8: registreringen står rett under raden som åpnet den (jobbraden, eller dagsraden når
+    // dagen har én jobb), over timeradene. Timeradene åpner den ikke.
     const linjerFor = (kort: AttKort, s: AttSedel, kant: string) => {
+      if (aapenKort === kort.nokkel) ut.push({ kind: "panel", nokkel: `p:${kort.nokkel}`, innhold: registrering(kort, s), blokk: { kant } });
       if (bareOversikt) return;
       for (const l of kort.linjer) {
         ut.push({ kind: "linje", nokkel: l.nokkel, data: l, underlinjer: Math.max(1, l.linje.maskiner.length, l.linje.varer.length), blokk: { kant }, skjul: skjulPaaLinje(l, kort) });
-        if (aapenLinje === l.nokkel) ut.push({ kind: "panel", nokkel: `p:${l.nokkel}`, innhold: registrering(kort, s), blokk: { kant } });
       }
     };
+    const aapne = (kort: AttKort) => ({
+      onKlikk: () => setAapenKort((a) => (a === kort.nokkel ? null : kort.nokkel)),
+      aapen: aapenKort === kort.nokkel,
+    });
     const grupper = grupperModell(synlige, gruppering) ?? [{ nokkel: "", tittel: "", dager: synlige }];
     for (const gruppe of grupper) {
     if (gruppe.nokkel) {
@@ -649,6 +661,7 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
             variant: "dag",
             blokk: { kant: DAG_KANT },
             hoyre: kortHandlinger(kort, s),
+            ...aapne(kort),
             celle: (k) => {
               const kc = kortCelle(k, kort);
               if (kc !== undefined) return kc;
@@ -689,6 +702,8 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
         variant: "dag",
         blokk: { kant: DAG_KANT },
         hoyre: dagHandlinger(dag, enKort),
+        // Flere jobber: dagsraden er ikke én jobb og åpner ingenting; jobbradene gjør det.
+        ...(enKort ? aapne(enKort) : {}),
         celle: (k) => {
           const kc = kortCelle(k, enKort);
           if (kc !== undefined) return kc;
@@ -717,6 +732,7 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
             variant: "jobb",
             blokk: { kant },
             hoyre: kortHandlinger(kort),
+            ...aapne(kort),
             celle: (k) => {
               const kc = kortCelle(k, kort);
               if (kc !== undefined) return kc;
@@ -734,7 +750,7 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
     }
     return ut;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- handlingene leser fersk tilstand ved klikk
-  }, [synlige, gruppering, bareOversikt, t, readOnly, opptatt, etikettKol, avvikKol, prosjektKontekst, medAar, aapenLinje, lonnsarter, i18n.language]);
+  }, [synlige, gruppering, bareOversikt, t, readOnly, opptatt, etikettKol, avvikKol, prosjektKontekst, medAar, aapenKort, lonnsarter, i18n.language]);
 
   /* ---------------- Filter i hodet (R8) ---------------- */
 
@@ -863,8 +879,6 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
           standardBredder={ATTESTERING_BREDDE}
           hodeBrytes
           hodeTekst={(k) => (HODE_KORT.has(k) ? t(`timer.attestering.tabell.hode.${k}`) : undefined)}
-          onLinjeKlikk={(l) => setAapenLinje((a) => (a === l.nokkel ? null : l.nokkel))}
-          erAapen={(l) => l.nokkel === aapenLinje}
         />
       )}
 

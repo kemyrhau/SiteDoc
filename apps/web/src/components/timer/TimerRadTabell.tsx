@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useCallback, type ReactElement, type ReactNode, type CSSProperties, type MouseEvent as ReactMouseEvent } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback, type ReactElement, type ReactNode, type CSSProperties, type MouseEvent as ReactMouseEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
@@ -75,6 +75,13 @@ export type TimerRadTabellRad<R> =
        */
       variant?: "dag" | "jobb";
       blokk?: TimerRadBlokk;
+      /**
+       * w8: klikk på raden (ikke på knapper, felt eller merker i den) åpner jobbens registrering.
+       * Raden får pil i venstrekolonnen og nås med tastaturet. Utelatt → raden er ikke klikkbar.
+       */
+      onKlikk?: () => void;
+      /** w8: raden har registreringen åpen under seg (mørkere bakgrunn, pil ned). */
+      aapen?: boolean;
     };
 
 export interface TimerRadTabellFilter {
@@ -379,21 +386,51 @@ function Tabell<R>({
 
           if (rad.kind === "sum") {
             const v = rad.variant;
-            const bg = v === "dag" ? "bg-blue-50" : v === "jobb" ? "bg-white" : rad.sterk ? "bg-gray-50" : "bg-gray-100";
+            const klikk = rad.onKlikk;
+            const aapenRad = !!klikk && !!rad.aapen;
+            // w8: åpen rad er mørkere; klikkbar rad blir det samme ved hover. De faste cellene
+            // følger med (group-hover), ellers står venstre- og høyrekanten lyse.
+            const bgGrunn = v === "dag" ? "bg-blue-50" : v === "jobb" ? "bg-white" : rad.sterk ? "bg-gray-50" : "bg-gray-100";
+            const bg = aapenRad ? "bg-blue-100" : klikk ? `${bgGrunn} group-hover:bg-blue-100` : bgGrunn;
             const utseende =
-              v === "dag" ? "border-t-2 border-blue-700 bg-blue-50 font-semibold text-gray-900" :
-              v === "jobb" ? "border-t border-gray-300 bg-white font-semibold text-gray-800" :
+              v === "dag" ? "border-t-2 border-blue-700 font-semibold text-gray-900" :
+              v === "jobb" ? "border-t border-gray-300 font-semibold text-gray-800" :
               rad.sterk ? "border-t-2 border-gray-300 bg-gray-50 font-semibold text-gray-900" :
               "border-t border-gray-200 bg-gray-50/60 font-medium text-gray-700";
+            const radBg = v !== "dag" && v !== "jobb" ? "" : aapenRad ? "bg-blue-100" : klikk ? `${bgGrunn} hover:bg-blue-100` : bgGrunn;
             return pakk(
               <div
                 key={vi.key}
                 {...p}
                 data-rad={v}
-                className={`grid text-sm ${utseende} ${bunn}`}
+                data-aapen={aapenRad ? "" : undefined}
+                {...(klikk
+                  ? {
+                      role: "button",
+                      tabIndex: 0,
+                      "aria-expanded": aapenRad,
+                      onClick: (e: ReactMouseEvent) => {
+                        // Raden selv har role=button; bare knapper o.l. inne i den stopper klikket.
+                        if ((e.target as HTMLElement).closest(INTERAKTIV) !== e.currentTarget) return;
+                        klikk();
+                      },
+                      onKeyDown: (e: ReactKeyboardEvent) => {
+                        if (e.target !== e.currentTarget || (e.key !== "Enter" && e.key !== " ")) return;
+                        e.preventDefault();
+                        klikk();
+                      },
+                    }
+                  : {})}
+                className={`grid text-sm ${utseende} ${radBg} ${bunn} ${klikk ? "group cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500" : ""}`}
                 style={{ ...st, gridTemplateColumns: gridTemplate }}
               >
-                {venstre && <div className={`px-2 py-1.5 ${bg} ${kantV}`} style={fastVenstre}>{rad.venstre}</div>}
+                {venstre && (
+                  <div className={`px-2 py-1.5 ${bg} ${kantV}`} style={fastVenstre}>
+                    {klikk ? (
+                      <span aria-hidden className="text-base leading-none text-blue-700" data-pil="">{aapenRad ? "▾" : "▸"}</span>
+                    ) : rad.venstre}
+                  </div>
+                )}
                 {kolonner.map((k) => (
                   <div
                     key={k}
