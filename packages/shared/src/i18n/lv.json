@@ -606,6 +606,7 @@
   "timer.maskin.hoyst": "max {{timer}} h",
   "timer.maskin.overHoystSperret": "Iekārtai ir vairāk stundu nekā darba ierobežojums. Vispirms izlabojiet mašīnas stundas.",
   "timer.maskin.overArbeidAvvist": "{{jobb}}: mašīna {{maskin}} h, darbs {{arbeid}} h. Mašīnai ar operatoru nevar būt vairāk stundu nekā darba pie darba. Labojiet mašīnas darba stundas vai pārvietojiet visu darbu.",
+  "timer.maskin.utenArbeidAvvist": "Iekārtu «{{maskin}}» var ierakstīt tikai tad, ja tajā pašā projektā ir ierakstītas darba stundas. Vispirms pierakstiet darba stundas vai noņemiet iekārtu.",
   "timer.maskinSeksjon.merke": "Mašīna",
   "timer.maskinSeksjon.tittel": "Mašīna (pēc izvēles)",
   "timer.maskinSeksjon.kapasitet": "Darbs grupā: {{arbeid}} h · mašīna līdz šim: {{maskin}} h · pieejama: {{ledig}} h",

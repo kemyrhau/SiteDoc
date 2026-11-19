@@ -606,6 +606,7 @@
   "timer.maskin.hoyst": "max {{timer}} h",
   "timer.maskin.overHoystSperret": "Stroj má více hodin, než je limit úlohy. Nejprve opravte strojní hodiny.",
   "timer.maskin.overArbeidAvvist": "{{jobb}}: stroj {{maskin}} h, práce {{arbeid}} h. Stroj s obsluhou nemůže mít více hodin, než je práce na zakázce. Opravte hodiny stroje nebo přesuňte celou úlohu.",
+  "timer.maskin.utenArbeidAvvist": "Stroj «{{maskin}}» lze zaznamenat pouze tam, kde jsou na stejném projektu zaznamenány pracovní hodiny. Nejprve zaznamenejte pracovní dobu, nebo stroj odeberte.",
   "timer.maskinSeksjon.merke": "Stroj",
   "timer.maskinSeksjon.tittel": "Stroj (volitelně)",
   "timer.maskinSeksjon.kapasitet": "Práce ve skupině: {{arbeid}} h · stroj zatím: {{maskin}} h · dostupný: {{ledig}} h",

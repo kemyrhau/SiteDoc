@@ -7,6 +7,9 @@ import {
   type JobbArbeidRad,
   type JobbMaskinRad,
   type MaskinJobbBrudd,
+  maskinKreverTimerad,
+  erGyldigTimeradKobling,
+  velgTimeradForMaskin,
 } from "@sitedoc/shared";
 import { nokkelFeil } from "../../trpc/feilformat";
 import { hentUtstyrOppslag } from "./kortLeser";
@@ -148,4 +151,55 @@ async function maskinOverArbeidFeil(brudd: readonly MaskinJobbBrudd[]): Promise<
     `${navn.get(b.nokkel) ?? ""}: maskin ${tallNb(b.maskinSum)} t, arbeid ${tallNb(b.arbeidSum)} t.`;
   const message = `${brudd.map(linje).join(" ")} En maskin med fører kan ikke ha flere timer enn arbeidet på jobben. Rett maskintimene, eller flytt hele jobben.`;
   return nokkelFeil("BAD_REQUEST", message, "timer.maskin.overArbeidAvvist", param);
+}
+
+// ============================================================================
+//  w9-tillegget (R24, orkestrator 2026-11-19): maskinen kobles til jobbens
+//  timerad automatisk. Kalles i transaksjonen etter skrivingen og `sikreKortId`,
+//  så nye timerader og ny kort-id er med. Gjelder maskinradene kalleren gir
+//  (nye, endrede, eller som mistet koblingen sin): krever maskinen fører og står
+//  uten gyldig kobling, settes `sheetTimerId` til raden `velgTimeradForMaskin`
+//  velger i samme jobb. Har jobben ikke arbeid, avvises skrivingen. Gir
+//  tilbake de nye koblingene (maskin-id → timerad-id).
+// ============================================================================
+
+export async function koblMaskinerTilJobb(
+  tx: MaskinJobbTx,
+  prismaMaskin: MaskinKlientForVakt,
+  sheetId: string,
+  maskinIder: readonly string[],
+): Promise<Map<string, string>> {
+  const koblet = new Map<string, string>();
+  if (maskinIder.length === 0) return koblet;
+  const maskiner = await tx.sheetMachine.findMany({
+    where: { id: { in: [...maskinIder] }, sheetId },
+    select: { id: true, sheetId: true, kortId: true, sheetTimerId: true, vehicleId: true, fraTid: true, tilTid: true },
+  });
+  if (maskiner.length === 0) return koblet;
+  const utstyr = await hentUtstyrOppslag(prismaMaskin, maskiner.map((m) => m.vehicleId));
+  const somKrever = maskiner.filter((m) => maskinKreverTimerad(utstyr.utleieEnhet.get(m.vehicleId) ?? null));
+  if (somKrever.length === 0) return koblet;
+  const timer = (
+    await tx.sheetTimer.findMany({
+      where: { sheetId },
+      orderBy: [{ fraTid: "asc" }, { createdAt: "asc" }],
+      select: { id: true, sheetId: true, kortId: true, projectId: true, timer: true, erReise: true, attestertStatus: true, fraTid: true, tilTid: true },
+    })
+  ).map((t) => ({ ...t, timer: Number(t.timer) }));
+  for (const m of somKrever) {
+    if (erGyldigTimeradKobling(m, timer)) continue;
+    const valgt = velgTimeradForMaskin(m, timer);
+    if (!valgt) {
+      const navn = utstyr.navn.get(m.vehicleId) ?? m.vehicleId;
+      throw nokkelFeil(
+        "BAD_REQUEST",
+        `Maskinen «${navn}» kan bare føres der det er ført arbeidstimer på samme prosjekt. Før arbeidstimene først, eller fjern maskinen.`,
+        "timer.maskin.utenArbeidAvvist",
+        { maskin: navn },
+      );
+    }
+    await tx.sheetMachine.update({ where: { id: m.id }, data: { sheetTimerId: valgt } });
+    koblet.set(m.id, valgt);
+  }
+  return koblet;
 }

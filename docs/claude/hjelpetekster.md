@@ -171,6 +171,7 @@ Ingen ?-fane; teksten står ved feltet og i attesteringen (`timer.maskin.*`, `ti
 - **Ved maskinens timer-felt** (registreringen, Rediger sedel, dagssidens maskinvindu og timerad-vindu): «høyst 4,5 t» (`timer.maskin.hoyst`). Rød når tallet er over; Lagre er da sperret med forklaringen «En maskin har flere timer enn høyst-grensen for jobben. Rett maskintimene først.» (`timer.maskin.overHoystSperret`). Døgn-maskiner har ingen grense.
 - **Når serveren avviser:** «END-002: maskin 7,5 t, arbeid 4,5 t. En maskin med fører kan ikke ha flere timer enn arbeidet på jobben. Rett maskintimene, eller flytt hele jobben.» (`timer.maskin.overArbeidAvvist`, på brukerens språk).
 - **Attestering, jobbraden:** merket «Maskin over arbeid» (`timer.attestering.merkeMaskinOverArbeid`) med hover «Maskin 7,5 t, arbeid 4,5 t» (`timer.attestering.forklaringMaskinOverArbeid`). Jobben kan attesteres.
+- **`timer.maskin.utenArbeidAvvist`** (w9-tillegget): «Maskinen «{{maskin}}» kan bare føres der det er ført arbeidstimer på samme prosjekt. Før arbeidstimene først, eller fjern maskinen.» Vises når en maskin med fører ikke kan kobles fordi jobben ikke har arbeid. Ellers kobler serveren maskinen selv, uten tekst.
 
 ## Mobil: Timerad på maskin (`MaskinSeksjon.tsx`, `ProsjektkortDagsoversikt.tsx`, ordre d2c-2, 🟡 ikke merget)
 

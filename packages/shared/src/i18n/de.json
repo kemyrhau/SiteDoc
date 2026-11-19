@@ -606,6 +606,7 @@
   "timer.maskin.hoyst": "max. {{timer}} Std",
   "timer.maskin.overHoystSperret": "Eine Maschine hat mehr Stunden als das Limit des Jobs. Korrigieren Sie zunächst die Maschinenstunden.",
   "timer.maskin.overArbeidAvvist": "{{jobb}}: Maschine {{maskin}} h, Arbeit {{arbeid}} h. Eine Maschine mit einem Bediener kann nicht mehr Stunden haben als die Arbeit am Arbeitsplatz. Korrigieren Sie die Maschinenstunden oder verschieben Sie den gesamten Auftrag.",
+  "timer.maskin.utenArbeidAvvist": "Die Maschine „{{maskin}}“ kann nur erfasst werden, wenn Arbeitsstunden für dasselbe Projekt erfasst werden. Notieren Sie zunächst die Arbeitsstunden oder entfernen Sie die Maschine.",
   "timer.maskinSeksjon.merke": "Maschine",
   "timer.maskinSeksjon.tittel": "Maschine (optional)",
   "timer.maskinSeksjon.kapasitet": "Arbeit in der Gruppe: {{arbeid}} h · Maschine bisher: {{maskin}} h · verfügbar: {{ledig}} h",

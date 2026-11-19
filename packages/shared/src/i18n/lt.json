@@ -606,6 +606,7 @@
   "timer.maskin.hoyst": "maks. {{timer}} val",
   "timer.maskin.overHoystSperret": "Mašina turi daugiau valandų nei darbo limitas. Pirmiausia ištaisykite mašinos valandas.",
   "timer.maskin.overArbeidAvvist": "{{jobb}}: mašina {{maskin}} val., darbas {{arbeid}} val. Mašina su operatoriumi negali turėti daugiau valandų nei darbas. Pataisykite mašinos darbo valandas arba perkelkite visą darbą.",
+  "timer.maskin.utenArbeidAvvist": "Mašina «{{maskin}}» gali būti įrašoma tik tada, kai tame pačiame projekte fiksuojamos darbo valandos. Pirmiausia užrašykite darbo valandas arba išimkite mašiną.",
   "timer.maskinSeksjon.merke": "Mašina",
   "timer.maskinSeksjon.tittel": "Mašina (neprivaloma)",
   "timer.maskinSeksjon.kapasitet": "Darbas grupėje: {{arbeid}} val. · Mašina iki šiol: {{maskin}} val. · Galima: {{ledig}} val.",

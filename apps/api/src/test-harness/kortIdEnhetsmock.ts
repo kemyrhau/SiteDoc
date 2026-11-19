@@ -25,7 +25,7 @@ vi.mock("../services/timer/kortId", async (importOriginal) => {
   };
 });
 
-// w9: maskinvakten leser sedelens rader i transaksjonen før og etter skrivingen — samme
+// w9: maskinvakten (og den automatiske maskinkoblingen) leser sedelens rader i transaksjonen før og etter skrivingen — samme
 // grunn som over. Regelen er testet i `packages/shared` (maskinKapasitet.test.ts) og
 // vakten mot ekte Postgres i `routes/maskin-over-arbeid.integration.test.ts`.
 vi.mock("../services/timer/maskinJobbVakt", async (importOriginal) => {
@@ -34,5 +34,6 @@ vi.mock("../services/timer/maskinJobbVakt", async (importOriginal) => {
     ...ekte,
     lesMaskinJobbTilstand: vi.fn(async () => ({ timer: [], maskin: [], pauseMin: 0 })),
     krevIngenNyeMaskinBrudd: vi.fn(async () => undefined),
+    koblMaskinerTilJobb: vi.fn(async () => new Map<string, string>()),
   };
 });

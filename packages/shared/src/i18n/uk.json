@@ -606,6 +606,7 @@
   "timer.maskin.hoyst": "макс. {{timer}} год",
   "timer.maskin.overHoystSperret": "Машина має більше годин, ніж ліміт роботи. Спочатку виправте години роботи машини.",
   "timer.maskin.overArbeidAvvist": "{{jobb}}: машина {{maskin}} h, робота {{arbeid}} h. Машина з оператором не може мати більше годин, ніж робота на робочому місці. Виправте машино-години або перенесіть всю роботу.",
+  "timer.maskin.utenArbeidAvvist": "Машину «{{maskin}}» можна записати лише там, де зареєстровано години роботи на тому самому проекті. Спочатку запишіть робочі години або зніміть машину.",
   "timer.maskinSeksjon.merke": "машина",
   "timer.maskinSeksjon.tittel": "Машина (опціонально)",
   "timer.maskinSeksjon.kapasitet": "Робота в групі: {{arbeid}} h · поки машина: {{maskin}} h · доступна: {{ledig}} h",

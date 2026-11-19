@@ -606,6 +606,7 @@
   "timer.maskin.hoyst": "max {{timer}} h",
   "timer.maskin.overHoystSperret": "O mașină are mai multe ore decât limita de lucru. Corectați mai întâi orele mașinii.",
   "timer.maskin.overArbeidAvvist": "{{jobb}}: mașină {{maskin}} h, lucru {{arbeid}} h. O mașină cu operator nu poate avea mai multe ore decât munca la locul de muncă. Corectați orele mașinii sau mutați întreaga lucrare.",
+  "timer.maskin.utenArbeidAvvist": "Aparatul «{{maskin}}» poate fi înregistrat numai acolo unde orele de lucru sunt înregistrate pe același proiect. Înregistrați mai întâi orele de lucru sau scoateți mașina.",
   "timer.maskinSeksjon.merke": "Maşină",
   "timer.maskinSeksjon.tittel": "Mașină (opțional)",
   "timer.maskinSeksjon.kapasitet": "Lucru în grup: {{arbeid}} h · mașină până acum: {{maskin}} h · disponibil: {{ledig}} h",

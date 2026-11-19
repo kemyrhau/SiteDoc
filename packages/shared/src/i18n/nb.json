@@ -606,6 +606,7 @@
   "timer.maskin.hoyst": "høyst {{timer}} t",
   "timer.maskin.overHoystSperret": "En maskin har flere timer enn høyst-grensen for jobben. Rett maskintimene først.",
   "timer.maskin.overArbeidAvvist": "{{jobb}}: maskin {{maskin}} t, arbeid {{arbeid}} t. En maskin med fører kan ikke ha flere timer enn arbeidet på jobben. Rett maskintimene, eller flytt hele jobben.",
+  "timer.maskin.utenArbeidAvvist": "Maskinen «{{maskin}}» kan bare føres der det er ført arbeidstimer på samme prosjekt. Før arbeidstimene først, eller fjern maskinen.",
   "timer.maskinSeksjon.merke": "Maskin",
   "timer.maskinSeksjon.tittel": "Maskin (valgfritt)",
   "timer.maskinSeksjon.kapasitet": "Arbeid i gruppen: {{arbeid}} t · maskin så langt: {{maskin}} t · ledig: {{ledig}} t",

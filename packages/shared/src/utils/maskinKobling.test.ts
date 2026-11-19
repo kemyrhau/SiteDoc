@@ -3,6 +3,7 @@ import {
   maskinKreverTimerad,
   erGyldigTimeradKobling,
   finnMaskinerUtenTimerad,
+  velgTimeradForMaskin,
   type KoblingTimerRad,
 } from "./maskinKobling";
 import { beregnMaskinBrudd } from "./maskinKapasitet";
@@ -78,5 +79,48 @@ describe("finnMaskinerUtenTimerad", () => {
         0,
       ),
     ).toEqual([]);
+  });
+});
+
+// w9-tillegget: maskinen kobles selv til en timerad i samme jobb.
+describe("velgTimeradForMaskin", () => {
+  const rad = (id: string, timer: number, fraTid: string | null, tilTid: string | null, ekstra: Partial<KoblingTimerRad> = {}) => ({
+    id, sheetId: "s1", kortId: "k1", projectId: "p1", timer, fraTid, tilTid, erReise: false, attestertStatus: "pending", ...ekstra,
+  });
+  const maskin = (fraTid: string | null = null, tilTid: string | null = null) => ({ sheetId: "s1", kortId: "k1", fraTid, tilTid });
+
+  it("størst overlapp i fra–til vinner over flest timer", () => {
+    const rader = [rad("stor", 6, "07:00", "13:00"), rad("liten", 2, "13:00", "15:00")];
+    expect(velgTimeradForMaskin(maskin("13:00", "15:00"), rader)).toBe("liten");
+  });
+
+  it("uten fra–til på maskinen → flest timer", () => {
+    expect(velgTimeradForMaskin(maskin(), [rad("a", 1, "07:00", "08:00"), rad("b", 7.5, "08:00", "15:30")])).toBe("b");
+  });
+
+  it("ingen overlapp → flest timer", () => {
+    expect(velgTimeradForMaskin(maskin("18:00", "19:00"), [rad("a", 1, "07:00", "08:00"), rad("b", 3, "08:00", "11:00")])).toBe("b");
+  });
+
+  it("likt antall timer → tidligste fra-tid, så rekkefølgen", () => {
+    expect(velgTimeradForMaskin(maskin(), [rad("sen", 4, "11:00", "15:00"), rad("tidlig", 4, "07:00", "11:00")])).toBe("tidlig");
+    expect(velgTimeradForMaskin(maskin(), [rad("x", 4, null, null), rad("y", 4, null, null)])).toBe("x");
+  });
+
+  it("bare rader i samme jobb med arbeid er kandidater (reise, 0 t, erstattet, annen jobb, uten prosjekt, annen sedel)", () => {
+    const rader = [
+      rad("reise", 8, null, null, { erReise: true }),
+      rad("null", 0, null, null),
+      rad("erstattet", 8, null, null, { attestertStatus: "erstattet" }),
+      rad("annen", 8, null, null, { kortId: "k2" }),
+      rad("fravaer", 8, null, null, { projectId: null }),
+      rad("annenSedel", 8, null, null, { sheetId: "s2" }),
+    ];
+    expect(velgTimeradForMaskin(maskin(), rader)).toBeNull();
+    expect(velgTimeradForMaskin(maskin(), [...rader, rad("ok", 1, null, null)])).toBe("ok");
+  });
+
+  it("jobb uten arbeid → null", () => {
+    expect(velgTimeradForMaskin(maskin(), [])).toBeNull();
   });
 });

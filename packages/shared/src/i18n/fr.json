@@ -606,6 +606,7 @@
   "timer.maskin.hoyst": "max {{timer}} h",
   "timer.maskin.overHoystSperret": "Une machine a plus d'heures que la limite du travail. Corrigez d'abord les heures de la machine.",
   "timer.maskin.overArbeidAvvist": "{{jobb}} : machine {{maskin}} h, travail {{arbeid}} h. Une machine avec un opérateur ne peut pas avoir plus d'heures que le travail effectué sur le chantier. Corrigez les heures de la machine ou déplacez l'ensemble du travail.",
+  "timer.maskin.utenArbeidAvvist": "The machine «{{maskin}}» can only be recorded where work hours are recorded on the same project. Record the work hours first, or remove the machine.",
   "timer.maskinSeksjon.merke": "Machine",
   "timer.maskinSeksjon.tittel": "Machine (facultatif)",
   "timer.maskinSeksjon.kapasitet": "Travail en groupe : {{arbeid}} h · machine jusqu'à présent : {{maskin}} h · disponible : {{ledig}} h",

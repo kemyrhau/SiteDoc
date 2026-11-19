@@ -340,8 +340,8 @@ export type {
   KortLinjeVare,
   KortRadLinje,
 } from "./kortGruppering";
-export { maskinKreverTimerad, erGyldigTimeradKobling, finnMaskinerUtenTimerad } from "./maskinKobling";
-export type { KoblingTimerRad, KoblingMaskinRad } from "./maskinKobling";
+export { maskinKreverTimerad, erGyldigTimeradKobling, finnMaskinerUtenTimerad, velgTimeradForMaskin } from "./maskinKobling";
+export type { KoblingTimerRad, KoblingMaskinRad, KandidatTimerRad } from "./maskinKobling";
 export { visProsjektnummer } from "./prosjektnummer";
 export type { ProsjektnummerKilde } from "./prosjektnummer";
 export {

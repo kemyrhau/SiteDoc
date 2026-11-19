@@ -606,6 +606,7 @@
   "timer.maskin.hoyst": "max {{timer}} h",
   "timer.maskin.overHoystSperret": "Masinas on rohkem tunde kui töö piirang. Esmalt korrigeerige masina töötunde.",
   "timer.maskin.overArbeidAvvist": "{{jobb}}: masin {{maskin}} h, töö {{arbeid}} h. Operaatoriga masinal ei tohi olla rohkem tunde kui tööl tehtav töö. Parandage masina tööaegu või teisaldage kogu töö.",
+  "timer.maskin.utenArbeidAvvist": "Masinat «{{maskin}}» saab salvestada ainult siis, kui töötunnid on salvestatud samasse projekti. Esmalt registreerige töötunnid või eemaldage masin.",
   "timer.maskinSeksjon.merke": "Masin",
   "timer.maskinSeksjon.tittel": "Masin (valikuline)",
   "timer.maskinSeksjon.kapasitet": "Töö rühmas: {{arbeid}} h · masin seni: {{maskin}} h · saadaval: {{ledig}} h",

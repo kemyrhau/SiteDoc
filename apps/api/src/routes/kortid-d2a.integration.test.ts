@@ -604,14 +604,15 @@ describe("T56 — rettRadFelt", () => {
 });
 
 describe("T70 — sperren (R24) i attestantens veier", () => {
-  it("rettRadFelt: bytte til maskin som krever timerad på ukoblet maskinrad avvises, gamle maskin står", async () => {
+  // w9-tillegget: serveren kobler maskinen til jobbens timerad; sperren gjelder bare jobb uten arbeid.
+  it("rettRadFelt: bytte fra døgn- til time-maskin på ukoblet maskinrad kobles til jobbens timerad", async () => {
     const sid = await nySedel();
-    await timerRad(sid);
+    const t = await timerRad(sid);
     const m = await maskinRad(sid, { vehicleId: M_DOEGN });
-    await expect(dag().rettRadFelt({ radType: "maskin", radId: m, felter: { vehicleId: M_TIME } })).rejects.toThrow(
-      /timerad/i,
-    );
-    expect((await prismaTimer.sheetMachine.findUniqueOrThrow({ where: { id: m } })).vehicleId).toBe(M_DOEGN);
+    await dag().rettRadFelt({ radType: "maskin", radId: m, felter: { vehicleId: M_TIME } });
+    const lagret = await prismaTimer.sheetMachine.findUniqueOrThrow({ where: { id: m } });
+    expect(lagret.vehicleId).toBe(M_TIME);
+    expect(lagret.sheetTimerId).toBe(t);
   });
 
   const radInput = async (sid: string) => {
@@ -646,31 +647,67 @@ describe("T70 — sperren (R24) i attestantens veier", () => {
     };
   };
 
-  it("redigerSedelRader: slette timerad med time-maskin uten å slette maskinen avvises", async () => {
+  // Ordrens bevis (w9-tillegget): «Rediger arbeid» bytter døgn-maskin til førermaskin.
+  it("redigerSedelRader: bytte døgn-maskin til førermaskin går gjennom og kobles til jobbens timerad", async () => {
+    const sid = await nySedel();
+    await timerRad(sid, { fra: "07:00", til: "11:00", timer: 4 });
+    const stor = await timerRad(sid, { fra: "11:30", til: "15:30", timer: 4 });
+    const m = await maskinRad(sid, { vehicleId: M_DOEGN, timer: 2 });
+    await prismaTimer.sheetMachine.update({ where: { id: m }, data: { fraTid: "12:00", tilTid: "14:00" } });
+    const inn = await radInput(sid);
+    inn.maskin[0]!.vehicleId = M_TIME;
+    await dag().redigerSedelRader({ sheetId: sid, nyeRader: inn });
+    const lagret = await prismaTimer.sheetMachine.findUniqueOrThrow({ where: { id: m } });
+    expect(lagret.vehicleId).toBe(M_TIME);
+    // Overlapp i fra–til velger raden 11:30–15:30.
+    expect(lagret.sheetTimerId).toBe(stor);
+  });
+
+  it("redigerSedelRader: bytte døgn-maskin til førermaskin på jobb uten arbeid avvises med ny tekst; ingenting endres", async () => {
+    const sid = await nySedel();
+    await timerRad(sid, { kortId: "kort-annen" });
+    const m = await maskinRad(sid, { vehicleId: M_DOEGN, timer: 2, kortId: "kort-uten-arbeid" });
+    const inn = await radInput(sid);
+    inn.maskin[0]!.vehicleId = M_TIME;
+    const feil = await dag().redigerSedelRader({ sheetId: sid, nyeRader: inn }).catch((e: unknown) => e);
+    expect((feil as { cause?: { feilNokkel?: string } }).cause?.feilNokkel).toBe("timer.maskin.utenArbeidAvvist");
+    expect(String((feil as Error).message)).not.toMatch(/timerad|prosjektkort/);
+    expect((await prismaTimer.sheetMachine.findUniqueOrThrow({ where: { id: m } })).vehicleId).toBe(M_DOEGN);
+  });
+
+  it("redigerSedelRader: slette timeraden en time-maskin står på, kobler maskinen til jobbens andre timerad", async () => {
     const sid = await nySedel();
     const t1 = await timerRad(sid);
-    await timerRad(sid, { fra: "12:00", til: "14:00", timer: 2 });
-    await maskinRad(sid, { sheetTimerId: t1, vehicleId: M_TIME });
+    const t2 = await timerRad(sid, { fra: "12:00", til: "14:00", timer: 2 });
+    const m = await maskinRad(sid, { sheetTimerId: t1, vehicleId: M_TIME, timer: 1 });
+    const inn = await radInput(sid);
+    inn.timer = inn.timer.filter((r) => r.originalId !== t1);
+    await dag().redigerSedelRader({ sheetId: sid, nyeRader: inn });
+    expect((await prismaTimer.sheetMachine.findUniqueOrThrow({ where: { id: m } })).sheetTimerId).toBe(t2);
+  });
+
+  it("redigerSedelRader: slette jobbens eneste arbeid med time-maskin igjen avvises", async () => {
+    const sid = await nySedel();
+    const t1 = await timerRad(sid);
+    await maskinRad(sid, { sheetTimerId: t1, vehicleId: M_TIME, timer: 1 });
     const inn = await radInput(sid);
     inn.timer = inn.timer.filter((r) => r.originalId !== t1);
     await expect(dag().redigerSedelRader({ sheetId: sid, nyeRader: inn })).rejects.toThrow(/Volvo EC220E/);
-    expect(await prismaTimer.sheetTimer.count({ where: { sheetId: sid } })).toBe(2);
+    expect(await prismaTimer.sheetTimer.count({ where: { sheetId: sid } })).toBe(1);
   });
 
-  it("redigerSedelRader: ny maskinrad uten originalId som krever timerad avvises; ukoblet rad som ikke endres går gjennom", async () => {
+  it("redigerSedelRader: ny maskinrad uten originalId kobles til jobbens timerad; ukoblet rad som ikke endres røres ikke", async () => {
     const sid = await nySedel();
-    await timerRad(sid, { fra: "07:00", til: "15:00", timer: 8 });
+    const t = await timerRad(sid, { fra: "07:00", til: "15:00", timer: 8 });
     const ukoblet = await maskinRad(sid, { vehicleId: M_TIME, timer: 1 });
     const inn = await radInput(sid);
     const ny = { ...inn.maskin[0]!, originalId: null, timer: 1 };
-    await expect(
-      dag().redigerSedelRader({ sheetId: sid, nyeRader: { ...inn, maskin: [...inn.maskin, ny] } }),
-    ).rejects.toThrow(/timerad/i);
-    // Uendret ukoblet maskin + endret timerad → går gjennom.
-    inn.timer[0]!.timer = 7.5;
-    inn.timer[0]!.tilTid = "14:30";
-    await dag().redigerSedelRader({ sheetId: sid, nyeRader: inn });
-    expect(await prismaTimer.sheetMachine.findUnique({ where: { id: ukoblet } })).not.toBeNull();
+    await dag().redigerSedelRader({ sheetId: sid, nyeRader: { ...inn, maskin: [...inn.maskin, ny] } });
+    const maskiner = await prismaTimer.sheetMachine.findMany({ where: { sheetId: sid } });
+    expect(maskiner).toHaveLength(2);
+    expect(maskiner.find((r) => r.id !== ukoblet)?.sheetTimerId).toBe(t);
+    // Den uendrede, ukoblede eldre raden står ukoblet.
+    expect(maskiner.find((r) => r.id === ukoblet)?.sheetTimerId).toBeNull();
   });
 });
 

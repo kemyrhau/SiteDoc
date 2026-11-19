@@ -606,6 +606,7 @@
   "timer.maskin.hoyst": "max {{timer}} h",
   "timer.maskin.overHoystSperret": "Koneella on enemmän tunteja kuin työn raja. Korjaa ensin koneen käyttötunnit.",
   "timer.maskin.overArbeidAvvist": "{{jobb}}: kone {{maskin}} h, työ {{arbeid}} h. Koneella, jossa on kuljettaja, ei voi olla enempää työtunteja kuin työtehtävä. Korjaa koneen käyttötunnit tai siirrä koko työ.",
+  "timer.maskin.utenArbeidAvvist": "Kone «{{maskin}}» voidaan tallentaa vain, jos työtunnit on tallennettu samaan projektiin. Kirjaa ensin työtunnit ylös tai poista kone.",
   "timer.maskinSeksjon.merke": "Kone",
   "timer.maskinSeksjon.tittel": "Kone (valinnainen)",
   "timer.maskinSeksjon.kapasitet": "Työskentely ryhmässä: {{arbeid}} h · kone tähän mennessä: {{maskin}} h · käytettävissä: {{ledig}} h",

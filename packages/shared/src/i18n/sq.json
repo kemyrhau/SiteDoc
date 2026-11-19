@@ -606,6 +606,7 @@
   "timer.maskin.hoyst": "maksimumi {{timer}} h",
   "timer.maskin.overHoystSperret": "Një makinë ka më shumë orë se kufiri i punës. Korrigjoni fillimisht orët e makinës.",
   "timer.maskin.overArbeidAvvist": "{{jobb}}: makinë {{maskin}} h, punë {{arbeid}} h. Një makinë me një operator nuk mund të ketë më shumë orë se puna në punë. Korrigjoni orët e makinës ose lëvizni të gjithë punën.",
+  "timer.maskin.utenArbeidAvvist": "Makina «{{maskin}}» mund të regjistrohet vetëm aty ku regjistrohen orët e punës në të njëjtin projekt. Regjistroni fillimisht orët e punës ose hiqni makinën.",
   "timer.maskinSeksjon.merke": "Makinë",
   "timer.maskinSeksjon.tittel": "Makinë (opsionale)",
   "timer.maskinSeksjon.kapasitet": "Puna në grup: {{arbeid}} h · makinë deri tani: {{maskin}} h · disponueshme: {{ledig}} h",
