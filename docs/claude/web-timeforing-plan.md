@@ -920,7 +920,7 @@ Kenneth 2026-11-18: «Ja, (a)». Firmavalget «Attestant kan attestere egne time
 
 ### 8.7 Kenneths svar på B21–B23, 2026-11-19
 
-- **B21:** Kenneth: «Kan vi varsle attestator dersom utleiemaskin har flere timer enn timer arbeidet?» Utleiemaskiner sperres ikke, men attestanten skal få et varsel når maskinen har flere timer enn arbeidet på jobben. 🟡 Orkestratorens tolkning, til bekreftelse: unntaket er A (enheten «døgn»), og døgn-maskiner med flere timer enn jobbens arbeidstimer får avviksmerket «Maskin over arbeid». Merket er et varsel; jobben kan attesteres.
+- **B21: A** (Kenneth 2026-11-19: «Kan vi varsle attestator dersom utleiemaskin har flere timer enn timer arbeidet?», bekreftet «Ja, døgn = A»). Unntaket er maskiner med enheten «døgn» i maskinregisteret. De sperres ikke, men får avviksmerket «Maskin over arbeid» når timene overstiger jobbens arbeidstimer. Merket er et varsel; jobben kan attesteres. Ingen migrering.
 - **B22: A** (Kenneth 2026-11-19): «22B->A vi må også kjøre en ny versjon av appen på produksjon. det er kun testbrukere på prod enda». Den nye regelen gjelder alle veier fra første dag, også synken fra telefonen. B4 fra 16.11. er opphevet for serveren. Risikoen med eldre apper godtas fordi prod bare har testbrukere. w9 (server og PC) og w9m (telefonen) leveres derfor sammen, og prod får ny app-versjon i samme slipp (Kenneths steg).
 - **B23: B** (Kenneth 2026-11-19). Jobber som allerede bryter regelen, får bare avviksmerket. De kan attesteres.
 
