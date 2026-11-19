@@ -1050,12 +1050,14 @@ Kenneth 2026-11-18: «Ja, (a)». Firmavalget «Attestant kan attestere egne time
 
 ### 8.8 Kenneths svar på B24–B28, 2026-11-19
 
-- **B24 — åpent.** Kenneth: kortet redigeres samlet: prosjekt, byggeplass, underprosjekt, arbeidstimer, maskiner (timer/døgn), varer (type, enhet, mengde), utlegg, tillegg og eventuelt reise. «Det gir ingen mening å attestere timer dersom maskintimene har feil.» Han spør om A betyr at bare den ene linja kan redigeres. Svaret er nei: rettingen skjer alltid i kortet for hele jobben. ✓ og ↩ på linja gjelder bare attestering og retur. Orkestrators anbefaling etter Kenneths begrunnelse er **B**: attestering og retur bare pr. jobb og pr. dag. Venter på Kenneth.
+- **B24 → B.** ✓ og ↩ står bare på jobbraden og dagsraden. Linjene viser tall og har ingen knapper. Kenneths begrunnelse: kortet rettes samlet (prosjekt, byggeplass, underprosjekt, arbeidstimer, maskiner pr. time/døgn, varer med type, enhet og mengde, utlegg, tillegg og eventuelt reise), og «det gir ingen mening å attestere timer dersom maskintimene har feil». Om reise hører hjemme i kortet, er ikke avklart.
 - **B25 → A.** Cellene på linja åpnes ikke for retting. Kortet er det ene stedet du retter.
 - **B26 → A** (Kenneth var usikker; forklart 19.11.). Lagrede kolonneoppsett for attesteringslista settes til kjernekolonnene én gang. Kolonner kan legges til igjen med «Velg parameter».
 - **B27 → A, og pennen beholdes.** «Rediger jobben» i kortet vises med pennen (✎) som ikon. «+» og «✕» direkte i kortet kommer med w3.
 - **B28 → A.** «Venter» følger uka.
 - **Nytt ønske (hjemmel Kenneth 19.11.):** hover-forklaring på menypunktene i venstre marg, særlig der samme navn står både under Prosjekt og Firma (Attestering, Timer). Teksten skal si hva siden gjør og hvem den er for. Fabel skriver tekstene etter `tooltip-hjelpetekst-veileder.md`.
+
+- **Prosjektleder med flere prosjekter (Kenneth 19.11.).** Målt: prosjektets attestering henter bare ett prosjekt (`hentTilAttestering`, `dagsseddel.ts:5765`). Firmaets side krever firmaadministrator (`autoriserAdminForFirma`, `dagsseddel.ts:5979`). En prosjektleder for fire prosjekter må derfor bytte prosjekt fire ganger. Kenneth: da bør attesteringen flyttes til firmaattesteringen, der prosjektlederen får opp sine ansatte i sine prosjekter. Fabel spesifiserer det før w10 punkt 3 bygges.
 
 ## 9. Rekkefølge
 
