@@ -921,7 +921,7 @@ Kenneth 2026-11-18: «Ja, (a)». Firmavalget «Attestant kan attestere egne time
 ### 8.7 Kenneths svar på B21–B23, 2026-11-19
 
 - **B21:** Kenneth: «Kan vi varsle attestator dersom utleiemaskin har flere timer enn timer arbeidet?» Utleiemaskiner sperres ikke, men attestanten skal få et varsel når maskinen har flere timer enn arbeidet på jobben. 🟡 Orkestratorens tolkning, til bekreftelse: unntaket er A (enheten «døgn»), og døgn-maskiner med flere timer enn jobbens arbeidstimer får avviksmerket «Maskin over arbeid». Merket er et varsel; jobben kan attesteres.
-- **B22:** Kenneth ba om bedre forklaring. Ikke besvart.
+- **B22: A** (Kenneth 2026-11-19): «22B->A vi må også kjøre en ny versjon av appen på produksjon. det er kun testbrukere på prod enda». Den nye regelen gjelder alle veier fra første dag, også synken fra telefonen. B4 fra 16.11. er opphevet for serveren. Risikoen med eldre apper godtas fordi prod bare har testbrukere. w9 (server og PC) og w9m (telefonen) leveres derfor sammen, og prod får ny app-versjon i samme slipp (Kenneths steg).
 - **B23: B** (Kenneth 2026-11-19). Jobber som allerede bryter regelen, får bare avviksmerket. De kan attesteres.
 
 ## 9. Rekkefølge
@@ -957,9 +957,9 @@ delene krever ingen.
   Er B17 besvart før w6 bygges, blir det én migrering og én kjøring for Kenneth. Ellers får hver del sin.
 - **w3, w4 og w6 står som før.**
 - **w9 går etter w8** (klikk fra jobbraden, § 8.6 punkt 1): begge rører attesteringen. **B21–B23 må være besvart
-  før w9.** Server og PC går først. Telefonen (w9m) går for seg etterpå, og synken strammes sist (B22 B).
+  før w9.** Server og PC går først, telefonen (w9m) rett etter. Synken strammes i w9 (B22 A), så w9 og w9m deployes og slippes sammen, med ny app-versjon i prod.
   «Høyst» ved timer-feltet i føringen bygges i w3 hvis w3 kommer først; ellers i w9 på vinduene som finnes.
-- **Før w9 bygges, telles bruddene** i test og prod (§ 10). Tallet avgjør hvor mange jobber B23 A sperrer første dag.
+- **Før w9 bygges, telles bruddene** i test og prod (§ 10). Med B23 B sperres ingen; tallet sier bare hvor mange jobber får merket første dag.
 
 ### 9.1 w1 i kode (merget til develop `7abb7155`)
 
