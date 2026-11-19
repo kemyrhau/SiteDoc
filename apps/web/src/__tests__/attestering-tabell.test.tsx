@@ -512,24 +512,96 @@ describe("w5 — kjernekolonner og «Tilbakestill til standard»", () => {
   });
 });
 
-describe("w5 — klikk på linja åpner registreringen", () => {
+/** w8: raden som åpner registreringen — dagsraden når dagen har én jobb. */
+const dagsrad = (c: HTMLElement, i = 0) => c.querySelectorAll('[data-rad="dag"]')[i] as HTMLElement;
+
+describe("w8 — jobbraden åpner registreringen, timeradene gjør det ikke", () => {
   afterEach(() => { delete h.data["eksternKostObjekt.list"]; });
 
-  it("klikk åpner, nytt klikk lukker; avkrysning åpner ikke", () => {
+  it("klikk på dagsraden (én jobb) åpner, nytt klikk lukker; pil ▸/▾ og mørkere rad", () => {
     const { container } = vis([sedel()]);
-    const l = () => linje(container, "s1:timer:t1");
-    fireEvent.click(within(l()).getByRole("checkbox"));
-    expect(container.querySelector("[data-registrering]")).toBeNull();
-    fireEvent.click(l());
+    const d = () => dagsrad(container);
+    expect(d().getAttribute("aria-expanded")).toBe("false");
+    expect(d().querySelector("[data-pil]")!.textContent).toBe("▸");
+    fireEvent.click(d());
     expect(container.querySelector("[data-registrering]")).not.toBeNull();
-    fireEvent.click(l());
+    expect(d().hasAttribute("data-aapen")).toBe(true);
+    expect(d().getAttribute("aria-expanded")).toBe("true");
+    expect(d().querySelector("[data-pil]")!.textContent).toBe("▾");
+    expect(d().className).toContain("bg-blue-100");
+    fireEvent.click(d());
     expect(container.querySelector("[data-registrering]")).toBeNull();
+  });
+
+  it("registreringen står rett under raden som ble klikket, over timeradene", () => {
+    const { container } = vis([sedel()]);
+    fireEvent.click(dagsrad(container));
+    const rader = Array.from(container.querySelectorAll("[data-rad], [data-registrering], [data-linje]"));
+    const iDag = rader.indexOf(dagsrad(container));
+    expect(rader[iDag + 1]!.hasAttribute("data-registrering")).toBe(true);
+    expect(rader[iDag + 2]!.getAttribute("data-linje")).toBe("s1:timer:t1");
+  });
+
+  it("timeraden åpner ikke registreringen; ✓/✂/penn og avkrysning står på timeraden", () => {
+    const { container } = vis([sedel()]);
+    const l = linje(container, "s1:timer:t1");
+    fireEvent.click(l);
+    fireEvent.click(within(l).getByRole("checkbox"));
+    expect(container.querySelector("[data-registrering]")).toBeNull();
+    expect(l.className).not.toContain("cursor-pointer");
+    expect(within(l).getByRole("button", { name: "timer.attestering.meny.splittRad" })).toBeTruthy();
+    expect(within(l).getByRole("button", { name: "timer.attestering.meny.rediger" })).toBeTruthy();
+  });
+
+  it("knappene i dagsraden åpner ikke registreringen", () => {
+    const { container } = vis([sedel()]);
+    fireEvent.click(within(dagsrad(container)).getByRole("button", { name: "timer.attestering.tabell.attesterDagen" }));
+    expect(container.querySelector("[data-registrering]")).toBeNull();
+  });
+
+  it("tastaturet: Enter på raden åpner", () => {
+    const { container } = vis([sedel()]);
+    expect(dagsrad(container).tabIndex).toBe(0);
+    fireEvent.keyDown(dagsrad(container), { key: "Enter" });
+    expect(container.querySelector("[data-registrering]")).not.toBeNull();
+  });
+
+  it("to jobber: dagsraden er ikke klikkbar; hver jobbrad åpner sin jobb", () => {
+    const { container } = vis([toProsjekter()]);
+    const dag = dagsrad(container);
+    expect(dag.getAttribute("role")).toBeNull();
+    expect(dag.querySelector("[data-pil]")).toBeNull();
+    fireEvent.click(dag);
+    expect(container.querySelector("[data-registrering]")).toBeNull();
+    const jobb = Array.from(container.querySelectorAll('[data-rad="jobb"]')) as HTMLElement[];
+    fireEvent.click(jobb[1]!);
+    const panel = container.querySelector("[data-registrering]") as HTMLElement;
+    expect(panel).not.toBeNull();
+    const rader = Array.from(container.querySelectorAll("[data-rad], [data-registrering], [data-linje]"));
+    expect(rader[rader.indexOf(jobb[1]!) + 1]).toBe(panel);
+    expect(jobb[1]!.hasAttribute("data-aapen")).toBe(true);
+    expect(jobb[0]!.hasAttribute("data-aapen")).toBe(false);
+  });
+
+  it("«Etter prosjekt»: jobbens rad åpner registreringen", () => {
+    const { container } = visMed([toProsjekter()], { gruppering: "prosjekt" });
+    fireEvent.click(dagsrad(container, 1));
+    expect(container.querySelector("[data-registrering]")).not.toBeNull();
+    expect(dagsrad(container, 1).hasAttribute("data-aapen")).toBe(true);
+  });
+
+  it("«Bare oversikt»: jobbraden åpner registreringen også der", () => {
+    const { container, getByLabelText } = vis([sedel()]);
+    fireEvent.click(getByLabelText("timer.attestering.tabell.bareOversikt"));
+    fireEvent.click(dagsrad(container));
+    expect(container.querySelector("[data-registrering]")).not.toBeNull();
+    expect(container.querySelectorAll("[data-linje]")).toHaveLength(0);
   });
 
   it("underprosjekt-knapp flytter hele jobben (helJobb)", () => {
     h.data["eksternKostObjekt.list"] = [{ id: "e1", proAdmId: "100", kortNavn: "Grunn" }, { id: "e2", proAdmId: "200", kortNavn: "Tak" }];
     const { container } = vis([sedel()]);
-    fireEvent.click(linje(container, "s1:timer:t1"));
+    fireEvent.click(dagsrad(container));
     const panel = container.querySelector("[data-registrering]") as HTMLElement;
     const tak = within(panel).getAllByRole("button").find((b) => b.textContent?.includes("Tak"))!;
     fireEvent.click(tak);
@@ -539,7 +611,7 @@ describe("w5 — klikk på linja åpner registreringen", () => {
   it("uten kortId (eldre rad) kan hele jobben ikke flyttes og del opp vises ikke", () => {
     h.data["eksternKostObjekt.list"] = [{ id: "e1", proAdmId: "100", kortNavn: "Grunn" }];
     const { container } = vis([sedel({ timer: [timer("t1", { kortId: null })] })]);
-    fireEvent.click(linje(container, "s1:timer:t1"));
+    fireEvent.click(dagsrad(container));
     const panel = container.querySelector("[data-registrering]") as HTMLElement;
     const grunn = within(panel).getAllByRole("button").find((b) => b.textContent?.includes("Grunn"));
     expect(grunn === undefined || (grunn as HTMLButtonElement).disabled).toBe(true);
@@ -548,7 +620,7 @@ describe("w5 — klikk på linja åpner registreringen", () => {
 
   it("«Del opp»: klokkeslettet forhåndsvises på serveren, deretter deles jobben", () => {
     const { container } = vis([sedel()]);
-    fireEvent.click(linje(container, "s1:timer:t1"));
+    fireEvent.click(dagsrad(container));
     const panel = container.querySelector("[data-registrering]") as HTMLElement;
     fireEvent.click(within(panel).getByRole("button", { name: /registrering\.delOpp/ }));
     const skjema = panel.querySelector("[data-del-opp]") as HTMLElement;
@@ -572,7 +644,7 @@ describe("w5 / WM54 — penn og ✂ bare når «rediger ved attestering» er på
     const l = linje(container, "s1:timer:t1");
     expect(within(l).queryByRole("button", { name: "timer.attestering.meny.splittRad" })).toBeNull();
     expect(within(l).queryByRole("button", { name: "timer.attestering.meny.rediger" })).toBeNull();
-    fireEvent.click(l);
+    fireEvent.click(dagsrad(container));
     const panel = container.querySelector("[data-registrering]") as HTMLElement;
     expect(within(panel).queryByRole("button", { name: /registrering\.delOpp/ })).toBeNull();
   });
@@ -714,11 +786,13 @@ describe("w5b — dagsvisningen, alternativ A", () => {
     expect(within(jobbrader(container)[1]!).queryAllByRole("button")).toHaveLength(0);
   });
 
-  it("klikk på en linje åpner registreringen inne i blokka, før dagens luft", () => {
+  it("klikk på dagsraden åpner registreringen inne i blokka (jobbens kant), og dagens luft står etter siste timerad", () => {
     const { container } = vis([sedel()]);
-    fireEvent.click(linje(container, "s1:timer:t1"));
+    fireEvent.click(dagsrad(container));
+    const panel = container.querySelector("[data-registrering]") as HTMLElement;
+    expect(panel.closest(".border-l-4")!.className).toContain("border-blue-400");
     const slutt = container.querySelector("[data-blokk-slutt]") as HTMLElement;
-    expect(slutt.querySelector("[data-registrering]")).toBeTruthy();
+    expect(slutt.querySelector('[data-linje="s1:timer:t1"]')).toBeTruthy();
   });
 });
 

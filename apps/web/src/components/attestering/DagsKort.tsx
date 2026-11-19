@@ -17,6 +17,7 @@ import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { Info } from "lucide-react";
 import { trpc } from "@/lib/trpc";
+import { merkeModell } from "./utstyr-navn";
 
 /* ------------------------------------------------------------------ */
 /*  Katalog-navn — org-scopet oppslag (ett kall, delt via query-cache) */
@@ -42,7 +43,7 @@ export function useKatalogNavn(orgId: string | undefined): KatalogNavn {
   const { data: tilleggKatalog } = trpc.timer.tillegg.list.useQuery(input, { enabled });
   const { data: equipmentRaw } = trpc.maskin.equipment.list.useQuery(input, { enabled });
   const equipment = equipmentRaw as unknown as
-    | Array<{ id: string; merke: string; modell: string; internNavn: string | null }>
+    | Array<{ id: string; merke: string | null; modell: string | null; internNavn: string | null }>
     | undefined;
 
   const ukjent = t("timer.attestering.dagskort.ukjent");
@@ -53,7 +54,7 @@ export function useKatalogNavn(orgId: string | undefined): KatalogNavn {
     maskinNavn: (id) => {
       const e = equipment?.find((x) => x.id === id);
       if (!e) return ukjent;
-      const base = `${e.merke} ${e.modell}`.trim();
+      const base = merkeModell(e);
       return base || e.internNavn || ukjent;
     },
   };

@@ -363,6 +363,10 @@ Fra w5b i web-timeføring (🟡 ikke merget, `feat/web-timer-w5b`, B14 A), begge
 - **Handlinger** (`…hjelp.handlinger`, endret): knappene på en jobbrad gjelder hele jobben; «Attester» på dagsraden gjelder hele dagsseddelen.
 - Mikrotekst: «N jobb/jobber» (`timer.attestering.tabell.antallJobber_one/_other`), normmerket «+0,5 t» (`timer.attestering.tabell.normMerke`). «Dagen: X t av dagsnorm Y t» står nå bare ved hover på merket. `timer.attestering.tabell.dagsum` er fjernet.
 
+Fra w8 i web-timeføring (🟡 ikke merget, `feat/web-timer-w8`, plan § 8.6 punkt 1), begge sidene:
+
+- **Registreringen** (`…hjelp.registrering`, endret): «Klikk på jobbraden for å åpne registreringen slik den ansatte førte den. Har dagen bare én jobb, er det dagsraden. Pilen ▸ til venstre viser hvilke rader som kan åpnes, og ▾ viser raden som er åpen. Hver retting lagres med en gang. …» (resten som før). Timeradene åpner ikke lenger registreringen.
+
 ## Prosjekt → Timer → Attestering (d2b-2, 🟡 ikke merget)
 
 `apps/web/src/app/dashbord/[prosjektId]/timer/attestering/page.tsx` har `HjelpKnapp` (fanen «Attestering»). Første avsnitt: «Her attesterer du timene som er ført på dette prosjektet. Linjer den ansatte har ført på andre prosjekter samme dag, står nedtonet og kan ikke velges. Har du ikke tilgang til det andre prosjektet, står det «Annet prosjekt».» (`timer.attestering.prosjekt.hjelp.laast`); deretter struktur, handlinger og retting som på firmasiden. Dagsumraden har «Attester prosjektets del» (`timer.attestering.tabell.attesterProsjektetsDel`).
