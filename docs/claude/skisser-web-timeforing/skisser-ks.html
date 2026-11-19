@@ -2,14 +2,15 @@
 <html lang="nb">
 <head>
 <meta charset="utf-8">
-<title>Skisse — attesteringen etter KS 2026-11-19 (bilde 6 og 7 slik de gjelder)</title>
+<title>Skisse — attesteringen etter Kenneths svar 2026-11-19 (B24–B28) og én attestering på firmanivå</title>
 <!--
-  FORSLAG (Fabel 2026-11-19), ikke bygget. Kilde for ks-attestering.png.
-  Viser bilde 6 og 7 med vedtakene som kom etter at de ble tegnet (B13 A, B14 A, § 8.6 punkt 1)
-  og med anbefalte svar på B24–B28 (web-timeforing-plan.md § 4.5).
+  FORSLAG (Fabel 2026-11-19, versjon 8), ikke bygget. Kilde for ks-attestering.png.
+  Viser bilde 6 og 7 etter Kenneths svar på B24–B28 (web-timeforing-plan.md § 8.8): linjene har ingen knapper,
+  jobben attesteres samlet, og kortet er stedet du retter. Siden er firmaets attestering slik en prosjektleder
+  ser den (§ 4.6), med reisen som egen blå rad (§ 4.7), hover i venstremargen (§ 4.8) og anbefalt svar på B29–B31.
   Tegnet med Chrome uten vindu:
     "Google Chrome" --headless=new --hide-scrollbars --force-device-scale-factor=2 \
-      --window-size=1444,<høyde> --screenshot=ks-attestering.png "file://…/skisser-ks.html"
+      --window-size=1444,<høyde> (versjon 8: 1776; høyden står i sidens tittel etter lasting) --screenshot=ks-attestering.png "file://…/skisser-ks.html"
 -->
 <style>
 *{box-sizing:border-box}
@@ -33,8 +34,9 @@ h3{font-size:19px;margin:0 0 10px}
 .fane:not(.paa) small{background:#e5e7eb}
 .k{display:inline-flex;align-items:center;justify-content:center;width:21px;height:21px;border-radius:50%;background:#dc2626;color:#fff;font-weight:700;font-size:12px;margin:0 4px;vertical-align:middle;flex:none}
 .tab{border:1px solid #e5e7eb;border-radius:9px;background:#fff;overflow:hidden}
-.r{display:grid;grid-template-columns:96px 104px 50px 84px 100px 96px 50px 116px 46px 92px 40px 50px 1fr 150px;align-items:center;column-gap:6px;padding:6px 10px;border-bottom:1px solid #f1f5f9}
+.r{display:grid;grid-template-columns:124px 100px 46px 80px 98px 92px 48px 112px 44px 90px 36px 46px 1fr 178px;align-items:center;column-gap:6px;padding:6px 10px;border-bottom:1px solid #f1f5f9}
 .r.h{font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:#6b7280;background:#f9fafb;border-bottom:1px solid #e5e7eb}
+.r>span:first-child{white-space:nowrap}
 .r.dag{background:#eff6ff;border-left:4px solid #1d4ed8;font-weight:700;padding-left:6px}
 .r.dag.aapen{background:#dbeafe}
 .r.jobb{background:#f8fafc;border-left:4px solid #60a5fa;font-weight:600;padding-left:6px}
@@ -69,30 +71,51 @@ h3{font-size:19px;margin:0 0 10px}
 .forkl .rad b{width:270px;flex:none}
 .forkl small{display:block;color:#6b7280;font-size:12.5px;margin-top:2px}
 .rod{background:#fee2e2;color:#991b1b;border-radius:999px;padding:4px 12px;font-weight:700;display:inline-block;margin-bottom:6px}
+.r.reise{background:#f8fafc;border-left:4px solid #94a3b8;font-weight:600;padding-left:6px}
+.r.l.rs{border-left-color:#94a3b8}
+.r.annet{opacity:.5}
+.boks.av{background:#fff}
+.omfang{background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:7px 12px;margin-bottom:10px;color:#1e3a8a}
+.kryss{display:inline-block;width:13px;height:13px;border:1.5px solid #6b7280;border-radius:3px;background:#fff;vertical-align:-2px;margin-right:6px}
+.brikke{background:#dbeafe;color:#1e40af;border-radius:999px;padding:4px 11px;font-weight:600;font-size:12.5px;border:1px dashed #60a5fa}
+.to{display:grid;grid-template-columns:1fr 430px;gap:14px;margin-top:14px;align-items:start}
+.to .forkl{margin-top:0}
+.meny{background:#0f172a;color:#cbd5e1;border-radius:12px;padding:14px 0 16px;position:relative}
+.meny h4{margin:0 16px 10px;color:#fff;font-size:14px}
+.sone{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;margin:12px 16px 4px;font-weight:700}
+.sone.p{color:#60a5fa}.sone.f{color:#fbbf24}
+.mp{padding:6px 16px;font-size:13.5px;display:flex;gap:9px;align-items:center}
+.mp.paa{background:#1e293b;color:#fff;font-weight:600}
+.mp i{width:15px;height:15px;border:1.5px solid #64748b;border-radius:4px;display:inline-block;flex:none}
+.boble{position:absolute;left:176px;width:238px;background:#111827;color:#f9fafb;border:1px solid #374151;border-radius:8px;padding:8px 11px;font-size:12.5px;line-height:1.4;box-shadow:0 4px 12px rgba(0,0,0,.35)}
+.boble b{display:block;margin-bottom:2px}
 </style>
 </head>
 <body>
 <div class="ark">
-<div class="tittel"><span class="pille">BILDE 6 OG 7 · SLIK DE GJELDER</span><h1>Attesteringen — den blå linja åpner kortet, og kortet er stedet du retter</h1></div>
+<div class="tittel"><span class="pille">BILDE 6 OG 7 · ETTER SVARENE 19.11.</span><h1>Én attestering for firmaet — jobben attesteres samlet, og kortet er stedet du retter</h1></div>
 
 <div class="flate">
-<div class="topp"><b>SiteDoc</b><span>Sitedoc Boligfelt B12 · prosjektets attestering</span></div>
+<div class="topp"><b>SiteDoc</b><span>Firma › Attestering</span><span style="flex:1"></span><span>Per Prosjekt · prosjektleder for B12 og 1050</span></div>
 <div class="innhold">
 <h3>Attestering</h3>
+<div class="omfang"><span class="k">C</span>Du ser timer på prosjektene du leder: <b>B12 Boligfelt</b> og <b>1050 Skolen</b>. Firmaadministrator ser hele firmaet.</div>
 <div class="verktoy">
   <span class="boks">‹ &nbsp;Uke 20&nbsp; ›</span><span class="boks gul">2026 ▾</span><span class="lenke">Denne uka</span><span class="k">A</span>
+  <span class="boks av">Sedler ▾</span>
   <span style="flex:1"></span>
-  <span class="fane paa">Venter <small>3</small></span><span class="fane">Attestert <small>5</small></span><span class="k">B</span>
+  <span class="fane paa">Venter <small>2</small></span><span class="fane">Attestert <small>5</small></span><span class="k">B</span>
   <span class="boks">Velg parameter</span>
+  <span class="att">✓ Attester utvalget (3)</span>
 </div>
 
 <div class="tab">
 <div class="r h"><span>Dato</span><span>Ansatt</span><span>Pr.nr</span><span>Underpr.</span><span>Lønnsart</span><span>Fra–til</span><span>Timer</span><span>Maskin</span><span>M.t.</span><span>Vare</span><span>Ant.</span><span>Beløp</span><span>Avvik</span><span></span></div>
 
-<div class="r dag aapen"><span>▾ ons. 13.05.</span><span>Per Prosjekt</span><span class="tall">B12</span><span>Uten</span><span class="graa" style="font-weight:400">1 jobb</span><span></span><span class="tall">8,50</span><span></span><span class="tall">9,00</span><span></span><span></span><span></span><span><span class="merke">+1,0 t</span></span><span class="hk"><span class="k">1</span><span class="att">✓ Attester</span><span class="ik">↩</span><span class="ik">↗</span></span></div>
+<div class="r dag aapen"><span><span class="kryss"></span>▾ ons. 13.05.</span><span>Ola Tømrer</span><span class="tall">B12</span><span>Uten</span><span class="graa" style="font-weight:400">1 jobb</span><span></span><span class="tall">8,50</span><span></span><span class="tall">9,00</span><span></span><span></span><span class="tall">180</span><span><span class="merke">+1,0 t</span></span><span class="hk"><span class="k">1</span><span class="att">✓ Attester</span><span class="ik">↩</span><span class="ik">↗</span></span></div>
 
 <div class="kort">
-  <div class="kh"><b>Sitedoc Boligfelt B12</b><span style="display:flex;gap:8px;align-items:center"><span class="graa">ført av Per P. · telefon</span><span class="knapp">✎ Rediger jobben</span><span class="k">4</span><span class="ik">✕</span></span></div>
+  <div class="kh"><b>B12 · Sitedoc Boligfelt</b><span style="display:flex;gap:8px;align-items:center"><span class="graa">ført av Ola T. · telefon</span><span class="knapp">✎ Rediger jobben</span><span class="k">4</span><span class="ik">✕</span></span></div>
   <div class="up"><b>Underprosjekt</b><span class="chip valgt">Uten</span><span class="chip">END-002 · Drenering</span><span class="chip">TILL-001 · Kantstein</span></div>
   <div class="sek"><span class="sn">1</span><span class="sl">Fra–til</span><div class="sv"><div class="ll"><span class="tall">07:00–16:00</span><span class="graa">· pause 30 ·</span><b class="tall">8,5 t</b><span style="flex:1"></span><span class="knapp">✂ Del opp</span></div></div></div>
   <div class="sek"><span class="sn">2</span><span class="sl">Lønnsart</span><div class="sv">
@@ -103,36 +126,64 @@ h3{font-size:19px;margin:0 0 10px}
   <div class="sek"><span class="sn">4</span><span class="sl">Maskiner</span><div class="sv"><div class="ll"><span style="width:150px">Heatwork 7626</span><span class="inn tall">9,0</span> t <span class="graa">døgn-maskin · ingen grense</span></div></div></div>
   <div class="sek"><span class="sn">5</span><span class="sl">Varer</span><div class="sv graa">—</div></div>
   <div class="sek"><span class="sn">6</span><span class="sl">Tillegg</span><div class="sv"><div class="ll"><span style="width:150px">Overtidsmat</span><span class="inn tall">1</span></div></div></div>
-  <div class="sek"><span class="sn">7</span><span class="sl">Utlegg</span><div class="sv graa">—</div></div>
+  <div class="sek"><span class="sn">7</span><span class="sl">Utlegg</span><div class="sv"><div class="ll"><span style="width:150px">Parkering</span><span class="tall">180 kr</span><span class="lenke">Kvittering</span><span class="k">7</span></div></div></div>
 </div>
 
-<div class="r l"><span></span><span></span><span></span><span></span><span>Timelønn</span><span class="tall">07:00–15:00</span><span class="tall"><b>7,50</b></span><span><b>Heatwork 7626</b></span><span class="tall"><b>9,00</b></span><span></span><span></span><span></span><span></span><span class="hk"><span class="k">5</span><span class="ik g">✓</span><span class="ik">↩</span></span></div>
-<div class="r l"><span></span><span></span><span></span><span></span><span>Overtid 50 %</span><span class="tall">15:00–16:00</span><span class="tall"><b>1,00</b></span><span></span><span></span><span></span><span></span><span></span><span></span><span class="hk"><span class="ik g">✓</span><span class="ik">↩</span></span></div>
-<div class="r l" style="border-bottom:10px solid #f3f4f6"><span></span><span></span><span></span><span></span><span>Overtidsmat</span><span></span><span></span><span></span><span></span><span></span><span class="tall">1</span><span></span><span></span><span class="hk"><span class="ik g">✓</span><span class="ik">↩</span></span></div>
+<div class="r l"><span></span><span></span><span></span><span></span><span>Timelønn</span><span class="tall">07:00–15:00</span><span class="tall"><b>7,50</b></span><span><b>Heatwork 7626</b></span><span class="tall"><b>9,00</b></span><span></span><span></span><span></span><span></span><span class="hk"><span class="k">5</span><span class="graa">ingen knapper</span></span></div>
+<div class="r l"><span></span><span></span><span></span><span></span><span>Overtid 50 %</span><span class="tall">15:00–16:00</span><span class="tall"><b>1,00</b></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+<div class="r l"><span></span><span></span><span></span><span></span><span>Overtidsmat</span><span></span><span></span><span></span><span></span><span></span><span class="tall">1</span><span></span><span></span><span></span></div>
+<div class="r l" style="border-bottom:10px solid #f3f4f6"><span></span><span></span><span></span><span></span><span>Parkering</span><span></span><span></span><span></span><span></span><span></span><span></span><span class="tall">180</span><span></span><span class="hk"><span class="ik">▤</span><span class="k">7</span></span></div>
 
-<div class="r dag"><span>tor. 14.05.</span><span>Ola Tømrer</span><span></span><span></span><span class="graa" style="font-weight:400">2 jobber</span><span></span><span class="tall">7,50</span><span></span><span class="tall">7,50</span><span></span><span></span><span></span><span></span><span class="hk"><span class="att">✓ Attester</span><span class="ik">↩</span><span class="ik">↗</span></span></div>
-<div class="r jobb"><span>▸</span><span></span><span class="tall">B12</span><span>END-002</span><span></span><span></span><span class="tall">4,50</span><span></span><span class="tall">7,50</span><span></span><span></span><span></span><span><span class="merke">Maskin over arbeid</span></span><span class="hk"><span class="ik g">✓</span><span class="ik">↩</span></span></div>
-<div class="r l"><span></span><span></span><span></span><span></span><span>Timelønn</span><span class="tall">07:00–12:00</span><span class="tall"><b>4,50</b></span><span><b>Volvo EC220E</b></span><span class="tall"><b>7,50</b></span><span></span><span></span><span></span><span></span><span class="hk"><span class="ik g">✓</span><span class="ik">↩</span></span></div>
-<div class="r jobb b"><span>▸</span><span></span><span class="tall">B12</span><span>TILL-001</span><span></span><span></span><span class="tall">3,00</span><span></span><span></span><span></span><span></span><span></span><span></span><span class="hk"><span class="ik g">✓</span><span class="ik">↩</span></span></div>
-<div class="r l b" style="border-bottom:0"><span></span><span></span><span></span><span></span><span>Timelønn</span><span class="tall">12:00–15:00</span><span class="tall"><b>3,00</b></span><span></span><span></span><span></span><span></span><span></span><span></span><span class="hk"><span class="ik g">✓</span><span class="ik">↩</span></span></div>
+<div class="r dag"><span><span class="kryss"></span>tor. 14.05.</span><span>Kari Betong</span><span></span><span></span><span class="graa" style="font-weight:400">2 jobber · reise</span><span></span><span class="tall">8,50</span><span></span><span class="tall">4,00</span><span></span><span></span><span></span><span></span><span class="hk"><span class="att">✓ Attester</span><span class="ik">↩</span><span class="ik">↗</span></span></div>
+<div class="r reise"><span>▸ Reise</span><span></span><span class="tall">1050</span><span></span><span></span><span></span><span class="tall">1,00</span><span></span><span></span><span></span><span></span><span></span><span></span><span class="hk"><span class="k">6</span><span class="ik g">✓</span><span class="ik">↩</span></span></div>
+<div class="r l rs"><span></span><span></span><span></span><span></span><span>Reisetid</span><span class="tall">06:00–07:00</span><span class="tall"><b>1,00</b></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+<div class="r jobb b"><span><span class="kryss"></span>▸</span><span></span><span class="tall">1050</span><span>END-002</span><span></span><span></span><span class="tall">4,50</span><span></span><span class="tall">4,00</span><span></span><span></span><span></span><span></span><span class="hk"><span class="ik g">✓</span><span class="ik">↩</span></span></div>
+<div class="r l b"><span></span><span></span><span></span><span></span><span>Timelønn</span><span class="tall">07:00–12:00</span><span class="tall"><b>4,50</b></span><span><b>Volvo EC220E</b></span><span class="tall"><b>4,00</b></span><span>Betong · 4 m3</span><span></span><span></span><span></span><span></span></div>
+<div class="r jobb annet"><span>▸</span><span></span><span>—</span><span></span><span>Annet prosjekt</span><span></span><span class="tall">3,00</span><span></span><span></span><span></span><span></span><span></span><span></span><span class="hk"><span class="k">8</span></span></div>
+<div class="r l annet" style="border-bottom:0"><span></span><span></span><span></span><span></span><span>Timelønn</span><span class="tall">12:30–15:30</span><span class="tall"><b>3,00</b></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
 </div>
 
-<p style="margin:14px 0 6px;font-weight:700">Fanen «Attestert» — samme uke, samme tabell: her hentes en linje som er attestert feil, tilbake <span class="k">B</span></p>
+<p style="margin:14px 0 6px;font-weight:700">Fanen «Attestert» — samme uke, samme tabell: her hentes en jobb som er attestert feil, tilbake <span class="k">B</span></p>
 <div class="tab">
 <div class="r dag"><span>man. 11.05.</span><span>Kari Betong</span><span class="tall">B12</span><span>Uten</span><span class="graa" style="font-weight:400">1 jobb</span><span></span><span class="tall">7,50</span><span></span><span></span><span></span><span></span><span></span><span></span><span class="hk"><span class="knapp">↺ Gjenåpne</span><span class="ik">↗</span></span></div>
-<div class="r l" style="border-bottom:0"><span></span><span></span><span></span><span></span><span>Timelønn</span><span class="tall">07:00–15:00</span><span class="tall"><b>7,50</b></span><span></span><span></span><span>Betong · 4 m3</span><span></span><span></span><span></span><span class="hk"><span class="ik">↺</span></span></div>
+<div class="r l" style="border-bottom:0"><span></span><span></span><span></span><span></span><span>Timelønn</span><span class="tall">07:00–15:00</span><span class="tall"><b>7,50</b></span><span></span><span></span><span>Betong · 4 m3</span><span></span><span></span><span></span><span></span></div>
 </div>
 </div>
 </div>
 
+<div class="to">
 <div class="forkl">
-<span class="rod">1 trykk åpner kortet · rettingen gjøres i kortet</span>
-<div class="rad"><b><span class="k">1</span> Den blå linja</b><span>Åpner hele registreringen for jobben. Timelinjene åpner ingenting.<small>Bygget (w8). Dagen har én jobb: dagsraden åpner. Flere jobber: hver jobbrad åpner sitt kort.</small></span></div>
-<div class="rad"><b><span class="k">2</span> Fra–til rettes, timene regnes</b><span>Fra, til og pause er felt. Timene står som tekst og følger klokkeslettene.<small>I dag: timefeltet kan endres alene, serveren avviser, og feltet blir stående med feil tall. Timefeltet går ut.</small></span></div>
-<div class="rad"><b><span class="k">3</span> <span class="k">4</span> ✂ og ✎ står i kortet</b><span>✂ deler én linje. «Rediger jobben» åpner vinduet for å legge til og slette linjer, maskiner og tillegg.<small>I dag står ✂ og ✎ på hver linje i tabellen. Funksjonene er de samme; de flyttes.</small></span></div>
-<div class="rad"><b><span class="k">5</span> Linja</b><span>Bare ✓ og ↩ (B24). Ingen celle på linja åpnes for retting (B25).<small>Som i bilde 6. Ordinær tid og overtid attesteres og returneres hver for seg.</small></span></div>
-<div class="rad"><b><span class="k">A</span> <span class="k">B</span> Uke, år og «Attestert»</b><span>Prosjektets attestering får det firmaets attestering har: uke, år og fanene Venter og Attestert.<small>I dag viser prosjektets side bare det som venter, uten periode. En dag som er ferdig attestert, forsvinner fra siden.</small></span></div>
+<span class="rod">1 trykk åpner kortet · jobben rettes og attesteres samlet</span>
+<div class="rad"><b><span class="k">1</span> Den blå linja</b><span>Åpner hele registreringen for jobben, og bærer ✓ og ↩.<small>Dagen har én jobb: dagsraden. Flere jobber: hver jobbrad. Bygget (w8).</small></span></div>
+<div class="rad"><b><span class="k">2</span> Fra–til rettes, timene regnes</b><span>Fra, til og pause er felt. Timene står som tekst.<small>I dag: timefeltet kan endres alene, serveren avviser, og feltet står igjen med feil tall.</small></span></div>
+<div class="rad"><b><span class="k">3</span> <span class="k">4</span> ✂ og ✎ står i kortet</b><span>✂ deler én linje. «✎ Rediger jobben» legger til og sletter linjer, maskiner og tillegg (B27 A).<small>I dag står ✂ og ✎ på hver linje i tabellen.</small></span></div>
+<div class="rad"><b><span class="k">5</span> Linja har ingen knapper</b><span>Den viser tall. ✓, ↩ og ↺ står bare på jobbraden og dagsraden (B24 B). Cellene kan bare leses (B25 A).<small>Avkrysningen står på de blå radene, og «Attester utvalget» tar hele jobber og reisen (B30, anbefalt A).</small></span></div>
+<div class="rad"><b><span class="k">6</span> Reise</b><span>Egen blå rad først på dagen, med eget kort og egen ✓.<small>Som i dag. Reise hører til dagen, ikke til en jobb (vedtatt 14.11.).</small></span></div>
+<div class="rad"><b><span class="k">7</span> Kvittering</b><span>Vises i kortet under Utlegg, og ikonet står på utleggslinja (B31, anbefalt B).</span></div>
+<div class="rad"><b><span class="k">8</span> Annet prosjekt</b><span>Rader på et prosjekt du ikke leder, står nedtonet og uten knapper.<small>Navnet vises bare når du har tilgang til prosjektet. Som på prosjektets side i dag.</small></span></div>
+<div class="rad"><b><span class="k">A</span> <span class="k">B</span> Uke, år og «Attestert»</b><span>Begge fanene følger uka (B28 A). Finnes på firmaets side i dag.</span></div>
+<div class="rad"><b><span class="k">C</span> Hvem ser hva</b><span>Prosjektlederen ser sine prosjekter og timer fra eget firma. Firmaadministrator ser alt. Serveren håndhever grensen.<small>I dag er firmaets side stengt for prosjektlederen. Han må åpne ett prosjekt om gangen.</small></span></div>
+<div class="rad"><b><span class="k">D</span> Fra Prosjekt › Attestering</b><span>Åpner denne siden med prosjektet valgt: <span class="brikke">Pr.nr.: B12 ✕</span> &nbsp;✕ viser alle prosjektene dine (B29, anbefalt A).</span></div>
+</div>
+
+<div class="meny">
+<h4>Venstremargen — hover på menypunktet</h4>
+<div class="sone p">Prosjekt</div>
+<div class="mp"><i></i>Sjekklister</div>
+<div class="mp"><i></i>Timer</div>
+<div class="mp"><i></i>Attestering</div>
+<div class="sone f">Firma</div>
+<div class="mp"><i></i>Timer</div>
+<div class="mp paa"><i></i>Attestering</div>
+<div class="mp"><i></i>Timer-rapport</div>
+<div class="boble" style="top:74px"><b>Timer</b>Dine egne timer på dette prosjektet. Her registrerer du timer og ser dagene dine.</div>
+<div class="boble" style="top:172px"><b>Timer</b>Oppsett for timeføringen i hele firmaet: lønnsarter, aktiviteter og tillegg. For firmaadministrator. Egne timer fører du under Prosjekt › Timer.</div>
+<div class="boble" style="top:296px"><b>Attestering</b>Attester timer for alle prosjektene du leder, uke for uke. Firmaadministrator ser hele firmaet.</div>
+<div style="height:150px"></div>
+<div style="margin:0 16px;font-size:12px;color:#94a3b8">Bildet viser tre tekster samtidig. På skjermen vises én om gangen, for punktet pekeren står over. Alle 38 tekstene står i planen § 4.8.</div>
 </div>
 </div>
+</div>
+<script>document.title="H="+document.documentElement.scrollHeight</script>
 </body>
 </html>
