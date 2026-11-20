@@ -139,11 +139,9 @@ describe("w3a — vinduene arver jobben", () => {
     rendre();
     const dialog = fraJobb2("timer.prosjektkort.nyMaskin");
     utenStedsfelt(dialog);
-    // Fra–til foreslås fra jobbens spenn.
-    const [fra, til] = Array.from(dialog.querySelectorAll<HTMLInputElement>('input[type="time"]'));
-    expect([fra!.value, til!.value]).toEqual(["15:00", "16:00"]);
     fireEvent.click(within(dialog).getAllByRole("button")[0]!);
     fireEvent.click(within(dialog).getByText(/Gravemaskin G-12/));
+    fireEvent.change(dialog.querySelector('input[type="number"]')!, { target: { value: "0.5" } });
     fireEvent.submit(dialog.querySelector("form")!);
     const tilfoy = h.kall.find((k) => k.input.vehicleId === "v1");
     expect(tilfoy?.input).toMatchObject({
@@ -152,7 +150,81 @@ describe("w3a — vinduene arver jobben", () => {
       sheetTimerId: "r2",
       externalCostObjectId: "e1",
       byggeplassId: "b1",
+      timer: 0.5,
     });
+  });
+
+  it("w3b: maskinvinduet fra jobben har bare Utstyr og Antall timer, og sender ikke fra–til, mengde eller enhet", () => {
+    rendre();
+    const dialog = fraJobb2("timer.prosjektkort.nyMaskin");
+    expect(dialog.querySelectorAll('input[type="time"]')).toHaveLength(0);
+    for (const felt of ["timer.felt.startTid", "timer.felt.sluttTid", "timer.felt.mengde", "timer.felt.enhet"]) {
+      expect(dialog.textContent).not.toContain(felt);
+    }
+    expect(dialog.textContent).toContain("timer.felt.utstyr");
+    expect(dialog.textContent).toContain("timer.felt.antallTimer");
+    fireEvent.click(within(dialog).getAllByRole("button")[0]!);
+    fireEvent.click(within(dialog).getByText(/Gravemaskin G-12/));
+    // Jobb 2 har 1 t arbeid og gravemaskinen m1 på 1 t fra før: høyst 0 t.
+    expect(within(dialog).getByTestId("maskin-hoyst").textContent).toContain('"timer":"0"');
+    fireEvent.change(dialog.querySelector('input[type="number"]')!, { target: { value: "0.5" } });
+    // Over høyst: lagre er sperret.
+    expect(within(dialog).getByRole("button", { name: "handling.lagre" })).toHaveProperty("disabled", true);
+  });
+
+  it("w3b (S1 A): Antall timer forhåndsutfylles med høyst — jobbens arbeid minus jobbens andre førermaskiner", () => {
+    const sedel = { ...DAG7_SEDEL, maskiner: [] };
+    rendre();
+    h.data["timer.dagsseddel.hentMedId"] = { ...sedel, timer: [DAG7_SEDEL.timer[0]!, { ...DAG7_SEDEL.timer[1]!, byggeplassId: "b1" }] };
+    cleanup();
+    render(<Side />);
+    const dialog = fraJobb2("timer.prosjektkort.nyMaskin");
+    const antall = dialog.querySelector<HTMLInputElement>('input[type="number"]')!;
+    expect(antall.value).toBe("1");
+    fireEvent.click(within(dialog).getAllByRole("button")[0]!);
+    fireEvent.click(within(dialog).getByText(/Gravemaskin G-12/));
+    fireEvent.submit(dialog.querySelector("form")!);
+    const tilfoy = h.kall.find((k) => k.input.vehicleId === "v1");
+    expect(tilfoy?.input).toMatchObject({ timer: 1, kortId: "k2" });
+    for (const felt of ["fraTid", "tilTid", "mengde", "enhet"]) expect(tilfoy?.input).not.toHaveProperty(felt);
+  });
+
+  it("w3b: døgn-maskin fra jobben foreslås med jobbens arbeidstimer, uten høyst", () => {
+    rendre();
+    h.data["maskin.equipment.list"] = [
+      ...(h.data["maskin.equipment.list"] as unknown[]),
+      { id: "v2", kategori: "annet", type: "varmer", merke: "Heatwork", modell: "MB3", internNavn: "Tiner T-1", utleieEnhet: "doegn" },
+    ];
+    cleanup();
+    render(<Side />);
+    const dialog = fraJobb2("timer.prosjektkort.nyMaskin");
+    fireEvent.click(within(dialog).getAllByRole("button")[0]!);
+    fireEvent.click(within(dialog).getByText(/Tiner T-1/));
+    expect(dialog.querySelector<HTMLInputElement>('input[type="number"]')!.value).toBe("1");
+    expect(within(dialog).queryByTestId("maskin-hoyst")).toBeNull();
+  });
+
+  it("w3b: pennen på en maskin med mengde i jobben — lagrede fra–til, mengde og enhet sendes ikke (står urørt)", () => {
+    rendre();
+    const sedel = h.data["timer.dagsseddel.hentMedId"] as typeof DAG7_SEDEL;
+    const m1 = { ...sedel.maskiner[0]!, fraTid: "15:00", tilTid: "16:00", mengde: "12", enhet: "m3" };
+    h.data["timer.dagsseddel.hentMedId"] = { ...sedel, maskiner: [m1, sedel.maskiner[1]!] };
+    cleanup();
+    render(<Side />);
+    const kort = screen.getAllByRole("button").find((b) => b.textContent?.includes("TILL-001"));
+    fireEvent.click(kort!);
+    const blyant = screen
+      .getAllByTitle("handling.rediger")
+      .find((b) => b.closest("li")?.textContent?.includes("Gravemaskin G-12"));
+    fireEvent.click(blyant!);
+    const dialog = screen.getByRole("dialog", { name: "timer.detalj.redigerMaskinRad" });
+    expect(dialog.querySelectorAll('input[type="time"]')).toHaveLength(0);
+    expect(dialog.textContent).not.toContain("timer.felt.mengde");
+    fireEvent.change(dialog.querySelector('input[type="number"]')!, { target: { value: "0.75" } });
+    fireEvent.submit(dialog.querySelector("form")!);
+    const oppdater = h.kall.find((k) => k.input.id === "m1");
+    expect(oppdater?.input).toMatchObject({ id: "m1", timer: 0.75 });
+    for (const felt of ["fraTid", "tilTid", "mengde", "enhet"]) expect(oppdater?.input).not.toHaveProperty(felt);
   });
 
   it("«+ Vare»: ingen prosjekt/timerad/byggeplass, varen følger jobbens første arbeidsrad (S2 A)", () => {

@@ -44,6 +44,7 @@ import {
 } from "@/lib/timerByggeplass";
 import {
   maskinHoystPerRad,
+  jobbArbeidSum,
   overMaskinHoyst,
   DEFAULT_PAUSE_ETTER_TIMER,
   pauseVinduFra,
@@ -935,14 +936,12 @@ export default function DagsseddelDetaljSide() {
   const aapentKortNokkel =
     aapentKort === undefined ? (kortNokler.length === 1 ? kortNokler[0]! : null) : aapentKort;
 
-  // w3a: «+ Maskin» fra jobben — Fra–til foreslås fra jobbens spenn (S3 A), ellers dagens.
+  // w3b (B38 A): «+ Maskin» fra jobben fører Utstyr og Antall timer, ingen fra–til.
   const aapneMaskinForJobb = (jobb: JobbKontekst) =>
     setAktivModal({
       type: "maskin",
       projectId: jobb.projectId,
       defaultEcoId: jobb.ecoId,
-      defaultFraTid: jobb.fra ?? effektivStart,
-      defaultTilTid: jobb.til ?? effektivSlutt,
       jobb,
     });
 
@@ -5454,8 +5453,13 @@ function MaskinRadDialog({
     !!defaultFraTid &&
     !!defaultTilTid &&
     hhmmTilMin(defaultFraTid) < hhmmTilMin(defaultTilTid);
-  const [timer, setTimer] = useState<string>(() => {
+  // w3b (A3/A4, S1 A): fra jobben foreslås antall = «høyst» (døgn-maskin: jobbens arbeid)
+  // til brukeren rører feltet. Fra–til, mengde og enhet føres ikke fra jobben (B38 A, B37 A).
+  const fraJobb = !!jobb;
+  const [timerRort, setTimerRort] = useState<boolean>(!!rad || !jobb);
+  const [timerInput, setTimer] = useState<string>(() => {
     if (rad) return String(tilTall(rad.timer));
+    if (jobb) return "";
     // B3: init antall fra prefill-spennet (pause-bevisst) — kun ved gyldig
     // prefill; ellers tom (ingen 0-rad).
     if (prefillGyldig) {
@@ -5548,8 +5552,9 @@ function MaskinRadDialog({
   }
   function endreTimer(v: string) {
     setTimer(v);
+    setTimerRort(true);
     const n = parseFloat(v);
-    if (fraTid && !isNaN(n) && n > 0) {
+    if (!fraJobb && fraTid && !isNaN(n) && n > 0) {
       setTilTid(tilFraAntall(fraTid, n, pauseFra, standardPauseMin));
     }
   }
@@ -5557,6 +5562,39 @@ function MaskinRadDialog({
   // w9 (2c): «høyst X t» = jobbens arbeid − de andre førermaskinene på jobben.
   // Jobben er timeradens (K6), ellers radens egen; uten jobb gjelder bøtta med pause.
   // Delt regel med serveren (maskinHoystPerRad). Døgn-maskin: ingen grense.
+  // w3b (S1 A): forslaget fra jobben — «høyst» for en førermaskin; døgn-maskin får jobbens arbeid.
+  const jobbForslag = useMemo(() => {
+    if (!jobb || rad) return "";
+    const timerRader = alleTimerRader.map((r) => ({
+      kortId: r.kortId ?? null,
+      projectId: r.projectId,
+      externalCostObjectId: r.externalCostObjectId,
+      timer: tilTall(r.timer),
+      erReise: r.erReise === true,
+    }));
+    const jobbRef = { kortId: jobb.kortId, projectId, externalCostObjectId: jobb.ecoId };
+    if (valgtUtstyr && !kreverTimerad) {
+      const arbeid = jobbArbeidSum(timerRader, jobbRef, pauseMin);
+      return arbeid > 0 ? String(arbeid) : "";
+    }
+    const [forer] = maskinHoystPerRad(
+      timerRader,
+      [
+        { ...jobbRef, timer: 0, utleieEnhet: null },
+        ...alleMaskinRader.map((r) => ({
+          kortId: r.kortId ?? null,
+          projectId: r.projectId,
+          externalCostObjectId: r.externalCostObjectId,
+          timer: tilTall(r.timer),
+          utleieEnhet: equipment?.find((e) => e.id === r.vehicleId)?.utleieEnhet ?? null,
+        })),
+      ],
+      pauseMin,
+    );
+    return forer !== null && forer !== undefined && forer > 0 ? String(forer) : "";
+  }, [jobb, rad, alleTimerRader, alleMaskinRader, projectId, valgtUtstyr, kreverTimerad, equipment, pauseMin]);
+  const timer = timerRort ? timerInput : jobbForslag;
+
   const hoyst = useMemo(() => {
     const kobletTimerrad = alleTimerRader.find((r) => r.id === sheetTimerId);
     const kortId = kreverTimerad
@@ -5634,7 +5672,7 @@ function MaskinRadDialog({
     // B2 (bolk e): når begge tider er satt MÅ antall stemme med (spenn − pause).
     // Standardvalget er «maskinen gikk hele økta»; kortere drift krever justert
     // fra/til. Bolk (g): krev FØRST til > fra (lukker 0==0-hullet).
-    if (fraTid && tilTid) {
+    if (!fraJobb && fraTid && tilTid) {
       if (hhmmTilMin(tilTid) <= hhmmTilMin(fraTid)) {
         setFeil(t("timer.feil.sluttForStart"));
         return;
@@ -5658,12 +5696,18 @@ function MaskinRadDialog({
     const data = {
       vehicleId,
       timer: tNum,
-      mengde: mengdeNum,
-      enhet: enhet || null,
+      // w3b: fra jobben føres verken fra–til, mengde eller enhet. Ny rad sendes uten dem;
+      // ved redigering sendes de ikke, så lagrede verdier står (maskin.oppdater: undefined = urørt).
+      ...(fraJobb
+        ? {}
+        : {
+            mengde: mengdeNum,
+            enhet: enhet || null,
+            // Maskin-fra-til (2026-05-17): tom streng → null (felt er valgfrie).
+            fraTid: fraTid || null,
+            tilTid: tilTid || null,
+          }),
       externalCostObjectId: ecoId,
-      // Maskin-fra-til (2026-05-17): tom streng → null (felt er valgfrie).
-      fraTid: fraTid || null,
-      tilTid: tilTid || null,
       // Ordre (10): kun ved endring — mobilens byggeplass overskrives ikke.
       // w3a: ny maskin i en jobb tar jobbens byggeplass (serveren bekrefter, A7).
       ...(jobb && !rad ? { byggeplassId: jobb.byggeplassId } : byggeplassPayload(bp)),
@@ -5765,7 +5809,9 @@ function MaskinRadDialog({
         </div>
         {/* Maskin-fra-til = maskinens driftsvindu. B1/B2 (bolk e): antall er
             pause-bevisst avledet av spennet og validert mot det. Prefill fra
-            bucketens arbeidsspenn (B4). Kortere drift → juster fra/til. */}
+            bucketens arbeidsspenn (B4). Kortere drift → juster fra/til.
+            w3b (B38 A, B37 A): fra jobben vises verken fra–til, mengde eller enhet. */}
+        {!fraJobb && (<>
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">
@@ -5836,6 +5882,7 @@ function MaskinRadDialog({
             </select>
           </div>
         </div>
+        </>)}
         {!jobb && (<div>
           <label className="mb-1 block text-sm font-medium text-gray-700">
             {t("timer.felt.underprosjekt")}{" "}
