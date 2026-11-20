@@ -2274,6 +2274,11 @@ Kenneth ba om en ny runde mot avvik i planen. 🟡 Levert i versjon 12: § 4.13 
 - **B38 → A.** Firmaet kan ikke slå på fra–til for maskin. B5 er opphevet, og w6 utgår, uten migrering. Maskin føres med utstyr og antall timer (§ 8.13). 🟡 Vedtatt, ikke bygget (w3b).
 - w3b kan bestilles etter w3a, fordi begge rører `WS`.
 
+### 8.15 Kenneth 2026-11-20 etter test av w3a på test (`6f9d364c`)
+
+- «selve timeregistreringen er jeg fornøyd med nå». w3a er godkjent av Kenneth på test. w3b bestilles.
+- **Tilbake-knappene.** Kenneth gikk Timer (prosjektets side) → Åpne 19.11. → «Tilbake til oversikt» og havnet på «Mine timer», som ikke står i sidemenyen. Målt: dagssiden lenker fast til `/dashbord/timer/mine` (`apps/web/src/app/dashbord/timer/[id]/page.tsx:523`, `:1054`, og `:462` etter sletting). Kenneth: «be fabel sjekke alle tilbake knapper. Sjekk om tilbakeknappen "husker" hvilken side som var brukt tidligere slik at tilbake virkelig er tilbake, og ikke en side som ikke eksisterer». 🟡 Ikke bygget. Egen del etter w3b (orkestratorens anbefaling: knappene finnes i ~19 filer utenfor timeføringen, og w3b rører samme fil som dagssiden). Fabel reviderer først.
+
 ## 9. Rekkefølge
 
 Dette er forslag til oppdeling, ikke ordrer. **w1, w2 og w5 er merget** (§ 9.1–9.3). **w12 krever en migrering** (utfylling av kort-id på reise, § 4.11 del E), som Kenneth kjører. **w6 krever en migrering** (ny
