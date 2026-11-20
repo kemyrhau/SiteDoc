@@ -2,14 +2,15 @@
 <html lang="nb">
 <head>
 <meta charset="utf-8">
-<title>Skisse — versjon 15: reisen i eget kort (B43 B), reise til annet kontor (B44) og kortet uten arbeid (B45)</title>
+<title>Skisse — versjon 15: reisen i eget kort (B43 B), returen hjem (B44), kortet uten arbeid (B45), reise til annet kontor og reisevinduet</title>
 <!--
-  FORSLAG (Fabel 2026-11-20, versjon 15), ikke bygget. Kilde for v15-b44.png, v15-b45.png og v15-reisevindu.png
+  FORSLAG (Fabel 2026-11-20, versjon 15), ikke bygget. Kilde for v15-b44.png, v15-b45.png, v15-kontor.png og v15-reisevindu.png
   (web-timeforing-plan.md § 4.15 del E–G). Dagen er den på Kenneths bilde 8
   (relay/bilder/2026-11-20-test-w3b-w14/, gitignorert). Alternativene er skisser.
-  Ett ark pr. spørsmål; arket velges med #b44, #b45 eller #reise i adressen. Tegnet med Chrome uten vindu:
+  Ett ark pr. spørsmål; arket velges med #b44, #b45, #kontor eller #reise i adressen. Tegnet med Chrome uten vindu:
     "Google Chrome" --headless=new --hide-scrollbars --force-device-scale-factor=2 \
       --window-size=1444,<høyde> --screenshot=v15-b44.png "file://…/skisser-v15.html#b44"
+  Høyder: b44 560, b45 490, kontor 590, reise 650.
 -->
 <style>
 *{box-sizing:border-box}
@@ -93,7 +94,86 @@ body.en .ark.vis{display:block}
 
 <!-- ============================ B44 ============================ -->
 <div class="ark" id="b44">
-  <div class="tittel"><span class="pille">B43 B · B44</span><h1>Arbeid på sommerfeldtsgt 65 til kl. 12, så kjøring til Narvik</h1></div>
+  <div class="tittel"><span class="pille">B44</span><h1>Hjem etter siste jobb: hvor står returen?</h1></div>
+  <div class="tre">
+
+    <div class="side anb">
+      <h2>A — i jobben du kjører fra, som i dag <span class="anbm">ANBEFALT</span></h2>
+      <p class="under">Returen er ført «Fra sommerfeldtsgt 65» og står i siste jobb der.</p>
+      <p class="ov">Prosjektkort (1)</p>
+      <div class="kort aapen">
+        <div class="hode">
+          <div class="navn"><b>Sitedoc Boligfelt B12</b><span>sommerfeldtsgt 65 · <span class="kl">07:00–15:00</span></span></div>
+          <div class="tall"><small>Arbeid</small><b>7,5 t</b></div><div class="tall"><small>Maskin</small><b>—</b></div>
+          <div class="tall"><small>Varer</small><b>—</b></div><div class="tall"><small>Reise</small><b>0,1 t</b></div><span class="pil">⌃</span>
+        </div>
+        <div class="kropp">
+          <div class="linje"><div class="v"><b>Timelønn</b><span>Anleggsarbeid</span><span>07:00–15:00</span><span>☑ Matpause trukket (30 min)</span><i>kantstein</i></div><div class="h">7.50 t <span class="ik">✎ ✂ 🗑</span></div></div>
+          <div class="del reise"><div><span class="type reise">Reise</span><b>Til sommerfeldtsgt 65</b> · 06:56–07:00</div><div class="h">0.07 t <span class="ik">✎ 🗑</span></div></div>
+          <div class="del reise gronn" style="margin-top:0"><div><span class="type reise">Reise</span><b>Fra sommerfeldtsgt 65</b> · 15:00–15:04</div><div class="h">0.07 t <span class="ik">✎ 🗑</span></div></div>
+          <div class="lenker"><span>+ Timer</span><span>+ Maskin</span><span>+ Vare</span><span>+ Reise</span><span>+ Tillegg/Utlegg</span></div>
+        </div>
+      </div>
+      <ul class="forkl">
+        <li><span class="g">1</span><span>Turen ut og turen hjem står sammen med jobben og attesteres med den.</span></li>
+        <li><span class="g">2</span><span>Dro du hjem fra et annet sted, retter du stedet (høyre). Reisen følger med dit.</span></li>
+      </ul>
+    </div>
+
+    <div class="side">
+      <h2>B — returen får eget kort</h2>
+      <p class="under">Returen går ikke til et prosjekt, så den står for seg.</p>
+      <p class="ov">Prosjektkort (2)</p>
+      <div class="kort">
+        <div class="hode">
+          <div class="navn"><b>Sitedoc Boligfelt B12</b><span>sommerfeldtsgt 65 · <span class="kl">07:00–15:00</span></span></div>
+          <div class="tall"><small>Arbeid</small><b>7,5 t</b></div><div class="tall"><small>Maskin</small><b>—</b></div>
+          <div class="tall"><small>Varer</small><b>—</b></div><div class="tall"><small>Reise</small><b>0,1 t</b></div><span class="pil">⌄</span>
+        </div>
+      </div>
+      <div class="kort aapen rod">
+        <div class="hode">
+          <div class="navn"><b>Sitedoc Boligfelt B12</b><span><span class="type reise">Reise</span>Hjem fra sommerfeldtsgt 65 · <span class="kl">15:00–15:04</span></span></div>
+          <div class="tall"><small>Arbeid</small><b>—</b></div><div class="tall"><small>Maskin</small><b>—</b></div>
+          <div class="tall"><small>Varer</small><b>—</b></div><div class="tall"><small>Reise</small><b>0,1 t</b></div><span class="pil">⌃</span>
+        </div>
+        <div class="kropp">
+          <div class="del reise" style="margin-top:0"><div><span class="type reise">Reise</span><b>Fra sommerfeldtsgt 65</b> · 15:00–15:04</div><div class="h">0.07 t <span class="ik">✎ 🗑</span></div></div>
+        </div>
+      </div>
+      <ul class="forkl">
+        <li><span class="k">1</span><span>Ett kort ekstra hver dag for alle som kjører hjem, og én rad mer å attestere.</span></li>
+        <li><span class="k">2</span><span>Turen ut står i jobben, turen hjem gjør det ikke.</span></li>
+      </ul>
+    </div>
+
+    <div class="side">
+      <h2>Slik retter du forslaget</h2>
+      <p class="under">Vinduet er fylt ut fra jobben. Stedet og tidene kan byttes.</p>
+      <div class="vindu">
+        <h3>Reise <span>✕</span></h3>
+        <div class="valg"><span class="vk">Til byggeplass</span><span class="vk paa">Fra byggeplass</span><span class="vk">Til annet kontor</span></div>
+        <div class="felt gronn"><label>Hvor kjørte du fra?</label>
+          <div class="rad"><div class="inn" style="flex:1">Sitedoc Boligfelt B12 ▾</div><div class="inn" style="flex:1">sommerfeldtsgt 65 ▾</div></div></div>
+        <div class="rad">
+          <div class="felt gronn"><label>Start kl.</label><div class="inn gul">15:00</div></div>
+          <div class="felt gronn"><label>Slutt kl.</label><div class="inn gul">15:04</div></div>
+        </div>
+        <p class="lite">Forslag: start er dagens siste til-tid, og 4 min kjøring til Kontor Tromsø.</p>
+        <div class="info">Står i jobben på sommerfeldtsgt 65.</div>
+        <div class="knapper"><span class="kn">Avbryt</span><span class="kn pri">Lagre</span></div>
+      </div>
+      <ul class="forkl">
+        <li><span class="g">1</span><span>Bytter du prosjekt eller byggeplass, flytter reisen til jobben der.</span></li>
+        <li><span class="g">2</span><span>Stoppet du på veien, retter du slutten.</span></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ============================ Reise til annet kontor ============================ -->
+<div class="ark" id="kontor">
+  <div class="tittel"><span class="pille">B43 B · annet kontor</span><h1>Arbeid på sommerfeldtsgt 65 til kl. 12, så kjøring til Narvik</h1></div>
   <div class="tre">
 
     <div class="side">
@@ -124,7 +204,7 @@ body.en .ark.vis{display:block}
     </div>
 
     <div class="side anb">
-      <h2>B44 A — «Til Kontor Narvik» etter arbeid får eget kort <span class="anbm">ANBEFALT</span></h2>
+      <h2>Forslaget — «Til Kontor Narvik» etter arbeid får eget kort <span class="anbm">FORSLAGET</span></h2>
       <p class="under">Ført med «+ Reise» → «Til annet kontor» → «Etter arbeid» (B42 A). Reisen har ingen byggeplass.</p>
       <p class="ov">Prosjektkort (2)</p>
       <div class="kort">
@@ -151,7 +231,7 @@ body.en .ark.vis{display:block}
     </div>
 
     <div class="side">
-      <h2>B44 B — alltid i jobbens kort, som i dag</h2>
+      <h2>I dag — alltid i jobbens kort</h2>
       <p class="under">Reise uten byggeplass legges i første jobb på prosjektet (til) eller siste (retur), også etter arbeid.</p>
       <p class="ov">Prosjektkort (1)</p>
       <div class="kort aapen">
@@ -310,7 +390,7 @@ body.en .ark.vis{display:block}
           <div class="felt"><label>Slutt kl.</label><div class="inn gul">15:50</div></div>
         </div>
         <p class="lite">Forslag: 230 min kjøring fra Kontor Tromsø · Over terskel (30 km) — føres som reise</p>
-        <div class="info">Får eget kort: «Reise · Til Kontor Narvik» (B44 A).</div>
+        <div class="info">Får eget kort: «Reise · Til Kontor Narvik».</div>
         <div class="knapper"><span class="kn">Avbryt</span><span class="kn pri">Lagre</span></div>
       </div>
       <ul class="forkl">
@@ -322,7 +402,7 @@ body.en .ark.vis{display:block}
 </div>
 
 <script>
-  // Ett ark om gangen når adressen har #b44, #b45 eller #reise.
+  // Ett ark om gangen når adressen har #b44, #b45, #kontor eller #reise.
   var h = location.hash.slice(1);
   if (h && document.getElementById(h)) { document.body.classList.add('en'); document.getElementById(h).classList.add('vis'); }
 </script>
