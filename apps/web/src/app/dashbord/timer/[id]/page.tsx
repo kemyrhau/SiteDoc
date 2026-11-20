@@ -32,7 +32,12 @@ import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { useFirma } from "@/kontekst/firma-kontekst";
 import { TilbakeLenke, useTilbakeAdresse } from "@/components/nivaa/TilbakeLenke";
 import { RESERVE_MINE_TIMER } from "@/lib/tilbake-adresse";
-import { nyKortId, registrerTimerSteg } from "@/lib/registrerTimer";
+import {
+  adresseEtterRegistrering,
+  loesAapentKort,
+  nyKortId,
+  registrerTimerSteg,
+} from "@/lib/registrerTimer";
 import { MaskinVelger } from "@/components/timer/MaskinVelger";
 import { KortVareforbrukModal } from "@/components/timer/KortVareforbrukModal";
 import {
@@ -793,10 +798,15 @@ export default function DagsseddelDetaljSide() {
     if (toppProsjektId && prosjektNavnMap.has(toppProsjektId)) aapneNyJobb(toppProsjektId);
     else setAktivModal({ type: "nyProsjekt", forJobb: true });
   };
+  const ryddRegistrerAdresse = () =>
+    router.replace(adresseEtterRegistrering(`/dashbord/timer/${params.id}`, searchParams.toString()), {
+      scroll: false,
+    });
   registrerFlyt.current = () => {
     if (!registrer || !arbeidstidDefaults || !prosjekterRaw) return;
     if (!prosjektkortModus) {
       setRegistrer(null);
+      ryddRegistrerAdresse();
       return;
     }
     const kjent =
@@ -810,6 +820,8 @@ export default function DagsseddelDetaljSide() {
     // Venter på gjenåpningen (statusen er fortsatt «sendt»).
     if (registrer === "etterGjenaapning" && steg === "gjenaapne") return;
     setRegistrer(steg === "gjenaapne" ? "etterGjenaapning" : null);
+    // w15a: flyten er kjørt — omlasting skal ikke kjøre den igjen.
+    if (steg !== "gjenaapne") ryddRegistrerAdresse();
     if (steg === "gjenaapne") {
       setGjenaapneFeil(null);
       setVisGjenaapneModal(true);
@@ -947,8 +959,12 @@ export default function DagsseddelDetaljSide() {
     ...tommeProsjektKort,
     ...(utenJobbLinjer.length > 0 ? [UTEN_JOBB] : []),
   ];
-  const aapentKortNokkel =
-    aapentKort === undefined ? (kortNokler.length === 1 ? kortNokler[0]! : null) : aapentKort;
+  // w15a (B41 A): prosjekt-id fra «+ Registrer timer»/«Ny dagsseddel» åpner jobbens kort.
+  const aapentKortNokkel = loesAapentKort({
+    aapentKort,
+    kortNokler,
+    jobbKort: jobbKort.map((k) => ({ kortId: k.jobb.kortId, projectId: k.jobb.projectId })),
+  });
 
   // w3b (B38 A): «+ Maskin» fra jobben fører Utstyr og Antall timer, ingen fra–til.
   const aapneMaskinForJobb = (jobb: JobbKontekst) =>
@@ -1712,6 +1728,7 @@ export default function DagsseddelDetaljSide() {
           open={true}
           onClose={() => {
             setVisGjenaapneModal(false);
+            if (registrer) ryddRegistrerAdresse();
             setRegistrer(null);
           }}
           title={t("timer.gjenaapne.bekreftTittel")}
@@ -1728,6 +1745,7 @@ export default function DagsseddelDetaljSide() {
                 variant="secondary"
                 onClick={() => {
                   setVisGjenaapneModal(false);
+                  if (registrer) ryddRegistrerAdresse();
                   setRegistrer(null);
                 }}
               >

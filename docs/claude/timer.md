@@ -854,6 +854,15 @@ Tilleggene er hektet på jobben arbeideren fører timer på. Spec: `web-timefori
 - **Skjermbilder (1440 px, lokal seed, ved siden av `v12-jobbkort.png`):** `skisser-web-timeforing/w3a-dag7-jobb2.png` (#7: to jobbkort og samlekortet, jobb 2 åpen med maskin og vare under timelinja), `w3a-dag7-maskin-fra-jobben.png` (maskinvinduet fra jobb 2: utstyr, antall og Fra–til 15–16, uten Timerad/Byggeplass/Underprosjekt), `w3a-dag7-vare-lagret.png` (2 m3 ført med «+ Vare» står i jobb 2), `w3a-lastebil.png` (jobben 08–10 med lastebil 2 t, 5 m3 pukk og parkering). Løsningsskissen: `w3a-losning.png`.
 - **Tester, server:** `apps/api/src/routes/timer-a7-sted-folger.integration.test.ts` — (1) underprosjekt og (2) byggeplass følger for maskin og vare, (3) ukoblet og annet prosjekt står, (4) attestert står, (5) tilfoy med kort-id får timeradens sted, (6) uten kort-id får vinduets. Negativkontroll: uten rettingen er (1), (2), (3) og (5) røde.
 
+### Åpent kort etter «+ Registrer timer» (w15a, B41 A) — 🟡 `feat/web-timer-w15a`, ikke merget
+
+Spec: `web-timeforing-plan.md` § 4.15 del G og § 8.18; LØSNING GODKJENT i `relay/inbox-web-timer-w5.md` (2026-11-20). Bare `apps/web`, prosjektkort-modus.
+
+- **Kortet er åpent:** dagssiden starter med `?nyttProsjekt` (prosjekt-id) som åpen nøkkel, men kortene har jobbens kort-id etter w3a. `loesAapentKort` (`apps/web/src/lib/registrerTimer.ts`) lar en prosjekt-id som ikke er et kort på dagen, åpne prosjektets eneste jobbkort; to jobber på prosjektet → ingen gjetning. Gjelder både «+ Registrer timer» på ny dag (steget «ferdig») og «Ny dagsseddel» (`timer/ny/page.tsx` sender `?nyttProsjekt`). Vinduet åpnes ikke på første jobb; jobb nr. 2 (`eksisterte=1`) åpner «Legg til timer-rad» som før.
+- **Adressen ryddes:** når flyten er kjørt (alle steg unntatt «gjenåpne», og når gjenåpne-vinduet lukkes), gjør dagssiden `router.replace(adresseEtterRegistrering(...), { scroll: false })` — `registrer`, `nyttProsjekt` og `eksisterte` fjernes, `retur` står. Omlasting kjører ikke flyten og åpner ikke vinduet igjen.
+- **Tester:** `apps/web/src/app/dashbord/timer/[id]/registrer-flyt.test.tsx` (3, alle røde før endringen) og `lib/__tests__/registrerTimer.test.ts` § `loesAapentKort`/`adresseEtterRegistrering`. `dagskort-vakt.test.tsx` + snapshot urørt.
+- **Skjermbilder (1 440 px, lokal seed):** `skisser-web-timeforing/w15a-kort-aapent.png` (Timer → «+ Registrer timer» på ny dag 23.11.: jobbens kort åpent, ingen vindu, adressen bare `?retur`), `w15a-omlasting.png` (etter omlasting: samme, ingen vindu).
+
 ### Maskin er utstyr og antall timer (w3b, A3–A5, A13) — 🟡 `feat/web-timer-w3b`, ikke merget
 
 Spec: `web-timeforing-plan.md` § 4.13 (A3–A5, A13) og § 9 w3b; beslutninger S1–S6 (alle A) i `relay/inbox-web-timer-w5.md` (SVAR w3b, 2026-11-20). Gjelder bare prosjektkort-modus på web; dagskort-modus og `apps/mobile` er urørt.

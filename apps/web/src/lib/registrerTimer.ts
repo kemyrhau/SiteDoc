@@ -36,6 +36,39 @@ export function registrerTimerSteg(a: {
   return a.eksisterte ? "nyJobb" : "ferdig";
 }
 
+/**
+ * w15a (B41 A, plan § 4.15 del G): hvilket kort som er åpent på dagssiden.
+ * `aapentKort` er kort-id, prosjekt-id (tomt prosjektkort, eller prosjektet fra «+ Registrer
+ * timer»/«Ny dagsseddel»), «utenJobb», `null` (alle lukket) eller `undefined` (automatisk).
+ * En prosjekt-id som ikke er et kort på dagen, åpner prosjektets kort når det er ett —
+ * serveren har laget jobben, og kortene har jobbens kort-id.
+ */
+export function loesAapentKort(a: {
+  aapentKort: string | null | undefined;
+  kortNokler: readonly string[];
+  jobbKort: readonly { kortId: string; projectId: string | null }[];
+}): string | null {
+  if (a.aapentKort === undefined) return a.kortNokler.length === 1 ? a.kortNokler[0]! : null;
+  if (a.aapentKort === null || a.kortNokler.includes(a.aapentKort)) return a.aapentKort;
+  const prosjektets = a.jobbKort.filter((k) => k.projectId === a.aapentKort);
+  return prosjektets.length === 1 ? prosjektets[0]!.kortId : a.aapentKort;
+}
+
+/** Parametrene «+ Registrer timer»-flyten leser; de fjernes når flyten er kjørt. */
+const REGISTRER_PARAMETRE = ["registrer", "nyttProsjekt", "eksisterte"] as const;
+
+/**
+ * w15a: adressen etter at «+ Registrer timer»-flyten er kjørt — uten `registrer`,
+ * `nyttProsjekt` og `eksisterte`, så omlasting ikke kjører flyten (eller åpner vinduet) igjen.
+ * `retur` og andre parametre står.
+ */
+export function adresseEtterRegistrering(sti: string, sok: string | URLSearchParams): string {
+  const ny = new URLSearchParams(sok);
+  for (const navn of REGISTRER_PARAMETRE) ny.delete(navn);
+  const rest = ny.toString();
+  return rest ? `${sti}?${rest}` : sti;
+}
+
 /** Firmaets standardaktivitet for en ny dag — samme valg som skjemaet «Ny dagsseddel» (WM5). */
 export function standardAktivitetId(
   aktiviteter: readonly { id: string; navn: string; aktiv: boolean }[] | undefined,
