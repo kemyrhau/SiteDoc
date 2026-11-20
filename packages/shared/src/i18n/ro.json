@@ -613,6 +613,8 @@
   "timer.maskinSeksjon.merke": "Maşină",
   "timer.maskinSeksjon.tittel": "Mașină (opțional)",
   "timer.maskinSeksjon.hint": "Fiecare mașină primește orele rândului. Dacă a rulat mai puțin, introduceți mai puține ore - niciodată mai mult decât rândul.",
+  "timer.maskinSeksjon.hintJobb": "Introduceți câte ore a funcționat mașina la serviciu.",
+  "timer.maskinSeksjon.jobbensMaskiner": "Mașini la acest loc de muncă",
   "timer.maskinSeksjon.leggTil": "Adăugați mașina",
   "timer.maskinSeksjon.timer": "Ore de mașină",
   "timer.maskinSeksjon.fjern": "Scoateți mașina",

@@ -613,6 +613,8 @@
   "timer.maskinSeksjon.merke": "Masin",
   "timer.maskinSeksjon.tittel": "Masin (valikuline)",
   "timer.maskinSeksjon.hint": "Iga masin saab rea tunnid. Kui see kestis vähem, sisestage vähem tunde – mitte kunagi rohkem kui rida.",
+  "timer.maskinSeksjon.hintJobb": "Sisestage, mitu tundi masin tööga töötas.",
+  "timer.maskinSeksjon.jobbensMaskiner": "Masinad sellel tööl",
   "timer.maskinSeksjon.leggTil": "Lisa masin",
   "timer.maskinSeksjon.timer": "Masina tunnid",
   "timer.maskinSeksjon.fjern": "Eemaldage masin",

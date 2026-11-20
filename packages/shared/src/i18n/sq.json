@@ -613,6 +613,8 @@
   "timer.maskinSeksjon.merke": "Makinë",
   "timer.maskinSeksjon.tittel": "Makinë (opsionale)",
   "timer.maskinSeksjon.hint": "Çdo makinë merr orët e rreshtit. Nëse u zhvillua për më pak, futni më pak orë - asnjëherë më shumë se rreshti.",
+  "timer.maskinSeksjon.hintJobb": "Futni sa orë ka punuar pajisja në punë.",
+  "timer.maskinSeksjon.jobbensMaskiner": "Makinat në këtë punë",
   "timer.maskinSeksjon.leggTil": "Shto makinë",
   "timer.maskinSeksjon.timer": "Orari i makinës",
   "timer.maskinSeksjon.fjern": "Hiq makinën",

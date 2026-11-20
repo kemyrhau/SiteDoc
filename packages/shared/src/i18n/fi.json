@@ -613,6 +613,8 @@
   "timer.maskinSeksjon.merke": "Kone",
   "timer.maskinSeksjon.tittel": "Kone (valinnainen)",
   "timer.maskinSeksjon.hint": "Each machine gets the row's hours. Jos se kesti vähemmän, kirjoita vähemmän tunteja – ei koskaan enempää kuin rivi.",
+  "timer.maskinSeksjon.hintJobb": "Syötä, kuinka monta tuntia kone käytti työtä.",
+  "timer.maskinSeksjon.jobbensMaskiner": "Koneita tähän työhön",
   "timer.maskinSeksjon.leggTil": "Lisää kone",
   "timer.maskinSeksjon.timer": "Konetunnit",
   "timer.maskinSeksjon.fjern": "Poista kone",

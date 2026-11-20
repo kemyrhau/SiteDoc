@@ -613,6 +613,8 @@
   "timer.maskinSeksjon.merke": "Mašīna",
   "timer.maskinSeksjon.tittel": "Mašīna (pēc izvēles)",
   "timer.maskinSeksjon.hint": "Each machine gets the row's hours. If it ran for less, enter fewer hours — never more than the row.",
+  "timer.maskinSeksjon.hintJobb": "Ievadiet, cik stundas mašīna darbojās ar darbu.",
+  "timer.maskinSeksjon.jobbensMaskiner": "Mašīnas šajā darbā",
   "timer.maskinSeksjon.leggTil": "Pievienojiet mašīnu",
   "timer.maskinSeksjon.timer": "Mašīnu stundas",
   "timer.maskinSeksjon.fjern": "Noņemiet mašīnu",

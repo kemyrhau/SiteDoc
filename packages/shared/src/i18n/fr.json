@@ -613,6 +613,8 @@
   "timer.maskinSeksjon.merke": "Machine",
   "timer.maskinSeksjon.tittel": "Machine (facultatif)",
   "timer.maskinSeksjon.hint": "Chaque machine obtient les heures de la ligne. S'il a duré moins longtemps, entrez moins d'heures, jamais plus que la ligne.",
+  "timer.maskinSeksjon.hintJobb": "Entrez le nombre d'heures pendant lesquelles la machine a fonctionné sur le travail.",
+  "timer.maskinSeksjon.jobbensMaskiner": "Machines sur ce travail",
   "timer.maskinSeksjon.leggTil": "Ajouter une machine",
   "timer.maskinSeksjon.timer": "Heures machines",
   "timer.maskinSeksjon.fjern": "Supprimer l'appareil",

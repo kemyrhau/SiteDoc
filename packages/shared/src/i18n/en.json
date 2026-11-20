@@ -613,6 +613,8 @@
   "timer.maskinSeksjon.merke": "Machine",
   "timer.maskinSeksjon.tittel": "Machine (optional)",
   "timer.maskinSeksjon.hint": "Each machine gets the row's hours. If it ran for less, enter fewer hours — never more than the row.",
+  "timer.maskinSeksjon.hintJobb": "Enter how many hours the machine ran on the job.",
+  "timer.maskinSeksjon.jobbensMaskiner": "Machines on this job",
   "timer.maskinSeksjon.leggTil": "Add machine",
   "timer.maskinSeksjon.timer": "Machine hours",
   "timer.maskinSeksjon.fjern": "Remove machine",

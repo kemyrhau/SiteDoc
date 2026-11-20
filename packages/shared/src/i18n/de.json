@@ -613,6 +613,8 @@
   "timer.maskinSeksjon.merke": "Maschine",
   "timer.maskinSeksjon.tittel": "Maschine (optional)",
   "timer.maskinSeksjon.hint": "Jede Maschine erhält die Stunden der Zeile. Wenn die Laufzeit kürzer war, geben Sie weniger Stunden ein – niemals mehr als die Zeile.",
+  "timer.maskinSeksjon.hintJobb": "Geben Sie ein, wie viele Stunden die Maschine für den Auftrag lief.",
+  "timer.maskinSeksjon.jobbensMaskiner": "Maschinen für diesen Job",
   "timer.maskinSeksjon.leggTil": "Maschine hinzufügen",
   "timer.maskinSeksjon.timer": "Maschinenstunden",
   "timer.maskinSeksjon.fjern": "Maschine entfernen",

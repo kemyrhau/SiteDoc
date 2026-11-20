@@ -613,6 +613,8 @@
   "timer.maskinSeksjon.merke": "Maszyna",
   "timer.maskinSeksjon.tittel": "Maszyna (opcjonalnie)",
   "timer.maskinSeksjon.hint": "Każda maszyna otrzymuje godziny wiersza. Jeśli działał krócej, wpisz mniej godzin — nigdy więcej niż w wierszu.",
+  "timer.maskinSeksjon.hintJobb": "Wprowadź liczbę godzin pracy maszyny podczas wykonywania zadania.",
+  "timer.maskinSeksjon.jobbensMaskiner": "Maszyny w tej pracy",
   "timer.maskinSeksjon.leggTil": "Dodaj maszynę",
   "timer.maskinSeksjon.timer": "Godziny pracy maszyny",
   "timer.maskinSeksjon.fjern": "Usuń maszynę",

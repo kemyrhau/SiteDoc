@@ -344,3 +344,112 @@ describe("w3a — vinduene arver jobben", () => {
     expect(dialog.textContent).toContain("timer.felt.underprosjekt");
   });
 });
+
+describe("w3b — maskindelen i «Legg til» og «Rediger timer-rad» (prosjektkort-modus)", () => {
+  afterEach(cleanup);
+
+  function medMaskinModul(modus = "prosjektkort") {
+    rendre(modus);
+    h.data["modul.effektivTilstand"] = { maskin: true };
+    cleanup();
+    return render(<Side />);
+  }
+  function redigerJobb2Timerrad() {
+    const kort = screen.getAllByRole("button").find((b) => b.textContent?.includes("TILL-001"));
+    fireEvent.click(kort!);
+    const blyant = screen
+      .getAllByTitle("handling.rediger")
+      .find((b) => b.closest("li")?.textContent?.includes("15:00–16:00"));
+    fireEvent.click(blyant!);
+    return screen.getByRole("dialog", { name: "timer.detalj.redigerTimerRad" });
+  }
+  const stier = () => h.kall.map((k) => k.sti);
+
+  it("Rediger: viser jobbens maskin (utstyr låst, antall kan rettes), uten Mengde og Enhet", () => {
+    medMaskinModul();
+    const dialog = redigerJobb2Timerrad();
+    const linjer = within(dialog).getAllByTestId("jobb-maskin");
+    expect(linjer).toHaveLength(1);
+    expect(linjer[0]!.textContent).toContain("Volvo EC140 (Gravemaskin G-12)");
+    expect(linjer[0]!.querySelector<HTMLInputElement>('input[type="number"]')!.value).toBe("1");
+    expect(dialog.textContent).toContain("timer.maskinSeksjon.hintJobb");
+    expect(dialog.textContent).not.toContain("timer.felt.mengde");
+    expect(dialog.textContent).not.toContain("timer.felt.enhet");
+  });
+
+  it("Rediger: lavere antall lagres før raden; × fjerner maskinen", async () => {
+    medMaskinModul();
+    let dialog = redigerJobb2Timerrad();
+    fireEvent.change(within(dialog).getByTestId("jobb-maskin").querySelector("input")!, { target: { value: "0.5" } });
+    fireEvent.submit(dialog.querySelector("form")!);
+    await vi.waitFor(() => expect(stier()).toContain("timer.dagsseddel.oppdaterTimerRad"));
+    expect(stier()).toEqual(["timer.dagsseddel.maskin.oppdater", "timer.dagsseddel.oppdaterTimerRad"]);
+    expect(h.kall[0]!.input).toEqual({ id: "m1", timer: 0.5 });
+
+    cleanup();
+    medMaskinModul();
+    dialog = redigerJobb2Timerrad();
+    fireEvent.click(within(dialog).getByTitle("timer.maskinSeksjon.fjern"));
+    expect(within(dialog).queryAllByTestId("jobb-maskin")).toHaveLength(0);
+    fireEvent.submit(dialog.querySelector("form")!);
+    await vi.waitFor(() => expect(stier()).toContain("timer.dagsseddel.oppdaterTimerRad"));
+    expect(h.kall[0]).toEqual({ sti: "timer.dagsseddel.maskin.fjern", input: { id: "m1" } });
+  });
+
+  it("Rediger: høyere antall over høyst sperrer Lagre; høyere innenfor lagres etter raden", async () => {
+    medMaskinModul();
+    let dialog = redigerJobb2Timerrad();
+    const antall = () => within(dialog).getByTestId("jobb-maskin").querySelector("input")!;
+    fireEvent.change(antall(), { target: { value: "1.5" } });
+    expect(within(dialog).getByRole("button", { name: "handling.lagre" })).toHaveProperty("disabled", true);
+
+    // Raden forlenges til 15:00–17:00 (2 t): 1,5 t er innenfor.
+    cleanup();
+    medMaskinModul();
+    dialog = redigerJobb2Timerrad();
+    const til = dialog.querySelectorAll<HTMLInputElement>('input[type="time"]')[1]!;
+    fireEvent.change(til, { target: { value: "17:00" } });
+    fireEvent.blur(til);
+    fireEvent.change(antall(), { target: { value: "1.5" } });
+    expect(within(dialog).getByRole("button", { name: "handling.lagre" })).toHaveProperty("disabled", false);
+    fireEvent.submit(dialog.querySelector("form")!);
+    await vi.waitFor(() => expect(stier()).toContain("timer.dagsseddel.maskin.oppdater"));
+    expect(stier()).toEqual(["timer.dagsseddel.oppdaterTimerRad", "timer.dagsseddel.maskin.oppdater"]);
+  });
+
+  it("«+ Timer» fra jobben: ny maskin foreslås med høyst og lagres på den nye raden uten fra–til, mengde og enhet", async () => {
+    medMaskinModul();
+    const dialog = fraJobb2("timer.prosjektkort.nyTimer");
+    // Jobbens maskin vises også ved ny rad (A13).
+    expect(within(dialog).getAllByTestId("jobb-maskin")).toHaveLength(1);
+    const [lonnsart, aktivitet] = Array.from(dialog.querySelectorAll("select"));
+    fireEvent.change(lonnsart!, { target: { value: "l1" } });
+    fireEvent.change(aktivitet!, { target: { value: "a1" } });
+    const [fra, til] = Array.from(dialog.querySelectorAll<HTMLInputElement>('input[type="time"]'));
+    fireEvent.change(fra!, { target: { value: "16:00" } });
+    fireEvent.blur(fra!);
+    fireEvent.change(til!, { target: { value: "17:00" } });
+    fireEvent.blur(til!);
+    fireEvent.click(within(dialog).getByRole("button", { name: /timer\.velgUtstyr/ }));
+    fireEvent.click(within(dialog).getAllByText(/Gravemaskin G-12/).at(-1)!);
+    // Jobben: 1 t + 1 t arbeid, gravemaskinen m1 har 1 t → høyst 1 t.
+    expect(within(dialog).getByTestId<HTMLInputElement>("ny-maskin-timer").value).toBe("1");
+    fireEvent.submit(dialog.querySelector("form")!);
+    await vi.waitFor(() => expect(stier()).toContain("timer.dagsseddel.maskin.tilfoy"));
+    expect(stier()).toEqual(["timer.dagsseddel.tilfoyTimerRad", "timer.dagsseddel.maskin.tilfoy"]);
+    const maskin = h.kall[1]!.input;
+    expect(maskin).toMatchObject({ vehicleId: "v1", timer: 1, sheetTimerId: "ny", kortId: "k2", projectId: "p1" });
+    for (const felt of ["fraTid", "tilTid", "mengde", "enhet"]) expect(maskin).not.toHaveProperty(felt);
+  });
+
+  it("dagskort-modus: maskindelen er som før (ingen jobbens maskiner, Mengde og Enhet står)", () => {
+    medMaskinModul("dagskort");
+    fireEvent.click(screen.getAllByRole("button", { name: /timer\.detalj\.tilfoyTimer/ })[0]!);
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).queryByTestId("kort-maskindel")).toBeNull();
+    fireEvent.click(within(dialog).getByText("timer.maskinSeksjon.tittel"));
+    expect(dialog.textContent).toContain("timer.felt.mengde");
+    expect(dialog.textContent).toContain("timer.maskinSeksjon.hint");
+    expect(dialog.textContent).not.toContain("timer.maskinSeksjon.hintJobb");
+  });
+});
