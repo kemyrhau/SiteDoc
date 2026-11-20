@@ -1693,8 +1693,8 @@ føringene i § 1.
 
 | Presisering | Hvor i runden |
 |---|---|
-| 1 — lastebilen: 08–10, 2 timer på bilen, 5 m3 grus eller pukk og parkeringsutlegget i samme jobb | Bildet over (høyre kort), A1, A9 og A10. Mengden føres som vare på jobben (A4, B37). |
-| 2 — maskinen føres i timer, og bare i timer | A3 og A4. Nedtrekket «Enhet» og feltet «Mengde» går ut av maskinføringen (w3b). |
+| 1 — lastebilen: 08–10, 2 timer på bilen, 5 m3 grus eller pukk og parkeringsutlegget i samme jobb | Del F: eksempelet ført del for del, med hvor hver del lagres og hva som bryter. Bildet over (høyre kort). Mengden føres som vare på jobben (A4, B37). |
+| 2 — maskinen føres i timer, og bare i timer | A3, A4 og del G: hvor mengde og enhet finnes i dag, hva som skjer med lagrede verdier, og spørringen som teller dem. Nedtrekket «Enhet» og feltet «Mengde» går ut av maskinføringen (w3b). |
 | 3 — maskinen er eksempelet for alle typene | Del D: hver type målt mot maskin-mønsteret. |
 | 4 — attestanten ser alt i sammenheng | Del E: attesteringen målt. |
 
@@ -1790,6 +1790,22 @@ som hører til typen. `RK` = `apps/web/src/app/dashbord/timer/[id]/ReiseKort.tsx
 | **Utlegg** | Kategori, Beløp, Kommentar, Kvittering, Byggeplass, Underprosjekt (`WS:4645`, `:4790–4920`) | Prosjektet, via velgeren (`WS:1109`) | Kategori · Beløp · Kommentar · Kvittering | Byggeplass, Underprosjekt |
 | **Reise** | Tur, Retur eller annet kontor, Byggeplass, Underprosjekt (`RK:177`, `:298`). Tiden regnes av reiseregelen. | Prosjektet (`WS:1228–1243`) | Som i dag, med jobbens byggeplass og underprosjekt forhåndsvalgt | Ingen. Arbeideren bestemmer hvor reisen føres (B34 B). |
 
+**Hvor hver type lagres og kobles i dag.** `ST` = `packages/db-timer/prisma/schema.prisma`,
+`VS` = `packages/db-varelager/prisma/schema.prisma`. Alle tabellene har kolonnen `kort_id`.
+
+| Type | Tabell | Kobles til jobben med | Sted på raden | Hvem setter kort-id i dag |
+|---|---|---|---|---|
+| Arbeid (fra–til) | `timer.sheet_timer` (`ST:230–331`) | `kort_id` (`ST:318`) | prosjekt, byggeplass, underprosjekt (`ST:245`, `:252`) | PC sender den for ny jobb (`WS:746`); ellers serveren, etter stedet (`KI:250–265`) |
+| Maskin | `timer.sheet_machines` (`ST:577–628`) | `sheet_timer_id` og `kort_id` (`ST:587`, `:617`) | egne kolonner, kan avvike fra timeraden (`ST:591`, `:598`) | Serveren: timeradens (`KI:266–269`) |
+| Vare | `varelager.vareforbruk` (`VS:74–108`) | `sheet_timer_id` og `kort_id` (`VS:88`, `:91`) | egne kolonner (`VS:78–79`) | Serveren: timeradens (`KI:373–410`) |
+| Tillegg | `timer.sheet_tillegg` (`ST:407–445`) | `kort_id` (`ST:435`). Ingen kobling til timerad. | egne kolonner (`ST:415–416`) | Serveren, etter stedet: eldste jobb med samme sted (`D:5153`) |
+| Utlegg | `timer.sheet_utlegg` (`ST:487–521`) | `kort_id` (`ST:513`). Ingen kobling til timerad. | egne kolonner (`ST:493–494`) | Serveren, etter stedet (`D:5474`) |
+| Reise | `timer.sheet_timer`, med reise-merke | `kort_id`, satt av reiseregelen | egne kolonner; arbeideren velger (B34 B) | Serveren (`KI:271–307`) |
+
+**Felt som må velges på nytt i stedet for å arves:** Byggeplass og Underprosjekt i alle fem vinduene, og Timerad
+i maskin- og varevinduet. **Felt som ikke hører til typen:** Fra kl., Til kl., Mengde og Enhet på maskin, og
+Prosjekt i varevinduet.
+
 - **Alle fem åpnes fra prosjektet i dag, ingen fra jobben.** Det er årsaken til at hvert vindu spør om sted på
   nytt. w3a flytter lenkene til jobben (A6, A11).
 - **Feltene som går ut av vinduet, finnes fortsatt:** de står i jobbens hode og gjelder alt i jobben. Ingen
@@ -1818,7 +1834,68 @@ Bildet er `ks-attestering.png` (§ 4.5).
 
 Attesteringen trenger altså ingen ny del for presisering 4. Den blir riktig når føringen blir det.
 
-#### Del C — w3 delt i tre
+**Slik bygges jobben i attesteringen** (`AM` = `apps/web/src/components/attestering/attestering-tabell.ts`):
+timelinja bærer maskinene og varene som er koblet til den (`AM:366–367`; `KG:160–184`). Maskin og vare uten
+timerad, tillegg og utlegg er egne linjer i samme jobb (`AM:419`, `:435`, `:456`, `:470`). Reisen står sist i
+jobben (w12). **Utenfor jobben havner bare** rader uten kort-id, i samlekortet (`KG:141–157`; `AM:520–522`),
+og reise uten kort-id, i den gamle reiseblokken (`AM:512–514`). Dagsraden summerer alle jobbene på dagen.
+
+#### Del F — lastebilen som testtilfelle
+
+Jobben 08:00–10:00 → lastebil 2 timer → 5 m3 grus eller pukk → parkeringsutlegg. Ført på PC i dag, på en dag
+som alt har en jobb på samme prosjekt:
+
+| Del | Slik føres den i dag | Lagres | Hva som bryter sammenhengen |
+|---|---|---|---|
+| Jobben 08–10 | «+ Registrer timer» eller «+ Timer», vinduet «Legg til timer-rad» | `timer.sheet_timer`, med kort-id | Med «+ Timer» og samme sted som en annen jobb havner raden i den jobben. Med et annet underprosjekt blir den en ny jobb i en boks (A1, A12). |
+| Lastebilen, 2 timer | Maskindelen i samme vindu gir 2 timer av seg selv (radens). Med «+ Maskin» må sjåføren velge timerad og får 07:00–15:00 foreslått som fra–til. | `timer.sheet_machines`, koblet til timeraden | Timer kan ikke skrives der bilen velges (A3). Fra–til og «Timerad» spørres det om (A5, A11). Underprosjektet arves ikke (A6). |
+| 5 m3 grus eller pukk | Enten «Mengde 5» og «Enhet m3» i maskindelen, eller «+ Vareforbruk» på prosjekter med varelager. | Maskinraden (`mengde`, `enhet`), eller `varelager.vareforbruk` koblet til timeraden | På maskinraden sier tallet ikke at det er pukk (HM22). Som vare står linja nederst i prosjektets kort, ikke i jobben, og kan ikke rettes (A10). |
+| Parkeringen | «+ Tillegg/Utlegg» → velger → utleggsvinduet, med Byggeplass og Underprosjekt | `timer.sheet_utlegg`, kort-id valgt av serveren | Utlegget vises under prosjektet. Har dagen to jobber på samme sted, kan det få den andre jobbens kort-id (A9). |
+
+**I attesteringen** står de fire delene i samme jobb når kort-id-ene stemmer: bilen og varen på timelinja,
+utlegget som egen linje, og alle i kortet (del E). «5 m3» ført på maskinen vises i kolonnene «Maskinmengde» og
+«Maskinenhet», som ikke er blant kjernekolonnene, og i kortet som et tall bak maskinen
+(`RegistreringPanel.tsx:409`). **Etter w3a og w3b** føres alle fire fra jobbens kort, og kortet på dagssiden og
+kortet i attesteringen viser det samme. Dette er testtilfellet for begge delene.
+
+#### Del G — maskinens mengde og enhet: hvor de finnes, og hva som skjer med dem
+
+| Lag | Hvor | Etter w3b |
+|---|---|---|
+| Databasen | `timer.sheet_machines.mengde` og `.enhet` (`ST:600–601`) | Står. Ingen migrering, ingen sletting. |
+| PC, føring | Maskindelen i «Legg til timer-rad» (`WS:3810–3843`), «Legg til maskinbruk» (`WS:5343–5370`), enhetslista (`WS:87`) | Feltene går ut i prosjektkort-modus. |
+| PC, visning på dagen | Linja under maskinen (`WS:2733–2737`) | Vises fortsatt for rader som har verdien, med ledeteksten «Mengde». |
+| Serveren | Tar imot og lagrer (`D:10044–10045`, `:10113–10114`, `:10137`), bærer dem gjennom deling og retting (`D:7699`, `:7947`, `:7243`), synken fra telefonen (`D:8604`, `:9729`) | Urørt. Feltene er valgfrie. |
+| Attesteringen | Kolonnene «Maskinmengde» og «Maskinenhet» (`packages/shared/src/utils/timerDetaljRader.ts:715–716`), tallet i kortet (`RegistreringPanel.tsx:409`), retting på detaljsiden (`apps/web/src/components/timer/RedigerMaskinRad.tsx:142–160`), deling (`apps/web/src/components/timer/SplittRadModal.tsx:550–554`) | Står, for det som er lagret. |
+| Rapport og eksport | `apps/api/src/routes/timer/rapport.ts:685`, `:708`; `apps/web/src/lib/timer-rapport-eksport.ts:481–482`; `apps/api/src/routes/timer/eksportOppsett.ts:55` | Står. Lagrede maler virker som før. |
+| Telefonen | Bekreft dag fører alt maskin uten mengde og enhet (`M/components/timer-detalj/BekreftDagRadTillegg.tsx:251`). Dagskort-modus har feltene (`M/components/timer-detalj/MaskinSeksjon.tsx:582`, `:421–423`). | Urørt. Mobil venter. |
+
+**Lagrede verdier: forslag.** De blir stående på maskinraden og vises som i dag. De flyttes ikke til varer,
+fordi raden ikke sier hvilken vare mengden gjaldt. Nye føringer på PC i prosjektkort-modus får ikke mengde på
+maskinen.
+
+**Telling.** Ikke talt av Fabel: lesespørringen mot den lokale databasen ble avvist av tillatelsesvakten. Disse
+to skrivebeskyttede spørringene gir tallene på test og prod:
+
+```sql
+SELECT count(*) AS maskinrader,
+       count(mengde) AS med_mengde,
+       count(*) FILTER (WHERE mengde IS NOT NULL AND enhet IS NULL) AS mengde_uten_enhet,
+       max(created_at) FILTER (WHERE mengde IS NOT NULL) AS sist_fort
+FROM timer.sheet_machines;
+```
+
+```sql
+SELECT count(*) AS koblet_maskin_med_annet_sted
+FROM timer.sheet_machines m
+JOIN timer.sheet_timer t ON t.id = m.sheet_timer_id
+WHERE m.external_cost_object_id IS DISTINCT FROM t.external_cost_object_id
+   OR m.byggeplass_id IS DISTINCT FROM t.byggeplass_id;
+```
+
+Den første gjelder B37, den andre A7. Kolonnenavnene er lest i `ST:577–628` (`created_at`: `ST:609`).
+
+#### Del H — w3 delt i tre
 
 1. **w3a — kortet pr. jobb.** Visningen og arven. A1, A6–A12. Ingen felt forsvinner fra vinduet «Rediger
    timer-rad». Ingen migrering. Kan bestilles nå.
