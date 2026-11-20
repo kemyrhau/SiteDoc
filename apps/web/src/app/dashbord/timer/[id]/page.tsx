@@ -10,7 +10,6 @@ import { KnappMedForklaring } from "@/components/KnappMedForklaring";
 import { SignertBilde } from "@/components/SignertBilde";
 import { SignertLenke } from "@/components/SignertLenke";
 import {
-  ArrowLeft,
   Pencil,
   Plus,
   Trash2,
@@ -31,6 +30,8 @@ import { ProsjektRadVelger } from "@/components/timer/ProsjektRadVelger";
 import { OppmoteSporsmaalModal } from "@/components/timer/OppmoteSporsmaalModal";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { useFirma } from "@/kontekst/firma-kontekst";
+import { TilbakeLenke, useTilbakeAdresse } from "@/components/nivaa/TilbakeLenke";
+import { RESERVE_MINE_TIMER } from "@/lib/tilbake-adresse";
 import { nyKortId, registrerTimerSteg } from "@/lib/registrerTimer";
 import { MaskinVelger } from "@/components/timer/MaskinVelger";
 import { KortVareforbrukModal } from "@/components/timer/KortVareforbrukModal";
@@ -473,8 +474,10 @@ export default function DagsseddelDetaljSide() {
   // «still spørsmål, aksepter ved bekreftelse»). Delt flyt med mobil.
   const [visPauseSporsmaal, setVisPauseSporsmaal] = useState(false);
 
+  // w14 (TK1–TK3): samme adresse som tilbake-knappen — lista brukeren kom fra, ellers Mine timer.
+  const tilbake = useTilbakeAdresse(RESERVE_MINE_TIMER);
   const slett = trpc.timer.dagsseddel.slett.useMutation({
-    onSuccess: () => router.push("/dashbord/timer/mine"),
+    onSuccess: () => router.push(tilbake?.href ?? RESERVE_MINE_TIMER.href),
     onError: (e: { message: string }) => setFeil(e.message),
   });
 
@@ -534,13 +537,10 @@ export default function DagsseddelDetaljSide() {
     return (
       <div className="mx-auto max-w-3xl p-6">
         <p className="text-sm text-red-600">{t("timer.detalj.ikkeFunnet")}</p>
-        <Link
-          href="/dashbord/timer/mine"
+        <TilbakeLenke
+          reserve={RESERVE_MINE_TIMER}
           className="mt-3 inline-flex items-center gap-1 text-sm text-sitedoc-primary hover:underline"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          {t("timer.tilbake")}
-        </Link>
+        />
       </div>
     );
   }
@@ -1063,13 +1063,10 @@ export default function DagsseddelDetaljSide() {
     <div className="max-w-3xl p-6">
       {/* w2: skjemaet hoppes over i prosjektkort-modus — spørsmålet følger med hit. */}
       {fraRegistrer && <OppmoteSporsmaalModal organizationId={sheet.organizationId ?? null} />}
-      <Link
-        href="/dashbord/timer/mine"
+      <TilbakeLenke
+        reserve={RESERVE_MINE_TIMER}
         className="mb-3 inline-flex items-center gap-1 text-sm text-sitedoc-primary hover:underline"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        {t("timer.tilbake")}
-      </Link>
+      />
 
       <div className="mb-4 flex items-start justify-between gap-4">
         <div>

@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
-import { usePathname } from "next/navigation";
+import { Suspense, createElement, useEffect } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
+import { erProsjektetsTimer, gyldigRetur } from "@/lib/tilbake-adresse";
 import { useNavigasjon, type Seksjon } from "@/kontekst/navigasjon-kontekst";
 
 const seksjonMap: Record<string, Seksjon> = {
@@ -31,6 +32,8 @@ const seksjonMap: Record<string, Seksjon> = {
 
 export function useAktivSeksjon(): Seksjon {
   const pathname = usePathname();
+  // w14 (B40 A): på en dag (eller «Ny dagsseddel») bestemmer `?retur` hva som lyser.
+  const retur = gyldigRetur(useSearchParams().get("retur"));
   const { aktivSeksjon, setAktivSeksjon } = useNavigasjon();
 
   useEffect(() => {
@@ -55,6 +58,14 @@ export function useAktivSeksjon(): Seksjon {
       return;
     }
 
+    // w14 (B40 A): dagen (/dashbord/timer/<id>) og «Ny dagsseddel» (/dashbord/timer/ny).
+    // Kom brukeren fra prosjektets Timer, lyser «Timer»; ellers «mine-timer», som ikke står i
+    // sidemenyen — ingenting lyser. «Dashbord» skal aldri lyse her.
+    if (deler[1] === "timer" && deler[2]) {
+      setAktivSeksjon(retur && erProsjektetsTimer(retur) ? "timer" : "mine-timer");
+      return;
+    }
+
     // Finn seksjon etter prosjektId (indeks 2 i pathen)
     const seksjonDel = deler[2];
     // Dashbord er aktiv KUN på prosjekt-/dashbord-roten (ingen seksjon-segment).
@@ -66,7 +77,21 @@ export function useAktivSeksjon(): Seksjon {
       return;
     }
     setAktivSeksjon(seksjonMap[seksjonDel] ?? "dashbord");
-  }, [pathname, setAktivSeksjon]);
+  }, [pathname, retur, setAktivSeksjon]);
 
   return aktivSeksjon;
+}
+
+function Sporer(): null {
+  useAktivSeksjon();
+  return null;
+}
+
+/**
+ * w14: kroken leser `?retur` med `useSearchParams`, som krever en Suspense-grense ved statisk
+ * bygg (Next 14). Derfor kalles den ett sted i rammen, her, og NavSidebar/Toppbar leser
+ * seksjonen fra `useNavigasjon()`. Rendres i `dashbord/layout.tsx`.
+ */
+export function AktivSeksjonSporer() {
+  return createElement(Suspense, { fallback: null }, createElement(Sporer));
 }

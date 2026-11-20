@@ -9,10 +9,14 @@ import { skalVarsleSkjulteTimer } from "@sitedoc/shared";
 import { Spinner, Input, Modal, Button } from "@sitedoc/ui";
 import { MultiComboks } from "@/components/ui/MultiComboks";
 import { RegistrerTimerKnapp } from "@/components/timer/RegistrerTimerKnapp";
+import { medRetur } from "@/lib/tilbake-adresse";
 import { HjelpKnapp, HjelpFane } from "@/components/hjelp/HjelpModal";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { spennerFlereAar, visDagDato, visTimerTall } from "@/lib/registrerTimer";
 import { Clock, FileText, Briefcase, Activity, Info, ChevronRight, Trash2 } from "lucide-react";
+
+/** w14 (TK3): dagene herfra går tilbake til Mine timer («Tilbake til Mine timer»). */
+const MINE_TIMER_STI = "/dashbord/timer/mine";
 
 /**
  * «Mine timer» — personlig rapport-visning på tvers av prosjekter
@@ -318,7 +322,11 @@ export default function MineTimerSide() {
         {/* w2 (B1): «+ Registrer timer» i prosjektkort-modus; dagskort-modus beholder
             «Ny dagsseddel» + skjemaet. Deaktivert (synlig) hvis ikke ansatt (2026-10-09 (2)). */}
         <div className="flex items-start gap-1">
-          <RegistrerTimerKnapp organizationId={orgId ?? null} projectId={aktivProsjektId} />
+          <RegistrerTimerKnapp
+            organizationId={orgId ?? null}
+            projectId={aktivProsjektId}
+            retur={MINE_TIMER_STI}
+          />
           <HjelpKnapp>
             <HjelpFane tittel={t("timer.mine.tittel")}>
               <p>{t("timer.mine.hjelp.registrer")}</p>
@@ -338,7 +346,7 @@ export default function MineTimerSide() {
       {/* D8: kladd-påminnelse — usendte drafts fra tidligere dager (mobil UF-3). */}
       {eldsteKladd && (
         <Link
-          href={`/dashbord/timer/${eldsteKladd.id}`}
+          href={medRetur(`/dashbord/timer/${eldsteKladd.id}`, MINE_TIMER_STI)}
           className="mb-4 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 hover:bg-amber-100"
         >
           <Info className="h-4 w-4 shrink-0 text-amber-700" />
@@ -580,7 +588,7 @@ export default function MineTimerSide() {
                     <td className="px-2 py-1.5 text-right">
                       <div className="flex items-center justify-end gap-3">
                         <Link
-                          href={`/dashbord/timer/${rad.id}`}
+                          href={medRetur(`/dashbord/timer/${rad.id}`, MINE_TIMER_STI)}
                           className="text-sm font-medium text-sitedoc-primary hover:underline"
                         >
                           {t("timer.aapne")}

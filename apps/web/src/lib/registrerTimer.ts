@@ -7,6 +7,8 @@
  * Plan: `docs/claude/web-timeforing-plan.md` § 4 bilde 1 (tabellen «Når → Det som skjer»).
  */
 
+import { medRetur } from "@/lib/tilbake-adresse";
+
 /** Hva dagssiden gjør når den åpnes fra «+ Registrer timer». */
 export type RegistrerSteg =
   /** Ny dag med prosjekt: serveren har laget første jobb. Kortet åpnes, ingenting mer. */
@@ -65,11 +67,13 @@ export function registrerLenke(a: {
   sheetId: string;
   projectId: string | null;
   eksisterte: boolean;
+  /** w14: lista knappen sto på — dagens tilbake-knapp går dit. */
+  retur?: string | null;
 }): string {
   const params = new URLSearchParams({ registrer: "1" });
   if (a.projectId) params.set("nyttProsjekt", a.projectId);
   if (a.eksisterte) params.set("eksisterte", "1");
-  return `/dashbord/timer/${a.sheetId}?${params.toString()}`;
+  return medRetur(`/dashbord/timer/${a.sheetId}?${params.toString()}`, a.retur);
 }
 
 /** Ny kort-id (UUID) for en ny jobb. */

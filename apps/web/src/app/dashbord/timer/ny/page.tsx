@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { useFirma } from "@/kontekst/firma-kontekst";
@@ -10,8 +9,9 @@ import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { Button, Input, Spinner } from "@sitedoc/ui";
 import { KnappMedForklaring } from "@/components/KnappMedForklaring";
 import { STANDARD_ARBEIDSTID_FALLBACK } from "@sitedoc/shared";
-import { ArrowLeft } from "lucide-react";
 import { OppmoteSporsmaalModal } from "@/components/timer/OppmoteSporsmaalModal";
+import { TilbakeLenke, useTilbakeAdresse } from "@/components/nivaa/TilbakeLenke";
+import { RESERVE_MINE_TIMER, medRetur } from "@/lib/tilbake-adresse";
 
 function nyUuid(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -37,9 +37,21 @@ function iDag(): string {
  * prosjektgruppa og blir default for nye rader (UI/session-konsept, akkurat som
  * mobils lokale, usynkede daily_sheets.projectId).
  */
+// w14: siden leser `?retur` (useSearchParams) og er statisk — Next 14 krever Suspense-grense.
 export default function NyDagsseddelSide() {
+  return (
+    <Suspense fallback={null}>
+      <NyDagsseddelSkjema />
+    </Suspense>
+  );
+}
+
+function NyDagsseddelSkjema() {
   const { t } = useTranslation();
   const router = useRouter();
+  // w14 (TK4–TK5): lista som åpnet skjemaet. «Tilbake» og «Avbryt» går dit, og dagen arver den.
+  const returParam = useSearchParams().get("retur");
+  const tilbake = useTilbakeAdresse(RESERVE_MINE_TIMER);
 
   const [clientUuid] = useState(() => nyUuid());
 
@@ -144,7 +156,9 @@ export default function NyDagsseddelSide() {
       // for en feilmelding.
       const params = new URLSearchParams({ nyttProsjekt: projectId });
       if (sheet.eksisterte) params.set("aapnetEksisterende", "1");
-      router.push(`/dashbord/timer/${sheet.id}?${params.toString()}`);
+      // w14 (TK5): `?retur` følger med uendret — tilbake fra dagen går til lista brukeren
+      // startet fra, ikke til skjemaet.
+      router.push(medRetur(`/dashbord/timer/${sheet.id}?${params.toString()}`, returParam));
     },
     onError: (e: { message: string }) => setFeil(e.message),
   });
@@ -214,13 +228,10 @@ export default function NyDagsseddelSide() {
   return (
     <div className="max-w-2xl p-6">
       {kanFoereTimer && <OppmoteSporsmaalModal organizationId={orgId} />}
-      <Link
-        href="/dashbord/timer/mine"
+      <TilbakeLenke
+        reserve={RESERVE_MINE_TIMER}
         className="mb-3 inline-flex items-center gap-1 text-sm text-sitedoc-primary hover:underline"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        {t("timer.tilbake")}
-      </Link>
+      />
 
       <h1 className="mb-1 text-2xl font-semibold text-gray-900">
         {t("timer.nyDagsseddel")}
@@ -365,7 +376,7 @@ export default function NyDagsseddelSide() {
             <Button
               type="button"
               variant="secondary"
-              onClick={() => router.push("/dashbord/timer/mine")}
+              onClick={() => router.push(tilbake?.href ?? RESERVE_MINE_TIMER.href)}
             >
               {t("handling.avbryt")}
             </Button>
