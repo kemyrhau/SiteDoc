@@ -4,6 +4,7 @@ import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTilbakeAdresse } from "@/components/nivaa/TilbakeLenke";
+import { ferdigKnappNokkel } from "@/lib/tilbake-adresse";
 import { useTranslation } from "react-i18next";
 import { ArrowLeft, FileSpreadsheet, AlertTriangle, Check, UploadCloud } from "lucide-react";
 import { trpc } from "@/lib/trpc";
@@ -547,7 +548,7 @@ function VareImportSideInnhold() {
 
           <div className="flex justify-end gap-3 pt-2">
             <Button type="button" onClick={() => router.push(tilbakeHref)}>
-              {t("firma.varelager.import.knapp.tilKatalog")}
+              {t(ferdigKnappNokkel(tilbake, "/dashbord/firma/varelager", "firma.varelager.import.knapp.tilKatalog"))}
             </Button>
           </div>
         </div>

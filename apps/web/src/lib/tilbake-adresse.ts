@@ -69,6 +69,19 @@ export function medRetur(href: string, retur: string | null | undefined): string
   return `${href}${skille}retur=${encodeURIComponent(gyldig)}`;
 }
 
+/**
+ * w14 gate (110) V1: teksten på en «Ferdig»-knapp som går til tilbake-adressen.
+ * Går adressen et annet sted enn reserven (gyldig `?retur`), sier knappen hvor
+ * (tilbake-etiketten); ellers står sidens egen tekst («Til maskinregister»).
+ */
+export function ferdigKnappNokkel(
+  adresse: { href: string; labelKey: string } | null,
+  reserveHref: string,
+  egenNokkel: string,
+): string {
+  return adresse && adresse.href !== reserveHref ? adresse.labelKey : egenNokkel;
+}
+
 /** Fast reserve når siden åpnes uten gyldig `?retur` (B39 A). */
 export const RESERVE_MINE_TIMER = {
   href: "/dashbord/timer/mine",

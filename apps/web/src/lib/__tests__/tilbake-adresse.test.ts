@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  ferdigKnappNokkel,
   gyldigRetur,
   lesUkeParam,
   lokalIsoDato,
@@ -110,5 +111,29 @@ describe("soketekst — gamle adresser under [prosjektId]/timer sender parametre
       "?retur=%2Fdashbord%2Ftimer%2Fmine",
     );
     expect(soketekst({})).toBe("");
+  });
+});
+
+/** Gate (110) V1: «Ferdig» på maskin-/vareimport sier hvor knappen går. */
+describe("ferdigKnappNokkel", () => {
+  const egen = "firma.maskin.import.knapp.tilMaskinliste";
+  it("med gyldig retur: knappen viser tilbake-etiketten", () => {
+    expect(
+      ferdigKnappNokkel(
+        { href: "/dashbord/oppsett/firma", labelKey: "tilbake.tilInnstillinger" },
+        "/dashbord/maskin",
+        egen,
+      ),
+    ).toBe("tilbake.tilInnstillinger");
+  });
+  it("uten retur (reserven): sidens egen tekst", () => {
+    expect(
+      ferdigKnappNokkel(
+        { href: "/dashbord/maskin", labelKey: "firma.maskin.import.tilbakeTilMaskin" },
+        "/dashbord/maskin",
+        egen,
+      ),
+    ).toBe(egen);
+    expect(ferdigKnappNokkel(null, "/dashbord/maskin", egen)).toBe(egen);
   });
 });

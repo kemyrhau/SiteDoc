@@ -4,6 +4,7 @@ import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTilbakeAdresse } from "@/components/nivaa/TilbakeLenke";
+import { ferdigKnappNokkel } from "@/lib/tilbake-adresse";
 import { useTranslation } from "react-i18next";
 import { ArrowLeft, FileSpreadsheet, AlertTriangle, Check, X, UploadCloud } from "lucide-react";
 import { trpc } from "@/lib/trpc";
@@ -539,7 +540,7 @@ function MaskinImportSideInnhold() {
 
           <div className="flex justify-end gap-3 pt-2">
             <Button type="button" onClick={() => router.push(tilbakeHref)}>
-              {t("firma.maskin.import.knapp.tilMaskinliste")}
+              {t(ferdigKnappNokkel(tilbake, "/dashbord/maskin", "firma.maskin.import.knapp.tilMaskinliste"))}
             </Button>
           </div>
         </div>
