@@ -15,7 +15,6 @@ import {
   type MaskinJobbTilstand,
 } from "../../services/timer/maskinJobbVakt";
 import {
-  autoriserAdminForFirma,
   verifiserProsjektmedlem,
   verifiserProsjekterTilhørerFirma,
   hentBrukersOrg,
@@ -25,6 +24,7 @@ import {
   erAnsattIFirma,
   erFirmaAdminForProsjekt,
   aktivtProsjektmedlemWhere,
+  aktivtMedlemWhere,
 } from "../../trpc/tilgangskontroll";
 import { krevTimerAktivert, hentEffektivArbeidstid } from "../../services/timer";
 import {
@@ -276,7 +276,7 @@ async function krevProsjektLeder(userId: string, projectId: string): Promise<voi
  * firma-admin der, eller aktiv ansatt der som også er prosjektadmin/`kanAttestere`.
  * `null` = alle firma (sitedoc_admin).
  */
-async function attesteringsFirmaer(userId: string, projectId: string): Promise<string[] | null> {
+export async function attesteringsFirmaer(userId: string, projectId: string): Promise<string[] | null> {
   const bruker = await prisma.user.findUnique({
     where: { id: userId },
     select: { role: true },
@@ -303,6 +303,66 @@ async function attesteringsFirmaer(userId: string, projectId: string): Promise<s
         (erLeder && a.status === "aktiv"),
     )
     .map((a) => a.organizationId);
+}
+
+/**
+ * w10b (plan web-timeføring § 4.6 punkt 3, S1 A): hva brukeren kan attestere i ett firma.
+ * `alle` = sitedoc_admin eller firma-admin (ikke deaktivert) i firmaet. Ellers, når brukeren er
+ * AKTIV ansatt i firmaet: prosjektene der han er aktivt medlem med admin eller «kan attestere»
+ * (FA3). Ingen deltakerfilter: lista er nøyaktig prosjektene der `attesteringsFirmaer` gir
+ * firmaet, så lista og handlingene kan aldri være uenige. Tom liste = ingen tilgang.
+ */
+export type AttesteringsOmfang = { type: "alle" } | { type: "prosjekter"; prosjektIder: string[] };
+
+export async function attesteringsOmfang(
+  userId: string,
+  organizationId: string,
+): Promise<AttesteringsOmfang> {
+  const [bruker, ansettelse] = await Promise.all([
+    prisma.user.findUnique({ where: { id: userId }, select: { role: true } }),
+    prisma.organizationMember.findUnique({
+      where: { userId_organizationId: { userId, organizationId } },
+      select: { status: true, firmaRoller: true },
+    }),
+  ]);
+  if (!bruker) return { type: "prosjekter", prosjektIder: [] };
+  if (bruker.role === "sitedoc_admin") return { type: "alle" };
+  if (!ansettelse) return { type: "prosjekter", prosjektIder: [] };
+  if (ansettelse.status !== "deaktivert" && ansettelse.firmaRoller.includes("firma_admin")) {
+    return { type: "alle" };
+  }
+  if (ansettelse.status !== "aktiv") return { type: "prosjekter", prosjektIder: [] };
+  const medlemskap = await prisma.projectMember.findMany({
+    where: {
+      userId,
+      ...aktivtMedlemWhere,
+      OR: [{ role: "admin" }, { kanAttestere: true }],
+    },
+    select: { projectId: true },
+  });
+  return {
+    type: "prosjekter",
+    prosjektIder: Array.from(new Set(medlemskap.map((m) => m.projectId))).sort(),
+  };
+}
+
+/**
+ * w10b S2 (venter på Kenneth): skal firma-admin også få `kortId` og `project` på utleggene i
+ * firmalista (utlegget står da i jobbens kort)? `false` = bare prosjektlederen får dem, og
+ * firma-admin får nøyaktig samme svar som før w10b. Ett sted å bytte.
+ */
+const UTLEGG_I_KORT_FOR_ALLE = false;
+
+/** Omfanget som kaster FORBIDDEN når det er tomt (samme feil som `autoriserAdminForFirma`). */
+async function krevAttesteringsOmfang(userId: string, organizationId: string): Promise<AttesteringsOmfang> {
+  const omfang = await attesteringsOmfang(userId, organizationId);
+  if (omfang.type === "prosjekter" && omfang.prosjektIder.length === 0) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Krever firmaadmin-rettighet for det angitte firmaet",
+    });
+  }
+  return omfang;
 }
 
 /**
@@ -5976,14 +6036,21 @@ export const dagsseddelRouter = router({
       }),
     )
     .query(async ({ ctx, input }) => {
-      await autoriserAdminForFirma(ctx.userId, input.organizationId);
+      // w10b (§ 4.6): firma-admin/sitedoc_admin = alle; prosjektleder = sine prosjekter.
+      const omfang = await krevAttesteringsOmfang(ctx.userId, input.organizationId);
+      const leder = omfang.type === "prosjekter";
+      // w10b S2 (venter på Kenneth): utlegg i jobbens kort for alle omfang, eller bare lederen.
+      const utleggIKort = leder || UTLEGG_I_KORT_FOR_ALLE;
 
       const prosjekter = await ctx.prisma.project.findMany({
-        where: {
-          projectOrganizations: {
-            some: { organizationId: input.organizationId },
-          },
-        },
+        where:
+          omfang.type === "prosjekter"
+            ? { id: { in: omfang.prosjektIder } }
+            : {
+                projectOrganizations: {
+                  some: { organizationId: input.organizationId },
+                },
+              },
         select: { id: true, name: true, projectNumber: true, internalProjectNumber: true },
       });
       const prosjektIder = prosjekter.map((p) => p.id);
@@ -6013,9 +6080,10 @@ export const dagsseddelRouter = router({
           organizationId: input.organizationId,
           status: { in: statuser },
           // Kort-id-spec § 11.4: en sedel med bare fravær uten prosjekt står i firmakøen.
+          // w10b: prosjektlederen ser ikke sedler med bare fravær (§ 4.6 punkt 2).
           OR: [
             { timer: { some: { projectId: { in: prosjektIder } } } },
-            { timer: { some: { utenProsjekt: true } } },
+            ...(leder ? [] : [{ timer: { some: { utenProsjekt: true } } }]),
           ],
           ...(datoFilter ? { dato: datoFilter } : {}),
         },
@@ -6052,6 +6120,8 @@ export const dagsseddelRouter = router({
               // Ordre d2b-3: prosjektet avgjør attesteringsretten til kvitteringen.
               projectId: true,
               belop: true,
+              // w10b (S2): kortet utlegget hører til — sendes bare når `utleggIKort` (under).
+              kortId: true,
               // Tillegg/utlegg på prosjektkortet (spec § 6): kortet raden hører til.
               byggeplassId: true,
               externalCostObjectId: true,
@@ -6073,6 +6143,7 @@ export const dagsseddelRouter = router({
         for (const r of s.timer) if (r.projectId) radProjectIder.add(r.projectId);
         for (const r of s.tillegg) radProjectIder.add(r.projectId);
         for (const r of s.maskiner) radProjectIder.add(r.projectId);
+        if (utleggIKort) for (const u of s.utlegg) if (u.projectId) radProjectIder.add(u.projectId);
       }
 
       const [brukere, medlemmer, ekstraProsjekter, orgSetting] = await Promise.all([
@@ -6093,7 +6164,7 @@ export const dagsseddelRouter = router({
           : Promise.resolve([]),
         prisma.organizationSetting.findUnique({
           where: { organizationId: input.organizationId },
-          select: { dagsnorm: true, tillattRedigerVedAttestering: true },
+          select: { dagsnorm: true, tillattRedigerVedAttestering: true, tidsrundingMinutter: true },
         }),
       ]);
 
@@ -6120,6 +6191,18 @@ export const dagsseddelRouter = router({
       // Fallback til Prisma-default hvis settings-rad ikke finnes for firmaet.
       const dagsnorm = orgSetting ? Number(orgSetting.dagsnorm) : 7.5;
       const redigerTillatt = orgSetting?.tillattRedigerVedAttestering ?? false;
+      // w10b (FA13): firmaets tidsrunding følger lista — prosjektlederen kan ikke lese
+      // firmaets innstillinger (`hentSetting` krever firma-admin).
+      const tidsrundingMinutter = orgSetting?.tidsrundingMinutter ?? null;
+
+      // w10b (§ 4.6 punkt 2, R13): prosjektlederen får navn og nummer bare for prosjekter han
+      // har tilgang til (`navnSynlighet`, som prosjektlista hadde). Firma-admin ser alt.
+      const synlig = leder
+        ? await navnSynlighet(ctx.userId, [input.organizationId], radProjectIder)
+        : () => true;
+      const prosjektFor = (projectId: string | null | undefined) =>
+        projectId && synlig(input.organizationId, projectId) ? (prosjektMap.get(projectId) ?? null) : null;
+      const mineProsjektIder = omfang.type === "prosjekter" ? omfang.prosjektIder : null;
 
       // T.11: avledet (live) sertifikat-flagg for leder-synlighet. Kun sedler
       // med maskin-rader er relevante — batch ett oppslag for deres eiere.
@@ -6200,21 +6283,26 @@ export const dagsseddelRouter = router({
         );
         const ukenorm = ukenormMap.get(mandagIso(s.dato)) ?? 0;
         const timerMedProsjekt = s.timer.map((r) => ({
-          ...berikRad(kort, r),
-          project: r.projectId ? (prosjektMap.get(r.projectId) ?? null) : null,
+          ...berikRad(kort, r, synlig(s.organizationId, r.projectId)),
+          project: prosjektFor(r.projectId),
         }));
         const tilleggMedProsjekt = s.tillegg.map((r) => ({
-          ...berikRad(kort, r),
-          project: prosjektMap.get(r.projectId) ?? null,
+          ...berikRad(kort, r, synlig(s.organizationId, r.projectId)),
+          project: prosjektFor(r.projectId),
         }));
         const maskinerMedProsjekt = s.maskiner.map((r) => ({
-          ...berikMaskinRad(kort, r, s.timer),
-          project: prosjektMap.get(r.projectId) ?? null,
+          ...berikMaskinRad(kort, r, s.timer, synlig(s.organizationId, r.projectId)),
+          project: prosjektFor(r.projectId),
         }));
         return {
           ...s,
           // Ordre d2b-3 (d): kvitteringene pr. utlegg.
-          utlegg: s.utlegg.map((u) => ({ ...u, vedlegg: utleggVedlegg.get(u.id) ?? [] })),
+          // w10b (S2): kort-id og prosjekt på utlegget bare når `utleggIKort`.
+          utlegg: s.utlegg.map(({ kortId, ...u }) => ({
+            ...u,
+            ...(utleggIKort ? { kortId, project: prosjektFor(u.projectId) } : {}),
+            vedlegg: utleggVedlegg.get(u.id) ?? [],
+          })),
           // Ordre d2a: varer pr. sedel og radene ukeavviket peker på.
           varer: kort.varer.get(s.id) ?? [],
           ukeAvvikRadIder: kort.ukeAvvik.get(s.id) ?? [],
@@ -6225,7 +6313,7 @@ export const dagsseddelRouter = router({
           tillegg: tilleggMedProsjekt,
           maskiner: maskinerMedProsjekt,
           ansatt: brukerMap.get(s.userId) ?? null,
-          prosjekt: projectId ? (prosjektMap.get(projectId) ?? null) : null,
+          prosjekt: prosjektFor(projectId),
           totaltimer: s.timer.reduce((acc, t) => acc + Number(t.timer), 0),
           // C4 (V1): del totalen i arbeid vs. reise — attestanten ser reise som
           // en egen størrelse, aldri blandet inn i overtidsgrunnlaget. Tallene
@@ -6238,6 +6326,9 @@ export const dagsseddelRouter = router({
           // normKilde), ikke den flate kolonnen. Flat `dagsnorm` er kun fallback.
           dagsnorm: effektivDagsnormMap.get(isoDato) ?? dagsnorm,
           redigerTillatt,
+          // w10b: firmaets tidsrunding og prosjektene brukeren attesterer (null = alle).
+          tidsrundingMinutter,
+          mineProsjektIder,
           // ORDRE 2 STEG 1: beregnet vs. valgt overtid (dag-nivå) — attestanten
           // ser avvik, systemet retter aldri lonnsartId. Uke-nivå-varselet (D2)
           // bygges i STEG 3 oppå denne.
@@ -6254,16 +6345,56 @@ export const dagsseddelRouter = router({
     }),
 
   // Sidebar-gating for firma-attesterings-fanen.
+  // w10b (B3): `kanAttestere` beholder betydningen (firma-admin/sitedoc_admin) — telefonen og
+  // eldre apper leser bare den. `omfang` + `prosjektIder` styrer web-attesteringen.
   kanAttestereFirma: protectedProcedure
     .input(z.object({ organizationId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
-      try {
-        await autoriserAdminForFirma(ctx.userId, input.organizationId);
-        return { kanAttestere: true };
-      } catch {
-        return { kanAttestere: false };
+      const omfang = await attesteringsOmfang(ctx.userId, input.organizationId);
+      if (omfang.type === "alle") {
+        return { kanAttestere: true, omfang: "alle" as const, prosjektIder: [] as string[] };
       }
+      return {
+        kanAttestere: false,
+        omfang: omfang.prosjektIder.length > 0 ? ("prosjekter" as const) : ("ingen" as const),
+        prosjektIder: omfang.prosjektIder,
+      };
     }),
+
+  // w10b (B5, B6): firmaene der brukeren kan attestere, for menyen, søket og firmavalget på
+  // attesteringssiden. Bare firma brukeren er ansatt i (sitedoc_admin velger firma i toppbaren).
+  mineAttesteringsFirmaer: protectedProcedure.query(async ({ ctx }) => {
+    const ansettelser = await prisma.organizationMember.findMany({
+      where: { userId: ctx.userId },
+      select: { organizationId: true },
+    });
+    const orgIder = Array.from(new Set(ansettelser.map((a) => a.organizationId)));
+    const omfang = await Promise.all(
+      orgIder.map(async (id) => [id, await attesteringsOmfang(ctx.userId, id)] as const),
+    );
+    const medOmfang = omfang.filter(([, o]) => o.type === "alle" || o.prosjektIder.length > 0);
+    if (medOmfang.length === 0) return [];
+    const [orgs, moduler] = await Promise.all([
+      prisma.organization.findMany({
+        where: { id: { in: medOmfang.map(([id]) => id) } },
+        select: { id: true, name: true },
+      }),
+      prisma.organizationModule.findMany({
+        where: { organizationId: { in: medOmfang.map(([id]) => id) }, moduleSlug: "timer", status: "aktiv" },
+        select: { organizationId: true },
+      }),
+    ]);
+    const navn = new Map(orgs.map((o) => [o.id, o.name]));
+    const medTimer = new Set(moduler.map((m) => m.organizationId));
+    return medOmfang
+      .map(([id, o]) => ({
+        id,
+        navn: navn.get(id) ?? "",
+        omfang: o.type === "alle" ? ("alle" as const) : ("prosjekter" as const),
+        harTimerModul: medTimer.has(id),
+      }))
+      .sort((a, b) => a.navn.localeCompare(b.navn, "nb"));
+  }),
 
   // Hent én dagsseddel som prosjektleder (for attestering-detaljside).
   // Skiller seg fra hentMedId ved at den autoriserer på krevAttesteringsrett
