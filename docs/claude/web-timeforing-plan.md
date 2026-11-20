@@ -2641,7 +2641,7 @@ Kenneth ba om en ny runde mot avvik i planen. 🟡 Levert i versjon 12: § 4.13 
 
 - **B41 → A.** «hvis jeg trykker knappen +Registrer timer → da må kort A åpne med en gang åpent.» Kortet er åpent når dagen vises; vinduet åpnes ikke av seg selv. 🟡 Vedtatt, ikke bygget (w15a).
 - **B42 → A.** «Når kjørte du?» med «Før arbeid» / «Etter arbeid» og «Start kl.» som kan rettes; slutten regnes av firmaets kjøretid. Endrer vedtaket fra 2026-11-15 om at reisevinduet ikke har tidsfelt. 🟡 Vedtatt, ikke bygget (w15b).
-- **B43 — åpen.** Kenneth: «Reise til annet prosjekt må på eget kort.» Målt: reise til et prosjekt uten jobb på dagen får alt eget kort (`apps/api/src/services/timer/kortId.ts:271–307`, `packages/shared/src/utils/reiseKort.ts:103–105`). Narvik i testen er en byggeplass på samme prosjekt (Sitedoc Boligfelt B12). Kontrollspørsmål til Kenneth: gjelder eget kort også reise til en annen byggeplass på samme prosjekt (B, snur B32 B og B34 B), eller bare annet prosjekt (A, som i dag)?
+- **B43 → B.** Kenneth: «Reise til annet prosjekt må på eget kort», og på kontrollspørsmålet (reise til annen byggeplass på samme prosjekt, som Narvik i testen): «kort b». Reise til et sted ingen jobb på dagen har, får eget kort, også på samme prosjekt. Målt før vedtaket: reise til et prosjekt uten jobb får alt eget kort (`apps/api/src/services/timer/kortId.ts:271–307`, `packages/shared/src/utils/reiseKort.ts:103–105`); byggeplassen styrer i dag bare valget mellom jobber på samme prosjekt. Snur B32 B og B34 B for dette tilfellet. 🟡 Vedtatt, ikke bygget (w15); Fabel reviderer.
 
 ## 9. Rekkefølge
 
