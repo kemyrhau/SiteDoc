@@ -3,7 +3,9 @@
  */
 import { describe, expect, it } from "vitest";
 import {
+  adresseEtterRegistrering,
   byggeplassForRegistrering,
+  loesAapentKort,
   nyKortId,
   registrerLenke,
   registrerTimerSteg,
@@ -91,5 +93,42 @@ describe("komma og dd.mm.", () => {
     expect(spennerFlereAar(["2026-11-17", "2026-11-18"])).toBe(false);
     expect(spennerFlereAar(["2026-12-31", "2027-01-01"])).toBe(true);
     expect(spennerFlereAar([])).toBe(false);
+  });
+});
+
+/** w15a (B41 A): kortet som ble laget/valgt er åpent, og adressen ryddes etter flyten. */
+describe("loesAapentKort", () => {
+  const jobbKort = [{ kortId: "k1", projectId: "p1" }];
+  it("prosjekt-id uten eget kort åpner prosjektets eneste jobbkort", () => {
+    expect(loesAapentKort({ aapentKort: "p1", kortNokler: ["k1"], jobbKort })).toBe("k1");
+  });
+  it("to jobber på prosjektet: ingen gjetning", () => {
+    const to = [...jobbKort, { kortId: "k2", projectId: "p1" }];
+    expect(loesAapentKort({ aapentKort: "p1", kortNokler: ["k1", "k2"], jobbKort: to })).toBe("p1");
+  });
+  it("kjent nøkkel, null og automatisk står som før", () => {
+    expect(loesAapentKort({ aapentKort: "k1", kortNokler: ["k1"], jobbKort })).toBe("k1");
+    expect(loesAapentKort({ aapentKort: null, kortNokler: ["k1"], jobbKort })).toBeNull();
+    expect(loesAapentKort({ aapentKort: undefined, kortNokler: ["k1"], jobbKort })).toBe("k1");
+    expect(loesAapentKort({ aapentKort: undefined, kortNokler: ["k1", "p2"], jobbKort })).toBeNull();
+  });
+  it("ny kort-id (jobb nr. 2, ikke lagret ennå) står", () => {
+    expect(loesAapentKort({ aapentKort: "ny", kortNokler: ["k1"], jobbKort })).toBe("ny");
+  });
+});
+
+describe("adresseEtterRegistrering", () => {
+  it("fjerner registrer, nyttProsjekt og eksisterte; retur står", () => {
+    expect(
+      adresseEtterRegistrering(
+        "/dashbord/timer/s1",
+        "registrer=1&nyttProsjekt=p1&eksisterte=1&retur=%2Fdashbord%2Ftimer%2Fmine",
+      ),
+    ).toBe("/dashbord/timer/s1?retur=%2Fdashbord%2Ftimer%2Fmine");
+  });
+  it("uten andre parametre: bare stien", () => {
+    expect(adresseEtterRegistrering("/dashbord/timer/s1", "registrer=1&nyttProsjekt=p1")).toBe(
+      "/dashbord/timer/s1",
+    );
   });
 });
