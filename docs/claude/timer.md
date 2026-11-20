@@ -838,6 +838,17 @@ Reiseraden bærer kort-id og står i jobbens kort på prosjektet. Spec: `web-tim
 - **Migrering:** `20261120120000_w12_reise_kortid` (bare data, Kenneth kjører); `CHECK (kort_id IS NOT NULL)` i neste utgivelse ([arkitektur.md](arkitektur.md)).
 - **Tester:** `reiseKort.test.ts` og `kortId.test.ts` (shared); `apps/api/src/routes/kortid-skriveveier.integration.test.ts` («w12», én pr. skrivevei, eldre app, isolasjon, attestert reise, radversjon; negativkontroll: uten `sikreKortId` i sletteveien eller uten attestert-vakten → rødt); `reise-kortid-migrering.integration.test.ts` (utfylling og paritet); `kortGruppering.test.ts` (w12: sist i kortet, rekkefølge og alder fra arbeidsrader, reise alene, reise uten kort-id i blokken); `attestering-tabell-modell.test.ts` og `attestering-tabell.test.tsx` («w12»: H.7 like merker, ✓ tar reisen, sum, «Uten», del 8, «Føres på» uten `helJobb`, attestert gir tekst, H.9 lønnsart). Negativkontroller: reise i del 1–7, `helJobb` på «Føres på», sum uten reise, uten «Uten», alder fra alle linjer, reise i blokken → rødt.
 
+### Kortet pr. jobb på PC (w3a, A7) — 🟡 `feat/web-timer-w3a`, ikke merget
+
+Tilleggene er hektet på jobben arbeideren fører timer på. Spec: `web-timeforing-plan.md` § 4.13 (A1, A6–A12) og § 8.13; beslutninger S1–S8 i `relay/inbox-web-timer-w5.md` (SVAR w3a, 2026-11-20).
+
+- **Stedet følger timeraden (A7):** `oppdaterTimerRad` (`apps/api/src/routes/timer/dagsseddel.ts`) som bytter underprosjekt eller byggeplass, flytter koblede maskiner (`sheetTimerId` = raden, samme prosjekt) i samme transaksjon før `sikreKortId`, og koblede varer (egen database) rett etter med rå SQL. Attestert og erstattet maskin og attestert vare (snapshot satt) står (S5 A).
+- **Maskin ført fra jobben (S4 C):** `maskin.tilfoy` med kort-id lagres med timeradens byggeplass og underprosjekt (`jobbStedForMaskin`: oppgitt timerad, ellers jobbens første arbeidsrad i prosjektet). Uten kort-id — dagskort-modus — lagres vinduets sted som før. `maskin.oppdater` tar ikke kort-id og er uendret.
+- **Ikke rettet (funn 6):** attestantens `flyttTimerRadEco` uten `helJobb` og `rettRadFelt` flytter ikke koblet maskin og vare. Egen sak.
+- **Varen på dagssiden:** `vareforbruk.hentMineForDato` (`apps/api/src/routes/vareforbruk.ts`) sender også `kortId` og `createdAt`, så web kan legge varen i jobbens kort. Bare lesing.
+- **Synken** (`syncBatch`) og `sikreKortId` er urørt. Ingen migrering (telling 2026-11-20: 0 koblede maskiner på annet sted enn timeraden i test, 0 maskinrader i prod).
+- **Tester:** `apps/api/src/routes/timer-a7-sted-folger.integration.test.ts` — (1) underprosjekt og (2) byggeplass følger for maskin og vare, (3) ukoblet og annet prosjekt står, (4) attestert står, (5) tilfoy med kort-id får timeradens sted, (6) uten kort-id får vinduets. Negativkontroll: uten rettingen er (1), (2), (3) og (5) røde.
+
 ### Prosjektkort-rute — egen skjerm for samlesiden (ORDRE 35, I2) — 🟡 `feat/prosjektkort-isolert` (2026-11-07, ikke merget)
 
 Kenneth-vedtak I2: prosjektkortets samleside på mobil er flyttet ut av dagskortet til egen rute, så endringer i prosjektkortet ikke kan treffe dagskortet.
