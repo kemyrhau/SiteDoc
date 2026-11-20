@@ -2462,7 +2462,13 @@ Kenneth ba om en ny runde mot avvik i planen. 🟡 Levert i versjon 12: § 4.13 
 - «selve timeregistreringen er jeg fornøyd med nå». w3a er godkjent av Kenneth på test. w3b bestilles.
 - **Tilbake-knappene.** Kenneth gikk Timer (prosjektets side) → Åpne 19.11. → «Tilbake til oversikt» og havnet på «Mine timer», som ikke står i sidemenyen. Målt: dagssiden lenker fast til `/dashbord/timer/mine` (`apps/web/src/app/dashbord/timer/[id]/page.tsx:523`, `:1054`, og `:462` etter sletting). Kenneth: «be fabel sjekke alle tilbake knapper. Sjekk om tilbakeknappen "husker" hvilken side som var brukt tidligere slik at tilbake virkelig er tilbake, og ikke en side som ikke eksisterer». 🟡 Ikke bygget. Egen del etter w3b (orkestratorens anbefaling: knappene finnes i ~19 filer utenfor timeføringen, og w3b rører samme fil som dagssiden). Fabel reviderer først. **Revidert i versjon 13:** § 4.14 (TK1–TK27), delen heter w14 (§ 9), og B39 og B40 er åpne (§ 8).
 
-## 9. Rekkefølge
+### 8.16 Kenneths svar på B39 og B40, 2026-11-20
+
+- **B39 → A.** Lenken som åpner en underside, sender adressen brukeren står på. Tilbake-knappen går dit og sier hvor («Tilbake til Timer»). Åpnes siden direkte, går knappen til en fast reserve. 🟡 Vedtatt, ikke bygget (w14).
+- **B40 → A.** Mine timer blir i brukermenyen. På en dag lyser «Timer» i sidemenyen når brukeren kom fra prosjektets Timer, ellers ingenting. 🟡 Vedtatt, ikke bygget (w14).
+- w14 bestilles i to leveranser: først timeføringen (TK1–TK5 og B40), deretter resten (TK6–TK26).
+
+
 
 Dette er forslag til oppdeling, ikke ordrer. **w1, w2 og w5 er merget** (§ 9.1–9.3). **w12 krever en migrering** (utfylling av kort-id på reise, § 4.11 del E), som Kenneth kjører. **w6 krever en migrering** (ny
 kolonne i firmainnstillingene, B5), som Kenneth kjører. **w7 hadde en migrering** (§ 8.5). **w9 krever en migrering bare hvis B21 besvares med B.** De andre
