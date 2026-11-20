@@ -61,6 +61,8 @@ export function ReiseKort({
   resolverLonnsartId,
   skjulOverforingRetninger,
   erFirmaAdmin,
+  forvalgtByggeplassId,
+  forvalgtEcoId,
   onLukk,
 }: {
   sheetId: string;
@@ -79,15 +81,24 @@ export function ReiseKort({
   skjulOverforingRetninger: ReadonlyArray<"ut" | "retur">;
   /** Firmaadmin får lenke til reise-regelsettet ved manglende art. */
   erFirmaAdmin: boolean;
+  /** w3a (S6 A, B34 B): «+ Reise» fra en jobb — jobbens byggeplass og underprosjekt er
+   *  forvalgt. Feltene står og kan endres. Utelatt = som før. */
+  forvalgtByggeplassId?: string | null;
+  forvalgtEcoId?: string | null;
   onLukk: () => void;
 }) {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
   const [valg, setValg] = useState<ReiseKortValg | null>(null);
-  const [ecoId, setEcoId] = useState<string | null>(null);
+  const [ecoId, setEcoId] = useState<string | null>(forvalgtEcoId ?? null);
   const [feil, setFeil] = useState<string | null>(null);
 
-  const bp = useRadByggeplass({ byggeplasser, projectId });
+  // Forvalgt byggeplass fra jobben erstatter auto-forslaget (jobben er stedet).
+  const bp = useRadByggeplass({
+    byggeplasser,
+    projectId,
+    rad: forvalgtByggeplassId !== undefined ? { byggeplassId: forvalgtByggeplassId } : undefined,
+  });
   const { data: ecoer } = trpc.eksternKostObjekt.list.useQuery({ projectId, organizationId });
 
   const reise = useManuellReiseWeb({

@@ -4,7 +4,7 @@
  * raddialogen, og overlapp-meldingen navngir det andre kortet.
  */
 import type { ReactNode } from "react";
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({ data: {} as Record<string, unknown> }));
@@ -131,12 +131,12 @@ function aapneNyRadIKort(kort: string) {
 describe("prosjektkort — raddialogen", () => {
   afterEach(cleanup);
 
-  it("prosjektet er låst når raden legges til fra et kort", () => {
+  // w3a (S1 A): vinduet fra en jobb arver prosjektet og viser ikke feltet (var: låst nedtrekk).
+  it("prosjektet arves og vises ikke når raden legges til fra et kort", () => {
     rendre("prosjektkort");
     const dialog = aapneNyRadIKort("2050 — Barnehage");
-    const prosjektValg = within(dialog).getAllByRole("combobox")[0] as HTMLSelectElement;
-    expect(prosjektValg.value).toBe("p2");
-    expect(prosjektValg.disabled).toBe(true);
+    expect(dialog.textContent).not.toContain("timer.felt.prosjekt");
+    expect(dialog.textContent).not.toContain("timer.felt.underprosjekt");
   });
 
   it("overlapp-meldingen navngir kortet den andre raden ligger på", () => {

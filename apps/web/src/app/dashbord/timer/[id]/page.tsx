@@ -743,7 +743,7 @@ export default function DagsseddelDetaljSide() {
     projectId: string,
     ecoId: string | null,
     reise?: { id: string; navn: string },
-    jobb?: { kortId: string; aapentProsjekt: boolean },
+    jobb?: { kortId: string; aapentProsjekt: boolean; jobb?: JobbKontekst },
   ) => {
     const sisteTil = timerRader
       .map((r) => r.tilTid)
@@ -1283,6 +1283,7 @@ export default function DagsseddelDetaljSide() {
             aapneNyTimerRad(jobb.projectId, jobb.ecoId, undefined, {
               kortId: jobb.kortId,
               aapentProsjekt: false,
+              jobb,
             })
           }
           onNyJobb={aapneNyJobb}
@@ -1441,6 +1442,8 @@ export default function DagsseddelDetaljSide() {
             .map((r) => r.reiseRetning)
             .filter((x): x is "ut" | "retur" => x === "ut" || x === "retur")}
           erFirmaAdmin={!!orgSetting}
+          forvalgtByggeplassId={aktivModal.jobb?.byggeplassId}
+          forvalgtEcoId={aktivModal.jobb?.ecoId}
           onLukk={() => setAktivModal(null)}
         />
       )}
@@ -1462,7 +1465,9 @@ export default function DagsseddelDetaljSide() {
           // Prosjektkort L1: inne i et kort er prosjektet låst, og overlapp-
           // meldingen navngir det andre kortet.
           laastProsjekt={prosjektkortModus && !aktivModal.aapentProsjekt}
-          kortId={aktivModal.kortId}
+          kortId={aktivModal.kortId ?? aktivModal.jobb?.kortId}
+          // w3a (S1 A, S7 A): åpnet fra en jobb — stedet arves, feltene skjules.
+          jobb={aktivModal.jobb}
           kortNavn={prosjektkortModus ? kortNavnMap : undefined}
           // P1 (maskin-i-rad): sedelens maskin-rader + sedel-pause for den valgfrie
           // maskin-seksjonen (bucket-kapasitet, samme regel som MaskinRadDialog).
@@ -1506,6 +1511,7 @@ export default function DagsseddelDetaljSide() {
           varer={vareKatalog.varer}
           byggeplasser={byggeplasser}
           rad={vareModal.rad}
+          jobb={vareModal.jobb}
           onClose={() => setVareModal(null)}
         />
       )}
@@ -1518,6 +1524,7 @@ export default function DagsseddelDetaljSide() {
               type: "tillegg",
               projectId: aktivModal.projectId,
               laastTilleggId: tilleggId,
+              jobb: aktivModal.jobb,
             })
           }
           onValgUtlegg={(expenseCategoryId) =>
@@ -1525,6 +1532,7 @@ export default function DagsseddelDetaljSide() {
               type: "utlegg",
               projectId: aktivModal.projectId,
               expenseCategoryId,
+              jobb: aktivModal.jobb,
             })
           }
           onLukk={() => setAktivModal(null)}
@@ -1537,6 +1545,7 @@ export default function DagsseddelDetaljSide() {
           byggeplasser={byggeplasser}
           rad={aktivModal.rad}
           laastTilleggId={aktivModal.laastTilleggId}
+          jobb={aktivModal.jobb}
           onLukk={() => setAktivModal(null)}
         />
       )}
@@ -1547,6 +1556,7 @@ export default function DagsseddelDetaljSide() {
           byggeplasser={byggeplasser}
           expenseCategoryId={aktivModal.expenseCategoryId}
           rad={aktivModal.rad}
+          jobb={aktivModal.jobb}
           onLukk={() => setAktivModal(null)}
         />
       )}
@@ -1574,6 +1584,7 @@ export default function DagsseddelDetaljSide() {
             arbeidstidDefaults?.standardPauseEtterTimer ??
             DEFAULT_PAUSE_ETTER_TIMER
           }
+          jobb={aktivModal.jobb}
           onLukk={() => setAktivModal(null)}
         />
       )}
@@ -3220,6 +3231,7 @@ function TimerRadDialog({
   normTimer,
   reiseKontekst,
   kortId,
+  jobb,
   onLukk,
 }: {
   sheetId: string;
@@ -3261,6 +3273,9 @@ function TimerRadDialog({
   /** w2 (B1, WM59): «+ Registrer timer» — ny jobb = nytt kort. Sendes på alle nye
    *  rader dialogen lager (også overtid-delen), så jobben står samlet på ett kort. */
   kortId?: string;
+  /** w3a (S1 A, S7 A): vinduet er åpnet fra en jobb. Prosjekt, underprosjekt og byggeplass
+   *  arves fra jobben og vises ikke; ny rad sendes med jobbens sted. */
+  jobb?: JobbKontekst;
   onLukk: () => void;
 }) {
   const { t, i18n } = useTranslation();
@@ -3329,7 +3344,12 @@ function TimerRadDialog({
     { enabled: !!valgtProjectId },
   );
   // Ordre (10): følger valgt prosjekt — prosjektbytte nullstiller ugyldig valg.
-  const bp = useRadByggeplass({ byggeplasser, projectId: valgtProjectId, rad });
+  // w3a: ny rad i en jobb tar jobbens byggeplass (ingen auto-forslag) — jobben er stedet.
+  const bp = useRadByggeplass({
+    byggeplasser,
+    projectId: valgtProjectId,
+    rad: rad ?? (jobb ? { byggeplassId: jobb.byggeplassId } : undefined),
+  });
 
   // T.10 / §2.D: maskinvelger for kostnadsbærer ved maskinvedlikehold. Hentes
   // kun for interne prosjekter (verksted). Tom liste / inaktiv maskin-modul →
@@ -3384,7 +3404,7 @@ function TimerRadDialog({
   // i en spesifikk ECO-gruppe (eks. ECO «Mur øst»). Ved redigering brukes
   // radens egen ECO.
   const [ecoId, setEcoId] = useState<string | null>(
-    rad?.externalCostObjectId ?? defaultEcoId ?? null,
+    rad ? (rad.externalCostObjectId ?? null) : (jobb?.ecoId ?? defaultEcoId ?? null),
   );
   // T.10: kostnadsbærer for maskinvedlikehold (kun interne prosjekter).
   const [vehicleId, setVehicleId] = useState<string | null>(
@@ -3929,8 +3949,8 @@ function TimerRadDialog({
       }
     >
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* D2: prosjekt i modalen (mobil-paritet). Låst ved redigering. */}
-        <div>
+        {/* D2: prosjekt i modalen (mobil-paritet). Låst ved redigering. w3a: skjult i en jobb. */}
+        {!jobb && (<div>
           <label className="mb-1 block text-sm font-medium text-gray-700">
             {t("timer.felt.prosjekt")}
           </label>
@@ -3951,12 +3971,14 @@ function TimerRadDialog({
               </option>
             ))}
           </select>
-        </div>
-        <RadByggeplassFelt
-          kandidater={bp.kandidater}
-          verdi={bp.byggeplassId}
-          onEndre={bp.setByggeplassId}
-        />
+        </div>)}
+        {!jobb && (
+          <RadByggeplassFelt
+            kandidater={bp.kandidater}
+            verdi={bp.byggeplassId}
+            onEndre={bp.setByggeplassId}
+          />
+        )}
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700">
             {t("firma.timer.fane.lonnsarter")}
@@ -4104,7 +4126,7 @@ function TimerRadDialog({
             </button>
           </div>
         )}
-        <div>
+        {!jobb && (<div>
           <label className="mb-1 block text-sm font-medium text-gray-700">
             {t("timer.felt.underprosjekt")}{" "}
             <span className="text-xs text-gray-400">
@@ -4135,7 +4157,7 @@ function TimerRadDialog({
               </button>
             )}
           </div>
-        </div>
+        </div>)}
         {/* T.10: maskinvedlikehold-kostnadsbærer — kun interne prosjekter med
             maskiner i firmaets register. */}
         {erInternt && equipment && equipment.length > 0 && (
@@ -4323,8 +4345,10 @@ function useRadSted(args: {
   byggeplasser: readonly ByggeplassValg[] | undefined;
   projectId: string;
   rad?: { byggeplassId?: string | null; externalCostObjectId?: string | null };
+  /** w3a: åpnet fra en jobb — stedet arves (ny rad får jobbens sted) og feltene skjules. */
+  jobb?: JobbKontekst;
 }) {
-  const { byggeplasser, projectId, rad } = args;
+  const { byggeplasser, projectId, rad, jobb } = args;
   const bp = useRadByggeplass({
     byggeplasser,
     projectId,
@@ -4339,15 +4363,19 @@ function useRadSted(args: {
   const opprinneligEco = rad?.externalCostObjectId ?? null;
   const [ecoId, setEcoId] = useState<string | null>(opprinneligEco);
   const ecoEndret = !rad || ecoId !== opprinneligEco;
-  const payload: { byggeplassId?: string | null; externalCostObjectId?: string | null } = {
-    ...(rad ? byggeplassPayload(bp) : { byggeplassId: bp.byggeplassId }),
-    ...(ecoEndret ? { externalCostObjectId: ecoId } : {}),
-  };
-  return { bp, ecoer: ecoer ?? [], ecoId, setEcoId, payload };
+  const payload: { byggeplassId?: string | null; externalCostObjectId?: string | null; kortId?: string } =
+    jobb && !rad
+      ? { byggeplassId: jobb.byggeplassId, externalCostObjectId: jobb.ecoId, kortId: jobb.kortId }
+      : {
+          ...(rad ? byggeplassPayload(bp) : { byggeplassId: bp.byggeplassId }),
+          ...(ecoEndret ? { externalCostObjectId: ecoId } : {}),
+        };
+  return { bp, ecoer: ecoer ?? [], ecoId, setEcoId, payload, skjult: !!jobb };
 }
 
 function RadStedFelt({ sted }: { sted: ReturnType<typeof useRadSted> }) {
   const { t } = useTranslation();
+  if (sted.skjult) return null;
   return (
     <>
       <RadByggeplassFelt
@@ -4385,6 +4413,7 @@ function TilleggRadDialog({
   byggeplasser,
   rad,
   laastTilleggId,
+  jobb,
   onLukk,
 }: {
   sheetId: string;
@@ -4394,6 +4423,7 @@ function TilleggRadDialog({
   // U3 (8a): kategori valgt i den unified velgeren → vises read-only her.
   // Redigering (rad) og fri-select-veien er uendret (bit-for-bit sats-flyt).
   laastTilleggId?: string;
+  jobb?: JobbKontekst;
   onLukk: () => void;
 }) {
   const { t } = useTranslation();
@@ -4410,7 +4440,7 @@ function TilleggRadDialog({
     rad ? String(tilTall(rad.antall)) : "1",
   );
   const [kommentar, setKommentar] = useState<string>(rad?.kommentar ?? "");
-  const sted = useRadSted({ byggeplasser, projectId, rad });
+  const sted = useRadSted({ byggeplasser, projectId, rad, jobb });
   const [feil, setFeil] = useState<string | null>(null);
   // D4 (web-paritet): kvittering-opplasting (mobil har kamera/galleri).
   const [vedleggFeil, setVedleggFeil] = useState<string | null>(null);
@@ -5046,6 +5076,7 @@ function UtleggRadDialog({
   byggeplasser,
   expenseCategoryId,
   rad,
+  jobb,
   onLukk,
 }: {
   sheetId: string;
@@ -5053,6 +5084,7 @@ function UtleggRadDialog({
   byggeplasser: readonly ByggeplassValg[] | undefined;
   expenseCategoryId?: string;
   rad?: UtleggRad;
+  jobb?: JobbKontekst;
   onLukk: () => void;
 }) {
   const { t } = useTranslation();
@@ -5060,7 +5092,7 @@ function UtleggRadDialog({
   const sedelFirmaId = useSedelFirma();
   const { data: katalog } = trpc.timer.expenseCategory.list.useQuery({ projectId, organizationId: sedelFirmaId });
 
-  const sted = useRadSted({ byggeplasser, projectId, rad });
+  const sted = useRadSted({ byggeplasser, projectId, rad, jobb });
   const kategoriId = rad?.expenseCategoryId ?? expenseCategoryId ?? "";
   const kat = (katalog as UtleggKategori[] | undefined)?.find(
     (k) => k.id === kategoriId,
@@ -5351,12 +5383,16 @@ function MaskinRadDialog({
   skiftStart,
   standardPauseMin,
   standardPauseEtterTimer,
+  jobb,
   onLukk,
 }: {
   sheetId: string;
   projectId: string;
   byggeplasser: readonly ByggeplassValg[] | undefined;
   defaultEcoId?: string | null;
+  /** w3a: åpnet fra en jobb — timerad, byggeplass og underprosjekt følger jobben og
+   *  vises ikke. Ny maskin kobles til jobbens første arbeidsrad og sendes med kort-id. */
+  jobb?: JobbKontekst;
   // Maskin-fra-til (2026-05-17): forslag fra parent basert på timer-rader
   // i bucket (Alt D — sammenheng-prinsipp). null hvis bucket er tom og
   // ingen firma-default. Brukes kun for ny rad (ikke rediger).
@@ -5441,7 +5477,7 @@ function MaskinRadDialog({
   );
   const [enhet, setEnhet] = useState<string>(rad?.enhet ?? "");
   const [ecoId, setEcoId] = useState<string | null>(
-    rad?.externalCostObjectId ?? defaultEcoId ?? null,
+    rad ? (rad.externalCostObjectId ?? null) : (jobb?.ecoId ?? defaultEcoId ?? null),
   );
   const [feil, setFeil] = useState<string | null>(null);
 
@@ -5455,6 +5491,7 @@ function MaskinRadDialog({
     [alleTimerRader, projectId],
   );
   const [sheetTimerId, setSheetTimerId] = useState<string>(() => {
+    if (jobb && !rad) return jobb.sheetTimerId ?? "";
     if (rad?.sheetTimerId && arbeidsrader.some((r) => r.id === rad.sheetTimerId)) {
       return rad.sheetTimerId;
     }
@@ -5621,14 +5658,15 @@ function MaskinRadDialog({
       fraTid: fraTid || null,
       tilTid: tilTid || null,
       // Ordre (10): kun ved endring — mobilens byggeplass overskrives ikke.
-      ...byggeplassPayload(bp),
+      // w3a: ny maskin i en jobb tar jobbens byggeplass (serveren bekrefter, A7).
+      ...(jobb && !rad ? { byggeplassId: jobb.byggeplassId } : byggeplassPayload(bp)),
       // Ordre d2c-1: tom = uten timerad (bare døgn-maskin slipper gjennom).
       sheetTimerId: sheetTimerId || null,
     };
     if (rad) {
       oppdater.mutate({ id: rad.id, ...data });
     } else {
-      tilfoy.mutate({ sheetId, projectId, ...data });
+      tilfoy.mutate({ sheetId, projectId, ...data, ...(jobb ? { kortId: jobb.kortId } : {}) });
     }
   }
 
@@ -5655,8 +5693,8 @@ function MaskinRadDialog({
             sistBrukt={sistBrukteMaskiner}
           />
         </div>
-        {/* Ordre d2c-1 (R24): timeraden maskinen gikk på. */}
-        <div>
+        {/* Ordre d2c-1 (R24): timeraden maskinen gikk på. w3a: i en jobb følger den jobben. */}
+        {!jobb && (<div>
           <label className="mb-1 block text-sm font-medium text-gray-700">
             {t("timer.felt.timerad")}{" "}
             {!kreverTimerad && (
@@ -5686,12 +5724,14 @@ function MaskinRadDialog({
               {t("timer.maskinTimerad.ingenArbeidsrad")}
             </p>
           )}
-        </div>
-        <RadByggeplassFelt
-          kandidater={bp.kandidater}
-          verdi={bp.byggeplassId}
-          onEndre={bp.setByggeplassId}
-        />
+        </div>)}
+        {!jobb && (
+          <RadByggeplassFelt
+            kandidater={bp.kandidater}
+            verdi={bp.byggeplassId}
+            onEndre={bp.setByggeplassId}
+          />
+        )}
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700">
             {t("timer.felt.antallTimer")}
@@ -5789,7 +5829,7 @@ function MaskinRadDialog({
             </select>
           </div>
         </div>
-        <div>
+        {!jobb && (<div>
           <label className="mb-1 block text-sm font-medium text-gray-700">
             {t("timer.felt.underprosjekt")}{" "}
             <span className="text-xs text-gray-400">
@@ -5820,7 +5860,7 @@ function MaskinRadDialog({
               </button>
             )}
           </div>
-        </div>
+        </div>)}
         {feil && <p className="text-sm text-red-600">{feil}</p>}
         <div className="flex justify-end gap-3 pt-2">
           <Button type="button" variant="secondary" onClick={onLukk}>

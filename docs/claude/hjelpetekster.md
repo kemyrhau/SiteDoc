@@ -163,6 +163,7 @@ Dagsseddel-siden har ikke ?-ikon; teksten står i kortet (`timer.prosjektkort.*`
 - **Lenkeraden pr. jobb:** «+ Timer», «+ Maskin», «+ Vare» (`nyVareKort`, bare når Varelager er på for prosjektet), «+ Reise», «+ Tillegg/Utlegg».
 - **Samlekortet:** «Ført uten jobb» (`utenJobb`) med «Eldre føringer fra før kortet pr. jobb» (`utenJobbHint`) under.
 - **Slett varelinje:** tittel «Slette varelinjen?» (`slettVareTittel`), teksten «Pukk 6-32 · 5 m3 fjernes fra dagen.» (`slettVareTekst`).
+- **Vinduene fra en jobb:** ingen ny tekst. Prosjekt, byggeplass, underprosjekt og timerad vises ikke — jobbens hode viser dem. «+ Reise» har feltene med jobbens verdier forvalgt.
 
 ## Web: Timerad på maskin (`dashbord/timer/[id]/page.tsx`, ordre d2c-1, 🟡 ikke merget)
 

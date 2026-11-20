@@ -35,6 +35,9 @@ export type VareTimeradKandidat = {
  *
  * w3a: med `rad` retter vinduet mengden på en ført linje (`vareforbruk.oppdater`). Varen,
  * timeraden og byggeplassen står som de er — de følger jobben.
+ *
+ * w3a (S2 A): åpnet fra en jobb (`jobb`) vises verken prosjekt, timerad eller byggeplass.
+ * Varen kobles til jobbens første arbeidsrad og sendes med jobbens sted og kort-id.
  */
 export function KortVareforbrukModal({
   projectId,
@@ -45,6 +48,7 @@ export function KortVareforbrukModal({
   varer,
   byggeplasser,
   rad,
+  jobb,
   onClose,
 }: {
   projectId: string;
@@ -57,6 +61,13 @@ export function KortVareforbrukModal({
   byggeplasser: readonly ByggeplassValg[] | undefined;
   /** w3a: ført varelinje som rettes (blyanten i kortet). */
   rad?: { id: string; antall: number; vare: { id: string; navn: string; enhet: string } };
+  /** w3a: jobben vinduet er åpnet fra — stedet og timeraden arves. */
+  jobb?: {
+    kortId: string;
+    byggeplassId: string | null;
+    ecoId: string | null;
+    sheetTimerId: string | null;
+  };
   onClose: () => void;
 }) {
   const { t } = useTranslation();
@@ -67,7 +78,9 @@ export function KortVareforbrukModal({
   const bp = useRadByggeplass({ byggeplasser, projectId });
   const valgtVare = rad?.vare ?? varer.find((v) => v.id === vareId);
   const arbeidsrader = useMemo(() => vareTimerader(timerRader, projectId), [timerRader, projectId]);
-  const [sheetTimerId, setSheetTimerId] = useState<string>(() => arbeidsrader[0]?.id ?? "");
+  const [sheetTimerId, setSheetTimerId] = useState<string>(
+    () => (jobb ? jobb.sheetTimerId : arbeidsrader[0]?.id) ?? "",
+  );
 
   const opprett = trpc.vareforbruk.opprett.useMutation({
     onSuccess: () => {
@@ -94,17 +107,19 @@ export function KortVareforbrukModal({
       oppdater.mutate({ id: rad.id, antall: n });
       return;
     }
-    opprett.mutate(
-      kortVareforbrukInput({
+    opprett.mutate({
+      ...kortVareforbrukInput({
         kortProsjektId: projectId,
         dato,
         vareId,
         antall: n,
-        byggeplassId: bp.byggeplassId,
+        byggeplassId: jobb ? jobb.byggeplassId : bp.byggeplassId,
+        externalCostObjectId: jobb?.ecoId ?? null,
         dagsseddelId,
         sheetTimerId: sheetTimerId || null,
       }),
-    );
+      ...(jobb ? { kortId: jobb.kortId } : {}),
+    });
   }
 
   return (
@@ -114,13 +129,15 @@ export function KortVareforbrukModal({
       title={t(rad ? "vareforbruk.modal.rediger" : "vareforbruk.modal.opprett")}
     >
       <div className="space-y-3">
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
-            {t("timer.felt.prosjekt")}
-          </label>
-          <p className="text-sm text-gray-900">{prosjektNavn}</p>
-        </div>
-        {!rad && arbeidsrader.length > 1 && (
+        {!jobb && (
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              {t("timer.felt.prosjekt")}
+            </label>
+            <p className="text-sm text-gray-900">{prosjektNavn}</p>
+          </div>
+        )}
+        {!rad && !jobb && arbeidsrader.length > 1 && (
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">
               {t("timer.felt.timerad")}
@@ -142,7 +159,7 @@ export function KortVareforbrukModal({
             </select>
           </div>
         )}
-        {!rad && (
+        {!rad && !jobb && (
           <RadByggeplassFelt
             kandidater={bp.kandidater}
             verdi={bp.byggeplassId}
