@@ -121,6 +121,8 @@ Modell-antall er utledbart (`grep -c "^model " packages/db/prisma/schema.prisma`
 
 **`organization_settings.timer_registreringsmodus`** (2026-11-05, `feat/prosjektkort-l1`, migrering `20261105120000_timer_registreringsmodus`, ikke kjørt): `TEXT NOT NULL DEFAULT 'dagskort'` — firmaets visningsmodus for timeføring (`dagskort` \| `prosjektkort`). Kun visning over samme `DailySheet`; ingen backfill (default er gjeldende atferd). Detaljer: [timer.md § Prosjektkort L1](timer.md).
 
+**`timer.sheet_timer.kort_id` på reiserader** (2026-11-20, B32 B, `feat/web-timer-w12`, migrering `20261120120000_w12_reise_kortid`, 🟡 ikke kjørt — Kenneth kjører): steg 1 av to — bare data, ingen ny kolonne. Reiseradene får kort-id etter den delte regelen `velgReiseKort` (`packages/shared/src/utils/reiseKort.ts`), skrevet som én sortering i SQL; reise uten jobb på prosjektet får en utledet id av egen nøkkel. Diskriminerende WHERE `er_reise = true AND kort_id IS NULL`; prosjekt, underprosjekt, byggeplass og `updated_at` røres ikke. Paritet SQL ⇔ delt regel, gate-SQL og «stille tomhet» låses av `apps/api/src/routes/reise-kortid-migrering.integration.test.ts`. Steg 2 (neste utgivelse): utfyllingen én gang til, så `CHECK (kort_id IS NOT NULL)` for alle timerader ([prosjektkort-kortid-spec.md § 3.4](prosjektkort-kortid-spec.md)).
+
 ## Viktige relasjoner
 
 - `dokumentflyt_koblinger` er mange-til-mange: en bruker kan tilhøre flere faggrupper i samme prosjekt via `FaggruppeKobling(projectMemberId, faggruppeId)`

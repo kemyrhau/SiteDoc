@@ -90,7 +90,7 @@ Valget er Kenneths (**B1**).
 
 | Tabell (server · mobil) | `kort_id` | Regel |
 |---|---|---|
-| `timer.sheet_timer` · `sheet_timer_local` | Ja, alle **arbeidsrader**. Reise-rader: alltid `NULL`. ⚠️ **SNUDD 2026-11-20 (Kenneth, B32 B):** reiseraden bærer kort-id og ligger i jobbens kort — `web-timeforing-plan.md` § 4.11 (w12, 🟡 ikke bygget). Til w12 er merget, gjelder teksten her. | Reise ligger i dag-seksjonen og lager ikke kort (`prosjektkortMobil.ts:286`; vedtak «reise skilt fra arbeid» 2026-11-14). |
+| `timer.sheet_timer` · `sheet_timer_local` | Ja, alle **arbeidsrader**. Reise-rader: alltid `NULL`. ⚠️ **SNUDD 2026-11-20 (Kenneth, B32 B):** reiseraden bærer kort-id og ligger i jobbens kort — `web-timeforing-plan.md` § 4.11 (w12; utfyllingen av eksisterende reiserader er `packages/db-timer/prisma/migrations/20261120120000_w12_reise_kortid/migration.sql`, 🟡 `feat/web-timer-w12`, ikke merget, ikke kjørt). Til w12 er merget, gjelder teksten her. | Reise ligger i dag-seksjonen og lager ikke kort (`prosjektkortMobil.ts:286`; vedtak «reise skilt fra arbeid» 2026-11-14). |
 | `timer.sheet_machines` · `sheet_machine_local` | Ja. | Koblet maskin (`sheetTimerId`) har alltid radens kort. Ukoblet («Uten rad») bærer eget `kort_id`. |
 | `timer.sheet_tillegg` · `sheet_tillegg_local` | Ja. | Linja velger kort (ORDRE 25: datokortet). |
 | `timer.sheet_utlegg` · `sheet_utlegg_local` | Ja. | Som tillegg. |
@@ -181,7 +181,7 @@ i samme kjøring. Koblet maskin/vare får radens id. Ingen Prisma-endring; SQLit
 | Krav (arkitektur.md) | Hvordan |
 |---|---|
 | (a) Backfill | § 3.2 + § 3.3, i samme release som kolonnen. |
-| (b) DB-garanti | `CHECK` på rad-nivå: `sheet_timer`: `(er_reise AND kort_id IS NULL) OR (NOT er_reise AND kort_id IS NOT NULL)` (⚠️ SNUDD 2026-11-20, B32 B: blir `kort_id IS NOT NULL` for alle timerader, i utgivelsen etter w12 — `web-timeforing-plan.md` § 4.11 del E; `CHECK`-en er ikke lagt på); maskin/tillegg/utlegg: `kort_id IS NOT NULL`; vareforbruk: `dagsseddel_id IS NULL OR kort_id IS NOT NULL`. **Når** den legges på er B2. |
+| (b) DB-garanti | `CHECK` på rad-nivå: `sheet_timer`: `(er_reise AND kort_id IS NULL) OR (NOT er_reise AND kort_id IS NOT NULL)` (⚠️ SNUDD 2026-11-20, B32 B: blir `kort_id IS NOT NULL` for alle timerader, i utgivelsen etter w12 — `web-timeforing-plan.md` § 4.11 del E; steg 1-utfyllingen er `20261120120000_w12_reise_kortid` (🟡 `feat/web-timer-w12`); steg 2 kjører den én gang til og legger så på `CHECK`-en, som ikke er lagt på); maskin/tillegg/utlegg: `kort_id IS NOT NULL`; vareforbruk: `dagsseddel_id IS NULL OR kort_id IS NOT NULL`. **Når** den legges på er B2. |
 | (c) Test som feiler når feltet er tomt | Integrasjonstest pr. skrivevei i M8 (rad uten `kort_id` etter kall = rød) + mobiltest pr. skrivevei i M9 + gate-SQL under. |
 
 **Gate-SQL Kenneth kjører etter migrering (1, 2 og 3a skal gi 0; 3b er til orientering):**
