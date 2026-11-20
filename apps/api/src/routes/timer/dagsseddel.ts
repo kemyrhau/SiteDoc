@@ -313,12 +313,6 @@ export async function attesteringsOmfang(
   };
 }
 
-/**
- * w10b S2 (venter på Kenneth): skal firma-admin også få `kortId` og `project` på utleggene i
- * firmalista (utlegget står da i jobbens kort)? `false` = bare prosjektlederen får dem, og
- * firma-admin får nøyaktig samme svar som før w10b. Ett sted å bytte.
- */
-const UTLEGG_I_KORT_FOR_ALLE = false;
 
 /** Omfanget som kaster FORBIDDEN når det er tomt (samme feil som `autoriserAdminForFirma`). */
 async function krevAttesteringsOmfang(userId: string, organizationId: string): Promise<AttesteringsOmfang> {
@@ -5803,8 +5797,6 @@ export const dagsseddelRouter = router({
       // w10b (§ 4.6): firma-admin/sitedoc_admin = alle; prosjektleder = sine prosjekter.
       const omfang = await krevAttesteringsOmfang(ctx.userId, input.organizationId);
       const leder = omfang.type === "prosjekter";
-      // w10b S2 (venter på Kenneth): utlegg i jobbens kort for alle omfang, eller bare lederen.
-      const utleggIKort = leder || UTLEGG_I_KORT_FOR_ALLE;
 
       const prosjekter = await ctx.prisma.project.findMany({
         where:
@@ -5884,7 +5876,7 @@ export const dagsseddelRouter = router({
               // Ordre d2b-3: prosjektet avgjør attesteringsretten til kvitteringen.
               projectId: true,
               belop: true,
-              // w10b (S2): kortet utlegget hører til — sendes bare når `utleggIKort` (under).
+              // w10b (S2 A, plan § 8.12): kortet utlegget hører til — for alle omfang (under).
               kortId: true,
               // Tillegg/utlegg på prosjektkortet (spec § 6): kortet raden hører til.
               byggeplassId: true,
@@ -5907,7 +5899,7 @@ export const dagsseddelRouter = router({
         for (const r of s.timer) if (r.projectId) radProjectIder.add(r.projectId);
         for (const r of s.tillegg) radProjectIder.add(r.projectId);
         for (const r of s.maskiner) radProjectIder.add(r.projectId);
-        if (utleggIKort) for (const u of s.utlegg) if (u.projectId) radProjectIder.add(u.projectId);
+        for (const u of s.utlegg) if (u.projectId) radProjectIder.add(u.projectId);
       }
 
       const [brukere, medlemmer, ekstraProsjekter, orgSetting] = await Promise.all([
@@ -6061,10 +6053,11 @@ export const dagsseddelRouter = router({
         return {
           ...s,
           // Ordre d2b-3 (d): kvitteringene pr. utlegg.
-          // w10b (S2): kort-id og prosjekt på utlegget bare når `utleggIKort`.
-          utlegg: s.utlegg.map(({ kortId, ...u }) => ({
+          // w10b (S2 A, Kenneth, plan § 8.12): kort-id og prosjekt (med navneskjul) på utlegget
+          // for alle omfang — utlegget står i jobbens kort også for firma-admin (kort-id-spec § 6).
+          utlegg: s.utlegg.map((u) => ({
             ...u,
-            ...(utleggIKort ? { kortId, project: prosjektFor(u.projectId) } : {}),
+            project: prosjektFor(u.projectId),
             vedlegg: utleggVedlegg.get(u.id) ?? [],
           })),
           // Ordre d2a: varer pr. sedel og radene ukeavviket peker på.

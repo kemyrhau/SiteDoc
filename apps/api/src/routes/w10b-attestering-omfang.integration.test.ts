@@ -21,7 +21,8 @@ import { organisasjonRouter } from "./organisasjon";
  *     attestering av rader han ikke leder.
  * O5  F1: sedel med bare fravær står ikke i lederens liste; fravær på sedel med rad på hans
  *     prosjekt følger firmavalget i begge stillinger.
- * O6  Firma-admin får samme svar som før (samme sedler, samme felt + to nye, utlegg uten kort).
+ * O6  Firma-admin får samme svar som før (samme sedler, samme felt + to nye), unntatt S2 A:
+ *     utlegget har `kortId` og `project` og står i jobbens kort (plan § 8.12).
  * O7  `kanAttestereFirma.kanAttestere` er usann for lederen (telefonen).
  * O8  Firma-admin i et deltakerfirma får ikke omfang i eierfirmaet (firmaadmin-eierfirma).
  * O9  Ansattnummer fra sedelens firma (M7); tidsrunding og `mineProsjektIder` i lista.
@@ -375,7 +376,7 @@ describe("O4 — navneskjul (R13) og serverens sperre", () => {
     expect(s.timer.find((r) => r.id === R_P1)!.project?.name).toBe("Ledet bygg");
   });
 
-  it("utlegg: kort-id og prosjekt for lederen, med navneskjul (S2 B)", async () => {
+  it("utlegg: kort-id og prosjekt for lederen, med navneskjul (S2)", async () => {
     const s = (await liste(LEDER)).find((x) => x.id === S_P1)!;
     const u1 = s.utlegg.find((u) => u.id === U_P1)!;
     const u3 = s.utlegg.find((u) => u.id === U_P3)!;
@@ -416,20 +417,32 @@ describe("O6 — firma-admin får samme svar som før", () => {
   // Feltene firmalista ga før w10b (dagsseddel.ts før endringen) + de to nye.
   const NYE = ["mineProsjektIder", "tidsrundingMinutter"];
   const UTLEGG_FOR = ["belop", "byggeplassId", "expenseCategory", "externalCostObjectId", "id", "projectId", "vedlegg"];
+  // S2 A (Kenneth, plan § 8.12): de eneste nye utleggsfeltene for firma-admin.
+  const UTLEGG_S2 = ["kortId", "project"];
 
   it("alle firmaets sedler, også bare fravær; ingen andre firmas", async () => {
     const ider = (await liste(FADMIN)).map((s) => s.id).sort();
     expect(ider).toEqual([S_P1, S_P3, S_FRAV, S_P1_FRAV].sort());
   });
 
-  it("alle navn synlige, utlegg uten kort-id og prosjekt, mineProsjektIder null", async () => {
+  it("alle navn synlige, utlegg med samme felt + S2-feltene, mineProsjektIder null", async () => {
     const svar = await liste(FADMIN);
     const s = svar.find((x) => x.id === S_P1)!;
     expect(s.timer.find((r) => r.id === R_P3)!.project?.name).toBe("Hemmelig bygg");
     expect(s.timer.find((r) => r.id === R_P3)!.byggeplassNavn).toBe("Hemmelig byggeplass");
-    for (const u of s.utlegg) expect(Object.keys(u).sort()).toEqual(UTLEGG_FOR);
+    for (const u of s.utlegg) expect(Object.keys(u).sort()).toEqual([...UTLEGG_FOR, ...UTLEGG_S2].sort());
     expect(s.mineProsjektIder).toBeNull();
     for (const k of NYE) expect(Object.keys(s)).toContain(k);
+  });
+
+  it("S2 A: utlegget står i jobbens kort for firma-admin, uten navneskjul", async () => {
+    const s = (await liste(FADMIN)).find((x) => x.id === S_P1)!;
+    const u1 = s.utlegg.find((u) => u.id === U_P1)!;
+    const u3 = s.utlegg.find((u) => u.id === U_P3)!;
+    expect(u1.kortId).toBe("kort-p1");
+    expect((u1.project as { name: string } | null)?.name).toBe("Ledet bygg");
+    expect(u3.kortId).toBe("kort-p3");
+    expect((u3.project as { name: string } | null)?.name).toBe("Hemmelig bygg");
   });
 
   it("samme svar for sitedoc_admin og firma-admin", async () => {

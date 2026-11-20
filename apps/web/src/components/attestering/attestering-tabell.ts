@@ -323,7 +323,7 @@ function byggDag(s: AttSedel, deps: AttDeps): AttDag {
   });
 
   // `prosjekt`: objektet = navn og nummer; `null` med projectId = annet prosjekt uten
-  // tilgang (prosjektlista, R13); `undefined` = ikke oppgitt (vare, firmalistens utlegg).
+  // tilgang (prosjektlista, R13); `undefined` = ikke oppgitt (vare).
   const felles = (projectId: string | null | undefined, prosjekt: MedProsjektnummer["project"], beriket: Partial<Beriket> & { externalCostObjectId?: string | null }) => ({
     dato,
     ansatt,
