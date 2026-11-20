@@ -111,7 +111,8 @@ For alle rader med samme `kort_id`:
   kort, skrives den på alle kortets arbeidsrader.
 - **K6** koblet maskin/vare har samme `kort_id` som timerraden den er koblet til.
 - **K7** to kort kan ha identiske K2–K4 (grøft og skifer). Det er hele poenget; ingen leser slår dem sammen.
-- ⚠️ **Reise i kortet (B32 B, Kenneth 2026-11-20, 🟡 ikke bygget):** for en reiserad gjelder K1 og K2. K4 og K5
+- ⚠️ **Reise i kortet (B32 B, Kenneth 2026-11-20, 🟡 valideringen bygget i `feat/web-timer-w12`, ikke merget —
+  `validerKortInvariant` med `erReise`, `packages/shared/src/utils/kortId.ts`):** for en reiserad gjelder K1 og K2. K4 og K5
   gjelder ikke, K3 er ikke et krav for reise (B34 B, Kenneth 2026-11-20: arbeideren bestemmer hvor reisen føres; regelen foretrekker jobben med samme underprosjekt), og reiseraden teller ikke når kortets nøkkel avgjøres —
   `web-timeforing-plan.md` § 4.11 del A punkt 6.
 
@@ -128,6 +129,11 @@ mobilfila re-eksporterer, så ingen kaller endres.
 2. **Raden finnes fra før og nøkkelen (K2–K4) er uendret** → raden beholder sin lagrede id.
 3. **Ellers** (ny rad uten oppgitt id, eller eldre klient flyttet raden): det **eldste** kortet på sedelen med samme
    nøkkel; finnes ingen → **utledet id** (§ 3.2) for nøkkelen.
+
+**Reiserad (w12, B32 B, B34 B, 🟡 `feat/web-timer-w12`, ikke merget):** regel 1–3 gjelder ikke. Kort-id-en regnes av
+`velgReiseKort` (`packages/shared/src/utils/reiseKort.ts`) hver gang sedelen skrives — jobben med samme underprosjekt,
+så samme byggeplass, så første jobb for utreise og siste for retur; ingen jobb på prosjektet → utledet id av reisens
+egen nøkkel. Klientens verdi leses ikke. Hele regelen: `web-timeforing-plan.md` § 4.11 del A.
 
 Nytt kort laget av brukeren («+ Nytt prosjektkort», «Del til eget kort») får tilfeldig UUID fra klienten.
 Regel 3 gjør at dagskort-modus-firma (M21) og eldre klienter får fylt feltet uten å vite om kort.

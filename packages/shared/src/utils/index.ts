@@ -707,6 +707,9 @@ export {
   type KortInvariantRad,
   type KortInvariantBrudd,
 } from "./kortId";
+// w12 (B32 B, B34 B): hvilken jobb en reiserad står i — én regel for server, telefon og SQL.
+export { velgReiseKort, jobberFraArbeidsrader, jobbRekkefolge } from "./reiseKort";
+export type { ReiseKortJobb, ReiseKortReise, ReiseKortArbeidsrad } from "./reiseKort";
 
 // Fravær uten prosjekt (kort-id-spec § 11.2).
 export {
