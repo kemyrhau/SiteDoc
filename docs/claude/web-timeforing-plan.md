@@ -2268,6 +2268,12 @@ Kenneth ba om en ny runde mot avvik i planen. 🟡 Levert i versjon 12: § 4.13 
 - **Presisering 3 samme dag:** «La maskinene være et eksempel for alle andre typer tillegg også. Slik at disse tilleggene er hektet på den jobben den ansatte registrerer sine timer». Lest: maskin, varer, vareforbruk, reise, tillegg og utlegg føres alle på samme måte som maskinen. De henger på jobben (fra–til), arver jobbens prosjekt, byggeplass og underprosjekt, og har bare de feltene som hører til typen. Fabels avviksrunde måler hver type mot dette.
 - **Presisering 4 samme dag (attestering):** «Ved attestering, så er det viktig at alle disse tingene kan ses i sammenheng med hverandre. Kun på den måten kan en ansatt som attesterer en annen ansatt forstå hva den personen gjorde, og hva som skal videre faktureres.» Lest: i attesteringen står jobben (fra–til, «Hva gjorde du?») samlet med maskin, varer, vareforbruk, reise, tillegg og utlegg. Attestanten ser alt som hører til jobben på ett sted, uten å lete i andre blokker.
 
+### 8.14 Kenneths svar på B37 og B38, 2026-11-20
+
+- **B37 → A, med tillegg.** Mengde føres bare som vare. Kenneth: «dersom varelager ikke er påslått -> skjul + varelager. For firma administrator viser vi link til hvor varelager slås på.» Lest: «+ Vare» vises ikke på jobben når firmaet ikke har varelager, som i dag (`packages/shared/src/utils/prosjektkort.ts:206–215`). Firmaadministrator ser i stedet en lenke til stedet der varelager slås på. 🟡 Vedtatt, ikke bygget. Kommer i w3b; koderen måler hvor varelager slås på.
+- **B38 → A.** Firmaet kan ikke slå på fra–til for maskin. B5 er opphevet, og w6 utgår, uten migrering. Maskin føres med utstyr og antall timer (§ 8.13). 🟡 Vedtatt, ikke bygget (w3b).
+- w3b kan bestilles etter w3a, fordi begge rører `WS`.
+
 ## 9. Rekkefølge
 
 Dette er forslag til oppdeling, ikke ordrer. **w1, w2 og w5 er merget** (§ 9.1–9.3). **w12 krever en migrering** (utfylling av kort-id på reise, § 4.11 del E), som Kenneth kjører. **w6 krever en migrering** (ny
