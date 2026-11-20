@@ -54,18 +54,18 @@ interface Props {
 }
 
 /**
- * Lønnsartene kortet tilbyr (w10a A1, plan § 4.7 punkt 6): kortet for reisen tilbyr bare
- * reisearter, kortet for en jobb ingen reisearter. Lagret art står alltid med, så valget aldri
- * viser feil verdi. Regelen gjelder i dag kortet (`kort.reise`); skal den gjelde linjetypen, er det
- * bare `vilReise` som endres. Uten reisekonteksten (ikke lastet) tilbys bare lagret art.
+ * Lønnsartene linja tilbyr (w10a A1, plan § 4.7 punkt 6; Fabel 2026-11-20): regelen gjelder
+ * linjetypen, ikke kortet. En reiselinje (`erReise`) tilbyr bare reisearter, en arbeidslinje ingen
+ * reisearter. Lagret art står alltid med, så valget aldri viser feil verdi. Uten reisekonteksten
+ * (ikke lastet) tilbys bare lagret art.
  */
 export function tillatteLonnsarter<L extends { id: string; navn: string }>(
-  kort: Pick<AttKort, "reise">,
+  linje: { erReise?: boolean | null },
   lonnsarter: readonly L[],
   ktx: ErReiseKontekst | null,
   lagretId: string,
 ): L[] {
-  const vilReise = kort.reise;
+  const vilReise = linje.erReise === true;
   return lonnsarter.filter((l) => l.id === lagretId || (ktx !== null && erReiseLonnsart(l.id, l.navn, ktx) === vilReise));
 }
 
@@ -329,7 +329,7 @@ export function RegistreringPanel({ kort, sedel, orgId, kanAttestere, kanRette, 
                       disabled={rett.isPending}
                       className="rounded border border-gray-300 bg-white px-2 py-1 text-sm"
                     >
-                      {tillatteLonnsarter(kort, lonnsarter, reiseKtx, r.lonnsartId).map((x) => <option key={x.id} value={x.id}>{x.navn}</option>)}
+                      {tillatteLonnsarter(r, lonnsarter, reiseKtx, r.lonnsartId).map((x) => <option key={x.id} value={x.id}>{x.navn}</option>)}
                     </select>
                   ) : <span>{l.linje.betegnelse}</span>}
                   {splittKnapp(l)}

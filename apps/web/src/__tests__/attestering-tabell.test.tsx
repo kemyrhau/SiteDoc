@@ -930,19 +930,20 @@ describe("w7 (B15) — egne timer: synlige, merket, uten handlinger", () => {
 
 import { tillatteLonnsarter, jobbensBeskrivelser } from "@/components/attestering/RegistreringPanel";
 
-describe("w10a (A1) — lønnsartvalget i kortet følger kortets slag", () => {
+describe("w10a (A1) — lønnsartvalget følger linjetypen", () => {
   const ktx = { reiseLonnsartId: "lr", grensepunktLonnsartIds: ["lg"] };
   const arter = [{ id: "l1", navn: "Ordinær" }, { id: "lr", navn: "Reise" }, { id: "lg", navn: "Reise 30–60 km" }, { id: "l2", navn: "Overtid 50 %" }];
-  const kort = (reise: boolean) => ({ reise }) as Parameters<typeof tillatteLonnsarter>[0];
+  const linje = (erReise: boolean | null) => ({ erReise });
 
-  it("jobbkortet tilbyr ingen reisearter; reisekortet bare reisearter", () => {
-    expect(tillatteLonnsarter(kort(false), arter, ktx, "l1").map((x) => x.id)).toEqual(["l1", "l2"]);
-    expect(tillatteLonnsarter(kort(true), arter, ktx, "lr").map((x) => x.id)).toEqual(["lr", "lg"]);
+  it("arbeidslinja tilbyr ingen reisearter; reiselinja bare reisearter", () => {
+    expect(tillatteLonnsarter(linje(false), arter, ktx, "l1").map((x) => x.id)).toEqual(["l1", "l2"]);
+    expect(tillatteLonnsarter(linje(null), arter, ktx, "l1").map((x) => x.id)).toEqual(["l1", "l2"]);
+    expect(tillatteLonnsarter(linje(true), arter, ktx, "lr").map((x) => x.id)).toEqual(["lr", "lg"]);
   });
 
   it("den lagrede arten står alltid, også når den bryter regelen; uten kontekst bare den lagrede", () => {
-    expect(tillatteLonnsarter(kort(false), arter, ktx, "lr").map((x) => x.id)).toEqual(["l1", "lr", "l2"]);
-    expect(tillatteLonnsarter(kort(false), arter, null, "l1").map((x) => x.id)).toEqual(["l1"]);
+    expect(tillatteLonnsarter(linje(false), arter, ktx, "lr").map((x) => x.id)).toEqual(["l1", "lr", "l2"]);
+    expect(tillatteLonnsarter(linje(false), arter, null, "l1").map((x) => x.id)).toEqual(["l1"]);
   });
 
   it("i kortet: valget viser bare jobbens arter, og et valg sendes som lonnsartId", () => {
