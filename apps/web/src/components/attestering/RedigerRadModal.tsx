@@ -134,7 +134,7 @@ export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
     { projectId, organizationId: sheet?.organizationId },
     { enabled: !!projectId },
   );
-  const { data: setting } = trpc.organisasjon.hentSetting.useQuery(
+  const { data: setting } = trpc.organisasjon.hentArbeidstidDefaults.useQuery(
     { organizationId: sheet?.organizationId ?? "" },
     { enabled: !!sheet?.organizationId },
   );

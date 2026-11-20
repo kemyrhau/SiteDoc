@@ -110,13 +110,14 @@ export default function AttesteringSide() {
 
 function FirmaTabell({ orgId, sedler, prosjektId }: { orgId: string; sedler: ProsjektSedel[]; prosjektId: string }) {
   const dager = useAttesteringModell(orgId || undefined, sedler);
+  const kontekst = useMemo(() => new Set([prosjektId]), [prosjektId]);
   return (
     <AttesteringTabell
       dager={dager}
       orgId={orgId}
       readOnly={false}
       verktoy={null}
-      prosjektKontekst={prosjektId}
+      prosjektKontekst={kontekst}
       sedelUrl={(id) => `/dashbord/${prosjektId}/timer/attestering/${id}`}
     />
   );

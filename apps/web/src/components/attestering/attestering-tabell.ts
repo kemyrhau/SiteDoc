@@ -638,11 +638,11 @@ export function slaaSammen(linjer: readonly AttLinje[]): RadIder {
 export const antallRader = (r: RadIder) => r.timerIder.length + r.maskinIder.length + r.tilleggIder.length;
 
 /**
- * Kan linja velges i denne konteksten (F1, `radIKontekst`)? Firmaattesteringen har ingen kontekst.
+ * Kan linja velges i denne konteksten (F1, `radIKontekst`)? Firma-admin har ingen kontekst; prosjektlederen har sine prosjekter (w10b).
  * w7 (B15): aldri på attestantens egen sedel (`egneTimer`) — knappene skjules, linja tones ned og
  * «Attester utvalget» hopper over den. Serveren håndhever det samme (`krevIkkeEgenSedel`).
  */
-export function linjeIKontekst(l: AttLinje, sedel: AttSedel, prosjektKontekst?: string): boolean {
+export function linjeIKontekst(l: AttLinje, sedel: AttSedel, prosjektKontekst?: ReadonlySet<string>): boolean {
   if (sedel.egneTimer) return false;
   return radIKontekst(l.projectId, prosjektKontekst, sedel.fravaerKanAttesteres);
 }
@@ -654,7 +654,7 @@ export function linjeIKontekst(l: AttLinje, sedel: AttSedel, prosjektKontekst?: 
 export function byggUtvalg(
   linjer: readonly AttLinje[],
   sedelFor: (sheetId: string) => AttSedel | undefined,
-  prosjektKontekst?: string,
+  prosjektKontekst?: ReadonlySet<string>,
 ): { radIder: RadIder; antallLinjer: number; stoende: number } {
   const kandidater = linjer.filter((l) => {
     const s = sedelFor(l.sheetId);
@@ -675,7 +675,7 @@ export function byggJobbUtvalg(
   synligeKort: readonly string[],
   valgte: ReadonlySet<string>,
   sedelFor: (sheetId: string) => AttSedel | undefined,
-  prosjektKontekst?: string,
+  prosjektKontekst?: ReadonlySet<string>,
 ): { radIder: RadIder; antallJobber: number; stoende: number } {
   const kortFor = new Map<string, AttKort>();
   for (const d of dager) for (const k of d.kort) kortFor.set(k.nokkel, k);

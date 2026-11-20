@@ -348,7 +348,7 @@ Avkrysning i eksportmenyen, rett over CSV/Excel/PDF, og i mal-redigereren (`apps
 
 ## Firma → Timer → Attestering: Sedler som tabell (kort-id-spec d2b-1, § 12.8.5, 🟡 ikke merget)
 
-`apps/web/src/app/dashbord/firma/timer/attestering/page.tsx` har `HjelpKnapp` med fanen «Attestering» (`timer.attestering.tabell.hjelp.tittel`). Den løse beskrivelsen over fanene er flyttet inn som første avsnitt (`firma.timer.attesteringBeskrivelse`). Øvrige avsnitt:
+`apps/web/src/app/dashbord/attestering/page.tsx` (🟡 w10b, `feat/web-timer-w10b`: flyttet fra `/dashbord/firma/timer/attestering`, som nå sender hit) har `HjelpKnapp` med fanen «Attestering» (`timer.attestering.tabell.hjelp.tittel`) i sidehodet. Første avsnitt er `firma.timer.attesteringBeskrivelse`; andre avsnitt (w10b) er hvem som ser hva: «Firmaadministrator ser alle sedler i firmaet. Prosjektleder og den som kan attestere på et prosjekt, ser sedlene med rader på sine prosjekter og attesterer bare de radene; rader på andre prosjekter står nedtonet.» (`timer.attestering.hjelp.omfang`). Uten tilgang i noe firma: «Du kan ikke attestere timer i noe firma.» (`timer.attestering.ingenTilgangFirma`). Firmavalget i sidehodet (`firma.velgFirma`) står bare når brukeren kan attestere i mer enn ett firma. Øvrige avsnitt:
 
 - **Struktur:** «Hver dag er én dagsseddel. Under den står prosjektsedlene med en oversiktsrad, og linjene under hver prosjektseddel. Nederst på dagen står summen for dagsseddelen.» (`…hjelp.struktur`)
 - **Handlinger:** ✓/↩/↺ på linje, oversiktsrad og dag; sperren står i Avvik-kolonnen og stopper ✓ (`…hjelp.handlinger`).
@@ -388,7 +388,7 @@ Fra w10a i web-timeføring (🟡 ikke merget, `feat/web-timer-w10a`, plan § 4.5
 
 ## Prosjekt → Timer → Attestering (d2b-2, 🟡 ikke merget)
 
-`apps/web/src/app/dashbord/[prosjektId]/timer/attestering/page.tsx` har `HjelpKnapp` (fanen «Attestering»). Første avsnitt: «Her attesterer du timene som er ført på dette prosjektet. Linjer den ansatte har ført på andre prosjekter samme dag, står nedtonet og kan ikke velges. Har du ikke tilgang til det andre prosjektet, står det «Annet prosjekt».» (`timer.attestering.prosjekt.hjelp.laast`); deretter struktur, handlinger og retting som på firmasiden. Dagsumraden har «Attester prosjektets del» (`timer.attestering.tabell.attesterProsjektetsDel`).
+`apps/web/src/app/dashbord/[prosjektId]/timer/attestering/page.tsx` har `HjelpKnapp` (fanen «Attestering»). Første avsnitt: «Her attesterer du timene som er ført på dette prosjektet. Linjer den ansatte har ført på andre prosjekter samme dag, står nedtonet og kan ikke velges. Har du ikke tilgang til det andre prosjektet, står det «Annet prosjekt».» (`timer.attestering.prosjekt.hjelp.laast`); deretter struktur, handlinger og retting som på firmasiden. Dagsumraden har «Attester radene på dine prosjekter» (`timer.attestering.tabell.attesterDineProsjekter`, 🟡 w10b — erstatter «Attester prosjektets del»; samme knapp står for prosjektlederen på `/dashbord/attestering`).
 
 Fra d2b-3 (🟡 ikke merget) har firmasiden også «Avvik denne uka»-avsnittet (`timer.attestering.tabell.hjelp.ukeavvik`: «sammenligner hele ukas timer (sendt og attestert) med ukenormen — ikke bare dagen eller linjene du ser») og kvitteringsavsnittet (`…hjelp.kvittering`: «Et utlegg med kvittering viser et miniatyrbilde eller en binders på linjen. Klikk for å åpne kvitteringen og kontrollere den før du attesterer.»); prosjektsiden har kvitteringsavsnittet. Lenken har tittelen «Åpne kvitteringen (filnavn)» (`…tabell.aapneKvittering`).
 

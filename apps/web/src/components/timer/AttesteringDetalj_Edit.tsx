@@ -113,7 +113,7 @@ export function AttesteringDetaljEdit({
   );
 
   // T.5: hent tidsrunding fra firma-setting for time-input runding.
-  const { data: setting } = trpc.organisasjon.hentSetting.useQuery(
+  const { data: setting } = trpc.organisasjon.hentArbeidstidDefaults.useQuery(
     { organizationId },
     { enabled: !!organizationId },
   );

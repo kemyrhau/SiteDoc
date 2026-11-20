@@ -3,6 +3,7 @@
 // T7-2b1 (2026-05-14): tynn wrapper rundt AttesteringDetalj-felleskomponenten.
 // Tidligere innhold (591 linjer) flyttet til apps/web/src/components/timer/AttesteringDetalj.tsx.
 
+import { useMemo } from "react";
 import { useParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { AlertCircle } from "lucide-react";
@@ -13,6 +14,7 @@ import { AttesteringDetalj } from "@/components/timer/AttesteringDetalj";
 export default function AttesteringDetaljProsjektSide() {
   const { t } = useTranslation();
   const params = useParams<{ prosjektId: string; id: string }>();
+  const kontekst = useMemo(() => new Set([params.prosjektId]), [params.prosjektId]);
 
   const { data: kanAttestere, isLoading: tilgangLaster } =
     trpc.timer.dagsseddel.kanAttestere.useQuery({
@@ -41,7 +43,7 @@ export default function AttesteringDetaljProsjektSide() {
   return (
     <AttesteringDetalj
       sheetId={params.id}
-      prosjektKontekst={params.prosjektId}
+      prosjektKontekst={kontekst}
       tilbakeUrl={`/dashbord/${params.prosjektId}/timer/attestering`}
     />
   );

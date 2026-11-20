@@ -12,6 +12,9 @@ export function ruteErFirmaKontekst(pathname: string | null): boolean {
   const p = pathname ?? "";
   return (
     p.startsWith("/dashbord/firma") ||
+    // w10b: den ene attesteringen står utenfor /dashbord/firma, men er firma-kontekst.
+    p === "/dashbord/attestering" ||
+    p.startsWith("/dashbord/attestering/") ||
     p === "/dashbord/maskin" ||
     p.startsWith("/dashbord/maskin/")
   );

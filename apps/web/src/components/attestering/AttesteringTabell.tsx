@@ -141,10 +141,11 @@ interface Props {
   /** Returner hele sedelen (firmaet). I prosjektkontekst returneres bare prosjektets linjer. */
   onReturnerDag?: (sheetId: string) => void;
   /**
-   * Prosjektkontekst (F1, R13): bare prosjektets linjer kan velges og attesteres; linjer på
-   * andre prosjekter vises nedtonet uten handlinger (T30). Firmaattesteringen har ingen.
+   * Prosjektkontekst (F1, R13): bare linjer på disse prosjektene kan velges og attesteres; linjer
+   * på andre prosjekter vises nedtonet uten handlinger (T30). Firma-admin har ingen; prosjektlederen
+   * har prosjektene der hen kan attestere (w10b, `mineProsjektIder`).
    */
-  prosjektKontekst?: string;
+  prosjektKontekst?: ReadonlySet<string>;
 }
 
 export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt, gruppering = "dag", sedelUrl, onReturnerDag, prosjektKontekst }: Props) {
@@ -222,7 +223,8 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
   const { data: aktiviteter } = trpc.timer.aktivitet.list.useQuery(katalogInput);
   const { data: prosjekterRaw } = trpc.prosjekt.hentAlle.useQuery({ organizationId: orgId, inkluderFrosne: true });
   const prosjekter = (prosjekterRaw ?? []) as unknown as ProsjektValg[];
-  const { data: innstilling } = trpc.organisasjon.hentSetting.useQuery({ organizationId: orgId });
+  // w10b (M3): firmaets standardverdier krever bare ansettelse — prosjektlederen er ikke firma-admin.
+  const { data: innstilling } = trpc.organisasjon.hentArbeidstidDefaults.useQuery({ organizationId: orgId });
   const tidsrunding = (innstilling as { tidsrundingMinutter?: number | null } | undefined)?.tidsrundingMinutter ?? null;
 
   const oppfrisk = () => {
@@ -365,7 +367,7 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
   function dagHandlinger(dag: AttDag, enKort?: AttKort) {
     const s = dag.sedel;
     if (prosjektKontekst) {
-      // Prosjektet attesterer bare sine egne linjer (R13, T30) — aldri hele sedelen.
+      // Prosjektlederen attesterer bare linjene på sine prosjekter (R13, T30) — aldri hele sedelen.
       const linjer = dag.kort.flatMap((k) => k.linjer);
       const egne = byggUtvalg(linjer, sedelFor, prosjektKontekst);
       const attesterte = slaaSammen(linjer.filter((l) => iKontekst(l) && l.harHandling && l.attestert));
@@ -374,7 +376,7 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
           {egenMerke(s)}
           {!readOnly && egne.antallLinjer > 0 && (
             <>
-              <Button size="sm" className="whitespace-nowrap" onClick={() => attester(egne.radIder)} disabled={opptatt} title={t("timer.attestering.tabell.attesterProsjektetsDel")} aria-label={t("timer.attestering.tabell.attesterProsjektetsDel")}>
+              <Button size="sm" className="whitespace-nowrap" onClick={() => attester(egne.radIder)} disabled={opptatt} title={t("timer.attestering.tabell.attesterDineProsjekter")} aria-label={t("timer.attestering.tabell.attesterDineProsjekter")}>
                 <Check className="mr-1 h-3.5 w-3.5" />
                 {t("timer.attestering.attester")}
               </Button>

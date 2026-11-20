@@ -152,7 +152,7 @@ Hele firma-sidebaren gates på `kanAdministrereFirma && valgtFirma` (company_adm
 | F13 | Timer-katalog: Tillegg | `/firma/timer/tillegg` | 1a «Timer › Tillegg» | do. | Nei | |
 | F14 | Timer-onboarding | `/firma/timer/onboarding` | 1a «Timer › Oppsett» | do. | Nei | |
 | F15 | Timer-rapport (firma-aggregat + eksport CSV/XLSX) | firma-sidebar `Timer-rapport` / `/firma/timer/rapport` | 1a «Timer › Rapport» | do. | Nei | |
-| F16 | Timer-attestering (firma-nivå) | `/firma/timer/attestering`(+`/[id]`) | 1a «Timer › Attestering» | do. | Nei |  🟡 w10a (`feat/web-timer-w10a`): **Fjernet etter ordren:** ✓ ↩ ↺ pr. linje (B24 B — står nå på jobb-/dagsraden), retting i cella (B25 A — skjer nå i registreringskortet: fra/til/pause på timebaserte lønnsarter, tallfelt på `per_km`/`per_dag`/`per_natt`) og avkrysning pr. linje (B30 A — avkrysning pr. jobb/dag). Flyttet: ✂ og «Rediger jobben» til registreringskortet; kvitteringen også i kortet. |
+| F16 | Timer-attestering (firma-nivå) | `/attestering`(+`/[id]`) — 🟡 w10b: flyttet fra `/firma/timer/attestering`(+`/[id]`), som sender videre | 1a «Timer › Attestering» + FIRMA-sonen «Attestering» (w10b) | firma-admin, eller prosjektleder/«kan attestere» (w10b, `kanAttestereFirma.omfang`) | Nei | 🟡 w10b: ingen funksjon fjernet — ny plass, og prosjektlederen får samme side med sine prosjekter. 🟡 w10a (`feat/web-timer-w10a`): **Fjernet etter ordren:** ✓ ↩ ↺ pr. linje (B24 B — står nå på jobb-/dagsraden), retting i cella (B25 A — skjer nå i registreringskortet: fra/til/pause på timebaserte lønnsarter, tallfelt på `per_km`/`per_dag`/`per_natt`) og avkrysning pr. linje (B30 A — avkrysning pr. jobb/dag). Flyttet: ✂ og «Rediger jobben» til registreringskortet; kvitteringen også i kortet. |
 | F17 | Kalender | firma-sidebar `Kalender` / `/firma/kalender` | 1a FIRMA «Kalender» | company_admin/sitedoc_admin | Nei | |
 | F18 | Varelager (katalog) | firma-sidebar `Varelager` / `/firma/varelager` | 1a «Varelager › Katalog» | `kreverFirmaModul="varelager"` | Nei | |
 | F19 | Varelager-import | `/firma/varelager/import` | 1a «Varelager › Import» | do. | Nei | |
@@ -328,7 +328,7 @@ Faggrupper/Medlemmer + gjensidig synonym-cluster (dokumentflyt↔faggruppe↔med
 | F14 | `/dashbord/firma/timer/onboarding` | 1 | Hub-underlenke «Timer › Onboarding» (K13-g) |
 | F14b | `/dashbord/firma/timer/oppsett` | 1 | Hub-underlenke «Timer › Oppsett» (K13-g — develop la til; gjenbruker `firma.timer.fane.oppsett`) |
 | P29 | `/dashbord/[pid]/maler` | 2 | `dypeSider` (arbeidsflate) |
-| F16 | `/dashbord/firma/timer/attestering` | 2 | `dypeSider` (arbeidsflate, `kreverFirmaModul="timer"`) |
+| F16 | `/dashbord/attestering` (🟡 w10b; før: `/dashbord/firma/timer/attestering`) | 1 | firma-nav «Attestering» (`kreverAttestering`) — dyp-siden `firmaAttestering` er tatt ut, siden har nav-hjem |
 
 **Nye søketreff (dyp side, K13-a):** `kom-i-gang` — tittel «Kom i gang», INGEN sone-brødsmule.
 

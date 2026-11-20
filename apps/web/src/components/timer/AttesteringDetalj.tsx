@@ -48,7 +48,7 @@ type Props = {
   sheetId: string;
   // undefined = firma-kontekst (firma-admin attesterer alle rader leder har tilgang til)
   // gitt    = prosjekt-kontekst (kun rader for det prosjektet er aktivt valgbare)
-  prosjektKontekst?: string;
+  prosjektKontekst?: ReadonlySet<string>;
   // Hvor «Tilbake» og redirect etter mutasjon peker
   tilbakeUrl: string;
 };
@@ -682,7 +682,7 @@ function ReturnerDialog({
 
 /** R14: dagens rader i samme tabell som lista (én sedel). */
 function DetaljTabell({ sedel, orgId, readOnly, prosjektKontekst, onReturnerDag }: {
-  sedel: AttSedel; orgId: string; readOnly: boolean; prosjektKontekst?: string; onReturnerDag: () => void;
+  sedel: AttSedel; orgId: string; readOnly: boolean; prosjektKontekst?: ReadonlySet<string>; onReturnerDag: () => void;
 }) {
   const sedler = useMemo(() => [sedel], [sedel]);
   const dager = useAttesteringModell(orgId, sedler, { medAvdeling: !prosjektKontekst });

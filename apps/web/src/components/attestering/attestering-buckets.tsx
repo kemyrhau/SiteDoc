@@ -31,12 +31,23 @@ import { merkeModell } from "./utstyr-navn";
  */
 export function radIKontekst(
   projectId: string | null,
-  prosjektKontekst: string | undefined,
+  prosjektKontekst: ReadonlySet<string> | undefined,
   fravaerKanAttesteres: boolean | undefined,
 ): boolean {
   if (!prosjektKontekst) return true;
-  if (projectId === prosjektKontekst) return true;
+  if (projectId !== null && prosjektKontekst.has(projectId)) return true;
   return projectId === null && fravaerKanAttesteres === true;
+}
+
+/** Prosjektet når konteksten er nøyaktig ett prosjekt; ellers undefined. */
+export function eneProsjekt(prosjektKontekst: ReadonlySet<string> | undefined): string | undefined {
+  return prosjektKontekst?.size === 1 ? [...prosjektKontekst][0] : undefined;
+}
+
+/** Prosjektnavnet står på raden, unntatt når konteksten er nettopp radens ene prosjekt. */
+export function visProsjektnavn(projectId: string | null, prosjektKontekst: ReadonlySet<string> | undefined): boolean {
+  const ene = eneProsjekt(prosjektKontekst);
+  return !ene || projectId !== ene;
 }
 
 export type RadProsjekt = {
@@ -166,7 +177,7 @@ function TimerRaderLeder({
   kanFlytte,
 }: {
   rader: TimerRad[];
-  prosjektKontekst?: string;
+  prosjektKontekst?: ReadonlySet<string>;
   /** Kort-id-spec § 11.4 (F1): fra serveren — fraværsrad uten prosjekt kan velges. */
   fravaerKanAttesteres?: boolean;
   valgte: Set<string>;
@@ -187,7 +198,7 @@ function TimerRaderLeder({
     { organizationId: orgId! },
     { enabled: !!orgId },
   );
-  const førsteProsjektId = prosjektKontekst ?? rader[0]?.projectId;
+  const førsteProsjektId = eneProsjekt(prosjektKontekst) ?? rader[0]?.projectId;
   const { data: ecoListe } = trpc.eksternKostObjekt.list.useQuery(
     { projectId: førsteProsjektId ?? "", organizationId: orgId },
     { enabled: !!førsteProsjektId },
@@ -245,7 +256,7 @@ function TimerRaderLeder({
                     {/* T7-2d: vis prosjektnavn. I prosjekt-kontekst: kun når rad
                         tilhører annet prosjekt. I firma-kontekst: alltid. */}
                     {rad.project?.name &&
-                      (!prosjektKontekst || rad.projectId !== prosjektKontekst) && (
+                      visProsjektnavn(rad.projectId, prosjektKontekst) && (
                         <span className="text-xs text-blue-600">{rad.project.name}</span>
                       )}
                   </div>
@@ -341,7 +352,7 @@ function TilleggRaderLeder({
   kanFlytte,
 }: {
   rader: TilleggRad[];
-  prosjektKontekst?: string;
+  prosjektKontekst?: ReadonlySet<string>;
   /** Kort-id-spec § 11.4 (F1): fra serveren — fraværsrad uten prosjekt kan velges. */
   fravaerKanAttesteres?: boolean;
   valgte: Set<string>;
@@ -354,7 +365,7 @@ function TilleggRaderLeder({
   const { valgtFirma } = useFirma();
   const orgId = valgtFirma?.id;
   // B7: attestanten retter underprosjekt på tillegg som på timer-raden.
-  const førsteProsjektId = prosjektKontekst ?? rader[0]?.projectId;
+  const førsteProsjektId = eneProsjekt(prosjektKontekst) ?? rader[0]?.projectId;
   const { data: ecoListe } = trpc.eksternKostObjekt.list.useQuery(
     { projectId: førsteProsjektId ?? "", organizationId: orgId },
     { enabled: !!førsteProsjektId },
@@ -412,7 +423,7 @@ function TilleggRaderLeder({
                 <RadStatusBadge status={rad.attestertStatus} />
                 {/* T7-2d: prosjektnavn ved multi-prosjekt-sedler */}
                 {rad.project?.name &&
-                  (!prosjektKontekst || rad.projectId !== prosjektKontekst) && (
+                  visProsjektnavn(rad.projectId, prosjektKontekst) && (
                     <span className="text-xs text-blue-600">{rad.project.name}</span>
                   )}
               </div>
@@ -480,7 +491,7 @@ function MaskinRaderLeder({
   onToggle,
 }: {
   rader: MaskinRad[];
-  prosjektKontekst?: string;
+  prosjektKontekst?: ReadonlySet<string>;
   /** Kort-id-spec § 11.4 (F1): fra serveren — fraværsrad uten prosjekt kan velges. */
   fravaerKanAttesteres?: boolean;
   valgte: Set<string>;
@@ -536,7 +547,7 @@ function MaskinRaderLeder({
                 <RadStatusBadge status={rad.attestertStatus} />
                 {/* T7-2d: prosjektnavn ved multi-prosjekt-sedler */}
                 {rad.project?.name &&
-                  (!prosjektKontekst || rad.projectId !== prosjektKontekst) && (
+                  visProsjektnavn(rad.projectId, prosjektKontekst) && (
                     <span className="text-xs text-blue-600">{rad.project.name}</span>
                   )}
               </div>
@@ -599,7 +610,7 @@ export function ProsjektSectionAttest({
   ecoKeys: string[];
   bucketMap: Map<string, EcoBucketAttestProps>;
   tillegg: TilleggRad[];
-  prosjektKontekst?: string;
+  prosjektKontekst?: ReadonlySet<string>;
   /** Kort-id-spec § 11.4 (F1): fra serveren — fraværsrad uten prosjekt kan velges. */
   fravaerKanAttesteres?: boolean;
   valgteTimer: Set<string>;
@@ -708,7 +719,7 @@ export function EcoBucketAttest({
   ecoNavn: { kortNavn: string; proAdmId: string } | null;
   timer: TimerRad[];
   maskin: MaskinRad[];
-  prosjektKontekst?: string;
+  prosjektKontekst?: ReadonlySet<string>;
   /** Kort-id-spec § 11.4 (F1): fra serveren — fraværsrad uten prosjekt kan velges. */
   fravaerKanAttesteres?: boolean;
   valgteTimer: Set<string>;

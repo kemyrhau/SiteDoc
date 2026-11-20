@@ -29,7 +29,8 @@ export default function FirmaTimerLayout({
     { href: "/dashbord/firma/timer/aktiviteter", label: t("firma.timer.fane.aktiviteter") },
     { href: "/dashbord/firma/timer/tillegg", label: t("firma.timer.fane.tillegg") },
     { href: "/dashbord/firma/timer/utleggskategorier", label: t("firma.timer.fane.utleggskategorier") },
-    { href: "/dashbord/firma/timer/attestering", label: t("firma.timer.fane.attestering") },
+    // w10b (S3): fanen peker til den ene attesteringen utenfor firma-layouten.
+    { href: "/dashbord/attestering", label: t("firma.timer.fane.attestering") },
   ];
 
   // Før aktivering: vis kun onboarding + oppsett-veiviseren (steg 1 aktiverer)
