@@ -1,50 +1,14 @@
-"use client";
+import { redirect } from "next/navigation";
+import { attesteringRedirectUrl } from "@/lib/attestering-ruter";
 
-// T7-2b1 (2026-05-14): tynn wrapper rundt AttesteringDetalj-felleskomponenten.
-// Tidligere innhold (591 linjer) flyttet til apps/web/src/components/timer/AttesteringDetalj.tsx.
-
-import { useMemo } from "react";
-import { useParams } from "next/navigation";
-import { useTranslation } from "react-i18next";
-import { AlertCircle } from "lucide-react";
-import { trpc } from "@/lib/trpc";
-import { Spinner } from "@sitedoc/ui";
-import { AttesteringDetalj } from "@/components/timer/AttesteringDetalj";
-
-export default function AttesteringDetaljProsjektSide() {
-  const { t } = useTranslation();
-  const params = useParams<{ prosjektId: string; id: string }>();
-  const kontekst = useMemo(() => new Set([params.prosjektId]), [params.prosjektId]);
-
-  const { data: kanAttestere, isLoading: tilgangLaster } =
-    trpc.timer.dagsseddel.kanAttestere.useQuery({
-      projectId: params.prosjektId,
-    });
-
-  if (tilgangLaster) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Spinner />
-      </div>
-    );
-  }
-
-  if (kanAttestere === false) {
-    return (
-      <div className="mx-auto max-w-3xl p-6">
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-          <AlertCircle className="mr-1 inline-block h-4 w-4" />
-          {t("timer.attestering.ingenTilgang")}
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <AttesteringDetalj
-      sheetId={params.id}
-      prosjektKontekst={kontekst}
-      tilbakeUrl={`/dashbord/${params.prosjektId}/timer/attestering`}
-    />
-  );
+// w10b (plan web-timeføring § 4.10, B29 B): prosjektets detaljside er fjernet — samme dag
+// åpnes på /dashbord/attestering/[id].
+export default function GammelProsjektAttesteringDetalj({
+  params,
+  searchParams,
+}: {
+  params: { id: string };
+  searchParams: Record<string, string | string[] | undefined>;
+}) {
+  redirect(attesteringRedirectUrl(`/dashbord/attestering/${encodeURIComponent(params.id)}`, searchParams));
 }

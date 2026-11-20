@@ -218,7 +218,6 @@ export function AttesteringDetaljEdit({
   const lagre = trpc.timer.dagsseddel.redigerSedelRader.useMutation({
     onSuccess: () => {
       void utils.timer.dagsseddel.hentForAttestering.invalidate({ id: sheetId });
-      void utils.timer.dagsseddel.hentTilAttestering.invalidate();
       void utils.timer.dagsseddel.hentTilAttesteringFirma.invalidate();
       onLagret();
     },

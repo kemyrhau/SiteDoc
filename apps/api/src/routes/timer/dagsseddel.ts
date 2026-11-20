@@ -22,7 +22,6 @@ import {
   resolverOrgForEgenTimeføring,
   verifiserAnsattIFirma,
   erAnsattIFirma,
-  erFirmaAdminForProsjekt,
   aktivtProsjektmedlemWhere,
   aktivtMedlemWhere,
 } from "../../trpc/tilgangskontroll";
@@ -238,38 +237,6 @@ function erRedigerbar(status: string): boolean {
 }
 
 /**
- * Sjekk om bruker kan godkjenne dagssedler for et prosjekt.
- * Leder = ProjectMember.role="admin" ELLER ProjectMember.kanAttestere=true,
- * eller sitedoc_admin / firma-admin i prosjektets eierfirma (ikke deltakerfirma).
- * (Boolean-kapabilitet vedtatt 2026-05-02 — erstatter "project_manager"-rolle.)
- */
-async function erProsjektLeder(userId: string, projectId: string): Promise<boolean> {
-  const bruker = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { role: true },
-  });
-  if (!bruker) return false;
-  if (bruker.role === "sitedoc_admin") return true;
-
-  if (await erFirmaAdminForProsjekt(userId, projectId)) return true;
-
-  const medlem = await prisma.projectMember.findFirst({
-    where: aktivtProsjektmedlemWhere(userId, projectId),
-    select: { role: true, kanAttestere: true },
-  });
-  return medlem?.role === "admin" || medlem?.kanAttestere === true;
-}
-
-async function krevProsjektLeder(userId: string, projectId: string): Promise<void> {
-  if (!(await erProsjektLeder(userId, projectId))) {
-    throw new TRPCError({
-      code: "FORBIDDEN",
-      message: "Kun prosjektleder eller administrator kan godkjenne dagssedler",
-    });
-  }
-}
-
-/**
  * Firma der brukeren kan attestere timer på prosjektet (H1, Kenneth 2026-11-08).
  * Attestering følger arbeidsgiveren (`DailySheet.organizationId`), ikke prosjekteier:
  * timer, lønnsart og prissnapshot er firmaets interne data. Rett i et firma gis av
@@ -423,8 +390,8 @@ async function kanAttestereFravaer(
 
 /**
  * Ordre d2b-3 (spec prosjektkort-kortid § 12.6.0): hvem som får se navnet på radens prosjekt,
- * underprosjekt og byggeplass i attesteringen. Samme regel som `hentTilAttestering` (d2b-2):
- * tilgang til prosjektet (`verifiserProsjektmedlem`). I tillegg ser firma-admin i sedelens firma
+ * underprosjekt og byggeplass i attesteringen. Samme regel som firmalista for prosjektlederen
+ * (w10b): tilgang til prosjektet (`verifiserProsjektmedlem`). I tillegg ser firma-admin i sedelens firma
  * (lønnsansvarlig) navnene på alle sedelens rader — de står allerede i firmalista
  * (`hentTilAttesteringFirma`), så detaljen viser ikke mindre. Rad uten prosjekt (fravær): synlig.
  */
@@ -1479,22 +1446,6 @@ function vurderSedelNormtak(
     },
     bruddTekst: normtakBruddTekst(vurdering, dagsnorm, artNavn),
   };
-}
-
-/** Effektiv dagsnorm pr. (firma, dato), slått opp én gang pr. par. */
-async function dagsnormerFor(
-  par: readonly { organizationId: string; dato: Date }[],
-): Promise<(organizationId: string, dato: Date) => number> {
-  const kart = new Map<string, number>();
-  await Promise.all(
-    Array.from(
-      new Set(par.map((p) => `${p.organizationId}|${p.dato.toISOString().slice(0, 10)}`)),
-    ).map(async (k) => {
-      const [org, iso] = k.split("|") as [string, string];
-      kart.set(k, (await hentEffektivArbeidstid(org, new Date(`${iso}T00:00:00.000Z`))).dagsnorm);
-    }),
-  );
-  return (org, dato) => kart.get(`${org}|${dato.toISOString().slice(0, 10)}`) ?? 0;
 }
 
 /**
@@ -5817,199 +5768,12 @@ export const dagsseddelRouter = router({
     }),
 
   // ============================================================================
-  //  Leder-attestering (Runde 1C)
-  // ============================================================================
-
-  // Hent alle dagssedler med status=sent som innlogget bruker er leder for.
-  // Brukes av leder-vy /dashbord/[prosjektId]/timer/attestering.
-  hentTilAttestering: protectedProcedure
-    .input(z.object({ projectId: z.string().uuid() }))
-    .query(async ({ ctx, input }) => {
-      await krevProsjektLeder(ctx.userId, input.projectId);
-      // H1: kun sedler fra firma brukeren attesterer for — aldri annet firmas timer.
-      const firmaer = await attesteringsFirmaer(ctx.userId, input.projectId);
-
-      const sedler = await ctx.prismaTimer.dailySheet.findMany({
-        where: {
-          // T.1 (2026-05-11): projectId ligger på rad — filtrer via timer-relasjon.
-          timer: { some: { projectId: input.projectId } },
-          status: "sent",
-          ...(firmaer ? { organizationId: { in: firmaer } } : {}),
-        },
-        include: {
-          aktivitet: { select: { id: true, navn: true, kode: true } },
-          // ORDRE 2 STEG 1 (2026-08-20): filtrer ut "erstattet"-rader (audit-spor
-          // fra rediger-mutasjoner). Uten dette dobbelttelles redigerte rader i
-          // `totaltimer`/`antallRader` — en bug uavhengig av aggregat-designet
-          // (samme filter som hentTilAttesteringFirma :2315).
-          timer: {
-            where: { attestertStatus: { not: "erstattet" } },
-            include: { lonnsart: { select: { type: true, fravaerNormtak: true, navn: true } } },
-            orderBy: RAD_REKKEFOLGE,
-          },
-          tillegg: { where: { attestertStatus: { not: "erstattet" } }, orderBy: { createdAt: "asc" } },
-          // Ordre d2a: maskinene med i prosjektlista.
-          maskiner: { where: { attestertStatus: { not: "erstattet" } }, orderBy: RAD_REKKEFOLGE },
-          // Ordre d2b-2 (R13): utleggene i tabellen. Samme felt som firmalista + kort og
-          // prosjekt. Ordre d2b-3: + vedlegg (svak FK, slås opp under med tilgangssjekk).
-          utlegg: {
-            select: {
-              id: true,
-              projectId: true,
-              belop: true,
-              kortId: true,
-              byggeplassId: true,
-              externalCostObjectId: true,
-              expenseCategory: { select: { navn: true } },
-            },
-            orderBy: { createdAt: "asc" },
-          },
-        },
-        orderBy: [{ dato: "asc" }, { createdAt: "asc" }],
-      });
-      const kort = await lastKortBerikelse(ctx, sedler);
-      // B10: effektiv dagsnorm pr. (firma, dato) for bruddlinja.
-      const normFor = await dagsnormerFor(sedler);
-
-      // Ordre d2b-2 (R13): prosjekt pr. rad. Rader på andre prosjekter får navn og nummer
-      // bare når brukeren har tilgang til det prosjektet; ellers `project: null` (klienten
-      // viser «Annet prosjekt», nedtonet — raden bærer fortsatt `projectId`).
-      const radProsjektIder = new Set<string>();
-      for (const s of sedler) {
-        for (const r of s.timer) if (r.projectId) radProsjektIder.add(r.projectId);
-        for (const r of s.tillegg) radProsjektIder.add(r.projectId);
-        for (const r of s.maskiner) radProsjektIder.add(r.projectId);
-        for (const r of s.utlegg) if (r.projectId) radProsjektIder.add(r.projectId);
-      }
-      radProsjektIder.add(input.projectId);
-      const sedelOrgIder = Array.from(new Set(sedler.map((s) => s.organizationId)));
-      // Ordre d2b-3: samme regel for prosjekt-, underprosjekt- og byggeplassnavn (navnSynlighet).
-      const synlig = await navnSynlighet(ctx.userId, sedelOrgIder, radProsjektIder);
-      const synlige = new Set(
-        Array.from(radProsjektIder).filter((pid) => sedler.some((s) => synlig(s.organizationId, pid))),
-      );
-      const utleggVedlegg = await utleggVedleggForAttestant(
-        ctx.prismaTimer,
-        ctx.userId,
-        sedler.flatMap((s) => s.utlegg.map((u) => ({ id: u.id, projectId: u.projectId, organizationId: s.organizationId }))),
-      );
-      const [synligeProsjekter, orgSettings] = await Promise.all([
-        prisma.project.findMany({
-          where: { id: { in: Array.from(synlige) } },
-          select: { id: true, name: true, projectNumber: true, internalProjectNumber: true },
-        }),
-        // Samme regel som hentForAttestering: sedelens firma avgjør om rediger er tillatt.
-        prisma.organizationSetting.findMany({
-          where: { organizationId: { in: sedelOrgIder } },
-          select: { organizationId: true, tillattRedigerVedAttestering: true },
-        }),
-      ]);
-      const prosjektMap = new Map(synligeProsjekter.map((p) => [p.id, p]));
-      const prosjektFor = (org: string, projectId: string | null) =>
-        projectId && synlig(org, projectId) ? (prosjektMap.get(projectId) ?? null) : null;
-      const redigerMap = new Map(
-        orgSettings.map((o) => [o.organizationId, o.tillattRedigerVedAttestering]),
-      );
-      // T.11: samme regel som hentForAttestering — maskinarbeid uten gyldig bevis i sedelens firma.
-      const bevisPrOrg = new Map<string, Map<string, boolean>>();
-      await Promise.all(
-        sedelOrgIder.map(async (org) => {
-          const eiere = Array.from(
-            new Set(
-              sedler
-                .filter((s) => s.organizationId === org && s.maskiner.length > 0)
-                .map((s) => s.userId),
-            ),
-          );
-          if (eiere.length > 0) bevisPrOrg.set(org, await harGyldigMaskinforerbevisBatch(eiere, org));
-        }),
-      );
-
-      // Berik med ansatt-navn (cross-package: må slå opp i kjernen-DB)
-      const userIder = Array.from(new Set(sedler.map((s) => s.userId)));
-      const brukere = await prisma.user.findMany({
-        where: { id: { in: userIder } },
-        select: { id: true, name: true, email: true },
-      });
-      // Ansattnummer hentes fra sedelens firma — ikke et vilkårlig firmas nummer.
-      const orgIder = Array.from(new Set(sedler.map((s) => s.organizationId)));
-      const medlemmer = await prisma.organizationMember.findMany({
-        where: { userId: { in: userIder }, organizationId: { in: orgIder } },
-        select: { userId: true, organizationId: true, ansattnummer: true },
-      });
-      const ansattnummerMap = new Map(
-        medlemmer.map((m) => [`${m.userId}:${m.organizationId}`, m.ansattnummer]),
-      );
-      const brukerMap = new Map(brukere.map((b) => [b.id, b]));
-      // F1 (kort-id-spec § 11.4): fraværsraden er valgbar for prosjektlederen bare når
-      // sedelens firma har slått på valget; ellers synlig og nedtonet.
-      const fravaerRett = await fravaerRettPrSedel(ctx.userId, sedler);
-      // w7 (B15): egne sedler vises, men kan ikke attesteres/rettes når firmaet sier Nei.
-      const egne = await egneSperredeSedler(sedler, ctx.userId);
-
-      return sedler.map((s) => {
-        const bruker = brukerMap.get(s.userId);
-        return {
-          ...s,
-          fravaerKanAttesteres: fravaerRett.get(s.id) ?? false,
-          // w7 (B15): sedelen er den innloggedes egen og firmaet sier Nei — PC/telefon skjuler knappene.
-          egneTimer: egne.has(s.id),
-          // B10: bruddlinja (null = intet brudd).
-          fravaerNormtakBrudd: vurderSedelNormtak(
-            s.timer.map((r) => ({ timer: Number(r.timer), erReise: r.erReise, lonnsart: r.lonnsart })),
-            normFor(s.organizationId, s.dato),
-          ).brudd,
-          ansatt: bruker
-            ? { ...bruker, ansattnummer: ansattnummerMap.get(`${s.userId}:${s.organizationId}`) ?? null }
-            : null,
-          totaltimer: s.timer.reduce((acc, t) => acc + Number(t.timer), 0),
-          antallRader: s.timer.length + s.tillegg.length,
-          // Ordre d2a: kort-feltene (bare nye felt). Ordre d2b-2: + `project` pr. rad.
-          timer: s.timer.map((r) => ({
-            ...berikRad(kort, r, synlig(s.organizationId, r.projectId)),
-            project: prosjektFor(s.organizationId, r.projectId),
-          })),
-          tillegg: s.tillegg.map((r) => ({
-            ...berikRad(kort, r, synlig(s.organizationId, r.projectId)),
-            project: prosjektFor(s.organizationId, r.projectId),
-          })),
-          maskiner: s.maskiner.map((r) => ({
-            ...berikMaskinRad(kort, r, s.timer, synlig(s.organizationId, r.projectId)),
-            project: prosjektFor(s.organizationId, r.projectId),
-          })),
-          varer: kort.varer.get(s.id) ?? [],
-          ukeAvvikRadIder: kort.ukeAvvik.get(s.id) ?? [],
-          // Ordre d2b-2 (R13): feltene tabellen trenger, med samme regler som
-          // hentForAttestering/hentTilAttesteringFirma. Bare lesing.
-          utlegg: s.utlegg.map((u) => ({
-            ...u,
-            project: prosjektFor(s.organizationId, u.projectId),
-            vedlegg: utleggVedlegg.get(u.id) ?? [],
-          })),
-          prosjekt: prosjektFor(s.organizationId, input.projectId),
-          tilleggHarKrav: s.tillegg.length > 0,
-          dagsnorm: normFor(s.organizationId, s.dato),
-          redigerTillatt: redigerMap.get(s.organizationId) ?? false,
-          manglerMaskinforerbevis:
-            s.maskiner.length > 0 && !bevisPrOrg.get(s.organizationId)?.get(s.userId),
-        };
-      });
-    }),
-
-  // Boolean-flagg som sidebar/UI bruker for å gate Attestering-lenken.
-  kanAttestere: protectedProcedure
-    .input(z.object({ projectId: z.string().uuid() }))
-    .query(async ({ ctx, input }) => {
-      return erProsjektLeder(ctx.userId, input.projectId);
-    }),
-
-  // ============================================================================
   //  Firma-attestering (T7-2a) — sedler på tvers av prosjekter
   // ============================================================================
   //
-  // Brukes av firma-admin-vy /dashbord/firma/timer/attestering.
-  // Gjelder sedler med minst én rad knyttet til et prosjekt eid av firmaet
-  // (primary- eller partner-rolle via ProjectOrganization).
+  // Brukes av /dashbord/attestering (w10b): firma-admin ser sedler med minst én rad på et
+  // prosjekt firmaet deltar i (ProjectOrganization); prosjektlederen ser sedlene med rader
+  // på sine prosjekter (`attesteringsOmfang`). Prosjektets egen liste er fjernet (§ 4.10).
 
   hentTilAttesteringFirma: protectedProcedure
     .input(
@@ -6586,7 +6350,7 @@ export const dagsseddelRouter = router({
         utlegg.map((u) => ({ id: u.id, projectId: u.projectId, organizationId: sheet.organizationId })),
       );
       // Ordre d2b-3 (c): dagsnormen fra firmaets innstillinger — samme kilde som listene
-      // (`hentEffektivArbeidstid`, via dagsnormerFor i hentTilAttestering).
+      // (`hentEffektivArbeidstid` pr. dato i `hentTilAttesteringFirma`).
       const { dagsnorm } = await hentEffektivArbeidstid(sheet.organizationId, sheet.dato);
 
       const ansatt = brukerData

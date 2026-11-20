@@ -1,16 +1,16 @@
 import { describe, it, expect, vi } from "vitest";
 
 /**
- * Ordre d2b-2 (prosjektkort-kortid-spec.md § 12.2 R13): prosjektattesteringen viser samme
- * tabell som firmaet, så `hentTilAttestering` gir prosjekt pr. rad, utlegg, dagsnorm,
- * `redigerTillatt` og `manglerMaskinforerbevis`. Vilkår (orkestrator 2026-11-17):
- *  1. bare lesing — feltene som fantes, er uendret;
- *  2. firmagrensen gjelder som før;
+ * w10b (plan web-timeføring § 4.10 del D): kravene fra prosjektlista (ordre d2b-2, R13) bæres nå
+ * av firmalista `hentTilAttesteringFirma` med prosjektleder-omfang (§ 4.6). Prosjektlederen
+ * attesterer på P_EGET og ser sedlene med rader der:
+ *  1. firmagrensen: lederen i A ser ikke B sin sedel;
+ *  2. feltene tabellen trenger (prosjekt pr. rad, utlegg med kort, dagsnorm, krav);
  *  3. rader på andre prosjekter røper ikke navn eller nummer uten tilgang til prosjektet;
- *  4. `redigerTillatt` og `manglerMaskinforerbevis` med samme regel som hentForAttestering.
+ *  4. `redigerTillatt` og `manglerMaskinforerbevis` følger sedelens firma.
  *
  * Tilgang til prosjekt avgjøres av `verifiserProsjektmedlem` (mocket her til en fast tabell);
- * prosjektleder-retten (`erProsjektLeder`) og firmagrensen løper ekte mot mocket kjerne-DB.
+ * omfanget (`attesteringsOmfang`) og firmagrensen løper ekte mot mocket kjerne-DB.
  */
 
 const ORG_A = "a0000000-0000-0000-0000-000000000001";
@@ -97,6 +97,11 @@ vi.mock("@sitedoc/db", () => {
         ),
       }),
       organizationMember: modell({
+        // Omfanget: LEDER er aktiv ansatt i A uten firma-admin.
+        findUnique: vi.fn(async ({ where }: { where: { userId_organizationId: { userId: string; organizationId: string } } }) => {
+          const { userId, organizationId } = where.userId_organizationId;
+          return userId === LEDER && organizationId === ORG_A ? { status: "aktiv", firmaRoller: [] } : null;
+        }),
         findMany: vi.fn(async ({ where }: { where: { userId?: string | { in: string[] } } }) => {
           const alle = [
             { userId: LEDER, organizationId: ORG_A, status: "aktiv", firmaRoller: [], ansattnummer: "A-1", avdelingId: null },
@@ -111,6 +116,10 @@ vi.mock("@sitedoc/db", () => {
         findFirst: vi.fn(async ({ where }: { where: { userId: string; projectId: string } }) =>
           where.userId === LEDER && where.projectId === P_EGET ? { role: "member", kanAttestere: true } : null,
         ),
+        // Omfanget: prosjektene der LEDER kan attestere.
+        findMany: vi.fn(async ({ where }: { where: { userId: string } }) =>
+          where.userId === LEDER ? [{ projectId: P_EGET }] : [],
+        ),
       }),
       project: modell({
         findMany: vi.fn(async ({ where }: { where: { id: { in: string[] } } }) =>
@@ -118,7 +127,11 @@ vi.mock("@sitedoc/db", () => {
         ),
       }),
       organizationSetting: modell({
-        findMany: vi.fn(async () => [{ organizationId: ORG_A, tillattRedigerVedAttestering: true }]),
+        findUnique: vi.fn(async ({ where }: { where: { organizationId: string } }) =>
+          where.organizationId === ORG_A
+            ? { dagsnorm: 7.5, tillattRedigerVedAttestering: true, tidsrundingMinutter: null }
+            : null,
+        ),
       }),
     } as Record<string, unknown>,
     { get: (t, k: string) => (k in t ? t[k] : modell()) },
@@ -159,8 +172,8 @@ function prismaTimer() {
   return new Proxy(
     {
       dailySheet: modell({
-        findMany: vi.fn(async ({ where }: { where: { organizationId?: { in: string[] } } }) =>
-          SEDLER.filter((s) => !where.organizationId || where.organizationId.in.includes(s.organizationId)),
+        findMany: vi.fn(async ({ where }: { where: { organizationId?: string } }) =>
+          SEDLER.filter((s) => !where.organizationId || where.organizationId === s.organizationId),
         ),
       }),
     } as Record<string, unknown>,
@@ -171,18 +184,18 @@ function prismaTimer() {
 type Løs = any;
 async function liste(userId = LEDER): Promise<Løs[]> {
   const ctx = { userId, prisma, prismaTimer: prismaTimer(), prismaMaskin: klient(), prismaVarelager: klient() } as never;
-  return (await dagsseddelRouter.createCaller(ctx).hentTilAttestering({ projectId: P_EGET })) as Løs[];
+  return (await dagsseddelRouter.createCaller(ctx).hentTilAttesteringFirma({ organizationId: ORG_A })) as Løs[];
 }
 
-describe("d2b-2 R13 — prosjektlista gir det tabellen trenger", () => {
+describe("w10b — firmalista med prosjektleder-omfang (krav fra d2b-2 R13)", () => {
   it("firmagrensen: lederen i A ser ikke B sin sedel", async () => {
     expect((await liste()).map((s) => s.id)).toEqual([SEDEL]);
   });
 
-  it("feltene som fantes, er uendret", async () => {
+  it("feltene tabellen trenger", async () => {
     const [s] = await liste();
-    // Samme form som før: ansatt har nøyaktig disse fire feltene.
-    expect(s.ansatt).toEqual({ id: ANSATT, name: `Navn ${ANSATT}`, email: `${ANSATT}@firma.no`, ansattnummer: "A-3" });
+    const ansatt = { id: ANSATT, name: `Navn ${ANSATT}`, email: `${ANSATT}@firma.no`, ansattnummer: "A-3", avdelingId: "avd-1" };
+    expect(s.ansatt).toEqual(ansatt);
     expect(s).toMatchObject({
       id: SEDEL,
       status: "sent",
@@ -193,15 +206,17 @@ describe("d2b-2 R13 — prosjektlista gir det tabellen trenger", () => {
       fravaerNormtakBrudd: null,
       varer: [],
       ukeAvvikRadIder: [],
-      ansatt: { id: ANSATT, name: `Navn ${ANSATT}`, email: `${ANSATT}@firma.no`, ansattnummer: "A-3" },
+      ansatt,
+      mineProsjektIder: [P_EGET],
     });
     expect(s.timer.map((r: Løs) => r.id)).toEqual(["t-eget", "t-annet", "t-delt"]);
     expect(s.maskiner.map((r: Løs) => r.id)).toEqual(["m-annet"]);
   });
 
-  it("nye felt: utlegg, dagsnorm, tilleggskrav, sedelens prosjekt", async () => {
+  it("utlegg med kort, dagsnorm, tilleggskrav, sedelens prosjekt", async () => {
     const [s] = await liste();
     expect(s.utlegg.map((u: Løs) => u.id)).toEqual(["u-eget", "u-annet"]);
+    expect(s.utlegg.every((u: Løs) => "kortId" in u)).toBe(true);
     expect(s.dagsnorm).toBe(7.5);
     expect(s.tilleggHarKrav).toBe(true);
     expect(s.prosjekt).toMatchObject({ id: P_EGET, name: "Eget bygg" });

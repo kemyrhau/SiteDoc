@@ -368,7 +368,29 @@ function visMed(sedler: AttSedel[], props: Partial<Parameters<typeof Attestering
   );
 }
 
-describe("T30/R13 — prosjektattesteringen er låst til prosjektet", () => {
+// w10b (plan § 4.10 del D): konteksten er mengden prosjekter prosjektlederen attesterer på.
+const R = { id: "pC", name: "Prosjekt C", internalProjectNumber: null, projectNumber: "SD-3" };
+const treProsjekter = () =>
+  sedel({
+    timer: [
+      timer("t1"),
+      timer("t2", { projectId: "pB", project: Q, kortId: "kB" }),
+      timer("t3", { projectId: "pC", project: R, kortId: "kC" }),
+    ],
+  });
+
+describe("T30/R13 — prosjektlederen er låst til sine prosjekter", () => {
+  it("🔴 mengde: linjene på pA og pB kan velges, pC står nedtonet; dagens Attester tar pA og pB", () => {
+    const { container, getByRole } = visMed([treProsjekter()], { prosjektKontekst: new Set(["pA", "pB"]) });
+    expect(linje(container, "s1:timer:t2").className).not.toMatch(/opacity-50/);
+    const annen = linje(container, "s1:timer:t3");
+    expect(annen.className).toMatch(/opacity-50/);
+    expect(within(annen).queryByRole("checkbox")).toBeNull();
+    fireEvent.click(getByRole("button", { name: /attesterDineProsjekter/ }));
+    expect(kallTil("attester")).toHaveLength(0);
+    expect(kallTil("attesterRader")[0]!.input).toEqual({ radIder: { timerIder: ["t1", "t2"], maskinIder: [], tilleggIder: [] } });
+  });
+
   it("linja på et annet prosjekt står nedtonet uten avkrysning og handlinger; utvalget tar bare prosjektets linjer", () => {
     const { container, getByRole } = visMed([toProsjekter()], { prosjektKontekst: new Set(["pA"]) });
     const annen = linje(container, "s1:timer:t2");

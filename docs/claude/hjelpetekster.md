@@ -325,7 +325,7 @@ Avkrysning i lønnsart-skjemaet når typen er Fravær (`apps/web/src/app/dashbor
 
 ## Attestering: dag over taket (kort-id-spec § 11.10.4, F9 = A, ordre (30) b3, 🟡 ikke merget)
 
-- **Bruddlinje** (amber) i seddelkortet, attesteringsdetaljen og prosjektattesteringen: «Egenmelding 7,5 t + arbeid 2,0 t = 9,5 t — over dagsnormen 7,5 t» (`timer.normtak.leddArt`/`leddArbeid`/`leddAnnet`/`brudd`, tallene fra serverens `fravaerNormtakBrudd`).
+- **Bruddlinje** (amber) i seddelkortet, attesteringsdetaljen og attesteringslista (fra w10b også prosjektlederens): «Egenmelding 7,5 t + arbeid 2,0 t = 9,5 t — over dagsnormen 7,5 t» (`timer.normtak.leddArt`/`leddArbeid`/`leddAnnet`/`brudd`, tallene fra serverens `fravaerNormtakBrudd`).
 - **✓ er sperret** med tooltip «Datoen kan ikke attesteres før fraværet er rettet. Returner sedelen, eller rett timene.» (`timer.normtak.attesterSperret`). Serveren avviser uansett (`krevIngenNormtakBrudd`).
 
 ## Firmainnstillinger → Timeføring: «Prosjektleder kan attestere fravær» (kort-id-spec § 11.9 F1, ordre (30) b2, 🟡 ikke merget)
@@ -386,9 +386,11 @@ Fra w10a i web-timeføring (🟡 ikke merget, `feat/web-timer-w10a`, plan § 4.5
 - Ny mikrotekst: «Åpne dagsseddelen» (`timer.attestering.tabell.aapneDagsseddel`, ↗), «Velg jobben» / «Velg alle jobbene denne dagen» (`…tabell.velgJobb` / `…velgDagen`, avkrysningens etikett), «Velg alle synlige jobber» (`…tabell.velgAlle`, endret), og i kortet «Rediger jobben», «Fra», «Til», «Pause (min)», «Ikke utfylt», «Kommentar til dagen», «Skriv fra og til som tt:mm, med til etter fra.», «Pausen er like lang som tiden mellom fra og til.» (`timer.attestering.registrering.redigerJobben`/`fra`/`til`/`pauseFelt`/`ikkeUtfylt`/`kommentarTilDagen`/`ugyldigTid`/`pauseForLang`).
 - Fjernet i alle 15 språk: `timer.attestering.tabell.rettCelle`, `…ugyldigTall`, `…velgLinje`, `…gjenaapneLinje`.
 
-## Prosjekt → Timer → Attestering (d2b-2, 🟡 ikke merget)
+## Prosjekt → Timer → Attestering (d2b-2) — ⚠️ fjernet i w10b
 
-`apps/web/src/app/dashbord/[prosjektId]/timer/attestering/page.tsx` har `HjelpKnapp` (fanen «Attestering»). Første avsnitt: «Her attesterer du timene som er ført på dette prosjektet. Linjer den ansatte har ført på andre prosjekter samme dag, står nedtonet og kan ikke velges. Har du ikke tilgang til det andre prosjektet, står det «Annet prosjekt».» (`timer.attestering.prosjekt.hjelp.laast`); deretter struktur, handlinger og retting som på firmasiden. Dagsumraden har «Attester radene på dine prosjekter» (`timer.attestering.tabell.attesterDineProsjekter`, 🟡 w10b — erstatter «Attester prosjektets del»; samme knapp står for prosjektlederen på `/dashbord/attestering`).
+🟡 w10b (`feat/web-timer-w10b`, ikke merget; plan web-timeføring § 4.10, B29 B): siden og menypunktet er fjernet. Adressen sender til `/dashbord/attestering`, der prosjektlederen får hjelpeteksten under Firma › Attestering (avsnittet `timer.attestering.hjelp.omfang`). Nøklene `timer.attestering.beskrivelse` og `timer.attestering.prosjekt.hjelp.laast` er slettet i alle 15 språk. Teksten under er historikk.
+
+Før w10b: `apps/web/src/app/dashbord/[prosjektId]/timer/attestering/page.tsx` hadde `HjelpKnapp` (fanen «Attestering»). Første avsnitt: «Her attesterer du timene som er ført på dette prosjektet. Linjer den ansatte har ført på andre prosjekter samme dag, står nedtonet og kan ikke velges. Har du ikke tilgang til det andre prosjektet, står det «Annet prosjekt».» (`timer.attestering.prosjekt.hjelp.laast`); deretter struktur, handlinger og retting som på firmasiden. Dagsumraden har «Attester radene på dine prosjekter» (`timer.attestering.tabell.attesterDineProsjekter`, 🟡 w10b — erstatter «Attester prosjektets del»; samme knapp står for prosjektlederen på `/dashbord/attestering`).
 
 Fra d2b-3 (🟡 ikke merget) har firmasiden også «Avvik denne uka»-avsnittet (`timer.attestering.tabell.hjelp.ukeavvik`: «sammenligner hele ukas timer (sendt og attestert) med ukenormen — ikke bare dagen eller linjene du ser») og kvitteringsavsnittet (`…hjelp.kvittering`: «Et utlegg med kvittering viser et miniatyrbilde eller en binders på linjen. Klikk for å åpne kvitteringen og kontrollere den før du attesterer.»); prosjektsiden har kvitteringsavsnittet. Lenken har tittelen «Åpne kvitteringen (filnavn)» (`…tabell.aapneKvittering`).
 

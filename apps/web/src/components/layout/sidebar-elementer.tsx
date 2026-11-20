@@ -27,7 +27,6 @@ import {
   HardHat,
   Clock,
   Truck,
-  CheckCircle2,
   Package,
   Contact,
   Trash2,
@@ -45,7 +44,6 @@ import { type ModulNavn } from "@/lib/modul-farger";
 // hvit-stil selv på modul-rute.
 export const MODUL_EIERSKAP: Partial<Record<Seksjon, ModulNavn>> = {
   timer: "timer",
-  "timer-attestering": "timer",
   "mine-timer": "timer",
   maskin: "maskin",
   vareforbruk: "varelager",
@@ -61,7 +59,6 @@ export interface SidebarElement {
   kreverModul?: string;
   kreverGruppemodul?: string;
   kreverFirmaModul?: "maskin" | "timer" | "varelager"; // Midlertidig flagg per Organization.har<X>Modul — erstattes av OrganizationModule i Fase 0
-  kreverTimerLeder?: boolean; // Vises kun for prosjektleder/admin (Runde 1C-attestering)
 }
 
 export const hovedelementer: SidebarElement[] = [
@@ -178,14 +175,6 @@ export const hovedelementer: SidebarElement[] = [
     kreverFirmaModul: "timer",
   },
   {
-    id: "timer-attestering",
-    labelKey: "nav.timerAttestering",
-    ikon: <CheckCircle2 className="h-5 w-5" />,
-    kreverProsjekt: true,
-    kreverFirmaModul: "timer",
-    kreverTimerLeder: true,
-  },
-  {
     id: "vareforbruk",
     labelKey: "nav.vareforbruk",
     ikon: <Package className="h-5 w-5" />,
@@ -256,8 +245,6 @@ export function hrefForSidebarElement(
       return "/dashbord/maskin";
     case "mine-timer":
       return "/dashbord/timer/mine";
-    case "timer-attestering":
-      return prosjektId ? `/dashbord/${prosjektId}/timer/attestering` : null;
     default:
       return prosjektId ? `/dashbord/${prosjektId}/${element.id}` : null;
   }
@@ -315,12 +302,6 @@ export function useSidebarElementer(): {
     (m) => m.moduleSlug === "varelager" && m.status === "aktiv",
   );
 
-  // Sjekk timer-leder-tilgang for attesterings-fanen (kun hvis modul aktivert)
-  const { data: kanAttestereTimer } = trpc.timer.dagsseddel.kanAttestere.useQuery(
-    { projectId: prosjektId! },
-    { enabled: !!prosjektId && harTimerModulPaaProsjekt },
-  );
-
   // Hent bygninger med tegninger for å sjekke IFC-tilgjengelighet
   const { data: _bygninger } = trpc.bygning.hentForProsjekt.useQuery(
     { projectId: prosjektId! },
@@ -354,8 +335,6 @@ export function useSidebarElementer(): {
       (element.kreverFirmaModul === "timer" || element.kreverFirmaModul === "varelager") &&
       skjulFirmaModulForGjest(element.kreverFirmaModul, valgtGjest)
     ) return false;
-    // Timer-leder-sjekk (kun for attesterings-elementet)
-    if (element.kreverTimerLeder && !kanAttestereTimer) return false;
     return true;
   });
 

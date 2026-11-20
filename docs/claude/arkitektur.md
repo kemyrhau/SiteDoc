@@ -385,7 +385,7 @@ To DB-kolonner styrer tilgang: `User.role` (`sitedoc_admin` | `company_admin` | 
 | **Prosjektmedlem** | `ProjectMember.role = "member"` | — | `harProsjektTilgang()` |
 
 **Kapabilitets-felter på ProjectMember** (boolean, eksplisitt opt-in):
-- `kanAttestere` — gir timer-attestering uten prosjekt-admin (vedtatt 2026-05-02). `role="admin"` har implisitt attestering-tilgang i `erProsjektLeder`.
+- `kanAttestere` — gir timer-attestering uten prosjekt-admin (vedtatt 2026-05-02). `role="admin"` har implisitt attestering-tilgang. Fra w10b (plan web-timeføring § 4.6, § 4.10) avgjøres retten av `attesteringsOmfang` (liste) og `attesteringsFirmaer` (handlinger) i `apps/api/src/routes/timer/dagsseddel.ts`: aktivt prosjektmedlem med admin eller `kanAttestere`, aktiv ansatt i sedelens firma. `erProsjektLeder` er slettet.
 - `erFirmaansvarlig` — flyt-relatert ansvar (eksisterende felt).
 
 **`harProsjektTilgang(userId, projectId)`**: Sjekker ProjectMember-rad ELLER company_admin med riktig org. Alle prosjekt-ruter bruker denne — aldri inline-sjekk. Ligger i `tilgangskontroll.ts`. `company_admin` uten `organizationId` er ugyldig — fanget i `verifiserOrganisasjonTilgang()`.

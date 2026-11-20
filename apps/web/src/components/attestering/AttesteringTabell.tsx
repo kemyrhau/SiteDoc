@@ -229,7 +229,6 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
 
   const oppfrisk = () => {
     void utils.timer.dagsseddel.hentTilAttesteringFirma.invalidate();
-    void utils.timer.dagsseddel.hentTilAttestering.invalidate();
     void utils.timer.dagsseddel.hentForAttestering.invalidate();
   };
   const feil = (e: { message: string }) => setMelding(e.message);

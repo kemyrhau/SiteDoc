@@ -54,6 +54,9 @@ const KAT = id("48"); // utleggskategori i ORG
 
 const BRUKERE = [ANSATT, ANSATT_B, LEDER, KAN, SLUTTET, FADMIN, FADMIN2, SITEADMIN];
 const PROSJEKTER = [P1, P2, P3];
+// Prosjektnummer er unikt i DB; unikt pr. løp så rester etter et avbrutt løp ikke velter seeden.
+const NR = randomUUID().slice(0, 8);
+const P3_NR = `W10B-3-${NR}`;
 
 function ctx(userId: string) {
   return {
@@ -206,9 +209,9 @@ async function seed() {
   });
   await prisma.project.createMany({
     data: [
-      { id: P1, projectNumber: "W10B-1", name: "Ledet bygg", primaryOrganizationId: ORG },
-      { id: P2, projectNumber: "W10B-2", name: "Delt bygg", primaryOrganizationId: ORG },
-      { id: P3, projectNumber: "W10B-3", name: "Hemmelig bygg", primaryOrganizationId: ORG },
+      { id: P1, projectNumber: `W10B-1-${NR}`, name: "Ledet bygg", primaryOrganizationId: ORG },
+      { id: P2, projectNumber: `W10B-2-${NR}`, name: "Delt bygg", primaryOrganizationId: ORG },
+      { id: P3, projectNumber: P3_NR, name: "Hemmelig bygg", primaryOrganizationId: ORG },
     ],
   });
   await prisma.projectOrganization.createMany({
@@ -363,7 +366,7 @@ describe("O4 — navneskjul (R13) og serverens sperre", () => {
     expect(p3.byggeplassNavn ?? null).toBeNull();
     expect(p3.underprosjekt ?? null).toBeNull();
     expect(JSON.stringify(s)).not.toContain("Hemmelig");
-    expect(JSON.stringify(s)).not.toContain("W10B-3");
+    expect(JSON.stringify(s)).not.toContain(P3_NR);
   });
 
   it("rad på prosjekt han har tilgang til (uten å lede) har navn", async () => {
