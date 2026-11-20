@@ -14,6 +14,7 @@ import {
   registrerLenke,
   standardAktivitetId,
 } from "@/lib/registrerTimer";
+import { medRetur } from "@/lib/tilbake-adresse";
 
 /**
  * w2 (B1): «+ Registrer timer» — ett trykk fra Timer-sidene til utfylt jobb.
@@ -27,11 +28,14 @@ import {
 export function RegistrerTimerKnapp({
   organizationId,
   projectId,
+  retur,
 }: {
   /** Firmaet timene føres på (innlogget firma). */
   organizationId: string | null;
   /** Prosjektet fra toppen (B2 trinn 3). Null = arbeideren velger på dagen. */
   projectId: string | null;
+  /** w14 (TK4–TK5): adressen knappen står på. Skjemaet og dagen går tilbake dit. */
+  retur?: string | null;
 }) {
   const { t } = useTranslation();
   const router = useRouter();
@@ -86,7 +90,7 @@ export function RegistrerTimerKnapp({
 
   if (!prosjektkortModus) {
     return (
-      <Link href="/dashbord/timer/ny" className={aktivKlasse}>
+      <Link href={medRetur("/dashbord/timer/ny", retur)} className={aktivKlasse}>
         <Plus className="h-4 w-4" />
         {t("timer.nyDagsseddel")}
       </Link>
@@ -125,6 +129,7 @@ export function RegistrerTimerKnapp({
               sheetId: sheet.id,
               projectId: kjentProsjekt,
               eksisterte: !!sheet.eksisterte,
+              retur,
             }),
           ),
       },

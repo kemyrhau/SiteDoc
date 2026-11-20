@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { soketekst } from "@/lib/tilbake-adresse";
 
 /**
  * T7-1b (2026-05-12): URL-flytt fra prosjekt-bundet sti til firma-kontekst.
@@ -6,6 +7,10 @@ import { redirect } from "next/navigation";
  * velger prosjekt via geo-forslag eller manuell velger i ny flyt.
  * Beholdes som redirect-stub for eldre bokmerker og lenker.
  */
-export default function Page() {
-  redirect("/dashbord/timer/ny");
+export default function Page({
+  searchParams,
+}: {
+  searchParams: Record<string, string | string[] | undefined>;
+}) {
+  redirect(`/dashbord/timer/ny${soketekst(searchParams)}`);
 }

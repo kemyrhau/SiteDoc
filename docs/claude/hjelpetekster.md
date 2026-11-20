@@ -157,6 +157,14 @@ ser det før du trykker Bekreft. Forkast sletter det.»
 
 Knappetekster: «Registrer timer» (`timer.registrerTimer`, også tittelen på prosjektvelgeren når dagen åpnes uten prosjekt) og nederst på dagen «+ Registrer timer» · «neste jobb, samme eller annet prosjekt» (`timer.prosjektkort.registrerTimer`, `…registrerTimerHint`). Dagskort-modus viser «Ny dagsseddel» som før.
 
+## Web: Tilbake-knappen i timeføringen (`dashbord/timer/[id]`, `dashbord/timer/ny`, w14 leveranse 1, 🟡 ikke merget, `feat/web-timer-w14a`)
+
+Ingen ?-ikon; knappeteksten sier hvor knappen går (B39 A, 15 språk):
+- Fra prosjektets Timer: «Tilbake til Timer» (`timer.tilbakeTilTimer`) — samme uke og filter.
+- Fra Mine timer: «Tilbake til Mine timer» (`timer.tilbakeTilMineTimer`).
+- Åpnet direkte (bokmerke, e-post): «Til Mine timer» (`timer.tilMineTimer`).
+`timer.tilbake` («Tilbake til oversikt») brukes ikke lenger i koden; nøkkelen står.
+
 ## Web: Kortet pr. jobb (`dashbord/timer/[id]/page.tsx`, w3a i web-timeføring, 🟡 ikke merget, `feat/web-timer-w3a`)
 
 Dagsseddel-siden har ikke ?-ikon; teksten står i kortet (`timer.prosjektkort.*`, 15 språk):

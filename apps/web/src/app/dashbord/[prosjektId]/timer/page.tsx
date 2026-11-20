@@ -2,13 +2,14 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Spinner } from "@sitedoc/ui";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useFirma } from "@/kontekst/firma-kontekst";
 import { RegistrerTimerKnapp } from "@/components/timer/RegistrerTimerKnapp";
+import { lesUkeParam, medRetur, prosjektTimerAdresse } from "@/lib/tilbake-adresse";
 import { spennerFlereAar, visDagDato, visTimerTall } from "@/lib/registrerTimer";
 import { StatusBadge } from "@/components/timer/StatusBadge";
 import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
@@ -52,8 +53,25 @@ export default function TimerListSide() {
   const prosjektId = params.prosjektId;
   const { valgtFirma } = useFirma();
 
-  const [ukeStart, setUkeStart] = useState<Date>(() => ukestart(new Date()));
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("alle");
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // w14 (TK2): uka og statusfilteret står i adressen (`?uke=`, `?status=`), så «Tilbake til
+  // Timer» fra dagen lander på samme uke og filter. Ukjent/ugyldig verdi → denne uka / «Alle».
+  const [ukeStart, setUkeStart] = useState<Date>(
+    () => lesUkeParam(searchParams.get("uke")) ?? ukestart(new Date()),
+  );
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(() => {
+    const s = searchParams.get("status");
+    return (STATUSER as readonly string[]).includes(s ?? "") ? (s as StatusFilter) : "alle";
+  });
+  const egenAdresse = prosjektTimerAdresse(prosjektId, ukeStart, statusFilter);
+
+  function velg(uke: Date, status: StatusFilter) {
+    setUkeStart(uke);
+    setStatusFilter(status);
+    router.replace(prosjektTimerAdresse(prosjektId, uke, status), { scroll: false });
+  }
 
   const ukeSlutt = useMemo(() => {
     const d = new Date(ukeStart);
@@ -71,7 +89,7 @@ export default function TimerListSide() {
   function endreUke(retning: -1 | 1) {
     const d = new Date(ukeStart);
     d.setDate(d.getDate() + 7 * retning);
-    setUkeStart(d);
+    velg(d, statusFilter);
   }
 
   const ukenummer = (() => {
@@ -107,7 +125,11 @@ export default function TimerListSide() {
             </p>
           </div>
           {/* w2 (B1): samme handling som på Mine timer — prosjektet er denne sidens. */}
-          <RegistrerTimerKnapp organizationId={valgtFirma?.id ?? null} projectId={prosjektId} />
+          <RegistrerTimerKnapp
+            organizationId={valgtFirma?.id ?? null}
+            projectId={prosjektId}
+            retur={egenAdresse}
+          />
         </div>
       </SonetonetSidehode>
 
@@ -134,7 +156,7 @@ export default function TimerListSide() {
           <ChevronRight className="h-4 w-4" />
         </button>
         <button
-          onClick={() => setUkeStart(ukestart(new Date()))}
+          onClick={() => velg(ukestart(new Date()), statusFilter)}
           className="rounded px-3 py-1 text-xs font-medium text-sitedoc-primary hover:bg-sitedoc-primary/10"
         >
           {t("timer.idag")}
@@ -144,7 +166,7 @@ export default function TimerListSide() {
           <span className="text-sm text-gray-600">{t("timer.status")}:</span>
           <select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
+            onChange={(e) => velg(ukeStart, e.target.value as StatusFilter)}
             className="rounded border border-gray-300 px-2 py-1 text-sm"
           >
             <option value="alle">{t("timer.alleStatuser")}</option>
@@ -201,7 +223,7 @@ export default function TimerListSide() {
                   </td>
                   <td className="px-3 py-2 text-right">
                     <Link
-                      href={`/dashbord/timer/${rad.id}`}
+                      href={medRetur(`/dashbord/timer/${rad.id}`, egenAdresse)}
                       className="text-sm font-medium text-sitedoc-primary hover:underline"
                     >
                       {t("timer.aapne")}

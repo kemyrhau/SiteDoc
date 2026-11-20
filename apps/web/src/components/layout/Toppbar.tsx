@@ -3,7 +3,7 @@
 import { useSession, signOut } from "next-auth/react";
 import { LogOut, User, HardHat, ShieldCheck, Menu, X, Search, BarChart3, PanelLeftOpen } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
-import { useAktivSeksjon } from "@/hooks/useAktivSeksjon";
+import { useNavigasjon } from "@/kontekst/navigasjon-kontekst";
 import { KontekstChip } from "./KontekstChip";
 import { useSokModal } from "@/kontekst/sok-modal-kontekst";
 import { useState, useRef, useEffect } from "react";
@@ -31,7 +31,8 @@ export function Toppbar() {
   const ref = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const pathname = usePathname();
-  const aktivSeksjon = useAktivSeksjon();
+  // w14: seksjonen settes av `AktivSeksjonSporer` i dashbord-layouten.
+  const { aktivSeksjon } = useNavigasjon();
   const { prosjektId } = useProsjekt();
   const erFirmaKontekst = ruteErFirmaKontekst(pathname);
   const erHub = pathname?.startsWith("/dashbord/innstillinger") ?? false;
