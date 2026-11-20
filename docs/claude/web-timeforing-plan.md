@@ -2468,6 +2468,14 @@ Kenneth ba om en ny runde mot avvik i planen. 🟡 Levert i versjon 12: § 4.13 
 - **B40 → A.** Mine timer blir i brukermenyen. På en dag lyser «Timer» i sidemenyen når brukeren kom fra prosjektets Timer, ellers ingenting. 🟡 Vedtatt, ikke bygget (w14).
 - w14 bestilles i to leveranser: først timeføringen (TK1–TK5 og B40), deretter resten (TK6–TK26).
 
+### 8.17 Kenneth 2026-11-20 etter test av w3b og w14 leveranse 1 på test (`f529b527`)
+
+- **Bestilt:** w14 leveranse 2 (TK6–TK26) og feilen med uka på prosjektets Timer (uka hentes med `toISOString()` av lokal midnatt, så lista tar med søndagen før og mister søndagen i uka; fantes før w14). 🟡 Ikke bygget.
+- **Testfunn sendt til Fabel** (bilder i `relay/bilder/2026-11-20-test-w3b-w14/`, gitignorert):
+  1. «Registrer timer» fra prosjektets Timer åpner dagen med prosjektkortet lukket (bilde 2). Kenneth: «virker som helt unødvendig steg → det steget gjør ingen ting». Han må åpne kortet før han kan gjøre noe (bilde 3).
+  2. Reise, «Overføring til annet kontor → Til Kontor Narvik», gir fast tid 03:10–07:00 regnet bakover fra dagens start (bilde 6). Kenneth: «hva om jeg begynte å kjøre kl 12:00?»
+  3. Etter at han registrerte arbeid på et annet sted samme dag, står alt i ett kort, «Sitedoc Boligfelt B12 · 2 byggeplasser» (bilde 8). Kenneth: «nå er det for svakt skille mellom prosjektkortene denne dagen … jeg må bruke lupe og studere hva skjer her for å se det». 🟡 Fabel reviderer; ikke bygget.
+
 
 
 Dette er forslag til oppdeling, ikke ordrer. **w1, w2 og w5 er merget** (§ 9.1–9.3). **w12 krever en migrering** (utfylling av kort-id på reise, § 4.11 del E), som Kenneth kjører. **w6 krever en migrering** (ny
