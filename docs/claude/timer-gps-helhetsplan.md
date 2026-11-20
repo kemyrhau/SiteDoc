@@ -370,6 +370,9 @@ bekreftelsessteget finnes, brytes G1.
   gapet ligger på forrige besøk til «Dro fra» settes (**K11**, anbefaling (a)+(c)).
 - **Første etappe ut** (V3/V10/V11/V13/V15): origo = start-GPS, destinasjon = *første besøk* (ikke slutt-GPS).
   **Retur** (V7): fra *siste besøk* × oppmøtested når slutt-GPS treffer kontoret. Form uendret. Fasit **Dag C** i spec § 4.6.
+  ⚠️ **Kenneth 2026-11-20 (B33 A, `web-timeforing-plan.md` § 8.10):** utreisen føres på dagens første prosjekt og
+  returen på dagens siste. Det er samme regel. Manuell reise på telefonen får den i w12m; forslaget får den her i
+  L4-B. Reiseradene kobles til første og siste jobb (B32 B, `web-timeforing-plan.md` § 4.11). 🟡 Ikke bygget.
 - **`dagsseddel_local.project_id` blir nullable** (H14) i L4-B. `daily_sheets` på server er uendret (én pr.
   `userId, dato`, aldri hatt projectId) → **Varelager og Maskin ikke berørt** (modul-sjekk i spec § 6).
 - ⚠️ **Overlapp-regelen består:** to prosjekter må ha adskilte klokkevinduer. Samme byggeplass to ganger på rad

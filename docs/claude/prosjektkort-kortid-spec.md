@@ -90,7 +90,7 @@ Valget er Kenneths (**B1**).
 
 | Tabell (server · mobil) | `kort_id` | Regel |
 |---|---|---|
-| `timer.sheet_timer` · `sheet_timer_local` | Ja, alle **arbeidsrader**. Reise-rader: alltid `NULL`. | Reise ligger i dag-seksjonen og lager ikke kort (`prosjektkortMobil.ts:286`; vedtak «reise skilt fra arbeid» 2026-11-14). |
+| `timer.sheet_timer` · `sheet_timer_local` | Ja, alle **arbeidsrader**. Reise-rader: alltid `NULL`. ⚠️ **SNUDD 2026-11-20 (Kenneth, B32 B):** reiseraden bærer kort-id og ligger i jobbens kort — `web-timeforing-plan.md` § 4.11 (w12, 🟡 ikke bygget). Til w12 er merget, gjelder teksten her. | Reise ligger i dag-seksjonen og lager ikke kort (`prosjektkortMobil.ts:286`; vedtak «reise skilt fra arbeid» 2026-11-14). |
 | `timer.sheet_machines` · `sheet_machine_local` | Ja. | Koblet maskin (`sheetTimerId`) har alltid radens kort. Ukoblet («Uten rad») bærer eget `kort_id`. |
 | `timer.sheet_tillegg` · `sheet_tillegg_local` | Ja. | Linja velger kort (ORDRE 25: datokortet). |
 | `timer.sheet_utlegg` · `sheet_utlegg_local` | Ja. | Som tillegg. |
@@ -111,6 +111,9 @@ For alle rader med samme `kort_id`:
   kort, skrives den på alle kortets arbeidsrader.
 - **K6** koblet maskin/vare har samme `kort_id` som timerraden den er koblet til.
 - **K7** to kort kan ha identiske K2–K4 (grøft og skifer). Det er hele poenget; ingen leser slår dem sammen.
+- ⚠️ **Reise i kortet (B32 B, Kenneth 2026-11-20, 🟡 ikke bygget):** for en reiserad gjelder K1 og K2. K4 og K5
+  gjelder ikke, K3 avgjøres av B34, og reiseraden teller ikke når kortets nøkkel avgjøres —
+  `web-timeforing-plan.md` § 4.11 del A punkt 6.
 
 K1–K4 og K6 valideres av **én delt funksjon** i `packages/shared` (`validerKortInvariant(rader, sedelKontekst)`),
 brukt av `syncBatch`, web-mutasjonene og mobilens skrivevei. Navnet på delt kilde for nøkkelen flyttes samtidig fra
@@ -172,7 +175,7 @@ i samme kjøring. Koblet maskin/vare får radens id. Ingen Prisma-endring; SQLit
 | Krav (arkitektur.md) | Hvordan |
 |---|---|
 | (a) Backfill | § 3.2 + § 3.3, i samme release som kolonnen. |
-| (b) DB-garanti | `CHECK` på rad-nivå: `sheet_timer`: `(er_reise AND kort_id IS NULL) OR (NOT er_reise AND kort_id IS NOT NULL)`; maskin/tillegg/utlegg: `kort_id IS NOT NULL`; vareforbruk: `dagsseddel_id IS NULL OR kort_id IS NOT NULL`. **Når** den legges på er B2. |
+| (b) DB-garanti | `CHECK` på rad-nivå: `sheet_timer`: `(er_reise AND kort_id IS NULL) OR (NOT er_reise AND kort_id IS NOT NULL)` (⚠️ SNUDD 2026-11-20, B32 B: blir `kort_id IS NOT NULL` for alle timerader, i utgivelsen etter w12 — `web-timeforing-plan.md` § 4.11 del E; `CHECK`-en er ikke lagt på); maskin/tillegg/utlegg: `kort_id IS NOT NULL`; vareforbruk: `dagsseddel_id IS NULL OR kort_id IS NOT NULL`. **Når** den legges på er B2. |
 | (c) Test som feiler når feltet er tomt | Integrasjonstest pr. skrivevei i M8 (rad uten `kort_id` etter kall = rød) + mobiltest pr. skrivevei i M9 + gate-SQL under. |
 
 **Gate-SQL Kenneth kjører etter migrering (1, 2 og 3a skal gi 0; 3b er til orientering):**
@@ -1343,7 +1346,7 @@ Ingen flate skal ha egen bøtting etterpå (T35).
 | G5 Uten kobling | Maskin og varer i kortet uten gyldig kobling (ingen `sheetTimerId`, eller raden finnes ikke i kortet) er **egne linjer** etter kortets timelinjer, med Type «Maskin» eller «Vare», sortert på egen fra-tid; uten tid sist. De flyttes aldri inn på en timelinje av visningen — det ville vært å gjette. Slik viser telefonen dem under «Uten rad» (HM44). Dette er det vanlige for alt som er ført på web og i dagskort-modus (HM36). Kortet finner de via `kortId` (§ 2.4 regel 3). **Eksisterende rader slettes aldri og kobles aldri automatisk** (H12, H13). En maskin som krever timerad (R24) og står uten kobling, får merket «Maskin uten timerad» i Avvik. Den kan attesteres og returneres som i dag. |
 | G6 Tillegg og utlegg | Egne linjer i kortet de bærer `kortId` til, etter time-, maskin- og varelinjene. De har ingen kobling til en timerad (M5, HM46). |
 | G7 Kortenes rekkefølge | Første linjes `fraTid`. Kort uten tid etter dem. Likt → eldste rad, så `kortId`. |
-| G8 Reise | Reiserader har `kortId = NULL` (§ 2.2). De vises i egen blokk «Reise» på sedelen, sortert på `fraTid`, med reise-merket som i dag. |
+| G8 Reise | Reiserader har `kortId = NULL` (§ 2.2). De vises i egen blokk «Reise» på sedelen, sortert på `fraTid`, med reise-merket som i dag. ⚠️ **SNUDD 2026-11-20 (Kenneth, B32 B):** reiseraden bærer kort-id og ligger i jobbens kort — `web-timeforing-plan.md` § 4.11 (w12, 🟡 ikke bygget). Til w12 er merget, gjelder teksten her. |
 | G9 Uten kort | Andre rader med `kortId = NULL` samles i «Uten kort» nederst på sedelen. Ingen rad skjules; antall rader inn = antall rader ut. |
 | G10 Beskrivelse | Står på hver rad (R2). K5 — én tekst pr. kort — er ikke bygget (§ 8.1) og forutsettes ikke. |
 | G11 Aldri synlig id | `kortId` brukes bare som nøkkel. Den skrives aldri ut i skjerm, PDF eller regneark (B1). |
@@ -1623,7 +1626,7 @@ oversiktsraden klokkeslett og beskrivelse.
 | Del | Regel |
 |---|---|
 | E1 Rekkefølge (alltid) | Linjene sorteres så et kort står samlet: dato → ansatt → kort (G7) → linje (G3), med maskin og varer **på** sin timerad (R3) og egne maskin- og varelinjer, tillegg og utlegg sist i kortet. Gjelder Excel «Detaljer», PDF og rapportskjermen. |
-| E2 Kolonnen «Kort» | En vanlig kolonne i kolonnelista, **valgt i malen** (H3) og av som standard. Løpenummer pr. dato innenfor eksportens gruppe: 1, 2, 3 … Tom for reise og linjer uten kort. Dato + nummer (+ gruppe) er entydig i dokumentet, også når ansatt ikke vises. |
+| E2 Kolonnen «Kort» | En vanlig kolonne i kolonnelista, **valgt i malen** (H3) og av som standard. Løpenummer pr. dato innenfor eksportens gruppe: 1, 2, 3 … Tom for reise og linjer uten kort. Dato + nummer (+ gruppe) er entydig i dokumentet, også når ansatt ikke vises. ⚠️ 2026-11-20 (B32 B): reise får jobbens nummer når w12 er bygget (`web-timeforing-plan.md` § 4.11 del J). |
 | E3 «Oversiktsrad og delsum pr. prosjektkort» | **Et valg i malen** (H3), standard av. Hvert kort får samme oversiktsrad som attesteringen (R4) — prosjektnummer og -navn · underprosjekt · byggeplass · dato · fra–til · «Kort n» — og en delsum for timer og maskintimer. Ansatt følger regelen for ekstern mottaker som i dag. |
 | E4 Prosjektnummer (H6) | **Én kolonne «Prosjektnr»:** firmaets interne nummer (`Project.internalProjectNumber`). Mangler det, vises SD-nummeret (`Project.projectNumber`). Har prosjektet slått av visning av SD-nummer (`visSiteDocNummer`, HM59), står cella da tom. Samme regel i oversiktsraden, i gruppeoverskriften og i attesteringen, fra én delt funksjon i `packages/shared`. Aggregatarket «Etter prosjekt» har begge numrene som i dag. Gruppering på prosjekt bruker prosjektets **id** som nøkkel og viser nummer + navn i overskriften. |
 | E5 Varer (H2) | Varen står **på timeradens linje**, i kolonnene Vare · Vareenhet · Varemengde. En vare uten timerad er egen linje med Type «Vare» (G5). Radtypen «vare» slår dem av og på, og rapportskjermen får en femte avkrysning. Ingen beløp — prisen låses ikke ved attestering (§ 12.2 «Varer»). |
