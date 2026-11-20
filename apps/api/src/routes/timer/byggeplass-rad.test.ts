@@ -98,6 +98,8 @@ function lagCtx() {
         aggregate: vi.fn().mockResolvedValue({ _sum: { pauseMin: 0 } }),
       },
       dailySheet: { update: vi.fn().mockResolvedValue({}) },
+      // w3a (A7): stedsbytte på timeraden tar med koblede maskiner.
+      sheetMachine: { updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
     }),
   );
   const upsert = vi.fn();
@@ -109,6 +111,8 @@ function lagCtx() {
         findUnique: vi.fn().mockResolvedValue({ tillattRedigerVedAttestering: true }),
       },
     },
+    // w3a (A7): koblede varer følger stedsbyttet.
+    prismaVarelager: { $executeRawUnsafe: vi.fn().mockResolvedValue(0) },
     prismaTimer: {
       $transaction: transaction,
       dailySheet: { findUnique: vi.fn().mockResolvedValue(sheet), upsert },
@@ -131,6 +135,8 @@ function lagCtx() {
         findMany: vi.fn().mockResolvedValue([]),
         create: maskinCreate,
         update: maskinUpdate,
+        // w3a (A7): stedsbytte på timeraden tar med koblede maskiner.
+        updateMany: vi.fn().mockResolvedValue({ count: 0 }),
       },
       // w5 (B10): retting ved attestering leser de ventende tilleggsradenes prosjekt.
       sheetTillegg: { findMany: vi.fn().mockResolvedValue([]) },
