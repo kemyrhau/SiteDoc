@@ -123,6 +123,12 @@ vi.mock("@sitedoc/db", () => {
         findFirst: vi.fn(async ({ where }: { where: { userId: string; projectId: string } }) =>
           PROSJEKT_MEDLEMMER.find((m) => m.userId === where.userId && m.projectId === where.projectId) ?? null,
         ),
+        // w10b: omfanget i firmalista — prosjektene der brukeren er admin eller kan attestere.
+        findMany: vi.fn(async ({ where }: { where: { userId: string } }) =>
+          PROSJEKT_MEDLEMMER.filter((m) => m.userId === where.userId && (m.role === "admin" || m.kanAttestere)).map(
+            (m) => ({ projectId: m.projectId }),
+          ),
+        ),
       }),
       project: modell({
         findUnique: vi.fn(async () => ({ primaryOrganizationId: ORG_A })),
@@ -194,9 +200,21 @@ const FIRMAGRENSE = "Timer attesteres av firmaet den ansatte jobber for";
 beforeEach(() => mocks.create.mockClear());
 
 describe("H1 — lister følger sedelens firma", () => {
-  it("🔴 A-leder ser ikke B sin sedel i prosjektets attesteringsliste", async () => {
-    const sedler = await kaller(LEDER_A).dagsseddel.hentTilAttestering({ projectId: PROSJEKT_A });
+  // w10b (plan § 4.10 del D): prosjektlederen bruker firmaets liste med sitt omfang.
+  it("🔴 A-leder ser ikke B sin sedel i firmalista (prosjektleder-omfang)", async () => {
+    const sedler = await kaller(LEDER_A).dagsseddel.hentTilAttesteringFirma({ organizationId: ORG_A });
     expect(sedler.map((s) => s.id)).toEqual([SEDEL_A]);
+  });
+
+  it("🔴 A-leder får ikke åpne B sin firmaliste", async () => {
+    await expect(
+      kaller(LEDER_A).dagsseddel.hentTilAttesteringFirma({ organizationId: ORG_B }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
+  it("🔴 gjest-prosjektadmin fra B ser ikke A sin sedel i B sin liste", async () => {
+    const sedler = await kaller(LEDER_B).dagsseddel.hentTilAttesteringFirma({ organizationId: ORG_B });
+    expect(sedler.map((s) => s.id)).toEqual([SEDEL_B]);
   });
 
   it("🔴 A-firma-admin ser ikke B sin sedel i firmavisningen", async () => {
@@ -210,8 +228,14 @@ describe("H1 — lister følger sedelens firma", () => {
   });
 
   it("vakt: ansattnummer hentes fra sedelens firma, navn og e-post vises", async () => {
-    const [sedel] = await kaller(LEDER_A).dagsseddel.hentTilAttestering({ projectId: PROSJEKT_A });
-    expect(sedel?.ansatt).toEqual({ id: ANSATT_A, name: `Navn ${ANSATT_A}`, email: `${ANSATT_A}@firma.no`, ansattnummer: "A-3" });
+    const [sedel] = await kaller(LEDER_A).dagsseddel.hentTilAttesteringFirma({ organizationId: ORG_A });
+    expect(sedel?.ansatt).toEqual({
+      id: ANSATT_A,
+      name: `Navn ${ANSATT_A}`,
+      email: `${ANSATT_A}@firma.no`,
+      ansattnummer: "A-3",
+      avdelingId: null,
+    });
   });
 });
 
@@ -304,7 +328,7 @@ describe("Ansattnummer for ansatt i to firma følger sedelens firma", () => {
   });
 
   it("🔴 attesteringslista viser A-nummeret på A-sedelen (M7)", async () => {
-    const sedler = await kaller(LEDER_A).dagsseddel.hentTilAttestering({ projectId: PROSJEKT_A });
+    const sedler = await kaller(LEDER_A).dagsseddel.hentTilAttesteringFirma({ organizationId: ORG_A });
     expect(sedler.find((s) => s.id === SEDEL_DOBBEL)?.ansatt?.ansattnummer).toBe("A-9");
   });
 

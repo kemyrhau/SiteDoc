@@ -24,7 +24,6 @@ export type Seksjon =
   | "kontakter"
   | "papirkurv"
   | "timer"
-  | "timer-attestering"
   | "mine-timer"
   | "vareforbruk"
   | "maskin"

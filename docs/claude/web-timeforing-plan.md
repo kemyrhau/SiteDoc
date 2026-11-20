@@ -2127,6 +2127,18 @@ Målt på test (M7, 1 440, firmaattesteringen, uke 20, fanen Attestert): dagsrad
 
 Tester: `attestering-tabell.test.tsx` (blokkene merket «w10a»), `attestering-tabell-modell.test.ts` («w10a (B30 A)»), `kortid-d2a.integration.test.ts` («w10a (A9)»).
 
+### 9.6 w10 del B i kode (🟡 `feat/web-timer-w10b`, ikke merget)
+
+| Del | Hvor |
+|---|---|
+| B1 Omfanget | `attesteringsOmfang` i `apps/api/src/routes/timer/dagsseddel.ts`: `alle` for sitedoc_admin og firma-admin (ikke deaktivert); ellers, for aktiv ansatt, prosjektene der brukeren er aktivt medlem med admin eller «kan attestere». Ingen deltakerfilter (S1 A). Test: `w10b-attestering-omfang.integration.test.ts` (likhet med `attesteringsFirmaer` begge veier). |
+| B2 Lista | `hentTilAttesteringFirma` bruker omfanget (`krevAttesteringsOmfang`). Firma-admin: samme svar som før, unntatt S2 A (under). Prosjektleder: sedler med rad på sine prosjekter, ikke sedler med bare fravær, navneskjul (`navnSynlighet`), `mineProsjektIder`, `tidsrundingMinutter`. Kort-id og prosjekt (med navneskjul) på utlegg for alle omfang (S2 A, § 8.12): utlegget står i jobbens kort også for firma-admin. Test: `w10b-attestering-omfang.integration.test.ts` O6. |
+| B3 `kanAttestereFirma` | `kanAttestere` betyr fortsatt firma-admin (telefonen); nye felt `omfang` og `prosjektIder`. Ny `mineAttesteringsFirmaer`. |
+| B4 Tabellen | `prosjektKontekst` er en mengde (`ReadonlySet`). «Attester radene på dine prosjekter» (`timer.attestering.tabell.attesterDineProsjekter`). Ukeavvik og ukeoversikt bare for firma-admin. |
+| B5 Siden og menyen | `/dashbord/attestering` (+ `/[id]`) utenfor firma-layouten; `/dashbord/firma/timer/attestering` sender dit (`lib/attestering-ruter.ts`). Menypunktet i FIRMA-sonen (`firma-nav.tsx`, `gateFirmaNav`): prosjektlederen ser bare det. |
+| B6 Flere firma | Firmavalg på siden (`?firma=`, nedtrekk bare ved flere firma; `useAttesteringsFirma.ts`). |
+| B7 Prosjektets side fjernet | DK1–DK3: omdirigeringer i `[prosjektId]/timer/attestering/page.tsx`, `[id]/page.tsx` og `godkjenning/page.tsx`. DK4–DK6: menypunktet, `kreverTimerLeder` og spesialtilfellet i `useAktivSeksjon.ts` slettet. DK7–DK11: `hentTilAttestering`, `kanAttestere`, `erProsjektLeder`, `krevProsjektLeder`, `dagsnormerFor` og invalideringene slettet. DK12: to i18n-nøkler i 15 filer. DK14: `ProsjektSectionAttest`, `EcoBucketAttest`, radkomponentene og `eneProsjekt`/`visProsjektnavn` (brukt bare av dem) slettet; `attestering-buckets.tsx` har typene og `radIKontekst`. Del D: testene skrevet om mot firmalista med prosjektleder-omfang, hver 🔴 vist rød uten sperren. |
+
 ## 10. Ikke målt
 
 - Databasen: Kenneths rader fra 07.11, firmaets innstillinger i test, og om testfirmaet har PSI-modulen på.

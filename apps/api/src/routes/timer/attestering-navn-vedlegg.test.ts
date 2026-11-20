@@ -2,7 +2,8 @@ import { describe, it, expect, vi } from "vitest";
 
 /**
  * Ordre d2b-3 (prosjektkort-kortid-spec.md § 12.6.0):
- *  - Tilgangssjekk: `hentForAttestering` og `hentTilAttestering` sender ikke navn på andre
+ *  - Tilgangssjekk: `hentForAttestering` og firmalista `hentTilAttesteringFirma` med
+ *    prosjektleder-omfang (w10b, plan § 4.10 del D) sender ikke navn på andre
  *    prosjekter, underprosjekter eller byggeplasser til en bruker uten tilgang til prosjektet
  *    (`verifiserProsjektmedlem`, mocket her). Firma-admin i sedelens firma ser alt, som i
  *    firmalista. Id-ene og feltene for brukere med tilgang er uendret.
@@ -113,6 +114,10 @@ vi.mock("@sitedoc/db", () => {
         findFirst: vi.fn(async ({ where }: { where: { userId: string; projectId: string } }) =>
           where.userId === LEDER && where.projectId === P_EGET ? { role: "member", kanAttestere: true } : null,
         ),
+        // w10b: omfanget i firmalista — prosjektene der LEDER kan attestere.
+        findMany: vi.fn(async ({ where }: { where: { userId: string } }) =>
+          where.userId === LEDER ? [{ projectId: P_EGET }] : [],
+        ),
       }),
       project: modell({
         findMany: vi.fn(async ({ where }: MedIn) => PROSJEKTER.filter((p) => where.id.in.includes(p.id))),
@@ -193,7 +198,8 @@ type Løs = any;
 const kaller = (userId: string) =>
   dagsseddelRouter.createCaller({ userId, prisma, prismaTimer: prismaTimer(), prismaMaskin: klient(), prismaVarelager: klient() } as never);
 const detalj = async (userId: string): Promise<Løs> => kaller(userId).hentForAttestering({ id: SEDEL });
-const liste = async (userId: string): Promise<Løs> => (await kaller(userId).hentTilAttestering({ projectId: P_EGET }))[0];
+const liste = async (userId: string): Promise<Løs> =>
+  (await kaller(userId).hentTilAttesteringFirma({ organizationId: ORG_A }))[0];
 
 const HEMMELIG = /Hemmelig|"999"|H-9|"77"/;
 const rad = (s: Løs, liste: "timer" | "tillegg" | "maskiner" | "utlegg", id: string) =>
@@ -210,7 +216,7 @@ describe("d2b-3 — navn på andre prosjekter i attesteringen", () => {
     expect(JSON.stringify(s)).not.toMatch(HEMMELIG);
   });
 
-  it("🔴 prosjektlista: samme regel for underprosjekt og byggeplass", async () => {
+  it("🔴 firmalista for prosjektlederen: samme regel for underprosjekt og byggeplass", async () => {
     const s = await liste(LEDER);
     expect(rad(s, "timer", "t-annet")).toMatchObject({ project: null, byggeplassNavn: null, underprosjekt: null });
     expect(JSON.stringify(s)).not.toMatch(HEMMELIG);

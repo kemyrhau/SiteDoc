@@ -26,6 +26,7 @@ import {
   ShieldAlert,
   MapPin,
   Library,
+  ClipboardCheck,
 } from "lucide-react";
 import { useFirma } from "@/kontekst/firma-kontekst";
 import { trpc } from "@/lib/trpc";
@@ -37,6 +38,8 @@ export interface FirmaNavElement {
   kreverFirmaModul?: "timer" | "varelager";
   kreverSitedocAdmin?: boolean;
   kreverHmsTilgang?: boolean;
+  /** w10b: vises for den som kan attestere i et firma med Timer — også prosjektleder uten firma-admin. */
+  kreverAttestering?: boolean;
 }
 
 export const firmaNavElementer: FirmaNavElement[] = [
@@ -57,6 +60,8 @@ export const firmaNavElementer: FirmaNavElement[] = [
   { labelKey: "firmaNav.malforvaltning", href: "/dashbord/firma/innstillinger/malforvaltning", ikon: <Library className="h-5 w-5" /> },
   { labelKey: "firmaNav.timer", href: "/dashbord/firma/timer", ikon: <Clock className="h-5 w-5" />, kreverFirmaModul: "timer" },
   { labelKey: "firmaNav.timerRapport", href: "/dashbord/firma/timer/rapport", ikon: <BarChart3 className="h-5 w-5" />, kreverFirmaModul: "timer" },
+  // w10b (B6): den ene attesteringen. Står utenfor firma-layouten (/dashbord/attestering).
+  { labelKey: "nav.timerAttestering", href: "/dashbord/attestering", ikon: <ClipboardCheck className="h-5 w-5" />, kreverAttestering: true },
   { labelKey: "firmaNav.kalender", href: "/dashbord/firma/kalender", ikon: <Calendar className="h-5 w-5" /> },
   { labelKey: "firmaNav.varelager", href: "/dashbord/firma/varelager", ikon: <Package className="h-5 w-5" />, kreverFirmaModul: "varelager" },
   { labelKey: "firmaNav.fakturering", href: "/dashbord/firma/fakturering", ikon: <CreditCard className="h-5 w-5" />, kreverSitedocAdmin: true },
@@ -66,8 +71,8 @@ export const firmaNavElementer: FirmaNavElement[] = [
 
 /**
  * Firma-nav filtrert på brukerens tilgang (samme gating som firma/layout.tsx).
- * Returnerer [] for ikke-firma-admin. Brukes av NavSidebar FIRMA-sone og
- * søkemodalens SIDER-gruppe.
+ * Ikke-firma-admin får bare «Attestering» når hen kan attestere i et firma med Timer
+ * (w10b), ellers []. Brukes av NavSidebar FIRMA-sone og søkemodalens SIDER-gruppe.
  */
 export function useFirmaNavElementer(): FirmaNavElement[] {
   const { valgtFirma, erSitedocAdmin, kanAdministrereFirma } = useFirma();
@@ -78,14 +83,49 @@ export function useFirmaNavElementer(): FirmaNavElement[] {
     { enabled: !!valgtFirma?.id && kanAdministrereFirma },
   );
   const harHmsTilgang = hmsTilgangQuery.data ?? false;
+  const attesteringsFirmaer = trpc.timer.dagsseddel.mineAttesteringsFirmaer.useQuery(undefined, {
+    staleTime: 5 * 60_000,
+  });
+  return gateFirmaNav(firmaNavElementer, {
+    kanAdministrereFirma: kanAdministrereFirma && !!valgtFirma,
+    erSitedocAdmin,
+    harTimerModul,
+    harVarelagerModul,
+    harHmsTilgang,
+    attesteringsFirmaer: attesteringsFirmaer.data ?? [],
+  });
+}
 
-  if (!kanAdministrereFirma || !valgtFirma) return [];
+export interface FirmaNavTilgang {
+  /** Firma-admin for det valgte firmaet (falsk uten valgt firma). */
+  kanAdministrereFirma: boolean;
+  erSitedocAdmin: boolean;
+  harTimerModul: boolean;
+  harVarelagerModul: boolean;
+  harHmsTilgang: boolean;
+  /** `dagsseddel.mineAttesteringsFirmaer` (w10b). */
+  attesteringsFirmaer: readonly { harTimerModul: boolean }[];
+}
 
-  return firmaNavElementer.filter((element) => {
-    if (element.kreverFirmaModul === "timer" && !harTimerModul) return false;
-    if (element.kreverFirmaModul === "varelager" && !harVarelagerModul) return false;
-    if (element.kreverSitedocAdmin && !erSitedocAdmin) return false;
-    if (element.kreverHmsTilgang && !harHmsTilgang) return false;
+/**
+ * Ren gating (testbar uten React-kontekst). w10b: «Attestering» vises for firma-admin i et
+ * Timer-firma (sitedoc_admin uten ansettelse inkludert) og for prosjektleder / «kan attestere»
+ * i et firma med Timer — som da bare får denne ene raden.
+ */
+export function gateFirmaNav(elementer: readonly FirmaNavElement[], t: FirmaNavTilgang): FirmaNavElement[] {
+  const kanAttestere =
+    t.attesteringsFirmaer.some((f) => f.harTimerModul) || (t.kanAdministrereFirma && t.harTimerModul);
+
+  if (!t.kanAdministrereFirma) {
+    return kanAttestere ? elementer.filter((e) => e.kreverAttestering) : [];
+  }
+
+  return elementer.filter((element) => {
+    if (element.kreverAttestering && !kanAttestere) return false;
+    if (element.kreverFirmaModul === "timer" && !t.harTimerModul) return false;
+    if (element.kreverFirmaModul === "varelager" && !t.harVarelagerModul) return false;
+    if (element.kreverSitedocAdmin && !t.erSitedocAdmin) return false;
+    if (element.kreverHmsTilgang && !t.harHmsTilgang) return false;
     return true;
   });
 }

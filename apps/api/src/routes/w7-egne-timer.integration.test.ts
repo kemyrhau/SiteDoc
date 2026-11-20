@@ -378,10 +378,11 @@ describe("w7 — flagget egneTimer i listene", () => {
     expect(await flagg()).toEqual({ [egen.sheetId]: false, [andres.sheetId]: false });
   });
 
-  it("hentTilAttestering (prosjekt): egen sedel true, andres false", async () => {
-    const egen = await nySedel(FADMIN);
+  // w10b (plan § 4.10 del D): prosjektlederen bruker firmalista med sitt omfang.
+  it("hentTilAttesteringFirma (prosjektleder-omfang): egen sedel true, andres false", async () => {
+    const egen = await nySedel(ANNEN);
     const andres = await nySedel(ARB);
-    const liste = (await dag(FADMIN).hentTilAttestering({ projectId: P1 })) as { id: string; egneTimer: boolean }[];
+    const liste = (await dag(ANNEN).hentTilAttesteringFirma({ organizationId: ORG })) as { id: string; egneTimer: boolean }[];
     expect(liste.find((s) => s.id === egen.sheetId)?.egneTimer).toBe(true);
     expect(liste.find((s) => s.id === andres.sheetId)?.egneTimer).toBe(false);
   });

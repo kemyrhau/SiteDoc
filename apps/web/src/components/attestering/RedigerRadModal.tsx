@@ -134,7 +134,7 @@ export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
     { projectId, organizationId: sheet?.organizationId },
     { enabled: !!projectId },
   );
-  const { data: setting } = trpc.organisasjon.hentSetting.useQuery(
+  const { data: setting } = trpc.organisasjon.hentArbeidstidDefaults.useQuery(
     { organizationId: sheet?.organizationId ?? "" },
     { enabled: !!sheet?.organizationId },
   );
@@ -334,7 +334,6 @@ export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
     onSuccess: () => {
       void utils.timer.dagsseddel.hentForAttestering.invalidate({ id: sheetId });
       void utils.timer.dagsseddel.hentTilAttesteringFirma.invalidate();
-      void utils.timer.dagsseddel.hentTilAttestering.invalidate();
       onLukk();
     },
     onError: (e: { message: string }) => setFeil(e.message),

@@ -57,11 +57,6 @@ export function useAktivSeksjon(): Seksjon {
 
     // Finn seksjon etter prosjektId (indeks 2 i pathen)
     const seksjonDel = deler[2];
-    // Spesialfall: /timer/attestering er egen seksjon
-    if (seksjonDel === "timer" && deler[3] === "attestering") {
-      setAktivSeksjon("timer-attestering");
-      return;
-    }
     // Dashbord er aktiv KUN på prosjekt-/dashbord-roten (ingen seksjon-segment).
     // Et segment som mangler i seksjonMap skal ikke lyse Dashbord falskt — det
     // var rotårsaken til at PSI/Kontrollplan viste Dashbord som aktiv (begge

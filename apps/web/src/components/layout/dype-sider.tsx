@@ -8,7 +8,6 @@
  * Regel 1 før regel 2 (K13 §4.0): sider som er *innstillinger* får nav-hjem som
  * hub-underlenke (søk følger gratis) — de ligger IKKE her. Kun rene
  * arbeidsflater uten nav-hjem hører hjemme i denne lista:
- *   - `firmaAttestering` → leder-attestering på firma-nivå (arbeidsflate)
  *   - `komIGang`         → onboarding (K13-a); verken firma- eller prosjekt-scopet
  *                          → INGEN sone-brødsmule (fabel-avgjørelse 2026-07-11)
  *   - `firmaarkiv`       → firmaets malarkiv i Malforvaltning › Firmaarkiv (ingen nav-hjem)
@@ -40,14 +39,8 @@ export const dypeSider: DypSide[] = [
   // Rapportmaler-flata (`[prosjektId]/maler`) fjernet (vei b, 2026-09-12). Malforvaltning
   // søkes nå via Oppsett-innstillingskortet «Maler» (innstillinger-kort.tsx) → ingen egen
   // dyp-side her. En dyp-side som pekte på en fjernet rute ville gitt et dødt søketreff.
-  {
-    id: "firmaAttestering",
-    labelKey: "nav.timerAttestering",
-    brodsmuleKeys: ["nav.soneFirma", "innstillinger.timer.tittel"],
-    href: () => "/dashbord/firma/timer/attestering",
-    kreverFirmaAdmin: true,
-    kreverFirmaModul: "timer",
-  },
+  // «firmaAttestering» er ute (w10b): attesteringen har nav-hjem i FIRMA-sonen
+  // (/dashbord/attestering, firma-nav.tsx) og søkes derfra — også av prosjektlederen.
   {
     id: "komIGang",
     labelKey: "landing.komIGang",

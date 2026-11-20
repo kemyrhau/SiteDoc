@@ -343,7 +343,7 @@ describe("w1 — årsvelgeren bytter år i én handling", () => {
   });
 
   it("firmaets attestering har velgeren ved ukevalget; ukevalg forrige/neste/«Denne uka» står", () => {
-    const side = readFileSync(resolve(__dirname, "../app/dashbord/firma/timer/attestering/page.tsx"), "utf8");
+    const side = readFileSync(resolve(__dirname, "../app/dashbord/attestering/page.tsx"), "utf8");
     expect(side).toContain("ukeOffsetForAar(ukestart, Number(e.target.value))");
     expect(side).toContain('t("timer.attestering.uke.aar")');
     expect(side).toContain("setUkeOffset((o) => o - 1)");

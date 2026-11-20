@@ -1,9 +1,8 @@
 "use client";
 
 // T7-2b1 (2026-05-14): Felleskomponent for attestering-detalj.
-// Monteres fra to wrapper-sider:
-//   - /dashbord/[prosjektId]/timer/attestering/[id] (prosjektleder-kontekst)
-//   - /dashbord/firma/timer/attestering/[id]        (firma-admin-kontekst)
+// Monteres fra /dashbord/attestering/[id] (w10b): firma-admin ser hele sedelen; prosjektlederen
+// får `prosjektKontekst` = sine prosjekter, og radene på andre prosjekter står nedtonet.
 // Per-rad-attestering: hver rad har egen status, leder velger hvilke som
 // attesteres/returneres via checkboxer.
 
@@ -48,7 +47,7 @@ type Props = {
   sheetId: string;
   // undefined = firma-kontekst (firma-admin attesterer alle rader leder har tilgang til)
   // gitt    = prosjekt-kontekst (kun rader for det prosjektet er aktivt valgbare)
-  prosjektKontekst?: string;
+  prosjektKontekst?: ReadonlySet<string>;
   // Hvor «Tilbake» og redirect etter mutasjon peker
   tilbakeUrl: string;
 };
@@ -89,7 +88,6 @@ export function AttesteringDetalj({
     trpc.timer.dagsseddel.gjenaapneAttestering.useMutation({
       onSuccess: () => {
         void utils.timer.dagsseddel.hentForAttestering.invalidate({ id: sheetId });
-        void utils.timer.dagsseddel.hentTilAttestering.invalidate();
         void utils.timer.dagsseddel.hentTilAttesteringFirma.invalidate();
         setGjenaapneVises(false);
         router.push(tilbakeUrl);
@@ -143,7 +141,6 @@ export function AttesteringDetalj({
     );
   }
 
-  // T7-4d: totaltimer er nå per-bucket — beregnes inne i EcoBucketAttest.
   const totaltAntallRader = timerRader.length + tilleggRader.length + maskinRader.length;
   const antallAttestert = [...timerRader, ...tilleggRader, ...maskinRader]
     .filter((r) => r.attestertStatus === "attestert").length;
@@ -612,7 +609,6 @@ function ReturnerDialog({
   const returner = trpc.timer.dagsseddel.returnerRader.useMutation({
     onSuccess: () => {
       void utils.timer.dagsseddel.hentForAttestering.invalidate();
-      void utils.timer.dagsseddel.hentTilAttestering.invalidate();
       void utils.timer.dagsseddel.hentTilAttesteringFirma.invalidate();
       onLukk();
       onFerdig();
@@ -682,7 +678,7 @@ function ReturnerDialog({
 
 /** R14: dagens rader i samme tabell som lista (én sedel). */
 function DetaljTabell({ sedel, orgId, readOnly, prosjektKontekst, onReturnerDag }: {
-  sedel: AttSedel; orgId: string; readOnly: boolean; prosjektKontekst?: string; onReturnerDag: () => void;
+  sedel: AttSedel; orgId: string; readOnly: boolean; prosjektKontekst?: ReadonlySet<string>; onReturnerDag: () => void;
 }) {
   const sedler = useMemo(() => [sedel], [sedel]);
   const dager = useAttesteringModell(orgId, sedler, { medAvdeling: !prosjektKontekst });

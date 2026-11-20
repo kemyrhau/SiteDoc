@@ -312,14 +312,18 @@ describe("T38 — kolonneoppsettet lagres under attesteringens egen liste-nøkke
 });
 
 describe("T49 — én verktøylinje, ingen nedtrekk utenfor tabellen", () => {
-  const side = readFileSync(resolve(__dirname, "../app/dashbord/firma/timer/attestering/page.tsx"), "utf8");
+  const side = readFileSync(resolve(__dirname, "../app/dashbord/attestering/page.tsx"), "utf8");
 
   it("d2b-2 § 12.5: ingen nedtrekk og ingen pivot — alle visningene er tabellen", () => {
     // w1 (plan web-timeføring bilde 6, tillegget til B7): årsvelgeren ved ukevalget er den
     // eneste nedtrekken — ingen filternedtrekk for prosjekt, ansatt eller avdeling (T49).
+    // w10b (B6): firmavalget i sidehodet er ingen filternedtrekk — det velger firmaet siden
+    // gjelder, og står bare når det er mer enn ett firma å velge.
     const nedtrekk = side.match(/<select[\s\S]*?className/g) ?? [];
-    expect(nedtrekk).toHaveLength(1);
-    expect(nedtrekk[0]).toMatch(/aria-label=\{t\("timer\.attestering\.uke\.aar"\)\}/);
+    expect(nedtrekk).toHaveLength(2);
+    expect(nedtrekk.filter((n) => /aria-label=\{t\("timer\.attestering\.uke\.aar"\)\}/.test(n))).toHaveLength(1);
+    expect(nedtrekk.filter((n) => /aria-label=\{t\("firma\.velgFirma"\)\}/.test(n))).toHaveLength(1);
+    expect(side).toMatch(/\{firmaer\.length > 1 && \(\s*<select/);
     expect(side).not.toMatch(/<ProsjektPivot|<AnsattPivot|<ProsjektGruppe|<SeddelKort|attesterGruppe/);
     expect(side).toMatch(/gruppering=\{visning === "sedler" \? "dag" : visning\}/);
   });
@@ -364,9 +368,31 @@ function visMed(sedler: AttSedel[], props: Partial<Parameters<typeof Attestering
   );
 }
 
-describe("T30/R13 — prosjektattesteringen er låst til prosjektet", () => {
+// w10b (plan § 4.10 del D): konteksten er mengden prosjekter prosjektlederen attesterer på.
+const R = { id: "pC", name: "Prosjekt C", internalProjectNumber: null, projectNumber: "SD-3" };
+const treProsjekter = () =>
+  sedel({
+    timer: [
+      timer("t1"),
+      timer("t2", { projectId: "pB", project: Q, kortId: "kB" }),
+      timer("t3", { projectId: "pC", project: R, kortId: "kC" }),
+    ],
+  });
+
+describe("T30/R13 — prosjektlederen er låst til sine prosjekter", () => {
+  it("🔴 mengde: linjene på pA og pB kan velges, pC står nedtonet; dagens Attester tar pA og pB", () => {
+    const { container, getByRole } = visMed([treProsjekter()], { prosjektKontekst: new Set(["pA", "pB"]) });
+    expect(linje(container, "s1:timer:t2").className).not.toMatch(/opacity-50/);
+    const annen = linje(container, "s1:timer:t3");
+    expect(annen.className).toMatch(/opacity-50/);
+    expect(within(annen).queryByRole("checkbox")).toBeNull();
+    fireEvent.click(getByRole("button", { name: /attesterDineProsjekter/ }));
+    expect(kallTil("attester")).toHaveLength(0);
+    expect(kallTil("attesterRader")[0]!.input).toEqual({ radIder: { timerIder: ["t1", "t2"], maskinIder: [], tilleggIder: [] } });
+  });
+
   it("linja på et annet prosjekt står nedtonet uten avkrysning og handlinger; utvalget tar bare prosjektets linjer", () => {
-    const { container, getByRole } = visMed([toProsjekter()], { prosjektKontekst: "pA" });
+    const { container, getByRole } = visMed([toProsjekter()], { prosjektKontekst: new Set(["pA"]) });
     const annen = linje(container, "s1:timer:t2");
     expect(annen.className).toMatch(/opacity-50/);
     expect(within(annen).queryByRole("checkbox")).toBeNull();
@@ -379,9 +405,9 @@ describe("T30/R13 — prosjektattesteringen er låst til prosjektet", () => {
   });
 
   it("dagsumraden attesterer prosjektets del — aldri hele sedelen", () => {
-    const { getByRole, queryByRole } = visMed([toProsjekter()], { prosjektKontekst: "pA" });
+    const { getByRole, queryByRole } = visMed([toProsjekter()], { prosjektKontekst: new Set(["pA"]) });
     expect(queryByRole("button", { name: /attesterDagen/ })).toBeNull();
-    fireEvent.click(getByRole("button", { name: /attesterProsjektetsDel/ }));
+    fireEvent.click(getByRole("button", { name: /attesterDineProsjekter/ }));
     expect(kallTil("attester")).toHaveLength(0);
     expect(kallTil("attesterRader")[0]!.input).toEqual({ radIder: { timerIder: ["t1"], maskinIder: [], tilleggIder: [] } });
   });
@@ -453,7 +479,7 @@ describe("d2b-3 (d) — kvitteringen på utlegget åpnes i tabellen", () => {
     expect(linje(container, "s1:utlegg:u1").querySelectorAll("a")).toHaveLength(0);
     const annet = visMed(
       [sedel({ utlegg: [{ id: "u2", belop: 80, expenseCategory: null, kortId: "kB", projectId: "pB", project: null, vedlegg: [{ id: "v3", fileName: "b.jpg", mimeType: "image/jpeg", fileUrl: "/uploads/b.jpg?sig=3" }] }] })],
-      { prosjektKontekst: "pA" },
+      { prosjektKontekst: new Set(["pA"]) },
     );
     expect(linje(annet.container, "s1:utlegg:u2").querySelectorAll("a")).toHaveLength(0);
   });
@@ -861,9 +887,9 @@ describe("w5b — dagsvisningen, alternativ A", () => {
   });
 
   it("prosjektets attestering: dagsradens «Attester» gjelder prosjektets del, og jobbradene står", () => {
-    const { container } = visMed([toProsjekter()], { prosjektKontekst: "pA" });
+    const { container } = visMed([toProsjekter()], { prosjektKontekst: new Set(["pA"]) });
     const [dag] = dagsrader(container);
-    expect(within(dag!).getByRole("button", { name: /attesterProsjektetsDel/ })).toBeTruthy();
+    expect(within(dag!).getByRole("button", { name: /attesterDineProsjekter/ })).toBeTruthy();
     expect(jobbrader(container)).toHaveLength(2);
     // Jobben på det andre prosjektet har ingen knapper.
     expect(within(jobbrader(container)[1]!).queryAllByRole("button")).toHaveLength(0);
@@ -912,9 +938,9 @@ describe("w7 (B15) — egne timer: synlige, merket, uten handlinger", () => {
   });
 
   it("prosjektattesteringen: egen sedel er utenfor konteksten også der", () => {
-    const { container, queryByRole } = visMed([egen()], { prosjektKontekst: "pA" });
+    const { container, queryByRole } = visMed([egen()], { prosjektKontekst: new Set(["pA"]) });
     expect(within(linje(container, "egen:timer:e1")).queryByRole("checkbox")).toBeNull();
-    expect(queryByRole("button", { name: /attesterProsjektetsDel/ })).toBeNull();
+    expect(queryByRole("button", { name: /attesterDineProsjekter/ })).toBeNull();
   });
 
   it("negativkontroll: uten flagget har den samme sedelen knappene og intet merke", () => {

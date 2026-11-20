@@ -1,9 +1,7 @@
 import { redirect } from "next/navigation";
 
-export default function GodkjenningRedirect({
-  params,
-}: {
-  params: { prosjektId: string };
-}) {
-  redirect(`/dashbord/${params.prosjektId}/timer/attestering`);
+// Gammel adresse fra før «godkjenning» ble «attestering». w10b (§ 4.10 DK3): sendes rett til
+// /dashbord/attestering, ikke via prosjektets (fjernede) side.
+export default function GodkjenningRedirect() {
+  redirect("/dashbord/attestering");
 }

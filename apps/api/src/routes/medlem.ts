@@ -981,7 +981,7 @@ export const medlemRouter = router({
     }),
 
   // Toggle kanAttestere-kapabilitet (timer-attestering) for et prosjektmedlem.
-  // role="admin" har implisitt attestering-tilgang via erProsjektLeder, men
+  // role="admin" har implisitt attestering-tilgang (attesteringsOmfang/attesteringsFirmaer), men
   // kanAttestere lar prosjekt-admin gi eksplisitt opt-in til medlemmer
   // (role="member") som ikke skal være full prosjekt-admin.
   settKanAttestere: protectedProcedure

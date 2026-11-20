@@ -128,8 +128,15 @@ describe("T30 — ✓ på linja sender timeraden og maskinene på den, ingen and
   it("i prosjektkontekst kan et kort på et annet prosjekt ikke velges", () => {
     const [dag] = byggAttesteringModell([sedel()], deps);
     const alle = dag!.kort.flatMap((k) => k.linjer);
-    const u = byggUtvalg(alle, () => dag!.sedel, "pA");
+    const u = byggUtvalg(alle, () => dag!.sedel, new Set(["pA"]));
     expect(u.radIder.timerIder).toEqual(["t1"]);
+  });
+
+  it("w10b: prosjektlederen velger linjene på alle sine prosjekter, ingen andre", () => {
+    const [dag] = byggAttesteringModell([sedel()], deps);
+    const alle = dag!.kort.flatMap((k) => k.linjer);
+    expect(byggUtvalg(alle, () => dag!.sedel, new Set(["pA", "pB"])).radIder.timerIder).toEqual(["t1", "t2"]);
+    expect(byggUtvalg(alle, () => dag!.sedel, new Set(["pC"])).radIder.timerIder).toEqual([]);
   });
 });
 
@@ -362,7 +369,7 @@ describe("T35 — vakt: dagskortet, detaljsiden og ukeoversikten leser modellen,
     expect(kilde).not.toMatch(/ProsjektSectionAttest|bucketMap|EcoBucketAttestProps/);
   });
   it("firmasiden har ingen pivot", () => {
-    expect(les("../app/dashbord/firma/timer/attestering/page.tsx")).not.toMatch(/AttesteringPivot|tilPivotRad/);
+    expect(les("../app/dashbord/attestering/page.tsx")).not.toMatch(/AttesteringPivot|tilPivotRad/);
   });
 });
 

@@ -197,7 +197,6 @@ export function SplittRadModal(props: Props) {
   const lagre = splittProsedyre.useMutation({
     onSuccess: () => {
       void utils.timer.dagsseddel.hentForAttestering.invalidate({ id: props.sheetId });
-      void utils.timer.dagsseddel.hentTilAttestering.invalidate();
       void utils.timer.dagsseddel.hentTilAttesteringFirma.invalidate();
       props.onLagret();
     },

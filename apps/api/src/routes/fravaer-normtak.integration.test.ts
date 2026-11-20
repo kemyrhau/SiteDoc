@@ -564,7 +564,8 @@ describe("TF18 — attesteringssperren (F9 = A)", () => {
     expect(finn(sid)?.fravaerNormtakBrudd).toEqual(forventet);
     expect(finn(ok)?.fravaerNormtakBrudd).toBeNull();
 
-    const prosjekt = await dag(LEDER).hentTilAttestering({ projectId: P1 });
+    // w10b (plan § 4.10 del D): prosjektlederens firmaliste (omfang P1) viser samme brudd.
+    const prosjekt = await dag(LEDER).hentTilAttesteringFirma({ organizationId: ORG });
     const p = prosjekt.find((s) => s.id === sid) as { fravaerNormtakBrudd?: unknown } | undefined;
     expect(p?.fravaerNormtakBrudd).toEqual(forventet);
 
