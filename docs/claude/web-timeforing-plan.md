@@ -1,9 +1,9 @@
 ---
 name: web-timeforing-plan
-description: Plan med bilder steg for steg for timeføring på web — «+ Registrer timer» åpner én samlet registrering pr. jobb (fra/til, lønnsart, hva gjorde du, maskiner, varer, tillegg, utlegg), prosjekt og byggeplass utledet, dagen summeres etter hvert, overtid som egen linje mot dagsnormen for datoen, underprosjekt i jobbens hode, firmavalg for maskin med fra–til, og attestering med 13 kjernekolonner der et klikk åpner registreringen og lar attestanten dele opp. Versjon 5: dagsvisningen i attesteringen (B14) og firmavalget for attestantens egne timer (B15). Versjon 6: maskintimer høyst jobbens arbeidstimer, med unntak for døgn-maskiner (w9, § 4.4). Målt mot dagens web og telefon. B1–B23 besvart. Versjon 7: KS av attesteringen mot bilde 6–8 (§ 4.5) — avviksliste K1–K14, bilde 6 og 7 tegnet slik de gjelder, og retteordren w10. Versjon 8: én attestering på firmanivå for prosjektledere (§ 4.6) og hover-tekster (§ 4.8). Versjon 9: B29–B31 besvart — «Attestering» under Prosjekt fjernes med dødkode-liste (§ 4.10), reisen hører til prosjektet (§ 4.7), beskrivelsen står alltid i kortet (§ 4.9). Versjon 10: B32 B og B33 A besvart — reisen ligger i jobbens kort og attesteres med jobben, utreisen på dagens første prosjekt og returen på dagens siste (§ 4.11, w12 og w12m, med migrering). Versjon 11: B34 B besvart — arbeideren bestemmer hvor reisen føres; reisen beholder underprosjektet og byggeplassen han valgte og står i jobben som er ført samme sted (§ 4.11 del A punkt 3); w12 og w12m skrevet om; presiseringen om arbeid målt i § 4.12 — prosjekt og byggeplass og prosjekt og underprosjekt er begge gyldige i dag; B35 åpen.
-sist_verifisert_mot_kode: 2026-11-19 (WM1–WM73: develop @ `b8b16571`; WM74–WM92: develop @ `ee7146e5`, etter w1, w2 og w5; WM93–WM108: develop @ `1afb318a`, etter w5b og w7; K1–K14 i § 4.5: develop @ `eedbc7cd`, etter w8, w9 og w9m; FA1–FA27 i § 4.6–4.8: develop @ `57770fc0`; FA16–FA21 på nytt, FA28–FA44 og DK1–DK15 i § 4.7, § 4.9 og § 4.10: develop @ `a5483f48`, 2026-11-20; FA45–FA59 i § 4.11: develop @ `bdf2320f`, 2026-11-20; FA60–FA65 i § 4.11 og FA66–FA70 i § 4.12: develop @ `8c260833`, 2026-11-20)
+description: Plan med bilder steg for steg for timeføring på web — «+ Registrer timer» åpner én samlet registrering pr. jobb (fra/til, lønnsart, hva gjorde du, maskiner, varer, tillegg, utlegg), prosjekt og byggeplass utledet, dagen summeres etter hvert, overtid som egen linje mot dagsnormen for datoen, underprosjekt i jobbens hode, firmavalg for maskin med fra–til, og attestering med 13 kjernekolonner der et klikk åpner registreringen og lar attestanten dele opp. Versjon 5: dagsvisningen i attesteringen (B14) og firmavalget for attestantens egne timer (B15). Versjon 6: maskintimer høyst jobbens arbeidstimer, med unntak for døgn-maskiner (w9, § 4.4). Målt mot dagens web og telefon. B1–B23 besvart. Versjon 7: KS av attesteringen mot bilde 6–8 (§ 4.5) — avviksliste K1–K14, bilde 6 og 7 tegnet slik de gjelder, og retteordren w10. Versjon 8: én attestering på firmanivå for prosjektledere (§ 4.6) og hover-tekster (§ 4.8). Versjon 9: B29–B31 besvart — «Attestering» under Prosjekt fjernes med dødkode-liste (§ 4.10), reisen hører til prosjektet (§ 4.7), beskrivelsen står alltid i kortet (§ 4.9). Versjon 10: B32 B og B33 A besvart — reisen ligger i jobbens kort og attesteres med jobben, utreisen på dagens første prosjekt og returen på dagens siste (§ 4.11, w12 og w12m, med migrering). Versjon 11: B34 B besvart — arbeideren bestemmer hvor reisen føres; reisen beholder underprosjektet og byggeplassen han valgte og står i jobben som er ført samme sted (§ 4.11 del A punkt 3); w12 og w12m skrevet om; presiseringen om arbeid målt i § 4.12 — prosjekt og byggeplass og prosjekt og underprosjekt er begge gyldige i dag. Versjon 12: avviksrunde etter Kenneths test av dagsseddelen på PC (§ 4.13) — forklaringen på bilde #7, avvikslista A1–A14, w3 delt i w3a, w3b og w3c og bygget på kortet som finnes, mobildelene venter på web, B37 og B38 åpne.
+sist_verifisert_mot_kode: 2026-11-19 (WM1–WM73: develop @ `b8b16571`; WM74–WM92: develop @ `ee7146e5`, etter w1, w2 og w5; WM93–WM108: develop @ `1afb318a`, etter w5b og w7; K1–K14 i § 4.5: develop @ `eedbc7cd`, etter w8, w9 og w9m; FA1–FA27 i § 4.6–4.8: develop @ `57770fc0`; FA16–FA21 på nytt, FA28–FA44 og DK1–DK15 i § 4.7, § 4.9 og § 4.10: develop @ `a5483f48`, 2026-11-20; FA45–FA59 i § 4.11: develop @ `bdf2320f`, 2026-11-20; FA60–FA65 i § 4.11 og FA66–FA70 i § 4.12: develop @ `8c260833`, 2026-11-20; § 4.13 (A1–A14): develop @ `d9354caa`, 2026-11-20)
 eier: fabel (plan) — orkestrator gater kode; Kenneth har vedtatt B1–B13 (§ 8.1)
-status: 🟡 FORSLAG 2026-11-20, versjon 11 — w1, w2, w5, w5b, w7, w8, w9 og w9m er merget (§ 9.1–9.4; develop `eedbc7cd`); w3, w4, w6, w10, w11, w12 og w12m er ikke bygget. Nytt i versjon 11, uten kode: Kenneths svar på B34 arbeidet inn (§ 8.11) — reisen beholder underprosjektet og byggeplassen arbeideren valgte, regelen for hvilken jobb reisen står i er skrevet om (§ 4.11 del A punkt 3), attestanten kan rette reisens underprosjekt i kortet, og w12 og w12m er skrevet om i § 9. w10 del A og del B er ikke berørt. Kenneths presisering om arbeid er målt i § 4.12: begge valgene er gyldige i dag, nøkkelen er uendret, og PC har ett avvik (FA70). Åpent til Kenneth: B35 (§ 8), hvordan arbeideren velger hvor arbeid og reise føres; w12 venter ikke på svaret.
+status: 🟡 FORSLAG 2026-11-20, versjon 12 — w1, w2, w5, w5b, w7, w8, w9, w9m, w10 del A, w10 del B og w12 er merget (§ 9.1–9.6; develop `c19cad6c`). Ikke bygget: w3 (nå w3a, w3b, w3c), w4, w6, w10c, w11 og w12m. Nytt i versjon 12, uten kode: avviksrunden etter Kenneths test av dagsseddelen på PC (§ 8.13, § 4.13). Dagssiden viser ett kort pr. prosjekt med en boks pr. underprosjekt, ikke ett kort pr. jobb; det forklarer bilde #7. w3 er skrevet om til å bygge på kortet og vinduet som finnes: w3a (kortet pr. jobb, arv og kort-id fra jobben, koblet maskin og vare følger timeraden på serveren), w3b (maskin er utstyr og antall timer) og w3c (resten av gamle w3). Mobildelene er merket «venter på web» i § 9. Åpent til Kenneth: B37 (maskinens mengde og enhet) og B38 (firmavalget for fra–til på maskin). w3a venter ikke på svarene; w3b venter på B37.
 ---
 
 # Timeføring på web — plan med bilder (FORSLAG)
@@ -36,6 +36,9 @@ status: 🟡 FORSLAG 2026-11-20, versjon 11 — w1, w2, w5, w5b, w7, w8, w9 og w
 > kort og attesteres med jobben (§ 4.11).
 > **Versjon 11:** `ks-attestering.png` er tegnet om etter svaret på B34 (§ 8.11): reisen viser underprosjektet
 > den er ført på når det avviker fra jobbens, og kortet har «Føres på» under «Reise» (§ 4.11 del C).
+> **Versjon 12:** dagssiden på PC etter Kenneths test 20.11. står i `v12-jobbkort.png` (§ 4.13): dagen slik den
+> er i dag, og slik den blir med ett kort pr. jobb. Kilde: `skisser-v12.html`. Bildet erstatter bilde 5 for
+> dagssiden; bilde 2–5 gjelder som innhold og rekkefølge.
 
 ## 1. Kenneths føringer (2026-11-17, ordrett)
 
@@ -1669,6 +1672,120 @@ Målt mot develop @ `8c260833`. Alt er lest av Fabel. Ingenting er kjørt.
      stående, som på telefonen. 🟡 Ikke bygget.
    - **Med B** blir det en egen del, **w13** (§ 9). 🟡 Ikke bygget.
 
+### 4.13 Avviksrunde etter Kenneths test av dagsseddelen på PC (versjon 12)
+
+Kenneths ord står i § 8.13. Bildene hans er `relay/bilder/2026-11-20-dagsseddel/k1.webp`–`k7.webp` (#1–#7).
+Målt mot develop @ `d9354caa`. Koden i `apps` og `packages` er lik test `51160003`
+(`git diff --stat 51160003 d9354caa -- apps packages` er tom). `WS`, `D` og `KI` som ellers i planen;
+`KG` = `packages/shared/src/utils/kortGruppering.ts`, `NB` = `packages/shared/src/i18n/nb.json`.
+
+![Dagsseddelen på PC — i dag og slik det blir](skisser-web-timeforing/v12-jobbkort.png)
+
+Kilde: `skisser-web-timeforing/skisser-v12.html`. Skisse av forslaget, ikke bygget. Linjene for vare, reise,
+tillegg og utlegg i høyre kort er eksempler for å vise plassen.
+
+**Kravet, slik det er lest.** Én registrering er jobben: arbeideren fører fra–til, og i den samme registreringen
+står hvilken maskin og hvor mange timer, varene, reisen, tilleggene og utleggene. Alt vises i ett kort.
+«Varer» og «vareforbruk» er lest som det samme: varene som ble brukt på jobben. Kravet er det samme som
+føringene i § 1.
+
+#### Del A — hva du så på #7, og hvorfor
+
+**Dataene er riktige. Visningen er feil.** 15–16 på TILL-001 er en egen jobb på serveren, og maskinen hører til
+den. Dagssiden på PC viser ikke jobber. Den viser ett kort pr. prosjekt, med én boks pr. underprosjekt inni.
+
+| Det du så | Hvorfor | Kode |
+|---|---|---|
+| 15–16 på TILL-001 ble en egen boks, med eget hode og egen «+ Legg til timer-rad» | Dagssiden deler radene i bøtter pr. prosjekt og underprosjekt. Hver bøtte tegnes som en boks med eget hode, egen sum «Arbeidstimer (1.00 t)» og egen knapp. Raden fikk TILL-001 i vinduet, så den havnet i en ny bøtte. | `WS:662–669`, `:2071–2100`, `:2217–2253` |
+| «Prosjektkort (1)», og hodet viser 8,5 t og 1,0 t | Kortene lages pr. prosjekt, ikke pr. jobb. Hodet summerer alle jobbene på prosjektet. Koden sier det selv: «dagssiden grupperer fortsatt pr. prosjekt … til w3». | `WS:1699`, `:1709–1731`, `:741–742` |
+| På serveren er 15–16 en egen jobb | «+ Timer» i kortet sender ingen kort-id. En rad med annet underprosjekt enn jobben får et annet kort. Det er vedtatt: én jobb har ett underprosjekt (K3). Attesteringen viser derfor to jobber for denne dagen. | `WS:1087`; `D:4147`, `:4151–4154`; `KI:250–265`; `KG:136–159` |
+| «1.00» under maskinen | Det er feltet Mengde, ført uten enhet. Maskindelen i «Legg til timer-rad» har Utstyr, Mengde og Enhet, men ikke noe felt for timer. Maskinen får radens timer. «høyst 1 t» står rett under Mengde, og hjelpeteksten sier «sett lavere timer», men feltet finnes ikke. | `WS:2733–2737`, `:3798–3851`, `:3481`; `NB:604`, `:610` |
+| Boksen «Maskin 1.00 t» | Bøttas maskinsum. Den gjentar tallet på linja over. | `WS:2315–2321` |
+| Maskinen står etter timeradene, ikke ved raden sin | Bøtta tegner først alle timeradene, så alle maskinene. | `WS:2260–2282` |
+
+**Hva «Rediger timer-rad» (#4) ikke gjør:**
+
+1. **Det viser ikke maskinen.** Maskindelen tegnes bare for en ny rad. Maskinen rettes med pennen på maskinlinja,
+   som åpner et annet vindu (`WS:3777`, `:825–826`).
+2. **Det viser ikke varer, reise, tillegg eller utlegg.** De har egne vinduer bak lenkene nederst i kortet
+   (`WS:1806–1852`).
+3. 🔴 **Bytter du underprosjekt eller byggeplass på raden, følger ikke maskinen og varen med.** Serveren
+   oppdaterer bare timeraden (`D:4278–4300`, `:4376–4402`). Maskinens kort-id følger raden (`KI:266–269`), men
+   maskinens eget underprosjekt blir stående, og valideringen unntar det (`KI:311–323`). Dagssiden lar maskinen
+   stå i den gamle boksen (`WS:666–669`). Timerapporten viser maskintimene på det gamle underprosjektet
+   (`apps/api/src/routes/timer/rapport.ts:681`, `:705`). Lest i koden, ikke kjørt.
+4. **Prosjektet kan ikke byttes** (`WS:3525`). Det er kjent og en egen oppfølger (`WS:2904`).
+
+**De andre vinduene har samme brist:**
+
+- **«Legg til maskinbruk» (#3)** åpnes fra prosjektet, med tomt underprosjekt og dagens ramme som fra–til
+  (`WS:1100–1107`). Underprosjektet følger ikke timeraden du velger (`WS:5025–5027`, `:5250–5252`), og serveren
+  lagrer det vinduet sender (`D:10109–10110`). Antallet må stemme med fra–til (`WS:5175–5189`). Vinduet krever
+  «Timerad» (`WS:5164–5171`), selv om serveren kobler maskinen til jobbens timerad selv når den mangler (`D:2268–2270`).
+- **Tillegg og utlegg** åpnes fra prosjektet med tomt underprosjekt og sender ikke kort-id (`WS:3899–3900`, `:1109`,
+  `:4114`, `:4773–4782`). De vises under prosjektet eller i underprosjektets boks, aldri i jobben (`WS:2103–2144`,
+  `:2287–2310`).
+- **Varer** står i en egen liste nederst i prosjektets kort, uten penn og søppelbøtte (`WS:1788–1804`). Varen kan
+  ikke rettes eller slettes fra dagen. Prosedyrene finnes (`apps/api/src/routes/vareforbruk.ts:565`, `:740`).
+- **Reise:** «+ Reise» åpner timerad-vinduet på prosjektet med tomt underprosjekt (`WS:1097–1099`). Raden står
+  blant timeradene i boksen til underprosjektet sitt. Serveren har den i jobbens kort (w12).
+
+**Hva w3 retter slik w3 sto i versjon 11, og hva ingen del retter:**
+
+| Brist | w3 i versjon 11 | Ingen del |
+|---|---|---|
+| Kortet er pr. prosjekt, ikke pr. jobb | Ja (bilde 5). Men tegnet som en ny flate med sju nummererte deler, ikke kortet du liker (#2). | — |
+| Maskin uten timer-felt; «Timerad»; fra–til | Ja (bilde 3, § 5). Fra–til ut til w6. | — |
+| Mengde og enhet på maskin | — | Bilde 3 viser dem ikke, men § 5 og § 7 sier ikke at de går ut. WM104 og H9 A sier at de består. → **B37** |
+| Underprosjekt arves i vinduene | Ja, for føring på jobben (underprosjektet i hodet gjelder alt). | Maskinvinduet som består for døgn-maskin. |
+| Maskin og vare følger ikke når radens underprosjekt byttes | — | Ingen del rører `oppdaterTimerRad`. |
+| Reisen i jobben på dagssiden | — | Bilde 2–5 har sju deler uten reise. § 7 sier «+ Reise … BEVARES uendret», og w12 sier «Reisevinduet på PC står urørt». |
+| Tillegg og utlegg uten kort-id | Ja (§ 6 (i)). | — |
+| Varen kan ikke rettes eller slettes i kortet | — | Ikke nevnt. |
+| «Rediger timer-rad» viser ikke jobbens maskin | w3 erstattet vinduet med flaten. | Når vinduet beholdes (#4 «fungerer bra»), må det sies hvor maskinen rettes. |
+
+#### Del B — avvikslista
+
+| # | Krav | I dag | Planen sa | Avvik | Retting |
+|---|---|---|---|---|---|
+| **A1** | «Hvis #2 var et sammenhengende kort, så ville dette være perfekt.» | Kort pr. prosjekt, boks pr. underprosjekt (`WS:1709–1713`, `:2071–2100`). Serveren og attesteringen har jobben som enhet (`KG:136–159`). | w3: jobben som én flate (bilde 2–5). Ikke bygget. | Jobben er ikke enheten på dagssiden. | **w3a:** ett kort pr. jobb, med samme gruppering som attesteringen (`grupperPaaKort`). |
+| **A2** | «jeg liker hvordan #2 ser ut» · «rediger timer funger bra» | Kortets hode med fire tall, timelinja med lønnsart, tid, pause og tekst (`WS:1733–1782`, `:2483–2560`). | Bilde 2–5: ny flate med nummererte deler og uten vinduer. | Planen tegnet om det som virker. | **w3 skrives om:** kortet og timerad-vinduet beholdes. Bilde 2–5 gjelder som innhold og rekkefølge, ikke som utseende. Bildet over erstatter bilde 5 for dagssiden. |
+| **A3** | «hvor mange timer kjørte maskinen og hvilken maskin» | Maskindelen i timerad-vinduet har ikke timer; maskinen får radens (`WS:3798–3843`, `:3481`). «høyst» står under Mengde (`WS:3844–3851`). | § 5: brukeren skriver timene pr. maskin (bilde 3). Ikke bygget. | Timer kan ikke føres der maskinen velges. | **w3b:** maskin = utstyr + antall timer, forhåndsutfylt med jobbens timer, «høyst X t» ved feltet. |
+| **A4** | «Maskin skal heller ikke registrere mengde og enhet. Mengde og enhet tilhører varer.» | Felt i begge vinduene (`WS:3810–3843`, `:5343–5370`), lagres på maskinraden (`D:10113–10114`), vises i attestering, rapport og eksport (`packages/shared/src/utils/timerDetaljRader.ts:715`; `rapport.ts:685`, `:708`). | WM104 og H9 A (kort-id-specen): mengden gjelder produsert mengde og vises i egne kolonner. | Kravet strider mot vedtak. | **B37.** Med anbefalingen: ut av føringen i **w3b**. Lagrede verdier står. |
+| **A5** | «her skal ikke registreres timer fra/til -> kun antall» | Fra og til i maskinvinduet, forhåndsutfylt, og antallet må stemme med dem (`WS:1105–1106`, `:5175–5189`). Timerad-vinduet gir maskinen radens fra–til (`WS:3485–3486`). | B5: firmaet velger. B12 A: prosjektkort-firma får «Nei». w6, ikke bygget. | Feltene står til w6, og B5 lar et firma slå dem på igjen. | **w3b** tar feltene ut på PC i prosjektkort-modus nå. **B38** avgjør om w6 finnes. |
+| **A6** | «Underprosjekt arves fra timerad som standard» | Vinduene for maskin, tillegg, utlegg og reise åpnes fra prosjektet med tomt underprosjekt (`WS:1100–1109`, `:1097–1099`, `:3899–3900`). | § 7: ett valg i jobbens hode gjelder alt i jobben. Ikke bygget. | Ingenting arves. | **w3a:** lenkene står på jobben. Vinduene får jobbens prosjekt, byggeplass, underprosjekt og kort-id, og viser ikke feltene. Unntak: reisen (B34 B). |
+| **A7** | «Det er logiske brister i hvordan data knyttes sammen.» | Bytte av underprosjekt eller byggeplass på en timerad flytter ikke koblet maskin og vare (`D:4278–4300`, `:4376–4402`; `KI:311–323`). Maskin lagres med det vinduet sender (`D:10109–10110`). | Ikke nevnt for arbeiderens retting. Attestantens «hele jobben» flytter alt (w5). | Maskintimer kan stå på et annet underprosjekt enn arbeidet, også i timerapporten. | **w3a, serveren:** koblet maskin og vare følger timeraden. En maskin som føres koblet, lagres med timeradens underprosjekt og byggeplass. Bare PC-veiene; synken røres ikke. Rader som alt avviker, telles først (§ 10). |
+| **A8** | «har denne jobben reisetid» | Reiseraden står blant timeradene i underprosjektets boks (`WS:662–665`). Kortets hode har tallet «Reise» pr. prosjekt (`WS:1730`). | Føringen har sju deler uten reise. w12 la reisen i jobbens kort i attesteringen. | Reisen mangler i jobben på dagssiden. | **w3a:** reisen vises i jobbens kort etter kort-id-en serveren har satt. «+ Reise» står på jobben, med jobbens byggeplass og underprosjekt forhåndsvalgt. Arbeideren kan endre dem (B34 B). |
+| **A9** | «har denne jobben noen utlegg eller tillegg» | Vises under prosjektet eller i underprosjektets boks. Kort-id sendes ikke (`WS:2103–2144`, `:4114`, `:4773–4782`). | § 6 (i): jobbens kort-id sendes. Ikke bygget. | Med to jobber på samme sted velger serveren jobben selv. | **w3a:** føres fra jobben med jobbens kort-id, og vises i jobben. |
+| **A10** | «ble det brukt noe varer på denne jobben» | Egen liste nederst i prosjektets kort, uten retting og sletting (`WS:1788–1804`). Varen er koblet til timeraden (w1). | § 7: «jobben vises samlet». | Varen står utenfor jobben og kan ikke rettes. | **w3a:** varen står i jobben, med penn og søppelbøtte. |
+| **A11** | Én sammenhengende jobb | To innganger til samme ting: «+ Legg til timer-rad» i hver boks og «+ Timer» nederst (`WS:2247–2252`, `:1808–1814`). «Maskin X t»-boksen (`WS:2315–2321`). «Timerad» i maskinvinduet (`WS:5243–5270`). | § 5: «Timerad» ut av føringen på jobben. | Rester fra bøttevisningen. | **w3a:** én rekke lenker pr. jobb. Boksen og hodet «Arbeidstimer (N t)» går ut i prosjektkort-modus. «Timerad» vises ikke når maskinen føres fra en jobb. |
+| **A12** | Én sammenhengende jobb | «+ Timer» i kortet lar deg velge et annet underprosjekt. Da blir raden en ny jobb uten at skjermen sier det (`WS:1087`; `D:4147`). | § 4 bilde 5: ny jobb lages med «+ Registrer timer». | Samme knapp gir to ulike ting. | **w3a:** «+ Timer» i jobben gir en ny linje i samme jobb, med jobbens byggeplass og underprosjekt. Ny jobb er «+ Registrer timer». |
+| **A13** | «rediger timer rad i #4 må være mangelfull» | Maskindelen vises bare for ny rad (`WS:3777`). | w3 erstattet vinduet. | Legg til og rediger viser ulikt. | **w3b:** maskindelen er lik i «Legg til» og «Rediger» og viser jobbens maskiner. Resten av jobben står i kortet rett under raden (w3a). |
+| **A14** | «mobilappen skal vi vente med» | — | w12m, telefon-delen av w6 og w9m, og w3s bytte i `M/utils/tilleggPaaKort.ts`. | Planen hadde mobildeler i kø. | § 9: merket «venter på web». Ingenting bestilles på mobil. |
+
+**Det som ikke røres** (ordrens punkt 5): kortets hode og utseende (#2), timelinja, vinduet «Rediger timer-rad» med
+feltene det har (#4), «Dagens ramme», «Sum i dag», «Send dagen» og «+ Registrer timer». Dagskort-modus røres
+ikke (Kenneth 2026-11-07); `ProsjektGruppe` og `EcoGruppe` brukes av begge moduser og får vakt-test.
+
+#### Del C — w3 delt i tre
+
+1. **w3a — kortet pr. jobb.** Visningen og arven. A1, A6–A12. Ingen felt forsvinner fra vinduet «Rediger
+   timer-rad». Ingen migrering. Kan bestilles nå.
+2. **w3b — maskin er utstyr og antall timer.** A3–A5 og A13. Venter på B37. Ingen migrering.
+3. **w3c — resten av gamle w3.** Overtid som egen linje med én gang (B8), «Hva gjorde du?» påkrevd (B6),
+   underprosjektet i jobbens hode for hele jobben med knapper (B11), «Del jobben», ekte «Ingen byggeplass» (FA70)
+   og fordelingen av maskintimer på linjene. Bestilles etter at du har testet w3a og w3b.
+
+**Følger som ikke er spørsmål, men si fra hvis du mente noe annet:**
+
+1. «Underprosjekt arves fra timerad som standard» er lest slik: maskinen, varen, tillegget og utlegget har alltid
+   jobbens underprosjekt, og feltet vises ikke. Skal maskinen på et annet underprosjekt, er det en annen jobb
+   (K3). Reisen er unntaket: der bestemmer arbeideren (B34 B).
+2. Bytter arbeideren underprosjekt på en timerad i «Rediger timer-rad», flytter raden til en annen jobb, og
+   maskinen og varen på raden følger med (A7). Tillegg og utlegg blir i den gamle jobben, fordi de hører til
+   jobben og ikke til raden. Bytte for hele jobben kommer i w3c.
+3. Eldre rader uten kort-id vises i ett samlekort sist på dagen, som i attesteringen (WM107).
+
 ## 5. Maskintimer er en del av arbeidstiden — hva som må endres (føring 4)
 
 | Del | I dag | Endring | Fjerner noe? |
@@ -1680,6 +1797,8 @@ Målt mot develop @ `8c260833`. Alt er lest av Fabel. Ingenting er kjørt.
 | **Fordelingen på timerader** | Finnes på telefonen, i Bekreft dag (WM33). Web har den ikke; web gir maskinen radens timer (WM34). | Web bruker **samme fordeling**. Regelen flyttes fra `M/utils/tilleggPaaKort.ts` til `packages/shared`, og begge bruker den. Ingen ny kopi. | Nei. |
 | **Maskin med egne timer** | På PC får en maskin ført i timerad-vinduet alltid radens timer (WM34). | Brukeren skriver timene pr. maskin (bilde 3). | Nei. |
 
+- ⚠️ **Versjon 12 (§ 4.13):** maskinens mengde og enhet er ikke nevnt i tabellen over. Kenneth 20.11.: de hører
+  til varer (B37). Firmavalget for fra–til er B38. «Timerad» trengs ikke fra en jobb: serveren kobler selv (A11).
 - **Det som ikke endres:** R24, G5, taket på serveren, `syncBatch`, og alt som er lagret. 🟡 Taket på serveren og
   `syncBatch` er foreslått endret i § 4.4 (w9, B22).
 - **Jobb med både ordinær tid og overtid:** systemet fordeler maskintimene på linjene selv, som telefonen gjør. I
@@ -1727,7 +1846,10 @@ dagskortet). Ett unntak: firmavalget «maskin føres med fra–til» gjelder beg
 | Velgeren og vinduene for tillegg og utlegg, kvittering | `WS:4300`, `:3842`, `:4503` | **ENDRES:** tillegg og utlegg føres på jobben (bilde 5), med jobbens `kortId`. Alle feltene består. Vinduene består i dagskort-modus. |
 | «Hva gjorde du?» valgfritt på web | `WS:3638` | **ENDRES** (B6): påkrevd pr. jobb før «Send dagen», som på telefonen. |
 | Maskiner etter timeradene og varer i egen liste i kortet | `WS:2173–2194`, `:1699–1715` | **ENDRES:** jobben vises samlet (bilde 5). |
-| «+ Reise», del opp, slett, dagens ramme, «Send dagen» | `WS` | **BEVARES** uendret. |
+| «+ Reise», del opp, slett, dagens ramme, «Send dagen» | `WS` | **BEVARES** uendret. ⚠️ Versjon 12 (A8, § 4.13): «+ Reise» flyttes til jobben, og reisen vises i jobbens kort. Vinduet og feltene består. |
+| Mengde og enhet på maskin i føringen | `WS:3810–3843`, `:5343–5370` | ⚠️ **UT av føringen på PC i prosjektkort-modus hvis B37 besvares med A eller B** (Kenneth 2026-11-20). Lagrede verdier og kolonnene i attestering, rapport og eksport består. |
+| Bøtteboksen i kortet: hodet «Arbeidstimer (N t)», «+ Legg til timer-rad» pr. boks og «Maskin X t» | `WS:2233–2253`, `:2315–2321` | ⚠️ **UT i prosjektkort-modus** (A11, § 4.13): jobben har én rekke lenker, og tallene står i kortets hode. **BEVARES** i dagskort-modus. |
+| Varen i kortet uten retting og sletting | `WS:1788–1804` | **ENDRES** (A10): varen står i jobben med penn og søppelbøtte. |
 | «+ Nytt prosjektkort» | `WS:680–682`, `:992`; `packages/shared/src/i18n/nb.json:406` | **ENDRES** (B1): heter «+ Registrer timer», og tilbyr også prosjekter som alt har kort (§ 5.4, WM47). |
 | Overtidsforslaget med knappen «Del raden» i timerad-vinduet (V21) | `WS:3538–3540`, `:3178–3250` | **ENDRES** (B8): overtid står som egen linje i jobben. Regnestykket er det samme (`overtidForslag.ts`), mot normen for datoen. Vinduet består i dagskort-modus. |
 | Underprosjekt i nedtrekksliste i hvert vindu | `WS:3570–3590`, `:5238–5252` | **ENDRES:** ett valg i jobbens hode, som gjelder alt i jobben (bilde 2). Knapper til og med 6, søkbar nedtrekk over det (B11). |
@@ -1758,9 +1880,16 @@ dagskortet). Ett unntak: firmavalget «maskin føres med fra–til» gjelder beg
 
 ## 8. Åpne spørsmål til Kenneth
 
-B1–B34 er besvart (§ 8.1–8.11). **Ett spørsmål er åpent etter versjon 11: B35.** Det gjelder hvordan
-arbeideren velger hvor arbeid og reise føres (§ 4.11, «Svaret på B34 lest mot koden», og § 4.12).
-**w12 venter ikke på svaret. w12m venter.** Bildet står i § 4.5.
+B1–B36 er besvart (§ 8.1–8.12). **To spørsmål er åpne etter versjon 12: B37 og B38.** Begge kommer av
+Kenneths ord 20.11. (§ 8.13) der de strider mot vedtak. **w3a venter ikke på svarene. w3b venter på B37.**
+Bildet står i § 4.13.
+
+| # | Spørsmål | Alternativer | Anbefaling |
+|---|---|---|---|
+| **B37** | **Skal maskinens felt Mengde og Enhet ut av føringen?** Ordene dine: «Maskin skal heller ikke registrere mengde og enhet. Mengde og enhet tilhører varer. Alternativet er å legge til en varelinje over enhet og mengde.» Vedtaket som står, er H9 A i kort-id-specen: maskinens mengde vises i egne kolonner, «Maskinmengde» og «Maskinenhet», fordi feltet ikke sier hva som er målt. Feltene finnes i begge vinduene på PC, på telefonen, i attesteringen, i timerapporten og i eksporten (A4, § 4.13). | **A:** feltene går ut av føringen på PC i prosjektkort-modus. Mengde føres som vare på jobben, med «+ Vare» i samme kort. Det som alt er lagret, står og vises som før i attestering, rapport og eksport. Dagskort-modus og telefonen røres ikke. **B:** som A, og i tillegg en varelinje i maskinvinduet (vare og mengde, enheten fra varen), som lagres som vare på jobben. **C:** som i dag. | **A.** I kortet står «+ Vare» ved siden av «+ Maskin», så varelinja i B blir samme ting to steder. **Konsekvens av A og B:** «+ Vare» finnes bare på prosjekter med varelager (`packages/shared/src/utils/prosjektkort.ts:206–215`). På et prosjekt uten varelager kan mengde da ikke føres på dagen. Hvor mange maskinrader som har mengde i dag, er ikke talt (§ 10). |
+| **B38** | **Skal et firma kunne slå på fra–til for maskin?** Ordene dine 20.11.: «her skal ikke registreres timer fra/til -> kun antall.» Vedtaket som står, er B5 («la firma velge») med B12 A: firma i prosjektkort-modus og nye firma får «Nei», firma i dagskort-modus får «Ja». Delen heter w6 og er ikke bygget: ny kolonne i firmainnstillingene (migrering), innstillingssiden, PC og telefon. | **A:** ingen firmainnstilling. I prosjektkort-modus føres maskin alltid med antall timer. Dagskort-modus beholder feltene som i dag. **w6 utgår:** ingen migrering, ingen ny innstilling, ingenting på telefonen. Lagrede klokkeslett røres ikke. **B:** B5 står. Feltene går ut på PC nå (w3b), og w6 bygges senere, så et firma kan slå dem på igjen. | **A.** Du har sagt «antall, ikke fra–til» tre ganger (§ 1, K19 og 20.11.). Klokkeslettene brukes ikke i rapport eller eksport (WM10). **Med begge svarene** går feltene ut av føringen på PC i prosjektkort-modus i w3b. Forskjellen er bare om w6 bygges. |
+
+**Besvart (§ 8.12) — B35 slik det ble stilt:**
 
 | # | Spørsmål | Alternativer | Anbefaling |
 |---|---|---|---|
@@ -2003,7 +2132,7 @@ Testet på `/dashbord/timer/[id]`, dagens dagsseddel på PC. Den er ikke bygget 
 - **Kravet:** «Arbeider registerer timer fra/til -> følgende informasjon er en del av denne registreringen ->hvor mange timer kjørte maskinen og hvilken maskin. ble det brukt noe varer på denne jobben. har denne jobben noe vareforbruk. har denne jobben reisetid. har denne jobben noen utlegg eller tillegg.» Kenneth: kravet samsvarer med det han har sagt før (§ 1), med andre ord.
 - **Mobil venter:** «mobilappen skal vi vente med til web har fått en timeføring vi er fornøyd med.» w12m og mobildelene av w6 og w9m-oppfølgere bestilles ikke før det.
 
-Kenneth ba om en ny runde mot avvik i planen. 🟡 Fabel går gjennom planen og koden (ordre i `relay/inbox-fabel.md`). Det som strider mot vedtak, blir B-spørsmål: firmavalget for fra–til på maskin (B5, w6) mot «kun antall».
+Kenneth ba om en ny runde mot avvik i planen. 🟡 Levert i versjon 12: § 4.13 (forklaringen på #7, avvikslista, hver type målt mot maskin-mønsteret, attesteringen målt mot presisering 4, og w3 delt i w3a, w3b og w3c), B37 og B38 i § 8, og mobildelene merket i § 9. Ingen kode.
 - **Presisering samme dag (Kenneth retter orkestratorens tolkning):** poenget er ikke å ta bort mengde og enhet, men at dataene henger sammen i jobben. Kenneth, ordrett: «En lastebil sjåfør han jobber i fra åtte til klokka 10:00. Denne tiden transporterer lastebil sjåføren fem kubikk med grus eller pukk. På veien måtte lastebil sjåføren parkerer og betale parkeringsavgift en halv time. Dette utlegget må registreres på denne jobben. Lastebilen trenger da ikke noe fra til for det har allerede registrert. Alt vi trenger å gjøre er å registrere lastebil med 2 timer». Lest: jobben 08:00–10:00 bærer tiden; lastebilen føres med 2 timer uten fra–til; 5 m3 grus eller pukk står i samme jobb (som vare med mengde og enhet, jf. #3 «Alternativet er å legge til en varelinje»); parkeringsutlegget står i samme jobb. Hvor mengden lagres (maskinlinja eller varelinja), avgjøres med Fabels avviksrunde.
 - **Presisering 2 samme dag (Kenneth om maskinvinduet, #3 og #5):** «Slik maskin kortet er nå, så er det åpenbart feil. Det er antall så er det enhet. Enheten må nødvendigvis være timer, ikke kubikk og stykk og kvadrat eller eller noe annet. Det er dette jeg påpeker.» Lest: maskinen føres i timer og bare i timer. Nedtrekket «Enhet» med m, m2, m3, kg, tonn og stk hører ikke hjemme i maskinvinduet. Mengde i m3 og lignende hører til varer i jobben (lastebileksempelet). Hva som skjer med maskinrader som alt har mengde og enhet lagret (WM104), avklares i Fabels avviksrunde. Ingen data slettes.
 - **Presisering 3 samme dag:** «La maskinene være et eksempel for alle andre typer tillegg også. Slik at disse tilleggene er hektet på den jobben den ansatte registrerer sine timer». Lest: maskin, varer, vareforbruk, reise, tillegg og utlegg føres alle på samme måte som maskinen. De henger på jobben (fra–til), arver jobbens prosjekt, byggeplass og underprosjekt, og har bare de feltene som hører til typen. Fabels avviksrunde måler hver type mot dette.
@@ -2019,10 +2148,12 @@ delene krever ingen.
 |---|---|---|---|
 | **w1** | Vare ført på PC kobles til jobben (g). Avvik: korte merker med forklaring på hover, og teksten «Maskin uten timerad» (B7, WM22). Datoen som dd.mm. og årsvelger ved ukevalget (tillegget). | `apps/web/src/components/timer/KortVareforbrukModal.tsx`, `WS`, `apps/web/src/components/attestering/*`, `apps/web/src/app/dashbord/firma/timer/attestering/page.tsx`, i18n | Varen står på timeradens linje i attesteringen. Maskinlinjene er like høye som de andre. Datoen er «17.11.», og året byttes i én handling. |
 | **w2** | «+ Registrer timer» (B1): knappen på Mine timer og på dagen, dagen lages stille, ny jobb på et prosjekt som alt har kort (sender `kortId`), gjenåpning når dagen er sendt, byggeplass på første rad (h), prosjekt og byggeplass fra toppen (B2 trinn 3). | `apps/web/src/app/dashbord/timer/mine/page.tsx`, `WS`, `D` (bare hvis `tilfoyTimerRad` ikke tar en ny `kortId`, WM59), i18n, hjelpeteksten | Ett trykk fra Mine timer til utfylt jobb. Neste jobb med samme knapp. |
-| **w3** | Jobben som én flate med de sju delene (bilde 2–5): underprosjekt i hodet som knapper eller søkbar nedtrekk (B11), overtidslinja mot normen for datoen (B8, B4), «Hva gjorde du?» påkrevd (B6), fordelingen i delt kode, `kortId` på tillegg og utlegg (§ 5, i), «Del jobben». Maskinlinja bygges uten fra–til til w6 er inne. «Ingen byggeplass» blir stående når brukeren velger det, som på telefonen (FA70, § 4.12; versjon 11). | `WS`, `packages/shared` (fordelingen, flyttet fra `M/utils/tilleggPaaKort.ts`), `M/utils/tilleggPaaKort.ts` (bare byttet til den delte), i18n, hjelpeteksten for siden | Bilde 2–5. |
+| **w3a** | **Kortet pr. jobb** (§ 4.13, A1, A6–A12; versjon 12). Dagssiden i prosjektkort-modus viser ett kort pr. jobb, med samme gruppering som attesteringen (`grupperPaaKort`). Kortets hode er som i dag og viser byggeplass og underprosjekt for jobben; de fire tallene gjelder jobben. I kortet: timelinjene som i dag, så jobbens maskiner, varer, reise, tillegg og utlegg, hver med penn og søppelbøtte. Én rekke lenker pr. jobb: «+ Timer», «+ Maskin», «+ Vare», «+ Reise», «+ Tillegg/Utlegg». Vinduene som åpnes fra jobben, får jobbens prosjekt, byggeplass, underprosjekt og kort-id og viser ikke feltene Byggeplass, Underprosjekt og Timerad; reisevinduet beholder feltene, forhåndsvalgt (B34 B). «+ Timer» gir en ny linje i samme jobb. Bøtteboksen, hodet «Arbeidstimer (N t)» med egen knapp og «Maskin X t» går ut i prosjektkort-modus. Eldre rader uten kort-id står i ett samlekort sist. **Serveren (A7):** når underprosjekt eller byggeplass byttes på en timerad, følger koblet maskin og vare med; en maskin som føres koblet fra PC, lagres med timeradens underprosjekt og byggeplass. Synken røres ikke. Vinduet «Rediger timer-rad» står med feltene det har. Dagskort-modus røres ikke og får vakt-test. Ingen migrering. Koderen leverer løsning med skjermbilde før kode. | `WS` (`ProsjektkortSamleside`, `ProsjektGruppe` og `EcoGruppe` bare i kortmodus, vinduene for maskin, tillegg, utlegg og reise), `apps/web/src/components/timer/KortVareforbrukModal.tsx`, `packages/shared/src/utils/prosjektkort.ts` (summer pr. jobb), `packages/shared/src/utils/kortGruppering.ts` (brukes, endres ikke), `D` (`oppdaterTimerRad`, `maskin.tilfoy`, `maskin.oppdater`), `apps/api/src/routes/vareforbruk.ts` (bare hvis varen må flyttes der), i18n, hjelpeteksten for siden, `timer.md`, `web.md`, `api.md`. Ikke `apps/mobile`. | Bildet `v12-jobbkort.png`, høyre side: dagen fra #7 er to kort. Maskinen står i TILL-001-kortet. «+ Maskin» fra det kortet spør bare om utstyr og timer. Bytter du underprosjekt på raden, står maskinen på det nye underprosjektet også i timerapporten. |
+| **w3b** | **Maskin er utstyr og antall timer** (§ 4.13, A3–A5, A13; versjon 12). Maskindelen i timerad-vinduet og maskinvinduet fra en jobb: Utstyr og Antall timer, forhåndsutfylt med jobbens arbeidstimer, «høyst X t» ved feltet. Fra kl. og Til kl. går ut i prosjektkort-modus. Mengde og Enhet går ut (B37 A eller B); lagrede verdier står. Maskindelen er lik i «Legg til timer-rad» og «Rediger timer-rad» og viser jobbens maskiner. Hjelpeteksten «Hver maskin får radens timer …» skrives om. Maskinvinduet for døgn-maskin uten jobb og hele dagskort-modus står som i dag. Ingen migrering. **Venter på B37.** | `WS` (`TimerRadDialog`, `MaskinRadDialog`), i18n (`timer.maskinSeksjon.hint`), hjelpeteksten, `timer.md`, `maskin.md`, kort-id-specen (H9). Ikke `D`, ikke `apps/mobile`. | Bildet `v12-jobbkort.png`, nederst: maskinvinduet har to felt. «1.00» under maskinen er borte. |
+| **w3c** | ⚠️ Resten av gamle w3, etter Kenneths test av w3a og w3b (versjon 12). Bygges på kortet, ikke som ny flate (A2). Innholdet og rekkefølgen er bilde 2–5: underprosjekt i hodet som knapper eller søkbar nedtrekk (B11), overtidslinja mot normen for datoen (B8, B4), «Hva gjorde du?» påkrevd (B6), fordelingen av maskintimer på linjene i delt kode, «Del jobben». `kortId` på tillegg og utlegg ligger i w3a, og maskinlinja i w3b. «Ingen byggeplass» blir stående når brukeren velger det, som på telefonen (FA70, § 4.12; versjon 11). | `WS`, `packages/shared` (fordelingen, flyttet fra `M/utils/tilleggPaaKort.ts`), ikke `apps/mobile` (telefonen bytter til den delte fordelingen senere, § 8.13), i18n, hjelpeteksten for siden | Overtid står som egen linje med én gang. Underprosjektet byttes for hele jobben i kortets hode. |
 | **w4** | Innsjekk-loggen som kilde for prosjekt, byggeplass og foreslått tid (B2 trinn 2). | `apps/api/src/routes/mannskap.ts` (ny leser for egen bruker og dato), `WS`, `mine/page.tsx` | Jobben åpnes med stedet og tiden fra innsjekken. |
 | **w5** | Attesteringen: 11 kjernekolonner som standard med «Tilbakestill til standard» (B9), klikk åpner registreringen, underprosjekt for hele jobben, «Del opp» ved klokkeslett, retting for alle med attesteringsrett (B10). | `apps/web/src/components/attestering/*`, `packages/shared/src/utils/timerDetaljRader.ts` (standardutvalget, kolonnen «vare med mengde»), `D` (`flyttTimerRadEco` utvidet til hele jobben; deling med «eget kort»; kravene i `:7251`, `:2998`, `:7497`), i18n, hjelpeteksten | Bilde 6–8. |
-| **w6** | Firmavalget «maskin føres med fra–til» (B5): døgn-maskiner føres alltid uten fra–til (§ 8.7); ny kolonne i firmainnstillingene (**migrering, Kenneth**), innstillingssiden, jobben og maskinvinduet på PC, og Bekreft dag og dagskortets maskinvindu på telefonen. | `packages/db` (skjema og migrering), firmainnstillingenes API, `apps/web/src/app/dashbord/firma/innstillinger/page.tsx`, `WS`, `M/services/organizationSettingKatalog.ts`, `M/db/schema.ts`, `M/components/timer-detalj/BekreftDagRadTillegg.tsx`, `M/components/timer-detalj/MaskinSeksjon.tsx`, i18n, hjelpeteksten | Bilde 9. |
+| **w6** | ⏸ **Venter på B38** (versjon 12); med B38 A utgår delen. Telefon-delen venter uansett på web (§ 8.13). Firmavalget «maskin føres med fra–til» (B5): døgn-maskiner føres alltid uten fra–til (§ 8.7); ny kolonne i firmainnstillingene (**migrering, Kenneth**), innstillingssiden, jobben og maskinvinduet på PC, og Bekreft dag og dagskortets maskinvindu på telefonen. | `packages/db` (skjema og migrering), firmainnstillingenes API, `apps/web/src/app/dashbord/firma/innstillinger/page.tsx`, `WS`, `M/services/organizationSettingKatalog.ts`, `M/db/schema.ts`, `M/components/timer-detalj/BekreftDagRadTillegg.tsx`, `M/components/timer-detalj/MaskinSeksjon.tsx`, i18n, hjelpeteksten | Bilde 9. |
 | **w5b** | Dagsvisningen i attesteringen (B14, § 4.2) etter alternativet Kenneth velger. Med A: dagsraden øverst, jobbrad bare når dagen har flere jobber, farget kant pr. jobb, ramme og luft pr. dag, og normen som merke. | `AT`, `TR` (ny valgfri radvariant; timerapporten urørt), i18n (`timer.attestering.tabell.hjelp.struktur`, `.handlinger`), `hjelpetekster.md`, `apps/web/src/__tests__/attestering-tabell.test.tsx` | Bildet `b14-a.png`. |
 | **w8** | Kenneth 2026-11-19 (§ 8.6 punkt 1): jobbraden åpner registreringen, timeradene gjør det ikke. Datoen i dagsraden står hel ved 1 440. Retting av «null null» for utstyr uten merke og modell, og av den kuttede «Ansattnr»-overskriften. | `AT`, `TR`, `apps/web/src/components/attestering/utstyr-navn.ts`, `DagsKort.tsx`, `attestering-buckets.tsx`, i18n (`timer.attestering.tabell.hjelp.registrering`), `hjelpetekster.md` | Ett klikk på jobbraden åpner jobben; «man. 16.11.» står hel. |
 | **w7** | Attestantens egne timer (B15, § 4.3): firmavalget på innstillingssiden, sperren på serveren i de elleve prosedyrene (WM89), flagg pr. seddel i de tre listene, og merket «Egne timer» på PC og telefon. Med B17 A: lønnsform på den ansatte (**migrering, Kenneth**), feltet på ansattkortet og attestantlista på innstillingssiden. | `packages/db` (bare med B17 A), `D`, `apps/api/src/routes/organisasjon.ts`, `apps/web/src/app/dashbord/firma/innstillinger/page.tsx`, `AT`, `AM`, `apps/mobile/app/timer/attestering/`, `apps/mobile/src/components/timer-attestering/`, i18n, hjelpeteksten, `timer.md` | Egne timer står med «Egne timer» og uten ✓ når firmaet har valgt «Nei». |
@@ -2030,9 +2161,20 @@ delene krever ingen.
 | **w10** | Retteordren etter KS (§ 4.5) og Kenneths svar (§ 8.8, § 8.9). ⚠️ Skrevet om i versjon 9: B29–B31 er arbeidet inn, beskrivelsen (§ 4.9) og fjerningen av prosjektets side (§ 4.10) er lagt til. **Del A — kortet og knappene** (web, og én linje på serveren): (A1) fra, til og pause som felt i kortet, timene regnes ut, timefeltet ut (K7); lønnsartvalget holder reise og arbeid fra hverandre, og regelen leser linja (`erReise`), ikke hvilket kort som er åpent (§ 4.7 punkt 6, versjon 10); (A2) ✓, ↩, ↺, ✂ og ✎ bort fra linjene: ✓ ↩ ↺ står bare på de blå radene (B24 B), ✂ ved timelinja i kortet og «✎ Rediger jobben» øverst i kortet (B27 A); (A3) kjernekolonnene for alle (K1, B26 A); (A4) cellene på linja kan bare leses (B25 A), bygges etter A1; (A5) ↗ heter «Åpne dagsseddelen», og detaljsidens tabell får full bredde (K8, K11); (A6) beskrivelsen: del 3 viser radenes «Hva gjorde du?», aldri aktiviteten; «Ikke utfylt» når den mangler; aktiviteten i kortets hode; dagens «Kommentar» under (§ 4.9); del 3 vises ikke når kortet bare har reise (versjon 10); (A7) avkrysningen på de blå radene, og «Attester utvalget» tar hele jobber (B30 A); (A8) kvitteringen vises også i kortet, og ikonet står på utleggslinja (B31 B); (A9) ✂ arver beskrivelsen (FA42) — den ene linja på serveren; (A10) ⚠️ **utgått** (B32 B, § 8.10): reiseblokken står som i dag, én pr. dag, til w12 legger reisen i jobbens kort. **Del B — én attestering på firmanivå** (§ 4.6): (B1–B6) omfanget regnes på serveren, firmaets liste og detaljside åpnes for prosjektledere, «Attestering» blir menypunkt under Firma, og firmaets tidsrunding følger med lista; (B7) «Attestering» under Prosjekt fjernes (B29 B): DK1–DK15 i § 4.10, gamle adresser sender videre, isolasjonstestene flyttes først. B7 er siste commit i del B. Ingen migrering. | Del A: `RP`, `AT`, `AD`, `AM`, `D` (bare `splittRad`, A9), i18n, `hjelpetekster.md`, `apps/web/src/__tests__/attestering-tabell.test.tsx`. Del B: `D` (`hentTilAttesteringFirma`, `kanAttestereFirma`, ny hjelper for omfanget; ut: `hentTilAttestering`, `kanAttestere`, `krevProsjektLeder`, `erProsjektLeder`, `dagsnormerFor`), `FS`, `apps/web/src/app/dashbord/firma/timer/attestering/[id]/page.tsx`, ruta og rammen (§ 4.6 punkt 7), `FN`, `SE`, `apps/web/src/components/layout/dype-sider.tsx`, `apps/web/src/app/dashbord/[prosjektId]/timer/attestering/` og `…/godkjenning/` (blir omdirigeringer), `useAktivSeksjon.ts`, `navigasjon-kontekst.tsx`, `BU` (DK14), `AT` (`prosjektKontekst` som mengde), i18n (15 språkfiler for nøklene som slettes), testene i § 4.10 del D, `sok-dekning.test.ts`, `hjelpetekster.md`, `timer.md`, `api.md`, `web.md`, `arkitektur.md`, `redesign-paritetssjekkliste.md`, kort-id-specen. Ikke `apps/mobile`. | Bildet `ks-attestering.png` uten reisen i kortet (den kommer med w12): en prosjektleder ser alle prosjektene sine på én side, linjene har ingen knapper, jobben rettes i kortet, og kortet viser hva arbeideren skrev. «Attestering» finnes bare under Firma. |
 | **w11** | Hover-forklaring på menypunktene i venstremargen (§ 4.8, hjemmel Kenneth 2026-11-19): feltet `hjelpNokkel` på menypunktene, `Tooltip` rundt raden i full og smal bredde, og 37 tekster (38 før B29 B tok ut Prosjekt › Attestering). | `SE`, `FN`, `NS`, i18n (`nav.hjelp.*`, `firmaNav.hjelp.*`), `docs/claude/retningslinjer/tooltip-hjelpetekst-veileder.md`, `hjelpetekster.md` | Hold pekeren over «Timer» under Prosjekt og under Firma: teksten sier hva som skiller dem. |
 | **w12** | Reisen i jobbens kort (B32 B, B34 B, § 4.11). ⚠️ Skrevet om i versjon 11 etter B34 B. **Delt regel:** én funksjon som velger jobben for en reiserad — lik underprosjekt først, så lik byggeplass, så første jobb for utreise og siste for retur (del A punkt 3, med eksempel). Regelen endrer aldri prosjekt, underprosjekt eller byggeplass på reiseraden. **Server:** `sikreKortId` kjører regelen i stedet for å tømme kort-id; skriveveiene i FA46, sletting av timerad, vareoppslaget og synken (del B); valideringen sammenlikner bare dagsseddel og prosjekt for reise (K1, K2). «Flytt hele jobben» lar reisen stå, og plassen regnes på nytt etterpå. **Migrering (Kenneth):** utfylling av kort-id på reiseradene som finnes, med samme regel som én sortering i SQL; ingen ny kolonne, og ingen andre felt endres (del E). **Web:** grupperingen legger reisen i kortet, reiseblokken forsvinner, reiselinja står sist i jobben uten knapper og viser underprosjektet sitt når det avviker fra jobbens, ✓ ↩ ↺ på jobben tar reisen med, og kortet får del 8 «Reise» med ruta og «Føres på», der attestanten kan rette reisens underprosjekt (del C). Reisevinduet på PC står urørt. `CHECK (kort_id IS NOT NULL)` kommer i neste utgivelse (steg 2). **Venter ikke på B35.** | `packages/shared/src/utils/` (ny regel, `kortGruppering.ts`, `kortId.ts`), `KI`, `D`, `apps/api/src/routes/timer/jobb-deling.ts` (bare hvis testene krever det), `packages/db-timer/prisma/migrations/` (ny, bare data), `AM`, `AT`, `RP`, i18n, testene i FA59 og § 4.11 del H, `hjelpetekster.md`, `timer.md`, `api.md`, `web.md`, `shared-pakker.md`, `arkitektur.md`, `KS` (§ 2.2, § 2.3, § 3.4, G8, E2). Ikke `RK`, ikke `apps/mobile`. | Bildet `ks-attestering.png`: reisen står som linje i jobben, ✓ på jobben attesterer den, og kortet viser ruta og hvor reisen er ført under «Reise». En reise ført på et annet underprosjekt enn jobben viser det på linja. En dag med én jobb og reise åpnes fra dagsraden. |
-| **w12m** | Telefonen etter w12 (§ 4.11 del D og G). ⚠️ Skrevet om i versjon 11 etter B34 B. Samme regel lokalt (`kortIdNormalisering.ts`) med utfylling av radene som ligger på telefonen; forslaget og «+ Reise» lagrer reisen koblet; reisen vises i jobbens kort i stedet for i «Dagen», med underprosjektet sitt på linja når det avviker fra kortets. **B33 A:** manuell tur får prosjektet til dagens første jobb, retur får dagens siste (`DagSeksjon.tsx:80–96`). **Reisevinduet:** byggeplass og underprosjekt velges som i dag (B34 B). **B35 må være besvart før w12m bestilles;** med B35 B flyttes reisevinduet til w13. Bekreft dag og dagskort-modus står urørt. Ingen migrering på serveren. Krever OTA. | `M/utils/kortIdNormalisering.ts`, `M/services/kortIdLokal.ts`, `M/db/migreringer.ts`, `M/utils/dagsforslagAnvend.ts`, `M/services/nyTimerRad.ts`, `M/components/timer-detalj/prosjektkort/` (`DagSeksjon.tsx`, `kortRadFlytt.ts`, `ProsjektkortDagsoversikt.tsx`, `radLagring.ts`), `M/utils/dagsoversiktRader.ts`, i18n, `mobil.md`, `timer.md`, `hjelpetekster.md`. Ikke `apps/api`, ikke `apps/web`. | Reisen står i jobbens kort på telefonen — i kortet med samme underprosjekt og byggeplass som du valgte for reisen. På en dag med to prosjekter står turen på det første og returen på det siste. |
-| **w13** | ⚠️ **Bare hvis B35 besvares med B** (§ 4.12, § 8). Ett valg «Hvor» i føringen av arbeid og reise: én linje pr. sted, enten «prosjekt – byggeplass» eller «prosjekt – underprosjekt». **Arbeid:** jobbens hode på PC og kortvalget på telefonen. **Reise:** begge reisevinduene, med stedene dagen har jobb på og B33 A som forvalg. Raden bærer det samme som i dag (prosjekt, byggeplass, underprosjekt), så serveren, nøkkelen og w12 er urørt. Koderen leverer løsning med skjermbilde før kode; valget er ikke tegnet. Ingen migrering. | `WS` (jobbens hode, etter w3), `RK`, `M/components/timer-detalj/prosjektkort/KortValgModal.tsx`, `M/components/timer-detalj/ReiseKort.tsx`, `M/components/timer-detalj/prosjektkort/DagSeksjon.tsx`, i18n, `hjelpetekster.md`, `mobil.md`, `web.md`. Ikke `apps/api`. | Ett trykk på stedet i stedet for to felt, likt for arbeid og reise. |
+| **w12m** | ⏸ **Venter på web** (Kenneth 2026-11-20, § 8.13): bestilles ikke før timeføringen på PC er godkjent av Kenneth. Telefonen etter w12 (§ 4.11 del D og G). ⚠️ Skrevet om i versjon 11 etter B34 B. Samme regel lokalt (`kortIdNormalisering.ts`) med utfylling av radene som ligger på telefonen; forslaget og «+ Reise» lagrer reisen koblet; reisen vises i jobbens kort i stedet for i «Dagen», med underprosjektet sitt på linja når det avviker fra kortets. **B33 A:** manuell tur får prosjektet til dagens første jobb, retur får dagens siste (`DagSeksjon.tsx:80–96`). **Reisevinduet:** byggeplass og underprosjekt velges som i dag (B34 B). **B35 må være besvart før w12m bestilles;** med B35 B flyttes reisevinduet til w13. Bekreft dag og dagskort-modus står urørt. Ingen migrering på serveren. Krever OTA. | `M/utils/kortIdNormalisering.ts`, `M/services/kortIdLokal.ts`, `M/db/migreringer.ts`, `M/utils/dagsforslagAnvend.ts`, `M/services/nyTimerRad.ts`, `M/components/timer-detalj/prosjektkort/` (`DagSeksjon.tsx`, `kortRadFlytt.ts`, `ProsjektkortDagsoversikt.tsx`, `radLagring.ts`), `M/utils/dagsoversiktRader.ts`, i18n, `mobil.md`, `timer.md`, `hjelpetekster.md`. Ikke `apps/api`, ikke `apps/web`. | Reisen står i jobbens kort på telefonen — i kortet med samme underprosjekt og byggeplass som du valgte for reisen. På en dag med to prosjekter står turen på det første og returen på det siste. |
+| **w13** | ⚠️ **Utgått** (B35 A, § 8.12). Sto slik: bare hvis B35 besvares med B (§ 4.12, § 8). Ett valg «Hvor» i føringen av arbeid og reise: én linje pr. sted, enten «prosjekt – byggeplass» eller «prosjekt – underprosjekt». **Arbeid:** jobbens hode på PC og kortvalget på telefonen. **Reise:** begge reisevinduene, med stedene dagen har jobb på og B33 A som forvalg. Raden bærer det samme som i dag (prosjekt, byggeplass, underprosjekt), så serveren, nøkkelen og w12 er urørt. Koderen leverer løsning med skjermbilde før kode; valget er ikke tegnet. Ingen migrering. | `WS` (jobbens hode, etter w3), `RK`, `M/components/timer-detalj/prosjektkort/KortValgModal.tsx`, `M/components/timer-detalj/ReiseKort.tsx`, `M/components/timer-detalj/prosjektkort/DagSeksjon.tsx`, i18n, `hjelpetekster.md`, `mobil.md`, `web.md`. Ikke `apps/api`. | Ett trykk på stedet i stedet for to felt, likt for arbeid og reise. |
 
+- 🔴 **Rekkefølgen etter versjon 12** (§ 4.13). Punktene under gjelder der de ikke strider mot dette:
+  1. **w3a** kan bestilles nå. Den venter ikke på B37 og B38. Før den bestilles, telles maskinrader og varer
+     som står på et annet underprosjekt enn timeraden de er koblet til (§ 10).
+  2. **w3b** går etter w3a (samme fil, `WS`) og venter på B37.
+  3. **Kenneth tester w3a og w3b** på test. Først etter det bestilles **w3c**, og så **w4**.
+  4. **w10c** (B36) og **w11** rører ikke `WS` og kan gå når som helst. i18n-generatoren kjøres aldri samtidig
+     med en annen del.
+  5. ⏸ **Mobil venter på web** (Kenneth 2026-11-20): w12m, telefon-delen av w6, byttet til delt fordeling i
+     `M/utils/tilleggPaaKort.ts` (lå i w3, nå i w3c: den delte funksjonen bygges, telefonen bytter senere) og
+     alt annet i `apps/mobile`. Ingenting bestilles på mobil før Kenneth har godkjent timeføringen på PC.
+  6. **w6** finnes bare med B38 B. **w13** er utgått (B35 A).
 - **w10 går før w3, w4 og w6.** Den justerer det som er bygget, tilbake til bilde 6–8. Del A går først. Den er web,
   med én linje på serveren (A9). Del B går rett etter, på de samme filene (`AT`), og får egen gate: den endrer hvem
   som får se timer og lønnsart, så regel 10 kjøres uavhengig. I del A bygges A4 etter A1, så ingen rettevei
@@ -2124,7 +2266,7 @@ Målt i nettleser (lokal dev, 1 440): dagsrad 43, jobbrad 38, linje 37 punkter. 
 
 Tester: `attestering-tabell.test.tsx` («w5b — dagsvisningen, alternativ A»), `timer-rad-tabell.test.tsx` («w5b — vakttest», «w5b — blokkvisningen»), `web-timer-w1.test.tsx` (datoen står i dagsraden).
 
-### 9.5 w10 del A i kode (🟡 `feat/web-timer-w10a`, ikke merget)
+### 9.5 w10 del A i kode (merget til develop `bc2bd462`)
 
 | Del | Hvor |
 |---|---|
@@ -2145,7 +2287,7 @@ Målt på test (M7, 1 440, firmaattesteringen, uke 20, fanen Attestert): dagsrad
 
 Tester: `attestering-tabell.test.tsx` (blokkene merket «w10a»), `attestering-tabell-modell.test.ts` («w10a (B30 A)»), `kortid-d2a.integration.test.ts` («w10a (A9)»).
 
-### 9.6 w10 del B i kode (🟡 `feat/web-timer-w10b`, ikke merget)
+### 9.6 w10 del B i kode (merget til develop `c0932ac2`)
 
 | Del | Hvor |
 |---|---|
@@ -2158,6 +2300,22 @@ Tester: `attestering-tabell.test.tsx` (blokkene merket «w10a»), `attestering-t
 | B7 Prosjektets side fjernet | DK1–DK3: omdirigeringer i `[prosjektId]/timer/attestering/page.tsx`, `[id]/page.tsx` og `godkjenning/page.tsx`. DK4–DK6: menypunktet, `kreverTimerLeder` og spesialtilfellet i `useAktivSeksjon.ts` slettet. DK7–DK11: `hentTilAttestering`, `kanAttestere`, `erProsjektLeder`, `krevProsjektLeder`, `dagsnormerFor` og invalideringene slettet. DK12: to i18n-nøkler i 15 filer. DK14: `ProsjektSectionAttest`, `EcoBucketAttest`, radkomponentene og `eneProsjekt`/`visProsjektnavn` (brukt bare av dem) slettet; `attestering-buckets.tsx` har typene og `radIKontekst`. Del D: testene skrevet om mot firmalista med prosjektleder-omfang, hver 🔴 vist rød uten sperren. |
 
 ## 10. Ikke målt
+
+**Versjon 12 (§ 4.13):**
+
+- 🔴 **Telles før w3a bestilles** (lesespørring mot test og prod): maskinrader i `timer.sheet_machines` med
+  `sheet_timer_id` satt, der underprosjektet eller byggeplassen avviker fra timeradens; og det samme for
+  `varelager.vareforbruk`. Tallet sier om A7 bare er en mulighet eller alt har skjedd. Retting av rader som
+  finnes, er en datamigrering og blir et eget spørsmål til Kenneth med tallet.
+- Hvor mange maskinrader som har mengde i dag, i test og prod (B37).
+- Bristen i A7 er lest i koden og ikke kjørt: bytte av underprosjekt på en timerad med koblet maskin.
+- Om `vareforbruk.hentMineForDato` sender `kortId` og `sheetTimerId`. Typen `KortVare` på dagssiden har dem
+  ikke (`WS:1589–1595`). w3a trenger dem for å legge varen i jobben.
+- Om `hentMedId` sender `kortId` på tillegg og utlegg. Typene på dagssiden har feltet bare på timer og maskin
+  (`WS:143`, `:202`).
+- Hvordan attesteringen viser en maskin med flere timer enn linja den er koblet til, når jobben har ordinær
+  tid og overtid og maskinen føres med jobbens sum (w3b uten fordelingen, som kommer i w3c).
+- Ingen av skjermene er klikket gjennom av Fabel. Bildene #1–#7 er Kenneths.
 
 - Databasen: Kenneths rader fra 07.11, firmaets innstillinger i test, og om testfirmaet har PSI-modulen på.
 - Nettleseren: høyden på maskinlinjene (WM21) er regnet fra koden. Ingen av dagens skjermer er klikket gjennom; trykkene
