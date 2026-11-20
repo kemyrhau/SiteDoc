@@ -41,7 +41,8 @@ interface Props {
   kanAttestere: boolean;
   /** Firmavalget «rediger ved attestering» er på og jobben venter: rette og dele opp. */
   kanRette: boolean;
-  lonnsarter: readonly { id: string; navn: string }[];
+  /** Firmaets lønnsartkatalog; `satsEnhet` avgjør om linja rettes med fra–til eller tallfelt. */
+  lonnsarter: readonly { id: string; navn: string; satsEnhet?: string | null }[];
   /** Firmaets tidsrunding (minutter) for fra og til, som sedelsiden. */
   tidsrunding?: number | null;
   /** w10a (A2): ✂ ved linja i kortet — vilkåret er det linja hadde i tabellen. */
@@ -67,6 +68,19 @@ export function tillatteLonnsarter<L extends { id: string; navn: string }>(
 ): L[] {
   const vilReise = linje.erReise === true;
   return lonnsarter.filter((l) => l.id === lagretId || (ktx !== null && erReiseLonnsart(l.id, l.navn, ktx) === vilReise));
+}
+
+/**
+ * Rettes linja med fra–til (RETUR 1 w10a, vilkår 2)? Bare timebaserte lønnsarter (`satsEnhet` null
+ * eller `per_time`) — samme regel som serverens `erTimebasert` (`dagsseddel.ts`). På `per_km`,
+ * `per_dag` og `per_natt` er `timer` antallet (km, dager, netter), så fra–til ville skrevet det
+ * over; de beholder tallfeltet. Lønnsart som ikke finnes i katalogen (ikke lastet, inaktiv) gir
+ * tallfeltet, så antallet aldri regnes om.
+ */
+export function erTimebasertLonnsart(lonnsartId: string, lonnsarter: readonly { id: string; satsEnhet?: string | null }[]): boolean {
+  const art = lonnsarter.find((l) => l.id === lonnsartId);
+  if (!art) return false;
+  return art.satsEnhet == null || art.satsEnhet === "per_time";
 }
 
 /** Del 3 (w10a A6, plan § 4.9): tekstene på jobbens timerader, hver én gang, etter klokkeslett. */
@@ -307,12 +321,18 @@ export function RegistreringPanel({ kort, sedel, orgId, kanAttestere, kanRette, 
               const kan = kanRette && l.ventende && l.harHandling;
               return (
                 <div key={l.nokkel} data-timelinje={l.nokkel} className="flex flex-wrap items-center gap-3">
-                  {kan ? (
+                  {kan && erTimebasertLonnsart(r.lonnsartId, lonnsarter) ? (
                     <TidFelter
                       lagret={{ fraTid: r.fraTid ?? null, tilTid: r.tilTid ?? null, pauseMin: r.pauseMin ?? 0, timer: l.linje.timer }}
                       tidsrunding={tidsrunding}
                       onFeil={(tekst) => setLinjeFeil((f) => ({ ...f, [l.nokkel]: tekst }))}
                       onLagre={(felter, tilbake) => rettFelter(l.nokkel, "timer", r.id, felter, tilbake)}
+                    />
+                  ) : kan ? (
+                    <TallFelt
+                      etikett={t("timer.eksport.kolTimer")}
+                      verdi={l.linje.timer}
+                      onLagre={(v, tilbake) => rettFelter(l.nokkel, "timer", r.id, { timer: v }, tilbake)}
                     />
                   ) : (
                     <span className="tabular-nums text-gray-700">
@@ -462,6 +482,8 @@ type TidLagret = { fraTid: string | null; tilTid: string | null; pauseMin: numbe
  * regnes ut som `(til − fra − pause) / 60` (`effektiveTimerFraSpenn` med pausen lagt fra fra-tida —
  * den formelen serveren godtar for en rad som bærer pausen, `vurderRadTimer`), og fra, til, timer og
  * pause sendes i ett kall. Ugyldig tid avvises før kallet; avviser serveren, settes feltene tilbake.
+ * Timetallet ved siden av viser lagret `timer` til et felt er endret. Brukes bare på timebaserte
+ * lønnsarter (`erTimebasertLonnsart`).
  */
 export function TidFelter({ lagret, tidsrunding, onLagre, onFeil }: {
   lagret: TidLagret;
@@ -482,7 +504,10 @@ export function TidFelter({ lagret, tidsrunding, onLagre, onFeil }: {
   const visPause = lagret.pauseMin > 0;
   const pauseTall = Number.parseInt(pause, 10);
   const gyldig = KL.test(fra) && KL.test(til) && !Number.isNaN(pauseTall) && pauseTall >= 0;
-  const utregnet = gyldig ? effektiveTimerFraSpenn(fra, til, fra, pauseTall) : null;
+  // RETUR 1 vilkår 1: urørte felt viser lagret `timer` (kan være justert for hånd eller etter
+  // eldre formel); den utregnede verdien vises først når fra, til eller pause er endret.
+  const endret = fra !== startFra || til !== startTil || pause !== startPause;
+  const utregnet = endret && gyldig ? effektiveTimerFraSpenn(fra, til, fra, pauseTall) : null;
 
   function lagre() {
     const f = rundTilNarmeste(fra, tidsrunding);
@@ -521,7 +546,7 @@ export function TidFelter({ lagret, tidsrunding, onLagre, onFeil }: {
 }
 
 /** Tallfelt som lagres ved Enter, Tab eller når feltet forlates (hver retting lagres med en gang). */
-function TallFelt({ etikett, verdi, enhet, hoyst = null, onLagre }: { etikett: string; verdi: number | null; enhet?: string; hoyst?: number | null; onLagre: (v: number | null) => void }) {
+function TallFelt({ etikett, verdi, enhet, hoyst = null, onLagre }: { etikett: string; verdi: number | null; enhet?: string; hoyst?: number | null; onLagre: (v: number | null, tilbake: () => void) => void }) {
   const { t } = useTranslation();
   const start = verdi == null ? "" : String(verdi).replace(".", ",");
   const [tekst, setTekst] = useState(start);
@@ -535,7 +560,7 @@ function TallFelt({ etikett, verdi, enhet, hoyst = null, onLagre }: { etikett: s
     const v = tolket;
     if (v !== null && Number.isNaN(v)) { setTekst(start); return; }
     if (over) return;
-    onLagre(v);
+    onLagre(v, () => setTekst(start));
   };
   const tast = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") { e.preventDefault(); lagre(); }

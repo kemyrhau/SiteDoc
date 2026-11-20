@@ -114,7 +114,8 @@ function vis(sedler: AttSedel[], readOnly = false) {
 const linje = (c: HTMLElement, nokkel: string) => c.querySelector(`[data-linje="${nokkel}"]`) as HTMLElement;
 const kallTil = (navn: string) => h.kall.filter((k) => k.sti.endsWith(navn));
 
-beforeEach(() => { h.kall.length = 0; h.velger.props = null; });
+// Katalogen: «Ordinær» er timebasert (satsEnhet null), så kortet retter den med fra–til (RETUR 1 w10a).
+beforeEach(() => { h.kall.length = 0; h.velger.props = null; h.data["timer.lonnsart.list"] = [{ id: "l1", navn: "Ordinær", satsEnhet: null }]; });
 afterEach(cleanup);
 
 describe("T43 — «Attester utvalget»", () => {
@@ -928,7 +929,7 @@ describe("w7 (B15) — egne timer: synlige, merket, uten handlinger", () => {
 /*  w10a — kortets innhold: lønnsart, beskrivelse, kvittering, reise   */
 /* ------------------------------------------------------------------ */
 
-import { tillatteLonnsarter, jobbensBeskrivelser } from "@/components/attestering/RegistreringPanel";
+import { tillatteLonnsarter, jobbensBeskrivelser, erTimebasertLonnsart, TidFelter } from "@/components/attestering/RegistreringPanel";
 
 describe("w10a (A1) — lønnsartvalget følger linjetypen", () => {
   const ktx = { reiseLonnsartId: "lr", grensepunktLonnsartIds: ["lg"] };
@@ -961,6 +962,70 @@ describe("w10a (A1) — lønnsartvalget følger linjetypen", () => {
       delete h.data["timer.lonnsart.list"];
       delete h.data["organisasjon.hentArbeidstidDefaults"];
     }
+  });
+});
+
+describe("RETUR 1 w10a (vilkår 1) — urørte felt viser lagret timetall", () => {
+  const vist = (c: HTMLElement) => c.querySelector("[data-utregnet-timer]")!.textContent;
+
+  it("lagret 4 t på 07–15 viser 4 t; utregnet først når et felt endres", () => {
+    const { container, getByLabelText } = render(
+      <TidFelter lagret={{ fraTid: "07:00", tilTid: "15:00", pauseMin: 0, timer: 4 }} tidsrunding={null} onLagre={() => {}} onFeil={() => {}} />,
+    );
+    expect(vist(container)).toBe('timer.attestering.registrering.timer{"timer":"4,00"}');
+    fireEvent.change(getByLabelText("timer.attestering.registrering.til"), { target: { value: "16:00" } });
+    expect(vist(container)).toBe('timer.attestering.registrering.timer{"timer":"9,00"}');
+    fireEvent.keyDown(getByLabelText("timer.attestering.registrering.til"), { key: "Escape" });
+    expect(vist(container)).toBe('timer.attestering.registrering.timer{"timer":"4,00"}');
+  });
+
+  it("i kortet: radens lagrede timer står, ikke spennet", () => {
+    const { container } = vis([sedel({ totaltimer: 4, timer: [timer("t1", { timer: "4", pauseMin: 0 })], pauseMin: 0 })]);
+    fireEvent.click(dagsrad(container));
+    const panel = container.querySelector("[data-registrering]") as HTMLElement;
+    expect(vist(panel)).toContain('"4,00"');
+  });
+});
+
+describe("RETUR 1 w10a (vilkår 2) — fra–til bare på timebaserte lønnsarter", () => {
+  it("erTimebasertLonnsart: null og per_time ja; per_km, per_dag, per_natt og ukjent art nei", () => {
+    const kat = [
+      { id: "a", satsEnhet: null }, { id: "b", satsEnhet: "per_time" }, { id: "c", satsEnhet: "per_km" },
+      { id: "d", satsEnhet: "per_dag" }, { id: "e", satsEnhet: "per_natt" },
+    ];
+    expect(["a", "b", "c", "d", "e", "x"].map((id) => erTimebasertLonnsart(id, kat))).toEqual([true, true, false, false, false, false]);
+  });
+
+  const aapne = (c: HTMLElement) => { fireEvent.click(dagsrad(c)); return c.querySelector("[data-registrering]") as HTMLElement; };
+
+  it("per_time: fra–til i kortet, ikke tallfelt", () => {
+    h.data["timer.lonnsart.list"] = [{ id: "l1", navn: "Ordinær", satsEnhet: "per_time" }];
+    const panel = aapne(vis([sedel()]).container);
+    expect(within(panel).getByLabelText("timer.attestering.registrering.til")).toBeTruthy();
+    expect(within(panel).queryByLabelText("timer.eksport.kolTimer")).toBeNull();
+  });
+
+  it("per_km: tallfeltet som før; km sendes som timer, fra og til røres ikke", () => {
+    h.data["timer.lonnsart.list"] = [{ id: "l1", navn: "Kjøregodtgjørelse", satsEnhet: "per_km" }];
+    const panel = aapne(vis([sedel({ timer: [timer("t1", { timer: "120" })] })]).container);
+    expect(within(panel).queryByLabelText("timer.attestering.registrering.til")).toBeNull();
+    const tall = within(panel).getByLabelText("timer.eksport.kolTimer") as HTMLInputElement;
+    expect(tall.value).toBe("120");
+    fireEvent.change(tall, { target: { value: "135" } });
+    fireEvent.blur(tall);
+    expect(kallTil("rettRadFelt")[0]!.input).toEqual({ radType: "timer", radId: "t1", felter: { timer: 135 } });
+  });
+
+  it("per_dag: avvist retting nullstiller tallfeltet, og grunnen står ved linja", () => {
+    h.data["timer.lonnsart.list"] = [{ id: "l1", navn: "Diett", satsEnhet: "per_dag" }];
+    const panel = aapne(vis([sedel({ timer: [timer("t1", { timer: "1" })] })]).container);
+    const tall = within(panel).getByLabelText("timer.eksport.kolTimer") as HTMLInputElement;
+    fireEvent.change(tall, { target: { value: "2" } });
+    fireEvent.keyDown(tall, { key: "Enter" });
+    act(() => kallTil("rettRadFelt")[0]!.opts!.onError!({ message: "Avvist" }));
+    expect(tall.value).toBe("1");
+    const linjeIKort = panel.querySelector('[data-timelinje="s1:timer:t1"]') as HTMLElement;
+    expect(within(linjeIKort).getByRole("alert").textContent).toBe("Avvist");
   });
 });
 
