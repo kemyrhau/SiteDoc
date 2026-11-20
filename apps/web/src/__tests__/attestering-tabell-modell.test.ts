@@ -43,6 +43,7 @@ const deps: AttDeps = {
     fravaerUtenProsjekt: "Fravær",
     annetProsjekt: "Annet prosjekt",
     reise: "Reise",
+    utenUnderprosjekt: "Uten",
     statusVenter: "Venter",
     statusAttestert: "Attestert",
     statusReturnert: "Returnert",
@@ -114,7 +115,7 @@ describe("T23/T27 — kort pr. prosjekt, og timeraden er én linje med maskin og
   });
 
   it("kortets summer: timer og maskintimer", () => {
-    expect(sumLinjer(dag!.kort[0]!.linjer)).toEqual({ timer: 7.5, maskintimer: 7 });
+    expect(sumLinjer(dag!.kort[0]!.linjer)).toEqual({ timer: 7.5, maskintimer: 7, reise: 0 });
   });
 });
 
@@ -450,5 +451,73 @@ describe("w9 — merket «Maskin over arbeid» på jobbraden (B21 A, B23 B)", ()
     });
     expect(merkerFor(s, "kA")).toHaveLength(1);
     expect(merkerFor(s, "kB")).toHaveLength(0);
+  });
+});
+
+describe("w12 — reisen i jobbens kort (plan § 4.11 del C; H.7 og H.8)", () => {
+  const u = (proAdmId: string) => ({ proAdmId, kortNavn: `UP ${proAdmId}`, navn: null });
+  const jobb = (over: Partial<AttTimer> = {}) => timer("t1", "kA", A, { externalCostObjectId: "e1", underprosjekt: u("100"), ...over });
+  const reise = (id: string, over: Partial<AttTimer> = {}) =>
+    timer(id, "kA", A, { erReise: true, lonnsartId: "l1", fraTid: "06:00", tilTid: "07:00", timer: "1", pauseMin: 0, externalCostObjectId: "e1", underprosjekt: u("100"), ...over });
+  const modell = (timerRader: AttTimer[]) =>
+    byggAttesteringModell([sedel({ timer: timerRader, maskiner: [], varer: [], ukeAvvikRadIder: [] })], deps)[0]!;
+
+  it("H.7: «Maskin over arbeid» er lik før og etter at reisen har jobbens kort-id", () => {
+    const merkerFor2 = (kortId: string | null) => {
+      const s = sedel({
+        timer: [timer("t1", "kA", A, { timer: "4.5" }), timer("r1", kortId as string, A, { timer: "4", erReise: true })],
+        maskiner: [maskin("m1", "kA", "t1", "v1", { timer: "7.5", utleieEnhet: "time" })],
+        varer: [],
+        ukeAvvikRadIder: [],
+      });
+      const kort = byggAttesteringModell([s], deps)[0]!.kort.find((k) => k.nokkel === "s1:kA")!;
+      return kort.linjer.flatMap((l) => l.avvikMerker).filter((m) => m.tekst === "Maskin over arbeid").map((m) => m.forklaring);
+    };
+    expect(merkerFor2("kA")).toEqual(["Maskin 7,5 t, arbeid 4,5 t"]);
+    expect(merkerFor2("kA")).toEqual(merkerFor2(null));
+  });
+
+  it("reiselinja står sist i jobben, utreise før retur; ingen reiseblokk; én jobb på dagen", () => {
+    const d = modell([reise("r2", { reiseRetning: "retur", fraTid: "15:00", tilTid: "16:00" }), jobb(), reise("r1", { reiseRetning: "ut" })]);
+    expect(d.kort.map((k) => k.nokkel)).toEqual(["s1:kA"]);
+    expect(d.kort[0]!.reise).toBe(false);
+    expect(d.kort[0]!.linjer.map((l) => [l.linje.id, l.linje.erReise === true])).toEqual([["t1", false], ["r1", true], ["r2", true]]);
+    // Reiselinja er en timelinje uten maskiner og varer, med handling (følger jobbens ✓ ↩ ↺).
+    const r1 = d.kort[0]!.linjer[1]!;
+    expect(r1.kilde.type).toBe("timer");
+    expect(r1.harHandling).toBe(true);
+    expect(r1.radIder).toEqual({ timerIder: ["r1"], maskinIder: [], tilleggIder: [] });
+  });
+
+  it("✓ på jobben sender reisens id sammen med jobbens (C3)", () => {
+    const d = modell([jobb(), reise("r1", { reiseRetning: "ut" })]);
+    const u2 = byggJobbUtvalg([d], ["s1:kA"], new Set(["s1:kA"]), () => d.sedel);
+    expect([...u2.radIder.timerIder].sort()).toEqual(["r1", "t1"]);
+    expect(u2.antallJobber).toBe(1);
+  });
+
+  it("jobbens sum skiller reisen ut; dagens sum har alt (C4)", () => {
+    const d = modell([jobb(), reise("r1", { reiseRetning: "ut" })]);
+    expect(sumLinjer(d.kort[0]!.linjer)).toEqual({ timer: 8.5, maskintimer: 0, reise: 1 });
+  });
+
+  it("reiselinja viser eget underprosjekt når det avviker; «Uten» når reisen ikke har noe (C1, B34 B)", () => {
+    const lik = modell([jobb(), reise("r1")]).kort[0]!;
+    expect(lik.linjer[1]!.linje.underprosjekt).toBe(lik.underprosjekt);
+    const annet = modell([jobb(), reise("r1", { externalCostObjectId: "e2", underprosjekt: u("200") })]).kort[0]!;
+    expect(annet.underprosjekt).toBe("100 · UP 100 · Til byggherre");
+    expect(annet.linjer[1]!.linje.underprosjekt).toBe("200 · UP 200 · Til byggherre");
+    const uten = modell([jobb(), reise("r1", { externalCostObjectId: null, underprosjekt: null })]).kort[0]!;
+    expect(uten.linjer[1]!.linje.underprosjekt).toBe("Uten");
+    // Reisen endrer ikke jobbens hode.
+    expect(uten.underprosjekt).toBe("100 · UP 100 · Til byggherre");
+  });
+
+  it("reise alene i et kort vises som eget kort med reisens underprosjekt (C7)", () => {
+    const d = modell([jobb(), timer("r9", "kR", B, { erReise: true, externalCostObjectId: "e9", underprosjekt: u("900") })]);
+    const kR = d.kort.find((k) => k.nokkel === "s1:kR")!;
+    expect(kR.reise).toBe(true);
+    expect(kR.underprosjekt).toBe("900 · UP 900 · Til byggherre");
+    expect(d.kort.find((k) => k.nokkel === "s1:kA")!.reise).toBe(false);
   });
 });

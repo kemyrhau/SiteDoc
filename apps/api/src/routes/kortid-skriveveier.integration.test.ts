@@ -125,7 +125,7 @@ async function kortPaaSedel(sheetId: string) {
   return { timer, tillegg, maskin, utlegg };
 }
 
-/** Alle ikke-reise arbeidsrader på sedelen har kort-id; reise har null. */
+/** Alle radene i lista har kort-id. */
 function forventAlleMedKort(rader: KortRad[]) {
   expect(rader.length).toBeGreaterThan(0);
   for (const r of rader) expect(r.kortId, `rad ${r.id} mangler kort_id`).not.toBeNull();
@@ -302,7 +302,7 @@ afterAll(ryddOpp);
 // ════════════════════════════════════════════════════════════════════════════
 //  T5 — hver server-skrivevei etterlater arbeidsrader med kort-id
 // ════════════════════════════════════════════════════════════════════════════
-describe("T5 — server-skriveveier fyller kort_id (reise = null)", () => {
+describe("T5 — server-skriveveier fyller kort_id (reise i jobbens kort, w12)", () => {
   it("opprett → opprettForsteTimerRadForslag: auto-første-rad har kort-id", async () => {
     const clientUuid = randomUUID();
     const dato = nyDato();
@@ -330,7 +330,7 @@ describe("T5 — server-skriveveier fyller kort_id (reise = null)", () => {
     forventAlleMedKort((await kortPaaSedel(sid)).timer);
   });
 
-  it("tilfoyTimerRad: reise-rad får kort_id NULL, også med oppgitt id", async () => {
+  it("tilfoyTimerRad: reise-rad står i jobbens kort, oppgitt id brukes ikke (w12)", async () => {
     const sid = await nySedel();
     await dag().tilfoyTimerRad({
       sheetId: sid, projectId: P1, lonnsartId: REISE, aktivitetId: AKT,
@@ -344,8 +344,8 @@ describe("T5 — server-skriveveier fyller kort_id (reise = null)", () => {
     const reise = timer.filter((t) => t.erReise);
     const arbeid = timer.filter((t) => !t.erReise);
     expect(reise).toHaveLength(1);
-    expect(reise[0]!.kortId).toBeNull();
     forventAlleMedKort(arbeid);
+    expect(reise[0]!.kortId).toBe(arbeid[0]!.kortId);
   });
 
   it("oppdaterTimerRad: rad uten kort-id får kort-id", async () => {
@@ -489,7 +489,7 @@ describe("T5 — server-skriveveier fyller kort_id (reise = null)", () => {
     forventAlleMedKort(timer);
   });
 
-  it("syncBatch: timer, tillegg, maskin og utlegg uten kort-id får kort-id; reise null", async () => {
+  it("syncBatch: timer, tillegg, maskin og utlegg uten kort-id får kort-id; reise jobbens (w12)", async () => {
     const clientUuid = randomUUID();
     const reiseId = randomUUID();
     const svar = await sync(
@@ -510,8 +510,8 @@ describe("T5 — server-skriveveier fyller kort_id (reise = null)", () => {
     expect(svar.resultat).toBe("ok");
     const { timer, tillegg, maskin, utlegg } = await kortPaaSedel(clientUuid);
     expect(timer.find((t) => t.id === reiseId)?.erReise).toBe(true);
-    expect(await kortFor(reiseId)).toBeNull();
     forventAlleMedKort([...timer.filter((t) => t.id !== reiseId), ...tillegg, ...maskin, ...utlegg]);
+    expect(await kortFor(reiseId)).toBe(timer.find((t) => t.id !== reiseId)!.kortId);
   });
 
   it("vareforbruk.opprett med sedel: varen får kort-id", async () => {
@@ -783,5 +783,171 @@ describe("T9 — kort-id fra annen brukers sedel", () => {
       dag().tilfoyTilleggRad({ sheetId: sid, projectId: P1, tilleggId: TILLEGG, antall: 1, kortId: fremmedKort }),
     ).rejects.toThrow("kortUlikeRader");
     expect(await prismaTimer.sheetTillegg.count({ where: { sheetId: sid } })).toBe(0);
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+//  w12 — reisen i jobbens kort (web-timeforing-plan.md § 4.11 del B, H.1, H.5, H.6)
+// ════════════════════════════════════════════════════════════════════════════
+describe("w12 — reiserad står i jobbens kort i hver skrivevei", () => {
+  /** Rå reiserad uten kort-id (som fra en eldre app). */
+  async function raReise(
+    sheetId: string,
+    f: { retning?: "ut" | "retur" | null; fra?: string | null; til?: string | null; projectId?: string; eco?: string | null } = {},
+  ) {
+    const r = await prismaTimer.sheetTimer.create({
+      data: {
+        sheetId,
+        projectId: f.projectId ?? P1,
+        externalCostObjectId: f.eco ?? null,
+        lonnsartId: REISE,
+        aktivitetId: AKT,
+        erReise: true,
+        reiseRetning: f.retning ?? null,
+        fraTid: f.fra === undefined ? "06:00" : f.fra,
+        tilTid: f.til === undefined ? "06:30" : f.til,
+        timer: 0.5,
+      },
+    });
+    return r.id;
+  }
+  const min = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3));
+  const timerMellom = (fra: string, til: string) => (min(til) - min(fra)) / 60;
+  async function arbeid(sid: string, fra: string, til: string, eco: string | null = null) {
+    return dag().tilfoyTimerRad({
+      sheetId: sid, projectId: P1, lonnsartId: ORD, aktivitetId: AKT, externalCostObjectId: eco,
+      timer: timerMellom(fra, til), fraTid: fra, tilTid: til, pauseMin: 0,
+    });
+  }
+  const rad = (id: string) =>
+    prismaTimer.sheetTimer.findUniqueOrThrow({
+      where: { id },
+      select: { kortId: true, updatedAt: true, projectId: true, externalCostObjectId: true, byggeplassId: true },
+    });
+
+  it("tilfoyTimerRad: ny tidligere jobb flytter utreisen dit, men ikke en jobb på et annet underprosjekt", async () => {
+    const sid = await nySedel();
+    const ut = await raReise(sid, { retning: "ut" });
+    const sen = await arbeid(sid, "12:00", "14:00");
+    expect((await rad(ut)).kortId).toBe(sen.kortId);
+    await arbeid(sid, "07:00", "09:00", ECO_1); // annet underprosjekt: reisen («Uten») blir
+    expect((await rad(ut)).kortId).toBe(sen.kortId);
+    // Tidligere jobb, samme underprosjekt, annen byggeplass → eget kort, og første jobb.
+    const tidlig = await dag().tilfoyTimerRad({
+      sheetId: sid, projectId: P1, byggeplassId: BYGGEPLASS_1, lonnsartId: ORD, aktivitetId: AKT,
+      timer: 0.5, fraTid: "06:30", tilTid: "07:00", pauseMin: 0,
+    });
+    expect(tidlig.kortId).not.toBe(sen.kortId);
+    expect((await rad(ut)).kortId).toBe(tidlig.kortId);
+  });
+
+  it("oppdaterTimerRad: reisen får nytt underprosjekt → jobben med det underprosjektet", async () => {
+    const sid = await nySedel();
+    const uten = await arbeid(sid, "07:00", "11:00");
+    const med = await arbeid(sid, "12:00", "14:00", ECO_1);
+    expect(uten.kortId).not.toBe(med.kortId);
+    const retur = await raReise(sid, { retning: "retur", fra: "15:00", til: "15:30" });
+    await dag().oppdaterTimerRad({ id: retur, fraTid: "15:00", tilTid: "15:30" });
+    expect((await rad(retur)).kortId).toBe(uten.kortId);
+    await dag().oppdaterTimerRad({ id: retur, fraTid: "15:00", tilTid: "15:30", externalCostObjectId: ECO_1 });
+    const etter = await rad(retur);
+    expect(etter.kortId).toBe(med.kortId);
+    expect(etter.projectId).toBe(P1); // regelen endrer aldri prosjektet
+  });
+
+  it("fjernTimerRad: jobben slettes → reisen går til neste jobb, så til eget kort; updated_at urørt", async () => {
+    const sid = await nySedel();
+    const j1 = await arbeid(sid, "07:00", "09:00");
+    const ut = await raReise(sid, { retning: "ut" });
+    await dag().oppdaterTimerRad({ id: ut, fraTid: "06:00", tilTid: "06:30" });
+    const foer = await rad(ut);
+    expect(foer.kortId).toBe(j1.kortId);
+    // Ny jobb på samme nøkkel = samme kort; legg den på ECO_1 for å få en egen jobb.
+    const j2 = await arbeid(sid, "12:00", "14:00", ECO_1);
+    expect((await rad(ut)).kortId).toBe(j1.kortId);
+    await dag().fjernTimerRad({ id: j1.id });
+    const midt = await rad(ut);
+    expect(midt.kortId).toBe(j2.kortId); // ingen jobb med «Uten» igjen → alle; første
+    // H.5: plassen regnes med rå SQL — radversjonen (updated_at) flyttes ikke.
+    expect(midt.updatedAt.getTime()).toBe(foer.updatedAt.getTime());
+    await dag().fjernTimerRad({ id: j2.id });
+    const sist = await rad(ut);
+    expect(sist.kortId).not.toBeNull();
+    expect(sist.kortId).not.toBe(j2.kortId);
+  });
+
+  it("flyttTimerRadEco: reisen flyttes alene og plasseres på nytt; «hele jobben» avvises på reise", async () => {
+    const sid = await nySedel();
+    const uten = await arbeid(sid, "07:00", "11:00");
+    const med = await arbeid(sid, "12:00", "14:00", ECO_1);
+    const retur = await raReise(sid, { retning: "retur", fra: "15:00", til: "15:30" });
+    await dag().oppdaterTimerRad({ id: retur, fraTid: "15:00", tilTid: "15:30" });
+    expect((await rad(retur)).kortId).toBe(uten.kortId);
+    await prismaTimer.dailySheet.update({ where: { id: sid }, data: { status: "sent" } });
+    await dag(ADMIN).flyttTimerRadEco({ timerRadId: retur, externalCostObjectId: ECO_1 });
+    const etter = await rad(retur);
+    expect(etter.externalCostObjectId).toBe(ECO_1);
+    expect(etter.kortId).toBe(med.kortId);
+    await expect(
+      dag(ADMIN).flyttTimerRadEco({ timerRadId: retur, externalCostObjectId: null, helJobb: true }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST", message: "reiseErIkkeJobb" });
+    // Jobben uten underprosjekt ble ikke rørt av forsøket.
+    expect((await rad(uten.id)).externalCostObjectId).toBeNull();
+  });
+
+  it("attestert reise med kort-id flyttes ikke når en ny jobb kommer", async () => {
+    const sid = await nySedel();
+    const sen = await arbeid(sid, "12:00", "14:00");
+    const ut = await raReise(sid, { retning: "ut", projectId: P1, eco: ECO_1 });
+    await dag().oppdaterTimerRad({ id: ut, fraTid: "06:00", tilTid: "06:30" });
+    expect((await rad(ut)).kortId).toBe(sen.kortId);
+    await prismaTimer.$executeRawUnsafe(`UPDATE timer.sheet_timer SET attestert_status = 'attestert' WHERE id = '${ut}'`);
+    await arbeid(sid, "07:00", "09:00", ECO_1); // lik underprosjekt — ville tatt reisen
+    expect((await rad(ut)).kortId).toBe(sen.kortId);
+  });
+
+  it("syncBatch (eldre app): reise uten kort-id og reise med fremmed kort-id lagres og står i jobbens kort", async () => {
+    const annen = await nySedel();
+    const fremmed = (await arbeid(annen, "07:00", "09:00")).kortId!;
+    const clientUuid = randomUUID();
+    const r1 = randomUUID();
+    const r2 = randomUUID();
+    const svar = await sync(
+      syncSedel(clientUuid, nyDato(), [
+        syncTimer(r1, "06:00", "07:00", 1, { lonnsartId: REISE }),
+        syncTimer(randomUUID(), "07:00", "11:00", 4),
+        syncTimer(r2, "11:00", "12:00", 1, { lonnsartId: REISE, kortId: fremmed }),
+      ]),
+    );
+    expect(svar.resultat).toBe("ok");
+    const { timer } = await kortPaaSedel(clientUuid);
+    const jobb = timer.find((t) => !t.erReise)!.kortId;
+    expect(await kortFor(r1)).toBe(jobb);
+    expect(await kortFor(r2)).toBe(jobb);
+  });
+
+  it("isolasjon: en annen arbeiders jobb samme dag og prosjekt, eller en jobb på et annet prosjekt, velges aldri", async () => {
+    const sidA = await nySedel();
+    const jobbA = await arbeid(sidA, "07:00", "11:00");
+    const sedelA = await prismaTimer.dailySheet.findUniqueOrThrow({ where: { id: sidA }, select: { dato: true } });
+    const sidB = randomUUID();
+    await prismaTimer.dailySheet.create({
+      data: {
+        id: sidB, clientUuid: sidB, organizationId: ORG, userId: USER2, registrertAvUserId: USER2,
+        aktivitetId: AKT, dato: sedelA.dato, status: "draft",
+      },
+    });
+    const reiseB = await dag(USER2).tilfoyTimerRad({
+      sheetId: sidB, projectId: P1, lonnsartId: REISE, aktivitetId: AKT,
+      timer: 1, fraTid: "06:00", tilTid: "07:00", pauseMin: 0,
+    });
+    expect((await rad(reiseB.id)).kortId).not.toBe(jobbA.kortId);
+    // Samme sedel, annet prosjekt: eget kort.
+    const reiseP2 = await raReise(sidA, { retning: "ut", projectId: P2 });
+    await dag().oppdaterTimerRad({ id: reiseP2, fraTid: "06:00", tilTid: "06:30" });
+    const p2 = await rad(reiseP2);
+    expect(p2.kortId).not.toBeNull();
+    expect(p2.kortId).not.toBe(jobbA.kortId);
+    expect(p2.projectId).toBe(P2);
   });
 });

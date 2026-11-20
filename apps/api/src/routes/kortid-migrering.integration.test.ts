@@ -168,6 +168,8 @@ describe("T4 — backfill (setningene fra migreringsfilene)", () => {
     expect(a[RAD.p2]).toBe(p2);
     expect(a[RAD.p1eco]).toBe(p1eco);
     expect(new Set([p1, p2, p1eco]).size).toBe(3);
+    // Den gamle utfyllingen lar reise stå uten kort-id. w12 fyller den i egen migrering
+    // (`reise-kortid-migrering.integration.test.ts`); denne testen gjelder bare 20261116120000.
     expect(a[RAD.reise]).toBeNull();
 
     expect(a[MASKIN.koblet]).toBe(a[RAD.p2]); // K6

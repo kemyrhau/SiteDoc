@@ -87,7 +87,7 @@ const deps: AttDeps = {
     merkeUtenTimeradForklaring: "Maskinen er ikke koblet til en timerad, og står derfor som egen linje.",
     merkeUtenForerbevis: "Uten førerbevis", merkeMaskinOverArbeid: "Maskin over arbeid",
     tilleggskrav: "Tilleggskrav", tilByggherre: "Til byggherre", fravaerUtenProsjekt: "Fravær", annetProsjekt: "Annet prosjekt",
-    reise: "Reise", statusVenter: "Venter", statusAttestert: "Attestert", statusReturnert: "Returnert",
+    reise: "Reise", utenUnderprosjekt: "Uten", statusVenter: "Venter", statusAttestert: "Attestert", statusReturnert: "Returnert",
   },
 };
 const P = { id: "pA", name: "Prosjekt A", internalProjectNumber: "1042", projectNumber: "SD-1" };

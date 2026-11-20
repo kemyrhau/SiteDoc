@@ -3,8 +3,9 @@
  *
  * Én funksjon alle server-skriveveier kaller etter at radene er skrevet:
  * `sikreKortId(tx, sheetId)` fyller manglende `kort_id` etter regel 3 (eldste kort på sedelen
- * med samme nøkkel, ellers utledet id), setter koblet maskin = timerradens kort (K6), tar
- * kort-id av reise-rader (§ 2.2) og validerer K1–K4/K6 over hele sedelens post-tilstand med
+ * med samme nøkkel, ellers utledet id), setter koblet maskin = timerradens kort (K6), legger
+ * reiseraden i jobbens kort etter den delte regelen `velgReiseKort` (w12, B32 B; attestert eller
+ * erstattet reise med kort-id står) og validerer K1–K4/K6 over hele sedelens post-tilstand med
  * den delte `validerKortInvariant` (packages/shared). Regel 1 (oppgitt id) og regel 2 (lagret
  * id ved uendret nøkkel) gjøres av kalleren når raden skrives — se `kortIdForSkriving`.
  *
@@ -17,11 +18,13 @@ import { prisma } from "@sitedoc/db";
 import { prismaVarelager } from "@sitedoc/db-varelager";
 import {
   effektivKortByggeplass,
+  jobberFraArbeidsrader,
   kortIdNokkel,
   kortPaaSedelFraRader,
   losKortId,
   utledKortId,
   validerKortInvariant,
+  velgReiseKort,
   type KortInvariantBrudd,
   type KortInvariantRad,
   type KortNokkelFelt,
@@ -188,7 +191,10 @@ export async function sikreKortId(
     createdAt: true,
   } as const;
   const [timer, maskiner, tillegg, utlegg] = await Promise.all([
-    tx.sheetTimer.findMany({ where: { sheetId }, select: { ...nokkelSelect, erReise: true } }),
+    tx.sheetTimer.findMany({
+      where: { sheetId },
+      select: { ...nokkelSelect, erReise: true, reiseRetning: true, fraTid: true, attestertStatus: true },
+    }),
     tx.sheetMachine.findMany({ where: { sheetId }, select: { ...nokkelSelect, sheetTimerId: true } }),
     tx.sheetTillegg.findMany({ where: { sheetId }, select: nokkelSelect }),
     tx.sheetUtlegg.findMany({ where: { sheetId }, select: nokkelSelect }),
@@ -228,9 +234,6 @@ export async function sikreKortId(
     pr.set(kortId, l);
   };
 
-  // Reise har aldri kort (§ 2.2).
-  for (const t of timer) if (t.erReise && t.kortId) endre(somR("sheet_timer", "timer", t), null);
-
   const arbeid = timer.filter((t) => !t.erReise).map((t) => somR("sheet_timer", "timer", t));
   const mask = maskiner.map((m) => somR("sheet_machines", "maskin", m));
   const tl = tillegg.map((t) => somR("sheet_tillegg", "tillegg", t));
@@ -265,13 +268,51 @@ export async function sikreKortId(
     if (t) endre(m, t.kortId);
   }
 
+  // Reise (w12, B32 B, B34 B): i jobbens kort etter den delte regelen, regnet på nytt ved hver
+  // skriving — samme regel som utfyllingen 20261120120000. Ingen jobb på prosjektet → eget kort
+  // av reisens nøkkel. Attestert eller erstattet reise med kort-id flyttes aldri. Regelen endrer
+  // bare kort-id, aldri prosjekt, underprosjekt eller byggeplass.
+  const jobber = jobberFraArbeidsrader(
+    timer
+      .filter((t) => !t.erReise)
+      .map((t) => {
+        const a = timerById.get(t.id)!;
+        return {
+          kortId: a.kortId,
+          projectId: a.nokkel.projectId,
+          ecoId: a.nokkel.ecoId,
+          byggeplassId: a.nokkel.byggeplassId,
+          fraTid: t.fraTid,
+          opprettet: a.opprettet,
+          attestertStatus: t.attestertStatus,
+        };
+      }),
+  );
+  const reise = timer.filter((t) => t.erReise).map((t) => ({ t, r: somR("sheet_timer", "timer", t) }));
+  for (const { t, r } of reise) {
+    if (r.kortId && (t.attestertStatus === "attestert" || t.attestertStatus === "erstattet")) continue;
+    endre(
+      r,
+      velgReiseKort(
+        {
+          projectId: t.projectId,
+          ecoId: t.externalCostObjectId,
+          byggeplassId: t.byggeplassId,
+          retning: t.reiseRetning,
+          fraTid: t.fraTid,
+        },
+        jobber,
+      ) ?? utledKortId({ userId: kontekst.userId, dato: kontekst.dato, nokkel: r.nokkel }),
+    );
+  }
+
   for (const [tabell, pr] of endringer) for (const [kortId, ider] of pr) await settKortId(tx, tabell, kortId, ider);
 
   // Koblet maskin som følger raden (K6) valideres på radens nøkkel: dens egen byggeplass/
   // underprosjekt kan avvike i eldre data, og det skal ikke gi en ny avvisning i synken
   // (backfill 2 gjør det samme — kobler på prosjekt alene).
-  const brudd = validerKortInvariant(
-    alle.map((r) => ({
+  const brudd = validerKortInvariant([
+    ...alle.map((r) => ({
       id: r.id,
       type: r.type,
       kortId: r.kortId,
@@ -280,7 +321,9 @@ export async function sikreKortId(
       // K6 bare der koblingen følger (samme prosjekt) — ellers eget kort som før.
       sheetTimerId: r.type === "maskin" && kobletFolger(r) ? r.sheetTimerId : undefined,
     })),
-  );
+    // Reise: bare K1 og K2 (samme sedel og prosjekt som kortet), § 2.3.
+    ...reise.map(({ r }) => ({ id: r.id, type: r.type, kortId: r.kortId, sheetId, nokkel: r.nokkel, erReise: true })),
+  ]);
   if (opts.oppgitteKortIder?.length) {
     for (const k of await kortIdPaaAnnenSedel(tx, sheetId, opts.oppgitteKortIder))
       brudd.push({ kortId: k, grunn: "kortUlikSedel", radId: "" });
@@ -294,8 +337,7 @@ export async function sikreKortId(
       kort: kort(),
     });
   }
-  const kortIdFor = new Map<string, string | null>(alle.map((r) => [r.id, r.kortId]));
-  for (const t of timer) if (t.erReise) kortIdFor.set(t.id, null);
+  const kortIdFor = new Map<string, string | null>([...alle, ...reise.map(({ r }) => r)].map((r) => [r.id, r.kortId]));
   return { brudd, kortIdFor };
 }
 
@@ -397,7 +439,8 @@ export async function vareKortIdForSkriving(
     }
     const nyNokkel = kortIdNokkel(radNokkel(kontekst, args.ny));
     const radIKortet = await prismaTimer.sheetTimer.findFirst({
-      where: { sheetId: args.dagsseddelId, kortId: args.oppgittKortId },
+      // Reiseraden i kortet kan ha et annet underprosjekt (B34 B) — bare arbeidsrader avgjør.
+      where: { sheetId: args.dagsseddelId, kortId: args.oppgittKortId, erReise: false },
       select: { projectId: true, byggeplassId: true, externalCostObjectId: true },
     });
     if (radIKortet && kortIdNokkel(radNokkel(kontekst, radIKortet)) !== nyNokkel) {

@@ -9,6 +9,7 @@ import { trpc } from "@/lib/trpc";
 import { formaterNorsk } from "@/lib/timer-rapport-eksport";
 import { rundTilNarmeste } from "@/lib/tidsrunding";
 import { Kvitteringer } from "./Kvitteringer";
+import { ReiseRadMerke } from "./ReiseRadMerke";
 import type { AttKort, AttLinje, AttMaskin, AttSedel } from "./attestering-tabell";
 
 /**
@@ -26,6 +27,10 @@ import type { AttKort, AttLinje, AttMaskin, AttSedel } from "./attestering-tabel
  *    ingen knapper. Beskrivelsen og dagens kommentar kan leses, ikke rettes (A6).
  *  - «Del opp» deler hele jobben ved et klokkeslett (`delJobb`): timene pr. del regner
  *    serveren ut (forhåndsvisning før lagring).
+ *  - w12 (§ 4.11 C5–C7): del 1–7 regnes av arbeidsradene. Reisen står i del 8 «Reise», som bare
+ *    vises når jobben har reise: rutemerket, fra–til, lønnsart (bare reisearter), ✂ og «Føres på» —
+ *    reisens eget underprosjekt, rettet med `flyttTimerRadEco` UTEN `helJobb` (bare reiseraden),
+ *    og bare mens reisen venter. Et kort med bare reise har ikke underprosjektvalget i hodet.
  */
 
 /** Til og med så mange underprosjekter vises som knapper (B11). */
@@ -112,11 +117,17 @@ export function RegistreringPanel({ kort, sedel, orgId, kanAttestere, kanRette, 
   const [linjeFeil, setLinjeFeil] = useState<Record<string, string>>({});
   const [delOpp, setDelOpp] = useState(false);
 
+  // w12 (A punkt 7): del 1–7 leser bare arbeidsradene; reisen står i del 8.
   const timerLinjer = useMemo(
     () =>
       kort.linjer
-        .filter((l): l is AttLinje & { kilde: { type: "timer" } } => l.kilde.type === "timer")
+        .filter((l): l is AttLinje & { kilde: { type: "timer" } } => l.kilde.type === "timer" && l.kilde.rad.erReise !== true)
         .sort((a, b) => (a.linje.fraTid ?? "").localeCompare(b.linje.fraTid ?? "")),
+    [kort.linjer],
+  );
+  // Rekkefølgen fra grupperingen: utreise, uten retning, retur.
+  const reiseLinjer = useMemo(
+    () => kort.linjer.filter((l): l is AttLinje & { kilde: { type: "timer" } } => l.kilde.type === "timer" && l.kilde.rad.erReise === true),
     [kort.linjer],
   );
   const maskiner = useMemo(() => {
@@ -230,6 +241,49 @@ export function RegistreringPanel({ kort, sedel, orgId, kanAttestere, kanRette, 
       </button>
     ) : null;
 
+  /** Én timelinje i kortet: fra–til eller timer, lønnsart og ✂ (del 2, og reisen i del 8). */
+  const timeLinje = (l: AttLinje & { kilde: { type: "timer" } }) => {
+    const r = l.kilde.rad;
+    const kan = kanRette && l.ventende && l.harHandling;
+    return (
+      <div key={l.nokkel} data-timelinje={l.nokkel} className="flex flex-wrap items-center gap-3">
+        {kan && erTimebasertLonnsart(r.lonnsartId, lonnsarter) ? (
+          <TidFelter
+            lagret={{ fraTid: r.fraTid ?? null, tilTid: r.tilTid ?? null, pauseMin: r.pauseMin ?? 0, timer: l.linje.timer }}
+            tidsrunding={tidsrunding}
+            onFeil={(tekst) => setLinjeFeil((f) => ({ ...f, [l.nokkel]: tekst }))}
+            onLagre={(felter, tilbake) => rettFelter(l.nokkel, "timer", r.id, felter, tilbake)}
+          />
+        ) : kan ? (
+          <TallFelt
+            etikett={t("timer.eksport.kolTimer")}
+            verdi={l.linje.timer}
+            onLagre={(v, tilbake) => rettFelter(l.nokkel, "timer", r.id, { timer: v }, tilbake)}
+          />
+        ) : (
+          <span className="tabular-nums text-gray-700">
+            {l.linje.fraTid && l.linje.tilTid ? `${l.linje.fraTid}–${l.linje.tilTid}` : "—"}
+            {(r.pauseMin ?? 0) > 0 && <span className="text-gray-500"> · {t("timer.attestering.registrering.pause", { min: r.pauseMin })}</span>}
+            <span className="font-medium text-gray-900"> · {t("timer.attestering.registrering.timer", { timer: formaterNorsk(l.linje.timer ?? 0) })}</span>
+          </span>
+        )}
+        {kan ? (
+          <select
+            aria-label={t("timer.attestering.registrering.lonnsart")}
+            value={r.lonnsartId}
+            onChange={(e) => rettFelt(l.nokkel, "timer", r.id, "lonnsartId", e.target.value)}
+            disabled={rett.isPending}
+            className="rounded border border-gray-300 bg-white px-2 py-1 text-sm"
+          >
+            {tillatteLonnsarter(r, lonnsarter, reiseKtx, r.lonnsartId).map((x) => <option key={x.id} value={x.id}>{x.navn}</option>)}
+          </select>
+        ) : <span>{l.linje.betegnelse}</span>}
+        {splittKnapp(l)}
+        {linjeFeilTekst(l.nokkel)}
+      </div>
+    );
+  };
+
   const tom = <span className="text-gray-400">—</span>;
   const tittel = [kort.prosjektnummer, kort.prosjekt].filter(Boolean).join(" · ");
 
@@ -264,7 +318,8 @@ export function RegistreringPanel({ kort, sedel, orgId, kanAttestere, kanRette, 
       </div>
 
       {/* Underprosjekt for hele jobben (bilde 7, B11) */}
-      {kort.projectId !== null && (
+      {/* C7: et kort med bare reise har ikke valget — reisens underprosjekt rettes under «Føres på». */}
+      {kort.projectId !== null && !kort.reise && (
         <div className="flex flex-wrap items-center gap-2 border-b border-gray-100 bg-gray-50 px-4 py-2">
           <span className="font-medium text-gray-900">{t("timer.attestering.registrering.underprosjekt")}</span>
           <UnderprosjektValg
@@ -316,47 +371,7 @@ export function RegistreringPanel({ kort, sedel, orgId, kanAttestere, kanRette, 
       <Del nr={2} navn={t("timer.attestering.registrering.lonnsart")}>
         {timerLinjer.length === 0 ? tom : (
           <div className="flex flex-col gap-1.5">
-            {timerLinjer.map((l) => {
-              const r = l.kilde.rad;
-              const kan = kanRette && l.ventende && l.harHandling;
-              return (
-                <div key={l.nokkel} data-timelinje={l.nokkel} className="flex flex-wrap items-center gap-3">
-                  {kan && erTimebasertLonnsart(r.lonnsartId, lonnsarter) ? (
-                    <TidFelter
-                      lagret={{ fraTid: r.fraTid ?? null, tilTid: r.tilTid ?? null, pauseMin: r.pauseMin ?? 0, timer: l.linje.timer }}
-                      tidsrunding={tidsrunding}
-                      onFeil={(tekst) => setLinjeFeil((f) => ({ ...f, [l.nokkel]: tekst }))}
-                      onLagre={(felter, tilbake) => rettFelter(l.nokkel, "timer", r.id, felter, tilbake)}
-                    />
-                  ) : kan ? (
-                    <TallFelt
-                      etikett={t("timer.eksport.kolTimer")}
-                      verdi={l.linje.timer}
-                      onLagre={(v, tilbake) => rettFelter(l.nokkel, "timer", r.id, { timer: v }, tilbake)}
-                    />
-                  ) : (
-                    <span className="tabular-nums text-gray-700">
-                      {l.linje.fraTid && l.linje.tilTid ? `${l.linje.fraTid}–${l.linje.tilTid}` : "—"}
-                      {(r.pauseMin ?? 0) > 0 && <span className="text-gray-500"> · {t("timer.attestering.registrering.pause", { min: r.pauseMin })}</span>}
-                      <span className="font-medium text-gray-900"> · {t("timer.attestering.registrering.timer", { timer: formaterNorsk(l.linje.timer ?? 0) })}</span>
-                    </span>
-                  )}
-                  {kan ? (
-                    <select
-                      aria-label={t("timer.attestering.registrering.lonnsart")}
-                      value={r.lonnsartId}
-                      onChange={(e) => rettFelt(l.nokkel, "timer", r.id, "lonnsartId", e.target.value)}
-                      disabled={rett.isPending}
-                      className="rounded border border-gray-300 bg-white px-2 py-1 text-sm"
-                    >
-                      {tillatteLonnsarter(r, lonnsarter, reiseKtx, r.lonnsartId).map((x) => <option key={x.id} value={x.id}>{x.navn}</option>)}
-                    </select>
-                  ) : <span>{l.linje.betegnelse}</span>}
-                  {splittKnapp(l)}
-                  {linjeFeilTekst(l.nokkel)}
-                </div>
-              );
-            })}
+            {timerLinjer.map(timeLinje)}
           </div>
         )}
       </Del>
@@ -435,7 +450,7 @@ export function RegistreringPanel({ kort, sedel, orgId, kanAttestere, kanRette, 
         )}
       </Del>
 
-      <Del nr={7} navn={t("timer.attestering.registrering.utlegg")} sist>
+      <Del nr={7} navn={t("timer.attestering.registrering.utlegg")} sist={reiseLinjer.length === 0}>
         {utlegg.length === 0 ? tom : (
           <div className="flex flex-col gap-1">
             {utlegg.map((l) => (
@@ -449,6 +464,41 @@ export function RegistreringPanel({ kort, sedel, orgId, kanAttestere, kanRette, 
           </div>
         )}
       </Del>
+
+      {reiseLinjer.length > 0 && (
+        <Del nr={8} navn={t("timer.attestering.registrering.reise")} sist>
+          <div className="flex flex-col gap-3">
+            {reiseLinjer.map((l) => {
+              const r = l.kilde.rad;
+              const eco = r.externalCostObjectId ?? null;
+              // (ii) «Føres på» kan rettes bare på en reise som venter; serveren er uendret.
+              const kanFlytteReise = kanAttestere && l.ventende && kort.projectId !== null;
+              return (
+                <div key={l.nokkel} data-reiselinje={l.nokkel} className="flex flex-col gap-1.5">
+                  <ReiseRadMerke rad={r} />
+                  {timeLinje(l)}
+                  <div data-fores-paa="" className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-medium text-gray-700">{t("timer.attestering.registrering.foresPaa")}</span>
+                    {kanFlytteReise ? (
+                      <UnderprosjektValg
+                        eco={ecoListe}
+                        valgt={eco}
+                        disabled={flytt.isPending}
+                        onVelg={(id) => {
+                          if (id === eco) return;
+                          flytt.mutate({ timerRadId: r.id, radType: "timer", externalCostObjectId: id });
+                        }}
+                      />
+                    ) : (
+                      <span>{l.linje.underprosjekt ?? t("timer.attestering.registrering.uten")}</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Del>
+      )}
 
       {feil && <p className="border-t border-gray-100 px-4 py-2 text-sm text-red-600">{feil}</p>}
       {!kanRette && kanAttestere && !sedel.redigerTillatt && (
@@ -464,7 +514,7 @@ export function RegistreringPanel({ kort, sedel, orgId, kanAttestere, kanRette, 
 
 function Del({ nr, navn, hoyre, sist, children }: { nr: number; navn: string; hoyre?: ReactNode; sist?: boolean; children: ReactNode }) {
   return (
-    <div className={`flex items-start gap-3 px-4 py-2 ${sist ? "" : "border-b border-gray-100"}`}>
+    <div data-del={nr} className={`flex items-start gap-3 px-4 py-2 ${sist ? "" : "border-b border-gray-100"}`}>
       <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gray-100 text-[11px] font-semibold text-gray-600">{nr}</span>
       <span className="w-36 shrink-0 font-medium text-gray-900">{navn}</span>
       <div className="min-w-0 flex-1">{children}</div>

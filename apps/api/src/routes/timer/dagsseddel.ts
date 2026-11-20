@@ -4143,7 +4143,7 @@ export const dagsseddelRouter = router({
               null,
               reiseSpor,
             ),
-            // Kort-id regel 1 (reise får aldri kort); uten id → regel 3 i sikreKortId.
+            // Kort-id regel 1; uten id → regel 3 i sikreKortId; reise får jobbens kort der (w12).
             kortId: erReise ? null : (input.kortId ?? null),
           },
         });
@@ -4451,6 +4451,8 @@ export const dagsseddelRouter = router({
         }
         const s = await tx.sheetTimer.delete({ where: { id: input.id } });
         await synkroniserHodePause(tx, rad.sheetId);
+        // w12: å slette arbeid kan endre hvilken jobb reisen står i (eller fjerne jobben).
+        await sikreKortId(tx, rad.sheetId);
         // w9 (WM97): å slette arbeid kan få jobbens maskiner over arbeidet.
         await krevIngenNyeMaskinBrudd(tx, ctx.prismaMaskin, rad.sheetId, maskinFoer);
         return s;
@@ -4925,7 +4927,10 @@ export const dagsseddelRouter = router({
           kontekst: kortKontekst,
           // Forslagets id kom fra klienten (syncBatch) → K1-sjekkes som oppgitt.
           oppgitteKortIder: [
-            ...[...input.oppdateringer, ...input.nyeRader].flatMap((r) => (r.kortId ? [r.kortId] : [])),
+            // Reisens id fra klienten brukes ikke (sikreKortId velger jobben, w12) og K1-sjekkes ikke.
+            ...[...input.oppdateringer, ...input.nyeRader].flatMap((r) =>
+              r.kortId && !erReiseMap.get(r.lonnsartId) ? [r.kortId] : [],
+            ),
             ...forslagKort.flatMap((f) => (f.kortId ? [f.kortId] : [])),
           ],
         });
@@ -6487,6 +6492,8 @@ export const dagsseddelRouter = router({
       // w5 (bilde 7, K3): underprosjektet gjelder hele jobben — timer, maskin, vare,
       // tillegg og utlegg på kortet flyttes sammen. Kortets id beholdes: det er samme jobb.
       if (input.helJobb) {
+        // w12: reisen er ikke en jobb — den flyttes alene, og plassen regnes på nytt.
+        if ("erReise" in rad && rad.erReise) throw new TRPCError({ code: "BAD_REQUEST", message: "reiseErIkkeJobb" });
         return flyttHeleJobben(ctx, { sheet, rad, ecoId: input.externalCostObjectId });
       }
 
@@ -7539,7 +7546,7 @@ export const dagsseddelRouter = router({
       });
 
       // Kort-id (spec § 4.3): delene beholder originalens id når nøkkelen er lik; `egetKort`
-      // gir ny id; ellers regel 3 (sikreKortId etter skrivingen). Reise får aldri kort.
+      // gir ny id; ellers regel 3 (sikreKortId etter skrivingen). Reise får jobbens kort der (w12).
       const splittKontekst = await lastSedelKortKontekst(ctx.prismaTimer, sheet.id);
       const splittKort = (del: {
         projectId?: string | null;
@@ -7810,7 +7817,7 @@ export const dagsseddelRouter = router({
       });
 
       // Kort-id (spec § 4.3): delene beholder originalens id når nøkkelen er lik; `egetKort`
-      // gir ny id; ellers regel 3 (sikreKortId etter skrivingen). Reise får aldri kort.
+      // gir ny id; ellers regel 3 (sikreKortId etter skrivingen). Reise får jobbens kort der (w12).
       const splittKontekst = await lastSedelKortKontekst(ctx.prismaTimer, sheet.id);
       const splittKort = (del: {
         projectId?: string | null;
@@ -9557,8 +9564,9 @@ export const dagsseddelRouter = router({
               oppgitt: string | null | undefined,
               ny: { projectId: string | null; byggeplassId: string | null; externalCostObjectId: string | null },
             ) => kortIdForSkriving(kortKontekst, { oppgittKortId: oppgitt, lagret: lagretKort.get(id) ?? null, ny });
+            // Reisens id fra klienten brukes ikke (sikreKortId velger jobben, w12) og K1-sjekkes ikke.
             const oppgitteKortIder = [
-              ...skrivTimerListe,
+              ...skrivTimerListe.filter((t) => !reiseFelterMap.get(t.id)?.erReise),
               ...lokal.tillegg,
               ...lokal.maskiner,
               ...lokal.utlegg,
@@ -9673,7 +9681,7 @@ export const dagsseddelRouter = router({
                     reiseRegel: jsonEllerNull(rf.reiseRegel),
                     tidKilde: rf.tidKilde,
                     reiseAvvik: rf.reiseAvvik,
-                    // Kort-id regel 1/2 (reise får aldri kort — sikreKortId nuller).
+                    // Kort-id regel 1/2; reise får jobbens kort av sikreKortId (w12).
                     kortId: rf.erReise
                       ? null
                       : kortVedSync(t.id, t.kortId, {

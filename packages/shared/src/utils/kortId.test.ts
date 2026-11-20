@@ -117,7 +117,34 @@ describe("validerKortInvariant (K1–K4, K6)", () => {
     ).toBe("kobletUlikKort");
     expect(validerKortInvariant([rad({ id: "t1" }), rad({ id: "m1", type: "maskin", sheetTimerId: "t1" })])).toEqual([]);
   });
-  it("rader uten kortId (reise) hoppes over", () => {
+  it("rader uten kortId hoppes over", () => {
     expect(validerKortInvariant([rad({ id: "a", kortId: null }), rad({ id: "b", kortId: null, nokkel: { projectId: "p9", byggeplassId: null, ecoId: null } })])).toEqual([]);
+  });
+  // w12 (B32 B, B34 B; FA59 snudd): reise i et kort sjekkes bare mot K1 og K2.
+  it("reise i kortet med annet underprosjekt og annen byggeplass → gyldig (K3/K4 gjelder ikke reise)", () => {
+    const reise = rad({ id: "r1", erReise: true, nokkel: { projectId: "p1", byggeplassId: "b9", ecoId: "e9" } });
+    expect(validerKortInvariant([reise, rad({ id: "a" })])).toEqual([]);
+    expect(validerKortInvariant([rad({ id: "a" }), reise])).toEqual([]);
+  });
+  it("reise i kortet på annet prosjekt → kortUlikeRader (K2)", () => {
+    const reise = rad({ id: "r1", erReise: true, nokkel: { projectId: "p2", byggeplassId: null, ecoId: null } });
+    expect(validerKortInvariant([reise, rad({ id: "a" })])).toEqual([{ kortId: "K", grunn: "kortUlikeRader", radId: "r1" }]);
+  });
+  it("reise i kortet på annen sedel → kortUlikSedel (K1)", () => {
+    const reise = rad({ id: "r1", erReise: true, sheetId: "s2" });
+    expect(validerKortInvariant([rad({ id: "a" }), reise])[0]?.grunn).toBe("kortUlikSedel");
+  });
+  it("reise alene: to reiser med ulikt underprosjekt i samme kort er lov, ulikt prosjekt er ikke", () => {
+    const r1 = rad({ id: "r1", erReise: true, nokkel: { projectId: "p1", byggeplassId: "b1", ecoId: null } });
+    const r2 = rad({ id: "r2", erReise: true, nokkel: { projectId: "p1", byggeplassId: "b2", ecoId: "e" } });
+    const r3 = rad({ id: "r3", erReise: true, nokkel: { projectId: "p2", byggeplassId: null, ecoId: null } });
+    expect(validerKortInvariant([r1, r2])).toEqual([]);
+    expect(validerKortInvariant([r1, r3])[0]?.grunn).toBe("kortUlikeRader");
+  });
+  it("reisen bestemmer ikke kortets nøkkel: arbeidsrader med ulik nøkkel er brudd selv om reisen står først", () => {
+    const reise = rad({ id: "r1", erReise: true });
+    const a = rad({ id: "a", nokkel: { projectId: "p1", byggeplassId: null, ecoId: "e" } });
+    const b = rad({ id: "b" });
+    expect(validerKortInvariant([reise, a, b])[0]).toEqual({ kortId: "K", grunn: "kortUlikeRader", radId: "b" });
   });
 });
