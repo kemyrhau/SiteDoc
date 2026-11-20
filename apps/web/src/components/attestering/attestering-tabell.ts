@@ -93,6 +93,8 @@ export type AttSedel = {
   fravaerKanAttesteres?: boolean;
   /** w7 (B15): sedelen er attestantens egen og firmaet sier Nei — vises, men kan ikke attesteres/rettes. */
   egneTimer?: boolean;
+  /** w10a (A6): dagens «Kommentar» (`DailySheet.beskrivelse`), vist i kortet som «Kommentar til dagen». */
+  beskrivelse?: string | null;
 };
 
 /** Oppslag og tekster modellen trenger (komponenten sender `t()` og katalogene). */
@@ -174,6 +176,8 @@ export interface AttKort {
   prosjekt: string;
   underprosjekt: string | null;
   byggeplass: string | null;
+  /** w10a: blokken «Reise» (radene med `erReise`), ikke en jobb. Lønnsartvalget i kortet følger den (A1). */
+  reise: boolean;
   linjer: AttLinje[];
 }
 
@@ -472,7 +476,7 @@ function byggDag(s: AttSedel, deps: AttDeps): AttDag {
   };
 
   const kort: AttKort[] = [];
-  const leggTilKort = (nokkel: string, linjer: AttLinje[]) => {
+  const leggTilKort = (nokkel: string, linjer: AttLinje[], reise = false) => {
     if (linjer.length === 0) return;
     const forste = linjer[0]!.linje;
     kort.push({
@@ -483,6 +487,7 @@ function byggDag(s: AttSedel, deps: AttDeps): AttDag {
       prosjekt: forste.prosjekt,
       underprosjekt: forste.underprosjekt,
       byggeplass: forste.byggeplass,
+      reise,
       linjer,
     });
   };
@@ -490,7 +495,7 @@ function byggDag(s: AttSedel, deps: AttDeps): AttDag {
   // Reise først (G8: reisen står før arbeidet den fører til).
   if (gruppering.reise.length > 0) {
     const nokkel = `${s.id}:reise`;
-    leggTilKort(nokkel, gruppering.reise.map((r, i) => lagLinje({ type: "timer", rad: r, maskiner: [], varer: [] }, nokkel, i)));
+    leggTilKort(nokkel, gruppering.reise.map((r, i) => lagLinje({ type: "timer", rad: r, maskiner: [], varer: [] }, nokkel, i)), true);
   }
   for (const k of gruppering.kort) {
     const nokkel = `${s.id}:${k.kortId}`;
@@ -657,6 +662,35 @@ export function byggUtvalg(
   });
   const sendes = kandidater.filter((l) => !l.sperre);
   return { radIder: slaaSammen(sendes), antallLinjer: sendes.length, stoende: kandidater.length - sendes.length };
+}
+
+/**
+ * «Attester utvalget» tar hele jobber (w10a, B30 A): de avkryssede blant `synligeKort`, eller
+ * alle når ingen er krysset av. Hver jobb slås opp i den UFILTRERTE modellen (`dager`), så
+ * linjer som filteret skjuler, sendes med. Linjene går så gjennom `byggUtvalg` som før:
+ * ventende, i kontekst, uten sperre. `antallJobber` teller jobber med minst én linje som sendes.
+ */
+export function byggJobbUtvalg(
+  dager: readonly AttDag[],
+  synligeKort: readonly string[],
+  valgte: ReadonlySet<string>,
+  sedelFor: (sheetId: string) => AttSedel | undefined,
+  prosjektKontekst?: string,
+): { radIder: RadIder; antallJobber: number; stoende: number } {
+  const kortFor = new Map<string, AttKort>();
+  for (const d of dager) for (const k of d.kort) kortFor.set(k.nokkel, k);
+  const krysset = synligeKort.filter((n) => valgte.has(n));
+  const grunnlag = krysset.length > 0 ? krysset : synligeKort;
+  const linjer: AttLinje[] = [];
+  let antallJobber = 0;
+  for (const n of grunnlag) {
+    const kort = kortFor.get(n);
+    if (!kort) continue;
+    if (byggUtvalg(kort.linjer, sedelFor, prosjektKontekst).antallLinjer > 0) antallJobber++;
+    linjer.push(...kort.linjer);
+  }
+  const u = byggUtvalg(linjer, sedelFor, prosjektKontekst);
+  return { radIder: u.radIder, antallJobber, stoende: u.stoende };
 }
 
 /* ------------------------------------------------------------------ */

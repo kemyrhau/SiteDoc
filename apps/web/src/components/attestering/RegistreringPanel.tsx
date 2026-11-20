@@ -2,11 +2,13 @@
 
 import { useEffect, useMemo, useState, type KeyboardEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { Scissors, X } from "lucide-react";
+import { Pencil, Scissors, X } from "lucide-react";
 import { Button } from "@sitedoc/ui";
-import { maskinHoystPerRad, overMaskinHoyst } from "@sitedoc/shared";
+import { effektiveTimerFraSpenn, erReiseLonnsart, maskinHoystPerRad, overMaskinHoyst, type ErReiseKontekst } from "@sitedoc/shared";
 import { trpc } from "@/lib/trpc";
 import { formaterNorsk } from "@/lib/timer-rapport-eksport";
+import { rundTilNarmeste } from "@/lib/tidsrunding";
+import { Kvitteringer } from "./Kvitteringer";
 import type { AttKort, AttLinje, AttMaskin, AttSedel } from "./attestering-tabell";
 
 /**
@@ -16,8 +18,12 @@ import type { AttKort, AttLinje, AttMaskin, AttSedel } from "./attestering-tabel
  *
  *  - Underprosjekt: knapper til og med 6, søkbar nedtrekk over det (B11). Krever bare
  *    attesteringsrett, som flyttingen alltid har gjort (WM54).
- *  - Lønnsart, timer, maskintimer og antall rettes i feltene, med `rettRadFelt` — hver
- *    retting lagres med en gang. Krever firmavalget «rediger ved attestering» (B10).
+ *  - Fra, til, pause (på linja som bærer den), lønnsart, maskintimer og antall rettes i feltene,
+ *    med `rettRadFelt` — hver retting lagres med en gang. Krever firmavalget «rediger ved
+ *    attestering» (B10). w10a (A1): timene rettes aldri alene; de regnes ut av fra, til og pause
+ *    og sendes i samme kall. Avviser serveren, går feltet tilbake og grunnen står ved linja.
+ *  - w10a (A2): ✂ står ved linjene i kortet, «✎ Rediger jobben» øverst. Linjene i tabellen har
+ *    ingen knapper. Beskrivelsen og dagens kommentar kan leses, ikke rettes (A6).
  *  - «Del opp» deler hele jobben ved et klokkeslett (`delJobb`): timene pr. del regner
  *    serveren ut (forhåndsvisning før lagring).
  */
@@ -36,8 +42,37 @@ interface Props {
   /** Firmavalget «rediger ved attestering» er på og jobben venter: rette og dele opp. */
   kanRette: boolean;
   lonnsarter: readonly { id: string; navn: string }[];
+  /** Firmaets tidsrunding (minutter) for fra og til, som sedelsiden. */
+  tidsrunding?: number | null;
+  /** w10a (A2): ✂ ved linja i kortet — vilkåret er det linja hadde i tabellen. */
+  kanSplitte?: (l: AttLinje) => boolean;
+  onSplitt?: (l: AttLinje) => void;
+  /** w10a (A2, B27 A): «✎ Rediger jobben». Utelatt → knappen vises ikke. */
+  onRedigerJobb?: () => void;
   onEndret: () => void;
   onLukk: () => void;
+}
+
+/**
+ * Lønnsartene kortet tilbyr (w10a A1, plan § 4.7 punkt 6): kortet for reisen tilbyr bare
+ * reisearter, kortet for en jobb ingen reisearter. Lagret art står alltid med, så valget aldri
+ * viser feil verdi. Regelen gjelder i dag kortet (`kort.reise`); skal den gjelde linjetypen, er det
+ * bare `vilReise` som endres. Uten reisekonteksten (ikke lastet) tilbys bare lagret art.
+ */
+export function tillatteLonnsarter<L extends { id: string; navn: string }>(
+  kort: Pick<AttKort, "reise">,
+  lonnsarter: readonly L[],
+  ktx: ErReiseKontekst | null,
+  lagretId: string,
+): L[] {
+  const vilReise = kort.reise;
+  return lonnsarter.filter((l) => l.id === lagretId || (ktx !== null && erReiseLonnsart(l.id, l.navn, ktx) === vilReise));
+}
+
+/** Del 3 (w10a A6, plan § 4.9): tekstene på jobbens timerader, hver én gang, etter klokkeslett. */
+export function jobbensBeskrivelser(rader: readonly { fraTid: string | null; beskrivelse?: string | null }[]): string[] {
+  const sortert = [...rader].sort((a, b) => (a.fraTid ?? "").localeCompare(b.fraTid ?? ""));
+  return [...new Set(sortert.map((r) => r.beskrivelse?.trim() ?? "").filter(Boolean))];
 }
 
 const tilMin = (hhmm: string | null | undefined): number | null => {
@@ -56,9 +91,11 @@ export function jobbensTidsrom(rader: readonly { fraTid: string | null; tilTid: 
   return { fra: fraMin(Math.min(...fra)), til: fraMin(Math.max(...til)) };
 }
 
-export function RegistreringPanel({ kort, sedel, orgId, kanAttestere, kanRette, lonnsarter, onEndret, onLukk }: Props) {
+export function RegistreringPanel({ kort, sedel, orgId, kanAttestere, kanRette, lonnsarter, tidsrunding = null, kanSplitte, onSplitt, onRedigerJobb, onEndret, onLukk }: Props) {
   const { t } = useTranslation();
   const [feil, setFeil] = useState<string | null>(null);
+  // w10a (A1): grunnen til en avvist retting står ved linja, ikke nederst i kortet.
+  const [linjeFeil, setLinjeFeil] = useState<Record<string, string>>({});
   const [delOpp, setDelOpp] = useState(false);
 
   const timerLinjer = useMemo(
@@ -106,7 +143,21 @@ export function RegistreringPanel({ kort, sedel, orgId, kanAttestere, kanRette, 
   const tidsrom = jobbensTidsrom(timerLinjer.map((l) => l.linje));
   const sumTimer = timerLinjer.reduce((s, l) => s + (l.linje.timer ?? 0), 0);
   const sumPause = timerLinjer.reduce((s, l) => s + (l.linje.pauseMin ?? 0), 0);
-  const beskrivelser = [...new Set(timerLinjer.map((l) => l.kilde.rad.beskrivelse?.trim() || l.linje.aktivitet || "").filter(Boolean))];
+  // w10a (A6): aktiviteten settes aldri inn i stedet for beskrivelsen; den står i hodet.
+  const beskrivelser = jobbensBeskrivelser(timerLinjer.map((l) => ({ fraTid: l.linje.fraTid, beskrivelse: l.kilde.rad.beskrivelse })));
+  const aktivitetene = [...new Set(timerLinjer.map((l) => l.linje.aktivitet ?? "").filter(Boolean))];
+  const kommentar = sedel.beskrivelse?.trim() || null;
+
+  // Reisekonteksten til lønnsartvalget — samme kilde som sedelsiden.
+  const { data: arbeidstid } = trpc.organisasjon.hentArbeidstidDefaults.useQuery({ organizationId: orgId });
+  const reiseKtx = useMemo<ErReiseKontekst | null>(() => {
+    if (!arbeidstid) return null;
+    const a = arbeidstid as { reiseLonnsartId?: string | null; reiseGrenser?: { lonnsartId: string | null }[] | null };
+    return {
+      reiseLonnsartId: a.reiseLonnsartId ?? null,
+      grensepunktLonnsartIds: (a.reiseGrenser ?? []).map((g) => g.lonnsartId).filter((id): id is string => id != null),
+    };
+  }, [arbeidstid]);
 
   // Underprosjektet gjelder hele jobben (K3); jobbens rader deler det.
   const forste = timerLinjer[0]?.kilde.rad ?? null;
@@ -123,10 +174,7 @@ export function RegistreringPanel({ kort, sedel, orgId, kanAttestere, kanRette, 
     onSuccess: (_d: unknown) => { setFeil(null); onEndret(); },
     onError: (e: { message: string }) => setFeil(e.message),
   });
-  const rett = trpc.timer.dagsseddel.rettRadFelt.useMutation({
-    onSuccess: (_d: unknown) => { setFeil(null); onEndret(); },
-    onError: (e: { message: string }) => setFeil(e.message),
-  });
+  const rett = trpc.timer.dagsseddel.rettRadFelt.useMutation();
 
   const alleVenter = kort.linjer.every((l) => !l.harHandling || l.ventende);
   // Eldre rader uten kortId er ingen jobb — serveren avviser «hele jobben» og del opp for dem.
@@ -140,9 +188,33 @@ export function RegistreringPanel({ kort, sedel, orgId, kanAttestere, kanRette, 
     flytt.mutate({ timerRadId: rad.id, radType: forste ? "timer" : "tillegg", externalCostObjectId: ecoId, helJobb: true });
   }
 
-  function rettFelt(radType: "timer" | "maskin" | "tillegg", radId: string, felt: string, verdi: string | number | null) {
-    rett.mutate({ radType, radId, felter: { [felt]: verdi } } as Parameters<typeof rett.mutate>[0]);
+  /** Én retting i ett kall. `nokkel` er linja grunnen står ved; `tilbake` setter feltet tilbake ved avvisning. */
+  function rettFelter(nokkel: string, radType: "timer" | "maskin" | "tillegg", radId: string, felter: Record<string, string | number | null>, tilbake?: () => void) {
+    setLinjeFeil(({ [nokkel]: _bort, ...rest }) => rest);
+    rett.mutate({ radType, radId, felter } as Parameters<typeof rett.mutate>[0], {
+      onSuccess: (_d: unknown) => onEndret(),
+      onError: (e: { message: string }) => {
+        tilbake?.();
+        setLinjeFeil((f) => ({ ...f, [nokkel]: e.message }));
+      },
+    });
   }
+  const rettFelt = (nokkel: string, radType: "timer" | "maskin" | "tillegg", radId: string, felt: string, verdi: string | number | null) =>
+    rettFelter(nokkel, radType, radId, { [felt]: verdi });
+  const linjeFeilTekst = (nokkel: string) =>
+    linjeFeil[nokkel] ? <p role="alert" className="w-full text-xs text-red-600">{linjeFeil[nokkel]}</p> : null;
+  const splittKnapp = (l: AttLinje) =>
+    kanSplitte?.(l) && onSplitt ? (
+      <button
+        type="button"
+        onClick={() => onSplitt(l)}
+        aria-label={t("timer.attestering.meny.splittRad")}
+        title={t("timer.attestering.meny.splittRad")}
+        className="inline-flex h-7 w-7 items-center justify-center rounded border border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
+      >
+        <Scissors className="h-3.5 w-3.5" />
+      </button>
+    ) : null;
 
   const tom = <span className="text-gray-400">—</span>;
   const tittel = [kort.prosjektnummer, kort.prosjekt].filter(Boolean).join(" · ");
@@ -155,11 +227,26 @@ export function RegistreringPanel({ kort, sedel, orgId, kanAttestere, kanRette, 
       <div className="flex items-center justify-between gap-3 border-b border-gray-200 px-4 py-2">
         <div className="min-w-0">
           <p className="truncate font-semibold text-gray-900">{tittel}</p>
-          {kort.byggeplass && <p className="truncate text-xs text-gray-500">{kort.byggeplass}</p>}
+          {/* w10a (A6): aktiviteten står i hodet, ved byggeplassen. */}
+          {(kort.byggeplass || aktivitetene.length > 0) && (
+            <p data-kort-hode="" className="truncate text-xs text-gray-500">{[kort.byggeplass, ...aktivitetene].filter(Boolean).join(" · ")}</p>
+          )}
         </div>
-        <button type="button" onClick={onLukk} aria-label={t("handling.lukk")} title={t("handling.lukk")} className="rounded p-1 text-gray-500 hover:bg-gray-100">
-          <X className="h-4 w-4" />
-        </button>
+        <span className="flex shrink-0 items-center gap-2">
+          {onRedigerJobb && (
+            <button
+              type="button"
+              onClick={onRedigerJobb}
+              className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+              {t("timer.attestering.registrering.redigerJobben")}
+            </button>
+          )}
+          <button type="button" onClick={onLukk} aria-label={t("handling.lukk")} title={t("handling.lukk")} className="rounded p-1 text-gray-500 hover:bg-gray-100">
+            <X className="h-4 w-4" />
+          </button>
+        </span>
       </div>
 
       {/* Underprosjekt for hele jobben (bilde 7, B11) */}
@@ -219,27 +306,34 @@ export function RegistreringPanel({ kort, sedel, orgId, kanAttestere, kanRette, 
               const r = l.kilde.rad;
               const kan = kanRette && l.ventende && l.harHandling;
               return (
-                <div key={l.nokkel} className="flex flex-wrap items-center gap-3">
-                  <span className="w-28 tabular-nums text-gray-700">{l.linje.fraTid && l.linje.tilTid ? `${l.linje.fraTid}–${l.linje.tilTid}` : "—"}</span>
+                <div key={l.nokkel} data-timelinje={l.nokkel} className="flex flex-wrap items-center gap-3">
+                  {kan ? (
+                    <TidFelter
+                      lagret={{ fraTid: r.fraTid ?? null, tilTid: r.tilTid ?? null, pauseMin: r.pauseMin ?? 0, timer: l.linje.timer }}
+                      tidsrunding={tidsrunding}
+                      onFeil={(tekst) => setLinjeFeil((f) => ({ ...f, [l.nokkel]: tekst }))}
+                      onLagre={(felter, tilbake) => rettFelter(l.nokkel, "timer", r.id, felter, tilbake)}
+                    />
+                  ) : (
+                    <span className="tabular-nums text-gray-700">
+                      {l.linje.fraTid && l.linje.tilTid ? `${l.linje.fraTid}–${l.linje.tilTid}` : "—"}
+                      {(r.pauseMin ?? 0) > 0 && <span className="text-gray-500"> · {t("timer.attestering.registrering.pause", { min: r.pauseMin })}</span>}
+                      <span className="font-medium text-gray-900"> · {t("timer.attestering.registrering.timer", { timer: formaterNorsk(l.linje.timer ?? 0) })}</span>
+                    </span>
+                  )}
                   {kan ? (
                     <select
                       aria-label={t("timer.attestering.registrering.lonnsart")}
                       value={r.lonnsartId}
-                      onChange={(e) => rettFelt("timer", r.id, "lonnsartId", e.target.value)}
+                      onChange={(e) => rettFelt(l.nokkel, "timer", r.id, "lonnsartId", e.target.value)}
                       disabled={rett.isPending}
                       className="rounded border border-gray-300 bg-white px-2 py-1 text-sm"
                     >
-                      {lonnsarter.map((x) => <option key={x.id} value={x.id}>{x.navn}</option>)}
+                      {tillatteLonnsarter(kort, lonnsarter, reiseKtx, r.lonnsartId).map((x) => <option key={x.id} value={x.id}>{x.navn}</option>)}
                     </select>
                   ) : <span>{l.linje.betegnelse}</span>}
-                  {kan ? (
-                    <TallFelt
-                      etikett={t("timer.eksport.kolTimer")}
-                      verdi={l.linje.timer}
-                      enhet="t"
-                      onLagre={(v) => rettFelt("timer", r.id, "timer", v)}
-                    />
-                  ) : <span className="tabular-nums">{formaterNorsk(l.linje.timer ?? 0)} t</span>}
+                  {splittKnapp(l)}
+                  {linjeFeilTekst(l.nokkel)}
                 </div>
               );
             })}
@@ -248,7 +342,22 @@ export function RegistreringPanel({ kort, sedel, orgId, kanAttestere, kanRette, 
       </Del>
 
       <Del nr={3} navn={t("timer.attestering.registrering.hvaGjordeDu")}>
-        {beskrivelser.length > 0 ? <span className="whitespace-pre-wrap">{beskrivelser.join(" · ")}</span> : tom}
+        <div data-beskrivelse="" className="flex flex-col gap-1">
+          {beskrivelser.length > 0 ? (
+            beskrivelser.map((b) => <p key={b} className="whitespace-pre-wrap">{b}</p>)
+          ) : kort.reise ? (
+            // Reisen har ingen «Hva gjorde du?» (plan § 4.9 punkt 8); telefonen skriver ingen tekst der.
+            tom
+          ) : (
+            <span className="font-semibold text-amber-700">{t("timer.attestering.registrering.ikkeUtfylt")}</span>
+          )}
+          {kommentar && (
+            <p data-kommentar-dagen="" className="mt-1 whitespace-pre-wrap text-gray-700">
+              <span className="font-medium text-gray-900">{t("timer.attestering.registrering.kommentarTilDagen")}: </span>
+              {kommentar}
+            </p>
+          )}
+        </div>
       </Del>
 
       <Del nr={4} navn={t("timer.attestering.registrering.maskiner")}>
@@ -260,9 +369,12 @@ export function RegistreringPanel({ kort, sedel, orgId, kanAttestere, kanRette, 
                 <div key={m.id} className="flex flex-wrap items-center gap-3">
                   <span className="w-48 truncate">{navn ?? "—"}</span>
                   {kan ? (
-                    <TallFelt etikett={t("timer.eksport.kolMaskintimer")} verdi={m.timer == null ? null : Number(m.timer)} enhet="t" hoyst={hoystFor.get(m.id) ?? null} onLagre={(v) => rettFelt("maskin", m.id, "timer", v)} />
+                    <TallFelt etikett={t("timer.eksport.kolMaskintimer")} verdi={m.timer == null ? null : Number(m.timer)} enhet="t" hoyst={hoystFor.get(m.id) ?? null} onLagre={(v) => rettFelt(`m:${m.id}`, "maskin", m.id, "timer", v)} />
                   ) : <span className="tabular-nums">{m.timer == null ? "—" : `${formaterNorsk(Number(m.timer))} t`}</span>}
                   {m.mengde != null && <span className="text-gray-600">{formaterNorsk(Number(m.mengde))} {m.enhet ?? ""}</span>}
+                  {/* S1: ✂ på en maskin som står på egen linje; en maskin på timelinja deles med den. */}
+                  {linje.kilde.type === "maskin" && splittKnapp(linje)}
+                  {linjeFeilTekst(`m:${m.id}`)}
                 </div>
               );
             })}
@@ -289,11 +401,13 @@ export function RegistreringPanel({ kort, sedel, orgId, kanAttestere, kanRette, 
             {tillegg.map((l) => {
               const kan = kanRette && l.ventende && l.kilde.type === "tillegg";
               return (
-                <div key={l.nokkel} className="flex items-center gap-3">
+                <div key={l.nokkel} className="flex flex-wrap items-center gap-3">
                   <span className="w-48 truncate">{l.linje.betegnelse}</span>
                   {kan && l.kilde.type === "tillegg" ? (
-                    <TallFelt etikett={t("timer.eksport.kolAntall")} verdi={l.linje.antall} onLagre={(v) => rettFelt("tillegg", l.kilde.rad.id, "antall", v)} />
+                    <TallFelt etikett={t("timer.eksport.kolAntall")} verdi={l.linje.antall} onLagre={(v) => rettFelt(l.nokkel, "tillegg", l.kilde.rad.id, "antall", v)} />
                   ) : <span className="tabular-nums">{l.linje.antall == null ? "—" : formaterNorsk(l.linje.antall)}</span>}
+                  {splittKnapp(l)}
+                  {linjeFeilTekst(l.nokkel)}
                 </div>
               );
             })}
@@ -308,6 +422,8 @@ export function RegistreringPanel({ kort, sedel, orgId, kanAttestere, kanRette, 
               <div key={l.nokkel} className="flex items-center gap-3">
                 <span className="w-48 truncate">{l.linje.betegnelse}</span>
                 <span className="tabular-nums">{l.linje.belop == null ? "—" : `${formaterNorsk(l.linje.belop)} kr`}</span>
+                {/* w10a (A8, B31 B): kvitteringen også i kortet, samme komponent som på linja. */}
+                {l.kilde.type === "utlegg" && <span className="flex items-center gap-1"><Kvitteringer vedlegg={l.kilde.rad.vedlegg ?? []} /></span>}
               </div>
             ))}
           </div>
@@ -334,6 +450,73 @@ function Del({ nr, navn, hoyre, sist, children }: { nr: number; navn: string; ho
       <div className="min-w-0 flex-1">{children}</div>
       {hoyre && <div className="shrink-0">{hoyre}</div>}
     </div>
+  );
+}
+
+const KL = /^([01]\d|2[0-3]):[0-5]\d$/;
+type TidLagret = { fraTid: string | null; tilTid: string | null; pauseMin: number; timer: number | null };
+
+/**
+ * Fra, til og pause på én timelinje (w10a A1). Pausefeltet står bare på linja som bærer pausen.
+ * Lagres når et felt forlates eller ved Enter: fra og til rundes med firmaets tidsrunding, timene
+ * regnes ut som `(til − fra − pause) / 60` (`effektiveTimerFraSpenn` med pausen lagt fra fra-tida —
+ * den formelen serveren godtar for en rad som bærer pausen, `vurderRadTimer`), og fra, til, timer og
+ * pause sendes i ett kall. Ugyldig tid avvises før kallet; avviser serveren, settes feltene tilbake.
+ */
+export function TidFelter({ lagret, tidsrunding, onLagre, onFeil }: {
+  lagret: TidLagret;
+  tidsrunding: number | null;
+  onLagre: (felter: { fraTid: string; tilTid: string; timer: number; pauseMin: number }, tilbake: () => void) => void;
+  onFeil: (tekst: string) => void;
+}) {
+  const { t } = useTranslation();
+  const startFra = lagret.fraTid ?? "";
+  const startTil = lagret.tilTid ?? "";
+  const startPause = String(lagret.pauseMin);
+  const [fra, setFra] = useState(startFra);
+  const [til, setTil] = useState(startTil);
+  const [pause, setPause] = useState(startPause);
+  // Ny verdi fra serveren (lagret retting, ✂, del opp) erstatter feltene.
+  useEffect(() => { setFra(startFra); setTil(startTil); setPause(startPause); }, [startFra, startTil, startPause]);
+  const tilbake = () => { setFra(startFra); setTil(startTil); setPause(startPause); };
+  const visPause = lagret.pauseMin > 0;
+  const pauseTall = Number.parseInt(pause, 10);
+  const gyldig = KL.test(fra) && KL.test(til) && !Number.isNaN(pauseTall) && pauseTall >= 0;
+  const utregnet = gyldig ? effektiveTimerFraSpenn(fra, til, fra, pauseTall) : null;
+
+  function lagre() {
+    const f = rundTilNarmeste(fra, tidsrunding);
+    const ti = rundTilNarmeste(til, tidsrunding);
+    setFra(f);
+    setTil(ti);
+    if (f === startFra && ti === startTil && pause === startPause) return;
+    if (!KL.test(f) || !KL.test(ti) || ti <= f) { tilbake(); onFeil(t("timer.attestering.registrering.ugyldigTid")); return; }
+    const p = Number.parseInt(pause, 10);
+    if (Number.isNaN(p) || p < 0) { tilbake(); onFeil(t("timer.attestering.registrering.ugyldigTid")); return; }
+    const timer = effektiveTimerFraSpenn(f, ti, f, p);
+    if (timer <= 0) { tilbake(); onFeil(t("timer.attestering.registrering.pauseForLang")); return; }
+    onLagre({ fraTid: f, tilTid: ti, timer, pauseMin: p }, tilbake);
+  }
+  const tast = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") { e.preventDefault(); lagre(); }
+    if (e.key === "Escape") { e.preventDefault(); tilbake(); }
+  };
+  const klasse = "rounded border border-gray-300 px-1.5 py-0.5 text-sm tabular-nums focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500";
+  return (
+    <span className="inline-flex flex-wrap items-center gap-1.5">
+      <input aria-label={t("timer.attestering.registrering.fra")} value={fra} placeholder="07:00" inputMode="numeric" onChange={(e) => setFra(e.target.value)} onBlur={lagre} onKeyDown={tast} className={`w-16 ${klasse}`} />
+      <span className="text-gray-500">–</span>
+      <input aria-label={t("timer.attestering.registrering.til")} value={til} placeholder="15:00" inputMode="numeric" onChange={(e) => setTil(e.target.value)} onBlur={lagre} onKeyDown={tast} className={`w-16 ${klasse}`} />
+      {visPause && (
+        <span className="inline-flex items-center gap-1 text-gray-600">
+          <span>{t("timer.attestering.registrering.pauseFelt")}</span>
+          <input aria-label={t("timer.attestering.registrering.pauseFelt")} value={pause} inputMode="numeric" onChange={(e) => setPause(e.target.value)} onBlur={lagre} onKeyDown={tast} className={`w-12 text-right ${klasse}`} />
+        </span>
+      )}
+      <span data-utregnet-timer="" className="w-14 font-medium tabular-nums text-gray-900">
+        {t("timer.attestering.registrering.timer", { timer: formaterNorsk(utregnet ?? lagret.timer ?? 0) })}
+      </span>
+    </span>
   );
 }
 

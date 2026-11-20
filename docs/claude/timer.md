@@ -812,6 +812,8 @@ Sedler-fanen på `/dashbord/firma/timer/attestering` er en tabell (`AttesteringT
 
 Kode og tester: [prosjektkort-kortid-spec.md § 12.11](prosjektkort-kortid-spec.md).
 
+> ⚠️ **Endret i w10a** (🟡 `feat/web-timer-w10a`, ikke merget; plan § 4.5, § 8.9, [web-timeforing-plan.md § 9.5](web-timeforing-plan.md)): linjene har ingen knapper og ingen avkrysning, og cellene er bare lesing. ✓ ↩ ↺ og avkrysningen står på jobbraden og dagsraden (et kryss på dagsraden velger alle jobbene). «Attester utvalget» tar hele jobber, også linjer filteret skjuler (`byggJobbUtvalg`, `attestering-tabell.ts`), og knappen teller jobber. Retting skjer i registreringen (`RegistreringPanel.tsx`): fra, til og pause som felt (`TidFelter`), timene regnes ut, og ett `rettRadFelt` sender `fraTid`, `tilTid`, `timer` og `pauseMin`; avvisning setter feltet tilbake og står ved linjen. ✂ og «Rediger jobben» står i kortet. Lønnsartvalget i et reisekort tilbyr bare reisearter, i et jobbkort ingen (`tillatteLonnsarter`, regelen er `erReiseLonnsart`). Del 3 viser radenes «Hva gjorde du?», aldri aktiviteten; «Ikke utfylt» når teksten mangler, og dagens «Kommentar» under. Kolonneoppsettet lagres under `timer-attestering-v2` (gamle oppsett nullstilles én gang).
+
 ### Attesteringen på samme tabell overalt (ordre d2b-2) — 🟡 `feat/kortid-d2b2-attestering` (2026-11-17, ikke merget)
 
 - «Sedler», «Etter prosjekt» og «Etter ansatt» på `/dashbord/firma/timer/attestering` er samme tabell med ulik gruppering (`gruppering`-prop i `AttesteringTabell.tsx`, `grupperModell` i `attestering-tabell.ts`). Pivotene og nedtrekkene er borte; filtrering skjer i kolonnehodet.

@@ -7741,6 +7741,8 @@ export const dagsseddelRouter = router({
                 // T.10: split = samme arbeid → arv original-radens kostnadsbærer.
                 // Allerede org-validert da originalen ble opprettet — ingen ny sjekk.
                 vehicleId: (original as { vehicleId: string | null }).vehicleId ?? null,
+                // w10a (A9): alle delene får originalens beskrivelse, som `delJobb` gjør.
+                beskrivelse: (original as { beskrivelse: string | null }).beskrivelse ?? null,
                 attestertStatus: "pending",
                 parentRadId: original.id,
                 // LAG 2: split = samme arbeid → arv hele reise-sporet (sporbarhet).

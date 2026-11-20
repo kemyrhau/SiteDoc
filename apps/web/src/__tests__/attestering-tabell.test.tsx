@@ -53,6 +53,7 @@ vi.mock("@/components/ui/KolonneVelger", () => ({
   KolonneVelger: (p: Record<string, unknown>) => { h.velger.props = p; return null; },
 }));
 vi.mock("@/components/timer/SplittRadModal", () => ({ SplittRadModal: () => <div>splitt-modal</div> }));
+vi.mock("@/components/attestering/ReiseRadMerke", () => ({ ReiseRadMerke: () => <span>reise-merke</span> }));
 vi.mock("@/components/attestering/RedigerRadModal", () => ({ RedigerRadModal: () => <div>rediger-modal</div> }));
 vi.mock("@/components/SignertLenke", () => ({
   SignertLenke: ({ url, title, children }: { url: string; title?: string; children: ReactNode }) => <a href={url} title={title}>{children}</a>,
@@ -129,11 +130,24 @@ describe("T43 — «Attester utvalget»", () => {
     expect(getByText(/timer\.attestering\.tabell\.stoende\{"count":1\}/)).toBeTruthy();
   });
 
-  it("avkryssede linjer er utvalget når noen er krysset av", () => {
-    const { container, getByRole } = vis([sedel({ timer: [timer("t1"), timer("t2")] })]);
-    fireEvent.click(within(linje(container, "s1:timer:t2")).getByRole("checkbox"));
-    fireEvent.click(getByRole("button", { name: /attesterUtvalget/ }));
+  it("w10a (B30 A): avkryssede jobber er utvalget; knappen teller jobber", () => {
+    const { container, getByRole } = vis([toProsjekter()]);
+    expect(getByRole("button", { name: /attesterUtvalget/ }).textContent).toContain('{"antall":2}');
+    const jobb = Array.from(container.querySelectorAll('[data-rad="jobb"]')) as HTMLElement[];
+    fireEvent.click(within(jobb[1]!).getByRole("checkbox", { name: "timer.attestering.tabell.velgJobb" }));
+    const knapp = getByRole("button", { name: /attesterUtvalget/ });
+    expect(knapp.textContent).toContain('{"antall":1}');
+    fireEvent.click(knapp);
     expect(kallTil("attesterRader")[0]!.input).toEqual({ radIder: { timerIder: ["t2"], maskinIder: [], tilleggIder: [] } });
+  });
+
+  it("w10a: kryss på dagsraden velger alle jobbene på dagen", () => {
+    const { container, getByRole } = vis([toProsjekter(), sedel({ id: "s2", dato: "2026-11-17", timer: [timer("t9")] })]);
+    fireEvent.click(within(dagsrad(container, 0)).getByRole("checkbox", { name: "timer.attestering.tabell.velgDagen" }));
+    const jobb = Array.from(container.querySelectorAll('[data-rad="jobb"]')) as HTMLElement[];
+    for (const j of jobb) expect((within(j).getByRole("checkbox") as HTMLInputElement).checked).toBe(true);
+    fireEvent.click(getByRole("button", { name: /attesterUtvalget/ }));
+    expect(kallTil("attesterRader")[0]!.input).toEqual({ radIder: { timerIder: ["t1", "t2"], maskinIder: [], tilleggIder: [] } });
   });
 
   it("i attestert-fanen finnes ingen ✓ og ingen «Attester utvalget»", () => {
@@ -145,24 +159,26 @@ describe("T43 — «Attester utvalget»", () => {
 });
 
 describe("T44 — ingenting attestanten trenger ligger bare i title eller bak hover", () => {
-  it("✓, ↩, ✂ og penn er synlige knapper på hver ventende linje, og sperren står som tekst", () => {
+  it("w10a (A2): ✓ og ↩ er synlige knapper på dagsraden; linja har ingen knapper, og sperren står som tekst", () => {
     const { container, getAllByText } = vis([sedel({ id: "sperret" })]);
-    const l = linje(container, "sperret:timer:t1");
-    for (const navn of ["timer.attestering.attester", "timer.attestering.returner", "timer.attestering.meny.splittRad", "timer.attestering.meny.rediger"]) {
-      const knapp = within(l).getByRole("button", { name: navn });
-      expect(knapp.className).not.toMatch(/opacity-0|invisible|hidden|group-hover/);
+    const d = dagsrad(container);
+    for (const navn of ["timer.attestering.tabell.attesterDagen", "timer.attestering.returner"]) {
+      expect(within(d).getByRole("button", { name: navn }).className).not.toMatch(/opacity-0|invisible|hidden|group-hover/);
     }
-    expect(within(l).getByRole("button", { name: "timer.attestering.attester" })).toHaveProperty("disabled", true);
+    expect(within(linje(container, "sperret:timer:t1")).queryAllByRole("button")).toHaveLength(0);
     expect(getAllByText("Fravær over dagsnorm", { exact: false }).length).toBeGreaterThan(0);
   });
 });
 
 describe("T59 (web) — gjenåpne står på attestert linje og for jobben", () => {
-  it("↺ på linja sender linjas rader; jobben har sin egen ↺ (w5b: i dagsraden når dagen har én jobb)", () => {
+  it("w10a (A2): ↺ står på jobben (dagsraden når dagen har én jobb), ikke på linja", () => {
     const { container, getAllByRole } = vis([sedel({ timer: [timer("t1", { attestertStatus: "attestert" })] })]);
-    fireEvent.click(within(linje(container, "s1:timer:t1")).getByRole("button", { name: "timer.attestering.tabell.gjenaapneLinje" }));
+    expect(within(linje(container, "s1:timer:t1")).queryAllByRole("button")).toHaveLength(0);
+    const g = getAllByRole("button", { name: "timer.attestering.tabell.gjenaapneKort" });
+    expect(g).toHaveLength(1);
+    expect(dagsrad(container).contains(g[0]!)).toBe(true);
+    fireEvent.click(g[0]!);
     expect(kallTil("gjenaapneRader")[0]!.input).toEqual({ radIder: { timerIder: ["t1"], maskinIder: [], tilleggIder: [] } });
-    expect(getAllByRole("button", { name: "timer.attestering.tabell.gjenaapneKort" })).toHaveLength(1);
   });
 
   it("i attestert-fanen står «Gjenåpne dagen» i dagsumraden", () => {
@@ -171,39 +187,84 @@ describe("T59 (web) — gjenåpne står på attestert linje og for jobben", () =
   });
 });
 
-describe("T61 — retting i cella", () => {
-  const timerCelle = (c: HTMLElement) =>
-    within(linje(c, "s1:timer:t1")).getAllByRole("button", { name: /7,50/ })[0] as HTMLElement;
+describe("w10a (A1, A4) — fra–til og pause rettes i kortet; cellene er bare lesing", () => {
+  const aapne = (c: HTMLElement) => { fireEvent.click(dagsrad(c)); return c.querySelector("[data-registrering]") as HTMLElement; };
+  const felt = (panel: HTMLElement, navn: string) => within(panel).getByLabelText(`timer.attestering.registrering.${navn}`) as HTMLInputElement;
 
-  it("Enter lagrer én celle i ett kall; avvist kall viser grunnen i cella", () => {
-    const { container, getByDisplayValue, getByText } = vis([sedel()]);
-    fireEvent.click(timerCelle(container));
-    const felt = getByDisplayValue("7.5");
-    fireEvent.change(felt, { target: { value: "8" } });
-    fireEvent.keyDown(felt, { key: "Enter" });
-    const k = kallTil("rettRadFelt");
-    expect(k).toHaveLength(1);
-    expect(k[0]!.input).toEqual({ radType: "timer", radId: "t1", felter: { timer: 8 } });
-    act(() => k[0]!.opts!.onError!({ message: "Over dagsnorm" }));
-    expect(getByText("Over dagsnorm")).toBeTruthy();
+  it("cella er tekst: ingen knapp og intet felt på linja", () => {
+    const { container } = vis([sedel()]);
+    const l = linje(container, "s1:timer:t1");
+    expect(within(l).queryAllByRole("button")).toHaveLength(0);
+    fireEvent.click(within(l).getAllByText(/7,50/)[0]!);
+    expect(l.querySelector("input")).toBeNull();
+    expect(l.textContent).toContain("07:00");
+    expect(l.textContent).toContain("15:00");
   });
 
-  it("Esc angrer uten kall", () => {
-    const { container, getByDisplayValue, queryByDisplayValue } = vis([sedel()]);
-    fireEvent.click(timerCelle(container));
-    fireEvent.keyDown(getByDisplayValue("7.5"), { key: "Escape" });
-    expect(queryByDisplayValue("7.5")).toBeNull();
+  it("endret til: timene regnes, og ett kall sender fra, til, timer og pause", () => {
+    const { container } = vis([sedel()]);
+    const panel = aapne(container);
+    expect(within(panel).queryByLabelText(/kolTimer|registrering\.timer$/)).toBeNull();
+    expect(panel.querySelector("[data-utregnet-timer]")!.textContent).toContain("7,50");
+    fireEvent.change(felt(panel, "til"), { target: { value: "16:00" } });
+    fireEvent.blur(felt(panel, "til"));
+    const k = kallTil("rettRadFelt");
+    expect(k).toHaveLength(1);
+    expect(k[0]!.input).toEqual({ radType: "timer", radId: "t1", felter: { fraTid: "07:00", tilTid: "16:00", timer: 8.5, pauseMin: 30 } });
+  });
+
+  it("endret pause sender samme fire felter", () => {
+    const { container } = vis([sedel()]);
+    const panel = aapne(container);
+    fireEvent.change(felt(panel, "pauseFelt"), { target: { value: "60" } });
+    fireEvent.keyDown(felt(panel, "pauseFelt"), { key: "Enter" });
+    expect(kallTil("rettRadFelt")[0]!.input).toEqual({ radType: "timer", radId: "t1", felter: { fraTid: "07:00", tilTid: "15:00", timer: 7, pauseMin: 60 } });
+  });
+
+  it("avvist kall: feltet går tilbake, og grunnen står ved linja", () => {
+    const { container } = vis([sedel()]);
+    const panel = aapne(container);
+    fireEvent.change(felt(panel, "til"), { target: { value: "16:00" } });
+    fireEvent.blur(felt(panel, "til"));
+    act(() => kallTil("rettRadFelt")[0]!.opts!.onError!({ message: "Over dagsnorm" }));
+    expect(felt(panel, "til").value).toBe("15:00");
+    const linjeIKort = panel.querySelector('[data-timelinje="s1:timer:t1"]') as HTMLElement;
+    expect(within(linjeIKort).getByRole("alert").textContent).toBe("Over dagsnorm");
+  });
+
+  it("ugyldig tid og for lang pause sendes ikke; feltet går tilbake og grunnen står", () => {
+    const { container } = vis([sedel()]);
+    const panel = aapne(container);
+    fireEvent.change(felt(panel, "til"), { target: { value: "06:00" } });
+    fireEvent.blur(felt(panel, "til"));
+    expect(felt(panel, "til").value).toBe("15:00");
+    expect(within(panel).getByRole("alert").textContent).toBe("timer.attestering.registrering.ugyldigTid");
+    fireEvent.change(felt(panel, "pauseFelt"), { target: { value: "600" } });
+    fireEvent.blur(felt(panel, "pauseFelt"));
+    expect(felt(panel, "pauseFelt").value).toBe("30");
+    expect(within(panel).getByRole("alert").textContent).toBe("timer.attestering.registrering.pauseForLang");
     expect(kallTil("rettRadFelt")).toHaveLength(0);
   });
 
-  it("uten rett, på attestert linje og i attestert-fanen er cellene ikke redigerbare", () => {
+  it("Esc angrer uten kall", () => {
+    const { container } = vis([sedel()]);
+    const panel = aapne(container);
+    fireEvent.change(felt(panel, "til"), { target: { value: "16:00" } });
+    fireEvent.keyDown(felt(panel, "til"), { key: "Escape" });
+    expect(felt(panel, "til").value).toBe("15:00");
+    expect(kallTil("rettRadFelt")).toHaveLength(0);
+  });
+
+  it("uten rett, på attestert linje og i attestert-fanen er tidene ikke redigerbare", () => {
     for (const [s, ro] of [
       [sedel({ redigerTillatt: false }), false],
       [sedel({ timer: [timer("t1", { attestertStatus: "attestert" })] }), false],
       [sedel(), true],
     ] as const) {
       const { container, unmount } = vis([s], ro);
-      expect(within(linje(container, "s1:timer:t1")).queryAllByTitle("timer.attestering.tabell.rettCelle")).toHaveLength(0);
+      const panel = aapne(container);
+      expect(within(panel).queryByLabelText("timer.attestering.registrering.til")).toBeNull();
+      expect(panel.querySelector('[data-timelinje="s1:timer:t1"]')!.textContent).toContain("07:00–15:00");
       unmount();
     }
   });
@@ -214,21 +275,26 @@ describe("T61 — retting i cella", () => {
   });
 });
 
-describe("T60/T73 — faste kanter og én knappeliste pr. linje", () => {
-  it("avkrysning til venstre og knapper til høyre står fast på linja", () => {
+describe("T60/T73 (w10a) — faste kanter; avkrysning og knapper på de blå radene", () => {
+  it("linja har faste kanter uten avkrysning og knapper; avkrysningen står på jobbens rad", () => {
     const { container } = vis([sedel()]);
     const l = linje(container, "s1:timer:t1");
     const [venstre, hoyre] = [l.firstElementChild as HTMLElement, l.lastElementChild as HTMLElement];
     expect(venstre.style.position).toBe("sticky");
-    expect(within(venstre).getByRole("checkbox")).toBeTruthy();
+    expect(within(venstre).queryByRole("checkbox")).toBeNull();
     expect(hoyre.style.position).toBe("sticky");
     expect(hoyre.style.right).toBe("0px");
-    expect(within(hoyre).getByRole("button", { name: "timer.attestering.attester" })).toBeTruthy();
+    expect(within(hoyre).queryAllByRole("button")).toHaveLength(0);
+    const d = dagsrad(container);
+    expect(within(d).getByRole("checkbox", { name: "timer.attestering.tabell.velgJobb" })).toBeTruthy();
+    // Avkrysningen åpner ikke kortet.
+    fireEvent.click(within(d).getByRole("checkbox"));
+    expect(container.querySelector("[data-registrering]")).toBeNull();
   });
 });
 
 describe("T38 — kolonneoppsettet lagres under attesteringens egen liste-nøkkel", () => {
-  it("flytting fra velgeren lagres som «timer-attestering»", () => {
+  it("w10a (A3): flytting fra velgeren lagres som «timer-attestering-v2» (lagrede oppsett nullstilles én gang)", () => {
     vi.useFakeTimers();
     try {
       vis([sedel()]);
@@ -237,7 +303,7 @@ describe("T38 — kolonneoppsettet lagres under attesteringens egen liste-nøkke
       act(() => { vi.advanceTimersByTime(900); });
       const k = kallTil("lagreTabelloppsett");
       expect(k).toHaveLength(1);
-      expect(k[0]!.input).toMatchObject({ liste: "timer-attestering", oppsett: { kolonner: ["timer", "dato", "ansatt"], rekkefolge: true } });
+      expect(k[0]!.input).toMatchObject({ liste: "timer-attestering-v2", oppsett: { kolonner: ["timer", "dato", "ansatt"], rekkefolge: true } });
     } finally {
       vi.useRealTimers();
     }
@@ -304,7 +370,9 @@ describe("T30/R13 — prosjektattesteringen er låst til prosjektet", () => {
     expect(annen.className).toMatch(/opacity-50/);
     expect(within(annen).queryByRole("checkbox")).toBeNull();
     expect(within(annen).queryAllByRole("button")).toHaveLength(0);
-    expect(within(linje(container, "s1:timer:t1")).getByRole("checkbox")).toBeTruthy();
+    const jobb = Array.from(container.querySelectorAll('[data-rad="jobb"]')) as HTMLElement[];
+    expect(within(jobb[0]!).getByRole("checkbox")).toBeTruthy();
+    expect(within(jobb[1]!).queryByRole("checkbox")).toBeNull();
     fireEvent.click(getByRole("button", { name: /attesterUtvalget/ }));
     expect(kallTil("attesterRader")[0]!.input).toEqual({ radIder: { timerIder: ["t1"], maskinIder: [], tilleggIder: [] } });
   });
@@ -320,7 +388,7 @@ describe("T30/R13 — prosjektattesteringen er låst til prosjektet", () => {
   it("negativkontroll: uten kontekst (firmaet) kan begge linjene velges", () => {
     const { container } = visMed([toProsjekter()]);
     expect(linje(container, "s1:timer:t2").className).not.toMatch(/opacity-50/);
-    expect(within(linje(container, "s1:timer:t2")).getByRole("checkbox")).toBeTruthy();
+    for (const j of Array.from(container.querySelectorAll('[data-rad="jobb"]')) as HTMLElement[]) expect(within(j).getByRole("checkbox")).toBeTruthy();
   });
 });
 
@@ -502,14 +570,11 @@ describe("w5 — kjernekolonner og «Tilbakestill til standard»", () => {
     }
   });
 
-  it("Fra–til-cella har to knapper, så fra og til rettes hver for seg", () => {
+  it("w10a (A4): Fra–til-cella er tekst — retting skjer i kortet", () => {
     const { container } = vis([sedel()]);
-    const l = within(linje(container, "s1:timer:t1"));
-    const fra = l.getByRole("button", { name: /07:00/ });
-    const til = l.getByRole("button", { name: /15:00/ });
-    expect(fra).not.toBe(til);
-    // Samme celle: begge står under samme flex-span.
-    expect(fra.parentElement!.parentElement).toBe(til.parentElement!.parentElement);
+    const l = linje(container, "s1:timer:t1");
+    expect(within(l).queryAllByRole("button")).toHaveLength(0);
+    expect(l.textContent).toMatch(/07:00.*15:00/);
   });
 });
 
@@ -543,15 +608,14 @@ describe("w8 — jobbraden åpner registreringen, timeradene gjør det ikke", ()
     expect(rader[iDag + 2]!.getAttribute("data-linje")).toBe("s1:timer:t1");
   });
 
-  it("timeraden åpner ikke registreringen; ✓/✂/penn og avkrysning står på timeraden", () => {
+  it("timeraden åpner ikke registreringen og har verken avkrysning eller knapper (w10a)", () => {
     const { container } = vis([sedel()]);
     const l = linje(container, "s1:timer:t1");
     fireEvent.click(l);
-    fireEvent.click(within(l).getByRole("checkbox"));
     expect(container.querySelector("[data-registrering]")).toBeNull();
     expect(l.className).not.toContain("cursor-pointer");
-    expect(within(l).getByRole("button", { name: "timer.attestering.meny.splittRad" })).toBeTruthy();
-    expect(within(l).getByRole("button", { name: "timer.attestering.meny.rediger" })).toBeTruthy();
+    expect(within(l).queryByRole("checkbox")).toBeNull();
+    expect(within(l).queryAllByRole("button")).toHaveLength(0);
   });
 
   it("knappene i dagsraden åpner ikke registreringen", () => {
@@ -639,22 +703,39 @@ describe("w8 — jobbraden åpner registreringen, timeradene gjør det ikke", ()
   });
 });
 
-describe("w5 / WM54 — penn og ✂ bare når «rediger ved attestering» er på", () => {
-  it("av: verken penn, ✂ eller retting i registreringen", () => {
+describe("w5 / WM54 (w10a) — ✂ og «Rediger jobben» i kortet, bare når «rediger ved attestering» er på", () => {
+  it("av: verken «Rediger jobben», ✂, tidsfelter eller del opp i kortet", () => {
     const { container } = vis([sedel({ redigerTillatt: false })]);
-    const l = linje(container, "s1:timer:t1");
-    expect(within(l).queryByRole("button", { name: "timer.attestering.meny.splittRad" })).toBeNull();
-    expect(within(l).queryByRole("button", { name: "timer.attestering.meny.rediger" })).toBeNull();
     fireEvent.click(dagsrad(container));
     const panel = container.querySelector("[data-registrering]") as HTMLElement;
+    expect(within(panel).queryByRole("button", { name: /registrering\.redigerJobben/ })).toBeNull();
+    expect(within(panel).queryByRole("button", { name: "timer.attestering.meny.splittRad" })).toBeNull();
     expect(within(panel).queryByRole("button", { name: /registrering\.delOpp/ })).toBeNull();
+    expect(within(panel).queryByLabelText("timer.attestering.registrering.til")).toBeNull();
   });
 
-  it("på: penn og ✂ vises på ventende linje", () => {
-    const { container } = vis([sedel()]);
-    const l = linje(container, "s1:timer:t1");
-    expect(within(l).getByRole("button", { name: "timer.attestering.meny.splittRad" })).toBeTruthy();
-    expect(within(l).getByRole("button", { name: "timer.attestering.meny.rediger" })).toBeTruthy();
+  it("på: «Rediger jobben» øverst i kortet og ✂ ved timelinja åpner hver sin dialog", () => {
+    const { container, queryByText } = vis([sedel()]);
+    fireEvent.click(dagsrad(container));
+    const panel = container.querySelector("[data-registrering]") as HTMLElement;
+    const rediger = within(panel).getByRole("button", { name: /registrering\.redigerJobben/ });
+    // Øverst: i hodet, før første del.
+    expect(rediger.compareDocumentPosition(within(panel).getByText("timer.attestering.registrering.lonnsart", { selector: "*" }) as Node) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const timelinje = panel.querySelector('[data-timelinje="s1:timer:t1"]') as HTMLElement;
+    fireEvent.click(within(timelinje).getByRole("button", { name: "timer.attestering.meny.splittRad" }));
+    expect(queryByText("splitt-modal")).not.toBeNull();
+    fireEvent.click(rediger);
+    expect(queryByText("rediger-modal")).not.toBeNull();
+  });
+
+  it("S1: ✂ står ved maskinen på egen linje og ved tillegget, ikke ved maskinen på timelinja", () => {
+    const { container } = vis([sedel({
+      maskiner: [{ id: "m1", vehicleId: "v1", timer: "3", mengde: null, enhet: null, kortId: "kA", projectId: "pA", project: P, attestertStatus: "pending", timerRadId: null } as never],
+      tillegg: [{ id: "g1", tilleggId: "x", antall: "1", kortId: "kA", projectId: "pA", project: P, attestertStatus: "pending", externalCostObjectId: null } as never],
+    })]);
+    fireEvent.click(dagsrad(container));
+    const panel = container.querySelector("[data-registrering]") as HTMLElement;
+    expect(within(panel).getAllByRole("button", { name: "timer.attestering.meny.splittRad" }).length).toBe(3);
   });
 });
 
@@ -837,8 +918,116 @@ describe("w7 (B15) — egne timer: synlige, merket, uten handlinger", () => {
 
   it("negativkontroll: uten flagget har den samme sedelen knappene og intet merke", () => {
     const { container, queryByText } = visMed([sedel({ id: "egen", egneTimer: false, timer: [timer("e1")] })]);
-    expect(within(linje(container, "egen:timer:e1")).getByRole("checkbox")).toBeTruthy();
-    expect(within(linje(container, "egen:timer:e1")).getByRole("button", { name: "timer.attestering.attester" })).toBeTruthy();
+    expect(within(dagsrad(container)).getByRole("checkbox")).toBeTruthy();
+    expect(within(dagsrad(container)).getByRole("button", { name: "timer.attestering.tabell.attesterDagen" })).toBeTruthy();
     expect(queryByText("timer.attestering.egneTimer.merke")).toBeNull();
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/*  w10a — kortets innhold: lønnsart, beskrivelse, kvittering, reise   */
+/* ------------------------------------------------------------------ */
+
+import { tillatteLonnsarter, jobbensBeskrivelser } from "@/components/attestering/RegistreringPanel";
+
+describe("w10a (A1) — lønnsartvalget i kortet følger kortets slag", () => {
+  const ktx = { reiseLonnsartId: "lr", grensepunktLonnsartIds: ["lg"] };
+  const arter = [{ id: "l1", navn: "Ordinær" }, { id: "lr", navn: "Reise" }, { id: "lg", navn: "Reise 30–60 km" }, { id: "l2", navn: "Overtid 50 %" }];
+  const kort = (reise: boolean) => ({ reise }) as Parameters<typeof tillatteLonnsarter>[0];
+
+  it("jobbkortet tilbyr ingen reisearter; reisekortet bare reisearter", () => {
+    expect(tillatteLonnsarter(kort(false), arter, ktx, "l1").map((x) => x.id)).toEqual(["l1", "l2"]);
+    expect(tillatteLonnsarter(kort(true), arter, ktx, "lr").map((x) => x.id)).toEqual(["lr", "lg"]);
+  });
+
+  it("den lagrede arten står alltid, også når den bryter regelen; uten kontekst bare den lagrede", () => {
+    expect(tillatteLonnsarter(kort(false), arter, ktx, "lr").map((x) => x.id)).toEqual(["l1", "lr", "l2"]);
+    expect(tillatteLonnsarter(kort(false), arter, null, "l1").map((x) => x.id)).toEqual(["l1"]);
+  });
+
+  it("i kortet: valget viser bare jobbens arter, og et valg sendes som lonnsartId", () => {
+    h.data["timer.lonnsart.list"] = arter;
+    h.data["organisasjon.hentArbeidstidDefaults"] = { reiseLonnsartId: "lr", reiseGrenser: [{ lonnsartId: "lg" }] };
+    try {
+      const { container } = vis([sedel()]);
+      fireEvent.click(dagsrad(container));
+      const panel = container.querySelector("[data-registrering]") as HTMLElement;
+      const valg = within(panel).getByLabelText("timer.attestering.registrering.lonnsart") as HTMLSelectElement;
+      expect(Array.from(valg.options).map((o) => o.value)).toEqual(["l1", "l2"]);
+      fireEvent.change(valg, { target: { value: "l2" } });
+      expect(kallTil("rettRadFelt")[0]!.input).toEqual({ radType: "timer", radId: "t1", felter: { lonnsartId: "l2" } });
+    } finally {
+      delete h.data["timer.lonnsart.list"];
+      delete h.data["organisasjon.hentArbeidstidDefaults"];
+    }
+  });
+});
+
+describe("w10a (A6) — «Hva gjorde du?» viser arbeiderens tekst, aldri aktiviteten", () => {
+  const aapne = (c: HTMLElement) => { fireEvent.click(dagsrad(c)); return c.querySelector("[data-registrering]") as HTMLElement; };
+
+  it("jobbensBeskrivelser: sortert på tid, hver tekst én gang, tomme bort", () => {
+    expect(jobbensBeskrivelser([
+      { fraTid: "12:00", beskrivelse: "Forskaling" },
+      { fraTid: "07:00", beskrivelse: " Rigging " },
+      { fraTid: "13:00", beskrivelse: "Forskaling" },
+      { fraTid: "14:00", beskrivelse: "  " },
+      { fraTid: "15:00", beskrivelse: null },
+    ])).toEqual(["Rigging", "Forskaling"]);
+  });
+
+  it("tekstene står i del 3; aktiviteten står i hodet", () => {
+    const { container } = vis([sedel({ timer: [
+      timer("t1", { fraTid: "12:00", tilTid: "15:00", timer: "3", pauseMin: 0, beskrivelse: "Forskaling" }),
+      timer("t0", { fraTid: "07:00", tilTid: "11:30", timer: "4.5", pauseMin: 0, beskrivelse: "Rigging" }),
+    ] })]);
+    const panel = aapne(container);
+    const del3 = panel.querySelector("[data-beskrivelse]") as HTMLElement;
+    expect(Array.from(del3.querySelectorAll("p")).map((x) => x.textContent)).toEqual(["Rigging", "Forskaling"]);
+    expect(del3.textContent).not.toContain("Graving");
+    expect(panel.querySelector("[data-kort-hode]")!.textContent).toContain("Graving");
+  });
+
+  it("uten tekst: «Ikke utfylt» i fet skrift — aktiviteten settes ikke inn", () => {
+    const { container } = vis([sedel()]);
+    const del3 = aapne(container).querySelector("[data-beskrivelse]") as HTMLElement;
+    const ikke = within(del3).getByText("timer.attestering.registrering.ikkeUtfylt");
+    expect(ikke.className).toContain("font-semibold");
+    expect(del3.textContent).not.toContain("Graving");
+  });
+
+  it("«Kommentar til dagen» står når sedelen har en, ellers ikke", () => {
+    const med = vis([sedel({ beskrivelse: "Regn hele dagen" })]);
+    expect(aapne(med.container).querySelector("[data-kommentar-dagen]")!.textContent).toContain("Regn hele dagen");
+    cleanup();
+    const uten = vis([sedel()]);
+    expect(aapne(uten.container).querySelector("[data-kommentar-dagen]")).toBeNull();
+  });
+});
+
+describe("w10a (A8) — kvitteringen står også i kortet under «Utlegg»", () => {
+  it("kortets utlegg lenker til den signerte fila", () => {
+    const { container } = vis([sedel({ utlegg: [{ id: "u1", belop: 120, expenseCategory: { navn: "Parkering" }, kortId: "kA", projectId: "pA", project: P,
+      vedlegg: [{ id: "v1", fileName: "kvittering.jpg", mimeType: "image/jpeg", fileUrl: "/uploads/k.jpg?sig=1" }] }] })]);
+    fireEvent.click(dagsrad(container));
+    const panel = container.querySelector("[data-registrering]") as HTMLElement;
+    expect(Array.from(panel.querySelectorAll("a")).map((a) => a.getAttribute("href"))).toContain("/uploads/k.jpg?sig=1");
+  });
+});
+
+describe("w10a (A10) — reiseblokken får avkrysning og ✓ ↩ som en jobbrad", () => {
+  it("reisen og jobben har hver sin rad med kryss, ✓ og ↩; reisekortet viser «—» i del 3", () => {
+    const { container } = vis([sedel({ timer: [timer("r1", { erReise: true, kortId: null, fraTid: "06:30", tilTid: "07:00", timer: "0.5", pauseMin: 0 }), timer("t1")] })]);
+    const jobb = Array.from(container.querySelectorAll('[data-rad="jobb"]')) as HTMLElement[];
+    expect(jobb).toHaveLength(2);
+    for (const j of jobb) {
+      expect(within(j).getByRole("checkbox", { name: "timer.attestering.tabell.velgJobb" })).toBeTruthy();
+      expect(within(j).getByRole("button", { name: "timer.attestering.tabell.attesterKort" })).toBeTruthy();
+      expect(within(j).getByRole("button", { name: "timer.attestering.tabell.returnerKort" })).toBeTruthy();
+    }
+    fireEvent.click(jobb[0]!);
+    const panel = container.querySelector("[data-registrering]") as HTMLElement;
+    expect(panel.getAttribute("data-registrering")).toBe("s1:reise");
+    expect(within(panel.querySelector("[data-beskrivelse]") as HTMLElement).queryByText("timer.attestering.registrering.ikkeUtfylt")).toBeNull();
   });
 });

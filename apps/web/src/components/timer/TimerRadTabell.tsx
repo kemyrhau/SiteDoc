@@ -425,7 +425,10 @@ function Tabell<R>({
                 style={{ ...st, gridTemplateColumns: gridTemplate }}
               >
                 {venstre && (
-                  <div className={`px-2 py-1.5 ${bg} ${kantV}`} style={fastVenstre}>
+                  // w10a (A7): avkrysningen og pila står sammen på de blå radene; med begge er
+                  // innrykket smalere, så de får plass i 36 px.
+                  <div className={`${klikk && rad.venstre ? "flex items-center gap-1 px-1" : "px-2"} py-1.5 ${bg} ${kantV}`} style={fastVenstre}>
+                    {klikk && rad.venstre}
                     {klikk ? (
                       <span aria-hidden className="text-base leading-none text-blue-700" data-pil="">{aapenRad ? "▾" : "▸"}</span>
                     ) : rad.venstre}
