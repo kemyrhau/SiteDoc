@@ -188,7 +188,7 @@ sist_verifisert_mot_kode: 2026-08-09
 | **3D-web** | app-tre `3d-web-maaling-a15d10` | `feat/3d-egenskaper` merget `59efcf5a` | ⚪ LEDIG — neste: W5/M6 måling |
 | **3D-mobil** | app-tre `3d-mobil-maaling-a07340` | `feat/3d-mobil-trykk` merget `3ef97e7f` | ⚪ LEDIG — neste: M6 måling |
 | **web-timer-w1** | app-tre `web-timer-w1-2396e3` | `feat/web-timer-w2` merget `1e792946` | ⚪ LEDIG — neste i planen: w3 jobben som én flate |
-| **web-timer-w5** | app-tre `web-timer-w5-c80b84` | `feat/web-timer-w15b` merget `cee0c03e`; neste w15d | ⚪ VENTER ORDRE |
+| **web-timer-w5** | app-tre `web-timer-w5-c80b84` | `feat/web-timer-w15b` merget `cee0c03e`; `feat/web-timer-w15d` bestilt (løsning før kode) | 🟡 LØSNING |
 | **Kort-id d2b-2/3** | app-tre `kortid-d2b2-c544cf` | `feat/kortid-d2b3` merget `30ca2935` | ⚪ LEDIG — neste i specen: d3 |
 | **Kort-id d2c-2** | app-tre `kortid-d2c2-4fb489` | `feat/kortid-d2c2-mobil` merget `338de16a` | ⚪ LEDIG |
 | **Merge** | `SiteDoc-merge` | detached på develop | ⚪ LEDIG |
