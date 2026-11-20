@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="nb">
+<head>
+<meta charset="utf-8">
+<title>Skisse — versjon 16b: «Flytt til …» tegnet på nytt med én og samme dag i alle paneler (B46 B), og spørsmålet om annet prosjekt</title>
+<!--
+  FORSLAG (Fabel 2026-11-21, versjon 16b), ikke bygget. Kilde for v16b-flytt.png og v16b-flytt-prosjekt.png
+  (web-timeforing-plan.md § 4.15 del E og § 8.20). Erstatter arket #flytt i skisser-v16.html, som Kenneth ikke
+  kunne lese (7 min reise, morgenreisen manglet i to paneler). Stilen er den samme som i skisser-v16.html.
+  Dagen er lik i alle paneler: morgenreise 06:25–07:00, jobb 1 07:00–12:00, jobb 2 END-002 12:00–15:00,
+  hjemreise 15:00–15:35. Alle kort er åpne. Grønn ramme = endret fra panel 1.
+  Ett ark pr. bilde; arket velges med #flytt eller #prosjekt i adressen. Tegnet med Chrome uten vindu:
+    "Google Chrome" --headless=new --hide-scrollbars --force-device-scale-factor=2 \
+      --window-size=1444,<høyde> --screenshot=v16b-flytt.png "file://…/skisser-v16b.html#flytt"
+  Høyder: flytt 1201, prosjekt 1439 (måles på nytt etter endring: arket skriver høyden i data-hoyde på <html>).
+-->
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#f3f4f6;font-family:-apple-system,"Inter","Segoe UI",Helvetica,Arial,sans-serif;color:#111827;font-size:13px}
+.ark{width:1444px;padding:22px}
+.tittel{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.pille{background:#1e40af;color:#fff;font-weight:700;border-radius:999px;padding:5px 13px;font-size:12.5px;letter-spacing:.04em}
+.tittel h1{font-size:21px;margin:0}
+.tre{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;align-items:start}
+.fire{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;align-items:start}
+.side{background:#fafbfc;border:1px solid #d1d5db;border-radius:12px;padding:14px;box-shadow:0 1px 3px rgba(0,0,0,.08);position:relative}
+.side.anb{border-color:#16a34a;box-shadow:0 0 0 2px #bbf7d0}
+.side h2{margin:0 0 4px;font-size:15px}
+.side .under{color:#6b7280;margin:0 0 12px;line-height:1.4}
+.anbm{display:inline-block;background:#16a34a;color:#fff;border-radius:999px;padding:2px 9px;font-size:10.5px;font-weight:700;letter-spacing:.04em;margin-left:6px;vertical-align:2px}
+.dag{font-size:17px;font-weight:700;margin:0 0 10px}
+.ov{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:#6b7280;font-weight:700;margin:0 0 8px}
+.kort{background:#fff;border:1px solid #e5e7eb;border-radius:9px;margin-bottom:10px}
+.kort.aapen{border-color:#93c5fd;box-shadow:0 0 0 1px #dbeafe}
+.hode{display:flex;align-items:center;gap:8px;padding:11px 12px}
+.kort.aapen .hode{border-bottom:1px solid #f1f5f9}
+.hode .navn{flex:1;min-width:0}
+.hode .navn b{display:block;font-size:13.5px}
+.hode .navn span{color:#6b7280;font-size:11.5px;white-space:nowrap;display:inline-block;margin-top:3px}
+.hode .navn span.kl{color:#111827;font-weight:600;margin-top:0}
+.tall{text-align:right;min-width:36px}
+.tall small{display:block;font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:#9ca3af}
+.tall b{font-size:12.5px}
+.pil{color:#9ca3af;font-size:12px}
+.kropp{padding:10px 12px}
+.linje{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-top:1px solid #f1f5f9;gap:8px}
+.linje:first-child{border-top:0}
+.linje .v b{display:block;font-size:13px}
+.linje .v span{display:block;color:#6b7280;font-size:11.5px;line-height:1.45}
+.linje .v i{display:block;color:#374151;font-size:11.5px}
+.h{display:flex;align-items:center;gap:8px;font-family:ui-monospace,Menlo,monospace;font-size:12px;white-space:nowrap}
+.ik{color:#9ca3af;font-family:inherit;font-size:11px;letter-spacing:.15em}
+.del{display:flex;justify-content:space-between;align-items:center;padding:6px 0 6px 10px;border-left:3px solid #e5e7eb;margin:0 0 4px 4px;gap:8px}
+.del.reise{border-left-color:#fcd34d;margin-top:8px}
+.type{display:inline-block;background:#f1f5f9;color:#475569;border-radius:4px;padding:1px 6px;font-size:9.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;margin-right:6px}
+.type.vare{background:#dcfce7;color:#15803d}
+.type.reise{background:#fef3c7;color:#92400e}
+.lenker{display:flex;gap:12px;flex-wrap:wrap;color:#1d4ed8;font-weight:600;margin-top:8px;font-size:12px}
+.neste{border:1px dashed #d1d5db;border-radius:9px;padding:9px;text-align:center;color:#6b7280;background:#fff;margin-bottom:10px;font-size:12px}
+.neste b{color:#111827}
+.sum{background:#fff;border:1px solid #e5e7eb;border-radius:9px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;font-size:12px}
+.send{background:#1e40af;color:#fff;border-radius:6px;padding:6px 10px;font-weight:600;font-size:12px}
+.k{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#dc2626;color:#fff;font-weight:700;font-size:11.5px;margin-right:6px;flex:none}
+.g{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#16a34a;color:#fff;font-weight:700;font-size:11.5px;margin-right:6px;flex:none}
+.rod{outline:2px solid #dc2626;outline-offset:2px;border-radius:5px}
+.gronn{outline:2px solid #16a34a;outline-offset:2px;border-radius:5px}
+.forkl{margin:12px 0 0;padding:0;list-style:none}
+.forkl li{display:flex;align-items:flex-start;margin-bottom:6px;line-height:1.4}
+.vindu{background:#fff;border:1px solid #d1d5db;border-radius:10px;padding:14px;box-shadow:0 6px 18px rgba(0,0,0,.14)}
+.vindu h3{margin:0 0 12px;font-size:15px;display:flex;justify-content:space-between}
+.vindu h3 span{color:#9ca3af;font-weight:400}
+.felt{margin-bottom:10px}
+.felt label{display:block;font-weight:600;margin-bottom:4px;font-size:12px}
+.inn{border:1px solid #d1d5db;border-radius:6px;padding:6px 9px;background:#fff;font-size:12.5px}
+.inn.gul{background:#fef9c3;border-color:#eab308}
+.inn.tom{color:#9ca3af}
+.rad{display:flex;gap:8px}
+.rad>.felt{flex:1}
+.valg{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.vk{border:1px solid #d1d5db;border-radius:7px;padding:6px 10px;background:#fff;font-size:12.5px}
+.vk.paa{border-color:#2563eb;background:#eff6ff;color:#1e40af;font-weight:600}
+.lite{color:#6b7280;font-size:11.5px;line-height:1.45}
+.res{font-weight:600;margin:4px 0 2px;font-size:13px}
+.knapper{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}
+.kn{border-radius:6px;padding:6px 12px;font-weight:600;font-size:12.5px;background:#f3f4f6;border:1px solid #e5e7eb}
+.kn.pri{background:#1e40af;color:#fff;border-color:#1e40af}
+.over{position:relative}
+.over .vindu{position:absolute;left:18px;right:18px;top:118px}
+.dempet{opacity:.45}
+.info{background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:6px 9px;color:#1e3a8a;font-size:11.5px;line-height:1.4;margin-top:6px}
+.to{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;align-items:start}
+.meny{background:#fff;border:1px solid #d1d5db;border-radius:9px;box-shadow:0 6px 18px rgba(0,0,0,.14);padding:8px;margin:6px 0 4px 14px}
+.meny .mt{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:#6b7280;font-weight:700;margin:2px 4px 6px}
+.mv{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;font-size:12.5px}
+.mv.paa{background:#eff6ff;color:#1e40af;font-weight:600}
+.mv small{color:#6b7280;font-weight:400;margin-left:auto;font-size:11px}
+.prikk{width:13px;height:13px;border-radius:50%;border:1.5px solid #9ca3af;flex:none}
+.mv.paa .prikk{border:4px solid #2563eb}
+.flytt{color:#1d4ed8;font-weight:600;font-family:-apple-system,"Inter",sans-serif;font-size:11.5px}
+.merke{display:inline-block;background:#e0e7ff;color:#3730a3;border-radius:4px;padding:1px 6px;font-size:9.5px;font-weight:700;letter-spacing:.04em;margin-left:6px}
+.up{display:inline-block;background:#f1f5f9;color:#334155;border-radius:4px;padding:1px 6px;font-size:10.5px;font-weight:600;margin-left:6px}
+.boks{background:#fff;border:1px solid #e5e7eb;border-radius:9px;padding:12px;margin-bottom:12px}
+.boks h3{margin:0 0 8px;font-size:13.5px}
+.scen{background:#fff;border:1px solid #e5e7eb;border-radius:9px;padding:9px 12px;margin-bottom:14px;line-height:1.45}
+.del>div:first-child{line-height:1.7}
+.tre{grid-template-columns:repeat(3,minmax(0,1fr))}
+.hode .navn span{white-space:normal}
+.hode .navn span.kl,.hode .navn span.type{white-space:nowrap}
+.h{flex:none}
+body.en .ark{display:none}
+body.en .ark.vis{display:block}
+
+/* v16b: merkelapper som bare finnes i skissen, og linjene Endret/Uendret */
+.kb{display:flex;align-items:center;gap:6px;font-size:10.5px;font-weight:700;letter-spacing:.05em;color:#6d28d9;margin:0 0 4px 2px}
+.kb i{font-style:normal;display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:4px;background:#ede9fe;border:1px dashed #8b5cf6}
+.kb span{font-weight:500;letter-spacing:0;color:#6b7280}
+.kb.ny i{background:#16a34a;color:#fff;border:1px solid #16a34a}
+.kb.ny{color:#15803d}
+.sk{color:#6d28d9;font-size:10.5px;font-weight:600;margin-left:auto;white-space:nowrap}
+.mv small+.sk{margin-left:8px}
+.gtall{outline:2px solid #16a34a;outline-offset:1px;border-radius:4px;padding:0 3px;display:inline-block;margin-top:2px}
+.tre .side h2{min-height:2.7em;line-height:1.3}
+.tre .side .under{min-height:4.3em}
+.ny-ramme{outline:2px dashed #2563eb;outline-offset:3px;border-radius:6px}
+.eu{margin:12px 0 0;border-top:1px solid #e5e7eb;padding-top:10px;line-height:1.5}
+.eu p{margin:0 0 5px;display:flex;gap:8px}
+.eu b{flex:none;width:64px}
+.eu .e b{color:#15803d}
+.eu .u b{color:#6b7280}
+.eu .u{color:#4b5563}
+.scen b.gr{color:#15803d}
+.scen b.fi{color:#6d28d9}
+.scen b.bl{color:#1d4ed8}
+.dagrad{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:8px}
+.dagrad div{background:#f8fafc;border:1px solid #e5e7eb;border-radius:6px;padding:5px 8px}
+.dagrad small{display:block;color:#6b7280;font-size:10.5px}
+.undermeny{border-top:1px solid #e5e7eb;margin:6px 4px 2px;padding-top:8px}
+.undermeny .felt{margin-bottom:7px}
+.undermeny .felt label{font-size:11px;color:#374151}
+.pilned{text-align:center;color:#6b7280;font-size:11.5px;margin:2px 0 8px}
+.vindu.flat{box-shadow:0 2px 8px rgba(0,0,0,.10);margin-bottom:4px}
+.laast{background:#f3f4f6;color:#6b7280}
+</style>
+</head>
+<body>
+
+<div class="ark" id="flytt">
+  <div class="tittel"><span class="pille">B46 B · vedtatt</span><h1>«Flytt til …» på hjemreisen: samme dag, tre utfall</h1></div>
+  <div class="scen"><b>Dagen er den samme i alle paneler.</b> Oppmøtested Kontor Tromsø. Dagen har fire rader, og alle står i hvert panel:
+    <div class="dagrad">
+      <div><b>06:25–07:00</b> Morgenreise<small>Til sommerfeldtsgt 65 · 35 min, firmaets kjøretid</small></div>
+      <div><b>07:00–12:00</b> Jobb 1<small>sommerfeldtsgt 65 · uten underprosjekt · 4,5 t</small></div>
+      <div><b>12:00–15:00</b> Jobb 2<small>sommerfeldtsgt 65 · END-002 · 3,0 t</small></div>
+      <div><b>15:00–15:35</b> Hjemreise<small>Fra sommerfeldtsgt 65 · END-002 · 35 min</small></div>
+    </div>
+    <div style="margin-top:8px"><b class="gr">Grønn ramme</b> = endret fra panel 1, og bare det. <b class="fi">Fiolett</b> (KORT A, B, C og pilene i menyen) finnes bare i skissen, ikke på skjermen. <b class="bl">Blå stiplet ramme</b> = der du trykker.</div></div>
+  <div class="tre">
+
+    <div class="side">
+      <h2>1 · Utgangspunktet: to kort, hjemreisen står i kort B</h2>
+      <p class="under">Slik systemet foreslår dagen. Morgenreisen står i jobb 1. Hjemreisen står i jobben du drar fra (B44). Menyen «Flytt til …» er åpen på hjemreisen.</p>
+      <p class="ov">Prosjektkort (2)</p>
+      <p class="kb"><i>A</i>KORT A <span>· jobb 1</span></p>
+      <div class="kort aapen">
+        <div class="hode">
+          <div class="navn"><b>Sitedoc Boligfelt B12</b><span>sommerfeldtsgt 65 · <span class="kl">07:00–12:00</span></span></div>
+          <div class="tall"><small>Arbeid</small><b>4,5 t</b></div><div class="tall"><small>Maskin</small><b>—</b></div><div class="tall"><small>Varer</small><b>—</b></div><div class="tall"><small>Reise</small><b>0,6 t</b></div><span class="pil">⌃</span>
+        </div>
+        <div class="kropp">
+          <div class="linje"><div class="v"><b>Timelønn</b><span>Anleggsarbeid</span><span>07:00–12:00 · matpause 30 min</span><i>kantstein</i></div><div class="h">4.50 t <span class="ik">✎ ✂ 🗑</span></div></div>
+          <div class="del reise"><div><span class="type reise">Reise</span><b>Til sommerfeldtsgt 65</b> · <span style="white-space:nowrap">06:25–07:00</span></div><div class="h">0.58 t <span class="flytt">Flytt til …</span> <span class="ik">✎ 🗑</span></div></div>
+          
+          <div class="lenker"><span>+ Timer</span><span>+ Maskin</span><span>+ Vare</span><span>+ Reise</span><span>+ Tillegg/Utlegg</span></div>
+        </div>
+      </div>
+      <p class="kb"><i>B</i>KORT B <span>· jobb 2</span></p>
+      <div class="kort aapen">
+        <div class="hode">
+          <div class="navn"><b>Sitedoc Boligfelt B12</b><span>sommerfeldtsgt 65 · END-002 · <span class="kl">12:00–15:00</span></span></div>
+          <div class="tall"><small>Arbeid</small><b>3,0 t</b></div><div class="tall"><small>Maskin</small><b>—</b></div><div class="tall"><small>Varer</small><b>—</b></div><div class="tall"><small>Reise</small><b>0,6 t</b></div><span class="pil">⌃</span>
+        </div>
+        <div class="kropp">
+          <div class="linje"><div class="v"><b>Timelønn</b><span>Anleggsarbeid</span><span>12:00–15:00</span><i>kantstein, endring</i></div><div class="h">3.00 t <span class="ik">✎ ✂ 🗑</span></div></div>
+          <div class="del reise"><div><span class="type reise">Reise</span><b>Fra sommerfeldtsgt 65</b> · <span style="white-space:nowrap">15:00–15:35</span></div><div class="h">0.58 t <span class="flytt ny-ramme">Flytt til …</span> <span class="ik">✎ 🗑</span></div></div><div class="meny">
+            <p class="mt">Flytt reisen til</p>
+            <div class="mv"><span class="prikk"></span>sommerfeldtsgt 65 · 07:00–12:00<span class="sk">kort A → panel 3</span></div>
+            <div class="mv paa"><span class="prikk"></span>sommerfeldtsgt 65 · END-002 · 12:00–15:00<small>står her nå</small></div>
+            <div class="mv"><span class="prikk"></span>Eget kort<span class="sk">nytt kort C → panel 2</span></div>
+          </div>
+          <div class="lenker"><span>+ Timer</span><span>+ Maskin</span><span>+ Vare</span><span>+ Reise</span><span>+ Tillegg/Utlegg</span></div>
+        </div>
+      </div>
+      <div class="eu"><p class="e"><b>Endret:</b><span>ingenting. Dette er forslaget.</span></p><p class="u"><b>Uendret:</b><span>alt.</span></p></div>
+    </div>
+
+    <div class="side">
+      <h2>2 · Etter «Eget kort»: et nytt kort C med hjemreisen alene</h2>
+      <p class="under">Kort A og kort B er de samme kortene som i panel 1. Hjemreisen er tatt ut av kort B og står i et nytt kort.</p>
+      <p class="ov">Prosjektkort (3)</p>
+      <p class="kb"><i>A</i>KORT A <span>· jobb 1</span></p>
+      <div class="kort aapen">
+        <div class="hode">
+          <div class="navn"><b>Sitedoc Boligfelt B12</b><span>sommerfeldtsgt 65 · <span class="kl">07:00–12:00</span></span></div>
+          <div class="tall"><small>Arbeid</small><b>4,5 t</b></div><div class="tall"><small>Maskin</small><b>—</b></div><div class="tall"><small>Varer</small><b>—</b></div><div class="tall"><small>Reise</small><b>0,6 t</b></div><span class="pil">⌃</span>
+        </div>
+        <div class="kropp">
+          <div class="linje"><div class="v"><b>Timelønn</b><span>Anleggsarbeid</span><span>07:00–12:00 · matpause 30 min</span><i>kantstein</i></div><div class="h">4.50 t <span class="ik">✎ ✂ 🗑</span></div></div>
+          <div class="del reise"><div><span class="type reise">Reise</span><b>Til sommerfeldtsgt 65</b> · <span style="white-space:nowrap">06:25–07:00</span></div><div class="h">0.58 t <span class="flytt">Flytt til …</span> <span class="ik">✎ 🗑</span></div></div>
+          
+          <div class="lenker"><span>+ Timer</span><span>+ Maskin</span><span>+ Vare</span><span>+ Reise</span><span>+ Tillegg/Utlegg</span></div>
+        </div>
+      </div>
+      <p class="kb"><i>B</i>KORT B <span>· jobb 2</span></p>
+      <div class="kort aapen">
+        <div class="hode">
+          <div class="navn"><b>Sitedoc Boligfelt B12</b><span>sommerfeldtsgt 65 · END-002 · <span class="kl">12:00–15:00</span></span></div>
+          <div class="tall"><small>Arbeid</small><b>3,0 t</b></div><div class="tall"><small>Maskin</small><b>—</b></div><div class="tall"><small>Varer</small><b>—</b></div><div class="tall"><small>Reise</small><b class="gtall">—</b></div><span class="pil">⌃</span>
+        </div>
+        <div class="kropp">
+          <div class="linje"><div class="v"><b>Timelønn</b><span>Anleggsarbeid</span><span>12:00–15:00</span><i>kantstein, endring</i></div><div class="h">3.00 t <span class="ik">✎ ✂ 🗑</span></div></div>
+          
+          <div class="lenker"><span>+ Timer</span><span>+ Maskin</span><span>+ Vare</span><span>+ Reise</span><span>+ Tillegg/Utlegg</span></div>
+        </div>
+      </div>
+      <p class="kb ny"><i>C</i>KORT C <span>· nytt kort, bare reisen</span></p>
+      <div class="kort aapen gronn">
+        <div class="hode">
+          <div class="navn"><b>Sitedoc Boligfelt B12</b><span><span class="type reise">Reise</span>Fra sommerfeldtsgt 65 · END-002 · <span class="kl">15:00–15:35</span></span></div>
+          <div class="tall"><small>Arbeid</small><b>—</b></div><div class="tall"><small>Maskin</small><b>—</b></div><div class="tall"><small>Varer</small><b>—</b></div><div class="tall"><small>Reise</small><b>0,6 t</b></div><span class="pil">⌃</span>
+        </div>
+        <div class="kropp">
+          <div class="del reise" style="margin-top:0"><div><span class="type reise">Reise</span><b>Fra sommerfeldtsgt 65</b> · <span style="white-space:nowrap">15:00–15:35</span><br><span class="merke" style="margin-left:0">FLYTTET AV DEG</span></div><div class="h">0.58 t <span class="flytt">Flytt til …</span> <span class="ik">✎ 🗑</span></div></div>
+          <div class="lenker"><span>+ Timer</span><span>+ Reise</span><span>+ Tillegg/Utlegg</span></div>
+        </div>
+      </div>
+      <div class="eu"><p class="e"><b>Endret:</b><span>kortet hjemreisen står i (fra kort B til nytt kort C). Dagen har tre kort. Hjemreisen attesteres for seg.</span></p><p class="u"><b>Uendret:</b><span>tid 15:00–15:35 · sted sommerfeldtsgt 65 · underprosjekt END-002 · prosjekt B12. Morgenreisen og begge jobbene.</span></p></div>
+    </div>
+
+    <div class="side">
+      <h2>3 · Etter «sommerfeldtsgt 65 · 07:00–12:00»: ingen nye kort, hjemreisen står i kort A</h2>
+      <p class="under">Kort A og kort B er de samme kortene som i panel 1. Hjemreisen er flyttet fra kort B til kort A, der morgenreisen står.</p>
+      <p class="ov">Prosjektkort (2)</p>
+      <p class="kb"><i>A</i>KORT A <span>· jobb 1</span></p>
+      <div class="kort aapen">
+        <div class="hode">
+          <div class="navn"><b>Sitedoc Boligfelt B12</b><span>sommerfeldtsgt 65 · <span class="kl">07:00–12:00</span></span></div>
+          <div class="tall"><small>Arbeid</small><b>4,5 t</b></div><div class="tall"><small>Maskin</small><b>—</b></div><div class="tall"><small>Varer</small><b>—</b></div><div class="tall"><small>Reise</small><b class="gtall">1,2 t</b></div><span class="pil">⌃</span>
+        </div>
+        <div class="kropp">
+          <div class="linje"><div class="v"><b>Timelønn</b><span>Anleggsarbeid</span><span>07:00–12:00 · matpause 30 min</span><i>kantstein</i></div><div class="h">4.50 t <span class="ik">✎ ✂ 🗑</span></div></div>
+          <div class="del reise"><div><span class="type reise">Reise</span><b>Til sommerfeldtsgt 65</b> · <span style="white-space:nowrap">06:25–07:00</span></div><div class="h">0.58 t <span class="flytt">Flytt til …</span> <span class="ik">✎ 🗑</span></div></div>
+          <div class="del reise gronn"><div><span class="type reise">Reise</span><b>Fra sommerfeldtsgt 65</b> · <span style="white-space:nowrap">15:00–15:35</span><br><span class="up" style="margin-left:0">END-002</span><span class="merke">FLYTTET AV DEG</span></div><div class="h">0.58 t <span class="flytt">Flytt til …</span> <span class="ik">✎ 🗑</span></div></div>
+          <div class="lenker"><span>+ Timer</span><span>+ Maskin</span><span>+ Vare</span><span>+ Reise</span><span>+ Tillegg/Utlegg</span></div>
+        </div>
+      </div>
+      <p class="kb"><i>B</i>KORT B <span>· jobb 2</span></p>
+      <div class="kort aapen">
+        <div class="hode">
+          <div class="navn"><b>Sitedoc Boligfelt B12</b><span>sommerfeldtsgt 65 · END-002 · <span class="kl">12:00–15:00</span></span></div>
+          <div class="tall"><small>Arbeid</small><b>3,0 t</b></div><div class="tall"><small>Maskin</small><b>—</b></div><div class="tall"><small>Varer</small><b>—</b></div><div class="tall"><small>Reise</small><b class="gtall">—</b></div><span class="pil">⌃</span>
+        </div>
+        <div class="kropp">
+          <div class="linje"><div class="v"><b>Timelønn</b><span>Anleggsarbeid</span><span>12:00–15:00</span><i>kantstein, endring</i></div><div class="h">3.00 t <span class="ik">✎ ✂ 🗑</span></div></div>
+          
+          <div class="lenker"><span>+ Timer</span><span>+ Maskin</span><span>+ Vare</span><span>+ Reise</span><span>+ Tillegg/Utlegg</span></div>
+        </div>
+      </div>
+      <div class="eu"><p class="e"><b>Endret:</b><span>kortet hjemreisen står i (fra kort B til kort A). Dagen har fortsatt to kort. Hjemreisen attesteres sammen med jobb 1.</span></p><p class="u"><b>Uendret:</b><span>tid 15:00–15:35 · sted sommerfeldtsgt 65 · underprosjekt END-002 (står på linja, fordi kort A er uten underprosjekt) · prosjekt B12. Morgenreisen og begge jobbene.</span></p></div>
+    </div>
+  </div>
+</div>
+
+<div class="ark" id="prosjekt">
+  <div class="tittel"><span class="pille">B46 · åpent spørsmål</span><h1>Panel 4 · Hjemreisen til et annet prosjekt: valg i menyen, eller pennen?</h1></div>
+  <div class="scen"><b>Dagen er den samme i alle paneler.</b> Oppmøtested Kontor Tromsø. Dagen har fire rader, og alle står i hvert panel:
+    <div class="dagrad">
+      <div><b>06:25–07:00</b> Morgenreise<small>Til sommerfeldtsgt 65 · 35 min, firmaets kjøretid</small></div>
+      <div><b>07:00–12:00</b> Jobb 1<small>sommerfeldtsgt 65 · uten underprosjekt · 4,5 t</small></div>
+      <div><b>12:00–15:00</b> Jobb 2<small>sommerfeldtsgt 65 · END-002 · 3,0 t</small></div>
+      <div><b>15:00–15:35</b> Hjemreise<small>Fra sommerfeldtsgt 65 · END-002 · 35 min</small></div>
+    </div>
+    <div style="margin-top:8px"><b class="gr">Grønn ramme</b> = endret fra panel 1, og bare det. <b class="fi">Fiolett</b> (KORT A, B, C) finnes bare i skissen, ikke på skjermen. <b class="bl">Blå stiplet ramme</b> = der du trykker.</div></div>
+  <div class="tre">
+
+    <div class="side anb">
+      <h2>4a · «Annet prosjekt …» i menyen <span class="anbm">ANBEFALT</span></h2>
+      <p class="under">Dagen er som i panel 1. Menyen får ett valg til. Det åpner nedtrekk for prosjekt, byggeplass og underprosjekt, de samme som i reisevinduet (w15b).</p>
+      <p class="ov">Prosjektkort (2)</p>
+      <p class="kb"><i>A</i>KORT A <span>· jobb 1</span></p>
+      <div class="kort aapen">
+        <div class="hode">
+          <div class="navn"><b>Sitedoc Boligfelt B12</b><span>sommerfeldtsgt 65 · <span class="kl">07:00–12:00</span></span></div>
+          <div class="tall"><small>Arbeid</small><b>4,5 t</b></div><div class="tall"><small>Maskin</small><b>—</b></div><div class="tall"><small>Varer</small><b>—</b></div><div class="tall"><small>Reise</small><b>0,6 t</b></div><span class="pil">⌃</span>
+        </div>
+        <div class="kropp">
+          <div class="linje"><div class="v"><b>Timelønn</b><span>Anleggsarbeid</span><span>07:00–12:00 · matpause 30 min</span><i>kantstein</i></div><div class="h">4.50 t <span class="ik">✎ ✂ 🗑</span></div></div>
+          <div class="del reise"><div><span class="type reise">Reise</span><b>Til sommerfeldtsgt 65</b> · <span style="white-space:nowrap">06:25–07:00</span></div><div class="h">0.58 t <span class="flytt">Flytt til …</span> <span class="ik">✎ 🗑</span></div></div>
+          
+          <div class="lenker"><span>+ Timer</span><span>+ Maskin</span><span>+ Vare</span><span>+ Reise</span><span>+ Tillegg/Utlegg</span></div>
+        </div>
+      </div>
+      <p class="kb"><i>B</i>KORT B <span>· jobb 2</span></p>
+      <div class="kort aapen">
+        <div class="hode">
+          <div class="navn"><b>Sitedoc Boligfelt B12</b><span>sommerfeldtsgt 65 · END-002 · <span class="kl">12:00–15:00</span></span></div>
+          <div class="tall"><small>Arbeid</small><b>3,0 t</b></div><div class="tall"><small>Maskin</small><b>—</b></div><div class="tall"><small>Varer</small><b>—</b></div><div class="tall"><small>Reise</small><b>0,6 t</b></div><span class="pil">⌃</span>
+        </div>
+        <div class="kropp">
+          <div class="linje"><div class="v"><b>Timelønn</b><span>Anleggsarbeid</span><span>12:00–15:00</span><i>kantstein, endring</i></div><div class="h">3.00 t <span class="ik">✎ ✂ 🗑</span></div></div>
+          <div class="del reise"><div><span class="type reise">Reise</span><b>Fra sommerfeldtsgt 65</b> · <span style="white-space:nowrap">15:00–15:35</span></div><div class="h">0.58 t <span class="flytt">Flytt til …</span> <span class="ik">✎ 🗑</span></div></div><div class="meny">
+            <p class="mt">Flytt reisen til</p>
+            <div class="mv"><span class="prikk"></span>sommerfeldtsgt 65 · 07:00–12:00</div>
+            <div class="mv paa"><span class="prikk"></span>sommerfeldtsgt 65 · END-002 · 12:00–15:00<small>står her nå</small></div>
+            <div class="mv"><span class="prikk"></span>Eget kort</div>
+            <div class="ny-ramme" style="margin:6px 2px 2px">
+              <div class="mv" style="font-weight:600"><span class="prikk" style="border:4px solid #2563eb"></span>Annet prosjekt …</div>
+              <div class="undermeny">
+                <div class="felt"><label>Prosjekt</label><div class="inn">Prosjekt 1050 ▾</div></div>
+                <div class="rad"><div class="felt"><label>Byggeplass</label><div class="inn">Byggeplass 1 ▾</div></div><div class="felt"><label>Underprosjekt</label><div class="inn tom">— ▾</div></div></div>
+                <div class="info" style="margin-top:0">Får eget kort på Prosjekt 1050.</div>
+                <div class="knapper" style="margin-top:8px"><span class="kn pri">Flytt</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="lenker"><span>+ Timer</span><span>+ Maskin</span><span>+ Vare</span><span>+ Reise</span><span>+ Tillegg/Utlegg</span></div>
+        </div>
+      </div>
+      <ul class="forkl">
+        <li><span class="g">1</span><span>Ett sted å gå for «hvor skal reisen føres»: annet kort, eget kort eller annet prosjekt.</span></li>
+        <li><span class="g">2</span><span>Kort på samme prosjekt flyttes fortsatt med ett trykk. Annet prosjekt er tre valg og «Flytt».</span></li>
+        <li><span class="k">3</span><span>Serveren tar ikke imot nytt prosjekt på en rad i dag (målt i koden). Det må bygges, likt for 4a og 4b.</span></li>
+      </ul>
+    </div>
+
+    <div class="side">
+      <h2>4b · Pennen på hjemreisen (slik planen sier i dag)</h2>
+      <p class="under">Dagen er som i panel 1. Menyen er som i panel 1, uten nytt valg. Pennen åpner «Rediger timer-rad», og prosjektet byttes der.</p>
+      <p class="ov">Prosjektkort (2)</p>
+      <p class="kb"><i>A</i>KORT A <span>· jobb 1</span></p>
+      <div class="kort aapen">
+        <div class="hode">
+          <div class="navn"><b>Sitedoc Boligfelt B12</b><span>sommerfeldtsgt 65 · <span class="kl">07:00–12:00</span></span></div>
+          <div class="tall"><small>Arbeid</small><b>4,5 t</b></div><div class="tall"><small>Maskin</small><b>—</b></div><div class="tall"><small>Varer</small><b>—</b></div><div class="tall"><small>Reise</small><b>0,6 t</b></div><span class="pil">⌃</span>
+        </div>
+        <div class="kropp">
+          <div class="linje"><div class="v"><b>Timelønn</b><span>Anleggsarbeid</span><span>07:00–12:00 · matpause 30 min</span><i>kantstein</i></div><div class="h">4.50 t <span class="ik">✎ ✂ 🗑</span></div></div>
+          <div class="del reise"><div><span class="type reise">Reise</span><b>Til sommerfeldtsgt 65</b> · <span style="white-space:nowrap">06:25–07:00</span></div><div class="h">0.58 t <span class="flytt">Flytt til …</span> <span class="ik">✎ 🗑</span></div></div>
+          
+          <div class="lenker"><span>+ Timer</span><span>+ Maskin</span><span>+ Vare</span><span>+ Reise</span><span>+ Tillegg/Utlegg</span></div>
+        </div>
+      </div>
+      <p class="kb"><i>B</i>KORT B <span>· jobb 2</span></p>
+      <div class="kort aapen">
+        <div class="hode">
+          <div class="navn"><b>Sitedoc Boligfelt B12</b><span>sommerfeldtsgt 65 · END-002 · <span class="kl">12:00–15:00</span></span></div>
+          <div class="tall"><small>Arbeid</small><b>3,0 t</b></div><div class="tall"><small>Maskin</small><b>—</b></div><div class="tall"><small>Varer</small><b>—</b></div><div class="tall"><small>Reise</small><b>0,6 t</b></div><span class="pil">⌃</span>
+        </div>
+        <div class="kropp">
+          <div class="linje"><div class="v"><b>Timelønn</b><span>Anleggsarbeid</span><span>12:00–15:00</span><i>kantstein, endring</i></div><div class="h">3.00 t <span class="ik">✎ ✂ 🗑</span></div></div>
+          <div class="del reise"><div><span class="type reise">Reise</span><b>Fra sommerfeldtsgt 65</b> · <span style="white-space:nowrap">15:00–15:35</span></div><div class="h">0.58 t <span class="flytt">Flytt til …</span> <span class="ik"><span class="ny-ramme">✎</span> 🗑</span></div></div>
+          <div class="lenker"><span>+ Timer</span><span>+ Maskin</span><span>+ Vare</span><span>+ Reise</span><span>+ Tillegg/Utlegg</span></div>
+        </div>
+      </div>
+      <p class="pilned">↓ pennen (✎) på hjemreisen åpner vinduet</p>
+      <div class="vindu flat">
+        <h3>Rediger timer-rad <span>✕</span></h3>
+        <div class="felt ny-ramme"><label>Prosjekt</label><div class="inn">Prosjekt 1050 ▾</div></div>
+        <div class="rad"><div class="felt"><label>Byggeplass</label><div class="inn">Byggeplass 1 ▾</div></div><div class="felt"><label>Underprosjekt</label><div class="inn tom">— ▾</div></div></div>
+        <div class="felt"><label>Lønnsart</label><div class="inn laast">Reise/transport til prosjekter</div></div>
+        <div class="rad"><div class="felt"><label>Start kl.</label><div class="inn">15:00</div></div><div class="felt"><label>Slutt kl.</label><div class="inn">15:35</div></div></div>
+        <div class="info" style="margin-top:0">Får eget kort på Prosjekt 1050.</div>
+        <div class="knapper"><span class="kn">Avbryt</span><span class="kn pri">Lagre</span></div>
+      </div>
+      <ul class="forkl">
+        <li><span class="g">1</span><span>Ingen ny flate. Tid og sted rettes i samme vindu.</span></li>
+        <li><span class="k">2</span><span>To steder for samme spørsmål: «Flytt til …» for kort, pennen for prosjekt. Menyen sier ikke at pennen finnes.</span></li>
+        <li><span class="k">3</span><span>Prosjektfeltet i vinduet er låst ved redigering i dag (målt i koden). Det må åpnes for reise, og serveren må bygges som i 4a.</span></li>
+      </ul>
+    </div>
+
+    <div class="side">
+      <h2>Dagen etterpå, lik i 4a og 4b: et nytt kort C på Prosjekt 1050</h2>
+      <p class="under">Kort A og kort B er de samme kortene som i panel 1. Hjemreisen er tatt ut av kort B og står i et nytt kort på det andre prosjektet.</p>
+      <p class="ov">Prosjektkort (3)</p>
+      <p class="kb"><i>A</i>KORT A <span>· jobb 1</span></p>
+      <div class="kort aapen">
+        <div class="hode">
+          <div class="navn"><b>Sitedoc Boligfelt B12</b><span>sommerfeldtsgt 65 · <span class="kl">07:00–12:00</span></span></div>
+          <div class="tall"><small>Arbeid</small><b>4,5 t</b></div><div class="tall"><small>Maskin</small><b>—</b></div><div class="tall"><small>Varer</small><b>—</b></div><div class="tall"><small>Reise</small><b>0,6 t</b></div><span class="pil">⌃</span>
+        </div>
+        <div class="kropp">
+          <div class="linje"><div class="v"><b>Timelønn</b><span>Anleggsarbeid</span><span>07:00–12:00 · matpause 30 min</span><i>kantstein</i></div><div class="h">4.50 t <span class="ik">✎ ✂ 🗑</span></div></div>
+          <div class="del reise"><div><span class="type reise">Reise</span><b>Til sommerfeldtsgt 65</b> · <span style="white-space:nowrap">06:25–07:00</span></div><div class="h">0.58 t <span class="flytt">Flytt til …</span> <span class="ik">✎ 🗑</span></div></div>
+          
+          <div class="lenker"><span>+ Timer</span><span>+ Maskin</span><span>+ Vare</span><span>+ Reise</span><span>+ Tillegg/Utlegg</span></div>
+        </div>
+      </div>
+      <p class="kb"><i>B</i>KORT B <span>· jobb 2</span></p>
+      <div class="kort aapen">
+        <div class="hode">
+          <div class="navn"><b>Sitedoc Boligfelt B12</b><span>sommerfeldtsgt 65 · END-002 · <span class="kl">12:00–15:00</span></span></div>
+          <div class="tall"><small>Arbeid</small><b>3,0 t</b></div><div class="tall"><small>Maskin</small><b>—</b></div><div class="tall"><small>Varer</small><b>—</b></div><div class="tall"><small>Reise</small><b class="gtall">—</b></div><span class="pil">⌃</span>
+        </div>
+        <div class="kropp">
+          <div class="linje"><div class="v"><b>Timelønn</b><span>Anleggsarbeid</span><span>12:00–15:00</span><i>kantstein, endring</i></div><div class="h">3.00 t <span class="ik">✎ ✂ 🗑</span></div></div>
+          
+          <div class="lenker"><span>+ Timer</span><span>+ Maskin</span><span>+ Vare</span><span>+ Reise</span><span>+ Tillegg/Utlegg</span></div>
+        </div>
+      </div>
+      <p class="kb ny"><i>C</i>KORT C <span>· nytt kort, bare reisen</span></p>
+      <div class="kort aapen gronn">
+        <div class="hode">
+          <div class="navn"><b>Prosjekt 1050</b><span><span class="type reise">Reise</span>Fra Byggeplass 1 · <span class="kl">15:00–15:35</span></span></div>
+          <div class="tall"><small>Arbeid</small><b>—</b></div><div class="tall"><small>Maskin</small><b>—</b></div><div class="tall"><small>Varer</small><b>—</b></div><div class="tall"><small>Reise</small><b>0,6 t</b></div><span class="pil">⌃</span>
+        </div>
+        <div class="kropp">
+          <div class="del reise" style="margin-top:0"><div><span class="type reise">Reise</span><b>Fra Byggeplass 1</b> · <span style="white-space:nowrap">15:00–15:35</span></div><div class="h">0.58 t <span class="flytt">Flytt til …</span> <span class="ik">✎ 🗑</span></div></div>
+          <div class="lenker"><span>+ Timer</span><span>+ Reise</span><span>+ Tillegg/Utlegg</span></div>
+        </div>
+      </div>
+      <div class="eu"><p class="e"><b>Endret:</b><span>prosjekt (B12 → Prosjekt 1050) · sted (sommerfeldtsgt 65 → Byggeplass 1) · underprosjekt (END-002 → uten) · kortet (fra kort B til nytt kort C). Dagen har tre kort.</span></p><p class="u"><b>Uendret:</b><span>tid 15:00–15:35. Morgenreisen og begge jobbene.</span></p></div>
+      <ul class="forkl">
+        <li><span class="g">1</span><span>Ikke merket «Flyttet av deg»: du har byttet sted, ikke valgt kort. Fører du arbeid på Prosjekt 1050 samme dag, står reisen i den jobben.</span></li>
+        <li><span class="k">2</span><span>Linja sier «Fra Byggeplass 1». Reisen bærer ett sted, så «sommerfeldtsgt 65» står ikke lenger på den.</span></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Ett ark om gangen når adressen har #flytt eller #prosjekt.
+  var h = location.hash.slice(1);
+  if (h && document.getElementById(h)) { document.body.classList.add('en'); document.getElementById(h).classList.add('vis'); document.documentElement.setAttribute('data-hoyde', document.getElementById(h).offsetHeight); }
+</script>
+</body>
+</html>
