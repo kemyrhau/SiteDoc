@@ -10,7 +10,15 @@ import { Search } from "lucide-react";
 import { useFirma } from "@/kontekst/firma-kontekst";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { HjelpKnapp, HjelpFane } from "@/components/hjelp/HjelpModal";
+import { medRetur } from "@/lib/tilbake-adresse";
+import { HUB_LENKER } from "@/lib/hub-ruter";
 import { useInnstillingerKort, type HubKort, type Seksjon } from "@/lib/innstillinger-kort";
+
+/**
+ * w14 (TK12–TK13): importsidene har en tilbake-pil og «Ferdig». Åpnet herfra går de tilbake til
+ * Innstillinger. Bare disse to får `?retur`; de andre undersidene har ingen tilbake-knapp.
+ */
+const HUB_RETUR_TIL = new Set<string>([HUB_LENKER.maskinImport, HUB_LENKER.varelagerImport]);
 
 // Seksjonsfarger per handoff-spec (blå = firma, amber = prosjekt).
 const SEKSJON_STIL: Record<Seksjon, { aksent: string; flis: string }> = {
@@ -87,7 +95,7 @@ export default function InnstillingerHub() {
           {synligeLenker.map((lenke) => (
             <Link
               key={lenke.labelKey}
-              href={lenke.href}
+              href={medRetur(lenke.href, HUB_RETUR_TIL.has(lenke.href) ? "/dashbord/innstillinger" : null)}
               className="rounded-full border px-2.5 py-1 text-[12px] text-gray-600 transition-colors hover:text-gray-900"
               style={{ borderColor: "#dde2ea", backgroundColor: "#fafbfc" }}
               onMouseEnter={(e) => {

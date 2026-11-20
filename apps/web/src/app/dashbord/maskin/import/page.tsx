@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTilbakeAdresse } from "@/components/nivaa/TilbakeLenke";
 import { useTranslation } from "react-i18next";
 import { ArrowLeft, FileSpreadsheet, AlertTriangle, Check, X, UploadCloud } from "lucide-react";
 import { trpc } from "@/lib/trpc";
@@ -49,8 +50,21 @@ type BekreftResultat = {
   filtrerte: number;
 };
 
+// w14 (leveranse 2): siden leser `?retur` (useSearchParams) og er statisk — Next 14 krever Suspense-grense.
 export default function MaskinImportSide() {
+  return (
+    <Suspense fallback={null}>
+      <MaskinImportSideInnhold />
+    </Suspense>
+  );
+}
+
+function MaskinImportSideInnhold() {
   const { t } = useTranslation();
+  // w14 (TK12–TK13): pilen og «Ferdig» går dit siden ble åpnet fra (Innstillinger), ellers som før.
+  const tilbake = useTilbakeAdresse({ href: "/dashbord/maskin", labelKey: "firma.maskin.import.tilbakeTilMaskin" });
+  const tilbakeHref = tilbake?.href ?? "/dashbord/maskin";
+  const tilbakeTekst = t(tilbake?.labelKey ?? "firma.maskin.import.tilbakeTilMaskin");
   const router = useRouter();
   const { valgtFirma, kanAdministrereFirma } = useFirma();
   const orgId = valgtFirma?.id;
@@ -140,9 +154,9 @@ export default function MaskinImportSide() {
       <div className="mx-auto max-w-5xl">
         <div className="mb-5 flex items-center gap-3">
           <Link
-            href="/dashbord/maskin"
+            href={tilbakeHref}
             className="inline-flex items-center gap-1 text-sm text-gray-400 hover:text-gray-600"
-            title={t("firma.maskin.import.tilbakeTilMaskin")}
+            title={tilbakeTekst}
           >
             <ArrowLeft className="h-4 w-4" />
           </Link>
@@ -162,9 +176,9 @@ export default function MaskinImportSide() {
       {/* Header — tilbake-pil og tittel på samme linje */}
       <div className="mb-5 flex items-center gap-3">
         <Link
-          href="/dashbord/maskin"
+          href={tilbakeHref}
           className="inline-flex items-center gap-1 text-sm text-gray-400 hover:text-gray-600"
-          title={t("firma.maskin.import.tilbakeTilMaskin")}
+          title={tilbakeTekst}
         >
           <ArrowLeft className="h-4 w-4" />
         </Link>
@@ -524,7 +538,7 @@ export default function MaskinImportSide() {
           )}
 
           <div className="flex justify-end gap-3 pt-2">
-            <Button type="button" onClick={() => router.push("/dashbord/maskin")}>
+            <Button type="button" onClick={() => router.push(tilbakeHref)}>
               {t("firma.maskin.import.knapp.tilMaskinliste")}
             </Button>
           </div>

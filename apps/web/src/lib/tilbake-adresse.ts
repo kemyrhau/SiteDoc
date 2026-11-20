@@ -10,6 +10,10 @@
 export type TilbakeEtikett =
   | "timer.tilbakeTilTimer"
   | "timer.tilbakeTilMineTimer"
+  | "tilbake.tilMapper"
+  | "tilbake.tilHms"
+  | "tilbake.tilInnstillinger"
+  | "tilbake.tilSjekklister"
   | "papirkurv.returTilbake";
 
 /**
@@ -39,7 +43,22 @@ export function erMineTimer(sti: string): boolean {
 export function tilbakeEtikett(sti: string): TilbakeEtikett {
   if (erProsjektetsTimer(sti)) return "timer.tilbakeTilTimer";
   if (erMineTimer(sti)) return "timer.tilbakeTilMineTimer";
+  // w14 leveranse 2 (TK6–TK13, TK24): de andre listene en underside åpnes fra.
+  if (erProsjektside(sti, "mapper")) return "tilbake.tilMapper";
+  if (erHmsListe(sti)) return "tilbake.tilHms";
+  if (erProsjektside(sti, "sjekklister")) return "tilbake.tilSjekklister";
+  if (utenSok(sti) === "/dashbord/innstillinger") return "tilbake.tilInnstillinger";
   return "papirkurv.returTilbake";
+}
+
+function utenSok(sti: string): string {
+  return sti.split(/[?#]/)[0]!.replace(/\/$/, "");
+}
+
+/** `/dashbord/<prosjektId>/<side>` (med eller uten søkeparametre). */
+function erProsjektside(sti: string, side: string): boolean {
+  const deler = utenSok(sti).split("/").filter(Boolean);
+  return deler.length === 3 && deler[0] === "dashbord" && deler[2] === side;
 }
 
 /** Legger `?retur=` på en lenke (beholder lenkens egne parametre). Ugyldig retur → lenken uendret. */
@@ -97,4 +116,83 @@ export function soketekst(searchParams: Record<string, string | string[] | undef
   }
   const s = p.toString();
   return s ? `?${s}` : "";
+}
+
+/**
+ * Ukefeilen (plan § 8.17): fra og til for uka som starter `ukeStart` (lokal midnatt), som lokale
+ * datoer. `toISOString()` av lokal midnatt gir dagen før øst for UTC: lista fikk søndagen før og
+ * mistet søndagen i uka.
+ */
+export function ukeIntervall(ukeStart: Date): { fra: string; til: string } {
+  const slutt = new Date(ukeStart);
+  slutt.setDate(slutt.getDate() + 6);
+  return { fra: lokalIsoDato(ukeStart), til: lokalIsoDato(slutt) };
+}
+
+/** Hurtigvalgene på Mine timer. «egendefinert» bruker datoene brukeren valgte. */
+export type MineTimerPeriode =
+  | "denne_uken"
+  | "denne_maaneden"
+  | "forrige_maaneden"
+  | "siste_3_mnd"
+  | "egendefinert";
+
+/** Fra og til for et hurtigvalg på Mine timer, som lokale datoer (ukefeilen, plan § 8.17). */
+export function mineTimerIntervall(
+  periode: MineTimerPeriode,
+  naa: Date,
+  fraEgen: string,
+  tilEgen: string,
+): { fra: string; til: string } {
+  if (periode === "denne_uken") return ukeIntervall(mandagI(naa));
+  if (periode === "denne_maaneden") {
+    return {
+      fra: lokalIsoDato(new Date(naa.getFullYear(), naa.getMonth(), 1)),
+      til: lokalIsoDato(new Date(naa.getFullYear(), naa.getMonth() + 1, 0)),
+    };
+  }
+  if (periode === "forrige_maaneden") {
+    return {
+      fra: lokalIsoDato(new Date(naa.getFullYear(), naa.getMonth() - 1, 1)),
+      til: lokalIsoDato(new Date(naa.getFullYear(), naa.getMonth(), 0)),
+    };
+  }
+  if (periode === "siste_3_mnd") {
+    // Siste 3 måneder t.o.m. i dag (inklusivt). TILLEGG 3: lengre tidsperspektiv.
+    return {
+      fra: lokalIsoDato(new Date(naa.getFullYear(), naa.getMonth() - 3, naa.getDate())),
+      til: lokalIsoDato(naa),
+    };
+  }
+  return { fra: fraEgen, til: tilEgen };
+}
+
+/** HMS-lista: prosjektets (`/dashbord/<p>/hms`) eller Firma › HMS (`/dashbord/firma/hms`). */
+export function erHmsListe(sti: string): boolean {
+  const deler = sti.split(/[?#]/)[0]!.split("/").filter(Boolean);
+  return deler.length === 3 && deler[0] === "dashbord" && deler[2] === "hms";
+}
+
+/**
+ * w14 (TK7–TK10): «← HMS» og retur etter sletting på et HMS-dokument eller en sjekkliste/oppgave.
+ * «← HMS» går til HMS-lista brukeren kom fra (Firma › HMS eller prosjektets), ellers prosjektets.
+ * Sletting går til `returnerTil` (dokumentet oppgaven ble laget fra), så `?retur`, så lista.
+ */
+export function dokumentRetur(opts: {
+  retur: string | null | undefined;
+  returnerTil?: string | null;
+  standardListe: string;
+  prosjektHms: string;
+}): { hms: string; etterSletting: string } {
+  const retur = gyldigRetur(opts.retur);
+  const returnerTil = gyldigRetur(opts.returnerTil);
+  return {
+    hms: returnerTil ?? (retur && erHmsListe(retur) ? retur : opts.prosjektHms),
+    etterSletting: returnerTil ?? retur ?? opts.standardListe,
+  };
+}
+
+/** Adressen brukeren står på nå (sti + søk), til `?retur` fra en klikk-handler. `null` på serveren. */
+export function herAdresse(): string | null {
+  return typeof window === "undefined" ? null : window.location.pathname + window.location.search;
 }

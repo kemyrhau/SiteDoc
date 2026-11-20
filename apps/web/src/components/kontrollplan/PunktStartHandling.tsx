@@ -1,5 +1,6 @@
 "use client";
 
+import { herAdresse, medRetur } from "@/lib/tilbake-adresse";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
@@ -70,11 +71,12 @@ export function PunktStartHandling({
   // Server-feil (opprett.onError) er ikke flyt-relatert og skal ikke vise dem.
   const [visFlytHjelp, setVisFlytHjelp] = useState(false);
 
+  // w14 (TK10): sjekklisten går tilbake til kontrollplanen etter sletting.
   const opprett = trpc.sjekkliste.opprett.useMutation({
     onSuccess: (sjekkliste: { id: string }) => {
       utils.kontrollplan.hentForByggeplass.invalidate({ byggeplassId });
       onEndret();
-      router.push(`/dashbord/${projectId}/sjekklister/${sjekkliste.id}`);
+      router.push(medRetur(`/dashbord/${projectId}/sjekklister/${sjekkliste.id}`, herAdresse()));
     },
     onError: (err: { message: string }) => { setVisFlytHjelp(false); setFeil(err.message); },
   });
@@ -112,7 +114,7 @@ export function PunktStartHandling({
           type="button"
           onClick={(e) => {
             e.stopPropagation();
-            router.push(`/dashbord/${projectId}/sjekklister/${punkt.sjekkliste!.id}`);
+            router.push(medRetur(`/dashbord/${projectId}/sjekklister/${punkt.sjekkliste!.id}`, herAdresse()));
           }}
           className="flex items-center gap-1 text-xs text-sitedoc-secondary hover:underline"
         >

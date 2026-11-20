@@ -42,7 +42,7 @@ describe("tilbakeEtikett — teksten sier hvor knappen går", () => {
     expect(tilbakeEtikett("/dashbord/timer/mine")).toBe("timer.tilbakeTilMineTimer");
   });
   it("annet → nøytral «Tilbake»; dagen selv er ikke prosjektets Timer", () => {
-    expect(tilbakeEtikett("/dashbord/p1/sjekklister")).toBe("papirkurv.returTilbake");
+    expect(tilbakeEtikett("/dashbord/p1/tegninger")).toBe("papirkurv.returTilbake");
     expect(tilbakeEtikett("/dashbord/timer/s1")).toBe("papirkurv.returTilbake");
   });
 });

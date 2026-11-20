@@ -9,7 +9,7 @@ import { Spinner } from "@sitedoc/ui";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useFirma } from "@/kontekst/firma-kontekst";
 import { RegistrerTimerKnapp } from "@/components/timer/RegistrerTimerKnapp";
-import { lesUkeParam, medRetur, prosjektTimerAdresse } from "@/lib/tilbake-adresse";
+import { lesUkeParam, medRetur, prosjektTimerAdresse, ukeIntervall } from "@/lib/tilbake-adresse";
 import { spennerFlereAar, visDagDato, visTimerTall } from "@/lib/registrerTimer";
 import { StatusBadge } from "@/components/timer/StatusBadge";
 import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
@@ -42,9 +42,6 @@ function ukestart(dato: Date): Date {
   return d;
 }
 
-function tilIso(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
 
 export default function TimerListSide() {
   useToppbarFiltre({ byggeplass: false });
@@ -81,8 +78,8 @@ export default function TimerListSide() {
 
   const { data: rader, isLoading } = trpc.timer.dagsseddel.list.useQuery({
     projectId: prosjektId,
-    fra: tilIso(ukeStart),
-    til: tilIso(ukeSlutt),
+    // Ukefeilen (plan § 8.17): lokale datoer, ikke `toISOString()` av lokal midnatt.
+    ...ukeIntervall(ukeStart),
     ...(statusFilter !== "alle" ? { status: statusFilter } : {}),
   });
 

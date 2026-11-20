@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTilbakeAdresse } from "@/components/nivaa/TilbakeLenke";
 import { useTranslation } from "react-i18next";
 import { ArrowLeft, FileSpreadsheet, AlertTriangle, Check, UploadCloud } from "lucide-react";
 import { trpc } from "@/lib/trpc";
@@ -54,8 +55,21 @@ type BekreftResultat = {
   filhash: string;
 };
 
+// w14 (leveranse 2): siden leser `?retur` (useSearchParams) og er statisk — Next 14 krever Suspense-grense.
 export default function VareImportSide() {
+  return (
+    <Suspense fallback={null}>
+      <VareImportSideInnhold />
+    </Suspense>
+  );
+}
+
+function VareImportSideInnhold() {
   const { t } = useTranslation();
+  // w14 (TK12–TK13): pilen og «Ferdig» går dit siden ble åpnet fra (Innstillinger), ellers som før.
+  const tilbake = useTilbakeAdresse({ href: "/dashbord/firma/varelager", labelKey: "firma.varelager.import.tilbakeTilKatalog" });
+  const tilbakeHref = tilbake?.href ?? "/dashbord/firma/varelager";
+  const tilbakeTekst = t(tilbake?.labelKey ?? "firma.varelager.import.tilbakeTilKatalog");
   const router = useRouter();
   const { valgtFirma } = useFirma();
   const orgId = valgtFirma?.id;
@@ -153,9 +167,9 @@ export default function VareImportSide() {
     <div className="max-w-5xl">
       <div className="mb-5 flex items-center gap-3">
         <Link
-          href="/dashbord/firma/varelager"
+          href={tilbakeHref}
           className="inline-flex items-center gap-1 text-sm text-gray-400 hover:text-gray-600"
-          title={t("firma.varelager.import.tilbakeTilKatalog")}
+          title={tilbakeTekst}
         >
           <ArrowLeft className="h-4 w-4" />
         </Link>
@@ -532,7 +546,7 @@ export default function VareImportSide() {
           )}
 
           <div className="flex justify-end gap-3 pt-2">
-            <Button type="button" onClick={() => router.push("/dashbord/firma/varelager")}>
+            <Button type="button" onClick={() => router.push(tilbakeHref)}>
               {t("firma.varelager.import.knapp.tilKatalog")}
             </Button>
           </div>

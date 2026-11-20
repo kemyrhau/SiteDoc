@@ -1,5 +1,6 @@
 "use client";
 
+import { medRetur } from "@/lib/tilbake-adresse";
 import { Suspense, useEffect } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -165,7 +166,7 @@ function OppsettVeiviser() {
                 <GrønnKvittering tekst={t("firma.onboarding.steg.prosjekt.ferdig")} />
               ) : (
                 <div className="mt-4">
-                  <Link href="/dashbord/nytt-prosjekt">
+                  <Link href={medRetur("/dashbord/nytt-prosjekt", "/dashbord/firma/oppsett")}>
                     <Button>
                       <FolderKanban className="mr-1.5 h-4 w-4" />
                       {t("firma.onboarding.steg.prosjekt.opprett")}

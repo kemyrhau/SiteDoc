@@ -1,5 +1,6 @@
 "use client";
 
+import { herAdresse, medRetur } from "@/lib/tilbake-adresse";
 import { useState, useRef, useCallback, useEffect, useLayoutEffect, useMemo } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
@@ -261,6 +262,9 @@ export default function TegningerSide() {
       ? { drawingId: eksTegningId, x: Number(eksPxRaa), y: Number(eksPyRaa) }
       : null;
   const harRehydrertVelger = useRef(false);
+  // w14 (TK25): sant når siden ble lastet helt med `?posisjonsvelger` (ingen forrige side i appen).
+  // Da går «Avbryt» til Tegninger i stedet for ett steg tilbake i nettleseren.
+  const velgerLastetDirekte = useRef(false);
 
   // Re-hydrer velger-tilstanden fra URL-en ÉN gang ved mount (funn 2026-08-22):
   // posisjonsvelgerAktiv er ren in-memory provider-state og nullstilles ved full last /
@@ -276,6 +280,7 @@ export default function TegningerSide() {
     harRehydrertVelger.current = true;
     const handling = velgerRehydreringsHandling(posisjonsvelgerParam, posisjonsvelgerAktiv);
     if (handling === "start") {
+      velgerLastetDirekte.current = true;
       startPosisjonsvelger(posisjonsvelgerParam!);
       // F1: åpne feltets EGEN tegning (ikke standard/sist-viste) når «Endre» ga oss en.
       if (eksTegningId && aktivTegning?.id !== eksTegningId) {
@@ -566,7 +571,8 @@ export default function TegningerSide() {
     // handlingen er å åpne den. (Oppgave-grenen over navigerer bevisst ikke — markøren er nok.)
     onSuccess: (data: { id: string }) => {
       lukkModal();
-      router.push(`/dashbord/${params.prosjektId}/sjekklister/${data.id}`);
+      // w14 (TK10): slettes sjekklisten, går siden tilbake til tegningen.
+      router.push(medRetur(`/dashbord/${params.prosjektId}/sjekklister/${data.id}`, herAdresse()));
     },
     onError: (error: { message?: string }) => {
       setOpprettFeil(error.message ?? "Kunne ikke opprette sjekklisten. Prøv igjen.");
@@ -1773,7 +1779,8 @@ export default function TegningerSide() {
           <button
             onClick={() => {
               avbrytPosisjonsvelger();
-              router.back();
+              if (velgerLastetDirekte.current) router.push(`/dashbord/${params.prosjektId}/tegninger`);
+              else router.back();
             }}
             className="flex items-center gap-1.5 rounded-md border border-blue-300 bg-white px-3 py-1 text-xs font-medium text-blue-700 hover:bg-blue-50"
           >
@@ -2628,7 +2635,7 @@ export default function TegningerSide() {
                       e.stopPropagation();
                       router.push(
                         m.sjekklisteId
-                          ? `/dashbord/${params.prosjektId}/sjekklister/${m.sjekklisteId}`
+                          ? medRetur(`/dashbord/${params.prosjektId}/sjekklister/${m.sjekklisteId}`, herAdresse())
                           : `/dashbord/${params.prosjektId}/kontrollplan`,
                       );
                     }}
