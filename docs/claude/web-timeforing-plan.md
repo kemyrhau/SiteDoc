@@ -1986,6 +1986,11 @@ Kenneth 2026-11-18: «Ja, (a)». Firmavalget «Attestant kan attestere egne time
 - **B34 → B, med presisering.** Kenneth: «Arbeideren bestemmer hvor reisen føres: prosjekt – underprosjekt eller prosjekt – byggeplass. Arbeideren bestemmer hvilket valg.» Reisen følger altså ikke automatisk jobbens underprosjekt. Fabel skriver w12 og w12m om etter dette. Det må avklares hvordan reisen ligger i jobbens kort (B32 B) når arbeideren har valgt et annet underprosjekt eller en annen byggeplass enn jobben har. 🟡 Spesifisert i § 4.11 (versjon 11): reisen beholder det arbeideren valgte og står i jobben med samme underprosjekt og byggeplass når dagen har en; ellers i en annen jobb på prosjektet, med underprosjektet vist på linja. Ikke bygget. Om reisevinduet skal ha noe mer enn dagens to felt, er B35.
 - **Presisering samme dag.** Kenneth: «prosjekt og byggeplass eller prosjekt og underprosjekt må være gyldige valg for hvor arbeid utføres.» Det gjelder arbeid, ikke bare reise. Målt i § 4.12 (FA66–FA70): begge er gyldige i dag på telefon, PC og server, og nøkkelen (K1–K4) trenger ingen endring. PC kan ikke alltid føre arbeid uten byggeplass (FA70). Hvordan valget skal se ut, er B35, som nå gjelder arbeid og reise.
 
+### 8.12 Kenneths svar på B35 og S2 (w10b), 2026-11-20
+
+- **B35 → A.** Kenneth: «prosjekt / byggeplass / valgfritt valg -> underprosjekt». En jobb kan ha begge («hvis vi har dette er det også ok»). Rekkefølgen i kortet: prosjekt, så byggeplass (med «Uten byggeplass»; feltet vises ikke når prosjektet ikke har noen), så underprosjekt (valgfritt, «Uten» forvalgt). «Uten byggeplass» er bekreftet av Kenneth og holder «prosjekt og underprosjekt» gyldig. Reise krever byggeplass (kjøretiden). Ingen w13; FA70 rettes i w3; w12m kan bestilles etter w12.
+- **S2 (w10b) → A.** Utlegg står i jobbens kort også for firmaadministrator (`kortId` og `project` på utlegg i firmalista for alle omfang), som kort-id-specen § 6 sier. Synlig endring for firmaadministrator, med Kenneths hjemmel; testen for «samme svar som før» unntar de to utleggsfeltene.
+
 ## 9. Rekkefølge
 
 Dette er forslag til oppdeling, ikke ordrer. **w1, w2 og w5 er merget** (§ 9.1–9.3). **w12 krever en migrering** (utfylling av kort-id på reise, § 4.11 del E), som Kenneth kjører. **w6 krever en migrering** (ny
