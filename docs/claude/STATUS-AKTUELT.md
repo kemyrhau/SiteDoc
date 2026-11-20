@@ -31,6 +31,8 @@ sist_verifisert_mot_kode: 2026-08-09
 > ⚠️ **IKKE i prod:** DWG retur 2 (auto-rotasjon, startutsnitt, LEADER) · DWG retur 4 (fullstendighet: ATTRIB-tegning + `konvertering_rapport` + gate-test, branch `fix/dwg-retur4-strek`) · snap-retur 1 — under arbeid. DWG-3 (georeferanse fire hjørner) ikke levert — se § 2026-09-24 under.
 
 > ✅ **Gjestevern ved firmabytte, mobil (19) MERGET 2026-11-15** (merge `1a287c5d` av `38f4dffa`; Kontrollør GODKJENT GATE (44) nederst i `inbox-orkestrator.md`). `skalNullstilleProsjekt` flyttet til `@sitedoc/shared` (`gjesteprosjekt.ts`, web re-eksporterer); mobil `ProsjektKontekst.tsx` holder ventende firmabytte til gjestelista er lastet (`firmabyttProsjekt.ts` `firmabyttUtfall`) — gjesteprosjekt beholdes ved firmabytte. **Ikke deployet.** Lukker (18) åpent punkt (b).
+> ✅ **w15b (reisevinduet: når, hvor, klokkeslett) MERGET 2026-11-21** (merge `cee0c03e` av `06458834`, gate (112) GRØNN `inbox-orkestrator.md:37405`; regel 10 i merge-treet: typecheck 11/11, web tsc 0, kald build 0, test 7/7). Ingen migrering. Ikke deployet. Merknad fra gate til w15c: linja «havner i» under terskel ser bare timerrader (serveren ser også maskin/tillegg/utlegg) — bare visning. Funn ikke rettet: lint `page.tsx:623 totaltimer` (fra før). Neste: w15d etter w15b; w15c venter på Kenneths svar om «Flytt til …» og annet prosjekt.
+>
 > ✅ **w15a (åpent kort etter «+ Registrer timer») + plan versjon 16 MERGET 2026-11-21** (merge `d5ae514e` av `a2abb1b2`, gate (111) GODKJENT `inbox-orkestrator.md:37219`; Fabels `docs/fabel` @ `e4940458` merget `97fd3a06`, STATUS.md-konflikt løst med begge linjer; regel 10 i merge-treet: typecheck 11/11, web tsc 0, kald build 0, test 7/7). Ingen migrering. Ikke deployet. Funn ikke rettet: de to w15a-skjermbildene er samme fil (docs-presisjon). Åpent til Kenneth: B47, B48 (w15c venter). Neste: w15b bestilt.
 >
 > ✅ **w14 leveranse 2 (tilbake-knappene utenfor timeføringen TK6–TK26) + ukefeilen MERGET 2026-11-21** (merge `1330e66c` av `f125e113`, gate (110) GODKJENT MED V1 — «Ferdig»-teksten på importsidene — V1 GODKJENT `inbox-orkestrator.md:37205`; koderens Regel 10: typecheck 11/11, test 7/7, kald build; avvik mot branch bare develops plan-docs). Ingen migrering. Ikke deployet. Funn ikke rettet: samme `toISOString`-mønster i rapport, vareforbruk, kalender, kompetanse og «i dag»-feltene (egen sak); russisk `tilbake.tilHms` feiloversatt. Neste: w15a i gate.
@@ -186,7 +188,7 @@ sist_verifisert_mot_kode: 2026-08-09
 | **3D-web** | app-tre `3d-web-maaling-a15d10` | `feat/3d-egenskaper` merget `59efcf5a` | ⚪ LEDIG — neste: W5/M6 måling |
 | **3D-mobil** | app-tre `3d-mobil-maaling-a07340` | `feat/3d-mobil-trykk` merget `3ef97e7f` | ⚪ LEDIG — neste: M6 måling |
 | **web-timer-w1** | app-tre `web-timer-w1-2396e3` | `feat/web-timer-w2` merget `1e792946` | ⚪ LEDIG — neste i planen: w3 jobben som én flate |
-| **web-timer-w5** | app-tre `web-timer-w5-c80b84` | `feat/web-timer-w15a` merget `d5ae514e`; `feat/web-timer-w15b` bestilt (løsning før kode) | 🟡 LØSNING |
+| **web-timer-w5** | app-tre `web-timer-w5-c80b84` | `feat/web-timer-w15b` merget `cee0c03e`; neste w15d | ⚪ VENTER ORDRE |
 | **Kort-id d2b-2/3** | app-tre `kortid-d2b2-c544cf` | `feat/kortid-d2b3` merget `30ca2935` | ⚪ LEDIG — neste i specen: d3 |
 | **Kort-id d2c-2** | app-tre `kortid-d2c2-4fb489` | `feat/kortid-d2c2-mobil` merget `338de16a` | ⚪ LEDIG |
 | **Merge** | `SiteDoc-merge` | detached på develop | ⚪ LEDIG |
