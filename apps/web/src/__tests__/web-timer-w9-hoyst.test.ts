@@ -35,7 +35,8 @@ describe("w9 — «høyst» på PC", () => {
   it("dagssidens maskinvindu og timerad-vindu sperrer Lagre over grensen", () => {
     const kilde = les(DAGSSIDE);
     expect(kilde).toMatch(/disabled=\{lagrer \|\| !vehicleId \|\| !timer \|\| overHoyst\}/);
-    expect(kilde).toMatch(/!tilTid \|\|\s*\/\/ w9 \(2c\): maskinen over jobbens «høyst»\.\s*maskinOverHoyst/);
+    // w3b: i prosjektkort-modus gjelder maskindelens sperre (kortOverHoyst), ellers w9-sperren.
+    expect(kilde).toMatch(/!tilTid \|\|\s*\/\/ w9 \(2c\): maskinen over jobbens «høyst»\.\s*\(!kortModus && maskinOverHoyst\) \|\|\s*\/\/ w3b: [^\n]*\s*kortOverHoyst/);
   });
 
   it("Rediger sedel sperrer Lagre over grensen", () => {
