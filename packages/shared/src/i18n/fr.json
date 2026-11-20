@@ -5911,5 +5911,16 @@
   "firma.innstillinger.selvAttestering.tittel": "Les approbateurs peuvent approuver leurs propres heures",
   "firma.innstillinger.selvAttestering.hintNei": "Non : vos propres heures sont approuvées par quelqu'un d'autre disposant de droits d'approbation. Si personne d'autre n'en a le droit, les heures restent comme « En attente ».",
   "firma.innstillinger.selvAttestering.hintJa": "Oui : un approbateur peut approuver, retourner et corriger ses propres heures.",
-  "firma.innstillinger.selvAttestering.hjelpIkon": "S'applique à toutes les personnes pouvant approuver, y compris les administrateurs de l'entreprise. Les heures personnelles sont corrigées dans Mes heures."
+  "firma.innstillinger.selvAttestering.hjelpIkon": "S'applique à toutes les personnes pouvant approuver, y compris les administrateurs de l'entreprise. Les heures personnelles sont corrigées dans Mes heures.",
+  "timer.reiseKort.tilAnnetKontor": "Vers un autre bureau",
+  "timer.reiseKort.hvorTil": "Où es-tu allé en voiture ?",
+  "timer.reiseKort.hvorFra": "D'où es-tu venu en voiture ?",
+  "timer.reiseKort.naar": "Quand as-tu conduit ?",
+  "timer.reiseKort.forArbeid": "Avant le travail",
+  "timer.reiseKort.etterArbeid": "Après le travail",
+  "timer.reiseKort.startKl": "Heure de début",
+  "timer.reiseKort.sluttKl": "Heure de fin",
+  "timer.reiseKort.forslag": "Suggéré : {{min}} minutes de conduite (table de l'entreprise)",
+  "timer.reiseKort.havnerJobb": "Va travailler chez {{sted}}.",
+  "timer.reiseKort.havnerEget": "Obtient sa propre carte sur {{prosjekt}}."
 }

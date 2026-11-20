@@ -5911,5 +5911,16 @@
   "firma.innstillinger.selvAttestering.tittel": "Attestant kan attestere egne timer",
   "firma.innstillinger.selvAttestering.hintNei": "Nei: egne timer attesteres av en annen med attesteringsrett. Har ingen andre rett, står timene som «Venter».",
   "firma.innstillinger.selvAttestering.hintJa": "Ja: en attestant kan attestere, returnere og rette sine egne timer.",
-  "firma.innstillinger.selvAttestering.hjelpIkon": "Gjelder alle som kan attestere, også firmaadministrator. Egne timer rettes i Mine timer."
+  "firma.innstillinger.selvAttestering.hjelpIkon": "Gjelder alle som kan attestere, også firmaadministrator. Egne timer rettes i Mine timer.",
+  "timer.reiseKort.tilAnnetKontor": "Til annet kontor",
+  "timer.reiseKort.hvorTil": "Hvor kjørte du til?",
+  "timer.reiseKort.hvorFra": "Hvor kjørte du fra?",
+  "timer.reiseKort.naar": "Når kjørte du?",
+  "timer.reiseKort.forArbeid": "Før arbeid",
+  "timer.reiseKort.etterArbeid": "Etter arbeid",
+  "timer.reiseKort.startKl": "Start kl.",
+  "timer.reiseKort.sluttKl": "Slutt kl.",
+  "timer.reiseKort.forslag": "Forslag: {{min}} min kjøring (firmaets tabell)",
+  "timer.reiseKort.havnerJobb": "Står i jobben på {{sted}}.",
+  "timer.reiseKort.havnerEget": "Får eget kort på {{prosjekt}}."
 }

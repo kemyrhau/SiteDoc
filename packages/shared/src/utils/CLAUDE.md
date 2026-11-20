@@ -289,6 +289,8 @@ Fasit: `tegningNedlasting.test.ts`.
 
 ### Reise-kort (`reiseManuell.ts`) — del B-tillegg
 
+`løsReiseKort`/`løsOverforingKort` tar valgfrie `naar` (`forArbeid`/`etterArbeid`), `startTid` og `sluttTid` (w15b): tidene kan rettes, klassifiseringen står på firmaets kjøretid.
+
 `medOverforingPeriodeId(spor, periodeId)` setter `reiseRegel.overforing.periodeId` når perioden er kjent ved lagring (ny id ved start, lukket periode ved slutt); `null` → sporet urørt.
 
 ### Reisekjede (`reiseKjede.ts`, ordre 2026-11-15 (17))

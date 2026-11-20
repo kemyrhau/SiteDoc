@@ -3,7 +3,11 @@
 import { useMemo } from "react";
 import {
   byggOverforingOppslag,
+  effektivKortByggeplass,
   erApenOverforing,
+  jobberFraArbeidsrader,
+  kortIdNokkel,
+  velgReiseKort,
   finnDagsramme,
   kontorOverforingOppsett,
   kontorOverforingRetning,
@@ -15,6 +19,7 @@ import {
   type DagsforslagOverforingCelle,
   type DagsforslagOverforingOppslag,
   type OppmoteResultat,
+  type ReiseKortNaar,
   type ReiseKortResultat,
   type ReiseRegelsett,
 } from "@sitedoc/shared";
@@ -50,6 +55,84 @@ export type KontorOverforingKall = {
 
 export type ReiseKortByggeplass = { id: string; projectId: string; name: string | null };
 
+/** w15b: en rad på sedelen slik linja «havner i» og overlapp-sperren leser den. */
+export type ReiseHavnerRad = {
+  fraTid: string | null;
+  erReise: boolean;
+  kortId?: string | null;
+  projectId?: string | null;
+  ecoId?: string | null;
+  /** Radens egen byggeplass; den effektive regnes med sedelens. */
+  byggeplassId?: string | null;
+  /** ms */
+  opprettet?: number;
+  attestertStatus?: string | null;
+};
+
+export type ReiseHavnerI =
+  | { type: "jobb"; kortId: string; byggeplassId: string | null; projectId: string }
+  | { type: "eget"; projectId: string };
+
+/**
+ * w15b: hvilket kort reisen havner i — det serveren gjør i `sikreKortId`
+ * (`apps/api/src/services/timer/kortId.ts`) etter lagring, regnet før lagring:
+ *  - reise (`erReise`): den delte `velgReiseKort` på dagens jobber; `null` → eget kort.
+ *  - under terskel (`erReise` false): raden er arbeid og står i kortet med samme
+ *    nøkkel (prosjekt, effektiv byggeplass, underprosjekt), ellers eget kort.
+ * Linja følger regelen den kaller — endres `velgReiseKort` (w15c), endres linja.
+ */
+export function reiseHavnerI(args: {
+  rader: readonly ReiseHavnerRad[];
+  sedelByggeplass: { id: string; projectId: string } | null;
+  reise: {
+    projectId: string;
+    ecoId: string | null;
+    byggeplassId: string | null;
+    retning: "ut" | "retur" | null;
+    fraTid: string | null;
+    erReise: boolean;
+  };
+}): ReiseHavnerI {
+  const { rader, sedelByggeplass, reise } = args;
+  const jobber = jobberFraArbeidsrader(
+    rader
+      .filter((r) => !r.erReise)
+      .map((r) => ({
+        kortId: r.kortId ?? null,
+        projectId: r.projectId ?? null,
+        ecoId: r.ecoId ?? null,
+        byggeplassId: effektivKortByggeplass(r.projectId ?? null, r.byggeplassId, sedelByggeplass),
+        fraTid: r.fraTid,
+        opprettet: r.opprettet ?? 0,
+        attestertStatus: r.attestertStatus ?? null,
+      })),
+  );
+  let kortId: string | null;
+  if (reise.erReise) {
+    kortId = velgReiseKort(
+      {
+        projectId: reise.projectId,
+        ecoId: reise.ecoId,
+        byggeplassId: reise.byggeplassId,
+        retning: reise.retning,
+        fraTid: reise.fraTid,
+      },
+      jobber,
+    );
+  } else {
+    const nokkel = kortIdNokkel({
+      projectId: reise.projectId,
+      byggeplassId: effektivKortByggeplass(reise.projectId, reise.byggeplassId, sedelByggeplass),
+      ecoId: reise.ecoId,
+    });
+    kortId = jobber.find((j) => kortIdNokkel(j) === nokkel)?.kortId ?? null;
+  }
+  const jobb = kortId ? jobber.find((j) => j.kortId === kortId) : undefined;
+  return jobb
+    ? { type: "jobb", kortId: jobb.kortId, byggeplassId: jobb.byggeplassId, projectId: reise.projectId }
+    : { type: "eget", projectId: reise.projectId };
+}
+
 export function useManuellReiseWeb({
   organizationId,
   dato,
@@ -61,6 +144,9 @@ export function useManuellReiseWeb({
   resolverLonnsartId,
   valg,
   skjulOverforingRetninger = [],
+  naar = null,
+  startTid = null,
+  sluttTid = null,
 }: {
   organizationId: string;
   /** Sedelens dato (YYYY-MM-DD) — perioden som gjaldt da. */
@@ -78,6 +164,11 @@ export function useManuellReiseWeb({
   valg: ReiseKortValg | null;
   /** Retninger sedelen alt har en overføringsrad for — tilbys ikke igjen. */
   skjulOverforingRetninger?: ReadonlyArray<"ut" | "retur">;
+  /** w15b: «Når kjørte du?» (bare kontorvalget). null = som retningen sier. */
+  naar?: ReiseKortNaar | null;
+  /** w15b: arbeiderens rettede start/slutt (HH:MM). null = forslaget. */
+  startTid?: string | null;
+  sluttTid?: string | null;
 }) {
   const aktivert = !!organizationId;
   const q = { organizationId };
@@ -200,6 +291,8 @@ export function useManuellReiseWeb({
       grensepunkter,
       resolverLonnsartId,
       standardLonnsartId,
+      startTid,
+      sluttTid,
     };
     if (kontorValg && kontorOppsett && kontorRetning) {
       const celle = kontorAvstand.get(`${kontorOppsett.fraKontorId}|${kontorValg}`) ?? null;
@@ -216,6 +309,7 @@ export function useManuellReiseWeb({
           periodeId: kontorRetning === "retur" ? (apenOverforing?.id ?? null) : null,
         },
         oppmotestedId: kontorOppsett.fraKontorId,
+        naar,
         kjoretidMin: celle?.kjoretidMin ?? null,
         avstandM: celle?.avstandM ?? null,
       });
@@ -244,7 +338,7 @@ export function useManuellReiseWeb({
       avstandFor: (o, b) => matrise.get(`${o}|${b}`)?.avstandM ?? null,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- aktivtValg er avledet av valg + overforinger
-  }, [valg, forsteOverforing, overforinger, kontorOppsett, apenOverforing, kontorAvstand, ramme, regel, grensepunkter, resolverLonnsartId, standardLonnsartId, oppmote, byggeplassId, matrise]);
+  }, [valg, forsteOverforing, overforinger, kontorOppsett, apenOverforing, kontorAvstand, ramme, regel, grensepunkter, resolverLonnsartId, standardLonnsartId, oppmote, byggeplassId, matrise, naar, startTid, sluttTid]);
 
   // Oppmøtestedet vises som tekst bare når firmaet har flere (§ 7 C).
   const oppmotestedNavn =

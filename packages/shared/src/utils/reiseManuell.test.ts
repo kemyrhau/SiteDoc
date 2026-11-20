@@ -307,3 +307,90 @@ describe("løsOverforingKort — POST (13) L2 TILLEGG", () => {
     expect(kort({ dagStart: null }).sperre).toBe("manglerDagstid");
   });
 });
+
+// w15b (B42 A + Kenneths presisering 2026-11-21): systemet foreslår, arbeideren retter.
+// «Før arbeid»/«Etter arbeid», start og slutt som kan rettes; terskel og art på firmaets kjøretid.
+describe("w15b — start og slutt kan rettes (løsReiseKort / løsOverforingKort)", () => {
+  const kontor = (over: Partial<Parameters<typeof løsOverforingKort>[0]> = {}) =>
+    løsOverforingKort({
+      overforing: {
+        retning: "ut",
+        fra: { type: "kontor", oppmotestedId: "tromso" },
+        til: { type: "kontor", oppmotestedId: "narvik" },
+        periodeId: null,
+      },
+      oppmotestedId: "tromso",
+      kjoretidMin: 230,
+      avstandM: 250000,
+      dagStart: "07:00",
+      dagSlutt: "12:00",
+      regel: minutter,
+      ...basis,
+      ...over,
+    });
+  const tur = (over: Partial<Parameters<typeof løsReiseKort>[0]> = {}) =>
+    løsReiseKort({
+      retning: "tur",
+      oppmote: { kilde: "fast", oppmotestedId: "o1" },
+      dagStart: "07:00",
+      dagSlutt: "12:00",
+      byggeplassId: "b1",
+      kjoretidFor: () => 35,
+      avstandFor: () => 40000,
+      regel: minutter,
+      ...basis,
+      ...over,
+    });
+
+  it("uten start/slutt/når: som før — til annet kontor legges før dagen (03:10–07:00)", () => {
+    expect(kontor()).toMatchObject({ fraTid: "03:10", tilTid: "07:00", timer: 230 / 60, sperre: null });
+  });
+
+  it("«Etter arbeid»: 230 min til Narvik etter arbeid 07:00–12:00 gir 12:00–15:50", () => {
+    const r = kontor({ naar: "etterArbeid" });
+    expect(r).toMatchObject({ fraTid: "12:00", tilTid: "15:50", timer: 230 / 60, kjoretidMin: 230, sperre: null });
+    // Retningen på sporet står (overføringen starter fortsatt en periode).
+    expect(r.spor).toMatchObject({ reiseRetning: "ut", reiseKjoretidMin: 230, reiseKilde: "overforing" });
+  });
+
+  it("«Før arbeid» på en retur legger den før dagen", () => {
+    expect(tur({ retning: "retur", naar: "forArbeid" })).toMatchObject({ fraTid: "06:25", tilTid: "07:00" });
+  });
+
+  it("rettet start: slutten følger (start + kjøretid)", () => {
+    expect(kontor({ naar: "etterArbeid", startTid: "13:00" })).toMatchObject({
+      fraTid: "13:00",
+      tilTid: "16:50",
+      timer: 230 / 60,
+    });
+    expect(tur({ startTid: "06:00" })).toMatchObject({ fraTid: "06:00", tilTid: "06:35" });
+  });
+
+  it("rettet slutt: står, timene = slutt − start; kjøretid og klassifisering på firmaets tall", () => {
+    const r = kontor({ naar: "etterArbeid", sluttTid: "17:00" });
+    expect(r).toMatchObject({ fraTid: "12:00", tilTid: "17:00", timer: 5, kjoretidMin: 230 });
+    expect(r.spor?.reiseKjoretidMin).toBe(230);
+    // 35 min kjøretid er over terskel (30) — en rettet slutt på 20 min endrer ikke kategorien.
+    const kort = tur({ startTid: "06:40", sluttTid: "07:00" });
+    expect(kort.timer).toBeCloseTo(20 / 60);
+    expect(kort.klassifisering).toMatchObject({ kategori: "reisetid", erReise: true });
+  });
+
+  it("start uten dagstid går an (arbeideren har sagt når)", () => {
+    expect(tur({ dagStart: null, dagSlutt: null, startTid: "08:00" })).toMatchObject({
+      fraTid: "08:00",
+      tilTid: "08:35",
+      sperre: null,
+    });
+    expect(tur({ dagStart: null, dagSlutt: null }).sperre).toBe("manglerDagstid");
+  });
+
+  it("slutt over 24:00 → utenforDognet; slutt før start → timer 0 (kalleren sperrer)", () => {
+    expect(kontor({ startTid: "22:00" }).sperre).toBe("utenforDognet");
+    expect(tur({ startTid: "08:00", sluttTid: "07:00" })).toMatchObject({ timer: 0, fraTid: "08:00", tilTid: "07:00" });
+  });
+
+  it("ugyldig klokkeslett leses som utelatt", () => {
+    expect(tur({ startTid: "", sluttTid: "25:99" })).toMatchObject({ fraTid: "06:25", tilTid: "07:00" });
+  });
+});

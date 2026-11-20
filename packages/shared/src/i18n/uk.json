@@ -5911,5 +5911,16 @@
   "firma.innstillinger.selvAttestering.tittel": "Особи, які затверджують, можуть затверджувати власні години",
   "firma.innstillinger.selvAttestering.hintNei": "Ні: власні години схвалені кимось іншим із правами схвалення. Якщо ніхто інший не має права, години залишаються як «Очікують».",
   "firma.innstillinger.selvAttestering.hintJa": "Так: особа, яка затверджує, може затверджувати, повертати та виправляти власні години роботи.",
-  "firma.innstillinger.selvAttestering.hjelpIkon": "Застосовується до всіх, хто може схвалити, включно з адміністраторами компанії. Власні години коригуються в Мої години."
+  "firma.innstillinger.selvAttestering.hjelpIkon": "Застосовується до всіх, хто може схвалити, включно з адміністраторами компанії. Власні години коригуються в Мої години.",
+  "timer.reiseKort.tilAnnetKontor": "В інший офіс",
+  "timer.reiseKort.hvorTil": "Куди ти їхала?",
+  "timer.reiseKort.hvorFra": "Звідки приїхав?",
+  "timer.reiseKort.naar": "Коли ти їхав?",
+  "timer.reiseKort.forArbeid": "Перед роботою",
+  "timer.reiseKort.etterArbeid": "Після роботи",
+  "timer.reiseKort.startKl": "Час початку",
+  "timer.reiseKort.sluttKl": "Час закінчення",
+  "timer.reiseKort.forslag": "Рекомендовано: {{min}} хв їзди (таблиця компанії)",
+  "timer.reiseKort.havnerJobb": "Йде на роботу в {{sted}}.",
+  "timer.reiseKort.havnerEget": "Отримує власну картку на {{prosjekt}}."
 }

@@ -111,6 +111,7 @@ export type {
   ManuellReiseKlassifisering,
   ManuellReiseSpor,
   ReiseKortRetning,
+  ReiseKortNaar,
   ReiseKortSperre,
   OverforingKortInput,
   ReiseKortInput,

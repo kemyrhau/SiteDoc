@@ -5911,5 +5911,16 @@
   "firma.innstillinger.selvAttestering.tittel": "Approvers can approve their own hours",
   "firma.innstillinger.selvAttestering.hintNei": "No: own hours are approved by someone else with approval rights. If nobody else has the right, the hours stay as «Pending».",
   "firma.innstillinger.selvAttestering.hintJa": "Yes: an approver can approve, return and correct their own hours.",
-  "firma.innstillinger.selvAttestering.hjelpIkon": "Applies to everyone who can approve, including company administrators. Own hours are corrected in My hours."
+  "firma.innstillinger.selvAttestering.hjelpIkon": "Applies to everyone who can approve, including company administrators. Own hours are corrected in My hours.",
+  "timer.reiseKort.tilAnnetKontor": "To another office",
+  "timer.reiseKort.hvorTil": "Where did you drive to?",
+  "timer.reiseKort.hvorFra": "Where did you drive from?",
+  "timer.reiseKort.naar": "When did you drive?",
+  "timer.reiseKort.forArbeid": "Before work",
+  "timer.reiseKort.etterArbeid": "After work",
+  "timer.reiseKort.startKl": "Start time",
+  "timer.reiseKort.sluttKl": "End time",
+  "timer.reiseKort.forslag": "Suggested: {{min}} min driving (company table)",
+  "timer.reiseKort.havnerJobb": "Goes in the job at {{sted}}.",
+  "timer.reiseKort.havnerEget": "Gets its own card on {{prosjekt}}."
 }
