@@ -729,6 +729,7 @@
   "timer.feil.ugyldigPause": "Break must be a positive number (minutes).",
   "timer.feil.sluttForStart": "End time must be after start time.",
   "timer.feil.fraTilPaakrevd": "Start and end time are required on hour rows.",
+  "timer.feil.vareIkkeFlyttet": "The hour row was saved, but the material on it was not moved to the new location. Press Save again.",
   "timer.feil.overlapp": "The time range {{fra}}–{{til}} overlaps {{annenFra}}–{{annenTil}} on the same sheet. One worker cannot be in two places at once.",
   "timer.feil.overlappKort": "The period {{fra}}–{{til}} overlaps {{annenFra}}–{{annenTil}} on the project card {{kort}}. One worker cannot be in two places at once.",
   "timer.feil.timerAvvik": "The number of hours does not match the time span (expected {{forventet}} h). Adjust from/to or the hours.",

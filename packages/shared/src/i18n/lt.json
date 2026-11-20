@@ -729,6 +729,7 @@
   "timer.feil.ugyldigPause": "Pertrauka turi būti teigiamas skaičius (minutės).",
   "timer.feil.sluttForStart": "Pabaigos laikas turi būti po pradžios laiko.",
   "timer.feil.fraTilPaakrevd": "Valandų eilutėse būtinas pradžios ir pabaigos laikas.",
+  "timer.feil.vareIkkeFlyttet": "Valandų eilutė buvo išsaugota, tačiau joje esanti medžiaga nebuvo perkelta į naują vietą. Dar kartą paspauskite Išsaugoti.",
   "timer.feil.overlapp": "Laiko intervalas {{fra}}–{{til}} sutampa {{annenFra}}–{{annenTil}} tame pačiame lape. Vienas darbuotojas negali vienu metu būti dviejose vietose.",
   "timer.feil.overlappKort": "Laikotarpis {{fra}}–{{til}} sutampa {{annenFra}}–{{annenTil}} projekto kortelėje {{kort}}. Vienas darbuotojas negali vienu metu būti dviejose vietose.",
   "timer.feil.timerAvvik": "Valandų skaičius neatitinka laiko intervalo (numatoma {{forventet}} val.). Koreguokite nuo/į arba valandas.",

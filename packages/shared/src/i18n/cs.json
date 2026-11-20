@@ -729,6 +729,7 @@
   "timer.feil.ugyldigPause": "Přestávka musí být kladné číslo (minuty).",
   "timer.feil.sluttForStart": "Čas ukončení musí následovat po čase zahájení.",
   "timer.feil.fraTilPaakrevd": "Čas začátku a konce je vyžadován na řádcích s hodinami.",
+  "timer.feil.vareIkkeFlyttet": "Hodinový řádek byl uložen, ale materiál na něm nebyl přesunut do nového umístění. Stiskněte znovu Uložit.",
   "timer.feil.overlapp": "Časový rozsah {{fra}}–{{til}} se překrývá {{annenFra}}–{{annenTil}} na stejném listu. Jeden pracovník nemůže být na dvou místech najednou.",
   "timer.feil.overlappKort": "Období {{fra}}–{{til}} se překrývá {{annenFra}}–{{annenTil}} na kartě projektu {{kort}}. Jeden pracovník nemůže být na dvou místech najednou.",
   "timer.feil.timerAvvik": "Počet hodin neodpovídá časovému rozpětí (očekávané {{forventet}} h). Upravte od/do nebo hodiny.",

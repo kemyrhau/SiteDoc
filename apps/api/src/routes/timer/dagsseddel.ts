@@ -4447,20 +4447,33 @@ export const dagsseddelRouter = router({
         await krevIngenNyeMaskinBrudd(tx, ctx.prismaMaskin, rad.sheetId, maskinFoer);
         return { ...o, kortId: kortIdFor.get(input.id) ?? o?.kortId ?? null };
       });
-      // w3a (A7): koblede varer (egen database, ingen felles transaksjon) følger samme bytte.
-      // Attestert vare (snapshot satt) står (S5).
-      if (stedEndret && rad.projectId !== null) {
-        await ctx.prismaVarelager.$executeRawUnsafe(
-          `UPDATE "varelager"."vareforbruk" SET "byggeplass_id" = $1, "external_cost_object_id" = $2, "updated_at" = now()
-           WHERE "dagsseddel_id" = $3 AND "sheet_timer_id" = $4 AND "project_id" = $5 AND "attestert_snapshot" IS NULL`,
-          nyttSted.byggeplassId,
-          nyttSted.externalCostObjectId,
-          rad.sheetId,
-          rad.id,
-          rad.projectId,
-        );
+      // w3a (A7): koblede varer (egen database, ingen felles transaksjon) følger radens sted.
+      // Kjøres ved hvert lagre (ikke bare ved bytte), så et nytt lagre retter en vare som ble
+      // stående etter en feil. IS DISTINCT FROM: bare varer med annet sted skrives.
+      // Attestert vare (snapshot satt) står (S5). Feil her ruller ikke tilbake timeraden —
+      // den logges, og klienten får `vareIkkeFlyttet` (gate 107, vilkår 1).
+      let vareIkkeFlyttet = false;
+      if (rad.projectId !== null) {
+        try {
+          await ctx.prismaVarelager.$executeRawUnsafe(
+            `UPDATE "varelager"."vareforbruk" SET "byggeplass_id" = $1, "external_cost_object_id" = $2, "updated_at" = now()
+             WHERE "dagsseddel_id" = $3 AND "sheet_timer_id" = $4 AND "project_id" = $5 AND "attestert_snapshot" IS NULL
+               AND ("byggeplass_id" IS DISTINCT FROM $1 OR "external_cost_object_id" IS DISTINCT FROM $2)`,
+            nyttSted.byggeplassId,
+            nyttSted.externalCostObjectId,
+            rad.sheetId,
+            rad.id,
+            rad.projectId,
+          );
+        } catch (err) {
+          vareIkkeFlyttet = true;
+          ctx.req.log.error(
+            { err, sheetTimerId: rad.id, sheetId: rad.sheetId },
+            "oppdaterTimerRad: koblet vare ble ikke flyttet til radens sted",
+          );
+        }
       }
-      return oppdatert;
+      return { ...oppdatert, vareIkkeFlyttet };
     }),
 
   fjernTimerRad: protectedProcedure

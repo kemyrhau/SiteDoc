@@ -207,12 +207,61 @@ describe("w3a — vinduene arver jobben", () => {
     expect(verdier).toContain("e1");
   });
 
-  it("blyanten på jobbens timerlinje åpner vinduet uten stedsfelt (S7 A)", () => {
+  it("blyanten på jobbens timerlinje: «Rediger timer-rad» står med stedsfeltene (gate 107)", () => {
     rendre();
     const kort = screen.getAllByRole("button").find((b) => b.textContent?.includes("TILL-001"));
     fireEvent.click(kort!);
     fireEvent.click(screen.getAllByTitle("handling.rediger")[0]!);
-    utenStedsfelt(screen.getByRole("dialog"));
+    const dialog = screen.getByRole("dialog", { name: "timer.detalj.redigerTimerRad" });
+    expect(dialog.textContent).toContain("timer.felt.prosjekt");
+    expect(dialog.textContent).toContain("timer.felt.underprosjekt");
+    expect(dialog.textContent).toContain("timer.felt.byggeplass");
+    // Prosjektet står låst ved redigering, som før. Byggeplass og underprosjekt kan endres (A7).
+    const prosjekt = Array.from(dialog.querySelectorAll("select")).find((s) => s.value === "p1");
+    expect(prosjekt?.disabled).toBe(true);
+    const ecoVelger = Array.from(dialog.querySelectorAll("select")).find((s) => s.value === "e1");
+    expect(ecoVelger?.disabled).toBe(false);
+  });
+
+  it("blyanten på jobbens reiselinje: «Rediger timer-rad» står med stedsfeltene (gate 107, B34 B)", () => {
+    rendre();
+    const sedel = h.data["timer.dagsseddel.hentMedId"] as typeof DAG7_SEDEL;
+    const reise = {
+      ...sedel.timer[1]!,
+      id: "r3",
+      lonnsartId: "lr",
+      fraTid: "16:00",
+      tilTid: "16:30",
+      timer: "0.5",
+      erReise: true,
+      reiseRetning: "retur",
+      createdAt: "2026-11-20T16:00:00.000Z",
+    };
+    h.data["timer.dagsseddel.hentMedId"] = { ...sedel, timer: [...sedel.timer, reise] };
+    h.data["organisasjon.hentArbeidstidDefaults"] = {
+      timerRegistreringsmodus: "prosjektkort",
+      reiseLonnsartId: "lr",
+      reiseGrenser: [],
+    };
+    h.data["timer.lonnsart.list"] = [
+      { id: "l1", navn: "Timelønn", type: "ordinaer", aktiv: true, satsEnhet: "time" },
+      { id: "lr", navn: "Reise", type: "ordinaer", aktiv: true, satsEnhet: "time" },
+    ];
+    cleanup();
+    render(<Side />);
+    const kort = screen.getAllByRole("button").find((b) => b.textContent?.includes("TILL-001"));
+    fireEvent.click(kort!);
+    const blyanter = screen.getAllByTitle("handling.rediger");
+    // Reiselinjen (16:00–16:30) står som egen linje i jobben; blyanten i samme <li>.
+    const reiseBlyant = blyanter.find((b) => b.closest("li")?.textContent?.includes("16:00–16:30"));
+    expect(reiseBlyant).toBeDefined();
+    fireEvent.click(reiseBlyant!);
+    const dialog = screen.getByRole("dialog", { name: "timer.detalj.redigerTimerRad" });
+    expect(dialog.textContent).toContain("timer.felt.prosjekt");
+    expect(dialog.textContent).toContain("timer.felt.underprosjekt");
+    expect(dialog.textContent).toContain("timer.felt.byggeplass");
+    // Det er reiseraden som redigeres.
+    expect(Array.from(dialog.querySelectorAll("input")).some((i) => i.value === "16:30")).toBe(true);
   });
 
   it("dagskort-modus: «Legg til timer-rad» har prosjekt- og underprosjektfeltet som før (S4 C)", () => {

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { prisma } from "@sitedoc/db";
 import { prismaTimer } from "@sitedoc/db-timer";
 import { prismaMaskin } from "@sitedoc/db-maskin";
@@ -36,12 +36,12 @@ const VARE = id("61");
 
 const BRUKERE = [USER, ADMIN];
 
-function ctx(userId: string) {
+function ctx(userId: string, varelager: unknown = prismaVarelager, logError: (...a: unknown[]) => void = () => {}) {
   return {
     prisma,
     prismaMaskin,
     prismaTimer,
-    prismaVarelager,
+    prismaVarelager: varelager,
     userId,
     actualUserId: userId,
     imperseringAktiv: false,
@@ -49,7 +49,7 @@ function ctx(userId: string) {
     tokenKilde: null,
     ipAddress: null,
     userAgent: null,
-    req: { log: { info: () => {}, warn: () => {}, error: () => {} } },
+    req: { log: { info: () => {}, warn: () => {}, error: logError } },
     nyttSessionTokenForRespons: { value: null },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any;
@@ -302,6 +302,49 @@ describe("A7 — oppdaterTimerRad: koblet maskin og vare følger byttet", () => 
 
     expect(await maskinSted(m)).toEqual({ byggeplassId: null, externalCostObjectId: ECO_1 });
     expect(await vareSted(v)).toEqual({ byggeplassId: null, externalCostObjectId: ECO_1 });
+  });
+});
+
+describe("A7 — varesynken: feil meldes, og et nytt lagre retter varen (gate 107, vilkår 1)", () => {
+  it("(7) varekallet feiler → timerad og maskin lagret, vareIkkeFlyttet + logg; nytt lagre med samme verdi flytter varen", async () => {
+    const { sid, dato } = await nySedel();
+    const k = randomUUID();
+    const tid = await timerRad(sid, k, { externalCostObjectId: ECO_1 });
+    const m = await maskinRad(sid, { kortId: k, sheetTimerId: tid, externalCostObjectId: ECO_1 });
+    const v = await vareRad(sid, dato, { kortId: k, sheetTimerId: tid, externalCostObjectId: ECO_1 });
+
+    // Varelager nede: bare råkallet kaster, resten av klienten er ekte.
+    const nede = new Proxy(prismaVarelager, {
+      get(mål, navn, mottaker) {
+        if (navn === "$executeRawUnsafe") {
+          return () => Promise.reject(new Error("varelager nede"));
+        }
+        return Reflect.get(mål, navn, mottaker);
+      },
+    });
+    const logError = vi.fn();
+    const svar1 = await dagsseddelRouter
+      .createCaller(ctx(USER, nede, logError))
+      .oppdaterTimerRad({ id: tid, fraTid: "07:00", tilTid: "15:00", timer: 8, externalCostObjectId: ECO_2 });
+
+    expect(svar1.vareIkkeFlyttet).toBe(true);
+    expect(logError).toHaveBeenCalledTimes(1);
+    expect(logError.mock.calls[0]?.[0]).toMatchObject({ sheetTimerId: tid, sheetId: sid });
+    const t = await prismaTimer.sheetTimer.findUniqueOrThrow({ where: { id: tid }, select: { externalCostObjectId: true } });
+    expect(t.externalCostObjectId).toBe(ECO_2);
+    expect(await maskinSted(m)).toEqual({ byggeplassId: null, externalCostObjectId: ECO_2 });
+    expect(await vareSted(v)).toEqual({ byggeplassId: null, externalCostObjectId: ECO_1 });
+
+    // Nytt lagre med samme verdi (stedet er alt byttet på raden) → varen rettes.
+    const svar2 = await dag().oppdaterTimerRad({
+      id: tid,
+      fraTid: "07:00",
+      tilTid: "15:00",
+      timer: 8,
+      externalCostObjectId: ECO_2,
+    });
+    expect(svar2.vareIkkeFlyttet).toBe(false);
+    expect(await vareSted(v)).toEqual({ byggeplassId: null, externalCostObjectId: ECO_2 });
   });
 });
 

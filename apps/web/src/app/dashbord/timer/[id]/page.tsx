@@ -3637,8 +3637,14 @@ function TimerRadDialog({
   });
 
   const oppdater = trpc.timer.dagsseddel.oppdaterTimerRad.useMutation({
-    onSuccess: () => {
+    onSuccess: (_data: unknown) => {
       utils.timer.dagsseddel.hentMedId.invalidate();
+      // Gate 107: raden er lagret, men koblet vare ble ikke flyttet. Vinduet står åpent med
+      // meldingen — et nytt «Lagre» retter varen.
+      if ((_data as { vareIkkeFlyttet?: boolean } | null)?.vareIkkeFlyttet) {
+        setFeil(t("timer.feil.vareIkkeFlyttet"));
+        return;
+      }
       onLukk();
     },
     onError: (e: { message: string }) => setFeil(e.message),
@@ -3949,8 +3955,9 @@ function TimerRadDialog({
       }
     >
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* D2: prosjekt i modalen (mobil-paritet). Låst ved redigering. w3a: skjult i en jobb. */}
-        {!jobb && (<div>
+        {/* D2: prosjekt i modalen (mobil-paritet). Låst ved redigering. w3a: skjult bare for ny rad
+            fra jobben — ved redigering står feltene, så A7 kan nås fra kortet (gate 107). */}
+        {!(jobb && !rad) && (<div>
           <label className="mb-1 block text-sm font-medium text-gray-700">
             {t("timer.felt.prosjekt")}
           </label>
@@ -3972,7 +3979,7 @@ function TimerRadDialog({
             ))}
           </select>
         </div>)}
-        {!jobb && (
+        {!(jobb && !rad) && (
           <RadByggeplassFelt
             kandidater={bp.kandidater}
             verdi={bp.byggeplassId}
@@ -4126,7 +4133,7 @@ function TimerRadDialog({
             </button>
           </div>
         )}
-        {!jobb && (<div>
+        {!(jobb && !rad) && (<div>
           <label className="mb-1 block text-sm font-medium text-gray-700">
             {t("timer.felt.underprosjekt")}{" "}
             <span className="text-xs text-gray-400">

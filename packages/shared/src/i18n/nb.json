@@ -729,6 +729,7 @@
   "timer.feil.ugyldigPause": "Pause må være et positivt tall (minutter).",
   "timer.feil.sluttForStart": "Slutt-tid må være etter start-tid.",
   "timer.feil.fraTilPaakrevd": "Fra- og til-tid er påkrevd på timer-rader.",
+  "timer.feil.vareIkkeFlyttet": "Timeraden er lagret, men varen på raden ble ikke flyttet til det nye stedet. Trykk Lagre igjen.",
   "timer.feil.overlapp": "Tidsrommet {{fra}}–{{til}} overlapper {{annenFra}}–{{annenTil}} på samme dagsseddel. Én arbeider kan ikke være to steder samtidig.",
   "timer.feil.overlappKort": "Tidsrommet {{fra}}–{{til}} overlapper {{annenFra}}–{{annenTil}} på prosjektkortet {{kort}}. Én arbeider kan ikke være to steder samtidig.",
   "timer.feil.timerAvvik": "Antall timer stemmer ikke med tidsrommet (forventet {{forventet}} t). Juster fra/til eller antall.",
