@@ -1992,6 +1992,19 @@ Kenneth 2026-11-18: «Ja, (a)». Firmavalget «Attestant kan attestere egne time
 - **S2 (w10b) → A.** Utlegg står i jobbens kort også for firmaadministrator (`kortId` og `project` på utlegg i firmalista for alle omfang), som kort-id-specen § 6 sier. Synlig endring for firmaadministrator, med Kenneths hjemmel; testen for «samme svar som før» unntar de to utleggsfeltene.
 - **B36 → 1 (2026-11-20).** Hull i planen funnet ved test av w10a/w10b/w12 på test (`51160003`): attestantens egne dagssedler stod i attesteringen og åpnet et kort uten noen funksjon, fordi selvattestering er av (w7/B15, `tillattSelvAttestering`; `RegistreringPanel.tsx:247`, `:508`). Kenneth: «egne timer vises ikke i attesteringen når selvattestering er av.» Når innstillingen er på, er alt som før. Egne timer ses i Mine timer og attesteres av en annen. 🟡 Vedtatt, ikke bygget; liten del (w10c) bestilles etter Kenneths test.
 
+### 8.13 Kenneth 2026-11-20 etter test av dagsseddelen på PC (test `51160003`) — krav, ordrett
+
+Testet på `/dashbord/timer/[id]`, dagens dagsseddel på PC. Den er ikke bygget om ennå: w3 («Jobben som én flate») er ikke bygget. Bildene er nummerert slik Kenneth nummererte dem: #1 lista, #2 dagen med ett kort, #3 «Legg til maskinbruk», #4 «Rediger timer-rad», #5–#6 ny rad 15–16 på TILL-001 med maskin, #7 dagen etterpå.
+
+- **#3:** «her skal ikke registreres timer fra/til -> kun antall. Maskin skal heller ikke registrere mengde og enhet. Mengde og enhet tilhører varer. Alternativet er å legge til en varelinje over enhet og mengde. Underprosjekt arves fra timerad som standard»
+- **#4:** «rediger timer funger bra.»
+- **#7:** «nå viser dette at rediger timer rad i #4 må være mangelfull. Det er logiske brister i hvordan data knyttes sammen.»
+- **#2:** «jeg liker hvordan #2 ser ut. men ikke hvordan det blir når mer informasjon tilføyes. Hvis #2 var et sammenhengende kort, så ville dette være perfekt. men når jeg legger til timer #5 og #6, da ser jeg at data ikke henger sammen slik jeg ønsker.»
+- **Kravet:** «Arbeider registerer timer fra/til -> følgende informasjon er en del av denne registreringen ->hvor mange timer kjørte maskinen og hvilken maskin. ble det brukt noe varer på denne jobben. har denne jobben noe vareforbruk. har denne jobben reisetid. har denne jobben noen utlegg eller tillegg.» Kenneth: kravet samsvarer med det han har sagt før (§ 1), med andre ord.
+- **Mobil venter:** «mobilappen skal vi vente med til web har fått en timeføring vi er fornøyd med.» w12m og mobildelene av w6 og w9m-oppfølgere bestilles ikke før det.
+
+Kenneth ba om en ny runde mot avvik i planen. 🟡 Fabel går gjennom planen og koden (ordre i `relay/inbox-fabel.md`). Det som strider mot vedtak, blir B-spørsmål: maskinens mengde og enhet (WM104 sier i dag at de gjelder produsert mengde) og firmavalget for fra–til på maskin (B5, w6) mot «kun antall».
+
 ## 9. Rekkefølge
 
 Dette er forslag til oppdeling, ikke ordrer. **w1, w2 og w5 er merget** (§ 9.1–9.3). **w12 krever en migrering** (utfylling av kort-id på reise, § 4.11 del E), som Kenneth kjører. **w6 krever en migrering** (ny
