@@ -1,5 +1,6 @@
 "use client";
 
+import { herAdresse, medRetur } from "@/lib/tilbake-adresse";
 import { useMemo, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
@@ -117,7 +118,7 @@ export default function FirmaHmsSide() {
   // Antall åpne avvik per byggeplass — beregnet klient-side for combobox-visning
   const apneAvvikPerByggeplass = useMemo(() => {
     const map: Record<string, number> = {};
-    for (const t of dokumenter.avvik as DokumentRad[]) {
+    for (const t of dokumenter.avvik as unknown as DokumentRad[]) {
       if (LUKKET.has(t.status)) continue;
       const bid = t.byggeplass?.id ?? t.drawing?.byggeplass?.id;
       if (!bid) continue;
@@ -158,13 +159,14 @@ export default function FirmaHmsSide() {
     const dest = rad.template.subdomain === "avvik" || rad.template.subdomain === "ruh"
       ? `/dashbord/${pid}/oppgaver/${rad.id}`
       : `/dashbord/${pid}/sjekklister/${rad.id}`;
-    router.push(dest);
+    // w14 (TK7–TK10): «← HMS» og sletting går tilbake hit, ikke til prosjektets HMS.
+    router.push(medRetur(dest, herAdresse()));
   }
 
   // Antall per tab — etter fritekst-søk
-  const filtrertAvvik = filtrerPaSok(dokumenter.avvik as DokumentRad[], tekstSok);
-  const filtrertSja = filtrerPaSok(dokumenter.sja as DokumentRad[], tekstSok);
-  const filtrertRuh = filtrerPaSok(dokumenter.ruh as DokumentRad[], tekstSok);
+  const filtrertAvvik = filtrerPaSok(dokumenter.avvik as unknown as DokumentRad[], tekstSok);
+  const filtrertSja = filtrerPaSok(dokumenter.sja as unknown as DokumentRad[], tekstSok);
+  const filtrertRuh = filtrerPaSok(dokumenter.ruh as unknown as DokumentRad[], tekstSok);
   const antallAvvik = filtrertAvvik.length;
   const antallSja = filtrertSja.length;
   const antallRuh = filtrertRuh.length;

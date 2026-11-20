@@ -165,6 +165,15 @@ Ingen ?-ikon; knappeteksten sier hvor knappen går (B39 A, 15 språk):
 - Åpnet direkte (bokmerke, e-post): «Til Mine timer» (`timer.tilMineTimer`).
 `timer.tilbake` («Tilbake til oversikt») brukes ikke lenger i koden; nøkkelen står.
 
+## Web: Tilbake-knappene utenfor timeføringen (w14 leveranse 2, 🟡 ikke merget, `feat/web-timer-w14b`)
+
+Ingen ?-ikon; knappen sier hvor den går (B39 A, 15 språk). Nye tekster (`tilbake.*`):
+- «Tilbake til Mapper» (`tilbake.tilMapper`), «Tilbake til HMS» (`tilbake.tilHms`), «Tilbake til Sjekklister» (`tilbake.tilSjekklister`), «Tilbake til Innstillinger» (`tilbake.tilInnstillinger`).
+- Dokumentleserens pil har ingen synlig tekst; målet står i `title` (hold musa over pila).
+- Importsidene: pila sier «Tilbake til Innstillinger» når siden ble åpnet derfra, ellers som før.
+- Firmasiden for SiteDoc-admin: «Tilbake til Mine timer» når den ble åpnet derfra, ellers «Tilbake til firmaer».
+- «← HMS», «Tilbake» på utskrift og «Avbryt» på «Nytt prosjekt» beholder teksten; bare målet endres.
+
 ## Web: Kortet pr. jobb (`dashbord/timer/[id]/page.tsx`, w3a i web-timeføring, 🟡 ikke merget, `feat/web-timer-w3a`)
 
 Dagsseddel-siden har ikke ?-ikon; teksten står i kortet (`timer.prosjektkort.*`, 15 språk):

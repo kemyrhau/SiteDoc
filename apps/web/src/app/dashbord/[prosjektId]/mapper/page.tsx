@@ -1,5 +1,6 @@
 "use client";
 
+import { medRetur } from "@/lib/tilbake-adresse";
 import { useMemo, useState, useRef, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -135,6 +136,8 @@ export default function MapperSide() {
   const { data: session } = useSession();
   const searchParams = useSearchParams();
   const valgtMappeId = searchParams.get("mappe");
+  // w14 (TK6): leseren går tilbake hit, med samme mappe åpen.
+  const egenAdresse = `/dashbord/${prosjektId}/mapper${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
 
   // Hent alle mapper for å finne valgt mappes navn + tilgangsdata
   const { data: mapper } = trpc.mappe.hentForProsjekt.useQuery(
@@ -759,7 +762,7 @@ export default function MapperSide() {
               celle: (rad) => (
                 <div className="flex items-center gap-1">
                   <Link
-                    href={`/dashbord/${prosjektId}/dokumenter/${rad.id}/les`}
+                    href={medRetur(`/dashbord/${prosjektId}/dokumenter/${rad.id}/les`, egenAdresse)}
                     className="group/les relative rounded p-1 text-gray-400 hover:bg-blue-50 hover:text-sitedoc-primary"
                     title={t("handling.vis")}
                   >

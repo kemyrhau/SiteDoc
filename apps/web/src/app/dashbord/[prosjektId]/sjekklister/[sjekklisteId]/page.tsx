@@ -1,6 +1,7 @@
 "use client";
 
-import { useParams, useRouter } from "next/navigation";
+import { dokumentRetur } from "@/lib/tilbake-adresse";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Spinner, StatusBadge, Card } from "@sitedoc/ui";
@@ -168,7 +169,15 @@ export default function SjekklisteDetaljSide() {
   // retur + brødsmule peker mot HMS-lista, ikke Sjekklister.
   const erHms =
     (fullSjekklisteRå as { template?: { domain?: string } } | undefined)?.template?.domain === "hms";
-  const listeSti = `/dashbord/${params.prosjektId}/${erHms ? "hms" : "sjekklister"}`;
+  // w14 (TK8, TK10): «← HMS» går til HMS-lista brukeren kom fra (Firma › HMS eller prosjektets);
+  // sletting går dit sjekklisten ble åpnet fra (`?retur`: tegningen, kontrollplanen …), ellers lista.
+  const sokeParams = useSearchParams();
+  const standardListe = `/dashbord/${params.prosjektId}/${erHms ? "hms" : "sjekklister"}`;
+  const { hms: hmsSti, etterSletting: listeSti } = dokumentRetur({
+    retur: sokeParams.get("retur"),
+    standardListe,
+    prosjektHms: `/dashbord/${params.prosjektId}/hms`,
+  });
 
   // Flyt-kontekst — ekstrahert hook (TS2589-avlastning): de fire tunge tRPC-type-memoene
   // bor nå i useFlytKontekst der rå-outputene widenes til unknown. Identisk logikk.
@@ -705,7 +714,7 @@ export default function SjekklisteDetaljSide() {
         {erHms && (
           <button
             type="button"
-            onClick={() => router.push(listeSti)}
+            onClick={() => router.push(hmsSti)}
             className="mb-1.5 inline-flex min-h-8 items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-sitedoc-primary"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
@@ -1256,7 +1265,7 @@ export default function SjekklisteDetaljSide() {
         feltLabel={opprettOppgaveFeltLabel}
         forhandsPosisjon={opprettOppgavePosisjon}
         sjekklisteFlytId={(fullSjekklisteRå as { dokumentflytId?: string | null } | undefined)?.dokumentflytId ?? null}
-        returnerTil={`${listeSti}/${params.sjekklisteId}`}
+        returnerTil={`${standardListe}/${params.sjekklisteId}`}
       />
 
     </div>

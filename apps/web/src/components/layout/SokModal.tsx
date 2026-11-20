@@ -85,12 +85,14 @@ export function SokModal({ apen, onLukk }: { apen: boolean; onLukk: () => void }
     rader: treff.filter((r) => r.gruppe === g),
   })).filter((x) => x.rader.length > 0);
 
+  // w14 (TK6): siden søket ble åpnet fra, så pilen i leseren går tilbake dit.
+  const sokFra = typeof window !== "undefined" ? window.location.pathname + window.location.search : null;
   const dokRader: Rad[] =
     norm && dok.prosjektId
       ? dok.treff.map((d) => ({
           type: "dokument" as const,
           key: `dok-${d.documentId}`,
-          href: leserHref(dok.prosjektId!, d.documentId, dok.sokeord),
+          href: leserHref(dok.prosjektId!, d.documentId, dok.sokeord, sokFra),
           dok: d,
         }))
       : [];

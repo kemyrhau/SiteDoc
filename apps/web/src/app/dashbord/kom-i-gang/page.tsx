@@ -1,5 +1,6 @@
 "use client";
 
+import { medRetur } from "@/lib/tilbake-adresse";
 import { useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -43,7 +44,10 @@ export default function KomIGangSide() {
     if (firmaLaster) return;
     if (!erSitedocAdmin) return;
     if (valgtFirma) {
-      router.replace("/dashbord/nytt-prosjekt");
+      // w14 (TK26): «Avbryt» på «Nytt prosjekt» skal gå dit brukeren kom fra.
+      router.replace(
+        medRetur("/dashbord/nytt-prosjekt", new URLSearchParams(window.location.search).get("retur")),
+      );
     } else {
       router.replace("/dashbord/admin/firmaer");
     }

@@ -9,7 +9,7 @@ import { skalVarsleSkjulteTimer } from "@sitedoc/shared";
 import { Spinner, Input, Modal, Button } from "@sitedoc/ui";
 import { MultiComboks } from "@/components/ui/MultiComboks";
 import { RegistrerTimerKnapp } from "@/components/timer/RegistrerTimerKnapp";
-import { medRetur } from "@/lib/tilbake-adresse";
+import { lokalIsoDato, medRetur, mineTimerIntervall } from "@/lib/tilbake-adresse";
 import { HjelpKnapp, HjelpFane } from "@/components/hjelp/HjelpModal";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { spennerFlereAar, visDagDato, visTimerTall } from "@/lib/registrerTimer";
@@ -96,8 +96,9 @@ function ukestart(dato: Date): Date {
   return d;
 }
 
-function tilIso(d: Date): string {
-  return d.toISOString().slice(0, 10);
+/** Dagsseddelens dato fra serveren (UTC-midnatt) som YYYY-MM-DD. */
+function datoIso(d: Date | string): string {
+  return new Date(d).toISOString().slice(0, 10);
 }
 
 function formatDato(d: Date | string): string {
@@ -108,31 +109,6 @@ function formatDato(d: Date | string): string {
   });
 }
 
-function periodeRange(periode: Periode, fraEgen: string, tilEgen: string): { fra: string; til: string } {
-  const naa = new Date();
-  if (periode === "denne_uken") {
-    const start = ukestart(naa);
-    const slutt = new Date(start);
-    slutt.setDate(slutt.getDate() + 6);
-    return { fra: tilIso(start), til: tilIso(slutt) };
-  }
-  if (periode === "denne_maaneden") {
-    const start = new Date(naa.getFullYear(), naa.getMonth(), 1);
-    const slutt = new Date(naa.getFullYear(), naa.getMonth() + 1, 0);
-    return { fra: tilIso(start), til: tilIso(slutt) };
-  }
-  if (periode === "forrige_maaneden") {
-    const start = new Date(naa.getFullYear(), naa.getMonth() - 1, 1);
-    const slutt = new Date(naa.getFullYear(), naa.getMonth(), 0);
-    return { fra: tilIso(start), til: tilIso(slutt) };
-  }
-  if (periode === "siste_3_mnd") {
-    // Siste 3 måneder t.o.m. i dag (inklusivt). TILLEGG 3: lengre tidsperspektiv.
-    const start = new Date(naa.getFullYear(), naa.getMonth() - 3, naa.getDate());
-    return { fra: tilIso(start), til: tilIso(naa) };
-  }
-  return { fra: fraEgen, til: tilEgen };
-}
 
 export default function MineTimerSide() {
   const { t } = useTranslation();
@@ -149,8 +125,8 @@ export default function MineTimerSide() {
     typeof window === "undefined" ? {} : lesLagretFilter(),
   );
   const [periode, setPeriode] = useState<Periode>(lagret.periode ?? "denne_uken");
-  const [fraEgen, setFraEgen] = useState<string>(lagret.fraEgen ?? tilIso(ukestart(new Date())));
-  const [tilEgen, setTilEgen] = useState<string>(lagret.tilEgen ?? tilIso(new Date()));
+  const [fraEgen, setFraEgen] = useState<string>(lagret.fraEgen ?? lokalIsoDato(ukestart(new Date())));
+  const [tilEgen, setTilEgen] = useState<string>(lagret.tilEgen ?? lokalIsoDato(new Date()));
   // TILLEGG 3: søk på én enkelt dato på tvers av prosjekter — overstyrer perioden.
   const [datoSok, setDatoSok] = useState<string>(lagret.datoSok ?? "");
   const [statusFilter, setStatusFilter] = useState<StatusValg>(lagret.statusFilter ?? "alle");
@@ -166,7 +142,7 @@ export default function MineTimerSide() {
 
   // Effektivt dato-vindu: en valgt enkeltdato vinner over perioden.
   const { fra, til } = useMemo(
-    () => (datoSok ? { fra: datoSok, til: datoSok } : periodeRange(periode, fraEgen, tilEgen)),
+    () => (datoSok ? { fra: datoSok, til: datoSok } : mineTimerIntervall(periode, new Date(), fraEgen, tilEgen)),
     [datoSok, periode, fraEgen, tilEgen],
   );
 
@@ -255,10 +231,10 @@ export default function MineTimerSide() {
     organizationId: orgId,
   });
   const usendteKladder = useMemo(() => {
-    const iDag = tilIso(new Date());
+    const iDag = lokalIsoDato(new Date());
     return ((draftRader as unknown as ListeRad[] | undefined) ?? [])
-      .filter((r) => r.antallRader > 0 && tilIso(new Date(r.dato)) < iDag)
-      .sort((a, b) => tilIso(new Date(b.dato)).localeCompare(tilIso(new Date(a.dato))));
+      .filter((r) => r.antallRader > 0 && datoIso(r.dato) < iDag)
+      .sort((a, b) => datoIso(b.dato).localeCompare(datoIso(a.dato)));
   }, [draftRader]);
   const eldsteKladd = usendteKladder[usendteKladder.length - 1];
 
@@ -487,7 +463,7 @@ export default function MineTimerSide() {
                 {t("timer.mine.skjultForAdmin", { firma: ansattFirmanavn })}
               </p>
               <Link
-                href={`/dashbord/admin/firmaer/${orgId}?fane=brukere`}
+                href={medRetur(`/dashbord/admin/firmaer/${orgId}?fane=brukere`, "/dashbord/timer/mine")}
                 className="mt-2 inline-block text-sm text-blue-600 hover:underline"
               >
                 {t("timer.mine.gaaTilBrukere", { firma: ansattFirmanavn })}

@@ -1,5 +1,6 @@
 "use client";
 
+import { herAdresse, medRetur } from "@/lib/tilbake-adresse";
 import { useState, useMemo, useCallback, useRef } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { trpc } from "@/lib/trpc";
@@ -431,7 +432,7 @@ export default function SjekklisteSide() {
     ];
     if (valgte.size > 0) {
       h.push({ id: "skriv-ut-valgte", label: `${t("handling.skrivUt")} (${valgte.size})`, ikon: <Printer className="h-4 w-4" />,
-        onClick: () => router.push(`/dashbord/${params.prosjektId}/sjekklister/skriv-ut?ider=${Array.from(valgte).join(",")}`), variant: "secondary" });
+        onClick: () => router.push(medRetur(`/dashbord/${params.prosjektId}/sjekklister/skriv-ut?ider=${Array.from(valgte).join(",")}`, herAdresse())), variant: "secondary" });
       h.push({ id: "slett-valgte", label: `${t("handling.slett")} (${valgte.size})`, ikon: <Trash2 className="h-4 w-4" />,
         onClick: () => { setSlettFeil(null); setVisSlettModal(true); }, variant: "danger" });
     }
