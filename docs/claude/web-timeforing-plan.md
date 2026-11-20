@@ -1953,6 +1953,27 @@ Målt i nettleser (lokal dev, 1 440): dagsrad 43, jobbrad 38, linje 37 punkter. 
 
 Tester: `attestering-tabell.test.tsx` («w5b — dagsvisningen, alternativ A»), `timer-rad-tabell.test.tsx` («w5b — vakttest», «w5b — blokkvisningen»), `web-timer-w1.test.tsx` (datoen står i dagsraden).
 
+### 9.5 w10 del A i kode (🟡 `feat/web-timer-w10a`, ikke merget)
+
+| Del | Hvor |
+|---|---|
+| A1 Fra–til og pause i kortet | `RegistreringPanel.tsx` (`TidFelter`): felt for fra, til og pause (pausefeltet bare når raden har pause). Lagrer ved utgang eller Enter, etter tidsrundingen; Esc angrer. Urørte felt viser lagret `timer`; timene regnes ut (`effektiveTimerFraSpenn`) og vises som tekst først når fra, til eller pause er endret (RETUR 1). Bare timebaserte lønnsarter (`erTimebasertLonnsart`: `satsEnhet` null eller `per_time`, som serverens `erTimebasert`); `per_km`, `per_dag`, `per_natt` og art utenfor katalogen beholder tallfeltet (`timer` = antall), og avvist retting setter også det tilbake. Ett `rettRadFelt` sender `fraTid`, `tilTid`, `timer` og `pauseMin`. Ugyldig klokkeslett, til før fra og for lang pause sendes ikke. Avvist kall setter feltet tilbake, og grunnen står ved linja (`role="alert"`). Lønnsartvalget: `tillatteLonnsarter(linje, …)` følger linjetypen (Fabel 2026-11-20): reiselinja (`erReise`) bare reisearter, arbeidslinja ingen reisearter; den lagrede står alltid. |
+| A2 Knappene | Linja har ingen knapper. ✓ ↩ ↺ står på jobbraden og dagsraden som før. ✂ står ved timelinja, ved en maskin på egen linje og ved tillegget i kortet (`kanSplitte`, samme vilkår som før, S1). «Rediger jobben» står øverst i kortet (`redigerJobb` i `AttesteringTabell.tsx`, åpner `RedigerRadModal` for jobbens sedel, prosjekt og underprosjekt). |
+| A3 Kolonneoppsettet | Liste-nøkkelen er `timer-attestering-v2`: lagrede oppsett nullstilles én gang. |
+| A4 Cellene | Bare lesing; `CelleRedigering` og cellens `rettRadFelt` er fjernet fra `AttesteringTabell.tsx`. |
+| A5 Småting | ↗ heter «Åpne dagsseddelen» (`timer.attestering.tabell.aapneDagsseddel`). Detaljsidens tabell har full bredde (`AttesteringDetalj.tsx`, `max-w-6xl` fjernet). |
+| A6 Beskrivelsen | Del 3 viser radenes `beskrivelse` sortert på tid, hver tekst én gang (`jobbensBeskrivelser`); aldri aktiviteten. Uten tekst: «Ikke utfylt» i fet skrift; i reisekortet «—» (§ 4.9 punkt 8). Aktiviteten står i kortets hode ved byggeplassen. «Kommentar til dagen» (`sedel.beskrivelse`) står under når den har innhold. |
+| A7 Avkrysningen | På jobbraden, reiseraden og dagsraden (`TimerRadTabell.tsx`: sumraden viser både avkrysning og pil i den faste venstrekolonnen på 36 px). Dagsraden med flere jobber velger alle dagens jobber. «Attester utvalget» = `byggJobbUtvalg` (`attestering-tabell.ts`): de avkryssede synlige jobbene, eller alle synlige, slått opp i den ufiltrerte modellen, så linjer filteret skjuler kommer med. Knappen teller jobber. |
+| A8 Kvitteringen | Også under «Utlegg» i kortet (`Kvitteringer.tsx`, flyttet ut av `AttesteringTabell.tsx`). |
+| A9 `splittRad` | Delene arver originalens `beskrivelse` (`dagsseddel.ts`, `splittRad`). Eneste serverendring. |
+| A10 Reisen | Utgått (orkestrator 2026-11-20, reisen flyttes inn i jobbens kort i w12). Reiseblokken har avkrysning og ✓ ↩ som en jobbrad (modellens `AttKort.reise`). |
+
+Skjermbilder ved 1 440 (komponenten rendret med testdata, appens Tailwind): `skisser-web-timeforing/w10a-liste-kort-aapent.png` og `w10a-liste-lukket.png`, ved siden av `ks-attestering.png`.
+
+Målt på test (M7, 1 440, firmaattesteringen, uke 20, fanen Attestert): dagsraden 13.05. for Per Prosjektadmin er 228 punkter, 14.05. er 43. Årsaken er Avvik-cella (68 px): dagsraden bærer fire merker, og ett av dem er hele setningen «Avvik denne uka (uke 20): ført overtid under ukenorm 37.5 t», ikke et kort merke. Den brytes over mange linjer (212 px). Overtidslinja samme dag er 173 punkter av samme grunn, og maskinlinja 49 fordi «Uten bevis» brytes i to. Ikke rettet i w10a.
+
+Tester: `attestering-tabell.test.tsx` (blokkene merket «w10a»), `attestering-tabell-modell.test.ts` («w10a (B30 A)»), `kortid-d2a.integration.test.ts` («w10a (A9)»).
+
 ## 10. Ikke målt
 
 - Databasen: Kenneths rader fra 07.11, firmaets innstillinger i test, og om testfirmaet har PSI-modulen på.

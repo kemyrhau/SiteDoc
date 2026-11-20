@@ -43,6 +43,6 @@ describe("w9 — «høyst» på PC", () => {
   });
 
   it("den åpne registreringen lagrer ikke en retting over grensen", () => {
-    expect(les(REGISTRERING)).toMatch(/if \(over\) return;\s*onLagre\(v\);/);
+    expect(les(REGISTRERING)).toMatch(/if \(over\) return;\s*onLagre\(v,/);
   });
 });

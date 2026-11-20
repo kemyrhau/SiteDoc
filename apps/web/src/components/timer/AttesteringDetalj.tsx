@@ -212,8 +212,9 @@ export function AttesteringDetalj({
   // ikke før lag 2) → intet banner (ingen falsk alarm på historiske sedler).
   const normStatus = sheet.normStatus;
 
+  // w10a (A5, K11): full bredde — i `max-w-6xl` ble tabellens kolonner og tekst kuttet.
   return (
-    <div className={`max-w-6xl p-6`}>
+    <div className="p-6">
       <Link
         href={tilbakeUrl}
         className="mb-3 inline-flex items-center gap-1 text-sm text-sitedoc-primary hover:underline"

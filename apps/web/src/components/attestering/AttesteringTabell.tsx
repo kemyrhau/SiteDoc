@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo, useState, type ReactNode, type KeyboardEvent } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
-import { Check, CornerUpLeft, RotateCcw, Scissors, Pencil, X, SlidersHorizontal, ExternalLink, Paperclip } from "lucide-react";
+import { Check, CornerUpLeft, RotateCcw, X, SlidersHorizontal, ExternalLink } from "lucide-react";
 import { Button, Modal, Tooltip } from "@sitedoc/ui";
 import {
   TIMER_TABELL_KOL,
@@ -13,8 +13,6 @@ import {
   type TimerTabellKolKey,
 } from "@sitedoc/shared";
 import { trpc } from "@/lib/trpc";
-import { SignertBilde } from "@/components/SignertBilde";
-import { SignertLenke } from "@/components/SignertLenke";
 import { formaterNorsk } from "@/lib/timer-rapport-eksport";
 import { useTabelloppsett } from "@/hooks/useTabelloppsett";
 import { KolonneVelger } from "@/components/ui/KolonneVelger";
@@ -26,13 +24,14 @@ import {
 import { SplittRadModal } from "@/components/timer/SplittRadModal";
 import type { ProsjektValg } from "@/components/timer/rediger-types";
 import { RedigerRadModal } from "./RedigerRadModal";
+import { Kvitteringer } from "./Kvitteringer";
 import { RegistreringPanel } from "./RegistreringPanel";
 import { ReiseRadMerke } from "./ReiseRadMerke";
-import { merkeModell } from "./utstyr-navn";
 import {
   AVVIK_FILTER,
   FILTER_KOLONNER,
   antallRader,
+  byggJobbUtvalg,
   byggUtvalg,
   filterAlternativer,
   filtrerModell,
@@ -46,7 +45,6 @@ import {
   type AttKort,
   type AttLinje,
   type AttSedel,
-  type AttVedlegg,
   type AvvikMerke,
   type Gruppering,
   type RadIder,
@@ -66,19 +64,21 @@ export interface UkeoversiktApi {
  * dagsrad øverst med dato, ansatt, dagens sum, normmerket og «Attester dagen» / «Gjenåpne
  * dagen» og lenke til sedelen. Har dagen flere kort, får hvert kort en jobbrad med ✓, retur
  * og gjenåpne (R4) og sin egen kantfarge; med ett kort står kortets felt og ↺ i dagsraden.
- * Linjene har sine egne knapper (R10, R23). Retting skjer i cella på linja (R21).
+ *
+ * w10a (B24 B, B25 A, B27 A, B30 A): jobben attesteres samlet. ✓ ↩ ↺ og avkrysningen står bare
+ * på de blå radene (dag, jobb, reise); linjene kan bare leses og har ingen knapper, bortsett fra
+ * kvitteringen på utlegg. Retting, ✂ og «✎ Rediger jobben» skjer i kortet den blå raden åpner.
  *
  * Én verktøylinje (R17): sidens uke/gruppering/fane kommer inn som `verktoy`, resten
  * eies her. Filter, sortering og «bare oversiktsrader» gjelder besøket (R7).
  */
 
-type Felt = "fraTid" | "tilTid" | "timer" | "pauseMin" | "lonnsartId" | "aktivitetId" | "vehicleId" | "mengde" | "enhet" | "antall";
-type Mal = { radType: "timer" | "maskin" | "tillegg"; radId: string; felt: Felt; verdi: string; type: "tekst" | "tall" | "heltall" | "valg" };
-
-const LISTE = "timer-attestering";
+// w10a (A3, B26 A): ny listenøkkel — lagrede oppsett nullstilles én gang, alle får kjernekolonnene.
+const LISTE = "timer-attestering-v2";
 const STANDARD = new Set<string>(TIMER_TABELL_STANDARD);
+// w10a: avkrysning og pil på de blå radene står sammen med smalere innrykk (`TimerRadTabell`).
 const VENSTRE = 36;
-// ✓ ↩ ✂ penn, og «Attester dagen» ↩ ↗ på sumraden — smalere brytes knappen og raden blir dobbelt høy (målt w5).
+// «Attester dagen» ↩ ↺ ↗ på dagsraden — smalere brytes knappen og raden blir dobbelt høy (målt w5).
 const HOYRE = 176;
 
 /**
@@ -176,9 +176,8 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
   const [returner, setReturner] = useState<RadIder | null>(null);
   const [gjenaapneDag, setGjenaapneDag] = useState<string | null>(null);
   const [splitt, setSplitt] = useState<AttLinje | null>(null);
-  const [rediger, setRediger] = useState<AttLinje | null>(null);
-  const [redigerer, setRedigerer] = useState<{ nokkel: string; mal: Mal } | null>(null);
-  const [celleFeil, setCelleFeil] = useState<Record<string, string>>({});
+  // w10a (A2): «✎ Rediger jobben» i kortet åpner vinduet for jobbens prosjekt og underprosjekt.
+  const [rediger, setRediger] = useState<{ sheetId: string; projectId: string; ecoId: string | null } | null>(null);
   // w8: jobben (kortet) som har registreringen åpen under jobbraden. Besøkets tilstand.
   const [aapenKort, setAapenKort] = useState<string | null>(null);
 
@@ -209,19 +208,18 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
     [dager, filterVerdier, beskrivelseSok],
   );
 
-  // Utvalget (R10): avkryssede linjer blant de synlige; ingen avkrysset → alle synlige.
-  const utvalgGrunnlag = useMemo(() => {
-    const krysset = synligeLinjer.filter((l) => valgte.has(l.nokkel));
-    return krysset.length > 0 ? krysset : synligeLinjer;
-  }, [synligeLinjer, valgte]);
-  const utvalg = useMemo(() => byggUtvalg(utvalgGrunnlag, sedelFor, prosjektKontekst), [utvalgGrunnlag, sedelFor, prosjektKontekst]);
+  // Utvalget (w10a, B30 A): hele jobber — de avkryssede blant de synlige, ellers alle synlige.
+  // Jobbene slås opp ufiltrert, så linjer filteret skjuler, attesteres med (`byggJobbUtvalg`).
+  const synligeKort = useMemo(() => synlige.flatMap((d) => d.kort.map((k) => k.nokkel)), [synlige]);
+  const utvalg = useMemo(
+    () => byggJobbUtvalg(dager, synligeKort, valgte, sedelFor, prosjektKontekst),
+    [dager, synligeKort, valgte, sedelFor, prosjektKontekst],
+  );
 
-  // Kataloger til valg-cellene (samme spørringer som useKatalogNavn — delt cache).
+  // Katalogene: lønnsartene til kortet, og navnene i «var …» (samme spørringer som useKatalogNavn — delt cache).
   const katalogInput = { organizationId: orgId };
   const { data: lonnsarter } = trpc.timer.lonnsart.list.useQuery(katalogInput);
   const { data: aktiviteter } = trpc.timer.aktivitet.list.useQuery(katalogInput);
-  const { data: utstyrRaw } = trpc.maskin.equipment.list.useQuery(katalogInput);
-  const utstyr = utstyrRaw as unknown as Array<{ id: string; merke: string | null; modell: string | null; internNavn: string | null }> | undefined;
   const { data: prosjekterRaw } = trpc.prosjekt.hentAlle.useQuery({ organizationId: orgId, inkluderFrosne: true });
   const prosjekter = (prosjekterRaw ?? []) as unknown as ProsjektValg[];
   const { data: innstilling } = trpc.organisasjon.hentSetting.useQuery({ organizationId: orgId });
@@ -236,7 +234,6 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
   const attesterRader = trpc.timer.dagsseddel.attesterRader.useMutation({ onSuccess: (_d: unknown) => { setValgte(new Set()); oppfrisk(); }, onError: feil });
   const gjenaapneRader = trpc.timer.dagsseddel.gjenaapneRader.useMutation({ onSuccess: (_d: unknown) => oppfrisk(), onError: feil });
   const attesterDag = trpc.timer.dagsseddel.attester.useMutation({ onSuccess: (_d: unknown) => oppfrisk(), onError: feil });
-  const rettRadFelt = trpc.timer.dagsseddel.rettRadFelt.useMutation();
   const opptatt = attesterRader.isPending || gjenaapneRader.isPending || attesterDag.isPending;
 
   function attester(radIder: RadIder) {
@@ -252,67 +249,6 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
   function attesterUtvalget() {
     setMelding(utvalg.stoende > 0 ? t("timer.attestering.tabell.stoende", { count: utvalg.stoende }) : null);
     if (antallRader(utvalg.radIder) > 0) attesterRader.mutate({ radIder: utvalg.radIder });
-  }
-
-  /* ---------------- Retting i cella (R21, T61) ---------------- */
-
-  function malFor(k: TimerTabellKolKey, l: AttLinje, under: number): Mal | null {
-    const s = sedelFor(l.sheetId);
-    if (readOnly || !s?.redigerTillatt || !l.ventende || !l.harHandling || !iKontekst(l)) return null;
-    const kilde = l.kilde;
-    if (kilde.type === "timer" && under === 0) {
-      const r = kilde.rad;
-      const m = (felt: Felt, verdi: unknown, type: Mal["type"]): Mal => ({ radType: "timer", radId: r.id, felt, verdi: verdi == null ? "" : String(verdi), type });
-      if (k === "fraTid") return m("fraTid", r.fraTid, "tekst");
-      if (k === "tilTid") return m("tilTid", r.tilTid, "tekst");
-      if (k === "timer") return m("timer", r.timer, "tall");
-      if (k === "pause") return m("pauseMin", r.pauseMin, "heltall");
-      if (k === "betegnelse") return m("lonnsartId", r.lonnsartId, "valg");
-      if (k === "aktivitet") return m("aktivitetId", r.aktivitetId, "valg");
-    }
-    const maskin = kilde.type === "timer" ? kilde.maskiner[under] : kilde.type === "maskin" && under === 0 ? kilde.rad : undefined;
-    if (maskin) {
-      const m = (felt: Felt, verdi: unknown, type: Mal["type"]): Mal => ({ radType: "maskin", radId: maskin.id, felt, verdi: verdi == null ? "" : String(verdi), type });
-      if (k === "maskin") return m("vehicleId", maskin.vehicleId, "valg");
-      if (k === "maskintimer") return m("timer", maskin.timer, "tall");
-      if (k === "mengde") return m("mengde", maskin.mengde, "tall");
-      if (k === "enhet") return m("enhet", maskin.enhet, "tekst");
-    }
-    if (kilde.type === "tillegg" && under === 0 && k === "antall") {
-      return { radType: "tillegg", radId: kilde.rad.id, felt: "antall", verdi: String(kilde.rad.antall ?? ""), type: "tall" };
-    }
-    return null;
-  }
-
-  function lagre(nokkel: string, mal: Mal, verdi: string) {
-    setRedigerer(null);
-    if (verdi === mal.verdi) return;
-    const tolket: string | number | null =
-      mal.type === "tall" ? (verdi.trim() === "" ? null : Number(verdi.replace(",", "."))) :
-      mal.type === "heltall" ? Number.parseInt(verdi, 10) :
-      verdi.trim() === "" ? null : verdi.trim();
-    if (typeof tolket === "number" && Number.isNaN(tolket)) {
-      setCelleFeil((f) => ({ ...f, [nokkel]: t("timer.attestering.tabell.ugyldigTall") }));
-      return;
-    }
-    setCelleFeil(({ [nokkel]: _bort, ...rest }) => rest);
-    const felter = { [mal.felt]: tolket };
-    const input =
-      mal.radType === "timer" ? { radType: "timer" as const, radId: mal.radId, felter } :
-      mal.radType === "maskin" ? { radType: "maskin" as const, radId: mal.radId, felter } :
-      { radType: "tillegg" as const, radId: mal.radId, felter };
-    rettRadFelt.mutate(input as Parameters<typeof rettRadFelt.mutate>[0], {
-      onSuccess: (_d: unknown) => oppfrisk(),
-      // Avviser serveren, står den gamle verdien og cella viser grunnen (T61).
-      onError: (e: { message: string }) => setCelleFeil((f) => ({ ...f, [nokkel]: e.message })),
-    });
-  }
-
-  function valgAlternativer(felt: Felt): { value: string; label: string }[] {
-    if (felt === "lonnsartId") return (lonnsarter ?? []).map((l) => ({ value: l.id, label: l.navn }));
-    if (felt === "aktivitetId") return (aktiviteter ?? []).map((a) => ({ value: a.id, label: a.navn }));
-    if (felt === "vehicleId") return (utstyr ?? []).map((e) => ({ value: e.id, label: merkeModell(e) || e.internNavn || e.id }));
-    return [];
   }
 
   /* ---------------- Celler ---------------- */
@@ -353,42 +289,14 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
     return t("timer.attestering.tabell.var", { verdi: tekst });
   }
 
+  /** w10a (A4, B25 A): cellene på linja kan bare leses; retting skjer i kortet. */
   function celle(k: TimerTabellKolKey, l: AttLinje, under: number): ReactNode {
-    // Fra–til (w5): én kolonne, men fra og til rettes hver for seg som før.
-    if (k === "fraTil" && (malFor("fraTid", l, under) || malFor("tilTid", l, under))) {
-      return (
-        <span className="flex items-start whitespace-nowrap">
-          <span className="shrink-0 [&>button]:mx-0 [&>button]:w-auto [&>button]:px-0">{celle("fraTid", l, under)}</span>
-          <span>–</span>
-          <span className="shrink-0 [&>button]:mx-0 [&>button]:w-auto [&>button]:px-0">{celle("tilTid", l, under)}</span>
-        </span>
-      );
-    }
-    const nokkel = `${l.nokkel}:${under}:${k}`;
-    const mal = malFor(k, l, under);
     const varT = varTekst(k, l, under);
-    const feilT = celleFeil[nokkel];
-    const innhold = visning(k, l, under);
-    if (redigerer?.nokkel === nokkel && mal) {
-      return <CelleRedigering mal={mal} alternativer={valgAlternativer(mal.felt)} onLagre={(v) => lagre(nokkel, mal, v)} onAngre={() => setRedigerer(null)} />;
-    }
-    const tekst = (
-      <>
-        {innhold}
-        {varT && <span className="block text-[11px] text-gray-500">{varT}</span>}
-        {feilT && <span className="block whitespace-normal text-[11px] text-red-600">{feilT}</span>}
-      </>
-    );
-    if (!mal) return tekst;
     return (
-      <button
-        type="button"
-        onClick={() => setRedigerer({ nokkel, mal })}
-        className="-mx-1 block w-[calc(100%+0.5rem)] min-w-0 truncate rounded px-1 text-inherit [text-align:inherit] hover:bg-blue-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-        title={t("timer.attestering.tabell.rettCelle")}
-      >
-        {tekst}
-      </button>
+      <>
+        {visning(k, l, under)}
+        {varT && <span className="block text-[11px] text-gray-500">{varT}</span>}
+      </>
     );
   }
 
@@ -444,7 +352,7 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
   function sedelLenke(sheetId: string) {
     if (!sedelUrl) return null;
     return (
-      <Link href={sedelUrl(sheetId)} title={t("timer.attestering.meny.rediger")} aria-label={t("timer.attestering.meny.rediger")} className="inline-flex h-7 w-7 items-center justify-center rounded border border-gray-200 bg-white text-gray-600 hover:bg-gray-50">
+      <Link href={sedelUrl(sheetId)} title={t("timer.attestering.tabell.aapneDagsseddel")} aria-label={t("timer.attestering.tabell.aapneDagsseddel")} className="inline-flex h-7 w-7 items-center justify-center rounded border border-gray-200 bg-white text-gray-600 hover:bg-gray-50">
         <ExternalLink className="h-3.5 w-3.5" />
       </Link>
     );
@@ -506,26 +414,65 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
     );
   }
 
+  /** w10a (B24 B, B31 B): linja har ingen knapper; kvitteringen på utlegg er det eneste. */
   function linjeHandlinger(l: AttLinje) {
-    if (!iKontekst(l)) return null;
-    // WM54/B10: ✂ og pennen vises bare når firmaet har «rediger ved attestering» på.
-    const redigerTillatt = sedelFor(l.sheetId)?.redigerTillatt === true;
-    const kanSplitte = !readOnly && redigerTillatt && l.ventende && l.projectId !== null && (l.kilde.type === "timer" || l.kilde.type === "maskin" || l.kilde.type === "tillegg");
+    if (l.kilde.type !== "utlegg" || !iKontekst(l)) return null;
     return (
       <span className="flex items-center gap-1">
-        {l.kilde.type === "utlegg" && <Kvitteringer vedlegg={l.kilde.rad.vedlegg ?? []} />}
-        {l.harHandling && !readOnly && l.ventende && (
-          <>
-            {handlingKnapp({ ikon: <Check className="h-4 w-4" />, tekst: t("timer.attestering.attester"), tittel: l.sperre ?? undefined, disabled: opptatt || !!l.sperre, onClick: () => attester(l.radIder), farge: "text-green-700 hover:bg-green-50" })}
-            {handlingKnapp({ ikon: <CornerUpLeft className="h-4 w-4" />, tekst: t("timer.attestering.returner"), onClick: () => setReturner(l.radIder) })}
-          </>
-        )}
-        {l.harHandling && l.attestert &&
-          handlingKnapp({ ikon: <RotateCcw className="h-4 w-4" />, tekst: t("timer.attestering.tabell.gjenaapneLinje"), disabled: opptatt, onClick: () => gjenaapne(l.radIder) })}
-        {kanSplitte && handlingKnapp({ ikon: <Scissors className="h-3.5 w-3.5" />, tekst: t("timer.attestering.meny.splittRad"), onClick: () => setSplitt(l) })}
-        {!readOnly && redigerTillatt && l.ventende && l.projectId !== null && l.kilde.type !== "utlegg" &&
-          handlingKnapp({ ikon: <Pencil className="h-3.5 w-3.5" />, tekst: t("timer.attestering.meny.rediger"), onClick: () => setRediger(l) })}
+        <Kvitteringer vedlegg={l.kilde.rad.vedlegg ?? []} />
       </span>
+    );
+  }
+
+  /**
+   * ✂ ved linja i kortet (w10a A2): samme vilkår som ✂ hadde på linja — WM54/B10: bare når
+   * firmaet har «rediger ved attestering» på.
+   */
+  function kanSplitte(l: AttLinje): boolean {
+    if (!iKontekst(l)) return false;
+    const redigerTillatt = sedelFor(l.sheetId)?.redigerTillatt === true;
+    return !readOnly && redigerTillatt && l.ventende && l.projectId !== null && (l.kilde.type === "timer" || l.kilde.type === "maskin" || l.kilde.type === "tillegg");
+  }
+
+  /**
+   * «✎ Rediger jobben» (w10a A2, B27 A): samme vilkår som pennen hadde på linja, for minst én
+   * linje i jobben. Vinduet åpnes for jobbens prosjekt og underprosjekt.
+   */
+  function redigerJobb(kort: AttKort): (() => void) | undefined {
+    const redigerTillatt = sedelFor(kort.sheetId)?.redigerTillatt === true;
+    const kan = kort.linjer.some((l) => iKontekst(l) && !readOnly && redigerTillatt && l.ventende && l.projectId !== null && l.kilde.type !== "utlegg");
+    if (!kan || kort.projectId === null) return undefined;
+    const projectId = kort.projectId;
+    const medEco = kort.linjer.find((l) => l.kilde.type === "timer" || l.kilde.type === "maskin");
+    const ecoId = medEco && (medEco.kilde.type === "timer" || medEco.kilde.type === "maskin") ? medEco.kilde.rad.externalCostObjectId ?? null : null;
+    return () => setRediger({ sheetId: kort.sheetId, projectId, ecoId });
+  }
+
+  /* ---------------- Avkrysningen på de blå radene (w10a A7, B30 A) ---------------- */
+
+  /** Jobben kan krysses av: minst én ventende linje med handling, i konteksten, uten sperre. */
+  const kortKanVelges = (kort: AttKort) =>
+    !readOnly && kort.linjer.some((l) => l.harHandling && l.ventende && !l.sperre && iKontekst(l));
+
+  /** Kryss for jobbene `kort` (én jobb, eller alle jobbene på dagen). Ingen å velge → ingen kryss. */
+  function kryss(kort: readonly AttKort[], etikett: string): ReactNode | undefined {
+    const nokler = kort.filter(kortKanVelges).map((k) => k.nokkel);
+    if (nokler.length === 0) return undefined;
+    return (
+      <input
+        type="checkbox"
+        aria-label={etikett}
+        checked={nokler.every((n) => valgte.has(n))}
+        onChange={(e) => {
+          const paa = e.target.checked;
+          setValgte((v) => {
+            const ny = new Set(v);
+            for (const n of nokler) if (paa) ny.add(n); else ny.delete(n);
+            return ny;
+          });
+        }}
+        className="h-3.5 w-3.5 rounded"
+      />
     );
   }
 
@@ -542,6 +489,10 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
         kanAttestere={kanAttestere}
         kanRette={kanAttestere && s.redigerTillatt && egne.some((l) => l.ventende)}
         lonnsarter={lonnsarter ?? []}
+        tidsrunding={tidsrunding}
+        kanSplitte={kanSplitte}
+        onSplitt={setSplitt}
+        onRedigerJobb={redigerJobb(kort)}
         onEndret={oppfrisk}
         onLukk={() => setAapenKort(null)}
       />
@@ -660,6 +611,7 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
             nokkel: `o:${kort.nokkel}`,
             variant: "dag",
             blokk: { kant: DAG_KANT },
+            venstre: kryss([kort], t("timer.attestering.tabell.velgJobb")),
             hoyre: kortHandlinger(kort, s),
             ...aapne(kort),
             celle: (k) => {
@@ -701,6 +653,8 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
         nokkel: `d:${s.id}`,
         variant: "dag",
         blokk: { kant: DAG_KANT },
+        // Kryss på dagsraden velger alle jobbene på dagen; med én jobb er dagsraden jobben.
+        venstre: kryss(dag.kort, enKort ? t("timer.attestering.tabell.velgJobb") : t("timer.attestering.tabell.velgDagen")),
         hoyre: dagHandlinger(dag, enKort),
         // Flere jobber: dagsraden er ikke én jobb og åpner ingenting; jobbradene gjør det.
         ...(enKort ? aapne(enKort) : {}),
@@ -731,6 +685,7 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
             nokkel: `o:${kort.nokkel}`,
             variant: "jobb",
             blokk: { kant },
+            venstre: kryss([kort], t("timer.attestering.tabell.velgJobb")),
             hoyre: kortHandlinger(kort),
             ...aapne(kort),
             celle: (k) => {
@@ -750,7 +705,7 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
     }
     return ut;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- handlingene leser fersk tilstand ved klikk
-  }, [synlige, gruppering, bareOversikt, t, readOnly, opptatt, etikettKol, avvikKol, prosjektKontekst, medAar, aapenKort, lonnsarter, i18n.language]);
+  }, [synlige, gruppering, bareOversikt, t, readOnly, opptatt, etikettKol, avvikKol, prosjektKontekst, medAar, aapenKort, lonnsarter, i18n.language, valgte, tidsrunding]);
 
   /* ---------------- Filter i hodet (R8) ---------------- */
 
@@ -787,9 +742,9 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
     [t],
   );
 
-  const kanVelges = (l: AttLinje) => l.harHandling && l.ventende && !readOnly && !l.sperre && iKontekst(l);
-  const valgbare = synligeLinjer.filter(kanVelges);
-  const alleValgt = valgbare.length > 0 && valgbare.every((l) => valgte.has(l.nokkel));
+  // Hodets kryss velger alle synlige jobber som kan velges.
+  const valgbare = synlige.flatMap((d) => d.kort).filter(kortKanVelges).map((k) => k.nokkel);
+  const alleValgt = valgbare.length > 0 && valgbare.every((n) => valgte.has(n));
 
   return (
     <div className="flex flex-col gap-2">
@@ -819,9 +774,9 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
           {t("timer.attestering.tabell.teller", { n: synligeLinjer.length, m: alleLinjer.length })}
         </span>
         {!readOnly && (
-          <Button size="sm" onClick={attesterUtvalget} disabled={opptatt || utvalg.antallLinjer === 0}>
+          <Button size="sm" onClick={attesterUtvalget} disabled={opptatt || utvalg.antallJobber === 0}>
             <Check className="mr-1 h-3.5 w-3.5" />
-            {t("timer.attestering.tabell.attesterUtvalget", { antall: utvalg.antallLinjer })}
+            {t("timer.attestering.tabell.attesterUtvalget", { antall: utvalg.antallJobber })}
           </Button>
         )}
       </div>
@@ -859,20 +814,12 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
                 type="checkbox"
                 aria-label={t("timer.attestering.tabell.velgAlle")}
                 checked={alleValgt}
-                onChange={(e) => setValgte(e.target.checked ? new Set(valgbare.map((l) => l.nokkel)) : new Set())}
+                onChange={(e) => setValgte(e.target.checked ? new Set(valgbare) : new Set())}
                 className="h-3.5 w-3.5 rounded"
               />
             ),
-            celle: (l) =>
-              kanVelges(l) ? (
-                <input
-                  type="checkbox"
-                  aria-label={t("timer.attestering.tabell.velgLinje")}
-                  checked={valgte.has(l.nokkel)}
-                  onChange={(e) => setValgte((v) => { const ny = new Set(v); if (e.target.checked) ny.add(l.nokkel); else ny.delete(l.nokkel); return ny; })}
-                  className="mt-0.5 h-3.5 w-3.5 rounded"
-                />
-              ) : null,
+            // w10a (A7): linjene har ingen avkrysning; den står på de blå radene.
+            celle: () => null,
           }}
           hoyre={{ bredde: HOYRE, celle: linjeHandlinger }}
           linjeKlasse={(l) => (iKontekst(l) ? undefined : "opacity-50")}
@@ -903,11 +850,11 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
       {splitt && splitt.kilde.type !== "vare" && splitt.kilde.type !== "utlegg" && (
         <SplittFor linje={splitt} orgId={orgId} prosjekter={prosjekter} tidsrunding={tidsrunding} onLukk={() => setSplitt(null)} onLagret={() => { setSplitt(null); oppfrisk(); }} />
       )}
-      {rediger && rediger.projectId !== null && (
+      {rediger && (
         <RedigerRadModal
           sheetId={rediger.sheetId}
           projectId={rediger.projectId}
-          ecoId={rediger.kilde.type === "timer" || rediger.kilde.type === "maskin" ? rediger.kilde.rad.externalCostObjectId : null}
+          ecoId={rediger.ecoId}
           onLukk={() => setRediger(null)}
         />
       )}
@@ -916,39 +863,6 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
 }
 
 /* ------------------------------------------------------------------ */
-
-function CelleRedigering({ mal, alternativer, onLagre, onAngre }: { mal: Mal; alternativer: { value: string; label: string }[]; onLagre: (v: string) => void; onAngre: () => void }) {
-  const [verdi, setVerdi] = useState(mal.verdi);
-  const tast = (e: KeyboardEvent<HTMLInputElement | HTMLSelectElement>) => {
-    // Enter eller Tab lagrer cella i ett kall; Esc angrer (R21, T61).
-    if (e.key === "Enter" || e.key === "Tab") {
-      if (e.key === "Enter") e.preventDefault();
-      onLagre(verdi);
-    } else if (e.key === "Escape") {
-      e.preventDefault();
-      onAngre();
-    }
-  };
-  const klasse = "w-full rounded border border-blue-400 bg-white px-1 py-0.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
-  if (mal.type === "valg") {
-    return (
-      <select autoFocus value={verdi} onChange={(e) => setVerdi(e.target.value)} onKeyDown={tast} onBlur={onAngre} className={klasse}>
-        {alternativer.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
-      </select>
-    );
-  }
-  return (
-    <input
-      autoFocus
-      value={verdi}
-      inputMode={mal.type === "tekst" ? undefined : "decimal"}
-      onChange={(e) => setVerdi(e.target.value)}
-      onKeyDown={tast}
-      onBlur={onAngre}
-      className={klasse}
-    />
-  );
-}
 
 function SplittFor({ linje, orgId, prosjekter, tidsrunding, onLukk, onLagret }: {
   linje: AttLinje; orgId: string; prosjekter: ProsjektValg[]; tidsrunding: number | null; onLukk: () => void; onLagret: () => void;
@@ -1011,36 +925,6 @@ function GjenaapneDagDialog({ sheetId, onLukk, onFerdig }: { sheetId: string; on
         </div>
       </div>
     </Modal>
-  );
-}
-
-/**
- * Kvitteringene på et utlegg (ordre d2b-3, d): attestanten åpner og kontrollerer dem før
- * ✓ — «ellers godkjenner vi noe vi ikke har lest». Samme visning som timer-detaljen
- * (`SignertLenke` + `SignertBilde`, signatur fra serveren, selvfornyende). Bilde vises som
- * miniatyr; annet (PDF) som binders. Begge åpner fila i ny fane.
- */
-function Kvitteringer({ vedlegg }: { vedlegg: readonly AttVedlegg[] }) {
-  const { t } = useTranslation();
-  if (vedlegg.length === 0) return null;
-  return (
-    <>
-      {vedlegg.map((v) => (
-        <SignertLenke
-          key={v.id}
-          url={v.fileUrl}
-          nyFane
-          title={t("timer.attestering.tabell.aapneKvittering", { fil: v.fileName })}
-          className="inline-flex shrink-0 items-center rounded hover:opacity-80"
-        >
-          {v.mimeType.startsWith("image/") ? (
-            <SignertBilde url={v.fileUrl} alt={t("timer.vedlegg.tittel")} className="h-6 w-6 rounded border border-gray-200 object-cover" />
-          ) : (
-            <Paperclip className="h-4 w-4 text-gray-600" />
-          )}
-        </SignertLenke>
-      ))}
-    </>
   );
 }
 

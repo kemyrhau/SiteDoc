@@ -6,6 +6,7 @@ import {
   filtrerModell,
   filterAlternativer,
   byggUtvalg,
+  byggJobbUtvalg,
   sumLinjer,
   grupperModell,
   byggUkeoversikt,
@@ -181,6 +182,54 @@ describe("R11/T43 — sperrer og utvalget", () => {
     const [dag] = byggAttesteringModell([s], deps);
     const u = byggUtvalg(dag!.kort.flatMap((k) => k.linjer), () => dag!.sedel);
     expect(u.radIder.timerIder).toEqual(["t2"]);
+  });
+});
+
+describe("w10a (B30 A) — «Attester utvalget» tar hele jobber", () => {
+  // Jobb kA: ordinær 07–15 + overtid 15–17; jobb kB: én linje.
+  const s = sedel({
+    timer: [
+      timer("t1", "kA", A),
+      timer("t2", "kA", A, { lonnsartId: "l2", fraTid: "15:00", tilTid: "17:00", timer: "2", pauseMin: 0 }),
+      timer("t3", "kB", B),
+    ],
+    maskiner: [],
+    varer: [],
+  });
+  const modell = byggAttesteringModell([s], deps);
+  const sedelFor = () => modell[0]!.sedel;
+  const kortA = modell[0]!.kort.find((k) => k.projectId === "pA")!.nokkel;
+  const kortB = modell[0]!.kort.find((k) => k.projectId === "pB")!.nokkel;
+
+  it("filteret skjuler overtiden, men jobben sendes hel", () => {
+    const filtrert = filtrerModell(modell, { verdier: { betegnelse: "Ordinær" }, beskrivelseSok: "" });
+    const synlige = filtrert.flatMap((d) => d.kort.map((k) => k.nokkel));
+    expect(filtrert[0]!.kort.find((k) => k.nokkel === kortA)!.linjer.map((l) => l.linje.id)).toEqual(["t1"]);
+    const u = byggJobbUtvalg(modell, synlige, new Set([kortA]), sedelFor);
+    expect(u.radIder.timerIder).toEqual(["t1", "t2"]);
+    expect(u.antallJobber).toBe(1);
+  });
+
+  it("negativkontroll: med linje-utvalget (byggUtvalg på de synlige linjene) ble overtiden stående", () => {
+    const filtrert = filtrerModell(modell, { verdier: { betegnelse: "Ordinær" }, beskrivelseSok: "" });
+    const synligeLinjer = filtrert.flatMap((d) => d.kort.filter((k) => k.nokkel === kortA).flatMap((k) => k.linjer));
+    expect(byggUtvalg(synligeLinjer, sedelFor).radIder.timerIder).toEqual(["t1"]);
+  });
+
+  it("ingen krysset av: alle synlige jobber; knappen teller jobber, ikke linjer", () => {
+    const u = byggJobbUtvalg(modell, [kortA, kortB], new Set(), sedelFor);
+    expect(u.antallJobber).toBe(2);
+    expect(u.radIder.timerIder).toEqual(["t1", "t2", "t3"]);
+  });
+
+  it("kryss på en jobb som ikke lenger vises (filteret), teller ikke", () => {
+    const u = byggJobbUtvalg(modell, [kortB], new Set([kortA]), sedelFor);
+    expect(u.radIder.timerIder).toEqual(["t3"]);
+  });
+
+  it("reiseblokken er en egen blå rad med reise-flagg; jobbene har det ikke", () => {
+    const m = byggAttesteringModell([sedel({ timer: [timer("r1", "kA", A, { erReise: true, kortId: null }), timer("t1", "kA", A)], maskiner: [], varer: [] })], deps);
+    expect(m[0]!.kort.map((k) => [k.nokkel.split(":")[1], k.reise])).toEqual([["reise", true], ["kA", false]]);
   });
 });
 

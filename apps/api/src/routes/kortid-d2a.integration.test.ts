@@ -868,6 +868,16 @@ describe("T68 — splitt beholder koblingene", () => {
     expect((await prismaVarelager.vareforbruk.findUniqueOrThrow({ where: { id: v } })).sheetTimerId).toBe(forste);
   });
 
+  it("w10a (A9) splittRad: begge delene får originalens beskrivelse", async () => {
+    const sid = await nySedel();
+    const t1 = await timerRad(sid);
+    await prismaTimer.sheetTimer.update({ where: { id: t1 }, data: { beskrivelse: "Forskaling akse 3" } });
+    await dag().splittRad(splittTimer(t1));
+    const deler = await prismaTimer.sheetTimer.findMany({ where: { sheetId: sid }, orderBy: { fraTid: "asc" } });
+    expect(deler).toHaveLength(2);
+    expect(deler.map((d) => d.beskrivelse)).toEqual(["Forskaling akse 3", "Forskaling akse 3"]);
+  });
+
   it("splittRadEier: samme for eieren på egen sedel", async () => {
     const sid = await nySedel({ status: "draft" });
     const t1 = await timerRad(sid);

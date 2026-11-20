@@ -375,6 +375,17 @@ Fra w8 i web-timeføring (🟡 ikke merget, `feat/web-timer-w8`, plan § 8.6 pun
 
 - **Registreringen** (`…hjelp.registrering`, endret): «Klikk på jobbraden for å åpne registreringen slik den ansatte førte den. Har dagen bare én jobb, er det dagsraden. Pilen ▸ til venstre viser hvilke rader som kan åpnes, og ▾ viser raden som er åpen. Hver retting lagres med en gang. …» (resten som før). Timeradene åpner ikke lenger registreringen.
 
+Fra w10a i web-timeføring (🟡 ikke merget, `feat/web-timer-w10a`, plan § 4.5 / § 8.9 B30 A, B31 B), begge sidene:
+
+- **Handlinger** (`…hjelp.handlinger`, endret): knappene står på de blå radene; linjene under har ingen knapper.
+- **Retting** (`…hjelp.retting`, endret): retting skjer i registreringen — fra, til og pause er felt, timene regnes ut, lagres ved utgang av feltet eller Enter; avvist endring setter feltet tilbake og grunnen står ved linjen; ✂ og «Rediger jobben» står i kortet; cellene i tabellen er bare lesing.
+- **Verktøy** (`…hjelp.verktoy`, endret): avkrysningen står på jobb- og dagsradene; «Attester utvalget» tar hele de avkryssede jobbene, også linjer filteret skjuler.
+- **Kvittering** (`…hjelp.kvittering`, endret): står også under «Utlegg» i registreringen.
+- **Registreringen** (`…hjelp.registrering`, endret): «Ikke utfylt» betyr at den ansatte ikke skrev noe under «Hva gjorde du?».
+- **Detaljsiden** (`timer.attestering.detalj.tabellHint`, endret): «Attester, returner eller gjenåpne i tabellen: pr. jobb eller hele dagen.»
+- Ny mikrotekst: «Åpne dagsseddelen» (`timer.attestering.tabell.aapneDagsseddel`, ↗), «Velg jobben» / «Velg alle jobbene denne dagen» (`…tabell.velgJobb` / `…velgDagen`, avkrysningens etikett), «Velg alle synlige jobber» (`…tabell.velgAlle`, endret), og i kortet «Rediger jobben», «Fra», «Til», «Pause (min)», «Ikke utfylt», «Kommentar til dagen», «Skriv fra og til som tt:mm, med til etter fra.», «Pausen er like lang som tiden mellom fra og til.» (`timer.attestering.registrering.redigerJobben`/`fra`/`til`/`pauseFelt`/`ikkeUtfylt`/`kommentarTilDagen`/`ugyldigTid`/`pauseForLang`).
+- Fjernet i alle 15 språk: `timer.attestering.tabell.rettCelle`, `…ugyldigTall`, `…velgLinje`, `…gjenaapneLinje`.
+
 ## Prosjekt → Timer → Attestering (d2b-2, 🟡 ikke merget)
 
 `apps/web/src/app/dashbord/[prosjektId]/timer/attestering/page.tsx` har `HjelpKnapp` (fanen «Attestering»). Første avsnitt: «Her attesterer du timene som er ført på dette prosjektet. Linjer den ansatte har ført på andre prosjekter samme dag, står nedtonet og kan ikke velges. Har du ikke tilgang til det andre prosjektet, står det «Annet prosjekt».» (`timer.attestering.prosjekt.hjelp.laast`); deretter struktur, handlinger og retting som på firmasiden. Dagsumraden har «Attester prosjektets del» (`timer.attestering.tabell.attesterProsjektetsDel`).
