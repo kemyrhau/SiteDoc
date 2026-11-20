@@ -31,6 +31,7 @@ sist_verifisert_mot_kode: 2026-08-09
 > ⚠️ **IKKE i prod:** DWG retur 2 (auto-rotasjon, startutsnitt, LEADER) · DWG retur 4 (fullstendighet: ATTRIB-tegning + `konvertering_rapport` + gate-test, branch `fix/dwg-retur4-strek`) · snap-retur 1 — under arbeid. DWG-3 (georeferanse fire hjørner) ikke levert — se § 2026-09-24 under.
 
 > ✅ **Gjestevern ved firmabytte, mobil (19) MERGET 2026-11-15** (merge `1a287c5d` av `38f4dffa`; Kontrollør GODKJENT GATE (44) nederst i `inbox-orkestrator.md`). `skalNullstilleProsjekt` flyttet til `@sitedoc/shared` (`gjesteprosjekt.ts`, web re-eksporterer); mobil `ProsjektKontekst.tsx` holder ventende firmabytte til gjestelista er lastet (`firmabyttProsjekt.ts` `firmabyttUtfall`) — gjesteprosjekt beholdes ved firmabytte. **Ikke deployet.** Lukker (18) åpent punkt (b).
+> ✅ **w10a (attesteringskortet, web) MERGET 2026-11-20** (merge `bc2bd462` av `37413d25`, gate (104) runde 2). Regel 10 kaldt: 11/11, tsc 0, build 0, test 7/7 seriell. Ingen migrering, ingen OTA. Ikke deployet. Neste: w10b (firmaattestering for prosjektleder), deretter w12/w12m (reise i jobbens kort, venter Fabels B34-plan). Oppfølgere: «Rediger jobben»/`splittRadEier` mister beskrivelsen; ukeavvik som merke (M7); telefonens attestering viser ikke «Hva gjorde du?».
 > ✅ **w9m (telefonen) MERGET 2026-11-19** (merge `3225e93c` av `653b685d`, gate (103) runde 2). Regel 10 kaldt: 11/11, tsc 0, build 0, test 7/7 seriell. Ingen migrering, ingen EAS. Ikke deployet: w9 + w9m går til test samlet (Kenneth: «Vent på w9m»), så OTA test; prod krever ny app samtidig (B22 A). Neste: testdata (§ 8.7), w6. Åpent: Kontrollørens `sitedoc_w8gate`/`sitedoc_w9gate` slettes på Kenneths ja i Kontrollør-økta; `pauseMin` i `TimerSeksjon` ubrukt (oppfølger).
 
 > ✅ **Web-timeføring w9 MERGET 2026-11-19** (merge `044fac2f` av `2a03afc7`, gate (102)). Regel 10 kaldt: 11/11, tsc 0, build 0, test 7/7 seriell. Ingen migrering. Ikke deployet (test = `5823552f`). Synken er strammet (B22 A): w9m (telefonen) bestilles nå, og prod-slipp av w9 krever ny app samtidig. Deretter: testdata (§ 8.7), w6. Kontrollørens merknader: ?-hjelp mangler «Over arbeid»; ingen egen avvisningstest for `forsonDagskort`/`flyttHeleJobben`. Rød `ftd-reprosess-modus`-integrasjonstest er rød også på develop.
@@ -175,7 +176,7 @@ sist_verifisert_mot_kode: 2026-08-09
 | **3D-web** | app-tre `3d-web-maaling-a15d10` | `feat/3d-egenskaper` merget `59efcf5a` | ⚪ LEDIG — neste: W5/M6 måling |
 | **3D-mobil** | app-tre `3d-mobil-maaling-a07340` | `feat/3d-mobil-trykk` merget `3ef97e7f` | ⚪ LEDIG — neste: M6 måling |
 | **web-timer-w1** | app-tre `web-timer-w1-2396e3` | `feat/web-timer-w2` merget `1e792946` | ⚪ LEDIG — neste i planen: w3 jobben som én flate |
-| **web-timer-w5** | app-tre `web-timer-w9m` | `feat/web-timer-w9m` merget `3225e93c` | ⚪ LEDIG |
+| **web-timer-w5** | app-tre `web-timer-w10a` | `feat/web-timer-w10a` merget `bc2bd462` | 🟡 w10b bestilt (løsning før kode) |
 | **Kort-id d2b-2/3** | app-tre `kortid-d2b2-c544cf` | `feat/kortid-d2b3` merget `30ca2935` | ⚪ LEDIG — neste i specen: d3 |
 | **Kort-id d2c-2** | app-tre `kortid-d2c2-4fb489` | `feat/kortid-d2c2-mobil` merget `338de16a` | ⚪ LEDIG |
 | **Merge** | `SiteDoc-merge` | detached på develop | ⚪ LEDIG |
