@@ -31,6 +31,8 @@ sist_verifisert_mot_kode: 2026-08-09
 > ⚠️ **IKKE i prod:** DWG retur 2 (auto-rotasjon, startutsnitt, LEADER) · DWG retur 4 (fullstendighet: ATTRIB-tegning + `konvertering_rapport` + gate-test, branch `fix/dwg-retur4-strek`) · snap-retur 1 — under arbeid. DWG-3 (georeferanse fire hjørner) ikke levert — se § 2026-09-24 under.
 
 > ✅ **Gjestevern ved firmabytte, mobil (19) MERGET 2026-11-15** (merge `1a287c5d` av `38f4dffa`; Kontrollør GODKJENT GATE (44) nederst i `inbox-orkestrator.md`). `skalNullstilleProsjekt` flyttet til `@sitedoc/shared` (`gjesteprosjekt.ts`, web re-eksporterer); mobil `ProsjektKontekst.tsx` holder ventende firmabytte til gjestelista er lastet (`firmabyttProsjekt.ts` `firmabyttUtfall`) — gjesteprosjekt beholdes ved firmabytte. **Ikke deployet.** Lukker (18) åpent punkt (b).
+> ✅ **w14 leveranse 1 (tilbake-knappene i timeføringen, web) MERGET 2026-11-20** (merge `47b1c2d1` av `74a7b906`, gate (109) GODKJENT uten vilkår; koderens Regel 10: 11/11, kald build, test 7/7; tre identisk med branch). Ingen migrering. Ikke deployet. Neste: w14 leveranse 2 (TK6–TK26). Funn utenfor ordren: prosjektets Timer henter uka med `toISOString()` av lokal midnatt (søndag før med, søndag i uka ute) — egen sak. F1-måling (Kontrollør `inbox-orkestrator.md:36754`): F1 oppstår ikke med nye data via API-et; sletting av timedata i testfirmaet på `sitedoc_test` venter på Kenneths telling.
+
 > ✅ **w3b (maskin = utstyr + antall timer, web) MERGET 2026-11-20** (merge `ed518b7d` av `f03567ce`, gate (108) GODKJENT med V1 — B37-lenken velger sedelens firma — rettet i `f03567ce`; koderens Regel 10 på `71f6e8a4`: 11/11, test 7/7, kald build; tre identisk med branch). Ingen migrering, ingen serverendring. Ikke deployet (test = `6f9d364c`). Kenneth godkjente w3a på test (§ 8.15). Neste: w14 (tilbake-knappene, Fabel v13 § 4.14) venter på B39/B40; w3c etter Kenneths test av w3b. Egen sak: F1 (`sikreKortId` adopterer eldre kort-id-løs maskinrad; serveren avviser forslaget «høyst»; Kontrollør anbefaler serverregel).
 
 > ✅ **w3a (kortet pr. jobb, web + server) MERGET 2026-11-20** (merge `67a4a114` av `70592eec`, gate (107) + retur med uavhengig kald Regel 10 og integrasjon mot engangs-DB fra null: 11/11, test 7/7, integrasjon 446/1 rød (`ftd-reprosess-modus`, som før); tre identisk med gatet hash). Ingen migrering. Ikke deployet. Neste: w3b (maskin = utstyr + timer, B37 A lenke for firmaadmin, B38 A), så w3c. Egen ordre trengs: funn 6 (`flyttTimerRadEco` uten `helJobb` og `rettRadFelt` flytter ikke koblet maskin og vare). Lint rød på develop (api 52, mobil 12, web 13) — egen opprydding.
@@ -181,7 +183,7 @@ sist_verifisert_mot_kode: 2026-08-09
 | **3D-web** | app-tre `3d-web-maaling-a15d10` | `feat/3d-egenskaper` merget `59efcf5a` | ⚪ LEDIG — neste: W5/M6 måling |
 | **3D-mobil** | app-tre `3d-mobil-maaling-a07340` | `feat/3d-mobil-trykk` merget `3ef97e7f` | ⚪ LEDIG — neste: M6 måling |
 | **web-timer-w1** | app-tre `web-timer-w1-2396e3` | `feat/web-timer-w2` merget `1e792946` | ⚪ LEDIG — neste i planen: w3 jobben som én flate |
-| **web-timer-w5** | app-tre `web-timer-w5-c80b84` | `feat/web-timer-w3b` merget `ed518b7d` | ⚪ LEDIG |
+| **web-timer-w5** | app-tre `web-timer-w5-c80b84` | `feat/web-timer-w14a` merget `47b1c2d1` | ⚪ LEDIG |
 | **Kort-id d2b-2/3** | app-tre `kortid-d2b2-c544cf` | `feat/kortid-d2b3` merget `30ca2935` | ⚪ LEDIG — neste i specen: d3 |
 | **Kort-id d2c-2** | app-tre `kortid-d2c2-4fb489` | `feat/kortid-d2c2-mobil` merget `338de16a` | ⚪ LEDIG |
 | **Merge** | `SiteDoc-merge` | detached på develop | ⚪ LEDIG |
