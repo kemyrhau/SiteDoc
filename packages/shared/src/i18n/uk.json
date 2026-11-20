@@ -399,6 +399,8 @@
   "timer.prosjektkort.reiseSkjultIngen": "+ Відрядження приховані: немає типу оплати для відряджень.",
   "timer.prosjektkort.reiseSkjultFlere": "+ Відрядження приховані: кілька видів оплати праці можуть бути відрядними.",
   "timer.prosjektkort.reiseVelgLonnsart": "Виберіть тип оплати за відрядження",
+  "timer.prosjektkort.varelagerAv": "Для компанії не ввімкнено інвентаризацію.",
+  "timer.prosjektkort.slaaPaaVarelager": "Увімкнути інвентар →",
   "timer.prosjektkort.nyMaskin": "+ Машина",
   "timer.prosjektkort.leggTil": "+ Надбавка/Витрати",
   "timer.prosjektkort.nyVare": "+ Матеріаломісткість",

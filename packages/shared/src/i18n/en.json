@@ -399,6 +399,8 @@
   "timer.prosjektkort.reiseSkjultIngen": "+ Travel is hidden: no wage type for travel.",
   "timer.prosjektkort.reiseSkjultFlere": "+ Travel is hidden: several wage types could be travel.",
   "timer.prosjektkort.reiseVelgLonnsart": "Choose travel wage type",
+  "timer.prosjektkort.varelagerAv": "Inventory is not enabled for the company.",
+  "timer.prosjektkort.slaaPaaVarelager": "Enable Inventory →",
   "timer.prosjektkort.nyMaskin": "+ Machine",
   "timer.prosjektkort.leggTil": "+ Allowance/Expense",
   "timer.prosjektkort.nyVare": "+ Material consumption",

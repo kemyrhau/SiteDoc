@@ -399,6 +399,8 @@
   "timer.prosjektkort.reiseSkjultIngen": "+ Cestování je skryté: žádný druh mzdy pro cestování.",
   "timer.prosjektkort.reiseSkjultFlere": "+ Cestování je skryté: cestování může být několik druhů mzdy.",
   "timer.prosjektkort.reiseVelgLonnsart": "Vyberte typ cestovní mzdy",
+  "timer.prosjektkort.varelagerAv": "Inventář není pro společnost povolen.",
+  "timer.prosjektkort.slaaPaaVarelager": "Povolit inventář →",
   "timer.prosjektkort.nyMaskin": "+ Stroj",
   "timer.prosjektkort.leggTil": "+ Příspěvek/výdaj",
   "timer.prosjektkort.nyVare": "+ Spotřeba materiálu",

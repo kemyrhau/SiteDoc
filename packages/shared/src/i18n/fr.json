@@ -399,6 +399,8 @@
   "timer.prosjektkort.reiseSkjultIngen": "+ Les déplacements sont masqués : aucune rubrique pour les déplacements.",
   "timer.prosjektkort.reiseSkjultFlere": "+ Les déplacements sont masqués : plusieurs rubriques de salaires peuvent être des déplacements.",
   "timer.prosjektkort.reiseVelgLonnsart": "Choisissez le type de salaire de voyage",
+  "timer.prosjektkort.varelagerAv": "L'inventaire n'est pas activé pour l'entreprise.",
+  "timer.prosjektkort.slaaPaaVarelager": "Activer l'inventaire →",
   "timer.prosjektkort.nyMaskin": "+ Machine",
   "timer.prosjektkort.leggTil": "+ Allocation/Dépense",
   "timer.prosjektkort.nyVare": "+ Consommation de matière",

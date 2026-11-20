@@ -399,6 +399,8 @@
   "timer.prosjektkort.reiseSkjultIngen": "+ Путешествие скрыто: нет вида оплаты за проезд.",
   "timer.prosjektkort.reiseSkjultFlere": "+ Командировки скрыты: командировочные могут быть несколькими видами оплаты.",
   "timer.prosjektkort.reiseVelgLonnsart": "Выберите тип оплаты за поездку",
+  "timer.prosjektkort.varelagerAv": "Инвентарь не включен для компании.",
+  "timer.prosjektkort.slaaPaaVarelager": "Включить инвентарь →",
   "timer.prosjektkort.nyMaskin": "+ Машина",
   "timer.prosjektkort.leggTil": "+ Пособие/расход",
   "timer.prosjektkort.nyVare": "+ Расход материала",

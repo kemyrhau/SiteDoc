@@ -12,6 +12,7 @@ import { DAG7_SEDEL, dag7Data } from "./testdata-dag7";
 const h = vi.hoisted(() => ({
   data: {} as Record<string, unknown>,
   kall: [] as { sti: string; input: Record<string, unknown> }[],
+  feil: {} as Record<string, unknown>,
 }));
 
 vi.mock("@/kontekst/prosjekt-kontekst", () => ({
@@ -55,6 +56,7 @@ vi.mock("@/lib/trpc", () => {
         if (navn === "useQuery") {
           return (_i: unknown, opt?: { enabled?: boolean }) => ({
             data: opt?.enabled === false ? undefined : h.data[key],
+            error: opt?.enabled === false ? null : (h.feil[key] ?? null),
             isLoading: false,
             refetch: () => {},
           });
@@ -86,6 +88,7 @@ const BYGGEPLASSER = [{ id: "b1", name: "Blokk A", projectId: "p1" }, { id: "b2"
 function rendre(modus = "prosjektkort") {
   const r2 = { ...DAG7_SEDEL.timer[1]!, byggeplassId: "b1" };
   h.kall = [];
+  h.feil = {};
   h.data = {
     ...dag7Data(modus),
     "timer.dagsseddel.hentMedId": { ...DAG7_SEDEL, timer: [DAG7_SEDEL.timer[0]!, r2] },
@@ -451,5 +454,67 @@ describe("w3b — maskindelen i «Legg til» og «Rediger timer-rad» (prosjektk
     expect(dialog.textContent).toContain("timer.felt.mengde");
     expect(dialog.textContent).toContain("timer.maskinSeksjon.hint");
     expect(dialog.textContent).not.toContain("timer.maskinSeksjon.hintJobb");
+  });
+});
+
+describe("w3b — B37 A: lenken til der Varelager slås på", () => {
+  afterEach(cleanup);
+
+  function medVarelagerAv(rolle: { sitedoc?: boolean; adminFor?: string[] }) {
+    rendre();
+    delete h.data["vareforbruk.katalogForFirma"];
+    h.feil["vareforbruk.katalogForFirma"] = { data: { code: "FORBIDDEN" } };
+    h.data["bruker.hentMin"] = { role: rolle.sitedoc ? "sitedoc_admin" : "user" };
+    h.data["organisasjon.hentTilgjengelige"] = (rolle.adminFor ?? []).map((id) => ({ id, name: id }));
+    cleanup();
+    render(<Side />);
+    const kort = screen.getAllByRole("button").find((b) => b.textContent?.includes("TILL-001"));
+    fireEvent.click(kort!);
+  }
+
+  it("firmaadministrator for sedelens firma: «+ Vare» skjult, lenke til firmaets moduler", () => {
+    medVarelagerAv({ adminFor: ["o1"] });
+    expect(screen.queryByRole("button", { name: "timer.prosjektkort.nyVareKort" })).toBeNull();
+    const lenke = within(screen.getByTestId("varelager-lenke")).getByRole("link");
+    expect(lenke.getAttribute("href")).toBe("/dashbord/firma/moduler");
+    expect(lenke.textContent).toBe("timer.prosjektkort.slaaPaaVarelager");
+  });
+
+  it("sitedoc_admin ser lenken", () => {
+    medVarelagerAv({ sitedoc: true });
+    expect(screen.getByTestId("varelager-lenke")).toBeTruthy();
+  });
+
+  it("arbeider, eller admin for et annet firma: ingen lenke, «+ Vare» skjult som i dag", () => {
+    medVarelagerAv({});
+    expect(screen.queryByTestId("varelager-lenke")).toBeNull();
+    expect(screen.queryByRole("button", { name: "timer.prosjektkort.nyVareKort" })).toBeNull();
+    cleanup();
+    medVarelagerAv({ adminFor: ["o2"] });
+    expect(screen.queryByTestId("varelager-lenke")).toBeNull();
+  });
+
+  it("Varelager på for firmaet, prosjektet av (S5 A): ingen lenke", () => {
+    rendre();
+    h.data["vareforbruk.katalogForFirma"] = { varer: [], prosjektIderMedVarelager: [] };
+    h.data["bruker.hentMin"] = { role: "user" };
+    h.data["organisasjon.hentTilgjengelige"] = [{ id: "o1", name: "o1" }];
+    cleanup();
+    render(<Side />);
+    const kort = screen.getAllByRole("button").find((b) => b.textContent?.includes("TILL-001"));
+    fireEvent.click(kort!);
+    expect(screen.queryByRole("button", { name: "timer.prosjektkort.nyVareKort" })).toBeNull();
+    expect(screen.queryByTestId("varelager-lenke")).toBeNull();
+  });
+
+  it("Varelager på: «+ Vare» vises, ingen lenke", () => {
+    rendre();
+    h.data["organisasjon.hentTilgjengelige"] = [{ id: "o1", name: "o1" }];
+    cleanup();
+    render(<Side />);
+    const kort = screen.getAllByRole("button").find((b) => b.textContent?.includes("TILL-001"));
+    fireEvent.click(kort!);
+    expect(screen.getByRole("button", { name: "timer.prosjektkort.nyVareKort" })).toBeTruthy();
+    expect(screen.queryByTestId("varelager-lenke")).toBeNull();
   });
 });

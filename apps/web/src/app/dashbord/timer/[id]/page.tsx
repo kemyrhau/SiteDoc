@@ -360,10 +360,23 @@ export default function DagsseddelDetaljSide() {
   );
   // Prosjektkort L3: arbeiderens vare-katalog + prosjektene med Varelager på.
   // Feil (Varelager av for firmaet, ingen tilgang) → ingen «+ Vareforbruk».
-  const { data: vareKatalog } = trpc.vareforbruk.katalogForFirma.useQuery(
+  const { data: vareKatalog, error: vareKatalogFeil } = trpc.vareforbruk.katalogForFirma.useQuery(
     { organizationId: sheet?.organizationId ?? "" },
     { enabled: prosjektkortModus && !!sheet?.organizationId, retry: false },
   );
+  // w3b (B37 A): firmaadministrator for SEDELENS firma (ikke toppens valgte) ser hvor Varelager
+  // slås på når firmaet ikke har det (katalogen svarer FORBIDDEN). Samme regel som
+  // kanAdministrereFirma (firma-kontekst.tsx): sitedoc_admin eller firma_admin-medlemskap.
+  // Serveren krever firma-admin for å slå på (organisasjon.ts verifiserFirmaAdmin).
+  const { data: adminFirmaer } = trpc.organisasjon.hentTilgjengelige.useQuery(undefined, {
+    enabled: prosjektkortModus,
+  });
+  const { data: minBrukerRaw } = trpc.bruker.hentMin.useQuery(undefined, { enabled: prosjektkortModus });
+  const visVarelagerLenke =
+    prosjektkortModus &&
+    (vareKatalogFeil as { data?: { code?: string } | null } | null | undefined)?.data?.code === "FORBIDDEN" &&
+    ((minBrukerRaw as { role?: string } | null | undefined)?.role === "sitedoc_admin" ||
+      ((adminFirmaer ?? []) as Array<{ id: string }>).some((f) => f.id === sheet?.organizationId));
   // w3a: vare-vinduet åpnes fra en jobb (ny vare) eller fra blyanten på en varelinje (rad).
   const [vareModal, setVareModal] = useState<
     { projectId: string; jobb?: JobbKontekst; rad?: KortVare } | null
@@ -1309,6 +1322,7 @@ export default function DagsseddelDetaljSide() {
             setAktivModal({ type: "leggTil", projectId: jobb.projectId, jobb })
           }
           varelagerProsjekter={vareKatalog?.prosjektIderMedVarelager}
+          visVarelagerLenke={visVarelagerLenke}
           onNyVare={(jobb) => setVareModal({ projectId: jobb.projectId, jobb })}
           onNyttKort={startRegistrering}
           onEndreRamme={() => setRedigerHeader(true)}
@@ -1864,6 +1878,7 @@ function ProsjektkortSamleside({
   onNyMaskin,
   onLeggTil,
   varelagerProsjekter,
+  visVarelagerLenke,
   onNyVare,
   onNyttKort,
   onEndreRamme,
@@ -1910,6 +1925,8 @@ function ProsjektkortSamleside({
   onNyMaskin: (jobb: JobbKontekst) => void;
   onLeggTil: (jobb: JobbKontekst) => void;
   varelagerProsjekter: readonly string[] | undefined;
+  /** w3b (B37 A): firmaet har ikke Varelager og brukeren er firmaadministrator for sedelens firma. */
+  visVarelagerLenke?: boolean;
   onNyVare: (jobb: JobbKontekst) => void;
   onNyttKort: () => void;
   onEndreRamme: () => void;
@@ -2000,6 +2017,14 @@ function ProsjektkortSamleside({
                     {t("timer.prosjektkort.leggTil")}
                   </button>
                 </div>
+              )}
+              {erRedigerbar && visVarelagerLenke && (
+                <p className="mt-1 text-xs text-gray-500" data-testid="varelager-lenke">
+                  {t("timer.prosjektkort.varelagerAv")}{" "}
+                  <Link href="/dashbord/firma/moduler" className={lenke}>
+                    {t("timer.prosjektkort.slaaPaaVarelager")}
+                  </Link>
+                </p>
               )}
               {erRedigerbar && visReiseHint && (
                 <p className="mt-1 text-xs text-gray-500">

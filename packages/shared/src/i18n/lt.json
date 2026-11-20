@@ -399,6 +399,8 @@
   "timer.prosjektkort.reiseSkjultIngen": "+ Kelionės paslėptos: nėra atlyginimo už keliones.",
   "timer.prosjektkort.reiseSkjultFlere": "+ Kelionės paslėptos: kelios darbo užmokesčio rūšys gali būti kelionės.",
   "timer.prosjektkort.reiseVelgLonnsart": "Pasirinkite kelionės darbo užmokesčio tipą",
+  "timer.prosjektkort.varelagerAv": "Įmonės atsargos neįjungtos.",
+  "timer.prosjektkort.slaaPaaVarelager": "Įgalinti inventorių →",
   "timer.prosjektkort.nyMaskin": "+ Mašina",
   "timer.prosjektkort.leggTil": "+ Pašalpa/išlaidos",
   "timer.prosjektkort.nyVare": "+ Medžiagų suvartojimas",

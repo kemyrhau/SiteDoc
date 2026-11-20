@@ -399,6 +399,8 @@
   "timer.prosjektkort.reiseSkjultIngen": "+ Călătoria este ascunsă: niciun tip de salariu pentru călătorie.",
   "timer.prosjektkort.reiseSkjultFlere": "+ Călătoria este ascunsă: mai multe tipuri de salarii ar putea fi călătorii.",
   "timer.prosjektkort.reiseVelgLonnsart": "Alegeți tipul de salariu de călătorie",
+  "timer.prosjektkort.varelagerAv": "Inventarul nu este activat pentru companie.",
+  "timer.prosjektkort.slaaPaaVarelager": "Activați Inventar →",
   "timer.prosjektkort.nyMaskin": "+ Mașină",
   "timer.prosjektkort.leggTil": "+ Indemnizație/Cheltuială",
   "timer.prosjektkort.nyVare": "+ Consum de material",

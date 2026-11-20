@@ -399,6 +399,8 @@
   "timer.prosjektkort.reiseSkjultIngen": "+ Udhëtimi është i fshehur: asnjë lloj pagash për udhëtim.",
   "timer.prosjektkort.reiseSkjultFlere": "+ Udhëtimi është i fshehur: disa lloje pagash mund të jenë udhëtime.",
   "timer.prosjektkort.reiseVelgLonnsart": "Zgjidhni llojin e pagës së udhëtimit",
+  "timer.prosjektkort.varelagerAv": "Inventari nuk është i aktivizuar për kompaninë.",
+  "timer.prosjektkort.slaaPaaVarelager": "Aktivizo inventarin →",
   "timer.prosjektkort.nyMaskin": "+ Makinë",
   "timer.prosjektkort.leggTil": "+ Shtesa/Shpenzime",
   "timer.prosjektkort.nyVare": "+ Konsumi i materialit",

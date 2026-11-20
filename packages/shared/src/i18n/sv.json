@@ -399,6 +399,8 @@
   "timer.prosjektkort.reiseSkjultIngen": "+ Resor är dolda: ingen löneart för resor.",
   "timer.prosjektkort.reiseSkjultFlere": "+ Resor är dolda: flera löneslag kan vara resor.",
   "timer.prosjektkort.reiseVelgLonnsart": "Välj reselönetyp",
+  "timer.prosjektkort.varelagerAv": "Inventering är inte aktiverat för företaget.",
+  "timer.prosjektkort.slaaPaaVarelager": "Aktivera inventering →",
   "timer.prosjektkort.nyMaskin": "+ Maskin",
   "timer.prosjektkort.leggTil": "+ Ersättning/kostnad",
   "timer.prosjektkort.nyVare": "+ Materialförbrukning",

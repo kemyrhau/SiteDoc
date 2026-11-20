@@ -399,6 +399,8 @@
   "timer.prosjektkort.reiseSkjultIngen": "+ Podróż jest ukryta: brak rodzaju wynagrodzenia za podróż.",
   "timer.prosjektkort.reiseSkjultFlere": "+ Podróże są ukryte: podróżami może być kilka rodzajów wynagrodzenia.",
   "timer.prosjektkort.reiseVelgLonnsart": "Wybierz rodzaj wynagrodzenia za podróż",
+  "timer.prosjektkort.varelagerAv": "Zapasy nie są włączone dla firmy.",
+  "timer.prosjektkort.slaaPaaVarelager": "Włącz ekwipunek →",
   "timer.prosjektkort.nyMaskin": "+ Maszyna",
   "timer.prosjektkort.leggTil": "+ Dodatek/wydatek",
   "timer.prosjektkort.nyVare": "+ Zużycie materiału",

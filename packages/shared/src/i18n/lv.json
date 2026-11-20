@@ -399,6 +399,8 @@
   "timer.prosjektkort.reiseSkjultIngen": "+ Ceļošana ir paslēpta: ceļojumiem nav algas veida.",
   "timer.prosjektkort.reiseSkjultFlere": "+ Ceļošana ir slēpta: vairāki algu veidi varētu būt ceļojumi.",
   "timer.prosjektkort.reiseVelgLonnsart": "Izvēlieties ceļojuma algas veidu",
+  "timer.prosjektkort.varelagerAv": "Uzņēmumam nav iespējoti krājumi.",
+  "timer.prosjektkort.slaaPaaVarelager": "Iespējot krājumus →",
   "timer.prosjektkort.nyMaskin": "+ Mašīna",
   "timer.prosjektkort.leggTil": "+ Pabalsts/Izdevumi",
   "timer.prosjektkort.nyVare": "+ Materiālu patēriņš",
