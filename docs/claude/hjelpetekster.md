@@ -166,6 +166,13 @@ Dagsseddel-siden har ikke ?-ikon; teksten står i kortet (`timer.prosjektkort.*`
 - **Vinduene fra en jobb:** ingen ny tekst. På en ny linje vises ikke prosjekt, byggeplass, underprosjekt og timerad — jobbens hode viser dem. «+ Reise» har feltene med jobbens verdier forvalgt. «Rediger timer-rad» fra blyanten har feltene, med prosjektet låst.
 - **Varen ble ikke flyttet:** «Timeraden er lagret, men varen på raden ble ikke flyttet til det nye stedet. Trykk Lagre igjen.» (`timer.feil.vareIkkeFlyttet`) i timerad-vinduet, som står åpent.
 
+## Web: Maskin er utstyr og antall timer (`dashbord/timer/[id]/page.tsx`, w3b i web-timeføring, 🟡 ikke merget, `feat/web-timer-w3b`)
+
+Gjelder prosjektkort-modus. Teksten står ved feltet (`timer.maskinSeksjon.*`, `timer.prosjektkort.*`, 15 språk):
+- **Under maskinens Antall timer** (maskinvinduet fra jobben og maskindelen i timerad-vinduet): «Skriv hvor mange timer maskinen gikk på jobben.» (`timer.maskinSeksjon.hintJobb`). Grensen står i «høyst X t» ved feltet (w9); hjelpeteksten lover ingen grense, fordi døgn-maskiner kan ha flere timer enn arbeidet.
+- **Overskrift over maskinene i timerad-vinduet:** «Jobbens maskiner» (`timer.maskinSeksjon.jobbensMaskiner`). × har tittelen «Fjern» (`timer.maskinSeksjon.fjern`).
+- **Varelager av, firmaadministrator:** «Varelager er ikke på for firmaet.» (`timer.prosjektkort.varelagerAv`) og lenken «Slå på Varelager →» (`timer.prosjektkort.slaaPaaVarelager`) til Firma → Moduler. Arbeideren ser ingenting.
+
 ## Web: Timerad på maskin (`dashbord/timer/[id]/page.tsx`, ordre d2c-1, 🟡 ikke merget)
 
 Dagsseddel-siden på web har ikke ?-ikon. Hjelpen står i skjemaet der valget tas (`timer.felt.timerad`, `timer.maskinTimerad.*`, `timer.fjernTimerRad.*`, 15 språk):
