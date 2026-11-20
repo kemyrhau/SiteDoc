@@ -51,6 +51,7 @@ vi.mock("@/lib/trpc", () => {
 });
 
 import Side from "./page";
+import { DAG7_SEDEL, DAG7_VARER, dag7Data } from "./testdata-dag7";
 
 const sheet = {
   id: "s1",
@@ -86,6 +87,7 @@ const sheet = {
       beskrivelse: null,
       attestertStatus: "pending",
       erReise: false,
+      kortId: "k1",
     },
     {
       id: "r2",
@@ -102,6 +104,7 @@ const sheet = {
       beskrivelse: null,
       attestertStatus: "pending",
       erReise: false,
+      kortId: "k2",
     },
   ],
 };
@@ -162,16 +165,13 @@ describe("timer-sedel — visningsmodus", () => {
     expect(html).not.toContain("timer.detalj.sendTilLeder");
   });
 
-  it("w2: jobb 2 på samme prosjekt (egen kortId) ligger i samme prosjektkort på PC fram til w3", () => {
+  it("w3a: jobb 2 på samme prosjekt (egen kortId) er eget kort på PC", () => {
     const [r1, r2] = sheet.timer;
     const html = rendre("prosjektkort", {
-      timer: [
-        { ...r1!, kortId: "k1" },
-        { ...r2!, projectId: "p1", kortId: "k2" },
-      ],
-    } as unknown as Partial<typeof sheet>);
-    expect(html).toContain("timer.prosjektkort.overskrift{&quot;antall&quot;:1}");
-    expect(html.split("2041 — Skole").length - 1).toBeGreaterThanOrEqual(1);
+      timer: [r1!, { ...r2!, projectId: "p1" }],
+    });
+    expect(html).toContain("timer.prosjektkort.overskrift{&quot;antall&quot;:2}");
+    expect(html.split(">2041 — Skole</span>").length - 1).toBe(2);
     expect(html).not.toContain("2050 — Barnehage");
     // Knappen for neste jobb vises selv om alle prosjektene med timer har kort.
     expect(html).toContain("timer.prosjektkort.registrerTimer");
@@ -208,34 +208,42 @@ describe("timer-sedel — L3 «+ Vareforbruk» på kortet", () => {
 
   it("vises i åpent kort når Varelager er på for prosjektet", () => {
     expect(rendre("prosjektkort", ettKort, katalog(["p1"]))).toContain(
-      "timer.prosjektkort.nyVare",
+      "timer.prosjektkort.nyVareKort",
     );
   });
 
   it("skjult når Varelager er av for prosjektet eller katalogen feiler", () => {
     expect(rendre("prosjektkort", ettKort, katalog(["p2"]))).not.toContain(
-      "timer.prosjektkort.nyVare",
+      "timer.prosjektkort.nyVareKort",
     );
     // Ingen katalog (FORBIDDEN/av for firmaet) → kortet er som i L2.
-    expect(rendre("prosjektkort", ettKort)).not.toContain("timer.prosjektkort.nyVare");
+    expect(rendre("prosjektkort", ettKort)).not.toContain("timer.prosjektkort.nyVareKort");
   });
 
   it("skjult på sendt sedel", () => {
     expect(
       rendre("prosjektkort", { ...ettKort, status: "submitted" }, katalog(["p1"])),
-    ).not.toContain("timer.prosjektkort.nyVare");
+    ).not.toContain("timer.prosjektkort.nyVareKort");
   });
 
-  it("varelinjer har ingen rediger/slett-kontroller (låste linjer kan ikke endres)", () => {
-    const html = rendre("prosjektkort", ettKort, {
+  // w3a (snudd fra L3): varelinja i jobben har blyant og søppelkasse; attestert vare er låst.
+  const vareLinje = (html: string) =>
+    html.match(/<li[^>]*>(?:(?!<\/li>).)*?timer\.prosjektkort\.vareMerke.*?<\/li>/)?.[0] ?? "";
+  it("varelinjer i jobben har rediger/slett, attestert vare har ingen", () => {
+    const vare = { id: "f1", projectId: "p1", byggeplassId: null, dagsseddelId: "s1", kortId: "k1", antall: 2, vare: { id: "v1", navn: "Grus", enhet: "m3" } };
+    const aapen = rendre("prosjektkort", ettKort, {
       ...katalog(["p1"]),
-      "vareforbruk.hentMineForDato": [
-        { id: "f1", projectId: "p1", byggeplassId: null, dagsseddelId: "s1", antall: 2, vare: { id: "v1", navn: "Grus", enhet: "m3" } },
-      ],
+      "vareforbruk.hentMineForDato": [{ ...vare, attestert: false }],
     });
-    const liste = html.match(/<ul class="mt-3 space-y-1">.*?<\/ul>/)?.[0] ?? "";
-    expect(liste).toContain("Grus · 2 m3");
-    expect(liste).not.toContain("<button");
+    expect(vareLinje(aapen)).toContain("Grus");
+    expect(vareLinje(aapen)).toContain('title="handling.rediger"');
+    expect(vareLinje(aapen)).toContain('title="handling.slett"');
+    const laast = rendre("prosjektkort", ettKort, {
+      ...katalog(["p1"]),
+      "vareforbruk.hentMineForDato": [{ ...vare, attestert: true }],
+    });
+    expect(vareLinje(laast)).toContain("Grus");
+    expect(vareLinje(laast)).not.toContain("<button");
   });
 
   it("dagskort er uendret når katalogen finnes", () => {
@@ -264,5 +272,62 @@ describe("dagskort — banneret holder reise utenfor dekningen (post (7) punkt 6
 
   it("dagskortet får IKKE «+ Reise» (isolasjonen løftes kun for banneret)", () => {
     expect(medReise()).not.toContain("timer.prosjektkort.nyReise");
+  });
+});
+
+describe("w3a — ett kort pr. jobb (dagen fra #7)", () => {
+  const dag7 = (sedel: Record<string, unknown> = {}) => {
+    h.data = { ...dag7Data("prosjektkort"), "timer.dagsseddel.hentMedId": { ...DAG7_SEDEL, ...sedel } };
+    return renderToStaticMarkup(<Side />);
+  };
+  const kunJobb2 = {
+    timer: [DAG7_SEDEL.timer[1]!],
+    maskiner: [DAG7_SEDEL.maskiner[0]!],
+    tillegg: [],
+    utlegg: [],
+  };
+
+  it("to jobber på samme prosjekt = to kort, og eldre rader i samlekortet sist", () => {
+    const html = dag7();
+    expect(html).toContain("timer.prosjektkort.overskrift{&quot;antall&quot;:2}");
+    expect(html.split(">2041 — Skole</span>").length - 1).toBe(2);
+    // Hodet summerer bare jobben: 7,5 t i jobb 1, 1,0 t arbeid + 1,0 t maskin i jobb 2.
+    expect(html).toContain("7,5 timer.timerEnhet");
+    expect(html).toContain("TILL-001 Tillegg 1");
+    const samlekort = html.indexOf("timer.prosjektkort.utenJobb");
+    expect(samlekort).toBeGreaterThan(html.lastIndexOf(">2041 — Skole</span>"));
+  });
+
+  it("maskinen står i TILL-001-kortet under timelinja den er koblet til, med varen", () => {
+    const html = dag7(kunJobb2);
+    expect(html).toContain("timer.prosjektkort.overskrift{&quot;antall&quot;:1}");
+    expect(html).toContain('aria-expanded="true"');
+    expect(html).toContain("timer.gruppe.tilByggherre");
+    const timelinje = html.indexOf("15:00–16:00");
+    const maskin = html.indexOf("timer.maskinSeksjon.merke");
+    const vare = html.indexOf("timer.prosjektkort.vareMerke");
+    expect(timelinje).toBeGreaterThan(-1);
+    expect(maskin).toBeGreaterThan(timelinje);
+    expect(vare).toBeGreaterThan(maskin);
+    expect(html).toContain("Volvo EC140");
+    expect(html).toContain("Pukk 6-32");
+    expect(DAG7_VARER[0]!.kortId).toBe("k2");
+  });
+
+  it("ingen bøtteboks, «Arbeidstimer (N t)» eller «Maskin X t» i kortmodus", () => {
+    for (const html of [dag7(), dag7(kunJobb2)]) {
+      expect(html).not.toContain("timer.gruppe.arbeidstimer");
+      expect(html).not.toContain("timer.gruppe.maskin{");
+      expect(html).not.toContain("timer.detalj.tilfoyTimer");
+    }
+  });
+
+  it("lenkeraden pr. jobb: + Timer, + Maskin, + Vare, + Tillegg/Utlegg i den rekkefølgen", () => {
+    const html = dag7(kunJobb2);
+    const plass = ["nyTimer", "nyMaskin", "nyVareKort", "leggTil"].map((k) =>
+      html.indexOf(`timer.prosjektkort.${k}<`),
+    );
+    expect(plass.every((p) => p > -1)).toBe(true);
+    expect([...plass].sort((a, b) => a - b)).toEqual(plass);
   });
 });

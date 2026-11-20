@@ -84,6 +84,8 @@ const rad = (id: string, projectId: string, fraTid: string, tilTid: string, time
   beskrivelse: null,
   attestertStatus: "pending",
   erReise: false,
+  // w3a: hver rad er sin egen jobb (eget kort).
+  kortId: `k-${id}`,
 });
 
 function rendre(modus: string) {
