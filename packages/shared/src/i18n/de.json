@@ -5911,5 +5911,16 @@
   "firma.innstillinger.selvAttestering.tittel": "Genehmiger können ihre eigenen Stunden genehmigen",
   "firma.innstillinger.selvAttestering.hintNei": "Nein: Eigene Stunden werden von einer anderen Person mit Genehmigungsrechten genehmigt. Wenn niemand anderes das Recht hat, bleiben die Stunden auf „Ausstehend“.",
   "firma.innstillinger.selvAttestering.hintJa": "Ja: Ein Genehmiger kann seine eigenen Stunden genehmigen, zurückgeben und korrigieren.",
-  "firma.innstillinger.selvAttestering.hjelpIkon": "Gilt für alle, die genehmigen können, einschließlich Unternehmensadministratoren. Eigene Stunden werden in Meine Stunden korrigiert."
+  "firma.innstillinger.selvAttestering.hjelpIkon": "Gilt für alle, die genehmigen können, einschließlich Unternehmensadministratoren. Eigene Stunden werden in Meine Stunden korrigiert.",
+  "timer.reiseKort.tilAnnetKontor": "In ein anderes Büro",
+  "timer.reiseKort.hvorTil": "Wohin bist du gefahren?",
+  "timer.reiseKort.hvorFra": "Von wo bist du gefahren?",
+  "timer.reiseKort.naar": "Wann bist du gefahren?",
+  "timer.reiseKort.forArbeid": "Vor der Arbeit",
+  "timer.reiseKort.etterArbeid": "Nach der Arbeit",
+  "timer.reiseKort.startKl": "Startzeit",
+  "timer.reiseKort.sluttKl": "Endzeit",
+  "timer.reiseKort.forslag": "Empfohlen: {{min}} min Fahrt (Firmentabelle)",
+  "timer.reiseKort.havnerJobb": "Nimmt den Job bei {{sted}} an.",
+  "timer.reiseKort.havnerEget": "Erhält eine eigene Karte bei {{prosjekt}}."
 }

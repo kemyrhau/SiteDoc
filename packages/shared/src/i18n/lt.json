@@ -5911,5 +5911,16 @@
   "firma.innstillinger.selvAttestering.tittel": "Tvirtintojai gali patvirtinti savo darbo valandas",
   "firma.innstillinger.selvAttestering.hintNei": "Ne: savo darbo valandas patvirtina kažkas kitas, turintis patvirtinimo teises. Jei niekas kitas neturi teisės, valandos lieka kaip „Laukiama“.",
   "firma.innstillinger.selvAttestering.hintJa": "Taip: patvirtintojas gali patvirtinti, grąžinti ir pataisyti savo darbo valandas.",
-  "firma.innstillinger.selvAttestering.hjelpIkon": "Taikoma visiems, kurie gali patvirtinti, įskaitant įmonės administratorius. Mano valandos yra pataisytos."
+  "firma.innstillinger.selvAttestering.hjelpIkon": "Taikoma visiems, kurie gali patvirtinti, įskaitant įmonės administratorius. Mano valandos yra pataisytos.",
+  "timer.reiseKort.tilAnnetKontor": "Į kitą biurą",
+  "timer.reiseKort.hvorTil": "Kur važiavai?",
+  "timer.reiseKort.hvorFra": "Iš kur važiavai?",
+  "timer.reiseKort.naar": "Kada važiavote?",
+  "timer.reiseKort.forArbeid": "Prieš darbą",
+  "timer.reiseKort.etterArbeid": "Po darbo",
+  "timer.reiseKort.startKl": "Pradžios laikas",
+  "timer.reiseKort.sluttKl": "Pabaigos laikas",
+  "timer.reiseKort.forslag": "Siūloma: {{min}} min. važiavimo (įmonės lentelė)",
+  "timer.reiseKort.havnerJobb": "Įeina į darbą {{sted}}.",
+  "timer.reiseKort.havnerEget": "Gauna savo kortelę {{prosjekt}}."
 }

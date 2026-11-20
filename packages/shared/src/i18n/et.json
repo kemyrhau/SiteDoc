@@ -5911,5 +5911,16 @@
   "firma.innstillinger.selvAttestering.tittel": "Kinnitajad saavad ise oma lahtiolekuajad kinnitada",
   "firma.innstillinger.selvAttestering.hintNei": "Ei: enda tööajad kinnitab keegi teine, kellel on kinnitusõigused. Kui kellelgi teisel pole õigust, jäävad tunnid olekusse \"Ootel\".",
   "firma.innstillinger.selvAttestering.hintJa": "Jah: kinnitaja saab ise oma tööaega kinnitada, tagastada ja parandada.",
-  "firma.innstillinger.selvAttestering.hjelpIkon": "Kehtib kõigile, kes saavad kinnitada, sealhulgas ettevõtte administraatoritele. Enda tunde on parandatud Minu tundides."
+  "firma.innstillinger.selvAttestering.hjelpIkon": "Kehtib kõigile, kes saavad kinnitada, sealhulgas ettevõtte administraatoritele. Enda tunde on parandatud Minu tundides.",
+  "timer.reiseKort.tilAnnetKontor": "Teise kontorisse",
+  "timer.reiseKort.hvorTil": "Kuhu sa sõitsid?",
+  "timer.reiseKort.hvorFra": "Kust sa sõitsid?",
+  "timer.reiseKort.naar": "Millal sõitsid?",
+  "timer.reiseKort.forArbeid": "Enne tööd",
+  "timer.reiseKort.etterArbeid": "Peale tööd",
+  "timer.reiseKort.startKl": "Algusaeg",
+  "timer.reiseKort.sluttKl": "Lõpuaeg",
+  "timer.reiseKort.forslag": "Soovitatav: {{min}} min autosõitu (ettevõtte tabel)",
+  "timer.reiseKort.havnerJobb": "Läheb tööle aadressil {{sted}}.",
+  "timer.reiseKort.havnerEget": "Saab oma kaardi {{prosjekt}}."
 }

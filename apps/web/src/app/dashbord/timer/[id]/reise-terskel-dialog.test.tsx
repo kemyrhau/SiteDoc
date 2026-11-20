@@ -276,9 +276,10 @@ describe("web «+ Reise» — reise-kortet, samme regel som mobil", () => {
     expect(input.tilTid).toBe("07:00");
   });
 
-  it("viser resultatlinje og samme forklaringslinje som mobil (delt tekst)", () => {
+  it("viser forslaget og samme forklaringslinje som mobil (delt tekst)", () => {
     const dialog = rendre({ kjoretidMin: 15 });
-    expect(dialog.textContent).toContain("timer.reiseKort.resultat");
+    // w15b: tidene står i «Start kl.»/«Slutt kl.»; linja viser firmaets kjøretid.
+    expect(dialog.textContent).toContain('timer.reiseKort.forslag{"min":15}');
     expect(dialog.textContent).toContain("timer.reiseTerskel.under");
     expect(dialog.textContent).toContain("timer.reiseTerskel.kategoriArbeid");
   });

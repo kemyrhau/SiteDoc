@@ -5911,5 +5911,16 @@
   "firma.innstillinger.selvAttestering.tittel": "Apstiprinātāji var apstiprināt savu darbalaiku",
   "firma.innstillinger.selvAttestering.hintNei": "Nē: savu darba laiku apstiprina kāds cits ar apstiprināšanas tiesībām. Ja nevienam citam nav tiesību, stundas paliek kā \"Gaida\".",
   "firma.innstillinger.selvAttestering.hintJa": "Jā: apstiprinātājs var apstiprināt, atgriezt un labot savu darba laiku.",
-  "firma.innstillinger.selvAttestering.hjelpIkon": "Attiecas uz visiem, kas var apstiprināt, tostarp uzņēmuma administratoriem. Pašu darba laiks tiek labots sadaļā Manas stundas."
+  "firma.innstillinger.selvAttestering.hjelpIkon": "Attiecas uz visiem, kas var apstiprināt, tostarp uzņēmuma administratoriem. Pašu darba laiks tiek labots sadaļā Manas stundas.",
+  "timer.reiseKort.tilAnnetKontor": "Uz citu biroju",
+  "timer.reiseKort.hvorTil": "Uz kurieni tu brauci?",
+  "timer.reiseKort.hvorFra": "No kurienes tu brauci?",
+  "timer.reiseKort.naar": "Kad tu brauci?",
+  "timer.reiseKort.forArbeid": "Pirms darba",
+  "timer.reiseKort.etterArbeid": "Pēc darba",
+  "timer.reiseKort.startKl": "Sākuma laiks",
+  "timer.reiseKort.sluttKl": "Beigu laiks",
+  "timer.reiseKort.forslag": "Ieteicamais brauciens: {{min}} min (uzņēmuma tabula)",
+  "timer.reiseKort.havnerJobb": "Iestājas darbā {{sted}}.",
+  "timer.reiseKort.havnerEget": "Saņem savu karti vietnē {{prosjekt}}."
 }

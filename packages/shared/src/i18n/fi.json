@@ -5911,5 +5911,16 @@
   "firma.innstillinger.selvAttestering.tittel": "Hyväksyjät voivat hyväksyä omat aukioloaikansa",
   "firma.innstillinger.selvAttestering.hintNei": "Ei: omat tunnit hyväksyy joku muu, jolla on hyväksymisoikeudet. Jos kenelläkään muulla ei ole oikeutta, tunnit pysyvät \"Odottaa\".",
   "firma.innstillinger.selvAttestering.hintJa": "Kyllä: Hyväksyjä voi hyväksyä, palauttaa ja korjata omat aukioloaikansa.",
-  "firma.innstillinger.selvAttestering.hjelpIkon": "Koskee kaikkia, jotka voivat hyväksyä, mukaan lukien yrityksen järjestelmänvalvojat. Omat tunnit on korjattu Omassa tunnissa."
+  "firma.innstillinger.selvAttestering.hjelpIkon": "Koskee kaikkia, jotka voivat hyväksyä, mukaan lukien yrityksen järjestelmänvalvojat. Omat tunnit on korjattu Omassa tunnissa.",
+  "timer.reiseKort.tilAnnetKontor": "Toiselle toimistolle",
+  "timer.reiseKort.hvorTil": "Minne ajoit?",
+  "timer.reiseKort.hvorFra": "Mistä ajoit?",
+  "timer.reiseKort.naar": "Milloin ajoit?",
+  "timer.reiseKort.forArbeid": "Ennen töitä",
+  "timer.reiseKort.etterArbeid": "Töiden jälkeen",
+  "timer.reiseKort.startKl": "Aloitusaika",
+  "timer.reiseKort.sluttKl": "Päättymisaika",
+  "timer.reiseKort.forslag": "Suositeltu: {{min}} min ajomatka (yritystaulukko)",
+  "timer.reiseKort.havnerJobb": "Menee töihin {{sted}}.",
+  "timer.reiseKort.havnerEget": "Saa oman kortin {{prosjekt}}."
 }

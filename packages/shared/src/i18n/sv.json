@@ -5911,5 +5911,16 @@
   "firma.innstillinger.selvAttestering.tittel": "Godkännare kan godkänna sina egna timmar",
   "firma.innstillinger.selvAttestering.hintNei": "Nej: egna timmar godkänns av någon annan med godkännanderätt. Om ingen annan har rätt, förblir timmarna som \"Väntande\".",
   "firma.innstillinger.selvAttestering.hintJa": "Ja: en godkännare kan godkänna, returnera och korrigera sina egna timmar.",
-  "firma.innstillinger.selvAttestering.hjelpIkon": "Gäller alla som kan godkänna, även företagsadministratörer. Egna timmar korrigeras i Mina timmar."
+  "firma.innstillinger.selvAttestering.hjelpIkon": "Gäller alla som kan godkänna, även företagsadministratörer. Egna timmar korrigeras i Mina timmar.",
+  "timer.reiseKort.tilAnnetKontor": "Till ett annat kontor",
+  "timer.reiseKort.hvorTil": "Var körde du?",
+  "timer.reiseKort.hvorFra": "Var körde du ifrån?",
+  "timer.reiseKort.naar": "När körde du?",
+  "timer.reiseKort.forArbeid": "Innan jobbet",
+  "timer.reiseKort.etterArbeid": "Efter jobbet",
+  "timer.reiseKort.startKl": "Starttid",
+  "timer.reiseKort.sluttKl": "Sluttid",
+  "timer.reiseKort.forslag": "Föreslagna: {{min}} min körning (företagstabell)",
+  "timer.reiseKort.havnerJobb": "Tillträder jobbet på {{sted}}.",
+  "timer.reiseKort.havnerEget": "Får ett eget kort på {{prosjekt}}."
 }

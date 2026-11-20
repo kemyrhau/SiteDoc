@@ -1459,10 +1459,24 @@ export default function DagsseddelDetaljSide() {
           organizationId={sheet.organizationId}
           dato={new Date(sheet.dato).toISOString().slice(0, 10)}
           projectId={aktivModal.projectId}
+          prosjekter={prosjekterForVelger}
+          sedelByggeplassId={(sheet as { byggeplassId?: string | null }).byggeplassId ?? null}
           byggeplasser={byggeplasser}
           prosjektNavn={kortNavn}
           aktivitetId={sheetAktivitetId ?? null}
-          dagsrader={timerRader.map((r) => ({ fraTid: r.fraTid, tilTid: r.tilTid, erReise: r.erReise ?? false, erOverforing: r.reiseKilde === "overforing" }))}
+          // w15b: radene bærer kort, sted og prosjekt — overlapp-sperren og linja «havner i».
+          dagsrader={timerRader.map((r) => ({
+            fraTid: r.fraTid,
+            tilTid: r.tilTid,
+            erReise: r.erReise ?? false,
+            erOverforing: r.reiseKilde === "overforing",
+            kortId: r.kortId ?? null,
+            projectId: r.projectId,
+            ecoId: r.externalCostObjectId,
+            byggeplassId: r.byggeplassId,
+            opprettet: r.createdAt ? new Date(r.createdAt).getTime() : 0,
+            attestertStatus: r.attestertStatus,
+          }))}
           resolverLonnsartId={aktivModal.reise.id}
           skjulOverforingRetninger={timerRader
             .filter((r) => r.reiseKilde === "overforing")

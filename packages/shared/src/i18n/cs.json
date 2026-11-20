@@ -5911,5 +5911,16 @@
   "firma.innstillinger.selvAttestering.tittel": "Schvalovatelé mohou schvalovat vlastní otevírací dobu",
   "firma.innstillinger.selvAttestering.hintNei": "Ne: vlastní otevírací dobu schvaluje někdo jiný s právem schvalování. Pokud nikdo jiný nemá právo, hodiny zůstanou jako „Nevyřízeno“.",
   "firma.innstillinger.selvAttestering.hintJa": "Ano: schvalovatel může schválit, vrátit a opravit vlastní otevírací dobu.",
-  "firma.innstillinger.selvAttestering.hjelpIkon": "Platí pro každého, kdo může schvalovat, včetně firemních administrátorů. Vlastní hodiny jsou opraveny v části Moje hodiny."
+  "firma.innstillinger.selvAttestering.hjelpIkon": "Platí pro každého, kdo může schvalovat, včetně firemních administrátorů. Vlastní hodiny jsou opraveny v části Moje hodiny.",
+  "timer.reiseKort.tilAnnetKontor": "Do jiné kanceláře",
+  "timer.reiseKort.hvorTil": "kam jsi jel?",
+  "timer.reiseKort.hvorFra": "odkud jsi jel?",
+  "timer.reiseKort.naar": "Kdy jsi řídil?",
+  "timer.reiseKort.forArbeid": "Před prací",
+  "timer.reiseKort.etterArbeid": "Po práci",
+  "timer.reiseKort.startKl": "Čas zahájení",
+  "timer.reiseKort.sluttKl": "Čas ukončení",
+  "timer.reiseKort.forslag": "Doporučené: {{min}} min jízdy (tabulka společnosti)",
+  "timer.reiseKort.havnerJobb": "Zúčastní se práce v {{sted}}.",
+  "timer.reiseKort.havnerEget": "Získá svou vlastní kartu na {{prosjekt}}."
 }

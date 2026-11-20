@@ -5911,5 +5911,16 @@
   "firma.innstillinger.selvAttestering.tittel": "Osoby zatwierdzające mogą zatwierdzać własne godziny pracy",
   "firma.innstillinger.selvAttestering.hintNei": "Nie: własne godziny pracy są zatwierdzane przez osobę posiadającą uprawnienia do zatwierdzania. Jeżeli nikt inny nie ma do tego prawa, godziny pozostają w stanie „Oczekujące”.",
   "firma.innstillinger.selvAttestering.hintJa": "Tak: osoba zatwierdzająca może zatwierdzać, zwracać i korygować własne godziny pracy.",
-  "firma.innstillinger.selvAttestering.hjelpIkon": "Dotyczy wszystkich, którzy mogą zatwierdzać, w tym administratorów firmy. Własne godziny są korygowane w Moich godzinach."
+  "firma.innstillinger.selvAttestering.hjelpIkon": "Dotyczy wszystkich, którzy mogą zatwierdzać, w tym administratorów firmy. Własne godziny są korygowane w Moich godzinach.",
+  "timer.reiseKort.tilAnnetKontor": "Do innego biura",
+  "timer.reiseKort.hvorTil": "Dokąd jechałeś?",
+  "timer.reiseKort.hvorFra": "Skąd jechałeś?",
+  "timer.reiseKort.naar": "Kiedy jeździłeś?",
+  "timer.reiseKort.forArbeid": "Przed pracą",
+  "timer.reiseKort.etterArbeid": "Po pracy",
+  "timer.reiseKort.startKl": "Czas rozpoczęcia",
+  "timer.reiseKort.sluttKl": "Koniec czasu",
+  "timer.reiseKort.forslag": "Sugerowane: {{min}} min jazdy (tabela firmowa)",
+  "timer.reiseKort.havnerJobb": "Dostaje pracę w {{sted}}.",
+  "timer.reiseKort.havnerEget": "Otrzymuje własną kartę na {{prosjekt}}."
 }

@@ -188,6 +188,13 @@ export function tilManuellReiseSpor(
 export type ReiseKortRetning = "tur" | "retur";
 
 /**
+ * w15b (B42 A): «Når kjørte du?». «forArbeid» legger reisen før dagens første arbeid
+ * (`dagStart`), «etterArbeid» etter dagens siste (`dagSlutt`). Utelatt = som retningen
+ * sier (tur → før, retur → etter), slik regelen var før w15b.
+ */
+export type ReiseKortNaar = "forArbeid" | "etterArbeid";
+
+/**
  * Hvorfor reise-kortet ikke kan lagres. null = kan lagres.
  *  - byggeplassPeriode: den ansatte møter på byggeplassen — ingen reise.
  *  - oppmoteIkkeValgt: den ansatte har ikke valgt oppmøtested (første valg
@@ -225,10 +232,19 @@ export interface ReiseKortInput {
   grensepunkter: ReiseGrensepunkt[];
   resolverLonnsartId: string | null;
   standardLonnsartId: string | null;
+  /** w15b: når reisen ble kjørt. Utelatt = som retningen sier. Endrer aldri sporets retning. */
+  naar?: ReiseKortNaar | null;
+  /** w15b: arbeiderens start (HH:MM). Utelatt/ugyldig = forslaget fra dagens rader. */
+  startTid?: string | null;
+  /** w15b: arbeiderens slutt (HH:MM). Utelatt/ugyldig = start + firmaets kjøretid. */
+  sluttTid?: string | null;
 }
 
 export interface ReiseKortResultat {
-  /** Desimaltimer (kjøretid / 60). 0 når sperret uten kjøretid. */
+  /**
+   * Desimaltimer: (slutt − start) / 60 — lik kjøretid / 60 når arbeideren ikke har rettet
+   * slutten. 0 når sperret uten kjøretid, og når slutten ikke er etter starten (kalleren sperrer).
+   */
   timer: number;
   fraTid: string | null;
   tilTid: string | null;
@@ -328,14 +344,20 @@ export function løsReiseKort(k: ReiseKortInput): ReiseKortResultat {
     oppmotestedId && k.byggeplassId ? k.kjoretidFor(oppmotestedId, k.byggeplassId) : null;
   if (kjoretidMin == null || kjoretidMin < 0) return tom("manglerKjoretid", oppmotestedId);
 
-  // 4. Tidspunkt fra dagens arbeidsrader.
-  const anker = klokkeTilMin(k.retning === "tur" ? k.dagStart : k.dagSlutt);
-  if (anker == null) return tom("manglerDagstid", oppmotestedId);
-  const fra = k.retning === "tur" ? anker - kjoretidMin : anker;
-  const til = k.retning === "tur" ? anker : anker + kjoretidMin;
+  // 4. Tidspunkt: forslaget regnes fra dagens arbeidsrader — før arbeid = første fra-tid
+  //    minus kjøretiden, etter arbeid = siste til-tid. w15b: arbeiderens start og slutt
+  //    går foran forslaget; retter han bare starten, følger slutten (start + kjøretid).
+  const naar: ReiseKortNaar = k.naar ?? (k.retning === "tur" ? "forArbeid" : "etterArbeid");
+  let fra = klokkeTilMin(k.startTid);
+  if (fra == null) {
+    const anker = klokkeTilMin(naar === "forArbeid" ? k.dagStart : k.dagSlutt);
+    if (anker == null) return tom("manglerDagstid", oppmotestedId);
+    fra = naar === "forArbeid" ? anker - kjoretidMin : anker;
+  }
+  const til = klokkeTilMin(k.sluttTid) ?? fra + kjoretidMin;
   if (fra < 0 || til > 24 * 60) return tom("utenforDognet", oppmotestedId);
 
-  const timer = kjoretidMin / 60;
+  const timer = Math.max(0, til - fra) / 60;
   const basis = {
     timer,
     fraTid: minTilKlokke(fra),
@@ -347,11 +369,12 @@ export function løsReiseKort(k: ReiseKortInput): ReiseKortResultat {
     return { ...basis, klassifisering: null, spor: null, sperre: "manglerRegel" };
   }
 
-  // 5. Terskel og bånd — samme regel som før (`klassifiserManuellReise`).
+  // 5. Terskel og bånd — samme regel som før (`klassifiserManuellReise`). w15b: terskelen
+  //    måles på firmaets kjøretid, ikke på en rettet slutt — likt for alle (plan § 4.15 del B).
   const avstandM = oppmotestedId && k.byggeplassId ? k.avstandFor(oppmotestedId, k.byggeplassId) : null;
   const klassifisering = klassifiserManuellReise({
     regel: k.regel,
-    reisetimer: timer,
+    reisetimer: kjoretidMin / 60,
     avstandM,
     grensepunkter: k.grensepunkter,
     resolverLonnsartId: k.resolverLonnsartId,
@@ -391,6 +414,10 @@ export interface OverforingKortInput {
   grensepunkter: ReiseGrensepunkt[];
   resolverLonnsartId: string | null;
   standardLonnsartId: string | null;
+  /** w15b: som i `ReiseKortInput`. */
+  naar?: ReiseKortNaar | null;
+  startTid?: string | null;
+  sluttTid?: string | null;
 }
 
 export function løsOverforingKort(k: OverforingKortInput): ReiseKortResultat {
@@ -406,6 +433,9 @@ export function løsOverforingKort(k: OverforingKortInput): ReiseKortResultat {
     grensepunkter: k.grensepunkter,
     resolverLonnsartId: k.resolverLonnsartId,
     standardLonnsartId: k.standardLonnsartId,
+    naar: k.naar,
+    startTid: k.startTid,
+    sluttTid: k.sluttTid,
   });
   if (!r.spor) return r;
   const reiseRegel: ReiseRegelSnapshot = {

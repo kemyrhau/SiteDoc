@@ -5911,5 +5911,16 @@
   "firma.innstillinger.selvAttestering.tittel": "Утверждающие могут утверждать свои собственные часы",
   "firma.innstillinger.selvAttestering.hintNei": "Нет: собственные часы утверждаются кем-то другим, имеющим право на утверждение. Если никто другой не имеет на это права, часы остаются в состоянии «Ожидание».",
   "firma.innstillinger.selvAttestering.hintJa": "Да: утверждающий может утвердить, вернуть и исправить свои часы.",
-  "firma.innstillinger.selvAttestering.hjelpIkon": "Применяется ко всем, кто может одобрить, включая администраторов компании. Собственные часы корректируются в Моих часах."
+  "firma.innstillinger.selvAttestering.hjelpIkon": "Применяется ко всем, кто может одобрить, включая администраторов компании. Собственные часы корректируются в Моих часах.",
+  "timer.reiseKort.tilAnnetKontor": "В другой офис",
+  "timer.reiseKort.hvorTil": "Куда ты поехал?",
+  "timer.reiseKort.hvorFra": "Откуда ты ехал?",
+  "timer.reiseKort.naar": "Когда ты ехал?",
+  "timer.reiseKort.forArbeid": "Перед работой",
+  "timer.reiseKort.etterArbeid": "После работы",
+  "timer.reiseKort.startKl": "Время начала",
+  "timer.reiseKort.sluttKl": "Время окончания",
+  "timer.reiseKort.forslag": "Рекомендуемое время: {{min}} минут езды (таблица компании)",
+  "timer.reiseKort.havnerJobb": "Приступает к работе в {{sted}}.",
+  "timer.reiseKort.havnerEget": "Получает собственную карту на {{prosjekt}}."
 }

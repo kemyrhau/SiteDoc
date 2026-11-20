@@ -5911,5 +5911,16 @@
   "firma.innstillinger.selvAttestering.tittel": "Aprobatorii își pot aproba propriile ore",
   "firma.innstillinger.selvAttestering.hintNei": "Nu: orele proprii sunt aprobate de altcineva cu drepturi de aprobare. Dacă nimeni altcineva nu are dreptul, orele rămân ca „În așteptare”.",
   "firma.innstillinger.selvAttestering.hintJa": "Da: un autorizator își poate aproba, returna și corecta propriile ore de lucru.",
-  "firma.innstillinger.selvAttestering.hjelpIkon": "Se aplică tuturor celor care pot aproba, inclusiv administratorilor companiei. Orele proprii sunt corectate în Orele Mele."
+  "firma.innstillinger.selvAttestering.hjelpIkon": "Se aplică tuturor celor care pot aproba, inclusiv administratorilor companiei. Orele proprii sunt corectate în Orele Mele.",
+  "timer.reiseKort.tilAnnetKontor": "La alt birou",
+  "timer.reiseKort.hvorTil": "Unde ai condus?",
+  "timer.reiseKort.hvorFra": "De unde ai condus?",
+  "timer.reiseKort.naar": "Când ai condus?",
+  "timer.reiseKort.forArbeid": "Înainte de muncă",
+  "timer.reiseKort.etterArbeid": "După muncă",
+  "timer.reiseKort.startKl": "Ora de începere",
+  "timer.reiseKort.sluttKl": "Ora de sfârșit",
+  "timer.reiseKort.forslag": "Sugerat: {{min}} minute cu mașina (tabelul companiei)",
+  "timer.reiseKort.havnerJobb": "Se angajează la {{sted}}.",
+  "timer.reiseKort.havnerEget": "Obține propriul card pe {{prosjekt}}."
 }
