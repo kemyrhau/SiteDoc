@@ -2409,7 +2409,7 @@ nederst sier hvilket kort reisen havner i før han lagrer. Returen står i `v15-
 
 **«Flytt til …» på reiselinja (B46 B)** (forslag til w15e; koderen leverer løsning med skjermbilde før kode):
 
-![Flytt til: menyen, eget kort og en annen jobb](skisser-web-timeforing/v16-flytt.png)
+![Flytt til: samme dag i tre paneler — forslaget med menyen, etter «Eget kort» og etter valg av jobb 1](skisser-web-timeforing/v16b-flytt.png)
 
 - Lenka står på hver reiselinje på dagssiden, ved pennen. Den åpner en liste med dagens kort på reisens
   prosjekt og «Eget kort». Kortet reisen står i, er merket.
@@ -2660,7 +2660,7 @@ ha attestert med en jobb på et annet sted, og to jobber på samme sted og under
 | **B** | Som A, og i tillegg «Flytt til …» på reiselinja: dagens kort på prosjektet og «Eget kort». Det arbeideren velger, står til han endrer det. | Valget må lagres på reisen, så regelen ikke flytter den tilbake: ny kolonne (**migrering, Kenneth**), serveren og utfyllingen leser den, og telefonen må sende den senere. Slettes jobben reisen ble flyttet til, gjelder forslaget igjen. |
 
 Anbefalingen var A nå. ✅ **Kenneth: B** (§ 8.19): *«dette er redigering → ja → vi trenger å kunne flytte en
-reise uten å skrive kortet på nytt.»* Bildet er `v16-flytt.png` (del E). Serveren og kolonnen bygges i
+reise uten å skrive kortet på nytt.»* Bildet er `v16b-flytt.png` (del E). Serveren og kolonnen bygges i
 **w15c**, lenka på reiselinja i **w15e** (del G).
 
 **Slik lagres valget (B46 B, w15c):**
@@ -2731,7 +2731,7 @@ Navnene w15a–w15d står som i versjon 15. w15e er ny.
 | **w15b** | **Reisevinduet: systemet foreslår, arbeideren retter (B42 A og presiseringen).** «Når kjørte du?» med «Før arbeid» og «Etter arbeid» (del B, følgene 1–5). «Start kl.» og «Slutt kl.» er fylt ut og kan rettes; slutten foreslås av firmaets kjøretid. **«Hvor kjørte du til?»:** prosjekt og byggeplass, fylt ut fra kortet og mulig å bytte til et annet prosjekt arbeideren kan føre timer på. Underprosjektet er fylt ut fra jobben som i dag (F36). Vinduet sier hvor reisen havner: «Står i jobben på sommerfeldtsgt 65» eller «Får eget kort på Prosjekt 1050». Linja bruker den delte regelen (`RV`): bygges w15b før w15c, sier den det dagens regel gir, og følger den nye når w15c er merget. Bildet er `v15-reisevindu.png`. | `RK`, `MR`, `RM` (`løsReiseKort`, `løsOverforingKort`) med tester, `WS` bare `:1439–1449`, i18n, hjelpeteksten, `timer.md`, `shared-pakker.md` | Nei · nei. Den delte reiseregelen får start som valgfri inngang og regner som i dag uten den. | w15a (samme fil). |
 | **w15c** | **Reisens kort på serveren (B43 B, B44, B46 B).** Regelen i del E: byggeplassen og et valgt underprosjekt er krav. Ny kolonne `valgt_kort_id`, prosedyren for «Flytt til …», valgt kort fra «Legg til timer-rad» og fra «Føres på», og at valget bæres gjennom synken og de andre skriveveiene (del F, «Slik lagres valget»). `sikreKortId`, ny utfylling, paritetstesten, tellingen og gate-SQL (del F). Reise til annet kontor etter arbeid i eget kort (del E punkt 6). Med B47 B også firmaets utgangspunkt. | `RV` og `reiseKort.test.ts`, `KI`, `D` (skriveveiene i F38–F42 og den nye prosedyren), `ST`, ny migrering i `packages/db-timer/prisma/migrations/`, `apps/api/src/routes/reise-kortid-migrering.integration.test.ts`, `kortid-skriveveier.integration.test.ts`, `AM` bare for F31 med test, `relay/sql/` (tellingen), `timer.md`, `api.md`, `shared-pakker.md`, `arkitektur.md` (kolonnen), kort-id-specen (§ 2.3). Ikke `WS`, ikke `apps/mobile`. | **Ja: én kolonne og en utfylling, Kenneth kjører.** Med B47 B også en kolonne i kjernen. Ikke mobil. | **B47 og B48.** Regel 10 kjøres uavhengig: delen flytter rader mellom kort som attesteres. |
 | **w15d** | **Dagssiden viser reisen.** Reiselinja får egen tegning: merket «Reise», stedet og klokka, uten aktivitet og matpause; underprosjektet vises når det avviker fra jobbens. Hodet viser sted og klokkeslett på alle kort, og regner byggeplassen av arbeidet. Et kort uten arbeid sier «Reise» i hodet og har «+ Timer», «+ Reise» og «+ Tillegg/Utlegg» (B45 A); med en timerad har det alle fem, som en jobb (presisert i § 8.19). Teksten under lønnsarten i timerad-vinduet (del C punkt 4). Pennen på en reise: koderen måler hvilke felt «Rediger timer-rad» har for en reiserad (`WS:1461`); tid, byggeplass og underprosjekt skal kunne rettes der, og kan prosjektet ikke byttes, meldes det før kode. | `WS` (`renderLinjer`, `JobbKortRamme`, lenkerekka `:2004–2033`, `TimerRadDialog` bare teksten), i18n, hjelpeteksten for siden, `timer.md`, `web.md` | Nei · nei | w15b (samme fil). B45 er besvart. |
-| **w15e** | **«Flytt til …» på reiselinja (B46 B).** Lenka ved pennen, lista med dagens kort på prosjektet, «Eget kort» og «Følg forslaget», og merket «Flyttet av deg». Ett trykk flytter. Bildet er `v16-flytt.png`. | `WS` (reiselinja fra w15d), i18n, hjelpeteksten for siden, `timer.md`, `web.md` | Nei · nei | w15c (prosedyren) og w15d (samme fil og reiselinja). |
+| **w15e** | **«Flytt til …» på reiselinja (B46 B).** Lenka ved pennen, lista med dagens kort på prosjektet, «Eget kort» og «Følg forslaget», og merket «Flyttet av deg». Ett trykk flytter. Bildet er `v16b-flytt.png`. | `WS` (reiselinja fra w15d), i18n, hjelpeteksten for siden, `timer.md`, `web.md` | Nei · nei | w15c (prosedyren) og w15d (samme fil og reiselinja). |
 
 **Rekkefølgen.** w15a → w15b → w15d → w15e går etter hverandre, fordi alle rører `WS`. w15c rører ikke `WS`
 og kan gå ved siden av, så snart B47 og B48 er besvart. w15d kan bygges før w15c er deployet, men dagen på
@@ -3245,6 +3245,9 @@ Kenneth ba om en ny runde mot avvik i planen. 🟡 Levert i versjon 12: § 4.13 
 - **B47 → A**, med Kenneths ord: «men jeg savner mulighet til å endre tidspunkter». Ingen firmainnstilling for hvor returen hjem føres nå; forslaget er jobben man drar fra. Tidene på en reise skal kunne rettes: i reisevinduet når den føres (w15b, bestilt 2026-11-21) og med pennen på reiselinja etterpå (w15d). 🟡 Vedtatt, ikke bygget.
 - **B48 → A.** Reise uten underprosjekt står i jobben på byggeplassen; linja viser «Uten underprosjekt». 🟡 Vedtatt, ikke bygget (w15c, w15d).
 - **B46 B, Kenneths merknad:** «eneste svakheten jeg ser er at det ser ut til at det er lite dynamisk angående valg av reise til? -> mangler det nedtreksmeny?» ⏳ Kontrollspørsmål til Kenneth 2026-11-21 (hvilken del av «Flytt til …» han mener); w15e venter på svaret.
+- **Skissen er tegnet på nytt 2026-11-21** (`v16b-flytt.png` i del E og `v16b-flytt-prosjekt.png` under, kilde `skisser-v16b.html`) etter Kenneths ord om `v16-flytt.png`: «reise til jobb kan aldri være bare 7 minutter. eksemplene var ikke konsistent med hvilke tider som føres.» Dagen er den samme i alle paneler, alle kort er åpne, og grønn ramme viser det som er endret fra panel 1. Spørsmålet som står igjen, er panel 4: skal «Flytt til …» ha valget «Annet prosjekt …» (4a, anbefalt av Fabel), eller byttes prosjekt med pennen (4b)? ⏳ Venter på Kenneth. Målt på develop `f95ba905`: ingen av veiene finnes i dag (`WS:4275` låser prosjektfeltet ved redigering, og `oppdaterTimerRad` i `D:4185` tar ikke imot prosjekt).
+
+![Panel 4: hjemreisen til et annet prosjekt — «Annet prosjekt …» i menyen (4a) eller pennen (4b), og dagen etterpå](skisser-web-timeforing/v16b-flytt-prosjekt.png)
 
 ## 9. Rekkefølge
 
