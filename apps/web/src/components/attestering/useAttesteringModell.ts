@@ -53,6 +53,7 @@ export function useAttesteringModell(
         fravaerUtenProsjekt: t("timer.detalj.fravaerUtenProsjekt"),
         annetProsjekt: t("timer.attestering.pivot.annetProsjekt"),
         reise: t("timer.attestering.tabell.type.reise"),
+        utenUnderprosjekt: t("timer.attestering.registrering.uten"),
         statusVenter: t("timer.attestering.tabell.status.venter"),
         statusAttestert: t("timer.attestering.tabell.status.attestert"),
         statusReturnert: t("timer.attestering.tabell.status.returnert"),

@@ -258,7 +258,8 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
 
   function visning(k: TimerTabellKolKey, l: AttLinje, under: number): ReactNode {
     const v = timerTabellVerdi(k, l.linje, under);
-    if (k === "type") return under === 0 ? typeTekst(l.linje.type) : null;
+    // w12 (§ 4.11 C1): reiselinja i jobben sier «Reise» i typekolonnen.
+    if (k === "type") return under === 0 ? typeTekst(l.linje.erReise ? "reise" : l.linje.type) : null;
     if (k === "avvik") {
       return under === 0 && l.avvikMerker.length > 0 ? <AvvikMerker merker={l.avvikMerker} /> : null;
     }
@@ -547,6 +548,19 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
     return ut;
   }
 
+  /**
+   * Jobbraden (w12, § 4.11 C4): «Timer» er arbeidstimene, så tallet stemmer med «høyst X t»;
+   * reisen står i grått i tekstkolonnen, der dagsraden har «N jobber». Et kort med bare reise
+   * viser reisetimene og «Reise» (C7). Dagsraden summerer alt.
+   */
+  const jobbTimer = (sum: { timer: number; reise: number }, kort: AttKort) =>
+    formaterNorsk(kort.reise ? sum.timer : sum.timer - sum.reise);
+  function jobbEtikett(sum: { reise: number }, kort: AttKort): ReactNode {
+    if (kort.reise) return <span className="font-normal text-gray-500">{typeTekst("reise")}</span>;
+    if (sum.reise === 0) return "";
+    return <span data-reise-sum="" className="font-normal text-gray-500">{t("timer.attestering.tabell.reiseTimer", { timer: formaterNorsk(sum.reise) })}</span>;
+  }
+
   /** Jobbens felt (pr.nr., prosjekt, underprosjekt, byggeplass) i en dags- eller jobbrad. */
   function kortCelle(k: TimerTabellKolKey, kort: AttKort | undefined): ReactNode | undefined {
     if (k === "prosjektnummer" || k === "prosjekt" || k === "underprosjekt" || k === "byggeplass") return kort ? kortVerdi(k, kort) : "";
@@ -622,9 +636,10 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
                 case "dato": return ukedagDato(dag.dato);
                 case "ansatt": return dag.ansatt;
                 case "ansattnr": return dag.ansattnr ?? "";
-                case "timer": return formaterNorsk(sum.timer);
+                case "timer": return jobbTimer(sum, kort);
                 case "maskintimer": return sum.maskintimer > 0 ? formaterNorsk(sum.maskintimer) : "";
                 default:
+                  if (k === etikettKol && k !== avvikKol) return jobbEtikett(sum, kort);
                   return k === avvikKol ? avvikCelle([...(norm ? [norm] : []), ...unikeMerker(kort.linjer.flatMap((l) => l.avvikMerker))]) : "";
               }
             },
@@ -670,7 +685,9 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
             case "maskintimer": return dagSum.maskintimer > 0 ? formaterNorsk(dagSum.maskintimer) : "";
             default:
               if (k === avvikKol) return avvikCelle(dagMerker, dagTekster);
-              if (k === etikettKol) return <span className="font-normal text-gray-500">{t("timer.attestering.tabell.antallJobber", { count: dag.kort.length })}</span>;
+              if (k === etikettKol && enKort?.reise) return jobbEtikett(dagSum, enKort);
+              // «N jobber» teller jobber, ikke reise alene i et kort (§ 4.11 C2).
+              if (k === etikettKol) return <span className="font-normal text-gray-500">{t("timer.attestering.tabell.antallJobber", { count: dag.kort.filter((x) => !x.reise).length })}</span>;
               return "";
           }
         },
@@ -692,8 +709,9 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
             celle: (k) => {
               const kc = kortCelle(k, kort);
               if (kc !== undefined) return kc;
-              if (k === "timer") return formaterNorsk(sum.timer);
+              if (k === "timer") return jobbTimer(sum, kort);
               if (k === "maskintimer") return sum.maskintimer > 0 ? formaterNorsk(sum.maskintimer) : "";
+              if (k === etikettKol && k !== avvikKol) return jobbEtikett(sum, kort);
               if (k === avvikKol) return avvikCelle(unikeMerker(kort.linjer.flatMap((l) => l.avvikMerker)));
               return "";
             },

@@ -386,6 +386,12 @@ Fra w10a i web-timeføring (🟡 ikke merget, `feat/web-timer-w10a`, plan § 4.5
 - Ny mikrotekst: «Åpne dagsseddelen» (`timer.attestering.tabell.aapneDagsseddel`, ↗), «Velg jobben» / «Velg alle jobbene denne dagen» (`…tabell.velgJobb` / `…velgDagen`, avkrysningens etikett), «Velg alle synlige jobber» (`…tabell.velgAlle`, endret), og i kortet «Rediger jobben», «Fra», «Til», «Pause (min)», «Ikke utfylt», «Kommentar til dagen», «Skriv fra og til som tt:mm, med til etter fra.», «Pausen er like lang som tiden mellom fra og til.» (`timer.attestering.registrering.redigerJobben`/`fra`/`til`/`pauseFelt`/`ikkeUtfylt`/`kommentarTilDagen`/`ugyldigTid`/`pauseForLang`).
 - Fjernet i alle 15 språk: `timer.attestering.tabell.rettCelle`, `…ugyldigTall`, `…velgLinje`, `…gjenaapneLinje`.
 
+Fra w12 i web-timeføring (🟡 ikke merget, `feat/web-timer-w12`, plan § 4.11 del C), begge sidene:
+
+- Reisen står sist i jobben den hører til, med Type «Reise». Jobbraden viser arbeidstimene og «reise X t» i grått ved siden av (`timer.attestering.tabell.reiseTimer`); dagsraden viser hele dagen.
+- Registreringen har del 8 «Reise» (`timer.attestering.registrering.reise`) med «Føres på» (`…registrering.foresPaa`): underprosjektet reisen føres på. Å bytte underprosjekt i jobbens hode flytter ikke reisen (C6).
+- `…hjelp.struktur` og `…hjelp.registrering` er ikke endret i w12.
+
 ## Prosjekt → Timer → Attestering (d2b-2) — ⚠️ fjernet i w10b
 
 🟡 w10b (`feat/web-timer-w10b`, ikke merget; plan web-timeføring § 4.10, B29 B): siden og menypunktet er fjernet. Adressen sender til `/dashbord/attestering`, der prosjektlederen får hjelpeteksten under Firma › Attestering (avsnittet `timer.attestering.hjelp.omfang`). Nøklene `timer.attestering.beskrivelse` og `timer.attestering.prosjekt.hjelp.laast` er slettet i alle 15 språk. Teksten under er historikk.

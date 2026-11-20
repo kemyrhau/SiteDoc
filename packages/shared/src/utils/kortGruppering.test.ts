@@ -140,6 +140,57 @@ describe("grupperPaaKort", () => {
     expect(g.utenKort).toEqual([]);
     expect(g.kort[0]!.linjer.map((l) => l.type)).toEqual(["timer", "maskin"]);
   });
+
+  // w12 (§ 4.11 del A punkt 7 og C1; FA59 snudd): reise med kort-id står i kortet, sist.
+  it("w12: reise med kort-id står sist i jobbens kort, utreise før retur, og ikke i reiseblokken", () => {
+    const retur = timer({ kortId: "k1", erReise: true, reiseRetning: "retur", fraTid: "15:30" });
+    const ut = timer({ kortId: "k1", erReise: true, reiseRetning: "ut", fraTid: "06:00" });
+    const t1 = timer({ kortId: "k1", fraTid: "07:00" });
+    const ti = tillegg({ kortId: "k1" });
+    const g = grupperPaaKort({ timer: [retur, ut, t1], tillegg: [ti] });
+    expect(g.reise).toEqual([]);
+    expect(g.kort).toHaveLength(1);
+    expect(g.kort[0]!.linjer.map((l) => [l.type, l.rad.id])).toEqual([
+      ["timer", t1.id],
+      ["tillegg", ti.id],
+      ["reise", ut.id],
+      ["reise", retur.id],
+    ]);
+    expect(antallRader(g)).toBe(4);
+  });
+
+  it("w12: hodet og rekkefølgen leses fra arbeidsradene — en tidlig utreise flytter ikke kortet foran", () => {
+    // kA: arbeid 09:00 med utreise 05:00; kB: arbeid 08:00. Arbeidet avgjør: kB før kA.
+    const reiseA = timer({ kortId: "kA", erReise: true, reiseRetning: "ut", fraTid: "05:00", externalCostObjectId: "eReise" });
+    const a = timer({ kortId: "kA", fraTid: "09:00", externalCostObjectId: "eA" });
+    const b = timer({ kortId: "kB", fraTid: "08:00" });
+    const g = grupperPaaKort({ timer: [reiseA, a, b] });
+    expect(g.kort.map((k) => k.kortId)).toEqual(["kB", "kA"]);
+    expect(g.kort[1]!.hode?.externalCostObjectId).toBe("eA");
+  });
+
+  it("w12: alderen leses fra arbeidsradene — en eldre reise flytter ikke kortet foran (FA-grunnlag: tie-break)", () => {
+    // Ingen klokkeslett: eldste arbeidsrad avgjør. Reisen i kA er ført først, men kB sitt arbeid er eldre.
+    const reiseA = timer({ kortId: "kA", erReise: true, reiseRetning: "ut" });
+    const b = timer({ kortId: "kB" });
+    const a = timer({ kortId: "kA" });
+    const g = grupperPaaKort({ timer: [a, b, reiseA] });
+    expect(g.kort.map((k) => k.kortId)).toEqual(["kB", "kA"]);
+  });
+
+  it("w12: reise alene i et kort gir kortet hodet fra reisen", () => {
+    const r = timer({ kortId: "kR", erReise: true, externalCostObjectId: "eR", fraTid: "06:00" });
+    const g = grupperPaaKort({ timer: [r] });
+    expect(g.kort.map((k) => k.kortId)).toEqual(["kR"]);
+    expect(g.kort[0]!.linjer.map((l) => l.type)).toEqual(["reise"]);
+    expect(g.kort[0]!.hode?.externalCostObjectId).toBe("eR");
+  });
+
+  it("w12: reise uten kort-id står fortsatt i reiseblokken (skjules aldri)", () => {
+    const r = timer({ kortId: null, erReise: true, fraTid: "06:00" });
+    const g = grupperPaaKort({ timer: [r, timer({ fraTid: "07:00" })] });
+    expect(g.reise.map((x) => x.id)).toEqual([r.id]);
+  });
 });
 
 describe("byggKortRader", () => {

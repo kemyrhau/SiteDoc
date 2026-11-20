@@ -126,6 +126,8 @@ export interface AttDeps {
     /** Rad på et prosjekt brukeren ikke har tilgang til (R13: navnet sendes ikke). */
     annetProsjekt: string;
     reise: string;
+    /** w12 (§ 4.11 C1): reiselinja uten underprosjekt i en jobb som har ett. */
+    utenUnderprosjekt: string;
     statusVenter: string;
     statusAttestert: string;
     statusReturnert: string;
@@ -176,7 +178,11 @@ export interface AttKort {
   prosjekt: string;
   underprosjekt: string | null;
   byggeplass: string | null;
-  /** w10a: blokken «Reise» (radene med `erReise`), ikke en jobb. Lønnsartvalget i kortet følger den (A1). */
+  /**
+   * Kortet har bare reiserader: reise alene i et kort (w12, § 4.11 C7) eller den gamle blokken
+   * «Reise» for reise uten kort-id (C9). Jobbraden sier «Reise», og kortet har ikke
+   * underprosjektvalget i hodet.
+   */
   reise: boolean;
   linjer: AttLinje[];
 }
@@ -357,9 +363,12 @@ function byggDag(s: AttSedel, deps: AttDeps): AttDag {
       const merke = maskinOverArbeid.get(maskinJobbNokkel({ ...rad, externalCostObjectId: rad.externalCostObjectId ?? null }));
       if (merke) leggTilAvvik(`${merke.tekst} (${merke.forklaring ?? ""})`, merke);
     };
-    if (g.type === "timer") {
+    if (g.type === "timer" || g.type === "reise") {
+      // w12 (§ 4.11 C1): reiselinja er en timelinje uten maskiner og varer (K6).
       const r = g.rad;
-      const maskiner = g.maskiner.map((m) => maskinTilLinje(m, deps));
+      const gMaskiner = g.type === "timer" ? g.maskiner : [];
+      const gVarer = g.type === "timer" ? g.varer : [];
+      const maskiner = gMaskiner.map((m) => maskinTilLinje(m, deps));
       if (sperre) leggTilAvvik(sperre);
       if (ukeTekst && ukeIder.has(r.id)) leggTilAvvik(ukeTekst);
       if (maskiner.some((m) => m.utenTimerad)) utenTimerad();
@@ -368,13 +377,13 @@ function byggDag(s: AttSedel, deps: AttDeps): AttDag {
       const ventende = r.attestertStatus === "pending";
       return {
         ...base,
-        kilde: { type: "timer", rad: r, maskiner: g.maskiner, varer: g.varer },
-        radIder: { timerIder: [r.id], maskinIder: g.maskiner.map((m) => m.id), tilleggIder: [] },
+        kilde: { type: "timer", rad: r, maskiner: gMaskiner, varer: gVarer },
+        radIder: { timerIder: [r.id], maskinIder: gMaskiner.map((m) => m.id), tilleggIder: [] },
         harHandling: true,
         ventende,
         attestert: r.attestertStatus === "attestert",
         projectId: r.projectId,
-        rettet: { ...rettetMap(r), ...Object.fromEntries(g.maskiner.flatMap((m) => Object.entries(rettetMap(m)).map(([f, v]) => [`maskin.${m.id}.${f}`, v]))) },
+        rettet: { ...rettetMap(r), ...Object.fromEntries(gMaskiner.flatMap((m) => Object.entries(rettetMap(m)).map(([f, v]) => [`maskin.${m.id}.${f}`, v]))) },
         linje: {
           id: r.id,
           type: "timer",
@@ -386,7 +395,7 @@ function byggDag(s: AttSedel, deps: AttDeps): AttDag {
           timer: tall(r.timer),
           pauseMin: r.pauseMin ?? null,
           maskiner,
-          varer: g.varer.map(vareTilLinje),
+          varer: gVarer.map(vareTilLinje),
           antall: null,
           belop: null,
           lonnsartType: null,
@@ -476,9 +485,15 @@ function byggDag(s: AttSedel, deps: AttDeps): AttDag {
   };
 
   const kort: AttKort[] = [];
-  const leggTilKort = (nokkel: string, linjer: AttLinje[], reise = false) => {
+  const erReiselinje = (l: AttLinje) => l.kilde.type === "timer" && l.kilde.rad.erReise === true;
+  const leggTilKort = (nokkel: string, linjer: AttLinje[]) => {
     if (linjer.length === 0) return;
     const forste = linjer[0]!.linje;
+    const reise = linjer.every(erReiselinje);
+    // C1 (B34 B): reise uten underprosjekt i en jobb med underprosjekt står som «Uten».
+    if (!reise && forste.underprosjekt) {
+      for (const l of linjer) if (erReiselinje(l) && !l.linje.underprosjekt) l.linje = { ...l.linje, underprosjekt: deps.tekst.utenUnderprosjekt };
+    }
     kort.push({
       nokkel,
       sheetId: s.id,
@@ -492,10 +507,11 @@ function byggDag(s: AttSedel, deps: AttDeps): AttDag {
     });
   };
 
-  // Reise først (G8: reisen står før arbeidet den fører til).
+  // Reise uten kort-id (skal ikke finnes etter w12-utfyllingen) står i egen blokk først, som
+  // før — den skjules aldri (§ 4.11 C9). Reise med kort-id står sist i jobbens kort (C1).
   if (gruppering.reise.length > 0) {
     const nokkel = `${s.id}:reise`;
-    leggTilKort(nokkel, gruppering.reise.map((r, i) => lagLinje({ type: "timer", rad: r, maskiner: [], varer: [] }, nokkel, i)), true);
+    leggTilKort(nokkel, gruppering.reise.map((r, i) => lagLinje({ type: "reise", rad: r }, nokkel, i)));
   }
   for (const k of gruppering.kort) {
     const nokkel = `${s.id}:${k.kortId}`;
@@ -541,14 +557,22 @@ function tomLinje(id: string, type: TimerTabellLinje["type"], over: Partial<Time
 /*  Summer                                                              */
 /* ------------------------------------------------------------------ */
 
-export function sumLinjer(linjer: readonly AttLinje[]): { timer: number; maskintimer: number } {
+/**
+ * Summene for et utvalg linjer. `timer` er alle timer (dagsraden, gruppen); `reise` er
+ * reiselinjenes del av dem — jobbraden viser `timer − reise` og «reise X t» i grått (§ 4.11 C4).
+ */
+export function sumLinjer(linjer: readonly AttLinje[]): { timer: number; maskintimer: number; reise: number } {
   let timer = 0;
   let maskintimer = 0;
+  let reise = 0;
   for (const l of linjer) {
-    if (l.linje.type === "timer") timer += l.linje.timer ?? 0;
+    if (l.linje.type === "timer") {
+      timer += l.linje.timer ?? 0;
+      if (l.linje.erReise) reise += l.linje.timer ?? 0;
+    }
     for (const m of l.linje.maskiner) maskintimer += m.timer ?? 0;
   }
-  return { timer, maskintimer };
+  return { timer, maskintimer, reise };
 }
 
 /* ------------------------------------------------------------------ */

@@ -77,7 +77,7 @@ const deps: AttDeps = {
   tekst: {
     forslagSperre: "Uavklart forslag", maskinUtenTimerad: "Maskin uten timerad", maskinforerbevis: "Mangler bevis",
     merkeUtenTimerad: "Uten timerad", merkeUtenTimeradForklaring: "Maskinen er ikke koblet til en timerad.", merkeUtenForerbevis: "Uten førerbevis", merkeMaskinOverArbeid: "Maskin over arbeid",
-    tilleggskrav: "Tilleggskrav", tilByggherre: "Til byggherre", fravaerUtenProsjekt: "Fravær", annetProsjekt: "Annet prosjekt", reise: "Reise",
+    tilleggskrav: "Tilleggskrav", tilByggherre: "Til byggherre", fravaerUtenProsjekt: "Fravær", annetProsjekt: "Annet prosjekt", reise: "Reise", utenUnderprosjekt: "Uten",
     statusVenter: "Venter", statusAttestert: "Attestert", statusReturnert: "Returnert",
   },
 };
@@ -1121,5 +1121,100 @@ describe("w10a (A10) — reiseblokken får avkrysning og ✓ ↩ som en jobbrad"
     const panel = container.querySelector("[data-registrering]") as HTMLElement;
     expect(panel.getAttribute("data-registrering")).toBe("s1:reise");
     expect(within(panel.querySelector("[data-beskrivelse]") as HTMLElement).queryByText("timer.attestering.registrering.ikkeUtfylt")).toBeNull();
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/*  w12 — reisen i jobbens kort (plan § 4.11 del C; H.8 og H.9)        */
+/* ------------------------------------------------------------------ */
+
+describe("w12 (§ 4.11 C) — reiselinja i jobben, del 8 «Reise» og «Føres på»", () => {
+  const ECO = [{ id: "e1", proAdmId: "100", kortNavn: "Grunn" }, { id: "e2", proAdmId: "200", kortNavn: "Tak" }];
+  const reise = (over: Partial<AttTimer> = {}) =>
+    timer("r1", { erReise: true, reiseRetning: "ut", lonnsartId: "lr", fraTid: "06:00", tilTid: "07:00", timer: "1", pauseMin: 0, ...over });
+  const aapnePanel = (c: HTMLElement, rad: HTMLElement = dagsrad(c)) => { fireEvent.click(rad); return c.querySelector("[data-registrering]") as HTMLElement; };
+  const del = (panel: HTMLElement, nr: number) => panel.querySelector(`[data-del="${nr}"]`) as HTMLElement | null;
+  beforeEach(() => {
+    h.data["eksternKostObjekt.list"] = ECO;
+    h.data["timer.lonnsart.list"] = [{ id: "l1", navn: "Ordinær", satsEnhet: null }, { id: "lr", navn: "Reise", satsEnhet: null }, { id: "l2", navn: "Overtid 50 %", satsEnhet: null }];
+    h.data["organisasjon.hentArbeidstidDefaults"] = { reiseLonnsartId: "lr", reiseGrenser: [] };
+  });
+  afterEach(() => {
+    delete h.data["eksternKostObjekt.list"];
+    delete h.data["organisasjon.hentArbeidstidDefaults"];
+  });
+
+  it("reiselinja står sist i jobben, sier «Reise» og har ingen knapper eller kryss; ingen reiseblokk", () => {
+    h.data["bruker.hentTabelloppsett"] = { kolonner: ["type", "betegnelse", "timer"], rekkefolge: true, bredder: {}, sortering: null };
+    const { container } = vis([sedel({ timer: [reise(), timer("t1")] })]);
+    delete h.data["bruker.hentTabelloppsett"];
+    expect(container.querySelectorAll('[data-rad="jobb"]')).toHaveLength(0);
+    expect(Array.from(container.querySelectorAll("[data-linje]")).map((e) => e.getAttribute("data-linje"))).toEqual(["s1:timer:t1", "s1:reise:r1"]);
+    const l = linje(container, "s1:reise:r1");
+    expect(within(l).queryAllByRole("button")).toHaveLength(0);
+    expect(within(l).queryAllByRole("checkbox")).toHaveLength(0);
+    expect(l.textContent).toContain("timer.attestering.tabell.type.reise");
+  });
+
+  it("✓ på jobbraden sender reisens id sammen med jobbens; jobbraden viser arbeidstimer og «reise X t»", () => {
+    const { container } = vis([sedel({ timer: [reise(), timer("t1"), timer("t2", { kortId: "kB", fraTid: "15:00", tilTid: "16:00", timer: "1", pauseMin: 0 })] })]);
+    const [jobbA] = Array.from(container.querySelectorAll('[data-rad="jobb"]')) as HTMLElement[];
+    expect(jobbA!.querySelector("[data-reise-sum]")!.textContent).toBe('timer.attestering.tabell.reiseTimer{"timer":"1,00"}');
+    expect(jobbA!.textContent).toContain("7,50");
+    expect(jobbA!.textContent).not.toContain("8,50");
+    fireEvent.click(within(jobbA!).getByRole("button", { name: "timer.attestering.tabell.attesterKort" }));
+    const ider = (kallTil("attesterRader")[0]!.input as { radIder: { timerIder: string[] } }).radIder.timerIder;
+    expect([...ider].sort()).toEqual(["r1", "t1"]);
+  });
+
+  it("del 1–7 er uendret av reisen; del 8 viser reisen", () => {
+    const uten = vis([sedel()]);
+    const p0 = aapnePanel(uten.container);
+    const foer = [1, 2, 3, 4, 5, 6, 7].map((n) => del(p0, n)!.textContent);
+    expect(del(p0, 8)).toBeNull();
+    cleanup();
+    const med = vis([sedel({ timer: [timer("t1"), reise()] })]);
+    const p1 = aapnePanel(med.container);
+    expect([1, 2, 3, 4, 5, 6, 7].map((n) => del(p1, n)!.textContent)).toEqual(foer);
+    const d8 = del(p1, 8)!;
+    expect(d8.textContent).toContain("timer.attestering.registrering.reise");
+    expect(d8.textContent).toContain("reise-merke");
+    expect(d8.querySelector('[data-reiselinje="s1:reise:r1"]')).toBeTruthy();
+  });
+
+  it("«Føres på» bytter underprosjektet på reiseraden alene (uten helJobb)", () => {
+    const { container } = vis([sedel({ timer: [timer("t1", { externalCostObjectId: "e1" }), reise({ externalCostObjectId: "e1" })] })]);
+    const p = aapnePanel(container);
+    const fores = p.querySelector("[data-fores-paa]") as HTMLElement;
+    fireEvent.click(within(fores).getAllByRole("button").find((b) => b.textContent?.includes("Tak"))!);
+    expect(kallTil("flyttTimerRadEco").map((k) => k.input)).toEqual([{ timerRadId: "r1", radType: "timer", externalCostObjectId: "e2" }]);
+  });
+
+  it("«Føres på» er bare tekst når reisen ikke venter (attestert)", () => {
+    const { container } = vis([sedel({ timer: [timer("t1"), reise({ attestertStatus: "attestert" })] })]);
+    const p = aapnePanel(container);
+    const fores = p.querySelector("[data-fores-paa]") as HTMLElement;
+    expect(within(fores).queryAllByRole("button")).toHaveLength(0);
+    expect(fores.textContent).toContain("timer.attestering.registrering.uten");
+  });
+
+  it("H.9: reiselinja tilbyr bare reisearter, arbeidslinja ingen", () => {
+    const { container } = vis([sedel({ timer: [timer("t1"), reise()] })]);
+    const p = aapnePanel(container);
+    const valg = (n: number) => Array.from((within(del(p, n)!).getByLabelText("timer.attestering.registrering.lonnsart") as HTMLSelectElement).options).map((o) => o.value);
+    expect(valg(2)).toEqual(["l1", "l2"]);
+    expect(valg(8)).toEqual(["lr"]);
+  });
+
+  it("reise alene i et kort: jobbraden sier «Reise», kortet har ikke underprosjektvalget i hodet", () => {
+    const { container } = vis([sedel({ timer: [timer("t1"), reise({ kortId: "kR" })] })]);
+    const jobb = Array.from(container.querySelectorAll('[data-rad="jobb"]')) as HTMLElement[];
+    expect(jobb).toHaveLength(2);
+    // Reisen kl. 06:00 står først; kortet uten arbeid ordnes etter sin første linje.
+    expect(jobb[0]!.textContent).toContain("timer.attestering.tabell.type.reise");
+    expect(jobb[1]!.textContent).not.toContain("timer.attestering.tabell.type.reise");
+    const p = aapnePanel(container, jobb[0]!);
+    expect(within(p).queryByText("timer.attestering.registrering.underprosjekt")).toBeNull();
+    expect(del(p, 8)).toBeTruthy();
   });
 });
