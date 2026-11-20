@@ -3007,7 +3007,7 @@ Kenneth ba om en ny runde mot avvik i planen. 🟡 Levert i versjon 12: § 4.13 
 - **B45 → A.** Kort med bare reise har «+ Timer», «+ Reise» og «+ Tillegg/Utlegg»; maskin og vare kommer når kortet har en timerad. 🟡 Vedtatt, ikke bygget (w15d).
 - **B46 → B.** Kenneth: «dette er redigering → ja → vi trenger å kunne flytte en reise uten å skrive kortet på nytt.» «Flytt til …» på reiselinja; krever lagret valg (ny kolonne, migrering som Kenneth kjører) og at `sikreKortId` respekterer valget. 🟡 Vedtatt, ikke bygget (w15c).
 - **Bekreftet av Kenneth samme kveld:** B44 «ok», B46 B «ja». B45 presisert: «kommer + timer, da må maskiner og varer også komme inn i kortet» — når kortet får en timerad, får det «+ Maskin» og «+ Vare» som en jobb.
-- **Fabels to «si fra»-lesninger** (slutt kl. kan rettes; «Til annet kontor» etter arbeid får eget kort): ikke besvart ennå.
+- **Fabels to «si fra»-lesninger → ja, begge** (Kenneth 2026-11-21): «Slutt kl.» kan rettes i reisevinduet (utvider B42 A); «Til annet kontor» etter at arbeidet er begynt, får eget kort. 🟡 Vedtatt, ikke bygget (w15b, w15c).
 
 ## 9. Rekkefølge
 
