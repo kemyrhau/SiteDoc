@@ -112,7 +112,7 @@ For alle rader med samme `kort_id`:
 - **K6** koblet maskin/vare har samme `kort_id` som timerraden den er koblet til.
 - **K7** to kort kan ha identiske K2–K4 (grøft og skifer). Det er hele poenget; ingen leser slår dem sammen.
 - ⚠️ **Reise i kortet (B32 B, Kenneth 2026-11-20, 🟡 ikke bygget):** for en reiserad gjelder K1 og K2. K4 og K5
-  gjelder ikke, K3 avgjøres av B34, og reiseraden teller ikke når kortets nøkkel avgjøres —
+  gjelder ikke, K3 er ikke et krav for reise (B34 B, Kenneth 2026-11-20: arbeideren bestemmer hvor reisen føres; regelen foretrekker jobben med samme underprosjekt), og reiseraden teller ikke når kortets nøkkel avgjøres —
   `web-timeforing-plan.md` § 4.11 del A punkt 6.
 
 K1–K4 og K6 valideres av **én delt funksjon** i `packages/shared` (`validerKortInvariant(rader, sedelKontekst)`),
