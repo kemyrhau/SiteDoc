@@ -304,6 +304,9 @@ export const vareforbrukRouter = router({
           dagsseddelId: true,
           // Radform (2026-11-12): dagsoversikten viser varen under sin timerrad.
           sheetTimerId: true,
+          // w3a: dagssiden legger varen i jobbens kort (kort-id) og sorterer som de andre linjene.
+          kortId: true,
+          createdAt: true,
           antall: true,
           // Punkt 7 (2026-11-13): vare-arket skjuler «Endre mengde»/«Slett» for attesterte
           // linjer. Bare flagget sendes — snapshotet (pris o.l.) blir på serveren.

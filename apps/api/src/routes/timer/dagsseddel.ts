@@ -790,6 +790,30 @@ async function flyttHeleJobben(
  * Hent dagsseddel og verifiser at innlogget bruker eier den (eller er admin).
  * Kaster NOT_FOUND hvis ikke funnet, FORBIDDEN hvis ikke eget.
  */
+/**
+ * w3a (A7, S4 C): stedet en maskin ført fra jobben (kall med kort-id) lagres med — timeradens
+ * byggeplass og underprosjekt. Timeraden er den oppgitte, ellers jobbens første arbeidsrad i
+ * samme prosjekt. Uten kort-id, eller uten slik rad, gjelder vinduets sted (tomt objekt).
+ */
+export async function jobbStedForMaskin(
+  prismaTimer: Pick<PrismaClientTimer, "sheetTimer">,
+  input: { sheetId: string; projectId: string; kortId?: string | null; sheetTimerId?: string | null },
+): Promise<{ byggeplassId?: string | null; externalCostObjectId?: string | null }> {
+  if (!input.kortId) return {};
+  const sel = { byggeplassId: true, externalCostObjectId: true } as const;
+  const felles = { sheetId: input.sheetId, projectId: input.projectId, erReise: false };
+  const rad =
+    (input.sheetTimerId
+      ? await prismaTimer.sheetTimer.findFirst({ where: { ...felles, id: input.sheetTimerId }, select: sel })
+      : null) ??
+    (await prismaTimer.sheetTimer.findFirst({
+      where: { ...felles, kortId: input.kortId },
+      orderBy: [{ fraTid: "asc" }, { createdAt: "asc" }, { id: "asc" }],
+      select: sel,
+    }));
+  return rad ? { byggeplassId: rad.byggeplassId, externalCostObjectId: rad.externalCostObjectId } : {};
+}
+
 async function hentEgenDagsseddel(
   prismaTimer: Prisma.TransactionClient | typeof import("@sitedoc/db-timer").prismaTimer,
   ctxUserId: string,
@@ -4372,6 +4396,16 @@ export const dagsseddelRouter = router({
       }
       data.pauseMin = vurdering.pauseMin;
 
+      // w3a (A7): radens sted etter skrivingen — koblet maskin og vare følger det.
+      const nyttSted = {
+        byggeplassId: input.byggeplassId !== undefined ? input.byggeplassId : rad.byggeplassId,
+        externalCostObjectId:
+          input.externalCostObjectId !== undefined ? input.externalCostObjectId : rad.externalCostObjectId,
+      };
+      const stedEndret =
+        rad.projectId !== null &&
+        (nyttSted.byggeplassId !== rad.byggeplassId || nyttSted.externalCostObjectId !== rad.externalCostObjectId);
+
       // F4-1d: rad-write + hode-synk (PK6) atomisk.
       const oppdatert = await ctx.prismaTimer.$transaction(async (tx) => {
         const maskinFoer = await lesMaskinJobbTilstand(tx, ctx.prismaMaskin, rad.sheetId);
@@ -4395,12 +4429,51 @@ export const dagsseddelRouter = router({
           where: { id: input.id },
           data,
         });
+        // w3a (A7): bytte av underprosjekt eller byggeplass tar med koblede maskiner i samme
+        // prosjekt. Attestert og erstattet står (S5). Før sikreKortId, så kortet stemmer.
+        if (stedEndret) {
+          await tx.sheetMachine.updateMany({
+            where: {
+              sheetId: rad.sheetId,
+              sheetTimerId: rad.id,
+              projectId: rad.projectId ?? undefined,
+              OR: [{ attestertStatus: null }, { attestertStatus: { notIn: ["attestert", "erstattet"] } }],
+            },
+            data: { byggeplassId: nyttSted.byggeplassId, externalCostObjectId: nyttSted.externalCostObjectId },
+          });
+        }
         await synkroniserHodePause(tx, rad.sheetId);
         const { kortIdFor } = await sikreKortId(tx, rad.sheetId);
         await krevIngenNyeMaskinBrudd(tx, ctx.prismaMaskin, rad.sheetId, maskinFoer);
         return { ...o, kortId: kortIdFor.get(input.id) ?? o?.kortId ?? null };
       });
-      return oppdatert;
+      // w3a (A7): koblede varer (egen database, ingen felles transaksjon) følger radens sted.
+      // Kjøres ved hvert lagre (ikke bare ved bytte), så et nytt lagre retter en vare som ble
+      // stående etter en feil. IS DISTINCT FROM: bare varer med annet sted skrives.
+      // Attestert vare (snapshot satt) står (S5). Feil her ruller ikke tilbake timeraden —
+      // den logges, og klienten får `vareIkkeFlyttet` (gate 107, vilkår 1).
+      let vareIkkeFlyttet = false;
+      if (rad.projectId !== null) {
+        try {
+          await ctx.prismaVarelager.$executeRawUnsafe(
+            `UPDATE "varelager"."vareforbruk" SET "byggeplass_id" = $1, "external_cost_object_id" = $2, "updated_at" = now()
+             WHERE "dagsseddel_id" = $3 AND "sheet_timer_id" = $4 AND "project_id" = $5 AND "attestert_snapshot" IS NULL
+               AND ("byggeplass_id" IS DISTINCT FROM $1 OR "external_cost_object_id" IS DISTINCT FROM $2)`,
+            nyttSted.byggeplassId,
+            nyttSted.externalCostObjectId,
+            rad.sheetId,
+            rad.id,
+            rad.projectId,
+          );
+        } catch (err) {
+          vareIkkeFlyttet = true;
+          ctx.req.log.error(
+            { err, sheetTimerId: rad.id, sheetId: rad.sheetId },
+            "oppdaterTimerRad: koblet vare ble ikke flyttet til radens sted",
+          );
+        }
+      }
+      return { ...oppdatert, vareIkkeFlyttet };
     }),
 
   fjernTimerRad: protectedProcedure
@@ -10052,11 +10125,11 @@ export const dagsseddelRouter = router({
           sheetTimerId: z.string().uuid().nullable().optional(),
         }).superRefine(refineFraForTil),
       )
-      .mutation(async ({ ctx, input }) => {
+      .mutation(async ({ ctx, input: inn }) => {
         const sheet = await hentEgenDagsseddel(
           ctx.prismaTimer,
           ctx.userId,
-          input.sheetId,
+          inn.sheetId,
         );
         if (!erRedigerbar(sheet.status)) {
           throw new TRPCError({
@@ -10065,6 +10138,11 @@ export const dagsseddelRouter = router({
           });
         }
         await sjekkAldersgrense(sheet.organizationId, sheet.status, sheet.dato);
+
+        // w3a (A7, S4 C): føring fra jobben (kall med kort-id) lagres med timeradens sted —
+        // den oppgitte timeraden, ellers jobbens første arbeidsrad. Uten kort-id (dagskort-
+        // modus) lagres vinduets sted uendret.
+        const input = { ...inn, ...(await jobbStedForMaskin(ctx.prismaTimer, inn)) };
 
         // §2.D: vehicleId (maskin-kostnadsbærer) må tilhøre firmaet. Svak FK
         // mot Equipment (db-maskin) → org-isolasjon håndheves i app-lag.

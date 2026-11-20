@@ -168,6 +168,7 @@ function rendre({
           beskrivelse: null,
           attestertStatus: "pending",
           erReise: false,
+          kortId: "k1",
         },
       ],
     },
