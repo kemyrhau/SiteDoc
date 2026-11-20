@@ -1836,6 +1836,10 @@ Kenneth 2026-11-18: «Ja, (a)». Firmavalget «Attestant kan attestere egne time
 - **B32 → B.** Reisen legges inn i jobbens kort på prosjektet og attesteres sammen med jobben. Dette snur vedtaket fra 16.11. om at reise ikke har kort-id. Det krever migrering av eksisterende reiserader (to-stegs, backfill, Kenneth kjører) og endring på telefonen. Fabel spesifiserer det som egen leveranse. w10 A10 utgår og erstattes av den leveransen. 🟡 Spesifisert i § 4.11 (versjon 10) som w12 og w12m; ikke bygget. Om reisen følger jobbens underprosjekt, er B34.
 - **B33 → A.** På en dag med to prosjekter føres utreisen på dagens første prosjekt og returen på dagens siste. Det gjelder telefonen og timer-GPS-sporet, ikke w10. 🟡 Spesifisert i § 4.11 del G: manuell reise i w12m, GPS-forslaget i L4-B. Ikke bygget.
 
+### 8.11 Kenneths svar på B34, 2026-11-20
+
+- **B34 → B, med presisering.** Kenneth: «Arbeideren bestemmer hvor reisen føres: prosjekt – underprosjekt eller prosjekt – byggeplass. Arbeideren bestemmer hvilket valg.» Reisen følger altså ikke automatisk jobbens underprosjekt. Fabel skriver w12 og w12m om etter dette. Det må avklares hvordan reisen ligger i jobbens kort (B32 B) når arbeideren har valgt et annet underprosjekt eller en annen byggeplass enn jobben har.
+
 ## 9. Rekkefølge
 
 Dette er forslag til oppdeling, ikke ordrer. **w1, w2 og w5 er merget** (§ 9.1–9.3). **w12 krever en migrering** (utfylling av kort-id på reise, § 4.11 del E), som Kenneth kjører. **w6 krever en migrering** (ny
