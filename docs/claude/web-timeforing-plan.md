@@ -3240,6 +3240,12 @@ Kenneth ba om en ny runde mot avvik i planen. 🟡 Levert i versjon 12: § 4.13 
 - **Fabels to «si fra»-lesninger → ja, begge** (Kenneth 2026-11-21): «Slutt kl.» kan rettes i reisevinduet (utvider B42 A); «Til annet kontor» etter at arbeidet er begynt, får eget kort. 🟡 Vedtatt, ikke bygget (w15b, w15c).
 - **Revidert i versjon 16:** § 4.15 del E (regelen: et valgt underprosjekt er et krav, valgt kort går foran; hva som står av B32 B og B34 B), del F (F36–F45, lagringen av valget i `valgt_kort_id`, tellingen), del G (w15a–w15e) og del H. B46 B bygges i w15c (kolonne, server, migrering) og w15e (lenka på reiselinja). Firmaet har i dag ingen innstilling for hvor en reise føres (F43–F45); om det skal få en, er **B47**. Reise uten underprosjekt på en jobb med underprosjekt er **B48**. De to «si fra»-lesningene fra versjon 15 er besvart med ja og står som vedtak i del B og del E punkt 6; versjon 16 har tre nye lesninger (§ 8).
 
+### 8.20 Kenneths svar på B47 og B48, 2026-11-21
+
+- **B47 → A**, med Kenneths ord: «men jeg savner mulighet til å endre tidspunkter». Ingen firmainnstilling for hvor returen hjem føres nå; forslaget er jobben man drar fra. Tidene på en reise skal kunne rettes: i reisevinduet når den føres (w15b, bestilt 2026-11-21) og med pennen på reiselinja etterpå (w15d). 🟡 Vedtatt, ikke bygget.
+- **B48 → A.** Reise uten underprosjekt står i jobben på byggeplassen; linja viser «Uten underprosjekt». 🟡 Vedtatt, ikke bygget (w15c, w15d).
+- **B46 B, Kenneths merknad:** «eneste svakheten jeg ser er at det ser ut til at det er lite dynamisk angående valg av reise til? -> mangler det nedtreksmeny?» ⏳ Kontrollspørsmål til Kenneth 2026-11-21 (hvilken del av «Flytt til …» han mener); w15e venter på svaret.
+
 ## 9. Rekkefølge
 
 Dette er forslag til oppdeling, ikke ordrer. **w1, w2 og w5 er merget** (§ 9.1–9.3). **w12 krever en migrering** (utfylling av kort-id på reise, § 4.11 del E), som Kenneth kjører. **w15c krever en migrering** (ny plass for reiser som står i en jobb på en annen byggeplass, bare data, § 4.15 del F), som Kenneth kjører. **w6 krever en migrering** (ny
