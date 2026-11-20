@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="nb">
+<head>
+<meta charset="utf-8">
+<title>Skisse — testfunn 2026-11-20 på test f529b527: lukket kort, reisetid og skillet i kortet</title>
+<!--
+  FORSLAG (Fabel 2026-11-20, versjon 14), ikke bygget. Kilde for v14-fa.png, v14-fb.png og v14-fc.png
+  (web-timeforing-plan.md § 4.15). «I dag» er tegnet etter Kenneths bilder 2, 6 og 8
+  (relay/bilder/2026-11-20-test-w3b-w14/, gitignorert). Alternativene er skisser.
+  Ett ark pr. funn; arket velges med #fa, #fb eller #fc i adressen. Tegnet med Chrome uten vindu:
+    "Google Chrome" --headless=new --hide-scrollbars --force-device-scale-factor=2 \
+      --window-size=1444,<høyde> --screenshot=v14-fa.png "file://…/skisser-v14.html#fa"
+-->
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#f3f4f6;font-family:-apple-system,"Inter","Segoe UI",Helvetica,Arial,sans-serif;color:#111827;font-size:13px}
+.ark{width:1444px;padding:22px}
+.tittel{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.pille{background:#1e40af;color:#fff;font-weight:700;border-radius:999px;padding:5px 13px;font-size:12.5px;letter-spacing:.04em}
+.tittel h1{font-size:21px;margin:0}
+.tre{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;align-items:start}
+.fire{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;align-items:start}
+.side{background:#fafbfc;border:1px solid #d1d5db;border-radius:12px;padding:14px;box-shadow:0 1px 3px rgba(0,0,0,.08);position:relative}
+.side.anb{border-color:#16a34a;box-shadow:0 0 0 2px #bbf7d0}
+.side h2{margin:0 0 4px;font-size:15px}
+.side .under{color:#6b7280;margin:0 0 12px;line-height:1.4}
+.anbm{display:inline-block;background:#16a34a;color:#fff;border-radius:999px;padding:2px 9px;font-size:10.5px;font-weight:700;letter-spacing:.04em;margin-left:6px;vertical-align:2px}
+.dag{font-size:17px;font-weight:700;margin:0 0 10px}
+.ov{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:#6b7280;font-weight:700;margin:0 0 8px}
+.kort{background:#fff;border:1px solid #e5e7eb;border-radius:9px;margin-bottom:10px}
+.kort.aapen{border-color:#93c5fd;box-shadow:0 0 0 1px #dbeafe}
+.hode{display:flex;align-items:center;gap:8px;padding:11px 12px}
+.kort.aapen .hode{border-bottom:1px solid #f1f5f9}
+.hode .navn{flex:1;min-width:0}
+.hode .navn b{display:block;font-size:13.5px}
+.hode .navn span{color:#6b7280;font-size:11.5px;white-space:nowrap;display:inline-block;margin-top:3px}
+.hode .navn span.kl{color:#111827;font-weight:600;margin-top:0}
+.tall{text-align:right;min-width:36px}
+.tall small{display:block;font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:#9ca3af}
+.tall b{font-size:12.5px}
+.pil{color:#9ca3af;font-size:12px}
+.kropp{padding:10px 12px}
+.linje{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-top:1px solid #f1f5f9;gap:8px}
+.linje:first-child{border-top:0}
+.linje .v b{display:block;font-size:13px}
+.linje .v span{display:block;color:#6b7280;font-size:11.5px;line-height:1.45}
+.linje .v i{display:block;color:#374151;font-size:11.5px}
+.h{display:flex;align-items:center;gap:8px;font-family:ui-monospace,Menlo,monospace;font-size:12px;white-space:nowrap}
+.ik{color:#9ca3af;font-family:inherit;font-size:11px;letter-spacing:.15em}
+.del{display:flex;justify-content:space-between;align-items:center;padding:6px 0 6px 10px;border-left:3px solid #e5e7eb;margin:0 0 4px 4px;gap:8px}
+.del.reise{border-left-color:#fcd34d;margin-top:8px}
+.type{display:inline-block;background:#f1f5f9;color:#475569;border-radius:4px;padding:1px 6px;font-size:9.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;margin-right:6px}
+.type.vare{background:#dcfce7;color:#15803d}
+.type.reise{background:#fef3c7;color:#92400e}
+.lenker{display:flex;gap:12px;flex-wrap:wrap;color:#1d4ed8;font-weight:600;margin-top:8px;font-size:12px}
+.neste{border:1px dashed #d1d5db;border-radius:9px;padding:9px;text-align:center;color:#6b7280;background:#fff;margin-bottom:10px;font-size:12px}
+.neste b{color:#111827}
+.sum{background:#fff;border:1px solid #e5e7eb;border-radius:9px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;font-size:12px}
+.send{background:#1e40af;color:#fff;border-radius:6px;padding:6px 10px;font-weight:600;font-size:12px}
+.k{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#dc2626;color:#fff;font-weight:700;font-size:11.5px;margin-right:6px;flex:none}
+.g{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#16a34a;color:#fff;font-weight:700;font-size:11.5px;margin-right:6px;flex:none}
+.rod{outline:2px solid #dc2626;outline-offset:2px;border-radius:5px}
+.gronn{outline:2px solid #16a34a;outline-offset:2px;border-radius:5px}
+.forkl{margin:12px 0 0;padding:0;list-style:none}
+.forkl li{display:flex;align-items:flex-start;margin-bottom:6px;line-height:1.4}
+.vindu{background:#fff;border:1px solid #d1d5db;border-radius:10px;padding:14px;box-shadow:0 6px 18px rgba(0,0,0,.14)}
+.vindu h3{margin:0 0 12px;font-size:15px;display:flex;justify-content:space-between}
+.vindu h3 span{color:#9ca3af;font-weight:400}
+.felt{margin-bottom:10px}
+.felt label{display:block;font-weight:600;margin-bottom:4px;font-size:12px}
+.inn{border:1px solid #d1d5db;border-radius:6px;padding:6px 9px;background:#fff;font-size:12.5px}
+.inn.gul{background:#fef9c3;border-color:#eab308}
+.inn.tom{color:#9ca3af}
+.rad{display:flex;gap:8px}
+.rad>.felt{flex:1}
+.valg{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.vk{border:1px solid #d1d5db;border-radius:7px;padding:6px 10px;background:#fff;font-size:12.5px}
+.vk.paa{border-color:#2563eb;background:#eff6ff;color:#1e40af;font-weight:600}
+.lite{color:#6b7280;font-size:11.5px;line-height:1.45}
+.res{font-weight:600;margin:4px 0 2px;font-size:13px}
+.knapper{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}
+.kn{border-radius:6px;padding:6px 12px;font-weight:600;font-size:12.5px;background:#f3f4f6;border:1px solid #e5e7eb}
+.kn.pri{background:#1e40af;color:#fff;border-color:#1e40af}
+.over{position:relative}
+.over .vindu{position:absolute;left:18px;right:18px;top:118px}
+.dempet{opacity:.45}
+.info{background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:6px 9px;color:#1e3a8a;font-size:11.5px;line-height:1.4;margin-top:6px}
+body.en .ark{display:none}
+body.en .ark.vis{display:block}
+</style>
+</head>
+<body>
+
+<!-- ============================ F-a ============================ -->
+<div class="ark" id="fa">
+  <div class="tittel"><span class="pille">F-a · B41</span><h1>Etter «+ Registrer timer» på en ny dag: hva åpnes?</h1></div>
+  <div class="tre">
+
+    <div class="side">
+      <h2>I dag (bilde 2)</h2>
+      <p class="under">Dagen er laget med én jobb, 07:00–15:00. Kortet er lukket.</p>
+      <p class="dag">fredag 20. november 2026</p>
+      <p class="ov">Prosjektkort (1)</p>
+      <div class="kort rod">
+        <div class="hode">
+          <div class="navn"><b>Sitedoc Boligfelt B12</b><span>sommerfeldtsgt 65</span></div>
+          <div class="tall"><small>Arbeid</small><b>7,5 t</b></div><div class="tall"><small>Maskin</small><b>—</b></div>
+          <div class="tall"><small>Varer</small><b>—</b></div><div class="tall"><small>Reise</small><b>—</b></div><span class="pil">⌄</span>
+        </div>
+      </div>
+      <div class="neste"><b>+ Registrer timer</b> · neste jobb, samme eller annet prosjekt</div>
+      <div class="sum"><span>● Sum i dag 7,5 t av 7,5 t</span><span class="send">Send dagen (7,5 t)</span></div>
+      <ul class="forkl">
+        <li><span class="k">1</span><span>Du må trykke på kortet før du kan gjøre noe. Siden husker prosjektet som «åpent kort», men kortene har fått jobbens id etter w3a, så ingenting treffer.</span></li>
+      </ul>
+    </div>
+
+    <div class="side">
+      <h2>A — kortet er åpent</h2>
+      <p class="under">Samme side som bilde 3, uten trykket imellom. Tid og tekst rettes med pennen.</p>
+      <p class="dag">fredag 20. november 2026</p>
+      <p class="ov">Prosjektkort (1)</p>
+      <div class="kort aapen">
+        <div class="hode">
+          <div class="navn"><b>Sitedoc Boligfelt B12</b><span>sommerfeldtsgt 65</span></div>
+          <div class="tall"><small>Arbeid</small><b>7,5 t</b></div><div class="tall"><small>Maskin</small><b>—</b></div>
+          <div class="tall"><small>Varer</small><b>—</b></div><div class="tall"><small>Reise</small><b>—</b></div><span class="pil">⌃</span>
+        </div>
+        <div class="kropp">
+          <div class="linje"><div class="v"><b>Timelønn</b><span>Anleggsarbeid</span><span>07:00–15:00</span><span>☑ Matpause trukket (30 min)</span></div><div class="h">7.50 t <span class="ik">✎ ✂ 🗑</span></div></div>
+          <div class="lenker"><span>+ Timer</span><span>+ Maskin</span><span>+ Vare</span><span>+ Reise</span><span>+ Tillegg/Utlegg</span></div>
+        </div>
+      </div>
+      <div class="neste"><b>+ Registrer timer</b> · neste jobb, samme eller annet prosjekt</div>
+      <ul class="forkl">
+        <li><span class="g">1</span><span>Ett trykk fra lista til åpen jobb. Skal tiden eller teksten rettes: pennen, ett trykk til.</span></li>
+      </ul>
+    </div>
+
+    <div class="side anb">
+      <h2>B — kortet er åpent, og vinduet åpnes <span class="anbm">ANBEFALT</span></h2>
+      <p class="under">Som for jobb nr. 2 på en dag, der vinduet alt åpnes. «Avbryt» lar 07:00–15:00 stå.</p>
+      <div class="over">
+        <div class="dempet">
+          <p class="dag">fredag 20. november 2026</p>
+          <p class="ov">Prosjektkort (1)</p>
+          <div class="kort aapen">
+            <div class="hode">
+              <div class="navn"><b>Sitedoc Boligfelt B12</b><span>sommerfeldtsgt 65</span></div>
+              <div class="tall"><small>Arbeid</small><b>7,5 t</b></div><div class="tall"><small>Maskin</small><b>—</b></div>
+              <div class="tall"><small>Varer</small><b>—</b></div><div class="tall"><small>Reise</small><b>—</b></div><span class="pil">⌃</span>
+            </div>
+            <div class="kropp" style="height:300px"></div>
+          </div>
+        </div>
+        <div class="vindu">
+          <h3>Rediger timer-rad <span>✕</span></h3>
+          <div class="rad">
+            <div class="felt"><label>Fra kl.</label><div class="inn gul">07:00</div></div>
+            <div class="felt"><label>Til kl.</label><div class="inn gul">15:00</div></div>
+            <div class="felt"><label>Timer</label><div class="inn gul">7,50</div></div>
+          </div>
+          <div class="felt"><label>Lønnsart</label><div class="inn gul">Timelønn</div></div>
+          <div class="felt"><label>Hva gjorde du?</label><div class="inn tom gronn">Skriv her …</div></div>
+          <div class="felt"><label>Maskin ▸</label></div>
+          <div class="knapper"><span class="kn">Avbryt</span><span class="kn pri">Lagre</span></div>
+        </div>
+      </div>
+      <ul class="forkl">
+        <li><span class="g">1</span><span>Ett trykk fra lista til feltene. Gult er fylt ut for deg. Teksten er det eneste som må skrives.</span></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ============================ F-b ============================ -->
+<div class="ark" id="fb">
+  <div class="tittel"><span class="pille">F-b · B42</span><h1>Reise til annet kontor: «hva om jeg begynte å kjøre kl 12:00?»</h1></div>
+  <div class="fire">
+
+    <div class="side">
+      <h2>I dag (bilde 6)</h2>
+      <p class="under">Arbeid 07:00–12:00. Reisen legges før dagens første rad.</p>
+      <div class="vindu">
+        <h3>Reise <span>✕</span></h3>
+        <div class="valg"><span class="vk">Til byggeplass</span><span class="vk">Fra byggeplass</span></div>
+        <div class="felt"><label>Overføring til annet kontor</label><div class="valg"><span class="vk paa">Til Kontor Narvik</span></div></div>
+        <p class="res rod">03:10–07:00 · 230 min kjøring</p>
+        <p class="lite">Over terskel (30 km) — føres som reise</p>
+        <div class="knapper"><span class="kn">Avbryt</span><span class="kn pri">Lagre</span></div>
+      </div>
+      <ul class="forkl">
+        <li><span class="k">1</span><span>Vinduet har ikke noe felt for tid. «Til annet kontor» regnes alltid bakover fra dagens første rad.</span></li>
+      </ul>
+    </div>
+
+    <div class="side anb">
+      <h2>A — før eller etter arbeid, start kan rettes <span class="anbm">ANBEFALT</span></h2>
+      <p class="under">Ett valg flytter reisen. Varigheten er fortsatt firmaets kjøretid.</p>
+      <div class="vindu">
+        <h3>Reise <span>✕</span></h3>
+        <div class="valg"><span class="vk">Til byggeplass</span><span class="vk">Fra byggeplass</span></div>
+        <div class="felt"><label>Overføring til annet kontor</label><div class="valg"><span class="vk paa">Til Kontor Narvik</span></div></div>
+        <div class="felt gronn"><label>Når kjørte du?</label><div class="valg" style="margin-bottom:0"><span class="vk">Før arbeid</span><span class="vk paa">Etter arbeid</span></div></div>
+        <div class="rad" style="align-items:flex-end">
+          <div class="felt" style="flex:0 0 96px"><label>Start kl.</label><div class="inn gul">12:00</div></div>
+          <p class="res" style="margin-bottom:17px">– 15:50 · 230 min kjøring</p>
+        </div>
+        <p class="lite">Over terskel (30 km) — føres som reise</p>
+        <div class="knapper"><span class="kn">Avbryt</span><span class="kn pri">Lagre</span></div>
+      </div>
+      <ul class="forkl">
+        <li><span class="g">1</span><span>«Etter arbeid» setter start til dagens siste til-tid.</span></li>
+        <li><span class="g">2</span><span>Kjørte du 13:00, retter du start. Slutten regnes ut.</span></li>
+      </ul>
+    </div>
+
+    <div class="side">
+      <h2>B — bare før eller etter arbeid</h2>
+      <p class="under">Ingen klokke å skrive i. Dekker 12:00 her, men ikke en reise som startet 13:00.</p>
+      <div class="vindu">
+        <h3>Reise <span>✕</span></h3>
+        <div class="valg"><span class="vk">Til byggeplass</span><span class="vk">Fra byggeplass</span></div>
+        <div class="felt"><label>Overføring til annet kontor</label><div class="valg"><span class="vk paa">Til Kontor Narvik</span></div></div>
+        <div class="felt"><label>Når kjørte du?</label><div class="valg" style="margin-bottom:0"><span class="vk">Før arbeid</span><span class="vk paa">Etter arbeid</span></div></div>
+        <p class="res">12:00–15:50 · 230 min kjøring</p>
+        <p class="lite">Over terskel (30 km) — føres som reise</p>
+        <div class="knapper"><span class="kn">Avbryt</span><span class="kn pri">Lagre</span></div>
+      </div>
+    </div>
+
+    <div class="side">
+      <h2>C — fra og til fritt</h2>
+      <p class="under">Som en timerad. Timene er det du skriver, ikke firmaets kjøretid.</p>
+      <div class="vindu">
+        <h3>Reise <span>✕</span></h3>
+        <div class="valg"><span class="vk">Til byggeplass</span><span class="vk">Fra byggeplass</span></div>
+        <div class="felt"><label>Overføring til annet kontor</label><div class="valg"><span class="vk paa">Til Kontor Narvik</span></div></div>
+        <div class="rad">
+          <div class="felt"><label>Fra kl.</label><div class="inn">12:00</div></div>
+          <div class="felt"><label>Til kl.</label><div class="inn">15:00</div></div>
+        </div>
+        <p class="res rod">3,00 t · tabellen sier 230 min</p>
+        <div class="knapper"><span class="kn">Avbryt</span><span class="kn pri">Lagre</span></div>
+      </div>
+      <ul class="forkl">
+        <li><span class="k">1</span><span>To arbeidere på samme strekning kan føre ulik reisetid. Terskelen og satsen regnes i dag av kjøretiden.</span></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ============================ F-c ============================ -->
+<div class="ark" id="fc">
+  <div class="tittel"><span class="pille">F-c · B43</span><h1>Arbeid på sommerfeldtsgt 65 og reise til Narvik samme dag</h1></div>
+  <div class="tre">
+
+    <div class="side">
+      <h2>I dag (bilde 8)</h2>
+      <p class="under">Ett prosjekt, to byggeplasser. Linje 2 er reise, men ser ut som arbeid.</p>
+      <p class="ov"><span class="rod">Prosjektkort (1)</span></p>
+      <div class="kort aapen">
+        <div class="hode">
+          <div class="navn"><b>Sitedoc Boligfelt B12</b><span class="rod">2 byggeplasser</span></div>
+          <div class="tall"><small>Arbeid</small><b>4,5 t</b></div><div class="tall"><small>Maskin</small><b>4,5 t</b></div>
+          <div class="tall"><small>Varer</small><b>3 sekk</b></div><div class="tall"><small>Reise</small><b>3,0 t</b></div><span class="pil">⌃</span>
+        </div>
+        <div class="kropp">
+          <div class="linje"><div class="v"><b>Timelønn</b><span>Anleggsarbeid</span><span>07:00–12:00</span><span>☑ Matpause trukket (30 min)</span><i>kantstein</i><span>Sitedoc Boligfelt B12 · sommerfeldtsgt 65</span></div><div class="h">4.50 t <span class="ik">✎ ✂ 🗑</span></div></div>
+          <div class="del"><div><span class="type">Maskin</span>Volvo EC220E · sommerfeldtsgt 65</div><div class="h">4.50 t <span class="ik">✎ ✂ 🗑</span></div></div>
+          <div class="del"><div><span class="type vare">Vare</span>Fugesand · sommerfeldtsgt 65</div><div class="h">3 sekk <span class="ik">✎ 🗑</span></div></div>
+          <div class="linje rod"><div class="v"><b>Reise/transport til prosjekter</b><span>Anleggsarbeid</span><span>12:00–15:00</span><span>☐ Matpause trukket</span><i>kjørte til Narvik</i><span>Sitedoc Boligfelt B12 · Narvik</span></div><div class="h">3.00 t <span class="ik">✎ ✂ 🗑</span></div></div>
+          <div class="lenker"><span>+ Timer</span><span>+ Maskin</span><span>+ Vare</span><span>+ Reise</span><span>+ Tillegg/Utlegg</span></div>
+        </div>
+      </div>
+      <ul class="forkl">
+        <li><span class="k">1</span><span>Hodet sier «2 byggeplasser» og ikke hvor jobben er. Reisens sted telles med.</span></li>
+        <li><span class="k">2</span><span>Reiselinja tegnes som en arbeidslinje, med aktivitet og matpause.</span></li>
+        <li><span class="k">3</span><span>«+ Registrer timer» ga ikke et nytt kort: serveren legger reise i jobben på prosjektet.</span></li>
+      </ul>
+    </div>
+
+    <div class="side anb">
+      <h2>A — ett kort, reisen er merket <span class="anbm">ANBEFALT</span></h2>
+      <p class="under">Reisen står i jobben og attesteres med den (B32 B). Hodet sier hvor og når jobben var.</p>
+      <p class="ov">Prosjektkort (1)</p>
+      <div class="kort aapen">
+        <div class="hode">
+          <div class="navn"><b>Sitedoc Boligfelt B12</b><span class="gronn">sommerfeldtsgt 65 · <span class="kl">07:00–12:00</span></span></div>
+          <div class="tall"><small>Arbeid</small><b>4,5 t</b></div><div class="tall"><small>Maskin</small><b>4,5 t</b></div>
+          <div class="tall"><small>Varer</small><b>3 sekk</b></div><div class="tall"><small>Reise</small><b>3,0 t</b></div><span class="pil">⌃</span>
+        </div>
+        <div class="kropp">
+          <div class="linje"><div class="v"><b>Timelønn</b><span>Anleggsarbeid</span><span>07:00–12:00</span><span>☑ Matpause trukket (30 min)</span><i>kantstein</i></div><div class="h">4.50 t <span class="ik">✎ ✂ 🗑</span></div></div>
+          <div class="del"><div><span class="type">Maskin</span>Volvo EC220E</div><div class="h">4.50 t <span class="ik">✎ ✂ 🗑</span></div></div>
+          <div class="del"><div><span class="type vare">Vare</span>Fugesand</div><div class="h">3 sekk <span class="ik">✎ 🗑</span></div></div>
+          <div class="del reise gronn"><div><span class="type reise">Reise</span><b>Til Narvik</b> · 12:00–15:00<br><span class="lite"><i>kjørte til Narvik</i> · Reise/transport til prosjekter</span></div><div class="h">3.00 t <span class="ik">✎ 🗑</span></div></div>
+          <div class="lenker"><span>+ Timer</span><span>+ Maskin</span><span>+ Vare</span><span>+ Reise</span><span>+ Tillegg/Utlegg</span></div>
+        </div>
+      </div>
+      <ul class="forkl">
+        <li><span class="g">1</span><span>Hodet viser arbeidets byggeplass og klokkeslett. Reise teller ikke som byggeplass.</span></li>
+        <li><span class="g">2</span><span>Reisen har merke og sted, som maskin og vare. Ingen aktivitet, ingen matpause.</span></li>
+      </ul>
+      <div class="info">I vinduet fra «+ Registrer timer», når lønnsarten er reise: «Dette er reise. Linja legges i jobben på samme prosjekt, ikke som egen jobb.»</div>
+    </div>
+
+    <div class="side">
+      <h2>B — reise til et annet sted får eget kort</h2>
+      <p class="under">To kort samme dag. Reisen attesteres da for seg, ikke med jobben.</p>
+      <p class="ov">Prosjektkort (2)</p>
+      <div class="kort">
+        <div class="hode">
+          <div class="navn"><b>Sitedoc Boligfelt B12</b><span>sommerfeldtsgt 65 · <span class="kl">07:00–12:00</span></span></div>
+          <div class="tall"><small>Arbeid</small><b>4,5 t</b></div><div class="tall"><small>Maskin</small><b>4,5 t</b></div>
+          <div class="tall"><small>Varer</small><b>3 sekk</b></div><div class="tall"><small>Reise</small><b>—</b></div><span class="pil">⌄</span>
+        </div>
+      </div>
+      <div class="kort aapen">
+        <div class="hode">
+          <div class="navn"><b>Sitedoc Boligfelt B12</b><span>Narvik · <span class="kl">12:00–15:00</span></span></div>
+          <div class="tall"><small>Arbeid</small><b>—</b></div><div class="tall"><small>Maskin</small><b>—</b></div>
+          <div class="tall"><small>Varer</small><b>—</b></div><div class="tall"><small>Reise</small><b>3,0 t</b></div><span class="pil">⌃</span>
+        </div>
+        <div class="kropp">
+          <div class="del reise" style="margin-top:0"><div><span class="type reise">Reise</span><b>Til Narvik</b> · 12:00–15:00<br><span class="lite"><i>kjørte til Narvik</i> · Reise/transport til prosjekter</span></div><div class="h">3.00 t <span class="ik">✎ 🗑</span></div></div>
+          <div class="lenker"><span>+ Timer</span><span>+ Maskin</span><span>+ Vare</span><span>+ Reise</span><span>+ Tillegg/Utlegg</span></div>
+        </div>
+      </div>
+      <ul class="forkl">
+        <li><span class="k">1</span><span>Snur B32 B og B34 B fra i dag. Regelen i w12, utfyllingen i databasen og attesteringen må endres.</span></li>
+        <li><span class="k">2</span><span>Et kort uten arbeid: «+ Maskin» og «+ Vare» har ingen timerad å høre til.</span></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Ett ark om gangen når adressen har #fa, #fb eller #fc.
+  var h = location.hash.slice(1);
+  if (h && document.getElementById(h)) { document.body.classList.add('en'); document.getElementById(h).classList.add('vis'); }
+</script>
+</body>
+</html>
