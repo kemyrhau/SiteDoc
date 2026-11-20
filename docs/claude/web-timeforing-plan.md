@@ -2637,6 +2637,12 @@ Kenneth ba om en ny runde mot avvik i planen. 🟡 Levert i versjon 12: § 4.13 
   3. Etter at han registrerte arbeid på et annet sted samme dag, står alt i ett kort, «Sitedoc Boligfelt B12 · 2 byggeplasser» (bilde 8). Kenneth: «nå er det for svakt skille mellom prosjektkortene denne dagen … jeg må bruke lupe og studere hva skjer her for å se det». 🟡 Fabel reviderer; ikke bygget.
 - **Revidert i versjon 14:** § 4.15 (F1–F21), delen heter w15 (§ 9), og B41–B43 er åpne (§ 8). Punkt 1 er en feil etter w3a. Punkt 3 er ett prosjekt med to byggeplasser, og linja til Narvik er reise.
 
+### 8.18 Kenneths svar på B41–B43, 2026-11-20
+
+- **B41 → A.** «hvis jeg trykker knappen +Registrer timer → da må kort A åpne med en gang åpent.» Kortet er åpent når dagen vises; vinduet åpnes ikke av seg selv. 🟡 Vedtatt, ikke bygget (w15a).
+- **B42 → A.** «Når kjørte du?» med «Før arbeid» / «Etter arbeid» og «Start kl.» som kan rettes; slutten regnes av firmaets kjøretid. Endrer vedtaket fra 2026-11-15 om at reisevinduet ikke har tidsfelt. 🟡 Vedtatt, ikke bygget (w15b).
+- **B43 — åpen.** Kenneth: «Reise til annet prosjekt må på eget kort.» Målt: reise til et prosjekt uten jobb på dagen får alt eget kort (`apps/api/src/services/timer/kortId.ts:271–307`, `packages/shared/src/utils/reiseKort.ts:103–105`). Narvik i testen er en byggeplass på samme prosjekt (Sitedoc Boligfelt B12). Kontrollspørsmål til Kenneth: gjelder eget kort også reise til en annen byggeplass på samme prosjekt (B, snur B32 B og B34 B), eller bare annet prosjekt (A, som i dag)?
+
 ## 9. Rekkefølge
 
 Dette er forslag til oppdeling, ikke ordrer. **w1, w2 og w5 er merget** (§ 9.1–9.3). **w12 krever en migrering** (utfylling av kort-id på reise, § 4.11 del E), som Kenneth kjører. **w6 krever en migrering** (ny
