@@ -13,6 +13,11 @@ const h = vi.hoisted(() => ({
   data: {} as Record<string, unknown>,
   kall: [] as { sti: string; input: Record<string, unknown> }[],
   feil: {} as Record<string, unknown>,
+  velgFirma: vi.fn(),
+}));
+
+vi.mock("@/kontekst/firma-kontekst", () => ({
+  useFirma: () => ({ velgFirma: h.velgFirma }),
 }));
 
 vi.mock("@/kontekst/prosjekt-kontekst", () => ({
@@ -478,6 +483,14 @@ describe("w3b — B37 A: lenken til der Varelager slås på", () => {
     const lenke = within(screen.getByTestId("varelager-lenke")).getByRole("link");
     expect(lenke.getAttribute("href")).toBe("/dashbord/firma/moduler");
     expect(lenke.textContent).toBe("timer.prosjektkort.slaaPaaVarelager");
+  });
+
+  it("lenken velger sedelens firma før navigeringen (modulsiden leser firmaet valgt i toppen)", () => {
+    medVarelagerAv({ sitedoc: true });
+    h.velgFirma.mockClear();
+    const lenke = within(screen.getByTestId("varelager-lenke")).getByRole("link");
+    fireEvent.click(lenke);
+    expect(h.velgFirma).toHaveBeenCalledWith(DAG7_SEDEL.organizationId);
   });
 
   it("sitedoc_admin ser lenken", () => {

@@ -30,6 +30,7 @@ import { SplittRadModal } from "@/components/timer/SplittRadModal";
 import { ProsjektRadVelger } from "@/components/timer/ProsjektRadVelger";
 import { OppmoteSporsmaalModal } from "@/components/timer/OppmoteSporsmaalModal";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
+import { useFirma } from "@/kontekst/firma-kontekst";
 import { nyKortId, registrerTimerSteg } from "@/lib/registrerTimer";
 import { MaskinVelger } from "@/components/timer/MaskinVelger";
 import { KortVareforbrukModal } from "@/components/timer/KortVareforbrukModal";
@@ -1322,7 +1323,7 @@ export default function DagsseddelDetaljSide() {
             setAktivModal({ type: "leggTil", projectId: jobb.projectId, jobb })
           }
           varelagerProsjekter={vareKatalog?.prosjektIderMedVarelager}
-          visVarelagerLenke={visVarelagerLenke}
+          varelagerLenkeFirmaId={visVarelagerLenke ? (sheet?.organizationId ?? undefined) : undefined}
           onNyVare={(jobb) => setVareModal({ projectId: jobb.projectId, jobb })}
           onNyttKort={startRegistrering}
           onEndreRamme={() => setRedigerHeader(true)}
@@ -1849,6 +1850,21 @@ type JobbKortData = {
 /** Nøkkelen til samlekortet for rader uten kort-id. */
 const UTEN_JOBB = "utenJobb";
 
+/** w3b (B37 A): lenken til firmaets moduler. Modulsiden leser firmaet valgt i toppen, så sedelens
+ *  firma velges før navigeringen — ellers havner en admin med et annet firma valgt på feil firma. */
+function VarelagerLenke({ firmaId, className }: { firmaId: string; className: string }) {
+  const { t } = useTranslation();
+  const { velgFirma } = useFirma();
+  return (
+    <p className="mt-1 text-xs text-gray-500" data-testid="varelager-lenke">
+      {t("timer.prosjektkort.varelagerAv")}{" "}
+      <Link href="/dashbord/firma/moduler" onClick={() => velgFirma(firmaId)} className={className}>
+        {t("timer.prosjektkort.slaaPaaVarelager")}
+      </Link>
+    </p>
+  );
+}
+
 function ProsjektkortSamleside({
   jobbKort,
   tommeProsjektKort,
@@ -1878,7 +1894,7 @@ function ProsjektkortSamleside({
   onNyMaskin,
   onLeggTil,
   varelagerProsjekter,
-  visVarelagerLenke,
+  varelagerLenkeFirmaId,
   onNyVare,
   onNyttKort,
   onEndreRamme,
@@ -1925,8 +1941,9 @@ function ProsjektkortSamleside({
   onNyMaskin: (jobb: JobbKontekst) => void;
   onLeggTil: (jobb: JobbKontekst) => void;
   varelagerProsjekter: readonly string[] | undefined;
-  /** w3b (B37 A): firmaet har ikke Varelager og brukeren er firmaadministrator for sedelens firma. */
-  visVarelagerLenke?: boolean;
+  /** w3b (B37 A): satt (sedelens firma-id) når firmaet ikke har Varelager og brukeren er
+   *  firmaadministrator for sedelens firma. */
+  varelagerLenkeFirmaId?: string;
   onNyVare: (jobb: JobbKontekst) => void;
   onNyttKort: () => void;
   onEndreRamme: () => void;
@@ -2018,13 +2035,8 @@ function ProsjektkortSamleside({
                   </button>
                 </div>
               )}
-              {erRedigerbar && visVarelagerLenke && (
-                <p className="mt-1 text-xs text-gray-500" data-testid="varelager-lenke">
-                  {t("timer.prosjektkort.varelagerAv")}{" "}
-                  <Link href="/dashbord/firma/moduler" className={lenke}>
-                    {t("timer.prosjektkort.slaaPaaVarelager")}
-                  </Link>
-                </p>
+              {erRedigerbar && varelagerLenkeFirmaId && (
+                <VarelagerLenke firmaId={varelagerLenkeFirmaId} className={lenke} />
               )}
               {erRedigerbar && visReiseHint && (
                 <p className="mt-1 text-xs text-gray-500">
