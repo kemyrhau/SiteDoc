@@ -95,6 +95,124 @@ type EditMaskin = {
   enhet: string | null;
 };
 
+/** Ventende timerad på sedelen slik leseren gir den (feltene lagringen bruker). */
+export type VentendeTimer = {
+  id: string;
+  projectId: string;
+  externalCostObjectId: string | null;
+  byggeplassId?: string | null;
+  lonnsartId: string;
+  aktivitetId: string;
+  fraTid: string | null;
+  tilTid: string | null;
+  timer: unknown;
+};
+export type VentendeMaskin = {
+  id: string;
+  projectId: string;
+  externalCostObjectId: string | null;
+  byggeplassId?: string | null;
+  vehicleId: string;
+  fraTid: string | null;
+  tilTid: string | null;
+  timer: unknown;
+  mengde: unknown;
+  enhet: string | null;
+};
+export type VentendeTillegg = {
+  id: string;
+  projectId: string;
+  tilleggId: string;
+  antall: unknown;
+  kommentar: string | null;
+  byggeplassId?: string | null;
+  externalCostObjectId?: string | null;
+};
+
+/**
+ * `nyeRader` til `redigerSedelRader` fra «Lagre endringer». Radene utenfor jobben
+ * sendes uendret; jobbens rader med det attestanten rettet. Vinduet retter ikke
+ * byggeplassen, så hver rad sender byggeplassen den har (F68: `null` tømte den,
+ * og kort-id fulgte den nye nøkkelen). Delte rader (samme `originalId`) arver
+ * originalens byggeplass.
+ */
+export function byggRedigerNyeRader(a: {
+  projectId: string;
+  ecoId: string | null;
+  pendingTimer: readonly VentendeTimer[];
+  pendingMaskin: readonly VentendeMaskin[];
+  pendingTillegg: readonly VentendeTillegg[];
+  editTimer: readonly EditTimer[];
+  editMaskin: readonly EditMaskin[];
+}) {
+  const iJobben = (r: { projectId: string; externalCostObjectId: string | null }) =>
+    r.projectId === a.projectId && r.externalCostObjectId === a.ecoId;
+  const timerBygg = new Map(a.pendingTimer.map((r) => [r.id, r.byggeplassId ?? null] as const));
+  const maskinBygg = new Map(a.pendingMaskin.map((r) => [r.id, r.byggeplassId ?? null] as const));
+  const { pendingTillegg } = a;
+  return {
+    timer: [
+      ...a.pendingTimer.filter((r) => !iJobben(r)).map((r) => ({
+        originalId: r.id,
+        projectId: r.projectId,
+        lonnsartId: r.lonnsartId,
+        aktivitetId: r.aktivitetId,
+        externalCostObjectId: r.externalCostObjectId,
+        byggeplassId: r.byggeplassId ?? null,
+        fraTid: r.fraTid,
+        tilTid: r.tilTid,
+        timer: tilTall(r.timer),
+      })),
+      ...a.editTimer.map((r) => ({
+        originalId: r.originalId,
+        projectId: a.projectId,
+        lonnsartId: r.lonnsartId,
+        aktivitetId: r.aktivitetId,
+        externalCostObjectId: a.ecoId,
+        byggeplassId: timerBygg.get(r.originalId) ?? null,
+        fraTid: r.fraTid,
+        tilTid: r.tilTid,
+        timer: r.timer,
+      })),
+    ],
+    tillegg: pendingTillegg.map((r) => ({
+      originalId: r.id,
+      projectId: r.projectId,
+      tilleggId: r.tilleggId,
+      antall: tilTall(r.antall),
+      kommentar: r.kommentar,
+      byggeplassId: r.byggeplassId ?? null,
+      externalCostObjectId: r.externalCostObjectId ?? null,
+    })),
+    maskin: [
+      ...a.pendingMaskin.filter((r) => !iJobben(r)).map((r) => ({
+        originalId: r.id,
+        projectId: r.projectId,
+        externalCostObjectId: r.externalCostObjectId,
+        vehicleId: r.vehicleId,
+        byggeplassId: r.byggeplassId ?? null,
+        fraTid: r.fraTid,
+        tilTid: r.tilTid,
+        timer: tilTall(r.timer),
+        mengde: r.mengde === null || r.mengde === undefined ? null : tilTall(r.mengde),
+        enhet: r.enhet,
+      })),
+      ...a.editMaskin.map((r) => ({
+        originalId: r.originalId,
+        projectId: a.projectId,
+        externalCostObjectId: a.ecoId,
+        vehicleId: r.vehicleId,
+        byggeplassId: maskinBygg.get(r.originalId) ?? null,
+        fraTid: r.fraTid,
+        tilTid: r.tilTid,
+        timer: r.timer,
+        mengde: r.mengde,
+        enhet: r.enhet,
+      })),
+    ],
+  };
+}
+
 export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
@@ -160,16 +278,8 @@ export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
 
   const pendingTimer = useMemo(
     () =>
-      ((sheet?.timer ?? []) as Array<{
-        id: string;
-        projectId: string;
-        externalCostObjectId: string | null;
+      ((sheet?.timer ?? []) as Array<VentendeTimer & {
         attestertStatus: string | null;
-        lonnsartId: string;
-        aktivitetId: string;
-        fraTid: string | null;
-        tilTid: string | null;
-        timer: unknown;
         erReise?: boolean;
         kortId?: string | null;
       }>).filter((r) => r.attestertStatus === "pending"),
@@ -177,17 +287,8 @@ export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
   );
   const pendingMaskin = useMemo(
     () =>
-      ((sheet?.maskiner ?? []) as Array<{
-        id: string;
-        projectId: string;
-        externalCostObjectId: string | null;
+      ((sheet?.maskiner ?? []) as Array<VentendeMaskin & {
         attestertStatus: string | null;
-        vehicleId: string;
-        fraTid: string | null;
-        tilTid: string | null;
-        timer: unknown;
-        mengde: unknown;
-        enhet: string | null;
         kortId?: string | null;
         utleieEnhet?: string | null;
       }>).filter((r) => r.attestertStatus === "pending"),
@@ -195,15 +296,8 @@ export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
   );
   const pendingTillegg = useMemo(
     () =>
-      ((sheet?.tillegg ?? []) as Array<{
-        id: string;
-        projectId: string;
+      ((sheet?.tillegg ?? []) as Array<VentendeTillegg & {
         attestertStatus: string | null;
-        tilleggId: string;
-        antall: unknown;
-        kommentar: string | null;
-        byggeplassId?: string | null;
-        externalCostObjectId?: string | null;
       }>).filter((r) => r.attestertStatus === "pending"),
     [sheet?.tillegg],
   );
@@ -355,11 +449,10 @@ export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
       }
     }
 
-    // Bygg full payload: andre bukers pending-rader uendret + edit-rader for vår bucket.
-    // Tillegg redigeres ikke i denne modalen — sendes uendret, inkl. byggeplass og
-    // underprosjekt (utelatt felt nuller dem på serveren).
+    // Full payload bygges i `byggRedigerNyeRader`: andre bøtters ventende rader og
+    // tillegg uendret (inkl. byggeplass og underprosjekt — utelatt felt nuller dem
+    // på serveren) + edit-radene for vår bøtte.
     const andreTimer = pendingTimer.filter((r) => !bucketPredikat(r));
-    const andreMaskin = pendingMaskin.filter((r) => !bucketPredikat(r));
 
     // F-f: speil server-vakten for umiddelbar tilbakemelding — fra/til påkrevd +
     // fra<til + overlapp på HELE timer-settet (andre bøtter + denne bøttens
@@ -395,70 +488,15 @@ export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
       sheetId,
       pauseFra: editPauseFra,
       pauseTil: editPauseTil,
-      nyeRader: {
-        timer: [
-          ...andreTimer.map((r) => ({
-            originalId: r.id,
-            projectId: r.projectId,
-            lonnsartId: r.lonnsartId,
-            aktivitetId: r.aktivitetId,
-            externalCostObjectId: r.externalCostObjectId,
-            byggeplassId: null,
-            fraTid: r.fraTid,
-            tilTid: r.tilTid,
-            timer: tilTall(r.timer),
-          })),
-          ...editTimer.map((r) => ({
-            originalId: r.originalId,
-            projectId,
-            lonnsartId: r.lonnsartId,
-            aktivitetId: r.aktivitetId,
-            externalCostObjectId: ecoId,
-            byggeplassId: null,
-            fraTid: r.fraTid,
-            tilTid: r.tilTid,
-            timer: r.timer,
-          })),
-        ],
-        tillegg: pendingTillegg.map((r) => ({
-          originalId: r.id,
-          projectId: r.projectId,
-          tilleggId: r.tilleggId,
-          antall: tilTall(r.antall),
-          kommentar: r.kommentar,
-          byggeplassId: r.byggeplassId ?? null,
-          externalCostObjectId: r.externalCostObjectId ?? null,
-        })),
-        maskin: [
-          ...andreMaskin.map((r) => ({
-            originalId: r.id,
-            projectId: r.projectId,
-            externalCostObjectId: r.externalCostObjectId,
-            vehicleId: r.vehicleId,
-            byggeplassId: null,
-            fraTid: r.fraTid,
-            tilTid: r.tilTid,
-            timer: tilTall(r.timer),
-            mengde:
-              r.mengde === null || r.mengde === undefined
-                ? null
-                : tilTall(r.mengde),
-            enhet: r.enhet,
-          })),
-          ...editMaskin.map((r) => ({
-            originalId: r.originalId,
-            projectId,
-            externalCostObjectId: ecoId,
-            vehicleId: r.vehicleId,
-            byggeplassId: null,
-            fraTid: r.fraTid,
-            tilTid: r.tilTid,
-            timer: r.timer,
-            mengde: r.mengde,
-            enhet: r.enhet,
-          })),
-        ],
-      },
+      nyeRader: byggRedigerNyeRader({
+        projectId,
+        ecoId,
+        pendingTimer,
+        pendingMaskin,
+        pendingTillegg,
+        editTimer,
+        editMaskin,
+      }),
     });
   }
 
