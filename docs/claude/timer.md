@@ -877,6 +877,18 @@ Spec: `web-timeforing-plan.md` § 4.15 del B, rad w15b i del G og del H, bildet 
 - **Tester:** `reiseManuell.test.ts` § «w15b — start og slutt kan rettes» (8), `apps/web/src/app/dashbord/timer/[id]/reisevindu.test.tsx` (9), `apps/web/src/hooks/reise-havner-i.test.ts` (6). Negativkontroll mot develop `45a388c5`: 6 av 8 (shared) og 14 av 15 (web) røde; de grønne er bevaringstestene. `dagskort-vakt.test.tsx` + snapshot urørt.
 - **Skjermbilder (1 440 px, lokal seed):** `skisser-web-timeforing/w15b-etter-arbeid.png` («+ Reise» → «Til annet kontor» → «Etter arbeid»: Kontor Narvik, 12:00–15:50, 230 min), `w15b-byttet-prosjekt.png` («Til byggeplass», prosjektet byttet til Agent-testprosjekt: Byggeplass 1, 06:25–07:00, «Får eget kort på Agent-testprosjekt.»).
 
+### Dagssiden viser reisen (w15d, B45 A, B48 A, F25) — 🟡 `feat/web-timer-w15d`, ikke merget
+
+Spec: `web-timeforing-plan.md` § 4.15 del C pkt. 1–4, rad w15d i del G og del H; LØSNING GODKJENT i `relay/inbox-web-timer-w5.md` (2026-11-21). Bare `apps/web/src/app/dashbord/timer/[id]/page.tsx` i prosjektkort-modus; dagskort-modus, mobilen, attesteringen, serveren og kortregelen (`reiseKort.ts`) er urørt.
+
+- **Reiselinja** (`ReiseLinje` i `page.tsx`, `li[data-reiselinje]`): merket «Reise» (`timer.prosjektkort.reiseMerke`), stedet — «Til {sted}» ved tur, «Fra {sted}» ved retur (`reiseTil`/`reiseFra`; stedet er radens byggeplass, ellers prosjektet), «Overføring til annet kontor» (`timer.reiseKort.annetKontor`) når `reiseKilde = "overforing"` fordi raden bare har fra-kontoret — og klokka og timene. Under: tekst · lønnsart. Ingen aktivitet og ingen matpause. Blyant, del og slett som arbeidslinja, med samme maskin-sperre ved sletting.
+- **Underprosjekt på reiselinja (B48 A):** vises bare når det avviker fra jobbens; reise uten underprosjekt i en jobb med underprosjekt viser «Uten underprosjekt» (`utenUnderprosjekt`). På samlekortet sammenlignes ingenting.
+- **Hodet (`JobbKortRamme`):** sted og klokke (`byggeplass · fra–til`) regnes av arbeidsradene; reiseradene teller ikke i byggeplassen (ikke «2 byggeplasser» for en retur fra et annet sted). Kort med bare reise: merket «Reise» foran sted og klokke, regnet av reisen.
+- **Lenkeraden:** kort uten timerad har «+ Timer», «+ Reise», «+ Tillegg/Utlegg» (B45 A); med en timerad alle fem (§ 8.19). Kort der alle reiser er overføring til annet kontor, har ikke «+ Timer» (F25).
+- **Teksten under lønnsarten** i «Rediger timer-rad» når lønnsarten er reise (`erReiseLonnsart`, prosjektkort-modus): `reiseHavnerI` gir «Dette er reise. Den står i jobben på {sted}.» (`timer.rediger.reiseHavnerJobb`) eller «Dette er reise. Den får eget kort.» (`reiseHavnerEget`). Pennens felt er som før; bytte av prosjekt er ikke med (w15d c).
+- **Tester:** `apps/web/src/app/dashbord/timer/[id]/reise-visning.test.tsx` (12). Negativkontroll mot develop: se leveransen i `relay/inbox-orkestrator.md`. `dagskort-vakt.test.tsx` + snapshot urørt.
+- **Skjermbilder (1 440 px, lokal engangs-DB):** `skisser-web-timeforing/w15d-dagen.png` (kortet med bare reise åpent: «Reise · Byggeplass 1 · 06:25–07:00», tre lenker; jobben på Skole med «sommerfeldtsgt 65 · 07:00–12:00»), `w15d-pennen-reise.png` (blyanten på overføringen i Skole-jobben: «Dette er reise. Den står i jobben på sommerfeldtsgt 65.»).
+
 ### Maskin er utstyr og antall timer (w3b, A3–A5, A13) — 🟡 `feat/web-timer-w3b`, ikke merget
 
 Spec: `web-timeforing-plan.md` § 4.13 (A3–A5, A13) og § 9 w3b; beslutninger S1–S6 (alle A) i `relay/inbox-web-timer-w5.md` (SVAR w3b, 2026-11-20). Gjelder bare prosjektkort-modus på web; dagskort-modus og `apps/mobile` er urørt.
