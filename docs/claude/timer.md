@@ -682,6 +682,8 @@ Kenneth-hjemmel. Tre delte regler i `packages/shared/src/utils/reiseSkille.ts` (
 
 **Send dagen:** web og mobil (`prosjektkortMobil.ts` `sendKnappTekst` → `sendDagenTekst`; `ProsjektkortDagsoversikt`, `ProsjektkortSamleside`) viser arbeid uten reise, reise separat.
 
+> ⚠️ **Sumlinja endres (Kenneth 2026-11-21, `web-timeforing-plan.md` § 8.21 og § 8.22):** bunnlinja skal vise to tall — arbeid mot normen («8,0 av 7,5») og sum i dag = arbeid + reise. Maskintimer vises, men legges ikke til. Det snur «teller ikke reise mot normen» fra 2026-11-14 for summen; regelen om at reise ikke er overtid, står. 🟡 Bestilt som sumlinja hos web-timer-w5, ikke bygget. Avsnittene «Arbeid og reise hver for seg» og «Send dagen» over beskriver koden til leveransen er merget.
+
 ### Prosjektkort L1 — visningsmodus for web-sedelen — 🟡 `feat/prosjektkort-l1` (2026-11-05, ikke merget)
 
 Spec: `relay/prosjektkort/spec-prosjektkort.md` (vedtak 1–10, Kenneth «ok for 1-10»).
@@ -838,7 +840,7 @@ Reiseraden bærer kort-id og står i jobbens kort på prosjektet. Spec: `web-tim
 - **Migrering:** `20261120120000_w12_reise_kortid` (bare data, Kenneth kjører); `CHECK (kort_id IS NOT NULL)` i neste utgivelse ([arkitektur.md](arkitektur.md)).
 - **Tester:** `reiseKort.test.ts` og `kortId.test.ts` (shared); `apps/api/src/routes/kortid-skriveveier.integration.test.ts` («w12», én pr. skrivevei, eldre app, isolasjon, attestert reise, radversjon; negativkontroll: uten `sikreKortId` i sletteveien eller uten attestert-vakten → rødt); `reise-kortid-migrering.integration.test.ts` (utfylling og paritet); `kortGruppering.test.ts` (w12: sist i kortet, rekkefølge og alder fra arbeidsrader, reise alene, reise uten kort-id i blokken); `attestering-tabell-modell.test.ts` og `attestering-tabell.test.tsx` («w12»: H.7 like merker, ✓ tar reisen, sum, «Uten», del 8, «Føres på» uten `helJobb`, attestert gir tekst, H.9 lønnsart). Negativkontroller: reise i del 1–7, `helJobb` på «Føres på», sum uten reise, uten «Uten», alder fra alle linjer, reise i blokken → rødt.
 
-### Reisens kort på serveren (w15c, B43 B, B44, B48 A, § 8.20) — 🟡 `feat/web-timer-w15c`, ikke merget
+### Reisens kort på serveren (w15c, B43 B, B44, B48 A, § 8.20) — ✅ merget til develop (`a690363d`)
 
 Spec: `web-timeforing-plan.md` § 4.15 del E (regelen), del F punkt 2, rad w15c i del G og del H; LØSNING GODKJENT i `relay/inbox-web-timer-w5.md` (2026-11-21). Erstatter regel-avsnittet i § «Reisen i jobbens kort» over. Ingen ny kolonne; mobilen er urørt.
 
@@ -854,7 +856,7 @@ Spec: `web-timeforing-plan.md` § 4.15 del E (regelen), del F punkt 2, rad w15c 
 - **Kjent avvik til w15f:** pennen på en reiselinje kalte `reiseHavnerI` uten `reiseKilde`. ✅ Rettet i w15f (under).
 - **Tester:** `reiseKort.test.ts` (40, shared: byggeplass som krav, underprosjekt, kontor, bilde 8, `egetReiseKort`), `reise-havner-i.test.ts` (8), `reisevindu.test.tsx` (10; uten `reiseKilde` i `RK` → rød), `attestering-tabell-modell.test.ts` (F31), `kortid-skriveveier.integration.test.ts` § «w15c» (H 2, 6, 7, 9, 18, 19), `reise-kortid-migrering.integration.test.ts` § «w15c» (riktig kort pr. rad, stille tomhet, paritet w12 + w15c mot regelen, to kjøringer, urørte felt).
 
-### «Korrigert av» og pennen i attesteringskortet (w15g, § 8.20, F63–F83) — 🟡 `feat/web-timer-w15g`, ikke merget
+### «Korrigert av» og pennen i attesteringskortet (w15g, § 8.20, F63–F83) — ✅ merget til develop (`4e2680ce`)
 
 Spec: `web-timeforing-plan.md` § 4.15 del F (F63–F83), rad w15g i del G, del H pkt. 28, 29, 31–33, 37, 39, 40; LØSNING GODKJENT w15g i `relay/inbox-web-timer-w5.md` (2026-11-21, svar 1–4: feltene er F63, `TidFelter`/`TallFelt` i en `Modal`, F67 for seg, merket viser det attestanten satte). Skisse: `skisser-web-timeforing/w15g-losning.png`. Skjermbilder (1 440 px, lokal dev): `w15g-kortet.png` (kortet som tekst med ✎), `w15g-vinduet.png` («Rett timelinja» med linja om hva arbeideren ser), `w15g-dagen.png` (merket på linja hos arbeideren), `w15g-mine-timer.png` (merket på dagen i Mine timer). Ingen e-post, ingen migrering; `epost.ts`, `server.ts`, mobilen og dagskortet er urørt.
 
@@ -865,7 +867,7 @@ Spec: `web-timeforing-plan.md` § 4.15 del F (F63–F83), rad w15g i del G, del 
 - **Attesteringskortet** (`apps/web/src/components/attestering/RegistreringPanel.tsx`): ingen åpne felt (snur w10a A1). Timelinja, maskinlinja og tilleggslinja er tekst med ✂ og ✎, på vilkårene feltene hadde (`kanRette && ventende`, timelinja også `harHandling`). ✎ åpner `LinjeRettVindu.tsx`: fra, til og pause (timebasert lønnsart) eller timer, og lønnsart; maskintimer med «høyst» (over → «Lagre» sperret); antall. `TidFelter` og `TallFelt` har ny `onEndre`-modus (meldes, lagres ikke ved blur/Enter); uten `onEndre` som før. «Lagre» sender én `rettRadFelt` med feltene som er endret (`linjeRettKall`), «Avbryt» ingenting; avvisning står i vinduet, som blir stående. Linja i vinduet og i «Rediger arbeid» (`RedigerRadModal.tsx`, navnet fra `hentForAttestering.ansatt`) sier hva arbeideren ser. «✎ Rediger jobben», «Del opp», ✂, underprosjekt-knappene og «Rett reisen» er uendret.
 - **Tester:** `apps/api/src/routes/w15g-korrigert-av.integration.test.ts` (14, ekte Postgres: pkt. 28 pr. vei i F60, 33 med to linjer, 37, 39, 40, svar 4 «15:35 → 15:50», vakt for andre brukere i begge leserne, tre spørringer i `list` for 1 og 6 dager; 14 røde mot develop `1ce5334e`). `apps/web/src/__tests__/web-timer-w15g.test.tsx` (7: pkt. 29 og 33; pkt. 33 rød på påstand mot `1ce5334e`). `attestering-tabell.test.tsx` § w10a skrevet om til vinduet (13) og ny § w15g pkt. 32 (6). `dagskort-vakt.test.tsx` grønn, ingen `.snap` endret. w5- og w15f-testene grønne (pkt. 31).
 
-### Prosjektet på en reise (w15f, § 8.20, F46–F56) — 🟡 `feat/web-timer-w15f`, ikke merget
+### Prosjektet på en reise (w15f, § 8.20, F46–F56) — ✅ merget til develop (`bda2aae4`)
 
 Spec: `web-timeforing-plan.md` § 4.15 del E (reiselinja, fem felt), del F (F46–F56), rad w15f i del G, del H pkt. 20–27; LØSNING GODKJENT i `relay/inbox-web-timer-w5.md` (2026-11-21, beslutning a: avvis ved koblet vare/maskin; b: ingen medlemskapssjekk i `rettRadFelt`). Skisse: `skisser-web-timeforing/w15f-losning.png`. Mobilen, `RedigerRadModal`, firmavalget og dagskortet er urørt.
 
@@ -895,7 +897,7 @@ Tilleggene er hektet på jobben arbeideren fører timer på. Spec: `web-timefori
 - **Skjermbilder (1440 px, lokal seed, ved siden av `v12-jobbkort.png`):** `skisser-web-timeforing/w3a-dag7-jobb2.png` (#7: to jobbkort og samlekortet, jobb 2 åpen med maskin og vare under timelinja), `w3a-dag7-maskin-fra-jobben.png` (maskinvinduet fra jobb 2: utstyr, antall og Fra–til 15–16, uten Timerad/Byggeplass/Underprosjekt), `w3a-dag7-vare-lagret.png` (2 m3 ført med «+ Vare» står i jobb 2), `w3a-lastebil.png` (jobben 08–10 med lastebil 2 t, 5 m3 pukk og parkering). Løsningsskissen: `w3a-losning.png`.
 - **Tester, server:** `apps/api/src/routes/timer-a7-sted-folger.integration.test.ts` — (1) underprosjekt og (2) byggeplass følger for maskin og vare, (3) ukoblet og annet prosjekt står, (4) attestert står, (5) tilfoy med kort-id får timeradens sted, (6) uten kort-id får vinduets. Negativkontroll: uten rettingen er (1), (2), (3) og (5) røde.
 
-### Åpent kort etter «+ Registrer timer» (w15a, B41 A) — 🟡 `feat/web-timer-w15a`, ikke merget
+### Åpent kort etter «+ Registrer timer» (w15a, B41 A) — ✅ merget til develop (`d5ae514e`)
 
 Spec: `web-timeforing-plan.md` § 4.15 del G og § 8.18; LØSNING GODKJENT i `relay/inbox-web-timer-w5.md` (2026-11-20). Bare `apps/web`, prosjektkort-modus.
 
@@ -904,7 +906,7 @@ Spec: `web-timeforing-plan.md` § 4.15 del G og § 8.18; LØSNING GODKJENT i `re
 - **Tester:** `apps/web/src/app/dashbord/timer/[id]/registrer-flyt.test.tsx` (3, alle røde før endringen) og `lib/__tests__/registrerTimer.test.ts` § `loesAapentKort`/`adresseEtterRegistrering`. `dagskort-vakt.test.tsx` + snapshot urørt.
 - **Skjermbilder (1 440 px, lokal seed):** `skisser-web-timeforing/w15a-kort-aapent.png` (Timer → «+ Registrer timer» på ny dag 23.11.: jobbens kort åpent, ingen vindu, adressen bare `?retur`), `w15a-omlasting.png` (etter omlasting: samme, ingen vindu).
 
-### Reisevinduet: når, hvor og klokkeslett (w15b, B42 A, B43 B) — 🟡 `feat/web-timer-w15b`, ikke merget
+### Reisevinduet: når, hvor og klokkeslett (w15b, B42 A, B43 B) — ✅ merget til develop (`cee0c03e`)
 
 Spec: `web-timeforing-plan.md` § 4.15 del B, rad w15b i del G og del H, bildet `skisser-web-timeforing/v15-reisevindu.png`; LØSNING GODKJENT i `relay/inbox-web-timer-w5.md` (2026-11-21). Bare web-`ReiseKort` (prosjektkort-modus) og den delte `løsReiseKort`; mobilen, attesteringen, serveren og kortregelen (`reiseKort.ts`) er urørt.
 
@@ -918,7 +920,7 @@ Spec: `web-timeforing-plan.md` § 4.15 del B, rad w15b i del G og del H, bildet 
 - **Tester:** `reiseManuell.test.ts` § «w15b — start og slutt kan rettes» (8), `apps/web/src/app/dashbord/timer/[id]/reisevindu.test.tsx` (9), `apps/web/src/hooks/reise-havner-i.test.ts` (6). Negativkontroll mot develop `45a388c5`: 6 av 8 (shared) og 14 av 15 (web) røde; de grønne er bevaringstestene. `dagskort-vakt.test.tsx` + snapshot urørt.
 - **Skjermbilder (1 440 px, lokal seed):** `skisser-web-timeforing/w15b-etter-arbeid.png` («+ Reise» → «Til annet kontor» → «Etter arbeid»: Kontor Narvik, 12:00–15:50, 230 min), `w15b-byttet-prosjekt.png` («Til byggeplass», prosjektet byttet til Agent-testprosjekt: Byggeplass 1, 06:25–07:00, «Får eget kort på Agent-testprosjekt.»).
 
-### Dagssiden viser reisen (w15d, B45 A, B48 A, F25) — 🟡 `feat/web-timer-w15d`, ikke merget
+### Dagssiden viser reisen (w15d, B45 A, B48 A, F25) — ✅ merget til develop (`94fe0b77`)
 
 Spec: `web-timeforing-plan.md` § 4.15 del C pkt. 1–4, rad w15d i del G og del H; LØSNING GODKJENT i `relay/inbox-web-timer-w5.md` (2026-11-21). Bare `apps/web/src/app/dashbord/timer/[id]/page.tsx` i prosjektkort-modus; dagskort-modus, mobilen, attesteringen, serveren og kortregelen (`reiseKort.ts`) er urørt.
 
