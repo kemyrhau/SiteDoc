@@ -766,8 +766,6 @@ export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
                         key={rad.key}
                         rad={rad}
                         equipment={equipment}
-                        timeStep={timeStep}
-                        tidsrundingMinutter={tidsrundingMinutter}
                         hoyst={maskinHoyst.get(rad.key) ?? null}
                         onChange={(felt) =>
                           setEditMaskin((rader) =>
@@ -1044,8 +1042,6 @@ function KompaktTimerRad({
 function KompaktMaskinRad({
   rad,
   equipment,
-  timeStep,
-  tidsrundingMinutter,
   hoyst,
   onChange,
   onSlett,
@@ -1061,8 +1057,6 @@ function KompaktMaskinRad({
         kategori: string | null;
       }>
     | undefined;
-  timeStep: number;
-  tidsrundingMinutter: number | null;
   /** w9 (2c): jobbens grense for denne maskinen; `null` = døgn-maskin, ingen tekst. */
   hoyst: number | null;
   onChange: (felt: Partial<EditMaskin>) => void;
@@ -1077,36 +1071,9 @@ function KompaktMaskinRad({
 
   return (
     <div className="space-y-1">
-      {/* § 8.22 L1: items-start — maskinlista åpnes i full høyde i raden, feltene står øverst. */}
-      <div className="grid grid-cols-[80px_80px_1fr_80px_auto] items-start gap-2 rounded border border-gray-200 bg-gray-50 px-2 py-1.5 text-xs">
-        <input
-          type="time"
-          value={rad.fraTid ?? ""}
-          step={timeStep}
-          onChange={(e) => onChange({ fraTid: e.target.value || null })}
-          onBlur={(e) => {
-            if (tidsrundingMinutter && e.target.value) {
-              const rundet = rundTilNarmeste(e.target.value, tidsrundingMinutter);
-              if (rundet !== e.target.value) onChange({ fraTid: rundet });
-            }
-          }}
-          className="rounded border border-gray-300 px-1.5 py-1"
-          placeholder="HH:MM"
-        />
-        <input
-          type="time"
-          value={rad.tilTid ?? ""}
-          step={timeStep}
-          onChange={(e) => onChange({ tilTid: e.target.value || null })}
-          onBlur={(e) => {
-            if (tidsrundingMinutter && e.target.value) {
-              const rundet = rundTilNarmeste(e.target.value, tidsrundingMinutter);
-              if (rundet !== e.target.value) onChange({ tilTid: rundet });
-            }
-          }}
-          className="rounded border border-gray-300 px-1.5 py-1"
-          placeholder="HH:MM"
-        />
+      {/* § 8.22 L1: items-start — maskinlista åpnes i full høyde i raden, feltene står øverst.
+          § 8.22 punkt 1: maskin har bare antall timer, aldri fra–til. Lagret fraTid/tilTid sendes uendret videre. */}
+      <div className="grid grid-cols-[1fr_80px_auto] items-start gap-2 rounded border border-gray-200 bg-gray-50 px-2 py-1.5 text-xs">
         <MaskinVelger
           utstyr={equipment ?? []}
           valgtId={rad.vehicleId}

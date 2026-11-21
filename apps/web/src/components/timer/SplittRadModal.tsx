@@ -242,7 +242,6 @@ export function SplittRadModal(props: Props) {
       });
     } else {
       setSplitMaskin((rader) => {
-        const sisteTilTid = rader[rader.length - 1]?.tilTid ?? null;
         const o = props.original;
         // Arv ECO fra original — bruker kan endre per rad i RedigerMaskinRad-velgeren.
         const sisteEco =
@@ -256,7 +255,8 @@ export function SplittRadModal(props: Props) {
             externalCostObjectId: sisteEco,
             vehicleId: o.vehicleId,
             byggeplassId: o.byggeplassId,
-            fraTid: sisteTilTid,
+            // § 8.22 punkt 1: maskin har ikke fra–til — ny del får ingen skjult forhåndsutfylling.
+            fraTid: null,
             tilTid: null,
             timer: Math.max(0, gjenstaar),
             mengde: null,
@@ -427,7 +427,6 @@ export function SplittRadModal(props: Props) {
                   organizationId={props.organizationId}
                   rad={rad}
                   prosjekter={props.prosjekter}
-                  tidsrundingMinutter={props.tidsrundingMinutter}
                   onChange={(felt) => oppdaterMaskin(rad.key, felt)}
                   onSlett={i === 0 ? () => {} : () => slettRad(rad.key)}
                 />
@@ -540,14 +539,7 @@ function OriginalRefVisning({
         <span className="text-gray-500">{t("timer.felt.antallTimer")}: </span>
         <span className="font-mono font-medium">{formaterTimer(tilTall(o.timer))}t</span>
       </div>
-      {(o.fraTid || o.tilTid) && (
-        <div className="col-span-2">
-          <span className="text-gray-500">{t("timer.felt.startTid")}: </span>
-          <span className="font-mono">{o.fraTid ?? "—"}</span>
-          <span className="mx-1">→</span>
-          <span className="font-mono">{o.tilTid ?? "—"}</span>
-        </div>
-      )}
+      {/* § 8.22 punkt 1: maskinens referanse viser ikke fra–til. */}
       {o.mengde !== null && o.mengde !== undefined && (
         <div className="col-span-2">
           <span className="text-gray-500">{t("timer.splitt.mengde")}: </span>

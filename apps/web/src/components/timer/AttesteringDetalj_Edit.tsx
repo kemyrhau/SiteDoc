@@ -937,7 +937,6 @@ function EcoBucketEdit({
                   organizationId={organizationId}
                   rad={rad}
                   prosjekter={prosjekter}
-                  tidsrundingMinutter={tidsrundingMinutter}
                   onChange={(felt) => oppdaterMaskin(rad.key, felt)}
                   onSlett={() => slettMaskin(rad.key)}
                   onSplitt={
