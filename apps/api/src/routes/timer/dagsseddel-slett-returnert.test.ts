@@ -1,12 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 /**
- * `dagsseddel.slett` — Kenneth-vedtak 2026-10-09 (2): en RETURNERT, ennå IKKE attestert
- * dagsseddel kan slettes av eieren, som et utkast. Sendte/attesterte/eksporterte kan ikke.
+ * `dagsseddel.slett` — bare et UTKAST kan slettes (S1, plan § 8.22, Kenneth 2026-11-21:
+ * «returnert dag bør kun redigeres»). Erstatter Kenneth-vedtak 2026-10-09 (2), der en
+ * returnert, ikke-attestert dag kunne slettes. Sendt/godkjent avvises som før.
  *
- * Negativkontroll (rød uten fiksen): fjernes `returned && attestertVed === null`-grenen,
- * blir «sletter returnert» rød (gammel regel tillot kun draft). Drives via
- * dagsseddelRouter.createCaller med mocket ctx — samme mønster som forson-dagskort.test.ts.
+ * Negativkontroll (rød uten fiksen): med gammel vakt (`returned && attestertVed === null`
+ * tillatt) blir «NEKTER returnert uten attestert» rød. Hele slettingen (alle tabeller, begge
+ * skjemaene, feil halvveis) testes mot ekte Postgres i slett-dagsseddel-alt.integration.test.ts.
+ * Drives via dagsseddelRouter.createCaller med mocket ctx — samme mønster som forson-dagskort.test.ts.
  */
 
 vi.mock("../../trpc/tilgangskontroll", () => ({
@@ -42,20 +44,34 @@ function lagCaller(sheet: { status: string; attestertVed: Date | null }) {
     return Promise.resolve(null);
   });
   slett.mockResolvedValue({ id: SHEET });
+  const teller = { count: () => Promise.resolve(0), findMany: () => Promise.resolve([]), deleteMany: () => Promise.resolve({ count: 0 }) };
+  const tx = {
+    // Raden låses med FOR UPDATE og leses på nytt; tellinger (varer) gir 0.
+    $queryRaw: (deler: TemplateStringsArray) =>
+      Promise.resolve(deler.join("?").includes("FOR UPDATE") ? [{ id: SHEET, status: sheet.status }] : [{ n: 0 }]),
+    $executeRaw: () => Promise.resolve(0),
+    sheetTimer: teller,
+    sheetTillegg: teller,
+    sheetUtlegg: teller,
+    sheetMachine: teller,
+    sheetTilleggVedlegg: teller,
+    sheetUtleggVedlegg: teller,
+    dailySheet: { delete: (...a: unknown[]) => slett(...a) },
+  };
   const ctx = {
     userId: USER,
     prismaTimer: {
       dailySheet: {
         findUnique: (...a: unknown[]) => findUnique(...(a as [{ where: { id?: string; clientUuid?: string } }])),
-        delete: (...a: unknown[]) => slett(...a),
       },
+      $transaction: (fn: (t: typeof tx) => unknown) => fn(tx),
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any;
   return dagsseddelRouter.createCaller(ctx);
 }
 
-describe("dagsseddel.slett — utkast + returnert-ikke-attestert", () => {
+describe("dagsseddel.slett — bare utkast", () => {
   beforeEach(() => {
     slett.mockReset();
     findUnique.mockReset();
@@ -66,22 +82,24 @@ describe("dagsseddel.slett — utkast + returnert-ikke-attestert", () => {
     expect(slett).toHaveBeenCalledOnce();
   });
 
-  it("sletter returnert dagsseddel som ikke er attestert", async () => {
-    await lagCaller({ status: "returned", attestertVed: null }).slett({ id: SHEET });
-    expect(slett).toHaveBeenCalledOnce();
+  it("NEKTER sletting av returnert dag som ikke er attestert (S1)", async () => {
+    await expect(
+      lagCaller({ status: "returned", attestertVed: null }).slett({ id: SHEET }),
+    ).rejects.toThrow(/returnert dag kan ikke slettes/);
+    expect(slett).not.toHaveBeenCalled();
   });
 
   it("NEKTER sletting av returnert som ER attestert", async () => {
     await expect(
       lagCaller({ status: "returned", attestertVed: new Date("2026-09-01") }).slett({ id: SHEET }),
-    ).rejects.toThrow(/Bare utkast eller returnerte/);
+    ).rejects.toThrow(/returnert dag kan ikke slettes/);
     expect(slett).not.toHaveBeenCalled();
   });
 
   it("NEKTER sletting av sendt dagsseddel", async () => {
     await expect(
       lagCaller({ status: "sent", attestertVed: null }).slett({ id: SHEET }),
-    ).rejects.toThrow(/Bare utkast eller returnerte/);
+    ).rejects.toThrow(/Bare utkast kan slettes/);
     expect(slett).not.toHaveBeenCalled();
   });
 });
