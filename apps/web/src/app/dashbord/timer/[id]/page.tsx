@@ -87,10 +87,9 @@ import { KorrigeringProvider, KorrigertMerke, type KorrigeringerPrRad } from "@/
 import { reiseHavnerI, type ReiseHavnerAnnenRad } from "@/hooks/useManuellReiseWeb";
 import {
   beregnKortSummer,
-  dagSummer,
   kortStatus,
   lesTimerModus,
-  sumlinjeMotNorm,
+  sumlinjeDag,
   utledKortByggeplass,
   visVareforbrukKnapp,
   kortDagsseddelId,
@@ -2023,10 +2022,11 @@ function ProsjektkortSamleside({
   const { t } = useTranslation();
 
   // «Send dagen (7,5 t · reise 2 t)»: arbeid og reise hver for seg (ordre
-  // 2026-11-14 (6)). Sumlinja mot normen teller ikke reise.
+  // 2026-11-14 (6)). Bunnlinja: totalt = arbeid + reise (Kenneth
+  // 2026-11-21); trafikklyset regnes mot normen uten reise.
   const dagArbeidReise = arbeidOgReise(timerRader);
-  const dag = dagSummer(timerRader, maskinRader);
-  const { registrert: motNorm, sone } = sumlinjeMotNorm(timerRader, normTimer);
+  const dag = sumlinjeDag(timerRader, maskinRader, normTimer);
+  const sone = dag.sone;
   const prikk =
     sone === "grå"
       ? "bg-gray-400"
@@ -2224,14 +2224,15 @@ function ProsjektkortSamleside({
         <div className="mt-4 flex flex-wrap items-center gap-3 rounded-lg border border-gray-200 bg-white p-4">
           <span className={`h-2.5 w-2.5 rounded-full ${prikk}`} aria-hidden />
           <span className="text-sm text-gray-700">
-            {t("timer.prosjektkort.sumIDag", {
-              registrert: formatTimer(motNorm),
-              total: normTimer === null ? "?" : formatTimer(normTimer),
+            {t("timer.prosjektkort.sumArbeid", {
+              timer: formatTimer(dag.arbeid),
+              norm: normTimer === null ? "?" : formatTimer(normTimer),
             })}
             {dag.maskin > 0 &&
               ` · ${t("timer.prosjektkort.sumMaskin", { timer: formatTimer(dag.maskin) })}`}
             {dag.reise > 0 &&
               ` · ${t("timer.prosjektkort.sumReise", { timer: formatTimer(dag.reise) })}`}
+            {` · ${t("timer.prosjektkort.sumTotalt", { timer: formatTimer(dag.totalt) })}`}
           </span>
           <div className="ml-auto flex gap-2">
             {kanSlette && (

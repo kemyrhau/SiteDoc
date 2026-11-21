@@ -634,6 +634,7 @@ export {
   kortStatus,
   trafikklysSone,
   sumlinjeMotNorm,
+  sumlinjeDag,
   visVareforbrukKnapp,
   kortDagsseddelId,
   kortVareforbrukInput,
