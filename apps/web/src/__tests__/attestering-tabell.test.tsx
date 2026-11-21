@@ -765,7 +765,7 @@ describe("w8 — jobbraden åpner registreringen, timeradene gjør det ikke", ()
     const fv = kallTil("delJobb");
     expect(fv).toHaveLength(1);
     expect(fv[0]!.input).toEqual({ sheetId: "s1", kortId: "kA", kl: "10:00", externalCostObjectIdB: null, forhandsvis: true });
-    act(() => fv[0]!.opts!.onSuccess!({ forhandsvisning: { timerA: 2.5, timerB: 5, maskinPaaA: 0, maskinTilB: 0 } }));
+    act(() => fv[0]!.opts!.onSuccess!({ forhandsvisning: { timerA: 2.5, timerB: 5, maskinPaaA: 0 } }));
     expect(skjema.textContent).toContain("2,50 t");
     const knapper = within(skjema).getAllByRole("button", { name: /registrering\.delOpp/ });
     fireEvent.click(knapper[knapper.length - 1]!);

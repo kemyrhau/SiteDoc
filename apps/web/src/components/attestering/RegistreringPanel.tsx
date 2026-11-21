@@ -781,7 +781,7 @@ function DelOppSkjema({ sheetId, kortId, tidsrom, eco, naaEco, onAvbryt, onDelt 
   const [kl, setKl] = useState("");
   const [ecoB, setEcoB] = useState<string | null>(naaEco);
   const [feil, setFeil] = useState<string | null>(null);
-  const [visning, setVisning] = useState<{ timerA: number; timerB: number; maskinPaaA: number; maskinTilB: number } | null>(null);
+  const [visning, setVisning] = useState<{ timerA: number; timerB: number; maskinPaaA: number } | null>(null);
   const del = trpc.timer.dagsseddel.delJobb.useMutation();
   const gyldig = /^([01]\d|2[0-3]):[0-5]\d$/.test(kl);
 

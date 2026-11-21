@@ -56,7 +56,6 @@ import {
   jobbArbeidSum,
   overMaskinHoyst,
   DEFAULT_PAUSE_ETTER_TIMER,
-  pauseVinduFra,
   effektiveTimerFraSpenn,
   tilFraAntall,
   hhmmTilMin,
@@ -430,10 +429,6 @@ export default function DagsseddelDetaljSide() {
         type: "maskin";
         projectId: string;
         defaultEcoId?: string | null;
-        // Maskin-fra-til (2026-05-17): forslag basert på timer-radene i
-        // samme prosjekt+ECO-bucket (Alt D — sammenheng-prinsipp).
-        defaultFraTid?: string | null;
-        defaultTilTid?: string | null;
         rad?: MaskinRad;
         jobb?: JobbKontekst;
       }
@@ -1504,7 +1499,6 @@ export default function DagsseddelDetaljSide() {
             fraTid: r.fraTid,
             tilTid: r.tilTid,
             erReise: r.erReise ?? false,
-            erOverforing: r.reiseKilde === "overforing",
             kortId: r.kortId ?? null,
             projectId: r.projectId,
             ecoId: r.externalCostObjectId,
@@ -1515,10 +1509,6 @@ export default function DagsseddelDetaljSide() {
           andreRader={kortRaderUtenArbeid}
           eierId={sheet.userId}
           resolverLonnsartId={aktivModal.reise.id}
-          skjulOverforingRetninger={timerRader
-            .filter((r) => r.reiseKilde === "overforing")
-            .map((r) => r.reiseRetning)
-            .filter((x): x is "ut" | "retur" => x === "ut" || x === "retur")}
           erFirmaAdmin={!!orgSetting}
           forvalgtByggeplassId={aktivModal.jobb?.byggeplassId}
           forvalgtEcoId={aktivModal.jobb?.ecoId}
@@ -1649,9 +1639,6 @@ export default function DagsseddelDetaljSide() {
           projectId={aktivModal.projectId}
           byggeplasser={byggeplasser}
           defaultEcoId={aktivModal.defaultEcoId ?? null}
-          defaultFraTid={aktivModal.defaultFraTid ?? null}
-          defaultTilTid={aktivModal.defaultTilTid ?? null}
-          tidsrundingMinutter={orgSetting?.tidsrundingMinutter ?? null}
           rad={aktivModal.rad}
           // Del 2 (maskin ≤ arbeid): hele sedelen sendes inn så modalen kan
           // beregne bucket-kapasitet reaktivt for gjeldende (projectId, ECO).
@@ -1659,14 +1646,6 @@ export default function DagsseddelDetaljSide() {
           alleMaskinRader={maskinRader}
           sistBrukteMaskiner={sistBrukteMaskiner ?? []}
           pauseMin={sheet.pauseMin}
-          // B1/B2 (bolk e): pausevindu-parametre for spenn↔antall-synk. Samme
-          // kilde som timer-modalen; standardPauseMin ≠ pauseMin (bucket-tak).
-          skiftStart={effektivStart}
-          standardPauseMin={arbeidstidDefaults?.standardPauseMin ?? 30}
-          standardPauseEtterTimer={
-            arbeidstidDefaults?.standardPauseEtterTimer ??
-            DEFAULT_PAUSE_ETTER_TIMER
-          }
           jobb={aktivModal.jobb}
           onLukk={() => setAktivModal(null)}
         />
@@ -2059,12 +2038,9 @@ function ProsjektkortSamleside({
           const { jobb } = k;
           const aapen = aapentKort === jobb.kortId;
           // w15d (B45 A + § 8.19): maskin og vare hører til en timerad — kortet med bare
-          // reise har dem ikke før det får en. Reise til annet kontor alene får ikke
-          // «+ Timer» (F25: kortets id skal aldri bli en jobbs).
+          // reise har dem ikke før det får en. § 8.22: reise til annet kontor har ingen
+          // særregel — alle kort får «+ Timer».
           const harArbeid = k.linjer.some((l) => l.type === "timer");
-          const reiser = k.linjer.flatMap((l) => (l.type === "reise" ? [l.rad] : []));
-          const bareKontorReise =
-            !harArbeid && reiser.length > 0 && reiser.every((r) => r.reiseKilde === "overforing");
           return (
             <JobbKortRamme
               key={jobb.kortId}
@@ -2083,11 +2059,9 @@ function ProsjektkortSamleside({
               {renderLinjer(k.linjer, jobb)}
               {erRedigerbar && (
                 <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm">
-                  {!bareKontorReise && (
-                    <button type="button" onClick={() => onNyTimer(jobb)} className={lenke}>
-                      {t("timer.prosjektkort.nyTimer")}
-                    </button>
-                  )}
+                  <button type="button" onClick={() => onNyTimer(jobb)} className={lenke}>
+                    {t("timer.prosjektkort.nyTimer")}
+                  </button>
                   {harArbeid && (
                     <button type="button" onClick={() => onNyMaskin(jobb)} className={lenke}>
                       {t("timer.prosjektkort.nyMaskin")}
@@ -2977,19 +2951,13 @@ function ReiseLinje({
   }
 
   const sted = (rad.byggeplassId && byggeplassNavn.get(rad.byggeplassId)) || prosjektNavn;
-  // Overføring mellom kontorer: raden har bare fra-kontoret (reiseOppmotestedId), ikke målet —
-  // prosjektet/byggeplassen er ikke stedet arbeideren kjørte til. Linja sier hva det er,
-  // med retning: «til» ved ut, «fra» ved retur.
+  // § 8.22 punkt 2: reise til annet kontor har ingen egen linjetekst — vanlig reise.
   const stedTekst =
-    rad.reiseKilde === "overforing"
-      ? rad.reiseRetning === "retur"
-        ? t("timer.reiseKort.fraAnnetKontor")
-        : t("timer.reiseKort.annetKontor")
-      : rad.reiseRetning === "ut"
-        ? t("timer.prosjektkort.reiseTil", { sted })
-        : rad.reiseRetning === "retur"
-          ? t("timer.prosjektkort.reiseFra", { sted })
-          : sted;
+    rad.reiseRetning === "ut"
+      ? t("timer.prosjektkort.reiseTil", { sted })
+      : rad.reiseRetning === "retur"
+        ? t("timer.prosjektkort.reiseFra", { sted })
+        : sted;
   const eco = rad.externalCostObjectId
     ? (ecoer ?? []).find((e) => e.id === rad.externalCostObjectId)
     : undefined;
@@ -3796,9 +3764,17 @@ function TimerRadDialog({
             rad?.reiseRetning === "ut" || rad?.reiseRetning === "retur" ? rad.reiseRetning : null,
           fraTid: fraTid || null,
           erReise: true,
-          // w15c-funnet: kontorreisen etter arbeid får eget kort — linja må vite kilden.
-          reiseKilde: rad?.reiseKilde ?? null,
         },
+        // § 8.22 punkt 3: en lagret reise blir i kortet sitt til prosjekt/byggeplass/underprosjekt rettes.
+        lagret: rad
+          ? {
+              kortId: rad.kortId ?? null,
+              projectId: rad.projectId,
+              byggeplassId: rad.byggeplassId,
+              ecoId: rad.externalCostObjectId,
+              erReise: rad.erReise ?? false,
+            }
+          : null,
       })
     : null;
   // w15f (§ 4.15 del E): prosjektfeltet er åpent på en reise som finnes, låst for arbeid.
@@ -6162,17 +6138,11 @@ function MaskinRadDialog({
   projectId,
   byggeplasser,
   defaultEcoId,
-  defaultFraTid,
-  defaultTilTid,
-  tidsrundingMinutter,
   rad,
   alleTimerRader,
   alleMaskinRader,
   sistBrukteMaskiner,
   pauseMin,
-  skiftStart,
-  standardPauseMin,
-  standardPauseEtterTimer,
   jobb,
   onLukk,
 }: {
@@ -6183,12 +6153,6 @@ function MaskinRadDialog({
   /** w3a: åpnet fra en jobb — timerad, byggeplass og underprosjekt følger jobben og
    *  vises ikke. Ny maskin kobles til jobbens første arbeidsrad og sendes med kort-id. */
   jobb?: JobbKontekst;
-  // Maskin-fra-til (2026-05-17): forslag fra parent basert på timer-rader
-  // i bucket (Alt D — sammenheng-prinsipp). null hvis bucket er tom og
-  // ingen firma-default. Brukes kun for ny rad (ikke rediger).
-  defaultFraTid?: string | null;
-  defaultTilTid?: string | null;
-  tidsrundingMinutter?: number | null;
   rad?: MaskinRad;
   // w9 (maskin ≤ arbeid): hele sedelens rader + sedel-pause, for «høyst» pr. jobb
   // (maskinHoystPerRad). Samme regel som serveren (krevIngenNyeMaskinBrudd).
@@ -6197,13 +6161,6 @@ function MaskinRadDialog({
   /** ORDRE 29: egne sist brukte maskiner (nyeste først) — øverst i velgeren. */
   sistBrukteMaskiner: string[];
   pauseMin: number;
-  // B1/B2 (bolk e): pause-bevisst spenn↔antall-synk + spenn-validering på
-  // maskin-rad. standardPauseMin = firma-default (samme kilde som timer-
-  // modalen, IKKE sheet.pauseMin som bucket-taket bruker) — maskin følger
-  // førerens økt, så fradraget må være identisk med timer-radens.
-  skiftStart: string;
-  standardPauseMin: number;
-  standardPauseEtterTimer: number;
   onLukk: () => void;
 }) {
   const { t } = useTranslation();
@@ -6232,39 +6189,13 @@ function MaskinRadDialog({
   const bp = useRadByggeplass({ byggeplasser, projectId, rad });
 
   const [vehicleId, setVehicleId] = useState<string>(rad?.vehicleId ?? "");
-  // Bolk (g): prefill gyldig kun når begge tider finnes OG fra < til.
-  const prefillGyldig =
-    !!defaultFraTid &&
-    !!defaultTilTid &&
-    hhmmTilMin(defaultFraTid) < hhmmTilMin(defaultTilTid);
-  // w3b (A3/A4, S1 A): fra jobben foreslås antall = «høyst» (døgn-maskin: jobbens arbeid)
-  // til brukeren rører feltet. Fra–til, mengde og enhet føres ikke fra jobben (B38 A, B37 A).
+  // § 8.22 punkt 4 (Kenneth 2026-11-21): maskin føres som antall timer etter skjønn —
+  // aldri fra–til. Fra jobben foreslås antall = «høyst» (døgn-maskin: jobbens arbeid)
+  // til brukeren rører feltet; uten jobb er feltet tomt. Mengde og enhet føres ikke
+  // fra jobben (B37 A).
   const fraJobb = !!jobb;
   const [timerRort, setTimerRort] = useState<boolean>(!!rad || !jobb);
-  const [timerInput, setTimer] = useState<string>(() => {
-    if (rad) return String(tilTall(rad.timer));
-    if (jobb) return "";
-    // B3: init antall fra prefill-spennet (pause-bevisst) — kun ved gyldig
-    // prefill; ellers tom (ingen 0-rad).
-    if (prefillGyldig) {
-      return String(
-        effektiveTimerFraSpenn(
-          defaultFraTid!,
-          defaultTilTid!,
-          pauseVinduFra(skiftStart, standardPauseEtterTimer),
-          standardPauseMin,
-        ),
-      );
-    }
-    return "";
-  });
-  const [fraTid, setFraTid] = useState<string>(
-    rad?.fraTid ?? defaultFraTid ?? "",
-  );
-  // Bolk (g): til prefylles kun ved gyldig prefill (fra < til).
-  const [tilTid, setTilTid] = useState<string>(
-    rad?.tilTid ?? (prefillGyldig ? defaultTilTid! : ""),
-  );
+  const [timerInput, setTimer] = useState<string>(() => (rad ? String(tilTall(rad.timer)) : ""));
   const [mengde, setMengde] = useState<string>(
     rad?.mengde !== null && rad?.mengde !== undefined
       ? String(tilTall(rad.mengde))
@@ -6296,51 +6227,9 @@ function MaskinRadDialog({
   // Utstyret er ikke lastet ennå → ukjent; serveren avgjør (H15 A).
   const kreverTimerad = valgtUtstyr ? maskinKreverTimerad(valgtUtstyr.utleieEnhet) : false;
 
-  // T7-2e-mønster: tving step ≤ 1800 (30 min) slik at minutt-selektor vises
-  // selv om firmaet har tidsrunding på 60 min — Chrome skjuler minutter ved
-  // step=3600. Default 15 min hvis ingen orgSetting.
-  const timeStep = Math.min((tidsrundingMinutter ?? 15) * 60, 1800);
-
-  // B1/B2 (bolk e): pausevindu + pause-bevisst spenn↔antall-synk, speiler
-  // TimerRadDialog. standardPauseMin (ikke pauseMin) — maskin følger føreren.
-  const pauseFra = pauseVinduFra(skiftStart, standardPauseEtterTimer);
-
-  // R3-transparens: hvor mange minutter lunsjpause maskin-raden trekker fra.
-  const pauseOverlapp = useMemo(() => {
-    if (!fraTid || !tilTid) return 0;
-    const fm = hhmmTilMin(fraTid);
-    const tm = hhmmTilMin(tilTid);
-    if (tm <= fm) return 0;
-    return pauseOverlappMin(fm, tm, hhmmTilMin(pauseFra), standardPauseMin);
-  }, [fraTid, tilTid, pauseFra, standardPauseMin]);
-
-  // Sist-rørte felt vinner: fra/til → antall (spenn − pause); antall → til
-  // (pausevindu skjøvet inn ved lunsj-kryssing). R4: rund fra/til ved commit.
-  function endreFra(v: string) {
-    const r = rundTilNarmeste(v, tidsrundingMinutter ?? null);
-    setFraTid(r);
-    if (r && tilTid) {
-      setTimer(
-        String(effektiveTimerFraSpenn(r, tilTid, pauseFra, standardPauseMin)),
-      );
-    }
-  }
-  function endreTil(v: string) {
-    const r = rundTilNarmeste(v, tidsrundingMinutter ?? null);
-    setTilTid(r);
-    if (fraTid && r) {
-      setTimer(
-        String(effektiveTimerFraSpenn(fraTid, r, pauseFra, standardPauseMin)),
-      );
-    }
-  }
   function endreTimer(v: string) {
     setTimer(v);
     setTimerRort(true);
-    const n = parseFloat(v);
-    if (!fraJobb && fraTid && !isNaN(n) && n > 0) {
-      setTilTid(tilFraAntall(fraTid, n, pauseFra, standardPauseMin));
-    }
   }
 
   // w9 (2c): «høyst X t» = jobbens arbeid − de andre førermaskinene på jobben.
@@ -6453,25 +6342,6 @@ function MaskinRadDialog({
       );
       return;
     }
-    // B2 (bolk e): når begge tider er satt MÅ antall stemme med (spenn − pause).
-    // Standardvalget er «maskinen gikk hele økta»; kortere drift krever justert
-    // fra/til. Bolk (g): krev FØRST til > fra (lukker 0==0-hullet).
-    if (!fraJobb && fraTid && tilTid) {
-      if (hhmmTilMin(tilTid) <= hhmmTilMin(fraTid)) {
-        setFeil(t("timer.feil.sluttForStart"));
-        return;
-      }
-      const forventet = effektiveTimerFraSpenn(
-        fraTid,
-        tilTid,
-        pauseFra,
-        standardPauseMin,
-      );
-      if (Math.abs(forventet - tNum) > 0.01) {
-        setFeil(t("timer.feil.timerAvvik", { forventet: forventet.toFixed(2) }));
-        return;
-      }
-    }
     const mengdeNum = mengde.trim() ? parseFloat(mengde) : null;
     if (mengdeNum !== null && (isNaN(mengdeNum) || mengdeNum < 0)) {
       setFeil(t("timer.feil.ugyldigInput"));
@@ -6480,17 +6350,9 @@ function MaskinRadDialog({
     const data = {
       vehicleId,
       timer: tNum,
-      // w3b: fra jobben føres verken fra–til, mengde eller enhet. Ny rad sendes uten dem;
-      // ved redigering sendes de ikke, så lagrede verdier står (maskin.oppdater: undefined = urørt).
-      ...(fraJobb
-        ? {}
-        : {
-            mengde: mengdeNum,
-            enhet: enhet || null,
-            // Maskin-fra-til (2026-05-17): tom streng → null (felt er valgfrie).
-            fraTid: fraTid || null,
-            tilTid: tilTid || null,
-          }),
+      // § 8.22 punkt 4: fra–til sendes aldri — ved redigering står lagrede verdier
+      // (maskin.oppdater: undefined = urørt). w3b: fra jobben føres verken mengde eller enhet.
+      ...(fraJobb ? {} : { mengde: mengdeNum, enhet: enhet || null }),
       externalCostObjectId: ecoId,
       // Ordre (10): kun ved endring — mobilens byggeplass overskrives ikke.
       // w3a: ny maskin i en jobb tar jobbens byggeplass (serveren bekrefter, A7).
@@ -6591,47 +6453,8 @@ function MaskinRadDialog({
             </p>
           )}
         </div>
-        {/* Maskin-fra-til = maskinens driftsvindu. B1/B2 (bolk e): antall er
-            pause-bevisst avledet av spennet og validert mot det. Prefill fra
-            bucketens arbeidsspenn (B4). Kortere drift → juster fra/til.
-            w3b (B38 A, B37 A): fra jobben vises verken fra–til, mengde eller enhet. */}
+        {/* w3b (B37 A): fra jobben vises verken mengde eller enhet. */}
         {!fraJobb && (<>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              {t("timer.felt.startTid")}{" "}
-              <span className="text-xs text-gray-400">
-                ({t("label.valgfritt")})
-              </span>
-            </label>
-            <Input
-              type="time"
-              step={timeStep}
-              value={fraTid}
-              onChange={(e) => endreFra(e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              {t("timer.felt.sluttTid")}{" "}
-              <span className="text-xs text-gray-400">
-                ({t("label.valgfritt")})
-              </span>
-            </label>
-            <Input
-              type="time"
-              step={timeStep}
-              value={tilTid}
-              onChange={(e) => endreTil(e.target.value)}
-            />
-          </div>
-        </div>
-        {/* R3-transparens: hvor mange minutter lunsjpause maskin-raden trekker. */}
-        {pauseOverlapp > 0 && (
-          <p className="-mt-2 text-xs text-gray-500">
-            {t("timer.pauseFradrag", { min: pauseOverlapp })}
-          </p>
-        )}
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">

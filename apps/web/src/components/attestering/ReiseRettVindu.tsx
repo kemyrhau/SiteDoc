@@ -146,7 +146,14 @@ export function ReiseRettVindu({ rad, sedel, orgId, lonnsarter, reiseKtx, prosje
           retning: rad.reiseRetning ?? null,
           fraTid: fra || null,
           erReise: true,
-          reiseKilde: rad.reiseKilde ?? null,
+        },
+        // § 8.22 punkt 3: reisen blir i kortet sitt til prosjekt/byggeplass/underprosjekt rettes.
+        lagret: {
+          kortId: rad.kortId ?? null,
+          projectId: rad.projectId,
+          byggeplassId: rad.byggeplassId,
+          ecoId: rad.externalCostObjectId,
+          erReise: true,
         },
       })
     : null;

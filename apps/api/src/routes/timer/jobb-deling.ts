@@ -7,7 +7,7 @@
  *  - En timerrad som starter ved eller etter klokkeslettet, går til del B (eget kort).
  *  - En timerrad som krysser klokkeslettet, deles i to: første del beholder radens id (så
  *    maskin og vare koblet til raden blir på del A, som når en rad deles i dag), andre del
- *    opprettes på del B. Lønnsarten følger raden, så overtid som alt er egen rad, havner
+ *    opprettes på del B (maskin, varer, tillegg, utlegg og reise blir i A, § 8.22). Lønnsarten følger raden, så overtid som alt er egen rad, havner
  *    der den hører hjemme i tid (bilde 8: «3,5 t Timelønn + 0,5 t Overtid 50 %»).
  *  - Pausen følger den delen som krysser pausevinduet (samme regel som `splittRad`,
  *    `fordelPauseVedSplitt`). Del A sine timer regnes av klokkeslettene minus pausen;
@@ -84,17 +84,6 @@ export function planleggJobbDeling(
   const harB = plan.tilB.length > 0 || plan.delt.length > 0;
   if (!harA || !harB) return { feil: "klUtenforJobben" };
   return plan;
-}
-
-/**
- * true når en maskin med klokkeslett går over klokkeslettet (`fraTid < kl < tilTid`).
- * En slik maskin kan ikke stå på én del uten at tiden blir feil, så delingen avvises (w5,
- * gate 98). Maskin uten fra eller til sjekkes bare på timer.
- */
-export function maskinKrysserKl(fraTid: string | null, tilTid: string | null, kl: string): boolean {
-  if (!fraTid || !tilTid) return false;
-  const k = tilMin(kl);
-  return tilMin(fraTid) < k && k < tilMin(tilTid);
 }
 
 /** Feilteksten serveren sender (norsk, som resten av timer-ruterens meldinger). */
