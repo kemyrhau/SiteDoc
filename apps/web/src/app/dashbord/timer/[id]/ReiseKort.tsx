@@ -8,6 +8,7 @@ import {
   finnOverlappendeTidsrom,
   klokkeTilMin,
   manuellReiseForklaringTekst,
+  manuellReiseTerskelTekst,
   medOverforingPeriodeId,
   periodeDatoFraOverforing,
   type ReiseKortSperre,
@@ -85,6 +86,7 @@ export function ReiseKort({
   erFirmaAdmin,
   forvalgtByggeplassId,
   forvalgtEcoId,
+  jobbKortId,
   onLukk,
 }: {
   sheetId: string;
@@ -113,6 +115,9 @@ export function ReiseKort({
    *  forvalgt. Feltene står og kan endres. Utelatt = som før. */
   forvalgtByggeplassId?: string | null;
   forvalgtEcoId?: string | null;
+  /** O1 (§ 8.22): kort-id-en til jobben vinduet ble åpnet fra. Under terskel føres turen
+   *  som arbeid i DEN jobben når nøkkelen er lik. Utelatt = som før (serveren velger). */
+  jobbKortId?: string | null;
   onLukk: () => void;
 }) {
   const { t } = useTranslation();
@@ -207,6 +212,7 @@ export function ReiseKort({
           andreRader,
           eier: eierId ? { userId: eierId, dato } : null,
           sedelByggeplass,
+          jobbKortId,
           reise: {
             projectId: reiseProsjektId,
             ecoId,
@@ -232,6 +238,13 @@ export function ReiseKort({
               prosjektNavn(havner.projectId),
           })
         : t("timer.reiseKort.havnerEget", { prosjekt: prosjektNavn(havner.projectId) });
+
+  // O1 (§ 8.22): under terskel er turen arbeid — den står i jobben vinduet ble åpnet fra
+  // (regel 1) når linja «havner i» peker dit, altså når nøkkelen er lik. Ellers ingen kort-id.
+  const arbeidKortId =
+    jobbKortId && resultat.spor && !resultat.spor.erReise && havner?.type === "jobb" && havner.kortId === jobbKortId
+      ? jobbKortId
+      : null;
 
   const kanLagre =
     regelStatus === "klar" &&
@@ -298,6 +311,7 @@ export function ReiseKort({
       // Reise bærer aldri matpausen (pauseFraForRad hopper over erReise).
       pauseMin: 0,
       byggeplassId: lagretByggeplassId,
+      ...(arbeidKortId ? { kortId: arbeidKortId } : {}),
       // Sporet kun når regelen sier reise; under terskel er raden ordinær
       // (reiseKilde null → serveren nuller sporet).
       ...(s.erReise && s.reiseKilde
@@ -504,11 +518,17 @@ export function ReiseKort({
             <p className="text-sm text-gray-700">{t("timer.reiseKort.forslag", { min: resultat.kjoretidMin })}</p>
             {resultat.klassifisering && resultat.klassifisering.lonnsartId != null && (
               <p className="mt-1 text-xs text-gray-500">
-                {manuellReiseForklaringTekst(
-                  t,
-                  resultat.klassifisering,
-                  reise.lonnsartNavn(resultat.klassifisering.lonnsartId),
-                )}
+                {/* O1: turen føres som arbeid i jobben vinduet ble åpnet fra — si det. */}
+                {arbeidKortId && resultat.klassifisering.forklaring.type === "under"
+                  ? t("timer.reiseKort.underTerskelPaaJobb", {
+                      terskel: manuellReiseTerskelTekst(t, resultat.klassifisering.forklaring),
+                      art: reise.lonnsartNavn(resultat.klassifisering.lonnsartId) ?? "",
+                    })
+                  : manuellReiseForklaringTekst(
+                      t,
+                      resultat.klassifisering,
+                      reise.lonnsartNavn(resultat.klassifisering.lonnsartId),
+                    )}
               </p>
             )}
           </div>

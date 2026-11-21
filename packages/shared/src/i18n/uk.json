@@ -5934,6 +5934,7 @@
   "timer.reiseKort.havnerEget": "Отримує власну картку на {{prosjekt}}.",
   "timer.rediger.reiseHavnerKort": "Це подорожі. Він потрапляє на картку в {{sted}}.",
   "timer.reiseKort.havnerKort": "Потрапляє на картку в {{sted}}.",
+  "timer.reiseKort.underTerskelPaaJobb": "Нижче порогу ({{terskel}}) — записується як робочий час ({{art}}) на цій роботі",
   "timer.attestering.reiseRett.tittel": "Виправте поїздку",
   "timer.korrigert.av": "Виправлено {{navn}}",
   "timer.korrigert.avFlere": "Виправлено {{navn}} та іншими",

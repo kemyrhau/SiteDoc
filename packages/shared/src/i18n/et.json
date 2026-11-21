@@ -5934,6 +5934,7 @@
   "timer.reiseKort.havnerEget": "Saab oma kaardi {{prosjekt}}.",
   "timer.rediger.reiseHavnerKort": "See on reisimine. See läheb kaardile kell {{sted}}.",
   "timer.reiseKort.havnerKort": "Sisestab kaardi kell {{sted}}.",
+  "timer.reiseKort.underTerskelPaaJobb": "Alla läve ({{terskel}}) – selle töö puhul registreeritud tööajana ({{art}})",
   "timer.attestering.reiseRett.tittel": "Parandage reis",
   "timer.korrigert.av": "Parandas {{navn}}",
   "timer.korrigert.avFlere": "Parandasid {{navn}} ja teised",

@@ -5934,6 +5934,7 @@
   "timer.reiseKort.havnerEget": "Получает собственную карту на {{prosjekt}}.",
   "timer.rediger.reiseHavnerKort": "Это путешествие. Он отправляется на карточку в {{sted}}.",
   "timer.reiseKort.havnerKort": "Входит в карточку в {{sted}}.",
+  "timer.reiseKort.underTerskelPaaJobb": "Ниже порога ({{terskel}}) — записывается как рабочее время ({{art}}) на этом задании.",
   "timer.attestering.reiseRett.tittel": "Исправьте поездку",
   "timer.korrigert.av": "Исправлено {{navn}}",
   "timer.korrigert.avFlere": "Исправлено {{navn}} и другими.",

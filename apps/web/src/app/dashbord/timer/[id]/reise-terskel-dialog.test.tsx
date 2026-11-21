@@ -126,6 +126,7 @@ function rendre({
   admin = false,
   perioder = [FAST_KONTOR] as OppmotePeriodeInput[],
   kjoretidMin = 15 as number | null,
+  ecoer = [] as Array<Record<string, unknown>>,
 } = {}) {
   h.kall = [];
   h.utelat.clear();
@@ -186,6 +187,7 @@ function rendre({
     "timer.lonnsart.list": lonnsarter,
     "timer.aktivitet.list": [{ id: "a1", navn: "Arbeid", aktiv: true }],
     "vareforbruk.hentMineForDato": [],
+    "eksternKostObjekt.list": ecoer,
   };
   render(<Side />);
   // Ett kort på sedelen er åpent fra start; klikk kun hvis det er lukket.
@@ -273,12 +275,13 @@ describe("web «+ Reise» — reise-kortet, samme regel som mobil", () => {
     expect(input.tilTid).toBe("07:00");
   });
 
-  it("viser forslaget og samme forklaringslinje som mobil (delt tekst)", () => {
-    const dialog = rendre({ kjoretidMin: 15 });
+  it("viser forslaget og samme forklaringslinje som mobil (delt tekst) når turen ikke står i jobben", () => {
+    // Over terskel: ingen kort-id → den delte teksten, som mobil.
+    const dialog = rendre({ kjoretidMin: 45 });
     // w15b: tidene står i «Start kl.»/«Slutt kl.»; linja viser firmaets kjøretid.
-    expect(dialog.textContent).toContain('timer.reiseKort.forslag{"min":15}');
-    expect(dialog.textContent).toContain("timer.reiseTerskel.under");
-    expect(dialog.textContent).toContain("timer.reiseTerskel.kategoriArbeid");
+    expect(dialog.textContent).toContain('timer.reiseKort.forslag{"min":45}');
+    expect(dialog.textContent).toContain("timer.reiseTerskel.overFores");
+    expect(dialog.textContent).toContain("timer.reiseTerskel.kategoriReise");
   });
 
   it("ett oppmøtested: ingen «Fra …»-tekst og ingen oppmøtested-velger", () => {
@@ -425,5 +428,50 @@ describe("web «+ Reise» — overføring første dag i en byggeplass-periode (T
     expect(knapp.disabled).toBe(true);
     fireEvent.mouseEnter(knapp.parentElement!);
     expect(document.body.textContent).toContain("timer.reiseKort.sperre.byggeplassPeriode");
+  });
+});
+
+/**
+ * O1 (§ 8.22, Kenneths test av L3a): under terskel er turen arbeid. Uten kort-id la serveren den i
+ * ELDSTE jobb med samme nøkkel, og den jobben endret tid. Åpnet fra en jobb sender kortet nå
+ * jobbens kort-id — bare når nøkkelen er lik — og sier før lagring hva turen blir.
+ */
+describe("O1 — reise under terskel står i jobben vinduet ble åpnet fra", () => {
+  afterEach(cleanup);
+  const ECO = [{ id: "e1", proAdmId: "12", kortNavn: "Grøft" }];
+
+  it("under terskel: payload har jobbens kortId og arbeidsarten", () => {
+    const input = lagre(rendre({ kjoretidMin: 15 }))!;
+    expect(input.kortId).toBe("k1");
+    expect(input.lonnsartId).toBe("l1");
+    expect(input).not.toHaveProperty("reiseKilde");
+  });
+
+  it("over terskel: ingen kortId (serveren velger reisekortet som før)", () => {
+    const input = lagre(rendre({ kjoretidMin: 45 }))!;
+    expect(input.lonnsartId).toBe("lr");
+    expect(input).not.toHaveProperty("kortId");
+  });
+
+  it("under terskel: forklaringslinja sier terskel, art og «på denne jobben»", () => {
+    const dialog = rendre({ kjoretidMin: 15 });
+    const tekst = dialog.textContent ?? "";
+    expect(tekst).toContain("timer.reiseKort.underTerskelPaaJobb");
+    expect(tekst).toContain('"art":"Ordinær"');
+    expect(tekst).toContain('timer.reiseTerskel.min{\\"min\\":30}');
+    // Ikke den generelle linja i tillegg.
+    expect(tekst).not.toContain("timer.reiseTerskel.underFores");
+  });
+
+  it("negativkontroll: annet underprosjekt enn jobben → annen nøkkel, ingen kortId, delt tekst", () => {
+    const dialog = rendre({ kjoretidMin: 15, ecoer: ECO });
+    fireEvent.change(within(dialog).getByRole("combobox", { name: "timer.felt.underprosjekt" }), {
+      target: { value: "e1" },
+    });
+    const input = lagre(dialog)!;
+    expect(input.externalCostObjectId).toBe("e1");
+    expect(input).not.toHaveProperty("kortId");
+    expect(dialog.textContent).toContain("timer.reiseTerskel.underFores");
+    expect(dialog.textContent).not.toContain("timer.reiseKort.underTerskelPaaJobb");
   });
 });

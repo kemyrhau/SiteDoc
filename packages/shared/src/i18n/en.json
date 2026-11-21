@@ -5934,6 +5934,7 @@
   "timer.reiseKort.havnerEget": "Gets its own card on {{prosjekt}}.",
   "timer.rediger.reiseHavnerKort": "This is travel. It goes in the card at {{sted}}.",
   "timer.reiseKort.havnerKort": "Goes in the card at {{sted}}.",
+  "timer.reiseKort.underTerskelPaaJobb": "Below threshold ({{terskel}}) — recorded as working time ({{art}}) on this job",
   "timer.attestering.reiseRett.tittel": "Correct the trip",
   "timer.korrigert.av": "Corrected by {{navn}}",
   "timer.korrigert.avFlere": "Corrected by {{navn}} and others",

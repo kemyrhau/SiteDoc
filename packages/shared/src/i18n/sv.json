@@ -5934,6 +5934,7 @@
   "timer.reiseKort.havnerEget": "Får ett eget kort på {{prosjekt}}.",
   "timer.rediger.reiseHavnerKort": "Det här är resor. Den hamnar i kortet på {{sted}}.",
   "timer.reiseKort.havnerKort": "Går in i kortet på {{sted}}.",
+  "timer.reiseKort.underTerskelPaaJobb": "Under tröskelvärdet ({{terskel}}) – registreras som arbetstid ({{art}}) på det här jobbet",
   "timer.attestering.reiseRett.tittel": "Rätta resan",
   "timer.korrigert.av": "Rättad av {{navn}}",
   "timer.korrigert.avFlere": "Rättad av {{navn}} och andra",

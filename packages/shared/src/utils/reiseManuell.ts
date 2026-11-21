@@ -470,6 +470,19 @@ export function medOverforingPeriodeId(spor: ManuellReiseSpor, periodeId: string
 type Oversett = (key: string, opts?: Record<string, unknown>) => string;
 
 /**
+ * O1 (§ 8.22): terskelen som tekst («90 min» / «2,5 km») — samme tekst
+ * `manuellReiseForklaringTekst` bruker, så web kan bygge sin egen linje uten egen formatering.
+ */
+export function manuellReiseTerskelTekst(
+  t: Oversett,
+  f: Exclude<ManuellReiseForklaring, { type: "ukjentAvstand" }>,
+): string {
+  return f.enhet === "km"
+    ? t("timer.reiseTerskel.km", { km: (f.terskelM / 1000).toLocaleString("nb-NO") })
+    : t("timer.reiseTerskel.min", { min: f.terskelMin });
+}
+
+/**
  * Grå forklaringslinje: «Under terskel (30 min) — føres som arbeidstid» o.l.
  * Flyttet fra mobilen (ordre (11) A) så web viser nøyaktig samme tekst.
  *
@@ -484,10 +497,7 @@ export function manuellReiseForklaringTekst(
 ): string {
   const f = k.forklaring;
   if (f.type === "ukjentAvstand") return t("timer.reiseTerskel.ukjentAvstand");
-  const terskel =
-    f.enhet === "km"
-      ? t("timer.reiseTerskel.km", { km: (f.terskelM / 1000).toLocaleString("nb-NO") })
-      : t("timer.reiseTerskel.min", { min: f.terskelMin });
+  const terskel = manuellReiseTerskelTekst(t, f);
   const under = f.type === "under";
   if (k.erReise && k.reiseRegel.grensepunktTreff && lonnsartNavn) {
     return t(under ? "timer.reiseTerskel.underBand" : "timer.reiseTerskel.overBand", {

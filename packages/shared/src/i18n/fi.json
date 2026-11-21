@@ -5934,6 +5934,7 @@
   "timer.reiseKort.havnerEget": "Saa oman kortin {{prosjekt}}.",
   "timer.rediger.reiseHavnerKort": "Tämä on matkailua. Se menee kortille {{sted}}.",
   "timer.reiseKort.havnerKort": "Menee korttiin klo {{sted}}.",
+  "timer.reiseKort.underTerskelPaaJobb": "Alle kynnyksen ({{terskel}}) – kirjattu työajaksi ({{art}}) tässä työssä",
   "timer.attestering.reiseRett.tittel": "Korjaa matka",
   "timer.korrigert.av": "Korjannut {{navn}}",
   "timer.korrigert.avFlere": "Korjasivat {{navn}} ja muut",

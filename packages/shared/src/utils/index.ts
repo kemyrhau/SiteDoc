@@ -95,6 +95,7 @@ export {
   klassifiserManuellReise,
   tilManuellReiseSpor,
   manuellReiseForklaringTekst,
+  manuellReiseTerskelTekst,
   manuellReiseManglerArt,
   løsReiseKort,
   løsOverforingKort,
@@ -717,7 +718,7 @@ export {
   type KortInvariantBrudd,
 } from "./kortId";
 // w12 (B32 B, B34 B), w15c (B43 B, B44, B48 A): hvilket kort en reiserad står i — én regel for server, web og SQL.
-export { velgReiseKort, jobberFraArbeidsrader, jobbRekkefolge, egetReiseKort } from "./reiseKort";
+export { velgReiseKort, jobberFraArbeidsrader, jobbRekkefolge, egetReiseKort, arbeidsreiseKortId } from "./reiseKort";
 export type { ReiseKortJobb, ReiseKortReise, ReiseKortArbeidsrad } from "./reiseKort";
 
 // Fravær uten prosjekt (kort-id-spec § 11.2).

@@ -27,7 +27,7 @@
  * Regelen endrer aldri prosjekt, underprosjekt eller byggeplass på reiseraden — den velger
  * bare kort-id.
  */
-import { utledKortId, utledReiseKortId, type KortNokkelFelt } from "./kortId";
+import { kortIdNokkel, utledKortId, utledReiseKortId, type KortNokkelFelt } from "./kortId";
 
 /** En jobb slik regelen ser den: ett kort med arbeid. */
 export type ReiseKortJobb = {
@@ -156,4 +156,24 @@ export function egetReiseKort(args: {
   const utledet = utledKortId({ userId, dato, nokkel });
   for (const k of args.jobbKortIder) if (k === utledet) return utledReiseKortId({ userId, dato, nokkel });
   return utledet;
+}
+
+/**
+ * O1 (§ 8.22, Kenneths test av L3a): en reise under terskelen føres som arbeid, og arbeid uten
+ * kort-id legges av serveren i ELDSTE kort med samme nøkkel (`sikreKortId` regel 3). Åpnes
+ * reisevinduet fra en jobb, skal raden stå i den jobben: kalleren sender jobbens kort-id
+ * (regel 1) — men bare når turens nøkkel (prosjekt, effektiv byggeplass, underprosjekt) er lik
+ * jobbens. Ellers `null`, og serveren velger som før (K2–K4 holder).
+ *
+ * `reise` og `jobber` bærer EFFEKTIV byggeplass (`effektivKortByggeplass`).
+ */
+export function arbeidsreiseKortId(
+  reise: KortNokkelFelt,
+  jobber: readonly Pick<ReiseKortJobb, "kortId" | "projectId" | "byggeplassId" | "ecoId">[],
+  jobbKortId: string | null | undefined,
+): string | null {
+  if (!jobbKortId) return null;
+  const jobb = jobber.find((j) => j.kortId === jobbKortId);
+  if (!jobb) return null;
+  return kortIdNokkel(jobb) === kortIdNokkel(reise) ? jobbKortId : null;
 }

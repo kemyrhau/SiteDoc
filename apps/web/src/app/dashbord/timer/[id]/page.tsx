@@ -1703,6 +1703,7 @@ export default function DagsseddelDetaljSide() {
           erFirmaAdmin={!!orgSetting}
           forvalgtByggeplassId={aktivModal.jobb?.byggeplassId}
           forvalgtEcoId={aktivModal.jobb?.ecoId}
+          jobbKortId={aktivModal.jobb?.kortId}
           onLukk={() => setAktivModal(null)}
         />
       )}

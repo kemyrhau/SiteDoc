@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import {
   effektivKortByggeplass,
+  arbeidsreiseKortId,
   egetReiseKort,
   erApenOverforing,
   jobberFraArbeidsrader,
@@ -109,6 +110,9 @@ export function reiseHavnerI(args: {
     fraTid: string | null;
     erReise: boolean;
   };
+  /** O1 (§ 8.22): jobben vinduet ble åpnet fra. Under terskel står turen i den jobben når
+   *  nøkkelen er lik (`arbeidsreiseKortId`), ellers i eldste jobb med nøkkelen som før. */
+  jobbKortId?: string | null;
   /** § 8.22 punkt 3: reiseraden slik den er lagret (ved retting). Utelatt = ny reise. */
   lagret?: {
     kortId: string | null;
@@ -188,7 +192,10 @@ export function reiseHavnerI(args: {
     }
   } else {
     const nokkel = kortIdNokkel(reiseNokkel);
-    kortId = jobber.find((j) => kortIdNokkel(j) === nokkel)?.kortId ?? null;
+    kortId =
+      arbeidsreiseKortId(reiseNokkel, jobber, args.jobbKortId) ??
+      jobber.find((j) => kortIdNokkel(j) === nokkel)?.kortId ??
+      null;
     if (!kortId) annetKort = kortPaaSedelFraRader(andre).find((k) => k.nokkel === nokkel)?.kortId ?? null;
   }
   const jobb = kortId ? jobber.find((j) => j.kortId === kortId) : undefined;

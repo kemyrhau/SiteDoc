@@ -5934,6 +5934,7 @@
   "timer.reiseKort.havnerEget": "Otrzymuje własną kartę na {{prosjekt}}.",
   "timer.rediger.reiseHavnerKort": "To jest podróż. To idzie na kartę w {{sted}}.",
   "timer.reiseKort.havnerKort": "Pasuje do karty w {{sted}}.",
+  "timer.reiseKort.underTerskelPaaJobb": "Poniżej progu ({{terskel}}) — rejestrowane jako czas pracy ({{art}}) na tym stanowisku",
   "timer.attestering.reiseRett.tittel": "Popraw podróż",
   "timer.korrigert.av": "Poprawione przez {{navn}}",
   "timer.korrigert.avFlere": "Poprawione przez {{navn}} i innych",
