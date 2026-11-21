@@ -97,7 +97,6 @@ describe("§ 8.22 L1 — attesteringen sender iVindu (begge firmavalg)", () => {
         organizationId="o1"
         rad={{ key: "k1", originalId: "m1", projectId: "p1", externalCostObjectId: null, vehicleId: "", fraTid: null, tilTid: null, timer: 2, mengde: null, enhet: null } as never}
         prosjekter={[{ id: "p1", name: "P1" }] as never}
-        tidsrundingMinutter={null}
         onChange={() => {}}
         onSlett={() => {}}
       />,

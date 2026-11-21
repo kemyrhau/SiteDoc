@@ -6,7 +6,6 @@ import { useEffect, useState } from "react";
 import { Split, Trash2, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
-import { rundTilNarmeste } from "@/lib/tidsrunding";
 import { MaskinVelger } from "./MaskinVelger";
 import type { RedigerMaskinRadData, ProsjektValg } from "./rediger-types";
 
@@ -16,8 +15,6 @@ type Props = {
   organizationId: string;
   rad: RedigerMaskinRadData;
   prosjekter: ProsjektValg[];
-  /** T.5: null = ingen runding. Verdier 15/30/60. */
-  tidsrundingMinutter: number | null;
   onChange: (felt: Partial<RedigerMaskinRadData>) => void;
   onSlett: () => void;
   /** T7-2c3: hvis satt, vis Splitt-knapp som kaller denne. */
@@ -28,7 +25,6 @@ export function RedigerMaskinRad({
   organizationId,
   rad,
   prosjekter,
-  tidsrundingMinutter,
   onChange,
   onSlett,
   onSplitt,
@@ -63,9 +59,6 @@ export function RedigerMaskinRad({
     setTimerStr(String(rad.timer));
   }, [rad.timer]);
 
-  // T7-2e: tving step ≤ 1800 (30 min) slik at minutt-selektor alltid vises.
-  const timeStep = Math.min((tidsrundingMinutter ?? 15) * 60, 1800);
-
   return (
     <div className="grid grid-cols-12 gap-2 rounded border border-gray-200 bg-gray-50 p-2 text-sm">
       {/* T7-4f-splitt: rad 1 = Prosjekt + Maskin (6+6) */}
@@ -91,34 +84,8 @@ export function RedigerMaskinRad({
         />
       </div>
 
-      {/* T7-4f-splitt: rad 2 = Fra+Til+Timer+Mengde+Enhet (3+3+2+2+2) */}
-      <input
-        type="time"
-        value={rad.fraTid ?? ""}
-        step={timeStep}
-        onChange={(e) => onChange({ fraTid: e.target.value || null })}
-        onBlur={(e) => {
-          if (tidsrundingMinutter && e.target.value) {
-            const rundet = rundTilNarmeste(e.target.value, tidsrundingMinutter);
-            if (rundet !== e.target.value) onChange({ fraTid: rundet });
-          }
-        }}
-        className="col-span-3 rounded border border-gray-300 px-2 py-1 text-xs"
-      />
-      <input
-        type="time"
-        value={rad.tilTid ?? ""}
-        step={timeStep}
-        onChange={(e) => onChange({ tilTid: e.target.value || null })}
-        onBlur={(e) => {
-          if (tidsrundingMinutter && e.target.value) {
-            const rundet = rundTilNarmeste(e.target.value, tidsrundingMinutter);
-            if (rundet !== e.target.value) onChange({ tilTid: rundet });
-          }
-        }}
-        className="col-span-3 rounded border border-gray-300 px-2 py-1 text-xs"
-      />
-
+      {/* § 8.22 punkt 1: maskin føres bare med antall timer, aldri fra–til. Rad 2 = Timer+Mengde+Enhet (4+4+4).
+          Lagret fraTid/tilTid sendes uendret videre (ingen data endres). */}
       <input
         type="number"
         step="0.25"
@@ -133,7 +100,7 @@ export function RedigerMaskinRad({
             setTimerStr(String(rad.timer));
           }
         }}
-        className="col-span-2 rounded border border-gray-300 px-2 py-1 text-right text-xs font-mono"
+        className="col-span-4 rounded border border-gray-300 px-2 py-1 text-right text-xs font-mono"
         title={t("timer.timerEnhet")}
       />
 
@@ -146,13 +113,13 @@ export function RedigerMaskinRad({
           onChange({ mengde: e.target.value === "" ? null : Number(e.target.value) })
         }
         placeholder={t("timer.rediger.mengdePlaceholder")}
-        className="col-span-2 rounded border border-gray-300 px-2 py-1 text-right text-xs font-mono"
+        className="col-span-4 rounded border border-gray-300 px-2 py-1 text-right text-xs font-mono"
       />
 
       <select
         value={rad.enhet ?? ""}
         onChange={(e) => onChange({ enhet: e.target.value || null })}
-        className="col-span-2 rounded border border-gray-300 px-1 py-1 text-xs"
+        className="col-span-4 rounded border border-gray-300 px-1 py-1 text-xs"
       >
         <option value="">—</option>
         <option value="m">m</option>
