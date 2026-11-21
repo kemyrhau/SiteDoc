@@ -33,6 +33,8 @@ sist_verifisert_mot_kode: 2026-08-09
 > ✅ **Gjestevern ved firmabytte, mobil (19) MERGET 2026-11-15** (merge `1a287c5d` av `38f4dffa`; Kontrollør GODKJENT GATE (44) nederst i `inbox-orkestrator.md`). `skalNullstilleProsjekt` flyttet til `@sitedoc/shared` (`gjesteprosjekt.ts`, web re-eksporterer); mobil `ProsjektKontekst.tsx` holder ventende firmabytte til gjestelista er lastet (`firmabyttProsjekt.ts` `firmabyttUtfall`) — gjesteprosjekt beholdes ved firmabytte. **Ikke deployet.** Lukker (18) åpent punkt (b).
 > 🟢 **TEST-DEPLOY 2026-11-21: `3fa1bf2b`** (bygget 14:32+01, `/version` og delte tjenester verifisert av Kenneth). Innhold: forenklingen (§ 8.22) + tallformat. Ingen migreringer. Kenneths funn samme dag (plan § 8.22): «+ Registrer timer» skal åpne redigerbart vindu (snur B41 A); maskinvinduet for lite; reiser «koblet feil» (avklares).
 
+> ✅ **L2 «Mangler beskrivelse» + sperre i «Send dagen» MERGET 2026-11-21** (merge `7965ffb0` av `5c7493c3`, gate (128) RETUR → runde 2 GODKJENT). Regel 10 kaldt: 11/11, tsc 0, build 0, test 7/7 seriell. Integrasjon (gate): 511 grønne, kjent rød `ftd-reprosess-modus`. Ingen migrering. Ikke deployet. Målingen av sperrede dager i `sitedoc_test` (`relay/sql/l2-maaling.sql`, bare lesing) ikke kjørt — Kenneth, ved neste test-deploy.
+
 > ✅ **Maskin uten fra–til i attesteringen og «Del opp» MERGET 2026-11-21** (merge `2ed0259a` av `4b6b1f4b`, gate (127)). Regel 10 kaldt: 11/11, tsc 0, build 0, test 7/7 seriell. Ingen migrering. Ikke deployet. Lukker funnet fra gate (126). Merknad gate (127): «Rediger arbeid» viser fortsatt punktum-tall («7.5», «Bruk 8.00t») — hører til ⚠️ i `ui-standarder.md` (attesteringsvisningene).
 
 > ✅ **L1 maskinlista i full høyde MERGET 2026-11-21** (merge `080fce48` av `8da911f3`, gate (126)). Regel 10 kaldt: 11/11, tsc 0, build 0, test 7/7 seriell. Ingen migrering. Ikke deployet. Funn (gate 126): maskinradene i attesteringen og «Del opp» har fortsatt fra–til (`RedigerMaskinRad.tsx:95–114`, `KompaktMaskinRad` i `RedigerRadModal.tsx` ~1082–1110) — i strid med § 8.22 punkt 1; egen ordre.
@@ -210,7 +212,7 @@ sist_verifisert_mot_kode: 2026-08-09
 | **3D-web** | app-tre `3d-web-maaling-a15d10` | `feat/3d-egenskaper` merget `59efcf5a` | ⚪ LEDIG — neste: W5/M6 måling |
 | **3D-mobil** | app-tre `3d-mobil-maaling-a07340` | `feat/3d-mobil-trykk` merget `3ef97e7f` | ⚪ LEDIG — neste: M6 måling |
 | **web-timer-w1** | app-tre `web-timer-w1-2396e3` | `feat/web-timer-w2` merget `1e792946` | ⚪ LEDIG — neste i planen: w3 jobben som én flate |
-| **web-timer-w5** | app-tre `web-timer-w5-c80b84` | maskin uten fra–til merget `2ed0259a` (L1 `080fce48`); pågår: L2 «Mangler beskrivelse» + sperre; deretter L3, L4 | ⏳ ORKESTRATOR |
+| **web-timer-w5** | app-tre `web-timer-w5-c80b84` | L2 merget `7965ffb0` (L1 `080fce48`, maskin uten fra–til `2ed0259a`); neste: L3 Bilde 2-jobben (løsning før kode), deretter L4 | ⏳ ORKESTRATOR |
 | **Kort-id d2b-2/3** | app-tre `kortid-d2b2-c544cf` | `feat/kortid-d2b3` merget `30ca2935` | ⚪ LEDIG — neste i specen: d3 |
 | **Kort-id d2c-2** | app-tre `kortid-d2c2-4fb489` | `feat/kortid-d2c2-mobil` merget `338de16a` | ⚪ LEDIG |
 | **Merge** | `SiteDoc-merge` | detached på develop | ⚪ LEDIG |
