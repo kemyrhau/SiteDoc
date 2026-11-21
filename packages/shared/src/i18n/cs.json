@@ -658,6 +658,8 @@
   "timer.overtidForslag.helRad": "{{over}} h nad denní normu – záznam jako {{otNavn}}?",
   "timer.overtidForslag.delKnapp": "Rozdělit řádek",
   "timer.overtidForslag.helKnapp": "Záznam jako přesčas",
+  "timer.overtidForslag.delesVedLagring": "{{over}} h nad denní normou – uloženo jako {{normalNavn}} {{nFra}}–{{nTil}} a {{otNavn}} {{oFra}}–{{oTil}}.",
+  "timer.overtidForslag.helRadVedLagring": "{{over}} h nad denní normu – uloženo jako {{otNavn}}.",
   "timer.matpause.annenRadBaerer": "Další řada nese polední přestávku na daný den",
   "timer.matpause.flyttet": "Přestávka se odečítá z {{tidsrom}}",
   "timer.matpause.fjernTittel": "Žádná přestávka se neodečítá",

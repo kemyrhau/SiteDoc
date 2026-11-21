@@ -658,6 +658,8 @@
   "timer.overtidForslag.helRad": "{{over}} t over dagsnorm — før som {{otNavn}}?",
   "timer.overtidForslag.delKnapp": "Del raden",
   "timer.overtidForslag.helKnapp": "Før som overtid",
+  "timer.overtidForslag.delesVedLagring": "{{over}} t over dagsnorm — lagres som {{normalNavn}} {{nFra}}–{{nTil}} og {{otNavn}} {{oFra}}–{{oTil}}.",
+  "timer.overtidForslag.helRadVedLagring": "{{over}} t over dagsnorm — lagres som {{otNavn}}.",
   "timer.matpause.annenRadBaerer": "En annen rad bærer matpausen for dagen",
   "timer.matpause.flyttet": "Pausen trekkes i {{tidsrom}}",
   "timer.matpause.fjernTittel": "Ingen pause trekkes",

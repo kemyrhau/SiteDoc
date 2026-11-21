@@ -658,6 +658,8 @@
   "timer.overtidForslag.helRad": "{{over}} h pārsniedz dienas normu — ierakstīt kā {{otNavn}}?",
   "timer.overtidForslag.delKnapp": "Sadalīta rinda",
   "timer.overtidForslag.helKnapp": "Ierakstīt kā virsstundas",
+  "timer.overtidForslag.delesVedLagring": "{{over}} h pārsniedz dienas normu — saglabāts kā {{normalNavn}} {{nFra}}–{{nTil}} un {{otNavn}} {{oFra}}–{{oTil}}.",
+  "timer.overtidForslag.helRadVedLagring": "{{over}} h pārsniedz dienas normu — saglabāts kā {{otNavn}}.",
   "timer.matpause.annenRadBaerer": "Citā rindā ir dienas pusdienu pārtraukums",
   "timer.matpause.flyttet": "Pārtraukums tiek ieturēts no {{tidsrom}}",
   "timer.matpause.fjernTittel": "Pārtraukums netiek ieturēts",

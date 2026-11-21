@@ -658,6 +658,8 @@
   "timer.overtidForslag.helRad": "{{over}} ч сверх дневной нормы — записать как {{otNavn}}?",
   "timer.overtidForslag.delKnapp": "Разделить строку",
   "timer.overtidForslag.helKnapp": "Записать как сверхурочную работу",
+  "timer.overtidForslag.delesVedLagring": "{{over}} ч сверх дневной нормы — сохраняется как {{normalNavn}} {{nFra}}–{{nTil}} и {{otNavn}} {{oFra}}–{{oTil}}.",
+  "timer.overtidForslag.helRadVedLagring": "На {{over}} ч сверх дневной нормы — сохранено как {{otNavn}}.",
   "timer.matpause.annenRadBaerer": "В другом ряду указан обеденный перерыв на день.",
   "timer.matpause.flyttet": "Перерыв вычитается из {{tidsrom}}",
   "timer.matpause.fjernTittel": "Перерыв не вычитается",

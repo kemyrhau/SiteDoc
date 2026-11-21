@@ -658,6 +658,8 @@
   "timer.overtidForslag.helRad": "{{over}} h powyżej normy dziennej — zapisać jako {{otNavn}}?",
   "timer.overtidForslag.delKnapp": "Podziel rząd",
   "timer.overtidForslag.helKnapp": "Zapisz jako nadgodziny",
+  "timer.overtidForslag.delesVedLagring": "O {{over}} godz. powyżej normy dziennej — zapisane jako {{normalNavn}} {{nFra}}–{{nTil}} i {{otNavn}} {{oFra}}–{{oTil}}.",
+  "timer.overtidForslag.helRadVedLagring": "O {{over}} godz. powyżej normy dziennej — zapisane jako {{otNavn}}.",
   "timer.matpause.annenRadBaerer": "W kolejnym rzędzie znajduje się przerwa na lunch w ciągu dnia",
   "timer.matpause.flyttet": "Przerwa jest odliczana od {{tidsrom}}",
   "timer.matpause.fjernTittel": "Nie odlicza się przerwy",

@@ -658,6 +658,8 @@
   "timer.overtidForslag.helRad": "{{over}} h över den dagliga normen — spela in som {{otNavn}}?",
   "timer.overtidForslag.delKnapp": "Dela rad",
   "timer.overtidForslag.helKnapp": "Rekord som övertid",
+  "timer.overtidForslag.delesVedLagring": "{{over}} h över den dagliga normen — sparad som {{normalNavn}} {{nFra}}–{{nTil}} och {{otNavn}} {{oFra}}–{{oTil}}.",
+  "timer.overtidForslag.helRadVedLagring": "{{over}} h över den dagliga normen — sparad som {{otNavn}}.",
   "timer.matpause.annenRadBaerer": "En annan rad bär lunchrasten för dagen",
   "timer.matpause.flyttet": "Pausen dras av från {{tidsrom}}",
   "timer.matpause.fjernTittel": "Ingen paus dras av",

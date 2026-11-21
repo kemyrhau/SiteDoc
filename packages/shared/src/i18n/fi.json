@@ -658,6 +658,8 @@
   "timer.overtidForslag.helRad": "{{over}} h yli päivittäisen normin – tallennetaan muodossa {{otNavn}}?",
   "timer.overtidForslag.delKnapp": "Jaa rivi",
   "timer.overtidForslag.helKnapp": "Kirjaa ylityöksi",
+  "timer.overtidForslag.delesVedLagring": "{{over}} h yli päivittäisen normin – tallennettuna {{normalNavn}} {{nFra}}–{{nTil}} ja {{otNavn}} {{oFra}}–{{oTil}}.",
+  "timer.overtidForslag.helRadVedLagring": "{{over}} h yli päivittäisen normin – tallennettu nimellä {{otNavn}}.",
   "timer.matpause.annenRadBaerer": "Toinen rivi kantaa päivän lounastauon",
   "timer.matpause.flyttet": "Tauko vähennetään {{tidsrom}}",
   "timer.matpause.fjernTittel": "Ei taukoa vähennetty",

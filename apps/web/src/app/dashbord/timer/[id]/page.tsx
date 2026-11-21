@@ -4674,10 +4674,26 @@ function TimerRadDialog({
   const lonnsartNavn = (id: string) =>
     lonnsarter?.find((l) => l.id === id)?.navn ?? "";
 
+  // O5 B (§ 8.22, Kenneth etter test d4bec43e: «overtid må fremgå»): i prosjektkort-modus deles
+  // raden automatisk ved lagring når dagen går over normen — samme regel og samme to kall som
+  // V21-knappen (`foreslaOvertidSplitt` → `brukOvertidForslag`, regelen `regnJobbTid` bygger på).
+  // «Rediger» deler bare når tiden er endret, som jobbskjemaet (`lagreJobbTid`, gate 129 V1):
+  // et bevisst bytte av lønnsart på uendret tid står.
+  const tidEndret =
+    !rad ||
+    fraTid !== (rad.fraTid ?? "") ||
+    tilTid !== (rad.tilTid ?? "") ||
+    radPauseMin > 0 !== rad.pauseMin > 0;
+  const autoOvertid = kortModus && tidEndret ? overtidForslag : null;
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const tNum = validerSkjema();
     if (tNum == null) return;
+    if (autoOvertid) {
+      void brukOvertidForslag(autoOvertid);
+      return;
+    }
     lagreRad(tNum, lonnsartId);
   }
 
@@ -5127,9 +5143,28 @@ function TimerRadDialog({
             </span>
           </button>
         )}
+        {/* O5 B: prosjektkort-modus — ingen knapp; en opplysning om hvordan raden lagres. */}
+        {kortModus && autoOvertid && (
+          <p className="text-sm text-gray-600" data-testid="overtid-ved-lagring">
+            {autoOvertid.normal
+              ? t("timer.overtidForslag.delesVedLagring", {
+                  over: formaterT(autoOvertid.overTimer),
+                  normalNavn: lonnsartNavn(lonnsartId),
+                  nFra: autoOvertid.normal.fraTid,
+                  nTil: autoOvertid.normal.tilTid,
+                  otNavn: autoOvertid.overtidLonnsart.navn,
+                  oFra: autoOvertid.overtid.fraTid,
+                  oTil: autoOvertid.overtid.tilTid,
+                })
+              : t("timer.overtidForslag.helRadVedLagring", {
+                  over: formaterT(autoOvertid.overTimer),
+                  otNavn: autoOvertid.overtidLonnsart.navn,
+                })}
+          </p>
+        )}
         {/* V21: overtidsforslag — én linje, én knapp. Vises kun når raden (eller
-            dagen) passerer dagsnormen og firmaet har en overtid-lønnsart. */}
-        {overtidForslag && (
+            dagen) passerer dagsnormen og firmaet har en overtid-lønnsart. Dagskort-modus. */}
+        {!kortModus && overtidForslag && (
           <div className="flex items-center justify-between gap-3 rounded border border-amber-200 bg-amber-50 px-3 py-2">
             <span className="text-sm text-amber-900">
               {overtidForslag.normal
