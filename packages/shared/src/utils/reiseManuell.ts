@@ -40,6 +40,11 @@ export interface ManuellReiseInput {
   resolverLonnsartId: string | null;
   /** Firmaets standard ordinære lønnsart (erStandardvalg). */
   standardLonnsartId: string | null;
+  /**
+   * O1 TILLEGG (§ 8.22, Kenneth 2026-11-21: «reise under terskel er forslag, arbeideren
+   * velger»): arbeiderens valg reisetid/arbeidstid. Utelatt/null = regelen (som før).
+   */
+  kategoriValg?: ReiseKategori | null;
 }
 
 /** Hvorfor raden ble som den ble — grunnlaget for den grå forklaringslinja. */
@@ -52,6 +57,8 @@ export type ManuellReiseForklaring =
 
 export interface ManuellReiseKlassifisering {
   kategori: ReiseKategori;
+  /** O1 TILLEGG: det regelen foreslo (terskel og regelsett) — forvalget i reisevinduet. */
+  regelKategori: ReiseKategori;
   /** null = ingen art å føre på (standardart mangler / resolver tom) → blokkér lagring. */
   lonnsartId: string | null;
   erReise: boolean;
@@ -76,7 +83,9 @@ export function klassifiserManuellReise(
   const { regel } = input;
   const avstandM = brukbarAvstand(input.avstandM);
   const reisetidMin = Math.round(Math.max(0, input.reisetimer) * 60);
-  const kategori = klassifiserReise({ reisetidMin, avstandM }, regel);
+  const regelKategori = klassifiserReise({ reisetidMin, avstandM }, regel);
+  // O1 TILLEGG: arbeiderens valg går foran regelen; terskelfaktaene (forklaring) står.
+  const kategori = input.kategoriValg ?? regelKategori;
 
   let forklaring: ManuellReiseForklaring;
   if (regel.reiseTerskelEnhet === "km") {
@@ -107,11 +116,14 @@ export function klassifiserManuellReise(
     overType: regel.reiseOverTerskelType,
     kategori,
     grensepunktTreff: traff,
+    // O1 TILLEGG: sporbarhet — arbeideren valgte annet enn regelen.
+    ...(kategori !== regelKategori ? { regelKategori } : {}),
   };
 
   if (!erReise) {
     return {
       kategori,
+      regelKategori,
       lonnsartId: input.standardLonnsartId,
       erReise: false,
       reiseKilde: null,
@@ -122,6 +134,7 @@ export function klassifiserManuellReise(
   }
   return {
     kategori,
+    regelKategori,
     lonnsartId: løsReiseLonnsartId(
       avstandM,
       input.grensepunkter,
@@ -238,6 +251,8 @@ export interface ReiseKortInput {
   startTid?: string | null;
   /** w15b: arbeiderens slutt (HH:MM). Utelatt/ugyldig = start + firmaets kjøretid. */
   sluttTid?: string | null;
+  /** O1 TILLEGG: arbeiderens valg reisetid/arbeidstid. Utelatt = regelen. */
+  kategoriValg?: ReiseKategori | null;
 }
 
 export interface ReiseKortResultat {
@@ -379,6 +394,7 @@ export function løsReiseKort(k: ReiseKortInput): ReiseKortResultat {
     grensepunkter: k.grensepunkter,
     resolverLonnsartId: k.resolverLonnsartId,
     standardLonnsartId: k.standardLonnsartId,
+    kategoriValg: k.kategoriValg,
   });
   return {
     ...basis,

@@ -4,7 +4,12 @@ import { prisma } from "@sitedoc/db";
 import { prismaTimer } from "@sitedoc/db-timer";
 import { prismaMaskin } from "@sitedoc/db-maskin";
 import { prismaVarelager } from "@sitedoc/db-varelager";
-import { arbeidsreiseKortId, effektivKortByggeplass, jobberFraArbeidsrader } from "@sitedoc/shared";
+import {
+  arbeidsreiseKortId,
+  effektivKortByggeplass,
+  jobberFraArbeidsrader,
+  klassifiserManuellReise,
+} from "@sitedoc/shared";
 import { dagsseddelRouter } from "./dagsseddel";
 
 /**
@@ -30,6 +35,7 @@ const USER = id("02");
 const P1 = id("11");
 const B1 = id("21");
 const ORD = id("41");
+const REISE = id("42");
 const AKT = id("43");
 
 function ctx(userId: string) {
@@ -65,7 +71,7 @@ async function ryddOpp() {
     }
     await prismaTimer.dailySheet.deleteMany({ where: { id: { in: sids } } });
   }
-  await prismaTimer.lonnsart.deleteMany({ where: { id: ORD } });
+  await prismaTimer.lonnsart.deleteMany({ where: { id: { in: [ORD, REISE] } } });
   await prismaTimer.aktivitet.deleteMany({ where: { id: AKT } });
   await prisma.activity.deleteMany({ where: { actorUserId: USER } });
   await prisma.byggeplass.deleteMany({ where: { id: B1 } });
@@ -84,13 +90,16 @@ async function seed() {
   await prisma.organization.create({ data: { id: ORG, name: "O1-firma" } });
   await prisma.organizationMember.create({ data: { userId: USER, organizationId: ORG, status: "aktiv" } });
   await prisma.organizationModule.create({ data: { organizationId: ORG, moduleSlug: "timer", status: "aktiv" } });
-  await prisma.organizationSetting.create({ data: { organizationId: ORG, timerRegistreringsmodus: "prosjektkort" } });
+  await prisma.organizationSetting.create({ data: { organizationId: ORG, timerRegistreringsmodus: "prosjektkort", reiseLonnsartId: REISE } });
   await prisma.project.create({ data: { id: P1, projectNumber: "O1-1", name: "O1 Boligfelt", primaryOrganizationId: ORG } });
   await prisma.projectMember.create({ data: { userId: USER, projectId: P1, role: "member" } });
   await prisma.projectModule.create({ data: { projectId: P1, moduleSlug: "timer", organizationId: ORG, status: "aktiv" } });
   await prisma.byggeplass.create({ data: { id: B1, projectId: P1, name: "O1 B12" } });
   await prismaTimer.lonnsart.create({
     data: { id: ORD, organizationId: ORG, type: "ordinaer", navn: "Timelønn", erStandardvalg: true, aktiv: true },
+  });
+  await prismaTimer.lonnsart.create({
+    data: { id: REISE, organizationId: ORG, type: "ordinaer", navn: "Reisetid", erStandardvalg: false, aktiv: true },
   });
   await prismaTimer.aktivitet.create({ data: { id: AKT, organizationId: ORG, navn: "Anleggsarbeid" } });
 }
@@ -189,5 +198,58 @@ describe("O1 — reise under terskel havner på jobben den ble ført fra", () =>
   it("annen nøkkel enn jobben (annen byggeplass): ingen kort-id — serveren velger som før", async () => {
     const { sid, kB } = await kennethsDag("2026-11-19");
     expect(arbeidsreiseKortId({ projectId: P1, byggeplassId: null, ecoId: null }, await jobber(sid), kB)).toBeNull();
+  });
+});
+
+/**
+ * O1 TILLEGG (§ 8.22, Kenneth 2026-11-21: «Her skal valget reisetid eller arbeidstid være
+ * tilstede»). Arbeideren velger reisetid under terskelen: kortet sender det
+ * `klassifiserManuellReise` gir med `kategoriValg` — reiseart, kilde «manuell», kjøretid og
+ * regelsporet (med `regelKategori`). Serveren tar imot klassifiseringen (K5); DB-CHECK sperrer
+ * bare reisefelt på arbeid. Ingen migrering.
+ */
+describe("O1 TILLEGG — arbeideren velger reisetid under terskelen", () => {
+  it("lagres som reise (erReise, kilde manuell, art Reisetid); jobb 1 og 2 er urørt", async () => {
+    const { sid, kA, kB, felles } = await kennethsDag("2026-11-18");
+    const k = klassifiserManuellReise({
+      regel: {
+        reiseTerskelEnhet: "minutter",
+        reiseTerskelMin: 30,
+        reiseTerskelM: null,
+        reiseUnderTerskelType: "arbeidstid",
+        reiseOverTerskelType: "reisetid",
+      },
+      reisetimer: 4 / 60,
+      avstandM: 3000,
+      grensepunkter: [],
+      resolverLonnsartId: REISE,
+      standardLonnsartId: ORD,
+      kategoriValg: "reisetid",
+    });
+    expect(k).toMatchObject({ erReise: true, regelKategori: "arbeidstid", lonnsartId: REISE });
+    await dag().tilfoyTimerRad({
+      ...(felles as { sheetId: string; projectId: string; aktivitetId: string; byggeplassId: string }),
+      lonnsartId: k.lonnsartId!,
+      timer: 0.07,
+      fraTid: "16:00",
+      tilTid: "16:04",
+      pauseMin: 0,
+      reiseKilde: "manuell",
+      reiseRetning: "retur",
+      reiseKjoretidMin: 4,
+      reiseAvstandM: k.reiseAvstandM,
+      reiseRegel: k.reiseRegel as unknown as Record<string, unknown>,
+    });
+
+    const r = await rader(sid);
+    const ny = r.find((x) => x.fraTid === "16:00")!;
+    expect(ny.erReise).toBe(true);
+    expect(ny.reiseKilde).toBe("manuell");
+    expect(ny.lonnsartId).toBe(REISE);
+    expect(ny.reiseKjoretidMin).toBe(4);
+    expect(ny.reiseRegel).toMatchObject({ kategori: "reisetid", regelKategori: "arbeidstid" });
+    expect(ny.kortId).toBe(kB); // retur → siste jobb (velgReiseKort)
+    expect(jobbSum(r, kA)).toEqual({ timer: 7.5, spenn: "07:00–15:00" });
+    expect(jobbSum(r, kB)).toEqual({ timer: 1, spenn: "15:00–16:00" });
   });
 });

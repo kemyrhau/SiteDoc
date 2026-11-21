@@ -21,6 +21,7 @@ import {
   type OppmoteResultat,
   type ReiseKortResultat,
   type ReiseRegelsett,
+  type ReiseKategori,
 } from "@sitedoc/shared";
 import { trpc } from "@/lib/trpc";
 
@@ -241,6 +242,7 @@ export function useManuellReiseWeb({
   annetKontorId = null,
   startTid = null,
   sluttTid = null,
+  kategoriValg = null,
 }: {
   organizationId: string;
   /** Sedelens dato (YYYY-MM-DD) — perioden som gjaldt da. */
@@ -258,6 +260,8 @@ export function useManuellReiseWeb({
   /** w15b: arbeiderens rettede start/slutt (HH:MM). null = forslaget. */
   startTid?: string | null;
   sluttTid?: string | null;
+  /** O1 TILLEGG: arbeiderens valg reisetid/arbeidstid. null = regelen (terskelen) foreslår. */
+  kategoriValg?: ReiseKategori | null;
 }) {
   const aktivert = !!organizationId;
   const q = { organizationId };
@@ -352,13 +356,14 @@ export function useManuellReiseWeb({
         standardLonnsartId,
         startTid,
         sluttTid,
+        kategoriValg,
         retning,
         oppmote,
         byggeplassId,
         kjoretidFor: (o, b) => matrise.get(`${o}|${b}`)?.kjoretidMin ?? null,
         avstandFor: (o, b) => matrise.get(`${o}|${b}`)?.avstandM ?? null,
       }),
-    [retning, ramme, regel, grensepunkter, resolverLonnsartId, standardLonnsartId, oppmote, byggeplassId, matrise, startTid, sluttTid],
+    [retning, ramme, regel, grensepunkter, resolverLonnsartId, standardLonnsartId, oppmote, byggeplassId, matrise, startTid, sluttTid, kategoriValg],
   );
 
   // Oppmøtestedet vises som tekst bare når firmaet har flere (§ 7 C).
