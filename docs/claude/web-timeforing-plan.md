@@ -3601,7 +3601,7 @@ Kenneths ord, sagt etter spørsmålet om reise skal telle mot normen:
   - **Et prosjektkort er én registrering.** Den er låst og behandles samlet i dagskortet. Alt som er registrert i kortet, hører sammen: arbeid, maskin, varer, reise, tillegg og utlegg (lista målt i koden 2026-11-21, rettet av Kenneth samme dag):
     - **Arbeid** (timerad): prosjekt, byggeplass, underprosjekt, lønnsart, aktivitet, fra–til, pause og «Hva gjorde du?».
     - **Reise:** timerad merket som reise.
-    - **Maskin:** maskin og timer. Fra–til er ikke standard, men en firmainnstilling.
+    - **Maskin:** maskin og timer. Ingen fra–til, heller ikke som firmainnstilling (⚠️ rettet av Kenneth samme dag, § 8.22 punkt 1; B38 A står, w6 utgår).
     - **Varer:** vare, mengde og enhet.
     - **Tillegg** (vakttillegg, brøytevakt o.l.): Kenneth: «det benyttes ingen bilde eller kvitering på tillegg». ⚠️ Funn: koden har vedlegg på tillegg (`SheetTilleggVedlegg`, `packages/db-timer/prisma/schema.prisma:450–469`, funn #2 2026-06-21). Ikke bestilt.
     - **Utlegg:** beløp og mva, med kvittering.
@@ -3609,6 +3609,17 @@ Kenneths ord, sagt etter spørsmålet om reise skal telle mot normen:
   - **Reise registrert i kortet er del av kortet.** Reise registrert på et annet prosjekt er en egen registrering med tydelig skille.
   - **Summen:** arbeid + reise = totalt (7,5 + 3 = 10,5 t). Maskintimer vises, men legges ikke til, fordi de er en del av arbeidstiden. Reisetid legges til fordi den er lønnet arbeid, men den er ikke arbeidstid etter arbeidsmiljøloven. ⚠️ Snur sumlinja fra 2026-11-14 (`9c3a5a8f`, «teller ikke reise mot normen»), som tok reisen ut av summen. Regelen om at reise ikke er overtid (`foreslaOvertidSplitt`, V1) står.
   - **Utgår:** punkt 1 over om automatisk justering, og orkestrators ordre om versjon 20. 🟡 Summen er vedtatt, ikke bygget.
+
+### 8.22 Kenneth rydder i begreper og fire motstrider, 2026-11-21
+
+Orkestrator la fram en gjennomgang av planen (tre lesere, 78 funn) og fire motstrider. Kenneths svar, ordrett:
+
+- **Begrepene:** «Dagskort -> dette er beskrivelsen av alle registreringer en dag. den inneholder en eller flere (prosjektkort/kort/jobber/registereringer)-> for meg betyr disse ordene kun et kort med en samling registeringer som må høre sammen for å gi en beskrivelse av hva en arbeider gjorde i et gitt tidsrom på dagen» og «ordene har lik verdi og representerer lik verdi i et dagskort. de er en del av dagskortet. innholdet må være samlet». Betyr: **dagskortet** er dagen med alle registreringene. **Prosjektkort = kort = jobb = registrering** er samme ting. Der planen mener firmavalget som koden kaller dagskort-modus, skrives «firmavalget dagskort-modus» for å skille det fra Kenneths dagskort.
+- **Summen og normen:** «Norm =arbeidstid->8,0 av 7,5 Sum i dag 11 timer, hvis 3 timer er reise. Jeg tror det er viktig å vise dette». Betyr: bunnlinja viser begge. **Arbeidstid mot normen** («8,0 av 7,5») og **sum i dag** = arbeid + reise («11 t»). Maskintimer vises, men legges ikke til (§ 8.21). 🟡 Bestilt som sumlinja hos web-timer-w5.
+- **Punkt 1, fra–til på maskin:** «årsaken til dette er fordi at jeg hele tiden har sakt at tra/til på maskin ønskes ikke. så har du tilført denne gjentatte ganger og argumentert for at den må være med. Det er ikke mitt ønske å ha den der. det er umulig for en arbeider som benytter maskinen 4 av 7,5 timer å si når den ble brukt innenfor tidsrommet -> det er maskinførers skjønn som gjelder -> han beregner at han benyttet maskinen ca så mange timer.» Betyr: **maskin føres bare med antall timer, etter maskinførerens skjønn.** Ingen fra–til, heller ikke som firmainnstilling. B38 A står, og B5 og w6 er utgått. «Firmainnstilling» i § 8.21 var orkestrators feil og er rettet.
+- **Punkt 2, kjøring mellom to prosjekter i arbeidstiden:** «enig» med V9: det er arbeid. Reise er kjøringen til første sted og fra siste sted. Kenneth la til: «men når vi først starter med overføring mellom avdelinger -> da ble dette for komplisert. fordi den overføringen kan skje etter påbegynt arbeidsdag av ulike årsaker». ⏳ Kontrollspørsmål til Kenneth om hva som forenkles (overføring til annet kontor, w15b).
+- **Punkt 3, reisens kort:** «enig» i at de tre særreglene strykes: reisen flyttes ikke automatisk når en annen registrering føres eller slettes, reise uten byggeplass følger ikke klokka, og kortet for reise til annet kontor er ikke en egen variant. Kortet til reisen avgjøres bare av reisens egne felt (prosjekt, byggeplass, underprosjekt) og flyttes bare når noen retter dem via ✎. Kenneth: «fjern kode som er død». 🟡 Vedtatt, ikke bygget. Egen leveranse etter sumlinja, med måling av hva w12/w15c har bygget.
+- **Punkt 4, vedlegg på tillegg:** «la stå inntil videre. vi kan vurdere å ta det bort senere». Vedlegget på tillegg står.
 
 ## 9. Rekkefølge
 
