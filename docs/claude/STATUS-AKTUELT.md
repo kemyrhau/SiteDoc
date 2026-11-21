@@ -31,6 +31,7 @@ sist_verifisert_mot_kode: 2026-08-09
 > ⚠️ **IKKE i prod:** DWG retur 2 (auto-rotasjon, startutsnitt, LEADER) · DWG retur 4 (fullstendighet: ATTRIB-tegning + `konvertering_rapport` + gate-test, branch `fix/dwg-retur4-strek`) · snap-retur 1 — under arbeid. DWG-3 (georeferanse fire hjørner) ikke levert — se § 2026-09-24 under.
 
 > ✅ **Gjestevern ved firmabytte, mobil (19) MERGET 2026-11-15** (merge `1a287c5d` av `38f4dffa`; Kontrollør GODKJENT GATE (44) nederst i `inbox-orkestrator.md`). `skalNullstilleProsjekt` flyttet til `@sitedoc/shared` (`gjesteprosjekt.ts`, web re-eksporterer); mobil `ProsjektKontekst.tsx` holder ventende firmabytte til gjestelista er lastet (`firmabyttProsjekt.ts` `firmabyttUtfall`) — gjesteprosjekt beholdes ved firmabytte. **Ikke deployet.** Lukker (18) åpent punkt (b).
+> ✅ **Sumlinja (sum i dag = arbeid + reise, arbeid mot normen står) MERGET 2026-11-21** (merge `c03aa0e6` av `862c6caf`, gate (122) GODKJENT `inbox-orkestrator.md:38615`; regel 10 i merge-treet: typecheck 11/11, web tsc 0, kald build 0, test 7/7). Ingen migrering. Ikke deployet. Plan versjon 20 (rydding, `0d48eb89`) og § 8.22 merget. Neste: reisens kort uten særregler, maskin uten fra–til i firmavalget dagskort-modus (web) og «Del opp» med begge kortene (§ 8.22). Merknad fra gaten: `de.json` blander «h» og «Std».
 > ✅ **w15g (attesteringskortet tekst med ✎, «Korrigert av» hos arbeideren) MERGET 2026-11-21** (merge `4e2680ce` av `926c7727`, gate (120) RETUR → (121) koden GODKJENT `inbox-orkestrator.md:38442`, docs-vilkåret lukket i `926c7727`; regel 10 i merge-treet: typecheck 11/11, web tsc 0, kald build 0, test 7/7). Ingen migrering, ingen e-post. Ikke deployet. Neste: sumlinja (totalt = arbeid + reise, § 8.21) hos web-timer-w5; plan-rydding (versjon 20) hos Fabel etter Kenneths svar på fire punkter.
 > ✅ **F68 («Rediger arbeid» tømmer ikke byggeplassen) MERGET 2026-11-21** (merge `6ab36520` av `0cb5d282`, gate (119) GODKJENT `inbox-orkestrator.md:38161`; regel 10 i merge-treet: typecheck 11/11, web tsc 0, kald build 0, test 7/7). Ingen migrering. Ikke deployet. Plan versjon 18 merget (`9e1f220b`): samlet e-post utløses av ✓/↩, B49 hos Kenneth. Neste: w15g når B49 er besvart.
 
@@ -197,7 +198,7 @@ sist_verifisert_mot_kode: 2026-08-09
 | **3D-web** | app-tre `3d-web-maaling-a15d10` | `feat/3d-egenskaper` merget `59efcf5a` | ⚪ LEDIG — neste: W5/M6 måling |
 | **3D-mobil** | app-tre `3d-mobil-maaling-a07340` | `feat/3d-mobil-trykk` merget `3ef97e7f` | ⚪ LEDIG — neste: M6 måling |
 | **web-timer-w1** | app-tre `web-timer-w1-2396e3` | `feat/web-timer-w2` merget `1e792946` | ⚪ LEDIG — neste i planen: w3 jobben som én flate |
-| **web-timer-w5** | app-tre `web-timer-w5-c80b84` | `feat/web-timer-w15g` merget `4e2680ce`; neste: sumlinja (reise i totalen, § 8.21) | ⏳ ORKESTRATOR |
+| **web-timer-w5** | app-tre `web-timer-w5-c80b84` | `feat/web-timer-sumlinje` merget `c03aa0e6`; neste: reisens kort uten særregler + maskin uten fra–til + «Del opp» (§ 8.22) | ⏳ ORKESTRATOR |
 | **Kort-id d2b-2/3** | app-tre `kortid-d2b2-c544cf` | `feat/kortid-d2b3` merget `30ca2935` | ⚪ LEDIG — neste i specen: d3 |
 | **Kort-id d2c-2** | app-tre `kortid-d2c2-4fb489` | `feat/kortid-d2c2-mobil` merget `338de16a` | ⚪ LEDIG |
 | **Merge** | `SiteDoc-merge` | detached på develop | ⚪ LEDIG |
