@@ -120,6 +120,8 @@ import {
   erNormtakBrudd,
   type FravaerNormtakVurdering,
   type NormtakBruddData,
+  lesTimerModus,
+  jobberSomManglerBeskrivelse,
 } from "@sitedoc/shared";
 import {
   klassifiserSyncRader,
@@ -5791,6 +5793,29 @@ export const dagsseddelRouter = router({
           code: "BAD_REQUEST",
           message: "Dagsseddel må ha minst én timer-rad før den kan sendes",
         });
+      }
+
+      // Plan § 8.22 L2 (Kenneth 2026-11-21): i prosjektkort-modus sendes ikke dagen før hver
+      // jobb har «Hva gjorde du?» (delt regel `jobberSomManglerBeskrivelse`). Firmavalget
+      // dagskort-modus røres ikke. Mobil sender dagen via `syncBatch`, ikke her, og har sin egen
+      // sperre i «Bekreft dag».
+      const modus = await ctx.prisma.organizationSetting.findUnique({
+        where: { organizationId: sheet.organizationId },
+        select: { timerRegistreringsmodus: true },
+      });
+      if (lesTimerModus(modus?.timerRegistreringsmodus) === "prosjektkort") {
+        const rader = await ctx.prismaTimer.sheetTimer.findMany({
+          where: { sheetId: sheet.id },
+          select: { id: true, kortId: true, projectId: true, erReise: true, attestertStatus: true, beskrivelse: true },
+          orderBy: { createdAt: "asc" },
+        });
+        const mangler = jobberSomManglerBeskrivelse(rader);
+        if (mangler.length > 0) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: `Mangler beskrivelse på ${mangler.length} jobb(er) — fyll inn «Hva gjorde du?» før dagen sendes`,
+          });
+        }
       }
 
       // Re-send etter returnering (2026-05-27): nullstill returnerte rader

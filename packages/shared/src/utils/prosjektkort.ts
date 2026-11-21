@@ -167,6 +167,48 @@ export function kortStatus(
 }
 
 /**
+ * Plan § 8.22 L2 «ikke ferdig» (Kenneth 2026-11-21): en jobb er ikke ferdig når arbeidet
+ * mangler «Hva gjorde du?». Ett kort = én beskrivelse (som mobilens `manglerBeskrivelse`,
+ * ORDRE 24): jobben er ferdig når minst én av arbeidsradene har tekst etter trim — også når
+ * overtid deler arbeidet i flere rader. Reise, erstattede rader og fravær (uten prosjekt)
+ * teller ikke. En jobb uten arbeidsrader mangler ingenting.
+ */
+export type BeskrivelseRad = {
+  id: string;
+  kortId?: string | null;
+  projectId: string | null;
+  erReise?: boolean | null;
+  attestertStatus: string | null;
+  beskrivelse: string | null;
+};
+
+const erArbeid = (r: Omit<BeskrivelseRad, "id" | "kortId">) =>
+  gjelder(r) && r.erReise !== true && r.projectId != null;
+
+export function jobbManglerBeskrivelse(
+  rader: readonly Omit<BeskrivelseRad, "id" | "kortId">[],
+): boolean {
+  const arbeid = rader.filter(erArbeid);
+  return arbeid.length > 0 && !arbeid.some((r) => (r.beskrivelse ?? "").trim() !== "");
+}
+
+/**
+ * Sedelens jobber som mangler beskrivelse, i radenes rekkefølge. Jobben er kort-id-en; en rad
+ * uten kort-id (eldre data) er sin egen jobb med nøkkelen `rad:<id>`. Delt mellom kortets merke,
+ * klientens sperre i «Send dagen» og serverens sperre i `send`.
+ */
+export function jobberSomManglerBeskrivelse(rader: readonly BeskrivelseRad[]): string[] {
+  const jobber = new Map<string, BeskrivelseRad[]>();
+  for (const r of rader) {
+    const nokkel = r.kortId ?? `rad:${r.id}`;
+    const liste = jobber.get(nokkel);
+    if (liste) liste.push(r);
+    else jobber.set(nokkel, [r]);
+  }
+  return [...jobber].filter(([, liste]) => jobbManglerBeskrivelse(liste)).map(([nokkel]) => nokkel);
+}
+
+/**
  * Trafikklys for dagsummen relativt til dagsnorm — samme regel som dagskortets
  * topp-sum (rund kun for farge, nærmeste 15 min).
  */

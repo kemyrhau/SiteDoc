@@ -444,6 +444,8 @@ describe("w3b — maskindelen i «Legg til» og «Rediger timer-rad» (prosjektk
     cleanup();
     medMaskinModul();
     dialog = redigerJobb2Timerrad();
+    // Plan § 8.22 L2: «Hva gjorde du?» er påkrevd i prosjektkort-modus — jobb 2 har ingen ennå.
+    fireEvent.change(dialog.querySelector("textarea")!, { target: { value: "Graving" } });
     const til = dialog.querySelectorAll<HTMLInputElement>('input[type="time"]')[1]!;
     fireEvent.change(til, { target: { value: "17:00" } });
     fireEvent.blur(til);
