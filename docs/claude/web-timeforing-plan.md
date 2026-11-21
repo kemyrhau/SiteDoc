@@ -3587,6 +3587,8 @@ Kenneth ba om en ny runde mot avvik i planen. 🟡 Levert i versjon 12: § 4.13 
   - **Arbeidet inn i versjon 19 (§ 4.15 del F–H, F79–F83; develop `d4c0eecd`):** e-posten, utløseren ved ✓ og ↩, nettet etter 24 timer og merket «sendt» i loggen er tatt ut av del F, G og H. Merket heter «Korrigert av [navn]» med tidspunkt på linja på dagen, og «Korrigert av [navn]» på dagen i Mine timer («m.fl.» når flere har korrigert; «Korrigert ved attestering» uten navn). Målt: ingen tekst i koden heter «Rettet» (F79); korrigerte felt går bare til attesteringens lesere, så arbeiderens `hentMedId` og `list` må få dem (F80); appen viser timelisten tre steder og får ingen korrigerte felt fra serveren (F82). Uten e-post regner arbeiderens merke fra første korrigering på linja, så hele endringen står ett sted (F76). Appen er w15gm i § 9, «venter på web». F77 og F78 står og bygges i w15g. w15g venter ikke på noe. 🟡 Ikke bygget.
 - **Skissen er tegnet på nytt 2026-11-21** (`v16b-flytt.png` og `v16b-flytt-prosjekt.png` under, kilde `skisser-v16b.html`) etter Kenneths ord om `v16-flytt.png`: «reise til jobb kan aldri være bare 7 minutter. eksemplene var ikke konsistent med hvilke tider som føres.» Dagen er den samme i alle paneler, alle kort er åpne, og grønn ramme viser det som er endret fra panel 1. Spørsmålet som sto igjen, var panel 4: skal «Flytt til …» ha valget «Annet prosjekt …» (4a, anbefalt av Fabel), eller byttes prosjekt med pennen (4b)? ⚠️ Utgått samme dag: Kenneth valgte enkle linjer (punktet over). Prosjektet byttes i feltet på reisen, i pennen og i attesteringen (w15f). Målt på develop `f95ba905`: ingen av veiene finnes i dag (`WS:4275` låser prosjektfeltet ved redigering, og `oppdaterTimerRad` i `D:4185` tar ikke imot prosjekt).
 
+![Panel 4: hjemreisen til et annet prosjekt — «Annet prosjekt …» i menyen (4a) eller pennen (4b), og dagen etterpå](skisser-web-timeforing/v16b-flytt-prosjekt.png)
+
 ### 8.21 Kenneth om dagskortet og prosjektkortene, 2026-11-21
 
 Kenneths ord, sagt etter spørsmålet om reise skal telle mot normen:
@@ -3596,8 +3598,6 @@ Kenneths ord, sagt etter spørsmålet om reise skal telle mot normen:
 - **Punkt 1, nytt:** en tidsendring på ett prosjektkort som går inn i tiden til et annet prosjektkort, justerer det andre automatisk. Kenneths eksempel: et kort forlenges fra kl. 10 til kl. 11, og kortet som begynte kl. 10, blir påvirket. Målt: planen har ingen automatisk justering i dag. Overlapp gir varsel eller sperre (w15b sperrer lagring ved overlapp, WM106). 🟡 Vedtatt, ikke planlagt eller bygget. Fabel planlegger.
 - **Punkt 2, som planen viser:** oppdeling gir to prosjektkort. Det nye kortet får et annet underprosjekt eller en annen byggeplass i samme prosjekt, eventuelt et annet prosjekt. Maskintimer, varer og resten blir i kortet de opprinnelig ble registrert i. Det nye kortet registrerer sine egne. 🟡 Måles mot «Del opp» og ✂ (WM48, WM53, WM97).
 - ⏳ Kontrollspørsmål til Kenneth: om dette også svarer på om reise inni dagens ramme teller mot normen.
-
-![Panel 4: hjemreisen til et annet prosjekt — «Annet prosjekt …» i menyen (4a) eller pennen (4b), og dagen etterpå](skisser-web-timeforing/v16b-flytt-prosjekt.png)
 
 ## 9. Rekkefølge
 
