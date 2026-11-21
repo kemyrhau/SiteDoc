@@ -91,6 +91,8 @@ export function reiseHavnerI(args: {
     retning: "ut" | "retur" | null;
     fraTid: string | null;
     erReise: boolean;
+    /** w15c: reisekilden — «overforing» er reise til eller fra annet kontor (del E punkt 6). */
+    reiseKilde?: string | null;
   };
 }): ReiseHavnerI {
   const { rader, sedelByggeplass, reise } = args;
@@ -113,9 +115,11 @@ export function reiseHavnerI(args: {
       {
         projectId: reise.projectId,
         ecoId: reise.ecoId,
-        byggeplassId: reise.byggeplassId,
+        // Effektiv byggeplass, som serveren (w15c).
+        byggeplassId: effektivKortByggeplass(reise.projectId, reise.byggeplassId, sedelByggeplass),
         retning: reise.retning,
         fraTid: reise.fraTid,
+        overforing: reise.reiseKilde === "overforing",
       },
       jobber,
     );

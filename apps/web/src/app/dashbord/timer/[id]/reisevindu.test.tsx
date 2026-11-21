@@ -276,10 +276,18 @@ describe("w15b — reisevinduet: systemet foreslår, arbeideren retter", () => {
     expect(input).toMatchObject({ projectId: "p2", byggeplassId: "b2", externalCostObjectId: null, fraTid: "06:25" });
   });
 
-  it("dagens regel til w15c: «Til annet kontor» → «Etter arbeid» står i jobben", () => {
+  it("w15c: «Til annet kontor» → «Etter arbeid» får eget kort, som serveren (del E punkt 6)", () => {
     const d = rendre();
     fireEvent.click(knapp(d, "timer.reiseKort.tilAnnetKontor"));
     fireEvent.click(knapp(d, "timer.reiseKort.etterArbeid"));
+    expect(d.textContent).toContain("timer.reiseKort.havnerEget");
+    expect(d.textContent).not.toContain("timer.reiseKort.havnerJobb");
+  });
+
+  it("w15c: «Til annet kontor» → «Før arbeid» står i jobben man kjører til", () => {
+    const d = rendre();
+    fireEvent.click(knapp(d, "timer.reiseKort.tilAnnetKontor"));
+    fireEvent.click(knapp(d, "timer.reiseKort.forArbeid"));
     expect(d.textContent).toContain('timer.reiseKort.havnerJobb{"sted":"sommerfeldtsgt 65"}');
   });
 

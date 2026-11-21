@@ -160,6 +160,20 @@ export function utledKortId(args: {
   );
 }
 
+/**
+ * Variant-id for en reise i eget kort (w15c, F25; web-timeforing-plan.md § 4.15 del E). Prefikset
+ * `reisekort|` gjør at den aldri blir lik en `utledKortId`. Samme uttrykk i SQL-utfyllingen
+ * 20261121120000_w15c_reise_kort.
+ */
+export function utledReiseKortId(args: { userId: string; dato: string; nokkel: KortNokkelFelt }): string {
+  const k = args.nokkel;
+  return somUuid(
+    md5Hex(
+      `reisekort|${args.userId}|${args.dato}|${k.projectId ?? INGEN}|${k.byggeplassId ?? INGEN}|${k.ecoId ?? INGEN}`,
+    ),
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Regel 1–3 (§ 2.4)
 // ---------------------------------------------------------------------------

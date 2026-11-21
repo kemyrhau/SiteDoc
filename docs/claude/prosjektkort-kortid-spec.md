@@ -134,6 +134,10 @@ mobilfila re-eksporterer, så ingen kaller endres.
 `velgReiseKort` (`packages/shared/src/utils/reiseKort.ts`) hver gang sedelen skrives — jobben med samme underprosjekt,
 så samme byggeplass, så første jobb for utreise og siste for retur; ingen jobb på prosjektet → utledet id av reisens
 egen nøkkel. Klientens verdi leses ikke. Hele regelen: `web-timeforing-plan.md` § 4.11 del A.
+**w15c (🟡 `feat/web-timer-w15c`, ikke merget):** byggeplassen (effektiv) og et valgt underprosjekt er krav;
+ingen jobb på stedet → eget kort, også på samme prosjekt. Reise til annet kontor etter arbeid → eget kort.
+Eget kort får `utledReiseKortId` (prefiks `reisekort|`) når reisens utledede id er en jobbs, og alltid for
+overføring. Hele regelen: `web-timeforing-plan.md` § 4.15 del E; [timer.md § Reisens kort på serveren](timer.md).
 
 Nytt kort laget av brukeren («+ Nytt prosjektkort», «Del til eget kort») får tilfeldig UUID fra klienten.
 Regel 3 gjør at dagskort-modus-firma (M21) og eldre klienter får fylt feltet uten å vite om kort.

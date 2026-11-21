@@ -4,8 +4,8 @@
  * Én funksjon alle server-skriveveier kaller etter at radene er skrevet:
  * `sikreKortId(tx, sheetId)` fyller manglende `kort_id` etter regel 3 (eldste kort på sedelen
  * med samme nøkkel, ellers utledet id), setter koblet maskin = timerradens kort (K6), legger
- * reiseraden i jobbens kort etter den delte regelen `velgReiseKort` (w12, B32 B; attestert eller
- * erstattet reise med kort-id står) og validerer K1–K4/K6 over hele sedelens post-tilstand med
+ * reiseraden i jobbens kort etter den delte regelen `velgReiseKort` (w12, B32 B; w15c: byggeplass
+ * og valgt underprosjekt er krav, ellers eget kort; attestert eller erstattet reise med kort-id står) og validerer K1–K4/K6 over hele sedelens post-tilstand med
  * den delte `validerKortInvariant` (packages/shared). Regel 1 (oppgitt id) og regel 2 (lagret
  * id ved uendret nøkkel) gjøres av kalleren når raden skrives — se `kortIdForSkriving`.
  *
@@ -18,6 +18,7 @@ import { prisma } from "@sitedoc/db";
 import { prismaVarelager } from "@sitedoc/db-varelager";
 import {
   effektivKortByggeplass,
+  egetReiseKort,
   jobberFraArbeidsrader,
   kortIdNokkel,
   kortPaaSedelFraRader,
@@ -193,7 +194,7 @@ export async function sikreKortId(
   const [timer, maskiner, tillegg, utlegg] = await Promise.all([
     tx.sheetTimer.findMany({
       where: { sheetId },
-      select: { ...nokkelSelect, erReise: true, reiseRetning: true, fraTid: true, attestertStatus: true },
+      select: { ...nokkelSelect, erReise: true, reiseRetning: true, reiseKilde: true, fraTid: true, attestertStatus: true },
     }),
     tx.sheetMachine.findMany({ where: { sheetId }, select: { ...nokkelSelect, sheetTimerId: true } }),
     tx.sheetTillegg.findMany({ where: { sheetId }, select: nokkelSelect }),
@@ -268,10 +269,11 @@ export async function sikreKortId(
     if (t) endre(m, t.kortId);
   }
 
-  // Reise (w12, B32 B, B34 B): i jobbens kort etter den delte regelen, regnet på nytt ved hver
-  // skriving — samme regel som utfyllingen 20261120120000. Ingen jobb på prosjektet → eget kort
-  // av reisens nøkkel. Attestert eller erstattet reise med kort-id flyttes aldri. Regelen endrer
-  // bare kort-id, aldri prosjekt, underprosjekt eller byggeplass.
+  // Reise (w12; w15c: B43 B, B44, B48 A, § 4.15 del E): i jobbens kort etter den delte regelen,
+  // regnet på nytt ved hver skriving — samme regel som utfyllingen 20261121120000. Byggeplassen
+  // og et valgt underprosjekt er krav; ingen jobb på stedet → eget kort (`egetReiseKort`).
+  // Attestert eller erstattet reise med kort-id flyttes aldri. Regelen endrer bare kort-id, aldri
+  // prosjekt, underprosjekt eller byggeplass.
   const jobber = jobberFraArbeidsrader(
     timer
       .filter((t) => !t.erReise)
@@ -288,21 +290,24 @@ export async function sikreKortId(
         };
       }),
   );
+  const jobbKortIder = jobber.map((j) => j.kortId);
   const reise = timer.filter((t) => t.erReise).map((t) => ({ t, r: somR("sheet_timer", "timer", t) }));
   for (const { t, r } of reise) {
     if (r.kortId && (t.attestertStatus === "attestert" || t.attestertStatus === "erstattet")) continue;
+    const overforing = t.reiseKilde === "overforing";
     endre(
       r,
       velgReiseKort(
         {
-          projectId: t.projectId,
-          ecoId: t.externalCostObjectId,
-          byggeplassId: t.byggeplassId,
+          projectId: r.nokkel.projectId,
+          ecoId: r.nokkel.ecoId,
+          byggeplassId: r.nokkel.byggeplassId,
           retning: t.reiseRetning,
           fraTid: t.fraTid,
+          overforing,
         },
         jobber,
-      ) ?? utledKortId({ userId: kontekst.userId, dato: kontekst.dato, nokkel: r.nokkel }),
+      ) ?? egetReiseKort({ userId: kontekst.userId, dato: kontekst.dato, nokkel: r.nokkel, overforing, jobbKortIder }),
     );
   }
 
