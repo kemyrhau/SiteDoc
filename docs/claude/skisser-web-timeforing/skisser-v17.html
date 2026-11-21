@@ -10,7 +10,7 @@
   Ett ark; arket velges med #reiselinje i adressen. Tegnet med Chrome uten vindu:
     "Google Chrome" --headless=new --hide-scrollbars --force-device-scale-factor=2 \
       --window-size=1444,<høyde> --screenshot=v17-reiselinje.png "file://…/skisser-v17.html#reiselinje"
-  Høyde: reiselinje 997 (måles på nytt etter endring med --dump-dom: arket skriver den i data-hoyde på <html>).
+  Høyde: reiselinje 1025 (måles på nytt etter endring med --dump-dom: arket skriver den i data-hoyde på <html>).
 -->
 <style>
 *{box-sizing:border-box}
@@ -165,8 +165,8 @@ body.en .ark.vis{display:block}
 </head>
 <body>
 <div class="ark" id="reiselinje">
-  <div class="tittel"><span class="pille">Versjon 17 · vedtatt</span><h1>Reisen er én linje. De samme fem feltene på dagssiden og i attesteringen</h1></div>
-  <div class="scen"><b>Hjemreisen 15:00–15:35 fra sommerfeldtsgt 65.</b> Systemet foreslår den i jobben du drar fra. 35 minutter er firmaets kjøretid fra tabellen, og du kan rette både start og slutt. Kortet velger du aldri: det følger av prosjekt, byggeplass og underprosjekt.
+  <div class="tittel"><span class="pille">Versjon 17 · vedtatt</span><h1>Reisen er én linje. Pennen har de samme fem feltene på dagssiden og i attesteringen</h1></div>
+  <div class="scen"><b>Hjemreisen 15:00–15:35 fra sommerfeldtsgt 65.</b> Systemet foreslår den i jobben du drar fra. 35 minutter er firmaets kjøretid fra tabellen, og du kan rette både start og slutt. Kortet velger du aldri: det følger av prosjekt, byggeplass og underprosjekt. Ingen felt står åpne. Arbeideren og attestanten retter med pennen (✎).
     <div class="fem">
       <div><b>Start kl.</b><small>kan rettes</small></div>
       <div><b>Slutt kl.</b><small>kan rettes</small></div>
@@ -211,36 +211,35 @@ body.en .ark.vis{display:block}
 
     <div class="side">
       <h2>Attesteringen · attestanten</h2>
-      <p class="under">Jobben åpnet i attesteringen. Reisen står i del 8 «Reise», med de samme fem feltene.</p>
+      <p class="under">Jobben åpnet i attesteringen. Reisen står i del 8 «Reise» som tekst. Pennen åpner samme vindu som på dagssiden.</p>
       <div class="att">
         <div class="ah"><div><b>Ola Tømrer · man. 16.11.</b><br><span>Sitedoc Boligfelt B12 · sommerfeldtsgt 65 · END-002 · 12:00–15:00</span></div><span>Venter</span></div>
-        <div class="adel graa"><span class="nr">1</span><span class="dn">Fra–til</span><div class="di">12:00–15:00 · 3,0 t</div></div>
-        <div class="adel graa"><span class="nr">2</span><span class="dn">Lønnsart</span><div class="di">Timelønn</div></div>
-        <div class="adel graa"><span class="nr">3</span><span class="dn">Hva gjorde du?</span><div class="di">kantstein, endring</div></div>
-        <div class="adel graa"><span class="nr">4–7</span><span class="dn">Maskiner m.m.</span><div class="di">—</div></div>
+        <div class="adel graa"><span class="nr">1–7</span><span class="dn">Arbeid m.m.</span><div class="di">12:00–15:00 · 3,0 t · Timelønn · kantstein, endring</div></div>
         <div class="adel"><span class="nr">8</span><span class="dn">Reise</span>
           <div class="di">
             <span class="rute">Retur · sommerfeldtsgt 65 → Kontor Tromsø · 35 min (firmaets tabell)</span>
-            <div class="feltrad">
-              <div><span class="fl">Start kl.</span><div class="inn">15:00</div></div>
-              <div><span class="fl">Slutt kl.</span><div class="inn">15:35</div></div>
-              <div><span class="fl">Lønnsart</span><div class="inn laast">Reise/transport til prosjekter</div></div>
-            </div>
-            <p class="fp">Føres på</p>
-            <div class="feltrad">
-              <div class="gronn"><span class="fl">Prosjekt <span class="nytt">NYTT</span></span><div class="inn">Sitedoc Boligfelt B12 ▾</div></div>
-              <div class="gronn"><span class="fl">Byggeplass <span class="nytt">NYTT</span></span><div class="inn">sommerfeldtsgt 65 ▾</div></div>
-              <div><span class="fl">Underprosjekt</span><div class="inn">END-002 ▾</div></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+              <div><b>15:00–15:35</b> · 0,58 t · Reise/transport til prosjekter<br><span class="lite">Føres på: Sitedoc Boligfelt B12 · sommerfeldtsgt 65 · END-002</span></div>
+              <div class="h"><span class="ik"><span class="ny-ramme">✎</span> ✂</span></div>
             </div>
           </div>
         </div>
       </div>
+      <p class="pilned">↓ pennen (✎) på reiselinja</p>
+      <div class="vindu flat">
+        <h3>Rediger reise · Ola Tømrer <span>✕</span></h3>
+        <div class="rad"><div class="felt"><label>Start kl.</label><div class="inn">15:00</div></div><div class="felt"><label>Slutt kl.</label><div class="inn">15:35</div></div></div>
+        <div class="felt gronn"><label>Prosjekt <span class="nytt">NYTT</span></label><div class="inn">Sitedoc Boligfelt B12 ▾</div></div>
+        <div class="rad"><div class="felt gronn"><label>Byggeplass <span class="nytt">NYTT</span></label><div class="inn">sommerfeldtsgt 65 ▾</div></div><div class="felt"><label>Underprosjekt</label><div class="inn">END-002 ▾</div></div></div>
+        <div class="info" style="margin-top:0">Ola varsles om det du endrer.</div>
+        <div class="knapper"><span class="kn">Avbryt</span><span class="kn pri">Lagre</span></div>
+      </div>
       <ul class="forkl">
-        <li><span class="g">1</span><span>Start, slutt og underprosjekt kan rettes her i dag. Prosjekt og byggeplass er nye.</span></li>
+        <li><span class="g">1</span><span>I dag står start, slutt og «Føres på» som åpne felt i kortet og lagres med en gang. De går inn i pennens vindu. Prosjekt og byggeplass er nye.</span></li>
         <li><span class="g">2</span><span>Prosjektlista har prosjektene attestanten kan attestere. Serveren krever attesteringsrett på begge prosjektene.</span></li>
-        <li><span class="k">3</span><span>I dag kan tid, prosjekt og byggeplass bare rettes når firmaet har slått på «Rediger ved attestering». Om det valget skal fjernes, er spørsmål B49.</span></li>
-        <li><span class="g">4</span><span>Rettes prosjekt, byggeplass eller underprosjekt, står reisen etterpå i kortet det nye stedet gir.</span></li>
-        <li><span class="g">5</span><span>Arbeideren varsles om hver retting: «Kari Leder rettet timene dine man. 16.11.: Reise fra sommerfeldtsgt 65 — Slutt kl. 15:35 → 15:50.» Linja får merket «Rettet» på dagen hans.</span></li>
+        <li><span class="g">3</span><span>Rettes prosjekt, byggeplass eller underprosjekt, står reisen etterpå i kortet det nye stedet gir.</span></li>
+        <li><span class="g">4</span><span>Arbeideren varsles om hver retting: «Kari Leder rettet timene dine man. 16.11.: Reise fra sommerfeldtsgt 65 — Slutt kl. 15:35 → 15:50.» Linja får merket «Rettet» på dagen hans.</span></li>
+        <li><span class="k">5</span><span>Firmavalget «Rediger ved attestering» er ikke endret. Er det av, kan attestanten bare bytte underprosjekt i vinduet.</span></li>
       </ul>
     </div>
 
