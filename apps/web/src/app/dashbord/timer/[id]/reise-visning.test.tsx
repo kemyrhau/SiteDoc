@@ -247,7 +247,8 @@ describe("w15d — teksten under lønnsarten i timerad-vinduet (del C pkt. 4)", 
   it("arbeid: ingen reisetekst", () => {
     rendre([ARBEID1]);
     aapneForste();
-    fireEvent.click(screen.getAllByTitle("handling.rediger")[0]!);
+    // L3a: arbeidslinja står i jobbskjemaet — blyanten i skjemaets hode.
+    fireEvent.click(screen.getAllByTitle("timer.jobbSkjema.endreUnderprosjekt")[0]!);
     const dialog = screen.getByRole("dialog", { name: "timer.detalj.redigerTimerRad" });
     expect(dialog.textContent).not.toContain("timer.rediger.reiseHavner");
   });

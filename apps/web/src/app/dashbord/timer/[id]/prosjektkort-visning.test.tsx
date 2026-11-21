@@ -322,9 +322,9 @@ describe("w3a — ett kort pr. jobb (dagen fra #7)", () => {
     }
   });
 
-  it("lenkeraden pr. jobb: + Timer, + Maskin, + Vare, + Tillegg/Utlegg i den rekkefølgen", () => {
+  it("L3a: lenkene står i skjemaets rader — + Maskin (4), + Vare (5), Legg til (7), så + Timer under skjemaet", () => {
     const html = dag7(kunJobb2);
-    const plass = ["nyTimer", "nyMaskin", "nyVareKort", "leggTil"].map((k) =>
+    const plass = ["nyMaskin", "nyVareKort", "leggTil", "nyTimer"].map((k) =>
       html.indexOf(`timer.prosjektkort.${k}<`),
     );
     expect(plass.every((p) => p > -1)).toBe(true);

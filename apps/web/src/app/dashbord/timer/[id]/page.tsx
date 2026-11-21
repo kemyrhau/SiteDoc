@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
@@ -34,9 +34,11 @@ import { TilbakeLenke, useTilbakeAdresse } from "@/components/nivaa/TilbakeLenke
 import { RESERVE_MINE_TIMER } from "@/lib/tilbake-adresse";
 import {
   adresseEtterRegistrering,
+  byggeplassForRegistrering,
   loesAapentKort,
   nyKortId,
   registrerTimerSteg,
+  visDagDato,
 } from "@/lib/registrerTimer";
 import { MaskinVelger } from "@/components/timer/MaskinVelger";
 import { KortVareforbrukModal } from "@/components/timer/KortVareforbrukModal";
@@ -84,6 +86,9 @@ import {
 } from "@sitedoc/shared";
 import { rundTilNarmeste } from "@/lib/tidsrunding";
 import { ReiseKort } from "./ReiseKort";
+import { JobbSkjema } from "./JobbSkjema";
+import { jobbSkjemaLinjer, nyJobbForslag, senesteTilTid, type SkjemaKilde } from "@/lib/jobbSkjema";
+import type { SkjemaLonnsart } from "./JobbSkjema";
 import { KorrigeringProvider, KorrigertMerke, type KorrigeringerPrRad } from "@/components/timer/KorrigertMerke";
 import { reiseHavnerI, type ReiseHavnerAnnenRad } from "@/hooks/useManuellReiseWeb";
 import { formaterBelop, formaterTimer } from "@/lib/tallformat";
@@ -394,6 +399,40 @@ export default function DagsseddelDetaljSide() {
   const [aapentKort, setAapentKort] = useState<string | null | undefined>(
     () => nyttProsjektParam ?? undefined,
   );
+
+  // Plan § 8.22 L3a: jobbskjemaet. `skjemaKilde` gir gule felt og merket for jobben forslaget
+  // kom til (nøkkel = kort-id, eller prosjekt-id for dagens første jobb). `nyJobbUtkast` er neste
+  // jobb før Til er fylt — bare på skjermen. `ulagredeKort` sperrer «Send dagen».
+  const [skjemaKilde, setSkjemaKilde] = useState<{ nokkel: string; kilde: SkjemaKilde } | null>(null);
+  const [nyJobbUtkast, setNyJobbUtkast] = useState<{
+    kortId: string;
+    projectId: string;
+    fraTid: string;
+    tilTid: string;
+    pauseMin: number;
+    kilde: SkjemaKilde;
+  } | null>(null);
+  const [ulagredeKort, setUlagredeKort] = useState<ReadonlySet<string>>(() => new Set());
+  const meldUlagret = useCallback((kortId: string, ulagret: boolean) => {
+    setUlagredeKort((prev) => {
+      if (prev.has(kortId) === ulagret) return prev;
+      const neste = new Set(prev);
+      if (ulagret) neste.add(kortId);
+      else neste.delete(kortId);
+      return neste;
+    });
+  }, []);
+  const harUlagret = ulagredeKort.size > 0;
+  useEffect(() => {
+    if (!harUlagret) return;
+    // Nettleserens egen «Forlat siden?» — teksten styres av nettleseren.
+    const vakt = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", vakt);
+    return () => window.removeEventListener("beforeunload", vakt);
+  }, [harUlagret]);
 
   const [redigerHeader, setRedigerHeader] = useState(false);
   const [aktivModal, setAktivModal] = useState<
@@ -762,6 +801,58 @@ export default function DagsseddelDetaljSide() {
     (p) => !aktiveProsjektIder.includes(p.id),
   );
 
+  // § 8.22 L3a: grunnlaget for jobbskjemaet (prosjektkort-modus, redigerbar dag). Lønnsart-
+  // nedtrekket har arbeids-lønnsartene (ikke reise). Uten lønnsart eller aktivitet står jobben
+  // som i dag (vinduet).
+  const reiseKontekstSide = {
+    reiseLonnsartId: arbeidstidDefaults?.reiseLonnsartId ?? null,
+    grensepunktLonnsartIds: (arbeidstidDefaults?.reiseGrenser ?? [])
+      .map((g) => g.lonnsartId)
+      .filter((id): id is string => id != null),
+  };
+  const skjemaLonnsarter = (sedelLonnsarter ?? []) as SkjemaLonnsart[];
+  const velgbareLonnsarter = skjemaLonnsarter.filter(
+    (l) => l.type === "ordinaer" && !erReiseLonnsart(l.id, l.navn, reiseKontekstSide),
+  );
+  const standardLonnsartId =
+    (sedelLonnsarter ?? []).find(
+      (l) => l.erStandardvalg && velgbareLonnsarter.some((v) => v.id === l.id),
+    )?.id ??
+    velgbareLonnsarter[0]?.id ??
+    null;
+  const kanBrukeSkjema =
+    prosjektkortModus && erRedigerbar && !!sedelLonnsarter && !!standardLonnsartId && !!sheetAktivitetId;
+  const erOvertidsart = (id: string) =>
+    skjemaLonnsarter.find((l) => l.id === id)?.overtidsnivaa != null;
+  const overtidRaderUten = (ider: ReadonlySet<string>) =>
+    timerRader
+      .filter((r) => !ider.has(r.id) && r.attestertStatus !== "erstattet" && !!r.fraTid && !!r.tilTid)
+      .map((r) => ({
+        id: r.id,
+        fraTid: r.fraTid,
+        tilTid: r.tilTid,
+        pauseMin: r.pauseMin,
+        erReise: r.erReise ?? false,
+        overtidsnivaa: skjemaLonnsarter.find((l) => l.id === r.lonnsartId)?.overtidsnivaa ?? null,
+      }));
+  const skjemaPauseEtterTimer =
+    arbeidstidDefaults?.standardPauseEtterTimer ?? DEFAULT_PAUSE_ETTER_TIMER;
+  const skjemaFelles = {
+    sheetId: sheet.id,
+    lonnsarter: skjemaLonnsarter,
+    velgbareLonnsarter,
+    norm: normTimer,
+    pauseEtterTimer: skjemaPauseEtterTimer,
+    fastPauseFra: fastPauseFraFor({
+      startTid: effektivStart,
+      pauseEtterTimer: skjemaPauseEtterTimer,
+      pauseReferanse: effektivNorm?.pauseReferanse ?? "ankomst",
+    }),
+    datoTekst: visDagDato(sheet.dato, false),
+    organizationId: sheet.organizationId ?? undefined,
+    onUlagret: meldUlagret,
+  };
+
   // Bolk (g): fra = SENESTE tilTid på HELE sedelen (alle bøtter), ellers dagens
   // effektive start. «Fortsett der du slapp» på hele dagen — ikke bare bøtta.
   // Seneste slutt hindrer at ny rad prefylles inn i et allerede registrert
@@ -795,8 +886,24 @@ export default function DagsseddelDetaljSide() {
   // NB: dagssiden grupperer fortsatt pr. prosjekt — jobb 2 på samme prosjekt står i
   // samme prosjektkort her til w3, men er eget kort på serveren og i attesteringen.
   const aapneNyJobb = (projectId: string) => {
-    setEkstraProsjektIder((prev) => (prev.includes(projectId) ? prev : [...prev, projectId]));
     const kortId = nyKortId();
+    // § 8.22 L3a: i prosjektkort-modus lander jobben i skjemaet i kortet. Fra = slutten på
+    // forrige jobb, Til = firmaets slutt når den ligger etter. Ingen rad før Til er fylt.
+    if (prosjektkortModus && kanBrukeSkjema) {
+      setNyJobbUtkast({
+        kortId,
+        projectId,
+        ...nyJobbForslag({
+          sisteTil: senesteTilTid(timerRader),
+          firmaStart: effektivStart,
+          firmaSlutt: effektivSlutt,
+          firmaPauseMin: sheet.pauseMin,
+        }),
+      });
+      setAapentKort(kortId);
+      return;
+    }
+    setEkstraProsjektIder((prev) => (prev.includes(projectId) ? prev : [...prev, projectId]));
     // w3a: den nye jobben får eget kort — det åpnes når raden er lagret.
     setAapentKort(kortId);
     aapneNyTimerRad(projectId, null, undefined, { kortId, aapentProsjekt: true });
@@ -832,6 +939,14 @@ export default function DagsseddelDetaljSide() {
     if (steg === "gjenaapne") {
       setGjenaapneFeil(null);
       setVisGjenaapneModal(true);
+    } else if (steg === "ferdig" && kjent) {
+      // § 8.22 L3a: serveren laget dagens første jobb med firmaets arbeidstid — gule felt.
+      // Uten arbeidsrad på prosjektet (ingen rad laget) lander jobben i skjemaet som utkast.
+      if (timerRader.some((r) => r.projectId === kjent && !r.erReise)) {
+        setSkjemaKilde({ nokkel: kjent, kilde: "firma" });
+      } else {
+        aapneNyJobb(kjent);
+      }
     } else if (steg === "nyJobb" && kjent) {
       aapneNyJobb(kjent);
     } else if (steg === "velgProsjekt") {
@@ -981,6 +1096,80 @@ export default function DagsseddelDetaljSide() {
       defaultEcoId: jobb.ecoId,
       jobb,
     });
+
+  // § 8.22 L3a: skjemaet for en jobb, eller null når jobben står som i dag (mer enn to linjer,
+  // hull, linje 2 som ikke er overtid, linje uten fra–til, attestert linje).
+  const skjemaFor = (k: JobbKortData): SkjemaOppsett | null => {
+    if (!kanBrukeSkjema) return null;
+    const arbeid = k.linjer.flatMap((l) => (l.type === "timer" ? [l.rad] : []));
+    const linjer = jobbSkjemaLinjer(arbeid, erOvertidsart);
+    if (!linjer) return null;
+    const forste = linjer[0]!;
+    const forsteJobbIProsjekt =
+      skjemaKilde?.nokkel === k.jobb.projectId &&
+      jobbKort.filter((j) => j.jobb.projectId === k.jobb.projectId).length === 1;
+    const kilde =
+      skjemaKilde && (skjemaKilde.nokkel === k.jobb.kortId || forsteJobbIProsjekt)
+        ? skjemaKilde.kilde
+        : null;
+    // Utkastet er lagret og står nå som kortet: forslaget er arbeiderens tid (ikke gult), og
+    // skjemaet (montert på nytt her) starter med «✓ Lagret».
+    const fraUtkast = nyJobbUtkast?.kortId === k.jobb.kortId;
+    return {
+      ...skjemaFelles,
+      startLagret: fraUtkast,
+      kortId: k.jobb.kortId,
+      linjer: linjer.map((r) => ({
+        id: r.id,
+        fraTid: r.fraTid as string,
+        tilTid: r.tilTid as string,
+        pauseMin: r.pauseMin,
+        lonnsartId: r.lonnsartId,
+        timer: tilTall(r.timer),
+        beskrivelse: r.beskrivelse,
+      })),
+      kilde,
+      andreRader: overtidRaderUten(new Set(linjer.map((r) => r.id))),
+      projectId: k.jobb.projectId,
+      ecoId: k.jobb.ecoId,
+      onEndreUnderprosjekt: () =>
+        setAktivModal({ type: "timer", projectId: forste.projectId, rad: forste, jobb: k.jobb }),
+    };
+  };
+  const utkastSkjema: SkjemaOppsett | null =
+    nyJobbUtkast &&
+    kanBrukeSkjema &&
+    standardLonnsartId &&
+    sheetAktivitetId &&
+    !jobbKort.some((k) => k.jobb.kortId === nyJobbUtkast.kortId)
+      ? {
+          ...skjemaFelles,
+          kortId: nyJobbUtkast.kortId,
+          linjer: [],
+          ny: {
+            projectId: nyJobbUtkast.projectId,
+            aktivitetId: sheetAktivitetId,
+            byggeplassId: byggeplassForRegistrering({
+              toppbarByggeplassId: (sheet as { byggeplassId?: string | null }).byggeplassId ?? null,
+              projectId: nyJobbUtkast.projectId,
+              byggeplasser,
+            }),
+            fraTid: nyJobbUtkast.fraTid,
+            tilTid: nyJobbUtkast.tilTid,
+            pauseMin: nyJobbUtkast.pauseMin,
+            lonnsartId: standardLonnsartId,
+          },
+          kilde: nyJobbUtkast.kilde,
+          andreRader: overtidRaderUten(new Set()),
+          projectId: nyJobbUtkast.projectId,
+          ecoId: null,
+        }
+      : null;
+  const velgKort = (nokkel: string | null) => {
+    setAapentKort(nokkel);
+    // Neste jobb uten Til forsvinner når et annet kort åpnes (ingenting er lagret).
+    if (nyJobbUtkast && nokkel !== nyJobbUtkast.kortId) setNyJobbUtkast(null);
+  };
 
   // Linjene i et kort. Blyanten åpner vinduet med jobben (S7 A); samlekortet har ingen jobb.
   const renderLinjer = (linjer: KortLinje[], jobb: JobbKontekst | undefined) => (
@@ -1302,7 +1491,10 @@ export default function DagsseddelDetaljSide() {
           tommeProsjektKort={tommeProsjektKort}
           utenJobbLinjer={utenJobbLinjer}
           aapentKort={aapentKortNokkel}
-          onVelgKort={setAapentKort}
+          onVelgKort={velgKort}
+          skjemaFor={skjemaFor}
+          utkastSkjema={utkastSkjema}
+          harUlagret={harUlagret}
           kortNavn={kortNavn}
           timerRader={timerRader}
           maskinRader={maskinRader}
@@ -1886,6 +2078,8 @@ type KortLinje =
   | { type: "utlegg"; rad: UtleggRad }
   | { type: "reise"; rad: TimerRad };
 
+type SkjemaOppsett = Omit<React.ComponentProps<typeof JobbSkjema>, "rader47">;
+
 type JobbKortData = {
   jobb: JobbKontekst;
   linjer: KortLinje[];
@@ -1919,6 +2113,9 @@ function ProsjektkortSamleside({
   utenJobbLinjer,
   aapentKort,
   onVelgKort,
+  skjemaFor,
+  utkastSkjema,
+  harUlagret,
   kortNavn,
   timerRader,
   maskinRader,
@@ -1956,6 +2153,12 @@ function ProsjektkortSamleside({
   utenJobbLinjer: KortLinje[];
   aapentKort: string | null;
   onVelgKort: (nokkel: string | null) => void;
+  /** § 8.22 L3a: skjemaet for jobben, eller null (jobben står som i dag). */
+  skjemaFor: (k: JobbKortData) => SkjemaOppsett | null;
+  /** Neste jobb før Til er fylt — eget kort med skjemaet. */
+  utkastSkjema: SkjemaOppsett | null;
+  /** Noe i et skjema er ikke lagret: «Send dagen» er sperret. */
+  harUlagret: boolean;
   kortNavn: (projectId: string) => string;
   timerRader: TimerRad[];
   maskinRader: MaskinRad[];
@@ -2025,6 +2228,7 @@ function ProsjektkortSamleside({
   const manglerJobber = erRedigerbar ? jobberSomManglerBeskrivelse(timerRader) : [];
   const [sendSperret, setSendSperret] = useState(false);
   const sendDagen = () => {
+    if (harUlagret) return;
     const forste = manglerJobber[0];
     if (forste === undefined) {
       setSendSperret(false);
@@ -2033,6 +2237,68 @@ function ProsjektkortSamleside({
     }
     setSendSperret(true);
     onVelgKort(forste.startsWith("rad:") ? UTEN_JOBB : forste);
+  };
+
+  // § 8.22 L3a rad 4–7: dagens linjer med blyant og vinduer, og lenken for en ny linje.
+  const rader47For = (k: JobbKortData, jobb: JobbKontekst) => {
+    const maskiner = k.linjer.flatMap((l): KortLinje[] =>
+      l.type === "maskin" ? [l] : l.type === "timer" ? l.maskiner.map((rad) => ({ type: "maskin", rad })) : [],
+    );
+    const varer = k.linjer.flatMap((l): KortLinje[] =>
+      l.type === "vare" ? [l] : l.type === "timer" ? l.varer.map((rad) => ({ type: "vare", rad })) : [],
+    );
+    const reise = k.linjer.filter((l) => l.type === "reise");
+    const tilleggUtlegg = k.linjer.filter((l) => l.type === "tillegg" || l.type === "utlegg");
+    const blokk = (linjer: KortLinje[], lenkeTekst: string | null, onLenke: () => void) => (
+      <>
+        {linjer.length > 0 && renderLinjer(linjer, jobb)}
+        {lenkeTekst && (
+          <button type="button" onClick={onLenke} className={`text-sm ${lenke}`}>
+            {lenkeTekst}
+          </button>
+        )}
+      </>
+    );
+    const visVare = visVareforbrukKnapp({
+      prosjektIderMedVarelager: varelagerProsjekter,
+      projectId: jobb.projectId,
+      erRedigerbar,
+    });
+    return [
+      { nr: 4, etikett: t("timer.jobbSkjema.maskiner"), innhold: blokk(maskiner, t("timer.prosjektkort.nyMaskin"), () => onNyMaskin(jobb)) },
+      {
+        nr: 5,
+        etikett: t("timer.jobbSkjema.varer"),
+        innhold: (
+          <>
+            {blokk(varer, visVare ? t("timer.prosjektkort.nyVareKort") : null, () => onNyVare(jobb))}
+            {varelagerLenkeFirmaId && <VarelagerLenke firmaId={varelagerLenkeFirmaId} className={lenke} />}
+          </>
+        ),
+      },
+      {
+        nr: 6,
+        etikett: t("timer.jobbSkjema.reise"),
+        innhold: (
+          <>
+            {blokk(reise, reiseLonnsart ? t("timer.prosjektkort.nyReise") : null, () =>
+              reiseLonnsart ? onNyReise(jobb, reiseLonnsart) : undefined,
+            )}
+            {visReiseHint && (
+              <p className="mt-1 text-xs text-gray-500">
+                {visReiseHint === "ingen"
+                  ? t("timer.prosjektkort.reiseSkjultIngen")
+                  : t("timer.prosjektkort.reiseSkjultFlere")}{" "}
+                <Link href="/dashbord/firma/innstillinger#reise-regelsett" className={lenke}>
+                  {t("timer.prosjektkort.reiseVelgLonnsart")}
+                </Link>
+              </p>
+            )}
+          </>
+        ),
+      },
+      { nr: 7, etikett: t("timer.jobbSkjema.tilleggUtlegg"), innhold: blokk(tilleggUtlegg, t("timer.prosjektkort.leggTil"), () => onLeggTil(jobb)) },
+    ];
   };
 
   return (
@@ -2055,6 +2321,7 @@ function ProsjektkortSamleside({
           // reise har dem ikke før det får en. § 8.22: reise til annet kontor har ingen
           // særregel — alle kort får «+ Timer».
           const harArbeid = k.linjer.some((l) => l.type === "timer");
+          const skjema = skjemaFor(k);
           return (
             <JobbKortRamme
               key={jobb.kortId}
@@ -2071,8 +2338,19 @@ function ProsjektkortSamleside({
               onVelg={() => onVelgKort(aapen ? null : jobb.kortId)}
               manglerBeskrivelse={manglerJobber.includes(jobb.kortId)}
             >
-              {renderLinjer(k.linjer, jobb)}
-              {erRedigerbar && (
+              {skjema ? (
+                <>
+                  <JobbSkjema {...skjema} rader47={rader47For(k, jobb)} />
+                  <div className="mt-3 text-sm">
+                    <button type="button" onClick={() => onNyTimer(jobb)} className={lenke}>
+                      {t("timer.prosjektkort.nyTimer")}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                renderLinjer(k.linjer, jobb)
+              )}
+              {erRedigerbar && !skjema && (
                 <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm">
                   <button type="button" onClick={() => onNyTimer(jobb)} className={lenke}>
                     {t("timer.prosjektkort.nyTimer")}
@@ -2105,10 +2383,10 @@ function ProsjektkortSamleside({
                   </button>
                 </div>
               )}
-              {erRedigerbar && varelagerLenkeFirmaId && (
+              {erRedigerbar && !skjema && varelagerLenkeFirmaId && (
                 <VarelagerLenke firmaId={varelagerLenkeFirmaId} className={lenke} />
               )}
-              {erRedigerbar && visReiseHint && (
+              {erRedigerbar && !skjema && visReiseHint && (
                 <p className="mt-1 text-xs text-gray-500">
                   {visReiseHint === "ingen"
                     ? t("timer.prosjektkort.reiseSkjultIngen")
@@ -2147,6 +2425,33 @@ function ProsjektkortSamleside({
             </JobbKortRamme>
           );
         })}
+
+        {utkastSkjema && (
+          <JobbKortRamme
+            key={utkastSkjema.kortId}
+            tittel={kortNavn(utkastSkjema.projectId)}
+            projectId={utkastSkjema.projectId}
+            ecoId={null}
+            timer={[]}
+            maskin={[]}
+            varer={[]}
+            sedelByggeplassId={sedelByggeplassId}
+            byggeplassNavn={byggeplassNavn}
+            byggeplasser={byggeplasser}
+            aapen={aapentKort === utkastSkjema.kortId}
+            onVelg={() => onVelgKort(aapentKort === utkastSkjema.kortId ? null : utkastSkjema.kortId)}
+          >
+            <JobbSkjema
+              {...utkastSkjema}
+              rader47={[
+                { nr: 4, etikett: t("timer.jobbSkjema.maskiner"), innhold: null },
+                { nr: 5, etikett: t("timer.jobbSkjema.varer"), innhold: null },
+                { nr: 6, etikett: t("timer.jobbSkjema.reise"), innhold: null },
+                { nr: 7, etikett: t("timer.jobbSkjema.tilleggUtlegg"), innhold: null },
+              ]}
+            />
+          </JobbKortRamme>
+        )}
 
         {utenJobbLinjer.length > 0 && (
           <JobbKortRamme
@@ -2234,16 +2539,18 @@ function ProsjektkortSamleside({
               </Button>
             )}
             <KnappMedForklaring
-              sperret={(timerRader.length === 0 || manglerJobber.length > 0) && !sender}
+              sperret={(timerRader.length === 0 || manglerJobber.length > 0 || harUlagret) && !sender}
               forklaring={
                 timerRader.length === 0
                   ? t("sperret.minstEnRad")
-                  : t("timer.prosjektkort.sendSperretBeskrivelse")
+                  : harUlagret
+                    ? t("timer.jobbSkjema.ulagretSperre")
+                    : t("timer.prosjektkort.sendSperretBeskrivelse")
               }
             >
               <Button
                 onClick={sendDagen}
-                disabled={sender || timerRader.length === 0}
+                disabled={sender || timerRader.length === 0 || harUlagret}
                 className={manglerJobber.length > 0 ? "opacity-50" : undefined}
               >
                 <Send className="mr-1 h-4 w-4" />

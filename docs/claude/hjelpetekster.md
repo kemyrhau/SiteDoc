@@ -153,6 +153,7 @@ ser det før du trykker Bekreft. Forkast sletter det.»
 
 - **Registrer** (`timer.mine.hjelp.registrer`): «+ Registrer timer» fører en jobb på prosjektet i toppen; første gang på en dato lages dagen med firmaets arbeidstid og byggeplassen i toppen; uten prosjekt i toppen velges prosjekt først.
 - **Dagen** (`timer.mine.hjelp.dagen`): neste jobb legges på samme dag med Fra der forrige jobb sluttet; sendt dag gjenåpnes først; attestert → lederen må returnere; «Send dagen» sender alle jobbene samlet.
+- **Skjemaet** (`timer.mine.hjelp.skjema`, 🟡 L3a `feat/web-timer-l3-jobbskjema`): jobben føres rett i prosjektkortet (Fra, Til, pause, lønnsart, «Hva gjorde du?»); feltet lagres når det forlates («✓ Lagret»); overtid over dagsnormen får egen linje; gule felt er forslag fra firmaets arbeidstid eller forrige jobb; ny jobb lagres når Til er fylt; rødt «Ikke lagret» sperrer sending.
 - **Dato** (`timer.mine.hjelp.dato`): dd.mm., med år når lista spenner over flere år.
 
 Knappetekster: «Registrer timer» (`timer.registrerTimer`, også tittelen på prosjektvelgeren når dagen åpnes uten prosjekt) og nederst på dagen «+ Registrer timer» · «neste jobb, samme eller annet prosjekt» (`timer.prosjektkort.registrerTimer`, `…registrerTimerHint`). Dagskort-modus viser «Ny dagsseddel» som før.
