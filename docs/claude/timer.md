@@ -682,7 +682,7 @@ Kenneth-hjemmel. Tre delte regler i `packages/shared/src/utils/reiseSkille.ts` (
 
 **Send dagen:** web og mobil (`prosjektkortMobil.ts` `sendKnappTekst` → `sendDagenTekst`; `ProsjektkortDagsoversikt`, `ProsjektkortSamleside`) viser arbeid uten reise, reise separat.
 
-> ⚠️ **Sumlinja endres (Kenneth 2026-11-21, `web-timeforing-plan.md` § 8.21 og § 8.22):** bunnlinja skal vise to tall — arbeid mot normen («8,0 av 7,5») og sum i dag = arbeid + reise. Maskintimer vises, men legges ikke til. Det snur «teller ikke reise mot normen» fra 2026-11-14 for summen; regelen om at reise ikke er overtid, står. 🟡 Bestilt som sumlinja hos web-timer-w5, ikke bygget. Avsnittene «Arbeid og reise hver for seg» og «Send dagen» over beskriver koden til leveransen er merget.
+**Sumlinja på web-samlesiden (Kenneth 2026-11-21, `web-timeforing-plan.md` § 8.21 og § 8.22; 🟡 `feat/web-timer-sumlinje`):** bunnlinja viser arbeid mot normen («Arbeid 8,0 t av 7,5 t») og sum i dag = arbeid + reise (`sumlinjeDag`, `packages/shared/src/utils/prosjektkort.ts`). Maskintimer vises, men legges ikke til. Trafikklyset regnes fortsatt uten reise — reise er ikke overtid (`sumlinjeMotNorm`). Detaljer og eksempler: § Prosjektkort L1, punktet «Tall». Gruppelinjene («Arbeid og reise hver for seg») og «Send dagen» over er uendret: arbeid uten reise, reise separat.
 
 ### Prosjektkort L1 — visningsmodus for web-sedelen — 🟡 `feat/prosjektkort-l1` (2026-11-05, ikke merget)
 
