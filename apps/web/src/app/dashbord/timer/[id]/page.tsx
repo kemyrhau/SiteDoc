@@ -79,6 +79,8 @@ import {
   type ErReiseKontekst,
   type OvertidForslag,
   finnOverlappVarsel,
+  jobberSomManglerBeskrivelse,
+  radGirJobbBeskrivelse,
 } from "@sitedoc/shared";
 import { rundTilNarmeste } from "@/lib/tidsrunding";
 import { ReiseKort } from "./ReiseKort";
@@ -2018,6 +2020,20 @@ function ProsjektkortSamleside({
   );
   const lenke = "font-medium text-sitedoc-primary hover:underline";
   const antallKort = jobbKort.length + tommeProsjektKort.length;
+  // Plan § 8.22 L2 «ikke ferdig»: jobber uten «Hva gjorde du?» merkes, og «Send dagen» åpner
+  // den første i stedet for å sende. Samlesiden vises bare i prosjektkort-modus.
+  const manglerJobber = erRedigerbar ? jobberSomManglerBeskrivelse(timerRader) : [];
+  const [sendSperret, setSendSperret] = useState(false);
+  const sendDagen = () => {
+    const forste = manglerJobber[0];
+    if (forste === undefined) {
+      setSendSperret(false);
+      onSend();
+      return;
+    }
+    setSendSperret(true);
+    onVelgKort(forste.startsWith("rad:") ? UTEN_JOBB : forste);
+  };
 
   return (
     <section className="mb-6">
@@ -2053,6 +2069,7 @@ function ProsjektkortSamleside({
               byggeplasser={byggeplasser}
               aapen={aapen}
               onVelg={() => onVelgKort(aapen ? null : jobb.kortId)}
+              manglerBeskrivelse={manglerJobber.includes(jobb.kortId)}
             >
               {renderLinjer(k.linjer, jobb)}
               {erRedigerbar && (
@@ -2147,6 +2164,9 @@ function ProsjektkortSamleside({
             byggeplasser={byggeplasser}
             aapen={aapentKort === UTEN_JOBB}
             onVelg={() => onVelgKort(aapentKort === UTEN_JOBB ? null : UTEN_JOBB)}
+            manglerBeskrivelse={utenJobbLinjer.some(
+              (l) => l.type === "timer" && manglerJobber.includes(`rad:${l.rad.id}`),
+            )}
             stiplet
           >
             {renderLinjer(utenJobbLinjer, undefined)}
@@ -2214,10 +2234,18 @@ function ProsjektkortSamleside({
               </Button>
             )}
             <KnappMedForklaring
-              sperret={timerRader.length === 0 && !sender}
-              forklaring={t("sperret.minstEnRad")}
+              sperret={(timerRader.length === 0 || manglerJobber.length > 0) && !sender}
+              forklaring={
+                timerRader.length === 0
+                  ? t("sperret.minstEnRad")
+                  : t("timer.prosjektkort.sendSperretBeskrivelse")
+              }
             >
-              <Button onClick={onSend} disabled={sender || timerRader.length === 0}>
+              <Button
+                onClick={sendDagen}
+                disabled={sender || timerRader.length === 0}
+                className={manglerJobber.length > 0 ? "opacity-50" : undefined}
+              >
                 <Send className="mr-1 h-4 w-4" />
                 {/* Returnert sedel: samme tekst som dagskortets «Send på nytt». */}
                 {(() => {
@@ -2238,6 +2266,11 @@ function ProsjektkortSamleside({
               </Button>
             </KnappMedForklaring>
           </div>
+          {sendSperret && manglerJobber.length > 0 && (
+            <p className="w-full text-sm text-red-600" role="alert">
+              {t("timer.prosjektkort.sendSperretBeskrivelse")}
+            </p>
+          )}
         </div>
       )}
     </section>
@@ -2262,6 +2295,7 @@ function JobbKortRamme({
   aapen,
   onVelg,
   stiplet,
+  manglerBeskrivelse,
   children,
 }: {
   tittel: string;
@@ -2278,6 +2312,8 @@ function JobbKortRamme({
   aapen: boolean;
   onVelg: () => void;
   stiplet?: boolean;
+  /** Plan § 8.22 L2: jobben mangler «Hva gjorde du?» — merket står også når kortet er lukket. */
+  manglerBeskrivelse?: boolean;
   children: React.ReactNode;
 }) {
   const { t } = useTranslation();
@@ -2365,6 +2401,14 @@ function JobbKortRamme({
             {status === "attestert" && (
               <span className="rounded bg-green-100 px-1.5 py-0.5 text-[10px] font-semibold text-green-700">
                 {t("timer.prosjektkort.status.attestert")}
+              </span>
+            )}
+            {manglerBeskrivelse && (
+              <span
+                data-testid="mangler-beskrivelse"
+                className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-700"
+              >
+                {t("timer.dagsoversikt.manglerBeskrivelse")}
               </span>
             )}
           </div>
@@ -3735,6 +3779,22 @@ function TimerRadDialog({
   const valgtLonnsartNavn = lonnsarter?.find((l) => l.id === lonnsartId)?.navn ?? "";
   const erReiseValgt =
     !!kortModus && !!lonnsartId && erReiseLonnsart(lonnsartId, valgtLonnsartNavn, reiseKontekst);
+  // Plan § 8.22 L2: i prosjektkort-modus er «Hva gjorde du?» påkrevd på arbeid — ett kort = én
+  // beskrivelse, så feltet kan stå tomt når en annen arbeidsrad i samme jobb alt har den (overtid).
+  // Reise og dagskort-modus: valgfritt som før.
+  const jobbensKortId = rad?.kortId ?? kortId ?? jobb?.kortId ?? null;
+  const annenRadHarBeskrivelse =
+    jobbensKortId != null &&
+    alleTimerRader.some(
+      (r) =>
+        r.id !== rad?.id &&
+        r.kortId === jobbensKortId &&
+        // Samme filter som sperren: ikke reise, ikke `erstattet`, ikke uten prosjekt.
+        radGirJobbBeskrivelse(r),
+    );
+  const beskrivelsePakrevd =
+    !!kortModus && !erReiseValgt && rad?.erReise !== true && !annenRadHarBeskrivelse;
+  const beskrivelseMangler = beskrivelsePakrevd && beskrivelse.trim() === "";
   const reiseHavner = erReiseValgt
     ? reiseHavnerI({
         rader: alleTimerRader
@@ -4828,20 +4888,29 @@ function TimerRadDialog({
             </div>
           </div>
         )}
-        {/* T.12: fritekst per rad — «hva gjorde du?» (valgfritt). Speiler mobil. */}
+        {/* T.12: fritekst per rad — «hva gjorde du?». Speiler mobil. Plan § 8.22 L2: påkrevd på
+            arbeid i prosjektkort-modus (rød markør), ellers valgfritt. */}
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700">
             {t("timer.felt.radBeskrivelse")}{" "}
-            <span className="text-xs text-gray-400">
-              ({t("label.valgfritt")})
-            </span>
+            {beskrivelsePakrevd ? (
+              <span className="text-red-500">*</span>
+            ) : (
+              <span className="text-xs text-gray-400">
+                ({t("label.valgfritt")})
+              </span>
+            )}
           </label>
           <textarea
             value={beskrivelse}
             onChange={(e) => setBeskrivelse(e.target.value)}
             placeholder={t("timer.radBeskrivelsePlaceholder")}
             rows={3}
-            className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+            required={beskrivelsePakrevd}
+            aria-invalid={beskrivelseMangler || undefined}
+            className={`w-full rounded border px-3 py-2 text-sm ${
+              beskrivelseMangler ? "border-red-400" : "border-gray-300"
+            }`}
           />
         </div>
         {/* P1 (maskin-i-rad): valgfri kollapsbar maskin-seksjon — kun ved NY rad.
@@ -5065,9 +5134,13 @@ function TimerRadDialog({
           </Button>
           <KnappMedForklaring
             sperret={
-              (!lonnsartId || !aktivitetId || !timer || !fraTid || !tilTid) && !lagrer
+              (!lonnsartId || !aktivitetId || !timer || !fraTid || !tilTid || beskrivelseMangler) && !lagrer
             }
-            forklaring={t("sperret.timerRad")}
+            forklaring={
+              !lonnsartId || !aktivitetId || !timer || !fraTid || !tilTid
+                ? t("sperret.timerRad")
+                : t("sperret.beskrivelse")
+            }
           >
             <Button
               type="submit"
@@ -5082,7 +5155,9 @@ function TimerRadDialog({
                 // w9 (2c): maskinen over jobbens «høyst».
                 (!kortModus && maskinOverHoyst) ||
                 // w3b: en av jobbens maskiner eller den nye over «høyst».
-                kortOverHoyst
+                kortOverHoyst ||
+                // Plan § 8.22 L2: «Hva gjorde du?» påkrevd i prosjektkort-modus.
+                beskrivelseMangler
               }
             >
               {lagrer ? t("handling.lagrer") : t("handling.lagre")}

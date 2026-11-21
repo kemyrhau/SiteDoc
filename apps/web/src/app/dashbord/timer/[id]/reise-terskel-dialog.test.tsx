@@ -162,7 +162,7 @@ function rendre({
           tilTid: "11:00",
           timer: "4",
           pauseMin: 0,
-          beskrivelse: null,
+          beskrivelse: "Graving", // § 8.22 L2: jobben er ferdig — «Send dagen» har ingen sperre-tooltip.
           attestertStatus: "pending",
           erReise: false,
           kortId: "k1",

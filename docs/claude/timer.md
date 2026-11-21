@@ -925,6 +925,18 @@ Spec: `web-timeforing-plan.md` § 4.15 del G og § 8.18; LØSNING GODKJENT i `re
 - **Tester:** `apps/web/src/app/dashbord/timer/[id]/registrer-flyt.test.tsx` (3, alle røde før endringen) og `lib/__tests__/registrerTimer.test.ts` § `loesAapentKort`/`adresseEtterRegistrering`. `dagskort-vakt.test.tsx` + snapshot urørt.
 - **Skjermbilder (1 440 px, lokal seed):** `skisser-web-timeforing/w15a-kort-aapent.png` (Timer → «+ Registrer timer» på ny dag 23.11.: jobbens kort åpent, ingen vindu, adressen bare `?retur`), `w15a-omlasting.png` (etter omlasting: samme, ingen vindu).
 
+### «Ikke ferdig»: jobb uten «Hva gjorde du?» (plan § 8.22 L2) — 🟡 `feat/web-timer-l2-ikke-ferdig`, venter gate
+
+Gjelder prosjektkort-modus (Kenneth 2026-11-21 «Ja, alle fire»). Dagskort-modus er urørt.
+- **Regelen** (`packages/shared/src/utils/prosjektkort.ts`): `jobbManglerBeskrivelse(rader)` er sann når jobben har arbeidsrader og ingen av dem har tekst etter trim. Ett kort = én beskrivelse, som mobilens `manglerBeskrivelse` (ORDRE 24), så overtidsraden uten tekst gjør ikke jobben uferdig. Reise, erstattede rader og fravær uten prosjekt teller ikke. `jobberSomManglerBeskrivelse(rader)` gir jobbene i radenes rekkefølge, nøkkel kort-id, `rad:<id>` for rader uten kort-id. Test: `prosjektkort-beskrivelse.test.ts`.
+- **Kortet** (`dashbord/timer/[id]/page.tsx`, `JobbKortRamme`): merket «Mangler beskrivelse» (`timer.dagsoversikt.manglerBeskrivelse`, gjenbrukt fra mobil) står i hodet også når kortet er lukket, bare på redigerbar dag. Samlekortet «Ført uten jobb» får merket når en av radene mangler.
+- **«Send dagen»** (`ProsjektkortSamleside`): når en jobb mangler, sender knappen ikke. Den åpner første jobb som mangler og viser «Skriv «Hva gjorde du?» på jobbene merket «Mangler beskrivelse» før du sender dagen.» (`timer.prosjektkort.sendSperretBeskrivelse`), også som forklaring på knappen.
+- **Timerad-vinduet** (`TimerRadDialog`): «Hva gjorde du?» har rød stjerne og er påkrevd på arbeid i prosjektkort-modus. Lagre er sperret med «Skriv hva du gjorde først» (`sperret.beskrivelse`). Feltet er valgfritt på reise, i dagskort-modus og når en annen arbeidsrad i samme jobb alt har tekst. Den raden vurderes med `radGirJobbBeskrivelse`, samme filter som sperren: en erstattet rad eller en rad uten prosjekt teller ikke.
+- **Serveren** (`routes/timer/dagsseddel.ts` `send`): avviser med `BAD_REQUEST` når sedelens firma har `timerRegistreringsmodus = "prosjektkort"` og en jobb mangler beskrivelse. Mobil sender dagen via `syncBatch` (status `sent` settes lokalt i `useProsjektkortSedel.ts:653` og `app/timer/[id].tsx:784`) og har sin egen sperre i «Bekreft dag»; den berøres ikke.
+- **En jobb arbeideren går fra** står lagret som utkast med merket. Ingenting slettes; dagen sendes når jobben er fylt ut eller slettet med søppelkassen.
+- **Hjelpetekst:** Mine timer ?-fanen, avsnitt `timer.mine.hjelp.ferdig`.
+- Tester: `apps/web/src/__tests__/web-timer-l2-ikke-ferdig.test.tsx`, `apps/api/src/routes/timer/send-mangler-beskrivelse.integration.test.ts`. Skjermbilder: `skisser-web-timeforing/l2-*.png`.
+
 ### Reisevinduet: når, hvor og klokkeslett (w15b, B42 A, B43 B) — ✅ merget til develop (`cee0c03e`)
 
 Spec: `web-timeforing-plan.md` § 4.15 del B, rad w15b i del G og del H, bildet `skisser-web-timeforing/v15-reisevindu.png`; LØSNING GODKJENT i `relay/inbox-web-timer-w5.md` (2026-11-21). Bare web-`ReiseKort` (prosjektkort-modus) og den delte `løsReiseKort`; mobilen, attesteringen, serveren og kortregelen (`reiseKort.ts`) er urørt.
