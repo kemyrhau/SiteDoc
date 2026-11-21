@@ -220,6 +220,7 @@ export function ReiseKort({
             retning: resultat.spor.reiseRetning,
             fraTid: resultat.fraTid,
             erReise: resultat.spor.erReise,
+            reiseKilde: resultat.spor.reiseKilde,
           },
         })
       : null;

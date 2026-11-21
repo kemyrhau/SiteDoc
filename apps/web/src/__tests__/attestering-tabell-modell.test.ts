@@ -520,4 +520,31 @@ describe("w12 — reisen i jobbens kort (plan § 4.11 del C; H.7 og H.8)", () =>
     expect(kR.underprosjekt).toBe("900 · UP 900 · Til byggherre");
     expect(d.kort.find((k) => k.nokkel === "s1:kA")!.reise).toBe(false);
   });
+
+  it("w15c F31: reisekort med et utlegg står fortsatt som «Reise», ikke som en jobb uten timer", () => {
+    const s = sedel({
+      timer: [jobb(), timer("r9", "kR", B, { erReise: true, externalCostObjectId: null, underprosjekt: null })],
+      maskiner: [],
+      varer: [],
+      ukeAvvikRadIder: [],
+      utlegg: [{ id: "u9", belop: 80, expenseCategory: { navn: "Bom" }, kortId: "kR", projectId: "pB", project: B }],
+    });
+    const d = byggAttesteringModell([s], deps)[0]!;
+    const kR = d.kort.find((k) => k.nokkel === "s1:kR")!;
+    expect(kR.linjer.map((l) => l.linje.id).sort()).toEqual(["r9", "u9"]);
+    expect(kR.reise).toBe(true);
+    expect(d.kort.find((k) => k.nokkel === "s1:kA")!.reise).toBe(false);
+  });
+
+  it("w15c F31: kort med bare tillegg eller utlegg er ikke reise", () => {
+    const s = sedel({
+      timer: [jobb()],
+      maskiner: [],
+      varer: [],
+      ukeAvvikRadIder: [],
+      utlegg: [{ id: "u9", belop: 80, expenseCategory: { navn: "Bom" }, kortId: "kU", projectId: "pB", project: B }],
+    });
+    const kU = byggAttesteringModell([s], deps)[0]!.kort.find((k) => k.nokkel === "s1:kU")!;
+    expect(kU.reise).toBe(false);
+  });
 });

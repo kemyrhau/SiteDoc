@@ -489,7 +489,11 @@ function byggDag(s: AttSedel, deps: AttDeps): AttDag {
   const leggTilKort = (nokkel: string, linjer: AttLinje[]) => {
     if (linjer.length === 0) return;
     const forste = linjer[0]!.linje;
-    const reise = linjer.every(erReiselinje);
+    // F31 (w15c): et kort er reise når det har reise og ikke arbeid (timer eller maskin) —
+    // tillegg og utlegg i reisekortet gjør det ikke til en jobb uten timer.
+    const reise =
+      linjer.some(erReiselinje) &&
+      !linjer.some((l) => (l.kilde.type === "timer" && l.kilde.rad.erReise !== true) || l.kilde.type === "maskin");
     // C1 (B34 B): reise uten underprosjekt i en jobb med underprosjekt står som «Uten».
     if (!reise && forste.underprosjekt) {
       for (const l of linjer) if (erReiselinje(l) && !l.linje.underprosjekt) l.linje = { ...l.linje, underprosjekt: deps.tekst.utenUnderprosjekt };

@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { jobberFraArbeidsrader, jobbRekkefolge, velgReiseKort, type ReiseKortJobb, type ReiseKortReise } from "./reiseKort";
+import { utledKortId, utledReiseKortId } from "./kortId";
+import {
+  egetReiseKort,
+  jobberFraArbeidsrader,
+  jobbRekkefolge,
+  OVERFORING_KORT_BYGGEPLASS,
+  velgReiseKort,
+  type ReiseKortJobb,
+  type ReiseKortReise,
+} from "./reiseKort";
 
-// web-timeforing-plan.md § 4.11 del A punkt 3 og del H punkt 4.
+// web-timeforing-plan.md § 4.11 del A punkt 3 og del H punkt 4; w15c: § 4.15 del E og del H 1, 7, 9.
 const jobb = (o: Partial<ReiseKortJobb> & { kortId: string }): ReiseKortJobb => ({
   projectId: "B12",
   ecoId: null,
@@ -33,8 +42,8 @@ describe("velgReiseKort — eksempelet i del A punkt 3 (B12, to jobber)", () => 
   it("retur på END-002 → jobben 12–16", () => {
     expect(velgReiseKort(reise({ retning: "retur", ecoId: "END-002" }), jobber)).toBe("J12");
   });
-  it("utreise på TILL-001 (ingen jobb der) → jobben 07–12", () => {
-    expect(velgReiseKort(reise({ retning: "ut", ecoId: "TILL-001" }), jobber)).toBe("J07");
+  it("utreise på TILL-001 (ingen jobb der) → null (eget kort, B44 — var jobben 07–12 før w15c)", () => {
+    expect(velgReiseKort(reise({ retning: "ut", ecoId: "TILL-001" }), jobber)).toBeNull();
   });
   it("utreise på prosjekt 1050 (ingen jobb der) → null (eget kort)", () => {
     expect(velgReiseKort(reise({ projectId: "1050" }), jobber)).toBeNull();
@@ -87,39 +96,138 @@ describe("velgReiseKort — retning og rekkefølge", () => {
   });
 });
 
-describe("velgReiseKort — underprosjekt og byggeplass (B34 B)", () => {
-  it("lik underprosjekt går foran byggeplass", () => {
-    const likBp = jobb({ kortId: "BP", ecoId: null, byggeplassId: "x", forsteTid: "07:00" });
-    const likEco = jobb({ kortId: "ECO", ecoId: "e1", byggeplassId: "y", forsteTid: "12:00" });
-    expect(velgReiseKort(reise({ ecoId: "e1", byggeplassId: "x" }), [likBp, likEco])).toBe("ECO");
+describe("velgReiseKort — byggeplassen er et krav (w15c, B43 B; del E punkt 3)", () => {
+  it("reise til en byggeplass uten jobb → null (eget kort)", () => {
+    const a = jobb({ kortId: "A", byggeplassId: "y", forsteTid: "07:00" });
+    const b = jobb({ kortId: "B", byggeplassId: "z", forsteTid: "12:00" });
+    expect(velgReiseKort(reise({ retning: "retur", byggeplassId: "x" }), [a, b])).toBeNull();
   });
   it("lik byggeplass går foran retningen", () => {
     const annen = jobb({ kortId: "ANNEN", byggeplassId: "y", forsteTid: "07:00" });
     const sammeSted = jobb({ kortId: "SAMME", byggeplassId: "x", forsteTid: "12:00" });
     expect(velgReiseKort(reise({ retning: "ut", byggeplassId: "x" }), [annen, sammeSted])).toBe("SAMME");
   });
-  it("ingen jobb med lik byggeplass → kandidatene fra underprosjekt-steget står", () => {
-    const a = jobb({ kortId: "A", byggeplassId: "y", forsteTid: "07:00" });
-    const b = jobb({ kortId: "B", byggeplassId: "z", forsteTid: "12:00" });
-    expect(velgReiseKort(reise({ retning: "retur", byggeplassId: "x" }), [a, b])).toBe("B");
+  it("byggeplassen går foran underprosjektet: lik underprosjekt på en annen byggeplass er ingen kandidat", () => {
+    const likBp = jobb({ kortId: "BP", ecoId: null, byggeplassId: "x", forsteTid: "07:00" });
+    const likEco = jobb({ kortId: "ECO", ecoId: "e1", byggeplassId: "y", forsteTid: "12:00" });
+    expect(velgReiseKort(reise({ ecoId: "e1", byggeplassId: "x" }), [likBp, likEco])).toBeNull();
+    expect(velgReiseKort(reise({ ecoId: null, byggeplassId: "x" }), [likBp, likEco])).toBe("BP");
   });
-  it("reise uten byggeplass (annet kontor) hopper over byggeplass-steget", () => {
-    const utenBp = jobb({ kortId: "UTEN", byggeplassId: null, forsteTid: "12:00" });
-    const medBp = jobb({ kortId: "MED", byggeplassId: "x", forsteTid: "07:00" });
-    // Med byggeplass-steget ville null === null valgt UTEN; uten steget står begge, og utreisen tar første.
-    expect(velgReiseKort(reise({ retning: "ut", byggeplassId: null }), [utenBp, medBp])).toBe("MED");
+  it("prosjekt uten byggeplasser (effektiv byggeplass null på begge) → jobben", () => {
+    const j = jobb({ kortId: "J", byggeplassId: null, forsteTid: "07:00" });
+    expect(velgReiseKort(reise({ byggeplassId: null, retning: "ut" }), [j])).toBe("J");
   });
-  it("«flytt hele jobben» til annet underprosjekt: plassen regnes på nytt mot de nye jobbene", () => {
+  it("uten byggeplass er en egen verdi: reise uten effektiv byggeplass står ikke i jobb med byggeplass", () => {
+    const j = jobb({ kortId: "J", byggeplassId: "x", forsteTid: "07:00" });
+    expect(velgReiseKort(reise({ byggeplassId: null, retning: "ut" }), [j])).toBeNull();
+  });
+});
+
+describe("velgReiseKort — underprosjektet (w15c, B44 og B48 A; del E punkt 4, del H 9)", () => {
+  it("reise med underprosjekt som ingen jobb på byggeplassen har → null", () => {
+    const j = jobb({ kortId: "J", ecoId: "e2", forsteTid: "07:00" });
+    const u = jobb({ kortId: "U", ecoId: null, forsteTid: "12:00" });
+    expect(velgReiseKort(reise({ ecoId: "e1" }), [j, u])).toBeNull();
+  });
+  it("reise med underprosjekt → bare jobben med det samme", () => {
+    const j = jobb({ kortId: "J", ecoId: "e1", forsteTid: "12:00" });
+    const u = jobb({ kortId: "U", ecoId: null, forsteTid: "07:00" });
+    expect(velgReiseKort(reise({ ecoId: "e1", retning: "ut" }), [j, u])).toBe("J");
+  });
+  it("reise uten underprosjekt: jobben «Uten» går foran", () => {
+    const j = jobb({ kortId: "J", ecoId: "e1", forsteTid: "07:00" });
+    const u = jobb({ kortId: "U", ecoId: null, forsteTid: "12:00" });
+    expect(velgReiseKort(reise({ ecoId: null, retning: "ut" }), [j, u])).toBe("U");
+  });
+  it("reise uten underprosjekt står i jobben på byggeplassen, også når jobben har underprosjekt (B48 A)", () => {
+    const j1 = jobb({ kortId: "J1", ecoId: "e1", forsteTid: "07:00" });
+    const j2 = jobb({ kortId: "J2", ecoId: "e2", forsteTid: "12:00" });
+    expect(velgReiseKort(reise({ ecoId: null, retning: "ut" }), [j1, j2])).toBe("J1");
+    expect(velgReiseKort(reise({ ecoId: null, retning: "retur" }), [j1, j2])).toBe("J2");
+  });
+  it("«flytt hele jobben» til annet underprosjekt: reisen på det gamle får eget kort", () => {
     const foer = [jobb({ kortId: "J1", ecoId: "e1", forsteTid: "07:00" }), jobb({ kortId: "J2", ecoId: null, forsteTid: "12:00" })];
     expect(velgReiseKort(reise({ ecoId: "e1", retning: "retur" }), foer)).toBe("J1");
     const etter = [jobb({ kortId: "J1", ecoId: "e2", forsteTid: "07:00" }), foer[1]!];
-    expect(velgReiseKort(reise({ ecoId: "e1", retning: "retur" }), etter)).toBe("J2");
+    expect(velgReiseKort(reise({ ecoId: "e1", retning: "retur" }), etter)).toBeNull();
   });
   it("regelen endrer aldri reiseraden (bare leser den)", () => {
     const r = Object.freeze(reise({ ecoId: "e1", byggeplassId: "x" }));
     const jobber = Object.freeze([Object.freeze(jobb({ kortId: "A", forsteTid: "07:00" }))]);
     expect(() => velgReiseKort(r, jobber)).not.toThrow();
     expect(r).toEqual(reise({ ecoId: "e1", byggeplassId: "x" }));
+  });
+});
+
+describe("velgReiseKort — reise til annet kontor (w15c, del E punkt 6, del H 7)", () => {
+  // Kontorreisen bærer ingen egen byggeplass; jobbene står på Storgata.
+  const morgen = jobb({ kortId: "J07", forsteTid: "07:00", eldste: 1 });
+  const ettermiddag = jobb({ kortId: "J12", forsteTid: "12:00", eldste: 2, byggeplassId: "annen" });
+  const kontor = (o: Partial<ReiseKortReise>) => reise({ byggeplassId: null, overforing: true, ...o });
+
+  it("før dagens første arbeid på prosjektet → første jobb (jobben man kjører til)", () => {
+    expect(velgReiseKort(kontor({ retning: "ut", fraTid: "06:00" }), [ettermiddag, morgen])).toBe("J07");
+  });
+  it("etter at arbeidet er begynt → null (eget kort)", () => {
+    expect(velgReiseKort(kontor({ retning: "ut", fraTid: "12:00" }), [ettermiddag, morgen])).toBeNull();
+    expect(velgReiseKort(kontor({ retning: "ut", fraTid: "07:00" }), [morgen])).toBeNull();
+  });
+  it("retur fra annet kontor → jobben man drar fra (siste, B44)", () => {
+    expect(velgReiseKort(kontor({ retning: "retur", fraTid: "16:00" }), [ettermiddag, morgen])).toBe("J12");
+  });
+  it("hopper over byggeplass-steget, men underprosjektet følger punkt 4", () => {
+    const e = jobb({ kortId: "E", ecoId: "e1", forsteTid: "08:00", byggeplassId: "x" });
+    expect(velgReiseKort(kontor({ retning: "ut", fraTid: "06:00", ecoId: "e1" }), [morgen, e])).toBe("E");
+    expect(velgReiseKort(kontor({ retning: "ut", fraTid: "06:00", ecoId: "e9" }), [morgen, e])).toBeNull();
+  });
+  it("uten klokkeslett på reisen → som før arbeid", () => {
+    expect(velgReiseKort(kontor({ retning: "ut", fraTid: null }), [morgen])).toBe("J07");
+  });
+  it("vanlig reise uten byggeplass er ingen kontorreise: den følger byggeplassen (null ≠ Storgata)", () => {
+    expect(velgReiseKort(reise({ byggeplassId: null, retning: "ut", fraTid: "06:00" }), [morgen])).toBeNull();
+  });
+});
+
+describe("velgReiseKort — dagen på bilde 8 (w15c, del G)", () => {
+  // B12: jobben «sommerfeldtsgt 65 · uten» 07–12; reisen 12–15 til Narvik, timerad uten retning.
+  const jobben = jobb({ kortId: "SOMMERFELDT", byggeplassId: "sommerfeldtsgt65", forsteTid: "07:00" });
+  it("reisen til Narvik står ikke i jobben, den får eget kort", () => {
+    expect(velgReiseKort(reise({ byggeplassId: "narvik", retning: null, fraTid: "12:00" }), [jobben])).toBeNull();
+  });
+  it("som overføring til Kontor Narvik etter arbeid: også eget kort", () => {
+    expect(velgReiseKort(reise({ byggeplassId: null, overforing: true, retning: "ut", fraTid: "12:00" }), [jobben])).toBeNull();
+  });
+});
+
+describe("velgReiseKort — reise uten prosjekt (w15c RETUR, FA16)", () => {
+  // Fraværskortet: jobb uten prosjekt (jobberFraArbeidsrader tar med fraværsrader).
+  const fravaer = jobb({ kortId: "FRAVAER", projectId: null, byggeplassId: null, forsteTid: "07:00" });
+  it("står aldri i fraværskortet", () => {
+    for (const r of [
+      reise({ projectId: null, byggeplassId: null }),
+      reise({ projectId: null, byggeplassId: null, retning: null, fraTid: "06:00" }),
+      reise({ projectId: null, byggeplassId: null, overforing: true, retning: "retur" }),
+    ])
+      expect(velgReiseKort(r, [fravaer])).toBeNull();
+  });
+});
+
+describe("egetReiseKort — id-en for eget kort (w15c, F24, F25)", () => {
+  const nokkel = { projectId: "p", byggeplassId: "b", ecoId: null };
+  const args = { userId: "u", dato: "2026-11-21", nokkel };
+  it("normalt den utledede id-en av reisens nøkkel (samme kort som tillegg på samme sted)", () => {
+    expect(egetReiseKort({ ...args, overforing: false, jobbKortIder: [] })).toBe(utledKortId(args));
+  });
+  it("treffer den utledede id-en kortet til en jobb på sedelen → egen reise-id", () => {
+    const k = egetReiseKort({ ...args, overforing: false, jobbKortIder: [utledKortId(args)] });
+    expect(k).toBe(utledReiseKortId(args));
+    expect(k).not.toBe(utledKortId(args));
+  });
+  it("kontorreise i eget kort får alltid reise-id-en med byggeplass «overforing», aldri lik en jobbs", () => {
+    const k = egetReiseKort({ ...args, overforing: true, jobbKortIder: [] });
+    expect(k).toBe(utledReiseKortId({ ...args, nokkel: { ...nokkel, byggeplassId: OVERFORING_KORT_BYGGEPLASS } }));
+    expect(k).not.toBe(utledKortId(args));
+    expect(k).not.toBe(utledKortId({ ...args, nokkel: { ...nokkel, byggeplassId: null } }));
   });
 });
 

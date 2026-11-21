@@ -1,7 +1,8 @@
 /**
  * w15b: linja «havner i» i reisevinduet regner det serveren gjør i `sikreKortId` etter
  * lagring — den delte `velgReiseKort` for reise, nøkkelen for en rad under terskel.
- * Linja sier det dagens regel gir (til w15c er merget).
+ * w15c: linja følger den nye regelen (byggeplass og underprosjekt er krav, kontorreise etter
+ * arbeid får eget kort) og får reisekilden fra reisevinduet.
  */
 import { describe, expect, it } from "vitest";
 import { reiseHavnerI, type ReiseHavnerRad } from "./useManuellReiseWeb";
@@ -43,11 +44,22 @@ describe("reiseHavnerI", () => {
     ).toEqual({ type: "eget", projectId: "p2" });
   });
 
-  it("kontorreise (ingen byggeplass, retning ut) → første jobb på prosjektet (dagens regel)", () => {
+  it("«Til annet kontor» → «Etter arbeid» → eget kort, som serveren (w15c, del E punkt 6)", () => {
     const rader = [jobb(), jobb({ kortId: "k2", fraTid: "12:00", byggeplassId: "b3", opprettet: 2 })];
+    const kontor = reise({ byggeplassId: null, fraTid: "15:00", reiseKilde: "overforing" });
+    expect(reiseHavnerI({ rader, sedelByggeplass: null, reise: kontor })).toEqual({ type: "eget", projectId: "p1" });
+  });
+
+  it("«Til annet kontor» → «Før arbeid» → første jobb på prosjektet", () => {
+    const rader = [jobb(), jobb({ kortId: "k2", fraTid: "12:00", byggeplassId: "b3", opprettet: 2 })];
+    const kontor = reise({ byggeplassId: null, fraTid: "06:00", reiseKilde: "overforing" });
+    expect(reiseHavnerI({ rader, sedelByggeplass: null, reise: kontor })).toMatchObject({ type: "jobb", kortId: "k1" });
+  });
+
+  it("reise til en byggeplass uten jobb → eget kort (w15c: byggeplassen er et krav)", () => {
     expect(
-      reiseHavnerI({ rader, sedelByggeplass: null, reise: reise({ byggeplassId: null, fraTid: "15:00" }) }),
-    ).toMatchObject({ type: "jobb", kortId: "k1" });
+      reiseHavnerI({ rader: [jobb()], sedelByggeplass: null, reise: reise({ byggeplassId: "b2" }) }),
+    ).toEqual({ type: "eget", projectId: "p1" });
   });
 
   it("jobbens effektive byggeplass leses med sedelens", () => {
