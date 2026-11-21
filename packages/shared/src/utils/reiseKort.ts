@@ -7,6 +7,9 @@
  * Paritetstesten (`reise-kortid-migrering.integration.test.ts`) holder SQL og denne like.
  *
  * Kandidatene er jobbene (kort med arbeid) på samme dagsseddel og samme prosjekt (punkt 2).
+ *  Reise uten prosjekt → `null`, aldri fraværskortet (plan FA16: en reise bærer alltid prosjekt;
+ *  databasen sperrer den med `sheet_timer_uten_prosjekt_chk`). `sikreKortId` og SQL-utfyllingen
+ *  lar en slik rad stå urørt.
  *  3. Byggeplassen er et krav: reisens EFFEKTIVE byggeplass mot jobbens effektive; «uten» er en
  *     egen verdi. Ingen treff → `null`. Reise til annet kontor (`overforing`) hopper over steget.
  *  4. Underprosjekt: har reisen et, er det et krav (ingen treff → `null`). Har den ikke, går
@@ -106,6 +109,7 @@ export function jobberFraArbeidsrader(rader: readonly ReiseKortArbeidsrad[]): Re
 
 /** Kort-id-en reisen skal stå i, eller `null` når den skal ha eget kort. */
 export function velgReiseKort(reise: ReiseKortReise, jobber: readonly ReiseKortJobb[]): string | null {
+  if (reise.projectId === null) return null;
   const paaProsjekt = jobber.filter((j) => j.projectId === reise.projectId);
   if (paaProsjekt.length === 0) return null;
 

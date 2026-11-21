@@ -199,6 +199,19 @@ describe("velgReiseKort — dagen på bilde 8 (w15c, del G)", () => {
   });
 });
 
+describe("velgReiseKort — reise uten prosjekt (w15c RETUR, FA16)", () => {
+  // Fraværskortet: jobb uten prosjekt (jobberFraArbeidsrader tar med fraværsrader).
+  const fravaer = jobb({ kortId: "FRAVAER", projectId: null, byggeplassId: null, forsteTid: "07:00" });
+  it("står aldri i fraværskortet", () => {
+    for (const r of [
+      reise({ projectId: null, byggeplassId: null }),
+      reise({ projectId: null, byggeplassId: null, retning: null, fraTid: "06:00" }),
+      reise({ projectId: null, byggeplassId: null, overforing: true, retning: "retur" }),
+    ])
+      expect(velgReiseKort(r, [fravaer])).toBeNull();
+  });
+});
+
 describe("egetReiseKort — id-en for eget kort (w15c, F24, F25)", () => {
   const nokkel = { projectId: "p", byggeplassId: "b", ecoId: null };
   const args = { userId: "u", dato: "2026-11-21", nokkel };

@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { prismaTimer } from "@sitedoc/db-timer";
+import { sikreKortId } from "../services/timer/kortId";
 import {
   effektivKortByggeplass,
   egetReiseKort,
@@ -297,6 +298,10 @@ async function kortEtterDeltRegel(): Promise<Record<string, string | null>> {
         ut[r.id] = r.kortId;
         continue;
       }
+      if (r.projectId === null) {
+        ut[r.id] = r.kortId; // reise uten prosjekt røres ikke (FA16), som i `sikreKortId`
+        continue;
+      }
       const nokkel = {
         projectId: r.projectId,
         byggeplassId: effektivKortByggeplass(r.projectId, r.byggeplassId, sedelBp),
@@ -501,5 +506,70 @@ describe("w15c utfylling — reisens kort etter den nye regelen (§ 4.15 del E, 
     await kjorUtfylling(W15C_SQL);
     expect(await kortPr()).toEqual(etter1);
     expect(await radeneUtenKort()).toEqual(foer);
+  });
+});
+
+describe("w15c — reise uten prosjekt røres ikke (RETUR, FA16)", () => {
+  const RX = { medKort: id("b1"), utenKort: id("b2"), fravaer: id("b3") };
+  const FRAVAER_KORT = "kort-s3-fravaer";
+  const RULL_TILBAKE = "rull tilbake";
+
+  it("databasen sperrer reise uten prosjekt (sheet_timer_uten_prosjekt_chk)", async () => {
+    for (const utenProsjekt of [false, true])
+      await expect(
+        prismaTimer.$executeRawUnsafe(`INSERT INTO timer.sheet_timer (id, sheet_id, lonnsart_id, aktivitet_id, project_id,
+            er_reise, uten_prosjekt, timer, updated_at)
+          VALUES ('${RX.medKort}', '${S3}', '${LONNSART}', '${AKTIVITET}', NULL, true, ${utenProsjekt}, 1, now())`),
+      ).rejects.toThrow(/sheet_timer_uten_prosjekt_chk/);
+  });
+
+  it("med sperren løftet (i en transaksjon som rulles tilbake): SQL og sikreKortId lar raden stå, PARITET", async () => {
+    const foer = await kortPr();
+    let sjekket = false;
+    await expect(
+      prismaTimer.$transaction(async (tx) => {
+        const x = (sql: string) => tx.$executeRawUnsafe(sql);
+        await x(`ALTER TABLE timer.sheet_timer DROP CONSTRAINT sheet_timer_uten_prosjekt_chk`);
+        // Fraværsrad (kort uten prosjekt) og to reiser uten prosjekt: én i fraværskortet, én uten kort.
+        await x(`INSERT INTO timer.sheet_timer (id, sheet_id, lonnsart_id, aktivitet_id, project_id, uten_prosjekt,
+            fra_tid, til_tid, er_reise, kort_id, timer, created_at, updated_at) VALUES
+          ('${RX.fravaer}', '${S3}', '${LONNSART}', '${AKTIVITET}', NULL, true, '05:00', '06:00', false, '${FRAVAER_KORT}', 1, '2026-11-20T10:01:00Z', '2026-11-18T12:00:00Z'),
+          ('${RX.medKort}', '${S3}', '${LONNSART}', '${AKTIVITET}', NULL, false, '06:00', '06:30', true, '${FRAVAER_KORT}', 1, '2026-11-20T10:02:00Z', '2026-11-18T12:00:00Z'),
+          ('${RX.utenKort}', '${S3}', '${LONNSART}', '${AKTIVITET}', NULL, false, '18:00', '18:30', true, NULL, 1, '2026-11-20T10:03:00Z', '2026-11-18T12:00:00Z')`);
+        const kortI = async () =>
+          Object.fromEntries(
+            (
+              await tx.$queryRawUnsafe<{ id: string; kort_id: string | null }[]>(
+                `SELECT id, kort_id FROM timer.sheet_timer WHERE sheet_id IN ('${ALLE_SEDLER.join("','")}')`,
+              )
+            ).map((r) => [r.id, r.kort_id]),
+          );
+        // SQL-utfyllingen
+        for (const st of setninger(W15C_SQL)) await tx.$executeRawUnsafe(st);
+        const etterSql = await kortI();
+        expect([etterSql[RX.medKort], etterSql[RX.utenKort]]).toEqual([FRAVAER_KORT, null]);
+        // Resten av sedlene er urørt (de stod alt riktig etter w15c)
+        expect({ ...etterSql, [RX.medKort]: undefined, [RX.utenKort]: undefined, [RX.fravaer]: undefined }).toEqual({
+          ...foer,
+          [RX.medKort]: undefined,
+          [RX.utenKort]: undefined,
+          [RX.fravaer]: undefined,
+        });
+        // Serveren
+        await sikreKortId(tx, S3);
+        const etterTs = await kortI();
+        expect([etterTs[RX.medKort], etterTs[RX.utenKort]]).toEqual([FRAVAER_KORT, null]);
+        expect(etterTs).toEqual(etterSql); // PARITET
+        sjekket = true;
+        throw new Error(RULL_TILBAKE);
+      }, { timeout: 60_000 }),
+    ).rejects.toThrow(RULL_TILBAKE);
+    expect(sjekket).toBe(true);
+    // Rullet tilbake: sperren står, radene finnes ikke
+    expect(await kortPr()).toEqual(foer);
+    await expect(
+      prismaTimer.$executeRawUnsafe(`INSERT INTO timer.sheet_timer (id, sheet_id, lonnsart_id, aktivitet_id, project_id,
+          er_reise, timer, updated_at) VALUES ('${RX.medKort}', '${S3}', '${LONNSART}', '${AKTIVITET}', NULL, true, 1, now())`),
+    ).rejects.toThrow(/sheet_timer_uten_prosjekt_chk/);
   });
 });

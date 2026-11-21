@@ -294,6 +294,9 @@ export async function sikreKortId(
   const reise = timer.filter((t) => t.erReise).map((t) => ({ t, r: somR("sheet_timer", "timer", t) }));
   for (const { t, r } of reise) {
     if (r.kortId && (t.attestertStatus === "attestert" || t.attestertStatus === "erstattet")) continue;
+    // Reise uten prosjekt (ugyldig, FA16; sperret av sheet_timer_uten_prosjekt_chk) røres ikke —
+    // samme vakt som w15c-utfyllingen (`project_id IS NOT NULL`).
+    if (r.nokkel.projectId === null) continue;
     const overforing = t.reiseKilde === "overforing";
     endre(
       r,

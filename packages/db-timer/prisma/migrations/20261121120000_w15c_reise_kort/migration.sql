@@ -8,6 +8,9 @@
 -- Diskriminerende WHERE: er_reise = true, ikke (kort_id satt OG attestert/erstattet) — nøyaktig
 -- vakten i `sikreKortId` — og kort_id IS DISTINCT FROM målet. Rader som står riktig, røres ikke;
 -- kjørt to ganger gir samme resultat. Forslagstabellen (sheet_timer_forslag) røres ikke.
+-- Reise uten prosjekt (project_id IS NULL) røres ikke, som i `sikreKortId`: den er ugyldig
+-- (plan FA16) og sperret av sheet_timer_uten_prosjekt_chk; vakten hindrer at md5 av NULL
+-- tømmer kort-id-en om sperren noen gang løsnes.
 --
 -- Regelen er den samme som `velgReiseKort` + `egetReiseKort` i
 -- packages/shared/src/utils/reiseKort.ts (paritetstesten i
@@ -52,7 +55,7 @@ WITH sedel AS (
     FROM "timer"."sheet_timer" r
     JOIN sedel s ON s.id = r.sheet_id
     LEFT JOIN prosjekt_forste pf ON pf.sheet_id = r.sheet_id AND pf.project_id = r.project_id
-   WHERE r.er_reise = true
+   WHERE r.er_reise = true AND r.project_id IS NOT NULL
      AND NOT (r.kort_id IS NOT NULL AND r.attestert_status IN ('attestert', 'erstattet'))
 ), kandidat AS (
   SELECT r.id AS reise_id, j.kort_id,
@@ -105,6 +108,6 @@ UPDATE "timer"."sheet_timer" r
    SET "kort_id" = m.kort_id
   FROM maal m
  WHERE r.id = m.id
-   AND r.er_reise = true
+   AND r.er_reise = true AND r.project_id IS NOT NULL
    AND NOT (r.kort_id IS NOT NULL AND r.attestert_status IN ('attestert', 'erstattet'))
    AND r.kort_id IS DISTINCT FROM m.kort_id;
