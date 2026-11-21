@@ -72,7 +72,8 @@ export function RedigerMaskinRad({
       <select
         value={rad.projectId}
         onChange={(e) => onChange({ projectId: e.target.value })}
-        className="col-span-6 rounded border border-gray-300 px-2 py-1 text-xs"
+        // § 8.22 L1: maskinlista står i full høyde ved siden av — nedtrekket skal ikke strekkes med.
+        className="col-span-6 self-start rounded border border-gray-300 px-2 py-1 text-xs"
       >
         {prosjekter.map((p) => (
           <option key={p.id} value={p.id}>
@@ -86,6 +87,7 @@ export function RedigerMaskinRad({
           utstyr={equipment ?? []}
           valgtId={rad.vehicleId}
           onVelg={(id) => onChange({ vehicleId: id })}
+          iVindu
         />
       </div>
 
