@@ -431,8 +431,8 @@ Fra w12 i web-timeføring (🟡 ikke merget, `feat/web-timer-w12`, plan § 4.11 
 Fra w15f i web-timeføring (🟡 ikke merget, `feat/web-timer-w15f`, plan § 4.15 del E):
 
 - Reiselinja i del 8 er tekst «fra–til · lønnsart · prosjekt · byggeplass · underprosjekt» med ✂ og ✎ («Rett reisen», `timer.attestering.reiseRett.tittel`). «Føres på» og de åpne feltene på reiselinja er tatt ut; `…registrering.foresPaa` står i språkfilene uten bruker.
-- Vinduet «Rett reisen»: «Start kl.» / «Slutt kl.» (`…reiseRett.start` / `…slutt`), Prosjekt, Byggeplass, Underprosjekt, og linja «Står i jobben på …» / «Står i kortet på …» / «Får eget kort på …» (`timer.reiseKort.havnerJobb` / `havnerKort` (ny) / `havnerEget`). Firmavalget av: «Firmaet tillater ikke at tid og sted rettes ved attestering. Underprosjektet kan rettes.» (`…reiseRett.bareUnderprosjekt`).
-- ?-fanen: nytt avsnitt `timer.attestering.tabell.hjelp.reise` (✎, lista, linja «havner i», firmavalget, lønnsarten i «Rediger jobben»).
+- Vinduet «Rett reisen»: «Start kl.» / «Slutt kl.» (`…reiseRett.start` / `…slutt`), Lønnsart (`…registrering.lonnsart`, bare reisearter, RETUR w15f), Prosjekt, Byggeplass, Underprosjekt, og linja «Står i jobben på …» / «Står i kortet på …» / «Får eget kort på …» (`timer.reiseKort.havnerJobb` / `havnerKort` (ny) / `havnerEget`). Firmavalget av: «Firmaet tillater ikke at tid og sted rettes ved attestering. Underprosjektet kan rettes.» (`…reiseRett.bareUnderprosjekt`).
+- ?-fanen: nytt avsnitt `timer.attestering.tabell.hjelp.reise` (✎, lønnsarten, lista, linja «havner i», firmavalget; endret i RETUR w15f: lønnsarten rettes i vinduet, ikke i «Rediger jobben» — 13 språk regenerert fra ny kilde).
 
 ## Prosjekt → Timer → Attestering (d2b-2) — ⚠️ fjernet i w10b
 

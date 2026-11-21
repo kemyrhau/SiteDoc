@@ -5937,5 +5937,5 @@
   "timer.attestering.reiseRett.slutt": "Čas ukončení",
   "timer.attestering.reiseRett.bareUnderprosjekt": "Společnost neumožňuje při schvalování opravu času a místa. Dílčí projekt lze opravit.",
   "timer.mine.hjelp.reise": "Na výletě můžete změnit projekt pomocí ✎: staveniště je znovu navrženo a dílčí projekt je vymazán. Řádek pod mzdovým druhem říká, na kterou kartu cesta jde. Práce nemění projekt; zaregistrovat jako novou práci.",
-  "timer.attestering.tabell.hjelp.reise": "Cesta je zobrazena v části 8 jako jeden řádek. ✎ otevře „Opravit cestu“ se začátkem, koncem, projektem, staveništěm a dílčím projektem; seznam obsahuje projekty, které můžete schválit, a řádek ve spodní části říká, na kterou kartu cesta jde. Pokud společnost během schvalování neumožňuje opravy, lze opravit pouze dílčí projekt. Mzdový druh na jízdě je opraven v \"Upravit zakázku\"."
+  "timer.attestering.tabell.hjelp.reise": "Cesta je zobrazena v části 8 jako jeden řádek. ✎ otevře \"Opravit cestu\" se začátkem, koncem, typem mzdy (pouze typy cest), projektem, staveništěm a dílčím projektem; seznam obsahuje projekty, které můžete schválit, a řádek ve spodní části říká, na kterou kartu cesta jde. Pokud společnost během schvalování neumožňuje opravy, lze opravit pouze dílčí projekt."
 }

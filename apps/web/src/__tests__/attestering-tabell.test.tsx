@@ -1348,4 +1348,45 @@ describe("w15f — reiselinja i del 8 og «Rett reisen»", () => {
     act(() => kallTil("rettRadFelt")[0]!.opts!.onSuccess!(undefined));
     expect(vindu()).toBeNull();
   });
+
+  // RETUR w15f (B48 A): reise uten underprosjekt i en jobb med underprosjekt — «Rediger jobben» tar
+  // bare rader med samme underprosjekt, så lønnsarten må kunne rettes i «Rett reisen».
+  it("RETUR w15f — lønnsarten (bare reisearter) rettes i vinduet når jobben har underprosjekt og reisen ikke", () => {
+    h.data["timer.lonnsart.list"] = [{ id: "l1", navn: "Ordinær", satsEnhet: null }, { id: "lr", navn: "Reise", satsEnhet: null }, { id: "lr2", navn: "Reise sone 2", satsEnhet: null }];
+    h.data["organisasjon.hentArbeidstidDefaults"] = { reiseLonnsartId: "lr", reiseGrenser: [{ lonnsartId: "lr2" }] };
+    const { container } = visMed([sedel({ timer: [timer("t1", { externalCostObjectId: "e1" }), reise({ externalCostObjectId: null })] })]);
+    fireEvent.click(penn(aapne(container))!);
+    const art = within(vindu()).getByLabelText("timer.attestering.registrering.lonnsart") as HTMLSelectElement;
+    expect(art.value).toBe("lr");
+    expect(Array.from(art.options).map((o) => o.value)).toEqual(["lr", "lr2"]);
+    fireEvent.change(art, { target: { value: "lr2" } });
+    lagre();
+    expect(kallTil("flyttTimerRadEco")).toHaveLength(0);
+    expect(kallTil("rettRadFelt").map((k) => k.input)).toEqual([{ radType: "timer", radId: "r1", felter: { lonnsartId: "lr2" } }]);
+  });
+
+  it("RETUR w15f — firmavalget av: lønnsarten er låst", () => {
+    const { container } = visMed([sedel({ redigerTillatt: false, timer: [timer("t1"), reise()] })]);
+    fireEvent.click(penn(aapne(container))!);
+    expect((within(vindu()).getByLabelText("timer.attestering.registrering.lonnsart") as HTMLSelectElement).disabled).toBe(true);
+  });
+
+  it("RETUR w15f (merknad) — urørt tid rundes ikke: et rent underprosjektbytte sender ingen ny tid", () => {
+    h.data["organisasjon.hentArbeidstidDefaults"] = { reiseLonnsartId: "lr", reiseGrenser: [], tidsrundingMinutter: 15 };
+    const { container } = visMed([sedel({ timer: [timer("t1"), reise({ externalCostObjectId: "e1" })] })]);
+    fireEvent.click(penn(aapne(container))!);
+    fireEvent.click(within(vindu()).getAllByRole("button").find((b) => b.textContent?.includes("Tak"))!);
+    lagre();
+    expect(kallTil("rettRadFelt")).toHaveLength(0);
+    expect(kallTil("flyttTimerRadEco").map((k) => k.input)).toEqual([{ timerRadId: "r1", radType: "timer", externalCostObjectId: "e2" }]);
+  });
+
+  it("RETUR w15f (merknad) — rørt tid rundes som før", () => {
+    h.data["organisasjon.hentArbeidstidDefaults"] = { reiseLonnsartId: "lr", reiseGrenser: [], tidsrundingMinutter: 15 };
+    const { container } = visMed([sedel({ timer: [timer("t1"), reise()] })]);
+    fireEvent.click(penn(aapne(container))!);
+    fireEvent.change(within(vindu()).getByLabelText("timer.attestering.reiseRett.slutt"), { target: { value: "07:20" } });
+    lagre();
+    expect(kallTil("rettRadFelt").map((k) => k.input)).toEqual([{ radType: "timer", radId: "r1", felter: { fraTid: "06:25", tilTid: "07:15", timer: expect.any(Number) } }]);
+  });
 });

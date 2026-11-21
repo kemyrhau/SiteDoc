@@ -521,6 +521,8 @@ export function RegistreringPanel({ kort, sedel, orgId, kanAttestere, kanRette, 
           rad={reiseRett}
           sedel={sedel}
           orgId={orgId}
+          lonnsarter={lonnsarter}
+          reiseKtx={reiseKtx}
           prosjektKontekst={prosjektKontekst}
           tidsrunding={tidsrunding}
           onLagret={() => { setReiseRett(null); onEndret(); }}

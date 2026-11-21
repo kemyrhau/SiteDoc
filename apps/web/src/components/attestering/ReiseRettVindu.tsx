@@ -9,7 +9,8 @@ import { rundTilNarmeste } from "@/lib/tidsrunding";
 import { byggeplasserForProsjekt, velgStandardByggeplass } from "@/lib/timerByggeplass";
 import { RadByggeplassFelt } from "@/components/timer/RadByggeplassFelt";
 import { reiseHavnerI, type ReiseHavnerAnnenRad } from "@/hooks/useManuellReiseWeb";
-import { UnderprosjektValg } from "./RegistreringPanel";
+import { UnderprosjektValg, tillatteLonnsarter } from "./RegistreringPanel";
+import type { ErReiseKontekst } from "@sitedoc/shared";
 import type { AttSedel, AttTimer } from "./attestering-tabell";
 
 type Eco = { id: string; proAdmId: string; kortNavn: string };
@@ -28,11 +29,12 @@ export type ReiseRettKall =
 /**
  * w15f: hva «Lagre» sender. Firmavalget av (`redigerTillatt` false): bare underprosjektet, med
  * `flyttTimerRadEco`. Endres bare underprosjektet: også `flyttTimerRadEco` (som før). Ellers ett
- * `rettRadFelt` med feltene som er endret; byttes prosjektet, sendes byggeplass og underprosjekt med.
+ * `rettRadFelt` med feltene som er endret (tid, prosjekt, byggeplass, lønnsart); byttes prosjektet,
+ * sendes byggeplass og underprosjekt med. `ny.fraTid`/`ny.tilTid` er allerede rundet der de er rørt.
  */
 export function reiseRettKall(args: {
-  lagret: { fraTid: string | null; tilTid: string | null; pauseMin: number; projectId: string | null; byggeplassId: string | null; ecoId: string | null };
-  ny: { fraTid: string; tilTid: string; projectId: string | null; byggeplassId: string | null; ecoId: string | null };
+  lagret: { fraTid: string | null; tilTid: string | null; pauseMin: number; projectId: string | null; byggeplassId: string | null; ecoId: string | null; lonnsartId: string };
+  ny: { fraTid: string; tilTid: string; projectId: string | null; byggeplassId: string | null; ecoId: string | null; lonnsartId: string };
   redigerTillatt: boolean;
 }): ReiseRettKall {
   const { lagret, ny, redigerTillatt } = args;
@@ -41,7 +43,8 @@ export function reiseRettKall(args: {
   const tidEndret = ny.fraTid !== (lagret.fraTid ?? "") || ny.tilTid !== (lagret.tilTid ?? "");
   const prosjektEndret = ny.projectId !== lagret.projectId;
   const byggeplassEndret = ny.byggeplassId !== lagret.byggeplassId;
-  if (!tidEndret && !prosjektEndret && !byggeplassEndret) {
+  const lonnsartEndret = ny.lonnsartId !== lagret.lonnsartId;
+  if (!tidEndret && !prosjektEndret && !byggeplassEndret && !lonnsartEndret) {
     return ecoEndret ? { type: "eco", externalCostObjectId: ny.ecoId } : { type: "ingen" };
   }
   const felter: Record<string, string | number | null> = {};
@@ -58,18 +61,21 @@ export function reiseRettKall(args: {
     if (byggeplassEndret) felter.byggeplassId = ny.byggeplassId;
     if (ecoEndret) felter.externalCostObjectId = ny.ecoId;
   }
+  if (lonnsartEndret) felter.lonnsartId = ny.lonnsartId;
   return { type: "rett", felter };
 }
 
 /**
- * w15f — «Rett reisen» i attesteringen (plan § 4.15 del E, bilde v17): fem felt — start, slutt,
- * prosjekt, byggeplass, underprosjekt — og linja «havner i» før lagring. Prosjektlista er
+ * w15f — «Rett reisen» i attesteringen (plan § 4.15 del E, bilde v17): start, slutt, lønnsart (bare
+ * reisearter, RETUR w15f B48 A), prosjekt, byggeplass, underprosjekt — og linja «havner i» før lagring. Prosjektlista er
  * prosjektene attestanten kan attestere (`prosjektKontekst`; `undefined` = alle i firmaet).
  * Firmavalget «Rediger ved attestering» av: bare underprosjektet er åpent. «Avbryt» sender ingenting;
  * etter lagring lukkes vinduet og tabellen hentes på nytt.
  */
-export function ReiseRettVindu({ rad, sedel, orgId, prosjektKontekst, tidsrunding = null, onLagret, onAvbryt }: {
+export function ReiseRettVindu({ rad, sedel, orgId, lonnsarter, reiseKtx, prosjektKontekst, tidsrunding = null, onLagret, onAvbryt }: {
   rad: AttTimer;
+  lonnsarter: readonly { id: string; navn: string }[];
+  reiseKtx: ErReiseKontekst | null;
   sedel: AttSedel;
   orgId: string;
   prosjektKontekst?: ReadonlySet<string>;
@@ -84,6 +90,8 @@ export function ReiseRettVindu({ rad, sedel, orgId, prosjektKontekst, tidsrundin
   const [projectId, setProjectId] = useState<string | null>(rad.projectId);
   const [byggeplassId, setByggeplassId] = useState<string | null>(rad.byggeplassId ?? null);
   const [ecoId, setEcoId] = useState<string | null>(rad.externalCostObjectId ?? null);
+  const [lonnsartId, setLonnsartId] = useState<string>(rad.lonnsartId);
+  const artValg = tillatteLonnsarter({ erReise: true }, lonnsarter, reiseKtx, rad.lonnsartId);
   const [feil, setFeil] = useState<string | null>(null);
 
   const { data: prosjekterRaw } = trpc.prosjekt.hentForTimer.useQuery({ organizationId: orgId });
@@ -157,12 +165,13 @@ export function ReiseRettVindu({ rad, sedel, orgId, prosjektKontekst, tidsrundin
 
   function lagre() {
     setFeil(null);
-    const f = rundTilNarmeste(fra, tidsrunding);
-    const ti = rundTilNarmeste(til, tidsrunding);
+    // Rund bare feltene som er rørt — urørt lagret tid sendes aldri som ny tid (RETUR w15f, merknad).
+    const f = fra !== (rad.fraTid ?? "") ? rundTilNarmeste(fra, tidsrunding) : fra;
+    const ti = til !== (rad.tilTid ?? "") ? rundTilNarmeste(til, tidsrunding) : til;
     if (redigerTillatt && (!KL.test(f) || !KL.test(ti) || ti <= f)) { setFeil(t("timer.attestering.registrering.ugyldigTid")); return; }
     const kall = reiseRettKall({
-      lagret: { fraTid: rad.fraTid, tilTid: rad.tilTid, pauseMin: rad.pauseMin ?? 0, projectId: rad.projectId, byggeplassId: rad.byggeplassId ?? null, ecoId: rad.externalCostObjectId ?? null },
-      ny: { fraTid: f, tilTid: ti, projectId, byggeplassId, ecoId },
+      lagret: { fraTid: rad.fraTid, tilTid: rad.tilTid, pauseMin: rad.pauseMin ?? 0, projectId: rad.projectId, byggeplassId: rad.byggeplassId ?? null, ecoId: rad.externalCostObjectId ?? null, lonnsartId: rad.lonnsartId },
+      ny: { fraTid: f, tilTid: ti, projectId, byggeplassId, ecoId, lonnsartId },
       redigerTillatt,
     });
     const ok = { onSuccess: (_d: unknown) => onLagret(), onError: (e: { message: string }) => setFeil(e.message) };
@@ -189,6 +198,12 @@ export function ReiseRettVindu({ rad, sedel, orgId, prosjektKontekst, tidsrundin
             <input aria-label={t("timer.attestering.reiseRett.slutt")} value={til} inputMode="numeric" placeholder="15:00" disabled={laast} onChange={(e) => setTil(e.target.value)} className={`${inp} tabular-nums`} />
           </label>
         </div>
+        <label className="block">
+          <span className="mb-1 block font-medium text-gray-700">{t("timer.attestering.registrering.lonnsart")}</span>
+          <select aria-label={t("timer.attestering.registrering.lonnsart")} value={lonnsartId} disabled={laast} onChange={(e) => setLonnsartId(e.target.value)} className={inp}>
+            {artValg.map((x) => <option key={x.id} value={x.id}>{x.navn}</option>)}
+          </select>
+        </label>
         <label className="block">
           <span className="mb-1 block font-medium text-gray-700">{t("timer.felt.prosjekt")}</span>
           <select aria-label={t("timer.felt.prosjekt")} value={projectId ?? ""} disabled={laast} onChange={(e) => byttProsjekt(e.target.value)} className={inp}>

@@ -5937,5 +5937,5 @@
   "timer.attestering.reiseRett.slutt": "Pabaigos laikas",
   "timer.attestering.reiseRett.bareUnderprosjekt": "Tvirtinimo metu įmonė neleidžia taisyti laiko ir vietos. Paprojektį galima taisyti.",
   "timer.mine.hjelp.reise": "Kelionėje projektą galite pakeisti mygtuku ✎: dar kartą pasiūloma statybvietė, o paprojekis išvalomas. Eilutėje po darbo užmokesčio tipu nurodoma, su kokia kortele vyksta kelionė. Darbas projekto nekeičia; užregistruokite jį kaip naują darbą.",
-  "timer.attestering.tabell.hjelp.reise": "Kelionė parodyta 8 dalyje kaip viena eilutė. ✎ atidaro „Pataisyti kelionę“ su pradžia, pabaiga, projektu, statybviete ir subprojektu; sąraše yra projektai, kuriuos galite tvirtinti, o apačioje esanti eilutė parašyta, į kurią kortelę vyksta kelionė. Jei įmonė patvirtinimo metu neleidžia taisyti, galima taisyti tik paprojektį. Darbo užmokesčio rūšis kelionėje pataisoma „Redaguoti darbą“."
+  "timer.attestering.tabell.hjelp.reise": "Kelionė parodyta 8 dalyje kaip viena eilutė. ✎ atidaro „Pataisyti kelionę“ su pradžia, pabaiga, atlyginimo rūšimi (tik kelionės tipai), projektu, statybviete ir paprojekčiu; sąraše yra projektai, kuriuos galite tvirtinti, o apačioje esanti eilutė parašyta, į kurią kortelę vyksta kelionė. Jei įmonė patvirtinimo metu neleidžia taisyti, galima taisyti tik paprojektį."
 }
