@@ -669,6 +669,8 @@
   "timer.overtidForslag.helRad": "{{over}} h über der Tagesnorm – aufzeichnen als {{otNavn}}?",
   "timer.overtidForslag.delKnapp": "Reihe teilen",
   "timer.overtidForslag.helKnapp": "Als Überstunden erfassen",
+  "timer.overtidForslag.delesVedLagring": "{{over}} h über der Tagesnorm – gespeichert als {{normalNavn}} {{nFra}}–{{nTil}} und {{otNavn}} {{oFra}}–{{oTil}}.",
+  "timer.overtidForslag.helRadVedLagring": "{{over}} h über der Tagesnorm – gespeichert als {{otNavn}}.",
   "timer.matpause.annenRadBaerer": "Eine weitere Reihe trägt die Mittagspause des Tages",
   "timer.matpause.flyttet": "Die Pause wird von {{tidsrom}} abgezogen",
   "timer.matpause.fjernTittel": "Keine Pause abgezogen",

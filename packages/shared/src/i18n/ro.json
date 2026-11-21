@@ -669,6 +669,8 @@
   "timer.overtidForslag.helRad": "{{over}} h peste norma zilnică — înregistrați ca {{otNavn}}?",
   "timer.overtidForslag.delKnapp": "Rând împărțit",
   "timer.overtidForslag.helKnapp": "Înregistrați ca ore suplimentare",
+  "timer.overtidForslag.delesVedLagring": "{{over}} h peste norma zilnică — salvate ca {{normalNavn}} {{nFra}}–{{nTil}} și {{otNavn}} {{oFra}}–{{oTil}}.",
+  "timer.overtidForslag.helRadVedLagring": "{{over}} h peste norma zilnică — salvată ca {{otNavn}}.",
   "timer.matpause.annenRadBaerer": "Un alt rând poartă pauza de prânz pentru ziua respectivă",
   "timer.matpause.flyttet": "Pauza se scade din {{tidsrom}}",
   "timer.matpause.fjernTittel": "Nicio pauză dedusă",

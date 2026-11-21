@@ -669,6 +669,8 @@
   "timer.overtidForslag.helRad": "{{over}} h üle päevanormi – salvestada kui {{otNavn}}?",
   "timer.overtidForslag.delKnapp": "Poolita rida",
   "timer.overtidForslag.helKnapp": "Arvestage ületunnitööna",
+  "timer.overtidForslag.delesVedLagring": "{{over}} h üle päevanormi – salvestatud kui {{normalNavn}} {{nFra}}–{{nTil}} ja {{otNavn}} {{oFra}}–{{oTil}}.",
+  "timer.overtidForslag.helRadVedLagring": "{{over}} h üle päevanormi – salvestatud kui {{otNavn}}.",
   "timer.matpause.annenRadBaerer": "Teine rida kannab päeva lõunapausi",
   "timer.matpause.flyttet": "Vaheaeg arvatakse maha {{tidsrom}}-st",
   "timer.matpause.fjernTittel": "Pausi maha ei arvestatud",

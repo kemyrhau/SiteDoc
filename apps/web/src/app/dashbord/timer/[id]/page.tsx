@@ -56,6 +56,7 @@ import {
 } from "@/lib/timerByggeplass";
 import {
   maskinHoystPerRad,
+  maskinForslagFraJobb,
   jobbArbeidSum,
   overMaskinHoyst,
   DEFAULT_PAUSE_ETTER_TIMER,
@@ -4652,10 +4653,26 @@ function TimerRadDialog({
   const lonnsartNavn = (id: string) =>
     lonnsarter?.find((l) => l.id === id)?.navn ?? "";
 
+  // O5 B (§ 8.22, Kenneth etter test d4bec43e: «overtid må fremgå»): i prosjektkort-modus deles
+  // raden automatisk ved lagring når dagen går over normen — samme regel og samme to kall som
+  // V21-knappen (`foreslaOvertidSplitt` → `brukOvertidForslag`, regelen `regnJobbTid` bygger på).
+  // «Rediger» deler bare når tiden er endret, som jobbskjemaet (`lagreJobbTid`, gate 129 V1):
+  // et bevisst bytte av lønnsart på uendret tid står.
+  const tidEndret =
+    !rad ||
+    fraTid !== (rad.fraTid ?? "") ||
+    tilTid !== (rad.tilTid ?? "") ||
+    radPauseMin > 0 !== rad.pauseMin > 0;
+  const autoOvertid = kortModus && tidEndret ? overtidForslag : null;
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const tNum = validerSkjema();
     if (tNum == null) return;
+    if (autoOvertid) {
+      void brukOvertidForslag(autoOvertid);
+      return;
+    }
     lagreRad(tNum, lonnsartId);
   }
 
@@ -4680,16 +4697,20 @@ function TimerRadDialog({
     };
     // Ordre d2c-1: maskinen føres på normal-delen (timeraden den gikk på).
     let normalRadId: string | null = null;
+    // Gate 134 V1 (paritet m/ `lagreRadKort`, gate 107): raden er lagret, men koblet vare ble
+    // ikke flyttet. Kall 2 og maskinene fullføres; vinduet står åpent med meldingen.
+    let vareIkkeFlyttet = false;
     try {
       if (visKortMaskin) await lagreJobbMaskinerFoer();
       if (rad) {
-        await oppdaterDel.mutateAsync({
+        const svar: unknown = await oppdaterDel.mutateAsync({
           id: rad.id,
           ...felles,
           lonnsartId,
           ...f.normal,
           ...byggeplassPayload(bp),
         });
+        vareIkkeFlyttet = (svar as { vareIkkeFlyttet?: boolean } | null)?.vareIkkeFlyttet === true;
       } else {
         const normal: unknown = await tilfoy.mutateAsync({
           sheetId,
@@ -4725,10 +4746,19 @@ function TimerRadDialog({
         return;
       }
       utils.timer.dagsseddel.hentMedId.invalidate();
+      if (vareIkkeFlyttet) {
+        setFeil(t("timer.feil.vareIkkeFlyttet"));
+        return;
+      }
       onLukk();
       return;
     }
     utils.timer.dagsseddel.hentMedId.invalidate();
+    if (vareIkkeFlyttet) {
+      // Bare «Rediger» (rad finnes) kan gi flagget — maskin-grenen under gjelder ny rad.
+      setFeil(t("timer.feil.vareIkkeFlyttet"));
+      return;
+    }
     if (!rad && maskinVehicleId) {
       maskinTilfoy.mutate({
         sheetId,
@@ -5105,9 +5135,28 @@ function TimerRadDialog({
             </span>
           </button>
         )}
+        {/* O5 B: prosjektkort-modus — ingen knapp; en opplysning om hvordan raden lagres. */}
+        {kortModus && autoOvertid && (
+          <p className="text-sm text-gray-600" data-testid="overtid-ved-lagring">
+            {autoOvertid.normal
+              ? t("timer.overtidForslag.delesVedLagring", {
+                  over: formaterT(autoOvertid.overTimer),
+                  normalNavn: lonnsartNavn(lonnsartId),
+                  nFra: autoOvertid.normal.fraTid,
+                  nTil: autoOvertid.normal.tilTid,
+                  otNavn: autoOvertid.overtidLonnsart.navn,
+                  oFra: autoOvertid.overtid.fraTid,
+                  oTil: autoOvertid.overtid.tilTid,
+                })
+              : t("timer.overtidForslag.helRadVedLagring", {
+                  over: formaterT(autoOvertid.overTimer),
+                  otNavn: autoOvertid.overtidLonnsart.navn,
+                })}
+          </p>
+        )}
         {/* V21: overtidsforslag — én linje, én knapp. Vises kun når raden (eller
-            dagen) passerer dagsnormen og firmaet har en overtid-lønnsart. */}
-        {overtidForslag && (
+            dagen) passerer dagsnormen og firmaet har en overtid-lønnsart. Dagskort-modus. */}
+        {!kortModus && overtidForslag && (
           <div className="flex items-center justify-between gap-3 rounded border border-amber-200 bg-amber-50 px-3 py-2">
             <span className="text-sm text-amber-900">
               {overtidForslag.normal
@@ -6585,8 +6634,8 @@ function MaskinRadDialog({
 
   const [vehicleId, setVehicleId] = useState<string>(rad?.vehicleId ?? "");
   // § 8.22 punkt 4 (Kenneth 2026-11-21): maskin føres som antall timer etter skjønn —
-  // aldri fra–til. Fra jobben foreslås antall = «høyst» (døgn-maskin: jobbens arbeid)
-  // til brukeren rører feltet; uten jobb er feltet tomt. Mengde og enhet føres ikke
+  // aldri fra–til. Fra jobben foreslås antall = jobbens arbeid minus maskintimene alt ført
+  // på jobben (O5) til brukeren rører feltet; uten jobb er feltet tomt. Mengde og enhet føres ikke
   // fra jobben (B37 A).
   const fraJobb = !!jobb;
   const [timerRort, setTimerRort] = useState<boolean>(!!rad || !jobb);
@@ -6630,37 +6679,30 @@ function MaskinRadDialog({
   // w9 (2c): «høyst X t» = jobbens arbeid − de andre førermaskinene på jobben.
   // Jobben er timeradens (K6), ellers radens egen; uten jobb gjelder bøtta med pause.
   // Delt regel med serveren (maskinHoystPerRad). Døgn-maskin: ingen grense.
-  // w3b (S1 A): forslaget fra jobben — «høyst» for en førermaskin; døgn-maskin får jobbens arbeid.
+  // O5 (§ 8.22): forslaget fra jobben = jobbens arbeid minus ALLE maskintimer som alt er ført
+  // på jobben (fører- og døgn-maskin), aldri under 0. Det er aldri over «høyst» (som bare trekker
+  // fra førermaskinene), så taket står uendret.
   const jobbForslag = useMemo(() => {
     if (!jobb || rad) return "";
-    const timerRader = alleTimerRader.map((r) => ({
-      kortId: r.kortId ?? null,
-      projectId: r.projectId,
-      externalCostObjectId: r.externalCostObjectId,
-      timer: tilTall(r.timer),
-      erReise: r.erReise === true,
-    }));
-    const jobbRef = { kortId: jobb.kortId, projectId, externalCostObjectId: jobb.ecoId };
-    if (valgtUtstyr && !kreverTimerad) {
-      const arbeid = jobbArbeidSum(timerRader, jobbRef, pauseMin);
-      return arbeid > 0 ? String(arbeid) : "";
-    }
-    const [forer] = maskinHoystPerRad(
-      timerRader,
-      [
-        { ...jobbRef, timer: 0, utleieEnhet: null },
-        ...alleMaskinRader.map((r) => ({
-          kortId: r.kortId ?? null,
-          projectId: r.projectId,
-          externalCostObjectId: r.externalCostObjectId,
-          timer: tilTall(r.timer),
-          utleieEnhet: equipment?.find((e) => e.id === r.vehicleId)?.utleieEnhet ?? null,
-        })),
-      ],
+    const forslag = maskinForslagFraJobb(
+      alleTimerRader.map((r) => ({
+        kortId: r.kortId ?? null,
+        projectId: r.projectId,
+        externalCostObjectId: r.externalCostObjectId,
+        timer: tilTall(r.timer),
+        erReise: r.erReise === true,
+      })),
+      alleMaskinRader.map((r) => ({
+        kortId: r.kortId ?? null,
+        projectId: r.projectId,
+        externalCostObjectId: r.externalCostObjectId,
+        timer: tilTall(r.timer),
+      })),
+      { kortId: jobb.kortId, projectId, externalCostObjectId: jobb.ecoId },
       pauseMin,
     );
-    return forer !== null && forer !== undefined && forer > 0 ? String(forer) : "";
-  }, [jobb, rad, alleTimerRader, alleMaskinRader, projectId, valgtUtstyr, kreverTimerad, equipment, pauseMin]);
+    return forslag > 0 ? String(forslag) : "";
+  }, [jobb, rad, alleTimerRader, alleMaskinRader, projectId, pauseMin]);
   const timer = timerRort ? timerInput : jobbForslag;
 
   const hoyst = useMemo(() => {

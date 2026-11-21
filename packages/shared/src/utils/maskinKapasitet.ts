@@ -119,6 +119,25 @@ export function jobbArbeidSum(
 }
 
 /**
+ * O5 (plan § 8.22, Kenneth etter test d4bec43e): forslaget i «+ Maskin» på en jobb —
+ * jobbens arbeid minus ALLE maskintimer som alt er ført på jobben (fører- og døgn-maskin),
+ * aldri under 0. Jobb 6 t med Volvo 3 t → Heatwork som maskin nr. 2 foreslås med 3 t.
+ * Bare et forslag i et åpent felt; «høyst» (`maskinHoyst`) er fortsatt taket for førermaskin.
+ */
+export function maskinForslagFraJobb(
+  timer: readonly JobbArbeidRad[],
+  maskin: readonly Pick<JobbMaskinRad, "kortId" | "projectId" | "externalCostObjectId" | "timer">[],
+  jobb: { kortId: string | null; projectId: string | null; externalCostObjectId: string | null },
+  pauseMin = 0,
+): number {
+  const nokkel = maskinJobbNokkel(jobb);
+  const fort = maskin.reduce((s, m) => (maskinJobbNokkel(m) === nokkel ? s + m.timer : s), 0);
+  const rest = jobbArbeidSum(timer, jobb, pauseMin) - fort;
+  // Timer lagres med 2 desimaler: unngå 5.199999 i feltet.
+  return Math.max(0, Math.round(rest * 100) / 100);
+}
+
+/**
  * Jobbene der maskinene med fører har flere timer enn arbeidet. Bare jobber med
  * minst én førermaskin vurderes; døgn-maskiner telles aldri.
  */

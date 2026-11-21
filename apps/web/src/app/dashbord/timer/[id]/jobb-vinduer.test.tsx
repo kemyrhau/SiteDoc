@@ -13,6 +13,8 @@ const h = vi.hoisted(() => ({
   data: {} as Record<string, unknown>,
   kall: [] as { sti: string; input: Record<string, unknown> }[],
   feil: {} as Record<string, unknown>,
+  /** Svar fra en mutasjon pr. sti (standard `{ id: "ny" }`). */
+  svar: {} as Record<string, unknown>,
   velgFirma: vi.fn(),
 }));
 
@@ -69,7 +71,7 @@ vi.mock("@/lib/trpc", () => {
         if (navn === "useMutation") {
           const logg = (input: Record<string, unknown>) => {
             h.kall.push({ sti: key, input });
-            return { id: "ny" };
+            return h.svar[key] ?? { id: "ny" };
           };
           return () => ({
             mutate: logg,
@@ -94,6 +96,7 @@ function rendre(modus = "prosjektkort") {
   const r2 = { ...DAG7_SEDEL.timer[1]!, byggeplassId: "b1" };
   h.kall = [];
   h.feil = {};
+  h.svar = {};
   h.data = {
     ...dag7Data(modus),
     "timer.dagsseddel.hentMedId": { ...DAG7_SEDEL, timer: [DAG7_SEDEL.timer[0]!, r2] },
@@ -211,6 +214,11 @@ describe("w3a — vinduene arver jobben", () => {
 
   it("w3b: døgn-maskin fra jobben foreslås med jobbens arbeidstimer, uten høyst", () => {
     rendre();
+    // O5: uten maskin ført på jobben er forslaget hele arbeidet.
+    h.data["timer.dagsseddel.hentMedId"] = {
+      ...(h.data["timer.dagsseddel.hentMedId"] as Record<string, unknown>),
+      maskiner: [],
+    };
     h.data["maskin.equipment.list"] = [
       ...(h.data["maskin.equipment.list"] as unknown[]),
       { id: "v2", kategori: "annet", type: "varmer", merke: "Heatwork", modell: "MB3", internNavn: "Tiner T-1", utleieEnhet: "doegn" },
@@ -392,6 +400,67 @@ describe("w3a — vinduene arver jobben", () => {
     const dialog = screen.getByRole("dialog");
     expect(dialog.textContent).toContain("timer.felt.prosjekt");
     expect(dialog.textContent).toContain("timer.felt.underprosjekt");
+  });
+});
+
+describe("O5 A — «+ Maskin» trekker fra maskintid ført på jobben (§ 8.22, Kenneth etter test d4bec43e)", () => {
+  afterEach(cleanup);
+
+  const HEATWORK = {
+    id: "v2", kategori: "annet", type: "varmer", merke: "Heatwork", modell: "MB3", internNavn: "Tiner T-1", utleieEnhet: "doegn",
+  };
+  const m1 = DAG7_SEDEL.maskiner[0]!;
+  /** Jobb 2 (k2) blir 15:00–21:00 = 6 t arbeid; `maskiner` er det som alt er ført på dagen. */
+  function jobb6t(maskiner: unknown[]) {
+    rendre();
+    h.data["maskin.equipment.list"] = [...(h.data["maskin.equipment.list"] as unknown[]), HEATWORK];
+    h.data["timer.dagsseddel.hentMedId"] = {
+      ...DAG7_SEDEL,
+      timer: [
+        DAG7_SEDEL.timer[0]!,
+        { ...DAG7_SEDEL.timer[1]!, byggeplassId: "b1", tilTid: "21:00", timer: "6" },
+      ],
+      maskiner,
+    };
+    cleanup();
+    render(<Side />);
+    return fraJobb2("timer.prosjektkort.nyMaskin");
+  }
+  function forslagFor(dialog: HTMLElement, navn: RegExp) {
+    fireEvent.click(within(dialog).getAllByRole("button")[0]!);
+    fireEvent.click(within(dialog).getByText(navn));
+    return dialog.querySelector<HTMLInputElement>('input[type="number"]')!.value;
+  }
+
+  it("Kenneths eksempel: jobb 6 t, Volvo 3 t ført → Heatwork som maskin nr. 2 foreslås med 3 t", () => {
+    const dialog = jobb6t([{ ...m1, timer: "3" }]);
+    expect(forslagFor(dialog, /Tiner T-1/)).toBe("3");
+  });
+
+  it("førermaskin med Volvo 3 t ført: forslaget er 3 t (som høyst)", () => {
+    const dialog = jobb6t([{ ...m1, timer: "3" }]);
+    expect(forslagFor(dialog, /Gravemaskin G-12/)).toBe("3");
+    expect(within(dialog).getByTestId("maskin-hoyst").textContent).toContain('"timer":"3,0"');
+  });
+
+  it("to maskiner ført (Volvo 3 t + Heatwork 1,5 t): forslaget er 1,5 t; maskinen uten jobb (m0) teller ikke", () => {
+    const dialog = jobb6t([
+      { ...m1, timer: "3" },
+      { ...m1, id: "m2", vehicleId: "v2", timer: "1.5" },
+      DAG7_SEDEL.maskiner[1]!,
+    ]);
+    expect(forslagFor(dialog, /Gravemaskin G-12/)).toBe("1.5");
+    // Høyst trekker bare fra førermaskinene: 6 − 3 = 3 t.
+    expect(within(dialog).getByTestId("maskin-hoyst").textContent).toContain('"timer":"3,0"');
+  });
+
+  it("aldri under 0: maskiner ført for mer enn jobbens arbeid gir tomt felt, ikke minus", () => {
+    const dialog = jobb6t([
+      { ...m1, timer: "4" },
+      { ...m1, id: "m2", vehicleId: "v2", timer: "5" },
+    ]);
+    const verdi = forslagFor(dialog, /Tiner T-1/);
+    expect(verdi).toBe("");
   });
 });
 
@@ -709,5 +778,155 @@ describe("O4 — underprosjekt i «Legg til timer-rad» (§ 8.22 punkt 7)", () =
     fireEvent.change(underprosjektValg(dialog), { target: { value: "e1" } });
     const input = await lagre(dialog);
     expect(input).toMatchObject({ kortId: "k2", externalCostObjectId: "e1" });
+  });
+});
+
+describe("O5 B — overtid deles automatisk ved lagring i prosjektkort-modus (§ 8.22, Kenneth etter test d4bec43e)", () => {
+  afterEach(cleanup);
+
+  const TL = { id: "l1", navn: "Timelønn", type: "ordinaer", aktiv: true, satsEnhet: "time", overtidsnivaa: null, rekkefolge: 1 };
+  const OT = { id: "ot", navn: "Overtid 50 %", type: "ordinaer", aktiv: true, satsEnhet: "time", overtidsnivaa: 50, rekkefolge: 2 };
+  const r2 = DAG7_SEDEL.timer[1]!;
+  /** Jobb 2 (k2, TILL-001) er 07:00–13:30 med 30 min pause = 6 t; dagsnorm 7,5 t. `ekstra` er flere rader i jobben. */
+  function dag6t(modus = "prosjektkort", ekstra: Record<string, unknown>[] = []) {
+    rendre(modus);
+    h.data["timer.lonnsart.list"] = [TL, OT];
+    h.data["organisasjon.hentEffektivArbeidstid"] = { dagsnorm: 7.5, pauseReferanse: "ankomst", pauseEtterTimer: 4 };
+    h.data["timer.dagsseddel.hentMedId"] = {
+      ...DAG7_SEDEL,
+      timer: [
+        { ...r2, byggeplassId: "b1", fraTid: "07:00", tilTid: "13:30", timer: "6", pauseMin: 30, beskrivelse: "Graving" },
+        ...ekstra.map((r) => ({ ...r2, byggeplassId: "b1", pauseMin: 0, beskrivelse: "Graving", ...r })),
+      ],
+      maskiner: [],
+    };
+    cleanup();
+    return render(<Side />);
+  }
+  const valgMed = (dialog: HTMLElement, verdi: string) =>
+    Array.from(dialog.querySelectorAll("select")).find((s) => Array.from(s.options).some((o) => o.value === verdi))!;
+  function settTid(dialog: HTMLElement, fraV: string | null, tilV: string) {
+    const [fra, til] = Array.from(dialog.querySelectorAll<HTMLInputElement>('input[type="time"]'));
+    if (fraV) {
+      fireEvent.change(fra!, { target: { value: fraV } });
+      fireEvent.blur(fra!);
+    }
+    fireEvent.change(til!, { target: { value: tilV } });
+    fireEvent.blur(til!);
+  }
+  /** «+ Timer» fra jobb 2, 13:30–15:30 på Timelønn og jobbens underprosjekt. */
+  function leggTil1330() {
+    const dialog = fraJobb2("timer.prosjektkort.nyTimer");
+    fireEvent.change(valgMed(dialog, "l1"), { target: { value: "l1" } });
+    fireEvent.change(valgMed(dialog, "a1"), { target: { value: "a1" } });
+    fireEvent.change(underprosjektValg(dialog), { target: { value: "e1" } });
+    settTid(dialog, "13:30", "15:30");
+    fireEvent.change(dialog.querySelector("textarea")!, { target: { value: "Opprydding" } });
+    return dialog;
+  }
+  const timerKall = () =>
+    h.kall.filter((k) => k.sti === "timer.dagsseddel.tilfoyTimerRad" || k.sti === "timer.dagsseddel.oppdaterTimerRad");
+  /** Penn nr. `i` blant timerlinjene på jobb 2 (linjene står med penn når jobben har flere arbeidsrader). */
+  function rediger(i: number) {
+    const kort = screen.getAllByRole("button").find((b) => b.textContent?.includes("TILL-001"));
+    fireEvent.click(kort!);
+    // Bare timerlinjenes penner (varen på jobben har også penn).
+    const penner = screen
+      .getAllByTitle("handling.rediger")
+      .filter((p) => p.parentElement?.parentElement?.textContent?.includes("timer.timerEnhet"));
+    fireEvent.click(penner[i]!);
+    return screen.getByRole("dialog", { name: "timer.detalj.redigerTimerRad" });
+  }
+
+  it("«Legg til» 13:30–15:30 på en dag med 6 t: 1,5 t Timelønn + 0,5 t overtid, begge i jobbens kort", async () => {
+    dag6t();
+    const dialog = leggTil1330();
+    // Opplysning, ikke knapp.
+    expect(within(dialog).getByTestId("overtid-ved-lagring").textContent).toContain("timer.overtidForslag.delesVedLagring");
+    expect(within(dialog).queryByRole("button", { name: "timer.overtidForslag.delKnapp" })).toBeNull();
+    fireEvent.submit(dialog.querySelector("form")!);
+    await vi.waitFor(() => expect(timerKall()).toHaveLength(2));
+    const [normal, overtid] = timerKall();
+    expect(normal).toMatchObject({
+      sti: "timer.dagsseddel.tilfoyTimerRad",
+      input: { fraTid: "13:30", tilTid: "15:00", timer: 1.5, lonnsartId: "l1", kortId: "k2", externalCostObjectId: "e1" },
+    });
+    expect(overtid).toMatchObject({
+      sti: "timer.dagsseddel.tilfoyTimerRad",
+      input: { fraTid: "15:00", tilTid: "15:30", timer: 0.5, lonnsartId: "ot", kortId: "k2", externalCostObjectId: "e1" },
+    });
+  });
+
+  it("«Legg til» innenfor normen (13:30–14:30): én rad, ingen opplysning", async () => {
+    dag6t();
+    const dialog = leggTil1330();
+    settTid(dialog, null, "14:30");
+    expect(within(dialog).queryByTestId("overtid-ved-lagring")).toBeNull();
+    fireEvent.submit(dialog.querySelector("form")!);
+    await vi.waitFor(() => expect(timerKall()).toHaveLength(1));
+    expect(timerKall()[0]!.input).toMatchObject({ fraTid: "13:30", tilTid: "14:30", timer: 1, lonnsartId: "l1" });
+  });
+
+  it("«Rediger» som flytter raden over normen (13:30–14:30 → 15:30) deler: raden kortes inn, overtiden blir ny rad", async () => {
+    dag6t("prosjektkort", [{ id: "r3", fraTid: "13:30", tilTid: "14:30", timer: "1", createdAt: "2026-11-20T13:30:00.000Z" }]);
+    const dialog = rediger(1);
+    expect(dialog.querySelector<HTMLInputElement>('input[type="time"]')!.value).toBe("13:30");
+    settTid(dialog, null, "15:30");
+    expect(within(dialog).getByTestId("overtid-ved-lagring")).toBeTruthy();
+    fireEvent.submit(dialog.querySelector("form")!);
+    await vi.waitFor(() => expect(timerKall()).toHaveLength(2));
+    const [normal, overtid] = timerKall();
+    expect(normal).toMatchObject({
+      sti: "timer.dagsseddel.oppdaterTimerRad",
+      input: { id: "r3", fraTid: "13:30", tilTid: "15:00", timer: 1.5, lonnsartId: "l1" },
+    });
+    expect(overtid).toMatchObject({
+      sti: "timer.dagsseddel.tilfoyTimerRad",
+      input: { fraTid: "15:00", tilTid: "15:30", timer: 0.5, lonnsartId: "ot", kortId: "k2" },
+    });
+  });
+
+  it("gate 134 V1: deling der varen ikke ble flyttet — kall 2 gjøres, vinduet står åpent med feilen", async () => {
+    dag6t("prosjektkort", [{ id: "r3", fraTid: "13:30", tilTid: "14:30", timer: "1", createdAt: "2026-11-20T13:30:00.000Z" }]);
+    h.svar["timer.dagsseddel.oppdaterTimerRad"] = { id: "r3", vareIkkeFlyttet: true };
+    const dialog = rediger(1);
+    settTid(dialog, null, "15:30");
+    fireEvent.submit(dialog.querySelector("form")!);
+    await vi.waitFor(() => expect(within(dialog).getByText("timer.feil.vareIkkeFlyttet")).toBeTruthy());
+    const [normal, overtid] = timerKall();
+    expect(normal).toMatchObject({ sti: "timer.dagsseddel.oppdaterTimerRad", input: { id: "r3", tilTid: "15:00" } });
+    expect(overtid).toMatchObject({ sti: "timer.dagsseddel.tilfoyTimerRad", input: { fraTid: "15:00", tilTid: "15:30", lonnsartId: "ot" } });
+    expect(screen.getByRole("dialog", { name: "timer.detalj.redigerTimerRad" })).toBe(dialog);
+  });
+
+  it("bevisst artsbytte står: overtidsdelen byttet til Timelønn på uendret tid lagres som Timelønn, uten ny deling", async () => {
+    dag6t("prosjektkort", [
+      { id: "r3", fraTid: "13:30", tilTid: "15:00", timer: "1.5", createdAt: "2026-11-20T13:30:00.000Z" },
+      { id: "r4", fraTid: "15:00", tilTid: "15:30", timer: "0.5", lonnsartId: "ot", createdAt: "2026-11-20T15:00:00.000Z" },
+    ]);
+    const dialog = rediger(2);
+    expect(dialog.querySelector<HTMLInputElement>('input[type="time"]')!.value).toBe("15:00");
+    fireEvent.change(valgMed(dialog, "l1"), { target: { value: "l1" } });
+    expect(within(dialog).queryByTestId("overtid-ved-lagring")).toBeNull();
+    fireEvent.submit(dialog.querySelector("form")!);
+    await vi.waitFor(() => expect(timerKall()).toHaveLength(1));
+    expect(timerKall()[0]).toMatchObject({
+      sti: "timer.dagsseddel.oppdaterTimerRad",
+      input: { id: "r4", fraTid: "15:00", tilTid: "15:30", lonnsartId: "l1" },
+    });
+  });
+
+  it("vakt: dagskort-modus har den gule boksen med «Del raden» og lagrer én rad uten knappen", async () => {
+    dag6t("dagskort");
+    fireEvent.click(screen.getAllByRole("button", { name: /timer\.detalj\.tilfoyTimer/ })[0]!);
+    const dialog = screen.getByRole("dialog");
+    fireEvent.change(valgMed(dialog, "l1"), { target: { value: "l1" } });
+    fireEvent.change(valgMed(dialog, "a1"), { target: { value: "a1" } });
+    settTid(dialog, "13:30", "15:30");
+    expect(within(dialog).getByRole("button", { name: "timer.overtidForslag.delKnapp" })).toBeTruthy();
+    expect(within(dialog).queryByTestId("overtid-ved-lagring")).toBeNull();
+    fireEvent.submit(dialog.querySelector("form")!);
+    await vi.waitFor(() => expect(timerKall()).toHaveLength(1));
+    expect(timerKall()[0]!.input).toMatchObject({ fraTid: "13:30", tilTid: "15:30", timer: 2, lonnsartId: "l1" });
   });
 });

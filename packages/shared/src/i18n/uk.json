@@ -669,6 +669,8 @@
   "timer.overtidForslag.helRad": "На {{over}} год понад добову норму — записати як {{otNavn}}?",
   "timer.overtidForslag.delKnapp": "Розділити рядок",
   "timer.overtidForslag.helKnapp": "Записати як понаднормову роботу",
+  "timer.overtidForslag.delesVedLagring": "На {{over}} год понад добову норму — збережено як {{normalNavn}} {{nFra}}–{{nTil}} і {{otNavn}} {{oFra}}–{{oTil}}.",
+  "timer.overtidForslag.helRadVedLagring": "На {{over}} год понад добову норму — збережено як {{otNavn}}.",
   "timer.matpause.annenRadBaerer": "Інший ряд несе обідню перерву протягом дня",
   "timer.matpause.flyttet": "Перерва вираховується з {{tidsrom}}",
   "timer.matpause.fjernTittel": "Перерва не вираховується",
