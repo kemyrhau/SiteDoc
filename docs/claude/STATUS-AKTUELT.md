@@ -33,6 +33,7 @@ sist_verifisert_mot_kode: 2026-08-09
 > ✅ **Gjestevern ved firmabytte, mobil (19) MERGET 2026-11-15** (merge `1a287c5d` av `38f4dffa`; Kontrollør GODKJENT GATE (44) nederst i `inbox-orkestrator.md`). `skalNullstilleProsjekt` flyttet til `@sitedoc/shared` (`gjesteprosjekt.ts`, web re-eksporterer); mobil `ProsjektKontekst.tsx` holder ventende firmabytte til gjestelista er lastet (`firmabyttProsjekt.ts` `firmabyttUtfall`) — gjesteprosjekt beholdes ved firmabytte. **Ikke deployet.** Lukker (18) åpent punkt (b).
 > 🟢 **TEST-DEPLOY 2026-11-21: `3fa1bf2b`** (bygget 14:32+01, `/version` og delte tjenester verifisert av Kenneth). Innhold: forenklingen (§ 8.22) + tallformat. Ingen migreringer. Kenneths funn samme dag (plan § 8.22): «+ Registrer timer» skal åpne redigerbart vindu (snur B41 A); maskinvinduet for lite; reiser «koblet feil» (avklares).
 
+> ✅ **O5 «+ Maskin» trekker fra / overtid deles automatisk MERGET 2026-11-21** (merge `25b40350` av `6e1a792f`, gate (134) RETUR → re-gate GODKJENT). Regel 10 kaldt: 7×=0, typecheck 11/11, pnpm test 7/7, kald next build OK. Ingen migrering. Ikke deployet.
 > ✅ **S1 «Slett dagsseddel sletter alt» MERGET 2026-11-21** (merge `d35af35c` av `0108e767`, gate (135) GODKJENT). Regel 10 kaldt: 7×=0, typecheck 11/11, pnpm test 7/7, kald next build OK. Ingen migrering. Ikke deployet. Oppfølger: mobil skjuler ikke slett-knappen på returnert dag.
 > ✅ **O3+O4 «Legg til timer-rad» MERGET 2026-11-21** (merge `8b858340` av `3025c96f`, gate (133) GODKJENT). Regel 10 kaldt: install+generate ×4, typecheck 11/11, web tsc 0, kald build 0, test 7/7 (GATE_OK). Ingen migrering. Ikke deployet. Neste: test-deploy (L3b, O1–O4) med testveiledning, deretter L4.
 > ✅ **O2 timer rett i jobbskjemaet + klokkefelt MERGET 2026-11-21** (merge `d815c465` av `eac0ca63`, retur før gate (datalist → native klokkefelt), gate (132) GODKJENT). Regel 10 kaldt: install+generate ×4, typecheck 11/11, web tsc 0, kald build 0, test 7/7 (GATE_OK). Ingen migrering. Ikke deployet. Neste: O3+O4 «Legg til timer-rad».
@@ -218,7 +219,7 @@ sist_verifisert_mot_kode: 2026-08-09
 | **3D-web** | app-tre `3d-web-maaling-a15d10` | `feat/3d-egenskaper` merget `59efcf5a` | ⚪ LEDIG — neste: W5/M6 måling |
 | **3D-mobil** | app-tre `3d-mobil-maaling-a07340` | `feat/3d-mobil-trykk` merget `3ef97e7f` | ⚪ LEDIG — neste: M6 måling |
 | **web-timer-w1** | app-tre `web-timer-w1-2396e3` | S1 `fix/timer-slett-dagsseddel` merget `d35af35c` (w2 `1e792946`) | ⚪ LEDIG |
-| **web-timer-w5** | app-tre `web-timer-w5-c80b84` | O3+O4 merget `8b858340`, O2 `d815c465`, O1 `5ec7f1e0`, L3b `af91e7e0` (ikke deployet); venter Kenneths test; deretter L4 | ⏳ W5 |
+| **web-timer-w5** | app-tre `web-timer-w5-c80b84` | O5 merget `25b40350`, O3+O4 `8b858340`, O2 `d815c465`, O1 `5ec7f1e0`, L3b `af91e7e0` (O3–O5 ikke deployet); venter Kenneths test; deretter L4 | ⏳ W5 |
 | **Kort-id d2b-2/3** | app-tre `kortid-d2b2-c544cf` | `feat/kortid-d2b3` merget `30ca2935` | ⚪ LEDIG — neste i specen: d3 |
 | **Kort-id d2c-2** | app-tre `kortid-d2c2-4fb489` | `feat/kortid-d2c2-mobil` merget `338de16a` | ⚪ LEDIG |
 | **Merge** | `SiteDoc-merge` | detached på develop | ⚪ LEDIG |

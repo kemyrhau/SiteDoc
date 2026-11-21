@@ -1015,7 +1015,7 @@ Hjemmel: `web-timeforing-plan.md` § 8.22, «Kenneths test av L3a», punkt 3 og 
 - **O4 — eget kort:** er radens kort-nøkkel (`kortIdNokkel`: prosjekt|byggeplass|underprosjekt) en annen enn jobbens, sender vinduet en ny kort-id (`nyKortId`, regel 1) på raden, overtid-delen og maskinen (`nyRadEgenJobb`/`lagreKortId`). Lik nøkkel: jobbens kort-id som før. Uten ny id ville regel 3 i `sikreKortId` lagt raden i eldste jobb med samme nøkkel — registreringer slås aldri sammen. Følge: «—» på en jobb med underprosjekt gir egen jobb uten underprosjekt.
 - **Tester:** `jobb-vinduer.test.tsx` § O3 (tom maskindel; forslag = radens 2,5 t for fører og døgn, ikke jobbens 3,5 t; vakt: «Rediger» viser jobbens maskin og foreslår døgn med jobbens arbeid) og § O4 («—» forvalgt; skjult uten åpne underprosjekter; annet underprosjekt → ny kort-id; samme → `k2`). Integrasjon `apps/api/src/routes/timer/o4-legg-til-underprosjekt.integration.test.ts` (4): ny id med annet underprosjekt står som egen jobb, også når en eldre jobb har samme underprosjekt; kontroll uten id → regel 3 legger den i eldste jobb; «—»; samme underprosjekt → jobbens kort. Negativkontroll: 8 web-tester feiler mot develop.
 
-### «+ Maskin» og overtid i timer-raden (O5) — 🟡 `feat/web-timer-o5`, ikke merget
+### «+ Maskin» og overtid i timer-raden (O5) — ✅ merget `25b40350`
 
 Hjemmel: `web-timeforing-plan.md` § 8.22, «Kenneths test på `d4bec43e`», punkt 1 og 2 (2026-11-21). Gjelder web i prosjektkort-modus. Dagskort-modus, `apps/mobile`, attestering, jobbskjemaet (O2) og maskindelen i «Rediger timer-rad» er urørt.
 
