@@ -174,7 +174,7 @@ describe("w3a — vinduene arver jobben", () => {
     fireEvent.click(within(dialog).getAllByRole("button")[0]!);
     fireEvent.click(within(dialog).getByText(/Gravemaskin G-12/));
     // Jobb 2 har 1 t arbeid og gravemaskinen m1 på 1 t fra før: høyst 0 t.
-    expect(within(dialog).getByTestId("maskin-hoyst").textContent).toContain('"timer":"0"');
+    expect(within(dialog).getByTestId("maskin-hoyst").textContent).toContain('"timer":"0,0"');
     fireEvent.change(dialog.querySelector('input[type="number"]')!, { target: { value: "0.5" } });
     // Over høyst: lagre er sperret.
     expect(within(dialog).getByRole("button", { name: "handling.lagre" })).toHaveProperty("disabled", true);

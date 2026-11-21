@@ -155,7 +155,7 @@ describe("timer-sedel — visningsmodus", () => {
     expect(html).toContain("2050 — Barnehage");
     expect(html).toContain("timer.prosjektkort.ramme");
     expect(html).toContain("timer.prosjektkort.pauseBaeres{&quot;kort&quot;:&quot;2050 — Barnehage&quot;}");
-    expect(html).toContain("timer.prosjektkort.sendDagen{&quot;timer&quot;:&quot;8&quot;}");
+    expect(html).toContain("timer.prosjektkort.sendDagen{&quot;timer&quot;:&quot;8,0&quot;}");
     // w2: knappen nederst er «+ Registrer timer» (neste jobb, samme eller annet prosjekt).
     expect(html).toContain("timer.prosjektkort.registrerTimer");
     expect(html).toContain("timer.prosjektkort.registrerTimerHint");
@@ -187,7 +187,7 @@ describe("timer-sedel — visningsmodus", () => {
     const medReise = rendre("prosjektkort", {
       timer: [sheet.timer[0]!, { ...sheet.timer[1]!, erReise: true }],
     });
-    expect(medReise).toContain("timer.prosjektkort.sumReise{&quot;timer&quot;:&quot;4&quot;}");
+    expect(medReise).toContain("timer.prosjektkort.sumReise{&quot;timer&quot;:&quot;4,0&quot;}");
   });
 
   it("returnert sedel: knappen sier «Send på nytt» som i dagskortet", () => {
@@ -260,13 +260,13 @@ describe("dagskort — banneret holder reise utenfor dekningen (post (7) punkt 6
 
   it("dag med reise: dekning = arbeid uten reise, reise vises separat", () => {
     const html = ren(medReise());
-    expect(html).toContain('timer.summering{"registrert":"4.00"');
-    expect(html).toContain('timer.summeringReise{"reise":"2.00"}');
+    expect(html).toContain('timer.summering{"registrert":"4,0"');
+    expect(html).toContain('timer.summeringReise{"reise":"2,0"}');
   });
 
   it("dag uten reise: ingen reise-del i banneret", () => {
     const html = ren(rendre("dagskort"));
-    expect(html).toContain('timer.summering{"registrert":"8.00"');
+    expect(html).toContain('timer.summering{"registrert":"8,0"');
     expect(html).not.toContain("timer.summeringReise");
   });
 
