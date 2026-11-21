@@ -33,6 +33,8 @@ sist_verifisert_mot_kode: 2026-08-09
 > ✅ **Gjestevern ved firmabytte, mobil (19) MERGET 2026-11-15** (merge `1a287c5d` av `38f4dffa`; Kontrollør GODKJENT GATE (44) nederst i `inbox-orkestrator.md`). `skalNullstilleProsjekt` flyttet til `@sitedoc/shared` (`gjesteprosjekt.ts`, web re-eksporterer); mobil `ProsjektKontekst.tsx` holder ventende firmabytte til gjestelista er lastet (`firmabyttProsjekt.ts` `firmabyttUtfall`) — gjesteprosjekt beholdes ved firmabytte. **Ikke deployet.** Lukker (18) åpent punkt (b).
 > 🟢 **TEST-DEPLOY 2026-11-21: `3fa1bf2b`** (bygget 14:32+01, `/version` og delte tjenester verifisert av Kenneth). Innhold: forenklingen (§ 8.22) + tallformat. Ingen migreringer. Kenneths funn samme dag (plan § 8.22): «+ Registrer timer» skal åpne redigerbart vindu (snur B41 A); maskinvinduet for lite; reiser «koblet feil» (avklares).
 
+> ✅ **L1 maskinlista i full høyde MERGET 2026-11-21** (merge `080fce48` av `8da911f3`, gate (126)). Regel 10 kaldt: 11/11, tsc 0, build 0, test 7/7 seriell. Ingen migrering. Ikke deployet. Funn (gate 126): maskinradene i attesteringen og «Del opp» har fortsatt fra–til (`RedigerMaskinRad.tsx:95–114`, `KompaktMaskinRad` i `RedigerRadModal.tsx` ~1082–1110) — i strid med § 8.22 punkt 1; egen ordre.
+
 > ✅ **Tallformat på dagssiden MERGET 2026-11-21** (merge `cface3e4` av `b4e4d497`, gate (125) GODKJENT; regel 10 i merge-treet: typecheck 11/11, web tsc 0, kald build 0, test 7/7). «4.00 t» → «4,0 t», også dagskort-modus (Kenneth «A»). Ingen migrering. Ikke deployet — deployes sammen med forenklingen. Neste: «Del opp» med begge kortene (§ 4.16).
 
 > ✅ **Forenklingen (§ 8.22) MERGET 2026-11-21** (merge `e4b1208f` av `d860d5dc`, gate (123) VILKÅR → (124) GODKJENT `inbox-orkestrator.md:38872`; regel 10 i merge-treet: typecheck 11/11, web tsc 0, kald build 0, test 7/7). Ingen migrering. Ikke deployet. Åpent til Kenneth: språksjekk av `timer.reiseKort.annetKontorFraIDag` (maskinoversatt); lokal gate-DB `sitedoc_gate123` kan slettes. Neste: timeformat i kortlinjene («4.00 t» → «4,0 t»), så «Del opp» med begge kortene (§ 4.16).
@@ -206,7 +208,7 @@ sist_verifisert_mot_kode: 2026-08-09
 | **3D-web** | app-tre `3d-web-maaling-a15d10` | `feat/3d-egenskaper` merget `59efcf5a` | ⚪ LEDIG — neste: W5/M6 måling |
 | **3D-mobil** | app-tre `3d-mobil-maaling-a07340` | `feat/3d-mobil-trykk` merget `3ef97e7f` | ⚪ LEDIG — neste: M6 måling |
 | **web-timer-w1** | app-tre `web-timer-w1-2396e3` | `feat/web-timer-w2` merget `1e792946` | ⚪ LEDIG — neste i planen: w3 jobben som én flate |
-| **web-timer-w5** | app-tre `web-timer-w5-c80b84` | `fix/web-timer-timeformat` merget `cface3e4`; neste: «Del opp» med begge kortene (§ 4.16) | ⏳ ORKESTRATOR |
+| **web-timer-w5** | app-tre `web-timer-w5-c80b84` | `feat/web-timer-maskinliste-hoyde` (L1) merget `080fce48`; neste: L2–L4 (Bilde 2) venter Kenneths fire beslutninger; maskin fra–til i attesteringen fjernes | ⏳ ORKESTRATOR |
 | **Kort-id d2b-2/3** | app-tre `kortid-d2b2-c544cf` | `feat/kortid-d2b3` merget `30ca2935` | ⚪ LEDIG — neste i specen: d3 |
 | **Kort-id d2c-2** | app-tre `kortid-d2c2-4fb489` | `feat/kortid-d2c2-mobil` merget `338de16a` | ⚪ LEDIG |
 | **Merge** | `SiteDoc-merge` | detached på develop | ⚪ LEDIG |
