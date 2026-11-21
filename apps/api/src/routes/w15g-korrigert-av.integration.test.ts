@@ -374,6 +374,47 @@ describe("w15g punkt 4 — arbeiderens senere verdi står ikke som attestantens"
   });
 });
 
+describe("w15g RETUR (gate 120) — arbeiderens senere verdi etter ✂ og «Del opp» står ikke som attestantens", () => {
+  /** Arbeiderens penn (`oppdaterTimerRad`) skriver ingen historikk; raden får hans verdi direkte. */
+  async function arbeiderRetter(sid: string, radId: string, fra: string, til: string) {
+    await prismaTimer.dailySheet.update({ where: { id: sid }, data: { status: "returned" } });
+    await prismaTimer.sheetTimer.update({ where: { id: radId }, data: { tilTid: til, timer: timerMellom(fra, til) } });
+    await prismaTimer.dailySheet.update({ where: { id: sid }, data: { status: "sent" } });
+  }
+
+  it("✂ 07–15 til 07–11 + 11–15, arbeideren setter del A til 10:00: merket viser 15:00 → 11:00", async () => {
+    const sid = await nySedel();
+    const r = await raArbeid(sid, { fra: "07:00", til: "15:00" });
+    await dag(KARI).splittRad({
+      radType: "timer",
+      radId: r.id,
+      nyeRader: [
+        { lonnsartId: ORD, aktivitetId: AKT, projectId: P1, fraTid: "07:00", tilTid: "11:00", timer: 4 },
+        { lonnsartId: ORD, aktivitetId: AKT, projectId: P1, fraTid: "11:00", tilTid: "15:00", timer: 4 },
+      ],
+    } as Parameters<ReturnType<typeof dag>["splittRad"]>[0]);
+    const [delA, delB] = await prismaTimer.sheetTimer.findMany({ where: { sheetId: sid }, orderBy: { fraTid: "asc" } });
+    await arbeiderRetter(sid, delA!.id, "07:00", "10:00");
+    const k = await korrigeringer(sid);
+    expect(felt(k.timer[delA!.id], "tilTid")).toMatchObject({ foer: "15:00", etter: "11:00" });
+    expect(k.timer[delA!.id]?.avNavn).toBe("Kari Leder");
+    expect(felt(k.timer[delB!.id], "fraTid")).toMatchObject({ foer: "07:00", etter: "11:00" });
+  });
+
+  it("«Del opp» kl. 11:00, arbeideren setter del A til 10:00: merket viser 15:00 → 11:00", async () => {
+    const sid = await nySedel();
+    const r = await raArbeid(sid, { fra: "07:00", til: "15:00", kortId: randomUUID() });
+    const lagret = await prismaTimer.sheetTimer.findUniqueOrThrow({ where: { id: r.id } });
+    await dag(KARI).delJobb({ sheetId: sid, kortId: lagret.kortId!, kl: "11:00", externalCostObjectIdB: null });
+    const delB = await prismaTimer.sheetTimer.findFirstOrThrow({ where: { sheetId: sid, parentRadId: r.id, NOT: { id: r.id } } });
+    await arbeiderRetter(sid, r.id, "07:00", "10:00");
+    const k = await korrigeringer(sid);
+    expect(felt(k.timer[r.id], "tilTid")).toMatchObject({ foer: "15:00", etter: "11:00" });
+    expect(k.timer[r.id]?.avNavn).toBe("Kari Leder");
+    expect(felt(k.timer[delB.id], "fraTid")).toMatchObject({ foer: "07:00", etter: "11:00" });
+  });
+});
+
 // ════════════════════════════════════════════════════════════════════════════
 //  Vakt (F80) — bare eieren får merket
 // ════════════════════════════════════════════════════════════════════════════

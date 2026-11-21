@@ -66,11 +66,16 @@ const FELT_NOKKEL: Record<string, string> = {
   antall: "timer.korrigert.felt.antall",
 };
 
+/** Feltene som er id-er; serveren gir navnet i `foerTekst`/`etterTekst`. */
+const ID_FELT = new Set(["lonnsartId", "aktivitetId", "projectId", "byggeplassId", "externalCostObjectId", "vehicleId"]);
+
 /** Verdien slik arbeideren leser den: navn for id-felt, tall med komma, «—» for tomt. */
 function visVerdi(t: T, f: KorrigertFelt, v: string | number | null, tekst: string | null): string {
   if (f.felt === "externalCostObjectId" && v === null) return t("timer.prosjektkort.utenUnderprosjekt");
   if (v === null) return "—";
   if (tekst) return tekst;
+  // Et id-felt uten navn (slettet lønnsart, maskin …) viser aldri rå id.
+  if (ID_FELT.has(f.felt)) return "—";
   if (typeof v === "number") return formaterNorsk(v);
   return v;
 }

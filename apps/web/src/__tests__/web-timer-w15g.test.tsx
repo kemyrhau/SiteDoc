@@ -100,6 +100,14 @@ describe("w15g pkt. 29 — merket på linja", () => {
     expect(uten.container.innerHTML).toBe("");
   });
 
+  it("id-felt uten navn (slettet lønnsart) viser «—», aldri rå id", () => {
+    const slettet: Korrigering = { ...KARI, felter: [{ felt: "lonnsartId", foer: "lonnsart-uuid-1", etter: "lonnsart-uuid-2", foerTekst: null, etterTekst: "Overtid 50 %" }] };
+    const { container } = render(<KorrigertMerkeVisning korrigering={slettet} />);
+    const felter = container.querySelector("[data-korrigert-felter]")!.textContent;
+    expect(felter).toBe("timer.korrigert.felt.lonnsart — → Overtid 50 %");
+    expect(felter).not.toContain("uuid");
+  });
+
   it("maskinlinja og tilleggslinja bruker samme merke", () => {
     const k: KorrigeringerPrRad = { timer: {}, tillegg: { g1: KARI }, maskin: { m1: KARI } };
     const { container } = render(

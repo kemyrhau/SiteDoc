@@ -371,6 +371,11 @@ export interface KorrigeringsHendelse {
   foer: Record<string, unknown>;
   /** Verdiene korrigeringen satte, når loggen har dem. */
   etter: Record<string, unknown> | null;
+  /**
+   * Verdiene pr. rad-id når én korrigering ga flere rader (✂ `splitt_rad`, «Del opp» `del_jobb`).
+   * Går foran `etter` for raden den gjelder.
+   */
+  etterPrRad?: Readonly<Record<string, Record<string, unknown>>> | null;
   /** Gjelder hendelsen raden? */
   gjelder: (rad: RadForKorrigering) => boolean;
 }
@@ -415,7 +420,8 @@ export function regnKorrigeringer(
       // Verdien hendelse i satte: loggens verdi, ellers neste korrigerings «før», ellers nå.
       const etterFor = (i: number): Verdi => {
         const h = medFelt[i]!;
-        if (harFelt(h.etter, felt)) return verdi(h.etter![felt]);
+        const satt = h.etterPrRad?.[rad.id] ?? h.etter;
+        if (harFelt(satt, felt)) return verdi(satt![felt]);
         const neste = medFelt[i + 1];
         return neste ? verdi(neste.foer[felt]) : verdi(rad[felt]);
       };
@@ -454,7 +460,17 @@ export type SedelForKorrigering = {
   maskiner: ReadonlyArray<RadForKorrigering>;
 };
 
-const RETTE_HANDLINGER = ["rett_rad_felt", "rediger_sedel_rader"] as const;
+const RETTE_HANDLINGER = ["rett_rad_felt", "rediger_sedel_rader", "splitt_rad", "del_jobb"] as const;
+
+/**
+ * Verdiene en rad fikk, slik merket regner dem — skrives pr. rad-id i loggen fra ✂ og «Del opp»
+ * (`etterPrRad`), så «etter» er det attestanten satte, ikke det raden har senere.
+ */
+export function korrigerbareVerdier(type: RadType, rad: Record<string, unknown>): Record<string, Verdi> {
+  const ut: Record<string, Verdi> = {};
+  for (const felt of KORRIGERBARE_FELT[type]) if (harFelt(rad, felt)) ut[felt] = normaliser(rad[felt]);
+  return ut;
+}
 /** Loggposten for en retting skrives rett etter transaksjonen; vinduet tåler treg skriving. */
 const LOGG_VINDU_MS = 60_000;
 
@@ -505,7 +521,12 @@ async function lastKorrigeringsHendelser(
     const treff = retteLogg
       .filter((l) => l.targetId === p.sheetId && l.actorUserId === p.erstattetAvUserId && l.createdAt.getTime() >= t0 && l.createdAt.getTime() - t0 <= LOGG_VINDU_MS)
       .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())[0];
-    const nye = treff ? ((treff.payload as { nyeSnapshot?: Record<string, unknown> } | null)?.nyeSnapshot?.[radType === "maskin" ? "maskin" : radType] as Array<Record<string, unknown>> | undefined) : undefined;
+    const payload = (treff?.payload ?? null) as { nyeSnapshot?: unknown; etterPrRad?: Record<string, Record<string, unknown>> } | null;
+    // ✂ og «Del opp»: verdiene pr. rad-id (eldre poster uten dem faller tilbake på raden nå).
+    const etterPrRad = treff && (treff.action === "splitt_rad" || treff.action === "del_jobb") ? (payload?.etterPrRad ?? null) : null;
+    const nye = treff && !etterPrRad && payload?.nyeSnapshot && !Array.isArray(payload.nyeSnapshot)
+      ? ((payload.nyeSnapshot as Record<string, unknown>)[radType] as Array<Record<string, unknown>> | undefined)
+      : undefined;
     const etter = nye?.find((r) => r.originalId === p.originalRadId) ?? null;
     hendelser.get(p.sheetId)?.push({
       radType,
@@ -513,6 +534,7 @@ async function lastKorrigeringsHendelser(
       avUserId: p.erstattetAvUserId,
       foer: snap,
       etter,
+      etterPrRad,
       gjelder: (rad) => nokkel(rad, p.originalRadId),
     });
   }
