@@ -5981,6 +5981,7 @@
   "timer.jobbSkjema.fra": "Aus",
   "timer.jobbSkjema.til": "Zu",
   "timer.jobbSkjema.pause": "brechen",
+  "timer.jobbSkjema.timer": "Std",
   "timer.jobbSkjema.lonnsart": "Lohnart",
   "timer.jobbSkjema.hvaGjorde": "Was hast du gemacht?",
   "timer.jobbSkjema.hvaGjordePlassholder": "Schreiben Sie, was Sie getan haben",
@@ -6003,5 +6004,5 @@
   "timer.jobbSkjema.overtidLinje": "{{fra}}–{{til}} · {{timer}} h · über der Tagesnorm {{dato}}: {{norm}} h",
   "timer.jobbSkjema.helOvertid": "Der gesamte Auftrag liegt über der Tagesnorm {{dato}}: {{norm}} h",
   "timer.jobbSkjema.ulagretSperre": "Etwas an dem Tag wird nicht gespeichert. Korrigieren Sie das rot markierte Feld oder versuchen Sie es erneut.",
-  "timer.mine.hjelp.skjema": "In der Projektkarte erfassen Sie den Auftrag direkt in der Karte: Von, Bis, Pause, Lohnart und „Was haben Sie gemacht?“. Ein Feld wird gespeichert, wenn Sie es verlassen – dort steht „ ✓ Gespeichert“. Wenn die Zeit die Tagesnorm überschreitet, vergeht die Überstundenzeit wie von selbst. Gelbe Felder sind Vorschläge aus der Arbeitszeit des Unternehmens oder vom Ende des vorherigen Jobs. Ein neuer Auftrag wird gespeichert, wenn Bis ausgefüllt wird. Wenn etwas nicht gespeichert wird, wird es rot angezeigt und der Tag kann erst übermittelt werden, wenn er korrigiert wurde. Wenn das Projekt Unterprojekte hat, wählen Sie das Unterprojekt oben im Auftrag aus – die Auswahl gilt für den gesamten Auftrag: Stunden, Maschinen, Materialien, Zulagen und Ausgaben. Reisen bewegt sich nicht mit."
+  "timer.mine.hjelp.skjema": "In der Projektkarte erfassen Sie den Auftrag direkt in der Karte: Von, Bis, Pause, Lohnart und „Was haben Sie gemacht?“. Ein Feld wird gespeichert, wenn Sie es verlassen – dort steht „ ✓ Gespeichert“. Wenn die Zeit die Tagesnorm überschreitet, vergeht die Überstundenzeit wie von selbst. Gelbe Felder sind Vorschläge aus der Arbeitszeit des Unternehmens oder vom Ende des vorherigen Jobs. Ein neuer Auftrag wird gespeichert, wenn Bis ausgefüllt wird. Wenn etwas nicht gespeichert wird, wird es rot angezeigt und der Tag kann erst übermittelt werden, wenn er korrigiert wurde. Wenn das Projekt Unterprojekte hat, wählen Sie das Unterprojekt oben im Auftrag aus – die Auswahl gilt für den gesamten Auftrag: Stunden, Maschinen, Materialien, Zulagen und Ausgaben. Reisen bewegt sich nicht mit. Die Stunden können Sie direkt in das Feld hinter „=“ eingeben: Bis errechnet sich dann aus Von, den Stunden und der Pause. Die Zeiten können als 1600, 16 oder 16.00 eingegeben werden."
 }

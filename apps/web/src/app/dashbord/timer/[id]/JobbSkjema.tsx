@@ -6,13 +6,25 @@
  * Lagre-knapp. Tiden går til `dagsseddel.lagreJobbTid`, som regner overtidslinja selv (delt
  * `regnJobbTid`, samme som forhåndsvisningen her). Rad 4–7 er dagens linjer med blyant,
  * vinduer og lenker, levert av siden. Ny jobb (`ny`) finnes bare på skjermen til Til er fylt.
+ *
+ * O2: timer redigeres der de står («= X t»): skrevne timer gir Til = Fra + timer + pause (delt
+ * `tilFraAntall`); endres Til eller pause, regnes timer på nytt. Fra/Til tolkes ved blur
+ * («1600», «16», «16.00» → 16:00) og rundes som timevinduet; feilmelding vises først ved blur.
  */
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Pencil } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { formaterTimer } from "@/lib/tallformat";
-import { lesPauseMin, type SkjemaKilde } from "@/lib/jobbSkjema";
+import { rundTilNarmeste } from "@/lib/tidsrunding";
+import {
+  klokkeSteg,
+  klokkeValg,
+  lesPauseMin,
+  tilFraTimer,
+  tolkKlokkeslett,
+  type SkjemaKilde,
+} from "@/lib/jobbSkjema";
 import {
   regnJobbTid,
   validerJobbTid,
@@ -63,6 +75,7 @@ export function JobbSkjema({
   onAapneVindu,
   rader47,
   onUlagret,
+  tidsrundingMinutter = null,
 }: {
   sheetId: string;
   kortId: string;
@@ -100,6 +113,8 @@ export function JobbSkjema({
   rader47: readonly SkjemaRad47[];
   /** Noe i skjemaet er ikke lagret (ugyldig felt eller feilet lagring). */
   onUlagret: (kortId: string, ulagret: boolean) => void;
+  /** Firmaets tidsrunding (som timevinduet): Fra/Til rundes ved blur, klokkevelgerens steg. */
+  tidsrundingMinutter?: number | null;
 }) {
   const { t, i18n } = useTranslation();
   const utils = trpc.useUtils();
@@ -158,6 +173,12 @@ export function JobbSkjema({
   const [lagring, setLagring] = useState<Lagring>(startLagret ? "lagret" : "ingen");
   const [serverFeil, setServerFeil] = useState<string | null>(null);
   const [visFeil, setVisFeil] = useState(false);
+  // O2: arbeideren skriver i et tidsfelt — ingen feilmelding før feltet forlates.
+  const [skriver, setSkriver] = useState(false);
+  // O2: timefeltet mens det redigeres (null = viser regnet timer).
+  const [timerTekst, setTimerTekst] = useState<string | null>(null);
+  // O2: blur tolker feltet først; lagringen kjøres etter at de tolkede verdiene er rendret.
+  const [lagreSignal, setLagreSignal] = useState(0);
 
   // Nye verdier fra serveren (etter lagring, eller endret et annet sted) tas inn når feltene
   // står som sist lagret — en pågående endring overskrives ikke.
@@ -299,6 +320,12 @@ export function JobbSkjema({
     );
   };
 
+  useEffect(() => {
+    if (lagreSignal > 0) lagreTiden();
+    // Bare når et tidsfelt er forlatt (signalet), med verdiene etter tolkingen.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lagreSignal]);
+
   const lagreBeskrivelse = () => {
     if (!l1 || !beskrivelseEndret || lagring === "lagrer") return;
     const tekst = beskrivelse.trim() === "" ? null : beskrivelse;
@@ -352,10 +379,34 @@ export function JobbSkjema({
     }`;
   const endre = (sett: (v: string) => void) => (e: { target: { value: string } }) => {
     setBeroert(true);
+    setSkriver(true);
     sett(e.target.value);
   };
+  // Fra/Til forlates: tolk («1600» → 16:00), rund som timevinduet, og lagre.
+  const forlatKlokke = (verdi: string, sett: (v: string) => void) => {
+    const tolket = tolkKlokkeslett(verdi);
+    if (tolket !== null && tolket !== "") sett(rundTilNarmeste(tolket, tidsrundingMinutter));
+    else if (tolket === "") sett("");
+    setSkriver(false);
+    setLagreSignal((n) => n + 1);
+  };
+  const forlatTid = () => {
+    setSkriver(false);
+    setTimerTekst(null);
+    setLagreSignal((n) => n + 1);
+  };
+  const endreTimer = (v: string) => {
+    setBeroert(true);
+    setSkriver(true);
+    setTimerTekst(v);
+    const nyTil = tilFraTimer(fra, v, pauseMin);
+    if (nyTil) setTil(nyTil);
+  };
+  const steg = klokkeSteg(tidsrundingMinutter);
+  const klokkeListe = `klokke-${kortId}`;
   const fmt = (n: number) => formaterTimer(n, i18n.language);
-  const visTidFeil = (visFeil && !!tidFeil) || tilMangler;
+  const visTidFeil = !skriver && ((visFeil && !!tidFeil) || tilMangler);
+  const feilFelt = (feil: boolean) => !skriver && feil;
   const etikett = "w-28 shrink-0 text-xs font-medium text-gray-500";
   const rad = "flex flex-wrap items-start gap-2 py-2";
   const tom = <span className="text-sm text-gray-400">—</span>;
@@ -460,29 +511,49 @@ export function JobbSkjema({
               aria-label={t("timer.jobbSkjema.fra")}
               value={fra}
               onChange={endre(setFra)}
-              onBlur={lagreTiden}
+              onBlur={(e) => forlatKlokke(e.target.value, setFra)}
+              list={klokkeListe}
               placeholder="--:--"
-              className={`w-20 ${felt(visFeil && (tidFeil === "format" || tidFeil === "fraForTil") && !tilMangler)}`}
+              className={`w-20 ${felt(feilFelt(visFeil && (tidFeil === "format" || tidFeil === "fraForTil") && !tilMangler))}`}
             />
             <span className="text-gray-400">–</span>
             <input
               aria-label={t("timer.jobbSkjema.til")}
               value={til}
               onChange={endre(setTil)}
-              onBlur={lagreTiden}
+              onBlur={(e) => forlatKlokke(e.target.value, setTil)}
+              list={klokkeListe}
               placeholder="--:--"
-              className={`w-20 ${felt(tilMangler || (visFeil && (tidFeil === "format" || tidFeil === "fraForTil")))}`}
+              className={`w-20 ${felt(feilFelt(tilMangler || (visFeil && (tidFeil === "format" || tidFeil === "fraForTil"))))}`}
             />
             <span className="text-xs text-gray-500">{t("timer.jobbSkjema.pause")}</span>
             <input
               aria-label={t("timer.jobbSkjema.pause")}
               value={pause}
               onChange={endre(setPause)}
-              onBlur={lagreTiden}
+              onBlur={forlatTid}
               inputMode="numeric"
-              className={`w-14 ${felt(visFeil && tidFeil === "pause")}`}
+              className={`w-14 ${felt(feilFelt(visFeil && tidFeil === "pause"))}`}
             />
-            {regnet?.ok && <span className="text-sm text-gray-700">= {fmt(regnet.timer)} t</span>}
+            {/* O2 (Bilde 2-pila): timer redigeres der de står. */}
+            <span className="text-sm text-gray-700">=</span>
+            <input
+              aria-label={t("timer.jobbSkjema.timer")}
+              data-testid="skjema-timer"
+              value={timerTekst ?? (regnet?.ok ? fmt(regnet.timer) : "")}
+              onFocus={() => setTimerTekst(regnet?.ok ? fmt(regnet.timer) : "")}
+              onChange={(e) => endreTimer(e.target.value)}
+              onBlur={forlatTid}
+              inputMode="decimal"
+              placeholder="--"
+              className={`w-16 ${felt(false)}`}
+            />
+            <span className="text-sm text-gray-700">t</span>
+            <datalist id={klokkeListe}>
+              {klokkeValg(steg).map((v) => (
+                <option key={v} value={v} />
+              ))}
+            </datalist>
           </div>
           {visTidFeil && (
             <p className="text-xs text-red-600" role="alert">

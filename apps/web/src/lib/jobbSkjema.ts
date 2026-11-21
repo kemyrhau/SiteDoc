@@ -2,7 +2,7 @@
  * Plan § 8.22 L3a (Bilde 2-jobben): regler for jobbskjemaet på dagssiden (prosjektkort-modus).
  * Rene funksjoner — testes uten React. Tidsregnestykket er delt med serveren (`regnJobbTid`).
  */
-import { hhmmTilMin } from "@sitedoc/shared";
+import { erGyldigHhmm, hhmmTilMin, tilFraAntall } from "@sitedoc/shared";
 
 export type SkjemaArbeidsrad = {
   id: string;
@@ -66,4 +66,54 @@ export function lesPauseMin(v: string): number {
   const s = v.trim();
   if (s === "") return 0;
   return /^\d+$/.test(s) ? Number(s) : Number.NaN;
+}
+
+/**
+ * Plan § 8.22 O2: tidsfeltet tolket når det forlates. «16», «1600», «16.00», «16,00» og «16:00»
+ * blir «16:00»; «730» blir «07:30». Tomt felt = "". Ugyldig tekst = null (feltet står som skrevet,
+ * og `validerJobbTid` melder formatfeil).
+ */
+export function tolkKlokkeslett(v: string): string | null {
+  const s = v.trim();
+  if (s === "") return "";
+  const m = /^(\d{1,2})(?:[:.,](\d{2}))?$/.exec(s) ?? /^(\d{1,2})(\d{2})$/.exec(s);
+  if (!m) return null;
+  const t = Number(m[1]);
+  const min = m[2] === undefined ? 0 : Number(m[2]);
+  if (t > 23 || min > 59) return null;
+  return `${String(t).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
+}
+
+/** Timefeltet som tall; komma eller punktum. Tomt, ugyldig eller ≤ 0 = null. */
+export function lesTimer(v: string): number | null {
+  const s = v.trim().replace(",", ".");
+  if (!/^\d+(\.\d+)?$/.test(s) && !/^\.\d+$/.test(s)) return null;
+  const n = Number(s);
+  return n > 0 ? n : null;
+}
+
+/**
+ * Plan § 8.22 O2: Til når arbeideren skriver timer — Fra + timer + pause, via den delte
+ * `tilFraAntall` (pausepunkt = Fra, så hele pausen ligger i jobben, som `regnJobbTid` regner).
+ * Tom/ugyldig Fra eller ugyldige timer → null (ingenting regnes ut).
+ */
+export function tilFraTimer(fra: string, timerTekst: string, pauseMin: number): string | null {
+  if (!erGyldigHhmm(fra)) return null;
+  const n = lesTimer(timerTekst);
+  if (n === null || !Number.isInteger(pauseMin) || pauseMin < 0) return null;
+  return tilFraAntall(fra, n, fra, pauseMin);
+}
+
+/** Klokkevelgerens steg i minutter — samme som timevinduet: firmaets runding, maks 30, ellers 15. */
+export function klokkeSteg(tidsrundingMinutter: number | null | undefined): number {
+  return Math.min(tidsrundingMinutter && tidsrundingMinutter > 0 ? tidsrundingMinutter : 15, 30);
+}
+
+/** Valgene i klokkevelgeren (00:00 … 23:45 ved 15-minutters steg). */
+export function klokkeValg(stegMin: number): string[] {
+  const ut: string[] = [];
+  for (let m = 0; m < 24 * 60; m += stegMin) {
+    ut.push(`${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`);
+  }
+  return ut;
 }

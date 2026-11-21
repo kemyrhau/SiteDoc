@@ -5981,6 +5981,7 @@
   "timer.jobbSkjema.fra": "From",
   "timer.jobbSkjema.til": "Vastaanottaja",
   "timer.jobbSkjema.pause": "tauko",
+  "timer.jobbSkjema.timer": "Tuntia",
   "timer.jobbSkjema.lonnsart": "Palkkatyyppi",
   "timer.jobbSkjema.hvaGjorde": "Mitä teit?",
   "timer.jobbSkjema.hvaGjordePlassholder": "Kirjoita mitä teit",
@@ -6003,5 +6004,5 @@
   "timer.jobbSkjema.overtidLinje": "{{fra}}–{{til}} · {{timer}} h · yli päivittäisen normin {{dato}}: {{norm}} h",
   "timer.jobbSkjema.helOvertid": "Koko työ ylittää päivänormin {{dato}}: {{norm}} h",
   "timer.jobbSkjema.ulagretSperre": "Jotain päivän aikana ei ole tallennettu. Korjaa punaisella merkitty kenttä tai yritä uudelleen.",
-  "timer.mine.hjelp.skjema": "Projektikorttiin kirjaat työn suoraan korttiin: Alkaen, Vastaan, tauko, palkkalaji ja \"Mitä teit?\". Kenttä tallennetaan, kun poistut siitä – siinä lukee \"✓ Tallennettu\". Jos aika ylittää päivänormin, menee ylityö omalla linjallaan. Keltaiset kentät ovat ehdotuksia yrityksen työajasta tai edellisen työpaikan päättymisestä. Uusi työ tallennetaan, kun Vastaanottaja on täytetty. Jos jotain ei ole tallennettu, se näkyy punaisena, eikä päivää voida lähettää ennen kuin se on korjattu. Jos projektissa on osaprojekteja, valitset alaprojektin työn yläpuolelta – valinta koskee koko työtä: työtunnit, koneet, materiaalit, korvaukset ja kulut. Matkailu ei liiku sen mukana."
+  "timer.mine.hjelp.skjema": "Projektikorttiin kirjaat työn suoraan korttiin: Alkaen, Vastaan, tauko, palkkalaji ja \"Mitä teit?\". Kenttä tallennetaan, kun poistut siitä – siinä lukee \"✓ Tallennettu\". Jos aika ylittää päivänormin, menee ylityö omalla linjallaan. Keltaiset kentät ovat ehdotuksia yrityksen työajasta tai edellisen työpaikan päättymisestä. Uusi työ tallennetaan, kun Vastaanottaja on täytetty. Jos jotain ei ole tallennettu, se näkyy punaisena, eikä päivää voida lähettää ennen kuin se on korjattu. Jos projektissa on osaprojekteja, valitset alaprojektin työn yläpuolelta – valinta koskee koko työtä: työtunnit, koneet, materiaalit, korvaukset ja kulut. Matkailu ei liiku sen mukana. Voit kirjoittaa tunnit suoraan kenttään \"=\":n jälkeen: Mihin lasketaan sitten Alkaen, tunteja ja tauko. Ajat voidaan kirjoittaa 1600, 16 tai 16.00."
 }

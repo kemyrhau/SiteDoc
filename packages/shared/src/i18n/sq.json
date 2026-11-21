@@ -5981,6 +5981,7 @@
   "timer.jobbSkjema.fra": "Nga",
   "timer.jobbSkjema.til": "për të",
   "timer.jobbSkjema.pause": "thyej",
+  "timer.jobbSkjema.timer": "orët",
   "timer.jobbSkjema.lonnsart": "Lloji i pagës",
   "timer.jobbSkjema.hvaGjorde": "Çfarë bëre?",
   "timer.jobbSkjema.hvaGjordePlassholder": "Shkruani atë që keni bërë",
@@ -6003,5 +6004,5 @@
   "timer.jobbSkjema.overtidLinje": "{{fra}}–{{til}} · {{timer}} orë · mbi normën ditore {{dato}}: {{norm}} orë",
   "timer.jobbSkjema.helOvertid": "E gjithë puna është mbi normën ditore {{dato}}: {{norm}} h",
   "timer.jobbSkjema.ulagretSperre": "Diçka në ditë nuk ruhet. Korrigjoni fushën e shënuar me të kuqe ose provoni përsëri.",
-  "timer.mine.hjelp.skjema": "Në kartën e projektit ju regjistroni punën direkt në kartë: Nga, Deri, pushim, lloji i pagës dhe \"Çfarë bëre?\". Një fushë ruhet kur e lini - thotë \"✓ Ruajtur\". Nëse koha kalon normën ditore, puna shtesë shkon në vijën e saj. Fushat e verdha janë sugjerime nga orari i punës së kompanisë ose nga fundi i punës së mëparshme. Një punë e re ruhet kur plotësohet To. Nëse diçka nuk ruhet, shfaqet me të kuqe dhe dita nuk mund të dërgohet derisa të korrigjohet. Nëse projekti ka nën-projekte, ju zgjidhni nën-projektin në krye të punës - zgjedhja vlen për të gjithë punën: orët, makinat, materialet, shtesat dhe shpenzimet. Udhëtimi nuk lëviz me të."
+  "timer.mine.hjelp.skjema": "Në kartën e projektit ju regjistroni punën direkt në kartë: Nga, Deri, pushim, lloji i pagës dhe \"Çfarë bëre?\". Një fushë ruhet kur e lini - thotë \"✓ Ruajtur\". Nëse koha kalon normën ditore, puna shtesë shkon në vijën e saj. Fushat e verdha janë sugjerime nga orari i punës së kompanisë ose nga fundi i punës së mëparshme. Një punë e re ruhet kur plotësohet To. Nëse diçka nuk ruhet, shfaqet me të kuqe dhe dita nuk mund të dërgohet derisa të korrigjohet. Nëse projekti ka nën-projekte, ju zgjidhni nën-projektin në krye të punës - zgjedhja vlen për të gjithë punën: orët, makinat, materialet, shtesat dhe shpenzimet. Udhëtimi nuk lëviz me të. Mund t'i shkruani orët direkt në fushë pas “=”: Më pas llogaritet To nga Nga, orët dhe pushimi. Orët mund të shtypen si 1600, 16 ose 16.00."
 }

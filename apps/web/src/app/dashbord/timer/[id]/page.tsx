@@ -851,6 +851,7 @@ export default function DagsseddelDetaljSide() {
     datoTekst: visDagDato(sheet.dato, false),
     organizationId: sheet.organizationId ?? undefined,
     onUlagret: meldUlagret,
+    tidsrundingMinutter: arbeidstidDefaults?.tidsrundingMinutter ?? null,
   };
 
   // Bolk (g): fra = SENESTE tilTid på HELE sedelen (alle bøtter), ellers dagens

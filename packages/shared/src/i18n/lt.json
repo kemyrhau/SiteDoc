@@ -5981,6 +5981,7 @@
   "timer.jobbSkjema.fra": "Nuo",
   "timer.jobbSkjema.til": "Į",
   "timer.jobbSkjema.pause": "pertrauka",
+  "timer.jobbSkjema.timer": "Valandos",
   "timer.jobbSkjema.lonnsart": "Darbo užmokesčio rūšis",
   "timer.jobbSkjema.hvaGjorde": "ką tu padarei?",
   "timer.jobbSkjema.hvaGjordePlassholder": "Parašyk ką padarei",
@@ -6003,5 +6004,5 @@
   "timer.jobbSkjema.overtidLinje": "{{fra}}–{{til}} · {{timer}} val. · viršija dienos normą {{dato}}: {{norm}} val.",
   "timer.jobbSkjema.helOvertid": "Visas darbas viršija dienos normą {{dato}}: {{norm}} val",
   "timer.jobbSkjema.ulagretSperre": "Kažkas dieną neišsaugota. Pataisykite raudonai pažymėtą lauką arba bandykite dar kartą.",
-  "timer.mine.hjelp.skjema": "Projekto kortelėje įrašote darbą tiesiai į kortelę: Nuo, Iki, pertrauka, darbo užmokesčio rūšis ir „Ką veikei?“. Laukas išsaugomas, kai jį paliekate – jame rašoma „✓ Išsaugota“. Jei laikas viršija dienos normą, viršvalandžiai eina savo eile. Geltonieji laukai – tai pasiūlymai iš įmonės darbo laiko arba nuo ankstesnio darbo pabaigos. Nauja užduotis išsaugoma, kai užpildoma Kam. Jei kas nors neišsaugota, ji rodoma raudonai ir dienos negalima pateikti, kol ji nebus ištaisyta. Jei projektas turi paprojekčių, pasirenkate paprojektį darbo viršuje – pasirinkimas taikomas visam darbui: valandoms, mašinoms, medžiagoms, pašalpoms ir išlaidoms. Kelionės su juo nejuda."
+  "timer.mine.hjelp.skjema": "Projekto kortelėje įrašote darbą tiesiai į kortelę: Nuo, Iki, pertrauka, darbo užmokesčio rūšis ir „Ką veikei?“. Laukas išsaugomas, kai jį paliekate – jame rašoma „✓ Išsaugota“. Jei laikas viršija dienos normą, viršvalandžiai eina savo eile. Geltonieji laukai – tai pasiūlymai iš įmonės darbo laiko arba nuo ankstesnio darbo pabaigos. Nauja užduotis išsaugoma, kai užpildoma Kam. Jei kas nors neišsaugota, ji rodoma raudonai ir dienos negalima pateikti, kol ji nebus ištaisyta. Jei projektas turi paprojekčių, pasirenkate paprojektį darbo viršuje – pasirinkimas taikomas visam darbui: valandoms, mašinoms, medžiagoms, pašalpoms ir išlaidoms. Kelionės su juo nejuda. Galite įvesti valandas tiesiai lauke po „=“: Tada iki skaičiuojama iš „Nuo“, valandų ir pertraukos. Laikas gali būti įvestas kaip 1600, 16 arba 16.00."
 }

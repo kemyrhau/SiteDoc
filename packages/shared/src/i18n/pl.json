@@ -5981,6 +5981,7 @@
   "timer.jobbSkjema.fra": "Z",
   "timer.jobbSkjema.til": "Do",
   "timer.jobbSkjema.pause": "przerwa",
+  "timer.jobbSkjema.timer": "Godziny",
   "timer.jobbSkjema.lonnsart": "Rodzaj wynagrodzenia",
   "timer.jobbSkjema.hvaGjorde": "Co zrobiłeś?",
   "timer.jobbSkjema.hvaGjordePlassholder": "Napisz co zrobiłeś",
@@ -6003,5 +6004,5 @@
   "timer.jobbSkjema.overtidLinje": "{{fra}}–{{til}} · {{timer}} godz. · ponad normę dobową {{dato}}: {{norm}} godz.",
   "timer.jobbSkjema.helOvertid": "Cała praca przekracza normę dzienną {{dato}}: {{norm}} godz",
   "timer.jobbSkjema.ulagretSperre": "Coś w tym dniu nie jest zapisane. Popraw pole zaznaczone na czerwono lub spróbuj ponownie.",
-  "timer.mine.hjelp.skjema": "W karcie projektu zapisujesz pracę bezpośrednio na karcie: Od, Do, przerwa, rodzaj wynagrodzenia i „Co zrobiłeś?”. Pole zostaje zapisane, gdy je opuścisz — pojawi się komunikat „✓ Zapisano”. Jeśli czas przekroczy normę dzienną, nadgodziny biegną własną linią. Pola żółte to sugestie z godzin pracy firmy lub z zakończenia poprzedniej pracy. Nowe zadanie zostaje zapisane po wpisaniu Do. Jeśli coś nie zostało zapisane, jest to zaznaczone na czerwono i dzień nie może zostać przesłany, dopóki nie zostanie poprawiony. Jeśli projekt ma podprojekty, wybierasz podprojekt na górze zadania — wybór dotyczy całego zadania: godzin, maszyn, materiałów, dodatków i wydatków. Podróż nie porusza się wraz z nim."
+  "timer.mine.hjelp.skjema": "W karcie projektu zapisujesz pracę bezpośrednio na karcie: Od, Do, przerwa, rodzaj wynagrodzenia i „Co zrobiłeś?”. Pole zostaje zapisane, gdy je opuścisz — pojawi się komunikat „✓ Zapisano”. Jeśli czas przekroczy normę dzienną, nadgodziny biegną własną linią. Pola żółte to sugestie z godzin pracy firmy lub z zakończenia poprzedniej pracy. Nowe zadanie zostaje zapisane po wpisaniu Do. Jeśli coś nie zostało zapisane, jest to zaznaczone na czerwono i dzień nie może zostać przesłany, dopóki nie zostanie poprawiony. Jeśli projekt ma podprojekty, wybierasz podprojekt na górze zadania — wybór dotyczy całego zadania: godzin, maszyn, materiałów, dodatków i wydatków. Podróż nie porusza się wraz z nim. Możesz wpisać godziny bezpośrednio w polu po „=”: Do jest wówczas obliczane na podstawie Od, godzin i przerwy. Godziny można wpisać jako 1600, 16 lub 16.00."
 }
