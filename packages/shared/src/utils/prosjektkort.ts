@@ -198,6 +198,36 @@ export function sumlinjeMotNorm(
   return { registrert, sone: trafikklysSone(registrert, norm) };
 }
 
+/**
+ * Bunnlinja på dagen «Arbeid X t av N t · maskin Y t · reise Z t · totalt T t»
+ * (Kenneth 2026-11-21, plan § 8.21 + § 8.22 — snur 2026-11-14): reisetid er lønnet
+ * arbeid og legges til totalen; maskintimer vises, men legges ikke til.
+ * Trafikklyset regnes fortsatt mot normen uten reise (`sumlinjeMotNorm`):
+ * reise er ikke overtid, jf. `foreslaOvertidSplitt`. Erstattede rader teller
+ * ikke.
+ */
+export function sumlinjeDag(
+  timer: readonly KortTimerRad[],
+  maskin: readonly KortMaskinRad[],
+  norm: number | null,
+): {
+  arbeid: number;
+  maskin: number;
+  reise: number;
+  totalt: number;
+  sone: ReturnType<typeof trafikklysSone>;
+} {
+  const s = beregnKortSummer(timer, maskin, []);
+  const { sone } = sumlinjeMotNorm(timer, norm);
+  return {
+    arbeid: s.arbeid,
+    maskin: s.maskin,
+    reise: s.reise,
+    totalt: s.arbeid + s.reise,
+    sone,
+  };
+}
+
 /* ------------------------------------------------------------------ */
 /*  L3 (2026-11-06): vareforbruk fra kortet — delt web/mobil.          */
 /* ------------------------------------------------------------------ */
