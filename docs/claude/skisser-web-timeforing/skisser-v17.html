@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="nb">
+<head>
+<meta charset="utf-8">
+<title>Skisse — versjon 17: reisen er én linje med fem felt, på dagssiden og i attesteringen</title>
+<!--
+  FORSLAG (Fabel 2026-11-21, versjon 17), ikke bygget. Kilde for v17-reiselinje.png
+  (web-timeforing-plan.md § 4.15 del E og § 8.20). Erstatter v16-flytt.png, v16b-flytt.png og
+  v16b-flytt-prosjekt.png: «Flytt til …» er utgått. Stilen er den samme som i skisser-v16b.html.
+  Ett ark; arket velges med #reiselinje i adressen. Tegnet med Chrome uten vindu:
+    "Google Chrome" --headless=new --hide-scrollbars --force-device-scale-factor=2 \
+      --window-size=1444,<høyde> --screenshot=v17-reiselinje.png "file://…/skisser-v17.html#reiselinje"
+  Høyde: reiselinje 1025 (måles på nytt etter endring med --dump-dom: arket skriver den i data-hoyde på <html>).
+-->
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#f3f4f6;font-family:-apple-system,"Inter","Segoe UI",Helvetica,Arial,sans-serif;color:#111827;font-size:13px}
+.ark{width:1444px;padding:22px}
+.tittel{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.pille{background:#1e40af;color:#fff;font-weight:700;border-radius:999px;padding:5px 13px;font-size:12.5px;letter-spacing:.04em}
+.tittel h1{font-size:21px;margin:0}
+.tre{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;align-items:start}
+.fire{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;align-items:start}
+.side{background:#fafbfc;border:1px solid #d1d5db;border-radius:12px;padding:14px;box-shadow:0 1px 3px rgba(0,0,0,.08);position:relative}
+.side.anb{border-color:#16a34a;box-shadow:0 0 0 2px #bbf7d0}
+.side h2{margin:0 0 4px;font-size:15px}
+.side .under{color:#6b7280;margin:0 0 12px;line-height:1.4}
+.anbm{display:inline-block;background:#16a34a;color:#fff;border-radius:999px;padding:2px 9px;font-size:10.5px;font-weight:700;letter-spacing:.04em;margin-left:6px;vertical-align:2px}
+.dag{font-size:17px;font-weight:700;margin:0 0 10px}
+.ov{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:#6b7280;font-weight:700;margin:0 0 8px}
+.kort{background:#fff;border:1px solid #e5e7eb;border-radius:9px;margin-bottom:10px}
+.kort.aapen{border-color:#93c5fd;box-shadow:0 0 0 1px #dbeafe}
+.hode{display:flex;align-items:center;gap:8px;padding:11px 12px}
+.kort.aapen .hode{border-bottom:1px solid #f1f5f9}
+.hode .navn{flex:1;min-width:0}
+.hode .navn b{display:block;font-size:13.5px}
+.hode .navn span{color:#6b7280;font-size:11.5px;white-space:nowrap;display:inline-block;margin-top:3px}
+.hode .navn span.kl{color:#111827;font-weight:600;margin-top:0}
+.tall{text-align:right;min-width:36px}
+.tall small{display:block;font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:#9ca3af}
+.tall b{font-size:12.5px}
+.pil{color:#9ca3af;font-size:12px}
+.kropp{padding:10px 12px}
+.linje{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-top:1px solid #f1f5f9;gap:8px}
+.linje:first-child{border-top:0}
+.linje .v b{display:block;font-size:13px}
+.linje .v span{display:block;color:#6b7280;font-size:11.5px;line-height:1.45}
+.linje .v i{display:block;color:#374151;font-size:11.5px}
+.h{display:flex;align-items:center;gap:8px;font-family:ui-monospace,Menlo,monospace;font-size:12px;white-space:nowrap}
+.ik{color:#9ca3af;font-family:inherit;font-size:11px;letter-spacing:.15em}
+.del{display:flex;justify-content:space-between;align-items:center;padding:6px 0 6px 10px;border-left:3px solid #e5e7eb;margin:0 0 4px 4px;gap:8px}
+.del.reise{border-left-color:#fcd34d;margin-top:8px}
+.type{display:inline-block;background:#f1f5f9;color:#475569;border-radius:4px;padding:1px 6px;font-size:9.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;margin-right:6px}
+.type.vare{background:#dcfce7;color:#15803d}
+.type.reise{background:#fef3c7;color:#92400e}
+.lenker{display:flex;gap:12px;flex-wrap:wrap;color:#1d4ed8;font-weight:600;margin-top:8px;font-size:12px}
+.neste{border:1px dashed #d1d5db;border-radius:9px;padding:9px;text-align:center;color:#6b7280;background:#fff;margin-bottom:10px;font-size:12px}
+.neste b{color:#111827}
+.sum{background:#fff;border:1px solid #e5e7eb;border-radius:9px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;font-size:12px}
+.send{background:#1e40af;color:#fff;border-radius:6px;padding:6px 10px;font-weight:600;font-size:12px}
+.k{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#dc2626;color:#fff;font-weight:700;font-size:11.5px;margin-right:6px;flex:none}
+.g{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#16a34a;color:#fff;font-weight:700;font-size:11.5px;margin-right:6px;flex:none}
+.rod{outline:2px solid #dc2626;outline-offset:2px;border-radius:5px}
+.gronn{outline:2px solid #16a34a;outline-offset:2px;border-radius:5px}
+.forkl{margin:12px 0 0;padding:0;list-style:none}
+.forkl li{display:flex;align-items:flex-start;margin-bottom:6px;line-height:1.4}
+.vindu{background:#fff;border:1px solid #d1d5db;border-radius:10px;padding:14px;box-shadow:0 6px 18px rgba(0,0,0,.14)}
+.vindu h3{margin:0 0 12px;font-size:15px;display:flex;justify-content:space-between}
+.vindu h3 span{color:#9ca3af;font-weight:400}
+.felt{margin-bottom:10px}
+.felt label{display:block;font-weight:600;margin-bottom:4px;font-size:12px}
+.inn{border:1px solid #d1d5db;border-radius:6px;padding:6px 9px;background:#fff;font-size:12.5px}
+.inn.gul{background:#fef9c3;border-color:#eab308}
+.inn.tom{color:#9ca3af}
+.rad{display:flex;gap:8px}
+.rad>.felt{flex:1}
+.valg{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.vk{border:1px solid #d1d5db;border-radius:7px;padding:6px 10px;background:#fff;font-size:12.5px}
+.vk.paa{border-color:#2563eb;background:#eff6ff;color:#1e40af;font-weight:600}
+.lite{color:#6b7280;font-size:11.5px;line-height:1.45}
+.res{font-weight:600;margin:4px 0 2px;font-size:13px}
+.knapper{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}
+.kn{border-radius:6px;padding:6px 12px;font-weight:600;font-size:12.5px;background:#f3f4f6;border:1px solid #e5e7eb}
+.kn.pri{background:#1e40af;color:#fff;border-color:#1e40af}
+.over{position:relative}
+.over .vindu{position:absolute;left:18px;right:18px;top:118px}
+.dempet{opacity:.45}
+.info{background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:6px 9px;color:#1e3a8a;font-size:11.5px;line-height:1.4;margin-top:6px}
+.to{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;align-items:start}
+.meny{background:#fff;border:1px solid #d1d5db;border-radius:9px;box-shadow:0 6px 18px rgba(0,0,0,.14);padding:8px;margin:6px 0 4px 14px}
+.meny .mt{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:#6b7280;font-weight:700;margin:2px 4px 6px}
+.mv{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;font-size:12.5px}
+.mv.paa{background:#eff6ff;color:#1e40af;font-weight:600}
+.mv small{color:#6b7280;font-weight:400;margin-left:auto;font-size:11px}
+.prikk{width:13px;height:13px;border-radius:50%;border:1.5px solid #9ca3af;flex:none}
+.mv.paa .prikk{border:4px solid #2563eb}
+.flytt{color:#1d4ed8;font-weight:600;font-family:-apple-system,"Inter",sans-serif;font-size:11.5px}
+.merke{display:inline-block;background:#e0e7ff;color:#3730a3;border-radius:4px;padding:1px 6px;font-size:9.5px;font-weight:700;letter-spacing:.04em;margin-left:6px}
+.up{display:inline-block;background:#f1f5f9;color:#334155;border-radius:4px;padding:1px 6px;font-size:10.5px;font-weight:600;margin-left:6px}
+.boks{background:#fff;border:1px solid #e5e7eb;border-radius:9px;padding:12px;margin-bottom:12px}
+.boks h3{margin:0 0 8px;font-size:13.5px}
+.scen{background:#fff;border:1px solid #e5e7eb;border-radius:9px;padding:9px 12px;margin-bottom:14px;line-height:1.45}
+.del>div:first-child{line-height:1.7}
+.tre{grid-template-columns:repeat(3,minmax(0,1fr))}
+.hode .navn span{white-space:normal}
+.hode .navn span.kl,.hode .navn span.type{white-space:nowrap}
+.h{flex:none}
+body.en .ark{display:none}
+body.en .ark.vis{display:block}
+
+/* v16b: merkelapper som bare finnes i skissen, og linjene Endret/Uendret */
+.kb{display:flex;align-items:center;gap:6px;font-size:10.5px;font-weight:700;letter-spacing:.05em;color:#6d28d9;margin:0 0 4px 2px}
+.kb i{font-style:normal;display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:4px;background:#ede9fe;border:1px dashed #8b5cf6}
+.kb span{font-weight:500;letter-spacing:0;color:#6b7280}
+.kb.ny i{background:#16a34a;color:#fff;border:1px solid #16a34a}
+.kb.ny{color:#15803d}
+.sk{color:#6d28d9;font-size:10.5px;font-weight:600;margin-left:auto;white-space:nowrap}
+.mv small+.sk{margin-left:8px}
+.gtall{outline:2px solid #16a34a;outline-offset:1px;border-radius:4px;padding:0 3px;display:inline-block;margin-top:2px}
+.tre .side h2{min-height:2.7em;line-height:1.3}
+.tre .side .under{min-height:4.3em}
+.ny-ramme{outline:2px dashed #2563eb;outline-offset:3px;border-radius:6px}
+.eu{margin:12px 0 0;border-top:1px solid #e5e7eb;padding-top:10px;line-height:1.5}
+.eu p{margin:0 0 5px;display:flex;gap:8px}
+.eu b{flex:none;width:64px}
+.eu .e b{color:#15803d}
+.eu .u b{color:#6b7280}
+.eu .u{color:#4b5563}
+.scen b.gr{color:#15803d}
+.scen b.fi{color:#6d28d9}
+.scen b.bl{color:#1d4ed8}
+.dagrad{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:8px}
+.dagrad div{background:#f8fafc;border:1px solid #e5e7eb;border-radius:6px;padding:5px 8px}
+.dagrad small{display:block;color:#6b7280;font-size:10.5px}
+.undermeny{border-top:1px solid #e5e7eb;margin:6px 4px 2px;padding-top:8px}
+.undermeny .felt{margin-bottom:7px}
+.undermeny .felt label{font-size:11px;color:#374151}
+.pilned{text-align:center;color:#6b7280;font-size:11.5px;margin:2px 0 8px}
+.vindu.flat{box-shadow:0 2px 8px rgba(0,0,0,.10);margin-bottom:4px}
+.laast{background:#f3f4f6;color:#6b7280}
+
+/* v17: attesteringens kort (del 8 «Reise») */
+.att{background:#fff;border:1px solid #e5e7eb;border-radius:9px}
+.att .ah{padding:10px 12px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;gap:8px;align-items:center}
+.att .ah b{font-size:13.5px}
+.att .ah span{color:#6b7280;font-size:11.5px}
+.adel{display:flex;gap:10px;padding:10px 12px;border-top:1px solid #f1f5f9;align-items:flex-start}
+.adel:first-of-type{border-top:0}
+.adel .nr{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#f3f4f6;color:#4b5563;font-weight:600;font-size:11px;flex:none;margin-top:1px}
+.adel .dn{width:92px;flex:none;font-weight:600}
+.adel .di{flex:1;min-width:0}
+.adel.graa{color:#9ca3af}
+.adel.graa .dn{font-weight:500}
+.rute{display:inline-block;background:#fef3c7;color:#92400e;border-radius:5px;padding:2px 8px;font-size:11.5px;font-weight:600;margin-bottom:8px}
+.fl{display:block;font-size:10.5px;color:#6b7280;font-weight:600;margin-bottom:3px}
+.feltrad{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:8px}
+.feltrad>div{min-width:0}
+.fp{font-size:12px;font-weight:600;color:#374151;margin:2px 0 6px}
+.lik{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+.nytt{display:inline-block;background:#16a34a;color:#fff;border-radius:999px;padding:1px 7px;font-size:9.5px;font-weight:700;letter-spacing:.04em;margin-left:5px;vertical-align:1px}
+.fem{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:8px}
+.fem div{background:#f8fafc;border:1px solid #e5e7eb;border-radius:6px;padding:5px 8px}
+.fem small{display:block;color:#6b7280;font-size:10.5px}
+</style>
+</head>
+<body>
+<div class="ark" id="reiselinje">
+  <div class="tittel"><span class="pille">Versjon 17 · vedtatt</span><h1>Reisen er én linje. Pennen har de samme fem feltene på dagssiden og i attesteringen</h1></div>
+  <div class="scen"><b>Hjemreisen 15:00–15:35 fra sommerfeldtsgt 65.</b> Systemet foreslår den i jobben du drar fra. 35 minutter er firmaets kjøretid fra tabellen, og du kan rette både start og slutt. Kortet velger du aldri: det følger av prosjekt, byggeplass og underprosjekt. Ingen felt står åpne. Arbeideren og attestanten retter med pennen (✎).
+    <div class="fem">
+      <div><b>Start kl.</b><small>kan rettes</small></div>
+      <div><b>Slutt kl.</b><small>kan rettes</small></div>
+      <div><b>Prosjekt</b><small>kan byttes <span class="nytt">NYTT</span></small></div>
+      <div><b>Byggeplass</b><small>kan byttes</small></div>
+      <div><b>Underprosjekt</b><small>kan byttes</small></div>
+    </div>
+    <div style="margin-top:8px"><b class="gr">Grønn ramme</b> = feltet som er nytt. <b class="bl">Blå stiplet ramme</b> = der du trykker.</div></div>
+
+  <div class="lik">
+
+    <div class="side">
+      <h2>Dagssiden · arbeideren</h2>
+      <p class="under">Pennen på reiselinja åpner vinduet. Det er vinduet som finnes i dag, med prosjektfeltet åpnet for reise.</p>
+      <div class="kort aapen">
+        <div class="hode">
+          <div class="navn"><b>Sitedoc Boligfelt B12</b><span>sommerfeldtsgt 65 · END-002 · <span class="kl">12:00–15:00</span></span></div>
+          <div class="tall"><small>Arbeid</small><b>3,0 t</b></div><div class="tall"><small>Maskin</small><b>—</b></div><div class="tall"><small>Varer</small><b>—</b></div><div class="tall"><small>Reise</small><b>0,6 t</b></div><span class="pil">⌃</span>
+        </div>
+        <div class="kropp">
+          <div class="linje"><div class="v"><b>Timelønn</b><span>Anleggsarbeid</span><span>12:00–15:00</span><i>kantstein, endring</i></div><div class="h">3.00 t <span class="ik">✎ ✂ 🗑</span></div></div>
+          <div class="del reise"><div><span class="type reise">Reise</span><b>Fra sommerfeldtsgt 65</b> · <span style="white-space:nowrap">15:00–15:35</span></div><div class="h">0.58 t <span class="ik"><span class="ny-ramme">✎</span> 🗑</span></div></div>
+          <div class="lenker"><span>+ Timer</span><span>+ Maskin</span><span>+ Vare</span><span>+ Reise</span><span>+ Tillegg/Utlegg</span></div>
+        </div>
+      </div>
+      <p class="pilned">↓ pennen (✎) på reiselinja</p>
+      <div class="vindu flat">
+        <h3>Rediger timer-rad <span>✕</span></h3>
+        <div class="rad"><div class="felt"><label>Start kl.</label><div class="inn">15:00</div></div><div class="felt"><label>Slutt kl.</label><div class="inn">15:35</div></div></div>
+        <p class="lite" style="margin:-4px 0 10px">Forslag: 35 min kjøring (firmaets tabell). Kjørte du lenger, retter du slutten.</p>
+        <div class="felt gronn"><label>Prosjekt <span class="nytt">NYTT</span></label><div class="inn">Sitedoc Boligfelt B12 ▾</div></div>
+        <div class="rad"><div class="felt"><label>Byggeplass</label><div class="inn">sommerfeldtsgt 65 ▾</div></div><div class="felt"><label>Underprosjekt</label><div class="inn">END-002 ▾</div></div></div>
+        <div class="info" style="margin-top:0">Står i jobben på sommerfeldtsgt 65 · END-002.</div>
+        <div class="knapper"><span class="kn">Avbryt</span><span class="kn pri">Lagre</span></div>
+      </div>
+      <ul class="forkl">
+        <li><span class="g">1</span><span>Start, slutt, byggeplass og underprosjekt kan rettes i dag. Prosjektet er låst i dag og åpnes for reise.</span></li>
+        <li><span class="g">2</span><span>Bytter du prosjekt, foreslås byggeplassen på nytt, og underprosjektet tømmes. Den blå linja sier hvor reisen havner før du lagrer.</span></li>
+        <li><span class="g">3</span><span>Ingen meny for kort. Reisen står i jobben på stedet. Har du ingen jobb der, får den eget kort.</span></li>
+      </ul>
+    </div>
+
+    <div class="side">
+      <h2>Attesteringen · attestanten</h2>
+      <p class="under">Jobben åpnet i attesteringen. Reisen står i del 8 «Reise» som tekst. Pennen åpner samme vindu som på dagssiden.</p>
+      <div class="att">
+        <div class="ah"><div><b>Ola Tømrer · man. 16.11.</b><br><span>Sitedoc Boligfelt B12 · sommerfeldtsgt 65 · END-002 · 12:00–15:00</span></div><span>Venter</span></div>
+        <div class="adel graa"><span class="nr">1–7</span><span class="dn">Arbeid m.m.</span><div class="di">12:00–15:00 · 3,0 t · Timelønn · kantstein, endring</div></div>
+        <div class="adel"><span class="nr">8</span><span class="dn">Reise</span>
+          <div class="di">
+            <span class="rute">Retur · sommerfeldtsgt 65 → Kontor Tromsø · 35 min (firmaets tabell)</span>
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+              <div><b>15:00–15:35</b> · 0,58 t · Reise/transport til prosjekter<br><span class="lite">Føres på: Sitedoc Boligfelt B12 · sommerfeldtsgt 65 · END-002</span></div>
+              <div class="h"><span class="ik"><span class="ny-ramme">✎</span> ✂</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="pilned">↓ pennen (✎) på reiselinja</p>
+      <div class="vindu flat">
+        <h3>Rediger reise · Ola Tømrer <span>✕</span></h3>
+        <div class="rad"><div class="felt"><label>Start kl.</label><div class="inn">15:00</div></div><div class="felt"><label>Slutt kl.</label><div class="inn">15:35</div></div></div>
+        <div class="felt gronn"><label>Prosjekt <span class="nytt">NYTT</span></label><div class="inn">Sitedoc Boligfelt B12 ▾</div></div>
+        <div class="rad"><div class="felt gronn"><label>Byggeplass <span class="nytt">NYTT</span></label><div class="inn">sommerfeldtsgt 65 ▾</div></div><div class="felt"><label>Underprosjekt</label><div class="inn">END-002 ▾</div></div></div>
+        <div class="info" style="margin-top:0">Ola varsles om det du endrer.</div>
+        <div class="knapper"><span class="kn">Avbryt</span><span class="kn pri">Lagre</span></div>
+      </div>
+      <ul class="forkl">
+        <li><span class="g">1</span><span>I dag står start, slutt og «Føres på» som åpne felt i kortet og lagres med en gang. De går inn i pennens vindu. Prosjekt og byggeplass er nye.</span></li>
+        <li><span class="g">2</span><span>Prosjektlista har prosjektene attestanten kan attestere. Serveren krever attesteringsrett på begge prosjektene.</span></li>
+        <li><span class="g">3</span><span>Rettes prosjekt, byggeplass eller underprosjekt, står reisen etterpå i kortet det nye stedet gir.</span></li>
+        <li><span class="g">4</span><span>Arbeideren varsles om hver retting: «Kari Leder rettet timene dine man. 16.11.: Reise fra sommerfeldtsgt 65 — Slutt kl. 15:35 → 15:50.» Linja får merket «Rettet» på dagen hans.</span></li>
+        <li><span class="k">5</span><span>Firmavalget «Rediger ved attestering» er ikke endret. Er det av, kan attestanten bare bytte underprosjekt i vinduet.</span></li>
+      </ul>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  var h = location.hash.slice(1);
+  if (h && document.getElementById(h)) { document.body.classList.add('en'); document.getElementById(h).classList.add('vis'); document.documentElement.setAttribute('data-hoyde', document.getElementById(h).offsetHeight); }
+</script>
+</body>
+</html>

@@ -1,9 +1,9 @@
 ---
 name: web-timeforing-plan
-description: Plan med bilder steg for steg for timeføring på web — «+ Registrer timer» åpner én samlet registrering pr. jobb (fra/til, lønnsart, hva gjorde du, maskiner, varer, tillegg, utlegg), prosjekt og byggeplass utledet, dagen summeres etter hvert, overtid som egen linje mot dagsnormen for datoen, underprosjekt i jobbens hode, firmavalg for maskin med fra–til, og attestering med 13 kjernekolonner der et klikk åpner registreringen og lar attestanten dele opp. Versjon 5: dagsvisningen i attesteringen (B14) og firmavalget for attestantens egne timer (B15). Versjon 6: maskintimer høyst jobbens arbeidstimer, med unntak for døgn-maskiner (w9, § 4.4). Målt mot dagens web og telefon. B1–B23 besvart. Versjon 7: KS av attesteringen mot bilde 6–8 (§ 4.5) — avviksliste K1–K14, bilde 6 og 7 tegnet slik de gjelder, og retteordren w10. Versjon 8: én attestering på firmanivå for prosjektledere (§ 4.6) og hover-tekster (§ 4.8). Versjon 9: B29–B31 besvart — «Attestering» under Prosjekt fjernes med dødkode-liste (§ 4.10), reisen hører til prosjektet (§ 4.7), beskrivelsen står alltid i kortet (§ 4.9). Versjon 10: B32 B og B33 A besvart — reisen ligger i jobbens kort og attesteres med jobben, utreisen på dagens første prosjekt og returen på dagens siste (§ 4.11, w12 og w12m, med migrering). Versjon 11: B34 B besvart — arbeideren bestemmer hvor reisen føres; reisen beholder underprosjektet og byggeplassen han valgte og står i jobben som er ført samme sted (§ 4.11 del A punkt 3); w12 og w12m skrevet om; presiseringen om arbeid målt i § 4.12 — prosjekt og byggeplass og prosjekt og underprosjekt er begge gyldige i dag. Versjon 12: avviksrunde etter Kenneths test av dagsseddelen på PC (§ 4.13) — forklaringen på bilde #7, avvikslista A1–A14, w3 delt i w3a, w3b og w3c og bygget på kortet som finnes, hver type målt mot maskin-mønsteret og attesteringen målt mot Kenneths presiseringer, mobildelene venter på web, B37 og B38 åpne. Versjon 13: revisjon av tilbake-knappene på web (§ 4.14, w14). Versjon 14: testfunnene 20.11. på test `f529b527` (§ 4.15, w15) — kortet som er lukket etter «+ Registrer timer», reisetiden arbeideren ikke kan endre, og reisen som ser ut som arbeid i kortet; F1–F21 målt, tre skisser med alternativer side om side. Versjon 15: B41 A, B42 A og B43 B besvart — reise til et sted ingen jobb på dagen har, får eget kort; regelen skrevet om (§ 4.15 del E), konsekvensen målt (F22–F35), w15 delt i w15a–w15d med én datamigrering; systemet foreslår og arbeideren retter sted og tid; B44 (returen hjem), B45 (kortet med bare reise) og B46 (flytte en reise til et annet kort) åpne.
-sist_verifisert_mot_kode: 2026-11-19 (WM1–WM73: develop @ `b8b16571`; WM74–WM92: develop @ `ee7146e5`, etter w1, w2 og w5; WM93–WM108: develop @ `1afb318a`, etter w5b og w7; K1–K14 i § 4.5: develop @ `eedbc7cd`, etter w8, w9 og w9m; FA1–FA27 i § 4.6–4.8: develop @ `57770fc0`; FA16–FA21 på nytt, FA28–FA44 og DK1–DK15 i § 4.7, § 4.9 og § 4.10: develop @ `a5483f48`, 2026-11-20; FA45–FA59 i § 4.11: develop @ `bdf2320f`, 2026-11-20; FA60–FA65 i § 4.11 og FA66–FA70 i § 4.12: develop @ `8c260833`, 2026-11-20; § 4.13 (A1–A14): develop @ `d9354caa`, 2026-11-20; TK1–TK27 i § 4.14: develop @ `4fe7b0d6`, 2026-11-20; F1–F21 i § 4.15: develop @ `30346a95`, lik test `f529b527` i `apps` og `packages`, 2026-11-20; F22–F35 i § 4.15: develop @ `12094b58`, lik `30346a95` i `apps` og `packages`, 2026-11-20; F36–F45 i § 4.15: develop @ `88d37194`, lik `12094b58` i `apps` og `packages`, 2026-11-21)
+description: Plan med bilder steg for steg for timeføring på web — «+ Registrer timer» åpner én samlet registrering pr. jobb (fra/til, lønnsart, hva gjorde du, maskiner, varer, tillegg, utlegg), prosjekt og byggeplass utledet, dagen summeres etter hvert, overtid som egen linje mot dagsnormen for datoen, underprosjekt i jobbens hode, firmavalg for maskin med fra–til, og attestering med 13 kjernekolonner der et klikk åpner registreringen og lar attestanten dele opp. Versjon 5: dagsvisningen i attesteringen (B14) og firmavalget for attestantens egne timer (B15). Versjon 6: maskintimer høyst jobbens arbeidstimer, med unntak for døgn-maskiner (w9, § 4.4). Målt mot dagens web og telefon. B1–B23 besvart. Versjon 7: KS av attesteringen mot bilde 6–8 (§ 4.5) — avviksliste K1–K14, bilde 6 og 7 tegnet slik de gjelder, og retteordren w10. Versjon 8: én attestering på firmanivå for prosjektledere (§ 4.6) og hover-tekster (§ 4.8). Versjon 9: B29–B31 besvart — «Attestering» under Prosjekt fjernes med dødkode-liste (§ 4.10), reisen hører til prosjektet (§ 4.7), beskrivelsen står alltid i kortet (§ 4.9). Versjon 10: B32 B og B33 A besvart — reisen ligger i jobbens kort og attesteres med jobben, utreisen på dagens første prosjekt og returen på dagens siste (§ 4.11, w12 og w12m, med migrering). Versjon 11: B34 B besvart — arbeideren bestemmer hvor reisen føres; reisen beholder underprosjektet og byggeplassen han valgte og står i jobben som er ført samme sted (§ 4.11 del A punkt 3); w12 og w12m skrevet om; presiseringen om arbeid målt i § 4.12 — prosjekt og byggeplass og prosjekt og underprosjekt er begge gyldige i dag. Versjon 12: avviksrunde etter Kenneths test av dagsseddelen på PC (§ 4.13) — forklaringen på bilde #7, avvikslista A1–A14, w3 delt i w3a, w3b og w3c og bygget på kortet som finnes, hver type målt mot maskin-mønsteret og attesteringen målt mot Kenneths presiseringer, mobildelene venter på web, B37 og B38 åpne. Versjon 13: revisjon av tilbake-knappene på web (§ 4.14, w14). Versjon 14: testfunnene 20.11. på test `f529b527` (§ 4.15, w15) — kortet som er lukket etter «+ Registrer timer», reisetiden arbeideren ikke kan endre, og reisen som ser ut som arbeid i kortet; F1–F21 målt, tre skisser med alternativer side om side. Versjon 15: B41 A, B42 A og B43 B besvart — reise til et sted ingen jobb på dagen har, får eget kort; regelen skrevet om (§ 4.15 del E), konsekvensen målt (F22–F35), w15 delt i w15a–w15d med én datamigrering; systemet foreslår og arbeideren retter sted og tid; B44 (returen hjem), B45 (kortet med bare reise) og B46 (flytte en reise til et annet kort) åpne. Versjon 17: Kenneth forenklet reisen (§ 8.20) — reisen er én linje med start, slutt, prosjekt, byggeplass og underprosjekt, de samme feltene i pennen på dagssiden og i attesteringen; kortet følger av prosjekt og sted; «Flytt til …», `valgt_kort_id` og w15e er utgått (B46 B snudd); prosjektet kan byttes på en reise som finnes (w15f); attesteringskortet uten åpne felt og varsel til arbeideren ved retting (w15g); B47 A og B48 A besvart.
+sist_verifisert_mot_kode: 2026-11-19 (WM1–WM73: develop @ `b8b16571`; WM74–WM92: develop @ `ee7146e5`, etter w1, w2 og w5; WM93–WM108: develop @ `1afb318a`, etter w5b og w7; K1–K14 i § 4.5: develop @ `eedbc7cd`, etter w8, w9 og w9m; FA1–FA27 i § 4.6–4.8: develop @ `57770fc0`; FA16–FA21 på nytt, FA28–FA44 og DK1–DK15 i § 4.7, § 4.9 og § 4.10: develop @ `a5483f48`, 2026-11-20; FA45–FA59 i § 4.11: develop @ `bdf2320f`, 2026-11-20; FA60–FA65 i § 4.11 og FA66–FA70 i § 4.12: develop @ `8c260833`, 2026-11-20; § 4.13 (A1–A14): develop @ `d9354caa`, 2026-11-20; TK1–TK27 i § 4.14: develop @ `4fe7b0d6`, 2026-11-20; F1–F21 i § 4.15: develop @ `30346a95`, lik test `f529b527` i `apps` og `packages`, 2026-11-20; F22–F35 i § 4.15: develop @ `12094b58`, lik `30346a95` i `apps` og `packages`, 2026-11-20; F36–F45 i § 4.15: develop @ `88d37194`, lik `12094b58` i `apps` og `packages`, 2026-11-21; F46–F56 i § 4.15: develop @ `afdaa7ac`, 2026-11-21; F57–F63 i § 4.15: develop @ `e84a4e73` og `3290a40a`, like `afdaa7ac` i `apps` og `packages`, 2026-11-21)
 eier: fabel (plan) — orkestrator gater kode; Kenneth har vedtatt B1–B13 (§ 8.1)
-status: 🟡 FORSLAG 2026-11-21, versjon 16 — Nytt i versjon 16, uten kode: Kenneths svar på B44–B46 (§ 8.19) er arbeidet inn i § 4.15 del E–H. B44: returen hjem foreslås i jobben man drar fra; bytter arbeideren prosjekt, byggeplass eller underprosjekt, regnes kortet på nytt, og et valgt underprosjekt er nå et krav (var et ønske i versjon 15). B45 A: kort med bare reise har tre lenker (w15d). B46 B: «Flytt til …» på reiselinja, lagret i ny kolonne `valgt_kort_id` som serveren bærer gjennom synken (w15c, migrering; lenka i ny w15e). F36–F45 målt mot develop @ `88d37194`: firmaet har ingen innstilling for hvor en reise føres. Åpent: B47 (firmaets utgangspunkt for returen; anbefalt ingen innstilling nå) og B48 (reise uten underprosjekt på en jobb med underprosjekt; anbefalt i jobben). Fra versjon 15: Kenneths svar på B41–B43 (§ 8.18) er arbeidet inn i § 4.15. B41 A: kortet er åpent etter «+ Registrer timer», vinduet åpnes ikke av seg selv (w15a, kan bestilles nå). B42 A med Kenneths presisering («kjøretider må kunne redigeres», «reisen hører til stedet man kjører til», dynamiske løsninger): reisevinduet får «Når kjørte du?», start og slutt som kan rettes, og «Hvor kjørte du til?» med prosjekt og byggeplass (w15b). B43 B: reise til et sted ingen jobb på dagen har, får eget kort, også på samme prosjekt — byggeplassen blir et krav i regelen og kommer før underprosjektet (del E), med ny utfylling av rader som finnes (w15c, bare data, Kenneth kjører) og visningen på dagssiden (w15d). Ingenting på telefonen. Åpent til Kenneth: B44 (hvor returen hjem står), B45 (hvilke lenker kortet med bare reise har) og B46 (om en reise skal kunne flyttes til et annet kort enn stedet tilsier). Alle tre har en rettevei i begge alternativene. w15c venter på B44 og B46, w15d på B45. Fra versjon 14, uten kode: testfunnene fra Kenneth 20.11. på test `f529b527` (§ 8.17, § 4.15, w15): kortet er lukket etter «+ Registrer timer» fordi siden husker prosjektets id mens kortene har jobbens (feil etter w3a); reisevinduet har ikke klokke og legger «Til annet kontor» før dagens første rad; reisen til Narvik står i jobbens kort som en arbeidslinje, og hodet sier «2 byggeplasser». B41–B43 er besvart (§ 8.18). B39 og B40 er besvart (§ 8.16); w3b og w14 leveranse 1 er merget (develop `f529b527`). Fra versjon 13: revisjon av tilbake-knappene på web (§ 4.14, w14). w3a er merget og godkjent av Kenneth på test (§ 8.15). Fra versjon 12: w1, w2, w5, w5b, w7, w8, w9, w9m, w10 del A, w10 del B og w12 er merget (§ 9.1–9.6; develop `c19cad6c`). Ikke bygget: w3 (nå w3a, w3b, w3c), w4, w6, w10c, w11 og w12m. Nytt i versjon 12, uten kode: avviksrunden etter Kenneths test av dagsseddelen på PC (§ 8.13, § 4.13). Dagssiden viser ett kort pr. prosjekt med en boks pr. underprosjekt, ikke ett kort pr. jobb; det forklarer bilde #7. w3 er skrevet om til å bygge på kortet og vinduet som finnes: w3a (kortet pr. jobb, arv og kort-id fra jobben, koblet maskin og vare følger timeraden på serveren), w3b (maskin er utstyr og antall timer) og w3c (resten av gamle w3). Mobildelene er merket «venter på web» i § 9. Kenneths fire presiseringer samme dag er arbeidet inn: maskinen føres bare i timer, mengde føres som vare på jobben, alle typene følger maskin-mønsteret (§ 4.13 del D), og attesteringens kort viser allerede alt (del E). Åpent til Kenneth: B37 (hvor mengde føres på prosjekt uten varelager) og B38 (firmavalget for fra–til på maskin). w3a venter ikke på svarene; w3b venter på B37.
+status: 🟡 FORSLAG 2026-11-21, versjon 17 — Nytt i versjon 17, uten kode: Kenneths forenkling av reisen (§ 8.20) er arbeidet inn i § 4.15 del E–H. Reisen er én linje med fem felt (start, slutt, prosjekt, byggeplass, underprosjekt), like i pennen på dagssiden og i reisedelen i attesteringen. Kortet følger av prosjekt og sted; arbeideren velger aldri kort. B46 B er snudd: «Flytt til …», «Eget kort», «Flyttet av deg», kolonnen `valgt_kort_id` og w15e er utgått. Ny leveranse w15f: prosjektet kan byttes på en reise som finnes (server, pennen og attesteringen), etter w15d og w15c. w15c er uten kolonne (en utfylling, bare data) og venter ikke på noe; B47 A og B48 A er besvart. F46–F56 målt mot develop @ `afdaa7ac`: attesteringens `rettRadFelt` tar alt imot prosjekt, pennens `oppdaterTimerRad` gjør det ikke. Tillegget samme kveld (Kenneth: «hva er vitsen med attestering hvis redigering ikke kan forekomme -> men bruker skal varsles ved redigering»): arbeideren varsles om hver retting i attesteringen (merket «Rettet» på dagen og i Mine timer, e-post pr. dagsseddel); målt F57–F62 — firmavalget sjekkes tre steder på serveren, og arbeideren får i dag verken merke, e-post eller push. Presiseringen («den som attesterer må ha MULIGHET til å redigere … Derfor skal pennen være der på et kort»): attestanten retter via pennen (✎) på kortet, ingen felt står åpne; reiselinja i w15f, resten av kortet og varselet i ny w15g (F63; snur w10 A1). Firmavalget «Rediger ved attestering» endres ikke nå. w15a og w15b er merget (develop `d5ae514e`, `cee0c03e`); w15d er under bygging. Ingen spørsmål er åpne. Fra versjon 16 (⚠️ det som gjelder «Flytt til …» og `valgt_kort_id`, er utgått i versjon 17; B47 og B48 er besvart med A): Kenneths svar på B44–B46 (§ 8.19) er arbeidet inn i § 4.15 del E–H. B44: returen hjem foreslås i jobben man drar fra; bytter arbeideren prosjekt, byggeplass eller underprosjekt, regnes kortet på nytt, og et valgt underprosjekt er nå et krav (var et ønske i versjon 15). B45 A: kort med bare reise har tre lenker (w15d). B46 B: «Flytt til …» på reiselinja, lagret i ny kolonne `valgt_kort_id` som serveren bærer gjennom synken (w15c, migrering; lenka i ny w15e). F36–F45 målt mot develop @ `88d37194`: firmaet har ingen innstilling for hvor en reise føres. Åpent: B47 (firmaets utgangspunkt for returen; anbefalt ingen innstilling nå) og B48 (reise uten underprosjekt på en jobb med underprosjekt; anbefalt i jobben). Fra versjon 15: Kenneths svar på B41–B43 (§ 8.18) er arbeidet inn i § 4.15. B41 A: kortet er åpent etter «+ Registrer timer», vinduet åpnes ikke av seg selv (w15a, kan bestilles nå). B42 A med Kenneths presisering («kjøretider må kunne redigeres», «reisen hører til stedet man kjører til», dynamiske løsninger): reisevinduet får «Når kjørte du?», start og slutt som kan rettes, og «Hvor kjørte du til?» med prosjekt og byggeplass (w15b). B43 B: reise til et sted ingen jobb på dagen har, får eget kort, også på samme prosjekt — byggeplassen blir et krav i regelen og kommer før underprosjektet (del E), med ny utfylling av rader som finnes (w15c, bare data, Kenneth kjører) og visningen på dagssiden (w15d). Ingenting på telefonen. Åpent til Kenneth: B44 (hvor returen hjem står), B45 (hvilke lenker kortet med bare reise har) og B46 (om en reise skal kunne flyttes til et annet kort enn stedet tilsier). Alle tre har en rettevei i begge alternativene. w15c venter på B44 og B46, w15d på B45. Fra versjon 14, uten kode: testfunnene fra Kenneth 20.11. på test `f529b527` (§ 8.17, § 4.15, w15): kortet er lukket etter «+ Registrer timer» fordi siden husker prosjektets id mens kortene har jobbens (feil etter w3a); reisevinduet har ikke klokke og legger «Til annet kontor» før dagens første rad; reisen til Narvik står i jobbens kort som en arbeidslinje, og hodet sier «2 byggeplasser». B41–B43 er besvart (§ 8.18). B39 og B40 er besvart (§ 8.16); w3b og w14 leveranse 1 er merget (develop `f529b527`). Fra versjon 13: revisjon av tilbake-knappene på web (§ 4.14, w14). w3a er merget og godkjent av Kenneth på test (§ 8.15). Fra versjon 12: w1, w2, w5, w5b, w7, w8, w9, w9m, w10 del A, w10 del B og w12 er merget (§ 9.1–9.6; develop `c19cad6c`). Ikke bygget: w3 (nå w3a, w3b, w3c), w4, w6, w10c, w11 og w12m. Nytt i versjon 12, uten kode: avviksrunden etter Kenneths test av dagsseddelen på PC (§ 8.13, § 4.13). Dagssiden viser ett kort pr. prosjekt med en boks pr. underprosjekt, ikke ett kort pr. jobb; det forklarer bilde #7. w3 er skrevet om til å bygge på kortet og vinduet som finnes: w3a (kortet pr. jobb, arv og kort-id fra jobben, koblet maskin og vare følger timeraden på serveren), w3b (maskin er utstyr og antall timer) og w3c (resten av gamle w3). Mobildelene er merket «venter på web» i § 9. Kenneths fire presiseringer samme dag er arbeidet inn: maskinen føres bare i timer, mengde føres som vare på jobben, alle typene følger maskin-mønsteret (§ 4.13 del D), og attesteringens kort viser allerede alt (del E). Åpent til Kenneth: B37 (hvor mengde føres på prosjekt uten varelager) og B38 (firmavalget for fra–til på maskin). w3a venter ikke på svarene; w3b venter på B37.
 ---
 
 # Timeføring på web — plan med bilder (FORSLAG)
@@ -52,6 +52,9 @@ status: 🟡 FORSLAG 2026-11-21, versjon 16 — Nytt i versjon 16, uten kode: Ke
 > to nye spørsmålene i `v16-b47.png` (firmaets utgangspunkt for returen) og `v16-b48.png` (reise uten
 > underprosjekt). Kilde: `skisser-v16.html`. Alternativ A i `v15-b44.png` er utgangspunktet som ble vedtatt
 > for B44, og alternativ A i `v15-b45.png` er det som ble vedtatt for B45.
+> **Versjon 17:** etter Kenneths forenkling (§ 8.20) står reiselinja i `v17-reiselinje.png`: pennen åpen på
+> dagssiden, og samme penn med de samme fem feltene på reiselinja i attesteringen. Kilde: `skisser-v17.html`. `v16-flytt.png`,
+> `v16b-flytt.png` og `v16b-flytt-prosjekt.png` viser «Flytt til …», som er utgått.
 
 ## 1. Kenneths føringer (2026-11-17, ordrett)
 
@@ -1291,6 +1294,9 @@ prosjekt – byggeplass. Arbeideren bestemmer hvilket valg.»*
 reisen, er et krav, og arbeideren kan velge kortet selv med «Flytt til …». Regelen som gjelder, står i
 § 4.15 del E. Migreringen får en kolonne i tillegg til utfyllingen (§ 4.15 del F).
 
+⚠️ **Versjon 17 (§ 8.20):** «Flytt til …» og kolonnen er utgått. Arbeideren velger ikke kort; kortet
+følger av prosjekt, byggeplass og underprosjekt på reisen. Migreringen er bare en utfylling.
+
 ⚠️ **Versjon 15: B43 B (§ 8.18) endrer del A punkt 3.** Reise til en byggeplass ingen jobb på dagen har,
 får eget kort, og byggeplassen kommer før underprosjektet. Regelen som gjelder, og hva som står av B32 B
 og B34 B, står i § 4.15 del E. Utfyllingen i del E her får en oppfølger (§ 4.15 del F). Resten av delen står.
@@ -2115,7 +2121,7 @@ Fire filer har tilbake-ikon uten slikt kall (`app/timer/index.tsx`, `app/(tabs)/
 noen knapp på mobil går til en fast side i stedet for tilbake, er ikke klassifisert (§ 10). Ingen mobilkode
 foreslås (§ 8.13).
 
-### 4.15 Testfunn 20.11. på test `f529b527`: lukket kort, reisetid og reisens kort (versjon 16, w15)
+### 4.15 Testfunn 20.11. på test `f529b527`: lukket kort, reisetid og reisens kort (versjon 17, w15)
 
 Kenneths ord står i § 8.17. Bildene hans er `relay/bilder/2026-11-20-test-w3b-w14/1.webp`–`8.webp`
 (gitignorert). Målt mot develop @ `30346a95`; koden i `apps` og `packages` er lik test `f529b527`
@@ -2125,8 +2131,20 @@ Ingenting er klikket gjennom av Fabel. `WS`, `D`, `KI` og `RK` som ellers i plan
 `RM` = `packages/shared/src/utils/reiseManuell.ts`, `RV` = `packages/shared/src/utils/reiseKort.ts`,
 `OP` = `packages/shared/src/utils/oppmote.ts`.
 
-Skissene er forslag, ikke bygget. Kilde: `skisser-web-timeforing/skisser-v14.html`, `skisser-v15.html` og
-`skisser-v16.html`.
+Skissene er forslag, ikke bygget. Kilde: `skisser-web-timeforing/skisser-v14.html`, `skisser-v15.html`,
+`skisser-v16.html`, `skisser-v16b.html` og `skisser-v17.html`.
+
+⚠️ **Versjon 17:** Kenneth har forenklet reisen (§ 8.20, 2026-11-21): *«jeg trenger valgmuligheter ->
+enkle linjer. vi trenger ikke mange forskjellige varianter av kort.»* Reisen er én linje med fem felt:
+start, slutt, prosjekt, byggeplass og underprosjekt. Feltene er de samme i pennen på dagssiden og i
+reisedelen i attesteringen. Kortet følger av prosjekt og sted, og arbeideren velger aldri kort. **B46 B er
+snudd.** Ut av planen: «Flytt til …», «Eget kort», «Følg forslaget», «Flyttet av deg», kolonnen
+`valgt_kort_id` med prosedyren, panel 4 og w15e. Nytt: prosjektet kan byttes på en reise som finnes
+(**w15f**). B47 → A og B48 → A er arbeidet inn. Del E–H er skrevet om. Tekst som er snudd, er merket ⚠️ der
+den står. F46–F56 er målt mot develop @ `afdaa7ac`. Bildet er `v17-reiselinje.png`.
+**Tillegg samme kveld (§ 8.20):** arbeideren varsles om hver retting i attesteringen (del F). Attestanten
+retter via pennen (✎) på kortet, og ingen felt står åpne i attesteringen (del E, F63). Firmavalget
+«Rediger ved attestering» er målt (F57–F62) og endres ikke nå. Resten av kortet og varselet er **w15g**.
 
 ⚠️ **Versjon 16:** Kenneth har svart (§ 8.19): **B44 → utgangspunkt A, med valg. B45 → A. B46 → B.** B46
 gikk mot anbefalingen. Del E er skrevet om: et valgt underprosjekt er et krav, og et valgt kort går foran
@@ -2279,9 +2297,10 @@ konsekvensen i del F.
 4. Ingen lønnsart tas ut av lista i timerad-vinduet. Teksten under lønnsarten når den er reise, skrives
    om: «Dette er reise. Den står i jobben på byggeplassen du velger. Har du ingen jobb der i dag, får
    reisen eget kort.»
-   ⚠️ **Versjon 16 (B44):** teksten sier hvor reisen havner etter veien inn. Fra «+ Registrer timer»
-   nederst på dagen: «Dette er reise. Den får eget kort.» Fra «+ Timer» i en jobb: «Dette er reise.
-   Den står i denne jobben.» Kortet lagres som valgt (del E og del F).
+   ⚠️ **Versjon 17 (§ 8.20):** teksten sier hvor regelen legger reisen: «Dette er reise. Den står i jobben
+   på {sted}.» eller «Dette er reise. Den får eget kort.» Den regnes av samme funksjon som linja i
+   reisevinduet (godkjent for w15d 2026-11-21). Kortet lagres ikke som valgt. Versjon 16 lot veien inn
+   («+ Registrer timer» eller «+ Timer») bestemme kortet; det er utgått.
 5. Pennen på reiselinja åpner samme vindu som i dag.
 
 #### Del D — det som ikke røres
@@ -2291,83 +2310,114 @@ konsekvensen i del F.
 kortets linjeliste (`WS:963–981`). `dagskort-vakt.test.tsx` står. **Mobil røres ikke** i noen del av w15
 (§ 8.13, F32).
 
-#### Del E — regelen for hvilket kort reisen står i (versjon 16: B43 B, B44 og B46 B)
+#### Del E — reisen er én linje, og regelen for hvilket kort den står i (versjon 17: B43 B, B44, B47 A, B48 A og § 8.20)
 
-**Kenneths presisering (§ 8.18):** *«Problemet er at fabel blander kjøring. før prosjekt → kjøretider må
-kunne redigeres → prosjektet er det samme som det vi kjører til. etter at en har vært på et prosjekt → da
-kjører man til et annet prosjekt → kjøretiden registreres da på et nytt prosjekt.»*
+⚠️ **Snudd 2026-11-21 (§ 8.20).** Versjon 16 lot arbeideren velge kort med «Flytt til …» og lagret valget i
+kolonnen `valgt_kort_id` (B46 B). Kenneth etter skissen: *«nå begynner du å komplisere problemet istedenfor
+å forenkle. jeg trenger valgmuligheter -> enkle linjer. vi trenger ikke mange forskjellige varianter av
+kort. jeg trenger å kunne endre tider på reisen og jeg trenger å endre prosjektet reisen går til/fra. jeg
+trenger mulighet å redigere disse linjene ved attestering».* Ut av planen: «Flytt til …», «Eget kort»,
+«Følg forslaget», merket «Flyttet av deg», kolonnen `valgt_kort_id` med prosedyren, panel 4 og w15e.
+Slik del E–H sto i versjon 16: `git show cd7fe057:docs/claude/web-timeforing-plan.md`.
 
-**Kenneths prinsipp (§ 8.18):** *«vi trenger dynamiske løsninger … livet gir mange ulike løsninger.»*
-Bekreftet tolkning: systemet foreslår ut fra det som er registrert (sted, retning, tid), og arbeideren kan
-rette hver del — tidene, og hvilket prosjekt og kort reisen hører til — uten å velge mellom faste moduser.
+**Kenneths krav (§ 8.20):** (1) tidene på reisen kan rettes, (2) prosjektet reisen går til eller fra kan
+byttes, (3) begge kan rettes ved attestering.
 
-**Kenneth om returen hjem, B44 (§ 8.19):** *«i utgangspunktet fra prosjektet man drar fra. men kanskje det
-ikke er slik bedriften ønsker å føre kostnaden. derfor må man kunne velge andre løsninger. → dersom
-prosjekt/byggeplass/underprosjekt byttes, da må vi ha nytt kort. et alternativ er å velge nytt kort og velge
-reise der aktivet isteden for å velge reise på avsluttet jobb.»*
+**Kenneths presisering (§ 8.18), som står:** *«Problemet er at fabel blander kjøring. før prosjekt →
+kjøretider må kunne redigeres → prosjektet er det samme som det vi kjører til. etter at en har vært på et
+prosjekt → da kjører man til et annet prosjekt → kjøretiden registreres da på et nytt prosjekt.»*
 
-**Kenneth om å flytte en reise, B46 (§ 8.19):** *«dette er redigering → ja → vi trenger å kunne flytte en
-reise uten å skrive kortet på nytt.»*
+**Kenneth om returen hjem, B44 (§ 8.19), som står:** *«i utgangspunktet fra prosjektet man drar fra. men
+kanskje det ikke er slik bedriften ønsker å føre kostnaden. derfor må man kunne velge andre løsninger. →
+dersom prosjekt/byggeplass/underprosjekt byttes, da må vi ha nytt kort.»* ⚠️ Fortsettelsen, *«et alternativ
+er å velge nytt kort og velge reise der»*, er endret av § 8.20: arbeideren velger ikke kort. Han bytter
+prosjekt, byggeplass eller underprosjekt på reisen, og kortet følger.
 
-**Ga regelen i versjon 15 «nytt kort ved bytte av sted»?** For prosjekt og byggeplass: ja. For
-underprosjekt: nei.
+**Reiselinja: pennen har fem felt, to steder** (forslag til w15f; koderen leverer løsning med skjermbilde før kode):
 
-| Arbeideren gjør | Versjon 15 | Versjon 16 |
+![Reiselinja med pennen åpen på dagssiden, og samme penn med de samme fem feltene på reiselinja i attesteringen](skisser-web-timeforing/v17-reiselinje.png)
+
+35 minutter i bildet er firmaets kjøretid fra tabellen. Kilde: `skisser-web-timeforing/skisser-v17.html`.
+Kortene i bildet er de som finnes i dag, tegnet med pennen åpen. Versjon 17 legger ikke til kort, paneler
+eller visninger (Kenneth 2026-11-21, § 8.20).
+
+**Kenneth 2026-11-21 (§ 8.20):** *«jeg sa at den som attesterer må ha MULIGHET til å redigere. det er ikke
+det samme som at alt er redigerbart hele tiden. Derfor skal pennen være der på et kort».* Reiselinja i
+attesteringens kort er tekst med ✎. ✎ åpner vinduet med de samme fem feltene som på dagssiden. Ingen felt
+står åpne i attesteringen.
+
+| Felt | Pennen på dagssiden (arbeideren) | Pennen på reiselinja i attesteringen (attestanten) |
 |---|---|---|
-| Bytter prosjekt på reisen | Reisen står på det nye prosjektet: i jobben der, ellers i eget kort. | Står. |
-| Bytter byggeplass | Reisen står i jobben på den byggeplassen, ellers i eget kort (B43 B). | Står. |
-| Bytter underprosjekt | **Ga ikke nytt kort.** Underprosjektet var et ønske. Reisen ble stående i en jobb på byggeplassen, og linja viste underprosjektet. | **Endres.** Et underprosjekt arbeideren har valgt, er et krav. Har ingen jobb på byggeplassen det, får reisen eget kort. |
-| Vil ha reisen i et annet kort uten å bytte sted | Gikk ikke (B46 var åpent). | **Nytt:** «Flytt til …» på reiselinja (B46 B). Valget lagres. |
-| Starter et nytt kort og fører reisen der | Gikk ikke. Serveren kastet kort-id-en vinduet sendte, og la reisen etter regelen (F15, F16). | **Nytt:** kortet arbeideren førte reisen i, lagres som valgt (del F, «Slik lagres valget»). |
+| Start kl. og Slutt kl. | Finnes (F46). | Står som åpne felt i kortet i dag (F52, F63). Flyttes inn i pennens vindu. Krever firmavalget «Rediger ved attestering». |
+| Prosjekt | **Nytt.** Feltet er låst i dag, og serveren tar ikke imot prosjekt (F46, F47). Nedtrekk som i reisevinduet (w15b). Åpnes bare for reiserader. | **Nytt i skjermen.** Serveren tar det imot i dag (F48). Lista har prosjektene attestanten kan attestere (F50). Krever firmavalget. |
+| Byggeplass | Finnes (F46). | **Nytt i skjermen.** Serveren tar det imot i dag (F48). Krever firmavalget. |
+| Underprosjekt | Finnes (F46). | Står som åpent valg «Føres på» i dag (F52). Flyttes inn i pennens vindu. Krever ikke firmavalget. |
+
+- Bytter han prosjekt, foreslås byggeplassen på nytt for det nye prosjektet, og underprosjektet tømmes, som
+  i reisevinduet (`RK:342–350`). Prosjekt, byggeplass og underprosjekt sendes i samme kall.
+- Tidene endres ikke når prosjektet byttes. Retningen, oppmøtestedet og firmaets kjøretid står på raden
+  slik de var da reisen ble ført (F56). Var turen lengre, retter han slutten.
+- En linje under feltene i pennen sier hvor reisen havner før lagring: «Står i jobben på …» eller «Får
+  eget kort på …». Det er samme funksjon som i reisevinduet (F55).
+- Prosjektfeltet åpnes bare for reise. For arbeid er det låst som i dag.
+- En attestert reise kan ikke rettes, som i dag. Overlapp, aldersgrense og låst dagsseddel gjelder som i
+  dag.
+- Retter attestanten prosjekt, byggeplass eller underprosjekt, står reisen etterpå i kortet det nye stedet
+  gir. Kortet han har åpent, mister linja. Koderen viser i løsningen hvordan attestanten ser hvor reisen
+  ble av.
+- **Firmavalget «Rediger ved attestering» endres ikke nå** (Kenneth 2026-11-21, § 8.20). Er det på, har
+  vinduet alle fem feltene. Er det av, er bare underprosjektet åpent i vinduet, som i dag (F52, F57–F59).
+  Lagres bare underprosjektet, brukes samme kall som «Føres på» bruker i dag, så ingen firma mister noe.
+- **Arbeideren varsles om hver retting i attesteringen** (vedtatt 2026-11-21, § 8.20): hva som ble endret,
+  av hvem, og verdien før og etter (del F).
 
 **Lest mot regelen:**
 
 1. **Reisen hører til stedet man kjører til.** Reise før arbeid står i jobben man kjører til. Reise etter
    arbeid til et annet prosjekt eller en annen byggeplass står på det nye stedet.
-2. **Returen hjem hører til jobben man drar fra (B44).** På PC er reisevinduet fylt ut fra jobben
+2. **Returen hjem hører til jobben man drar fra (B44, B47 A).** På PC er reisevinduet fylt ut fra jobben
    «+ Reise» står i: prosjekt, byggeplass og underprosjekt (F36). Den som ikke rører noe, får returen i
-   den jobben.
-3. **Stedet på reisen er prosjekt, byggeplass og underprosjekt.** Bytter arbeideren ett av dem, regnes
-   kortet på nytt. Har dagen en jobb på det nye stedet, står reisen i den jobben. Ellers får den eget kort.
-   **Si fra hvis «nytt kort» skal bety et kort for seg også når du har en jobb på stedet.** I forslaget
-   velger du da «Eget kort» i «Flytt til …».
-4. **Kortet kan velges direkte (B46 B).** «Flytt til …» på reiselinja flytter reisen til et annet kort
-   samme dag, uten at noe føres på nytt. Valget står til arbeideren endrer det.
-5. **Arbeideren kan starte et nytt kort og føre reisen der (B44).** «+ Registrer timer» nederst på
-   dagen, med reise som lønnsart, gir et nytt kort med reisen alene. Det er den veien Kenneth gikk på
-   bilde 8 (F13).
-6. **Regelen er forslaget, ikke en lås.** Tilfellene den ikke dekker, står i del F.
+   den jobben. Firmaet har ingen innstilling for dette (B47 A).
+3. **Stedet på reisen er prosjekt, byggeplass og underprosjekt.** Bytter arbeideren eller attestanten ett
+   av dem, regnes kortet på nytt. Har dagen en jobb på det nye stedet, står reisen i den jobben. Ellers får
+   den eget kort.
+4. **Arbeideren velger aldri kort (§ 8.20).** Konsekvensen Kenneth har godtatt: hjemreisen står i jobben
+   man drar fra. Den kan ikke legges i en annen jobb på samme sted uten å bytte prosjekt, byggeplass eller
+   underprosjekt.
 
-**Regelen slik den blir.** Den erstatter § 4.11 del A punkt 3. Resten av § 4.11 del A står.
+| Arbeideren gjør | Versjon 16 | Versjon 17 |
+|---|---|---|
+| Retter start eller slutt | Reisevinduet (w15b) og pennen. | Står. Attestanten kan også (F52). |
+| Bytter prosjekt på en reise som finnes | Gikk ikke: feltet er låst (F46). Planen viste til pennen uten at det var målt. | **Nytt (w15f).** Reisen står i jobben på det nye stedet, ellers i eget kort. |
+| Bytter byggeplass | Reisen står i jobben på den byggeplassen, ellers i eget kort (B43 B). | Står. |
+| Bytter underprosjekt | Et valgt underprosjekt er et krav (B44). Har ingen jobb på byggeplassen det, får reisen eget kort. | Står. |
+| Vil ha reisen i et annet kort uten å bytte sted | «Flytt til …» (B46 B). | **Utgår.** Kortet følger av stedet. |
+| Starter et nytt kort med «+ Registrer timer» og fører reisen der | Kortet ble lagret som valgt. | **Utgår.** Reisen står der regelen legger den. Kort-id-en vinduet sender, leses ikke, som i dag (F15). |
 
-1. **Har reisen et valgt kort, står den der** (punkt 7). Ellers gjelder punkt 2–6.
+**Regelen slik den blir.** Den erstatter § 4.11 del A punkt 3. Resten av § 4.11 del A står. Nummereringen
+fra versjon 16 er beholdt, fordi resten av planen viser til punktene.
+
+1. ⚠️ **Utgått (§ 8.20).** Punktet sa at et valgt kort går foran regelen.
 2. **Kandidatene** er jobbene på samme dagsseddel med arbeid på reisens prosjekt. Har prosjektet ingen
    jobb den dagen, står reisen i eget kort. *Som i dag.*
 3. **Byggeplassen er et krav.** Bare jobber på reisens byggeplass er kandidater. Har ingen jobb den
    byggeplassen, står reisen i eget kort. *Fra versjon 15 (B43 B). I dag er byggeplassen et ønske (F22).*
 4. **Underprosjektet:**
    - **Reisen har et underprosjekt:** bare jobber med det samme er kandidater. Har ingen jobb på
-     byggeplassen det, står reisen i eget kort. *Nytt i versjon 16 (B44). I versjon 15 ble reisen stående
-     i en jobb på byggeplassen.*
+     byggeplassen det, står reisen i eget kort. *Fra versjon 16 (B44).*
    - **Reisen har ikke underprosjekt:** jobbene uten underprosjekt går foran. Har ingen jobb på
-     byggeplassen «Uten», er det **B48**. Anbefalt (A): alle jobbene på byggeplassen står, og linja viser
-     «Uten underprosjekt». B: reisen får eget kort.
+     byggeplassen «Uten», står alle jobbene på byggeplassen som kandidater, og linja viser «Uten
+     underprosjekt». ✅ **Kenneth: A** (B48, § 8.20).
 5. **Retningen** velger blant dem som står igjen: utreisen i første jobb, returen i siste, og uten retning
    etter klokka. *Som i dag (`RV:114–125`).*
 6. **Reise uten byggeplass** (til annet kontor) følger tiden: før dagens første arbeid på prosjektet står
    den i jobben man kjører til, som i dag; etter at arbeidet er begynt, får den eget kort. Underprosjektet
    følger punkt 4. Bildet er `v15-kontor.png`. *Nytt for reise etter arbeid: i dag står den alltid i en
    jobb (`RV:109`, `:117–118`).* ✅ **Kenneth: ja** (2026-11-21, § 8.19).
-7. **Valgt kort (B46 B).** Har arbeideren valgt kort for reisen, står den der, og punkt 2–6 kjøres ikke.
-   Kortet er en jobb på samme dagsseddel og prosjekt, eller et kort for reisen alene.
-   - Valget fjernes når arbeideren bytter prosjekt, byggeplass eller underprosjekt på reisen (B44), eller
-     velger «Følg forslaget».
-   - Valget gjelder ikke lenger hvis kortet har fått arbeid på et annet prosjekt enn reisens. Da gjelder
-     punkt 2–6.
-   - Attesterte og erstattede reiser flyttes aldri, som i dag.
+7. ⚠️ **Utgått (§ 8.20).** Punktet beskrev valgt kort (B46 B).
 
-**Eget kort** etter punkt 2–6 får kort-id utledet av reisens egen nøkkel, som i dag (F24). «Eget kort»
-valgt i «Flytt til …» får en ny id som ingen jobb har (del F).
+Attesterte og erstattede reiser flyttes aldri, som i dag. **Eget kort** får kort-id utledet av reisens egen
+nøkkel, som i dag (F24). Reise til annet kontor i eget kort får en id som ikke kan bli lik en jobbs (F25).
 
 Byggeplassen leses slik nøkkelen leser den (effektiv, FA69), for reisen og for jobben. «Uten byggeplass» er
 en egen verdi: på et prosjekt uten byggeplasser står reisen i jobben, som i dag. I dag leser regelen reisens
@@ -2375,23 +2425,24 @@ egen byggeplass (`KI:300`). Koderen måler om byttet gir et annet svar for reise
 byggeplass, og melder.
 
 **Eksempel.** B12 har byggeplassene sommerfeldtsgt 65 og Narvik. Dagen har jobb 1 «sommerfeldtsgt 65 ·
-uten underprosjekt» 07–12 og jobb 2 «sommerfeldtsgt 65 · END-002» 12–16.
+uten underprosjekt» 07–12 og jobb 2 «sommerfeldtsgt 65 · END-002» 12–15.
 
-| Reisen er ført på | Versjon 15 | Versjon 16 |
-|---|---|---|
-| Utreise til sommerfeldtsgt 65, uten underprosjekt | Jobb 1 | Jobb 1 |
-| Retur fra sommerfeldtsgt 65, END-002 (fylt ut fra jobb 2) | Jobb 2 | Jobb 2 |
-| Utreise til sommerfeldtsgt 65, TILL-001 (ingen jobb der) | Jobb 1. Linja viser «TILL-001». | **Eget kort «Reise · sommerfeldtsgt 65 · TILL-001»** |
-| Reise til Narvik, uten underprosjekt (bilde 8) | Eget kort «Reise · Narvik» | Som versjon 15 |
-| Reise til Narvik, END-002 | Eget kort «Reise · Narvik · END-002» | Som versjon 15 |
-| Reise på prosjekt 1050 (ingen jobb der) | Eget kort | Eget kort |
-| Dagen har også jobb 3 «Narvik · uten underprosjekt» 16–18: reise til Narvik, END-002 | Jobb 3. Linja viser «END-002». | **Eget kort «Reise · Narvik · END-002»** |
-| Dagen har bare jobb 2: utreise til sommerfeldtsgt 65 uten underprosjekt (ført på telefonen, F37) | Jobb 2. Linja viser «Uten». | **B48.** A: jobb 2, linja viser «Uten underprosjekt». B: eget kort. |
-| Returen flyttet med «Flytt til …» → «Eget kort» | Gikk ikke | Eget kort, til valget endres |
-| Returen flyttet med «Flytt til …» → jobb 1 | Gikk ikke | Jobb 1. Linja viser «END-002». |
-| «+ Registrer timer» nederst på dagen, lønnsart reise, sommerfeldtsgt 65 uten underprosjekt | Jobb 1 (F15, F16) | **Nytt kort med reisen alene** |
+| Reisen er ført på | Reisen står i |
+|---|---|
+| Utreise til sommerfeldtsgt 65, uten underprosjekt | Jobb 1 |
+| Retur fra sommerfeldtsgt 65, END-002 (fylt ut fra jobb 2) | Jobb 2 |
+| Utreise til sommerfeldtsgt 65, TILL-001 (ingen jobb der) | Eget kort «Reise · sommerfeldtsgt 65 · TILL-001» |
+| Reise til Narvik, uten underprosjekt (bilde 8) | Eget kort «Reise · Narvik» |
+| Reise til Narvik, END-002 | Eget kort «Reise · Narvik · END-002» |
+| Reise på Prosjekt 1050 (ingen jobb der) | Eget kort |
+| Dagen har også jobb 3 «Narvik · uten underprosjekt» 15–17: reise til Narvik, END-002 | Eget kort «Reise · Narvik · END-002» |
+| Dagen har bare jobb 2: utreise til sommerfeldtsgt 65 uten underprosjekt (ført på telefonen, F37) | Jobb 2. Linja viser «Uten underprosjekt» (B48 A). |
+| Returen i jobb 2: arbeideren bytter prosjekt til Prosjekt 1050 med pennen (w15f) | Eget kort på Prosjekt 1050. Har dagen en jobb der på samme byggeplass, står reisen i den. |
+| Returen i jobb 2: attestanten tømmer underprosjektet i «Føres på» | Jobb 1 (samme byggeplass, uten underprosjekt) |
+| «+ Registrer timer» nederst på dagen, lønnsart reise, sommerfeldtsgt 65 uten underprosjekt | Jobb 1. ⚠️ Versjon 16 sa nytt kort med reisen alene. |
 
-**Reisevinduet** (forslag til w15b; koderen leverer løsning med skjermbilde før kode):
+**Reisevinduet** (w15b, merget til develop `cee0c03e`; skjermbilder `w15b-etter-arbeid.png` og
+`w15b-byttet-prosjekt.png`). Skissen under er forslaget det ble bygget etter:
 
 ![Reisevinduet: før arbeid, til annet prosjekt, til annet kontor](skisser-web-timeforing/v15-reisevindu.png)
 
@@ -2399,67 +2450,49 @@ De grønne rammene i bildet viser hvor arbeideren retter forslaget: stedet og sl
 nederst sier hvilket kort reisen havner i før han lagrer. Returen står i `v15-b44.png`.
 
 - Vinduet åpnes fra en jobb og er fylt ut fra den: prosjekt, byggeplass, underprosjekt, «Før arbeid» og
-  tidene. Feltet for underprosjekt finnes i dag og er fylt ut fra jobben (F36).
+  tidene (F36).
 - Bytter arbeideren prosjekt, byggeplass eller underprosjekt, regnes forslaget på nytt, og linja nederst
-  sier hvor reisen havner.
+  sier hvor reisen havner. Linja følger dagens regel til w15c er merget.
 - Firmaets tabell har kjøretid fra oppmøtested til byggeplass og mellom kontorer (`MR:204–245`), ikke
   mellom to byggeplasser. Kjørte arbeideren fra en annen byggeplass, er forslaget kjøretiden fra
   oppmøtestedet, og han retter slutten.
 - Ingen lønnsart tas ut av timerad-vinduet.
 
-**«Flytt til …» på reiselinja (B46 B)** (forslag til w15e; koderen leverer løsning med skjermbilde før kode):
-
-![Flytt til: samme dag i tre paneler — forslaget med menyen, etter «Eget kort» og etter valg av jobb 1](skisser-web-timeforing/v16b-flytt.png)
-
-- Lenka står på hver reiselinje på dagssiden, ved pennen. Den åpner en liste med dagens kort på reisens
-  prosjekt og «Eget kort». Kortet reisen står i, er merket.
-- Ett trykk flytter reisen. Det er ingen lagre-knapp, og ingenting føres på nytt.
-- En reise som er flyttet, har merket «Flyttet av deg» på linja. Lista har da også «Følg forslaget».
-- Stedet, underprosjektet, tidene og ruta på reisen endres ikke. Bare kortet.
-- Til et kort på et annet prosjekt bytter arbeideren prosjekt på reisen (pennen, w15d). Kostnaden følger
-  prosjektet reisen er ført på, så lista viser bare kort på samme prosjekt.
-- En attestert reise har ikke lenka.
-
 **B32 B (§ 8.10, § 4.11) — hva som endres og hva som står:**
 
-| B32 B sa | Etter versjon 16 |
+| B32 B sa | Etter versjon 17 |
 |---|---|
 | Reiseraden har alltid kort-id. | Står. |
-| Brukeren velger aldri jobb for reisen. Serveren regner den ut. | **Endres (B46 B):** serveren regner forslaget. Arbeideren kan velge et annet kort med «Flytt til …», og valget lagres. |
+| Brukeren velger aldri jobb for reisen. Serveren regner den ut. | Står. ⚠️ Versjon 16 endret det (B46 B); § 8.20 snudde det tilbake. |
 | Reisen ligger i jobbens kort og attesteres sammen med jobben. | Står når dagen har en jobb på reisens sted. **Endres:** ellers står reisen i eget kort og attesteres for seg, med egen rad «Reise». |
 | Reise på et prosjekt uten jobb står alene i eget kort. | Står. |
-| Regelen kjøres på nytt hver gang dagsseddelen skrives. | Står for reiser uten valgt kort. En reise med valgt kort blir stående. |
+| Regelen kjøres på nytt hver gang dagsseddelen skrives. | Står. |
 | Attesterte og erstattede reiserader flyttes aldri. | Står. |
 | ✓ på dagsraden attesterer hele dagen. | Står. |
-| Kort-id som klienten sender på en reiserad, leses ikke (§ 4.11 del A punkt 2). | **Endres for PC:** kort-id-en «Legg til timer-rad» sender på en reise, lagres som valgt kort. Fra telefonen og eldre apper leses den fortsatt ikke. |
+| Kort-id som klienten sender på en reiserad, leses ikke (§ 4.11 del A punkt 2). | Står. ⚠️ Versjon 16 endret det for PC; utgått. |
 
 **B34 B (§ 8.11, § 4.11) — hva som endres og hva som står:**
 
-| B34 B sa | Etter versjon 16 |
+| B34 B sa | Etter versjon 17 |
 |---|---|
-| Arbeideren velger byggeplass og underprosjekt for reisen. Ingenting endrer dem av seg selv. | Står. |
+| Arbeideren velger byggeplass og underprosjekt for reisen. Ingenting endrer dem av seg selv. | Står. Han kan også bytte prosjektet (w15f). |
 | Reisen står i jobben som er ført samme sted: lik underprosjekt først, så lik byggeplass. | **Endres:** byggeplassen er et krav (versjon 15). Et valgt underprosjekt er også et krav (versjon 16). |
-| Har ingen jobb reisens underprosjekt, står reisen i en annen jobb, og linja viser underprosjektet. | **Utgår** for reise med underprosjekt: reisen får eget kort. For reise uten underprosjekt: B48. |
+| Har ingen jobb reisens underprosjekt, står reisen i en annen jobb, og linja viser underprosjektet. | **Utgår** for reise med underprosjekt: reisen får eget kort. Reise uten underprosjekt står i jobben på byggeplassen (B48 A). |
 | Har ingen jobb reisens byggeplass, står reisen i en annen jobb på prosjektet. | **Utgår** (versjon 15). Reisen får eget kort. |
-| «Føres på» i attesteringens kort retter underprosjektet på reisen. | Står. Reisen blir stående i kortet attestanten retter i (følge 5 under). |
-| Valideringen sammenlikner bare dagsseddel og prosjekt for en reiserad (K1, K2). | Står. Det er også grensen for «Flytt til …». |
+| «Føres på» i attesteringens kort retter underprosjektet på reisen. | Står som felt i pennens vindu, sammen med prosjekt og byggeplass (w15f). Reisen flytter til kortet det nye stedet gir. |
+| Valideringen sammenlikner bare dagsseddel og prosjekt for en reiserad (K1, K2). | Står. |
 
-**Følger som ikke er spørsmål, men si fra hvis du mente noe annet:**
+**Følger som ikke er spørsmål:**
 
 1. To reiser til samme sted samme dag står i samme kort.
 2. Reisekortet attesteres for seg. Attestanten ser én rad «Reise» pr. kort.
-3. Reiser som er attestert, blir stående i jobben de ble attestert i. Reiser som ikke er attestert og ikke
-   har valgt kort, legges på nytt etter regelen av en utfylling Kenneth kjører (del F).
-4. Bytter arbeideren sted på en reise han har flyttet, gjelder forslaget igjen. Det nye stedet styrer.
-5. **Attestantens «Føres på»:** når attestanten retter underprosjektet på en reise i kortet, blir reisen
-   stående i det kortet, og linja viser underprosjektet. Slik er det bygget i w12. Med den nye regelen
-   ville reisen ellers forsvunnet ut av kortet attestanten har åpent. Serveren lagrer kortet som valgt
-   (del F). *Endring fra w12 i ett tilfelle: har dagen en annen jobb på det nye underprosjektet, flyttet
-   reisen dit. Nå står den.*
-6. «Flytt til …» finnes for arbeideren på dagssiden. Attestanten har «Føres på» og ser reisen i kortet
-   arbeideren valgte. **Si fra hvis attestanten også skal ha «Flytt til …».**
+3. Reiser som er attestert, blir stående i jobben de ble attestert i. Reiser som ikke er attestert, legges
+   på nytt etter regelen av en utfylling Kenneth kjører (del F).
+4. ⚠️ Følge 4–6 i versjon 16 handlet om flyttede reiser og «Flytt til …» og er utgått. Følge 5 sa at
+   reisen ble stående i kortet når attestanten rettet «Føres på». Nå flytter den til kortet det nye
+   underprosjektet gir, som i w12 (F42), med regelen i denne delen.
 
-#### Del F — konsekvensen målt i koden (F22–F45), lagringen av valget, B47 og B48
+#### Del F — konsekvensen målt i koden (F22–F63), prosjektbyttet (w15f), kortet og varselet (w15g), og B44–B48
 
 Lest i koden. Ingenting er kjørt.
 
@@ -2496,35 +2529,114 @@ Ingenting er kjørt.
 | F44 | Regelen og `sikreKortId` leser ingen firmainnstilling. Eneste oppslag utenfor timer-databasen er dagsseddelens byggeplass. | `RV:103–126`; `KI:53–58`, `:291–307` |
 | F45 | Søk etter ord for reise sammen med prosjekt, kort, plassering og kostnadsbærer i begge skjemaene og i `apps` og `packages` ga ingen innstilling. B33 A (utreisen på dagens første prosjekt, returen på dagens siste) er ikke bygget, og er planlagt som fast regel. | Søket er gjort av en leseagent; F43 og F44 er stikkprøvd av Fabel. § 4.11 del G |
 
+F38–F41 ble målt for lagringen av valget, som er utgått (§ 8.20). Målingene står: de viser hvorfor
+reisens kort regnes på nytt ved hver skriving.
+
+**Målt for versjon 17** (develop @ `afdaa7ac`). `D`, `KI`, `RV`, `KS2` og
+`apps/web/src/components/attestering/` er uendret siden `88d37194` (`git diff --stat 88d37194 afdaa7ac`
+for dem er tom), så linjenumrene i F22–F45 for de filene står. `WS`, `RK`, `MR` og `RM` er endret av w15a
+og w15b; linjene under er lest på nytt. Lest i koden. Ingenting er kjørt. `RP` som ellers i planen.
+
+| # | Målt | Kode |
+|---|---|---|
+| F46 | **Pennen på en reise** åpner «Rediger timer-rad». Prosjektfeltet er låst når en rad redigeres. Byggeplass, underprosjekt, start og slutt kan rettes. | `WS:4275`, `:3412–3414`, `:4288` |
+| F47 | **`oppdaterTimerRad` har ikke prosjekt i inngangen.** Byggeplass og underprosjekt holdes mot radens prosjekt. Kallet gjelder egen dagsseddel som kan rettes. | `D:4187–4208`, `:4229–4235`, `:4302–4325` |
+| F48 | **Attesteringens `rettRadFelt` tar alt imot prosjekt på en timerad,** sammen med byggeplass, underprosjekt, fra og til. Raden oppdateres på stedet med samme id. Retning, oppmøtested, kjøretid og kilde er ikke med i skrivingen og står. Kort-id tømmes for reise, og `sikreKortId` legger raden på nytt. | `D:7275–7284`, `:3301–3317`, `:3388–3393`, `:3429` |
+| F49 | `rettRadFelt` krever attesteringsrett på **både** prosjektet raden står på og det nye, at dagsseddelen ikke er attestantens egen (B15), at raden venter, at dagsseddelen er sendt, og firmavalget «rediger ved attestering». | `D:7335–7345`, `:2992–3013` |
+| F50 | **Attestantens rett følger prosjektet.** En prosjektleder kan attestere prosjektene der han er aktivt medlem med admin eller «kan attestere». Firmaadministrator har alle. Flytter han en reise til et prosjekt han ikke kan attestere, avviser serveren med «Timer attesteres av firmaet den ansatte jobber for». Klienten kan lese omfanget fra `kanAttestereFirma` (`omfang`, `prosjektIder`). | `D:284–314`, `:556–563`, `:6185–6197` |
+| F51 | Det nye prosjektet må høre til dagsseddelens firma, og byggeplassen til radens prosjekt. **Underprosjektet på en timerad holdes ikke mot prosjektet i denne veien:** `krevEcoerIProsjekt` kalles bare for tillegg. Sendes bare nytt prosjekt for en reise med underprosjekt og uten byggeplass, ser underprosjektet fra det gamle prosjektet ut til å bli stående. Lest, ikke kjørt. | `D:3016–3031`; søk etter `externalCostObjectId` i `D:3033–3262` (ingen treff) |
+| F52 | **Reisedelen i attesteringen (del 8)** har rutemerket, fra–til, lønnsart, ✂ og «Føres på». «Føres på» er underprosjektet og rettes med `flyttTimerRadEco`, som krever attesteringsrett og sendt dagsseddel, ikke firmavalget. Fra og til rettes med `rettRadFelt` og krever firmavalget. Prosjekt og byggeplass kan ikke rettes i skjermen. | `RP:469–500`, `:22–25`, `:247–256`; `D:6547–6563` |
+| F53 | `tilfoyTimerRad` (ny rad, også ny reise fra reisevinduet) sjekker at prosjektet hører til firmaet, ikke at arbeideren er medlem av det. Synken sjekker medlemskap for hvert prosjekt på radene. Reisevinduet og timerad-vinduet lister prosjektene fra samme kilde (`prosjekt.hentForTimer`). | `D:4041–4047`, `:8895`, `:9100`; `WS:285`, `:521–531`, `:1462`; `RK:95`, `:461` |
+| F54 | `harProsjektTilgang` brukes ikke i `D`. Medlemskap sjekkes der med `verifiserProsjektmedlem`. | `apps/api/src/trpc/tilgangskontroll.ts:750`; søk i `apps/api/src` (eneste treff: `routes/vareforbruk.ts`) |
+| F55 | **Linja «havner i» (`reiseHavnerI`) leser bare dagens timerrader.** Under terskelen, der raden blir arbeid, slår den opp kortet blant jobbene med arbeid. Serveren ser også kort som bare har maskin, tillegg eller utlegg. Da sier linja «Får eget kort», mens serveren legger raden i kortet som finnes. Lagringen er riktig; bare linja er feil. Radene sendes inn fra `WS`. (Kontrollørens merknad, gate 112.) | `MR:84–133`; `WS:1468`; `RK:213` |
+| F56 | **Reiseraden bærer ett sted.** Byggeplassen i ruta er radens byggeplass. Retning, oppmøtested, kjøretid og kilde står i egne felt og endres ikke når prosjektet byttes. | `packages/db-timer/prisma/schema.prisma:286–296` |
+
+**Målt for tillegget om retting ved attestering** (Kenneth 2026-11-21, § 8.20; develop @ `e84a4e73`, lik
+`afdaa7ac` i `apps` og `packages`). Lest i koden. Ingenting er kjørt.
+
+| # | Målt | Kode |
+|---|---|---|
+| F57 | **Firmavalget «rediger ved attestering»** lagres i kjernen, i firmainnstillingene (`tillattRedigerVedAttestering`). Forvalget er på for innstillingsrader laget etter 2026-05-17; eldre rader har beholdt verdien sin. Firmaadministrator slår det av og på i Firma › Innstillinger. | `packages/db/prisma/schema.prisma:425–430`; `apps/web/src/app/dashbord/firma/innstillinger/page.tsx:840–869`; `apps/api/src/routes/organisasjon.ts:1384` |
+| F58 | **Tre steder på serveren sjekker valget:** `utforRedigerSedelRader` (bak «✎ Rediger jobben» og `rettRadFelt`), `delJobb` («Del opp») og `splittRad` (✂). Har firmaet ingen innstillingsrad, leses valget som av. `flyttTimerRadEco` (underprosjekt), attester, returner og gjenåpne sjekker det ikke. | `D:2995–3006`, `:6684–6686`, `:7586–7591` |
+| F59 | **Attestanten når valget er av:** listene sender `redigerTillatt`. Kortet viser feltene som tekst, og nederst står «Retting og oppdeling krever at firmaet har slått på «rediger ved attestering».» Underprosjekt, ✓, ↩ og ↺ virker. | `D:6027`, `:6163`, `:6430`, `:6488`; `RP:504–506`; `packages/shared/src/i18n/nb.json:5898` |
+| F60 | **Arbeideren varsles ikke i dag.** Hver retting skriver en post i aktivitetsloggen (hvem, når, hva) og radens verdier før rettingen i historikken. Veiene som logger: retting i kortet (`rett_rad_felt`), «Rediger jobben» (`rediger_sedel_rader`), underprosjekt for hele jobben (`jobb.eco-flyttet`) og for én rad, «Del opp» (`del_jobb`) og ✂ (`splitt_rad`). Ingen av dem sender push eller e-post. | `D:3364–3376`, `:3455–3480`, `:761–768`, `:6613`, `:6826`, `:7410`, `:7806`; søk etter `sendPush` og e-post i `D` (ingen treff) |
+| F61 | **Rettede felt regnes for attestanten, ikke for arbeideren.** Serveren regner «rettede felter pr. rad» av historikken for attesteringens lesere og rapporten. Arbeiderens dagsside har ingen tekst for retting, og i18n har ingen nøkkel for «rettet av» i timer. Søk etter tekst for retting i `apps/mobile/src` ga ingen treff i timer. | `apps/api/src/services/timer/kortLeser.ts:1–9`; `D:2098–2130`; søk i `WS`, `packages/shared/src/i18n/nb.json` og `apps/mobile/src` |
+| F62 | **Varselkanaler som finnes:** e-post sendes i dag for invitasjoner og for dokumentflyt (Resend; nøkkelen er valgfri, og API-et starter uten). Push har tabell (`PushToken`) og sender (`sendPush`), men ingen rute kaller dem, og appen registrerer ikke token. | `apps/api/src/services/epost.ts:30`, `:98`; `apps/api/src/services/pushVarsel.ts:64`, `:126`; `packages/db/prisma/schema.prisma:2785`; søk etter `sendPush` og `registrerPushToken` i `apps/api/src` og `apps/mobile` (ingen kallere utenom testene) |
+| F63 | **Attesteringskortet har åpne felt i dag.** Når firmavalget er på og linja venter, står disse som felt som lagres med en gang: fra, til og pause (eller timer) og lønnsart på hver timelinje, også reisen; timer på hver maskinlinje; antall på hver tilleggslinje. Underprosjektet for hele jobben er knapper øverst i kortet, og «Føres på» er et valg på reiselinja; de krever ikke firmavalget. I tillegg finnes «✎ Rediger jobben» øverst i kortet, som åpner et vindu for alle jobbens timerader og maskiner, og «Del opp» og ✂. Linjene har ingen penn. | `RP:245–283`, `:320–334`, `:402–408`, `:437–443`, `:304–313`; `apps/web/src/components/attestering/RedigerRadModal.tsx:98`, `:333`; `apps/web/src/components/attestering/AttesteringTabell.tsx:497` |
+
 **Hva målingen betyr, del for del:**
 
-1. **Regelen (`RV`) og `sikreKortId` (`KI`).** Regelen skrives om etter del E. `sikreKortId` leser først
-   om reisen har et valgt kort, og kaller ellers regelen som før. Eget kort bruker veien som finnes (F24).
-   For reise til annet kontor må `sikreKortId` også lese reisekilden og klokka mot arbeidet (del E
-   punkt 6), og id-en for reise til annet kontor får egen utledning (F25).
-2. **Ny migrering — én kolonne og en utfylling, Kenneth kjører.** Uten utfyllingen står reiser som
-   finnes, i feil kort til dagen skrives på nytt (F29).
+1. **Regelen (`RV`) og `sikreKortId` (`KI`).** Regelen skrives om etter del E. `sikreKortId` kaller den
+   som før. Eget kort bruker veien som finnes (F24). For reise til annet kontor må `sikreKortId` også lese
+   reisekilden og klokka mot arbeidet (del E punkt 6), og id-en for reise til annet kontor får egen
+   utledning (F25).
+2. **Ny migrering — bare data, Kenneth kjører.** Uten utfyllingen står reiser som finnes, i feil kort til
+   dagen skrives på nytt (F29).
    - Ny fil i `packages/db-timer/prisma/migrations/`. 20261120120000 røres ikke (F28).
-   - **Først kolonnen:** `valgt_kort_id` på `timer.sheet_timer`, tekst, kan være tom, med `CHECK` om at
-     bare en reiserad kan ha verdi («Slik lagres valget» under).
-   - **Så utfyllingen, med diskriminerende WHERE:** `er_reise = true`, ikke attestert, ikke erstattet,
-     `valgt_kort_id IS NULL`, og regelen gir en annen kort-id enn raden har. Rader som står riktig, røres
-     ikke.
+   - **Ingen ny kolonne.** ⚠️ Versjon 16 hadde `valgt_kort_id` i samme migrering; den er utgått (§ 8.20).
+   - **Diskriminerende WHERE:** `er_reise = true`, ikke attestert, ikke erstattet, og regelen gir en annen
+     kort-id enn raden har. Rader som står riktig, røres ikke.
    - Raden regnes med hele regelen i del E: en jobb på samme byggeplass og underprosjekt, eller eget kort
      med id-en fra F24.
    - Ingen andre felt endres. `updated_at` skrives ikke. Kjørt to ganger gir den samme resultat.
    - Attesterte og erstattede reiser står der de ble attestert (§ 4.11 del A punkt 4).
    - Paritetstesten flyttes (F27): de to migreringene kjørt etter hverandre gir samme kort som regelen.
    - w12 steg 2 (`CHECK (kort_id IS NOT NULL)`, § 4.11 del E) står. Utfyllingen som kjøres en gang til
-     der, bruker den nye regelen og hopper over reiser med valgt kort.
-   - To-stegs-regelen: kolonnen legges til, ingenting droppes.
-3. **Attesteringen.** Reisekortet vises riktig i dag (F30), og lista leser `kort_id` som før, også for en
-   reise arbeideren har flyttet. Koderen måler F31 i w15c: et reisekort med utlegg skal også stå som
-   «Reise», ikke som en jobb uten timer. «Føres på» lagrer kortet som valgt (del E følge 5, F42).
-4. **Telefonen.** Ingenting bygges (F32, § 8.13). Serveren bærer valget over når telefonen synker (F39,
-   F40). w12m arver regelen når den bestilles, og sender og leser da også `valgt_kort_id`.
+     der, bruker den nye regelen.
+3. **Attesteringen.** Reisekortet vises riktig i dag (F30). Koderen måler F31 i w15c: et reisekort med
+   utlegg skal også stå som «Reise», ikke som en jobb uten timer. «Føres på» tømmer kort-id-en og lar
+   regelen legge reisen (F42); det står. ⚠️ Versjon 16 sa at kortet skulle lagres som valgt; utgått.
+4. **Telefonen.** Ingenting bygges (F32, § 8.13). Serveren regner kortet for alle apper. w12m arver
+   regelen når den bestilles.
 5. **Dagssiden.** Kortet finnes (F33), men sier ikke at det er reise, og har lenker som ikke virker (F34).
-   Det er w15d, med lenkene etter B45 A. «Flytt til …» er w15e.
+   Det er w15d, med lenkene etter B45 A.
+6. **Prosjektbytte på en reise som finnes (w15f).** Pennen: skjermen og serveren mangler prosjektet (F46,
+   F47). Attesteringen: serveren har det (F48), skjermen mangler prosjekt og byggeplass (F52).
+
+**Prosjektbytte på en reise som finnes (w15f) — hva som bygges:**
+
+| | |
+|---|---|
+| **`oppdaterTimerRad`** | Får prosjekt som valgfritt felt. Gjelder bare en rad som er reise etter skrivingen; ellers avvises kallet. Det nye prosjektet får de samme sjekkene som en ny rad: prosjektet hører til dagsseddelens firma, byggeplassen til prosjektet og underprosjektet til prosjektet (`D:4041–4047`). I tillegg sjekkes at arbeideren er medlem av prosjektet (`verifiserProsjektmedlem`, som synken gjør, F53). Ordren ba om `harProsjektTilgang`; den brukes ikke i `D` (F54). |
+| **Kortet** | Kort-id tømmes som for all reise (`D:4414–4416`), og `sikreKortId` legger reisen i jobben på det nye stedet eller i eget kort. |
+| **Reisesporet** | Retning, oppmøtested, kjøretid og kilde skrives ikke (F56). |
+| **`rettRadFelt`** | Tar imot prosjekt i dag (F48). Koderen lukker F51: underprosjektet på en timerad holdes mot radens prosjekt etter skrivingen. Testen skrives først og kjøres mot dagens kode. |
+| **Attestantens rett** | Som i dag: rett på både gammelt og nytt prosjekt (F49). Skjermen lister bare prosjektene attestanten kan attestere (F50), så han ikke møter avvisningen. |
+| **Firmavalget (B10)** | Uendret (Kenneth 2026-11-21, § 8.20). Tid, prosjekt og byggeplass ved attestering går gjennom `rettRadFelt` og krever «Rediger ved attestering». Underprosjektet går gjennom `flyttTimerRadEco` og krever det ikke (F52). |
+| **Pennen** | Prosjektfeltet i «Rediger timer-rad» åpnes når raden er reise (`WS:4275`). Bytte tømmer underprosjektet og foreslår byggeplass, som i reisevinduet. Linja «havner i» står under feltene. |
+| **Reiselinja i attesteringen** | Linja i del 8 er tekst med ✎ (`RP:469–500`). De åpne feltene for fra, til og lønnsart og valget «Føres på» på reiselinja tas ut. ✎ åpner vinduet med start, slutt, prosjekt, byggeplass og underprosjekt. «Lagre» sender én retting (`rettRadFelt` tar flere felt i ett kall). Endres bare underprosjektet, lagres det med `flyttTimerRadEco` som i dag. ✎ vises bare på en reise som venter. Med firmavalget av er bare underprosjektet åpent i vinduet. Lønnsarten på reisen rettes i «✎ Rediger jobben», som i dag. |
+| **Linja «havner i» (F55)** | `reiseHavnerI` får også dagens maskin-, tillegg- og utleggsrader, så den finner kort som ikke har arbeid. Ordren la rettingen i w15c. Den ligger i w15f, fordi radene sendes inn fra `WS`, som w15d bygger i nå (del G). |
+| **Telefonen** | Ingenting bygges (§ 8.13). Reisen kommer med nytt prosjekt ved neste henting. |
+| **Migrering** | Ingen. |
+
+**Attesteringskortet uten åpne felt (Kenneth 2026-11-21, § 8.20; bygges i w15g):**
+
+⚠️ Dette snur w10 del A punkt A1 (K7): «fra, til og pause som felt i kortet». Kenneth: *«den som attesterer
+må ha MULIGHET til å redigere. det er ikke det samme som at alt er redigerbart hele tiden. Derfor skal
+pennen være der på et kort».*
+
+| | |
+|---|---|
+| **Linjene** | Timelinjene, maskinlinjene og tilleggslinjene i kortet er tekst. Hver linje attestanten kan rette, har ✎, på samme plass som på dagssiden. |
+| **Vinduet** | ✎ åpner et vindu med de samme feltene som pennen på dagssiden har for den linjetypen. Alt som kan rettes i de åpne feltene i dag (F63), skal kunne rettes i vinduet: fra, til, pause og lønnsart på en timelinje, timer på en maskinlinje, antall på en tilleggslinje. |
+| **Lagring** | «Lagre» sender én retting for linja. «Avbryt» endrer ingenting. Serveren er uendret (`rettRadFelt`). |
+| **Rekkefølgen i koden** | De åpne feltene tas ut i samme commit som pennene kommer, så ingen rettevei forsvinner. |
+| **Det som står** | «✎ Rediger jobben» øverst i kortet, «Del opp», ✂, ✓ ↩ ↺, og underprosjekt-knappene for hele jobben (bilde 7, B11). De er knapper, ikke felt. **Si fra hvis underprosjekt-knappene også skal bak pennen.** |
+| **Firmavalget** | Uendret. Med valget av har linjene ingen ✎ for tid, lønnsart, maskintimer og antall, og kortet sier hvorfor, som i dag (F59). |
+
+**Varsel til arbeideren ved retting i attesteringen (vedtatt 2026-11-21, § 8.20; bygges i w15g):**
+
+| | |
+|---|---|
+| **Når** | Hver gang attestanten lagrer en endring på en annens dagsseddel: pennen på en linje, «Rediger jobben», underprosjekt, «Del opp» og ✂ (F60). Gjelder alle rader, ikke bare reise. |
+| **Hva varselet sier** | Hvem som rettet, når, hvilken linje, og hvert felt med verdien før og etter: «Kari Leder rettet timene dine man. 16.11.: Reise fra sommerfeldtsgt 65 — Slutt kl. 15:35 → 15:50 · Prosjekt Sitedoc Boligfelt B12 → Prosjekt 1050.» |
+| **Kilden** | Finnes. Historikken har radens verdier før rettingen, og aktivitetsloggen har hvem og når (F60). Serveren regner alt rettede felt pr. rad for attestanten (F61). Ingen ny tabell og ingen migrering. |
+| **På dagen (PC)** | Linja som er rettet, har merket «Rettet» og teksten over under seg. Arbeiderens leser får de samme rettede feltene som attesteringen, med navn og tidspunkt. |
+| **I Mine timer (PC)** | Dagen har merket «Rettet ved attestering». |
+| **E-post** | Én e-post pr. dagsseddel pr. økt, ikke én pr. felt, med teksten over og lenke til dagen. E-post er den eneste kanalen som når arbeideren utenfor siden i dag (F62). Koderen foreslår i løsningen når den sendes, for eksempel når attestanten attesterer eller returnerer dagen. En e-post som feiler, stopper ikke rettingen. |
+| **Push** | Bygges ikke nå: appen registrerer ikke token (F62), og telefonen venter på web (§ 8.13). Teksten lages ett sted, så push kan kobles på senere. |
+| **Telefonen** | Ingenting bygges. Arbeideren ser de nye verdiene etter henting og får e-posten. |
+| **Isolasjon** | Varselet går bare til eieren av dagsseddelen. |
 
 **Telling før w15c bygges** (bare lesing; Kenneth kjører mot `sitedoc_test` og `sitedoc`, etter at
 20261120120000 er kjørt der). Ikke kjørt av Fabel; kolonnenavnene er lest i migreringen (F26), og koderen
@@ -2577,11 +2689,11 @@ select count(*) as reise_uten_underprosjekt_i_jobb_med
                   and t.external_cost_object_id is not null);
 ```
 
-Spørring 4 er tallet B48 handler om: så mange reiser får eget kort med alternativ B. Med A blir de stående.
+B48 → A (§ 8.20): radene i spørring 4 blir stående i jobben.
 
-**Gate-SQL etter migreringen:** spørring 1 med `flyttes` og spørring 3 uten `blir_staaende` skal gi 0 for
-reiser uten valgt kort. Koderen legger `valgt_kort_id is null` til i begge. Gate-SQL 3 i § 4.11 del E
-(underprosjekt) utgår: en reise med underprosjekt står ikke lenger i en jobb med et annet.
+**Gate-SQL etter migreringen:** spørring 1 med `flyttes` og spørring 3 uten `blir_staaende` skal gi 0.
+Gate-SQL 3 i § 4.11 del E (underprosjekt) utgår: en reise med underprosjekt står ikke lenger i en jobb med
+et annet.
 
 **Reise til annet kontor (følge av presiseringen; ✅ bekreftet av Kenneth 2026-11-21, § 8.19):**
 
@@ -2595,19 +2707,22 @@ retter med** «Før arbeid» og «Etter arbeid», start og slutt, og prosjektet 
 også et punkt fra versjon 14: hvilken jobb en overføring «etter arbeid» havner i når prosjektet har flere
 jobber (§ 10).
 
-**Det forslaget ikke dekker, og retteveien** (orkestratorens tillegg 2; versjon 16 etter B46 B):
+**Det forslaget ikke dekker, og retteveien** (versjon 17, etter § 8.20):
 
 | Tilfelle | Hva skjer | Rettevei |
 |---|---|---|
 | Kjøring mellom to byggeplasser midt på dagen | Firmaets tabell har ikke kjøretid mellom to byggeplasser (`MR:204–245`). Forslaget er kjøretiden fra oppmøtestedet. | Arbeideren retter slutten. |
-| To jobber på samme byggeplass og samme underprosjekt | Retningen og klokka velger: utreisen i første, returen i siste. | «Flytt til …». |
-| En reise arbeideren vil ha attestert med en jobb på et annet sted | Reisen følger stedet den er ført på, og får eget kort eller en annen jobb. | «Flytt til …» når jobben er på samme prosjekt. Til et annet prosjekt bytter han prosjekt på reisen. |
-| En reise arbeideren vil ha for seg | Reisen står i jobben på stedet. | «Flytt til …» → «Eget kort», eller «+ Registrer timer» med reise som lønnsart. |
-| Dro hjem fra et annet sted enn jobben vinduet ble åpnet fra | Forslaget er jobbens sted. | Arbeideren bytter prosjekt eller byggeplass i «Hvor kjørte du fra?». |
-| Firmaet vil føre returen et annet sted enn jobben man drar fra | Forslaget er jobben man drar fra (B44). | Arbeideren som over. Attestanten retter «Føres på». Om firmaet skal sette utgangspunktet, er **B47**. |
-| Reise ført på telefonen uten underprosjekt, på en jobb med underprosjekt | **B48.** | A: reisen står i jobben; «Flytt til …» → «Eget kort» om den skal for seg. B: eget kort; arbeideren setter underprosjekt på reisen på PC. |
-| En reise som finnes, skal til et annet prosjekt | Reisevinduet åpnes bare for ny reise (`WS:1438`); en reise som finnes, rettes i «Rediger timer-rad» (`WS:1461`). Om prosjektet kan byttes der, er ikke målt (§ 10). | Koderen måler i w15d. Går det ikke, meldes det før kode. |
-| Telefonen | Samme begrensning i reisevinduet (F12), og ingen «Flytt til …». Ingenting bygges (§ 8.13). | Arbeideren retter på PC. Valget står når telefonen synker (F39, F40). |
+| To jobber på samme byggeplass og samme underprosjekt | Retningen og klokka velger: utreisen i første, returen i siste. | Ingen. Godtatt av Kenneth (§ 8.20). Kostnaden er den samme: likt prosjekt, lik byggeplass, likt underprosjekt. |
+| En reise arbeideren vil ha attestert med en jobb på et annet sted | Reisen følger stedet den er ført på. | Han bytter prosjekt, byggeplass eller underprosjekt på reisen til jobbens. |
+| En reise arbeideren vil ha for seg, på et sted han har jobb | Reisen står i jobben på stedet. | Ingen. Godtatt av Kenneth (§ 8.20). |
+| Dro hjem fra et annet sted enn jobben vinduet ble åpnet fra | Forslaget er jobbens sted. | Arbeideren bytter prosjekt eller byggeplass i reisevinduet, eller med pennen etterpå. |
+| Firmaet vil føre returen et annet sted enn jobben man drar fra | Forslaget er jobben man drar fra (B44, B47 A). | Arbeideren eller attestanten bytter prosjekt, byggeplass eller underprosjekt på reisen. |
+| Reise ført på telefonen uten underprosjekt, på en jobb med underprosjekt | Reisen står i jobben, og linja viser «Uten underprosjekt» (B48 A). | Arbeideren eller attestanten setter underprosjekt på reisen. |
+| En reise som finnes, skal til et annet prosjekt | Går ikke i dag (F46, F47). | **w15f:** prosjektfeltet i pennen og i attesteringen. |
+| Attestanten kan ikke attestere prosjektet reisen skal til | Serveren avviser (F49, F50). Lista viser ikke prosjektet. | Firmaadministrator retter, eller dagen returneres til arbeideren. |
+| Firmaet har «Rediger ved attestering» av | Attestanten kan bare rette underprosjektet (F52). | Dagen returneres til arbeideren. |
+| Reise under terskelen | Raden er arbeid etter firmaets regelsett, ikke reise. Prosjektfeltet er låst som for annet arbeid. Ikke lest av Fabel (§ 10). | Arbeideren sletter raden og fører den på nytt. |
+| Telefonen | Ingenting bygges (§ 8.13). | Arbeideren retter på PC. |
 
 **B44 — hjem etter siste jobb: hvor står returen?**
 
@@ -2626,8 +2741,9 @@ dagens siste jobb på prosjektet.
 
 Anbefalingen var A. ✅ **Kenneth: utgangspunkt A, med valg** (§ 8.19): *«i utgangspunktet fra prosjektet
 man drar fra. men kanskje det ikke er slik bedriften ønsker å føre kostnaden. derfor må man kunne velge
-andre løsninger.»* Forslaget er jobben man drar fra. Arbeideren retter med stedet, med «Flytt til …»
-eller ved å starte et nytt kort (del E). Om firmaet skal sette et annet utgangspunkt, er **B47**.
+andre løsninger.»* Forslaget er jobben man drar fra. Arbeideren retter ved å bytte prosjekt, byggeplass
+eller underprosjekt på reisen (del E). ⚠️ Versjon 16 nevnte også «Flytt til …» og nytt kort; utgått
+(§ 8.20). Firmaet får ingen innstilling for utgangspunktet (B47 A).
 
 **B45 — hva skal kortet med bare reise tilby?**
 
@@ -2659,28 +2775,14 @@ ha attestert med en jobb på et annet sted, og to jobber på samme sted og under
 | **A** | Ved å rette stedet (prosjekt, byggeplass, underprosjekt) og tidene. Kortet følger. | Ingen ny lagring. Regelen regner likt for PC, telefon og eldre apper. |
 | **B** | Som A, og i tillegg «Flytt til …» på reiselinja: dagens kort på prosjektet og «Eget kort». Det arbeideren velger, står til han endrer det. | Valget må lagres på reisen, så regelen ikke flytter den tilbake: ny kolonne (**migrering, Kenneth**), serveren og utfyllingen leser den, og telefonen må sende den senere. Slettes jobben reisen ble flyttet til, gjelder forslaget igjen. |
 
-Anbefalingen var A nå. ✅ **Kenneth: B** (§ 8.19): *«dette er redigering → ja → vi trenger å kunne flytte en
-reise uten å skrive kortet på nytt.»* Bildet er `v16b-flytt.png` (del E). Serveren og kolonnen bygges i
-**w15c**, lenka på reiselinja i **w15e** (del G).
+Anbefalingen var A nå. Kenneth svarte B (§ 8.19): *«dette er redigering → ja → vi trenger å kunne flytte en
+reise uten å skrive kortet på nytt.»* ⚠️ **Snudd 2026-11-21 (§ 8.20):** etter skissene `v16-flytt.png` og
+`v16b-flytt.png` valgte Kenneth enkle linjer. Det som gjelder, er A med ett tillegg: også prosjektet kan
+byttes på reisen (w15f). «Flytt til …» og w15e bygges ikke.
 
-**Slik lagres valget (B46 B, w15c):**
-
-| | |
-|---|---|
-| **Kolonnen** | `valgt_kort_id` på `timer.sheet_timer`: tekst, kan være tom. Tom betyr at forslaget gjelder. `CHECK`: bare en reiserad kan ha verdi. `kort_id` er fortsatt kortet reisen står i, og alle lesere bruker den som før. |
-| **Hvorfor egen kolonne** | Skriveveiene tømmer `kort_id` på reise (F38). Et valg lagret der, ville forsvunnet ved neste lagring. |
-| **Hvem setter den** | **(1) «Flytt til …»:** ny prosedyre som tar reiseraden og målet: et kort på samme dagsseddel og prosjekt, «Eget kort» eller «Følg forslaget». Arbeideren på egen dagsseddel som kan rettes. **(2) «Legg til timer-rad» på PC med reise som lønnsart:** kort-id-en vinduet sender, lagres som valgt i stedet for å kastes (`D:4171`). Ny id fra «+ Registrer timer» gir et kort med reisen alene; id-en til en jobb («+ Timer» i kortet) gir den jobben. **(3) Attestantens «Føres på»:** kortet reisen står i, lagres som valgt (del E følge 5, F42). |
-| **Hvem fjerner den** | Serveren: når arbeideren bytter prosjekt, byggeplass eller underprosjekt på reisen (B44), når han velger «Følg forslaget», og når det valgte kortet har fått arbeid på et annet prosjekt enn reisens. |
-| **«Eget kort»** | Serveren lager en ny kort-id som ingen rad har. Den utledes ikke av nøkkelen, så den kan ikke bli lik en jobbs (F25). |
-| **`sikreKortId`** | Leser kolonnen før regelen (`KI:291–307`). Er valget gyldig, settes `kort_id` lik valget, og regelen kjøres ikke. Et ugyldig valg tømmes med rå SQL uten `updated_at` (F41), og regelen gjelder. Attesterte og erstattede reiser røres ikke. Kortet må stå på samme dagsseddel (K1) og ikke ha arbeid på et annet prosjekt (K2). |
-| **Jobben reisen ble flyttet til, slettes** | Reisen blir stående alene i kortet, som «Eget kort». Fører arbeideren arbeid i kortet igjen med «+ Timer», står reisen i den jobben. *Endret fra B46 slik det sto i versjon 15 («gjelder forslaget igjen»): serveren kan ikke skille et kort uten arbeid fra «Eget kort» uten ett felt til.* **Si fra hvis forslaget skal gjelde igjen.** |
-| **Utfyllingen** | Flytter bare reiser uten valg: `valgt_kort_id IS NULL` står i WHERE. Kolonnen legges til først i samme migrering. |
-| **Synken fra telefonen** | Telefonen sender ikke valget. Serveren leser `valgt_kort_id` før radene slettes, og skriver den tilbake når prosjekt, byggeplass og underprosjekt er uendret — samme regel som for kort-id i dag (F39, F40; `KI:122–141` får ett felt til). Har arbeideren byttet sted på telefonen, tømmes valget. |
-| **Andre veier som skriver raden på nytt** | Forsoning av forslag, «Rediger», ✂ og «Del opp» (`D:4908–4985`, `:3387–3407`, `:7693–7694`, `:7958–7959`, `:6764–6768`). Valget skal følge raden, og begge delene av en delt reise beholder det. Koderen måler hver vei og skriver én test pr. vei. |
-| **Attesteringen** | Leser `kort_id` som i dag (F30). Reisen står i kortet arbeideren valgte. Stedet og underprosjektet reisen er ført på, står på linja og i ruta (§ 4.11 del C). Lista trenger ingen kode for valget. |
-| **Telefonen** | Viser reisen i «Dagen» som før (F32) og kjenner ikke valget. «Flytt til …» finnes bare på PC. w12m sender og leser kolonnen når den bestilles. |
-| **Eldre apper** | Sender ikke feltet. Serveren bærer valget over, som for telefonen. |
-| **Migreringsreglene** | Én ny kolonne som kan være tom. Ingen data slettes, ingenting droppes. Tom verdi er riktig for alle rader som finnes: ingen har kunnet velge. Kolonnen er et valg, ikke en kobling som alltid skal ha verdi, så den trenger ingen utfylling. Testene i del H er røde hvis valget ikke overlever en skrivevei. |
+⚠️ **«Slik lagres valget» er strøket (§ 8.20).** Tabellen beskrev kolonnen `valgt_kort_id`, hvem som satte
+og fjernet den, «Eget kort», overbæringen gjennom synken og de andre skriveveiene. Ingenting av det bygges.
+Slik den sto: `git show cd7fe057:docs/claude/web-timeforing-plan.md`.
 
 **B47 — skal firmaet kunne sette utgangspunktet for returen hjem?**
 
@@ -2700,7 +2802,11 @@ arbeideren trykker «+ Reise» i på PC, og av en fast regel på telefonen (F36,
 Hvilken regel et firma ville valgt, vet vi ikke før et firma ber om den: eget kort, dagens første
 prosjekt eller et fast prosjekt for reise er alle mulige, og bare «Eget kort» er tegnet. B kan bygges
 senere uten at A gjøres om, fordi regelen da bare får én inngang til. Med B får alle i firmaet ett kort
-ekstra hver dag de kjører hjem. **w15c venter på svaret.**
+ekstra hver dag de kjører hjem.
+
+✅ **Kenneth: A** (§ 8.20), som anbefalt, med ordene *«men jeg savner mulighet til å endre
+tidspunkter»*. Tidene rettes i reisevinduet (w15b), med pennen og i attesteringen (del E). ⚠️ Retteveiene
+i tabellen over som nevner «Flytt til …» og nytt kort, er utgått; retteveien er feltene på reisen.
 
 **B48 — reise uten underprosjekt på en dag der jobben har underprosjekt: hvor står den?**
 
@@ -2719,25 +2825,50 @@ har derfor tomt underprosjekt uten at noen har byttet noe. Reiser fra GPS-forsla
 **Anbefaling: A.** Utgangspunktet er jobben man drar fra (B44), og på telefonen har ingen byttet noe.
 Med B får alle som fører reise fra telefonen på et underprosjekt, ett kort ekstra pr. dag, og
 attestanten én rad mer, til telefonen fyller ut feltet (w12m). Tallet står i spørring 4 i tellingen over.
-**w15c venter på svaret**, fordi det avgjør hvilke rader utfyllingen flytter.
 
-#### Del G — w15 i fem leveranser (versjon 16)
+✅ **Kenneth: A** (§ 8.20), som anbefalt. ⚠️ Retteveien «Flytt til …» → «Eget kort» i tabellen over er
+utgått. Reisen kan ikke stå for seg på et sted arbeideren har jobb (godtatt, § 8.20).
 
-Navnene w15a–w15d står som i versjon 15. w15e er ny.
+#### Del G — w15 i seks leveranser (versjon 17)
+
+Navnene w15a–w15d står. ⚠️ **w15e er utgått** (§ 8.20). **w15f er ny:** prosjektet kan byttes på en reise
+som finnes, med pennen på dagssiden og i attesteringen. **w15g er ny:** resten av attesteringskortet får
+penn i stedet for åpne felt, og arbeideren varsles om hver retting.
 
 | Del | Innhold | Rører | Migrering · mobil | Venter på |
 |---|---|---|---|---|
-| **w15a** | **Åpent kort (B41 A).** Jobben som nettopp ble laget, er åpen etter «+ Registrer timer» (F1–F5). Vinduet åpnes ikke av seg selv på første jobb. `?registrer`, `?nyttProsjekt` og `?eksisterte` fjernes fra adressen når flyten har kjørt; `?retur` står. | `WS` (`:386–390`, `:785–821`, `:945–951`), testen for siden, `timer.md`, `web.md`. Ingen ny tekst ventet; koderen måler. | Nei · nei | **Ingenting.** 🟡 Bestilt 2026-11-20; koderens løsning ligger i orkestratorens innboks. |
-| **w15b** | **Reisevinduet: systemet foreslår, arbeideren retter (B42 A og presiseringen).** «Når kjørte du?» med «Før arbeid» og «Etter arbeid» (del B, følgene 1–5). «Start kl.» og «Slutt kl.» er fylt ut og kan rettes; slutten foreslås av firmaets kjøretid. **«Hvor kjørte du til?»:** prosjekt og byggeplass, fylt ut fra kortet og mulig å bytte til et annet prosjekt arbeideren kan føre timer på. Underprosjektet er fylt ut fra jobben som i dag (F36). Vinduet sier hvor reisen havner: «Står i jobben på sommerfeldtsgt 65» eller «Får eget kort på Prosjekt 1050». Linja bruker den delte regelen (`RV`): bygges w15b før w15c, sier den det dagens regel gir, og følger den nye når w15c er merget. Bildet er `v15-reisevindu.png`. | `RK`, `MR`, `RM` (`løsReiseKort`, `løsOverforingKort`) med tester, `WS` bare `:1439–1449`, i18n, hjelpeteksten, `timer.md`, `shared-pakker.md` | Nei · nei. Den delte reiseregelen får start som valgfri inngang og regner som i dag uten den. | w15a (samme fil). |
-| **w15c** | **Reisens kort på serveren (B43 B, B44, B46 B).** Regelen i del E: byggeplassen og et valgt underprosjekt er krav. Ny kolonne `valgt_kort_id`, prosedyren for «Flytt til …», valgt kort fra «Legg til timer-rad» og fra «Føres på», og at valget bæres gjennom synken og de andre skriveveiene (del F, «Slik lagres valget»). `sikreKortId`, ny utfylling, paritetstesten, tellingen og gate-SQL (del F). Reise til annet kontor etter arbeid i eget kort (del E punkt 6). Med B47 B også firmaets utgangspunkt. | `RV` og `reiseKort.test.ts`, `KI`, `D` (skriveveiene i F38–F42 og den nye prosedyren), `ST`, ny migrering i `packages/db-timer/prisma/migrations/`, `apps/api/src/routes/reise-kortid-migrering.integration.test.ts`, `kortid-skriveveier.integration.test.ts`, `AM` bare for F31 med test, `relay/sql/` (tellingen), `timer.md`, `api.md`, `shared-pakker.md`, `arkitektur.md` (kolonnen), kort-id-specen (§ 2.3). Ikke `WS`, ikke `apps/mobile`. | **Ja: én kolonne og en utfylling, Kenneth kjører.** Med B47 B også en kolonne i kjernen. Ikke mobil. | **B47 og B48.** Regel 10 kjøres uavhengig: delen flytter rader mellom kort som attesteres. |
-| **w15d** | **Dagssiden viser reisen.** Reiselinja får egen tegning: merket «Reise», stedet og klokka, uten aktivitet og matpause; underprosjektet vises når det avviker fra jobbens. Hodet viser sted og klokkeslett på alle kort, og regner byggeplassen av arbeidet. Et kort uten arbeid sier «Reise» i hodet og har «+ Timer», «+ Reise» og «+ Tillegg/Utlegg» (B45 A); med en timerad har det alle fem, som en jobb (presisert i § 8.19). Teksten under lønnsarten i timerad-vinduet (del C punkt 4). Pennen på en reise: koderen måler hvilke felt «Rediger timer-rad» har for en reiserad (`WS:1461`); tid, byggeplass og underprosjekt skal kunne rettes der, og kan prosjektet ikke byttes, meldes det før kode. | `WS` (`renderLinjer`, `JobbKortRamme`, lenkerekka `:2004–2033`, `TimerRadDialog` bare teksten), i18n, hjelpeteksten for siden, `timer.md`, `web.md` | Nei · nei | w15b (samme fil). B45 er besvart. |
-| **w15e** | **«Flytt til …» på reiselinja (B46 B).** Lenka ved pennen, lista med dagens kort på prosjektet, «Eget kort» og «Følg forslaget», og merket «Flyttet av deg». Ett trykk flytter. Bildet er `v16b-flytt.png`. | `WS` (reiselinja fra w15d), i18n, hjelpeteksten for siden, `timer.md`, `web.md` | Nei · nei | w15c (prosedyren) og w15d (samme fil og reiselinja). |
+| **w15a** | **Åpent kort (B41 A).** Jobben som nettopp ble laget, er åpen etter «+ Registrer timer» (F1–F5). Vinduet åpnes ikke av seg selv på første jobb. `?registrer`, `?nyttProsjekt` og `?eksisterte` fjernes fra adressen når flyten har kjørt; `?retur` står. | `WS`, testen for siden, `timer.md`, `web.md`. | Nei · nei | Merget til develop (`d5ae514e`). |
+| **w15b** | **Reisevinduet: systemet foreslår, arbeideren retter (B42 A og presiseringen).** «Når kjørte du?» med «Før arbeid» og «Etter arbeid» (del B, følgene 1–5). «Start kl.» og «Slutt kl.» er fylt ut og kan rettes; slutten foreslås av firmaets kjøretid. **«Hvor kjørte du til?»:** prosjekt og byggeplass, fylt ut fra kortet og mulig å bytte til et annet prosjekt arbeideren kan føre timer på. Underprosjektet er fylt ut fra jobben (F36). Vinduet sier hvor reisen havner. Linja bruker den delte regelen (`RV`) og følger den nye når w15c er merget. | `RK`, `MR`, `RM` med tester, `WS`, i18n, hjelpeteksten, `timer.md`, `shared-pakker.md` | Nei · nei | Merget til develop (`cee0c03e`). |
+| **w15c** | **Reisens kort på serveren (B43 B, B44, B47 A, B48 A).** Regelen i del E: byggeplassen og et valgt underprosjekt er krav; reise uten underprosjekt står i jobben på byggeplassen. `sikreKortId`, ny utfylling av reiser som finnes, paritetstesten, tellingen og gate-SQL (del F). Reise til annet kontor etter arbeid i eget kort (del E punkt 6). **Ingen kolonne.** | `RV` og `reiseKort.test.ts`, `KI`, `D` bare der testene pr. skrivevei krever det, ny migrering i `packages/db-timer/prisma/migrations/`, `apps/api/src/routes/reise-kortid-migrering.integration.test.ts`, `kortid-skriveveier.integration.test.ts`, `AM` bare for F31 med test, `relay/sql/` (tellingen), `timer.md`, `api.md`, `shared-pakker.md`, kort-id-specen (§ 2.3). Ikke `WS`, `RK`, `MR` eller `RP`, ikke `apps/mobile`. | **Ja: en utfylling, bare data, Kenneth kjører.** Ikke mobil. | **Ingenting.** B47 og B48 er besvart (§ 8.20). Regel 10 kjøres uavhengig: delen flytter rader mellom kort som attesteres. |
+| **w15d** | **Dagssiden viser reisen.** Reiselinja får egen tegning: merket «Reise», stedet og klokka, uten aktivitet og matpause; underprosjektet vises når det avviker fra jobbens. Hodet viser sted og klokkeslett på alle kort, og regner byggeplassen av arbeidet. Et kort uten arbeid sier «Reise» i hodet og har «+ Timer», «+ Reise» og «+ Tillegg/Utlegg» (B45 A); med en timerad har det alle fem, som en jobb (presisert i § 8.19). Teksten under lønnsarten i timerad-vinduet (del C punkt 4). Pennen på en reise: koderen måler hvilke felt «Rediger timer-rad» har for en reiserad (`WS:1461`); tid, byggeplass og underprosjekt skal kunne rettes der, og kan prosjektet ikke byttes, meldes det før kode. | `WS` (`renderLinjer`, `JobbKortRamme`, lenkerekka `:2004–2033`, `TimerRadDialog` bare teksten), i18n, hjelpeteksten for siden, `timer.md`, `web.md` | Nei · nei | 🟡 Under bygging på `feat/web-timer-w15d` (løsning godkjent 2026-11-21). |
+| **w15e** | ⚠️ **Utgått (§ 8.20).** Sto slik: «Flytt til …» på reiselinja (B46 B). | — | — | — |
+| **w15f** | **Prosjektet kan byttes på en reise som finnes (§ 8.20).** Pennen på reiselinja har fem felt på dagssiden og i attesteringen (del E, `v17-reiselinje.png`). **Server:** `oppdaterTimerRad` tar imot prosjekt for reiserader, med sjekkene til en ny rad og medlemskap på målprosjektet; `rettRadFelt` holder underprosjektet mot prosjektet (F51). **Dagssiden:** prosjektfeltet i pennen åpnes for reise, med linja «havner i». **Attesteringen:** reiselinja i del 8 er tekst med ✎; vinduet har de fem feltene; de åpne feltene og «Føres på» på reiselinja tas ut; prosjektlista har prosjektene attestanten kan attestere. **Linja «havner i»** ser også kort som bare har maskin, tillegg eller utlegg (F55). Tabellen står i del F. Firmavalget er uendret. | `D` (`oppdaterTimerRad`, `utforRedigerSedelRader`), `WS` (`TimerRadDialog`, kallet til reisevinduet `:1457–1470`), `RK`, `MR`, `RP` (del 8), attesteringssiden bare for prosjektlista (koderen måler hvor omfanget leses), i18n, hjelpeteksten for dagen og for attesteringen, `timer.md`, `api.md`, `web.md`, `hjelpetekster.md`, testene i del H. Ikke `RV`, ikke `KI`, ikke `apps/mobile`. | Nei · nei | **w15d** (samme fil, `WS`) og **w15c** (`D`, og regelen linja viser). Regel 10 kjøres uavhengig: delen flytter kostnad mellom prosjekter og rører attestantens rett. |
+| **w15g** | **Attesteringskortet uten åpne felt, og varsel til arbeideren (Kenneth 2026-11-21, § 8.20).** Timelinjene, maskinlinjene og tilleggslinjene i kortet er tekst med ✎; vinduet har feltene pennen på dagssiden har for linjetypen; de åpne feltene tas ut i samme commit (F63). ⚠️ Snur w10 del A punkt A1. **Varsel:** arbeideren ser merket «Rettet» på linja og i Mine timer, med hvem, når og verdien før og etter, og får e-post pr. dagsseddel (del F). Begge tabellene står i del F. Firmavalget er uendret. | `RP` (del 1, 2, 4 og 6), `D` (arbeiderens leser, e-posten), `apps/api/src/services/timer/kortLeser.ts` (brukes), `apps/api/src/services/epost.ts`, `WS` (merket «Rettet»), `apps/web/src/app/dashbord/timer/mine/page.tsx`, i18n, hjelpeteksten for dagen og for attesteringen, `timer.md`, `api.md`, `web.md`, `hjelpetekster.md`, kort-id-specen (R21), testene i del H. Ikke `apps/mobile`. | Nei · nei | **w15f** (`RP`, `D` og `WS`). Regel 10 kjøres uavhengig: arbeiderens leser får nye felt, og varselet skal bare nå eieren. |
 
-**Rekkefølgen.** w15a → w15b → w15d → w15e går etter hverandre, fordi alle rører `WS`. w15c rører ikke `WS`
-og kan gå ved siden av, så snart B47 og B48 er besvart. w15d kan bygges før w15c er deployet, men dagen på
-bilde 8 blir først to kort når w15c er ute og utfyllingen er kjørt. w15e venter på begge.
-i18n-generatoren kjøres ikke samtidig i to deler. Koderen leverer løsning med skjermbilde før kode i w15b,
-w15d og w15e.
+**Prosjektet byttes ikke i w15d.** Koderen målte det i løsningen (F46, F47), og orkestrator bekreftet det
+2026-11-21. Det er w15f.
+
+**Firmavalget «Rediger ved attestering» endres ikke i w15f eller w15g** (Kenneth 2026-11-21, § 8.20).
+
+**Hvorfor w15g er egen leveranse:** w15f er det Kenneth ba om for reisen, og er ferdig uten w15g. w15g
+bygger om resten av kortet og legger til varselet for alle rettinger. Begge rører `RP`, `D` og `WS`, så
+de går etter hverandre. Varselet kan ikke komme før pennen: med åpne felt som lagres ett og ett, ville
+arbeideren fått ett varsel pr. felt.
+
+**Hvorfor w15f er egen leveranse og ikke en del av w15c:**
+
+- w15f rører `WS`, som w15d bygger i nå. w15c rører ikke `WS` og kan gå ved siden av w15d. Lagt sammen
+  måtte migreringen vente på w15d.
+- w15c har en migrering Kenneth kjører, og en regel som skal i gate for seg. w15f har ingen migrering.
+- Begge rører `D`. w15f går derfor etter w15c, og testene for prosjektbyttet skrives mot regelen som
+  gjelder.
+- Rettingen av linja «havner i» (F55) ligger i w15f av samme grunn: radene sendes inn fra `WS`.
+
+**Rekkefølgen.** w15a og w15b er merget. **w15d → w15f → w15g** går etter hverandre, fordi alle rører
+`WS`. **w15c** rører ikke `WS` og kan bestilles nå, ved siden av w15d. w15f venter på begge. w15d kan bygges før
+w15c er deployet, men dagen på bilde 8 blir først to kort når w15c er ute og utfyllingen er kjørt.
+i18n-generatoren kjøres ikke samtidig i to deler. Koderen leverer løsning med skjermbilde før kode i w15d,
+w15f og w15g.
 
 **Kenneth ser etterpå:**
 
@@ -2745,11 +2876,14 @@ w15d og w15e.
 - **w15b:** «+ Reise» → «Til Kontor Narvik» → «Etter arbeid» gir 12:00–15:50, og både start og slutt kan
   rettes. «Hvor kjørte du til?» lar deg bytte til et annet prosjekt.
 - **w15c:** dagen på bilde 8 har to kort, og attesteringen har én rad «Reise» for turen til Narvik.
-  «+ Registrer timer» med reise som lønnsart gir et nytt kort med reisen alene.
 - **w15d:** kortet for turen sier «Reise · Narvik · 12:00–15:00» i hodet, og jobben sier «sommerfeldtsgt 65
   · 07:00–12:00». Reisekortet har tre lenker.
-- **w15e:** «Flytt til …» på returen → «Eget kort». Returen står for seg, også etter at dagen er lagret
-  på nytt og etter at telefonen har synket.
+- **w15f:** pennen på hjemreisen → bytt prosjekt til Prosjekt 1050 → reisen står i eget kort på Prosjekt
+  1050. I attesteringen står reisen som tekst med ✎; vinduet har Start kl., Slutt kl., Prosjekt,
+  Byggeplass og Underprosjekt.
+- **w15g:** ingen felt står åpne i attesteringskortet; hver linje har ✎. Retter attestanten slutten på en
+  linje, står «Rettet» på linja hos arbeideren, med hvem, når og 15:35 → 15:50, og arbeideren får en
+  e-post.
 
 #### Del H — tester som skal feile først
 
@@ -2776,28 +2910,55 @@ w15d og w15e.
 8. **Dagssiden:** etter flyten er den nye jobbens kort åpent, og adressen har ikke `registrer` (w15a). Et
    kort uten arbeid viser de tre lenkene etter B45 A. Får kortet en timerad, viser det alle fem, også
    «+ Maskin» og «+ Vare» (Kenneths presisering, § 8.19). `dagskort-vakt.test.tsx` er grønn (w15d).
-9. **Underprosjektet (B44):** en reise med underprosjekt som ingen jobb på byggeplassen har, gir `null`
-   fra regelen og egen kort-id på serveren. En reise uten underprosjekt står etter svaret på B48.
-10. **Valgt kort (B46 B), pr. skrivevei** (ekte Postgres): etter «Flytt til …» → en jobb har reisen jobbens
-    kort-id, og `valgt_kort_id` er satt. Etter «Eget kort» har reisen en kort-id ingen annen rad har.
-    Etter «Følg forslaget» er kolonnen tom, og regelen gjelder. Hver skrivevei i F38–F40 og veiene som
-    skriver raden på nytt, kjøres etterpå: valget og kortet står. En test pr. vei; testen er rød når
-    veien ikke bærer kolonnen.
-11. **Valget fjernes:** bytter arbeideren prosjekt, byggeplass eller underprosjekt på reisen, er kolonnen
-    tom etter kallet. Får det valgte kortet arbeid på et annet prosjekt, er kolonnen tom, og regelen
-    gjelder. Et kort på en annen dagsseddel avvises (K1).
-12. **Synken:** en eldre app sender reisen uten valg og med uendret sted. Valget og kortet står etter
-    synken. Samme synk med nytt sted på reisen tømmer valget.
-13. **Nytt kort med reise:** «Legg til timer-rad» med reise som lønnsart og en ny kort-id gir et kort med
-    reisen alene, også når dagen har en jobb på samme sted. Med id-en til en jobb står reisen i den.
-14. **Utfyllingen og valget:** fixturen har en reise med valgt kort som regelen ville flyttet. Den står
-    urørt etter migreringen.
-15. **«Føres på»:** attestanten bytter underprosjekt på en reise i en jobb. Reisen står i samme kort
-    etterpå.
-16. **Tilgang:** «Flytt til …» på en annens dagsseddel avvises. Målet må være på samme dagsseddel og
-    prosjekt; et kort fra et annet firma eller prosjekt avvises (isolasjonstest).
-17. **Dagssiden (w15e):** lista viser dagens kort på reisens prosjekt, kortet reisen står i er merket, og
-    ett trykk kaller prosedyren. En attestert reise har ikke lenka.
+9. **Underprosjektet (B44, B48 A):** en reise med underprosjekt som ingen jobb på byggeplassen har, gir
+   `null` fra regelen og egen kort-id på serveren. En reise uten underprosjekt står i jobben på
+   byggeplassen, også når jobben har underprosjekt.
+
+⚠️ **Punkt 10–17 i versjon 16 er utgått (§ 8.20).** De testet valgt kort, «Flytt til …» og
+`valgt_kort_id`. Numrene brukes ikke på nytt.
+
+18. **Kort-id fra klienten leses ikke (w15c):** «Legg til timer-rad» med reise som lønnsart og en ny
+    kort-id, på et sted dagen har jobb. Reisen står i jobben. Uten jobb på stedet står den i eget kort.
+19. **«Føres på» (w15c):** attestanten bytter underprosjekt på en reise i en jobb. Har dagen en jobb med
+    det underprosjektet på byggeplassen, står reisen der. Ellers står den i eget kort.
+20. **Pennen, serveren (w15f, ekte Postgres):** `oppdaterTimerRad` med nytt prosjekt, byggeplass og
+    underprosjekt på en reise. Raden har de nye verdiene og samme id. Retning, oppmøtested, kjøretid og
+    kilde er urørt. Kort-id er jobben på det nye stedet, eller egen når dagen ikke har jobb der. Rød i
+    dag: inngangen har ikke feltet.
+21. **Pennen avviser (w15f):** prosjekt på en arbeidsrad; prosjekt i et annet firma (isolasjon); prosjekt
+    arbeideren ikke er medlem av; byggeplass eller underprosjekt som hører til det gamle prosjektet;
+    attestert reise; låst dagsseddel. Én test pr. avvisning.
+22. **Attesteringen, serveren (w15f):** `rettRadFelt` med nytt prosjekt på en reise. Prosjektleder med rett
+    på begge prosjektene: lagret, historikkpost skrevet, kort-id etter regelen. Uten rett på målprosjektet:
+    avvist. Firmavalget av: avvist. Egen dagsseddel i et firma med B15 «Nei»: avvist. Prosjekt i et annet
+    firma: avvist.
+23. **Underprosjektet følger prosjektet (F51):** `rettRadFelt` med bare nytt prosjekt på en reise som har
+    underprosjekt og ingen byggeplass. Raden skal ikke stå med underprosjektet fra det gamle prosjektet.
+    Koderen kjører testen mot dagens kode først og melder om den er rød.
+24. **Pennen, skjermen (w15f):** prosjektfeltet er åpent for en reiserad og låst for en arbeidsrad. Bytte
+    av prosjekt tømmer underprosjektet og foreslår byggeplass. Linja «havner i» følger feltene. Kallet
+    sender prosjekt, byggeplass og underprosjekt sammen.
+25. **Attesteringen, skjermen (w15f):** reiselinja i del 8 er tekst og har ingen åpne felt. En reise som
+    venter, har ✎; vinduet har start, slutt, prosjekt, byggeplass og underprosjekt. Prosjektlista har
+    bare prosjektene attestanten kan attestere. «Lagre» sender ett kall; «Avbryt» sender ingen. Med
+    firmavalget av er bare underprosjektet åpent i vinduet, og det kan lagres. En attestert reise har
+    ingen ✎.
+26. **Linja «havner i» (F55, w15f):** en dag der et kort bare har maskin eller tillegg, og en reise under
+    terskelen på samme sted. Linja sier det kortet serveren velger.
+27. **Dagskortet:** `dagskort-vakt.test.tsx` er grønn etter w15f.
+28. **Varsel, serveren (w15g):** etter en retting på en annens dagsseddel gir arbeiderens leser de rettede
+    feltene for raden: felt, verdi før og etter, hvem og når. En dag uten retting har ingen. En annen
+    bruker enn eieren får dem ikke (isolasjon). Én test pr. vei i F60.
+29. **Varsel, skjermen (w15g):** linja har merket «Rettet» med teksten under. Mine timer har merket
+    «Rettet ved attestering» på dagen.
+30. **E-post (w15g):** flere rettinger på samme dagsseddel i én økt gir én e-post til eieren, med feltene
+    før og etter. Uten e-postnøkkel går rettingen gjennom.
+31. **Firmavalget står:** testene fra w5 (`w5-retting-ved-attestering.integration.test.ts`) er grønne
+    etter w15f og w15g.
+32. **Kortet uten åpne felt (w15g):** kortet har ingen felt som kan skrives i. Hver ventende timelinje,
+    maskinlinje og tilleggslinje har ✎ når firmavalget er på. Vinduet retter fra, til, pause og lønnsart
+    på en timelinje, timer på en maskinlinje og antall på en tilleggslinje: én test pr. felt som kunne
+    rettes i kortet før (F63). «✎ Rediger jobben», «Del opp», ✂ og underprosjekt-knappene finnes.
 
 ## 5. Maskintimer er en del av arbeidstiden — hva som må endres (føring 4)
 
@@ -2893,18 +3054,25 @@ dagskortet). Ett unntak: firmavalget «maskin føres med fra–til» gjelder beg
 
 ## 8. Åpne spørsmål til Kenneth
 
-B1–B46 er besvart (§ 8.1–8.19). **To spørsmål er åpne etter versjon 16: B47 og B48.** Begge følger av
-svaret på B44 (returen hjem, og nytt kort når stedet byttes). De er målt i § 4.15 del F, med bilder. Hvert
-alternativ har en rettevei. **w15a, w15b og w15d venter ikke på svarene. w15c venter på B47 og B48, og w15e
-på w15c.**
+B1–B48 er besvart (§ 8.1–8.20). **Ingen spørsmål er åpne etter versjon 17.** Kenneths forenkling av
+reisen og presiseringene samme kveld (§ 8.20) avgjør resten: reisen er én linje, kortet følger av prosjekt
+og sted, attestanten retter via pennen, arbeideren varsles, og firmavalget «Rediger ved attestering»
+endres ikke nå.
+
+**Lesning som ikke er spørsmål, men si fra hvis du mente noe annet:** «ingen åpne felt» er lest som
+feltene i kortet (tid, lønnsart, maskintimer, antall, «Føres på»). Underprosjekt-knappene for hele jobben
+øverst i kortet (bilde 7, B11), «✎ Rediger jobben», «Del opp» og ✂ står som i dag (§ 4.15 del F).
+
+**Besvart (§ 8.20) — B47 og B48 slik de ble stilt** (begge A, som anbefalt). ⚠️ Retteveiene som nevner
+«Flytt til …» og nytt kort, er utgått (§ 8.20):
 
 | # | Spørsmål | Alternativer | Anbefaling |
 |---|---|---|---|
 | **B47** | **Skal firmaet kunne sette utgangspunktet for returen hjem?** Du sa: «kanskje det ikke er slik bedriften ønsker å føre kostnaden». I dag har firmaet ingen innstilling for hvor en reise føres; firmaet styrer terskel, lønnsart, avstandsbånd, oppmøtested og kjøretid (§ 4.15 del F, F43–F45, `v16-b47.png`). | **A:** ingen firmainnstilling nå. Forslaget er jobben du drar fra, i alle firma. Arbeideren bytter sted på reisen, bruker «Flytt til …» eller starter et nytt kort; attestanten retter «Føres på». **B:** nytt felt i Firma › Innstillinger › Reise-regelsett, «Returen hjem foreslås i»: «Jobben arbeideren drar fra» eller «Eget kort». Arbeideren retter på samme måte. Krever en ny kolonne i firmainnstillingene (migrering i kjernen), og at regelen, utfyllingen og telefonen leser den. | **A.** Du har gitt arbeideren tre veier til å rette hver reise. Hvilken regel et firma ville valgt, vet vi ikke før et firma ber om den. B kan bygges senere uten at A gjøres om. |
 | **B48** | **Reise uten underprosjekt på en dag der jobben har underprosjekt: hvor skal den stå?** Du sa at reisen får nytt kort når underprosjektet byttes. På PC er feltet fylt ut fra jobben. På telefonen er det tomt til arbeideren velger, så en reise derfra har tomt underprosjekt uten at noen har byttet noe (§ 4.15 del F, F36–F37, `v16-b48.png`). | **A:** reisen står i jobben på byggeplassen, og linja viser «Uten underprosjekt». Et underprosjekt du har valgt, er fortsatt et krav. Vil du ha reisen for seg, bruker du «Flytt til …» → «Eget kort». **B:** tomt er også et krav: reisen får eget kort. Du retter på PC ved å sette underprosjekt på reisen, eller med «Flytt til …». | **A.** Utgangspunktet er jobben du drar fra, og på telefonen har ingen byttet noe. B gir ett kort ekstra hver dag for alle som fører reise fra telefonen på et underprosjekt. |
 
-**Lesninger i versjon 16 som ikke er spørsmål, men si fra hvis du mente noe annet** (de to fra versjon 15
-er besvart med ja, § 8.19):
+⚠️ **Lesningene i versjon 16 er utgått (§ 8.20).** Alle tre handlet om valgt kort og «Flytt til …». Slik de
+sto (de to fra versjon 15 er besvart med ja, § 8.19):
 
 1. «Nytt kort» når du bytter sted, er lest som kortet for det nye stedet. Har du en
    jobb der samme dag, står reisen i den jobben. Skal den for seg, velger du «Eget kort» (§ 4.15 del E).
@@ -2914,7 +3082,8 @@ er besvart med ja, § 8.19):
    versjon 15 sto det at forslaget skulle gjelde igjen (§ 4.15 del F, «Slik lagres valget»).
 
 **Besvart (§ 8.19) — B44–B46 slik de ble stilt** (B46 ble besvart mot anbefalingen; B44 fikk A som
-utgangspunkt, med valg):
+utgangspunkt, med valg). ⚠️ B46 B er snudd av § 8.20: det som gjelder, er A, og prosjektet kan byttes på
+reisen:
 
 | # | Spørsmål | Alternativer | Anbefaling |
 |---|---|---|---|
@@ -2953,8 +3122,8 @@ utgangspunkt, med valg):
 **Følger av B32 B, B33 A og B34 B som ikke er spørsmål, men si fra hvis du mente noe annet:**
 
 1. ⚠️ **Endret av B43 B (versjon 15):** byggeplassen først, som krav; uten jobb på reisens byggeplass får
-   reisen eget kort (§ 4.15 del E). **Versjon 16 (B44, B46 B):** et valgt underprosjekt er også et krav,
-   og arbeideren kan velge kortet med «Flytt til …». Slik punktet sto:
+   reisen eget kort (§ 4.15 del E). **Versjon 16 (B44):** et valgt underprosjekt er også et krav.
+   ⚠️ **Versjon 17 (§ 8.20):** arbeideren velger ikke kort; «Flytt til …» er utgått. Slik punktet sto:
    Arbeideren velger byggeplass og underprosjekt for reisen, ikke jobb. Reisen står i jobben som er ført samme
    sted: lik underprosjekt først, så lik byggeplass. Står flere igjen, står utreisen i den første og returen i
    den siste (§ 4.11 del A).
@@ -3252,9 +3421,11 @@ Kenneth ba om en ny runde mot avvik i planen. 🟡 Levert i versjon 12: § 4.13 
   - **Utgår:** «Flytt til …»-menyen, «Eget kort», «Følg forslaget», merket «Flyttet av deg», kolonnen `valgt_kort_id` og prosedyren for den, panel 4 (4a/4b) og leveransen **w15e**. B46 B er snudd (se § 8.19).
   - **Konsekvens Kenneth har godtatt:** hjemreisen står i jobben man drar fra; den kan ikke legges i en annen jobb på samme sted uten å bytte prosjekt, byggeplass eller underprosjekt.
   - 🟡 Vedtatt, ikke bygget. Del E–H revideres (versjon 17) før w15c bestilles.
+- **Revidert i versjon 17:** § 4.15 del E (reiselinja med fem felt i pennen, regelen uten valgt kort), del F (F46–F63, hva som bygges for prosjektbyttet, kortet uten åpne felt og varselet; lagringen av valget strøket), del G (w15c uten kolonne, w15e utgått, nye w15f og w15g) og del H. Bildet er `v17-reiselinje.png`. Målt på develop `afdaa7ac`: attesteringens `rettRadFelt` tar alt imot prosjekt på en timerad og krever attesteringsrett på begge prosjektene og firmavalget «rediger ved attestering» (F48, F49); pennens `oppdaterTimerRad` tar ikke prosjekt (F47). Firmavalget (B10) er ikke endret: er det av, kan attestanten bare rette underprosjektet på reisen.
 - **Kenneth 2026-11-21 om retting ved attestering:** «hva er vitsen med attestering hvis redigering ikke kan forekomme -> men bruker skal varsles ved redigering». I dag krever retting ved attestering at firmaet har «rediger ved attestering» på (B10, R21), og arbeideren varsles ikke (ikke målt fullt — Fabel måler i versjon 17). Varsel til arbeideren ved hver retting er vedtatt. **Kenneth 2026-11-21, presisering:** «jeg sa at den som attesterer må ha MULIGHET til å redigere. det er ikke det samme som at alt er redigerbart hele tiden. Derfor skal pennen være der på et kort». Betyr: attestanten retter via pennen (✎) på kortet, som på dagssiden — ingen åpne felt i visningen. Firmavalget «rediger ved attestering» endres ikke i denne omgang. 🟡 Ikke bygget.
-- **Kenneth 2026-11-21, ramme for resten av w15:** «husk, vi skal holde oss tett til planen og de kortene som er laget. det er hva som er redigerbart vi skal rette opp. nå begynner data å henge sammen, det er det viktigste. nå er det å få de siste detaljer på plass». Betyr: ingen nye korttyper eller visninger; gjenstående arbeid er hvilke felt som kan rettes (tid, prosjekt, byggeplass, underprosjekt) på kortene som finnes.
-- **Skissen er tegnet på nytt 2026-11-21** (`v16b-flytt.png` i del E og `v16b-flytt-prosjekt.png` under, kilde `skisser-v16b.html`) etter Kenneths ord om `v16-flytt.png`: «reise til jobb kan aldri være bare 7 minutter. eksemplene var ikke konsistent med hvilke tider som føres.» Dagen er den samme i alle paneler, alle kort er åpne, og grønn ramme viser det som er endret fra panel 1. Spørsmålet som står igjen, er panel 4: skal «Flytt til …» ha valget «Annet prosjekt …» (4a, anbefalt av Fabel), eller byttes prosjekt med pennen (4b)? ⏳ Venter på Kenneth. Målt på develop `f95ba905`: ingen av veiene finnes i dag (`WS:4275` låser prosjektfeltet ved redigering, og `oppdaterTimerRad` i `D:4185` tar ikke imot prosjekt).
+  - **Målt i versjon 17 (§ 4.15 del F, F57–F63):** firmavalget ligger i firmainnstillingene og sjekkes tre steder på serveren (retting i kortet og «Rediger jobben», «Del opp», ✂); underprosjekt, attester og returner sjekker det ikke. Arbeideren varsles ikke i dag: rettingen skrives i aktivitetsloggen og radhistorikken, men gir verken merke, e-post eller push. E-post finnes (invitasjoner, dokumentflyt); push har rør uten kallere, og appen registrerer ikke token. Attesteringskortet har i dag åpne felt som lagres med en gang (fra, til, pause, lønnsart, maskintimer, antall) og ingen penn på linjene; «✎ Rediger jobben» står øverst i kortet (F63). **Bygges:** pennen på reiselinja i attesteringen i w15f; resten av kortet uten åpne felt (⚠️ snur w10 A1) og varselet (merket «Rettet» på linja og i Mine timer, e-post pr. dagsseddel) i ny **w15g**. Firmavalget endres ikke.
+- **Kenneth 2026-11-21, ramme for resten av w15:** «husk, vi skal holde oss tett til planen og de kortene som er laget. det er hva som er redigerbart vi skal rette opp. nå begynner data å henge sammen, det er det viktigste. nå er det å få de siste detaljer på plass». Betyr: ingen nye korttyper eller visninger; gjenstående arbeid er hvilke felt som kan rettes (tid, prosjekt, byggeplass, underprosjekt) på kortene som finnes. **Versjon 17 holder seg til det:** ingen nye kort, paneler eller visninger. Planen sier hvilke felt som kan rettes på kortene som finnes (pennen på dagssiden, pennen i attesteringen, reisevinduet), og hva serveren må tåle (prosjektbytte, varsel). Det eneste nye arbeideren ser, er merket «Rettet» på en linje som er rettet.
+- **Skissen er tegnet på nytt 2026-11-21** (`v16b-flytt.png` og `v16b-flytt-prosjekt.png` under, kilde `skisser-v16b.html`) etter Kenneths ord om `v16-flytt.png`: «reise til jobb kan aldri være bare 7 minutter. eksemplene var ikke konsistent med hvilke tider som føres.» Dagen er den samme i alle paneler, alle kort er åpne, og grønn ramme viser det som er endret fra panel 1. Spørsmålet som sto igjen, var panel 4: skal «Flytt til …» ha valget «Annet prosjekt …» (4a, anbefalt av Fabel), eller byttes prosjekt med pennen (4b)? ⚠️ Utgått samme dag: Kenneth valgte enkle linjer (punktet over). Prosjektet byttes i feltet på reisen, i pennen og i attesteringen (w15f). Målt på develop `f95ba905`: ingen av veiene finnes i dag (`WS:4275` låser prosjektfeltet ved redigering, og `oppdaterTimerRad` i `D:4185` tar ikke imot prosjekt).
 
 ![Panel 4: hjemreisen til et annet prosjekt — «Annet prosjekt …» i menyen (4a) eller pennen (4b), og dagen etterpå](skisser-web-timeforing/v16b-flytt-prosjekt.png)
 
@@ -3284,7 +3455,7 @@ delene krever ingen.
 | **w12m** | ⏸ **Venter på web** (Kenneth 2026-11-20, § 8.13): bestilles ikke før timeføringen på PC er godkjent av Kenneth. Telefonen etter w12 (§ 4.11 del D og G). ⚠️ Versjon 15: regelen telefonen skal bruke, er den i § 4.15 del E (B43 B). ⚠️ Skrevet om i versjon 11 etter B34 B. Samme regel lokalt (`kortIdNormalisering.ts`) med utfylling av radene som ligger på telefonen; forslaget og «+ Reise» lagrer reisen koblet; reisen vises i jobbens kort i stedet for i «Dagen», med underprosjektet sitt på linja når det avviker fra kortets. **B33 A:** manuell tur får prosjektet til dagens første jobb, retur får dagens siste (`DagSeksjon.tsx:80–96`). **Reisevinduet:** byggeplass og underprosjekt velges som i dag (B34 B). **B35 må være besvart før w12m bestilles;** med B35 B flyttes reisevinduet til w13. Bekreft dag og dagskort-modus står urørt. Ingen migrering på serveren. Krever OTA. | `M/utils/kortIdNormalisering.ts`, `M/services/kortIdLokal.ts`, `M/db/migreringer.ts`, `M/utils/dagsforslagAnvend.ts`, `M/services/nyTimerRad.ts`, `M/components/timer-detalj/prosjektkort/` (`DagSeksjon.tsx`, `kortRadFlytt.ts`, `ProsjektkortDagsoversikt.tsx`, `radLagring.ts`), `M/utils/dagsoversiktRader.ts`, i18n, `mobil.md`, `timer.md`, `hjelpetekster.md`. Ikke `apps/api`, ikke `apps/web`. | Reisen står i jobbens kort på telefonen — i kortet med samme underprosjekt og byggeplass som du valgte for reisen. På en dag med to prosjekter står turen på det første og returen på det siste. |
 | **w13** | ⚠️ **Utgått** (B35 A, § 8.12). Sto slik: bare hvis B35 besvares med B (§ 4.12, § 8). Ett valg «Hvor» i føringen av arbeid og reise: én linje pr. sted, enten «prosjekt – byggeplass» eller «prosjekt – underprosjekt». **Arbeid:** jobbens hode på PC og kortvalget på telefonen. **Reise:** begge reisevinduene, med stedene dagen har jobb på og B33 A som forvalg. Raden bærer det samme som i dag (prosjekt, byggeplass, underprosjekt), så serveren, nøkkelen og w12 er urørt. Koderen leverer løsning med skjermbilde før kode; valget er ikke tegnet. Ingen migrering. | `WS` (jobbens hode, etter w3), `RK`, `M/components/timer-detalj/prosjektkort/KortValgModal.tsx`, `M/components/timer-detalj/ReiseKort.tsx`, `M/components/timer-detalj/prosjektkort/DagSeksjon.tsx`, i18n, `hjelpetekster.md`, `mobil.md`, `web.md`. Ikke `apps/api`. | Ett trykk på stedet i stedet for to felt, likt for arbeid og reise. |
 | **w14** | **Tilbake-knappene** (§ 4.14, versjon 13). **Venter på B39**; beskrevet med B39 A. Én delt tilbake-knapp: lenken som åpner en underside, sender adressen du står på (`?retur`), knappen går dit og sier hvor («Tilbake til Timer»), og går til en fast reserve når siden åpnes direkte. Etter sletting, lagring og «Ferdig» brukes samme adresse. **Først:** dagen, «Ny dagsseddel», prosjektets Timer (uke og statusfilter i adressen) og Mine timer (TK1–TK5). **Så:** dokumentleseren (TK6), HMS-dokumenter fra Firma › HMS (TK7–TK10), firmasiden for SiteDoc-admin (TK11), importsidene (TK12–TK13), og reserve for utskrift, «Nytt prosjekt» og punktvelgeren (TK24–TK26). Oppgavens `?returnerTil` får komponentens vakt. Attesteringen, mal-sidene og maskinsidene står urørt. Sider uten tilbake-knapp får ingen. Med B40 A eller B: hva sidemenyen lyser på dagen, og med B også raden for Mine timer. Ingen migrering. **Leveranse 1** (TK1–TK5 og B40 A): 🟡 bygd på `feat/web-timer-w14a`, ikke merget — `TilbakeLenke` med `reserve` og kroken `useTilbakeAdresse`, hjelperen `apps/web/src/lib/tilbake-adresse.ts` (vakt, etikett, `?uke`/`?status` på prosjektets Timer), `useAktivSeksjon` lyser «Timer» på dagen bare med `?retur` fra prosjektets Timer (web.md, hjelpetekster.md § Tilbake-knappen i timeføringen). Leveranse 2 (TK6–TK26) er ikke bygget. | `apps/web/src/components/nivaa/TilbakeLenke.tsx` (reserve, tekst, og en krok som gir samme adresse til sletting og lagring), ny hjelper i `apps/web/src/lib/` med tester, `WS` (`:462`, `:523`, `:1054`), `apps/web/src/app/dashbord/timer/ny/page.tsx`, `apps/web/src/app/dashbord/[prosjektId]/timer/page.tsx`, `apps/web/src/app/dashbord/timer/mine/page.tsx`, `apps/web/src/lib/registrerTimer.ts`, `apps/web/src/components/timer/RegistrerTimerKnapp.tsx`, de to videresendingene under `[prosjektId]/timer/`; så `…/dokumenter/[dokumentId]/les/page.tsx`, `…/mapper/page.tsx`, `lib/dokument-sok-ctrlk.ts`, `…/oppgaver/[oppgaveId]/page.tsx`, `…/sjekklister/[sjekklisteId]/page.tsx`, `…/[prosjektId]/hms/page.tsx`, `…/firma/hms/page.tsx`, `…/admin/firmaer/[id]/page.tsx`, `…/maskin/import/page.tsx`, `…/firma/varelager/import/page.tsx`, `lib/innstillinger-kort.tsx`, `…/sjekklister/skriv-ut/page.tsx`, `…/sjekklister/page.tsx`, `…/nytt-prosjekt/page.tsx` med de fire inngangene, `…/tegninger/page.tsx`. Med B40: `apps/web/src/hooks/useAktivSeksjon.ts`, `SE`. i18n (`timer.tilbake` og nye tekster), `web.md`, `hjelpetekster.md`. Ikke `apps/api`, ikke `packages/db`, ikke `apps/mobile`. | Timer under Prosjekt → «Åpne» på en dag i forrige uke → «Tilbake til Timer»: du står på prosjektets Timer, på samme uke. Fra Mine timer heter knappen «Tilbake til Mine timer». Dagen åpnet fra et bokmerke: «Til Mine timer». |
-| **w15** | **Testfunnene 20.11.** (§ 4.15, versjon 16, etter B41 A, B42 A, B43 B, B44, B45 A og B46 B). Fem leveranser (§ 4.15 del G). **w15a — åpent kort (B41 A):** jobben som nettopp ble laget, er åpen etter «+ Registrer timer» (F1–F5); vinduet åpnes ikke av seg selv på første jobb; `?registrer`, `?nyttProsjekt` og `?eksisterte` fjernes fra adressen når flyten har kjørt, `?retur` står. 🟡 **Bestilt 2026-11-20.** **w15b — reisevinduet: systemet foreslår, arbeideren retter (B42 A og presiseringen i § 8.18):** knappene «Før arbeid» og «Etter arbeid» for «Til annet kontor», «Start kl.» og «Slutt kl.» fylt ut og rettbare for alle tre reisevalgene, slutten foreslås av kjøretiden, «Hvor kjørte du til?» med prosjekt og byggeplass som kan byttes, underprosjektet fylt ut fra jobben som i dag, en linje som sier hvilket kort reisen havner i, varsel ved overlapp; den delte reiseregelen får start som valgfri inngang og regner som i dag uten den. **w15c — reisens kort på serveren (B43 B, B44, B46 B):** byggeplassen og et valgt underprosjekt er krav i regelen; reise til et sted ingen jobb har, får eget kort; ny kolonne `valgt_kort_id` for kortet arbeideren har valgt, prosedyren for «Flytt til …», valgt kort fra «Legg til timer-rad» og fra attestantens «Føres på», og valget bæres gjennom synken og de andre skriveveiene; ny utfylling legger reiser uten valg som ikke er attestert, på nytt (**migrering: én kolonne og en utfylling, Kenneth**); paritetstesten flyttes; tellingen kjøres først. **Venter på B47 og B48.** Regel 10 uavhengig. **w15d — dagssiden viser reisen:** reiselinja med merket «Reise», sted og klokke, uten aktivitet og matpause; hodet viser sted og klokkeslett på alle kort; kort uten arbeid sier «Reise» i hodet og har «+ Timer», «+ Reise» og «+ Tillegg/Utlegg» (B45 A); teksten under lønnsarten når den er reise. **w15e — «Flytt til …» på reiselinja (B46 B):** lista med dagens kort på prosjektet, «Eget kort» og «Følg forslaget», og merket «Flyttet av deg». **Venter på w15c og w15d.** Bare prosjektkort-modus. Dagskort-modus røres ikke og har vakt-test. Ingenting på telefonen. Koderen leverer løsning med skjermbilde før kode i w15b, w15d og w15e. | w15a: `WS` (`:386–390`, `:785–821`, `:945–951`), testen for siden, `timer.md`, `web.md`. w15b: `RK`, `MR`, `RM` (`løsReiseKort`, `løsOverforingKort`), testene for dem, `WS` bare `:1439–1449`, i18n, hjelpeteksten, `timer.md`, `shared-pakker.md`. w15c: `RV`, `reiseKort.test.ts`, `KI`, `D` (skriveveiene og den nye prosedyren), `ST`, ny migrering i `packages/db-timer/prisma/migrations/`, `apps/api/src/routes/reise-kortid-migrering.integration.test.ts`, `kortid-skriveveier.integration.test.ts`, `apps/web/src/components/attestering/attestering-tabell.ts` (bare F31, med test), `relay/sql/`, `timer.md`, `api.md`, `shared-pakker.md`, `arkitektur.md`, kort-id-specen (§ 2.3). w15d: `WS` (`renderLinjer`, `JobbKortRamme`, lenkerekka, `TimerRadDialog` bare teksten), i18n, hjelpeteksten for siden, `timer.md`, `web.md`. w15e: `WS` (reiselinja), i18n, hjelpeteksten for siden, `timer.md`, `web.md`. Ikke `apps/mobile` i noen del. | w15a: «+ Registrer timer» fra prosjektets Timer på en ny dag — jobben er åpen. w15b: «+ Reise» → «Til Kontor Narvik» → «Etter arbeid» gir 12:00–15:50. w15c: dagen på bilde 8 har to kort, og attesteringen har én rad «Reise» for turen til Narvik. w15d: kortet for turen sier «Reise · Narvik · 12:00–15:00» i hodet, og jobben «sommerfeldtsgt 65 · 07:00–12:00». w15e: «Flytt til …» på returen → «Eget kort»; returen står for seg, også etter at telefonen har synket. |
+| **w15** | **Testfunnene 20.11.** (§ 4.15, versjon 17, etter B41 A, B42 A, B43 B, B44, B45 A, B47 A, B48 A og forenklingen i § 8.20; ⚠️ B46 B er snudd). Seks leveranser (§ 4.15 del G). **w15a — åpent kort (B41 A):** jobben som nettopp ble laget, er åpen etter «+ Registrer timer»; vinduet åpnes ikke av seg selv på første jobb; adressen ryddes. Merget (develop `d5ae514e`). **w15b — reisevinduet: systemet foreslår, arbeideren retter (B42 A og presiseringen i § 8.18):** «Før arbeid» og «Etter arbeid», «Start kl.» og «Slutt kl.» som kan rettes, «Hvor kjørte du til?» med prosjekt og byggeplass, linja som sier hvilket kort reisen havner i, varsel ved overlapp. Merget (develop `cee0c03e`). **w15c — reisens kort på serveren (B43 B, B44, B47 A, B48 A):** byggeplassen og et valgt underprosjekt er krav i regelen; reise til et sted ingen jobb har, får eget kort; reise uten underprosjekt står i jobben på byggeplassen; reise til annet kontor etter arbeid får eget kort; ny utfylling legger reiser som ikke er attestert, på nytt (**migrering: en utfylling, bare data, Kenneth**); paritetstesten flyttes; tellingen kjøres først. Ingen kolonne. Venter ikke på noe. Regel 10 uavhengig. **w15d — dagssiden viser reisen:** reiselinja med merket «Reise», sted og klokke, uten aktivitet og matpause; hodet viser sted og klokkeslett på alle kort; kort uten arbeid sier «Reise» i hodet og har «+ Timer», «+ Reise» og «+ Tillegg/Utlegg» (B45 A); teksten under lønnsarten når den er reise. 🟡 Under bygging. **w15f — prosjektet kan byttes på en reise som finnes (§ 8.20):** reiselinja har start, slutt, prosjekt, byggeplass og underprosjekt i pennen på dagssiden og i reisedelen i attesteringen; `oppdaterTimerRad` tar imot prosjekt for reiserader; `rettRadFelt` holder underprosjektet mot prosjektet; linja «havner i» ser også kort uten arbeid; i attesteringen er reiselinja tekst med ✎. **Venter på w15d og w15c.** Regel 10 uavhengig. **w15g — attesteringskortet uten åpne felt, og varsel (§ 8.20):** hver linje i kortet er tekst med ✎ (⚠️ snur w10 A1); arbeideren varsles om hver retting (merket «Rettet» på dagen og i Mine timer, e-post pr. dagsseddel). **Venter på w15f.** Regel 10 uavhengig. Firmavalget «Rediger ved attestering» er uendret. ⚠️ **w15e («Flytt til …») er utgått.** Bare prosjektkort-modus. Dagskort-modus røres ikke og har vakt-test. Ingenting på telefonen. Koderen leverer løsning med skjermbilde før kode i w15d, w15f og w15g. | w15a: `WS`, testen for siden, `timer.md`, `web.md`. w15b: `RK`, `MR`, `RM`, testene for dem, `WS`, i18n, hjelpeteksten, `timer.md`, `shared-pakker.md`. w15c: `RV`, `reiseKort.test.ts`, `KI`, `D` (bare der testene pr. skrivevei krever det), ny migrering i `packages/db-timer/prisma/migrations/`, `apps/api/src/routes/reise-kortid-migrering.integration.test.ts`, `kortid-skriveveier.integration.test.ts`, `apps/web/src/components/attestering/attestering-tabell.ts` (bare F31, med test), `relay/sql/`, `timer.md`, `api.md`, `shared-pakker.md`, kort-id-specen (§ 2.3). w15d: `WS` (`renderLinjer`, `JobbKortRamme`, lenkerekka, `TimerRadDialog` bare teksten), i18n, hjelpeteksten for siden, `timer.md`, `web.md`. w15f: `D` (`oppdaterTimerRad`, `utforRedigerSedelRader`), `WS` (`TimerRadDialog`, kallet til reisevinduet), `RK`, `MR`, `RP` (del 8), attesteringssiden (prosjektlista), i18n, hjelpetekstene, `timer.md`, `api.md`, `web.md`, `hjelpetekster.md`. w15g: `RP` (del 1, 2, 4 og 6), `D` (arbeiderens leser, e-posten), `apps/api/src/services/epost.ts`, `WS` (merket «Rettet»), `apps/web/src/app/dashbord/timer/mine/page.tsx`, i18n, hjelpetekstene, `timer.md`, `api.md`, `web.md`, `hjelpetekster.md`. Ikke `apps/mobile` i noen del. | w15a: «+ Registrer timer» fra prosjektets Timer på en ny dag — jobben er åpen. w15b: «+ Reise» → «Til Kontor Narvik» → «Etter arbeid» gir 12:00–15:50. w15c: dagen på bilde 8 har to kort, og attesteringen har én rad «Reise» for turen til Narvik. w15d: kortet for turen sier «Reise · Narvik · 12:00–15:00» i hodet, og jobben «sommerfeldtsgt 65 · 07:00–12:00». w15f: pennen på hjemreisen → bytt prosjekt → reisen står på det nye prosjektet; i attesteringen har reiselinja ✎ med de samme fem feltene. w15g: ingen åpne felt i attesteringskortet; en retting gir «Rettet» med hvem og før → etter hos arbeideren. |
 
 - 🔴 **Rekkefølgen etter versjon 12** (§ 4.13). Punktene under gjelder der de ikke strider mot dette:
   1. **w3a** kan bestilles nå. Den venter ikke på B37 og B38. Før den bestilles, telles maskinrader og varer
@@ -3300,12 +3471,12 @@ delene krever ingen.
   7. **w14** (tilbake-knappene, § 4.14) går **etter w3b**, fordi begge rører `WS`, og før eller etter w3c
      etter hva orkestrator velger; den rører ikke kortet, bare lenkene øverst og sletteveien. **B39 må være
      besvart før w14 bestilles.** Den rører i18n, så generatoren kjøres ikke samtidig med en annen del.
-  8. **w15** (testfunnene 20.11., § 4.15 del G; versjon 16): **w15a** er bestilt. **w15a → w15b → w15d →
-     w15e** går etter hverandre, fordi alle rører `WS`, og alle går før w3c (samme kort). **w15c**
-     rører ikke `WS` og går ved siden av; den venter på B47 og B48 og har en migrering (én kolonne og en
-     utfylling). **w15e** venter også på w15c. B45 er besvart, så w15d venter bare på w15b.
-     w15a kan gå samtidig med w14 leveranse 2, som ikke rører `WS`. i18n-generatoren kjøres ikke samtidig
-     i to deler. Tellingen i § 4.15 del F kjøres før w15c bygges.
+  8. **w15** (testfunnene 20.11., § 4.15 del G; versjon 17): **w15a** og **w15b** er merget. **w15d →
+     w15f → w15g** går etter hverandre, fordi alle rører `WS`, og alle går før w3c (samme kort). **w15c**
+     rører ikke `WS` og kan bestilles nå, ved siden av w15d; den har en migrering (en utfylling, bare
+     data) og venter ikke på noe. **w15f** venter på w15d (`WS`) og w15c (`D` og regelen). ⚠️ w15e er
+     utgått (§ 8.20). i18n-generatoren kjøres ikke samtidig i to deler. Tellingen i § 4.15 del F kjøres
+     før w15c bygges.
 - **w10 går før w3, w4 og w6.** Den justerer det som er bygget, tilbake til bilde 6–8. Del A går først. Den er web,
   med én linje på serveren (A9). Del B går rett etter, på de samme filene (`AT`), og får egen gate: den endrer hvem
   som får se timer og lønnsart, så regel 10 kjøres uavhengig. I del A bygges A4 etter A1, så ingen rettevei
@@ -3432,7 +3603,39 @@ Tester: `attestering-tabell.test.tsx` (blokkene merket «w10a»), `attestering-t
 
 ## 10. Ikke målt
 
-**Versjon 16 (§ 4.15 del E–H):**
+**Versjon 17 (§ 4.15 del E–H):**
+
+- Ingenting er kjørt eller klikket. F46–F56 er lest i koden av Fabel mot develop @ `afdaa7ac`.
+- F51 er lest, ikke kjørt: om en reise blir stående med underprosjekt fra et annet prosjekt etter
+  `rettRadFelt` med bare nytt prosjekt. Koderen kjører testen i w15f (del H punkt 23).
+- Om en vare kan være koblet til en reiserad. `apps/api/src/routes/vareforbruk.ts:75–84` holder varen mot
+  timeradens dagsseddel og prosjekt; om raden kan være reise, er ikke lest. Kan den det, må w15f flytte
+  varen med raden eller avvise byttet.
+- Om tillegg og utlegg ført i et reisekort følger reisen når prosjektet byttes. De bærer egen kort-id og
+  eget prosjekt (F35) og blir trolig stående. Koderen måler og melder før kode.
+- Hvordan en reise under terskelen er lagret. Kontrollørens merknad i gate (112) sier at raden blir
+  arbeid; Fabel har ikke lest det.
+- Om telefonen kan bytte prosjekt på en reise som finnes, og hvordan den viser en reise som har fått nytt
+  prosjekt på PC.
+- Hva rutemerket i attesteringen (`ReiseRadMerke`) viser etter prosjektbytte. Byggeplassen er radens, og
+  kjøretiden er den som ble lagret da reisen ble ført (F56).
+- Hvor attesteringssiden leser omfanget og prosjektnavnene til prosjektlista (F50). Koderen måler i w15f.
+- `tilfoyTimerRad` sjekker ikke at arbeideren er medlem av prosjektet (F53). Ikke rettet i planen; meldt
+  til orkestrator.
+- Tellingen (spørring 1–4 i § 4.15 del F) er fortsatt ikke kjørt.
+- Om pennens vindu på dagssiden (`TimerRadDialog`, som lagrer med `oppdaterTimerRad` på egen dagsseddel)
+  kan brukes i attesteringen med `rettRadFelt` som lagring, eller om attesteringen får eget vindu med
+  samme felt. Koderen måler og viser det i løsningen for w15f.
+- Hvilke felt pennene for maskin og tillegg har på dagssiden. F63 lister feltene som er åpne i
+  attesteringskortet; dagssidens vinduer for de to er ikke lest på nytt.
+- Om e-post er satt opp på test og i prod. Nøkkelen er valgfri (F62), og agenter leser ikke nøkler.
+- Om arbeiderens leser (`hentMedId`) alt får rettede felt. `kortLeser.ts` sier attesteringens lesere og
+  rapporten (F61). Koderen måler i w15g.
+- Hvordan telefonen viser en rad som er rettet ved attestering (F61 er et søk, ikke en lesing av skjermen).
+- Linjenumre i `WS` i F1–F37 er ikke lest på nytt etter w15a og w15b.
+
+**Versjon 16 (§ 4.15 del E–H):** ⚠️ Punktene om kolonnen, valget og «Flytt til …» (punkt 4, 5, 7 og 8
+under) er utgått med § 8.20.
 
 - Ingenting er kjørt eller klikket. F36–F44 er lest i koden av Fabel. Søket i F45 er gjort av en
   leseagent og stikkprøvd.
