@@ -83,6 +83,7 @@ import {
 } from "@sitedoc/shared";
 import { rundTilNarmeste } from "@/lib/tidsrunding";
 import { ReiseKort } from "./ReiseKort";
+import { KorrigeringProvider, KorrigertMerke, type KorrigeringerPrRad } from "@/components/timer/KorrigertMerke";
 import { reiseHavnerI, type ReiseHavnerAnnenRad } from "@/hooks/useManuellReiseWeb";
 import {
   beregnKortSummer,
@@ -1301,6 +1302,8 @@ export default function DagsseddelDetaljSide() {
 
       {/* Prosjekt-grupper (dagskort) / prosjektkort-samleside */}
       {prosjektkortModus ? (
+        // w15g: merket «Korrigert av» gis bare i prosjektkort-modus (dagskortet er urørt).
+        <KorrigeringProvider korrigeringer={(sheet as { korrigeringer?: KorrigeringerPrRad }).korrigeringer}>
         <ProsjektkortSamleside
           jobbKort={jobbKort}
           tommeProsjektKort={tommeProsjektKort}
@@ -1375,6 +1378,7 @@ export default function DagsseddelDetaljSide() {
           onSlett={() => setVisSlettModal(true)}
           onSend={sendMedPauseSporsmaal}
         />
+        </KorrigeringProvider>
       ) : aktiveProsjektIder.length === 0 ? (
         <section className="mb-6 rounded-lg border border-dashed border-gray-300 bg-white p-6 text-center text-sm text-gray-500">
           {t("timer.detalj.ingenProsjektGrupper")}
@@ -3053,6 +3057,7 @@ function ReiseLinje({
               <p>{hoved}</p>
             )}
             {under && <p className="mt-0.5 text-xs text-gray-500">{under}</p>}
+            <KorrigertMerke type="timer" radId={rad.id} />
           </div>
           <div className="flex items-center gap-3">
             <span className="font-mono text-sm text-gray-900">
@@ -3266,6 +3271,8 @@ function RaderTimer({
               ) : (
                 <p className="mt-0.5 text-xs text-gray-500">{linjeInnhold}</p>
               )}
+              {/* w15g: «Korrigert av» (bare i prosjektkort-modus, via kontekst). */}
+              <KorrigertMerke type="timer" radId={rad.id} />
             </div>
             <div className="flex items-center gap-3">
               <span className="font-mono text-sm text-gray-900">
@@ -3360,6 +3367,7 @@ function RaderTillegg({
                   ))}
                 </div>
               )}
+              <KorrigertMerke type="tillegg" radId={rad.id} />
             </div>
             <div className="flex items-center gap-3">
               <span className="font-mono text-sm text-gray-900">
@@ -3476,6 +3484,7 @@ function RaderMaskinKompakt({
                     {tilTall(rad.mengde).toFixed(2)} {rad.enhet ?? ""}
                   </p>
                 )}
+                <KorrigertMerke type="maskin" radId={rad.id} />
               </div>
               <div className="flex items-center gap-3">
                 <span className="font-mono text-sm text-gray-900">

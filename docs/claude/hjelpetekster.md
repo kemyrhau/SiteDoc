@@ -179,6 +179,7 @@ Ingen ?-ikon; knappen sier hvor den går (B39 A, 15 språk). Nye tekster (`tilba
 Dagsseddel-siden har ikke ?-ikon; teksten står i kortet (`timer.prosjektkort.*`, 15 språk):
 - **Lenkeraden pr. jobb:** «+ Timer», «+ Maskin», «+ Vare» (`nyVareKort`, bare når Varelager er på for prosjektet), «+ Reise», «+ Tillegg/Utlegg». Kort uten timerad: «+ Timer», «+ Reise», «+ Tillegg/Utlegg»; bare overføring til annet kontor: uten «+ Timer» (w15d, 🟡 `feat/web-timer-w15d`).
 - **Reiselinja og kort med bare reise (w15d):** merket «Reise» (`reiseMerke`), «Til {sted}» / «Fra {sted}» (`reiseTil`/`reiseFra`), «Overføring til annet kontor» (`timer.reiseKort.annetKontor`) / «Overføring fra annet kontor» ved retur (`timer.reiseKort.fraAnnetKontor`), «Uten underprosjekt» (`utenUnderprosjekt`). Under lønnsarten i «Rediger timer-rad»: «Dette er reise. Den står i jobben på {sted}.» (`timer.rediger.reiseHavnerJobb`) / «Dette er reise. Den får eget kort.» (`timer.rediger.reiseHavnerEget`).
+- **«Korrigert av» (w15g, 🟡 `feat/web-timer-w15g`):** ?-fanen har nytt avsnitt `timer.mine.hjelp.korrigert` (merket ved statusen, hva linja på dagen viser, at merket står etter attestering). Merket på dagen: «Korrigert av {navn}» / «… m.fl.» / «Korrigert ved attestering» (`timer.korrigert.av`, `…avFlere`, `…vedAttestering`); på linja med tidspunkt (`…avMedTid`, `…vedAttesteringMedTid`, `…tidspunkt`) og feltene før → etter (`timer.korrigert.felt.*`). Dagen har ingen egen ?-fane.
 - **Pennen på reiselinja (w15f, 🟡 `feat/web-timer-w15f`):** prosjektfeltet er åpent for reise; linja under lønnsarten kan også si «Dette er reise. Den står i kortet på {sted}.» (`timer.rediger.reiseHavnerKort`, ny — kort med bare maskin, tillegg eller utlegg, F55). Mine timer ?-fanen: nytt avsnitt `timer.mine.hjelp.reise`.
 - **Samlekortet:** «Ført uten jobb» (`utenJobb`) med «Eldre føringer fra før kortet pr. jobb» (`utenJobbHint`) under.
 - **Slett varelinje:** tittel «Slette varelinjen?» (`slettVareTittel`), teksten «Pukk 6-32 · 5 m3 fjernes fra dagen.» (`slettVareTekst`).
@@ -433,6 +434,12 @@ Fra w15f i web-timeføring (🟡 ikke merget, `feat/web-timer-w15f`, plan § 4.1
 - Reiselinja i del 8 er tekst «fra–til · lønnsart · prosjekt · byggeplass · underprosjekt» med ✂ og ✎ («Rett reisen», `timer.attestering.reiseRett.tittel`). «Føres på» og de åpne feltene på reiselinja er tatt ut; `…registrering.foresPaa` står i språkfilene uten bruker.
 - Vinduet «Rett reisen»: «Start kl.» / «Slutt kl.» (`…reiseRett.start` / `…slutt`), Lønnsart (`…registrering.lonnsart`, bare reisearter, RETUR w15f), Prosjekt, Byggeplass, Underprosjekt, og linja «Står i jobben på …» / «Står i kortet på …» / «Får eget kort på …» (`timer.reiseKort.havnerJobb` / `havnerKort` (ny) / `havnerEget`). Firmavalget av: «Firmaet tillater ikke at tid og sted rettes ved attestering. Underprosjektet kan rettes.» (`…reiseRett.bareUnderprosjekt`).
 - ?-fanen: nytt avsnitt `timer.attestering.tabell.hjelp.reise` (✎, lønnsarten, lista, linja «havner i», firmavalget; endret i RETUR w15f: lønnsarten rettes i vinduet, ikke i «Rediger jobben» — 13 språk regenerert fra ny kilde).
+
+Fra w15g i web-timeføring (🟡 ikke merget, `feat/web-timer-w15g`, plan § 4.15 del F):
+
+- Kortet er tekst. ✎ på timelinja, maskinlinja og tilleggslinja åpner «Rett timelinja» / «Rett maskinlinja» / «Rett tillegget» (`timer.korrigert.vindu.timer` / `…maskin` / `…tillegg`) med feltene som før sto i kortet. Linja i vinduet: «{arbeider} ser «Korrigert av {attestant}» på linja.» (`timer.korrigert.vinduLinje`; uten attestantens navn `…vinduLinjeUtenNavn`). Ugyldig tall: «Skriv et tall.» (`…vindu.ugyldigTall`).
+- «Rediger arbeid» (`RedigerRadModal`): «Ola Tømrer ser «Korrigert av Kari Leder» på linjene du endrer.» (`timer.korrigert.rrmLinje`, `…rrmLinjeUtenNavn`).
+- ?-fanen: `…hjelp.retting` skrevet om (✎ og vinduet, «Lagre»/«Avbryt», «Korrigert av»); i `…hjelp.registrering` er «Hver retting lagres med en gang» byttet med «Linjene er tekst; ✎ på linja åpner retting. Underprosjektet … lagres når du velger det.» 13 språk regenerert.
 
 ## Prosjekt → Timer → Attestering (d2b-2) — ⚠️ fjernet i w10b
 

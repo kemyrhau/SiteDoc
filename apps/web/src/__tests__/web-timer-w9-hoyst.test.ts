@@ -44,6 +44,8 @@ describe("w9 — «høyst» på PC", () => {
   });
 
   it("den åpne registreringen lagrer ikke en retting over grensen", () => {
-    expect(les(REGISTRERING)).toMatch(/if \(over\) return;\s*onLagre\(v,/);
+    expect(les(REGISTRERING)).toMatch(/if \(over\) return;\s*onLagre\?\.\(v,/);
+    // w15g: maskintimene rettes i vinduet bak ✎; over «høyst» er «Lagre» sperret.
+    expect(les("../components/attestering/LinjeRettVindu.tsx")).toMatch(/tall\.type === "over"\) return \{ type: "sperret" \}/);
   });
 });

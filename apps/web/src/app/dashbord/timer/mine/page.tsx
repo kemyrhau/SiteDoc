@@ -14,6 +14,7 @@ import { HjelpKnapp, HjelpFane } from "@/components/hjelp/HjelpModal";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { spennerFlereAar, visDagDato, visTimerTall } from "@/lib/registrerTimer";
 import { Clock, FileText, Briefcase, Activity, Info, ChevronRight, Trash2 } from "lucide-react";
+import { KorrigertAvDag, type DagKorrigertAv } from "@/components/timer/KorrigertMerke";
 
 /** w14 (TK3): dagene herfra går tilbake til Mine timer («Tilbake til Mine timer»). */
 const MINE_TIMER_STI = "/dashbord/timer/mine";
@@ -58,6 +59,8 @@ type ListeRad = {
   aktivitet: { id: string; navn: string; kode: string | null } | null;
   // Rad-beskrivelser for fritekstsøk (TILLEGG 3). list() inkluderer timer-radene.
   timer?: { beskrivelse: string | null }[];
+  // w15g: «Korrigert av [navn]» — hvem som korrigerte sist på dagen, og om flere har gjort det.
+  korrigertAv?: DagKorrigertAv | null;
 };
 
 // TILLEGG 2 punkt 2 / TILLEGG 3: valgt filter huskes på tvers av navigasjon.
@@ -309,6 +312,7 @@ export default function MineTimerSide() {
               <p className="mt-2">{t("timer.mine.hjelp.dagen")}</p>
               <p className="mt-2">{t("timer.mine.hjelp.dato")}</p>
               <p className="mt-2">{t("timer.mine.hjelp.reise")}</p>
+              <p className="mt-2">{t("timer.mine.hjelp.korrigert")}</p>
             </HjelpFane>
           </HjelpKnapp>
         </div>
@@ -561,6 +565,7 @@ export default function MineTimerSide() {
                     </td>
                     <td className="px-2 py-1.5 text-xs text-gray-500">
                       {t(`timer.statusType.${rad.status}`)}
+                      <KorrigertAvDag korrigertAv={rad.korrigertAv} />
                     </td>
                     <td className="px-2 py-1.5 text-right">
                       <div className="flex items-center justify-end gap-3">

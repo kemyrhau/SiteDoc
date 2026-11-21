@@ -44,6 +44,9 @@ import {
   type RettetFelt,
   type SedelVare,
   type UtstyrOppslag,
+  hentKorrigeringer,
+  hentKorrigertAvPrDag,
+  korrigerbareVerdier,
 } from "../../services/timer/kortLeser";
 import {
   krevRadInnenforTak,
@@ -3607,6 +3610,13 @@ export const dagsseddelRouter = router({
         take: 200,
       });
 
+      // w15g (F80, del F «I Mine timer»): «Korrigert av [navn]» pr. dag — bare i eierens egen
+      // liste. Leser en firma-admin en annens liste, kommer det ikke med (isolasjon).
+      const korrigertAv =
+        userId === ctx.userId
+          ? await hentKorrigertAvPrDag({ prisma: ctx.prisma, prismaTimer: ctx.prismaTimer }, sedler)
+          : new Map<string, never>();
+
       // Berik med totaltimer (sum av alle SheetTimer-rader) for liste-visning.
       // T.1: prosjekt(er) utledes fra radene (DailySheet har ikke projectId) —
       // distinct projectId på tvers av timer-/maskin-/tillegg-rader.
@@ -3625,6 +3635,7 @@ export const dagsseddelRouter = router({
           prosjektIder,
           totaltimer: s.timer.reduce((acc, t) => acc + Number(t.timer), 0),
           antallRader: s.timer.length + s.tillegg.length + s.maskiner.length,
+          korrigertAv: korrigertAv.get(s.id) ?? null,
         };
       });
     }),
@@ -3750,6 +3761,16 @@ export const dagsseddelRouter = router({
       const manglerMaskinforerbevis =
         maskiner.length > 0 &&
         !(await harGyldigMaskinforerbevis(sheet.userId, sheet.organizationId));
+      // w15g (F80, del F): merket «Korrigert av» pr. rad — bare til eieren. En firma-admin som
+      // leser en annens dagsseddel her, får tomt (isolasjon; attesteringen har egne lesere).
+      // Eget toppnivåfelt: radene er urørt, så appen (timerSync) leser som før.
+      const korrigeringer =
+        sheet.userId === ctx.userId
+          ? await hentKorrigeringer(
+              { prisma: ctx.prisma, prismaTimer: ctx.prismaTimer, prismaMaskin: ctx.prismaMaskin },
+              { id: sheet.id, userId: sheet.userId, organizationId: sheet.organizationId, timer, tillegg, maskiner },
+            )
+          : { timer: {}, tillegg: {}, maskin: {} };
       return {
         ...sheet,
         aktivitet,
@@ -3762,6 +3783,7 @@ export const dagsseddelRouter = router({
         // V19 (A-7): forslaget + konfliktVentendeSiden (fra ...sheet). Eieren
         // velger mellom PC og mobil (C-1); tomt array når ingen overlapp venter.
         forslag,
+        korrigeringer,
       };
     }),
 
@@ -6832,6 +6854,8 @@ export const dagsseddelRouter = router({
       const nyKortId = randomUUID();
       const naa = new Date();
       const originaler = new Map(timer.map((r) => [r.id, r]));
+      // w15g (RETUR, gate 120): verdiene hver rad fikk, pr. rad-id — «etter» i arbeiderens merke.
+      const etterPrRad: Record<string, Record<string, string | number | null>> = {};
       await pt.$transaction(async (tx) => {
         const maskinFoer = await lesMaskinJobbTilstand(tx, ctx.prismaMaskin, sheet.id);
         // Den opprinnelige jobben lagres i historikken (som ved retting i dag).
@@ -6842,11 +6866,12 @@ export const dagsseddelRouter = router({
         });
         for (const d of plan.delt) {
           const o = originaler.get(d.id)!;
-          await tx.sheetTimer.update({
+          const delA = await tx.sheetTimer.update({
             where: { id: o.id },
             data: { tilTid: input.kl, timer: d.timerA, pauseMin: d.pauseA },
           });
-          await tx.sheetTimer.create({
+          etterPrRad[delA.id] = korrigerbareVerdier("timer", delA);
+          const delB = await tx.sheetTimer.create({
             data: {
               sheetId: sheet.id,
               lonnsartId: o.lonnsartId,
@@ -6867,12 +6892,16 @@ export const dagsseddelRouter = router({
               kortId: nyKortId,
             },
           });
+          etterPrRad[delB.id] = korrigerbareVerdier("timer", delB);
         }
         if (plan.tilB.length > 0) {
           await tx.sheetTimer.updateMany({
             where: { id: { in: plan.tilB } },
             data: { externalCostObjectId: input.externalCostObjectIdB, kortId: nyKortId },
           });
+          for (const id of plan.tilB) {
+            etterPrRad[id] = korrigerbareVerdier("timer", { ...originaler.get(id)!, externalCostObjectId: input.externalCostObjectIdB });
+          }
         }
         if (maskinTilB.length > 0) {
           await tx.sheetMachine.updateMany({
@@ -6912,6 +6941,7 @@ export const dagsseddelRouter = router({
               delt: plan.delt.map((d) => d.id),
               tilB: plan.tilB,
               maskinTilB,
+              etterPrRad,
             },
           },
         });
@@ -7749,6 +7779,8 @@ export const dagsseddelRouter = router({
       };
       // 8) Transaksjon: marker original "erstattet" + opprett nye med parentRadId
       const naa = new Date();
+      // w15g (RETUR, gate 120): verdiene hver del fikk, pr. rad-id — «etter» i arbeiderens merke.
+      const etterPrRad: Record<string, Record<string, string | number | null>> = {};
       if (input.radType === "timer") {
         // RETUR 1 (V20-S): er originalen bærer, flytt pausen til delraden som
         // krysser pausevinduet (PK5). Ikke bare re-utled hodet — da ville
@@ -7796,7 +7828,7 @@ export const dagsseddelRouter = router({
               i === 0
                 ? tx.sheetTimer.update({ where: { id: original.id }, data })
                 : tx.sheetTimer.create({ data });
-            await skriv({
+            const lagret = await skriv({
                 sheetId: sheet.id,
                 lonnsartId: rad.lonnsartId,
                 aktivitetId: rad.aktivitetId,
@@ -7821,6 +7853,7 @@ export const dagsseddelRouter = router({
                 ...arvReiseSpor(original as ReiseSporKilde),
                 kortId: splittKort(rad),
             });
+            etterPrRad[lagret.id] = korrigerbareVerdier("timer", lagret);
           }
           // PK6: hodet = Σ rad etter splitten (bumper updatedAt).
           await synkroniserHodePause(tx, sheet.id);
@@ -7829,7 +7862,7 @@ export const dagsseddelRouter = router({
           await krevIngenNyeMaskinBrudd(tx, ctx.prismaMaskin, sheet.id, maskinFoer);
         });
       } else if (input.radType === "tillegg") {
-        await ctx.prismaTimer.$transaction([
+        const [, , ...nyeTillegg] = await ctx.prismaTimer.$transaction([
           // T7-2b-oppfølger (2026-07-13): MOVE originalen til historikk + slett
           // fra hovedtabellen i SAMME tx — ikke status="erstattet".
           ctx.prismaTimer.sheetRadHistorikk.createMany({
@@ -7852,6 +7885,7 @@ export const dagsseddelRouter = router({
             }),
           ),
         ]);
+        for (const t of nyeTillegg) etterPrRad[t.id] = korrigerbareVerdier("tillegg", t);
       } else {
         // w9: maskin høyst jobbens arbeid sjekkes sist i transaksjonen.
         await ctx.prismaTimer.$transaction(async (tx) => {
@@ -7863,7 +7897,7 @@ export const dagsseddelRouter = router({
           });
           await tx.sheetMachine.delete({ where: { id: original.id } });
           for (const rad of input.nyeRader) {
-            await tx.sheetMachine.create({
+            const lagret = await tx.sheetMachine.create({
               data: {
                 sheetId: sheet.id,
                 vehicleId: rad.vehicleId,
@@ -7882,6 +7916,7 @@ export const dagsseddelRouter = router({
                 kortId: splittKort(rad),
               },
             });
+            etterPrRad[lagret.id] = korrigerbareVerdier("maskin", lagret);
           }
           // w9: kort-id før vakten, så delene vurderes i jobben de havner i.
           await sikreKortId(tx, sheet.id, { kontekst: splittKontekst });
@@ -7914,6 +7949,7 @@ export const dagsseddelRouter = router({
             sedelEier: sheet.userId,
             originalSnapshot,
             nyeSnapshot: input.nyeRader,
+            etterPrRad,
           },
         },
       });
