@@ -5969,7 +5969,10 @@
   "timer.attestering.tabell.hjelp.reise": "Resan visas i del 8 som en rad. ✎ öppnar \"Korrigera resan\" med start, slut, löneart (endast resetyper), projekt, byggarbetsplats och delprojekt; listan har de projekt du kan godkänna, och raden längst ner säger vilket kort resan går i. Om företaget inte tillåter korrigeringar vid godkännande kan endast delprojektet rättas.",
   "timer.jobbSkjema.underprosjekt": "Delprojekt",
   "timer.jobbSkjema.utenUnderprosjekt": "Ingen",
-  "timer.jobbSkjema.endreUnderprosjekt": "Ändra delprojekt och plats",
+  "timer.jobbSkjema.aapneVindu": "Webbplats och aktivitet",
+  "timer.jobbSkjema.aapneVinduHint": "Öppnar fönstret för jobbets första rad: webbplats, aktivitet och lönetyp",
+  "timer.jobbSkjema.sokUnderprosjekt": "Sök delprojekt",
+  "timer.jobbSkjema.underprosjektLukket": "Delprojektet är stängt i timmar. Välj en annan, eller Ingen.",
   "timer.jobbSkjema.fraTil": "Från–till",
   "timer.jobbSkjema.fra": "Från",
   "timer.jobbSkjema.til": "Till",
@@ -5996,5 +5999,5 @@
   "timer.jobbSkjema.overtidLinje": "{{fra}}–{{til}} · {{timer}} h · över dagsnormen {{dato}}: {{norm}} h",
   "timer.jobbSkjema.helOvertid": "Hela jobbet är över den dagliga normen {{dato}}: {{norm}} h",
   "timer.jobbSkjema.ulagretSperre": "Något på dagen sparas inte. Rätta till det rödmarkerade fältet eller försök igen.",
-  "timer.mine.hjelp.skjema": "I projektkortet antecknar du jobbet direkt på kortet: Från, Till, raster, löneart och ”Vad gjorde du?”. Ett fält sparas när du lämnar det — det står \"✓ Sparat\". Går tiden över dygnsnormen går övertiden på egen linje. Gula fält är förslag från företagets arbetstid eller från slutet av det tidigare jobbet. Ett nytt jobb sparas när To är ifyllt. Om något inte sparas visas det i rött och dagen kan inte skickas in förrän det är rättat."
+  "timer.mine.hjelp.skjema": "I projektkortet antecknar du jobbet direkt på kortet: Från, Till, raster, löneart och ”Vad gjorde du?”. Ett fält sparas när du lämnar det — det står \"✓ Sparat\". Går tiden över dygnsnormen går övertiden på egen linje. Gula fält är förslag från företagets arbetstid eller från slutet av det tidigare jobbet. Ett nytt jobb sparas när To är ifyllt. Om något inte sparas visas det i rött och dagen kan inte skickas in förrän det är rättat. Om projektet har delprojekt väljer du delprojektet högst upp i jobbet — valet gäller hela jobbet: timmar, maskiner, material, traktamenten och utlägg. Resor rör sig inte med det."
 }

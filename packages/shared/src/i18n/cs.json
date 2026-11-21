@@ -5969,7 +5969,10 @@
   "timer.attestering.tabell.hjelp.reise": "Cesta je zobrazena v části 8 jako jeden řádek. ✎ otevře \"Opravit cestu\" se začátkem, koncem, typem mzdy (pouze typy cest), projektem, staveništěm a dílčím projektem; seznam obsahuje projekty, které můžete schválit, a řádek ve spodní části říká, na kterou kartu cesta jde. Pokud společnost během schvalování neumožňuje opravy, lze opravit pouze dílčí projekt.",
   "timer.jobbSkjema.underprosjekt": "Dílčí projekt",
   "timer.jobbSkjema.utenUnderprosjekt": "Žádný",
-  "timer.jobbSkjema.endreUnderprosjekt": "Změna dílčího projektu a webu",
+  "timer.jobbSkjema.aapneVindu": "Místo a aktivita",
+  "timer.jobbSkjema.aapneVinduHint": "Otevře okno pro první řádek úlohy: místo, aktivita a typ mzdy",
+  "timer.jobbSkjema.sokUnderprosjekt": "Hledat dílčí projekt",
+  "timer.jobbSkjema.underprosjektLukket": "Dílčí projekt je na hodiny uzavřen. Vyberte jiný nebo Žádný.",
   "timer.jobbSkjema.fraTil": "Od–do",
   "timer.jobbSkjema.fra": "Z",
   "timer.jobbSkjema.til": "Na",
@@ -5996,5 +5999,5 @@
   "timer.jobbSkjema.overtidLinje": "{{fra}}–{{til}} · {{timer}} h · nad denní normu {{dato}}: {{norm}} h",
   "timer.jobbSkjema.helOvertid": "Celá zakázka je nad denní normou {{dato}}: {{norm}} h",
   "timer.jobbSkjema.ulagretSperre": "Něco v daný den není uloženo. Opravte pole označené červeně nebo to zkuste znovu.",
-  "timer.mine.hjelp.skjema": "V kartě projektu zaznamenáte zakázku přímo do karty: Od, Do, přestávka, mzdový druh a „Co jste dělali?“. Pole se uloží, když je opustíte – říká „✓ Uloženo“. Pokud čas překročí denní normu, jde přesčas po vlastní linii. Žlutá pole jsou návrhy z pracovní doby společnosti nebo z konce předchozího zaměstnání. Nová úloha se uloží, když je vyplněno Komu. Pokud něco není uloženo, zobrazí se červeně a den nelze odeslat, dokud nebude opraven."
+  "timer.mine.hjelp.skjema": "V kartě projektu zaznamenáte zakázku přímo do karty: Od, Do, přestávka, mzdový druh a „Co jste dělali?“. Pole se uloží, když je opustíte – říká „✓ Uloženo“. Pokud čas překročí denní normu, jde přesčas po vlastní linii. Žlutá pole jsou návrhy z pracovní doby společnosti nebo z konce předchozího zaměstnání. Nová úloha se uloží, když je vyplněno Komu. Pokud něco není uloženo, zobrazí se červeně a den nelze odeslat, dokud nebude opraven. Pokud má projekt podprojekty, vyberete podprojekt v horní části zakázky — výběr se vztahuje na celou zakázku: hodiny, stroje, materiál, příspěvky a výdaje. Cestování s tím nehne."
 }

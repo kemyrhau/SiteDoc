@@ -5969,7 +5969,10 @@
   "timer.attestering.tabell.hjelp.reise": "Kelionė parodyta 8 dalyje kaip viena eilutė. ✎ atidaro „Pataisyti kelionę“ su pradžia, pabaiga, atlyginimo rūšimi (tik kelionės tipai), projektu, statybviete ir paprojekčiu; sąraše yra projektai, kuriuos galite tvirtinti, o apačioje esanti eilutė parašyta, į kurią kortelę vyksta kelionė. Jei įmonė patvirtinimo metu neleidžia taisyti, galima taisyti tik paprojektį.",
   "timer.jobbSkjema.underprosjekt": "Subprojektas",
   "timer.jobbSkjema.utenUnderprosjekt": "Nėra",
-  "timer.jobbSkjema.endreUnderprosjekt": "Pakeiskite subprojektą ir svetainę",
+  "timer.jobbSkjema.aapneVindu": "Svetainė ir veikla",
+  "timer.jobbSkjema.aapneVinduHint": "Atidaromas pirmosios darbo eilutės langas: svetainė, veikla ir atlyginimo tipas",
+  "timer.jobbSkjema.sokUnderprosjekt": "Paieškos subprojektas",
+  "timer.jobbSkjema.underprosjektLukket": "Paprojektis uždarytas valandoms. Pasirinkite kitą arba Nieko.",
   "timer.jobbSkjema.fraTil": "Nuo–iki",
   "timer.jobbSkjema.fra": "Nuo",
   "timer.jobbSkjema.til": "Į",
@@ -5996,5 +5999,5 @@
   "timer.jobbSkjema.overtidLinje": "{{fra}}–{{til}} · {{timer}} val. · viršija dienos normą {{dato}}: {{norm}} val.",
   "timer.jobbSkjema.helOvertid": "Visas darbas viršija dienos normą {{dato}}: {{norm}} val",
   "timer.jobbSkjema.ulagretSperre": "Kažkas dieną neišsaugota. Pataisykite raudonai pažymėtą lauką arba bandykite dar kartą.",
-  "timer.mine.hjelp.skjema": "Projekto kortelėje įrašote darbą tiesiai į kortelę: Nuo, Iki, pertrauka, darbo užmokesčio rūšis ir „Ką veikei?“. Laukas išsaugomas, kai jį paliekate – jame rašoma „✓ Išsaugota“. Jei laikas viršija dienos normą, viršvalandžiai eina savo eile. Geltonieji laukai – tai pasiūlymai iš įmonės darbo laiko arba nuo ankstesnio darbo pabaigos. Nauja užduotis išsaugoma, kai užpildoma Kam. Jei kas nors neišsaugota, ji rodoma raudonai ir dienos negalima pateikti, kol ji nebus ištaisyta."
+  "timer.mine.hjelp.skjema": "Projekto kortelėje įrašote darbą tiesiai į kortelę: Nuo, Iki, pertrauka, darbo užmokesčio rūšis ir „Ką veikei?“. Laukas išsaugomas, kai jį paliekate – jame rašoma „✓ Išsaugota“. Jei laikas viršija dienos normą, viršvalandžiai eina savo eile. Geltonieji laukai – tai pasiūlymai iš įmonės darbo laiko arba nuo ankstesnio darbo pabaigos. Nauja užduotis išsaugoma, kai užpildoma Kam. Jei kas nors neišsaugota, ji rodoma raudonai ir dienos negalima pateikti, kol ji nebus ištaisyta. Jei projektas turi paprojekčių, pasirenkate paprojektį darbo viršuje – pasirinkimas taikomas visam darbui: valandoms, mašinoms, medžiagoms, pašalpoms ir išlaidoms. Kelionės su juo nejuda."
 }

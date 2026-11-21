@@ -5969,7 +5969,10 @@
   "timer.attestering.tabell.hjelp.reise": "The trip is shown in part 8 as one line. ✎ opens \"Correct the trip\" with start, end, wage type (travel types only), project, building site and sub-project; the list has the projects you can approve, and the line at the bottom says which card the trip goes in. If the company does not allow corrections during approval, only the sub-project can be corrected.",
   "timer.jobbSkjema.underprosjekt": "Sub-project",
   "timer.jobbSkjema.utenUnderprosjekt": "None",
-  "timer.jobbSkjema.endreUnderprosjekt": "Change sub-project and site",
+  "timer.jobbSkjema.aapneVindu": "Site and activity",
+  "timer.jobbSkjema.aapneVinduHint": "Opens the window for the job's first line: site, activity and pay type",
+  "timer.jobbSkjema.sokUnderprosjekt": "Search sub-project",
+  "timer.jobbSkjema.underprosjektLukket": "The sub-project is closed for hours. Choose another, or None.",
   "timer.jobbSkjema.fraTil": "From–to",
   "timer.jobbSkjema.fra": "From",
   "timer.jobbSkjema.til": "To",
@@ -5996,5 +5999,5 @@
   "timer.jobbSkjema.overtidLinje": "{{fra}}–{{til}} · {{timer}} h · over the daily norm {{dato}}: {{norm}} h",
   "timer.jobbSkjema.helOvertid": "The whole job is over the daily norm {{dato}}: {{norm}} h",
   "timer.jobbSkjema.ulagretSperre": "Something on the day is not saved. Correct the field marked in red, or try again.",
-  "timer.mine.hjelp.skjema": "In the project card you record the job directly in the card: From, To, break, wage type and “What did you do?”. A field is saved when you leave it — it says “✓ Saved”. If the time goes over the daily norm, the overtime goes on its own line. Yellow fields are suggestions from the company's working hours or from the end of the previous job. A new job is saved when To is filled in. If something is not saved, it shows in red, and the day cannot be submitted until it is corrected."
+  "timer.mine.hjelp.skjema": "In the project card you record the job directly in the card: From, To, break, wage type and “What did you do?”. A field is saved when you leave it — it says “✓ Saved”. If the time goes over the daily norm, the overtime goes on its own line. Yellow fields are suggestions from the company's working hours or from the end of the previous job. A new job is saved when To is filled in. If something is not saved, it shows in red, and the day cannot be submitted until it is corrected. If the project has sub-projects, you choose the sub-project at the top of the job — the choice applies to the whole job: hours, machines, materials, allowances and expenses. Travel does not move with it."
 }

@@ -60,7 +60,7 @@ export function JobbSkjema({
   projectId,
   ecoId,
   organizationId,
-  onEndreUnderprosjekt,
+  onAapneVindu,
   rader47,
   onUlagret,
 }: {
@@ -91,12 +91,12 @@ export function JobbSkjema({
   pauseEtterTimer: number;
   fastPauseFra: string | null;
   datoTekst: string;
-  /** Jobbens prosjekt og underprosjekt (navnet slås opp som i korthodet). */
+  /** Jobbens prosjekt og underprosjekt (valgene i hodet, L3b). */
   projectId: string;
   ecoId: string | null;
   organizationId: string | undefined;
-  /** Blyanten: dagens vindu for linje 1 (underprosjekt, byggeplass, aktivitet). L3b flytter det i hodet. */
-  onEndreUnderprosjekt?: () => void;
+  /** Blyanten: dagens vindu for linje 1 (byggeplass, aktivitet m.m.). Underprosjektet velges i hodet (L3b). */
+  onAapneVindu?: () => void;
   rader47: readonly SkjemaRad47[];
   /** Noe i skjemaet er ikke lagret (ugyldig felt eller feilet lagring). */
   onUlagret: (kortId: string, ulagret: boolean) => void;
@@ -106,12 +106,26 @@ export function JobbSkjema({
   const lagreTid = trpc.timer.dagsseddel.lagreJobbTid.useMutation();
   const tilfoy = trpc.timer.dagsseddel.tilfoyTimerRad.useMutation();
   const oppdater = trpc.timer.dagsseddel.oppdaterTimerRad.useMutation();
+  const flyttEco = trpc.timer.dagsseddel.flyttJobbEco.useMutation();
+  // L3b: prosjektets underprosjekter. Lukkede hentes også, bare for å kunne vise navnet når
+  // jobben står på et underprosjekt som er lukket siden — valgene er de åpne.
   const { data: ecoer } = trpc.eksternKostObjekt.list.useQuery(
-    { projectId, organizationId },
-    { enabled: !!ecoId },
+    { projectId, organizationId, inkluderLukket: true },
+    { enabled: !!projectId },
   );
-  const eco = ecoId ? (ecoer ?? []).find((e) => e.id === ecoId) : undefined;
-  const underprosjektNavn = ecoId ? (eco ? `${eco.proAdmId} ${eco.kortNavn}` : "…") : null;
+  const apneEcoer = (ecoer ?? []).filter((e) => e.status === "aktiv" && e.timerregistreringApen);
+  const ecoNavn = (e: { proAdmId: string; kortNavn: string }) => `${e.proAdmId} · ${e.kortNavn}`;
+  // Ny jobb: valget sendes med når raden lages (Til fylt). Lagret jobb: hele jobben flyttes.
+  const [nyEcoId, setNyEcoId] = useState<string | null>(null);
+  const valgtEcoId = linjer.length > 0 ? ecoId : nyEcoId;
+  const lukketValgt =
+    valgtEcoId && !apneEcoer.some((e) => e.id === valgtEcoId)
+      ? ((ecoer ?? []).find((e) => e.id === valgtEcoId) ?? null)
+      : null;
+  const visUnderprosjekt = apneEcoer.length > 0 || !!valgtEcoId;
+  const [ecoSok, setEcoSok] = useState("");
+  // Feilet flytting: «Prøv igjen» sender samme valg på nytt.
+  const ventendeEco = useRef<{ id: string | null } | null>(null);
 
   const l1 = linjer[0];
   const l2 = linjer[1];
@@ -250,6 +264,7 @@ export function JobbSkjema({
             byggeplassId: ny.byggeplassId,
             lonnsartId: art,
             aktivitetId: ny.aktivitetId,
+            externalCostObjectId: nyEcoId,
             timer: regnet?.ok ? regnet.timer : 0,
             fraTid: fra,
             tilTid: til,
@@ -304,7 +319,28 @@ export function JobbSkjema({
     );
   };
 
+  // L3b: underprosjekt for hele jobben (timer, maskin, vare, tillegg, utlegg — ikke reise).
+  const velgEco = (nyId: string | null) => {
+    if (lagring === "lagrer") return;
+    if (!l1) {
+      setNyEcoId(nyId);
+      return;
+    }
+    if (nyId === ecoId && !ventendeEco.current) return;
+    ventendeEco.current = { id: nyId };
+    void ferdig(
+      (async () => {
+        await flyttEco.mutateAsync({ sheetId, kortId, externalCostObjectId: nyId });
+        ventendeEco.current = null;
+      })(),
+    );
+  };
+
   const provIgjen = () => {
+    if (ventendeEco.current) {
+      velgEco(ventendeEco.current.id);
+      return;
+    }
     if (tidEndret || avvik || !l1) lagreTiden();
     if (beskrivelseEndret) lagreBeskrivelse();
   };
@@ -326,31 +362,95 @@ export function JobbSkjema({
 
   return (
     <div className="divide-y divide-gray-100" data-testid="jobb-skjema">
-      {kilde && (
-        <div className="pb-2">
-          <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-800" data-testid="skjema-kilde">
-            {kilde === "firma" ? t("timer.jobbSkjema.kildeFirma") : t("timer.jobbSkjema.kildeForrige")}
-          </span>
+      {(kilde || onAapneVindu) && (
+        <div className="flex items-center gap-2 pb-2">
+          {kilde && (
+            <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-800" data-testid="skjema-kilde">
+              {kilde === "firma" ? t("timer.jobbSkjema.kildeFirma") : t("timer.jobbSkjema.kildeForrige")}
+            </span>
+          )}
+          {onAapneVindu && (
+            <button
+              type="button"
+              onClick={onAapneVindu}
+              className="ml-auto inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-800"
+              title={t("timer.jobbSkjema.aapneVinduHint")}
+            >
+              <Pencil className="h-3.5 w-3.5" />
+              {t("timer.jobbSkjema.aapneVindu")}
+            </button>
+          )}
         </div>
       )}
 
-      <div className={rad}>
-        <span className={etikett}>{t("timer.jobbSkjema.underprosjekt")}</span>
-        <span className="text-sm text-gray-800">
-          {underprosjektNavn ?? t("timer.jobbSkjema.utenUnderprosjekt")}
-        </span>
-        {onEndreUnderprosjekt && (
-          <button
-            type="button"
-            onClick={onEndreUnderprosjekt}
-            className="text-gray-400 hover:text-gray-700"
-            aria-label={t("timer.jobbSkjema.endreUnderprosjekt")}
-            title={t("timer.jobbSkjema.endreUnderprosjekt")}
-          >
-            <Pencil className="h-3.5 w-3.5" />
-          </button>
-        )}
-      </div>
+      {visUnderprosjekt && (
+        <div className={rad} data-testid="skjema-underprosjekt">
+          <span className={etikett}>{t("timer.jobbSkjema.underprosjekt")}</span>
+          {apneEcoer.length <= 6 ? (
+            <div className="flex flex-wrap gap-2" role="group" aria-label={t("timer.jobbSkjema.underprosjekt")}>
+              {[
+                { id: null as string | null, navn: t("timer.jobbSkjema.utenUnderprosjekt"), lukket: false },
+                ...apneEcoer.map((e) => ({ id: e.id as string | null, navn: ecoNavn(e), lukket: false })),
+                ...(lukketValgt ? [{ id: lukketValgt.id as string | null, navn: ecoNavn(lukketValgt), lukket: true }] : []),
+              ].map((v) => {
+                const valgt = v.id === valgtEcoId;
+                return (
+                  <button
+                    key={v.id ?? "uten"}
+                    type="button"
+                    aria-pressed={valgt}
+                    disabled={v.lukket || lagring === "lagrer"}
+                    onClick={() => velgEco(v.id)}
+                    title={v.lukket ? t("timer.jobbSkjema.underprosjektLukket") : undefined}
+                    className={`rounded-full border px-3 py-1 text-sm ${
+                      valgt
+                        ? "border-blue-700 bg-blue-700 text-white"
+                        : "border-gray-300 bg-white text-gray-800 hover:border-gray-400"
+                    } disabled:cursor-default`}
+                  >
+                    {v.navn}
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                type="search"
+                value={ecoSok}
+                onChange={(e) => setEcoSok(e.target.value)}
+                placeholder={t("timer.jobbSkjema.sokUnderprosjekt")}
+                aria-label={t("timer.jobbSkjema.sokUnderprosjekt")}
+                className="w-40 rounded border border-gray-300 px-2 py-1 text-sm"
+              />
+              <select
+                aria-label={t("timer.jobbSkjema.underprosjekt")}
+                value={valgtEcoId ?? ""}
+                disabled={lagring === "lagrer"}
+                onChange={(e) => velgEco(e.target.value === "" ? null : e.target.value)}
+                className="max-w-xs rounded border border-gray-300 px-2 py-1 text-sm"
+              >
+                <option value="">{t("timer.jobbSkjema.utenUnderprosjekt")}</option>
+                {lukketValgt && (
+                  <option value={lukketValgt.id} disabled>
+                    {ecoNavn(lukketValgt)}
+                  </option>
+                )}
+                {apneEcoer
+                  .filter((e) => {
+                    const s = ecoSok.trim().toLowerCase();
+                    return e.id === valgtEcoId || s === "" || ecoNavn(e).toLowerCase().includes(s);
+                  })
+                  .map((e) => (
+                    <option key={e.id} value={e.id}>
+                      {ecoNavn(e)}
+                    </option>
+                  ))}
+              </select>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className={rad}>
         <span className={etikett}>1 · {t("timer.jobbSkjema.fraTil")}</span>

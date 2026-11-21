@@ -5969,7 +5969,10 @@
   "timer.attestering.tabell.hjelp.reise": "Brauciens ir parādīts 8. daļā kā viena rinda. ✎ atver \"Izlabot braucienu\" ar sākumu, beigām, algas veidu (tikai ceļojuma veidiem), projektu, būvlaukumu un apakšprojektu; sarakstā ir projekti, kurus varat apstiprināt, un rindiņa apakšā norāda, kurā kartē brauc ceļojums. Ja uzņēmums apstiprināšanas laikā neatļauj labojumus, var labot tikai apakšprojektu.",
   "timer.jobbSkjema.underprosjekt": "Apakšprojekts",
   "timer.jobbSkjema.utenUnderprosjekt": "Nav",
-  "timer.jobbSkjema.endreUnderprosjekt": "Mainīt apakšprojektu un vietni",
+  "timer.jobbSkjema.aapneVindu": "Vietne un darbība",
+  "timer.jobbSkjema.aapneVinduHint": "Tiek atvērts darba pirmās rindas logs: vietne, darbība un samaksas veids",
+  "timer.jobbSkjema.sokUnderprosjekt": "Meklēt apakšprojektu",
+  "timer.jobbSkjema.underprosjektLukket": "Apakšprojekts slēgts uz stundām. Izvēlieties citu vai Nav.",
   "timer.jobbSkjema.fraTil": "No–līdz",
   "timer.jobbSkjema.fra": "No",
   "timer.jobbSkjema.til": "Uz",
@@ -5996,5 +5999,5 @@
   "timer.jobbSkjema.overtidLinje": "{{fra}}–{{til}} · {{timer}} h · virs dienas normas {{dato}}: {{norm}} h",
   "timer.jobbSkjema.helOvertid": "Viss darbs pārsniedz dienas normu {{dato}}: {{norm}} h",
   "timer.jobbSkjema.ulagretSperre": "Kaut kas dienā nav saglabāts. Labojiet sarkanā krāsā atzīmēto lauku vai mēģiniet vēlreiz.",
-  "timer.mine.hjelp.skjema": "Projekta kartītē ierakstāt darbu tieši kartītē: No, Līdz, pārtraukums, algas veids un “Ko tu darīji?”. Lauks tiek saglabāts, kad to atstājat — uz tā ir rakstīts “✓ Saglabāts”. Ja laiks iet virs dienas normas, papildstundas iet uz savu rindu. Dzelteni lauki ir ieteikumi no uzņēmuma darba laika vai no iepriekšējā darba beigām. Jauns darbs tiek saglabāts, kad ir aizpildīts Kam. Ja kaut kas nav saglabāts, tas tiek rādīts sarkanā krāsā, un dienu nevar iesniegt, kamēr tas nav izlabots."
+  "timer.mine.hjelp.skjema": "Projekta kartītē ierakstāt darbu tieši kartītē: No, Līdz, pārtraukums, algas veids un “Ko tu darīji?”. Lauks tiek saglabāts, kad to atstājat — uz tā ir rakstīts “✓ Saglabāts”. Ja laiks iet virs dienas normas, papildstundas iet uz savu rindu. Dzelteni lauki ir ieteikumi no uzņēmuma darba laika vai no iepriekšējā darba beigām. Jauns darbs tiek saglabāts, kad ir aizpildīts Kam. Ja kaut kas nav saglabāts, tas tiek rādīts sarkanā krāsā, un dienu nevar iesniegt, kamēr tas nav izlabots. Ja projektā ir apakšprojekti, jūs izvēlaties apakšprojektu darba augšpusē — izvēle attiecas uz visu darbu: stundas, iekārtas, materiāli, piemaksas un izdevumi. Ceļošana ar to nepārvietojas."
 }

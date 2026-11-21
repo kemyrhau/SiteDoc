@@ -321,7 +321,7 @@ describe("w3a — vinduene arver jobben", () => {
     const kort = screen.getAllByRole("button").find((b) => b.textContent?.includes("TILL-001"));
     fireEvent.click(kort!);
     // L3a: timerlinja står i jobbskjemaet — blyanten i skjemaets hode åpner samme vindu.
-    fireEvent.click(screen.getAllByTitle("timer.jobbSkjema.endreUnderprosjekt")[0]!);
+    fireEvent.click(screen.getAllByTitle("timer.jobbSkjema.aapneVinduHint")[0]!);
     const dialog = screen.getByRole("dialog", { name: "timer.detalj.redigerTimerRad" });
     expect(dialog.textContent).toContain("timer.felt.prosjekt");
     expect(dialog.textContent).toContain("timer.felt.underprosjekt");
@@ -396,7 +396,7 @@ describe("w3b — maskindelen i «Legg til» og «Rediger timer-rad» (prosjektk
     const kort = screen.getAllByRole("button").find((b) => b.textContent?.includes("TILL-001"));
     fireEvent.click(kort!);
     // L3a: jobb 2 (15:00–16:00) står i jobbskjemaet — blyanten i skjemaets hode.
-    fireEvent.click(screen.getAllByTitle("timer.jobbSkjema.endreUnderprosjekt")[0]!);
+    fireEvent.click(screen.getAllByTitle("timer.jobbSkjema.aapneVinduHint")[0]!);
     return screen.getByRole("dialog", { name: "timer.detalj.redigerTimerRad" });
   }
   const stier = () => h.kall.map((k) => k.sti);

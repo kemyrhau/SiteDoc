@@ -148,7 +148,7 @@ describe("w15f — pennen på reiselinja (del H pkt. 24)", () => {
     rendre([ARBEID1]);
     aapneForste();
     // L3a: arbeidslinja står i jobbskjemaet — blyanten i skjemaets hode.
-    fireEvent.click(screen.getAllByTitle("timer.jobbSkjema.endreUnderprosjekt")[0]!);
+    fireEvent.click(screen.getAllByTitle("timer.jobbSkjema.aapneVinduHint")[0]!);
     const d = screen.getByRole("dialog", { name: "timer.detalj.redigerTimerRad" });
     expect(prosjektFelt(d).disabled).toBe(true);
   });

@@ -5969,7 +5969,10 @@
   "timer.attestering.tabell.hjelp.reise": "Matka on esitetty osassa 8 yhtenä rivinä. ✎ avaa \"Korjaa matka\", jossa on alku, loppu, palkkalaji (vain matkatyypit), projekti, rakennustyömaa ja osaprojekti; listassa on projektit, jotka voit hyväksyä, ja alareunassa oleva rivi kertoo, millä kortilla matka menee. Jos yritys ei salli korjauksia hyväksynnän aikana, vain osaprojekti voidaan korjata.",
   "timer.jobbSkjema.underprosjekt": "Osaprojekti",
   "timer.jobbSkjema.utenUnderprosjekt": "Ei mitään",
-  "timer.jobbSkjema.endreUnderprosjekt": "Muuta osaprojektia ja sivustoa",
+  "timer.jobbSkjema.aapneVindu": "Sivusto ja toiminta",
+  "timer.jobbSkjema.aapneVinduHint": "Avaa ikkunan työn ensimmäiselle riville: sivusto, toiminta ja palkkatyyppi",
+  "timer.jobbSkjema.sokUnderprosjekt": "Hae osaprojektia",
+  "timer.jobbSkjema.underprosjektLukket": "Osaprojekti on suljettu tuntikausia. Valitse toinen tai Ei mitään.",
   "timer.jobbSkjema.fraTil": "From–to",
   "timer.jobbSkjema.fra": "From",
   "timer.jobbSkjema.til": "Vastaanottaja",
@@ -5996,5 +5999,5 @@
   "timer.jobbSkjema.overtidLinje": "{{fra}}–{{til}} · {{timer}} h · yli päivittäisen normin {{dato}}: {{norm}} h",
   "timer.jobbSkjema.helOvertid": "Koko työ ylittää päivänormin {{dato}}: {{norm}} h",
   "timer.jobbSkjema.ulagretSperre": "Jotain päivän aikana ei ole tallennettu. Korjaa punaisella merkitty kenttä tai yritä uudelleen.",
-  "timer.mine.hjelp.skjema": "Projektikorttiin kirjaat työn suoraan korttiin: Alkaen, Vastaan, tauko, palkkalaji ja \"Mitä teit?\". Kenttä tallennetaan, kun poistut siitä – siinä lukee \"✓ Tallennettu\". Jos aika ylittää päivänormin, menee ylityö omalla linjallaan. Keltaiset kentät ovat ehdotuksia yrityksen työajasta tai edellisen työpaikan päättymisestä. Uusi työ tallennetaan, kun Vastaanottaja on täytetty. Jos jotain ei ole tallennettu, se näkyy punaisena, eikä päivää voida lähettää ennen kuin se on korjattu."
+  "timer.mine.hjelp.skjema": "Projektikorttiin kirjaat työn suoraan korttiin: Alkaen, Vastaan, tauko, palkkalaji ja \"Mitä teit?\". Kenttä tallennetaan, kun poistut siitä – siinä lukee \"✓ Tallennettu\". Jos aika ylittää päivänormin, menee ylityö omalla linjallaan. Keltaiset kentät ovat ehdotuksia yrityksen työajasta tai edellisen työpaikan päättymisestä. Uusi työ tallennetaan, kun Vastaanottaja on täytetty. Jos jotain ei ole tallennettu, se näkyy punaisena, eikä päivää voida lähettää ennen kuin se on korjattu. Jos projektissa on osaprojekteja, valitset alaprojektin työn yläpuolelta – valinta koskee koko työtä: työtunnit, koneet, materiaalit, korvaukset ja kulut. Matkailu ei liiku sen mukana."
 }
