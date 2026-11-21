@@ -113,6 +113,15 @@ function fraJobb2(lenke: string) {
   return screen.getByRole("dialog");
 }
 
+/** Underprosjekt-nedtrekket i timevinduet (valget med «—» og TILL-001). */
+function underprosjektValg(dialog: HTMLElement): HTMLSelectElement {
+  const valg = Array.from(dialog.querySelectorAll("select")).find((s) =>
+    Array.from(s.options).some((o) => o.value === "e1"),
+  );
+  expect(valg).toBeDefined();
+  return valg!;
+}
+
 const STEDSFELT = ["timer.felt.prosjekt", "timer.felt.underprosjekt", "timer.felt.byggeplass", "timer.felt.timerad"];
 function utenStedsfelt(dialog: HTMLElement) {
   for (const felt of STEDSFELT) expect(dialog.textContent).not.toContain(felt);
@@ -121,13 +130,16 @@ function utenStedsfelt(dialog: HTMLElement) {
 describe("w3a — vinduene arver jobben", () => {
   afterEach(cleanup);
 
-  it("«+ Timer»: ingen stedsfelt, raden lagres med jobbens kort-id og sted (S1 A)", async () => {
+  it("«+ Timer»: ingen prosjekt/byggeplass/timerad; underprosjekt lik jobbens → jobbens kort-id og sted (S1 A, O4)", async () => {
     rendre();
     const dialog = fraJobb2("timer.prosjektkort.nyTimer");
-    utenStedsfelt(dialog);
+    for (const felt of ["timer.felt.prosjekt", "timer.felt.byggeplass", "timer.felt.timerad"]) {
+      expect(dialog.textContent).not.toContain(felt);
+    }
     const [lonnsart, aktivitet] = Array.from(dialog.querySelectorAll("select"));
     fireEvent.change(lonnsart!, { target: { value: "l1" } });
     fireEvent.change(aktivitet!, { target: { value: "a1" } });
+    fireEvent.change(underprosjektValg(dialog), { target: { value: "e1" } });
     const [fra, til] = Array.from(dialog.querySelectorAll<HTMLInputElement>('input[type="time"]'));
     fireEvent.change(fra!, { target: { value: "16:00" } });
     fireEvent.blur(fra!);
@@ -455,22 +467,24 @@ describe("w3b — maskindelen i «Legg til» og «Rediger timer-rad» (prosjektk
     expect(stier()).toEqual(["timer.dagsseddel.oppdaterTimerRad", "timer.dagsseddel.maskin.oppdater"]);
   });
 
-  it("«+ Timer» fra jobben: ny maskin foreslås med høyst og lagres på den nye raden uten fra–til, mengde og enhet", async () => {
+  it("«+ Timer» fra jobben: ny maskin foreslås med radens timer og lagres på den nye raden uten fra–til, mengde og enhet", async () => {
     medMaskinModul();
     const dialog = fraJobb2("timer.prosjektkort.nyTimer");
-    // Jobbens maskin vises også ved ny rad (A13).
-    expect(within(dialog).getAllByTestId("jobb-maskin")).toHaveLength(1);
+    // O3: jobbens maskin vises ikke i «Legg til timer-rad».
+    expect(within(dialog).queryAllByTestId("jobb-maskin")).toHaveLength(0);
     const [lonnsart, aktivitet] = Array.from(dialog.querySelectorAll("select"));
     fireEvent.change(lonnsart!, { target: { value: "l1" } });
     fireEvent.change(aktivitet!, { target: { value: "a1" } });
+    fireEvent.change(underprosjektValg(dialog), { target: { value: "e1" } });
     const [fra, til] = Array.from(dialog.querySelectorAll<HTMLInputElement>('input[type="time"]'));
     fireEvent.change(fra!, { target: { value: "16:00" } });
     fireEvent.blur(fra!);
     fireEvent.change(til!, { target: { value: "17:00" } });
     fireEvent.blur(til!);
+    fireEvent.click(within(dialog).getByText("timer.maskinSeksjon.tittel"));
     fireEvent.click(within(dialog).getByRole("button", { name: /timer\.velgUtstyr/ }));
     fireEvent.click(within(dialog).getAllByText(/Gravemaskin G-12/).at(-1)!);
-    // Jobben: 1 t + 1 t arbeid, gravemaskinen m1 har 1 t → høyst 1 t.
+    // Radens timer: 1 t (høyst er også 1 t: jobben 2 t arbeid, m1 har 1 t).
     expect(within(dialog).getByTestId<HTMLInputElement>("ny-maskin-timer").value).toBe("1");
     fireEvent.submit(dialog.querySelector("form")!);
     await vi.waitFor(() => expect(stier()).toContain("timer.dagsseddel.maskin.tilfoy"));
@@ -559,5 +573,141 @@ describe("w3b — B37 A: lenken til der Varelager slås på", () => {
     fireEvent.click(kort!);
     expect(screen.getByRole("button", { name: "timer.prosjektkort.nyVareKort" })).toBeTruthy();
     expect(screen.queryByTestId("varelager-lenke")).toBeNull();
+  });
+});
+
+describe("O3 — maskin i «Legg til timer-rad» starter tom, forslag = radens timer (§ 8.22 punkt 3)", () => {
+  afterEach(cleanup);
+
+  const HEATWORK = {
+    id: "v2", kategori: "annet", type: "varmer", merke: "Heatwork", modell: "MB3", internNavn: "Tiner T-1", utleieEnhet: "doegn",
+  };
+  /** Dagen #7 med maskinmodul og Heatwork; `sedel` overstyrer det sedelen inneholder. */
+  function medMaskiner(sedel: Record<string, unknown> = {}) {
+    rendre();
+    h.data["modul.effektivTilstand"] = { maskin: true };
+    h.data["maskin.equipment.list"] = [...(h.data["maskin.equipment.list"] as unknown[]), HEATWORK];
+    h.data["timer.dagsseddel.hentMedId"] = {
+      ...(h.data["timer.dagsseddel.hentMedId"] as Record<string, unknown>),
+      ...sedel,
+    };
+    cleanup();
+    return render(<Side />);
+  }
+  /** «+ Timer» fra jobb 2 på TILL-001, 16:00–18:30 (2,5 t). Jobben har da 3,5 t arbeid. */
+  function nyRad25() {
+    const dialog = fraJobb2("timer.prosjektkort.nyTimer");
+    fireEvent.change(underprosjektValg(dialog), { target: { value: "e1" } });
+    const [fra, til] = Array.from(dialog.querySelectorAll<HTMLInputElement>('input[type="time"]'));
+    fireEvent.change(fra!, { target: { value: "16:00" } });
+    fireEvent.blur(fra!);
+    fireEvent.change(til!, { target: { value: "18:30" } });
+    fireEvent.blur(til!);
+    return dialog;
+  }
+  function velgUtstyr(dialog: HTMLElement, navn: RegExp) {
+    // Uten maskiner på raden er maskindelen lukket.
+    if (!within(dialog).queryByRole("button", { name: /timer\.velgUtstyr/ })) {
+      fireEvent.click(within(dialog).getByText("timer.maskinSeksjon.tittel"));
+    }
+    fireEvent.click(within(dialog).getByRole("button", { name: /timer\.velgUtstyr/ }));
+    fireEvent.click(within(dialog).getAllByText(navn).at(-1)!);
+  }
+
+  it("maskindelen viser ikke jobbens maskiner (jobb 2 har gravemaskinen m1)", () => {
+    medMaskiner();
+    const dialog = fraJobb2("timer.prosjektkort.nyTimer");
+    expect(within(dialog).getByTestId("kort-maskindel")).toBeTruthy();
+    expect(within(dialog).queryAllByTestId("jobb-maskin")).toHaveLength(0);
+    expect(dialog.textContent).not.toContain("timer.maskinSeksjon.jobbensMaskiner");
+  });
+
+  it("førermaskin: forslaget er radens 2,5 t, ikke jobbens 3,5 t; feltet kan rettes", () => {
+    medMaskiner({ maskiner: [] });
+    const dialog = nyRad25();
+    velgUtstyr(dialog, /Gravemaskin G-12/);
+    const felt = within(dialog).getByTestId<HTMLInputElement>("ny-maskin-timer");
+    expect(felt.value).toBe("2.5");
+    fireEvent.change(felt, { target: { value: "2" } });
+    expect(felt.value).toBe("2");
+  });
+
+  it("døgnmaskin (Heatwork): forslaget er radens 2,5 t, ikke jobbens 3,5 t", () => {
+    medMaskiner({ maskiner: [] });
+    const dialog = nyRad25();
+    velgUtstyr(dialog, /Tiner T-1/);
+    expect(within(dialog).getByTestId<HTMLInputElement>("ny-maskin-timer").value).toBe("2.5");
+  });
+
+  it("vakt: «Rediger timer-rad» er uendret — jobbens maskiner vises, og Heatwork foreslås med jobbens arbeid", () => {
+    // Jobb 2 får en rad til (16:00–18:30, 2,5 t): jobbens arbeid er 3,5 t, raden r2 har 1 t.
+    const r3 = { ...DAG7_SEDEL.timer[1]!, id: "r3", byggeplassId: "b1", fraTid: "16:00", tilTid: "18:30", timer: "2.5", createdAt: "2026-11-20T16:00:00.000Z" };
+    medMaskiner({ timer: [DAG7_SEDEL.timer[0]!, { ...DAG7_SEDEL.timer[1]!, byggeplassId: "b1" }, r3] });
+    const kort = screen.getAllByRole("button").find((b) => b.textContent?.includes("TILL-001"));
+    fireEvent.click(kort!);
+    // To arbeidsrader: linjene står med penn (ikke jobbskjemaet). Første penn er r2 (15:00).
+    fireEvent.click(screen.getAllByTitle("handling.rediger")[0]!);
+    const dialog = screen.getByRole("dialog", { name: "timer.detalj.redigerTimerRad" });
+    expect(dialog.querySelector<HTMLInputElement>('input[type="time"]')!.value).toBe("15:00");
+    expect(within(dialog).getAllByTestId("jobb-maskin")).toHaveLength(1);
+    velgUtstyr(dialog, /Tiner T-1/);
+    expect(within(dialog).getByTestId<HTMLInputElement>("ny-maskin-timer").value).toBe("3.5");
+  });
+});
+
+describe("O4 — underprosjekt i «Legg til timer-rad» (§ 8.22 punkt 7)", () => {
+  afterEach(cleanup);
+
+  async function lagre(dialog: HTMLElement) {
+    const [lonnsart, aktivitet] = Array.from(dialog.querySelectorAll("select"));
+    fireEvent.change(lonnsart!, { target: { value: "l1" } });
+    fireEvent.change(aktivitet!, { target: { value: "a1" } });
+    const [fra, til] = Array.from(dialog.querySelectorAll<HTMLInputElement>('input[type="time"]'));
+    fireEvent.change(fra!, { target: { value: "16:00" } });
+    fireEvent.blur(fra!);
+    fireEvent.change(til!, { target: { value: "17:00" } });
+    fireEvent.blur(til!);
+    fireEvent.change(dialog.querySelector("textarea")!, { target: { value: "Opprydding" } });
+    fireEvent.submit(dialog.querySelector("form")!);
+    await vi.waitFor(() => expect(h.kall.some((k) => k.sti === "timer.dagsseddel.tilfoyTimerRad")).toBe(true));
+    return h.kall.find((k) => k.sti === "timer.dagsseddel.tilfoyTimerRad")!.input;
+  }
+
+  it("nedtrekket står med «—» forvalgt, ikke jobbens underprosjekt (TILL-001)", () => {
+    rendre();
+    const dialog = fraJobb2("timer.prosjektkort.nyTimer");
+    expect(dialog.textContent).toContain("timer.felt.underprosjekt");
+    const valg = underprosjektValg(dialog);
+    expect(valg.value).toBe("");
+    expect(valg.options[0]!.textContent).toBe("—");
+  });
+
+  it("prosjektet har ingen åpne underprosjekter: nedtrekket vises ikke", () => {
+    rendre();
+    const kort = screen.getAllByRole("button").find((b) => b.textContent?.includes("TILL-001"));
+    fireEvent.click(kort!);
+    // Lista er tom (serveren gir bare åpne underprosjekter) når vinduet åpnes.
+    h.data["eksternKostObjekt.list"] = [];
+    fireEvent.click(screen.getByRole("button", { name: "timer.prosjektkort.nyTimer" }));
+    const dialog = screen.getByRole("dialog");
+    expect(dialog.textContent).not.toContain("timer.felt.underprosjekt");
+  });
+
+  it("annet underprosjekt enn jobbens («—» på jobb 2): raden får egen kort-id, ikke jobbens k2", async () => {
+    rendre();
+    const dialog = fraJobb2("timer.prosjektkort.nyTimer");
+    const input = await lagre(dialog);
+    expect(input).toMatchObject({ projectId: "p1", externalCostObjectId: null, byggeplassId: "b1" });
+    expect(typeof input.kortId).toBe("string");
+    expect(input.kortId).not.toBe("k2");
+    expect(input.kortId).not.toBe("k1");
+  });
+
+  it("samme underprosjekt som jobben (TILL-001): jobbens kort-id k2", async () => {
+    rendre();
+    const dialog = fraJobb2("timer.prosjektkort.nyTimer");
+    fireEvent.change(underprosjektValg(dialog), { target: { value: "e1" } });
+    const input = await lagre(dialog);
+    expect(input).toMatchObject({ kortId: "k2", externalCostObjectId: "e1" });
   });
 });
