@@ -1618,6 +1618,7 @@ Tester: `apps/api/src/routes/timer/tillegg-utlegg-kort-api.test.ts` (T2–T4 + B
 - **Sedel (`/dashbord/timer/[id]`):** tillegg/utlegg med underprosjekt står i underprosjektets bøtte (`EcoGruppe`); NULL-rader står i prosjektseksjonen som før. Rad-dialogene har byggeplass og underprosjekt (`useRadSted`/`RadStedFelt`); ny rad får byggeplass-standard som en timerad, redigering sender bare felt som er endret.
 - **Attestering (B7):** tillegg står fortsatt i prosjektseksjonen (`TilleggRaderLeder` i `attestering-buckets.tsx`), med underprosjekt-velger pr. rad når attestanten kan flytte (`flyttTimerRadEco` med `radType: "tillegg"`).
 - **Redigering sender feltene uendret:** `RedigerRadModal` og `AttesteringDetalj_Edit` bærer tilleggets `byggeplassId`/`externalCostObjectId` til `redigerSedelRader` (ellers `?? null`). Vakt: `apps/web/src/__tests__/tillegg-sted-bevart-vakt.test.ts`. Test: `timerDetaljRader.test.ts` (kolonner).
+- **«Lagre endringer» i «Rediger arbeid» beholder byggeplassen (F68):** `byggRedigerNyeRader` (`RedigerRadModal.tsx`) sender hver ventende timerad og maskinrads `byggeplassId` uendret — også radene utenfor jobben; delte rader arver originalens. Før sendte vinduet `null`, som tømte byggeplassen og ga raden ny kort-id. Tester: `attestering/__tests__/rediger-rad-lagre.test.ts`, `apps/api/src/routes/rediger-arbeid-byggeplass.integration.test.ts`.
 
 ## Hjelpetekster (?-ikonet) — alle timer-sider
 
