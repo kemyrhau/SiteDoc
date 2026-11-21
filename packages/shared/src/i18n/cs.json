@@ -5929,5 +5929,13 @@
   "timer.reiseKort.sluttKl": "Čas ukončení",
   "timer.reiseKort.forslag": "Doporučené: {{min}} min jízdy (tabulka společnosti)",
   "timer.reiseKort.havnerJobb": "Zúčastní se práce v {{sted}}.",
-  "timer.reiseKort.havnerEget": "Získá svou vlastní kartu na {{prosjekt}}."
+  "timer.reiseKort.havnerEget": "Získá svou vlastní kartu na {{prosjekt}}.",
+  "timer.rediger.reiseHavnerKort": "Tohle je cestování. Jde na kartu v {{sted}}.",
+  "timer.reiseKort.havnerKort": "Přejde na kartu v {{sted}}.",
+  "timer.attestering.reiseRett.tittel": "Opravte cestu",
+  "timer.attestering.reiseRett.start": "Čas zahájení",
+  "timer.attestering.reiseRett.slutt": "Čas ukončení",
+  "timer.attestering.reiseRett.bareUnderprosjekt": "Společnost neumožňuje při schvalování opravu času a místa. Dílčí projekt lze opravit.",
+  "timer.mine.hjelp.reise": "Na výletě můžete změnit projekt pomocí ✎: staveniště je znovu navrženo a dílčí projekt je vymazán. Řádek pod mzdovým druhem říká, na kterou kartu cesta jde. Práce nemění projekt; zaregistrovat jako novou práci.",
+  "timer.attestering.tabell.hjelp.reise": "Cesta je zobrazena v části 8 jako jeden řádek. ✎ otevře \"Opravit cestu\" se začátkem, koncem, typem mzdy (pouze typy cest), projektem, staveništěm a dílčím projektem; seznam obsahuje projekty, které můžete schválit, a řádek ve spodní části říká, na kterou kartu cesta jde. Pokud společnost během schvalování neumožňuje opravy, lze opravit pouze dílčí projekt."
 }

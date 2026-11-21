@@ -5929,5 +5929,13 @@
   "timer.reiseKort.sluttKl": "Heure de fin",
   "timer.reiseKort.forslag": "Suggéré : {{min}} minutes de conduite (table de l'entreprise)",
   "timer.reiseKort.havnerJobb": "Va travailler chez {{sted}}.",
-  "timer.reiseKort.havnerEget": "Obtient sa propre carte sur {{prosjekt}}."
+  "timer.reiseKort.havnerEget": "Obtient sa propre carte sur {{prosjekt}}.",
+  "timer.rediger.reiseHavnerKort": "C'est un voyage. Il va dans la carte à {{sted}}.",
+  "timer.reiseKort.havnerKort": "Va dans la carte à {{sted}}.",
+  "timer.attestering.reiseRett.tittel": "Corriger le voyage",
+  "timer.attestering.reiseRett.start": "Heure de début",
+  "timer.attestering.reiseRett.slutt": "Heure de fin",
+  "timer.attestering.reiseRett.bareUnderprosjekt": "L'entreprise ne permet pas de corriger l'heure et le lieu lors de l'approbation. Le sous-projet peut être corrigé.",
+  "timer.mine.hjelp.reise": "Lors d'un voyage, vous pouvez modifier le projet avec ✎ : le chantier est à nouveau proposé et le sous-projet est effacé. La ligne sous le type de salaire indique la carte dans laquelle le voyage est effectué. Le travail ne change pas le projet ; enregistrez-le comme un nouvel emploi.",
+  "timer.attestering.tabell.hjelp.reise": "Le voyage est représenté dans la partie 8 sur une seule ligne. ✎ ouvre « Corriger le déplacement » avec début, fin, rubrique salaire (types déplacement uniquement), projet, chantier et sous-projet ; la liste contient les projets que vous pouvez approuver et la ligne en bas indique dans quelle carte le voyage se déroule. Si l'entreprise n'autorise pas les corrections lors de l'approbation, seul le sous-projet peut être corrigé."
 }

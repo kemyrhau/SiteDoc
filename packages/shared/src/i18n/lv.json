@@ -5929,5 +5929,13 @@
   "timer.reiseKort.sluttKl": "Beigu laiks",
   "timer.reiseKort.forslag": "Ieteicamais brauciens: {{min}} min (uzņēmuma tabula)",
   "timer.reiseKort.havnerJobb": "Iestājas darbā {{sted}}.",
-  "timer.reiseKort.havnerEget": "Saņem savu karti vietnē {{prosjekt}}."
+  "timer.reiseKort.havnerEget": "Saņem savu karti vietnē {{prosjekt}}.",
+  "timer.rediger.reiseHavnerKort": "Tas ir ceļojums. Tas tiek ievietots kartē plkst. {{sted}}.",
+  "timer.reiseKort.havnerKort": "Kartē tiek ievadīts plkst. {{sted}}.",
+  "timer.attestering.reiseRett.tittel": "Izlabojiet braucienu",
+  "timer.attestering.reiseRett.start": "Sākuma laiks",
+  "timer.attestering.reiseRett.slutt": "Beigu laiks",
+  "timer.attestering.reiseRett.bareUnderprosjekt": "Uzņēmums neļauj labot laiku un vietu apstiprināšanas laikā. Apakšprojektu var labot.",
+  "timer.mine.hjelp.reise": "Brauciena laikā jūs varat mainīt projektu ar ✎: tiek ieteikts atkārtoti būvlaukums un apakšprojekts tiek atbrīvots. Rindā zem algas veida ir norādīts, kurā kartē brauc ceļojums. Darbs nemaina projektu; reģistrēt to kā jaunu darbu.",
+  "timer.attestering.tabell.hjelp.reise": "Brauciens ir parādīts 8. daļā kā viena rinda. ✎ atver \"Izlabot braucienu\" ar sākumu, beigām, algas veidu (tikai ceļojuma veidiem), projektu, būvlaukumu un apakšprojektu; sarakstā ir projekti, kurus varat apstiprināt, un rindiņa apakšā norāda, kurā kartē brauc ceļojums. Ja uzņēmums apstiprināšanas laikā neatļauj labojumus, var labot tikai apakšprojektu."
 }

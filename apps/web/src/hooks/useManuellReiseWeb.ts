@@ -4,9 +4,11 @@ import { useMemo } from "react";
 import {
   byggOverforingOppslag,
   effektivKortByggeplass,
+  egetReiseKort,
   erApenOverforing,
   jobberFraArbeidsrader,
   kortIdNokkel,
+  kortPaaSedelFraRader,
   velgReiseKort,
   finnDagsramme,
   kontorOverforingOppsett,
@@ -69,8 +71,20 @@ export type ReiseHavnerRad = {
   attestertStatus?: string | null;
 };
 
+/** w15f (F55): maskin-, tillegg- og utleggsrader på sedelen — kort som ikke har arbeid. */
+export type ReiseHavnerAnnenRad = {
+  kortId: string | null;
+  projectId: string | null;
+  ecoId: string | null;
+  byggeplassId: string | null;
+  /** ms */
+  opprettet: number;
+};
+
 export type ReiseHavnerI =
   | { type: "jobb"; kortId: string; byggeplassId: string | null; projectId: string }
+  /** w15f (F55): et kort som finnes, men ikke har arbeid (bare maskin, tillegg eller utlegg). */
+  | { type: "kort"; kortId: string; byggeplassId: string | null; projectId: string }
   | { type: "eget"; projectId: string };
 
 /**
@@ -80,9 +94,16 @@ export type ReiseHavnerI =
  *  - under terskel (`erReise` false): raden er arbeid og står i kortet med samme
  *    nøkkel (prosjekt, effektiv byggeplass, underprosjekt), ellers eget kort.
  * Linja følger regelen den kaller — endres `velgReiseKort` (w15c), endres linja.
+ * w15f (F55): med `andreRader` og `eier` ser linja også kort uten arbeid. Reise uten jobb får
+ * `egetReiseKort` (serveren, `kortId.ts`); har en maskin-, tillegg- eller utleggsrad den id-en,
+ * står reisen i det kortet. Under terskel brukes `losKortId`-regelen mot alle radtypene.
  */
 export function reiseHavnerI(args: {
   rader: readonly ReiseHavnerRad[];
+  /** w15f (F55): maskin, tillegg og utlegg på sedelen. */
+  andreRader?: readonly ReiseHavnerAnnenRad[];
+  /** w15f (F55): sedelens eier og dato (ÅÅÅÅ-MM-DD) — kort-id-en regnes som på serveren. */
+  eier?: { userId: string; dato: string } | null;
   sedelByggeplass: { id: string; projectId: string } | null;
   reise: {
     projectId: string;
@@ -96,6 +117,15 @@ export function reiseHavnerI(args: {
   };
 }): ReiseHavnerI {
   const { rader, sedelByggeplass, reise } = args;
+  const andre = (args.andreRader ?? []).map((r) => ({
+    kortId: r.kortId,
+    nokkel: kortIdNokkel({
+      projectId: r.projectId,
+      byggeplassId: effektivKortByggeplass(r.projectId, r.byggeplassId, sedelByggeplass),
+      ecoId: r.ecoId,
+    }),
+    opprettet: r.opprettet,
+  }));
   const jobber = jobberFraArbeidsrader(
     rader
       .filter((r) => !r.erReise)
@@ -109,7 +139,14 @@ export function reiseHavnerI(args: {
         attestertStatus: r.attestertStatus ?? null,
       })),
   );
+  const reiseNokkel = {
+    projectId: reise.projectId,
+    byggeplassId: effektivKortByggeplass(reise.projectId, reise.byggeplassId, sedelByggeplass),
+    ecoId: reise.ecoId,
+  };
   let kortId: string | null;
+  // F55: kortet uten arbeid reisen havner i, når den ikke står i en jobb.
+  let annetKort: string | null = null;
   if (reise.erReise) {
     kortId = velgReiseKort(
       {
@@ -123,18 +160,25 @@ export function reiseHavnerI(args: {
       },
       jobber,
     );
+    if (!kortId && args.eier) {
+      const egen = egetReiseKort({
+        userId: args.eier.userId,
+        dato: args.eier.dato,
+        nokkel: reiseNokkel,
+        overforing: reise.reiseKilde === "overforing",
+        jobbKortIder: jobber.map((j) => j.kortId),
+      });
+      annetKort = andre.some((r) => r.kortId === egen) ? egen : null;
+    }
   } else {
-    const nokkel = kortIdNokkel({
-      projectId: reise.projectId,
-      byggeplassId: effektivKortByggeplass(reise.projectId, reise.byggeplassId, sedelByggeplass),
-      ecoId: reise.ecoId,
-    });
+    const nokkel = kortIdNokkel(reiseNokkel);
     kortId = jobber.find((j) => kortIdNokkel(j) === nokkel)?.kortId ?? null;
+    if (!kortId) annetKort = kortPaaSedelFraRader(andre).find((k) => k.nokkel === nokkel)?.kortId ?? null;
   }
   const jobb = kortId ? jobber.find((j) => j.kortId === kortId) : undefined;
-  return jobb
-    ? { type: "jobb", kortId: jobb.kortId, byggeplassId: jobb.byggeplassId, projectId: reise.projectId }
-    : { type: "eget", projectId: reise.projectId };
+  if (jobb) return { type: "jobb", kortId: jobb.kortId, byggeplassId: jobb.byggeplassId, projectId: reise.projectId };
+  if (annetKort) return { type: "kort", kortId: annetKort, byggeplassId: reiseNokkel.byggeplassId, projectId: reise.projectId };
+  return { type: "eget", projectId: reise.projectId };
 }
 
 export function useManuellReiseWeb({

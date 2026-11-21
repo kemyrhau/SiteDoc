@@ -5929,5 +5929,13 @@
   "timer.reiseKort.sluttKl": "Koha e përfundimit",
   "timer.reiseKort.forslag": "Sugjeruar: {{min}} minuta ngarje (tabela e kompanisë)",
   "timer.reiseKort.havnerJobb": "Shkon në punë në {{sted}}.",
-  "timer.reiseKort.havnerEget": "Merr kartën e vet në {{prosjekt}}."
+  "timer.reiseKort.havnerEget": "Merr kartën e vet në {{prosjekt}}.",
+  "timer.rediger.reiseHavnerKort": "Ky është udhëtimi. Shkon në kartë në {{sted}}.",
+  "timer.reiseKort.havnerKort": "Shkon në kartë në {{sted}}.",
+  "timer.attestering.reiseRett.tittel": "Korrigjoni udhëtimin",
+  "timer.attestering.reiseRett.start": "Koha e fillimit",
+  "timer.attestering.reiseRett.slutt": "Koha e përfundimit",
+  "timer.attestering.reiseRett.bareUnderprosjekt": "Kompania nuk lejon që koha dhe vendi të korrigjohen gjatë miratimit. Nën-projekti mund të korrigjohet.",
+  "timer.mine.hjelp.reise": "Në një udhëtim mund ta ndryshoni projektin me ✎: kantieri i ndërtimit sugjerohet përsëri dhe nën-projekti pastrohet. Rreshti nën llojin e pagës tregon se në cilën kartë shkon udhëtimi. Puna nuk ndryshon projektin; regjistrojeni atë si një punë të re.",
+  "timer.attestering.tabell.hjelp.reise": "Udhëtimi tregohet në pjesën 8 si një rresht. ✎ hap \"Korrigjo udhëtimin\" me fillimin, fundin, llojin e pagës (vetëm llojet e udhëtimit), projektin, kantierin dhe nënprojektin; lista ka projektet që mund të miratoni, dhe rreshti në fund tregon se në cilën kartë shkon udhëtimi. Nëse kompania nuk lejon korrigjime gjatë miratimit, vetëm nën-projekti mund të korrigjohet."
 }

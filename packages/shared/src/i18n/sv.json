@@ -5929,5 +5929,13 @@
   "timer.reiseKort.sluttKl": "Sluttid",
   "timer.reiseKort.forslag": "Föreslagna: {{min}} min körning (företagstabell)",
   "timer.reiseKort.havnerJobb": "Tillträder jobbet på {{sted}}.",
-  "timer.reiseKort.havnerEget": "Får ett eget kort på {{prosjekt}}."
+  "timer.reiseKort.havnerEget": "Får ett eget kort på {{prosjekt}}.",
+  "timer.rediger.reiseHavnerKort": "Det här är resor. Den hamnar i kortet på {{sted}}.",
+  "timer.reiseKort.havnerKort": "Går in i kortet på {{sted}}.",
+  "timer.attestering.reiseRett.tittel": "Rätta resan",
+  "timer.attestering.reiseRett.start": "Starttid",
+  "timer.attestering.reiseRett.slutt": "Sluttid",
+  "timer.attestering.reiseRett.bareUnderprosjekt": "Företaget tillåter inte att tid och plats korrigeras vid godkännande. Delprojektet kan korrigeras.",
+  "timer.mine.hjelp.reise": "På en resa kan du ändra projektet med ✎: byggplatsen föreslås igen och delprojektet rensas. Raden under löneslaget säger vilket kort resan går i. Arbete ändrar inte projekt; registrera det som ett nytt jobb.",
+  "timer.attestering.tabell.hjelp.reise": "Resan visas i del 8 som en rad. ✎ öppnar \"Korrigera resan\" med start, slut, löneart (endast resetyper), projekt, byggarbetsplats och delprojekt; listan har de projekt du kan godkänna, och raden längst ner säger vilket kort resan går i. Om företaget inte tillåter korrigeringar vid godkännande kan endast delprojektet rättas."
 }

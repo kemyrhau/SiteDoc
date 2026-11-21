@@ -10,7 +10,8 @@ import { formaterNorsk } from "@/lib/timer-rapport-eksport";
 import { rundTilNarmeste } from "@/lib/tidsrunding";
 import { Kvitteringer } from "./Kvitteringer";
 import { ReiseRadMerke } from "./ReiseRadMerke";
-import type { AttKort, AttLinje, AttMaskin, AttSedel } from "./attestering-tabell";
+import { ReiseRettVindu } from "./ReiseRettVindu";
+import type { AttKort, AttLinje, AttMaskin, AttSedel, AttTimer } from "./attestering-tabell";
 
 /**
  * Registreringen åpnet under linja (web-timeføring w5, bilde 7 og 8). Viser jobben (kortet)
@@ -28,9 +29,10 @@ import type { AttKort, AttLinje, AttMaskin, AttSedel } from "./attestering-tabel
  *  - «Del opp» deler hele jobben ved et klokkeslett (`delJobb`): timene pr. del regner
  *    serveren ut (forhåndsvisning før lagring).
  *  - w12 (§ 4.11 C5–C7): del 1–7 regnes av arbeidsradene. Reisen står i del 8 «Reise», som bare
- *    vises når jobben har reise: rutemerket, fra–til, lønnsart (bare reisearter), ✂ og «Føres på» —
- *    reisens eget underprosjekt, rettet med `flyttTimerRadEco` UTEN `helJobb` (bare reiseraden),
- *    og bare mens reisen venter. Et kort med bare reise har ikke underprosjektvalget i hodet.
+ *    vises når jobben har reise. Et kort med bare reise har ikke underprosjektvalget i hodet.
+ *  - w15f (§ 4.15 del E): reiselinja i del 8 er tekst «fra–til · lønnsart · prosjekt · byggeplass ·
+ *    underprosjekt» med ✂ og ✎. ✎ åpner «Rett reisen» (`ReiseRettVindu`): start, slutt, prosjekt,
+ *    byggeplass og underprosjekt. Lønnsarten på reisen rettes i «✎ Rediger jobben».
  */
 
 /** Til og med så mange underprosjekter vises som knapper (B11). */
@@ -57,6 +59,8 @@ interface Props {
   onRedigerJobb?: () => void;
   onEndret: () => void;
   onLukk: () => void;
+  /** w15f: prosjektene attestanten kan attestere (`undefined` = alle) — lista i «Rett reisen». */
+  prosjektKontekst?: ReadonlySet<string>;
 }
 
 /**
@@ -110,12 +114,14 @@ export function jobbensTidsrom(rader: readonly { fraTid: string | null; tilTid: 
   return { fra: fraMin(Math.min(...fra)), til: fraMin(Math.max(...til)) };
 }
 
-export function RegistreringPanel({ kort, sedel, orgId, kanAttestere, kanRette, lonnsarter, tidsrunding = null, kanSplitte, onSplitt, onRedigerJobb, onEndret, onLukk }: Props) {
+export function RegistreringPanel({ kort, sedel, orgId, kanAttestere, kanRette, lonnsarter, tidsrunding = null, kanSplitte, onSplitt, onRedigerJobb, onEndret, onLukk, prosjektKontekst }: Props) {
   const { t } = useTranslation();
   const [feil, setFeil] = useState<string | null>(null);
   // w10a (A1): grunnen til en avvist retting står ved linja, ikke nederst i kortet.
   const [linjeFeil, setLinjeFeil] = useState<Record<string, string>>({});
   const [delOpp, setDelOpp] = useState(false);
+  // w15f: reisen som rettes i «Rett reisen».
+  const [reiseRett, setReiseRett] = useState<AttTimer | null>(null);
 
   // w12 (A punkt 7): del 1–7 leser bare arbeidsradene; reisen står i del 8.
   const timerLinjer = useMemo(
@@ -318,7 +324,7 @@ export function RegistreringPanel({ kort, sedel, orgId, kanAttestere, kanRette, 
       </div>
 
       {/* Underprosjekt for hele jobben (bilde 7, B11) */}
-      {/* C7: et kort med bare reise har ikke valget — reisens underprosjekt rettes under «Føres på». */}
+      {/* C7: et kort med bare reise har ikke valget — reisens underprosjekt rettes i «Rett reisen» (w15f). */}
       {kort.projectId !== null && !kort.reise && (
         <div className="flex flex-wrap items-center gap-2 border-b border-gray-100 bg-gray-50 px-4 py-2">
           <span className="font-medium text-gray-900">{t("timer.attestering.registrering.underprosjekt")}</span>
@@ -470,34 +476,58 @@ export function RegistreringPanel({ kort, sedel, orgId, kanAttestere, kanRette, 
           <div className="flex flex-col gap-3">
             {reiseLinjer.map((l) => {
               const r = l.kilde.rad;
-              const eco = r.externalCostObjectId ?? null;
-              // (ii) «Føres på» kan rettes bare på en reise som venter; serveren er uendret.
-              const kanFlytteReise = kanAttestere && l.ventende && kort.projectId !== null;
+              // w15f: reiselinja er tekst; tid, prosjekt, byggeplass og underprosjekt rettes i
+              // «Rett reisen» bak ✎ — bare på en reise som venter, der attestanten kan attestere.
+              // Lønnsarten rettes i «✎ Rediger jobben».
+              const kanRetteReise = kanAttestere && l.ventende && l.harHandling && !sedel.egneTimer;
+              const prosjekt = r.project ? [r.project.internalProjectNumber, r.project.name].filter(Boolean).join(" ") : kort.prosjekt;
+              const tekst = [
+                l.linje.fraTid && l.linje.tilTid ? `${l.linje.fraTid}–${l.linje.tilTid}` : t("timer.attestering.registrering.timer", { timer: formaterNorsk(l.linje.timer ?? 0) }),
+                l.linje.betegnelse,
+                prosjekt,
+                r.byggeplassNavn ?? null,
+                l.linje.underprosjekt ?? t("timer.prosjektkort.utenUnderprosjekt"),
+              ].filter(Boolean).join(" · ");
               return (
                 <div key={l.nokkel} data-reiselinje={l.nokkel} className="flex flex-col gap-1.5">
                   <ReiseRadMerke rad={r} />
-                  {timeLinje(l)}
-                  <div data-fores-paa="" className="flex flex-wrap items-center gap-2">
-                    <span className="text-xs font-medium text-gray-700">{t("timer.attestering.registrering.foresPaa")}</span>
-                    {kanFlytteReise ? (
-                      <UnderprosjektValg
-                        eco={ecoListe}
-                        valgt={eco}
-                        disabled={flytt.isPending}
-                        onVelg={(id) => {
-                          if (id === eco) return;
-                          flytt.mutate({ timerRadId: r.id, radType: "timer", externalCostObjectId: id });
-                        }}
-                      />
-                    ) : (
-                      <span>{l.linje.underprosjekt ?? t("timer.attestering.registrering.uten")}</span>
-                    )}
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span data-reise-tekst="" className="tabular-nums text-gray-900">{tekst}</span>
+                    <span className="ml-auto flex items-center gap-1.5">
+                      {splittKnapp(l)}
+                      {kanRetteReise && (
+                        <button
+                          type="button"
+                          onClick={() => setReiseRett(r)}
+                          aria-label={t("timer.attestering.reiseRett.tittel")}
+                          title={t("timer.attestering.reiseRett.tittel")}
+                          className="inline-flex h-7 w-7 items-center justify-center rounded border border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </span>
+                    {linjeFeilTekst(l.nokkel)}
                   </div>
                 </div>
               );
             })}
           </div>
         </Del>
+      )}
+
+      {reiseRett && (
+        <ReiseRettVindu
+          rad={reiseRett}
+          sedel={sedel}
+          orgId={orgId}
+          lonnsarter={lonnsarter}
+          reiseKtx={reiseKtx}
+          prosjektKontekst={prosjektKontekst}
+          tidsrunding={tidsrunding}
+          onLagret={() => { setReiseRett(null); onEndret(); }}
+          onAvbryt={() => setReiseRett(null)}
+        />
       )}
 
       {feil && <p className="border-t border-gray-100 px-4 py-2 text-sm text-red-600">{feil}</p>}
