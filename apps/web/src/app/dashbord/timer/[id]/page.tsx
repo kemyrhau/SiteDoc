@@ -24,6 +24,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { StatusBadge } from "@/components/timer/StatusBadge";
+import { SlettDagModal } from "@/components/timer/SlettDagModal";
 import { ForslagValgSeksjon } from "@/components/timer/ForslagValgSeksjon";
 import { SplittRadModal } from "@/components/timer/SplittRadModal";
 import { ProsjektRadVelger } from "@/components/timer/ProsjektRadVelger";
@@ -1520,10 +1521,7 @@ export default function DagsseddelDetaljSide() {
           }}
           normTimer={normTimer}
           erReturnert={sheet.status === "returned"}
-          kanSlette={
-            sheet.status === "draft" ||
-            (sheet.status === "returned" && !sheet.attestertVed)
-          }
+          kanSlette={sheet.status === "draft"}
           sender={send.isPending}
           sletter={slett.isPending}
           renderLinjer={renderLinjer}
@@ -1635,10 +1633,9 @@ export default function DagsseddelDetaljSide() {
       {/* Send + slett (prosjektkort-modus: bunnlinja i samlesiden) */}
       {!prosjektkortModus && erRedigerbar && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white p-5">
-          {/* Kenneth-vedtak 2026-10-09 (2): utkast ELLER returnert-og-ikke-attestert
-              kan slettes av eieren (server håndhever samme regel). */}
-          {(sheet.status === "draft" ||
-            (sheet.status === "returned" && !sheet.attestertVed)) && (
+          {/* S1 (plan § 8.22, Kenneth 2026-11-21): bare utkast kan slettes — en returnert
+              dag rettes og sendes på nytt (server håndhever samme regel). */}
+          {sheet.status === "draft" && (
             <Button
               variant="secondary"
               onClick={() => setVisSlettModal(true)}
@@ -2016,34 +2013,16 @@ export default function DagsseddelDetaljSide() {
       )}
 
       {/* Slett-bekreftelse — ekte modal (erstatter native confirm(),
-          CLAUDE.md § Slett-bekreftelse). */}
+          CLAUDE.md § Slett-bekreftelse). S1: lister alt som slettes, med antall. */}
       {visSlettModal && (
-        <Modal
-          open={true}
+        <SlettDagModal
+          sheetId={sheet.id}
+          overskrift={t("timer.slettDag.ingress")}
           onClose={() => setVisSlettModal(false)}
-          title={t("timer.detalj.slett")}
-        >
-          <div className="space-y-4">
-            <p className="text-sm text-gray-700">
-              {t("timer.detalj.slettBekreft")}
-            </p>
-            <div className="flex justify-end gap-2">
-              <Button
-                variant="secondary"
-                onClick={() => setVisSlettModal(false)}
-              >
-                {t("handling.avbryt")}
-              </Button>
-              <Button
-                variant="danger"
-                onClick={() => slett.mutate({ id: sheet.id })}
-                loading={slett.isPending}
-              >
-                {t("handling.slett")}
-              </Button>
-            </div>
-          </div>
-        </Modal>
+          onBekreft={() => slett.mutate({ id: sheet.id })}
+          sletter={slett.isPending}
+          feil={slett.error?.message ?? null}
+        />
       )}
     </div>
     </SedelFirmaKontekst.Provider>

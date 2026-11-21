@@ -3547,6 +3547,103 @@ async function utforRedigerSedelRader(
   };
 }
 
+// ============================================================================
+//  «Slett dagsseddel» sletter alt (S1, plan § 8.22, Kenneth 2026-11-21)
+// ============================================================================
+// Bare et utkast kan slettes. Returnert dag rettes og sendes på nytt («returnert dag bør
+// kun redigeres»); sendt og godkjent avvises som før. Slettingen tar alt som er ført på
+// sedelen: timer, reise, maskin, tillegg, utlegg og GPS-forslag (kaskade), vedlegg på
+// tillegg og kvitteringer på utlegg (svak FK, ingen kaskade) og varer med sedelens id
+// (skjemaet `varelager`). Timer og varelager er to Prisma-klienter mot SAMME database
+// (`DATABASE_URL`), så alt går i én Postgres-transaksjon: feiler ett steg, står dagen
+// urørt. Flyttes varelager en dag til egen database, feiler vare-steget og hele
+// slettingen ruller tilbake (lukket feil, aldri halvslettet).
+// Står igjen med vilje: radhistorikken (`sheet_rad_historikk`, sporet etter rettinger) og
+// filene på disk (ingen sletting av ett vedlegg rører disken i dag heller).
+
+export interface SedelInnhold {
+  timer: number;
+  reise: number;
+  maskin: number;
+  varer: number;
+  tillegg: number;
+  utlegg: number;
+}
+
+export const SLETT_BARE_UTKAST = "En returnert dag kan ikke slettes. Rett den og send den på nytt.";
+export const SLETT_LAAST = "Bare utkast kan slettes. Gjenåpne dagen først.";
+export const SLETT_ATTESTERT =
+  "Leder har attestert rader på denne dagen. Be leder gjenåpne dem før du sletter.";
+
+/** Tell det som slettes med sedelen. Varer leses med rå SQL (annet skjema, samme database). */
+async function tellSedelInnhold(
+  tx: Prisma.TransactionClient | PrismaClientTimer,
+  sheetId: string,
+): Promise<SedelInnhold> {
+  // Sekvensielt: kalles også inne i en interaktiv transaksjon (én forbindelse).
+  const timer = await tx.sheetTimer.count({ where: { sheetId, erReise: false } });
+  const reise = await tx.sheetTimer.count({ where: { sheetId, erReise: true } });
+  const maskin = await tx.sheetMachine.count({ where: { sheetId } });
+  const tillegg = await tx.sheetTillegg.count({ where: { sheetId } });
+  const utlegg = await tx.sheetUtlegg.count({ where: { sheetId } });
+  const varer = await tx.$queryRaw<Array<{ n: number }>>`
+    SELECT count(*)::int AS n FROM "varelager"."vareforbruk" WHERE "dagsseddel_id" = ${sheetId}`;
+  return { timer, reise, maskin, tillegg, utlegg, varer: varer[0]?.n ?? 0 };
+}
+
+/** Vakten: kaster når sedelen ikke kan slettes. Kjøres også inne i transaksjonen. */
+async function krevSlettbar(
+  tx: Prisma.TransactionClient | PrismaClientTimer,
+  sheet: { id: string; status: string },
+): Promise<void> {
+  if (sheet.status !== "draft") {
+    throw new TRPCError({
+      code: "PRECONDITION_FAILED",
+      message: sheet.status === "returned" ? SLETT_BARE_UTKAST : SLETT_LAAST,
+    });
+  }
+  // Forsvar (K4 A): attesterte rader skal aldri forsvinne ved et trykk. Et utkast skal ikke ha
+  // noen, men gjenåpningens telling (gjenaapneDagsseddel) er billig å gjenta her.
+  const attTimer = await tx.sheetTimer.count({ where: { sheetId: sheet.id, attestertStatus: "attestert" } });
+  const attTillegg = await tx.sheetTillegg.count({ where: { sheetId: sheet.id, attestertStatus: "attestert" } });
+  const attMaskin = await tx.sheetMachine.count({ where: { sheetId: sheet.id, attestertStatus: "attestert" } });
+  const attVarer = await tx.$queryRaw<Array<{ n: number }>>`
+    SELECT count(*)::int AS n FROM "varelager"."vareforbruk"
+     WHERE "dagsseddel_id" = ${sheet.id} AND "attestert_snapshot" IS NOT NULL`;
+  if (attTimer + attTillegg + attMaskin + (attVarer[0]?.n ?? 0) > 0) {
+    throw new TRPCError({ code: "PRECONDITION_FAILED", message: SLETT_ATTESTERT });
+  }
+}
+
+/** Sletter sedelen med alt innhold i én transaksjon. Returnerer det som ble slettet. */
+export async function slettSedelMedAlt(
+  prismaTimer: PrismaClientTimer,
+  sheetId: string,
+): Promise<{ id: string; slettet: SedelInnhold }> {
+  return prismaTimer.$transaction(async (tx) => {
+    // Lås raden: en samtidig «send» venter til vi er ferdige, og vakten ser siste status.
+    const laast = await tx.$queryRaw<Array<{ id: string; status: string }>>`
+      SELECT "id", "status" FROM "timer"."daily_sheets" WHERE "id" = ${sheetId} FOR UPDATE`;
+    const sheet = laast[0];
+    if (!sheet) throw new TRPCError({ code: "NOT_FOUND", message: "Dagsseddelen finnes ikke" });
+    await krevSlettbar(tx, sheet);
+    const slettet = await tellSedelInnhold(tx, sheet.id);
+
+    const tilleggIder = (await tx.sheetTillegg.findMany({ where: { sheetId: sheet.id }, select: { id: true } })).map((r) => r.id);
+    const utleggIder = (await tx.sheetUtlegg.findMany({ where: { sheetId: sheet.id }, select: { id: true } })).map((r) => r.id);
+    if (tilleggIder.length > 0) {
+      await tx.sheetTilleggVedlegg.deleteMany({ where: { sheetTilleggId: { in: tilleggIder } } });
+    }
+    if (utleggIder.length > 0) {
+      await tx.sheetUtleggVedlegg.deleteMany({ where: { sheetUtleggId: { in: utleggIder } } });
+    }
+    await tx.$executeRaw`DELETE FROM "varelager"."vareforbruk" WHERE "dagsseddel_id" = ${sheet.id}`;
+    // Kaskade på sheetId: timer (med reise), forslag, tillegg, utlegg, maskin.
+    await tx.dailySheet.delete({ where: { id: sheet.id } });
+    return { id: sheet.id, slettet };
+  });
+}
+
 export const dagsseddelRouter = router({
   // List dagssedler for innlogget bruker, eller for et prosjekt (admin-perspektiv senere).
   list: protectedProcedure
@@ -6275,25 +6372,31 @@ export const dagsseddelRouter = router({
       });
     }),
 
-  // Slett egen dagsseddel — utkast (draft) ELLER returnert-og-ikke-attestert.
-  // Kenneth-vedtak 2026-10-09 (2): en returnert dagsseddel (status="returned") som ennå
-  // ikke er attestert (attestertVed IS NULL) kan slettes av eieren, som et utkast — den
-  // skal uansett føres på nytt. Sendte, attesterte og eksporterte sedler kan IKKE slettes.
+  // Det «Slett dagsseddel» vil slette, med antall (bekreftelsen på web). `kanSlettes` følger
+  // samme vakt som `slett`; `grunn` er meldingen slettingen ville gitt.
+  slettOversikt: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const sheet = await hentEgenDagsseddel(ctx.prismaTimer, ctx.userId, input.id, { krevAnsatt: false });
+      const innhold = await tellSedelInnhold(ctx.prismaTimer, sheet.id);
+      try {
+        await krevSlettbar(ctx.prismaTimer, sheet);
+        return { innhold, kanSlettes: true as const, grunn: null };
+      } catch (e) {
+        if (e instanceof TRPCError) return { innhold, kanSlettes: false as const, grunn: e.message };
+        throw e;
+      }
+    }),
+
+  // Slett egen dagsseddel — bare utkast, med alt som er ført på den (S1, se slettSedelMedAlt).
+  // Erstatter Kenneth-vedtak 2026-10-09 (2) (returnert-ikke-attestert kunne slettes):
+  // «returnert dag bør kun redigeres» (plan § 8.22, 2026-11-21).
   slett: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
+      // Eierskap + identitets-robust oppslag (id eller clientUuid) før transaksjonen.
       const sheet = await hentEgenDagsseddel(ctx.prismaTimer, ctx.userId, input.id, { krevAnsatt: false });
-      const kanSlettes =
-        sheet.status === "draft" ||
-        (sheet.status === "returned" && sheet.attestertVed === null);
-      if (!kanSlettes) {
-        throw new TRPCError({
-          code: "PRECONDITION_FAILED",
-          message: "Bare utkast eller returnerte (ikke-attesterte) dagssedler kan slettes",
-        });
-      }
-      // Cascade på sheetId-FK sletter SheetTimer + SheetTillegg automatisk
-      return ctx.prismaTimer.dailySheet.delete({ where: { id: sheet.id } });
+      return slettSedelMedAlt(ctx.prismaTimer, sheet.id);
     }),
 
   // ============================================================================

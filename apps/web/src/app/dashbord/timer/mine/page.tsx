@@ -6,9 +6,10 @@ import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { useFirma } from "@/kontekst/firma-kontekst";
 import { skalVarsleSkjulteTimer } from "@sitedoc/shared";
-import { Spinner, Input, Modal, Button } from "@sitedoc/ui";
+import { Spinner, Input, Button } from "@sitedoc/ui";
 import { MultiComboks } from "@/components/ui/MultiComboks";
 import { RegistrerTimerKnapp } from "@/components/timer/RegistrerTimerKnapp";
+import { SlettDagModal } from "@/components/timer/SlettDagModal";
 import { lokalIsoDato, medRetur, mineTimerIntervall } from "@/lib/tilbake-adresse";
 import { HjelpKnapp, HjelpFane } from "@/components/hjelp/HjelpModal";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
@@ -222,8 +223,9 @@ export default function MineTimerSide() {
   // w2: dd.mm. som i attesteringen — året står med når lista spenner over flere år.
   const listeMedAar = useMemo(() => spennerFlereAar(liste.map((r) => r.dato)), [liste]);
 
-  const kanSlettes = (r: ListeRad) =>
-    r.status === "draft" || (r.status === "returned" && !r.attestertVed);
+  // S1 (plan § 8.22, Kenneth 2026-11-21): bare utkast kan slettes — en returnert dag rettes
+  // og sendes på nytt. Serveren håndhever samme regel (`dagsseddel.slett`).
+  const kanSlettes = (r: ListeRad) => r.status === "draft";
 
   // D8 (web-paritet 2026-07-09): kladd-påminnelse — usendte drafts MED innhold
   // fra TIDLIGERE dager (mobil `DagsseddelListe` UF-3). Periode-UAVHENGIG: egen
@@ -606,23 +608,17 @@ export default function MineTimerSide() {
 
       {/* Slett-bekreftelse (CLAUDE.md § Slett-bekreftelse — modal, ikke confirm()). */}
       {slettMål && (
-        <Modal open onClose={() => setSlettMål(null)} title={t("timer.detalj.slett")}>
-          <p className="text-sm text-gray-700">
-            {t("timer.mine.slettBekreft", { dato: formatDato(slettMål.dato) })}
-          </p>
-          <div className="mt-4 flex justify-end gap-3">
-            <Button variant="secondary" onClick={() => setSlettMål(null)}>
-              {t("handling.avbryt")}
-            </Button>
-            <Button
-              variant="danger"
-              onClick={() => slett.mutate({ id: slettMål.id })}
-              loading={slett.isPending}
-            >
-              {t("timer.detalj.slett")}
-            </Button>
-          </div>
-        </Modal>
+        <SlettDagModal
+          sheetId={slettMål.id}
+          overskrift={t("timer.slettDag.ingressDato", { dato: formatDato(slettMål.dato) })}
+          onClose={() => {
+            setSlettMål(null);
+            slett.reset();
+          }}
+          onBekreft={() => slett.mutate({ id: slettMål.id })}
+          sletter={slett.isPending}
+          feil={slett.error?.message ?? null}
+        />
       )}
     </div>
   );
