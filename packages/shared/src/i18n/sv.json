@@ -5799,6 +5799,7 @@
   "firma.ansatte.oppmote.feil.lukketFast": "En stängd permanent plats är historik och kan inte raderas. Ställ in en ny permanent plats istället.",
   "firma.ansatte.oppmote.slettHva": "Datum i perioden får medarbetarens andra rapporteringsplats. Om du tar bort en permanent plats gäller den tidigare permanenta platsen igen.",
   "timer.reiseKort.annetKontor": "Flytta till ett annat kontor",
+  "timer.reiseKort.fraAnnetKontor": "Överföring från annat kontor",
   "timer.reiseKort.tilKontor": "Till {{navn}}",
   "timer.reiseKort.midlertidigLinje": "Tillfälligt: ​​{{navn}} från {{dato}}",
   "timer.reiseKort.avslutt": "Avsluta",

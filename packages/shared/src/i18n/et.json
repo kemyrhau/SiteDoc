@@ -5799,6 +5799,7 @@
   "firma.ansatte.oppmote.feil.lukketFast": "Suletud alaline asukoht on ajalugu ja seda ei saa kustutada. Määrake selle asemel uus alaline asukoht.",
   "firma.ansatte.oppmote.slettHva": "Perioodi kuupäevad saavad töötaja teise aruandluskoha. Kui kustutate püsiva asukoha, rakendub uuesti eelmine püsiasukoht.",
   "timer.reiseKort.annetKontor": "Üleviimine teise kontorisse",
+  "timer.reiseKort.fraAnnetKontor": "Ülekanne teisest kontorist",
   "timer.reiseKort.tilKontor": "sihtkohta {{navn}}",
   "timer.reiseKort.midlertidigLinje": "Ajutine: {{navn}} alates {{dato}}",
   "timer.reiseKort.avslutt": "Lõpp",

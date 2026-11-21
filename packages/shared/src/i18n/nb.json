@@ -5799,6 +5799,7 @@
   "firma.ansatte.oppmote.feil.lukketFast": "Et avsluttet fast sted er historikk og kan ikke slettes. Sett et nytt fast sted i stedet.",
   "firma.ansatte.oppmote.slettHva": "Datoene i perioden får ansattens øvrige oppmøtested. Sletter du et fast sted, gjelder det forrige faste stedet igjen.",
   "timer.reiseKort.annetKontor": "Overføring til annet kontor",
+  "timer.reiseKort.fraAnnetKontor": "Overføring fra annet kontor",
   "timer.reiseKort.tilKontor": "Til {{navn}}",
   "timer.reiseKort.midlertidigLinje": "Midlertidig: {{navn}} fra {{dato}}",
   "timer.reiseKort.avslutt": "Avslutt",

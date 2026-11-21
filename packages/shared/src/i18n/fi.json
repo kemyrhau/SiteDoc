@@ -5799,6 +5799,7 @@
   "firma.ansatte.oppmote.feil.lukketFast": "Suljettu pysyvä sijainti on historiaa, eikä sitä voi poistaa. Aseta sen sijaan uusi pysyvä sijainti.",
   "firma.ansatte.oppmote.slettHva": "Jakson päivämäärät saavat työntekijän toisen raportointipaikan. Jos poistat pysyvän sijainnin, edellinen pysyvä sijainti otetaan uudelleen käyttöön.",
   "timer.reiseKort.annetKontor": "Siirto toiseen toimistoon",
+  "timer.reiseKort.fraAnnetKontor": "Siirto toisesta toimistosta",
   "timer.reiseKort.tilKontor": "Kohteeseen {{navn}}",
   "timer.reiseKort.midlertidigLinje": "Väliaikainen: {{navn}} alkaen {{dato}}",
   "timer.reiseKort.avslutt": "Loppu",

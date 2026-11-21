@@ -5799,6 +5799,7 @@
   "firma.ansatte.oppmote.feil.lukketFast": "Zamknięta stała lokalizacja jest historią i nie można jej usunąć. Zamiast tego ustaw nową stałą lokalizację.",
   "firma.ansatte.oppmote.slettHva": "Dates in the period get the employee's other reporting location. If you delete a permanent location, the previous permanent location applies again.",
   "timer.reiseKort.annetKontor": "Przeniesienie do innego biura",
+  "timer.reiseKort.fraAnnetKontor": "Przeniesienie z innego biura",
   "timer.reiseKort.tilKontor": "Do {{navn}}",
   "timer.reiseKort.midlertidigLinje": "Tymczasowo: {{navn}} z {{dato}}",
   "timer.reiseKort.avslutt": "Koniec",

@@ -211,6 +211,15 @@ describe("w15d — reiselinja og hodet i jobben", () => {
     expect(tekst).not.toContain("timer.prosjektkort.reiseTil");
   });
 
+  it("overføring tilbake: linja sier «Overføring fra annet kontor», ikke «til»", () => {
+    rendre([ARBEID1, { ...RETUR, id: "ro", reiseKilde: "overforing", reiseRetning: "retur", byggeplassId: null }]);
+    aapneForste();
+    const tekst = document.querySelector('[data-reiselinje="ro"]')!.textContent ?? "";
+    expect(tekst).toContain("timer.reiseKort.fraAnnetKontor");
+    expect(tekst).not.toContain("timer.reiseKort.annetKontor");
+    expect(tekst).not.toContain("timer.prosjektkort.reiseFra");
+  });
+
   it("reise uten underprosjekt i en jobb med underprosjekt: «Uten underprosjekt» (B48 A)", () => {
     rendre([ARBEID2, reise({ id: "r2r", kortId: "k2", byggeplassId: "b1", fraTid: "16:00", tilTid: "16:30", timer: "0.5" })]);
     aapneForste();

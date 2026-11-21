@@ -5799,6 +5799,7 @@
   "firma.ansatte.oppmote.feil.lukketFast": "Un emplacement permanent fermé appartient au passé et ne peut pas être supprimé. Définissez plutôt un nouvel emplacement permanent.",
   "firma.ansatte.oppmote.slettHva": "Les dates de la période obtiennent l'autre lieu de reporting de l'employé. Si vous supprimez un emplacement permanent, l'emplacement permanent précédent s'applique à nouveau.",
   "timer.reiseKort.annetKontor": "Transfert vers un autre bureau",
+  "timer.reiseKort.fraAnnetKontor": "Transfert depuis un autre bureau",
   "timer.reiseKort.tilKontor": "À {{navn}}",
   "timer.reiseKort.midlertidigLinje": "Temporaire : {{navn}} à partir de {{dato}}",
   "timer.reiseKort.avslutt": "Fin",

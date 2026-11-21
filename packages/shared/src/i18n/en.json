@@ -5799,6 +5799,7 @@
   "firma.ansatte.oppmote.feil.lukketFast": "A closed permanent location is history and cannot be deleted. Set a new permanent location instead.",
   "firma.ansatte.oppmote.slettHva": "Dates in the period get the employee's other reporting location. If you delete a permanent location, the previous permanent location applies again.",
   "timer.reiseKort.annetKontor": "Transfer to another office",
+  "timer.reiseKort.fraAnnetKontor": "Transfer from another office",
   "timer.reiseKort.tilKontor": "To {{navn}}",
   "timer.reiseKort.midlertidigLinje": "Temporary: {{navn}} from {{dato}}",
   "timer.reiseKort.avslutt": "End",

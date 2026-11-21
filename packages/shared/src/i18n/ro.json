@@ -5799,6 +5799,7 @@
   "firma.ansatte.oppmote.feil.lukketFast": "O locație permanentă închisă este istoric și nu poate fi ștearsă. Setați o nouă locație permanentă.",
   "firma.ansatte.oppmote.slettHva": "Datele din perioada obțin cealaltă locație de raportare a angajatului. Dacă ștergeți o locație permanentă, locația permanentă anterioară se aplică din nou.",
   "timer.reiseKort.annetKontor": "Transfer la alt birou",
+  "timer.reiseKort.fraAnnetKontor": "Transfer de la alt birou",
   "timer.reiseKort.tilKontor": "către {{navn}}",
   "timer.reiseKort.midlertidigLinje": "Temporar: {{navn}} din {{dato}}",
   "timer.reiseKort.avslutt": "Sfârşit",

@@ -5799,6 +5799,7 @@
   "firma.ansatte.oppmote.feil.lukketFast": "Закрите постійне місце є історією і не може бути видалено. Натомість установіть нове постійне місце розташування.",
   "firma.ansatte.oppmote.slettHva": "Дати в періоді отримують інше місце звітування працівника. Якщо ви видалите постійне місцезнаходження, попереднє постійне місцезнаходження буде застосовано знову.",
   "timer.reiseKort.annetKontor": "Переведення в інший офіс",
+  "timer.reiseKort.fraAnnetKontor": "Переведення з іншого офісу",
   "timer.reiseKort.tilKontor": "До {{navn}}",
   "timer.reiseKort.midlertidigLinje": "Тимчасово: {{navn}} від {{dato}}",
   "timer.reiseKort.avslutt": "Кінець",

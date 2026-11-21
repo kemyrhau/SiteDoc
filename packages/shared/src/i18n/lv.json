@@ -5799,6 +5799,7 @@
   "firma.ansatte.oppmote.feil.lukketFast": "Slēgta pastāvīgā atrašanās vieta ir vēsture, un to nevar izdzēst. Tā vietā iestatiet jaunu pastāvīgu atrašanās vietu.",
   "firma.ansatte.oppmote.slettHva": "Perioda datumi iegūst citu darbinieka ziņošanas vietu. Ja izdzēšat pastāvīgu atrašanās vietu, atkal tiek piemērota iepriekšējā pastāvīgā atrašanās vieta.",
   "timer.reiseKort.annetKontor": "Pārcelšanās uz citu biroju",
+  "timer.reiseKort.fraAnnetKontor": "Pāreja no cita biroja",
   "timer.reiseKort.tilKontor": "Uz {{navn}}",
   "timer.reiseKort.midlertidigLinje": "Pagaidu: {{navn}} no {{dato}}",
   "timer.reiseKort.avslutt": "Beigas",

@@ -2957,10 +2957,13 @@ function ReiseLinje({
 
   const sted = (rad.byggeplassId && byggeplassNavn.get(rad.byggeplassId)) || prosjektNavn;
   // Overføring mellom kontorer: raden har bare fra-kontoret (reiseOppmotestedId), ikke målet —
-  // prosjektet/byggeplassen er ikke stedet arbeideren kjørte til. Linja sier hva det er.
+  // prosjektet/byggeplassen er ikke stedet arbeideren kjørte til. Linja sier hva det er,
+  // med retning: «til» ved ut, «fra» ved retur.
   const stedTekst =
     rad.reiseKilde === "overforing"
-      ? t("timer.reiseKort.annetKontor")
+      ? rad.reiseRetning === "retur"
+        ? t("timer.reiseKort.fraAnnetKontor")
+        : t("timer.reiseKort.annetKontor")
       : rad.reiseRetning === "ut"
         ? t("timer.prosjektkort.reiseTil", { sted })
         : rad.reiseRetning === "retur"
