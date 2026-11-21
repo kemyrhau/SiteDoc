@@ -4953,9 +4953,10 @@ export const dagsseddelRouter = router({
         throw new TRPCError({ code: "BAD_REQUEST", message: "Jobben finnes ikke på denne dagsseddelen." });
       }
       await validerEcoForFlytt(input.externalCostObjectId, sheet.organizationId, forste.projectId);
-      if (forste.externalCostObjectId === input.externalCostObjectId) {
-        return { kortId: input.kortId, antall: 0 };
-      }
+      // Retur 130: ingen kortslutning når første rad alt står på målet. Feilet vare-steget etter
+      // transaksjonen, står varen igjen på det gamle underprosjektet; «Prøv igjen» sender samme
+      // valg og må rette den. `flyttHeleJobben` er idempotent. Klienten sender ikke likt valg
+      // ellers (`JobbSkjema.velgEco`).
       return flyttHeleJobben(ctx, {
         sheet,
         rad: {

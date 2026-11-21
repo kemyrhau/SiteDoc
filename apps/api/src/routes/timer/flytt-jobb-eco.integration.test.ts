@@ -227,6 +227,29 @@ describe("§ 8.22 L3b — flyttJobbEco", () => {
     expect(await tilstand(sheetId, kortA)).toEqual(uten);
   });
 
+  it("gjentatt valg etter delvis flytting retter varen (retur 130)", async () => {
+    const { sheetId, kortA } = await sedelMedToJobber("2026-11-17");
+    // Delvis flytting: transaksjonen gikk gjennom (timer, tillegg, maskin, utlegg), vare-steget feilet.
+    await prismaTimer.sheetTimer.updateMany({ where: { sheetId, kortId: kortA, erReise: false }, data: { externalCostObjectId: ECO } });
+    await prismaTimer.sheetTillegg.updateMany({ where: { sheetId, kortId: kortA }, data: { externalCostObjectId: ECO } });
+    await prismaTimer.sheetMachine.updateMany({ where: { sheetId, kortId: kortA }, data: { externalCostObjectId: ECO } });
+    await prismaTimer.sheetUtlegg.updateMany({ where: { sheetId, kortId: kortA }, data: { externalCostObjectId: ECO } });
+    // Negativkontroll: varen står igjen uten underprosjekt.
+    expect((await tilstand(sheetId, kortA)).vare).toEqual([null]);
+
+    // «Prøv igjen» sender samme valg på nytt — varen skal følge jobben.
+    const svar = await dag().flyttJobbEco({ sheetId, kortId: kortA, externalCostObjectId: ECO });
+    expect(svar.antall).toBeGreaterThan(0);
+    expect(await tilstand(sheetId, kortA)).toEqual({
+      timer: [ECO, ECO],
+      reise: [null],
+      maskin: [ECO],
+      tillegg: [ECO],
+      utlegg: [ECO],
+      vare: [ECO],
+    });
+  });
+
   it("lukket underprosjekt avvises — ingenting endres", async () => {
     const { sheetId, kortA } = await sedelMedToJobber("2026-11-10");
     await expect(dag().flyttJobbEco({ sheetId, kortId: kortA, externalCostObjectId: ECO_LUKKET })).rejects.toMatchObject({
