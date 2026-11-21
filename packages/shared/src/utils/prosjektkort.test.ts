@@ -226,6 +226,11 @@ describe("sumlinjeDag — reisetid legges til totalen (Kenneth 2026-11-21)", () 
     expect(s.sone).toBe("blå");
   });
 
+  it("Kenneths eksempel § 8.22: arbeid 8,0 + reise 3 → «8,0 av 7,5» og sum i dag 11, gul", () => {
+    const s = sumlinjeDag([t(8), t(3, { erReise: true })], [], 7.5);
+    expect(s).toEqual({ arbeid: 8, maskin: 0, reise: 3, totalt: 11, sone: "gul" });
+  });
+
   it("erstattede rader (timer og maskin) teller ikke", () => {
     const rader = [
       t(4),

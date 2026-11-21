@@ -199,7 +199,7 @@ export function sumlinjeMotNorm(
 }
 
 /**
- * Bunnlinja på dagen «Arbeid X t av N t · maskin Y t · reise Z t · totalt T t»
+ * Bunnlinja på dagen «Arbeid X t av N t · maskin Y t · reise Z t · sum i dag T t»
  * (Kenneth 2026-11-21, plan § 8.21 + § 8.22 — snur 2026-11-14): reisetid er lønnet
  * arbeid og legges til totalen; maskintimer vises, men legges ikke til.
  * Trafikklyset regnes fortsatt mot normen uten reise (`sumlinjeMotNorm`):
