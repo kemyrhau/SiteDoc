@@ -84,6 +84,7 @@ import { rundTilNarmeste } from "@/lib/tidsrunding";
 import { ReiseKort } from "./ReiseKort";
 import { KorrigeringProvider, KorrigertMerke, type KorrigeringerPrRad } from "@/components/timer/KorrigertMerke";
 import { reiseHavnerI, type ReiseHavnerAnnenRad } from "@/hooks/useManuellReiseWeb";
+import { formaterBelop, formaterTimer } from "@/lib/tallformat";
 import {
   beregnKortSummer,
   kortStatus,
@@ -101,10 +102,6 @@ function tilTall(v: unknown): number {
   if (v === null || v === undefined) return 0;
   if (typeof v === "number") return v;
   return Number(v);
-}
-
-function formatTimer(n: number): string {
-  return (Math.round(n * 100) / 100).toLocaleString("nb-NO");
 }
 
 function formatDato(d: Date | string): string {
@@ -1426,13 +1423,13 @@ export default function DagsseddelDetaljSide() {
           return (
             <div className={`mb-4 rounded-lg border p-4 text-sm ${farge}`}>
               {t("timer.summering", {
-                registrert: bannerArbeid.toFixed(2),
-                total: normTimer === null ? "?" : normTimer.toFixed(2),
+                registrert: formaterTimer(bannerArbeid),
+                total: normTimer === null ? "?" : formaterTimer(normTimer),
               })}
               {bannerReise > 0 && (
                 <>
                   {" · "}
-                  {t("timer.summeringReise", { reise: bannerReise.toFixed(2) })}
+                  {t("timer.summeringReise", { reise: formaterTimer(bannerReise) })}
                 </>
               )}
             </div>
@@ -2199,14 +2196,14 @@ function ProsjektkortSamleside({
           <span className={`h-2.5 w-2.5 rounded-full ${prikk}`} aria-hidden />
           <span className="text-sm text-gray-700">
             {t("timer.prosjektkort.sumArbeid", {
-              timer: formatTimer(dag.arbeid),
-              norm: normTimer === null ? "?" : formatTimer(normTimer),
+              timer: formaterTimer(dag.arbeid),
+              norm: normTimer === null ? "?" : formaterTimer(normTimer),
             })}
             {dag.maskin > 0 &&
-              ` · ${t("timer.prosjektkort.sumMaskin", { timer: formatTimer(dag.maskin) })}`}
+              ` · ${t("timer.prosjektkort.sumMaskin", { timer: formaterTimer(dag.maskin) })}`}
             {dag.reise > 0 &&
-              ` · ${t("timer.prosjektkort.sumReise", { timer: formatTimer(dag.reise) })}`}
-            {` · ${t("timer.prosjektkort.sumTotalt", { timer: formatTimer(dag.totalt) })}`}
+              ` · ${t("timer.prosjektkort.sumReise", { timer: formaterTimer(dag.reise) })}`}
+            {` · ${t("timer.prosjektkort.sumTotalt", { timer: formaterTimer(dag.totalt) })}`}
           </span>
           <div className="ml-auto flex gap-2">
             {kanSlette && (
@@ -2230,11 +2227,11 @@ function ProsjektkortSamleside({
                   );
                   if (tekst.nokkel === "timer.detalj.sendPaaNytt") return t(tekst.nokkel);
                   if (tekst.nokkel === "timer.prosjektkort.sendDagen") {
-                    return t(tekst.nokkel, { timer: formatTimer(tekst.timer) });
+                    return t(tekst.nokkel, { timer: formaterTimer(tekst.timer) });
                   }
                   return t(tekst.nokkel, {
-                    timer: formatTimer(tekst.timer),
-                    reise: formatTimer(tekst.reise),
+                    timer: formaterTimer(tekst.timer),
+                    reise: formaterTimer(tekst.reise),
                   });
                 })()}
               </Button>
@@ -2292,7 +2289,7 @@ function JobbKortRamme({
   const enhet = t("timer.timerEnhet");
   const visTimer = (n: number) =>
     n > 0
-      ? `${n.toLocaleString("nb-NO", { minimumFractionDigits: 1, maximumFractionDigits: 2 })} ${enhet}`
+      ? `${formaterTimer(n)} ${enhet}`
       : "—";
   const summer = beregnKortSummer(timer, maskin, varer);
   // w15d (F19, F20): hodet regner sted og klokke av arbeidet — reisen teller ikke. Et kort
@@ -2777,11 +2774,11 @@ function EcoGruppe({
           <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-700">
             {t("timer.gruppe.arbeidstimer")}{" "}
             <span className="font-mono font-normal text-gray-500">
-              ({sumTimer.toFixed(2)} {t("timer.timerEnhet")})
+              ({formaterTimer(sumTimer)} {t("timer.timerEnhet")})
             </span>
             {sumReise > 0 && (
               <span className="ml-2 font-mono font-normal normal-case text-gray-500">
-                {t("timer.gruppe.reise", { timer: sumReise.toFixed(2) })}
+                {t("timer.gruppe.reise", { timer: formaterTimer(sumReise) })}
               </span>
             )}
           </h4>
@@ -2857,7 +2854,7 @@ function EcoGruppe({
         <div
           className="mt-3 rounded border px-3 py-1.5 text-xs font-medium border-gray-200 bg-white text-gray-700"
         >
-          {t("timer.gruppe.maskin", { maskin: sumMaskin.toFixed(2) })}
+          {t("timer.gruppe.maskin", { maskin: formaterTimer(sumMaskin) })}
         </div>
       )}
     </div>
@@ -3030,7 +3027,7 @@ function ReiseLinje({
           </div>
           <div className="flex items-center gap-3">
             <span className="font-mono text-sm text-gray-900">
-              {tilTall(rad.timer).toFixed(2)} {t("timer.timerEnhet")}
+              {formaterTimer(tilTall(rad.timer))} {t("timer.timerEnhet")}
             </span>
             {erRedigerbar && (
               <div className="flex gap-1">
@@ -3245,7 +3242,7 @@ function RaderTimer({
             </div>
             <div className="flex items-center gap-3">
               <span className="font-mono text-sm text-gray-900">
-                {tilTall(rad.timer).toFixed(2)} {t("timer.timerEnhet")}
+                {formaterTimer(tilTall(rad.timer))} {t("timer.timerEnhet")}
               </span>
               {erRedigerbar && (
                 <div className="flex gap-1">
@@ -3344,7 +3341,7 @@ function RaderTillegg({
                   ? tilTall(rad.antall) > 0
                     ? "✓"
                     : "—"
-                  : tilTall(rad.antall).toFixed(2)}
+                  : formaterTimer(tilTall(rad.antall))}
               </span>
               {erRedigerbar && (
                 <div className="flex gap-1">
@@ -3450,14 +3447,14 @@ function RaderMaskinKompakt({
                 </p>
                 {rad.mengde !== null && rad.mengde !== undefined && (
                   <p className="text-xs text-gray-500">
-                    {tilTall(rad.mengde).toFixed(2)} {rad.enhet ?? ""}
+                    {formaterTimer(tilTall(rad.mengde))} {rad.enhet ?? ""}
                   </p>
                 )}
                 <KorrigertMerke type="maskin" radId={rad.id} />
               </div>
               <div className="flex items-center gap-3">
                 <span className="font-mono text-sm text-gray-900">
-                  {tilTall(rad.timer).toFixed(2)} {t("timer.timerEnhet")}
+                  {formaterTimer(tilTall(rad.timer))} {t("timer.timerEnhet")}
                 </span>
                 {erRedigerbar && (
                   <div className="flex gap-1">
@@ -4273,8 +4270,7 @@ function TimerRadDialog({
     fastPauseFra,
   ]);
 
-  const formaterT = (n: number) =>
-    n.toLocaleString(i18n.language, { maximumFractionDigits: 2 });
+  const formaterT = (n: number) => formaterTimer(n, i18n.language);
   const lonnsartNavn = (id: string) =>
     lonnsarter?.find((l) => l.id === id)?.navn ?? "";
 
@@ -4428,7 +4424,7 @@ function TimerRadDialog({
         radPauseMin,
       );
       if (Math.abs(forventet - tNum) > 0.01) {
-        setFeil(t("timer.feil.timerAvvik", { forventet: forventet.toFixed(2) }));
+        setFeil(t("timer.feil.timerAvvik", { forventet: formaterTimer(forventet) }));
         return null;
       }
     }
@@ -4922,7 +4918,7 @@ function TimerRadDialog({
                           </div>
                           {h !== null && over && (
                             <p className="mt-1 text-xs font-medium text-red-600">
-                              {t("timer.maskin.hoyst", { timer: formatTimer(h) })}
+                              {t("timer.maskin.hoyst", { timer: formaterTimer(h) })}
                             </p>
                           )}
                         </div>
@@ -4970,7 +4966,7 @@ function TimerRadDialog({
                         : "text-gray-500"
                     }`}
                   >
-                    {t("timer.maskin.hoyst", { timer: formatTimer(nyMaskinHoyst) })}
+                    {t("timer.maskin.hoyst", { timer: formaterTimer(nyMaskinHoyst) })}
                   </p>
                 )}
                 <p className="text-xs text-gray-400">{t("timer.maskinSeksjon.hintJobb")}</p>
@@ -5050,7 +5046,7 @@ function TimerRadDialog({
                     data-testid="maskin-hoyst"
                     className={`text-xs ${maskinOverHoyst ? "font-medium text-red-600" : "text-gray-500"}`}
                   >
-                    {t("timer.maskin.hoyst", { timer: formatTimer(maskinHoyst) })}
+                    {t("timer.maskin.hoyst", { timer: formaterTimer(maskinHoyst) })}
                   </p>
                 )}
                 <p className="text-xs text-gray-400">
@@ -5593,7 +5589,7 @@ function RaderUtlegg({
               <span className="font-mono text-sm text-gray-900">
                 {ordning === "fakturert"
                   ? "✓"
-                  : `${tilTall(rad.belop).toFixed(2)} kr`}
+                  : `${formaterBelop(tilTall(rad.belop))} kr`}
               </span>
               {erRedigerbar && (
                 <div className="flex gap-1">
@@ -6449,7 +6445,7 @@ function MaskinRadDialog({
               data-testid="maskin-hoyst"
               className={`mt-1 text-xs ${overHoyst ? "font-medium text-red-600" : "text-gray-500"}`}
             >
-              {t("timer.maskin.hoyst", { timer: formatTimer(hoyst) })}
+              {t("timer.maskin.hoyst", { timer: formaterTimer(hoyst) })}
             </p>
           )}
         </div>
