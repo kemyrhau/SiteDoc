@@ -4718,16 +4718,20 @@ function TimerRadDialog({
     };
     // Ordre d2c-1: maskinen føres på normal-delen (timeraden den gikk på).
     let normalRadId: string | null = null;
+    // Gate 134 V1 (paritet m/ `lagreRadKort`, gate 107): raden er lagret, men koblet vare ble
+    // ikke flyttet. Kall 2 og maskinene fullføres; vinduet står åpent med meldingen.
+    let vareIkkeFlyttet = false;
     try {
       if (visKortMaskin) await lagreJobbMaskinerFoer();
       if (rad) {
-        await oppdaterDel.mutateAsync({
+        const svar: unknown = await oppdaterDel.mutateAsync({
           id: rad.id,
           ...felles,
           lonnsartId,
           ...f.normal,
           ...byggeplassPayload(bp),
         });
+        vareIkkeFlyttet = (svar as { vareIkkeFlyttet?: boolean } | null)?.vareIkkeFlyttet === true;
       } else {
         const normal: unknown = await tilfoy.mutateAsync({
           sheetId,
@@ -4763,10 +4767,19 @@ function TimerRadDialog({
         return;
       }
       utils.timer.dagsseddel.hentMedId.invalidate();
+      if (vareIkkeFlyttet) {
+        setFeil(t("timer.feil.vareIkkeFlyttet"));
+        return;
+      }
       onLukk();
       return;
     }
     utils.timer.dagsseddel.hentMedId.invalidate();
+    if (vareIkkeFlyttet) {
+      // Bare «Rediger» (rad finnes) kan gi flagget — maskin-grenen under gjelder ny rad.
+      setFeil(t("timer.feil.vareIkkeFlyttet"));
+      return;
+    }
     if (!rad && maskinVehicleId) {
       maskinTilfoy.mutate({
         sheetId,

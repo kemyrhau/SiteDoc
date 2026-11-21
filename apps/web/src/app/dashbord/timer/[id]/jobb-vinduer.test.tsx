@@ -13,6 +13,8 @@ const h = vi.hoisted(() => ({
   data: {} as Record<string, unknown>,
   kall: [] as { sti: string; input: Record<string, unknown> }[],
   feil: {} as Record<string, unknown>,
+  /** Svar fra en mutasjon pr. sti (standard `{ id: "ny" }`). */
+  svar: {} as Record<string, unknown>,
   velgFirma: vi.fn(),
 }));
 
@@ -69,7 +71,7 @@ vi.mock("@/lib/trpc", () => {
         if (navn === "useMutation") {
           const logg = (input: Record<string, unknown>) => {
             h.kall.push({ sti: key, input });
-            return { id: "ny" };
+            return h.svar[key] ?? { id: "ny" };
           };
           return () => ({
             mutate: logg,
@@ -94,6 +96,7 @@ function rendre(modus = "prosjektkort") {
   const r2 = { ...DAG7_SEDEL.timer[1]!, byggeplassId: "b1" };
   h.kall = [];
   h.feil = {};
+  h.svar = {};
   h.data = {
     ...dag7Data(modus),
     "timer.dagsseddel.hentMedId": { ...DAG7_SEDEL, timer: [DAG7_SEDEL.timer[0]!, r2] },
@@ -881,6 +884,19 @@ describe("O5 B — overtid deles automatisk ved lagring i prosjektkort-modus (§
       sti: "timer.dagsseddel.tilfoyTimerRad",
       input: { fraTid: "15:00", tilTid: "15:30", timer: 0.5, lonnsartId: "ot", kortId: "k2" },
     });
+  });
+
+  it("gate 134 V1: deling der varen ikke ble flyttet — kall 2 gjøres, vinduet står åpent med feilen", async () => {
+    dag6t("prosjektkort", [{ id: "r3", fraTid: "13:30", tilTid: "14:30", timer: "1", createdAt: "2026-11-20T13:30:00.000Z" }]);
+    h.svar["timer.dagsseddel.oppdaterTimerRad"] = { id: "r3", vareIkkeFlyttet: true };
+    const dialog = rediger(1);
+    settTid(dialog, null, "15:30");
+    fireEvent.submit(dialog.querySelector("form")!);
+    await vi.waitFor(() => expect(within(dialog).getByText("timer.feil.vareIkkeFlyttet")).toBeTruthy());
+    const [normal, overtid] = timerKall();
+    expect(normal).toMatchObject({ sti: "timer.dagsseddel.oppdaterTimerRad", input: { id: "r3", tilTid: "15:00" } });
+    expect(overtid).toMatchObject({ sti: "timer.dagsseddel.tilfoyTimerRad", input: { fraTid: "15:00", tilTid: "15:30", lonnsartId: "ot" } });
+    expect(screen.getByRole("dialog", { name: "timer.detalj.redigerTimerRad" })).toBe(dialog);
   });
 
   it("bevisst artsbytte står: overtidsdelen byttet til Timelønn på uendret tid lagres som Timelønn, uten ny deling", async () => {
