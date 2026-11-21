@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="nb"><head><meta charset="utf-8"><title>w15g løsning</title>
+<style>
+body{font-family:-apple-system,Helvetica,Arial,sans-serif;background:#f3f4f6;margin:0;padding:28px;color:#111827;width:1384px}
+h1{font-size:22px;margin:0 0 4px}h2{font-size:15px;margin:22px 0 8px}.sub{color:#6b7280;font-size:14px;margin-bottom:14px}
+.kol{display:flex;gap:24px;align-items:flex-start}.v{flex:1.3}.h{flex:1}
+.kort{background:#fff;border:1px solid #93c5fd;border-radius:8px;font-size:14px}
+.kh{display:flex;justify-content:space-between;align-items:center;padding:8px 16px;border-bottom:1px solid #e5e7eb}
+.kh .tit{font-weight:600}.kh .sted{font-size:12px;color:#6b7280}
+.btn{display:inline-flex;align-items:center;gap:5px;border:1px solid #d1d5db;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:500;background:#fff;color:#374151}
+.eco{display:flex;gap:6px;align-items:center;background:#f9fafb;border-bottom:1px solid #f3f4f6;padding:8px 16px}
+.pill{border:1px solid #d1d5db;border-radius:99px;padding:3px 11px;font-size:12px;background:#fff}.pill.a{background:#1d4ed8;color:#fff;border-color:#1d4ed8}
+.del{display:flex;gap:12px;padding:8px 16px;border-bottom:1px solid #f3f4f6;align-items:flex-start}
+.nr{display:inline-flex;width:20px;height:20px;border-radius:50%;background:#f3f4f6;font-size:11px;font-weight:700;color:#4b5563;align-items:center;justify-content:center;flex-shrink:0}
+.dn{width:140px;font-weight:500;flex-shrink:0}.dv{flex:1}
+.lin{display:flex;align-items:center;gap:12px;padding:2px 0}.t{font-variant-numeric:tabular-nums}
+.ik{display:inline-flex;width:26px;height:26px;border:1px solid #e5e7eb;border-radius:4px;align-items:center;justify-content:center;font-size:13px;color:#4b5563;background:#fff}
+.ny{outline:2px solid #22c55e;outline-offset:2px}
+.g{color:#6b7280}.ml{margin-left:auto;display:flex;gap:6px}
+.modal{background:#fff;border-radius:10px;border:1px solid #e5e7eb;box-shadow:0 10px 30px rgba(0,0,0,.10);padding:18px 20px;font-size:14px}
+.modal h3{margin:0 0 12px;font-size:16px}
+.f{margin-bottom:10px}.f label{display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:3px}
+.inp{border:1px solid #d1d5db;border-radius:4px;padding:6px 10px;font-size:13px;background:#fff;display:inline-block;min-width:60px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.knapper{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}.pri{background:#1d4ed8;color:#fff;border-color:#1d4ed8}
+.info{font-size:12px;color:#1e40af;background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:7px 10px;margin-top:6px}
+.note{font-size:13px;color:#374151;margin:6px 0 0;line-height:1.45}
+.mrk{display:inline-block;font-size:11px;font-weight:600;color:#92400e;background:#fef3c7;border:1px solid #fde68a;border-radius:4px;padding:1px 7px}
+.wl{background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:6px 16px}
+.wlin{padding:9px 0;border-bottom:1px solid #f3f4f6}.wlin:last-child{border-bottom:0}
+.l1{font-weight:500}.l2{font-size:12px;color:#6b7280}
+.endr{font-size:12px;color:#374151;margin-top:4px;padding-left:10px;border-left:3px solid #fcd34d}
+.endr s{color:#9ca3af}
+table{border-collapse:collapse;width:100%;background:#fff;border:1px solid #e5e7eb;border-radius:8px;font-size:13px}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#6b7280;text-align:left;padding:8px;border-bottom:1px solid #e5e7eb}
+td{padding:8px;border-bottom:1px solid #f3f4f6}
+.tag{display:inline-flex;width:20px;height:20px;border-radius:50%;background:#16a34a;color:#fff;font-size:12px;font-weight:700;align-items:center;justify-content:center;margin-right:6px}
+</style></head><body>
+<h1>w15g — attesteringskortets to tilstander og merket «Korrigert av»</h1>
+<div class="sub">Skisse til LØSNING, ikke skjermbilde av kjørt kode. 1 440 px. Grønn ramme = nytt.</div>
+
+<h2><span class="tag">1</span>Attestanten: kortet i informasjonsstatus (tekst med ✎), og vinduet bak ✎</h2>
+<div class="kol">
+<div class="v">
+ <div class="kort">
+  <div class="kh"><div><div class="tit">1050 · Sitedoc Boligfelt B12</div><div class="sted">sommerfeldtsgt 65 · Forskaling</div></div>
+   <span style="display:flex;gap:8px"><span class="btn">✎ Rediger jobben</span><span class="g">✕</span></span></div>
+  <div class="eco"><b style="font-size:14px;margin-right:6px">Underprosjekt</b><span class="pill">Uten</span><span class="pill a">1050-01 · Grunnarbeid</span><span class="pill">1050-02 · Råbygg</span></div>
+  <div class="del"><span class="nr">1</span><span class="dn">Fra–til</span><span class="dv t">07:00–15:35 <span class="g">· pause 30 min ·</span> <b>8 t</b></span><span class="btn">✂ Del opp</span></div>
+  <div class="del"><span class="nr">2</span><span class="dn">Lønnsart</span><div class="dv">
+    <div class="lin"><span class="t">07:00–11:00 · 4 t</span><span>Normaltid</span><span class="ml"><span class="ik">✂</span><span class="ik ny">✎</span></span></div>
+    <div class="lin"><span class="t">11:30–15:35 <span class="g">· pause 30 min</span> · 4 t</span><span>Normaltid</span><span class="ml"><span class="ik">✂</span><span class="ik ny">✎</span></span></div></div></div>
+  <div class="del"><span class="nr">3</span><span class="dn">Hva gjorde du?</span><span class="dv">Forskaling av ringmur</span></div>
+  <div class="del"><span class="nr">4</span><span class="dn">Maskiner</span><div class="dv"><div class="lin"><span style="width:180px">Volvo EC220E</span><span class="t">6 t</span><span class="ml"><span class="ik ny">✎</span></span></div></div></div>
+  <div class="del"><span class="nr">5</span><span class="dn">Varer</span><span class="dv g">—</span></div>
+  <div class="del"><span class="nr">6</span><span class="dn">Tillegg</span><div class="dv"><div class="lin"><span style="width:180px">Smusstillegg</span><span class="t">1</span><span class="ml"><span class="ik">✂</span><span class="ik ny">✎</span></span></div></div></div>
+  <div class="del" style="border:0"><span class="nr">7</span><span class="dn">Utlegg</span><span class="dv g">—</span></div>
+ </div>
+ <p class="note">Ingen felt i kortet. Fra/til/pause, lønnsart, maskintimer og antall er tekst; ✎ står der feltet sto (bare når firmavalget er på og linja venter). «✎ Rediger jobben», underprosjekt-knappene, «Del opp», ✂ og reiselinja (w15f) er som i dag.</p>
+</div>
+<div class="h">
+ <div class="modal ny">
+  <h3>Rett timelinja</h3>
+  <div class="g3"><div class="f"><label>Fra</label><span class="inp">11:30</span></div><div class="f"><label>Til</label><span class="inp" style="border-color:#3b82f6">15:50</span></div><div class="f"><label>Pause (min)</label><span class="inp">30</span></div></div>
+  <div class="f"><label>Lønnsart</label><span class="inp" style="min-width:240px">Normaltid ▾</span></div>
+  <div class="g">Timer: <b style="color:#111827">4,33 t</b> (regnes av fra, til og pause)</div>
+  <div class="info">Ola Tømrer ser «Korrigert av Kari Leder» på linja.</div>
+  <div class="knapper"><span class="btn">Avbryt</span><span class="btn pri">Lagre</span></div>
+ </div>
+ <p class="note">Samme felt og regler som de åpne feltene i dag (`TidFelter`, `TallFelt`, `tillatteLonnsarter` flyttes inn i vinduet). Én «Lagre» = ett `rettRadFelt`. Maskinlinje: «Timer» med «høyst X t». Tilleggslinje: «Antall». Lønnsart på stk/km/døgn: tallfelt «Timer», som i dag.</p>
+ <div class="modal" style="margin-top:16px">
+  <h3>Rediger arbeid <span class="g" style="font-weight:400;font-size:13px">(uendret, bare linja under er ny)</span></h3>
+  <div class="g" style="font-size:13px">Fra · Til · Lønnsart · Aktivitet · Timer · Pause · 🗑 — feltene åpne, ingen ✎</div>
+  <div class="info ny">Ola Tømrer ser «Korrigert av Kari Leder» på linjene du endrer.</div>
+  <div class="knapper"><span class="btn">Avbryt</span><span class="btn pri">Lagre endringer</span></div>
+ </div>
+</div>
+</div>
+
+<h2><span class="tag">2</span>Arbeideren: linja på dagen (`renderLinjer`, `ReiseLinje`)</h2>
+<div class="kol">
+<div class="v">
+ <div class="wl">
+  <div class="wlin"><div class="l1 t">07:00–11:00 · 4 t · Normaltid</div><div class="l2">Forskaling</div></div>
+  <div class="wlin ny"><div class="l1 t">11:30–15:50 · 4,33 t · Normaltid</div><div class="l2">Forskaling · pause 30 min</div>
+    <div style="margin-top:5px"><span class="mrk">Korrigert av Kari Leder 21.11. kl. 14:32</span></div>
+    <div class="endr">Slutt kl. <s>15:35</s> → 15:50 · Timer <s>4</s> → 4,33</div></div>
+  <div class="wlin ny"><div class="l1"><span class="mrk" style="background:#fef3c7">Reise</span> 15:50–16:30 · Hjem fra sommerfeldtsgt 65</div>
+    <div style="margin-top:5px"><span class="mrk">Korrigert av Kari Leder 21.11. kl. 14:40</span></div>
+    <div class="endr">Prosjekt <s>1050 Sitedoc Boligfelt B12</s> → 1060 Kontor Narvik</div></div>
+ </div>
+</div>
+<div class="h"><p class="note">Merket står under linja, med hvert korrigert felt før → etter. «Før» er verdien før <b>første</b> korrigering (F76), navn og tid fra <b>siste</b>. Linje uten korrigering: ingen merke. Uten navn: «Korrigert ved attestering» + tidspunkt. Merket står også etter attestering. Gjelder timelinje, reiselinje, maskinlinje og tilleggslinje.</p></div>
+</div>
+
+<h2><span class="tag">3</span>Arbeideren: Mine timer (`mine/page.tsx`)</h2>
+<table><tr><th>Dato</th><th>Prosjekt</th><th>Aktivitet</th><th style="text-align:right">Timer</th><th>Status</th><th></th></tr>
+<tr><td>fre. 21.11.</td><td>1050 Sitedoc Boligfelt B12</td><td>Forskaling</td><td style="text-align:right" class="t">8,33</td><td><span class="g">Sendt</span> <span class="mrk ny">Korrigert av Kari Leder</span></td><td style="color:#2563eb">Åpne</td></tr>
+<tr><td>tor. 20.11.</td><td>1050 Sitedoc Boligfelt B12</td><td>Forskaling</td><td style="text-align:right" class="t">7,5</td><td><span class="g">Godkjent</span> <span class="mrk ny">Korrigert av Per Hansen m.fl.</span></td><td style="color:#2563eb">Åpne</td></tr>
+<tr><td>ons. 19.11.</td><td>1050 Sitedoc Boligfelt B12</td><td>Forskaling</td><td style="text-align:right" class="t">7,5</td><td><span class="g">Godkjent</span></td><td style="color:#2563eb">Åpne</td></tr>
+</table>
+<p class="note">Merket ved statusen; «m.fl.» når flere har korrigert, navnet er den som korrigerte sist. Tid og felt står på dagen, ikke i lista.</p>
+</body></html>
