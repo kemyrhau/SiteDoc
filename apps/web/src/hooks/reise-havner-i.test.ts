@@ -172,3 +172,29 @@ describe("reiseHavnerI — kort uten arbeid (w15f, F55)", () => {
     expect(r).toMatchObject({ type: "jobb", kortId: "kj" });
   });
 });
+
+// O1 (§ 8.22): to jobber med samme nøkkel; turen under terskel åpnet fra jobb 2.
+describe("reiseHavnerI — O1 jobbKortId under terskel", () => {
+  const rader = [
+    jobb({ kortId: "kA", fraTid: "07:00", opprettet: 1 }),
+    jobb({ kortId: "kB", fraTid: "15:00", opprettet: 2 }),
+  ];
+  const tur = reise({ erReise: false, retning: "retur", fraTid: "16:00" });
+  it("åpnet fra jobb 2 → står i jobb 2", () => {
+    const h = reiseHavnerI({ rader, sedelByggeplass: null, reise: tur, jobbKortId: "kB" });
+    expect(h).toMatchObject({ type: "jobb", kortId: "kB" });
+  });
+  it("negativkontroll: uten jobbKortId → eldste jobb med nøkkelen (serverens regel 3)", () => {
+    const h = reiseHavnerI({ rader, sedelByggeplass: null, reise: tur });
+    expect(h).toMatchObject({ type: "jobb", kortId: "kA" });
+  });
+  it("over terskel (reise) påvirkes ikke av jobbKortId — velgReiseKort som før", () => {
+    const h = reiseHavnerI({
+      rader,
+      sedelByggeplass: null,
+      reise: reise({ retning: "ut", fraTid: "06:00" }),
+      jobbKortId: "kB",
+    });
+    expect(h).toMatchObject({ type: "jobb", kortId: "kA" });
+  });
+});

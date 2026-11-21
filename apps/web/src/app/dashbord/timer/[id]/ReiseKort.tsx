@@ -8,8 +8,11 @@ import {
   finnOverlappendeTidsrom,
   klokkeTilMin,
   manuellReiseForklaringTekst,
+  manuellReiseTerskelTekst,
   medOverforingPeriodeId,
   periodeDatoFraOverforing,
+  tilFraAntall,
+  type ReiseKategori,
   type ReiseKortSperre,
 } from "@sitedoc/shared";
 import { trpc } from "@/lib/trpc";
@@ -53,6 +56,13 @@ import {
 /** w15b: en rad på sedelen — dagsrammen, overlapp-sperren og linja «havner i». */
 export type ReiseKortDagsrad = ReiseHavnerRad & { tilTid: string | null };
 
+/** O1 TILLEGG: «1», «1,5», «0.75» → timer; tomt, 0 eller ugyldig → null. */
+function tolkAntall(v: string | null): number | null {
+  if (v == null) return null;
+  const n = Number(v.trim().replace(",", "."));
+  return Number.isFinite(n) && n > 0 && n <= 24 ? n : null;
+}
+
 /** YYYY-MM-DD → dd.mm */
 function kortDato(d: string): string {
   return `${d.slice(8, 10)}.${d.slice(5, 7)}`;
@@ -85,6 +95,7 @@ export function ReiseKort({
   erFirmaAdmin,
   forvalgtByggeplassId,
   forvalgtEcoId,
+  jobbKortId,
   onLukk,
 }: {
   sheetId: string;
@@ -113,6 +124,9 @@ export function ReiseKort({
    *  forvalgt. Feltene står og kan endres. Utelatt = som før. */
   forvalgtByggeplassId?: string | null;
   forvalgtEcoId?: string | null;
+  /** O1 (§ 8.22): kort-id-en til jobben vinduet ble åpnet fra. Under terskel føres turen
+   *  som arbeid i DEN jobben når nøkkelen er lik. Utelatt = som før (serveren velger). */
+  jobbKortId?: string | null;
   onLukk: () => void;
 }) {
   const { t } = useTranslation();
@@ -127,9 +141,15 @@ export function ReiseKort({
   // w15b: arbeiderens rettede tider. null = forslaget.
   const [rettetStart, setRettetStart] = useState<string | null>(null);
   const [rettetSlutt, setRettetSlutt] = useState<string | null>(null);
+  // O1 TILLEGG: arbeiderens valg reisetid/arbeidstid (null = terskelen foreslår) og
+  // «Antall timer» slik han skrev det (null = vises fra start og slutt).
+  const [kategoriValg, setKategoriValg] = useState<ReiseKategori | null>(null);
+  const [antallTekst, setAntallTekst] = useState<string | null>(null);
   const nullstillTider = () => {
     setRettetStart(null);
     setRettetSlutt(null);
+    setAntallTekst(null);
+    setKategoriValg(null);
   };
   const reiseProsjektId = prosjektId;
 
@@ -152,6 +172,7 @@ export function ReiseKort({
     annetKontorId,
     startTid: rettetStart,
     sluttTid: rettetSlutt,
+    kategoriValg,
   });
   const { aktivtValg, resultat, oppmotestedNavn, regelStatus } = reise;
   const { kontorOppsett, kontorKall, kontorKonflikt, apenOverforing } = reise;
@@ -207,6 +228,7 @@ export function ReiseKort({
           andreRader,
           eier: eierId ? { userId: eierId, dato } : null,
           sedelByggeplass,
+          jobbKortId,
           reise: {
             projectId: reiseProsjektId,
             ecoId,
@@ -232,6 +254,13 @@ export function ReiseKort({
               prosjektNavn(havner.projectId),
           })
         : t("timer.reiseKort.havnerEget", { prosjekt: prosjektNavn(havner.projectId) });
+
+  // O1 (§ 8.22): under terskel er turen arbeid — den står i jobben vinduet ble åpnet fra
+  // (regel 1) når linja «havner i» peker dit, altså når nøkkelen er lik. Ellers ingen kort-id.
+  const arbeidKortId =
+    jobbKortId && resultat.spor && !resultat.spor.erReise && havner?.type === "jobb" && havner.kortId === jobbKortId
+      ? jobbKortId
+      : null;
 
   const kanLagre =
     regelStatus === "klar" &&
@@ -298,6 +327,7 @@ export function ReiseKort({
       // Reise bærer aldri matpausen (pauseFraForRad hopper over erReise).
       pauseMin: 0,
       byggeplassId: lagretByggeplassId,
+      ...(arbeidKortId ? { kortId: arbeidKortId } : {}),
       // Sporet kun når regelen sier reise; under terskel er raden ordinær
       // (reiseKilde null → serveren nuller sporet).
       ...(s.erReise && s.reiseKilde
@@ -476,9 +506,12 @@ export function ReiseKort({
                   type="time"
                   value={rettetStart ?? resultat.fraTid ?? ""}
                   onChange={(e) => {
-                    setRettetStart(e.target.value || null);
-                    // Slutten følger starten (start + kjøretid) til den rettes igjen.
-                    setRettetSlutt(null);
+                    const start = e.target.value || null;
+                    setRettetStart(start);
+                    // Slutten følger starten: start + skrevet antall timer, ellers
+                    // start + kjøretid, til den rettes igjen.
+                    const antall = tolkAntall(antallTekst);
+                    setRettetSlutt(start && antall != null ? tilFraAntall(start, antall, start, 0) : null);
                   }}
                   className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
                 />
@@ -491,12 +524,66 @@ export function ReiseKort({
                   id="reise-slutt"
                   type="time"
                   value={rettetSlutt ?? resultat.tilTid ?? ""}
-                  onChange={(e) => setRettetSlutt(e.target.value || null)}
+                  onChange={(e) => {
+                    setRettetSlutt(e.target.value || null);
+                    // Rettet slutt → antall timer regnes av start og slutt.
+                    setAntallTekst(null);
+                  }}
+                  className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+                />
+              </div>
+              {/* O1 TILLEGG: antall timer regner slutten ut fra starten (og omvendt).
+                  Reise bærer aldri matpausen, så pausen er 0 i den delte `tilFraAntall`. */}
+              <div className="col-span-2">
+                <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="reise-antall">
+                  {t("timer.felt.antallTimer")}
+                </label>
+                <input
+                  id="reise-antall"
+                  type="number"
+                  step="0.25"
+                  min={0}
+                  max={24}
+                  value={antallTekst ?? (resultat.fraTid && resultat.tilTid ? String(Math.round(resultat.timer * 100) / 100) : "")}
+                  onChange={(e) => {
+                    setAntallTekst(e.target.value);
+                    const antall = tolkAntall(e.target.value);
+                    if (antall != null && resultat.fraTid) {
+                      setRettetSlutt(tilFraAntall(resultat.fraTid, antall, resultat.fraTid, 0));
+                    }
+                  }}
                   className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
                 />
               </div>
             </div>
           )}
+
+        {/* O1 TILLEGG (§ 8.22): terskelen foreslår, arbeideren velger reisetid eller arbeidstid. */}
+        {regelStatus === "klar" && resultat.klassifisering && (
+          <div>
+            <p className="mb-2 text-sm font-medium text-gray-900">{t("timer.reiseKort.foresSom")}</p>
+            <div className="flex flex-wrap gap-2">
+              {(["reisetid", "arbeidstid"] as const).map((k) => {
+                const aktiv = resultat.klassifisering!.kategori === k;
+                return (
+                  <button
+                    key={k}
+                    type="button"
+                    onClick={() => setKategoriValg(k)}
+                    aria-pressed={aktiv}
+                    className={`rounded-lg border px-3 py-2 text-sm ${
+                      aktiv
+                        ? "border-blue-600 bg-blue-50 font-medium text-blue-800"
+                        : "border-gray-300 bg-white text-gray-800 hover:bg-gray-50"
+                    }`}
+                  >
+                    {t(k === "reisetid" ? "timer.reisetid" : "timer.reiseKort.arbeidstid")}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Forslaget: firmaets kjøretid, deretter hvorfor arbeid/reise. */}
         {regelStatus === "klar" && resultat.kjoretidMin != null && (
@@ -504,11 +591,22 @@ export function ReiseKort({
             <p className="text-sm text-gray-700">{t("timer.reiseKort.forslag", { min: resultat.kjoretidMin })}</p>
             {resultat.klassifisering && resultat.klassifisering.lonnsartId != null && (
               <p className="mt-1 text-xs text-gray-500">
-                {manuellReiseForklaringTekst(
-                  t,
-                  resultat.klassifisering,
-                  reise.lonnsartNavn(resultat.klassifisering.lonnsartId),
-                )}
+                {/* O1: turen føres som arbeid i jobben vinduet ble åpnet fra — si det. */}
+                {arbeidKortId && resultat.klassifisering.forklaring.type !== "ukjentAvstand"
+                  ? t(
+                      resultat.klassifisering.forklaring.type === "under"
+                        ? "timer.reiseKort.underTerskelPaaJobb"
+                        : "timer.reiseKort.overTerskelPaaJobb",
+                      {
+                        terskel: manuellReiseTerskelTekst(t, resultat.klassifisering.forklaring),
+                        art: reise.lonnsartNavn(resultat.klassifisering.lonnsartId) ?? "",
+                      },
+                    )
+                  : manuellReiseForklaringTekst(
+                      t,
+                      resultat.klassifisering,
+                      reise.lonnsartNavn(resultat.klassifisering.lonnsartId),
+                    )}
               </p>
             )}
           </div>

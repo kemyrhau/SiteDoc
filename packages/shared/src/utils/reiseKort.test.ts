@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { utledKortId, utledReiseKortId } from "./kortId";
 import {
+  arbeidsreiseKortId,
   egetReiseKort,
   jobberFraArbeidsrader,
   jobbRekkefolge,
@@ -231,5 +232,26 @@ describe("jobbRekkefolge", () => {
       { kortId: "d", forsteTid: "06:00", eldste: 9 },
     ].sort(jobbRekkefolge);
     expect(l.map((x) => x.kortId)).toEqual(["d", "a", "b", "c"]);
+  });
+});
+
+// O1 (§ 8.22, Kenneths test av L3a): reise under terskel = arbeid, åpnet fra en jobb.
+describe("arbeidsreiseKortId", () => {
+  const j1 = { kortId: "kA", projectId: "p1", byggeplassId: null, ecoId: null };
+  const j2 = { kortId: "kB", projectId: "p1", byggeplassId: null, ecoId: null };
+  const nokkel = { projectId: "p1", byggeplassId: null, ecoId: null };
+
+  it("samme nøkkel som jobben vinduet ble åpnet fra → den jobbens kort-id (også når en eldre har samme nøkkel)", () => {
+    expect(arbeidsreiseKortId(nokkel, [j1, j2], "kB")).toBe("kB");
+  });
+  it("annen nøkkel (underprosjekt, byggeplass eller prosjekt) → null", () => {
+    expect(arbeidsreiseKortId({ ...nokkel, ecoId: "e1" }, [j1, j2], "kB")).toBeNull();
+    expect(arbeidsreiseKortId({ ...nokkel, byggeplassId: "b1" }, [j1, j2], "kB")).toBeNull();
+    expect(arbeidsreiseKortId({ ...nokkel, projectId: "p2" }, [j1, j2], "kB")).toBeNull();
+  });
+  it("ingen jobb oppgitt, eller jobben finnes ikke blant jobbene → null", () => {
+    expect(arbeidsreiseKortId(nokkel, [j1, j2], null)).toBeNull();
+    expect(arbeidsreiseKortId(nokkel, [j1, j2], undefined)).toBeNull();
+    expect(arbeidsreiseKortId(nokkel, [j1], "kB")).toBeNull();
   });
 });

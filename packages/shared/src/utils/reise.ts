@@ -70,6 +70,8 @@ export interface ReiseRegelSnapshot {
   grensepunktTreff: boolean;
   /** Kun på `reiseKilde "overforing"`: rute + periode (POST (13) 6b). */
   overforing?: OverforingSnapshot;
+  /** O1 TILLEGG: satt bare når arbeideren valgte annet enn regelen — det regelen foreslo. */
+  regelKategori?: ReiseKategori;
 }
 
 /**

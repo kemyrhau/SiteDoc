@@ -394,3 +394,34 @@ describe("w15b — start og slutt kan rettes (løsReiseKort / løsOverforingKort
     expect(tur({ startTid: "", sluttTid: "25:99" })).toMatchObject({ fraTid: "06:25", tilTid: "07:00" });
   });
 });
+
+// O1 TILLEGG (§ 8.22): arbeiderens valg går foran terskelen; forklaringen (terskelfaktaene) står.
+describe("klassifiserManuellReise — kategoriValg (O1 TILLEGG)", () => {
+  const regel = {
+    reiseTerskelEnhet: "minutter" as const,
+    reiseTerskelMin: 30,
+    reiseTerskelM: null,
+    reiseUnderTerskelType: "arbeidstid" as const,
+    reiseOverTerskelType: "reisetid" as const,
+  };
+  const base = { regel, avstandM: 12000, grensepunkter: [], resolverLonnsartId: "lr", standardLonnsartId: "l1" };
+
+  it("under terskel + valg reisetid → reise, reiseart, regelKategori i snapshot", () => {
+    const k = klassifiserManuellReise({ ...base, reisetimer: 0.25, kategoriValg: "reisetid" });
+    expect(k).toMatchObject({ kategori: "reisetid", regelKategori: "arbeidstid", erReise: true, lonnsartId: "lr", reiseKilde: "manuell" });
+    expect(k.forklaring.type).toBe("under");
+    expect(k.reiseRegel).toMatchObject({ kategori: "reisetid", regelKategori: "arbeidstid" });
+  });
+  it("over terskel + valg arbeidstid → arbeid på standardart", () => {
+    const k = klassifiserManuellReise({ ...base, reisetimer: 1, kategoriValg: "arbeidstid" });
+    expect(k).toMatchObject({ kategori: "arbeidstid", regelKategori: "reisetid", erReise: false, lonnsartId: "l1", reiseKilde: null });
+    expect(k.forklaring.type).toBe("over");
+  });
+  it("valg lik regelen / uten valg → som før, ingen regelKategori i snapshot", () => {
+    for (const v of [undefined, null, "arbeidstid" as const]) {
+      const k = klassifiserManuellReise({ ...base, reisetimer: 0.25, kategoriValg: v });
+      expect(k).toMatchObject({ kategori: "arbeidstid", regelKategori: "arbeidstid", erReise: false });
+      expect(k.reiseRegel).not.toHaveProperty("regelKategori");
+    }
+  });
+});
