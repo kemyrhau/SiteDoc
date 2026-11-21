@@ -68,22 +68,6 @@ export function lesPauseMin(v: string): number {
   return /^\d+$/.test(s) ? Number(s) : Number.NaN;
 }
 
-/**
- * Plan § 8.22 O2: tidsfeltet tolket når det forlates. «16», «1600», «16.00», «16,00» og «16:00»
- * blir «16:00»; «730» blir «07:30». Tomt felt = "". Ugyldig tekst = null (feltet står som skrevet,
- * og `validerJobbTid` melder formatfeil).
- */
-export function tolkKlokkeslett(v: string): string | null {
-  const s = v.trim();
-  if (s === "") return "";
-  const m = /^(\d{1,2})(?:[:.,](\d{2}))?$/.exec(s) ?? /^(\d{1,2})(\d{2})$/.exec(s);
-  if (!m) return null;
-  const t = Number(m[1]);
-  const min = m[2] === undefined ? 0 : Number(m[2]);
-  if (t > 23 || min > 59) return null;
-  return `${String(t).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
-}
-
 /** Timefeltet som tall; komma eller punktum. Tomt, ugyldig eller ≤ 0 = null. */
 export function lesTimer(v: string): number | null {
   const s = v.trim().replace(",", ".");
@@ -104,16 +88,10 @@ export function tilFraTimer(fra: string, timerTekst: string, pauseMin: number): 
   return tilFraAntall(fra, n, fra, pauseMin);
 }
 
-/** Klokkevelgerens steg i minutter — samme som timevinduet: firmaets runding, maks 30, ellers 15. */
+/**
+ * Klokkefeltets steg i minutter (`step` = steg × 60) — samme regel som timevinduets `timeStep`:
+ * firmaets runding, maks 30 (Chrome skjuler minuttene ved større steg), ellers 15.
+ */
 export function klokkeSteg(tidsrundingMinutter: number | null | undefined): number {
   return Math.min(tidsrundingMinutter && tidsrundingMinutter > 0 ? tidsrundingMinutter : 15, 30);
-}
-
-/** Valgene i klokkevelgeren (00:00 … 23:45 ved 15-minutters steg). */
-export function klokkeValg(stegMin: number): string[] {
-  const ut: string[] = [];
-  for (let m = 0; m < 24 * 60; m += stegMin) {
-    ut.push(`${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`);
-  }
-  return ut;
 }

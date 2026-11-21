@@ -2,13 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   jobbSkjemaLinjer,
   klokkeSteg,
-  klokkeValg,
   lesPauseMin,
   lesTimer,
   nyJobbForslag,
   senesteTilTid,
   tilFraTimer,
-  tolkKlokkeslett,
 } from "./jobbSkjema";
 
 // Plan § 8.22 L3a: hvilke jobber skjemaet viser, og forslaget for neste jobb.
@@ -66,28 +64,7 @@ describe("senesteTilTid og lesPauseMin", () => {
   });
 });
 
-// Plan § 8.22 O2: tidsfeltene tolkes ved blur, timer gir Til.
-describe("tolkKlokkeslett", () => {
-  it("«1600», «16», «16.00», «16,00» og «16:00» blir 16:00", () => {
-    for (const v of ["1600", "16", "16.00", "16,00", "16:00", " 16 "]) expect(tolkKlokkeslett(v)).toBe("16:00");
-  });
-  it("korte former fylles ut", () => {
-    expect(tolkKlokkeslett("7")).toBe("07:00");
-    expect(tolkKlokkeslett("730")).toBe("07:30");
-    expect(tolkKlokkeslett("0730")).toBe("07:30");
-    expect(tolkKlokkeslett("7.30")).toBe("07:30");
-  });
-  it("tomt felt er tomt", () => {
-    expect(tolkKlokkeslett("")).toBe("");
-    expect(tolkKlokkeslett("  ")).toBe("");
-  });
-  it("ugyldig tekst → null", () => {
-    for (const v of ["abc", "24", "2400", "16:60", "1660", "16:5", "12345", "16-00", "-1"]) {
-      expect(tolkKlokkeslett(v)).toBeNull();
-    }
-  });
-});
-
+// Plan § 8.22 O2: timer gir Til.
 describe("lesTimer og tilFraTimer", () => {
   it("komma og punktum", () => {
     expect(lesTimer("7,5")).toBe(7.5);
@@ -109,15 +86,11 @@ describe("lesTimer og tilFraTimer", () => {
   });
 });
 
-describe("klokkevelgeren", () => {
+describe("klokkefeltets steg", () => {
   it("15-minutters steg som timevinduet; firmaets runding, maks 30", () => {
     expect(klokkeSteg(null)).toBe(15);
     expect(klokkeSteg(0)).toBe(15);
     expect(klokkeSteg(5)).toBe(5);
     expect(klokkeSteg(60)).toBe(30);
-    const valg = klokkeValg(15);
-    expect(valg).toHaveLength(96);
-    expect(valg.slice(0, 3)).toEqual(["00:00", "00:15", "00:30"]);
-    expect(valg.at(-1)).toBe("23:45");
   });
 });

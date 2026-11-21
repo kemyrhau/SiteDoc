@@ -8,8 +8,8 @@
  * vinduer og lenker, levert av siden. Ny jobb (`ny`) finnes bare på skjermen til Til er fylt.
  *
  * O2: timer redigeres der de står («= X t»): skrevne timer gir Til = Fra + timer + pause (delt
- * `tilFraAntall`); endres Til eller pause, regnes timer på nytt. Fra/Til tolkes ved blur
- * («1600», «16», «16.00» → 16:00) og rundes som timevinduet; feilmelding vises først ved blur.
+ * `tilFraAntall`); endres Til eller pause, regnes timer på nytt. Fra/Til er klokkefelt
+ * (`type="time"`) med timevinduets steg, rundes ved blur som timevinduet; feilmelding først ved blur.
  */
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
@@ -17,14 +17,7 @@ import { Pencil } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { formaterTimer } from "@/lib/tallformat";
 import { rundTilNarmeste } from "@/lib/tidsrunding";
-import {
-  klokkeSteg,
-  klokkeValg,
-  lesPauseMin,
-  tilFraTimer,
-  tolkKlokkeslett,
-  type SkjemaKilde,
-} from "@/lib/jobbSkjema";
+import { klokkeSteg, lesPauseMin, tilFraTimer, type SkjemaKilde } from "@/lib/jobbSkjema";
 import {
   regnJobbTid,
   validerJobbTid,
@@ -382,11 +375,9 @@ export function JobbSkjema({
     setSkriver(true);
     sett(e.target.value);
   };
-  // Fra/Til forlates: tolk («1600» → 16:00), rund som timevinduet, og lagre.
+  // Fra/Til forlates: klokkefeltet gir "" eller HH:MM; rund som timevinduet, og lagre.
   const forlatKlokke = (verdi: string, sett: (v: string) => void) => {
-    const tolket = tolkKlokkeslett(verdi);
-    if (tolket !== null && tolket !== "") sett(rundTilNarmeste(tolket, tidsrundingMinutter));
-    else if (tolket === "") sett("");
+    sett(verdi === "" ? "" : rundTilNarmeste(verdi, tidsrundingMinutter));
     setSkriver(false);
     setLagreSignal((n) => n + 1);
   };
@@ -402,8 +393,8 @@ export function JobbSkjema({
     const nyTil = tilFraTimer(fra, v, pauseMin);
     if (nyTil) setTil(nyTil);
   };
-  const steg = klokkeSteg(tidsrundingMinutter);
-  const klokkeListe = `klokke-${kortId}`;
+  // Samme steg som timevinduets `timeStep` (sekunder).
+  const stegSek = klokkeSteg(tidsrundingMinutter) * 60;
   const fmt = (n: number) => formaterTimer(n, i18n.language);
   const visTidFeil = !skriver && ((visFeil && !!tidFeil) || tilMangler);
   const feilFelt = (feil: boolean) => !skriver && feil;
@@ -512,9 +503,9 @@ export function JobbSkjema({
               value={fra}
               onChange={endre(setFra)}
               onBlur={(e) => forlatKlokke(e.target.value, setFra)}
-              list={klokkeListe}
-              placeholder="--:--"
-              className={`w-20 ${felt(feilFelt(visFeil && (tidFeil === "format" || tidFeil === "fraForTil") && !tilMangler))}`}
+              type="time"
+              step={stegSek}
+              className={`w-28 ${felt(feilFelt(visFeil && (tidFeil === "format" || tidFeil === "fraForTil") && !tilMangler))}`}
             />
             <span className="text-gray-400">–</span>
             <input
@@ -522,9 +513,9 @@ export function JobbSkjema({
               value={til}
               onChange={endre(setTil)}
               onBlur={(e) => forlatKlokke(e.target.value, setTil)}
-              list={klokkeListe}
-              placeholder="--:--"
-              className={`w-20 ${felt(feilFelt(tilMangler || (visFeil && (tidFeil === "format" || tidFeil === "fraForTil"))))}`}
+              type="time"
+              step={stegSek}
+              className={`w-28 ${felt(feilFelt(tilMangler || (visFeil && (tidFeil === "format" || tidFeil === "fraForTil"))))}`}
             />
             <span className="text-xs text-gray-500">{t("timer.jobbSkjema.pause")}</span>
             <input
@@ -549,11 +540,6 @@ export function JobbSkjema({
               className={`w-16 ${felt(false)}`}
             />
             <span className="text-sm text-gray-700">t</span>
-            <datalist id={klokkeListe}>
-              {klokkeValg(steg).map((v) => (
-                <option key={v} value={v} />
-              ))}
-            </datalist>
           </div>
           {visTidFeil && (
             <p className="text-xs text-red-600" role="alert">

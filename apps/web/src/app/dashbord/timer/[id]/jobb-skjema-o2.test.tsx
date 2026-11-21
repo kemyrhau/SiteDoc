@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 /**
  * Plan § 8.22 O2 — `JobbSkjema` (prosjektkort-modus): timer redigeres der de står, og Fra/Til
- * tolkes ved blur. Samme trpc-proxy-mock som gate 129. Dagen: norm 7,5 t, pause etter 4 t.
+ * er klokkefelt som i timevinduet. Samme trpc-proxy-mock som gate 129. Dagen: norm 7,5 t, pause etter 4 t.
  *   - timer → Til (Fra + timer + pause, delt `tilFraAntall`), også med pause; Til → timer; pause-endring
- *   - «1600», «16», «16.00» → 16:00; ugyldig tekst gir formatfeil først ved blur
+ *   - Fra/Til er `input[type="time"]` med timevinduets steg (RETUR O2); rundes ved blur; feil først ved blur
+ *     (hva «1600»/«16» gir skrevet, er målt i Chrome/WebKit — jsdom har ikke klokkefeltets tastatur)
  *   - tom Fra: ingenting regnes ut
  */
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
@@ -176,75 +177,66 @@ describe("O2 punkt 1 — timer redigeres i Fra–til-raden", () => {
   });
 });
 
-describe("O2 punkt 2 — tidsfeltene tolkes ved blur", () => {
-  for (const skrevet of ["1600", "16", "16.00", "16:00"]) {
-    it(`«${skrevet}» i Til blir 16:00 og lagres`, async () => {
-      rendre({ linjer: [linje({ fraTid: "07:00", tilTid: "15:00", timer: 8 })] });
-      skriv(tilFelt(), skrevet);
-      fireEvent.blur(tilFelt());
-      await vent();
-      expect(tilFelt().value).toBe("16:00");
-      expect(lagreKall()[0]?.input).toMatchObject({ fraTid: "07:00", tilTid: "16:00" });
+describe("O2 punkt 2 (RETUR) — Fra/Til er klokkefelt som i timevinduet", () => {
+  const klokkefelt = () => Array.from(document.querySelectorAll<HTMLInputElement>('input[type="time"]'));
+
+  it("Fra og Til er input[type=time] med 15-minutters steg; ingen datalist", () => {
+    rendre({ linjer: [linje({ fraTid: "07:00", tilTid: "15:00", timer: 8 })] });
+    expect(klokkefelt()).toEqual([fraFelt(), tilFelt()]);
+    for (const el of klokkefelt()) expect(el.getAttribute("step")).toBe("900");
+    expect(document.querySelector("datalist")).toBeNull();
+    expect(tilFelt().hasAttribute("list")).toBe(false);
+  });
+
+  for (const [runding, steg] of [[5, "300"], [30, "1800"], [60, "1800"]] as const) {
+    it(`firmaets runding ${runding} min gir steg ${steg} s (maks 30 min, som timevinduets timeStep)`, () => {
+      rendre({ linjer: [linje({ fraTid: "07:00", tilTid: "15:00", timer: 8 })], tidsrundingMinutter: runding });
+      for (const el of klokkefelt()) expect(el.getAttribute("step")).toBe(steg);
     });
   }
 
-  it("«7» i Fra blir 07:00", async () => {
-    rendre({ linjer: [linje({ fraTid: "08:00", tilTid: "15:00", timer: 7 })] });
-    skriv(fraFelt(), "7");
-    fireEvent.blur(fraFelt());
+  it("Til forlates: lagres med verdien fra klokkefeltet", async () => {
+    rendre({ linjer: [linje({ fraTid: "07:00", tilTid: "15:00", timer: 8 })] });
+    skriv(tilFelt(), "16:00");
+    fireEvent.blur(tilFelt());
     await vent();
-    expect(fraFelt().value).toBe("07:00");
-    expect(lagreKall()[0]?.input).toMatchObject({ fraTid: "07:00", tilTid: "15:00" });
+    expect(tilFelt().value).toBe("16:00");
+    expect(lagreKall()[0]?.input).toMatchObject({ fraTid: "07:00", tilTid: "16:00" });
   });
 
-  it("ugyldig tekst: ingen feilmelding mens det skrives, formatfeil ved blur, ingenting lagres", async () => {
+  it("rundes ved blur med firmaets tidsrunding, som timevinduet", async () => {
+    rendre({ linjer: [linje({ fraTid: "07:00", tilTid: "15:00", timer: 8 })], tidsrundingMinutter: 15 });
+    skriv(tilFelt(), "16:08");
+    fireEvent.blur(tilFelt());
+    await vent();
+    expect(tilFelt().value).toBe("16:15");
+    expect(lagreKall()[0]?.input).toMatchObject({ tilTid: "16:15" });
+  });
+
+  it("uten firmaets runding står minuttene som valgt", async () => {
     rendre({ linjer: [linje({ fraTid: "07:00", tilTid: "15:00", timer: 8 })] });
-    skriv(tilFelt(), "1");
-    skriv(tilFelt(), "1a");
-    skriv(tilFelt(), "abc");
-    expect(feilmelding()).toBeNull();
-    expect(tilFelt().className).not.toContain("border-red-500");
-    fireEvent.blur(tilFelt());
+    skriv(fraFelt(), "06:50");
+    fireEvent.blur(fraFelt());
     await vent();
-    expect(tilFelt().value).toBe("abc");
-    expect(feilmelding()?.textContent).toBe("timer.jobbSkjema.feilFormat");
-    expect(lagreKall()).toEqual([]);
-    // Skriver igjen: meldingen går bort til feltet forlates på nytt.
-    skriv(tilFelt(), "16");
-    expect(feilmelding()).toBeNull();
-    fireEvent.blur(tilFelt());
-    await vent();
-    expect(feilmelding()).toBeNull();
-    expect(tilFelt().value).toBe("16:00");
+    expect(fraFelt().value).toBe("06:50");
+    expect(lagreKall()[0]?.input).toMatchObject({ fraTid: "06:50", tilTid: "15:00" });
   });
 
   it("Til før Fra mens det skrives gir ingen feilmelding før blur", async () => {
     rendre({ linjer: [linje({ fraTid: "07:00", tilTid: "15:00", timer: 8 })] });
-    skriv(tilFelt(), "0");
+    skriv(tilFelt(), "06:00");
     expect(feilmelding()).toBeNull();
+    expect(tilFelt().className).not.toContain("border-red-500");
     fireEvent.blur(tilFelt());
     await vent();
     expect(feilmelding()?.textContent).toBe("timer.jobbSkjema.feilFraForTil");
-  });
-
-  it("rundes som timevinduet (firmaets tidsrunding) og klokkevelgeren har firmaets steg", async () => {
-    rendre({ linjer: [linje({ fraTid: "07:00", tilTid: "15:00", timer: 8 })], tidsrundingMinutter: 15 });
-    skriv(tilFelt(), "1608");
+    expect(lagreKall()).toEqual([]);
+    // Velger igjen: meldingen går bort til feltet forlates på nytt.
+    skriv(tilFelt(), "16:00");
+    expect(feilmelding()).toBeNull();
     fireEvent.blur(tilFelt());
     await vent();
-    expect(tilFelt().value).toBe("16:15");
-    const liste = document.getElementById(tilFelt().getAttribute("list") ?? "");
-    expect(liste?.querySelectorAll("option")).toHaveLength(96);
-  });
-
-  it("uten firmaets runding står minuttene som skrevet; velgeren går i 15-minutters steg", async () => {
-    rendre({ linjer: [linje({ fraTid: "07:00", tilTid: "15:00", timer: 8 })] });
-    skriv(tilFelt(), "1608");
-    fireEvent.blur(tilFelt());
-    await vent();
-    expect(tilFelt().value).toBe("16:08");
-    expect(fraFelt().getAttribute("list")).toBe(tilFelt().getAttribute("list"));
-    const liste = document.getElementById(tilFelt().getAttribute("list") ?? "");
-    expect(liste?.querySelectorAll("option")[1]?.getAttribute("value")).toBe("00:15");
+    expect(feilmelding()).toBeNull();
+    expect(lagreKall()[0]?.input).toMatchObject({ tilTid: "16:00" });
   });
 });
