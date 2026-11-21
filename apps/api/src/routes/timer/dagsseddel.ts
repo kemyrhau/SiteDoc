@@ -44,6 +44,8 @@ import {
   type RettetFelt,
   type SedelVare,
   type UtstyrOppslag,
+  hentKorrigeringer,
+  hentKorrigertAvPrDag,
 } from "../../services/timer/kortLeser";
 import {
   krevRadInnenforTak,
@@ -3607,6 +3609,13 @@ export const dagsseddelRouter = router({
         take: 200,
       });
 
+      // w15g (F80, del F «I Mine timer»): «Korrigert av [navn]» pr. dag — bare i eierens egen
+      // liste. Leser en firma-admin en annens liste, kommer det ikke med (isolasjon).
+      const korrigertAv =
+        userId === ctx.userId
+          ? await hentKorrigertAvPrDag({ prisma: ctx.prisma, prismaTimer: ctx.prismaTimer }, sedler)
+          : new Map<string, never>();
+
       // Berik med totaltimer (sum av alle SheetTimer-rader) for liste-visning.
       // T.1: prosjekt(er) utledes fra radene (DailySheet har ikke projectId) —
       // distinct projectId på tvers av timer-/maskin-/tillegg-rader.
@@ -3625,6 +3634,7 @@ export const dagsseddelRouter = router({
           prosjektIder,
           totaltimer: s.timer.reduce((acc, t) => acc + Number(t.timer), 0),
           antallRader: s.timer.length + s.tillegg.length + s.maskiner.length,
+          korrigertAv: korrigertAv.get(s.id) ?? null,
         };
       });
     }),
@@ -3750,6 +3760,16 @@ export const dagsseddelRouter = router({
       const manglerMaskinforerbevis =
         maskiner.length > 0 &&
         !(await harGyldigMaskinforerbevis(sheet.userId, sheet.organizationId));
+      // w15g (F80, del F): merket «Korrigert av» pr. rad — bare til eieren. En firma-admin som
+      // leser en annens dagsseddel her, får tomt (isolasjon; attesteringen har egne lesere).
+      // Eget toppnivåfelt: radene er urørt, så appen (timerSync) leser som før.
+      const korrigeringer =
+        sheet.userId === ctx.userId
+          ? await hentKorrigeringer(
+              { prisma: ctx.prisma, prismaTimer: ctx.prismaTimer, prismaMaskin: ctx.prismaMaskin },
+              { id: sheet.id, userId: sheet.userId, organizationId: sheet.organizationId, timer, tillegg, maskiner },
+            )
+          : { timer: {}, tillegg: {}, maskin: {} };
       return {
         ...sheet,
         aktivitet,
@@ -3762,6 +3782,7 @@ export const dagsseddelRouter = router({
         // V19 (A-7): forslaget + konfliktVentendeSiden (fra ...sheet). Eieren
         // velger mellom PC og mobil (C-1); tomt array når ingen overlapp venter.
         forslag,
+        korrigeringer,
       };
     }),
 

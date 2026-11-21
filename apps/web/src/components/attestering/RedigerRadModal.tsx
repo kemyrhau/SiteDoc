@@ -13,6 +13,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useSession } from "next-auth/react";
 import { Button, Modal, Spinner } from "@sitedoc/ui";
 import { KnappMedForklaring } from "@/components/KnappMedForklaring";
 import { Trash2 } from "lucide-react";
@@ -216,6 +217,8 @@ export function byggRedigerNyeRader(a: {
 export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
+  // w15g (§ 4.15 del F): linja som sier hva arbeideren ser — attestantens eget navn.
+  const { data: session } = useSession();
 
   const { data: sheet, isLoading } =
     trpc.timer.dagsseddel.hentForAttestering.useQuery(
@@ -646,6 +649,14 @@ export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
                 </KnappMedForklaring>
               </div>
             </div>
+
+            {sheet.ansatt?.name && (
+              <p data-korrigert-linje="" className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-800">
+                {session?.user?.name
+                  ? t("timer.korrigert.rrmLinje", { arbeider: sheet.ansatt.name, attestant: session.user.name })
+                  : t("timer.korrigert.rrmLinjeUtenNavn", { arbeider: sheet.ansatt.name })}
+              </p>
+            )}
 
             <div className="space-y-5 px-4 py-4">
               {/* Arbeidstimer */}

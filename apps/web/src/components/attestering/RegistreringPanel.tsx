@@ -11,6 +11,7 @@ import { rundTilNarmeste } from "@/lib/tidsrunding";
 import { Kvitteringer } from "./Kvitteringer";
 import { ReiseRadMerke } from "./ReiseRadMerke";
 import { ReiseRettVindu } from "./ReiseRettVindu";
+import { LinjeRettVindu, type LinjeRett } from "./LinjeRettVindu";
 import type { AttKort, AttLinje, AttMaskin, AttSedel, AttTimer } from "./attestering-tabell";
 
 /**
@@ -20,10 +21,11 @@ import type { AttKort, AttLinje, AttMaskin, AttSedel, AttTimer } from "./atteste
  *
  *  - Underprosjekt: knapper til og med 6, søkbar nedtrekk over det (B11). Krever bare
  *    attesteringsrett, som flyttingen alltid har gjort (WM54).
- *  - Fra, til, pause (på linja som bærer den), lønnsart, maskintimer og antall rettes i feltene,
- *    med `rettRadFelt` — hver retting lagres med en gang. Krever firmavalget «rediger ved
- *    attestering» (B10). w10a (A1): timene rettes aldri alene; de regnes ut av fra, til og pause
- *    og sendes i samme kall. Avviser serveren, går feltet tilbake og grunnen står ved linja.
+ *  - w15g (§ 4.15 del F, F63): kortet er informasjonsstatus — linjene er tekst. Fra, til, pause
+ *    (på linja som bærer den), lønnsart, maskintimer og antall rettes i vinduet bak ✎ på linja
+ *    (`LinjeRettVindu`), med én `rettRadFelt` ved «Lagre». Krever firmavalget «rediger ved
+ *    attestering» (B10), som før. w10a (A1): timene rettes aldri alene; de regnes ut av fra, til
+ *    og pause og sendes i samme kall. Avviser serveren, står grunnen i vinduet.
  *  - w10a (A2): ✂ står ved linjene i kortet, «✎ Rediger jobben» øverst. Linjene i tabellen har
  *    ingen knapper. Beskrivelsen og dagens kommentar kan leses, ikke rettes (A6).
  *  - «Del opp» deler hele jobben ved et klokkeslett (`delJobb`): timene pr. del regner
@@ -117,11 +119,11 @@ export function jobbensTidsrom(rader: readonly { fraTid: string | null; tilTid: 
 export function RegistreringPanel({ kort, sedel, orgId, kanAttestere, kanRette, lonnsarter, tidsrunding = null, kanSplitte, onSplitt, onRedigerJobb, onEndret, onLukk, prosjektKontekst }: Props) {
   const { t } = useTranslation();
   const [feil, setFeil] = useState<string | null>(null);
-  // w10a (A1): grunnen til en avvist retting står ved linja, ikke nederst i kortet.
-  const [linjeFeil, setLinjeFeil] = useState<Record<string, string>>({});
   const [delOpp, setDelOpp] = useState(false);
   // w15f: reisen som rettes i «Rett reisen».
   const [reiseRett, setReiseRett] = useState<AttTimer | null>(null);
+  // w15g: linja som rettes i vinduet bak ✎.
+  const [linjeRett, setLinjeRett] = useState<LinjeRett | null>(null);
 
   // w12 (A punkt 7): del 1–7 leser bare arbeidsradene; reisen står i del 8.
   const timerLinjer = useMemo(
@@ -205,7 +207,6 @@ export function RegistreringPanel({ kort, sedel, orgId, kanAttestere, kanRette, 
     onSuccess: (_d: unknown) => { setFeil(null); onEndret(); },
     onError: (e: { message: string }) => setFeil(e.message),
   });
-  const rett = trpc.timer.dagsseddel.rettRadFelt.useMutation();
 
   const alleVenter = kort.linjer.every((l) => !l.harHandling || l.ventende);
   // Eldre rader uten kortId er ingen jobb — serveren avviser «hele jobben» og del opp for dem.
@@ -219,21 +220,19 @@ export function RegistreringPanel({ kort, sedel, orgId, kanAttestere, kanRette, 
     flytt.mutate({ timerRadId: rad.id, radType: forste ? "timer" : "tillegg", externalCostObjectId: ecoId, helJobb: true });
   }
 
-  /** Én retting i ett kall. `nokkel` er linja grunnen står ved; `tilbake` setter feltet tilbake ved avvisning. */
-  function rettFelter(nokkel: string, radType: "timer" | "maskin" | "tillegg", radId: string, felter: Record<string, string | number | null>, tilbake?: () => void) {
-    setLinjeFeil(({ [nokkel]: _bort, ...rest }) => rest);
-    rett.mutate({ radType, radId, felter } as Parameters<typeof rett.mutate>[0], {
-      onSuccess: (_d: unknown) => onEndret(),
-      onError: (e: { message: string }) => {
-        tilbake?.();
-        setLinjeFeil((f) => ({ ...f, [nokkel]: e.message }));
-      },
-    });
-  }
-  const rettFelt = (nokkel: string, radType: "timer" | "maskin" | "tillegg", radId: string, felt: string, verdi: string | number | null) =>
-    rettFelter(nokkel, radType, radId, { [felt]: verdi });
-  const linjeFeilTekst = (nokkel: string) =>
-    linjeFeil[nokkel] ? <p role="alert" className="w-full text-xs text-red-600">{linjeFeil[nokkel]}</p> : null;
+  /** w15g: ✎ på linja — åpner vinduet for linja; samme utseende som ✎ på reiselinja. */
+  const pennKnapp = (tittel: string, linje: LinjeRett) => (
+    <button
+      type="button"
+      data-linje-penn={linje.type}
+      onClick={() => setLinjeRett(linje)}
+      aria-label={tittel}
+      title={tittel}
+      className="inline-flex h-7 w-7 items-center justify-center rounded border border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
+    >
+      <Pencil className="h-3.5 w-3.5" />
+    </button>
+  );
   const splittKnapp = (l: AttLinje) =>
     kanSplitte?.(l) && onSplitt ? (
       <button
@@ -247,45 +246,30 @@ export function RegistreringPanel({ kort, sedel, orgId, kanAttestere, kanRette, 
       </button>
     ) : null;
 
-  /** Én timelinje i kortet: fra–til eller timer, lønnsart og ✂ (del 2, og reisen i del 8). */
+  /** Én timelinje i kortet (del 2): fra–til, pause, timer og lønnsart som tekst, med ✂ og ✎ (w15g). */
   const timeLinje = (l: AttLinje & { kilde: { type: "timer" } }) => {
     const r = l.kilde.rad;
     const kan = kanRette && l.ventende && l.harHandling;
+    const tidTekst = l.linje.fraTid && l.linje.tilTid ? `${l.linje.fraTid}–${l.linje.tilTid}` : "—";
     return (
       <div key={l.nokkel} data-timelinje={l.nokkel} className="flex flex-wrap items-center gap-3">
-        {kan && erTimebasertLonnsart(r.lonnsartId, lonnsarter) ? (
-          <TidFelter
-            lagret={{ fraTid: r.fraTid ?? null, tilTid: r.tilTid ?? null, pauseMin: r.pauseMin ?? 0, timer: l.linje.timer }}
-            tidsrunding={tidsrunding}
-            onFeil={(tekst) => setLinjeFeil((f) => ({ ...f, [l.nokkel]: tekst }))}
-            onLagre={(felter, tilbake) => rettFelter(l.nokkel, "timer", r.id, felter, tilbake)}
-          />
-        ) : kan ? (
-          <TallFelt
-            etikett={t("timer.eksport.kolTimer")}
-            verdi={l.linje.timer}
-            onLagre={(v, tilbake) => rettFelter(l.nokkel, "timer", r.id, { timer: v }, tilbake)}
-          />
-        ) : (
-          <span className="tabular-nums text-gray-700">
-            {l.linje.fraTid && l.linje.tilTid ? `${l.linje.fraTid}–${l.linje.tilTid}` : "—"}
-            {(r.pauseMin ?? 0) > 0 && <span className="text-gray-500"> · {t("timer.attestering.registrering.pause", { min: r.pauseMin })}</span>}
-            <span className="font-medium text-gray-900"> · {t("timer.attestering.registrering.timer", { timer: formaterNorsk(l.linje.timer ?? 0) })}</span>
-          </span>
-        )}
-        {kan ? (
-          <select
-            aria-label={t("timer.attestering.registrering.lonnsart")}
-            value={r.lonnsartId}
-            onChange={(e) => rettFelt(l.nokkel, "timer", r.id, "lonnsartId", e.target.value)}
-            disabled={rett.isPending}
-            className="rounded border border-gray-300 bg-white px-2 py-1 text-sm"
-          >
-            {tillatteLonnsarter(r, lonnsarter, reiseKtx, r.lonnsartId).map((x) => <option key={x.id} value={x.id}>{x.navn}</option>)}
-          </select>
-        ) : <span>{l.linje.betegnelse}</span>}
-        {splittKnapp(l)}
-        {linjeFeilTekst(l.nokkel)}
+        <span className="tabular-nums text-gray-700">
+          {tidTekst}
+          {(r.pauseMin ?? 0) > 0 && <span className="text-gray-500"> · {t("timer.attestering.registrering.pause", { min: r.pauseMin })}</span>}
+          <span className="font-medium text-gray-900"> · {t("timer.attestering.registrering.timer", { timer: formaterNorsk(l.linje.timer ?? 0) })}</span>
+        </span>
+        <span>{l.linje.betegnelse}</span>
+        <span className="ml-auto flex items-center gap-1.5">
+          {splittKnapp(l)}
+          {kan && pennKnapp(t("timer.korrigert.vindu.timer"), {
+            type: "timer",
+            radId: r.id,
+            tittel: [tidTekst, l.linje.betegnelse].filter(Boolean).join(" · "),
+            lagret: { fraTid: r.fraTid ?? null, tilTid: r.tilTid ?? null, pauseMin: r.pauseMin ?? 0, timer: l.linje.timer, lonnsartId: r.lonnsartId },
+            timebasert: erTimebasertLonnsart(r.lonnsartId, lonnsarter),
+            lonnsValg: tillatteLonnsarter(r, lonnsarter, reiseKtx, r.lonnsartId),
+          })}
+        </span>
       </div>
     );
   };
@@ -407,15 +391,21 @@ export function RegistreringPanel({ kort, sedel, orgId, kanAttestere, kanRette, 
             {maskiner.map(({ m, navn, linje }) => {
               const kan = kanRette && linje.ventende;
               return (
-                <div key={m.id} className="flex flex-wrap items-center gap-3">
+                <div key={m.id} data-maskinlinje={m.id} className="flex flex-wrap items-center gap-3">
                   <span className="w-48 truncate">{navn ?? "—"}</span>
-                  {kan ? (
-                    <TallFelt etikett={t("timer.eksport.kolMaskintimer")} verdi={m.timer == null ? null : Number(m.timer)} enhet="t" hoyst={hoystFor.get(m.id) ?? null} onLagre={(v) => rettFelt(`m:${m.id}`, "maskin", m.id, "timer", v)} />
-                  ) : <span className="tabular-nums">{m.timer == null ? "—" : `${formaterNorsk(Number(m.timer))} t`}</span>}
+                  <span className="tabular-nums">{m.timer == null ? "—" : `${formaterNorsk(Number(m.timer))} t`}</span>
                   {m.mengde != null && <span className="text-gray-600">{formaterNorsk(Number(m.mengde))} {m.enhet ?? ""}</span>}
-                  {/* S1: ✂ på en maskin som står på egen linje; en maskin på timelinja deles med den. */}
-                  {linje.kilde.type === "maskin" && splittKnapp(linje)}
-                  {linjeFeilTekst(`m:${m.id}`)}
+                  <span className="ml-auto flex items-center gap-1.5">
+                    {/* S1: ✂ på en maskin som står på egen linje; en maskin på timelinja deles med den. */}
+                    {linje.kilde.type === "maskin" && splittKnapp(linje)}
+                    {kan && pennKnapp(t("timer.korrigert.vindu.maskin"), {
+                      type: "maskin",
+                      radId: m.id,
+                      tittel: navn ?? "—",
+                      timer: m.timer == null ? null : Number(m.timer),
+                      hoyst: hoystFor.get(m.id) ?? null,
+                    })}
+                  </span>
                 </div>
               );
             })}
@@ -440,15 +430,19 @@ export function RegistreringPanel({ kort, sedel, orgId, kanAttestere, kanRette, 
         {tillegg.length === 0 ? tom : (
           <div className="flex flex-col gap-1.5">
             {tillegg.map((l) => {
-              const kan = kanRette && l.ventende && l.kilde.type === "tillegg";
               return (
-                <div key={l.nokkel} className="flex flex-wrap items-center gap-3">
+                <div key={l.nokkel} data-tilleggslinje={l.nokkel} className="flex flex-wrap items-center gap-3">
                   <span className="w-48 truncate">{l.linje.betegnelse}</span>
-                  {kan && l.kilde.type === "tillegg" ? (
-                    <TallFelt etikett={t("timer.eksport.kolAntall")} verdi={l.linje.antall} onLagre={(v) => rettFelt(l.nokkel, "tillegg", l.kilde.rad.id, "antall", v)} />
-                  ) : <span className="tabular-nums">{l.linje.antall == null ? "—" : formaterNorsk(l.linje.antall)}</span>}
-                  {splittKnapp(l)}
-                  {linjeFeilTekst(l.nokkel)}
+                  <span className="tabular-nums">{l.linje.antall == null ? "—" : formaterNorsk(l.linje.antall)}</span>
+                  <span className="ml-auto flex items-center gap-1.5">
+                    {splittKnapp(l)}
+                    {kanRette && l.ventende && l.kilde.type === "tillegg" && pennKnapp(t("timer.korrigert.vindu.tillegg"), {
+                      type: "tillegg",
+                      radId: l.kilde.rad.id,
+                      tittel: l.linje.betegnelse ?? "—",
+                      antall: l.linje.antall,
+                    })}
+                  </span>
                 </div>
               );
             })}
@@ -507,7 +501,6 @@ export function RegistreringPanel({ kort, sedel, orgId, kanAttestere, kanRette, 
                         </button>
                       )}
                     </span>
-                    {linjeFeilTekst(l.nokkel)}
                   </div>
                 </div>
               );
@@ -527,6 +520,16 @@ export function RegistreringPanel({ kort, sedel, orgId, kanAttestere, kanRette, 
           tidsrunding={tidsrunding}
           onLagret={() => { setReiseRett(null); onEndret(); }}
           onAvbryt={() => setReiseRett(null)}
+        />
+      )}
+
+      {linjeRett && (
+        <LinjeRettVindu
+          linje={linjeRett}
+          arbeiderNavn={sedel.ansatt?.name ?? null}
+          tidsrunding={tidsrunding}
+          onLagret={() => { setLinjeRett(null); onEndret(); }}
+          onAvbryt={() => setLinjeRett(null)}
         />
       )}
 
@@ -556,6 +559,28 @@ function Del({ nr, navn, hoyre, sist, children }: { nr: number; navn: string; ho
 const KL = /^([01]\d|2[0-3]):[0-5]\d$/;
 type TidLagret = { fraTid: string | null; tilTid: string | null; pauseMin: number; timer: number | null };
 
+/** Utfallet av fra, til og pause slik de står i feltene (w15g: samme regel i kortet og i vinduet). */
+export type TidRetting =
+  | { type: "uendret" }
+  | { type: "feil"; nokkel: string }
+  | { type: "ok"; felter: { fraTid: string; tilTid: string; timer: number; pauseMin: number } };
+
+/**
+ * Fra og til rundes med firmaets tidsrunding; urørt → «uendret». Ugyldig tid eller til før fra →
+ * `ugyldigTid`, timer ≤ 0 → `pauseForLang`. Ellers timene som `(til − fra − pause) / 60`.
+ */
+export function tidRetting(lagret: TidLagret, felt: { fra: string; til: string; pause: string }, tidsrunding: number | null): TidRetting {
+  const f = rundTilNarmeste(felt.fra, tidsrunding);
+  const ti = rundTilNarmeste(felt.til, tidsrunding);
+  if (f === (lagret.fraTid ?? "") && ti === (lagret.tilTid ?? "") && felt.pause === String(lagret.pauseMin)) return { type: "uendret" };
+  if (!KL.test(f) || !KL.test(ti) || ti <= f) return { type: "feil", nokkel: "timer.attestering.registrering.ugyldigTid" };
+  const p = Number.parseInt(felt.pause, 10);
+  if (Number.isNaN(p) || p < 0) return { type: "feil", nokkel: "timer.attestering.registrering.ugyldigTid" };
+  const timer = effektiveTimerFraSpenn(f, ti, f, p);
+  if (timer <= 0) return { type: "feil", nokkel: "timer.attestering.registrering.pauseForLang" };
+  return { type: "ok", felter: { fraTid: f, tilTid: ti, timer, pauseMin: p } };
+}
+
 /**
  * Fra, til og pause på én timelinje (w10a A1). Pausefeltet står bare på linja som bærer pausen.
  * Lagres når et felt forlates eller ved Enter: fra og til rundes med firmaets tidsrunding, timene
@@ -564,12 +589,16 @@ type TidLagret = { fraTid: string | null; tilTid: string | null; pauseMin: numbe
  * pause sendes i ett kall. Ugyldig tid avvises før kallet; avviser serveren, settes feltene tilbake.
  * Timetallet ved siden av viser lagret `timer` til et felt er endret. Brukes bare på timebaserte
  * lønnsarter (`erTimebasertLonnsart`).
+ *
+ * w15g: med `onEndre` (vinduet bak ✎) lagres ingenting når et felt forlates eller ved Enter; hver
+ * endring meldes som `TidRetting`, og «Lagre» i vinduet sender. Uten `onEndre` som før.
  */
-export function TidFelter({ lagret, tidsrunding, onLagre, onFeil }: {
+export function TidFelter({ lagret, tidsrunding, onLagre, onFeil, onEndre }: {
   lagret: TidLagret;
   tidsrunding: number | null;
-  onLagre: (felter: { fraTid: string; tilTid: string; timer: number; pauseMin: number }, tilbake: () => void) => void;
-  onFeil: (tekst: string) => void;
+  onLagre?: (felter: { fraTid: string; tilTid: string; timer: number; pauseMin: number }, tilbake: () => void) => void;
+  onFeil?: (tekst: string) => void;
+  onEndre?: (r: TidRetting) => void;
 }) {
   const { t } = useTranslation();
   const startFra = lagret.fraTid ?? "";
@@ -590,32 +619,36 @@ export function TidFelter({ lagret, tidsrunding, onLagre, onFeil }: {
   const utregnet = endret && gyldig ? effektiveTimerFraSpenn(fra, til, fra, pauseTall) : null;
 
   function lagre() {
-    const f = rundTilNarmeste(fra, tidsrunding);
-    const ti = rundTilNarmeste(til, tidsrunding);
-    setFra(f);
-    setTil(ti);
-    if (f === startFra && ti === startTil && pause === startPause) return;
-    if (!KL.test(f) || !KL.test(ti) || ti <= f) { tilbake(); onFeil(t("timer.attestering.registrering.ugyldigTid")); return; }
-    const p = Number.parseInt(pause, 10);
-    if (Number.isNaN(p) || p < 0) { tilbake(); onFeil(t("timer.attestering.registrering.ugyldigTid")); return; }
-    const timer = effektiveTimerFraSpenn(f, ti, f, p);
-    if (timer <= 0) { tilbake(); onFeil(t("timer.attestering.registrering.pauseForLang")); return; }
-    onLagre({ fraTid: f, tilTid: ti, timer, pauseMin: p }, tilbake);
+    setFra(rundTilNarmeste(fra, tidsrunding));
+    setTil(rundTilNarmeste(til, tidsrunding));
+    if (onEndre) return;
+    const r = tidRetting(lagret, { fra, til, pause }, tidsrunding);
+    if (r.type === "uendret") return;
+    if (r.type === "feil") { tilbake(); onFeil?.(t(r.nokkel)); return; }
+    onLagre?.(r.felter, tilbake);
   }
+  // w15g: vindu-modus — feltet endres, utfallet meldes, ingenting lagres.
+  const endre = (ny: { fra?: string; til?: string; pause?: string }) => {
+    const felt = { fra: ny.fra ?? fra, til: ny.til ?? til, pause: ny.pause ?? pause };
+    if (ny.fra !== undefined) setFra(ny.fra);
+    if (ny.til !== undefined) setTil(ny.til);
+    if (ny.pause !== undefined) setPause(ny.pause);
+    onEndre?.(tidRetting(lagret, felt, tidsrunding));
+  };
   const tast = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") { e.preventDefault(); lagre(); }
-    if (e.key === "Escape") { e.preventDefault(); tilbake(); }
+    if (e.key === "Escape") { e.preventDefault(); tilbake(); onEndre?.({ type: "uendret" }); }
   };
   const klasse = "rounded border border-gray-300 px-1.5 py-0.5 text-sm tabular-nums focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500";
   return (
     <span className="inline-flex flex-wrap items-center gap-1.5">
-      <input aria-label={t("timer.attestering.registrering.fra")} value={fra} placeholder="07:00" inputMode="numeric" onChange={(e) => setFra(e.target.value)} onBlur={lagre} onKeyDown={tast} className={`w-16 ${klasse}`} />
+      <input aria-label={t("timer.attestering.registrering.fra")} value={fra} placeholder="07:00" inputMode="numeric" onChange={(e) => endre({ fra: e.target.value })} onBlur={lagre} onKeyDown={tast} className={`w-16 ${klasse}`} />
       <span className="text-gray-500">–</span>
-      <input aria-label={t("timer.attestering.registrering.til")} value={til} placeholder="15:00" inputMode="numeric" onChange={(e) => setTil(e.target.value)} onBlur={lagre} onKeyDown={tast} className={`w-16 ${klasse}`} />
+      <input aria-label={t("timer.attestering.registrering.til")} value={til} placeholder="15:00" inputMode="numeric" onChange={(e) => endre({ til: e.target.value })} onBlur={lagre} onKeyDown={tast} className={`w-16 ${klasse}`} />
       {visPause && (
         <span className="inline-flex items-center gap-1 text-gray-600">
           <span>{t("timer.attestering.registrering.pauseFelt")}</span>
-          <input aria-label={t("timer.attestering.registrering.pauseFelt")} value={pause} inputMode="numeric" onChange={(e) => setPause(e.target.value)} onBlur={lagre} onKeyDown={tast} className={`w-12 text-right ${klasse}`} />
+          <input aria-label={t("timer.attestering.registrering.pauseFelt")} value={pause} inputMode="numeric" onChange={(e) => endre({ pause: e.target.value })} onBlur={lagre} onKeyDown={tast} className={`w-12 text-right ${klasse}`} />
         </span>
       )}
       <span data-utregnet-timer="" className="w-14 font-medium tabular-nums text-gray-900">
@@ -625,8 +658,24 @@ export function TidFelter({ lagret, tidsrunding, onLagre, onFeil }: {
   );
 }
 
-/** Tallfelt som lagres ved Enter, Tab eller når feltet forlates (hver retting lagres med en gang). */
-function TallFelt({ etikett, verdi, enhet, hoyst = null, onLagre }: { etikett: string; verdi: number | null; enhet?: string; hoyst?: number | null; onLagre: (v: number | null, tilbake: () => void) => void }) {
+/** Utfallet av et tallfelt (w15g: samme regel i kortet og i vinduet). */
+export type TallRetting = { type: "uendret" } | { type: "feil" } | { type: "over" } | { type: "ok"; verdi: number | null };
+
+/** Urørt → «uendret»; ikke et tall → «feil»; over «høyst» (w9 2c) → «over»; ellers verdien (tomt = null). */
+export function tallRetting(verdi: number | null, tekst: string, hoyst: number | null): TallRetting {
+  const start = verdi == null ? "" : String(verdi).replace(".", ",");
+  if (tekst === start) return { type: "uendret" };
+  const tolket = tekst.trim() === "" ? null : Number(tekst.replace(",", "."));
+  if (tolket !== null && Number.isNaN(tolket)) return { type: "feil" };
+  if (tolket !== null && overMaskinHoyst(tolket, hoyst)) return { type: "over" };
+  return { type: "ok", verdi: tolket };
+}
+
+/**
+ * Tallfelt som lagres ved Enter, Tab eller når feltet forlates (hver retting lagres med en gang).
+ * w15g: med `onEndre` (vinduet bak ✎) lagres ingenting; hver endring meldes som `TallRetting`.
+ */
+export function TallFelt({ etikett, verdi, enhet, hoyst = null, onLagre, onEndre }: { etikett: string; verdi: number | null; enhet?: string; hoyst?: number | null; onLagre?: (v: number | null, tilbake: () => void) => void; onEndre?: (r: TallRetting) => void }) {
   const { t } = useTranslation();
   const start = verdi == null ? "" : String(verdi).replace(".", ",");
   const [tekst, setTekst] = useState(start);
@@ -636,15 +685,20 @@ function TallFelt({ etikett, verdi, enhet, hoyst = null, onLagre }: { etikett: s
   // w9 (2c): over «høyst» blir teksten rød og rettingen lagres ikke.
   const over = tolket !== null && !Number.isNaN(tolket) && overMaskinHoyst(tolket, hoyst);
   const lagre = () => {
+    if (onEndre) return;
     if (tekst === start) return;
     const v = tolket;
     if (v !== null && Number.isNaN(v)) { setTekst(start); return; }
     if (over) return;
-    onLagre(v, () => setTekst(start));
+    onLagre?.(v, () => setTekst(start));
+  };
+  const endre = (ny: string) => {
+    setTekst(ny);
+    onEndre?.(tallRetting(verdi, ny, hoyst));
   };
   const tast = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") { e.preventDefault(); lagre(); }
-    if (e.key === "Escape") { e.preventDefault(); setTekst(start); }
+    if (e.key === "Escape") { e.preventDefault(); setTekst(start); onEndre?.({ type: "uendret" }); }
   };
   return (
     <span className="inline-flex items-center gap-1">
@@ -652,7 +706,7 @@ function TallFelt({ etikett, verdi, enhet, hoyst = null, onLagre }: { etikett: s
         aria-label={etikett}
         value={tekst}
         inputMode="decimal"
-        onChange={(e) => setTekst(e.target.value)}
+        onChange={(e) => endre(e.target.value)}
         onBlur={lagre}
         onKeyDown={tast}
         aria-invalid={over || undefined}
