@@ -227,6 +227,8 @@ export {
 } from "./lonnsregel";
 export type { ArbeidstidSegment, DognRad, OvertidLonnsartKandidat } from "./lonnsregel";
 export { foreslaOvertidSplitt } from "./overtidForslag";
+export { regnJobbTid, validerJobbTid, erGyldigHhmm } from "./jobbTid";
+export type { JobbTidLinje, JobbTidFeil, JobbTidResultat } from "./jobbTid";
 export type {
   OvertidForslagRad,
   OvertidForslagDel,

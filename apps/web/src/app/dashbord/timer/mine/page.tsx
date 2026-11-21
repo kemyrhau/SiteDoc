@@ -311,6 +311,7 @@ export default function MineTimerSide() {
               <p>{t("timer.mine.hjelp.registrer")}</p>
               <p className="mt-2">{t("timer.mine.hjelp.dagen")}</p>
               <p className="mt-2">{t("timer.mine.hjelp.ferdig")}</p>
+              <p className="mt-2">{t("timer.mine.hjelp.skjema")}</p>
               <p className="mt-2">{t("timer.mine.hjelp.dato")}</p>
               <p className="mt-2">{t("timer.mine.hjelp.reise")}</p>
               <p className="mt-2">{t("timer.mine.hjelp.korrigert")}</p>

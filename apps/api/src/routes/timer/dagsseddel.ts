@@ -121,6 +121,10 @@ import {
   type FravaerNormtakVurdering,
   type NormtakBruddData,
   lesTimerModus,
+  regnJobbTid,
+  validerJobbTid,
+  fastPauseFraFor,
+  type JobbTidLinje,
   jobberSomManglerBeskrivelse,
 } from "@sitedoc/shared";
 import {
@@ -4650,6 +4654,256 @@ export const dagsseddelRouter = router({
         ctx.req.log.error({ err: e, sheetId: rad.sheetId }, "[fjern_timer_rad] vare-kobling ikke nullet");
       }
       return slettet;
+    }),
+
+  // Plan § 8.22 L3a (Bilde 2-jobben): skjemaet lagrer jobbens Fra, Til og pause samlet.
+  // Serveren regner selv lønnslinjene med den delte regelen `regnJobbTid` (samme som
+  // skjemaets forhåndsvisning) og skriver dem i ÉN transaksjon: linje 1 er jobbens første
+  // arbeidsrad (samme id, koblede maskiner står), linje 2 er overtidsdelen. Byttet lønnsart
+  // på en linje som finnes, beholdes; bare en NY linje 2 får firmaets overtidsart. Reise,
+  // tillegg, utlegg og varer røres ikke. Bare i prosjektkort-modus — dagskort-firma avvises.
+  lagreJobbTid: protectedProcedure
+    .input(
+      z.object({
+        sheetId: z.string().uuid(),
+        kortId: z.string().uuid(),
+        fraTid: z.string(),
+        tilTid: z.string(),
+        pauseMin: z.number().int().min(0),
+        // Jobbens arbeidslinjer slik klienten har dem nå: linje 1 (finnes) og evt. linje 2.
+        linjer: z
+          .array(z.object({ radId: z.string().uuid(), lonnsartId: z.string().uuid() }))
+          .min(1)
+          .max(2),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const sheet = await hentEgenDagsseddel(ctx.prismaTimer, ctx.userId, input.sheetId);
+      if (!erRedigerbar(sheet.status)) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: `Dagsseddel er låst (status: ${sheet.status})`,
+        });
+      }
+      const modus = await ctx.prisma.organizationSetting.findUnique({
+        where: { organizationId: sheet.organizationId },
+        select: { timerRegistreringsmodus: true },
+      });
+      if (lesTimerModus(modus?.timerRegistreringsmodus) !== "prosjektkort") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Jobbskjemaet brukes bare når firmaet fører timer pr. prosjektkort.",
+        });
+      }
+      await sjekkAldersgrense(sheet.organizationId, sheet.status, sheet.dato);
+
+      const tidFeil = validerJobbTid(input);
+      if (tidFeil) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message:
+            tidFeil === "format"
+              ? "Fra og Til må være klokkeslett (TT:MM)."
+              : tidFeil === "fraForTil"
+                ? "Fra må være før Til."
+                : "Pausen må være kortere enn jobben.",
+        });
+      }
+
+      // Jobbens arbeidsrader nå. Klienten må ha samme bilde — ellers har jobben endret seg
+      // et annet sted (mobil, en annen fane), og skrivingen ville gjette.
+      const dagensRader = await ctx.prismaTimer.sheetTimer.findMany({
+        where: { sheetId: input.sheetId, attestertStatus: { not: "erstattet" } },
+        orderBy: [{ fraTid: "asc" }, { createdAt: "asc" }],
+      });
+      const jobbRader = dagensRader.filter(
+        (r) => r.kortId === input.kortId && !r.erReise && !r.utenProsjekt,
+      );
+      const oppgitte = input.linjer.map((l) => l.radId);
+      if (
+        jobbRader.length !== oppgitte.length ||
+        jobbRader.some((r) => !oppgitte.includes(r.id)) ||
+        jobbRader[0]?.id !== oppgitte[0]
+      ) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Jobben har endret seg — last siden på nytt.",
+        });
+      }
+      if (jobbRader.some((r) => r.attestertStatus === "attestert")) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: "Jobben har attesterte timer og kan ikke endres.",
+        });
+      }
+      const [rad1, rad2Foer] = jobbRader as [(typeof jobbRader)[number], (typeof jobbRader)[number] | undefined];
+      const linje1LonnsartId = (input.linjer[0] as { lonnsartId: string }).lonnsartId;
+
+      await krevKatalogIFirma(ctx.prismaTimer, sheet.organizationId, {
+        lonnsartIder: input.linjer.map((l) => l.lonnsartId),
+      });
+      const lonnsarter = await ctx.prismaTimer.lonnsart.findMany({
+        where: { organizationId: sheet.organizationId },
+        select: {
+          id: true,
+          navn: true,
+          overtidsnivaa: true,
+          aktiv: true,
+          type: true,
+          rekkefolge: true,
+          satsEnhet: true,
+          fravaerNormtak: true,
+        },
+      });
+      const artFor = (id: string) => lonnsarter.find((l) => l.id === id) ?? null;
+      const erReiseKtx = await hentErReiseKontekst(sheet.organizationId);
+      for (const l of input.linjer) {
+        const art = artFor(l.lonnsartId);
+        if (!art || utledErReise(art.id, art.navn, erReiseKtx) || harNormtak(art)) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Jobbens lønnsart må være en arbeids-lønnsart. Reise og fravær føres for seg.",
+          });
+        }
+      }
+
+      // Overlapp mot dagens andre rader (jobbens egne linjer skrives om).
+      const jobbIder = new Set(jobbRader.map((r) => r.id));
+      const andre = dagensRader.filter((r) => !jobbIder.has(r.id));
+      const overlapp = finnOverlappendeTidsrom(
+        input.fraTid,
+        input.tilTid,
+        andre.filter((r) => r.fraTid && r.tilTid).map((r) => ({ fraTid: r.fraTid, tilTid: r.tilTid })),
+      );
+      if (overlapp) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: `Tidsrommet overlapper en annen rad (${overlapp.fraTid}–${overlapp.tilTid}) på samme dagsseddel. Én arbeider kan ikke være to steder samtidig.`,
+        });
+      }
+
+      const eff = await hentEffektivArbeidstid(sheet.organizationId, sheet.dato);
+      const linje1Art = artFor(linje1LonnsartId);
+      const regnet = regnJobbTid({
+        fraTid: input.fraTid,
+        tilTid: input.tilTid,
+        pauseMin: input.pauseMin,
+        linje1Overtidsnivaa: linje1Art?.overtidsnivaa ?? null,
+        andreRader: andre
+          .filter((r): r is typeof r & { fraTid: string; tilTid: string } => !!r.fraTid && !!r.tilTid)
+          .map((r) => ({
+            id: r.id,
+            fraTid: r.fraTid,
+            tilTid: r.tilTid,
+            pauseMin: r.pauseMin ?? 0,
+            erReise: r.erReise,
+            overtidsnivaa: artFor(r.lonnsartId)?.overtidsnivaa ?? null,
+          })),
+        norm: eff.dagsnorm > 0 ? eff.dagsnorm : null,
+        lonnsarter,
+        pauseEtterTimer: eff.pauseEtterTimer,
+        fastPauseFra: fastPauseFraFor(eff),
+      });
+      if (!regnet.ok) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Ugyldig tid." });
+      }
+      const [l1, l2] = regnet.linjer as [JobbTidLinje, JobbTidLinje | undefined];
+      // Gate 129 V1: flyttes tiden slik at hele jobben havner over normen, og linje 1 står på
+      // en normalart, får linje 1 firmaets overtidsart — som en ny jobb. Et bevisst bytte av
+      // lønnsart på uendret tid beholdes (arbeideren bestemmer, plan § 8.22).
+      const tidEndret =
+        input.fraTid !== rad1.fraTid ||
+        input.tilTid !== (rad2Foer ?? rad1).tilTid ||
+        input.pauseMin !== (rad1.pauseMin ?? 0);
+      const linje1Lagres =
+        tidEndret && regnet.helOvertid && regnet.overtidLonnsart ? regnet.overtidLonnsart.id : linje1LonnsartId;
+      // Lønnsart på linje 2: byttet art beholdes; en ny linje får firmaets overtidsart.
+      const linje2Art = l2
+        ? rad2Foer
+          ? (input.linjer[1]?.lonnsartId ?? rad2Foer.lonnsartId)
+          : regnet.overtidLonnsart?.id ?? null
+        : null;
+      if (l2 && !rad2Foer) await krevTimerAktivert(sheet.organizationId);
+
+      const resultat = await ctx.prismaTimer.$transaction(async (tx) => {
+        const maskinFoer = await lesMaskinJobbTilstand(tx, ctx.prismaMaskin, input.sheetId);
+        await tx.sheetTimer.update({
+          where: { id: rad1.id },
+          data: {
+            lonnsartId: linje1Lagres,
+            fraTid: l1.fraTid,
+            tilTid: l1.tilTid,
+            pauseMin: l1.pauseMin,
+            timer: l1.timer,
+          },
+        });
+        let rad2Id: string | null = null;
+        if (l2 && linje2Art) {
+          if (rad2Foer) {
+            await tx.sheetTimer.update({
+              where: { id: rad2Foer.id },
+              data: { lonnsartId: linje2Art, fraTid: l2.fraTid, tilTid: l2.tilTid, pauseMin: 0, timer: l2.timer },
+            });
+            rad2Id = rad2Foer.id;
+          } else {
+            const ny = await tx.sheetTimer.create({
+              data: {
+                ...byggTimerRadData(
+                  input.sheetId,
+                  {
+                    projectId: rad1.projectId,
+                    byggeplassId: rad1.byggeplassId,
+                    lonnsartId: linje2Art,
+                    aktivitetId: rad1.aktivitetId,
+                    timer: l2.timer,
+                    fraTid: l2.fraTid,
+                    tilTid: l2.tilTid,
+                    pauseMin: 0,
+                    beskrivelse: rad1.beskrivelse,
+                    externalCostObjectId: rad1.externalCostObjectId,
+                    vehicleId: rad1.vehicleId,
+                  },
+                  false,
+                ),
+                kortId: input.kortId,
+              },
+            });
+            rad2Id = ny.id;
+          }
+        } else if (rad2Foer) {
+          // Jobben ble én linje: linje 2 går, maskinene på den følger linje 1 (som fjernTimerRad,
+          // men koblingen flyttes i stedet for å nulles — det er samme jobb).
+          await tx.sheetMachine.updateMany({
+            where: { sheetId: input.sheetId, sheetTimerId: rad2Foer.id },
+            data: { sheetTimerId: rad1.id },
+          });
+          await tx.sheetTimer.delete({ where: { id: rad2Foer.id } });
+        }
+        await synkroniserHodePause(tx, input.sheetId);
+        await sikreKortId(tx, input.sheetId, { kast: true, oppgitteKortIder: [input.kortId] });
+        await krevIngenNyeMaskinBrudd(tx, ctx.prismaMaskin, input.sheetId, maskinFoer);
+        return { rad1Id: rad1.id, rad2Id, linje1LonnsartId: linje1Lagres };
+      });
+      // Varer på en slettet linje 2 følger linje 1 (egen database, ingen felles transaksjon).
+      let vareIkkeFlyttet = false;
+      if (rad2Foer && !resultat.rad2Id) {
+        try {
+          await ctx.prismaVarelager.vareforbruk.updateMany({
+            where: { dagsseddelId: input.sheetId, sheetTimerId: rad2Foer.id },
+            data: { sheetTimerId: rad1.id },
+          });
+        } catch (err) {
+          vareIkkeFlyttet = true;
+          ctx.req.log.error({ err, sheetId: input.sheetId }, "lagreJobbTid: vare ble ikke flyttet til linje 1");
+        }
+      }
+      return {
+        ...resultat,
+        timer: regnet.timer,
+        helOvertid: regnet.helOvertid,
+        overtidsnivaa: l2 ? regnet.overtidsnivaa : null,
+        vareIkkeFlyttet,
+      };
     }),
 
   // U-BEKREFT steg 2 (2026-10-01): FORSON et dagskort i konflikt. Arbeideren har valgt

@@ -147,7 +147,8 @@ describe("w15f — pennen på reiselinja (del H pkt. 24)", () => {
   it("prosjektfeltet er låst for en arbeidsrad", () => {
     rendre([ARBEID1]);
     aapneForste();
-    fireEvent.click(screen.getAllByTitle("handling.rediger")[0]!);
+    // L3a: arbeidslinja står i jobbskjemaet — blyanten i skjemaets hode.
+    fireEvent.click(screen.getAllByTitle("timer.jobbSkjema.endreUnderprosjekt")[0]!);
     const d = screen.getByRole("dialog", { name: "timer.detalj.redigerTimerRad" });
     expect(prosjektFelt(d).disabled).toBe(true);
   });

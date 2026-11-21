@@ -8,7 +8,7 @@
  * Dagen har én jobb (k1) på p1 — kopi av #7 uten jobb 2.
  */
 import type { ReactNode } from "react";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DAG7_SEDEL, dag7Data } from "./testdata-dag7";
 
@@ -123,9 +123,15 @@ describe("w15a — kortet er åpent etter «+ Registrer timer»", () => {
     expect(valg).toEqual({ scroll: false });
   });
 
-  it("dagen fantes: «Legg til timer-rad» åpnes som før, og adressen ryddes", async () => {
+  it("dagen fantes (L3a): skjemaet for neste jobb åpnes — Fra = forrige slutt, Til = firmaets slutt (etter Fra)", async () => {
     rendre("registrer=1&nyttProsjekt=p1&eksisterte=1");
-    expect(screen.getByRole("dialog")).toBeTruthy();
+    expect(screen.queryByRole("dialog")).toBeNull();
+    const skjema = screen.getByTestId("jobb-skjema");
+    expect(within(skjema).getByLabelText<HTMLInputElement>("timer.jobbSkjema.fra").value).toBe("15:00");
+    // Sedelens slutt er 16:00 lokal tid (endAt 15:00Z) og ligger etter Fra → foreslås.
+    // Slutt før Fra gir tom Til: `jobbSkjema.test.ts`.
+    expect(within(skjema).getByLabelText<HTMLInputElement>("timer.jobbSkjema.til").value).toBe("16:00");
+    expect(within(skjema).getByTestId("skjema-kilde").textContent).toContain("timer.jobbSkjema.kildeForrige");
     await vi.waitFor(() => expect(h.replace).toHaveBeenCalledTimes(1));
     expect(h.replace.mock.calls[0]![0]).toBe("/dashbord/timer/s1");
   });
