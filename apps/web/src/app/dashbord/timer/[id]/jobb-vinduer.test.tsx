@@ -113,6 +113,15 @@ function fraJobb2(lenke: string) {
   return screen.getByRole("dialog");
 }
 
+/** Underprosjekt-nedtrekket i timevinduet (valget med «—» og TILL-001). */
+function underprosjektValg(dialog: HTMLElement): HTMLSelectElement {
+  const valg = Array.from(dialog.querySelectorAll("select")).find((s) =>
+    Array.from(s.options).some((o) => o.value === "e1"),
+  );
+  expect(valg).toBeDefined();
+  return valg!;
+}
+
 const STEDSFELT = ["timer.felt.prosjekt", "timer.felt.underprosjekt", "timer.felt.byggeplass", "timer.felt.timerad"];
 function utenStedsfelt(dialog: HTMLElement) {
   for (const felt of STEDSFELT) expect(dialog.textContent).not.toContain(felt);
@@ -121,13 +130,16 @@ function utenStedsfelt(dialog: HTMLElement) {
 describe("w3a — vinduene arver jobben", () => {
   afterEach(cleanup);
 
-  it("«+ Timer»: ingen stedsfelt, raden lagres med jobbens kort-id og sted (S1 A)", async () => {
+  it("«+ Timer»: ingen prosjekt/byggeplass/timerad; underprosjekt lik jobbens → jobbens kort-id og sted (S1 A, O4)", async () => {
     rendre();
     const dialog = fraJobb2("timer.prosjektkort.nyTimer");
-    utenStedsfelt(dialog);
+    for (const felt of ["timer.felt.prosjekt", "timer.felt.byggeplass", "timer.felt.timerad"]) {
+      expect(dialog.textContent).not.toContain(felt);
+    }
     const [lonnsart, aktivitet] = Array.from(dialog.querySelectorAll("select"));
     fireEvent.change(lonnsart!, { target: { value: "l1" } });
     fireEvent.change(aktivitet!, { target: { value: "a1" } });
+    fireEvent.change(underprosjektValg(dialog), { target: { value: "e1" } });
     const [fra, til] = Array.from(dialog.querySelectorAll<HTMLInputElement>('input[type="time"]'));
     fireEvent.change(fra!, { target: { value: "16:00" } });
     fireEvent.blur(fra!);
@@ -463,6 +475,7 @@ describe("w3b — maskindelen i «Legg til» og «Rediger timer-rad» (prosjektk
     const [lonnsart, aktivitet] = Array.from(dialog.querySelectorAll("select"));
     fireEvent.change(lonnsart!, { target: { value: "l1" } });
     fireEvent.change(aktivitet!, { target: { value: "a1" } });
+    fireEvent.change(underprosjektValg(dialog), { target: { value: "e1" } });
     const [fra, til] = Array.from(dialog.querySelectorAll<HTMLInputElement>('input[type="time"]'));
     fireEvent.change(fra!, { target: { value: "16:00" } });
     fireEvent.blur(fra!);
@@ -584,6 +597,7 @@ describe("O3 — maskin i «Legg til timer-rad» starter tom, forslag = radens t
   /** «+ Timer» fra jobb 2 på TILL-001, 16:00–18:30 (2,5 t). Jobben har da 3,5 t arbeid. */
   function nyRad25() {
     const dialog = fraJobb2("timer.prosjektkort.nyTimer");
+    fireEvent.change(underprosjektValg(dialog), { target: { value: "e1" } });
     const [fra, til] = Array.from(dialog.querySelectorAll<HTMLInputElement>('input[type="time"]'));
     fireEvent.change(fra!, { target: { value: "16:00" } });
     fireEvent.blur(fra!);
@@ -641,3 +655,59 @@ describe("O3 — maskin i «Legg til timer-rad» starter tom, forslag = radens t
   });
 });
 
+describe("O4 — underprosjekt i «Legg til timer-rad» (§ 8.22 punkt 7)", () => {
+  afterEach(cleanup);
+
+  async function lagre(dialog: HTMLElement) {
+    const [lonnsart, aktivitet] = Array.from(dialog.querySelectorAll("select"));
+    fireEvent.change(lonnsart!, { target: { value: "l1" } });
+    fireEvent.change(aktivitet!, { target: { value: "a1" } });
+    const [fra, til] = Array.from(dialog.querySelectorAll<HTMLInputElement>('input[type="time"]'));
+    fireEvent.change(fra!, { target: { value: "16:00" } });
+    fireEvent.blur(fra!);
+    fireEvent.change(til!, { target: { value: "17:00" } });
+    fireEvent.blur(til!);
+    fireEvent.change(dialog.querySelector("textarea")!, { target: { value: "Opprydding" } });
+    fireEvent.submit(dialog.querySelector("form")!);
+    await vi.waitFor(() => expect(h.kall.some((k) => k.sti === "timer.dagsseddel.tilfoyTimerRad")).toBe(true));
+    return h.kall.find((k) => k.sti === "timer.dagsseddel.tilfoyTimerRad")!.input;
+  }
+
+  it("nedtrekket står med «—» forvalgt, ikke jobbens underprosjekt (TILL-001)", () => {
+    rendre();
+    const dialog = fraJobb2("timer.prosjektkort.nyTimer");
+    expect(dialog.textContent).toContain("timer.felt.underprosjekt");
+    const valg = underprosjektValg(dialog);
+    expect(valg.value).toBe("");
+    expect(valg.options[0]!.textContent).toBe("—");
+  });
+
+  it("prosjektet har ingen åpne underprosjekter: nedtrekket vises ikke", () => {
+    rendre();
+    const kort = screen.getAllByRole("button").find((b) => b.textContent?.includes("TILL-001"));
+    fireEvent.click(kort!);
+    // Lista er tom (serveren gir bare åpne underprosjekter) når vinduet åpnes.
+    h.data["eksternKostObjekt.list"] = [];
+    fireEvent.click(screen.getByRole("button", { name: "timer.prosjektkort.nyTimer" }));
+    const dialog = screen.getByRole("dialog");
+    expect(dialog.textContent).not.toContain("timer.felt.underprosjekt");
+  });
+
+  it("annet underprosjekt enn jobbens («—» på jobb 2): raden får egen kort-id, ikke jobbens k2", async () => {
+    rendre();
+    const dialog = fraJobb2("timer.prosjektkort.nyTimer");
+    const input = await lagre(dialog);
+    expect(input).toMatchObject({ projectId: "p1", externalCostObjectId: null, byggeplassId: "b1" });
+    expect(typeof input.kortId).toBe("string");
+    expect(input.kortId).not.toBe("k2");
+    expect(input.kortId).not.toBe("k1");
+  });
+
+  it("samme underprosjekt som jobben (TILL-001): jobbens kort-id k2", async () => {
+    rendre();
+    const dialog = fraJobb2("timer.prosjektkort.nyTimer");
+    fireEvent.change(underprosjektValg(dialog), { target: { value: "e1" } });
+    const input = await lagre(dialog);
+    expect(input).toMatchObject({ kortId: "k2", externalCostObjectId: "e1" });
+  });
+});

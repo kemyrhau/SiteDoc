@@ -76,6 +76,7 @@ import {
   arbeidOgReise,
   arbeidUtenReise,
   maskinKreverTimerad,
+  kortIdNokkel,
   sendDagenTekst,
   type ForsonRad,
   type ErReiseKontekst,
@@ -4062,9 +4063,21 @@ function TimerRadDialog({
   // T7-4c: defaultEcoId pre-selekteres når bruker klikker "+Legg til timer"
   // i en spesifikk ECO-gruppe (eks. ECO «Mur øst»). Ved redigering brukes
   // radens egen ECO.
+  // § 8.22 punkt 7 (O4): «Legg til timer-rad» fra en jobb forvelger «—» (uten underprosjekt),
+  // ikke jobbens underprosjekt.
   const [ecoId, setEcoId] = useState<string | null>(
-    rad ? (rad.externalCostObjectId ?? null) : (jobb?.ecoId ?? defaultEcoId ?? null),
+    rad ? (rad.externalCostObjectId ?? null) : jobb ? null : (defaultEcoId ?? null),
   );
+  // O4: en ny rad med annen kort-nøkkel (prosjekt|byggeplass|underprosjekt) enn jobbens blir en
+  // egen jobb med egen kort-id (regel 1) — registreringer slås aldri sammen med en annen jobb.
+  // Lik nøkkel: jobbens kort-id som før.
+  const [egenJobbKortId] = useState(() => nyKortId());
+  const nyRadEgenJobb =
+    !!jobb &&
+    !rad &&
+    kortIdNokkel({ projectId: valgtProjectId, byggeplassId: bp.byggeplassId ?? null, ecoId }) !==
+      kortIdNokkel({ projectId: jobb.projectId, byggeplassId: jobb.byggeplassId, ecoId: jobb.ecoId });
+  const lagreKortId = nyRadEgenJobb ? egenJobbKortId : kortId;
   // T.10: kostnadsbærer for maskinvedlikehold (kun interne prosjekter).
   const [vehicleId, setVehicleId] = useState<string | null>(
     rad?.vehicleId ?? null,
@@ -4090,7 +4103,7 @@ function TimerRadDialog({
   // Plan § 8.22 L2: i prosjektkort-modus er «Hva gjorde du?» påkrevd på arbeid — ett kort = én
   // beskrivelse, så feltet kan stå tomt når en annen arbeidsrad i samme jobb alt har den (overtid).
   // Reise og dagskort-modus: valgfritt som før.
-  const jobbensKortId = rad?.kortId ?? kortId ?? jobb?.kortId ?? null;
+  const jobbensKortId = rad?.kortId ?? lagreKortId ?? jobb?.kortId ?? null;
   const annenRadHarBeskrivelse =
     jobbensKortId != null &&
     alleTimerRader.some(
@@ -4353,7 +4366,7 @@ function TimerRadDialog({
 
   // w3b (A13, S2 A): maskindelen i prosjektkort-modus. Jobben er kortet (jobbens, radens
   // eller den nye jobbens kort-id); eldre rad uten kort: maskinene koblet til raden.
-  const jobbKortId = jobb?.kortId ?? rad?.kortId ?? kortId ?? null;
+  const jobbKortId = nyRadEgenJobb ? egenJobbKortId : (jobb?.kortId ?? rad?.kortId ?? kortId ?? null);
   const visKortMaskin = !!kortModus && rad?.erReise !== true;
   const [jobbMaskiner, setJobbMaskiner] = useState<
     Array<{ rad: MaskinRad; timer: string; fjernet: boolean; laast: boolean }>
@@ -4701,7 +4714,7 @@ function TimerRadDialog({
         const normal: unknown = await tilfoy.mutateAsync({
           sheetId,
           projectId: valgtProjectId,
-          ...(kortId ? { kortId } : {}),
+          ...(lagreKortId ? { kortId: lagreKortId } : {}),
           ...felles,
           lonnsartId,
           ...f.normal,
@@ -4712,7 +4725,7 @@ function TimerRadDialog({
       await tilfoy.mutateAsync({
         sheetId,
         projectId: valgtProjectId,
-        ...(kortId ? { kortId } : {}),
+        ...(lagreKortId ? { kortId: lagreKortId } : {}),
         ...felles,
         lonnsartId: f.overtidLonnsart.id,
         ...f.overtid,
@@ -4850,7 +4863,7 @@ function TimerRadDialog({
         {
           sheetId,
           projectId: valgtProjectId,
-          ...(kortId ? { kortId } : {}),
+          ...(lagreKortId ? { kortId: lagreKortId } : {}),
           lonnsartId: lagreLonnsartId,
           aktivitetId,
           timer: tNum,
@@ -4917,7 +4930,7 @@ function TimerRadDialog({
         const lagret: unknown = await tilfoy.mutateAsync({
           sheetId,
           projectId: valgtProjectId,
-          ...(kortId ? { kortId } : {}),
+          ...(lagreKortId ? { kortId: lagreKortId } : {}),
           lonnsartId: lagreLonnsartId,
           aktivitetId,
           timer: tNum,
@@ -5144,7 +5157,9 @@ function TimerRadDialog({
             </button>
           </div>
         )}
-        {!(jobb && !rad) && (<div>
+        {/* O4: fra en jobb vises nedtrekket bare når prosjektet har åpne underprosjekter
+            (lista har ikke lukkede). */}
+        {(!(jobb && !rad) || (ecoer?.length ?? 0) > 0) && (<div>
           <label className="mb-1 block text-sm font-medium text-gray-700">
             {t("timer.felt.underprosjekt")}{" "}
             <span className="text-xs text-gray-400">
