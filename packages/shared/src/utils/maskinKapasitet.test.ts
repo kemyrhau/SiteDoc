@@ -7,6 +7,7 @@ import {
   overMaskinHoyst,
   doegnOverArbeid,
   jobbArbeidSum,
+  maskinForslagFraJobb,
   type JobbArbeidRad,
   type JobbMaskinRad,
 } from "./maskinKapasitet";
@@ -168,5 +169,37 @@ describe("maskinHoystPerRad (w9 2c)", () => {
   });
   it("rad uten jobb: bøtta med pause", () => {
     expect(maskinHoystPerRad([t(null, 4)], [m(null, 1)], 30)).toEqual([4.5]);
+  });
+});
+
+describe("O5 — maskinForslagFraJobb (§ 8.22, «+ Maskin» trekker fra ført maskintid)", () => {
+  const jobb = { kortId: "k1", projectId: P, externalCostObjectId: null };
+  const m = (timer: number, utleieEnhet: string | null, kortId: string | null = "k1"): JobbMaskinRad => ({
+    kortId,
+    projectId: P,
+    externalCostObjectId: null,
+    timer,
+    utleieEnhet,
+  });
+
+  it("ingen maskin ført: forslaget er jobbens arbeid", () => {
+    expect(maskinForslagFraJobb([arbeid("k1", 6)], [], jobb)).toBe(6);
+  });
+
+  it("Kenneths eksempel: jobb 6 t, Volvo 3 t → maskin nr. 2 får 3 t", () => {
+    expect(maskinForslagFraJobb([arbeid("k1", 6)], [m(3, null)], jobb)).toBe(3);
+  });
+
+  it("to maskiner ført, også døgn-maskin, trekkes fra; andre jobber teller ikke", () => {
+    const maskiner = [m(3, null), m(1.5, "doegn"), m(4, null, "k2")];
+    expect(maskinForslagFraJobb([arbeid("k1", 6), arbeid("k2", 4)], maskiner, jobb)).toBe(1.5);
+  });
+
+  it("aldri under 0", () => {
+    expect(maskinForslagFraJobb([arbeid("k1", 6)], [m(4, null), m(5, "doegn")], jobb)).toBe(0);
+  });
+
+  it("desimaler rundes til 2 (7,5 − 2,3 = 5,2)", () => {
+    expect(maskinForslagFraJobb([arbeid("k1", 7.5)], [m(2.3, null)], jobb)).toBe(5.2);
   });
 });

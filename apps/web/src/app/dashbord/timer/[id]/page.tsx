@@ -55,6 +55,7 @@ import {
 } from "@/lib/timerByggeplass";
 import {
   maskinHoystPerRad,
+  maskinForslagFraJobb,
   jobbArbeidSum,
   overMaskinHoyst,
   DEFAULT_PAUSE_ETTER_TIMER,
@@ -6606,8 +6607,8 @@ function MaskinRadDialog({
 
   const [vehicleId, setVehicleId] = useState<string>(rad?.vehicleId ?? "");
   // § 8.22 punkt 4 (Kenneth 2026-11-21): maskin føres som antall timer etter skjønn —
-  // aldri fra–til. Fra jobben foreslås antall = «høyst» (døgn-maskin: jobbens arbeid)
-  // til brukeren rører feltet; uten jobb er feltet tomt. Mengde og enhet føres ikke
+  // aldri fra–til. Fra jobben foreslås antall = jobbens arbeid minus maskintimene alt ført
+  // på jobben (O5) til brukeren rører feltet; uten jobb er feltet tomt. Mengde og enhet føres ikke
   // fra jobben (B37 A).
   const fraJobb = !!jobb;
   const [timerRort, setTimerRort] = useState<boolean>(!!rad || !jobb);
@@ -6651,37 +6652,30 @@ function MaskinRadDialog({
   // w9 (2c): «høyst X t» = jobbens arbeid − de andre førermaskinene på jobben.
   // Jobben er timeradens (K6), ellers radens egen; uten jobb gjelder bøtta med pause.
   // Delt regel med serveren (maskinHoystPerRad). Døgn-maskin: ingen grense.
-  // w3b (S1 A): forslaget fra jobben — «høyst» for en førermaskin; døgn-maskin får jobbens arbeid.
+  // O5 (§ 8.22): forslaget fra jobben = jobbens arbeid minus ALLE maskintimer som alt er ført
+  // på jobben (fører- og døgn-maskin), aldri under 0. Det er aldri over «høyst» (som bare trekker
+  // fra førermaskinene), så taket står uendret.
   const jobbForslag = useMemo(() => {
     if (!jobb || rad) return "";
-    const timerRader = alleTimerRader.map((r) => ({
-      kortId: r.kortId ?? null,
-      projectId: r.projectId,
-      externalCostObjectId: r.externalCostObjectId,
-      timer: tilTall(r.timer),
-      erReise: r.erReise === true,
-    }));
-    const jobbRef = { kortId: jobb.kortId, projectId, externalCostObjectId: jobb.ecoId };
-    if (valgtUtstyr && !kreverTimerad) {
-      const arbeid = jobbArbeidSum(timerRader, jobbRef, pauseMin);
-      return arbeid > 0 ? String(arbeid) : "";
-    }
-    const [forer] = maskinHoystPerRad(
-      timerRader,
-      [
-        { ...jobbRef, timer: 0, utleieEnhet: null },
-        ...alleMaskinRader.map((r) => ({
-          kortId: r.kortId ?? null,
-          projectId: r.projectId,
-          externalCostObjectId: r.externalCostObjectId,
-          timer: tilTall(r.timer),
-          utleieEnhet: equipment?.find((e) => e.id === r.vehicleId)?.utleieEnhet ?? null,
-        })),
-      ],
+    const forslag = maskinForslagFraJobb(
+      alleTimerRader.map((r) => ({
+        kortId: r.kortId ?? null,
+        projectId: r.projectId,
+        externalCostObjectId: r.externalCostObjectId,
+        timer: tilTall(r.timer),
+        erReise: r.erReise === true,
+      })),
+      alleMaskinRader.map((r) => ({
+        kortId: r.kortId ?? null,
+        projectId: r.projectId,
+        externalCostObjectId: r.externalCostObjectId,
+        timer: tilTall(r.timer),
+      })),
+      { kortId: jobb.kortId, projectId, externalCostObjectId: jobb.ecoId },
       pauseMin,
     );
-    return forer !== null && forer !== undefined && forer > 0 ? String(forer) : "";
-  }, [jobb, rad, alleTimerRader, alleMaskinRader, projectId, valgtUtstyr, kreverTimerad, equipment, pauseMin]);
+    return forslag > 0 ? String(forslag) : "";
+  }, [jobb, rad, alleTimerRader, alleMaskinRader, projectId, pauseMin]);
   const timer = timerRort ? timerInput : jobbForslag;
 
   const hoyst = useMemo(() => {

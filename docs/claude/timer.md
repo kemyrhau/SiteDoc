@@ -999,10 +999,17 @@ Hjemmel: `web-timeforing-plan.md` § 8.22, «Kenneths test av L3a», punkt 3 og 
 
 - **O3 — maskindelen starter tom:** `jobbMaskiner` er tom når vinduet legger til en rad, så jobbens maskiner vises ikke; en maskin som føres der, hører bare til den nye raden. Jobbens maskiner teller fortsatt i «høyst» (de står i `andreMaskinerLive`).
 - **O3 — forslaget er radens timer** (`nyMaskinForslag`): døgn-maskin får radens timer; maskin med fører får radens timer, aldri over «høyst» (`maskinHoystPerRad`), så forslaget aldri sperrer Lagre. Før: døgn-maskin fikk jobbens arbeid (`jobbArbeidSum`) og førermaskin «høyst» for hele jobben (Kenneth: 1,5 t ble 2,5 t og 7,5 t). Feltet er åpent; rørt felt overstyrer. Maskin har aldri fra–til.
-- **«+ Maskin» bruker samme forslag** (`MaskinRadDialog`: `jobbArbeidSum` for døgn, `maskinHoystPerRad` for fører) — ikke endret, meldt.
+- **«+ Maskin»** hadde samme forslag (jobbens arbeid / høyst) — ⚠️ endret i O5 A, se § «+ Maskin» og overtid i timer-raden (O5) under.
 - **O4 — underprosjekt:** fra en jobb vises nedtrekket Underprosjekt når prosjektet har åpne underprosjekter (`eksternKostObjekt.list` gir bare `status: "aktiv"` og `timerregistreringApen`), med «—» forvalgt, ikke jobbens. Uten åpne underprosjekter vises det ikke.
 - **O4 — eget kort:** er radens kort-nøkkel (`kortIdNokkel`: prosjekt|byggeplass|underprosjekt) en annen enn jobbens, sender vinduet en ny kort-id (`nyKortId`, regel 1) på raden, overtid-delen og maskinen (`nyRadEgenJobb`/`lagreKortId`). Lik nøkkel: jobbens kort-id som før. Uten ny id ville regel 3 i `sikreKortId` lagt raden i eldste jobb med samme nøkkel — registreringer slås aldri sammen. Følge: «—» på en jobb med underprosjekt gir egen jobb uten underprosjekt.
 - **Tester:** `jobb-vinduer.test.tsx` § O3 (tom maskindel; forslag = radens 2,5 t for fører og døgn, ikke jobbens 3,5 t; vakt: «Rediger» viser jobbens maskin og foreslår døgn med jobbens arbeid) og § O4 («—» forvalgt; skjult uten åpne underprosjekter; annet underprosjekt → ny kort-id; samme → `k2`). Integrasjon `apps/api/src/routes/timer/o4-legg-til-underprosjekt.integration.test.ts` (4): ny id med annet underprosjekt står som egen jobb, også når en eldre jobb har samme underprosjekt; kontroll uten id → regel 3 legger den i eldste jobb; «—»; samme underprosjekt → jobbens kort. Negativkontroll: 8 web-tester feiler mot develop.
+
+### «+ Maskin» og overtid i timer-raden (O5) — 🟡 `feat/web-timer-o5`, ikke merget
+
+Hjemmel: `web-timeforing-plan.md` § 8.22, «Kenneths test på `d4bec43e`», punkt 1 og 2 (2026-11-21). Gjelder web i prosjektkort-modus. Dagskort-modus, `apps/mobile`, attestering, jobbskjemaet (O2) og maskindelen i «Rediger timer-rad» er urørt.
+
+- **A — forslaget i «+ Maskin»** (`MaskinRadDialog`, `jobbForslag`): jobbens arbeid minus ALLE maskintimer som alt er ført på jobben, fører- og døgn-maskin, aldri under 0 (delt `maskinForslagFraJobb` i [maskinKapasitet.ts](../../packages/shared/src/utils/maskinKapasitet.ts); jobben = kort-nøkkelen `maskinJobbNokkel`, samme som «høyst»). Kenneth: jobb 6 t, Volvo 3 t → Heatwork som maskin nr. 2 foreslås med 3 t (før: 6). 0 eller mindre gir tomt felt. Feltet er åpent; «høyst» (`maskinHoystPerRad`, trekker bare fra førermaskiner) står uendret som tak for førermaskin, og forslaget er aldri over det. «Legg til timer-rad» (O3: radens timer) og «Rediger timer-rad» er urørt.
+- **Tester A:** `maskinKapasitet.test.ts` § O5 (ingen maskin, 1 maskin, 2 maskiner inkl. døgn, aldri under 0, avrunding); `jobb-vinduer.test.tsx` § O5 A (Kenneths eksempel, førermaskin = høyst, to maskiner ført + maskin uten jobb teller ikke, aldri under 0).
 
 ### Prosjektkort-rute — egen skjerm for samlesiden (ORDRE 35, I2) — 🟡 `feat/prosjektkort-isolert` (2026-11-07, ikke merget)
 

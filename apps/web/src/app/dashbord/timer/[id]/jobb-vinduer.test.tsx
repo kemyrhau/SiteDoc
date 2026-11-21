@@ -211,6 +211,11 @@ describe("w3a — vinduene arver jobben", () => {
 
   it("w3b: døgn-maskin fra jobben foreslås med jobbens arbeidstimer, uten høyst", () => {
     rendre();
+    // O5: uten maskin ført på jobben er forslaget hele arbeidet.
+    h.data["timer.dagsseddel.hentMedId"] = {
+      ...(h.data["timer.dagsseddel.hentMedId"] as Record<string, unknown>),
+      maskiner: [],
+    };
     h.data["maskin.equipment.list"] = [
       ...(h.data["maskin.equipment.list"] as unknown[]),
       { id: "v2", kategori: "annet", type: "varmer", merke: "Heatwork", modell: "MB3", internNavn: "Tiner T-1", utleieEnhet: "doegn" },
@@ -392,6 +397,67 @@ describe("w3a — vinduene arver jobben", () => {
     const dialog = screen.getByRole("dialog");
     expect(dialog.textContent).toContain("timer.felt.prosjekt");
     expect(dialog.textContent).toContain("timer.felt.underprosjekt");
+  });
+});
+
+describe("O5 A — «+ Maskin» trekker fra maskintid ført på jobben (§ 8.22, Kenneth etter test d4bec43e)", () => {
+  afterEach(cleanup);
+
+  const HEATWORK = {
+    id: "v2", kategori: "annet", type: "varmer", merke: "Heatwork", modell: "MB3", internNavn: "Tiner T-1", utleieEnhet: "doegn",
+  };
+  const m1 = DAG7_SEDEL.maskiner[0]!;
+  /** Jobb 2 (k2) blir 15:00–21:00 = 6 t arbeid; `maskiner` er det som alt er ført på dagen. */
+  function jobb6t(maskiner: unknown[]) {
+    rendre();
+    h.data["maskin.equipment.list"] = [...(h.data["maskin.equipment.list"] as unknown[]), HEATWORK];
+    h.data["timer.dagsseddel.hentMedId"] = {
+      ...DAG7_SEDEL,
+      timer: [
+        DAG7_SEDEL.timer[0]!,
+        { ...DAG7_SEDEL.timer[1]!, byggeplassId: "b1", tilTid: "21:00", timer: "6" },
+      ],
+      maskiner,
+    };
+    cleanup();
+    render(<Side />);
+    return fraJobb2("timer.prosjektkort.nyMaskin");
+  }
+  function forslagFor(dialog: HTMLElement, navn: RegExp) {
+    fireEvent.click(within(dialog).getAllByRole("button")[0]!);
+    fireEvent.click(within(dialog).getByText(navn));
+    return dialog.querySelector<HTMLInputElement>('input[type="number"]')!.value;
+  }
+
+  it("Kenneths eksempel: jobb 6 t, Volvo 3 t ført → Heatwork som maskin nr. 2 foreslås med 3 t", () => {
+    const dialog = jobb6t([{ ...m1, timer: "3" }]);
+    expect(forslagFor(dialog, /Tiner T-1/)).toBe("3");
+  });
+
+  it("førermaskin med Volvo 3 t ført: forslaget er 3 t (som høyst)", () => {
+    const dialog = jobb6t([{ ...m1, timer: "3" }]);
+    expect(forslagFor(dialog, /Gravemaskin G-12/)).toBe("3");
+    expect(within(dialog).getByTestId("maskin-hoyst").textContent).toContain('"timer":"3,0"');
+  });
+
+  it("to maskiner ført (Volvo 3 t + Heatwork 1,5 t): forslaget er 1,5 t; maskinen uten jobb (m0) teller ikke", () => {
+    const dialog = jobb6t([
+      { ...m1, timer: "3" },
+      { ...m1, id: "m2", vehicleId: "v2", timer: "1.5" },
+      DAG7_SEDEL.maskiner[1]!,
+    ]);
+    expect(forslagFor(dialog, /Gravemaskin G-12/)).toBe("1.5");
+    // Høyst trekker bare fra førermaskinene: 6 − 3 = 3 t.
+    expect(within(dialog).getByTestId("maskin-hoyst").textContent).toContain('"timer":"3,0"');
+  });
+
+  it("aldri under 0: maskiner ført for mer enn jobbens arbeid gir tomt felt, ikke minus", () => {
+    const dialog = jobb6t([
+      { ...m1, timer: "4" },
+      { ...m1, id: "m2", vehicleId: "v2", timer: "5" },
+    ]);
+    const verdi = forslagFor(dialog, /Tiner T-1/);
+    expect(verdi).toBe("");
   });
 });
 

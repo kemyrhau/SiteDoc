@@ -169,6 +169,7 @@ export {
   nyeEllerOkteBrudd,
   maskinHoyst,
   maskinHoystPerRad,
+  maskinForslagFraJobb,
   overMaskinHoyst,
   doegnOverArbeid,
 } from "./maskinKapasitet";
