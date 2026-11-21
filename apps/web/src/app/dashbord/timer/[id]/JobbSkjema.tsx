@@ -179,16 +179,35 @@ export function JobbSkjema({
         fastPauseFra,
       });
 
+  const tidsfeltEndret = !l1 || fra !== lagretVerdi.fra || til !== lagretVerdi.til || pause !== lagretVerdi.pause;
+  // Gate 129 V1: lønnsarten som lagres på linje 1. Flyttes tiden slik at hele jobben ligger
+  // over normen, blir det firmaets overtidsart — samme regel som serveren (`lagreJobbTid`).
+  // Et bytte på uendret tid beholdes. Nedtrekket viser denne verdien.
+  const art1Lagres =
+    tidsfeltEndret && regnet?.ok && regnet.helOvertid && regnet.overtidLonnsart ? regnet.overtidLonnsart.id : art1;
   const tidEndret =
-    fra !== lagretVerdi.fra ||
-    til !== lagretVerdi.til ||
-    pause !== lagretVerdi.pause ||
+    tidsfeltEndret ||
     art1 !== lagretVerdi.art1 ||
     (!!l2 && art2 !== lagretVerdi.art2);
+  // Gate 129 V2: skjemaet viser regnet linjedeling. Avviker den fra de lagrede linjene (antall,
+  // fra/til eller timer) uten at noe er endret her — feilet lagring, en annen jobb endret, eldre
+  // data — er lønnsgrunnlaget ikke det skjemaet viser: kortet står som ulagret til det lagres.
+  const avvik =
+    !!l1 &&
+    !tidEndret &&
+    !!regnet?.ok &&
+    (regnet.linjer.length !== linjer.length ||
+      regnet.linjer.some((r, i) => {
+        const l = linjer[i];
+        return !l || r.fraTid !== l.fraTid || r.tilTid !== l.tilTid || Math.abs(r.timer - l.timer) > 0.005;
+      }));
   const beskrivelseEndret = !!l1 && beskrivelse.trim() !== (lagretVerdi.beskrivelse ?? "").trim();
   // Ulagret = lagring pågår eller feilet, eller et endret felt er ugyldig. En ny jobb uten Til
   // er ingen ulagret endring: den forsvinner når kortet forlates (§ 2e).
-  const ulagret = lagring === "feil" || lagring === "lagrer" || (!tilMangler && !!tidFeil && tidEndret);
+  const ulagret =
+    lagring === "feil" || lagring === "lagrer" || avvik || (!tilMangler && !!tidFeil && tidEndret);
+  // Ny jobb: raden fra kall 1 (`tilfoyTimerRad`). Feiler kall 2, tar «Prøv igjen» bare kall 2.
+  const nyRadId = useRef<string | null>(null);
   useEffect(() => {
     onUlagret(kortId, ulagret);
   }, [kortId, ulagret, onUlagret]);
@@ -215,15 +234,17 @@ export function JobbSkjema({
       return;
     }
     setVisFeil(false);
-    if (!tidEndret && lagring !== "feil") return;
+    if (!tidEndret && !avvik && lagring !== "feil") return;
     if (!l1) {
       if (!ny) return;
       // Ny jobb: raden lages med hele spennet, så regner serveren linjene (lagreJobbTid).
-      // Ligger hele jobben over normen, får den firmaets overtidsart med en gang.
-      const art = regnet?.ok && regnet.helOvertid && regnet.overtidLonnsart ? regnet.overtidLonnsart.id : art1;
+      // Ligger hele jobben over normen, får den firmaets overtidsart med en gang (`art1Lagres`).
+      const art = art1Lagres;
       void ferdig(
         (async () => {
-          const rad = await tilfoy.mutateAsync({
+          const radId =
+            nyRadId.current ??
+            (await tilfoy.mutateAsync({
             sheetId,
             projectId: ny.projectId,
             byggeplassId: ny.byggeplassId,
@@ -234,14 +255,15 @@ export function JobbSkjema({
             tilTid: til,
             pauseMin,
             kortId,
-          });
+          })).id;
+          nyRadId.current = radId;
           await lagreTid.mutateAsync({
             sheetId,
             kortId,
             fraTid: fra,
             tilTid: til,
             pauseMin,
-            linjer: [{ radId: rad.id, lonnsartId: art }],
+            linjer: [{ radId, lonnsartId: art }],
           });
         })(),
       );
@@ -255,7 +277,7 @@ export function JobbSkjema({
         tilTid: til,
         pauseMin,
         linjer: [
-          { radId: l1.id, lonnsartId: art1 },
+          { radId: l1.id, lonnsartId: art1Lagres },
           ...(l2 ? [{ radId: l2.id, lonnsartId: art2 ?? l2.lonnsartId }] : []),
         ],
       }),
@@ -283,7 +305,7 @@ export function JobbSkjema({
   };
 
   const provIgjen = () => {
-    if (tidEndret || !l1) lagreTiden();
+    if (tidEndret || avvik || !l1) lagreTiden();
     if (beskrivelseEndret) lagreBeskrivelse();
   };
 
@@ -391,7 +413,7 @@ export function JobbSkjema({
                     <span className="text-sm text-gray-700">{linje1Tekst}</span>
                     <select
                       aria-label={t("timer.jobbSkjema.lonnsart")}
-                      value={l1 ? art1 : regnet.helOvertid && regnet.overtidLonnsart ? regnet.overtidLonnsart.id : art1}
+                      value={art1Lagres}
                       onChange={(e) => {
                         setBeroert(true);
                         setArt1(e.target.value);
@@ -481,7 +503,7 @@ export function JobbSkjema({
       <div className="pt-2 text-xs" aria-live="polite">
         {lagring === "lagrer" && <span className="text-gray-500">{t("timer.jobbSkjema.lagrer")}</span>}
         {lagring === "lagret" && !ulagret && <span className="text-green-700">{t("timer.jobbSkjema.lagret")}</span>}
-        {lagring === "feil" && (
+        {(lagring === "feil" || (avvik && lagring !== "lagrer")) && (
           <span className="text-red-600" role="alert" data-testid="ikke-lagret">
             {t("timer.jobbSkjema.ikkeLagret")}
             {serverFeil ? ` — ${serverFeil}` : ""}{" "}

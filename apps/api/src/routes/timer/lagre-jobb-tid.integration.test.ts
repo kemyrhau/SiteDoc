@@ -207,6 +207,24 @@ describe("§ 8.22 L3a — lagreJobbTid", () => {
     ]);
   });
 
+  it("gate 129 V1: tiden flyttes helt over normen → linje 1 får overtidsarten; bytte på uendret tid beholdes", async () => {
+    const { sheetId } = await sedelMedJobb("2026-11-13");
+    // Andre jobb 16:00–17:00 på timelønn (dagens første jobb fyller normen 7,5 t).
+    const kortId = randomUUID();
+    const r = await prismaTimer.sheetTimer.create({
+      data: { sheetId, lonnsartId: TL, aktivitetId: AKT, projectId: P, kortId, fraTid: "16:00", tilTid: "17:00", pauseMin: 0, timer: 1 },
+    });
+    const svar = await dag().lagreJobbTid({ sheetId, kortId, fraTid: "16:00", tilTid: "18:00", pauseMin: 0, linjer: [{ radId: r.id, lonnsartId: TL }] });
+    expect(svar).toMatchObject({ helOvertid: true, linje1LonnsartId: OT50, rad2Id: null });
+    expect((await arbeid(sheetId)).filter((x) => x.kortId === kortId)).toEqual([
+      expect.objectContaining({ id: r.id, lonnsartId: OT50, fraTid: "16:00", tilTid: "18:00", timer: 2 }),
+    ]);
+
+    // Arbeideren bytter selv tilbake til timelønn uten å røre tiden → beholdes.
+    await dag().lagreJobbTid({ sheetId, kortId, fraTid: "16:00", tilTid: "18:00", pauseMin: 0, linjer: [{ radId: r.id, lonnsartId: TL }] });
+    expect((await arbeid(sheetId)).find((x) => x.id === r.id)).toMatchObject({ lonnsartId: TL, timer: 2 });
+  });
+
   it("reise, tillegg og vare på dagen røres ikke", async () => {
     const { sheetId, kortId, rad1 } = await sedelMedJobb("2026-11-06");
     const reise = await prismaTimer.sheetTimer.create({

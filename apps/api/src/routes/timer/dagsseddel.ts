@@ -4808,6 +4808,15 @@ export const dagsseddelRouter = router({
         throw new TRPCError({ code: "BAD_REQUEST", message: "Ugyldig tid." });
       }
       const [l1, l2] = regnet.linjer as [JobbTidLinje, JobbTidLinje | undefined];
+      // Gate 129 V1: flyttes tiden slik at hele jobben havner over normen, og linje 1 står på
+      // en normalart, får linje 1 firmaets overtidsart — som en ny jobb. Et bevisst bytte av
+      // lønnsart på uendret tid beholdes (arbeideren bestemmer, plan § 8.22).
+      const tidEndret =
+        input.fraTid !== rad1.fraTid ||
+        input.tilTid !== (rad2Foer ?? rad1).tilTid ||
+        input.pauseMin !== (rad1.pauseMin ?? 0);
+      const linje1Lagres =
+        tidEndret && regnet.helOvertid && regnet.overtidLonnsart ? regnet.overtidLonnsart.id : linje1LonnsartId;
       // Lønnsart på linje 2: byttet art beholdes; en ny linje får firmaets overtidsart.
       const linje2Art = l2
         ? rad2Foer
@@ -4821,7 +4830,7 @@ export const dagsseddelRouter = router({
         await tx.sheetTimer.update({
           where: { id: rad1.id },
           data: {
-            lonnsartId: linje1LonnsartId,
+            lonnsartId: linje1Lagres,
             fraTid: l1.fraTid,
             tilTid: l1.tilTid,
             pauseMin: l1.pauseMin,
@@ -4873,7 +4882,7 @@ export const dagsseddelRouter = router({
         await synkroniserHodePause(tx, input.sheetId);
         await sikreKortId(tx, input.sheetId, { kast: true, oppgitteKortIder: [input.kortId] });
         await krevIngenNyeMaskinBrudd(tx, ctx.prismaMaskin, input.sheetId, maskinFoer);
-        return { rad1Id: rad1.id, rad2Id };
+        return { rad1Id: rad1.id, rad2Id, linje1LonnsartId: linje1Lagres };
       });
       // Varer på en slettet linje 2 følger linje 1 (egen database, ingen felles transaksjon).
       let vareIkkeFlyttet = false;
