@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { jobbSkjemaLinjer, lesPauseMin, nyJobbForslag, senesteTilTid } from "./jobbSkjema";
+import {
+  jobbSkjemaLinjer,
+  klokkeSteg,
+  lesPauseMin,
+  lesTimer,
+  nyJobbForslag,
+  senesteTilTid,
+  tilFraTimer,
+} from "./jobbSkjema";
 
 // Plan § 8.22 L3a: hvilke jobber skjemaet viser, og forslaget for neste jobb.
 const OT = new Set(["ot50"]);
@@ -53,5 +61,36 @@ describe("senesteTilTid og lesPauseMin", () => {
     expect(lesPauseMin(" ")).toBe(0);
     expect(lesPauseMin("30")).toBe(30);
     expect(Number.isNaN(lesPauseMin("3o"))).toBe(true);
+  });
+});
+
+// Plan § 8.22 O2: timer gir Til.
+describe("lesTimer og tilFraTimer", () => {
+  it("komma og punktum", () => {
+    expect(lesTimer("7,5")).toBe(7.5);
+    expect(lesTimer("7.5")).toBe(7.5);
+    expect(lesTimer("1")).toBe(1);
+    expect(lesTimer("")).toBeNull();
+    expect(lesTimer("0")).toBeNull();
+    expect(lesTimer("x")).toBeNull();
+  });
+  it("Til = Fra + timer + pause", () => {
+    expect(tilFraTimer("07:00", "8", 0)).toBe("15:00");
+    expect(tilFraTimer("07:00", "7,5", 30)).toBe("15:00");
+    expect(tilFraTimer("12:00", "1", 0)).toBe("13:00");
+  });
+  it("tom eller ugyldig Fra → ingenting regnes ut", () => {
+    expect(tilFraTimer("", "8", 0)).toBeNull();
+    expect(tilFraTimer("7", "8", 0)).toBeNull();
+    expect(tilFraTimer("07:00", "", 0)).toBeNull();
+  });
+});
+
+describe("klokkefeltets steg", () => {
+  it("15-minutters steg som timevinduet; firmaets runding, maks 30", () => {
+    expect(klokkeSteg(null)).toBe(15);
+    expect(klokkeSteg(0)).toBe(15);
+    expect(klokkeSteg(5)).toBe(5);
+    expect(klokkeSteg(60)).toBe(30);
   });
 });

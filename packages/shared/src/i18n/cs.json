@@ -5981,6 +5981,7 @@
   "timer.jobbSkjema.fra": "Z",
   "timer.jobbSkjema.til": "Na",
   "timer.jobbSkjema.pause": "přerušení",
+  "timer.jobbSkjema.timer": "hodiny",
   "timer.jobbSkjema.lonnsart": "Druh mzdy",
   "timer.jobbSkjema.hvaGjorde": "co jsi udělal?",
   "timer.jobbSkjema.hvaGjordePlassholder": "Napište, co jste udělali",
@@ -6003,5 +6004,5 @@
   "timer.jobbSkjema.overtidLinje": "{{fra}}–{{til}} · {{timer}} h · nad denní normu {{dato}}: {{norm}} h",
   "timer.jobbSkjema.helOvertid": "Celá zakázka je nad denní normou {{dato}}: {{norm}} h",
   "timer.jobbSkjema.ulagretSperre": "Něco v daný den není uloženo. Opravte pole označené červeně nebo to zkuste znovu.",
-  "timer.mine.hjelp.skjema": "V kartě projektu zaznamenáte zakázku přímo do karty: Od, Do, přestávka, mzdový druh a „Co jste dělali?“. Pole se uloží, když je opustíte – říká „✓ Uloženo“. Pokud čas překročí denní normu, jde přesčas po vlastní linii. Žlutá pole jsou návrhy z pracovní doby společnosti nebo z konce předchozího zaměstnání. Nová úloha se uloží, když je vyplněno Komu. Pokud něco není uloženo, zobrazí se červeně a den nelze odeslat, dokud nebude opraven. Pokud má projekt podprojekty, vyberete podprojekt v horní části zakázky — výběr se vztahuje na celou zakázku: hodiny, stroje, materiál, příspěvky a výdaje. Cestování s tím nehne."
+  "timer.mine.hjelp.skjema": "V kartě projektu zaznamenáte zakázku přímo do karty: Od, Do, přestávka, mzdový druh a „Co jste dělali?“. Pole se uloží, když je opustíte – říká „✓ Uloženo“. Pokud čas překročí denní normu, jde přesčas po vlastní linii. Žlutá pole jsou návrhy z pracovní doby společnosti nebo z konce předchozího zaměstnání. Nová úloha se uloží, když je vyplněno Komu. Pokud něco není uloženo, zobrazí se červeně a den nelze odeslat, dokud nebude opraven. Pokud má projekt podprojekty, vyberete podprojekt v horní části zakázky — výběr se vztahuje na celou zakázku: hodiny, stroje, materiál, příspěvky a výdaje. Cestování s tím nehne. Hodiny můžete zadat přímo do pole za „=“: Do se pak vypočítá z Od, hodin a přestávky."
 }

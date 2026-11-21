@@ -5981,6 +5981,7 @@
   "timer.jobbSkjema.fra": "Alates",
   "timer.jobbSkjema.til": "To",
   "timer.jobbSkjema.pause": "murda",
+  "timer.jobbSkjema.timer": "Tundi",
   "timer.jobbSkjema.lonnsart": "Palga liik",
   "timer.jobbSkjema.hvaGjorde": "Mida sa tegid?",
   "timer.jobbSkjema.hvaGjordePlassholder": "Kirjutage, mida tegite",
@@ -6003,5 +6004,5 @@
   "timer.jobbSkjema.overtidLinje": "{{fra}}–{{til}} · {{timer}} h · üle päevanormi {{dato}}: {{norm}} h",
   "timer.jobbSkjema.helOvertid": "Kogu töö on üle päevanormi {{dato}}: {{norm}} h",
   "timer.jobbSkjema.ulagretSperre": "Midagi päeval ei salvestata. Parandage punasega märgitud väli või proovige uuesti.",
-  "timer.mine.hjelp.skjema": "Projektikaardile salvestate töö otse kaardile: Alates, Kuni, vaheaeg, palgaliik ja “Mida sa tegid?”. Väli salvestatakse, kui sellest lahkute – see ütleb \"✓ Salvestatud\". Kui aeg läheb üle päevanormi, läheb ületunnitöö oma rida. Kollased väljad on ettepanekud ettevõtte tööajast või eelmise töö lõpust. Uus töö salvestatakse, kui täidetakse To. Kui midagi pole salvestatud, kuvatakse see punaselt ja päeva ei saa esitada enne, kui see on parandatud. Kui projektis on alamprojekte, valite töö ülemise osa alamprojekti — valik kehtib kogu töö kohta: tunnid, masinad, materjalid, toetused ja kulud. Reisimine sellega kaasa ei liigu."
+  "timer.mine.hjelp.skjema": "Projektikaardile salvestate töö otse kaardile: Alates, Kuni, vaheaeg, palgaliik ja “Mida sa tegid?”. Väli salvestatakse, kui sellest lahkute – see ütleb \"✓ Salvestatud\". Kui aeg läheb üle päevanormi, läheb ületunnitöö oma rida. Kollased väljad on ettepanekud ettevõtte tööajast või eelmise töö lõpust. Uus töö salvestatakse, kui täidetakse To. Kui midagi pole salvestatud, kuvatakse see punaselt ja päeva ei saa esitada enne, kui see on parandatud. Kui projektis on alamprojekte, valite töö ülemise osa alamprojekti — valik kehtib kogu töö kohta: tunnid, masinad, materjalid, toetused ja kulud. Reisimine sellega kaasa ei liigu. Tunnid saate sisestada otse väljale “=” järel: Kell arvutatakse siis alates Alates, tundidest ja vaheajast."
 }

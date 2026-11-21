@@ -5981,6 +5981,7 @@
   "timer.jobbSkjema.fra": "Från",
   "timer.jobbSkjema.til": "Till",
   "timer.jobbSkjema.pause": "bryta",
+  "timer.jobbSkjema.timer": "Timmar",
   "timer.jobbSkjema.lonnsart": "Löneart",
   "timer.jobbSkjema.hvaGjorde": "Vad gjorde du?",
   "timer.jobbSkjema.hvaGjordePlassholder": "Skriv vad du gjorde",
@@ -6003,5 +6004,5 @@
   "timer.jobbSkjema.overtidLinje": "{{fra}}–{{til}} · {{timer}} h · över dagsnormen {{dato}}: {{norm}} h",
   "timer.jobbSkjema.helOvertid": "Hela jobbet är över den dagliga normen {{dato}}: {{norm}} h",
   "timer.jobbSkjema.ulagretSperre": "Något på dagen sparas inte. Rätta till det rödmarkerade fältet eller försök igen.",
-  "timer.mine.hjelp.skjema": "I projektkortet antecknar du jobbet direkt på kortet: Från, Till, raster, löneart och ”Vad gjorde du?”. Ett fält sparas när du lämnar det — det står \"✓ Sparat\". Går tiden över dygnsnormen går övertiden på egen linje. Gula fält är förslag från företagets arbetstid eller från slutet av det tidigare jobbet. Ett nytt jobb sparas när To är ifyllt. Om något inte sparas visas det i rött och dagen kan inte skickas in förrän det är rättat. Om projektet har delprojekt väljer du delprojektet högst upp i jobbet — valet gäller hela jobbet: timmar, maskiner, material, traktamenten och utlägg. Resor rör sig inte med det."
+  "timer.mine.hjelp.skjema": "I projektkortet antecknar du jobbet direkt på kortet: Från, Till, raster, löneart och ”Vad gjorde du?”. Ett fält sparas när du lämnar det — det står \"✓ Sparat\". Går tiden över dygnsnormen går övertiden på egen linje. Gula fält är förslag från företagets arbetstid eller från slutet av det tidigare jobbet. Ett nytt jobb sparas när To är ifyllt. Om något inte sparas visas det i rött och dagen kan inte skickas in förrän det är rättat. Om projektet har delprojekt väljer du delprojektet högst upp i jobbet — valet gäller hela jobbet: timmar, maskiner, material, traktamenten och utlägg. Resor rör sig inte med det. Du kan skriva in timmarna direkt i fältet efter “=”: Till beräknas sedan från Från, timmarna och pausen."
 }

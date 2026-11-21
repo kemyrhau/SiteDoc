@@ -5981,6 +5981,7 @@
   "timer.jobbSkjema.fra": "From",
   "timer.jobbSkjema.til": "To",
   "timer.jobbSkjema.pause": "break",
+  "timer.jobbSkjema.timer": "Hours",
   "timer.jobbSkjema.lonnsart": "Wage type",
   "timer.jobbSkjema.hvaGjorde": "What did you do?",
   "timer.jobbSkjema.hvaGjordePlassholder": "Write what you did",
@@ -6003,5 +6004,5 @@
   "timer.jobbSkjema.overtidLinje": "{{fra}}–{{til}} · {{timer}} h · over the daily norm {{dato}}: {{norm}} h",
   "timer.jobbSkjema.helOvertid": "The whole job is over the daily norm {{dato}}: {{norm}} h",
   "timer.jobbSkjema.ulagretSperre": "Something on the day is not saved. Correct the field marked in red, or try again.",
-  "timer.mine.hjelp.skjema": "In the project card you record the job directly in the card: From, To, break, wage type and “What did you do?”. A field is saved when you leave it — it says “✓ Saved”. If the time goes over the daily norm, the overtime goes on its own line. Yellow fields are suggestions from the company's working hours or from the end of the previous job. A new job is saved when To is filled in. If something is not saved, it shows in red, and the day cannot be submitted until it is corrected. If the project has sub-projects, you choose the sub-project at the top of the job — the choice applies to the whole job: hours, machines, materials, allowances and expenses. Travel does not move with it."
+  "timer.mine.hjelp.skjema": "In the project card you record the job directly in the card: From, To, break, wage type and “What did you do?”. A field is saved when you leave it — it says “✓ Saved”. If the time goes over the daily norm, the overtime goes on its own line. Yellow fields are suggestions from the company's working hours or from the end of the previous job. A new job is saved when To is filled in. If something is not saved, it shows in red, and the day cannot be submitted until it is corrected. If the project has sub-projects, you choose the sub-project at the top of the job — the choice applies to the whole job: hours, machines, materials, allowances and expenses. Travel does not move with it. You can type the hours directly in the field after “=”: To is then calculated from From, the hours and the break."
 }

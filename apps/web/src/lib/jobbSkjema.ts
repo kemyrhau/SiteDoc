@@ -2,7 +2,7 @@
  * Plan § 8.22 L3a (Bilde 2-jobben): regler for jobbskjemaet på dagssiden (prosjektkort-modus).
  * Rene funksjoner — testes uten React. Tidsregnestykket er delt med serveren (`regnJobbTid`).
  */
-import { hhmmTilMin } from "@sitedoc/shared";
+import { erGyldigHhmm, hhmmTilMin, tilFraAntall } from "@sitedoc/shared";
 
 export type SkjemaArbeidsrad = {
   id: string;
@@ -66,4 +66,32 @@ export function lesPauseMin(v: string): number {
   const s = v.trim();
   if (s === "") return 0;
   return /^\d+$/.test(s) ? Number(s) : Number.NaN;
+}
+
+/** Timefeltet som tall; komma eller punktum. Tomt, ugyldig eller ≤ 0 = null. */
+export function lesTimer(v: string): number | null {
+  const s = v.trim().replace(",", ".");
+  if (!/^\d+(\.\d+)?$/.test(s) && !/^\.\d+$/.test(s)) return null;
+  const n = Number(s);
+  return n > 0 ? n : null;
+}
+
+/**
+ * Plan § 8.22 O2: Til når arbeideren skriver timer — Fra + timer + pause, via den delte
+ * `tilFraAntall` (pausepunkt = Fra, så hele pausen ligger i jobben, som `regnJobbTid` regner).
+ * Tom/ugyldig Fra eller ugyldige timer → null (ingenting regnes ut).
+ */
+export function tilFraTimer(fra: string, timerTekst: string, pauseMin: number): string | null {
+  if (!erGyldigHhmm(fra)) return null;
+  const n = lesTimer(timerTekst);
+  if (n === null || !Number.isInteger(pauseMin) || pauseMin < 0) return null;
+  return tilFraAntall(fra, n, fra, pauseMin);
+}
+
+/**
+ * Klokkefeltets steg i minutter (`step` = steg × 60) — samme regel som timevinduets `timeStep`:
+ * firmaets runding, maks 30 (Chrome skjuler minuttene ved større steg), ellers 15.
+ */
+export function klokkeSteg(tidsrundingMinutter: number | null | undefined): number {
+  return Math.min(tidsrundingMinutter && tidsrundingMinutter > 0 ? tidsrundingMinutter : 15, 30);
 }
