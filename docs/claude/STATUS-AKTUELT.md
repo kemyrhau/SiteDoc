@@ -31,6 +31,8 @@ sist_verifisert_mot_kode: 2026-08-09
 > ⚠️ **IKKE i prod:** DWG retur 2 (auto-rotasjon, startutsnitt, LEADER) · DWG retur 4 (fullstendighet: ATTRIB-tegning + `konvertering_rapport` + gate-test, branch `fix/dwg-retur4-strek`) · snap-retur 1 — under arbeid. DWG-3 (georeferanse fire hjørner) ikke levert — se § 2026-09-24 under.
 
 > ✅ **Gjestevern ved firmabytte, mobil (19) MERGET 2026-11-15** (merge `1a287c5d` av `38f4dffa`; Kontrollør GODKJENT GATE (44) nederst i `inbox-orkestrator.md`). `skalNullstilleProsjekt` flyttet til `@sitedoc/shared` (`gjesteprosjekt.ts`, web re-eksporterer); mobil `ProsjektKontekst.tsx` holder ventende firmabytte til gjestelista er lastet (`firmabyttProsjekt.ts` `firmabyttUtfall`) — gjesteprosjekt beholdes ved firmabytte. **Ikke deployet.** Lukker (18) åpent punkt (b).
+> ✅ **F68 («Rediger arbeid» tømmer ikke byggeplassen) MERGET 2026-11-21** (merge `6ab36520` av `0cb5d282`, gate (119) GODKJENT `inbox-orkestrator.md:38161`; regel 10 i merge-treet: typecheck 11/11, web tsc 0, kald build 0, test 7/7). Ingen migrering. Ikke deployet. Plan versjon 18 merget (`9e1f220b`): samlet e-post utløses av ✓/↩, B49 hos Kenneth. Neste: w15g når B49 er besvart.
+
 > ✅ **w15f (reisen rettes helt, også prosjektet) MERGET 2026-11-21** (merge `bda2aae4` av `05d6caaa`, gate (117) RETUR → (118) GODKJENT `inbox-orkestrator.md:38059`; regel 10 i merge-treet: typecheck 11/11, web tsc 0, kald build 0, test 7/7). Ingen migrering. Ikke deployet. Kenneth svarte på w15g samme dag (§ 8.20): kortet tekst med ✎, vinduet er redigering («ja»); én samlet e-post pr. dagsseddel. Neste: F68 (byggeplass tømmes i «Rediger arbeid») hos web-timer-w5 før neste deploy; Fabel versjon 18 (hva som utløser den samlede e-posten), så w15g. Funn ikke bestilt: `utforRedigerSedelRader` holder ikke underprosjekt mot prosjekt; i18n `foresPaa` ubrukt.
 
 > ✅ **w15c (reisens kort på serveren) MERGET 2026-11-21** (merge `a690363d` av `7d4428ea`, gate (115) RETUR → (116) GODKJENT `inbox-orkestrator.md:37880`; regel 10 i merge-treet: typecheck 11/11, web tsc 0, kald build 0, test 7/7). **Migrering `20261121120000_w15c_reise_kort` (bare data) IKKE kjørt** — Kenneth kjører etter w12: `relay/sql/w15c-telling.sql` → migrering → `relay/sql/w15c-gate.sql` (alle 0). Ikke deployet. Kjent: `ftd-reprosess-modus.integration.test.ts` rød på develop (ikke w15c). Neste: w15f (prosjektbytte, pennen på reiselinja) og F68 (byggeplass tømmes i «Rediger arbeid») før neste deploy; w15g venter på Kenneth.
@@ -194,7 +196,7 @@ sist_verifisert_mot_kode: 2026-08-09
 | **3D-web** | app-tre `3d-web-maaling-a15d10` | `feat/3d-egenskaper` merget `59efcf5a` | ⚪ LEDIG — neste: W5/M6 måling |
 | **3D-mobil** | app-tre `3d-mobil-maaling-a07340` | `feat/3d-mobil-trykk` merget `3ef97e7f` | ⚪ LEDIG — neste: M6 måling |
 | **web-timer-w1** | app-tre `web-timer-w1-2396e3` | `feat/web-timer-w2` merget `1e792946` | ⚪ LEDIG — neste i planen: w3 jobben som én flate |
-| **web-timer-w5** | app-tre `web-timer-w5-c80b84` | `feat/web-timer-w15f` merget `bda2aae4`; `feat/web-timer-f68` bestilt | 🟡 KODE |
+| **web-timer-w5** | app-tre `web-timer-w5-c80b84` | `feat/web-timer-f68` merget `6ab36520`; w15g venter på B49 | ⏳ KENNETH |
 | **Kort-id d2b-2/3** | app-tre `kortid-d2b2-c544cf` | `feat/kortid-d2b3` merget `30ca2935` | ⚪ LEDIG — neste i specen: d3 |
 | **Kort-id d2c-2** | app-tre `kortid-d2c2-4fb489` | `feat/kortid-d2c2-mobil` merget `338de16a` | ⚪ LEDIG |
 | **Merge** | `SiteDoc-merge` | detached på develop | ⚪ LEDIG |
