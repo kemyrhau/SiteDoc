@@ -1077,7 +1077,8 @@ function KompaktMaskinRad({
 
   return (
     <div className="space-y-1">
-      <div className="grid grid-cols-[80px_80px_1fr_80px_auto] items-center gap-2 rounded border border-gray-200 bg-gray-50 px-2 py-1.5 text-xs">
+      {/* § 8.22 L1: items-start — maskinlista åpnes i full høyde i raden, feltene står øverst. */}
+      <div className="grid grid-cols-[80px_80px_1fr_80px_auto] items-start gap-2 rounded border border-gray-200 bg-gray-50 px-2 py-1.5 text-xs">
         <input
           type="time"
           value={rad.fraTid ?? ""}
@@ -1110,6 +1111,7 @@ function KompaktMaskinRad({
           utstyr={equipment ?? []}
           valgtId={rad.vehicleId}
           onVelg={(id) => onChange({ vehicleId: id })}
+          iVindu
         />
         <input
           type="number"

@@ -1644,6 +1644,7 @@ export default function DagsseddelDetaljSide() {
           sistBrukteMaskiner={sistBrukteMaskiner ?? []}
           pauseMin={sheet.pauseMin}
           jobb={aktivModal.jobb}
+          kortModus={prosjektkortModus}
           onLukk={() => setAktivModal(null)}
         />
       )}
@@ -4934,6 +4935,7 @@ function TimerRadDialog({
                       onVelg={setMaskinVehicleId}
                       bruktPaaSeddel={alleMaskinRader.map((m) => m.vehicleId)}
                       sistBrukt={sistBrukteMaskiner}
+                      iVindu={!!kortModus}
                     />
                   </div>
                   <Input
@@ -6140,12 +6142,15 @@ function MaskinRadDialog({
   sistBrukteMaskiner,
   pauseMin,
   jobb,
+  kortModus = false,
   onLukk,
 }: {
   sheetId: string;
   projectId: string;
   byggeplasser: readonly ByggeplassValg[] | undefined;
   defaultEcoId?: string | null;
+  /** § 8.22 L1: prosjektkort-modus — maskinlista i full høyde. Dagskort-modus uendret. */
+  kortModus?: boolean;
   /** w3a: åpnet fra en jobb — timerad, byggeplass og underprosjekt følger jobben og
    *  vises ikke. Ny maskin kobles til jobbens første arbeidsrad og sendes med kort-id. */
   jobb?: JobbKontekst;
@@ -6384,6 +6389,7 @@ function MaskinRadDialog({
             onVelg={setVehicleId}
             bruktPaaSeddel={alleMaskinRader.map((m) => m.vehicleId)}
             sistBrukt={sistBrukteMaskiner}
+            iVindu={kortModus}
           />
         </div>
         {/* Ordre d2c-1 (R24): timeraden maskinen gikk på. w3a: i en jobb følger den jobben. */}
