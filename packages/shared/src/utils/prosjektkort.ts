@@ -185,11 +185,16 @@ export type BeskrivelseRad = {
 const erArbeid = (r: Omit<BeskrivelseRad, "id" | "kortId">) =>
   gjelder(r) && r.erReise !== true && r.projectId != null;
 
+/** Raden er en arbeidsrad som gir jobben «Hva gjorde du?» — samme filter som sperren bruker. */
+export function radGirJobbBeskrivelse(r: Omit<BeskrivelseRad, "id" | "kortId">): boolean {
+  return erArbeid(r) && (r.beskrivelse ?? "").trim() !== "";
+}
+
 export function jobbManglerBeskrivelse(
   rader: readonly Omit<BeskrivelseRad, "id" | "kortId">[],
 ): boolean {
   const arbeid = rader.filter(erArbeid);
-  return arbeid.length > 0 && !arbeid.some((r) => (r.beskrivelse ?? "").trim() !== "");
+  return arbeid.length > 0 && !arbeid.some(radGirJobbBeskrivelse);
 }
 
 /**

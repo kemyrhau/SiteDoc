@@ -80,6 +80,7 @@ import {
   type OvertidForslag,
   finnOverlappVarsel,
   jobberSomManglerBeskrivelse,
+  radGirJobbBeskrivelse,
 } from "@sitedoc/shared";
 import { rundTilNarmeste } from "@/lib/tidsrunding";
 import { ReiseKort } from "./ReiseKort";
@@ -3788,8 +3789,8 @@ function TimerRadDialog({
       (r) =>
         r.id !== rad?.id &&
         r.kortId === jobbensKortId &&
-        r.erReise !== true &&
-        (r.beskrivelse ?? "").trim() !== "",
+        // Samme filter som sperren: ikke reise, ikke `erstattet`, ikke uten prosjekt.
+        radGirJobbBeskrivelse(r),
     );
   const beskrivelsePakrevd =
     !!kortModus && !erReiseValgt && rad?.erReise !== true && !annenRadHarBeskrivelse;

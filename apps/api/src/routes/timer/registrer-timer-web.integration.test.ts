@@ -177,6 +177,8 @@ describe("w2 «+ Registrer timer» — serverkallene", () => {
 
   it("sendt dag: opprett gir den sendte dagen, gjenåpning åpner den, neste jobb kan føres", async () => {
     const sheet = await registrer("2026-11-05");
+    // § 8.22 L2: testfirmaet er i prosjektkort-modus — `send` krever «Hva gjorde du?» på jobben.
+    await prismaTimer.sheetTimer.updateMany({ where: { sheetId: sheet.id }, data: { beskrivelse: "Graving" } });
     await dag().send({ id: sheet.id });
     const igjen = await registrer("2026-11-05");
     expect(igjen.id).toBe(sheet.id);

@@ -64,13 +64,22 @@ const rad = (id: string, projectId: string, kortId: string, beskrivelse: string 
 });
 
 /** To jobber: k1 (Boligfelt, med beskrivelse), k2 (Skole, uten). 2 + 2 t — ingen pausespørsmål. */
-function vis(o: { modus: "prosjektkort" | "dagskort"; status?: string; k2Beskrivelse?: string | null }) {
+function vis(o: {
+  modus: "prosjektkort" | "dagskort";
+  status?: string;
+  k2Beskrivelse?: string | null;
+  /** k1: arbeidsraden uten tekst; beskrivelsen står bare på en `erstattet` rad i samme jobb. */
+  k1KunErstattetTekst?: boolean;
+}) {
   h.data["timer.dagsseddel.hentMedId"] = {
     id: "s1", userId: "u1", organizationId: "o1", dato: DATO, status: o.status ?? "draft",
     startAt: null, endAt: null, pauseMin: 0, beskrivelse: null, aktivitetId: null, aktivitet: null,
     attestertVed: null, lederKommentar: null, manglerMaskinforerbevis: false,
     timer: [
-      rad("t1", "p1", "k1", "Graving", "07:00", "09:00"),
+      rad("t1", "p1", "k1", o.k1KunErstattetTekst ? null : "Graving", "07:00", "09:00"),
+      ...(o.k1KunErstattetTekst
+        ? [{ ...rad("t3", "p1", "k1", "Gammel tekst", "07:00", "09:00"), attestertStatus: "erstattet" }]
+        : []),
       rad("t2", "p2", "k2", o.k2Beskrivelse === undefined ? null : o.k2Beskrivelse, "09:00", "11:00"),
     ],
     maskiner: [], tillegg: [], utlegg: [],
@@ -166,5 +175,12 @@ describe("§ 8.22 L2 — «Hva gjorde du?» i timerad-vinduet", () => {
     const felt = aapneNyTimer("Boligfelt");
     expect(felt.required).toBe(false);
     expect(etikett(felt)).toContain("label.valgfritt");
+  });
+
+  it("tekst bare på en «erstattet» rad i jobben teller ikke — feltet er påkrevd (samme filter som sperren)", () => {
+    vis({ modus: "prosjektkort", k1KunErstattetTekst: true });
+    const felt = aapneNyTimer("Boligfelt");
+    expect(felt.required).toBe(true);
+    expect(etikett(felt)).toContain("*");
   });
 });

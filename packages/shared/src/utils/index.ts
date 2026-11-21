@@ -633,6 +633,7 @@ export {
   type KortByggeplassArv,
   kortStatus,
   jobbManglerBeskrivelse,
+  radGirJobbBeskrivelse,
   jobberSomManglerBeskrivelse,
   type BeskrivelseRad,
   trafikklysSone,

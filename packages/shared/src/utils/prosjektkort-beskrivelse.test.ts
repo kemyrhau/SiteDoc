@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { jobbManglerBeskrivelse, jobberSomManglerBeskrivelse, type BeskrivelseRad } from "./prosjektkort";
+import { jobbManglerBeskrivelse, jobberSomManglerBeskrivelse, radGirJobbBeskrivelse, type BeskrivelseRad } from "./prosjektkort";
 
 /** Plan § 8.22 L2 «ikke ferdig»: én beskrivelse pr. jobb, reise/erstattet/fravær teller ikke. */
 const rad = (o: Partial<BeskrivelseRad> = {}): BeskrivelseRad => ({
@@ -43,5 +43,17 @@ describe("jobberSomManglerBeskrivelse", () => {
   });
   it("tom når alle jobber har beskrivelse", () => {
     expect(jobberSomManglerBeskrivelse([rad({ beskrivelse: "x" })])).toEqual([]);
+  });
+});
+
+describe("radGirJobbBeskrivelse (dialogens unntak — samme filter som sperren)", () => {
+  it("arbeidsrad med tekst gir beskrivelse; blank gjør ikke", () => {
+    expect(radGirJobbBeskrivelse(rad({ beskrivelse: "Graving" }))).toBe(true);
+    expect(radGirJobbBeskrivelse(rad({ beskrivelse: "  " }))).toBe(false);
+  });
+  it("reise, erstattet og rad uten prosjekt gir ikke beskrivelse", () => {
+    expect(radGirJobbBeskrivelse(rad({ beskrivelse: "x", erReise: true }))).toBe(false);
+    expect(radGirJobbBeskrivelse(rad({ beskrivelse: "x", attestertStatus: "erstattet" }))).toBe(false);
+    expect(radGirJobbBeskrivelse(rad({ beskrivelse: "x", projectId: null }))).toBe(false);
   });
 });
