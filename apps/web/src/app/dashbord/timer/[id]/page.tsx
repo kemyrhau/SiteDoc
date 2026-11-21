@@ -1132,7 +1132,7 @@ export default function DagsseddelDetaljSide() {
       andreRader: overtidRaderUten(new Set(linjer.map((r) => r.id))),
       projectId: k.jobb.projectId,
       ecoId: k.jobb.ecoId,
-      onEndreUnderprosjekt: () =>
+      onAapneVindu: () =>
         setAktivModal({ type: "timer", projectId: forste.projectId, rad: forste, jobb: k.jobb }),
     };
   };

@@ -5969,7 +5969,10 @@
   "timer.attestering.tabell.hjelp.reise": "Le voyage est représenté dans la partie 8 sur une seule ligne. ✎ ouvre « Corriger le déplacement » avec début, fin, rubrique salaire (types déplacement uniquement), projet, chantier et sous-projet ; la liste contient les projets que vous pouvez approuver et la ligne en bas indique dans quelle carte le voyage se déroule. Si l'entreprise n'autorise pas les corrections lors de l'approbation, seul le sous-projet peut être corrigé.",
   "timer.jobbSkjema.underprosjekt": "Sous-projet",
   "timer.jobbSkjema.utenUnderprosjekt": "Aucune",
-  "timer.jobbSkjema.endreUnderprosjekt": "Changer de sous-projet et de site",
+  "timer.jobbSkjema.aapneVindu": "Site et activité",
+  "timer.jobbSkjema.aapneVinduHint": "Ouvre la fenêtre de la première ligne de l'emploi : site, activité et type de paie",
+  "timer.jobbSkjema.sokUnderprosjekt": "Rechercher un sous-projet",
+  "timer.jobbSkjema.underprosjektLukket": "Le sous-projet est fermé pendant des heures. Choisissez-en un autre ou Aucun.",
   "timer.jobbSkjema.fraTil": "De–à",
   "timer.jobbSkjema.fra": "Depuis",
   "timer.jobbSkjema.til": "À",
@@ -5996,5 +5999,5 @@
   "timer.jobbSkjema.overtidLinje": "{{fra}}–{{til}} · {{timer}} h · au-dessus de la norme quotidienne {{dato}} : {{norm}} h",
   "timer.jobbSkjema.helOvertid": "L'ensemble du travail dépasse la norme quotidienne {{dato}} : {{norm}} h",
   "timer.jobbSkjema.ulagretSperre": "Quelque chose n'est pas enregistré ce jour-là. Corrigez le champ marqué en rouge ou réessayez.",
-  "timer.mine.hjelp.skjema": "Dans la fiche de projet, vous enregistrez le travail directement dans la fiche : De, À, pause, rubrique de salaire et « Qu'avez-vous fait ? ». Un champ est enregistré lorsque vous le quittez – il indique « ✓ Enregistré ». Si le temps dépasse la norme journalière, les heures supplémentaires suivent leur propre ligne. Les champs jaunes sont des suggestions issues des heures de travail de l'entreprise ou de la fin de l'emploi précédent. Un nouveau travail est enregistré lorsque To est renseigné. Si quelque chose n'est pas enregistré, il s'affiche en rouge et le jour ne peut pas être soumis tant qu'il n'est pas corrigé."
+  "timer.mine.hjelp.skjema": "Dans la fiche de projet, vous enregistrez le travail directement dans la fiche : De, À, pause, rubrique de salaire et « Qu'avez-vous fait ? ». Un champ est enregistré lorsque vous le quittez – il indique « ✓ Enregistré ». Si le temps dépasse la norme journalière, les heures supplémentaires suivent leur propre ligne. Les champs jaunes sont des suggestions issues des heures de travail de l'entreprise ou de la fin de l'emploi précédent. Un nouveau travail est enregistré lorsque To est renseigné. Si quelque chose n'est pas enregistré, il s'affiche en rouge et le jour ne peut pas être soumis tant qu'il n'est pas corrigé. Si le projet comporte des sous-projets, vous choisissez le sous-projet en haut du travail — le choix s'applique à l'ensemble du travail : heures, machines, matériaux, indemnités et dépenses. Les voyages ne bougent pas avec."
 }

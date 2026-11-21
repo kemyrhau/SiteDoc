@@ -5969,7 +5969,10 @@
   "timer.attestering.tabell.hjelp.reise": "Podróż pokazana jest w części 8 jako jedna linia. ✎ otwiera opcję „Popraw podróż” zawierającą początek, koniec, rodzaj wynagrodzenia (tylko rodzaje podróży), projekt, plac budowy i podprojekt; na liście znajdują się projekty, które możesz zatwierdzić, a linia na dole wskazuje, na jaką kartę przypada wycieczka. Jeśli firma nie pozwala na poprawki w trakcie zatwierdzania, można poprawić tylko podprojekt.",
   "timer.jobbSkjema.underprosjekt": "Podprojekt",
   "timer.jobbSkjema.utenUnderprosjekt": "Nic",
-  "timer.jobbSkjema.endreUnderprosjekt": "Zmień podprojekt i lokalizację",
+  "timer.jobbSkjema.aapneVindu": "Miejsce i aktywność",
+  "timer.jobbSkjema.aapneVinduHint": "Otwiera okno pierwszej linii oferty pracy: miejsce, czynność i rodzaj wynagrodzenia",
+  "timer.jobbSkjema.sokUnderprosjekt": "Wyszukaj podprojekt",
+  "timer.jobbSkjema.underprosjektLukket": "Podprojekt jest zamknięty na godziny. Wybierz inny lub Brak.",
   "timer.jobbSkjema.fraTil": "Od–do",
   "timer.jobbSkjema.fra": "Z",
   "timer.jobbSkjema.til": "Do",
@@ -5996,5 +5999,5 @@
   "timer.jobbSkjema.overtidLinje": "{{fra}}–{{til}} · {{timer}} godz. · ponad normę dobową {{dato}}: {{norm}} godz.",
   "timer.jobbSkjema.helOvertid": "Cała praca przekracza normę dzienną {{dato}}: {{norm}} godz",
   "timer.jobbSkjema.ulagretSperre": "Coś w tym dniu nie jest zapisane. Popraw pole zaznaczone na czerwono lub spróbuj ponownie.",
-  "timer.mine.hjelp.skjema": "W karcie projektu zapisujesz pracę bezpośrednio na karcie: Od, Do, przerwa, rodzaj wynagrodzenia i „Co zrobiłeś?”. Pole zostaje zapisane, gdy je opuścisz — pojawi się komunikat „✓ Zapisano”. Jeśli czas przekroczy normę dzienną, nadgodziny biegną własną linią. Pola żółte to sugestie z godzin pracy firmy lub z zakończenia poprzedniej pracy. Nowe zadanie zostaje zapisane po wpisaniu Do. Jeśli coś nie zostało zapisane, jest to zaznaczone na czerwono i dzień nie może zostać przesłany, dopóki nie zostanie poprawiony."
+  "timer.mine.hjelp.skjema": "W karcie projektu zapisujesz pracę bezpośrednio na karcie: Od, Do, przerwa, rodzaj wynagrodzenia i „Co zrobiłeś?”. Pole zostaje zapisane, gdy je opuścisz — pojawi się komunikat „✓ Zapisano”. Jeśli czas przekroczy normę dzienną, nadgodziny biegną własną linią. Pola żółte to sugestie z godzin pracy firmy lub z zakończenia poprzedniej pracy. Nowe zadanie zostaje zapisane po wpisaniu Do. Jeśli coś nie zostało zapisane, jest to zaznaczone na czerwono i dzień nie może zostać przesłany, dopóki nie zostanie poprawiony. Jeśli projekt ma podprojekty, wybierasz podprojekt na górze zadania — wybór dotyczy całego zadania: godzin, maszyn, materiałów, dodatków i wydatków. Podróż nie porusza się wraz z nim."
 }

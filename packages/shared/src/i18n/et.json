@@ -5969,7 +5969,10 @@
   "timer.attestering.tabell.hjelp.reise": "Reis on 8. osas näidatud ühe reana. ✎ avab \"Paranda reisi\" alguse, lõpu, palgatüübi (ainult reisitüübid), projekti, ehitusplatsi ja alamprojektiga; nimekirjas on projektid, mida saate kinnitada ja allservas olev rida ütleb, millisele kaardile reis läheb. Kui ettevõte ei luba kinnitamisel parandusi teha, saab parandada ainult alamprojekti.",
   "timer.jobbSkjema.underprosjekt": "Alamprojekt",
   "timer.jobbSkjema.utenUnderprosjekt": "Mitte ühtegi",
-  "timer.jobbSkjema.endreUnderprosjekt": "Muuda alamprojekti ja saiti",
+  "timer.jobbSkjema.aapneVindu": "Sait ja tegevus",
+  "timer.jobbSkjema.aapneVinduHint": "Avab töö esimese rea akna: sait, tegevus ja palgatüüp",
+  "timer.jobbSkjema.sokUnderprosjekt": "Otsi alamprojekti",
+  "timer.jobbSkjema.underprosjektLukket": "Alamprojekt on tundideks suletud. Valige mõni muu või Puudub.",
   "timer.jobbSkjema.fraTil": "Alates–kuni",
   "timer.jobbSkjema.fra": "Alates",
   "timer.jobbSkjema.til": "To",
@@ -5996,5 +5999,5 @@
   "timer.jobbSkjema.overtidLinje": "{{fra}}–{{til}} · {{timer}} h · üle päevanormi {{dato}}: {{norm}} h",
   "timer.jobbSkjema.helOvertid": "Kogu töö on üle päevanormi {{dato}}: {{norm}} h",
   "timer.jobbSkjema.ulagretSperre": "Midagi päeval ei salvestata. Parandage punasega märgitud väli või proovige uuesti.",
-  "timer.mine.hjelp.skjema": "Projektikaardile salvestate töö otse kaardile: Alates, Kuni, vaheaeg, palgaliik ja “Mida sa tegid?”. Väli salvestatakse, kui sellest lahkute – see ütleb \"✓ Salvestatud\". Kui aeg läheb üle päevanormi, läheb ületunnitöö oma rida. Kollased väljad on ettepanekud ettevõtte tööajast või eelmise töö lõpust. Uus töö salvestatakse, kui täidetakse To. Kui midagi pole salvestatud, kuvatakse see punaselt ja päeva ei saa esitada enne, kui see on parandatud."
+  "timer.mine.hjelp.skjema": "Projektikaardile salvestate töö otse kaardile: Alates, Kuni, vaheaeg, palgaliik ja “Mida sa tegid?”. Väli salvestatakse, kui sellest lahkute – see ütleb \"✓ Salvestatud\". Kui aeg läheb üle päevanormi, läheb ületunnitöö oma rida. Kollased väljad on ettepanekud ettevõtte tööajast või eelmise töö lõpust. Uus töö salvestatakse, kui täidetakse To. Kui midagi pole salvestatud, kuvatakse see punaselt ja päeva ei saa esitada enne, kui see on parandatud. Kui projektis on alamprojekte, valite töö ülemise osa alamprojekti — valik kehtib kogu töö kohta: tunnid, masinad, materjalid, toetused ja kulud. Reisimine sellega kaasa ei liigu."
 }

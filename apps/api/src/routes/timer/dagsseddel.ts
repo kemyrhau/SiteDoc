@@ -4906,6 +4906,70 @@ export const dagsseddelRouter = router({
       };
     }),
 
+  // Plan § 8.22 L3b: arbeideren velger underprosjekt for HELE jobben i hodet på jobbskjemaet.
+  // Samme kjerne som attestantens «flytt hele jobben» (`flyttHeleJobben`): timer (ikke reise),
+  // tillegg, maskiner og utlegg i én transaksjon, varer etterpå, kort-id beholdes. Tilgang som
+  // `lagreJobbTid`: egen sedel (eller firmaadmin), redigerbar, prosjektkort-modus.
+  flyttJobbEco: protectedProcedure
+    .input(
+      z.object({
+        sheetId: z.string().uuid(),
+        kortId: z.string().uuid(),
+        externalCostObjectId: z.string().uuid().nullable(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const sheet = await hentEgenDagsseddel(ctx.prismaTimer, ctx.userId, input.sheetId);
+      if (!erRedigerbar(sheet.status)) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: `Dagsseddel er låst (status: ${sheet.status})`,
+        });
+      }
+      const modus = await ctx.prisma.organizationSetting.findUnique({
+        where: { organizationId: sheet.organizationId },
+        select: { timerRegistreringsmodus: true },
+      });
+      if (lesTimerModus(modus?.timerRegistreringsmodus) !== "prosjektkort") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Jobbskjemaet brukes bare når firmaet fører timer pr. prosjektkort.",
+        });
+      }
+      await sjekkAldersgrense(sheet.organizationId, sheet.status, sheet.dato);
+
+      // Jobbens første arbeidsrad bærer prosjektet og dagens underprosjekt (hodet viser den).
+      const forste = await ctx.prismaTimer.sheetTimer.findFirst({
+        where: {
+          sheetId: sheet.id,
+          kortId: input.kortId,
+          erReise: false,
+          projectId: { not: null },
+          attestertStatus: { not: "erstattet" },
+        },
+        orderBy: [{ fraTid: "asc" }, { createdAt: "asc" }, { id: "asc" }],
+      });
+      if (!forste || !forste.projectId) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Jobben finnes ikke på denne dagsseddelen." });
+      }
+      await validerEcoForFlytt(input.externalCostObjectId, sheet.organizationId, forste.projectId);
+      // Retur 130: ingen kortslutning når første rad alt står på målet. Feilet vare-steget etter
+      // transaksjonen, står varen igjen på det gamle underprosjektet; «Prøv igjen» sender samme
+      // valg og må rette den. `flyttHeleJobben` er idempotent. Klienten sender ikke likt valg
+      // ellers (`JobbSkjema.velgEco`).
+      return flyttHeleJobben(ctx, {
+        sheet,
+        rad: {
+          id: forste.id,
+          sheetId: forste.sheetId,
+          kortId: input.kortId,
+          projectId: forste.projectId,
+          externalCostObjectId: forste.externalCostObjectId,
+        },
+        ecoId: input.externalCostObjectId,
+      });
+    }),
+
   // U-BEKREFT steg 2 (2026-10-01): FORSON et dagskort i konflikt. Arbeideren har valgt
   // pr. tidsrom i sammenligningsvisningen; her anvendes valgene ATOMISK på det redigerbare
   // web-kortet. Komponerer de SAMME skrivereglene som tilfoy/oppdaterTimerRad (byggTimerRadData
