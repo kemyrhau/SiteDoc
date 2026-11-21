@@ -333,6 +333,25 @@ describe("w5 — «Del opp» ved klokkeslett", () => {
     expect(await tilstand(j)).toEqual(for_);
   });
 
+  it("omkoblet maskin (gate 123 vilkår 3): maskin på en rad som går helt til B, med flere timer enn A → avvist av maskinvakten, ingenting skrevet", async () => {
+    const j = await nyJobb();
+    // Maskin 5 t uten klokkeslett på raden 11–15. Delt kl. 11:00 går raden helt til B, maskinen
+    // kobles om til A (07–11, 4 t). Før delingen: 5 t maskin mot 8 t arbeid på jobben (ingen brudd).
+    await prismaTimer.sheetMachine.update({
+      where: { id: j.maskin },
+      data: { sheetTimerId: j.r2, fraTid: null, tilTid: null, timer: 5 },
+    });
+    const for_ = await tilstand(j);
+    const feil = await dag(ATT)
+      .delJobb({ sheetId: j.sheetId, kortId: j.kortId, kl: "11:00", externalCostObjectIdB: ECO_1 })
+      .then(() => null, (e: unknown) => e);
+    // `krevIngenNyeMaskinBrudd` → `maskinOverArbeidFeil`, ikke timesjekken for delt rad («mer enn del A»).
+    expect(feil).toBeInstanceOf(Error);
+    expect((feil as Error).message).toMatch(/maskin 5 t, arbeid 4 t/);
+    expect((feil as Error).message).not.toMatch(/mer enn del A/);
+    expect(await tilstand(j)).toEqual(for_);
+  });
+
   it("rader uten kort-id er ingen jobb — ukjent kort avvises", async () => {
     const j = await nyJobb();
     await expect(

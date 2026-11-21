@@ -14,7 +14,9 @@ import {
   løsOppmote,
   løsReiseKort,
   planleggOverforing,
+  tilIsoDato,
   type DagsforslagOverforingCelle,
+  type OppmotePeriodeInput,
   type OppmoteResultat,
   type ReiseKortResultat,
   type ReiseRegelsett,
@@ -195,6 +197,32 @@ export function reiseHavnerI(args: {
   return { type: "eget", projectId: reise.projectId };
 }
 
+/**
+ * Gate (123) vilkår 1 (§ 8.22: «kjøring før første sted eller etter siste sted er reise»):
+ * på byggeplassperiodens første dag er Tur en vanlig reise, og på siste dag er Retur det.
+ * Reisen regnes fra hjemstedet — samme hjemsted som `finnOverforinger` bruker
+ * (`løsOppmote` uten byggeplassperioden). Mellomdagene, og Retur første dag / Tur siste
+ * dag, beholder `byggeplass` (sperret). Ingen egen kortregel, ingen periodekall.
+ */
+export function oppmoteForReise(
+  dato: string,
+  projectId: string,
+  retning: "tur" | "retur",
+  perioder: readonly OppmotePeriodeInput[],
+  periodeOppmote: OppmoteResultat,
+): OppmoteResultat {
+  if (periodeOppmote.kilde !== "byggeplass") return periodeOppmote;
+  const p = perioder.find((q) => {
+    if (q.type !== "byggeplass" || q.projectId !== projectId) return false;
+    const fra = tilIsoDato(q.fraDato);
+    const til = q.tilDato != null ? tilIsoDato(q.tilDato) : null;
+    return retning === "tur" ? fra === dato : til === dato;
+  });
+  if (!p) return periodeOppmote;
+  const hjem = løsOppmote(dato, null, perioder.filter((q) => q !== p), null);
+  return hjem.kilde === "ikkeValgt" || hjem.kilde === "byggeplass" ? periodeOppmote : hjem;
+}
+
 export function useManuellReiseWeb({
   organizationId,
   dato,
@@ -297,9 +325,13 @@ export function useManuellReiseWeb({
   const apenOverforing = useMemo(() => perioder.find(erApenOverforing) ?? null, [perioder]);
   const valgtKontor = annetKontorId && kontorOppsett?.andre.includes(annetKontorId) ? annetKontorId : null;
   // Reisen regnes fra det valgte kontoret, som om perioden alt var satt.
+  const retning = aktivtValg.type === "retur" ? "retur" : "tur";
   const oppmote: OppmoteResultat = useMemo(
-    () => (valgtKontor ? { kilde: "midlertidig", oppmotestedId: valgtKontor } : periodeOppmote),
-    [valgtKontor, periodeOppmote],
+    () =>
+      valgtKontor
+        ? { kilde: "midlertidig", oppmotestedId: valgtKontor }
+        : oppmoteForReise(dato, projectId, retning, perioder, periodeOppmote),
+    [valgtKontor, dato, projectId, retning, perioder, periodeOppmote],
   );
 
   const resultat: ReiseKortResultat = useMemo(
@@ -313,13 +345,13 @@ export function useManuellReiseWeb({
         standardLonnsartId,
         startTid,
         sluttTid,
-        retning: aktivtValg.type === "retur" ? "retur" : "tur",
+        retning,
         oppmote,
         byggeplassId,
         kjoretidFor: (o, b) => matrise.get(`${o}|${b}`)?.kjoretidMin ?? null,
         avstandFor: (o, b) => matrise.get(`${o}|${b}`)?.avstandM ?? null,
       }),
-    [aktivtValg.type, ramme, regel, grensepunkter, resolverLonnsartId, standardLonnsartId, oppmote, byggeplassId, matrise, startTid, sluttTid],
+    [retning, ramme, regel, grensepunkter, resolverLonnsartId, standardLonnsartId, oppmote, byggeplassId, matrise, startTid, sluttTid],
   );
 
   // Oppmøtestedet vises som tekst bare når firmaet har flere (§ 7 C).

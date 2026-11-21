@@ -133,7 +133,11 @@ const arbeid = (over: Rad = {}): Rad => ({
   ...over,
 });
 
-function rendre({ timer = [arbeid()] as Rad[], kontorer = 2 } = {}) {
+function rendre({
+  timer = [arbeid()] as Rad[],
+  kontorer = 2,
+  perioder = [FAST_TROMSO] as OppmotePeriodeInput[],
+} = {}) {
   h.kall = [];
   h.utelat.clear();
   h.feil.clear();
@@ -185,7 +189,7 @@ function rendre({ timer = [arbeid()] as Rad[], kontorer = 2 } = {}) {
       { oppmotestedId: "narvik", byggeplassId: "b1", kjoretidMin: 230, avstandM: 250000 },
       { oppmotestedId: "alta", byggeplassId: "b1", kjoretidMin: 300, avstandM: 400000 },
     ],
-    "oppmotePeriode.hentMine": { perioder: [FAST_TROMSO], trengerValg: false },
+    "oppmotePeriode.hentMine": { perioder, trengerValg: false },
     "timer.lonnsart.list": [
       { id: "l1", navn: "Ordinær", aktiv: true, erStandardvalg: true, type: "ordinaer" },
       { id: "lr", navn: "Reise", aktiv: true, erStandardvalg: false, type: "ordinaer" },
@@ -320,5 +324,64 @@ describe("w15b — reisevinduet: systemet foreslår, arbeideren retter", () => {
     fireEvent.change(kontor, { target: { value: "alta" } });
     expect(d.textContent).toContain('timer.reiseKort.forslag{"min":300}');
     expect(start(d).value).toBe("02:00");
+  });
+});
+
+describe("gate (123) vilkår 1 — byggeplassperiodens første og siste dag", () => {
+  afterEach(cleanup);
+  const bp = (fraDato: string, tilDato: string | null): OppmotePeriodeInput => ({
+    id: "pb",
+    type: "byggeplass",
+    fast: false,
+    oppmotestedId: null,
+    projectId: "p1",
+    fraDato,
+    tilDato,
+  });
+  // Hjemstedet over terskel (230 min til b1), så sporet viser hvilket kontor reisen regnes fra.
+  const FAST_NARVIK: OppmotePeriodeInput = { ...FAST_TROMSO, id: "pn", oppmotestedId: "narvik" };
+  const sperret = (d: HTMLElement) => {
+    expect(lagreKnapp(d).disabled).toBe(true);
+    expect(within(d).queryByLabelText("timer.reiseKort.startKl")).toBeNull();
+    expect(d.textContent).toContain("timer.reiseKort.sperre.byggeplassPeriode");
+  };
+
+  it("første dag: Tur gir aktiv Lagre fra hjemkontoret, vanlig reise, ingen periodekall", async () => {
+    const d = rendre({ perioder: [FAST_NARVIK, bp(DATO, "2026-11-10")] });
+    expect(lagreKnapp(d).disabled).toBe(false);
+    expect(start(d).value).toBe("03:10");
+    expect(slutt(d).value).toBe("07:00");
+    const input = (await lagre(d))!;
+    expect(input).toMatchObject({ projectId: "p1", byggeplassId: "b1", fraTid: "03:10", tilTid: "07:00", reiseKjoretidMin: 230 });
+    expect(input.reiseOppmotestedId).toBe("narvik");
+    expect(input.reiseKilde).toBe("manuell");
+    expect(h.kall.some((k) => k.key === "oppmotePeriode.overforing")).toBe(false);
+  });
+
+  it("første dag: Retur er sperret (perioden gjelder resten av dagen)", () => {
+    const d = rendre({ perioder: [FAST_TROMSO, bp(DATO, "2026-11-10")] });
+    fireEvent.click(knapp(d, "timer.reiseKort.retur"));
+    sperret(d);
+  });
+
+  it("siste dag: Retur gir aktiv Lagre hjem til hjemkontoret", async () => {
+    const d = rendre({ perioder: [FAST_NARVIK, bp("2026-11-01", DATO)] });
+    sperret(d);
+    fireEvent.click(knapp(d, "timer.reiseKort.retur"));
+    expect(lagreKnapp(d).disabled).toBe(false);
+    expect(start(d).value).toBe("12:00");
+    expect(slutt(d).value).toBe("15:50");
+    const input = (await lagre(d))!;
+    expect(input).toMatchObject({ fraTid: "12:00", tilTid: "15:50", reiseKjoretidMin: 230, reiseKilde: "manuell", reiseRetning: "retur" });
+    expect(input.reiseOppmotestedId).toBe("narvik");
+    expect(h.kall.some((k) => k.key === "oppmotePeriode.overforing")).toBe(false);
+  });
+
+  it("mellomdag: både Tur og Retur er sperret", async () => {
+    const d = rendre({ perioder: [FAST_TROMSO, bp("2026-11-01", "2026-11-10")] });
+    sperret(d);
+    fireEvent.click(knapp(d, "timer.reiseKort.retur"));
+    sperret(d);
+    expect(await lagre(d)).toBeUndefined();
   });
 });

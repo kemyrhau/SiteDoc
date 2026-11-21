@@ -1189,6 +1189,35 @@ describe("§ 8.22 — reisen flyttes bare når prosjekt, byggeplass eller underp
     }
   });
 
+  it("syncBatch (2A, gate 123 vilkår 2): reise «Uten» + jobb ECO_1 i én skriving → jobbens kort, ikke reisens eget, i begge rekkefølger", async () => {
+    for (const reiseForst of [true, false]) {
+      const clientUuid = randomUUID();
+      const dato = nyDato();
+      const reiseId = randomUUID();
+      const arbeidId = randomUUID();
+      const reise = syncTimer(reiseId, "06:00", "07:00", 1, { lonnsartId: REISE, externalCostObjectId: null });
+      const jobb = syncTimer(arbeidId, "07:00", "11:00", 4, { externalCostObjectId: ECO_1 });
+      // USER2: fila ligger nær rate-grensen (100 mutasjoner/min) for USER.
+      const svar = await sync(syncSedel(clientUuid, dato, reiseForst ? [reise, jobb] : [jobb, reise]), USER2);
+      expect(svar.resultat).toBe("ok");
+      const r = await prismaTimer.sheetTimer.findUniqueOrThrow({
+        where: { id: reiseId },
+        select: { kortId: true, projectId: true, byggeplassId: true, externalCostObjectId: true, sheet: { select: { userId: true, dato: true, byggeplassId: true } } },
+      });
+      // Reisens eget kort (det den ville fått om regelen ble kjørt før arbeidsradene hadde id).
+      const egen = utledKortId({
+        userId: r.sheet.userId,
+        dato: r.sheet.dato.toISOString().slice(0, 10),
+        nokkel: { projectId: P1, byggeplassId: r.byggeplassId ?? r.sheet.byggeplassId ?? null, ecoId: null },
+      });
+      const jobbKort = await kortFor(arbeidId);
+      expect(r.externalCostObjectId).toBeNull();
+      expect(jobbKort).not.toBeNull();
+      expect(jobbKort).not.toBe(egen);
+      expect(r.kortId).toBe(jobbKort);
+    }
+  });
+
   it("syncBatch: ny jobb i en senere synk flytter ikke reisen", async () => {
     const clientUuid = randomUUID();
     const dato = nyDato();

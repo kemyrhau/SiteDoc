@@ -411,8 +411,15 @@ describe("web «+ Reise» — overføring første dag i en byggeplass-periode (T
     expect(within(dialog).getByRole("button", { name: "timer.reiseKort.tur" }).getAttribute("aria-pressed")).toBe("true");
   });
 
-  it("Tur på byggeplass-periodens dag: sperret (møter på byggeplassen)", () => {
+  it("gate (123) vilkår 1: Tur på periodens første dag er vanlig reise fra hjemstedet — Lagre aktiv", () => {
     const dialog = rendre({ perioder: [FAST_KONTOR, BP_PERIODE], kjoretidMin: 45 });
+    fireEvent.click(within(dialog).getByRole("button", { name: "timer.reiseKort.tur" }));
+    expect(lagreKnapp(dialog).disabled).toBe(false);
+    expect(document.body.textContent).not.toContain("timer.reiseKort.sperre.byggeplassPeriode");
+  });
+
+  it("Tur på en mellomdag i byggeplass-perioden: sperret (møter på byggeplassen)", () => {
+    const dialog = rendre({ perioder: [FAST_KONTOR, { ...BP_PERIODE, fraDato: "2026-11-01" }], kjoretidMin: 45 });
     fireEvent.click(within(dialog).getByRole("button", { name: "timer.reiseKort.tur" }));
     const knapp = lagreKnapp(dialog);
     expect(knapp.disabled).toBe(true);
