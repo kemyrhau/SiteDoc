@@ -7,10 +7,12 @@
   FORSLAG (Fabel 2026-11-21, versjon 17), ikke bygget. Kilde for v17-reiselinje.png
   (web-timeforing-plan.md § 4.15 del E og § 8.20). Erstatter v16-flytt.png, v16b-flytt.png og
   v16b-flytt-prosjekt.png: «Flytt til …» er utgått. Stilen er den samme som i skisser-v16b.html.
-  Ett ark; arket velges med #reiselinje i adressen. Tegnet med Chrome uten vindu:
+  To ark; arket velges med #reiselinje eller #tilstander i adressen. #tilstander er kilde for
+  v17-kortet-to-tilstander.png (w15g, § 4.15 del F): attesteringskortet i informasjonsstatus, og samme
+  jobb åpnet for redigering i vinduet «Rediger arbeid». Tegnet med Chrome uten vindu:
     "Google Chrome" --headless=new --hide-scrollbars --force-device-scale-factor=2 \
       --window-size=1444,<høyde> --screenshot=v17-reiselinje.png "file://…/skisser-v17.html#reiselinje"
-  Høyde: reiselinje 1025 (måles på nytt etter endring med --dump-dom: arket skriver den i data-hoyde på <html>).
+  Høyde: reiselinje 1025, tilstander 872 (måles på nytt etter endring med --dump-dom: arket skriver den i data-hoyde på <html>).
 -->
 <style>
 *{box-sizing:border-box}
@@ -161,6 +163,22 @@ body.en .ark.vis{display:block}
 .fem{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:8px}
 .fem div{background:#f8fafc;border:1px solid #e5e7eb;border-radius:6px;padding:5px 8px}
 .fem small{display:block;color:#6b7280;font-size:10.5px}
+
+/* v17-kortet-to-tilstander: jobbraden i tabellen, kortets hode og vinduet «Rediger arbeid» */
+.jr{display:flex;justify-content:space-between;gap:8px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:7px;padding:7px 12px;margin-bottom:6px;font-size:12.5px}
+.att .ah .h{font-family:inherit}
+.rk{display:inline-block;border:1px solid #d1d5db;border-radius:6px;padding:3px 9px;background:#fff;font-size:11.5px;font-weight:600;color:#374151;white-space:nowrap;font-family:-apple-system,"Inter",sans-serif}
+.upr{display:flex;align-items:center;gap:6px;flex-wrap:wrap;background:#f9fafb;border-bottom:1px solid #f1f5f9;padding:8px 12px}
+.upr b{margin-right:4px}
+.pk{border:1px solid #d1d5db;border-radius:999px;padding:3px 11px;background:#fff;font-size:11.5px;font-weight:600;color:#374151}
+.pk.paa{background:#1d4ed8;border-color:#1d4ed8;color:#fff}
+#tilstander .adel{align-items:center}
+#tilstander .adel .dn{width:118px}
+#tilstander .adel .nr{min-width:20px;width:auto;padding:0 5px;border-radius:999px}
+.vh{display:flex;justify-content:space-between;align-items:center;gap:8px;border-bottom:1px solid #e5e7eb;padding-bottom:10px}
+.kn.gr{background:#16a34a;border-color:#16a34a;color:#fff}
+.vr{display:grid;grid-template-columns:62px 62px 1.5fr 1.1fr 54px auto auto;gap:6px;align-items:center;margin-bottom:6px}
+.vr .inn{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 </style>
 </head>
 <body>
@@ -240,6 +258,74 @@ body.en .ark.vis{display:block}
         <li><span class="g">3</span><span>Rettes prosjekt, byggeplass eller underprosjekt, står reisen etterpå i kortet det nye stedet gir.</span></li>
         <li><span class="g">4</span><span>Arbeideren varsles om hver retting: «Kari Leder rettet timene dine man. 16.11.: Reise fra sommerfeldtsgt 65 — Slutt kl. 15:35 → 15:50.» Linja får merket «Rettet» på dagen hans.</span></li>
         <li><span class="k">5</span><span>Firmavalget «Rediger ved attestering» er ikke endret. Er det av, kan attestanten bare bytte underprosjekt i vinduet.</span></li>
+      </ul>
+    </div>
+
+  </div>
+</div>
+
+<!-- v17-kortet-to-tilstander.png (w15g): attesteringskortet i informasjonsstatus, og samme jobb åpnet for redigering -->
+<div class="ark" id="tilstander">
+  <div class="tittel"><span class="pille">Versjon 17 · anbefalt</span><h1>Attesteringskortet: informasjon med ✎, og åpnet for redigering uten penn</h1></div>
+  <div class="scen"><b>Kenneth 2026-11-21:</b> «er det i informasjonsstatus -> ja jeg ønsker pennen. er kortet allerede åpnet for redigering -> nei -> da trenger jeg ikke pennen».
+    <div style="margin-top:6px"><b>Målt:</b> kortet har i dag ingen tilstand «åpnet for redigering». Feltene står åpne med en gang kortet åpnes. <b>Forslaget</b> bruker det som finnes: kortet er informasjon, og «✎ Rediger jobben» åpner jobben for redigering. Samme jobb som i <i>v17-reiselinje.png</i>: Ola Tømrer, man. 16.11.</div>
+    <div style="margin-top:8px"><b class="gr">Grønn ramme</b> = nytt. <b class="bl">Blå stiplet ramme</b> = der du trykker.</div></div>
+
+  <div class="lik">
+
+    <div class="side">
+      <h2>1 · Informasjonsstatus</h2>
+      <p class="under">Kortet slik det åpnes under jobbraden. Alt er tekst. Hver linje som kan rettes, har ✎.</p>
+      <div class="jr"><span>▾ <b>Ola Tømrer</b> · man. 16.11. · Sitedoc Boligfelt B12</span><span>3,6 t · Venter</span></div>
+      <div class="att">
+        <div class="ah"><div><b>Sitedoc Boligfelt B12</b><br><span>sommerfeldtsgt 65 · Anleggsarbeid</span></div><div class="h"><span class="rk">✎ Rediger jobben</span><span class="ik">✕</span></div></div>
+        <div class="upr"><b>Underprosjekt</b><span class="pk">Uten</span><span class="pk">END-001</span><span class="pk paa">END-002</span></div>
+        <div class="adel"><span class="nr">1</span><span class="dn">Fra–til</span><div class="di">12:00–15:00 · pause 0 min · <b>3 t</b></div><span class="rk">✂ Del opp</span></div>
+        <div class="adel"><span class="nr">2</span><span class="dn">Lønnsart</span><div class="di"><span class="gronn" style="display:inline-block;padding:1px 4px">12:00–15:00 · <b>3 t</b> · Timelønn</span></div><div class="h"><span class="ik"><span class="ny-ramme">✎</span> ✂</span></div></div>
+        <div class="adel"><span class="nr">3</span><span class="dn">Hva gjorde du?</span><div class="di">kantstein, endring</div></div>
+        <div class="adel graa"><span class="nr">4–7</span><span class="dn">Maskiner, varer, tillegg, utlegg</span><div class="di">—</div></div>
+        <div class="adel"><span class="nr">8</span><span class="dn">Reise</span>
+          <div class="di">
+            <span class="rute">Retur · sommerfeldtsgt 65 → Kontor Tromsø · 35 min (firmaets tabell)</span>
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+              <div><span class="gronn" style="display:inline-block;padding:1px 4px">15:00–15:35 · <b>0,58 t</b> · Reise/transport til prosjekter</span><br><span class="lite" style="display:inline-block;margin-top:6px">Føres på: END-002</span></div>
+              <div class="h"><span class="ik"><span class="ny-ramme">✎</span> ✂</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <ul class="forkl">
+        <li><span class="g">1</span><span>I dag står klokkeslett, pause og lønnsart som felt på disse linjene, og timer på maskiner og antall på tillegg. De lagres når du forlater feltet. Her er de tekst.</span></li>
+        <li><span class="g">2</span><span>✎ på en linje åpner vinduet for den linja. Reisen har de fem feltene i <i>v17-reiselinje.png</i>. «Lagre» gir Ola ett varsel.</span></li>
+        <li><span class="g">3</span><span>Maskinlinjer og tilleggslinjer får samme ✎. Denne jobben har ingen.</span></li>
+        <li><span class="g">4</span><span>Underprosjekt-knappene, «Del opp», ✂ og «✎ Rediger jobben» står som i dag.</span></li>
+        <li><span class="k">5</span><span>Firmavalget «Rediger ved attestering» er ikke endret. Er det av, har linjene ingen ✎. Unntaket er reisen, der underprosjektet kan byttes.</span></li>
+      </ul>
+    </div>
+
+    <div class="side">
+      <h2>2 · Åpnet for redigering</h2>
+      <p class="under">Samme jobb etter «✎ Rediger jobben». Vinduet finnes i dag. Feltene står åpne, og ingen linje har penn.</p>
+      <div class="jr"><span>▾ <b>Ola Tømrer</b> · man. 16.11. · Sitedoc Boligfelt B12</span><span>3,6 t · Venter</span></div>
+      <div class="att">
+        <div class="ah"><div><b>Sitedoc Boligfelt B12</b><br><span>sommerfeldtsgt 65 · Anleggsarbeid</span></div><div class="h"><span class="rk ny-ramme">✎ Rediger jobben</span><span class="ik">✕</span></div></div>
+      </div>
+      <p class="pilned" style="margin-top:8px">↓ «✎ Rediger jobben»</p>
+      <div class="vindu flat">
+        <h3>Rediger arbeid <span>✕</span></h3>
+        <div class="vh"><span><b>Sitedoc Boligfelt B12</b> · END-002</span><span style="display:flex;gap:8px"><span class="kn">Avbryt</span><span class="kn gr">Lagre endringer</span></span></div>
+        <p class="ov" style="margin-top:12px">Arbeidstimer</p>
+        <div class="vr"><div class="inn">12:00</div><div class="inn">15:00</div><div class="inn">Timelønn ▾</div><div class="inn">Anleggsarbeid ▾</div><div class="inn" style="text-align:right">3,00</div><span class="lite">☐ Pause</span><span class="ik">🗑</span></div>
+        <div class="vr"><div class="inn">15:00</div><div class="inn">15:35</div><div class="inn">Reise/transport til prosjekter ▾</div><div class="inn tom">aktivitet ▾</div><div class="inn" style="text-align:right">0,58</div><span class="lite">☐ Pause</span><span class="ik">🗑</span></div>
+        <p class="ov" style="margin-top:12px">Maskintimer</p>
+        <p class="lite" style="font-style:italic;margin:0 0 8px">Ingen maskinrader</p>
+        <div class="info gronn" style="margin-top:10px">Ola varsles om det du endrer. <span class="nytt">NYTT</span></div>
+      </div>
+      <ul class="forkl">
+        <li><span class="g">1</span><span>Vinduet endres ikke: fra, til, lønnsart, aktivitet, timer, pause og sletting for jobbens linjer, og maskinene.</span></li>
+        <li><span class="g">2</span><span>Ett «Lagre endringer» lagrer alt du har rettet i jobben. Ola får ett varsel med alle linjene som ble endret.</span></li>
+        <li><span class="g">3</span><span>«Avbryt» endrer ingenting og gir ikke varsel.</span></li>
+        <li><span class="k">4</span><span>Antall på tillegg, og prosjekt og byggeplass på reisen, kan ikke rettes i dette vinduet i dag. De rettes med ✎ på linja.</span></li>
       </ul>
     </div>
 
