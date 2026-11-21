@@ -11,15 +11,18 @@
  *  databasen sperrer den med `sheet_timer_uten_prosjekt_chk`). `sikreKortId` og SQL-utfyllingen
  *  lar en slik rad stå urørt.
  *  3. Byggeplassen er et krav: reisens EFFEKTIVE byggeplass mot jobbens effektive; «uten» er en
- *     egen verdi. Ingen treff → `null`. Reise til annet kontor (`overforing`) hopper over steget.
+ *     egen verdi. Ingen treff → `null`.
  *  4. Underprosjekt: har reisen et, er det et krav (ingen treff → `null`). Har den ikke, går
  *     jobbene «Uten» foran, ellers står alle (B48 A).
  *  5. Retningen, i visningsrekkefølgen (`jobbRekkefolge`): utreise → første, retur → siste.
  *     Uten retning: før første arbeid blant kandidatene → første, ellers siste; uten
  *     klokkeslett → første.
- *  6. Reise til annet kontor som ikke er retur, og som starter kl. ≥ dagens første arbeid på
- *     prosjektet → `null` (eget kort). Før arbeidet → som punkt 5.
  * `null` → kalleren gir reisen eget kort (`egetReiseKort`).
+ *
+ * Regelen kjøres bare for en reise uten kort-id: når den opprettes, og når prosjekt, byggeplass
+ * eller underprosjekt er rettet (da nulles id-en). En reise med kort-id flyttes aldri av at andre
+ * registreringer føres eller slettes (§ 8.22 punkt 3, Kenneth 2026-11-21). Reise til annet kontor
+ * har ingen egen regel (§ 8.22 punkt 2).
  *
  * Regelen endrer aldri prosjekt, underprosjekt eller byggeplass på reiseraden — den velger
  * bare kort-id.
@@ -47,8 +50,6 @@ export type ReiseKortReise = {
   /** `"ut"` | `"retur"`; alt annet (også `null`) er «uten retning». */
   retning: string | null;
   fraTid: string | null;
-  /** Reise til eller fra annet kontor (`reiseKilde === "overforing"`), del E punkt 6. */
-  overforing?: boolean;
 };
 
 /** Kode-enhets-sammenlikning, samme som `COLLATE "C"` i SQL. */
@@ -113,7 +114,7 @@ export function velgReiseKort(reise: ReiseKortReise, jobber: readonly ReiseKortJ
   const paaProsjekt = jobber.filter((j) => j.projectId === reise.projectId);
   if (paaProsjekt.length === 0) return null;
 
-  let utvalg = reise.overforing ? paaProsjekt : paaProsjekt.filter((j) => j.byggeplassId === reise.byggeplassId);
+  let utvalg = paaProsjekt.filter((j) => j.byggeplassId === reise.byggeplassId);
   if (utvalg.length === 0) return null;
   if (reise.ecoId !== null) {
     utvalg = utvalg.filter((j) => j.ecoId === reise.ecoId);
@@ -128,11 +129,6 @@ export function velgReiseKort(reise: ReiseKortReise, jobber: readonly ReiseKortJ
       (min, j) => (j.forsteTid !== null && (min === null || cmp(j.forsteTid, min) < 0) ? j.forsteTid : min),
       null,
     );
-  if (reise.overforing && reise.retning !== "retur" && reise.fraTid != null) {
-    const forsteArbeid = forsteTid(paaProsjekt);
-    if (forsteArbeid !== null && cmp(reise.fraTid, forsteArbeid) >= 0) return null;
-  }
-
   const ordnet = [...utvalg].sort(jobbRekkefolge);
   const forste = ordnet[0]!;
   const siste = ordnet[ordnet.length - 1]!;
@@ -144,25 +140,19 @@ export function velgReiseKort(reise: ReiseKortReise, jobber: readonly ReiseKortJ
   return cmp(reise.fraTid, forsteArbeid) < 0 ? forste.kortId : siste.kortId;
 }
 
-/** Byggeplass-verdien i nøkkelen til en kontorreises eget kort (F25): kan aldri være en jobbs. */
-export const OVERFORING_KORT_BYGGEPLASS = "overforing";
-
 /**
  * Kort-id for en reise i eget kort (F24, F25). Normalt `utledKortId` av reisens nøkkel, så den
  * deler kort med tillegg og utlegg på samme sted. Treffer den id-en kortet til en jobb på sedelen
  * (en jobb som har byttet underprosjekt og beholdt id-en, `flyttHeleJobben`), får reisen
- * `utledReiseKortId`. Kontorreisen får alltid `utledReiseKortId` med byggeplass «overforing».
+ * `utledReiseKortId`.
  */
 export function egetReiseKort(args: {
   userId: string;
   dato: string;
   nokkel: KortNokkelFelt;
-  overforing: boolean;
   jobbKortIder: Iterable<string>;
 }): string {
   const { userId, dato, nokkel } = args;
-  if (args.overforing)
-    return utledReiseKortId({ userId, dato, nokkel: { ...nokkel, byggeplassId: OVERFORING_KORT_BYGGEPLASS } });
   const utledet = utledKortId({ userId, dato, nokkel });
   for (const k of args.jobbKortIder) if (k === utledet) return utledReiseKortId({ userId, dato, nokkel });
   return utledet;

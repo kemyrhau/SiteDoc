@@ -1,8 +1,8 @@
 /**
  * w15b: linja «havner i» i reisevinduet regner det serveren gjør i `sikreKortId` etter
  * lagring — den delte `velgReiseKort` for reise, nøkkelen for en rad under terskel.
- * w15c: linja følger den nye regelen (byggeplass og underprosjekt er krav, kontorreise etter
- * arbeid får eget kort) og får reisekilden fra reisevinduet.
+ * w15c: linja følger regelen (byggeplass og underprosjekt er krav).
+ * § 8.22: ingen kontorregel; en lagret reise med uendret sted står i kortet sitt.
  */
 import { describe, expect, it } from "vitest";
 import { utledKortId } from "@sitedoc/shared";
@@ -45,16 +45,30 @@ describe("reiseHavnerI", () => {
     ).toEqual({ type: "eget", projectId: "p2" });
   });
 
-  it("«Til annet kontor» → «Etter arbeid» → eget kort, som serveren (w15c, del E punkt 6)", () => {
-    const rader = [jobb(), jobb({ kortId: "k2", fraTid: "12:00", byggeplassId: "b3", opprettet: 2 })];
-    const kontor = reise({ byggeplassId: null, fraTid: "15:00", reiseKilde: "overforing" });
-    expect(reiseHavnerI({ rader, sedelByggeplass: null, reise: kontor })).toEqual({ type: "eget", projectId: "p1" });
+  it("§ 8.22 punkt 3: lagret reise med uendret sted blir i kortet sitt, selv om en jobb nå passer bedre", () => {
+    // Reisen står i k2 (lagret); k1 er tidligste jobb med samme nøkkel og ville vunnet for en ny reise.
+    const rader = [jobb(), jobb({ kortId: "k2", fraTid: "12:00", opprettet: 2 })];
+    const lagret = { kortId: "k2", projectId: "p1", byggeplassId: "b1", ecoId: "eco1", erReise: true };
+    expect(reiseHavnerI({ rader, sedelByggeplass: null, reise: reise(), lagret })).toMatchObject({
+      type: "jobb",
+      kortId: "k2",
+    });
+    expect(reiseHavnerI({ rader, sedelByggeplass: null, reise: reise() })).toMatchObject({ type: "jobb", kortId: "k1" });
   });
 
-  it("«Til annet kontor» → «Før arbeid» → første jobb på prosjektet", () => {
+  it("§ 8.22 punkt 3: rettet byggeplass på lagret reise → regelen velger kortet på nytt", () => {
     const rader = [jobb(), jobb({ kortId: "k2", fraTid: "12:00", byggeplassId: "b3", opprettet: 2 })];
-    const kontor = reise({ byggeplassId: null, fraTid: "06:00", reiseKilde: "overforing" });
-    expect(reiseHavnerI({ rader, sedelByggeplass: null, reise: kontor })).toMatchObject({ type: "jobb", kortId: "k1" });
+    const lagret = { kortId: "k1", projectId: "p1", byggeplassId: "b1", ecoId: "eco1", erReise: true };
+    expect(
+      reiseHavnerI({ rader, sedelByggeplass: null, reise: reise({ byggeplassId: "b3" }), lagret }),
+    ).toMatchObject({ type: "jobb", kortId: "k2" });
+  });
+
+  it("§ 8.22 punkt 2: reise uten byggeplass har ingen kontorregel — vanlig reise (ingen jobb med samme sted → eget)", () => {
+    const rader = [jobb(), jobb({ kortId: "k2", fraTid: "12:00", byggeplassId: "b3", opprettet: 2 })];
+    expect(
+      reiseHavnerI({ rader, sedelByggeplass: null, reise: reise({ byggeplassId: null, fraTid: "15:00" }) }),
+    ).toEqual({ type: "eget", projectId: "p1" });
   });
 
   it("reise til en byggeplass uten jobb → eget kort (w15c: byggeplassen er et krav)", () => {

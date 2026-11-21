@@ -1,8 +1,7 @@
 // @vitest-environment jsdom
 /**
- * POST 2026-11-15 (13) L2 commit 8: web-«+ Reise» åpner reise-kortet (Tur / Retur /
- * overføring) — samme delte regel som mobilens kort (`løsReiseKort` /
- * `løsOverforingKort`). Payloaden til `tilfoyTimerRad` sammenlignes mot den
+ * POST 2026-11-15 (13) L2 commit 8: web-«+ Reise» åpner reise-kortet (Tur / Retur;
+ * § 8.22: ingen overføringsforslag) — samme delte regel som mobilens kort (`løsReiseKort`). Payloaden til `tilfoyTimerRad` sammenlignes mot den
  * delte fasiten med samme input. Under terskel → ordinær art uten spor; over →
  * reise-art med spor. Lagre sperres når kjøretid mangler, ved ikke valgt
  * oppmøtested, og til regelsettet er lastet. Mangler lønnsart: tekst; firmaadmin
@@ -15,9 +14,7 @@ import type { ReactNode } from "react";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  finnOverforinger,
   løsOppmote,
-  løsOverforingKort,
   løsReiseKort,
   type OppmotePeriodeInput,
   type ReiseRegelsett,
@@ -294,9 +291,11 @@ describe("web «+ Reise» — reise-kortet, samme regel som mobil", () => {
     const her = dirname(fileURLToPath(import.meta.url));
     const hook = readFileSync(join(her, "../../../../hooks/useManuellReiseWeb.ts"), "utf-8");
     expect(hook).toContain("løsReiseKort(");
-    expect(hook).toContain("løsOverforingKort(");
     expect(hook).toContain("løsOppmote(");
-    expect(hook).toContain("byggOverforingOppslag(");
+    // § 8.22 punkt 2: ingen overføringsregel og ingen kontor↔kontor-kjøretid i reisevinduet.
+    expect(hook).not.toContain("løsOverforingKort(");
+    expect(hook).not.toContain("byggOverforingOppslag(");
+    expect(hook).not.toContain("hentKontorAvstanderForFirma");
     expect(hook).toContain("oppmotePeriode.hentMine");
     expect(hook).not.toContain("localStorage");
   });
@@ -406,35 +405,10 @@ describe("web «+ Reise» — overføring første dag i en byggeplass-periode (T
     tilDato: "2026-11-20",
   };
 
-  it("forhåndsvalgt «Overføring Kontor → Skolebygg», lagres med spor «overforing»", () => {
-    const perioder = [FAST_KONTOR, BP_PERIODE];
-    const dialog = rendre({ perioder, kjoretidMin: 45 });
-    const knapp = within(dialog).getByRole("button", { name: /timer\.reiseKort\.overforing/ });
-    expect(knapp.textContent).toContain("Kontor");
-    expect(knapp.textContent).toContain("Skolebygg");
-    expect(knapp.getAttribute("aria-pressed")).toBe("true");
-
-    const [o] = finnOverforinger(DATO, perioder);
-    const f = løsOverforingKort({
-      overforing: o!,
-      oppmotestedId: "o1",
-      kjoretidMin: 45,
-      avstandM: 12000,
-      dagStart: "07:00",
-      dagSlutt: "11:00",
-      regel: REGEL,
-      grensepunkter: [],
-      resolverLonnsartId: "lr",
-      standardLonnsartId: "l1",
-    });
-    const input = lagre(dialog)!;
-    expect(input.fraTid).toBe(f.fraTid);
-    expect(input.tilTid).toBe(f.tilTid);
-    expect(input.lonnsartId).toBe(f.klassifisering!.lonnsartId);
-    expect(input.reiseKilde).toBe("overforing");
-    expect(input.reiseOppmotestedId).toBe("o1");
-    expect(input.byggeplassId).toBe("b1");
-    expect(input.reiseRegel).toMatchObject({ overforing: expect.anything() });
+  it("§ 8.22 punkt 2: ingen overføringsforslag på periodens første dag; ingenting lagres med spor «overforing»", () => {
+    const dialog = rendre({ perioder: [FAST_KONTOR, BP_PERIODE], kjoretidMin: 45 });
+    expect(within(dialog).queryByRole("button", { name: /timer\.reiseKort\.overforing/ })).toBeNull();
+    expect(within(dialog).getByRole("button", { name: "timer.reiseKort.tur" }).getAttribute("aria-pressed")).toBe("true");
   });
 
   it("Tur på byggeplass-periodens dag: sperret (møter på byggeplassen)", () => {

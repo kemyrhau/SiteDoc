@@ -15,6 +15,7 @@ import { dagsseddelRouter } from "./timer/dagsseddel";
  *      rette med innstillingen på og avvises med den av. Annet firma og annet prosjekt avvises.
  * Hele jobben: `flyttTimerRadEco` med `helJobb` gir alle radene på kortet nytt underprosjekt.
  * Del opp: `delJobb` forhåndsviser uten å skrive, og deler jobben ved klokkeslettet i to kort.
+ *   Maskin, varer, tillegg, utlegg og reise blir i A (§ 8.22, Kenneth 2026-11-21).
  *
  * All data lages her med faste id-er (prefiks c0d1e5f5) og ryddes i afterAll.
  */
@@ -31,6 +32,7 @@ const ECO_1 = id("31");
 const ORD = id("41");
 const AKT = id("43");
 const MASKIN = id("51");
+const VARE = id("61");
 
 const BRUKERE = [ARB, ATT, ATT2];
 
@@ -90,8 +92,10 @@ async function ryddOpp() {
     for (const t of ["sheet_timer_forslag", "sheet_rad_historikk", "sheet_machines", "sheet_tillegg", "sheet_utlegg", "sheet_timer"]) {
       await prismaTimer.$executeRawUnsafe(`DELETE FROM "timer"."${t}" WHERE sheet_id = ANY($1::text[])`, sids);
     }
+    await prismaVarelager.vareforbruk.deleteMany({ where: { dagsseddelId: { in: sids } } });
     await prismaTimer.dailySheet.deleteMany({ where: { id: { in: sids } } });
   }
+  await prismaVarelager.vare.deleteMany({ where: { id: VARE } });
   await prismaMaskin.equipment.deleteMany({ where: { id: MASKIN } });
   await prismaTimer.lonnsart.deleteMany({ where: { id: ORD } });
   await prismaTimer.aktivitet.deleteMany({ where: { id: AKT } });
@@ -154,6 +158,7 @@ async function seed() {
   await prismaTimer.lonnsart.create({ data: { id: ORD, organizationId: ORG, type: "ordinaer", navn: "Timelønn", erStandardvalg: true, aktiv: true } });
   await prismaTimer.aktivitet.create({ data: { id: AKT, organizationId: ORG, navn: "Grunnarbeid" } });
   await prismaMaskin.equipment.create({ data: { id: MASKIN, organizationId: ORG, kategori: "anleggsmaskin", type: "gravemaskin" } });
+  await prismaVarelager.vare.create({ data: { id: VARE, organizationId: ORG, navn: "Pukk 6-32", enhet: "tonn" } });
 }
 
 beforeAll(async () => {
@@ -284,18 +289,37 @@ describe("w5 — «Del opp» ved klokkeslett", () => {
     historikk: await prismaTimer.sheetRadHistorikk.count({ where: { sheetId: j.sheetId } }),
   });
 
-  it("maskin som går over klokkeslettet avvises — også i forhåndsvisningen — og ingenting skrives", async () => {
+  it("maskin og vare koblet til en rad som går til B, blir i A og kobles til en rad i A (§ 8.22)", async () => {
     const j = await nyJobb();
-    // Kontrollørens eksempel (gate 98): rad 07–11, maskin 09:00–10:00, delt kl. 09:30.
-    // Maskinens 1 t er under del A (2,5 t), så bare klokkeslettsjekken kan avvise.
+    // Maskin 12:00–14:00 og en vare, begge koblet til raden 11–15 som går helt til B ved kl. 11:00.
+    // Maskinen går også over et klokkeslett — det avvises ikke lenger (maskinen deles ikke).
+    await prismaTimer.sheetMachine.update({
+      where: { id: j.maskin },
+      data: { sheetTimerId: j.r2, fraTid: "12:00", tilTid: "14:00", timer: 2 },
+    });
+    const v = await prismaVarelager.vareforbruk.create({
+      data: {
+        dato: new Date("2026-09-01"), projectId: P1, vareId: VARE, antall: 1, registrertAvUserId: ARB,
+        dagsseddelId: j.sheetId, sheetTimerId: j.r2, kortId: j.kortId,
+      },
+    });
+    const forh = await dag(ATT).delJobb({ sheetId: j.sheetId, kortId: j.kortId, kl: "11:00", externalCostObjectIdB: ECO_1, forhandsvis: true });
+    expect(forh.forhandsvisning).toEqual({ timerA: 4, timerB: 4, maskinPaaA: 1 });
+    const svar = await dag(ATT).delJobb({ sheetId: j.sheetId, kortId: j.kortId, kl: "11:00", externalCostObjectIdB: ECO_1 });
+    expect((await prismaTimer.sheetTimer.findUniqueOrThrow({ where: { id: j.r2 } })).kortId).toBe(svar.kortIdB);
+    const maskin = await prismaTimer.sheetMachine.findUniqueOrThrow({ where: { id: j.maskin } });
+    expect([maskin.kortId, maskin.sheetTimerId, maskin.externalCostObjectId]).toEqual([j.kortId, j.r1, null]);
+    const vare = await prismaVarelager.vareforbruk.findUniqueOrThrow({ where: { id: v.id } });
+    expect([vare.kortId, vare.sheetTimerId, vare.externalCostObjectId]).toEqual([j.kortId, j.r1, null]);
+  });
+
+  it("maskin over klokkeslettet på en rad som deles, blir i A; ingen avvisning", async () => {
+    const j = await nyJobb();
+    // Kontrollørens eksempel fra gate 98: rad 07–11, maskin 09:00–10:00, delt kl. 09:30.
     await prismaTimer.sheetMachine.update({ where: { id: j.maskin }, data: { fraTid: "09:00", tilTid: "10:00", timer: 1 } });
-    const for_ = await tilstand(j);
-    for (const forhandsvis of [true, false]) {
-      await expect(
-        dag(ATT).delJobb({ sheetId: j.sheetId, kortId: j.kortId, kl: "09:30", externalCostObjectIdB: ECO_1, forhandsvis }),
-      ).rejects.toThrow(/over klokkeslettet 09:30/);
-    }
-    expect(await tilstand(j)).toEqual(for_);
+    await dag(ATT).delJobb({ sheetId: j.sheetId, kortId: j.kortId, kl: "09:30", externalCostObjectIdB: ECO_1 });
+    const maskin = await prismaTimer.sheetMachine.findUniqueOrThrow({ where: { id: j.maskin } });
+    expect([maskin.kortId, maskin.sheetTimerId]).toEqual([j.kortId, j.r1]);
   });
 
   it("maskintimer over del A avvises (timesjekken står) og ingenting skrives", async () => {

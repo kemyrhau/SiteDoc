@@ -2,7 +2,8 @@
 /**
  * w15b (B42 A + Kenneths presisering 2026-11-21, web-timeforing-plan.md § 4.15 del B og G):
  * reisevinduet — systemet foreslår, arbeideren retter.
- *  - «Til annet kontor» → «Etter arbeid»: 230 min etter arbeid 07:00–12:00 gir 12:00–15:50.
+ *  - § 8.22 (svar 1A): ingen kontorreise; «Fra et annet kontor fra i dag» ved oppmøtestedet
+ *    regner reisen fra kontoret og lagres som vanlig reise, perioden fra sedeldatoen.
  *  - Rettet start: slutten følger. Rettet slutt: står, timene = slutt − start.
  *  - «Hvor kjørte du til?»: bytt prosjekt → underprosjekt tomt, linja sier «Får eget kort …».
  *  - Overlapp med en annen rad sperrer Lagre med tekst som navngir raden.
@@ -181,10 +182,8 @@ function rendre({ timer = [arbeid()] as Rad[], kontorer = 2 } = {}) {
     "oppmotested.hentMatriseForFirma": [
       { oppmotestedId: "tromso", byggeplassId: "b1", kjoretidMin: 4, avstandM: 2000 },
       { oppmotestedId: "tromso", byggeplassId: "b2", kjoretidMin: 35, avstandM: 30000 },
-    ],
-    "oppmotested.hentKontorAvstanderForFirma": [
-      { fraOppmotestedId: "narvik", tilOppmotestedId: "tromso", kjoretidMin: 230, avstandM: 250000 },
-      { fraOppmotestedId: "alta", tilOppmotestedId: "tromso", kjoretidMin: 300, avstandM: 400000 },
+      { oppmotestedId: "narvik", byggeplassId: "b1", kjoretidMin: 230, avstandM: 250000 },
+      { oppmotestedId: "alta", byggeplassId: "b1", kjoretidMin: 300, avstandM: 400000 },
     ],
     "oppmotePeriode.hentMine": { perioder: [FAST_TROMSO], trengerValg: false },
     "timer.lonnsart.list": [
@@ -217,39 +216,51 @@ async function lagre(d: HTMLElement) {
 describe("w15b — reisevinduet: systemet foreslår, arbeideren retter", () => {
   afterEach(cleanup);
 
-  it("«Til annet kontor» → «Etter arbeid»: 12:00–15:50, kontoret forvalgt", () => {
+  it("§ 8.22: ingen kontorreise — bare Tur/Retur, ingen «Når kjørte du?»", () => {
     const d = rendre();
-    fireEvent.click(knapp(d, "timer.reiseKort.tilAnnetKontor"));
-    // Forslaget før arbeid (som i dag): 03:10–07:00.
+    expect(within(d).queryByRole("button", { name: "timer.reiseKort.tilAnnetKontor" })).toBeNull();
+    expect(within(d).queryByRole("button", { name: "timer.reiseKort.forArbeid" })).toBeNull();
+    expect(within(d).queryByRole("button", { name: "timer.reiseKort.etterArbeid" })).toBeNull();
+    expect(d.textContent).not.toContain("timer.reiseKort.naar");
+    const kontor = within(d).getByLabelText("timer.reiseKort.annetKontorFraIDag") as HTMLSelectElement;
+    expect(kontor.value).toBe("");
+    expect(Array.from(kontor.options).map((o) => o.value)).toEqual(["", "narvik"]);
+  });
+
+  it("«Fra et annet kontor fra i dag»: reisen regnes fra kontoret og lagres som vanlig reise; perioden fra i dag", async () => {
+    const d = rendre();
+    fireEvent.change(within(d).getByLabelText("timer.reiseKort.annetKontorFraIDag"), { target: { value: "narvik" } });
     expect(start(d).value).toBe("03:10");
     expect(slutt(d).value).toBe("07:00");
-    expect(d.textContent).toContain("Kontor Narvik");
-    fireEvent.click(knapp(d, "timer.reiseKort.etterArbeid"));
-    expect(start(d).value).toBe("12:00");
-    expect(slutt(d).value).toBe("15:50");
-    expect(d.textContent).toContain('timer.reiseKort.forslag{"min":230}');
+    expect(d.textContent).toContain('timer.reiseKort.fraOppmotested{"navn":"Kontor Narvik"}');
+    expect(d.textContent).toContain('timer.reiseKort.havnerJobb{"sted":"sommerfeldtsgt 65"}');
+    const input = (await lagre(d))!;
+    expect(input).toMatchObject({ projectId: "p1", byggeplassId: "b1", fraTid: "03:10", tilTid: "07:00", reiseKjoretidMin: 230 });
+    expect(input.reiseKilde).not.toBe("overforing");
+    expect(input.reiseOppmotestedId).toBe("narvik");
+    expect(h.kall.find((k) => k.key === "oppmotePeriode.overforing")?.input).toMatchObject({
+      handling: "start",
+      oppmotestedId: "narvik",
+      dato: DATO,
+    });
+  });
+
+  it("negativkontroll: uten annet kontor kalles ikke oppmotePeriode.overforing", async () => {
+    const d = rendre();
+    expect(await lagre(d)).toBeDefined();
+    expect(h.kall.some((k) => k.key === "oppmotePeriode.overforing")).toBe(false);
   });
 
   it("rettet start: slutten følger; rettet slutt: står og gir timene", async () => {
     const d = rendre();
-    fireEvent.click(knapp(d, "timer.reiseKort.tilAnnetKontor"));
-    fireEvent.click(knapp(d, "timer.reiseKort.etterArbeid"));
-    fireEvent.change(start(d), { target: { value: "13:00" } });
-    expect(slutt(d).value).toBe("16:50");
-    fireEvent.change(slutt(d), { target: { value: "17:30" } });
-    expect(start(d).value).toBe("13:00");
-    expect(slutt(d).value).toBe("17:30");
+    expect(start(d).value).toBe("06:56");
+    fireEvent.change(start(d), { target: { value: "06:00" } });
+    expect(slutt(d).value).toBe("06:04");
+    fireEvent.change(slutt(d), { target: { value: "06:30" } });
+    expect(start(d).value).toBe("06:00");
+    expect(slutt(d).value).toBe("06:30");
     const input = (await lagre(d))!;
-    expect(input).toMatchObject({ fraTid: "13:00", tilTid: "17:30", timer: 4.5, projectId: "p1" });
-    // Firmaets kjøretid står på raden, så attestanten ser begge.
-    expect(input.reiseKjoretidMin).toBe(230);
-    expect(input.lonnsartId).toBe("lr");
-    // Kl. 12-regelen: start 13:00 → det nye kontoret gjelder fra dagen etter.
-    expect(h.kall.find((k) => k.key === "oppmotePeriode.overforing")?.input).toMatchObject({
-      handling: "start",
-      oppmotestedId: "narvik",
-      dato: "2026-11-06",
-    });
+    expect(input).toMatchObject({ fraTid: "06:00", tilTid: "06:30", timer: 0.5, projectId: "p1" });
   });
 
   it("bytt valg forkaster rettede tider (forslaget regnes på nytt)", () => {
@@ -276,27 +287,11 @@ describe("w15b — reisevinduet: systemet foreslår, arbeideren retter", () => {
     expect(input).toMatchObject({ projectId: "p2", byggeplassId: "b2", externalCostObjectId: null, fraTid: "06:25" });
   });
 
-  it("w15c: «Til annet kontor» → «Etter arbeid» får eget kort, som serveren (del E punkt 6)", () => {
-    const d = rendre();
-    fireEvent.click(knapp(d, "timer.reiseKort.tilAnnetKontor"));
-    fireEvent.click(knapp(d, "timer.reiseKort.etterArbeid"));
-    expect(d.textContent).toContain("timer.reiseKort.havnerEget");
-    expect(d.textContent).not.toContain("timer.reiseKort.havnerJobb");
-  });
-
-  it("w15c: «Til annet kontor» → «Før arbeid» står i jobben man kjører til", () => {
-    const d = rendre();
-    fireEvent.click(knapp(d, "timer.reiseKort.tilAnnetKontor"));
-    fireEvent.click(knapp(d, "timer.reiseKort.forArbeid"));
-    expect(d.textContent).toContain('timer.reiseKort.havnerJobb{"sted":"sommerfeldtsgt 65"}');
-  });
-
   it("overlapp med en annen rad: Lagre sperret, teksten navngir raden; ingen mutate", async () => {
     const d = rendre({ timer: [arbeid(), arbeid({ id: "r2", fraTid: "13:00", tilTid: "15:00", kortId: "k2" })] });
-    fireEvent.click(knapp(d, "timer.reiseKort.tilAnnetKontor"));
-    fireEvent.click(knapp(d, "timer.reiseKort.etterArbeid"));
-    // Kjedens slutt er 15:00 → 15:00–18:50. Rett start til 12:00 → 12:00–15:50 kolliderer med 13:00–15:00.
-    fireEvent.change(start(d), { target: { value: "12:00" } });
+    fireEvent.click(knapp(d, "timer.reiseKort.retur"));
+    // Retur etter dagens slutt 15:00 → 15:00–15:04. Rett start til 14:00 → 14:00–14:04 kolliderer med 13:00–15:00.
+    fireEvent.change(start(d), { target: { value: "14:00" } });
     expect(lagreKnapp(d).disabled).toBe(true);
     const rod = d.querySelector("p.text-red-700")?.textContent ?? "";
     expect(rod).toContain("timer.feil.overlappKort");
@@ -318,11 +313,10 @@ describe("w15b — reisevinduet: systemet foreslår, arbeideren retter", () => {
     expect(d.querySelector("p.text-red-700")).toBeNull();
   });
 
-  it("tre kontorer: kontoret velges i nedtrekket, forvalgt første andre kontor", () => {
+  it("tre kontorer: kontoret velges i nedtrekket, ingen forvalgt", () => {
     const d = rendre({ kontorer: 3 });
-    fireEvent.click(knapp(d, "timer.reiseKort.tilAnnetKontor"));
-    const kontor = within(d).getByLabelText("timer.reiseKort.hvorTil") as HTMLSelectElement;
-    expect(kontor.value).toBe("narvik");
+    const kontor = within(d).getByLabelText("timer.reiseKort.annetKontorFraIDag") as HTMLSelectElement;
+    expect(kontor.value).toBe("");
     fireEvent.change(kontor, { target: { value: "alta" } });
     expect(d.textContent).toContain('timer.reiseKort.forslag{"min":300}');
     expect(start(d).value).toBe("02:00");

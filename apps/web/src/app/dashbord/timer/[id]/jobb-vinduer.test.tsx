@@ -235,6 +235,35 @@ describe("w3a — vinduene arver jobben", () => {
     for (const felt of ["fraTid", "tilTid", "mengde", "enhet"]) expect(oppdater?.input).not.toHaveProperty(felt);
   });
 
+  it("§ 8.22 punkt 4: maskinvinduet uten jobb (dagskort) har ingen fra–til; lagrede fra–til sendes ikke, mengde står", () => {
+    rendre("dagskort");
+    const sedel = h.data["timer.dagsseddel.hentMedId"] as typeof DAG7_SEDEL;
+    const lagret = { fraTid: "15:00", tilTid: "16:00", mengde: "12", enhet: "m3" };
+    h.data["timer.dagsseddel.hentMedId"] = { ...sedel, maskiner: sedel.maskiner.map((m) => ({ ...m, ...lagret })) };
+    cleanup();
+    render(<Side />);
+    const blyant = screen
+      .getAllByTitle("handling.rediger")
+      .find((b) => b.closest("li")?.textContent?.includes("Gravemaskin G-12"));
+    fireEvent.click(blyant!);
+    const dialog = screen.getByRole("dialog", { name: "timer.detalj.redigerMaskinRad" });
+    expect(dialog.querySelectorAll('input[type="time"]')).toHaveLength(0);
+    expect(dialog.textContent).not.toContain("timer.felt.startTid");
+    expect(dialog.textContent).not.toContain("timer.felt.sluttTid");
+    // Negativkontroll: uten jobb står mengde og enhet.
+    expect(dialog.textContent).toContain("timer.felt.mengde");
+    fireEvent.change(dialog.querySelector('input[type="number"]')!, { target: { value: "0.75" } });
+    // Maskinen krever timerad (d2c-1): velg den første.
+    const timerad = Array.from(dialog.querySelectorAll("select")).find((el) =>
+      el.textContent?.includes("timer.maskinTimerad.valg"),
+    )!;
+    fireEvent.change(timerad, { target: { value: timerad.options[1]!.value } });
+    fireEvent.submit(dialog.querySelector("form")!);
+    const oppdater = h.kall.find((k) => k.sti === "timer.dagsseddel.maskin.oppdater");
+    expect(oppdater?.input).toMatchObject({ timer: 0.75, mengde: 12, enhet: "m3" });
+    for (const felt of ["fraTid", "tilTid"]) expect(oppdater?.input).not.toHaveProperty(felt);
+  });
+
   it("«+ Vare»: ingen prosjekt/timerad/byggeplass, varen følger jobbens første arbeidsrad (S2 A)", () => {
     rendre();
     const dialog = fraJobb2("timer.prosjektkort.nyVareKort");

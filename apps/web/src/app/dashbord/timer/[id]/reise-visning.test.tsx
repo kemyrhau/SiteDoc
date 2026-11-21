@@ -153,10 +153,10 @@ describe("w15d — kortet med bare reise (B45 A)", () => {
     expect(synligeLenker()).toEqual(LENKER);
   });
 
-  it("bare reise til annet kontor: ingen «+ Timer» (F25)", () => {
+  it("§ 8.22 punkt 2: reise til annet kontor alene har ingen særregel — «+ Timer» står", () => {
     rendre([{ ...TUR, reiseKilde: "overforing", reiseRetning: "ut" }]);
     aapneForste();
-    expect(synligeLenker()).toEqual(["timer.prosjektkort.nyReise", "timer.prosjektkort.leggTil"]);
+    expect(synligeLenker()).toEqual(["timer.prosjektkort.nyTimer", "timer.prosjektkort.nyReise", "timer.prosjektkort.leggTil"]);
   });
 });
 
@@ -203,21 +203,13 @@ describe("w15d — reiselinja og hodet i jobben", () => {
     }
   });
 
-  it("overføring til annet kontor: linja sier «Overføring til annet kontor», ikke prosjektet", () => {
-    rendre([ARBEID1, { ...RETUR, id: "ro", reiseKilde: "overforing", reiseRetning: "ut", byggeplassId: null }]);
+  it("§ 8.22 punkt 2: reise til annet kontor har ingen egen linjetekst — vanlig reise", () => {
+    rendre([ARBEID1, { ...RETUR, id: "ro", reiseKilde: "overforing", reiseRetning: "retur" }]);
     aapneForste();
     const tekst = document.querySelector('[data-reiselinje="ro"]')!.textContent ?? "";
-    expect(tekst).toContain("timer.reiseKort.annetKontor");
-    expect(tekst).not.toContain("timer.prosjektkort.reiseTil");
-  });
-
-  it("overføring tilbake: linja sier «Overføring fra annet kontor», ikke «til»", () => {
-    rendre([ARBEID1, { ...RETUR, id: "ro", reiseKilde: "overforing", reiseRetning: "retur", byggeplassId: null }]);
-    aapneForste();
-    const tekst = document.querySelector('[data-reiselinje="ro"]')!.textContent ?? "";
-    expect(tekst).toContain("timer.reiseKort.fraAnnetKontor");
+    expect(tekst).toContain('timer.prosjektkort.reiseFra{"sted":"Narvik"}');
     expect(tekst).not.toContain("timer.reiseKort.annetKontor");
-    expect(tekst).not.toContain("timer.prosjektkort.reiseFra");
+    expect(tekst).not.toContain("timer.reiseKort.fraAnnetKontor");
   });
 
   it("reise uten underprosjekt i en jobb med underprosjekt: «Uten underprosjekt» (B48 A)", () => {

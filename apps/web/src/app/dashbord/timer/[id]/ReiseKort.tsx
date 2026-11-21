@@ -10,7 +10,6 @@ import {
   manuellReiseForklaringTekst,
   medOverforingPeriodeId,
   periodeDatoFraOverforing,
-  type ReiseKortNaar,
   type ReiseKortSperre,
 } from "@sitedoc/shared";
 import { trpc } from "@/lib/trpc";
@@ -29,30 +28,30 @@ import {
  *  POST 2026-11-15 (13) L2 § 7 C: reise-kortet («+ Reise») på web.
  *
  *  Erstatter `TimerRadDialog` med låst reise-lønnsart for NY reise-rad — samme
- *  kort som mobilens `ReiseKort`: Tur / Retur (+ overføringen første/siste dag
- *  i en periode, forhåndsvalgt), oppmøtestedet som tekst (bare når firmaet har
- *  flere), én resultatlinje og underprosjekt. Tid, kjøretid, lønnsart og
+ *  kort som mobilens `ReiseKort`: Tur / Retur, oppmøtestedet som tekst (bare når
+ *  firmaet har flere), én resultatlinje og underprosjekt. Tid, kjøretid, lønnsart og
  *  aktivitet utledes — den ansatte velger aldri oppmøtested.
  *
  *  Lagre sperres (KnappMedForklaring) når resultatet har en sperre, når
  *  oppslagene ikke er lastet, eller når sedelen mangler aktivitet.
  *
- *  Del B (POST 2026-11-15 (13)): «Overføring til annet kontor» (≥ 2 aktive
- *  kontorer) setter et midlertidig oppmøtested — `oppmotePeriode.overforing`
- *  kalles FØR raden, så raden bærer periodens id. Valg av eget faste kontor
- *  avslutter det. Kortlinjen «Midlertidig: X fra dd.mm · Avslutt» angrer.
+ *  § 8.22 punkt 2 (Kenneth 2026-11-21, svar 1A): ingen egen kontorreise. Ved
+ *  oppmøtestedet kan arbeideren velge «Fra et annet kontor fra i dag» (≥ 2 aktive
+ *  kontorer): `oppmotePeriode.overforing` setter perioden fra sedeldatoen FØR raden,
+ *  og reisen lagres som vanlig reise fra det kontoret. Kortlinjen «Midlertidig: X fra
+ *  dd.mm · Avslutt» avslutter perioden.
  *
  *  w15b (B42 A, presiseringen 2026-11-21): systemet foreslår, arbeideren retter.
- *  «Hvor kjørte du til?» (prosjekt + byggeplass, eller kontor), «Når kjørte du?»
- *  (kontorvalget), «Start kl.» og «Slutt kl.» fylt ut av forslaget og rettbare.
+ *  «Hvor kjørte du til?» (prosjekt + byggeplass), «Start kl.» og «Slutt kl.» fylt
+ *  ut av forslaget og rettbare.
  *  Retter han starten, følger slutten (start + kjøretid); en rettet slutt står.
- *  Bytter han valg, prosjekt, byggeplass eller «Når», regnes forslaget på nytt.
+ *  Bytter han valg, kontor, prosjekt eller byggeplass, regnes forslaget på nytt.
  *  Linja «havner i» regner kortet før lagring (`reiseHavnerI`). Overlapp med en
  *  annen rad og slutt før start sperrer Lagre (serveren avviser overlapp uansett).
  * ============================================================================ */
 
 /** w15b: en rad på sedelen — dagsrammen, overlapp-sperren og linja «havner i». */
-export type ReiseKortDagsrad = ReiseHavnerRad & { tilTid: string | null; erOverforing?: boolean };
+export type ReiseKortDagsrad = ReiseHavnerRad & { tilTid: string | null };
 
 /** YYYY-MM-DD → dd.mm */
 function kortDato(d: string): string {
@@ -83,7 +82,6 @@ export function ReiseKort({
   andreRader,
   eierId,
   resolverLonnsartId,
-  skjulOverforingRetninger,
   erFirmaAdmin,
   forvalgtByggeplassId,
   forvalgtEcoId,
@@ -109,8 +107,6 @@ export function ReiseKort({
   /** w15f (F55): sedelens eier — reisens egen kort-id regnes som på serveren. */
   eierId?: string;
   resolverLonnsartId: string | null;
-  /** Retninger sedelen alt har en overføringsrad for — tilbys ikke igjen. */
-  skjulOverforingRetninger: ReadonlyArray<"ut" | "retur">;
   /** Firmaadmin får lenke til reise-regelsettet ved manglende art. */
   erFirmaAdmin: boolean;
   /** w3a (S6 A, B34 B): «+ Reise» fra en jobb — jobbens byggeplass og underprosjekt er
@@ -126,17 +122,16 @@ export function ReiseKort({
   const [feil, setFeil] = useState<string | null>(null);
   // w15b: «Hvor kjørte du til?» — fylt ut fra jobben, kan byttes.
   const [prosjektId, setProsjektId] = useState(projectId);
-  // w15b: «Når kjørte du?» og arbeiderens rettede tider. null = forslaget.
-  const [naar, setNaar] = useState<ReiseKortNaar | null>(null);
+  // § 8.22 (svar 1A): «Fra et annet kontor fra i dag». null = oppmøtestedet perioden gir.
+  const [annetKontorId, setAnnetKontorId] = useState<string | null>(null);
+  // w15b: arbeiderens rettede tider. null = forslaget.
   const [rettetStart, setRettetStart] = useState<string | null>(null);
   const [rettetSlutt, setRettetSlutt] = useState<string | null>(null);
   const nullstillTider = () => {
     setRettetStart(null);
     setRettetSlutt(null);
   };
-  // Kontorreisen føres på jobbens prosjekt; prosjektvalget gjelder byggeplass-reisen.
-  const kontorValgt = valg?.type === "kontor";
-  const reiseProsjektId = kontorValgt ? projectId : prosjektId;
+  const reiseProsjektId = prosjektId;
 
   // Forvalgt byggeplass fra jobben erstatter auto-forslaget (jobben er stedet).
   const bp = useRadByggeplass({
@@ -151,20 +146,14 @@ export function ReiseKort({
     dato,
     projectId: reiseProsjektId,
     byggeplassId: bp.byggeplassId,
-    byggeplasser: byggeplasser ?? [],
-    prosjektNavn,
     dagsrader,
     resolverLonnsartId,
     valg,
-    skjulOverforingRetninger,
-    naar: kontorValgt ? naar : null,
+    annetKontorId,
     startTid: rettetStart,
     sluttTid: rettetSlutt,
   });
-  const { overforingValg, aktivtValg, resultat, oppmotestedNavn, regelStatus } = reise;
-  const erOverforing = aktivtValg.type === "overforing";
-  const overforing = erOverforing ? reise.overforinger[aktivtValg.indeks] : undefined;
-  const erKontor = aktivtValg.type === "kontor";
+  const { aktivtValg, resultat, oppmotestedNavn, regelStatus } = reise;
   const { kontorOppsett, kontorKall, kontorKonflikt, apenOverforing } = reise;
 
   const overforingMut = trpc.oppmotePeriode.overforing.useMutation({
@@ -180,11 +169,7 @@ export function ReiseKort({
   });
 
   const sperre = regelStatus === "klar" ? resultat.sperre : null;
-  const lagretByggeplassId = erKontor
-    ? null
-    : erOverforing
-      ? (overforing?.byggeplassId ?? bp.byggeplassId)
-      : bp.byggeplassId;
+  const lagretByggeplassId = bp.byggeplassId;
 
   // w15b: slutt før start, og overlapp med en annen rad på sedelen (samme delte regel som
   // timerad-vinduet; serveren avviser overlapp i `tilfoyTimerRad`).
@@ -229,7 +214,6 @@ export function ReiseKort({
             retning: resultat.spor.reiseRetning,
             fraTid: resultat.fraTid,
             erReise: resultat.spor.erReise,
-            reiseKilde: resultat.spor.reiseKilde,
           },
         })
       : null;
@@ -283,17 +267,17 @@ export function ReiseKort({
     if (!kanLagre || !aktivitetId || !resultat.spor || !resultat.klassifisering?.lonnsartId) return;
     setFeil(null);
     let s = resultat.spor;
-    if (erKontor && kontorKall) {
+    if (kontorKall) {
       // Perioden skrives FØR raden, så raden bærer periodens id i reiseRegel.
       try {
         const r = await overforingMut.mutateAsync({
           id: crypto.randomUUID(),
           organizationId,
           handling: kontorKall.handling,
-          ...(kontorKall.oppmotestedId ? { oppmotestedId: kontorKall.oppmotestedId } : {}),
+          oppmotestedId: kontorKall.oppmotestedId,
           dato: kontorKall.dato,
         });
-        // Ny ved «opprettet», lukket ved «lukket», åpen ved «ingen», null ved «slettet».
+        // Ny ved «opprettet», åpen ved «ingen».
         s = medOverforingPeriodeId(s, r.periode?.id ?? null);
       } catch (e) {
         setFeil(e instanceof Error ? e.message : String(e));
@@ -341,7 +325,7 @@ export function ReiseKort({
       },
       {
         onSuccess: () => {
-          setValg(null);
+          setAnnetKontorId(null);
           nullstillTider();
         },
         onError: (e: { message: string }) => setFeil(e.message),
@@ -352,7 +336,6 @@ export function ReiseKort({
   // w15b: forslaget regnes på nytt når valget endres — rettede tider forkastes.
   function velg(v: ReiseKortValg) {
     setValg(v);
-    setNaar(null);
     nullstillTider();
   }
   function byttProsjekt(id: string) {
@@ -366,10 +349,7 @@ export function ReiseKort({
   }
 
   const valgKnapp = (v: ReiseKortValg, tekst: string, key: string) => {
-    // Kontorvalget er én knapp; kontoret velges i «Hvor kjørte du til?».
-    const aktiv =
-      v.type === aktivtValg.type &&
-      (v.type !== "overforing" || (aktivtValg.type === "overforing" && v.indeks === aktivtValg.indeks));
+    const aktiv = v.type === aktivtValg.type;
     return (
       <button
         key={key}
@@ -393,26 +373,7 @@ export function ReiseKort({
         <div className="flex flex-wrap gap-2">
           {valgKnapp({ type: "tur" }, t("timer.reiseKort.tur"), "tur")}
           {valgKnapp({ type: "retur" }, t("timer.reiseKort.retur"), "retur")}
-          {/* w15b: kontorene står i «Hvor kjørte du til?»; forvalgt første andre kontor. */}
-          {kontorOppsett &&
-            kontorOppsett.andre.length > 0 &&
-            valgKnapp(
-              { type: "kontor", oppmotestedId: kontorOppsett.andre[0]! },
-              t("timer.reiseKort.tilAnnetKontor"),
-              "kontor",
-            )}
         </div>
-        {overforingValg.length > 0 && (
-          <div className="flex flex-col items-start gap-2">
-            {overforingValg.map(({ o, indeks }) =>
-              valgKnapp(
-                { type: "overforing", indeks },
-                t("timer.reiseKort.overforing", { fra: o.fraNavn, til: o.tilNavn }),
-                `ovf-${indeks}`,
-              ),
-            )}
-          </div>
-        )}
 
         {apenOverforing && apenOverforing.oppmotestedId && (
           <p className="text-sm text-gray-700">
@@ -432,34 +393,41 @@ export function ReiseKort({
           </p>
         )}
 
-        {!erOverforing && !erKontor && oppmotestedNavn && (
+        {oppmotestedNavn && (
           <p className="text-sm text-gray-700">{t("timer.reiseKort.fraOppmotested", { navn: oppmotestedNavn })}</p>
         )}
 
-        {/* w15b: «Hvor kjørte du til?» — prosjekt og byggeplass, eller kontoret. */}
-        {!erOverforing && (
+        {/* § 8.22 (svar 1A): midlertidig oppmøtested satt av arbeideren selv — reisen
+            regnes fra kontoret, perioden gjelder fra i dag. */}
+        {kontorOppsett && kontorOppsett.andre.length > 0 && (
           <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="reise-annet-kontor">
+              {t("timer.reiseKort.annetKontorFraIDag")}
+            </label>
+            <select
+              id="reise-annet-kontor"
+              value={annetKontorId ?? ""}
+              onChange={(e) => {
+                setAnnetKontorId(e.target.value || null);
+                nullstillTider();
+              }}
+              className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+            >
+              <option value="">—</option>
+              {kontorOppsett.andre.map((id) => (
+                <option key={id} value={id}>
+                  {reise.kontorNavn(id)}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* w15b: «Hvor kjørte du til?» — prosjekt og byggeplass. */}
+        <div>
             <p className="mb-2 text-sm font-medium text-gray-900">
               {aktivtValg.type === "retur" ? t("timer.reiseKort.hvorFra") : t("timer.reiseKort.hvorTil")}
             </p>
-            {erKontor && kontorOppsett && aktivtValg.type === "kontor" ? (
-              kontorOppsett.andre.length === 1 ? (
-                <p className="text-sm text-gray-900">{reise.kontorNavn(aktivtValg.oppmotestedId)}</p>
-              ) : (
-                <select
-                  aria-label={t("timer.reiseKort.hvorTil")}
-                  value={aktivtValg.oppmotestedId}
-                  onChange={(e) => velg({ type: "kontor", oppmotestedId: e.target.value })}
-                  className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
-                >
-                  {kontorOppsett.andre.map((id) => (
-                    <option key={id} value={id}>
-                      {reise.kontorNavn(id)}
-                    </option>
-                  ))}
-                </select>
-              )
-            ) : (
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="reise-prosjekt">
@@ -490,41 +458,7 @@ export function ReiseKort({
                   }}
                 />
               </div>
-            )}
           </div>
-        )}
-
-        {/* w15b (B42 A): «Når kjørte du?» for kontorvalget. */}
-        {erKontor && (
-          <div>
-            <p className="mb-2 text-sm font-medium text-gray-900">{t("timer.reiseKort.naar")}</p>
-            <div className="flex flex-wrap gap-2">
-              {(["forArbeid", "etterArbeid"] as const).map((n) => {
-                const gjeldende = naar ?? (reise.kontorKall?.handling === "slutt" ? "etterArbeid" : "forArbeid");
-                const aktiv = gjeldende === n;
-                return (
-                  <button
-                    key={n}
-                    type="button"
-                    aria-pressed={aktiv}
-                    onClick={() => {
-                      if (aktiv) return;
-                      setNaar(n);
-                      nullstillTider();
-                    }}
-                    className={`rounded-lg border px-3 py-2 text-sm ${
-                      aktiv
-                        ? "border-blue-600 bg-blue-50 font-medium text-blue-800"
-                        : "border-gray-300 bg-white text-gray-800 hover:bg-gray-50"
-                    }`}
-                  >
-                    {t(`timer.reiseKort.${n}`)}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
 
         {/* w15b: start og slutt er forslaget og kan rettes. Skjult bare når det ikke finnes
             noe å foreslå fra (byggeplass-periode, oppmøtested ikke valgt, kjøretid mangler). */}

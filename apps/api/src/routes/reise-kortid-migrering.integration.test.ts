@@ -5,13 +5,77 @@ import { prismaTimer } from "@sitedoc/db-timer";
 import { sikreKortId } from "../services/timer/kortId";
 import {
   effektivKortByggeplass,
-  egetReiseKort,
   jobberFraArbeidsrader,
-  OVERFORING_KORT_BYGGEPLASS,
+  jobbRekkefolge,
   utledKortId,
   utledReiseKortId,
-  velgReiseKort,
+  type KortNokkelFelt,
+  type ReiseKortJobb,
 } from "@sitedoc/shared";
+
+/**
+ * FROSSEN kopi av w15c-regelen (`velgReiseKort` + `egetReiseKort` slik de sto da migreringen
+ * 20261121120000 ble kjørt, før § 8.22 punkt 2 og 3 fjernet kontorreisens særregel). Paritetstesten
+ * tester SQL-en som er kjørt — den skal ikke følge senere endringer i den delte regelen.
+ */
+const OVERFORING_KORT_BYGGEPLASS = "overforing";
+const cmpC = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
+function velgReiseKort(
+  reise: {
+    projectId: string | null;
+    ecoId: string | null;
+    byggeplassId: string | null;
+    retning: string | null;
+    fraTid: string | null;
+    overforing?: boolean;
+  },
+  jobber: readonly ReiseKortJobb[],
+): string | null {
+  if (reise.projectId === null) return null;
+  const paaProsjekt = jobber.filter((j) => j.projectId === reise.projectId);
+  if (paaProsjekt.length === 0) return null;
+  let utvalg = reise.overforing ? paaProsjekt : paaProsjekt.filter((j) => j.byggeplassId === reise.byggeplassId);
+  if (utvalg.length === 0) return null;
+  if (reise.ecoId !== null) {
+    utvalg = utvalg.filter((j) => j.ecoId === reise.ecoId);
+    if (utvalg.length === 0) return null;
+  } else {
+    const uten = utvalg.filter((j) => j.ecoId === null);
+    if (uten.length > 0) utvalg = uten;
+  }
+  const forsteTid = (l: readonly ReiseKortJobb[]) =>
+    l.reduce<string | null>(
+      (min, j) => (j.forsteTid !== null && (min === null || cmpC(j.forsteTid, min) < 0) ? j.forsteTid : min),
+      null,
+    );
+  if (reise.overforing && reise.retning !== "retur" && reise.fraTid != null) {
+    const forsteArbeid = forsteTid(paaProsjekt);
+    if (forsteArbeid !== null && cmpC(reise.fraTid, forsteArbeid) >= 0) return null;
+  }
+  const ordnet = [...utvalg].sort(jobbRekkefolge);
+  const forste = ordnet[0]!;
+  const siste = ordnet[ordnet.length - 1]!;
+  if (reise.retning === "ut") return forste.kortId;
+  if (reise.retning === "retur") return siste.kortId;
+  if (reise.fraTid == null) return forste.kortId;
+  const forsteArbeid = forsteTid(ordnet);
+  if (forsteArbeid === null) return forste.kortId;
+  return cmpC(reise.fraTid, forsteArbeid) < 0 ? forste.kortId : siste.kortId;
+}
+function egetReiseKort(args: {
+  userId: string;
+  dato: string;
+  nokkel: KortNokkelFelt;
+  overforing: boolean;
+  jobbKortIder: Iterable<string>;
+}): string {
+  const { userId, dato, nokkel } = args;
+  if (args.overforing)
+    return utledReiseKortId({ userId, dato, nokkel: { ...nokkel, byggeplassId: OVERFORING_KORT_BYGGEPLASS } });
+  const utledet = utledKortId({ userId, dato, nokkel });
+  for (const k of args.jobbKortIder) if (k === utledet) return utledReiseKortId({ userId, dato, nokkel });
+  return utledet;
+}
 
 /**
  * w12 steg 1 — utfyllingen av kort-id på reiserader (web-timeforing-plan.md § 4.11 del E og
@@ -22,7 +86,7 @@ import {
  *    en jobb på en annen sedel er aldri kandidat).
  *  - PARITET (flyttet i w15c, plan § 4.15 del F punkt 2 og del H 3): samme sedler gjennom de to
  *    migreringene etter hverandre (w12, så w15c) gir samme kort som den delte regelen
- *    (`velgReiseKort` + `egetReiseKort`, slik `sikreKortId` kjører dem).
+ *    (`velgReiseKort` + `egetReiseKort` — frossen w15c-kopi over).
  *  - Kjørt to ganger = samme svar. Ingen andre felt endres (heller ikke updated_at).
  *  - Gate-SQL 0–3 = 0 etterpå. Telle-SQL-en (til Kenneth) kjøres på seeden før utfyllingen.
  *  - «Stille tomhet er forbudt»: fixturen MÅ ha reiserader uten kort-id før kjøring, og
@@ -265,7 +329,7 @@ async function kjorUtfylling(sql = W12_SQL) {
 }
 
 /**
- * Den delte regelen på radene slik de står i databasen nå — som `sikreKortId` kjører den:
+ * w15c-regelen (frossen kopi) på radene slik de står i databasen nå — som `sikreKortId` kjørte den:
  * attestert eller erstattet reise med kort-id står; ellers `velgReiseKort` (effektiv byggeplass,
  * kontorreise), så `egetReiseKort`.
  */

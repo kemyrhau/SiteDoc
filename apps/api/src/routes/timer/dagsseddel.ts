@@ -7,7 +7,7 @@ import { router, protectedProcedure } from "../../trpc/trpc";
 import { NokkelFeil, type FeilParam } from "../../trpc/feilformat";
 import type { Context } from "../../trpc/context";
 import { signerHvisPrivat } from "../../utils/hmac";
-import { planleggJobbDeling, maskinKrysserKl, JOBB_DELING_FEILTEKST } from "./jobb-deling";
+import { planleggJobbDeling, JOBB_DELING_FEILTEKST } from "./jobb-deling";
 import {
   lesMaskinJobbTilstand,
   krevIngenNyeMaskinBrudd,
@@ -112,6 +112,7 @@ import {
   type UkeAvvikRadInput,
   maskinKreverTimerad,
   erGyldigTimeradKobling,
+  velgTimeradForMaskin,
   harNormtak,
   erFravaerArt,
   restForFravaerMedTak,
@@ -3311,20 +3312,26 @@ async function utforRedigerSedelRader(
   const originalKort = new Map(
     [...eksTimer, ...eksTillegg, ...eksMaskin].map((r) => [r.id, r] as const),
   );
-  const arvKortId = (rad: {
-    originalId: string | null;
-    projectId?: string | null;
-    byggeplassId?: string | null;
-    externalCostObjectId?: string | null;
-  }) =>
-    kortIdForSkriving(redigerKortKontekst, {
-      lagret: rad.originalId ? (originalKort.get(rad.originalId) ?? null) : null,
+  // § 8.22 punkt 3: reise beholder også kortet når nøkkelen er uendret; arbeid↔reise → regel 3.
+  const arvKortId = (
+    rad: {
+      originalId: string | null;
+      projectId?: string | null;
+      byggeplassId?: string | null;
+      externalCostObjectId?: string | null;
+    },
+    erReise = false,
+  ) => {
+    const lagret = rad.originalId ? (originalKort.get(rad.originalId) ?? null) : null;
+    return kortIdForSkriving(redigerKortKontekst, {
+      lagret: lagret && ((lagret as { erReise?: boolean }).erReise ?? false) === erReise ? lagret : null,
       ny: {
         projectId: rad.projectId ?? null,
         byggeplassId: rad.byggeplassId ?? null,
         externalCostObjectId: rad.externalCostObjectId ?? null,
       },
     });
+  };
 
   // Ordre d2a punkt 9 — valg (a): rettingen oppdaterer radene på stedet.
   // En rad med `originalId` beholder id, kort-id og koblingene (maskin og vare →
@@ -3354,7 +3361,7 @@ async function utforRedigerSedelRader(
         pauseMin: timerPause[i] ?? 0,
         vehicleId: rad.vehicleId ?? null,
         erReise: redigerErReiseMap.get(rad.lonnsartId) ?? false,
-        kortId: (redigerErReiseMap.get(rad.lonnsartId) ?? false) ? null : arvKortId(rad),
+        kortId: arvKortId(rad, redigerErReiseMap.get(rad.lonnsartId) ?? false),
       },
     })),
     nyeTillegg: input.nyeRader.tillegg.map((rad) => ({
@@ -4512,22 +4519,19 @@ export const dagsseddelRouter = router({
       // F4-1d: rad-write + hode-synk (PK6) atomisk.
       const oppdatert = await ctx.prismaTimer.$transaction(async (tx) => {
         const maskinFoer = await lesMaskinJobbTilstand(tx, ctx.prismaMaskin, rad.sheetId);
-        // Kort-id (spec § 4.3): uendret nøkkel → id står; endret nøkkel (underprosjekt/
-        // byggeplass) eller arbeid↔reise → regel 3 i sikreKortId.
+        // Kort-id (spec § 4.3; § 8.22 punkt 3 også for reise): uendret nøkkel → id står;
+        // endret nøkkel (prosjekt/underprosjekt/byggeplass) eller arbeid↔reise → regel 3 i
+        // sikreKortId.
         const postErReise = typeof data.erReise === "boolean" ? data.erReise : rad.erReise;
-        data.kortId = postErReise
-          ? null
-          : kortIdForSkriving(await lastSedelKortKontekst(tx, rad.sheetId), {
-              lagret: rad.erReise ? null : rad,
-              ny: {
-                projectId: prosjektEtter,
-                byggeplassId: input.byggeplassId !== undefined ? input.byggeplassId : rad.byggeplassId,
-                externalCostObjectId:
-                  input.externalCostObjectId !== undefined
-                    ? input.externalCostObjectId
-                    : rad.externalCostObjectId,
-              },
-            });
+        data.kortId = kortIdForSkriving(await lastSedelKortKontekst(tx, rad.sheetId), {
+          lagret: rad.erReise === postErReise ? rad : null,
+          ny: {
+            projectId: prosjektEtter,
+            byggeplassId: input.byggeplassId !== undefined ? input.byggeplassId : rad.byggeplassId,
+            externalCostObjectId:
+              input.externalCostObjectId !== undefined ? input.externalCostObjectId : rad.externalCostObjectId,
+          },
+        });
         const o = await tx.sheetTimer.update({
           where: { id: input.id },
           data,
@@ -5047,12 +5051,20 @@ export const dagsseddelRouter = router({
           (
             await tx.sheetTimer.findMany({
               where: { sheetId: input.sheetId, id: { in: input.oppdateringer.map((o) => o.id) } },
-              select: { id: true, kortId: true, projectId: true, byggeplassId: true, externalCostObjectId: true },
+              select: {
+                id: true,
+                kortId: true,
+                projectId: true,
+                byggeplassId: true,
+                externalCostObjectId: true,
+                erReise: true,
+              },
             })
           ).map((r) => [r.id, r]),
         );
         for (const o of input.oppdateringer) {
           const erReise = erReiseMap.get(o.lonnsartId) ?? false;
+          const lagretRad = lagredeForOppdatering.get(o.id) ?? null;
           await tx.sheetTimer.update({
             where: { id: o.id },
             data: {
@@ -5061,17 +5073,16 @@ export const dagsseddelRouter = router({
                 { ...o, projectId: o.projectId ?? null, pauseMin: oppdateringPause.get(o.id) ?? 0 },
                 erReise,
               ),
-              kortId: erReise
-                ? null
-                : kortIdForSkriving(kortKontekst, {
-                    oppgittKortId: o.kortId ?? forslagFor(o),
-                    lagret: lagredeForOppdatering.get(o.id) ?? null,
-                    ny: {
-                      projectId: o.projectId ?? null,
-                      byggeplassId: o.byggeplassId ?? null,
-                      externalCostObjectId: o.externalCostObjectId ?? null,
-                    },
-                  }),
+              // § 8.22 punkt 3: reise beholder kortet ved uendret nøkkel (klientens id brukes ikke).
+              kortId: kortIdForSkriving(kortKontekst, {
+                oppgittKortId: erReise ? null : (o.kortId ?? forslagFor(o)),
+                lagret: lagretRad && lagretRad.erReise === erReise ? lagretRad : null,
+                ny: {
+                  projectId: o.projectId ?? null,
+                  byggeplassId: o.byggeplassId ?? null,
+                  externalCostObjectId: o.externalCostObjectId ?? null,
+                },
+              }),
             },
           });
         }
@@ -6674,19 +6685,17 @@ export const dagsseddelRouter = router({
       }
 
       const fraEcoId = rad.externalCostObjectId;
-      // Kort-id (spec § 4.3): nøkkelen endres → regel 3; koblet maskin følger raden (K6).
+      // Kort-id (spec § 4.3; § 8.22 punkt 3 også for reise): nøkkelen endres → regel 3; koblet
+      // maskin følger raden (K6).
       const kortKontekst = await lastSedelKortKontekst(ctx.prismaTimer, rad.sheetId);
-      const nyKortId =
-        "erReise" in rad && rad.erReise
-          ? null
-          : kortIdForSkriving(kortKontekst, {
-              lagret: rad,
-              ny: {
-                projectId: rad.projectId,
-                byggeplassId: rad.byggeplassId,
-                externalCostObjectId: input.externalCostObjectId,
-              },
-            });
+      const nyKortId = kortIdForSkriving(kortKontekst, {
+        lagret: rad,
+        ny: {
+          projectId: rad.projectId,
+          byggeplassId: rad.byggeplassId,
+          externalCostObjectId: input.externalCostObjectId,
+        },
+      });
       // Kort-id skrives bare når den endres (uendret id = ingen kolonne i data).
       const kortData = (rad.kortId ?? null) !== nyKortId ? { kortId: nyKortId } : {};
       // F4-1d: rad-write + touchSedel atomisk. w9 (WM97): kort-id og maskinvakten i samme
@@ -6816,17 +6825,32 @@ export const dagsseddelRouter = router({
         throw new TRPCError({ code: "BAD_REQUEST", message: JOBB_DELING_FEILTEKST[plan.feil] });
       }
 
-      // Maskin følger timeraden den er koblet til (K6); koblet til en delt rad → del A.
+      // § 8.22 (Kenneth 2026-11-21): maskin, varer, tillegg, utlegg og reise blir i del A. Maskin og
+      // vare koblet til en rad som går til B, kobles om til en rad som blir i A — ellers drar K6
+      // (`sikreKortId`) og `sikreVareKortId` dem etter raden til B. Raden velges som for en maskin
+      // uten gyldig kobling (`velgTimeradForMaskin`): størst overlapp, ellers flest timer i A.
       const tilB = new Set(plan.tilB);
-      const maskinTilB = maskiner.filter((m) => m.sheetTimerId && tilB.has(m.sheetTimerId)).map((m) => m.id);
-      // En maskin som går over klokkeslettet, kan ikke stå på én del (w5, gate 98).
-      const kryssende = maskiner.find((m) => maskinKrysserKl(m.fraTid, m.tilTid, input.kl));
-      if (kryssende) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: `En maskin går ${kryssende.fraTid}–${kryssende.tilTid}, over klokkeslettet ${input.kl}. Rett maskinens tid først.`,
+      const deltA = new Map(plan.delt.map((d) => [d.id, d] as const));
+      const raderIA = timer
+        .filter((r) => !tilB.has(r.id))
+        .map((r) => {
+          const d = deltA.get(r.id);
+          return {
+            id: r.id,
+            kortId: r.kortId,
+            projectId: r.projectId,
+            timer: d ? d.timerA : Number(r.timer),
+            erReise: false,
+            attestertStatus: r.attestertStatus,
+            fraTid: r.fraTid,
+            tilTid: d ? input.kl : r.tilTid,
+          };
         });
-      }
+      const radIAFor = (m: { fraTid?: string | null; tilTid?: string | null }) =>
+        velgTimeradForMaskin({ kortId: input.kortId, fraTid: m.fraTid, tilTid: m.tilTid }, raderIA);
+      const maskinOmkobling = maskiner
+        .filter((m) => m.sheetTimerId && tilB.has(m.sheetTimerId))
+        .map((m) => ({ id: m.id, sheetTimerId: radIAFor(m) }));
       // Maskintimer på en delt rad kan ikke overstige del A (maskin høyst radens timer, WM32).
       for (const d of plan.delt) {
         const sum = maskiner.filter((m) => m.sheetTimerId === d.id).reduce((s, m) => s + Number(m.timer), 0);
@@ -6845,8 +6869,7 @@ export const dagsseddelRouter = router({
           forhandsvisning: {
             timerA: rund(timerFor(plan.paaA) + plan.delt.reduce((s, d) => s + d.timerA, 0)),
             timerB: rund(timerFor(plan.tilB) + plan.delt.reduce((s, d) => s + d.timerB, 0)),
-            maskinPaaA: maskiner.length - maskinTilB.length,
-            maskinTilB: maskinTilB.length,
+            maskinPaaA: maskiner.length,
           },
         };
       }
@@ -6903,11 +6926,8 @@ export const dagsseddelRouter = router({
             etterPrRad[id] = korrigerbareVerdier("timer", { ...originaler.get(id)!, externalCostObjectId: input.externalCostObjectIdB });
           }
         }
-        if (maskinTilB.length > 0) {
-          await tx.sheetMachine.updateMany({
-            where: { id: { in: maskinTilB } },
-            data: { externalCostObjectId: input.externalCostObjectIdB, kortId: nyKortId },
-          });
+        for (const m of maskinOmkobling) {
+          await tx.sheetMachine.update({ where: { id: m.id }, data: { sheetTimerId: m.sheetTimerId } });
         }
         await synkroniserHodePause(tx, sheet.id);
         // w9 (WM98): begge delene sjekkes etter delingen — også maskiner uten klokkeslett
@@ -6915,11 +6935,12 @@ export const dagsseddelRouter = router({
         await sikreKortId(tx, sheet.id);
         await krevIngenNyeMaskinBrudd(tx, ctx.prismaMaskin, sheet.id, maskinFoer);
       });
-      // Varer koblet til rader som gikk til del B, følger dem (eget skjema, egen klient).
+      // Varer koblet til rader som gikk til del B, blir i A og kobles til en rad i A (eget skjema,
+      // egen klient). Kort og underprosjekt er A sine, som før delingen.
       if (plan.tilB.length > 0) {
         await ctx.prismaVarelager.vareforbruk.updateMany({
           where: { dagsseddelId: sheet.id, sheetTimerId: { in: plan.tilB } },
-          data: { externalCostObjectId: input.externalCostObjectIdB, kortId: nyKortId },
+          data: { sheetTimerId: radIAFor({}) },
         });
       }
       await touchSedel(pt, sheet.id);
@@ -6940,7 +6961,7 @@ export const dagsseddelRouter = router({
               tilEcoId: input.externalCostObjectIdB,
               delt: plan.delt.map((d) => d.id),
               tilB: plan.tilB,
-              maskinTilB,
+              maskinOmkoblet: maskinOmkobling.map((m) => m.id),
               etterPrRad,
             },
           },
@@ -7753,7 +7774,7 @@ export const dagsseddelRouter = router({
       });
 
       // Kort-id (spec § 4.3): delene beholder originalens id når nøkkelen er lik; `egetKort`
-      // gir ny id; ellers regel 3 (sikreKortId etter skrivingen). Reise får jobbens kort der (w12).
+      // gir ny id; ellers regel 3 (sikreKortId etter skrivingen). Reise likeså (§ 8.22 punkt 3).
       const splittKontekst = await lastSedelKortKontekst(ctx.prismaTimer, sheet.id);
       const splittKort = (del: {
         projectId?: string | null;
@@ -7761,8 +7782,7 @@ export const dagsseddelRouter = router({
         externalCostObjectId?: string | null;
         egetKort?: boolean;
       }): string | null => {
-        if ((original as { erReise?: boolean }).erReise) return null;
-        if (del.egetKort) return randomUUID();
+        if (del.egetKort) return (original as { erReise?: boolean }).erReise ? null : randomUUID();
         return kortIdForSkriving(splittKontekst, {
           lagret: original as {
             kortId: string | null;
@@ -8030,7 +8050,7 @@ export const dagsseddelRouter = router({
       });
 
       // Kort-id (spec § 4.3): delene beholder originalens id når nøkkelen er lik; `egetKort`
-      // gir ny id; ellers regel 3 (sikreKortId etter skrivingen). Reise får jobbens kort der (w12).
+      // gir ny id; ellers regel 3 (sikreKortId etter skrivingen). Reise likeså (§ 8.22 punkt 3).
       const splittKontekst = await lastSedelKortKontekst(ctx.prismaTimer, sheet.id);
       const splittKort = (del: {
         projectId?: string | null;
@@ -8038,8 +8058,7 @@ export const dagsseddelRouter = router({
         externalCostObjectId?: string | null;
         egetKort?: boolean;
       }): string | null => {
-        if ((original as { erReise?: boolean }).erReise) return null;
-        if (del.egetKort) return randomUUID();
+        if (del.egetKort) return (original as { erReise?: boolean }).erReise ? null : randomUUID();
         return kortIdForSkriving(splittKontekst, {
           lagret: original as {
             kortId: string | null;
@@ -9777,7 +9796,15 @@ export const dagsseddelRouter = router({
               oppgitt: string | null | undefined,
               ny: { projectId: string | null; byggeplassId: string | null; externalCostObjectId: string | null },
             ) => kortIdForSkriving(kortKontekst, { oppgittKortId: oppgitt, lagret: lagretKort.get(id) ?? null, ny });
-            // Reisens id fra klienten brukes ikke (sikreKortId velger jobben, w12) og K1-sjekkes ikke.
+            // Reisens id fra klienten brukes ikke og K1-sjekkes ikke. Reisen beholder sin LAGREDE id
+            // når nøkkelen er uendret (§ 8.22 punkt 3); ny eller flyttet reise → regelen i sikreKortId.
+            const reiseKortVedSync = (
+              id: string,
+              ny: { projectId: string | null; byggeplassId: string | null; externalCostObjectId: string | null },
+            ) => {
+              const lagret = lagretKort.get(id) ?? null;
+              return kortIdForSkriving(kortKontekst, { lagret: lagret?.erReise === true ? lagret : null, ny });
+            };
             const oppgitteKortIder = [
               ...skrivTimerListe.filter((t) => !reiseFelterMap.get(t.id)?.erReise),
               ...lokal.tillegg,
@@ -9894,9 +9921,13 @@ export const dagsseddelRouter = router({
                     reiseRegel: jsonEllerNull(rf.reiseRegel),
                     tidKilde: rf.tidKilde,
                     reiseAvvik: rf.reiseAvvik,
-                    // Kort-id regel 1/2; reise får jobbens kort av sikreKortId (w12).
+                    // Kort-id regel 1/2; ny eller flyttet reise får kortet av sikreKortId.
                     kortId: rf.erReise
-                      ? null
+                      ? reiseKortVedSync(t.id, {
+                          projectId: timerProsjekt(t),
+                          byggeplassId: syncTimerByggeplass.get(t.id) ?? null,
+                          externalCostObjectId: t.externalCostObjectId ?? null,
+                        })
                       : kortVedSync(t.id, t.kortId, {
                           projectId: timerProsjekt(t),
                           byggeplassId: syncTimerByggeplass.get(t.id) ?? null,

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { planleggJobbDeling, maskinKrysserKl, type JobbTimerRad } from "./jobb-deling";
+import { planleggJobbDeling, type JobbTimerRad } from "./jobb-deling";
 
 /**
  * w5 «Del opp» (bilde 8): planleggeren alene. Pausefordelingen er `fordelPauseVedSplitt` i
@@ -57,16 +57,5 @@ describe("planleggJobbDeling", () => {
 
   it("tom jobb avvises", () => {
     expect(planleggJobbDeling([], "09:00", pauseKl11)).toEqual({ feil: "tomDel" });
-  });
-});
-
-describe("maskinKrysserKl (w5, gate 98)", () => {
-  it("maskin som går over klokkeslettet krysser; grensene og maskin uten klokkeslett gjør ikke", () => {
-    expect(maskinKrysserKl("09:00", "10:00", "09:30")).toBe(true);
-    expect(maskinKrysserKl("09:00", "10:00", "09:00")).toBe(false);
-    expect(maskinKrysserKl("09:00", "10:00", "10:00")).toBe(false);
-    expect(maskinKrysserKl("07:00", "09:00", "10:00")).toBe(false);
-    expect(maskinKrysserKl(null, "10:00", "09:30")).toBe(false);
-    expect(maskinKrysserKl("09:00", null, "09:30")).toBe(false);
   });
 });
