@@ -4358,7 +4358,9 @@ function TimerRadDialog({
   const [jobbMaskiner, setJobbMaskiner] = useState<
     Array<{ rad: MaskinRad; timer: string; fjernet: boolean; laast: boolean }>
   >(() =>
-    !visKortMaskin
+    // § 8.22 punkt 3 (O3): «Legg til timer-rad» starter tom — en maskin som føres der, hører
+    // bare til den nye raden. «Rediger timer-rad» viser jobbens maskiner som før (punkt 6).
+    !visKortMaskin || !rad
       ? []
       : alleMaskinRader
           .filter((m) =>
@@ -4426,8 +4428,22 @@ function TimerRadDialog({
       utleieEnhet: enhetForUtstyr(l.rad.vehicleId),
     }));
   // S1 A: forslaget = «høyst» for en førermaskin; døgn-maskin får jobbens arbeid.
+  // § 8.22 punkt 3 (O3): i «Legg til timer-rad» foreslås bare radens egne timer (førermaskin
+  // aldri over «høyst»). Forslaget er et åpent felt; maskin har aldri fra–til.
   const nyMaskinForslag = (() => {
     if (!visKortMaskin) return "";
+    if (!rad) {
+      const radTimer = parseFloat(timer);
+      if (isNaN(radTimer) || radTimer <= 0) return "";
+      if (nyUtstyr && !maskinKreverTimerad(nyUtstyr.utleieEnhet)) return String(radTimer);
+      const [forer] = maskinHoystPerRad(
+        kortTimerLive,
+        [{ ...nyMaskinNokkel, timer: 0, utleieEnhet: null }, ...andreMaskinerLive],
+        pauseMin,
+      );
+      const forslag = forer !== null && forer !== undefined ? Math.min(radTimer, forer) : radTimer;
+      return forslag > 0 ? String(forslag) : "";
+    }
     if (nyUtstyr && !maskinKreverTimerad(nyUtstyr.utleieEnhet)) {
       const arbeid = jobbArbeidSum(kortTimerLive, nyMaskinNokkel, pauseMin);
       return arbeid > 0 ? String(arbeid) : "";
