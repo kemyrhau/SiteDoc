@@ -5,6 +5,7 @@
  * arbeid får eget kort) og får reisekilden fra reisevinduet.
  */
 import { describe, expect, it } from "vitest";
+import { utledKortId } from "@sitedoc/shared";
 import { reiseHavnerI, type ReiseHavnerRad } from "./useManuellReiseWeb";
 
 const jobb = (over: Partial<ReiseHavnerRad> = {}): ReiseHavnerRad => ({
@@ -85,5 +86,75 @@ describe("reiseHavnerI", () => {
     expect(
       reiseHavnerI({ rader: [jobb()], sedelByggeplass: null, reise: reise({ ...arbeid, ecoId: null }) }),
     ).toEqual({ type: "eget", projectId: "p1" });
+  });
+});
+
+/**
+ * w15f (F55, del H pkt. 26): en dag der et kort bare har maskin eller tillegg. Serveren gir
+ * reisen uten jobb `egetReiseKort` (= `utledKortId` av nøkkelen), og under terskel kortet med
+ * samme nøkkel blant alle radtypene — linja sier det samme kortet.
+ */
+describe("reiseHavnerI — kort uten arbeid (w15f, F55)", () => {
+  const eier = { userId: "u1", dato: "2026-11-21" };
+  const tilleggKort = utledKortId({ ...eier, nokkel: { projectId: "p2", byggeplassId: "b2", ecoId: null } });
+  const tillegg = { kortId: tilleggKort, projectId: "p2", byggeplassId: "b2", ecoId: null, opprettet: 5 };
+
+  it("reise til stedet der dagen bare har et tillegg → står i det kortet", () => {
+    const r = reiseHavnerI({
+      rader: [jobb()],
+      andreRader: [tillegg],
+      eier,
+      sedelByggeplass: null,
+      reise: reise({ projectId: "p2", byggeplassId: "b2", ecoId: null }),
+    });
+    expect(r).toEqual({ type: "kort", kortId: tilleggKort, byggeplassId: "b2", projectId: "p2" });
+  });
+
+  it("under terskel på samme sted som et maskinkort → maskinkortet", () => {
+    const maskin = { kortId: "km", projectId: "p2", byggeplassId: "b2", ecoId: null, opprettet: 3 };
+    const r = reiseHavnerI({
+      rader: [jobb()],
+      andreRader: [maskin],
+      eier,
+      sedelByggeplass: null,
+      reise: reise({ projectId: "p2", byggeplassId: "b2", ecoId: null, erReise: false, retning: null }),
+    });
+    expect(r).toMatchObject({ type: "kort", kortId: "km" });
+  });
+
+  it("tillegg på et annet sted, eller uten eier (eldre kall) → eget kort som før", () => {
+    const annetSted = {
+      ...tillegg,
+      byggeplassId: "b3",
+      kortId: utledKortId({ ...eier, nokkel: { projectId: "p2", byggeplassId: "b3", ecoId: null } }),
+    };
+    expect(
+      reiseHavnerI({
+        rader: [jobb()],
+        andreRader: [annetSted],
+        eier,
+        sedelByggeplass: null,
+        reise: reise({ projectId: "p2", byggeplassId: "b2", ecoId: null }),
+      }),
+    ).toEqual({ type: "eget", projectId: "p2" });
+    expect(
+      reiseHavnerI({
+        rader: [jobb()],
+        andreRader: [tillegg],
+        sedelByggeplass: null,
+        reise: reise({ projectId: "p2", byggeplassId: "b2", ecoId: null }),
+      }),
+    ).toEqual({ type: "eget", projectId: "p2" });
+  });
+
+  it("en jobb på stedet går foran kortet uten arbeid", () => {
+    const r = reiseHavnerI({
+      rader: [jobb({ kortId: "kj", projectId: "p2", byggeplassId: "b2", ecoId: null })],
+      andreRader: [tillegg],
+      eier,
+      sedelByggeplass: null,
+      reise: reise({ projectId: "p2", byggeplassId: "b2", ecoId: null }),
+    });
+    expect(r).toMatchObject({ type: "jobb", kortId: "kj" });
   });
 });

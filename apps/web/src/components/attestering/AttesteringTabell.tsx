@@ -497,6 +497,7 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
         onRedigerJobb={redigerJobb(kort)}
         onEndret={oppfrisk}
         onLukk={() => setAapenKort(null)}
+        prosjektKontekst={prosjektKontekst}
       />
     );
   }

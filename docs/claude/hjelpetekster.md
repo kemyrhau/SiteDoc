@@ -179,6 +179,7 @@ Ingen ?-ikon; knappen sier hvor den går (B39 A, 15 språk). Nye tekster (`tilba
 Dagsseddel-siden har ikke ?-ikon; teksten står i kortet (`timer.prosjektkort.*`, 15 språk):
 - **Lenkeraden pr. jobb:** «+ Timer», «+ Maskin», «+ Vare» (`nyVareKort`, bare når Varelager er på for prosjektet), «+ Reise», «+ Tillegg/Utlegg». Kort uten timerad: «+ Timer», «+ Reise», «+ Tillegg/Utlegg»; bare overføring til annet kontor: uten «+ Timer» (w15d, 🟡 `feat/web-timer-w15d`).
 - **Reiselinja og kort med bare reise (w15d):** merket «Reise» (`reiseMerke`), «Til {sted}» / «Fra {sted}» (`reiseTil`/`reiseFra`), «Overføring til annet kontor» (`timer.reiseKort.annetKontor`) / «Overføring fra annet kontor» ved retur (`timer.reiseKort.fraAnnetKontor`), «Uten underprosjekt» (`utenUnderprosjekt`). Under lønnsarten i «Rediger timer-rad»: «Dette er reise. Den står i jobben på {sted}.» (`timer.rediger.reiseHavnerJobb`) / «Dette er reise. Den får eget kort.» (`timer.rediger.reiseHavnerEget`).
+- **Pennen på reiselinja (w15f, 🟡 `feat/web-timer-w15f`):** prosjektfeltet er åpent for reise; linja under lønnsarten kan også si «Dette er reise. Den står i kortet på {sted}.» (`timer.rediger.reiseHavnerKort`, ny — kort med bare maskin, tillegg eller utlegg, F55). Mine timer ?-fanen: nytt avsnitt `timer.mine.hjelp.reise`.
 - **Samlekortet:** «Ført uten jobb» (`utenJobb`) med «Eldre føringer fra før kortet pr. jobb» (`utenJobbHint`) under.
 - **Slett varelinje:** tittel «Slette varelinjen?» (`slettVareTittel`), teksten «Pukk 6-32 · 5 m3 fjernes fra dagen.» (`slettVareTekst`).
 - **Vinduene fra en jobb:** ingen ny tekst. På en ny linje vises ikke prosjekt, byggeplass, underprosjekt og timerad — jobbens hode viser dem. «+ Reise» har feltene med jobbens verdier forvalgt. «Rediger timer-rad» fra blyanten har feltene, med prosjektet låst.
@@ -424,8 +425,14 @@ Fra w10a i web-timeføring (🟡 ikke merget, `feat/web-timer-w10a`, plan § 4.5
 Fra w12 i web-timeføring (🟡 ikke merget, `feat/web-timer-w12`, plan § 4.11 del C), begge sidene:
 
 - Reisen står sist i jobben den hører til, med Type «Reise». Jobbraden viser arbeidstimene og «reise X t» i grått ved siden av (`timer.attestering.tabell.reiseTimer`); dagsraden viser hele dagen.
-- Registreringen har del 8 «Reise» (`timer.attestering.registrering.reise`) med «Føres på» (`…registrering.foresPaa`): underprosjektet reisen føres på. Å bytte underprosjekt i jobbens hode flytter ikke reisen (C6).
+- Registreringen har del 8 «Reise» (`timer.attestering.registrering.reise`) med «Føres på» (`…registrering.foresPaa`): underprosjektet reisen føres på. Å bytte underprosjekt i jobbens hode flytter ikke reisen (C6). ⚠️ Tatt ut i w15f (under).
 - `…hjelp.struktur` og `…hjelp.registrering` er ikke endret i w12.
+
+Fra w15f i web-timeføring (🟡 ikke merget, `feat/web-timer-w15f`, plan § 4.15 del E):
+
+- Reiselinja i del 8 er tekst «fra–til · lønnsart · prosjekt · byggeplass · underprosjekt» med ✂ og ✎ («Rett reisen», `timer.attestering.reiseRett.tittel`). «Føres på» og de åpne feltene på reiselinja er tatt ut; `…registrering.foresPaa` står i språkfilene uten bruker.
+- Vinduet «Rett reisen»: «Start kl.» / «Slutt kl.» (`…reiseRett.start` / `…slutt`), Prosjekt, Byggeplass, Underprosjekt, og linja «Står i jobben på …» / «Står i kortet på …» / «Får eget kort på …» (`timer.reiseKort.havnerJobb` / `havnerKort` (ny) / `havnerEget`). Firmavalget av: «Firmaet tillater ikke at tid og sted rettes ved attestering. Underprosjektet kan rettes.» (`…reiseRett.bareUnderprosjekt`).
+- ?-fanen: nytt avsnitt `timer.attestering.tabell.hjelp.reise` (✎, lista, linja «havner i», firmavalget, lønnsarten i «Rediger jobben»).
 
 ## Prosjekt → Timer → Attestering (d2b-2) — ⚠️ fjernet i w10b
 

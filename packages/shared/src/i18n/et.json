@@ -5929,5 +5929,13 @@
   "timer.reiseKort.sluttKl": "Lõpuaeg",
   "timer.reiseKort.forslag": "Soovitatav: {{min}} min autosõitu (ettevõtte tabel)",
   "timer.reiseKort.havnerJobb": "Läheb tööle aadressil {{sted}}.",
-  "timer.reiseKort.havnerEget": "Saab oma kaardi {{prosjekt}}."
+  "timer.reiseKort.havnerEget": "Saab oma kaardi {{prosjekt}}.",
+  "timer.rediger.reiseHavnerKort": "See on reisimine. See läheb kaardile kell {{sted}}.",
+  "timer.reiseKort.havnerKort": "Sisestab kaardi kell {{sted}}.",
+  "timer.attestering.reiseRett.tittel": "Parandage reis",
+  "timer.attestering.reiseRett.start": "Algusaeg",
+  "timer.attestering.reiseRett.slutt": "Lõpuaeg",
+  "timer.attestering.reiseRett.bareUnderprosjekt": "Ettevõte ei luba kooskõlastamisel aega ja kohta parandada. Alamprojekti saab parandada.",
+  "timer.mine.hjelp.reise": "Reisil saad projekti muuta nupuga ✎: ehitusplatsi soovitatakse uuesti ja alamprojekt tühjendatakse. Palga liigi all olev rida ütleb, millise kaardiga reis läheb. Töö ei muuda projekti; registreerige see uue tööna.",
+  "timer.attestering.tabell.hjelp.reise": "Reis on 8. osas näidatud ühe reana. ✎ avab \"Paranda reisi\" alguse, lõpu, projekti, ehitusplatsi ja alamprojektiga; nimekirjas on projektid, mida saate kinnitada ja allservas olev rida ütleb, millisele kaardile reis läheb. Kui ettevõte ei luba kinnitamisel parandusi teha, saab parandada ainult alamprojekti. Palgaliik reisil parandatakse \"Muuda tööd\"."
 }

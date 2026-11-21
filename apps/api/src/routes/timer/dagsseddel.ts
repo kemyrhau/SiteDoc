@@ -2339,6 +2339,44 @@ async function maskinerSomKreverRaden(
 }
 
 /**
+ * w15f (LØSNING GODKJENT (a)): en reise med koblet maskin eller vare kan ikke bytte prosjekt.
+ * Varen ville stått koblet til en rad på et annet prosjekt (`gyldigVareRad` sjekker ikke
+ * `erReise`), og maskinen følger bare raden innen samme prosjekt. Ingen stille endring:
+ * kallet avvises med navnene, som R24.
+ */
+async function krevIngenKoblingVedProsjektbytte(
+  ctx: Pick<InnloggetCtx, "prismaTimer" | "prismaMaskin" | "prismaVarelager">,
+  sheetId: string,
+  sheetTimerId: string,
+): Promise<void> {
+  const [maskiner, varer] = await Promise.all([
+    ctx.prismaTimer.sheetMachine.findMany({
+      where: { sheetId, sheetTimerId },
+      select: { vehicleId: true },
+      orderBy: { createdAt: "asc" },
+    }),
+    ctx.prismaVarelager.vareforbruk.findMany({
+      where: { dagsseddelId: sheetId, sheetTimerId },
+      select: { vare: { select: { navn: true } } },
+      orderBy: { createdAt: "asc" },
+    }),
+  ]);
+  if (maskiner.length === 0 && varer.length === 0) return;
+  const utstyr = await hentUtstyrOppslag(ctx.prismaMaskin, maskiner.map((m) => m.vehicleId));
+  const liste = (navn: string[]) => navn.map((n) => `«${n}»`).join(", ");
+  const deler = [
+    ...(maskiner.length > 0
+      ? [`${maskiner.length === 1 ? "maskinen" : "maskinene"} ${liste(maskiner.map((m) => utstyr.navn.get(m.vehicleId) ?? m.vehicleId))}`]
+      : []),
+    ...(varer.length > 0 ? [`${varer.length === 1 ? "varen" : "varene"} ${liste(varer.map((v) => v.vare.navn))}`] : []),
+  ];
+  throw new TRPCError({
+    code: "BAD_REQUEST",
+    message: `Reisen har ${deler.join(" og ")} koblet til seg og kan ikke flyttes til et annet prosjekt. Flytt koblingen til en timerad i jobben, eller fjern den først.`,
+  });
+}
+
+/**
  * R24 i attestantens retting (w9-tillegget): hvilke eksisterende maskinrader som
  * skal stå med gyldig kobling etter rettingen — endrede rader, og uendrede som
  * hadde en gyldig kobling før. `koblMaskinerTilJobb` kobler dem i transaksjonen
@@ -4205,6 +4243,9 @@ export const dagsseddelRouter = router({
         // Ordre (10): byggeplass per rad. Utelatt = urørt (web sender kun ved
         // endring, så mobilens byggeplass overskrives ikke); null = tøm.
         byggeplassId: z.string().uuid().nullable().optional(),
+        // w15f (§ 4.15 del F): prosjektet kan byttes på en reise som finnes. Utelatt eller
+        // likt radens = urørt. Bare en rad som er reise før og etter skrivingen.
+        projectId: z.string().uuid().optional(),
       }).superRefine(refineFraForTil),
     )
     .mutation(async ({ ctx, input }) => {
@@ -4279,6 +4320,46 @@ export const dagsseddelRouter = router({
       if (input.aktivitetId !== undefined) {
         data.aktivitet = { connect: { id: input.aktivitetId } };
       }
+      // w15f (§ 4.15 del F): prosjektbytte på en reise. Det nye prosjektet får sjekkene en ny
+      // rad har (firma, byggeplass, underprosjekt) og medlemskap som synken (F53).
+      const nyttProsjektId =
+        input.projectId !== undefined && input.projectId !== rad.projectId ? input.projectId : null;
+      if (nyttProsjektId) {
+        const reiseEtter = typeof data.erReise === "boolean" ? data.erReise : rad.erReise;
+        if (!reiseEtter || rad.utenProsjekt) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Prosjektet kan bare byttes på en reise. Arbeid føres på en ny jobb.",
+          });
+        }
+        if (rad.attestertStatus === "attestert" || rad.attestertStatus === "erstattet") {
+          throw new TRPCError({
+            code: "PRECONDITION_FAILED",
+            message: "En attestert reise kan ikke flyttes til et annet prosjekt.",
+          });
+        }
+        await verifiserProsjekterTilhørerFirma([nyttProsjektId], sheet.organizationId);
+        await verifiserProsjektmedlem(ctx.userId, nyttProsjektId);
+        // Utelatt byggeplass/underprosjekt = radens — de må høre til det nye prosjektet
+        // (ingen stille tømming; pennen sender alle tre).
+        await krevByggeplassIProsjekt(
+          input.byggeplassId !== undefined ? input.byggeplassId : rad.byggeplassId,
+          nyttProsjektId,
+        );
+        await krevEcoerIProsjekt(
+          [
+            {
+              externalCostObjectId:
+                input.externalCostObjectId !== undefined ? input.externalCostObjectId : rad.externalCostObjectId,
+              projectId: nyttProsjektId,
+            },
+          ],
+          sheet.organizationId,
+        );
+        await krevIngenKoblingVedProsjektbytte(ctx, rad.sheetId, rad.id);
+        data.projectId = nyttProsjektId;
+      }
+      const prosjektEtter = nyttProsjektId ?? rad.projectId;
       if (input.timer !== undefined) data.timer = input.timer;
       if (input.beskrivelse !== undefined) data.beskrivelse = input.beskrivelse;
       // Fravær uten prosjekt (kort-id-spec § 11.2): har aldri underprosjekt eller byggeplass.
@@ -4300,10 +4381,10 @@ export const dagsseddelRouter = router({
         krevGyldigUtenProsjekt({ utenProsjekt: true, projectId: null }, nyArt?.type ?? null);
       }
       if (input.externalCostObjectId !== undefined) {
-        // Gate (34): valideres mot RADENS prosjekt og sedelens firma.
-        if (rad.projectId !== null) {
+        // Gate (34): valideres mot RADENS prosjekt (etter skrivingen, w15f) og sedelens firma.
+        if (prosjektEtter !== null) {
           await krevEcoerIProsjekt(
-            [{ externalCostObjectId: input.externalCostObjectId, projectId: rad.projectId }],
+            [{ externalCostObjectId: input.externalCostObjectId, projectId: prosjektEtter }],
             sheet.organizationId,
           );
         }
@@ -4319,8 +4400,8 @@ export const dagsseddelRouter = router({
       if (input.fraTid !== undefined) data.fraTid = input.fraTid;
       if (input.tilTid !== undefined) data.tilTid = input.tilTid;
       if (input.byggeplassId !== undefined) {
-        // Ordre (10): mot radens prosjekt — projectId endres ikke her.
-        if (rad.projectId !== null) await krevByggeplassIProsjekt(input.byggeplassId, rad.projectId);
+        // Ordre (10): mot radens prosjekt etter skrivingen (w15f: kan være byttet på en reise).
+        if (prosjektEtter !== null) await krevByggeplassIProsjekt(input.byggeplassId, prosjektEtter);
         data.byggeplassId = input.byggeplassId;
       }
 
@@ -4417,7 +4498,7 @@ export const dagsseddelRouter = router({
           : kortIdForSkriving(await lastSedelKortKontekst(tx, rad.sheetId), {
               lagret: rad.erReise ? null : rad,
               ny: {
-                projectId: rad.projectId,
+                projectId: prosjektEtter,
                 byggeplassId: input.byggeplassId !== undefined ? input.byggeplassId : rad.byggeplassId,
                 externalCostObjectId:
                   input.externalCostObjectId !== undefined
@@ -7344,6 +7425,29 @@ export const dagsseddelRouter = router({
         });
       }
 
+      // w15f (F51): underprosjektet på en timerad holdes mot radens prosjekt etter skrivingen.
+      // Byttes prosjektet uten underprosjekt, tømmes det; sendes det, må det høre til det nye.
+      // Byggeplassen holdes alt mot prosjektet i utforRedigerSedelRader (ordre 12).
+      let timerFelter = input.radType === "timer" ? { ...input.felter } : null;
+      if (
+        timerFelter &&
+        nyttProsjekt !== undefined &&
+        nyttProsjekt !== null &&
+        nyttProsjekt !== funnet.projectId
+      ) {
+        if (!("externalCostObjectId" in timerFelter)) {
+          timerFelter = { ...timerFelter, externalCostObjectId: null };
+        } else if (timerFelter.externalCostObjectId) {
+          await krevEcoerIProsjekt(
+            [{ externalCostObjectId: timerFelter.externalCostObjectId, projectId: nyttProsjekt }],
+            sedel.organizationId,
+          );
+        }
+        // LØSNING GODKJENT (a): en reise med koblet maskin eller vare bytter ikke prosjekt.
+        const erReise = await pt.sheetTimer.findUnique({ where: { id: input.radId }, select: { erReise: true } });
+        if (erReise?.erReise) await krevIngenKoblingVedProsjektbytte(ctx, sheetId, input.radId);
+      }
+
       const [timer, tillegg, maskin] = await Promise.all([
         pt.sheetTimer.findMany({ where: { sheetId, attestertStatus: "pending" } }),
         pt.sheetTillegg.findMany({ where: { sheetId, attestertStatus: "pending" } }),
@@ -7372,7 +7476,7 @@ export const dagsseddelRouter = router({
             pauseMin: r.pauseMin,
             vehicleId: r.vehicleId,
           };
-          return input.radType === "timer" && r.id === input.radId ? { ...rad, ...input.felter } : rad;
+          return timerFelter && r.id === input.radId ? { ...rad, ...timerFelter } : rad;
         }),
         tillegg: tillegg.map((r) => {
           const rad = {
@@ -7408,7 +7512,7 @@ export const dagsseddelRouter = router({
         { sheetId, nyeRader },
         {
           action: "rett_rad_felt",
-          ekstra: { radType: input.radType, radId: input.radId, felter: { ...input.felter } },
+          ekstra: { radType: input.radType, radId: input.radId, felter: { ...(timerFelter ?? input.felter) } },
         },
         rorte,
       );

@@ -1182,28 +1182,12 @@ describe("w12 (§ 4.11 C) — reiselinja i jobben, del 8 «Reise» og «Føres p
     expect(d8.querySelector('[data-reiselinje="s1:reise:r1"]')).toBeTruthy();
   });
 
-  it("«Føres på» bytter underprosjektet på reiseraden alene (uten helJobb)", () => {
-    const { container } = vis([sedel({ timer: [timer("t1", { externalCostObjectId: "e1" }), reise({ externalCostObjectId: "e1" })] })]);
-    const p = aapnePanel(container);
-    const fores = p.querySelector("[data-fores-paa]") as HTMLElement;
-    fireEvent.click(within(fores).getAllByRole("button").find((b) => b.textContent?.includes("Tak"))!);
-    expect(kallTil("flyttTimerRadEco").map((k) => k.input)).toEqual([{ timerRadId: "r1", radType: "timer", externalCostObjectId: "e2" }]);
-  });
-
-  it("«Føres på» er bare tekst når reisen ikke venter (attestert)", () => {
-    const { container } = vis([sedel({ timer: [timer("t1"), reise({ attestertStatus: "attestert" })] })]);
-    const p = aapnePanel(container);
-    const fores = p.querySelector("[data-fores-paa]") as HTMLElement;
-    expect(within(fores).queryAllByRole("button")).toHaveLength(0);
-    expect(fores.textContent).toContain("timer.attestering.registrering.uten");
-  });
-
-  it("H.9: reiselinja tilbyr bare reisearter, arbeidslinja ingen", () => {
+  it("H.9: arbeidslinja tilbyr ikke reisearter; reiselinja har ingen lønnsart-select (w15f: rettes i «✎ Rediger jobben»)", () => {
     const { container } = vis([sedel({ timer: [timer("t1"), reise()] })]);
     const p = aapnePanel(container);
-    const valg = (n: number) => Array.from((within(del(p, n)!).getByLabelText("timer.attestering.registrering.lonnsart") as HTMLSelectElement).options).map((o) => o.value);
-    expect(valg(2)).toEqual(["l1", "l2"]);
-    expect(valg(8)).toEqual(["lr"]);
+    const valg = Array.from((within(del(p, 2)!).getByLabelText("timer.attestering.registrering.lonnsart") as HTMLSelectElement).options).map((o) => o.value);
+    expect(valg).toEqual(["l1", "l2"]);
+    expect(del(p, 8)!.querySelector("select")).toBeNull();
   });
 
   it("reise alene i et kort: jobbraden sier «Reise», kortet har ikke underprosjektvalget i hodet", () => {
@@ -1216,5 +1200,152 @@ describe("w12 (§ 4.11 C) — reiselinja i jobben, del 8 «Reise» og «Føres p
     const p = aapnePanel(container, jobb[0]!);
     expect(within(p).queryByText("timer.attestering.registrering.underprosjekt")).toBeNull();
     expect(del(p, 8)).toBeTruthy();
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/*  w15f — reiselinja er tekst med ✎; «Rett reisen» (plan § 4.15, del H pkt. 25) */
+/* ------------------------------------------------------------------ */
+
+// jsdom har ikke <dialog>.showModal (Modal i @sitedoc/ui bruker den).
+const dialogProto15 = HTMLDialogElement.prototype as unknown as { showModal?: () => void; close?: () => void };
+dialogProto15.showModal ??= function (this: HTMLDialogElement) { this.setAttribute("open", ""); };
+dialogProto15.close ??= function (this: HTMLDialogElement) { this.removeAttribute("open"); };
+
+describe("w15f — reiselinja i del 8 og «Rett reisen»", () => {
+  const ECO = [{ id: "e1", proAdmId: "100", kortNavn: "Grunn" }, { id: "e2", proAdmId: "200", kortNavn: "Tak" }];
+  const PROSJEKTER = [
+    { id: "pA", name: "Prosjekt A", internalProjectNumber: "1001" },
+    { id: "pB", name: "Prosjekt B", internalProjectNumber: "1002" },
+    { id: "pC", name: "Prosjekt C", internalProjectNumber: "1003" },
+  ];
+  const BYGGEPLASSER = [
+    { id: "bA1", projectId: "pA", name: "A sør" },
+    { id: "bA2", projectId: "pA", name: "A nord" },
+    { id: "bB1", projectId: "pB", name: "B hovedbygg" },
+  ];
+  const reise = (over: Partial<AttTimer> = {}) =>
+    timer("r1", { erReise: true, reiseRetning: "ut", reiseKilde: "manuell", lonnsartId: "lr", fraTid: "06:25", tilTid: "07:00", timer: "0.58", pauseMin: 0, byggeplassId: "bA1", byggeplassNavn: "A sør", ...over });
+  const visMed = (sedler: AttSedel[], prosjektKontekst?: ReadonlySet<string>) =>
+    render(
+      <AttesteringTabell
+        dager={byggAttesteringModell(sedler, deps)}
+        orgId="org1"
+        readOnly={false}
+        verktoy={<span />}
+        sedelUrl={(id) => `/sedel/${id}`}
+        onReturnerDag={() => {}}
+        prosjektKontekst={prosjektKontekst}
+      />,
+    );
+  const aapne = (c: HTMLElement) => { fireEvent.click(dagsrad(c)); return c.querySelector("[data-registrering]") as HTMLElement; };
+  const del8 = (p: HTMLElement) => p.querySelector('[data-del="8"]') as HTMLElement;
+  const penn = (p: HTMLElement) => within(del8(p)).queryByRole("button", { name: "timer.attestering.reiseRett.tittel" });
+  const vindu = () => document.querySelector("[data-reise-rett-vindu]") as HTMLElement;
+  const lagre = () => fireEvent.click(within(vindu()).getByRole("button", { name: "handling.lagre" }));
+  beforeEach(() => {
+    h.data["eksternKostObjekt.list"] = ECO;
+    h.data["prosjekt.hentForTimer"] = PROSJEKTER;
+    h.data["bygning.hentForFirma"] = BYGGEPLASSER;
+    h.data["timer.lonnsart.list"] = [{ id: "l1", navn: "Ordinær", satsEnhet: null }, { id: "lr", navn: "Reise", satsEnhet: null }];
+    h.data["organisasjon.hentArbeidstidDefaults"] = { reiseLonnsartId: "lr", reiseGrenser: [] };
+  });
+  afterEach(() => {
+    for (const k of ["eksternKostObjekt.list", "prosjekt.hentForTimer", "bygning.hentForFirma", "organisasjon.hentArbeidstidDefaults"]) delete h.data[k];
+  });
+
+  it("reiselinja er tekst «fra–til · lønnsart · prosjekt · byggeplass · underprosjekt» uten åpne felt og uten «Føres på»", () => {
+    const { container } = visMed([sedel({ timer: [timer("t1"), reise()] })]);
+    const p = aapne(container);
+    const d8 = del8(p);
+    expect(d8.querySelector("[data-reise-tekst]")!.textContent).toBe("06:25–07:00 · Ordinær · 1001 Prosjekt A · A sør · timer.prosjektkort.utenUnderprosjekt");
+    expect(d8.querySelectorAll("input, select")).toHaveLength(0);
+    expect(d8.querySelector("[data-fores-paa]")).toBeNull();
+    expect(penn(p)).toBeTruthy();
+  });
+
+  it("✎ åpner vinduet med start, slutt, prosjekt, byggeplass og underprosjekt, og linja «havner i»", () => {
+    const { container } = visMed([sedel({ timer: [timer("t1"), reise()] })]);
+    fireEvent.click(penn(aapne(container))!);
+    const v = vindu();
+    expect((within(v).getByLabelText("timer.attestering.reiseRett.start") as HTMLInputElement).value).toBe("06:25");
+    expect((within(v).getByLabelText("timer.attestering.reiseRett.slutt") as HTMLInputElement).value).toBe("07:00");
+    expect((within(v).getByLabelText("timer.felt.prosjekt") as HTMLSelectElement).value).toBe("pA");
+    expect(within(v).getByText("timer.felt.byggeplass")).toBeTruthy();
+    expect(within(v).getByText("timer.attestering.registrering.underprosjekt")).toBeTruthy();
+    expect(within(v).getAllByRole("button").some((b) => b.textContent?.includes("Tak"))).toBe(true);
+    expect(v.querySelector("[data-havner-i]")).toBeTruthy();
+  });
+
+  it("prosjektlista har bare prosjektene attestanten kan attestere", () => {
+    const { container } = visMed([sedel({ timer: [timer("t1"), reise()] })], new Set(["pA", "pB"]));
+    fireEvent.click(penn(aapne(container))!);
+    const valg = Array.from((within(vindu()).getByLabelText("timer.felt.prosjekt") as HTMLSelectElement).options).map((o) => o.value);
+    expect(valg).toEqual(["pA", "pB"]);
+  });
+
+  it("bytte av prosjekt: ett rettRadFelt-kall med prosjekt, foreslått byggeplass og tømt underprosjekt", () => {
+    const { container } = visMed([sedel({ timer: [timer("t1"), reise({ externalCostObjectId: "e1" })] })]);
+    fireEvent.click(penn(aapne(container))!);
+    fireEvent.change(within(vindu()).getByLabelText("timer.felt.prosjekt"), { target: { value: "pB" } });
+    lagre();
+    expect(kallTil("flyttTimerRadEco")).toHaveLength(0);
+    expect(kallTil("rettRadFelt").map((k) => k.input)).toEqual([
+      { radType: "timer", radId: "r1", felter: { projectId: "pB", byggeplassId: "bB1", externalCostObjectId: null } },
+    ]);
+  });
+
+  it("ny tid: ett rettRadFelt-kall med fra, til og timer", () => {
+    const { container } = visMed([sedel({ timer: [timer("t1"), reise()] })]);
+    fireEvent.click(penn(aapne(container))!);
+    fireEvent.change(within(vindu()).getByLabelText("timer.attestering.reiseRett.slutt"), { target: { value: "07:25" } });
+    lagre();
+    expect(kallTil("rettRadFelt").map((k) => k.input)).toEqual([{ radType: "timer", radId: "r1", felter: { fraTid: "06:25", tilTid: "07:25", timer: 1 } }]);
+  });
+
+  it("bare underprosjektet endret: flyttTimerRadEco som før, uten helJobb", () => {
+    const { container } = visMed([sedel({ timer: [timer("t1"), reise({ externalCostObjectId: "e1" })] })]);
+    fireEvent.click(penn(aapne(container))!);
+    fireEvent.click(within(vindu()).getAllByRole("button").find((b) => b.textContent?.includes("Tak"))!);
+    lagre();
+    expect(kallTil("rettRadFelt")).toHaveLength(0);
+    expect(kallTil("flyttTimerRadEco").map((k) => k.input)).toEqual([{ timerRadId: "r1", radType: "timer", externalCostObjectId: "e2" }]);
+  });
+
+  it("«Avbryt» sender ingenting", () => {
+    const { container } = visMed([sedel({ timer: [timer("t1"), reise()] })]);
+    fireEvent.click(penn(aapne(container))!);
+    fireEvent.change(within(vindu()).getByLabelText("timer.felt.prosjekt"), { target: { value: "pB" } });
+    fireEvent.click(within(vindu()).getByRole("button", { name: "handling.avbryt" }));
+    expect(kallTil("rettRadFelt")).toHaveLength(0);
+    expect(kallTil("flyttTimerRadEco")).toHaveLength(0);
+  });
+
+  it("firmavalget av: bare underprosjektet er åpent, og det lagres med flyttTimerRadEco", () => {
+    const { container } = visMed([sedel({ redigerTillatt: false, timer: [timer("t1"), reise({ externalCostObjectId: "e1" })] })]);
+    fireEvent.click(penn(aapne(container))!);
+    const v = vindu();
+    for (const navn of ["timer.attestering.reiseRett.start", "timer.attestering.reiseRett.slutt", "timer.felt.prosjekt", "timer.felt.byggeplass"]) {
+      expect((within(v).getByLabelText(navn) as HTMLInputElement).disabled).toBe(true);
+    }
+    expect(v.textContent).toContain("timer.attestering.reiseRett.bareUnderprosjekt");
+    fireEvent.click(within(v).getAllByRole("button").find((b) => b.textContent?.includes("Tak"))!);
+    lagre();
+    expect(kallTil("rettRadFelt")).toHaveLength(0);
+    expect(kallTil("flyttTimerRadEco").map((k) => k.input)).toEqual([{ timerRadId: "r1", radType: "timer", externalCostObjectId: "e2" }]);
+  });
+
+  it("en attestert reise har ingen ✎", () => {
+    const { container } = visMed([sedel({ timer: [timer("t1"), reise({ attestertStatus: "attestert" })] })]);
+    expect(penn(aapne(container))).toBeNull();
+  });
+
+  it("lagret: vinduet lukkes og tabellen hentes på nytt — ingen melding", () => {
+    const { container } = visMed([sedel({ timer: [timer("t1"), reise()] })]);
+    fireEvent.click(penn(aapne(container))!);
+    fireEvent.change(within(vindu()).getByLabelText("timer.felt.prosjekt"), { target: { value: "pB" } });
+    lagre();
+    act(() => kallTil("rettRadFelt")[0]!.opts!.onSuccess!(undefined));
+    expect(vindu()).toBeNull();
   });
 });

@@ -20,6 +20,7 @@ import { byggeplasserForProsjekt, velgStandardByggeplass, type ByggeplassValg } 
 import {
   reiseHavnerI,
   useManuellReiseWeb,
+  type ReiseHavnerAnnenRad,
   type ReiseHavnerRad,
   type ReiseKortValg,
 } from "@/hooks/useManuellReiseWeb";
@@ -79,6 +80,8 @@ export function ReiseKort({
   prosjektNavn,
   aktivitetId,
   dagsrader,
+  andreRader,
+  eierId,
   resolverLonnsartId,
   skjulOverforingRetninger,
   erFirmaAdmin,
@@ -101,6 +104,10 @@ export function ReiseKort({
   /** Sedelens aktivitet — reise-raden får den automatisk. null → Lagre sperret. */
   aktivitetId: string | null;
   dagsrader: readonly ReiseKortDagsrad[];
+  /** w15f (F55): maskin, tillegg og utlegg på sedelen — linja «havner i» ser kort uten arbeid. */
+  andreRader?: readonly ReiseHavnerAnnenRad[];
+  /** w15f (F55): sedelens eier — reisens egen kort-id regnes som på serveren. */
+  eierId?: string;
   resolverLonnsartId: string | null;
   /** Retninger sedelen alt har en overføringsrad for — tilbys ikke igjen. */
   skjulOverforingRetninger: ReadonlyArray<"ut" | "retur">;
@@ -212,6 +219,8 @@ export function ReiseKort({
     regelStatus === "klar" && resultat.spor && resultat.fraTid
       ? reiseHavnerI({
           rader: dagsrader,
+          andreRader,
+          eier: eierId ? { userId: eierId, dato } : null,
           sedelByggeplass,
           reise: {
             projectId: reiseProsjektId,
@@ -232,7 +241,13 @@ export function ReiseKort({
             (havner.byggeplassId && (byggeplasser ?? []).find((b) => b.id === havner.byggeplassId)?.name) ||
             prosjektNavn(havner.projectId),
         })
-      : t("timer.reiseKort.havnerEget", { prosjekt: prosjektNavn(havner.projectId) });
+      : havner.type === "kort"
+        ? t("timer.reiseKort.havnerKort", {
+            sted:
+              (havner.byggeplassId && (byggeplasser ?? []).find((b) => b.id === havner.byggeplassId)?.name) ||
+              prosjektNavn(havner.projectId),
+          })
+        : t("timer.reiseKort.havnerEget", { prosjekt: prosjektNavn(havner.projectId) });
 
   const kanLagre =
     regelStatus === "klar" &&

@@ -46,7 +46,9 @@ import {
 } from "@/components/timer/RadByggeplassFelt";
 import {
   byggeplassPayload,
+  byggeplasserForProsjekt,
   radByggeplassLinje,
+  velgStandardByggeplass,
   type ByggeplassValg,
 } from "@/lib/timerByggeplass";
 import {
@@ -81,7 +83,7 @@ import {
 } from "@sitedoc/shared";
 import { rundTilNarmeste } from "@/lib/tidsrunding";
 import { ReiseKort } from "./ReiseKort";
-import { reiseHavnerI } from "@/hooks/useManuellReiseWeb";
+import { reiseHavnerI, type ReiseHavnerAnnenRad } from "@/hooks/useManuellReiseWeb";
 import {
   beregnKortSummer,
   dagSummer,
@@ -573,6 +575,16 @@ export default function DagsseddelDetaljSide() {
   const tilleggRader = sheet.tillegg as unknown as TilleggRad[];
   const maskinRader = (sheet.maskiner ?? []) as unknown as MaskinRad[];
   const utleggRader = ((sheet as { utlegg?: unknown }).utlegg ?? []) as unknown as UtleggRad[];
+  // w15f (F55): kort uten arbeid — linja «havner i» ser maskin, tillegg og utlegg, og regner
+  // reisens egne kort-id med sedelens eier og dato, som serveren.
+  const kortRaderUtenArbeid: ReiseHavnerAnnenRad[] = [...maskinRader, ...tilleggRader, ...utleggRader].map((r) => ({
+    kortId: r.kortId ?? null,
+    projectId: r.projectId,
+    ecoId: r.externalCostObjectId ?? null,
+    byggeplassId: r.byggeplassId ?? null,
+    opprettet: r.createdAt ? new Date(r.createdAt).getTime() : 0,
+  }));
+  const kortEier = { userId: sheet.userId, dato: new Date(sheet.dato).toISOString().slice(0, 10) };
 
   // V19-C (C-1): mobilens forslag (SheetTimerForslag) + serverradene mappet til
   // ForsonRad (timer er Decimal/streng over tRPC → tilTall). Rekkefølgen av felt
@@ -1497,6 +1509,8 @@ export default function DagsseddelDetaljSide() {
             opprettet: r.createdAt ? new Date(r.createdAt).getTime() : 0,
             attestertStatus: r.attestertStatus,
           }))}
+          andreRader={kortRaderUtenArbeid}
+          eierId={sheet.userId}
           resolverLonnsartId={aktivModal.reise.id}
           skjulOverforingRetninger={timerRader
             .filter((r) => r.reiseKilde === "overforing")
@@ -1532,6 +1546,8 @@ export default function DagsseddelDetaljSide() {
           // w3b (A13): maskindelen er lik i «Legg til» og «Rediger» i prosjektkort-modus.
           kortModus={prosjektkortModus}
           sedelByggeplassId={(sheet as { byggeplassId?: string | null }).byggeplassId ?? null}
+          kortRaderUtenArbeid={kortRaderUtenArbeid}
+          kortEier={kortEier}
           kortNavn={prosjektkortModus ? kortNavnMap : undefined}
           // P1 (maskin-i-rad): sedelens maskin-rader + sedel-pause for den valgfrie
           // maskin-seksjonen (bucket-kapasitet, samme regel som MaskinRadDialog).
@@ -3536,6 +3552,8 @@ function TimerRadDialog({
   jobb,
   kortModus,
   sedelByggeplassId,
+  kortRaderUtenArbeid,
+  kortEier,
   onLukk,
 }: {
   sheetId: string;
@@ -3585,6 +3603,10 @@ function TimerRadDialog({
   kortModus?: boolean;
   /** w15d: sedelens byggeplass — jobbenes effektive byggeplass i teksten under lønnsarten. */
   sedelByggeplassId?: string | null;
+  /** w15f (F55): maskin, tillegg og utlegg på sedelen — linja «havner i» ser kort uten arbeid. */
+  kortRaderUtenArbeid?: readonly ReiseHavnerAnnenRad[];
+  /** w15f (F55): sedelens eier og dato — reisens egen kort-id regnes som på serveren. */
+  kortEier?: { userId: string; dato: string };
   onLukk: () => void;
 }) {
   const { t, i18n } = useTranslation();
@@ -3642,8 +3664,8 @@ function TimerRadDialog({
   }
 
   // D2 (web-paritet): prosjekt velges i modalen (som mobil). Ved NY rad kan den
-  // endres (raden opprettes under valgt prosjekt); ved redigering er den låst —
-  // server-oppdaterTimerRad flytter ikke rad mellom prosjekter (egen oppfølger).
+  // endres (raden opprettes under valgt prosjekt); ved redigering er den låst for
+  // arbeid. w15f: på en reise kan prosjektet byttes (`oppdaterTimerRad` tar det imot).
   const [valgtProjectId, setValgtProjectId] = useState<string>(
     rad?.projectId ?? projectId,
   );
@@ -3751,6 +3773,8 @@ function TimerRadDialog({
             opprettet: r.createdAt ? new Date(r.createdAt).getTime() : 0,
             attestertStatus: r.attestertStatus,
           })),
+        andreRader: kortRaderUtenArbeid,
+        eier: kortEier ?? null,
         sedelByggeplass: sedelByggeplassId
           ? ((byggeplasser ?? []).find((b) => b.id === sedelByggeplassId) ?? null)
           : null,
@@ -3762,9 +3786,37 @@ function TimerRadDialog({
             rad?.reiseRetning === "ut" || rad?.reiseRetning === "retur" ? rad.reiseRetning : null,
           fraTid: fraTid || null,
           erReise: true,
+          // w15c-funnet: kontorreisen etter arbeid får eget kort — linja må vite kilden.
+          reiseKilde: rad?.reiseKilde ?? null,
         },
       })
     : null;
+  // w15f (§ 4.15 del E): prosjektfeltet er åpent på en reise som finnes, låst for arbeid.
+  const prosjektApent = !!rad && !!rad.erReise && erReiseValgt;
+  const prosjektByttet = !!rad && valgtProjectId !== rad.projectId;
+  function byttProsjekt(id: string) {
+    setValgtProjectId(id);
+    setEcoId(null); // ECO tilhører gammelt prosjekt
+    // w15f: på en reise foreslås byggeplassen på nytt for det nye prosjektet, som i reisevinduet.
+    if (rad) {
+      bp.setByggeplassId(
+        velgStandardByggeplass({ gjeldende: null, kandidater: byggeplasserForProsjekt(byggeplasser, id), toppbar: null }),
+      );
+    }
+  }
+  // w15f: bytter arbeideren lønnsarten bort fra reise etter et prosjektbytte, går prosjektet
+  // og stedet tilbake til radens — arbeid bytter ikke prosjekt.
+  useEffect(() => {
+    if (!rad || prosjektApent || valgtProjectId === rad.projectId) return;
+    setValgtProjectId(rad.projectId);
+    setEcoId(rad.externalCostObjectId ?? null);
+    bp.setByggeplassId(rad.byggeplassId ?? null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prosjektApent]);
+  // Prosjekt, byggeplass og underprosjekt sendes i samme kall når prosjektet er byttet.
+  const prosjektPayload = prosjektByttet
+    ? { projectId: valgtProjectId, byggeplassId: bp.byggeplassId, externalCostObjectId: ecoId }
+    : {};
   const reiseHavnerTekst = !reiseHavner
     ? null
     : reiseHavner.type === "jobb"
@@ -3775,7 +3827,15 @@ function TimerRadDialog({
             prosjekter.find((p) => p.id === reiseHavner.projectId)?.name ||
             "",
         })
-      : t("timer.rediger.reiseHavnerEget");
+      : reiseHavner.type === "kort"
+        ? t("timer.rediger.reiseHavnerKort", {
+            sted:
+              (reiseHavner.byggeplassId &&
+                (byggeplasser ?? []).find((b) => b.id === reiseHavner.byggeplassId)?.name) ||
+              prosjekter.find((p) => p.id === reiseHavner.projectId)?.name ||
+              "",
+          })
+        : t("timer.rediger.reiseHavnerEget");
   // V20/PK3: brukerens overstyring av matpause-avkrysningen. `null` = følg
   // auto-bæreren (PK2); et tall (0 / standardPauseMin) = bruker har huket av/på
   // selv. Ved redigering starter den fra radens lagrede tilstand, så krysset
@@ -4412,6 +4472,7 @@ function TimerRadDialog({
         pauseMin: radPauseMin,
         // Ordre (10): kun ved endring — mobilens byggeplass overskrives ikke.
         ...byggeplassPayload(bp),
+        ...prosjektPayload,
       });
     } else {
       // P1 (maskin-i-rad): dual-mutasjon. Per-kall onSuccess fanger tNum +
@@ -4481,6 +4542,7 @@ function TimerRadDialog({
           tilTid: tilTid || null,
           pauseMin: radPauseMin,
           ...byggeplassPayload(bp),
+          ...prosjektPayload,
         });
         vareIkkeFlyttet = (svar as { vareIkkeFlyttet?: boolean } | null)?.vareIkkeFlyttet === true;
         radId = rad.id;
@@ -4545,11 +4607,8 @@ function TimerRadDialog({
           </label>
           <select
             value={valgtProjectId}
-            onChange={(e) => {
-              setValgtProjectId(e.target.value);
-              setEcoId(null); // ECO tilhører gammelt prosjekt
-            }}
-            disabled={!!rad || !!laastProsjekt}
+            onChange={(e) => byttProsjekt(e.target.value)}
+            disabled={prosjektApent ? false : !!rad || !!laastProsjekt}
             className="w-full rounded border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-100 disabled:text-gray-500"
             required
           >
