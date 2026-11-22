@@ -430,6 +430,8 @@ export function useManuellReiseWeb({
     oppmotestedNavn,
     aktivtValg,
     resultat,
+    /** O10 (§ 8.22): minuttene i forslagsteksten — de samme som de avrundede Start og Slutt. */
+    forslagMin: resultat.kjoretidMin != null ? rundKjoretidForslag(resultat.kjoretidMin, rundingMin) : null,
     lonnsartNavn: (id: string | null) => (id ? (lonnsartNavn.get(id) ?? null) : null),
   };
 }
