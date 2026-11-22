@@ -89,7 +89,7 @@ Filer: `RK` = `apps/web/src/app/dashbord/timer/[id]/ReiseKort.tsx` · `MR` = `ap
     🟡 I dag lagres raden som vanlig arbeid uten reisefelt (`RM` `tilManuellReiseSpor`, `validerReiseInvarianter`).
 17. Pennen på en lagret reise åpner «Rediger timer-rad» som i dag, men prosjekt og byggeplass vises bare som tekst, med linja «Feil sted? Slett reisen og før den med «+ Reise» i riktig prosjektkort.»
     Kenneth: «5.nei, som i dag. men redigering av prosjekt og byggeplass -> dersom dette er feil, be bruker åpne +reise i rett prosjekt», «5b ja».
-    🟡 I dag kan byggeplassen byttes på en reise i «Rediger timer-rad».
+    🟡 I dag kan prosjekt (w15f) og byggeplass byttes på en reise i «Rediger timer-rad» (`TimerRadDialog`).
 18. Bytter et prosjektkort prosjekt eller byggeplass og kortet har en reise, kommer et vindu før flyttingen med reisens tider og ny kjøretid, og valgene «Flytt reisen med ny tid», «Slett reisen» og «Avbryt»; ingenting endres før arbeideren velger. Mangler ny kjøretid, flyttes reisen med de gamle tidene, og vinduet sier det.
     Kenneth: «å bytte prosjekt vil endre reisetid -> det kan vi ikke gjøre stille -> da må bruker se og akseptere en endring», «7 … -> ok».
     🟡 I dag blir en reisetid-rad stående på gammelt prosjekt og en arbeidstid-reise følger stille med (`DS` `flyttJobbTilSted`).
