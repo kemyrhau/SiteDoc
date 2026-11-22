@@ -5034,6 +5034,7 @@
   "timer.eksport.kolVareOgMengde": "Artikel und Menge",
   "timer.eksport.kolFraTil": "Von–bis",
   "timer.eksport.kolReisetimer": "Reisen",
+  "timer.eksport.kolReisetimerVelger": "Reisestunden",
   "timer.eksport.kolOvertid": "Überstunden",
   "timer.eksport.kolAvvik": "Abweichungen",
   "timer.eksport.kolId": "AUSWEIS",

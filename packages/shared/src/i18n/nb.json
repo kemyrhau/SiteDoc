@@ -5034,6 +5034,7 @@
   "timer.eksport.kolVareOgMengde": "Vare og mengde",
   "timer.eksport.kolFraTil": "Fra–til",
   "timer.eksport.kolReisetimer": "Reise",
+  "timer.eksport.kolReisetimerVelger": "Reisetimer",
   "timer.eksport.kolOvertid": "Overtid",
   "timer.eksport.kolAvvik": "Avvik",
   "timer.eksport.kolId": "ID",

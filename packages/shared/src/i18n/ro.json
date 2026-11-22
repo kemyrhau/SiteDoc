@@ -5034,6 +5034,7 @@
   "timer.eksport.kolVareOgMengde": "Articol și cantitate",
   "timer.eksport.kolFraTil": "De la–la",
   "timer.eksport.kolReisetimer": "Voiaj",
+  "timer.eksport.kolReisetimerVelger": "Orele de călătorie",
   "timer.eksport.kolOvertid": "Peste orar",
   "timer.eksport.kolAvvik": "Abateri",
   "timer.eksport.kolId": "ID",

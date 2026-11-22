@@ -404,8 +404,11 @@ export default function AttesteringSide() {
     </div>
   );
 
+  // O13-tillegg (vedtak-timer-web § Dagsvisningen): attesteringen har ikke `max-w-7xl` (1 280 px)
+  // som andre sider — tabellen er 1 296 px, og Avvik og Beløp skal synes uten rulling der
+  // skjermen har plass (1 790 px). Smalere skjerm ruller tabellen sideveis som før.
   return (
-    <div className="mx-auto max-w-7xl min-w-0">
+    <div className="min-w-0">
       <SonetonetSidehode sone="firma" className="mb-6">
         <div className="flex items-start justify-between gap-4">
           <div>

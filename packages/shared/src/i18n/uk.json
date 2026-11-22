@@ -5034,6 +5034,7 @@
   "timer.eksport.kolVareOgMengde": "Товар і кількість",
   "timer.eksport.kolFraTil": "Від–до",
   "timer.eksport.kolReisetimer": "Подорожі",
+  "timer.eksport.kolReisetimerVelger": "Години подорожі",
   "timer.eksport.kolOvertid": "Понаднормова робота",
   "timer.eksport.kolAvvik": "Відхилення",
   "timer.eksport.kolId": "ID",

@@ -5034,6 +5034,7 @@
   "timer.eksport.kolVareOgMengde": "Przedmiot i ilość",
   "timer.eksport.kolFraTil": "Od–do",
   "timer.eksport.kolReisetimer": "Podróż",
+  "timer.eksport.kolReisetimerVelger": "Godziny podróży",
   "timer.eksport.kolOvertid": "Nadgodziny",
   "timer.eksport.kolAvvik": "Odchylenia",
   "timer.eksport.kolId": "ID",

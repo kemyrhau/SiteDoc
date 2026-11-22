@@ -5034,6 +5034,7 @@
   "timer.eksport.kolVareOgMengde": "Artikel och kvantitet",
   "timer.eksport.kolFraTil": "Från–till",
   "timer.eksport.kolReisetimer": "Resa",
+  "timer.eksport.kolReisetimerVelger": "Restider",
   "timer.eksport.kolOvertid": "Övertid",
   "timer.eksport.kolAvvik": "Avvikelser",
   "timer.eksport.kolId": "ID",

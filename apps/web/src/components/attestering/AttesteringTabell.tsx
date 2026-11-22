@@ -851,7 +851,7 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
   ];
 
   const velgerGrupper = useMemo(
-    () => [{ id: "alle", navn: t("timer.attestering.tabell.kolonner"), felter: TIMER_TABELL_KOL_KEYS.map((k) => ({ id: k, navn: t(`timer.eksport.${TIMER_TABELL_KOL[k].i18n}`) })) }],
+    () => [{ id: "alle", navn: t("timer.attestering.tabell.kolonner"), felter: TIMER_TABELL_KOL_KEYS.map((k) => ({ id: k, navn: t(`timer.eksport.${TIMER_TABELL_KOL[k].velgerI18n ?? TIMER_TABELL_KOL[k].i18n}`) })) }],
     [t],
   );
 

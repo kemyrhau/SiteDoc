@@ -5034,6 +5034,7 @@
   "timer.eksport.kolVareOgMengde": "Tuote ja määrä",
   "timer.eksport.kolFraTil": "From–to",
   "timer.eksport.kolReisetimer": "Matkustaa",
+  "timer.eksport.kolReisetimerVelger": "Matkatunnit",
   "timer.eksport.kolOvertid": "Ylitöitä",
   "timer.eksport.kolAvvik": "Poikkeamat",
   "timer.eksport.kolId": "ID",

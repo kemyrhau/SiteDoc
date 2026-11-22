@@ -1814,3 +1814,24 @@ describe("O13 — attesteringen etter vedtaksfila § Dagsvisningen pkt 2 og 3", 
     expect(jobb.textContent).not.toContain("timer.attestering.tabell.type.reise");
   });
 });
+
+describe("O13-tillegg — bredden og navnet «Reise»", () => {
+  it("attesteringssiden har ikke sidebeholderens tak (max-w-7xl); firma-timer-layouten har det fortsatt", () => {
+    const side = readFileSync(resolve(__dirname, "../app/dashbord/attestering/page.tsx"), "utf8");
+    expect(side).not.toMatch(/className="[^"]*max-w-7xl/);
+    expect(side).toMatch(/return \(\n    <div className="min-w-0">/);
+    const firmaTimer = readFileSync(resolve(__dirname, "../app/dashbord/firma/timer/layout.tsx"), "utf8");
+    expect(firmaTimer).toMatch(/mx-auto max-w-7xl/);
+  });
+
+  it("«Velg parameter» viser «Reisetimer» for tallkolonnen og «Reise» for eksportens ja/nei-kolonne; overskriften er «Reise»", () => {
+    const { container } = vis([sedel()]);
+    const grupper = h.velger.props!.grupper as { felter: { id: string; navn: string }[] }[];
+    const navn = Object.fromEntries(grupper[0]!.felter.map((f) => [f.id, f.navn]));
+    expect(navn.reisetimer).toBe("timer.eksport.kolReisetimerVelger");
+    expect(navn.reise).toBe("timer.eksport.kolReise");
+    expect(navn.reisetimer).not.toBe(navn.reise);
+    expect(container.querySelector('[data-kolonne="reisetimer"]')!.textContent).toContain("timer.eksport.kolReisetimer");
+    expect(container.querySelector('[data-kolonne="reisetimer"]')!.textContent).not.toContain("Velger");
+  });
+});

@@ -5034,6 +5034,7 @@
   "timer.eksport.kolVareOgMengde": "Artikulli dhe sasia",
   "timer.eksport.kolFraTil": "Nga–për",
   "timer.eksport.kolReisetimer": "Udhëtoni",
+  "timer.eksport.kolReisetimerVelger": "Orari i udhëtimit",
   "timer.eksport.kolOvertid": "Jashtë orarit",
   "timer.eksport.kolAvvik": "Devijimet",
   "timer.eksport.kolId": "ID",

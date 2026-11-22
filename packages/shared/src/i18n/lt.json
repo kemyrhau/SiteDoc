@@ -5034,6 +5034,7 @@
   "timer.eksport.kolVareOgMengde": "Prekė ir kiekis",
   "timer.eksport.kolFraTil": "Nuo–iki",
   "timer.eksport.kolReisetimer": "Kelionės",
+  "timer.eksport.kolReisetimerVelger": "Kelionės valandos",
   "timer.eksport.kolOvertid": "Viršvalandžiai",
   "timer.eksport.kolAvvik": "Nukrypimai",
   "timer.eksport.kolId": "ID",

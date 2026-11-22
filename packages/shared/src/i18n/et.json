@@ -5034,6 +5034,7 @@
   "timer.eksport.kolVareOgMengde": "Kaup ja kogus",
   "timer.eksport.kolFraTil": "Alates–kuni",
   "timer.eksport.kolReisetimer": "Reisimine",
+  "timer.eksport.kolReisetimerVelger": "Reisitunnid",
   "timer.eksport.kolOvertid": "Ületunnitöö",
   "timer.eksport.kolAvvik": "Kõrvalekalded",
   "timer.eksport.kolId": "ID",

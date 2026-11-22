@@ -685,6 +685,12 @@ export type TimerTabellKolDef = {
   /** Kolonnen viser én verdi pr. maskin eller vare på linja (underlinjer, H14). */
   under: boolean;
   radtyper: readonly TimerTabellRadType[];
+  /**
+   * Navnet i «Velg parameter» når det skiller seg fra overskriften (i18n-nøkkel under
+   * `timer.eksport.`). O13-tillegg: `reisetimer` heter «Reisetimer» i velgeren, så den ikke
+   * forveksles med eksportens ja/nei-kolonne `reise`; overskriften i tabellen er «Reise».
+   */
+  velgerI18n?: string;
 };
 
 const def = (i18n: string, radtyper: readonly TimerTabellRadType[] = ALLE_TYPER, num = false, under = false): TimerTabellKolDef => ({ i18n, num, under, radtyper });
@@ -737,7 +743,7 @@ export const TIMER_TABELL_KOL: Record<TimerTabellKolKey, TimerTabellKolDef> = {
   beskrivelse: def(TIMER_KOL_I18N.beskrivelse),
   status: def(TIMER_KOL_I18N.status),
   avvik: def("kolAvvik"),
-  reisetimer: def("kolReisetimer", ["timer"], true),
+  reisetimer: { ...def("kolReisetimer", ["timer"], true), velgerI18n: "kolReisetimerVelger" },
   overtid: def("kolOvertid", ["timer"], true),
 };
 
