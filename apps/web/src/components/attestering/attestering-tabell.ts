@@ -7,6 +7,7 @@ import {
   beregnJobbMaskinBrudd,
   doegnOverArbeid,
   maskinJobbNokkel,
+  erArbeidstidReise,
   type TimerTabellLinje,
   type TimerTabellKolKey,
   type TimerTabellMaskin,
@@ -565,6 +566,21 @@ function tomLinje(id: string, type: TimerTabellLinje["type"], over: Partial<Time
  * Summene for et utvalg linjer. `timer` er alle timer (dagsraden, gruppen); `reise` er
  * reiselinjenes del av dem — jobbraden viser `timer − reise` og «reise X t» i grått (§ 4.11 C4).
  */
+/**
+ * O15 pkt 5 (vedtak § Dagsvisningen pkt 5, R10): kortet har bare reise — reisetid eller reise
+ * ført som arbeidstid (vedtak Reisevinduet pkt 16: en reise forblir reise) — og ingen maskin.
+ * Tillegg og utlegg gjør det ikke til en jobb (F31). Brukes bare til tellingen «2 jobber · 1 reise»
+ * og hoveren (pkt 7); `kort.reise`, `jobbTimer` og C1 er urørt.
+ */
+export function erBareReiseKort(kort: Pick<AttKort, "linjer">): boolean {
+  const timer = kort.linjer.flatMap((l) => (l.kilde.type === "timer" ? [l.kilde] : []));
+  return (
+    timer.length > 0 &&
+    timer.every((k) => k.rad.erReise === true || erArbeidstidReise(k.rad)) &&
+    !kort.linjer.some((l) => l.kilde.type === "maskin" || (l.kilde.type === "timer" && l.kilde.maskiner.length > 0))
+  );
+}
+
 export function sumLinjer(linjer: readonly AttLinje[]): { timer: number; maskintimer: number; reise: number } {
   let timer = 0;
   let maskintimer = 0;

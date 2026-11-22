@@ -10,6 +10,7 @@ import {
   TIMER_TABELL_KOL_KEYS,
   TIMER_TABELL_STANDARD,
   TIMER_TABELL_TILLAGT,
+  erArbeidstidReise,
   erOvertidsnivaa,
   sumOvertidTimer,
   timerTabellVerdi,
@@ -35,6 +36,7 @@ import {
   antallRader,
   byggJobbUtvalg,
   byggUtvalg,
+  erBareReiseKort,
   filterAlternativer,
   filtrerModell,
   grupperModell,
@@ -108,7 +110,8 @@ const ATTESTERING_BREDDE: Partial<Record<TimerTabellKolKey, number>> = {
   prosjektnummer: 66,
   underprosjekt: 88,
   betegnelse: 74,
-  fraTil: 94,
+  // O15 pkt 6 (R11): «06:56–07:00» står helt (94 kuttet siste siffer). Bare attesteringen.
+  fraTil: 100,
   fraTid: 56,
   tilTid: 56,
   // O13 (pkt 3): «11,50» i halvfet står helt (52 ga 40 px til tallet). Reise og Overtid er nye.
@@ -294,12 +297,26 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
       return under === 0 && l.avvikMerker.length > 0 ? <AvvikMerker merker={l.avvikMerker} /> : null;
     }
     if (k === "dato") return under === 0 && typeof v === "string" ? dato(v) : null;
+    // O15 pkt 6: Fra–til med faste sifferbredder, så «06:56–07:00» får plass i `ATTESTERING_BREDDE.fraTil`.
+    if (k === "fraTil" && typeof v === "string") return <span data-fra-til="" className="tabular-nums">{v}</span>;
     // O13 (pkt 3): reise- og overtidslinja har lønnsartens navn i farget merke og timetallet i
     // samme farge. Merket er like høyt som teksten, så raden står på linje med klokkeslettet.
     const slag = under === 0 ? linjeSlag(l) : null;
-    if (k === "betegnelse" && slag) {
-      return <span data-lonnsart-merke={slag} className={`rounded-full border px-1.5 text-xs font-medium leading-5 ${MERKE_FARGE[slag]}`}>{l.linje.betegnelse}</span>;
+    const lonnsartMerke = (s: "reise" | "overtid") => (
+      <span data-lonnsart-merke={s} className={`rounded-full border px-1.5 text-xs font-medium leading-5 ${MERKE_FARGE[s]}`}>{l.linje.betegnelse}</span>
+    );
+    // O15 pkt 4 (vedtak pkt 4): reise ført som arbeidstid har merket «Reise» foran lønnsarten —
+    // «Reise · Timelønn». Timene står i Timer som vanlig arbeidstid (ikke farget, ikke i Reise).
+    if (k === "betegnelse" && under === 0 && l.kilde.type === "timer" && erArbeidstidReise(l.kilde.rad)) {
+      return (
+        <span data-reise-arbeid="" className="inline-flex items-center gap-1">
+          <span className={`rounded-full border px-1.5 text-xs font-medium leading-5 ${MERKE_FARGE.reise}`}>{typeTekst("reise")}</span>
+          <span className="text-gray-400">·</span>
+          {slag ? lonnsartMerke(slag) : <span>{l.linje.betegnelse}</span>}
+        </span>
+      );
     }
+    if (k === "betegnelse" && slag) return lonnsartMerke(slag);
     if (k === "timer" && slag && typeof v === "number") return <span data-tall={slag} className={`font-medium ${TALL_FARGE[slag]}`}>{formaterNorsk(v)}</span>;
     if (v === null) return null;
     if (typeof v === "number") return k === "pause" ? String(v) : formaterNorsk(v);
@@ -616,9 +633,16 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
   }
   const antallJobber = (dag: AttDag) => {
     // «N jobber» teller jobber, ikke reise alene i et kort (§ 4.11 C2). «1 jobb» vises ikke (O13).
-    const n = dag.kort.filter((x) => !x.reise).length;
-    if (n < 2) return "";
-    return <span data-antall-jobber="" className="block truncate font-normal text-gray-500">{t("timer.attestering.tabell.antallJobber", { count: n })}</span>;
+    // O15 pkt 5: kort med bare reise (begge slag) telles for seg — «2 jobber · 1 reise», og
+    // «1 jobb · 1 reise» når dagen har to kort (beslutning c).
+    const reiser = dag.kort.filter(erBareReiseKort).length;
+    const n = dag.kort.length - reiser;
+    if (reiser === 0 && n < 2) return "";
+    const deler = [
+      ...(n > 0 ? [t("timer.attestering.tabell.antallJobber", { count: n })] : []),
+      ...(reiser > 0 ? [t("timer.attestering.tabell.antallReiser", { count: reiser })] : []),
+    ];
+    return <span data-antall-jobber="" className="block truncate font-normal text-gray-500">{deler.join(" · ")}</span>;
   };
 
   /**
@@ -650,6 +674,29 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
 
   /** O6: jobbens «Hva gjorde du?» — timeradene uten reise, som registreringen viser dem. */
   function kortBeskrivelser(kort: AttKort): string[] {
+    // O15 pkt 7 (O14 pkt 6, K3): kort med bare reise får reiselinja — «Til {sted} · 06:26–06:56»,
+    // som timer-siden — og reisens beskrivelse.
+    if (erBareReiseKort(kort)) {
+      const sted = kort.byggeplass || kort.prosjekt;
+      const reiser = kort.linjer
+        .flatMap((l) => (l.kilde.type === "timer" ? [{ l, rad: l.kilde.rad }] : []))
+        .sort((a, b) => (a.l.linje.fraTid ?? "").localeCompare(b.l.linje.fraTid ?? ""));
+      const linje = ({ l, rad }: (typeof reiser)[number]) => {
+        const retning = rad.erReise ? rad.reiseRetning : (rad.arbeidReiseRetning ?? null);
+        const stedTekst =
+          retning === "ut"
+            ? t("timer.prosjektkort.reiseTil", { sted })
+            : retning === "retur"
+              ? t("timer.prosjektkort.reiseFra", { sted })
+              : sted;
+        const tid = l.linje.fraTid && l.linje.tilTid ? ` · ${l.linje.fraTid}–${l.linje.tilTid}` : "";
+        return `${stedTekst}${tid}`;
+      };
+      return [
+        ...reiser.map(linje),
+        ...jobbensBeskrivelser(reiser.map(({ l, rad }) => ({ fraTid: l.linje.fraTid, beskrivelse: rad.beskrivelse }))),
+      ];
+    }
     return jobbensBeskrivelser(
       kort.linjer.flatMap((l) =>
         l.kilde.type === "timer" && l.kilde.rad.erReise !== true

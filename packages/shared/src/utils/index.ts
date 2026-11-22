@@ -235,6 +235,9 @@ export type { ArbeidstidSegment, DognRad, OvertidLonnsartKandidat } from "./lonn
 export { foreslaOvertidSplitt } from "./overtidForslag";
 export { regnJobbTid, validerJobbTid, erGyldigHhmm } from "./jobbTid";
 export type { JobbTidLinje, JobbTidFeil, JobbTidResultat } from "./jobbTid";
+export { tolkKlokkeslett } from "./klokkeslett";
+export { foreslaMaskinDeling, erGyldigMaskinDeling } from "./maskinDeling";
+export type { DelbarMaskin, MaskinDelingForslag } from "./maskinDeling";
 export type {
   OvertidForslagRad,
   OvertidForslagDel,
@@ -735,3 +738,4 @@ export {
   type UtenProsjektRad,
   type UtenProsjektResultat,
 } from "./utenProsjekt";
+export { erArbeidstidReise } from "./arbeidstidReise";

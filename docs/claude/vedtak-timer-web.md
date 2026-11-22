@@ -110,10 +110,10 @@ Filer: `RK` = `apps/web/src/app/dashbord/timer/[id]/ReiseKort.tsx` · `MR` = `ap
     ✅ (merget `72d375ae`, ikke deployet) `TIMER_TABELL_STANDARD` (`reisetimer`, `overtid` etter `timer`; satt inn i lagrede oppsett via `TIMER_TABELL_TILLAGT` / `medTillagteKolonner`), `sumOvertidTimer` i `timerDetaljRader.ts`, `AttesteringTabell.tsx` (`reiseOvertidCelle`, `data-lonnsart-merke`, `linjeSpenn`, `ATTESTERING_BREDDE.timer` 60); full bredde `dashbord/attestering/page.tsx` (`min-w-0`, uten `max-w-7xl`).
 4. En reise ført som arbeidstid har merket «Reise» foran lønnsarten, for eksempel «Reise · Timelønn»; timene står i Timer som vanlig arbeidstid, ikke i Reise.
     Kenneth 2026-11-22: «f3.ja -> med dette mener jeg ar "reise" lønnsart "timelønn" -> arbeidstiden blir da vanlig timelønn slik standard arbeidstid er.»
-    🟡 Vedtatt, ikke bygget.
+    🟡 Bygget på `feat/web-timer-o15-del-opp-attestering`, ikke merget: `AttesteringTabell.tsx` (`data-reise-arbeid`, kjennetegn `erArbeidstidReise` i `packages/shared/src/utils/arbeidstidReise.ts`).
 5. Dagsraden teller kort med bare reise for seg: «2 jobber · 1 reise».
     Kenneth 2026-11-22: «f4.forslag ok».
-    🟡 Vedtatt, ikke bygget.
+    🟡 Bygget på `feat/web-timer-o15-del-opp-attestering`, ikke merget: `erBareReiseKort` i `attestering-tabell.ts` (begge slag reise), `antallJobber` i `AttesteringTabell.tsx`; «1 jobb · 1 reise» når dagen har ett kort med arbeid og ett med bare reise (beslutning c).
 6. Fra–til står hele, for eksempel «06:56–07:00», uten å kuttes.
     Kenneth 2026-11-22: «f6.ja».
-    🟡 Vedtatt, ikke bygget.
+    🟡 Bygget på `feat/web-timer-o15-del-opp-attestering`, ikke merget: `ATTESTERING_BREDDE.fraTil` og `data-fra-til` med `tabular-nums` i `AttesteringTabell.tsx`.

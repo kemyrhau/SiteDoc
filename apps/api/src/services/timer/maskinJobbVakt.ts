@@ -109,7 +109,7 @@ export async function krevIngenNyeMaskinBrudd(
 }
 
 /** Tall som nb-tekst: 7.5 → «7,5», 4 → «4». */
-function tallNb(n: number): string {
+export function tallNb(n: number): string {
   return (Math.round(n * 100) / 100).toString().replace(".", ",");
 }
 
