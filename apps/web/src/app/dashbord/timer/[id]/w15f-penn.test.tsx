@@ -117,17 +117,20 @@ function aapneForste() {
   const hode = screen.getAllByRole("button").filter((b) => b.hasAttribute("aria-expanded"))[0]!;
   if (hode.getAttribute("aria-expanded") !== "true") fireEvent.click(hode);
 }
+// O14 pkt 2 (R2): pennen på reisen åpner «Reise»-vinduet i redigering.
 function pennenPaaReise() {
   const linje = document.querySelector('[data-reiselinje="rr"]') as HTMLElement;
   fireEvent.click(linje.querySelector('[title="handling.rediger"]')!);
-  return screen.getByRole("dialog", { name: "timer.detalj.redigerTimerRad" });
+  return screen.getByRole("dialog", { name: "timer.reiseKort.tittel" });
 }
 const prosjektFelt = (d: HTMLElement) =>
   Array.from(d.querySelectorAll("select")).find((s) => Array.from(s.options).some((o) => o.value === "p2")) as HTMLSelectElement;
 const byggeplassFelt = (d: HTMLElement) =>
   Array.from(d.querySelectorAll("select")).find((s) => Array.from(s.options).some((o) => o.value === "b1" || o.value === "b9")) as HTMLSelectElement | undefined;
 async function lagre(d: HTMLElement) {
-  fireEvent.submit(d.querySelector("form")!);
+  const form = d.querySelector("form");
+  if (form) fireEvent.submit(form);
+  else fireEvent.click(Array.from(d.querySelectorAll("button")).find((b) => b.textContent === "handling.lagre")!);
   await Promise.resolve();
   await Promise.resolve();
 }
@@ -136,18 +139,16 @@ const oppdaterKall = () => h.kall.filter((k) => k.sti === "timer.dagsseddel.oppd
 describe("w15f — pennen på reiselinja (del H pkt. 24)", () => {
   afterEach(cleanup);
 
-  // O12 pkt 17 (R2): prosjekt-valget for reiser er fjernet — stedet står som tekst.
-  it("O12 pkt 17: reiseraden viser prosjekt og byggeplass som tekst + «Feil sted?»-linja; ingen prosjekt- eller byggeplassfelt", () => {
+  // O12 pkt 17 / O14 pkt 2 (R2): prosjekt-valget for reiser er fjernet — stedet står som tekst i «Reise».
+  it("O14 pkt 2: pennen på reiseraden åpner «Reise» med prosjekt og byggeplass som tekst; ingen prosjekt- eller byggeplassfelt", () => {
     rendre([ARBEID1, REISE]);
     aapneForste();
     const d = pennenPaaReise();
     expect(prosjektFelt(d)).toBeUndefined();
     expect(byggeplassFelt(d)).toBeUndefined();
-    const sted = d.querySelector('[data-testid="reise-sted-tekst"]') as HTMLElement;
-    expect(sted.textContent).toContain("2041 — Skole · Blokk A");
-    expect(sted.textContent).toContain("timer.rediger.reiseFeilSted");
-    // w15d-linja under lønnsarten («Den står i jobben på …») står uendret.
-    expect(d.textContent).toContain('timer.rediger.reiseHavnerJobb{"sted":"Blokk A"}');
+    const sted = d.querySelector('[data-testid="reise-kort-sted"]') as HTMLElement;
+    expect(sted.textContent).toContain("Blokk A");
+    expect(sted.textContent).toContain("timer.reiseKort.foresIKortet");
   });
 
   it("prosjektfeltet er låst for en arbeidsrad", () => {

@@ -190,11 +190,20 @@ export function radGirJobbBeskrivelse(r: Omit<BeskrivelseRad, "id" | "kortId">):
   return erArbeid(r) && (r.beskrivelse ?? "").trim() !== "";
 }
 
+const erReiseRad = (r: Omit<BeskrivelseRad, "id" | "kortId">) =>
+  gjelder(r) && r.erReise === true && r.projectId != null;
+
+/**
+ * O14 pkt 4 (R5, vedtak Reisevinduet): et kort med bare reise er også en jobb — det mangler
+ * beskrivelse til en av reisene har tekst. Et kort med arbeid er uendret (reisens tekst teller ikke).
+ */
 export function jobbManglerBeskrivelse(
   rader: readonly Omit<BeskrivelseRad, "id" | "kortId">[],
 ): boolean {
   const arbeid = rader.filter(erArbeid);
-  return arbeid.length > 0 && !arbeid.some(radGirJobbBeskrivelse);
+  if (arbeid.length > 0) return !arbeid.some(radGirJobbBeskrivelse);
+  const reiser = rader.filter(erReiseRad);
+  return reiser.length > 0 && !reiser.some((r) => (r.beskrivelse ?? "").trim() !== "");
 }
 
 /**

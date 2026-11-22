@@ -14,6 +14,7 @@ import {
   periodeDatoFraOverforing,
   tilFraAntall,
   fraFraTilOgAntall,
+  jobbManglerBeskrivelse,
   type ReiseKategori,
   type ReiseKortSperre,
 } from "@sitedoc/shared";
@@ -73,6 +74,8 @@ export type ReiseKortDagsrad = ReiseHavnerRad & {
   tilTid: string | null;
   /** O12 pkt 12: reise ført som arbeidstid — ingen jobb, teller ikke som dagens første/siste kort. */
   arbeidReise?: boolean;
+  /** O14 pkt 4 (R5): radens «Hva gjorde du?» — om kortet alt har en beskrivelse. */
+  beskrivelse?: string | null;
 };
 
 /** O1 TILLEGG: «1», «1,5», «0.75» → timer; tomt, 0 eller ugyldig → null. */
@@ -101,6 +104,32 @@ export function reiseTiderFraAntall(
 /** YYYY-MM-DD → dd.mm */
 function kortDato(d: string): string {
   return `${d.slice(8, 10)}.${d.slice(5, 7)}`;
+}
+
+/** O14 pkt 2 (R2): reisen pennen åpner i «Reise»-vinduet. */
+export type ReiseKortRedigerRad = {
+  id: string;
+  fraTid: string | null;
+  tilTid: string | null;
+  erReise: boolean;
+  reiseRetning: string | null;
+  arbeidReiseRetning: string | null;
+  byggeplassId: string | null;
+  externalCostObjectId: string | null;
+  kortId: string | null;
+  beskrivelse: string | null;
+};
+
+/** Reisens retning: reisetid bærer `reiseRetning`, arbeidstid `arbeidReiseRetning`. */
+export function reiseRadRetning(r: Pick<ReiseKortRedigerRad, "erReise" | "reiseRetning" | "arbeidReiseRetning">): "ut" | "retur" {
+  return (r.erReise ? r.reiseRetning : r.arbeidReiseRetning) === "retur" ? "retur" : "ut";
+}
+
+/** Start og slutt slik arbeideren har skrevet dem → timer (reise bærer aldri pause). */
+function tidFraStartSlutt(fra: string | null, til: string | null): { fraTid: string | null; tilTid: string | null; timer: number } {
+  const f = klokkeTilMin(fra);
+  const ti = klokkeTilMin(til);
+  return { fraTid: fra, tilTid: til, timer: f != null && ti != null && ti > f ? (ti - f) / 60 : 0 };
 }
 
 export const SPERRE_NOKKEL: Record<ReiseKortSperre, string> = {
@@ -132,6 +161,7 @@ export function ReiseKort({
   forvalgtEcoId,
   jobbKortId,
   kortModus = false,
+  rad,
   onLukk,
 }: {
   sheetId: string;
@@ -166,23 +196,36 @@ export function ReiseKort({
   /** O12 pkt 3: vinduet er åpnet fra et prosjektkort (prosjektkort-visning). Prosjekt og
    *  byggeplass er kortets og vises som tekst; reisen lagres i kortet `jobbKortId`. */
   kortModus?: boolean;
+  /** O14 pkt 2 (R2): reisen pennen åpnet — vinduet redigerer den i stedet for å føre en ny.
+   *  Utelatt = ny reise (som før). */
+  rad?: ReiseKortRedigerRad;
   onLukk: () => void;
 }) {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
-  const [valg, setValg] = useState<ReiseKortValg | null>(null);
-  const [ecoId, setEcoId] = useState<string | null>(forvalgtEcoId ?? null);
+  // O14 pkt 2: i redigering fylles feltene fra raden.
+  const redigering = rad ?? null;
+  const [valg, setValg] = useState<ReiseKortValg | null>(
+    redigering ? { type: reiseRadRetning(redigering) === "retur" ? "retur" : "tur" } : null,
+  );
+  const [ecoId, setEcoId] = useState<string | null>(
+    redigering ? redigering.externalCostObjectId : (forvalgtEcoId ?? null),
+  );
   const [feil, setFeil] = useState<string | null>(null);
+  // O14 pkt 4 (R5): «Hva gjorde du?» — påkrevd når reisen står alene i kortet.
+  const [beskrivelse, setBeskrivelse] = useState(redigering?.beskrivelse ?? "");
   // w15b: «Hvor kjørte du til?» — fylt ut fra jobben, kan byttes.
   const [prosjektId, setProsjektId] = useState(projectId);
   // § 8.22 (svar 1A): «Fra et annet kontor fra i dag». null = oppmøtestedet perioden gir.
   const [annetKontorId, setAnnetKontorId] = useState<string | null>(null);
   // w15b: arbeiderens rettede tider. null = forslaget.
-  const [rettetStart, setRettetStart] = useState<string | null>(null);
-  const [rettetSlutt, setRettetSlutt] = useState<string | null>(null);
+  const [rettetStart, setRettetStart] = useState<string | null>(redigering?.fraTid ?? null);
+  const [rettetSlutt, setRettetSlutt] = useState<string | null>(redigering?.tilTid ?? null);
   // O1 TILLEGG: arbeiderens valg reisetid/arbeidstid (null = terskelen foreslår) og
   // «Antall timer» slik han skrev det (null = vises fra start og slutt).
-  const [kategoriValg, setKategoriValg] = useState<ReiseKategori | null>(null);
+  const [kategoriValg, setKategoriValg] = useState<ReiseKategori | null>(
+    redigering ? (redigering.erReise ? "reisetid" : "arbeidstid") : null,
+  );
   const [antallTekst, setAntallTekst] = useState<string | null>(null);
   // O12 pkt 9: km-firmaets avhuking «Reisen er mer enn X km». null = som firmaets tabell sier.
   const [kmAvhuket, setKmAvhuket] = useState<boolean | null>(null);
@@ -190,7 +233,8 @@ export function ReiseKort({
   const [dialog, setDialog] = useState<"kort" | "terskel" | null>(null);
   const [lagreSignal, setLagreSignal] = useState(0);
   // O12 pkt 3: i prosjektkort-visning er kortet stedet — bare når det finnes en jobb å lagre i.
-  const iKort = kortModus && !!jobbKortId;
+  // O14 pkt 2: en reise som redigeres, står alt i kortet sitt.
+  const iKort = kortModus && (!!jobbKortId || !!redigering);
   const nullstillTider = () => {
     setRettetStart(null);
     setRettetSlutt(null);
@@ -204,7 +248,11 @@ export function ReiseKort({
   const bp = useRadByggeplass({
     byggeplasser,
     projectId: prosjektId,
-    rad: forvalgtByggeplassId !== undefined ? { byggeplassId: forvalgtByggeplassId } : undefined,
+    rad: redigering
+      ? { byggeplassId: redigering.byggeplassId }
+      : forvalgtByggeplassId !== undefined
+        ? { byggeplassId: forvalgtByggeplassId }
+        : undefined,
   });
   const { data: ecoer } = trpc.eksternKostObjekt.list.useQuery({ projectId: reiseProsjektId, organizationId });
 
@@ -223,9 +271,21 @@ export function ReiseKort({
   });
   const { aktivtValg, resultat, oppmotestedNavn, regelStatus } = reise;
   const { kontorOppsett, kontorKall, kontorKonflikt, apenOverforing } = reise;
+  // O14 pkt 2: i redigering er tiden arbeiderens (radens) — forslag og sperrer om kjøretid
+  // gjelder ikke en reise som finnes.
+  const tid = redigering ? tidFraStartSlutt(rettetStart, rettetSlutt) : resultat;
+  const kategoriEndret = !!redigering && kategoriValg !== (redigering.erReise ? "reisetid" : "arbeidstid");
 
   const overforingMut = trpc.oppmotePeriode.overforing.useMutation({
     onSettled: () => utils.oppmotePeriode.hentMine.invalidate(),
+  });
+
+  const oppdater = trpc.timer.dagsseddel.oppdaterTimerRad.useMutation({
+    onSuccess: () => {
+      utils.timer.dagsseddel.hentMedId.invalidate();
+      onLukk();
+    },
+    onError: (e: { message: string }) => setFeil(e.message),
   });
 
   const tilfoy = trpc.timer.dagsseddel.tilfoyTimerRad.useMutation({
@@ -241,24 +301,24 @@ export function ReiseKort({
 
   // w15b: slutt før start, og overlapp med en annen rad på sedelen (samme delte regel som
   // timerad-vinduet; serveren avviser overlapp i `tilfoyTimerRad`).
-  const fraMin = klokkeTilMin(resultat.fraTid);
-  const tilMin = klokkeTilMin(resultat.tilTid);
+  const fraMin = klokkeTilMin(tid.fraTid);
+  const tilMin = klokkeTilMin(tid.tilTid);
   const sluttForStart = fraMin != null && tilMin != null && tilMin <= fraMin;
-  const overlapp = sluttForStart ? null : finnOverlappendeTidsrom(resultat.fraTid, resultat.tilTid, dagsrader);
+  const overlapp = sluttForStart ? null : finnOverlappendeTidsrom(tid.fraTid, tid.tilTid, dagsrader);
   const tidSperre = sluttForStart
     ? t("timer.feil.sluttForStart")
     : overlapp
       ? overlapp.projectId
         ? t("timer.feil.overlappKort", {
-            fra: resultat.fraTid,
-            til: resultat.tilTid,
+            fra: tid.fraTid,
+            til: tid.tilTid,
             annenFra: overlapp.fraTid,
             annenTil: overlapp.tilTid,
             kort: prosjektNavn(overlapp.projectId),
           })
         : t("timer.feil.overlapp", {
-            fra: resultat.fraTid,
-            til: resultat.tilTid,
+            fra: tid.fraTid,
+            til: tid.tilTid,
             annenFra: overlapp.fraTid,
             annenTil: overlapp.tilTid,
           })
@@ -270,7 +330,7 @@ export function ReiseKort({
     : null;
   // O12 pkt 12: linja «havner i» finnes ikke i prosjektkort-visning — reisen står i kortet.
   const havner =
-    !iKort && regelStatus === "klar" && resultat.spor && resultat.fraTid
+    !iKort && regelStatus === "klar" && resultat.spor && tid.fraTid
       ? reiseHavnerI({
           rader: dagsrader,
           andreRader,
@@ -282,7 +342,7 @@ export function ReiseKort({
             ecoId,
             byggeplassId: lagretByggeplassId,
             retning: resultat.spor.reiseRetning,
-            fraTid: resultat.fraTid,
+            fraTid: tid.fraTid,
             erReise: resultat.spor.erReise,
           },
         })
@@ -319,7 +379,7 @@ export function ReiseKort({
   const kmFirma = regel?.reiseTerskelEnhet === "km" && regel.reiseTerskelM != null;
   const tabellOverKm = kl?.forklaring.type === "over" && kl.forklaring.enhet === "km";
   const avhuket = kmAvhuket ?? tabellOverKm;
-  const vinduMin = resultat.fraTid && resultat.tilTid ? Math.round(resultat.timer * 60) : null;
+  const vinduMin = tid.fraTid && tid.tilTid ? Math.round(tid.timer * 60) : null;
   const overTerskel = kmFirma
     ? avhuket
     : regel != null && regel.reiseTerskelEnhet === "minutter" && vinduMin != null && vinduMin >= regel.reiseTerskelMin;
@@ -371,21 +431,76 @@ export function ReiseKort({
         .join(" · ")
     : "";
 
-  const kanLagre =
-    regelStatus === "klar" &&
+  // O14 pkt 4 (R5): kortet reisen står i etter lagring. Nytt underprosjekt i redigering gir eget
+  // kort. Reisen står alene når kortet ikke har arbeid; da er beskrivelsen påkrevd når ingen annen
+  // reise i kortet har en (samme delte regel som merket «Mangler beskrivelse» og `send`).
+  const maalKortId = redigering
+    ? ecoId !== redigering.externalCostObjectId
+      ? null
+      : redigering.kortId
+    : iKort
+      ? (jobbKortId ?? null)
+      : null;
+  const kortRader = maalKortId == null ? [] : dagsrader.filter((r) => r.kortId === maalKortId);
+  const reiseErReiseEtter = redigering ? kategoriValg === "reisetid" : resultat.spor?.erReise === true;
+  const reiseAlene = kortRader.every((r) => r.erReise || r.arbeidReise || r.attestertStatus === "erstattet" || r.projectId == null);
+  const somRad = (tekst: string) => ({
+    projectId: reiseProsjektId,
+    erReise: reiseErReiseEtter,
+    attestertStatus: "pending",
+    beskrivelse: tekst,
+  });
+  const kortRaderBeskrivelse = kortRader.map((r) => ({
+    projectId: r.projectId ?? null,
+    erReise: r.erReise,
+    attestertStatus: r.attestertStatus ?? null,
+    beskrivelse: r.beskrivelse ?? null,
+  }));
+  const beskrivelsePakrevd =
+    iKort &&
+    reiseAlene &&
+    jobbManglerBeskrivelse([...kortRaderBeskrivelse, somRad("")]) &&
+    !jobbManglerBeskrivelse([...kortRaderBeskrivelse, somRad("x")]);
+  const beskrivelseMangler = beskrivelsePakrevd && beskrivelse.trim() === "";
+
+  // O14 pkt 2: redigering lagrer radens tid; lønnsarten trengs bare når «Føres som» byttes.
+  const kanLagreRedigering =
+    !!redigering &&
+    tidSperre == null &&
+    tid.timer > 0 &&
+    !!tid.fraTid &&
+    !!tid.tilTid &&
+    !beskrivelseMangler &&
+    (!kategoriEndret || (regelStatus === "klar" && !!resultat.klassifisering?.lonnsartId));
+  const kanLagre = redigering
+    ? kanLagreRedigering
+    : !beskrivelseMangler &&
+      regelStatus === "klar" &&
     sperre == null &&
     tidSperre == null &&
-    resultat.timer > 0 &&
+    tid.timer > 0 &&
     !kontorKonflikt &&
     !overforingMut.isPending &&
     !!aktivitetId &&
     !!resultat.spor &&
     !!resultat.klassifisering?.lonnsartId &&
-    !!resultat.fraTid &&
-    !!resultat.tilTid;
+    !!tid.fraTid &&
+    !!tid.tilTid;
 
-  const forklaring =
-    regelStatus === "feilet"
+  const forklaring = redigering
+    ? (tidSperre ??
+      (kategoriEndret && !resultat.klassifisering?.lonnsartId
+        ? regelStatus === "feilet"
+          ? t("sperret.reiseRegelFeilet")
+          : regelStatus === "laster"
+            ? t("sperret.reiseRegelLaster")
+            : sperre
+              ? t(SPERRE_NOKKEL[sperre])
+              : ""
+        : beskrivelseMangler
+          ? t("sperret.beskrivelse")
+          : ""))
+    : regelStatus === "feilet"
       ? t("sperret.reiseRegelFeilet")
       : regelStatus === "laster"
         ? t("sperret.reiseRegelLaster")
@@ -399,7 +514,29 @@ export function ReiseKort({
             ? t("timer.reiseKort.sperre.adminMidlertidig")
             : !aktivitetId
             ? t("timer.feil.aktivitetPaakrevd")
+            : beskrivelseMangler
+            ? t("sperret.beskrivelse")
             : "";
+
+  /** O14 pkt 2 (R2): «Lagre» i redigering skriver raden — ingen ny rad, ingen overføring. */
+  function lagreRedigering() {
+    if (!redigering || !kanLagreRedigering || !tid.fraTid || !tid.tilTid) return;
+    setFeil(null);
+    const retning = aktivtValg.type === "retur" ? ("retur" as const) : ("ut" as const);
+    oppdater.mutate({
+      id: redigering.id,
+      fraTid: tid.fraTid,
+      tilTid: tid.tilTid,
+      timer: tid.timer,
+      pauseMin: 0,
+      externalCostObjectId: ecoId,
+      ...(kategoriEndret && resultat.klassifisering?.lonnsartId ? { lonnsartId: resultat.klassifisering.lonnsartId } : {}),
+      ...(kategoriValg === "arbeidstid" ? { arbeidReiseRetning: retning } : { reiseRetning: retning }),
+      ...((beskrivelse.trim() || null) !== (redigering.beskrivelse?.trim() || null)
+        ? { beskrivelse: beskrivelse.trim() || null }
+        : {}),
+    });
+  }
 
   async function lagre() {
     if (!kanLagre || !aktivitetId || !resultat.spor || !resultat.klassifisering?.lonnsartId) return;
@@ -427,12 +564,13 @@ export function ReiseKort({
       projectId: reiseProsjektId,
       lonnsartId: resultat.klassifisering.lonnsartId,
       aktivitetId,
-      timer: resultat.timer,
+      timer: tid.timer,
       externalCostObjectId: ecoId,
       vehicleId: null,
-      beskrivelse: null,
-      fraTid: resultat.fraTid,
-      tilTid: resultat.tilTid,
+      // O14 pkt 4 (R5): «Hva gjorde du?» (tomt = ingen).
+      beskrivelse: beskrivelse.trim() || null,
+      fraTid: tid.fraTid,
+      tilTid: tid.tilTid,
       // Reise bærer aldri matpausen (pauseFraForRad hopper over erReise).
       pauseMin: 0,
       byggeplassId: lagretByggeplassId,
@@ -459,6 +597,10 @@ export function ReiseKort({
   // O12 pkt 9 og 12: «Lagre» spør først om kortet, så om terskelen; begge svar lagrer.
   function trykkLagre() {
     if (!kanLagre) return;
+    if (redigering) {
+      lagreRedigering();
+      return;
+    }
     if (kortSjekk) setDialog("kort");
     else if (kreverTerskelDialog) setDialog("terskel");
     else void lagre();
@@ -516,6 +658,8 @@ export function ReiseKort({
   // w15b: forslaget regnes på nytt når valget endres — rettede tider forkastes.
   function velg(v: ReiseKortValg) {
     setValg(v);
+    // O14 pkt 2: en reise som redigeres, beholder tidene sine når retningen rettes.
+    if (redigering) return;
     nullstillTider();
   }
   function byttProsjekt(id: string) {
@@ -555,7 +699,7 @@ export function ReiseKort({
           {valgKnapp({ type: "retur" }, t("timer.reiseKort.retur"), "retur")}
         </div>
 
-        {apenOverforing && apenOverforing.oppmotestedId && (
+        {!redigering && apenOverforing && apenOverforing.oppmotestedId && (
           <p className="text-sm text-gray-700">
             {t("timer.reiseKort.midlertidigLinje", {
               navn: reise.kontorNavn(apenOverforing.oppmotestedId),
@@ -574,12 +718,18 @@ export function ReiseKort({
         )}
 
         {oppmotestedNavn && (
-          <p className="text-sm text-gray-700">{t("timer.reiseKort.fraOppmotested", { navn: oppmotestedNavn })}</p>
+          <p className="text-sm text-gray-700">
+            {/* O14 pkt 7 (R6): «Fra byggeplass» går til oppmøtestedet. */}
+            {t(aktivtValg.type === "retur" ? "timer.reiseKort.tilOppmotested" : "timer.reiseKort.fraOppmotested", {
+              navn: oppmotestedNavn,
+            })}
+          </p>
         )}
 
         {/* § 8.22 (svar 1A): midlertidig oppmøtested satt av arbeideren selv — reisen
             regnes fra kontoret, perioden gjelder fra i dag. */}
-        {kontorOppsett && kontorOppsett.andre.length > 0 && (
+        {/* O14 pkt 2: skjult i redigering — overføringen hører til en ny reise. */}
+        {!redigering && kontorOppsett && kontorOppsett.andre.length > 0 && (
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="reise-annet-kontor">
               {t("timer.reiseKort.annetKontorFraIDag")}
@@ -658,15 +808,16 @@ export function ReiseKort({
         {/* w15b: start og slutt er forslaget og kan rettes. Skjult bare når det ikke finnes
             noe å foreslå fra (byggeplass-periode, oppmøtested ikke valgt, kjøretid mangler). */}
         {/* O12 pkt 14: mangler kjøretid (eller byggeplass) skriver arbeideren tiden selv. */}
-        {regelStatus === "klar" && resultat.utenKjoretid && (
+        {!redigering && regelStatus === "klar" && resultat.utenKjoretid && (
           <p data-testid="reise-uten-kjoretid" className="text-xs text-gray-500">
             {t(resultat.utenKjoretid === "utenByggeplass" ? "timer.reiseKort.utenByggeplass" : "timer.reiseKort.utenKjoretid")}
           </p>
         )}
-        {regelStatus === "klar" &&
-          sperre !== "byggeplassPeriode" &&
-          sperre !== "oppmoteIkkeValgt" &&
-          sperre !== "manglerKjoretid" && (
+        {(redigering ||
+          (regelStatus === "klar" &&
+            sperre !== "byggeplassPeriode" &&
+            sperre !== "oppmoteIkkeValgt" &&
+            sperre !== "manglerKjoretid")) && (
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="reise-start">
@@ -675,15 +826,17 @@ export function ReiseKort({
                 <input
                   id="reise-start"
                   type="time"
-                  value={rettetStart ?? resultat.fraTid ?? ""}
+                  value={rettetStart ?? tid.fraTid ?? ""}
                   onChange={(e) => {
                     const start = e.target.value || null;
                     setRettetStart(start);
                     // O7 (§ 8.22 punkt 4): «Til byggeplass» — slutten (ankomsten, jobbstart)
                     // står fast, og antall timer regnes på nytt som Slutt − Start (fra
                     // `resultat.timer`, altså det som lagres).
-                    if (aktivtValg.type === "tur") {
-                      setRettetSlutt(rettetSlutt ?? resultat.tilTid ?? null);
+                    // O14 pkt 2: i redigering står slutten også ved «Fra byggeplass» (som O7 i
+                    // «Rediger reise»): antall timer regnes av start og slutt.
+                    if (aktivtValg.type === "tur" || redigering) {
+                      setRettetSlutt(rettetSlutt ?? tid.tilTid ?? null);
                       setAntallTekst(null);
                       return;
                     }
@@ -702,7 +855,7 @@ export function ReiseKort({
                 <input
                   id="reise-slutt"
                   type="time"
-                  value={rettetSlutt ?? resultat.tilTid ?? ""}
+                  value={rettetSlutt ?? tid.tilTid ?? ""}
                   onChange={(e) => {
                     setRettetSlutt(e.target.value || null);
                     // Rettet slutt → antall timer regnes av start og slutt.
@@ -723,13 +876,13 @@ export function ReiseKort({
                   step="0.25"
                   min={0}
                   max={24}
-                  value={antallTekst ?? (resultat.fraTid && resultat.tilTid ? String(Math.round(resultat.timer * 100) / 100) : "")}
+                  value={antallTekst ?? (tid.fraTid && tid.tilTid ? String(Math.round(tid.timer * 100) / 100) : "")}
                   onChange={(e) => {
                     setAntallTekst(e.target.value);
                     const antall = tolkAntall(e.target.value);
                     const tider =
                       antall != null
-                        ? reiseTiderFraAntall(aktivtValg.type, resultat.fraTid, resultat.tilTid, antall)
+                        ? reiseTiderFraAntall(aktivtValg.type, tid.fraTid, tid.tilTid, antall)
                         : null;
                     if (tider && antall != null) {
                       // O6: «Til byggeplass» flytter Start; «Fra byggeplass» flytter Slutt.
@@ -751,12 +904,12 @@ export function ReiseKort({
           )}
 
         {/* O1 TILLEGG (§ 8.22): terskelen foreslår, arbeideren velger reisetid eller arbeidstid. */}
-        {regelStatus === "klar" && resultat.klassifisering && (
+        {(redigering || (regelStatus === "klar" && resultat.klassifisering)) && (
           <div>
             <p className="mb-2 text-sm font-medium text-gray-900">{t("timer.reiseKort.foresSom")}</p>
             <div className="flex flex-wrap gap-2">
               {(["reisetid", "arbeidstid"] as const).map((k) => {
-                const aktiv = resultat.klassifisering!.kategori === k;
+                const aktiv = redigering ? kategoriValg === k : resultat.klassifisering!.kategori === k;
                 return (
                   <button
                     key={k}
@@ -775,7 +928,7 @@ export function ReiseKort({
               })}
             </div>
             {/* O12 pkt 9: km-firma — arbeideren huker av om reisen var lengre enn terskelen. */}
-            {kmFirma && (
+            {kmFirma && !redigering && (
               <label className="mt-2 flex items-center gap-2 text-sm text-gray-800">
                 <input
                   type="checkbox"
@@ -800,7 +953,7 @@ export function ReiseKort({
         )}
 
         {/* Forslaget: firmaets kjøretid, deretter hvorfor arbeid/reise. */}
-        {regelStatus === "klar" && resultat.kjoretidMin != null && (
+        {!redigering && regelStatus === "klar" && resultat.kjoretidMin != null && (
           <div>
             <p className="text-sm text-gray-700">{t("timer.reiseKort.forslag", { min: resultat.kjoretidMin })}</p>
             {resultat.klassifisering && resultat.klassifisering.lonnsartId != null && (
@@ -831,7 +984,7 @@ export function ReiseKort({
 
         {/* Ordre (11) C: mangler lønnsart → rød tekst; firmaadmin får lenke til
             reise-regelsettet (firmaadmin skal ikke bes om å spørre firmaadmin). */}
-        {sperre === "manglerArt" && (
+        {!redigering && sperre === "manglerArt" && (
           <p className="text-xs font-medium text-red-700">
             {erFirmaAdmin ? t("timer.reiseTerskel.manglerStandardArt") : t("timer.reiseTerskel.manglerArt")}
             {erFirmaAdmin && (
@@ -846,11 +999,12 @@ export function ReiseKort({
         )}
         {/* Øvrige sperrer (mangler kjøretid, utenfor døgnet …) vises synlig i
             kortet — tooltipen alene når ikke berøringsskjerm og havner bak modalen. */}
-        {sperre && sperre !== "manglerArt" && forklaring && (
+        {redigering && forklaring && <p className="text-xs font-medium text-red-700">{forklaring}</p>}
+        {!redigering && sperre && sperre !== "manglerArt" && forklaring && (
           <p className="text-xs font-medium text-red-700">{forklaring}</p>
         )}
-        {!sperre && tidSperre && <p className="text-xs font-medium text-red-700">{tidSperre}</p>}
-        {!sperre && !tidSperre && kontorKonflikt && (
+        {!redigering && !sperre && tidSperre && <p className="text-xs font-medium text-red-700">{tidSperre}</p>}
+        {!redigering && !sperre && !tidSperre && kontorKonflikt && (
           <p className="text-xs font-medium text-red-700">{t("timer.reiseKort.sperre.adminMidlertidig")}</p>
         )}
 
@@ -876,6 +1030,27 @@ export function ReiseKort({
           </div>
         )}
 
+        {/* O14 pkt 4 (R5): «Hva gjorde du?» — påkrevd når reisen står alene i kortet. */}
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="reise-beskrivelse">
+            {t("timer.felt.radBeskrivelse")}{" "}
+            {beskrivelsePakrevd ? (
+              <span className="text-red-500">*</span>
+            ) : (
+              <span className="text-xs text-gray-400">({t("label.valgfritt")})</span>
+            )}
+          </label>
+          <textarea
+            id="reise-beskrivelse"
+            value={beskrivelse}
+            onChange={(e) => setBeskrivelse(e.target.value)}
+            placeholder={t("timer.radBeskrivelsePlaceholder")}
+            rows={2}
+            aria-invalid={beskrivelseMangler || undefined}
+            className={`w-full rounded border px-3 py-2 text-sm ${beskrivelseMangler ? "border-red-400" : "border-gray-300"}`}
+          />
+        </div>
+
         {/* w15b: hvor reisen havner før han lagrer — samme regel som serveren. */}
         {havnerTekst && (
           <p className="rounded border border-blue-100 bg-blue-50 px-3 py-2 text-sm text-blue-900">{havnerTekst}</p>
@@ -886,9 +1061,9 @@ export function ReiseKort({
           <Button type="button" variant="secondary" onClick={onLukk}>
             {t("handling.avbryt")}
           </Button>
-          <KnappMedForklaring sperret={!kanLagre && !tilfoy.isPending} forklaring={forklaring}>
-            <Button type="button" onClick={trykkLagre} disabled={!kanLagre || tilfoy.isPending}>
-              {tilfoy.isPending || overforingMut.isPending ? t("handling.lagrer") : t("handling.lagre")}
+          <KnappMedForklaring sperret={!kanLagre && !tilfoy.isPending && !oppdater.isPending} forklaring={forklaring}>
+            <Button type="button" onClick={trykkLagre} disabled={!kanLagre || tilfoy.isPending || oppdater.isPending}>
+              {tilfoy.isPending || overforingMut.isPending || oppdater.isPending ? t("handling.lagrer") : t("handling.lagre")}
             </Button>
           </KnappMedForklaring>
         </div>

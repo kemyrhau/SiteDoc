@@ -877,6 +877,34 @@ async function krevLikUtleggOrdning(
  *
  * Kalleren har sjekket sedelen (egen, redigerbar), firma og byggeplass.
  */
+/**
+ * O14 pkt 1 (R1): `arbeidReiseRetning` etter en skriving i `oppdaterTimerRad`. Reise (`erReise`)
+ * har aldri merket. Arbeid: oppgitt verdi vinner; en reisetid-reise som blir arbeidstid får
+ * retningen fra `reiseRetning`; ellers står radens merke.
+ */
+export function arbeidReiseRetningEtter(
+  rad: { erReise: boolean; reiseRetning: string | null; arbeidReiseRetning: string | null },
+  postErReise: boolean,
+  oppgitt: "ut" | "retur" | null | undefined,
+): string | null {
+  if (postErReise) return null;
+  if (oppgitt !== undefined) return oppgitt;
+  if (rad.erReise) return rad.reiseRetning === "retur" ? "retur" : "ut";
+  return rad.arbeidReiseRetning;
+}
+
+/**
+ * O14 pkt 5 (R4): kortets jobblinjer for `lagreJobbTid` — `JOBBRAD` i JS (ikke reise, ikke
+ * arbeidstid-reise) og ikke fravær uten prosjekt. Rekkefølgen er radenes.
+ */
+export function jobbLinjerIKort<
+  R extends { kortId: string | null; erReise: boolean; arbeidReiseRetning: string | null; utenProsjekt: boolean },
+>(rader: readonly R[], kortId: string): R[] {
+  return rader.filter(
+    (r) => r.kortId === kortId && !r.erReise && r.arbeidReiseRetning == null && !r.utenProsjekt,
+  );
+}
+
 async function flyttJobbTilSted(
   ctx: InnloggetCtx,
   args: {
@@ -4739,6 +4767,11 @@ export const dagsseddelRouter = router({
         // w15f (§ 4.15 del F): prosjektet kan byttes på en reise som finnes. Utelatt eller
         // likt radens = urørt. Bare en rad som er reise før og etter skrivingen.
         projectId: z.string().uuid().optional(),
+        // O14 pkt 1 (R1): reisens retning når den føres som arbeidstid. Utelatt = regelen under.
+        arbeidReiseRetning: z.enum(["ut", "retur"]).nullable().optional(),
+        // O14 pkt 2 (R2): retningen på en reise ført som reisetid. Brukes bare når raden er
+        // reisetid etter skrivingen. Utelatt = urørt.
+        reiseRetning: z.enum(["ut", "retur"]).optional(),
       }).superRefine(refineFraForTil),
     )
     .mutation(async ({ ctx, input }) => {
@@ -4987,8 +5020,24 @@ export const dagsseddelRouter = router({
         // endret nøkkel (prosjekt/underprosjekt/byggeplass) eller arbeid↔reise → regel 3 i
         // sikreKortId.
         const postErReise = typeof data.erReise === "boolean" ? data.erReise : rad.erReise;
+        // O14 pkt 1 (vedtak Reisevinduet pkt 16, R1): en reise forblir en reise. Reisetid nuller
+        // reisemerket; Arbeidstid setter det (oppgitt, ellers fra reisens retning). Ingen CHECK
+        // binder kolonnene, så regelen står her.
+        const retningEtter = arbeidReiseRetningEtter(rad, postErReise, input.arbeidReiseRetning);
+        if (retningEtter !== rad.arbeidReiseRetning) data.arbeidReiseRetning = retningEtter;
+        // Arbeidstid → Reisetid: reisen beholder retningen sin. O14 pkt 2 (R2): retningen
+        // valgt i «Reise»-vinduet går foran.
+        if (postErReise && input.reiseRetning) {
+          if (input.reiseRetning !== rad.reiseRetning) data.reiseRetning = input.reiseRetning;
+        } else if (postErReise && !rad.erReise && rad.arbeidReiseRetning) {
+          data.reiseRetning = rad.arbeidReiseRetning;
+        }
+        const reiseFoer = rad.erReise || rad.arbeidReiseRetning != null;
+        const reiseEtter = postErReise || retningEtter != null;
         data.kortId = kortIdForSkriving(await lastSedelKortKontekst(tx, rad.sheetId), {
-          lagret: rad.erReise === postErReise ? rad : null,
+          // Kortet står når raden er reise før og etter (Reisetid ↔ Arbeidstid), eller ved
+          // uendret arbeid/reise. Ny nøkkel (underprosjekt) gir fortsatt eget kort.
+          lagret: rad.erReise === postErReise || (reiseFoer && reiseEtter) ? rad : null,
           ny: {
             projectId: prosjektEtter,
             byggeplassId: input.byggeplassId !== undefined ? input.byggeplassId : rad.byggeplassId,
@@ -5174,9 +5223,9 @@ export const dagsseddelRouter = router({
         where: { sheetId: input.sheetId, attestertStatus: { not: "erstattet" } },
         orderBy: [{ fraTid: "asc" }, { createdAt: "asc" }],
       });
-      const jobbRader = dagensRader.filter(
-        (r) => r.kortId === input.kortId && !r.erReise && !r.utenProsjekt,
-      );
+      // O14 pkt 5 (R4): jobbens linjer er JOBBRAD — en reise ført som arbeidstid står i kortet som
+      // reise og er ingen linje her (ellers telles den som linje 2 og slettes når jobben blir én).
+      const jobbRader = jobbLinjerIKort(dagensRader, input.kortId);
       const oppgitte = input.linjer.map((l) => l.radId);
       if (
         jobbRader.length !== oppgitte.length ||

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { forsteRadUtenBeskrivelse, grupperPaaKort, grupperPaaUnderprosjekt, raderForDag } from "./dagsoversiktRader";
+import { forsteRadUtenBeskrivelse, grupperPaaKort, grupperPaaUnderprosjekt, radManglerBeskrivelse, raderForDag } from "./dagsoversiktRader";
 
 const rad = (id: string, projectId: string, fraTid: string | null, timer = 2) => ({ id, projectId, fraTid, timer });
 
@@ -260,5 +260,18 @@ describe("(27b RETUR) kildevakter — maskin/varer pr. linje, navn-trykk", () =>
     expect(blokk("prosjektkort")).toContain(
       "enkeltProsjekt ? forsteRad && aapneTimer(valg, forsteRad.id) : onAapneKort?.(valg)",
     );
+  });
+});
+
+// O14 pkt 4 (R5): web krever beskrivelse på et kort med bare reise; mobil er uendret (vedtaket
+// gjelder web). Mobilens egen regel unntar reise, og mobil bruker ikke den delte web-regelen.
+describe("O14 pkt 4 — mobilens beskrivelsesregel er uendret for et kort med bare reise", () => {
+  it("reise uten beskrivelse mangler ingenting på mobil", () => {
+    expect(radManglerBeskrivelse(null, true)).toBe(false);
+    expect(forsteRadUtenBeskrivelse([{ id: "r", beskrivelse: null, erReise: true }])).toBeNull();
+  });
+  it("mobil importerer ikke den delte web-regelen jobbManglerBeskrivelse/jobberSomManglerBeskrivelse", () => {
+    const fil = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "dagsoversiktRader.ts"), "utf8");
+    expect(fil).not.toMatch(/jobbManglerBeskrivelse|jobberSomManglerBeskrivelse/);
   });
 });

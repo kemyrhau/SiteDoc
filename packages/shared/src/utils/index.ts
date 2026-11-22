@@ -735,3 +735,4 @@ export {
   type UtenProsjektRad,
   type UtenProsjektResultat,
 } from "./utenProsjekt";
+export { erArbeidstidReise } from "./arbeidstidReise";

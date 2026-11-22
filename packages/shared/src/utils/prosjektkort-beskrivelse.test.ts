@@ -18,8 +18,13 @@ describe("jobbManglerBeskrivelse", () => {
   it("én beskrivelse pr. jobb: overtidsraden uten tekst gjør ikke jobben uferdig", () => {
     expect(jobbManglerBeskrivelse([rad({ beskrivelse: "Graving" }), rad({ id: "r2" })])).toBe(false);
   });
-  it("reise, erstattede rader og fravær uten prosjekt teller ikke", () => {
-    expect(jobbManglerBeskrivelse([rad({ erReise: true })])).toBe(false);
+  it("erstattede rader og fravær uten prosjekt teller ikke; reise teller bare i kort uten arbeid", () => {
+    // O14 pkt 4 (R5): et kort med bare reise mangler beskrivelse til reisen har tekst.
+    expect(jobbManglerBeskrivelse([rad({ erReise: true })])).toBe(true);
+    expect(jobbManglerBeskrivelse([rad({ erReise: true, beskrivelse: "Kjøring til Narvik" })])).toBe(false);
+    expect(jobbManglerBeskrivelse([rad({ erReise: true }), rad({ id: "r2", erReise: true, beskrivelse: "Hjem" })])).toBe(false);
+    expect(jobbManglerBeskrivelse([rad({ erReise: true, attestertStatus: "erstattet" })])).toBe(false);
+    expect(jobbManglerBeskrivelse([rad({ erReise: true, projectId: null })])).toBe(false);
     expect(jobbManglerBeskrivelse([rad({ attestertStatus: "erstattet" })])).toBe(false);
     expect(jobbManglerBeskrivelse([rad({ projectId: null })])).toBe(false);
     // Reisens tekst gjør ikke arbeidet ferdig.
@@ -39,7 +44,8 @@ describe("jobberSomManglerBeskrivelse", () => {
       rad({ id: "d", kortId: "k2", beskrivelse: " " }),
       rad({ id: "e", kortId: "k3", erReise: true }),
     ];
-    expect(jobberSomManglerBeskrivelse(rader)).toEqual(["k2", "rad:c"]);
+    // O14 pkt 4 (R5): k3 har bare reise uten tekst — den mangler også.
+    expect(jobberSomManglerBeskrivelse(rader)).toEqual(["k2", "rad:c", "k3"]);
   });
   it("tom når alle jobber har beskrivelse", () => {
     expect(jobberSomManglerBeskrivelse([rad({ beskrivelse: "x" })])).toEqual([]);

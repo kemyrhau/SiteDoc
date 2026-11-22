@@ -271,3 +271,30 @@ describe("L3a — «+ Registrer timer» lander i skjemaet", () => {
     });
   });
 });
+
+// O14 pkt 5 (R4): en reise ført som arbeidstid er ingen skjemalinje. Kortet med arbeidsrad +
+// arbeidstid-reise står i skjemaet (Fra 07:00, ikke 06:56), og reisen står som reiselinje.
+describe("O14 pkt 5 — arbeidstid-reisen hindrer ikke skjemaet", () => {
+  afterEach(cleanup);
+
+  it("arbeidsrad + arbeidstid-reise i samme kort: skjemaet viser arbeidet; reisen er en reiselinje", () => {
+    const r1 = DAG7_SEDEL.timer[0]!;
+    const reise = {
+      ...r1,
+      id: "ra",
+      fraTid: "06:56",
+      tilTid: "07:00",
+      timer: "0.07",
+      pauseMin: 0,
+      beskrivelse: null,
+      erReise: false,
+      arbeidReiseRetning: "ut",
+      createdAt: "2026-11-05T06:56:00.000Z",
+    };
+    rendre({ sedel: { timer: [reise, ...DAG7_SEDEL.timer] as typeof DAG7_SEDEL.timer } });
+    const skjema = aapneJobb1();
+    expect(felt(skjema, "fra").value).toBe("07:00");
+    expect(felt(skjema, "til").value).toBe("15:00");
+    expect(document.querySelector('[data-reiselinje="ra"]')).not.toBeNull();
+  });
+});

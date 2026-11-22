@@ -87,6 +87,7 @@ import {
   finnOverlappVarsel,
   jobberSomManglerBeskrivelse,
   radGirJobbBeskrivelse,
+  erArbeidstidReise,
 } from "@sitedoc/shared";
 import { rundTilNarmeste } from "@/lib/tidsrunding";
 import { BeskrivelseHover, jobbensBeskrivelser } from "@/components/timer/BeskrivelseHover";
@@ -470,6 +471,8 @@ export default function DagsseddelDetaljSide() {
         // w3a: vinduet er åpnet fra en jobb (lenkeraden eller blyanten på en linje i kortet).
         jobb?: JobbKontekst;
       }
+    // O14 pkt 2 (R2): pennen på en reise i prosjektkort-visning åpner «Reise»-vinduet.
+    | { type: "reiseRediger"; rad: TimerRad; jobb?: JobbKontekst }
     // U3: unified velger — «Legg til på dagsseddelen» (8a). Ruter til
     // tillegg-dialog (laastTilleggId) eller utlegg-dialog etter valg.
     | { type: "leggTil"; projectId: string; jobb?: JobbKontekst }
@@ -1135,7 +1138,8 @@ export default function DagsseddelDetaljSide() {
   // hull, linje 2 som ikke er overtid, linje uten fra–til, attestert linje).
   const skjemaFor = (k: JobbKortData): SkjemaOppsett | null => {
     if (!kanBrukeSkjema) return null;
-    const arbeid = k.linjer.flatMap((l) => (l.type === "timer" ? [l.rad] : []));
+    // O14 pkt 5 (R4): en reise ført som arbeidstid er ingen skjemalinje — den står i «6 · Reise».
+    const arbeid = k.linjer.flatMap((l) => (l.type === "timer" && !erArbeidstidReise(l.rad) ? [l.rad] : []));
     const linjer = jobbSkjemaLinjer(arbeid, erOvertidsart);
     if (!linjer) return null;
     const forste = linjer[0]!;
@@ -1239,6 +1243,13 @@ export default function DagsseddelDetaljSide() {
     if (nyJobbUtkast && nokkel !== nyJobbUtkast.kortId) setNyJobbUtkast(null);
   };
 
+  // O14 pkt 2 (R2, vedtak Reisevinduet pkt 17): i prosjektkort-visning åpner pennen på en reise
+  // (reisetid, eller arbeidstid med reisemerke) «Reise»-vinduet. Dagskort-visning er uendret.
+  const redigerReise = (r: TimerRad, jobb: JobbKontekst | undefined) =>
+    prosjektkortModus && (r.erReise || erArbeidstidReise(r))
+      ? setAktivModal({ type: "reiseRediger", rad: r, jobb })
+      : setAktivModal({ type: "timer", projectId: r.projectId, rad: r, jobb });
+
   // Linjene i et kort. Blyanten åpner vinduet med jobben (S7 A); samlekortet har ingen jobb.
   const renderLinjer = (linjer: KortLinje[], jobb: JobbKontekst | undefined) => (
     <div className="divide-y divide-gray-100">
@@ -1256,9 +1267,7 @@ export default function DagsseddelDetaljSide() {
               byggeplassNavn={byggeplassNavn}
               maskinIProsjekt={maskinRader.filter((m) => m.projectId === rad.projectId)}
               erRedigerbar={erRedigerbar}
-              onRediger={(r) =>
-                setAktivModal({ type: "timer", projectId: r.projectId, rad: r, jobb })
-              }
+              onRediger={(r) => redigerReise(r, jobb)}
               onSplitt={(r) => setSplittModal({ type: "timer", rad: r })}
             />
           );
@@ -1278,7 +1287,7 @@ export default function DagsseddelDetaljSide() {
                   byggeplassNavn={byggeplassNavn}
                   maskinIProsjekt={maskinRader.filter((m) => m.projectId === rad.projectId)}
                   erRedigerbar={erRedigerbar}
-                  onRediger={(r) => setAktivModal({ type: "timer", projectId: r.projectId, rad: r, jobb })}
+                  onRediger={(r) => redigerReise(r, jobb)}
                   onSplitt={(r) => setSplittModal({ type: "timer", rad: r })}
                 />
               ) : (
@@ -1756,21 +1765,21 @@ export default function DagsseddelDetaljSide() {
           onLukk={() => setRedigerHeader(false)}
         />
       )}
-      {aktivModal?.type === "timer" && aktivModal.reise && !aktivModal.rad && (
+      {((aktivModal?.type === "timer" && aktivModal.reise && !aktivModal.rad) || aktivModal?.type === "reiseRediger") && (
         // POST (13) L2 § 7 C: «+ Reise» åpner reise-kortet (Tur / Retur /
-        // overføring) — ikke den generelle timer-dialogen.
+        // overføring) — ikke den generelle timer-dialogen. O14 pkt 2: pennen på en reise også.
         <ReiseKort
           sheetId={sheet.id}
           organizationId={sheet.organizationId}
           dato={new Date(sheet.dato).toISOString().slice(0, 10)}
-          projectId={aktivModal.projectId}
+          projectId={aktivModal.type === "reiseRediger" ? aktivModal.rad.projectId : aktivModal.projectId}
           prosjekter={prosjekterForVelger}
           sedelByggeplassId={(sheet as { byggeplassId?: string | null }).byggeplassId ?? null}
           byggeplasser={byggeplasser}
           prosjektNavn={kortNavn}
           aktivitetId={sheetAktivitetId ?? null}
           // w15b: radene bærer kort, sted og prosjekt — overlapp-sperren og linja «havner i».
-          dagsrader={timerRader.map((r) => ({
+          dagsrader={timerRader.filter((r) => aktivModal.type !== "reiseRediger" || r.id !== aktivModal.rad.id).map((r) => ({
             fraTid: r.fraTid,
             tilTid: r.tilTid,
             erReise: r.erReise ?? false,
@@ -1781,16 +1790,33 @@ export default function DagsseddelDetaljSide() {
             opprettet: r.createdAt ? new Date(r.createdAt).getTime() : 0,
             attestertStatus: r.attestertStatus,
             arbeidReise: !r.erReise && !!r.arbeidReiseRetning,
+            beskrivelse: r.beskrivelse ?? null,
           }))}
           andreRader={kortRaderUtenArbeid}
           eierId={sheet.userId}
-          resolverLonnsartId={aktivModal.reise.id}
+          resolverLonnsartId={aktivModal.type === "reiseRediger" ? (reiseKnapp?.lonnsart?.id ?? null) : (aktivModal.reise?.id ?? null)}
           erFirmaAdmin={!!orgSetting}
-          forvalgtByggeplassId={aktivModal.jobb?.byggeplassId}
-          forvalgtEcoId={aktivModal.jobb?.ecoId}
+          forvalgtByggeplassId={aktivModal.type === "reiseRediger" ? undefined : aktivModal.jobb?.byggeplassId}
+          forvalgtEcoId={aktivModal.type === "reiseRediger" ? undefined : aktivModal.jobb?.ecoId}
           jobbKortId={aktivModal.jobb?.kortId}
           // O12 pkt 3: åpnet fra et prosjektkort — kortet er stedet.
-          kortModus={prosjektkortModus && !!aktivModal.jobb}
+          kortModus={prosjektkortModus && (!!aktivModal.jobb || aktivModal.type === "reiseRediger")}
+          rad={
+            aktivModal.type === "reiseRediger"
+              ? {
+                  id: aktivModal.rad.id,
+                  fraTid: aktivModal.rad.fraTid,
+                  tilTid: aktivModal.rad.tilTid,
+                  erReise: aktivModal.rad.erReise === true,
+                  reiseRetning: aktivModal.rad.reiseRetning ?? null,
+                  arbeidReiseRetning: aktivModal.rad.arbeidReiseRetning ?? null,
+                  byggeplassId: aktivModal.rad.byggeplassId ?? null,
+                  externalCostObjectId: aktivModal.rad.externalCostObjectId ?? null,
+                  kortId: aktivModal.rad.kortId ?? null,
+                  beskrivelse: aktivModal.rad.beskrivelse ?? null,
+                }
+              : undefined
+          }
           onLukk={() => setAktivModal(null)}
         />
       )}
@@ -2346,7 +2372,10 @@ function ProsjektkortSamleside({
     const varer = k.linjer.flatMap((l): KortLinje[] =>
       l.type === "vare" ? [l] : l.type === "timer" ? l.varer.map((rad) => ({ type: "vare", rad })) : [],
     );
-    const reise = k.linjer.filter((l) => l.type === "reise");
+    // O14 pkt 5: arbeidstid-reisen står her som reiselinje (maskin og vare på den står i 4 og 5).
+    const reise = k.linjer.flatMap((l): KortLinje[] =>
+      l.type === "reise" ? [l] : l.type === "timer" && erArbeidstidReise(l.rad) ? [{ type: "reise", rad: l.rad }] : [],
+    );
     const tilleggUtlegg = k.linjer.filter((l) => l.type === "tillegg" || l.type === "utlegg");
     const blokk = (linjer: KortLinje[], lenkeTekst: string | null, onLenke: () => void) => (
       <>
@@ -2754,6 +2783,24 @@ function JobbKortRamme({
   const arbeid = timer.filter((r) => !r.erReise);
   const reiseRader = timer.filter((r) => r.erReise);
   const bareReise = arbeid.length === 0 && reiseRader.length > 0;
+  // O14 pkt 6: et lukket kort med bare reise viser reiselinja («Til {sted} · fra–til») og reisens
+  // beskrivelse ved hover. Kort med arbeid er uendret (beskrivelsene på arbeidet).
+  const reiseHover = bareReise
+    ? [...reiseRader]
+        .sort((a, b) => (a.fraTid ?? "").localeCompare(b.fraTid ?? ""))
+        .flatMap((r) => {
+          const sted = (r.byggeplassId && byggeplassNavn.get(r.byggeplassId)) || tittel;
+          const stedTekst =
+            r.reiseRetning === "ut"
+              ? t("timer.prosjektkort.reiseTil", { sted })
+              : r.reiseRetning === "retur"
+                ? t("timer.prosjektkort.reiseFra", { sted })
+                : sted;
+          const linje = [stedTekst, r.fraTid && r.tilTid ? `${r.fraTid}–${r.tilTid}` : null].filter(Boolean).join(" · ");
+          const tekst = r.beskrivelse?.trim();
+          return tekst ? [linje, tekst] : [linje];
+        })
+    : null;
   const stedKilde = bareReise ? reiseRader : arbeid;
   const fraer = stedKilde.map((r) => r.fraTid).filter((x): x is string => !!x);
   const tiler = stedKilde.map((r) => r.tilTid).filter((x): x is string => !!x);
@@ -2805,7 +2852,7 @@ function JobbKortRamme({
       }`}
     >
       {/* O6 (§ 8.22 punkt 2): lukket kort viser beskrivelsene ved hover. Åpent kort har dem i linjene. */}
-      <BeskrivelseHover beskrivelser={aapen ? [] : jobbensBeskrivelser(arbeid)}>
+      <BeskrivelseHover beskrivelser={aapen ? [] : (reiseHover ?? jobbensBeskrivelser(arbeid))}>
       <button
         type="button"
         aria-expanded={aapen}
@@ -4272,12 +4319,10 @@ function TimerRadDialog({
           : null,
       })
     : null;
-  // O12 pkt 17 (vedtak-timer-web § Reisevinduet): i prosjektkort-visning står en reise (også
-  // ført som arbeidstid) i kortet — prosjekt og byggeplass vises som tekst. Erstatter w15f-
-  // valget av prosjekt på en reise (R2). Dagskort-visning er uendret.
-  const reiseStedLaast = !!kortModus && !!rad && (!!rad.erReise || !!rad.arbeidReiseRetning);
+  // O14 pkt 2 (R2): i prosjektkort-visning åpner pennen på en reise «Reise»-vinduet (ReiseKort),
+  // så dette vinduet ser bare reiser i dagskort-visning.
   // w15f (§ 4.15 del E): prosjektfeltet er åpent på en reise som finnes, låst for arbeid.
-  const prosjektApent = !!rad && !!rad.erReise && erReiseValgt && !reiseStedLaast;
+  const prosjektApent = !!rad && !!rad.erReise && erReiseValgt;
   const prosjektByttet = !!rad && valgtProjectId !== rad.projectId;
   function byttProsjekt(id: string) {
     setValgtProjectId(id);
@@ -5142,25 +5187,7 @@ function TimerRadDialog({
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* D2: prosjekt i modalen (mobil-paritet). Låst ved redigering. w3a: skjult bare for ny rad
             fra jobben — ved redigering står feltene, så A7 kan nås fra kortet (gate 107). */}
-        {reiseStedLaast && rad && (
-          <div data-testid="reise-sted-tekst">
-            <p className="text-sm text-gray-800">
-              {[
-                prosjekter.find((p) => p.id === rad.projectId)
-                  ? (() => {
-                      const p = prosjekter.find((x) => x.id === rad.projectId)!;
-                      return p.internalProjectNumber ? `${p.internalProjectNumber} — ${p.name}` : p.name;
-                    })()
-                  : null,
-                rad.byggeplassId ? ((byggeplasser ?? []).find((b) => b.id === rad.byggeplassId)?.name ?? null) : null,
-              ]
-                .filter(Boolean)
-                .join(" · ")}
-            </p>
-            <p className="mt-1 text-xs text-gray-500">{t("timer.rediger.reiseFeilSted")}</p>
-          </div>
-        )}
-        {!(jobb && !rad) && !reiseStedLaast && (<div>
+        {!(jobb && !rad) && (<div>
           <label className="mb-1 block text-sm font-medium text-gray-700">
             {t("timer.felt.prosjekt")}
           </label>
@@ -5179,7 +5206,7 @@ function TimerRadDialog({
             ))}
           </select>
         </div>)}
-        {!(jobb && !rad) && !reiseStedLaast && (
+        {!(jobb && !rad) && (
           <RadByggeplassFelt
             kandidater={bp.kandidater}
             verdi={bp.byggeplassId}
