@@ -25,7 +25,7 @@ import { SplittRadModal } from "@/components/timer/SplittRadModal";
 import type { ProsjektValg } from "@/components/timer/rediger-types";
 import { RedigerRadModal } from "./RedigerRadModal";
 import { Kvitteringer } from "./Kvitteringer";
-import { RegistreringPanel } from "./RegistreringPanel";
+import { RegistreringPanel, jobbensBeskrivelser } from "./RegistreringPanel";
 import { ReiseRadMerke } from "./ReiseRadMerke";
 import {
   AVVIK_FILTER,
@@ -579,6 +579,17 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
     );
   }
 
+  /** O6: jobbens «Hva gjorde du?» — timeradene uten reise, som registreringen viser dem. */
+  function kortBeskrivelser(kort: AttKort): string[] {
+    return jobbensBeskrivelser(
+      kort.linjer.flatMap((l) =>
+        l.kilde.type === "timer" && l.kilde.rad.erReise !== true
+          ? [{ fraTid: l.linje.fraTid, beskrivelse: l.kilde.rad.beskrivelse }]
+          : [],
+      ),
+    );
+  }
+
   const rader = useMemo<TimerRadTabellRad<AttLinje>[]>(() => {
     const ut: TimerRadTabellRad<AttLinje>[] = [];
     const avsluttBlokk = () => {
@@ -597,6 +608,9 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
     const aapne = (kort: AttKort) => ({
       onKlikk: () => setAapenKort((a) => (a === kort.nokkel ? null : kort.nokkel)),
       aapen: aapenKort === kort.nokkel,
+      // O6 (§ 8.22 punkt 2): beskrivelsene ved hover på den lukkede jobbraden. Åpen rad har
+      // dem i registreringen under. Samme tekster som registreringen, ingen ny henting.
+      hover: aapenKort === kort.nokkel ? [] : kortBeskrivelser(kort),
     });
     const grupper = grupperModell(synlige, gruppering) ?? [{ nokkel: "", tittel: "", dager: synlige }];
     for (const gruppe of grupper) {

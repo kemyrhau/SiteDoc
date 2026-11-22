@@ -62,6 +62,7 @@ import {
   DEFAULT_PAUSE_ETTER_TIMER,
   effektiveTimerFraSpenn,
   tilFraAntall,
+  fraFraTilOgAntall,
   hhmmTilMin,
   pauseOverlappMin,
   pauseMinForDag,
@@ -88,6 +89,7 @@ import {
   radGirJobbBeskrivelse,
 } from "@sitedoc/shared";
 import { rundTilNarmeste } from "@/lib/tidsrunding";
+import { BeskrivelseHover, jobbensBeskrivelser } from "@/components/timer/BeskrivelseHover";
 import { ReiseKort } from "./ReiseKort";
 import { JobbSkjema } from "./JobbSkjema";
 import { jobbSkjemaLinjer, nyJobbForslag, senesteTilTid, type SkjemaKilde } from "@/lib/jobbSkjema";
@@ -2674,6 +2676,8 @@ function JobbKortRamme({
             : "border-gray-200"
       }`}
     >
+      {/* O6 (§ 8.22 punkt 2): lukket kort viser beskrivelsene ved hover. Åpent kort har dem i linjene. */}
+      <BeskrivelseHover beskrivelser={aapen ? [] : jobbensBeskrivelser(arbeid)}>
       <button
         type="button"
         aria-expanded={aapen}
@@ -2733,6 +2737,7 @@ function JobbKortRamme({
           className={`h-4 w-4 shrink-0 text-gray-400 transition-transform ${aapen ? "rotate-180" : ""}`}
         />
       </button>
+      </BeskrivelseHover>
       {aapen && <div className="border-t border-gray-100 px-4 pb-4 pt-2">{children}</div>}
     </div>
   );
@@ -4494,6 +4499,12 @@ function TimerRadDialog({
   function endreTimer(v: string) {
     setTimer(v);
     const n = parseFloat(v);
+    // O6 (§ 8.22): reise «Til byggeplass» — ankomsten (Til) er jobbstart og står fast, så
+    // antall flytter Fra. Reise bærer aldri matpausen. Samme regel som reise-kortet.
+    if (rad?.erReise === true && rad.reiseRetning === "ut" && tilTid && !isNaN(n) && n > 0) {
+      setFraTid(fraFraTilOgAntall(tilTid, n));
+      return;
+    }
     if (fraTid && !isNaN(n) && n > 0) {
       // Antall er autoritativt → utled til-tid med gjeldende pause (radens).
       // ORDRE 2026-11-13: pausen ligger alltid i bærer-raden → til = fra +

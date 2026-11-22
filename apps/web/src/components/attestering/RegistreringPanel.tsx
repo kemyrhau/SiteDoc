@@ -13,6 +13,7 @@ import { ReiseRadMerke } from "./ReiseRadMerke";
 import { ReiseRettVindu } from "./ReiseRettVindu";
 import { LinjeRettVindu, type LinjeRett } from "./LinjeRettVindu";
 import type { AttKort, AttLinje, AttMaskin, AttSedel, AttTimer } from "./attestering-tabell";
+import { jobbensBeskrivelser } from "../timer/BeskrivelseHover";
 
 /**
  * Registreringen åpnet under linja (web-timeføring w5, bilde 7 og 8). Viser jobben (kortet)
@@ -94,11 +95,8 @@ export function erTimebasertLonnsart(lonnsartId: string, lonnsarter: readonly { 
   return art.satsEnhet == null || art.satsEnhet === "per_time";
 }
 
-/** Del 3 (w10a A6, plan § 4.9): tekstene på jobbens timerader, hver én gang, etter klokkeslett. */
-export function jobbensBeskrivelser(rader: readonly { fraTid: string | null; beskrivelse?: string | null }[]): string[] {
-  const sortert = [...rader].sort((a, b) => (a.fraTid ?? "").localeCompare(b.fraTid ?? ""));
-  return [...new Set(sortert.map((r) => r.beskrivelse?.trim() ?? "").filter(Boolean))];
-}
+// O6: flyttet til `components/timer/BeskrivelseHover`, så dagssiden og attesteringen deler den.
+export { jobbensBeskrivelser };
 
 const tilMin = (hhmm: string | null | undefined): number | null => {
   if (!hhmm || !/^\d{2}:\d{2}$/.test(hhmm)) return null;

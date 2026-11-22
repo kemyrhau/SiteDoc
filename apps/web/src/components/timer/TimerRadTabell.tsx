@@ -12,6 +12,7 @@ import {
 } from "@sitedoc/ui";
 import { TIMER_TABELL_KOL, TIMER_TABELL_KOL_BREDDE, type TimerTabellKolKey } from "@sitedoc/shared";
 import { FlyttbareKolonner, useFlyttbarKolonne } from "@/components/FlyttbareKolonner";
+import { BeskrivelseHover } from "./BeskrivelseHover";
 
 /**
  * Tabellen for timeregistreringer — ÉN komponent for firma-attesteringen og rapportens
@@ -82,6 +83,11 @@ export type TimerRadTabellRad<R> =
       onKlikk?: () => void;
       /** w8: raden har registreringen åpen under seg (mørkere bakgrunn, pil ned). */
       aapen?: boolean;
+      /**
+       * O6 (§ 8.22 punkt 2): beskrivelsene som vises ved hover på raden. Tom liste = ingen hover
+       * nå (raden pakkes likevel, så den ikke monteres på nytt). Utelatt → raden som før.
+       */
+      hover?: readonly string[];
     };
 
 export interface TimerRadTabellFilter {
@@ -349,13 +355,29 @@ function Tabell<R>({
           // Sortert tabell er en flat liste uten blokker (WM82).
           const blokk = sortert || rad.kind === "overskrift" ? undefined : rad.blokk;
           const luft = !!blokk?.slutt;
+          // O6: rad med hover pakkes i en ytre div (som luft-raden), så Tooltip-wrapperen
+          // ligger inni den målte, plasserte diven.
+          const hover = rad.kind === "sum" ? rad.hover : undefined;
+          const ytre = luft || hover !== undefined;
           const maal = { "data-index": vi.index, ref: virtualizer.measureElement };
-          const p = luft ? {} : maal;
-          const st: CSSProperties = luft ? {} : plass;
+          const p = ytre ? {} : maal;
+          const st: CSSProperties = ytre ? {} : plass;
           const pakk = (el: ReactElement) =>
-            luft ? (
-              <div key={vi.key} {...maal} style={plass} className="pb-3" data-blokk-slutt="">
-                {el}
+            ytre ? (
+              <div
+                key={vi.key}
+                {...maal}
+                style={plass}
+                className={luft ? "pb-3" : undefined}
+                data-blokk-slutt={luft ? "" : undefined}
+              >
+                {hover !== undefined ? (
+                  <BeskrivelseHover beskrivelser={hover} wrapperClassName="relative block">
+                    {el}
+                  </BeskrivelseHover>
+                ) : (
+                  el
+                )}
               </div>
             ) : el;
           const bunn = luft ? "border-b border-gray-300" : "border-b border-gray-200";

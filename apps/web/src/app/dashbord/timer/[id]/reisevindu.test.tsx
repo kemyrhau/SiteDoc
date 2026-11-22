@@ -385,3 +385,49 @@ describe("gate (123) vilkår 1 — byggeplassperiodens første og siste dag", ()
     expect(await lagre(d)).toBeUndefined();
   });
 });
+
+describe("O6 (§ 8.22) — «Antall timer» følger retningen", () => {
+  afterEach(cleanup);
+  const antall = (d: HTMLElement) => d.querySelector("#reise-antall") as HTMLInputElement;
+
+  it("Til byggeplass: Slutt (jobbstart) står fast, Start flytter — Kenneths eksempel 07:00, antall 1 → 06:00–07:00", async () => {
+    const d = rendre();
+    expect(start(d).value).toBe("06:56");
+    expect(slutt(d).value).toBe("07:00");
+    fireEvent.change(antall(d), { target: { value: "1" } });
+    expect(start(d).value).toBe("06:00");
+    expect(slutt(d).value).toBe("07:00");
+    // Ingen overlapp-feil med jobben 07:00–12:00 (i dag: 06:56–07:56 og sperret).
+    expect(d.querySelector("p.text-red-700")).toBeNull();
+    expect(lagreKnapp(d).disabled).toBe(false);
+    const input = (await lagre(d))!;
+    expect(input).toMatchObject({ fraTid: "06:00", tilTid: "07:00", timer: 1 });
+  });
+
+  it("Til byggeplass: nytt antall regnes fra samme faste slutt (1 → 1.5 gir 05:30–07:00)", () => {
+    const d = rendre();
+    fireEvent.change(antall(d), { target: { value: "1" } });
+    fireEvent.change(antall(d), { target: { value: "1.5" } });
+    expect(start(d).value).toBe("05:30");
+    expect(slutt(d).value).toBe("07:00");
+  });
+
+  it("Fra byggeplass: Start står fast, Slutt = Start + antall (som før)", async () => {
+    const d = rendre();
+    fireEvent.click(knapp(d, "timer.reiseKort.retur"));
+    expect(start(d).value).toBe("12:00");
+    fireEvent.change(antall(d), { target: { value: "1" } });
+    expect(start(d).value).toBe("12:00");
+    expect(slutt(d).value).toBe("13:00");
+    const input = (await lagre(d))!;
+    expect(input).toMatchObject({ fraTid: "12:00", tilTid: "13:00", timer: 1 });
+  });
+
+  it("Til byggeplass nær midnatt: Start klemmes til 00:00, krysser ikke døgnet (som Slutt klemmes til 23:59)", () => {
+    const d = rendre({ timer: [arbeid({ fraTid: "00:30", tilTid: "05:00", timer: "4.5" })] });
+    expect(slutt(d).value).toBe("00:30");
+    fireEvent.change(antall(d), { target: { value: "1" } });
+    expect(start(d).value).toBe("00:00");
+    expect(slutt(d).value).toBe("00:30");
+  });
+});

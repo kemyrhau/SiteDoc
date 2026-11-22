@@ -7,7 +7,7 @@
  * hvor en reise havner. Dagen er #7 (`testdata-dag7.ts`).
  */
 import type { ReactNode } from "react";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DAG7_SEDEL, dag7Data } from "./testdata-dag7";
 
@@ -262,5 +262,92 @@ describe("w15d — teksten under lønnsarten i timerad-vinduet (del C pkt. 4)", 
     fireEvent.click(blyant!);
     const dialog = screen.getByRole("dialog", { name: "timer.detalj.redigerTimerRad" });
     expect(dialog.textContent).not.toContain("timer.rediger.reiseHavner");
+  });
+});
+
+describe("O6 (§ 8.22) — «Rediger reise»: antall timer følger retningen", () => {
+  afterEach(cleanup);
+  function dialogFor(radId: string) {
+    const linje = document.querySelector(`[data-reiselinje="${radId}"]`) as HTMLElement;
+    fireEvent.click(linje.querySelector('[title="handling.rediger"]')!);
+    return screen.getByRole("dialog", { name: "timer.detalj.redigerTimerRad" });
+  }
+  const tider = (d: HTMLElement) =>
+    Array.from(d.querySelectorAll('input[type="time"]')).map((i) => (i as HTMLInputElement).value);
+  const antallFelt = (d: HTMLElement) => {
+    const label = Array.from(d.querySelectorAll("label")).find((l) => l.textContent === "timer.felt.antallTimer")!;
+    return label.parentElement!.querySelector('input[type="number"]') as HTMLInputElement;
+  };
+
+  it("Til byggeplass: Til (jobbstart 07:00) står fast, Fra flytter — antall 1 → 06:00–07:00", () => {
+    rendre([ARBEID1, reise({ id: "ru", kortId: "k1", byggeplassId: "b1", reiseRetning: "ut", fraTid: "06:56", tilTid: "07:00", timer: "0.07" })]);
+    aapneForste();
+    const d = dialogFor("ru");
+    expect(tider(d).slice(0, 2)).toEqual(["06:56", "07:00"]);
+    fireEvent.change(antallFelt(d), { target: { value: "1" } });
+    expect(tider(d).slice(0, 2)).toEqual(["06:00", "07:00"]);
+  });
+
+  it("Fra byggeplass: Fra står fast, Til = Fra + antall (som før)", () => {
+    rendre([ARBEID1, reise({ id: "rr", kortId: "k1", byggeplassId: "b1", reiseRetning: "retur", fraTid: "15:00", tilTid: "15:30", timer: "0.5" })]);
+    aapneForste();
+    const d = dialogFor("rr");
+    fireEvent.change(antallFelt(d), { target: { value: "1" } });
+    expect(tider(d).slice(0, 2)).toEqual(["15:00", "16:00"]);
+  });
+});
+
+describe("O6 (§ 8.22 punkt 2) — beskrivelsen ved hover på lukket prosjektkort", () => {
+  afterEach(() => {
+    cleanup();
+    vi.useRealTimers();
+  });
+  const hoverFor = (hode: HTMLElement) => {
+    const id = (hode.getAttribute("aria-describedby") ?? "").split(" ").find(Boolean);
+    const node = id ? document.getElementById(id) : null;
+    return node?.querySelector("[data-beskrivelse-hover]") ? node : null;
+  };
+
+  it("lukket kort med beskrivelse: hover-boksen viser den; vises etter hover", () => {
+    vi.useFakeTimers();
+    rendre([ARBEID1, ARBEID2]);
+    const hode = kortHoder()[0]!;
+    expect(hode.getAttribute("aria-expanded")).toBe("false");
+    const boks = hoverFor(hode)!;
+    expect(boks.getAttribute("role")).toBe("tooltip");
+    expect(boks.textContent).toBe("Forskaling");
+    expect(boks.className).toContain("invisible");
+    fireEvent.mouseEnter(hode.parentElement!);
+    act(() => {
+      vi.advanceTimersByTime(400);
+    });
+    expect(boks.className).toContain("opacity-100");
+    expect(boks.className).not.toContain("invisible");
+  });
+
+  it("lukket kort uten beskrivelse: ingen hover", () => {
+    rendre([ARBEID1, ARBEID2]);
+    expect(hoverFor(kortHoder()[1]!)).toBeNull();
+    expect(kortHoder()[1]!.hasAttribute("aria-describedby")).toBe(false);
+  });
+
+  it("åpent kort: ingen hover (beskrivelsen står i linjene)", () => {
+    rendre([ARBEID1, ARBEID2]);
+    fireEvent.click(kortHoder()[0]!);
+    expect(kortHoder()[0]!.getAttribute("aria-expanded")).toBe("true");
+    expect(hoverFor(kortHoder()[0]!)).toBeNull();
+  });
+
+  it("flere rader: beskrivelsene i klokkeslett-rekkefølge, tomme og reise utelatt", () => {
+    rendre([
+      ARBEID1,
+      { ...ARBEID1, id: "r0", fraTid: "06:00", tilTid: "07:00", timer: "1", beskrivelse: "Rigging" },
+      { ...ARBEID1, id: "r3", fraTid: "15:00", tilTid: "16:00", timer: "1", beskrivelse: "  " },
+      reise({ id: "rx", kortId: "k1", byggeplassId: "b1", reiseRetning: "retur", fraTid: "16:00", tilTid: "16:30", timer: "0.5", beskrivelse: "Kjøring" }),
+      ARBEID2,
+    ]);
+    const boks = hoverFor(kortHoder()[0]!)!;
+    const linjer = Array.from(boks.querySelectorAll("[data-beskrivelse-hover] > span")).map((e) => e.textContent);
+    expect(linjer).toEqual(["Rigging", "Forskaling"]);
   });
 });

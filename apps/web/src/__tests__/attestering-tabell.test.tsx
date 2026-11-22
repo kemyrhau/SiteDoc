@@ -1515,3 +1515,68 @@ describe("w15g (pkt. 32) — kortet er tekst; ✎ på hver ventende linje åpner
     expect(linjeRettKall(tillegg, { type: "uendret" }, { type: "ok", verdi: null }, "")).toEqual({ type: "rett", felter: { antall: null } });
   });
 });
+
+describe("O6 (§ 8.22 punkt 2) — beskrivelsen ved hover på jobbraden i attesteringen", () => {
+  const hoverFor = (rad: HTMLElement) => {
+    const id = (rad.getAttribute("aria-describedby") ?? "").split(" ").find(Boolean);
+    const node = id ? document.getElementById(id) : null;
+    return node?.querySelector("[data-beskrivelse-hover]") ? node : null;
+  };
+  const tekster = (boks: HTMLElement) =>
+    Array.from(boks.querySelectorAll("[data-beskrivelse-hover] > span")).map((e) => e.textContent);
+  const medTekst = () =>
+    sedel({ timer: [
+      timer("t1", { fraTid: "12:00", tilTid: "15:00", timer: "3", pauseMin: 0, beskrivelse: "Forskaling" }),
+      timer("t0", { fraTid: "07:00", tilTid: "11:30", timer: "4.5", pauseMin: 0, beskrivelse: "Rigging" }),
+      timer("t2", { fraTid: "15:00", tilTid: "16:00", timer: "1", pauseMin: 0, beskrivelse: null }),
+    ] });
+
+  afterEach(() => vi.useRealTimers());
+
+  it("dagsraden med én jobb: hover-boksen viser beskrivelsene i klokkeslett-rekkefølge, synlig etter hover", () => {
+    vi.useFakeTimers();
+    const { container } = vis([medTekst()]);
+    const boks = hoverFor(dagsrad(container))!;
+    expect(boks.getAttribute("role")).toBe("tooltip");
+    expect(tekster(boks)).toEqual(["Rigging", "Forskaling"]);
+    expect(boks.className).toContain("invisible");
+    fireEvent.mouseEnter(dagsrad(container).parentElement!);
+    act(() => {
+      vi.advanceTimersByTime(400);
+    });
+    expect(boks.className).not.toContain("invisible");
+  });
+
+  it("uten beskrivelse: ingen hover", () => {
+    const { container } = vis([sedel()]);
+    expect(hoverFor(dagsrad(container))).toBeNull();
+    expect(dagsrad(container).hasAttribute("aria-describedby")).toBe(false);
+  });
+
+  it("åpen registrering: ingen hover (tekstene står i del 3)", () => {
+    const { container } = vis([medTekst()]);
+    fireEvent.click(dagsrad(container));
+    expect(container.querySelector("[data-registrering]")).not.toBeNull();
+    expect(hoverFor(dagsrad(container))).toBeNull();
+  });
+
+  it("flere jobber: hver jobbrad har sin egen; dagsraden (ikke én jobb) har ingen", () => {
+    const { container } = vis([sedel({ timer: [
+      timer("t1", { beskrivelse: "Graving grøft" }),
+      timer("t2", { kortId: "kB", fraTid: "15:00", tilTid: "16:00", timer: "1", pauseMin: 0, beskrivelse: null }),
+    ] })]);
+    const jobb = Array.from(container.querySelectorAll('[data-rad="jobb"]')) as HTMLElement[];
+    expect(jobb).toHaveLength(2);
+    expect(tekster(hoverFor(jobb[0]!)!)).toEqual(["Graving grøft"]);
+    expect(hoverFor(jobb[1]!)).toBeNull();
+    expect(hoverFor(dagsrad(container))).toBeNull();
+  });
+
+  it("reise i jobben: reisens tekst er ikke med (som i del 3)", () => {
+    const { container } = vis([sedel({ timer: [
+      timer("t1", { beskrivelse: "Forskaling" }),
+      timer("tr", { fraTid: "15:00", tilTid: "15:30", timer: "0.5", pauseMin: 0, beskrivelse: "Kjøring", erReise: true } as Partial<AttTimer>),
+    ] })]);
+    expect(tekster(hoverFor(dagsrad(container))!)).toEqual(["Forskaling"]);
+  });
+});
