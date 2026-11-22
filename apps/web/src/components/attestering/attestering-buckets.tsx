@@ -61,6 +61,9 @@ export type TimerRad = {
   reiseKilde?: "matrise" | "manuell" | "overforing" | null;
   tidKilde?: "stempel" | "utledet" | "manuell" | null;
   reiseAvvik?: boolean | null;
+  // O12 pkt 16 — reise ført som arbeidstid (`erReise: false`). Allerede i server-payloaden
+  // (scalar; `include` uten select). Satt = raden er ingen jobbrad (RETUR O12 vilkår 2).
+  arbeidReiseRetning?: "ut" | "retur" | null;
 };
 
 export type TilleggRad = {

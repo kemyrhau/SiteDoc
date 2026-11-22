@@ -7577,7 +7577,10 @@ export const dagsseddelRouter = router({
       // tillegg og utlegg på kortet flyttes sammen. Kortets id beholdes: det er samme jobb.
       if (input.helJobb) {
         // w12: reisen er ikke en jobb — den flyttes alene, og plassen regnes på nytt.
-        if ("erReise" in rad && rad.erReise) throw new TRPCError({ code: "BAD_REQUEST", message: "reiseErIkkeJobb" });
+        // RETUR O12 vilkår 2: heller ikke reisen ført som arbeidstid (`arbeidReiseRetning`).
+        if ("erReise" in rad && (rad.erReise || rad.arbeidReiseRetning)) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "reiseErIkkeJobb" });
+        }
         return flyttHeleJobben(ctx, { sheet, rad, ecoId: input.externalCostObjectId });
       }
 

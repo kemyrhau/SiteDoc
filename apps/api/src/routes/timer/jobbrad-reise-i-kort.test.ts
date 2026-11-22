@@ -13,12 +13,15 @@ import { describe, it, expect, vi } from "vitest";
  */
 
 vi.mock("@sitedoc/db", () => ({
-  prisma: { byggeplass: { findUnique: vi.fn(async () => null), findFirst: vi.fn(), findMany: vi.fn(async () => []) } },
+  prisma: {
+    // flyttTimerRadEco (RETUR O12 vilkår 2): sitedoc_admin slipper attesteringsretten (`attesteringsFirmaer` → null).
+    user: { findUnique: vi.fn(async () => ({ role: "sitedoc_admin" })) },
+    byggeplass: { findUnique: vi.fn(async () => null), findFirst: vi.fn(), findMany: vi.fn(async () => []) } },
 }));
 vi.mock("@sitedoc/db-maskin", () => ({ prismaMaskin: {} }));
 vi.mock("@sitedoc/db-varelager", () => ({ prismaVarelager: {} }));
 
-import { flyttHeleJobben, jobbStedForMaskin } from "./dagsseddel";
+import { flyttHeleJobben, jobbStedForMaskin, dagsseddelRouter } from "./dagsseddel";
 
 type KortIdModul = typeof import("../../services/timer/kortId");
 const ekte = () => vi.importActual<KortIdModul>("../../services/timer/kortId");
@@ -209,5 +212,25 @@ describe("flyttHeleJobben (flyttJobbEco / attestantens «hele jobben») — arbe
       ecoId: "eco-c",
     });
     expect(flyttetTimer).toEqual(["jobb"]);
+  });
+});
+
+describe("flyttTimerRadEco helJobb (RETUR O12 vilkår 2) — arbeidstid-reiseraden er ingen jobb", () => {
+  const kall = (r: Rad) => {
+    const prismaTimer = {
+      sheetTimer: { findUnique: vi.fn(async () => r) },
+      dailySheet: { findUnique: vi.fn(async () => ({ id: SHEET, userId: "u", organizationId: "org", status: "sent" })) },
+    };
+    const ctx = { userId: "attestant", prismaTimer } as never;
+    return dagsseddelRouter.createCaller(ctx).flyttTimerRadEco({ timerRadId: "11111111-1111-1111-1111-111111111111", externalCostObjectId: null, helJobb: true });
+  };
+
+  it("avviser «hele jobben» fra arbeidstid-reiseraden med reiseErIkkeJobb", async () => {
+    await expect(kall(ARBEIDSREISE)).rejects.toThrow("reiseErIkkeJobb");
+  });
+
+  it("negativkontroll: jobbraden slipper forbi vakten", async () => {
+    const feil = await kall(JOBB).then(() => null, (e: unknown) => e as Error);
+    expect(feil?.message ?? "").not.toBe("reiseErIkkeJobb");
   });
 });
