@@ -7,7 +7,7 @@ avhenger_av:
 
 # Vedtak — timer på web
 
-Hva timeføringen på web **skal** gjøre, vindu for vindu, med Kenneths ord. Reisevinduet er ført og står bare her.
+Hva timeføringen på web **skal** gjøre, vindu for vindu, med Kenneths ord. Reisevinduet og dagsvisningen i attesteringen er ført og står bare her.
 De andre vinduene står i [web-timeforing-plan.md](web-timeforing-plan.md) til de føres hit på samme måte.
 
 ## Grunnregler
@@ -93,3 +93,12 @@ Filer: `RK` = `apps/web/src/app/dashbord/timer/[id]/ReiseKort.tsx` · `MR` = `ap
 18. Bytter et prosjektkort prosjekt eller byggeplass og kortet har en reise, kommer et vindu før flyttingen med reisens tider og ny kjøretid, og valgene «Flytt reisen med ny tid», «Slett reisen» og «Avbryt»; ingenting endres før arbeideren velger. Mangler ny kjøretid, flyttes reisen med de gamle tidene, og vinduet sier det.
     Kenneth: «å bytte prosjekt vil endre reisetid -> det kan vi ikke gjøre stille -> da må bruker se og akseptere en endring», «7 … -> ok».
     🟡 I dag blir en reisetid-rad stående på gammelt prosjekt og en arbeidstid-reise følger stille med (`DS` `flyttJobbTilSted`).
+
+## Dagsvisningen i attesteringen
+
+1. Dagen står øverst som en dagsrad, hvert kort er en blokk med egen kantfarge, og jobbrad vises når dagen har flere kort (alternativ A).
+    Kenneth: «B14 A. men ved flere prosjekter samme dag, da må vi visuelt skille hvert registrerte kort fra hverandre innenfor samme dag» (2026-11-17), «Alternativ A viser tydelig skille på dagskortene. Det kortet er de beste av alternativene» (2026-11-22).
+    ✅ `AttesteringTabell.tsx` (`variant: "dag"`, `variant: "jobb"`, `KORT_KANT`).
+2. Dagsraden og jobbraden viser prosjektets navn og byggeplassen kortet er registrert på, ikke prosjektnummeret.
+    Kenneth: «ingen av forslagene viser tydelig hvilket prosjekt/byggeplass kortene er registrert på … det er selvsagt prosjektnavn vi må vise» (2026-11-22).
+    🟡 I dag viser dagsraden og jobbraden pr.nr. og underprosjekt (`TIMER_TABELL_STANDARD`: `prosjektnummer`, ingen `prosjekt` eller `byggeplass`).

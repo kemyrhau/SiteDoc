@@ -668,11 +668,11 @@ oversiktlig. Flere linjer pr. dag er førstevalget; én rad pr. dag er reserven.
 1. **Dagsraden står først i dagen.** Den viser dato med ukedag, ansatt, dagens timer og maskintimer, dagens avvik og
    dagens knapper («Attester», ↩, lenke til sedelen). Den erstatter dagsummen nederst og har samme innhold og samme
    knapper (WM75, WM81).
-2. **Dagen har én jobb:** jobbraden vises ikke. Pr.nr. og underprosjekt står i dagsraden, og jobbens ↺ står der.
+2. **Dagen har én jobb:** jobbraden vises ikke. Prosjektnavn, byggeplass og underprosjekt står i dagsraden ([vedtak-timer-web.md § Dagsvisningen i attesteringen](vedtak-timer-web.md) punkt 2), og jobbens ↺ står der.
    ⚠️ ✓ og ↩ «for prosjektseddelen» vises da ikke som egne knapper; dagens «Attester» og ↩ dekker de samme linjene.
-3. **Dagen har flere jobber:** hver jobb får en jobbrad med pr.nr., underprosjekt, jobbens sum og ✓ ↩ ↺, og sin egen
+3. **Dagen har flere jobber:** hver jobb får en jobbrad med prosjektnavn, byggeplass, underprosjekt, jobbens sum og ✓ ↩ ↺, og sin egen
    kantfarge. Reise og rader uten kort er egne blokker, som i dag (WM80).
-4. **Dato, ansatt, pr.nr. og underprosjekt skrives ikke på linja når de er like raden over.** Har en linje et annet
+4. **Dato, ansatt, prosjekt, byggeplass og underprosjekt skrives ikke på linja når de er like raden over.** Har en linje et annet
    prosjekt eller underprosjekt enn jobben, vises verdien. Ved sortering, i filter og i eksport er alt som i dag
    (WM82).
 5. **Dagsnormen står én gang, i dagsraden.** Avviker dagen fra normen, står et merke («+0,5 t»), og hele setningen
