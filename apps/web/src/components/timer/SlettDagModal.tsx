@@ -10,6 +10,9 @@ import { trpc } from "@/lib/trpc";
  * tillegg, utlegg og reise). Antallene kommer fra `slettOversikt`, som teller det samme som
  * `slett` sletter. Kan dagen ikke slettes (f.eks. endret i en annen fane), vises grunnen og
  * knappen skjules.
+ *
+ * Retur O8 tillegg 2 (b): med `kortId` gjelder vinduet ETT jobbkort («Slett jobben») — antallene
+ * kommer da fra `slettKortOversikt`, og dagen står. Uten `kortId` er vinduet uendret.
  */
 const LINJER = ["timer", "maskin", "varer", "tillegg", "utlegg", "reise"] as const;
 
@@ -20,8 +23,11 @@ export function SlettDagModal({
   onBekreft,
   sletter,
   feil,
+  kortId,
 }: {
   sheetId: string;
+  /** Satt: vinduet sletter bare dette jobbkortet. */
+  kortId?: string;
   /** Linja over lista, f.eks. med dato. */
   overskrift: string;
   onClose: () => void;
@@ -30,13 +36,22 @@ export function SlettDagModal({
   feil: string | null;
 }) {
   const { t } = useTranslation();
-  const oversikt = trpc.timer.dagsseddel.slettOversikt.useQuery({ id: sheetId }, { staleTime: 0 });
+  const dagOversikt = trpc.timer.dagsseddel.slettOversikt.useQuery(
+    { id: sheetId },
+    { staleTime: 0, enabled: !kortId },
+  );
+  const kortOversikt = trpc.timer.dagsseddel.slettKortOversikt.useQuery(
+    { id: sheetId, kortId: kortId ?? "" },
+    { staleTime: 0, enabled: !!kortId },
+  );
+  const oversikt = kortId ? kortOversikt : dagOversikt;
+  const n = kortId ? "timer.slettKort" : "timer.slettDag";
   const innhold = oversikt.data?.innhold;
   const linjer = innhold ? LINJER.filter((k) => innhold[k] > 0) : [];
   const grunn = oversikt.data && !oversikt.data.kanSlettes ? oversikt.data.grunn : null;
 
   return (
-    <Modal open onClose={onClose} title={t("timer.slettDag.tittel")}>
+    <Modal open onClose={onClose} title={t(`${n}.tittel`)}>
       <div className="space-y-4">
         <p className="text-sm text-gray-700">{overskrift}</p>
         {oversikt.isLoading ? (
@@ -52,7 +67,7 @@ export function SlettDagModal({
               ))}
             </ul>
           ) : (
-            <p className="text-sm text-gray-500">{t("timer.slettDag.tom")}</p>
+            <p className="text-sm text-gray-500">{t(`${n}.tom`)}</p>
           )
         ) : null}
         {(grunn ?? feil ?? oversikt.error?.message) && (
@@ -64,7 +79,7 @@ export function SlettDagModal({
           </Button>
           {oversikt.data?.kanSlettes && (
             <Button variant="danger" onClick={onBekreft} loading={sletter}>
-              {t("timer.slettDag.knapp")}
+              {t(`${n}.knapp`)}
             </Button>
           )}
         </div>

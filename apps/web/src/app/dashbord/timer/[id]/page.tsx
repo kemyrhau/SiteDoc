@@ -527,6 +527,17 @@ export default function DagsseddelDetaljSide() {
     onError: (e: { message: string }) => setFeil(e.message),
   });
 
+  // Retur O8 tillegg 2 (b): «Slett jobben» — ett feilført jobbkort, dagen står.
+  const [slettKortId, setSlettKortId] = useState<string | null>(null);
+  const slettKort = trpc.timer.dagsseddel.slettKort.useMutation({
+    onSuccess: () => {
+      setSlettKortId(null);
+      setAapentKort(null);
+      void utils.timer.dagsseddel.hentMedId.invalidate({ id: params.id });
+      void utils.vareforbruk.hentMineForDato.invalidate();
+    },
+  });
+
   // Bolk (f): gjenåpne en sendt sedel (arbeiderens egen). Server nullstiller
   // lederens rad-attestering → ekte bekreftelsesmodal (CLAUDE.md § Slett-
   // bekreftelse). Web er bevisst strengere enn mobil, som fyrer uten dialog.
@@ -867,7 +878,14 @@ export default function DagsseddelDetaljSide() {
     projectId: string,
     ecoId: string | null,
     reise?: { id: string; navn: string },
-    jobb?: { kortId: string; aapentProsjekt: boolean; jobb?: JobbKontekst },
+    jobb?: {
+      kortId: string;
+      aapentProsjekt: boolean;
+      jobb?: JobbKontekst;
+      /** Retur O8 tillegg: ny jobb fra skjemaet — tidene arbeideren står på. */
+      defaultFraTid?: string | null;
+      defaultTilTid?: string | null;
+    },
   ) => {
     const sisteTil = timerRader
       .map((r) => r.tilTid)
@@ -1138,6 +1156,17 @@ export default function DagsseddelDetaljSide() {
       andreRader: overtidRaderUten(new Set(linjer.map((r) => r.id))),
       projectId: k.jobb.projectId,
       ecoId: k.jobb.ecoId,
+      byggeplassId: k.jobb.byggeplassId,
+      // O8 D (§ 8.22): prosjekt og byggeplass kan endres på lagret jobb; jobben får ny kort-id.
+      // Bare når serveren tar flyttingen (alle linjer venter på attestering, Kontrollør 138 vilkår 1).
+      stedValg: alleLinjerVenter(k) ? {
+        prosjekter: [
+          ...(prosjekterFlat.some((p) => p.id === k.jobb.projectId) ? [] : [k.jobb.projectId]),
+          ...prosjekterFlat.map((p) => p.id),
+        ].map((id) => ({ id, navn: kortNavn(id) })),
+        byggeplasser: byggeplasser ?? [],
+        onFlyttet: (nyKortId) => setAapentKort(nyKortId),
+      } : undefined,
       onAapneVindu: () =>
         setAktivModal({ type: "timer", projectId: forste.projectId, rad: forste, jobb: k.jobb }),
     };
@@ -1169,6 +1198,15 @@ export default function DagsseddelDetaljSide() {
           andreRader: overtidRaderUten(new Set()),
           projectId: nyJobbUtkast.projectId,
           ecoId: null,
+          // Retur O8 tillegg (§ 8.22 punkt 4): «Sted og aktivitet» på ny jobb åpner timevinduet
+          // for ny rad med prosjektet åpent (samme vei som ny jobb utenfor skjemaet), så prosjekt,
+          // byggeplass og aktivitet kan velges. Raden får utkastets kort-id og tidene i skjemaet.
+          onAapneVindu: (tider) =>
+            aapneNyTimerRad(nyJobbUtkast.projectId, null, undefined, {
+              kortId: nyJobbUtkast.kortId,
+              aapentProsjekt: true,
+              ...(tider ? { defaultFraTid: tider.fraTid || null, defaultTilTid: tider.tilTid || null } : {}),
+            }),
         }
       : null;
   const velgKort = (nokkel: string | null) => {
@@ -1564,6 +1602,10 @@ export default function DagsseddelDetaljSide() {
           onNyttKort={startRegistrering}
           onEndreRamme={() => setRedigerHeader(true)}
           onSlett={() => setVisSlettModal(true)}
+          onSlettKort={(kortId) => {
+            slettKort.reset();
+            setSlettKortId(kortId);
+          }}
           onSend={sendMedPauseSporsmaal}
         />
         </KorrigeringProvider>
@@ -2017,6 +2059,17 @@ export default function DagsseddelDetaljSide() {
 
       {/* Slett-bekreftelse — ekte modal (erstatter native confirm(),
           CLAUDE.md § Slett-bekreftelse). S1: lister alt som slettes, med antall. */}
+      {slettKortId && (
+        <SlettDagModal
+          sheetId={sheet.id}
+          kortId={slettKortId}
+          overskrift={t("timer.slettKort.ingress")}
+          onClose={() => setSlettKortId(null)}
+          onBekreft={() => slettKort.mutate({ id: sheet.id, kortId: slettKortId })}
+          sletter={slettKort.isPending}
+          feil={slettKort.error?.message ?? null}
+        />
+      )}
       {visSlettModal && (
         <SlettDagModal
           sheetId={sheet.id}
@@ -2074,6 +2127,21 @@ type JobbKortData = {
   varer: KortVare[];
 };
 
+/**
+ * O8 D (Kontrollør 138 vilkår 1): `flyttJobb` flytter bare en jobb der alle linjene venter på
+ * attestering (`flyttJobbTilSted`) — returnert, attestert eller avvist linje, eller attestert vare,
+ * gir avvisning. Da tilbys ikke nedtrekkene. Erstattet historikk teller ikke (serveren hopper over den).
+ */
+function alleLinjerVenter(k: JobbKortData): boolean {
+  const venter = (s: string | null) => s === null || s === "pending" || s === "erstattet";
+  return (
+    k.timer.every((r) => venter(r.attestertStatus)) &&
+    k.maskin.every((m) => venter(m.attestertStatus)) &&
+    k.varer.every((v) => !v.attestert) &&
+    k.linjer.every((l) => l.type !== "tillegg" || venter(l.rad.attestertStatus))
+  );
+}
+
 /** Nøkkelen til samlekortet for rader uten kort-id. */
 const UTEN_JOBB = "utenJobb";
 
@@ -2129,6 +2197,7 @@ function ProsjektkortSamleside({
   onNyttKort,
   onEndreRamme,
   onSlett,
+  onSlettKort,
   onSend,
 }: {
   jobbKort: JobbKortData[];
@@ -2184,6 +2253,8 @@ function ProsjektkortSamleside({
   onNyttKort: () => void;
   onEndreRamme: () => void;
   onSlett: () => void;
+  /** Retur O8 tillegg 2 (b): «Slett jobben» nederst i det åpne kortet. */
+  onSlettKort: (kortId: string) => void;
   onSend: () => void;
 }) {
   const { t } = useTranslation();
@@ -2380,6 +2451,20 @@ function ProsjektkortSamleside({
                     {t("timer.prosjektkort.reiseVelgLonnsart")}
                   </Link>
                 </p>
+              )}
+              {/* Retur O8 tillegg 2 (b): kortets hode er selve knappen som åpner/lukker kortet,
+                  så slettingen står nederst i det åpne kortet. */}
+              {erRedigerbar && (
+                <div className="mt-3 flex justify-end text-sm">
+                  <button
+                    type="button"
+                    onClick={() => onSlettKort(jobb.kortId)}
+                    className="text-red-600 hover:underline"
+                    data-testid="slett-jobben"
+                  >
+                    {t("timer.slettKort.lenke")}
+                  </button>
+                </div>
               )}
             </JobbKortRamme>
           );

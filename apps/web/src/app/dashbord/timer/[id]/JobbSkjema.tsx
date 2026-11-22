@@ -15,9 +15,11 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Pencil } from "lucide-react";
 import { trpc } from "@/lib/trpc";
+import { useFaarPlassPaaEnLinje } from "@/hooks/useFaarPlassPaaEnLinje";
 import { formaterTimer } from "@/lib/tallformat";
 import { rundTilNarmeste } from "@/lib/tidsrunding";
 import { klokkeSteg, lesPauseMin, tilFraTimer, type SkjemaKilde } from "@/lib/jobbSkjema";
+import { byggeplasserForProsjekt, velgStandardByggeplass, type ByggeplassValg } from "@/lib/timerByggeplass";
 import {
   regnJobbTid,
   validerJobbTid,
@@ -69,6 +71,8 @@ export function JobbSkjema({
   rader47,
   onUlagret,
   tidsrundingMinutter = null,
+  byggeplassId = null,
+  stedValg,
 }: {
   sheetId: string;
   kortId: string;
@@ -101,13 +105,27 @@ export function JobbSkjema({
   projectId: string;
   ecoId: string | null;
   organizationId: string | undefined;
-  /** Blyanten: dagens vindu for linje 1 (byggeplass, aktivitet m.m.). Underprosjektet velges i hodet (L3b). */
-  onAapneVindu?: () => void;
+  /**
+   * Blyanten: dagens vindu for linje 1 (byggeplass, aktivitet m.m.). Underprosjektet velges i
+   * hodet (L3b). Ny jobb (retur O8 tillegg): vinduet for ny rad, med tidene som står i skjemaet.
+   */
+  onAapneVindu?: (nyTider?: { fraTid: string; tilTid: string }) => void;
   rader47: readonly SkjemaRad47[];
   /** Noe i skjemaet er ikke lagret (ugyldig felt eller feilet lagring). */
   onUlagret: (kortId: string, ulagret: boolean) => void;
   /** Firmaets tidsrunding (som timevinduet): Fra/Til rundes ved blur, klokkevelgerens steg. */
   tidsrundingMinutter?: number | null;
+  /** Jobbens byggeplass (hodet). */
+  byggeplassId?: string | null;
+  /**
+   * O8 D (§ 8.22): prosjekt og byggeplass som nedtrekk på en lagret jobb. Endres de, flyttes hele
+   * jobben dit (`dagsseddel.flyttJobb`) — reisen blir stående. Jobben får ny kort-id (`onFlyttet`).
+   */
+  stedValg?: {
+    prosjekter: readonly { id: string; navn: string }[];
+    byggeplasser: readonly ByggeplassValg[];
+    onFlyttet: (nyKortId: string) => void;
+  };
 }) {
   const { t, i18n } = useTranslation();
   const utils = trpc.useUtils();
@@ -115,6 +133,7 @@ export function JobbSkjema({
   const tilfoy = trpc.timer.dagsseddel.tilfoyTimerRad.useMutation();
   const oppdater = trpc.timer.dagsseddel.oppdaterTimerRad.useMutation();
   const flyttEco = trpc.timer.dagsseddel.flyttJobbEco.useMutation();
+  const flyttSted = trpc.timer.dagsseddel.flyttJobb.useMutation();
   // L3b: prosjektets underprosjekter. Lukkede hentes også, bare for å kunne vise navnet når
   // jobben står på et underprosjekt som er lukket siden — valgene er de åpne.
   const { data: ecoer } = trpc.eksternKostObjekt.list.useQuery(
@@ -132,6 +151,15 @@ export function JobbSkjema({
       : null;
   const visUnderprosjekt = apneEcoer.length > 0 || !!valgtEcoId;
   const [ecoSok, setEcoSok] = useState("");
+  // O8 (§ 8.22 punkt 3): knapper så lenge «Uten» og alle underprosjektene får plass på én
+  // linje; ellers søkbar nedtrekk. Kan ikke bredden måles: som før (≤ 6 gir knapper).
+  const ecoValg = [
+    { id: null as string | null, navn: t("timer.jobbSkjema.utenUnderprosjekt"), lukket: false },
+    ...apneEcoer.map((e) => ({ id: e.id as string | null, navn: ecoNavn(e), lukket: false })),
+    ...(lukketValgt ? [{ id: lukketValgt.id as string | null, navn: ecoNavn(lukketValgt), lukket: true }] : []),
+  ];
+  const ecoPlass = useFaarPlassPaaEnLinje(`${visUnderprosjekt}|${ecoValg.map((v) => v.navn).join("|")}`);
+  const ecoKnapper = ecoPlass.faarPlass ?? apneEcoer.length <= 6;
   // Feilet flytting: «Prøv igjen» sender samme valg på nytt.
   const ventendeEco = useRef<{ id: string | null } | null>(null);
 
@@ -356,7 +384,42 @@ export function JobbSkjema({
     );
   };
 
+  // O8 D: prosjekt eller byggeplass endret på lagret jobb — hele jobben flyttes. Nytt prosjekt:
+  // byggeplassen velges som for en ny rad (eneste kandidat, ellers ingen).
+  const ventendeSted = useRef<{ projectId: string; byggeplassId: string | null } | null>(null);
+  const velgSted = (endring: { projectId?: string; byggeplassId?: string | null }) => {
+    if (lagring === "lagrer" || !l1 || !stedValg) return;
+    const nyttProsjekt = endring.projectId ?? projectId;
+    const nyByggeplass =
+      endring.byggeplassId !== undefined
+        ? endring.byggeplassId
+        : velgStandardByggeplass({
+            gjeldende: nyttProsjekt === projectId ? byggeplassId : null,
+            kandidater: byggeplasserForProsjekt(stedValg.byggeplasser, nyttProsjekt),
+            toppbar: null,
+          });
+    if (nyttProsjekt === projectId && nyByggeplass === byggeplassId && !ventendeSted.current) return;
+    ventendeSted.current = { projectId: nyttProsjekt, byggeplassId: nyByggeplass };
+    void ferdig(
+      (async () => {
+        const svar = await flyttSted.mutateAsync({
+          sheetId,
+          kortId,
+          projectId: nyttProsjekt,
+          byggeplassId: nyByggeplass,
+        });
+        ventendeSted.current = null;
+        await utils.vareforbruk.hentMineForDato.invalidate();
+        if (svar.kortId !== kortId) stedValg.onFlyttet(svar.kortId);
+      })(),
+    );
+  };
+
   const provIgjen = () => {
+    if (ventendeSted.current) {
+      velgSted(ventendeSted.current);
+      return;
+    }
     if (ventendeEco.current) {
       velgEco(ventendeEco.current.id);
       return;
@@ -414,9 +477,9 @@ export function JobbSkjema({
           {onAapneVindu && (
             <button
               type="button"
-              onClick={onAapneVindu}
+              onClick={() => onAapneVindu(ny ? { fraTid: fra, tilTid: til } : undefined)}
               className="ml-auto inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-800"
-              title={t("timer.jobbSkjema.aapneVinduHint")}
+              title={t(ny ? "timer.jobbSkjema.aapneVinduHintNy" : "timer.jobbSkjema.aapneVinduHint")}
             >
               <Pencil className="h-3.5 w-3.5" />
               {t("timer.jobbSkjema.aapneVindu")}
@@ -425,16 +488,62 @@ export function JobbSkjema({
         </div>
       )}
 
+      {l1 && stedValg && (
+        <div className={rad} data-testid="skjema-prosjekt">
+          <span className={etikett}>{t("timer.felt.prosjekt")}</span>
+          <select
+            aria-label={t("timer.felt.prosjekt")}
+            value={projectId}
+            disabled={lagring === "lagrer"}
+            onChange={(e) => velgSted({ projectId: e.target.value })}
+            className="min-w-0 max-w-xs flex-1 rounded border border-gray-300 px-2 py-1 text-sm"
+          >
+            {stedValg.prosjekter.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.navn}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+      {l1 && stedValg && byggeplasserForProsjekt(stedValg.byggeplasser, projectId).length > 0 && (
+        <div className={rad} data-testid="skjema-byggeplass">
+          <span className={etikett}>{t("timer.felt.byggeplass")}</span>
+          <select
+            aria-label={t("timer.felt.byggeplass")}
+            value={byggeplassId ?? ""}
+            disabled={lagring === "lagrer"}
+            onChange={(e) => velgSted({ byggeplassId: e.target.value || null })}
+            className="min-w-0 max-w-xs flex-1 rounded border border-gray-300 px-2 py-1 text-sm"
+          >
+            <option value="">{t("timer.byggeplass.ingenValgt")}</option>
+            {byggeplasserForProsjekt(stedValg.byggeplasser, projectId).map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
       {visUnderprosjekt && (
         <div className={rad} data-testid="skjema-underprosjekt">
           <span className={etikett}>{t("timer.jobbSkjema.underprosjekt")}</span>
-          {apneEcoer.length <= 6 ? (
+          {/* O8: flaten har fast bredde (basis-0) — bytte mellom knapper og nedtrekk endrer den
+              ikke, så grensen flimrer ikke. Målet er en usynlig kopi av knappene på én linje. */}
+          <div ref={ecoPlass.plassRef} className="min-w-0 flex-1 basis-0" data-testid="underprosjekt-plass">
+          <div aria-hidden="true" className="pointer-events-none invisible h-0 overflow-hidden">
+            <div ref={ecoPlass.maalRef} className="flex w-max gap-2" data-underprosjekt-maal="">
+              {ecoValg.map((v) => (
+                <span key={v.id ?? "uten"} className="shrink-0 rounded-full border px-3 py-1 text-sm">
+                  {v.navn}
+                </span>
+              ))}
+            </div>
+          </div>
+          {ecoKnapper ? (
             <div className="flex flex-wrap gap-2" role="group" aria-label={t("timer.jobbSkjema.underprosjekt")}>
-              {[
-                { id: null as string | null, navn: t("timer.jobbSkjema.utenUnderprosjekt"), lukket: false },
-                ...apneEcoer.map((e) => ({ id: e.id as string | null, navn: ecoNavn(e), lukket: false })),
-                ...(lukketValgt ? [{ id: lukketValgt.id as string | null, navn: ecoNavn(lukketValgt), lukket: true }] : []),
-              ].map((v) => {
+              {ecoValg.map((v) => {
                 const valgt = v.id === valgtEcoId;
                 return (
                   <button
@@ -491,6 +600,7 @@ export function JobbSkjema({
               </select>
             </div>
           )}
+          </div>
         </div>
       )}
 
