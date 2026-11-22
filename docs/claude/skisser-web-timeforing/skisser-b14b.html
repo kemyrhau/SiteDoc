@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="nb">
+<head>
+<meta charset="utf-8">
+<title>Skisser — B14b prosjektnavn og byggeplass i dagsrad og jobbrad</title>
+<!--
+  FORSLAG (Fabel 2026-11-22), ikke bygget. Kilde for b14b-*.png i denne mappa.
+  Hjemmel: vedtak-timer-web.md § Dagsvisningen i attesteringen punkt 2 (develop 9a1193d9).
+  Ett bilde:        skisser-b14b.html?steg=idag | p1 | p2     (1 440 css-px, 2x)
+  Sammenlikningen:  skisser-b14b.html?steg=alle               (1 440 css-px, 1x, de tre under hverandre)
+  Tegnet med Chrome uten vindu: høyden og de målte tekstbreddene skrives i sidetittelen (--dump-dom),
+  så --screenshot med --window-size=1440,<høyde>.
+  Samme tre dager som b14-a.png: Ola 17.11. (én jobb, tre linjer), Kari 17.11. (to jobber på to prosjekter
+  med ulik byggeplass), Ola 18.11. (én jobb, én linje, kort uten byggeplass).
+  «I dag» er tegnet etter koden på develop 9a1193d9, ikke et skjermbilde:
+    kolonnebreddene  ATTESTERING_BREDDE, VENSTRE 36, HOYRE 176 (AttesteringTabell.tsx) — 36 + 956 + 176 = 1 168 + ramme
+    kolonnene        TIMER_TABELL_STANDARD (timerDetaljRader.ts) — pr.nr. og underprosjekt, ikke prosjekt og byggeplass
+    dags-/jobbrad    kortCelle / kortVerdi, én celle pr. kolonne med «truncate» (TimerRadTabell.tsx, kind «sum»)
+    linjene          skjulPaaLinje — dato, ansatt og kortets felt skrives ikke på linja
+  Skrift som i appen: Tailwinds standard (system-ui), text-sm 14 px, cellepolstring px-1.5.
+-->
+<style>
+  :root { --kant:#e5e7eb; --tekst:#111827; --demp:#6b7280; --primar:#1d4ed8; --gronn:#15803d; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:#e5e7eb; color:var(--tekst); font:14px/20px ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; -webkit-font-smoothing:antialiased; width:1440px; }
+  .steg { display:none; width:1440px; padding:18px 0 22px; }
+  .steg.vis, body.alle .steg { display:block; }
+  body.alle .steg + .steg { border-top:6px solid #9ca3af; }
+
+  .hode { display:flex; align-items:center; gap:12px; margin:0 20px 12px; }
+  .nr { background:#1e40af; color:#fff; font-weight:800; font-size:14px; letter-spacing:.04em; padding:5px 12px; border-radius:999px; white-space:nowrap; }
+  .nr.graa { background:#4b5563; } .nr.anb { background:#047857; }
+  .tittel { font-size:21px; font-weight:700; }
+  .teller { margin-left:auto; background:#fff; border:1px solid #d1d5db; color:#374151; font-weight:700; font-size:13.5px; padding:4px 12px; border-radius:999px; white-space:nowrap; }
+
+  /* skjermen: 1 440 bred. Meny og marg 270, tabellen 1 170 (målt i § 9.3 og § 9.4 i planen). */
+  .skjerm { display:flex; width:1440px; background:#f9fafb; border-top:1px solid #d1d5db; border-bottom:1px solid #d1d5db; }
+  .meny { width:270px; flex:none; background:#f3f4f6; border-right:1px solid #e5e7eb; color:#9ca3af; font-size:12px; padding:14px 16px; }
+  .flate { width:1170px; flex:none; padding:12px 0 14px; }
+  .verktoy { display:flex; align-items:center; gap:10px; margin:0 0 10px; font-size:13px; }
+  .verktoy .uke { border:1px solid var(--kant); background:#fff; border-radius:8px; padding:4px 10px; font-weight:600; }
+  .verktoy .boks { display:inline-flex; align-items:center; gap:6px; color:#374151; }
+  .verktoy .boks i { display:inline-block; width:14px; height:14px; border:1.5px solid #9ca3af; border-radius:3px; background:#fff; }
+  .verktoy .hoyre { margin-left:auto; border:1px solid var(--kant); background:#fff; border-radius:8px; padding:4px 10px; font-weight:600; }
+
+  .t { width:1170px; border:1px solid var(--kant); border-radius:8px; background:#fff; overflow:hidden; position:relative; }
+  .r { display:flex; align-items:stretch; }
+  .v { width:36px; flex:none; display:flex; align-items:center; gap:4px; padding:6px 4px; }
+  .m { width:956px; flex:none; overflow:hidden; }
+  .g { display:grid; align-items:center; height:100%; }
+  .g > div { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding:6px 6px; }
+  .g > div.n { text-align:right; font-variant-numeric:tabular-nums; }
+  .h { width:176px; flex:none; display:flex; align-items:center; justify-content:flex-end; gap:4px; padding:4px 8px; }
+
+  .r.hd { background:#f9fafb; border-bottom:1px solid var(--kant); font-size:12px; line-height:15px; font-weight:600; color:var(--demp); }
+  .r.hd .g > div { white-space:normal; padding:6px 6px 6px 14px; }
+  .r.hd .g > div.n { padding:6px 6px 6px 4px; }
+
+  .r.dag { background:#eff6ff; border-top:2px solid #1d4ed8; font-weight:600; min-height:43px; }
+  .r.dag .v { border-left:4px solid #1d4ed8; }
+  .r.jobb { background:#fff; border-top:1px solid #d1d5db; font-weight:600; color:#1f2937; min-height:38px; }
+  .r.li { background:#fff; border-top:1px solid #f1f5f9; color:#1f2937; min-height:37px; }
+  .r.jobb .v, .r.li .v { border-left:4px solid #60a5fa; }
+  .r.k2 .v { border-left-color:#f59e0b; }
+  .r.dag .h, .r.jobb .h, .r.li .h { border-right:1px solid #d1d5db; }
+  .luft { height:12px; background:#fff; }
+  .et { font-weight:400; color:var(--demp); }
+
+  .cb { display:inline-block; width:13px; height:13px; border:1.5px solid #9ca3af; border-radius:3px; background:#fff; flex:none; }
+  .pil { color:#1d4ed8; font-size:15px; line-height:1; }
+  .kn { display:inline-flex; width:24px; height:24px; border:1px solid var(--kant); border-radius:4px; background:#fff; align-items:center; justify-content:center; font-size:13px; color:#4b5563; font-weight:400; }
+  .kn.gr { color:var(--gronn); font-weight:800; }
+  .att { display:inline-flex; align-items:center; gap:4px; background:#1e40af; color:#fff; font-weight:600; font-size:12px; border-radius:6px; padding:4px 9px; }
+  .avm { font-size:11px; font-weight:700; padding:1px 7px; border-radius:999px; background:#fef3c7; color:#92400e; }
+
+  /* PLASSERING 1: ett felt over Pr.nr. + Underprosjekt + Betegnelse + Fra–til (322 px) */
+  .g > div.felt { grid-column: span 4; white-space:normal; padding:5px 6px; }
+  .felt .l1 { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .felt .l2 { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:13px; line-height:17px; font-weight:400; color:#374151; }
+  .ny { outline:2px solid #f59e0b; outline-offset:-2px; border-radius:3px; }
+
+  /* PLASSERING 2: egne kolonner — tabellen blir 1 372 px og ruller sideveis */
+  .p2 .m { width:956px; }
+  .rull { height:12px; background:#f3f4f6; border-top:1px solid var(--kant); position:relative; }
+  .rull i { position:absolute; left:36px; top:3px; height:6px; width:789px; background:#9ca3af; border-radius:3px; }
+  .skygge { box-shadow:-6px 0 6px -4px rgba(0,0,0,.18); }
+
+  .tekst { margin:12px 20px 0 290px; background:#fff; border:1px solid var(--kant); border-radius:10px; padding:10px 16px 12px; font-size:15px; line-height:22px; width:1130px; }
+  .tekst b { font-weight:700; }
+  .tekst .v2 { color:#374151; }
+  .tekst .rod { color:#b91c1c; font-weight:700; } .tekst .gro { color:#047857; font-weight:700; }
+</style>
+</head>
+<body>
+
+<div class="steg" id="idag"></div>
+<div class="steg" id="p1"></div>
+<div class="steg" id="p2"></div>
+
+<script>
+// Kolonnebredder i px. Kilde: ATTESTERING_BREDDE i AttesteringTabell.tsx (develop 9a1193d9).
+const B = { dato:92, ansatt:104, prnr:66, uprosj:88, beteg:74, fratil:94, timer:52, maskin:76, mt:66, vare:68, antall:54, belop:54, avvik:68 };
+// Plassering 2: Pr.nr. (66) ut, Prosjekt (170) og Byggeplass (100) inn. Tegnet, ikke målt i appen.
+const B2 = { dato:92, ansatt:104, prosjekt:170, byggeplass:100, uprosj:88, beteg:74, fratil:94, timer:52, maskin:76, mt:66, vare:68, antall:54, belop:54, avvik:68 };
+const KOL  = ["dato","ansatt","prnr","uprosj","beteg","fratil","timer","maskin","mt","vare","antall","belop","avvik"];
+const KOL2 = ["dato","ansatt","prosjekt","byggeplass","uprosj","beteg","fratil","timer","maskin","mt","vare","antall","belop","avvik"];
+const HODE = { dato:"Dato", ansatt:"Ansatt", prnr:"Pr.nr.", prosjekt:"Prosjekt", byggeplass:"Byggeplass", uprosj:"Under­prosjekt", beteg:"Beteg­nelse", fratil:"Fra–til", timer:"Timer", maskin:"Maskin", mt:"Maskin­timer", vare:"Vare og mengde", antall:"Antall", belop:"Beløp", avvik:"Avvik" };
+const NUM = new Set(["timer","mt","antall","belop"]);
+
+// De tre dagene. Kortets felt: prnr, prosjekt, byggeplass, uprosj.
+const DAGER = [
+  { dato:"tir. 17.11.", ansatt:"Ola Nilsen", timer:"8,00", mt:"4,00", norm:"+0,5 t",
+    kort:[ { prnr:"1042", prosjekt:"Sommerfeldtsgate 65 – rehabilitering", byggeplass:"Hovedbygg", uprosj:"", timer:"8,00", mt:"4,00",
+      linjer:[ { beteg:"Timelønn", fratil:"07:00–15:00", timer:"7,50", maskin:"Volvo EC220E", mt:"4,00", vare:"Betong · 4 m3" },
+               { beteg:"Overtid 50 %", fratil:"15:00–15:30", timer:"0,50" },
+               { beteg:"Smusstillegg", antall:"1" } ] } ] },
+  { dato:"tir. 17.11.", ansatt:"Kari Hansen", timer:"7,50", mt:"2,00",
+    kort:[ { prnr:"1042", prosjekt:"Sommerfeldtsgate 65 – rehabilitering", byggeplass:"Bakgård", uprosj:"12 Grunnarbeid", timer:"4,00", mt:"2,00",
+      linjer:[ { beteg:"Timelønn", fratil:"07:00–11:00", timer:"4,00", maskin:"Cat 308", mt:"2,00" } ] },
+           { prnr:"1051", prosjekt:"Røstbakken barnehage", byggeplass:"Uteområde", uprosj:"", timer:"3,50", mt:"",
+      linjer:[ { beteg:"Timelønn", fratil:"11:30–15:00", timer:"3,50", vare:"Pukk 6-32 · 6 t" },
+               { beteg:"Parkering", belop:"120", vedlegg:true } ] } ] },
+  { dato:"ons. 18.11.", ansatt:"Ola Nilsen", timer:"7,50", mt:"",
+    kort:[ { prnr:"1060", prosjekt:"Kvaløyvegen 12", byggeplass:"", uprosj:"", timer:"7,50", mt:"",
+      linjer:[ { beteg:"Timelønn", fratil:"07:00–15:00", timer:"7,50" } ] } ] },
+];
+
+const esc = (s) => String(s ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;");
+const grid = (kol, b) => `grid-template-columns:${kol.map((k) => b[k] + "px").join(" ")}`;
+const DAG_KN  = `<span class="att">✓ Attester</span><span class="kn">↩</span><span class="kn">↗</span>`;
+const JOBB_KN = `<span class="kn gr">✓</span><span class="kn">↩</span>`;
+const LI_KN   = `<span class="kn gr">✓</span><span class="kn">↩</span><span class="kn">✂</span><span class="kn">✎</span>`;
+const jobber = (n) => `<span class="et">${n} ${n === 1 ? "jobb" : "jobber"}</span>`;
+
+function rad(kl, v, celler, h, kol, b, bredde) {
+  const g = kol.map((k) => {
+    const c = celler[k];
+    if (c === null) return "";                       // dekket av et felt som spenner over flere kolonner
+    if (c && c.felt) return `<div class="felt${c.ny ? " ny" : ""}">${c.felt}</div>`;
+    return `<div class="${NUM.has(k) ? "n" : ""}${c && c.ny ? " ny" : ""}">${c && typeof c === "object" ? c.html : esc(c)}</div>`;
+  }).join("");
+  return `<div class="r ${kl}"><div class="v">${v}</div><div class="m"><div class="g" style="${grid(kol, b)};width:${bredde}px">${g}</div></div><div class="h${bredde > 956 ? " skygge" : ""}">${h}</div></div>`;
+}
+
+// Kortets felt i dags- og jobbraden, pr. variant.
+function kortFelt(variant, kort, etikett) {
+  if (variant === "idag") return { prnr: kort ? kort.prnr : "", uprosj: kort ? kort.uprosj : "", beteg: { html: etikett } };
+  if (variant === "p2")   return { prosjekt: kort ? { html: esc(kort.prosjekt), ny: true } : "", byggeplass: kort ? { html: esc(kort.byggeplass), ny: !!kort.byggeplass } : "", uprosj: kort ? kort.uprosj : "", beteg: { html: etikett } };
+  // p1: ett felt over fire kolonner. Uten kort (flere jobber samme dag) står «N jobber» der, som i dag.
+  if (!kort) return { prnr: { felt: `<span class="l1">${etikett}</span>` }, uprosj: null, beteg: null, fratil: null };
+  const l2 = [kort.byggeplass, kort.uprosj].filter(Boolean).join(" · ");
+  return { prnr: { felt: `<span class="l1" data-maal="${esc(kort.prosjekt)}">${esc(kort.prosjekt)}</span>${l2 ? `<span class="l2">${esc(l2)}</span>` : ""}`, ny: true }, uprosj: null, beteg: null, fratil: null };
+}
+
+function tabell(variant) {
+  const kol = variant === "p2" ? KOL2 : KOL, b = variant === "p2" ? B2 : B;
+  const bredde = kol.reduce((s, k) => s + b[k], 0);
+  let ut = `<div class="r hd"><div class="v"><span class="cb"></span></div><div class="m"><div class="g" style="${grid(kol, b)};width:${bredde}px">${kol.map((k) => `<div class="${NUM.has(k) ? "n" : ""}">${HODE[k]}</div>`).join("")}</div></div><div class="h"></div></div>`;
+  DAGER.forEach((d, di) => {
+    const en = d.kort.length === 1 ? d.kort[0] : null;
+    ut += rad("dag", `<span class="cb"></span>${en ? `<span class="pil">▸</span>` : ""}`,
+      { dato: d.dato, ansatt: d.ansatt, ...kortFelt(variant, en, jobber(d.kort.length)), timer: d.timer, mt: d.mt, avvik: d.norm ? { html: `<span class="avm">${d.norm}</span>` } : "" },
+      DAG_KN, kol, b, bredde);
+    d.kort.forEach((k, ki) => {
+      const farge = ki === 1 ? " k2" : "";
+      if (!en) ut += rad("jobb" + farge, `<span class="cb"></span><span class="pil">▸</span>`, { ...kortFelt(variant, k, ""), timer: k.timer, mt: k.mt }, JOBB_KN, kol, b, bredde);
+      k.linjer.forEach((l) => { ut += rad("li" + farge, "", l, l.vedlegg ? `<span class="kn">📎</span>` : LI_KN, kol, b, bredde); });
+    });
+    if (di < DAGER.length - 1) ut += `<div class="luft"></div>`;
+  });
+  if (variant === "p2") ut += `<div class="rull"><i></i></div>`;
+  return ut;
+}
+
+const STEG = {
+  idag: { nr: "I DAG · TEGNET ETTER KODEN", kl: "graa", tittel: "Dagsraden og jobbraden viser pr.nr. og underprosjekt",
+    tekst: `<b>Du ser:</b> «1042» der kortet er ført. Prosjektets navn og byggeplassen står ikke i raden — de finnes bare som kolonner i «Velg parameter».<br>
+            <span class="v2"><b>Bredden:</b> 36 + 956 + 176 px. De 13 kolonnene fyller hele tabellen ved 1 440; ingen kolonne har plass til overs.</span>` },
+  p1: { nr: "PLASSERING 1 · ANBEFALT", kl: "anb", tittel: "Ett felt i raden, over fire kolonner — navnet øverst, byggeplass og underprosjekt under",
+    tekst: `<b>Du ser:</b> prosjektets navn i halvfet skrift, og under det byggeplass · underprosjekt. Feltet er 322 px og bruker plassen til Pr.nr., Underprosjekt, Betegnelse og Fra–til, som er tomme i disse radene. Kort uten byggeplass og underprosjekt får én linje. Navn opp til 310 px (om lag 44 tegn) står hele. Oransje ramme viser det nye og er bare i skissen.<br>
+            <span class="v2"><b>Viker:</b> høyden — raden blir to linjer høy når kortet har byggeplass eller underprosjekt (dagsrad 43 → 49 px, jobbrad 38 → 48 px). Pr.nr. står ikke lenger i raden. «1 jobb» står ikke lenger (navnet står der); «2 jobber» står som før. <span class="gro">Kolonnene, bredden og «Velg parameter» er urørt.</span></span>` },
+  p2: { nr: "PLASSERING 2", kl: "", tittel: "Egne kolonner: «Prosjekt» og «Byggeplass» i stedet for «Pr.nr.»",
+    tekst: `<b>Du ser:</b> prosjektets navn og byggeplassen i hver sin kolonne, på én linje. Lange navn kuttes («Sommerfeldtsgate 6…»), hele navnet ved hover. Oransje ramme viser det nye og er bare i skissen.<br>
+            <span class="v2"><b>Viker:</b> bredden — tabellen blir 1 372 px, 204 px for bred. <span class="rod">Antall, Beløp og Avvik havner utenfor skjermen</span> og må rulles fram, eller tre kolonner må ut av standardutvalget. Standarden i «Velg parameter» og den sorterte lista endres også.</span>` },
+};
+
+function tegn(id) {
+  const s = STEG[id];
+  document.getElementById(id).innerHTML =
+    `<div class="hode"><span class="nr ${s.kl}">${s.nr}</span><span class="tittel">${s.tittel}</span><span class="teller" data-teller="${id}"></span></div>
+     <div class="skjerm"><div class="meny">meny og marg · 270 px</div><div class="flate ${id}">
+       <div class="verktoy"><span class="uke">‹ Uke 47 ›</span><span class="uke">2026 ▾</span><span class="boks"><i></i> Bare oversiktsrader</span><span class="hoyre">Velg parameter</span></div>
+       <div class="t">${tabell(id)}</div></div></div>
+     <div class="tekst">${s.tekst}</div>`;
+}
+Object.keys(STEG).forEach(tegn);
+
+const steg = new URLSearchParams(location.search).get("steg") || "alle";
+if (steg === "alle") document.body.classList.add("alle"); else document.getElementById(steg).classList.add("vis");
+
+// Mål: tabellhøyden pr. variant, radhøydene i plassering 1, og bredden på tekstene i feltet (310 px til tekst).
+const maal = {};
+for (const id of Object.keys(STEG)) {
+  const el = document.getElementById(id), var_ = getComputedStyle(el).display;
+  el.style.display = "block";
+  const t = el.querySelector(".t");
+  maal[id] = { tabell: t.offsetHeight, dag: [...t.querySelectorAll(".r.dag")].map((r) => r.offsetHeight), jobb: [...t.querySelectorAll(".r.jobb")].map((r) => r.offsetHeight) };
+  el.querySelector("[data-teller]").textContent = `tabellen: ${t.offsetHeight} px høy`;
+  if (id === "p1") {
+    maal.tekst = [...t.querySelectorAll("[data-maal]")].map((x) => { const r = document.createRange(); r.selectNodeContents(x); return [x.dataset.maal, Math.ceil(r.getBoundingClientRect().width), x.clientWidth]; });
+    maal.l2 = [...t.querySelectorAll(".l2")].map((x) => [x.textContent, x.scrollWidth, x.clientWidth]);
+  }
+  if (id === "idag") maal.idagKutt = [...t.querySelectorAll(".r.dag .g > div, .r.jobb .g > div")].filter((x) => x.scrollWidth > x.clientWidth).map((x) => [x.textContent, x.scrollWidth, x.clientWidth]);
+  if (id === "p2") maal.p2Kutt = [...t.querySelectorAll(".r.dag .g > div, .r.jobb .g > div")].filter((x) => x.scrollWidth > x.clientWidth).map((x) => [x.textContent, x.scrollWidth, x.clientWidth]);
+  el.style.display = "";
+}
+document.title = JSON.stringify({ hoyde: document.documentElement.scrollHeight, maal });
+</script>
+</body>
+</html>
