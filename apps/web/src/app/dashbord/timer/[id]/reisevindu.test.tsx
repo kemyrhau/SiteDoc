@@ -95,11 +95,13 @@ vi.mock("@/lib/trpc", () => {
 import Side from "./page";
 
 const DATO = "2026-11-05";
+// O8 (§ 8.22 punkt 2): «Arbeidstid» fører ingenting og viser ingen tider. Testene her gjelder
+// reise-raden (tider og antall), så turen på 4 min føres som reisetid også under terskel.
 const REGEL: ReiseRegelsett = {
   reiseTerskelEnhet: "minutter",
   reiseTerskelMin: 30,
   reiseTerskelM: null,
-  reiseUnderTerskelType: "arbeidstid",
+  reiseUnderTerskelType: "reisetid",
   reiseOverTerskelType: "reisetid",
 };
 const FAST_TROMSO: OppmotePeriodeInput = {

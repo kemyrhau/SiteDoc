@@ -3,10 +3,13 @@
  * Plan § 8.22 L3b — underprosjekt i hodet på jobbskjemaet (`JobbSkjema` rendret direkte).
  *   Raden vises bare når prosjektet har åpne underprosjekter (eller jobben står på et).
  *   ≤ 6 gir knapper, ellers søkbar nedtrekk. «Uten» er forvalgt.
+ *   O8 (§ 8.22 punkt 3): grensen er plass, ikke antall — knapper så lenge «Uten» og alle
+ *   underprosjektene får plass på én linje. Kan ikke bredden måles (jsdom), gjelder ≤ 6.
  *   Valget flytter HELE jobben (`flyttJobbEco`); ny jobb sender valget med når raden lages.
  */
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { act } from "react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 type Eco = { id: string; proAdmId: string; kortNavn: string; status: string; timerregistreringApen: boolean };
 
@@ -184,5 +187,105 @@ describe("L3b — underprosjekt i hodet", () => {
     await vent();
     expect(h.kall.find((k) => k.sti === TILFOY)?.input).toMatchObject({ kortId: "k1", externalCostObjectId: "e1" });
     expect(flyttKall()).toEqual([]);
+  });
+});
+
+/**
+ * O8 (§ 8.22 punkt 3): bredden mockes. Flaten (`underprosjekt-plass`) har `h.bredde` px; den
+ * usynlige kopien av knappene er 100 px pr. valg. ResizeObserver mockes og kalles ved «resize».
+ */
+describe("O8 — underprosjekt: knapper så lenge de får plass på én linje, ellers nedtrekk", () => {
+  const m = { bredde: 1000, observere: [] as Array<() => void> };
+  const orig = {
+    ro: globalThis.ResizeObserver,
+    client: Object.getOwnPropertyDescriptor(HTMLElement.prototype, "clientWidth"),
+    offset: Object.getOwnPropertyDescriptor(HTMLElement.prototype, "offsetWidth"),
+  };
+  beforeEach(() => {
+    m.observere = [];
+    class RO {
+      private cb: () => void;
+      constructor(cb: () => void) {
+        this.cb = cb;
+        m.observere.push(() => this.cb());
+      }
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    }
+    globalThis.ResizeObserver = RO as unknown as typeof ResizeObserver;
+    Object.defineProperty(HTMLElement.prototype, "clientWidth", {
+      configurable: true,
+      get(this: HTMLElement) {
+        return this.dataset.testid === "underprosjekt-plass" ? m.bredde : 0;
+      },
+    });
+    Object.defineProperty(HTMLElement.prototype, "offsetWidth", {
+      configurable: true,
+      get(this: HTMLElement) {
+        return this.hasAttribute("data-underprosjekt-maal") ? this.children.length * 100 : 0;
+      },
+    });
+  });
+  afterEach(() => {
+    globalThis.ResizeObserver = orig.ro;
+    if (orig.client) Object.defineProperty(HTMLElement.prototype, "clientWidth", orig.client);
+    if (orig.offset) Object.defineProperty(HTMLElement.prototype, "offsetWidth", orig.offset);
+  });
+  const resize = (bredde: number) =>
+    act(() => {
+      m.bredde = bredde;
+      m.observere.forEach((f) => f());
+    });
+  const nedtrekk = () => screen.queryByRole("combobox", { name: "timer.jobbSkjema.underprosjekt" });
+
+  it("får plass (3 valg = 300 px i 1000 px): knapper", () => {
+    m.bredde = 1000;
+    rendre({ ecoer: [eco(1), eco(2)] });
+    expect(nedtrekk()).toBeNull();
+    expect(knapp("12 · Grøft 2")).toBeTruthy();
+  });
+
+  it("får ikke plass (3 valg = 300 px i 250 px): nedtrekk, selv om antallet er ≤ 6", () => {
+    m.bredde = 250;
+    rendre({ ecoer: [eco(1), eco(2)] });
+    expect(nedtrekk()).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "12 · Grøft 2" })).toBeNull();
+  });
+
+  it("8 valg i 2000 px: knapper, selv om antallet er > 6; klikk flytter hele jobben", async () => {
+    m.bredde = 2000;
+    rendre({ ecoer: [1, 2, 3, 4, 5, 6, 7].map((n) => eco(n)) });
+    expect(nedtrekk()).toBeNull();
+    expect(knapp("timer.jobbSkjema.utenUnderprosjekt").getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(knapp("17 · Grøft 7"));
+    await vent();
+    expect(flyttKall()).toEqual([{ sheetId: "s1", kortId: "k1", externalCostObjectId: "e7" }]);
+  });
+
+  it("følger breddeendring: smalere → nedtrekk, bredere → knapper; ny måling på samme bredde bytter ikke (ingen flimring)", () => {
+    m.bredde = 1000;
+    rendre({ ecoer: [eco(1), eco(2)] });
+    expect(nedtrekk()).toBeNull();
+    resize(299);
+    expect(nedtrekk()).toBeTruthy();
+    // Kopien måles likt i begge visningene — samme bredde gir samme svar.
+    resize(299);
+    resize(299);
+    expect(nedtrekk()).toBeTruthy();
+    resize(300);
+    expect(nedtrekk()).toBeNull();
+    resize(300);
+    expect(nedtrekk()).toBeNull();
+  });
+
+  it("nedtrekken har «Uten» forvalgt; valg flytter hele jobben", async () => {
+    m.bredde = 100;
+    rendre({ ecoer: [eco(1), eco(2)] });
+    const velger = nedtrekk() as HTMLSelectElement;
+    expect(velger.value).toBe("");
+    fireEvent.change(velger, { target: { value: "e2" } });
+    await vent();
+    expect(flyttKall()).toEqual([{ sheetId: "s1", kortId: "k1", externalCostObjectId: "e2" }]);
   });
 });

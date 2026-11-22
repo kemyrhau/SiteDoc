@@ -14,6 +14,8 @@ import {
   kontorOverforingOppsett,
   løsOppmote,
   løsReiseKort,
+  klokkeTilMin,
+  minTilKlokke,
   planleggOverforing,
   tilIsoDato,
   type DagsforslagOverforingCelle,
@@ -22,6 +24,7 @@ import {
   type ReiseKortResultat,
   type ReiseRegelsett,
   type ReiseKategori,
+  type ReiseKortInput,
 } from "@sitedoc/shared";
 import { trpc } from "@/lib/trpc";
 
@@ -231,6 +234,41 @@ export function oppmoteForReise(
   return hjem.kilde === "ikkeValgt" || hjem.kilde === "byggeplass" ? periodeOppmote : hjem;
 }
 
+/**
+ * O8 (§ 8.22 punkt 2): kjøretidsforslaget rundes til firmaets tidsrunding (15/30/60 min) —
+ * til nærmeste intervall, men aldri ned til 0 når det finnes en reise. null/0 = ingen runding.
+ * 37 min med 30 → 30; 50 → 60; 4 → 30.
+ */
+export function rundKjoretidForslag(kjoretidMin: number, rundingMin: number | null | undefined): number {
+  if (!rundingMin || kjoretidMin <= 0) return kjoretidMin;
+  return Math.max(rundingMin, Math.round(kjoretidMin / rundingMin) * rundingMin);
+}
+
+/**
+ * O8 (§ 8.22 punkt 2): reiseforslaget med avrundet varighet. Bare FORSLAGET rundes: tider
+ * arbeideren har skrevet, står som de er. Retningen gjelder etter avrunding — «Til byggeplass»
+ * holder Slutt (jobbstart) og flytter Start, «Fra byggeplass» holder Start og flytter Slutt.
+ * Terskelen og sporets kjøretid står på firmaets kjøretid (urørt).
+ */
+export function løsReiseKortAvrundet(inn: ReiseKortInput, rundingMin: number | null | undefined): ReiseKortResultat {
+  const forslag = løsReiseKort(inn);
+  if (!rundingMin || forslag.kjoretidMin == null || forslag.fraTid == null) return forslag;
+  if (inn.startTid && inn.sluttTid) return forslag;
+  const k = forslag.kjoretidMin;
+  const d = rundKjoretidForslag(k, rundingMin);
+  if (d === k) return forslag;
+  const forslagFra = klokkeTilMin(forslag.fraTid);
+  if (forslagFra == null) return forslag;
+  const naar = inn.naar ?? (inn.retning === "tur" ? "forArbeid" : "etterArbeid");
+  // Skrevet start står; ellers: før arbeid ankres slutten (start = anker − d), etter arbeid starten.
+  const fra = klokkeTilMin(inn.startTid) ?? (naar === "forArbeid" ? forslagFra + k - d : forslagFra);
+  const til = klokkeTilMin(inn.sluttTid) ?? fra + d;
+  if (fra < 0 || til > 24 * 60) {
+    return { ...forslag, timer: 0, fraTid: null, tilTid: null, klassifisering: null, spor: null, sperre: "utenforDognet" };
+  }
+  return løsReiseKort({ ...inn, startTid: minTilKlokke(fra), sluttTid: minTilKlokke(til) });
+}
+
 export function useManuellReiseWeb({
   organizationId,
   dato,
@@ -345,9 +383,11 @@ export function useManuellReiseWeb({
     [valgtKontor, dato, projectId, retning, perioder, periodeOppmote],
   );
 
+  // O8: firmaets tidsrunding (null = ingen runding).
+  const rundingMin = defaults?.tidsrundingMinutter ?? null;
   const resultat: ReiseKortResultat = useMemo(
     () =>
-      løsReiseKort({
+      løsReiseKortAvrundet({
         dagStart: ramme.dagStart,
         dagSlutt: ramme.dagSlutt,
         regel,
@@ -362,8 +402,8 @@ export function useManuellReiseWeb({
         byggeplassId,
         kjoretidFor: (o, b) => matrise.get(`${o}|${b}`)?.kjoretidMin ?? null,
         avstandFor: (o, b) => matrise.get(`${o}|${b}`)?.avstandM ?? null,
-      }),
-    [retning, ramme, regel, grensepunkter, resolverLonnsartId, standardLonnsartId, oppmote, byggeplassId, matrise, startTid, sluttTid, kategoriValg],
+      }, rundingMin),
+    [retning, ramme, regel, grensepunkter, resolverLonnsartId, standardLonnsartId, oppmote, byggeplassId, matrise, startTid, sluttTid, kategoriValg, rundingMin],
   );
 
   // Oppmøtestedet vises som tekst bare når firmaet har flere (§ 7 C).

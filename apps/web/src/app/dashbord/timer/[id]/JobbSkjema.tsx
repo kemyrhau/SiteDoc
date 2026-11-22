@@ -15,6 +15,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Pencil } from "lucide-react";
 import { trpc } from "@/lib/trpc";
+import { useFaarPlassPaaEnLinje } from "@/hooks/useFaarPlassPaaEnLinje";
 import { formaterTimer } from "@/lib/tallformat";
 import { rundTilNarmeste } from "@/lib/tidsrunding";
 import { klokkeSteg, lesPauseMin, tilFraTimer, type SkjemaKilde } from "@/lib/jobbSkjema";
@@ -132,6 +133,15 @@ export function JobbSkjema({
       : null;
   const visUnderprosjekt = apneEcoer.length > 0 || !!valgtEcoId;
   const [ecoSok, setEcoSok] = useState("");
+  // O8 (§ 8.22 punkt 3): knapper så lenge «Uten» og alle underprosjektene får plass på én
+  // linje; ellers søkbar nedtrekk. Kan ikke bredden måles: som før (≤ 6 gir knapper).
+  const ecoValg = [
+    { id: null as string | null, navn: t("timer.jobbSkjema.utenUnderprosjekt"), lukket: false },
+    ...apneEcoer.map((e) => ({ id: e.id as string | null, navn: ecoNavn(e), lukket: false })),
+    ...(lukketValgt ? [{ id: lukketValgt.id as string | null, navn: ecoNavn(lukketValgt), lukket: true }] : []),
+  ];
+  const ecoPlass = useFaarPlassPaaEnLinje(`${visUnderprosjekt}|${ecoValg.map((v) => v.navn).join("|")}`);
+  const ecoKnapper = ecoPlass.faarPlass ?? apneEcoer.length <= 6;
   // Feilet flytting: «Prøv igjen» sender samme valg på nytt.
   const ventendeEco = useRef<{ id: string | null } | null>(null);
 
@@ -428,13 +438,21 @@ export function JobbSkjema({
       {visUnderprosjekt && (
         <div className={rad} data-testid="skjema-underprosjekt">
           <span className={etikett}>{t("timer.jobbSkjema.underprosjekt")}</span>
-          {apneEcoer.length <= 6 ? (
+          {/* O8: flaten har fast bredde (basis-0) — bytte mellom knapper og nedtrekk endrer den
+              ikke, så grensen flimrer ikke. Målet er en usynlig kopi av knappene på én linje. */}
+          <div ref={ecoPlass.plassRef} className="min-w-0 flex-1 basis-0" data-testid="underprosjekt-plass">
+          <div aria-hidden="true" className="pointer-events-none invisible h-0 overflow-hidden">
+            <div ref={ecoPlass.maalRef} className="flex w-max gap-2" data-underprosjekt-maal="">
+              {ecoValg.map((v) => (
+                <span key={v.id ?? "uten"} className="shrink-0 rounded-full border px-3 py-1 text-sm">
+                  {v.navn}
+                </span>
+              ))}
+            </div>
+          </div>
+          {ecoKnapper ? (
             <div className="flex flex-wrap gap-2" role="group" aria-label={t("timer.jobbSkjema.underprosjekt")}>
-              {[
-                { id: null as string | null, navn: t("timer.jobbSkjema.utenUnderprosjekt"), lukket: false },
-                ...apneEcoer.map((e) => ({ id: e.id as string | null, navn: ecoNavn(e), lukket: false })),
-                ...(lukketValgt ? [{ id: lukketValgt.id as string | null, navn: ecoNavn(lukketValgt), lukket: true }] : []),
-              ].map((v) => {
+              {ecoValg.map((v) => {
                 const valgt = v.id === valgtEcoId;
                 return (
                   <button
@@ -491,6 +509,7 @@ export function JobbSkjema({
               </select>
             </div>
           )}
+          </div>
         </div>
       )}
 
