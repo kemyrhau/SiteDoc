@@ -26,7 +26,6 @@ import {
   aktivtMedlemWhere,
 } from "../../trpc/tilgangskontroll";
 import { krevTimerAktivert, hentEffektivArbeidstid } from "../../services/timer";
-import { erVarelagerAktivert } from "../../services/varelager/moduleGate";
 import {
   kortIdForSkriving,
   lastLagretKort,
@@ -800,21 +799,8 @@ async function flyttHeleJobben(
 /** O8 D (§ 8.22): feiltekstene når en jobb ikke kan flyttes til et annet prosjekt. */
 export const FLYTT_JOBB_FEIL = {
   utleggOrdning: "Utlegget føres annerledes på dette prosjektet. Fjern det først.",
-  vareUtenVarelager: "Prosjektet har ikke varelager. Fjern varene først.",
   ikkeVentende: "Bare jobber der alle linjene venter på attestering kan flyttes. Gjenåpne linjene først.",
 } as const;
-
-/**
- * O8 D, Kenneth 2026-11-22 punkt 3 (ÅPEN): varer flyttes bare til et prosjekt med varelager.
- * Hele sperren er denne funksjonen og ett kall i `flyttJobbTilSted` — vil Kenneth at varene
- * følger med likevel, fjernes kallet.
- */
-async function krevVarelagerForVareFlytt(antallVarer: number, organizationId: string, projectId: string) {
-  if (antallVarer === 0) return;
-  if (!(await erVarelagerAktivert(organizationId, projectId))) {
-    throw new TRPCError({ code: "PRECONDITION_FAILED", message: FLYTT_JOBB_FEIL.vareUtenVarelager });
-  }
-}
 
 /**
  * O8 D punkt 4: et utlegg følger jobben bare når ordningen på det nye prosjektet er den samme
@@ -861,8 +847,9 @@ async function krevLikUtleggOrdning(
  *   og K2 (reise = kortets prosjekt) ville vært brutt.
  * - Jobben får ny kort-id. Den gamle kan være utledet av gammel nøkkel (`utledKortId`); beholdt,
  *   ville en senere rad på gammelt sted uten kort-id fått samme id (regel 3) og havnet i jobben.
- * - Alle linjene må vente på attestering, også reisen. Varer krever varelager på nytt prosjekt
- *   (punkt 3, `krevVarelagerForVareFlytt`), utlegg lik ordning (punkt 4, `krevLikUtleggOrdning`).
+ * - Alle linjene må vente på attestering, også reisen. Varer følger jobben også til et prosjekt
+ *   uten varelager (punkt 3, Kenneth 2026-11-22: «I dag kan vi flytte fritt»). Utlegg krever lik
+ *   ordning (punkt 4, `krevLikUtleggOrdning`).
  *
  * Kalleren har sjekket sedelen (egen, redigerbar), firma og byggeplass.
  */
@@ -901,7 +888,6 @@ async function flyttJobbTilSted(
     throw new TRPCError({ code: "PRECONDITION_FAILED", message: FLYTT_JOBB_FEIL.ikkeVentende });
   }
   if (nyttProsjekt) {
-    await krevVarelagerForVareFlytt(varer.length, sheet.organizationId, til.projectId);
     await krevLikUtleggOrdning(ctx, utlegg, { organizationId: sheet.organizationId, projectId: til.projectId });
   }
   const nyKortId = randomUUID();

@@ -249,19 +249,12 @@ describe("O8 D — flyttJobb", () => {
     expect(await alle(sheetId)).toEqual(foer);
   });
 
-  it("varer og prosjekt uten varelager avvises; uten varer går flyttingen", async () => {
+  it("varene følger jobben til prosjekt uten varelager — ingen blir igjen (punkt 3)", async () => {
     const { sheetId, kortA } = await sedel("2026-11-07");
-    const foer = await alle(sheetId);
-    await expect(dag().flyttJobb({ sheetId, kortId: kortA, projectId: P3, byggeplassId: null })).rejects.toMatchObject({
-      code: "PRECONDITION_FAILED",
-      message: "Prosjektet har ikke varelager. Fjern varene først.",
-    });
-    expect(await alle(sheetId)).toEqual(foer);
-
-    const uten = await sedel("2026-11-08", { utenVare: true });
-    await dag().flyttJobb({ sheetId: uten.sheetId, kortId: uten.kortA, projectId: P3, byggeplassId: null });
-    const etter = await alle(uten.sheetId);
+    const { kortId } = await dag().flyttJobb({ sheetId, kortId: kortA, projectId: P3, byggeplassId: null });
+    const etter = await alle(sheetId);
     expect(etter.timer.filter((r) => !r.erReise).map((r) => r.projectId)).toEqual([P3]);
+    expect(etter.vare.map((v) => [v.projectId, v.kortId])).toEqual([[P3, kortId]]);
   });
 
   it("utlegg med annen ordning på nytt prosjekt avvises med Kenneths tekst", async () => {

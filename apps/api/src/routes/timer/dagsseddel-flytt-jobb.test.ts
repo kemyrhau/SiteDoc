@@ -4,8 +4,8 @@ import { TRPCError } from "@trpc/server";
 /**
  * `dagsseddel.flyttJobb` — O8 D (plan § 8.22, Kenneth 2026-11-22): prosjekt og byggeplass endres
  * på et lagret, redigerbart jobbkort, og jobben flyttes dit. Alt som henger på jobben følger,
- * unntatt reisen (punkt 2). Nytt prosjekt → underprosjekt «Uten» (punkt 1). Varer krever
- * varelager på nytt prosjekt (punkt 3, åpen), utlegg lik ordning (punkt 4).
+ * unntatt reisen (punkt 2). Nytt prosjekt → underprosjekt «Uten» (punkt 1). Varer følger også
+ * til prosjekt uten varelager (punkt 3), utlegg krever lik ordning (punkt 4).
  *
  * Mocket transaksjon; `sikreKortId` er mocket (reisens nye kort og vare-kort-id testes mot ekte
  * Postgres i flytt-jobb-prosjekt.integration.test.ts). Negativkontroll: uten `flyttJobb` er alle røde.
@@ -41,9 +41,6 @@ vi.mock("../../trpc/tilgangskontroll", () => ({
 vi.mock("../../services/timer", () => ({
   krevTimerAktivert: vi.fn(),
   hentEffektivArbeidstid: vi.fn(),
-}));
-vi.mock("../../services/varelager/moduleGate", () => ({
-  erVarelagerAktivert: vi.fn(async (_org: string, p: string) => p !== P_UTEN_VARE),
 }));
 vi.mock("../../services/timer/maskinJobbVakt", () => ({
   lesMaskinJobbTilstand: vi.fn(async () => ({})),
@@ -272,23 +269,12 @@ describe("dagsseddel.flyttJobb — prosjekt og byggeplass på lagret jobbkort", 
     expect(JSON.stringify(d)).toBe(urort());
   });
 
-  it("punkt 3: varer på jobben og nytt prosjekt uten varelager → avvist", async () => {
+  it("punkt 3: varene følger jobben til prosjekt uten varelager — ingen blir igjen", async () => {
     const { caller, d } = oppsett("draft");
-    await expect(
-      caller.flyttJobb({ sheetId: SHEET, kortId: KORT, projectId: P_UTEN_VARE, byggeplassId: null }),
-    ).rejects.toMatchObject({
-      code: "PRECONDITION_FAILED",
-      message: "Prosjektet har ikke varelager. Fjern varene først.",
-    });
-    expect(JSON.stringify(d)).toBe(urort());
-  });
-
-  it("punkt 3: uten varer flyttes jobben til prosjekt uten varelager", async () => {
-    const d = data();
-    d.varer.length = 0;
-    const { caller } = oppsett("draft", d);
     await caller.flyttJobb({ sheetId: SHEET, kortId: KORT, projectId: P_UTEN_VARE, byggeplassId: null });
     expect(d.timer.find((r) => r.id === "t1")!.projectId).toBe(P_UTEN_VARE);
+    expect(d.varer.map((v) => v.projectId)).toEqual([P_UTEN_VARE]);
+    expect(d.varer[0]!.kortId).toBe(d.timer.find((r) => r.id === "t1")!.kortId);
   });
 
   it("punkt 4: utlegget føres annerledes på nytt prosjekt → avvist med Kenneths tekst", async () => {
