@@ -5992,6 +5992,7 @@
   "timer.jobbSkjema.utenUnderprosjekt": "Ei mitään",
   "timer.jobbSkjema.aapneVindu": "Sivusto ja toiminta",
   "timer.jobbSkjema.aapneVinduHint": "Avaa ikkunan työn ensimmäiselle riville: sivusto, toiminta ja palkkatyyppi",
+  "timer.jobbSkjema.aapneVinduHintNy": "Valitse projekti, paikka ja toiminta uudelle työlle",
   "timer.jobbSkjema.sokUnderprosjekt": "Hae osaprojektia",
   "timer.jobbSkjema.underprosjektLukket": "Osaprojekti on suljettu tuntikausia. Valitse toinen tai Ei mitään.",
   "timer.jobbSkjema.fraTil": "From–to",
@@ -6021,5 +6022,10 @@
   "timer.jobbSkjema.overtidLinje": "{{fra}}–{{til}} · {{timer}} h · yli päivittäisen normin {{dato}}: {{norm}} h",
   "timer.jobbSkjema.helOvertid": "Koko työ ylittää päivänormin {{dato}}: {{norm}} h",
   "timer.jobbSkjema.ulagretSperre": "Jotain päivän aikana ei ole tallennettu. Korjaa punaisella merkitty kenttä tai yritä uudelleen.",
-  "timer.mine.hjelp.skjema": "Projektikorttiin kirjaat työn suoraan korttiin: Alkaen, Vastaan, tauko, palkkalaji ja \"Mitä teit?\". Kenttä tallennetaan, kun poistut siitä – siinä lukee \"✓ Tallennettu\". Jos aika ylittää päivänormin, menee ylityö omalla linjallaan. Keltaiset kentät ovat ehdotuksia yrityksen työajasta tai edellisen työpaikan päättymisestä. Uusi työ tallennetaan, kun Vastaanottaja on täytetty. Jos jotain ei ole tallennettu, se näkyy punaisena, eikä päivää voida lähettää ennen kuin se on korjattu. Jos projektissa on osaprojekteja, valitset alaprojektin työn yläpuolelta – valinta koskee koko työtä: työtunnit, koneet, materiaalit, korvaukset ja kulut. Matkailu ei liiku sen mukana. Voit kirjoittaa tunnit suoraan kenttään \"=\":n jälkeen: Mihin lasketaan sitten Alkaen, tunteja ja tauko."
+  "timer.mine.hjelp.skjema": "Projektikorttiin kirjaat työn suoraan korttiin: Alkaen, Vastaan, tauko, palkkalaji ja \"Mitä teit?\". Kenttä tallennetaan, kun poistut siitä – siinä lukee \"✓ Tallennettu\". Jos aika ylittää päivänormin, menee ylityö omalla linjallaan. Keltaiset kentät ovat ehdotuksia yrityksen työajasta tai edellisen työpaikan päättymisestä. Uusi työ tallennetaan, kun Vastaanottaja on täytetty. Jos jotain ei ole tallennettu, se näkyy punaisena, eikä päivää voida lähettää ennen kuin se on korjattu. Jos projektissa on osaprojekteja, valitset alaprojektin työn yläpuolelta – valinta koskee koko työtä: työtunnit, koneet, materiaalit, korvaukset ja kulut. Matkailu ei liiku sen mukana. Voit kirjoittaa tunnit suoraan kenttään \"=\":n jälkeen: Mihin lasketaan sitten Alkaen, tunteja ja tauko.",
+  "timer.slettKort.lenke": "Poista työ",
+  "timer.slettKort.tittel": "Poista työ",
+  "timer.slettKort.ingress": "Tämä poistetaan työstä. Päivä ja muut työt jäävät.",
+  "timer.slettKort.knapp": "Poista työ",
+  "timer.slettKort.tom": "Työssä ei ole rivejä."
 }

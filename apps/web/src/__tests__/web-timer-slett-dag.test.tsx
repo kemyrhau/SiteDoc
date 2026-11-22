@@ -25,9 +25,16 @@ vi.mock("@/lib/trpc", () => ({
     timer: {
       dagsseddel: {
         slettOversikt: {
-          useQuery: (input: unknown) => {
-            h.spurt.push(input);
-            return { data: h.oversikt, isLoading: false, error: null };
+          useQuery: (input: unknown, opt?: { enabled?: boolean }) => {
+            if (opt?.enabled !== false) h.spurt.push(input);
+            return opt?.enabled === false ? { data: undefined, isLoading: false, error: null } : { data: h.oversikt, isLoading: false, error: null };
+          },
+        },
+        // Retur O8 tillegg 2 (b): samme vindu for ett jobbkort (`kortId`).
+        slettKortOversikt: {
+          useQuery: (input: unknown, opt?: { enabled?: boolean }) => {
+            if (opt?.enabled !== false) h.spurt.push(input);
+            return opt?.enabled === false ? { data: undefined, isLoading: false, error: null } : { data: h.oversikt, isLoading: false, error: null };
           },
         },
       },
@@ -96,6 +103,30 @@ describe("SlettDagModal", () => {
   });
 });
 
+describe("SlettDagModal med kortId («Slett jobben»)", () => {
+  it("spør slettKortOversikt med kort-id, viser kortets tittel og knapp", () => {
+    h.oversikt = { innhold: { timer: 1, reise: 0, maskin: 1, varer: 0, tillegg: 0, utlegg: 0 }, kanSlettes: true, grunn: null };
+    h.spurt = [];
+    const onBekreft = vi.fn();
+    const { getByText, queryByText } = render(
+      <SlettDagModal sheetId={ID} kortId="kA" overskrift="ingress" onClose={() => {}} onBekreft={onBekreft} sletter={false} feil={null} />,
+    );
+    expect(h.spurt).toEqual([{ id: ID, kortId: "kA" }]);
+    expect(queryByText("timer.slettDag.knapp")).toBeNull();
+    fireEvent.click(getByText("timer.slettKort.knapp"));
+    expect(onBekreft).toHaveBeenCalledOnce();
+  });
+
+  it("attestert rad: grunnen vises, knappen er borte", () => {
+    h.oversikt = { innhold: { timer: 1, reise: 0, maskin: 0, varer: 0, tillegg: 0, utlegg: 0 }, kanSlettes: false, grunn: "Be leder gjenåpne" };
+    const { getByText, queryByText } = render(
+      <SlettDagModal sheetId={ID} kortId="kA" overskrift="ingress" onClose={() => {}} onBekreft={() => {}} sletter={false} feil={null} />,
+    );
+    expect(getByText("Be leder gjenåpne")).toBeTruthy();
+    expect(queryByText("timer.slettKort.knapp")).toBeNull();
+  });
+});
+
 describe("knappen vises bare på utkast (kilde)", () => {
   const les = (sti: string) => readFileSync(resolve(__dirname, "..", sti), "utf8");
   it("dagssiden og Mine timer slipper ikke en returnert dag gjennom", () => {
@@ -105,7 +136,9 @@ describe("knappen vises bare på utkast (kilde)", () => {
     expect(mine).not.toMatch(/status === "returned" && !r\.attestertVed/);
     expect(dagsside).toMatch(/kanSlette=\{sheet\.status === "draft"\}/);
     expect(mine).toMatch(/const kanSlettes = \(r: ListeRad\) => r\.status === "draft";/);
-    expect(dagsside.match(/<SlettDagModal/g)).toHaveLength(1);
+    // Retur O8 tillegg 2 (b): det andre vinduet er «Slett jobben» (med kortId).
+    expect(dagsside.match(/<SlettDagModal/g)).toHaveLength(2);
+    expect(dagsside.match(/<SlettDagModal\s+sheetId=\{sheet\.id\}\s+kortId=/g)).toHaveLength(1);
     expect(mine.match(/<SlettDagModal/g)).toHaveLength(1);
   });
 });

@@ -5992,6 +5992,7 @@
   "timer.jobbSkjema.utenUnderprosjekt": "Mitte ühtegi",
   "timer.jobbSkjema.aapneVindu": "Sait ja tegevus",
   "timer.jobbSkjema.aapneVinduHint": "Avab töö esimese rea akna: sait, tegevus ja palgatüüp",
+  "timer.jobbSkjema.aapneVinduHintNy": "Valige uue töö jaoks projekt, koht ja tegevus",
   "timer.jobbSkjema.sokUnderprosjekt": "Otsi alamprojekti",
   "timer.jobbSkjema.underprosjektLukket": "Alamprojekt on tundideks suletud. Valige mõni muu või Puudub.",
   "timer.jobbSkjema.fraTil": "Alates–kuni",
@@ -6021,5 +6022,10 @@
   "timer.jobbSkjema.overtidLinje": "{{fra}}–{{til}} · {{timer}} h · üle päevanormi {{dato}}: {{norm}} h",
   "timer.jobbSkjema.helOvertid": "Kogu töö on üle päevanormi {{dato}}: {{norm}} h",
   "timer.jobbSkjema.ulagretSperre": "Midagi päeval ei salvestata. Parandage punasega märgitud väli või proovige uuesti.",
-  "timer.mine.hjelp.skjema": "Projektikaardile salvestate töö otse kaardile: Alates, Kuni, vaheaeg, palgaliik ja “Mida sa tegid?”. Väli salvestatakse, kui sellest lahkute – see ütleb \"✓ Salvestatud\". Kui aeg läheb üle päevanormi, läheb ületunnitöö oma rida. Kollased väljad on ettepanekud ettevõtte tööajast või eelmise töö lõpust. Uus töö salvestatakse, kui täidetakse To. Kui midagi pole salvestatud, kuvatakse see punaselt ja päeva ei saa esitada enne, kui see on parandatud. Kui projektis on alamprojekte, valite töö ülemise osa alamprojekti — valik kehtib kogu töö kohta: tunnid, masinad, materjalid, toetused ja kulud. Reisimine sellega kaasa ei liigu. Tunnid saate sisestada otse väljale “=” järel: Kell arvutatakse siis alates Alates, tundidest ja vaheajast."
+  "timer.mine.hjelp.skjema": "Projektikaardile salvestate töö otse kaardile: Alates, Kuni, vaheaeg, palgaliik ja “Mida sa tegid?”. Väli salvestatakse, kui sellest lahkute – see ütleb \"✓ Salvestatud\". Kui aeg läheb üle päevanormi, läheb ületunnitöö oma rida. Kollased väljad on ettepanekud ettevõtte tööajast või eelmise töö lõpust. Uus töö salvestatakse, kui täidetakse To. Kui midagi pole salvestatud, kuvatakse see punaselt ja päeva ei saa esitada enne, kui see on parandatud. Kui projektis on alamprojekte, valite töö ülemise osa alamprojekti — valik kehtib kogu töö kohta: tunnid, masinad, materjalid, toetused ja kulud. Reisimine sellega kaasa ei liigu. Tunnid saate sisestada otse väljale “=” järel: Kell arvutatakse siis alates Alates, tundidest ja vaheajast.",
+  "timer.slettKort.lenke": "Kustuta töö",
+  "timer.slettKort.tittel": "Kustuta töö",
+  "timer.slettKort.ingress": "See kustutatakse tööst. Päev ja muud tööd jäävad.",
+  "timer.slettKort.knapp": "Kustuta töö",
+  "timer.slettKort.tom": "Tööl pole ridu."
 }

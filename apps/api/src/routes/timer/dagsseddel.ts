@@ -3644,6 +3644,119 @@ export async function slettSedelMedAlt(
   });
 }
 
+// ============================================================================
+//  «Slett jobben» sletter ett jobbkort (retur O8 tillegg 2, plan § 8.22 punkt 5)
+// ============================================================================
+// Kenneth 2026-11-22: «vi kan ikke slette feilført kort heller.» Jobbkortet er radene med samme
+// kort-id på sedelen. Slettingen tar kortets timer, reise, maskiner (også de som hører til en
+// av kortets timerader), tillegg med vedlegg, utlegg med kvitteringer og varer (kort-id eller
+// en av kortets timerader). Dagsseddelen og de andre kortene står. Samme vern som «Slett dagen»
+// (S1): ingen attestert rad og ingen vare med `attestert_snapshot` i kortet. Status: det som
+// kan redigeres i dag (utkast og returnert, `erRedigerbar`), som «fjern rad». Rader med status
+// «erstattet» (spor etter rettinger på en returnert dag) slettes ikke og telles ikke; heller
+// ikke radhistorikken eller GPS-forslagene (`sheet_timer_forslag`).
+
+export const SLETT_KORT_ATTESTERT =
+  "Leder har attestert rader i denne jobben. Be leder gjenåpne dem før du sletter.";
+
+const IKKE_ERSTATTET = { not: "erstattet" } as const;
+
+/** Kortets innhold. Maskiner og varer følger også kortets timerader. */
+async function hentKortInnhold(
+  tx: Prisma.TransactionClient | PrismaClientTimer,
+  sheetId: string,
+  kortId: string,
+) {
+  const timer = await tx.sheetTimer.findMany({
+    where: { sheetId, kortId, attestertStatus: IKKE_ERSTATTET },
+    select: { id: true, erReise: true, attestertStatus: true },
+  });
+  const timerIder = timer.map((r) => r.id);
+  const maskiner = await tx.sheetMachine.findMany({
+    where: {
+      sheetId,
+      attestertStatus: IKKE_ERSTATTET,
+      OR: [{ kortId }, ...(timerIder.length > 0 ? [{ sheetTimerId: { in: timerIder } }] : [])],
+    },
+    select: { id: true, attestertStatus: true },
+  });
+  const tillegg = await tx.sheetTillegg.findMany({
+    where: { sheetId, kortId, attestertStatus: IKKE_ERSTATTET },
+    select: { id: true, attestertStatus: true },
+  });
+  const utlegg = await tx.sheetUtlegg.findMany({ where: { sheetId, kortId }, select: { id: true } });
+  const varer = await tx.$queryRaw<Array<{ id: string; attestert: boolean }>>`
+    SELECT "id", ("attestert_snapshot" IS NOT NULL) AS attestert FROM "varelager"."vareforbruk"
+     WHERE "dagsseddel_id" = ${sheetId}
+       AND ("kort_id" = ${kortId}
+            ${timerIder.length > 0 ? Prisma.sql`OR "sheet_timer_id" IN (${Prisma.join(timerIder)})` : Prisma.empty})`;
+  const innhold: SedelInnhold = {
+    timer: timer.filter((r) => !r.erReise).length,
+    reise: timer.filter((r) => r.erReise).length,
+    maskin: maskiner.length,
+    varer: varer.length,
+    tillegg: tillegg.length,
+    utlegg: utlegg.length,
+  };
+  const attestert =
+    timer.some((r) => r.attestertStatus === "attestert") ||
+    maskiner.some((r) => r.attestertStatus === "attestert") ||
+    tillegg.some((r) => r.attestertStatus === "attestert") ||
+    varer.some((v) => v.attestert);
+  return { timer, maskiner, tillegg, utlegg, varer, innhold, attestert };
+}
+
+type KortInnhold = Awaited<ReturnType<typeof hentKortInnhold>>;
+
+/** Vakten for ett kort: kaster når kortet ikke kan slettes. */
+function krevKortSlettbar(sheet: { status: string }, kort: KortInnhold): void {
+  if (!erRedigerbar(sheet.status)) {
+    throw new TRPCError({ code: "PRECONDITION_FAILED", message: `Dagsseddel er låst (status: ${sheet.status})` });
+  }
+  const n = Object.values(kort.innhold).reduce((a, b) => a + b, 0);
+  if (n === 0) throw new TRPCError({ code: "NOT_FOUND", message: "Jobben finnes ikke på dagsseddelen" });
+  if (kort.attestert) throw new TRPCError({ code: "PRECONDITION_FAILED", message: SLETT_KORT_ATTESTERT });
+}
+
+/** Sletter ett jobbkort i én transaksjon. Dagsseddelen står. */
+export async function slettKortMedAlt(
+  prismaTimer: PrismaClientTimer,
+  sheetId: string,
+  kortId: string,
+): Promise<{ id: string; kortId: string; slettet: SedelInnhold }> {
+  return prismaTimer.$transaction(async (tx) => {
+    // Lås sedelen: en samtidig «send» venter, og vakten ser siste status.
+    const laast = await tx.$queryRaw<Array<{ id: string; status: string }>>`
+      SELECT "id", "status" FROM "timer"."daily_sheets" WHERE "id" = ${sheetId} FOR UPDATE`;
+    const sheet = laast[0];
+    if (!sheet) throw new TRPCError({ code: "NOT_FOUND", message: "Dagsseddelen finnes ikke" });
+    const kort = await hentKortInnhold(tx, sheet.id, kortId);
+    krevKortSlettbar(sheet, kort);
+
+    const tilleggIder = kort.tillegg.map((r) => r.id);
+    const utleggIder = kort.utlegg.map((r) => r.id);
+    const vareIder = kort.varer.map((v) => v.id);
+    if (vareIder.length > 0) {
+      await tx.$executeRaw`DELETE FROM "varelager"."vareforbruk" WHERE "id" IN (${Prisma.join(vareIder)})`;
+    }
+    if (tilleggIder.length > 0) {
+      await tx.sheetTilleggVedlegg.deleteMany({ where: { sheetTilleggId: { in: tilleggIder } } });
+      await tx.sheetTillegg.deleteMany({ where: { id: { in: tilleggIder } } });
+    }
+    if (utleggIder.length > 0) {
+      await tx.sheetUtleggVedlegg.deleteMany({ where: { sheetUtleggId: { in: utleggIder } } });
+      await tx.sheetUtlegg.deleteMany({ where: { id: { in: utleggIder } } });
+    }
+    if (kort.maskiner.length > 0) {
+      await tx.sheetMachine.deleteMany({ where: { id: { in: kort.maskiner.map((r) => r.id) } } });
+    }
+    if (kort.timer.length > 0) {
+      await tx.sheetTimer.deleteMany({ where: { id: { in: kort.timer.map((r) => r.id) } } });
+    }
+    return { id: sheet.id, kortId, slettet: kort.innhold };
+  });
+}
+
 export const dagsseddelRouter = router({
   // List dagssedler for innlogget bruker, eller for et prosjekt (admin-perspektiv senere).
   list: protectedProcedure
@@ -6397,6 +6510,30 @@ export const dagsseddelRouter = router({
       // Eierskap + identitets-robust oppslag (id eller clientUuid) før transaksjonen.
       const sheet = await hentEgenDagsseddel(ctx.prismaTimer, ctx.userId, input.id, { krevAnsatt: false });
       return slettSedelMedAlt(ctx.prismaTimer, sheet.id);
+    }),
+
+  // Det «Slett jobben» vil slette i ett kort, med antall (retur O8 tillegg 2). Samme vakt som
+  // `slettKort`; `grunn` er meldingen slettingen ville gitt.
+  slettKortOversikt: protectedProcedure
+    .input(z.object({ id: z.string().uuid(), kortId: z.string().min(1) }))
+    .query(async ({ ctx, input }) => {
+      const sheet = await hentEgenDagsseddel(ctx.prismaTimer, ctx.userId, input.id, { krevAnsatt: false });
+      const kort = await hentKortInnhold(ctx.prismaTimer, sheet.id, input.kortId);
+      try {
+        krevKortSlettbar(sheet, kort);
+        return { innhold: kort.innhold, kanSlettes: true as const, grunn: null };
+      } catch (e) {
+        if (e instanceof TRPCError) return { innhold: kort.innhold, kanSlettes: false as const, grunn: e.message };
+        throw e;
+      }
+    }),
+
+  // Slett ett feilført jobbkort på egen dagsseddel (retur O8 tillegg 2, se slettKortMedAlt).
+  slettKort: protectedProcedure
+    .input(z.object({ id: z.string().uuid(), kortId: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      const sheet = await hentEgenDagsseddel(ctx.prismaTimer, ctx.userId, input.id, { krevAnsatt: false });
+      return slettKortMedAlt(ctx.prismaTimer, sheet.id, input.kortId);
     }),
 
   // ============================================================================

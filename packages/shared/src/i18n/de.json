@@ -5992,6 +5992,7 @@
   "timer.jobbSkjema.utenUnderprosjekt": "Keiner",
   "timer.jobbSkjema.aapneVindu": "Website und Aktivität",
   "timer.jobbSkjema.aapneVinduHint": "Öffnet das Fenster für die erste Zeile des Jobs: Standort, Aktivität und Zahlungsart",
+  "timer.jobbSkjema.aapneVinduHintNy": "Wählen Sie Projekt, Standort und Aktivität für den neuen Job",
   "timer.jobbSkjema.sokUnderprosjekt": "Teilprojekt suchen",
   "timer.jobbSkjema.underprosjektLukket": "Das Teilprojekt ist für Stunden geschlossen. Wählen Sie „Andere“ oder „Keine“.",
   "timer.jobbSkjema.fraTil": "Von–bis",
@@ -6021,5 +6022,10 @@
   "timer.jobbSkjema.overtidLinje": "{{fra}}–{{til}} · {{timer}} h · über der Tagesnorm {{dato}}: {{norm}} h",
   "timer.jobbSkjema.helOvertid": "Der gesamte Auftrag liegt über der Tagesnorm {{dato}}: {{norm}} h",
   "timer.jobbSkjema.ulagretSperre": "Etwas an dem Tag wird nicht gespeichert. Korrigieren Sie das rot markierte Feld oder versuchen Sie es erneut.",
-  "timer.mine.hjelp.skjema": "In der Projektkarte erfassen Sie den Auftrag direkt in der Karte: Von, Bis, Pause, Lohnart und „Was haben Sie gemacht?“. Ein Feld wird gespeichert, wenn Sie es verlassen – dort steht „ ✓ Gespeichert“. Wenn die Zeit die Tagesnorm überschreitet, vergeht die Überstundenzeit wie von selbst. Gelbe Felder sind Vorschläge aus der Arbeitszeit des Unternehmens oder vom Ende des vorherigen Jobs. Ein neuer Auftrag wird gespeichert, wenn Bis ausgefüllt wird. Wenn etwas nicht gespeichert wird, wird es rot angezeigt und der Tag kann erst übermittelt werden, wenn er korrigiert wurde. Wenn das Projekt Unterprojekte hat, wählen Sie das Unterprojekt oben im Auftrag aus – die Auswahl gilt für den gesamten Auftrag: Stunden, Maschinen, Materialien, Zulagen und Ausgaben. Reisen bewegt sich nicht mit. Die Stunden können Sie direkt in das Feld hinter „=“ eingeben: Bis errechnet sich dann aus Von, den Stunden und der Pause."
+  "timer.mine.hjelp.skjema": "In der Projektkarte erfassen Sie den Auftrag direkt in der Karte: Von, Bis, Pause, Lohnart und „Was haben Sie gemacht?“. Ein Feld wird gespeichert, wenn Sie es verlassen – dort steht „ ✓ Gespeichert“. Wenn die Zeit die Tagesnorm überschreitet, vergeht die Überstundenzeit wie von selbst. Gelbe Felder sind Vorschläge aus der Arbeitszeit des Unternehmens oder vom Ende des vorherigen Jobs. Ein neuer Auftrag wird gespeichert, wenn Bis ausgefüllt wird. Wenn etwas nicht gespeichert wird, wird es rot angezeigt und der Tag kann erst übermittelt werden, wenn er korrigiert wurde. Wenn das Projekt Unterprojekte hat, wählen Sie das Unterprojekt oben im Auftrag aus – die Auswahl gilt für den gesamten Auftrag: Stunden, Maschinen, Materialien, Zulagen und Ausgaben. Reisen bewegt sich nicht mit. Die Stunden können Sie direkt in das Feld hinter „=“ eingeben: Bis errechnet sich dann aus Von, den Stunden und der Pause.",
+  "timer.slettKort.lenke": "Auftrag löschen",
+  "timer.slettKort.tittel": "Auftrag löschen",
+  "timer.slettKort.ingress": "Dies wird aus dem Job gelöscht. Der Tag und die anderen Jobs bleiben bestehen.",
+  "timer.slettKort.knapp": "Auftrag löschen",
+  "timer.slettKort.tom": "Der Job hat keine Zeilen."
 }

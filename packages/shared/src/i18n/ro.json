@@ -5992,6 +5992,7 @@
   "timer.jobbSkjema.utenUnderprosjekt": "Nici unul",
   "timer.jobbSkjema.aapneVindu": "Site și activitate",
   "timer.jobbSkjema.aapneVinduHint": "Deschide fereastra pentru prima linie a jobului: site, activitate și tip de plată",
+  "timer.jobbSkjema.aapneVinduHintNy": "Alegeți proiectul, site-ul și activitatea pentru noul loc de muncă",
   "timer.jobbSkjema.sokUnderprosjekt": "Căutați sub-proiect",
   "timer.jobbSkjema.underprosjektLukket": "Subproiectul este închis ore întregi. Alegeți altul sau Nici unul.",
   "timer.jobbSkjema.fraTil": "De la–la",
@@ -6021,5 +6022,10 @@
   "timer.jobbSkjema.overtidLinje": "{{fra}}–{{til}} · {{timer}} h · peste norma zilnică {{dato}}: {{norm}} h",
   "timer.jobbSkjema.helOvertid": "Toată treaba este peste norma zilnică {{dato}}: {{norm}} h",
   "timer.jobbSkjema.ulagretSperre": "Ceva din ziua respectivă nu este salvat. Corectați câmpul marcat cu roșu sau încercați din nou.",
-  "timer.mine.hjelp.skjema": "În cardul de proiect înregistrați munca direct în card: De la, Până, pauză, tip de salariu și „Ce ați făcut?”. Un câmp este salvat când îl părăsiți — scrie „✓ Salvat”. Dacă timpul trece peste norma zilnică, orele suplimentare merg pe linie proprie. Câmpurile galbene sunt sugestii din programul de lucru al companiei sau de la sfârșitul jobului anterior. O nouă lucrare este salvată când se completează To. Dacă ceva nu este salvat, se afișează cu roșu, iar ziua nu poate fi trimisă până când nu este corectată. Dacă proiectul are sub-proiecte, alegeți sub-proiectul din partea de sus a jobului — alegerea se aplică întregului job: ore, mașini, materiale, indemnizații și cheltuieli. Călătoria nu se mișcă cu ea. Puteți introduce orele direct în câmpul după „=”: To este apoi calculat din De la, orele și pauză."
+  "timer.mine.hjelp.skjema": "În cardul de proiect înregistrați munca direct în card: De la, Până, pauză, tip de salariu și „Ce ați făcut?”. Un câmp este salvat când îl părăsiți — scrie „✓ Salvat”. Dacă timpul trece peste norma zilnică, orele suplimentare merg pe linie proprie. Câmpurile galbene sunt sugestii din programul de lucru al companiei sau de la sfârșitul jobului anterior. O nouă lucrare este salvată când se completează To. Dacă ceva nu este salvat, se afișează cu roșu, iar ziua nu poate fi trimisă până când nu este corectată. Dacă proiectul are sub-proiecte, alegeți sub-proiectul din partea de sus a jobului — alegerea se aplică întregului job: ore, mașini, materiale, indemnizații și cheltuieli. Călătoria nu se mișcă cu ea. Puteți introduce orele direct în câmpul după „=”: To este apoi calculat din De la, orele și pauză.",
+  "timer.slettKort.lenke": "Șterge jobul",
+  "timer.slettKort.tittel": "Șterge jobul",
+  "timer.slettKort.ingress": "Acesta va fi șters din job. Ziua și celelalte locuri de muncă rămân.",
+  "timer.slettKort.knapp": "Șterge jobul",
+  "timer.slettKort.tom": "Lucrarea nu are rânduri."
 }

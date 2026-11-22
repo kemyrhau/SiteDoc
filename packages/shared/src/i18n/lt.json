@@ -5992,6 +5992,7 @@
   "timer.jobbSkjema.utenUnderprosjekt": "Nėra",
   "timer.jobbSkjema.aapneVindu": "Svetainė ir veikla",
   "timer.jobbSkjema.aapneVinduHint": "Atidaromas pirmosios darbo eilutės langas: svetainė, veikla ir atlyginimo tipas",
+  "timer.jobbSkjema.aapneVinduHintNy": "Pasirinkite projektą, vietą ir veiklą naujam darbui",
   "timer.jobbSkjema.sokUnderprosjekt": "Paieškos subprojektas",
   "timer.jobbSkjema.underprosjektLukket": "Paprojektis uždarytas valandoms. Pasirinkite kitą arba Nieko.",
   "timer.jobbSkjema.fraTil": "Nuo–iki",
@@ -6021,5 +6022,10 @@
   "timer.jobbSkjema.overtidLinje": "{{fra}}–{{til}} · {{timer}} val. · viršija dienos normą {{dato}}: {{norm}} val.",
   "timer.jobbSkjema.helOvertid": "Visas darbas viršija dienos normą {{dato}}: {{norm}} val",
   "timer.jobbSkjema.ulagretSperre": "Kažkas dieną neišsaugota. Pataisykite raudonai pažymėtą lauką arba bandykite dar kartą.",
-  "timer.mine.hjelp.skjema": "Projekto kortelėje įrašote darbą tiesiai į kortelę: Nuo, Iki, pertrauka, darbo užmokesčio rūšis ir „Ką veikei?“. Laukas išsaugomas, kai jį paliekate – jame rašoma „✓ Išsaugota“. Jei laikas viršija dienos normą, viršvalandžiai eina savo eile. Geltonieji laukai – tai pasiūlymai iš įmonės darbo laiko arba nuo ankstesnio darbo pabaigos. Nauja užduotis išsaugoma, kai užpildoma Kam. Jei kas nors neišsaugota, ji rodoma raudonai ir dienos negalima pateikti, kol ji nebus ištaisyta. Jei projektas turi paprojekčių, pasirenkate paprojektį darbo viršuje – pasirinkimas taikomas visam darbui: valandoms, mašinoms, medžiagoms, pašalpoms ir išlaidoms. Kelionės su juo nejuda. Galite įvesti valandas tiesiai lauke po „=“: Tada iki skaičiuojama iš „Nuo“, valandų ir pertraukos."
+  "timer.mine.hjelp.skjema": "Projekto kortelėje įrašote darbą tiesiai į kortelę: Nuo, Iki, pertrauka, darbo užmokesčio rūšis ir „Ką veikei?“. Laukas išsaugomas, kai jį paliekate – jame rašoma „✓ Išsaugota“. Jei laikas viršija dienos normą, viršvalandžiai eina savo eile. Geltonieji laukai – tai pasiūlymai iš įmonės darbo laiko arba nuo ankstesnio darbo pabaigos. Nauja užduotis išsaugoma, kai užpildoma Kam. Jei kas nors neišsaugota, ji rodoma raudonai ir dienos negalima pateikti, kol ji nebus ištaisyta. Jei projektas turi paprojekčių, pasirenkate paprojektį darbo viršuje – pasirinkimas taikomas visam darbui: valandoms, mašinoms, medžiagoms, pašalpoms ir išlaidoms. Kelionės su juo nejuda. Galite įvesti valandas tiesiai lauke po „=“: Tada iki skaičiuojama iš „Nuo“, valandų ir pertraukos.",
+  "timer.slettKort.lenke": "Ištrinti darbą",
+  "timer.slettKort.tittel": "Ištrinti darbą",
+  "timer.slettKort.ingress": "Tai bus pašalinta iš darbo. Lieka diena ir kiti darbai.",
+  "timer.slettKort.knapp": "Ištrinti darbą",
+  "timer.slettKort.tom": "Darbe nėra eilučių."
 }

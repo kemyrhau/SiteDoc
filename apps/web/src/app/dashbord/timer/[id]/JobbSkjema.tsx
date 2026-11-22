@@ -102,8 +102,11 @@ export function JobbSkjema({
   projectId: string;
   ecoId: string | null;
   organizationId: string | undefined;
-  /** Blyanten: dagens vindu for linje 1 (byggeplass, aktivitet m.m.). Underprosjektet velges i hodet (L3b). */
-  onAapneVindu?: () => void;
+  /**
+   * Blyanten: dagens vindu for linje 1 (byggeplass, aktivitet m.m.). Underprosjektet velges i
+   * hodet (L3b). Ny jobb (retur O8 tillegg): vinduet for ny rad, med tidene som står i skjemaet.
+   */
+  onAapneVindu?: (nyTider?: { fraTid: string; tilTid: string }) => void;
   rader47: readonly SkjemaRad47[];
   /** Noe i skjemaet er ikke lagret (ugyldig felt eller feilet lagring). */
   onUlagret: (kortId: string, ulagret: boolean) => void;
@@ -424,9 +427,9 @@ export function JobbSkjema({
           {onAapneVindu && (
             <button
               type="button"
-              onClick={onAapneVindu}
+              onClick={() => onAapneVindu(ny ? { fraTid: fra, tilTid: til } : undefined)}
               className="ml-auto inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-800"
-              title={t("timer.jobbSkjema.aapneVinduHint")}
+              title={t(ny ? "timer.jobbSkjema.aapneVinduHintNy" : "timer.jobbSkjema.aapneVinduHint")}
             >
               <Pencil className="h-3.5 w-3.5" />
               {t("timer.jobbSkjema.aapneVindu")}
