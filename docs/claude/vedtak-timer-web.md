@@ -84,15 +84,18 @@ Filer: `RK` = `apps/web/src/app/dashbord/timer/[id]/ReiseKort.tsx` · `MR` = `ap
 15. Bytter arbeideren retning, kontor, prosjekt eller byggeplass, forkastes tidene han har rettet, antallet og valget i «Føres som».
     Kenneth har bare sagt det om «Bytte til reisetid?» (punkt 9).
     ❓ `RK` `nullstillTider`.
-16. En reise ført som «Arbeidstid» vises med merket «Reise» og «Reise til/fra …» i kortet; timene teller som arbeid med samme lønnsart. Raden lagrer at den er en reise (migrering); turer lagret før dette får ikke merket.
-    Kenneth: «Nå er reisetid registrert som arbeid uten å vise at det var en reisetidlagring», «4. ja».
-    ✅ `SheetTimer.arbeidReiseRetning` (migrering `20261122120000_o12_arbeid_reise_retning`, ikke kjørt; ingen backfill); `DS` `tilfoyTimerRad` `arbeidReiseRetning`; `apps/web/src/app/dashbord/timer/[id]/page.tsx` `ReiseLinje` `somReise`; `apps/api/src/services/timer/kortId.ts` `erKortReiseArbeid`. Summene uendret (`prosjektkort.test.ts`, `reiseSkille.test.ts` «O12 pkt 16»).
-17. Pennen på en lagret reise åpner «Rediger timer-rad» som i dag, men prosjekt og byggeplass vises bare som tekst, med linja «Feil sted? Slett reisen og før den med «+ Reise» i riktig prosjektkort.»
-    Kenneth: «5.nei, som i dag. men redigering av prosjekt og byggeplass -> dersom dette er feil, be bruker åpne +reise i rett prosjekt», «5b ja».
-    ✅ `apps/web/src/app/dashbord/timer/[id]/page.tsx` `TimerRadDialog` `reiseStedLaast`, `reise-sted-tekst`, `timer.rediger.reiseFeilSted`; `w15f-penn.test.tsx` «O12 pkt 17». Serveren `oppdaterTimerRad` uendret.
+16. En reise ført som «Arbeidstid» er fortsatt en reise. Den vises med merket «Reise», «Reise til/fra …» og lønnsarten sin (for eksempel «Timelønn»), og timene teller som arbeidstid i dagsraden, ikke som reise. Bytter arbeideren mellom «Reisetid» og «Arbeidstid» i reisevinduet, beholder reisen kortet og merket. Raden lagrer at den er en reise (migrering); turer lagret før dette får ikke merket.
+    Kenneth: «Nå er reisetid registrert som arbeid uten å vise at det var en reisetidlagring», «4. ja»; 2026-11-22: «er det ikke bedre å registrere linjen som "ført som reise". Lønnsarten bør stå. og telle tiden som arbeidstid i toppraden.»
+    ✅ Merket og summene: `SheetTimer.arbeidReiseRetning` (migrering `20261122120000_o12_arbeid_reise_retning`; ingen backfill); `DS` `tilfoyTimerRad` `arbeidReiseRetning`; `apps/web/src/app/dashbord/timer/[id]/page.tsx` `ReiseLinje` `somReise`; `apps/api/src/services/timer/kortId.ts` `erKortReiseArbeid`; `prosjektkort.test.ts`, `reiseSkille.test.ts` «O12 pkt 16». 🔴 Byttet beholder ikke kort og merke: `DS` `oppdaterTimerRad` tar bort kort-id-en når reisen byttes og skriver aldri `arbeidReiseRetning`.
+17. Pennen på en lagret reise åpner vinduet «Reise», det samme som «+ Reise», med reisens verdier fylt ut: retning, Start, Slutt, Antall timer, «Føres som» og underprosjekt. Prosjekt og byggeplass er kortets og vises som tekst (punkt 3). «Rediger timer-rad» åpnes ikke for en reise.
+    Kenneth 2026-11-22: «s1.ja» (snur «5.nei, som i dag»).
+    🟡 Vedtatt, ikke bygget. I dag åpner pennen `TimerRadDialog` med `reiseStedLaast`; `RK` kan bare opprette.
 18. Bytter et prosjektkort prosjekt eller byggeplass og kortet har en reise, kommer et vindu før flyttingen med reisens tider og ny kjøretid, og valgene «Flytt reisen med ny tid», «Slett reisen» og «Avbryt»; ingenting endres før arbeideren velger. Mangler ny kjøretid, flyttes reisen med de gamle tidene, og vinduet sier det.
     Kenneth: «å bytte prosjekt vil endre reisetid -> det kan vi ikke gjøre stille -> da må bruker se og akseptere en endring», «7 … -> ok».
     ✅ `apps/web/src/app/dashbord/timer/[id]/JobbSkjema.tsx` `reiseFlytt`, `nyReiseTid`, `flytt-reise-vindu`; `DS` `flyttJobbTilSted` `reiseValgMangler`, `flyttJobbReiseSchema`; `flytt-jobb-sted.test.tsx` / `dagsseddel-flytt-jobb.test.ts` «O12 pkt 18». Arbeidstid-reiser lagret før merket (punkt 16) er arbeid og følger stille med.
+19. Står arbeideren i «Fra byggeplass», heter kontorvalgene «Til {kontor}» og «Til et annet kontor».
+    Kenneth 2026-11-22: «f7.ja til forslag».
+    🟡 Vedtatt, ikke bygget. I dag: `timer.reiseKort.fraOppmotested` («Fra {{navn}}») i begge retninger.
 
 ## Dagsvisningen i attesteringen
 
@@ -105,3 +108,12 @@ Filer: `RK` = `apps/web/src/app/dashbord/timer/[id]/ReiseKort.tsx` · `MR` = `ap
 3. Reise og overtid står som egne kolonner, «Reise» og «Overtid», ved siden av Timer: dagens timer i dagsraden og jobbens i jobbraden. Reise- og overtidslinjene har lønnsartens navn i farget merke og timetallet i samme farge, og dagens sum står hel (skisse B14c variant B). Attesteringssiden har full bredde, så alle kolonner synes uten rulling der skjermen har plass; andre sider beholder bredden.
     Kenneth: «det kommer dårlig frem på kortet overtid og reisetid. dette er områder som må komme mer tydelig frem», «Variant B -> der ser jeg med en gang på topplinjen hva jeg godkjenner», «Ja, full bredde» (2026-11-22).
     ✅ (merget `72d375ae`, ikke deployet) `TIMER_TABELL_STANDARD` (`reisetimer`, `overtid` etter `timer`; satt inn i lagrede oppsett via `TIMER_TABELL_TILLAGT` / `medTillagteKolonner`), `sumOvertidTimer` i `timerDetaljRader.ts`, `AttesteringTabell.tsx` (`reiseOvertidCelle`, `data-lonnsart-merke`, `linjeSpenn`, `ATTESTERING_BREDDE.timer` 60); full bredde `dashbord/attestering/page.tsx` (`min-w-0`, uten `max-w-7xl`).
+4. En reise ført som arbeidstid har merket «Reise» foran lønnsarten, for eksempel «Reise · Timelønn»; timene står i Timer som vanlig arbeidstid, ikke i Reise.
+    Kenneth 2026-11-22: «f3.ja -> med dette mener jeg ar "reise" lønnsart "timelønn" -> arbeidstiden blir da vanlig timelønn slik standard arbeidstid er.»
+    🟡 Vedtatt, ikke bygget.
+5. Dagsraden teller kort med bare reise for seg: «2 jobber · 1 reise».
+    Kenneth 2026-11-22: «f4.forslag ok».
+    🟡 Vedtatt, ikke bygget.
+6. Fra–til står hele, for eksempel «06:56–07:00», uten å kuttes.
+    Kenneth 2026-11-22: «f6.ja».
+    🟡 Vedtatt, ikke bygget.
