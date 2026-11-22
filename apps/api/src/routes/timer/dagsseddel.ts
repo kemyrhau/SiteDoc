@@ -909,10 +909,17 @@ async function flyttJobbTilSted(
       throw new TRPCError({ code: "BAD_REQUEST", message: "kortUlikeRader" });
     }
     await krevIngenNyeMaskinBrudd(tx, ctx.prismaMaskin, sheet.id, maskinFoer);
+    // Varene i SAMME transaksjon (Kontrollør 138 vilkår 2): feiler steget, står hele jobben på
+    // gammelt sted. Timer og varelager er to klienter mot samme database, så rå SQL på `tx`, som
+    // `slettKortMedAlt`. Sist i transaksjonen: `sikreKortId` over retter vare-kort-id på egen
+    // tilkobling (`sikreVareKortId`), og en radlås tatt før den ville gitt vranglås.
+    if (varer.length > 0) {
+      await tx.$executeRaw`UPDATE "varelager"."vareforbruk"
+        SET "project_id" = ${til.projectId}, "byggeplass_id" = ${til.byggeplassId},
+            "external_cost_object_id" = ${ecoId}, "kort_id" = ${nyKortId}, "updated_at" = now()
+        WHERE "id" IN (${Prisma.join(varer.map((v) => v.id))})`;
+    }
   });
-  if (varer.length > 0) {
-    await ctx.prismaVarelager.vareforbruk.updateMany({ where: ider(varer), data });
-  }
   await sikreKortId(pt, sheet.id);
   try {
     await prisma.activity.create({

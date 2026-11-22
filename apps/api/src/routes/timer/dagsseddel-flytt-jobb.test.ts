@@ -125,7 +125,7 @@ function data() {
 function oppsett(
   status: string,
   d: ReturnType<typeof data> = data(),
-  o: { overstyring?: string } = {},
+  o: { overstyring?: string; vareFeil?: boolean } = {},
 ) {
   const modell = (rader: Rad[]) => ({
     findMany: async ({ where }: { where: Where }) => rader.filter((r) => treff(r, where)),
@@ -155,10 +155,32 @@ function oppsett(
       update: async () => ({ id: SHEET }),
     },
   };
+  // Vare-steget er rå SQL på transaksjonen (Kontrollør 138 vilkår 2). Verdiene kommer i
+  // rekkefølgen prosjekt, byggeplass, eco, kort-id, id-lista (`Prisma.join`).
+  const tx = {
+    ...db,
+    $executeRaw: async (_s: TemplateStringsArray, ...v: unknown[]) => {
+      if (o.vareFeil) throw new Error("tilkoblingen brøt");
+      const [projectId, byggeplassId, externalCostObjectId, kortId, liste] = v as [string, string | null, string | null, string, { values: string[] }];
+      const valgt = d.varer.filter((r) => liste.values.includes(r.id));
+      for (const r of valgt) Object.assign(r, { projectId, byggeplassId, externalCostObjectId, kortId });
+      return valgt.length;
+    },
+  };
+  // Transaksjon som ruller tilbake: kaster callbacken, legges radene tilbake slik de var.
+  const transaksjon = async (fn: (t: typeof tx) => unknown) => {
+    const foer = structuredClone(d);
+    try {
+      return await fn(tx);
+    } catch (e) {
+      for (const k of Object.keys(d) as (keyof typeof d)[]) d[k].splice(0, d[k].length, ...foer[k]);
+      throw e;
+    }
+  };
   const ctx = {
     userId: USER,
     prisma: { organizationSetting: { findUnique: async () => ({ timerRegistreringsmodus: "prosjektkort" }) } },
-    prismaTimer: { ...db, $transaction: (fn: (t: typeof db) => unknown) => fn(db) },
+    prismaTimer: { ...db, $transaction: transaksjon, $executeRaw: tx.$executeRaw },
     prismaMaskin: {},
     prismaVarelager: { vareforbruk: modell(d.varer) },
     req: { log: { error: () => {} } },
@@ -266,6 +288,14 @@ describe("dagsseddel.flyttJobb — prosjekt og byggeplass på lagret jobbkort", 
     await expect(
       caller.flyttJobb({ sheetId: SHEET, kortId: KORT, projectId: P2, byggeplassId: BP1 }),
     ).rejects.toMatchObject({ code: "BAD_REQUEST", message: "Byggeplassen hører ikke til radens prosjekt" });
+    expect(JSON.stringify(d)).toBe(urort());
+  });
+
+  it("vilkår 2: feiler vare-steget, står hele jobben på gammelt sted (én transaksjon)", async () => {
+    const { caller, d } = oppsett("draft", data(), { vareFeil: true });
+    await expect(
+      caller.flyttJobb({ sheetId: SHEET, kortId: KORT, projectId: P2, byggeplassId: BP2 }),
+    ).rejects.toThrow("tilkoblingen brøt");
     expect(JSON.stringify(d)).toBe(urort());
   });
 

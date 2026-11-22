@@ -1158,14 +1158,15 @@ export default function DagsseddelDetaljSide() {
       ecoId: k.jobb.ecoId,
       byggeplassId: k.jobb.byggeplassId,
       // O8 D (§ 8.22): prosjekt og byggeplass kan endres på lagret jobb; jobben får ny kort-id.
-      stedValg: {
+      // Bare når serveren tar flyttingen (alle linjer venter på attestering, Kontrollør 138 vilkår 1).
+      stedValg: alleLinjerVenter(k) ? {
         prosjekter: [
           ...(prosjekterFlat.some((p) => p.id === k.jobb.projectId) ? [] : [k.jobb.projectId]),
           ...prosjekterFlat.map((p) => p.id),
         ].map((id) => ({ id, navn: kortNavn(id) })),
         byggeplasser: byggeplasser ?? [],
         onFlyttet: (nyKortId) => setAapentKort(nyKortId),
-      },
+      } : undefined,
       onAapneVindu: () =>
         setAktivModal({ type: "timer", projectId: forste.projectId, rad: forste, jobb: k.jobb }),
     };
@@ -2125,6 +2126,21 @@ type JobbKortData = {
   maskin: MaskinRad[];
   varer: KortVare[];
 };
+
+/**
+ * O8 D (Kontrollør 138 vilkår 1): `flyttJobb` flytter bare en jobb der alle linjene venter på
+ * attestering (`flyttJobbTilSted`) — returnert, attestert eller avvist linje, eller attestert vare,
+ * gir avvisning. Da tilbys ikke nedtrekkene. Erstattet historikk teller ikke (serveren hopper over den).
+ */
+function alleLinjerVenter(k: JobbKortData): boolean {
+  const venter = (s: string | null) => s === null || s === "pending" || s === "erstattet";
+  return (
+    k.timer.every((r) => venter(r.attestertStatus)) &&
+    k.maskin.every((m) => venter(m.attestertStatus)) &&
+    k.varer.every((v) => !v.attestert) &&
+    k.linjer.every((l) => l.type !== "tillegg" || venter(l.rad.attestertStatus))
+  );
+}
 
 /** Nøkkelen til samlekortet for rader uten kort-id. */
 const UTEN_JOBB = "utenJobb";

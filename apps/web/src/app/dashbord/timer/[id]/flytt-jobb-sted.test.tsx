@@ -4,6 +4,8 @@
  * har nedtrekk for prosjekt og byggeplass i jobbskjemaet; nytt valg sender `flyttJobb` med kortets
  * id. Sendt dag: ingen nedtrekk. Dagen er #7 (`testdata-dag7.ts`, utkast, jobb k1 og k2).
  * Negativkontroll mot 9919242e: de to første røde, «sendt dag» grønn.
+ * Kontrollør 138 vilkår 1: returnert dag med returnerte linjer (timer eller tillegg) har ingen
+ * nedtrekk — serveren avviser flyttingen der. Returnert dag med ventende linjer har dem.
  */
 import type { ReactNode } from "react";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
@@ -93,14 +95,19 @@ vi.mock("@/lib/trpc", () => {
 
 import Side from "./page";
 
-function rendre(status = "draft") {
+function rendre(status = "draft", linjeStatus: { timer?: string; tillegg?: string } = {}) {
   h.sok = "";
   h.kall = [];
   h.feil = {};
   h.svar = { "timer.dagsseddel.flyttJobb": { kortId: "k-ny", antall: 2 } };
   h.data = {
     ...dag7Data("prosjektkort"),
-    "timer.dagsseddel.hentMedId": { ...DAG7_SEDEL, status },
+    "timer.dagsseddel.hentMedId": {
+      ...DAG7_SEDEL,
+      status,
+      timer: DAG7_SEDEL.timer.map((r) => ({ ...r, attestertStatus: linjeStatus.timer ?? r.attestertStatus })),
+      tillegg: DAG7_SEDEL.tillegg.map((r) => ({ ...r, attestertStatus: linjeStatus.tillegg ?? r.attestertStatus })),
+    },
     "prosjekt.hentForTimer": [
       { id: "p1", name: "Skole", internalProjectNumber: "2041" },
       { id: "p2", name: "Bru", internalProjectNumber: "2042" },
@@ -141,6 +148,25 @@ describe("O8 D — prosjekt og byggeplass i lagret jobbkort (siden)", () => {
     expect(kall).toHaveLength(1);
     expect(kall[0]).toMatchObject({ sheetId: "s1", projectId: "p2", byggeplassId: "b2" });
     expect(["k1", "k2"]).toContain(kall[0]!.kortId);
+  });
+
+  it("returnert dag, linjene venter: nedtrekket tilbys", () => {
+    rendre("returned");
+    aapneForste();
+    expect(screen.getByRole("combobox", { name: "timer.felt.prosjekt" })).toBeTruthy();
+  });
+
+  it("returnert dag med returnerte timelinjer: ingen nedtrekk (serveren avviser)", () => {
+    rendre("returned", { timer: "returnert" });
+    aapneForste();
+    expect(screen.getByTestId("jobb-skjema")).toBeTruthy();
+    expect(screen.queryByRole("combobox", { name: "timer.felt.prosjekt" })).toBeNull();
+  });
+
+  it("returnert tillegg i jobben: ingen nedtrekk", () => {
+    rendre("returned", { tillegg: "returnert" });
+    aapneForste();
+    expect(screen.queryByRole("combobox", { name: "timer.felt.prosjekt" })).toBeNull();
   });
 
   it("sendt dag: ingen nedtrekk for prosjekt", () => {
