@@ -489,10 +489,53 @@ describe("O8 — arbeidstid under terskel fører ingen egen tid", () => {
     const d = rendre({ kjoretidMin: 45 });
     fireEvent.click(knapp(d, "timer.reiseKort.arbeidstid"));
     expect(harLagre(d)).toBe(false);
-    expect(d.textContent).toContain("timer.reiseKort.overTerskel");
     expect(within(d).getByTestId("reise-inngaar-i-arbeid").textContent).toContain("timer.reiseKort.inngaarIJobb");
     fireEvent.click(knapp(d, "handling.lukk"));
     expect(h.kall.filter((k) => k.key.startsWith("timer.dagsseddel."))).toEqual([]);
+  });
+
+  // O8 retur (§ 8.22 punkt 2, Kenneth 2026-11-22): «bytte til reisetid?» over terskel.
+  it("over terskel + Arbeidstid: vinduet spør «Bytte til reisetid?» med firmaets terskel", () => {
+    const d = rendre({ kjoretidMin: 45 });
+    fireEvent.click(knapp(d, "timer.reiseKort.arbeidstid"));
+    const linje = within(d).getByTestId("reise-bytt-til-reisetid");
+    expect(linje.textContent).toContain(
+      'timer.reiseKort.overTerskelSporsmaal{"terskel":"timer.reiseTerskel.min{\\"min\\":30}"}',
+    );
+    expect(within(linje).getByRole("button", { name: "timer.reiseKort.byttTilReisetid" })).toBeTruthy();
+  });
+
+  it("klikk på «Bytte til reisetid?» gir Reisetid med forslagstidene (avrundet), og Lagre fører reisen", () => {
+    const d = rendre({ kjoretidMin: 45, runding: 30 });
+    fireEvent.click(knapp(d, "timer.reiseKort.arbeidstid"));
+    fireEvent.click(knapp(d, "timer.reiseKort.byttTilReisetid"));
+    expect(knapp(d, "timer.reisetid").getAttribute("aria-pressed")).toBe("true");
+    expect(within(d).queryByTestId("reise-bytt-til-reisetid")).toBeNull();
+    // 45 min rundet til nærmeste 30 → 1 t; «Til byggeplass» holder Slutt (jobbstart 07:00).
+    expect((d.querySelector("#reise-start") as HTMLInputElement).value).toBe("06:00");
+    expect((d.querySelector("#reise-slutt") as HTMLInputElement).value).toBe("07:00");
+    const input = lagre(d)!;
+    expect(input).toMatchObject({ fraTid: "06:00", tilTid: "07:00", timer: 1, lonnsartId: "lr", reiseKjoretidMin: 45 });
+  });
+
+  it("under terskel + Arbeidstid: ingen «Bytte til reisetid?» (grunnen står som før)", () => {
+    const d = rendre({ kjoretidMin: 15 });
+    expect(within(d).queryByTestId("reise-bytt-til-reisetid")).toBeNull();
+    expect(d.textContent).not.toContain("timer.reiseKort.byttTilReisetid");
+    expect(d.textContent).toContain("timer.reiseKort.underTerskel");
+  });
+
+  it("over terskel + Arbeidstid uten å bytte: ingen rad lagres («Lukk»)", () => {
+    const d = rendre({ kjoretidMin: 45 });
+    fireEvent.click(knapp(d, "timer.reiseKort.arbeidstid"));
+    expect(harLagre(d)).toBe(false);
+    fireEvent.click(knapp(d, "handling.lukk"));
+    expect(h.kall).toEqual([]);
+  });
+
+  it("negativkontroll: over terskel med Reisetid (forvalgt) viser ikke spørsmålet", () => {
+    const d = rendre({ kjoretidMin: 45 });
+    expect(within(d).queryByTestId("reise-bytt-til-reisetid")).toBeNull();
   });
 
   it("negativkontroll: Reisetid har Avbryt og Lagre, ingen «Lukk» og ingen «inngår»-tekst", () => {

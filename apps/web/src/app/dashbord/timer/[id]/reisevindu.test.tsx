@@ -251,6 +251,31 @@ describe("w15b — reisevinduet: systemet foreslår, arbeideren retter", () => {
     });
   });
 
+  // O8 retur (gate 138 vilkår 1): «Arbeidstid» fører ingen rad, men kontorvalget lagres.
+  it("annet kontor + Arbeidstid: «Lagre kontor» skriver perioden og ingen rad, så lukkes vinduet", async () => {
+    const d = rendre();
+    fireEvent.change(within(d).getByLabelText("timer.reiseKort.annetKontorFraIDag"), { target: { value: "narvik" } });
+    fireEvent.click(knapp(d, "timer.reiseKort.arbeidstid"));
+    expect(within(d).queryByRole("button", { name: "handling.lukk" })).toBeNull();
+    fireEvent.click(knapp(d, "timer.reiseKort.lagreKontor"));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(h.kall.find((k) => k.key === "oppmotePeriode.overforing")?.input).toMatchObject({
+      handling: "start",
+      oppmotestedId: "narvik",
+      dato: DATO,
+    });
+    expect(h.kall.some((k) => k.key.startsWith("timer.dagsseddel."))).toBe(false);
+    expect(screen.queryByRole("dialog", { name: "timer.reiseKort.tittel" })).toBeNull();
+  });
+
+  it("negativkontroll: Arbeidstid uten endret kontor — «Lukk», ingenting lagres", () => {
+    const d = rendre();
+    fireEvent.click(knapp(d, "timer.reiseKort.arbeidstid"));
+    expect(within(d).queryByRole("button", { name: "timer.reiseKort.lagreKontor" })).toBeNull();
+    fireEvent.click(knapp(d, "handling.lukk"));
+    expect(h.kall).toEqual([]);
+  });
+
   it("negativkontroll: uten annet kontor kalles ikke oppmotePeriode.overforing", async () => {
     const d = rendre();
     expect(await lagre(d)).toBeDefined();

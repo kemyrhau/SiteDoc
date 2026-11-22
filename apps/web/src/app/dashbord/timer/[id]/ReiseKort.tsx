@@ -373,6 +373,39 @@ export function ReiseKort({
     });
   }
 
+  /**
+   * O8 retur (gate 138 vilkår 1): «Arbeidstid» fører ingen rad, men et valgt «Fra et annet
+   * kontor fra i dag» er fortsatt arbeiderens valg — perioden skrives (samme kall som `lagre`),
+   * deretter lukkes vinduet.
+   */
+  async function lagreKontor() {
+    if (!inngaarIArbeid || !kontorKall || kontorKonflikt) return;
+    setFeil(null);
+    try {
+      await overforingMut.mutateAsync({
+        id: crypto.randomUUID(),
+        organizationId,
+        handling: kontorKall.handling,
+        oppmotestedId: kontorKall.oppmotestedId,
+        dato: kontorKall.dato,
+      });
+      onLukk();
+    } catch (e) {
+      setFeil(e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  /**
+   * O8 retur (§ 8.22 punkt 2, Kenneth 2026-11-22): over terskel og «Arbeidstid» — ett trykk
+   * gir Reisetid med forslagstidene (avrundet), rettede tider forkastes.
+   */
+  function byttTilReisetid() {
+    setRettetStart(null);
+    setRettetSlutt(null);
+    setAntallTekst(null);
+    setKategoriValg("reisetid");
+  }
+
   /** Avslutt uten reise: perioden slutter dagen før sedeldatoen (slettes om den startet i dag). */
   function avsluttOverforing() {
     setFeil(null);
@@ -651,14 +684,29 @@ export function ReiseKort({
               </p>
             )}
             {/* O8: under terskel som arbeidstid — terskelen er grunnen, ingen art føres. */}
-            {inngaarIArbeid && resultat.klassifisering && resultat.klassifisering.forklaring.type !== "ukjentAvstand" && (
+            {inngaarIArbeid && resultat.klassifisering?.forklaring.type === "under" && (
               <p className="mt-1 text-xs text-gray-500">
-                {t(
-                  resultat.klassifisering.forklaring.type === "under"
-                    ? "timer.reiseKort.underTerskel"
-                    : "timer.reiseKort.overTerskel",
-                  { terskel: manuellReiseTerskelTekst(t, resultat.klassifisering.forklaring) },
-                )}
+                {t("timer.reiseKort.underTerskel", {
+                  terskel: manuellReiseTerskelTekst(t, resultat.klassifisering.forklaring),
+                })}
+              </p>
+            )}
+            {/* O8 retur (§ 8.22 punkt 2): over firmaets terskel og «Arbeidstid» — spør om bytte. */}
+            {inngaarIArbeid && resultat.klassifisering?.forklaring.type === "over" && (
+              <p
+                data-testid="reise-bytt-til-reisetid"
+                className="mt-2 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900"
+              >
+                {t("timer.reiseKort.overTerskelSporsmaal", {
+                  terskel: manuellReiseTerskelTekst(t, resultat.klassifisering.forklaring),
+                })}{" "}
+                <button
+                  type="button"
+                  onClick={byttTilReisetid}
+                  className="font-medium text-blue-700 underline hover:text-blue-900"
+                >
+                  {t("timer.reiseKort.byttTilReisetid")}
+                </button>
               </p>
             )}
           </div>
@@ -732,7 +780,21 @@ export function ReiseKort({
           {/* O8: ingenting å lagre — én knapp som lukker vinduet. Vinduet lukkes ikke av seg
               selv: «Arbeidstid» er ofte forvalgt idet vinduet åpnes, og arbeideren skal kunne
               bytte til Reisetid. */}
-          {inngaarIArbeid ? (
+          {inngaarIArbeid && kontorKall ? (
+            // O8 retur (gate 138 vilkår 1): kontorvalget er det eneste som lagres — knappen sier det.
+            <>
+              <Button type="button" variant="secondary" onClick={onLukk}>
+                {t("handling.avbryt")}
+              </Button>
+              <Button
+                type="button"
+                onClick={() => void lagreKontor()}
+                disabled={kontorKonflikt || overforingMut.isPending}
+              >
+                {overforingMut.isPending ? t("handling.lagrer") : t("timer.reiseKort.lagreKontor")}
+              </Button>
+            </>
+          ) : inngaarIArbeid ? (
             <Button type="button" onClick={onLukk}>
               {t("handling.lukk")}
             </Button>
