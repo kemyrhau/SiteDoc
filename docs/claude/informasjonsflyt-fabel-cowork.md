@@ -120,7 +120,7 @@ Kenneth relayer **hver melding manuelt**. Derfor:
 - Mål ferdig og tenk ferdig før blokken skrives.
 - Er noe umålt, merk det eksplisitt som umålt i blokken.
 
-Se også [SAMARBEIDSREGLER § Spørsmål: samle, ikke drypp](SAMARBEIDSREGLER.md).
+Se også [SAMARBEIDSREGLER § Spørsmål: ett vindu, fast form](SAMARBEIDSREGLER.md).
 
 ## 7 · Hva som IKKE er fabels ansvar
 
