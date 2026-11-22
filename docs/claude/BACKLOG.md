@@ -5771,7 +5771,7 @@ direkte fra listen.
 Kenneth, ordrett: «hvilke blokeringer rundt varelager har et firma? Kan firma velge å kun registrere varer uten at varer kjøpes inn og legges på lager? I anleggsbransjen er det lite hensiktsmessig med varelager som f.eks en butikk har. Varelager administreres i økonomisystem og jeg har ikke bygget varelager for bruk i regnskap, annet enn at varer er et huskepunkt for fakturering. Vi bør ha i instillinger for firma valg for dette. "varelager med mengde kontroll ved innkjøp/salg er ikke støttet i dag, kun registrering av vareforbruk ved timeregistrering er støttet" bør være et valg. -> varelager bør kunne nullstilles ved behov, evt automatisk nullstilling ved overgang nytt år. lagre informasjon om varelager for en egen økt. ta med kun det som er nødvendig for timeregistreringen.»
 
 Målt 2026-11-22 (`origin/develop`):
-- **Sperren** er modulbryteren, og det finnes ingen annen. `erVarelagerAktivert` (`apps/api/src/services/varelager/moduleGate.ts`) krever at firmaets hovedbryter er på. Med prosjekt krever den i tillegg `ProjectModule.status='aktiv'`.
+- **Sperren** er firmamodulbryteren, og det finnes ingen annen. `erVarelagerAktivert` (`apps/api/src/services/varelager/moduleGate.ts`) krever at firmaets bryter er på. Prosjektraden den også leser, settes av firmabryteren, se rettelsen under.
 - **Ingen beholdning eller mengdekontroll.** Skjemaet `packages/db-varelager/prisma/schema.prisma` har bare `VareKategori`, `Vare` (med `internkostnad` = innkjøpspris) og `Vareforbruk` (`antall`). Det finnes ingen saldo, innkjøp eller salg.
 - I praksis er «varelager» i dag bare registrering av vareforbruk ved timeføring.
 
@@ -5783,7 +5783,7 @@ Bare det timeregistreringen trenger. Uavklart: hva betyr «nullstilling» når d
 
 Koblet til O8/D punkt 3: **avgjort 2026-11-22**, varene følger med jobben og ingen sperre.
 
-**Kenneth 2026-11-22, ordrett:** «varelager bør inn i firmainstillinger sammen maskin -> dette bør være en firmainstilling, ikke en prosjekt instilling.» I dag er det firmabryter **og** prosjektbryter (`ProjectModule`). Ønsket er bare firmabryter, plassert i firmainnstillingene ved siden av Maskin. Mål hvordan Maskin er slått av og på, og hva som skjer med eksisterende `ProjectModule`-rader for varelager. Spør før migrering.
+**Kenneth 2026-11-22, ordrett:** «varelager bør inn i firmainstillinger sammen maskin -> dette bør være en firmainstilling, ikke en prosjekt instilling.» **Rettet 2026-11-22 (orkestrators feil):** varelager **er allerede** en firmainnstilling, ved siden av Timer og Maskin («Firmamoduler … Prosjektet arver firmaets valg»). Når firmaet slår modulen på eller av, settes `ProjectModule`-radene for alle firmaets prosjekter (`syncProjektModulerPaaAktiver` og `…PaaDeaktiver`, `apps/api/src/services/firmamodul.ts:111–160`). Interne prosjekter får ingen rad. Serveren leser prosjektraden (`resolver.ts:100–105`), men den speiler bare firmavalget. Ikke målt: får et prosjekt som opprettes etter aktiveringen en rad? Det må måles i den egne økta. Gjenstår da bare teksten «kun vareforbruk» og nullstilling.
 
 ## 3. Fremtidige faser
 
