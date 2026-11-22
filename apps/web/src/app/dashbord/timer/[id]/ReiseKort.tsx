@@ -53,10 +53,10 @@ import {
  *  Linja «havner i» regner kortet før lagring (`reiseHavnerI`). Overlapp med en
  *  annen rad og slutt før start sperrer Lagre (serveren avviser overlapp uansett).
  *
- *  O8 (§ 8.22 punkt 2, Kenneth 2026-11-22): står «Føres som» på Arbeidstid — forvalgt av
- *  terskelen eller valgt av arbeideren — føres ingenting. Reisen inngår i jobbens arbeidstid
- *  (jobbens fra–til), og vinduet sier det. Tider, antall og underprosjekt skjules, og
- *  knappen er «Lukk». Reisetid er som før: egen reise-rad med tider og antall.
+ *  O10 (§ 8.22, Kenneth 2026-11-22): «Arbeidstid» er som før O8 — tider, antall,
+ *  underprosjekt, sperretekstene og «Avbryt» + «Lagre», som fører arbeidsraden på jobben.
+ *  Over terskel spør linja «Bytte til reisetid?»; trykket bytter bare «Føres som», tider
+ *  arbeideren har rettet, står. Forslagsteksten viser de avrundede minuttene.
  * ============================================================================ */
 
 /** w15b: en rad på sedelen — dagsrammen, overlapp-sperren og linja «havner i». */
@@ -146,8 +146,8 @@ export function ReiseKort({
    *  forvalgt. Feltene står og kan endres. Utelatt = som før. */
   forvalgtByggeplassId?: string | null;
   forvalgtEcoId?: string | null;
-  /** O1 (§ 8.22): kort-id-en til jobben vinduet ble åpnet fra. Under terskel peker linja
-   *  på DEN jobben når nøkkelen er lik — O8: vinduet viser jobbens fra–til, ingenting føres. */
+  /** O1 (§ 8.22): kort-id-en til jobben vinduet ble åpnet fra. Under terskel føres turen
+   *  som arbeid i DEN jobben når nøkkelen er lik. Utelatt = som før (serveren velger). */
   jobbKortId?: string | null;
   onLukk: () => void;
 }) {
@@ -277,23 +277,14 @@ export function ReiseKort({
           })
         : t("timer.reiseKort.havnerEget", { prosjekt: prosjektNavn(havner.projectId) });
 
-  // O8 (§ 8.22 punkt 2): «Arbeidstid» fører ingenting — reisen inngår i jobbens arbeidstid.
-  const inngaarIArbeid = regelStatus === "klar" && resultat.klassifisering?.kategori === "arbeidstid";
-  // Jobbens fra–til (første fra, siste til blant jobbens arbeidslinjer) — det reisen inngår i.
-  const jobbTid = (() => {
-    if (!inngaarIArbeid || havner?.type !== "jobb") return null;
-    let fra: string | null = null;
-    let til: string | null = null;
-    for (const r of dagsrader) {
-      if (r.erReise || r.kortId !== havner.kortId) continue;
-      if (r.fraTid && (fra == null || (klokkeTilMin(r.fraTid) ?? 0) < (klokkeTilMin(fra) ?? 0))) fra = r.fraTid;
-      if (r.tilTid && (til == null || (klokkeTilMin(r.tilTid) ?? 0) > (klokkeTilMin(til) ?? 0))) til = r.tilTid;
-    }
-    return fra && til ? { fra, til } : null;
-  })();
+  // O1 (§ 8.22): under terskel er turen arbeid — den står i jobben vinduet ble åpnet fra
+  // (regel 1) når linja «havner i» peker dit, altså når nøkkelen er lik. Ellers ingen kort-id.
+  const arbeidKortId =
+    jobbKortId && resultat.spor && !resultat.spor.erReise && havner?.type === "jobb" && havner.kortId === jobbKortId
+      ? jobbKortId
+      : null;
 
   const kanLagre =
-    !inngaarIArbeid &&
     regelStatus === "klar" &&
     sperre == null &&
     tidSperre == null &&
@@ -324,8 +315,7 @@ export function ReiseKort({
             : "";
 
   async function lagre() {
-    // O8: «Arbeidstid» lagrer aldri — knappen er «Lukk».
-    if (inngaarIArbeid || !kanLagre || !aktivitetId || !resultat.spor || !resultat.klassifisering?.lonnsartId) return;
+    if (!kanLagre || !aktivitetId || !resultat.spor || !resultat.klassifisering?.lonnsartId) return;
     setFeil(null);
     let s = resultat.spor;
     if (kontorKall) {
@@ -359,7 +349,9 @@ export function ReiseKort({
       // Reise bærer aldri matpausen (pauseFraForRad hopper over erReise).
       pauseMin: 0,
       byggeplassId: lagretByggeplassId,
-      // Sporet kun når regelen sier reise (O8: «Arbeidstid» lagres ikke).
+      ...(arbeidKortId ? { kortId: arbeidKortId } : {}),
+      // Sporet kun når regelen sier reise; under terskel er raden ordinær
+      // (reiseKilde null → serveren nuller sporet).
       ...(s.erReise && s.reiseKilde
         ? {
             reiseKilde: s.reiseKilde,
@@ -373,36 +365,9 @@ export function ReiseKort({
     });
   }
 
-  /**
-   * O8 retur (gate 138 vilkår 1): «Arbeidstid» fører ingen rad, men et valgt «Fra et annet
-   * kontor fra i dag» er fortsatt arbeiderens valg — perioden skrives (samme kall som `lagre`),
-   * deretter lukkes vinduet.
-   */
-  async function lagreKontor() {
-    if (!inngaarIArbeid || !kontorKall || kontorKonflikt) return;
-    setFeil(null);
-    try {
-      await overforingMut.mutateAsync({
-        id: crypto.randomUUID(),
-        organizationId,
-        handling: kontorKall.handling,
-        oppmotestedId: kontorKall.oppmotestedId,
-        dato: kontorKall.dato,
-      });
-      onLukk();
-    } catch (e) {
-      setFeil(e instanceof Error ? e.message : String(e));
-    }
-  }
-
-  /**
-   * O8 retur (§ 8.22 punkt 2, Kenneth 2026-11-22): over terskel og «Arbeidstid» — ett trykk
-   * gir Reisetid med forslagstidene (avrundet), rettede tider forkastes.
-   */
+  /** O10: over terskel og «Arbeidstid» — bytter bare «Føres som». Rettede tider står;
+   *  er ingenting rettet, står forslaget. */
   function byttTilReisetid() {
-    setRettetStart(null);
-    setRettetSlutt(null);
-    setAntallTekst(null);
     setKategoriValg("reisetid");
   }
 
@@ -556,7 +521,6 @@ export function ReiseKort({
         {/* w15b: start og slutt er forslaget og kan rettes. Skjult bare når det ikke finnes
             noe å foreslå fra (byggeplass-periode, oppmøtested ikke valgt, kjøretid mangler). */}
         {regelStatus === "klar" &&
-          !inngaarIArbeid &&
           sperre !== "byggeplassPeriode" &&
           sperre !== "oppmoteIkkeValgt" &&
           sperre !== "manglerKjoretid" && (
@@ -673,48 +637,52 @@ export function ReiseKort({
         {/* Forslaget: firmaets kjøretid, deretter hvorfor arbeid/reise. */}
         {regelStatus === "klar" && resultat.kjoretidMin != null && (
           <div>
-            <p className="text-sm text-gray-700">{t("timer.reiseKort.forslag", { min: resultat.kjoretidMin })}</p>
-            {resultat.klassifisering && resultat.klassifisering.lonnsartId != null && !inngaarIArbeid && (
+            <p className="text-sm text-gray-700">{t("timer.reiseKort.forslag", { min: reise.forslagMin ?? resultat.kjoretidMin })}</p>
+            {resultat.klassifisering && resultat.klassifisering.lonnsartId != null && (
               <p className="mt-1 text-xs text-gray-500">
-                {manuellReiseForklaringTekst(
-                  t,
-                  resultat.klassifisering,
-                  reise.lonnsartNavn(resultat.klassifisering.lonnsartId),
-                )}
+                {/* O1: turen føres som arbeid i jobben vinduet ble åpnet fra — si det. */}
+                {arbeidKortId && resultat.klassifisering.forklaring.type !== "ukjentAvstand"
+                  ? t(
+                      resultat.klassifisering.forklaring.type === "under"
+                        ? "timer.reiseKort.underTerskelPaaJobb"
+                        : "timer.reiseKort.overTerskelPaaJobb",
+                      {
+                        terskel: manuellReiseTerskelTekst(t, resultat.klassifisering.forklaring),
+                        art: reise.lonnsartNavn(resultat.klassifisering.lonnsartId) ?? "",
+                      },
+                    )
+                  : manuellReiseForklaringTekst(
+                      t,
+                      resultat.klassifisering,
+                      reise.lonnsartNavn(resultat.klassifisering.lonnsartId),
+                    )}
               </p>
             )}
-            {/* O8: under terskel som arbeidstid — terskelen er grunnen, ingen art føres. */}
-            {inngaarIArbeid && resultat.klassifisering?.forklaring.type === "under" && (
-              <p className="mt-1 text-xs text-gray-500">
-                {t("timer.reiseKort.underTerskel", {
-                  terskel: manuellReiseTerskelTekst(t, resultat.klassifisering.forklaring),
-                })}
-              </p>
-            )}
-            {/* O8 retur (§ 8.22 punkt 2): over firmaets terskel og «Arbeidstid» — spør om bytte. */}
-            {inngaarIArbeid && resultat.klassifisering?.forklaring.type === "over" && (
-              <p
-                data-testid="reise-bytt-til-reisetid"
-                className="mt-2 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900"
-              >
-                {t("timer.reiseKort.overTerskelSporsmaal", {
-                  terskel: manuellReiseTerskelTekst(t, resultat.klassifisering.forklaring),
-                })}{" "}
-                <button
-                  type="button"
-                  onClick={byttTilReisetid}
-                  className="font-medium text-blue-700 underline hover:text-blue-900"
+            {/* O8/O10 (§ 8.22 punkt 2): over firmaets terskel og «Arbeidstid» — spør om bytte. */}
+            {resultat.klassifisering?.kategori === "arbeidstid" &&
+              resultat.klassifisering.forklaring.type === "over" && (
+                <p
+                  data-testid="reise-bytt-til-reisetid"
+                  className="mt-2 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900"
                 >
-                  {t("timer.reiseKort.byttTilReisetid")}
-                </button>
-              </p>
-            )}
+                  {t("timer.reiseKort.overTerskelSporsmaal", {
+                    terskel: manuellReiseTerskelTekst(t, resultat.klassifisering.forklaring),
+                  })}{" "}
+                  <button
+                    type="button"
+                    onClick={byttTilReisetid}
+                    className="font-medium text-blue-700 underline hover:text-blue-900"
+                  >
+                    {t("timer.reiseKort.byttTilReisetid")}
+                  </button>
+                </p>
+              )}
           </div>
         )}
 
         {/* Ordre (11) C: mangler lønnsart → rød tekst; firmaadmin får lenke til
             reise-regelsettet (firmaadmin skal ikke bes om å spørre firmaadmin). */}
-        {sperre === "manglerArt" && !inngaarIArbeid && (
+        {sperre === "manglerArt" && (
           <p className="text-xs font-medium text-red-700">
             {erFirmaAdmin ? t("timer.reiseTerskel.manglerStandardArt") : t("timer.reiseTerskel.manglerArt")}
             {erFirmaAdmin && (
@@ -729,15 +697,15 @@ export function ReiseKort({
         )}
         {/* Øvrige sperrer (mangler kjøretid, utenfor døgnet …) vises synlig i
             kortet — tooltipen alene når ikke berøringsskjerm og havner bak modalen. */}
-        {!inngaarIArbeid && sperre && sperre !== "manglerArt" && forklaring && (
+        {sperre && sperre !== "manglerArt" && forklaring && (
           <p className="text-xs font-medium text-red-700">{forklaring}</p>
         )}
-        {!inngaarIArbeid && !sperre && tidSperre && <p className="text-xs font-medium text-red-700">{tidSperre}</p>}
+        {!sperre && tidSperre && <p className="text-xs font-medium text-red-700">{tidSperre}</p>}
         {!sperre && !tidSperre && kontorKonflikt && (
           <p className="text-xs font-medium text-red-700">{t("timer.reiseKort.sperre.adminMidlertidig")}</p>
         )}
 
-        {ecoer && ecoer.length > 0 && !inngaarIArbeid && (
+        {ecoer && ecoer.length > 0 && (
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">
               {t("timer.felt.underprosjekt")}{" "}
@@ -760,46 +728,12 @@ export function ReiseKort({
         )}
 
         {/* w15b: hvor reisen havner før han lagrer — samme regel som serveren. */}
-        {havnerTekst && !inngaarIArbeid && (
+        {havnerTekst && (
           <p className="rounded border border-blue-100 bg-blue-50 px-3 py-2 text-sm text-blue-900">{havnerTekst}</p>
-        )}
-        {/* O8: «Arbeidstid» — reisen inngår i jobbens arbeidstid, ingenting føres. */}
-        {inngaarIArbeid && (
-          <p
-            data-testid="reise-inngaar-i-arbeid"
-            className="rounded border border-blue-100 bg-blue-50 px-3 py-2 text-sm text-blue-900"
-          >
-            {jobbTid
-              ? t("timer.reiseKort.inngaarIJobb", { fra: jobbTid.fra, til: jobbTid.til })
-              : t("timer.reiseKort.inngaarIArbeid")}
-          </p>
         )}
 
         {feil && <p className="text-sm text-red-600">{feil}</p>}
         <div className="flex justify-end gap-3 pt-2">
-          {/* O8: ingenting å lagre — én knapp som lukker vinduet. Vinduet lukkes ikke av seg
-              selv: «Arbeidstid» er ofte forvalgt idet vinduet åpnes, og arbeideren skal kunne
-              bytte til Reisetid. */}
-          {inngaarIArbeid && kontorKall ? (
-            // O8 retur (gate 138 vilkår 1): kontorvalget er det eneste som lagres — knappen sier det.
-            <>
-              <Button type="button" variant="secondary" onClick={onLukk}>
-                {t("handling.avbryt")}
-              </Button>
-              <Button
-                type="button"
-                onClick={() => void lagreKontor()}
-                disabled={kontorKonflikt || overforingMut.isPending}
-              >
-                {overforingMut.isPending ? t("handling.lagrer") : t("timer.reiseKort.lagreKontor")}
-              </Button>
-            </>
-          ) : inngaarIArbeid ? (
-            <Button type="button" onClick={onLukk}>
-              {t("handling.lukk")}
-            </Button>
-          ) : (
-          <>
           <Button type="button" variant="secondary" onClick={onLukk}>
             {t("handling.avbryt")}
           </Button>
@@ -808,8 +742,6 @@ export function ReiseKort({
               {tilfoy.isPending || overforingMut.isPending ? t("handling.lagrer") : t("handling.lagre")}
             </Button>
           </KnappMedForklaring>
-          </>
-          )}
         </div>
       </div>
     </Modal>

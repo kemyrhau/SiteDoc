@@ -95,13 +95,11 @@ vi.mock("@/lib/trpc", () => {
 import Side from "./page";
 
 const DATO = "2026-11-05";
-// O8 (§ 8.22 punkt 2): «Arbeidstid» fører ingenting og viser ingen tider. Testene her gjelder
-// reise-raden (tider og antall), så turen på 4 min føres som reisetid også under terskel.
 const REGEL: ReiseRegelsett = {
   reiseTerskelEnhet: "minutter",
   reiseTerskelMin: 30,
   reiseTerskelM: null,
-  reiseUnderTerskelType: "reisetid",
+  reiseUnderTerskelType: "arbeidstid",
   reiseOverTerskelType: "reisetid",
 };
 const FAST_TROMSO: OppmotePeriodeInput = {
@@ -251,29 +249,21 @@ describe("w15b — reisevinduet: systemet foreslår, arbeideren retter", () => {
     });
   });
 
-  // O8 retur (gate 138 vilkår 1): «Arbeidstid» fører ingen rad, men kontorvalget lagres.
-  it("annet kontor + Arbeidstid: «Lagre kontor» skriver perioden og ingen rad, så lukkes vinduet", async () => {
+  // O10 (§ 8.22): «Lagre» lagrer også kontorvalget når «Føres som» står på Arbeidstid (som før O8).
+  it("annet kontor + Arbeidstid: «Lagre» skriver perioden og fører arbeidsraden", async () => {
     const d = rendre();
     fireEvent.change(within(d).getByLabelText("timer.reiseKort.annetKontorFraIDag"), { target: { value: "narvik" } });
-    fireEvent.click(knapp(d, "timer.reiseKort.arbeidstid"));
+    fireEvent.click(within(d).getByRole("button", { name: "timer.reiseKort.arbeidstid" }));
+    expect(within(d).queryByRole("button", { name: "timer.reiseKort.lagreKontor" })).toBeNull();
     expect(within(d).queryByRole("button", { name: "handling.lukk" })).toBeNull();
-    fireEvent.click(knapp(d, "timer.reiseKort.lagreKontor"));
-    await new Promise((r) => setTimeout(r, 0));
+    const input = (await lagre(d))!;
+    expect(input).toMatchObject({ projectId: "p1", tilTid: "07:00" });
+    expect(input.reiseKilde).toBeUndefined();
     expect(h.kall.find((k) => k.key === "oppmotePeriode.overforing")?.input).toMatchObject({
       handling: "start",
       oppmotestedId: "narvik",
       dato: DATO,
     });
-    expect(h.kall.some((k) => k.key.startsWith("timer.dagsseddel."))).toBe(false);
-    expect(screen.queryByRole("dialog", { name: "timer.reiseKort.tittel" })).toBeNull();
-  });
-
-  it("negativkontroll: Arbeidstid uten endret kontor — «Lukk», ingenting lagres", () => {
-    const d = rendre();
-    fireEvent.click(knapp(d, "timer.reiseKort.arbeidstid"));
-    expect(within(d).queryByRole("button", { name: "timer.reiseKort.lagreKontor" })).toBeNull();
-    fireEvent.click(knapp(d, "handling.lukk"));
-    expect(h.kall).toEqual([]);
   });
 
   it("negativkontroll: uten annet kontor kalles ikke oppmotePeriode.overforing", async () => {
