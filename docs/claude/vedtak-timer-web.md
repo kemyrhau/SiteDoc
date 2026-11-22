@@ -99,9 +99,9 @@ Filer: `RK` = `apps/web/src/app/dashbord/timer/[id]/ReiseKort.tsx` · `MR` = `ap
 1. Dagen står øverst som en dagsrad, hvert kort er en blokk med egen kantfarge, og jobbrad vises når dagen har flere kort (alternativ A).
     Kenneth: «B14 A. men ved flere prosjekter samme dag, da må vi visuelt skille hvert registrerte kort fra hverandre innenfor samme dag» (2026-11-17), «Alternativ A viser tydelig skille på dagskortene. Det kortet er de beste av alternativene» (2026-11-22).
     ✅ `AttesteringTabell.tsx` (`variant: "dag"`, `variant: "jobb"`, `KORT_KANT`).
-2. Dagsraden og jobbraden viser prosjektets navn og byggeplassen kortet er registrert på, ikke prosjektnummeret.
-    Kenneth: «ingen av forslagene viser tydelig hvilket prosjekt/byggeplass kortene er registrert på … det er selvsagt prosjektnavn vi må vise» (2026-11-22).
+2. Dagsraden og jobbraden viser prosjektets navn, og under det byggeplass · underprosjekt, i stedet for prosjektnummeret (skisse B14c variant B, `docs/claude/skisser-web-timeforing/b14c-b.png`).
+    Kenneth: «ingen av forslagene viser tydelig hvilket prosjekt/byggeplass kortene er registrert på … det er selvsagt prosjektnavn vi må vise» (2026-11-22), «Variant B» (2026-11-22).
     🟡 I dag viser dagsraden og jobbraden pr.nr. og underprosjekt (`TIMER_TABELL_STANDARD`: `prosjektnummer`, ingen `prosjekt` eller `byggeplass`).
-3. Overtid og reisetid står tydelig fram i kortet i attesteringen: i dagsraden, i jobbraden og på linjene.
-    Kenneth: «det kommer dårlig frem på kortet overtid og reisetid. dette er områder som må komme mer tydelig frem» (2026-11-22, skjermbilde fra test).
-    🟡 I dag (test, uke 47): overtiden er en vanlig linje med lønnsartens navn («Overtid 50%»); dagens avvik fra normen er et lite gult merke («+4 t») i Avvik; reisen står som grå «reise 3,00 t» i jobbraden, og reiselinjas tekst kuttes («Reise/transport til prc»).
+3. Reise og overtid står som egne kolonner, «Reise» og «Overtid», ved siden av Timer: dagens timer i dagsraden og jobbens i jobbraden. Reise- og overtidslinjene har lønnsartens navn i farget merke og timetallet i samme farge, og dagens sum står hel (skisse B14c variant B).
+    Kenneth: «det kommer dårlig frem på kortet overtid og reisetid. dette er områder som må komme mer tydelig frem», «Variant B -> der ser jeg med en gang på topplinjen hva jeg godkjenner» (2026-11-22).
+    🟡 I dag (test, uke 47): overtiden er en vanlig linje med lønnsartens navn («Overtid 50%»); reisen står som grå «reise 3,00 t» i jobbraden, og reiselinjas tekst kuttes («Reise/transport til prc»); dagens sum kuttes fra 10 timer («11,…», `ATTESTERING_BREDDE.timer`).
