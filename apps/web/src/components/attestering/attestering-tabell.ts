@@ -580,6 +580,74 @@ export function sumLinjer(linjer: readonly AttLinje[]): { timer: number; maskint
 }
 
 /* ------------------------------------------------------------------ */
+/*  Navnefeltet i dagsrad og jobbrad (O13, vedtak § Dagsvisningen pkt 2) */
+/* ------------------------------------------------------------------ */
+
+/** Kolonnene navnefeltet legger seg over (B14c B): de er tomme i dagsraden og jobbraden. */
+export const NAVNEFELT_KOLONNER: readonly TimerTabellKolKey[] = ["prosjektnummer", "underprosjekt", "betegnelse", "fraTil"];
+
+/**
+ * Hvor prosjektnavnet står i dagsraden og jobbraden, for brukerens kolonneoppsett (R2):
+ *  - `spenn`: over de synlige av Pr.nr., Underprosjekt, Betegnelse og Fra–til som står
+ *    sammenhengende fra den første synlige av dem;
+ *  - `kolonne`: ingen av de fire synlige → første synlige tekstkolonne etter Ansatt;
+ *  - `ansatt`: finnes ingen → i Ansatt-cella under navnet.
+ * `tomme`: cellene som står tomme i dagsraden og jobbraden — de fire utenfor feltet (brukeren
+ * har flyttet en annen kolonne mellom), og Prosjekt og Byggeplass, som navnefeltet bærer.
+ * `utenfor` (avvikskolonnen) er aldri i feltet og aldri tom.
+ */
+export type NavnefeltPlass =
+  | { type: "spenn"; fra: TimerTabellKolKey; antall: number; tomme: ReadonlySet<TimerTabellKolKey> }
+  | { type: "kolonne"; kolonne: TimerTabellKolKey; tomme: ReadonlySet<TimerTabellKolKey> }
+  | { type: "ansatt"; tomme: ReadonlySet<TimerTabellKolKey> };
+
+const IKKE_NAVNEKOLONNE: ReadonlySet<TimerTabellKolKey> = new Set<TimerTabellKolKey>(["dato", "ansatt", "ansattnr", "avvik"]);
+
+export function navnefeltPlass(
+  kolonner: readonly TimerTabellKolKey[],
+  erTall: (k: TimerTabellKolKey) => boolean,
+  utenfor?: TimerTabellKolKey,
+): NavnefeltPlass {
+  // `utenfor`: kolonnen som bærer avviket når Avvik er skjult (Betegnelse). Den står utenfor
+  // feltet med avviket sitt, og feltet slutter foran den (gate O13 trinn 2, vilkår 1).
+  const fire = new Set(NAVNEFELT_KOLONNER.filter((k) => k !== utenfor));
+  const tomme = new Set<TimerTabellKolKey>(["prosjekt", "byggeplass"]);
+  const start = kolonner.findIndex((k) => fire.has(k));
+  if (start !== -1) {
+    let slutt = start;
+    while (slutt + 1 < kolonner.length && fire.has(kolonner[slutt + 1]!)) slutt++;
+    for (let i = 0; i < kolonner.length; i++) if (fire.has(kolonner[i]!) && (i < start || i > slutt)) tomme.add(kolonner[i]!);
+    return { type: "spenn", fra: kolonner[start]!, antall: slutt - start + 1, tomme };
+  }
+  const etterAnsatt = kolonner.indexOf("ansatt");
+  const kolonne = kolonner.find((k, i) => i > etterAnsatt && !erTall(k) && !IKKE_NAVNEKOLONNE.has(k) && k !== utenfor);
+  if (kolonne) {
+    tomme.delete(kolonne);
+    return { type: "kolonne", kolonne, tomme };
+  }
+  return { type: "ansatt", tomme };
+}
+
+/**
+ * Linjas lønnsartnavn over de tomme cellene foran Betegnelse (B14c B): Betegnelse spenner
+ * bakover over kolonnene i navnefeltet som står tomme på linja (`skjul`, verdien står i raden
+ * over), så navnet ikke kuttes. Står en av dem med verdi (annet underprosjekt), stopper spennet der.
+ */
+export function linjeSpenn(
+  plass: NavnefeltPlass,
+  kolonner: readonly TimerTabellKolKey[],
+  skjul: readonly TimerTabellKolKey[],
+): { fra: TimerTabellKolKey; til: TimerTabellKolKey } | undefined {
+  if (plass.type !== "spenn") return undefined;
+  const fraI = kolonner.indexOf(plass.fra);
+  const b = kolonner.indexOf("betegnelse");
+  if (b === -1 || b < fraI || b >= fraI + plass.antall) return undefined;
+  let fra = b;
+  while (fra - 1 >= fraI && skjul.includes(kolonner[fra - 1]!)) fra--;
+  return fra < b ? { fra: kolonner[fra]!, til: "betegnelse" } : undefined;
+}
+
+/* ------------------------------------------------------------------ */
 /*  Filter (R8, T42)                                                    */
 /* ------------------------------------------------------------------ */
 

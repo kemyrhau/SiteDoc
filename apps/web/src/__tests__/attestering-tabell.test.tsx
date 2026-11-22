@@ -571,22 +571,22 @@ describe("w5 — kjernekolonner og «Tilbakestill til standard»", () => {
     [...new Set(Array.from(c.querySelectorAll("[data-kolonne]")).map((e) => e.getAttribute("data-kolonne")))];
   afterEach(() => { delete h.data["bruker.hentTabelloppsett"]; });
 
-  it("uten lagret oppsett vises de 13 standardkolonnene, Fra og Til i én", () => {
+  it("uten lagret oppsett vises de 13 standardkolonnene og Reise og Overtid etter Timer (O13), Fra og Til i én", () => {
     const { container } = vis([sedel()]);
     expect(hodeKolonner(container)).toEqual([
-      "dato", "ansatt", "prosjektnummer", "underprosjekt", "betegnelse", "fraTil", "timer",
+      "dato", "ansatt", "prosjektnummer", "underprosjekt", "betegnelse", "fraTil", "timer", "reisetimer", "overtid",
       "maskin", "maskintimer", "vareOgMengde", "antall", "belop", "avvik",
     ]);
     expect(h.velger.props!.nullstillTekst).toBe("timer.attestering.tabell.tilbakestillStandard");
   });
 
-  it("et lagret oppsett vises som det er og lagres ikke på nytt (WM69)", () => {
+  it("et lagret oppsett vises som det er, med Reise og Overtid satt inn etter Timer (O13 R3), og lagres ikke på nytt (WM69)", () => {
     vi.useFakeTimers();
     try {
       h.data["bruker.hentTabelloppsett"] = { kolonner: ["timer", "ansatt", "fraTid"], rekkefolge: true, bredder: {}, sortering: null };
       const { container } = vis([sedel()]);
       act(() => { vi.advanceTimersByTime(2000); });
-      expect(hodeKolonner(container)).toEqual(["timer", "ansatt", "fraTid"]);
+      expect(hodeKolonner(container)).toEqual(["timer", "reisetimer", "overtid", "ansatt", "fraTid"]);
       expect(kallTil("lagreTabelloppsett")).toHaveLength(0);
     } finally {
       vi.useRealTimers();
@@ -611,7 +611,7 @@ describe("w5 — kjernekolonner og «Tilbakestill til standard»", () => {
       // Målt med effektivRekkefolge på develop (52d795f7): listas rekkefølge, ikke standardens.
       expect(hodeKolonner(container)).toEqual([
         "dato", "ansatt", "ansattnr", "prosjekt", "byggeplass", "underprosjekt", "type", "betegnelse",
-        "aktivitet", "fraTid", "tilTid", "timer", "maskintimer", "antall", "belop", "mengde", "enhet",
+        "aktivitet", "fraTid", "tilTid", "timer", "reisetimer", "overtid", "maskintimer", "antall", "belop", "mengde", "enhet",
         "beskrivelse", "status", "prosjektnummer", "pause", "maskin", "vare", "vareenhet", "varemengde", "avvik",
       ]);
       expect(kallTil("lagreTabelloppsett")).toHaveLength(0);
@@ -629,12 +629,13 @@ describe("w5 — kjernekolonner og «Tilbakestill til standard»", () => {
       act(() => { vi.advanceTimersByTime(900); });
       const k = kallTil("lagreTabelloppsett");
       expect(k).toHaveLength(1);
-      const oppsett = (k[0]!.input as { oppsett: { kolonner: string[]; rekkefolge?: boolean; bredder: Record<string, number> } }).oppsett;
+      const oppsett = (k[0]!.input as { oppsett: { kolonner: string[]; rekkefolge?: boolean; tillagt?: string[]; bredder: Record<string, number> } }).oppsett;
       expect(oppsett.kolonner).toEqual([
-        "dato", "ansatt", "prosjektnummer", "underprosjekt", "betegnelse", "fraTil", "timer",
+        "dato", "ansatt", "prosjektnummer", "underprosjekt", "betegnelse", "fraTil", "timer", "reisetimer", "overtid",
         "maskin", "maskintimer", "vareOgMengde", "antall", "belop", "avvik",
       ]);
       expect(oppsett.rekkefolge).toBe(true);
+      expect(oppsett.tillagt).toEqual(["reisetimer", "overtid"]);
       expect(oppsett.bredder).toEqual({});
       expect(hodeKolonner(container)[0]).toBe("dato");
     } finally {
@@ -839,15 +840,17 @@ describe("w5b — dagsvisningen, alternativ A", () => {
   const jobbrader = (c: HTMLElement) => Array.from(c.querySelectorAll('[data-rad="jobb"]')) as HTMLElement[];
   const venstreKant = (el: HTMLElement) => (el.firstElementChild as HTMLElement).className.match(/border-(blue|amber|emerald|violet|rose)-\d+/)?.[0];
 
-  it("én jobb: dagsraden bærer dato med ukedag, ansatt, pr.nr., «1 jobb», sum og dagens knapper — ingen jobbrad", () => {
+  it("én jobb: dagsraden bærer dato med ukedag, ansatt, prosjektnavnet (O13), sum og dagens knapper — ingen jobbrad", () => {
     const { container } = vis([sedel()]);
     const [dag] = dagsrader(container);
     expect(dagsrader(container)).toHaveLength(1);
     expect(jobbrader(container)).toHaveLength(0);
     expect(dag!.textContent).toMatch(/\S+ 16\.11\./);
     expect(dag!.textContent).toContain("Kari Nordmann");
-    expect(dag!.textContent).toContain("1001");
-    expect(dag!.textContent).toContain('antallJobber{"count":1}');
+    // O13 (pkt 2): prosjektnavnet i stedet for pr.nr.; «1 jobb» er gått ut.
+    expect(dag!.textContent).toContain("Prosjekt A");
+    expect(dag!.textContent).not.toContain("1001");
+    expect(dag!.textContent).not.toContain("antallJobber");
     expect(dag!.textContent).toContain("7,50");
     expect(within(dag!).getByRole("button", { name: "timer.attestering.tabell.attesterDagen" })).toBeTruthy();
     expect(within(dag!).getByRole("button", { name: "timer.attestering.returner" })).toBeTruthy();
@@ -871,8 +874,11 @@ describe("w5b — dagsvisningen, alternativ A", () => {
     expect(dag!.textContent).toContain('antallJobber{"count":2}');
     expect(dag!.textContent).not.toContain("1001");
     expect(dag!.textContent).toContain("15,00");
-    expect(jobb[0]!.textContent).toContain("1001");
-    expect(jobb[1]!.textContent).toContain("SD-2");
+    // O13 (pkt 2): jobbraden viser prosjektnavnet i stedet for pr.nr.
+    expect(jobb[0]!.textContent).toContain("Prosjekt A");
+    expect(jobb[0]!.textContent).not.toContain("1001");
+    expect(jobb[1]!.textContent).toContain("Prosjekt B");
+    expect(jobb[1]!.textContent).not.toContain("SD-2");
     for (const j of jobb) {
       expect(within(j).getByRole("button", { name: "timer.attestering.tabell.attesterKort" })).toBeTruthy();
       expect(within(j).getByRole("button", { name: "timer.attestering.tabell.returnerKort" })).toBeTruthy();
@@ -1224,10 +1230,12 @@ describe("w12 (§ 4.11 C) — reiselinja i jobben, del 8 «Reise» og «Føres p
     expect(l.textContent).toContain("timer.attestering.tabell.type.reise");
   });
 
-  it("✓ på jobbraden sender reisens id sammen med jobbens; jobbraden viser arbeidstimer og «reise X t»", () => {
+  it("✓ på jobbraden sender reisens id sammen med jobbens; jobbraden viser arbeidstimer og reisen i Reise (O13)", () => {
     const { container } = vis([sedel({ timer: [reise(), timer("t1"), timer("t2", { kortId: "kB", fraTid: "15:00", tilTid: "16:00", timer: "1", pauseMin: 0 })] })]);
     const [jobbA] = Array.from(container.querySelectorAll('[data-rad="jobb"]')) as HTMLElement[];
-    expect(jobbA!.querySelector("[data-reise-sum]")!.textContent).toBe('timer.attestering.tabell.reiseTimer{"timer":"1,00"}');
+    // O13 (pkt 3): den grå «reise X t» er gått ut; reisen står i Reise-kolonnen.
+    expect(jobbA!.querySelector("[data-reise-sum]")).toBeNull();
+    expect(jobbA!.querySelector('[data-tall="reise"]')!.textContent).toBe("1,00");
     expect(jobbA!.textContent).toContain("7,50");
     expect(jobbA!.textContent).not.toContain("8,50");
     fireEvent.click(within(jobbA!).getByRole("button", { name: "timer.attestering.tabell.attesterKort" }));
@@ -1259,13 +1267,16 @@ describe("w12 (§ 4.11 C) — reiselinja i jobben, del 8 «Reise» og «Føres p
     expect(del(p, 8)!.querySelector("select")).toBeNull();
   });
 
-  it("reise alene i et kort: jobbraden sier «Reise», kortet har ikke underprosjektvalget i hodet", () => {
+  it("reise alene i et kort: jobbraden har navnefeltet og reisetimene i Timer og Reise (O13 R5), kortet har ikke underprosjektvalget i hodet", () => {
     const { container } = vis([sedel({ timer: [timer("t1"), reise({ kortId: "kR" })] })]);
     const jobb = Array.from(container.querySelectorAll('[data-rad="jobb"]')) as HTMLElement[];
     expect(jobb).toHaveLength(2);
     // Reisen kl. 06:00 står først; kortet uten arbeid ordnes etter sin første linje.
-    expect(jobb[0]!.textContent).toContain("timer.attestering.tabell.type.reise");
-    expect(jobb[1]!.textContent).not.toContain("timer.attestering.tabell.type.reise");
+    // O13 (R5): etiketten «Reise» er gått ut — navnefeltet står der; Timer og Reise viser 1,00.
+    expect(jobb[0]!.textContent).not.toContain("timer.attestering.tabell.type.reise");
+    expect(jobb[0]!.querySelector("[data-prosjektnavn]")!.textContent).toContain("Prosjekt A");
+    expect(jobb[0]!.querySelector('[data-tall="reise"]')!.textContent).toBe("1,00");
+    expect(jobb[0]!.textContent).toMatch(/1,00.*1,00/);
     const p = aapnePanel(container, jobb[0]!);
     expect(within(p).queryByText("timer.attestering.registrering.underprosjekt")).toBeNull();
     expect(del(p, 8)).toBeTruthy();
@@ -1597,5 +1608,268 @@ describe("O6 (§ 8.22 punkt 2) — beskrivelsen ved hover på jobbraden i attest
       timer("tr", { fraTid: "15:00", tilTid: "15:30", timer: "0.5", pauseMin: 0, beskrivelse: "Kjøring", erReise: true } as Partial<AttTimer>),
     ] })]);
     expect(tekster(hoverFor(dagsrad(container))!)).toEqual(["Forskaling"]);
+  });
+});
+
+describe("O13 — attesteringen etter vedtaksfila § Dagsvisningen pkt 2 og 3", () => {
+  const OT = { id: "l2", navn: "Overtid 50 %", satsEnhet: null, overtidsnivaa: 50 };
+  const LR = { id: "lr", navn: "Reise", satsEnhet: null, overtidsnivaa: null };
+  const UP = { proAdmId: "100", kortNavn: "Grunn", navn: "Grunnarbeid" };
+  const reise = (over: Partial<AttTimer> = {}) =>
+    timer("r1", { erReise: true, reiseRetning: "ut", lonnsartId: "lr", fraTid: "06:00", tilTid: "07:00", timer: "1", pauseMin: 0, ...over });
+  const overtid = (id = "o1", over: Partial<AttTimer> = {}) =>
+    timer(id, { lonnsartId: "l2", fraTid: "15:00", tilTid: "17:00", timer: "2", pauseMin: 0, ...over });
+  const medOppsett = (kolonner: string[]) => {
+    h.data["bruker.hentTabelloppsett"] = { kolonner, rekkefolge: true, bredder: {}, sortering: null };
+  };
+  // Sum-radens celle for kolonnen: hodets rekkefølge, navnefeltet dekker «span N» kolonner.
+  const celle = (rad: HTMLElement, kol: string): HTMLElement | null => {
+    const kolonner = Array.from(document.querySelectorAll("[data-kolonne]")).map((e) => e.getAttribute("data-kolonne"));
+    const barn = Array.from(rad.children) as HTMLElement[];
+    let i = barn[0]?.querySelector('input[type="checkbox"]') || barn[0]?.querySelector("[data-pil]") ? 1 : 0;
+    for (let ki = 0; ki < kolonner.length; ) {
+      const b = barn[i++];
+      if (!b) return null;
+      const n = b.hasAttribute("data-navnefelt") ? Number(/span (\d+)/.exec(b.style.gridColumn)![1]) : 1;
+      if (kolonner.slice(ki, ki + n).includes(kol)) return n === 1 ? b : null;
+      ki += n;
+    }
+    return null;
+  };
+  beforeEach(() => {
+    h.data["timer.lonnsart.list"] = [{ id: "l1", navn: "Ordinær", satsEnhet: null, overtidsnivaa: null }, OT, LR];
+  });
+  afterEach(() => { delete h.data["bruker.hentTabelloppsett"]; });
+
+  describe("pkt 1 — prosjektnavnet i dagsrad og jobbrad", () => {
+    it("én jobb: navnet halvfet og under det «byggeplass · underprosjekt», over Pr.nr. til Fra–til", () => {
+      const { container } = vis([sedel({ timer: [timer("t1", { byggeplassNavn: "A sør", externalCostObjectId: "e1", underprosjekt: UP })] })]);
+      const navn = dagsrad(container).querySelector("[data-prosjektnavn]") as HTMLElement;
+      expect(navn).toBeTruthy();
+      expect(navn.firstElementChild!.textContent).toBe("Prosjekt A");
+      expect(navn.firstElementChild!.className).toContain("font-semibold");
+      expect(navn.firstElementChild!.className).toContain("truncate");
+      expect(navn.children[1]!.textContent).toMatch(/^A sør · /);
+      const felt = dagsrad(container).querySelector("[data-navnefelt]") as HTMLElement;
+      expect(felt.style.gridColumn).toBe("span 4");
+    });
+
+    it("uten byggeplass og underprosjekt: bare navnet", () => {
+      const { container } = vis([sedel()]);
+      const navn = dagsrad(container).querySelector("[data-prosjektnavn]") as HTMLElement;
+      expect(navn.children).toHaveLength(1);
+      expect(navn.textContent).toBe("Prosjekt A");
+    });
+
+    it("flere jobber: «N jobber» grått der navnefeltet begynner, hver jobbrad har sitt navn", () => {
+      const { container } = vis([toProsjekter()]);
+      const felt = dagsrad(container).querySelector("[data-navnefelt]") as HTMLElement;
+      expect(felt.querySelector("[data-antall-jobber]")!.textContent).toBe('timer.attestering.tabell.antallJobber{"count":2}');
+      expect(felt.querySelector("[data-antall-jobber]")!.className).toContain("text-gray-500");
+      const jobb = container.querySelectorAll('[data-rad="jobb"]');
+      expect(jobb[0]!.querySelector("[data-prosjektnavn]")!.textContent).toBe("Prosjekt A");
+      expect(jobb[1]!.querySelector("[data-prosjektnavn]")!.textContent).toBe("Prosjekt B");
+    });
+  });
+
+  it("pkt 1 — én jobb og kort med bare reise: «1 jobb» vises ikke i dagsraden", () => {
+    const { container } = vis([sedel({ timer: [timer("t1"), reise({ projectId: "pB", project: Q, kortId: "kB" })] })]);
+    expect(container.querySelectorAll('[data-rad="jobb"]').length).toBe(2);
+    expect(dagsrad(container).querySelector("[data-antall-jobber]")).toBeNull();
+    expect(dagsrad(container).textContent).not.toContain("antallJobber");
+  });
+
+  describe("pkt 2 — Reise og Overtid som egne kolonner", () => {
+    it("dagsraden viser dagens reise og overtid; tomt ved 0", () => {
+      const { container } = vis([sedel({ timer: [reise(), timer("t1"), overtid()] })]);
+      const dag = dagsrad(container);
+      expect(dag.querySelector('[data-tall="reise"]')!.textContent).toBe("1,00");
+      expect(dag.querySelector('[data-tall="overtid"]')!.textContent).toBe("2,00");
+      cleanup();
+      const uten = vis([sedel()]);
+      expect(dagsrad(uten.container).querySelector('[data-tall="reise"]')).toBeNull();
+      expect(dagsrad(uten.container).querySelector('[data-tall="overtid"]')).toBeNull();
+    });
+
+    it("jobbraden viser jobbens reise og overtid; dagens sum er uendret", () => {
+      const s = sedel({ timer: [timer("t1"), overtid("o1"), timer("t2", { projectId: "pB", project: Q, kortId: "kB" })] });
+      const { container } = vis([s]);
+      const jobb = container.querySelectorAll('[data-rad="jobb"]');
+      expect(jobb[0]!.querySelector('[data-tall="overtid"]')!.textContent).toBe("2,00");
+      expect(jobb[1]!.querySelector('[data-tall="overtid"]')).toBeNull();
+      expect(dagsrad(container).querySelector('[data-tall="overtid"]')!.textContent).toBe("2,00");
+      expect(dagsrad(container).textContent).toContain("17,00");
+    });
+
+    it("bare lønnsart med overtidsnivå 50/100 teller som overtid", () => {
+      h.data["timer.lonnsart.list"] = [{ id: "l1", navn: "Ordinær", satsEnhet: null, overtidsnivaa: null }, { ...OT, overtidsnivaa: null }];
+      const { container } = vis([sedel({ timer: [timer("t1"), overtid()] })]);
+      expect(dagsrad(container).querySelector('[data-tall="overtid"]')).toBeNull();
+    });
+
+    it("Reise og Overtid står tomme på linjene (R8)", () => {
+      const { container } = vis([sedel({ timer: [reise(), timer("t1"), overtid()] })]);
+      for (const n of ["s1:timer:t1", "s1:timer:o1", "s1:reise:r1"]) {
+        expect(linje(container, n).querySelector("[data-tall]")?.closest(`[data-kol="reisetimer"],[data-kol="overtid"]`) ?? null).toBeNull();
+      }
+    });
+  });
+
+  describe("pkt 3 — lønnsartmerket på overtids- og reiselinja", () => {
+    it("overtid lilla, reise blå, timetallet i samme farge; ordinær linje uten merke", () => {
+      const { container } = vis([sedel({ timer: [reise(), timer("t1"), overtid()] })]);
+      const ot = linje(container, "s1:timer:o1");
+      expect(ot.querySelector('[data-lonnsart-merke="overtid"]')!.className).toContain("violet");
+      expect(ot.querySelector('[data-tall="overtid"]')!.className).toContain("text-violet-700");
+      const r = linje(container, "s1:reise:r1");
+      expect(r.querySelector('[data-lonnsart-merke="reise"]')!.className).toContain("sky");
+      expect(r.querySelector('[data-tall="reise"]')!.className).toContain("text-sky-700");
+      expect(linje(container, "s1:timer:t1").querySelector("[data-lonnsart-merke]")).toBeNull();
+    });
+
+    it("reisenavnet kuttes ikke: Betegnelse spenner over de tomme cellene foran (B14c B)", () => {
+      const { container } = vis([sedel({ timer: [reise(), timer("t1")] })]);
+      const felt = linje(container, "s1:reise:r1").querySelector("[data-linjefelt]") as HTMLElement;
+      expect(felt).toBeTruthy();
+      expect(felt.querySelector('[data-lonnsart-merke="reise"]')).toBeTruthy();
+    });
+
+    it("ReiseRadMerke står ikke i tabellcella (R6), men i registreringen (del 8)", () => {
+      h.data["organisasjon.hentArbeidstidDefaults"] = { reiseLonnsartId: "lr", reiseGrenser: [] };
+      const { container } = vis([sedel({ timer: [reise(), timer("t1")] })]);
+      expect(linje(container, "s1:reise:r1").textContent).not.toContain("reise-merke");
+      fireEvent.click(dagsrad(container));
+      const panel = container.querySelector("[data-registrering]") as HTMLElement;
+      expect(panel.textContent).toContain("reise-merke");
+      delete h.data["organisasjon.hentArbeidstidDefaults"];
+    });
+
+    it("merket gjelder også i sortert liste (R8)", () => {
+      h.data["bruker.hentTabelloppsett"] = { kolonner: ["dato", "betegnelse", "timer"], rekkefolge: true, bredder: {}, sortering: { kolonne: "timer", retning: "asc" } };
+      const { container } = vis([sedel({ timer: [timer("t1"), overtid()] })]);
+      expect(container.querySelector('[data-lonnsart-merke="overtid"]')).toBeTruthy();
+    });
+  });
+
+  it("pkt 4 — Timer-kolonnen har plass til «11,50» halvfet", () => {
+    const kilde = readFileSync(resolve(__dirname, "../components/attestering/AttesteringTabell.tsx"), "utf8");
+    const m = /\n  timer: (\d+),/.exec(kilde.slice(kilde.indexOf("const ATTESTERING_BREDDE")));
+    expect(Number(m![1])).toBeGreaterThanOrEqual(60);
+  });
+
+  describe("R2 — navnefeltet følger brukerens kolonneoppsett", () => {
+    it("skjult Pr.nr.: feltet dekker de tre synlige", () => {
+      // Avvik synlig: med Avvik skjult bærer Betegnelse avviket og står utenfor feltet (vilkår 1, under).
+      medOppsett(["dato", "ansatt", "underprosjekt", "betegnelse", "fraTil", "timer", "avvik"]);
+      const { container } = vis([sedel()]);
+      expect((dagsrad(container).querySelector("[data-navnefelt]") as HTMLElement).style.gridColumn).toBe("span 3");
+    });
+
+    it("flyttet kolonne mellom: feltet stopper der; av de fire står de utenfor rekken tomme", () => {
+      medOppsett(["dato", "ansatt", "prosjektnummer", "underprosjekt", "timer", "betegnelse", "fraTil"]);
+      const { container } = vis([sedel()]);
+      const dag = dagsrad(container);
+      expect((dag.querySelector("[data-navnefelt]") as HTMLElement).style.gridColumn).toBe("span 2");
+      expect(celle(dag, "betegnelse")?.textContent ?? "").toBe("");
+      expect(celle(dag, "fraTil")?.textContent ?? "").toBe("");
+    });
+
+    it("ingen av de fire synlige: første tekstkolonne etter Ansatt", () => {
+      medOppsett(["dato", "ansatt", "timer", "aktivitet", "maskin"]);
+      const { container } = vis([sedel()]);
+      const dag = dagsrad(container);
+      expect(dag.querySelector("[data-navnefelt]")).toBeNull();
+      expect(celle(dag, "aktivitet")!.querySelector("[data-prosjektnavn]")!.textContent).toBe("Prosjekt A");
+    });
+
+    it("ingen tekstkolonne etter Ansatt: under navnet i Ansatt-cella", () => {
+      medOppsett(["dato", "ansatt", "timer"]);
+      const { container } = vis([sedel()]);
+      const a = celle(dagsrad(container), "ansatt")!;
+      expect(a.textContent).toContain("Kari Nordmann");
+      expect(a.querySelector("[data-prosjektnavn]")!.textContent).toBe("Prosjekt A");
+    });
+
+    // Gate O13 trinn 2, vilkår 1: med Avvik skjult bærer Betegnelse avviket (som på 360c35a0).
+    it("Avvik skjult → sperre og normmerke står i dagsraden og jobbraden (i Betegnelse, utenfor feltet)", () => {
+      medOppsett(["dato", "ansatt", "prosjektnummer", "underprosjekt", "betegnelse", "fraTil", "timer"]);
+      const en = vis([sedel({ id: "sperret", totaltimer: 8, dagsnorm: 7.5 })]);
+      const dag = dagsrad(en.container);
+      expect((dag.querySelector("[data-navnefelt]") as HTMLElement).style.gridColumn).toBe("span 2");
+      expect(dag.querySelector("[data-prosjektnavn]")!.textContent).toBe("Prosjekt A");
+      const b = celle(dag, "betegnelse")!;
+      expect(b.textContent).toContain("Fravær over dagsnorm");
+      expect(b.textContent).toContain('normMerke{"avvik":"+0,5"}');
+      expect(celle(dag, "fraTil")?.textContent ?? "").toBe("");
+      cleanup();
+      // Flere jobber: Betegnelse er cella rett etter feltet (span 2 over Pr.nr. og Underprosjekt).
+      const etterFeltet = (rad: HTMLElement) => {
+        const felt = rad.querySelector("[data-navnefelt]") as HTMLElement;
+        expect(felt.style.gridColumn).toBe("span 2");
+        return felt.nextElementSibling as HTMLElement;
+      };
+      const to = vis([{ ...toProsjekter(), id: "sperret" }]);
+      expect(etterFeltet(dagsrad(to.container)).textContent).toContain("Fravær over dagsnorm");
+      const jobber = Array.from(to.container.querySelectorAll<HTMLElement>('[data-rad="jobb"]'));
+      expect(jobber).toHaveLength(2);
+      for (const j of jobber) {
+        expect(j.querySelector("[data-prosjektnavn]")).toBeTruthy();
+        expect(etterFeltet(j).textContent).toContain("Fravær over dagsnorm");
+      }
+    });
+
+    it("Avvik skjult og bare Betegnelse av de fire: navnet i neste tekstkolonne, avviket i Betegnelse", () => {
+      medOppsett(["dato", "ansatt", "betegnelse", "aktivitet", "timer"]);
+      const { container } = vis([sedel({ id: "sperret" })]);
+      const dag = dagsrad(container);
+      expect(dag.querySelector("[data-navnefelt]")).toBeNull();
+      expect(celle(dag, "aktivitet")!.querySelector("[data-prosjektnavn]")!.textContent).toBe("Prosjekt A");
+      expect(celle(dag, "betegnelse")!.textContent).toContain("Fravær over dagsnorm");
+    });
+
+    it("Prosjekt- og Byggeplass-cellene står tomme i dagsrad og jobbrad", () => {
+      medOppsett(["dato", "ansatt", "prosjekt", "byggeplass", "prosjektnummer", "betegnelse", "timer"]);
+      const { container } = vis([toProsjekter()]);
+      for (const rad of [dagsrad(container), ...Array.from(container.querySelectorAll<HTMLElement>('[data-rad="jobb"]'))]) {
+        expect(celle(rad, "prosjekt")?.textContent ?? "").toBe("");
+        expect(celle(rad, "byggeplass")?.textContent ?? "").toBe("");
+      }
+    });
+  });
+
+  it("R4 — «Etter prosjekt» får samme navnefelt og Reise/Overtid", () => {
+    const { container } = visMed([sedel({ timer: [timer("t1"), overtid()] })], { gruppering: "prosjekt" });
+    const rad = container.querySelector('[data-rad="dag"]') as HTMLElement;
+    expect(rad.querySelector("[data-prosjektnavn]")!.textContent).toBe("Prosjekt A");
+    expect(rad.querySelector('[data-tall="overtid"]')!.textContent).toBe("2,00");
+  });
+
+  it("R5 — kort med bare reise: Timer = reisetimene, Reise = det samme, ingen «Reise»-etikett", () => {
+    const { container } = vis([toProsjekter(), sedel({ id: "s2", dato: "2026-11-17", timer: [timer("t3"), reise({ projectId: "pB", project: Q, kortId: "kB" })] })]);
+    const jobb = Array.from(container.querySelectorAll<HTMLElement>('[data-rad="jobb"]')).find((j) => j.querySelector('[data-tall="reise"]'))!;
+    expect(jobb.querySelector('[data-tall="reise"]')!.textContent).toBe("1,00");
+    expect(celle(jobb, "timer")!.textContent).toBe("1,00");
+    expect(jobb.textContent).not.toContain("timer.attestering.tabell.type.reise");
+  });
+});
+
+describe("O13-tillegg — bredden og navnet «Reise»", () => {
+  it("attesteringssiden har ikke sidebeholderens tak (max-w-7xl); firma-timer-layouten har det fortsatt", () => {
+    const side = readFileSync(resolve(__dirname, "../app/dashbord/attestering/page.tsx"), "utf8");
+    expect(side).not.toMatch(/className="[^"]*max-w-7xl/);
+    expect(side).toMatch(/return \(\n    <div className="min-w-0">/);
+    const firmaTimer = readFileSync(resolve(__dirname, "../app/dashbord/firma/timer/layout.tsx"), "utf8");
+    expect(firmaTimer).toMatch(/mx-auto max-w-7xl/);
+  });
+
+  it("«Velg parameter» viser «Reisetimer» for tallkolonnen og «Reise» for eksportens ja/nei-kolonne; overskriften er «Reise»", () => {
+    const { container } = vis([sedel()]);
+    const grupper = h.velger.props!.grupper as { felter: { id: string; navn: string }[] }[];
+    const navn = Object.fromEntries(grupper[0]!.felter.map((f) => [f.id, f.navn]));
+    expect(navn.reisetimer).toBe("timer.eksport.kolReisetimerVelger");
+    expect(navn.reise).toBe("timer.eksport.kolReise");
+    expect(navn.reisetimer).not.toBe(navn.reise);
+    expect(container.querySelector('[data-kolonne="reisetimer"]')!.textContent).toContain("timer.eksport.kolReisetimer");
+    expect(container.querySelector('[data-kolonne="reisetimer"]')!.textContent).not.toContain("Velger");
   });
 });

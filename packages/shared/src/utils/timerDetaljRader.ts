@@ -660,6 +660,11 @@ export const TIMER_TABELL_NYE_KOL = [
   "vareOgMengde",
   // w5 (B9): fra–til i én kolonne — «07:00–13:00». Fra og Til hver for seg står i «Velg parameter».
   "fraTil",
+  // O13 (vedtak-timer-web § Dagsvisningen pkt 3, skisse B14c B): reisetimer og overtidstimer
+  // som egne kolonner ved siden av Timer — bare i attesteringen. Egen nøkkel `reisetimer`,
+  // fordi `reise` er eksportens ja/nei-kolonne og står uendret i «Velg parameter».
+  "reisetimer",
+  "overtid",
 ] as const;
 
 export type TimerTabellKolKey = TimerKolKey | (typeof TIMER_TABELL_NYE_KOL)[number];
@@ -680,6 +685,12 @@ export type TimerTabellKolDef = {
   /** Kolonnen viser én verdi pr. maskin eller vare på linja (underlinjer, H14). */
   under: boolean;
   radtyper: readonly TimerTabellRadType[];
+  /**
+   * Navnet i «Velg parameter» når det skiller seg fra overskriften (i18n-nøkkel under
+   * `timer.eksport.`). O13-tillegg: `reisetimer` heter «Reisetimer» i velgeren, så den ikke
+   * forveksles med eksportens ja/nei-kolonne `reise`; overskriften i tabellen er «Reise».
+   */
+  velgerI18n?: string;
 };
 
 const def = (i18n: string, radtyper: readonly TimerTabellRadType[] = ALLE_TYPER, num = false, under = false): TimerTabellKolDef => ({ i18n, num, under, radtyper });
@@ -732,6 +743,8 @@ export const TIMER_TABELL_KOL: Record<TimerTabellKolKey, TimerTabellKolDef> = {
   beskrivelse: def(TIMER_KOL_I18N.beskrivelse),
   status: def(TIMER_KOL_I18N.status),
   avvik: def("kolAvvik"),
+  reisetimer: { ...def("kolReisetimer", ["timer"], true), velgerI18n: "kolReisetimerVelger" },
+  overtid: def("kolOvertid", ["timer"], true),
 };
 
 /**
@@ -745,10 +758,23 @@ export const TIMER_TABELL_KOL: Record<TimerTabellKolKey, TimerTabellKolDef> = {
 export const TIMER_TABELL_STANDARD: readonly TimerTabellKolKey[] = [
   "dato", "ansatt", "prosjektnummer", "underprosjekt", "betegnelse",
   "fraTil", "timer",
+  // O13 (pkt 3): Reise og Overtid rett etter Timer. Et lagret oppsett får dem satt inn én gang
+  // (`TIMER_TABELL_TILLAGT`, `useTabelloppsett`).
+  "reisetimer", "overtid",
   "maskin", "maskintimer",
   "vareOgMengde",
   "antall", "belop", "avvik",
 ];
+
+/**
+ * O13 (R3): kolonnene som er lagt til standardutvalget etter at brukere har lagret oppsett.
+ * Et lagret oppsett som ikke har dem (verken synlige eller i `tillagt`), får dem satt inn rett
+ * etter `etter`, én gang. Har brukeren skjult dem etterpå, står de i `tillagt` og settes ikke inn igjen.
+ */
+export const TIMER_TABELL_TILLAGT: { readonly ider: readonly TimerTabellKolKey[]; readonly etter: TimerTabellKolKey } = {
+  ider: ["reisetimer", "overtid"],
+  etter: "timer",
+};
 
 /** Standardbredde pr. kolonne (R6): eksportens bredder + de nye nøklene. Dratt bredde vinner. */
 export const TIMER_TABELL_KOL_BREDDE: Record<TimerTabellKolKey, TimerKolBredde> = {
@@ -764,7 +790,29 @@ export const TIMER_TABELL_KOL_BREDDE: Record<TimerTabellKolKey, TimerKolBredde> 
   fraTil: { min: 96, vekt: 0, excel: 13 },
   kort: { min: 140, vekt: 2, excel: 24 },
   avvik: { min: 180, vekt: 3, excel: 30 },
+  reisetimer: { min: 64, vekt: 0, excel: 9 },
+  overtid: { min: 72, vekt: 0, excel: 9 },
 };
+
+/**
+ * O13 (pkt 3): lønnsarten er overtid når `overtidsnivaa` er 50 eller 100 (`Lonnsart.overtidsnivaa`,
+ * packages/db-timer). Alt annet (null, ukjent tall) er ikke overtid.
+ */
+export function erOvertidsnivaa(nivaa: number | null | undefined): boolean {
+  return nivaa === 50 || nivaa === 100;
+}
+
+/**
+ * O13 (pkt 3): overtidstimene for et utvalg rader (dagen eller én jobb) — timene på radene der
+ * lønnsarten har overtidsmerke, summert. Én kilde for attesteringens Overtid-kolonne.
+ */
+export function sumOvertidTimer(
+  rader: readonly { timer: number | null | undefined; overtidsnivaa: number | null | undefined }[],
+): number {
+  let sum = 0;
+  for (const r of rader) if (erOvertidsnivaa(r.overtidsnivaa)) sum += r.timer ?? 0;
+  return Math.round(sum * 100) / 100;
+}
 
 /** Én maskin på en linje (R3). `navn` er oppslått; `kortId` skrives aldri ut (G11). */
 export interface TimerTabellMaskin {

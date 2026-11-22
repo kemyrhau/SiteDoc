@@ -9,6 +9,9 @@ import {
   TIMER_TABELL_KOL,
   TIMER_TABELL_KOL_KEYS,
   TIMER_TABELL_STANDARD,
+  TIMER_TABELL_TILLAGT,
+  erOvertidsnivaa,
+  sumOvertidTimer,
   timerTabellVerdi,
   type TimerTabellKolKey,
 } from "@sitedoc/shared";
@@ -26,7 +29,6 @@ import type { ProsjektValg } from "@/components/timer/rediger-types";
 import { RedigerRadModal } from "./RedigerRadModal";
 import { Kvitteringer } from "./Kvitteringer";
 import { RegistreringPanel, jobbensBeskrivelser } from "./RegistreringPanel";
-import { ReiseRadMerke } from "./ReiseRadMerke";
 import {
   AVVIK_FILTER,
   FILTER_KOLONNER,
@@ -37,6 +39,8 @@ import {
   filtrerModell,
   grupperModell,
   linjeIKontekst,
+  linjeSpenn,
+  navnefeltPlass,
   slaaSammen,
   spennerFlereAar,
   sumLinjer,
@@ -107,7 +111,10 @@ const ATTESTERING_BREDDE: Partial<Record<TimerTabellKolKey, number>> = {
   fraTil: 94,
   fraTid: 56,
   tilTid: 56,
-  timer: 52,
+  // O13 (pkt 3): «11,50» i halvfet står helt (52 ga 40 px til tallet). Reise og Overtid er nye.
+  timer: 60,
+  reisetimer: 56,
+  overtid: 64,
   maskin: 76,
   maskintimer: 66,
   vareOgMengde: 68,
@@ -122,6 +129,10 @@ const ATTESTERING_BREDDE: Partial<Record<TimerTabellKolKey, number>> = {
  */
 const DAG_KANT = "border-blue-700";
 const KORT_KANT = ["border-blue-400", "border-amber-500", "border-emerald-500", "border-violet-500", "border-rose-500"] as const;
+
+/** O13 (pkt 3): merket og tallet på reise- og overtidslinja — blå reise, lilla overtid (B14c B). */
+const MERKE_FARGE = { reise: "border-sky-300 bg-sky-50 text-sky-800", overtid: "border-violet-300 bg-violet-50 text-violet-800" } as const;
+const TALL_FARGE = { reise: "text-sky-700", overtid: "text-violet-700" } as const;
 
 /** Kolonner med kortere overskrift i hodet; full tittel ved hover. */
 const HODE_KORT: ReadonlySet<TimerTabellKolKey> = new Set<TimerTabellKolKey>(["prosjektnummer", "underprosjekt", "betegnelse", "maskintimer"]);
@@ -158,6 +169,8 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
     kanoniskRekkefolge: TIMER_TABELL_KOL_KEYS,
     // Standarden (ny bruker og «Tilbakestill til standard») har sin egen rekkefølge (w5).
     standardMedRekkefolge: true,
+    // O13 (R3): Reise og Overtid settes inn rett etter Timer i et lagret oppsett, én gang.
+    tillegg: TIMER_TABELL_TILLAGT,
   });
   const kolonner = useMemo(
     () => oppsett.kolonneRekkefolge.filter((k): k is TimerTabellKolKey => k in TIMER_TABELL_KOL),
@@ -223,6 +236,11 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
   const { data: aktiviteter } = trpc.timer.aktivitet.list.useQuery(katalogInput);
   const { data: prosjekterRaw } = trpc.prosjekt.hentAlle.useQuery({ organizationId: orgId, inkluderFrosne: true });
   const prosjekter = (prosjekterRaw ?? []) as unknown as ProsjektValg[];
+  // O13 (pkt 3): lønnsartens overtidsmerke (`overtidsnivaa` 50/100) — Overtid-kolonnen og merket på linja.
+  const overtidsnivaa = useMemo(
+    () => new Map((lonnsarter ?? []).map((l) => [l.id, (l as { overtidsnivaa?: number | null }).overtidsnivaa ?? null])),
+    [lonnsarter],
+  );
   // w10b (M3): firmaets standardverdier krever bare ansettelse — prosjektlederen er ikke firma-admin.
   const { data: innstilling } = trpc.organisasjon.hentArbeidstidDefaults.useQuery({ organizationId: orgId });
   const tidsrunding = (innstilling as { tidsrundingMinutter?: number | null } | undefined)?.tidsrundingMinutter ?? null;
@@ -254,6 +272,18 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
 
   /* ---------------- Celler ---------------- */
 
+  /** O13: reiselinja (reiseradene) og overtidslinja (lønnsart med overtidsmerke). */
+  function linjeSlag(l: AttLinje): "reise" | "overtid" | null {
+    if (l.kilde.type !== "timer") return null;
+    if (l.kilde.rad.erReise === true) return "reise";
+    return erOvertidsnivaa(overtidsnivaa.get(l.kilde.rad.lonnsartId)) ? "overtid" : null;
+  }
+  /** O13 (pkt 3): overtidstimene på linjene — summeres i `@sitedoc/shared` (`sumOvertidTimer`). */
+  const overtidFor = (linjer: readonly AttLinje[]) =>
+    sumOvertidTimer(
+      linjer.flatMap((l) => (l.kilde.type === "timer" ? [{ timer: l.linje.timer, overtidsnivaa: overtidsnivaa.get(l.kilde.rad.lonnsartId) ?? null }] : [])),
+    );
+
   const typeTekst = (type: string) => t(`timer.attestering.tabell.type.${type}`);
 
   function visning(k: TimerTabellKolKey, l: AttLinje, under: number): ReactNode {
@@ -264,9 +294,13 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
       return under === 0 && l.avvikMerker.length > 0 ? <AvvikMerker merker={l.avvikMerker} /> : null;
     }
     if (k === "dato") return under === 0 && typeof v === "string" ? dato(v) : null;
-    if (k === "betegnelse" && under === 0 && l.kilde.type === "timer" && l.kilde.rad.erReise) {
-      return <span className="inline-flex items-center gap-1">{l.linje.betegnelse}<ReiseRadMerke rad={l.kilde.rad} /></span>;
+    // O13 (pkt 3): reise- og overtidslinja har lønnsartens navn i farget merke og timetallet i
+    // samme farge. Merket er like høyt som teksten, så raden står på linje med klokkeslettet.
+    const slag = under === 0 ? linjeSlag(l) : null;
+    if (k === "betegnelse" && slag) {
+      return <span data-lonnsart-merke={slag} className={`rounded-full border px-1.5 text-xs font-medium leading-5 ${MERKE_FARGE[slag]}`}>{l.linje.betegnelse}</span>;
     }
+    if (k === "timer" && slag && typeof v === "number") return <span data-tall={slag} className={`font-medium ${TALL_FARGE[slag]}`}>{formaterNorsk(v)}</span>;
     if (v === null) return null;
     if (typeof v === "number") return k === "pause" ? String(v) : formaterNorsk(v);
     return v;
@@ -304,9 +338,12 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
 
   /* ---------------- Rader ---------------- */
 
-  const etikettKol: TimerTabellKolKey | undefined =
-    (["betegnelse", "prosjekt", "ansatt", "dato"] as const).find((k) => kolonner.includes(k)) ?? kolonner[0];
+  // O13 (pkt 2, R2): hvor prosjektnavnet står i dagsraden og jobbraden for dette kolonneoppsettet.
   const avvikKol: TimerTabellKolKey | undefined = (["avvik", "beskrivelse", "betegnelse"] as const).find((k) => kolonner.includes(k));
+  // Linjene: navnefeltets plass uten avvikskolonnen (linjas Betegnelse er lønnsartens navn).
+  const plass = useMemo(() => navnefeltPlass(kolonner, (k) => TIMER_TABELL_KOL[k].num), [kolonner]);
+  // Dagsrad og jobbrad: er Avvik skjult og avviket i Betegnelse, står Betegnelse utenfor feltet.
+  const sumPlass = useMemo(() => navnefeltPlass(kolonner, (k) => TIMER_TABELL_KOL[k].num, avvikKol), [kolonner, avvikKol]);
 
   function handlingKnapp(props: { ikon: ReactNode; tekst: string; onClick: () => void; disabled?: boolean; tittel?: string; farge?: string }) {
     return (
@@ -550,22 +587,54 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
   }
 
   /**
-   * Jobbraden (w12, § 4.11 C4): «Timer» er arbeidstimene, så tallet stemmer med «høyst X t»;
-   * reisen står i grått i tekstkolonnen, der dagsraden har «N jobber». Et kort med bare reise
-   * viser reisetimene og «Reise» (C7). Dagsraden summerer alt.
+   * Jobbraden (w12, § 4.11 C4): «Timer» er arbeidstimene, så tallet stemmer med «høyst X t».
+   * Et kort med bare reise viser reisetimene (C7). Dagsraden summerer alt. Reisen står i egen
+   * kolonne (O13, pkt 3).
    */
   const jobbTimer = (sum: { timer: number; reise: number }, kort: AttKort) =>
     formaterNorsk(kort.reise ? sum.timer : sum.timer - sum.reise);
-  function jobbEtikett(sum: { reise: number }, kort: AttKort): ReactNode {
-    if (kort.reise) return <span className="font-normal text-gray-500">{typeTekst("reise")}</span>;
-    if (sum.reise === 0) return "";
-    return <span data-reise-sum="" className="font-normal text-gray-500">{t("timer.attestering.tabell.reiseTimer", { timer: formaterNorsk(sum.reise) })}</span>;
+
+  /** O13 (pkt 3): Reise og Overtid i dags- og jobbraden — tom celle når det er 0. */
+  function reiseOvertidCelle(k: TimerTabellKolKey, reise: number, overtid: number): ReactNode | undefined {
+    if (k === "reisetimer") return reise > 0 ? <span data-tall="reise" className={TALL_FARGE.reise}>{formaterNorsk(reise)}</span> : "";
+    if (k === "overtid") return overtid > 0 ? <span data-tall="overtid" className={TALL_FARGE.overtid}>{formaterNorsk(overtid)}</span> : "";
+    return undefined;
   }
 
-  /** Jobbens felt (pr.nr., prosjekt, underprosjekt, byggeplass) i en dags- eller jobbrad. */
-  function kortCelle(k: TimerTabellKolKey, kort: AttKort | undefined): ReactNode | undefined {
-    if (k === "prosjektnummer" || k === "prosjekt" || k === "underprosjekt" || k === "byggeplass") return kort ? kortVerdi(k, kort) : "";
-    return undefined;
+  /**
+   * O13 (pkt 2): prosjektnavnet i halvfet, under det «byggeplass · underprosjekt» (bare navnet når
+   * kortet har ingen av dem). For langt navn kuttes med «…»; ingen egen hover (R7).
+   */
+  function navnInnhold(kort: AttKort): ReactNode {
+    const linje2 = [kort.byggeplass, kort.underprosjekt].filter((x): x is string => !!x).join(" · ");
+    return (
+      <span data-prosjektnavn="" className="block min-w-0">
+        <span className="block truncate font-semibold">{kort.prosjekt}</span>
+        {linje2 && <span className="block truncate text-xs font-normal text-gray-500">{linje2}</span>}
+      </span>
+    );
+  }
+  const antallJobber = (dag: AttDag) => {
+    // «N jobber» teller jobber, ikke reise alene i et kort (§ 4.11 C2). «1 jobb» vises ikke (O13).
+    const n = dag.kort.filter((x) => !x.reise).length;
+    if (n < 2) return "";
+    return <span data-antall-jobber="" className="block truncate font-normal text-gray-500">{t("timer.attestering.tabell.antallJobber", { count: n })}</span>;
+  };
+
+  /**
+   * O13 (R1, R2): navnefeltet i en dags- eller jobbrad. `spenn` til raden når feltet ligger over
+   * kolonner; ellers står innholdet i én kolonne eller under ansattnavnet (`navnCelle`).
+   */
+  function navnefelt(innhold: ReactNode) {
+    const p = sumPlass;
+    const spenn = p.type === "spenn" ? { spenn: { fra: p.fra, antall: p.antall, innhold } } : {};
+    const navnCelle = (k: TimerTabellKolKey, ansatt: ReactNode): ReactNode | undefined => {
+      if (p.tomme.has(k)) return "";
+      if (p.type === "kolonne" && k === p.kolonne) return innhold;
+      if (p.type === "ansatt" && k === "ansatt") return <span className="block min-w-0"><span className="block truncate">{ansatt}</span>{innhold}</span>;
+      return undefined;
+    };
+    return { spenn, navnCelle };
   }
 
   function avvikCelle(merker: AvvikMerke[], tekster: string[] = []) {
@@ -602,7 +671,10 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
       if (aapenKort === kort.nokkel) ut.push({ kind: "panel", nokkel: `p:${kort.nokkel}`, innhold: registrering(kort, s), blokk: { kant } });
       if (bareOversikt) return;
       for (const l of kort.linjer) {
-        ut.push({ kind: "linje", nokkel: l.nokkel, data: l, underlinjer: Math.max(1, l.linje.maskiner.length, l.linje.varer.length), blokk: { kant }, skjul: skjulPaaLinje(l, kort) });
+        const skjul = skjulPaaLinje(l, kort);
+        // O13 (B14c B): linjas navn over de tomme cellene foran Betegnelse, så det ikke kuttes.
+        const spenn = linjeSpenn(plass, kolonner, skjul);
+        ut.push({ kind: "linje", nokkel: l.nokkel, data: l, underlinjer: Math.max(1, l.linje.maskiner.length, l.linje.varer.length), blokk: { kant }, skjul, ...(spenn ? { spenn } : {}) });
       }
     };
     const aapne = (kort: AttKort) => ({
@@ -635,7 +707,9 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
       if (gruppering === "prosjekt") {
         for (const kort of dag.kort) {
           const sum = sumLinjer(kort.linjer);
+          const overtid = overtidFor(kort.linjer);
           const norm = normMerke(s);
+          const nf = navnefelt(navnInnhold(kort));
           ut.push({
             kind: "sum",
             nokkel: `o:${kort.nokkel}`,
@@ -644,9 +718,12 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
             venstre: kryss([kort], t("timer.attestering.tabell.velgJobb")),
             hoyre: kortHandlinger(kort, s),
             ...aapne(kort),
+            ...nf.spenn,
             celle: (k) => {
-              const kc = kortCelle(k, kort);
-              if (kc !== undefined) return kc;
+              const nc = nf.navnCelle(k, dag.ansatt);
+              if (nc !== undefined) return nc;
+              const ro = reiseOvertidCelle(k, sum.reise, overtid);
+              if (ro !== undefined) return ro;
               switch (k) {
                 case "dato": return ukedagDato(dag.dato);
                 case "ansatt": return dag.ansatt;
@@ -654,7 +731,6 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
                 case "timer": return jobbTimer(sum, kort);
                 case "maskintimer": return sum.maskintimer > 0 ? formaterNorsk(sum.maskintimer) : "";
                 default:
-                  if (k === etikettKol && k !== avvikKol) return jobbEtikett(sum, kort);
                   return k === avvikKol ? avvikCelle([...(norm ? [norm] : []), ...unikeMerker(kort.linjer.flatMap((l) => l.avvikMerker))]) : "";
               }
             },
@@ -666,7 +742,7 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
       }
 
       // Dagsraden øverst (B14 A): dato, ansatt, dagens sum, avvik og dagens knapper. Med én jobb
-      // står jobbens pr.nr. og underprosjekt her, og jobbraden vises ikke.
+      // står jobbens prosjektnavn her (O13), og jobbraden vises ikke.
       const enKort = dag.kort.length === 1 ? dag.kort[0] : undefined;
       const alle = dag.kort.flatMap((k) => k.linjer);
       const dagSum = sumLinjer(alle);
@@ -679,6 +755,9 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
         dag.sperre,
         s.normStatus === "cachet" ? t("timer.attestering.norm.cachet") : s.normStatus === "ukjent" ? t("timer.attestering.norm.ukjent") : null,
       ].filter((x): x is string => !!x);
+      const dagOvertid = overtidFor(alle);
+      // O13 (pkt 2): med én jobb står prosjektnavnet i dagsraden; med flere «N jobber» der.
+      const dagNf = navnefelt(enKort ? navnInnhold(enKort) : antallJobber(dag));
       ut.push({
         kind: "sum",
         nokkel: `d:${s.id}`,
@@ -689,9 +768,12 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
         hoyre: dagHandlinger(dag, enKort),
         // Flere jobber: dagsraden er ikke én jobb og åpner ingenting; jobbradene gjør det.
         ...(enKort ? aapne(enKort) : {}),
+        ...dagNf.spenn,
         celle: (k) => {
-          const kc = kortCelle(k, enKort);
-          if (kc !== undefined) return kc;
+          const nc = dagNf.navnCelle(k, dag.ansatt);
+          if (nc !== undefined) return nc;
+          const ro = reiseOvertidCelle(k, dagSum.reise, dagOvertid);
+          if (ro !== undefined) return ro;
           switch (k) {
             case "dato": return ukedagDato(dag.dato);
             case "ansatt": return dag.ansatt;
@@ -700,9 +782,6 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
             case "maskintimer": return dagSum.maskintimer > 0 ? formaterNorsk(dagSum.maskintimer) : "";
             default:
               if (k === avvikKol) return avvikCelle(dagMerker, dagTekster);
-              if (k === etikettKol && enKort?.reise) return jobbEtikett(dagSum, enKort);
-              // «N jobber» teller jobber, ikke reise alene i et kort (§ 4.11 C2).
-              if (k === etikettKol) return <span className="font-normal text-gray-500">{t("timer.attestering.tabell.antallJobber", { count: dag.kort.filter((x) => !x.reise).length })}</span>;
               return "";
           }
         },
@@ -713,6 +792,8 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
         // Flere jobber samme dag (Kenneths tillegg til B14): hver jobb sin jobbrad og sin kantfarge.
         if (!enKort) {
           const sum = sumLinjer(kort.linjer);
+          const overtid = overtidFor(kort.linjer);
+          const nf = navnefelt(navnInnhold(kort));
           ut.push({
             kind: "sum",
             nokkel: `o:${kort.nokkel}`,
@@ -721,12 +802,14 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
             venstre: kryss([kort], t("timer.attestering.tabell.velgJobb")),
             hoyre: kortHandlinger(kort),
             ...aapne(kort),
+            ...nf.spenn,
             celle: (k) => {
-              const kc = kortCelle(k, kort);
-              if (kc !== undefined) return kc;
+              const nc = nf.navnCelle(k, "");
+              if (nc !== undefined) return nc;
+              const ro = reiseOvertidCelle(k, sum.reise, overtid);
+              if (ro !== undefined) return ro;
               if (k === "timer") return jobbTimer(sum, kort);
               if (k === "maskintimer") return sum.maskintimer > 0 ? formaterNorsk(sum.maskintimer) : "";
-              if (k === etikettKol && k !== avvikKol) return jobbEtikett(sum, kort);
               if (k === avvikKol) return avvikCelle(unikeMerker(kort.linjer.flatMap((l) => l.avvikMerker)));
               return "";
             },
@@ -739,7 +822,7 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
     }
     return ut;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- handlingene leser fersk tilstand ved klikk
-  }, [synlige, gruppering, bareOversikt, t, readOnly, opptatt, etikettKol, avvikKol, prosjektKontekst, medAar, aapenKort, lonnsarter, i18n.language, valgte, tidsrunding]);
+  }, [synlige, gruppering, bareOversikt, t, readOnly, opptatt, plass, sumPlass, kolonner, avvikKol, prosjektKontekst, medAar, aapenKort, lonnsarter, overtidsnivaa, i18n.language, valgte, tidsrunding]);
 
   /* ---------------- Filter i hodet (R8) ---------------- */
 
@@ -772,7 +855,7 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
   ];
 
   const velgerGrupper = useMemo(
-    () => [{ id: "alle", navn: t("timer.attestering.tabell.kolonner"), felter: TIMER_TABELL_KOL_KEYS.map((k) => ({ id: k, navn: t(`timer.eksport.${TIMER_TABELL_KOL[k].i18n}`) })) }],
+    () => [{ id: "alle", navn: t("timer.attestering.tabell.kolonner"), felter: TIMER_TABELL_KOL_KEYS.map((k) => ({ id: k, navn: t(`timer.eksport.${TIMER_TABELL_KOL[k].velgerI18n ?? TIMER_TABELL_KOL[k].i18n}`) })) }],
     [t],
   );
 

@@ -8,6 +8,9 @@ import {
   TIMER_TABELL_KOL_KEYS,
   TIMER_TABELL_STANDARD,
   TIMER_TABELL_KOL_BREDDE,
+  TIMER_TABELL_TILLAGT,
+  erOvertidsnivaa,
+  sumOvertidTimer,
   timerTabellVerdi,
   antallUnderlinjer,
   vareOgMengdeTekst,
@@ -54,12 +57,28 @@ describe("T40 — samme nøkler og overskrifter som eksporten", () => {
 });
 
 describe("H9 / w5 — standardkolonnene", () => {
-  it("w5: de 13 kjernekolonnene pluss Antall og Beløp, i kjernerekkefølge", () => {
+  it("w5 + O13: de 13 kjernekolonnene, med Reise og Overtid rett etter Timer", () => {
     expect([...TIMER_TABELL_STANDARD]).toEqual([
       "dato", "ansatt", "prosjektnummer", "underprosjekt", "betegnelse",
-      "fraTil", "timer", "maskin", "maskintimer", "vareOgMengde",
+      "fraTil", "timer", "reisetimer", "overtid", "maskin", "maskintimer", "vareOgMengde",
       "antall", "belop", "avvik",
     ]);
+  });
+
+  it("O13 (R10, vakt): ingen av de 13 kjernekolonnene er tatt ut av standardutvalget", () => {
+    for (const k of ["dato", "ansatt", "prosjektnummer", "underprosjekt", "betegnelse", "fraTil", "timer",
+      "maskin", "maskintimer", "vareOgMengde", "antall", "belop", "avvik"]) {
+      expect(TIMER_TABELL_STANDARD, k).toContain(k);
+    }
+  });
+
+  it("O13 (R3): Reise og Overtid er tillagte kolonner som settes inn etter Timer", () => {
+    expect(TIMER_TABELL_TILLAGT).toEqual({ ider: ["reisetimer", "overtid"], etter: "timer" });
+    // Eksportens ja/nei-kolonne «reise» står som før; den nye tallkolonnen har egen nøkkel.
+    expect(TIMER_TABELL_KOL_KEYS).toContain("reise");
+    expect(TIMER_KOL_KEYS).not.toContain("reisetimer" as never);
+    expect(nbT["timer.eksport." + TIMER_TABELL_KOL.reisetimer.i18n]).toBe("Reise");
+    expect(nbT["timer.eksport." + TIMER_TABELL_KOL.overtid.i18n]).toBe("Overtid");
   });
 
   it("w5: fra–til er én kolonne; Fra og Til hver for seg står i «Velg parameter»", () => {
@@ -132,5 +151,26 @@ describe("H14 — underlinjer pr. maskin og vare", () => {
     expect(timerTabellVerdi("ansatt", linje, 1)).toBeNull();
     expect(timerTabellVerdi("pause", linje)).toBe(30);
     expect(timerTabellVerdi("avvik", linje)).toBe("Normtak brutt: Ordinær");
+  });
+});
+
+describe("O13 — overtid summeres fra lønnsartens overtidsnivå", () => {
+  it("erOvertidsnivaa: bare 50 og 100 er overtid", () => {
+    expect(erOvertidsnivaa(50)).toBe(true);
+    expect(erOvertidsnivaa(100)).toBe(true);
+    expect(erOvertidsnivaa(null)).toBe(false);
+    expect(erOvertidsnivaa(undefined)).toBe(false);
+    expect(erOvertidsnivaa(0)).toBe(false);
+  });
+
+  it("sumOvertidTimer: summerer timer på rader med overtidsnivå 50/100, 0 uten", () => {
+    expect(sumOvertidTimer([
+      { timer: 7.5, overtidsnivaa: null },
+      { timer: 2, overtidsnivaa: 50 },
+      { timer: 1.25, overtidsnivaa: 100 },
+      { timer: null, overtidsnivaa: 50 },
+    ])).toBe(3.25);
+    expect(sumOvertidTimer([{ timer: 8, overtidsnivaa: null }])).toBe(0);
+    expect(sumOvertidTimer([])).toBe(0);
   });
 });
