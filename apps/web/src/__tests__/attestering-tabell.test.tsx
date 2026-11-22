@@ -745,6 +745,25 @@ describe("w8 — jobbraden åpner registreringen, timeradene gjør det ikke", ()
     expect(kallTil("flyttTimerRadEco")[0]!.input).toEqual({ timerRadId: "t1", radType: "timer", externalCostObjectId: "e2", helJobb: true });
   });
 
+  it("RETUR O12 vilkår 2: arbeidstid-reise først i kortet — jobbens underprosjekt vises, «hele jobben» sendes med jobbradens id", () => {
+    h.data["eksternKostObjekt.list"] = [
+      { id: "e1", proAdmId: "100", kortNavn: "Grunn" },
+      { id: "e2", proAdmId: "200", kortNavn: "Tak" },
+      { id: "e3", proAdmId: "300", kortNavn: "Vegg" },
+    ];
+    // «Til byggeplass» ført som arbeidstid kl. 06:30 med underprosjekt Tak; jobben (07–15) har Grunn.
+    const reise = timer("r1", { fraTid: "06:30", tilTid: "07:00", timer: "0.5", pauseMin: 0, externalCostObjectId: "e2", arbeidReiseRetning: "ut" });
+    const jobb = timer("t1", { externalCostObjectId: "e1" });
+    const { container } = vis([sedel({ timer: [reise, jobb] })]);
+    fireEvent.click(dagsrad(container));
+    const panel = container.querySelector("[data-registrering]") as HTMLElement;
+    const knapp = (navn: string) => within(panel).getAllByRole("button").find((b) => b.textContent?.includes(navn))!;
+    expect(knapp("Grunn").getAttribute("aria-pressed")).toBe("true");
+    expect(knapp("Tak").getAttribute("aria-pressed")).toBe("false");
+    fireEvent.click(knapp("Vegg"));
+    expect(kallTil("flyttTimerRadEco")[0]!.input).toEqual({ timerRadId: "t1", radType: "timer", externalCostObjectId: "e3", helJobb: true });
+  });
+
   it("uten kortId (eldre rad) kan hele jobben ikke flyttes og del opp vises ikke", () => {
     h.data["eksternKostObjekt.list"] = [{ id: "e1", proAdmId: "100", kortNavn: "Grunn" }];
     const { container } = vis([sedel({ timer: [timer("t1", { kortId: null })] })]);

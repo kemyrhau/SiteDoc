@@ -23,6 +23,7 @@ const KORT = "88888888-8888-4888-8888-888888888881";
 const KORT_B = "88888888-8888-4888-8888-888888888882";
 const SHEET = "99999999-9999-4999-8999-999999999999";
 const USER = "user-1";
+const R1 = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1";
 
 vi.mock("../../trpc/tilgangskontroll", () => ({
   verifiserProsjekterTilhørerFirma: vi.fn(async (ider: string[]) => {
@@ -76,7 +77,10 @@ type Rad = {
   externalCostObjectId: string | null;
   attestertStatus?: string;
   erReise?: boolean;
+  arbeidReiseRetning?: string | null;
   fraTid?: string;
+  tilTid?: string;
+  timer?: number;
   createdAt?: Date;
   expenseCategoryId?: string;
   ordningVedFoering?: string;
@@ -88,6 +92,8 @@ type Where = {
   dagsseddelId?: string;
   kortId?: string;
   erReise?: boolean;
+  arbeidReiseRetning?: null;
+  OR?: Array<{ erReise?: boolean; arbeidReiseRetning?: { not: null } }>;
   projectId?: { not: null };
   attestertStatus?: { not: string };
 };
@@ -98,6 +104,14 @@ function treff(r: Rad, w: Where): boolean {
   if (w.dagsseddelId !== undefined && r.sheetId !== w.dagsseddelId) return false;
   if (w.kortId !== undefined && r.kortId !== w.kortId) return false;
   if (w.erReise !== undefined && (r.erReise ?? false) !== w.erReise) return false;
+  if (w.arbeidReiseRetning === null && (r.arbeidReiseRetning ?? null) !== null) return false;
+  if (
+    w.OR &&
+    !w.OR.some((o) =>
+      o.erReise !== undefined ? (r.erReise ?? false) === o.erReise : (r.arbeidReiseRetning ?? null) !== null,
+    )
+  )
+    return false;
   if (w.projectId && r.projectId === null) return false;
   if (w.attestertStatus && (r.attestertStatus ?? "pending") === w.attestertStatus.not) return false;
   return true;
@@ -109,9 +123,9 @@ const felles = { sheetId: SHEET, kortId: KORT, projectId: P1, byggeplassId: BP1,
 function data() {
   return {
     timer: [
-      { ...felles, id: "t1", fraTid: "07:00" },
+      { ...felles, id: "t1", fraTid: "07:00", tilTid: "15:00" },
       { ...felles, id: "t2", fraTid: "15:00" },
-      { ...felles, id: "r1", erReise: true, fraTid: "06:30" },
+      { ...felles, id: R1, erReise: true, fraTid: "06:30", tilTid: "07:00" },
       { ...felles, id: "tErstattet", attestertStatus: "erstattet", fraTid: "08:00" },
       { ...felles, id: "tB", kortId: KORT_B, fraTid: "16:00" },
     ] as Rad[],
@@ -136,6 +150,17 @@ function oppsett(
       for (const r of valgt) Object.assign(r, endring);
       return { count: valgt.length };
     },
+    update: async ({ where, data: endring }: { where: { id: string }; data: Partial<Rad> }) => {
+      const r = rader.find((x) => x.id === where.id)!;
+      Object.assign(r, endring);
+      return r;
+    },
+    deleteMany: async ({ where }: { where: Where }) => {
+      const valgt = rader.filter((r) => treff(r, where));
+      for (const r of valgt) rader.splice(rader.indexOf(r), 1);
+      return { count: valgt.length };
+    },
+    aggregate: async () => ({ _sum: { pauseMin: 0 } }),
   });
   const db = {
     sheetTimer: modell(d.timer),
@@ -198,20 +223,22 @@ const jobbRader = (d: ReturnType<typeof data>) => [
   ...d.varer,
 ];
 const urort = () => JSON.stringify(data());
+/** O12 pkt 18: valget arbeideren gjør i vinduet; uten tider beholder reisen sine tider. */
+const FLYTT = { valg: "flytt" as const, tider: [] };
 
 beforeEach(() => vi.clearAllMocks());
 
 describe("dagsseddel.flyttJobb — prosjekt og byggeplass på lagret jobbkort", () => {
-  it("utkast: alt på jobben (unntatt reise) flyttes til nytt prosjekt, byggeplass, underprosjekt «Uten»", async () => {
+  it("utkast: alt på jobben flyttes til nytt prosjekt, byggeplass, underprosjekt «Uten» (O12 pkt 18: reisen med «flytt»)", async () => {
     const { caller, d } = oppsett("draft");
-    const svar = await caller.flyttJobb({ sheetId: SHEET, kortId: KORT, projectId: P2, byggeplassId: BP2 });
-    expect(svar.antall).toBe(6);
+    const svar = await caller.flyttJobb({ sheetId: SHEET, kortId: KORT, projectId: P2, byggeplassId: BP2, reise: FLYTT });
+    expect(svar.antall).toBeGreaterThanOrEqual(6);
     for (const r of jobbRader(d)) expect({ id: r.id, sted: sted(r) }).toEqual({ id: r.id, sted: [P2, BP2, null] });
-    // Intet igjen på gammelt prosjekt, unntatt reisen og den erstattede historikken.
+    // Intet igjen på gammelt prosjekt, unntatt den erstattede historikken.
     const igjen = [...d.timer, ...d.tillegg, ...d.maskin, ...d.utlegg, ...d.varer]
       .filter((r) => r.projectId === P1 && r.id !== "tB")
       .map((r) => r.id);
-    expect(igjen.sort()).toEqual(["r1", "tErstattet"]);
+    expect(igjen.sort()).toEqual(["tErstattet"]);
     // Ny kort-id, felles for hele jobben.
     const kortIder = new Set(jobbRader(d).map((r) => r.kortId));
     expect(kortIder.size).toBe(1);
@@ -222,31 +249,91 @@ describe("dagsseddel.flyttJobb — prosjekt og byggeplass på lagret jobbkort", 
     expect(d.timer.find((r) => r.id === "tB")!.kortId).toBe(KORT_B);
   });
 
-  it("reisen flyttes ikke: prosjekt, byggeplass og underprosjekt står; bare jobbens kort-id tas av", async () => {
+  it("O12 pkt 18: reise i jobben uten valg → avvist, ingenting endres", async () => {
     const { caller, d } = oppsett("draft");
+    await expect(
+      caller.flyttJobb({ sheetId: SHEET, kortId: KORT, projectId: P2, byggeplassId: BP2 }),
+    ).rejects.toMatchObject({
+      code: "PRECONDITION_FAILED",
+      message: "Jobben har en reise. Velg om reisen flyttes med ny tid eller slettes.",
+    });
+    expect(JSON.stringify(d)).toBe(urort());
+  });
+
+  it("O12 pkt 18: «Flytt reisen med ny tid» — reisen følger jobben til nytt sted og kort med ny tid", async () => {
+    const { caller, d } = oppsett("draft");
+    await caller.flyttJobb({
+      sheetId: SHEET,
+      kortId: KORT,
+      projectId: P2,
+      byggeplassId: BP2,
+      reise: { valg: "flytt", tider: [{ id: R1, fraTid: "06:15", tilTid: "07:00", kjoretidMin: 45 }] },
+    });
+    const reise = d.timer.find((r) => r.id === R1)!;
+    const t1 = d.timer.find((r) => r.id === "t1")!;
+    expect(sted(reise)).toEqual([P2, BP2, null]);
+    expect(reise.kortId).toBe(t1.kortId);
+    expect(reise).toMatchObject({ fraTid: "06:15", tilTid: "07:00", timer: 0.75 });
+  });
+
+  it("O12 pkt 18: «Slett reisen» — reisen er borte, jobben flyttet", async () => {
+    const { caller, d } = oppsett("draft");
+    await caller.flyttJobb({ sheetId: SHEET, kortId: KORT, projectId: P2, byggeplassId: BP2, reise: { valg: "slett" } });
+    expect(d.timer.find((r) => r.id === R1)).toBeUndefined();
+    expect(sted(d.timer.find((r) => r.id === "t1")!)).toEqual([P2, BP2, null]);
+  });
+
+  it("O12 pkt 16/18: reise ført som arbeidstid (merket) behandles som reise — slettes med «Slett reisen»", async () => {
+    const d = data();
+    const r1 = d.timer.find((r) => r.id === R1)!;
+    r1.erReise = false;
+    r1.arbeidReiseRetning = "ut";
+    const { caller } = oppsett("draft", d);
+    await caller.flyttJobb({ sheetId: SHEET, kortId: KORT, projectId: P2, byggeplassId: BP2, reise: { valg: "slett" } });
+    expect(d.timer.find((r) => r.id === R1)).toBeUndefined();
+  });
+
+  it("O12 pkt 18 (R7): umerket arbeidstid-reise fra før er arbeid — følger stille med, uten valg", async () => {
+    const d = data();
+    const r1 = d.timer.find((r) => r.id === R1)!;
+    r1.erReise = false;
+    const { caller } = oppsett("draft", d);
     await caller.flyttJobb({ sheetId: SHEET, kortId: KORT, projectId: P2, byggeplassId: BP2 });
-    const reise = d.timer.find((r) => r.id === "r1")!;
-    expect(sted(reise)).toEqual([P1, BP1, ECO1]);
-    expect(reise.kortId).toBeNull();
+    expect(sted(r1)).toEqual([P2, BP2, null]);
+    expect(r1).toMatchObject({ fraTid: "06:30", tilTid: "07:00" });
+  });
+
+  it("O12 pkt 18: ny tid som overlapper en annen rad → avvist, ingenting endres", async () => {
+    const { caller, d } = oppsett("draft");
+    await expect(
+      caller.flyttJobb({
+        sheetId: SHEET,
+        kortId: KORT,
+        projectId: P2,
+        byggeplassId: BP2,
+        reise: { valg: "flytt", tider: [{ id: R1, fraTid: "06:30", tilTid: "07:30", kjoretidMin: 60 }] },
+      }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST", message: "Reisens nye tid overlapper en annen rad på dagsseddelen." });
+    expect(JSON.stringify(d)).toBe(urort());
   });
 
   it("returnert dag kan også flyttes", async () => {
     const { caller, d } = oppsett("returned");
-    await caller.flyttJobb({ sheetId: SHEET, kortId: KORT, projectId: P2, byggeplassId: null });
+    await caller.flyttJobb({ sheetId: SHEET, kortId: KORT, projectId: P2, byggeplassId: null, reise: FLYTT });
     expect(sted(d.timer.find((r) => r.id === "t1")!)).toEqual([P2, null, null]);
   });
 
   it.each(["sent", "accepted", "approved"])("%s dag avvises, ingenting flyttes", async (status) => {
     const { caller, d } = oppsett(status);
     await expect(
-      caller.flyttJobb({ sheetId: SHEET, kortId: KORT, projectId: P2, byggeplassId: BP2 }),
+      caller.flyttJobb({ sheetId: SHEET, kortId: KORT, projectId: P2, byggeplassId: BP2, reise: FLYTT }),
     ).rejects.toMatchObject({ code: "PRECONDITION_FAILED", message: `Dagsseddel er låst (status: ${status})` });
     expect(JSON.stringify(d)).toBe(urort());
   });
 
   it.each([
     ["timer", "t2"],
-    ["reise", "r1"],
+    ["reise", R1],
     ["tillegg", "tl1"],
     ["maskin", "m1"],
   ])("attestert %s-linje i jobben blokkerer, ingenting flyttes", async (_type, radId) => {
@@ -256,7 +343,7 @@ describe("dagsseddel.flyttJobb — prosjekt og byggeplass på lagret jobbkort", 
     const foer = JSON.stringify(d);
     const { caller } = oppsett("draft", d);
     await expect(
-      caller.flyttJobb({ sheetId: SHEET, kortId: KORT, projectId: P2, byggeplassId: BP2 }),
+      caller.flyttJobb({ sheetId: SHEET, kortId: KORT, projectId: P2, byggeplassId: BP2, reise: FLYTT }),
     ).rejects.toMatchObject({
       code: "PRECONDITION_FAILED",
       message: "Bare jobber der alle linjene venter på attestering kan flyttes. Gjenåpne linjene først.",
@@ -270,7 +357,7 @@ describe("dagsseddel.flyttJobb — prosjekt og byggeplass på lagret jobbkort", 
     const foer = JSON.stringify(d);
     const { caller } = oppsett("draft", d);
     await expect(
-      caller.flyttJobb({ sheetId: SHEET, kortId: KORT, projectId: P2, byggeplassId: BP2 }),
+      caller.flyttJobb({ sheetId: SHEET, kortId: KORT, projectId: P2, byggeplassId: BP2, reise: FLYTT }),
     ).rejects.toMatchObject({ code: "PRECONDITION_FAILED" });
     expect(JSON.stringify(d)).toBe(foer);
   });
@@ -294,14 +381,14 @@ describe("dagsseddel.flyttJobb — prosjekt og byggeplass på lagret jobbkort", 
   it("vilkår 2: feiler vare-steget, står hele jobben på gammelt sted (én transaksjon)", async () => {
     const { caller, d } = oppsett("draft", data(), { vareFeil: true });
     await expect(
-      caller.flyttJobb({ sheetId: SHEET, kortId: KORT, projectId: P2, byggeplassId: BP2 }),
+      caller.flyttJobb({ sheetId: SHEET, kortId: KORT, projectId: P2, byggeplassId: BP2, reise: FLYTT }),
     ).rejects.toThrow("tilkoblingen brøt");
     expect(JSON.stringify(d)).toBe(urort());
   });
 
   it("punkt 3: varene følger jobben til prosjekt uten varelager — ingen blir igjen", async () => {
     const { caller, d } = oppsett("draft");
-    await caller.flyttJobb({ sheetId: SHEET, kortId: KORT, projectId: P_UTEN_VARE, byggeplassId: null });
+    await caller.flyttJobb({ sheetId: SHEET, kortId: KORT, projectId: P_UTEN_VARE, byggeplassId: null, reise: FLYTT });
     expect(d.timer.find((r) => r.id === "t1")!.projectId).toBe(P_UTEN_VARE);
     expect(d.varer.map((v) => v.projectId)).toEqual([P_UTEN_VARE]);
     expect(d.varer[0]!.kortId).toBe(d.timer.find((r) => r.id === "t1")!.kortId);
@@ -310,7 +397,7 @@ describe("dagsseddel.flyttJobb — prosjekt og byggeplass på lagret jobbkort", 
   it("punkt 4: utlegget føres annerledes på nytt prosjekt → avvist med Kenneths tekst", async () => {
     const { caller, d } = oppsett("draft", data(), { overstyring: "fakturert" });
     await expect(
-      caller.flyttJobb({ sheetId: SHEET, kortId: KORT, projectId: P2, byggeplassId: BP2 }),
+      caller.flyttJobb({ sheetId: SHEET, kortId: KORT, projectId: P2, byggeplassId: BP2, reise: FLYTT }),
     ).rejects.toMatchObject({
       code: "PRECONDITION_FAILED",
       message: "Utlegget føres annerledes på dette prosjektet. Fjern det først.",
@@ -320,7 +407,7 @@ describe("dagsseddel.flyttJobb — prosjekt og byggeplass på lagret jobbkort", 
 
   it("punkt 4: lik ordning → utlegget følger jobben", async () => {
     const { caller, d } = oppsett("draft", data(), { overstyring: "utlegg" });
-    await caller.flyttJobb({ sheetId: SHEET, kortId: KORT, projectId: P2, byggeplassId: BP2 });
+    await caller.flyttJobb({ sheetId: SHEET, kortId: KORT, projectId: P2, byggeplassId: BP2, reise: FLYTT });
     expect(sted(d.utlegg[0]!)).toEqual([P2, BP2, null]);
   });
 
@@ -328,7 +415,7 @@ describe("dagsseddel.flyttJobb — prosjekt og byggeplass på lagret jobbkort", 
     const d = data();
     for (const r of [...d.timer, ...d.tillegg, ...d.maskin, ...d.utlegg, ...d.varer]) r.byggeplassId = null;
     const { caller } = oppsett("draft", d);
-    await caller.flyttJobb({ sheetId: SHEET, kortId: KORT, projectId: P1, byggeplassId: BP1 });
+    await caller.flyttJobb({ sheetId: SHEET, kortId: KORT, projectId: P1, byggeplassId: BP1, reise: FLYTT });
     expect(sted(d.timer.find((r) => r.id === "t1")!)).toEqual([P1, BP1, ECO1]);
   });
 

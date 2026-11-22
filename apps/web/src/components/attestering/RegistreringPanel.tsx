@@ -190,8 +190,10 @@ export function RegistreringPanel({ kort, sedel, orgId, kanAttestere, kanRette, 
     };
   }, [arbeidstid]);
 
-  // Underprosjektet gjelder hele jobben (K3); jobbens rader deler det.
-  const forste = timerLinjer[0]?.kilde.rad ?? null;
+  // Underprosjektet gjelder hele jobben (K3); jobbens rader deler det. RETUR O12 vilkår 2: en
+  // arbeidstid-reise (`arbeidReiseRetning`) er ingen jobbrad — den kan ha eget underprosjekt og
+  // står ofte først (kl. 06:30); jobbens underprosjekt og «hele jobben» leses fra første jobbrad.
+  const forste = timerLinjer.find((l) => !l.kilde.rad.arbeidReiseRetning)?.kilde.rad ?? null;
   const tilleggForste = tillegg[0]?.kilde.type === "tillegg" ? tillegg[0].kilde.rad : null;
   const naaEco = forste?.externalCostObjectId ?? tilleggForste?.externalCostObjectId ?? null;
 

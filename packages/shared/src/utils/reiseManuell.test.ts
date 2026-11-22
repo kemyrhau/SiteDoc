@@ -218,6 +218,32 @@ describe("løsReiseKort", () => {
     expect(kort({ byggeplassId: null }).sperre).toBe("manglerKjoretid");
   });
 
+  // O12 pkt 14 (web): `tillatUtenKjoretid` gir tidsfelt med ankret tid i stedet for sperre.
+  // Mobilkallet (uten flagget) er uendret — testene over er negativkontrollen.
+  it("O12 pkt 14: tillatUtenKjoretid + manglende kjøretid → ingen sperre, Slutt = dagStart, «mangler»", () => {
+    const r = kort({ kjoretidFor: () => null, tillatUtenKjoretid: true });
+    expect(r).toMatchObject({ sperre: null, fraTid: null, tilTid: "07:00", utenKjoretid: "mangler", kjoretidMin: null });
+  });
+
+  it("O12 pkt 14 (R5): tillatUtenKjoretid uten byggeplass → «utenByggeplass»; Retur: Start = dagSlutt", () => {
+    const r = kort({ byggeplassId: null, retning: "retur", tillatUtenKjoretid: true });
+    expect(r).toMatchObject({ sperre: null, fraTid: "15:00", tilTid: null, utenKjoretid: "utenByggeplass" });
+  });
+
+  it("O12 pkt 14: skrevet Start gir timer og klassifisering målt på tiden (40 min ≥ 30 → reisetid)", () => {
+    const r = kort({ kjoretidFor: () => null, tillatUtenKjoretid: true, startTid: "06:20" });
+    expect(r).toMatchObject({ sperre: null, fraTid: "06:20", tilTid: "07:00" });
+    expect(r.timer).toBeCloseTo(40 / 60, 10);
+    expect(r.klassifisering?.erReise).toBe(true);
+    expect(r.spor?.reiseKjoretidMin).toBeNull();
+  });
+
+  it("O12 pkt 14: mobilkallet uten flagget er uendret (manglerKjoretid, ingen utenKjoretid)", () => {
+    const r = kort({ kjoretidFor: () => null });
+    expect(r.sperre).toBe("manglerKjoretid");
+    expect(r).not.toHaveProperty("utenKjoretid");
+  });
+
   it("Tur uten dagStart → manglerDagstid; Retur bruker dagSlutt", () => {
     expect(kort({ dagStart: null }).sperre).toBe("manglerDagstid");
     expect(kort({ dagStart: null, retning: "retur" }).sperre).toBeNull();

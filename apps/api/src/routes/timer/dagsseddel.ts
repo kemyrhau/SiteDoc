@@ -27,6 +27,7 @@ import {
 } from "../../trpc/tilgangskontroll";
 import { krevTimerAktivert, hentEffektivArbeidstid } from "../../services/timer";
 import {
+  JOBBRAD,
   kortIdForSkriving,
   lastLagretKort,
   lastSedelKortKontekst,
@@ -82,6 +83,7 @@ import {
   tilErEtterFra,
   finnOverlappendeTidsrom,
   finnTidsromKonflikt,
+  klokkeTilMin,
   utledOrdning,
   erGyldigOrdning,
   baeresAvSheetUtlegg,
@@ -710,13 +712,13 @@ async function validerEcoForFlytt(
 }
 
 /**
- * w5 (bilde 7, K3): underprosjekt for hele jobben. Alle rader på kortet — timer (ikke reise),
+ * w5 (bilde 7, K3): underprosjekt for hele jobben. Alle rader på kortet — timer (ikke reise, heller ikke arbeidstid-reise),
  * maskin, tillegg, utlegg og varer — får det nye underprosjektet. Kortets id beholdes (samme
  * jobb, ny nøkkel for alle radene samtidig, så K2–K4 holder). Alle linjer må vente på
  * attestering; en attestert linje flyttes ikke stille. Kalleren har sjekket tilgang, status og
  * underprosjektet.
  */
-async function flyttHeleJobben(
+export async function flyttHeleJobben(
   ctx: InnloggetCtx,
   args: {
     sheet: { id: string; organizationId: string };
@@ -732,7 +734,9 @@ async function flyttHeleJobben(
   }
   const hvor = { sheetId: sheet.id, kortId, attestertStatus: { not: "erstattet" } };
   const [timer, tillegg, maskiner, utlegg, varer] = await Promise.all([
-    pt.sheetTimer.findMany({ where: { ...hvor, erReise: false }, select: { id: true, attestertStatus: true } }),
+    // RETUR O12 tillegg: en reise ført som arbeidstid er ingen jobbrad; arbeideren valgte dens
+    // underprosjekt selv i reisevinduet, så den følger ikke jobben (`JOBBRAD`, grunnregel 2).
+    pt.sheetTimer.findMany({ where: { ...hvor, ...JOBBRAD }, select: { id: true, attestertStatus: true } }),
     pt.sheetTillegg.findMany({ where: hvor, select: { id: true, attestertStatus: true } }),
     pt.sheetMachine.findMany({ where: hvor, select: { id: true, attestertStatus: true } }),
     pt.sheetUtlegg.findMany({ where: { sheetId: sheet.id, kortId }, select: { id: true } }),
@@ -800,7 +804,27 @@ async function flyttHeleJobben(
 export const FLYTT_JOBB_FEIL = {
   utleggOrdning: "Utlegget føres annerledes på dette prosjektet. Fjern det først.",
   ikkeVentende: "Bare jobber der alle linjene venter på attestering kan flyttes. Gjenåpne linjene først.",
+  // O12 pkt 18: jobben har en reise — klienten må si om den flyttes med ny tid eller slettes.
+  reiseValgMangler: "Jobben har en reise. Velg om reisen flyttes med ny tid eller slettes.",
+  reiseOverlapp: "Reisens nye tid overlapper en annen rad på dagsseddelen.",
 } as const;
+
+/** O12 pkt 18: arbeiderens valg for reisen i en jobb som flyttes. */
+export const flyttJobbReiseSchema = z.object({
+  valg: z.enum(["flytt", "slett"]),
+  // Ny start–slutt pr. reiserad (fra ny kjøretid). Utelatt rad = gamle tider (mangler kjøretid).
+  tider: z
+    .array(
+      z.object({
+        id: z.string().uuid(),
+        fraTid: z.string().regex(/^\d{2}:\d{2}$/),
+        tilTid: z.string().regex(/^\d{2}:\d{2}$/),
+        kjoretidMin: z.number().int().min(0).nullable().optional(),
+      }),
+    )
+    .optional(),
+});
+export type FlyttJobbReiseValg = z.infer<typeof flyttJobbReiseSchema>;
 
 /**
  * O8 D punkt 4: et utlegg følger jobben bare når ordningen på det nye prosjektet er den samme
@@ -860,6 +884,8 @@ async function flyttJobbTilSted(
     kortId: string;
     fra: { projectId: string; byggeplassId: string | null; externalCostObjectId: string | null };
     til: { projectId: string; byggeplassId: string | null };
+    /** O12 pkt 18: påkrevd når jobben har en reise. */
+    reise?: FlyttJobbReiseValg;
   },
 ) {
   const { sheet, kortId, fra, til } = args;
@@ -868,8 +894,16 @@ async function flyttJobbTilSted(
   const ecoId = nyttProsjekt ? null : fra.externalCostObjectId;
   const hvor = { sheetId: sheet.id, kortId, attestertStatus: { not: "erstattet" } };
   const [timer, reise, tillegg, maskiner, utlegg, varer] = await Promise.all([
-    pt.sheetTimer.findMany({ where: { ...hvor, erReise: false }, select: { id: true, attestertStatus: true } }),
-    pt.sheetTimer.findMany({ where: { ...hvor, erReise: true }, select: { id: true, attestertStatus: true } }),
+    // O12 pkt 16/18: en reise ført som arbeidstid (merket) er reise her, ikke arbeid. Umerkede
+    // arbeidstid-reiser fra før O12 er arbeid og følger stille med (R7, bevisst).
+    pt.sheetTimer.findMany({
+      where: { ...hvor, ...JOBBRAD },
+      select: { id: true, attestertStatus: true },
+    }),
+    pt.sheetTimer.findMany({
+      where: { ...hvor, OR: [{ erReise: true }, { arbeidReiseRetning: { not: null } }] },
+      select: { id: true, attestertStatus: true, erReise: true, fraTid: true, tilTid: true },
+    }),
     pt.sheetTillegg.findMany({ where: hvor, select: { id: true, attestertStatus: true } }),
     pt.sheetMachine.findMany({ where: hvor, select: { id: true, attestertStatus: true } }),
     pt.sheetUtlegg.findMany({
@@ -887,6 +921,33 @@ async function flyttJobbTilSted(
   ) {
     throw new TRPCError({ code: "PRECONDITION_FAILED", message: FLYTT_JOBB_FEIL.ikkeVentende });
   }
+  // O12 pkt 18: ingenting endres før arbeideren har valgt hva som skjer med reisen.
+  if (reise.length > 0 && !args.reise) {
+    throw new TRPCError({ code: "PRECONDITION_FAILED", message: FLYTT_JOBB_FEIL.reiseValgMangler });
+  }
+  const reiseValg = reise.length > 0 ? args.reise! : null;
+  const nyeTider = new Map((reiseValg?.tider ?? []).map((t) => [t.id, t]));
+  if (reiseValg?.valg === "flytt" && nyeTider.size > 0) {
+    // Den nye tiden må ikke overlappe sedelens øvrige rader (som `tilfoyTimerRad`).
+    const reiseIdSett = new Set(reise.map((r) => r.id));
+    const ovrige = await pt.sheetTimer.findMany({
+      where: { sheetId: sheet.id, attestertStatus: { not: "erstattet" } },
+      select: { id: true, fraTid: true, tilTid: true },
+    });
+    const etter = reise.map((r) => {
+      const n = nyeTider.get(r.id);
+      return { fraTid: n?.fraTid ?? r.fraTid, tilTid: n?.tilTid ?? r.tilTid };
+    });
+    if (
+      finnOverlappMotServer(
+        ovrige.filter((o) => !reiseIdSett.has(o.id)),
+        etter,
+      ) ||
+      finnTidsromKonflikt(etter) != null
+    ) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: FLYTT_JOBB_FEIL.reiseOverlapp });
+    }
+  }
   if (nyttProsjekt) {
     await krevLikUtleggOrdning(ctx, utlegg, { organizationId: sheet.organizationId, projectId: til.projectId });
   }
@@ -896,8 +957,30 @@ async function flyttJobbTilSted(
   await pt.$transaction(async (tx) => {
     const maskinFoer = await lesMaskinJobbTilstand(tx, ctx.prismaMaskin, sheet.id);
     await tx.sheetTimer.updateMany({ where: ider(timer), data });
-    // Reisen: bare kort-id-en tas av (punkt 2) — `sikreKortId` gir den kort etter egne felt.
-    await tx.sheetTimer.updateMany({ where: ider(reise), data: { kortId: null } });
+    // O12 pkt 18: reisen flyttes med jobben (ny tid der kjøretiden finnes) eller slettes —
+    // aldri stille `kortId: null`.
+    if (reiseValg?.valg === "slett") {
+      await tx.sheetTimer.deleteMany({ where: ider(reise) });
+    } else if (reiseValg?.valg === "flytt") {
+      await tx.sheetTimer.updateMany({ where: ider(reise), data });
+      for (const r of reise) {
+        const n = nyeTider.get(r.id);
+        if (!n) continue;
+        const fraMin = klokkeTilMin(n.fraTid);
+        const tilMin = klokkeTilMin(n.tilTid);
+        if (fraMin == null || tilMin == null) continue;
+        await tx.sheetTimer.update({
+          where: { id: r.id },
+          data: {
+            fraTid: n.fraTid,
+            tilTid: n.tilTid,
+            timer: (tilMin - fraMin) / 60,
+            ...(r.erReise && n.kjoretidMin != null ? { reiseKjoretidMin: n.kjoretidMin } : {}),
+          },
+        });
+      }
+    }
+    if (reise.length > 0) await synkroniserHodePause(tx, sheet.id);
     await tx.sheetTillegg.updateMany({ where: ider(tillegg), data });
     await tx.sheetMachine.updateMany({ where: ider(maskiner), data });
     await tx.sheetUtlegg.updateMany({ where: ider(utlegg), data });
@@ -941,7 +1024,8 @@ async function flyttJobbTilSted(
             maskin: maskiner.length,
             utlegg: utlegg.length,
             vare: varer.length,
-            reiseIgjen: reise.length,
+            reise: reise.length,
+            reiseValg: reiseValg?.valg ?? null,
           },
         },
       },
@@ -967,7 +1051,7 @@ export async function jobbStedForMaskin(
 ): Promise<{ byggeplassId?: string | null; externalCostObjectId?: string | null }> {
   if (!input.kortId) return {};
   const sel = { byggeplassId: true, externalCostObjectId: true } as const;
-  const felles = { sheetId: input.sheetId, projectId: input.projectId, erReise: false };
+  const felles = { sheetId: input.sheetId, projectId: input.projectId, ...JOBBRAD };
   const rad =
     (input.sheetTimerId
       ? await prismaTimer.sheetTimer.findFirst({ where: { ...felles, id: input.sheetTimerId }, select: sel })
@@ -4417,6 +4501,11 @@ export const dagsseddelRouter = router({
         reiseRegel: z.record(z.unknown()).nullable().optional(),
         // Kort-id (spec § 4.3): valgfri. Uten → regel 3 (eldste kort med samme nøkkel).
         kortId: z.string().uuid().nullable().optional(),
+        // O12 pkt 3 (vedtak-timer-web § Reisevinduet): reisevinduet i prosjektkort-visning —
+        // reisen lagres i kortet `kortId`. Uten flagget får reise ingen kort-id her (som før).
+        reiseIKort: z.boolean().optional(),
+        // O12 pkt 16: en reise ført som arbeidstid lagrer retningen. Bare på arbeidsrad.
+        arbeidReiseRetning: z.enum(["ut", "retur"]).nullable().optional(),
       }).superRefine(refineFraForTil).superRefine(refineProsjektEllerFravaer),
     )
     .mutation(async ({ ctx, input }) => {
@@ -4607,7 +4696,10 @@ export const dagsseddelRouter = router({
               reiseSpor,
             ),
             // Kort-id regel 1; uten id → regel 3 i sikreKortId; reise får jobbens kort der (w12).
-            kortId: erReise ? null : (input.kortId ?? null),
+            // O12 pkt 3: reise fra prosjektkort-visning (`reiseIKort`) står i kortet den ble ført i.
+            kortId: erReise ? (input.reiseIKort ? (input.kortId ?? null) : null) : (input.kortId ?? null),
+            // O12 pkt 16: skrives her, ikke som default i byggTimerRadData (R1).
+            arbeidReiseRetning: erReise ? null : (input.arbeidReiseRetning ?? null),
           },
         });
         await synkroniserHodePause(tx, input.sheetId);
@@ -5309,7 +5401,7 @@ export const dagsseddelRouter = router({
         where: {
           sheetId: sheet.id,
           kortId: input.kortId,
-          erReise: false,
+          ...JOBBRAD,
           projectId: { not: null },
           attestertStatus: { not: "erstattet" },
         },
@@ -5346,6 +5438,8 @@ export const dagsseddelRouter = router({
         kortId: z.string().uuid(),
         projectId: z.string().uuid(),
         byggeplassId: z.string().uuid().nullable(),
+        // O12 pkt 18: påkrevd når jobben har en reise («Flytt reisen med ny tid» / «Slett reisen»).
+        reise: flyttJobbReiseSchema.optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -5375,7 +5469,7 @@ export const dagsseddelRouter = router({
         where: {
           sheetId: sheet.id,
           kortId: input.kortId,
-          erReise: false,
+          ...JOBBRAD,
           projectId: { not: null },
           attestertStatus: { not: "erstattet" },
         },
@@ -5396,6 +5490,7 @@ export const dagsseddelRouter = router({
           externalCostObjectId: forste.externalCostObjectId,
         },
         til: { projectId: input.projectId, byggeplassId: input.byggeplassId },
+        reise: input.reise,
       });
     }),
 
@@ -7482,7 +7577,10 @@ export const dagsseddelRouter = router({
       // tillegg og utlegg på kortet flyttes sammen. Kortets id beholdes: det er samme jobb.
       if (input.helJobb) {
         // w12: reisen er ikke en jobb — den flyttes alene, og plassen regnes på nytt.
-        if ("erReise" in rad && rad.erReise) throw new TRPCError({ code: "BAD_REQUEST", message: "reiseErIkkeJobb" });
+        // RETUR O12 vilkår 2: heller ikke reisen ført som arbeidstid (`arbeidReiseRetning`).
+        if ("erReise" in rad && (rad.erReise || rad.arbeidReiseRetning)) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "reiseErIkkeJobb" });
+        }
         return flyttHeleJobben(ctx, { sheet, rad, ecoId: input.externalCostObjectId });
       }
 
@@ -7578,7 +7676,8 @@ export const dagsseddelRouter = router({
 
       const [timer, tillegg, maskiner] = await Promise.all([
         pt.sheetTimer.findMany({
-          where: { sheetId: sheet.id, kortId: input.kortId, attestertStatus: { not: "erstattet" }, erReise: false },
+          // O12 pkt 3/16: en reise i kortet er ingen jobbrad — den blir i del A (§ 8.22).
+          where: { sheetId: sheet.id, kortId: input.kortId, attestertStatus: { not: "erstattet" }, ...JOBBRAD },
           orderBy: [{ fraTid: "asc" }, { createdAt: "asc" }],
         }),
         pt.sheetTillegg.findMany({ where: { sheetId: sheet.id, kortId: input.kortId, attestertStatus: { not: "erstattet" } }, select: { attestertStatus: true } }),

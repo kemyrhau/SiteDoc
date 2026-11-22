@@ -117,6 +117,7 @@ export type {
   OverforingKortInput,
   ReiseKortInput,
   ReiseKortResultat,
+  ReiseKortUtenKjoretid,
 } from "./reiseManuell";
 export { løsOppmote, finnFastOppmotested, trengerOppmoteValg, tilIsoDato, finnPeriodeKonflikt, finnOverforinger, byggOverforingOppslag, leggTilDager, periodeDatoFraOverforing, planleggOverforing, erApenOverforing, kontorOverforingOppsett, kontorOverforingRetning } from "./oppmote";
 export type { OppmotePeriodeType, OppmotePeriodeInput, OppmoteResultat, Overforing, OverforingSted, DagsforslagOverforingOppslag, DagsforslagOverforingCelle, OverforingPeriode, OverforingPlan, KontorOverforingOppsett } from "./oppmote";

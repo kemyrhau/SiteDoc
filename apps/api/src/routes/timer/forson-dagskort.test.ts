@@ -396,3 +396,33 @@ describe("forsonDagskort — 🔴 funn 5: maskinlinjer følger raden som vant (r
     expect(res2[0]?.relinketFra).toEqual([]);
   });
 });
+
+/**
+ * O12 R1: bare `tilfoyTimerRad` lærer reisen å stå i kortet (`reiseIKort`). En reise som kommer
+ * via forsoningen får fortsatt `kortId: null` (sikreKortId velger kortet som før), og forsoningen
+ * skriver ikke `arbeidReiseRetning` — et merke på en lagret rad nulles ikke.
+ */
+describe("forsonDagskort — O12: uendret for reise og arbeidstid-reise", () => {
+  it("ny reiserad via forsoning → create med kortId null selv om klienten sendte kort-id", async () => {
+    const { prisma } = await import("@sitedoc/db");
+    vi.mocked(prisma.organizationSetting.findUnique).mockResolvedValueOnce({ reiseLonnsartId: LONNSART } as never);
+    const { ctx, create } = lagCtx({ status: "returned", eksisterende: [rad({ id: RAD1 })] });
+    const caller = dagsseddelRouter.createCaller(ctx);
+    await caller.forsonDagskort({
+      sheetId: SHEET,
+      oppdateringer: [],
+      nyeRader: [{ ...nyRad, kortId: "99999999-9999-4999-8999-999999999999" }],
+    });
+    const data = create.mock.calls[0]![0].data;
+    expect(data.erReise).toBe(true);
+    expect(data.kortId).toBeNull();
+    expect(data).not.toHaveProperty("arbeidReiseRetning");
+  });
+
+  it("oppdatering av en arbeidsrad skriver ikke arbeidReiseRetning (merket nulles ikke)", async () => {
+    const { ctx, update } = lagCtx({ status: "returned", eksisterende: [rad({ id: RAD1 })] });
+    const caller = dagsseddelRouter.createCaller(ctx);
+    await caller.forsonDagskort({ sheetId: SHEET, oppdateringer: [oppdatering], nyeRader: [] });
+    expect(update.mock.calls[0]![0].data).not.toHaveProperty("arbeidReiseRetning");
+  });
+});

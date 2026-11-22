@@ -51,6 +51,10 @@ describe("maskin-kontrollen måles mot arbeid uten reise", () => {
     expect(arbeidUtenReise(rader)).toBe(7.5);
     expect(arbeidOgReise(rader)).toEqual({ arbeid: 7.5, reise: 2 });
   });
+  it("O12 pkt 16 (uendret): reise ført som arbeidstid teller som arbeid", () => {
+    const merket = [...rader, { timer: 0.5, erReise: false, attestertStatus: null, arbeidReiseRetning: "retur" }];
+    expect(arbeidOgReise(merket)).toEqual({ arbeid: 8, reise: 2 });
+  });
   it("maskin 9 t over 7,5 t arbeid er brudd selv med 2 t reise", () => {
     expect(overMaskinHoyst(9, arbeidUtenReise(rader))).toBe(true);
     expect(overMaskinHoyst(7.5, arbeidUtenReise(rader))).toBe(false);

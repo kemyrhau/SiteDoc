@@ -317,7 +317,7 @@ describe("w3a — vinduene arver jobben", () => {
     });
   });
 
-  it("«+ Reise»: feltene står, med jobbens byggeplass og underprosjekt forvalgt (S6 A)", () => {
+  it("«+ Reise»: jobbens prosjekt og byggeplass står som tekst (O12 pkt 3), underprosjektet forvalgt (S6 A)", () => {
     rendre();
     h.data["organisasjon.hentArbeidstidDefaults"] = {
       timerRegistreringsmodus: "prosjektkort",
@@ -332,8 +332,9 @@ describe("w3a — vinduene arver jobben", () => {
     render(<Side />);
     const dialog = fraJobb2("timer.prosjektkort.nyReise");
     const verdier = Array.from(dialog.querySelectorAll("select")).map((s) => s.value);
-    expect(verdier).toContain("b1");
+    expect(verdier).not.toContain("b1");
     expect(verdier).toContain("e1");
+    expect(within(dialog).getByTestId("reise-kort-sted").textContent).toContain("timer.reiseKort.foresIKortet");
   });
 
   it("blyanten på jobbens timerlinje: «Rediger timer-rad» står med stedsfeltene (gate 107)", () => {
@@ -353,7 +354,7 @@ describe("w3a — vinduene arver jobben", () => {
     expect(ecoVelger?.disabled).toBe(false);
   });
 
-  it("blyanten på jobbens reiselinje: «Rediger timer-rad» står med stedsfeltene (gate 107, B34 B)", () => {
+  it("blyanten på jobbens reiselinje: «Rediger timer-rad» viser stedet som tekst (O12 pkt 17), underprosjekt står (gate 107, B34 B)", () => {
     rendre();
     const sedel = h.data["timer.dagsseddel.hentMedId"] as typeof DAG7_SEDEL;
     const reise = {
@@ -387,9 +388,9 @@ describe("w3a — vinduene arver jobben", () => {
     expect(reiseBlyant).toBeDefined();
     fireEvent.click(reiseBlyant!);
     const dialog = screen.getByRole("dialog", { name: "timer.detalj.redigerTimerRad" });
-    expect(dialog.textContent).toContain("timer.felt.prosjekt");
+    expect(within(dialog).getByTestId("reise-sted-tekst").textContent).toContain("timer.rediger.reiseFeilSted");
     expect(dialog.textContent).toContain("timer.felt.underprosjekt");
-    expect(dialog.textContent).toContain("timer.felt.byggeplass");
+    expect(dialog.textContent).not.toContain("timer.felt.byggeplass");
     // Det er reiseraden som redigeres.
     expect(Array.from(dialog.querySelectorAll("input")).some((i) => i.value === "16:30")).toBe(true);
   });

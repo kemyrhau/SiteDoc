@@ -192,3 +192,42 @@ describe("tilfoyTimerRad — reise-spor fra web-reisekortet", () => {
     expect(data.reiseKjoretidMin ?? null).toBeNull();
   });
 });
+
+/**
+ * O12 pkt 3 (R1) og pkt 16: reisen fra prosjektkort-vinduet står i kortet den ble ført fra
+ * (`reiseIKort` + `kortId`); en arbeidstid-reise lagrer retningen i `arbeidReiseRetning`.
+ */
+describe("tilfoyTimerRad — O12 reisen i kortet og arbeidstid-reise", () => {
+  const KORT = "88888888-8888-4888-8888-888888888888";
+  const spor = { reiseKilde: "manuell" as const, reiseRetning: "ut" as const, reiseOppmotestedId: OPPMOTE, reiseKjoretidMin: 30, reiseRegel: regel };
+
+  it("pkt 3: reise med reiseIKort lagres med kortets id", async () => {
+    const { ctx, timerCreate } = lagCtx();
+    await caller(ctx).tilfoyTimerRad({ ...basis(REISE), ...spor, kortId: KORT, reiseIKort: true });
+    expect(timerCreate.mock.calls[0]![0].data).toMatchObject({ erReise: true, kortId: KORT });
+  });
+
+  it("negativkontroll (uendret): reise uten reiseIKort får kortId null — serveren velger kortet som før", async () => {
+    const { ctx, timerCreate } = lagCtx();
+    await caller(ctx).tilfoyTimerRad({ ...basis(REISE), ...spor, kortId: KORT });
+    expect((timerCreate.mock.calls[0]![0].data as Record<string, unknown>).kortId).toBeNull();
+  });
+
+  it("pkt 16: arbeidstid-reise lagrer retningen i eget felt; erReise står false", async () => {
+    const { ctx, timerCreate } = lagCtx();
+    await caller(ctx).tilfoyTimerRad({ ...basis(ORDINAER), kortId: KORT, arbeidReiseRetning: "retur" });
+    expect(timerCreate.mock.calls[0]![0].data).toMatchObject({ erReise: false, kortId: KORT, arbeidReiseRetning: "retur" });
+  });
+
+  it("pkt 16: retningsmerket skrives aldri på en reiserad (erReise bærer reiseRetning)", async () => {
+    const { ctx, timerCreate } = lagCtx();
+    await caller(ctx).tilfoyTimerRad({ ...basis(REISE), ...spor, arbeidReiseRetning: "ut" });
+    expect((timerCreate.mock.calls[0]![0].data as Record<string, unknown>).arbeidReiseRetning).toBeNull();
+  });
+
+  it("vanlig arbeidsrad uten merket: arbeidReiseRetning null", async () => {
+    const { ctx, timerCreate } = lagCtx();
+    await caller(ctx).tilfoyTimerRad({ ...basis(ORDINAER) });
+    expect((timerCreate.mock.calls[0]![0].data as Record<string, unknown>).arbeidReiseRetning).toBeNull();
+  });
+});

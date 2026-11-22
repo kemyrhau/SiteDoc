@@ -136,12 +136,18 @@ const oppdaterKall = () => h.kall.filter((k) => k.sti === "timer.dagsseddel.oppd
 describe("w15f — pennen på reiselinja (del H pkt. 24)", () => {
   afterEach(cleanup);
 
-  it("prosjektfeltet er åpent for en reiserad", () => {
+  // O12 pkt 17 (R2): prosjekt-valget for reiser er fjernet — stedet står som tekst.
+  it("O12 pkt 17: reiseraden viser prosjekt og byggeplass som tekst + «Feil sted?»-linja; ingen prosjekt- eller byggeplassfelt", () => {
     rendre([ARBEID1, REISE]);
     aapneForste();
     const d = pennenPaaReise();
-    expect(prosjektFelt(d).disabled).toBe(false);
-    expect(prosjektFelt(d).value).toBe("p1");
+    expect(prosjektFelt(d)).toBeUndefined();
+    expect(byggeplassFelt(d)).toBeUndefined();
+    const sted = d.querySelector('[data-testid="reise-sted-tekst"]') as HTMLElement;
+    expect(sted.textContent).toContain("2041 — Skole · Blokk A");
+    expect(sted.textContent).toContain("timer.rediger.reiseFeilSted");
+    // w15d-linja under lønnsarten («Den står i jobben på …») står uendret.
+    expect(d.textContent).toContain('timer.rediger.reiseHavnerJobb{"sted":"Blokk A"}');
   });
 
   it("prosjektfeltet er låst for en arbeidsrad", () => {
@@ -151,30 +157,6 @@ describe("w15f — pennen på reiselinja (del H pkt. 24)", () => {
     fireEvent.click(screen.getAllByTitle("timer.jobbSkjema.aapneVinduHint")[0]!);
     const d = screen.getByRole("dialog", { name: "timer.detalj.redigerTimerRad" });
     expect(prosjektFelt(d).disabled).toBe(true);
-  });
-
-  it("bytte av prosjekt tømmer underprosjektet, foreslår byggeplass, og linja «havner i» følger", () => {
-    rendre([ARBEID1, REISE]);
-    aapneForste();
-    const d = pennenPaaReise();
-    expect(d.textContent).toContain('timer.rediger.reiseHavnerJobb{"sted":"Blokk A"}');
-    fireEvent.change(prosjektFelt(d), { target: { value: "p2" } });
-    // Én kandidat på p2 → den er valgt og står som tekst.
-    expect(d.textContent).toContain("Bjerkvik hovedbygg");
-    expect(byggeplassFelt(d)).toBeUndefined();
-    expect(d.textContent).toContain("timer.rediger.reiseHavnerEget");
-    expect(d.textContent).not.toContain("timer.rediger.reiseHavnerJobb");
-  });
-
-  it("kallet sender prosjekt, byggeplass og underprosjekt sammen", async () => {
-    rendre([ARBEID1, REISE]);
-    aapneForste();
-    const d = pennenPaaReise();
-    fireEvent.change(prosjektFelt(d), { target: { value: "p2" } });
-    await lagre(d);
-    const k = oppdaterKall();
-    expect(k).toHaveLength(1);
-    expect(k[0]).toMatchObject({ id: "rr", projectId: "p2", byggeplassId: "b9", externalCostObjectId: null });
   });
 
   it("uendret prosjekt sender ikke projectId", async () => {
