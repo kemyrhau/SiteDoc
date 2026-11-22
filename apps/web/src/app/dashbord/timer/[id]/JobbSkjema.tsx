@@ -19,6 +19,7 @@ import { useFaarPlassPaaEnLinje } from "@/hooks/useFaarPlassPaaEnLinje";
 import { formaterTimer } from "@/lib/tallformat";
 import { rundTilNarmeste } from "@/lib/tidsrunding";
 import { klokkeSteg, lesPauseMin, tilFraTimer, type SkjemaKilde } from "@/lib/jobbSkjema";
+import { byggeplasserForProsjekt, velgStandardByggeplass, type ByggeplassValg } from "@/lib/timerByggeplass";
 import {
   regnJobbTid,
   validerJobbTid,
@@ -70,6 +71,8 @@ export function JobbSkjema({
   rader47,
   onUlagret,
   tidsrundingMinutter = null,
+  byggeplassId = null,
+  stedValg,
 }: {
   sheetId: string;
   kortId: string;
@@ -112,6 +115,17 @@ export function JobbSkjema({
   onUlagret: (kortId: string, ulagret: boolean) => void;
   /** Firmaets tidsrunding (som timevinduet): Fra/Til rundes ved blur, klokkevelgerens steg. */
   tidsrundingMinutter?: number | null;
+  /** Jobbens byggeplass (hodet). */
+  byggeplassId?: string | null;
+  /**
+   * O8 D (§ 8.22): prosjekt og byggeplass som nedtrekk på en lagret jobb. Endres de, flyttes hele
+   * jobben dit (`dagsseddel.flyttJobb`) — reisen blir stående. Jobben får ny kort-id (`onFlyttet`).
+   */
+  stedValg?: {
+    prosjekter: readonly { id: string; navn: string }[];
+    byggeplasser: readonly ByggeplassValg[];
+    onFlyttet: (nyKortId: string) => void;
+  };
 }) {
   const { t, i18n } = useTranslation();
   const utils = trpc.useUtils();
@@ -119,6 +133,7 @@ export function JobbSkjema({
   const tilfoy = trpc.timer.dagsseddel.tilfoyTimerRad.useMutation();
   const oppdater = trpc.timer.dagsseddel.oppdaterTimerRad.useMutation();
   const flyttEco = trpc.timer.dagsseddel.flyttJobbEco.useMutation();
+  const flyttSted = trpc.timer.dagsseddel.flyttJobb.useMutation();
   // L3b: prosjektets underprosjekter. Lukkede hentes også, bare for å kunne vise navnet når
   // jobben står på et underprosjekt som er lukket siden — valgene er de åpne.
   const { data: ecoer } = trpc.eksternKostObjekt.list.useQuery(
@@ -369,7 +384,42 @@ export function JobbSkjema({
     );
   };
 
+  // O8 D: prosjekt eller byggeplass endret på lagret jobb — hele jobben flyttes. Nytt prosjekt:
+  // byggeplassen velges som for en ny rad (eneste kandidat, ellers ingen).
+  const ventendeSted = useRef<{ projectId: string; byggeplassId: string | null } | null>(null);
+  const velgSted = (endring: { projectId?: string; byggeplassId?: string | null }) => {
+    if (lagring === "lagrer" || !l1 || !stedValg) return;
+    const nyttProsjekt = endring.projectId ?? projectId;
+    const nyByggeplass =
+      endring.byggeplassId !== undefined
+        ? endring.byggeplassId
+        : velgStandardByggeplass({
+            gjeldende: nyttProsjekt === projectId ? byggeplassId : null,
+            kandidater: byggeplasserForProsjekt(stedValg.byggeplasser, nyttProsjekt),
+            toppbar: null,
+          });
+    if (nyttProsjekt === projectId && nyByggeplass === byggeplassId && !ventendeSted.current) return;
+    ventendeSted.current = { projectId: nyttProsjekt, byggeplassId: nyByggeplass };
+    void ferdig(
+      (async () => {
+        const svar = await flyttSted.mutateAsync({
+          sheetId,
+          kortId,
+          projectId: nyttProsjekt,
+          byggeplassId: nyByggeplass,
+        });
+        ventendeSted.current = null;
+        await utils.vareforbruk.hentMineForDato.invalidate();
+        if (svar.kortId !== kortId) stedValg.onFlyttet(svar.kortId);
+      })(),
+    );
+  };
+
   const provIgjen = () => {
+    if (ventendeSted.current) {
+      velgSted(ventendeSted.current);
+      return;
+    }
     if (ventendeEco.current) {
       velgEco(ventendeEco.current.id);
       return;
@@ -435,6 +485,44 @@ export function JobbSkjema({
               {t("timer.jobbSkjema.aapneVindu")}
             </button>
           )}
+        </div>
+      )}
+
+      {l1 && stedValg && (
+        <div className={rad} data-testid="skjema-prosjekt">
+          <span className={etikett}>{t("timer.felt.prosjekt")}</span>
+          <select
+            aria-label={t("timer.felt.prosjekt")}
+            value={projectId}
+            disabled={lagring === "lagrer"}
+            onChange={(e) => velgSted({ projectId: e.target.value })}
+            className="min-w-0 max-w-xs flex-1 rounded border border-gray-300 px-2 py-1 text-sm"
+          >
+            {stedValg.prosjekter.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.navn}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+      {l1 && stedValg && byggeplasserForProsjekt(stedValg.byggeplasser, projectId).length > 0 && (
+        <div className={rad} data-testid="skjema-byggeplass">
+          <span className={etikett}>{t("timer.felt.byggeplass")}</span>
+          <select
+            aria-label={t("timer.felt.byggeplass")}
+            value={byggeplassId ?? ""}
+            disabled={lagring === "lagrer"}
+            onChange={(e) => velgSted({ byggeplassId: e.target.value || null })}
+            className="min-w-0 max-w-xs flex-1 rounded border border-gray-300 px-2 py-1 text-sm"
+          >
+            <option value="">{t("timer.byggeplass.ingenValgt")}</option>
+            {byggeplasserForProsjekt(stedValg.byggeplasser, projectId).map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+          </select>
         </div>
       )}
 

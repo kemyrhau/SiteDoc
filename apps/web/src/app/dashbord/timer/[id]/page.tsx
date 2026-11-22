@@ -1156,6 +1156,16 @@ export default function DagsseddelDetaljSide() {
       andreRader: overtidRaderUten(new Set(linjer.map((r) => r.id))),
       projectId: k.jobb.projectId,
       ecoId: k.jobb.ecoId,
+      byggeplassId: k.jobb.byggeplassId,
+      // O8 D (§ 8.22): prosjekt og byggeplass kan endres på lagret jobb; jobben får ny kort-id.
+      stedValg: {
+        prosjekter: [
+          ...(prosjekterFlat.some((p) => p.id === k.jobb.projectId) ? [] : [k.jobb.projectId]),
+          ...prosjekterFlat.map((p) => p.id),
+        ].map((id) => ({ id, navn: kortNavn(id) })),
+        byggeplasser: byggeplasser ?? [],
+        onFlyttet: (nyKortId) => setAapentKort(nyKortId),
+      },
       onAapneVindu: () =>
         setAktivModal({ type: "timer", projectId: forste.projectId, rad: forste, jobb: k.jobb }),
     };

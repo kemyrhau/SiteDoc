@@ -26,6 +26,7 @@ import {
   aktivtMedlemWhere,
 } from "../../trpc/tilgangskontroll";
 import { krevTimerAktivert, hentEffektivArbeidstid } from "../../services/timer";
+import { erVarelagerAktivert } from "../../services/varelager/moduleGate";
 import {
   kortIdForSkriving,
   lastLagretKort,
@@ -794,6 +795,168 @@ async function flyttHeleJobben(
     // Ikke-blokkerende — flyttingen er allerede lagret.
   }
   return { kortId, antall: timer.length + tillegg.length + maskiner.length + utlegg.length + varer.length };
+}
+
+/** O8 D (§ 8.22): feiltekstene når en jobb ikke kan flyttes til et annet prosjekt. */
+export const FLYTT_JOBB_FEIL = {
+  utleggOrdning: "Utlegget føres annerledes på dette prosjektet. Fjern det først.",
+  vareUtenVarelager: "Prosjektet har ikke varelager. Fjern varene først.",
+  ikkeVentende: "Bare jobber der alle linjene venter på attestering kan flyttes. Gjenåpne linjene først.",
+} as const;
+
+/**
+ * O8 D, Kenneth 2026-11-22 punkt 3 (ÅPEN): varer flyttes bare til et prosjekt med varelager.
+ * Hele sperren er denne funksjonen og ett kall i `flyttJobbTilSted` — vil Kenneth at varene
+ * følger med likevel, fjernes kallet.
+ */
+async function krevVarelagerForVareFlytt(antallVarer: number, organizationId: string, projectId: string) {
+  if (antallVarer === 0) return;
+  if (!(await erVarelagerAktivert(organizationId, projectId))) {
+    throw new TRPCError({ code: "PRECONDITION_FAILED", message: FLYTT_JOBB_FEIL.vareUtenVarelager });
+  }
+}
+
+/**
+ * O8 D punkt 4: et utlegg følger jobben bare når ordningen på det nye prosjektet er den samme
+ * som utlegget ble ført med (`ordningVedFoering`). Ellers avvises hele flyttingen.
+ */
+async function krevLikUtleggOrdning(
+  ctx: InnloggetCtx,
+  utlegg: readonly { expenseCategoryId: string; ordningVedFoering: string }[],
+  args: { organizationId: string; projectId: string },
+) {
+  if (utlegg.length === 0) return;
+  const kategoriIder = [...new Set(utlegg.map((u) => u.expenseCategoryId))];
+  const [kategorier, overstyringer] = await Promise.all([
+    ctx.prismaTimer.expenseCategory.findMany({
+      where: { id: { in: kategoriIder }, organizationId: args.organizationId },
+      select: { id: true, ordning: true },
+    }),
+    ctx.prismaTimer.prosjektOrdningOverstyring.findMany({
+      where: { prosjektId: args.projectId, expenseCategoryId: { in: kategoriIder } },
+      select: { expenseCategoryId: true, ordning: true },
+    }),
+  ]);
+  for (const u of utlegg) {
+    const kategori = kategorier.find((k) => k.id === u.expenseCategoryId);
+    const overstyring = overstyringer.find((o) => o.expenseCategoryId === u.expenseCategoryId);
+    const ordning = utledOrdning({
+      firmaDefault: kategori && erGyldigOrdning(kategori.ordning) ? kategori.ordning : "utlegg",
+      prosjektOverstyring: overstyring && erGyldigOrdning(overstyring.ordning) ? overstyring.ordning : null,
+    });
+    if (ordning !== u.ordningVedFoering) {
+      throw new TRPCError({ code: "PRECONDITION_FAILED", message: FLYTT_JOBB_FEIL.utleggOrdning });
+    }
+  }
+}
+
+/**
+ * O8 D (§ 8.22, Kenneth 2026-11-22): arbeideren endrer prosjekt og byggeplass på et lagret jobbkort.
+ * Timer (ikke reise), maskin, tillegg, utlegg og varer får nytt prosjekt og ny byggeplass. Nytt
+ * prosjekt → underprosjekt «Uten» (punkt 1); samme prosjekt → underprosjektet står.
+ *
+ * - Reisen flyttes ikke (punkt 2): prosjekt, byggeplass og underprosjekt står. Den mister jobbens
+ *   kort-id, og `sikreKortId` legger den etter sine egne felt (`velgReiseKort`: en annen jobb på
+ *   samme sted, ellers eget kort). Med kort-id-en ville den stått i jobben på det nye prosjektet,
+ *   og K2 (reise = kortets prosjekt) ville vært brutt.
+ * - Jobben får ny kort-id. Den gamle kan være utledet av gammel nøkkel (`utledKortId`); beholdt,
+ *   ville en senere rad på gammelt sted uten kort-id fått samme id (regel 3) og havnet i jobben.
+ * - Alle linjene må vente på attestering, også reisen. Varer krever varelager på nytt prosjekt
+ *   (punkt 3, `krevVarelagerForVareFlytt`), utlegg lik ordning (punkt 4, `krevLikUtleggOrdning`).
+ *
+ * Kalleren har sjekket sedelen (egen, redigerbar), firma og byggeplass.
+ */
+async function flyttJobbTilSted(
+  ctx: InnloggetCtx,
+  args: {
+    sheet: { id: string; organizationId: string };
+    kortId: string;
+    fra: { projectId: string; byggeplassId: string | null; externalCostObjectId: string | null };
+    til: { projectId: string; byggeplassId: string | null };
+  },
+) {
+  const { sheet, kortId, fra, til } = args;
+  const pt = ctx.prismaTimer;
+  const nyttProsjekt = til.projectId !== fra.projectId;
+  const ecoId = nyttProsjekt ? null : fra.externalCostObjectId;
+  const hvor = { sheetId: sheet.id, kortId, attestertStatus: { not: "erstattet" } };
+  const [timer, reise, tillegg, maskiner, utlegg, varer] = await Promise.all([
+    pt.sheetTimer.findMany({ where: { ...hvor, erReise: false }, select: { id: true, attestertStatus: true } }),
+    pt.sheetTimer.findMany({ where: { ...hvor, erReise: true }, select: { id: true, attestertStatus: true } }),
+    pt.sheetTillegg.findMany({ where: hvor, select: { id: true, attestertStatus: true } }),
+    pt.sheetMachine.findMany({ where: hvor, select: { id: true, attestertStatus: true } }),
+    pt.sheetUtlegg.findMany({
+      where: { sheetId: sheet.id, kortId },
+      select: { id: true, expenseCategoryId: true, ordningVedFoering: true },
+    }),
+    ctx.prismaVarelager.vareforbruk.findMany({
+      where: { dagsseddelId: sheet.id, kortId },
+      select: { id: true, attestertSnapshot: true },
+    }),
+  ]);
+  if (
+    [...timer, ...reise, ...tillegg, ...maskiner].some((r) => r.attestertStatus !== "pending") ||
+    varer.some((v) => v.attestertSnapshot !== null)
+  ) {
+    throw new TRPCError({ code: "PRECONDITION_FAILED", message: FLYTT_JOBB_FEIL.ikkeVentende });
+  }
+  if (nyttProsjekt) {
+    await krevVarelagerForVareFlytt(varer.length, sheet.organizationId, til.projectId);
+    await krevLikUtleggOrdning(ctx, utlegg, { organizationId: sheet.organizationId, projectId: til.projectId });
+  }
+  const nyKortId = randomUUID();
+  const ider = (l: { id: string }[]) => ({ id: { in: l.map((r) => r.id) } });
+  const data = { projectId: til.projectId, byggeplassId: til.byggeplassId, externalCostObjectId: ecoId, kortId: nyKortId };
+  await pt.$transaction(async (tx) => {
+    const maskinFoer = await lesMaskinJobbTilstand(tx, ctx.prismaMaskin, sheet.id);
+    await tx.sheetTimer.updateMany({ where: ider(timer), data });
+    // Reisen: bare kort-id-en tas av (punkt 2) — `sikreKortId` gir den kort etter egne felt.
+    await tx.sheetTimer.updateMany({ where: ider(reise), data: { kortId: null } });
+    await tx.sheetTillegg.updateMany({ where: ider(tillegg), data });
+    await tx.sheetMachine.updateMany({ where: ider(maskiner), data });
+    await tx.sheetUtlegg.updateMany({ where: ider(utlegg), data });
+    await touchSedel(tx, sheet.id);
+    // Brudd i flyttede kort eller reisen ruller tilbake; eldre brudd ellers på sedelen stopper ikke.
+    const { brudd } = await sikreKortId(tx, sheet.id);
+    const reiseIder = new Set(reise.map((r) => r.id));
+    if (brudd.some((b) => b.kortId === nyKortId || reiseIder.has(b.radId))) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "kortUlikeRader" });
+    }
+    await krevIngenNyeMaskinBrudd(tx, ctx.prismaMaskin, sheet.id, maskinFoer);
+  });
+  if (varer.length > 0) {
+    await ctx.prismaVarelager.vareforbruk.updateMany({ where: ider(varer), data });
+  }
+  await sikreKortId(pt, sheet.id);
+  try {
+    await prisma.activity.create({
+      data: {
+        actorUserId: ctx.userId,
+        organizationId: sheet.organizationId,
+        projectId: til.projectId,
+        targetType: "DailySheet",
+        targetId: sheet.id,
+        action: "jobb.sted-flyttet",
+        payload: {
+          fraKortId: kortId,
+          kortId: nyKortId,
+          fra,
+          til: { ...til, externalCostObjectId: ecoId },
+          antall: {
+            timer: timer.length,
+            tillegg: tillegg.length,
+            maskin: maskiner.length,
+            utlegg: utlegg.length,
+            vare: varer.length,
+            reiseIgjen: reise.length,
+          },
+        },
+      },
+    });
+  } catch {
+    // Ikke-blokkerende — flyttingen er allerede lagret.
+  }
+  return { kortId: nyKortId, antall: timer.length + tillegg.length + maskiner.length + utlegg.length + varer.length };
 }
 
 /**
@@ -5177,6 +5340,69 @@ export const dagsseddelRouter = router({
           externalCostObjectId: forste.externalCostObjectId,
         },
         ecoId: input.externalCostObjectId,
+      });
+    }),
+
+  // O8 D (§ 8.22, Kenneth 2026-11-22): prosjekt og byggeplass endres på et lagret, redigerbart
+  // jobbkort, og jobben flyttes dit (`flyttJobbTilSted`). Tilgang som `flyttJobbEco`; firma- og
+  // byggeplass-grensen som når raden føres (`tilfoyTimerRad`).
+  flyttJobb: protectedProcedure
+    .input(
+      z.object({
+        sheetId: z.string().uuid(),
+        kortId: z.string().uuid(),
+        projectId: z.string().uuid(),
+        byggeplassId: z.string().uuid().nullable(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const sheet = await hentEgenDagsseddel(ctx.prismaTimer, ctx.userId, input.sheetId);
+      if (!erRedigerbar(sheet.status)) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: `Dagsseddel er låst (status: ${sheet.status})`,
+        });
+      }
+      const modus = await ctx.prisma.organizationSetting.findUnique({
+        where: { organizationId: sheet.organizationId },
+        select: { timerRegistreringsmodus: true },
+      });
+      if (lesTimerModus(modus?.timerRegistreringsmodus) !== "prosjektkort") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Jobbskjemaet brukes bare når firmaet fører timer pr. prosjektkort.",
+        });
+      }
+      await krevTimerAktivert(sheet.organizationId);
+      await sjekkAldersgrense(sheet.organizationId, sheet.status, sheet.dato);
+      await verifiserProsjekterTilhørerFirma([input.projectId], sheet.organizationId);
+      await krevByggeplassIProsjekt(input.byggeplassId, input.projectId);
+
+      const forste = await ctx.prismaTimer.sheetTimer.findFirst({
+        where: {
+          sheetId: sheet.id,
+          kortId: input.kortId,
+          erReise: false,
+          projectId: { not: null },
+          attestertStatus: { not: "erstattet" },
+        },
+        orderBy: [{ fraTid: "asc" }, { createdAt: "asc" }, { id: "asc" }],
+      });
+      if (!forste || !forste.projectId) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Jobben finnes ikke på denne dagsseddelen." });
+      }
+      if (forste.projectId === input.projectId && forste.byggeplassId === input.byggeplassId) {
+        return { kortId: input.kortId, antall: 0 };
+      }
+      return flyttJobbTilSted(ctx, {
+        sheet,
+        kortId: input.kortId,
+        fra: {
+          projectId: forste.projectId,
+          byggeplassId: forste.byggeplassId,
+          externalCostObjectId: forste.externalCostObjectId,
+        },
+        til: { projectId: input.projectId, byggeplassId: input.byggeplassId },
       });
     }),
 
