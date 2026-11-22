@@ -12,6 +12,7 @@ import {
   medOverforingPeriodeId,
   periodeDatoFraOverforing,
   tilFraAntall,
+  fraFraTilOgAntall,
   type ReiseKategori,
   type ReiseKortSperre,
 } from "@sitedoc/shared";
@@ -61,6 +62,22 @@ function tolkAntall(v: string | null): number | null {
   if (v == null) return null;
   const n = Number(v.trim().replace(",", "."));
   return Number.isFinite(n) && n > 0 && n <= 24 ? n : null;
+}
+
+/**
+ * O6 (§ 8.22): «Antall timer» følger retningen. «Til byggeplass»: slutten (ankomsten, altså
+ * jobbstart) står fast, og Start = Slutt − antall. «Fra byggeplass»: Start står fast, og
+ * Slutt = Start + antall. Reise bærer aldri matpausen (pause 0). Klemmes ved døgnkanten
+ * som før (00:00 / 23:59). null = tiden som skal stå fast, mangler.
+ */
+export function reiseTiderFraAntall(
+  retning: "tur" | "retur",
+  fra: string | null,
+  til: string | null,
+  antall: number,
+): { start: string; slutt: string } | null {
+  if (retning === "tur") return til ? { start: fraFraTilOgAntall(til, antall), slutt: til } : null;
+  return fra ? { start: fra, slutt: tilFraAntall(fra, antall, fra, 0) } : null;
 }
 
 /** YYYY-MM-DD → dd.mm */
@@ -532,8 +549,8 @@ export function ReiseKort({
                   className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
                 />
               </div>
-              {/* O1 TILLEGG: antall timer regner slutten ut fra starten (og omvendt).
-                  Reise bærer aldri matpausen, så pausen er 0 i den delte `tilFraAntall`. */}
+              {/* O1 TILLEGG: antall timer regner tiden ut (og omvendt). O6: retningen avgjør
+                  hvilken ende som står fast — se `reiseTiderFraAntall`. */}
               <div className="col-span-2">
                 <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="reise-antall">
                   {t("timer.felt.antallTimer")}
@@ -548,8 +565,21 @@ export function ReiseKort({
                   onChange={(e) => {
                     setAntallTekst(e.target.value);
                     const antall = tolkAntall(e.target.value);
-                    if (antall != null && resultat.fraTid) {
-                      setRettetSlutt(tilFraAntall(resultat.fraTid, antall, resultat.fraTid, 0));
+                    const tider =
+                      antall != null
+                        ? reiseTiderFraAntall(aktivtValg.type, resultat.fraTid, resultat.tilTid, antall)
+                        : null;
+                    if (tider && antall != null) {
+                      // O6: «Til byggeplass» flytter Start; «Fra byggeplass» flytter Slutt.
+                      if (aktivtValg.type === "tur") setRettetStart(tider.start);
+                      setRettetSlutt(tider.slutt);
+                      // Gate (136) vilkår 1: klemmes tiden ved døgnkanten (00:00 / 23:59),
+                      // viser feltet det som faktisk lagres (`resultat.timer`), ikke det skrevne.
+                      const startMin = klokkeTilMin(tider.start);
+                      const sluttMin = klokkeTilMin(tider.slutt);
+                      if (startMin != null && sluttMin != null && Math.abs(sluttMin - startMin - antall * 60) > 0.5) {
+                        setAntallTekst(null);
+                      }
                     }
                   }}
                   className="w-full rounded border border-gray-300 px-3 py-2 text-sm"

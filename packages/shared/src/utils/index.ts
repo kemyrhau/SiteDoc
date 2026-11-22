@@ -257,6 +257,7 @@ export {
   dagManglerPause,
   forsokInnsending,
   svarPaaPauseSporsmaal,
+  fraFraTilOgAntall,
 } from "./pauseBeregning";
 export {
   tilErEtterFra,

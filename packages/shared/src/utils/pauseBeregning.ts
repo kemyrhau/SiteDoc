@@ -443,3 +443,14 @@ export function tilFraAntall(
   // Krysser (eller starter inne i) lunsj → skyv resten forbi pausevinduet.
   return minTilHhmm(pauseSlutt + (antallMin - forPause));
 }
+
+/**
+ * O6 (§ 8.22): Fra-tid gitt Til + antall timer, uten pause — `tilFraAntall` baklengs med
+ * pause 0. Brukes når slutten står fast: reise «Til byggeplass», der ankomsten er jobbstart.
+ * Reise bærer aldri matpausen. Klemmes til 00:00, slik `tilFraAntall` klemmes til 23:59.
+ *   til 07:00 − 1 t   → 06:00
+ *   til 00:30 − 1 t   → 00:00 (krysser ikke midnatt)
+ */
+export function fraFraTilOgAntall(til: string, antallTimer: number): string {
+  return minTilHhmm(hhmmTilMin(til) - Math.round(antallTimer * 60));
+}

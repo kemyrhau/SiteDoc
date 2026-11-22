@@ -108,3 +108,25 @@ describe("Tooltip v2 — struktur og a11y-kobling (portalet)", () => {
     expect(tip.className).toContain("max-w-[280px]");
   });
 });
+
+describe("O6 — `deaktivert`: ingen boks og ingen aria-kobling, triggeren står urørt", () => {
+  it("deaktivert → ingen tooltip-node og ingen aria-describedby; slått på → begge", () => {
+    const { rerender } = render(
+      <Tooltip tekst="Forskaling" deaktivert>
+        <button>Kort</button>
+      </Tooltip>,
+    );
+    const knapp = screen.getByRole("button", { name: "Kort" });
+    expect(screen.queryByRole("tooltip")).toBeNull();
+    expect(knapp.hasAttribute("aria-describedby")).toBe(false);
+    rerender(
+      <Tooltip tekst="Forskaling">
+        <button>Kort</button>
+      </Tooltip>,
+    );
+    // Samme DOM-node: knappen er ikke montert på nytt (fokus beholdes).
+    expect(screen.getByRole("button", { name: "Kort" })).toBe(knapp);
+    expect(screen.getByRole("tooltip").textContent).toContain("Forskaling");
+    expect(knapp.getAttribute("aria-describedby")).toBe(screen.getByRole("tooltip").id);
+  });
+});

@@ -39,6 +39,11 @@ interface TooltipProps {
   delayMs?: number;
   /** Overstyr wrapper-klassen — f.eks. `relative flex w-full` for full-bredde-triggere. */
   wrapperClassName?: string;
+  /**
+   * O6: true = ingen tooltip nå (ingen boks, ingen aria-kobling), men treet står urørt, så
+   * triggeren ikke monteres på nytt (fokus beholdes) når den slås av og på. Utelatt = som før.
+   */
+  deaktivert?: boolean;
 }
 
 const MOTSATT: Record<Side, Side> = {
@@ -91,6 +96,7 @@ export function Tooltip({
   side = "right",
   delayMs = 300,
   wrapperClassName = "relative inline-flex",
+  deaktivert = false,
 }: TooltipProps) {
   const id = useId();
   const wrapperRef = useRef<HTMLSpanElement>(null);
@@ -114,13 +120,14 @@ export function Tooltip({
   const vis = useCallback(
     (delay: number) => {
       nullstillTimer();
+      if (deaktivert) return;
       if (delay <= 0) {
         setOpen(true);
         return;
       }
       timerRef.current = setTimeout(() => setOpen(true), delay);
     },
-    [nullstillTimer],
+    [nullstillTimer, deaktivert],
   );
 
   const skjul = useCallback(() => {
@@ -130,6 +137,11 @@ export function Tooltip({
 
   // Rydd opp ved unmount.
   useEffect(() => nullstillTimer, [nullstillTimer]);
+
+  // Slått av mens den var åpen → lukk.
+  useEffect(() => {
+    if (deaktivert) skjul();
+  }, [deaktivert, skjul]);
 
   // Posisjonering + auto-flip: mål wrapperen + tooltipens størrelse, flip til motsatt side ved
   // skjermkant, og sett fixed-koordinater. Kjøres når den vises + ved scroll/resize (fixed følger
@@ -186,7 +198,7 @@ export function Tooltip({
   const trigger = isValidElement(children)
     ? cloneElement(children as ReactElement<{ tabIndex?: number; "aria-describedby"?: string }>, {
         "aria-describedby":
-          [children.props["aria-describedby"], id].filter(Boolean).join(" ") || undefined,
+          [children.props["aria-describedby"], deaktivert ? null : id].filter(Boolean).join(" ") || undefined,
         tabIndex: children.props.tabIndex ?? 0,
       })
     : children;
@@ -235,7 +247,7 @@ export function Tooltip({
       }}
     >
       {trigger}
-      {montert && typeof document !== "undefined"
+      {montert && !deaktivert && typeof document !== "undefined"
         ? createPortal(tooltipNode, document.body)
         : null}
     </span>
