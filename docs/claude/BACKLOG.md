@@ -5785,6 +5785,8 @@ Koblet til O8/D punkt 3: **avgjort 2026-11-22**, varene følger med jobben og in
 
 **Kenneth 2026-11-22, ordrett:** «varelager bør inn i firmainstillinger sammen maskin -> dette bør være en firmainstilling, ikke en prosjekt instilling.» **Rettet 2026-11-22 (orkestrators feil):** varelager **er allerede** en firmainnstilling, ved siden av Timer og Maskin («Firmamoduler … Prosjektet arver firmaets valg»). Når firmaet slår modulen på eller av, settes `ProjectModule`-radene for alle firmaets prosjekter (`syncProjektModulerPaaAktiver` og `…PaaDeaktiver`, `apps/api/src/services/firmamodul.ts:111–160`). Interne prosjekter får ingen rad. Serveren leser prosjektraden (`resolver.ts:100–105`), men den speiler bare firmavalget. Ikke målt: får et prosjekt som opprettes etter aktiveringen en rad? Det må måles i den egne økta. Gjenstår da bare teksten «kun vareforbruk» og nullstilling.
 
+**Kenneth 2026-11-22, avgrensning for timer:** «det eneste som påvirker timeregistrering -> dersom firma slår av varelager -> gamle registreringer blir stående -> nye registreringer av timer mister varelager i kortene». Målt av w5 under O8: med varelager av vises varene fortsatt, fordi `hentMineForDato` ikke filtrerer på modul. De kan ikke endres eller slettes (`krevVarelagerForProsjekt`), og «+ Vare» er skjult. Dagens atferd ser altså ut til å stemme. Verifiser med test i den egne økta.
+
 ## 3. Fremtidige faser
 
 ### 🔴 Befaringsnotat med fremdriftslys → autogenerert månedsrapport (Kenneth 2026-09-22)
