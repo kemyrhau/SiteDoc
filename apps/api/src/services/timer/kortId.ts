@@ -33,6 +33,15 @@ import {
 
 type Tx = Prisma.TransactionClient;
 
+/**
+ * O12 pkt 3/16 (vedtak-timer-web § Reisevinduet): timerradene som ER jobben i et kort — de som
+ * avgjør kortets nøkkel (prosjekt|byggeplass|underprosjekt) og «jobbens første arbeidsrad». En
+ * reise (`erReise`) og en reise ført som arbeidstid (`arbeidReiseRetning`) står i kortet som
+ * reise, også med et annet underprosjekt. Samme regel som `sikreKortId` (`erKortReiseArbeid`)
+ * og `flyttJobbTilSted`. Brukes som Prisma-filter: `where: { ...JOBBRAD, ... }`.
+ */
+export const JOBBRAD = { erReise: false, arbeidReiseRetning: null } as const;
+
 export type SedelKortKontekst = {
   sheetId: string;
   userId: string;
@@ -384,7 +393,7 @@ export async function validerOppgittKortId(
   const sel = { projectId: true, byggeplassId: true, externalCostObjectId: true } as const;
   const where = { sheetId: kontekst.sheetId, kortId };
   const iKortet = [
-    ...(await tx.sheetTimer.findMany({ where: { ...where, erReise: false }, select: sel })),
+    ...(await tx.sheetTimer.findMany({ where: { ...where, ...JOBBRAD }, select: sel })),
     ...(await tx.sheetTillegg.findMany({ where, select: sel })),
     ...(await tx.sheetUtlegg.findMany({ where, select: sel })),
   ];
@@ -463,8 +472,8 @@ export async function vareKortIdForSkriving(
     }
     const nyNokkel = kortIdNokkel(radNokkel(kontekst, args.ny));
     const radIKortet = await prismaTimer.sheetTimer.findFirst({
-      // Reiseraden i kortet kan ha et annet underprosjekt (B34 B) — bare arbeidsrader avgjør.
-      where: { sheetId: args.dagsseddelId, kortId: args.oppgittKortId, erReise: false },
+      // Reiseraden i kortet kan ha et annet underprosjekt (B34 B, O12 pkt 3) — bare jobbrader avgjør.
+      where: { sheetId: args.dagsseddelId, kortId: args.oppgittKortId, ...JOBBRAD },
       select: { projectId: true, byggeplassId: true, externalCostObjectId: true },
     });
     if (radIKortet && kortIdNokkel(radNokkel(kontekst, radIKortet)) !== nyNokkel) {

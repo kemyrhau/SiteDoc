@@ -47,7 +47,7 @@ Filer: `RK` = `apps/web/src/app/dashbord/timer/[id]/ReiseKort.tsx` · `MR` = `ap
    ✅ `RK` `reise-annet-kontor`, `avsluttOverforing`.
 3. Åpnes vinduet fra et prosjektkort, har reisen kortets prosjekt og byggeplass. De vises som tekst og kan ikke byttes, og reisen lagres i det kortet, også om underprosjektet er et annet. En grå linje sier at en reise til et annet sted føres i det stedets prosjektkort. I dagskort-visningen er «Hvor kjørte du til?» (ved retur «Hvor kjørte du fra?») fylt ut fra dagen, og arbeideren kan bytte prosjekt og byggeplass.
    Kenneth: «jeg står i et prosjektkort og åpner en +reise -> jeg skal da arve prosjektets prosjektnummer og byggeplass -> det er feil å føre reisen til en annen plass», «gi bruker informasjon -> hvis reisen er til feil prosjekt/byggeplass -> åpne og registrer reisen i korrekt prosjektkort», «3.ja». Dagskort: «jeg trenger å endre prosjektet reisen går til/fra».
-   ✅ `RK` `iKort`, `reise-kort-sted`, `timer.reiseKort.foresIKortet`; `DS` `tilfoyTimerRad` `reiseIKort`; `RT` «O12 pkt 3». Dagskort-visningen uendret (`RK` `reise-prosjekt`).
+   ✅ `RK` `iKort`, `reise-kort-sted`, `timer.reiseKort.foresIKortet`; `DS` `tilfoyTimerRad` `reiseIKort`; `RT` «O12 pkt 3». Dagskort-visningen uendret (`RK` `reise-prosjekt`). Reisen avgjør ikke kortets nøkkel: `JOBBRAD` (`services/timer/kortId.ts`), test `jobbrad-reise-i-kort.test.ts`.
 4. «Start kl.» og «Slutt kl.» er fylt ut med forslaget, og arbeideren kan rette begge.
    Kenneth: «hva om jeg begynte å kjøre kl 12:00?», «kjøretider må kunne redigeres», «jeg savner mulighet til å endre tidspunkter».
    ✅ `RK` `reise-start`, `reise-slutt`. Med «Arbeidstid»: `RT` «O10 — Arbeidstid i reisevinduet som før O8».

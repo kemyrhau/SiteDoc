@@ -27,6 +27,7 @@ import {
 } from "../../trpc/tilgangskontroll";
 import { krevTimerAktivert, hentEffektivArbeidstid } from "../../services/timer";
 import {
+  JOBBRAD,
   kortIdForSkriving,
   lastLagretKort,
   lastSedelKortKontekst,
@@ -894,7 +895,7 @@ async function flyttJobbTilSted(
     // O12 pkt 16/18: en reise ført som arbeidstid (merket) er reise her, ikke arbeid. Umerkede
     // arbeidstid-reiser fra før O12 er arbeid og følger stille med (R7, bevisst).
     pt.sheetTimer.findMany({
-      where: { ...hvor, erReise: false, arbeidReiseRetning: null },
+      where: { ...hvor, ...JOBBRAD },
       select: { id: true, attestertStatus: true },
     }),
     pt.sheetTimer.findMany({
@@ -1048,7 +1049,7 @@ export async function jobbStedForMaskin(
 ): Promise<{ byggeplassId?: string | null; externalCostObjectId?: string | null }> {
   if (!input.kortId) return {};
   const sel = { byggeplassId: true, externalCostObjectId: true } as const;
-  const felles = { sheetId: input.sheetId, projectId: input.projectId, erReise: false };
+  const felles = { sheetId: input.sheetId, projectId: input.projectId, ...JOBBRAD };
   const rad =
     (input.sheetTimerId
       ? await prismaTimer.sheetTimer.findFirst({ where: { ...felles, id: input.sheetTimerId }, select: sel })
@@ -5398,7 +5399,7 @@ export const dagsseddelRouter = router({
         where: {
           sheetId: sheet.id,
           kortId: input.kortId,
-          erReise: false,
+          ...JOBBRAD,
           projectId: { not: null },
           attestertStatus: { not: "erstattet" },
         },
@@ -5466,8 +5467,7 @@ export const dagsseddelRouter = router({
         where: {
           sheetId: sheet.id,
           kortId: input.kortId,
-          erReise: false,
-          arbeidReiseRetning: null,
+          ...JOBBRAD,
           projectId: { not: null },
           attestertStatus: { not: "erstattet" },
         },
@@ -7671,7 +7671,8 @@ export const dagsseddelRouter = router({
 
       const [timer, tillegg, maskiner] = await Promise.all([
         pt.sheetTimer.findMany({
-          where: { sheetId: sheet.id, kortId: input.kortId, attestertStatus: { not: "erstattet" }, erReise: false },
+          // O12 pkt 3/16: en reise i kortet er ingen jobbrad — den blir i del A (§ 8.22).
+          where: { sheetId: sheet.id, kortId: input.kortId, attestertStatus: { not: "erstattet" }, ...JOBBRAD },
           orderBy: [{ fraTid: "asc" }, { createdAt: "asc" }],
         }),
         pt.sheetTillegg.findMany({ where: { sheetId: sheet.id, kortId: input.kortId, attestertStatus: { not: "erstattet" } }, select: { attestertStatus: true } }),
