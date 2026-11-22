@@ -1925,6 +1925,31 @@ describe("O15 — «Del opp» og attesteringen etter Kenneths test på 722d394b"
     });
   });
 
+  it("pkt 1 (RETUR trinn 2) — tømt maskinfelt: blur sender ingenting, ingen rød servertekst, «Del opp» sperret", () => {
+    const { skjema, kl } = aapneDelOpp();
+    fireEvent.change(kl, { target: { value: "10:00" } });
+    act(() => { vi.advanceTimersByTime(400); });
+    vi.useRealTimers();
+    act(() => kallTil("delJobb")[0]!.opts!.onSuccess!({ forhandsvisning: {
+      timerA: 3, timerB: 4.5, maskinPaaA: 1,
+      maskiner: [{ id: "m1", navn: "Volvo EC250", timer: 4.5, timerA: 3, timerB: 1.5 }],
+    } }));
+    const rad = skjema.querySelector('[data-maskin-deling="m1"]') as HTMLElement;
+    const [a] = within(rad).getAllByRole("textbox") as HTMLInputElement[];
+    const foer = kallTil("delJobb").length;
+    fireEvent.change(a!, { target: { value: "" } });
+    fireEvent.blur(a!);
+    expect(kallTil("delJobb")).toHaveLength(foer);
+    expect(skjema.querySelector("p.text-red-600")).toBeNull();
+    const knapper = within(skjema).getAllByRole("button", { name: /registrering\.delOpp/ }) as HTMLButtonElement[];
+    expect(knapper[knapper.length - 1]!.disabled).toBe(true);
+    // Gyldig igjen: blur forhåndsviser med delingen.
+    fireEvent.change(a!, { target: { value: "2" } });
+    fireEvent.blur(a!);
+    const siste = kallTil("delJobb")[kallTil("delJobb").length - 1]!;
+    expect(siste.input).toMatchObject({ forhandsvis: true, maskinDeling: [{ id: "m1", timerA: 2, timerB: 2.5 }] });
+  });
+
   it("pkt 3 — «10» tolkes som 10:00, forhåndsvises og skrives om til TT:MM", () => {
     const { skjema, kl } = aapneDelOpp();
     fireEvent.change(kl, { target: { value: "10" } });

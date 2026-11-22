@@ -563,10 +563,6 @@ function tomLinje(id: string, type: TimerTabellLinje["type"], over: Partial<Time
 /* ------------------------------------------------------------------ */
 
 /**
- * Summene for et utvalg linjer. `timer` er alle timer (dagsraden, gruppen); `reise` er
- * reiselinjenes del av dem — jobbraden viser `timer − reise` og «reise X t» i grått (§ 4.11 C4).
- */
-/**
  * O15 pkt 5 (vedtak § Dagsvisningen pkt 5, R10): kortet har bare reise — reisetid eller reise
  * ført som arbeidstid (vedtak Reisevinduet pkt 16: en reise forblir reise) — og ingen maskin.
  * Tillegg og utlegg gjør det ikke til en jobb (F31). Brukes bare til tellingen «2 jobber · 1 reise»
@@ -581,6 +577,10 @@ export function erBareReiseKort(kort: Pick<AttKort, "linjer">): boolean {
   );
 }
 
+/**
+ * Summene for et utvalg linjer. `timer` er alle timer (dagsraden, gruppen); `reise` er
+ * reiselinjenes del av dem — jobbraden viser `timer − reise` og «reise X t» i grått (§ 4.11 C4).
+ */
 export function sumLinjer(linjer: readonly AttLinje[]): { timer: number; maskintimer: number; reise: number } {
   let timer = 0;
   let maskintimer = 0;

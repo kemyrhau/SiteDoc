@@ -859,7 +859,8 @@ function DelOppSkjema({ sheetId, kortId, tidsrom, eco, naaEco, onAvbryt, onDelt 
       inputMode="decimal"
       aria-label={t(side === "a" ? "timer.attestering.registrering.maskinTimerA" : "timer.attestering.registrering.maskinTimerB", { maskin: m.navn })}
       onChange={(e) => settDel(m, side, e.target.value)}
-      onBlur={() => kl && forhandsvis(kl, deling)}
+      // Tomt eller ugyldig felt: ingenting sendes (ingen −1 til serveren), «Del opp» er sperret.
+      onBlur={() => { if (kl && delingGyldig) forhandsvis(kl, deling); }}
       className="w-16 rounded border border-gray-300 px-2 py-1 text-right text-sm tabular-nums"
     />
   );
