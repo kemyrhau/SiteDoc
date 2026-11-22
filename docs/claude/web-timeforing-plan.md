@@ -631,7 +631,16 @@ kort-id-specen § 12 til ordren w10 fører det inn der.
 
 ### 4.2 Dagsvisningen i attesteringen (B14) — tre alternativer
 
-![B14 — i dag og alternativ A, B og C](skisser-web-timeforing/b14-sammenlikning.png)
+![B14c — i dag, variant A og variant B: prosjektnavn, overtid og reise i kortet](skisser-web-timeforing/b14c-sammenlikning.png)
+
+Bildet er skissen B14c (2026-11-22, Kenneths to dager fra test, uke 47). Den bygger på alternativ A og viser
+[vedtak-timer-web.md § Dagsvisningen i attesteringen](vedtak-timer-web.md) punkt 2 og 3: prosjektnavn og byggeplass
+i stedet for pr.nr., og overtid og reise som merker med timetall. Variant A er anbefalt; Kenneths svar står i
+vedtaksfila. Enkeltbilder: [`b14c-idag.png`](skisser-web-timeforing/b14c-idag.png) ·
+[`b14c-a.png`](skisser-web-timeforing/b14c-a.png) · [`b14c-b.png`](skisser-web-timeforing/b14c-b.png).
+Kilde: `skisser-b14c.html`. Bildet erstatter B14-sammenlikningen (i dag, A, B og C fra 2026-11-17), som viste pr.nr.
+
+Det opprinnelige valget mellom A, B og C står under.
 
 Enkeltbilder: [`b14-idag.png`](skisser-web-timeforing/b14-idag.png) · [`b14-a.png`](skisser-web-timeforing/b14-a.png) ·
 [`b14-b.png`](skisser-web-timeforing/b14-b.png) · [`b14-c.png`](skisser-web-timeforing/b14-c.png). Alle fire viser de
