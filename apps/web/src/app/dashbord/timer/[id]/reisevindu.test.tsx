@@ -423,11 +423,26 @@ describe("O6 (§ 8.22) — «Antall timer» følger retningen", () => {
     expect(input).toMatchObject({ fraTid: "12:00", tilTid: "13:00", timer: 1 });
   });
 
-  it("Til byggeplass nær midnatt: Start klemmes til 00:00, krysser ikke døgnet (som Slutt klemmes til 23:59)", () => {
+  it("Til byggeplass nær midnatt: Start klemmes til 00:00, feltet viser det som lagres (gate 136 vilkår 1)", async () => {
     const d = rendre({ timer: [arbeid({ fraTid: "00:30", tilTid: "05:00", timer: "4.5" })] });
     expect(slutt(d).value).toBe("00:30");
     fireEvent.change(antall(d), { target: { value: "1" } });
     expect(start(d).value).toBe("00:00");
     expect(slutt(d).value).toBe("00:30");
+    expect(antall(d).value).toBe("0.5");
+    const lagret = (await lagre(d))!;
+    expect(lagret).toMatchObject({ fraTid: "00:00", tilTid: "00:30", timer: 0.5 });
+  });
+
+  it("Fra byggeplass nær midnatt: Slutt klemmes til 23:59, feltet viser det som lagres (gate 136 vilkår 1)", async () => {
+    const d = rendre({ timer: [arbeid({ fraTid: "18:00", tilTid: "23:29", timer: "5.48" })] });
+    fireEvent.click(knapp(d, "timer.reiseKort.retur"));
+    expect(start(d).value).toBe("23:29");
+    fireEvent.change(antall(d), { target: { value: "1" } });
+    expect(start(d).value).toBe("23:29");
+    expect(slutt(d).value).toBe("23:59");
+    expect(antall(d).value).toBe("0.5");
+    const lagret = (await lagre(d))!;
+    expect(lagret).toMatchObject({ fraTid: "23:29", tilTid: "23:59", timer: 0.5 });
   });
 });
