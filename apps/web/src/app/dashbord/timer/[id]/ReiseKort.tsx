@@ -525,8 +525,16 @@ export function ReiseKort({
                   onChange={(e) => {
                     const start = e.target.value || null;
                     setRettetStart(start);
-                    // Slutten følger starten: start + skrevet antall timer, ellers
-                    // start + kjøretid, til den rettes igjen.
+                    // O7 (§ 8.22 punkt 4): «Til byggeplass» — slutten (ankomsten, jobbstart)
+                    // står fast, og antall timer regnes på nytt som Slutt − Start (fra
+                    // `resultat.timer`, altså det som lagres).
+                    if (aktivtValg.type === "tur") {
+                      setRettetSlutt(rettetSlutt ?? resultat.tilTid ?? null);
+                      setAntallTekst(null);
+                      return;
+                    }
+                    // «Fra byggeplass»: slutten følger starten — start + skrevet antall timer,
+                    // ellers start + kjøretid, til den rettes igjen.
                     const antall = tolkAntall(antallTekst);
                     setRettetSlutt(start && antall != null ? tilFraAntall(start, antall, start, 0) : null);
                   }}

@@ -295,6 +295,27 @@ describe("O6 (§ 8.22) — «Rediger reise»: antall timer følger retningen", (
     fireEvent.change(antallFelt(d), { target: { value: "1" } });
     expect(tider(d).slice(0, 2)).toEqual(["15:00", "16:00"]);
   });
+  it("O7: Til byggeplass — Fra rettes, Til (07:00) står fast og antall = Til − Fra", () => {
+    rendre([ARBEID1, reise({ id: "ru", kortId: "k1", byggeplassId: "b1", reiseRetning: "ut", fraTid: "06:56", tilTid: "07:00", timer: "0.07" })]);
+    aapneForste();
+    const d = dialogFor("ru");
+    const fra = d.querySelectorAll('input[type="time"]')[0] as HTMLInputElement;
+    fireEvent.change(fra, { target: { value: "06:00" } });
+    fireEvent.blur(fra);
+    expect(tider(d).slice(0, 2)).toEqual(["06:00", "07:00"]);
+    expect(antallFelt(d).value).toBe("1");
+  });
+
+  it("O7: Fra byggeplass — som før (Fra rettes, Til står, antall regnes av spennet)", () => {
+    rendre([ARBEID1, reise({ id: "rr", kortId: "k1", byggeplassId: "b1", reiseRetning: "retur", fraTid: "15:00", tilTid: "15:30", timer: "0.5" })]);
+    aapneForste();
+    const d = dialogFor("rr");
+    const fra = d.querySelectorAll('input[type="time"]')[0] as HTMLInputElement;
+    fireEvent.change(fra, { target: { value: "14:30" } });
+    fireEvent.blur(fra);
+    expect(tider(d).slice(0, 2)).toEqual(["14:30", "15:30"]);
+    expect(antallFelt(d).value).toBe("1");
+  });
 });
 
 describe("O6 (§ 8.22 punkt 2) — beskrivelsen ved hover på lukket prosjektkort", () => {

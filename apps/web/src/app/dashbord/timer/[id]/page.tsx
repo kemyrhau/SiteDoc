@@ -4354,6 +4354,10 @@ function TimerRadDialog({
   // eller den nye jobbens kort-id); eldre rad uten kort: maskinene koblet til raden.
   const jobbKortId = nyRadEgenJobb ? egenJobbKortId : (jobb?.kortId ?? rad?.kortId ?? kortId ?? null);
   const visKortMaskin = !!kortModus && rad?.erReise !== true;
+  // O7 (§ 8.22 punkt 3): en reise har ingen maskinseksjon — heller ikke når lønnsarten byttes
+  // til reise mens vinduet er åpent. Jobbens maskiner står da urørt ved lagring (ingen
+  // opprett/endre/slett); bytter arbeideren tilbake, står linjene som før.
+  const maskinPaaRad = visKortMaskin && !erReiseValgt;
   const [jobbMaskiner, setJobbMaskiner] = useState<
     Array<{ rad: MaskinRad; timer: string; fjernet: boolean; laast: boolean }>
   >(() =>
@@ -4468,7 +4472,7 @@ function TimerRadDialog({
   const hoystForJobbLinje = (i: number) => kortHoyst[i] ?? null;
   const nyMaskinHoyst = nyUtstyr ? (kortHoyst[aktiveJobbMaskiner.length] ?? null) : null;
   const kortOverHoyst =
-    visKortMaskin &&
+    maskinPaaRad &&
     (aktiveJobbMaskiner.some((l, i) => overMaskinHoyst(parseFloat(l.timer) || 0, hoystForJobbLinje(i))) ||
       overMaskinHoyst(parseFloat(nyMaskinTimer) || 0, nyMaskinHoyst));
 
@@ -4544,6 +4548,7 @@ function TimerRadDialog({
   // Rekkefølgen holder hvert mellomsteg innenfor serverens maskinregel (w9: ingen nye eller
   // økte brudd): først det som minker eller fjernes, så raden, så det som øker og den nye.
   async function lagreJobbMaskinerFoer(): Promise<void> {
+    if (!maskinPaaRad) return; // O7: reise rører ikke jobbens maskiner.
     for (const l of jobbMaskiner) {
       if (l.laast) continue;
       const ny = parseFloat(l.timer);
@@ -4554,6 +4559,7 @@ function TimerRadDialog({
     }
   }
   async function lagreJobbMaskinerEtter(radId: string | null): Promise<void> {
+    if (!maskinPaaRad) return; // O7: reise rører ikke jobbens maskiner.
     for (const l of jobbMaskiner) {
       if (l.laast || l.fjernet) continue;
       const ny = parseFloat(l.timer);
@@ -5298,7 +5304,7 @@ function TimerRadDialog({
             sjekk, samme mønster som kostnadsbærer-feltet over (:2066). */}
         {/* w3b (A13, S2 A): prosjektkort-modus — lik i «Legg til» og «Rediger». Jobbens maskiner
             (utstyr låst, antall kan rettes, × fjerner) og én ny linje med Utstyr og Antall timer. */}
-        {visKortMaskin && maskinAktiv && maskinEquipment && maskinEquipment.length > 0 && (
+        {maskinPaaRad && maskinAktiv && maskinEquipment && maskinEquipment.length > 0 && (
           <div className="rounded-lg border border-gray-200 bg-gray-50" data-testid="kort-maskindel">
             <button
               type="button"

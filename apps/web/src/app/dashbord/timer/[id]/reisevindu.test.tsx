@@ -255,11 +255,12 @@ describe("w15b — reisevinduet: systemet foreslår, arbeideren retter", () => {
     expect(h.kall.some((k) => k.key === "oppmotePeriode.overforing")).toBe(false);
   });
 
-  it("rettet start: slutten følger; rettet slutt: står og gir timene", async () => {
+  // O7 (§ 8.22 punkt 4): på «Til byggeplass» står slutten fast når start rettes (før: fulgte).
+  it("rettet start: slutten står (Til byggeplass); rettet slutt: står og gir timene", async () => {
     const d = rendre();
     expect(start(d).value).toBe("06:56");
     fireEvent.change(start(d), { target: { value: "06:00" } });
-    expect(slutt(d).value).toBe("06:04");
+    expect(slutt(d).value).toBe("07:00");
     fireEvent.change(slutt(d), { target: { value: "06:30" } });
     expect(start(d).value).toBe("06:00");
     expect(slutt(d).value).toBe("06:30");
@@ -444,5 +445,58 @@ describe("O6 (§ 8.22) — «Antall timer» følger retningen", () => {
     expect(antall(d).value).toBe("0.5");
     const lagret = (await lagre(d))!;
     expect(lagret).toMatchObject({ fraTid: "23:29", tilTid: "23:59", timer: 0.5 });
+  });
+});
+
+describe("O7 (§ 8.22 punkt 4) — Start rettes: «Til byggeplass» holder Slutt", () => {
+  afterEach(cleanup);
+  const antall = (d: HTMLElement) => d.querySelector("#reise-antall") as HTMLInputElement;
+
+  it("Til byggeplass: Slutt (07:00) står fast, antall = Slutt − Start", async () => {
+    const d = rendre();
+    expect(slutt(d).value).toBe("07:00");
+    fireEvent.change(start(d), { target: { value: "06:00" } });
+    expect(start(d).value).toBe("06:00");
+    expect(slutt(d).value).toBe("07:00");
+    expect(antall(d).value).toBe("1");
+    const input = (await lagre(d))!;
+    expect(input).toMatchObject({ fraTid: "06:00", tilTid: "07:00", timer: 1 });
+  });
+
+  it("Til byggeplass: Slutt står fast også etter et skrevet antall", () => {
+    const d = rendre();
+    fireEvent.change(antall(d), { target: { value: "1" } });
+    fireEvent.change(start(d), { target: { value: "06:30" } });
+    expect(slutt(d).value).toBe("07:00");
+    expect(antall(d).value).toBe("0.5");
+  });
+
+  it("Til byggeplass nær midnatt: Start 00:00, Slutt 00:30 står, feltet viser det som lagres", async () => {
+    const d = rendre({ timer: [arbeid({ fraTid: "00:30", tilTid: "05:00", timer: "4.5" })] });
+    fireEvent.change(start(d), { target: { value: "00:00" } });
+    expect(slutt(d).value).toBe("00:30");
+    expect(antall(d).value).toBe("0.5");
+    const lagret = (await lagre(d))!;
+    expect(lagret).toMatchObject({ fraTid: "00:00", tilTid: "00:30", timer: 0.5 });
+  });
+
+  it("Fra byggeplass: Slutt følger Start som før (start + kjøretid)", () => {
+    const d = rendre();
+    fireEvent.click(knapp(d, "timer.reiseKort.retur"));
+    const sluttFoer = slutt(d).value;
+    const spenn = (a: string, b: string) =>
+      Number(b.slice(0, 2)) * 60 + Number(b.slice(3)) - (Number(a.slice(0, 2)) * 60 + Number(a.slice(3)));
+    const varighet = spenn(start(d).value, sluttFoer);
+    fireEvent.change(start(d), { target: { value: "13:00" } });
+    expect(start(d).value).toBe("13:00");
+    expect(spenn("13:00", slutt(d).value)).toBe(varighet);
+  });
+
+  it("Fra byggeplass: med skrevet antall følger Slutt Start + antall (som før)", () => {
+    const d = rendre();
+    fireEvent.click(knapp(d, "timer.reiseKort.retur"));
+    fireEvent.change(antall(d), { target: { value: "1" } });
+    fireEvent.change(start(d), { target: { value: "13:00" } });
+    expect(slutt(d).value).toBe("14:00");
   });
 });
