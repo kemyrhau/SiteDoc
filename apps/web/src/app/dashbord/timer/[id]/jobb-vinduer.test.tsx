@@ -930,3 +930,144 @@ describe("O5 B — overtid deles automatisk ved lagring i prosjektkort-modus (§
     expect(timerKall()[0]!.input).toMatchObject({ fraTid: "13:30", tilTid: "15:30", timer: 2, lonnsartId: "l1" });
   });
 });
+
+describe("O7 — reise-rad uten maskinseksjon (§ 8.22 punkt 3)", () => {
+  afterEach(cleanup);
+
+  /** Maskin-modul på, reise-lønnsart «lr». `medReise` legger en lagret reise (16:00–16:30) i jobb 2. */
+  function medMaskinOgReise(medReise = false) {
+    rendre();
+    const sedel = h.data["timer.dagsseddel.hentMedId"] as typeof DAG7_SEDEL;
+    if (medReise) {
+      const reise = {
+        ...sedel.timer[1]!,
+        id: "r3",
+        lonnsartId: "lr",
+        fraTid: "16:00",
+        tilTid: "16:30",
+        timer: "0.5",
+        erReise: true,
+        reiseRetning: "retur",
+        createdAt: "2026-11-20T16:00:00.000Z",
+      };
+      h.data["timer.dagsseddel.hentMedId"] = { ...sedel, timer: [...sedel.timer, reise] };
+    }
+    h.data["modul.effektivTilstand"] = { maskin: true };
+    h.data["organisasjon.hentArbeidstidDefaults"] = {
+      timerRegistreringsmodus: "prosjektkort",
+      reiseLonnsartId: "lr",
+      reiseGrenser: [],
+    };
+    h.data["timer.lonnsart.list"] = [
+      { id: "l1", navn: "Timelønn", type: "ordinaer", aktiv: true, satsEnhet: "time" },
+      { id: "lr", navn: "Reise", type: "ordinaer", aktiv: true, satsEnhet: "time" },
+    ];
+    cleanup();
+    return render(<Side />);
+  }
+  function aapneJobb2() {
+    const kort = screen.getAllByRole("button").find((b) => b.textContent?.includes("TILL-001"));
+    fireEvent.click(kort!);
+  }
+  function redigerTimerrad() {
+    aapneJobb2();
+    fireEvent.click(screen.getAllByTitle("timer.jobbSkjema.aapneVinduHint")[0]!);
+    return screen.getByRole("dialog", { name: "timer.detalj.redigerTimerRad" });
+  }
+  const lonnsartValg = (dialog: HTMLElement) =>
+    Array.from(dialog.querySelectorAll("select")).find((s) =>
+      Array.from(s.options).some((o) => o.value === "lr"),
+    )!;
+  const maskinKall = () => h.kall.filter((k) => k.sti.startsWith("timer.dagsseddel.maskin."));
+
+  it("vakt: vanlig timer-rad viser maskinseksjonen med jobbens maskin som før", () => {
+    medMaskinOgReise();
+    const dialog = redigerTimerrad();
+    expect(within(dialog).getByTestId("kort-maskindel")).toBeTruthy();
+    expect(within(dialog).getAllByTestId("jobb-maskin")).toHaveLength(1);
+    expect(dialog.textContent).toContain("timer.maskinSeksjon.jobbensMaskiner");
+  });
+
+  it("«+ Reise» (reisekortet): ingen maskinseksjon", () => {
+    medMaskinOgReise();
+    const dialog = fraJobb2("timer.prosjektkort.nyReise");
+    expect(within(dialog).queryByTestId("kort-maskindel")).toBeNull();
+    expect(dialog.textContent).not.toContain("timer.maskinSeksjon.tittel");
+  });
+
+  it("«Legg til timer-rad» med lønnsart reise: ingen maskinseksjon — verken jobbens maskiner eller «Velg utstyr»", () => {
+    medMaskinOgReise();
+    const dialog = fraJobb2("timer.prosjektkort.nyTimer");
+    expect(within(dialog).getByTestId("kort-maskindel")).toBeTruthy();
+    fireEvent.change(lonnsartValg(dialog), { target: { value: "lr" } });
+    expect(dialog.textContent).toContain("timer.rediger.reiseHavner");
+    expect(within(dialog).queryByTestId("kort-maskindel")).toBeNull();
+    expect(within(dialog).queryAllByTestId("jobb-maskin")).toHaveLength(0);
+    expect(dialog.textContent).not.toContain("timer.maskinSeksjon.tittel");
+    expect(within(dialog).queryByRole("button", { name: /timer\.velgUtstyr/ })).toBeNull();
+  });
+
+  it("lagret reise: «Rediger timer-rad» har ingen maskinseksjon", () => {
+    medMaskinOgReise(true);
+    aapneJobb2();
+    const reiseBlyant = screen
+      .getAllByTitle("handling.rediger")
+      .find((b) => b.closest("li")?.textContent?.includes("16:00–16:30"));
+    fireEvent.click(reiseBlyant!);
+    const dialog = screen.getByRole("dialog", { name: "timer.detalj.redigerTimerRad" });
+    expect(within(dialog).queryByTestId("kort-maskindel")).toBeNull();
+    expect(dialog.textContent).not.toContain("timer.maskinSeksjon.tittel");
+  });
+
+  it("bytte til reise mens vinduet er åpent skjuler seksjonen; tilbake viser den igjen", () => {
+    medMaskinOgReise();
+    const dialog = redigerTimerrad();
+    expect(within(dialog).getByTestId("kort-maskindel")).toBeTruthy();
+    fireEvent.change(lonnsartValg(dialog), { target: { value: "lr" } });
+    expect(within(dialog).queryByTestId("kort-maskindel")).toBeNull();
+    fireEvent.change(lonnsartValg(dialog), { target: { value: "l1" } });
+    expect(within(dialog).getAllByTestId("jobb-maskin")).toHaveLength(1);
+  });
+
+  it("lagring etter bytte til reise: jobbens maskiner står urørt (ingen maskin-kall), også en rettet eller fjernet linje", async () => {
+    medMaskinOgReise();
+    let dialog = redigerTimerrad();
+    fireEvent.change(within(dialog).getByTestId("jobb-maskin").querySelector("input")!, { target: { value: "0.5" } });
+    fireEvent.change(lonnsartValg(dialog), { target: { value: "lr" } });
+    fireEvent.submit(dialog.querySelector("form")!);
+    await vi.waitFor(() => expect(h.kall.map((k) => k.sti)).toContain("timer.dagsseddel.oppdaterTimerRad"));
+    expect(maskinKall()).toEqual([]);
+    expect(h.kall.find((k) => k.sti === "timer.dagsseddel.oppdaterTimerRad")!.input).toMatchObject({ lonnsartId: "lr" });
+
+    cleanup();
+    medMaskinOgReise();
+    dialog = redigerTimerrad();
+    fireEvent.click(within(dialog).getByTitle("timer.maskinSeksjon.fjern"));
+    fireEvent.change(lonnsartValg(dialog), { target: { value: "lr" } });
+    fireEvent.submit(dialog.querySelector("form")!);
+    await vi.waitFor(() => expect(h.kall.map((k) => k.sti)).toContain("timer.dagsseddel.oppdaterTimerRad"));
+    expect(maskinKall()).toEqual([]);
+  });
+
+  it("«Legg til timer-rad» med valgt utstyr før bytte til reise: ingen ny maskin opprettes", async () => {
+    medMaskinOgReise();
+    const dialog = fraJobb2("timer.prosjektkort.nyTimer");
+    const [lonnsart, aktivitet] = Array.from(dialog.querySelectorAll("select"));
+    fireEvent.change(lonnsart!, { target: { value: "l1" } });
+    fireEvent.change(aktivitet!, { target: { value: "a1" } });
+    fireEvent.change(underprosjektValg(dialog), { target: { value: "e1" } });
+    const [fra, til] = Array.from(dialog.querySelectorAll<HTMLInputElement>('input[type="time"]'));
+    fireEvent.change(fra!, { target: { value: "16:00" } });
+    fireEvent.blur(fra!);
+    fireEvent.change(til!, { target: { value: "16:30" } });
+    fireEvent.blur(til!);
+    fireEvent.click(within(dialog).getByText("timer.maskinSeksjon.tittel"));
+    fireEvent.click(within(dialog).getByRole("button", { name: /timer\.velgUtstyr/ }));
+    fireEvent.click(within(dialog).getAllByText(/Gravemaskin G-12/).at(-1)!);
+    fireEvent.change(lonnsart!, { target: { value: "lr" } });
+    expect(within(dialog).queryByTestId("kort-maskindel")).toBeNull();
+    fireEvent.submit(dialog.querySelector("form")!);
+    await vi.waitFor(() => expect(h.kall.map((k) => k.sti)).toContain("timer.dagsseddel.tilfoyTimerRad"));
+    expect(maskinKall()).toEqual([]);
+  });
+});
