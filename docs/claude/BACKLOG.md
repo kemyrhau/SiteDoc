@@ -5766,6 +5766,23 @@ direkte fra listen.
 - **Dokumentflyt mobil** 🔴 — finner ikke arbeidsforløp (bruker-basert vs entreprise-basert matching).
 - ~~**Oppgave-mobil rettighetsoppfølger**~~ ✅ DEPLOYET TIL PROD 2026-05-29 (prod-merge `526db462`, impl `32dd43ac`). `apps/mobile/app/oppgave/[id].tsx` får nå `rettighetInput` ved kall til `useOppgaveSkjema` — speil av sjekkliste-mønster fra `60601d3c`. Aktiveres på mobil ved neste EAS-bygg + TestFlight/Play Store-distribusjon.
 
+## 🟡 Varelager: firmavalg «kun vareforbruk» + nullstilling (Kenneth 2026-11-22, egen økt)
+
+Kenneth, ordrett: «hvilke blokeringer rundt varelager har et firma? Kan firma velge å kun registrere varer uten at varer kjøpes inn og legges på lager? I anleggsbransjen er det lite hensiktsmessig med varelager som f.eks en butikk har. Varelager administreres i økonomisystem og jeg har ikke bygget varelager for bruk i regnskap, annet enn at varer er et huskepunkt for fakturering. Vi bør ha i instillinger for firma valg for dette. "varelager med mengde kontroll ved innkjøp/salg er ikke støttet i dag, kun registrering av vareforbruk ved timeregistrering er støttet" bør være et valg. -> varelager bør kunne nullstilles ved behov, evt automatisk nullstilling ved overgang nytt år. lagre informasjon om varelager for en egen økt. ta med kun det som er nødvendig for timeregistreringen.»
+
+Målt 2026-11-22 (`origin/develop`):
+- **Sperren** er modulbryteren, og det finnes ingen annen. `erVarelagerAktivert` (`apps/api/src/services/varelager/moduleGate.ts`) krever at firmaets hovedbryter er på. Med prosjekt krever den i tillegg `ProjectModule.status='aktiv'`.
+- **Ingen beholdning eller mengdekontroll.** Skjemaet `packages/db-varelager/prisma/schema.prisma` har bare `VareKategori`, `Vare` (med `internkostnad` = innkjøpspris) og `Vareforbruk` (`antall`). Det finnes ingen saldo, innkjøp eller salg.
+- I praksis er «varelager» i dag bare registrering av vareforbruk ved timeføring.
+
+Omfang når økta startes:
+- tydelig firmainnstilling eller hjelpetekst: «kun vareforbruk ved timeregistrering»;
+- nullstilling ved behov, og eventuelt automatisk ved nytt år.
+
+Bare det timeregistreringen trenger. Uavklart: hva betyr «nullstilling» når det ikke finnes beholdning — tømme katalog, arkivere forbruk, eller nullstille en fremtidig teller? Spør Kenneth før kode.
+
+Koblet til O8/D punkt 3 (varer når jobb flyttes til prosjekt uten varelager): **åpen**, avvises midlertidig.
+
 ## 3. Fremtidige faser
 
 ### 🔴 Befaringsnotat med fremdriftslys → autogenerert månedsrapport (Kenneth 2026-09-22)
