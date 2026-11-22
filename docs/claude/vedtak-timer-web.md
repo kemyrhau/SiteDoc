@@ -75,9 +75,9 @@ Filer: `RK` = `apps/web/src/app/dashbord/timer/[id]/ReiseKort.tsx` · `MR` = `ap
 12. Før lagring sier vinduet hvor reisen havner: «Står i jobben på …», «Står i kortet på …» eller «Får eget kort på …».
     Kenneth: «Reise til annet prosjekt må på eget kort», og «2A» (reise ført alene blir i sitt eget kort).
     ✅ `RK` `havnerTekst`, `MR` `reiseHavnerI`.
-13. Er «Lagre» sperret, sier en rød tekst hvorfor: lønnsart mangler, kjøretid mangler, reisen går over midnatt, tidsrommet overlapper, slutt er før start, eller oppmøtested er ikke valgt.
+13. Er «Lagre» sperret, sier en rød tekst hvorfor.
     Kenneth: svaret på inventaret (punkt 8) gjelder at tekstene vises også med «Arbeidstid». Selve sperrene har ikke Kenneths ord i planen eller `timer.md`.
-    ✅ `RK` `SPERRE_NOKKEL`, `tidSperre`. Med «Arbeidstid»: `RT` «O10 — Arbeidstid i reisevinduet som før O8».
+    ✅ `RK` `SPERRE_NOKKEL`, `tidSperre`.
 14. Mangler firmaets kjøretid for strekningen, eller har reisen ingen byggeplass, viser vinduet ingen tidsfelt, og reisen kan ikke føres.
     Kenneth har ikke sagt hva som skal skje når det ikke finnes noe forslag. Sperren er eldre enn tidsfeltene.
     ❓ `RM` `manglerKjoretid`; `RK` skjuler tidsfeltene ved `sperre`.

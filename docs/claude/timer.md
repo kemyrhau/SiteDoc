@@ -967,7 +967,7 @@ Gjelder prosjektkort-modus på redigerbar dag (Kenneth 2026-11-21 «Jeg godtar a
 
 ### Reisevinduet: når, hvor og klokkeslett (w15b, B42 A, B43 B) — ✅ merget til develop (`cee0c03e`)
 
-Spec: `web-timeforing-plan.md` § 4.15 del B, rad w15b i del G og del H, bildet `skisser-web-timeforing/v15-reisevindu.png`; LØSNING GODKJENT i `relay/inbox-web-timer-w5.md` (2026-11-21). Bare web-`ReiseKort` (prosjektkort-modus) og den delte `løsReiseKort`; mobilen, attesteringen, serveren og kortregelen (`reiseKort.ts`) er urørt.
+Reisevinduet: se [vedtak-timer-web.md § Reisevinduet](vedtak-timer-web.md). LØSNING GODKJENT i `relay/inbox-web-timer-w5.md` (2026-11-21). Bare web-`ReiseKort` (prosjektkort-modus) og den delte `løsReiseKort`; mobilen, attesteringen, serveren og kortregelen (`reiseKort.ts`) er urørt.
 
 - **Tre valg:** ⚠️ Utgått i «Reisens kort uten særregler» (§ 8.22, 🟡 `feat/web-timer-forenkle`). Sto slik: «Til byggeplass», «Fra byggeplass» og «Til annet kontor» (`timer.reiseKort.tilAnnetKontor`, bare ved ≥ 2 aktive kontorer). Kontorvalget forvelger første andre kontor; med 3 eller flere står kontorene i et nedtrekk (`aria-label` «Hvor kjørte du til?»). Overføringsknappene i perioden står som før.
 - **«Når kjørte du?»** — ⚠️ Utgått i «Reisens kort uten særregler» (§ 8.22, 🟡 `feat/web-timer-forenkle`). Sto slik: (`timer.reiseKort.naar`): «Før arbeid» / «Etter arbeid», bare for «Til annet kontor». Forvalg: «Etter arbeid» når overføringen avslutter perioden, ellers «Før arbeid». Før arbeid = (dagstart − kjøretid) → dagstart; etter arbeid = dagslutt → (dagslutt + kjøretid). Sporets retning (`ut`/`retur`) er den samme som før.
