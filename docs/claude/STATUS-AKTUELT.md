@@ -33,6 +33,7 @@ sist_verifisert_mot_kode: 2026-08-09
 > ✅ **Gjestevern ved firmabytte, mobil (19) MERGET 2026-11-15** (merge `1a287c5d` av `38f4dffa`; Kontrollør GODKJENT GATE (44) nederst i `inbox-orkestrator.md`). `skalNullstilleProsjekt` flyttet til `@sitedoc/shared` (`gjesteprosjekt.ts`, web re-eksporterer); mobil `ProsjektKontekst.tsx` holder ventende firmabytte til gjestelista er lastet (`firmabyttProsjekt.ts` `firmabyttUtfall`) — gjesteprosjekt beholdes ved firmabytte. **Ikke deployet.** Lukker (18) åpent punkt (b).
 > 🟢 **TEST-DEPLOY 2026-11-21: `3fa1bf2b`** (bygget 14:32+01, `/version` og delte tjenester verifisert av Kenneth). Innhold: forenklingen (§ 8.22) + tallformat. Ingen migreringer. Kenneths funn samme dag (plan § 8.22): «+ Registrer timer» skal åpne redigerbart vindu (snur B41 A); maskinvinduet for lite; reiser «koblet feil» (avklares).
 
+> ✅ **O8 MERGET 2026-11-22** (merge `fbe4aff2` av `8259052a`, gate (138) GODKJENT etter to returer). Arbeidstid uten rad + «Bytte til reisetid?», avrunding, underprosjekt etter plass, ny jobb med sted, «Slett jobben», bytte prosjekt/byggeplass på lagret jobb. Regel 10 kaldt: 7×=0, typecheck 11/11, test 7/7, kald next build OK. Ingen migrering. Ikke deployet. Neste: O9 returnert dag.
 > ✅ **O7 reise-rad uten maskinseksjon + «Til byggeplass» holder Slutt MERGET 2026-11-22** (merge `99b5b9b2` av `a6eda95f`, gate (137) GODKJENT). Regel 10 kaldt: 7×=0, typecheck 11/11, pnpm test 7/7, kald next build OK. Ingen migrering. Ikke deployet.
 > ✅ **O6 reise «Til byggeplass» + beskrivelse ved hover MERGET 2026-11-22** (merge `87272320` av `af35e282`, gate (136) RETUR → re-gate GODKJENT). Regel 10 kaldt: 7×=0, typecheck 11/11, pnpm test 7/7, kald next build OK (første forsøk rødt: TS18047 i af35e282, rettet fe05d356). Ingen migrering. Ikke deployet.
 > ✅ **O5 «+ Maskin» trekker fra / overtid deles automatisk MERGET 2026-11-21** (merge `25b40350` av `6e1a792f`, gate (134) RETUR → re-gate GODKJENT). Regel 10 kaldt: 7×=0, typecheck 11/11, pnpm test 7/7, kald next build OK. Ingen migrering. Ikke deployet.
@@ -221,7 +222,7 @@ sist_verifisert_mot_kode: 2026-08-09
 | **3D-web** | app-tre `3d-web-maaling-a15d10` | `feat/3d-egenskaper` merget `59efcf5a` | ⚪ LEDIG — neste: W5/M6 måling |
 | **3D-mobil** | app-tre `3d-mobil-maaling-a07340` | `feat/3d-mobil-trykk` merget `3ef97e7f` | ⚪ LEDIG — neste: M6 måling |
 | **web-timer-w1** | app-tre `web-timer-w1-2396e3` | S1 `fix/timer-slett-dagsseddel` merget `d35af35c` (w2 `1e792946`) | ⚪ LEDIG |
-| **web-timer-w5** | app-tre `web-timer-w5-c80b84` | O7 merget `99b5b9b2`, O6 `87272320`, O5 `25b40350`, O3+O4 `8b858340`, O2 `d815c465`, O1 `5ec7f1e0`, L3b `af91e7e0` (O6–O7 ikke deployet); venter Kenneths test; deretter L4 | ⏳ W5 |
+| **web-timer-w5** | app-tre `web-timer-w5-c80b84` | O8 merget `fbe4aff2`, O7 `99b5b9b2`, O6 `87272320`, O5 `25b40350`, O3+O4 `8b858340`, O2 `d815c465`, O1 `5ec7f1e0`, L3b `af91e7e0` (O6–O7 deployet `4bfc7a84`; O8 ikke deployet); venter Kenneths test; deretter O9 (returnert dag), L4 | ⏳ W5 |
 | **Kort-id d2b-2/3** | app-tre `kortid-d2b2-c544cf` | `feat/kortid-d2b3` merget `30ca2935` | ⚪ LEDIG — neste i specen: d3 |
 | **Kort-id d2c-2** | app-tre `kortid-d2c2-4fb489` | `feat/kortid-d2c2-mobil` merget `338de16a` | ⚪ LEDIG |
 | **Merge** | `SiteDoc-merge` | detached på develop | ⚪ LEDIG |
