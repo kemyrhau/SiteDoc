@@ -7,6 +7,10 @@ const tabellOppsettSchema = z.object({
   // uten flagget er den et gammelt Set som vises i sidens standardrekkefølge.
   kolonner: z.array(z.string()),
   rekkefolge: z.boolean().optional(),
+  // O13 (R3): kolonner som er satt inn i et lagret oppsett etter at det ble lagret (én gang).
+  // Står en her men ikke i `kolonner`, har brukeren skjult den — den settes ikke inn igjen.
+  // Ligger i det lagrede JSON-oppsettet (`User.tabelloppsett`), ingen migrering.
+  tillagt: z.array(z.string()).optional(),
   bredder: z.record(z.string(), z.number()).optional(),
   sortering: z.object({
     kolonne: z.string(),
@@ -68,7 +72,7 @@ export const brukerRouter = router({
       });
       const oppsett = bruker?.tabelloppsett as Record<string, unknown> | null;
       if (!oppsett || !oppsett[input.liste]) return null;
-      return oppsett[input.liste] as { kolonner: string[]; rekkefolge?: boolean; bredder?: Record<string, number>; sortering?: { kolonne: string; retning: string } | null };
+      return oppsett[input.liste] as { kolonner: string[]; rekkefolge?: boolean; tillagt?: string[]; bredder?: Record<string, number>; sortering?: { kolonne: string; retning: string } | null };
     }),
 
   // Lagre tabelloppsett for en spesifikk liste

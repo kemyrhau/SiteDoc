@@ -41,3 +41,34 @@ export function flyttKolonne(rekkefolge: readonly string[], fraId: string, tilId
   return ny;
 }
 
+
+/** O13 (R3): kolonner lagt til standardutvalget etter at oppsett er lagret. */
+export interface TillagteKolonner {
+  ider: readonly string[];
+  /** Kolonnen de settes inn rett etter. Er den ikke synlig, settes de inn sist. */
+  etter: string;
+}
+
+/**
+ * O13 (R3): et lagret oppsett leses med kolonnene i `tillegg` satt inn én gang. En kolonne som
+ * verken er synlig eller står i `tillagt`, settes inn rett etter `tillegg.etter` og føres i
+ * `tillagt`. Står den i `tillagt` men ikke i `kolonner`, har brukeren skjult den — den står
+ * skjult. Rekkefølgen ellers er den brukeren hadde (gammelt oppsett uten `rekkefolge` får
+ * `kanonisk`-rekkefølgen skrevet ut, så innsettingen har en plass).
+ */
+export function medTillagteKolonner(
+  lagret: LagretKolonner & { tillagt?: readonly string[] },
+  kanonisk: readonly string[],
+  tillegg: TillagteKolonner,
+): LagretKolonner & { tillagt: string[] } {
+  const synlige = new Set(lagret.kolonner);
+  // En tillagt kolonne som alt er synlig, føres i `tillagt`, så den står skjult om brukeren skjuler den.
+  const tillagt = [...(lagret.tillagt ?? [])];
+  for (const id of tillegg.ider) if (synlige.has(id) && !tillagt.includes(id)) tillagt.push(id);
+  const nye = tillegg.ider.filter((id) => !synlige.has(id) && !tillagt.includes(id));
+  if (nye.length === 0) return { kolonner: lagret.kolonner, rekkefolge: lagret.rekkefolge, tillagt };
+  const rekkefolge = effektivRekkefolge(lagret, kanonisk);
+  const plass = rekkefolge.indexOf(tillegg.etter);
+  const kolonner = plass === -1 ? [...rekkefolge, ...nye] : [...rekkefolge.slice(0, plass + 1), ...nye, ...rekkefolge.slice(plass + 1)];
+  return { kolonner, rekkefolge: true, tillagt: [...tillagt, ...nye] };
+}

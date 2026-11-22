@@ -58,6 +58,12 @@ export type TimerRadTabellRad<R> =
        * Sortert tabell er en flat liste, og da vises de igjen (WM82).
        */
       skjul?: readonly TimerTabellKolKey[];
+      /**
+       * O13 (B14c B): én celle over kolonnene `fra`…`til` (sammenhengende i `kolonner`), med
+       * innholdet til `til`. Kalleren setter det bare der kolonnene foran `til` står tomme
+       * (`skjul`). Sortert tabell er en flat liste, og da står hver kolonne for seg (WM82).
+       */
+      spenn?: { fra: TimerTabellKolKey; til: TimerTabellKolKey };
     }
   | { kind: "overskrift"; nokkel: string; innhold: ReactNode }
   /** w5 (bilde 7): innhold under en linje i tabellens synlige bredde (registreringen åpnet). */
@@ -88,6 +94,11 @@ export type TimerRadTabellRad<R> =
        * nå (raden pakkes likevel, så den ikke monteres på nytt). Utelatt → raden som før.
        */
       hover?: readonly string[];
+      /**
+       * O13 (B14c B): ett felt over `antall` kolonner fra og med `fra` (prosjektnavnet). Cellene i
+       * feltet tegnes ikke hver for seg. Utelatt → én celle pr. kolonne som før.
+       */
+      spenn?: { fra: TimerTabellKolKey; antall: number; innhold: ReactNode };
     };
 
 export interface TimerRadTabellFilter {
@@ -456,14 +467,27 @@ function Tabell<R>({
                     ) : rad.venstre}
                   </div>
                 )}
-                {kolonner.map((k) => (
-                  <div
-                    key={k}
-                    className={`min-w-0 truncate ${celleX} py-1.5 ${TIMER_TABELL_KOL[k].num ? "text-right tabular-nums" : "text-left"}`}
-                  >
-                    {rad.celle(k)}
-                  </div>
-                ))}
+                {kolonner.map((k, ki) => {
+                  const sp = rad.spenn;
+                  const fraI = sp ? kolonner.indexOf(sp.fra) : -1;
+                  if (sp && fraI !== -1 && ki === fraI) {
+                    const antall = Math.max(1, Math.min(sp.antall, kolonner.length - fraI));
+                    return (
+                      <div key={k} data-navnefelt="" className={`min-w-0 overflow-hidden ${celleX} py-1.5 text-left`} style={{ gridColumn: `span ${antall}` }}>
+                        {sp.innhold}
+                      </div>
+                    );
+                  }
+                  if (sp && fraI !== -1 && ki > fraI && ki < fraI + sp.antall) return null;
+                  return (
+                    <div
+                      key={k}
+                      className={`min-w-0 truncate ${celleX} py-1.5 ${TIMER_TABELL_KOL[k].num ? "text-right tabular-nums" : "text-left"}`}
+                    >
+                      {rad.celle(k)}
+                    </div>
+                  );
+                })}
                 {hoyre && <div className={`flex items-center justify-end px-2 py-1 ${bg} ${kantH}`} style={fastHoyre}>{rad.hoyre}</div>}
               </div>,
             );
@@ -478,6 +502,9 @@ function Tabell<R>({
           const aapen = erAapen?.(d) ?? false;
           const ekstra = `${linjeKlasse?.(d) ?? ""} ${onLinjeKlikk ? "cursor-pointer hover:bg-blue-50/60" : ""} ${aapen ? "!bg-blue-50" : ""}`;
           const skjult = (k: TimerTabellKolKey) => !sortert && (rad.skjul?.includes(k) ?? false);
+          // O13: linjas felt over flere tomme kolonner (ikke i sortert liste).
+          const lSpenn = !sortert && rad.spenn ? { fra: kolonner.indexOf(rad.spenn.fra), til: kolonner.indexOf(rad.spenn.til) } : null;
+          const spennOk = !!lSpenn && lSpenn.fra !== -1 && lSpenn.til > lSpenn.fra;
           return pakk(
             <div
               key={vi.key}
@@ -501,6 +528,8 @@ function Tabell<R>({
               )}
               {Array.from({ length: n }, (_, under) =>
                 kolonner.map((k, ki) => {
+                  if (spennOk && lSpenn && ki >= lSpenn.fra && ki < lSpenn.til) return null;
+                  const iSpenn = spennOk && lSpenn && ki === lSpenn.til;
                   const num = TIMER_TABELL_KOL[k].num;
                   const nøsting = innrykk?.(k, d) ?? false;
                   const tom = skjult(k);
@@ -510,7 +539,11 @@ function Tabell<R>({
                       className={`min-w-0 ${celleX} py-1.5 ${num ? "text-right tabular-nums" : "text-left"} ${
                         k === "beskrivelse" ? "whitespace-pre-wrap break-words" : "truncate"
                       } ${nøsting ? "pl-5 text-gray-500" : ""}`}
-                      style={{ gridColumn: ki + 1 + forskyvning, gridRow: under + 1 }}
+                      style={{
+                        gridColumn: iSpenn && lSpenn ? `${lSpenn.fra + 1 + forskyvning} / ${ki + 2 + forskyvning}` : ki + 1 + forskyvning,
+                        gridRow: under + 1,
+                      }}
+                      data-linjefelt={iSpenn ? "" : undefined}
                       title={tom ? undefined : celleTittel?.(k, d, under)}
                     >
                       {tom ? null : celle(k, d, under)}
