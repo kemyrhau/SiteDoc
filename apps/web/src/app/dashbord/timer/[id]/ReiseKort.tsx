@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import { Button, Modal } from "@sitedoc/ui";
 import {
+  effektivKortByggeplass,
   finnOverlappendeTidsrom,
   klokkeTilMin,
   manuellReiseForklaringTekst,
@@ -55,12 +56,24 @@ import {
  *
  *  O10 (§ 8.22, Kenneth 2026-11-22): «Arbeidstid» er som før O8 — tider, antall,
  *  underprosjekt, sperretekstene og «Avbryt» + «Lagre», som fører arbeidsraden på jobben.
- *  Over terskel spør linja «Bytte til reisetid?»; trykket bytter bare «Føres som», tider
- *  arbeideren har rettet, står. Forslagsteksten viser de avrundede minuttene.
+ *
+ *  O12 (docs/claude/vedtak-timer-web.md § Reisevinduet):
+ *   - pkt 3: i prosjektkort-visning (`kortModus`) er prosjekt og byggeplass kortets, vist som
+ *     tekst; reisen lagres i kortet vinduet ble åpnet fra (Reisetid og Arbeidstid).
+ *   - pkt 9: over terskel + «Arbeidstid» → gult varsel. Minutt-firma: målt på tiden i vinduet,
+ *     og «Lagre» spør «Føre turen som reisetid?». Km-firma: avhukingen «Reisen er mer enn X km».
+ *   - pkt 10: forslaget er firmaets kjøretid uten avrunding.
+ *   - pkt 12: «Til byggeplass» i et annet kort enn dagens første (Fra: siste) → «Lagre» spør.
+ *   - pkt 14: mangler kjøretid (eller byggeplass), skriver arbeideren tiden selv.
+ *   - pkt 16: Arbeidstid-reisen lagrer retningen (`arbeidReiseRetning`).
  * ============================================================================ */
 
 /** w15b: en rad på sedelen — dagsrammen, overlapp-sperren og linja «havner i». */
-export type ReiseKortDagsrad = ReiseHavnerRad & { tilTid: string | null };
+export type ReiseKortDagsrad = ReiseHavnerRad & {
+  tilTid: string | null;
+  /** O12 pkt 12: reise ført som arbeidstid — ingen jobb, teller ikke som dagens første/siste kort. */
+  arbeidReise?: boolean;
+};
 
 /** O1 TILLEGG: «1», «1,5», «0.75» → timer; tomt, 0 eller ugyldig → null. */
 function tolkAntall(v: string | null): number | null {
@@ -118,6 +131,7 @@ export function ReiseKort({
   forvalgtByggeplassId,
   forvalgtEcoId,
   jobbKortId,
+  kortModus = false,
   onLukk,
 }: {
   sheetId: string;
@@ -149,6 +163,9 @@ export function ReiseKort({
   /** O1 (§ 8.22): kort-id-en til jobben vinduet ble åpnet fra. Under terskel føres turen
    *  som arbeid i DEN jobben når nøkkelen er lik. Utelatt = som før (serveren velger). */
   jobbKortId?: string | null;
+  /** O12 pkt 3: vinduet er åpnet fra et prosjektkort (prosjektkort-visning). Prosjekt og
+   *  byggeplass er kortets og vises som tekst; reisen lagres i kortet `jobbKortId`. */
+  kortModus?: boolean;
   onLukk: () => void;
 }) {
   const { t } = useTranslation();
@@ -167,11 +184,19 @@ export function ReiseKort({
   // «Antall timer» slik han skrev det (null = vises fra start og slutt).
   const [kategoriValg, setKategoriValg] = useState<ReiseKategori | null>(null);
   const [antallTekst, setAntallTekst] = useState<string | null>(null);
+  // O12 pkt 9: km-firmaets avhuking «Reisen er mer enn X km». null = som firmaets tabell sier.
+  const [kmAvhuket, setKmAvhuket] = useState<boolean | null>(null);
+  // O12 pkt 9 og 12: dialogen «Lagre» åpner (kortet, terskelen). null = ingen.
+  const [dialog, setDialog] = useState<"kort" | "terskel" | null>(null);
+  const [lagreSignal, setLagreSignal] = useState(0);
+  // O12 pkt 3: i prosjektkort-visning er kortet stedet — bare når det finnes en jobb å lagre i.
+  const iKort = kortModus && !!jobbKortId;
   const nullstillTider = () => {
     setRettetStart(null);
     setRettetSlutt(null);
     setAntallTekst(null);
     setKategoriValg(null);
+    setKmAvhuket(null);
   };
   const reiseProsjektId = prosjektId;
 
@@ -243,8 +268,9 @@ export function ReiseKort({
   const sedelByggeplass = sedelByggeplassId
     ? ((byggeplasser ?? []).find((b) => b.id === sedelByggeplassId) ?? null)
     : null;
+  // O12 pkt 12: linja «havner i» finnes ikke i prosjektkort-visning — reisen står i kortet.
   const havner =
-    regelStatus === "klar" && resultat.spor && resultat.fraTid
+    !iKort && regelStatus === "klar" && resultat.spor && resultat.fraTid
       ? reiseHavnerI({
           rader: dagsrader,
           andreRader,
@@ -279,10 +305,71 @@ export function ReiseKort({
 
   // O1 (§ 8.22): under terskel er turen arbeid — den står i jobben vinduet ble åpnet fra
   // (regel 1) når linja «havner i» peker dit, altså når nøkkelen er lik. Ellers ingen kort-id.
-  const arbeidKortId =
-    jobbKortId && resultat.spor && !resultat.spor.erReise && havner?.type === "jobb" && havner.kortId === jobbKortId
+  // O12 pkt 3: i prosjektkort-visning står turen alltid i kortet, Reisetid som Arbeidstid.
+  const arbeidKortId = iKort
+    ? (jobbKortId ?? null)
+    : jobbKortId && resultat.spor && !resultat.spor.erReise && havner?.type === "jobb" && havner.kortId === jobbKortId
       ? jobbKortId
       : null;
+
+  // O12 pkt 9: terskelen. Minutt-firma: målt på tiden som står i vinduet. Km-firma: avhukingen,
+  // forhåndsavhuket når firmaets tabell er over terskelen.
+  const regel = reise.regel;
+  const kl = resultat.klassifisering;
+  const kmFirma = regel?.reiseTerskelEnhet === "km" && regel.reiseTerskelM != null;
+  const tabellOverKm = kl?.forklaring.type === "over" && kl.forklaring.enhet === "km";
+  const avhuket = kmAvhuket ?? tabellOverKm;
+  const vinduMin = resultat.fraTid && resultat.tilTid ? Math.round(resultat.timer * 60) : null;
+  const overTerskel = kmFirma
+    ? avhuket
+    : regel != null && regel.reiseTerskelEnhet === "minutter" && vinduMin != null && vinduMin >= regel.reiseTerskelMin;
+  const visTerskelVarsel = regelStatus === "klar" && kl?.kategori === "arbeidstid" && overTerskel;
+  const terskelTekst = !regel
+    ? ""
+    : kmFirma
+      ? manuellReiseTerskelTekst(t, { type: "over", enhet: "km", terskelM: regel.reiseTerskelM! })
+      : manuellReiseTerskelTekst(t, { type: "over", enhet: "minutter", terskelMin: regel.reiseTerskelMin });
+  const kreverTerskelDialog = visTerskelVarsel && !kmFirma;
+
+  // O12 pkt 12: dagens første og siste kort (jobber med arbeid, klokke fra arbeidsradene).
+  const kortPaaDagen = new Map<string, { projectId: string | null; byggeplassId: string | null; fra: number | null; til: number | null; fraTid: string | null; tilTid: string | null }>();
+  for (const r of dagsrader) {
+    if (r.erReise || r.arbeidReise || !r.kortId || r.attestertStatus === "erstattet") continue;
+    const k = kortPaaDagen.get(r.kortId) ?? {
+      projectId: r.projectId ?? null,
+      byggeplassId: effektivKortByggeplass(r.projectId ?? null, r.byggeplassId ?? null, sedelByggeplass),
+      fra: null,
+      til: null,
+      fraTid: null,
+      tilTid: null,
+    };
+    const f = klokkeTilMin(r.fraTid);
+    const ti = klokkeTilMin(r.tilTid);
+    if (f != null && (k.fra == null || f < k.fra)) {
+      k.fra = f;
+      k.fraTid = r.fraTid;
+    }
+    if (ti != null && (k.til == null || ti > k.til)) {
+      k.til = ti;
+      k.tilTid = r.tilTid;
+    }
+    kortPaaDagen.set(r.kortId, k);
+  }
+  const kortListe = [...kortPaaDagen.entries()].map(([kortId, k]) => ({ kortId, ...k }));
+  const dagensKort =
+    aktivtValg.type === "tur"
+      ? [...kortListe].sort((a, b) => (a.fra ?? 1e9) - (b.fra ?? 1e9))[0]
+      : [...kortListe].sort((a, b) => (b.til ?? -1) - (a.til ?? -1))[0];
+  const kortSjekk = iKort && !!dagensKort && dagensKort.kortId !== jobbKortId ? dagensKort : null;
+  const kortSjekkTekst = kortSjekk
+    ? [
+        kortSjekk.projectId ? prosjektNavn(kortSjekk.projectId) : null,
+        kortSjekk.byggeplassId ? ((byggeplasser ?? []).find((b) => b.id === kortSjekk.byggeplassId)?.name ?? null) : null,
+        kortSjekk.fraTid && kortSjekk.tilTid ? `${kortSjekk.fraTid}–${kortSjekk.tilTid}` : null,
+      ]
+        .filter(Boolean)
+        .join(" · ")
+    : "";
 
   const kanLagre =
     regelStatus === "klar" &&
@@ -350,6 +437,10 @@ export function ReiseKort({
       pauseMin: 0,
       byggeplassId: lagretByggeplassId,
       ...(arbeidKortId ? { kortId: arbeidKortId } : {}),
+      // O12 pkt 3: Reisetid lagres også i kortet vinduet ble åpnet fra.
+      ...(iKort && s.erReise ? { reiseIKort: true } : {}),
+      // O12 pkt 16: en reise ført som arbeidstid lagrer at den er en reise (retningen).
+      ...(!s.erReise ? { arbeidReiseRetning: aktivtValg.type === "retur" ? ("retur" as const) : ("ut" as const) } : {}),
       // Sporet kun når regelen sier reise; under terskel er raden ordinær
       // (reiseKilde null → serveren nuller sporet).
       ...(s.erReise && s.reiseKilde
@@ -365,10 +456,41 @@ export function ReiseKort({
     });
   }
 
-  /** O10: over terskel og «Arbeidstid» — bytter bare «Føres som». Rettede tider står;
-   *  er ingenting rettet, står forslaget. */
-  function byttTilReisetid() {
+  // O12 pkt 9 og 12: «Lagre» spør først om kortet, så om terskelen; begge svar lagrer.
+  function trykkLagre() {
+    if (!kanLagre) return;
+    if (kortSjekk) setDialog("kort");
+    else if (kreverTerskelDialog) setDialog("terskel");
+    else void lagre();
+  }
+  function jaLagreIKortet() {
+    if (kreverTerskelDialog) {
+      setDialog("terskel");
+      return;
+    }
+    setDialog(null);
+    void lagre();
+  }
+  function forSomReisetid() {
+    setDialog(null);
     setKategoriValg("reisetid");
+    // Lagres når resultatet er regnet på nytt med «Reisetid» (neste render).
+    setLagreSignal((n) => n + 1);
+  }
+  function beholdArbeidstid() {
+    setDialog(null);
+    void lagre();
+  }
+  useEffect(() => {
+    if (lagreSignal > 0) void lagre();
+    // Bare signalet: lagringen bruker resultatet fra renderen etter byttet.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lagreSignal]);
+
+  // O12 pkt 9: km-avhukingen — avhuket gir «Reisetid», ellers det firmaet fører under terskelen.
+  function settKmAvhuket(v: boolean) {
+    setKmAvhuket(v);
+    setKategoriValg(v ? "reisetid" : (regel?.reiseUnderTerskelType ?? "arbeidstid"));
   }
 
   /** Avslutt uten reise: perioden slutter dagen før sedeldatoen (slettes om den startet i dag). */
@@ -486,6 +608,20 @@ export function ReiseKort({
             <p className="mb-2 text-sm font-medium text-gray-900">
               {aktivtValg.type === "retur" ? t("timer.reiseKort.hvorFra") : t("timer.reiseKort.hvorTil")}
             </p>
+            {iKort ? (
+              /* O12 pkt 3: kortets prosjekt og byggeplass — tekst, ingen nedtrekk. */
+              <div data-testid="reise-kort-sted">
+                <p className="text-sm text-gray-800">
+                  {[
+                    prosjektNavn(prosjektId),
+                    bp.byggeplassId ? ((byggeplasser ?? []).find((b) => b.id === bp.byggeplassId)?.name ?? null) : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </p>
+                <p className="mt-1 text-xs text-gray-500">{t("timer.reiseKort.foresIKortet")}</p>
+              </div>
+            ) : (
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="reise-prosjekt">
@@ -516,10 +652,17 @@ export function ReiseKort({
                   }}
                 />
               </div>
+            )}
           </div>
 
         {/* w15b: start og slutt er forslaget og kan rettes. Skjult bare når det ikke finnes
             noe å foreslå fra (byggeplass-periode, oppmøtested ikke valgt, kjøretid mangler). */}
+        {/* O12 pkt 14: mangler kjøretid (eller byggeplass) skriver arbeideren tiden selv. */}
+        {regelStatus === "klar" && resultat.utenKjoretid && (
+          <p data-testid="reise-uten-kjoretid" className="text-xs text-gray-500">
+            {t(resultat.utenKjoretid === "utenByggeplass" ? "timer.reiseKort.utenByggeplass" : "timer.reiseKort.utenKjoretid")}
+          </p>
+        )}
         {regelStatus === "klar" &&
           sperre !== "byggeplassPeriode" &&
           sperre !== "oppmoteIkkeValgt" &&
@@ -631,17 +774,42 @@ export function ReiseKort({
                 );
               })}
             </div>
+            {/* O12 pkt 9: km-firma — arbeideren huker av om reisen var lengre enn terskelen. */}
+            {kmFirma && (
+              <label className="mt-2 flex items-center gap-2 text-sm text-gray-800">
+                <input
+                  type="checkbox"
+                  data-testid="reise-mer-enn-km"
+                  checked={avhuket}
+                  onChange={(e) => settKmAvhuket(e.target.checked)}
+                />
+                {t("timer.reiseKort.merEnnKm", { terskel: terskelTekst })}
+              </label>
+            )}
           </div>
+        )}
+
+        {/* O12 pkt 9: over terskel og «Arbeidstid» — gult varsel, uten lenke. */}
+        {visTerskelVarsel && (
+          <p
+            data-testid="reise-over-terskel-varsel"
+            className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900"
+          >
+            {t("timer.reiseKort.overTerskelVarsel", { terskel: terskelTekst })}
+          </p>
         )}
 
         {/* Forslaget: firmaets kjøretid, deretter hvorfor arbeid/reise. */}
         {regelStatus === "klar" && resultat.kjoretidMin != null && (
           <div>
-            <p className="text-sm text-gray-700">{t("timer.reiseKort.forslag", { min: reise.forslagMin ?? resultat.kjoretidMin })}</p>
+            <p className="text-sm text-gray-700">{t("timer.reiseKort.forslag", { min: resultat.kjoretidMin })}</p>
             {resultat.klassifisering && resultat.klassifisering.lonnsartId != null && (
               <p className="mt-1 text-xs text-gray-500">
                 {/* O1: turen føres som arbeid i jobben vinduet ble åpnet fra — si det. */}
-                {arbeidKortId && resultat.klassifisering.forklaring.type !== "ukjentAvstand"
+                {/* O12 pkt 3: Reisetid står også i kortet, men er ikke arbeidstid — da den delte linja. */}
+                {arbeidKortId &&
+                resultat.klassifisering.kategori === "arbeidstid" &&
+                resultat.klassifisering.forklaring.type !== "ukjentAvstand"
                   ? t(
                       resultat.klassifisering.forklaring.type === "under"
                         ? "timer.reiseKort.underTerskelPaaJobb"
@@ -658,25 +826,6 @@ export function ReiseKort({
                     )}
               </p>
             )}
-            {/* O8/O10 (§ 8.22 punkt 2): over firmaets terskel og «Arbeidstid» — spør om bytte. */}
-            {resultat.klassifisering?.kategori === "arbeidstid" &&
-              resultat.klassifisering.forklaring.type === "over" && (
-                <p
-                  data-testid="reise-bytt-til-reisetid"
-                  className="mt-2 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900"
-                >
-                  {t("timer.reiseKort.overTerskelSporsmaal", {
-                    terskel: manuellReiseTerskelTekst(t, resultat.klassifisering.forklaring),
-                  })}{" "}
-                  <button
-                    type="button"
-                    onClick={byttTilReisetid}
-                    className="font-medium text-blue-700 underline hover:text-blue-900"
-                  >
-                    {t("timer.reiseKort.byttTilReisetid")}
-                  </button>
-                </p>
-              )}
           </div>
         )}
 
@@ -738,12 +887,48 @@ export function ReiseKort({
             {t("handling.avbryt")}
           </Button>
           <KnappMedForklaring sperret={!kanLagre && !tilfoy.isPending} forklaring={forklaring}>
-            <Button type="button" onClick={() => void lagre()} disabled={!kanLagre || tilfoy.isPending}>
+            <Button type="button" onClick={trykkLagre} disabled={!kanLagre || tilfoy.isPending}>
               {tilfoy.isPending || overforingMut.isPending ? t("handling.lagrer") : t("handling.lagre")}
             </Button>
           </KnappMedForklaring>
         </div>
       </div>
+      {/* O12 pkt 12: reisen føres i et annet kort enn dagens første (Til) / siste (Fra). */}
+      {dialog === "kort" && kortSjekk && (
+        <Modal open={true} onClose={() => setDialog(null)} title={t("timer.reiseKort.kortSjekk.tittel")}>
+          <div className="space-y-4" data-testid="reise-kort-sjekk">
+            <p className="text-sm text-gray-800">
+              {t(aktivtValg.type === "tur" ? "timer.reiseKort.kortSjekk.tekstTur" : "timer.reiseKort.kortSjekk.tekstRetur", {
+                kort: kortSjekkTekst,
+              })}
+            </p>
+            <div className="flex justify-end gap-3">
+              <Button type="button" variant="secondary" onClick={() => setDialog(null)}>
+                {t("handling.avbryt")}
+              </Button>
+              <Button type="button" onClick={jaLagreIKortet}>
+                {t("timer.reiseKort.kortSjekk.jaLagre")}
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+      {/* O12 pkt 9: minutt-firma over terskel med «Arbeidstid» — begge svar lagrer; X lukker. */}
+      {dialog === "terskel" && (
+        <Modal open={true} onClose={() => setDialog(null)} title={t("timer.reiseKort.terskelDialog.tittel")}>
+          <div className="space-y-4" data-testid="reise-terskel-dialog">
+            <p className="text-sm text-gray-800">{t("timer.reiseKort.overTerskelVarsel", { terskel: terskelTekst })}</p>
+            <div className="flex justify-end gap-3">
+              <Button type="button" variant="secondary" onClick={beholdArbeidstid}>
+                {t("timer.reiseKort.terskelDialog.beholdArbeidstid")}
+              </Button>
+              <Button type="button" onClick={forSomReisetid}>
+                {t("timer.reiseKort.terskelDialog.forSomReisetid")}
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </Modal>
   );
 }

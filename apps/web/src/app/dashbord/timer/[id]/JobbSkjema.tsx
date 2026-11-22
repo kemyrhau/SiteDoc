@@ -14,6 +14,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Pencil } from "lucide-react";
+import { Button, Modal } from "@sitedoc/ui";
 import { trpc } from "@/lib/trpc";
 import { useFaarPlassPaaEnLinje } from "@/hooks/useFaarPlassPaaEnLinje";
 import { formaterTimer } from "@/lib/tallformat";
@@ -21,6 +22,8 @@ import { rundTilNarmeste } from "@/lib/tidsrunding";
 import { klokkeSteg, lesPauseMin, tilFraTimer, type SkjemaKilde } from "@/lib/jobbSkjema";
 import { byggeplasserForProsjekt, velgStandardByggeplass, type ByggeplassValg } from "@/lib/timerByggeplass";
 import {
+  klokkeTilMin,
+  minTilKlokke,
   regnJobbTid,
   validerJobbTid,
   type JobbTidFeil,
@@ -47,6 +50,36 @@ export type SkjemaLinje = {
 };
 
 export type SkjemaRad47 = { nr: number; etikett: string; innhold: ReactNode };
+
+/** O12 pkt 18: en reise i jobben (reisetid, eller arbeidstid merket som reise). */
+export type SkjemaReise = {
+  id: string;
+  /** "ut" = til byggeplass, "retur" = fra byggeplass. */
+  retning: "ut" | "retur" | null;
+  fraTid: string | null;
+  tilTid: string | null;
+  oppmotestedId: string | null;
+};
+
+/**
+ * O12 pkt 18: reisens nye tider med ny kjøretid. «Til byggeplass»: ankomsten står, start =
+ * slutt − kjøretid. «Fra byggeplass»: starten står, slutt = start + kjøretid. null = kan ikke
+ * regnes (kjøretid mangler, tid mangler eller utenfor døgnet) — gamle tider.
+ */
+export function nyReiseTid(
+  r: Pick<SkjemaReise, "retning" | "fraTid" | "tilTid">,
+  kjoretidMin: number | null,
+): { fraTid: string; tilTid: string } | null {
+  if (kjoretidMin == null) return null;
+  const fra = klokkeTilMin(r.fraTid);
+  const til = klokkeTilMin(r.tilTid);
+  if (r.retning === "retur") {
+    if (fra == null || fra + kjoretidMin > 24 * 60 - 1) return null;
+    return { fraTid: minTilKlokke(fra), tilTid: minTilKlokke(fra + kjoretidMin) };
+  }
+  if (til == null || til - kjoretidMin < 0) return null;
+  return { fraTid: minTilKlokke(til - kjoretidMin), tilTid: minTilKlokke(til) };
+}
 
 type Lagring = "ingen" | "lagrer" | "lagret" | "feil";
 
@@ -125,6 +158,10 @@ export function JobbSkjema({
     prosjekter: readonly { id: string; navn: string }[];
     byggeplasser: readonly ByggeplassValg[];
     onFlyttet: (nyKortId: string) => void;
+    /** O12 pkt 18: reisene i jobben. Finnes de, spør vinduet før jobben flyttes. */
+    reiser?: readonly SkjemaReise[];
+    /** O12 pkt 18: firmaets kjøretid til det nye stedet. null = mangler. */
+    nyKjoretid?: (r: { projectId: string; byggeplassId: string | null; oppmotestedId: string | null }) => number | null;
   };
 }) {
   const { t, i18n } = useTranslation();
@@ -387,6 +424,42 @@ export function JobbSkjema({
   // O8 D: prosjekt eller byggeplass endret på lagret jobb — hele jobben flyttes. Nytt prosjekt:
   // byggeplassen velges som for en ny rad (eneste kandidat, ellers ingen).
   const ventendeSted = useRef<{ projectId: string; byggeplassId: string | null } | null>(null);
+  // O12 pkt 18: jobben har reise — vinduet viser reisens tider og ny tid før noe endres.
+  const [reiseFlytt, setReiseFlytt] = useState<{
+    projectId: string;
+    byggeplassId: string | null;
+    reiser: { id: string; gammel: string; ny: { fraTid: string; tilTid: string } | null; kjoretidMin: number | null }[];
+  } | null>(null);
+  const flyttJobben = (
+    sted: { projectId: string; byggeplassId: string | null },
+    reise?: { valg: "flytt" | "slett"; tider?: { id: string; fraTid: string; tilTid: string; kjoretidMin: number | null }[] },
+  ) => {
+    if (!stedValg) return;
+    ventendeSted.current = sted;
+    void ferdig(
+      (async () => {
+        const svar = await flyttSted.mutateAsync({
+          sheetId,
+          kortId,
+          projectId: sted.projectId,
+          byggeplassId: sted.byggeplassId,
+          ...(reise ? { reise } : {}),
+        });
+        ventendeSted.current = null;
+        await utils.vareforbruk.hentMineForDato.invalidate();
+        if (svar.kortId !== kortId) stedValg.onFlyttet(svar.kortId);
+      })(),
+    );
+  };
+  const velgReiseFlytt = (valg: "flytt" | "slett") => {
+    if (!reiseFlytt) return;
+    const sted = { projectId: reiseFlytt.projectId, byggeplassId: reiseFlytt.byggeplassId };
+    const tider = reiseFlytt.reiser.flatMap((r) =>
+      r.ny ? [{ id: r.id, fraTid: r.ny.fraTid, tilTid: r.ny.tilTid, kjoretidMin: r.kjoretidMin }] : [],
+    );
+    setReiseFlytt(null);
+    flyttJobben(sted, valg === "slett" ? { valg } : { valg, tider });
+  };
   const velgSted = (endring: { projectId?: string; byggeplassId?: string | null }) => {
     if (lagring === "lagrer" || !l1 || !stedValg) return;
     const nyttProsjekt = endring.projectId ?? projectId;
@@ -399,20 +472,26 @@ export function JobbSkjema({
             toppbar: null,
           });
     if (nyttProsjekt === projectId && nyByggeplass === byggeplassId && !ventendeSted.current) return;
-    ventendeSted.current = { projectId: nyttProsjekt, byggeplassId: nyByggeplass };
-    void ferdig(
-      (async () => {
-        const svar = await flyttSted.mutateAsync({
-          sheetId,
-          kortId,
-          projectId: nyttProsjekt,
-          byggeplassId: nyByggeplass,
-        });
-        ventendeSted.current = null;
-        await utils.vareforbruk.hentMineForDato.invalidate();
-        if (svar.kortId !== kortId) stedValg.onFlyttet(svar.kortId);
-      })(),
-    );
+    // O12 pkt 18: med reise i jobben spør vinduet først — ingenting endres før valget.
+    if (stedValg.reiser && stedValg.reiser.length > 0) {
+      setReiseFlytt({
+        projectId: nyttProsjekt,
+        byggeplassId: nyByggeplass,
+        reiser: stedValg.reiser.map((r) => {
+          const kjoretidMin =
+            stedValg.nyKjoretid?.({ projectId: nyttProsjekt, byggeplassId: nyByggeplass, oppmotestedId: r.oppmotestedId }) ??
+            null;
+          return {
+            id: r.id,
+            gammel: `${r.fraTid ?? "—"}–${r.tilTid ?? "—"}`,
+            ny: nyReiseTid(r, kjoretidMin),
+            kjoretidMin,
+          };
+        }),
+      });
+      return;
+    }
+    flyttJobben({ projectId: nyttProsjekt, byggeplassId: nyByggeplass });
   };
 
   const provIgjen = () => {
@@ -780,6 +859,34 @@ export function JobbSkjema({
           </span>
         )}
       </div>
+      {/* O12 pkt 18: jobben flyttes og har reise — reisens tider og ny tid; ingenting endres før valget. */}
+      {reiseFlytt && (
+        <Modal open={true} onClose={() => setReiseFlytt(null)} title={t("timer.jobbSkjema.flyttReise.tittel")}>
+          <div className="space-y-4" data-testid="flytt-reise-vindu">
+            <p className="text-sm text-gray-800">{t("timer.jobbSkjema.flyttReise.tekst")}</p>
+            <ul className="space-y-1 text-sm text-gray-800">
+              {reiseFlytt.reiser.map((r) => (
+                <li key={r.id} data-testid="flytt-reise-rad">
+                  {r.ny
+                    ? t("timer.jobbSkjema.flyttReise.nyTid", { gammel: r.gammel, ny: `${r.ny.fraTid}–${r.ny.tilTid}` })
+                    : t("timer.jobbSkjema.flyttReise.utenKjoretid", { gammel: r.gammel })}
+                </li>
+              ))}
+            </ul>
+            <div className="flex flex-wrap justify-end gap-3">
+              <Button type="button" variant="secondary" onClick={() => setReiseFlytt(null)}>
+                {t("handling.avbryt")}
+              </Button>
+              <Button type="button" variant="secondary" onClick={() => velgReiseFlytt("slett")}>
+                {t("timer.jobbSkjema.flyttReise.slett")}
+              </Button>
+              <Button type="button" onClick={() => velgReiseFlytt("flytt")}>
+                {t("timer.jobbSkjema.flyttReise.flytt")}
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

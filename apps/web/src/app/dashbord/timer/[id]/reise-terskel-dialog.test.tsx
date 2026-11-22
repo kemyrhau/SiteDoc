@@ -50,9 +50,11 @@ vi.mock("react-i18next", () => ({
 
 vi.mock("@sitedoc/ui", async (importActual) => ({
   ...(await importActual<Record<string, unknown>>()),
-  Modal: ({ open, title, children }: { open: boolean; title: string; children: ReactNode }) =>
+  Modal: ({ open, title, children, onClose }: { open: boolean; title: string; children: ReactNode; onClose?: () => void }) =>
     open ? (
       <div role="dialog" aria-label={title}>
+        {/* O12 R3: modalens X (onClose). */}
+        <button type="button" aria-label="modal.x" onClick={onClose} />
         {children}
       </div>
     ) : null,
@@ -129,6 +131,10 @@ function rendre({
   ecoer = [] as Array<Record<string, unknown>>,
   /** O8: firmaets tidsrunding (15/30/60). null = ingen runding. */
   runding = null as number | null,
+  /** O12 pkt 14 R5: jobbens byggeplass (null = kort uten byggeplass). */
+  jobbByggeplassId = "b1" as string | null,
+  /** O12 pkt 12: flere rader (kort) på sedelen. */
+  ekstraTimer = [] as Array<Record<string, unknown>>,
 } = {}) {
   h.kall = [];
   h.utelat.clear();
@@ -160,7 +166,7 @@ function rendre({
           aktivitetId: "a1",
           externalCostObjectId: null,
           vehicleId: null,
-          byggeplassId: "b1",
+          byggeplassId: jobbByggeplassId,
           fraTid: "07:00",
           tilTid: "11:00",
           timer: "4",
@@ -170,6 +176,7 @@ function rendre({
           erReise: false,
           kortId: "k1",
         },
+        ...ekstraTimer,
       ],
     },
     "prosjekt.hentForTimer": [{ id: "p1", name: "Skole", internalProjectNumber: "2041" }],
@@ -195,9 +202,10 @@ function rendre({
   render(<Side />);
   // Ett kort på sedelen er åpent fra start; klikk kun hvis det er lukket.
   if (!screen.queryByRole("button", { name: "timer.prosjektkort.nyReise" })) {
-    fireEvent.click(screen.getByRole("button", { name: /2041 — Skole/ }));
+    fireEvent.click(screen.getAllByRole("button", { name: /2041 — Skole/ })[0]!);
   }
-  fireEvent.click(screen.getByRole("button", { name: "timer.prosjektkort.nyReise" }));
+  // O12 pkt 12: med flere kort åpnes vinduet fra det første (k1).
+  fireEvent.click(screen.getAllByRole("button", { name: "timer.prosjektkort.nyReise" })[0]!);
   return screen.getByRole("dialog", { name: "timer.reiseKort.tittel" });
 }
 
@@ -210,8 +218,22 @@ function rodSperretekst(dialog: HTMLElement) {
   return dialog.querySelector("p.text-red-700")?.textContent ?? null;
 }
 
-function lagre(dialog: HTMLElement) {
+/**
+ * Trykker «Lagre». O12 pkt 9/12: åpner «Lagre» en dialog (kortet, terskelen), svarer hjelperen
+ * «Ja, lagre» og «Behold arbeidstid» — det som lagrer valget arbeideren alt har gjort i vinduet.
+ */
+function lagre(dialog: HTMLElement, terskelSvar: "behold" | "reisetid" = "behold") {
   fireEvent.click(lagreKnapp(dialog));
+  const kort = within(dialog).queryByRole("dialog", { name: "timer.reiseKort.kortSjekk.tittel" });
+  if (kort) fireEvent.click(within(kort).getByRole("button", { name: "timer.reiseKort.kortSjekk.jaLagre" }));
+  const terskel = within(dialog).queryByRole("dialog", { name: "timer.reiseKort.terskelDialog.tittel" });
+  if (terskel) {
+    fireEvent.click(
+      within(terskel).getByRole("button", {
+        name: terskelSvar === "behold" ? "timer.reiseKort.terskelDialog.beholdArbeidstid" : "timer.reiseKort.terskelDialog.forSomReisetid",
+      }),
+    );
+  }
   return h.kall.find((k) => k.key === "timer.dagsseddel.tilfoyTimerRad")?.input;
 }
 
@@ -310,13 +332,26 @@ describe("web «+ Reise» — reise-kortet, samme regel som mobil", () => {
 describe("web «+ Reise» — Lagre sperret (beslutning 2 og 3)", () => {
   afterEach(cleanup);
 
-  it("kjøretid mangler: Lagre sperret med forklaring, ingen mutate", () => {
+  it("O12 pkt 14: kjøretid mangler — tidsfeltene står, Slutt (jobbstart) er fylt, grå tekst; «Lagre» åpner når Start er skrevet", () => {
     const dialog = rendre({ kjoretidMin: null });
-    const knapp = lagreKnapp(dialog);
-    expect(knapp.disabled).toBe(true);
-    fireEvent.mouseEnter(knapp.parentElement!);
-    expect(document.body.textContent).toContain("timer.reiseKort.sperre.manglerKjoretid");
-    expect(lagre(dialog)).toBeUndefined();
+    const felt = (id: string) => dialog.querySelector(`#${id}`) as HTMLInputElement;
+    expect(felt("reise-start").value).toBe("");
+    expect(felt("reise-slutt").value).toBe("07:00");
+    expect(within(dialog).getByTestId("reise-uten-kjoretid").textContent).toBe("timer.reiseKort.utenKjoretid");
+    // Den gamle sperren finnes ikke på web.
+    expect(dialog.textContent).not.toContain("timer.reiseKort.sperre.manglerKjoretid");
+    expect(lagreKnapp(dialog).disabled).toBe(true);
+    fireEvent.change(felt("reise-start"), { target: { value: "06:20" } });
+    expect(lagreKnapp(dialog).disabled).toBe(false);
+    const input = lagre(dialog, "reisetid")!;
+    expect(input).toMatchObject({ fraTid: "06:20", tilTid: "07:00", kortId: "k1" });
+    expect(input.timer).toBeCloseTo(40 / 60, 10);
+  });
+
+  it("O12 pkt 14 (R5): kortet har ingen byggeplass — tidsfeltene står med egen grå tekst", () => {
+    const dialog = rendre({ kjoretidMin: 15, jobbByggeplassId: null });
+    expect(within(dialog).getByTestId("reise-uten-kjoretid").textContent).toBe("timer.reiseKort.utenByggeplass");
+    expect((dialog.querySelector("#reise-slutt") as HTMLInputElement).value).toBe("07:00");
   });
 
   it("ikke valgt oppmøtested: sperret med egen tekst — i kortet og i tooltipen (vedtak 2026-11-15)", () => {
@@ -332,10 +367,10 @@ describe("web «+ Reise» — Lagre sperret (beslutning 2 og 3)", () => {
   });
 
   it("commit 9: sperreårsaken står som rød tekst i KORTET (ikke bare i tooltipen, som er portalet til body)", () => {
-    const dialog = rendre({ kjoretidMin: null });
-    // Tooltipen ligger utenfor dialogen — teksten i dialogen kan bare komme fra kortet.
+    // O12 pkt 14: «mangler kjøretid» sperrer ikke lenger på web — ikke valgt oppmøtested gjør.
+    const dialog = rendre({ perioder: [] });
     expect(screen.getByRole("tooltip", { hidden: true }).closest('[role="dialog"]')).toBeNull();
-    expect(rodSperretekst(dialog)).toBe("timer.reiseKort.sperre.manglerKjoretid");
+    expect(rodSperretekst(dialog)).toBe("timer.reiseKort.sperre.oppmoteIkkeValgt");
   });
 
   it("negativkontroll: uten sperre finnes ingen rød sperretekst i kortet", () => {
@@ -450,10 +485,11 @@ describe("O1 — reise under terskel står i jobben vinduet ble åpnet fra", () 
     expect(input).not.toHaveProperty("reiseKilde");
   });
 
-  it("over terskel: ingen kortId (serveren velger reisekortet som før)", () => {
+  it("O12 pkt 3: over terskel lagres reisen i kortet vinduet ble åpnet fra (kortId + reiseIKort)", () => {
     const input = lagre(rendre({ kjoretidMin: 45 }))!;
     expect(input.lonnsartId).toBe("lr");
-    expect(input).not.toHaveProperty("kortId");
+    expect(input).toMatchObject({ kortId: "k1", reiseIKort: true });
+    expect(input).not.toHaveProperty("arbeidReiseRetning");
   });
 
   it("under terskel: forklaringslinja sier terskel, art og «på denne jobben»", () => {
@@ -466,16 +502,25 @@ describe("O1 — reise under terskel står i jobben vinduet ble åpnet fra", () 
     expect(tekst).not.toContain("timer.reiseTerskel.underFores");
   });
 
-  it("negativkontroll: annet underprosjekt enn jobben → annen nøkkel, ingen kortId, delt tekst", () => {
+  it("O12 pkt 3: annet underprosjekt enn jobben — reisen lagres likevel i kortet", () => {
     const dialog = rendre({ kjoretidMin: 15, ecoer: ECO });
     fireEvent.change(within(dialog).getByRole("combobox", { name: "timer.felt.underprosjekt" }), {
       target: { value: "e1" },
     });
     const input = lagre(dialog)!;
     expect(input.externalCostObjectId).toBe("e1");
-    expect(input).not.toHaveProperty("kortId");
-    expect(dialog.textContent).toContain("timer.reiseTerskel.underFores");
-    expect(dialog.textContent).not.toContain("timer.reiseKort.underTerskelPaaJobb");
+    expect(input).toMatchObject({ kortId: "k1", arbeidReiseRetning: "ut" });
+  });
+
+  it("O12 pkt 3: prosjekt og byggeplass er tekst (ingen nedtrekk) med den grå linja", () => {
+    const dialog = rendre({ kjoretidMin: 15 });
+    expect(dialog.querySelector("#reise-prosjekt")).toBeNull();
+    expect(within(dialog).queryByRole("combobox", { name: "timer.felt.byggeplass" })).toBeNull();
+    const sted = within(dialog).getByTestId("reise-kort-sted");
+    expect(sted.textContent).toContain("2041 — Skole · Skolebygg");
+    expect(sted.textContent).toContain("timer.reiseKort.foresIKortet");
+    // pkt 12: linja «havner i» finnes ikke i prosjektkort-visning.
+    expect(dialog.textContent).not.toMatch(/timer\.reiseKort\.havner(Jobb|Kort|Eget)/);
   });
 });
 
@@ -508,7 +553,8 @@ describe("O1 TILLEGG — arbeideren velger reisetid/arbeidstid", () => {
     expect(input.reiseKjoretidMin).toBe(15);
     expect((input.reiseRegel as Record<string, unknown>).kategori).toBe("reisetid");
     expect((input.reiseRegel as Record<string, unknown>).regelKategori).toBe("arbeidstid");
-    expect(input).not.toHaveProperty("kortId");
+    // O12 pkt 3: Reisetid står i kortet vinduet ble åpnet fra.
+    expect(input).toMatchObject({ kortId: "k1", reiseIKort: true });
     expect(d.textContent).toContain("timer.reiseTerskel.underFores");
     expect(d.textContent).toContain("timer.reiseTerskel.kategoriReise");
   });
@@ -521,6 +567,8 @@ describe("O1 TILLEGG — arbeideren velger reisetid/arbeidstid", () => {
     expect(input.lonnsartId).toBe("l1");
     expect(input.kortId).toBe("k1");
     expect(input).not.toHaveProperty("reiseKilde");
+    // O12 pkt 16: arbeidstid-reisen lagrer retningen.
+    expect(input.arbeidReiseRetning).toBe("ut");
   });
 
   it("negativkontroll: uten valg følger lagringen terskelen (under → arbeid, over → reise)", () => {
@@ -581,48 +629,44 @@ describe("O1 TILLEGG — antall timer ↔ Slutt kl.", () => {
  * aldri ned til 0. Retningen gjelder etter avrunding. Arbeiderens egne tall rundes ikke.
  * Jobben er 07:00–11:00; terskelen 30 min.
  */
-describe("O8 — reiseforslaget avrundes etter firmaets tidsrunding", () => {
+describe("O12 pkt 10 — forslaget er firmaets kjøretid uten avrunding", () => {
   afterEach(cleanup);
   const felt = (d: HTMLElement, id: string) => d.querySelector(`#${id}`) as HTMLInputElement;
   const knapp = (d: HTMLElement, navn: string) => within(d).getByRole("button", { name: navn });
 
-  it("30 min: 37 min → 0,5 t; «Til byggeplass» holder Slutt (07:00), Start 06:30", () => {
+  it("runding 30: 37 min → 06:23–07:00 og 0,62 t («Til byggeplass» holder Slutt)", () => {
     const d = rendre({ kjoretidMin: 37, runding: 30 });
-    expect(felt(d, "reise-antall").value).toBe("0.5");
-    expect(felt(d, "reise-start").value).toBe("06:30");
+    expect(felt(d, "reise-start").value).toBe("06:23");
     expect(felt(d, "reise-slutt").value).toBe("07:00");
+    expect(felt(d, "reise-antall").value).toBe("0.62");
     const input = lagre(d)!;
-    expect(input).toMatchObject({ fraTid: "06:30", tilTid: "07:00", timer: 0.5 });
-    // Sporet og terskelen står på firmaets kjøretid.
+    expect(input).toMatchObject({ fraTid: "06:23", tilTid: "07:00" });
+    expect(input.timer).toBeCloseTo(37 / 60, 10);
     expect(input.reiseKjoretidMin).toBe(37);
   });
 
-  it("30 min: «Fra byggeplass» holder Start (11:00), Slutt 11:30", () => {
+  it("runding 30: «Fra byggeplass» 11:00–11:37; 10 min står som 10 min (ingen «aldri 0»-runding)", () => {
+    let d = rendre({ kjoretidMin: 37, runding: 30 });
+    fireEvent.click(knapp(d, "timer.reiseKort.retur"));
+    expect(felt(d, "reise-slutt").value).toBe("11:37");
+    cleanup();
+    d = rendre({ kjoretidMin: 10, runding: 30 });
+    expect(felt(d, "reise-start").value).toBe("06:50");
+    expect(felt(d, "reise-antall").value).toBe("0.17");
+  });
+
+  it("R4: rettet Start lagres urundet — «Fra byggeplass» 11:07 gir 11:07–11:44", () => {
     const d = rendre({ kjoretidMin: 37, runding: 30 });
     fireEvent.click(knapp(d, "timer.reiseKort.retur"));
-    expect(felt(d, "reise-start").value).toBe("11:00");
-    expect(felt(d, "reise-slutt").value).toBe("11:30");
-    expect(lagre(d)!.timer).toBe(0.5);
+    fireEvent.change(felt(d, "reise-start"), { target: { value: "11:07" } });
+    expect(felt(d, "reise-slutt").value).toBe("11:44");
+    expect(lagre(d)!).toMatchObject({ fraTid: "11:07", tilTid: "11:44" });
   });
 
-  it("nærmeste intervall: 50 min med 30 → 1 t; 38 min med 15 → 0,75 t; 37 min med 15 → 0,5 t", () => {
-    let d = rendre({ kjoretidMin: 50, runding: 30 });
-    expect(felt(d, "reise-antall").value).toBe("1");
-    expect(felt(d, "reise-start").value).toBe("06:00");
+  it("forslagsteksten viser firmaets kjøretid urundet (37 med runding 30 → «37»; 4 → «4»)", () => {
+    expect(rendre({ kjoretidMin: 37, runding: 30 }).textContent).toContain('timer.reiseKort.forslag{"min":37}');
     cleanup();
-    d = rendre({ kjoretidMin: 38, runding: 15 });
-    expect(felt(d, "reise-antall").value).toBe("0.75");
-    expect(felt(d, "reise-start").value).toBe("06:15");
-    cleanup();
-    d = rendre({ kjoretidMin: 37, runding: 15 });
-    expect(felt(d, "reise-antall").value).toBe("0.5");
-  });
-
-  it("aldri 0: 10 min med 30 → 0,5 t (Reisetid valgt under terskel)", () => {
-    const d = rendre({ kjoretidMin: 10, runding: 30 });
-    fireEvent.click(knapp(d, "timer.reisetid"));
-    expect(felt(d, "reise-antall").value).toBe("0.5");
-    expect(lagre(d)!).toMatchObject({ fraTid: "06:30", tilTid: "07:00", timer: 0.5 });
+    expect(rendre({ kjoretidMin: 4, runding: 30 }).textContent).toContain('timer.reiseKort.forslag{"min":4}');
   });
 
   it("negativkontroll: tidsrunding null → ingen avrunding (37 min = 06:23–07:00)", () => {
@@ -645,12 +689,6 @@ describe("O8 — reiseforslaget avrundes etter firmaets tidsrunding", () => {
     expect(lagre(d)!).toMatchObject({ fraTid: "11:00", tilTid: "11:37" });
   });
 
-  it("rettet Start («Fra byggeplass»): slutten følger med det avrundede forslaget, starten står som skrevet", () => {
-    const d = rendre({ kjoretidMin: 37, runding: 30 });
-    fireEvent.click(knapp(d, "timer.reiseKort.retur"));
-    fireEvent.change(felt(d, "reise-start"), { target: { value: "11:07" } });
-    expect(felt(d, "reise-slutt").value).toBe("11:37");
-  });
 });
 
 /**
@@ -685,12 +723,13 @@ describe("O10 — Arbeidstid i reisevinduet som før O8", () => {
   ] as const)("%s: «Lagre» fører arbeidsraden på jobben; linja «Står i kortet på …» og forklaringen med art", (_n, min, velg, nokkel) => {
     const d = rendre({ kjoretidMin: min });
     if (velg) fireEvent.click(knapp(d, "timer.reiseKort.arbeidstid"));
-    // Linja «havner i» som før O8 (jobben vinduet ble åpnet fra).
-    expect(d.textContent).toMatch(/timer\.reiseKort\.havner(Jobb|Kort)\{/);
+    // O12 pkt 12: ingen linje «havner i» i prosjektkort-visning — vinduet sier at reisen føres i kortet.
+    expect(d.textContent).not.toMatch(/timer\.reiseKort\.havner(Jobb|Kort|Eget)/);
+    expect(d.textContent).toContain("timer.reiseKort.foresIKortet");
     expect(d.textContent).toContain(nokkel);
     expect(d.textContent).toContain('"art":"Ordinær"');
     const input = lagre(d)!;
-    expect(input).toMatchObject({ kortId: "k1", lonnsartId: "l1", tilTid: "07:00" });
+    expect(input).toMatchObject({ kortId: "k1", lonnsartId: "l1", tilTid: "07:00", arbeidReiseRetning: "ut" });
     expect(input).not.toHaveProperty("reiseKilde");
   });
 
@@ -721,50 +760,141 @@ describe("O10 — Arbeidstid i reisevinduet som før O8", () => {
     expect(lagreKnapp(d2).disabled).toBe(true);
   });
 
-  it("«Bytte til reisetid?» beholder tidene arbeideren har rettet", () => {
-    const d = rendre({ kjoretidMin: 45, runding: 30 });
-    fireEvent.change(felt(d, "reise-start"), { target: { value: "06:10" } });
-    fireEvent.click(knapp(d, "timer.reiseKort.arbeidstid"));
-    expect(felt(d, "reise-start").value).toBe("06:10");
-    fireEvent.click(knapp(d, "timer.reiseKort.byttTilReisetid"));
-    expect(knapp(d, "timer.reisetid").getAttribute("aria-pressed")).toBe("true");
-    expect(felt(d, "reise-start").value).toBe("06:10");
-    expect(felt(d, "reise-slutt").value).toBe("07:00");
-    expect(lagre(d)!).toMatchObject({ fraTid: "06:10", tilTid: "07:00", lonnsartId: "lr" });
-  });
+});
 
-  it("«Bytte til reisetid?» uten rettede tider: forslaget står (avrundet)", () => {
-    const d = rendre({ kjoretidMin: 45, runding: 30 });
-    fireEvent.click(knapp(d, "timer.reiseKort.arbeidstid"));
-    fireEvent.click(knapp(d, "timer.reiseKort.byttTilReisetid"));
-    expect(felt(d, "reise-start").value).toBe("06:00");
-    expect(felt(d, "reise-slutt").value).toBe("07:00");
-  });
+/**
+ * O12 pkt 9 (vedtak-timer-web.md § Reisevinduet): over terskel + Arbeidstid gir et gult varsel uten
+ * lenke. Minutt-firma: målt på vinduets tid; «Lagre» spør «Føre turen som reisetid?». Km-firma:
+ * avhukingen «Reisen er mer enn {terskel} km» styrer Reisetid. REGEL har terskel 30 min.
+ */
+describe("O12 pkt 9 — terskel-varsel og «Føre turen som reisetid?»", () => {
+  afterEach(cleanup);
+  const felt = (d: HTMLElement, id: string) => d.querySelector(`#${id}`) as HTMLInputElement;
+  const knapp = (d: HTMLElement, navn: string) => within(d).getByRole("button", { name: navn });
+  const terskelDialog = () => screen.queryByRole("dialog", { name: "timer.reiseKort.terskelDialog.tittel" });
 
-  it("uendret: linja «Turen er over firmaets terskel (X). Bytte til reisetid?» over terskel + Arbeidstid, ikke under terskel", () => {
+  it("lenken «Bytte til reisetid?» finnes ikke; gult varsel over terskel + Arbeidstid", () => {
     const d = rendre({ kjoretidMin: 45 });
-    expect(within(d).queryByTestId("reise-bytt-til-reisetid")).toBeNull();
+    expect(within(d).queryByTestId("reise-over-terskel-varsel")).toBeNull();
     fireEvent.click(knapp(d, "timer.reiseKort.arbeidstid"));
-    const linje = within(d).getByTestId("reise-bytt-til-reisetid");
-    expect(linje.textContent).toContain(
-      'timer.reiseKort.overTerskelSporsmaal{"terskel":"timer.reiseTerskel.min{\\"min\\":30}"}',
-    );
-    expect(within(linje).getByRole("button", { name: "timer.reiseKort.byttTilReisetid" })).toBeTruthy();
-    cleanup();
-    expect(within(rendre({ kjoretidMin: 15 })).queryByTestId("reise-bytt-til-reisetid")).toBeNull();
+    expect(within(d).queryByTestId("reise-bytt-til-reisetid")).toBeNull();
+    expect(within(d).queryByRole("button", { name: "timer.reiseKort.byttTilReisetid" })).toBeNull();
+    const varsel = within(d).getByTestId("reise-over-terskel-varsel");
+    expect(varsel.textContent).toContain("timer.reiseKort.overTerskelVarsel");
+    expect(within(varsel).queryByRole("button")).toBeNull();
   });
 
-  it("forslagsteksten viser de avrundede minuttene: 37 min med 30 → «30», Start–Slutt 06:30–07:00", () => {
-    const d = rendre({ kjoretidMin: 37, runding: 30 });
-    expect(d.textContent).toContain('timer.reiseKort.forslag{"min":30}');
-    expect(d.textContent).not.toContain('timer.reiseKort.forslag{"min":37}');
-    expect(felt(d, "reise-start").value).toBe("06:30");
-    expect(felt(d, "reise-slutt").value).toBe("07:00");
+  it("målt på vinduets tid: tabellen sier 15 min, men Start 06:20 (40 min) gir varsel", () => {
+    const d = rendre({ kjoretidMin: 15 });
+    expect(within(d).queryByTestId("reise-over-terskel-varsel")).toBeNull();
+    fireEvent.change(felt(d, "reise-start"), { target: { value: "06:20" } });
+    expect(within(d).getByTestId("reise-over-terskel-varsel")).toBeTruthy();
   });
 
-  it("forslagsteksten: aldri 0 (4 min med 30 → «30»); uten runding som før (37 → «37»)", () => {
-    expect(rendre({ kjoretidMin: 4, runding: 30 }).textContent).toContain('timer.reiseKort.forslag{"min":30}');
+  it("«Lagre» åpner dialogen; «Før som reisetid» lagrer Reisetid med tidene i vinduet", () => {
+    const d = rendre({ kjoretidMin: 45 });
+    fireEvent.click(knapp(d, "timer.reiseKort.arbeidstid"));
+    fireEvent.change(felt(d, "reise-start"), { target: { value: "06:10" } });
+    const input = lagre(d, "reisetid")!;
+    expect(input).toMatchObject({ fraTid: "06:10", tilTid: "07:00", lonnsartId: "lr", kortId: "k1", reiseIKort: true });
+  });
+
+  it("«Behold arbeidstid» lagrer arbeidsraden med retning", () => {
+    const d = rendre({ kjoretidMin: 45 });
+    fireEvent.click(knapp(d, "timer.reiseKort.arbeidstid"));
+    const input = lagre(d, "behold")!;
+    expect(input).toMatchObject({ lonnsartId: "l1", kortId: "k1", arbeidReiseRetning: "ut" });
+  });
+
+  it("R3: X i dialogen lukker den, ingenting lagres", () => {
+    const d = rendre({ kjoretidMin: 45 });
+    fireEvent.click(knapp(d, "timer.reiseKort.arbeidstid"));
+    fireEvent.click(lagreKnapp(d));
+    const dlg = terskelDialog()!;
+    expect(dlg).toBeTruthy();
+    fireEvent.click(within(dlg).getByRole("button", { name: "modal.x" }));
+    expect(terskelDialog()).toBeNull();
+    expect(h.kall.filter((k) => k.key === "timer.dagsseddel.tilfoyTimerRad")).toHaveLength(0);
+  });
+
+  it("negativkontroll: under terskel + Arbeidstid lagrer uten dialog", () => {
+    const d = rendre({ kjoretidMin: 15 });
+    fireEvent.click(lagreKnapp(d));
+    expect(terskelDialog()).toBeNull();
+  });
+
+  it("km-firma: avhukingen er forhåndsavhuket når tabellen er over; avhuket ⇒ Reisetid; av ⇒ Arbeidstid", () => {
+    const regel = { ...REGEL, reiseTerskelEnhet: "km" as const, reiseTerskelM: 7500 };
+    let d = rendre({ kjoretidMin: 45, regel });
+    const boks = () => within(d).getByRole("checkbox", { name: /timer\.reiseKort\.merEnnKm/ }) as HTMLInputElement;
+    // Tabellen sier 12 km (> 7,5 km): forhåndsavhuket og Reisetid.
+    expect(boks().checked).toBe(true);
+    expect(knapp(d, "timer.reisetid").getAttribute("aria-pressed")).toBe("true");
+    // Avhuket + Arbeidstid → varsel; «Lagre» lagrer uten minutt-dialogen.
+    fireEvent.click(knapp(d, "timer.reiseKort.arbeidstid"));
+    expect(within(d).getByTestId("reise-over-terskel-varsel")).toBeTruthy();
+    fireEvent.click(lagreKnapp(d));
+    expect(terskelDialog()).toBeNull();
     cleanup();
-    expect(rendre({ kjoretidMin: 37, runding: null }).textContent).toContain('timer.reiseKort.forslag{"min":37}');
+    d = rendre({ kjoretidMin: 45, regel });
+    fireEvent.click(boks());
+    expect(boks().checked).toBe(false);
+    expect(knapp(d, "timer.reiseKort.arbeidstid").getAttribute("aria-pressed")).toBe("true");
+    expect(within(d).queryByTestId("reise-over-terskel-varsel")).toBeNull();
+  });
+});
+
+/**
+ * O12 pkt 12: Til i et annet kort enn dagens første / Fra i et annet enn dagens siste → dialogen
+ * nevner dagens første/siste kort; «Ja, lagre» lagrer, «Avbryt» lagrer ingenting.
+ */
+describe("O12 pkt 12 — reisen i et annet kort enn dagens første/siste", () => {
+  afterEach(cleanup);
+  const knapp = (d: HTMLElement, navn: string) => within(d).getByRole("button", { name: navn });
+  const sjekk = () => screen.queryByRole("dialog", { name: "timer.reiseKort.kortSjekk.tittel" });
+  const K2 = {
+    id: "r2",
+    projectId: "p1",
+    byggeplassId: "b1",
+    lonnsartId: "l1",
+    aktivitetId: null,
+    externalCostObjectId: null,
+    fraTid: "12:00",
+    tilTid: "14:00",
+    timer: "2",
+    pauseMin: 0,
+    beskrivelse: "Etterarbeid",
+    erReise: false,
+    kortId: "k2",
+  };
+  const tilfoy = () => h.kall.filter((k) => k.key === "timer.dagsseddel.tilfoyTimerRad");
+
+  it("«Fra byggeplass» i første kort når dagen har et senere kort: dialogen spør; «Ja, lagre» lagrer i kortet", () => {
+    const d = rendre({ kjoretidMin: 15, ekstraTimer: [K2] });
+    fireEvent.click(knapp(d, "timer.reiseKort.retur"));
+    fireEvent.click(lagreKnapp(d));
+    const dlg = sjekk()!;
+    expect(dlg.textContent).toContain("timer.reiseKort.kortSjekk.tekstRetur");
+    expect(dlg.textContent).toContain("12:00–14:00");
+    expect(tilfoy()).toHaveLength(0);
+    fireEvent.click(within(dlg).getByRole("button", { name: "timer.reiseKort.kortSjekk.jaLagre" }));
+    expect(tilfoy()).toHaveLength(1);
+    expect(tilfoy()[0]!.input).toMatchObject({ kortId: "k1" });
+  });
+
+  it("«Avbryt» i dialogen lagrer ingenting", () => {
+    const d = rendre({ kjoretidMin: 15, ekstraTimer: [K2] });
+    fireEvent.click(knapp(d, "timer.reiseKort.retur"));
+    fireEvent.click(lagreKnapp(d));
+    fireEvent.click(within(sjekk()!).getByRole("button", { name: "handling.avbryt" }));
+    expect(sjekk()).toBeNull();
+    expect(tilfoy()).toHaveLength(0);
+  });
+
+  it("negativkontroll: «Til byggeplass» i dagens første kort lagrer uten dialog", () => {
+    const d = rendre({ kjoretidMin: 15, ekstraTimer: [K2] });
+    fireEvent.click(lagreKnapp(d));
+    expect(sjekk()).toBeNull();
+    expect(tilfoy()).toHaveLength(1);
   });
 });

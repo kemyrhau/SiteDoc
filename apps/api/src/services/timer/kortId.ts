@@ -196,7 +196,14 @@ export async function sikreKortId(
   const [timer, maskiner, tillegg, utlegg] = await Promise.all([
     tx.sheetTimer.findMany({
       where: { sheetId },
-      select: { ...nokkelSelect, erReise: true, reiseRetning: true, fraTid: true, attestertStatus: true },
+      select: {
+        ...nokkelSelect,
+        erReise: true,
+        reiseRetning: true,
+        arbeidReiseRetning: true,
+        fraTid: true,
+        attestertStatus: true,
+      },
     }),
     tx.sheetMachine.findMany({ where: { sheetId }, select: { ...nokkelSelect, sheetTimerId: true } }),
     tx.sheetTillegg.findMany({ where: { sheetId }, select: nokkelSelect }),
@@ -237,7 +244,13 @@ export async function sikreKortId(
     pr.set(kortId, l);
   };
 
-  const arbeid = timer.filter((t) => !t.erReise).map((t) => somR("sheet_timer", "timer", t));
+  // O12 pkt 3/16 (vedtak-timer-web § Reisevinduet): en reise ført som arbeidstid
+  // (`arbeidReiseRetning`) som står i et kort, står der som en reise — kortet er
+  // stedet, også når underprosjektet er et annet. Den valideres som reise (K1/K2) og
+  // er ingen jobb. Uten kort-id følger den arbeidsregelen (regel 3) som før.
+  const erKortReiseArbeid = (t: (typeof timer)[number]) => !t.erReise && !!t.arbeidReiseRetning && !!t.kortId;
+  const arbeidsreise = timer.filter(erKortReiseArbeid).map((t) => somR("sheet_timer", "timer", t));
+  const arbeid = timer.filter((t) => !t.erReise && !erKortReiseArbeid(t)).map((t) => somR("sheet_timer", "timer", t));
   const mask = maskiner.map((m) => somR("sheet_machines", "maskin", m));
   const tl = tillegg.map((t) => somR("sheet_tillegg", "tillegg", t));
   const ut = utlegg.map((u) => somR("sheet_utlegg", "utlegg", u));
@@ -280,7 +293,7 @@ export async function sikreKortId(
   // kort-id, aldri prosjekt, underprosjekt eller byggeplass.
   const jobber = jobberFraArbeidsrader(
     timer
-      .filter((t) => !t.erReise)
+      .filter((t) => !t.erReise && !erKortReiseArbeid(t))
       .map((t) => {
         const a = timerById.get(t.id)!;
         return {
@@ -333,6 +346,7 @@ export async function sikreKortId(
     })),
     // Reise: bare K1 og K2 (samme sedel og prosjekt som kortet), § 2.3.
     ...reise.map(({ r }) => ({ id: r.id, type: r.type, kortId: r.kortId, sheetId, nokkel: r.nokkel, erReise: true })),
+    ...arbeidsreise.map((r) => ({ id: r.id, type: r.type, kortId: r.kortId, sheetId, nokkel: r.nokkel, erReise: true })),
   ]);
   if (opts.oppgitteKortIder?.length) {
     for (const k of await kortIdPaaAnnenSedel(tx, sheetId, opts.oppgitteKortIder))
@@ -347,7 +361,7 @@ export async function sikreKortId(
       kort: kort(),
     });
   }
-  const kortIdFor = new Map<string, string | null>([...alle, ...reise.map(({ r }) => r)].map((r) => [r.id, r.kortId]));
+  const kortIdFor = new Map<string, string | null>([...alle, ...reise.map(({ r }) => r), ...arbeidsreise].map((r) => [r.id, r.kortId]));
   return { brudd, kortIdFor };
 }
 

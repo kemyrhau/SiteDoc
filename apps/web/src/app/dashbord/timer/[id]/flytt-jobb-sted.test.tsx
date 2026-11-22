@@ -175,3 +175,109 @@ describe("O8 D — prosjekt og byggeplass i lagret jobbkort (siden)", () => {
     expect(screen.queryByRole("combobox", { name: "timer.felt.prosjekt" })).toBeNull();
   });
 });
+
+/**
+ * O12 pkt 18: jobben flyttes med en reise i kortet → vinduet viser reisens tider og ny kjøretid,
+ * med «Flytt reisen med ny tid» / «Slett reisen» / «Avbryt». Ingenting endres før valget.
+ */
+describe("O12 pkt 18 — flytt jobben med reise", () => {
+  const REISE = {
+    ...DAG7_SEDEL.timer[0]!,
+    id: "rt",
+    lonnsartId: "lr",
+    aktivitetId: null,
+    externalCostObjectId: null,
+    fraTid: "06:30",
+    tilTid: "07:00",
+    timer: "0.5",
+    pauseMin: 0,
+    beskrivelse: null,
+    erReise: true,
+    reiseKilde: "manuell",
+    reiseRetning: "ut",
+    reiseOppmotestedId: "o1",
+    kortId: "k1",
+  };
+  function rendreMedReise(matrise: Array<{ oppmotestedId: string; byggeplassId: string; kjoretidMin: number }>) {
+    rendre();
+    cleanup();
+    h.data = {
+      ...h.data,
+      "timer.dagsseddel.hentMedId": { ...(h.data["timer.dagsseddel.hentMedId"] as typeof DAG7_SEDEL), timer: [...DAG7_SEDEL.timer, REISE] },
+      "oppmotested.hentMatriseForFirma": matrise,
+      "oppmotePeriode.hentMine": { perioder: [] },
+    };
+    render(<Side />);
+    aapneForste();
+  }
+  const flyttKall = () => h.kall.filter((k) => k.sti === "timer.dagsseddel.flyttJobb").map((k) => k.input);
+  async function byttTilP2() {
+    const skjema = within(screen.getAllByTestId("jobb-skjema")[0]!);
+    await act(async () => {
+      fireEvent.change(skjema.getByRole("combobox", { name: "timer.felt.prosjekt" }), { target: { value: "p2" } });
+      await vent();
+    });
+  }
+
+  it("vinduet viser gammel og ny tid; ingenting sendes før valget; «Flytt reisen med ny tid» sender tidene", async () => {
+    rendreMedReise([{ oppmotestedId: "o1", byggeplassId: "b2", kjoretidMin: 45 }]);
+    await byttTilP2();
+    const vindu = screen.getByTestId("flytt-reise-vindu");
+    expect(flyttKall()).toHaveLength(0);
+    expect(within(vindu).getByTestId("flytt-reise-rad").textContent).toContain("06:30–07:00");
+    expect(within(vindu).getByTestId("flytt-reise-rad").textContent).toContain("06:15–07:00");
+    await act(async () => {
+      fireEvent.click(within(vindu).getByRole("button", { name: "timer.jobbSkjema.flyttReise.flytt" }));
+      await vent();
+    });
+    expect(flyttKall()).toHaveLength(1);
+    expect(flyttKall()[0]).toMatchObject({
+      projectId: "p2",
+      byggeplassId: "b2",
+      reise: { valg: "flytt", tider: [{ id: "rt", fraTid: "06:15", tilTid: "07:00", kjoretidMin: 45 }] },
+    });
+  });
+
+  it("«Slett reisen» sender valg slett; «Avbryt» sender ingenting", async () => {
+    rendreMedReise([{ oppmotestedId: "o1", byggeplassId: "b2", kjoretidMin: 45 }]);
+    await byttTilP2();
+    await act(async () => {
+      fireEvent.click(within(screen.getByTestId("flytt-reise-vindu")).getByRole("button", { name: "handling.avbryt" }));
+      await vent();
+    });
+    expect(screen.queryByTestId("flytt-reise-vindu")).toBeNull();
+    expect(flyttKall()).toHaveLength(0);
+    await byttTilP2();
+    await act(async () => {
+      fireEvent.click(
+        within(screen.getByTestId("flytt-reise-vindu")).getByRole("button", { name: "timer.jobbSkjema.flyttReise.slett" }),
+      );
+      await vent();
+    });
+    expect(flyttKall()).toHaveLength(1);
+    expect(flyttKall()[0]).toMatchObject({ projectId: "p2", reise: { valg: "slett" } });
+  });
+
+  it("mangler kjøretid: vinduet sier det; flytt beholder de gamle tidene (ingen tider sendt)", async () => {
+    rendreMedReise([]);
+    await byttTilP2();
+    const rad = screen.getByTestId("flytt-reise-rad");
+    expect(rad.textContent).toContain("timer.jobbSkjema.flyttReise.utenKjoretid");
+    await act(async () => {
+      fireEvent.click(
+        within(screen.getByTestId("flytt-reise-vindu")).getByRole("button", { name: "timer.jobbSkjema.flyttReise.flytt" }),
+      );
+      await vent();
+    });
+    expect(flyttKall()[0]).toMatchObject({ reise: { valg: "flytt", tider: [] } });
+  });
+
+  it("negativkontroll: jobb uten reise flyttes uten vindu (som før)", async () => {
+    rendre();
+    aapneForste();
+    await byttTilP2();
+    expect(screen.queryByTestId("flytt-reise-vindu")).toBeNull();
+    expect(flyttKall()).toHaveLength(1);
+    expect(flyttKall()[0]).not.toHaveProperty("reise");
+  });
+});

@@ -253,7 +253,17 @@ export interface ReiseKortInput {
   sluttTid?: string | null;
   /** O1 TILLEGG: arbeiderens valg reisetid/arbeidstid. Utelatt = regelen. */
   kategoriValg?: ReiseKategori | null;
+  /**
+   * O12 (vedtak-timer-web.md § Reisevinduet pkt 14): web-vinduet. Mangler firmaets kjøretid
+   * (eller kortet har ingen byggeplass), sperres ikke kortet: tidspunktet som henger på arbeidet
+   * fylles ut, og arbeideren skriver det andre (`startTid`/`sluttTid`). Utelatt/false = som før
+   * (`manglerKjoretid`) — mobilens kall sender den ikke.
+   */
+  tillatUtenKjoretid?: boolean;
 }
+
+/** O12 pkt 14: hvorfor forslaget mangler når `tillatUtenKjoretid` er satt. */
+export type ReiseKortUtenKjoretid = "mangler" | "utenByggeplass";
 
 export interface ReiseKortResultat {
   /**
@@ -268,6 +278,8 @@ export interface ReiseKortResultat {
   klassifisering: ManuellReiseKlassifisering | null;
   spor: ManuellReiseSpor | null;
   sperre: ReiseKortSperre | null;
+  /** O12 pkt 14: satt når kjøretiden mangler og kalleren tillot det (web). Ellers utelatt. */
+  utenKjoretid?: ReiseKortUtenKjoretid;
 }
 
 /** "HH:MM" → minutter etter midnatt; null ved ugyldig format. */
@@ -357,7 +369,10 @@ export function løsReiseKort(k: ReiseKortInput): ReiseKortResultat {
   const oppmotestedId = k.oppmote.oppmotestedId;
   const kjoretidMin =
     oppmotestedId && k.byggeplassId ? k.kjoretidFor(oppmotestedId, k.byggeplassId) : null;
-  if (kjoretidMin == null || kjoretidMin < 0) return tom("manglerKjoretid", oppmotestedId);
+  if (kjoretidMin == null || kjoretidMin < 0) {
+    if (!k.tillatUtenKjoretid) return tom("manglerKjoretid", oppmotestedId);
+    return løsReiseKortUtenKjoretid(k, oppmotestedId, k.byggeplassId ? "mangler" : "utenByggeplass");
+  }
 
   // 4. Tidspunkt: forslaget regnes fra dagens arbeidsrader — før arbeid = første fra-tid
   //    minus kjøretiden, etter arbeid = siste til-tid. w15b: arbeiderens start og slutt
@@ -405,6 +420,56 @@ export function løsReiseKort(k: ReiseKortInput): ReiseKortResultat {
       k.retning === "tur" ? "ut" : "retur",
       kjoretidMin,
     ),
+    sperre: klassifisering.lonnsartId == null ? "manglerArt" : null,
+  };
+}
+
+/**
+ * O12 pkt 14 (web): firmaets kjøretid mangler, eller kortet har ingen byggeplass. Tidspunktet som
+ * henger på arbeidet fylles ut (før arbeid: Slutt = dagens første arbeid; etter arbeid: Start =
+ * dagens siste), det andre skriver arbeideren. Uten begge tider: ingen sperre, men heller ingen
+ * tid (kalleren holder «Lagre» grå til tiden er skrevet). Terskelen i minutter måles på tiden
+ * arbeideren skrev — det finnes ingen kjøretid å måle på. Sporet bærer ingen kjøretid.
+ */
+function løsReiseKortUtenKjoretid(
+  k: ReiseKortInput,
+  oppmotestedId: string | null,
+  utenKjoretid: ReiseKortUtenKjoretid,
+): ReiseKortResultat {
+  const naar: ReiseKortNaar = k.naar ?? (k.retning === "tur" ? "forArbeid" : "etterArbeid");
+  const anker = klokkeTilMin(naar === "forArbeid" ? k.dagStart : k.dagSlutt);
+  const fra = klokkeTilMin(k.startTid) ?? (naar === "etterArbeid" ? anker : null);
+  const til = klokkeTilMin(k.sluttTid) ?? (naar === "forArbeid" ? anker : null);
+  const basis = {
+    fraTid: fra == null ? null : minTilKlokke(fra),
+    tilTid: til == null ? null : minTilKlokke(til),
+    oppmotestedId,
+    kjoretidMin: null,
+    utenKjoretid,
+  };
+  if (fra == null || til == null) {
+    return { ...basis, timer: 0, klassifisering: null, spor: null, sperre: null };
+  }
+  if (fra < 0 || til > 24 * 60) {
+    return { ...basis, timer: 0, fraTid: null, tilTid: null, klassifisering: null, spor: null, sperre: "utenforDognet" };
+  }
+  const timer = Math.max(0, til - fra) / 60;
+  if (!k.regel) return { ...basis, timer, klassifisering: null, spor: null, sperre: "manglerRegel" };
+  const avstandM = oppmotestedId && k.byggeplassId ? k.avstandFor(oppmotestedId, k.byggeplassId) : null;
+  const klassifisering = klassifiserManuellReise({
+    regel: k.regel,
+    reisetimer: timer,
+    avstandM,
+    grensepunkter: k.grensepunkter,
+    resolverLonnsartId: k.resolverLonnsartId,
+    standardLonnsartId: k.standardLonnsartId,
+    kategoriValg: k.kategoriValg,
+  });
+  return {
+    ...basis,
+    timer,
+    klassifisering,
+    spor: tilManuellReiseSpor(klassifisering, oppmotestedId, k.retning === "tur" ? "ut" : "retur", null),
     sperre: klassifisering.lonnsartId == null ? "manglerArt" : null,
   };
 }

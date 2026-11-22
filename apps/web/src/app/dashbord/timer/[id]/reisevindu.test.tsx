@@ -213,6 +213,11 @@ const lagreKnapp = (d: HTMLElement) => knapp(d, "handling.lagre") as HTMLButtonE
 /** Kontorvalget skriver perioden først (async) — vent til raden er sendt. */
 async function lagre(d: HTMLElement) {
   fireEvent.click(lagreKnapp(d));
+  // O12 pkt 12 / pkt 9: svar «Ja, lagre» og «Behold arbeidstid» når dialogene åpnes.
+  const sjekk = screen.queryByRole("dialog", { name: "timer.reiseKort.kortSjekk.tittel" });
+  if (sjekk) fireEvent.click(within(sjekk).getByRole("button", { name: "timer.reiseKort.kortSjekk.jaLagre" }));
+  const terskel = screen.queryByRole("dialog", { name: "timer.reiseKort.terskelDialog.tittel" });
+  if (terskel) fireEvent.click(within(terskel).getByRole("button", { name: "timer.reiseKort.terskelDialog.beholdArbeidstid" }));
   await new Promise((r) => setTimeout(r, 0));
   return h.kall.find((k) => k.key === "timer.dagsseddel.tilfoyTimerRad")?.input;
 }
@@ -237,7 +242,8 @@ describe("w15b — reisevinduet: systemet foreslår, arbeideren retter", () => {
     expect(start(d).value).toBe("03:10");
     expect(slutt(d).value).toBe("07:00");
     expect(d.textContent).toContain('timer.reiseKort.fraOppmotested{"navn":"Kontor Narvik"}');
-    expect(d.textContent).toContain('timer.reiseKort.havnerJobb{"sted":"sommerfeldtsgt 65"}');
+    // O12 pkt 3: reisen føres i kortet (ingen linje «havner i»).
+    expect(d.textContent).toContain("timer.reiseKort.foresIKortet");
     const input = (await lagre(d))!;
     expect(input).toMatchObject({ projectId: "p1", byggeplassId: "b1", fraTid: "03:10", tilTid: "07:00", reiseKjoretidMin: 230 });
     expect(input.reiseKilde).not.toBe("overforing");
@@ -294,19 +300,14 @@ describe("w15b — reisevinduet: systemet foreslår, arbeideren retter", () => {
     expect(slutt(d).value).toBe("12:04");
   });
 
-  it("«Hvor kjørte du til?»: bytt prosjekt → byggeplass foreslått, underprosjekt tomt, «Får eget kort på …»", async () => {
+  it("O12 pkt 3: «Hvor kjørte du til?» er kortets prosjekt og byggeplass som tekst; reisen lagres i kortet", async () => {
     const d = rendre();
-    expect(d.textContent).toContain('timer.reiseKort.havnerJobb{"sted":"sommerfeldtsgt 65"}');
-    const prosjekt = within(d).getByLabelText("timer.felt.prosjekt") as HTMLSelectElement;
-    expect(prosjekt.value).toBe("p1");
-    fireEvent.change(prosjekt, { target: { value: "p2" } });
-    expect(d.textContent).toContain("Byggeplass 1");
-    expect((within(d).getByLabelText("timer.felt.underprosjekt") as HTMLSelectElement).value).toBe("");
-    expect(d.textContent).toContain('timer.reiseKort.havnerEget{"prosjekt":"Prosjekt 1050"}');
-    // Til byggeplass på p2: 35 min før dagens første arbeid.
-    expect(start(d).value).toBe("06:25");
+    expect(within(d).queryByLabelText("timer.felt.prosjekt")).toBeNull();
+    expect(d.textContent).toContain("Sitedoc Boligfelt B12 · sommerfeldtsgt 65");
+    expect(d.textContent).toContain("timer.reiseKort.foresIKortet");
+    expect(d.textContent).not.toMatch(/timer\.reiseKort\.havner(Jobb|Kort|Eget)/);
     const input = (await lagre(d))!;
-    expect(input).toMatchObject({ projectId: "p2", byggeplassId: "b2", externalCostObjectId: null, fraTid: "06:25" });
+    expect(input).toMatchObject({ projectId: "p1", byggeplassId: "b1" });
   });
 
   it("overlapp med en annen rad: Lagre sperret, teksten navngir raden; ingen mutate", async () => {

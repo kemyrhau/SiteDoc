@@ -253,3 +253,48 @@ describe("O1 TILLEGG — arbeideren velger reisetid under terskelen", () => {
     expect(jobbSum(r, kB)).toEqual({ timer: 1, spenn: "15:00–16:00" });
   });
 });
+
+/**
+ * O12 pkt 3 (R1) og pkt 16 mot ekte Postgres (`sikreKortId`). KREVER migreringen
+ * `20261122120000_o12_arbeid_reise_retning` i sandkassen. Reisen fra prosjektkort-vinduet står i
+ * kortet den ble ført fra; en merket arbeidstid-reise valideres som reise (K1/K2) og kan ha en
+ * annen nøkkel enn kortets arbeid. Negativkontroll: uten flagget/merket velger serveren som før.
+ */
+describe("O12 — reisen står i kortet den ble ført fra", () => {
+  it("pkt 3: «Fra byggeplass» ført fra jobb 1 med reiseIKort står i jobb 1 (uten: jobb 2)", async () => {
+    const { sid, kA, kB, felles } = await kennethsDag("2026-11-17");
+    const retur = {
+      ...(felles as { sheetId: string; projectId: string; aktivitetId: string; byggeplassId: string }),
+      lonnsartId: REISE,
+      timer: 0.75,
+      fraTid: "16:00",
+      tilTid: "16:45",
+      pauseMin: 0,
+      reiseKilde: "manuell" as const,
+      reiseRetning: "retur" as const,
+      reiseKjoretidMin: 45,
+    };
+    await dag().tilfoyTimerRad({ ...retur, kortId: kA, reiseIKort: true });
+    await dag().tilfoyTimerRad({ ...retur, fraTid: "16:45", tilTid: "17:30", kortId: kA });
+    const r = await rader(sid);
+    expect(r.find((x) => x.fraTid === "16:00")!.kortId).toBe(kA);
+    expect(r.find((x) => x.fraTid === "16:45")!.kortId).toBe(kB);
+  });
+
+  it("pkt 16: merket arbeidstid-reise uten byggeplass står i jobb 2; merket lagres og teller som arbeid", async () => {
+    const { sid, kB, felles } = await kennethsDag("2026-11-16");
+    await dag().tilfoyTimerRad({ ...reiseUnderTerskel(felles, kB), byggeplassId: null, arbeidReiseRetning: "retur" });
+    const r = await rader(sid);
+    const ny = r.find((x) => x.fraTid === "16:00")!;
+    expect(ny).toMatchObject({ erReise: false, kortId: kB, arbeidReiseRetning: "retur" });
+  });
+
+  it("negativkontroll: samme rad uten merket er arbeid med annen nøkkel — står ikke i jobb 2", async () => {
+    const { sid, kB, felles } = await kennethsDag("2026-11-15");
+    await dag()
+      .tilfoyTimerRad({ ...reiseUnderTerskel(felles, kB), byggeplassId: null })
+      .catch(() => undefined);
+    const ny = (await rader(sid)).find((x) => x.fraTid === "16:00");
+    expect(ny?.kortId ?? null).not.toBe(kB);
+  });
+});

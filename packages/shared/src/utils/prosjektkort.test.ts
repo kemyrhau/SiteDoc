@@ -57,6 +57,11 @@ describe("beregnKortSummer", () => {
     expect(s).toEqual({ arbeid: 6, maskin: 2, reise: 2, varer: null });
   });
 
+  it("O12 pkt 16 (uendret): reise ført som arbeidstid (arbeidReiseRetning) teller som arbeid", () => {
+    const merket = { ...t("0.5"), arbeidReiseRetning: "ut" } as ReturnType<typeof t>;
+    expect(beregnKortSummer([t("4"), merket], [], [])).toEqual({ arbeid: 4.5, maskin: 0, reise: 0, varer: null });
+  });
+
   it("varer: én enhet gir summert mengde", () => {
     const s = beregnKortSummer([], [], [
       { projectId: "p1", antall: 2.5, vare: { enhet: "m3" } },

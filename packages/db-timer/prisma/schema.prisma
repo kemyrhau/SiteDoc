@@ -305,6 +305,11 @@ model SheetTimer {
   // innenfor terskel, null = cellen mangler (kan ikke kontrolleres). Varsel til
   // attestanten, ingen lønnsart settes.
   reiseAvvik            Boolean? @map("reise_avvik")
+  // O12 pkt 16 (vedtak-timer-web.md § Reisevinduet): en reise ført som ARBEIDSTID lagrer at
+  // den er en reise — retningen "ut" (til byggeplass) | "retur" (fra byggeplass). Eget felt:
+  // erReise og reise-sporet er uendret (raden er arbeid, samme lønnsart, teller som arbeid).
+  // Kun på arbeidsrad (erReise = false). null = ikke en reise, eller ført før O12 (ingen backfill).
+  arbeidReiseRetning    String?  @map("arbeid_reise_retning")
   createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt             DateTime @updatedAt @map("updated_at") @db.Timestamptz()
 
@@ -314,7 +319,8 @@ model SheetTimer {
 
   // Kort-id (prosjektkort-kortid-spec.md § 2, B1 = A, Kenneth 2026-11-16): intern id for
   // prosjektkortet raden hører til — vises aldri i UI. Settes av losKortId (packages/shared).
-  // Nullable til ordre e (CHECK, B2). Reise: alltid NULL.
+  // Nullable til ordre e (CHECK, B2). Reise: NULL, unntatt reise ført fra et prosjektkort
+  // (O12 pkt 3, `reiseIKort`) og w12/w15c-regelen i sikreKortId.
   kortId String? @map("kort_id")
 
   @@index([sheetId])
