@@ -594,6 +594,7 @@ export const NAVNEFELT_KOLONNER: readonly TimerTabellKolKey[] = ["prosjektnummer
  *  - `ansatt`: finnes ingen → i Ansatt-cella under navnet.
  * `tomme`: cellene som står tomme i dagsraden og jobbraden — de fire utenfor feltet (brukeren
  * har flyttet en annen kolonne mellom), og Prosjekt og Byggeplass, som navnefeltet bærer.
+ * `utenfor` (avvikskolonnen) er aldri i feltet og aldri tom.
  */
 export type NavnefeltPlass =
   | { type: "spenn"; fra: TimerTabellKolKey; antall: number; tomme: ReadonlySet<TimerTabellKolKey> }
@@ -602,8 +603,14 @@ export type NavnefeltPlass =
 
 const IKKE_NAVNEKOLONNE: ReadonlySet<TimerTabellKolKey> = new Set<TimerTabellKolKey>(["dato", "ansatt", "ansattnr", "avvik"]);
 
-export function navnefeltPlass(kolonner: readonly TimerTabellKolKey[], erTall: (k: TimerTabellKolKey) => boolean): NavnefeltPlass {
-  const fire = new Set(NAVNEFELT_KOLONNER);
+export function navnefeltPlass(
+  kolonner: readonly TimerTabellKolKey[],
+  erTall: (k: TimerTabellKolKey) => boolean,
+  utenfor?: TimerTabellKolKey,
+): NavnefeltPlass {
+  // `utenfor`: kolonnen som bærer avviket når Avvik er skjult (Betegnelse). Den står utenfor
+  // feltet med avviket sitt, og feltet slutter foran den (gate O13 trinn 2, vilkår 1).
+  const fire = new Set(NAVNEFELT_KOLONNER.filter((k) => k !== utenfor));
   const tomme = new Set<TimerTabellKolKey>(["prosjekt", "byggeplass"]);
   const start = kolonner.findIndex((k) => fire.has(k));
   if (start !== -1) {
@@ -613,7 +620,7 @@ export function navnefeltPlass(kolonner: readonly TimerTabellKolKey[], erTall: (
     return { type: "spenn", fra: kolonner[start]!, antall: slutt - start + 1, tomme };
   }
   const etterAnsatt = kolonner.indexOf("ansatt");
-  const kolonne = kolonner.find((k, i) => i > etterAnsatt && !erTall(k) && !IKKE_NAVNEKOLONNE.has(k));
+  const kolonne = kolonner.find((k, i) => i > etterAnsatt && !erTall(k) && !IKKE_NAVNEKOLONNE.has(k) && k !== utenfor);
   if (kolonne) {
     tomme.delete(kolonne);
     return { type: "kolonne", kolonne, tomme };

@@ -1759,7 +1759,8 @@ describe("O13 — attesteringen etter vedtaksfila § Dagsvisningen pkt 2 og 3", 
 
   describe("R2 — navnefeltet følger brukerens kolonneoppsett", () => {
     it("skjult Pr.nr.: feltet dekker de tre synlige", () => {
-      medOppsett(["dato", "ansatt", "underprosjekt", "betegnelse", "fraTil", "timer"]);
+      // Avvik synlig: med Avvik skjult bærer Betegnelse avviket og står utenfor feltet (vilkår 1, under).
+      medOppsett(["dato", "ansatt", "underprosjekt", "betegnelse", "fraTil", "timer", "avvik"]);
       const { container } = vis([sedel()]);
       expect((dagsrad(container).querySelector("[data-navnefelt]") as HTMLElement).style.gridColumn).toBe("span 3");
     });
@@ -1787,6 +1788,43 @@ describe("O13 — attesteringen etter vedtaksfila § Dagsvisningen pkt 2 og 3", 
       const a = celle(dagsrad(container), "ansatt")!;
       expect(a.textContent).toContain("Kari Nordmann");
       expect(a.querySelector("[data-prosjektnavn]")!.textContent).toBe("Prosjekt A");
+    });
+
+    // Gate O13 trinn 2, vilkår 1: med Avvik skjult bærer Betegnelse avviket (som på 360c35a0).
+    it("Avvik skjult → sperre og normmerke står i dagsraden og jobbraden (i Betegnelse, utenfor feltet)", () => {
+      medOppsett(["dato", "ansatt", "prosjektnummer", "underprosjekt", "betegnelse", "fraTil", "timer"]);
+      const en = vis([sedel({ id: "sperret", totaltimer: 8, dagsnorm: 7.5 })]);
+      const dag = dagsrad(en.container);
+      expect((dag.querySelector("[data-navnefelt]") as HTMLElement).style.gridColumn).toBe("span 2");
+      expect(dag.querySelector("[data-prosjektnavn]")!.textContent).toBe("Prosjekt A");
+      const b = celle(dag, "betegnelse")!;
+      expect(b.textContent).toContain("Fravær over dagsnorm");
+      expect(b.textContent).toContain('normMerke{"avvik":"+0,5"}');
+      expect(celle(dag, "fraTil")?.textContent ?? "").toBe("");
+      cleanup();
+      // Flere jobber: Betegnelse er cella rett etter feltet (span 2 over Pr.nr. og Underprosjekt).
+      const etterFeltet = (rad: HTMLElement) => {
+        const felt = rad.querySelector("[data-navnefelt]") as HTMLElement;
+        expect(felt.style.gridColumn).toBe("span 2");
+        return felt.nextElementSibling as HTMLElement;
+      };
+      const to = vis([{ ...toProsjekter(), id: "sperret" }]);
+      expect(etterFeltet(dagsrad(to.container)).textContent).toContain("Fravær over dagsnorm");
+      const jobber = Array.from(to.container.querySelectorAll<HTMLElement>('[data-rad="jobb"]'));
+      expect(jobber).toHaveLength(2);
+      for (const j of jobber) {
+        expect(j.querySelector("[data-prosjektnavn]")).toBeTruthy();
+        expect(etterFeltet(j).textContent).toContain("Fravær over dagsnorm");
+      }
+    });
+
+    it("Avvik skjult og bare Betegnelse av de fire: navnet i neste tekstkolonne, avviket i Betegnelse", () => {
+      medOppsett(["dato", "ansatt", "betegnelse", "aktivitet", "timer"]);
+      const { container } = vis([sedel({ id: "sperret" })]);
+      const dag = dagsrad(container);
+      expect(dag.querySelector("[data-navnefelt]")).toBeNull();
+      expect(celle(dag, "aktivitet")!.querySelector("[data-prosjektnavn]")!.textContent).toBe("Prosjekt A");
+      expect(celle(dag, "betegnelse")!.textContent).toContain("Fravær over dagsnorm");
     });
 
     it("Prosjekt- og Byggeplass-cellene står tomme i dagsrad og jobbrad", () => {

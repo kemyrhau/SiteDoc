@@ -339,8 +339,11 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
   /* ---------------- Rader ---------------- */
 
   // O13 (pkt 2, R2): hvor prosjektnavnet står i dagsraden og jobbraden for dette kolonneoppsettet.
-  const plass = useMemo(() => navnefeltPlass(kolonner, (k) => TIMER_TABELL_KOL[k].num), [kolonner]);
   const avvikKol: TimerTabellKolKey | undefined = (["avvik", "beskrivelse", "betegnelse"] as const).find((k) => kolonner.includes(k));
+  // Linjene: navnefeltets plass uten avvikskolonnen (linjas Betegnelse er lønnsartens navn).
+  const plass = useMemo(() => navnefeltPlass(kolonner, (k) => TIMER_TABELL_KOL[k].num), [kolonner]);
+  // Dagsrad og jobbrad: er Avvik skjult og avviket i Betegnelse, står Betegnelse utenfor feltet.
+  const sumPlass = useMemo(() => navnefeltPlass(kolonner, (k) => TIMER_TABELL_KOL[k].num, avvikKol), [kolonner, avvikKol]);
 
   function handlingKnapp(props: { ikon: ReactNode; tekst: string; onClick: () => void; disabled?: boolean; tittel?: string; farge?: string }) {
     return (
@@ -623,11 +626,12 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
    * kolonner; ellers står innholdet i én kolonne eller under ansattnavnet (`navnCelle`).
    */
   function navnefelt(innhold: ReactNode) {
-    const spenn = plass.type === "spenn" ? { spenn: { fra: plass.fra, antall: plass.antall, innhold } } : {};
+    const p = sumPlass;
+    const spenn = p.type === "spenn" ? { spenn: { fra: p.fra, antall: p.antall, innhold } } : {};
     const navnCelle = (k: TimerTabellKolKey, ansatt: ReactNode): ReactNode | undefined => {
-      if (plass.tomme.has(k)) return "";
-      if (plass.type === "kolonne" && k === plass.kolonne) return innhold;
-      if (plass.type === "ansatt" && k === "ansatt") return <span className="block min-w-0"><span className="block truncate">{ansatt}</span>{innhold}</span>;
+      if (p.tomme.has(k)) return "";
+      if (p.type === "kolonne" && k === p.kolonne) return innhold;
+      if (p.type === "ansatt" && k === "ansatt") return <span className="block min-w-0"><span className="block truncate">{ansatt}</span>{innhold}</span>;
       return undefined;
     };
     return { spenn, navnCelle };
@@ -818,7 +822,7 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
     }
     return ut;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- handlingene leser fersk tilstand ved klikk
-  }, [synlige, gruppering, bareOversikt, t, readOnly, opptatt, plass, kolonner, avvikKol, prosjektKontekst, medAar, aapenKort, lonnsarter, overtidsnivaa, i18n.language, valgte, tidsrunding]);
+  }, [synlige, gruppering, bareOversikt, t, readOnly, opptatt, plass, sumPlass, kolonner, avvikKol, prosjektKontekst, medAar, aapenKort, lonnsarter, overtidsnivaa, i18n.language, valgte, tidsrunding]);
 
   /* ---------------- Filter i hodet (R8) ---------------- */
 
