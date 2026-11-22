@@ -102,3 +102,6 @@ Filer: `RK` = `apps/web/src/app/dashbord/timer/[id]/ReiseKort.tsx` · `MR` = `ap
 2. Dagsraden og jobbraden viser prosjektets navn og byggeplassen kortet er registrert på, ikke prosjektnummeret.
     Kenneth: «ingen av forslagene viser tydelig hvilket prosjekt/byggeplass kortene er registrert på … det er selvsagt prosjektnavn vi må vise» (2026-11-22).
     🟡 I dag viser dagsraden og jobbraden pr.nr. og underprosjekt (`TIMER_TABELL_STANDARD`: `prosjektnummer`, ingen `prosjekt` eller `byggeplass`).
+3. Overtid og reisetid står tydelig fram i kortet i attesteringen: i dagsraden, i jobbraden og på linjene.
+    Kenneth: «det kommer dårlig frem på kortet overtid og reisetid. dette er områder som må komme mer tydelig frem» (2026-11-22, skjermbilde fra test).
+    🟡 I dag (test, uke 47): overtiden er en vanlig linje med lønnsartens navn («Overtid 50%»); dagens avvik fra normen er et lite gult merke («+4 t») i Avvik; reisen står som grå «reise 3,00 t» i jobbraden, og reiselinjas tekst kuttes («Reise/transport til prc»).
