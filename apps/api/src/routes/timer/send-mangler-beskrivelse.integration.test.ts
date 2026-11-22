@@ -120,12 +120,35 @@ describe("§ 8.22 L2 — «Send dagen» sperres når en jobb mangler beskrivelse
     await expect(dag().send({ id: sheetId })).rejects.toMatchObject({ code: "BAD_REQUEST" });
   });
 
-  it("prosjektkort-firma, jobb med beskrivelse → sendt; reise uten beskrivelse sperrer ikke", async () => {
+  // O14 pkt 4 (plan § 8.22 L2, Kenneth 2026-11-22 «s4 ja»): reise i jobbens kort teller ikke;
+  // et kort med bare reise er en jobb og mangler beskrivelse til reisen har tekst.
+  const reiseRad = (sheetId: string, kortId: string, beskrivelse: string | null = null) =>
+    prismaTimer.sheetTimer.create({
+      data: { sheetId, lonnsartId: ORD_PK, aktivitetId: AKT_PK, projectId: P_PK, kortId, erReise: true, timer: 1, beskrivelse },
+    });
+  const jobbensKort = async (sheetId: string) =>
+    (await prismaTimer.sheetTimer.findFirstOrThrow({ where: { sheetId, erReise: false } })).kortId!;
+
+  it("prosjektkort-firma, jobb med beskrivelse og reise i samme kort uten beskrivelse → sendt", async () => {
     const sheetId = await sedelMedJobb(ORG_PK, P_PK, ORD_PK, AKT_PK, "2026-11-04");
     await prismaTimer.sheetTimer.updateMany({ where: { sheetId }, data: { beskrivelse: "Graving av grøft" } });
-    await prismaTimer.sheetTimer.create({
-      data: { sheetId, lonnsartId: ORD_PK, aktivitetId: AKT_PK, projectId: P_PK, kortId: randomUUID(), erReise: true, timer: 1 },
-    });
+    await reiseRad(sheetId, await jobbensKort(sheetId));
+    await dag().send({ id: sheetId });
+    expect(await status(sheetId)).toBe("sent");
+  });
+
+  it("O14 pkt 4: reise i eget kort uten beskrivelse → BAD_REQUEST, dagen står som utkast", async () => {
+    const sheetId = await sedelMedJobb(ORG_PK, P_PK, ORD_PK, AKT_PK, "2026-11-06");
+    await prismaTimer.sheetTimer.updateMany({ where: { sheetId }, data: { beskrivelse: "Graving av grøft" } });
+    await reiseRad(sheetId, randomUUID());
+    await expect(dag().send({ id: sheetId })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    expect(await status(sheetId)).toBe("draft");
+  });
+
+  it("O14 pkt 4: reise i eget kort med beskrivelse → sendt", async () => {
+    const sheetId = await sedelMedJobb(ORG_PK, P_PK, ORD_PK, AKT_PK, "2026-11-07");
+    await prismaTimer.sheetTimer.updateMany({ where: { sheetId }, data: { beskrivelse: "Graving av grøft" } });
+    await reiseRad(sheetId, randomUUID(), "Hentet stillas");
     await dag().send({ id: sheetId });
     expect(await status(sheetId)).toBe("sent");
   });

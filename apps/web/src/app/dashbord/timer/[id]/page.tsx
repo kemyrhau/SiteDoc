@@ -2784,16 +2784,20 @@ function JobbKortRamme({
   const reiseRader = timer.filter((r) => r.erReise);
   const bareReise = arbeid.length === 0 && reiseRader.length > 0;
   // O14 pkt 6: et lukket kort med bare reise viser reiselinja («Til {sted} · fra–til») og reisens
-  // beskrivelse ved hover. Kort med arbeid er uendret (beskrivelsene på arbeidet).
-  const reiseHover = bareReise
-    ? [...reiseRader]
+  // beskrivelse ved hover. Kort med arbeid er uendret (beskrivelsene på arbeidet). RETUR trinn 2:
+  // en reise ført som arbeidstid (`erArbeidstidReise`) er også reise her — bare i hoveren.
+  const hoverReiser = timer.filter((r) => r.erReise || erArbeidstidReise(r));
+  const bareReiseHover = hoverReiser.length > 0 && hoverReiser.length === timer.length;
+  const reiseHover = bareReiseHover
+    ? [...hoverReiser]
         .sort((a, b) => (a.fraTid ?? "").localeCompare(b.fraTid ?? ""))
         .flatMap((r) => {
           const sted = (r.byggeplassId && byggeplassNavn.get(r.byggeplassId)) || tittel;
+          const retning = r.erReise ? r.reiseRetning : r.arbeidReiseRetning;
           const stedTekst =
-            r.reiseRetning === "ut"
+            retning === "ut"
               ? t("timer.prosjektkort.reiseTil", { sted })
-              : r.reiseRetning === "retur"
+              : retning === "retur"
                 ? t("timer.prosjektkort.reiseFra", { sted })
                 : sted;
           const linje = [stedTekst, r.fraTid && r.tilTid ? `${r.fraTid}–${r.tilTid}` : null].filter(Boolean).join(" · ");

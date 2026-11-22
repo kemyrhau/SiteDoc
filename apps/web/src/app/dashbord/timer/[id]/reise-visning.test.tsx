@@ -379,6 +379,18 @@ describe("O6 (§ 8.22 punkt 2) — beskrivelsen ved hover på lukket prosjektkor
     expect(linjer).toEqual(['timer.prosjektkort.reiseFra{"sted":"Narvik"} · 15:00–16:00']);
   });
 
+  // RETUR O14 trinn 2: en reise ført som arbeidstid (`arbeidReiseRetning`) alene i kortet får også reiselinja.
+  it("O14 pkt 6: kort med bare arbeidstid-reise — hover viser reiselinja og beskrivelsen", () => {
+    rendre([
+      ARBEID1,
+      reise({ id: "ra", kortId: "k3", byggeplassId: "b2", lonnsartId: "l1", erReise: false, reiseKilde: null, arbeidReiseRetning: "retur", fraTid: "15:00", tilTid: "16:00", timer: "1", beskrivelse: "Kjørte hjem fra Narvik" }),
+    ]);
+    const hode = kortHoder().find((b) => b.textContent?.includes("15:00–16:00"))!;
+    expect(hode.getAttribute("aria-expanded")).toBe("false");
+    const linjer = Array.from(hoverFor(hode)!.querySelectorAll("[data-beskrivelse-hover] > span")).map((e) => e.textContent);
+    expect(linjer).toEqual(['timer.prosjektkort.reiseFra{"sted":"Narvik"} · 15:00–16:00', "Kjørte hjem fra Narvik"]);
+  });
+
   it("lukket kort uten beskrivelse: ingen hover", () => {
     rendre([ARBEID1, ARBEID2]);
     expect(hoverFor(kortHoder()[1]!)).toBeNull();
