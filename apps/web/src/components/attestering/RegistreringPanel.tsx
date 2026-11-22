@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, type KeyboardEvent, type ReactNode } from
 import { useTranslation } from "react-i18next";
 import { Pencil, Scissors, X } from "lucide-react";
 import { Button } from "@sitedoc/ui";
-import { effektiveTimerFraSpenn, erReiseLonnsart, maskinHoystPerRad, overMaskinHoyst, type ErReiseKontekst } from "@sitedoc/shared";
+import { effektiveTimerFraSpenn, erReiseLonnsart, maskinHoystPerRad, overMaskinHoyst, tolkKlokkeslett, type ErReiseKontekst } from "@sitedoc/shared";
 import { trpc } from "@/lib/trpc";
 import { formaterNorsk } from "@/lib/timer-rapport-eksport";
 import { rundTilNarmeste } from "@/lib/tidsrunding";
@@ -773,39 +773,97 @@ export function UnderprosjektValg({ eco, valgt, disabled, onVelg }: { eco: reado
   );
 }
 
-/** «Del opp» ved klokkeslett (bilde 8): del A er jobben som var, del B et eget kort. */
+type MaskinVisning = { id: string; navn: string; timer: number; timerA: number; timerB: number };
+type Forhandsvisning = { timerA: number; timerB: number; maskinPaaA: number; maskiner: MaskinVisning[] };
+type DelingTekst = Record<string, { a: string; b: string }>;
+
+const tallTekst = (n: number) => formaterNorsk(n);
+const lesTall = (tekst: string): number | null => {
+  const t = tekst.trim();
+  if (!/^\d+([.,]\d{1,2})?$/.test(t)) return null;
+  return Number(t.replace(",", "."));
+};
+
+/**
+ * «Del opp» ved klokkeslett (bilde 8): del A er jobben som var, del B et eget kort.
+ * O15 pkt 1 (plan § 4.16 «s2.ja»): hver maskin står med felt for A og B, fylt ut med serverens
+ * forslag. A + B er maskinens timer — retter du den ene, regnes den andre. Varer, tillegg,
+ * utlegg og reise blir i A («s3.nei»). O15 pkt 3 (K4): klokkeslettet tolkes (`tolkKlokkeslett`).
+ */
 function DelOppSkjema({ sheetId, kortId, tidsrom, eco, naaEco, onAvbryt, onDelt }: {
   sheetId: string; kortId: string; tidsrom: { fra: string; til: string }; eco: readonly Eco[]; naaEco: string | null; onAvbryt: () => void; onDelt: () => void;
 }) {
   const { t } = useTranslation();
-  const [kl, setKl] = useState("");
+  const [klTekst, setKlTekst] = useState("");
+  const [klFeil, setKlFeil] = useState(false);
   const [ecoB, setEcoB] = useState<string | null>(naaEco);
   const [feil, setFeil] = useState<string | null>(null);
-  const [visning, setVisning] = useState<{ timerA: number; timerB: number; maskinPaaA: number } | null>(null);
+  const [visning, setVisning] = useState<Forhandsvisning | null>(null);
+  const [deling, setDeling] = useState<DelingTekst>({});
   const del = trpc.timer.dagsseddel.delJobb.useMutation();
-  const gyldig = /^([01]\d|2[0-3]):[0-5]\d$/.test(kl);
+  const kl = tolkKlokkeslett(klTekst);
+  const gyldig = kl !== null;
 
-  function forhandsvis(ny: string) {
-    setVisning(null);
+  const maskinDeling = (d: DelingTekst) =>
+    (visning?.maskiner ?? []).map((m) => ({ id: m.id, timerA: lesTall(d[m.id]?.a ?? "") ?? -1, timerB: lesTall(d[m.id]?.b ?? "") ?? -1 }));
+  const delingGyldig = maskinDeling(deling).every((d) => d.timerA >= 0 && d.timerB >= 0);
+
+  function forhandsvis(ny: string, medDeling?: DelingTekst) {
     setFeil(null);
-    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(ny)) return;
+    if (!medDeling) setVisning(null);
     del.mutate(
-      { sheetId, kortId, kl: ny, externalCostObjectIdB: ecoB, forhandsvis: true },
+      { sheetId, kortId, kl: ny, externalCostObjectIdB: ecoB, forhandsvis: true, ...(medDeling ? { maskinDeling: maskinDeling(medDeling) } : {}) },
       {
-        onSuccess: (d: unknown) => setVisning((d as { forhandsvisning: typeof visning }).forhandsvisning),
+        onSuccess: (d: unknown) => {
+          const v = (d as { forhandsvisning: Forhandsvisning | null }).forhandsvisning;
+          setVisning(v);
+          if (v && !medDeling) setDeling(Object.fromEntries(v.maskiner.map((m) => [m.id, { a: tallTekst(m.timerA), b: tallTekst(m.timerB) }])));
+        },
         onError: (e: { message: string }) => setFeil(e.message),
       },
     );
   }
 
+  // Forhåndsvisningen kommer når tolkeren gir en gyldig tid (ikke ved 5 tegn), litt etter siste tast.
+  useEffect(() => {
+    // Ugyldig klokkeslett: forhåndsvisningen av forrige tid står ikke igjen.
+    if (!kl) {
+      setVisning(null);
+      setDeling({});
+      return;
+    }
+    const tid = setTimeout(() => forhandsvis(kl), 400);
+    return () => clearTimeout(tid);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- forhandsvis leser state ved kall
+  }, [kl]);
+
+  /** Retter du A, blir B resten — og omvendt (beslutning a: A + B = maskinens timer). */
+  function settDel(m: MaskinVisning, side: "a" | "b", tekst: string) {
+    const tall = lesTall(tekst);
+    const rest = tall === null ? "" : tallTekst(Math.max(0, Math.round((m.timer - tall) * 100) / 100));
+    setDeling((d) => ({ ...d, [m.id]: side === "a" ? { a: tekst, b: rest } : { a: rest, b: tekst } }));
+  }
+
   function utfor() {
-    if (!gyldig) return;
+    if (!kl || !delingGyldig) return;
     setFeil(null);
     del.mutate(
-      { sheetId, kortId, kl, externalCostObjectIdB: ecoB },
+      { sheetId, kortId, kl, externalCostObjectIdB: ecoB, maskinDeling: maskinDeling(deling) },
       { onSuccess: (_d: unknown) => onDelt(), onError: (e: { message: string }) => setFeil(e.message) },
     );
   }
+
+  const maskinFelt = (m: MaskinVisning, side: "a" | "b") => (
+    <input
+      value={deling[m.id]?.[side] ?? ""}
+      inputMode="decimal"
+      aria-label={t(side === "a" ? "timer.attestering.registrering.maskinTimerA" : "timer.attestering.registrering.maskinTimerB", { maskin: m.navn })}
+      onChange={(e) => settDel(m, side, e.target.value)}
+      // Tomt eller ugyldig felt: ingenting sendes (ingen −1 til serveren), «Del opp» er sperret.
+      onBlur={() => { if (kl && delingGyldig) forhandsvis(kl, deling); }}
+      className="w-16 rounded border border-gray-300 px-2 py-1 text-right text-sm tabular-nums"
+    />
+  );
 
   return (
     <div data-del-opp="" className="mx-4 my-2 flex flex-col gap-2 rounded-md border border-gray-200 bg-gray-50 p-3">
@@ -813,36 +871,48 @@ function DelOppSkjema({ sheetId, kortId, tidsrom, eco, naaEco, onAvbryt, onDelt 
         <span className="font-medium text-gray-900">{t("timer.attestering.registrering.delVed")}</span>
         <input
           autoFocus
-          value={kl}
+          value={klTekst}
           placeholder="11:00"
           aria-label={t("timer.attestering.registrering.klokkeslett")}
-          onChange={(e) => { setKl(e.target.value); if (e.target.value.length === 5) forhandsvis(e.target.value); }}
-          onBlur={() => forhandsvis(kl)}
+          onChange={(e) => { setKlTekst(e.target.value); setKlFeil(false); }}
+          onBlur={() => { if (kl) setKlTekst(kl); else setKlFeil(klTekst.trim() !== ""); }}
           className="w-20 rounded border border-gray-300 px-2 py-1 text-sm tabular-nums"
         />
         <span className="text-xs text-gray-500">{t("timer.attestering.registrering.timeneRegnes")}</span>
       </label>
+      {klFeil && <p data-kl-feil="" className="text-sm text-red-600">{t("timer.attestering.registrering.klokkeslettFeil")}</p>}
       <div className="flex flex-wrap items-center gap-3">
         <span className="w-16 font-medium text-gray-900">{t("timer.attestering.registrering.jobbA")}</span>
         <span className="tabular-nums">
-          {tidsrom.fra}–{gyldig ? kl : "…"}
+          {tidsrom.fra}–{kl ?? "…"}
           {visning && ` · ${formaterNorsk(visning.timerA)} t`}
         </span>
         <span className="text-xs text-gray-500">{t("timer.attestering.registrering.somFor")}</span>
-        {visning && visning.maskinPaaA > 0 && <span className="text-xs text-gray-500">{t("timer.attestering.registrering.maskinBlir", { count: visning.maskinPaaA })}</span>}
       </div>
       <div className="flex flex-wrap items-center gap-3">
         <span className="w-16 font-medium text-gray-900">{t("timer.attestering.registrering.jobbB")}</span>
         <span className="tabular-nums">
-          {gyldig ? kl : "…"}–{tidsrom.til}
+          {kl ?? "…"}–{tidsrom.til}
           {visning && ` · ${formaterNorsk(visning.timerB)} t`}
         </span>
         <UnderprosjektValg eco={eco} valgt={ecoB} onVelg={setEcoB} />
       </div>
+      {visning && visning.maskiner.length > 0 && (
+        <div className="flex flex-col gap-1.5 border-t border-gray-200 pt-2">
+          {visning.maskiner.map((m) => (
+            <div key={m.id} data-maskin-deling={m.id} className="flex flex-wrap items-center gap-3">
+              <span className="min-w-[8rem] font-medium text-gray-900">{m.navn}</span>
+              <span className="tabular-nums text-gray-500">{t("timer.attestering.registrering.timer", { timer: formaterNorsk(m.timer) })}</span>
+              <span className="flex items-center gap-1.5">{t("timer.attestering.registrering.jobbA")} {maskinFelt(m, "a")} t</span>
+              <span className="flex items-center gap-1.5">{t("timer.attestering.registrering.jobbB")} {maskinFelt(m, "b")} t</span>
+            </div>
+          ))}
+        </div>
+      )}
       {feil && <p className="text-sm text-red-600">{feil}</p>}
       <div className="flex justify-end gap-2">
         <Button type="button" size="sm" variant="secondary" onClick={onAvbryt}>{t("handling.avbryt")}</Button>
-        <Button type="button" size="sm" disabled={!gyldig || del.isPending || !!feil} onClick={utfor}>
+        <Button type="button" size="sm" disabled={!gyldig || !delingGyldig || del.isPending || !!feil} onClick={utfor}>
           <Scissors className="mr-1 h-3.5 w-3.5" />
           {t("timer.attestering.registrering.delOpp")}
         </Button>

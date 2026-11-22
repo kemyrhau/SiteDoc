@@ -4,7 +4,7 @@ import { TRPCError } from "@trpc/server";
 import { Prisma, type PrismaClient as PrismaClientTimer } from "@sitedoc/db-timer";
 import { prisma } from "@sitedoc/db";
 import { router, protectedProcedure } from "../../trpc/trpc";
-import { NokkelFeil, type FeilParam } from "../../trpc/feilformat";
+import { NokkelFeil, nokkelFeil, type FeilParam } from "../../trpc/feilformat";
 import type { Context } from "../../trpc/context";
 import { signerHvisPrivat } from "../../utils/hmac";
 import { planleggJobbDeling, JOBB_DELING_FEILTEKST } from "./jobb-deling";
@@ -12,6 +12,7 @@ import {
   lesMaskinJobbTilstand,
   krevIngenNyeMaskinBrudd,
   koblMaskinerTilJobb,
+  tallNb,
   type MaskinJobbTilstand,
 } from "../../services/timer/maskinJobbVakt";
 import {
@@ -115,6 +116,13 @@ import {
   maskinKreverTimerad,
   erGyldigTimeradKobling,
   velgTimeradForMaskin,
+  foreslaMaskinDeling,
+  erGyldigMaskinDeling,
+  jobbArbeidSum,
+  beregnJobbMaskinBrudd,
+  nyeEllerOkteBrudd,
+  type JobbArbeidRad,
+  type JobbMaskinRad,
   harNormtak,
   erFravaerArt,
   restForFravaerMedTak,
@@ -7713,6 +7721,11 @@ export const dagsseddelRouter = router({
         externalCostObjectIdB: z.string().uuid().nullable(),
         // true = bare regn ut delene (timer pr. del) og skriv ingenting. Samme krav som delingen.
         forhandsvis: z.boolean().optional(),
+        // O15 pkt 1 (plan § 4.16 «s2.ja»): maskintimene pr. del. Mangler en maskin, brukes forslaget
+        // (`foreslaMaskinDeling`). A + B må være maskinens timer — vinduet deler, retter ikke.
+        maskinDeling: z
+          .array(z.object({ id: z.string().uuid(), timerA: z.number().min(0), timerB: z.number().min(0) }))
+          .optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -7723,7 +7736,7 @@ export const dagsseddelRouter = router({
       });
       if (!sheet) throw new TRPCError({ code: "NOT_FOUND" });
 
-      const [timer, tillegg, maskiner] = await Promise.all([
+      const [timer, tillegg, maskiner, kortTimer] = await Promise.all([
         pt.sheetTimer.findMany({
           // O12 pkt 3/16: en reise i kortet er ingen jobbrad — den blir i del A (§ 8.22).
           where: { sheetId: sheet.id, kortId: input.kortId, attestertStatus: { not: "erstattet" }, ...JOBBRAD },
@@ -7731,6 +7744,11 @@ export const dagsseddelRouter = router({
         }),
         pt.sheetTillegg.findMany({ where: { sheetId: sheet.id, kortId: input.kortId, attestertStatus: { not: "erstattet" } }, select: { attestertStatus: true } }),
         pt.sheetMachine.findMany({ where: { sheetId: sheet.id, kortId: input.kortId, attestertStatus: { not: "erstattet" } } }),
+        // O15: kortets arbeid slik maskinregelen leser det — også arbeidstid-reisen, som blir i A.
+        pt.sheetTimer.findMany({
+          where: { sheetId: sheet.id, kortId: input.kortId, attestertStatus: { not: "erstattet" } },
+          select: { id: true, projectId: true, timer: true, erReise: true, attestertStatus: true },
+        }),
       ]);
       const forsteRad = timer[0];
       if (!forsteRad) throw new TRPCError({ code: "NOT_FOUND", message: "Jobben har ingen timerrader" });
@@ -7798,19 +7816,90 @@ export const dagsseddelRouter = router({
         });
       const radIAFor = (m: { fraTid?: string | null; tilTid?: string | null }) =>
         velgTimeradForMaskin({ kortId: input.kortId, fraTid: m.fraTid, tilTid: m.tilTid }, raderIA);
-      const maskinOmkobling = maskiner
-        .filter((m) => m.sheetTimerId && tilB.has(m.sheetTimerId))
-        .map((m) => ({ id: m.id, sheetTimerId: radIAFor(m) }));
-      // Maskintimer på en delt rad kan ikke overstige del A (maskin høyst radens timer, WM32).
-      for (const d of plan.delt) {
-        const sum = maskiner.filter((m) => m.sheetTimerId === d.id).reduce((s, m) => s + Number(m.timer), 0);
-        if (sum > d.timerA + 1e-9) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: `Maskinen på raden har ${sum} t, mer enn del A (${d.timerA} t). Rett maskintimene først.`,
-          });
-        }
+      // O15 pkt 1 (plan § 4.16 «s2.ja», Kenneth 2026-11-22): maskintimene deles mellom A og B.
+      // Forslaget fyller A opp til A sitt arbeid; resten går til B, som får sin egen maskinrad.
+      const KORT_B = "__del_b__";
+      const arbeidFoer: JobbArbeidRad[] = kortTimer.map((r) => ({
+        kortId: input.kortId,
+        projectId: r.projectId,
+        externalCostObjectId: null,
+        timer: Number(r.timer),
+        erReise: r.erReise,
+        attestertStatus: r.attestertStatus,
+      }));
+      const arbeidEtter: JobbArbeidRad[] = kortTimer.flatMap((r, i) => {
+        const a = arbeidFoer[i]!;
+        const d = deltA.get(r.id);
+        if (d) return [{ ...a, timer: d.timerA }, { ...a, kortId: KORT_B, timer: d.timerB }];
+        return [tilB.has(r.id) ? { ...a, kortId: KORT_B } : a];
+      });
+      const utstyr = await hentUtstyrOppslag(ctx.prismaMaskin, maskiner.map((m) => m.vehicleId));
+      const maskinNavn = (m: { vehicleId: string }) => utstyr.navn.get(m.vehicleId) ?? m.vehicleId;
+      const forslag = foreslaMaskinDeling(
+        maskiner.map((m) => ({
+          id: m.id,
+          timer: Number(m.timer),
+          utleieEnhet: utstyr.utleieEnhet.get(m.vehicleId) ?? null,
+          koblet: m.sheetTimerId !== null,
+        })),
+        jobbArbeidSum(arbeidEtter, { kortId: input.kortId, projectId: null, externalCostObjectId: null }),
+      );
+      const innsendt = new Map((input.maskinDeling ?? []).map((d) => [d.id, d] as const));
+      if ([...innsendt.keys()].some((id) => !maskiner.some((m) => m.id === id))) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Maskinen hører ikke til jobben. Last siden på nytt." });
       }
+      const maskinDeling = maskiner.map((m, i) => {
+        const d = innsendt.get(m.id) ?? forslag[i]!;
+        if (!erGyldigMaskinDeling(Number(m.timer), d)) {
+          const param = { maskin: maskinNavn(m), timer: tallNb(Number(m.timer)) };
+          throw nokkelFeil(
+            "BAD_REQUEST",
+            `Maskinen «${param.maskin}» har ${param.timer} t. Jobb A og jobb B må til sammen bli ${param.timer} t.`,
+            "timer.attestering.registrering.maskinDelingSum",
+            param,
+          );
+        }
+        return { maskin: m, timerA: Math.round(d.timerA * 100) / 100, timerB: Math.round(d.timerB * 100) / 100 };
+      });
+      // Vakten «maskin høyst jobbens arbeidstimer» pr. del (samme regel som `krevIngenNyeMaskinBrudd`
+      // etter skrivingen), også i forhåndsvisningen (DO5). Et gammelt brudd som ikke øker, stopper ikke.
+      const maskinRad = (m: (typeof maskiner)[number], kortId: string, t: number): JobbMaskinRad => ({
+        id: m.id,
+        kortId,
+        projectId: m.projectId,
+        externalCostObjectId: null,
+        timer: t,
+        utleieEnhet: utstyr.utleieEnhet.get(m.vehicleId) ?? null,
+      });
+      const delBrudd = nyeEllerOkteBrudd(
+        beregnJobbMaskinBrudd(arbeidFoer, maskiner.map((m) => maskinRad(m, input.kortId, Number(m.timer)))),
+        beregnJobbMaskinBrudd(
+          arbeidEtter,
+          maskinDeling.flatMap((d) => [
+            ...(d.timerA > 0 ? [maskinRad(d.maskin, input.kortId, d.timerA)] : []),
+            ...(d.timerB > 0 ? [maskinRad(d.maskin, KORT_B, d.timerB)] : []),
+          ]),
+        ),
+      );
+      if (delBrudd.length > 0) {
+        // Samme nøkkel og tekst som `krevIngenNyeMaskinBrudd`, med delen som jobbens navn.
+        const delNavn = (b: (typeof delBrudd)[number]) => (b.kortId === KORT_B ? "Jobb B" : "Jobb A");
+        const linje = (b: (typeof delBrudd)[number]) =>
+          `${delNavn(b)}: maskin ${tallNb(b.maskinSum)} t, arbeid ${tallNb(b.arbeidSum)} t.`;
+        const forste = delBrudd[0]!;
+        throw nokkelFeil(
+          "BAD_REQUEST",
+          `${delBrudd.map(linje).join(" ")} En maskin med fører kan ikke ha flere timer enn arbeidet på jobben. Rett maskintimene, eller flytt hele jobben.`,
+          "timer.maskin.overArbeidAvvist",
+          { jobb: delNavn(forste), maskin: tallNb(forste.maskinSum), arbeid: tallNb(forste.arbeidSum) },
+        );
+      }
+      // Maskin på en rad som går til B, kobles til en rad i A for timene som blir i A. Går hele
+      // maskinen til B (A = 0), flyttes den i stedet (under).
+      const tilBHel = new Set(maskinDeling.filter((d) => d.timerA <= 0 && d.timerB > 0).map((d) => d.maskin.id));
+      const maskinOmkobling = maskiner
+        .filter((m) => m.sheetTimerId && tilB.has(m.sheetTimerId) && !tilBHel.has(m.id))
+        .map((m) => ({ id: m.id, sheetTimerId: radIAFor(m) }));
 
       if (input.forhandsvis) {
         const rund = (n: number) => Math.round(n * 100) / 100;
@@ -7820,6 +7909,13 @@ export const dagsseddelRouter = router({
             timerA: rund(timerFor(plan.paaA) + plan.delt.reduce((s, d) => s + d.timerA, 0)),
             timerB: rund(timerFor(plan.tilB) + plan.delt.reduce((s, d) => s + d.timerB, 0)),
             maskinPaaA: maskiner.length,
+            maskiner: maskinDeling.map((d) => ({
+              id: d.maskin.id,
+              navn: maskinNavn(d.maskin),
+              timer: Number(d.maskin.timer),
+              timerA: d.timerA,
+              timerB: d.timerB,
+            })),
           },
         };
       }
@@ -7829,7 +7925,9 @@ export const dagsseddelRouter = router({
       const originaler = new Map(timer.map((r) => [r.id, r]));
       // w15g (RETUR, gate 120): verdiene hver rad fikk, pr. rad-id — «etter» i arbeiderens merke.
       const etterPrRad: Record<string, Record<string, string | number | null>> = {};
+      const maskinDelt: { id: string; timerA: number; timerB: number; nyId: string | null }[] = [];
       await pt.$transaction(async (tx) => {
+        const raderIB: Parameters<typeof velgTimeradForMaskin>[1][number][] = [];
         const maskinFoer = await lesMaskinJobbTilstand(tx, ctx.prismaMaskin, sheet.id);
         // Den opprinnelige jobben lagres i historikken (som ved retting i dag).
         await tx.sheetRadHistorikk.createMany({
@@ -7866,6 +7964,7 @@ export const dagsseddelRouter = router({
             },
           });
           etterPrRad[delB.id] = korrigerbareVerdier("timer", delB);
+          raderIB.push({ id: delB.id, kortId: nyKortId, projectId: delB.projectId, timer: d.timerB, erReise: false, attestertStatus: "pending", fraTid: delB.fraTid, tilTid: delB.tilTid });
         }
         if (plan.tilB.length > 0) {
           await tx.sheetTimer.updateMany({
@@ -7874,7 +7973,45 @@ export const dagsseddelRouter = router({
           });
           for (const id of plan.tilB) {
             etterPrRad[id] = korrigerbareVerdier("timer", { ...originaler.get(id)!, externalCostObjectId: input.externalCostObjectIdB });
+            const o = originaler.get(id)!;
+            raderIB.push({ id, kortId: nyKortId, projectId: o.projectId, timer: Number(o.timer), erReise: false, attestertStatus: "pending", fraTid: o.fraTid, tilTid: o.tilTid });
           }
+        }
+        // O15 pkt 1: maskintimene på B. Hel til B → maskinraden flyttes; ellers får A sine timer og
+        // B en ny maskinrad i det nye kortet (mengde og enhet blir i A, beslutning b). Kortet settes
+        // av K6 (`sikreKortId`) fra timeraden maskinen kobles til.
+        const radIB = velgTimeradForMaskin({ kortId: nyKortId }, raderIB);
+        for (const d of maskinDeling) {
+          if (d.timerB <= 0 || !radIB) continue;
+          const m = d.maskin;
+          await tx.sheetRadHistorikk.create({ data: byggHistorikkPost("maskin", m, ctx.userId, naa) });
+          if (d.timerA <= 0) {
+            const flyttet = await tx.sheetMachine.update({
+              where: { id: m.id },
+              data: { sheetTimerId: radIB, externalCostObjectId: input.externalCostObjectIdB, kortId: nyKortId },
+            });
+            etterPrRad[flyttet.id] = korrigerbareVerdier("maskin", flyttet);
+            maskinDelt.push({ id: m.id, timerA: 0, timerB: d.timerB, nyId: null });
+            continue;
+          }
+          const delA = await tx.sheetMachine.update({ where: { id: m.id }, data: { timer: d.timerA } });
+          etterPrRad[delA.id] = korrigerbareVerdier("maskin", delA);
+          const delB = await tx.sheetMachine.create({
+            data: {
+              sheetId: sheet.id,
+              vehicleId: m.vehicleId,
+              projectId: m.projectId,
+              byggeplassId: m.byggeplassId,
+              externalCostObjectId: input.externalCostObjectIdB,
+              timer: d.timerB,
+              attestertStatus: "pending",
+              parentRadId: m.id,
+              sheetTimerId: radIB,
+              kortId: nyKortId,
+            },
+          });
+          etterPrRad[delB.id] = korrigerbareVerdier("maskin", delB);
+          maskinDelt.push({ id: m.id, timerA: d.timerA, timerB: d.timerB, nyId: delB.id });
         }
         for (const m of maskinOmkobling) {
           await tx.sheetMachine.update({ where: { id: m.id }, data: { sheetTimerId: m.sheetTimerId } });
@@ -7912,6 +8049,7 @@ export const dagsseddelRouter = router({
               delt: plan.delt.map((d) => d.id),
               tilB: plan.tilB,
               maskinOmkoblet: maskinOmkobling.map((m) => m.id),
+              maskinDelt,
               etterPrRad,
             },
           },

@@ -304,7 +304,9 @@ describe("w5 — «Del opp» ved klokkeslett", () => {
       },
     });
     const forh = await dag(ATT).delJobb({ sheetId: j.sheetId, kortId: j.kortId, kl: "11:00", externalCostObjectIdB: ECO_1, forhandsvis: true });
-    expect(forh.forhandsvisning).toEqual({ timerA: 4, timerB: 4, maskinPaaA: 1 });
+    expect(forh.forhandsvisning).toMatchObject({ timerA: 4, timerB: 4, maskinPaaA: 1 });
+    // O15: maskinen (2 t) får plass i A (4 t arbeid) — forslaget er A 2 · B 0.
+    expect(forh.forhandsvisning?.maskiner).toEqual([{ id: j.maskin, navn: expect.any(String), timer: 2, timerA: 2, timerB: 0 }]);
     const svar = await dag(ATT).delJobb({ sheetId: j.sheetId, kortId: j.kortId, kl: "11:00", externalCostObjectIdB: ECO_1 });
     expect((await prismaTimer.sheetTimer.findUniqueOrThrow({ where: { id: j.r2 } })).kortId).toBe(svar.kortIdB);
     const maskin = await prismaTimer.sheetMachine.findUniqueOrThrow({ where: { id: j.maskin } });
@@ -322,33 +324,112 @@ describe("w5 — «Del opp» ved klokkeslett", () => {
     expect([maskin.kortId, maskin.sheetTimerId]).toEqual([j.kortId, j.r1]);
   });
 
-  it("maskintimer over del A avvises (timesjekken står) og ingenting skrives", async () => {
+  it("O15 (s2.ja): maskintimer A + B sendt som alt i A, over del A → avvist med komma, ingenting skrives", async () => {
     const j = await nyJobb();
     // Maskin uten klokkeslett med 3,5 t på første rad; delt kl. 10:00 gir del A 3 t.
     await prismaTimer.sheetMachine.update({ where: { id: j.maskin }, data: { fraTid: null, tilTid: null, timer: 3.5 } });
     const for_ = await tilstand(j);
-    await expect(
-      dag(ATT).delJobb({ sheetId: j.sheetId, kortId: j.kortId, kl: "10:00", externalCostObjectIdB: ECO_1 }),
-    ).rejects.toThrow(/mer enn del A/);
+    const feil = await dag(ATT)
+      .delJobb({
+        sheetId: j.sheetId, kortId: j.kortId, kl: "10:00", externalCostObjectIdB: ECO_1,
+        maskinDeling: [{ id: j.maskin, timerA: 3.5, timerB: 0 }],
+      })
+      .then(() => null, (e: unknown) => e);
+    expect((feil as Error).message).toMatch(/Jobb A: maskin 3,5 t, arbeid 3 t/);
+    expect((feil as Error).message).not.toMatch(/\d\.\d t/);
     expect(await tilstand(j)).toEqual(for_);
   });
 
-  it("omkoblet maskin (gate 123 vilkår 3): maskin på en rad som går helt til B, med flere timer enn A → avvist av maskinvakten, ingenting skrevet", async () => {
+  it("O15 (s2.ja, bilde 20): uten deling brukes forslaget — A 3 · B 0,5, B får egen maskinrad i nytt kort", async () => {
     const j = await nyJobb();
-    // Maskin 5 t uten klokkeslett på raden 11–15. Delt kl. 11:00 går raden helt til B, maskinen
-    // kobles om til A (07–11, 4 t). Før delingen: 5 t maskin mot 8 t arbeid på jobben (ingen brudd).
+    await prismaTimer.sheetMachine.update({ where: { id: j.maskin }, data: { fraTid: null, tilTid: null, timer: 3.5 } });
+    const forh = await dag(ATT).delJobb({ sheetId: j.sheetId, kortId: j.kortId, kl: "10:00", externalCostObjectIdB: ECO_1, forhandsvis: true });
+    expect(forh.forhandsvisning?.maskiner).toEqual([{ id: j.maskin, navn: expect.any(String), timer: 3.5, timerA: 3, timerB: 0.5 }]);
+    const svar = await dag(ATT).delJobb({ sheetId: j.sheetId, kortId: j.kortId, kl: "10:00", externalCostObjectIdB: ECO_1 });
+    const maskiner = await prismaTimer.sheetMachine.findMany({ where: { sheetId: j.sheetId }, orderBy: { timer: "desc" } });
+    expect(maskiner.map((m) => [Number(m.timer), m.kortId, m.externalCostObjectId])).toEqual([
+      [3, j.kortId, null],
+      [0.5, svar.kortIdB, ECO_1],
+    ]);
+    const b = maskiner[1]!;
+    expect(b.parentRadId).toBe(j.maskin);
+    expect(b.vehicleId).toBe(MASKIN);
+    const bRad = await prismaTimer.sheetTimer.findUniqueOrThrow({ where: { id: b.sheetTimerId! } });
+    expect(bRad.kortId).toBe(svar.kortIdB);
+    expect(await prismaTimer.sheetRadHistorikk.count({ where: { originalRadId: j.maskin } })).toBe(1);
+  });
+
+  it("O15: attestantens deling (A 2 · B 1,5) skrives som sendt", async () => {
+    const j = await nyJobb();
+    await prismaTimer.sheetMachine.update({ where: { id: j.maskin }, data: { fraTid: null, tilTid: null, timer: 3.5 } });
+    await dag(ATT).delJobb({
+      sheetId: j.sheetId, kortId: j.kortId, kl: "10:00", externalCostObjectIdB: ECO_1,
+      maskinDeling: [{ id: j.maskin, timerA: 2, timerB: 1.5 }],
+    });
+    const timer = (await prismaTimer.sheetMachine.findMany({ where: { sheetId: j.sheetId } })).map((m) => Number(m.timer)).sort();
+    expect(timer).toEqual([1.5, 2]);
+  });
+
+  it("O15: A 0 flytter hele maskinen til B, ingen 0-rad", async () => {
+    const j = await nyJobb();
+    await prismaTimer.sheetMachine.update({ where: { id: j.maskin }, data: { fraTid: null, tilTid: null, timer: 2 } });
+    const svar = await dag(ATT).delJobb({
+      sheetId: j.sheetId, kortId: j.kortId, kl: "10:00", externalCostObjectIdB: ECO_1,
+      maskinDeling: [{ id: j.maskin, timerA: 0, timerB: 2 }],
+    });
+    const maskiner = await prismaTimer.sheetMachine.findMany({ where: { sheetId: j.sheetId } });
+    expect(maskiner.map((m) => [m.id, Number(m.timer), m.kortId, m.externalCostObjectId])).toEqual([[j.maskin, 2, svar.kortIdB, ECO_1]]);
+  });
+
+  it("O15 (beslutning a): A + B ulik maskinens timer avvises, ingenting skrives", async () => {
+    const j = await nyJobb();
+    const for_ = await tilstand(j);
+    await expect(
+      dag(ATT).delJobb({
+        sheetId: j.sheetId, kortId: j.kortId, kl: "10:00", externalCostObjectIdB: ECO_1,
+        maskinDeling: [{ id: j.maskin, timerA: 1, timerB: 0.5 }],
+      }),
+    ).rejects.toThrow(/må til sammen bli 2 t/);
+    expect(await tilstand(j)).toEqual(for_);
+  });
+
+  it("O15 (s3.nei, vakttest): vare, tillegg og reise blir i A når maskinen deles", async () => {
+    const j = await nyJobb();
+    await prismaTimer.sheetMachine.update({ where: { id: j.maskin }, data: { fraTid: null, tilTid: null, timer: 3.5 } });
+    const v = await prismaVarelager.vareforbruk.create({
+      data: {
+        dato: new Date("2026-09-01"), projectId: P1, vareId: VARE, antall: 1, registrertAvUserId: ARB,
+        dagsseddelId: j.sheetId, sheetTimerId: j.r2, kortId: j.kortId,
+      },
+    });
+    const reise = await prismaTimer.sheetTimer.create({
+      data: { sheetId: j.sheetId, projectId: P1, lonnsartId: ORD, aktivitetId: AKT, fraTid: "15:00", tilTid: "15:30", timer: 0.5, kortId: j.kortId, erReise: true, reiseRetning: "retur" },
+    });
+    const svar = await dag(ATT).delJobb({ sheetId: j.sheetId, kortId: j.kortId, kl: "10:00", externalCostObjectIdB: ECO_1 });
+    expect(svar.kortIdB).not.toBe(j.kortId);
+    expect((await prismaVarelager.vareforbruk.findUniqueOrThrow({ where: { id: v.id } })).kortId).toBe(j.kortId);
+    expect((await prismaTimer.sheetTimer.findUniqueOrThrow({ where: { id: reise.id } })).kortId).toBe(j.kortId);
+    // Bare maskinens B-del står i B; maskinraden selv blir i A.
+    expect((await prismaTimer.sheetMachine.findUniqueOrThrow({ where: { id: j.maskin } })).kortId).toBe(j.kortId);
+  });
+
+  it("omkoblet maskin (gate 123 vilkår 3): maskin på en rad som går helt til B, sendt som alt i A → avvist av maskinvakten, ingenting skrevet", async () => {
+    const j = await nyJobb();
+    // Maskin 5 t uten klokkeslett på raden 11–15. Delt kl. 11:00 går raden helt til B. Sendes alt
+    // i A (4 t arbeid), avvises delingen. O15: forslaget ville gitt A 4 · B 1.
     await prismaTimer.sheetMachine.update({
       where: { id: j.maskin },
       data: { sheetTimerId: j.r2, fraTid: null, tilTid: null, timer: 5 },
     });
     const for_ = await tilstand(j);
     const feil = await dag(ATT)
-      .delJobb({ sheetId: j.sheetId, kortId: j.kortId, kl: "11:00", externalCostObjectIdB: ECO_1 })
+      .delJobb({
+        sheetId: j.sheetId, kortId: j.kortId, kl: "11:00", externalCostObjectIdB: ECO_1,
+        maskinDeling: [{ id: j.maskin, timerA: 5, timerB: 0 }],
+      })
       .then(() => null, (e: unknown) => e);
-    // `krevIngenNyeMaskinBrudd` → `maskinOverArbeidFeil`, ikke timesjekken for delt rad («mer enn del A»).
     expect(feil).toBeInstanceOf(Error);
     expect((feil as Error).message).toMatch(/maskin 5 t, arbeid 4 t/);
-    expect((feil as Error).message).not.toMatch(/mer enn del A/);
     expect(await tilstand(j)).toEqual(for_);
   });
 

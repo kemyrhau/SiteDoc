@@ -3155,7 +3155,7 @@ kortene ved oppdeling».
 - Hvert kort har fra, til og pause. Kort B har også prosjekt, byggeplass og underprosjekt.
 - Klokkeslettet er felles: når A slutter, begynner B.
 - Ett «Lagre» lagrer begge.
-- Vinduet deler arbeidet og maskintimene. Hver maskin har felt for A og B, fylt ut med et forslag som arbeideren kan rette, og B får sin egen maskinrad (Kenneth 2026-11-22 «s2.ja»). Varer, tillegg, utlegg og reise blir i A (Kenneth 2026-11-22 «s3.nei»). 🟡 Vedtatt, ikke bygget.
+- Vinduet deler arbeidet og maskintimene. Hver maskin har felt for A og B, fylt ut med et forslag som arbeideren kan rette, og B får sin egen maskinrad (Kenneth 2026-11-22 «s2.ja»). Varer, tillegg, utlegg og reise blir i A (Kenneth 2026-11-22 «s3.nei»). 🟡 Bygget på `feat/web-timer-o15-del-opp-attestering`, ikke merget (`delJobb` `maskinDeling`, `DelOppSkjema`; timer.md § «Del opp»).
 - Etter lagring er kortene to selvstendige registreringer uten kobling.
 
 **Hvem, hvor og når:** attestanten, i attesteringskortet under Firma › Attestering, på en dagsseddel som er

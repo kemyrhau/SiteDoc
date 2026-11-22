@@ -776,22 +776,26 @@ describe("w8 — jobbraden åpner registreringen, timeradene gjør det ikke", ()
   });
 
   it("«Del opp»: klokkeslettet forhåndsvises på serveren, deretter deles jobben", () => {
+    vi.useFakeTimers();
     const { container } = vis([sedel()]);
     fireEvent.click(dagsrad(container));
     const panel = container.querySelector("[data-registrering]") as HTMLElement;
     fireEvent.click(within(panel).getByRole("button", { name: /registrering\.delOpp/ }));
     const skjema = panel.querySelector("[data-del-opp]") as HTMLElement;
     fireEvent.change(within(skjema).getByPlaceholderText("11:00"), { target: { value: "10:00" } });
+    // O15 pkt 3: forhåndsvisningen går litt etter siste tast.
+    act(() => { vi.advanceTimersByTime(400); });
+    vi.useRealTimers();
     const fv = kallTil("delJobb");
     expect(fv).toHaveLength(1);
     expect(fv[0]!.input).toEqual({ sheetId: "s1", kortId: "kA", kl: "10:00", externalCostObjectIdB: null, forhandsvis: true });
-    act(() => fv[0]!.opts!.onSuccess!({ forhandsvisning: { timerA: 2.5, timerB: 5, maskinPaaA: 0 } }));
+    act(() => fv[0]!.opts!.onSuccess!({ forhandsvisning: { timerA: 2.5, timerB: 5, maskinPaaA: 0, maskiner: [] } }));
     expect(skjema.textContent).toContain("2,50 t");
     const knapper = within(skjema).getAllByRole("button", { name: /registrering\.delOpp/ });
     fireEvent.click(knapper[knapper.length - 1]!);
     const alle = kallTil("delJobb");
     expect(alle).toHaveLength(2);
-    expect(alle[1]!.input).toEqual({ sheetId: "s1", kortId: "kA", kl: "10:00", externalCostObjectIdB: null });
+    expect(alle[1]!.input).toEqual({ sheetId: "s1", kortId: "kA", kl: "10:00", externalCostObjectIdB: null, maskinDeling: [] });
   });
 });
 
@@ -1672,11 +1676,12 @@ describe("O13 — attesteringen etter vedtaksfila § Dagsvisningen pkt 2 og 3", 
     });
   });
 
-  it("pkt 1 — én jobb og kort med bare reise: «1 jobb» vises ikke i dagsraden", () => {
+  it("pkt 1 — én jobb og kort med bare reise: «1 jobb · 1 reise» (O15 pkt 5, beslutning c)", () => {
     const { container } = vis([sedel({ timer: [timer("t1"), reise({ projectId: "pB", project: Q, kortId: "kB" })] })]);
     expect(container.querySelectorAll('[data-rad="jobb"]').length).toBe(2);
-    expect(dagsrad(container).querySelector("[data-antall-jobber]")).toBeNull();
-    expect(dagsrad(container).textContent).not.toContain("antallJobber");
+    expect(dagsrad(container).querySelector("[data-antall-jobber]")!.textContent).toBe(
+      'timer.attestering.tabell.antallJobber{"count":1} · timer.attestering.tabell.antallReiser{"count":1}',
+    );
   });
 
   describe("pkt 2 — Reise og Overtid som egne kolonner", () => {
@@ -1871,5 +1876,162 @@ describe("O13-tillegg — bredden og navnet «Reise»", () => {
     expect(navn.reisetimer).not.toBe(navn.reise);
     expect(container.querySelector('[data-kolonne="reisetimer"]')!.textContent).toContain("timer.eksport.kolReisetimer");
     expect(container.querySelector('[data-kolonne="reisetimer"]')!.textContent).not.toContain("Velger");
+  });
+});
+
+describe("O15 — «Del opp» og attesteringen etter Kenneths test på 722d394b", () => {
+  const LR = { id: "lr", navn: "Reise", satsEnhet: null, overtidsnivaa: null };
+  const UT = { erReise: true, reiseRetning: "ut", lonnsartId: "lr", fraTid: "06:26", tilTid: "06:56", timer: "0.5", pauseMin: 0 } as Partial<AttTimer>;
+  const ARBEID_REISE = { arbeidReiseRetning: "ut", fraTid: "06:26", tilTid: "06:56", timer: "0.5", pauseMin: 0 } as Partial<AttTimer>;
+  beforeEach(() => {
+    h.data["timer.lonnsart.list"] = [{ id: "l1", navn: "Ordinær", satsEnhet: null, overtidsnivaa: null }, LR];
+  });
+  afterEach(() => vi.useRealTimers());
+
+  const aapneDelOpp = () => {
+    vi.useFakeTimers();
+    const { container } = vis([sedel()]);
+    fireEvent.click(dagsrad(container));
+    const panel = container.querySelector("[data-registrering]") as HTMLElement;
+    fireEvent.click(within(panel).getByRole("button", { name: /registrering\.delOpp/ }));
+    const skjema = panel.querySelector("[data-del-opp]") as HTMLElement;
+    const kl = within(skjema).getByPlaceholderText("11:00") as HTMLInputElement;
+    return { skjema, kl };
+  };
+
+  it("pkt 1 — maskinen får A/B-felt med forslaget; retter du A, blir B resten; «Del opp» sender delingen", () => {
+    const { skjema, kl } = aapneDelOpp();
+    fireEvent.change(kl, { target: { value: "10:00" } });
+    act(() => { vi.advanceTimersByTime(400); });
+    vi.useRealTimers();
+    const fv = kallTil("delJobb");
+    act(() => fv[0]!.opts!.onSuccess!({ forhandsvisning: {
+      timerA: 3, timerB: 4.5, maskinPaaA: 1,
+      maskiner: [{ id: "m1", navn: "Volvo EC250", timer: 4.5, timerA: 3, timerB: 1.5 }],
+    } }));
+    const rad = skjema.querySelector('[data-maskin-deling="m1"]') as HTMLElement;
+    expect(rad).toBeTruthy();
+    const [a, b] = within(rad).getAllByRole("textbox") as HTMLInputElement[];
+    expect(a!.value).toBe("3,00");
+    expect(b!.value).toBe("1,50");
+    fireEvent.change(a!, { target: { value: "2" } });
+    expect(b!.value).toBe("2,50");
+    const knapper = within(skjema).getAllByRole("button", { name: /registrering\.delOpp/ });
+    fireEvent.click(knapper[knapper.length - 1]!);
+    const alle = kallTil("delJobb");
+    expect(alle[alle.length - 1]!.input).toEqual({
+      sheetId: "s1", kortId: "kA", kl: "10:00", externalCostObjectIdB: null,
+      maskinDeling: [{ id: "m1", timerA: 2, timerB: 2.5 }],
+    });
+  });
+
+  it("pkt 1 (RETUR trinn 2) — tømt maskinfelt: blur sender ingenting, ingen rød servertekst, «Del opp» sperret", () => {
+    const { skjema, kl } = aapneDelOpp();
+    fireEvent.change(kl, { target: { value: "10:00" } });
+    act(() => { vi.advanceTimersByTime(400); });
+    vi.useRealTimers();
+    act(() => kallTil("delJobb")[0]!.opts!.onSuccess!({ forhandsvisning: {
+      timerA: 3, timerB: 4.5, maskinPaaA: 1,
+      maskiner: [{ id: "m1", navn: "Volvo EC250", timer: 4.5, timerA: 3, timerB: 1.5 }],
+    } }));
+    const rad = skjema.querySelector('[data-maskin-deling="m1"]') as HTMLElement;
+    const [a] = within(rad).getAllByRole("textbox") as HTMLInputElement[];
+    const foer = kallTil("delJobb").length;
+    fireEvent.change(a!, { target: { value: "" } });
+    fireEvent.blur(a!);
+    expect(kallTil("delJobb")).toHaveLength(foer);
+    expect(skjema.querySelector("p.text-red-600")).toBeNull();
+    const knapper = within(skjema).getAllByRole("button", { name: /registrering\.delOpp/ }) as HTMLButtonElement[];
+    expect(knapper[knapper.length - 1]!.disabled).toBe(true);
+    // Gyldig igjen: blur forhåndsviser med delingen.
+    fireEvent.change(a!, { target: { value: "2" } });
+    fireEvent.blur(a!);
+    const siste = kallTil("delJobb")[kallTil("delJobb").length - 1]!;
+    expect(siste.input).toMatchObject({ forhandsvis: true, maskinDeling: [{ id: "m1", timerA: 2, timerB: 2.5 }] });
+  });
+
+  it("pkt 3 — «10» tolkes som 10:00, forhåndsvises og skrives om til TT:MM", () => {
+    const { skjema, kl } = aapneDelOpp();
+    fireEvent.change(kl, { target: { value: "10" } });
+    act(() => { vi.advanceTimersByTime(400); });
+    expect(kallTil("delJobb")[0]!.input).toMatchObject({ kl: "10:00", forhandsvis: true });
+    fireEvent.blur(kl);
+    expect(kl.value).toBe("10:00");
+    expect(skjema.querySelector("[data-kl-feil]")).toBeNull();
+  });
+
+  it("pkt 3 — ukjent skrivemåte: rød tekst med eksempel, ingen forhåndsvisning, «Del opp» av", () => {
+    const { skjema, kl } = aapneDelOpp();
+    fireEvent.change(kl, { target: { value: "10" } });
+    act(() => { vi.advanceTimersByTime(400); });
+    act(() => kallTil("delJobb")[0]!.opts!.onSuccess!({ forhandsvisning: {
+      timerA: 3, timerB: 4.5, maskinPaaA: 1, maskiner: [{ id: "m1", navn: "Volvo", timer: 5, timerA: 3, timerB: 2 }],
+    } }));
+    expect(skjema.textContent).toContain("3,00 t");
+    h.kall.length = 0;
+    fireEvent.change(kl, { target: { value: "10.3" } });
+    // Forrige tids forhåndsvisning står ikke igjen.
+    expect(skjema.textContent).not.toContain("3,00 t");
+    expect(skjema.querySelector("[data-maskin-deling]")).toBeNull();
+    act(() => { vi.advanceTimersByTime(400); });
+    expect(kallTil("delJobb")).toHaveLength(0);
+    fireEvent.blur(kl);
+    expect(skjema.querySelector("[data-kl-feil]")!.textContent).toBe("timer.attestering.registrering.klokkeslettFeil");
+    const knapper = within(skjema).getAllByRole("button", { name: /registrering\.delOpp/ }) as HTMLButtonElement[];
+    expect(knapper[knapper.length - 1]!.disabled).toBe(true);
+  });
+
+  it("pkt 4 — reise ført som arbeidstid: «Reise · Ordinær» i Betegnelse, timene i Timer", () => {
+    const { container } = vis([sedel({ timer: [timer("t1"), timer("t2", ARBEID_REISE)] })]);
+    fireEvent.click(dagsrad(container));
+    const merke = linje(container, "s1:timer:t2").querySelector("[data-reise-arbeid]") as HTMLElement;
+    expect(merke).toBeTruthy();
+    expect(merke.textContent).toBe("timer.attestering.tabell.type.reise·Ordinær");
+    expect(linje(container, "s1:timer:t2").querySelector("[data-tall]")).toBeNull();
+  });
+
+  it("pkt 5 — kort med bare reise telles for seg: «2 jobber · 1 reise»; uten reise uendret", () => {
+    const { container } = vis([sedel({ timer: [
+      timer("t1"), timer("t2", { projectId: "pB", project: Q, kortId: "kB" }),
+      timer("r1", { ...UT, kortId: "kR" }),
+    ] })]);
+    expect(dagsrad(container).querySelector("[data-antall-jobber]")!.textContent).toBe(
+      'timer.attestering.tabell.antallJobber{"count":2} · timer.attestering.tabell.antallReiser{"count":1}',
+    );
+    cleanup();
+    const uten = vis([toProsjekter()]).container;
+    expect(dagsrad(uten).querySelector("[data-antall-jobber]")!.textContent).toBe('timer.attestering.tabell.antallJobber{"count":2}');
+  });
+
+  it("pkt 5 — reise ført som arbeidstid alene i et kort telles også som reise", () => {
+    const { container } = vis([sedel({ timer: [timer("t1"), timer("r1", { ...ARBEID_REISE, kortId: "kR" })] })]);
+    expect(dagsrad(container).querySelector("[data-antall-jobber]")!.textContent).toBe(
+      'timer.attestering.tabell.antallJobber{"count":1} · timer.attestering.tabell.antallReiser{"count":1}',
+    );
+  });
+
+  it("pkt 6 — Fra–til står hel: faste sifferbredder og bredden satt i ATTESTERING_BREDDE", () => {
+    const kilde = readFileSync(resolve(__dirname, "../components/attestering/AttesteringTabell.tsx"), "utf8");
+    const m = /\n  fraTil: (\d+),/.exec(kilde.slice(kilde.indexOf("const ATTESTERING_BREDDE")));
+    // Målt i lokal dev 2026-11-23: «06:56–07:00» er 85,4 px, cellen har 6 + 6 px padding → minst 98.
+    expect(Number(m![1])).toBeGreaterThanOrEqual(98);
+    const { container } = vis([sedel()]);
+    fireEvent.click(dagsrad(container));
+    expect(linje(container, "s1:timer:t1").querySelector("[data-fra-til].tabular-nums")!.textContent).toBe("07:00–15:00");
+  });
+
+  it("pkt 7 — kort med bare reise: hover med reiselinja «Til {sted} · 06:26–06:56» og beskrivelsen", () => {
+    const { container } = vis([sedel({ timer: [
+      timer("t1", { beskrivelse: "Forskaling" }),
+      timer("r1", { ...UT, kortId: "kR", beskrivelse: "Henter stillas" }),
+    ] })]);
+    const jobb = Array.from(container.querySelectorAll('[data-rad="jobb"]')) as HTMLElement[];
+    const hover = jobb.map((r) => {
+      const id = (r.getAttribute("aria-describedby") ?? "").split(" ").find(Boolean);
+      const node = id ? document.getElementById(id) : null;
+      return node ? Array.from(node.querySelectorAll("[data-beskrivelse-hover] > span")).map((e) => e.textContent) : [];
+    });
+    const tekster = hover.find((x) => x[0] !== "Forskaling");
+    expect(tekster).toEqual(['timer.prosjektkort.reiseTil{"sted":"Prosjekt A"} · 06:26–06:56', "Henter stillas"]);
   });
 });

@@ -375,9 +375,10 @@ describe("w9 — avvisning pr. skrivevei", () => {
     const k = randomUUID();
     const r1 = await timerRad(sid, { fra: "07:00", til: "09:00", timer: 2, kortId: k });
     await timerRad(sid, { fra: "09:00", til: "13:00", timer: 4, kortId: k });
-    await maskinRad(sid, { timer: 5, kortId: k, sheetTimerId: r1 }); // 5 ≤ 6 før; A får 2
+    const m = await maskinRad(sid, { timer: 5, kortId: k, sheetTimerId: r1 }); // 5 ≤ 6 før; A får 2
     await forventAvvist(sid, () =>
-      dag(ADMIN).delJobb({ sheetId: sid, kortId: k, kl: "09:00", externalCostObjectIdB: ECO_1 }),
+      // O15: attestanten lar alt bli i A (forslaget ville gitt A 2 · B 3).
+      dag(ADMIN).delJobb({ sheetId: sid, kortId: k, kl: "09:00", externalCostObjectIdB: ECO_1, maskinDeling: [{ id: m, timerA: 5, timerB: 0 }] }),
     );
   });
 
