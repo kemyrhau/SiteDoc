@@ -443,7 +443,7 @@ Fra w15g i web-timeføring (🟡 ikke merget, `feat/web-timer-w15g`, plan § 4.1
 - «Rediger arbeid» (`RedigerRadModal`): «Ola Tømrer ser «Korrigert av Kari Leder» på linjene du endrer.» (`timer.korrigert.rrmLinje`, `…rrmLinjeUtenNavn`).
 - ?-fanen: `…hjelp.retting` skrevet om (✎ og vinduet, «Lagre»/«Avbryt», «Korrigert av»); i `…hjelp.registrering` er «Hver retting lagres med en gang» byttet med «Linjene er tekst; ✎ på linja åpner retting. Underprosjektet … lagres når du velger det.» 13 språk regenerert.
 
-Fra O13 i web-timeføring (🟡 ikke merget, `feat/web-timer-o13-attestering-kolonner`, vedtak-timer-web.md § Dagsvisningen pkt 2 og 3, skisse B14c B), begge sidene:
+Fra O13 i web-timeføring (✅ merget `72d375ae`, vedtak-timer-web.md § Dagsvisningen pkt 2 og 3, skisse B14c B), begge sidene:
 
 - **Struktur** (`…hjelp.struktur`, endret): «Med én jobb står jobbens prosjekt og underprosjekt i dagsraden» er byttet med «Dagsraden og jobbraden viser prosjektets navn, og under det byggeplass og underprosjekt. Reise og Overtid står i egne kolonner ved siden av Timer: dagens timer i dagsraden, jobbens i jobbraden. Reise- og overtidslinjene har lønnsartens navn i et farget merke.»
 - **Kolonnehoder:** «Reise» (`timer.eksport.kolReisetimer`) og «Overtid» (`timer.eksport.kolOvertid`), nøklene `reisetimer` og `overtid` i `TIMER_TABELL_KOL`. Eksportens ja/nei-kolonne «Reise» (`kolReise`) står som før i «Velg parameter». I «Velg parameter» heter tallkolonnen «Reisetimer» (`timer.eksport.kolReisetimerVelger`, feltet `velgerI18n` i `TIMER_TABELL_KOL`), så de to ikke forveksles; overskriften i tabellen er «Reise» (O13-tillegg).
