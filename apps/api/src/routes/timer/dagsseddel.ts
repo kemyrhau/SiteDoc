@@ -712,13 +712,13 @@ async function validerEcoForFlytt(
 }
 
 /**
- * w5 (bilde 7, K3): underprosjekt for hele jobben. Alle rader på kortet — timer (ikke reise),
+ * w5 (bilde 7, K3): underprosjekt for hele jobben. Alle rader på kortet — timer (ikke reise, heller ikke arbeidstid-reise),
  * maskin, tillegg, utlegg og varer — får det nye underprosjektet. Kortets id beholdes (samme
  * jobb, ny nøkkel for alle radene samtidig, så K2–K4 holder). Alle linjer må vente på
  * attestering; en attestert linje flyttes ikke stille. Kalleren har sjekket tilgang, status og
  * underprosjektet.
  */
-async function flyttHeleJobben(
+export async function flyttHeleJobben(
   ctx: InnloggetCtx,
   args: {
     sheet: { id: string; organizationId: string };
@@ -734,7 +734,9 @@ async function flyttHeleJobben(
   }
   const hvor = { sheetId: sheet.id, kortId, attestertStatus: { not: "erstattet" } };
   const [timer, tillegg, maskiner, utlegg, varer] = await Promise.all([
-    pt.sheetTimer.findMany({ where: { ...hvor, erReise: false }, select: { id: true, attestertStatus: true } }),
+    // RETUR O12 tillegg: en reise ført som arbeidstid er ingen jobbrad; arbeideren valgte dens
+    // underprosjekt selv i reisevinduet, så den følger ikke jobben (`JOBBRAD`, grunnregel 2).
+    pt.sheetTimer.findMany({ where: { ...hvor, ...JOBBRAD }, select: { id: true, attestertStatus: true } }),
     pt.sheetTillegg.findMany({ where: hvor, select: { id: true, attestertStatus: true } }),
     pt.sheetMachine.findMany({ where: hvor, select: { id: true, attestertStatus: true } }),
     pt.sheetUtlegg.findMany({ where: { sheetId: sheet.id, kortId }, select: { id: true } }),

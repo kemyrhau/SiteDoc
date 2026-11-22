@@ -18,7 +18,7 @@ vi.mock("@sitedoc/db", () => ({
 vi.mock("@sitedoc/db-maskin", () => ({ prismaMaskin: {} }));
 vi.mock("@sitedoc/db-varelager", () => ({ prismaVarelager: {} }));
 
-import { jobbStedForMaskin } from "./dagsseddel";
+import { flyttHeleJobben, jobbStedForMaskin } from "./dagsseddel";
 
 type KortIdModul = typeof import("../../services/timer/kortId");
 const ekte = () => vi.importActual<KortIdModul>("../../services/timer/kortId");
@@ -147,5 +147,67 @@ describe("jobbStedForMaskin — maskinen får jobbens sted, ikke reisens", () =>
     await expect(
       jobbStedForMaskin(tx as never, { sheetId: SHEET, projectId: PROSJEKT, kortId: KORT, sheetTimerId: "reise" }),
     ).resolves.toEqual({ byggeplassId: null, externalCostObjectId: ECO_A });
+  });
+});
+
+describe("flyttHeleJobben (flyttJobbEco / attestantens «hele jobben») — arbeidstid-reisen følger ikke jobben", () => {
+  /** Falsk Prisma-klient som også skriver: `updateMany` på timer registrerer hvilke id-er som flyttes. */
+  function lagSkrivendeTx(rader: (Rad & { attestertStatus: string })[]) {
+    const tx = lagTx(rader);
+    const flyttetTimer: string[] = [];
+    const skriv = {
+      ...tx,
+      sheetTimer: {
+        ...tx.sheetTimer,
+        updateMany: vi.fn(async (a: { where: { id: { in: string[] } } }) => {
+          flyttetTimer.push(...a.where.id.in);
+          return { count: a.where.id.in.length };
+        }),
+      },
+      sheetTillegg: { findMany: vi.fn(async () => []), updateMany: vi.fn(async () => ({ count: 0 })) },
+      sheetMachine: { findMany: vi.fn(async () => []), updateMany: vi.fn(async () => ({ count: 0 })) },
+      sheetUtlegg: { findMany: vi.fn(async () => []), updateMany: vi.fn(async () => ({ count: 0 })) },
+      dailySheet: { ...tx.dailySheet, update: vi.fn(async () => ({})) },
+    };
+    const pt = { ...skriv, $transaction: vi.fn(async (fn: (t: unknown) => Promise<unknown>) => fn(skriv)) };
+    const ctx = {
+      userId: "u",
+      prismaTimer: pt,
+      prismaMaskin: {},
+      prismaVarelager: { vareforbruk: { findMany: vi.fn(async () => []), updateMany: vi.fn() } },
+    };
+    return { ctx, flyttetTimer };
+  }
+
+  const ventende = <T extends Rad>(r: T) => ({ ...r, attestertStatus: "pending" });
+
+  it("bare jobbraden får nytt underprosjekt; arbeidstid-reisen (B) står urørt", async () => {
+    const { ctx, flyttetTimer } = lagSkrivendeTx([ventende(JOBB), ventende(ARBEIDSREISE)]);
+    await flyttHeleJobben(ctx as never, {
+      sheet: { id: SHEET, organizationId: "org" },
+      rad: { id: JOBB.id, sheetId: SHEET, kortId: KORT, projectId: PROSJEKT, externalCostObjectId: ECO_A },
+      ecoId: "eco-c",
+    });
+    expect(flyttetTimer).toEqual(["jobb"]);
+  });
+
+  it("negativkontroll: en vanlig jobbrad nr. 2 i kortet flyttes med", async () => {
+    const { ctx, flyttetTimer } = lagSkrivendeTx([ventende(JOBB), ventende(rad({ id: "jobb-2", fraTid: "15:00" }))]);
+    await flyttHeleJobben(ctx as never, {
+      sheet: { id: SHEET, organizationId: "org" },
+      rad: { id: JOBB.id, sheetId: SHEET, kortId: KORT, projectId: PROSJEKT, externalCostObjectId: ECO_A },
+      ecoId: "eco-c",
+    });
+    expect(flyttetTimer.sort()).toEqual(["jobb", "jobb-2"]);
+  });
+
+  it("en attestert arbeidstid-reise sperrer ikke flyttingen av jobben", async () => {
+    const { ctx, flyttetTimer } = lagSkrivendeTx([ventende(JOBB), { ...ARBEIDSREISE, attestertStatus: "attestert" }]);
+    await flyttHeleJobben(ctx as never, {
+      sheet: { id: SHEET, organizationId: "org" },
+      rad: { id: JOBB.id, sheetId: SHEET, kortId: KORT, projectId: PROSJEKT, externalCostObjectId: ECO_A },
+      ecoId: "eco-c",
+    });
+    expect(flyttetTimer).toEqual(["jobb"]);
   });
 });
