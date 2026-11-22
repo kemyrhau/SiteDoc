@@ -29,6 +29,7 @@ sist_verifisert_mot_kode: 2026-05-16
 | Gammel STATUS § Sist oppdatert-changelog-oppføring (docs-endring historikk) | `historikk-docs.md` (arkiv) — STATUS beholder kun de 3 nyeste |
 | Kundeønske-status endres | `STATUS-AKTUELT.md` § Kundeønsker |
 | Timer-modul spec endres | `timer.md` |
+| Kenneth vedtar eller snur noe brukeren ser i timeføringen på web (ført: reisevinduet) | `vedtak-timer-web.md` — bare orkestrator skriver vedtak, med Kenneths ord; koderen endrer bare status. Punktet byttes ut, ikke stables |
 | Timer/GPS/prosjekt-utredning (dag-flyt, T.8 m.fl.) | `timer-gps-prosjekt-utredning.md` |
 | PSI/§15-geofence-håndheving (nivåer, per firma/byggeplass) | `psi-geofence-handhevning-utredning.md` (🟡 parkert grunnlagsdok) |
 | Maskin-modul spec endres | `maskin.md` |

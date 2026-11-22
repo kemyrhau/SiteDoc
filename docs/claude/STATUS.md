@@ -12,6 +12,7 @@
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
 **Sist oppdatert:** 2026-11-22
+- 2026-11-22 — **NY fil `vedtak-timer-web.md` (+1) + `web-timeforing-plan.md` + `timer.md` + `SAMARBEIDSREGLER.md` + `dokumentasjons-standard.md` + `DOC-MAP.md`: reisevinduet står bare i vedtaksfila; regelteksten for «to sannheter», fast spørsmålsform og snudd vedtak** (branch `docs/vedtak-reisevindu`, docs-only, Fabel; Kenneth 2026-11-22 «spørsmål 1, 2 og 3. -> som anbefalt»): `vedtak-timer-web.md` har grunnreglene og § Reisevinduet med 15 punkter, målt mot develop `1e65db91` (13 ✅, 2 ❓). I planen er teksten om reisevinduet byttet ut med 18 henvisninger (§ 4.15 del B, § 8-tabellen B42, § 8.17–8.22 og § 9), og `timer.md` har 2 (teknisk tekst står). `SAMARBEIDSREGLER.md`: § 2 (beslutningen skrives med Kenneths ord, det gamle slettes), § 3 (orkestrator beslutter hvordan og når; «Spørsmål: ett vindu, fast form») og § 5 («To sannheter», «Godkjent i test er vernet», snudd vedtak byttes ut uten ⚠️-blokk). `dokumentasjons-standard.md` raden «Vedtaket er snudd» rettet likt. ✅ 6→7, totalt 60→61.
 - 2026-11-21 — **`timer.md` (ny seksjon «Slett dagsseddel» sletter alt — bare utkast, API-tabellen) + `web-timeforing-plan.md` (§ 8.22 statusmarkør) + `mobil.md` (linje om returnert sletting): S1 — `dagsseddel.slett` sletter alt på sedelen i én transaksjon (varer, vedlegg, kvitteringer), bare utkast; `slettOversikt` + `SlettDagModal` på web** (branch `fix/timer-slett-dagsseddel`, kode + docs, web-timer-w1, 🟡 levert, venter gate). Ingen fil opprettet eller slettet i docs/claude — tellingene er uendret.
 - 2026-11-21 — **`retningslinjer/ui-standarder.md` (ny underseksjon «Tallformat for timer, antall, mengde og beløp»): timeformat på dagssiden — «4.00 t» → «4,0 t» via `formaterTimer`/`formaterBelop` i `lib/tallformat.ts`** (branch `fix/web-timer-timeformat`, kode + docs, web-timer-w5; ordre fra orkestrator 2026-11-21). Ingen fil opprettet eller slettet i docs/claude — tellingene er uendret.
 - 2026-11-21 — **`timer.md` + `web-timeforing-plan.md` (frontmatter, § 4.11-merknaden, § 8.22 punkt 2, § 9): gate (123) vilkår 1 og 4 — Tur første dag og Retur siste dag i en byggeplassperiode føres som vanlig reise fra hjemstedet; statuslinjene sier «🟡 levert, venter gate»** (branch `feat/web-timer-forenkle`, web-timer-w5, kode + docs). Tellinger uendret.
@@ -502,13 +503,13 @@ T7-3a/b1/b2 er deployet til prod (`223afc17` på main, server-route-endringer ak
 
 | Status | Antall |
 |---|---:|
-| ✅ Verifisert mot kode | 6 |
+| ✅ Verifisert mot kode | 7 |
 | ⚠️ Drift identifisert | 4 |
 | 🔄 Under arbeid | 24 |
 | ❌ Ikke screenet | 21 |
 | ✔️ Ferdig brukt (lukket) | 3 |
 | 📦 Arkivert | 8 |
-| **Totalt** | **60** |
+| **Totalt** | **61** |
 
 ---
 
@@ -527,6 +528,7 @@ T7-3a/b1/b2 er deployet til prod (`223afc17` på main, server-route-endringer ak
 | dev-login-agent.md | 2026-07-06 | **Meta-fil:** Dev-only test-innlogging for agent-/simulator-testing (test-miljø) — endepunkt, header, testbrukere, sikkerhetsgrense. Indeksert i DOC-MAP. Rad tilføyd 2026-07-06 |
 | lokal-dev.md | 2026-07-15 | **Meta-fil:** Lokal dev-flate på Mac — koble til, feilsøke (`AccessDenied` = tom lokal DB, ikke OAuth), oppdatere test-data, teste nye funksjoner, hva localhost ikke dekker. **Empirisk verifisert mot maskinen** 2026-07-15 (`lsof -i :5432` → Homebrew pg16; restore kjørt → 31 brukere; login bekreftet på localhost:3100). Indeksert i DOC-MAP (4 rader) — CLAUDE.md >40k. Rad tilføyd 2026-07-15 |
 | simulator-ipv6-nordvpn.md | 2026-06-07 | **Feilsøkings-referanse:** iOS-simulator henger mot api-test — AAAA-DNS/IPv6-rotårsak (NordVPN trenger ikke kjøre). Sjekk FØR koden. Indeksert i CLAUDE.md. Rad tilføyd 2026-07-06 |
+| vedtak-timer-web.md | 2026-11-22 | **Sannhetskilde:** Kenneths vedtak for timeføringen på web, vindu for vindu, med hans ord og status pr. punkt (✅ 🟡 🔴 ❓ med fil og kodeord). Ført: reisevinduet (15 punkter, målt mot develop `1e65db91`; punkt 14 og 15 er ❓). Bare orkestrator skriver vedtak; koderen endrer bare status. Indeksert i DOC-MAP. Rad tilføyd 2026-11-22 |
 
 ## ⚠️ Drift identifisert (Bunke 3A.1, 2026-04-28)
 
