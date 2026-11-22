@@ -1042,7 +1042,7 @@ Hjemmel: `web-timeforing-plan.md` § 8.22, «Kenneths test på `73aec65d`», pun
   - **Berøring:** ingen hover. Trykk åpner kortet/raden som før; da slås hoveren av, så boksen vises ikke. Ingenting ekstra bygd.
 - **Tester:** `reisevindu.test.tsx` § O6 (4: eksempelet 06:00–07:00 og lagring, nytt antall fra samme slutt, «Fra byggeplass» som før, midnatt), `reise-visning.test.tsx` § O6 «Rediger reise» (2) og § O6 punkt 2 (4: hover med beskrivelse og synlig etter hover, uten beskrivelse, åpent kort, rekkefølge uten tomme og reise), `attestering-tabell.test.tsx` § O6 (5: dagsrad med én jobb, uten, åpen, flere jobber, reise utelatt), `tooltip-v2.test.tsx` § O6 (1), `pauseBeregning.test.ts` § O6 (4). Negativkontroll mot develop `83589730`: 10 av de nye web-testene røde; de grønne er «som før»-tilfellene.
 
-### Reise uten maskinseksjon; «Til byggeplass» holder Slutt (O7) — 🟡 `feat/web-timer-o7` (ikke merget)
+### Reise uten maskinseksjon; «Til byggeplass» holder Slutt (O7) — ✅ merget `99b5b9b2`
 
 Hjemmel: `web-timeforing-plan.md` § 8.22, «Kenneths test på `73aec65d`», punkt 3 og 4 (Kenneth 2026-11-22 «ja»). Bare web. Mobil, serveren og dagskort-modus er urørt. Ikke L4: for en vanlig timer-rad er maskinseksjonen uendret.
 
