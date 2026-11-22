@@ -224,23 +224,34 @@ describe("w15d — reiselinja og hodet i jobben", () => {
 describe("w15d — teksten under lønnsarten i timerad-vinduet (del C pkt. 4)", () => {
   afterEach(cleanup);
 
-  function pennenPaa(radId: string) {
-    const linje = document.querySelector(`[data-reiselinje="${radId}"]`) as HTMLElement;
-    fireEvent.click(linje.querySelector('[title="handling.rediger"]')!);
-    return screen.getByRole("dialog", { name: "timer.detalj.redigerTimerRad" });
-  }
+  // O14 pkt 2 (R2): pennen på en reise åpner «Reise»-vinduet. Teksten under lønnsarten står når
+  // lønnsarten på en rad i timerad-vinduet byttes til reise.
+  const velgReiseArt = (dialog: HTMLElement) => {
+    const art = Array.from(dialog.querySelectorAll("select")).find((s) =>
+      Array.from(s.options).some((o) => o.value === "lr"),
+    ) as HTMLSelectElement;
+    fireEvent.change(art, { target: { value: "lr" } });
+  };
 
   it("reise i en jobb: «Dette er reise. Den står i jobben på {sted}.»", () => {
-    rendre([ARBEID1, reise({ id: "rr", kortId: "k1", byggeplassId: "b1", reiseRetning: "retur", fraTid: "15:00", tilTid: "15:30", timer: "0.5" })]);
+    const ETTER = { ...ARBEID1, id: "r3", fraTid: "15:00", tilTid: "16:00", timer: "1", pauseMin: 0 } as Rad;
+    rendre([ARBEID1, ETTER]);
     aapneForste();
-    const dialog = pennenPaa("rr");
+    const blyant = screen
+      .getAllByTitle("handling.rediger")
+      .find((b) => b.closest("li")?.textContent?.includes("15:00–16:00"));
+    fireEvent.click(blyant!);
+    const dialog = screen.getByRole("dialog", { name: "timer.detalj.redigerTimerRad" });
+    velgReiseArt(dialog);
     expect(dialog.textContent).toContain('timer.rediger.reiseHavnerJobb{"sted":"Blokk A"}');
   });
 
   it("ingen jobb på dagen: «Dette er reise. Den får eget kort.»", () => {
-    rendre([TUR]);
+    rendre([ARBEID1]);
     aapneForste();
-    const dialog = pennenPaa("rt");
+    fireEvent.click(screen.getAllByTitle("timer.jobbSkjema.aapneVinduHint")[0]!);
+    const dialog = screen.getByRole("dialog", { name: "timer.detalj.redigerTimerRad" });
+    velgReiseArt(dialog);
     expect(dialog.textContent).toContain("timer.rediger.reiseHavnerEget");
   });
 
@@ -265,12 +276,13 @@ describe("w15d — teksten under lønnsarten i timerad-vinduet (del C pkt. 4)", 
   });
 });
 
+// O14 pkt 2 (R2): «Rediger reise» er «Reise»-vinduet i redigering — antall følger retningen som før.
 describe("O6 (§ 8.22) — «Rediger reise»: antall timer følger retningen", () => {
   afterEach(cleanup);
   function dialogFor(radId: string) {
     const linje = document.querySelector(`[data-reiselinje="${radId}"]`) as HTMLElement;
     fireEvent.click(linje.querySelector('[title="handling.rediger"]')!);
-    return screen.getByRole("dialog", { name: "timer.detalj.redigerTimerRad" });
+    return screen.getByRole("dialog", { name: "timer.reiseKort.tittel" });
   }
   const tider = (d: HTMLElement) =>
     Array.from(d.querySelectorAll('input[type="time"]')).map((i) => (i as HTMLInputElement).value);
@@ -344,6 +356,39 @@ describe("O6 (§ 8.22 punkt 2) — beskrivelsen ved hover på lukket prosjektkor
     });
     expect(boks.className).toContain("opacity-100");
     expect(boks.className).not.toContain("invisible");
+  });
+
+  // O14 pkt 6: et lukket kort med bare reise viser reiselinja og reisens beskrivelse ved hover.
+  it("O14 pkt 6: lukket kort med bare reise — hover viser «Til {sted} · fra–til» og beskrivelsen", () => {
+    rendre([
+      ARBEID1,
+      reise({ id: "rt", kortId: "k3", byggeplassId: "b2", reiseRetning: "ut", fraTid: "12:00", tilTid: "15:00", timer: "3", beskrivelse: "Kjøring til Narvik" }),
+    ]);
+    const hode = kortHoder().find((b) => b.textContent?.includes("12:00–15:00"))!;
+    expect(hode.getAttribute("aria-expanded")).toBe("false");
+    const boks = hoverFor(hode)!;
+    expect(boks).not.toBeNull();
+    const linjer = Array.from(boks.querySelectorAll("[data-beskrivelse-hover] > span")).map((e) => e.textContent);
+    expect(linjer).toEqual(['timer.prosjektkort.reiseTil{"sted":"Narvik"} · 12:00–15:00', "Kjøring til Narvik"]);
+  });
+
+  it("O14 pkt 6: kort med bare reise uten beskrivelse — hover viser reiselinja alene", () => {
+    rendre([ARBEID1, reise({ id: "rt", kortId: "k3", byggeplassId: "b2", reiseRetning: "retur", fraTid: "15:00", tilTid: "16:00", timer: "1" })]);
+    const hode = kortHoder().find((b) => b.textContent?.includes("15:00–16:00"))!;
+    const linjer = Array.from(hoverFor(hode)!.querySelectorAll("[data-beskrivelse-hover] > span")).map((e) => e.textContent);
+    expect(linjer).toEqual(['timer.prosjektkort.reiseFra{"sted":"Narvik"} · 15:00–16:00']);
+  });
+
+  // RETUR O14 trinn 2: en reise ført som arbeidstid (`arbeidReiseRetning`) alene i kortet får også reiselinja.
+  it("O14 pkt 6: kort med bare arbeidstid-reise — hover viser reiselinja og beskrivelsen", () => {
+    rendre([
+      ARBEID1,
+      reise({ id: "ra", kortId: "k3", byggeplassId: "b2", lonnsartId: "l1", erReise: false, reiseKilde: null, arbeidReiseRetning: "retur", fraTid: "15:00", tilTid: "16:00", timer: "1", beskrivelse: "Kjørte hjem fra Narvik" }),
+    ]);
+    const hode = kortHoder().find((b) => b.textContent?.includes("15:00–16:00"))!;
+    expect(hode.getAttribute("aria-expanded")).toBe("false");
+    const linjer = Array.from(hoverFor(hode)!.querySelectorAll("[data-beskrivelse-hover] > span")).map((e) => e.textContent);
+    expect(linjer).toEqual(['timer.prosjektkort.reiseFra{"sted":"Narvik"} · 15:00–16:00', "Kjørte hjem fra Narvik"]);
   });
 
   it("lukket kort uten beskrivelse: ingen hover", () => {

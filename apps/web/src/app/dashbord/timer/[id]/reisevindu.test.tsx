@@ -518,3 +518,19 @@ describe("O7 (§ 8.22 punkt 4) — Start rettes: «Til byggeplass» holder Slutt
     expect(slutt(d).value).toBe("14:00");
   });
 });
+
+// O14 pkt 7 (R6): «Fra byggeplass» går til oppmøtestedet — linja sier «Til {navn}».
+describe("O14 pkt 7 — oppmøtestedet i linja følger retningen", () => {
+  afterEach(cleanup);
+
+  it("«Til byggeplass»: «Fra {navn}»; «Fra byggeplass»: «Til {navn}»", () => {
+    const d = rendre();
+    expect(d.textContent).toContain('timer.reiseKort.fraOppmotested{"navn":"Kontor Tromsø"}');
+    expect(d.textContent).not.toContain("timer.reiseKort.tilOppmotested");
+    fireEvent.click(knapp(d, "timer.reiseKort.retur"));
+    expect(d.textContent).toContain('timer.reiseKort.tilOppmotested{"navn":"Kontor Tromsø"}');
+    expect(d.textContent).not.toContain("timer.reiseKort.fraOppmotested");
+    // «Fra et annet kontor fra i dag» er urørt.
+    expect(within(d).getByLabelText("timer.reiseKort.annetKontorFraIDag")).toBeDefined();
+  });
+});

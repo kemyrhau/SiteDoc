@@ -354,7 +354,8 @@ describe("w3a — vinduene arver jobben", () => {
     expect(ecoVelger?.disabled).toBe(false);
   });
 
-  it("blyanten på jobbens reiselinje: «Rediger timer-rad» viser stedet som tekst (O12 pkt 17), underprosjekt står (gate 107, B34 B)", () => {
+  // O14 pkt 2 (R2): pennen på reisen åpner «Reise»-vinduet — stedet som tekst, underprosjektet står.
+  it("blyanten på jobbens reiselinje: «Reise» viser stedet som tekst, underprosjekt står (gate 107, B34 B)", () => {
     rendre();
     const sedel = h.data["timer.dagsseddel.hentMedId"] as typeof DAG7_SEDEL;
     const reise = {
@@ -387,8 +388,8 @@ describe("w3a — vinduene arver jobben", () => {
     const reiseBlyant = blyanter.find((b) => b.closest("li")?.textContent?.includes("16:00–16:30"));
     expect(reiseBlyant).toBeDefined();
     fireEvent.click(reiseBlyant!);
-    const dialog = screen.getByRole("dialog", { name: "timer.detalj.redigerTimerRad" });
-    expect(within(dialog).getByTestId("reise-sted-tekst").textContent).toContain("timer.rediger.reiseFeilSted");
+    const dialog = screen.getByRole("dialog", { name: "timer.reiseKort.tittel" });
+    expect(within(dialog).getByTestId("reise-kort-sted").textContent).toContain("timer.reiseKort.foresIKortet");
     expect(dialog.textContent).toContain("timer.felt.underprosjekt");
     expect(dialog.textContent).not.toContain("timer.felt.byggeplass");
     // Det er reiseraden som redigeres.
@@ -1008,14 +1009,15 @@ describe("O7 — reise-rad uten maskinseksjon (§ 8.22 punkt 3)", () => {
     expect(within(dialog).queryByRole("button", { name: /timer\.velgUtstyr/ })).toBeNull();
   });
 
-  it("lagret reise: «Rediger timer-rad» har ingen maskinseksjon", () => {
+  // O14 pkt 2: pennen på reisen åpner «Reise», som heller ikke har maskinseksjon.
+  it("lagret reise: «Reise» har ingen maskinseksjon", () => {
     medMaskinOgReise(true);
     aapneJobb2();
     const reiseBlyant = screen
       .getAllByTitle("handling.rediger")
       .find((b) => b.closest("li")?.textContent?.includes("16:00–16:30"));
     fireEvent.click(reiseBlyant!);
-    const dialog = screen.getByRole("dialog", { name: "timer.detalj.redigerTimerRad" });
+    const dialog = screen.getByRole("dialog", { name: "timer.reiseKort.tittel" });
     expect(within(dialog).queryByTestId("kort-maskindel")).toBeNull();
     expect(dialog.textContent).not.toContain("timer.maskinSeksjon.tittel");
   });
