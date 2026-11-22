@@ -39,12 +39,12 @@ De andre vinduene står i [web-timeforing-plan.md](web-timeforing-plan.md) til d
 Vinduet «Reise», som åpnes med «+ Reise» når arbeideren fører en ny reise på PC.
 Filer: `RK` = `apps/web/src/app/dashbord/timer/[id]/ReiseKort.tsx` · `MR` = `apps/web/src/hooks/useManuellReiseWeb.ts` · `RM` = `packages/shared/src/utils/reiseManuell.ts` · `RT` = `apps/web/src/app/dashbord/timer/[id]/reise-terskel-dialog.test.tsx` · `RKS` = `packages/shared/src/utils/reiseKort.ts` · `DS` = `apps/api/src/routes/timer/dagsseddel.ts`.
 
-1. Arbeideren velger «Til byggeplass» eller «Fra byggeplass»; kjøring til et annet kontor har ingen egen reisetype.
-   Kenneth: «Ja, samme regel» (kontorkjøring som all annen kjøring).
-   ✅ `RK` `valgKnapp`, `timer.reiseKort.tur` / `retur`.
-2. Har firmaet flere kontorer, kan arbeideren selv sette et midlertidig oppmøtested med «Fra et annet kontor fra i dag» og avslutte det med «Avslutt».
-   Kenneth: «1A».
-   ✅ `RK` `reise-annet-kontor`, `avsluttOverforing`.
+1. Arbeideren velger «Til byggeplass», «Fra byggeplass» eller «Til annet oppmøtested». Øverst står linja «Fra → Til». Oppmøtestedet er ett nedtrekk, under «Fra» ved «Til byggeplass» og under «Til» ved «Fra byggeplass», fylt ut med dagens oppmøtested («Kontor Tromsø · fast» / «· midlertidig», også når firmaadmin satte det). Ved «Til annet oppmøtested» er «Fra» dagens oppmøtested (tekst) og «Til» et nedtrekk med firmaets andre kontorer; tiden foreslås fra firmaets kjøretid mellom kontorene, før dagens første arbeid, og kan rettes; reisen lagres i kortet vinduet er åpnet fra. Velges det faste kontoret under «Til», er det hjemreisen.
+   Kenneth 2026-11-22: behov «fra oppmøtested til byggeplass», «fra byggeplass tilbake til oppmøtested», «Fra fast oppmøtested til nytt oppmøtested (tidsavgrenset/midlertidig)», «fra byggeplass til nytt oppmøtested (tidsavgrenset/midlertidig)»; 2026-11-23: «S1.ja», «S4.ja» (snur «Ja, samme regel» fra 21.11). Skisser `relay/skisser/reise-oppmote-1/2/3-*.png`.
+   🟡 Vedtatt, ikke bygget. I dag: to retninger (`RK` `valgKnapp`), linja `fraOppmotested`/`tilOppmotested` og nedtrekket `reise-annet-kontor`.
+2. Velger arbeideren et annet kontor enn dagens oppmøtested, sier en blå boks at kontoret blir midlertidig oppmøtested, med «Gjelder fra» og det valgfrie «Til og med», begge fylt ut og rettbare. «Gjelder fra» foreslår sedelens dato ved «Til byggeplass», dagen etter ved «Fra byggeplass», og ved «Til annet oppmøtested» sedelens dato når reisen starter før kl. 12, ellers dagen etter. Dagen etter «Til og med» gjelder det faste igjen av seg selv. Velger han det faste kontoret mens et midlertidig gjelder, sier boksen at det midlertidige avsluttes, med «Siste dag»: sedelens dato ved «Fra byggeplass», dagen før ved «Til byggeplass». «Avslutt» står under feltet med perioden. Redigering av en lagret reise skriver ingen periode.
+   Kenneth: «1A»; 2026-11-23: «S2.ja», «S3.ja».
+   🟡 Vedtatt, ikke bygget. I dag: perioden starter alltid på sedelens dato og avsluttes dagen før, uten sluttdato (`RK` `reise-annet-kontor`, `avsluttOverforing`; `OM` `planleggOverforing`).
 3. Åpnes vinduet fra et prosjektkort, har reisen kortets prosjekt og byggeplass. De vises som tekst og kan ikke byttes, og reisen lagres i det kortet, også om underprosjektet er et annet. En grå linje sier at en reise til et annet sted føres i det stedets prosjektkort. I dagskort-visningen er «Hvor kjørte du til?» (ved retur «Hvor kjørte du fra?») fylt ut fra dagen, og arbeideren kan bytte prosjekt og byggeplass.
    Kenneth: «jeg står i et prosjektkort og åpner en +reise -> jeg skal da arve prosjektets prosjektnummer og byggeplass -> det er feil å føre reisen til en annen plass», «gi bruker informasjon -> hvis reisen er til feil prosjekt/byggeplass -> åpne og registrer reisen i korrekt prosjektkort», «3.ja». Dagskort: «jeg trenger å endre prosjektet reisen går til/fra».
    ✅ `RK` `iKort`, `reise-kort-sted`, `timer.reiseKort.foresIKortet`; `DS` `tilfoyTimerRad` `reiseIKort`; `RT` «O12 pkt 3». Dagskort-visningen uendret (`RK` `reise-prosjekt`). Reisen avgjør ikke kortets nøkkel: `JOBBRAD` (`services/timer/kortId.ts`), test `jobbrad-reise-i-kort.test.ts`.
@@ -93,9 +93,9 @@ Filer: `RK` = `apps/web/src/app/dashbord/timer/[id]/ReiseKort.tsx` · `MR` = `ap
 18. Bytter et prosjektkort prosjekt eller byggeplass og kortet har en reise, kommer et vindu før flyttingen med reisens tider og ny kjøretid, og valgene «Flytt reisen med ny tid», «Slett reisen» og «Avbryt»; ingenting endres før arbeideren velger. Mangler ny kjøretid, flyttes reisen med de gamle tidene, og vinduet sier det.
     Kenneth: «å bytte prosjekt vil endre reisetid -> det kan vi ikke gjøre stille -> da må bruker se og akseptere en endring», «7 … -> ok».
     ✅ `apps/web/src/app/dashbord/timer/[id]/JobbSkjema.tsx` `reiseFlytt`, `nyReiseTid`, `flytt-reise-vindu`; `DS` `flyttJobbTilSted` `reiseValgMangler`, `flyttJobbReiseSchema`; `flytt-jobb-sted.test.tsx` / `dagsseddel-flytt-jobb.test.ts` «O12 pkt 18». Arbeidstid-reiser lagret før merket (punkt 16) er arbeid og følger stille med.
-19. Står arbeideren i «Fra byggeplass», heter kontorvalgene «Til {kontor}» og «Til et annet kontor».
+19. (Erstattet av punkt 1: oppmøtestedet står som ett felt i «Fra → Til», Kenneth 2026-11-23 «S1.ja».) Til punkt 1 er bygget, står linja «Til {kontor}» ved «Fra byggeplass».
     Kenneth 2026-11-22: «f7.ja til forslag».
-    ✅ Linja bruker `timer.reiseKort.tilOppmotested` («Til {{navn}}») ved «Fra byggeplass», `fraOppmotested` ved «Til byggeplass» (`ReiseKort.tsx`); `reisevindu.test.tsx` «O14 pkt 7». Overføringsvalget «… fra i dag» er uendret til Kenneth avgjør. 🟡 `feat/web-timer-o14-reise`, ikke merget.
+    ✅ `timer.reiseKort.tilOppmotested` (`ReiseKort.tsx`), `reisevindu.test.tsx` «O14 pkt 7» (merget `50f480c8`, ikke deployet).
 
 ## Dagsvisningen i attesteringen
 
