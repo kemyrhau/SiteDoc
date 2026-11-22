@@ -569,15 +569,17 @@ export function ReiseKort({
                       antall != null
                         ? reiseTiderFraAntall(aktivtValg.type, resultat.fraTid, resultat.tilTid, antall)
                         : null;
-                    if (tider) {
+                    if (tider && antall != null) {
                       // O6: «Til byggeplass» flytter Start; «Fra byggeplass» flytter Slutt.
                       if (aktivtValg.type === "tur") setRettetStart(tider.start);
                       setRettetSlutt(tider.slutt);
                       // Gate (136) vilkår 1: klemmes tiden ved døgnkanten (00:00 / 23:59),
                       // viser feltet det som faktisk lagres (`resultat.timer`), ikke det skrevne.
-                      const s = klokkeTilMin(tider.start);
-                      const e = klokkeTilMin(tider.slutt);
-                      if (s != null && e != null && Math.abs(e - s - antall * 60) > 0.5) setAntallTekst(null);
+                      const startMin = klokkeTilMin(tider.start);
+                      const sluttMin = klokkeTilMin(tider.slutt);
+                      if (startMin != null && sluttMin != null && Math.abs(sluttMin - startMin - antall * 60) > 0.5) {
+                        setAntallTekst(null);
+                      }
                     }
                   }}
                   className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
