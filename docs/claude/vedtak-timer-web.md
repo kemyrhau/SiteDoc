@@ -16,9 +16,7 @@ De andre vinduene står i [web-timeforing-plan.md](web-timeforing-plan.md) til d
    skal gjøre. Planen, loggen, ordrer og agentenes tolkninger er ikke hjemmel.
 2. **Bruker bestemmer, programmet foreslår.** Kenneth: «Bruker bestemmer registrering -> programmet bestemmer
    ingen ting -> vi kun foreslår» og «åpne redigerbare felter -> ikke fastlåst. Men vi skal foreslå løsning».
-3. Åpnes vinduet fra et prosjektkort, har reisen kortets prosjekt og byggeplass. De vises som tekst og kan ikke byttes, og reisen lagres i det kortet, også om underprosjektet er et annet. En grå linje sier at en reise til et annet sted føres i det stedets prosjektkort. I dagskort-visningen er «Hvor kjørte du til?» (ved retur «Hvor kjørte du fra?») fylt ut fra dagen, og arbeideren kan bytte prosjekt og byggeplass.
-   Kenneth: «jeg står i et prosjektkort og åpner en +reise -> jeg skal da arve prosjektets prosjektnummer og byggeplass -> det er feil å føre reisen til en annen plass», «gi bruker informasjon -> hvis reisen er til feil prosjekt/byggeplass -> åpne og registrer reisen i korrekt prosjektkort», «3.ja». Dagskort: «jeg trenger å endre prosjektet reisen går til/fra».
-   🟡 I dag er prosjekt og byggeplass nedtrekk også i prosjektkort (`RK` `reise-prosjekt`, `RadByggeplassFelt`), og Reisetid lagres i dagens første/siste kort med samme sted (`RKS` `velgReiseKort`).
+3. **Godkjent i test er vernet.** Det Kenneth har godkjent i test, kan bare endres med hans egne ord.
 4. **Et «ja» er smalt.** Et «ja» gjelder bare det som står under «Svarer du ja» og «Forsvinner» i ett spørsmål
    i den faste formen. Et «ja» til en samlet liste er ikke et vedtak.
 
@@ -47,9 +45,9 @@ Filer: `RK` = `apps/web/src/app/dashbord/timer/[id]/ReiseKort.tsx` · `MR` = `ap
 2. Har firmaet flere kontorer, kan arbeideren selv sette et midlertidig oppmøtested med «Fra et annet kontor fra i dag» og avslutte det med «Avslutt».
    Kenneth: «1A».
    ✅ `RK` `reise-annet-kontor`, `avsluttOverforing`.
-3. «Hvor kjørte du til?» (ved retur «Hvor kjørte du fra?») er fylt ut fra jobben, og arbeideren kan bytte prosjekt og byggeplass.
-   Kenneth: «Arbeideren bestemmer hvor reisen føres», «jeg trenger å endre prosjektet reisen går til/fra», og om returen: «i utgangspunktet fra prosjektet man drar fra … derfor må man kunne velge andre løsninger».
-   ✅ `RK` `hvorTil` / `hvorFra`, `reise-prosjekt`, `byttProsjekt`, `RadByggeplassFelt`.
+3. Åpnes vinduet fra et prosjektkort, har reisen kortets prosjekt og byggeplass. De vises som tekst og kan ikke byttes, og reisen lagres i det kortet, også om underprosjektet er et annet. En grå linje sier at en reise til et annet sted føres i det stedets prosjektkort. I dagskort-visningen er «Hvor kjørte du til?» (ved retur «Hvor kjørte du fra?») fylt ut fra dagen, og arbeideren kan bytte prosjekt og byggeplass.
+   Kenneth: «jeg står i et prosjektkort og åpner en +reise -> jeg skal da arve prosjektets prosjektnummer og byggeplass -> det er feil å føre reisen til en annen plass», «gi bruker informasjon -> hvis reisen er til feil prosjekt/byggeplass -> åpne og registrer reisen i korrekt prosjektkort», «3.ja». Dagskort: «jeg trenger å endre prosjektet reisen går til/fra».
+   🟡 I dag er prosjekt og byggeplass nedtrekk også i prosjektkort (`RK` `reise-prosjekt`, `RadByggeplassFelt`), og Reisetid lagres i dagens første/siste kort med samme sted (`RKS` `velgReiseKort`).
 4. «Start kl.» og «Slutt kl.» er fylt ut med forslaget, og arbeideren kan rette begge.
    Kenneth: «hva om jeg begynte å kjøre kl 12:00?», «kjøretider må kunne redigeres», «jeg savner mulighet til å endre tidspunkter».
    ✅ `RK` `reise-start`, `reise-slutt`. Med «Arbeidstid»: `RT` «O10 — Arbeidstid i reisevinduet som før O8».
