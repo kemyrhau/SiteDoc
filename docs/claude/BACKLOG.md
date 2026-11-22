@@ -5781,7 +5781,9 @@ Omfang når økta startes:
 
 Bare det timeregistreringen trenger. Uavklart: hva betyr «nullstilling» når det ikke finnes beholdning — tømme katalog, arkivere forbruk, eller nullstille en fremtidig teller? Spør Kenneth før kode.
 
-Koblet til O8/D punkt 3 (varer når jobb flyttes til prosjekt uten varelager): **åpen**, avvises midlertidig.
+Koblet til O8/D punkt 3: **avgjort 2026-11-22**, varene følger med jobben og ingen sperre.
+
+**Kenneth 2026-11-22, ordrett:** «varelager bør inn i firmainstillinger sammen maskin -> dette bør være en firmainstilling, ikke en prosjekt instilling.» I dag er det firmabryter **og** prosjektbryter (`ProjectModule`). Ønsket er bare firmabryter, plassert i firmainnstillingene ved siden av Maskin. Mål hvordan Maskin er slått av og på, og hva som skjer med eksisterende `ProjectModule`-rader for varelager. Spør før migrering.
 
 ## 3. Fremtidige faser
 
