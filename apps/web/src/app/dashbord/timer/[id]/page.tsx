@@ -69,6 +69,7 @@ import {
   pauseFraForRad,
   fastPauseFraFor,
   utledArbeidstidFraRader,
+  lesMidnattDel,
   avgjorRadPauseMin,
   finnOverlappendeTidsrom,
   foreslaOvertidSplitt,
@@ -716,6 +717,13 @@ export default function DagsseddelDetaljSide() {
     })),
   );
   const harRaderMedTid = arbeidstidVisning.startTid !== null;
+  // O19b: «Dagens ramme» slutter 24:00 når dagen slutter på del 1 av en reise delt ved midnatt.
+  // `minTilHhmm` klemmer 24:00 til 23:59; dette er kun visningen — beregningene er uendret.
+  const rammeSlutt = timerRader.some(
+    (r) => r.tilTid === "24:00" && lesMidnattDel(r.reiseRegel)?.del === 1,
+  )
+    ? "24:00"
+    : arbeidstidVisning.sluttTid;
 
   // Bolk (d) R1: dagens effektive arbeidstid-vindu — kilde til fra/til-prefill
   // på nye timer-rader OG pausevindu-start (pauseFra), speiler mobilens
@@ -1608,7 +1616,7 @@ export default function DagsseddelDetaljSide() {
               ? arbeidstidVisning.startTid ?? "—"
               : isoTidspunktTilHHMM(sheet.startAt as string | null) || "—",
             til: harRaderMedTid
-              ? arbeidstidVisning.sluttTid ?? "—"
+              ? rammeSlutt ?? "—"
               : isoTidspunktTilHHMM(sheet.endAt as string | null) || "—",
             pauseMin: harRaderMedTid
               ? arbeidstidVisning.sumPauseMin

@@ -331,3 +331,41 @@ describe("w3a — ett kort pr. jobb (dagen fra #7)", () => {
     expect([...plass].sort((a, b) => a - b)).toEqual(plass);
   });
 });
+
+describe("O19b — «Dagens ramme» slutter 24:00 på del 1 av en delt reise", () => {
+  const [r1, r2] = sheet.timer;
+  const reise = (tilTid: string, reiseRegel: unknown) => ({
+    ...r2!,
+    id: "r3",
+    fraTid: "21:00",
+    tilTid,
+    timer: "3",
+    pauseMin: 0,
+    erReise: true,
+    kortId: "k1",
+    reiseRegel,
+  });
+  const ramme = (html: string) => html.match(/timer\.prosjektkort\.ramme\{[^}]*\}/)?.[0] ?? "";
+
+  it("del 1 som slutter 24:00 → rammen viser 24:00, ikke 23:59", () => {
+    const html = rendre("prosjektkort", {
+      timer: [r1!, r2!, reise("24:00", { midnatt: { delId: "d1", del: 1 } })] as typeof sheet.timer,
+    });
+    expect(ramme(html)).toContain("&quot;til&quot;:&quot;24:00&quot;");
+    expect(ramme(html)).not.toContain("23:59");
+  });
+
+  it("negativkontroll: dag uten delt reise viser seneste til-tid som før", () => {
+    expect(ramme(rendre("prosjektkort"))).toContain("&quot;til&quot;:&quot;15:30&quot;");
+    const html = rendre("prosjektkort", {
+      timer: [r1!, r2!, reise("23:59", null)] as typeof sheet.timer,
+    });
+    expect(ramme(html)).toContain("&quot;til&quot;:&quot;23:59&quot;");
+  });
+
+  it("negativkontroll: del 2 (00:00–) på dagen etter endrer ikke rammens slutt", () => {
+    const del2 = { ...reise("02:00", { midnatt: { delId: "d1", del: 2 } }), fraTid: "00:00" };
+    const html = rendre("prosjektkort", { timer: [r1!, r2!, del2] as typeof sheet.timer });
+    expect(ramme(html)).toContain("&quot;til&quot;:&quot;15:30&quot;");
+  });
+});
