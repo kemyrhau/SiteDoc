@@ -70,11 +70,21 @@ export function PunktStartHandling({
   // L1.5: sant kun for «ingen flyt»-feilen → da tilbys de handlingsbare knappene.
   // Server-feil (opprett.onError) er ikke flyt-relatert og skal ikke vise dem.
   const [visFlytHjelp, setVisFlytHjelp] = useState(false);
+  // K1 (Kenneth 2026-11-23): Start og Koble vises bare når brukeren kan bruke dem — samme
+  // regel som serveren (medlem av punktets flyt eller admin; Koble krever minst én
+  // sjekkliste brukeren ser). Én spørring pr. byggeplass, delt mellom alle punktene.
+  const { data: handlinger } = trpc.kontrollplan.hentPunktHandlinger.useQuery(
+    { byggeplassId },
+    { enabled: !punkt.sjekkliste },
+  );
+  const kanStarte = handlinger?.[punkt.id]?.kanStarte ?? false;
+  const kanKoble = handlinger?.[punkt.id]?.kanKoble ?? false;
 
   // w14 (TK10): sjekklisten går tilbake til kontrollplanen etter sletting.
   const opprett = trpc.sjekkliste.opprett.useMutation({
     onSuccess: (sjekkliste: { id: string }) => {
       utils.kontrollplan.hentForByggeplass.invalidate({ byggeplassId });
+      utils.kontrollplan.hentPunktHandlinger.invalidate({ byggeplassId });
       onEndret();
       router.push(medRetur(`/dashbord/${projectId}/sjekklister/${sjekkliste.id}`, herAdresse()));
     },
@@ -86,7 +96,7 @@ export function PunktStartHandling({
     setVisFlytHjelp(false);
     // L1.6: Start er én handling uten valg. Flyten må være satt på punktet ved
     // planoppsett (auto ved én kandidat, ellers av admin). Server binder bestiller/
-    // utfører fra flyten og håndhever at klikkeren tilhører punktets faggruppe.
+    // utfører fra flyten og håndhever at klikkeren er med i punktets flyt eller admin (K1).
     if (punkt.dokumentflytId) {
       opprett.mutate({
         templateId: punkt.sjekklisteMalId,
@@ -125,27 +135,32 @@ export function PunktStartHandling({
     );
   }
 
-  // Ukoblet punkt: Start + Koble eksisterende
+  // Ukoblet punkt: Start + Koble eksisterende, hver bare når brukeren kan bruke den (K1).
+  if (!kanStarte && !kanKoble) return null;
   return (
     <div className="relative" onClick={(e) => e.stopPropagation()}>
       <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={handleStart}
-          disabled={opprett.isPending}
-          className="flex items-center gap-1 px-2 py-1 bg-sitedoc-primary text-white text-xs rounded hover:bg-sitedoc-primary/90 transition disabled:opacity-50"
-        >
-          {opprett.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Play className="h-3 w-3" />}
-          {t("kontrollplan.startPunkt")}
-        </button>
-        <button
-          type="button"
-          onClick={() => setVisKobleDialog(true)}
-          className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700"
-          title={t("kontrollplan.kobleEksisterende")}
-        >
-          <Link2 className="h-3 w-3" />
-        </button>
+        {kanStarte && (
+          <button
+            type="button"
+            onClick={handleStart}
+            disabled={opprett.isPending}
+            className="flex items-center gap-1 px-2 py-1 bg-sitedoc-primary text-white text-xs rounded hover:bg-sitedoc-primary/90 transition disabled:opacity-50"
+          >
+            {opprett.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Play className="h-3 w-3" />}
+            {t("kontrollplan.startPunkt")}
+          </button>
+        )}
+        {kanKoble && (
+          <button
+            type="button"
+            onClick={() => setVisKobleDialog(true)}
+            className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700"
+            title={t("kontrollplan.kobleEksisterende")}
+          >
+            <Link2 className="h-3 w-3" />
+          </button>
+        )}
       </div>
 
       {feil && (

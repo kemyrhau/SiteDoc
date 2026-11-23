@@ -8,8 +8,9 @@ import { resolve } from "node:path";
  *
  *  - Alle mutasjoner som endrer selve planen krever verifiserAdmin → vanlig medlem får FORBIDDEN.
  *    Import = `opprettPunkter` (med importKilde) og `anvendRevisjon`.
- *  - Utføring er urørt: `koblePunkt` slipper vanlig medlem gjennom, og «Start»
- *    (`sjekkliste.opprett` med kontrollplanPunktId) bruker ikke verifiserAdmin.
+ *  - Utføring krever ikke admin: `koblePunkt` slipper vanlig medlem med tilgang til sjekklista
+ *    gjennom (K1: verifiserDokumentTilgang + samme flyt, låst i kontrollplan-k1-flyt.integration),
+ *    og «Start» (`sjekkliste.opprett` med kontrollplanPunktId) bruker ikke verifiserAdmin.
  *
  * Portene er stubbet: «vanlig» passerer verifiserProsjektmedlem men ikke verifiserAdmin.
  *
@@ -19,6 +20,7 @@ import { resolve } from "node:path";
 vi.mock("../trpc/tilgangskontroll", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../trpc/tilgangskontroll")>()),
   verifiserProsjektmedlem: vi.fn(async () => undefined),
+  verifiserDokumentTilgang: vi.fn(async () => undefined),
   verifiserAdmin: vi.fn(async (userId: string) => {
     if (userId === "vanlig") {
       const { TRPCError: Feil } = await import("@trpc/server");
@@ -56,6 +58,15 @@ function lagPrisma() {
     kontrollplan: { findUniqueOrThrow: medProsjekt },
     kontrollplanPunkt: { findUniqueOrThrow: medProsjekt },
     milepel: { findUniqueOrThrow: medProsjekt },
+    checklist: {
+      findFirst: vi.fn(async () => ({
+        id: SJEKKLISTE,
+        dokumentflytId: null,
+        bestillerFaggruppeId: FAGGRUPPE,
+        utforerFaggruppeId: FAGGRUPPE,
+        template: { projectId: PROSJEKT, domain: "kvalitet", hmsSynlighet: null },
+      })),
+    },
     $transaction: vi.fn(async (fn: (t: unknown) => unknown) => fn(tx)),
   };
 }

@@ -2,7 +2,14 @@ import { z } from "zod";
 import { type Prisma } from "@sitedoc/db";
 import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc/trpc";
-import { verifiserProsjektmedlem, verifiserAdmin } from "../trpc/tilgangskontroll";
+import {
+  verifiserProsjektmedlem,
+  verifiserAdmin,
+  verifiserDokumentTilgang,
+  hentPunktFlytTilgang,
+  kanBrukePunktFlyt,
+  byggTilgangsFilter,
+} from "../trpc/tilgangskontroll";
 import { koblePunktTilSjekkliste } from "../services/kontrollplanKobling";
 import {
   verifiserByggeplassIProsjekt,
@@ -86,9 +93,10 @@ const punktIncludes = {
 // F13c-2 (Kenneth 2026-11-23): «kontrollplanen er for prosjektadmin. et vanlig medlem skal kun
 // kunne utføre en sjekkliste som allerede er i kontrollplanen». Alle mutasjoner som endrer selve
 // planen (plan, punkter, milepæler, frister, plassering, import/revisjon, kopiering, status) krever
-// `verifiserAdmin` (prosjektadmin, firma-admin, sitedoc_admin). Utføring er urørt: «Start»
-// (`sjekkliste.opprett` med `kontrollplanPunktId`) og `koblePunkt` (knytt en eksisterende
-// sjekkliste til punktet) krever fortsatt bare medlemskap. Lesing krever medlemskap.
+// `verifiserAdmin` (prosjektadmin, firma-admin, sitedoc_admin). Utføring: «Start»
+// (`sjekkliste.opprett` med `kontrollplanPunktId`) krever medlemskap i PUNKTETS flyt eller
+// admin, og `koblePunkt` krever tilgang til sjekklista og at den ligger i punktets flyt (K1,
+// Kenneth 2026-11-23). Lesing av planen krever medlemskap.
 export const kontrollplanRouter = router({
   // Hent kontrollplan for en byggeplass (med punkter og milepeler)
   hentForByggeplass: protectedProcedure
@@ -588,6 +596,38 @@ export const kontrollplanRouter = router({
         include: { kontrollplan: { select: { projectId: true } } },
       });
       await verifiserProsjektmedlem(ctx.userId, punkt.kontrollplan.projectId);
+      // K1 (Kenneth 2026-11-23): «et medlem som ikke ser sjekklisten … kan heller ikke fylle
+      // ut kontrollplanens sjekkliste». Kobling krever at brukeren ser sjekklista, og at den
+      // ligger i punktets flyt når den er satt. Prosjektgrensen sjekkes i den delte hjelperen.
+      const sjekkliste = await ctx.prisma.checklist.findFirst({
+        where: { id: input.sjekklisteId, ...IKKE_SLETTET },
+        select: {
+          id: true,
+          dokumentflytId: true,
+          bestillerFaggruppeId: true,
+          utforerFaggruppeId: true,
+          template: { select: { projectId: true, domain: true, hmsSynlighet: true } },
+        },
+      });
+      if (!sjekkliste || sjekkliste.template.projectId !== punkt.kontrollplan.projectId) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Sjekklisten finnes ikke i dette prosjektet." });
+      }
+      await verifiserDokumentTilgang(
+        ctx.userId,
+        sjekkliste.template.projectId,
+        sjekkliste.bestillerFaggruppeId,
+        sjekkliste.utforerFaggruppeId,
+        sjekkliste.template.domain,
+        sjekkliste.id,
+        "checklist",
+        sjekkliste.template.hmsSynlighet,
+      );
+      if (punkt.dokumentflytId && sjekkliste.dokumentflytId !== punkt.dokumentflytId) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Sjekklisten ligger ikke i dokumentflyten til dette kontrollpunktet.",
+        });
+      }
       return ctx.prisma.$transaction(async (tx) => {
         await koblePunktTilSjekkliste(tx, {
           punktId: input.punktId,
@@ -602,9 +642,54 @@ export const kontrollplanRouter = router({
       });
     }),
 
+  // K1 (Kenneth 2026-11-23): hvilke handlinger innlogget bruker kan bruke på hvert ukoblede
+  // punkt på byggeplassen — web viser Start og Koble bare når de virker. Samme regel som
+  // serveren: Start = punktets flyt-medlem eller admin (punkt uten flyt: Start vises som før
+  // og gir «velg flyt»-meldingen); Koble = minst én kandidat etter `hentKoblbareSjekklister`-
+  // regelen. Én spørring for punkter, én for kandidater — ingen N+1.
+  hentPunktHandlinger: protectedProcedure
+    .input(z.object({ byggeplassId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const byggeplass = await ctx.prisma.byggeplass.findUniqueOrThrow({
+        where: { id: input.byggeplassId },
+        select: { projectId: true },
+      });
+      const projectId = byggeplass.projectId;
+      await verifiserProsjektmedlem(ctx.userId, projectId);
+      const punkter = await ctx.prisma.kontrollplanPunkt.findMany({
+        where: { arkivert: false, sjekklisteId: null, kontrollplan: { projectId, byggeplassId: input.byggeplassId } },
+        select: { id: true, sjekklisteMalId: true, dokumentflytId: true },
+      });
+      const resultat: Record<string, { kanStarte: boolean; kanKoble: boolean }> = {};
+      if (punkter.length === 0) return resultat;
+
+      const tilgang = await hentPunktFlytTilgang(ctx.userId, projectId);
+      const tilgangsFilter = await byggTilgangsFilter(ctx.userId, projectId);
+      const kandidater = await ctx.prisma.checklist.findMany({
+        where: {
+          ...IKKE_SLETTET,
+          templateId: { in: [...new Set(punkter.map((p) => p.sjekklisteMalId))] },
+          template: { projectId },
+          kontrollplanPunkt: { is: null },
+          ...(tilgangsFilter ? { AND: [tilgangsFilter] } : {}),
+        },
+        select: { templateId: true, dokumentflytId: true },
+      });
+      for (const p of punkter) {
+        resultat[p.id] = {
+          kanStarte: p.dokumentflytId ? kanBrukePunktFlyt(tilgang, p.dokumentflytId) : true,
+          kanKoble: kandidater.some(
+            (k) => k.templateId === p.sjekklisteMalId && (!p.dokumentflytId || k.dokumentflytId === p.dokumentflytId),
+          ),
+        };
+      }
+      return resultat;
+    }),
+
   // Kandidat-sjekklister for «Koble eksisterende» på et punkt: samme mal (kobling krever
-  // mal-match) og ennå ikke koblet til noe kontrollpunkt. Malen er prosjekt-spesifikk, så
-  // templateId-filteret gir også riktig prosjekt-scope.
+  // mal-match) og ennå ikke koblet til noe kontrollpunkt. K1: bare sjekklister brukeren har
+  // tilgang til (`byggTilgangsFilter`), og bare fra punktets flyt når den er satt — samme
+  // regel som `koblePunkt` håndhever.
   hentKoblbareSjekklister: protectedProcedure
     .input(z.object({ punktId: z.string() }))
     .query(async ({ ctx, input }) => {
@@ -613,11 +698,15 @@ export const kontrollplanRouter = router({
         include: { kontrollplan: { select: { projectId: true } } },
       });
       await verifiserProsjektmedlem(ctx.userId, punkt.kontrollplan.projectId);
+      const tilgangsFilter = await byggTilgangsFilter(ctx.userId, punkt.kontrollplan.projectId);
       return ctx.prisma.checklist.findMany({
         where: {
           ...IKKE_SLETTET,
           templateId: punkt.sjekklisteMalId,
+          template: { projectId: punkt.kontrollplan.projectId },
           kontrollplanPunkt: { is: null },
+          ...(punkt.dokumentflytId ? { dokumentflytId: punkt.dokumentflytId } : {}),
+          ...(tilgangsFilter ? { AND: [tilgangsFilter] } : {}),
         },
         select: {
           id: true,

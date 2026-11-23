@@ -27,6 +27,7 @@ import { utledBestillerUtforer } from "../utils/utledFaggruppe";
 import {
   byggTilgangsFilter,
   verifiserFaggruppeTilhorighet,
+  verifiserPunktFlytTilgang,
   verifiserDokumentTilgang,
   verifiserRetningsrett,
   byggFlytBruker,
@@ -385,7 +386,7 @@ export const sjekklisteRouter = router({
       if (input.kontrollplanPunktId) {
         const startPunkt = await ctx.prisma.kontrollplanPunkt.findUniqueOrThrow({
           where: { id: input.kontrollplanPunktId },
-          select: { dokumentflytId: true, faggruppeId: true, kontrollplan: { select: { projectId: true } } },
+          select: { dokumentflytId: true, kontrollplan: { select: { projectId: true } } },
         });
         if (startPunkt.dokumentflytId) {
           planAutorisertFlyt = true;
@@ -405,12 +406,11 @@ export const sjekklisteRouter = router({
           effektivFlytId = startPunkt.dokumentflytId;
           effektivBestiller = flyt.faggruppeId ?? undefined;
           effektivUtforer = flyt.medlemmer[0]?.faggruppeId ?? flyt.faggruppeId ?? undefined;
-          // L1.6: gulvet er IKKE lenger «prosjektmedlem» — klikkeren må tilhøre PUNKTETS
-          // faggruppe. Planen sier allerede hvem som utfører kontrollen; det er grensen.
-          // verifiserFaggruppeTilhorighet har admin-bypass og flyt-registrator-alternativ,
-          // så en admin eller flyt-oppretter kan fortsatt starte. Lukker L1.5-hullet der
-          // ethvert prosjektmedlem kunne starte et preset-punkt uten å tilhøre faggruppen.
-          await verifiserFaggruppeTilhorighet(ctx.userId, startPunkt.faggruppeId);
+          // K1 (Kenneth 2026-11-23): bare medlemmer av PUNKTETS flyt (uansett rolle) eller
+          // admin kan starte. «Et medlem som ikke ser sjekklisten … kan heller ikke fylle ut
+          // kontrollplanens sjekkliste.» Erstatter L1.6-gulvet (punktets faggruppe), som slapp
+          // inn faggruppemedlemmer utenfor flyten og medlemmer av en annen flyt med samme eier.
+          await verifiserPunktFlytTilgang(ctx.userId, startPunkt.kontrollplan.projectId, startPunkt.dokumentflytId);
         }
       }
 

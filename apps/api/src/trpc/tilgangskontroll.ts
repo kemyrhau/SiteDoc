@@ -1422,6 +1422,59 @@ export const IKKE_PRIVAT_HMS: Record<string, unknown> = {
   },
 };
 
+/**
+ * K1 (Kenneth 2026-11-23): hvem kan bruke et kontrollpunkt som er bundet til en flyt —
+ * Start og «Koble eksisterende». Regelen: aktivt medlem, uansett rolle og binding
+ * (person/faggruppe/gruppe), av PUNKTETS flyt, eller admin (`verifiserAdmin`-semantikk:
+ * sitedoc_admin, prosjektadmin, firma-admin). Faggruppe-tilhørighet alene gir ikke lenger
+ * Start (erstatter `verifiserFaggruppeTilhorighet(punkt.faggruppeId)`).
+ *
+ * Hentes én gang pr. prosjekt så `kontrollplan.hentPunktHandlinger` kan avgjøre alle
+ * punkter med samme regel som serveren uten N+1. `kanBrukePunktFlyt` er predikatet.
+ */
+export interface PunktFlytTilgang {
+  erAdmin: boolean;
+  flytIder: Set<string>;
+}
+
+export async function hentPunktFlytTilgang(
+  userId: string,
+  projectId: string,
+): Promise<PunktFlytTilgang> {
+  const bruker = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
+  if (bruker?.role === "sitedoc_admin") return { erAdmin: true, flytIder: new Set() };
+
+  await krevAktivAnsettelse(userId, projectId);
+  await verifiserProsjektIkkeFrosset(userId, projectId);
+
+  const medlem = await prisma.projectMember.findFirst({
+    where: aktivtProsjektmedlemWhere(userId, projectId),
+    select: { role: true },
+  });
+  if (medlem?.role === "admin" || (await erFirmaAdminForProsjekt(userId, projectId))) {
+    return { erAdmin: true, flytIder: new Set() };
+  }
+  return { erAdmin: false, flytIder: new Set(await hentBrukersFlytMedlemskap(userId, projectId)) };
+}
+
+export function kanBrukePunktFlyt(tilgang: PunktFlytTilgang, dokumentflytId: string): boolean {
+  return tilgang.erAdmin || tilgang.flytIder.has(dokumentflytId);
+}
+
+export async function verifiserPunktFlytTilgang(
+  userId: string,
+  projectId: string,
+  dokumentflytId: string,
+): Promise<void> {
+  const tilgang = await hentPunktFlytTilgang(userId, projectId);
+  if (!kanBrukePunktFlyt(tilgang, dokumentflytId)) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Du er ikke med i dokumentflyten til dette kontrollpunktet",
+    });
+  }
+}
+
 export async function byggTilgangsFilter(
   userId: string,
   projectId: string,
