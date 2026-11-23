@@ -41,9 +41,13 @@ interface RedigerPunktDialogProps {
   // Start/koble/åpne-handling (samme komponent som lista bruker) — gjør punktet startbart
   // også fra matrisen, som åpner denne dialogen ved klikk.
   renderHandling?: (punkt: Punkt) => React.ReactNode;
+  // F13c-2 (Kenneth 2026-11-23): «kontrollplanen er for prosjektadmin. et vanlig medlem skal
+  // kun kunne utføre en sjekkliste som allerede er i kontrollplanen». false → dialogen viser
+  // punktet uten endringsknapper; Start/koble/åpne (renderHandling) står.
+  kanRedigere: boolean;
 }
 
-export function RedigerPunktDialog({ punkt, allePunkter, onLukk, onOppdatert, projectId, renderHandling }: RedigerPunktDialogProps & { projectId: string }) {
+export function RedigerPunktDialog({ punkt, allePunkter, onLukk, onOppdatert, projectId, renderHandling, kanRedigere }: RedigerPunktDialogProps & { projectId: string }) {
   const { t } = useTranslation();
   const [fristUke, setFristUke] = useState(punkt.fristUke);
   const [fristAar, setFristAar] = useState(punkt.fristAar);
@@ -147,7 +151,7 @@ export function RedigerPunktDialog({ punkt, allePunkter, onLukk, onOppdatert, pr
       <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b">
-          <h2 className="text-sm font-semibold">{t("kontrollplan.rediger")}</h2>
+          <h2 className="text-sm font-semibold">{t(kanRedigere ? "kontrollplan.rediger" : "kontrollplan.punktTittel")}</h2>
           <button onClick={onLukk} className="p-1 hover:bg-gray-100 rounded">
             <X className="h-4 w-4" />
           </button>
@@ -164,7 +168,7 @@ export function RedigerPunktDialog({ punkt, allePunkter, onLukk, onOppdatert, pr
               {punkt.omrade?.navn ?? "—"} · {punkt.faggruppe.name}
             </div>
             {/* Bytt mal */}
-            {punkt.status === "planlagt" && (
+            {kanRedigere && punkt.status === "planlagt" && (
               !visByttMal ? (
                 <button type="button" onClick={() => setVisByttMal(true)} className="text-[10px] text-sitedoc-secondary hover:underline mt-1">
                   {t("kontrollplan.byttMal")}
@@ -216,8 +220,30 @@ export function RedigerPunktDialog({ punkt, allePunkter, onLukk, onOppdatert, pr
           <FlytSeksjon punkt={punkt} allePunkter={allePunkter} projectId={projectId} onOppdatert={onOppdatert} />
 
           {/* L2: plassering på tegning */}
-          <TegningSeksjon punkt={punkt} projectId={projectId} onOppdatert={onOppdatert} onLukk={onLukk} />
+          {(kanRedigere || punkt.drawing) && (
+            <TegningSeksjon punkt={punkt} projectId={projectId} onOppdatert={onOppdatert} onLukk={onLukk} kanRedigere={kanRedigere} />
+          )}
 
+          {/* Frist og avhengighet — lesevisning for vanlige medlemmer (F13c-2) */}
+          {!kanRedigere && (
+            <div>
+              <label className="text-xs font-medium text-gray-600 mb-1 block">{t("kontrollplan.frist")}</label>
+              <p className="text-sm text-gray-700">
+                {punkt.fristUke && punkt.fristAar ? `U${punkt.fristUke} ${punkt.fristAar}` : "—"}
+              </p>
+            </div>
+          )}
+          {!kanRedigere && punkt.avhengerAv && (
+            <div>
+              <label className="text-xs font-medium text-gray-600 mb-1 block">{t("kontrollplan.avhengighet")}</label>
+              <p className="text-sm text-gray-700">
+                {punkt.avhengerAv.sjekklisteMal.name}
+                {punkt.avhengerAv.omrade ? ` — ${punkt.avhengerAv.omrade.navn}` : ""}
+              </p>
+            </div>
+          )}
+
+          {kanRedigere && (<>
           {/* Frist */}
           <div>
             <label className="text-xs font-medium text-gray-600 mb-1 block">{t("kontrollplan.frist")}</label>
@@ -352,6 +378,7 @@ export function RedigerPunktDialog({ punkt, allePunkter, onLukk, onOppdatert, pr
               )}
             </div>
           )}
+          </>)}
           {/* Historikk */}
           <HistorikkSeksjon punktId={punkt.id} />
         </div>
@@ -359,7 +386,7 @@ export function RedigerPunktDialog({ punkt, allePunkter, onLukk, onOppdatert, pr
         {/* Footer */}
         <div className="px-4 py-3 border-t">
           <div className="flex items-center justify-between">
-            {!harLevendeSjekkliste ? (
+            {kanRedigere && !harLevendeSjekkliste ? (
               <button
                 onClick={() => { setSlettFeil(null); slettPunkt.mutate({ punktId: punkt.id }); }}
                 disabled={slettPunkt.isPending}
@@ -513,11 +540,13 @@ function TegningSeksjon({
   projectId,
   onOppdatert,
   onLukk,
+  kanRedigere,
 }: {
   punkt: Punkt;
   projectId: string;
   onOppdatert: () => void;
   onLukk: () => void;
+  kanRedigere: boolean;
 }) {
   const { t } = useTranslation();
   const router = useRouter();
@@ -551,17 +580,21 @@ function TegningSeksjon({
           <button type="button" onClick={vis} className="text-xs text-sitedoc-secondary hover:underline">
             {t("kontrollplan.visPaTegning")}
           </button>
-          <button type="button" onClick={plasser} className="text-xs text-gray-500 hover:underline">
-            {t("kontrollplan.endrePlassering")}
-          </button>
-          <button
-            type="button"
-            onClick={() => settPlassering.mutate({ punktId: punkt.id, drawingId: null, positionX: null, positionY: null })}
-            disabled={settPlassering.isPending}
-            className="text-xs text-gray-400 hover:text-sitedoc-error disabled:opacity-50"
-          >
-            {t("handling.fjern")}
-          </button>
+          {kanRedigere && (
+            <>
+              <button type="button" onClick={plasser} className="text-xs text-gray-500 hover:underline">
+                {t("kontrollplan.endrePlassering")}
+              </button>
+              <button
+                type="button"
+                onClick={() => settPlassering.mutate({ punktId: punkt.id, drawingId: null, positionX: null, positionY: null })}
+                disabled={settPlassering.isPending}
+                className="text-xs text-gray-400 hover:text-sitedoc-error disabled:opacity-50"
+              >
+                {t("handling.fjern")}
+              </button>
+            </>
+          )}
         </div>
       ) : (
         <button

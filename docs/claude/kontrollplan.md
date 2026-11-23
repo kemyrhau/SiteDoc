@@ -255,6 +255,15 @@ Dagens `opprettbareFlytIder` svarer på «hvilke flyter er **denne brukeren** re
 - **Handlingsbar feilmelding** når malen ikke er i en registrator-flyt: primær «Velg flyt for punktet» (kun til admin), sekundær «Til flyt-oppsett»-lenke (`/dashbord/oppsett/produksjon/dokumentflyt`) for den som mangler rettighet. Navigerer, fikser ikke.
 - Bypass-veien er dekket av `apps/api/src/routes/kontrollplan-flytvalg.integration.test.ts` (preset → ikke-registrator lykkes; uten preset → registrator-gaten står).
 
+### Tilgang: planen er for prosjektadmin (F13c-2, Kenneth 2026-11-23)
+
+Kenneth: «kontrollplanen er for prosjektadmin. et vanlig medlem skal kun kunne utføre en sjekkliste som allerede er i kontrollplanen».
+
+- **Krever `verifiserAdmin`** (prosjektadmin, firma-admin, sitedoc_admin) i [kontrollplan.ts](../../apps/api/src/routes/kontrollplan.ts): `opprettEllerHent`, `opprettPunkter` (også import av fremdriftsplan), `anvendRevisjon`, `oppdaterPunkt`, `slettPunkt`, `settPunktPlassering`, `opprettMilepel`, `oppdaterMilepel`, `slettMilepel`, `oppdaterStatus`, `skyvOmrade`, `kopierPunkter`, `skyvKaskade`, i tillegg til `settPunktFlyt`/`settFlytForMal` fra før.
+- **Medlemskap holder (utføring):** «Start» (`sjekkliste.opprett` med `kontrollplanPunktId`) og `koblePunkt` (knytt en eksisterende sjekkliste til punktet). All lesing.
+- **Web:** [kontrollplan/page.tsx](../../apps/web/src/app/dashbord/[prosjektId]/kontrollplan/page.tsx) bruker `mal.kanRedigere`. For vanlige medlemmer skjules «Legg til punkt», import, revisjon og «Kopier». Planen opprettes ikke automatisk, og milepæl-overskriftene i matrisen kan ikke redigeres. [RedigerPunktDialog](../../apps/web/src/components/kontrollplan/RedigerPunktDialog.tsx) (`kanRedigere`) viser frist og avhengighet som tekst og har ingen knapper for endring, plassering eller sletting. Start, koble og åpne står.
+- Tester: `apps/api/src/routes/f13c2-kontrollplan-admin.test.ts` og `apps/web/src/components/kontrollplan/__tests__/f13c2-punktdialog-tilgang.test.tsx`.
+
 ## Felttype-regler (KRITISK)
 
 ### Kun eksisterende ReportObject-typer

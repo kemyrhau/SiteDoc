@@ -4,6 +4,7 @@ import { TRPCError } from "@trpc/server";
 import { Prisma, krypter } from "@sitedoc/db";
 import { autoLeggFirmaAdmins } from "../services/autoProsjektAdmin";
 import { seedStandardProsjektoppsett } from "../services/prosjektSeed";
+import { skalOppretterBliMedlem } from "../services/oppretterMedlemskap";
 import { hentBrukersOrg, aktivtMedlemWhere } from "../trpc/tilgangskontroll";
 import { importerKatalog } from "../services/katalog/importerKatalog";
 import { seedManglendeKatalog } from "../services/seed";
@@ -515,6 +516,10 @@ export const adminRouter = router({
       const sekv = String(antall + 1).padStart(4, "0");
       const prosjektnummer = `SD-${aar}${mnd}${dag}-${sekv}`;
 
+      // F13c 1A: sitedoc_admin som oppretter for et annet firma enn sitt eget blir ikke
+      // medlem, admin eller Byggherre. Eget firma = som før (se oppretterMedlemskap.ts).
+      const oppretterBlirMedlem = await skalOppretterBliMedlem(ctx.userId!, input.organizationId);
+
       return ctx.prisma.$transaction(async (tx) => {
         const prosjekt = await tx.project.create({
           data: {
@@ -522,12 +527,9 @@ export const adminRouter = router({
             description: input.description,
             projectNumber: prosjektnummer,
             primaryOrganizationId: input.organizationId,
-            members: {
-              create: {
-                userId: ctx.userId!,
-                role: "admin",
-              },
-            },
+            ...(oppretterBlirMedlem
+              ? { members: { create: { userId: ctx.userId!, role: "admin" } } }
+              : {}),
           },
         });
 
