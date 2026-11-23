@@ -158,7 +158,7 @@ ser det før du trykker Bekreft. Forkast sletter det.»
 
 Knappetekster: «Registrer timer» (`timer.registrerTimer`, også tittelen på prosjektvelgeren når dagen åpnes uten prosjekt) og nederst på dagen «+ Registrer timer» · «neste jobb, samme eller annet prosjekt» (`timer.prosjektkort.registrerTimer`, `…registrerTimerHint`). Dagskort-modus viser «Ny dagsseddel» som før.
 
-## Web: «Slettet og korrigert» (SL2, 🟡 ikke merget, `feat/web-timer-sl2-slettet-korrigert`)
+## Web: «Slettet og korrigert» (SL2, ✅ merget `24a3ed32`)
 
 Begge sidene har `HjelpKnapp` (fanen «Slettet og korrigert», `timer.slettetKorrigert.tittel`):
 

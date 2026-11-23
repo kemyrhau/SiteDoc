@@ -1184,7 +1184,7 @@ Vedtak: [vedtak-timer-web.md](vedtak-timer-web.md) § Slettet og korrigert (Kenn
 - **Bevart:** slettingen virker som før for brukeren (samme vakter, samme svar, samme transaksjonsform i `fjernTilleggRad`/`fjernUtleggRad`/`maskin.fjern`); R1-sporet; `slett_kort`, `fjern_timer_rad` og `vare.slettet` i `activity_log`; synkens `slettet_telefon`-klassifisering.
 - **Tester:** `apps/api/src/routes/timer/sl1-slettespor.integration.test.ts` (17, ekte Postgres; 13 røde på `e47bc71a`, 17 grønne etter), `r1-retur-sedel.integration.test.ts` (9, uendret grønn).
 
-### Slettet og korrigert — SL2: siden — 🟡 `feat/web-timer-sl2-slettet-korrigert` (2026-11-23, ikke merget)
+### Slettet og korrigert — SL2: siden — ✅ merget `24a3ed32` (2026-11-23)
 
 Vedtak: [vedtak-timer-web.md](vedtak-timer-web.md) § Slettet og korrigert punkt 1–3 (B76 ja, B78 ja, L1, L2). Spec: [web-timeforing-plan.md](web-timeforing-plan.md) § 4.18 del B og del D → SL2, skisse variant C. Bare web og server, ingen migrering, ingen kode i appen.
 
