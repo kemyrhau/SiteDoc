@@ -1171,7 +1171,7 @@ Kenneth 2026-11-23: (a) ja, b1 ja, b2 nei, b3 ja. Delte regler i `packages/share
 - **b3:** på `returned` skriver `fjernTimerRad` og `slettKortMedAlt` de slettede timer-, maskin- og tilleggsradene til `sheet_rad_historikk` med `hendelse: "slettet"` (`HISTORIKK_HENDELSE_SLETTET` i `services/timer/kortLeser.ts`) og logger `fjern_timer_rad` / `slett_kort` i `activity_log`. Varer og utlegg logges med id-er i `activity_log`; fra SL1 (under) står de også i historikken med innholdet. Slettingen er fortsatt lov. «Rettet»-markeringen (`hentRettedeFelter`, korrigeringer) hopper over slette-postene. **Ingen visning:** leder har i dag ingen flate som viser slettede rader (`lesRevisjoner` i `services/arkiv/logg-lesere.ts` har ingen kallere) — sporet skrives, visning er ikke bygd.
 - **Tester:** `packages/shared/src/utils/returSedel.test.ts`, `apps/api/src/routes/timer/r1-retur-sedel.integration.test.ts`, `apps/web/src/app/dashbord/timer/[id]/r1-retur-sedel.test.tsx`, `flytt-jobb-sted.test.tsx` (returnert → tilbys, attestert → ingen nedtrekk), `jobb-skjema-underprosjekt.test.tsx` «R1 b1».
 
-### Slettet og korrigert — SL1: sporet tettes — 🟡 `feat/web-timer-sl1-slettespor` (2026-11-23, ikke merget)
+### Slettet og korrigert — SL1: sporet tettes — ✅ Merget `8f7f863f` (2026-11-23), ikke deployet
 
 Vedtak: [vedtak-timer-web.md](vedtak-timer-web.md) § Slettet og korrigert (Kenneth 2026-11-23 «s1 nei», «s2 ja», «B76: ja · B77: nei · B78: ja»). Spec: [web-timeforing-plan.md](web-timeforing-plan.md) § 4.18 del D → SL1. Bare server, ingen migrering, ingenting synlig før SL2 (siden «Slettet og korrigert»).
 
