@@ -6071,5 +6071,22 @@
   "timer.reiseKort.sperre.overlapperFirma": "Överlappar {{navn}} ({{periode}}), ställt in av företaget — korrigera datumen eller be en företagsadministratör att ändra det",
   "timer.reiseKort.sperre.overlapperEgen": "Överlappar din tillfälliga mötesplats {{navn}} ({{periode}}) — korrigera datumen",
   "timer.reiseKort.sperre.overlappServer": "Datumen överlappar en annan tillfällig mötesplats – korrigera datumen eller be en företagsadministratör att ändra det",
-  "timer.reiseKort.sperre.velgKontor": "Välj mötesplatsen du körde till"
+  "timer.reiseKort.sperre.velgKontor": "Välj mötesplatsen du körde till",
+  "timer.reiseKort.delesVedMidnatt": "Resan delas vid midnatt: {{fra}}–24:00 är inloggad {{dato1}}, 00:00–{{til}} den {{dato2}}",
+  "timer.reiseKort.startetKveldenFoer": "Började du kvällen innan? {{fra}}–24:00 är inloggad på {{dato1}}, 00:00–{{til}} på {{dato2}}",
+  "timer.reiseKort.naboSedelSendt": "Tidrapporten för {{dato}} har skickats. Resan är inte delad – öppna {{dato}} igen först.",
+  "timer.reiseKort.naboSedelAttestert": "Tidrapporten för {{dato}} har godkänts. Resan kan inte delas vid midnatt.",
+  "timer.reiseKort.naboSedelAnnetFirma": "Tidrapporten för {{dato}} tillhör ett annat företag. Resan är inte delad.",
+  "timer.reiseKort.sperre.paaKontor": "Du är på {{kontor}} på {{tid}}. Kortet finns på {{byggeplass}}. Ändra plats i kortet (Plats och aktivitet) innan du loggar resan.",
+  "timer.reiseKort.delLaast": "Delen på {{dato}} har skickats eller godkänts och ändras inte härifrån.",
+  "timer.reiseKort.rettDel.tittel": "Resan delas vid midnatt",
+  "timer.reiseKort.rettDel.tekst": "Rätta även delen på {{dato}}?",
+  "timer.reise.fortsetter": "fortsätter {{dato}}",
+  "timer.reise.fortsattFra": "fortsatte från {{dato}}",
+  "timer.reise.deltSlettLaast": "Tidrapporten för {{dato}} är låst. Endast denna del kan raderas.",
+  "timer.reise.deltSlett.tekst": "Resan delas vid midnatt. Radera även {{fra}}–{{til}} på {{dato}}?",
+  "timer.reise.deltSlett.laast": "Resan delas vid midnatt. Delen på {{dato}} har skickats eller godkänts och tas inte bort. Vill du bara ta bort den här delen?",
+  "timer.reise.deltSlett.alene": "Den andra delen av resan finns inte längre. Vill du ta bort den här delen?",
+  "timer.reise.deltSlett.slettBegge": "Ta bort båda",
+  "timer.reise.deltSlett.bareDenne": "Bara den här"
 }

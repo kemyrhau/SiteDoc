@@ -2,7 +2,7 @@
  * Plan § 8.22 L3a (Bilde 2-jobben): regler for jobbskjemaet på dagssiden (prosjektkort-modus).
  * Rene funksjoner — testes uten React. Tidsregnestykket er delt med serveren (`regnJobbTid`).
  */
-import { erGyldigHhmm, hhmmTilMin, tilFraAntall } from "@sitedoc/shared";
+import { erGyldigHhmm, hhmmTilMin, lesMidnattDel, tilFraAntall } from "@sitedoc/shared";
 
 export type SkjemaArbeidsrad = {
   id: string;
@@ -35,9 +35,11 @@ export function jobbSkjemaLinjer<R extends SkjemaArbeidsrad>(
   return sortert;
 }
 
-/** Seneste til-tid på dagen (alle rader), eller null. */
-export function senesteTilTid(rader: readonly { tilTid: string | null }[]): string | null {
+/** Seneste til-tid på dagen (alle rader), eller null. O19 pkt 23: del 1 av en reise delt ved
+ *  midnatt (slutter 24:00) hoppes over — neste jobb foreslås ikke fra 24:00. */
+export function senesteTilTid(rader: readonly { tilTid: string | null; reiseRegel?: unknown }[]): string | null {
   return rader
+    .filter((r) => lesMidnattDel(r.reiseRegel)?.del !== 1)
     .map((r) => r.tilTid)
     .filter((t): t is string => !!t)
     .reduce<string | null>((s, t) => (s === null || hhmmTilMin(t) > hhmmTilMin(s) ? t : s), null);

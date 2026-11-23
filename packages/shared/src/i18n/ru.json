@@ -6071,5 +6071,22 @@
   "timer.reiseKort.sperre.overlapperFirma": "Перекрывается {{navn}} ({{periode}}), установленное компанией — исправьте даты или попросите администратора компании изменить их.",
   "timer.reiseKort.sperre.overlapperEgen": "Перекрывает ваше временное место встречи {{navn}} ({{periode}}) — исправьте даты",
   "timer.reiseKort.sperre.overlappServer": "Даты перекрывают другое временное место встречи — исправьте даты или попросите администратора компании изменить их.",
-  "timer.reiseKort.sperre.velgKontor": "Выберите место встречи, куда вы поехали"
+  "timer.reiseKort.sperre.velgKontor": "Выберите место встречи, куда вы поехали",
+  "timer.reiseKort.delesVedMidnatt": "Поездка разбита на полночь: {{fra}}–24:00 записывается в {{dato1}}, 00:00–{{til}} в {{dato2}}.",
+  "timer.reiseKort.startetKveldenFoer": "Вы начали накануне вечером? {{fra}}–24:00 вход в систему {{dato1}}, 00:00–{{til}} {{dato2}}",
+  "timer.reiseKort.naboSedelSendt": "Расписание для {{dato}} отправлено. Поездка не разделена — сначала откройте {{dato}} заново.",
+  "timer.reiseKort.naboSedelAttestert": "Расписание для {{dato}} утверждено. Поездка не может быть разделена на полночь.",
+  "timer.reiseKort.naboSedelAnnetFirma": "Табель учета рабочего времени для {{dato}} принадлежит другой компании. Поездка не разделена.",
+  "timer.reiseKort.sperre.paaKontor": "Вы находитесь в {{kontor}} в {{tid}}. Карта находится на {{byggeplass}}. Измените сайт в карточке (Место и деятельность) перед записью поездки.",
+  "timer.reiseKort.delLaast": "Часть на {{dato}} была отправлена ​​или одобрена и больше не изменяется.",
+  "timer.reiseKort.rettDel.tittel": "Поездка разбита на полночь",
+  "timer.reiseKort.rettDel.tekst": "Также исправить часть {{dato}}?",
+  "timer.reise.fortsetter": "продолжается {{dato}}",
+  "timer.reise.fortsattFra": "продолжение с {{dato}}",
+  "timer.reise.deltSlettLaast": "Расписание для {{dato}} заблокировано. Только эту часть можно удалить.",
+  "timer.reise.deltSlett.tekst": "Поездка разбита на полночь. Также удалить {{fra}}–{{til}} на {{dato}}?",
+  "timer.reise.deltSlett.laast": "Поездка разбита на полночь. Часть на {{dato}} была отправлена ​​или одобрена и не удалена. Удалить только эту часть?",
+  "timer.reise.deltSlett.alene": "Другой части путешествия больше не существует. Удалить эту часть?",
+  "timer.reise.deltSlett.slettBegge": "Удалить оба",
+  "timer.reise.deltSlett.bareDenne": "Только этот"
 }

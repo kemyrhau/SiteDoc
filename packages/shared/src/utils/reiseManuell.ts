@@ -24,7 +24,8 @@ import {
   type ReiseRegelSnapshot,
   type ReiseRegelsett,
 } from "./reise";
-import type { OppmoteResultat, Overforing } from "./oppmote";
+import { leggTilDager, type OppmoteResultat, type Overforing } from "./oppmote";
+import { finnOverlappendeTidsrom } from "./tidsromValidering";
 
 export interface ManuellReiseInput {
   regel: ReiseRegelsett;
@@ -260,6 +261,14 @@ export interface ReiseKortInput {
    * (`manglerKjoretid`) — mobilens kall sender den ikke.
    */
   tillatUtenKjoretid?: boolean;
+  /**
+   * O19 (vedtak-timer-web.md § Reisevinduet pkt 23–24): web-vinduet deler en reise som krysser
+   * midnatt. Tiden får da ligge utenfor 0–24:00 (`deles` i resultatet) i stedet for sperren
+   * `utenforDognet`. `omvendt` sier hvordan Slutt før Start leses: «fram» = slutten er dagen etter
+   * («Fra byggeplass», «Til annet oppmøtested»), «bak» = starten var kvelden før («Til byggeplass»).
+   * Utelatt = som før (mobil sender den ikke og sperrer fortsatt).
+   */
+  tillatDeling?: { omvendt: MidnattVei };
 }
 
 /** O12 pkt 14: hvorfor forslaget mangler når `tillatUtenKjoretid` er satt. */
@@ -280,6 +289,12 @@ export interface ReiseKortResultat {
   sperre: ReiseKortSperre | null;
   /** O12 pkt 14: satt når kjøretiden mangler og kalleren tillot det (web). Ellers utelatt. */
   utenKjoretid?: ReiseKortUtenKjoretid;
+  /**
+   * O19 pkt 23–24: satt når reisen krysser midnatt og kalleren tillot deling. `fraTid`/`tilTid`
+   * er da klokkeslettene (start og slutt), `timer` hele reisen. «fram» = del 2 dagen etter,
+   * «bak» = del 1 dagen før. Se `delVedMidnatt`.
+   */
+  deles?: MidnattVei;
 }
 
 /** "HH:MM" → minutter etter midnatt; null ved ugyldig format. */
@@ -298,6 +313,123 @@ export function minTilKlokke(min: number): string {
   const t = Math.floor(min / 60);
   const m = min % 60;
   return `${String(t).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+// ============================================================================
+//  O19 (vedtak-timer-web.md § Reisevinduet pkt 23–24): reise over midnatt deles ved 24:00.
+//  Del 1 (start–24:00) står på startdagens sedel, del 2 (00:00–slutt) på dagen etter. Paret
+//  kjennes på `reiseRegel.midnatt = { delId, del }` — samme delId på begge radene. Tiden alene
+//  holder ikke: en vanlig retur kan slutte 24:00 uten å være delt.
+// ============================================================================
+
+const DOGN_MIN = 24 * 60;
+
+/** O19 pkt 23–24: Slutt før Start er en reise over midnatt når kalleren deler og arbeideren skrev
+ *  tiden som krysser — Start ved «bak» (pkt 24), Slutt ved «fram». */
+function krysserMidnatt(k: { tillatDeling?: { omvendt: MidnattVei }; startTid?: string | null; sluttTid?: string | null }, fra: number, til: number): boolean {
+  if (!k.tillatDeling || til >= fra) return false;
+  return k.tillatDeling.omvendt === "bak" ? k.startTid != null : k.sluttTid != null;
+}
+
+/** «fram» = del 2 på dagen etter vinduets dato; «bak» = del 1 på dagen før. */
+export type MidnattVei = "fram" | "bak";
+
+/** Minutter (kan ligge utenfor døgnet) → minutter i døgnet (0–1439). */
+function iDognet(min: number): number {
+  return ((min % DOGN_MIN) + DOGN_MIN) % DOGN_MIN;
+}
+
+/** null = innenfor døgnet; «ugyldig» = lengre enn ett midnattskryss (krysser begge kanter). */
+function midnattVei(fra: number, til: number): MidnattVei | "ugyldig" | null {
+  const forFoer = fra < 0;
+  const etterEtter = til > DOGN_MIN;
+  if (!forFoer && !etterEtter) return null;
+  if (forFoer && etterEtter) return "ugyldig";
+  if (forFoer) return fra > -DOGN_MIN && til > 0 ? "bak" : "ugyldig";
+  return fra < DOGN_MIN && til < 2 * DOGN_MIN ? "fram" : "ugyldig";
+}
+
+export interface MidnattDel {
+  /** Sedelens dato (YYYY-MM-DD). */
+  dato: string;
+  fraTid: string;
+  tilTid: string;
+  /** Desimaltimer for delen (reise bærer aldri pause). */
+  timer: number;
+}
+
+export interface MidnattDeling {
+  vei: MidnattVei;
+  /** Start–24:00. */
+  del1: MidnattDel;
+  /** 00:00–slutt. */
+  del2: MidnattDel;
+}
+
+/**
+ * O19 pkt 23–24: delene til en reise over midnatt. `dato` er vinduets sedel; `fraTid`/`tilTid`
+ * er klokkeslettene (som i `ReiseKortResultat` med `deles`). «fram»: del 1 på `dato`, del 2 dagen
+ * etter. «bak»: del 1 dagen før, del 2 på `dato`. null ved ugyldig tid eller når en del blir 0 min.
+ */
+export function delVedMidnatt(a: { dato: string; vei: MidnattVei; fraTid: string; tilTid: string }): MidnattDeling | null {
+  const fra = klokkeTilMin(a.fraTid);
+  const til = klokkeTilMin(a.tilTid);
+  if (fra == null || til == null || fra >= DOGN_MIN || fra === 0 || til === 0 || til >= DOGN_MIN) return null;
+  const timer = (min: number) => Math.round((min / 60) * 10000) / 10000;
+  const dag1 = a.vei === "fram" ? a.dato : leggTilDager(a.dato, -1);
+  const dag2 = a.vei === "fram" ? leggTilDager(a.dato, 1) : a.dato;
+  return {
+    vei: a.vei,
+    del1: { dato: dag1, fraTid: minTilKlokke(fra), tilTid: "24:00", timer: timer(DOGN_MIN - fra) },
+    del2: { dato: dag2, fraTid: "00:00", tilTid: minTilKlokke(til), timer: timer(til) },
+  };
+}
+
+/** O19 pkt 23: kjennetegnet på en delt reise i `reiseRegel`. */
+export interface MidnattMerke {
+  delId: string;
+  del: 1 | 2;
+}
+
+/** Leser `reiseRegel.midnatt` defensivt. null = ikke del av en delt reise. */
+export function lesMidnattDel(reiseRegel: unknown): MidnattMerke | null {
+  if (reiseRegel == null || typeof reiseRegel !== "object") return null;
+  const m = (reiseRegel as Record<string, unknown>).midnatt;
+  if (m == null || typeof m !== "object") return null;
+  const { delId, del } = m as Record<string, unknown>;
+  if (typeof delId !== "string" || delId === "" || (del !== 1 && del !== 2)) return null;
+  return { delId, del };
+}
+
+/**
+ * O19 pkt 23: visningen av en delt rad — «fortsetter {dato}» (del 1) / «fortsatt fra {dato}» (del 2).
+ * `sedelDato` er radens sedel (YYYY-MM-DD eller ISO); gir den andre delens dato. null = ikke delt.
+ */
+export function midnattPartnerDato(sedelDato: string, reiseRegel: unknown): { del: 1 | 2; dato: string } | null {
+  const merke = lesMidnattDel(reiseRegel);
+  if (!merke) return null;
+  const dag = sedelDato.slice(0, 10);
+  return { del: merke.del, dato: leggTilDager(dag, merke.del === 1 ? 1 : -1) };
+}
+
+/**
+ * O19 (vedtak pkt 25): «Til byggeplass» overlapper en kontorreise (kontor → kontor, pkt 21) som
+ * ender ved jobbstart. Den nye reisen og kontorreisen kan ikke begge stemme: arbeideren er på
+ * kontoret når reisen til kortets byggeplass skulle startet. Gir kontoret og klokkeslettet den
+ * ender, ellers null. Andre overlapp (arbeid, «Til byggeplass», «Fra byggeplass» til kontoret)
+ * gir null — de har dagens overlapp-tekst.
+ */
+export function finnReiseSomEnderPaaKontor(
+  ny: { fraTid: string | null; tilTid: string | null },
+  rader: readonly { fraTid: string | null; tilTid: string | null; erReise: boolean; reiseRegel?: unknown }[],
+): { kontorId: string; tilTid: string } | null {
+  for (const r of rader) {
+    if (!r.erReise || !r.tilTid) continue;
+    const rute = kontorReiseRute(r.reiseRegel);
+    if (!rute) continue;
+    if (finnOverlappendeTidsrom(ny.fraTid, ny.tilTid, [r])) return { kontorId: rute.tilKontorId, tilTid: r.tilTid };
+  }
+  return null;
 }
 
 /**
@@ -384,16 +516,25 @@ export function løsReiseKort(k: ReiseKortInput): ReiseKortResultat {
     if (anker == null) return tom("manglerDagstid", oppmotestedId);
     fra = naar === "forArbeid" ? anker - kjoretidMin : anker;
   }
-  const til = klokkeTilMin(k.sluttTid) ?? fra + kjoretidMin;
-  if (fra < 0 || til > 24 * 60) return tom("utenforDognet", oppmotestedId);
+  let til = klokkeTilMin(k.sluttTid) ?? fra + kjoretidMin;
+  // O19 pkt 23–24: Slutt før Start leses som en reise over midnatt når kalleren deler — men bare
+  // når arbeideren selv skrev tiden som krysser (pkt 24: Start ved «bak»). En rettet Slutt før
+  // forslagets Start er fortsatt «slutt før start».
+  if (k.tillatDeling && krysserMidnatt(k, fra, til)) {
+    if (k.tillatDeling.omvendt === "fram") til += DOGN_MIN;
+    else fra -= DOGN_MIN;
+  }
+  const deles = midnattVei(fra, til);
+  if (deles === "ugyldig" || (deles && !k.tillatDeling)) return tom("utenforDognet", oppmotestedId);
 
   const timer = Math.max(0, til - fra) / 60;
   const basis = {
     timer,
-    fraTid: minTilKlokke(fra),
-    tilTid: minTilKlokke(til),
+    fraTid: minTilKlokke(iDognet(fra)),
+    tilTid: minTilKlokke(deles ? iDognet(til) : til),
     oppmotestedId,
     kjoretidMin,
+    ...(deles ? { deles } : {}),
   };
   if (!k.regel) {
     return { ...basis, klassifisering: null, spor: null, sperre: "manglerRegel" };
@@ -438,19 +579,26 @@ function løsReiseKortUtenKjoretid(
 ): ReiseKortResultat {
   const naar: ReiseKortNaar = k.naar ?? (k.retning === "tur" ? "forArbeid" : "etterArbeid");
   const anker = klokkeTilMin(naar === "forArbeid" ? k.dagStart : k.dagSlutt);
-  const fra = klokkeTilMin(k.startTid) ?? (naar === "etterArbeid" ? anker : null);
-  const til = klokkeTilMin(k.sluttTid) ?? (naar === "forArbeid" ? anker : null);
+  let fra = klokkeTilMin(k.startTid) ?? (naar === "etterArbeid" ? anker : null);
+  let til = klokkeTilMin(k.sluttTid) ?? (naar === "forArbeid" ? anker : null);
+  // O19 pkt 23–24: som i `løsReiseKort`.
+  if (k.tillatDeling && fra != null && til != null && krysserMidnatt(k, fra, til)) {
+    if (k.tillatDeling.omvendt === "fram") til += DOGN_MIN;
+    else fra -= DOGN_MIN;
+  }
+  const deles = fra != null && til != null ? midnattVei(fra, til) : null;
   const basis = {
-    fraTid: fra == null ? null : minTilKlokke(fra),
-    tilTid: til == null ? null : minTilKlokke(til),
+    fraTid: fra == null ? null : minTilKlokke(iDognet(fra)),
+    tilTid: til == null ? null : minTilKlokke(deles ? iDognet(til) : til),
     oppmotestedId,
     kjoretidMin: null,
     utenKjoretid,
+    ...(deles && deles !== "ugyldig" && k.tillatDeling ? { deles } : {}),
   };
   if (fra == null || til == null) {
     return { ...basis, timer: 0, klassifisering: null, spor: null, sperre: null };
   }
-  if (fra < 0 || til > 24 * 60) {
+  if (deles === "ugyldig" || (deles && !k.tillatDeling)) {
     return { ...basis, timer: 0, fraTid: null, tilTid: null, klassifisering: null, spor: null, sperre: "utenforDognet" };
   }
   const timer = Math.max(0, til - fra) / 60;
@@ -502,6 +650,8 @@ export interface OverforingKortInput {
   /** O16 pkt 4 (web): som i `ReiseKortInput`. Utelatt = som før (mobil sender dem ikke). */
   kategoriValg?: ReiseKategori | null;
   tillatUtenKjoretid?: boolean;
+  /** O19 (web): som i `ReiseKortInput`. */
+  tillatDeling?: { omvendt: MidnattVei };
 }
 
 export function løsOverforingKort(k: OverforingKortInput): ReiseKortResultat {
@@ -522,6 +672,7 @@ export function løsOverforingKort(k: OverforingKortInput): ReiseKortResultat {
     sluttTid: k.sluttTid,
     kategoriValg: k.kategoriValg,
     tillatUtenKjoretid: k.tillatUtenKjoretid,
+    tillatDeling: k.tillatDeling,
   });
   if (!r.spor) return r;
   const reiseRegel: ReiseRegelSnapshot = {

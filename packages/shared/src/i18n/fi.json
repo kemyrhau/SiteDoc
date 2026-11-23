@@ -6071,5 +6071,22 @@
   "timer.reiseKort.sperre.overlapperFirma": "Päällekkäisyydet {{navn}} ({{periode}}), yrityksen asettama – korjaa päivämäärät tai pyydä yrityksen järjestelmänvalvojaa muuttamaan se",
   "timer.reiseKort.sperre.overlapperEgen": "Menee päällekkäin väliaikaisen kohtaamispisteesi {{navn}} ({{periode}}) kanssa – korjaa päivämäärät",
   "timer.reiseKort.sperre.overlappServer": "Päivämäärät menevät päällekkäin toisen väliaikaisen tapaamispaikan kanssa – korjaa päivämäärät tai pyydä yrityksen järjestelmänvalvojaa muuttamaan se",
-  "timer.reiseKort.sperre.velgKontor": "Valitse kohtaamispaikka, johon ajoit"
+  "timer.reiseKort.sperre.velgKontor": "Valitse kohtaamispaikka, johon ajoit",
+  "timer.reiseKort.delesVedMidnatt": "Matka jaetaan keskiyöllä: {{fra}}–24.00 on kirjattu sisään {{dato1}}, 00.00–{{til}} {{dato2}}",
+  "timer.reiseKort.startetKveldenFoer": "Aloititko edellisenä iltana? {{fra}}–24:00 on kirjattu sisään {{dato1}}, 00:00–{{til}} {{dato2}}",
+  "timer.reiseKort.naboSedelSendt": "Työaikalomake {{dato}} on lähetetty. Matkaa ei jaeta – avaa ensin {{dato}} uudelleen.",
+  "timer.reiseKort.naboSedelAttestert": "Työaikalomake {{dato}} on hyväksytty. Matkaa ei voi jakaa keskiyöllä.",
+  "timer.reiseKort.naboSedelAnnetFirma": "Työaikalomake {{dato}} kuuluu toiselle yritykselle. Matkaa ei jaeta.",
+  "timer.reiseKort.sperre.paaKontor": "Olet osoitteessa {{kontor}} klo {{tid}}. Kortti on {{byggeplass}}. Vaihda kortissa olevaa paikkaa (Paikka ja aktiviteetti) ennen matkan kirjaamista.",
+  "timer.reiseKort.delLaast": "Osa {{dato}} on lähetetty tai hyväksytty, eikä sitä muuteta täältä.",
+  "timer.reiseKort.rettDel.tittel": "Matka jaetaan keskiyöllä",
+  "timer.reiseKort.rettDel.tekst": "Korjaa myös osa {{dato}}?",
+  "timer.reise.fortsetter": "jatkuu {{dato}}",
+  "timer.reise.fortsattFra": "jatkuu {{dato}}",
+  "timer.reise.deltSlettLaast": "Työaikalomake {{dato}} on lukittu. Vain tämä osa voidaan poistaa.",
+  "timer.reise.deltSlett.tekst": "Matka jaetaan keskiyöllä. Poistetaanko myös {{fra}}–{{til}} {{dato}}?",
+  "timer.reise.deltSlett.laast": "Matka jaetaan keskiyöllä. Osa {{dato}} on lähetetty tai hyväksytty, eikä sitä ole poistettu. Poistetaanko vain tämä osa?",
+  "timer.reise.deltSlett.alene": "Matkan toista osaa ei enää ole. Poistetaanko tämä osa?",
+  "timer.reise.deltSlett.slettBegge": "Poista molemmat",
+  "timer.reise.deltSlett.bareDenne": "Vain tämä"
 }

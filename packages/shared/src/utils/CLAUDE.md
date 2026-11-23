@@ -299,6 +299,8 @@ Fasit: `tegningNedlasting.test.ts`.
 
 `kontorReiseRute(reiseRegel)` → `{ fraKontorId, tilKontorId } | null` (O17, vedtak pkt 21): kjennetegnet på en reise mellom to kontorer (tur 3) — ruten i `reiseRegel.overforing` med kontor i begge ender, lest defensivt. Ikke `reiseKilde`, som bare er «overforing» over terskel. Web (kortliste, attestering) og api (eksport) bruker den. Mobil bruker den ikke.
 
+**O19 (vedtak pkt 23–25), bare web:** `tillatDeling: { omvendt: "fram" | "bak" }` gjør at en reise over midnatt får `deles` i stedet for sperren `utenforDognet`; «bak» bare når Start er skrevet, «fram» når Slutt er skrevet eller regnet (`krysserMidnatt`). Mobil sender den ikke og sperrer som før. `delVedMidnatt({dato, vei, fraTid, tilTid})` → del 1 (start–24:00) og del 2 (00:00–slutt) med dato, `null` når en del er 0 min. `lesMidnattDel(reiseRegel)` leser paret `{delId, del}`; `midnattPartnerDato(sedelDato, reiseRegel)` gir den andre delens dato (merket «fortsetter»/«fortsatt fra»). `finnReiseSomEnderPaaKontor(ny, dagsrader)` (pkt 25): kontorreisen som overlapper og ender på et kontor. `pauseBeregning` lar del 2 (00:00) og del 1 (–24:00) stå utenfor pausevinduet og «Arbeidstid i dag». Fasit: `reiseManuell-o19.test.ts`.
+
 `medOverforingPeriodeId(spor, periodeId)` setter `reiseRegel.overforing.periodeId` når perioden er kjent ved lagring (ny id ved start, lukket periode ved slutt); `null` → sporet urørt.
 
 ### Reisekjede (`reiseKjede.ts`, ordre 2026-11-15 (17))

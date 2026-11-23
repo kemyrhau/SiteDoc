@@ -12,8 +12,10 @@ import {
   manuellReiseTerskelTekst,
   medOverforingPeriodeId,
   avsluttSisteDagForslag,
-  tilFraAntall,
-  fraFraTilOgAntall,
+  minTilKlokke,
+  delVedMidnatt,
+  lesMidnattDel,
+  finnReiseSomEnderPaaKontor,
   jobbManglerBeskrivelse,
   erEgenOverforing,
   type OverforingPeriode,
@@ -78,6 +80,16 @@ import {
  *  blå boksen lagrer «Lagre oppmøtested» bare stedsbyttet (S1). Minuttfirma: tiden i vinduet over
  *  terskelen gir et gult hint (S4). Firmaets under/over-type styrer (S3). En lagret arbeidstid-reise
  *  redigeres som før (S5 A).
+ *
+ *  O19 (vedtak-timer-web.md § Reisevinduet pkt 20, 23–25):
+ *   - pkt 20: teksten under terskel står i en blå boks.
+ *   - pkt 23–24: en ny reise over midnatt deles ved 24:00 (`delVedMidnatt`). Den blå boksen sier
+ *     hvilke tider som føres hvilken dag; «Lagre» kaller `tilfoyDeltReise` (begge delene i én
+ *     transaksjon). Overlapp sjekkes her på delen som står på vinduets sedel; serveren sjekker begge.
+ *   - En delt rad som redigeres: midnattsgrensen står som låst tekst (B2). Endres underprosjekt,
+ *     beskrivelse eller «Føres som», spør «Lagre» om delen den andre dagen skal rettes også.
+ *   - pkt 25: «Til byggeplass» som overlapper en kontorreise (kontor → kontor) stoppes med lenke
+ *     til «Sted og aktivitet» (`onAapneSted`).
  * ============================================================================ */
 
 /** w15b: en rad på sedelen — dagsrammen, overlapp-sperren og linja «havner i». */
@@ -87,6 +99,8 @@ export type ReiseKortDagsrad = ReiseHavnerRad & {
   arbeidReise?: boolean;
   /** O14 pkt 4 (R5): radens «Hva gjorde du?» — om kortet alt har en beskrivelse. */
   beskrivelse?: string | null;
+  /** O19 pkt 25: sporet — en kontorreise (kontor → kontor) stopper «Til byggeplass». */
+  reiseRegel?: unknown;
 };
 
 /** O1 TILLEGG: «1», «1,5», «0.75» → timer; tomt, 0 eller ugyldig → null. */
@@ -99,8 +113,9 @@ function tolkAntall(v: string | null): number | null {
 /**
  * O6 (§ 8.22): «Antall timer» følger retningen. «Til byggeplass»: slutten (ankomsten, altså
  * jobbstart) står fast, og Start = Slutt − antall. «Fra byggeplass»: Start står fast, og
- * Slutt = Start + antall. Reise bærer aldri matpausen (pause 0). Klemmes ved døgnkanten
- * som før (00:00 / 23:59). null = tiden som skal stå fast, mangler.
+ * Slutt = Start + antall. Reise bærer aldri matpausen (pause 0). O19 pkt 23: tiden klemmes ikke
+ * lenger ved døgnkanten — klokka går rundt midnatt, og reisen deles ved 24:00 når den lagres.
+ * null = tiden som skal stå fast, mangler.
  */
 export function reiseTiderFraAntall(
   retning: "tur" | "retur",
@@ -108,8 +123,15 @@ export function reiseTiderFraAntall(
   til: string | null,
   antall: number,
 ): { start: string; slutt: string } | null {
-  if (retning === "tur") return til ? { start: fraFraTilOgAntall(til, antall), slutt: til } : null;
-  return fra ? { start: fra, slutt: tilFraAntall(fra, antall, fra, 0) } : null;
+  const min = Math.round(antall * 60);
+  if (retning === "tur") return til ? { start: flyttKlokke(til, -min), slutt: til } : null;
+  return fra ? { start: fra, slutt: flyttKlokke(fra, min) } : null;
+}
+
+/** O19: klokkeslett + minutter, rundt midnatt (24:00 regnes som 00:00). */
+function flyttKlokke(klokke: string, min: number): string {
+  const m = (klokkeTilMin(klokke) ?? 0) + min;
+  return minTilKlokke(((m % 1440) + 1440) % 1440);
 }
 
 /** YYYY-MM-DD → dd.mm */
@@ -184,6 +206,7 @@ export function ReiseKort({
   jobbKortId,
   kortModus = false,
   rad,
+  onAapneSted,
   onLukk,
 }: {
   sheetId: string;
@@ -221,6 +244,8 @@ export function ReiseKort({
   /** O14 pkt 2 (R2): reisen pennen åpnet — vinduet redigerer den i stedet for å føre en ny.
    *  Utelatt = ny reise (som før). */
   rad?: ReiseKortRedigerRad;
+  /** O19 pkt 25: åpner «Sted og aktivitet» for kortet vinduet ble åpnet fra. Utelatt = ingen lenke. */
+  onAapneSted?: () => void;
   onLukk: () => void;
 }) {
   const { t } = useTranslation();
@@ -267,7 +292,7 @@ export function ReiseKort({
   // O12 pkt 9: km-firmaets avhuking «Reisen er mer enn X km». null = som firmaets tabell sier.
   const [kmAvhuket, setKmAvhuket] = useState<boolean | null>(null);
   // O12 pkt 12: dialogen «Lagre» åpner (kortet). null = ingen.
-  const [dialog, setDialog] = useState<"kort" | null>(null);
+  const [dialog, setDialog] = useState<"kort" | "rettDel" | null>(null);
   const [lagreSignal, setLagreSignal] = useState(0);
   // O12 pkt 3: i prosjektkort-visning er kortet stedet — bare når det finnes en jobb å lagre i.
   // O14 pkt 2: en reise som redigeres, står alt i kortet sitt.
@@ -343,6 +368,23 @@ export function ReiseKort({
   const tid = redigering ? tidFraStartSlutt(rettetStart, rettetSlutt) : resultat;
   const kategoriEndret = !!redigering && kategoriValg !== (redigering.erReise ? "reisetid" : "arbeidstid");
 
+  // O19 pkt 23–24: en ny reise over midnatt deles ved 24:00. `dagensDel` er delen som står på
+  // vinduets sedel — den overlapp, «havner i» og kontorsjekken (pkt 25) regnes på.
+  const deling =
+    !redigering && resultat.deles && tid.fraTid && tid.tilTid
+      ? delVedMidnatt({ dato, vei: resultat.deles, fraTid: tid.fraTid, tilTid: tid.tilTid })
+      : null;
+  const dagensDel = deling ? (deling.vei === "fram" ? deling.del1 : deling.del2) : null;
+  const dFra = dagensDel ? dagensDel.fraTid : tid.fraTid;
+  const dTil = dagensDel ? dagensDel.tilTid : tid.tilTid;
+  // O19 (B2): en delt rad som redigeres — midnattsgrensen står fast; den andre delen slås opp.
+  const midnattDel = redigering ? lesMidnattDel(redigering.reiseRegel) : null;
+  const { data: delPartner } = trpc.timer.dagsseddel.finnReiseDel.useQuery(
+    { radId: redigering?.id ?? "" },
+    { enabled: !!midnattDel && !!redigering },
+  );
+  const partnerLaast = !!delPartner && delPartner.status !== "draft" && delPartner.status !== "returned";
+
   const overforingMut = trpc.oppmotePeriode.overforing.useMutation({
     onSettled: () => utils.oppmotePeriode.hentMine.invalidate(),
   });
@@ -362,6 +404,19 @@ export function ReiseKort({
     },
     onError: (e: { message: string }) => setFeil(e.message),
   });
+  // O19: «Rett også delen …» — den andre delen skrives først; vinduet lukkes av `oppdater`.
+  const oppdaterDel = trpc.timer.dagsseddel.oppdaterTimerRad.useMutation({
+    onError: (e: { message: string }) => setFeil(e.message),
+  });
+  // O19 pkt 23: begge delene av en reise over midnatt i én transaksjon.
+  const tilfoyDelt = trpc.timer.dagsseddel.tilfoyDeltReise.useMutation({
+    onSuccess: () => {
+      utils.timer.dagsseddel.hentMedId.invalidate();
+      onLukk();
+    },
+    onError: (e: { message: string }) => setFeil(e.message),
+  });
+  const lagrerNy = tilfoy.isPending || tilfoyDelt.isPending;
 
   const sperre = regelStatus === "klar" ? resultat.sperre : null;
   const lagretByggeplassId = bp.byggeplassId;
@@ -370,22 +425,35 @@ export function ReiseKort({
   // timerad-vinduet; serveren avviser overlapp i `tilfoyTimerRad`).
   const fraMin = klokkeTilMin(tid.fraTid);
   const tilMin = klokkeTilMin(tid.tilTid);
-  const sluttForStart = fraMin != null && tilMin != null && tilMin <= fraMin;
-  const overlapp = sluttForStart ? null : finnOverlappendeTidsrom(tid.fraTid, tid.tilTid, dagsrader);
+  const sluttForStart = !deling && fraMin != null && tilMin != null && tilMin <= fraMin;
+  // O19 pkt 25: «Til byggeplass» som overlapper en kontorreise — arbeideren er på kontoret.
+  const paaKontor =
+    !redigering &&
+    !(regelStatus === "klar" && resultat.klassifisering?.kategori === "arbeidstid") &&
+    aktivtValg.type === "tur" && !!bp.byggeplassId && !sluttForStart
+      ? finnReiseSomEnderPaaKontor({ fraTid: dFra, tilTid: dTil }, dagsrader)
+      : null;
+  const overlapp = sluttForStart ? null : finnOverlappendeTidsrom(dFra, dTil, dagsrader);
   const tidSperre = sluttForStart
     ? t("timer.feil.sluttForStart")
+    : paaKontor
+      ? t("timer.reiseKort.sperre.paaKontor", {
+          kontor: reise.kontorNavn(paaKontor.kontorId),
+          tid: paaKontor.tilTid,
+          byggeplass: (byggeplasser ?? []).find((b) => b.id === bp.byggeplassId)?.name ?? prosjektNavn(prosjektId),
+        })
     : overlapp
       ? overlapp.projectId
         ? t("timer.feil.overlappKort", {
-            fra: tid.fraTid,
-            til: tid.tilTid,
+            fra: dFra,
+            til: dTil,
             annenFra: overlapp.fraTid,
             annenTil: overlapp.tilTid,
             kort: prosjektNavn(overlapp.projectId),
           })
         : t("timer.feil.overlapp", {
-            fra: tid.fraTid,
-            til: tid.tilTid,
+            fra: dFra,
+            til: dTil,
             annenFra: overlapp.fraTid,
             annenTil: overlapp.tilTid,
           })
@@ -411,7 +479,7 @@ export function ReiseKort({
             // O18: en ny rad fra vinduet er alltid reise — under terskel viser linja hvor
             // «Før som reisetid likevel» legger den.
             retning: resultat.spor.reiseRetning ?? (tidRetning === "retur" ? "retur" : "ut"),
-            fraTid: tid.fraTid,
+            fraTid: dFra ?? tid.fraTid,
             erReise: true,
           },
         })
@@ -556,7 +624,9 @@ export function ReiseKort({
     !!resultat.spor &&
     !!resultat.klassifisering?.lonnsartId &&
     !!tid.fraTid &&
-    !!tid.tilTid;
+    !!tid.tilTid &&
+    // O19: en delt reise lagres alltid med spor.
+    (!deling || !!resultat.spor.reiseKilde);
   // O18: «Før som reisetid likevel» — samme sperrer som «Lagre» i dag (pkt 13). Lønnsarten
   // regnes etter byttet til Reisetid.
   const kanForeLikevel =
@@ -608,25 +678,37 @@ export function ReiseKort({
             ? t("sperret.beskrivelse")
             : "";
 
-  /** O14 pkt 2 (R2): «Lagre» i redigering skriver raden — ingen ny rad, ingen overføring. */
-  function lagreRedigering() {
+  // O19: felt som gjelder hele reisen — endres de på en delt rad, spør «Lagre» om den andre delen.
+  const beskrivelseEndret = !!redigering && (beskrivelse.trim() || null) !== (redigering.beskrivelse?.trim() || null);
+  const ecoEndret = !!redigering && ecoId !== redigering.externalCostObjectId;
+  const felles = () => ({
+    externalCostObjectId: ecoId,
+    ...(kategoriEndret && resultat.klassifisering?.lonnsartId ? { lonnsartId: resultat.klassifisering.lonnsartId } : {}),
+    ...(beskrivelseEndret ? { beskrivelse: beskrivelse.trim() || null } : {}),
+  });
+  const sporRettDel = !!delPartner && !partnerLaast && (beskrivelseEndret || ecoEndret || kategoriEndret);
+
+  /** O14 pkt 2 (R2): «Lagre» i redigering skriver raden — ingen ny rad, ingen overføring.
+   *  O19: `rettDel` skriver de felles feltene på delen den andre dagen også (tidene står). */
+  async function lagreRedigering(rettDel = false) {
     if (!redigering || !kanLagreRedigering || !tid.fraTid || !tid.tilTid) return;
     setFeil(null);
     const retning = aktivtValg.type === "retur" ? ("retur" as const) : ("ut" as const);
-    oppdater.mutate({
-      id: redigering.id,
-      fraTid: tid.fraTid,
-      tilTid: tid.tilTid,
-      timer: tid.timer,
-      pauseMin: 0,
-      externalCostObjectId: ecoId,
-      ...(kategoriEndret && resultat.klassifisering?.lonnsartId ? { lonnsartId: resultat.klassifisering.lonnsartId } : {}),
-      // O16 R5: en kontoroverføring beholder retning og spor — bare tiden (og «Føres som») skrives.
-      ...(redigertRute ? {} : kategoriValg === "arbeidstid" ? { arbeidReiseRetning: retning } : { reiseRetning: retning }),
-      ...((beskrivelse.trim() || null) !== (redigering.beskrivelse?.trim() || null)
-        ? { beskrivelse: beskrivelse.trim() || null }
-        : {}),
-    });
+    try {
+      if (rettDel && delPartner) await oppdaterDel.mutateAsync({ id: delPartner.id, ...felles() });
+      oppdater.mutate({
+        id: redigering.id,
+        fraTid: tid.fraTid,
+        tilTid: tid.tilTid,
+        timer: tid.timer,
+        pauseMin: 0,
+        ...felles(),
+        // O16 R5: en kontoroverføring beholder retning og spor — bare tiden (og «Føres som») skrives.
+        ...(redigertRute ? {} : kategoriValg === "arbeidstid" ? { arbeidReiseRetning: retning } : { reiseRetning: retning }),
+      });
+    } catch {
+      // Feilen er satt av mutasjonens onError.
+    }
   }
 
   async function lagre() {
@@ -652,6 +734,31 @@ export function ReiseKort({
         setFeil(kode === "CONFLICT" ? t("timer.reiseKort.sperre.overlappServer") : e instanceof Error ? e.message : String(e));
         return;
       }
+    }
+    // O19 pkt 23–24: over midnatt → to rader, del 1 til 24:00 og del 2 fra 00:00.
+    if (deling) {
+      if (!s.reiseKilde || !s.reiseRegel) return;
+      tilfoyDelt.mutate({
+        sheetId,
+        vei: deling.vei,
+        del1: { fraTid: deling.del1.fraTid, tilTid: "24:00" },
+        del2: { fraTid: "00:00", tilTid: deling.del2.tilTid },
+        projectId: reiseProsjektId,
+        byggeplassId: erKontorValg ? null : lagretByggeplassId,
+        lonnsartId: resultat.klassifisering.lonnsartId,
+        aktivitetId,
+        beskrivelse: beskrivelse.trim() || null,
+        externalCostObjectId: ecoId,
+        reiseKilde: s.reiseKilde,
+        reiseRetning: s.reiseRetning,
+        reiseOppmotestedId: s.reiseOppmotestedId,
+        reiseKjoretidMin: s.reiseKjoretidMin,
+        reiseAvstandM: s.reiseAvstandM,
+        reiseRegel: s.reiseRegel as unknown as Record<string, unknown>,
+        ...(reiseKortId ? { kortId: reiseKortId } : {}),
+        ...(iKort ? { reiseIKort: true } : {}),
+      });
+      return;
     }
     tilfoy.mutate({
       sheetId,
@@ -690,7 +797,8 @@ export function ReiseKort({
   function trykkLagre() {
     if (!kanLagre) return;
     if (redigering) {
-      lagreRedigering();
+      if (sporRettDel) setDialog("rettDel");
+      else void lagreRedigering();
       return;
     }
     if (kortSjekk) setDialog("kort");
@@ -1076,6 +1184,12 @@ export function ReiseKort({
                 <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="reise-start">
                   {t("timer.reiseKort.startKl")}
                 </label>
+                {/* O19 (B2): del 2 av en delt reise starter ved midnatt — grensen står fast. */}
+                {midnattDel?.del === 2 ? (
+                  <p id="reise-start" data-testid="reise-midnatt-laast" className="px-3 py-2 text-sm text-gray-800">
+                    00:00
+                  </p>
+                ) : (
                 <input
                   id="reise-start"
                   type="time"
@@ -1096,15 +1210,23 @@ export function ReiseKort({
                     // «Fra byggeplass»: slutten følger starten — start + skrevet antall timer,
                     // ellers start + kjøretid, til den rettes igjen.
                     const antall = tolkAntall(antallTekst);
-                    setRettetSlutt(start && antall != null ? tilFraAntall(start, antall, start, 0) : null);
+                    setRettetSlutt(start && antall != null ? flyttKlokke(start, Math.round(antall * 60)) : null);
                   }}
                   className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
                 />
+                )}
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="reise-slutt">
                   {t("timer.reiseKort.sluttKl")}
                 </label>
+                {/* O19 (B2): del 1 slutter ved midnatt (24:00) — grensen står fast. Et tidsfelt kan
+                    ikke vise 24:00, og en lagret retur som slutter 24:00 vises også som tekst. */}
+                {midnattDel?.del === 1 || (redigering && redigering.tilTid === "24:00") ? (
+                  <p id="reise-slutt" data-testid="reise-midnatt-laast" className="px-3 py-2 text-sm text-gray-800">
+                    24:00
+                  </p>
+                ) : (
                 <input
                   id="reise-slutt"
                   type="time"
@@ -1116,6 +1238,7 @@ export function ReiseKort({
                   }}
                   className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
                 />
+                )}
               </div>
               {/* O1 TILLEGG: antall timer regner tiden ut (og omvendt). O6: retningen avgjør
                   hvilken ende som står fast — se `reiseTiderFraAntall`. */}
@@ -1141,11 +1264,11 @@ export function ReiseKort({
                       // O6: «Til byggeplass» flytter Start; «Fra byggeplass» flytter Slutt.
                       if (tidRetning === "tur") setRettetStart(tider.start);
                       setRettetSlutt(tider.slutt);
-                      // Gate (136) vilkår 1: klemmes tiden ved døgnkanten (00:00 / 23:59),
-                      // viser feltet det som faktisk lagres (`resultat.timer`), ikke det skrevne.
+                      // Gate (136) vilkår 1: viser feltet det som faktisk lagres (`resultat.timer`).
+                      // O19: klokka går rundt midnatt — 24 timer gir start = slutt (0 timer).
                       const startMin = klokkeTilMin(tider.start);
                       const sluttMin = klokkeTilMin(tider.slutt);
-                      if (startMin != null && sluttMin != null && Math.abs(sluttMin - startMin - antall * 60) > 0.5) {
+                      if (startMin != null && sluttMin != null && Math.abs((((sluttMin - startMin) % 1440) + 1440) % 1440 - antall * 60) > 0.5) {
                         setAntallTekst(null);
                       }
                     }
@@ -1155,6 +1278,29 @@ export function ReiseKort({
               </div>
             </div>
           )}
+
+        {/* O19 pkt 23–24: reisen deles ved midnatt — hvilke tider som føres hvilken dag. «Til
+            byggeplass» med rettet start kvelden før (pkt 24) spør i stedet «Startet du kvelden før?». */}
+        {/* Står også under terskel: «Før som reisetid likevel» deler reisen på samme måte. */}
+        {deling && (
+          <p data-testid="reise-midnatt-boks" className="rounded border border-blue-100 bg-blue-50 px-3 py-2 text-sm text-blue-900">
+            {t(
+              deling.vei === "bak" && rettetStart != null ? "timer.reiseKort.startetKveldenFoer" : "timer.reiseKort.delesVedMidnatt",
+              {
+                fra: deling.del1.fraTid,
+                dato1: kortDato(deling.del1.dato),
+                til: deling.del2.tilTid,
+                dato2: kortDato(deling.del2.dato),
+              },
+            )}
+          </p>
+        )}
+        {/* O19: en delt rad — den andre delen er sendt eller attestert og rettes ikke herfra. */}
+        {redigering && delPartner && partnerLaast && (
+          <p data-testid="reise-del-laast" className="text-xs text-gray-600">
+            {t("timer.reiseKort.delLaast", { dato: kortDato(delPartner.dato) })}
+          </p>
+        )}
 
         {/* O1 TILLEGG / O18 S5 A: «Føres som» står bare når pennen åpner en lagret arbeidstid-reise —
             byttet går først når arbeideren trykker. Ny reise og lagret Reisetid har ingen «Arbeidstid». */}
@@ -1196,10 +1342,10 @@ export function ReiseKort({
           </label>
         )}
 
-        {/* O18 (pkt 20): under terskel føres turen i jobbens Fra–til. S3: firma som fører også
+        {/* O18 (pkt 20): under terskel føres turen i jobbens Fra–til. O19 (pkt 20): i en blå boks. S3: firma som fører også
             over terskel som arbeidstid, får teksten uten «Under terskel:». */}
         {underTerskel && (
-          <p data-testid="reise-under-terskel" className="text-sm text-gray-700">
+          <p data-testid="reise-under-terskel" className="rounded border border-blue-100 bg-blue-50 px-3 py-2 text-sm text-blue-900">
             {t(kl?.forklaring.type === "over" ? "timer.reiseKort.arbeidstidInfo" : "timer.reiseKort.underTerskelInfo")}
           </p>
         )}
@@ -1247,7 +1393,20 @@ export function ReiseKort({
         {!redigering && sperre && sperre !== "manglerArt" && forklaring && (
           <p className="text-xs font-medium text-red-700">{forklaring}</p>
         )}
-        {!redigering && !sperre && tidSperre && <p className="text-xs font-medium text-red-700">{tidSperre}</p>}
+        {!redigering && !sperre && tidSperre && (
+          <p data-testid={paaKontor ? "reise-paa-kontor" : undefined} className="text-xs font-medium text-red-700">
+            {tidSperre}
+            {/* O19 pkt 25: byggeplassen byttes i kortet, ikke her. */}
+            {paaKontor && onAapneSted && (
+              <>
+                {" "}
+                <button type="button" onClick={onAapneSted} className="underline hover:text-red-900">
+                  {t("timer.jobbSkjema.aapneVindu")}
+                </button>
+              </>
+            )}
+          </p>
+        )}
         {!redigering && !sperre && !tidSperre && (kontorSperreTekst || manglerKontor) && (
           <p data-testid="reise-oppmote-sperre" className="text-xs font-medium text-red-700">
             {kontorSperreTekst ?? t("timer.reiseKort.sperre.velgKontor")}
@@ -1315,21 +1474,50 @@ export function ReiseKort({
                   {t("timer.reiseKort.lagreOppmotested")}
                 </Button>
               )}
-              <KnappMedForklaring sperret={!kanForeLikevel && !tilfoy.isPending} forklaring={forklaring}>
+              <KnappMedForklaring sperret={!kanForeLikevel && !lagrerNy} forklaring={forklaring}>
                 <Button type="button" onClick={trykkForeLikevel} disabled={!kanForeLikevel || tilfoy.isPending}>
-                  {tilfoy.isPending || overforingMut.isPending ? t("handling.lagrer") : t("timer.reiseKort.forSomReisetidLikevel")}
+                  {lagrerNy || overforingMut.isPending ? t("handling.lagrer") : t("timer.reiseKort.forSomReisetidLikevel")}
                 </Button>
               </KnappMedForklaring>
             </>
           ) : (
-            <KnappMedForklaring sperret={!kanLagre && !tilfoy.isPending && !oppdater.isPending} forklaring={forklaring}>
-              <Button type="button" onClick={trykkLagre} disabled={!kanLagre || tilfoy.isPending || oppdater.isPending}>
-                {tilfoy.isPending || overforingMut.isPending || oppdater.isPending ? t("handling.lagrer") : t("handling.lagre")}
+            <KnappMedForklaring sperret={!kanLagre && !lagrerNy && !oppdater.isPending} forklaring={forklaring}>
+              <Button type="button" onClick={trykkLagre} disabled={!kanLagre || lagrerNy || oppdater.isPending}>
+                {lagrerNy || overforingMut.isPending || oppdater.isPending ? t("handling.lagrer") : t("handling.lagre")}
               </Button>
             </KnappMedForklaring>
           )}
         </div>
       </div>
+      {/* O19: delt rad — skal underprosjekt/beskrivelse/«Føres som» rettes på den andre delen også? */}
+      {dialog === "rettDel" && delPartner && (
+        <Modal open={true} onClose={() => setDialog(null)} title={t("timer.reiseKort.rettDel.tittel")}>
+          <div className="space-y-4" data-testid="reise-rett-del">
+            <p className="text-sm text-gray-800">{t("timer.reiseKort.rettDel.tekst", { dato: kortDato(delPartner.dato) })}</p>
+            <div className="flex justify-end gap-3">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => {
+                  setDialog(null);
+                  void lagreRedigering(false);
+                }}
+              >
+                {t("nei")}
+              </Button>
+              <Button
+                type="button"
+                onClick={() => {
+                  setDialog(null);
+                  void lagreRedigering(true);
+                }}
+              >
+                {t("ja")}
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
       {/* O12 pkt 12: reisen føres i et annet kort enn dagens første (Til) / siste (Fra). */}
       {dialog === "kort" && kortSjekk && (
         <Modal open={true} onClose={() => setDialog(null)} title={t("timer.reiseKort.kortSjekk.tittel")}>

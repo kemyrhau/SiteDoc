@@ -6071,5 +6071,22 @@
   "timer.reiseKort.sperre.overlapperFirma": "Chevauchements {{navn}} ({{periode}}), définis par l'entreprise : corrigez les dates ou demandez à un administrateur de l'entreprise de les modifier",
   "timer.reiseKort.sperre.overlapperEgen": "Chevauche votre point de rendez-vous temporaire {{navn}} ({{periode}}) — corrigez les dates",
   "timer.reiseKort.sperre.overlappServer": "Les dates chevauchent un autre point de rendez-vous temporaire : corrigez les dates ou demandez à un administrateur de l'entreprise de les modifier",
-  "timer.reiseKort.sperre.velgKontor": "Sélectionnez le point de rendez-vous auquel vous êtes allé"
+  "timer.reiseKort.sperre.velgKontor": "Sélectionnez le point de rendez-vous auquel vous êtes allé",
+  "timer.reiseKort.delesVedMidnatt": "Le trajet est fractionné à minuit : {{fra}}–24h00 est connecté sur {{dato1}}, 00h00–{{til}} sur {{dato2}}",
+  "timer.reiseKort.startetKveldenFoer": "Avez-vous commencé la veille ? {{fra}}–24h00 est connecté sur {{dato1}}, 00h00–{{til}} sur {{dato2}}",
+  "timer.reiseKort.naboSedelSendt": "La feuille de temps pour {{dato}} a été envoyée. Le voyage n'est pas fractionné : rouvrez d'abord {{dato}}.",
+  "timer.reiseKort.naboSedelAttestert": "La feuille de temps pour {{dato}} a été approuvée. Le trajet ne peut pas être fractionné à minuit.",
+  "timer.reiseKort.naboSedelAnnetFirma": "La feuille de temps pour {{dato}} appartient à une autre entreprise. Le voyage n'est pas fractionné.",
+  "timer.reiseKort.sperre.paaKontor": "Vous êtes chez {{kontor}} à {{tid}}. La carte est sur {{byggeplass}}. Changez de site dans la fiche (Lieu et activité) avant d'enregistrer le déplacement.",
+  "timer.reiseKort.delLaast": "La pièce sur {{dato}} a été envoyée ou approuvée et n'est pas modifiée à partir d'ici.",
+  "timer.reiseKort.rettDel.tittel": "Le voyage est fractionné à minuit",
+  "timer.reiseKort.rettDel.tekst": "Corrigez également la pièce sur {{dato}} ?",
+  "timer.reise.fortsetter": "continue {{dato}}",
+  "timer.reise.fortsattFra": "suite de {{dato}}",
+  "timer.reise.deltSlettLaast": "La feuille de temps pour {{dato}} est verrouillée. Seule cette partie peut être supprimée.",
+  "timer.reise.deltSlett.tekst": "Le voyage est fractionné à minuit. Supprimer également {{fra}}–{{til}} sur {{dato}} ?",
+  "timer.reise.deltSlett.laast": "Le voyage est fractionné à minuit. La pièce sur {{dato}} a été envoyée ou approuvée et n'est pas supprimée. Supprimer uniquement cette partie ?",
+  "timer.reise.deltSlett.alene": "L'autre partie du voyage n'existe plus. Supprimer cette partie ?",
+  "timer.reise.deltSlett.slettBegge": "Supprimer les deux",
+  "timer.reise.deltSlett.bareDenne": "Seulement celui-ci"
 }

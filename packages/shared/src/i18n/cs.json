@@ -6071,5 +6071,22 @@
   "timer.reiseKort.sperre.overlapperFirma": "Překryvy {{navn}} ({{periode}}), nastavené společností – opravte data nebo požádejte administrátora společnosti, aby je změnil",
   "timer.reiseKort.sperre.overlapperEgen": "Překrývá váš dočasný bod setkání {{navn}} ({{periode}}) – opravte data",
   "timer.reiseKort.sperre.overlappServer": "Data se překrývají s jiným dočasným bodem setkání – opravte data nebo požádejte správce společnosti, aby je změnil",
-  "timer.reiseKort.sperre.velgKontor": "Vyberte místo setkání, kam jste jeli"
+  "timer.reiseKort.sperre.velgKontor": "Vyberte místo setkání, kam jste jeli",
+  "timer.reiseKort.delesVedMidnatt": "Cesta je rozdělena o půlnoci: {{fra}}–24:00 je přihlášen {{dato1}}, 00:00–{{til}} dne {{dato2}}",
+  "timer.reiseKort.startetKveldenFoer": "Začal jsi večer předtím? {{fra}}–24:00 je přihlášen {{dato1}}, 00:00–{{til}} dne {{dato2}}",
+  "timer.reiseKort.naboSedelSendt": "Časový rozvrh pro {{dato}} byl odeslán. Cesta není rozdělena – nejprve znovu otevřete {{dato}}.",
+  "timer.reiseKort.naboSedelAttestert": "Časový rozvrh pro {{dato}} byl schválen. Cestu nelze rozdělit o půlnoci.",
+  "timer.reiseKort.naboSedelAnnetFirma": "Časový rozvrh pro {{dato}} patří jiné společnosti. Cesta není rozdělena.",
+  "timer.reiseKort.sperre.paaKontor": "Jste v {{kontor}} v {{tid}}. Karta je na {{byggeplass}}. Před přihlášením cesty změňte místo na kartě (Místo a aktivita).",
+  "timer.reiseKort.delLaast": "Část na {{dato}} byla odeslána nebo schválena a odtud se nemění.",
+  "timer.reiseKort.rettDel.tittel": "Výlet je rozdělen o půlnoci",
+  "timer.reiseKort.rettDel.tekst": "Opravit také část na {{dato}}?",
+  "timer.reise.fortsetter": "pokračuje {{dato}}",
+  "timer.reise.fortsattFra": "pokračování z {{dato}}",
+  "timer.reise.deltSlettLaast": "Časový rozvrh pro {{dato}} je uzamčen. Smazat lze pouze tuto část.",
+  "timer.reise.deltSlett.tekst": "Výlet je rozdělen o půlnoci. Smazat také {{fra}}–{{til}} na {{dato}}?",
+  "timer.reise.deltSlett.laast": "Výlet je rozdělen o půlnoci. Část na {{dato}} byla odeslána nebo schválena a není smazána. Smazat pouze tuto část?",
+  "timer.reise.deltSlett.alene": "Druhá část cesty již neexistuje. Smazat tuto část?",
+  "timer.reise.deltSlett.slettBegge": "Smazat obojí",
+  "timer.reise.deltSlett.bareDenne": "Pouze tento"
 }

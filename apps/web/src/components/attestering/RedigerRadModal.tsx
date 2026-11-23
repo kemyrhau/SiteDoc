@@ -897,6 +897,13 @@ function KompaktTimerRad({
           className="rounded border border-gray-300 px-1.5 py-1"
           placeholder="HH:MM"
         />
+        {/* O19 pkt 23: 24:00 (del 1 av en reise delt ved midnatt) kan ikke vises i et tidsfelt —
+            grensen står som tekst og lagres uendret. */}
+        {rad.tilTid === "24:00" ? (
+          <span data-testid="rad-til-2400" className="px-1.5 py-1 tabular-nums text-gray-800">
+            24:00
+          </span>
+        ) : (
         <input
           type="time"
           value={rad.tilTid ?? ""}
@@ -911,6 +918,7 @@ function KompaktTimerRad({
           className="rounded border border-gray-300 px-1.5 py-1"
           placeholder="HH:MM"
         />
+        )}
         <select
           value={rad.lonnsartId}
           onChange={(e) => onChange({ lonnsartId: e.target.value })}

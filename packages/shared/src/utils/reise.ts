@@ -72,6 +72,11 @@ export interface ReiseRegelSnapshot {
   overforing?: OverforingSnapshot;
   /** O1 TILLEGG: satt bare når arbeideren valgte annet enn regelen — det regelen foreslo. */
   regelKategori?: ReiseKategori;
+  /**
+   * O19 (vedtak-timer-web § Reisevinduet pkt 23): reisen er delt ved midnatt. Samme `delId` på
+   * begge radene; `del` 1 = start–24:00, 2 = 00:00–slutt. Les med `lesMidnattDel`.
+   */
+  midnatt?: { delId: string; del: 1 | 2 };
 }
 
 /**

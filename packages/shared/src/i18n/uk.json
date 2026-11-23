@@ -6071,5 +6071,22 @@
   "timer.reiseKort.sperre.overlapperFirma": "Перекриває {{navn}} ({{periode}}), встановлене компанією — виправте дати або попросіть адміністратора компанії змінити це",
   "timer.reiseKort.sperre.overlapperEgen": "Перекриває ваше тимчасове місце зустрічі {{navn}} ({{periode}}) — виправте дати",
   "timer.reiseKort.sperre.overlappServer": "Дати збігаються з іншою тимчасовою точкою зустрічі — виправте дати або попросіть адміністратора компанії змінити їх",
-  "timer.reiseKort.sperre.velgKontor": "Виберіть місце зустрічі, куди ви їхали"
+  "timer.reiseKort.sperre.velgKontor": "Виберіть місце зустрічі, куди ви їхали",
+  "timer.reiseKort.delesVedMidnatt": "Поїздка розділена опівночі: {{fra}}–24:00 реєструється {{dato1}}, 00:00–{{til}} {{dato2}}",
+  "timer.reiseKort.startetKveldenFoer": "Ви почали напередодні? {{fra}}–24:00 зареєстровано {{dato1}}, 00:00–{{til}} {{dato2}}",
+  "timer.reiseKort.naboSedelSendt": "Табель для {{dato}} надіслано. Поїздка не розділена — спочатку знову відкрийте {{dato}}.",
+  "timer.reiseKort.naboSedelAttestert": "Табель для {{dato}} затверджено. Поїздка не може бути розділена на північ.",
+  "timer.reiseKort.naboSedelAnnetFirma": "Табель для {{dato}} належить іншій компанії. Поїздка не розділена.",
+  "timer.reiseKort.sperre.paaKontor": "Ви на {{kontor}} о {{tid}}. Картка знаходиться на {{byggeplass}}. Змініть сайт у картці (Місце та діяльність), перш ніж реєструвати подорож.",
+  "timer.reiseKort.delLaast": "Частину на {{dato}} було надіслано або схвалено та не змінюється звідси.",
+  "timer.reiseKort.rettDel.tittel": "Поїздка розділена опівночі",
+  "timer.reiseKort.rettDel.tekst": "Також виправити частину {{dato}}?",
+  "timer.reise.fortsetter": "продовжується {{dato}}",
+  "timer.reise.fortsattFra": "продовження з {{dato}}",
+  "timer.reise.deltSlettLaast": "Табель для {{dato}} заблоковано. Тільки цю частину можна видалити.",
+  "timer.reise.deltSlett.tekst": "Подорож розділена опівночі. Також видалити {{fra}}–{{til}} на {{dato}}?",
+  "timer.reise.deltSlett.laast": "Подорож розділена опівночі. Частина на {{dato}} була надіслана або затверджена та не видалена. Видалити лише цю частину?",
+  "timer.reise.deltSlett.alene": "Інша частина подорожі більше не існує. Видалити цю частину?",
+  "timer.reise.deltSlett.slettBegge": "Видалити обидва",
+  "timer.reise.deltSlett.bareDenne": "Тільки цей"
 }

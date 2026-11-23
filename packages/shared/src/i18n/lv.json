@@ -6071,5 +6071,22 @@
   "timer.reiseKort.sperre.overlapperFirma": "Pārklājumi {{navn}} ({{periode}}), ko nosaka uzņēmums — labojiet datumus vai lūdziet uzņēmuma administratoram tos mainīt",
   "timer.reiseKort.sperre.overlapperEgen": "Pārklājas jūsu pagaidu tikšanās vieta {{navn}} ({{periode}}) — labojiet datumus",
   "timer.reiseKort.sperre.overlappServer": "Datumi pārklājas ar citu pagaidu tikšanās punktu — labojiet datumus vai lūdziet uzņēmuma administratoram tos mainīt",
-  "timer.reiseKort.sperre.velgKontor": "Atlasiet tikšanās vietu, uz kuru braucāt"
+  "timer.reiseKort.sperre.velgKontor": "Atlasiet tikšanās vietu, uz kuru braucāt",
+  "timer.reiseKort.delesVedMidnatt": "Brauciens tiek sadalīts pusnaktī: {{fra}}–24:00 ir reģistrēts {{dato1}}, 00:00–{{til}} {{dato2}}",
+  "timer.reiseKort.startetKveldenFoer": "Vai jūs sākāt vakaru iepriekš? {{fra}}–24:00 ir reģistrēts {{dato1}}, 00:00–{{til}} {{dato2}}",
+  "timer.reiseKort.naboSedelSendt": "{{dato}} laika uzskaite ir nosūtīta. Ceļojums nav sadalīts — vispirms atveriet {{dato}}.",
+  "timer.reiseKort.naboSedelAttestert": "{{dato}} laika uzskaite ir apstiprināta. Ceļojumu nevar sadalīt pusnaktī.",
+  "timer.reiseKort.naboSedelAnnetFirma": "{{dato}} laika uzskaite pieder citam uzņēmumam. Ceļojums nav sadalīts.",
+  "timer.reiseKort.sperre.paaKontor": "Jūs atrodaties {{kontor}} plkst. {{tid}}. Karte ir uz {{byggeplass}}. Pirms ceļojuma reģistrēšanas nomainiet vietu kartē (vieta un darbība).",
+  "timer.reiseKort.delLaast": "Daļa uz {{dato}} ir nosūtīta vai apstiprināta, un tā netiek mainīta no šejienes.",
+  "timer.reiseKort.rettDel.tittel": "Brauciens tiek sadalīts pusnaktī",
+  "timer.reiseKort.rettDel.tekst": "Vai labot arī {{dato}} daļu?",
+  "timer.reise.fortsetter": "turpinās {{dato}}",
+  "timer.reise.fortsattFra": "turpinājums no {{dato}}",
+  "timer.reise.deltSlettLaast": "{{dato}} laika uzskaite ir bloķēta. Dzēst var tikai šo daļu.",
+  "timer.reise.deltSlett.tekst": "Brauciens tiek sadalīts pusnaktī. Vai dzēst arī {{fra}}–{{til}} šādā datumā: {{dato}}?",
+  "timer.reise.deltSlett.laast": "Brauciens tiek sadalīts pusnaktī. Daļa datumā {{dato}} ir nosūtīta vai apstiprināta un nav dzēsta. Vai dzēst tikai šo daļu?",
+  "timer.reise.deltSlett.alene": "Otra ceļojuma daļa vairs nepastāv. Vai dzēst šo daļu?",
+  "timer.reise.deltSlett.slettBegge": "Dzēst abus",
+  "timer.reise.deltSlett.bareDenne": "Tikai šis"
 }

@@ -6071,5 +6071,22 @@
   "timer.reiseKort.sperre.overlapperFirma": "Pokrywa się {{navn}} ({{periode}}), ustawione przez firmę — popraw daty lub poproś administratora firmy o zmianę",
   "timer.reiseKort.sperre.overlapperEgen": "Pokrywa się z tymczasowym miejscem spotkania {{navn}} ({{periode}}) — popraw daty",
   "timer.reiseKort.sperre.overlappServer": "Daty pokrywają się z innym tymczasowym miejscem spotkań — popraw daty lub poproś administratora firmy o zmianę",
-  "timer.reiseKort.sperre.velgKontor": "Wybierz miejsce spotkania, do którego pojechałeś"
+  "timer.reiseKort.sperre.velgKontor": "Wybierz miejsce spotkania, do którego pojechałeś",
+  "timer.reiseKort.delesVedMidnatt": "Podróż jest rozdzielana o północy: {{fra}}–24:00 jest zalogowany {{dato1}}, 00:00–{{til}} w dniu {{dato2}}",
+  "timer.reiseKort.startetKveldenFoer": "Zacząłeś wieczorem wcześniej? {{fra}}–24:00 jest zalogowany {{dato1}}, 00:00–{{til}} w dniu {{dato2}}",
+  "timer.reiseKort.naboSedelSendt": "Grafik dla {{dato}} został wysłany. Podróż nie jest podzielona — najpierw otwórz ponownie {{dato}}.",
+  "timer.reiseKort.naboSedelAttestert": "Grafik dla {{dato}} został zatwierdzony. Wycieczki nie można podzielić o północy.",
+  "timer.reiseKort.naboSedelAnnetFirma": "Karta czasu pracy dla {{dato}} należy do innej firmy. Wycieczka nie jest podzielona.",
+  "timer.reiseKort.sperre.paaKontor": "Jesteś w {{kontor}} o {{tid}}. Karta jest na {{byggeplass}}. Przed zarejestrowaniem przejazdu zmień miejsce w karcie (Miejsce i czynność).",
+  "timer.reiseKort.delLaast": "Część na {{dato}} została wysłana lub zatwierdzona i od tego momentu nie ulega zmianie.",
+  "timer.reiseKort.rettDel.tittel": "Wycieczka zostanie rozdzielona o północy",
+  "timer.reiseKort.rettDel.tekst": "Popraw także część dotyczącą {{dato}}?",
+  "timer.reise.fortsetter": "kontynuuje {{dato}}",
+  "timer.reise.fortsattFra": "kontynuacja od {{dato}}",
+  "timer.reise.deltSlettLaast": "Grafik dla {{dato}} jest zablokowany. Tylko tę część można usunąć.",
+  "timer.reise.deltSlett.tekst": "Wycieczka zostanie rozdzielona o północy. Usunąć także {{fra}}–{{til}} na {{dato}}?",
+  "timer.reise.deltSlett.laast": "Wycieczka zostanie rozdzielona o północy. Część na {{dato}} została wysłana lub zatwierdzona i nie została usunięta. Usunąć tylko tę część?",
+  "timer.reise.deltSlett.alene": "Dalsza część podróży już nie istnieje. Usunąć tę część?",
+  "timer.reise.deltSlett.slettBegge": "Usuń oba",
+  "timer.reise.deltSlett.bareDenne": "Tylko ten"
 }

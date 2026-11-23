@@ -520,27 +520,42 @@ describe("O6 (§ 8.22) — «Antall timer» følger retningen", () => {
     expect(input).toMatchObject({ fraTid: "12:00", tilTid: "13:00", timer: 1 });
   });
 
-  it("Til byggeplass nær midnatt: Start klemmes til 00:00, feltet viser det som lagres (gate 136 vilkår 1)", async () => {
+  it("O19 pkt 24: «Til byggeplass» nær midnatt — Start går over midnatt, reisen deles (ingen klemming)", async () => {
     const d = rendre({ timer: [arbeid({ fraTid: "00:30", tilTid: "05:00", timer: "4.5" })] });
     expect(slutt(d).value).toBe("00:30");
     fireEvent.change(antall(d), { target: { value: "1" } });
-    expect(start(d).value).toBe("00:00");
+    expect(start(d).value).toBe("23:30");
     expect(slutt(d).value).toBe("00:30");
-    expect(antall(d).value).toBe("0.5");
-    const lagret = (await lagre(d))!;
-    expect(lagret).toMatchObject({ fraTid: "00:00", tilTid: "00:30", timer: 0.5 });
+    expect(antall(d).value).toBe("1");
+    expect(within(d).getByTestId("reise-midnatt-boks").textContent).toBe(
+      'timer.reiseKort.startetKveldenFoer{"fra":"23:30","dato1":"04.11","til":"00:30","dato2":"05.11"}',
+    );
+    expect(await lagre(d)).toBeUndefined();
+    expect(h.kall.find((k) => k.key === "timer.dagsseddel.tilfoyDeltReise")?.input).toMatchObject({
+      sheetId: "s1",
+      vei: "bak",
+      del1: { fraTid: "23:30", tilTid: "24:00" },
+      del2: { fraTid: "00:00", tilTid: "00:30" },
+      reiseKilde: "manuell",
+    });
   });
 
-  it("Fra byggeplass nær midnatt: Slutt klemmes til 23:59, feltet viser det som lagres (gate 136 vilkår 1)", async () => {
+  it("O19 pkt 23: «Fra byggeplass» nær midnatt — Slutt går over midnatt, reisen deles fram", async () => {
     const d = rendre({ timer: [arbeid({ fraTid: "18:00", tilTid: "23:29", timer: "5.48" })] });
     fireEvent.click(knapp(d, "timer.reiseKort.retur"));
     expect(start(d).value).toBe("23:29");
     fireEvent.change(antall(d), { target: { value: "1" } });
-    expect(start(d).value).toBe("23:29");
-    expect(slutt(d).value).toBe("23:59");
-    expect(antall(d).value).toBe("0.5");
-    const lagret = (await lagre(d))!;
-    expect(lagret).toMatchObject({ fraTid: "23:29", tilTid: "23:59", timer: 0.5 });
+    expect(slutt(d).value).toBe("00:29");
+    expect(antall(d).value).toBe("1");
+    expect(within(d).getByTestId("reise-midnatt-boks").textContent).toBe(
+      'timer.reiseKort.delesVedMidnatt{"fra":"23:29","dato1":"05.11","til":"00:29","dato2":"06.11"}',
+    );
+    expect(await lagre(d)).toBeUndefined();
+    expect(h.kall.find((k) => k.key === "timer.dagsseddel.tilfoyDeltReise")?.input).toMatchObject({
+      vei: "fram",
+      del1: { fraTid: "23:29", tilTid: "24:00" },
+      del2: { fraTid: "00:00", tilTid: "00:29" },
+    });
   });
 });
 
@@ -784,5 +799,86 @@ describe("O16 — «Til annet oppmøtested» og periodene", () => {
     expect(await lagre(d)).toBeUndefined();
     expect(overforing()).toHaveLength(1);
     expect(d.querySelector("p.text-red-600")?.textContent).toBe("timer.reiseKort.sperre.overlappServer");
+  });
+});
+
+describe("O19 — reisevinduet: pkt 20, 23–25", () => {
+  afterEach(cleanup);
+  const antall = (d: HTMLElement) => d.querySelector("#reise-antall") as HTMLInputElement;
+  const deltKall = () => h.kall.find((k) => k.key === "timer.dagsseddel.tilfoyDeltReise")?.input;
+  const narvikEgen: OppmotePeriodeInput = {
+    id: "pe",
+    type: "kontor",
+    fast: false,
+    oppmotestedId: "narvik",
+    projectId: null,
+    fraDato: DATO,
+    tilDato: null,
+    kilde: "overforing",
+  };
+  /** Kontorreisen Tromsø → Narvik 04:00–07:00 i kortet (pkt 21). */
+  const kontorreise = (over: Rad = {}): Rad =>
+    arbeid({
+      id: "r0",
+      lonnsartId: "lr",
+      erReise: true,
+      fraTid: "04:00",
+      tilTid: "07:00",
+      timer: "3",
+      reiseKilde: "overforing",
+      reiseRetning: "ut",
+      reiseRegel: { overforing: { fra: { type: "kontor", oppmotestedId: "tromso" }, til: { type: "kontor", oppmotestedId: "narvik" } } },
+      createdAt: "2026-11-05T04:00:00.000Z",
+      ...over,
+    });
+
+  it("pkt 20: teksten under terskel står i en blå boks", () => {
+    const d = rendre();
+    expect(within(d).getByTestId("reise-under-terskel").className).toContain("bg-blue-50");
+  });
+
+  it("pkt 24: «Til byggeplass» Start 19:00 etter Slutt 07:00 → «Startet du kvelden før?», deles bak", async () => {
+    const d = rendre();
+    fireEvent.change(start(d), { target: { value: "19:00" } });
+    expect(within(d).getByTestId("reise-midnatt-boks").textContent).toBe(
+      'timer.reiseKort.startetKveldenFoer{"fra":"19:00","dato1":"04.11","til":"07:00","dato2":"05.11"}',
+    );
+    expect(d.textContent).not.toContain("timer.feil.sluttForStart");
+    await lagre(d);
+    expect(deltKall()).toMatchObject({ vei: "bak", del1: { fraTid: "19:00", tilTid: "24:00" }, del2: { fraTid: "00:00", tilTid: "07:00" } });
+    expect(h.kall.some((k) => k.key === "timer.dagsseddel.tilfoyTimerRad")).toBe(false);
+  });
+
+  it("negativkontroll: reise innenfor døgnet → ingen boks, vanlig rad", async () => {
+    const d = rendre();
+    expect(within(d).queryByTestId("reise-midnatt-boks")).toBeNull();
+    const input = (await lagre(d))!;
+    expect(input).toMatchObject({ fraTid: "06:56", tilTid: "07:00" });
+    expect(deltKall()).toBeUndefined();
+  });
+
+  it("pkt 23: overlapp sjekkes på delen som står på dagens sedel (00:00–00:30)", () => {
+    const d = rendre({ timer: [arbeid({ fraTid: "00:30", tilTid: "05:00", timer: "4.5" }), arbeid({ id: "r2", lonnsartId: "lr", erReise: true, reiseRetning: "retur", fraTid: "00:05", tilTid: "00:20", kortId: "k2", projectId: "p2", byggeplassId: "b2" })] });
+    fireEvent.change(antall(d), { target: { value: "1" } });
+    expect(within(d).getByTestId("reise-midnatt-boks")).toBeTruthy();
+    expect(d.textContent).toContain("timer.feil.overlappKort");
+    expect(d.textContent).toContain('"fra":"00:00","til":"00:30","annenFra":"00:05"');
+    expect(lagreKnapp(d).disabled).toBe(true);
+  });
+
+  it("pkt 25: «Til byggeplass» som overlapper kontorreisen → stopp med lenke til «Sted og aktivitet»", () => {
+    const d = rendre({ timer: [kontorreise(), arbeid()], perioder: [FAST_TROMSO, narvikEgen] });
+    const p = within(d).getByTestId("reise-paa-kontor");
+    expect(p.textContent).toContain('timer.reiseKort.sperre.paaKontor{"kontor":"Kontor Narvik","tid":"07:00","byggeplass":"sommerfeldtsgt 65"}');
+    expect(d.textContent).not.toContain("timer.feil.overlapp");
+    expect(lagreKnapp(d).disabled).toBe(true);
+    fireEvent.click(within(p).getByRole("button", { name: "timer.jobbSkjema.aapneVindu" }));
+    expect(screen.queryByRole("dialog", { name: "timer.reiseKort.tittel" })).toBeNull();
+  });
+
+  it("pkt 25 negativkontroll: «Fra byggeplass» med samme rader stoppes ikke av kontorreisen", () => {
+    const d = rendre({ timer: [kontorreise(), arbeid()], perioder: [FAST_TROMSO, narvikEgen] });
+    fireEvent.click(knapp(d, "timer.reiseKort.retur"));
+    expect(within(d).queryByTestId("reise-paa-kontor")).toBeNull();
   });
 });
