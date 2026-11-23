@@ -141,6 +141,8 @@ function rendre({
   timer = [arbeid()] as Rad[],
   kontorer = 2,
   perioder = [FAST_TROMSO] as OppmotePeriodeInput[],
+  /** O18 S1: kjøretid Narvik → b1 (230 = over terskel). */
+  narvikMin = 230,
 } = {}) {
   h.kall = [];
   h.utelat.clear();
@@ -191,7 +193,7 @@ function rendre({
     "oppmotested.hentMatriseForFirma": [
       { oppmotestedId: "tromso", byggeplassId: "b1", kjoretidMin: 4, avstandM: 2000 },
       { oppmotestedId: "tromso", byggeplassId: "b2", kjoretidMin: 35, avstandM: 30000 },
-      { oppmotestedId: "narvik", byggeplassId: "b1", kjoretidMin: 230, avstandM: 250000 },
+      { oppmotestedId: "narvik", byggeplassId: "b1", kjoretidMin: narvikMin, avstandM: 250000 },
       { oppmotestedId: "alta", byggeplassId: "b1", kjoretidMin: 300, avstandM: 400000 },
     ],
     "oppmotested.hentKontorAvstanderForFirma": [
@@ -217,15 +219,16 @@ function rendre({
 const knapp = (d: HTMLElement, navn: string) => within(d).getByRole("button", { name: navn });
 const start = (d: HTMLElement) => within(d).getByLabelText("timer.reiseKort.startKl") as HTMLInputElement;
 const slutt = (d: HTMLElement) => within(d).getByLabelText("timer.reiseKort.sluttKl") as HTMLInputElement;
-const lagreKnapp = (d: HTMLElement) => knapp(d, "handling.lagre") as HTMLButtonElement;
+/** O18 (pkt 20): under terskel er primærknappen «Før som reisetid likevel», ellers «Lagre». */
+const lagreKnapp = (d: HTMLElement) =>
+  (within(d).queryByRole("button", { name: "handling.lagre" }) ??
+    knapp(d, "timer.reiseKort.forSomReisetidLikevel")) as HTMLButtonElement;
 /** Kontorvalget skriver perioden først (async) — vent til raden er sendt. */
 async function lagre(d: HTMLElement) {
   fireEvent.click(lagreKnapp(d));
-  // O12 pkt 12 / pkt 9: svar «Ja, lagre» og «Behold arbeidstid» når dialogene åpnes.
+  // O12 pkt 12: svar «Ja, lagre» når dialogen åpnes.
   const sjekk = screen.queryByRole("dialog", { name: "timer.reiseKort.kortSjekk.tittel" });
   if (sjekk) fireEvent.click(within(sjekk).getByRole("button", { name: "timer.reiseKort.kortSjekk.jaLagre" }));
-  const terskel = screen.queryByRole("dialog", { name: "timer.reiseKort.terskelDialog.tittel" });
-  if (terskel) fireEvent.click(within(terskel).getByRole("button", { name: "timer.reiseKort.terskelDialog.beholdArbeidstid" }));
   await new Promise((r) => setTimeout(r, 0));
   return h.kall.find((k) => k.key === "timer.dagsseddel.tilfoyTimerRad")?.input;
 }
@@ -297,20 +300,53 @@ describe("w15b — reisevinduet: systemet foreslår, arbeideren retter", () => {
   });
 
   // O10 (§ 8.22): «Lagre» lagrer også kontorvalget når «Føres som» står på Arbeidstid (som før O8).
-  it("annet kontor + Arbeidstid: «Lagre» skriver perioden og fører arbeidsraden", async () => {
+  it("annet kontor over terskel: «Lagre» skriver perioden og fører reisen", async () => {
     const d = rendre();
     fireEvent.change(within(d).getByLabelText("timer.reiseKort.oppmotested"), { target: { value: "narvik" } });
-    fireEvent.click(within(d).getByRole("button", { name: "timer.reiseKort.arbeidstid" }));
-    expect(within(d).queryByRole("button", { name: "timer.reiseKort.lagreKontor" })).toBeNull();
+    // O18: «Arbeidstid» er ikke et valg for ny reise.
+    expect(within(d).queryByRole("button", { name: "timer.reiseKort.arbeidstid" })).toBeNull();
+    expect(within(d).queryByRole("button", { name: "timer.reiseKort.lagreOppmotested" })).toBeNull();
     expect(within(d).queryByRole("button", { name: "handling.lukk" })).toBeNull();
     const input = (await lagre(d))!;
-    expect(input).toMatchObject({ projectId: "p1", tilTid: "07:00" });
-    expect(input.reiseKilde).toBeUndefined();
+    expect(input).toMatchObject({ projectId: "p1", tilTid: "07:00", reiseKilde: "manuell" });
+    expect(input).not.toHaveProperty("arbeidReiseRetning");
     expect(h.kall.find((k) => k.key === "oppmotePeriode.overforing")?.input).toMatchObject({
       handling: "start",
       oppmotestedId: "narvik",
       dato: DATO,
     });
+  });
+
+  // O18 S1 (Kenneth «s1 ja»): under terskel lagrer «Lagre oppmøtested» bare stedsbyttet.
+  it("O18 S1: annet kontor under terskel — «Lagre oppmøtested» skriver perioden, ingen rad", async () => {
+    const d = rendre({ narvikMin: 10 });
+    fireEvent.change(within(d).getByLabelText("timer.reiseKort.oppmotested"), { target: { value: "narvik" } });
+    expect(within(d).getByTestId("reise-oppmote-boks")).toBeTruthy();
+    expect(within(d).getByTestId("reise-under-terskel")).toBeTruthy();
+    expect(within(d).queryByRole("button", { name: "handling.lagre" })).toBeNull();
+    fireEvent.click(knapp(d, "timer.reiseKort.lagreOppmotested"));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(h.kall.find((k) => k.key === "oppmotePeriode.overforing")?.input).toMatchObject({
+      handling: "start",
+      oppmotestedId: "narvik",
+      dato: DATO,
+    });
+    expect(h.kall.some((k) => k.key === "timer.dagsseddel.tilfoyTimerRad")).toBe(false);
+  });
+
+  it("O18 S1: annet kontor under terskel — «Før som reisetid likevel» skriver perioden og reisen", async () => {
+    const d = rendre({ narvikMin: 10 });
+    fireEvent.change(within(d).getByLabelText("timer.reiseKort.oppmotested"), { target: { value: "narvik" } });
+    const input = (await lagre(d))!;
+    expect(input).toMatchObject({ lonnsartId: "lr", reiseKilde: "manuell", reiseOppmotestedId: "narvik" });
+    expect(input).not.toHaveProperty("arbeidReiseRetning");
+    expect(h.kall.find((k) => k.key === "oppmotePeriode.overforing")?.input).toMatchObject({ oppmotestedId: "narvik" });
+  });
+
+  it("O18 S1 negativkontroll: uten annet kontor finnes ikke «Lagre oppmøtested»", () => {
+    const d = rendre();
+    expect(within(d).getByTestId("reise-under-terskel")).toBeTruthy();
+    expect(within(d).queryByRole("button", { name: "timer.reiseKort.lagreOppmotested" })).toBeNull();
   });
 
   it("negativkontroll: uten annet kontor kalles ikke oppmotePeriode.overforing", async () => {

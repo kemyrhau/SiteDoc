@@ -243,7 +243,9 @@ describe("O14 pkt 2 — pennen på en reise åpner «Reise» i redigering", () =
     expect(start(d).value).toBe("15:00");
     expect(slutt(d).value).toBe("15:30");
     expect((within(d).getByLabelText("timer.felt.antallTimer") as HTMLInputElement).value).toBe("0.5");
-    expect(knapp(d, "timer.reisetid").getAttribute("aria-pressed")).toBe("true");
+    // O18 S5 A: en lagret Reisetid har ingen «Føres som» — «Arbeidstid» kan ikke velges.
+    expect(within(d).queryByRole("button", { name: "timer.reiseKort.arbeidstid" })).toBeNull();
+    expect(within(d).queryByRole("button", { name: "timer.reisetid" })).toBeNull();
     expect((within(d).getByLabelText("timer.felt.underprosjekt") as HTMLSelectElement).value).toBe("eco1");
     expect(within(d).getByTestId("reise-kort-sted").textContent).toContain("Sitedoc Boligfelt B12 · sommerfeldtsgt 65");
     // O16 pkt 5: oppmøtestedet er tekst i redigering — ingen nedtrekk, ingen periode, ingen tredje retning.
@@ -410,7 +412,8 @@ describe("O14 pkt 4 (R5) — et kort med bare reise krever beskrivelse", () => {
     const d = reiseVindu();
     expect(d.textContent).toContain("label.valgfritt");
     fireEvent.change(beskrivelseFelt(d), { target: { value: "Til byggeplass" } });
-    fireEvent.click(lagreKnapp(d));
+    // O18: turen er under terskel — primærknappen er «Før som reisetid likevel».
+    fireEvent.click(knapp(d, "timer.reiseKort.forSomReisetidLikevel"));
     const sjekk = screen.queryByRole("dialog", { name: "timer.reiseKort.kortSjekk.tittel" });
     if (sjekk) fireEvent.click(within(sjekk).getByRole("button", { name: "timer.reiseKort.kortSjekk.jaLagre" }));
     await new Promise((r) => setTimeout(r, 0));
