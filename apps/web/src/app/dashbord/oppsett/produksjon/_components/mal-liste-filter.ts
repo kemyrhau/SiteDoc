@@ -18,3 +18,28 @@ export function hørerTilMalListe(
   if (kategori === "hms") return erHms;
   return !erHms && mal.category === kategori;
 }
+
+/**
+ * HM1 tillegg B (Kenneth 2026-11-23): kategorien rediger-dialogen lagrer.
+ *
+ * Dialogen viser «HMS» som type for alle `domain === "hms"`-maler. En seedet HMS-mal
+ * (category oppgave/sjekkliste) skal beholde kategorien sin — ellers mister den
+ * oppgave-/sjekkliste-egenskapene, og med dokumenter avviser `mal.oppdater` lagringen
+ * («Kan ikke endre mal-type»). Skifter brukeren undertype, følger formen undertypen
+ * (SJA → sjekkliste, avvik/RUH → oppgave), slik serveren krever.
+ *  - Valgt type ikke HMS: valgt type lagres.
+ *  - Valgt HMS, malen var domain hms med category oppgave/sjekkliste: form etter undertype.
+ *  - Ellers: «hms» (eldre HMS-mal, eller byggmal gjort om til HMS — «Ny HMS-mal»-regelen).
+ */
+export function lagretMalKategori(
+  valgt: MalListeKategori,
+  opprinnelig: { category: string; domain: string },
+  hmsSubdomain: "avvik" | "sja" | "ruh",
+): MalListeKategori {
+  if (valgt !== "hms") return valgt;
+  const seedetHms =
+    opprinnelig.domain === "hms" &&
+    (opprinnelig.category === "oppgave" || opprinnelig.category === "sjekkliste");
+  if (!seedetHms) return "hms";
+  return hmsSubdomain === "sja" ? "sjekkliste" : "oppgave";
+}

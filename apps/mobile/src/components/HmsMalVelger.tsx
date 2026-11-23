@@ -11,6 +11,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { X } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
+import { erMeldbarHmsMal } from "@sitedoc/shared";
 import { trpc } from "../lib/trpc";
 import { useProsjekt } from "../kontekst/ProsjektKontekst";
 
@@ -29,12 +30,13 @@ interface MalRef {
   prefix: string | null;
   subdomain: string | null;
   category?: string;
+  domain?: string | null;
 }
 
 /**
- * HMS-mal-velger for mobil. Generisk `MalVelger` filtrerer på category
- * "sjekkliste"|"oppgave" og viser derfor ikke HMS-maler (category="hms").
- * Denne henter HMS-maler og grupperer dem på subdomain (avvik/SJA/RUH),
+ * HMS-mal-velger for mobil. Viser alle domain hms-maler (avvik/SJA/RUH) uansett
+ * category — `erMeldbarHmsMal`, samme regel som web-ens «Meld HMS» (HM1 tillegg A).
+ * Grupperes på subdomain (avvik/SJA/RUH),
  * med hjelpetekst per type. Speiler web-ens «Meld HMS»-dropdown.
  */
 export function HmsMalVelger({
@@ -57,11 +59,8 @@ export function HmsMalVelger({
   const hmsMaler = useMemo(() => {
     const maler = (malerQuery.data ?? []) as MalRef[];
     return maler
-      .filter(
-        (m) =>
-          m.category === "hms" &&
-          (m.subdomain === "avvik" || m.subdomain === "sja" || m.subdomain === "ruh"),
-      )
+      // HM1 tillegg A: domain hms (også seedede category oppgave/sjekkliste), delt med web.
+      .filter(erMeldbarHmsMal)
       .map((m) => ({ ...m, subdomain: m.subdomain as HmsSubdomain }));
   }, [malerQuery.data]);
 

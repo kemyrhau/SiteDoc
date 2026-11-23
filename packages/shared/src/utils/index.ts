@@ -756,3 +756,5 @@ export {
   type OverlappRad,
   type OverlappSted,
 } from "./returSedel";
+// HM1 tillegg A: «Meld HMS» viser domain hms-maler (web + mobil).
+export { erMeldbarHmsMal, type MeldHmsSubdomain } from "./meldHmsMal";
