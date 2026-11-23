@@ -103,7 +103,7 @@ Filer: `RK` = `apps/web/src/app/dashbord/timer/[id]/ReiseKort.tsx` · `MR` = `ap
 21. En reise mellom to kontorer vises som «Kontor Tromsø → Kontor Narvik» i kortlisten, og eksporten fyller «Til» med kontoret.
     Kenneth 2026-11-23: «funn1 ja med eksport».
     🟡 Vedtatt, ikke bygget. I dag: kortlisten viser prosjektnavnet («Fra Skole 15:00–18:50»), og «Til» står tom i eksporten.
-22. «Avslutt» med en «Siste dag» før periodens start sier at perioden fjernes («Kontor Tromsø fra 23.11 fjernes») før arbeideren trykker.
+22. «Avslutt» med en «Siste dag» før periodens start sier at perioden fjernes, med samme tekst som boksen («Perioden din Kontor Tromsø fra 23.11 fjernes.»), før arbeideren trykker.
     Kenneth 2026-11-23: «funn2 ja».
     🟡 Vedtatt, ikke bygget. I dag: perioden slettes uten tekst i «Avslutt»-linja.
 
