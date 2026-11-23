@@ -20,8 +20,10 @@ import { buildTestContext } from "../test-harness/context";
  * ekte DB. Mål-DB: localhost-sandkasse.
  */
 
-type Rolle = "melder" | "behandler" | "admin" | "padmGruppe" | "medlem" | "fremmed";
-const brukere: Record<Rolle, string> = { melder: "", behandler: "", admin: "", padmGruppe: "", medlem: "", fremmed: "" };
+type Rolle = "melder" | "behandler" | "admin" | "padmGruppe" | "medlem" | "fremmed" | "flytMottaker" | "flytMedlem";
+const brukere: Record<Rolle, string> = {
+  melder: "", behandler: "", admin: "", padmGruppe: "", medlem: "", fremmed: "", flytMottaker: "", flytMedlem: "",
+};
 const ids = { projectId: "", annetProsjektId: "", hmsGruppeId: "", padmGruppeId: "", avvikId: "", ruhId: "", sjaId: "" };
 const maler: Record<string, string> = {};
 
@@ -275,6 +277,41 @@ describe("H3-1: andre lesestier — byggTilgangsFilter (Bilder-siden og domene-l
     await expect(oppgave("admin").hentForSjekkliste({ checklistId: privat.sjekklisteId })).rejects.toMatchObject({ code: "FORBIDDEN" });
     await expect(oppgave("behandler").hentForSjekkliste({ checklistId: privat.sjekklisteId })).resolves.toEqual([]);
     await expect(oppgave("melder").hentForSjekkliste({ checklistId: privat.sjekklisteId })).resolves.toEqual([]);
+  });
+});
+
+describe("H3-3: part i flyten beholder private HMS-saker i lista (speiler erPart && i flyten)", () => {
+  let avvikId = "";
+
+  beforeAll(async () => {
+    // Privat HMS-avvik meldt av «melder» og sendt inn (har flyt). «flytMottaker» og «flytMedlem»
+    // er vanlige medlemmer bundet direkte (projectMemberId) til avvikets flyt; ingen er behandler.
+    avvikId = (await oppgave("melder").opprett({ templateId: maler.HMS!, title: "Videresendt avvik" })).id;
+    await oppgave("melder").hmsSendInn({ id: avvikId });
+    const { dokumentflytId } = await prisma.task.findUniqueOrThrow({ where: { id: avvikId }, select: { dokumentflytId: true } });
+    expect(dokumentflytId).toBeTruthy();
+    for (const r of ["flytMottaker", "flytMedlem"] as const) {
+      const pm = await prisma.projectMember.create({ data: { userId: brukere[r], projectId: ids.projectId, role: "member" } });
+      await prisma.dokumentflytMedlem.create({ data: { dokumentflytId: dokumentflytId!, projectMemberId: pm.id, rolle: "utforer" } });
+    }
+    await prisma.task.update({ where: { id: avvikId }, data: { recipientUserId: brukere.flytMottaker } });
+  });
+
+  it("forutsetning: ingen av dem er behandler, og detaljgaten slipper inn mottakeren, ikke den andre", async () => {
+    expect(await hms("flytMottaker").erHmsAdmin({ projectId: ids.projectId })).toBe(false);
+    expect(await hms("flytMedlem").erHmsAdmin({ projectId: ids.projectId })).toBe(false);
+    await expect(oppgave("flytMottaker").hentMedId({ id: avvikId })).resolves.toMatchObject({ id: avvikId });
+    await expect(oppgave("flytMedlem").hentMedId({ id: avvikId })).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
+  it.each([
+    ["flytMottaker", true],
+    ["flytMedlem", false],
+  ] as const)("hms.hentDokumenter og oppgave.hentForProsjekt({ domain: hms }) — %s → %s", async (r, forventet) => {
+    const l = await hms(r).hentDokumenter({ projectId: ids.projectId });
+    expect(l.avvik.map((d) => d.id).includes(avvikId)).toBe(forventet);
+    const o = (await oppgave(r).hentForProsjekt({ projectId: ids.projectId, domain: "hms" })).map((d) => d.id);
+    expect(o.includes(avvikId)).toBe(forventet);
   });
 });
 

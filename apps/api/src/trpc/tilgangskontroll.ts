@@ -1565,11 +1565,21 @@ export async function byggTilgangsFilter(
     medlem.groupMemberships.map((gm) => gm.groupId),
   );
   if (flytIder.length > 0) {
-    // F1-A i detaljgaten: flyt-medlemskap gir ikke private HMS-saker. Lista følger (H3-1),
-    // så en tittel ikke vises for noen som ikke kan åpne saken. HMS-behandleren ser alt.
+    // F1-A i detaljgaten: flyt-medlemskap alene gir ikke private HMS-saker. Lista følger (H3-1),
+    // så en tittel ikke vises for noen som ikke kan åpne saken. HMS-behandleren ser alt; en part
+    // (bestiller/mottaker) i flyten beholder saken, som `erPart && i flyten` i detaljgaten (H3-3).
     const behandler = erHmsBehandler ?? (await erHmsAdmin(userId, projectId));
     const flytBetingelse = { dokumentflytId: { in: flytIder } };
-    orBetingelser.push(behandler ? flytBetingelse : { AND: [flytBetingelse, IKKE_PRIVAT_HMS] });
+    orBetingelser.push(
+      behandler
+        ? flytBetingelse
+        : {
+            AND: [
+              flytBetingelse,
+              { OR: [IKKE_PRIVAT_HMS, { bestillerUserId: userId }, { recipientUserId: userId }] },
+            ],
+          },
+    );
   }
 
   if (orBetingelser.length === 0) {
