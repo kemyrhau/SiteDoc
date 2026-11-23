@@ -6071,5 +6071,22 @@
   "timer.reiseKort.sperre.overlapperFirma": "Overlapper {{navn}} {{periode}}, satt av firmaet — rett datoene eller be firmaadmin endre perioden",
   "timer.reiseKort.sperre.overlapperEgen": "Overlapper perioden din {{navn}} {{periode}} — rett datoene",
   "timer.reiseKort.sperre.overlappServer": "Perioden overlapper en annen midlertidig periode — rett datoene eller be firmaadmin endre den",
-  "timer.reiseKort.sperre.velgKontor": "Velg oppmøtestedet du kjørte til"
+  "timer.reiseKort.sperre.velgKontor": "Velg oppmøtestedet du kjørte til",
+  "timer.reiseKort.delesVedMidnatt": "Reisen deles ved midnatt: {{fra}}–24:00 føres {{dato1}}, 00:00–{{til}} føres {{dato2}}",
+  "timer.reiseKort.startetKveldenFoer": "Startet du kvelden før? {{fra}}–24:00 føres {{dato1}}, 00:00–{{til}} føres {{dato2}}",
+  "timer.reiseKort.naboSedelSendt": "Sedelen for {{dato}} er sendt. Reisen deles ikke — åpne {{dato}} på nytt først.",
+  "timer.reiseKort.naboSedelAttestert": "Sedelen for {{dato}} er attestert. Reisen kan ikke deles ved midnatt.",
+  "timer.reiseKort.naboSedelAnnetFirma": "Sedelen for {{dato}} er i et annet firma. Reisen deles ikke.",
+  "timer.reiseKort.sperre.paaKontor": "Du er på {{kontor}} kl. {{tid}}. Kortet står på {{byggeplass}}. Bytt byggeplass i kortet (Sted og aktivitet) før du fører reisen.",
+  "timer.reiseKort.delLaast": "Delen {{dato}} er sendt eller attestert og rettes ikke herfra.",
+  "timer.reiseKort.rettDel.tittel": "Reisen er delt ved midnatt",
+  "timer.reiseKort.rettDel.tekst": "Rett også delen {{dato}}?",
+  "timer.reise.fortsetter": "fortsetter {{dato}}",
+  "timer.reise.fortsattFra": "fortsatt fra {{dato}}",
+  "timer.reise.deltSlettLaast": "Sedelen for {{dato}} er låst. Bare denne delen kan slettes.",
+  "timer.reise.deltSlett.tekst": "Reisen er delt ved midnatt. Slett også {{fra}}–{{til}} {{dato}}?",
+  "timer.reise.deltSlett.laast": "Reisen er delt ved midnatt. Delen {{dato}} er sendt eller attestert og slettes ikke. Slette bare denne delen?",
+  "timer.reise.deltSlett.alene": "Den andre delen av reisen finnes ikke lenger. Slette denne delen?",
+  "timer.reise.deltSlett.slettBegge": "Slett begge",
+  "timer.reise.deltSlett.bareDenne": "Bare denne"
 }

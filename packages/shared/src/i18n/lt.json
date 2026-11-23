@@ -6071,5 +6071,22 @@
   "timer.reiseKort.sperre.overlapperFirma": "Persidengimai {{navn}} ({{periode}}), nustatomi įmonės – pataisykite datas arba paprašykite įmonės administratoriaus tai pakeisti",
   "timer.reiseKort.sperre.overlapperEgen": "Sutampa su laikinu susitikimo tašku {{navn}} ({{periode}}) – pataisykite datas",
   "timer.reiseKort.sperre.overlappServer": "Datos sutampa su kitu laikinu susitikimo tašku – pataisykite datas arba paprašykite įmonės administratoriaus ją pakeisti",
-  "timer.reiseKort.sperre.velgKontor": "Pasirinkite susitikimo vietą, į kurią važiavote"
+  "timer.reiseKort.sperre.velgKontor": "Pasirinkite susitikimo vietą, į kurią važiavote",
+  "timer.reiseKort.delesVedMidnatt": "Kelionė dalijama vidurnaktį: {{fra}}–24:00 prisijungta prie {{dato1}}, 00:00–{{til}}, {{dato2}}",
+  "timer.reiseKort.startetKveldenFoer": "Ar pradėjote vakarą anksčiau? {{fra}}–24:00 yra prisijungęs {{dato1}}, 00:00–{{til}}, {{dato2}}",
+  "timer.reiseKort.naboSedelSendt": "{{dato}} darbo laiko apskaitos žiniaraštis išsiųstas. Kelionė neskaidoma – pirmiausia atidarykite {{dato}}.",
+  "timer.reiseKort.naboSedelAttestert": "{{dato}} darbo laiko apskaitos žiniaraštis patvirtintas. Kelionė negali būti padalinta vidurnaktį.",
+  "timer.reiseKort.naboSedelAnnetFirma": "{{dato}} darbo laiko apskaitos žiniaraštis priklauso kitai įmonei. Kelionė nėra padalinta.",
+  "timer.reiseKort.sperre.paaKontor": "Jūs esate {{kontor}}, {{tid}}. Kortelė yra {{byggeplass}}. Prieš registruodami kelionę pakeiskite vietą kortelėje (vieta ir veikla).",
+  "timer.reiseKort.delLaast": "Dalis, esanti {{dato}}, buvo išsiųsta arba patvirtinta ir nuo čia nekeičiama.",
+  "timer.reiseKort.rettDel.tittel": "Kelionė dalijama vidurnaktį",
+  "timer.reiseKort.rettDel.tekst": "Taip pat pataisyti dalį {{dato}}?",
+  "timer.reise.fortsetter": "tęsiasi {{dato}}",
+  "timer.reise.fortsattFra": "tęsėsi nuo {{dato}}",
+  "timer.reise.deltSlettLaast": "{{dato}} darbo laiko apskaitos žiniaraštis užrakintas. Tik šią dalį galima ištrinti.",
+  "timer.reise.deltSlett.tekst": "Kelionė dalijama vidurnaktį. Taip pat ištrinti {{fra}}–{{til}} {{dato}}?",
+  "timer.reise.deltSlett.laast": "Kelionė dalijama vidurnaktį. Dalis, esanti {{dato}}, buvo išsiųsta arba patvirtinta ir nėra ištrinta. Ištrinti tik šią dalį?",
+  "timer.reise.deltSlett.alene": "Kitos kelionės dalies nebėra. Ištrinti šią dalį?",
+  "timer.reise.deltSlett.slettBegge": "Ištrinkite abu",
+  "timer.reise.deltSlett.bareDenne": "Tik šitą"
 }

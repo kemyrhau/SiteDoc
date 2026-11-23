@@ -484,7 +484,7 @@ export function RegistreringPanel({ kort, sedel, orgId, kanAttestere, kanRette, 
               ].filter(Boolean).join(" · ");
               return (
                 <div key={l.nokkel} data-reiselinje={l.nokkel} className="flex flex-col gap-1.5">
-                  <ReiseRadMerke rad={r} />
+                  <ReiseRadMerke rad={r} sedelDato={sedel.dato} />
                   <div className="flex flex-wrap items-center gap-3">
                     <span data-reise-tekst="" className="tabular-nums text-gray-900">{tekst}</span>
                     <span className="ml-auto flex items-center gap-1.5">
@@ -557,6 +557,8 @@ function Del({ nr, navn, hoyre, sist, children }: { nr: number; navn: string; ho
 }
 
 const KL = /^([01]\d|2[0-3]):[0-5]\d$/;
+// O19 pkt 23: del 1 av en reise delt ved midnatt slutter 24:00 — gyldig til-tid, aldri fra-tid.
+const KL_TIL = /^(([01]\d|2[0-3]):[0-5]\d|24:00)$/;
 type TidLagret = { fraTid: string | null; tilTid: string | null; pauseMin: number; timer: number | null };
 
 /** Utfallet av fra, til og pause slik de står i feltene (w15g: samme regel i kortet og i vinduet). */
@@ -573,7 +575,7 @@ export function tidRetting(lagret: TidLagret, felt: { fra: string; til: string; 
   const f = rundTilNarmeste(felt.fra, tidsrunding);
   const ti = rundTilNarmeste(felt.til, tidsrunding);
   if (f === (lagret.fraTid ?? "") && ti === (lagret.tilTid ?? "") && felt.pause === String(lagret.pauseMin)) return { type: "uendret" };
-  if (!KL.test(f) || !KL.test(ti) || ti <= f) return { type: "feil", nokkel: "timer.attestering.registrering.ugyldigTid" };
+  if (!KL.test(f) || !KL_TIL.test(ti) || ti <= f) return { type: "feil", nokkel: "timer.attestering.registrering.ugyldigTid" };
   const p = Number.parseInt(felt.pause, 10);
   if (Number.isNaN(p) || p < 0) return { type: "feil", nokkel: "timer.attestering.registrering.ugyldigTid" };
   const timer = effektiveTimerFraSpenn(f, ti, f, p);
@@ -612,7 +614,7 @@ export function TidFelter({ lagret, tidsrunding, onLagre, onFeil, onEndre }: {
   const tilbake = () => { setFra(startFra); setTil(startTil); setPause(startPause); };
   const visPause = lagret.pauseMin > 0;
   const pauseTall = Number.parseInt(pause, 10);
-  const gyldig = KL.test(fra) && KL.test(til) && !Number.isNaN(pauseTall) && pauseTall >= 0;
+  const gyldig = KL.test(fra) && KL_TIL.test(til) && !Number.isNaN(pauseTall) && pauseTall >= 0;
   // RETUR 1 vilkår 1: urørte felt viser lagret `timer` (kan være justert for hånd eller etter
   // eldre formel); den utregnede verdien vises først når fra, til eller pause er endret.
   const endret = fra !== startFra || til !== startTil || pause !== startPause;

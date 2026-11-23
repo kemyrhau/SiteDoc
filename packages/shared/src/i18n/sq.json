@@ -6071,5 +6071,22 @@
   "timer.reiseKort.sperre.overlapperFirma": "Mbivendosjet {{navn}} ({{periode}}), të vendosura nga kompania — korrigjoni datat ose kërkoni nga një administrator i kompanisë ta ndryshojë atë",
   "timer.reiseKort.sperre.overlapperEgen": "Mbivendos pikën tuaj të përkohshme të takimit {{navn}} ({{periode}}) — korrigjoni datat",
   "timer.reiseKort.sperre.overlappServer": "Datat mbivendosen me një pikë tjetër takimi të përkohshëm - korrigjoni datat ose kërkoni nga një administrator i kompanisë ta ndryshojë atë",
-  "timer.reiseKort.sperre.velgKontor": "Zgjidhni pikën e takimit ku keni shkuar me makinë"
+  "timer.reiseKort.sperre.velgKontor": "Zgjidhni pikën e takimit ku keni shkuar me makinë",
+  "timer.reiseKort.delesVedMidnatt": "Udhëtimi është i ndarë në mesnatë: {{fra}}–24:00 është regjistruar më {{dato1}}, 00:00–{{til}} më {{dato2}}",
+  "timer.reiseKort.startetKveldenFoer": "E keni filluar mbrëmjen më parë? {{fra}}–24:00 është regjistruar në {{dato1}}, 00:00–{{til}} në {{dato2}}",
+  "timer.reiseKort.naboSedelSendt": "Fleta kohore për {{dato}} është dërguar. Udhëtimi nuk është i ndarë — rihap {{dato}} fillimisht.",
+  "timer.reiseKort.naboSedelAttestert": "Fleta kohore për {{dato}} është miratuar. Udhëtimi nuk mund të ndahet në mesnatë.",
+  "timer.reiseKort.naboSedelAnnetFirma": "Fleta kohore për {{dato}} i përket një kompanie tjetër. Udhëtimi nuk është i ndarë.",
+  "timer.reiseKort.sperre.paaKontor": "Ju jeni në {{kontor}} në {{tid}}. Karta është në {{byggeplass}}. Ndryshoni faqen në kartë (Vendi dhe aktiviteti) përpara se të regjistroni udhëtimin.",
+  "timer.reiseKort.delLaast": "Pjesa në {{dato}} është dërguar ose miratuar dhe nuk është ndryshuar nga këtu.",
+  "timer.reiseKort.rettDel.tittel": "Udhëtimi është i ndarë në mesnatë",
+  "timer.reiseKort.rettDel.tekst": "Të korrigjohet edhe pjesa në {{dato}}?",
+  "timer.reise.fortsetter": "vazhdon {{dato}}",
+  "timer.reise.fortsattFra": "vazhdoi nga {{dato}}",
+  "timer.reise.deltSlettLaast": "Fleta kohore për {{dato}} është e kyçur. Vetëm kjo pjesë mund të fshihet.",
+  "timer.reise.deltSlett.tekst": "Udhëtimi është i ndarë në mesnatë. Të fshihet gjithashtu {{fra}}–{{til}} në {{dato}}?",
+  "timer.reise.deltSlett.laast": "Udhëtimi është i ndarë në mesnatë. Pjesa në {{dato}} është dërguar ose miratuar dhe nuk është fshirë. Të fshihet vetëm kjo pjesë?",
+  "timer.reise.deltSlett.alene": "Pjesa tjetër e udhëtimit nuk ekziston më. Të fshihet kjo pjesë?",
+  "timer.reise.deltSlett.slettBegge": "Fshij të dyja",
+  "timer.reise.deltSlett.bareDenne": "Vetëm ky"
 }

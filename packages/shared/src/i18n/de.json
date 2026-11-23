@@ -6071,5 +6071,22 @@
   "timer.reiseKort.sperre.overlapperFirma": "Überschneidungen {{navn}} ({{periode}}), vom Unternehmen festgelegt – korrigieren Sie die Daten oder bitten Sie einen Unternehmensadministrator, sie zu ändern",
   "timer.reiseKort.sperre.overlapperEgen": "Überschneidet sich mit Ihrem temporären Treffpunkt {{navn}} ({{periode}}) – korrigieren Sie die Daten",
   "timer.reiseKort.sperre.overlappServer": "Die Daten überschneiden sich mit einem anderen temporären Treffpunkt. Korrigieren Sie die Daten oder bitten Sie einen Unternehmensadministrator, sie zu ändern",
-  "timer.reiseKort.sperre.velgKontor": "Wählen Sie den Treffpunkt aus, zu dem Sie gefahren sind"
+  "timer.reiseKort.sperre.velgKontor": "Wählen Sie den Treffpunkt aus, zu dem Sie gefahren sind",
+  "timer.reiseKort.delesVedMidnatt": "Die Fahrt wird um Mitternacht aufgeteilt: {{fra}}–24:00 Uhr ist am {{dato1}} angemeldet, 00:00–{{til}} am {{dato2}}",
+  "timer.reiseKort.startetKveldenFoer": "Hast du am Abend zuvor angefangen? {{fra}}–24:00 ist am {{dato1}} angemeldet, 00:00–{{til}} am {{dato2}}",
+  "timer.reiseKort.naboSedelSendt": "Die Arbeitszeittabelle für {{dato}} wurde gesendet. Die Reise ist nicht aufgeteilt – öffnen Sie {{dato}} zuerst erneut.",
+  "timer.reiseKort.naboSedelAttestert": "Die Arbeitszeittabelle für {{dato}} wurde genehmigt. Die Fahrt kann nicht um Mitternacht aufgeteilt werden.",
+  "timer.reiseKort.naboSedelAnnetFirma": "Die Arbeitszeittabelle für {{dato}} gehört zu einem anderen Unternehmen. Die Reise ist nicht aufgeteilt.",
+  "timer.reiseKort.sperre.paaKontor": "Sie sind um {{kontor}} bei {{tid}}. Die Karte ist am {{byggeplass}}. Ändern Sie den Ort auf der Karte (Ort und Aktivität), bevor Sie die Reise protokollieren.",
+  "timer.reiseKort.delLaast": "Der Teil auf {{dato}} wurde gesendet oder genehmigt und wird von hier aus nicht geändert.",
+  "timer.reiseKort.rettDel.tittel": "Die Fahrt wird um Mitternacht aufgeteilt",
+  "timer.reiseKort.rettDel.tekst": "Auch den Teil auf {{dato}} korrigieren?",
+  "timer.reise.fortsetter": "geht weiter {{dato}}",
+  "timer.reise.fortsattFra": "Fortsetzung von {{dato}}",
+  "timer.reise.deltSlettLaast": "Die Arbeitszeittabelle für {{dato}} ist gesperrt. Nur dieser Teil kann gelöscht werden.",
+  "timer.reise.deltSlett.tekst": "Die Fahrt wird um Mitternacht aufgeteilt. Auch {{fra}}–{{til}} auf {{dato}} löschen?",
+  "timer.reise.deltSlett.laast": "Die Fahrt wird um Mitternacht aufgeteilt. Der Teil auf {{dato}} wurde gesendet oder genehmigt und wird nicht gelöscht. Nur diesen Teil löschen?",
+  "timer.reise.deltSlett.alene": "Der andere Teil der Reise existiert nicht mehr. Diesen Teil löschen?",
+  "timer.reise.deltSlett.slettBegge": "Beides löschen",
+  "timer.reise.deltSlett.bareDenne": "Nur dieser"
 }

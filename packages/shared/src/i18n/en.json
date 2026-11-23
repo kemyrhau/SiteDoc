@@ -6071,5 +6071,22 @@
   "timer.reiseKort.sperre.overlapperFirma": "Overlaps {{navn}} ({{periode}}), set by the company — correct the dates or ask a company admin to change it",
   "timer.reiseKort.sperre.overlapperEgen": "Overlaps your temporary meeting point {{navn}} ({{periode}}) — correct the dates",
   "timer.reiseKort.sperre.overlappServer": "The dates overlap another temporary meeting point — correct the dates or ask a company admin to change it",
-  "timer.reiseKort.sperre.velgKontor": "Select the meeting point you drove to"
+  "timer.reiseKort.sperre.velgKontor": "Select the meeting point you drove to",
+  "timer.reiseKort.delesVedMidnatt": "The trip is split at midnight: {{fra}}–24:00 is logged on {{dato1}}, 00:00–{{til}} on {{dato2}}",
+  "timer.reiseKort.startetKveldenFoer": "Did you start the evening before? {{fra}}–24:00 is logged on {{dato1}}, 00:00–{{til}} on {{dato2}}",
+  "timer.reiseKort.naboSedelSendt": "The timesheet for {{dato}} has been sent. The trip is not split — reopen {{dato}} first.",
+  "timer.reiseKort.naboSedelAttestert": "The timesheet for {{dato}} has been approved. The trip cannot be split at midnight.",
+  "timer.reiseKort.naboSedelAnnetFirma": "The timesheet for {{dato}} belongs to another company. The trip is not split.",
+  "timer.reiseKort.sperre.paaKontor": "You are at {{kontor}} at {{tid}}. The card is on {{byggeplass}}. Change the site in the card (Place and activity) before logging the trip.",
+  "timer.reiseKort.delLaast": "The part on {{dato}} has been sent or approved and is not changed from here.",
+  "timer.reiseKort.rettDel.tittel": "The trip is split at midnight",
+  "timer.reiseKort.rettDel.tekst": "Also correct the part on {{dato}}?",
+  "timer.reise.fortsetter": "continues {{dato}}",
+  "timer.reise.fortsattFra": "continued from {{dato}}",
+  "timer.reise.deltSlettLaast": "The timesheet for {{dato}} is locked. Only this part can be deleted.",
+  "timer.reise.deltSlett.tekst": "The trip is split at midnight. Also delete {{fra}}–{{til}} on {{dato}}?",
+  "timer.reise.deltSlett.laast": "The trip is split at midnight. The part on {{dato}} has been sent or approved and is not deleted. Delete only this part?",
+  "timer.reise.deltSlett.alene": "The other part of the trip no longer exists. Delete this part?",
+  "timer.reise.deltSlett.slettBegge": "Delete both",
+  "timer.reise.deltSlett.bareDenne": "Only this one"
 }

@@ -104,6 +104,10 @@ export {
   finnDagsramme,
   klokkeTilMin,
   minTilKlokke,
+  delVedMidnatt,
+  midnattPartnerDato,
+  lesMidnattDel,
+  finnReiseSomEnderPaaKontor,
 } from "./reiseManuell";
 export { sekvenserReisekjede } from "./reiseKjede";
 export type { KjedeKort } from "./reiseKjede";
@@ -119,6 +123,10 @@ export type {
   ReiseKortInput,
   ReiseKortResultat,
   ReiseKortUtenKjoretid,
+  MidnattVei,
+  MidnattDel,
+  MidnattDeling,
+  MidnattMerke,
 } from "./reiseManuell";
 export { løsOppmote, finnFastOppmotested, trengerOppmoteValg, tilIsoDato, finnPeriodeKonflikt, finnOverforinger, byggOverforingOppslag, leggTilDager, periodeDatoFraOverforing, planleggOverforing, erApenOverforing, erEgenOverforing, finnEgenOverforing, overforingKonflikt, kontorOverforingOppsett, kontorOverforingRetning, gjeldendeMidlertidig, gjelderFraForslag, sisteDagForslag, avsluttSisteDagForslag, planleggOppmoteBytte, planleggAvslutt } from "./oppmote";
 export type { OppmotePeriodeType, OppmotePeriodeInput, OppmoteResultat, Overforing, OverforingSted, DagsforslagOverforingOppslag, DagsforslagOverforingCelle, OverforingPeriode, OverforingPlan, KontorOverforingOppsett, OppmoteByttValg, OppmoteByttKall, OppmoteBytte } from "./oppmote";

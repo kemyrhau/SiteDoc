@@ -18,6 +18,8 @@ type Prosjekt = { id: string; name: string; internalProjectNumber: string | null
 type Byggeplass = { id: string; projectId: string; name: string };
 
 const KL = /^([01]\d|2[0-3]):[0-5]\d$/;
+// O19 pkt 23: del 1 av en reise delt ved midnatt slutter 24:00 — gyldig til-tid, aldri fra-tid.
+const KL_TIL = /^(([01]\d|2[0-3]):[0-5]\d|24:00)$/;
 const ms = (v: Date | string | null | undefined) => (v ? new Date(v).getTime() : 0);
 
 /** Kallet vinduet gjør ved «Lagre» — rent, så testen kan måle det uten nettleser. */
@@ -175,7 +177,7 @@ export function ReiseRettVindu({ rad, sedel, orgId, lonnsarter, reiseKtx, prosje
     // Rund bare feltene som er rørt — urørt lagret tid sendes aldri som ny tid (RETUR w15f, merknad).
     const f = fra !== (rad.fraTid ?? "") ? rundTilNarmeste(fra, tidsrunding) : fra;
     const ti = til !== (rad.tilTid ?? "") ? rundTilNarmeste(til, tidsrunding) : til;
-    if (redigerTillatt && (!KL.test(f) || !KL.test(ti) || ti <= f)) { setFeil(t("timer.attestering.registrering.ugyldigTid")); return; }
+    if (redigerTillatt && (!KL.test(f) || !KL_TIL.test(ti) || ti <= f)) { setFeil(t("timer.attestering.registrering.ugyldigTid")); return; }
     const kall = reiseRettKall({
       lagret: { fraTid: rad.fraTid, tilTid: rad.tilTid, pauseMin: rad.pauseMin ?? 0, projectId: rad.projectId, byggeplassId: rad.byggeplassId ?? null, ecoId: rad.externalCostObjectId ?? null, lonnsartId: rad.lonnsartId },
       ny: { fraTid: f, tilTid: ti, projectId, byggeplassId, ecoId, lonnsartId },

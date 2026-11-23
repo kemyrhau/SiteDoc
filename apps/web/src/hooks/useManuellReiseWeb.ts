@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import {
+  leggTilDager,
   effektivKortByggeplass,
   arbeidsreiseKortId,
   egetReiseKort,
@@ -396,6 +397,8 @@ export function useManuellReiseWeb({
             sluttTid,
             kategoriValg,
             tillatUtenKjoretid: true,
+            // O19 pkt 23: «Til annet oppmøtested» med Slutt før Start slutter dagen etter.
+            tillatDeling: { omvendt: "fram" },
           })
         : løsReiseKort({
         dagStart: ramme.dagStart,
@@ -413,6 +416,9 @@ export function useManuellReiseWeb({
         kjoretidFor: (o, b) => matrise.get(`${o}|${b}`)?.kjoretidMin ?? null,
         avstandFor: (o, b) => matrise.get(`${o}|${b}`)?.avstandM ?? null,
         tillatUtenKjoretid: true,
+        // O19 pkt 23–24: «Til byggeplass» med Start etter Slutt startet kvelden før; «Fra
+        // byggeplass» med Slutt før Start slutter dagen etter.
+        tillatDeling: { omvendt: retning === "tur" ? "bak" : "fram" },
       }),
     [aktivtValg.type, kontorOppsett, valgtKontor, kontorRetning, kontorCelle, retning, ramme, regel, grensepunkter, resolverLonnsartId, standardLonnsartId, oppmote, byggeplassId, matrise, startTid, sluttTid, kategoriValg],
   );
@@ -432,7 +438,8 @@ export function useManuellReiseWeb({
     () =>
       planleggOppmoteBytte({
         valg: aktivtValg.type,
-        dato,
+        // O19 (pkt 23 kl. 12-regelen): en reise som startet kvelden før, regnes fra startdagen.
+        dato: resultat.deles === "bak" ? leggTilDager(dato, -1) : dato,
         startTid: resultat.fraTid,
         perioder: perioder.map((p) => ({ ...p, id: p.id ?? "" })),
         dagensKontorId,
@@ -442,7 +449,7 @@ export function useManuellReiseWeb({
         tilOgMed,
         sisteDag,
       }),
-    [aktivtValg.type, dato, resultat.fraTid, perioder, dagensKontorId, kontorOppsett, valgtKontor, gjelderFra, tilOgMed, sisteDag],
+    [aktivtValg.type, dato, resultat.deles, resultat.fraTid, perioder, dagensKontorId, kontorOppsett, valgtKontor, gjelderFra, tilOgMed, sisteDag],
   );
   const kontorKall: KontorOverforingKall | null =
     (bytte.type === "start" && !bytte.ugyldig) || bytte.type === "slutt" ? bytte.kall : null;

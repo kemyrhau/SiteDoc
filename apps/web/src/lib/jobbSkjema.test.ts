@@ -94,3 +94,14 @@ describe("klokkefeltets steg", () => {
     expect(klokkeSteg(60)).toBe(30);
   });
 });
+
+describe("O19 pkt 23 — senesteTilTid hopper over del 1 av en reise delt ved midnatt", () => {
+  it("del 1 (21:00–24:00) foreslår ikke neste jobb fra 24:00", () => {
+    expect(
+      senesteTilTid([{ tilTid: "15:00" }, { tilTid: "24:00", reiseRegel: { midnatt: { delId: "x", del: 1 } } }]),
+    ).toBe("15:00");
+  });
+  it("negativkontroll: en vanlig retur som slutter 24:00 teller som før", () => {
+    expect(senesteTilTid([{ tilTid: "15:00" }, { tilTid: "24:00", reiseRegel: { kategori: "reisetid" } }])).toBe("24:00");
+  });
+});

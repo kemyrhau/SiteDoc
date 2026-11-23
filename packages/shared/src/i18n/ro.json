@@ -6071,5 +6071,22 @@
   "timer.reiseKort.sperre.overlapperFirma": "Se suprapune {{navn}} ({{periode}}), stabilite de companie — corectați datele sau cereți unui administrator al companiei să o schimbe",
   "timer.reiseKort.sperre.overlapperEgen": "Se suprapune punctului de întâlnire temporar {{navn}} ({{periode}}) — corectați datele",
   "timer.reiseKort.sperre.overlappServer": "Datele se suprapun cu un alt punct de întâlnire temporar - corectați datele sau cereți unui administrator al companiei să le schimbe",
-  "timer.reiseKort.sperre.velgKontor": "Selectați punctul de întâlnire către care ați condus"
+  "timer.reiseKort.sperre.velgKontor": "Selectați punctul de întâlnire către care ați condus",
+  "timer.reiseKort.delesVedMidnatt": "Călătoria este împărțită la miezul nopții: {{fra}}–24:00 este conectat pe {{dato1}}, 00:00–{{til}} pe {{dato2}}",
+  "timer.reiseKort.startetKveldenFoer": "Ai început cu o seară înainte? {{fra}}–24:00 este conectat pe {{dato1}}, 00:00–{{til}} pe {{dato2}}",
+  "timer.reiseKort.naboSedelSendt": "Foaia de pontaj pentru {{dato}} a fost trimisă. Călătoria nu este împărțită — redeschideți mai întâi {{dato}}.",
+  "timer.reiseKort.naboSedelAttestert": "Foaia de pontaj pentru {{dato}} a fost aprobată. Călătoria nu poate fi împărțită la miezul nopții.",
+  "timer.reiseKort.naboSedelAnnetFirma": "Foaia de pontaj pentru {{dato}} aparține altei companii. Călătoria nu este împărțită.",
+  "timer.reiseKort.sperre.paaKontor": "Sunteți la {{kontor}} la {{tid}}. Cardul este pe {{byggeplass}}. Schimbați site-ul din card (Loc și activitate) înainte de a vă înregistra călătoria.",
+  "timer.reiseKort.delLaast": "Partea de pe {{dato}} a fost trimisă sau aprobată și nu este modificată de aici.",
+  "timer.reiseKort.rettDel.tittel": "Călătoria este împărțită la miezul nopții",
+  "timer.reiseKort.rettDel.tekst": "Corectați și partea de pe {{dato}}?",
+  "timer.reise.fortsetter": "continuă {{dato}}",
+  "timer.reise.fortsattFra": "a continuat din {{dato}}",
+  "timer.reise.deltSlettLaast": "Foaia de pontaj pentru {{dato}} este blocată. Numai această parte poate fi ștearsă.",
+  "timer.reise.deltSlett.tekst": "Călătoria este împărțită la miezul nopții. Ștergeți și {{fra}}–{{til}} pe {{dato}}?",
+  "timer.reise.deltSlett.laast": "Călătoria este împărțită la miezul nopții. Partea de pe {{dato}} a fost trimisă sau aprobată și nu este ștearsă. Ștergeți doar această parte?",
+  "timer.reise.deltSlett.alene": "Cealaltă parte a călătoriei nu mai există. Ștergeți această parte?",
+  "timer.reise.deltSlett.slettBegge": "Ștergeți ambele",
+  "timer.reise.deltSlett.bareDenne": "Doar acesta"
 }

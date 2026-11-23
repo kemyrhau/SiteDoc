@@ -1136,6 +1136,28 @@ Hjemmel: [vedtak-timer-web.md § Reisevinduet](vedtak-timer-web.md) punkt 20 (Ke
 - **i18n:** nye `timer.reiseKort.underTerskelInfo`, `arbeidstidInfo`, `forSomReisetidLikevel`, `lagreOppmotested`, `underTerskelOverVindu`; fjernet fra alle 15 språk `underTerskelPaaJobb`, `overTerskelPaaJobb`, `overTerskelVarsel`, `terskelDialog.*`.
 - **Tester:** `reise-terskel-dialog.test.tsx` «O18 — reise under terskel føres ikke som reise», «O18 S4 — gult hint, og km-avhukingen», «O10 — feltene står i reisevinduet»; `reisevindu.test.tsx` «O18 S1 …»; `o14-penn-reise.test.tsx` (S5 A).
 
+### Reisevinduet: reise over midnatt deles ved 24:00 (O19) — 🟡 `feat/web-timer-o19-midnatt` (2026-11-23, ikke merget)
+
+Hjemmel: [vedtak-timer-web.md § Reisevinduet](vedtak-timer-web.md) punkt 20 (blå boks), 23, 24 og 25 (Kenneth «V2 B», «ja, 24:00», «V3 ja», «V4 anbefaling», «V7 ja»; LØSNING O19: B1 nei, B2 ja, B3 nei). Bare web. Ingen migrering: paret står i `reiseRegel` (JSON).
+
+- **Deling (pkt 23):** web sender `tillatDeling` til `løsReiseKort`/`løsOverforingKort`; en reise som krysser midnatt gir `deles` (`fram`/`bak`) i stedet for sperren «Reisen går over midnatt». `delVedMidnatt` gir del 1 (start–24:00) og del 2 (00:00–slutt). Vinduet viser blå boks `reise-midnatt-boks` («Reisen deles ved midnatt: 21:00–24:00 føres 23.11, 00:00–00:53 føres 24.11»), og «Lagre» kaller `tilfoyDeltReise`: begge radene i én transaksjon, samme prosjekt, byggeplass, underprosjekt, beskrivelse og reisespor, og `reiseRegel.midnatt = { delId, del }`. Sedelen for nabodagen opprettes når den mangler. Er den sendt, attestert eller i et annet firma, skrives ingenting (`timer.reiseKort.naboSedelSendt/Attestert/AnnetFirma`). Overlapp på nabodagen stopper også del 1.
+- **Startet kvelden før (pkt 24):** «Til byggeplass» med skrevet Start etter Slutt deles bakover (del 1 på sedelen dagen før), tekst `timer.reiseKort.startetKveldenFoer`. Rettet Slutt før forslagets Start sperrer som før (`krysserMidnatt`).
+- **Etter lagring:** kortlista og attesteringen viser «· fortsetter 24.11» / «· fortsatt fra 23.11» (`midnattTekst`, `ReiseRadMerke`). I vinduet står 24:00 (del 1) og 00:00 (del 2) låst (`reise-midnatt-laast`); attesteringens «Rediger rad» viser 24:00 som låst tekst, og `ReiseRettVindu`/`RegistreringPanel` godtar «24:00» som til-tid. Endres prosjekt, byggeplass, underprosjekt eller beskrivelse på én del, spør vinduet «Rett også den andre delen?» (`reise-rett-del`, B2); Ja retter partneren først (`oppdaterTimerRad`), så denne. Er partneren sendt eller attestert, står `timer.reiseKort.delLaast` og bare denne delen rettes.
+- **Sletting:** `SlettDeltReise.tsx` — «Slett begge» (`fjernDeltReise`, én transaksjon, nektes når partneren er låst) eller «Bare denne» (`fjernTimerRad`).
+- **Følger:** del 2 (00:00) flytter ikke pausevinduet, og ingen del strekker «Arbeidstid i dag» (`pauseBeregning.ts`); jobbskjemaets `senesteTilTid` hopper over del 1, så 24:00 blir ikke neste rads start.
+- **På kontoret (pkt 25):** «Til byggeplass» som overlapper en kontorreise som ender på et kontor (f.eks. Tromsø → Narvik til 07:00), viser `timer.reiseKort.sperre.paaKontor` («Du er på Kontor Narvik kl. 07:00. Kortet står på …») i stedet for overlapp-teksten, med lenke «Sted og aktivitet» som åpner jobbens kort. Reisen flyttes ikke bakover (B3). Gjelder ikke under terskel og ikke «Fra byggeplass».
+- **Blå boks (pkt 20):** «Under terskel»-teksten står i samme blå boks som oppmøtested-boksen.
+- **API:** `tilfoyDeltReise`, `finnReiseDel` (partnerens id, sedel, dato, tider, status — partneren står på en *annen* sedel og bærer den andre delen, `midnatt.del = 3 − egen`; søsken fra attestantens splitt på samme sedel er aldri partner, `finnMidnattPartner`; gate O19 vilkår 1), `fjernDeltReise` i `routes/timer/dagsseddel.ts`.
+- ⚠️ **Mobil (B1, ikke rettet — mobil sperrer fortsatt deling):** en delt reise lagret på web synkes til telefonen som to vanlige rader. Målt i koden:
+  1. `apps/mobile/src/components/timer-detalj/FraTilTidFelt.tsx:191-207` `hhmmTilDate("24:00")` gir `setHours(24)` = 00:00 — del 1 vises og lagres som 00:00.
+  2. `TimerSeksjon.tsx:1814` `tilErEtterFra` avviser del 1 ved lagring når til-tiden er blitt 00:00 («Slutt før start»).
+  3. `apps/mobile/src/utils/nyRadTider.ts:16-24` foreslår 24:00 som start på neste rad (seneste til-tid, del 1 ikke filtrert).
+  4. `ArbeidstidSeksjon.tsx:63` («Arbeidstid i dag») viser 23:59/00:00 til telefonen får ny `@sitedoc/shared` via OTA (da filtrerer `utledArbeidstidFraRader` delene).
+  5. `apps/mobile/src/utils/manuellDag.ts:41-47` regner seneste til-tid med `hhmmTilMin` og bygger `new Date("…T24:00:00")` — ugyldig/neste dag.
+  6. Mobil har intet merke «fortsetter/fortsatt fra», ingen låst grense og ingen «Slett begge»: sletting på telefonen sletter én del.
+- **i18n:** 17 nye nøkler (`timer.reiseKort.delesVedMidnatt`, `startetKveldenFoer`, `naboSedel*`, `sperre.paaKontor`, `delLaast`, `rettDel.*`; `timer.reise.fortsetter`, `fortsattFra`, `deltSlettLaast`, `deltSlett.*`), alle 15 språk.
+- **Tester:** `packages/shared/src/utils/reiseManuell-o19.test.ts`; `reisevindu.test.tsx` «O19 — reisevinduet: pkt 20, 23–25»; `o14-penn-reise.test.tsx` «O19»; `jobbSkjema.test.ts` `senesteTilTid`; `components/attestering/__tests__/reise-rad-merke-o19.test.tsx`; `apps/api/src/routes/timer/dagsseddel-delt-reise.integration.test.ts` (10).
+
 ### Prosjektkort-rute — egen skjerm for samlesiden (ORDRE 35, I2) — 🟡 `feat/prosjektkort-isolert` (2026-11-07, ikke merget)
 
 Kenneth-vedtak I2: prosjektkortets samleside på mobil er flyttet ut av dagskortet til egen rute, så endringer i prosjektkortet ikke kan treffe dagskortet.

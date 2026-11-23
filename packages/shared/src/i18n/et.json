@@ -6071,5 +6071,22 @@
   "timer.reiseKort.sperre.overlapperFirma": "Kattuvad {{navn}} ({{periode}}), mille on määranud ettevõte – korrigeerige kuupäevi või paluge ettevõtte administraatoril see muuta",
   "timer.reiseKort.sperre.overlapperEgen": "Kattub teie ajutise kohtumispunktiga {{navn}} ({{periode}}) – korrigeerige kuupäevi",
   "timer.reiseKort.sperre.overlappServer": "Kuupäevad kattuvad teise ajutise kohtumispunktiga – parandage kuupäevi või paluge ettevõtte administraatoril seda muuta",
-  "timer.reiseKort.sperre.velgKontor": "Valige kohtumispunkt, kuhu sõitsite"
+  "timer.reiseKort.sperre.velgKontor": "Valige kohtumispunkt, kuhu sõitsite",
+  "timer.reiseKort.delesVedMidnatt": "Reis jagatakse südaööl: {{fra}}–24:00 on sisse logitud kuupäeval {{dato1}}, 00:00–{{til}} kuupäeval {{dato2}}",
+  "timer.reiseKort.startetKveldenFoer": "Kas alustasite eelmisel õhtul? {{fra}}–24:00 on sisse logitud kuupäeval {{dato1}}, 00:00–{{til}} kuupäeval {{dato2}}",
+  "timer.reiseKort.naboSedelSendt": "{{dato}} ajatabel on saadetud. Reisi ei jagata – avage esmalt uuesti {{dato}}.",
+  "timer.reiseKort.naboSedelAttestert": "{{dato}} ajatabel on kinnitatud. Reisi ei saa keskööl poolitada.",
+  "timer.reiseKort.naboSedelAnnetFirma": "{{dato}} ajatabel kuulub teisele ettevõttele. Reisi ei jagata.",
+  "timer.reiseKort.sperre.paaKontor": "Olete kohas {{kontor}} kell {{tid}}. Kaart on {{byggeplass}}. Enne reisi logimist muutke kaardil saiti (Koht ja tegevus).",
+  "timer.reiseKort.delLaast": "Osa kuupäeval {{dato}} on saadetud või kinnitatud ja seda ei muudeta siit.",
+  "timer.reiseKort.rettDel.tittel": "Reis jagatakse südaööl",
+  "timer.reiseKort.rettDel.tekst": "Kas parandada ka osa {{dato}}?",
+  "timer.reise.fortsetter": "jätkub {{dato}}",
+  "timer.reise.fortsattFra": "jätkus alates {{dato}}",
+  "timer.reise.deltSlettLaast": "{{dato}} ajatabel on lukus. Ainult seda osa saab kustutada.",
+  "timer.reise.deltSlett.tekst": "Reis jagatakse südaööl. Kas kustutada ka {{fra}}–{{til}} kuupäeval {{dato}}?",
+  "timer.reise.deltSlett.laast": "Reis jagatakse südaööl. Osa kuupäeval {{dato}} on saadetud või kinnitatud ja seda ei kustutata. Kas kustutada ainult see osa?",
+  "timer.reise.deltSlett.alene": "Teist osa reisist enam ei eksisteeri. Kas kustutada see osa?",
+  "timer.reise.deltSlett.slettBegge": "Kustuta mõlemad",
+  "timer.reise.deltSlett.bareDenne": "Ainult see üks"
 }

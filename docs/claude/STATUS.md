@@ -12,6 +12,7 @@
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
 **Sist oppdatert:** 2026-11-23
+- 2026-11-23 — **`vedtak-timer-web.md` (statuslinjer pkt 20, 23, 24, 25) + `timer.md` (ny seksjon O19) + `api.md` + `packages/shared/src/utils/CLAUDE.md`: reise over midnatt deles ved 24:00 på web, «Startet du kvelden før?», stopp «Du er på Kontor …», mobil-liste (B1)** (branch `feat/web-timer-o19-midnatt`, kode + docs, web-timer-w5, 🟡 ikke merget). Ingen fil opprettet eller slettet i docs/claude — tellingene er uendret.
 - 2026-11-23 — **O18 merget** (`4bc05499`): `vedtak-timer-web.md` pkt 20 ✅ (og stale O15-markører pkt i Dagsvisningen rettet til ✅ `6cf48d6e`), `timer.md` O18-seksjon ✅, FUNKSJONSENDRINGER, STATUS-AKTUELT.
 - 2026-11-23 — **`vedtak-timer-web.md` (statuslinjer pkt 7, 8, 9, 11, 20) + `timer.md` (ny seksjon O18): reise under terskel føres ikke som reise på web — «Før som reisetid likevel», «Lagre oppmøtested», gult hint; «Arbeidstid» ikke valg for ny reise** (branch `feat/web-timer-o18-under-terskel`, kode + docs, web-timer-o13, ✅ merget `4bc05499`). Ingen fil opprettet eller slettet i docs/claude — tellingene er uendret.
 - 2026-11-23 — **O17 merget** (`6ee3b632`): `vedtak-timer-web.md` pkt 21–22 ✅, `timer.md` O17-seksjon ✅, FUNKSJONSENDRINGER, STATUS-AKTUELT.

@@ -446,3 +446,117 @@ describe("O14 pkt 3 — en reise går aldri gjennom overtidsforslaget (F9-vakten
     expect(skrevet.filter((k) => k.key === "timer.dagsseddel.oppdaterTimerRad")).toHaveLength(1);
   });
 });
+
+describe("O19 pkt 23 — en reise delt ved midnatt på sedelen", () => {
+  afterEach(cleanup);
+  /** Del 1 av «Fra byggeplass» 21:00–00:53: 21:00–24:00 på 05.11. */
+  const DEL1 = arbeid({
+    id: "rd",
+    lonnsartId: "lr",
+    fraTid: "21:00",
+    tilTid: "24:00",
+    timer: "3",
+    pauseMin: 0,
+    beskrivelse: null,
+    erReise: true,
+    reiseKilde: "manuell",
+    reiseRetning: "retur",
+    reiseRegel: { kategori: "reisetid", midnatt: { delId: "x", del: 1 } },
+    createdAt: "2026-11-05T21:00:00.000Z",
+  });
+  const partner = (status = "draft") => ({ id: "rd2", sheetId: "s2", dato: "2026-11-06", fraTid: "00:00", tilTid: "00:53", status, del: 2 });
+  const medPartner = (status?: string) => {
+    rendre([arbeid({ tilTid: "21:00" }), DEL1]);
+    h.data["timer.dagsseddel.finnReiseDel"] = partner(status);
+  };
+
+  it("linja viser «fortsetter 06.11»; negativkontroll: vanlig reise har ikke merket", () => {
+    rendre([arbeid({ tilTid: "21:00" }), DEL1, REISETID]);
+    aapneKort();
+    const delt = document.querySelector('[data-reiselinje="rd"]')!;
+    expect(delt.querySelector('[data-testid="reise-midnatt-merke"]')?.textContent).toBe(' · timer.reise.fortsetter{"dato":"06.11"}');
+    expect(document.querySelector('[data-reiselinje="rr"] [data-testid="reise-midnatt-merke"]')).toBeNull();
+  });
+
+  it("pennen: 24:00 står som låst tekst (B2); nytt underprosjekt spør «Rett også delen 06.11?» — Ja skriver begge", async () => {
+    medPartner();
+    pennenPaa("rd");
+    const d = reiseVindu();
+    expect(within(d).getByTestId("reise-midnatt-laast").textContent).toBe("24:00");
+    expect(start(d).value).toBe("21:00");
+    fireEvent.change(within(d).getByLabelText("timer.felt.underprosjekt"), { target: { value: "eco2" } });
+    fireEvent.change(within(d).getByLabelText(/timer\.felt\.radBeskrivelse/), { target: { value: "Hjem" } });
+    fireEvent.click(knapp(d, "handling.lagre"));
+    const sporsmal = within(screen.getByTestId("reise-rett-del"));
+    expect(screen.getByTestId("reise-rett-del").textContent).toContain('timer.reiseKort.rettDel.tekst{"dato":"06.11"}');
+    fireEvent.click(sporsmal.getByRole("button", { name: "ja" }));
+    await new Promise((r) => setTimeout(r, 0));
+    const o = kall("timer.dagsseddel.oppdaterTimerRad");
+    expect(o).toHaveLength(2);
+    expect(o[0]).toEqual({ id: "rd2", externalCostObjectId: "eco2", beskrivelse: "Hjem" });
+    expect(o[1]).toMatchObject({ id: "rd", fraTid: "21:00", tilTid: "24:00", timer: 3, externalCostObjectId: "eco2" });
+  });
+
+  it("«Nei» skriver bare denne delen", async () => {
+    medPartner();
+    pennenPaa("rd");
+    const d = reiseVindu();
+    fireEvent.change(within(d).getByLabelText("timer.felt.underprosjekt"), { target: { value: "eco2" } });
+    fireEvent.change(within(d).getByLabelText(/timer\.felt\.radBeskrivelse/), { target: { value: "Hjem" } });
+    fireEvent.click(knapp(d, "handling.lagre"));
+    fireEvent.click(within(screen.getByTestId("reise-rett-del")).getByRole("button", { name: "nei" }));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(kall("timer.dagsseddel.oppdaterTimerRad").map((x) => x.id)).toEqual(["rd"]);
+  });
+
+  it("negativkontroll: bare Start rettet → ingen spørsmål; låst partner → ingen spørsmål og en merknad", async () => {
+    medPartner();
+    pennenPaa("rd");
+    let d = reiseVindu();
+    fireEvent.change(start(d), { target: { value: "21:30" } });
+    fireEvent.click(knapp(d, "handling.lagre"));
+    expect(screen.queryByTestId("reise-rett-del")).toBeNull();
+    expect(kall("timer.dagsseddel.oppdaterTimerRad")[0]).toMatchObject({ id: "rd", fraTid: "21:30", tilTid: "24:00", timer: 2.5 });
+
+    medPartner("sent");
+    pennenPaa("rd");
+    d = reiseVindu();
+    expect(within(d).getByTestId("reise-del-laast").textContent).toBe('timer.reiseKort.delLaast{"dato":"06.11"}');
+    fireEvent.change(within(d).getByLabelText("timer.felt.underprosjekt"), { target: { value: "eco2" } });
+    fireEvent.change(within(d).getByLabelText(/timer\.felt\.radBeskrivelse/), { target: { value: "Hjem" } });
+    fireEvent.click(knapp(d, "handling.lagre"));
+    expect(screen.queryByTestId("reise-rett-del")).toBeNull();
+    expect(kall("timer.dagsseddel.oppdaterTimerRad").map((x) => x.id)).toEqual(["rd"]);
+  });
+
+  it("sletting: «Slett begge» → fjernDeltReise; «Bare denne» → fjernTimerRad", () => {
+    medPartner();
+    aapneKort();
+    const slett = () =>
+      fireEvent.click(document.querySelector('[data-reiselinje="rd"]')!.querySelector('[title="handling.slett"]')!);
+    slett();
+    const m = screen.getByTestId("slett-delt-reise");
+    expect(m.textContent).toContain('timer.reise.deltSlett.tekst{"fra":"00:00","til":"00:53","dato":"06.11"}');
+    fireEvent.click(within(m).getByRole("button", { name: "timer.reise.deltSlett.slettBegge" }));
+    expect(kall("timer.dagsseddel.fjernDeltReise")).toEqual([{ id: "rd" }]);
+    fireEvent.click(within(m).getByRole("button", { name: "timer.reise.deltSlett.bareDenne" }));
+    expect(kall("timer.dagsseddel.fjernTimerRad")).toEqual([{ id: "rd" }]);
+  });
+
+  it("sletting med låst partner: bare «Bare denne»", () => {
+    medPartner("accepted");
+    aapneKort();
+    fireEvent.click(document.querySelector('[data-reiselinje="rd"]')!.querySelector('[title="handling.slett"]')!);
+    const m = screen.getByTestId("slett-delt-reise");
+    expect(m.textContent).toContain('timer.reise.deltSlett.laast{"dato":"06.11"}');
+    expect(within(m).queryByRole("button", { name: "timer.reise.deltSlett.slettBegge" })).toBeNull();
+  });
+
+  it("negativkontroll: vanlig reise slettes rett (som før), uten delt-modalen", () => {
+    rendre([arbeid(), REISETID]);
+    aapneKort();
+    fireEvent.click(document.querySelector('[data-reiselinje="rr"]')!.querySelector('[title="handling.slett"]')!);
+    expect(screen.queryByTestId("slett-delt-reise")).toBeNull();
+    expect(kall("timer.dagsseddel.fjernTimerRad")).toEqual([{ id: "rr" }]);
+  });
+});

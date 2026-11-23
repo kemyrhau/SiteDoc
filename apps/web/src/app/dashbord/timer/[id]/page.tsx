@@ -92,6 +92,7 @@ import {
 import { rundTilNarmeste } from "@/lib/tidsrunding";
 import { BeskrivelseHover, jobbensBeskrivelser } from "@/components/timer/BeskrivelseHover";
 import { ReiseKort } from "./ReiseKort";
+import { SlettDeltReise, midnattTekst } from "@/components/timer/SlettDeltReise";
 import { JobbSkjema } from "./JobbSkjema";
 import { jobbSkjemaLinjer, nyJobbForslag, senesteTilTid, type SkjemaKilde } from "@/lib/jobbSkjema";
 import type { SkjemaLonnsart } from "./JobbSkjema";
@@ -281,6 +282,8 @@ const SedelFirmaKontekst = createContext<string | undefined>(undefined);
 function useSedelFirma(): string | undefined {
   return useContext(SedelFirmaKontekst);
 }
+// O19 pkt 23: sedelens dato (YYYY-MM-DD) — merket «fortsetter / fortsatt fra» på en delt reise.
+const SedelDatoKontekst = createContext<string | undefined>(undefined);
 
 export default function DagsseddelDetaljSide() {
   const { t } = useTranslation();
@@ -1387,6 +1390,7 @@ export default function DagsseddelDetaljSide() {
 
   return (
     <SedelFirmaKontekst.Provider value={sheet.organizationId ?? undefined}>
+    <SedelDatoKontekst.Provider value={new Date(sheet.dato).toISOString().slice(0, 10)}>
     <div className="max-w-3xl p-6">
       {/* w2: skjemaet hoppes over i prosjektkort-modus — spørsmålet følger med hit. */}
       {fraRegistrer && <OppmoteSporsmaalModal organizationId={sheet.organizationId ?? null} />}
@@ -1794,6 +1798,8 @@ export default function DagsseddelDetaljSide() {
             attestertStatus: r.attestertStatus,
             arbeidReise: !r.erReise && !!r.arbeidReiseRetning,
             beskrivelse: r.beskrivelse ?? null,
+            // O19 pkt 25: kontorreisen (kontor → kontor) kjennes på sporet.
+            reiseRegel: r.reiseRegel ?? null,
           }))}
           andreRader={kortRaderUtenArbeid}
           eierId={sheet.userId}
@@ -1823,6 +1829,14 @@ export default function DagsseddelDetaljSide() {
                 }
               : undefined
           }
+          // O19 pkt 25: «Sted og aktivitet» for kortet vinduet ble åpnet fra (som kortets egen lenke).
+          onAapneSted={(() => {
+            if (aktivModal.type !== "timer" || !aktivModal.jobb) return undefined;
+            const jobb = aktivModal.jobb;
+            const forste = timerRader.find((r) => r.kortId === jobb.kortId && !r.erReise);
+            if (!forste) return undefined;
+            return () => setAktivModal({ type: "timer", projectId: forste.projectId, rad: forste, jobb });
+          })()}
           onLukk={() => setAktivModal(null)}
         />
       )}
@@ -2156,6 +2170,7 @@ export default function DagsseddelDetaljSide() {
         />
       )}
     </div>
+    </SedelDatoKontekst.Provider>
     </SedelFirmaKontekst.Provider>
   );
 }
@@ -2773,6 +2788,7 @@ function JobbKortRamme({
 }) {
   const { t } = useTranslation();
   const sedelFirmaId = useSedelFirma();
+  const sedelDato = useContext(SedelDatoKontekst);
   const { data: ecoer } = trpc.eksternKostObjekt.list.useQuery(
     { projectId: projectId ?? "", organizationId: sedelFirmaId },
     { enabled: !!projectId && !!ecoId },
@@ -2808,7 +2824,14 @@ function JobbKortRamme({
               : retning === "retur"
                 ? t("timer.prosjektkort.reiseFra", { sted })
                 : sted);
-          const linje = [stedTekst, r.fraTid && r.tilTid ? `${r.fraTid}–${r.tilTid}` : null].filter(Boolean).join(" · ");
+          const linje = [
+            stedTekst,
+            r.fraTid && r.tilTid ? `${r.fraTid}–${r.tilTid}` : null,
+            // O19 pkt 23: delt ved midnatt.
+            midnattTekst(t, sedelDato, r.reiseRegel),
+          ]
+            .filter(Boolean)
+            .join(" · ");
           const tekst = r.beskrivelse?.trim();
           return tekst ? [linje, tekst] : [linje];
         })
@@ -3461,8 +3484,16 @@ function ReiseLinje({
     | undefined;
   const [bekreftSlett, setBekreftSlett] = useState<string[] | null>(null);
   const kontorNavn = useKontorNavn(sedelFirmaId, [rad.reiseRegel]);
+  // O19 pkt 23: en reise delt ved midnatt spør om den andre delen.
+  const sedelDato = useContext(SedelDatoKontekst);
+  const [slettDelt, setSlettDelt] = useState(false);
+  const midnatt = midnattTekst(t, sedelDato, rad.reiseRegel);
   // Samme sperre som arbeidslinja (d2c-1, R24): maskiner som krever raden, navngis først.
   function slett() {
+    if (midnatt) {
+      setSlettDelt(true);
+      return;
+    }
     const navn = maskinIProsjekt
       .filter((m) => m.sheetTimerId === rad.id)
       .flatMap((m) => {
@@ -3507,6 +3538,7 @@ function ReiseLinje({
       {rad.fraTid && rad.tilTid && (
         <span className="ml-2 text-xs text-gray-500">
           {rad.fraTid}–{rad.tilTid}
+          {midnatt && <span data-testid="reise-midnatt-merke"> · {midnatt}</span>}
         </span>
       )}
     </>
@@ -3514,6 +3546,7 @@ function ReiseLinje({
 
   return (
     <>
+      {slettDelt && <SlettDeltReise radId={rad.id} onLukk={() => setSlettDelt(false)} />}
       {bekreftSlett && (
         <Modal open={true} onClose={() => setBekreftSlett(null)} title={t("timer.fjernTimerRad.tittel")}>
           <div className="space-y-4">
@@ -3629,7 +3662,14 @@ function RaderTimer({
     | Array<{ id: string; merke: string | null; modell: string | null; internNavn: string | null; utleieEnhet?: string | null }>
     | undefined;
   const [bekreftSlett, setBekreftSlett] = useState<{ radId: string; navn: string[] } | null>(null);
+  // O19 pkt 23: en reise delt ved midnatt spør om den andre delen.
+  const sedelDato = useContext(SedelDatoKontekst);
+  const [slettDeltId, setSlettDeltId] = useState<string | null>(null);
   function slettRad(rad: TimerRad) {
+    if (midnattTekst(t, sedelDato, rad.reiseRegel)) {
+      setSlettDeltId(rad.id);
+      return;
+    }
     const navn = maskinIProsjekt
       .filter((m) => m.sheetTimerId === rad.id)
       .flatMap((m) => {
@@ -3644,6 +3684,7 @@ function RaderTimer({
 
   return (
     <>
+    {slettDeltId && <SlettDeltReise radId={slettDeltId} onLukk={() => setSlettDeltId(null)} />}
     {bekreftSlett && (
       <Modal
         open={true}
@@ -3734,6 +3775,9 @@ function RaderTimer({
               {rad.fraTid && rad.tilTid && (
                 <p className="text-xs text-gray-500">
                   {rad.fraTid}–{rad.tilTid}
+                  {midnattTekst(t, sedelDato, rad.reiseRegel) && (
+                    <span data-testid="reise-midnatt-merke"> · {midnattTekst(t, sedelDato, rad.reiseRegel)}</span>
+                  )}
                 </p>
               )}
               {/* V20/PK3: matpause-status (les-visning). */}
