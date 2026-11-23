@@ -102,10 +102,10 @@ Filer: `RK` = `apps/web/src/app/dashbord/timer/[id]/ReiseKort.tsx` · `MR` = `ap
     🟡 Vedtatt, ikke bygget. I dag: under terskel foreslår vinduet «Arbeidstid» og lagrer en arbeidsrad med `arbeidReiseRetning` før jobben (`packages/shared/src/utils/reiseManuell.ts:377-387`); den teller i maskinforslaget, overtiden og dagsstarten (`finnDagsramme`).
 21. En reise mellom to kontorer vises som «Kontor Tromsø → Kontor Narvik» i kortlisten, og eksporten fyller «Til» med kontoret.
     Kenneth 2026-11-23: «funn1 ja med eksport».
-    🟡 Vedtatt, ikke bygget. I dag: kortlisten viser prosjektnavnet («Fra Skole 15:00–18:50»), og «Til» står tom i eksporten.
+    ✅ Merget `6ee3b632` (O17): `kontorReiseRute` (`packages/shared/src/utils/reiseManuell.ts:561`), `useKontorReiseTekst.ts` i kortliste og attestering; eksporten fyller «Fra»/«Til» via `reise-steder.ts` (`apps/api/src/routes/timer/rapport.ts`); `o17-kontorreise-eksport.integration.test.ts`. Ikke deployet.
 22. «Avslutt» med en «Siste dag» før periodens start sier at perioden fjernes, med samme tekst som boksen («Perioden din Kontor Tromsø fra 23.11 fjernes.»), før arbeideren trykker.
     Kenneth 2026-11-23: «funn2 ja».
-    🟡 Vedtatt, ikke bygget. I dag: perioden slettes uten tekst i «Avslutt»-linja.
+    ✅ Merget `6ee3b632` (O17): `planleggAvslutt` (`packages/shared/src/utils/oppmote.ts:491`) gir teksten; `ReiseKort.tsx:711-716` sender samme `slutt`/`periodeId`-kall; `reisevindu.test.tsx` «O17 pkt 22». Ikke deployet.
 
 ## Dagsvisningen i attesteringen
 

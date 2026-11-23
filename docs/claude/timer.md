@@ -1114,7 +1114,7 @@ Hjemmel: [vedtak-timer-web.md § Reisevinduet](vedtak-timer-web.md) punkt 1 og 2
 - **Riktig periode (V2):** «Siste dag» i boksen og «Avslutt» sender `periodeId` for perioden de navngir; serveren krever at den er medlemmets egen overføring i firmaet (ellers NOT_FOUND/FORBIDDEN) og lukker eller sletter nettopp den. «… fjernes» regnes fra samme periode.
 - **Tester:** `oppmote-o16.test.ts` (R1, R2, V2, H2, H3, R4, R7a, R7b, R8), `oppmotePeriode.test.ts` «O16», `reisevindu.test.tsx` «O16 …», `o14-penn-reise.test.tsx` «O16 pkt 5 (R5)», `reise-terskel-dialog.test.tsx` (hooken bruker de delte funksjonene).
 
-### Kontorreise i kortliste og eksport, «fjernes» ved Avslutt (O17) — 🟡 `feat/web-timer-o17-kontorreise` (2026-11-23, venter gate)
+### Kontorreise i kortliste og eksport, «fjernes» ved Avslutt (O17) — ✅ merget `6ee3b632` (2026-11-23, ikke deployet)
 
 Hjemmel: [vedtak-timer-web.md § Reisevinduet](vedtak-timer-web.md) punkt 21 og 22 (@ `2130523e`). Bare web og eksport; mobilen, plasseringen av reisen (pkt 20) og maskinregelen er urørt. Ingen migrering.
 
