@@ -1422,6 +1422,93 @@ export const IKKE_PRIVAT_HMS: Record<string, unknown> = {
   },
 };
 
+/**
+ * K1 (Kenneth 2026-11-23): hvem kan bruke et kontrollpunkt som er bundet til en flyt —
+ * Start og «Koble eksisterende». Regelen: aktivt medlem, uansett rolle og binding
+ * (person/faggruppe/gruppe), av PUNKTETS flyt, eller admin (`verifiserAdmin`-semantikk:
+ * sitedoc_admin, prosjektadmin, firma-admin). Faggruppe-tilhørighet alene gir ikke lenger
+ * Start (erstatter `verifiserFaggruppeTilhorighet(punkt.faggruppeId)`).
+ *
+ * Hentes én gang pr. prosjekt så `kontrollplan.hentPunktHandlinger` kan avgjøre alle
+ * punkter med samme regel som serveren uten N+1. `kanBrukePunktFlyt` er predikatet.
+ */
+export interface PunktFlytTilgang {
+  erAdmin: boolean;
+  flytIder: Set<string>;
+}
+
+export async function hentPunktFlytTilgang(
+  userId: string,
+  projectId: string,
+): Promise<PunktFlytTilgang> {
+  const bruker = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
+  if (bruker?.role === "sitedoc_admin") return { erAdmin: true, flytIder: new Set() };
+
+  await krevAktivAnsettelse(userId, projectId);
+  await verifiserProsjektIkkeFrosset(userId, projectId);
+
+  const medlem = await prisma.projectMember.findFirst({
+    where: aktivtProsjektmedlemWhere(userId, projectId),
+    select: { role: true },
+  });
+  if (medlem?.role === "admin" || (await erFirmaAdminForProsjekt(userId, projectId))) {
+    return { erAdmin: true, flytIder: new Set() };
+  }
+  return { erAdmin: false, flytIder: new Set(await hentBrukersFlytMedlemskap(userId, projectId)) };
+}
+
+export function kanBrukePunktFlyt(tilgang: PunktFlytTilgang, dokumentflytId: string): boolean {
+  return tilgang.erAdmin || tilgang.flytIder.has(dokumentflytId);
+}
+
+export async function verifiserPunktFlytTilgang(
+  userId: string,
+  projectId: string,
+  dokumentflytId: string,
+): Promise<void> {
+  const tilgang = await hentPunktFlytTilgang(userId, projectId);
+  if (!kanBrukePunktFlyt(tilgang, dokumentflytId)) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Du er ikke med i dokumentflyten til dette kontrollpunktet",
+    });
+  }
+}
+
+/**
+ * K1-S (Kontrollør-vilkår 2026-11-23, etter H3): sjekkliste-filteret for «Koble eksisterende»
+ * på et kontrollpunkt (`kontrollplan.hentKoblbareSjekklister` og `kanKoble` i
+ * `hentPunktHandlinger`). En kontrollplan-mal kan være en privat HMS-mal, så admin kan ikke
+ * lenger få `null`-filter i kraft av rollen:
+ * - ikke admin → `byggTilgangsFilter` (som før).
+ * - sitedoc_admin → `null` (ser alt, som i `byggTilgangsFilter`).
+ * - prosjektadmin (ProjectMember-rad med rolle `admin`) → den H3-rettede `byggTilgangsFilter`:
+ *   `null` for HMS-behandleren, ellers alt som ikke er privat HMS + egne private HMS-saker.
+ * - firma-admin som ikke er prosjektadmin (V1, K1-S V1) — grenen velges etter rollen, ikke etter
+ *   om det finnes en PM-rad: `null` når hen er HMS-behandler (`erHmsAdmin`, firmaets
+ *   `hms_ansvarlig`), ellers alt som ikke er privat HMS. Har hen en PM-rad (f.eks. `member`),
+ *   legges `byggTilgangsFilter` til som OR, så egne private HMS-saker (melder/mottaker) er med.
+ * Speiler `koblePunkt`, så knappen og kandidatlista aldri viser noe serveren avviser.
+ */
+export async function byggPunktKoblingsFilter(
+  userId: string,
+  projectId: string,
+  tilgang: PunktFlytTilgang,
+): Promise<Record<string, unknown> | null> {
+  if (!tilgang.erAdmin) return byggTilgangsFilter(userId, projectId);
+  const bruker = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
+  if (bruker?.role === "sitedoc_admin") return null;
+  const medlem = await prisma.projectMember.findFirst({
+    where: aktivtProsjektmedlemWhere(userId, projectId),
+    select: { role: true },
+  });
+  if (medlem?.role === "admin") return byggTilgangsFilter(userId, projectId);
+  if (await erHmsAdmin(userId, projectId)) return null;
+  if (!medlem) return IKKE_PRIVAT_HMS;
+  const egne = await byggTilgangsFilter(userId, projectId);
+  return egne === null ? null : { OR: [IKKE_PRIVAT_HMS, egne] };
+}
+
 export async function byggTilgangsFilter(
   userId: string,
   projectId: string,
