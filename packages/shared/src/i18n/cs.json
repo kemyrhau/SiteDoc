@@ -2816,6 +2816,8 @@
   "hms.subdomain.avvik": "Incident",
   "hms.subdomain.sja": "JSA",
   "hms.subdomain.ruh": "Hlášení o nebezpečí",
+  "hms.subdomain.formOppgave": "Úkol: jeden incident, který je nahlášen, zpracován a uzavřen. Odpověď se dostane osobě, která ji nahlásila.",
+  "hms.subdomain.formSjekkliste": "Kontrolní seznam: položky zkontrolované před zahájením práce.",
   "hms.hjelp.avvik": "Něco se pokazilo – zranění osob, materiální škody nebo porušení HSE",
   "hms.hjelp.sja": "Posouzení rizik před nebezpečnou prací – podepsané účastníky před zahájením práce",
   "hms.hjelp.ruh": "Téměř nedopatření nebo nebezpečný stav, který pozorujete – nízký práh pro hlášení",

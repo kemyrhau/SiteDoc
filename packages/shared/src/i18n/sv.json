@@ -2816,6 +2816,8 @@
   "hms.subdomain.avvik": "Incident",
   "hms.subdomain.sja": "JSA",
   "hms.subdomain.ruh": "Farorapport",
+  "hms.subdomain.formOppgave": "Uppgift: en incident som rapporteras, hanteras och avslutas. Svaret går till den som rapporterade det.",
+  "hms.subdomain.formSjekkliste": "Checklista: föremål som granskas innan arbetet påbörjas.",
   "hms.hjelp.avvik": "Något har gått fel — personskada, materiella skador eller HSE-brott",
   "hms.hjelp.sja": "Riskbedömning före farligt arbete — undertecknat av deltagarna innan arbetet påbörjas",
   "hms.hjelp.ruh": "Nästan misslyckande eller farligt tillstånd som du observerar — låg tröskel för rapportering",

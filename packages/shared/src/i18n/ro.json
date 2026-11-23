@@ -2816,6 +2816,8 @@
   "hms.subdomain.avvik": "Incident",
   "hms.subdomain.sja": "JSA",
   "hms.subdomain.ruh": "Raport de pericol",
+  "hms.subdomain.formOppgave": "Sarcină: un incident care este raportat, gestionat și închis. Răspunsul ajunge la persoana care a raportat-o.",
+  "hms.subdomain.formSjekkliste": "Lista de verificare: elemente examinate înainte de începerea lucrărilor.",
   "hms.hjelp.avvik": "Ceva a mers prost — vătămare corporală, daune materiale sau încălcare HSE",
   "hms.hjelp.sja": "Evaluarea riscurilor înainte de munca periculoasă - semnată de participanți înainte de începerea lucrărilor",
   "hms.hjelp.ruh": "Aproape ratare sau stare periculoasă pe care o observați - prag scăzut pentru raportare",

@@ -2816,6 +2816,8 @@
   "hms.subdomain.avvik": "Incydent",
   "hms.subdomain.sja": "JSA",
   "hms.subdomain.ruh": "Raport o zagrożeniach",
+  "hms.subdomain.formOppgave": "Zadanie: jedno zdarzenie, które zostało zgłoszone, obsłużone i zamknięte. Odpowiedź trafia do osoby, która to zgłosiła.",
+  "hms.subdomain.formSjekkliste": "Lista kontrolna: elementy sprawdzone przed rozpoczęciem pracy.",
   "hms.hjelp.avvik": "Coś poszło nie tak — obrażenia ciała, szkody materialne lub naruszenie zasad BHP",
   "hms.hjelp.sja": "Ocena ryzyka przed pracą niebezpieczną – podpisana przez uczestników przed rozpoczęciem pracy",
   "hms.hjelp.ruh": "Zaobserwowałeś stan grożący wypadkiem lub niebezpieczny stan — niski próg zgłaszania",

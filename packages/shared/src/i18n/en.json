@@ -2816,6 +2816,8 @@
   "hms.subdomain.avvik": "Incident",
   "hms.subdomain.sja": "JSA",
   "hms.subdomain.ruh": "Hazard report",
+  "hms.subdomain.formOppgave": "Task: one incident that is reported, handled and closed. The reply goes to the person who reported it.",
+  "hms.subdomain.formSjekkliste": "Checklist: items reviewed before the work starts.",
   "hms.hjelp.avvik": "Something has gone wrong — personal injury, material damage or HSE violation",
   "hms.hjelp.sja": "Risk assessment before hazardous work — signed by participants before work starts",
   "hms.hjelp.ruh": "Near miss or hazardous condition you observe — low threshold for reporting",

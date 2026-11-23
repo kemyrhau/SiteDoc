@@ -4,7 +4,7 @@
  *
  * `domain === "hms"` er HMS-markøren, ikke `category`. Standardmodulen lager
  * HMS-avvik/RUH som `category: "oppgave"` og SJA som `category: "sjekkliste"`;
- * eldre maler og «Ny HMS-mal» har `category: "hms"`. Begge skal kunne meldes.
+ * eldre maler (før HM2) har `category: "hms"`. Begge skal kunne meldes.
  * Dokumenttypen avgjøres av subdomain (avvik/ruh → oppgave, sja → sjekkliste).
  */
 export type MeldHmsSubdomain = "avvik" | "sja" | "ruh";

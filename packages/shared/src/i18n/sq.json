@@ -2816,6 +2816,8 @@
   "hms.subdomain.avvik": "Incidenti",
   "hms.subdomain.sja": "JSA",
   "hms.subdomain.ruh": "Raporti i rrezikut",
+  "hms.subdomain.formOppgave": "Detyrë: një incident që raportohet, trajtohet dhe mbyllet. Përgjigja i shkon personit që e ka raportuar.",
+  "hms.subdomain.formSjekkliste": "Lista e kontrollit: artikujt e rishikuar përpara fillimit të punës.",
   "hms.hjelp.avvik": "Diçka ka shkuar keq - lëndim personal, dëm material ose shkelje HSE",
   "hms.hjelp.sja": "Vlerësimi i rrezikut përpara punës së rrezikshme — nënshkruar nga pjesëmarrësit përpara fillimit të punës",
   "hms.hjelp.ruh": "Gjendje afër mungesës ose e rrezikshme që vëzhgoni - pragu i ulët për raportim",

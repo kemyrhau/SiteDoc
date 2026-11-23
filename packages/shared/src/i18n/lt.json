@@ -2816,6 +2816,8 @@
   "hms.subdomain.avvik": "Incidentas",
   "hms.subdomain.sja": "JSA",
   "hms.subdomain.ruh": "Pranešimas apie pavojų",
+  "hms.subdomain.formOppgave": "Užduotis: vienas įvykis, apie kurį pranešama, kuris tvarkomas ir uždaromas. Atsakymas siunčiamas asmeniui, kuris apie tai pranešė.",
+  "hms.subdomain.formSjekkliste": "Kontrolinis sąrašas: elementai, peržiūrėti prieš pradedant darbą.",
   "hms.hjelp.avvik": "Kažkas nutiko – sužalojimas, materialinė žala arba HSE pažeidimas",
   "hms.hjelp.sja": "Rizikos įvertinimas prieš pavojingus darbus – dalyvių pasirašytas prieš pradedant darbą",
   "hms.hjelp.ruh": "Beveik praleista arba pavojinga būklė, kurią pastebėjote – žemas pranešimo slenkstis",
