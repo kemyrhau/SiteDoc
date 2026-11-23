@@ -537,11 +537,12 @@ definerer den ikke.
 ⚠️ **Cowork foreslo først full modal med synlig forhåndsvalg; det ble avvist.** Rett ikke
 tilbake uten å lese dette avsnittet.
 
-🔴 **`Dokumentflyt.faggruppeId` er nullbar med vilje, ikke ved slurv.** `modul.ts:74-77`
-oppretter HMS-flyten som `{ projectId, name: "HMS" }` uten faggruppe når HMS-modulen slås på og
-prosjektet ikke alt har en flyt med en HMS-mal — HMS er tverrgående, ikke en part. (Nye
-prosjekter har alt en slik flyt fra seeden, «HMS-avvik» med faggrupper som ledd; det er avvik A1 i
-[hms-domenemodell.md § HMS-flyt](hms-domenemodell.md).) Målt på test 2026-08-30: begge faggruppe-løse flyter heter
+🔴 **`Dokumentflyt.faggruppeId` er nullbar med vilje, ikke ved slurv.** `apps/api/src/services/hmsFlyt.ts:69-72`
+oppretter HMS-flyten som `{ projectId, name: "HMS" }` uten faggruppe, både når prosjektet opprettes
+og når HMS-modulen slås på, hvis prosjektet ikke alt har en flyt med en HMS-mal — HMS er en egen
+enhet ved siden av faggruppene, ikke en part (Kenneth 2026-11-23, HF1 nei). (Prosjekter opprettet
+før `41a39801` kan ha flyten «HMS-avvik» med faggrupper som ledd fra den gamle seeden; det er avvik
+A1 i [hms-domenemodell.md § HMS-flyt](hms-domenemodell.md).) Målt på test 2026-08-30: begge faggruppe-løse flyter heter
 «HMS». **Sett aldri feltet `NOT NULL`** — det ville stoppet HMS-modulen. En flytboks uten
 faggruppe må derfor spørre, ikke anta.
 

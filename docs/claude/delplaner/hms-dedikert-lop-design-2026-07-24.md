@@ -7,6 +7,10 @@ TIL REPO: docs/claude/delplaner/hms-dedikert-lop-design-2026-07-24.md
 
 # Dedikert HMS-løp — design
 
+> ⚠️ **Utgått som regelkilde (banner 2026-11-23).** Reglene i HMS-flyten står i [hms-domenemodell.md § HMS-flyt](../hms-domenemodell.md) (Kenneth 2026-11-23). Notatet under er historikk fra 2026-07-24 og er ikke endret.
+> **Snudd:** (1) D2 sier at HMS-admin er HMS-gruppen, firmaets HMS-ansvarlige og prosjektadmin. Prosjektadmin er ute: bare de som står som behandlere i HMS-flyt-kortet, behandler (HF2 ja; 🟡 ikke bygget, H3). (2) D1 sier «Ingen kladd (opprett = send)». Koden oppretter et utkast som melderen sender inn (`apps/api/src/routes/oppgave.ts:756-764`).
+> **Står:** HMS er et eget løp ved siden av dokumentflyten, uten godkjenning.
+
 Ramme (Kenneth): HMS er et parallelt, selvstendig løp ved siden av dokumentflyten — aldri tredd inn i dokumentflyt/rolle-matrisen. Visuelt kart: designprosjektet, «Flyt-binding Beslutningskart.dc.html» (3a).
 
 ## D1 — Tilstandsmaskin (HMS-egen)

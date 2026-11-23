@@ -82,6 +82,9 @@ Merknader:
 
 ## 5. HMS-matrise
 
+> ⚠️ **Hvem som behandler og hva som skjer i HMS-flyten, står i [hms-domenemodell.md § HMS-flyt](../hms-domenemodell.md) (banner 2026-11-23).** Matrisen under gjelder etikett og farge pr. lagret status og er ikke endret.
+> **Snudd:** «HMS-gruppen behandler og godkjenner i ett» og «enveis med auto-retur». HMS-flyten har ingen godkjenning. Handlingene er send inn, besvar, returner, lukk og gjenåpne (`apps/api/src/trpc/tilgangskontroll.ts:597-684`).
+
 Perspektivene omdøpes: Avsender = **Innsender**, Mottaker + Godkjenner = **HMS-gruppe** (enveis med auto-retur; HMS-gruppen behandler og godkjenner i ett).
 
 | Lagret status | Innsender | HMS-gruppe | Registrator |

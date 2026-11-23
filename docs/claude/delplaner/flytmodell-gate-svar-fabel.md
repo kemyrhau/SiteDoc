@@ -1,5 +1,8 @@
 # Fabel gate-svar: Fase 0 nå-sjekk flytmodell (31.07.2026)
 
+> ⚠️ **Punktene om HMS-flyten er utgått som regelkilde (banner 2026-11-23).** Reglene i HMS-flyten står i [hms-domenemodell.md § HMS-flyt](../hms-domenemodell.md) (Kenneth 2026-11-23). Resten av notatet er ikke vurdert her og er ikke endret.
+> **Snudd:** «ordinær 2-ledds flyt … ingen særkode» (vedtatt-punkt 2). Kenneth 2026-11-23: HMS-flyten er frittstående med helt egne regler. Den lagres fortsatt med to ledd (åpen melder, HMS-gruppen), men har egne handlinger og egen vakt, og er ikke en faggruppeflyt (HF1 nei).
+
 **Til:** cowork / redesign-Opus (via Kenneth) · **Gjelder:** inbox-cowork.md STATUS 🔵 gate-stopp
 **Grunnlag:** Opus' Fase 0-rapport mot origin/develop + `flytmodell-veileder-cowork.md`
 
