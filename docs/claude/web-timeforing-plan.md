@@ -2,8 +2,8 @@
 name: web-timeforing-plan
 description: Plan med bilder for timeføring på web. Dagskortet er dagen med alle registreringene; hver registrering (prosjektkort = kort = jobb) føres samlet — arbeid, reise, maskin (bare antall timer), varer, tillegg og utlegg — og attesteres samlet. Begrepene står i § 0, Kenneths gjeldende vedtak i § 8.20–8.22, og rekkefølge og status i § 9. Versjon 20 er en rydding uten nytt innhold: utgått tekst er merket ⚠️ der den står. Versjon 21 spesifiserte «Del opp» som vindu med begge kortene; vinduet er utgått (Kenneth 2026-11-23, B70 ja). Versjon 22 (attesteringen, § 4.17) står på branch `docs/fabel`, er ikke merget og er ikke med i denne fila. Versjon 23 fører status til og med 2026-11-23 (§ 9.7) og har «Del opp» med begge kortene åpne og redigerbare, flytting av linjer og nye linjer fra attestanten (§ 4.16 del G; vedtatt av Kenneth 2026-11-23, B68–B71 ja). Reisevinduet står bare i vedtak-timer-web.md § Reisevinduet.
 sist_verifisert_mot_kode: 2026-11-19 (WM1–WM73: develop @ `b8b16571`; WM74–WM92: develop @ `ee7146e5`, etter w1, w2 og w5; WM93–WM108: develop @ `1afb318a`, etter w5b og w7; K1–K14 i § 4.5: develop @ `eedbc7cd`, etter w8, w9 og w9m; FA1–FA27 i § 4.6–4.8: develop @ `57770fc0`; FA16–FA21 på nytt, FA28–FA44 og DK1–DK15 i § 4.7, § 4.9 og § 4.10: develop @ `a5483f48`, 2026-11-20; FA45–FA59 i § 4.11: develop @ `bdf2320f`, 2026-11-20; FA60–FA65 i § 4.11 og FA66–FA70 i § 4.12: develop @ `8c260833`, 2026-11-20; § 4.13 (A1–A14): develop @ `d9354caa`, 2026-11-20; TK1–TK27 i § 4.14: develop @ `4fe7b0d6`, 2026-11-20; F1–F21 i § 4.15: develop @ `30346a95`, lik test `f529b527` i `apps` og `packages`, 2026-11-20; F22–F35 i § 4.15: develop @ `12094b58`, lik `30346a95` i `apps` og `packages`, 2026-11-20; F36–F45 i § 4.15: develop @ `88d37194`, lik `12094b58` i `apps` og `packages`, 2026-11-21; F46–F56 i § 4.15: develop @ `afdaa7ac`, 2026-11-21; F57–F63 i § 4.15: develop @ `e84a4e73` og `3290a40a`, like `afdaa7ac` i `apps` og `packages`, 2026-11-21; F64–F68 i § 4.15: develop @ `fae0e363`, 2026-11-21; F69–F78 i § 4.15: develop @ `6163086f`, etter w15c og w15f, 2026-11-21; F79–F83 i § 4.15: develop @ `d4c0eecd`, etter F68, 2026-11-21; DO1–DO20 i § 4.16: develop @ `310ecf43`, 2026-11-21; DG1–DG14 i § 4.16 del G: develop @ `14869899`, 2026-11-23, lest av leseagent og stikkprøvd; DG15–DG23 i § 4.16 del G: develop @ `ae3c417b`, 2026-11-23, lest av leseagent og stikkprøvd)
-eier: fabel (plan) — orkestrator gater kode; Kenneth har besvart B1–B49 (§ 8); B68–B71 («Del opp» med begge kortene åpne, § 4.16 del G) er besvart med ja 2026-11-23 (§ 8.23); B72 og B73 (linjer attestanten legger til, § 4.16 del G) er åpne; versjon 22 (attesteringen, § 4.17, B50–B67) står på branch `docs/fabel` og er ikke merget
-status: 🟡 2026-11-23, versjon 23 — (1) status ført til og med 2026-11-23 (§ 9 og § 9.7): merget siden versjon 21 er tallformatet, L1–L3b, maskin uten fra–til, «Slett dagsseddel», O1–O8 og O10–O18 (siste: O14 `50f480c8`, O15 `6cf48d6e`, O16 `0e650523`, O17 `6ee3b632`, O18 `4bc05499`); (2) «Del opp»: Kenneth 2026-11-23 «B68 ja, B69 ja, B70 ja, B71 ja» — begge kortene står åpne og redigerbare side om side etter delingen, uten kobling i data; linjer (reise, varer, maskin, utlegg og tillegg) kan flyttes mellom kortene; attestanten kan legge til nye linjer under oppdelingen; vinduet fra versjon 21 er utgått (§ 4.16 del G, `v23-del-opp-etter.png`; DG1–DG23; vedtatt, ikke bestilt, uten kode). Åpne: B72 (rett til å legge til varer og utlegg) og B73 (ny kolonne for hvem som la til linja, én migrering). Bygget av «Del opp»: blokka i kortet med klokkeslett, underprosjekt for B og maskintimer A/B (O15). Versjon 22 (attesteringen med oversiktsrader, § 4.17, B50–B67) står på branch `docs/fabel`, er ikke merget og er ikke med i denne fila. Vedtatt, ikke bygget: reisevinduet punkt 20 (blå boks) og punkt 23–25 (deling ved midnatt, kveldsreise, stopp ved reise som ikke passer kortets byggeplass) — vedtaksteksten står i vedtak-timer-web.md § Reisevinduet; O19 er under løsning. Kenneth 2026-11-23 «ikke endre noe nå»: uka i retur-lenken til Timer-lista, og «Registrer timer» som åpner ny jobb. I BACKLOG: periodevisning fra–til og «siste måned». Ikke bygget: w3c, w4 (L4), w10c, w11 og O9 (flytte jobb på returnert dag); mobil (w12m, w15gm, reisevinduet punkt 20) venter på web. Utgått: fra–til på maskin (B5, w6), w13, «Flytt til …» (w15e), e-post ved retting og automatisk justering av nabokort (§ 8.21 punkt 1). Reisevinduet står bare i vedtak-timer-web.md. Historikken for versjon 12–19 står i § 8.13–8.20; hva som er deployet, står på tavla (STATUS-AKTUELT.md).
+eier: fabel (plan) — orkestrator gater kode; Kenneth har besvart B1–B49 (§ 8); B68–B71 («Del opp» med begge kortene åpne, § 4.16 del G) er besvart med ja 2026-11-23 (§ 8.23); B72 og B73 (varer og utlegg fra attestanten, og merket «Lagt til av» og «Korrigert av») er besvart med ja 2026-11-23 (§ 8.24); B74 (flytte en linje når et kort åpnes alene, § 4.16 del G) er åpen; versjon 22 (attesteringen, § 4.17, B50–B67) står på branch `docs/fabel` og er ikke merget
+status: 🟡 2026-11-23, versjon 23 — (1) status ført til og med 2026-11-23 (§ 9 og § 9.7): merget siden versjon 21 er tallformatet, L1–L3b, maskin uten fra–til, «Slett dagsseddel», O1–O8 og O10–O18 (siste: O14 `50f480c8`, O15 `6cf48d6e`, O16 `0e650523`, O17 `6ee3b632`, O18 `4bc05499`); (2) «Del opp»: Kenneth 2026-11-23 «B68 ja, B69 ja, B70 ja, B71 ja» — begge kortene står åpne og redigerbare side om side etter delingen, uten kobling i data; linjer (reise, varer, maskin, utlegg og tillegg) kan flyttes mellom kortene; attestanten kan legge til nye linjer; vinduet fra versjon 21 er utgått; Kenneth 2026-11-23 «B72 ja, 73 ja -> den som korrigerer skal alltid få denne, kun brukeren selv slipper» og «et kort som redigeres må kunne redigere alle linjer, også etter at de er lukket en gang» — alle som kan attestere prosjektet, får «＋» under Varer og Utlegg; alle som legger til eller retter en linje på en annens dag, får merket «Lagt til av» eller «Korrigert av»; «＋» og redigering av alle linjene gjelder hver gang et kort redigeres, også når det åpnes alene (§ 4.16 del G, `v23-del-opp-etter.png`; DG1–DG33; vedtatt, ikke bestilt, uten kode; én migrering, `opprettet_av_user_id` på fire tabeller, uten backfill, Kenneth kjører). Åpen: B74 (flytte en linje når et kort åpnes alene). Bygget av «Del opp»: blokka i kortet med klokkeslett, underprosjekt for B og maskintimer A/B (O15). Versjon 22 (attesteringen med oversiktsrader, § 4.17, B50–B67) står på branch `docs/fabel`, er ikke merget og er ikke med i denne fila. Vedtatt, ikke bygget: reisevinduet punkt 20 (blå boks) og punkt 23–25 (deling ved midnatt, kveldsreise, stopp ved reise som ikke passer kortets byggeplass) — vedtaksteksten står i vedtak-timer-web.md § Reisevinduet; O19 er under løsning. Kenneth 2026-11-23 «ikke endre noe nå»: uka i retur-lenken til Timer-lista, og «Registrer timer» som åpner ny jobb. I BACKLOG: periodevisning fra–til og «siste måned». Ikke bygget: w3c, w4 (L4), w10c, w11 og O9 (flytte jobb på returnert dag); mobil (w12m, w15gm, reisevinduet punkt 20) venter på web. Utgått: fra–til på maskin (B5, w6), w13, «Flytt til …» (w15e), e-post ved retting og automatisk justering av nabokort (§ 8.21 punkt 1). Reisevinduet står bare i vedtak-timer-web.md. Historikken for versjon 12–19 står i § 8.13–8.20; hva som er deployet, står på tavla (STATUS-AKTUELT.md).
 ---
 
 # Timeføring på web — plan med bilder (FORSLAG)
@@ -3149,7 +3149,7 @@ Testene for «Del opp» med begge kortene åpne (versjon 23) står i § 4.16 del
 
 ### 4.16 «Del opp»: begge kortene åpne og redigerbare side om side (versjon 21 og 23)
 
-🟡 **Vedtatt av Kenneth 2026-11-23 («B68 ja, B69 ja, B70 ja, B71 ja»), ikke bestilt.** ✅ Bygget: blokka i
+🟡 **Vedtatt av Kenneth 2026-11-23 («B68 ja, B69 ja, B70 ja, B71 ja»; «B72 ja, 73 ja»), ikke bestilt.** ✅ Bygget: blokka i
 kortet med klokkeslett, underprosjekt for B og maskintimer for A og B (O15 `6cf48d6e`). Resten står i **del G**.
 
 Kenneths ord 2026-11-21: «ved del opp er det viktig at begge kortene kan justeres samtidig» og «det er også
@@ -3162,7 +3162,12 @@ viktig at attestang kan se begge kortene ved oppdeling».
 - Etter delingen står kort A og kort B åpne og redigerbare side om side (B69 ja).
 - Kortene har ingen kobling i data (B69 ja). Ingen automatisk justering (§ 8.21).
 - Linjer — reise, varer, maskin, utlegg og tillegg — kan flyttes mellom kort A og kort B (B68 ja).
-- Attestanten kan legge til nye linjer under oppdelingen (B71 ja).
+- Attestanten kan legge til nye linjer (B71 ja), også varer og utlegg (B72 ja). «＋» og redigering av alle
+  linjene gjelder hver gang et kort redigeres, også når det åpnes alene og etter at det er lukket en gang
+  (Kenneth 2026-11-23).
+- Alle som legger til eller retter en linje på en annens dag, får merket «Lagt til av» eller «Korrigert av».
+  Bare brukeren selv slipper (B73 ja, med Kenneths presisering). Det gjelder alle linjetyper og alle steder
+  linja kan endres.
 - Vinduet med begge kortene før lagring (alternativ A, 2026-11-21) er utgått (B70 ja). Del B, del C, del E og
   del F, som beskrev vinduet, er tatt ut av planen, og `v21-del-opp.png` gjelder ikke. Med vinduet går også
   ett «Lagre» og «Avbryt» for hele delingen, og prosjekt og byggeplass for kort B: kort B har kort A sitt
@@ -3222,8 +3227,8 @@ Lest av Fabel, ikke kjørt. `RP` = `apps/web/src/components/attestering/Registre
 
 #### Del G — begge kortene åpne og redigerbare etter «Del opp» (versjon 23)
 
-🟡 **Vedtatt av Kenneth 2026-11-23: «B68 ja, B69 ja, B70 ja, B71 ja». Ikke bestilt, uten kode.** B72 og B73 er
-åpne (under, og i § 8). De gjelder bare linjene attestanten legger til (B71).
+🟡 **Vedtatt av Kenneth 2026-11-23: «B68 ja, B69 ja, B70 ja, B71 ja» og «B72 ja, 73 ja». Ikke bestilt, uten
+kode.** B74 er åpen (under, og i § 8). Den gjelder flytting av en linje når et kort åpnes alene.
 
 **Kenneth 2026-11-23, etter test av O15 på test `14869899` (ordrett):** «Det er noen mangler med den opprinnelige
 planen ved del opp -> det var avtalt at del opp skulle vise registreringer av begge side om side, slik at det er
@@ -3250,12 +3255,23 @@ utgått (B70 ja).
 | B68 | Skal varer, tillegg, utlegg og reise kunne flyttes mellom kort A og kort B? | **Ja** | Linjer (reise, varer, maskin, utlegg og tillegg) kan flyttes mellom kort A og kort B. Spørsmålet nevnte ikke maskin; Kenneths ord 23.11. og orkestrators føring av svaret gjør det. Bytter ut «s3.nei» (2026-11-22). |
 | B69 | Skal kort A og kort B stå åpne side om side til du lukker dem, uten kobling i dataene? | **Ja** | Etter «Del opp» står begge kortene åpne og redigerbare side om side. Kortene har ingen kobling i data. |
 | B70 | Skal vinduet fra 21.11. utgå, nå som kortene står åpne etter delingen? | **Ja** | Vinduet utgår, og blokka fra O15 står. Med vinduet går tre ting som ikke var bygget: å se og justere begge kortene før noe er lagret; ett «Lagre» og ett «Avbryt» for hele delingen; og prosjekt og byggeplass for kort B. |
-| B71 | Skal attestanten også kunne legge til nye linjer i kortene? | **Ja** (Fabel anbefalte nei) | Attestanten kan legge til nye linjer under oppdelingen. Bytter ut «Mangler B noe, fører arbeideren det etterpå, eller attestanten returnerer dagen» (2026-11-21). Beskrevet under «Attestanten legger til linjer». |
+| B71 | Skal attestanten også kunne legge til nye linjer i kortene? | **Ja** (Fabel anbefalte nei) | Attestanten kan legge til nye linjer under oppdelingen. ⚠️ «Under oppdelingen» er rettet av Kenneth samme dag: hver gang et kort redigeres (lesningene under). Bytter ut «Mangler B noe, fører arbeideren det etterpå, eller attestanten returnerer dagen» (2026-11-21). Beskrevet under «Attestanten legger til linjer». |
+| B72 | Skal en attestant som bare har attesteringsrett, få legge til varer og utlegg på arbeiderens dag? | **Ja**, for både varer og utlegg | Alle som kan attestere prosjektet, får «＋» under Varer og Utlegg. |
+| B73 | Skal linja lagre hvem som la den til, i en ny kolonne? | **Ja**, med presisering | Kenneth: «den som korrigerer skal alltid få denne, kun brukeren selv slipper.» Alle som legger til eller retter en linje på en annens dag, får merket «Lagt til av» eller «Korrigert av». Det gjelder alle linjetyper og alle steder linja kan endres, ikke bare «Del opp». Én migrering, som Kenneth kjører. Beskrevet under «Merket «Lagt til av» og «Korrigert av»». |
+
+**Kenneth 2026-11-23 om de tre lesningene til Fabel:**
+
+- **Maskinlinja får «→ Kort B»:** står.
+- **«＋» bare i paret:** rettet. Kenneth: «et kort som redigeres må kunne redigere alle linjer, også etter at
+  de er lukket en gang.» «＋» og redigering av alle linjene gjelder hver gang et kort redigeres, også når det
+  åpnes alene. Det er ikke knyttet til paret etter «Del opp».
+- **Merket vises også i attesteringskortet:** står.
 
 **Målt mot develop.** DG1–DG14: develop @ `14869899`, lest av leseagent 2026-11-23; Fabel har stikkprøvd kildene
 for DG1–DG7, DG9 og DG12 (ikke hver linje). DG15–DG23: develop @ `ae3c417b` (koden er lik `14869899`), lest av
 leseagent 2026-11-23; Fabel har stikkprøvd DG15–DG18, DG20, DG21 og vaktene i DG23, ikke DG19 og serverdelen av
-DG22. Ikke kjørt. `D`, `JD`, `RP`, `RRV` og `KI` som i del A; `AT` =
+DG22. DG24–DG33: develop @ `ae3c417b`, lest av Fabel 2026-11-23. Ikke kjørt. `AD` =
+`apps/web/src/components/timer/AttesteringDetalj.tsx`. `D`, `JD`, `RP`, `RRV` og `KI` som i del A; `AT` =
 `apps/web/src/components/attestering/AttesteringTabell.tsx`, `S` = `packages/db-timer/prisma/schema.prisma`,
 `VF` = `apps/api/src/routes/vareforbruk.ts`, `KL` = `apps/api/src/services/timer/kortLeser.ts`, `ADE` =
 `apps/web/src/components/timer/AttesteringDetalj_Edit.tsx`.
@@ -3285,31 +3301,47 @@ DG22. Ikke kjørt. `D`, `JD`, `RP`, `RRV` og `KI` som i del A; `AT` =
 | DG21 | **Merket «Korrigert av» regnes ut ved lesing,** fra historikken over rader som er endret eller slettet, og fra loggen. Det finnes for timer, tillegg og maskin, ikke for utlegg og vare. En rad attestanten oppretter, får ikke merket: den har ingen historikkpost og ingen forelder. Loggen for `rediger_sedel_rader` bærer det som ble sendt inn, uten id-en til den nye raden. | `KL:225`, `:321`, `:415`, `:511–514`; `D:3694–3706`, `:3785–3816`; `S:656–664` |
 | DG22 | **Merket hos arbeideren** viser navn og tidspunkt på linja («Korrigert av Kari Leder 21.11. kl. 14:32») og bare navn på dagen i Mine timer. Bare eieren får det, og bare i prosjektkort-modus. Appen har ikke merket. Ingen e-post og ingen push sendes når attestanten retter eller legger til. | `apps/web/src/components/timer/KorrigertMerke.tsx:34–50`; `D:4114–4117`, `:4266–4272`; `apps/web/src/app/dashbord/timer/[id]/page.tsx:1583`; søk i `apps/mobile/src` og `apps/api/src/routes/timer` (0 treff) |
 | DG23 | **Å rette og å legge til har samme rett i dag:** attesteringsrett på prosjektet (prosjektadmin, «kan attestere» eller firmaadmin) og firmavalget «rediger ved attestering». Vare krever prosjektadmin eller firmaadmin. Ingen rettighet skiller «kan rette» fra «kan legge til». | `D:266–293`, `:620–638`, `:3319–3330`; `VF:31–49`; `packages/db/prisma/schema.prisma:430`, `:746` |
+| DG24 | **Historikken skrives bare av attesteringens skriveveier:** «Rediger sedel» og pennen (begge går gjennom `utforRedigerSedelRader`), «Del opp», gjenåpning av linjer og ✂. Posten bærer hvem og når. Radtypene er timer, tillegg og maskin. | `D:3706`, `:7933`, `:7987`, `:8732`, `:8927`, `:8976`, `:9003`, `:8475`, `:8649`, `:2456–2461`; `S:656–664` |
+| DG25 | **Merket regnes bare når en annen enn eieren står på historikkposten.** Eierens egne endringer gir ikke merke. | `KL:514` |
+| DG26 | **Firmaadmin og sitedoc-admin slipper inn i arbeiderens egne skriveveier** på en annens dag, når dagen er utkast eller returnert: legge til, rette og slette timerad, tillegg, utlegg og maskin, lagre jobbens tid, flytte jobben og bytte underprosjekt. Ingen av veiene skriver historikk eller hvem. En slik retting gir ikke merke i dag. Om skjermen har en lenke som fører en admin dit, er ikke målt. | `D:1103–1156`; kallene `D:4449`, `:4561`, `:4804`, `:5122`, `:5196`, `:5437`, `:5503`, `:5640`, `:6191`, `:6263`, `:6326`, `:6473`, `:6585`, `:6657`, `:11388`, `:11493`, `:11579`; søk etter `sheetRadHistorikk.create` i `D` (sju treff, alle i DG24) |
+| DG27 | **Vare på en annens dag:** prosjektadmin, firmaadmin og sitedoc-admin kan legge til, rette og slette. Vakta spør ikke om status på dagen for dem. «Registrert av» settes når linja opprettes. Retting og sletting lagrer ikke hvem. | `VF:31–49`, `:52–64`, `:541`, `:646`, `:714`, `:782`, `:787` |
+| DG28 | **Ingen fører en hel dag for en annen.** `opprett` lager dagsseddelen for den som er logget inn, og synken avviser en dagsseddel som eies av en annen. | `D:4376–4377`, `:10084–10091` |
+| DG29 | **Appen kan attestere og returnere, ikke rette eller legge til på en annens dag.** | Søk i `apps/mobile/src` og `apps/mobile/app` etter `rettRadFelt`, `redigerSedelRader`, `splittRad` og `delJobb` (0 treff); `apps/mobile/src/components/timer-attestering/` |
+| DG30 | **Attesteringens leser bærer feltene som er rettet, med navn og tidspunkt,** for timer, tillegg og maskin. Skjermen bruker verdien før. Navnet brukes ikke i attesteringskortet. | `D:2395–2416`; `KL:235–241`; `apps/web/src/components/attestering/attestering-tabell.ts:34`, `:40`, `:257`; søk etter `avNavn` i `apps/web/src/components/attestering` (ett treff, typen) |
+| DG31 | **«Rediger sedel» mot kortet.** «Rediger sedel» står på dagsseddelens side i attesteringen når dagen er sendt, firmavalget er på og dagen ikke er attestantens egen. Den retter, sletter og legger til timer, tillegg og maskin for hele dagen, på tvers av kortene, med ett «Lagre». Radene har prosjektvelger, så en ny rad kan føres på et prosjekt dagen ikke har kort på (ikke kjørt). Den viser de opprinnelige radene samlet. Den tar ikke vare, utlegg eller reise. Kortet har ingen sletteknapp på linjene; «✎ Rediger jobben» sletter timer og maskin (DG15). | `AD:489–497`; `ADE:237–272`, `:302–310`, `:572–573`, `:698`, `:746`, `:884`; `apps/web/src/components/attestering/RedigerRadModal.tsx:976`, `:1103`; søk etter «slett» i `RP` (0 treff); DG11 |
+| DG32 | **Tidspunktet «opprettet» kommer fra klienten** for linjer som synkes fra appen. Det er ikke serverens klokke. | `D:9953–9956`, `:11079–11095` |
+| DG33 | **22 steder oppretter en linje i de fire tabellene,** alle i `D`: timer 9, tillegg 5, maskin 6 og utlegg 2. Ingen rå SQL setter inn rader. | Søk i `apps/api/src` (uten testfiler) etter `sheetTimer`, `sheetTillegg`, `sheetMachine` og `sheetUtlegg` fulgt av `create`, `createMany` eller `upsert`; søk etter `INSERT INTO timer.sheet_` (0 treff) |
 
 **Det som gjelder (ark 1):**
 
 1. **«✂ Del opp» og blokka står som i dag** (O15): klokkeslett, underprosjekt for B og maskintimene.
 2. **Etter «✂ Del opp» står kort A og kort B åpne ved siden av hverandre,** i raden der kort A sto (B69). Er
    innholdsflaten smalere enn 1 280 punkter, står kort B under kort A.
-3. **Begge kortene har alle åtte seksjonene.** Reise vises også når kortet ikke har reise (i dag skjult, DG7).
+3. **Et kort attestanten kan redigere, har alle åtte seksjonene.** Reise vises også når kortet ikke har reise
+   (i dag skjult, DG7).
 4. **Det attestanten kan rette i ett kort i dag, kan han rette i begge:** underprosjekt, ✎ og ✂ på linjene,
-   «✎ Rediger jobben» og «Rett reisen».
+   «✎ Rediger jobben» og «Rett reisen». **Alle linjene kan redigeres** (Kenneth 2026-11-23): Varer og Utlegg
+   får ✎ (i dag bare lesing, DG7), og hver linje får en sletteknapp med bekreftelse i et vindu (i dag bare
+   timer og maskin i «✎ Rediger jobben», DG31). Lest slik av Fabel: å redigere en linje er å rette og slette
+   den.
 5. **«→ Kort B» på hver linje** under Maskiner, Varer, Tillegg, Utlegg og Reise (B68). I kort B heter den
    «← Kort A». Linja flyttes hel og får kortets underprosjekt. På en vare kan attestanten skrive mengden som
    skal flyttes («1,00 av 3,00 sekk»); resten blir stående.
 6. **Maskintimene** fordeles i blokka som i dag, og rettes etterpå med ✎ i hvert kort.
-7. **«＋» i seksjonene** legger til en ny linje i det kortet (B71). Se «Attestanten legger til linjer».
+7. **«＋» i seksjonene** legger til en ny linje i det kortet (B71, B72). Se «Attestanten legger til linjer».
 8. **Kortene lukkes hver for seg med ✕.** De er to vanlige registreringer uten kobling. Åpnes ett av dem
-   senere, åpnes bare det, uten «→ Kort B» og «＋».
-9. **Arbeideren** ser «Korrigert av» på linjene som er flyttet, som etter andre rettinger (DO16), og «Lagt til
-   av» på linjene attestanten har lagt til (B73).
+   senere, åpnes bare det. «＋», ✎, ✂ og sletting står der som i paret (Kenneth 2026-11-23). «→ Kort B» står
+   bare i paret; om en linje skal kunne flyttes når kortet åpnes alene, er B74.
+9. **Arbeideren og attestanten** ser «Korrigert av» på linjene som er flyttet eller rettet, og «Lagt til av»
+   på linjene en annen enn arbeideren har lagt til (B73). Se «Merket «Lagt til av» og «Korrigert av»».
 
-**Attestanten legger til linjer (B71 ja):**
+**Attestanten legger til linjer (B71 ja, B72 ja):**
 
-**Hvem, hvor og når:** attestanten, mens kort A og kort B står åpne som par etter «Del opp». Kravene er de
-samme som for «Del opp» og for retting (DO9, DG23): attesteringsrett på prosjektet, ikke egen dagsseddel,
-firmavalget «rediger ved attestering» på, og dagen sendt. Lest slik av Fabel: et kort som åpnes alene, får ikke
-«＋» med dette. Der legger attestanten til i «Rediger sedel» på dagsseddelens side, som i dag (DG16).
+**Hvem, hvor og når:** attestanten, hver gang han redigerer et kort under Firma › Attestering: i paret etter
+«Del opp», når et kort åpnes alene, og når et kort åpnes igjen etter at det er lukket (Kenneth 2026-11-23).
+Kravene er de samme som for retting i dag (DO9, DG23): attesteringsrett på prosjektet, ikke egen dagsseddel,
+firmavalget «rediger ved attestering» på, dagen sendt, og linjene i kortet venter. Et attestert kort må
+gjenåpnes først, som i dag. Arbeiderens egen dagsside er uendret.
 
 **1. Linjetypene.** «＋» åpner de samme feltene som arbeideren har for linjetypen på dagssiden. Linja får
 kortets prosjekt, byggeplass og underprosjekt, står som «venter» og attesteres sammen med resten.
@@ -3318,9 +3350,9 @@ kortets prosjekt, byggeplass og underprosjekt, står som «venter» og attestere
 |---|---|---|---|
 | 2 Lønnsart | Timelinje: fra, til, pause og lønnsart | Bare i «Rediger sedel» på dagsseddelens side (DG15, DG16) | Kort-id på ny rad (DG17) |
 | 4 Maskiner | Maskin og antall timer, uten fra–til | Bare i «Rediger sedel» (DG16) | Kort-id på ny rad. Regelen «maskin høyst jobbens arbeidstimer» gjelder (DO15) |
-| 5 Varer | Vare og mengde | Bare prosjektadmin og firmaadmin (DG12, DG23) | B72 |
+| 5 Varer | Vare og mengde | Bare prosjektadmin og firmaadmin (DG12, DG23) | Vakta slipper inn alle som kan attestere prosjektet (B72 ja) |
 | 6 Tillegg | Tillegg og antall | Bare i «Rediger sedel» (DG16) | Kort-id på ny rad |
-| 7 Utlegg | Kategori, beløp og bilag | Ingen (DG18) | B72, og en ny vei på serveren |
+| 7 Utlegg | Kategori, beløp og bilag. Bilag er valgfritt, som på PC i dag | Ingen (DG18) | En ny vei på serveren for alle som kan attestere prosjektet (B72 ja) |
 | 8 Reise | Reise i reisevinduet: retning, fra–til og steder | Ingen. Attestanten retter bare en reise som finnes (DG19) | En ny vei på serveren. Reglene i [vedtak-timer-web.md § Reisevinduet](vedtak-timer-web.md) gjelder |
 
 Seksjon 1 Fra–til og 3 Hva gjorde du? har ingen «＋». De er ikke linjer.
@@ -3331,11 +3363,11 @@ i dag:
 
 - **Når** finnes: alle linjetypene har tidspunktet linja ble opprettet (DG20).
 - **Hvem** finnes bare på vare («registrert av»). Timer, tillegg, maskin og utlegg lagrer ikke hvem som
-  opprettet linja (DG20). Det er B73.
+  opprettet linja (DG20). De får en ny kolonne (B73 ja).
 - **Merket** finnes ikke for nye linjer, og ikke for utlegg og vare (DG21). Teksten «Lagt til av» finnes ikke
   i språkfilene.
-- Forslag: merket står også i attesteringskortet, så en annen attestant ser at arbeideren ikke førte linja
-  selv. I dag får bare eieren av dagsseddelen merket (DG22).
+- Merket står også i attesteringskortet, så en annen attestant ser at arbeideren ikke førte linja selv
+  (Kenneth 2026-11-23: står). I dag får bare eieren av dagsseddelen merket (DG22).
 
 **3. Dette ser arbeideren etterpå:**
 
@@ -3350,11 +3382,96 @@ i dag:
 
 **4. Ny rettighet eller ny kolonne?**
 
-- **Ny rett: ja, for vare og utlegg.** En attestant som bare har attesteringsrett, slipper ikke inn i dag
-  (DG12, DG18, DG23). Det er B72. Retten trenger ingen ny kolonne: den følger attesteringsretten og
-  firmavalget. Timelinje, tillegg, maskin og reise bruker retten attestanten har til å rette.
-- **Ny kolonne: ja, hvis linja skal lagre hvem som la den til.** Det er B73.
+- **Ny rett: ja, for vare og utlegg (B72 ja).** En attestant som bare har attesteringsrett, slipper ikke inn
+  i dag (DG12, DG18, DG23). Retten trenger ingen ny kolonne: den følger attesteringsretten og firmavalget.
+  Timelinje, tillegg, maskin og reise bruker retten attestanten har til å rette.
+- **Ny kolonne: ja (B73 ja).** Én kolonne på fire tabeller, beskrevet under.
 - **Kort-id:** ingen ny kolonne. Alle linjetypene har den (DG8).
+
+**Merket «Lagt til av» og «Korrigert av» (B73 ja):**
+
+Kenneth 2026-11-23: «den som korrigerer skal alltid få denne, kun brukeren selv slipper.»
+
+**Regelen:** en linje som en annen enn eieren av dagsseddelen har lagt til, viser «Lagt til av [navn]
+[tidspunkt]». En linje som en annen enn eieren har rettet, viser «Korrigert av [navn] [tidspunkt]». En linje
+eieren selv har ført eller rettet, har ikke merke. Regelen gjelder timelinje, reise, tillegg, maskin, vare og
+utlegg, og hver skrivevei, ikke bare «Del opp».
+
+**Hvem regelen treffer, målt i dag:**
+
+| Hvem | Hvor | Merke i dag | Mangler |
+|---|---|---|---|
+| Attestant | Kortet (✎, ✂, «✎ Rediger jobben», «Rett reisen», «Del opp») og «Rediger sedel» | «Korrigert av» på timer, tillegg og maskin (DG21, DG24) | «Lagt til av» på nye linjer |
+| Attestant | Varer og utlegg i kortet (B72) | Veien finnes ikke (DG12) | Begge merkene |
+| Firmaadmin og sitedoc-admin | Arbeiderens egne skriveveier, på utkast og returnert dag (DG26) | Ingen | Begge merkene, alle linjetypene |
+| Prosjektadmin, firmaadmin og sitedoc-admin | Vare på en annens dag (DG27) | Ingen. «Registrert av» lagres, men vises ikke som merke | «Lagt til av» vises; «Korrigert av» ved retting |
+| Alle | Appen | Ingen kan rette eller legge til på en annens dag (DG28, DG29) | Ingenting |
+
+**«Lagt til av» lagres i én ny kolonne,** `opprettet_av_user_id`. Den er tekst, kan være tom og er en svak
+nøkkel til `users` uten relasjon, som `attestert_av_user_id` (`S:272`).
+
+| Tabell | Linjetype | Prisma-felt | Kolonne |
+|---|---|---|---|
+| `timer.sheet_timer` | Timelinje og reise | `SheetTimer.opprettetAvUserId` | `opprettet_av_user_id` |
+| `timer.sheet_tillegg` | Tillegg | `SheetTillegg.opprettetAvUserId` | `opprettet_av_user_id` |
+| `timer.sheet_machines` | Maskin | `SheetMachine.opprettetAvUserId` | `opprettet_av_user_id` |
+| `timer.sheet_utlegg` | Utlegg | `SheetUtlegg.opprettetAvUserId` | `opprettet_av_user_id` |
+| `varelager.vareforbruk` | Vare | `Vareforbruk.registrertAvUserId` (finnes, DG20) | Ingen ny |
+
+- **Serveren setter verdien på hver ny linje,** til den som er logget inn, også når eieren fører selv.
+  Klienten sender den ikke. Synken fra appen setter den på serveren (DG28).
+- **En rad som blir til ved deling eller flytting, arver verdien** fra raden den kom fra (✂, «Del opp», «→
+  Kort B»). Deling er retting, ikke en ny linje.
+- **Merket «Lagt til av» vises når verdien er satt og er en annen enn eieren av dagsseddelen.** Tom verdi gir
+  ikke merke.
+
+**«Korrigert av» trenger ingen kolonne.** Merket regnes fra historikken som i dag (DG21, DG25). Det som
+mangler, er at skriveveiene i DG26 og DG27 og de nye veiene for utlegg skriver en historikkpost når en annen
+enn eieren retter eller sletter, og at historikken og leseren tar radtypene utlegg og vare. `rad_type` er tekst
+(`S:658`), så det trengs ingen migrering for det. Varene ligger i en annen database enn historikken (DG14);
+rekkefølgen beskrives i koderens løsning.
+
+**Migreringen:** én migrering i `packages/db-timer`, som legger til kolonnen på de fire tabellene. Ingen linje
+endres. Varelager-basen får ingen migrering. Kenneth kjører den på test og i prod.
+
+**Backfill: ingen.** Regelen om stille tomhet ([arkitektur.md § Schema- og migreringsregler](arkitektur.md))
+krever backfill, garanti i databasen og en test som feiler når feltet er tomt. Slik svares den ut:
+
+- **(a) Backfill kan ikke gjøres uten å gjette.** Hvem som la til en linje før migreringen, er ikke lagret
+  noe sted. Attestanten kan ha lagt til rader i «Rediger sedel» uten at loggen bærer id-en til raden (DG21),
+  og en firmaadmin kan ha ført på en annens dag uten spor (DG26). Eieren skrevet på alle gamle linjer ville
+  gitt feil navn på noen av dem, og samme regel forbyr å utlede identitet. Kenneth svarte ja på B73 med «linjer
+  ført før migreringen får ikke merket».
+- **Tom verdi har én betydning: ført før migreringen, ukjent hvem.** Den betyr aldri «eieren». Det holder
+  fordi serveren setter verdien på hver ny linje, også eierens.
+- **(b) Garanti i databasen.** Kolonnen er ikke en nøkkel, og ingen leser slår opp på den, så en unik indeks
+  har ingenting å verne. En sjekkregel «opprettet etter migreringen krever verdi» kan ikke brukes, fordi
+  tidspunktet «opprettet» kommer fra klienten for linjer som synkes fra appen (DG32). Vernet er testen under.
+  Steg to i to-stegs-regelen (kolonnen påkrevd) kan ikke tas mens gamle linjer er tomme, og er ikke foreslått.
+- **(c) Testen som feiler når feltet er tomt** (ekte Postgres): hver skrivevei som oppretter en linje i de fire
+  tabellene, kjøres, og testen krever at `opprettet_av_user_id` er satt på hver rad den laget. I dag er det 22
+  steder (DG33). En kildevakt teller de samme stedene, så en ny skrivevei uten test feiler.
+
+**Der merket vises:** hos arbeideren på PC, på linja og på dagen i Mine timer, som i dag, og i
+attesteringskortet (Kenneth 2026-11-23: står). I dag får bare eieren merket (DG22). Attesteringens leser bærer
+navn og tidspunkt for rettede felt, men skjermen viser ikke navnet (DG30). Firmavalget dagskort-modus og appen
+viser ikke merket i dag. Det er ikke endret her: dagskortet røres ikke (del D), og appen venter på w15gm.
+
+**Kortet og «Rediger sedel» (DG31):**
+
+Med «＋», ✎ og sletting på alle linjene gjør kortet det meste av det «Rediger sedel» gjør. Tre ting gjør bare
+«Rediger sedel»:
+
+- den lagrer endringer i flere kort på dagen med ett «Lagre»;
+- den kan legge til en rad på et prosjekt dagen ikke har kort på, altså en ny jobb på arbeiderens dag;
+- den viser de opprinnelige radene samlet.
+
+Tre ting gjør bare kortet: vare, utlegg og reise, og linja havner i kortet der «＋» ble trykket (DG17).
+
+**Begge står.** Kenneth har ikke bedt om at «Rediger sedel» fjernes, og kortet dekker ikke de tre punktene
+over. Skriveveien på serveren er den samme (`utforRedigerSedelRader`, DG24), så kravene og merket blir like
+begge steder. Om «Rediger sedel» skal fjernes, er et spørsmål til Kenneth når D2c–D2e er testet. Det er ikke
+stilt nå.
 
 **Dette trengs i koden:**
 
@@ -3362,67 +3479,66 @@ i dag:
 |---|---|---|
 | Web 1 | Blokka gir kort-id-en til B videre når delingen er lagret. | DG3, DG4 |
 | Web 2 | Det åpne kortet blir et par (A og B). Én rad i tabellen tegner to kort i et rutenett. | DG5, DG6 |
-| Web 3 | Seksjonen Reise vises alltid når to kort står åpne som par. | DG7 |
+| Web 3 | Seksjonen Reise vises alltid når attestanten kan redigere kortet. | DG7 |
 | Web 4 | «→ Kort B» og «← Kort A» på linjene, med mengdefelt på vare. Vises bare når to kort står åpne som par. | Punkt 5 |
 | Web 5 | Tekstene i `nb.json` og `en.json`, og hjelpeteksten for attesteringen. | Kodestil |
-| Web 6 | «＋» i seksjon 2 og 4–8 i begge kortene, med feltene arbeideren har for linjetypen. Vises bare når to kort står åpne som par. | Punkt 7 |
-| Web 7 | Merket «Lagt til av [navn] [tidspunkt]» på linja hos arbeideren og i attesteringskortet. | DG21, DG22 |
+| Web 6 | «＋» i seksjon 2 og 4–8, med feltene arbeideren har for linjetypen. Vises hver gang attestanten kan redigere kortet, også når det åpnes alene. | Punkt 7 og 8 |
+| Web 7 | Merket «Lagt til av [navn] [tidspunkt]» og «Korrigert av [navn] [tidspunkt]» på alle linjetypene, hos arbeideren og i attesteringskortet. | DG21, DG22, DG30 |
+| Web 8 | ✎ på Varer og Utlegg, og sletteknapp på hver linje i kortet med bekreftelse i et vindu. | Punkt 4; DG7, DG31 |
 | Server 1 | **Ny mutasjon som flytter én linje til et annet kort på samme dagsseddel.** Den skriver kort-id, underprosjekt og byggeplass fra målkortet. Maskin og vare kobles til en timerad i målkortet. Reise krever samme prosjekt. Linja lagres i historikken. | DG9, DG10, DG11 |
 | Server 2 | **Samme krav som «Del opp»** (DO9): attesteringsrett på prosjektet, ikke egen dagsseddel, «rediger ved attestering» på, dagen sendt, og linja venter. En attestert vare og et utlegg på en attestert jobb flyttes ikke. | DG13 |
 | Server 3 | **Attestanten må få flytte en vare.** Vare-ruten slipper ham ikke inn i dag. | DG12 |
 | Server 4 | **Delt varemengde gir en ny varelinje i målkortet.** Varene ligger i en annen database, så rekkefølgen og hva som skjer når det andre steget feiler, beskrives i koderens løsning før kode. | DG14 |
 | Server 5 | **En ny rad fra attestanten tar imot kort-id** (timer, tillegg og maskin) og havner i kortet der «＋» ble trykket. Kravene i Server 2 gjelder. | DG16, DG17, DG10 |
-| Server 6 | **Vare og utlegg fra attestanten på en sendt dag.** Vare: vakta slipper inn den som har attesteringsrett. Utlegg: en ny vei, fordi den som finnes, bare gjelder utkast og returnert dag. | DG12, DG18; B72 |
+| Server 6 | **Vare og utlegg fra attestanten på en sendt dag: legge til, rette og slette** (B72 ja). Vare: vakta slipper inn den som har attesteringsrett. Utlegg: en ny vei, fordi den som finnes, bare gjelder utkast og returnert dag. | DG12, DG18 |
 | Server 7 | **Reise fra attestanten på en sendt dag,** med reisesporet og reglene fra reisevinduet. | DG19 |
-| Server 8 | **Hvem som la til linja,** og merket for nye linjer og for utlegg og vare. | DG20, DG21; B73 |
-| Migrering | **Nei** for begge kortene åpne og for flyttingen: kolonnene finnes (DG8). **Én kolonne på fire tabeller** hvis B73 besvares med ja. Tom verdi betyr at eieren førte linja; regelen om tomme kolonner (arkitektur.md § Schema- og migreringsregler) svares ut i koderens løsning. | DG8, DG20 |
-| Mobil | Ingen endring. Appen har ikke «Del opp» (DO19) og ikke merket (DG22). | |
+| Server 8 | **`opprettet_av_user_id` settes i hver skrivevei som oppretter en linje** (22 steder), og leserne gir «Lagt til av» for alle linjetypene, til eieren og til attesteringen (B73 ja). | DG20, DG21, DG30, DG33 |
+| Server 9 | **«Korrigert av» alle steder** (B73 ja): historikkpost når en annen enn eieren retter eller sletter i arbeiderens egne skriveveier, i vare-ruten og på utlegg. Historikken og leseren tar radtypene utlegg og vare. | DG24–DG27 |
+| Migrering | **Nei** for begge kortene åpne og for flyttingen: kolonnene finnes (DG8). **Én migrering i `packages/db-timer`:** `opprettet_av_user_id` på fire tabeller (B73 ja). Ingen backfill. Tom verdi betyr «ført før migreringen, ukjent hvem», aldri «eieren». Se «Merket «Lagt til av» og «Korrigert av»». Kenneth kjører den. | DG8, DG20, DG32 |
+| Mobil | Ingen endring i appen. Appen har ikke «Del opp» (DO19), kan ikke rette på en annens dag (DG29) og har ikke merket (DG22). Synken setter `opprettet_av_user_id` på serveren. | |
 
 Regel 10 kjøres uavhengig for serverdelene: flyttingen flytter kostnad mellom underprosjekter, og nye linjer
 fra attestanten er lønn, varekostnad og utlegg som arbeideren ikke har ført selv.
 
-**Spørsmål til Kenneth.**
+**Spørsmål til Kenneth.** B72 og B73 er besvart med ja 2026-11-23 (tabellen «Kenneths svar» over, og
+§ 8.24). Ett spørsmål er åpent:
 
-**B72 — Skal en attestant som bare har attesteringsrett, få legge til varer og utlegg på arbeiderens dag?**
-Tilstand: attestanten er prosjektmedlem med «kan attestere», ikke prosjektadmin og ikke firmaadmin. Han står i
-Firma › Attestering med kort A og kort B åpne etter «Del opp». Dagen er sendt, og firmavalget «rediger ved
-attestering» er på.
+**B74 — Skal en linje kunne flyttes til et annet kort på dagen også når kortet åpnes alene?** Tilstand:
+attestanten har delt en jobb med «Del opp», rettet i kort A og kort B og lukket begge. Han åpner kort A igjen,
+alene. Dagen er sendt, linjene venter, og firmavalget «rediger ved attestering» er på.
 
-- **I dag:** han kan legge til timelinje, tillegg og maskin (i «Rediger sedel»). Varer på en annens dag kan
-  bare prosjektadmin og firmaadmin føre. Utlegg kan ingen føre på en sendt dag.
-- **Svarer du ja:** attesteringsretten gjelder alle linjetypene. «＋» under Varer og Utlegg virker for alle
-  som kan attestere prosjektet. Varen trekkes og koster som andre varer. Utlegget utbetales til arbeideren som
-  andre utlegg. Attestanten både fører og attesterer det, slik han i dag kan med timer og tillegg.
+- **I dag:** ingen linje kan flyttes mellom kort (DG11). Når D2b er bygget, kan den flyttes med «→ Kort B»
+  mens paret står åpent rett etter «Del opp».
+- **Svarer du ja:** hver linje under Maskiner, Varer, Tillegg, Utlegg og Reise har flytteknappen også når
+  kortet åpnes alene. Den viser de andre kortene på samme dag og samme prosjekt. Har dagen bare ett slikt kort,
+  står kortets navn rett på knappen («→ TILL-001»).
 - **Forsvinner:** ingenting.
-- **Svarer du nei:** «＋» under Varer vises bare for prosjektadmin og firmaadmin, og «＋» under Utlegg vises
-  ikke. Mangler en vare eller et utlegg, returnerer attestanten dagen. Du kan svare for varer og utlegg hver
-  for seg.
-- **Anbefaling:** ja for varer. Ja for utlegg også, med bilag valgfritt som på PC i dag. Vil du at to
-  personer alltid skal stå bak et utlegg, svar nei for utlegg.
+- **Svarer du nei:** en linje kan bare flyttes i paret rett etter «Del opp». Står en linje i feil kort etter
+  at kortene er lukket, sletter attestanten den og legger den til i det andre kortet. Arbeideren ser da «Lagt
+  til av» på den nye linja.
+- **Anbefaling:** ja. Kortene har ingen kobling i data (B69), så programmet vet ikke senere hvilke to kort som
+  var et par. Det følger regelen din om at et kort må kunne redigeres også etter at det er lukket. Dette er
+  ikke «Flytt til …» fra versjon 16, der arbeideren valgte kort for reisen (utgått, § 8.20).
 
-**B73 — Skal linja lagre hvem som la den til, i en ny kolonne?** Tilstand: arbeideren åpner dagen sin på PC
-etter at attestanten har lagt til en linje i kort B.
+D2b kan bestilles for paret uten svaret. Ved ja kommer knappen i kort som åpnes alene i tillegg, med samme
+mutasjon på serveren (Server 1).
 
-- **I dag:** linja ser ut som en han har ført selv. Bare varer lagrer hvem som førte linja. Merket «Korrigert
-  av» finnes for linjer som er endret, ikke for nye, og ikke for utlegg og varer.
-- **Svarer du ja:** timer, tillegg, maskin og utlegg får kolonnen «opprettet av» (vare har den). Linja viser
-  «Lagt til av Kari ansatt 23.11. kl. 14:02» hos arbeideren og i attesteringskortet, og dagen viser «Korrigert
-  av Kari ansatt» i Mine timer. Du kjører én migrering på test og i prod. Den legger til en tom kolonne. Ingen
-  linjer endres, og linjer ført før migreringen får ikke merket.
-- **Forsvinner:** ingenting.
-- **Svarer du nei:** ingen migrering. Hvem som la til linja, leses fra aktivitetsloggen. Loggen må da også
-  skrive id-en til den nye linja og dekke utlegg, som den ikke gjør i dag (DG21). Ryddes loggen, mister linja
-  merket. Om den ryddes, er ikke målt (§ 10).
-- **Anbefaling:** ja.
-
-**Leveransene (forslag):** fem ordrer, ingen på mobil.
+**Leveransene (forslag):** seks ordrer, ingen i appen. B72 og B73 er besvart, så ingen av dem venter på et
+svar.
 
 - **D2a — begge kortene åpne** (Web 1–3 og 5). Bare web, ingen migrering. Kan bestilles (B69 ja).
 - **D2b — flytt linjer mellom kortene** (Web 4 og Server 1–4). Ingen migrering. Kan bestilles (B68 ja).
-  Regel 10 uavhengig.
-- **D2c — legg til timelinje, tillegg og maskin** (Web 6–7, Server 5 og 8). Etter B73.
-- **D2d — legg til vare og utlegg** (Server 6). Etter B72 og D2c. Regel 10 uavhengig.
+  Regel 10 uavhengig. B74 ja legger til knappen i kort som åpnes alene.
+- **D2c — legg til timelinje, tillegg og maskin, og «Lagt til av»** (Web 6–7, Server 5 og 8). **Krever
+  migreringen** (`opprettet_av_user_id` på fire tabeller, B73 ja). Server 8 dekker alle de 22 stedene som
+  oppretter en linje, ikke bare attestantens, ellers feiler testen for tom kolonne. Kan bestilles. Kenneth
+  kjører migreringen før test.
+- **D2d — vare og utlegg: legge til, rette og slette** (Web 8 og Server 6). Etter D2c. Kan bestilles (B72
+  ja). Regel 10 uavhengig.
 - **D2e — legg til reise** (Server 7). Etter D2c.
+- **D2f — «Korrigert av» alle steder** (Server 9, og Web 7 for utlegg og vare). Ingen migrering. Etter D2c og
+  D2d, fordi den bruker utlegg- og vareveiene derfra. Regel 10 uavhengig: den rører arbeiderens egne
+  skriveveier (DG26).
 
 Koderen leverer løsning med skjermbilde før kode i hver av dem.
 
@@ -3445,19 +3561,38 @@ Koderen leverer løsning med skjermbilde før kode i hver av dem.
 9. **Vareretten ved flytting:** en attestant som bare har attesteringsrett, kan flytte en vare (DG12).
 10. **Merket:** arbeideren ser «Korrigert av» på en flyttet linje.
 11. **Det som står:** testene for `delJobb` fra w5, w7 og O15 er grønne, og `dagskort-vakt.test.tsx` er grønn.
-12. **«＋» bare i paret:** begge kortene i paret har «＋» i seksjon 2 og 4–8. Et kort som åpnes alene, har
+12. **«＋» hver gang kortet redigeres:** begge kortene i paret har «＋» i seksjon 2 og 4–8. Et kort som åpnes
+    alene, og et kort som åpnes igjen etter ✕, har de samme. Et attestert kort og attestantens egen dag har
     ingen.
 13. **Ny linje i riktig kort** (ekte Postgres): kort A og kort B har begge «Uten». En timelinje lagt til i
     kort B har kort B sin kort-id, ikke A sin (DG17). Det samme for tillegg og maskin.
 14. **Grensene for ny linje** (én test pr. avvisning, og ingen linje er opprettet): attestant uten
     attesteringsrett på prosjektet; egen dagsseddel; firmavalget av; dagen ikke sendt; timelinje som
     overlapper en annen rad på dagsseddelen; maskintimer over jobbens arbeidstimer.
-15. **Vare og utlegg** (etter B72): en attestant som bare har attesteringsrett, kan legge til en vare og et
-    utlegg på en sendt dag. Varen har attestanten som «registrert av». Uten attesteringsrett avvises begge.
+15. **Vare og utlegg** (B72 ja): en attestant som bare har attesteringsrett, kan legge til, rette og slette en
+    vare og et utlegg på en sendt dag. Varen har attestanten som «registrert av». Uten attesteringsrett
+    avvises alle seks.
 16. **Reise:** en reise lagt til av attestanten har reisesporet og står i kortet der «＋» ble trykket.
 17. **«Lagt til av»:** arbeideren ser «Lagt til av [attestanten]» med tidspunkt på hver linjetype, og
     «Korrigert av» på dagen i Mine timer. En linje arbeideren selv har ført, har ikke merket.
 18. **Bare eieren og attestantene:** en annen ansatt får ikke merket på en dagsseddel som ikke er hans.
+19. **Tom kolonne feiler** (ekte Postgres): hver av de 22 skriveveiene som oppretter en linje, kjøres, og
+    `opprettet_av_user_id` er satt på hver rad. En kildevakt feiler når et nytt sted oppretter en linje uten
+    å stå i testen (DG33).
+20. **Eieren slipper:** en linje arbeideren fører selv, har hans egen id i kolonnen og ikke noe merke. En
+    linje han retter selv, får ikke «Korrigert av».
+21. **Gamle linjer:** en linje med tom kolonne viser ikke «Lagt til av», heller ikke når en annen enn eieren
+    åpner dagen.
+22. **Deling arver:** rad B etter ✂ og «Del opp» har samme `opprettet_av_user_id` som raden den kom fra, og
+    viser «Korrigert av», ikke «Lagt til av».
+23. **Firmaadmin på en annens dag** (D2f): en firmaadmin retter en timerad, et tillegg, et utlegg og en maskin
+    på arbeiderens utkast, og sletter en av dem. Arbeideren ser «Korrigert av [firmaadmin]» på linjene og på
+    dagen. I dag ser han ingenting (DG26).
+24. **Vare rettet av en annen** (D2f): en prosjektadmin retter mengden på en vare på arbeiderens dag.
+    Arbeideren ser «Korrigert av». I dag ser han ingenting (DG27).
+25. **Merket i attesteringskortet:** en annen attestant ser «Lagt til av» og «Korrigert av» med navn på linja
+    i kortet. I dag vises ikke navnet (DG30).
+26. **Dagskortet står:** `dagskort-vakt.test.tsx` er grønn, og dagskort-modus viser ikke merket, som i dag.
 
 ## 5. Maskintimer er en del av arbeidstiden — hva som må endres (føring 4)
 
@@ -3556,13 +3691,13 @@ føres med fra–til» (B5), er utgått (§ 8.22 punkt 1).
 
 B1–B49 er besvart (§ 8.1–8.20), og Kenneth har ryddet i begrepene og fire motstrider (§ 8.21–8.22).
 B68–B71 («Del opp» med begge kortene åpne) er besvart med ja 2026-11-23 (§ 8.23).
-**Åpne etter versjon 23: B72 og B73, om linjene attestanten legger til etter «Del opp» (§ 4.16 del G).** De står i fast form i del G; radene i tabellen er korte.
+B72 og B73 (varer og utlegg fra attestanten, og merket «Lagt til av») er besvart med ja 2026-11-23 (§ 8.24).
+**Åpen etter versjon 23: B74, om en linje kan flyttes når et kort åpnes alene (§ 4.16 del G).** Den står i fast form i del G; raden i tabellen er kort.
 Versjon 22 (attesteringen med oversiktsrader, § 4.17, B50–B67) står på branch `docs/fabel`, er ikke merget og er ikke med i denne fila.
 
 | # | Spørsmål | Alternativer | Anbefalt |
 |---|---|---|---|
-| **B72** | **Skal en attestant som bare har attesteringsrett, få legge til varer og utlegg på arbeiderens dag?** Tilstand og følger: § 4.16 del G. | **Ja:** «＋» under Varer og Utlegg virker for alle som kan attestere prosjektet; attestanten både fører og attesterer utlegget, som han i dag kan med timer og tillegg. **Nei:** «＋» under Varer bare for prosjektadmin og firmaadmin, ingen «＋» under Utlegg; ellers returneres dagen. Kan besvares for varer og utlegg hver for seg. | **Ja** for begge. Nei for utlegg hvis to personer alltid skal stå bak et utlegg. |
-| **B73** | **Skal linja lagre hvem som la den til, i en ny kolonne?** | **Ja:** kolonnen «opprettet av» på timer, tillegg, maskin og utlegg; linja viser «Lagt til av [navn] [tidspunkt]»; én migrering som Kenneth kjører. **Nei:** ingen migrering; hvem leses fra aktivitetsloggen, som må utvides, og merket forsvinner hvis loggen ryddes. | **Ja.** |
+| **B74** | **Skal en linje kunne flyttes til et annet kort på dagen også når kortet åpnes alene?** Tilstand og følger: § 4.16 del G. | **Ja:** flytteknappen står på linjene også når kortet åpnes alene, og viser de andre kortene på samme dag og samme prosjekt. **Nei:** en linje flyttes bare i paret rett etter «Del opp»; senere sletter attestanten linja og legger den til i det andre kortet. | **Ja.** |
 
 Kontrollspørsmålet om overføring til annet kontor er besvart
 (§ 8.22 punkt 2: «Ja, samme regel»).
@@ -4048,9 +4183,26 @@ Kenneth: «B68 ja, B69 ja, B70 ja, B71 ja». B71 er mot Fabels anbefaling (nei).
 - **B69 ja:** etter «Del opp» står begge kortene åpne og redigerbare side om side. Kortene har ingen kobling i
   data.
 - **B70 ja:** vinduet fra 21.11. utgår.
-- **B71 ja:** attestanten kan legge til nye linjer under oppdelingen.
+- **B71 ja:** attestanten kan legge til nye linjer under oppdelingen. ⚠️ Rettet samme dag til «hver gang et kort redigeres»
+  (§ 8.24).
 
-🟡 Vedtatt, ikke bestilt. Det som gjelder, står i § 4.16 del G. B72 og B73 er åpne.
+🟡 Vedtatt, ikke bestilt. Det som gjelder, står i § 4.16 del G.
+
+### 8.24 Kenneths svar på B72 og B73 og på de tre lesningene, 2026-11-23
+
+Kenneth: «B72 ja, 73 ja -> den som korrigerer skal alltid få denne, kun brukeren selv slipper.» Om lesningen
+«＋ bare i paret»: «et kort som redigeres må kunne redigere alle linjer, også etter at de er lukket en gang.»
+
+- **B72 ja, for både varer og utlegg:** alle som kan attestere prosjektet, får «＋» under Varer og Utlegg.
+- **B73 ja, med presisering:** alle som legger til eller retter en linje på en annens dag, får merket «Lagt til
+  av» eller «Korrigert av». Bare brukeren selv slipper. Det gjelder alle linjetyper og alle steder linja kan
+  endres, ikke bare «Del opp». Én migrering med en tom kolonne; Kenneth kjører den.
+- **Maskinlinja får «→ Kort B»:** står.
+- **«＋» bare i paret:** rettet. «＋» og redigering av alle linjene gjelder hver gang et kort redigeres, også
+  når det åpnes alene og etter at det er lukket en gang.
+- **Merket vises også i attesteringskortet:** står.
+
+🟡 Vedtatt, ikke bestilt. Det som gjelder, står i § 4.16 del G. B74 er åpen.
 
 ## 9. Rekkefølge
 
@@ -4059,7 +4211,8 @@ og B, w12, w14 (leveranse 1 og 2), w15a, w15b, w15c, w15d, w15f, F68 og w15g, su
 uten særregler (`e4b1208f`). **Merget 2026-11-21–23, etter versjon 21:** tallformatet, L1–L3b, maskin uten
 fra–til, «Slett dagsseddel», O1–O8 og O10–O18. Hver av dem står med hash i § 9.7. **Vedtatt, ikke bygget:**
 reisevinduet punkt 20 (blå boks) og punkt 23–25 (O19 under løsning); «Del opp» med begge kortene åpne, flytting av linjer
-og nye linjer fra attestanten (§ 4.16 del G; Kenneth 2026-11-23, B68–B71 ja; B72 og B73 åpne). Utgått:
+og nye linjer fra attestanten med merket «Lagt til av» og «Korrigert av» (§ 4.16 del G; Kenneth 2026-11-23,
+B68–B73 ja; B74 åpen). Utgått:
 «Del opp»-vinduet fra versjon 21 (B70 ja). Attesteringen med
 oversiktsrader (versjon 22, § 4.17, B50–B67) står på branch `docs/fabel`, ikke merget. **Ikke bygget:** w3c, w4 (L4), w10c, w11 og O9. Venter på web: w12m og w15gm.
 Utgått: w6, w13 og w15e. Hva som er deployet, og hvilke migreringer som er kjørt, står på tavla
@@ -4093,7 +4246,7 @@ delene krever ingen.
 | **w15gm** | ⏸ **Venter på web** (Kenneth 2026-11-20, § 8.13; Kenneth 2026-11-21, § 8.20: «varsle i appen/web»). **«Korrigert av» i appen.** Arbeideren ser merket «Korrigert av [navn]» på linja og på dagen i appens timeliste, med de samme tekstene som på web (§ 4.15 del F). Bestilles etter at w15g er merget og Kenneth har godkjent merket på PC. **Koden er ikke planlagt.** Målt (F82, develop `d4c0eecd`): appen viser timelisten tre steder — Timer-fanen og `/timer` (`M/components/DagsseddelListe.tsx:277`, statusmerket `:320`), Mine timer (`apps/mobile/app/timer/mine.tsx:314`) og dagen i prosjektkort-modus (`M/components/timer-detalj/prosjektkort/ProsjektkortDagsoversikt.tsx:778–796`). Dagskort-modus (`TimerSeksjon.tsx`) er ikke lest. Appen leser lokal base, som fylles av `hentEndringerSiden` (`M/services/timerSync.ts:1211`; `D:8393`) og `hentMedId` (`timerSync.ts:752`). Ingen av dem gir korrigerte felt i dag, og de lokale tabellene har ingen kolonne for dem (`M/db/schema.ts:142`, `:254`). Koderen leverer løsning før kode: hva serveren sender, hvordan det lagres lokalt, og hvor merket står. Krever OTA. | Ikke bestemt. Lest i F82: `M/components/DagsseddelListe.tsx`, `apps/mobile/app/timer/mine.tsx`, `M/components/timer-detalj/prosjektkort/ProsjektkortDagsoversikt.tsx`, `M/services/timerSync.ts`, `M/db/schema.ts`, `D` (`hentEndringerSiden`). | Linja attestanten korrigerte, sier «Korrigert av Kari Leder» også på telefonen. |
 | **Sumlinja** | ✅ **Merget `c03aa0e6`, ikke deployet** (Kenneth 2026-11-21, § 8.21 og § 8.22). Bunnlinja viser to tall: arbeid mot normen («8,0 av 7,5») og sum i dag = arbeid + reise («11 t» når 3 t er reise). Maskintimer vises, men legges ikke til. Regelen om at reise ikke er overtid, står. ⚠️ Snur sumlinja fra 2026-11-14, som tok reisen ut av summen. Spesifiseres ikke her; ordren ligger hos koderen. | Ikke bestemt i planen. | En dag med 8 t arbeid og 3 t reise viser «8,0 av 7,5» og «Sum i dag 11 t». |
 | **Reisens kort uten særregler** | ✅ **Merget `e4b1208f`** (`feat/web-timer-forenkle`; Kenneth 2026-11-21, § 8.22 punkt 1–3 og svarene «1A, 2A»). **Server:** `sikreKortId` velger kort bare for reise uten kort-id; en lagret reise beholder kortet til prosjekt, byggeplass eller underprosjekt rettes (`kortIdForSkriving` med lagret rad bare når raden var reise). Ny jobb, tillegg, vare, sletting og synk flytter ikke reisen. Reise og arbeid i samme `syncBatch` havner i samme kort (begge rekkefølger). `velgReiseKort` og `egetReiseKort` har ingen kontorvariant (`OVERFORING_KORT_BYGGEPLASS` er fjernet). `delJobb` lar maskin og varer bli i A og kobler dem om til en rad i A (`maskinKrysserKl` er fjernet; forhåndsvisningen har ikke lenger `maskinTilB`). **Web:** Reisevinduet: se [vedtak-timer-web.md § Reisevinduet](vedtak-timer-web.md). Reiselinja har ingen egen kontortekst, og kort med bare kontorreise får «+ Timer». Maskinvinduet har ingen fra–til, heller ikke uten jobb; lagrede fra–til sendes ikke. Ingen migrering, ikke mobil (mobilens `reiseKilde «overforing»` tas imot som før). | `KI`, `D`, `RV`, `apps/api/src/routes/timer/jobb-deling.ts`, `RK`, `MR`, `WS`, `ReiseRettVindu.tsx`, `RP`, i18n (15 filer), testene, `timer.md`. | Reise ført før arbeidet står i sitt eget kort etter at jobben føres; ✎ med samme sted gir ikke nytt kort; ✎ med ny byggeplass flytter reisen. |
-| **«Del opp» med begge kortene åpne** | 🟡 **Delvis bygget; resten vedtatt 2026-11-23, ikke bestilt.** ✅ Blokka i kortet med klokkeslett, underprosjekt for B og maskintimer for A og B (O15 `6cf48d6e`). 🟡 Kenneth 2026-11-23 «B68 ja, B69 ja, B70 ja, B71 ja» (§ 4.16 del G, `v23-del-opp-etter.png`): etter delingen står kort A og kort B åpne og redigerbare side om side, uten kobling i data; linjer (reise, varer, maskin, utlegg og tillegg) flyttes mellom kortene; attestanten kan legge til nye linjer. Vinduet fra versjon 21 er utgått. **Fem leveranser:** D2a begge kortene åpne (bare web; kan bestilles), D2b flytt linjer (web og server; kan bestilles), D2c legg til timelinje, tillegg og maskin (etter B73), D2d legg til vare og utlegg (etter B72), D2e legg til reise (etter D2c). Regel 10 kjøres uavhengig for D2b–D2e: de flytter eller fører lønn, varekostnad og utlegg. Koderen leverer løsning med skjermbilde før kode. Migrering bare hvis B73 besvares med ja (én kolonne på fire tabeller). Ikke mobil. | `RP`, `AT`, `apps/web/src/components/timer/TimerRadTabell.tsx`, `D` (ny mutasjon for flytting; `redigerSedelRader` med kort-id), `VF`, `KL` og `apps/web/src/components/timer/KorrigertMerke.tsx` (merket), i18n (`nb.json` og `en.json`, generatoren for de andre), hjelpeteksten for attesteringen, `timer.md`, `api.md`, `web.md`, `hjelpetekster.md`. Ikke `apps/mobile`. | Kenneths test: 07:00–12:00 med Volvo EC220E 4,50 t og Fugesand 3 sekk deles kl. 11:00. Etterpå står kort A og kort B åpne side om side. 1 av 3 sekk flyttes til B med «→ Kort B». Et tillegg legges til i kort B med «＋», og arbeideren ser «Lagt til av» på linja. |
+| **«Del opp» med begge kortene åpne** | 🟡 **Delvis bygget; resten vedtatt 2026-11-23, ikke bestilt.** ✅ Blokka i kortet med klokkeslett, underprosjekt for B og maskintimer for A og B (O15 `6cf48d6e`). 🟡 Kenneth 2026-11-23 «B68 ja, B69 ja, B70 ja, B71 ja» (§ 4.16 del G, `v23-del-opp-etter.png`): etter delingen står kort A og kort B åpne og redigerbare side om side, uten kobling i data; linjer (reise, varer, maskin, utlegg og tillegg) flyttes mellom kortene; attestanten kan legge til nye linjer. Vinduet fra versjon 21 er utgått. 🟡 Kenneth 2026-11-23 «B72 ja, 73 ja»: alle som kan attestere prosjektet, får «＋» under Varer og Utlegg; alle som legger til eller retter en linje på en annens dag, får merket «Lagt til av» eller «Korrigert av», og bare brukeren selv slipper; «＋» og redigering av alle linjene gjelder hver gang et kort redigeres, også når det åpnes alene. B74 (flytte en linje når kortet åpnes alene) er åpen. **Seks leveranser:** D2a begge kortene åpne (bare web; kan bestilles), D2b flytt linjer (web og server; kan bestilles), D2c legg til timelinje, tillegg og maskin, og «Lagt til av» (krever migreringen; kan bestilles), D2d vare og utlegg: legge til, rette og slette (etter D2c), D2e legg til reise (etter D2c), D2f «Korrigert av» alle steder (etter D2c og D2d). Regel 10 kjøres uavhengig for D2b–D2f: de flytter eller fører lønn, varekostnad og utlegg, eller rører arbeiderens egne skriveveier. Koderen leverer løsning med skjermbilde før kode. **Én migrering, i D2c:** `opprettet_av_user_id` på fire tabeller i `packages/db-timer`, uten backfill; Kenneth kjører den. Ikke mobil. | `RP`, `AT`, `apps/web/src/components/timer/TimerRadTabell.tsx`, `D` (ny mutasjon for flytting; `redigerSedelRader` med kort-id), `VF`, `KL` og `apps/web/src/components/timer/KorrigertMerke.tsx` (merket), i18n (`nb.json` og `en.json`, generatoren for de andre), hjelpeteksten for attesteringen, `timer.md`, `api.md`, `web.md`, `hjelpetekster.md`. Ikke `apps/mobile`. | Kenneths test: 07:00–12:00 med Volvo EC220E 4,50 t og Fugesand 3 sekk deles kl. 11:00. Etterpå står kort A og kort B åpne side om side. 1 av 3 sekk flyttes til B med «→ Kort B». Et tillegg legges til i kort B med «＋», og arbeideren ser «Lagt til av» på linja. |
 
 - **2026-11-22 — Første jobb på ny dag (O8 tillegg 3):** Kenneth: «hvorfor kan ikke prosjekt og byggeplass åpnes som redigerbare nedtreksmenyer?» → «med forvalg i det prosjektet vi står i». Vedtak A: dagshodet lages uten rad; første jobb åpnes som utkast med redigerbare nedtrekk for prosjekt/byggeplass, forvalgt toppbarens prosjekt; raden lagres når Til er fylt; en helt tom draft-dag slettes når arbeideren går fra utkastet i appen (`slettTomDag`). Godtatt rest: lukket fane gir tomt hode som gjenbrukes. Lagrede jobber flyttes ikke. ~~🟡 Bestilt w5.~~ **Erstattet samme dag:** Kenneth: «det jeg ønsker er at kortene fungerer som de gjør i dag -> eneste endring -> prosjekt og byggeplass må kunne endres av bruker. Hvorfor: Bruker glemte å starte dagen på telefonen og må etterregistrere dagen. bruker var innom 3 prosjekter … Jeg ønsker å foreslå prosjektet han står i». Vedtak D: dagens flyt uendret (første rad lages på toppbarens prosjekt = forvalg); på redigerbart lagret jobbkort er prosjekt og byggeplass nedtrekk, og bytte flytter hele jobben. A (hode uten rad, `slettTomDag`) bygges ikke. 🟡 Bestilt w5, måling av det som henger på jobben før kode. ✅ D merget `fbe4aff2` (gate (138)) — timer.md § O8 punkt 6.
 - **2026-11-22 — D-punktene (flytte lagret jobb):** Kenneth: (1) underprosjekt → «Uten», velges på nytt; (2) «reisen blir igjen på det gamle prosjektet»; (3) varer til prosjekt uten varelager: heller mot «flyttes likevel», men vil først vite sperrene → **åpen**, avvises midlertidig; varelagerspørsmålet ført i BACKLOG (egen økt); (4) utlegg med annen ordning avvises. Punkt 3 avgjort samme dag: «I dag kan vi flytte fritt. hvis jeg svarer nei, og vi ikke har prosjekter med begrensning -> da skal vi jo likevel flytte varene» → varene følger med jobben, ingen sperre. «Del opp» ved attestering (kort 2 = kopi, arbeidstid i kort 1 følger kort 2, ikke motsatt; kort 2 bygges på nytt med underprosjekt, varer, utlegg/tillegg, maskin, reisetid) → Fabel § 4.17 del I. 🟡 1–4 levert w5 (`feat/web-timer-o8`, timer.md § O8 punkt 6; varesperren fjernet etter svaret på punkt 3); ✅ merget `fbe4aff2`.
@@ -4297,7 +4450,8 @@ deployet, står på tavla; ordre F12 oppgir at test står på `14869899` (O14–
 **Vedtatt, ikke bygget (2026-11-23):** reisevinduet punkt 20 blå boks, punkt 23 (deling ved midnatt, 24:00),
 punkt 24 (kveldsreise) og punkt 25 (stopp ved reise som ikke passer kortets byggeplass). O19 er under løsning
 hos web-timer-w5. «Del opp» med begge kortene åpne, flytting av linjer og nye linjer fra attestanten (§ 4.16
-del G; Kenneth «B68 ja, B69 ja, B70 ja, B71 ja»; B72 og B73 åpne). Ikke bestilt.
+del G; Kenneth «B68 ja, B69 ja, B70 ja, B71 ja» og «B72 ja, 73 ja»; B74 åpen). Merket «Lagt til av» og
+«Korrigert av» for alle som legger til eller retter på en annens dag (B73, én migrering). Ikke bestilt.
 
 **Står som bygget, Kenneth 2026-11-23 «ikke endre noe nå»:** uka i retur-lenken til Timer-lista, og «Registrer
 timer» som åpner en ny jobb også når dagen finnes.
@@ -4309,14 +4463,21 @@ og «siste måned» i Timer-oversikten (`32a72b97`).
 
 **Versjon 23 (§ 4.16 del G):**
 
-- DG1–DG23 er lest, ikke kjørt. Ingenting er klikket. DG19 og serverdelen av DG22 er ikke stikkprøvd av Fabel.
+- DG1–DG33 er lest, ikke kjørt. Ingenting er klikket. DG19 og serverdelen av DG22 er ikke stikkprøvd av Fabel.
+- Om skjermen har en lenke som fører en firmaadmin til en annens dagsside, der arbeiderens egne skriveveier
+  slipper ham inn (DG26). Serveren er lest, ikke skjermen.
+- Om en ny rad i «Rediger sedel» faktisk kan lagres på et prosjekt dagen ikke har kort på (DG31).
+  Prosjektvelgeren er lest, ikke kjørt.
+- Om andre steder enn `opprett` og synken kan lage en dagsseddel for en annen (DG28), for eksempel forslag fra
+  innsjekk.
+- Hvordan en historikkpost for vare skrives når varene ligger i en annen database enn historikken (DG14, D2f).
 - Om «Rediger sedel» på dagsseddelens side slipper gjennom en ny timelinje med reiselønnsart, og hva raden da
   mangler av reisespor (DG19).
 - Om arbeideren kan rette og slette en linje attestanten har lagt til, når dagen returneres. Linja er en
   vanlig rad på dagsseddelen; veien er ikke kjørt.
-- Om aktivitetsloggen ryddes (`retainedUntil`), som avgjør hva «nei» på B73 koster. Samme punkt som under
-  versjon 19.
-- Sjekkregler i SQL-migreringene for kort-id og for en ny kolonne «opprettet av» er ikke lest (DG8).
+- Om aktivitetsloggen ryddes (`retainedUntil`). «Korrigert av» leser bytte av underprosjekt fra loggen (DG21).
+  Samme punkt som under versjon 19.
+- Sjekkregler i SQL-migreringene for kort-id er ikke lest (DG8).
 - Hvordan en ny linje i kort B oppfører seg mot overlappsperren når kort A og kort B står inntil hverandre i
   tid (DO13).
 
