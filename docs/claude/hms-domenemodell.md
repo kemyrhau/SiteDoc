@@ -1,6 +1,6 @@
 ---
 name: hms-domenemodell
-status: 🟡 § HMS-flyt er Kenneths regler 2026-11-23, målt mot develop @ `cef5df0c` — fire målte avvik i koden, to spørsmål til Kenneth (H1, H2). § Firma-HMS er domenemodellen fra 2026-07-21 — to målte avvik mot kode, ett åpent spørsmål
+status: 🟡 § HMS-flyt er Kenneths regler 2026-11-23, målt mot develop @ `cef5df0c` — fire målte avvik i koden, to spørsmål til Kenneth (HF1, HF2). § Firma-HMS er domenemodellen fra 2026-07-21 — to målte avvik mot kode, ett åpent spørsmål
 eier: Kenneth (domenesannhet) · fabel (design) · orkestrator (bestiller kode)
 sist_verifisert_mot_kode: 2026-11-23 (§ HMS-flyt, develop @ `cef5df0c`) · 2026-07-21 (§ Firma-HMS)
 ---
@@ -23,9 +23,9 @@ Kenneth 2026-11-23, ordrett: *«HMS-avvik -> denne tillhører kun HMS-flyt. Alle
 |---|---|---|
 | 1 | HMS-avvik hører bare til HMS-flyten. | 🔴 Avvik A1 og A2 under |
 | 2 | Alle prosjektmedlemmer kan sende inn HMS-avvik og RUH. | ✅ `oppgave.opprett` krever bare prosjektmedlemskap for maler med `domain: "hms"` (`apps/api/src/routes/oppgave.ts:548-549`). Bare melderen kan sende inn sitt eget utkast (`apps/api/src/trpc/tilgangskontroll.ts:645-650`) |
-| 3 | Bare HMS-behandleren kan behandle dem. | 🟡 De egne HMS-handlingene krever HMS-behandler (`tilgangskontroll.ts:663-664`). 🔴 Avvik A3 og A4 under. Hvem som er HMS-behandler, er spørsmål H2 |
-| 4 | Svaret går til innsenderen, ikke til alle prosjektets medlemmer. | ⚪ Ikke målt her. web-timer-o13 måler hvem som får svaret i dag (TILLEGG F13c-2 punkt 1 b) |
-| 5 | HMS-flyten er frittstående og har helt egne regler. | 🟡 Egne handlinger og egen vakt finnes (under). 🔴 Flyten lagres som en vanlig dokumentflyt uten merke, og seeden lager den med faggrupper som ledd (A1). Ordet «faggruppe» er spørsmål H1 |
+| 3 | Bare HMS-behandleren kan behandle dem. | 🟡 De egne HMS-handlingene krever HMS-behandler (`tilgangskontroll.ts:663-664`). 🔴 Avvik A3 og A4 under. Hvem som er HMS-behandler, er spørsmål HF2 |
+| 4 | Svaret går til innsenderen, ikke til alle prosjektets medlemmer. | 🟡 Målt av web-timer-o13 2026-11-23 (SVAR F13c-2 punkt b). E-posten går til innsenderen når innsenderen er aktivt medlem, aldri til alle (`apps/api/src/services/prosjektmedlemskap.ts:226-238`). Ballen går til innsenderen når flyten har åpen melder på ledd 1 og HMS-gruppen på ledd 2 (`packages/shared/src/utils/flytPosisjon.ts:101-121`). 🔴 I seed-flyten «HMS-avvik» (A1) står alle leddene på steg 1, og ballen blir liggende hos gruppen saken ble sendt til |
+| 5 | HMS-flyten er frittstående og har helt egne regler. | 🟡 Egne handlinger og egen vakt finnes (under). 🔴 Flyten lagres som en vanlig dokumentflyt uten merke, og seeden lager den med faggrupper som ledd (A1). Ordet «faggruppe» er spørsmål HF1 |
 
 ### Slik er HMS-flyten bygget i dag
 
@@ -50,12 +50,14 @@ Kenneth 2026-11-23, ordrett: *«HMS-avvik -> denne tillhører kun HMS-flyt. Alle
 | A3 | **Den generelle statusendringen er åpen for HMS-saker.** `oppgave.endreStatus` har ingen HMS-sperre, så den som har ballen i flyten, kan endre status uten å være HMS-behandler. Appen har de egne HMS-handlingene bare for SJA, ikke for HMS-avvik og RUH. | `oppgave.ts:1521-1525`, `apps/mobile/app/sjekkliste/[id].tsx:519-536` | 3 |
 | A4 | **Saken kan bli sendt til feil gruppe.** `oppgave.opprett` og `sjekkliste.opprett` finner mottakergruppen på `hms` i `domains` uten sortering. «Prosjektadministratorer» har også `hms` i `domains`, så den kan bli valgt i stedet for HMS-gruppen. `modul.ts:21-25` beskriver samme feil og bruker `systemNokkel`. | `oppgave.ts:552-558`, `apps/api/src/routes/sjekkliste.ts:434-440` | 3 |
 
-A1 rettes i seeden av web-timer-o13 (TILLEGG F13c-2 punkt 1, ikke merget). Eksisterende prosjekter og A2–A4 er ikke bestilt.
+A1 rettes i seeden av web-timer-o13 (TILLEGG F13c-2 punkt 1, ikke merget). Eksisterende prosjekter og A2–A4 er ikke bestilt. web-timer-o13 målte A4 lokalt 2026-11-23: oppslaget ga «Prosjektadministratorer» i begge prosjektene (SVAR F13c-2, funn H1). Samme svar melder at seed-malene mangler `subdomain` og `hmsSynlighet` (funn H2), så SJA blir privat i prosjekter laget av seeden.
+
+Spørsmålene heter HF1 og HF2 her for ikke å blandes med funn H1 og H2 hos web-timer-o13.
 
 ### Åpent — spørsmål stilt til Kenneth 2026-11-23
 
-- **H1:** betyr «frittstående faggruppe» at HMS skal stå som en rad i lista over faggrupper, eller at HMS-flyten er en egen enhet ved siden av faggruppene, slik HMS-flyt-kortet viser den i dag?
-- **H2:** skal en prosjektadmin som ikke står som behandler i HMS-flyt-kortet, kunne behandle og lese private HMS-saker? I dag kan alle prosjektadminer det.
+- **HF1:** betyr «frittstående faggruppe» at HMS skal stå som en rad i lista over faggrupper, eller at HMS-flyten er en egen enhet ved siden av faggruppene, slik HMS-flyt-kortet viser den i dag?
+- **HF2:** skal en prosjektadmin som ikke står som behandler i HMS-flyt-kortet, kunne behandle og lese private HMS-saker? I dag kan alle prosjektadminer det.
 
 ### Eldre tekst
 
