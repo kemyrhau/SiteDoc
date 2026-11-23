@@ -69,6 +69,8 @@ function oppsett(status: string, data: { timer?: Rad[]; maskin?: Rad[]; tillegg?
     sheetMachine: modell("maskin", data.maskin ?? []),
     sheetTillegg: modell("tillegg", data.tillegg ?? []),
     sheetUtlegg: modell("utlegg", data.utlegg ?? []),
+    // R1 b3: returnert dag skriver de slettede radene til historikken.
+    sheetRadHistorikk: { createMany: () => Promise.resolve({ count: 0 }) },
     sheetTilleggVedlegg: modell("tilleggVedlegg", []),
     sheetUtleggVedlegg: modell("utleggVedlegg", []),
     dailySheet: {
