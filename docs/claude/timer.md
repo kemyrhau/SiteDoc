@@ -1136,7 +1136,7 @@ Hjemmel: [vedtak-timer-web.md § Reisevinduet](vedtak-timer-web.md) punkt 20 (Ke
 - **i18n:** nye `timer.reiseKort.underTerskelInfo`, `arbeidstidInfo`, `forSomReisetidLikevel`, `lagreOppmotested`, `underTerskelOverVindu`; fjernet fra alle 15 språk `underTerskelPaaJobb`, `overTerskelPaaJobb`, `overTerskelVarsel`, `terskelDialog.*`.
 - **Tester:** `reise-terskel-dialog.test.tsx` «O18 — reise under terskel føres ikke som reise», «O18 S4 — gult hint, og km-avhukingen», «O10 — feltene står i reisevinduet»; `reisevindu.test.tsx` «O18 S1 …»; `o14-penn-reise.test.tsx` (S5 A).
 
-### Reisevinduet: reise over midnatt deles ved 24:00 (O19) — 🟡 `feat/web-timer-o19-midnatt` (2026-11-23, ikke merget)
+### Reisevinduet: reise over midnatt deles ved 24:00 (O19) — ✅ Merget `63e7b8f6` (2026-11-23)
 
 Hjemmel: [vedtak-timer-web.md § Reisevinduet](vedtak-timer-web.md) punkt 20 (blå boks), 23, 24 og 25 (Kenneth «V2 B», «ja, 24:00», «V3 ja», «V4 anbefaling», «V7 ja»; LØSNING O19: B1 nei, B2 ja, B3 nei). Bare web. Ingen migrering: paret står i `reiseRegel` (JSON).
 
