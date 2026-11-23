@@ -1,9 +1,9 @@
 ---
 name: web-timeforing-plan
-description: Plan med bilder for timeføring på web. Dagskortet er dagen med alle registreringene; hver registrering (prosjektkort = kort = jobb) føres samlet — arbeid, reise, maskin (bare antall timer), varer, tillegg og utlegg — og attesteres samlet. Begrepene står i § 0, Kenneths gjeldende vedtak i § 8.20–8.22, og rekkefølge og status i § 9. Versjon 20 er en rydding uten nytt innhold: utgått tekst er merket ⚠️ der den står. Versjon 21 spesifiserer «Del opp» med begge kortene side om side (§ 4.16). Versjon 22 (attesteringen, § 4.17) står på branch `docs/fabel`, er ikke merget og er ikke med i denne fila. Versjon 23 fører status til og med 2026-11-23 (§ 9.7) og foreslår begge kortene åpne og redigerbare etter «Del opp» (§ 4.16 del G). Reisevinduet står bare i vedtak-timer-web.md § Reisevinduet.
-sist_verifisert_mot_kode: 2026-11-19 (WM1–WM73: develop @ `b8b16571`; WM74–WM92: develop @ `ee7146e5`, etter w1, w2 og w5; WM93–WM108: develop @ `1afb318a`, etter w5b og w7; K1–K14 i § 4.5: develop @ `eedbc7cd`, etter w8, w9 og w9m; FA1–FA27 i § 4.6–4.8: develop @ `57770fc0`; FA16–FA21 på nytt, FA28–FA44 og DK1–DK15 i § 4.7, § 4.9 og § 4.10: develop @ `a5483f48`, 2026-11-20; FA45–FA59 i § 4.11: develop @ `bdf2320f`, 2026-11-20; FA60–FA65 i § 4.11 og FA66–FA70 i § 4.12: develop @ `8c260833`, 2026-11-20; § 4.13 (A1–A14): develop @ `d9354caa`, 2026-11-20; TK1–TK27 i § 4.14: develop @ `4fe7b0d6`, 2026-11-20; F1–F21 i § 4.15: develop @ `30346a95`, lik test `f529b527` i `apps` og `packages`, 2026-11-20; F22–F35 i § 4.15: develop @ `12094b58`, lik `30346a95` i `apps` og `packages`, 2026-11-20; F36–F45 i § 4.15: develop @ `88d37194`, lik `12094b58` i `apps` og `packages`, 2026-11-21; F46–F56 i § 4.15: develop @ `afdaa7ac`, 2026-11-21; F57–F63 i § 4.15: develop @ `e84a4e73` og `3290a40a`, like `afdaa7ac` i `apps` og `packages`, 2026-11-21; F64–F68 i § 4.15: develop @ `fae0e363`, 2026-11-21; F69–F78 i § 4.15: develop @ `6163086f`, etter w15c og w15f, 2026-11-21; F79–F83 i § 4.15: develop @ `d4c0eecd`, etter F68, 2026-11-21; DO1–DO20 i § 4.16: develop @ `310ecf43`, 2026-11-21; DG1–DG14 i § 4.16 del G: develop @ `14869899`, 2026-11-23, lest av leseagent og stikkprøvd)
-eier: fabel (plan) — orkestrator gater kode; Kenneth har besvart B1–B49 (§ 8); B68–B71 («Del opp» med begge kortene åpne, § 4.16 del G) er åpne; versjon 22 (attesteringen, § 4.17, B50–B67) står på branch `docs/fabel` og er ikke merget
-status: 🟡 FORSLAG 2026-11-23, versjon 23 — (1) status ført til og med 2026-11-23 (§ 9 og § 9.7): merget siden versjon 21 er tallformatet, L1–L3b, maskin uten fra–til, «Slett dagsseddel», O1–O8 og O10–O18 (siste: O14 `50f480c8`, O15 `6cf48d6e`, O16 `0e650523`, O17 `6ee3b632`, O18 `4bc05499`); (2) «Del opp» med begge kortene åpne og redigerbare etter delingen er foreslått (§ 4.16 del G, `v23-del-opp-etter.png`, `v23-del-opp-vindu.png`; DG1–DG14 mot develop @ `14869899`; B68–B71 til Kenneth; uten kode, ingen migrering). Bygget av «Del opp»: blokka i kortet med klokkeslett, underprosjekt for B og maskintimer A/B (O15). Ikke bygget: vinduet fra versjon 21 (§ 4.16 del B–F; utgår hvis B70 besvares med ja). Versjon 22 (attesteringen med oversiktsrader, § 4.17, B50–B67) står på branch `docs/fabel`, er ikke merget og er ikke med i denne fila. Vedtatt, ikke bygget: reisevinduet punkt 20 (blå boks) og punkt 23–25 (deling ved midnatt, kveldsreise, stopp ved reise som ikke passer kortets byggeplass) — vedtaksteksten står i vedtak-timer-web.md § Reisevinduet; O19 er under løsning. Kenneth 2026-11-23 «ikke endre noe nå»: uka i retur-lenken til Timer-lista, og «Registrer timer» som åpner ny jobb. I BACKLOG: periodevisning fra–til og «siste måned». Ikke bygget: w3c, w4 (L4), w10c, w11 og O9 (flytte jobb på returnert dag); mobil (w12m, w15gm, reisevinduet punkt 20) venter på web. Utgått: fra–til på maskin (B5, w6), w13, «Flytt til …» (w15e), e-post ved retting og automatisk justering av nabokort (§ 8.21 punkt 1). Reisevinduet står bare i vedtak-timer-web.md. Historikken for versjon 12–19 står i § 8.13–8.20; hva som er deployet, står på tavla (STATUS-AKTUELT.md).
+description: Plan med bilder for timeføring på web. Dagskortet er dagen med alle registreringene; hver registrering (prosjektkort = kort = jobb) føres samlet — arbeid, reise, maskin (bare antall timer), varer, tillegg og utlegg — og attesteres samlet. Begrepene står i § 0, Kenneths gjeldende vedtak i § 8.20–8.22, og rekkefølge og status i § 9. Versjon 20 er en rydding uten nytt innhold: utgått tekst er merket ⚠️ der den står. Versjon 21 spesifiserte «Del opp» som vindu med begge kortene; vinduet er utgått (Kenneth 2026-11-23, B70 ja). Versjon 22 (attesteringen, § 4.17) står på branch `docs/fabel`, er ikke merget og er ikke med i denne fila. Versjon 23 fører status til og med 2026-11-23 (§ 9.7) og har «Del opp» med begge kortene åpne og redigerbare, flytting av linjer og nye linjer fra attestanten (§ 4.16 del G; vedtatt av Kenneth 2026-11-23, B68–B71 ja). Reisevinduet står bare i vedtak-timer-web.md § Reisevinduet.
+sist_verifisert_mot_kode: 2026-11-19 (WM1–WM73: develop @ `b8b16571`; WM74–WM92: develop @ `ee7146e5`, etter w1, w2 og w5; WM93–WM108: develop @ `1afb318a`, etter w5b og w7; K1–K14 i § 4.5: develop @ `eedbc7cd`, etter w8, w9 og w9m; FA1–FA27 i § 4.6–4.8: develop @ `57770fc0`; FA16–FA21 på nytt, FA28–FA44 og DK1–DK15 i § 4.7, § 4.9 og § 4.10: develop @ `a5483f48`, 2026-11-20; FA45–FA59 i § 4.11: develop @ `bdf2320f`, 2026-11-20; FA60–FA65 i § 4.11 og FA66–FA70 i § 4.12: develop @ `8c260833`, 2026-11-20; § 4.13 (A1–A14): develop @ `d9354caa`, 2026-11-20; TK1–TK27 i § 4.14: develop @ `4fe7b0d6`, 2026-11-20; F1–F21 i § 4.15: develop @ `30346a95`, lik test `f529b527` i `apps` og `packages`, 2026-11-20; F22–F35 i § 4.15: develop @ `12094b58`, lik `30346a95` i `apps` og `packages`, 2026-11-20; F36–F45 i § 4.15: develop @ `88d37194`, lik `12094b58` i `apps` og `packages`, 2026-11-21; F46–F56 i § 4.15: develop @ `afdaa7ac`, 2026-11-21; F57–F63 i § 4.15: develop @ `e84a4e73` og `3290a40a`, like `afdaa7ac` i `apps` og `packages`, 2026-11-21; F64–F68 i § 4.15: develop @ `fae0e363`, 2026-11-21; F69–F78 i § 4.15: develop @ `6163086f`, etter w15c og w15f, 2026-11-21; F79–F83 i § 4.15: develop @ `d4c0eecd`, etter F68, 2026-11-21; DO1–DO20 i § 4.16: develop @ `310ecf43`, 2026-11-21; DG1–DG14 i § 4.16 del G: develop @ `14869899`, 2026-11-23, lest av leseagent og stikkprøvd; DG15–DG23 i § 4.16 del G: develop @ `ae3c417b`, 2026-11-23, lest av leseagent og stikkprøvd)
+eier: fabel (plan) — orkestrator gater kode; Kenneth har besvart B1–B49 (§ 8); B68–B71 («Del opp» med begge kortene åpne, § 4.16 del G) er besvart med ja 2026-11-23 (§ 8.23); B72 og B73 (linjer attestanten legger til, § 4.16 del G) er åpne; versjon 22 (attesteringen, § 4.17, B50–B67) står på branch `docs/fabel` og er ikke merget
+status: 🟡 2026-11-23, versjon 23 — (1) status ført til og med 2026-11-23 (§ 9 og § 9.7): merget siden versjon 21 er tallformatet, L1–L3b, maskin uten fra–til, «Slett dagsseddel», O1–O8 og O10–O18 (siste: O14 `50f480c8`, O15 `6cf48d6e`, O16 `0e650523`, O17 `6ee3b632`, O18 `4bc05499`); (2) «Del opp»: Kenneth 2026-11-23 «B68 ja, B69 ja, B70 ja, B71 ja» — begge kortene står åpne og redigerbare side om side etter delingen, uten kobling i data; linjer (reise, varer, maskin, utlegg og tillegg) kan flyttes mellom kortene; attestanten kan legge til nye linjer under oppdelingen; vinduet fra versjon 21 er utgått (§ 4.16 del G, `v23-del-opp-etter.png`; DG1–DG23; vedtatt, ikke bestilt, uten kode). Åpne: B72 (rett til å legge til varer og utlegg) og B73 (ny kolonne for hvem som la til linja, én migrering). Bygget av «Del opp»: blokka i kortet med klokkeslett, underprosjekt for B og maskintimer A/B (O15). Versjon 22 (attesteringen med oversiktsrader, § 4.17, B50–B67) står på branch `docs/fabel`, er ikke merget og er ikke med i denne fila. Vedtatt, ikke bygget: reisevinduet punkt 20 (blå boks) og punkt 23–25 (deling ved midnatt, kveldsreise, stopp ved reise som ikke passer kortets byggeplass) — vedtaksteksten står i vedtak-timer-web.md § Reisevinduet; O19 er under løsning. Kenneth 2026-11-23 «ikke endre noe nå»: uka i retur-lenken til Timer-lista, og «Registrer timer» som åpner ny jobb. I BACKLOG: periodevisning fra–til og «siste måned». Ikke bygget: w3c, w4 (L4), w10c, w11 og O9 (flytte jobb på returnert dag); mobil (w12m, w15gm, reisevinduet punkt 20) venter på web. Utgått: fra–til på maskin (B5, w6), w13, «Flytt til …» (w15e), e-post ved retting og automatisk justering av nabokort (§ 8.21 punkt 1). Reisevinduet står bare i vedtak-timer-web.md. Historikken for versjon 12–19 står i § 8.13–8.20; hva som er deployet, står på tavla (STATUS-AKTUELT.md).
 ---
 
 # Timeføring på web — plan med bilder (FORSLAG)
@@ -60,14 +60,13 @@ status: 🟡 FORSLAG 2026-11-23, versjon 23 — (1) status ført til og med 2026
 > hos arbeideren (§ 4.15 del F); bildet er ikke tegnet om.
 > **Versjon 20:** rydding etter gjennomgangen (§ 8.22). Ingen nye bilder og ikke noe nytt innhold. Bildene er
 > tegnet til ulike tider. Der tekst eller bilde er snudd, står ⚠️ på stedet med henvisning til det som gjelder.
-> **Versjon 21:** «Del opp» i attesteringen står i `v21-del-opp.png` (§ 4.16): skjemaet i dag, og vinduet med
-> begge kortene side om side. Kilde: `skisser-v21.html`. Bildet erstatter bilde 8 for vinduet.
+> **Versjon 21:** ⚠️ `v21-del-opp.png` (kilde `skisser-v21.html`) viser «Del opp» som vindu med begge kortene før
+> lagring. Vinduet er utgått (Kenneth 2026-11-23, B70 ja). Det som gjelder, står i versjon 23.
 > **Versjon 22** (attesteringen med oversiktsrader, § 4.17, B50–B67) står på branch `docs/fabel`, er ikke merget og er
 > ikke med i denne fila.
 > **Versjon 23:** «Del opp» etter Kenneths test 23.11. står i `v23-del-opp-etter.png` (i dag, og begge kortene åpne
-> og redigerbare side om side) og `v23-del-opp-vindu.png` (alternativet: vinduet før lagring med alle seksjonene),
-> § 4.16 del G. Kilde: `skisser-v23.html`. B68–B71 er til Kenneth. `v21-del-opp.png` gjelder vinduet slik det ble
-> vedtatt 21.11.; bygges vinduet, erstatter `v23-del-opp-vindu.png` det.
+> og redigerbare side om side), § 4.16 del G. Kilde: `skisser-v23.html`. Kenneth 2026-11-23: «B68 ja, B69 ja, B70 ja,
+> B71 ja». ⚠️ `v23-del-opp-vindu.png` viser alternativet med vindu før lagring; det er utgått (B70 ja).
 
 ## 0. Begreper (Kenneth 2026-11-21, § 8.22)
 
@@ -578,8 +577,9 @@ handlinger, og timene må regnes for hånd (WM53).
 - **Den ansatte kan dele sin egen jobb på samme måte** før dagen sendes («✂ Del jobben», bilde 5).
 - ✂ for å dele én rad står i kortet, ved timelinja, ikke på linja i tabellen (§ 4.5 punkt 4, Kenneth 2026-11-19).
   «Del opp» i registreringen deler hele jobben.
-- ⚠️ **Versjon 21 (§ 8.22):** vinduet viser begge kortene side om side, med fra, til og pause på hvert kort og
-  prosjekt, byggeplass og underprosjekt på del B. Det som gjelder, står i § 4.16 og `v21-del-opp.png`.
+- **Versjon 23 (Kenneth 2026-11-23, B68–B71 ja):** «✂ Del opp» er blokka i kortet. Etter delingen står kort A og
+  kort B åpne og redigerbare side om side, linjer kan flyttes mellom dem, og attestanten kan legge til linjer.
+  Det som gjelder, står i § 4.16 del G og `v23-del-opp-etter.png`. Vinduet fra versjon 21 er utgått.
 
 ### Bilde 9 — firmainnstillingene som styrer føringen
 
@@ -2999,7 +2999,7 @@ redigering, og arbeideren ser merket «Korrigert av [navn]» i timelisten ved hv
 **Prosjektet byttes ikke i w15d.** Koderen målte det i løsningen (F46, F47), og orkestrator bekreftet det
 2026-11-21. Det er w15f.
 
-**«Del opp» med begge kortene (versjon 21)** er ikke en del av w15. Leveransen står i § 4.16 del E og i § 9.
+**«Del opp» med begge kortene åpne (versjon 23)** er ikke en del av w15. Leveransene står i § 4.16 del G og i § 9.
 
 **Firmavalget «Rediger ved attestering» endres ikke i w15f eller w15g** (Kenneth 2026-11-21, § 8.20).
 
@@ -3145,28 +3145,28 @@ w15f og w15g.
 40. **Merket står etter attestering (w15g):** en korrigert linje som så er attestert, har fortsatt merket
     hos arbeideren.
 
-Testene for «Del opp» med begge kortene (versjon 21) står i § 4.16 del F.
+Testene for «Del opp» med begge kortene åpne (versjon 23) står i § 4.16 del G.
 
-### 4.16 «Del opp» med begge kortene side om side (versjon 21)
+### 4.16 «Del opp»: begge kortene åpne og redigerbare side om side (versjon 21 og 23)
 
-🟡 **Vedtatt av Kenneth 2026-11-21 (§ 8.22, alternativ A), ikke bestilt, ikke bygget.** Kenneths ord: «ved del
-opp er det viktig at begge kortene kan justeres samtidig» og «det er også viktig at attestang kan se begge
-kortene ved oppdeling».
-⚠️ **Kenneth 2026-11-23, etter test av O15:** begge kortene skal stå åpne og redigerbare side om side etter
-delingen, og reise, varer, maskin, tillegg og utlegg skal være tilgjengelige i begge kortene. Forslaget står i
-**del G** (versjon 23, `v23-del-opp-etter.png`), med B68–B71. Besvares B70 med ja, utgår vinduet i del B, del C
-og del F, og blokka fra O15 står.
+🟡 **Vedtatt av Kenneth 2026-11-23 («B68 ja, B69 ja, B70 ja, B71 ja»), ikke bestilt.** ✅ Bygget: blokka i
+kortet med klokkeslett, underprosjekt for B og maskintimer for A og B (O15 `6cf48d6e`). Resten står i **del G**.
 
-![«Del opp» i dag og med begge kortene](skisser-web-timeforing/v21-del-opp.png)
+Kenneths ord 2026-11-21: «ved del opp er det viktig at begge kortene kan justeres samtidig» og «det er også
+viktig at attestang kan se begge kortene ved oppdeling».
 
-**Det som er vedtatt** (§ 8.22):
+**Det som er vedtatt:**
 
-- Vinduet viser begge kortene side om side før lagring, og begge kan justeres der.
-- Hvert kort har fra, til og pause. Kort B har også prosjekt, byggeplass og underprosjekt.
-- Klokkeslettet er felles: når A slutter, begynner B.
-- Ett «Lagre» lagrer begge.
-- Vinduet deler arbeidet og maskintimene. Hver maskin har felt for A og B, fylt ut med et forslag som arbeideren kan rette, og B får sin egen maskinrad (Kenneth 2026-11-22 «s2.ja»). ✅ Maskindelingen er merget i O15 `6cf48d6e`, i blokka i kortet (`delJobb` `maskinDeling`, `DelOppSkjema`; timer.md § «Del opp»). Varer, tillegg, utlegg og reise blir i A (Kenneth 2026-11-22 «s3.nei»). ⚠️ Kenneth 2026-11-23 ber om at de er tilgjengelige i begge kortene: B68 og B71 i del G.
-- Etter lagring er kortene to selvstendige registreringer uten kobling. ⚠️ Kenneth 2026-11-23: etter delingen skal begge kortene stå åpne side om side (B69 i del G). «Uten kobling» står i forslaget.
+- «✂ Del opp» er blokka i kortet, som i dag: klokkeslett, underprosjekt for B og maskintimene (Kenneth
+  2026-11-22 «s2.ja»; ✅ O15 `6cf48d6e`, `delJobb` `maskinDeling`, `DelOppSkjema`; timer.md § «Del opp»).
+- Etter delingen står kort A og kort B åpne og redigerbare side om side (B69 ja).
+- Kortene har ingen kobling i data (B69 ja). Ingen automatisk justering (§ 8.21).
+- Linjer — reise, varer, maskin, utlegg og tillegg — kan flyttes mellom kort A og kort B (B68 ja).
+- Attestanten kan legge til nye linjer under oppdelingen (B71 ja).
+- Vinduet med begge kortene før lagring (alternativ A, 2026-11-21) er utgått (B70 ja). Del B, del C, del E og
+  del F, som beskrev vinduet, er tatt ut av planen, og `v21-del-opp.png` gjelder ikke. Med vinduet går også
+  ett «Lagre» og «Avbryt» for hele delingen, og prosjekt og byggeplass for kort B: kort B har kort A sitt
+  prosjekt og sin byggeplass, og kan få et annet underprosjekt.
 
 **Hvem, hvor og når:** attestanten, i attesteringskortet under Firma › Attestering, på en dagsseddel som er
 sendt og der alle linjene i jobben venter. Kravene er de samme som i dag (DO9). Arbeideren har ikke «Del opp»
@@ -3211,106 +3211,6 @@ Lest av Fabel, ikke kjørt. `RP` = `apps/web/src/components/attestering/Registre
   B-radene skrives med jobbens prosjekt og radens byggeplass.
 - **Hva regner forhåndsvisningen?** Timer på A og på B, og hvor mange maskiner som blir og går (DO5).
 
-#### Del B — vinduet
-
-«✂ Del opp» står der den står (DO1). Den åpner et vindu, som «Rett reisen», i stedet for blokka i kortet.
-
-**Hodet:** «Del opp», og under: arbeideren, datoen, jobbens klokkeslett og timer.
-
-| | Kort A — blir stående | Kort B — nytt kort |
-|---|---|---|
-| **Fra kl.** | Felt. Fylt ut med jobbens start. | Samme felt som «Til kl.» på A. |
-| **Til kl.** | Klokkeslettet det deles ved. Tomt når vinduet åpnes, og markøren står her. | Felt. Fylt ut med jobbens slutt. |
-| **Pause (min)** | Felt. Fylt ut av serveren (DO6). | Felt. Fylt ut av serveren. |
-| **Arbeid** | Timetallet, regnet mens attestanten skriver. | Det samme. |
-| **Prosjekt, byggeplass, underprosjekt** | Tekst, som jobben har dem. Kan ikke endres her. | Tre valg, fylt ut fra kort A. |
-| **Linjer** | Linjene kortet får: klokkeslett, lønnsart og timer. | Det samme. |
-| **Nederst** | «Blir i dette kortet»: jobbens maskiner, varer, tillegg, utlegg og reise, slik kortet viser dem i dag (`RP:172–174`). | «Maskin, varer, tillegg, utlegg og reise fører [fornavn] selv på dette kortet.» |
-
-- **Samme klokkeslett:** «Til kl.» på A og «Fra kl.» på B er én verdi vist to steder. Endres den ene, endres
-  den andre.
-- **Før klokkeslettet er skrevet,** viser kort A hele jobben, og feltene på kort B er tomme og låst.
-- **Mens attestanten skriver:** hver gang klokkeslettene og pausene er gyldige, spør vinduet serveren om
-  forhåndsvisning, som i dag (`RP:788–799`, `:819–820`). Svaret fyller «Arbeid» og «Linjer» på begge kortene.
-  Klokkeslettene rundes med firmaets tidsrunding, som i pennen (`RP:573–574`).
-- **Prosjektlista på B** har prosjektene attestanten kan attestere, og jobbens eget prosjekt (DO18). Byttes
-  prosjektet, tømmes underprosjektet, og byggeplassen settes til prosjektets standard, som i «Rett reisen».
-- **Nederst i vinduet:** «Lagrer to registreringer. [Fornavn] ser «Korrigert av [attestantens navn]» på begge.»
-  Knappene er «Avbryt» og «Lagre». «Lagre» er av til forhåndsvisningen er godtatt, som «✂ Del opp» er i dag
-  (`RP:845`).
-- **Avviser serveren,** står grunnen i vinduet, og ingenting er lagret. «Avbryt» og ✕ endrer ingenting.
-- **Etter «Lagre»** lukkes vinduet, og dagen står med to kort. De rettes hver for seg, som alle andre kort.
-  ⚠️ Kenneth 2026-11-23: begge kortene skal stå åpne side om side etterpå (del G, B69).
-
-**Tekstene som endres:** «Jobb A» og «Jobb B» blir «Kort A» og «Kort B» (§ 0). «Underprosjekt som før» og
-«N maskin blir her» går ut; «Blir i dette kortet» med lista erstatter dem. Knappen i vinduet heter «Lagre», ikke
-«✂ Del opp» (Kenneth: «Ett «Lagre» lagrer begge»). Hjelpeteksten for attesteringen skrives om for «Del opp».
-
-**Fjernes noe?** Nei. Klokkeslettet og underprosjektet for B, som skjemaet har i dag, står i vinduet. Blokka i
-kortet blir et vindu.
-
-#### Del C — serveren (`delJobb`)
-
-`delJobb` får seks nye felt. Alle kan utelates. Et kall uten dem gir samme resultat som i dag.
-
-| Felt | Betyr | Utelatt |
-|---|---|---|
-| `fraTidA` | Start på kort A. | Jobbens start. |
-| `tilTidB` | Slutt på kort B. | Jobbens slutt. |
-| `pauseMinA`, `pauseMinB` | Pausen på hvert kort, i minutter. | Fordelingen serveren gjør i dag (DO6). |
-| `projectIdB` | Prosjektet for kort B. | Jobbens prosjekt. |
-| `byggeplassIdB` | Byggeplassen for kort B. `null` er uten byggeplass. | Radenes byggeplass, som i dag. |
-
-`kl` (felles klokkeslett) og `externalCostObjectIdB` står som i dag.
-
-**Regelen for radene.** Planleggeren (`JD`) deler ved `kl` som i dag (DO6). Deretter:
-
-1. `fraTidA` settes som start på første rad i A. `tilTidB` settes som slutt på siste rad i B.
-2. Pausen på et kort står på én rad: den som bærer pausen på kortet etter delingen. Bærer ingen rad pause,
-   står den på kortets første rad.
-3. En rad som har fått ny start, slutt eller pause, får timene (til − fra − pause) / 60, samme formel som
-   pennen (DO8). Andre rader beholder timene sine. Er ingen av de nye feltene sendt, er tallene de samme som i
-   dag.
-4. Lønnsarten følger raden, som i dag. Vinduet deler ikke på nytt i ordinær tid og overtid. Flytter
-   attestanten ytterkantene, retter han lønnsarten med ✎ etterpå.
-
-**Avvises, og ingenting skrives:**
-
-- `fraTidA` er ikke før `kl`, eller `tilTidB` er ikke etter `kl`.
-- En rad får slutt før start, eller 0 timer eller mindre («Klokkeslettet gir en del uten timer», `JD:104`).
-- En flyttet ytterkant overlapper en annen rad på dagsseddelen utenfor jobben. Regelen og teksten er de som
-  finnes (DO13).
-- `projectIdB` hører ikke til dagsseddelens firma, byggeplassen hører ikke til prosjektet, eller
-  underprosjektet hører ikke til prosjektet (DO11). Underprosjektet holdes mot B sitt prosjekt, ikke A sitt
-  (DO4).
-- Attestanten har ikke attesteringsrett på B sitt prosjekt. Kravet gjelder begge prosjektene, som i
-  `rettRadFelt` (DO10).
-- Arbeideren er ikke med på B sitt prosjekt (`verifiserProsjektmedlem` med dagsseddelens eier). Teksten sier
-  hvem og hvilket prosjekt. Grunnen er DO12: synken sjekker medlemskap for hvert prosjekt på radene. Koderen
-  kjører DO12 i løsningen. Holder den ikke, meldes det før kode.
-
-**Kort B:** alle radene på B får `projectIdB`, `byggeplassIdB` og `externalCostObjectIdB`, og den nye
-kort-id-en (DO17). Kort A beholder prosjekt, byggeplass, underprosjekt og kort-id.
-
-**Forhåndsvisningen** gir begge kortene slik de blir: fra, til, pause og timer pr. kort, og linjene med
-lønnsart og timer. Den kjører de samme kravene som lagringen og skriver ingenting, som i dag (DO5).
-
-**Historikken og merket:** hver rad som endres, lagres i historikken, og loggen bærer verdiene etterpå, også
-radene på A som får ny start eller pause. I dag gjelder det bare raden som deles, og radene som går til B
-(DO16).
-
-**Kravene i DO9 står.** Firmavalget «rediger ved attestering» endres ikke.
-
-**Maskin og varer blir i A:** serverendringen er bestilt hos web-timer-w5 i egen ordre og spesifiseres ikke
-her. Det som er målt, står i DO14 og DO15. Denne leveransen går etter den: i dag får en maskin som følger med
-til B, nytt underprosjekt og ny kort-id, men ikke nytt prosjekt (`D:6906–6911`), så B kan ikke bytte prosjekt
-før maskinene blir i A.
-
-**Reisen blir i A:** `delJobb` rører ikke reiserader (DO14). At `sikreKortId` ikke flytter reisen etterpå,
-hører til «Reisens kort uten særregler» (§ 9). Denne leveransen går etter den også.
-
-**Appen:** ingen endring (DO19). Feltene er nye og valgfrie, så ingen eldre klient brytes.
-
 #### Del D — det som ikke røres
 
 - ✂ på én timelinje (`splittRad`) og «✎ Rediger jobben».
@@ -3318,57 +3218,12 @@ hører til «Reisens kort uten særregler» (§ 9). Denne leveransen går etter 
 - Underprosjekt-knappene for hele jobben.
 - Arbeiderens dagsside. Han har ikke «Del opp» på web.
 - Firmavalget dagskort-modus og appen.
-- Kortene etter lagring: ingen kobling mellom A og B, og ingen automatisk justering (§ 8.21).
+- Kortene etter delingen: ingen kobling mellom A og B, og ingen automatisk justering (§ 8.21).
 
-#### Del E — leveransen
+#### Del G — begge kortene åpne og redigerbare etter «Del opp» (versjon 23)
 
-Én leveranse, i raden «Del opp» med begge kortene i § 9. Den går etter serverendringen «maskin og varer blir i
-A» og etter «Reisens kort uten særregler», fordi alle tre rører `delJobb` og `sikreKortId`. Regel 10 kjøres
-uavhengig: delen flytter lønn og kostnad mellom prosjekter og rører attestantens rett. Koderen leverer løsning
-med skjermbilde før kode. Ingen migrering, ikke mobil.
-
-**Kenneth ser etterpå:** Ola Tømrer, man. 16.11., 07:00–15:30 på Sitedoc Boligfelt B12, med Volvo 4 t, betong
-4 m³ og hjemreise. «✂ Del opp» åpner vinduet. 12:00 i «Til kl.» på kort A gir 4,5 t på A og 3,5 t på B, og
-12:00 står i «Fra kl.» på B. På B velges Prosjekt 1050 og byggeplass. «Lagre» gir to kort på dagen. Volvoen,
-betongen og reisen står i A. Ola ser «Korrigert av Kari Leder» på begge kortene.
-
-#### Del F — tester som skal feile først
-
-1. **Planleggeren** (`jobb-deling.test.ts`): uten de nye feltene er planen den samme som i dag, og testene
-   som finnes, er grønne. Med `fraTidA` 06:30 starter første rad på A 06:30 og har 0,5 t mer. Med `tilTidB`
-   16:00 slutter siste rad på B 16:00. En jobb med ordinær tid 07:00–15:00 og overtid 15:00–15:30, delt ved
-   12:00, gir to linjer på B, og `tilTidB` flytter bare overtidslinja.
-2. **Pausen:** 30 min på A og 0 på B som utgangspunkt. Flyttes pausen til B, er A 5 t og B 3 t, og summen er
-   uendret. Settes pausen til 60 på A, er A 4 t. Pause like lang som kortet avvises.
-3. **Summen:** uten rettinger er timene på A og B til sammen jobbens timer før delingen.
-4. **Sted for B** (ekte Postgres): med `projectIdB`, `byggeplassIdB` og `externalCostObjectIdB` har alle
-   radene på B de tre verdiene og samme nye kort-id. Radene på A har prosjekt, byggeplass, underprosjekt og
-   kort-id som før. Kortinvarianten holder for dagsseddelen.
-5. **Grensene** (én test pr. avvisning, og ingen rad er endret etterpå): prosjekt i et annet firma;
-   byggeplass fra et annet prosjekt; underprosjekt fra A sitt prosjekt når B er på et annet; attestant uten
-   attesteringsrett på B sitt prosjekt; arbeider som ikke er med på B sitt prosjekt.
-6. **Overlapp:** `tilTidB` inn i en annen jobb på dagen avvises med teksten som finnes. Slutt lik den andre
-   jobbens start godtas.
-7. **Forhåndsvisningen:** skriver ingenting (radene og `updated_at` er urørt), gir fra, til, pause, timer og
-   linjer pr. kort, og gir de samme tallene som lagringen etterpå.
-8. **Kravene står:** testene fra w5 og w7 er grønne (firmavalget, sendt dagsseddel, alle linjer venter, ikke
-   egen dagsseddel).
-9. **Merket:** etter lagring har linjene på begge kortene «Korrigert av» hos arbeideren. Linja på B viser
-   prosjektet før og etter. En rad på A som fikk ny start, har merket med klokkeslettet før og etter.
-10. **Uten kobling:** etter lagring rettes slutten på kort A med ✎. Starten på kort B er uendret.
-11. **Eldre kall:** `delJobb` med bare `kl` og `externalCostObjectIdB` gir samme rader som før leveransen.
-12. **Vinduet:** det har to kort. «Til kl.» på A og «Fra kl.» på B viser samme verdi og endres sammen. Kort B
-    har prosjekt, byggeplass og underprosjekt, og et prosjektbytte tømmer underprosjektet. «Lagre» er av til
-    forhåndsvisningen er godtatt, og sender ett kall til `delJobb` med alle feltene. «Avbryt» sender ingen
-    lagring. En feil fra serveren står i vinduet.
-13. **Vinduet deler bare arbeidet:** kort A lister jobbens maskiner, varer, tillegg, utlegg og reise. Kort B
-    har ingen felt for dem. At de står i A etter lagring, testes i serverendringen hos web-timer-w5 og i
-    «Reisens kort uten særregler».
-14. **Firmavalget dagskort-modus:** `dagskort-vakt.test.tsx` er grønn.
-
-#### Del G — begge kortene åpne og redigerbare etter «Del opp» (versjon 23, FORSLAG)
-
-🟡 **Forslag 2026-11-23, ikke vedtatt, ikke bestilt, uten kode.** B68–B71 er til Kenneth (under, og i § 8).
+🟡 **Vedtatt av Kenneth 2026-11-23: «B68 ja, B69 ja, B70 ja, B71 ja». Ikke bestilt, uten kode.** B72 og B73 er
+åpne (under, og i § 8). De gjelder bare linjene attestanten legger til (B71).
 
 **Kenneth 2026-11-23, etter test av O15 på test `14869899` (ordrett):** «Det er noen mangler med den opprinnelige
 planen ved del opp -> det var avtalt at del opp skulle vise registreringer av begge side om side, slik at det er
@@ -3382,26 +3237,28 @@ Kenneths to testbilder ligger i `relay/skisser/delopp-kenneth-1-for.webp` (blokk
 
 ![Etter «Del opp»: i dag og med begge kortene åpne](skisser-web-timeforing/v23-del-opp-etter.png)
 
-![Alternativet: vinduet før lagring med alle seksjonene](skisser-web-timeforing/v23-del-opp-vindu.png)
+Kilde: `skisser-v23.html` (ark `#etter`). Eksemplet er Kenneths test: Kari ansatt attesterer, registreringen er
+07:00–12:00 med 30 min pause på SD-20260502-0002 · Sitedoc Boligfelt B12, med Volvo EC220E 4,50 t og Fugesand
+3 sekk, delt kl. 11:00, og kort B er på TILL-001. Tillegg, utlegg og reise finnes ikke i eksemplet; de står i en
+egen ramme i bildet, merket som det. ⚠️ `v23-del-opp-vindu.png` (ark `#vindu`) viser vinduet før lagring. Det er
+utgått (B70 ja).
 
-Kilde for begge: `skisser-v23.html` (ark `#etter` og `#vindu`). Eksemplet er Kenneths test: Kari ansatt
-attesterer, registreringen er 07:00–12:00 med 30 min pause på SD-20260502-0002 · Sitedoc Boligfelt B12, med Volvo
-EC220E 4,50 t og Fugesand 3 sekk, delt kl. 11:00, og kort B er på TILL-001. Tillegg, utlegg og reise finnes ikke
-i eksemplet; de står i en egen ramme i bildene, merket som det.
+**Kenneths svar 2026-11-23:**
 
-**Lest mot det som står:**
+| | Spørsmål | Svar | Det som gjelder |
+|---|---|---|---|
+| B68 | Skal varer, tillegg, utlegg og reise kunne flyttes mellom kort A og kort B? | **Ja** | Linjer (reise, varer, maskin, utlegg og tillegg) kan flyttes mellom kort A og kort B. Spørsmålet nevnte ikke maskin; Kenneths ord 23.11. og orkestrators føring av svaret gjør det. Bytter ut «s3.nei» (2026-11-22). |
+| B69 | Skal kort A og kort B stå åpne side om side til du lukker dem, uten kobling i dataene? | **Ja** | Etter «Del opp» står begge kortene åpne og redigerbare side om side. Kortene har ingen kobling i data. |
+| B70 | Skal vinduet fra 21.11. utgå, nå som kortene står åpne etter delingen? | **Ja** | Vinduet utgår, og blokka fra O15 står. Med vinduet går tre ting som ikke var bygget: å se og justere begge kortene før noe er lagret; ett «Lagre» og ett «Avbryt» for hele delingen; og prosjekt og byggeplass for kort B. |
+| B71 | Skal attestanten også kunne legge til nye linjer i kortene? | **Ja** (Fabel anbefalte nei) | Attestanten kan legge til nye linjer under oppdelingen. Bytter ut «Mangler B noe, fører arbeideren det etterpå, eller attestanten returnerer dagen» (2026-11-21). Beskrevet under «Attestanten legger til linjer». |
 
-| Kenneths ord | Lest som | Mot § 4.16 |
-|---|---|---|
-| «det var avtalt at del opp skulle vise registreringer av begge side om side … jeg finner ikke at dette er planlagt … i en visning/bilde» | Begge kortene skal stå ved siden av hverandre med innholdet sitt. | Vinduet i del B og `v21-del-opp.png` viser begge kortene før lagring, men bare med fra, til, pause, sted og linjer. Maskin, varer og reise står som en liste i A. Det er ikke bygget (O15 bygde maskindelingen i blokka). |
-| «reise, + varer+ maskin, + utlegg/tillegg må også være tilgjengelig i begge kortene» | Begge kortene har alle seksjonene, og det som står i dem, kan fordeles mellom kortene. | ⚠️ **Går lenger enn «s3.nei»** (2026-11-22: varer, tillegg, utlegg og reise blir i A) og enn valget 2026-11-21 («B får ingen varer, maskin, tillegg eller utlegg der … Mangler B noe, fører arbeideren det etterpå»). Om «+» betyr «og» eller knappene «+ Vare» og så videre, er B71. |
-| «nå fungerer del opp bra med maskin og timer» | Blokka i kortet (klokkeslett, underprosjekt for B, maskintimer A/B) står som den er. | Likt O15. Om vinduet fra 21.11. da trengs, er B70. |
-| «etter oppdeling vises kun et kort, det andre lukkes» | Feilen er hva som står på skjermen etter delingen. | Målt: DG4 og DG5. |
-| «begge kort er åpne og redigerbare side ved side» | Etter delingen står kort A og kort B åpne ved siden av hverandre, og begge rettes der. | ⚠️ **Endrer del B:** «Etter «Lagre» lukkes vinduet, og dagen står med to kort. De rettes hver for seg». «Uten kobling» i del D står (B69). |
-
-**Målt mot develop @ `14869899`.** Lest av leseagent 2026-11-23. Fabel har stikkprøvd kildene for DG1–DG7, DG9 og DG12 (ikke hver linje).
-Ikke kjørt. `D`, `JD`, `RP` og `KI` som i del A; `AT` = `apps/web/src/components/attestering/AttesteringTabell.tsx`,
-`S` = `packages/db-timer/prisma/schema.prisma`, `VF` = `apps/api/src/routes/vareforbruk.ts`.
+**Målt mot develop.** DG1–DG14: develop @ `14869899`, lest av leseagent 2026-11-23; Fabel har stikkprøvd kildene
+for DG1–DG7, DG9 og DG12 (ikke hver linje). DG15–DG23: develop @ `ae3c417b` (koden er lik `14869899`), lest av
+leseagent 2026-11-23; Fabel har stikkprøvd DG15–DG18, DG20, DG21 og vaktene i DG23, ikke DG19 og serverdelen av
+DG22. Ikke kjørt. `D`, `JD`, `RP`, `RRV` og `KI` som i del A; `AT` =
+`apps/web/src/components/attestering/AttesteringTabell.tsx`, `S` = `packages/db-timer/prisma/schema.prisma`,
+`VF` = `apps/api/src/routes/vareforbruk.ts`, `KL` = `apps/api/src/services/timer/kortLeser.ts`, `ADE` =
+`apps/web/src/components/timer/AttesteringDetalj_Edit.tsx`.
 
 | | Målt | Kilde |
 |---|---|---|
@@ -3416,25 +3273,88 @@ Ikke kjørt. `D`, `JD`, `RP` og `KI` som i del A; `AT` = `apps/web/src/component
 | DG9 | **Å flytte en linje er mer enn kort-id.** Linjene i et kort, unntatt reise, må ha samme prosjekt, byggeplass og underprosjekt. En maskin eller vare som er koblet til en timerad, må stå i samme kort som raden, ellers flyttes den tilbake. Reise må ha kortets prosjekt. | `packages/shared/src/utils/kortId.ts:253–283`; `KI:291–294`, `:410–443` |
 | DG10 | **To kort kan ha samme prosjekt, byggeplass og underprosjekt** (A og B begge «Uten»). En linje uten kort-id legges da i det eldste kortet, altså A. Flyttingen må skrive kort-id-en direkte. | `KI:281–290` |
 | DG11 | **Ingen mutasjon i attesteringen setter kort-id på en linje.** `flyttTimerRadEco` endrer underprosjekt på timer og tillegg. `rettRadFelt` og `redigerSedelRader` retter timer, tillegg og maskin. Ingen av dem tar utlegg eller vare. | `D:7582–7702`, `:8487–8667`, `:8473`, `:3211–3274` |
-| DG12 | **Attestanten kan ikke rette varer og utlegg.** Vare-ruten slipper inn eieren (utkast eller returnert), prosjektadmin, firmaadmin og sitedoc-admin, ikke en som bare har attesteringsrett. Utlegg kan bare eieren føre, på utkast eller returnert dag. | `VF:31–49`; `D:6455`, `:6568`, `:6649` |
+| DG12 | **Attestanten kan ikke rette varer og utlegg.** Vare-ruten slipper inn eieren (utkast eller returnert), prosjektadmin, firmaadmin og sitedoc-admin, ikke en som bare har attesteringsrett. Utlegg kan bare eieren og firmaadmin føre, på utkast eller returnert dag (DG18). | `VF:31–49`; `D:6455`, `:6568`, `:6649` |
 | DG13 | **`delJobb` sjekker ikke status på varer og utlegg.** Timer, tillegg og maskin må vente. Utlegg har ingen attestert-status. En attestert vare er låst med et øyeblikksbilde, som flytting av hele jobben sjekker. | `D:7778`, `:758`; `S:493–529` |
 | DG14 | **Varer skrives utenfor transaksjonen,** fordi de ligger i en annen database. `delJobb` gjør det etter at delingen er lagret. | `D:8025–8032` |
+| DG15 | **«✎ Rediger jobben» kan ikke legge til linjer.** Vinduet retter og sletter timer og maskin, og tillegg sendes uendret. Hver rad der har en original. | `apps/web/src/components/attestering/RedigerRadModal.tsx:78–97`, `:179–187`, `:430` |
+| DG16 | **Attestanten kan legge til timelinje, tillegg og maskin i dag, men ikke i kortet.** «Åpne dagsseddel» går til dagsseddelens side. «Rediger sedel» der har «+ Legg til». Det lagres med `redigerSedelRader`, som oppretter rader uten original. Kravene er de samme som for retting (DO9). | `AT:419–421`; `apps/web/src/components/timer/AttesteringDetalj.tsx:493`; `ADE:237–272`, `:722`, `:857`, `:915`; `D:3316–3337`, `:3623`, `:3734–3748` |
+| DG17 | **En ny linje kan ikke styres til et bestemt kort.** `redigerSedelRader` tar ikke imot kort-id. Raden får kort etter prosjekt, byggeplass og underprosjekt, og da det eldste kortet når to kort er like (DG10). | `D:3227–3272`, `:3591–3616` |
+| DG18 | **Arbeiderens egne «legg til» slipper ikke attestanten inn,** og ingen inn på en sendt dag. Det gjelder timerad, reise, tillegg, utlegg og maskin: eieren, firmaadmin eller sitedoc-admin, og bare utkast eller returnert dag. | `D:1103–1156`, `:254`, `:4503`, `:6175`, `:6455`, `:11367` |
+| DG19 | **Reise: attestanten kan bare rette en reise som finnes** («Rett reisen»). Arbeiderens reisevindu lagrer med `tilfoyTimerRad` (DG18). Om «Rediger sedel» slipper gjennom en timelinje med reiselønnsart, er ikke målt. | `RRV:111–112`, `:187–190`; `apps/web/src/app/dashbord/timer/[id]/ReiseKort.tsx:358`, `:674` |
+| DG20 | **Ingen linje lagrer hvem som opprettet den, unntatt vare.** Varen har «registrert av», satt til den som er logget inn. Timer, tillegg, maskin og utlegg har tidspunkt for opprettet og endret, ikke hvem. Dagsseddelen har «registrert av» for hele dagen. | `S:158`, `:313–314`, `:432–433`, `:510–511`, `:615–616`; `packages/db-varelager/prisma/schema.prisma:82`; `VF:541` |
+| DG21 | **Merket «Korrigert av» regnes ut ved lesing,** fra historikken over rader som er endret eller slettet, og fra loggen. Det finnes for timer, tillegg og maskin, ikke for utlegg og vare. En rad attestanten oppretter, får ikke merket: den har ingen historikkpost og ingen forelder. Loggen for `rediger_sedel_rader` bærer det som ble sendt inn, uten id-en til den nye raden. | `KL:225`, `:321`, `:415`, `:511–514`; `D:3694–3706`, `:3785–3816`; `S:656–664` |
+| DG22 | **Merket hos arbeideren** viser navn og tidspunkt på linja («Korrigert av Kari Leder 21.11. kl. 14:32») og bare navn på dagen i Mine timer. Bare eieren får det, og bare i prosjektkort-modus. Appen har ikke merket. Ingen e-post og ingen push sendes når attestanten retter eller legger til. | `apps/web/src/components/timer/KorrigertMerke.tsx:34–50`; `D:4114–4117`, `:4266–4272`; `apps/web/src/app/dashbord/timer/[id]/page.tsx:1583`; søk i `apps/mobile/src` og `apps/api/src/routes/timer` (0 treff) |
+| DG23 | **Å rette og å legge til har samme rett i dag:** attesteringsrett på prosjektet (prosjektadmin, «kan attestere» eller firmaadmin) og firmavalget «rediger ved attestering». Vare krever prosjektadmin eller firmaadmin. Ingen rettighet skiller «kan rette» fra «kan legge til». | `D:266–293`, `:620–638`, `:3319–3330`; `VF:31–49`; `packages/db/prisma/schema.prisma:430`, `:746` |
 
-**Forslaget (ark 1, anbefalt):**
+**Det som gjelder (ark 1):**
 
 1. **«✂ Del opp» og blokka står som i dag** (O15): klokkeslett, underprosjekt for B og maskintimene.
-2. **Etter «✂ Del opp» står kort A og kort B åpne ved siden av hverandre,** i raden der kort A sto. Er
+2. **Etter «✂ Del opp» står kort A og kort B åpne ved siden av hverandre,** i raden der kort A sto (B69). Er
    innholdsflaten smalere enn 1 280 punkter, står kort B under kort A.
 3. **Begge kortene har alle åtte seksjonene.** Reise vises også når kortet ikke har reise (i dag skjult, DG7).
 4. **Det attestanten kan rette i ett kort i dag, kan han rette i begge:** underprosjekt, ✎ og ✂ på linjene,
    «✎ Rediger jobben» og «Rett reisen».
-5. **«→ Kort B» på hver linje** under Varer, Tillegg, Utlegg og Reise. I kort B heter den «← Kort A». Linja
-   flyttes hel og får kortets underprosjekt. På en vare kan attestanten skrive mengden som skal flyttes
-   («1,00 av 3,00 sekk»); resten blir stående. Krever B68.
+5. **«→ Kort B» på hver linje** under Maskiner, Varer, Tillegg, Utlegg og Reise (B68). I kort B heter den
+   «← Kort A». Linja flyttes hel og får kortets underprosjekt. På en vare kan attestanten skrive mengden som
+   skal flyttes («1,00 av 3,00 sekk»); resten blir stående.
 6. **Maskintimene** fordeles i blokka som i dag, og rettes etterpå med ✎ i hvert kort.
-7. **Kortene lukkes hver for seg med ✕.** De er to vanlige registreringer uten kobling. Åpnes ett av dem
-   senere, åpnes bare det (B69).
-8. **Arbeideren** ser «Korrigert av» på linjene som er flyttet, som etter andre rettinger (DO16).
+7. **«＋» i seksjonene** legger til en ny linje i det kortet (B71). Se «Attestanten legger til linjer».
+8. **Kortene lukkes hver for seg med ✕.** De er to vanlige registreringer uten kobling. Åpnes ett av dem
+   senere, åpnes bare det, uten «→ Kort B» og «＋».
+9. **Arbeideren** ser «Korrigert av» på linjene som er flyttet, som etter andre rettinger (DO16), og «Lagt til
+   av» på linjene attestanten har lagt til (B73).
+
+**Attestanten legger til linjer (B71 ja):**
+
+**Hvem, hvor og når:** attestanten, mens kort A og kort B står åpne som par etter «Del opp». Kravene er de
+samme som for «Del opp» og for retting (DO9, DG23): attesteringsrett på prosjektet, ikke egen dagsseddel,
+firmavalget «rediger ved attestering» på, og dagen sendt. Lest slik av Fabel: et kort som åpnes alene, får ikke
+«＋» med dette. Der legger attestanten til i «Rediger sedel» på dagsseddelens side, som i dag (DG16).
+
+**1. Linjetypene.** «＋» åpner de samme feltene som arbeideren har for linjetypen på dagssiden. Linja får
+kortets prosjekt, byggeplass og underprosjekt, står som «venter» og attesteres sammen med resten.
+
+| Seksjon | «＋» legger til | I dag (attestant, sendt dag) | Trengs |
+|---|---|---|---|
+| 2 Lønnsart | Timelinje: fra, til, pause og lønnsart | Bare i «Rediger sedel» på dagsseddelens side (DG15, DG16) | Kort-id på ny rad (DG17) |
+| 4 Maskiner | Maskin og antall timer, uten fra–til | Bare i «Rediger sedel» (DG16) | Kort-id på ny rad. Regelen «maskin høyst jobbens arbeidstimer» gjelder (DO15) |
+| 5 Varer | Vare og mengde | Bare prosjektadmin og firmaadmin (DG12, DG23) | B72 |
+| 6 Tillegg | Tillegg og antall | Bare i «Rediger sedel» (DG16) | Kort-id på ny rad |
+| 7 Utlegg | Kategori, beløp og bilag | Ingen (DG18) | B72, og en ny vei på serveren |
+| 8 Reise | Reise i reisevinduet: retning, fra–til og steder | Ingen. Attestanten retter bare en reise som finnes (DG19) | En ny vei på serveren. Reglene i [vedtak-timer-web.md § Reisevinduet](vedtak-timer-web.md) gjelder |
+
+Seksjon 1 Fra–til og 3 Hva gjorde du? har ingen «＋». De er ikke linjer.
+
+**2. Slik synes det på linja at attestanten la den til.** Linja viser «Lagt til av Kari ansatt 23.11. kl.
+14:02», på samme sted og i samme form som «Korrigert av Kari ansatt 23.11. kl. 14:02» (DG22). Målt mot feltene
+i dag:
+
+- **Når** finnes: alle linjetypene har tidspunktet linja ble opprettet (DG20).
+- **Hvem** finnes bare på vare («registrert av»). Timer, tillegg, maskin og utlegg lagrer ikke hvem som
+  opprettet linja (DG20). Det er B73.
+- **Merket** finnes ikke for nye linjer, og ikke for utlegg og vare (DG21). Teksten «Lagt til av» finnes ikke
+  i språkfilene.
+- Forslag: merket står også i attesteringskortet, så en annen attestant ser at arbeideren ikke førte linja
+  selv. I dag får bare eieren av dagsseddelen merket (DG22).
+
+**3. Dette ser arbeideren etterpå:**
+
+- **På PC, dagen:** linja står i kortet sitt sammen med hans egne, med «Lagt til av Kari ansatt 23.11. kl.
+  14:02». I firmavalget dagskort-modus vises ikke merket, som i dag (DG22).
+- **På PC, Mine timer:** dagen viser «Korrigert av Kari ansatt», som etter andre rettinger.
+- **På telefonen:** linja kommer ved neste henting, uten merke. Appen har ikke «Korrigert av» (w15gm venter på
+  web).
+- **Ingen e-post og ingen push** (§ 8.20: «jeg vil ikke varsle med e-post»; DG22).
+- **Returneres dagen,** er linja en vanlig linje på dagsseddelen hans, og han kan rette og slette den. Ikke
+  kjørt.
+
+**4. Ny rettighet eller ny kolonne?**
+
+- **Ny rett: ja, for vare og utlegg.** En attestant som bare har attesteringsrett, slipper ikke inn i dag
+  (DG12, DG18, DG23). Det er B72. Retten trenger ingen ny kolonne: den følger attesteringsretten og
+  firmavalget. Timelinje, tillegg, maskin og reise bruker retten attestanten har til å rette.
+- **Ny kolonne: ja, hvis linja skal lagre hvem som la den til.** Det er B73.
+- **Kort-id:** ingen ny kolonne. Alle linjetypene har den (DG8).
 
 **Dette trengs i koden:**
 
@@ -3443,84 +3363,68 @@ Ikke kjørt. `D`, `JD`, `RP` og `KI` som i del A; `AT` = `apps/web/src/component
 | Web 1 | Blokka gir kort-id-en til B videre når delingen er lagret. | DG3, DG4 |
 | Web 2 | Det åpne kortet blir et par (A og B). Én rad i tabellen tegner to kort i et rutenett. | DG5, DG6 |
 | Web 3 | Seksjonen Reise vises alltid når to kort står åpne som par. | DG7 |
-| Web 4 | «→ Kort B» og «← Kort A» på linjene, med mengdefelt på vare. Vises bare når to kort står åpne som par. | Forslaget punkt 5 |
+| Web 4 | «→ Kort B» og «← Kort A» på linjene, med mengdefelt på vare. Vises bare når to kort står åpne som par. | Punkt 5 |
 | Web 5 | Tekstene i `nb.json` og `en.json`, og hjelpeteksten for attesteringen. | Kodestil |
+| Web 6 | «＋» i seksjon 2 og 4–8 i begge kortene, med feltene arbeideren har for linjetypen. Vises bare når to kort står åpne som par. | Punkt 7 |
+| Web 7 | Merket «Lagt til av [navn] [tidspunkt]» på linja hos arbeideren og i attesteringskortet. | DG21, DG22 |
 | Server 1 | **Ny mutasjon som flytter én linje til et annet kort på samme dagsseddel.** Den skriver kort-id, underprosjekt og byggeplass fra målkortet. Maskin og vare kobles til en timerad i målkortet. Reise krever samme prosjekt. Linja lagres i historikken. | DG9, DG10, DG11 |
 | Server 2 | **Samme krav som «Del opp»** (DO9): attesteringsrett på prosjektet, ikke egen dagsseddel, «rediger ved attestering» på, dagen sendt, og linja venter. En attestert vare og et utlegg på en attestert jobb flyttes ikke. | DG13 |
-| Server 3 | **Attestanten må få flytte en vare.** Vare-ruten slipper ham ikke inn i dag. Retten gjelder bare flyttingen, ikke å opprette eller endre varer. | DG12 |
+| Server 3 | **Attestanten må få flytte en vare.** Vare-ruten slipper ham ikke inn i dag. | DG12 |
 | Server 4 | **Delt varemengde gir en ny varelinje i målkortet.** Varene ligger i en annen database, så rekkefølgen og hva som skjer når det andre steget feiler, beskrives i koderens løsning før kode. | DG14 |
-| Migrering | **Nei.** Kolonnene finnes. | DG8 |
-| Mobil | Ingen endring. Appen har ikke «Del opp» (DO19). | |
+| Server 5 | **En ny rad fra attestanten tar imot kort-id** (timer, tillegg og maskin) og havner i kortet der «＋» ble trykket. Kravene i Server 2 gjelder. | DG16, DG17, DG10 |
+| Server 6 | **Vare og utlegg fra attestanten på en sendt dag.** Vare: vakta slipper inn den som har attesteringsrett. Utlegg: en ny vei, fordi den som finnes, bare gjelder utkast og returnert dag. | DG12, DG18; B72 |
+| Server 7 | **Reise fra attestanten på en sendt dag,** med reisesporet og reglene fra reisevinduet. | DG19 |
+| Server 8 | **Hvem som la til linja,** og merket for nye linjer og for utlegg og vare. | DG20, DG21; B73 |
+| Migrering | **Nei** for begge kortene åpne og for flyttingen: kolonnene finnes (DG8). **Én kolonne på fire tabeller** hvis B73 besvares med ja. Tom verdi betyr at eieren førte linja; regelen om tomme kolonner (arkitektur.md § Schema- og migreringsregler) svares ut i koderens løsning. | DG8, DG20 |
+| Mobil | Ingen endring. Appen har ikke «Del opp» (DO19) og ikke merket (DG22). | |
 
-Regel 10 kjøres uavhengig for serverdelen: flyttingen flytter kostnad mellom underprosjekter og gir
-attestanten en ny rett på varer.
+Regel 10 kjøres uavhengig for serverdelene: flyttingen flytter kostnad mellom underprosjekter, og nye linjer
+fra attestanten er lønn, varekostnad og utlegg som arbeideren ikke har ført selv.
 
-**Alternativet (ark 2):** vinduet fra del B bygges, med alle seksjonene i begge kortene. Maskin og vare har ett
-tallfelt i hvert kort. Tillegg, utlegg og reise har valget «Kort A | Kort B» på hver linje. Ingenting lagres
-før «Lagre». Da må `delJobb` ta imot hele fordelingen i ett kall, i tillegg til feltene i del C, og vinduet er
-en ny flate. Etter «Lagre» står kortene åpne som i ark 1. Velges dette, erstatter `v23-del-opp-vindu.png`
-`v21-del-opp.png`, og B63–B66 (versjon 22 på `docs/fabel`, ikke merget) må besvares først.
+**Spørsmål til Kenneth.**
 
-**Spørsmål til Kenneth.** Tilstanden er den samme i alle fire: attestanten står i Firma › Attestering,
-dagsseddelen er sendt, alle linjene i jobben venter, og jobben er nettopp delt i kort A og kort B.
+**B72 — Skal en attestant som bare har attesteringsrett, få legge til varer og utlegg på arbeiderens dag?**
+Tilstand: attestanten er prosjektmedlem med «kan attestere», ikke prosjektadmin og ikke firmaadmin. Han står i
+Firma › Attestering med kort A og kort B åpne etter «Del opp». Dagen er sendt, og firmavalget «rediger ved
+attestering» er på.
 
-**B68 — Skal varer, tillegg, utlegg og reise kunne flyttes mellom kort A og kort B?**
+- **I dag:** han kan legge til timelinje, tillegg og maskin (i «Rediger sedel»). Varer på en annens dag kan
+  bare prosjektadmin og firmaadmin føre. Utlegg kan ingen føre på en sendt dag.
+- **Svarer du ja:** attesteringsretten gjelder alle linjetypene. «＋» under Varer og Utlegg virker for alle
+  som kan attestere prosjektet. Varen trekkes og koster som andre varer. Utlegget utbetales til arbeideren som
+  andre utlegg. Attestanten både fører og attesterer det, slik han i dag kan med timer og tillegg.
+- **Forsvinner:** ingenting.
+- **Svarer du nei:** «＋» under Varer vises bare for prosjektadmin og firmaadmin, og «＋» under Utlegg vises
+  ikke. Mangler en vare eller et utlegg, returnerer attestanten dagen. Du kan svare for varer og utlegg hver
+  for seg.
+- **Anbefaling:** ja for varer. Ja for utlegg også, med bilag valgfritt som på PC i dag. Vil du at to
+  personer alltid skal stå bak et utlegg, svar nei for utlegg.
 
-- **I dag:** alt unntatt arbeidet og maskintimene blir i kort A (du svarte «s3.nei» 22.11.). Attestanten kan
-  ikke flytte linjene, og varer og utlegg kan han ikke rette i det hele tatt.
-- **Svarer du ja:** hver linje under Varer, Tillegg, Utlegg og Reise får «→ Kort B» (i kort B: «← Kort A»).
-  Linja flyttes hel og får kort B sitt underprosjekt. En vare kan deles på mengde: 1 av 3 sekk til B.
-  Arbeideren ser «Korrigert av». «s3.nei» byttes ut med dette.
-- **Forsvinner:** ingenting. Linjene står i kort A til du flytter dem.
-- **Svarer du nei:** linjene blir i kort A, som i dag. Skal noe stå på kort B, returnerer du dagen, og
-  arbeideren fører det selv.
+**B73 — Skal linja lagre hvem som la den til, i en ny kolonne?** Tilstand: arbeideren åpner dagen sin på PC
+etter at attestanten har lagt til en linje i kort B.
+
+- **I dag:** linja ser ut som en han har ført selv. Bare varer lagrer hvem som førte linja. Merket «Korrigert
+  av» finnes for linjer som er endret, ikke for nye, og ikke for utlegg og varer.
+- **Svarer du ja:** timer, tillegg, maskin og utlegg får kolonnen «opprettet av» (vare har den). Linja viser
+  «Lagt til av Kari ansatt 23.11. kl. 14:02» hos arbeideren og i attesteringskortet, og dagen viser «Korrigert
+  av Kari ansatt» i Mine timer. Du kjører én migrering på test og i prod. Den legger til en tom kolonne. Ingen
+  linjer endres, og linjer ført før migreringen får ikke merket.
+- **Forsvinner:** ingenting.
+- **Svarer du nei:** ingen migrering. Hvem som la til linja, leses fra aktivitetsloggen. Loggen må da også
+  skrive id-en til den nye linja og dekke utlegg, som den ikke gjør i dag (DG21). Ryddes loggen, mister linja
+  merket. Om den ryddes, er ikke målt (§ 10).
 - **Anbefaling:** ja.
 
-**B69 — Skal kort A og kort B stå åpne side om side til du lukker dem, uten kobling i dataene?**
+**Leveransene (forslag):** fem ordrer, ingen på mobil.
 
-- **I dag:** bare kort A står åpent etter delingen. Kort B er en lukket rad under, og bare ett kort kan være
-  åpent om gangen.
-- **Svarer du ja:** begge står åpne ved siden av hverandre rett etter delingen, og under hverandre på smal
-  skjerm. De lukkes hver for seg. Kortene er to vanlige registreringer: åpner du ett av dem senere, åpnes
-  bare det. Ingenting lagres om at de hørte sammen, utover historikken som finnes.
-- **Forsvinner:** ingenting.
-- **Svarer du nei:** si hva som skal gjelde i stedet. Skal kortene huske at de hører sammen og alltid åpnes
-  som par, trengs en ny kolonne og en migrering.
-- **Anbefaling:** ja.
+- **D2a — begge kortene åpne** (Web 1–3 og 5). Bare web, ingen migrering. Kan bestilles (B69 ja).
+- **D2b — flytt linjer mellom kortene** (Web 4 og Server 1–4). Ingen migrering. Kan bestilles (B68 ja).
+  Regel 10 uavhengig.
+- **D2c — legg til timelinje, tillegg og maskin** (Web 6–7, Server 5 og 8). Etter B73.
+- **D2d — legg til vare og utlegg** (Server 6). Etter B72 og D2c. Regel 10 uavhengig.
+- **D2e — legg til reise** (Server 7). Etter D2c.
 
-**B70 — Skal vinduet fra 21.11. utgå, nå som kortene står åpne etter delingen?**
-
-- **I dag:** «Del opp» er blokka i kortet. Vinduet med begge kortene før lagring er vedtatt 21.11.
-  (§ 8.22), men ikke bygget.
-- **Svarer du ja:** blokka står som den er. Fra, til og pause rettes med ✎ i de to åpne kortene etter
-  delingen (ark 1).
-- **Forsvinner:** tre ting fra vedtaket 21.11., ingen av dem bygget: å se og justere begge kortene før noe
-  er lagret; ett «Lagre» og ett «Avbryt» for hele delingen; og prosjekt og byggeplass for kort B (kort B kan
-  da bare få et annet underprosjekt, som i dag). B63, B64 og B65 (versjon 22 på `docs/fabel`, ikke merget) faller bort.
-- **Svarer du nei:** vinduet bygges med alle seksjonene i begge kortene (ark 2), og etter «Lagre» står
-  kortene åpne som i ark 1. Leveransen blir større, og B63–B66 (versjon 22 på `docs/fabel`, ikke merget) må besvares først.
-- **Anbefaling:** ja. Du skriver at delingen fungerer bra slik den er, og det du savner, er kortene etterpå.
-
-**B71 — Skal attestanten også kunne legge til nye linjer i kortene?** Du skrev «reise, + varer+ maskin, +
-utlegg/tillegg må også være tilgjengelig i begge kortene». Leser jeg «+» som «og», holder det å flytte (B68).
-Mente du knappene «+ Vare», «+ Utlegg» og «+ Reise», er svaret ja.
-
-- **I dag:** ingen seksjon i attesteringskortet har «+». I «✎ Rediger jobben» kan attestanten legge til
-  timelinje, tillegg og maskin. Varer, utlegg og reise kan han ikke legge til.
-- **Svarer du ja:** hver seksjon i begge kortene får «+». Attestanten fører da varer, utlegg og reise som
-  arbeideren ikke har ført, og arbeideren ser «Korrigert av». Dette snur valget ditt 21.11.: «Mangler B noe,
-  fører arbeideren det etterpå, eller attestanten returnerer dagen.»
-- **Forsvinner:** ingenting.
-- **Svarer du nei:** attestanten fordeler det arbeideren har ført (B68), og retter det han kan rette i dag.
-  Mangler noe, returnerer han dagen.
-- **Anbefaling:** nei i denne leveransen. Flyttingen dekker det som skal fordeles etter en deling. Å føre
-  nye varer og utlegg som attestant er en ny rett, og bestilles for seg hvis du vil ha den.
-
-**Leveransen (forslag):** to ordrer, begge uten migrering og uten mobil.
-
-- **D2a — begge kortene åpne** (Web 1–3 og 5). Bare web. Kan bestilles når B69 er besvart.
-- **D2b — flytt linjer mellom kortene** (Web 4 og Server 1–4). Etter B68. Regel 10 uavhengig. Koderen
-  leverer løsning med skjermbilde før kode.
+Koderen leverer løsning med skjermbilde før kode i hver av dem.
 
 **Tester som skal feile først:**
 
@@ -3528,8 +3432,9 @@ Mente du knappene «+ Vare», «+ Utlegg» og «+ Reise», er svaret ja.
    til høyre. I dag er bare kort A åpent.
 2. **Hver for seg:** ✕ på kort B lukker bare kort B. Et klikk på en annen jobbrad lukker begge.
 3. **Reise vises:** begge kortene i paret har seksjonen Reise, også uten reise.
-4. **Flytt tillegg og utlegg** (ekte Postgres): linja har kort B sin kort-id og kort B sitt underprosjekt
-   etterpå, og kortinvarianten holder for dagsseddelen.
+4. **Flytt tillegg, utlegg og maskin** (ekte Postgres): linja har kort B sin kort-id og kort B sitt
+   underprosjekt etterpå, maskinen er koblet til en timerad i kort B, og kortinvarianten holder for
+   dagsseddelen.
 5. **Samme nøkkel:** kort A og kort B har begge «Uten». Linja står i kort B etter flyttingen, ikke i A (DG10).
 6. **Flytt vare hel og delt:** 3 sekk flyttet hel står i kort B. 1 av 3 gir 2 i A og 1 i B, koblet til en
    timerad i hvert kort, og summen er 3.
@@ -3537,10 +3442,22 @@ Mente du knappene «+ Vare», «+ Utlegg» og «+ Reise», er svaret ja.
 8. **Grensene** (én test pr. avvisning, og ingen linje er endret etterpå): attestant uten attesteringsrett
    på prosjektet; egen dagsseddel; firmavalget av; dagen ikke sendt; linja attestert; målkort på en annen
    dagsseddel; målkort i et annet firma.
-9. **Vareretten:** en attestant som bare har attesteringsrett, kan flytte en vare, men ikke opprette eller
-   endre en (DG12).
+9. **Vareretten ved flytting:** en attestant som bare har attesteringsrett, kan flytte en vare (DG12).
 10. **Merket:** arbeideren ser «Korrigert av» på en flyttet linje.
 11. **Det som står:** testene for `delJobb` fra w5, w7 og O15 er grønne, og `dagskort-vakt.test.tsx` er grønn.
+12. **«＋» bare i paret:** begge kortene i paret har «＋» i seksjon 2 og 4–8. Et kort som åpnes alene, har
+    ingen.
+13. **Ny linje i riktig kort** (ekte Postgres): kort A og kort B har begge «Uten». En timelinje lagt til i
+    kort B har kort B sin kort-id, ikke A sin (DG17). Det samme for tillegg og maskin.
+14. **Grensene for ny linje** (én test pr. avvisning, og ingen linje er opprettet): attestant uten
+    attesteringsrett på prosjektet; egen dagsseddel; firmavalget av; dagen ikke sendt; timelinje som
+    overlapper en annen rad på dagsseddelen; maskintimer over jobbens arbeidstimer.
+15. **Vare og utlegg** (etter B72): en attestant som bare har attesteringsrett, kan legge til en vare og et
+    utlegg på en sendt dag. Varen har attestanten som «registrert av». Uten attesteringsrett avvises begge.
+16. **Reise:** en reise lagt til av attestanten har reisesporet og står i kortet der «＋» ble trykket.
+17. **«Lagt til av»:** arbeideren ser «Lagt til av [attestanten]» med tidspunkt på hver linjetype, og
+    «Korrigert av» på dagen i Mine timer. En linje arbeideren selv har ført, har ikke merket.
+18. **Bare eieren og attestantene:** en annen ansatt får ikke merket på en dagsseddel som ikke er hans.
 
 ## 5. Maskintimer er en del av arbeidstiden — hva som må endres (føring 4)
 
@@ -3638,15 +3555,14 @@ føres med fra–til» (B5), er utgått (§ 8.22 punkt 1).
 ## 8. Åpne spørsmål til Kenneth
 
 B1–B49 er besvart (§ 8.1–8.20), og Kenneth har ryddet i begrepene og fire motstrider (§ 8.21–8.22).
-**Åpne etter versjon 23: B68–B71, om «Del opp» med begge kortene åpne (§ 4.16 del G).** De står i fast form i del G; radene i tabellen er korte.
+B68–B71 («Del opp» med begge kortene åpne) er besvart med ja 2026-11-23 (§ 8.23).
+**Åpne etter versjon 23: B72 og B73, om linjene attestanten legger til etter «Del opp» (§ 4.16 del G).** De står i fast form i del G; radene i tabellen er korte.
 Versjon 22 (attesteringen med oversiktsrader, § 4.17, B50–B67) står på branch `docs/fabel`, er ikke merget og er ikke med i denne fila.
 
 | # | Spørsmål | Alternativer | Anbefalt |
 |---|---|---|---|
-| **B68** | **Skal varer, tillegg, utlegg og reise kunne flyttes mellom kort A og kort B?** Tilstand og følger: § 4.16 del G. Bilde `v23-del-opp-etter.png`. | **Ja:** «→ Kort B» på hver linje, og en vare kan deles på mengde; «s3.nei» byttes ut. **Nei:** linjene blir i kort A, og arbeideren fører på kort B etter retur. | **Ja.** |
-| **B69** | **Skal kort A og kort B stå åpne side om side til du lukker dem, uten kobling i dataene?** | **Ja:** begge åpne rett etter delingen, lukkes hver for seg, ingen ny kolonne. **Nei:** si hva som skal gjelde; et par som huskes, krever migrering. | **Ja.** |
-| **B70** | **Skal vinduet fra 21.11. utgå, nå som kortene står åpne etter delingen?** Bilde `v23-del-opp-vindu.png` viser alternativet. | **Ja:** blokka fra O15 står; fra, til og pause rettes i de åpne kortene. Forsvinner: begge kortene før lagring, ett «Lagre», og prosjekt og byggeplass for B. **Nei:** vinduet bygges med alle seksjonene. | **Ja.** |
-| **B71** | **Skal attestanten også kunne legge til nye linjer (vare, utlegg, reise) i kortene?** | **Ja:** «+» i hver seksjon; snur «Mangler B noe, fører arbeideren det etterpå» (21.11.). **Nei:** attestanten flytter det arbeideren har ført (B68). | **Nei i denne leveransen.** |
+| **B72** | **Skal en attestant som bare har attesteringsrett, få legge til varer og utlegg på arbeiderens dag?** Tilstand og følger: § 4.16 del G. | **Ja:** «＋» under Varer og Utlegg virker for alle som kan attestere prosjektet; attestanten både fører og attesterer utlegget, som han i dag kan med timer og tillegg. **Nei:** «＋» under Varer bare for prosjektadmin og firmaadmin, ingen «＋» under Utlegg; ellers returneres dagen. Kan besvares for varer og utlegg hver for seg. | **Ja** for begge. Nei for utlegg hvis to personer alltid skal stå bak et utlegg. |
+| **B73** | **Skal linja lagre hvem som la den til, i en ny kolonne?** | **Ja:** kolonnen «opprettet av» på timer, tillegg, maskin og utlegg; linja viser «Lagt til av [navn] [tidspunkt]»; én migrering som Kenneth kjører. **Nei:** ingen migrering; hvem leses fra aktivitetsloggen, som må utvides, og merket forsvinner hvis loggen ryddes. | **Ja.** |
 
 Kontrollspørsmålet om overføring til annet kontor er besvart
 (§ 8.22 punkt 2: «Ja, samme regel»).
@@ -4082,7 +3998,7 @@ Orkestrator la fram en gjennomgang av planen (tre lesere, 78 funn) og fire motst
 - **Punkt 3, reisens kort:** «enig» i at de tre særreglene strykes: reisen flyttes ikke automatisk når en annen registrering føres eller slettes, reise uten byggeplass følger ikke klokka, og kortet for reise til annet kontor er ikke en egen variant. Kortet til reisen avgjøres bare av reisens egne felt (prosjekt, byggeplass, underprosjekt) og flyttes bare når noen retter dem via ✎. Kenneth: «fjern kode som er død». ✅ Merget `e4b1208f` (`feat/web-timer-forenkle`).
 - **Punkt 4, vedlegg på tillegg:** «la stå inntil videre. vi kan vurdere å ta det bort senere». Vedlegget på tillegg står.
 - **Etter Fabels rydding (versjon 20), to oppfølgingsspørsmål samme dag:** (1) «Skal fra–til på maskin også fjernes i firmavalget dagskort-modus (maskinvinduet på PC og telefonens maskinseksjon)?» → «ja». (2) «Skal «Del opp» la maskin og varer bli i det opprinnelige kortet (i dag flytter `delJobb` maskin og vare koblet til en rad som går til del B, `dagsseddel.ts`)?» → «ja». Betyr: **maskin har ingen fra–til noe sted**, heller ikke i firmavalget dagskort-modus. **«Del opp» flytter arbeidet og deler maskintimene mellom A og B**; varer blir i kortet de ble registrert i (§ 4.16; maskin snudd 2026-11-22, Kenneth «s2.ja»). ✅ Web merget `e4b1208f` (`feat/web-timer-forenkle`); telefonens maskinseksjon etter web (§ 8.13). Funn i gate (126): attesteringens maskinrader hadde fortsatt fra–til. ✅ Merget `2ed0259a` (`feat/web-timer-maskin-uten-fratil`): fra–til ut av `RedigerMaskinRad` («Del opp», «Rediger sedel») og `KompaktMaskinRad` («Rediger arbeid»), også av maskinens referanse i «Splitt maskin-rad». Lagret fra–til på eksisterende maskinrader endres ikke (sendes uendret ved lagring); en ny del i «Splitt» får ingen.
-- **«Del opp» viser begge kortene, Kenneth samme dag:** «ved del opp er det viktig at begge kortene kan justeres samtidig» og «det er også viktig at attestang kan se begge kortene ved oppdeling». Målt: i dag har vinduet bak «Del opp» i attesteringen (`RegistreringPanel.tsx:777–847`, `DelOppSkjema`) ett klokkeslett, forhåndsvisning av del A (fra–kl) og del B (kl–til) og underprosjekt for B. Etter lagring rettes hvert kort for seg. Arbeideren har ikke «Del opp» på web. Kenneth valgte alternativ A samme dag (siterte det tilbake: «i «Del opp»-vinduet står begge kortene side om side med egne felt før det lagres … Ett «Lagre» lagrer begge. Maskin og varer blir i A»). Betyr: **vinduet viser begge kortene side om side før lagring, og begge kan justeres der.** Hvert kort har fra–til og pause. Del B har også prosjekt, byggeplass og underprosjekt. Klokkeslettet er felles, så når A slutter, begynner B. Ett «Lagre» lagrer begge. Maskintimene deles mellom A og B, og varer blir i A (maskin snudd 2026-11-22, Kenneth «s2.ja»). Etter lagring er kortene to selvstendige registreringer uten kobling (ingen automatisk justering, § 8.21). 🟡 Vedtatt, ikke bygget. Samme leveranse som punkt 3. Oppfølging samme dag: Kenneth spurte «B får også mulighet å føre på varer, maskin, tillegg/utlegg?» og la til «reise». Orkestrator svarte at B er et vanlig prosjektkort etterpå, og spurte om attestanten skal føre noe på B i vinduet. Kenneth valgte ved å sitere det anbefalte: «vinduet deler bare arbeidet. B får ingen varer, maskin, tillegg eller utlegg der. Kortene er like enkle, og vinduet blir ikke et nytt registreringsskjema. Mangler B noe, fører arbeideren det etterpå, eller attestanten returnerer dagen.» Betyr: **«Del opp»-vinduet deler arbeidet og maskintimene** (maskin snudd 2026-11-22 etter Kenneths test, der delingen stoppet på maskintimene: «s2.ja»). Varer, tillegg, utlegg og reise blir i A (Kenneth 2026-11-22 «s3.nei»). På B fører arbeideren dem selv etterpå, slik som på alle andre kort. Attestanten fører ingenting nytt. Spesifisert i § 4.16 (versjon 21), med `v21-del-opp.png`. ✅ Maskindelingen er merget i O15 `6cf48d6e`; vinduet er ikke bygget. ⚠️ Kenneth 2026-11-23 går lenger: begge kortene skal stå åpne og redigerbare etter delingen, og reise, varer, maskin, tillegg og utlegg skal være tilgjengelige i begge. Forslaget og B68–B71 står i § 4.16 del G (versjon 23); «s3.nei» og «attestanten fører ingenting nytt» gjelder til Kenneth har svart.
+- **«Del opp» viser begge kortene, Kenneth samme dag:** «ved del opp er det viktig at begge kortene kan justeres samtidig» og «det er også viktig at attestang kan se begge kortene ved oppdeling». **Det som gjelder (Kenneth 2026-11-23: «B68 ja, B69 ja, B70 ja, B71 ja»; § 4.16 del G):** «✂ Del opp» er blokka i kortet med klokkeslett, underprosjekt for B og maskintimer for A og B (✅ O15 `6cf48d6e`; Kenneth 2026-11-22 «s2.ja»). Etter delingen står kort A og kort B åpne og redigerbare side om side, uten kobling i data (ingen automatisk justering, § 8.21). Linjer (reise, varer, maskin, utlegg og tillegg) kan flyttes mellom kortene, og attestanten kan legge til nye linjer under oppdelingen. Arbeideren har ikke «Del opp» på web. 🟡 Vedtatt, ikke bestilt. Snudd 2026-11-23: vinduet med begge kortene før lagring og ett «Lagre» (alternativ A, 2026-11-21), «varer, tillegg, utlegg og reise blir i A» («s3.nei», 2026-11-22) og «attestanten fører ingenting nytt» (2026-11-21).
 - **Etter web-timer-w5s løsning for forenklingen, to svar samme dag («1A, 2A»):** (1) Reisevinduet: se [vedtak-timer-web.md § Reisevinduet](vedtak-timer-web.md). (2) **Reise ført alene før arbeidet blir i sitt eget kort** til noen retter den med ✎; ingen regel flytter den inn når jobben føres. Reise og arbeid som lagres i samme skriving (synk, «+ Registrer timer») havner i samme kort. Fra–til fjernes i hele maskinvinduet på web, også prosjektkort-modus uten jobb (følger «ingen fra–til noe sted»). ✅ Merget `e4b1208f` (`feat/web-timer-forenkle`).
 - **Tallformat på dagssiden, også dagskort-modus (Kenneth samme dag, «A»):** timer, antall og mengde vises med desimalkomma, minst 1 og høyst 2 desimaler («7,5 t», «8,0 t»); beløp med to («45,00 kr»). Gjelder også banneret og gruppesummene i firmavalget dagskort-modus — et uttrykkelig unntak fra «Dagskort isolert», begrenset til tallformat. ✅ Merget `cface3e4`.
 - **Etter test-deploy `3fa1bf2b`, Kenneth samme dag — «+ Registrer timer» snur B41 A:** «jeg trykker på +registrer timer -> neste åpner et ferdig utfylt kort -> men jeg må trykke en knapp til for å legge inn riktig tid. Jeg ønsker å gå rett til et åpent redigerbart kort. det er ingen selvfølge at den ansatte kun er på et prosjekt pr dag. det er heller uvanlig. Jeg må kunne justere fra/til med en gang, evt hvor mange timer jeg starter med.» Betyr: etter «+ Registrer timer» står arbeideren rett i et redigerbart vindu for den nye jobben (fra–til og antall timer), likt for første og neste jobb — B41 snus fra A til B (§ 8.18). ✅ Merget i L3a `f28b4c4b` (2026-11-21): «+ Registrer timer» åpner et nytt utkast i jobbskjemaet. Kenneth 2026-11-23 om at knappen alltid gir en ny jobb også når dagen finnes: «ikke endre noe nå» (§ 9.7).
@@ -4124,14 +4040,27 @@ Orkestrator la fram en gjennomgang av planen (tre lesere, 78 funn) og fire motst
   5. **Grunnregel + slett jobbkort** (Kenneth 2026-11-22, bilde 204): «egentlig bør samme funksjon være i alle registrer timer -> vi hadde den med tidligere. Bruker skal kunne rette opp automatiske forslag -> grunnregel» og «vi kan ikke slette feilført kort heller.» + «pass på å ikke skade andre funksjoner som nå er fungerende enn de som er flagget». Betyr: prosjekt og byggeplass kan velges og rettes i alle veier inn til «registrer timer» (ny jobb og lagret jobb; i «Rediger timer-rad» er Prosjekt i dag grået ut), og et feilført jobbkort kan slettes. 🟡 Bestilt som tillegg 2 til RETUR O8. **Presisert samme dag:** «vi skal kun endre de funksjoner som er flagget uten at vi tilfører eller fjerner på andre flater» — bestilt er bare (a) prosjekt/byggeplass valgbart på ny jobb via «+ Registrer timer» og (b) slett feilført jobbkort. Flytting av lagret jobb til annet prosjekt er ikke bestilt. ✅ Merget i O8 `fbe4aff2` — (a) timer.md § O8 punkt 4, (b) punkt 5. ⚠️ (a) gjelder ikke første jobb fra «+ Registrer timer» på en ny dag med prosjekt i toppbaren: serveren lager den jobben direkte (lagret, prosjektet låst) — meldt, ikke bygget.
   6. **Beslutninger etter leveransen `2415d9dc`** (Kenneth 2026-11-22, «ja» på alle tre): (a) første jobb på ny dag starter også som utkast (prosjekt/byggeplass velges før lagring) — ~~bestilt som TILLEGG 3~~ **trukket** (KORREKSJON samme dag, erstattet av D, se punktet «O8 tillegg 3» nedenfor); (b) «Slett jobben» sletter hele kortet (timer, maskin, varer, reise, tillegg, utlegg) — som levert; mobilens «Slett kort» avviker (reise/tillegg/utlegg står), ikke bestilt; (c) Kontrollør migrerer sin lokale sandkasse og kjører integrasjonstesten i gaten.
 
+### 8.23 Kenneths svar på B68–B71, 2026-11-23
+
+Kenneth: «B68 ja, B69 ja, B70 ja, B71 ja». B71 er mot Fabels anbefaling (nei).
+
+- **B68 ja:** linjer (reise, varer, maskin, utlegg og tillegg) kan flyttes mellom kort A og kort B.
+- **B69 ja:** etter «Del opp» står begge kortene åpne og redigerbare side om side. Kortene har ingen kobling i
+  data.
+- **B70 ja:** vinduet fra 21.11. utgår.
+- **B71 ja:** attestanten kan legge til nye linjer under oppdelingen.
+
+🟡 Vedtatt, ikke bestilt. Det som gjelder, står i § 4.16 del G. B72 og B73 er åpne.
+
 ## 9. Rekkefølge
 
 ✅ **Status 2026-11-23 (versjon 23).** Merget til develop: w1, w2, w3a, w3b, w5, w5b, w7, w8, w9, w9m, w10 del A
 og B, w12, w14 (leveranse 1 og 2), w15a, w15b, w15c, w15d, w15f, F68 og w15g, sumlinja (`c03aa0e6`) og reisens kort
 uten særregler (`e4b1208f`). **Merget 2026-11-21–23, etter versjon 21:** tallformatet, L1–L3b, maskin uten
 fra–til, «Slett dagsseddel», O1–O8 og O10–O18. Hver av dem står med hash i § 9.7. **Vedtatt, ikke bygget:**
-reisevinduet punkt 20 (blå boks) og punkt 23–25 (O19 under løsning); «Del opp»-vinduet (§ 4.16 del B–F, se
-B70). **Forslag hos Kenneth:** «Del opp» med begge kortene åpne (§ 4.16 del G, B68–B71). Attesteringen med
+reisevinduet punkt 20 (blå boks) og punkt 23–25 (O19 under løsning); «Del opp» med begge kortene åpne, flytting av linjer
+og nye linjer fra attestanten (§ 4.16 del G; Kenneth 2026-11-23, B68–B71 ja; B72 og B73 åpne). Utgått:
+«Del opp»-vinduet fra versjon 21 (B70 ja). Attesteringen med
 oversiktsrader (versjon 22, § 4.17, B50–B67) står på branch `docs/fabel`, ikke merget. **Ikke bygget:** w3c, w4 (L4), w10c, w11 og O9. Venter på web: w12m og w15gm.
 Utgått: w6, w13 og w15e. Hva som er deployet, og hvilke migreringer som er kjørt, står på tavla
 (STATUS-AKTUELT.md).
@@ -4164,7 +4093,7 @@ delene krever ingen.
 | **w15gm** | ⏸ **Venter på web** (Kenneth 2026-11-20, § 8.13; Kenneth 2026-11-21, § 8.20: «varsle i appen/web»). **«Korrigert av» i appen.** Arbeideren ser merket «Korrigert av [navn]» på linja og på dagen i appens timeliste, med de samme tekstene som på web (§ 4.15 del F). Bestilles etter at w15g er merget og Kenneth har godkjent merket på PC. **Koden er ikke planlagt.** Målt (F82, develop `d4c0eecd`): appen viser timelisten tre steder — Timer-fanen og `/timer` (`M/components/DagsseddelListe.tsx:277`, statusmerket `:320`), Mine timer (`apps/mobile/app/timer/mine.tsx:314`) og dagen i prosjektkort-modus (`M/components/timer-detalj/prosjektkort/ProsjektkortDagsoversikt.tsx:778–796`). Dagskort-modus (`TimerSeksjon.tsx`) er ikke lest. Appen leser lokal base, som fylles av `hentEndringerSiden` (`M/services/timerSync.ts:1211`; `D:8393`) og `hentMedId` (`timerSync.ts:752`). Ingen av dem gir korrigerte felt i dag, og de lokale tabellene har ingen kolonne for dem (`M/db/schema.ts:142`, `:254`). Koderen leverer løsning før kode: hva serveren sender, hvordan det lagres lokalt, og hvor merket står. Krever OTA. | Ikke bestemt. Lest i F82: `M/components/DagsseddelListe.tsx`, `apps/mobile/app/timer/mine.tsx`, `M/components/timer-detalj/prosjektkort/ProsjektkortDagsoversikt.tsx`, `M/services/timerSync.ts`, `M/db/schema.ts`, `D` (`hentEndringerSiden`). | Linja attestanten korrigerte, sier «Korrigert av Kari Leder» også på telefonen. |
 | **Sumlinja** | ✅ **Merget `c03aa0e6`, ikke deployet** (Kenneth 2026-11-21, § 8.21 og § 8.22). Bunnlinja viser to tall: arbeid mot normen («8,0 av 7,5») og sum i dag = arbeid + reise («11 t» når 3 t er reise). Maskintimer vises, men legges ikke til. Regelen om at reise ikke er overtid, står. ⚠️ Snur sumlinja fra 2026-11-14, som tok reisen ut av summen. Spesifiseres ikke her; ordren ligger hos koderen. | Ikke bestemt i planen. | En dag med 8 t arbeid og 3 t reise viser «8,0 av 7,5» og «Sum i dag 11 t». |
 | **Reisens kort uten særregler** | ✅ **Merget `e4b1208f`** (`feat/web-timer-forenkle`; Kenneth 2026-11-21, § 8.22 punkt 1–3 og svarene «1A, 2A»). **Server:** `sikreKortId` velger kort bare for reise uten kort-id; en lagret reise beholder kortet til prosjekt, byggeplass eller underprosjekt rettes (`kortIdForSkriving` med lagret rad bare når raden var reise). Ny jobb, tillegg, vare, sletting og synk flytter ikke reisen. Reise og arbeid i samme `syncBatch` havner i samme kort (begge rekkefølger). `velgReiseKort` og `egetReiseKort` har ingen kontorvariant (`OVERFORING_KORT_BYGGEPLASS` er fjernet). `delJobb` lar maskin og varer bli i A og kobler dem om til en rad i A (`maskinKrysserKl` er fjernet; forhåndsvisningen har ikke lenger `maskinTilB`). **Web:** Reisevinduet: se [vedtak-timer-web.md § Reisevinduet](vedtak-timer-web.md). Reiselinja har ingen egen kontortekst, og kort med bare kontorreise får «+ Timer». Maskinvinduet har ingen fra–til, heller ikke uten jobb; lagrede fra–til sendes ikke. Ingen migrering, ikke mobil (mobilens `reiseKilde «overforing»` tas imot som før). | `KI`, `D`, `RV`, `apps/api/src/routes/timer/jobb-deling.ts`, `RK`, `MR`, `WS`, `ReiseRettVindu.tsx`, `RP`, i18n (15 filer), testene, `timer.md`. | Reise ført før arbeidet står i sitt eget kort etter at jobben føres; ✎ med samme sted gir ikke nytt kort; ✎ med ny byggeplass flytter reisen. |
-| **«Del opp» med begge kortene** | 🟡 **Delvis bygget; forslag hos Kenneth.** ✅ Maskintimene deles mellom A og B i blokka i kortet (O15 `6cf48d6e`). ⚠️ Kenneth 2026-11-23: begge kortene skal stå åpne og redigerbare etter delingen, og reise, varer, maskin, tillegg og utlegg skal være tilgjengelige i begge — forslag i § 4.16 del G (versjon 23, `v23-del-opp-etter.png`), B68–B71, leveransene D2a og D2b, ingen migrering. Vinduet under er ikke bygget og utgår hvis B70 besvares med ja. **Sto slik (versjon 21–22), vedtatt, ikke bestilt** ⚠️ (endret av Kenneth 2026-11-22: kort A styrer kort B, underprosjektet kopieres ikke, og overlapp mot et annet kort varsles og godtas med sperre på attesteringen; ført i § 4.17 del I med B63–B67, versjon 22 på `docs/fabel`, ikke merget) (Kenneth 2026-11-21, § 8.22; spesifisert i § 4.16, `v21-del-opp.png`). «Del opp» i attesteringskortet åpner et vindu med kort A og kort B side om side. Hvert kort har fra, til og pause; «Til kl.» på A og «Fra kl.» på B er samme klokkeslett. Kort B har prosjekt, byggeplass og underprosjekt. Ett «Lagre» lagrer begge, og etterpå er de to registreringer uten kobling. **Server:** `delJobb` tar imot fra og pause for A, til og pause for B, og prosjekt og byggeplass for B; forhåndsvisningen gir begge kortene med linjer. Vinduet deler bare arbeidet: maskin, varer, tillegg, utlegg og reise blir i A. **Går etter** serverendringen «maskin og varer blir i A» (egen ordre hos web-timer-w5) og «Reisens kort uten særregler» (raden over): begge rører `delJobb` og `sikreKortId`. Regel 10 kjøres uavhengig: delen flytter lønn og kostnad mellom prosjekter. Koderen leverer løsning med skjermbilde før kode. Ingen migrering, ikke mobil. | `RP` (`DelOppSkjema` blir vindu), `D` (`delJobb`), `apps/api/src/routes/timer/jobb-deling.ts` med test, integrasjonstestene i § 4.16 del F, i18n (15 filer), hjelpeteksten for attesteringen, `timer.md`, `api.md`, `web.md`, `hjelpetekster.md`. Ikke `KI`, ikke `apps/mobile`. | Ola Tømrer 07:00–15:30 deles ved 12:00. Vinduet viser kort A 07:00–12:00 · 4,5 t og kort B 12:00–15:30 · 3,5 t. På B velges Prosjekt 1050. Etter «Lagre» står dagen med to kort, Volvoen og betongen står i A, og Ola ser «Korrigert av» på begge. |
+| **«Del opp» med begge kortene åpne** | 🟡 **Delvis bygget; resten vedtatt 2026-11-23, ikke bestilt.** ✅ Blokka i kortet med klokkeslett, underprosjekt for B og maskintimer for A og B (O15 `6cf48d6e`). 🟡 Kenneth 2026-11-23 «B68 ja, B69 ja, B70 ja, B71 ja» (§ 4.16 del G, `v23-del-opp-etter.png`): etter delingen står kort A og kort B åpne og redigerbare side om side, uten kobling i data; linjer (reise, varer, maskin, utlegg og tillegg) flyttes mellom kortene; attestanten kan legge til nye linjer. Vinduet fra versjon 21 er utgått. **Fem leveranser:** D2a begge kortene åpne (bare web; kan bestilles), D2b flytt linjer (web og server; kan bestilles), D2c legg til timelinje, tillegg og maskin (etter B73), D2d legg til vare og utlegg (etter B72), D2e legg til reise (etter D2c). Regel 10 kjøres uavhengig for D2b–D2e: de flytter eller fører lønn, varekostnad og utlegg. Koderen leverer løsning med skjermbilde før kode. Migrering bare hvis B73 besvares med ja (én kolonne på fire tabeller). Ikke mobil. | `RP`, `AT`, `apps/web/src/components/timer/TimerRadTabell.tsx`, `D` (ny mutasjon for flytting; `redigerSedelRader` med kort-id), `VF`, `KL` og `apps/web/src/components/timer/KorrigertMerke.tsx` (merket), i18n (`nb.json` og `en.json`, generatoren for de andre), hjelpeteksten for attesteringen, `timer.md`, `api.md`, `web.md`, `hjelpetekster.md`. Ikke `apps/mobile`. | Kenneths test: 07:00–12:00 med Volvo EC220E 4,50 t og Fugesand 3 sekk deles kl. 11:00. Etterpå står kort A og kort B åpne side om side. 1 av 3 sekk flyttes til B med «→ Kort B». Et tillegg legges til i kort B med «＋», og arbeideren ser «Lagt til av» på linja. |
 
 - **2026-11-22 — Første jobb på ny dag (O8 tillegg 3):** Kenneth: «hvorfor kan ikke prosjekt og byggeplass åpnes som redigerbare nedtreksmenyer?» → «med forvalg i det prosjektet vi står i». Vedtak A: dagshodet lages uten rad; første jobb åpnes som utkast med redigerbare nedtrekk for prosjekt/byggeplass, forvalgt toppbarens prosjekt; raden lagres når Til er fylt; en helt tom draft-dag slettes når arbeideren går fra utkastet i appen (`slettTomDag`). Godtatt rest: lukket fane gir tomt hode som gjenbrukes. Lagrede jobber flyttes ikke. ~~🟡 Bestilt w5.~~ **Erstattet samme dag:** Kenneth: «det jeg ønsker er at kortene fungerer som de gjør i dag -> eneste endring -> prosjekt og byggeplass må kunne endres av bruker. Hvorfor: Bruker glemte å starte dagen på telefonen og må etterregistrere dagen. bruker var innom 3 prosjekter … Jeg ønsker å foreslå prosjektet han står i». Vedtak D: dagens flyt uendret (første rad lages på toppbarens prosjekt = forvalg); på redigerbart lagret jobbkort er prosjekt og byggeplass nedtrekk, og bytte flytter hele jobben. A (hode uten rad, `slettTomDag`) bygges ikke. 🟡 Bestilt w5, måling av det som henger på jobben før kode. ✅ D merget `fbe4aff2` (gate (138)) — timer.md § O8 punkt 6.
 - **2026-11-22 — D-punktene (flytte lagret jobb):** Kenneth: (1) underprosjekt → «Uten», velges på nytt; (2) «reisen blir igjen på det gamle prosjektet»; (3) varer til prosjekt uten varelager: heller mot «flyttes likevel», men vil først vite sperrene → **åpen**, avvises midlertidig; varelagerspørsmålet ført i BACKLOG (egen økt); (4) utlegg med annen ordning avvises. Punkt 3 avgjort samme dag: «I dag kan vi flytte fritt. hvis jeg svarer nei, og vi ikke har prosjekter med begrensning -> da skal vi jo likevel flytte varene» → varene følger med jobben, ingen sperre. «Del opp» ved attestering (kort 2 = kopi, arbeidstid i kort 1 følger kort 2, ikke motsatt; kort 2 bygges på nytt med underprosjekt, varer, utlegg/tillegg, maskin, reisetid) → Fabel § 4.17 del I. 🟡 1–4 levert w5 (`feat/web-timer-o8`, timer.md § O8 punkt 6; varesperren fjernet etter svaret på punkt 3); ✅ merget `fbe4aff2`.
@@ -4172,7 +4101,7 @@ delene krever ingen.
 - **2026-11-22 — Flytte jobb på returnert dag:** Kontrollør (gate 138): `flyttJobb` krever at alle linjer er `pending`, men en returnert dag har `returnert`, så O8 skjuler nedtrekket der. Kenneth: «skal en returnert dag kunne flyttes til et annet prosjekt (ja, som egen leveranse». 🟡 **O9, ikke bestilt** (O8 er merget `fbe4aff2`; tavla 2026-11-23: «venter»). Trolig erstatt-sporet (`erstattet`/`parentRadId`), ikke `updateMany` på plass. Løsning før kode.
 - **2026-11-22 — «Del opp»: tidsrom og konflikt:** Kenneth: «kort har 10 timer arbeid-> del opp-> kort 1: 5 timer, kort 2: 5 timer / kort 1 endres / Kort 1: 8 timer, kort 2: 2 timer / Kort 1: 8 timer Kort 2 endres: 3 timer -> hva gjør vi nå dersom det fantes et kort innenfor dette nye tidsrommet? -> hva skjer med potensielt doble timer i annet prosjekt -> varsler vi at det er konflikt og aksepterer? ->konflikt må bli stående i kortet til annet prosjekt også er rettet før attestant kan godkjenne dagen». Lest: overlapp varsles og godtas, konflikten står i begge kort til rettet, dagen kan ikke godkjennes før. 🟡 Til Fabel (§ 4.17 del I, ⚠️ mot DO13).
 - **2026-11-22 — Attesteringen planlegges (Fabel):** Kenneth: «nå føler jeg at vi har kontroll på timeregistrering -> la fabel planlegge attestering.» Poenger: strukturert; oversiktsrader per dag; hover, særlig for beskrivelse. Må fremkomme: (1) vanlig dag etter dagsnorm uten varsel; (2) totale timer over/under dagsnorm varsles; (3) overtid gul; (4) ukesattestering sjekker ukesnorm, særlig varsel under norm — attestanten reduserer overtid selv, men må se hvor den kan trekkes; (5) kun prosjekt vises, hover viser byggeplass, underprosjekt og beskrivelse; (6) lønnsart vises; (7) reisetid innenfor normal arbeidsdag vises — attestanten vurderer føringen; (8) egenmelding, permisjon og fravær i lønnsart gul. «har fabel andre forslag til fokus?» Bilde `relay/bilder/attestering-plan/205-attestering-uke47.webp`. 🟡 Planordre til Fabel (`inbox-fabel.md`), ingen kode. Tillegg samme dag: «Be fabel være kreativ og komme opp med forslag -> enkel attestering ->strukturert visning for menneske å lese ->det må være mulig å dele opp et kort til to kort slik vi tidligere planla» (jf. § 4.16, «Del opp» versjon 21). Tillegg 2: «minn om at vi allerede planla en del her -> Bilde 6 — attesteringen: de 11 kjernekolonnene» — planen bygger på § Bilde 6, § 4.2, § 4.5 og § 4.6.
-- **2026-11-23 — «Del opp»: begge kortene åpne og redigerbare (Kenneth etter test av O15 på `14869899`):** «det var avtalt at del opp skulle vise registreringer av begge side om side … reise, + varer+ maskin, + utlegg/tillegg må også være tilgjengelig i begge kortene … etter oppdeling vises kun et kort, det andre lukkes. hvis begge kort er åpne og redigerbare side ved side er det lettere å justere eventuelle endringer i varer, reise og utlegg/tillegg.» 🟡 Forslag i § 4.16 del G (versjon 23): blokka fra O15 står, begge kortene står åpne etter delingen, og linjer kan flyttes mellom kortene. B68–B71 til Kenneth. Ikke vedtatt, ikke bestilt.
+- **2026-11-23 — «Del opp»: begge kortene åpne og redigerbare (Kenneth etter test av O15 på `14869899`):** «det var avtalt at del opp skulle vise registreringer av begge side om side … reise, + varer+ maskin, + utlegg/tillegg må også være tilgjengelig i begge kortene … etter oppdeling vises kun et kort, det andre lukkes. hvis begge kort er åpne og redigerbare side ved side er det lettere å justere eventuelle endringer i varer, reise og utlegg/tillegg.» Fabel la fram B68–B71 (§ 4.16 del G, versjon 23). **Kenneth samme dag: «B68 ja, B69 ja, B70 ja, B71 ja»** (B71 mot Fabels anbefaling): linjer kan flyttes mellom kort A og kort B; begge kortene står åpne og redigerbare side om side etter delingen, uten kobling i data; vinduet fra 21.11. utgår; attestanten kan legge til nye linjer under oppdelingen. 🟡 Vedtatt, ikke bestilt.
 - **2026-11-23 — Reisevinduet punkt 20–25:** vedtakene står i [vedtak-timer-web.md § Reisevinduet](vedtak-timer-web.md). ✅ Punkt 20 (uten blå boks), 21 og 22 er merget (O18 `4bc05499`, O17 `6ee3b632`). 🟡 Punkt 20 blå boks og punkt 23–25 er vedtatt, ikke bygget (O19 under løsning hos web-timer-w5).
 - **2026-11-23 — «ikke endre noe nå» (Kenneth, om to testfunn etter O17 og O18):** (1) «Tilbake til Timer» lander på uka lista sto på, også når dagsseddelen ligger i en annen uke; (2) «Registrer timer» åpner en ny jobb også når dagen finnes fra før. Begge står som de er bygget (w14 TK2; L3a `f28b4c4b`). I BACKLOG samme dag (`32a72b97`): periodevisning fra–til og «siste måned» i Timer-oversikten.
 
@@ -4202,8 +4131,8 @@ delene krever ingen.
   9. **Det som gjenstår (versjon 20):** sumlinja (bestilt), og deretter reisens kort uten særregler
      (§ 8.22 punkt 3, orkestrator bestiller). w3c og w4 står som i punkt 3; w10c og w11 som i punkt 4.
      Reisevinduet: se [vedtak-timer-web.md § Reisevinduet](vedtak-timer-web.md).
-     **Versjon 21:** sumlinja er merget. «Del opp» med begge kortene (§ 4.16) går etter serverendringen
-     «maskin og varer blir i A» og etter reisens kort uten særregler, fordi alle tre rører `delJobb`.
+     **Versjon 21:** sumlinja er merget. **Versjon 23:** «Del opp» med begge kortene åpne (§ 4.16 del G) er
+     vedtatt 2026-11-23 og ikke bestilt; reisens kort uten særregler og maskindelingen (O15) er merget.
 - ⚠️ **Punktene under er fra versjon 4–11 og er historikk** der delene er merget (status øverst i § 9).
   Setninger om w6, B5 og B12 gjelder ikke: w6 er utgått.
 - **w10 går før w3, w4 og w6.** Den justerer det som er bygget, tilbake til bilde 6–8. Del A går først. Den er web,
@@ -4367,7 +4296,8 @@ deployet, står på tavla; ordre F12 oppgir at test står på `14869899` (O14–
 
 **Vedtatt, ikke bygget (2026-11-23):** reisevinduet punkt 20 blå boks, punkt 23 (deling ved midnatt, 24:00),
 punkt 24 (kveldsreise) og punkt 25 (stopp ved reise som ikke passer kortets byggeplass). O19 er under løsning
-hos web-timer-w5.
+hos web-timer-w5. «Del opp» med begge kortene åpne, flytting av linjer og nye linjer fra attestanten (§ 4.16
+del G; Kenneth «B68 ja, B69 ja, B70 ja, B71 ja»; B72 og B73 åpne). Ikke bestilt.
 
 **Står som bygget, Kenneth 2026-11-23 «ikke endre noe nå»:** uka i retur-lenken til Timer-lista, og «Registrer
 timer» som åpner en ny jobb også når dagen finnes.
@@ -4376,6 +4306,19 @@ timer» som åpner en ny jobb også når dagen finnes.
 og «siste måned» i Timer-oversikten (`32a72b97`).
 
 ## 10. Ikke målt
+
+**Versjon 23 (§ 4.16 del G):**
+
+- DG1–DG23 er lest, ikke kjørt. Ingenting er klikket. DG19 og serverdelen av DG22 er ikke stikkprøvd av Fabel.
+- Om «Rediger sedel» på dagsseddelens side slipper gjennom en ny timelinje med reiselønnsart, og hva raden da
+  mangler av reisespor (DG19).
+- Om arbeideren kan rette og slette en linje attestanten har lagt til, når dagen returneres. Linja er en
+  vanlig rad på dagsseddelen; veien er ikke kjørt.
+- Om aktivitetsloggen ryddes (`retainedUntil`), som avgjør hva «nei» på B73 koster. Samme punkt som under
+  versjon 19.
+- Sjekkregler i SQL-migreringene for kort-id og for en ny kolonne «opprettet av» er ikke lest (DG8).
+- Hvordan en ny linje i kort B oppfører seg mot overlappsperren når kort A og kort B står inntil hverandre i
+  tid (DO13).
 
 **Versjon 19 (§ 4.15 del F–H, w15g og w15gm):**
 
