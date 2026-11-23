@@ -748,3 +748,11 @@ export {
   type UtenProsjektResultat,
 } from "./utenProsjekt";
 export { erArbeidstidReise } from "./arbeidstidReise";
+export {
+  aktiveTimerRader,
+  beskrivOverlapp,
+  reiseUtenforArbeid,
+  linjeKanFlyttes,
+  type OverlappRad,
+  type OverlappSted,
+} from "./returSedel";

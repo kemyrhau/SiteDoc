@@ -223,6 +223,13 @@ export async function hentVarerForSedler(
 /** Historikkposter med denne markøren i snapshot er gjenåpninger, ikke rettinger. */
 export const HISTORIKK_HENDELSE_GJENAAPNET = "gjenaapnet";
 
+/**
+ * R1 b3 (Kenneth 2026-11-23): arbeideren slettet raden på returnert dag (`fjernTimerRad`,
+ * `slettKort`). Sporet for leder, ingen retting — en gjenværende rad med raden som forelder skal
+ * ikke få «rettet»-felt av den.
+ */
+export const HISTORIKK_HENDELSE_SLETTET = "slettet";
+
 export type RadType = "timer" | "tillegg" | "maskin";
 
 /** Feltene attestanten kan rette i cellen (R21). */
@@ -277,7 +284,7 @@ export async function hentRettedeFelter(
   const sistePr = new Map<string, (typeof poster)[number]>();
   for (const p of poster) {
     const snap = p.snapshot as Record<string, unknown> | null;
-    if (snap && snap.hendelse === HISTORIKK_HENDELSE_GJENAAPNET) continue;
+    if (snap && (snap.hendelse === HISTORIKK_HENDELSE_GJENAAPNET || snap.hendelse === HISTORIKK_HENDELSE_SLETTET)) continue;
     const nokkel = `${p.radType}:${p.originalRadId}`;
     if (!sistePr.has(nokkel)) sistePr.set(nokkel, p);
   }
@@ -513,7 +520,7 @@ async function lastKorrigeringsHendelser(
   for (const p of poster) {
     if (!p.erstattetAvUserId || p.erstattetAvUserId === eier.get(p.sheetId)) continue;
     const snap = (p.snapshot ?? {}) as Record<string, unknown>;
-    if (snap.hendelse === HISTORIKK_HENDELSE_GJENAAPNET) continue;
+    if (snap.hendelse === HISTORIKK_HENDELSE_GJENAAPNET || snap.hendelse === HISTORIKK_HENDELSE_SLETTET) continue;
     if (p.radType !== "timer" && p.radType !== "tillegg" && p.radType !== "maskin") continue;
     const radType = p.radType as RadType;
     // Verdien attestanten satte: loggposten for samme retting (samme person, samme sedel, rett etter).

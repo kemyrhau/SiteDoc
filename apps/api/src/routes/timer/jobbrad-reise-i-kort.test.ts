@@ -187,7 +187,8 @@ describe("flyttHeleJobben (flyttJobbEco / attestantens «hele jobben») — arbe
   it("bare jobbraden får nytt underprosjekt; arbeidstid-reisen (B) står urørt", async () => {
     const { ctx, flyttetTimer } = lagSkrivendeTx([ventende(JOBB), ventende(ARBEIDSREISE)]);
     await flyttHeleJobben(ctx as never, {
-      sheet: { id: SHEET, organizationId: "org" },
+      sheet: { id: SHEET, organizationId: "org", status: "draft" },
+      egenSedel: true,
       rad: { id: JOBB.id, sheetId: SHEET, kortId: KORT, projectId: PROSJEKT, externalCostObjectId: ECO_A },
       ecoId: "eco-c",
     });
@@ -197,7 +198,8 @@ describe("flyttHeleJobben (flyttJobbEco / attestantens «hele jobben») — arbe
   it("negativkontroll: en vanlig jobbrad nr. 2 i kortet flyttes med", async () => {
     const { ctx, flyttetTimer } = lagSkrivendeTx([ventende(JOBB), ventende(rad({ id: "jobb-2", fraTid: "15:00" }))]);
     await flyttHeleJobben(ctx as never, {
-      sheet: { id: SHEET, organizationId: "org" },
+      sheet: { id: SHEET, organizationId: "org", status: "draft" },
+      egenSedel: true,
       rad: { id: JOBB.id, sheetId: SHEET, kortId: KORT, projectId: PROSJEKT, externalCostObjectId: ECO_A },
       ecoId: "eco-c",
     });
@@ -207,7 +209,8 @@ describe("flyttHeleJobben (flyttJobbEco / attestantens «hele jobben») — arbe
   it("en attestert arbeidstid-reise sperrer ikke flyttingen av jobben", async () => {
     const { ctx, flyttetTimer } = lagSkrivendeTx([ventende(JOBB), { ...ARBEIDSREISE, attestertStatus: "attestert" }]);
     await flyttHeleJobben(ctx as never, {
-      sheet: { id: SHEET, organizationId: "org" },
+      sheet: { id: SHEET, organizationId: "org", status: "draft" },
+      egenSedel: true,
       rad: { id: JOBB.id, sheetId: SHEET, kortId: KORT, projectId: PROSJEKT, externalCostObjectId: ECO_A },
       ecoId: "eco-c",
     });

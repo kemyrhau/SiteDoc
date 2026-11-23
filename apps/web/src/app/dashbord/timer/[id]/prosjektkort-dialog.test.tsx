@@ -139,6 +139,7 @@ describe("prosjektkort — raddialogen", () => {
     expect(dialog.textContent).not.toContain("timer.felt.underprosjekt");
   });
 
+  // R1 (a): meldingen sier at det er en rad, og kortet med fra–til (byggeplass, ellers prosjektet).
   it("overlapp-meldingen navngir kortet den andre raden ligger på", () => {
     rendre("prosjektkort");
     const dialog = aapneNyRadIKort("2050 — Barnehage");
@@ -146,7 +147,7 @@ describe("prosjektkort — raddialogen", () => {
     fireEvent.change(fra!, { target: { value: "08:00" } });
     fireEvent.change(til!, { target: { value: "09:00" } });
     fireEvent.submit(dialog.querySelector("form")!);
-    expect(dialog.textContent).toContain("timer.feil.overlappKort");
-    expect(dialog.textContent).toContain('"kort":"2041 — Skole"');
+    expect(dialog.textContent).toContain("timer.feil.overlappRadIKort");
+    expect(dialog.textContent).toContain('"kort":"2041 — Skole · 07:00–11:00"');
   });
 });

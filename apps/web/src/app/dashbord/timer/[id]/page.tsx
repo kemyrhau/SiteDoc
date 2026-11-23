@@ -89,6 +89,10 @@ import {
   jobberSomManglerBeskrivelse,
   radGirJobbBeskrivelse,
   erArbeidstidReise,
+  aktiveTimerRader,
+  beskrivOverlapp,
+  reiseUtenforArbeid,
+  linjeKanFlyttes,
 } from "@sitedoc/shared";
 import { rundTilNarmeste } from "@/lib/tidsrunding";
 import { BeskrivelseHover, jobbensBeskrivelser } from "@/components/timer/BeskrivelseHover";
@@ -625,9 +629,12 @@ export default function DagsseddelDetaljSide() {
   const erRedigerbar = sheet.status === "draft" || sheet.status === "returned";
   const sheetAktivitetId = sheet.aktivitetId ?? null;
   const timerRader = sheet.timer as unknown as TimerRad[];
+  // R1 (a): radene som teller — uten `erstattet` (leders revisjonsspor), samme utvalg som serverens
+  // overlappsperre. Brukt av overlappvarselet, forslaget for ny rad/jobb, modal-sjekken og visningen.
+  const aktiveRader = aktiveTimerRader(timerRader);
   // Kenneth-vedtak 2026-11-15 (17): overlappende rader vises med varsel i
   // kortet. Kun prosjektkort-modus — dagskortet står urørt.
-  const overlappVarsel = finnOverlappVarsel(timerRader);
+  const overlappVarsel = finnOverlappVarsel(aktiveRader);
   const utforSend = () => {
     setFeil(null);
     send.mutate({ id: sheet.id });
@@ -928,7 +935,7 @@ export default function DagsseddelDetaljSide() {
       defaultTilTid?: string | null;
     },
   ) => {
-    const sisteTil = timerRader
+    const sisteTil = aktiveRader
       .map((r) => r.tilTid)
       .filter((t): t is string => !!t)
       .reduce<string | null>(
@@ -959,7 +966,7 @@ export default function DagsseddelDetaljSide() {
         kortId,
         projectId,
         ...nyJobbForslag({
-          sisteTil: senesteTilTid(timerRader),
+          sisteTil: senesteTilTid(aktiveRader),
           firmaStart: effektivStart,
           firmaSlutt: effektivSlutt,
           firmaPauseMin: sheet.pauseMin,
@@ -1095,7 +1102,7 @@ export default function DagsseddelDetaljSide() {
   const kortVarer = (mineVarer ?? []) as KortVare[];
   const jobbGruppering = prosjektkortModus
     ? grupperPaaKort({
-        timer: timerRader.map((r) => ({ ...r, kortId: r.kortId ?? null })),
+        timer: aktiveRader.map((r) => ({ ...r, kortId: r.kortId ?? null })),
         maskiner: maskinRader.map((r) => ({ ...r, kortId: r.kortId ?? null })),
         varer: kortVarer.map((v) => ({ ...v, kortId: v.kortId ?? null })),
         tillegg: tilleggRader.map((r) => ({ ...r, kortId: r.kortId ?? null })),
@@ -1201,7 +1208,8 @@ export default function DagsseddelDetaljSide() {
       byggeplassId: k.jobb.byggeplassId,
       // O8 D (§ 8.22): prosjekt og byggeplass kan endres på lagret jobb; jobben får ny kort-id.
       // Bare når serveren tar flyttingen (alle linjer venter på attestering, Kontrollør 138 vilkår 1).
-      stedValg: alleLinjerVenter(k) ? {
+      kanFlytteUnderprosjekt: kanFlytteUnderprosjekt(k, sheet.status),
+      stedValg: alleLinjerVenter(k, sheet.status) ? {
         prosjekter: [
           ...(prosjekterFlat.some((p) => p.id === k.jobb.projectId) ? [] : [k.jobb.projectId]),
           ...prosjekterFlat.map((p) => p.id),
@@ -2241,13 +2249,32 @@ type JobbKortData = {
 
 /**
  * O8 D (Kontrollør 138 vilkår 1): `flyttJobb` flytter bare en jobb der alle linjene venter på
- * attestering (`flyttJobbTilSted`) — returnert, attestert eller avvist linje, eller attestert vare,
- * gir avvisning. Da tilbys ikke nedtrekkene. Erstattet historikk teller ikke (serveren hopper over den).
+ * attestering (`flyttJobbTilSted`) — attestert linje eller attestert vare gir avvisning. Da tilbys
+ * ikke nedtrekkene. Erstattet historikk teller ikke (serveren hopper over den). R1 b1 (Kenneth
+ * 2026-11-23): på egen returnert sedel regnes `returnert` som ventende — samme regel som serveren
+ * (`linjeKanFlyttes`).
  */
-function alleLinjerVenter(k: JobbKortData): boolean {
-  const venter = (s: string | null) => s === null || s === "pending" || s === "erstattet";
+function alleLinjerVenter(k: JobbKortData, sedelStatus: string): boolean {
+  const venter = (s: string | null) =>
+    s === "erstattet" || linjeKanFlyttes(s, { status: sedelStatus, egenSedel: true });
   return (
     k.timer.every((r) => venter(r.attestertStatus)) &&
+    k.maskin.every((m) => venter(m.attestertStatus)) &&
+    k.varer.every((v) => !v.attestert) &&
+    k.linjer.every((l) => l.type !== "tillegg" || venter(l.rad.attestertStatus))
+  );
+}
+
+/**
+ * R1 b1: underprosjektet flyttes med `flyttHeleJobben` — jobbradene (ikke reise, heller ikke reise
+ * ført som arbeidstid), maskin, tillegg og varer må kunne flyttes. Nedtrekket vises bare da, så
+ * valget aldri kan gjøres og så feile.
+ */
+function kanFlytteUnderprosjekt(k: JobbKortData, sedelStatus: string): boolean {
+  const venter = (s: string | null) =>
+    s === "erstattet" || linjeKanFlyttes(s, { status: sedelStatus, egenSedel: true });
+  return (
+    k.timer.every((r) => r.erReise || erArbeidstidReise(r) || venter(r.attestertStatus)) &&
     k.maskin.every((m) => venter(m.attestertStatus)) &&
     k.varer.every((v) => !v.attestert) &&
     k.linjer.every((l) => l.type !== "tillegg" || venter(l.rad.attestertStatus))
@@ -2891,6 +2918,8 @@ function JobbKortRamme({
         ? t("timer.prosjektkort.flereByggeplasser", { antall: bp.antall })
         : "",
     klokke,
+    // R1 (a): reise utenfor arbeidet står i hodet, ellers sees den bare når kortet åpnes.
+    ...reiseUtenforArbeid(timer).map((r) => t("timer.prosjektkort.reiseTid", { fra: r.fra, til: r.til })),
     ecoId
       ? eco
         ? `${eco.proAdmId} ${eco.kortNavn}`
@@ -5080,24 +5109,21 @@ function TimerRadDialog({
       // P4b: kryss-bøtte overlapp-vakt (paritet m/ mobil TimerSeksjon + server).
       // Én arbeider kan ikke være to steder samtidig — sjekk mot alle andre
       // rader på sedelen (unntatt raden som redigeres). Delt @sitedoc/shared-regel.
-      const andreRader = alleTimerRader.filter((r) => r.id !== rad?.id);
+      // R1 (a): samme utvalg som serveren (uten `erstattet`), og meldingen sier hva og hvor.
+      const aktive = aktiveTimerRader(alleTimerRader);
+      const andreRader = aktive.filter((r) => r.id !== rad?.id);
       const overlapp = finnOverlappendeTidsrom(fraTid, tilTid, andreRader);
       if (overlapp) {
+        const sted = beskrivOverlapp(overlapp, aktive);
+        const kortTekst =
+          kortNavn && sted.kort
+            ? `${(sted.kort.byggeplassId && byggeplasser?.find((b) => b.id === sted.kort?.byggeplassId)?.name) || (sted.kort.projectId ? (kortNavn.get(sted.kort.projectId) ?? "") : "")} · ${sted.kort.fra}–${sted.kort.til}`
+            : null;
+        const verdier = { fra: fraTid, til: tilTid, annenFra: sted.fra, annenTil: sted.til, kort: kortTekst ?? "" };
         setFeil(
-          kortNavn
-            ? t("timer.feil.overlappKort", {
-                fra: fraTid,
-                til: tilTid,
-                annenFra: overlapp.fraTid,
-                annenTil: overlapp.tilTid,
-                kort: kortNavn.get(overlapp.projectId) ?? "",
-              })
-            : t("timer.feil.overlapp", {
-                fra: fraTid,
-                til: tilTid,
-                annenFra: overlapp.fraTid,
-                annenTil: overlapp.tilTid,
-              }),
+          kortTekst
+            ? t(sted.hva === "reise" ? "timer.feil.overlappReiseIKort" : "timer.feil.overlappRadIKort", verdier)
+            : t("timer.feil.overlapp", verdier),
         );
         return null;
       }

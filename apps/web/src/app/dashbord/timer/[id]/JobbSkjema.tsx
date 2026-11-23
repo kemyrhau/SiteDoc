@@ -106,6 +106,7 @@ export function JobbSkjema({
   tidsrundingMinutter = null,
   byggeplassId = null,
   stedValg,
+  kanFlytteUnderprosjekt = true,
 }: {
   sheetId: string;
   kortId: string;
@@ -163,6 +164,11 @@ export function JobbSkjema({
     /** O12 pkt 18: firmaets kjøretid til det nye stedet. null = mangler. */
     nyKjoretid?: (r: { projectId: string; byggeplassId: string | null; oppmotestedId: string | null }) => number | null;
   };
+  /**
+   * R1 b1: kan en lagret jobb flyttes til et annet underprosjekt (`flyttJobbEco`)? Nei når en linje
+   * er attestert, eller returnert utenfor egen returnert sedel — da vises ikke nedtrekket.
+   */
+  kanFlytteUnderprosjekt?: boolean;
 }) {
   const { t, i18n } = useTranslation();
   const utils = trpc.useUtils();
@@ -186,7 +192,8 @@ export function JobbSkjema({
     valgtEcoId && !apneEcoer.some((e) => e.id === valgtEcoId)
       ? ((ecoer ?? []).find((e) => e.id === valgtEcoId) ?? null)
       : null;
-  const visUnderprosjekt = apneEcoer.length > 0 || !!valgtEcoId;
+  // R1 b1: på lagret jobb vises nedtrekket bare når serveren tar flyttingen (`flyttHeleJobben`).
+  const visUnderprosjekt = (linjer.length === 0 || kanFlytteUnderprosjekt) && (apneEcoer.length > 0 || !!valgtEcoId);
   const [ecoSok, setEcoSok] = useState("");
   // O8 (§ 8.22 punkt 3): knapper så lenge «Uten» og alle underprosjektene får plass på én
   // linje; ellers søkbar nedtrekk. Kan ikke bredden måles: som før (≤ 6 gir knapper).

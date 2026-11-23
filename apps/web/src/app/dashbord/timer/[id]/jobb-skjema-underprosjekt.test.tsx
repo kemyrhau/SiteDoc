@@ -64,7 +64,7 @@ const eco = (n: number, apen = true): Eco => ({
   timerregistreringApen: apen,
 });
 
-function rendre(a: { ecoId?: string | null; ny?: boolean; ecoer: Eco[] }) {
+function rendre(a: { ecoId?: string | null; ny?: boolean; ecoer: Eco[]; kanFlytte?: boolean }) {
   h.kall = [];
   h.ecoer = a.ecoer;
   render(
@@ -86,6 +86,7 @@ function rendre(a: { ecoId?: string | null; ny?: boolean; ecoer: Eco[] }) {
       organizationId="o1"
       rader47={[]}
       onUlagret={vi.fn()}
+      kanFlytteUnderprosjekt={a.kanFlytte}
     />,
   );
 }
@@ -96,6 +97,21 @@ const knapp = (navn: string) => screen.getByRole("button", { name: navn });
 afterEach(() => {
   cleanup();
   h.feilMut = {};
+});
+
+describe("R1 b1 — nedtrekket vises bare når flyttingen går gjennom", () => {
+  it("lagret jobb som ikke kan flyttes (attestert linje): ingen underprosjektvalg", () => {
+    rendre({ ecoer: [eco(1), eco(2)], kanFlytte: false });
+    expect(screen.queryByTestId("skjema-underprosjekt")).toBeNull();
+  });
+  it("lagret jobb som kan flyttes: valgene står", () => {
+    rendre({ ecoer: [eco(1), eco(2)], kanFlytte: true });
+    expect(screen.getByTestId("skjema-underprosjekt")).toBeTruthy();
+  });
+  it("ny jobb: valget står uansett (ingenting å flytte)", () => {
+    rendre({ ecoer: [eco(1), eco(2)], ny: true, kanFlytte: false });
+    expect(screen.getByTestId("skjema-underprosjekt")).toBeTruthy();
+  });
 });
 
 describe("L3b — underprosjekt i hodet", () => {

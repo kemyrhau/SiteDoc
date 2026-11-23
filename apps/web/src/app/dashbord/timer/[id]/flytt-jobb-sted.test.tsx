@@ -4,8 +4,9 @@
  * har nedtrekk for prosjekt og byggeplass i jobbskjemaet; nytt valg sender `flyttJobb` med kortets
  * id. Sendt dag: ingen nedtrekk. Dagen er #7 (`testdata-dag7.ts`, utkast, jobb k1 og k2).
  * Negativkontroll mot 9919242e: de to første røde, «sendt dag» grønn.
- * Kontrollør 138 vilkår 1: returnert dag med returnerte linjer (timer eller tillegg) har ingen
- * nedtrekk — serveren avviser flyttingen der. Returnert dag med ventende linjer har dem.
+ * Kontrollør 138 vilkår 1, endret av R1 b1 (Kenneth 2026-11-23): på egen returnert dag kan
+ * returnerte linjer flyttes — nedtrekket tilbys. Attestert linje (timer eller tillegg) gir ingen
+ * nedtrekk — serveren avviser flyttingen der.
  */
 import type { ReactNode } from "react";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
@@ -156,16 +157,22 @@ describe("O8 D — prosjekt og byggeplass i lagret jobbkort (siden)", () => {
     expect(screen.getByRole("combobox", { name: "timer.felt.prosjekt" })).toBeTruthy();
   });
 
-  it("returnert dag med returnerte timelinjer: ingen nedtrekk (serveren avviser)", () => {
+  it("R1 b1: returnert dag med returnerte timelinjer: nedtrekket tilbys", () => {
     rendre("returned", { timer: "returnert" });
     aapneForste();
-    expect(screen.getByTestId("jobb-skjema")).toBeTruthy();
-    expect(screen.queryByRole("combobox", { name: "timer.felt.prosjekt" })).toBeNull();
+    expect(screen.getByRole("combobox", { name: "timer.felt.prosjekt" })).toBeTruthy();
   });
 
-  it("returnert tillegg i jobben: ingen nedtrekk", () => {
+  it("R1 b1: returnert tillegg i jobben: nedtrekket tilbys", () => {
     rendre("returned", { tillegg: "returnert" });
     aapneForste();
+    expect(screen.getByRole("combobox", { name: "timer.felt.prosjekt" })).toBeTruthy();
+  });
+
+  it("attestert tillegg i jobben: ingen nedtrekk (serveren avviser)", () => {
+    rendre("returned", { tillegg: "attestert" });
+    aapneForste();
+    expect(screen.getByTestId("jobb-skjema")).toBeTruthy();
     expect(screen.queryByRole("combobox", { name: "timer.felt.prosjekt" })).toBeNull();
   });
 

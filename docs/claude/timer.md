@@ -1159,6 +1159,18 @@ Hjemmel: [vedtak-timer-web.md § Reisevinduet](vedtak-timer-web.md) punkt 20 (bl
 - **i18n:** 17 nye nøkler (`timer.reiseKort.delesVedMidnatt`, `startetKveldenFoer`, `naboSedel*`, `sperre.paaKontor`, `delLaast`, `rettDel.*`; `timer.reise.fortsetter`, `fortsattFra`, `deltSlettLaast`, `deltSlett.*`), alle 15 språk.
 - **Tester:** `packages/shared/src/utils/reiseManuell-o19.test.ts`; `reisevindu.test.tsx` «O19 — reisevinduet: pkt 20, 23–25»; `o14-penn-reise.test.tsx` «O19»; `jobbSkjema.test.ts` `senesteTilTid`; `components/attestering/__tests__/reise-rad-merke-o19.test.tsx`; `apps/api/src/routes/timer/dagsseddel-delt-reise.integration.test.ts` (10).
 
+### Returnert sedel: overlappmelding, flytting og spor ved sletting (R1) — 🟡 `feat/web-timer-r1-retur` (2026-11-23, venter gate)
+
+Kenneth 2026-11-23: (a) ja, b1 ja, b2 nei, b3 ja. Delte regler i `packages/shared/src/utils/returSedel.ts` (`aktiveTimerRader`, `beskrivOverlapp`, `reiseUtenforArbeid`, `linjeKanFlyttes`).
+
+- **(a) Utvalg:** dagssiden bruker `aktiveTimerRader` (uten `erstattet`) i vinduets overlappsjekk, overlappvarselet, forslaget for ny jobb og kortvisningen (`dashbord/timer/[id]/page.tsx`). Overlappregelen (`finnOverlappendeTidsrom`) er uendret.
+- **(a) Melding:** serveren (`sjekkTimerOverlapp`, `lagreJobbTid` → `overlappMelding` i `routes/timer/dagsseddel.ts`) og vinduet (`timer.feil.overlappReiseIKort` / `overlappRadIKort`) sier om det er en reise eller en rad, og kortet som «byggeplass · fra–til» (prosjektet når kortet ikke har én byggeplass). Eksempel: «… overlapper reisen 12:00–15:00 i kortet Narvik · 15:00–19:00».
+- **(a) Kortets hode:** reise utenfor arbeidet står i hodet (`timer.prosjektkort.reiseTid`, «· reise 12:00–15:00»).
+- **b1:** på arbeiderens egen sedel med status `returned` regnes `returnert` som `pending` ved flytting av sted, prosjekt og underprosjekt (`flyttJobbTilSted`, `flyttHeleJobben`). `attestert` sperrer fortsatt. Leders flyt sender `egenSedel: false` og er uendret. Klienten bruker samme regel (`alleLinjerVenter`, `kanFlytteUnderprosjekt` i `page.tsx`); underprosjekt-nedtrekket vises ikke på en lagret jobb som ikke kan flyttes (`JobbSkjema.tsx`, prop `kanFlytteUnderprosjekt`).
+- **b2:** uendret — forslaget for ny jobb peker fortsatt på slutten av dagen.
+- **b3:** på `returned` skriver `fjernTimerRad` og `slettKortMedAlt` de slettede timer-, maskin- og tilleggsradene til `sheet_rad_historikk` med `hendelse: "slettet"` (`HISTORIKK_HENDELSE_SLETTET` i `services/timer/kortLeser.ts`) og logger `fjern_timer_rad` / `slett_kort` i `activity_log`. Varer og utlegg har ingen `rad_type` i historikken og logges bare med id-er (ingen skjemaendring). Slettingen er fortsatt lov. «Rettet»-markeringen (`hentRettedeFelter`, korrigeringer) hopper over slette-postene. **Ingen visning:** leder har i dag ingen flate som viser slettede rader (`lesRevisjoner` i `services/arkiv/logg-lesere.ts` har ingen kallere) — sporet skrives, visning er ikke bygd.
+- **Tester:** `packages/shared/src/utils/returSedel.test.ts`, `apps/api/src/routes/timer/r1-retur-sedel.integration.test.ts`, `apps/web/src/app/dashbord/timer/[id]/r1-retur-sedel.test.tsx`, `flytt-jobb-sted.test.tsx` (returnert → tilbys, attestert → ingen nedtrekk), `jobb-skjema-underprosjekt.test.tsx` «R1 b1».
+
 ### Prosjektkort-rute — egen skjerm for samlesiden (ORDRE 35, I2) — 🟡 `feat/prosjektkort-isolert` (2026-11-07, ikke merget)
 
 Kenneth-vedtak I2: prosjektkortets samleside på mobil er flyttet ut av dagskortet til egen rute, så endringer i prosjektkortet ikke kan treffe dagskortet.
