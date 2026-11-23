@@ -1110,17 +1110,25 @@ export async function jobbStedForMaskin(
 async function finnMidnattPartner(
   prismaTimer: Prisma.TransactionClient | typeof import("@sitedoc/db-timer").prismaTimer,
   sheet: { userId: string; organizationId: string },
-  rad: { id: string; reiseRegel: unknown },
+  rad: { id: string; sheetId: string; reiseRegel: unknown },
 ): Promise<{ id: string; sheetId: string; dato: string; fraTid: string | null; tilTid: string | null; status: string; del: 1 | 2 | null } | null> {
   const merke = lesMidnattDel(rad.reiseRegel);
   if (!merke) return null;
   const pt = prismaTimer as typeof import("@sitedoc/db-timer").prismaTimer;
+  // Gate O19 vilkår 1: attestantens splitt kopierer `midnatt` til søsken på SAMME sedel
+  // (arvReiseSpor). Partneren må derfor stå på en annen sedel og bære den andre delen. Er
+  // partneren også splittet, velges delen nærmest midnatt (00:00 for del 2, 24:00 for del 1).
   const p = await pt.sheetTimer.findFirst({
     where: {
       id: { not: rad.id },
+      sheetId: { not: rad.sheetId },
       sheet: { userId: sheet.userId, organizationId: sheet.organizationId },
-      reiseRegel: { path: ["midnatt", "delId"], equals: merke.delId },
+      AND: [
+        { reiseRegel: { path: ["midnatt", "delId"], equals: merke.delId } },
+        { reiseRegel: { path: ["midnatt", "del"], equals: 3 - merke.del } },
+      ],
     },
+    orderBy: [{ fraTid: merke.del === 1 ? "asc" : "desc" }, { id: "asc" }],
     select: { id: true, sheetId: true, fraTid: true, tilTid: true, reiseRegel: true, sheet: { select: { dato: true, status: true } } },
   });
   if (!p) return null;

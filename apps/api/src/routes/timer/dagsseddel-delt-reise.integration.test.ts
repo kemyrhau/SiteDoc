@@ -240,6 +240,28 @@ describe("O19 — tilfoyDeltReise", () => {
     expect(await radTelling()).toBe(2);
   });
 
+  it("gate O19 vilkår 1: splittet del 1 + rettet del 2 → partneren er del 2, søskenet står", async () => {
+    const sid = await lagSedel("2026-11-23");
+    const r = await dag().tilfoyDeltReise(deltInput(sid));
+    // Attestantens splitt (arvReiseSpor) kopierer reiseRegel inkl. midnatt til begge delene:
+    // A = 21:00–22:00, søsken = 22:00–24:00, samme delId og del 1 på samme sedel.
+    await prismaTimer.sheetTimer.update({ where: { id: r.rad.id }, data: { tilTid: "22:00", timer: 1 } });
+    const { id: _id, createdAt: _c, updatedAt: _u, ...kopi } = await prismaTimer.sheetTimer.findUniqueOrThrow({ where: { id: r.rad.id } });
+    const sosken = await prismaTimer.sheetTimer.create({
+      data: { ...kopi, id: randomUUID(), fraTid: "22:00", tilTid: "24:00", timer: 2 } as Parameters<typeof prismaTimer.sheetTimer.create>[0]["data"],
+    });
+    // Del 2 rettes (UPDATE) — raden flyttes bakerst i heapen, søskenet kommer da først uten filter.
+    await prismaTimer.sheetTimer.update({ where: { id: r.naboRad.id }, data: { tilTid: "00:50", timer: 50 / 60 } });
+
+    const partner = await dag().finnReiseDel({ radId: r.rad.id });
+    expect(partner).toMatchObject({ id: r.naboRad.id, dato: "2026-11-24", del: 2 });
+
+    await dag().fjernDeltReise({ id: r.rad.id });
+    expect(await prismaTimer.sheetTimer.findUnique({ where: { id: sosken.id } })).not.toBeNull();
+    expect(await prismaTimer.sheetTimer.findUnique({ where: { id: r.rad.id } })).toBeNull();
+    expect(await prismaTimer.sheetTimer.findUnique({ where: { id: r.naboRad.id } })).toBeNull();
+  });
+
   it("negativkontroll: vanlig reise som slutter 24:00 har ingen partner", async () => {
     const sid = await lagSedel("2026-11-23");
     const rad = await dag().tilfoyTimerRad({

@@ -1147,7 +1147,7 @@ Hjemmel: [vedtak-timer-web.md § Reisevinduet](vedtak-timer-web.md) punkt 20 (bl
 - **Følger:** del 2 (00:00) flytter ikke pausevinduet, og ingen del strekker «Arbeidstid i dag» (`pauseBeregning.ts`); jobbskjemaets `senesteTilTid` hopper over del 1, så 24:00 blir ikke neste rads start.
 - **På kontoret (pkt 25):** «Til byggeplass» som overlapper en kontorreise som ender på et kontor (f.eks. Tromsø → Narvik til 07:00), viser `timer.reiseKort.sperre.paaKontor` («Du er på Kontor Narvik kl. 07:00. Kortet står på …») i stedet for overlapp-teksten, med lenke «Sted og aktivitet» som åpner jobbens kort. Reisen flyttes ikke bakover (B3). Gjelder ikke under terskel og ikke «Fra byggeplass».
 - **Blå boks (pkt 20):** «Under terskel»-teksten står i samme blå boks som oppmøtested-boksen.
-- **API:** `tilfoyDeltReise`, `finnReiseDel` (partnerens id, sedel, dato, tider, status), `fjernDeltReise` i `routes/timer/dagsseddel.ts`.
+- **API:** `tilfoyDeltReise`, `finnReiseDel` (partnerens id, sedel, dato, tider, status — partneren står på en *annen* sedel og bærer den andre delen, `midnatt.del = 3 − egen`; søsken fra attestantens splitt på samme sedel er aldri partner, `finnMidnattPartner`; gate O19 vilkår 1), `fjernDeltReise` i `routes/timer/dagsseddel.ts`.
 - ⚠️ **Mobil (B1, ikke rettet — mobil sperrer fortsatt deling):** en delt reise lagret på web synkes til telefonen som to vanlige rader. Målt i koden:
   1. `apps/mobile/src/components/timer-detalj/FraTilTidFelt.tsx:191-207` `hhmmTilDate("24:00")` gir `setHours(24)` = 00:00 — del 1 vises og lagres som 00:00.
   2. `TimerSeksjon.tsx:1814` `tilErEtterFra` avviser del 1 ved lagring når til-tiden er blitt 00:00 («Slutt før start»).
