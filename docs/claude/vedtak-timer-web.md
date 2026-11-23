@@ -97,6 +97,16 @@ Filer: `RK` = `apps/web/src/app/dashbord/timer/[id]/ReiseKort.tsx` · `MR` = `ap
     Kenneth 2026-11-22: «f7.ja til forslag».
     ✅ `timer.reiseKort.tilOppmotested` (`ReiseKort.tsx`), `reisevindu.test.tsx` «O14 pkt 7» (merget `50f480c8`, ikke deployet). ✅ Erstattet i O16 (merget `0e650523`): linja og nøkkelen er fjernet; oppmøtestedet står under «Til» ved «Fra byggeplass» (`reisevindu.test.tsx` «O14 pkt 7»).
 
+20. En reise under terskel («Arbeidstid») legges inne i arbeidsdagen: «Til byggeplass» starter når første arbeid starter, og jobben starter når reisen slutter (07:00–07:04, jobb fra 07:04). Huker arbeideren av «startet reise utenfor arbeidsnorm», legges reisen før arbeidet som i dag. Maskinregelen er uendret: en reise ført som «Arbeidstid» teller med i jobbens timer, «Reisetid» over terskel gjør det ikke. Slik blir maskinforslaget hele eller halve timer når reisen ligger i arbeidsdagen.
+    Kenneth 2026-11-23: «jeg tror vi må ha en avhuking som arbeider fysisk klikker på, "startet reise utenfor arbeids norm"»; «et firma fakturerer hele og halve timer»; valgte «C» (F10c ja, F10a nei) av A–D.
+    🟡 Vedtatt, ikke bygget. Skisse fra Fabel før kode. I dag: reisen slutter alltid når første arbeid starter (`packages/shared/src/utils/reiseManuell.ts:377-387`), og arbeidstid-reisen flytter dagens start (`finnDagsramme`).
+21. En reise mellom to kontorer vises som «Kontor Tromsø → Kontor Narvik» i kortlisten, og eksporten fyller «Til» med kontoret.
+    Kenneth 2026-11-23: «funn1 ja med eksport».
+    🟡 Vedtatt, ikke bygget. I dag: kortlisten viser prosjektnavnet («Fra Skole 15:00–18:50»), og «Til» står tom i eksporten.
+22. «Avslutt» med en «Siste dag» før periodens start sier at perioden fjernes («Kontor Tromsø fra 23.11 fjernes») før arbeideren trykker.
+    Kenneth 2026-11-23: «funn2 ja».
+    🟡 Vedtatt, ikke bygget. I dag: perioden slettes uten tekst i «Avslutt»-linja.
+
 ## Dagsvisningen i attesteringen
 
 1. Dagen står øverst som en dagsrad, hvert kort er en blokk med egen kantfarge, og jobbrad vises når dagen har flere kort (alternativ A).
