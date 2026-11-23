@@ -369,3 +369,53 @@ describe("O19b — «Dagens ramme» slutter 24:00 på del 1 av en delt reise", (
     expect(ramme(html)).toContain("&quot;til&quot;:&quot;15:30&quot;");
   });
 });
+
+describe("O19b F4 — ingen del av en delt reise strekker «Arbeidstid i dag»", () => {
+  const [r1, r2] = sheet.timer;
+  const reise = (fraTid: string, tilTid: string, reiseRegel: unknown) => ({
+    ...r2!,
+    id: "r3",
+    fraTid,
+    tilTid,
+    timer: "2",
+    pauseMin: 0,
+    erReise: true,
+    kortId: "k1",
+    reiseRegel,
+  });
+  const del1 = reise("21:00", "24:00", { midnatt: { delId: "d1", del: 1 } });
+  const del2 = reise("00:00", "02:00", { midnatt: { delId: "d1", del: 2 } });
+  // «Arbeidstid i dag» (dagskort): Start, Slutt, Pause i rekkefølge etter overskriften.
+  const arbeidstid = (html: string) => {
+    const blokk = html.slice(html.indexOf("timer.arbeidstidIDag"));
+    const dd = [...blokk.matchAll(/<dd[^>]*>([^<]*)<\/dd>/g)].map((m) => m[1]);
+    return { start: dd[0], slutt: dd[1], pause: dd[2] };
+  };
+  const ramme = (html: string) => html.match(/timer\.prosjektkort\.ramme\{[^}]*\}/)?.[0] ?? "";
+
+  it("dagskort: del 1 (21:00–24:00) strekker ikke slutt", () => {
+    const html = rendre("dagskort", { timer: [r1!, r2!, del1] as typeof sheet.timer });
+    expect(arbeidstid(html)).toEqual({ start: "07:00", slutt: "15:30", pause: "30 min" });
+  });
+
+  it("dagskort: del 2 (00:00–02:00) strekker ikke start", () => {
+    const html = rendre("dagskort", { timer: [r1!, r2!, del2] as typeof sheet.timer });
+    expect(arbeidstid(html)).toEqual({ start: "07:00", slutt: "15:30", pause: "30 min" });
+  });
+
+  it("prosjektkort: del 2 strekker ikke rammens start; del 1 gir fortsatt 24:00 (O19b)", () => {
+    expect(ramme(rendre("prosjektkort", { timer: [r1!, r2!, del2] as typeof sheet.timer })))
+      .toContain("&quot;fra&quot;:&quot;07:00&quot;");
+    const r = ramme(rendre("prosjektkort", { timer: [r1!, r2!, del1] as typeof sheet.timer }));
+    expect(r).toContain("&quot;fra&quot;:&quot;07:00&quot;");
+    expect(r).toContain("&quot;til&quot;:&quot;24:00&quot;");
+  });
+
+  it("negativkontroll: dag uten delt reise viser det samme som før i dagskort-modus", () => {
+    expect(arbeidstid(rendre("dagskort"))).toEqual({ start: "07:00", slutt: "15:30", pause: "30 min" });
+    const html = rendre("dagskort", {
+      timer: [r1!, r2!, reise("21:00", "23:59", null), { ...reise("05:00", "07:00", null), id: "r4" }] as typeof sheet.timer,
+    });
+    expect(arbeidstid(html)).toEqual({ start: "05:00", slutt: "23:59", pause: "30 min" });
+  });
+});

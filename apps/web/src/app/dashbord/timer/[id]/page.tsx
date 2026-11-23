@@ -708,12 +708,15 @@ export default function DagsseddelDetaljSide() {
   // Finnes rader med tid: start = tidligste fraTid, slutt = seneste tilTid,
   // pause = Σ rad.pauseMin (delt `utledArbeidstidFraRader`). Uten slike rader
   // falles det tilbake til sedelens ramme (startAt/endAt) som prefyll-hint.
+  // O19b F4: `reiseRegel` sendes med, så ingen del av en reise delt ved midnatt
+  // strekker «Arbeidstid i dag» eller rammen (timer.md § O19 «Følger»).
   const arbeidstidVisning = utledArbeidstidFraRader(
     timerRader.map((r) => ({
       fraTid: r.fraTid,
       tilTid: r.tilTid,
       pauseMin: r.pauseMin,
       timer: tilTall(r.timer),
+      reiseRegel: r.reiseRegel,
     })),
   );
   const harRaderMedTid = arbeidstidVisning.startTid !== null;
