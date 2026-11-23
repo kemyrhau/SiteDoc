@@ -1482,10 +1482,12 @@ export async function verifiserPunktFlytTilgang(
  * lenger få `null`-filter i kraft av rollen:
  * - ikke admin → `byggTilgangsFilter` (som før).
  * - sitedoc_admin → `null` (ser alt, som i `byggTilgangsFilter`).
- * - prosjektadmin (har ProjectMember-rad) → den H3-rettede `byggTilgangsFilter`: `null` for
- *   HMS-behandleren, ellers alt som ikke er privat HMS + egne private HMS-saker (melder/mottaker).
- * - firma-admin uten ProjectMember-rad (V1) → `null` når hen er HMS-behandler (`erHmsAdmin`,
- *   firmaets `hms_ansvarlig`), ellers alt som ikke er privat HMS.
+ * - prosjektadmin (ProjectMember-rad med rolle `admin`) → den H3-rettede `byggTilgangsFilter`:
+ *   `null` for HMS-behandleren, ellers alt som ikke er privat HMS + egne private HMS-saker.
+ * - firma-admin som ikke er prosjektadmin (V1, K1-S V1) — grenen velges etter rollen, ikke etter
+ *   om det finnes en PM-rad: `null` når hen er HMS-behandler (`erHmsAdmin`, firmaets
+ *   `hms_ansvarlig`), ellers alt som ikke er privat HMS. Har hen en PM-rad (f.eks. `member`),
+ *   legges `byggTilgangsFilter` til som OR, så egne private HMS-saker (melder/mottaker) er med.
  * Speiler `koblePunkt`, så knappen og kandidatlista aldri viser noe serveren avviser.
  */
 export async function byggPunktKoblingsFilter(
@@ -1498,10 +1500,13 @@ export async function byggPunktKoblingsFilter(
   if (bruker?.role === "sitedoc_admin") return null;
   const medlem = await prisma.projectMember.findFirst({
     where: aktivtProsjektmedlemWhere(userId, projectId),
-    select: { id: true },
+    select: { role: true },
   });
-  if (medlem) return byggTilgangsFilter(userId, projectId);
-  return (await erHmsAdmin(userId, projectId)) ? null : IKKE_PRIVAT_HMS;
+  if (medlem?.role === "admin") return byggTilgangsFilter(userId, projectId);
+  if (await erHmsAdmin(userId, projectId)) return null;
+  if (!medlem) return IKKE_PRIVAT_HMS;
+  const egne = await byggTilgangsFilter(userId, projectId);
+  return egne === null ? null : { OR: [IKKE_PRIVAT_HMS, egne] };
 }
 
 export async function byggTilgangsFilter(

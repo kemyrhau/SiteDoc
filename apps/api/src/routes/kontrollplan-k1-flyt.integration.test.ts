@@ -151,6 +151,12 @@ describe("K1 — Start og kobling bare for punktets flyt", () => {
     await prisma.organizationMember.create({
       data: { userId: await lagBruker("firmaAdmin"), organizationId: id.orgId, status: "aktiv", firmaRoller: ["firma_admin"] },
     });
+    // K1-S V1: firma-admin MED ProjectMember-rad `member`, ikke i noen flyt.
+    const firmaAdminMedlem = await lagBruker("firmaAdminMedlem");
+    await prisma.organizationMember.create({
+      data: { userId: firmaAdminMedlem, organizationId: id.orgId, status: "aktiv", firmaRoller: ["firma_admin"] },
+    });
+    await lagPm(firmaAdminMedlem, project.id);
     // Admin i et ANNET prosjekt (prosjektisolasjon).
     await lagPm(await lagBruker("fremmedAdmin"), annet.id, "admin");
 
@@ -386,6 +392,17 @@ describe("K1 — Start og kobling bare for punktets flyt", () => {
       );
     });
 
+    it("K1-S V1: firma-admin med PM `member` utenfor flyten — rollen avgjør, ikke PM-raden", async () => {
+      const bygg = await lagPunkt();
+      expect(await kandidater("firmaAdminMedlem", bygg)).toEqual([id.sjekklisteA]);
+      expect(await handlinger("firmaAdminMedlem", bygg)).toEqual({ kanStarte: true, kanKoble: true });
+      expect(await koble("firmaAdminMedlem", bygg, id.sjekklisteA)).toEqual({ ok: true });
+
+      const hms = await lagPunkt(id.flytA, id.hmsMal);
+      expect(await kandidater("firmaAdminMedlem", hms)).toEqual([]);
+      expect(await handlinger("firmaAdminMedlem", hms)).toEqual({ kanStarte: true, kanKoble: false });
+      expect(await koble("firmaAdminMedlem", hms, id.hmsPrivat)).toEqual({ ok: false, code: "FORBIDDEN" });
+    });
     it("negativkontroll: åpen HMS-sjekkliste vises og kobles av admin som før", async () => {
       for (const navn of ["prosjektadmin", "firmaAdmin"]) {
         const punktId = await lagPunkt(id.flytA, id.hmsApenMal);
