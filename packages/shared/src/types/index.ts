@@ -732,59 +732,13 @@ export interface StandardDokumentflyt {
   malPrefixer: string[];
 }
 
+// F13c (Kenneth 2026-11-23, beslutning A/3A): «vi skal ikke ha noen standardflyter ved
+// oppretting av nytt prosjekt». De åtte faggruppeflytene (Byggherre ↔ Bygg/Elektro/VVS/
+// Ventilasjon) er fjernet. HMS-avvik står igjen: den er prosjektets HMS-flyt — HMS-
+// dokumenter bindes til flyten via HMS-malen (oppgave.ts/sjekkliste.ts F1b), og
+// `seedHmsModulOmradet` (modul.ts) kjører bare ved modul.aktiver, ikke ved opprettelse.
+// Uten den ville nye prosjekters HMS-dokumenter blitt flyt-løse. Egen sak hos Kenneth.
 export const STANDARD_DOKUMENTFLYTER: StandardDokumentflyt[] = [
-  // --- Bygg (K01): begge retninger ---
-  {
-    navn: "Byggherre → Bygg",
-    oppretter: [0], // Byggherre
-    svarer: [1],     // Bygg
-    malPrefixer: ["GM", "BEF"],
-  },
-  {
-    navn: "Bygg → Byggherre",
-    oppretter: [1], // Bygg
-    svarer: [0],     // Byggherre
-    malPrefixer: ["GM"],
-  },
-  // --- Elektro (K02): begge retninger ---
-  {
-    navn: "Byggherre → Elektro",
-    oppretter: [0], // Byggherre
-    svarer: [2],     // Elektro
-    malPrefixer: ["GM", "BEF"],
-  },
-  {
-    navn: "Elektro → Byggherre",
-    oppretter: [2], // Elektro
-    svarer: [0],     // Byggherre
-    malPrefixer: ["GM"],
-  },
-  // --- VVS (K03): begge retninger ---
-  {
-    navn: "Byggherre → VVS",
-    oppretter: [0], // Byggherre
-    svarer: [3],     // VVS
-    malPrefixer: ["GM", "BEF"],
-  },
-  {
-    navn: "VVS → Byggherre",
-    oppretter: [3], // VVS
-    svarer: [0],     // Byggherre
-    malPrefixer: ["GM"],
-  },
-  // --- Ventilasjon (K04): begge retninger ---
-  {
-    navn: "Byggherre → Ventilasjon",
-    oppretter: [0], // Byggherre
-    svarer: [4],     // Ventilasjon
-    malPrefixer: ["GM", "BEF"],
-  },
-  {
-    navn: "Ventilasjon → Byggherre",
-    oppretter: [4], // Ventilasjon
-    svarer: [0],     // Byggherre
-    malPrefixer: ["GM"],
-  },
   // --- HMS-avvik: alle kan opprette, byggherre mottar ---
   {
     navn: "HMS-avvik",

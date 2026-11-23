@@ -104,7 +104,8 @@ export async function seedStandardProsjektoppsett(
     faggruppeIder.push(fg.id);
   }
 
-  // Koble oppretter til Byggherre-faggruppen (første)
+  // Koble oppretter til Byggherre-faggruppen (første). F13c 1A: oppretter for et annet
+  // firma er ikke medlem (oppretterMedlemskap.ts) → findFirst gir null → ingen kobling.
   const medlem = await tx.projectMember.findFirst({
     where: { projectId, userId: brukerId },
   });
@@ -123,7 +124,8 @@ export async function seedStandardProsjektoppsett(
     select: { id: true, prefix: true },
   });
 
-  // Standard dokumentflyter
+  // Standard dokumentflyter. F13c (2026-11-23): kun HMS-avvik — ingen faggruppeflyter
+  // ved nytt prosjekt (se STANDARD_DOKUMENTFLYTER i @sitedoc/shared).
   for (const flytDef of STANDARD_DOKUMENTFLYTER) {
     const flyt = await tx.dokumentflyt.create({
       data: { projectId, name: flytDef.navn },

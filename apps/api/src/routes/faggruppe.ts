@@ -179,7 +179,7 @@ export const faggruppeRouter = router({
       // Sjekk om faggruppen har tilknyttede sjekklister, oppgaver, medlemmer eller flyter.
       // Medlem-koblinger er onDelete: Cascade og flyter onDelete: SetNull — begge ville
       // forsvunnet stille uten denne vakten (speiler slett-vernet i dokumentflyt.ts).
-      const [sjekklisteAntall, oppgaveAntall, medlemAntall, flytAntall] = await Promise.all([
+      const [sjekklisteAntall, oppgaveAntall, medlemAntall, eideFlyter, flytledd] = await Promise.all([
         ctx.prisma.checklist.count({
           where: {
             ...IKKE_SLETTET,
@@ -202,8 +202,17 @@ export const faggruppeRouter = router({
         ctx.prisma.faggruppeKobling.count({
           where: { faggruppeId: input.id, periodeSlutt: null },
         }),
-        ctx.prisma.dokumentflyt.count({
+        ctx.prisma.dokumentflyt.findMany({
           where: { faggruppeId: input.id },
+          select: { name: true },
+          orderBy: { name: "asc" },
+        }),
+        // F13c B: faggruppen som LEDD i en flyt. Leddene er onDelete: Cascade
+        // (schema.prisma DokumentflytMedlem.faggruppe) — uten denne tellingen rev en
+        // vellykket sletting leddene ut av andres flyter i stillhet (F13b funn B).
+        ctx.prisma.dokumentflytMedlem.findMany({
+          where: { faggruppeId: input.id, ...aktivtMedlemWhere },
+          select: { dokumentflyt: { select: { name: true } } },
         }),
       ]);
 
@@ -217,13 +226,27 @@ export const faggruppeRouter = router({
         });
       }
 
-      if (medlemAntall > 0 || flytAntall > 0) {
-        const detaljer: string[] = [];
-        if (medlemAntall > 0) detaljer.push(`${medlemAntall} medlem${medlemAntall !== 1 ? "mer" : ""}`);
-        if (flytAntall > 0) detaljer.push(`${flytAntall} dokumentflyt${flytAntall !== 1 ? "er" : ""}`);
+      // Flytene faggruppen eier eller står som ledd i — hver flyt nevnes én gang.
+      const berorteFlyter = [
+        ...new Set([
+          ...eideFlyter.map((f) => f.name),
+          ...flytledd.map((l) => l.dokumentflyt.name),
+        ]),
+      ].sort((a, b) => a.localeCompare(b, "nb"));
+
+      if (medlemAntall > 0 || berorteFlyter.length > 0) {
+        const deler: string[] = [];
+        if (medlemAntall > 0) {
+          deler.push(`den har ${medlemAntall} medlem${medlemAntall !== 1 ? "mer" : ""}`);
+        }
+        if (berorteFlyter.length > 0) {
+          deler.push(
+            `den står i dokumentflyt${berorteFlyter.length !== 1 ? "ene" : "en"} ${berorteFlyter.map((n) => `«${n}»`).join(", ")}`,
+          );
+        }
         throw new TRPCError({
           code: "PRECONDITION_FAILED",
-          message: `Kan ikke slette «${faggruppe.name}» fordi den har ${detaljer.join(" og ")} tilknyttet. Flytt eller fjern disse først.`,
+          message: `Kan ikke slette «${faggruppe.name}» fordi ${deler.join(" og ")}. Fjern dem fra faggruppen og flytene først.`,
         });
       }
 

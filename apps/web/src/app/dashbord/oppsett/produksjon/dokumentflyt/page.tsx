@@ -37,6 +37,10 @@ import { useMutasjonsFeil, MutasjonsFeil } from "@/components/MutasjonsFeil";
 import { KnappMedForklaring } from "@/components/KnappMedForklaring";
 import { PersonNavn } from "@/components/PersonNavn";
 import { FjernMedlemModal } from "../_components/FjernMedlemModal";
+import { grupperFlyterPaaFaggruppe, finnBerorteFlyter } from "../_components/flyt-gruppering";
+
+/** Nøkkel i utvidet-settet for gruppen «Uten faggruppe» (F13c 4A). */
+const UTEN_FAGGRUPPE = "__uten_faggruppe__";
 
 /* ------------------------------------------------------------------ */
 /*  Typer                                                              */
@@ -71,6 +75,7 @@ interface DokumentflytMedlem {
   hovedansvarligPersonId?: string | null;
   kanRedigere: boolean;
   steg: number;
+  faggruppe?: { id: string; name: string } | null;
   projectMember?: { id: string; user: { id: string; name: string | null } } | null;
   group?: { id: string; name: string } | null;
   hovedansvarligPerson?: { id: string; user: { id: string; name: string | null } } | null;
@@ -1163,6 +1168,8 @@ export default function KontakterSide() {
   const [redigerFgNavn, setRedigerFgNavn] = useState("");
   const [redigerFgFarge, setRedigerFgFarge] = useState<string | null>(null);
   const [visFargeVelger, setVisFargeVelger] = useState(false);
+  // F13c B: slett faggruppe via modal som viser berørte flyter og ledd.
+  const [slettFaggruppeMaal, setSlettFaggruppeMaal] = useState<{ id: string; name: string } | null>(null);
 
   // Hent data
   const { data: faggrupper, isLoading: e1 } = trpc.faggruppe.hentForProsjekt.useQuery(
@@ -1211,10 +1218,16 @@ export default function KontakterSide() {
     },
   });
 
+  // F13c B: serverens avvisning (medlemmer, flytledd, sjekklister/oppgaver) vises i modalen
+  // via `slettFaggruppeMutation.error` — tidligere ble 412 svelget stille.
   const slettFaggruppeMutation = trpc.faggruppe.slett.useMutation({
     onSuccess: () => {
       utils.faggruppe.hentForProsjekt.invalidate();
       utils.dokumentflyt.hentForProsjekt.invalidate();
+      setSlettFaggruppeMaal(null);
+    },
+    onError: () => {
+      // Feilteksten leses fra mutation.error i modalen; modalen blir stående åpen.
     },
   });
 
@@ -1300,17 +1313,24 @@ export default function KontakterSide() {
     return dokumentflyter as unknown as Dokumentflyt[];
   }, [dokumentflyter]);
 
-  // Bygg oppslag: faggruppeId → dokumentflyter
-  const faggruppeDokumentflyter = useMemo(() => {
-    const map = new Map<string, Dokumentflyt[]>();
-    for (const df of alleDokumentflyter) {
-      if (!df.faggruppeId) continue;
-      const liste = map.get(df.faggruppeId) ?? [];
-      liste.push(df);
-      map.set(df.faggruppeId, liste);
-    }
-    return map;
+  // Bygg oppslag: faggruppeId → dokumentflyter. F13c 4A: flyter uten eier-faggruppe
+  // (bl.a. seedens HMS-avvik og eldre seed-flyter) samles i «Uten faggruppe» i stedet for
+  // å hoppes over — de var tidligere usynlige her (F13b funn A).
+  const { faggruppeDokumentflyter, flyterUtenFaggruppe } = useMemo(() => {
+    const { perFaggruppe, utenFaggruppe } = grupperFlyterPaaFaggruppe(alleDokumentflyter);
+    return { faggruppeDokumentflyter: perFaggruppe, flyterUtenFaggruppe: utenFaggruppe };
   }, [alleDokumentflyter]);
+
+  // F13c B: flytene en faggruppe eier eller står som ledd i, med rollen per ledd.
+  const berorteFlyter = (faggruppeId: string) =>
+    finnBerorteFlyter(alleDokumentflyter, faggruppeId).map(({ df, roller }) => ({
+      df,
+      roller: roller.map((r) => {
+        if (r === "eier") return t("faggrupper.slettLeddEier");
+        const konfig = ROLLE_KONFIG[r];
+        return konfig ? t(konfig.tittelNoekkel) : r;
+      }),
+    }));
 
   const toggleUtvidet = (id: string) => {
     setUtvidetFaggruppe((prev) => {
@@ -1524,9 +1544,8 @@ export default function KontakterSide() {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          if (confirm(t("faggrupper.bekreftSlettFaggruppe"))) {
-                            slettFaggruppeMutation.mutate({ id: ent.id });
-                          }
+                          slettFaggruppeMutation.reset();
+                          setSlettFaggruppeMaal({ id: ent.id, name: ent.name });
                         }}
                         className="rounded p-1 text-gray-300 hover:bg-red-100 hover:text-red-600"
                         title={t("faggrupper.slettFaggruppe")}
@@ -1569,14 +1588,61 @@ export default function KontakterSide() {
             </div>
           );
         })}
+
+        {/* F13c 4A: flyter uten eier-faggruppe — egen gruppe, samme kort (rediger/slett) som andre. */}
+        {flyterUtenFaggruppe.length > 0 && (() => {
+          const erUtvidet = utvidetFaggruppe.has(UTEN_FAGGRUPPE);
+          return (
+            <div>
+              <button
+                onClick={() => toggleUtvidet(UTEN_FAGGRUPPE)}
+                className="flex w-full items-center px-4 py-3 text-left hover:bg-gray-50 transition-colors"
+              >
+                <div className="grid grid-cols-12 gap-2 w-full items-center">
+                  <div className="col-span-4 flex items-center gap-2">
+                    {erUtvidet
+                      ? <ChevronDown className="h-4 w-4 text-gray-400 shrink-0" />
+                      : <ChevronRight className="h-4 w-4 text-gray-400 shrink-0" />
+                    }
+                    <span className="font-medium italic text-gray-600">{t("kontakter.utenFaggruppe")}</span>
+                  </div>
+                  <div className="col-span-5 flex flex-col gap-1">
+                    {flyterUtenFaggruppe.map((df) => (
+                      <div key={df.id} className="flex items-center gap-1.5 text-xs">
+                        <span className="font-medium text-gray-600">{df.name}</span>
+                        {df.bundet && (
+                          <Anchor className="h-3 w-3 shrink-0 text-gray-400" aria-label={t("dokumentflyt.bundet.ankerTooltip")} />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="col-span-3 text-sm text-gray-400">—</div>
+                </div>
+              </button>
+              {erUtvidet && (
+                <div className="border-t border-gray-100 bg-gray-50/50 px-4 py-4 space-y-4">
+                  {flyterUtenFaggruppe.map((df) => (
+                    <DokumentflytKort
+                      key={df.id}
+                      df={df}
+                      prosjektId={prosjektId!}
+                      alleFaggrupper={alleFaggrupper}
+                      alleMedlemmer={alleMedlemmer}
+                      alleGrupper={alleGrupper}
+                      gruppeOppslag={gruppeOppslag}
+                      gruppeMedlemNavn={gruppeMedlemNavn}
+                      alleMaler={alleMaler}
+                      alleDokumentflyter={alleDokumentflyter}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </div>
 
-      {/* HMS-flyt (Ordre 2.1 §4) — auto-provisjonert prosjektflyt (faggruppeId=null),
-          vises som ordinær 2-ledds flyt. Selv-innkapslet: hele seksjonen (inkl. header)
-          rendrer null hvis HMS-modulen ikke er aktiv (ingen HMS-gruppe). */}
-      <HmsFlytKort prosjektId={prosjektId!} />
-
-      {/* Legg til faggruppe */}
+      {/* Legg til faggruppe — F13c 5A: tydelig blå knapp rett under faggruppetabellen, over HMS-flyt */}
       {visNyFaggruppe ? (
         <div className="mt-3 flex items-center gap-2">
           <input
@@ -1622,16 +1688,84 @@ export default function KontakterSide() {
           >
             {t("handling.avbryt")}
           </button>
+          {opprettFaggruppeMutation.error && (
+            <span className="text-sm text-red-600">{opprettFaggruppeMutation.error.message}</span>
+          )}
         </div>
       ) : (
         <button
           onClick={() => setVisNyFaggruppe(true)}
-          className="mt-3 flex items-center gap-1.5 rounded-md border border-dashed border-gray-300 px-3 py-2 text-xs text-gray-400 hover:border-gray-400 hover:text-gray-600"
+          className="mt-3 flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
         >
-          <Plus className="h-3.5 w-3.5" />
+          <Plus className="h-4 w-4" />
           {t("faggrupper.leggTilFaggruppe")}
         </button>
       )}
+
+      {/* HMS-flyt (Ordre 2.1 §4) — auto-provisjonert prosjektflyt (faggruppeId=null),
+          vises som ordinær 2-ledds flyt. Selv-innkapslet: hele seksjonen (inkl. header)
+          rendrer null hvis HMS-modulen ikke er aktiv (ingen HMS-gruppe). */}
+      <HmsFlytKort prosjektId={prosjektId!} />
+
+      {/* F13c B: slett faggruppe — modal med berørte flyter/ledd; sperret når faggruppen står i
+          en flyt eller har kontakter. Serverens avvisning vises her (ikke stille 412). */}
+      <Modal
+        open={!!slettFaggruppeMaal}
+        onClose={() => setSlettFaggruppeMaal(null)}
+        title={t("faggrupper.slettFaggruppe")}
+        className="max-w-md"
+      >
+        {slettFaggruppeMaal && (() => {
+          const flyter = berorteFlyter(slettFaggruppeMaal.id);
+          const antallKontakter = (faggruppeKontakter.get(slettFaggruppeMaal.id) ?? []).length;
+          const sperretForklaring = flyter.length > 0
+            ? t("faggrupper.slettSperretFlyter")
+            : antallKontakter > 0
+              ? t("faggrupper.slettSperretKontakter", { antall: antallKontakter })
+              : "";
+          return (
+            <div className="space-y-4">
+              <p className="text-sm text-gray-700">
+                {t("faggrupper.bekreftSlettFaggruppe", { navn: slettFaggruppeMaal.name })}
+              </p>
+              {flyter.length > 0 && (
+                <div>
+                  <p className="mb-1.5 text-sm font-medium text-gray-800">{t("faggrupper.slettBerorteFlyter")}</p>
+                  <ul className="space-y-1 rounded-lg border border-gray-200 px-3 py-2">
+                    {flyter.map(({ df, roller }) => (
+                      <li key={df.id} className="flex items-center justify-between gap-2 text-sm">
+                        <span className="font-medium text-gray-700">{df.name}</span>
+                        <span className="text-xs text-gray-500">{roller.join(", ")}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {sperretForklaring && <p className="text-sm text-amber-700">{sperretForklaring}</p>}
+              {slettFaggruppeMutation.error && (
+                <p className="text-sm text-red-600">{slettFaggruppeMutation.error.message}</p>
+              )}
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => setSlettFaggruppeMaal(null)}
+                  className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
+                >
+                  {t("handling.avbryt")}
+                </button>
+                <KnappMedForklaring sperret={!!sperretForklaring} forklaring={sperretForklaring}>
+                  <button
+                    disabled={!!sperretForklaring || slettFaggruppeMutation.isPending}
+                    onClick={() => slettFaggruppeMutation.mutate({ id: slettFaggruppeMaal.id })}
+                    className="rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                  >
+                    {t("handling.slett")}
+                  </button>
+                </KnappMedForklaring>
+              </div>
+            </div>
+          );
+        })()}
+      </Modal>
 
     </div>
     </FlytAdminContext.Provider>

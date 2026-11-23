@@ -11,7 +11,8 @@ import type { Prisma } from "@sitedoc/db";
 /**
  * Kontrakten denne låser (2026-09-10):
  *   - et tomt prosjekt får ALLE fire seed-typene (grupper m/domener, moduler+maler,
- *     faggrupper, dokumentflyter) — samme oppsett uansett hvilken opprettelsesvei
+ *     faggrupper, dokumentflyter) — samme oppsett uansett hvilken opprettelsesvei.
+ *     F13c (2026-11-23): dokumentflytene er bare HMS-avvik — ingen faggruppeflyter.
  *   - dobbeltkjøring er idempotent (grupper finnes alt → no-op, ingen duplikater)
  *   - feiler en create midt i seedingen, propageres feilen → den omsluttende
  *     $transaction i mutasjonen ruller tilbake hele opprettelsen
@@ -93,6 +94,25 @@ describe("seedStandardProsjektoppsett", () => {
     const antallMaler = PROSJEKT_MODULER.reduce((n, m) => n + m.maler.length, 0);
     expect(lager.reportTemplate).toHaveLength(antallMaler);
     expect(lager.faggruppeKobling).toHaveLength(1);
+  });
+
+  it("🔴 F13c A/3A: ingen standard faggruppeflyter — bare HMS-avvik, og faggruppene står", async () => {
+    const { tx, lager } = lagTx();
+    await seedStandardProsjektoppsett(tx as unknown as Prisma.TransactionClient, PROSJEKT, BRUKER);
+
+    expect(lager.faggruppe.map((f) => f.name)).toEqual(["Byggherre", "Bygg", "Elektro", "VVS", "Ventilasjon"]);
+    // HMS-avvik er prosjektets HMS-flyt (HMS-dokumenter bindes via HMS-malen) — beholdt, meldt.
+    expect(lager.dokumentflyt.map((f) => f.name)).toEqual(["HMS-avvik"]);
+    expect(lager.dokumentflyt.filter((f) => String(f.name).includes("→"))).toHaveLength(0);
+  });
+
+  it("🔴 F13c 1A: oppretter som ikke er medlem (annet firma) kobles ikke til Byggherre", async () => {
+    const { tx, lager } = lagTx();
+    tx.projectMember.findFirst.mockResolvedValueOnce(null as unknown as { id: string });
+    await seedStandardProsjektoppsett(tx as unknown as Prisma.TransactionClient, PROSJEKT, BRUKER);
+
+    expect(lager.faggruppeKobling).toHaveLength(0);
+    expect(lager.faggruppe).toHaveLength(STANDARD_FAGGRUPPER.length);
   });
 
   it("dobbeltkjøring er idempotent — ingen duplikater", async () => {

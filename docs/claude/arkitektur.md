@@ -386,6 +386,8 @@ To DB-kolonner styrer tilgang: `User.role` (`sitedoc_admin` | `company_admin` | 
 | **Prosjektadmin** | `ProjectMember.role = "admin"` | — | `harProsjektTilgang()` |
 | **Prosjektmedlem** | `ProjectMember.role = "member"` | — | `harProsjektTilgang()` |
 
+**Oppretter av prosjekt (F13c 1A, Kenneth 2026-11-23):** den som oppretter et prosjekt for sitt eget firma (aktiv ansettelse), blir prosjektadmin og Byggherre som før. sitedoc_admin som oppretter for et annet firma, blir ikke medlem; hen setter opp medlemmer, faggrupper og flyter via bypassen (`verifiserAdmin`, `verifiserProsjektmedlem`, `gruppe.hentMinTilgang`/`hentMinFlytInfo`). Prosjektet kan da starte med 0 medlemmer. `services/oppretterMedlemskap.ts`. Siste aktive prosjektadmin kan ikke fjernes med `medlem.fjern`.
+
 **Kapabilitets-felter på ProjectMember** (boolean, eksplisitt opt-in):
 - `kanAttestere` — gir timer-attestering uten prosjekt-admin (vedtatt 2026-05-02). `role="admin"` har implisitt attestering-tilgang. Fra w10b (plan web-timeføring § 4.6, § 4.10) avgjøres retten av `attesteringsOmfang` (liste) og `attesteringsFirmaer` (handlinger) i `apps/api/src/routes/timer/dagsseddel.ts`: aktivt prosjektmedlem med admin eller `kanAttestere`, aktiv ansatt i sedelens firma. `erProsjektLeder` er slettet.
 - `erFirmaansvarlig` — flyt-relatert ansvar (eksisterende felt).
