@@ -4,6 +4,7 @@ import { oppgaveRouter } from "./oppgave";
 import { sjekklisteRouter } from "./sjekkliste";
 import { hmsRouter } from "./hms";
 import { gruppeRouter } from "./gruppe";
+import { bildeRouter } from "./bilde";
 import { seedStandardProsjektoppsett } from "../services/prosjektSeed";
 import { buildTestContext } from "../test-harness/context";
 
@@ -28,6 +29,7 @@ const ctx = (r: Rolle) => buildTestContext(brukere[r]);
 const oppgave = (r: Rolle) => oppgaveRouter.createCaller(ctx(r));
 const sjekkliste = (r: Rolle) => sjekklisteRouter.createCaller(ctx(r));
 const hms = (r: Rolle) => hmsRouter.createCaller(ctx(r));
+const bilde = (r: Rolle) => bildeRouter.createCaller(ctx(r));
 
 async function nyttProsjekt(nummer: string, oppretter: string): Promise<string> {
   const p = await prisma.project.create({ data: { projectNumber: nummer, name: `H3 ${nummer}` } });
@@ -173,6 +175,106 @@ describe("H3: HMS-lista (hms.hentDokumenter)", () => {
     const l = await hms("behandler").hentDokumenter({ projectId: ids.projectId });
     expect(l.avvik.map((d) => d.id)).toContain(ids.avvikId);
     expect(l.ruh.map((d) => d.id)).toContain(ids.ruhId);
+  });
+});
+
+describe("H3-1: andre lesestier — byggTilgangsFilter (Bilder-siden og domene-listene)", () => {
+  const privat = { sjekklisteId: "", byggOppgaveId: "" };
+
+  beforeAll(async () => {
+    // Privat HMS-sjekkliste med hmsSynlighet = null (H3 regner null som privat; slik ligger
+    // 9 seedede maler i sitedoc_o13). Meldt av «melder».
+    const mal = await prisma.reportTemplate.create({
+      data: { projectId: ids.projectId, name: "H3 privat HMS-sjekkliste", category: "sjekkliste", domain: "hms", hmsSynlighet: null },
+      select: { id: true },
+    });
+    privat.sjekklisteId = (await prisma.checklist.create({
+      data: { templateId: mal.id, title: "Privat kontroll", bestillerUserId: brukere.melder, status: "received" },
+      select: { id: true },
+    })).id;
+    const byggMal = await prisma.reportTemplate.findFirstOrThrow({
+      where: { projectId: ids.projectId, domain: "bygg", category: "oppgave" },
+      select: { id: true },
+    });
+    privat.byggOppgaveId = (await prisma.task.create({
+      data: { templateId: byggMal.id, title: "Bygg med bilde", number: 9002, bestillerUserId: brukere.melder, status: "draft" },
+      select: { id: true },
+    })).id;
+    const bildeData = { fileUrl: "/uploads/h3.jpg", fileName: "h3.jpg", fileSize: 1 };
+    await prisma.image.createMany({
+      data: [
+        { ...bildeData, taskId: ids.avvikId },
+        { ...bildeData, taskId: ids.ruhId },
+        { ...bildeData, taskId: privat.byggOppgaveId },
+        { ...bildeData, checklistId: ids.sjaId },
+        { ...bildeData, checklistId: privat.sjekklisteId },
+      ],
+    });
+  });
+
+  afterAll(async () => {
+    await prisma.image.deleteMany({ where: { fileUrl: "/uploads/h3.jpg" } });
+  });
+
+  async function bildeIder(r: Rolle) {
+    const b = await bilde(r).hentForProsjekt({ projectId: ids.projectId });
+    return {
+      oppgaver: b.oppgaveBilder.map((x) => x.taskId),
+      sjekklister: b.sjekklisteBilder.map((x) => x.checklistId),
+    };
+  }
+
+  it.each([
+    ["admin", false],
+    ["padmGruppe", false],
+    ["medlem", false],
+    ["behandler", true],
+    ["melder", true],
+  ] as const)("Bilder-siden: bilde på HMS-avvik, RUH og privat HMS-sjekkliste — %s → %s", async (r, forventet) => {
+    const b = await bildeIder(r);
+    for (const id of [ids.avvikId, ids.ruhId]) expect(b.oppgaver.includes(id)).toBe(forventet);
+    expect(b.sjekklister.includes(privat.sjekklisteId)).toBe(forventet);
+  });
+
+  it("negativkontroll: prosjektadmin ser fortsatt bilde på bygg-oppgave og åpen SJA", async () => {
+    const b = await bildeIder("admin");
+    expect(b.oppgaver).toContain(privat.byggOppgaveId);
+    expect(b.sjekklister).toContain(ids.sjaId);
+  });
+
+  it.each([
+    ["admin", false],
+    ["padmGruppe", false],
+    ["medlem", false],
+    ["behandler", true],
+    ["melder", true],
+  ] as const)("oppgave.hentForProsjekt({ domain: hms }) — %s → %s", async (r, forventet) => {
+    const l = (await oppgave(r).hentForProsjekt({ projectId: ids.projectId, domain: "hms" })).map((d) => d.id);
+    expect(l.includes(ids.avvikId)).toBe(forventet);
+    expect(l.includes(ids.ruhId)).toBe(forventet);
+  });
+
+  it.each([
+    ["admin", false],
+    ["padmGruppe", false],
+    ["behandler", true],
+    ["melder", true],
+  ] as const)("sjekkliste.hentForProsjekt({ domain: hms }) med privat HMS-sjekkliste — %s → %s", async (r, forventet) => {
+    const l = (await sjekkliste(r).hentForProsjekt({ projectId: ids.projectId, domain: "hms" })).map((d) => d.id);
+    expect(l.includes(privat.sjekklisteId)).toBe(forventet);
+  });
+
+  it("negativkontroll: prosjektadmin ser fortsatt åpen SJA og bygg-oppgaven i listene", async () => {
+    const sja = (await sjekkliste("admin").hentForProsjekt({ projectId: ids.projectId, domain: "hms" })).map((d) => d.id);
+    expect(sja).toContain(ids.sjaId);
+    const bygg = (await oppgave("admin").hentForProsjekt({ projectId: ids.projectId })).map((d) => d.id);
+    expect(bygg).toContain(privat.byggOppgaveId);
+  });
+
+  it("H3-2: oppgave.hentForSjekkliste på privat HMS-sjekkliste — admin FORBIDDEN, behandler og melder OK", async () => {
+    await expect(oppgave("admin").hentForSjekkliste({ checklistId: privat.sjekklisteId })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(oppgave("behandler").hentForSjekkliste({ checklistId: privat.sjekklisteId })).resolves.toEqual([]);
+    await expect(oppgave("melder").hentForSjekkliste({ checklistId: privat.sjekklisteId })).resolves.toEqual([]);
   });
 });
 

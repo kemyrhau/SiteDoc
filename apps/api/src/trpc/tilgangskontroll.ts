@@ -1406,6 +1406,22 @@ export async function hentBrukersOpprettFlytMedlemskap(
   return [...new Set(medlemskap.map((m) => m.dokumentflytId))];
 }
 
+/**
+ * Prisma-fragment: dokumentet er IKKE en privat HMS-sak. Privat = malens domain "hms" og
+ * hmsSynlighet ikke "apen" — også null (H3; Prisma `{ not: "apen" }` tar ikke med null, derfor
+ * eksplisitt OR). Dokument uten mal (oppgave) er ikke HMS. Brukes i `byggTilgangsFilter` (H3-1).
+ */
+export const IKKE_PRIVAT_HMS: Record<string, unknown> = {
+  NOT: {
+    template: {
+      is: {
+        domain: "hms",
+        OR: [{ hmsSynlighet: null }, { hmsSynlighet: { not: "apen" } }],
+      },
+    },
+  },
+};
+
 export async function byggTilgangsFilter(
   userId: string,
   projectId: string,
@@ -1441,11 +1457,25 @@ export async function byggTilgangsFilter(
     });
   }
 
-  // Prosjektadmin ser alt
-  if (medlem.role === "admin") return null;
+  // H3-1 (Kenneth HF2 ja, 2026-11-23; hms-domenemodell.md § HMS-flyt regel 3): private HMS-saker
+  // (malens domain = "hms" og hmsSynlighet ikke "apen", også null) leses bare av HMS-behandleren
+  // (`erHmsAdmin`), ikke av prosjektadmin i kraft av rollen og ikke via en gruppe med «hms» i
+  // `domains`. Lista speiler detaljgaten (`avgjorDokumentTilgang`): prosjektadmin ser alt som ikke
+  // er privat HMS; private HMS-saker nås bare gjennom de samme grenene som for et vanlig medlem.
+  const trengerBehandlerSjekk =
+    medlem.role === "admin" ||
+    medlem.groupMemberships.some((gm) => (gm.group.domains as string[]).includes("hms"));
+  // `null` = ikke slått opp ennå (flyt-grenen under slår opp ved behov).
+  const erHmsBehandler: boolean | null = trengerBehandlerSjekk ? await erHmsAdmin(userId, projectId) : null;
+
+  // Prosjektadmin som er HMS-behandler ser alt (som før H3).
+  if (medlem.role === "admin" && erHmsBehandler) return null;
 
   // Samle alle OR-betingelser
   const orBetingelser: Record<string, unknown>[] = [];
+
+  // Prosjektadmin (ikke behandler): alt som ikke er en privat HMS-sak.
+  if (medlem.role === "admin") orBetingelser.push(IKKE_PRIVAT_HMS);
 
   // Firmaansvarlig: ser dokumenter der firmamedlemmer er direkte involvert
   if (medlem.erFirmaansvarlig) {
@@ -1497,16 +1527,21 @@ export async function byggTilgangsFilter(
     const gruppeDomener = gm.group.domains as string[];
     if (gruppeDomener.length === 0) continue;
 
+    // H3-1: «hms» i en gruppes domener gir ikke private HMS-saker (bare HMS-behandleren).
+    const utenPrivatHms = (betingelse: Record<string, unknown>, gjelderHms: boolean) =>
+      gjelderHms && !erHmsBehandler ? { AND: [betingelse, IKKE_PRIVAT_HMS] } : betingelse;
+
     if (gm.group.groupFaggrupper.length === 0) {
       // Tverrgående tilgang: alle dokumenter med matchende domain
-      orBetingelser.push({
-        template: { domain: { in: gruppeDomener } },
-      });
+      orBetingelser.push(utenPrivatHms(
+        { template: { domain: { in: gruppeDomener } } },
+        gruppeDomener.includes("hms"),
+      ));
     } else {
       // Faggruppe-begrenset: kun dokumenter med matchende domain OG faggruppe
       const gruppeFaggruppeIder = gm.group.groupFaggrupper.map((ge) => ge.faggruppeId);
       for (const domain of gruppeDomener) {
-        orBetingelser.push({
+        orBetingelser.push(utenPrivatHms({
           AND: [
             { template: { domain } },
             {
@@ -1516,7 +1551,7 @@ export async function byggTilgangsFilter(
               ],
             },
           ],
-        });
+        }, domain === "hms"));
       }
     }
   }
@@ -1530,7 +1565,11 @@ export async function byggTilgangsFilter(
     medlem.groupMemberships.map((gm) => gm.groupId),
   );
   if (flytIder.length > 0) {
-    orBetingelser.push({ dokumentflytId: { in: flytIder } });
+    // F1-A i detaljgaten: flyt-medlemskap gir ikke private HMS-saker. Lista følger (H3-1),
+    // så en tittel ikke vises for noen som ikke kan åpne saken. HMS-behandleren ser alt.
+    const behandler = erHmsBehandler ?? (await erHmsAdmin(userId, projectId));
+    const flytBetingelse = { dokumentflytId: { in: flytIder } };
+    orBetingelser.push(behandler ? flytBetingelse : { AND: [flytBetingelse, IKKE_PRIVAT_HMS] });
   }
 
   if (orBetingelser.length === 0) {
