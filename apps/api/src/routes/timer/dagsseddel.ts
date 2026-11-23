@@ -36,8 +36,13 @@ import {
   validerOppgittKortId,
 } from "../../services/timer/kortId";
 import {
+  byggHistorikkPost,
+  byggSlettePost,
+  lesVarerForSpor,
+  skrivSlettespor,
+} from "../../services/timer/slettespor";
+import {
   HISTORIKK_HENDELSE_GJENAAPNET,
-  HISTORIKK_HENDELSE_SLETTET,
   hentKortStedNavn,
   hentRettedeFelter,
   hentUtstyrOppslag,
@@ -1008,6 +1013,11 @@ async function flyttJobbTilSted(
     // O12 pkt 18: reisen flyttes med jobben (ny tid der kjøretiden finnes) eller slettes —
     // aldri stille `kortId: null`.
     if (reiseValg?.valg === "slett") {
+      // SL1: reisen som slettes på en returnert dag, til historikken først.
+      if (sheet.status === "returned") {
+        const rader = await tx.sheetTimer.findMany({ where: ider(reise) });
+        await skrivSlettespor(tx, rader.map((rad) => ({ radType: "timer" as const, rad })), ctx.userId);
+      }
       await tx.sheetTimer.deleteMany({ where: ider(reise) });
     } else if (reiseValg?.valg === "flytt") {
       await tx.sheetTimer.updateMany({ where: ider(reise), data });
@@ -2498,44 +2508,9 @@ function berikMaskinRad<R extends MaskinRadForBerikelse>(
 const RAD_REKKEFOLGE = [{ fraTid: "asc" as const }, { createdAt: "asc" as const }];
 
 
-/**
- * T7-2b-oppfølger (2026-07-13): bygg en SheetRadHistorikk-post fra en
- * hovedtabell-rad som FLYTTES ut ved firma-admin rediger/splitt. snapshot =
- * full rad som JSON (Decimal→streng, Date→ISO via JSON-serialisering) —
- * historikk leses aldri for beregning, kun revisjonsspor. Skrives i SAMME
- * transaksjon som DELETE av originalen (MOVE, aldri hard-delete). Bevarer
- * lenke-kjeden: ny rad.parentRadId → historikk.originalRadId.
- */
-function byggHistorikkPost(
-  radType: "timer" | "tillegg" | "maskin",
-  rad: { id: string; sheetId: string; parentRadId: string | null },
-  erstattetAvUserId: string | null | undefined,
-  erstattetVed: Date,
-): Prisma.SheetRadHistorikkCreateManyInput {
-  return {
-    radType,
-    originalRadId: rad.id,
-    sheetId: rad.sheetId,
-    parentRadId: rad.parentRadId,
-    snapshot: JSON.parse(JSON.stringify(rad)) as Prisma.InputJsonValue,
-    erstattetAvUserId,
-    erstattetVed,
-  };
-}
-
-/**
- * R1 b3 (Kenneth 2026-11-23): raden arbeideren sletter på returnert dag, til `sheet_rad_historikk`
- * med markøren `hendelse: "slettet"`. Sletting er fortsatt lov; leder får sporet.
- */
-function byggSlettePost(
-  radType: "timer" | "tillegg" | "maskin",
-  rad: { id: string; sheetId: string; parentRadId: string | null },
-  userId: string,
-  ved: Date,
-): Prisma.SheetRadHistorikkCreateManyInput {
-  const post = byggHistorikkPost(radType, rad, userId, ved);
-  return { ...post, snapshot: { ...(post.snapshot as Prisma.JsonObject), hendelse: HISTORIKK_HENDELSE_SLETTET } };
-}
+// `byggHistorikkPost` (T7-2b-oppfølger: snapshot av raden som flyttes ut ved retting, i SAMME
+// transaksjon som endringen) og `byggSlettePost` (R1 b3 / SL1: markøren `hendelse: "slettet"`)
+// bor i services/timer/slettespor.ts, delt med vare-ruten.
 
 // ---------------------------------------------------------------------------
 //  Ordre d2a — retting på stedet (redigerSedelRader valg (a), rettRadFelt)
@@ -3800,17 +3775,15 @@ async function utforRedigerSedelRader(
       // PK6: hodet pauseMin = Σ rad (derivert). pauseFra/pauseTil er vindu.
       data: { ...(pauseUpdate ?? {}), pauseMin: redigerSumPause, updatedAt: new Date() },
     });
-    // Historikk for rader som endres eller slettes (snapshot før endringen).
+    // Historikk for rader som endres eller slettes (snapshot før endringen). SL1 (SV5): en
+    // slettet rad får markøren `hendelse: "slettet"`; en retting står uten markør som før.
     const poster = [
-      ...[...plan.timer.oppdater.map((o) => o.foer), ...plan.timer.slett].map((r) =>
-        byggHistorikkPost("timer", r, ctx.userId, naa),
-      ),
-      ...[...plan.tillegg.oppdater.map((o) => o.foer), ...plan.tillegg.slett].map((r) =>
-        byggHistorikkPost("tillegg", r, ctx.userId, naa),
-      ),
-      ...[...plan.maskin.oppdater.map((o) => o.foer), ...plan.maskin.slett].map((r) =>
-        byggHistorikkPost("maskin", r, ctx.userId, naa),
-      ),
+      ...plan.timer.oppdater.map((o) => byggHistorikkPost("timer", o.foer, ctx.userId, naa)),
+      ...plan.timer.slett.map((r) => byggSlettePost("timer", r, ctx.userId, naa)),
+      ...plan.tillegg.oppdater.map((o) => byggHistorikkPost("tillegg", o.foer, ctx.userId, naa)),
+      ...plan.tillegg.slett.map((r) => byggSlettePost("tillegg", r, ctx.userId, naa)),
+      ...plan.maskin.oppdater.map((o) => byggHistorikkPost("maskin", o.foer, ctx.userId, naa)),
+      ...plan.maskin.slett.map((r) => byggSlettePost("maskin", r, ctx.userId, naa)),
     ];
     if (poster.length > 0) await tx.sheetRadHistorikk.createMany({ data: poster });
     // Maskin som pekte på en timerad som slettes (bare døgn-maskiner slipper
@@ -4148,22 +4121,29 @@ export async function slettKortMedAlt(
     const kort = await hentKortInnhold(tx, sheet.id, kortId);
     krevKortSlettbar(sheet, kort);
 
-    // R1 b3: returnert dag — timer, maskin og tillegg til historikken før de slettes. Varer og
-    // utlegg har ingen `rad_type` i historikken (krever skjemaendring, ikke gjort); de logges med id.
+    // R1 b3 / SL1: returnert dag — alle linjene til historikken før de slettes, også utlegg og
+    // varer med innholdet (S2 ja). Varene leses med rå SQL på samme transaksjon (annet skjema,
+    // samme database), så sporet og slettingen står eller faller sammen.
     const sporet = sheet.status === "returned" && !!aktorUserId;
     if (sporet) {
-      const ved = new Date();
-      const [t, m, ti] = await Promise.all([
+      const [t, m, ti, u, v] = await Promise.all([
         tx.sheetTimer.findMany({ where: { id: { in: kort.timer.map((r) => r.id) } } }),
         tx.sheetMachine.findMany({ where: { id: { in: kort.maskiner.map((r) => r.id) } } }),
         tx.sheetTillegg.findMany({ where: { id: { in: kort.tillegg.map((r) => r.id) } } }),
+        tx.sheetUtlegg.findMany({ where: { id: { in: kort.utlegg.map((r) => r.id) } } }),
+        lesVarerForSpor(tx, kort.varer.map((r) => r.id)),
       ]);
-      const poster = [
-        ...t.map((r) => byggSlettePost("timer", r, aktorUserId, ved)),
-        ...m.map((r) => byggSlettePost("maskin", r, aktorUserId, ved)),
-        ...ti.map((r) => byggSlettePost("tillegg", r, aktorUserId, ved)),
-      ];
-      if (poster.length > 0) await tx.sheetRadHistorikk.createMany({ data: poster });
+      await skrivSlettespor(
+        tx,
+        [
+          ...t.map((rad) => ({ radType: "timer" as const, rad })),
+          ...m.map((rad) => ({ radType: "maskin" as const, rad })),
+          ...ti.map((rad) => ({ radType: "tillegg" as const, rad })),
+          ...u.map((rad) => ({ radType: "utlegg" as const, rad })),
+          ...v.map((rad) => ({ radType: "vare" as const, rad })),
+        ],
+        aktorUserId,
+      );
     }
 
     const tilleggIder = kort.tillegg.map((r) => r.id);
@@ -5139,8 +5119,16 @@ export const dagsseddelRouter = router({
         );
       }
       await ctx.prismaTimer.$transaction(async (tx) => {
-        for (const r of [{ id: rad.id, sheetId: rad.sheetId }, { id: partner.id, sheetId: partner.sheetId }]) {
+        for (const r of [
+          { id: rad.id, sheetId: rad.sheetId, status: sheet.status },
+          { id: partner.id, sheetId: partner.sheetId, status: partner.status },
+        ]) {
           const maskinFoer = await lesMaskinJobbTilstand(tx, ctx.prismaMaskin, r.sheetId);
+          // SL1: delen på en returnert sedel til historikken før den slettes (hver sedel for seg).
+          if (r.status === "returned") {
+            const hel = await tx.sheetTimer.findUnique({ where: { id: r.id } });
+            if (hel) await skrivSlettespor(tx, [{ radType: "timer", rad: hel }], ctx.userId);
+          }
           // Reise bærer ingen maskiner; koblinger nulles som i fjernTimerRad.
           await tx.sheetMachine.updateMany({ where: { sheetId: r.sheetId, sheetTimerId: r.id }, data: { sheetTimerId: null } });
           await tx.sheetTimer.delete({ where: { id: r.id } });
@@ -5811,6 +5799,10 @@ export const dagsseddelRouter = router({
             where: { sheetId: input.sheetId, sheetTimerId: rad2Foer.id },
             data: { sheetTimerId: rad1.id },
           });
+          // SL1: linje 2 som går på en returnert dag, til historikken først.
+          if (sheet.status === "returned") {
+            await skrivSlettespor(tx, [{ radType: "timer", rad: rad2Foer }], ctx.userId);
+          }
           await tx.sheetTimer.delete({ where: { id: rad2Foer.id } });
         }
         await synkroniserHodePause(tx, input.sheetId);
@@ -6333,6 +6325,13 @@ export const dagsseddelRouter = router({
         // arbeideren aldri kan slette rader på en annen sedel. Etter dette kjører
         // sluttsettets finnTidsromKonflikt på det som faktisk står igjen.
         if (input.slettinger.length > 0) {
+          // SL1: valgte slettinger på en returnert dag til historikken først.
+          if (sheet.status === "returned") {
+            const rader = await tx.sheetTimer.findMany({
+              where: { sheetId: input.sheetId, id: { in: input.slettinger } },
+            });
+            await skrivSlettespor(tx, rader.map((rad) => ({ radType: "timer" as const, rad })), ctx.userId);
+          }
           await tx.sheetTimer.deleteMany({
             where: { sheetId: input.sheetId, id: { in: input.slettinger } },
           });
@@ -6751,10 +6750,14 @@ export const dagsseddelRouter = router({
         });
       }
 
-      // F4-1d: rad-write + touchSedel atomisk.
+      // F4-1d: rad-write + touchSedel atomisk. SL1: på returnert dag skrives sporet i samme
+      // transaksjon.
       const [slettet] = await ctx.prismaTimer.$transaction([
         ctx.prismaTimer.sheetTillegg.delete({ where: { id: input.id } }),
         touchSedel(ctx.prismaTimer, rad.sheetId),
+        ...(sheet.status === "returned"
+          ? [ctx.prismaTimer.sheetRadHistorikk.createMany({ data: [byggSlettePost("tillegg", rad, ctx.userId, new Date())] })]
+          : []),
       ]);
       return slettet;
     }),
@@ -7082,9 +7085,13 @@ export const dagsseddelRouter = router({
         });
       }
 
+      // SL1: på returnert dag skrives sporet (med innholdet, S2 ja) i samme transaksjon.
       const [slettet] = await ctx.prismaTimer.$transaction([
         ctx.prismaTimer.sheetUtlegg.delete({ where: { id: input.id } }),
         touchSedel(ctx.prismaTimer, rad.sheetId),
+        ...(sheet.status === "returned"
+          ? [ctx.prismaTimer.sheetRadHistorikk.createMany({ data: [byggSlettePost("utlegg", rad, ctx.userId, new Date())] })]
+          : []),
       ]);
       return slettet;
     }),
@@ -11062,7 +11069,8 @@ export const dagsseddelRouter = router({
             // matcher da ikke → count 0 → conflict (rull tilbake, meld server).
             const eksisterendeITx = await tx.dailySheet.findUnique({
               where: { clientUuid: lokal.clientUuid },
-              select: { id: true },
+              // SL1: statusen FØR synken avgjør om slettingene under skal spores.
+              select: { id: true, status: true },
             });
             // w9: tilstanden før synken (ny sedel: tom).
             const maskinFoer: MaskinJobbTilstand = eksisterendeITx
@@ -11371,6 +11379,28 @@ export const dagsseddelRouter = router({
               const slettTimer = slettTimerIder;
               const slettTillegg = lokal.slettedeIder.tillegg;
               const slettMaskin = lokal.slettedeIder.maskiner;
+              const slettUtlegg = lokal.slettedeIder.utlegg;
+              // SL1: appens slettinger på en returnert dag til historikken først — bare rader som
+              // faktisk står på sedelen nå, så samme batch sendt to ganger gir én post.
+              if (eksisterendeITx?.status === "returned") {
+                const hvor = (ider: string[]) => ({ sheetId: sedel.id, id: { in: ider } });
+                const [t, ti, m, u] = await Promise.all([
+                  slettTimer.length > 0 ? tx.sheetTimer.findMany({ where: hvor(slettTimer) }) : [],
+                  slettTillegg.length > 0 ? tx.sheetTillegg.findMany({ where: hvor(slettTillegg) }) : [],
+                  slettMaskin.length > 0 ? tx.sheetMachine.findMany({ where: hvor(slettMaskin) }) : [],
+                  slettUtlegg.length > 0 ? tx.sheetUtlegg.findMany({ where: hvor(slettUtlegg) }) : [],
+                ]);
+                await skrivSlettespor(
+                  tx,
+                  [
+                    ...t.map((rad) => ({ radType: "timer" as const, rad })),
+                    ...ti.map((rad) => ({ radType: "tillegg" as const, rad })),
+                    ...m.map((rad) => ({ radType: "maskin" as const, rad })),
+                    ...u.map((rad) => ({ radType: "utlegg" as const, rad })),
+                  ],
+                  ctx.userId,
+                );
+              }
               if (slettTimer.length > 0) {
                 await tx.sheetTimer.deleteMany({
                   where: { sheetId: sedel.id, id: { in: slettTimer } },
@@ -11387,7 +11417,6 @@ export const dagsseddelRouter = router({
                 });
               }
               // U4: propagér utlegg-slettinger (default [] for eldre klienter).
-              const slettUtlegg = lokal.slettedeIder.utlegg;
               if (slettUtlegg.length > 0) {
                 await tx.sheetUtlegg.deleteMany({
                   where: { sheetId: sedel.id, id: { in: slettUtlegg } },
@@ -12021,10 +12050,14 @@ export const dagsseddelRouter = router({
           });
         }
 
-        // F4-1d: rad-write + touchSedel atomisk.
+        // F4-1d: rad-write + touchSedel atomisk. SL1: på returnert dag skrives sporet i samme
+        // transaksjon.
         const [slettet] = await ctx.prismaTimer.$transaction([
           ctx.prismaTimer.sheetMachine.delete({ where: { id: input.id } }),
           touchSedel(ctx.prismaTimer, rad.sheetId),
+          ...(sheet.status === "returned"
+            ? [ctx.prismaTimer.sheetRadHistorikk.createMany({ data: [byggSlettePost("maskin", rad, ctx.userId, new Date())] })]
+            : []),
         ]);
         return slettet;
       }),
