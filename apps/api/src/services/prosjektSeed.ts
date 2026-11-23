@@ -3,7 +3,7 @@
  *
  * Ett nytt prosjekt skal ha samme grunnoppsett uansett hvilken dør det kom inn
  * gjennom: standardgrupper (m/domener), prosjektmoduler + maler, standard
- * faggrupper og standard dokumentflyter. Malene er de samme konstantene fra
+ * eksempel-faggrupper og HMS-flyten (F13c/F13c-2: ingen faggruppeflyter). Malene er de samme konstantene fra
  * @sitedoc/shared som `opprettTestprosjekt` alltid har brukt.
  *
  * Bakgrunn: seedingen lå tidligere som en klient-side lazy-seed på Brukere-siden
@@ -23,8 +23,8 @@ import {
   STANDARD_PROJECT_GROUPS,
   PROSJEKT_MODULER,
   STANDARD_FAGGRUPPER,
-  STANDARD_DOKUMENTFLYTER,
 } from "@sitedoc/shared";
+import { seedHmsModulOmradet } from "./hmsFlyt";
 
 type TxClient = Prisma.TransactionClient;
 
@@ -118,52 +118,9 @@ export async function seedStandardProsjektoppsett(
     });
   }
 
-  // Hent opprettede maler (for å koble til dokumentflyter via prefix)
-  const opprettedeMaler = await tx.reportTemplate.findMany({
-    where: { projectId },
-    select: { id: true, prefix: true },
-  });
-
-  // Standard dokumentflyter. F13c (2026-11-23): kun HMS-avvik — ingen faggruppeflyter
-  // ved nytt prosjekt (se STANDARD_DOKUMENTFLYTER i @sitedoc/shared).
-  for (const flytDef of STANDARD_DOKUMENTFLYTER) {
-    const flyt = await tx.dokumentflyt.create({
-      data: { projectId, name: flytDef.navn },
-    });
-
-    for (const idx of flytDef.oppretter) {
-      if (idx < faggruppeIder.length) {
-        await tx.dokumentflytMedlem.create({
-          data: {
-            dokumentflytId: flyt.id,
-            faggruppeId: faggruppeIder[idx],
-            rolle: "bestiller",
-            steg: 1,
-          },
-        });
-      }
-    }
-
-    for (const idx of flytDef.svarer) {
-      if (idx < faggruppeIder.length) {
-        await tx.dokumentflytMedlem.create({
-          data: {
-            dokumentflytId: flyt.id,
-            faggruppeId: faggruppeIder[idx],
-            rolle: "utforer",
-            steg: 1,
-          },
-        });
-      }
-    }
-
-    for (const prefix of flytDef.malPrefixer) {
-      const mal = opprettedeMaler.find((m) => m.prefix === prefix);
-      if (mal) {
-        await tx.dokumentflytMal.create({
-          data: { dokumentflytId: flyt.id, templateId: mal.id },
-        });
-      }
-    }
-  }
+  // Dokumentflyter. F13c (Kenneth 2026-11-23, A/3A): ingen faggruppeflyter ved nytt prosjekt.
+  // F13c-2 (F1): HMS-flyten er en frittstående flyt uten faggruppe-ledd — melder er prosjektets
+  // kontaktliste (null-ledd), behandler er HMS-gruppa. Samme funksjon som `modul.aktiver`
+  // bruker, så alle veier gir samme HMS-flyt (services/hmsFlyt.ts).
+  await seedHmsModulOmradet(tx, projectId);
 }

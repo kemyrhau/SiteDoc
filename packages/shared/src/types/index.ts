@@ -714,38 +714,9 @@ export interface StandardFaggruppe {
 
 export const STANDARD_FAGGRUPPER: StandardFaggruppe[] = [
   { navn: "Byggherre", bransje: "Byggherre", farge: "blue", faggruppeNummer: "K00" },
-  { navn: "Bygg", bransje: "Bygg", farge: "emerald", faggruppeNummer: "K01" },
-  { navn: "Elektro", bransje: "Elektro", farge: "amber", faggruppeNummer: "K02" },
-  { navn: "VVS", bransje: "VVS", farge: "purple", faggruppeNummer: "K03" },
-  { navn: "Ventilasjon", bransje: "Ventilasjon", farge: "teal", faggruppeNummer: "K04" },
-];
-
-// Standard dokumentflyter for malprosjekt
-// Refererer til faggrupper og maler via indeks (løst opp under opprettelse)
-export interface StandardDokumentflyt {
-  navn: string;
-  /** Indekser inn i STANDARD_FAGGRUPPER for bestiller-rolle */
-  oppretter: number[];
-  /** Indekser inn i STANDARD_FAGGRUPPER for utfører-rolle */
-  svarer: number[];
-  /** Mal-slugger fra PROSJEKT_MODULER som skal tilknyttes */
-  malPrefixer: string[];
-}
-
-// F13c (Kenneth 2026-11-23, beslutning A/3A): «vi skal ikke ha noen standardflyter ved
-// oppretting av nytt prosjekt». De åtte faggruppeflytene (Byggherre ↔ Bygg/Elektro/VVS/
-// Ventilasjon) er fjernet. HMS-avvik står igjen: den er prosjektets HMS-flyt — HMS-
-// dokumenter bindes til flyten via HMS-malen (oppgave.ts/sjekkliste.ts F1b), og
-// `seedHmsModulOmradet` (modul.ts) kjører bare ved modul.aktiver, ikke ved opprettelse.
-// Uten den ville nye prosjekters HMS-dokumenter blitt flyt-løse. Egen sak hos Kenneth.
-export const STANDARD_DOKUMENTFLYTER: StandardDokumentflyt[] = [
-  // --- HMS-avvik: alle kan opprette, byggherre mottar ---
-  {
-    navn: "HMS-avvik",
-    oppretter: [0, 1, 2, 3, 4], // Alle faggrupper
-    svarer: [0],                  // Byggherre
-    malPrefixer: ["HMS"],
-  },
+  { navn: "Elektro", bransje: "Elektro", farge: "amber", faggruppeNummer: "K01" },
+  { navn: "VVS", bransje: "VVS", farge: "purple", faggruppeNummer: "K02" },
+  { navn: "Ventilasjon", bransje: "Ventilasjon", farge: "teal", faggruppeNummer: "K03" },
 ];
 
 // Betingelser i malbygger

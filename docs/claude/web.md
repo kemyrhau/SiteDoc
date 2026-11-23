@@ -149,7 +149,7 @@ To personer kan ha samme navn. Personnavnene i dokumentflyt-oppsettet bruker der
 
 [page.tsx](../../apps/web/src/app/dashbord/oppsett/produksjon/dokumentflyt/page.tsx), hjelpere i [flyt-gruppering.ts](../../apps/web/src/app/dashbord/oppsett/produksjon/_components/flyt-gruppering.ts):
 
-- **«Uten faggruppe» (4A):** flyter med `faggruppeId = null` vises som en egen rad nederst i faggruppetabellen og utvides til de samme `DokumentflytKort`-ene (rediger/slett) som andre flyter. Før ble de hoppet over. HMS-flyter uten eier vises også her, i tillegg til HMS-flyt-kortet.
+- **«Uten faggruppe» (4A):** flyter med `faggruppeId = null` vises som en egen rad nederst i faggruppetabellen og utvides til de samme `DokumentflytKort`-ene (rediger/slett) som andre flyter. Før ble de hoppet over. **F13c-2 (F1):** HMS-flyter (eierløse, med en mal i domenet `hms`, `erHmsFlyt`) vises bare i HMS-flyt-kortet, ikke her. `dokumentflyt.hentForProsjekt` sender malens `domain` for dette.
 - **Slett faggruppe (B):** søppelbøtta åpner en modal som lister flytene faggruppen eier eller står som ledd i, med rollen per flyt (`finnBerorteFlyter`). Står den i en flyt eller har kontakter, er «Slett» sperret med forklaring. Serverens avvisning vises i modalen (før: stille 412).
 - **«Legg til faggruppe» (5A):** blå knapp rett under tabellen, over HMS-flyt. Feil fra `faggruppe.opprett` vises ved feltet.
 - **Bare prosjektadmin endrer faggrupper (E):** rediger/slett-knappene på faggrupperadene og «Legg til faggruppe» vises bare når `gruppe.hentMinTilgang.erAdmin`. Samme på [faggrupper/page.tsx](../../apps/web/src/app/dashbord/[prosjektId]/faggrupper/page.tsx). Vanlige medlemmer ser faggruppene uten knapper; serveren avviser uansett.

@@ -76,7 +76,8 @@ const dokumentflytInclude = {
     orderBy: { steg: "asc" as const },
   },
   maler: {
-    include: { template: { select: { id: true, name: true, category: true } } },
+    // domain: web skiller HMS-flyten ut fra «Uten faggruppe» (F13c-2, flyt-gruppering.ts).
+    include: { template: { select: { id: true, name: true, category: true, domain: true } } },
   },
 } as const;
 

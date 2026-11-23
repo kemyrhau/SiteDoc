@@ -27,16 +27,28 @@ const flyter = [
     ],
   },
   { id: "f3", name: "Byggherre → Elektro", faggruppeId: null, medlemmer: [{ rolle: "utforer", faggruppe: { id: ELEKTRO } }] },
-  { id: "f4", name: "HMS", faggruppeId: null, medlemmer: [{ rolle: "bestiller", faggruppe: null }] },
+  {
+    id: "f4",
+    name: "HMS",
+    faggruppeId: null,
+    medlemmer: [{ rolle: "bestiller", faggruppe: null }],
+    maler: [{ template: { domain: "hms" } }],
+  },
 ];
 
 describe("F13c 4A — «Uten faggruppe»", () => {
   it("🔴 eierløse flyter havner i utenFaggruppe — ingen hoppes over", () => {
-    const { perFaggruppe, utenFaggruppe } = grupperFlyterPaaFaggruppe(flyter);
-    expect(utenFaggruppe.map((f) => f.id)).toEqual(["f2", "f3", "f4"]);
+    const { perFaggruppe, utenFaggruppe, hmsFlyter } = grupperFlyterPaaFaggruppe(flyter);
+    expect(utenFaggruppe.map((f) => f.id)).toEqual(["f2", "f3"]);
     expect(perFaggruppe.get(BYGGHERRE)?.map((f) => f.id)).toEqual(["f1"]);
-    const totalt = utenFaggruppe.length + [...perFaggruppe.values()].reduce((n, l) => n + l.length, 0);
+    const totalt = utenFaggruppe.length + hmsFlyter.length + [...perFaggruppe.values()].reduce((n, l) => n + l.length, 0);
     expect(totalt).toBe(flyter.length);
+  });
+
+  it("🔴 F13c-2: HMS-flyten (eierløs, HMS-mal) vises ikke under «Uten faggruppe»", () => {
+    const { utenFaggruppe, hmsFlyter } = grupperFlyterPaaFaggruppe(flyter);
+    expect(hmsFlyter.map((f) => f.id)).toEqual(["f4"]);
+    expect(utenFaggruppe.some((f) => f.id === "f4")).toBe(false);
   });
 });
 

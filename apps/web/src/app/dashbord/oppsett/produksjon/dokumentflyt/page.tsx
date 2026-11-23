@@ -96,7 +96,7 @@ interface Dokumentflyt {
   faggruppeId: string | null;
   roller: RolleKonfig[];
   medlemmer: DokumentflytMedlem[];
-  maler: Array<{ template: { id: string; name: string; category: string } }>;
+  maler: Array<{ template: { id: string; name: string; category: string; domain?: string | null } }>;
 }
 
 /* ------------------------------------------------------------------ */
@@ -1314,8 +1314,8 @@ export default function KontakterSide() {
   }, [dokumentflyter]);
 
   // Bygg oppslag: faggruppeId → dokumentflyter. F13c 4A: flyter uten eier-faggruppe
-  // (bl.a. seedens HMS-avvik og eldre seed-flyter) samles i «Uten faggruppe» i stedet for
-  // å hoppes over — de var tidligere usynlige her (F13b funn A).
+  // (eldre seed-flyter) samles i «Uten faggruppe» i stedet for å hoppes over — de var
+  // tidligere usynlige her (F13b funn A). F13c-2: HMS-flyter vises bare i HMS-flyt-kortet.
   const { faggruppeDokumentflyter, flyterUtenFaggruppe } = useMemo(() => {
     const { perFaggruppe, utenFaggruppe } = grupperFlyterPaaFaggruppe(alleDokumentflyter);
     return { faggruppeDokumentflyter: perFaggruppe, flyterUtenFaggruppe: utenFaggruppe };
