@@ -381,6 +381,20 @@ Hver overgang lagres som en rad i `document_transfers` med snapshot-felter som f
 
 Sentrale modell-felter som styrer flyt-mekanikken. Full feltliste i [arkitektur.md](arkitektur.md).
 
+### `Dokumentflyt.faggruppeId` — eier-faggruppe er påkrevd (FG1, Kenneth 2026-11-23)
+
+> «det som ikke visuelt er med i UI -> de skal ikke opprettes i en db» (Kenneth 2026-11-23).
+
+En dokumentflyt står alltid under en faggruppe på Dokumentflyt-siden. En flyt uten eier-faggruppe vises ingen steder og skal derfor ikke finnes — med ett unntak: **HMS-flyten**, som er eierløs med egne regler ([hms-domenemodell.md](hms-domenemodell.md)) og bare opprettes internt av `seedHmsModulOmradet` (`apps/api/src/services/hmsFlyt.ts`).
+
+- **Skjema:** `createDokumentflytSchema.faggruppeId` er påkrevd (`packages/shared/src/validation/index.ts`). `updateDokumentflytSchema` har ikke feltet, så eier-faggruppen kan ikke nulles i ettertid.
+- **Server:** `dokumentflyt.opprett` nekter (BAD_REQUEST) en faggruppe som ikke hører til prosjektet (`apps/api/src/routes/dokumentflyt.ts`, `opprett`).
+- **Sletting av faggruppe:** `Dokumentflyt.faggruppe` er `onDelete: SetNull` i schemaet, men `faggruppe.slett` nekter så lenge faggruppen eier en flyt (`apps/api/src/routes/faggruppe.ts`, `slett`) — en flyt blir dermed ikke eierløs i stillhet.
+- **Nytt prosjekt:** seeden lager ingen faggruppeflyter (F13c); eneste eierløse flyt er HMS-flyten.
+- **HMS-kjennetegn:** en eierløs flyt med minst én mal i domenet `hms` (`erHmsFlyt`, `flyt-gruppering.ts`; samme oppslag som `seedHmsModulOmradet`).
+- **Tester:** `apps/api/src/routes/fg1-flyt-krever-faggruppe.test.ts`, `prosjektSeed.test.ts` («FG1»).
+- **Data:** prosjekter opprettet på main før F13c fikk 8 eierløse standardflyter. De ryddes med D3-skriptet (kjøres av Kenneth etter gate) — ikke kjørt i prod per 2026-11-23.
+
 ### `Dokumentflyt.roller` — JSONB-konfigurerbare labels
 
 Per dokumentflyt kan rolle-labels overstyres for prosjekt-spesifikk terminologi. Standard-rollene er `registrator` / `bestiller` / `utforer` / `godkjenner`, men UI viser kunde-spesifikke labels.

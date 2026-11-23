@@ -130,6 +130,8 @@ function permissivPrisma() {
     projectMember: { findFirst: vi.fn().mockResolvedValue(null) },
     user: { findUnique: vi.fn().mockResolvedValue({ name: "Admin" }) },
     activity: { create: vi.fn().mockResolvedValue({}) },
+    // FG1: opprett slår opp eier-faggruppen i prosjektet.
+    faggruppe: { findFirst: vi.fn().mockResolvedValue({ id: ID }) },
     $transaction: vi.fn(async (fn: (tx: unknown) => unknown) => fn(prisma)),
     dokumentflyt: {
       create: vi.fn().mockResolvedValue({ id: FLYT }),
@@ -173,7 +175,8 @@ function lagCallerMed(prisma: unknown) {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const PROSEDYRER: Array<{ navn: string; kall: (c: any) => Promise<unknown> }> = [
-  { navn: "opprett", kall: (c) => c.opprett({ projectId: PROSJEKT, name: "F" }) },
+  // FG1: eier-faggruppen er påkrevd — uten den ville skjemaet avvist før admin-gaten.
+  { navn: "opprett", kall: (c) => c.opprett({ projectId: PROSJEKT, faggruppeId: ID, name: "F" }) },
   { navn: "oppdater", kall: (c) => c.oppdater({ id: ID, projectId: PROSJEKT }) },
   // E krever registrator i første ledd → tom roller ville feilet av annen grunn enn admin-gaten.
   { navn: "oppdaterRoller", kall: (c) => c.oppdaterRoller({ id: ID, projectId: PROSJEKT, roller: [{ rolle: "registrator" }] }) },
