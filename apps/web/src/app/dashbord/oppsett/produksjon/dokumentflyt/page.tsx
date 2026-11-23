@@ -1527,6 +1527,8 @@ export default function KontakterSide() {
                   </div>
                   <div className="col-span-3 flex items-center justify-between text-sm text-gray-400">
                     <span>{kontakter.length > 0 ? `${kontakter.length} ${t("dokumentflyt.personerSuffix")}` : "—"}</span>
+                    {/* F13c E: bare prosjektadmin endrer faggrupper — knappene skjules for andre. */}
+                    {erFlytAdmin && (
                     <div className="flex items-center gap-0.5 opacity-0 group-hover/rad:opacity-100 transition-opacity">
                       <button
                         onClick={(e) => {
@@ -1553,6 +1555,7 @@ export default function KontakterSide() {
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </div>
+                    )}
                   </div>
                 </div>
               </button>
@@ -1642,8 +1645,9 @@ export default function KontakterSide() {
         })()}
       </div>
 
-      {/* Legg til faggruppe — F13c 5A: tydelig blå knapp rett under faggruppetabellen, over HMS-flyt */}
-      {visNyFaggruppe ? (
+      {/* Legg til faggruppe — F13c 5A: tydelig blå knapp rett under faggruppetabellen, over HMS-flyt.
+          F13c E: bare prosjektadmin. */}
+      {!erFlytAdmin ? null : visNyFaggruppe ? (
         <div className="mt-3 flex items-center gap-2">
           <input
             type="text"

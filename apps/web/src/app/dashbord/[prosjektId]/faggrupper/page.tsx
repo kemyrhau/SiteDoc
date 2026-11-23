@@ -41,6 +41,11 @@ export default function FaggrupperSide() {
 
   const { data: faggrupper, isLoading } =
     trpc.faggruppe.hentForProsjekt.useQuery({ projectId: params.prosjektId });
+  // F13c E: bare prosjektadmin endrer faggrupper; andre ser lista uten endringsknapper.
+  const { data: minTilgang } = trpc.gruppe.hentMinTilgang.useQuery({
+    projectId: params.prosjektId,
+  });
+  const erAdmin = minTilgang?.erAdmin ?? false;
 
   function invaliderListe() {
     utils.faggruppe.hentForProsjekt.invalidate({ projectId: params.prosjektId });
@@ -59,10 +64,12 @@ export default function FaggrupperSide() {
     <div>
       <div className="mb-4 flex items-center justify-between">
         <div />
-        <Button onClick={() => setOpprettAapen(true)} size="sm">
-          <Plus className="mr-1.5 h-4 w-4" />
-          {t("faggrupper.nyFaggruppe")}
-        </Button>
+        {erAdmin && (
+          <Button onClick={() => setOpprettAapen(true)} size="sm">
+            <Plus className="mr-1.5 h-4 w-4" />
+            {t("faggrupper.nyFaggruppe")}
+          </Button>
+        )}
       </div>
 
       {!faggrupper?.length ? (
@@ -70,10 +77,12 @@ export default function FaggrupperSide() {
           title={t("faggrupper.ingenFaggrupper")}
           description={t("faggrupper.ingenFaggrupperBeskrivelse")}
           action={
-            <Button onClick={() => setOpprettAapen(true)}>
-              <Plus className="mr-1.5 h-4 w-4" />
-              {t("faggrupper.nyFaggruppe")}
-            </Button>
+            erAdmin ? (
+              <Button onClick={() => setOpprettAapen(true)}>
+                <Plus className="mr-1.5 h-4 w-4" />
+                {t("faggrupper.nyFaggruppe")}
+              </Button>
+            ) : undefined
           }
         />
       ) : (
@@ -125,7 +134,8 @@ export default function FaggrupperSide() {
             {
               id: "handlinger",
               header: "",
-              celle: (rad) => (
+              celle: (rad) =>
+                !erAdmin ? null : (
                 <div className="flex justify-end gap-1">
                   <button
                     type="button"
