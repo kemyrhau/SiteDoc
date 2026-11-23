@@ -4025,6 +4025,7 @@
   "kontrollplan.aapne": "Plani i kontrollit të hapur",
   "kontrollplan.navn": "Emri",
   "kontrollplan.rediger": "Redakto pikën",
+  "kontrollplan.punktTittel": "Pika e inspektimit",
   "kontrollplan.ingenAvhengighet": "Asnjë varësi",
   "kontrollplan.filterStatus": "Statusi - Të gjitha",
   "kontrollplan.filterFaggruppe": "Grupi i tregtisë - Të gjitha",

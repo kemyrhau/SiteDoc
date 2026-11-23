@@ -4025,6 +4025,7 @@
   "kontrollplan.aapne": "Plan de contrôle ouvert",
   "kontrollplan.navn": "Nom",
   "kontrollplan.rediger": "Modifier le point",
+  "kontrollplan.punktTittel": "Point de contrôle",
   "kontrollplan.ingenAvhengighet": "Aucune dépendance",
   "kontrollplan.filterStatus": "Statut — Tous",
   "kontrollplan.filterFaggruppe": "Groupe de métiers — Tous",

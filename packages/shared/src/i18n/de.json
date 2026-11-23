@@ -4025,6 +4025,7 @@
   "kontrollplan.aapne": "Kontrollplan öffnen",
   "kontrollplan.navn": "Name",
   "kontrollplan.rediger": "Punkt bearbeiten",
+  "kontrollplan.punktTittel": "Inspektionspunkt",
   "kontrollplan.ingenAvhengighet": "Keine Abhängigkeit",
   "kontrollplan.filterStatus": "Status – Alle",
   "kontrollplan.filterFaggruppe": "Handelsgruppe – Alle",

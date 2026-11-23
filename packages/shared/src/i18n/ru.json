@@ -4025,6 +4025,7 @@
   "kontrollplan.aapne": "Открытый план контроля",
   "kontrollplan.navn": "Имя",
   "kontrollplan.rediger": "Редактировать точку",
+  "kontrollplan.punktTittel": "Пункт осмотра",
   "kontrollplan.ingenAvhengighet": "Нет зависимости",
   "kontrollplan.filterStatus": "Статус — Все",
   "kontrollplan.filterFaggruppe": "Торговая группа — Все",

@@ -83,6 +83,12 @@ const punktIncludes = {
   avhengerAv: { select: { id: true, status: true, sjekklisteMal: { select: { name: true } }, omrade: { select: { navn: true } } } },
 } as const;
 
+// F13c-2 (Kenneth 2026-11-23): «kontrollplanen er for prosjektadmin. et vanlig medlem skal kun
+// kunne utføre en sjekkliste som allerede er i kontrollplanen». Alle mutasjoner som endrer selve
+// planen (plan, punkter, milepæler, frister, plassering, import/revisjon, kopiering, status) krever
+// `verifiserAdmin` (prosjektadmin, firma-admin, sitedoc_admin). Utføring er urørt: «Start»
+// (`sjekkliste.opprett` med `kontrollplanPunktId`) og `koblePunkt` (knytt en eksisterende
+// sjekkliste til punktet) krever fortsatt bare medlemskap. Lesing krever medlemskap.
 export const kontrollplanRouter = router({
   // Hent kontrollplan for en byggeplass (med punkter og milepeler)
   hentForByggeplass: protectedProcedure
@@ -142,7 +148,7 @@ export const kontrollplanRouter = router({
       byggeplassId: z.string(),
     }))
     .mutation(async ({ ctx, input }) => {
-      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      await verifiserAdmin(ctx.userId, input.projectId);
       // ORDRE 22: byggeplassen må tilhøre prosjektet — ellers kobles planen til en fremmed
       // byggeplass og navnet derfra lekker inn i `navn`.
       await verifiserByggeplassIProsjekt(ctx.prisma, input.byggeplassId, input.projectId);
@@ -205,7 +211,7 @@ export const kontrollplanRouter = router({
         where: { id: input.kontrollplanId },
         select: { projectId: true, byggeplassId: true },
       });
-      await verifiserProsjektmedlem(ctx.userId, kontrollplan.projectId);
+      await verifiserAdmin(ctx.userId, kontrollplan.projectId);
 
       // ORDRE 29 #13: hvert område MÅ ligge i planens prosjekt og på planens byggeplass.
       // Før importhendelsen og punktene skrives.
@@ -383,7 +389,7 @@ export const kontrollplanRouter = router({
         where: { id: input.kontrollplanId },
         select: { projectId: true },
       });
-      await verifiserProsjektmedlem(ctx.userId, kontrollplan.projectId);
+      await verifiserAdmin(ctx.userId, kontrollplan.projectId);
 
       const kommentar = `Revidert fra fremdriftsplan ${input.filnavn}`;
       const fristMap = new Map(input.fristOppdateringer.map((f) => [f.punktId, f]));
@@ -497,7 +503,7 @@ export const kontrollplanRouter = router({
         where: { id: input.punktId },
         include: { kontrollplan: { select: { projectId: true } } },
       });
-      await verifiserProsjektmedlem(ctx.userId, punkt.kontrollplan.projectId);
+      await verifiserAdmin(ctx.userId, punkt.kontrollplan.projectId);
 
       // Valider statusovergang
       if (input.status) {
@@ -558,7 +564,7 @@ export const kontrollplanRouter = router({
           sjekkliste: { select: { deletedAt: true } },
         },
       });
-      await verifiserProsjektmedlem(ctx.userId, punkt.kontrollplan.projectId);
+      await verifiserAdmin(ctx.userId, punkt.kontrollplan.projectId);
       const harLevendeSjekkliste = punkt.sjekkliste != null && punkt.sjekkliste.deletedAt == null;
       if (harLevendeSjekkliste) {
         throw new TRPCError({
@@ -744,7 +750,7 @@ export const kontrollplanRouter = router({
         where: { id: input.punktId },
         select: { kontrollplan: { select: { projectId: true } } },
       });
-      await verifiserProsjektmedlem(ctx.userId, punkt.kontrollplan.projectId);
+      await verifiserAdmin(ctx.userId, punkt.kontrollplan.projectId);
       // Prosjektisolering: tegningen må høre til samme prosjekt som punktet. Delt vakt med
       // sjekkliste.oppdater (samme felt, to dører) — se services/tegningVakt.ts.
       if (input.drawingId) {
@@ -773,7 +779,7 @@ export const kontrollplanRouter = router({
         where: { id: input.kontrollplanId },
         select: { projectId: true },
       });
-      await verifiserProsjektmedlem(ctx.userId, kontrollplan.projectId);
+      await verifiserAdmin(ctx.userId, kontrollplan.projectId);
       const maks = await ctx.prisma.milepel.aggregate({
         where: { kontrollplanId: input.kontrollplanId },
         _max: { sortering: true },
@@ -799,7 +805,7 @@ export const kontrollplanRouter = router({
         where: { id: input.milepelId },
         include: { kontrollplan: { select: { projectId: true } } },
       });
-      await verifiserProsjektmedlem(ctx.userId, milepel.kontrollplan.projectId);
+      await verifiserAdmin(ctx.userId, milepel.kontrollplan.projectId);
       const { milepelId, ...data } = input;
       return ctx.prisma.milepel.update({ where: { id: milepelId }, data });
     }),
@@ -815,7 +821,7 @@ export const kontrollplanRouter = router({
           _count: { select: { punkter: true } },
         },
       });
-      await verifiserProsjektmedlem(ctx.userId, milepel.kontrollplan.projectId);
+      await verifiserAdmin(ctx.userId, milepel.kontrollplan.projectId);
       if (milepel._count.punkter > 0) {
         throw new Error("Kan ikke slette milepæl med tilknyttede punkter");
       }
@@ -833,7 +839,7 @@ export const kontrollplanRouter = router({
         where: { id: input.kontrollplanId },
         select: { projectId: true, status: true },
       });
-      await verifiserProsjektmedlem(ctx.userId, kontrollplan.projectId);
+      await verifiserAdmin(ctx.userId, kontrollplan.projectId);
 
       const gyldige: Record<string, string[]> = {
         utkast: ["aktiv"],
@@ -866,7 +872,7 @@ export const kontrollplanRouter = router({
         where: { id: input.kontrollplanId },
         select: { projectId: true },
       });
-      await verifiserProsjektmedlem(ctx.userId, kontrollplan.projectId);
+      await verifiserAdmin(ctx.userId, kontrollplan.projectId);
 
       // Hent alle punkter for dette området i denne kontrollplanen
       const punkter = await ctx.prisma.kontrollplanPunkt.findMany({
@@ -916,7 +922,7 @@ export const kontrollplanRouter = router({
         where: { id: input.kontrollplanId },
         select: { projectId: true },
       });
-      await verifiserProsjektmedlem(ctx.userId, kontrollplan.projectId);
+      await verifiserAdmin(ctx.userId, kontrollplan.projectId);
 
       // Hent alle punkter fra kilde-områdene
       const kildePunkter = await ctx.prisma.kontrollplanPunkt.findMany({
@@ -976,7 +982,7 @@ export const kontrollplanRouter = router({
         where: { id: input.punktId },
         include: { kontrollplan: { select: { projectId: true, id: true } } },
       });
-      await verifiserProsjektmedlem(ctx.userId, startPunkt.kontrollplan.projectId);
+      await verifiserAdmin(ctx.userId, startPunkt.kontrollplan.projectId);
 
       // Finn alle punkter i kontrollplanen
       const allePunkter = await ctx.prisma.kontrollplanPunkt.findMany({

@@ -4025,6 +4025,7 @@
   "kontrollplan.aapne": "Öppen kontrollplan",
   "kontrollplan.navn": "Namn",
   "kontrollplan.rediger": "Redigera punkt",
+  "kontrollplan.punktTittel": "Inspektionsplats",
   "kontrollplan.ingenAvhengighet": "Inget beroende",
   "kontrollplan.filterStatus": "Status - Alla",
   "kontrollplan.filterFaggruppe": "Handelsgrupp — Alla",

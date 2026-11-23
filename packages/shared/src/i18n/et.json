@@ -4025,6 +4025,7 @@
   "kontrollplan.aapne": "Avatud juhtimisplaan",
   "kontrollplan.navn": "Nimi",
   "kontrollplan.rediger": "Redigeeri punkti",
+  "kontrollplan.punktTittel": "Ülevaatuspunkt",
   "kontrollplan.ingenAvhengighet": "Sõltuvus puudub",
   "kontrollplan.filterStatus": "Olek — kõik",
   "kontrollplan.filterFaggruppe": "Kaubandusgrupp — kõik",

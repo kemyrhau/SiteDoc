@@ -4025,6 +4025,7 @@
   "kontrollplan.aapne": "Open control plan",
   "kontrollplan.navn": "Name",
   "kontrollplan.rediger": "Edit point",
+  "kontrollplan.punktTittel": "Inspection point",
   "kontrollplan.ingenAvhengighet": "No dependency",
   "kontrollplan.filterStatus": "Status — All",
   "kontrollplan.filterFaggruppe": "Trade group — All",
