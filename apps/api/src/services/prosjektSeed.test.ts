@@ -118,6 +118,21 @@ describe("seedStandardProsjektoppsett", () => {
     expect(lager.faggruppeKobling).toHaveLength(1);
   });
 
+  it("🔴 FG1: nytt prosjekt får ingen ikke-HMS-flyt uten eier-faggruppe", async () => {
+    // Kenneth 2026-11-23: det som ikke vises i UI skal ikke opprettes. Hver eierløs flyt seeden
+    // lager MÅ være HMS-flyten (minst én mal i domenet hms — samme kjennetegn som erHmsFlyt på web
+    // og seedHmsModulOmradet). Main sine 8 STANDARD_DOKUMENTFLYTER uten eier ville feilet her.
+    const { tx, lager } = lagTx();
+    await seedStandardProsjektoppsett(tx as unknown as Prisma.TransactionClient, PROSJEKT, BRUKER);
+
+    const hmsMaler = new Set(lager.reportTemplate.filter((m) => m.domain === "hms").map((m) => m.id));
+    const eierlose = lager.dokumentflyt.filter((f) => !f.faggruppeId);
+    const ikkeHms = eierlose.filter(
+      (f) => !lager.dokumentflytMal.some((k) => k.dokumentflytId === f.id && hmsMaler.has(String(k.templateId))),
+    );
+    expect(ikkeHms.map((f) => f.name)).toEqual([]);
+  });
+
   it("🔴 F13c-2: fire eksempel-faggrupper uten Bygg, og ingen faggruppeflyter", async () => {
     const { tx, lager } = lagTx();
     await seedStandardProsjektoppsett(tx as unknown as Prisma.TransactionClient, PROSJEKT, BRUKER);

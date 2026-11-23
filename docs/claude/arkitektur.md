@@ -81,7 +81,7 @@ Modell-antall er utledbart (`grep -c "^model " packages/db/prisma/schema.prisma`
 | `folders` | Rekursiv mappestruktur med parent_id, `access_mode` (inherit/custom), valgfri `kontrakt_id` (kobler mappe til økonomi-kontrakt → blått ikon) |
 | `folder_access` | Tilgangsoppføringer per mappe: entreprise, gruppe eller bruker |
 | `documents` | Dokumenter i mapper med fil-URL og versjon |
-| `dokumentflyter` | Dokumentflyt per prosjekt. `faggruppeId` (peker til `dokumentflyt_parts`), `roller` (JSONB — tilpassbare labels per rolle: `{ registrator?: { label }, bestiller?: { label }, utforer?: { label }, godkjenner?: { label } }`) |
+| `dokumentflyter` | Dokumentflyt per prosjekt. `faggruppeId` (eier-faggruppe, peker til `dokumentflyt_parts`; nullable i DB, men påkrevd ved opprettelse — kun HMS-flyten er eierløs, FG1 [dokumentflyt.md § 7](dokumentflyt.md)), `roller` (JSONB — tilpassbare labels per rolle: `{ registrator?: { label }, bestiller?: { label }, utforer?: { label }, godkjenner?: { label } }`) |
 | `dokumentflyt_medlemmer` | Medlemmer i dokumentflyt-steg. `rolle`, `steg`, `faggruppeId` (peker til `dokumentflyt_parts`)/`projectMemberId`/`groupId`, `erHovedansvarlig` (Boolean), `hovedansvarligPersonId` |
 | `dokumentflyt_maler` | Maltilknytning per dokumentflyt |
 | `task_comments` | Kommentarer/dialog på oppgaver |

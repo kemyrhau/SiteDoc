@@ -112,6 +112,18 @@ export const dokumentflytRouter = router({
     .input(createDokumentflytSchema)
     .mutation(async ({ ctx, input }) => {
       await verifiserAdmin(ctx.userId, input.projectId);
+      // FG1: eier-faggruppen er påkrevd (skjemaet) og må høre til prosjektet — en faggruppe fra et
+      // annet prosjekt ville gjort flyten like usynlig i dette prosjektets UI som en eierløs flyt.
+      const eier = await ctx.prisma.faggruppe.findFirst({
+        where: { id: input.faggruppeId, projectId: input.projectId },
+        select: { id: true },
+      });
+      if (!eier) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Dokumentflyten må høre til en faggruppe i prosjektet.",
+        });
+      }
       // `data` bærer name/faggruppeId/bundet videre til create (bundet defaulter til fri i schema).
       const { templateIds, medlemmer, roller, ...data } = input;
       // Default: ny dokumentflyt starter med Registrator som eneste rolle.
