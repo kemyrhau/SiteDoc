@@ -704,7 +704,7 @@ export function ReiseKort({
    *  (slettes om den er før periodens start); arbeideren kan rette. */
   const [avsluttDag, setAvsluttDag] = useState<string | null>(null);
   function avsluttOverforing() {
-    if (!avsluttDag) return;
+    if (!avsluttDag || !periodeUnder) return;
     setFeil(null);
     overforingMut.mutate(
       {
@@ -712,6 +712,8 @@ export function ReiseKort({
         organizationId,
         handling: "slutt",
         dato: avsluttDag,
+        // O16 V2: nettopp perioden linja viser — ikke den serveren ville valgt ut fra datoen.
+        periodeId: periodeUnder.id,
       },
       {
         onSuccess: () => {

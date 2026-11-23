@@ -5,6 +5,7 @@ import type { PrismaClient } from "@sitedoc/db";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { autoriserAdminForFirma } from "../trpc/tilgangskontroll";
 import {
+  erEgenOverforing,
   finnPeriodeKonflikt,
   overforingKonflikt,
   planleggOverforing,
@@ -198,6 +199,10 @@ const overforingInput = z
     dato: isoDato,
     /** O16 S3: «Til og med» (bare ved `start`). Utelatt = åpen periode (mobil sender den ikke). */
     tilDato: isoDato.optional(),
+    /** O16 V1: bare web sender den — egen periode med sluttdato kan velges. Utelatt (mobil) = dagens regel. */
+    medSluttdato: z.literal(true).optional(),
+    /** O16 V2: bare web, bare `slutt` — perioden boksen navngir. Utelatt (mobil) = dagens regel. */
+    periodeId: z.string().uuid().optional(),
   })
   .strict()
   .superRefine((v, ctx) => {
@@ -206,6 +211,9 @@ const overforingInput = z
     }
     if (v.tilDato != null && v.handling !== "start") {
       ctx.addIssue({ code: "custom", message: "Sluttdato gjelder bare ny periode", path: ["tilDato"] });
+    }
+    if (v.periodeId != null && v.handling !== "slutt") {
+      ctx.addIssue({ code: "custom", message: "Periode-id gjelder bare avslutning", path: ["periodeId"] });
     }
     if (v.tilDato != null && v.tilDato < v.dato) {
       ctx.addIssue({ code: "custom", message: "Til-dato er før fra-dato", path: ["tilDato"] });
@@ -366,6 +374,15 @@ export const oppmotePeriodeRouter = router({
         select: PERIODE_SELECT,
       })
     ).map(tilInput);
+    // O16 V2: perioden web navngir må være medlemmets egen overføring i dette firmaet
+    // (`perioder` er alt filtrert på medlem + firma).
+    if (input.periodeId != null) {
+      const valgt = perioder.find((p) => p.id === input.periodeId);
+      if (!valgt) throw new TRPCError({ code: "NOT_FOUND", message: "Perioden finnes ikke" });
+      if (!erEgenOverforing(valgt)) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Perioden er satt av firmaet og avsluttes ikke her" });
+      }
+    }
     // Én regel med mobilens optimistiske skriving: planleggOverforing (shared).
     const plan = planleggOverforing(perioder, input);
     if (plan.utfall === "ingen") return { utfall: "ingen" as OverforingUtfall, periode: plan.periode };

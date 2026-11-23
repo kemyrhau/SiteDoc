@@ -666,6 +666,34 @@ describe("O16 — «Til annet oppmøtested» og periodene", () => {
     expect(overforing()).toEqual([expect.objectContaining({ handling: "slutt", dato: "2026-11-03" })]);
   });
 
+  // V2: to egne perioder, A 02–02 og B 04–∞, seddel 05 — kallet og «… fjernes» gjelder B.
+  const toEgne = () => [FAST_TROMSO, { ...egen("narvik", "2026-11-02", "2026-11-02"), id: "pA" }, { ...egen("narvik", "2026-11-04"), id: "pB" }];
+  for (const siste of ["2026-11-02", "2026-11-01"]) {
+    it(`V2: «Siste dag» ${siste} før B startet — boksen sier at B fjernes, kallet navngir B`, async () => {
+      const d = rendre({ perioder: toEgne() });
+      fireEvent.change(within(d).getByLabelText("timer.reiseKort.oppmotested"), { target: { value: "tromso" } });
+      fireEvent.change(within(d).getByLabelText(/timer\.reiseKort\.sisteDag/), { target: { value: siste } });
+      expect(within(d).getByTestId("reise-oppmote-fjernes").textContent).toContain("timer.reiseKort.periodeFjernes");
+      await lagre(d);
+      expect(overforing()).toEqual([expect.objectContaining({ handling: "slutt", dato: siste, periodeId: "pB" })]);
+    });
+    it(`V2: «Avslutt» ${siste} sender perioden linja viser (B)`, () => {
+      const d = rendre({ perioder: toEgne() });
+      fireEvent.click(knapp(d, "timer.reiseKort.avslutt"));
+      const sporsmal = within(d).getByTestId("reise-avslutt");
+      fireEvent.change(within(sporsmal).getByLabelText("timer.reiseKort.sisteDag"), { target: { value: siste } });
+      fireEvent.click(within(sporsmal).getByRole("button", { name: "timer.reiseKort.avslutt" }));
+      expect(overforing()).toEqual([expect.objectContaining({ handling: "slutt", dato: siste, periodeId: "pB" })]);
+    });
+  }
+  it("V1: web sender medSluttdato på start", async () => {
+    const d = rendre();
+    fireEvent.click(knapp(d, "timer.reiseKort.tilAnnetOppmotested"));
+    fireEvent.change(within(d).getByLabelText("timer.reiseKort.tilKontorFelt"), { target: { value: "narvik" } });
+    await lagre(d);
+    expect(overforing()).toEqual([expect.objectContaining({ handling: "start", medSluttdato: true })]);
+  });
+
   it("R8: firmaadmins periode — merket midlertidig, ingen «Avslutt»; valg av det faste sperrer Lagre", async () => {
     const d = rendre({ perioder: [FAST_TROMSO, firmaets("narvik", "2026-11-01")] });
     const linje = within(d).getByTestId("reise-oppmote-periode");

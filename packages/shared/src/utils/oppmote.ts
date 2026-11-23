@@ -284,8 +284,10 @@ export function finnEgenOverforing<T extends OppmotePeriodeInput>(perioder: read
 
 /**
  * Del B: hva en overføring gjør med brukerens perioder. Rører KUN egen
- * periode med kilde='overforing' (O16 R1: den som dekker datoen eller ligger
- * etter, åpen eller med sluttdato); admin-perioder og fast sted er urørt.
+ * periode med kilde='overforing'; admin-perioder og fast sted er urørt.
+ * Hvilken egen periode (O16 V1/V2): uten flagg (mobilen) den åpne, som før;
+ * `medSluttdato` (web) den som dekker datoen eller ligger etter, åpen eller
+ * med sluttdato (R1); `periodeId` (web, `slutt`) nettopp den perioden.
  *  - slutt: egen overføring lukkes på `dato` (slettes om `dato` < fraDato;
  *    ingen endring når den alt slutter på eller før `dato`).
  *  - start til eget faste kontor: egen overføring lukkes dagen før (hjemkomst).
@@ -303,9 +305,21 @@ export function planleggOverforing(
     dato: string;
     /** O16 S3: «Til og med» (bare `start`). Utelatt = åpen periode. */
     tilDato?: string | null;
+    /**
+     * O16 V1: bare web sender den. Satt → egen periode med sluttdato kan velges (`finnEgenOverforing`).
+     * Utelatt (mobilen) → nøyaktig gammel regel: kun egen ÅPNE overføring.
+     */
+    medSluttdato?: boolean;
+    /** O16 V2: bare web, bare `slutt`: nettopp denne egne perioden lukkes/slettes (den boksen navngir). */
+    periodeId?: string | null;
   },
 ): OverforingPlan {
-  const apen = finnEgenOverforing(perioder, input.dato);
+  const apen =
+    input.periodeId != null
+      ? (perioder.find((p) => p.id === input.periodeId && erEgenOverforing(p)) ?? null)
+      : input.medSluttdato
+        ? finnEgenOverforing(perioder, input.dato)
+        : (perioder.find(erApenOverforing) ?? null);
   const lukk = (til: string): OverforingPlan => {
     if (!apen) return { utfall: "ingen", periode: null };
     if (apen.tilDato != null && til >= apen.tilDato) return { utfall: "ingen", periode: apen };
@@ -435,8 +449,8 @@ export function avsluttSisteDagForslag(dato: string): string {
 }
 
 export type OppmoteByttKall =
-  | { handling: "start"; oppmotestedId: string; dato: string; tilDato?: string }
-  | { handling: "slutt"; dato: string };
+  | { handling: "start"; oppmotestedId: string; dato: string; tilDato?: string; medSluttdato: true }
+  | { handling: "slutt"; dato: string; periodeId: string };
 
 export type OppmoteBytte =
   /** Dagens oppmøtested er valgt — ingen periode skrives. */
@@ -492,12 +506,14 @@ export function planleggOppmoteBytte(a: {
   if (valgt === a.fastKontorId && gjeldende) {
     if (!erEgenOverforing(gjeldende)) return { type: "admin", periode: gjeldende };
     const sisteDag = a.sisteDag ?? sisteDagForslag(a.valg, a.dato, a.startTid);
-    const plan = planleggOverforing(a.perioder, { handling: "slutt", dato: sisteDag });
+    // V2: kallet og «… fjernes» gjelder nettopp perioden boksen navngir.
+    const kall: OppmoteByttKall = { handling: "slutt", dato: sisteDag, periodeId: gjeldende.id };
+    const plan = planleggOverforing(a.perioder, kall);
     return {
       type: "slutt",
       periode: gjeldende,
       sisteDag,
-      kall: { handling: "slutt", dato: sisteDag },
+      kall,
       fjernes: plan.utfall === "slettet" ? plan.apen : null,
     };
   }
@@ -509,6 +525,7 @@ export function planleggOppmoteBytte(a: {
     oppmotestedId: valgt,
     dato: gjelderFra,
     tilDato: tilOgMed,
+    medSluttdato: true,
   });
   const konflikt =
     plan.utfall === "konflikt"
@@ -527,7 +544,13 @@ export function planleggOppmoteBytte(a: {
     kontorId: valgt,
     gjelderFra,
     tilOgMed,
-    kall: { handling: "start", oppmotestedId: valgt, dato: gjelderFra, ...(tilOgMed ? { tilDato: tilOgMed } : {}) },
+    kall: {
+      handling: "start",
+      oppmotestedId: valgt,
+      dato: gjelderFra,
+      ...(tilOgMed ? { tilDato: tilOgMed } : {}),
+      medSluttdato: true,
+    },
     plan,
     konflikt,
     fjernes,

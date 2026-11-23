@@ -1,7 +1,8 @@
 /**
  * O16 (vedtak-timer-web.md § Reisevinduet pkt 1–2): oppmøtestedet i web-reisevinduet.
- *  - R2: `planleggOverforing` gir likt utfall som på `b7a9109c` for alle tilfeller uten en egen
- *    periode med sluttdato; det ene avviket (etterregistrering inn i en lukket egen periode) står for seg.
+ *  - R2/V1: et kall uten web-feltene (mobilen) gir likt utfall som på `b7a9109c` i hele det genererte
+ *    rutenettet; med `medSluttdato` (web) står avvikene hver for seg.
+ *  - V2: `slutt` med `periodeId` lukker/sletter nettopp den perioden boksen navngir.
  *  - R1: egne perioder med sluttdato (avslutt, forkort, tredje kontor, senere periode urørt).
  *  - H2/H3: morgenreisen regnes fra riktig kontor uansett rekkefølge.
  *  - R4 (fjernes), R7a (kl. 12 for «Siste dag»), R7b (Avslutt-forslag), R8 (firmaadmins periode).
@@ -74,52 +75,180 @@ function anvend(perioder: readonly OverforingPeriode[], plan: OverforingPlan): O
   return ut;
 }
 
-describe("R2 — likt utfall som før O16 uten egne perioder med sluttdato", () => {
-  const tilfeller: Array<[string, OverforingPeriode[], { handling: "start" | "slutt"; oppmotestedId?: string; dato: string }]> = [
-    ["start uten egen", [FAST], { handling: "start", oppmotestedId: "ramsund", dato: D }],
-    ["start annet kontor lukker åpen", [FAST, egen("ramsund", "2026-11-01")], { handling: "start", oppmotestedId: "harstad", dato: D }],
-    ["start samme dag sletter åpen", [FAST, egen("ramsund", D)], { handling: "start", oppmotestedId: "harstad", dato: D }],
-    ["start fast lukker åpen", [FAST, egen("ramsund", "2026-11-01")], { handling: "start", oppmotestedId: "narvik", dato: D }],
-    ["start fast uten åpen", [FAST], { handling: "start", oppmotestedId: "narvik", dato: D }],
-    ["start samme åpne", [FAST, egen("ramsund", "2026-11-01")], { handling: "start", oppmotestedId: "ramsund", dato: D }],
-    ["start før åpen startet", [FAST, egen("ramsund", "2026-11-20")], { handling: "start", oppmotestedId: "ramsund", dato: D }],
-    ["admin åpen gir konflikt", [FAST, admin("ramsund", "2026-11-01")], { handling: "start", oppmotestedId: "harstad", dato: D }],
-    ["slutt lukker", [egen("r", "2026-11-01")], { handling: "slutt", dato: D }],
-    ["slutt før start sletter", [egen("r", "2026-11-11")], { handling: "slutt", dato: D }],
-    ["slutt uten egen", [FAST], { handling: "slutt", dato: D }],
-    ["slutt rører ikke admin", [admin("r", "2026-11-01")], { handling: "slutt", dato: D }],
-    ["egen lukket i fortiden røres ikke", [FAST, egen("r", "2026-10-01", "2026-10-15")], { handling: "start", oppmotestedId: "harstad", dato: D }],
-  ];
-  for (const [navn, perioder, input] of tilfeller) {
-    it(navn, () => {
-      expect(planleggOverforing(perioder, input)).toEqual(gammelPlan(perioder, input));
-    });
+// ── R2-vakt (O16 V1): generert rutenett, samme oppsett som Kontrollørens `relay/o16-r10/sammenlign.ts` ──
+const dag = (n: number) => `2026-11-${String(n).padStart(2, "0")}`;
+type Kall = { handling: "start" | "slutt"; oppmotestedId?: string; dato: string };
+const tilstand = (ps: readonly OverforingPeriode[]) =>
+  ps
+    .filter((p) => !p.fast)
+    .map((p) => `${p.id}:${p.oppmotestedId}:${p.fraDato.slice(8)}-${p.tilDato?.slice(8) ?? "∞"}`)
+    .sort()
+    .join(",");
+/** Serverens utfall: plan + konfliktsjekk + skriving, som tekst. */
+function serverUtfall(ps: readonly OverforingPeriode[], plan: OverforingPlan): string {
+  if (plan.utfall === "konflikt") return "CONFLICT";
+  if (plan.utfall === "opprettet" && overforingKonflikt(ps, plan)) return "CONFLICT";
+  return `${plan.utfall}|${tilstand(anvend(ps, plan))}`;
+}
+const rutenett = (() => {
+  const kand: OverforingPeriode[] = [];
+  let k = 0;
+  for (const s of ["A", "B"]) {
+    for (let f = 2; f <= 8; f += 2) {
+      kand.push(egen(s, dag(f), null, `e${k++}`));
+      for (let t = f; t <= 9; t += 3) kand.push(egen(s, dag(f), dag(t), `e${k++}`));
+    }
   }
+  const adm = [null, { ...admin("C", dag(3)), id: "adm1" }, { ...admin("C", dag(3), dag(5)), id: "adm2" }];
+  const overlapp = (a: OverforingPeriode, b: OverforingPeriode) =>
+    a.fraDato <= (b.tilDato ?? "9999") && b.fraDato <= (a.tilDato ?? "9999");
+  const gyldig = (ps: OverforingPeriode[]) => {
+    const m = ps.filter((p) => !p.fast);
+    if (m.filter((p) => p.tilDato == null).length > 1) return false;
+    for (let i = 0; i < m.length; i++) for (let j = i + 1; j < m.length; j++) if (overlapp(m[i]!, m[j]!)) return false;
+    return true;
+  };
+  const sett: OverforingPeriode[][] = [];
+  for (const a of adm) {
+    const base = a ? [FAST, a] : [FAST];
+    sett.push(base);
+    for (let i = 0; i < kand.length; i++) {
+      sett.push([...base, kand[i]!]);
+      for (let j = i + 1; j < kand.length; j++) sett.push([...base, kand[i]!, kand[j]!]);
+    }
+  }
+  const kall: Kall[] = [];
+  for (let n = 1; n <= 10; n++) {
+    kall.push({ handling: "slutt", dato: dag(n) });
+    for (const s of ["narvik", "A", "B", "C"]) kall.push({ handling: "start", oppmotestedId: s, dato: dag(n) });
+  }
+  return { sett: sett.filter(gyldig), kall };
+})();
+const klasse = (k: Kall, foer: string, naa: string) =>
+  `${k.handling}${k.handling === "start" ? (k.oppmotestedId === "narvik" ? "→fast" : "→annet") : ""} | ${foer.split("|")[0]} → ${naa.split("|")[0]}`;
 
-  it("avviket: etterregistrering inn i en lukket egen periode forkorter den (før: CONFLICT fra serveren)", () => {
+describe("R2 — et kall uten web-feltene (mobilen) gir nøyaktig dagens utfall", () => {
+  it("hele rutenettet, også egne perioder med sluttdato: likt i alle tilfeller", () => {
+    let tot = 0;
+    let medSluttdatoEgen = 0;
+    const avvik: string[] = [];
+    for (const ps of rutenett.sett) {
+      for (const k of rutenett.kall) {
+        tot++;
+        if (ps.some((p) => p.kilde === "overforing" && p.tilDato != null && p.tilDato >= k.dato)) medSluttdatoEgen++;
+        const foer = serverUtfall(ps, gammelPlan(ps, k));
+        const naa = serverUtfall(ps, planleggOverforing(ps, k));
+        if (foer !== naa) avvik.push(`${tilstand(ps)} ; ${JSON.stringify(k)} ; ${foer} → ${naa}`);
+      }
+    }
+    expect(tot).toBe(7850);
+    expect(medSluttdatoEgen).toBe(4240);
+    expect(avvik).toEqual([]);
+  });
+
+  it("med `medSluttdato` (web, `start`): avvikene står hver for seg, alle med egen periode med sluttdato", () => {
+    const klasser = new Map<string, number>();
+    for (const ps of rutenett.sett) {
+      for (const k of rutenett.kall) {
+        if (k.handling !== "start") continue;
+        const foer = serverUtfall(ps, gammelPlan(ps, k));
+        const naa = serverUtfall(ps, planleggOverforing(ps, { ...k, medSluttdato: true }));
+        if (foer === naa) continue;
+        expect(ps.some((p) => p.kilde === "overforing" && p.tilDato != null && p.tilDato >= k.dato)).toBe(true);
+        const kl = klasse(k, foer, naa);
+        klasser.set(kl, (klasser.get(kl) ?? 0) + 1);
+      }
+    }
+    expect(Object.fromEntries([...klasser].sort())).toEqual({
+      // Godkjent (trinn 1 R2): etterregistrering inn i en egen periode med sluttdato forkorter den.
+      "start→annet | CONFLICT → opprettet": 828,
+      // R1: samme kontor som den egne perioden med sluttdato gjelder → ingen ny periode.
+      "start→annet | CONFLICT → ingen": 390,
+      // Web sender aldri `start` til fast kontor (R2: hjemreise går som `slutt` med `periodeId`).
+      "start→fast | ingen → lukket": 144,
+      "start→fast | ingen → slettet": 516,
+      "start→fast | slettet → lukket": 36,
+      "start→fast | slettet → slettet": 152,
+    });
+  });
+
+  it("avviket: etterregistrering inn i en lukket egen periode forkorter den bare med web-feltet", () => {
     const perioder = [FAST, egen("ramsund", "2026-11-01", "2026-11-20")];
     const input = { handling: "start" as const, oppmotestedId: "harstad", dato: D };
-    // Før: den lukkede egne ble ikke sett; den nye åpne overlappet den → serveren avviste.
-    const foer = gammelPlan(perioder, input);
-    expect(foer).toMatchObject({ utfall: "opprettet", apen: null });
-    expect(overforingKonflikt(perioder, foer)).not.toBeNull();
-    // Nå: den egne forkortes til dagen før, ingen konflikt.
-    const naa = planleggOverforing(perioder, input);
-    expect(naa).toMatchObject({ utfall: "opprettet", apen: { id: "o" }, lukkTil: "2026-11-09", slettApen: false });
-    expect(overforingKonflikt(perioder, naa)).toBeNull();
+    // Mobilen (uten felt): som før — den lukkede egne ses ikke, og serveren avviser overlappen.
+    const mobil = planleggOverforing(perioder, input);
+    expect(mobil).toEqual(gammelPlan(perioder, input));
+    expect(overforingKonflikt(perioder, mobil)).not.toBeNull();
+    // Web (`medSluttdato`): den egne forkortes til dagen før, ingen konflikt.
+    const web = planleggOverforing(perioder, { ...input, medSluttdato: true });
+    expect(web).toMatchObject({ utfall: "opprettet", apen: { id: "o" }, lukkTil: "2026-11-09", slettApen: false });
+    expect(overforingKonflikt(perioder, web)).toBeNull();
+  });
+});
+
+describe("V2 — `slutt` med `periodeId` virker på nettopp den perioden", () => {
+  it("hele rutenettet: bare den navngitte perioden endres, alle andre står urørt", () => {
+    let n = 0;
+    for (const ps of rutenett.sett) {
+      for (const valgt of ps.filter((p) => p.kilde === "overforing" && !p.fast)) {
+        for (let d = 1; d <= 10; d++) {
+          n++;
+          const plan = planleggOverforing(ps, { handling: "slutt", dato: dag(d), periodeId: valgt.id });
+          const etter = anvend(ps, plan);
+          for (const p of ps.filter((x) => x.id !== valgt.id)) expect(etter).toContainEqual(p);
+          if (plan.utfall === "lukket" || plan.utfall === "slettet") expect(plan.apen.id).toBe(valgt.id);
+          else expect(plan).toEqual({ utfall: "ingen", periode: valgt });
+        }
+      }
+    }
+    expect(n).toBeGreaterThan(0);
+  });
+
+  it("A 02–02 og B 04–∞, seddel 05: «Siste dag» og «Avslutt» 03/02/01 fjerner B, A står urørt", () => {
+    const A = egen("A", dag(2), dag(2), "A");
+    const B = egen("B", dag(4), null, "B");
+    const ps = [FAST, A, B];
+    // Alle tre ligger før B startet (04) → B slettes (før V2: 02 ga «ingen», 01 slettet A).
+    const fasit: Record<number, string> = { 3: "slettet", 2: "slettet", 1: "slettet" };
+    for (const siste of [3, 2, 1]) {
+      const b = planleggOppmoteBytte({
+        valg: "tur",
+        dato: dag(5),
+        startTid: "07:00",
+        perioder: ps,
+        dagensKontorId: "B",
+        fastKontorId: "narvik",
+        valgtKontorId: "narvik",
+        sisteDag: dag(siste),
+      });
+      expect(b).toMatchObject({ type: "slutt", periode: { id: "B" }, kall: { handling: "slutt", dato: dag(siste), periodeId: "B" } });
+      if (b.type !== "slutt") return;
+      // Boksens «… fjernes» regnes fra samme periode som kallet.
+      expect(b.fjernes?.id ?? null).toBe(fasit[siste] === "slettet" ? "B" : null);
+      // «Siste dag» (boksens kall) og «Avslutt» (samme kall fra periodelinja) gir samme utfall.
+      for (const kall of [b.kall, { handling: "slutt" as const, dato: dag(siste), periodeId: B.id }]) {
+        const plan = planleggOverforing(ps, kall);
+        expect(plan.utfall).toBe(fasit[siste]);
+        const etter = anvend(ps, plan);
+        expect(etter).toContainEqual(A);
+        expect(etter.some((p) => p.id === "B")).toBe(false);
+      }
+    }
   });
 });
 
 describe("R1 — egne perioder med sluttdato", () => {
-  it("avslutt inne i perioden lukker den; etter sluttdatoen er det ingen endring", () => {
+  it("avslutt (web, `periodeId`) inne i perioden lukker den; på/etter sluttdatoen er det ingen endring", () => {
     const p = [FAST, egen("ramsund", "2026-11-01", "2026-11-20")];
-    expect(planleggOverforing(p, { handling: "slutt", dato: D })).toMatchObject({ utfall: "lukket", til: D });
-    expect(planleggOverforing(p, { handling: "slutt", dato: "2026-11-25" })).toEqual({ utfall: "ingen", periode: null });
-    expect(planleggOverforing(p, { handling: "slutt", dato: "2026-11-20" })).toMatchObject({ utfall: "ingen", periode: { id: "o" } });
+    expect(planleggOverforing(p, { handling: "slutt", dato: D, periodeId: "o" })).toMatchObject({ utfall: "lukket", til: D });
+    expect(planleggOverforing(p, { handling: "slutt", dato: "2026-11-25", periodeId: "o" })).toMatchObject({ utfall: "ingen", periode: { id: "o" } });
+    expect(planleggOverforing(p, { handling: "slutt", dato: "2026-11-20", periodeId: "o" })).toMatchObject({ utfall: "ingen", periode: { id: "o" } });
+    // Mobilen (uten `periodeId`): som før — bare den åpne ses.
+    expect(planleggOverforing(p, { handling: "slutt", dato: D })).toEqual({ utfall: "ingen", periode: null });
   });
   it("forkort: ny periode midt i en egen med sluttdato lukker den dagen før", () => {
     const p = [FAST, egen("ramsund", "2026-11-01", "2026-11-20")];
-    expect(planleggOverforing(p, { handling: "start", oppmotestedId: "harstad", dato: D, tilDato: "2026-11-15" })).toMatchObject({
+    expect(planleggOverforing(p, { handling: "start", oppmotestedId: "harstad", dato: D, tilDato: "2026-11-15", medSluttdato: true })).toMatchObject({
       utfall: "opprettet",
       lukkTil: "2026-11-09",
       ny: { fraDato: D, tilDato: "2026-11-15" },
@@ -135,7 +264,7 @@ describe("R1 — egne perioder med sluttdato", () => {
   });
   it("en senere egen periode røres ikke når den nye slutter før den starter", () => {
     const p = [FAST, egen("ramsund", "2026-11-20", "2026-11-30")];
-    const plan = planleggOverforing(p, { handling: "start", oppmotestedId: "harstad", dato: D, tilDato: "2026-11-15" });
+    const plan = planleggOverforing(p, { handling: "start", oppmotestedId: "harstad", dato: D, tilDato: "2026-11-15", medSluttdato: true });
     expect(plan).toMatchObject({ utfall: "opprettet", apen: null, lukkTil: null, slettApen: false });
     expect(overforingKonflikt(p, plan)).toBeNull();
   });
@@ -185,7 +314,7 @@ describe("planleggOppmoteBytte", () => {
     const b = bytte({ valgtKontorId: "ramsund", gjelderFra: "2026-11-12", tilOgMed: "2026-11-30" });
     expect(b).toMatchObject({ type: "start", kall: { handling: "start", oppmotestedId: "ramsund", dato: "2026-11-12", tilDato: "2026-11-30" } });
     const aapen = bytte({ valgtKontorId: "ramsund" });
-    expect(aapen.type === "start" && aapen.kall).toEqual({ handling: "start", oppmotestedId: "ramsund", dato: D });
+    expect(aapen.type === "start" && aapen.kall).toEqual({ handling: "start", oppmotestedId: "ramsund", dato: D, medSluttdato: true });
   });
   it("«Til og med» før «Gjelder fra» er ugyldig", () => {
     expect(bytte({ valgtKontorId: "ramsund", tilOgMed: "2026-11-09" })).toMatchObject({ type: "start", ugyldig: "tilFoerFra" });
