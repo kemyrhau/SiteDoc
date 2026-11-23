@@ -369,6 +369,7 @@ prosjekt, egen try/catch per liste så tegninger lastes uansett). Standalone-pro
   ingen av delene → null → hele prosjektet).
 - **Opprett sender aktiv byggeplass (ORDRE 28):** `OppgaveModal`, `OpprettDokumentModal`, `OpprettVelger` og
   `app/hms/index.tsx` sender `byggeplassId` fra valgt byggeplass; serveren lar tegningens vinne.
+- **«Meld HMS»-velgeren (HM1 tillegg A):** `src/components/HmsMalVelger.tsx` viser alle domain="hms"-maler med subdomain avvik/sja/ruh, uansett category — `erMeldbarHmsMal` (`@sitedoc/shared`), samme regel som web (HM1 tillegg A 2026-11-23).
 - **«Bytt tegning» i oppgave (ORDRE 28):** `app/oppgave/[id].tsx` har «Bytt tegning» i tegningsmodalens
   bunnfelt (som sjekklisten) → tegningsvelgeren → `oppgave.oppdater(byttTegningInput(...))`
   (`src/lib/tegningDuErHer.ts`): ny tegning, punktet nullstilles, byggeplassen regnes av serveren.

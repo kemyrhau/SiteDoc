@@ -17,10 +17,11 @@ import { AvvikTabell, SjaTabell, RuhTabell } from "@/components/hms/tabeller";
 import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
 import { HmsTomBanner } from "@/components/hms/HmsTomBanner";
 import type { DokumentRad } from "@/components/hms/types";
+import { erMeldbarHmsMal } from "@sitedoc/shared";
 
 type Tab = "avvik" | "sja" | "ruh" | "statistikk";
 
-interface MalRef { id: string; name: string; prefix: string | null; subdomain: string | null; category?: string; }
+interface MalRef { id: string; name: string; prefix: string | null; subdomain: string | null; category?: string; domain?: string | null; }
 
 type Subdomain = "avvik" | "sja" | "ruh";
 
@@ -149,13 +150,12 @@ export default function HmsSide() {
   }, [medlemmer]);
 
   const { data: maler } = trpc.mal.hentForProsjekt.useQuery({ projectId: params.prosjektId });
-  // «Meld HMS»-velger nøkles på category="hms" (opprett-organisering). subdomain
-  // beholdes for å rute den nye til riktig tabell (avvik/ruh=oppgave, sja=sjekkliste).
-  const hmsMaler = ((maler ?? []) as Array<MalRef>).filter((m) => m.category === "hms");
-  // Velgbare HMS-maler (avvik/sja/ruh) → én HMS-nivå-1-seksjon i den unifiserte velgeren.
+  // «Meld HMS»-velger (HM1 tillegg A): alle domain hms-maler med avvik/sja/ruh, også
+  // seedede med category oppgave/sjekkliste (`erMeldbarHmsMal`, delt med mobil). subdomain
+  // ruter den nye til riktig tabell (avvik/ruh=oppgave, sja=sjekkliste).
   const velgbareHmsMaler = useMemo(
-    () => hmsMaler.filter((m) => m.subdomain === "avvik" || m.subdomain === "sja" || m.subdomain === "ruh"),
-    [hmsMaler],
+    () => ((maler ?? []) as Array<MalRef>).filter(erMeldbarHmsMal),
+    [maler],
   );
 
   // Sist-brukt HMS-mal (per prosjekt + doctype «hms») — kun markørens startrad i
