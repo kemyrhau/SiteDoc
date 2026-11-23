@@ -4405,6 +4405,10 @@ Egen ordre etter d i kort-id-specen, med egen spec fra Fabel. Kenneth 2026-11-16
 
 Kenneth 2026-11-16: «før f 11 i backlogg». Taket for betalt fravær (B10: fravær med tak + arbeid ≤ dagsnormen) bygges i prosjektkort-flaten i ordre b–d, men ikke i rad-vinduet i dagskort-modus, fordi den skjermen er vernet (dagskort isolert). Til det bygges, stopper F9 = A en dag over taket ved attestering. Spec: `prosjektkort-kortid-spec.md` § 11.9 F11 og § 11.10. Ikke bygget.
 
+### 🟡 Timer web: periodevisning i Timeregistrering-oversikten — fra–til og «siste måned» (Kenneth 2026-11-23)
+
+I dag: oversikten (`/dashbord/[prosjektId]/timer?uke=…`) viser én uke om gangen; en dagsseddel i neste uke synes ikke før man blar (test 23.11: sedelen lå i uke 48, oversikten sto på uke 47). Kenneth 2026-11-23: «kanskje visning fra til og siste mnd kan være en ide». Forslag: velger ved siden av uke-navigasjonen — «Uke» (som i dag) · «Siste måned» · «Fra–til» (to datoer). Ikke bestilt; tas opp etter web-timer-rundene.
+
 ### 🟡 Arbeider-side splitt av egen timerad ved feilregistrering (Fase C-funn 2026-07-11)
 
 Arbeideren kan i dag ikke dele opp sin egen timerad når han har ført feil (f.eks. 14:00–17:00 ført som Fastlønn skal rettes til Fastlønn 14:00–16:00 + Overtid 50 % 16:00–17:00). Splitt-korreksjonen **finnes** — `splittRad`-mutasjonen (T7-2c1, `dagsseddel.ts:2687`, discriminated union timer/tillegg/maskin, `nyeRader` med egen lønnsart + tidsrom, sum må == original) montert i lederens «Rediger arbeid» (`SplittRadModal` via `AttesteringDetalj_Edit` + `SeddelKort` ✂-ikon) — men **kun på leder-/attesterings-flaten**, gated på `tillattRedigerVedAttestering`. Arbeider-detalj (`apps/web/src/app/dashbord/timer/[id]`) har ingen splitt-UI (grep tom). Vedtak (Kenneth 2026-07-11): bygg arbeider-side selv-korreksjon (splitt egen rad før innsending / ved retur) — gjenbruk `splittRad`-mutasjonen + `SplittRadModal`-mønsteret, tilpasset arbeider-eierskap (egen `draft`/`returned`-sedel). Mobil-paritet vurderes samtidig. **Leder-siden er allerede dekket** — Kenneth enabler bare `tillattRedigerVedAttestering` (Firma → Innstillinger-toggle) per firma.
