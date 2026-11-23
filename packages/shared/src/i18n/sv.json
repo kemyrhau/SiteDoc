@@ -416,6 +416,7 @@
   "timer.prosjektkort.reiseMerke": "Resa",
   "timer.prosjektkort.reiseTil": "Till {{sted}}",
   "timer.prosjektkort.reiseFra": "Från {{sted}}",
+  "timer.prosjektkort.reiseRute": "{{fra}} → {{til}}",
   "timer.prosjektkort.utenUnderprosjekt": "Inget delprojekt",
   "timer.rediger.reiseHavnerJobb": "Det här är resor. Det går i jobbet på {{sted}}.",
   "timer.rediger.reiseHavnerEget": "Det här är resor. Den får ett eget kort.",

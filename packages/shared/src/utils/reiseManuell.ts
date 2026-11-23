@@ -552,6 +552,27 @@ export function medOverforingPeriodeId(spor: ManuellReiseSpor, periodeId: string
   return { ...spor, reiseRegel: { ...spor.reiseRegel, overforing: { ...ovf, periodeId } } };
 }
 
+/**
+ * O17 (vedtak pkt 21): en reise mellom to kontorer (tur 3, «Til annet oppmøtested») kjennes på
+ * ruten i `reiseRegel.overforing` med kontor i begge ender — ikke på `reiseKilde`, som bare er
+ * «overforing» over terskel. Leser JSON defensivt (samme form som api-ets `lesOverforingRute`).
+ * null = ikke kontor ↔ kontor (L2 kontor ↔ byggeplass, vanlig reise, manglende/ugyldig regel).
+ */
+export function kontorReiseRute(reiseRegel: unknown): { fraKontorId: string; tilKontorId: string } | null {
+  if (reiseRegel == null || typeof reiseRegel !== "object") return null;
+  const ov = (reiseRegel as Record<string, unknown>).overforing;
+  if (ov == null || typeof ov !== "object") return null;
+  const kontorId = (v: unknown): string | null => {
+    if (v == null || typeof v !== "object") return null;
+    const o = v as Record<string, unknown>;
+    return o.type === "kontor" && typeof o.oppmotestedId === "string" ? o.oppmotestedId : null;
+  };
+  const fraKontorId = kontorId((ov as Record<string, unknown>).fra);
+  const tilKontorId = kontorId((ov as Record<string, unknown>).til);
+  if (!fraKontorId || !tilKontorId) return null;
+  return { fraKontorId, tilKontorId };
+}
+
 /** i18next-kompatibel oversetter (samme form som `grenseSjekk`). */
 type Oversett = (key: string, opts?: Record<string, unknown>) => string;
 

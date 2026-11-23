@@ -416,6 +416,7 @@
   "timer.prosjektkort.reiseMerke": "Udhëtoni",
   "timer.prosjektkort.reiseTil": "te {{sted}}",
   "timer.prosjektkort.reiseFra": "nga {{sted}}",
+  "timer.prosjektkort.reiseRute": "{{fra}} → {{til}}",
   "timer.prosjektkort.utenUnderprosjekt": "Asnjë nënprojekt",
   "timer.rediger.reiseHavnerJobb": "Ky është udhëtimi. Shkon në punë në {{sted}}.",
   "timer.rediger.reiseHavnerEget": "Ky është udhëtimi. Ajo merr kartën e vet.",

@@ -2035,3 +2035,41 @@ describe("O15 — «Del opp» og attesteringen etter Kenneths test på 722d394b"
     expect(tekster).toEqual(['timer.prosjektkort.reiseTil{"sted":"Prosjekt A"} · 06:26–06:56', "Henter stillas"]);
   });
 });
+
+// O17 (vedtak-timer-web.md § Reisevinduet pkt 21): reise mellom to kontorer vises som «{fra} → {til}».
+describe("O17 pkt 21 — kontorreise i attesteringen", () => {
+  const LR = { id: "lr", navn: "Reise", satsEnhet: null, overtidsnivaa: null };
+  const KONTOR = {
+    erReise: true, reiseRetning: "ut", reiseKilde: "overforing", reiseOppmotestedId: "kt", lonnsartId: "lr",
+    fraTid: "15:00", tilTid: "18:50", timer: "3.83", pauseMin: 0,
+    reiseRegel: { overforing: { fra: { type: "kontor", oppmotestedId: "kt" }, til: { type: "kontor", oppmotestedId: "kn" }, periodeId: "p1" } },
+  } as Partial<AttTimer>;
+  beforeEach(() => {
+    h.data["timer.lonnsart.list"] = [{ id: "l1", navn: "Ordinær", satsEnhet: null, overtidsnivaa: null }, LR];
+    h.data["oppmotested.hentForFirma"] = [{ id: "kt", navn: "Tromsø" }, { id: "kn", navn: "Narvik kontor" }];
+  });
+  afterEach(() => {
+    delete h.data["oppmotested.hentForFirma"];
+  });
+  const hoverTekster = (container: HTMLElement) =>
+    (Array.from(container.querySelectorAll('[data-rad="jobb"]')) as HTMLElement[]).map((r) => {
+      const id = (r.getAttribute("aria-describedby") ?? "").split(" ").find(Boolean);
+      const node = id ? document.getElementById(id) : null;
+      return node ? Array.from(node.querySelectorAll("[data-beskrivelse-hover] > span")).map((e) => e.textContent) : [];
+    });
+
+  it("kort med bare kontorreisen: hover viser «Tromsø → Narvik kontor · 15:00–18:50»", () => {
+    const { container } = vis([sedel({ timer: [timer("t1", { beskrivelse: "Forskaling" }), timer("r1", { ...KONTOR, kortId: "kR" })] })]);
+    const tekster = hoverTekster(container).find((x) => x[0] !== "Forskaling");
+    expect(tekster).toEqual(['timer.prosjektkort.reiseRute{"fra":"Tromsø","til":"Narvik kontor"} · 15:00–18:50']);
+  });
+
+  it("vakt: vanlig reise til byggeplass er uendret «Til {sted}»", () => {
+    const { container } = vis([sedel({ timer: [
+      timer("t1", { beskrivelse: "Forskaling" }),
+      timer("r1", { ...KONTOR, reiseRegel: null, kortId: "kR" }),
+    ] })]);
+    const tekster = hoverTekster(container).find((x) => x[0] !== "Forskaling");
+    expect(tekster).toEqual(['timer.prosjektkort.reiseTil{"sted":"Prosjekt A"} · 15:00–18:50']);
+  });
+});

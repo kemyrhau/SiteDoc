@@ -17,6 +17,7 @@ import {
   grupperDetaljRader,
   ALLE_RADTYPER,
   TIMER_KOL_BREDDE,
+  kontorReiseRute,
   type DetaljRadType,
   type Gruppering,
 } from "@sitedoc/shared";
@@ -24,6 +25,7 @@ import { esc, byggTimerRapportHtml, type TimerRapportData } from "@sitedoc/pdf";
 import { router, protectedProcedure } from "../../trpc/trpc";
 import { autoriserAdminForFirma } from "../../trpc/tilgangskontroll";
 import { krevTimerAktivert } from "../../services/timer";
+import { reiseFraTilSted } from "./reise-steder";
 import {
   hentByggeplassNavn,
   hentUnderprosjektNavn,
@@ -556,7 +558,13 @@ export const rapportRouter = router({
       const oppmotestedIder = Array.from(
         new Set(
           sedler.flatMap((s) =>
-            s.timer.map((r) => r.reiseOppmotestedId).filter((id): id is string => id != null),
+            s.timer
+              .flatMap((r) => {
+                // O17 pkt 21: til-kontoret i en reise mellom to kontorer slås opp i samme batch.
+                const rute = kontorReiseRute(r.reiseRegel);
+                return [r.reiseOppmotestedId, rute?.fraKontorId ?? null, rute?.tilKontorId ?? null];
+              })
+              .filter((id): id is string => id != null),
           ),
         ),
       );
@@ -630,14 +638,13 @@ export const rapportRouter = router({
 
       const timerader = sedler.flatMap((s) =>
         s.timer.filter(eksporterbar).map((r) => {
-          // fra/til-sted orientert av retningen (K5 mottak; serveren regner ikke om).
-          // ut: kontor → byggeplass · retur: byggeplass → kontor. Null retning → ingen
-          // orientering (gammel backfill-rad) → begge null, men «Reise: Ja» står.
+          // fra/til-sted: `reiseFraTilSted` (K5-orienteringen + O17 kontor ↔ kontor fra ruten).
           const retning = tilEnum(r.reiseRetning, ["ut", "retur"] as const);
-          const stedKontor = oppmotestedNavn(r.reiseOppmotestedId);
-          const stedBygg = byggeplassNavn(r.byggeplassId);
-          const fraSted = retning === "ut" ? stedKontor : retning === "retur" ? stedBygg : null;
-          const tilSted = retning === "ut" ? stedBygg : retning === "retur" ? stedKontor : null;
+          const { fraSted, tilSted } = reiseFraTilSted(
+            { reiseRetning: retning, reiseOppmotestedId: r.reiseOppmotestedId, byggeplassId: r.byggeplassId, reiseRegel: r.reiseRegel },
+            oppmotestedNavn,
+            byggeplassNavn,
+          );
           return {
           id: r.id,
           dato: iso(s.dato),

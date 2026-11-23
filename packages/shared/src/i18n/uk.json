@@ -416,6 +416,7 @@
   "timer.prosjektkort.reiseMerke": "Подорожі",
   "timer.prosjektkort.reiseTil": "До {{sted}}",
   "timer.prosjektkort.reiseFra": "Від {{sted}}",
+  "timer.prosjektkort.reiseRute": "{{fra}} → {{til}}",
   "timer.prosjektkort.utenUnderprosjekt": "Немає підпроекту",
   "timer.rediger.reiseHavnerJobb": "Це подорожі. Це йде на роботу в {{sted}}.",
   "timer.rediger.reiseHavnerEget": "Це подорожі. Він отримує власну картку.",

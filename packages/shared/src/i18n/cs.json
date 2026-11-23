@@ -416,6 +416,7 @@
   "timer.prosjektkort.reiseMerke": "Cestovat",
   "timer.prosjektkort.reiseTil": "Komu {{sted}}",
   "timer.prosjektkort.reiseFra": "Od {{sted}}",
+  "timer.prosjektkort.reiseRute": "{{fra}} → {{til}}",
   "timer.prosjektkort.utenUnderprosjekt": "Žádný dílčí projekt",
   "timer.rediger.reiseHavnerJobb": "Tohle je cestování. Jde to v práci u {{sted}}.",
   "timer.rediger.reiseHavnerEget": "Tohle je cestování. Dostane vlastní kartu.",

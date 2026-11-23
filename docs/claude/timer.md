@@ -1114,6 +1114,15 @@ Hjemmel: [vedtak-timer-web.md § Reisevinduet](vedtak-timer-web.md) punkt 1 og 2
 - **Riktig periode (V2):** «Siste dag» i boksen og «Avslutt» sender `periodeId` for perioden de navngir; serveren krever at den er medlemmets egen overføring i firmaet (ellers NOT_FOUND/FORBIDDEN) og lukker eller sletter nettopp den. «… fjernes» regnes fra samme periode.
 - **Tester:** `oppmote-o16.test.ts` (R1, R2, V2, H2, H3, R4, R7a, R7b, R8), `oppmotePeriode.test.ts` «O16», `reisevindu.test.tsx` «O16 …», `o14-penn-reise.test.tsx` «O16 pkt 5 (R5)», `reise-terskel-dialog.test.tsx` (hooken bruker de delte funksjonene).
 
+### Kontorreise i kortliste og eksport, «fjernes» ved Avslutt (O17) — 🟡 `feat/web-timer-o17-kontorreise` (2026-11-23, venter gate)
+
+Hjemmel: [vedtak-timer-web.md § Reisevinduet](vedtak-timer-web.md) punkt 21 og 22 (@ `2130523e`). Bare web og eksport; mobilen, plasseringen av reisen (pkt 20) og maskinregelen er urørt. Ingen migrering.
+
+- **Kjennetegn:** en reise mellom to kontorer (tur 3) er en rad med `reiseRegel.overforing` der begge ender er kontor — `kontorReiseRute` (`packages/shared/src/utils/reiseManuell.ts`). Ikke `reiseKilde` alene, som bare er «overforing» over terskel. Eldre L2-overføringer kontor ↔ byggeplass er uendret.
+- **Pkt 21 — Før:** radteksten sa «Til/Fra {prosjekt}» (ingen byggeplass), og eksporten hadde tom «Til». **Nå:** «{fra-kontor} → {til-kontor}» (`timer.prosjektkort.reiseRute`), navnet slik det er lagret, i prosjektkortets reiselinje og hover (`page.tsx` `ReiseLinje`/`JobbKortRamme`), attesteringens hover (`AttesteringTabell.tsx` `kortBeskrivelser`) og reisemerket (`ReiseRadMerke.tsx`). Navnene kommer fra `useKontorNavn` (`apps/web/src/hooks/useKontorReiseTekst.ts`); spørringen kjøres bare når en rad har kontor-rute, og ukjent navn gir dagens tekst. Eksporten: `reiseFraTilSted` (`apps/api/src/routes/timer/reise-steder.ts`) gir `fraSted`/`tilSted` fra ruten, og `rapport.ts` `detaljEksport` slår opp til-kontoret i samme batch — Excel, PDF, skjermrapporten og lønnsoppsettet leser samme felt. Dagskort-visningen har ingen egen reisetekst.
+- **Pkt 22 — Før:** «Avslutt» med «Siste dag» før periodens start slettet perioden uten å si det. **Nå:** linja `reise-avslutt` sier «Perioden din {navn} {periode} fjernes.» (`periodeFjernes`, R4-ordlyden) før trykket. Teksten og kallet kommer fra samme plan, `planleggAvslutt` (`oppmote.ts`), som `avsluttOverforing` sender (`periodeId`, V2).
+- **Tester:** `oppmote-o17.test.ts` (shared), `reise-visning.test.tsx` «O17 pkt 21», `attestering-tabell.test.tsx` «O17 pkt 21», `reise-rad-merke-o17.test.tsx`, `reise-steder.test.ts`, `reisevindu.test.tsx` «O17 pkt 22», integrasjon `o17-kontorreise-eksport.integration.test.ts` (`detaljEksport` mot ekte Postgres).
+
 ### Prosjektkort-rute — egen skjerm for samlesiden (ORDRE 35, I2) — 🟡 `feat/prosjektkort-isolert` (2026-11-07, ikke merget)
 
 Kenneth-vedtak I2: prosjektkortets samleside på mobil er flyttet ut av dagskortet til egen rute, så endringer i prosjektkortet ikke kan treffe dagskortet.

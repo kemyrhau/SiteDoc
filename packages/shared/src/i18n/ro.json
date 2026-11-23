@@ -416,6 +416,7 @@
   "timer.prosjektkort.reiseMerke": "Voiaj",
   "timer.prosjektkort.reiseTil": "Către {{sted}}",
   "timer.prosjektkort.reiseFra": "De la {{sted}}",
+  "timer.prosjektkort.reiseRute": "{{fra}} → {{til}}",
   "timer.prosjektkort.utenUnderprosjekt": "Nici un subproiect",
   "timer.rediger.reiseHavnerJobb": "Aceasta este o călătorie. Acesta merge în locul de muncă la {{sted}}.",
   "timer.rediger.reiseHavnerEget": "Aceasta este o călătorie. Primește propriul card.",

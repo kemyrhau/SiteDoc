@@ -17,6 +17,7 @@ import {
   type TimerTabellKolKey,
 } from "@sitedoc/shared";
 import { trpc } from "@/lib/trpc";
+import { kontorReiseTekst, useKontorNavn } from "@/hooks/useKontorReiseTekst";
 import { formaterNorsk } from "@/lib/timer-rapport-eksport";
 import { useTabelloppsett } from "@/hooks/useTabelloppsett";
 import { KolonneVelger } from "@/components/ui/KolonneVelger";
@@ -247,6 +248,15 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
   // w10b (M3): firmaets standardverdier krever bare ansettelse — prosjektlederen er ikke firma-admin.
   const { data: innstilling } = trpc.organisasjon.hentArbeidstidDefaults.useQuery({ organizationId: orgId });
   const tidsrunding = (innstilling as { tidsrundingMinutter?: number | null } | undefined)?.tidsrundingMinutter ?? null;
+  // O17 pkt 21: kontornavnene til reiser mellom to kontorer (spørringen kjøres bare når en slik finnes).
+  const reiseRegler = useMemo(
+    () =>
+      dager.flatMap((d) =>
+        d.kort.flatMap((k) => k.linjer.flatMap((l) => (l.kilde.type === "timer" ? [l.kilde.rad.reiseRegel] : []))),
+      ),
+    [dager],
+  );
+  const kontorNavn = useKontorNavn(orgId, reiseRegler);
 
   const oppfrisk = () => {
     void utils.timer.dagsseddel.hentTilAttesteringFirma.invalidate();
@@ -683,12 +693,14 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
         .sort((a, b) => (a.l.linje.fraTid ?? "").localeCompare(b.l.linje.fraTid ?? ""));
       const linje = ({ l, rad }: (typeof reiser)[number]) => {
         const retning = rad.erReise ? rad.reiseRetning : (rad.arbeidReiseRetning ?? null);
+        // O17 pkt 21: reise mellom to kontorer vises som «{fra} → {til}».
         const stedTekst =
-          retning === "ut"
+          kontorReiseTekst(t, rad.reiseRegel, kontorNavn) ??
+          (retning === "ut"
             ? t("timer.prosjektkort.reiseTil", { sted })
             : retning === "retur"
               ? t("timer.prosjektkort.reiseFra", { sted })
-              : sted;
+              : sted);
         const tid = l.linje.fraTid && l.linje.tilTid ? ` · ${l.linje.fraTid}–${l.linje.tilTid}` : "";
         return `${stedTekst}${tid}`;
       };
