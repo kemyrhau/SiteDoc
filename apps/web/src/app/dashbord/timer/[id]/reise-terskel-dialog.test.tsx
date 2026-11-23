@@ -320,10 +320,12 @@ describe("web «+ Reise» — reise-kortet, samme regel som mobil", () => {
     const hook = readFileSync(join(her, "../../../../hooks/useManuellReiseWeb.ts"), "utf-8");
     expect(hook).toContain("løsReiseKort(");
     expect(hook).toContain("løsOppmote(");
-    // § 8.22 punkt 2: ingen overføringsregel og ingen kontor↔kontor-kjøretid i reisevinduet.
-    expect(hook).not.toContain("løsOverforingKort(");
+    // O16 pkt 4 (vedtak Reisevinduet pkt 1, snur § 8.22 punkt 2): «Til annet oppmøtested» bruker
+    // den delte overføringsregelen og kontor–kontor-kjøretiden; periodene via planleggOppmoteBytte.
+    expect(hook).toContain("løsOverforingKort(");
+    expect(hook).toContain("hentKontorAvstanderForFirma");
+    expect(hook).toContain("planleggOppmoteBytte(");
     expect(hook).not.toContain("byggOverforingOppslag(");
-    expect(hook).not.toContain("hentKontorAvstanderForFirma");
     expect(hook).toContain("oppmotePeriode.hentMine");
     expect(hook).not.toContain("localStorage");
   });

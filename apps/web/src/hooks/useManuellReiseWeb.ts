@@ -11,12 +11,17 @@ import {
   kortPaaSedelFraRader,
   velgReiseKort,
   finnDagsramme,
+  gjeldendeMidlertidig,
   kontorOverforingOppsett,
+  kontorOverforingRetning,
   løsOppmote,
+  løsOverforingKort,
   løsReiseKort,
-  planleggOverforing,
+  planleggOppmoteBytte,
   tilIsoDato,
   type DagsforslagOverforingCelle,
+  type OppmoteBytte,
+  type OppmoteByttKall,
   type OppmotePeriodeInput,
   type OppmoteResultat,
   type ReiseKortResultat,
@@ -33,23 +38,20 @@ import { trpc } from "@/lib/trpc";
  *  (`oppmotePeriode.hentMine`) løses med den DELTE `løsOppmote`, og tid,
  *  kjøretid og lønnsart regnes med `løsReiseKort`.
  *
- *  § 8.22 punkt 2 (Kenneth 2026-11-21, svar 1A): reise til annet kontor har ingen egen
- *  reisetype eller kortregel på PC. Arbeideren kan sette et midlertidig oppmøtested selv
- *  («Fra et annet kontor fra i dag», `annetKontorId`): reisen regnes og lagres som vanlig
- *  reise fra det kontoret, og `oppmotePeriode.overforing` setter perioden fra sedeldatoen.
+ *  O16 (vedtak-timer-web.md § Reisevinduet pkt 1–2): oppmøtestedet er ett felt i «Fra → Til»
+ *  (`annetKontorId` = kontoret arbeideren har valgt i feltet; null = dagens). Et annet kontor
+ *  blir midlertidig oppmøtested fra «Gjelder fra» (til og med «Til og med»); det faste kontoret
+ *  mens et eget midlertidig gjelder, avslutter det på «Siste dag». Planen er den delte
+ *  `planleggOppmoteBytte`. Tredje valg «Til annet oppmøtested» (`{ type: "kontor" }`) er en
+ *  reise kontor → kontor med firmaets kjøretid mellom kontorene (`løsOverforingKort`, som mobil).
  *
  *  «Siste valg på enheten» (lagret i nettleseren) er fjernet (Kenneth-beslutning 7).
  * ============================================================================ */
 
-export type ReiseKortValg = { type: "tur" } | { type: "retur" };
+export type ReiseKortValg = { type: "tur" } | { type: "retur" } | { type: "kontor" };
 
-/** Kallet `oppmotePeriode.overforing` får når «Fra et annet kontor fra i dag» lagres. */
-export type KontorOverforingKall = {
-  handling: "start";
-  oppmotestedId: string;
-  /** Sedeldatoen: perioden gjelder fra i dag. */
-  dato: string;
-};
+/** Kallet `oppmotePeriode.overforing` får når oppmøtestedet byttes (O16: arbeiderens datoer). */
+export type KontorOverforingKall = OppmoteByttKall;
 
 export type ReiseKortByggeplass = { id: string; projectId: string; name: string | null };
 
@@ -240,6 +242,9 @@ export function useManuellReiseWeb({
   resolverLonnsartId,
   valg,
   annetKontorId = null,
+  gjelderFra = null,
+  tilOgMed = null,
+  sisteDag = null,
   startTid = null,
   sluttTid = null,
   kategoriValg = null,
@@ -255,8 +260,12 @@ export function useManuellReiseWeb({
   resolverLonnsartId: string | null;
   /** null = Tur. */
   valg: ReiseKortValg | null;
-  /** «Fra et annet kontor fra i dag» (§ 8.22, svar 1A). null = oppmøtestedet perioden gir. */
+  /** O16 pkt 1: kontoret i oppmøtested-feltet. null = dagens oppmøtested. */
   annetKontorId?: string | null;
+  /** O16 pkt 2: arbeiderens «Gjelder fra», «Til og med» og «Siste dag». null = forslaget. */
+  gjelderFra?: string | null;
+  tilOgMed?: string | null;
+  sisteDag?: string | null;
   /** w15b: arbeiderens rettede start/slutt (HH:MM). null = forslaget. */
   startTid?: string | null;
   sluttTid?: string | null;
@@ -271,6 +280,10 @@ export function useManuellReiseWeb({
   const matriseQ = trpc.oppmotested.hentMatriseForFirma.useQuery(q, opt);
   const perioderQ = trpc.oppmotePeriode.hentMine.useQuery(q, opt);
   const lonnsarterQ = trpc.timer.lonnsart.list.useQuery(q, opt);
+  // O16 pkt 4: kjøretid kontor–kontor (paret er lagret med fra < til, som mobilens katalog).
+  const kontorAvstandQ = trpc.oppmotested.hentKontorAvstanderForFirma.useQuery(q, {
+    enabled: aktivert && valg?.type === "kontor",
+  });
 
   // RETUR (11) vilkår 1 (lønn): resultatet er bare gyldig når ALT det bygger
   // på er lastet. Kalleren sperrer Lagre til status er «klar» — aldri stille
@@ -334,9 +347,13 @@ export function useManuellReiseWeb({
     [dato, projectId, perioder, steder],
   );
   const apenOverforing = useMemo(() => perioder.find(erApenOverforing) ?? null, [perioder]);
+  // O16 pkt 1: perioden som gir dagens oppmøtested når den er midlertidig (egen eller firmaadmins).
+  const gjeldende = useMemo(() => gjeldendeMidlertidig(dato, perioder), [dato, perioder]);
   const valgtKontor = annetKontorId && kontorOppsett?.andre.includes(annetKontorId) ? annetKontorId : null;
   // Reisen regnes fra det valgte kontoret, som om perioden alt var satt.
-  const retning = aktivtValg.type === "retur" ? "retur" : "tur";
+  const kontorRetning =
+    aktivtValg.type === "kontor" && kontorOppsett && valgtKontor ? kontorOverforingRetning(kontorOppsett, valgtKontor) : null;
+  const retning = aktivtValg.type === "retur" || kontorRetning === "retur" ? "retur" : "tur";
   const oppmote: OppmoteResultat = useMemo(
     () =>
       valgtKontor
@@ -347,9 +364,39 @@ export function useManuellReiseWeb({
 
   // O12 pkt 10: forslaget er firmaets kjøretid uten avrunding (som mobil).
   // O12 pkt 14: mangler kjøretiden, skriver arbeideren tiden selv (`tillatUtenKjoretid`).
+  const kontorCelle = useMemo(() => {
+    if (!kontorOppsett || !valgtKontor) return null;
+    const [a, b] = [kontorOppsett.fraKontorId, valgtKontor].sort();
+    const rad = (kontorAvstandQ.data ?? []).find((r) => r.fraOppmotestedId === a && r.tilOppmotestedId === b);
+    return rad ? { kjoretidMin: rad.kjoretidMin ?? null, avstandM: rad.avstandM ?? null } : null;
+  }, [kontorOppsett, valgtKontor, kontorAvstandQ.data]);
+
   const resultat: ReiseKortResultat = useMemo(
     () =>
-      løsReiseKort({
+      aktivtValg.type === "kontor" && kontorOppsett && valgtKontor
+        ? // O16 pkt 4 / R6: «Til annet oppmøtested» — samme rad som mobilens kontoroverføring.
+          løsOverforingKort({
+            overforing: {
+              retning: kontorRetning === "retur" ? "retur" : "ut",
+              fra: { type: "kontor", oppmotestedId: kontorOppsett.fraKontorId },
+              til: { type: "kontor", oppmotestedId: valgtKontor },
+              periodeId: null,
+            },
+            oppmotestedId: kontorOppsett.fraKontorId,
+            kjoretidMin: kontorCelle?.kjoretidMin ?? null,
+            avstandM: kontorCelle?.avstandM ?? null,
+            dagStart: ramme.dagStart,
+            dagSlutt: ramme.dagSlutt,
+            regel,
+            grensepunkter,
+            resolverLonnsartId,
+            standardLonnsartId,
+            startTid,
+            sluttTid,
+            kategoriValg,
+            tillatUtenKjoretid: true,
+          })
+        : løsReiseKort({
         dagStart: ramme.dagStart,
         dagSlutt: ramme.dagSlutt,
         regel,
@@ -366,7 +413,7 @@ export function useManuellReiseWeb({
         avstandFor: (o, b) => matrise.get(`${o}|${b}`)?.avstandM ?? null,
         tillatUtenKjoretid: true,
       }),
-    [retning, ramme, regel, grensepunkter, resolverLonnsartId, standardLonnsartId, oppmote, byggeplassId, matrise, startTid, sluttTid, kategoriValg],
+    [aktivtValg.type, kontorOppsett, valgtKontor, kontorRetning, kontorCelle, retning, ramme, regel, grensepunkter, resolverLonnsartId, standardLonnsartId, oppmote, byggeplassId, matrise, startTid, sluttTid, kategoriValg],
   );
 
   // Oppmøtestedet vises som tekst bare når firmaet har flere (§ 7 C).
@@ -375,17 +422,42 @@ export function useManuellReiseWeb({
       ? (steder.find((o) => o.id === oppmote.oppmotestedId)?.navn ?? null)
       : null;
 
-  // Kallet lagringen gjør, og om serveren ville avvist det (admin-satt midlertidig).
-  const kontorKall: KontorOverforingKall | null = valgtKontor
-    ? { handling: "start", oppmotestedId: valgtKontor, dato }
-    : null;
+  // O16 pkt 2: hva kontorvalget gjør med oppmøtestedet (den blå boksen) og kallet «Lagre» gjør.
+  const dagensKontorId =
+    periodeOppmote.kilde === "fast" || periodeOppmote.kilde === "midlertidig" || periodeOppmote.kilde === "gps"
+      ? periodeOppmote.oppmotestedId
+      : null;
+  const bytte: OppmoteBytte = useMemo(
+    () =>
+      planleggOppmoteBytte({
+        valg: aktivtValg.type,
+        dato,
+        startTid: resultat.fraTid,
+        perioder: perioder.map((p) => ({ ...p, id: p.id ?? "" })),
+        dagensKontorId,
+        fastKontorId: kontorOppsett?.fastKontorId ?? null,
+        valgtKontorId: valgtKontor,
+        gjelderFra,
+        tilOgMed,
+        sisteDag,
+      }),
+    [aktivtValg.type, dato, resultat.fraTid, perioder, dagensKontorId, kontorOppsett, valgtKontor, gjelderFra, tilOgMed, sisteDag],
+  );
+  const kontorKall: KontorOverforingKall | null =
+    (bytte.type === "start" && !bytte.ugyldig) || bytte.type === "slutt" ? bytte.kall : null;
+  // Sperrer «Lagre»: firmaadmins periode (R8), overlapp (R3), ugyldig dato.
   const kontorKonflikt =
-    kontorKall != null && planleggOverforing(perioder, kontorKall).utfall === "konflikt";
+    bytte.type === "admin" || (bytte.type === "start" && (bytte.konflikt != null || bytte.ugyldig != null));
 
   return {
     kontorOppsett,
     kontorKall,
     kontorKonflikt,
+    bytte,
+    gjeldende,
+    dagensKontorId,
+    valgtKontor,
+    kontorRetning,
     apenOverforing,
     kontorNavn: (id: string) => steder.find((o) => o.id === id)?.navn ?? "",
     regelStatus,

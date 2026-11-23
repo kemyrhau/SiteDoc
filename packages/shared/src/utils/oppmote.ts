@@ -265,22 +265,66 @@ export function erApenOverforing(p: OppmotePeriodeInput): boolean {
   return p.type === "kontor" && !p.fast && p.tilDato == null && p.kilde === "overforing";
 }
 
+/** O16 R1: midlertidig kontorperiode satt av arbeideren selv (reise-kortet), med eller uten sluttdato. */
+export function erEgenOverforing(p: OppmotePeriodeInput): boolean {
+  return p.type === "kontor" && !p.fast && p.kilde === "overforing";
+}
+
 /**
- * Del B: hva en overføring gjør med brukerens perioder. Rører KUN egen åpen
+ * O16 R1: arbeiderens egen overføring som dekker `dato` eller ligger etter den (åpen eller med
+ * sluttdato). Den som dekker datoen går foran; ellers den tidligste senere. Uten egne perioder med
+ * sluttdato ≥ `dato` er svaret det samme som `perioder.find(erApenOverforing)` (maks én åpen).
+ */
+export function finnEgenOverforing<T extends OppmotePeriodeInput>(perioder: readonly T[], dato: string): T | null {
+  const egne = perioder.filter((p) => erEgenOverforing(p) && (p.tilDato == null || p.tilDato >= dato));
+  const dekker = egne.find((p) => p.fraDato <= dato);
+  if (dekker) return dekker;
+  return [...egne].sort((a, b) => (a.fraDato < b.fraDato ? -1 : a.fraDato > b.fraDato ? 1 : 0))[0] ?? null;
+}
+
+/**
+ * Del B: hva en overføring gjør med brukerens perioder. Rører KUN egen
  * periode med kilde='overforing'; admin-perioder og fast sted er urørt.
- *  - slutt: åpen overføring lukkes på `dato` (slettes om `dato` < fraDato).
- *  - start til eget faste kontor: åpen overføring lukkes dagen før (hjemkomst).
- *  - start til samme kontor som allerede er åpent: ingen endring.
+ * Hvilken egen periode (O16 V1/V2): uten flagg (mobilen) den åpne, som før;
+ * `medSluttdato` (web) den som dekker datoen eller ligger etter, åpen eller
+ * med sluttdato (R1); `periodeId` (web, `slutt`) nettopp den perioden.
+ *  - slutt: egen overføring lukkes på `dato` (slettes om `dato` < fraDato;
+ *    ingen endring når den alt slutter på eller før `dato`).
+ *  - start til eget faste kontor: egen overføring lukkes dagen før (hjemkomst).
+ *  - start til samme kontor som allerede gjelder: ingen endring.
  *  - start når en admin-satt midlertidig periode er åpen: konflikt.
- *  - ellers: åpen overføring lukkes dagen før (slettes om tom), ny opprettes.
+ *  - ellers: egen overføring lukkes dagen før (slettes om tom), ny opprettes
+ *    (O16 S3: med `tilDato` når den er gitt). Ligger den egne helt etter den
+ *    nye (ny `tilDato` før dens start), røres den ikke.
  */
 export function planleggOverforing(
   perioder: readonly OverforingPeriode[],
-  input: { handling: "start" | "slutt"; oppmotestedId?: string | null; dato: string },
+  input: {
+    handling: "start" | "slutt";
+    oppmotestedId?: string | null;
+    dato: string;
+    /** O16 S3: «Til og med» (bare `start`). Utelatt = åpen periode. */
+    tilDato?: string | null;
+    /**
+     * O16 V1: bare web sender den. Satt → egen periode med sluttdato kan velges (`finnEgenOverforing`).
+     * Utelatt (mobilen) → nøyaktig gammel regel: kun egen ÅPNE overføring.
+     */
+    medSluttdato?: boolean;
+    /** O16 V2: bare web, bare `slutt`: nettopp denne egne perioden lukkes/slettes (den boksen navngir). */
+    periodeId?: string | null;
+  },
 ): OverforingPlan {
-  const apen = perioder.find(erApenOverforing) ?? null;
-  const lukk = (til: string): OverforingPlan =>
-    apen ? { utfall: til < apen.fraDato ? "slettet" : "lukket", apen, til } : { utfall: "ingen", periode: null };
+  const apen =
+    input.periodeId != null
+      ? (perioder.find((p) => p.id === input.periodeId && erEgenOverforing(p)) ?? null)
+      : input.medSluttdato
+        ? finnEgenOverforing(perioder, input.dato)
+        : (perioder.find(erApenOverforing) ?? null);
+  const lukk = (til: string): OverforingPlan => {
+    if (!apen) return { utfall: "ingen", periode: null };
+    if (apen.tilDato != null && til >= apen.tilDato) return { utfall: "ingen", periode: apen };
+    return { utfall: til < apen.fraDato ? "slettet" : "lukket", apen, til };
+  };
 
   if (input.handling === "slutt") return lukk(input.dato);
 
@@ -293,7 +337,10 @@ export function planleggOverforing(
   if (perioder.some((p) => p.type === "kontor" && !p.fast && p.tilDato == null && p.kilde !== "overforing")) {
     return { utfall: "konflikt" };
   }
-  const lukkTil = apen ? leggTilDager(input.dato, -1) : null;
+  const nyTil = input.tilDato ?? null;
+  // O16: en egen periode som ligger helt etter den nye, står urørt.
+  const berort = apen && !(nyTil != null && nyTil < apen.fraDato) ? apen : null;
+  const lukkTil = berort ? leggTilDager(input.dato, -1) : null;
   return {
     utfall: "opprettet",
     ny: {
@@ -302,13 +349,28 @@ export function planleggOverforing(
       oppmotestedId: maal,
       projectId: null,
       fraDato: input.dato,
-      tilDato: null,
+      tilDato: nyTil,
       kilde: "overforing",
     },
-    apen,
+    apen: berort,
     lukkTil,
-    slettApen: apen != null && lukkTil! < apen.fraDato,
+    slettApen: berort != null && lukkTil! < berort.fraDato,
   };
+}
+
+/**
+ * O16 R3: perioden en «opprettet»-plan ville overlappe etter at den egne er lukket/slettet —
+ * samme regel serveren avviser med (`finnPeriodeKonflikt`). null = ingen konflikt.
+ */
+export function overforingKonflikt<T extends OverforingPeriode>(
+  perioder: readonly T[],
+  plan: OverforingPlan,
+): T | null {
+  if (plan.utfall !== "opprettet") return null;
+  const { apen, lukkTil, slettApen, ny } = plan;
+  const ovrige = perioder.filter((p) => p.id !== apen?.id);
+  const lukket = apen && !slettApen ? [{ ...(apen as T), tilDato: lukkTil }] : [];
+  return finnPeriodeKonflikt(ny, [...ovrige, ...lukket]);
 }
 
 /** Del B: «Overføring til annet kontor» i reise-kortet — hva som tilbys. */
@@ -345,6 +407,156 @@ export function kontorOverforingOppsett(
 /** Til eget fast kontor = retur (avslutter overføringen); ellers tur (starter ny). */
 export function kontorOverforingRetning(oppsett: KontorOverforingOppsett, tilKontorId: string): "tur" | "retur" {
   return tilKontorId === oppsett.fastKontorId ? "retur" : "tur";
+}
+
+// ============================================================================
+//  O16 (vedtak-timer-web.md § Reisevinduet pkt 1–2): oppmøtestedet som ett felt
+//  i web-reisevinduet, og den blå boksen («Gjelder fra», «Til og med», «Siste dag»).
+//  Programmet foreslår datoene, arbeideren retter. Mobil bruker ikke dette.
+// ============================================================================
+
+/** O16 pkt 1: den midlertidige kontorperioden som gjelder på datoen (samme valg som `løsOppmote` trinn 3). */
+export function gjeldendeMidlertidig<T extends OppmotePeriodeInput>(dato: string, perioder: readonly T[]): T | null {
+  return (
+    perioder
+      .filter((p) => p.type === "kontor" && !p.fast && p.oppmotestedId != null && dekker(p, dato))
+      .sort(mestSpesifikk)[0] ?? null
+  );
+}
+
+export type OppmoteByttValg = "tur" | "retur" | "kontor";
+
+/** O16 pkt 2: «Gjelder fra» — sedelens dato ved «Til byggeplass», dagen etter ved «Fra byggeplass»,
+ *  kl. 12-regelen ved «Til annet oppmøtested». */
+export function gjelderFraForslag(valg: OppmoteByttValg, dato: string, startTid: string | null): string {
+  if (valg === "tur") return dato.slice(0, 10);
+  if (valg === "retur") return leggTilDager(dato, 1);
+  return periodeDatoFraOverforing(dato, startTid, "tur");
+}
+
+/** O16 pkt 2: «Siste dag» — sedelens dato ved «Fra byggeplass», dagen før ved «Til byggeplass».
+ *  R7a (Kenneth «ja»): «Til annet oppmøtested» → fast kontor følger kl. 12-regelen for retur-turen
+ *  (`periodeDatoFraOverforing`): start før 12 → dagen før, ellers sedelens dato. */
+export function sisteDagForslag(valg: OppmoteByttValg, dato: string, startTid: string | null): string {
+  if (valg === "retur") return dato.slice(0, 10);
+  if (valg === "tur") return leggTilDager(dato, -1);
+  return periodeDatoFraOverforing(dato, startTid, "retur");
+}
+
+/** R7b (Kenneth «ja»): «Avslutt» spør om «Siste dag» — forslaget er dagen før sedelens dato. */
+export function avsluttSisteDagForslag(dato: string): string {
+  return leggTilDager(dato, -1);
+}
+
+export type OppmoteByttKall =
+  | { handling: "start"; oppmotestedId: string; dato: string; tilDato?: string; medSluttdato: true }
+  | { handling: "slutt"; dato: string; periodeId: string };
+
+export type OppmoteBytte =
+  /** Dagens oppmøtested er valgt — ingen periode skrives. */
+  | { type: "ingen" }
+  /** Et annet kontor blir midlertidig oppmøtested. */
+  | {
+      type: "start";
+      kontorId: string;
+      gjelderFra: string;
+      tilOgMed: string | null;
+      kall: OppmoteByttKall;
+      plan: OverforingPlan;
+      /** R3: perioden den nye ville overlappe (sperrer «Lagre»). */
+      konflikt: OverforingPeriode | null;
+      /** R4: egen periode som fjernes av bytte. */
+      fjernes: OverforingPeriode | null;
+      /** Egen periode som slutter dagen før den nye. */
+      forkortes: { periode: OverforingPeriode; til: string } | null;
+      ugyldig: "tilFoerFra" | null;
+    }
+  /** Det faste kontoret er valgt mens en egen midlertidig gjelder — den avsluttes. */
+  | {
+      type: "slutt";
+      periode: OverforingPeriode;
+      sisteDag: string;
+      kall: OppmoteByttKall;
+      fjernes: OverforingPeriode | null;
+    }
+  /** R8: det faste kontoret er valgt mens firmaadmins periode gjelder — avsluttes ikke her. */
+  | { type: "admin"; periode: OverforingPeriode };
+
+/**
+ * O16: hva valget av kontor i reisevinduet gjør med oppmøtestedet. `valgtKontorId` = kontoret i
+ * nedtrekket (null eller dagens = ingen bytte). Datoene er arbeiderens når de er gitt, ellers
+ * forslaget. «Siste dag» går som `slutt` (R2: aldri `start` til fast kontor).
+ */
+export function planleggOppmoteBytte(a: {
+  valg: OppmoteByttValg;
+  dato: string;
+  startTid: string | null;
+  perioder: readonly OverforingPeriode[];
+  dagensKontorId: string | null;
+  fastKontorId: string | null;
+  valgtKontorId: string | null;
+  gjelderFra?: string | null;
+  tilOgMed?: string | null;
+  sisteDag?: string | null;
+}): OppmoteBytte {
+  const valgt = a.valgtKontorId;
+  if (!valgt || valgt === a.dagensKontorId) return { type: "ingen" };
+  const gjeldende = gjeldendeMidlertidig(a.dato, a.perioder);
+
+  if (valgt === a.fastKontorId && gjeldende) {
+    if (!erEgenOverforing(gjeldende)) return { type: "admin", periode: gjeldende };
+    const sisteDag = a.sisteDag ?? sisteDagForslag(a.valg, a.dato, a.startTid);
+    // V2: kallet og «… fjernes» gjelder nettopp perioden boksen navngir.
+    const kall: OppmoteByttKall = { handling: "slutt", dato: sisteDag, periodeId: gjeldende.id };
+    const plan = planleggOverforing(a.perioder, kall);
+    return {
+      type: "slutt",
+      periode: gjeldende,
+      sisteDag,
+      kall,
+      fjernes: plan.utfall === "slettet" ? plan.apen : null,
+    };
+  }
+
+  const gjelderFra = a.gjelderFra ?? gjelderFraForslag(a.valg, a.dato, a.startTid);
+  const tilOgMed = a.tilOgMed ?? null;
+  const plan = planleggOverforing(a.perioder, {
+    handling: "start",
+    oppmotestedId: valgt,
+    dato: gjelderFra,
+    tilDato: tilOgMed,
+    medSluttdato: true,
+  });
+  const konflikt =
+    plan.utfall === "konflikt"
+      ? (a.perioder.find((p) => p.type === "kontor" && !p.fast && p.tilDato == null && p.kilde !== "overforing") ?? null)
+      : overforingKonflikt(a.perioder, plan);
+  const fjernes =
+    plan.utfall === "opprettet" && plan.slettApen ? plan.apen : plan.utfall === "slettet" ? plan.apen : null;
+  const forkortes =
+    plan.utfall === "opprettet" && plan.apen && !plan.slettApen && plan.lukkTil
+      ? { periode: plan.apen, til: plan.lukkTil }
+      : plan.utfall === "lukket"
+        ? { periode: plan.apen, til: plan.til }
+        : null;
+  return {
+    type: "start",
+    kontorId: valgt,
+    gjelderFra,
+    tilOgMed,
+    kall: {
+      handling: "start",
+      oppmotestedId: valgt,
+      dato: gjelderFra,
+      ...(tilOgMed ? { tilDato: tilOgMed } : {}),
+      medSluttdato: true,
+    },
+    plan,
+    konflikt,
+    fjernes,
+    forkortes,
+    ugyldig: tilOgMed != null && tilOgMed < gjelderFra ? "tilFoerFra" : null,
+  };
 }
 
 // ── POST (13) L2 commit 8: overføringsoppslag (flyttet fra mobilens dagsforslag.ts,

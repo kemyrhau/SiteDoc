@@ -246,7 +246,12 @@ describe("O14 pkt 2 — pennen på en reise åpner «Reise» i redigering", () =
     expect(knapp(d, "timer.reisetid").getAttribute("aria-pressed")).toBe("true");
     expect((within(d).getByLabelText("timer.felt.underprosjekt") as HTMLSelectElement).value).toBe("eco1");
     expect(within(d).getByTestId("reise-kort-sted").textContent).toContain("Sitedoc Boligfelt B12 · sommerfeldtsgt 65");
-    expect(within(d).queryByLabelText("timer.reiseKort.annetKontorFraIDag")).toBeNull();
+    // O16 pkt 5: oppmøtestedet er tekst i redigering — ingen nedtrekk, ingen periode, ingen tredje retning.
+    expect(within(d).queryByLabelText("timer.reiseKort.oppmotested")).toBeNull();
+    expect(within(d).getByTestId("reise-fra-til").textContent).toContain('timer.reiseKort.kontorFast{"navn":"Kontor Tromsø"}');
+    expect(within(d).queryByTestId("reise-oppmote-boks")).toBeNull();
+    expect(within(d).queryByTestId("reise-oppmote-periode")).toBeNull();
+    expect(within(d).queryByRole("button", { name: "timer.reiseKort.tilAnnetOppmotested" })).toBeNull();
   });
 
   it("«Lagre» skriver raden: ny tid og underprosjekt, ingen lønnsart, ingen ny rad, ingen overføring", () => {
@@ -304,6 +309,60 @@ describe("O14 pkt 2 — pennen på en reise åpner «Reise» i redigering", () =
     fireEvent.click(penn!);
     expect(screen.getByRole("dialog", { name: "timer.detalj.redigerTimerRad" })).toBeDefined();
     expect(screen.queryByRole("dialog", { name: "timer.reiseKort.tittel" })).toBeNull();
+  });
+});
+
+/** O16 pkt 4: «Til annet oppmøtested» Tromsø → Narvik 04:00–07:00 i kortet k1. */
+const KONTORREISE = arbeid({
+  id: "rk",
+  lonnsartId: "lr",
+  byggeplassId: null,
+  fraTid: "04:00",
+  tilTid: "07:00",
+  timer: "3",
+  pauseMin: 0,
+  beskrivelse: null,
+  erReise: true,
+  reiseKilde: "overforing",
+  reiseRetning: "ut",
+  reiseRegel: {
+    overforing: { fra: { type: "kontor", oppmotestedId: "tromso" }, til: { type: "kontor", oppmotestedId: "narvik" }, periodeId: "p9" },
+  },
+  createdAt: "2026-11-05T04:00:00.000Z",
+});
+
+describe("O16 pkt 5 (R5) — pennen på en kontor → kontor-reise", () => {
+  afterEach(cleanup);
+
+  it("bare den tredje retningen; Fra og Til er tekst; ingen periode", () => {
+    rendre([arbeid(), KONTORREISE]);
+    pennenPaa("rk");
+    const d = reiseVindu();
+    expect(knapp(d, "timer.reiseKort.tilAnnetOppmotested").getAttribute("aria-pressed")).toBe("true");
+    expect(within(d).queryByRole("button", { name: "timer.reiseKort.tur" })).toBeNull();
+    expect(within(d).queryByRole("button", { name: "timer.reiseKort.retur" })).toBeNull();
+    expect(within(d).getByTestId("reise-fra-kontor").textContent).toBe("Kontor Tromsø");
+    expect(within(d).getByTestId("reise-til-kontor-tekst").textContent).toBe("Kontor Narvik");
+    expect(within(d).queryByLabelText("timer.reiseKort.tilKontorFelt")).toBeNull();
+    expect(within(d).queryByTestId("reise-oppmote-boks")).toBeNull();
+    expect(start(d).value).toBe("04:00");
+    expect(slutt(d).value).toBe("07:00");
+  });
+
+  it("«Lagre» skriver bare tiden: ingen retning, ingen periode, sporet står", () => {
+    rendre([arbeid(), KONTORREISE]);
+    pennenPaa("rk");
+    const d = reiseVindu();
+    fireEvent.change(start(d), { target: { value: "04:30" } });
+    fireEvent.click(knapp(d, "handling.lagre"));
+    expect(kall("oppmotePeriode.overforing")).toHaveLength(0);
+    expect(kall("timer.dagsseddel.tilfoyTimerRad")).toHaveLength(0);
+    const o = kall("timer.dagsseddel.oppdaterTimerRad");
+    expect(o).toHaveLength(1);
+    expect(o[0]).toMatchObject({ id: "rk", fraTid: "04:30", tilTid: "07:00" });
+    expect(o[0]).not.toHaveProperty("reiseRetning");
+    expect(o[0]).not.toHaveProperty("reiseKilde");
+    expect(o[0]).not.toHaveProperty("reiseRegel");
   });
 });
 

@@ -499,6 +499,9 @@ export interface OverforingKortInput {
   naar?: ReiseKortNaar | null;
   startTid?: string | null;
   sluttTid?: string | null;
+  /** O16 pkt 4 (web): som i `ReiseKortInput`. Utelatt = som før (mobil sender dem ikke). */
+  kategoriValg?: ReiseKategori | null;
+  tillatUtenKjoretid?: boolean;
 }
 
 export function løsOverforingKort(k: OverforingKortInput): ReiseKortResultat {
@@ -517,6 +520,8 @@ export function løsOverforingKort(k: OverforingKortInput): ReiseKortResultat {
     naar: k.naar,
     startTid: k.startTid,
     sluttTid: k.sluttTid,
+    kategoriValg: k.kategoriValg,
+    tillatUtenKjoretid: k.tillatUtenKjoretid,
   });
   if (!r.spor) return r;
   const reiseRegel: ReiseRegelSnapshot = {

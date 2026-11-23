@@ -21,6 +21,8 @@ const h = vi.hoisted(() => ({
   utelat: new Set<string>(),
   /** Oppslag som har feilet: data undefined, isError true. */
   feil: new Set<string>(),
+  /** Mutasjoner som avvises av serveren (O16 R3). */
+  avvis: new Map<string, string>(),
 }));
 
 // w2: dagssiden leser prosjektet fra toppen (useProsjekt) for «+ Registrer timer».
@@ -79,6 +81,8 @@ vi.mock("@/lib/trpc", () => {
             // Kontorvalget skriver perioden først og leser periodens id.
             mutateAsync: async (input: Record<string, unknown>) => {
               h.kall.push({ key, input });
+              const kode = h.avvis.get(key);
+              if (kode) throw Object.assign(new Error(kode), { data: { code: kode } });
               return { periode: { id: "ny-periode" } };
             },
             isPending: false,
@@ -141,6 +145,7 @@ function rendre({
   h.kall = [];
   h.utelat.clear();
   h.feil.clear();
+  h.avvis.clear();
   const steder = [
     { id: "tromso", navn: "Kontor Tromsø", lat: 0, lng: 0, radiusM: 100 },
     { id: "narvik", navn: "Kontor Narvik", lat: 0, lng: 0, radiusM: 100 },
@@ -189,6 +194,9 @@ function rendre({
       { oppmotestedId: "narvik", byggeplassId: "b1", kjoretidMin: 230, avstandM: 250000 },
       { oppmotestedId: "alta", byggeplassId: "b1", kjoretidMin: 300, avstandM: 400000 },
     ],
+    "oppmotested.hentKontorAvstanderForFirma": [
+      { fraOppmotestedId: "narvik", tilOppmotestedId: "tromso", kjoretidMin: 180, avstandM: 250000 },
+    ],
     "oppmotePeriode.hentMine": { perioder, trengerValg: false },
     "timer.lonnsart.list": [
       { id: "l1", navn: "Ordinær", aktiv: true, erStandardvalg: true, type: "ordinaer" },
@@ -225,40 +233,73 @@ async function lagre(d: HTMLElement) {
 describe("w15b — reisevinduet: systemet foreslår, arbeideren retter", () => {
   afterEach(cleanup);
 
-  it("§ 8.22: ingen kontorreise — bare Tur/Retur, ingen «Når kjørte du?»", () => {
+  it("O16 pkt 1: «Fra → Til» — oppmøtestedet er ett nedtrekk, fylt ut med dagens og merket «fast»", () => {
     const d = rendre();
-    expect(within(d).queryByRole("button", { name: "timer.reiseKort.tilAnnetKontor" })).toBeNull();
-    expect(within(d).queryByRole("button", { name: "timer.reiseKort.forArbeid" })).toBeNull();
-    expect(within(d).queryByRole("button", { name: "timer.reiseKort.etterArbeid" })).toBeNull();
-    expect(d.textContent).not.toContain("timer.reiseKort.naar");
-    const kontor = within(d).getByLabelText("timer.reiseKort.annetKontorFraIDag") as HTMLSelectElement;
-    expect(kontor.value).toBe("");
-    expect(Array.from(kontor.options).map((o) => o.value)).toEqual(["", "narvik"]);
+    expect(within(d).queryByLabelText("timer.reiseKort.annetKontorFraIDag")).toBeNull();
+    expect(d.textContent).not.toContain("timer.reiseKort.fraOppmotested");
+    expect(d.textContent).not.toContain("timer.reiseKort.hvorTil");
+    const sted = within(d).getByLabelText("timer.reiseKort.oppmotested") as HTMLSelectElement;
+    expect(sted.value).toBe("tromso");
+    expect(Array.from(sted.options).map((o) => o.value)).toEqual(["tromso", "narvik"]);
+    expect(sted.options[0]!.textContent).toBe('timer.reiseKort.kontorFast{"navn":"Kontor Tromsø"}');
+    // «Til byggeplass»: oppmøtestedet under «Fra», byggeplassen under «Til».
+    const [fra, til] = Array.from(within(d).getByTestId("reise-fra-til").children).filter((c) => c.tagName === "DIV");
+    expect(fra!.contains(sted)).toBe(true);
+    expect(til!.textContent).toContain("Sitedoc Boligfelt B12 · sommerfeldtsgt 65");
+    fireEvent.click(knapp(d, "timer.reiseKort.retur"));
+    const [fra2, til2] = Array.from(within(d).getByTestId("reise-fra-til").children).filter((c) => c.tagName === "DIV");
+    expect(til2!.contains(within(d).getByLabelText("timer.reiseKort.oppmotested"))).toBe(true);
+    expect(fra2!.textContent).toContain("Sitedoc Boligfelt B12");
+    // Dagens kontor valgt: ingen blå boks.
+    expect(within(d).queryByTestId("reise-oppmote-boks")).toBeNull();
   });
 
-  it("«Fra et annet kontor fra i dag»: reisen regnes fra kontoret og lagres som vanlig reise; perioden fra i dag", async () => {
+  it("O16 pkt 2: annet kontor ved «Til byggeplass» — reisen regnes derfra, «Gjelder fra» = sedelens dato", async () => {
     const d = rendre();
-    fireEvent.change(within(d).getByLabelText("timer.reiseKort.annetKontorFraIDag"), { target: { value: "narvik" } });
+    fireEvent.change(within(d).getByLabelText("timer.reiseKort.oppmotested"), { target: { value: "narvik" } });
     expect(start(d).value).toBe("03:10");
     expect(slutt(d).value).toBe("07:00");
-    expect(d.textContent).toContain('timer.reiseKort.fraOppmotested{"navn":"Kontor Narvik"}');
-    // O12 pkt 3: reisen føres i kortet (ingen linje «havner i»).
+    expect(within(d).getByTestId("reise-oppmote-boks").textContent).toContain('timer.reiseKort.blirMidlertidig{"navn":"Kontor Narvik"}');
+    expect((within(d).getByLabelText(/timer\.reiseKort\.gjelderFra/) as HTMLInputElement).value).toBe(DATO);
     expect(d.textContent).toContain("timer.reiseKort.foresIKortet");
     const input = (await lagre(d))!;
     expect(input).toMatchObject({ projectId: "p1", byggeplassId: "b1", fraTid: "03:10", tilTid: "07:00", reiseKjoretidMin: 230 });
     expect(input.reiseKilde).not.toBe("overforing");
     expect(input.reiseOppmotestedId).toBe("narvik");
-    expect(h.kall.find((k) => k.key === "oppmotePeriode.overforing")?.input).toMatchObject({
-      handling: "start",
-      oppmotestedId: "narvik",
-      dato: DATO,
-    });
+    expect(h.kall.find((k) => k.key === "oppmotePeriode.overforing")?.input).toEqual(
+      expect.objectContaining({ handling: "start", oppmotestedId: "narvik", dato: DATO }),
+    );
+    expect(h.kall.find((k) => k.key === "oppmotePeriode.overforing")?.input).not.toHaveProperty("tilDato");
+  });
+
+  it("O16 pkt 2 (H2): annet kontor ved «Fra byggeplass» — «Gjelder fra» = dagen etter; rettet dato sendes", async () => {
+    const d = rendre();
+    fireEvent.click(knapp(d, "timer.reiseKort.retur"));
+    fireEvent.change(within(d).getByLabelText("timer.reiseKort.oppmotested"), { target: { value: "narvik" } });
+    const fraFelt = within(d).getByLabelText(/timer\.reiseKort\.gjelderFra/) as HTMLInputElement;
+    expect(fraFelt.value).toBe("2026-11-06");
+    fireEvent.change(fraFelt, { target: { value: "2026-11-09" } });
+    await lagre(d);
+    expect(h.kall.find((k) => k.key === "oppmotePeriode.overforing")?.input).toMatchObject({ handling: "start", oppmotestedId: "narvik", dato: "2026-11-09" });
+  });
+
+  it("O16 pkt 3: «Til og med» sendes som tilDato; før «Gjelder fra» sperrer Lagre", async () => {
+    const d = rendre();
+    fireEvent.change(within(d).getByLabelText("timer.reiseKort.oppmotested"), { target: { value: "narvik" } });
+    const tom = within(d).getByLabelText(/timer\.reiseKort\.tilOgMed/) as HTMLInputElement;
+    expect(tom.value).toBe("");
+    fireEvent.change(tom, { target: { value: "2026-11-01" } });
+    expect(lagreKnapp(d).disabled).toBe(true);
+    expect(within(d).getByTestId("reise-oppmote-sperre").textContent).toBe("timer.reiseKort.sperre.tilFoerFra");
+    fireEvent.change(tom, { target: { value: "2026-11-20" } });
+    await lagre(d);
+    expect(h.kall.find((k) => k.key === "oppmotePeriode.overforing")?.input).toMatchObject({ dato: DATO, tilDato: "2026-11-20" });
   });
 
   // O10 (§ 8.22): «Lagre» lagrer også kontorvalget når «Føres som» står på Arbeidstid (som før O8).
   it("annet kontor + Arbeidstid: «Lagre» skriver perioden og fører arbeidsraden", async () => {
     const d = rendre();
-    fireEvent.change(within(d).getByLabelText("timer.reiseKort.annetKontorFraIDag"), { target: { value: "narvik" } });
+    fireEvent.change(within(d).getByLabelText("timer.reiseKort.oppmotested"), { target: { value: "narvik" } });
     fireEvent.click(within(d).getByRole("button", { name: "timer.reiseKort.arbeidstid" }));
     expect(within(d).queryByRole("button", { name: "timer.reiseKort.lagreKontor" })).toBeNull();
     expect(within(d).queryByRole("button", { name: "handling.lukk" })).toBeNull();
@@ -336,10 +377,11 @@ describe("w15b — reisevinduet: systemet foreslår, arbeideren retter", () => {
     expect(d.querySelector("p.text-red-700")).toBeNull();
   });
 
-  it("tre kontorer: kontoret velges i nedtrekket, ingen forvalgt", () => {
+  it("tre kontorer: oppmøtestedet står på dagens; et annet velges i nedtrekket", () => {
     const d = rendre({ kontorer: 3 });
-    const kontor = within(d).getByLabelText("timer.reiseKort.annetKontorFraIDag") as HTMLSelectElement;
-    expect(kontor.value).toBe("");
+    const kontor = within(d).getByLabelText("timer.reiseKort.oppmotested") as HTMLSelectElement;
+    expect(kontor.value).toBe("tromso");
+    expect(Array.from(kontor.options).map((o) => o.value)).toEqual(["tromso", "narvik", "alta"]);
     fireEvent.change(kontor, { target: { value: "alta" } });
     expect(d.textContent).toContain('timer.reiseKort.forslag{"min":300}');
     expect(start(d).value).toBe("02:00");
@@ -519,18 +561,164 @@ describe("O7 (§ 8.22 punkt 4) — Start rettes: «Til byggeplass» holder Slutt
   });
 });
 
-// O14 pkt 7 (R6): «Fra byggeplass» går til oppmøtestedet — linja sier «Til {navn}».
-describe("O14 pkt 7 — oppmøtestedet i linja følger retningen", () => {
+// O14 pkt 7 (R6) → O16 pkt 1: oppmøtestedet står under «Fra» ved «Til byggeplass», under «Til» ved «Fra byggeplass».
+describe("O14 pkt 7 — oppmøtestedet følger retningen", () => {
   afterEach(cleanup);
 
-  it("«Til byggeplass»: «Fra {navn}»; «Fra byggeplass»: «Til {navn}»", () => {
+  it("«Til byggeplass»: oppmøtestedet under «Fra»; «Fra byggeplass»: under «Til»", () => {
     const d = rendre();
-    expect(d.textContent).toContain('timer.reiseKort.fraOppmotested{"navn":"Kontor Tromsø"}');
-    expect(d.textContent).not.toContain("timer.reiseKort.tilOppmotested");
+    const side = () => {
+      const [fra, til] = Array.from(within(d).getByTestId("reise-fra-til").children).filter((c) => c.tagName === "DIV");
+      const sted = within(d).getByLabelText("timer.reiseKort.oppmotested");
+      return fra!.contains(sted) ? "fra" : til!.contains(sted) ? "til" : null;
+    };
+    expect(side()).toBe("fra");
     fireEvent.click(knapp(d, "timer.reiseKort.retur"));
-    expect(d.textContent).toContain('timer.reiseKort.tilOppmotested{"navn":"Kontor Tromsø"}');
-    expect(d.textContent).not.toContain("timer.reiseKort.fraOppmotested");
-    // «Fra et annet kontor fra i dag» er urørt.
-    expect(within(d).getByLabelText("timer.reiseKort.annetKontorFraIDag")).toBeDefined();
+    expect(side()).toBe("til");
+  });
+});
+
+// ── O16 (vedtak Reisevinduet pkt 1–2): tur 3, periodene og firmaadmins periode ──
+describe("O16 — «Til annet oppmøtested» og periodene", () => {
+  afterEach(cleanup);
+  const egen = (sted: string, fraDato: string, tilDato: string | null = null): OppmotePeriodeInput => ({
+    id: "pe",
+    type: "kontor",
+    fast: false,
+    oppmotestedId: sted,
+    projectId: null,
+    fraDato,
+    tilDato,
+    kilde: "overforing",
+  });
+  const firmaets = (sted: string, fraDato: string, tilDato: string | null = null): OppmotePeriodeInput => ({
+    ...egen(sted, fraDato, tilDato),
+    id: "pa",
+    kilde: "admin",
+  });
+  const overforing = () => h.kall.filter((k) => k.key === "oppmotePeriode.overforing").map((k) => k.input);
+
+  it("pkt 4: tredje retning — kjøretid kontor–kontor før dagens første arbeid, lagres i kortet med sporet", async () => {
+    const d = rendre();
+    fireEvent.click(knapp(d, "timer.reiseKort.tilAnnetOppmotested"));
+    expect(within(d).getByTestId("reise-fra-kontor").textContent).toBe('timer.reiseKort.kontorFast{"navn":"Kontor Tromsø"}');
+    expect(lagreKnapp(d).disabled).toBe(true);
+    fireEvent.change(within(d).getByLabelText("timer.reiseKort.tilKontorFelt"), { target: { value: "narvik" } });
+    expect(start(d).value).toBe("04:00");
+    expect(slutt(d).value).toBe("07:00");
+    expect((within(d).getByLabelText(/timer\.reiseKort\.gjelderFra/) as HTMLInputElement).value).toBe(DATO);
+    const input = (await lagre(d))!;
+    expect(input).toMatchObject({ projectId: "p1", byggeplassId: null, kortId: "k1", fraTid: "04:00", tilTid: "07:00", reiseKilde: "overforing" });
+    expect(input.reiseRegel).toMatchObject({
+      overforing: { fra: { type: "kontor", oppmotestedId: "tromso" }, til: { type: "kontor", oppmotestedId: "narvik" }, periodeId: "ny-periode" },
+    });
+    expect(overforing()).toEqual([expect.objectContaining({ handling: "start", oppmotestedId: "narvik", dato: DATO })]);
+  });
+
+  it("pkt 4: uten flere kontorer finnes ikke den tredje retningen", () => {
+    const d = rendre({ kontorer: 1 });
+    expect(within(d).queryByRole("button", { name: "timer.reiseKort.tilAnnetOppmotested" })).toBeNull();
+    expect(within(d).queryByLabelText("timer.reiseKort.oppmotested")).toBeNull();
+  });
+
+  it("R7a: tur 3 til det faste mens egen midlertidig gjelder — «Siste dag» etter kl. 12-regelen (hjemreise etter arbeid)", async () => {
+    const d = rendre({ perioder: [FAST_TROMSO, egen("narvik", "2026-11-01")] });
+    fireEvent.click(knapp(d, "timer.reiseKort.tilAnnetOppmotested"));
+    fireEvent.change(within(d).getByLabelText("timer.reiseKort.tilKontorFelt"), { target: { value: "tromso" } });
+    expect(start(d).value).toBe("12:00");
+    expect((within(d).getByLabelText(/timer\.reiseKort\.sisteDag/) as HTMLInputElement).value).toBe(DATO);
+    await lagre(d);
+    expect(overforing()).toEqual([expect.objectContaining({ handling: "slutt", dato: DATO })]);
+  });
+
+  it("H3: «Fra byggeplass» til det faste — «Siste dag» = sedelens dato", async () => {
+    const d = rendre({ perioder: [FAST_TROMSO, egen("narvik", "2026-11-01")] });
+    fireEvent.click(knapp(d, "timer.reiseKort.retur"));
+    const sted = within(d).getByLabelText("timer.reiseKort.oppmotested") as HTMLSelectElement;
+    expect(sted.value).toBe("narvik");
+    expect(sted.options[0]!.textContent).toBe('timer.reiseKort.kontorMidlertidig{"navn":"Kontor Narvik"}');
+    fireEvent.change(sted, { target: { value: "tromso" } });
+    expect(within(d).getByTestId("reise-oppmote-boks").textContent).toContain('timer.reiseKort.avsluttesMidlertidig{"navn":"Kontor Narvik"}');
+    expect((within(d).getByLabelText(/timer\.reiseKort\.sisteDag/) as HTMLInputElement).value).toBe(DATO);
+    await lagre(d);
+    expect(overforing()).toEqual([expect.objectContaining({ handling: "slutt", dato: DATO })]);
+  });
+
+  it("R4: et valg som tømmer den egne perioden sier «fjernes», men sperrer ikke", async () => {
+    const d = rendre({ perioder: [FAST_TROMSO, egen("narvik", DATO)] });
+    fireEvent.change(within(d).getByLabelText("timer.reiseKort.oppmotested"), { target: { value: "tromso" } });
+    expect(within(d).getByTestId("reise-oppmote-fjernes").textContent).toContain("timer.reiseKort.periodeFjernes");
+    expect(lagreKnapp(d).disabled).toBe(false);
+    await lagre(d);
+    expect(overforing()).toEqual([expect.objectContaining({ handling: "slutt", dato: "2026-11-04" })]);
+  });
+
+  it("R7b: «Avslutt» spør om «Siste dag» med dagen før som forslag; rettet verdi sendes", () => {
+    const d = rendre({ perioder: [FAST_TROMSO, egen("narvik", "2026-11-01")] });
+    expect(within(d).getByTestId("reise-oppmote-periode").textContent).toContain("timer.reiseKort.midlertidigPeriode");
+    fireEvent.click(knapp(d, "timer.reiseKort.avslutt"));
+    expect(overforing()).toHaveLength(0);
+    const sporsmal = within(d).getByTestId("reise-avslutt");
+    const felt = within(sporsmal).getByLabelText("timer.reiseKort.sisteDag") as HTMLInputElement;
+    expect(felt.value).toBe("2026-11-04");
+    fireEvent.change(felt, { target: { value: "2026-11-03" } });
+    fireEvent.click(within(sporsmal).getByRole("button", { name: "timer.reiseKort.avslutt" }));
+    expect(overforing()).toEqual([expect.objectContaining({ handling: "slutt", dato: "2026-11-03" })]);
+  });
+
+  // V2: to egne perioder, A 02–02 og B 04–∞, seddel 05 — kallet og «… fjernes» gjelder B.
+  const toEgne = () => [FAST_TROMSO, { ...egen("narvik", "2026-11-02", "2026-11-02"), id: "pA" }, { ...egen("narvik", "2026-11-04"), id: "pB" }];
+  for (const siste of ["2026-11-02", "2026-11-01"]) {
+    it(`V2: «Siste dag» ${siste} før B startet — boksen sier at B fjernes, kallet navngir B`, async () => {
+      const d = rendre({ perioder: toEgne() });
+      fireEvent.change(within(d).getByLabelText("timer.reiseKort.oppmotested"), { target: { value: "tromso" } });
+      fireEvent.change(within(d).getByLabelText(/timer\.reiseKort\.sisteDag/), { target: { value: siste } });
+      expect(within(d).getByTestId("reise-oppmote-fjernes").textContent).toContain("timer.reiseKort.periodeFjernes");
+      await lagre(d);
+      expect(overforing()).toEqual([expect.objectContaining({ handling: "slutt", dato: siste, periodeId: "pB" })]);
+    });
+    it(`V2: «Avslutt» ${siste} sender perioden linja viser (B)`, () => {
+      const d = rendre({ perioder: toEgne() });
+      fireEvent.click(knapp(d, "timer.reiseKort.avslutt"));
+      const sporsmal = within(d).getByTestId("reise-avslutt");
+      fireEvent.change(within(sporsmal).getByLabelText("timer.reiseKort.sisteDag"), { target: { value: siste } });
+      fireEvent.click(within(sporsmal).getByRole("button", { name: "timer.reiseKort.avslutt" }));
+      expect(overforing()).toEqual([expect.objectContaining({ handling: "slutt", dato: siste, periodeId: "pB" })]);
+    });
+  }
+  it("V1: web sender medSluttdato på start", async () => {
+    const d = rendre();
+    fireEvent.click(knapp(d, "timer.reiseKort.tilAnnetOppmotested"));
+    fireEvent.change(within(d).getByLabelText("timer.reiseKort.tilKontorFelt"), { target: { value: "narvik" } });
+    await lagre(d);
+    expect(overforing()).toEqual([expect.objectContaining({ handling: "start", medSluttdato: true })]);
+  });
+
+  it("R8: firmaadmins periode — merket midlertidig, ingen «Avslutt»; valg av det faste sperrer Lagre", async () => {
+    const d = rendre({ perioder: [FAST_TROMSO, firmaets("narvik", "2026-11-01")] });
+    const linje = within(d).getByTestId("reise-oppmote-periode");
+    expect(linje.textContent).toContain("timer.reiseKort.sattAvFirmaet");
+    expect(within(linje).queryByRole("button")).toBeNull();
+    fireEvent.change(within(d).getByLabelText("timer.reiseKort.oppmotested"), { target: { value: "tromso" } });
+    expect(lagreKnapp(d).disabled).toBe(true);
+    expect(within(d).getByTestId("reise-oppmote-sperre").textContent).toContain("timer.reiseKort.sperre.adminAvsluttesIkke");
+    expect(await lagre(d)).toBeUndefined();
+    expect(overforing()).toHaveLength(0);
+  });
+
+  it("R3 klient: overlapp med firmaadmins periode med sluttdato sperrer Lagre med tekst", () => {
+    const d = rendre({ kontorer: 3, perioder: [FAST_TROMSO, firmaets("alta", "2026-11-01", "2026-11-20")] });
+    fireEvent.change(within(d).getByLabelText("timer.reiseKort.oppmotested"), { target: { value: "narvik" } });
+    expect(lagreKnapp(d).disabled).toBe(true);
+    expect(within(d).getByTestId("reise-oppmote-sperre").textContent).toContain("timer.reiseKort.sperre.overlapperFirma");
+  });
+
+  it("R3 server: serverens CONFLICT vises lesbart; raden skrives ikke", async () => {
+    const d = rendre();
+    h.avvis.set("oppmotePeriode.overforing", "CONFLICT");
+    fireEvent.change(within(d).getByLabelText("timer.reiseKort.oppmotested"), { target: { value: "narvik" } });
+    expect(await lagre(d)).toBeUndefined();
+    expect(overforing()).toHaveLength(1);
+    expect(d.querySelector("p.text-red-600")?.textContent).toBe("timer.reiseKort.sperre.overlappServer");
   });
 });
