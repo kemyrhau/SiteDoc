@@ -383,8 +383,8 @@ To DB-kolonner styrer tilgang: `User.role` (`sitedoc_admin` | `company_admin` | 
 |------|----------|-------|-------------|
 | **Superadmin** (Kenneth) | `User.role = "sitedoc_admin"` | Alt | `verifiserSiteDocAdmin()` |
 | **Org-admin** (kundens admin) | `User.role = "company_admin"` | Admin i alle org-prosjekter, UTEN ProjectMember-rad | `verifiserOrganisasjonTilgang()` |
-| **Prosjektadmin** | `ProjectMember.role = "admin"` | — | `harProsjektTilgang()` |
-| **Prosjektmedlem** | `ProjectMember.role = "member"` | — | `harProsjektTilgang()` |
+| **Prosjektadmin** | `ProjectMember.role = "admin"` | — | `verifiserAdmin()` |
+| **Prosjektmedlem** | `ProjectMember.role = "member"` | — | `verifiserProsjektmedlem()` |
 
 **Oppretter av prosjekt (F13c 1A, Kenneth 2026-11-23):** den som oppretter et prosjekt for sitt eget firma (aktiv ansettelse), blir prosjektadmin og Byggherre som før. sitedoc_admin som oppretter for et annet firma, blir ikke medlem; hen setter opp medlemmer, faggrupper og flyter via bypassen (`verifiserAdmin`, `verifiserProsjektmedlem`, `gruppe.hentMinTilgang`/`hentMinFlytInfo`). Prosjektet kan da starte med 0 medlemmer. `services/oppretterMedlemskap.ts`. Siste aktive prosjektadmin kan ikke fjernes med `medlem.fjern`.
 
@@ -392,7 +392,7 @@ To DB-kolonner styrer tilgang: `User.role` (`sitedoc_admin` | `company_admin` | 
 - `kanAttestere` — gir timer-attestering uten prosjekt-admin (vedtatt 2026-05-02). `role="admin"` har implisitt attestering-tilgang. Fra w10b (plan web-timeføring § 4.6, § 4.10) avgjøres retten av `attesteringsOmfang` (liste) og `attesteringsFirmaer` (handlinger) i `apps/api/src/routes/timer/dagsseddel.ts`: aktivt prosjektmedlem med admin eller `kanAttestere`, aktiv ansatt i sedelens firma. `erProsjektLeder` er slettet.
 - `erFirmaansvarlig` — flyt-relatert ansvar (eksisterende felt).
 
-**`harProsjektTilgang(userId, projectId)`**: Sjekker ProjectMember-rad ELLER company_admin med riktig org. Alle prosjekt-ruter bruker denne — aldri inline-sjekk. Ligger i `tilgangskontroll.ts`. `company_admin` uten `organizationId` er ugyldig — fanget i `verifiserOrganisasjonTilgang()`.
+**Tilgangsfunksjonene** i [tilgangskontroll.ts](../../apps/api/src/trpc/tilgangskontroll.ts): `verifiserProsjektmedlem()` (`:750`, sitedoc_admin, aktivt medlem eller firma-admin med riktig org; firma-ansatte på interne prosjekter) og `verifiserAdmin()` (`:690`, prosjektadmin, firma-admin eller sitedoc_admin). En funksjon `harProsjektTilgang()` finnes ikke (målt 2026-11-23). 🟡 Avvik med egne sjekker, retting avventer Kenneth (P1): `psi.ts` (egen admin-sjekk), `dagsseddel` `list`/`hentDagstotal` (firma_admin uten statussjekk), inline-sjekker i byttEier/flytt/tegning. `company_admin` uten `organizationId` er ugyldig — fanget i `verifiserOrganisasjonTilgang()`.
 
 **Kritiske regler:**
 - Firma-admin ser **KUN** sitt eget firmas data — absolutt umulig å se andre firmaer
