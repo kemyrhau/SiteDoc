@@ -3,6 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { prisma } from "@sitedoc/db";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { sikreKortId, vareKortIdForSkriving } from "../services/timer/kortId";
+import { lesVarerForSpor, skrivSlettespor } from "../services/timer/slettespor";
 import type { Context } from "../trpc/context";
 import {
   verifiserProsjektmedlem,
@@ -784,7 +785,29 @@ export const vareforbrukRouter = router({
       const organizationId = await eierFirmaForProsjekt(rad.projectId);
       await krevTilgangPolicy(ctx.userId, organizationId, rad.projectId);
 
-      await ctx.prismaVarelager.vareforbruk.delete({ where: { id: input.id } });
+      // SL1 (plan § 4.18, S2 ja): på en returnert dag lagres linja med innholdet i
+      // `sheet_rad_historikk` (radtype `vare`). Varene og historikken er to klienter mot samme
+      // database, så sporet og slettingen går i ÉN transaksjon på timer-klienten, med rå SQL mot
+      // varelager-skjemaet (mønsteret fra `slettKortMedAlt`). Det finnes ikke noe «andre steg»
+      // som kan feile alene: enten står både linja og sporet urørt, eller linja er borte og
+      // sporet skrevet. Andre dager slettes som før.
+      const retur =
+        rad.dagsseddelId !== null &&
+        (await ctx.prismaTimer.dailySheet.findUnique({
+          where: { id: rad.dagsseddelId },
+          select: { status: true },
+        }))?.status === "returned";
+      if (retur) {
+        const aktor = ctx.userId;
+        await ctx.prismaTimer.$transaction(async (tx) => {
+          const [vare] = await lesVarerForSpor(tx, [input.id]);
+          if (!vare) throw new TRPCError({ code: "NOT_FOUND" });
+          await skrivSlettespor(tx, [{ radType: "vare", rad: vare }], aktor);
+          await tx.$executeRaw`DELETE FROM "varelager"."vareforbruk" WHERE "id" = ${input.id}`;
+        });
+      } else {
+        await ctx.prismaVarelager.vareforbruk.delete({ where: { id: input.id } });
+      }
 
       // Activity-log (best-effort)
       try {
