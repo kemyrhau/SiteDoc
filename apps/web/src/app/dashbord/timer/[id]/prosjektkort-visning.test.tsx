@@ -403,9 +403,9 @@ describe("O19b F4 — ingen del av en delt reise strekker «Arbeidstid i dag»",
     expect(arbeidstid(html)).toEqual({ start: "07:00", slutt: "15:30", pause: "30 min" });
   });
 
-  it("prosjektkort: del 2 strekker ikke rammens start; del 1 gir fortsatt 24:00 (O19b)", () => {
+  it("prosjektkort: del 2 strekker rammens start som før (valg a); del 1 gir fortsatt 24:00 (O19b)", () => {
     expect(ramme(rendre("prosjektkort", { timer: [r1!, r2!, del2] as typeof sheet.timer })))
-      .toContain("&quot;fra&quot;:&quot;07:00&quot;");
+      .toContain("&quot;fra&quot;:&quot;00:00&quot;");
     const r = ramme(rendre("prosjektkort", { timer: [r1!, r2!, del1] as typeof sheet.timer }));
     expect(r).toContain("&quot;fra&quot;:&quot;07:00&quot;");
     expect(r).toContain("&quot;til&quot;:&quot;24:00&quot;");

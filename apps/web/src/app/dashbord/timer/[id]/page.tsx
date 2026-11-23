@@ -709,7 +709,7 @@ export default function DagsseddelDetaljSide() {
   // pause = Σ rad.pauseMin (delt `utledArbeidstidFraRader`). Uten slike rader
   // falles det tilbake til sedelens ramme (startAt/endAt) som prefyll-hint.
   // O19b F4: `reiseRegel` sendes med, så ingen del av en reise delt ved midnatt
-  // strekker «Arbeidstid i dag» eller rammen (timer.md § O19 «Følger»).
+  // strekker «Arbeidstid i dag» (timer.md § O19 «Følger»). Gjelder bare den verdien.
   const arbeidstidVisning = utledArbeidstidFraRader(
     timerRader.map((r) => ({
       fraTid: r.fraTid,
@@ -720,13 +720,24 @@ export default function DagsseddelDetaljSide() {
     })),
   );
   const harRaderMedTid = arbeidstidVisning.startTid !== null;
+  // O19b (gate-retur, valg a): prosjektkortets «Dagens ramme» utledes UTEN `reiseRegel`,
+  // så delene strekker rammen som før — dag 1 07:00–24:00, dag 2 00:00–….
+  const rammeVisning = utledArbeidstidFraRader(
+    timerRader.map((r) => ({
+      fraTid: r.fraTid,
+      tilTid: r.tilTid,
+      pauseMin: r.pauseMin,
+      timer: tilTall(r.timer),
+    })),
+  );
+  const rammeHarRaderMedTid = rammeVisning.startTid !== null;
   // O19b: «Dagens ramme» slutter 24:00 når dagen slutter på del 1 av en reise delt ved midnatt.
   // `minTilHhmm` klemmer 24:00 til 23:59; dette er kun visningen — beregningene er uendret.
   const rammeSlutt = timerRader.some(
     (r) => r.tilTid === "24:00" && lesMidnattDel(r.reiseRegel)?.del === 1,
   )
     ? "24:00"
-    : arbeidstidVisning.sluttTid;
+    : rammeVisning.sluttTid;
 
   // Bolk (d) R1: dagens effektive arbeidstid-vindu — kilde til fra/til-prefill
   // på nye timer-rader OG pausevindu-start (pauseFra), speiler mobilens
@@ -1615,14 +1626,14 @@ export default function DagsseddelDetaljSide() {
           erRedigerbar={erRedigerbar}
           kanLeggeTilKort={prosjekterForVelger.length > 0}
           ramme={{
-            fra: harRaderMedTid
-              ? arbeidstidVisning.startTid ?? "—"
+            fra: rammeHarRaderMedTid
+              ? rammeVisning.startTid ?? "—"
               : isoTidspunktTilHHMM(sheet.startAt as string | null) || "—",
-            til: harRaderMedTid
+            til: rammeHarRaderMedTid
               ? rammeSlutt ?? "—"
               : isoTidspunktTilHHMM(sheet.endAt as string | null) || "—",
-            pauseMin: harRaderMedTid
-              ? arbeidstidVisning.sumPauseMin
+            pauseMin: rammeHarRaderMedTid
+              ? rammeVisning.sumPauseMin
               : sheet.pauseMin,
             aktivitet: sheet.aktivitet?.navn ?? null,
             beskrivelse: sheet.beskrivelse ?? null,
