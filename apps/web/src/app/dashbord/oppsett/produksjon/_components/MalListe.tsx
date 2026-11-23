@@ -14,6 +14,7 @@ import { FaggruppeTilknytningModal } from "./FaggruppeTilknytningModal";
 import { HentFraArkivModal } from "@/components/bibliotek/HentFraArkivModal";
 import { OppdaterFraHovedmalModal } from "@/components/malbygger/OppdaterFraHovedmalModal";
 import { Nivaabanner } from "@/components/nivaa/Nivaabanner";
+import { hørerTilMalListe } from "./mal-liste-filter";
 
 type MalKategori = "oppgave" | "sjekkliste" | "hms";
 
@@ -444,9 +445,10 @@ export function MalListe({
     );
   }
 
-  // Filtrer på kategori og søk
+  // Filtrer på liste og søk. HM1: HMS-maler = domain "hms" uansett kategori; oppgave-/
+  // sjekklistelista skjuler dem (mal-liste-filter.ts).
   const maler = (alleMaler as MalRad[] | undefined)
-    ?.filter((m) => m.category === kategori)
+    ?.filter((m) => hørerTilMalListe(m, kategori))
     ?.filter((m) => {
       if (!sok.trim()) return true;
       const s = sok.toLowerCase();
