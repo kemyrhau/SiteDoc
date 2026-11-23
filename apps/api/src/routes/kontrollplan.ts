@@ -612,16 +612,23 @@ export const kontrollplanRouter = router({
       if (!sjekkliste || sjekkliste.template.projectId !== punkt.kontrollplan.projectId) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Sjekklisten finnes ikke i dette prosjektet." });
       }
-      await verifiserDokumentTilgang(
-        ctx.userId,
-        sjekkliste.template.projectId,
-        sjekkliste.bestillerFaggruppeId,
-        sjekkliste.utforerFaggruppeId,
-        sjekkliste.template.domain,
-        sjekkliste.id,
-        "checklist",
-        sjekkliste.template.hmsSynlighet,
-      );
+      // V1 (Kenneth-vedtak 2026-08-15): firma-admin er admin i alle firmaets prosjekter, også
+      // uten ProjectMember-rad. `hentPunktFlytTilgang().erAdmin` dekker sitedoc_admin,
+      // prosjektadmin og firma-admin — admin hopper over dokument-tilgangen (som prosjektadmin
+      // gjorde fra før); flyt-kravet under gjelder fortsatt.
+      const { erAdmin } = await hentPunktFlytTilgang(ctx.userId, punkt.kontrollplan.projectId);
+      if (!erAdmin) {
+        await verifiserDokumentTilgang(
+          ctx.userId,
+          sjekkliste.template.projectId,
+          sjekkliste.bestillerFaggruppeId,
+          sjekkliste.utforerFaggruppeId,
+          sjekkliste.template.domain,
+          sjekkliste.id,
+          "checklist",
+          sjekkliste.template.hmsSynlighet,
+        );
+      }
       if (punkt.dokumentflytId && sjekkliste.dokumentflytId !== punkt.dokumentflytId) {
         throw new TRPCError({
           code: "BAD_REQUEST",
@@ -664,7 +671,8 @@ export const kontrollplanRouter = router({
       if (punkter.length === 0) return resultat;
 
       const tilgang = await hentPunktFlytTilgang(ctx.userId, projectId);
-      const tilgangsFilter = await byggTilgangsFilter(ctx.userId, projectId);
+      // V1: admin (også firma-admin uten ProjectMember-rad) ser alle sjekklister — ingen filter.
+      const tilgangsFilter = tilgang.erAdmin ? null : await byggTilgangsFilter(ctx.userId, projectId);
       const kandidater = await ctx.prisma.checklist.findMany({
         where: {
           ...IKKE_SLETTET,
@@ -688,7 +696,7 @@ export const kontrollplanRouter = router({
 
   // Kandidat-sjekklister for «Koble eksisterende» på et punkt: samme mal (kobling krever
   // mal-match) og ennå ikke koblet til noe kontrollpunkt. K1: bare sjekklister brukeren har
-  // tilgang til (`byggTilgangsFilter`), og bare fra punktets flyt når den er satt — samme
+  // tilgang til (`byggTilgangsFilter`; admin ser alle), og bare fra punktets flyt når den er satt — samme
   // regel som `koblePunkt` håndhever.
   hentKoblbareSjekklister: protectedProcedure
     .input(z.object({ punktId: z.string() }))
@@ -698,7 +706,10 @@ export const kontrollplanRouter = router({
         include: { kontrollplan: { select: { projectId: true } } },
       });
       await verifiserProsjektmedlem(ctx.userId, punkt.kontrollplan.projectId);
-      const tilgangsFilter = await byggTilgangsFilter(ctx.userId, punkt.kontrollplan.projectId);
+      // V1: admin (også firma-admin uten ProjectMember-rad) ser alle sjekklister — ingen filter;
+      // flytfilteret på punktets flyt gjelder fortsatt.
+      const { erAdmin } = await hentPunktFlytTilgang(ctx.userId, punkt.kontrollplan.projectId);
+      const tilgangsFilter = erAdmin ? null : await byggTilgangsFilter(ctx.userId, punkt.kontrollplan.projectId);
       return ctx.prisma.checklist.findMany({
         where: {
           ...IKKE_SLETTET,

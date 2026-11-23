@@ -21,6 +21,8 @@ vi.mock("../trpc/tilgangskontroll", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../trpc/tilgangskontroll")>()),
   verifiserProsjektmedlem: vi.fn(async () => undefined),
   verifiserDokumentTilgang: vi.fn(async () => undefined),
+  // K1 V1: koblePunkt spør om admin før dokument-tilgangen; vanlig medlem er ikke admin.
+  hentPunktFlytTilgang: vi.fn(async (userId: string) => ({ erAdmin: userId !== "vanlig", flytIder: new Set<string>() })),
   verifiserAdmin: vi.fn(async (userId: string) => {
     if (userId === "vanlig") {
       const { TRPCError: Feil } = await import("@trpc/server");

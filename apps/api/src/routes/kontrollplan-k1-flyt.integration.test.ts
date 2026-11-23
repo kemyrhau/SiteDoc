@@ -17,6 +17,8 @@ import { createTestCaller } from "../test-harness/context";
  *  - hentKoblbareSjekklister: ingen sjekklister brukeren ikke har tilgang til, ingen fra andre flyter.
  *  - hentPunktHandlinger: samme regel som serveren (web-knappene).
  *  - Prosjektisolasjon: bruker i et annet prosjekt får FORBIDDEN.
+ *  - V1 (Kenneth-vedtak 2026-08-15): firma-admin uten ProjectMember-rad er admin — Start,
+ *    Koble og kandidatlista virker, flytfilteret på punktets flyt gjelder fortsatt.
  */
 describe("K1 — Start og kobling bare for punktets flyt", () => {
   const NS = `k1-${randomUUID().slice(0, 8)}`;
@@ -24,6 +26,7 @@ describe("K1 — Start og kobling bare for punktets flyt", () => {
   const id = {
     projectId: "",
     annetProsjektId: "",
+    orgId: "",
     faggruppeId: "",
     medlemsFaggruppeId: "",
     gruppeId: "",
@@ -73,8 +76,9 @@ describe("K1 — Start og kobling bare for punktets flyt", () => {
   }
 
   beforeAll(async () => {
+    id.orgId = (await prisma.organization.create({ data: { id: randomUUID(), name: `${NS} Firma` } })).id;
     const project = await prisma.project.create({
-      data: { id: randomUUID(), projectNumber: NS, name: `${NS} Prosjekt`, primaryOrganizationId: null },
+      data: { id: randomUUID(), projectNumber: NS, name: `${NS} Prosjekt`, primaryOrganizationId: id.orgId },
     });
     id.projectId = project.id;
     const annet = await prisma.project.create({
@@ -135,6 +139,10 @@ describe("K1 — Start og kobling bare for punktets flyt", () => {
     // Admin-varianter.
     await lagPm(await lagBruker("prosjektadmin"), project.id, "admin");
     await lagBruker("sitedocAdmin", "sitedoc_admin");
+    // V1: firma-admin i prosjektets firma, UTEN ProjectMember-rad.
+    await prisma.organizationMember.create({
+      data: { userId: await lagBruker("firmaAdmin"), organizationId: id.orgId, status: "aktiv", firmaRoller: ["firma_admin"] },
+    });
     // Admin i et ANNET prosjekt (prosjektisolasjon).
     await lagPm(await lagBruker("fremmedAdmin"), annet.id, "admin");
 
@@ -179,7 +187,9 @@ describe("K1 — Start og kobling bare for punktets flyt", () => {
     await prisma.faggruppe.deleteMany({ where: { projectId: id.projectId } });
     await prisma.projectMember.deleteMany({ where: { projectId: { in: [id.projectId, id.annetProsjektId] } } });
     await prisma.project.deleteMany({ where: { id: { in: [id.projectId, id.annetProsjektId] } } });
+    await prisma.organizationMember.deleteMany({ where: { organizationId: id.orgId } });
     await prisma.user.deleteMany({ where: { id: { in: Object.values(brukere) } } });
+    await prisma.organization.deleteMany({ where: { id: id.orgId } });
   });
 
   describe("Start", () => {
@@ -189,7 +199,7 @@ describe("K1 — Start og kobling bare for punktets flyt", () => {
         expect(r).toMatchObject({ ok: true });
       });
     }
-    for (const navn of ["prosjektadmin", "sitedocAdmin"]) {
+    for (const navn of ["prosjektadmin", "sitedocAdmin", "firmaAdmin"]) {
       it(`${navn} kan starte`, async () => {
         expect(await start(navn, await lagPunkt())).toMatchObject({ ok: true });
       });
@@ -220,6 +230,14 @@ describe("K1 — Start og kobling bare for punktets flyt", () => {
     it("admin i et annet prosjekt får FORBIDDEN", async () => {
       expect(await koble("fremmedAdmin", await lagPunkt(), id.sjekklisteA)).toEqual({ ok: false, code: "FORBIDDEN" });
     });
+    it("V1: firma-admin uten ProjectMember kobler sjekkliste fra punktets flyt, men ikke fra en annen", async () => {
+      const punktId = await lagPunkt();
+      expect(await koble("firmaAdmin", punktId, id.sjekklisteB)).toEqual({ ok: false, code: "BAD_REQUEST" });
+      expect(await koble("firmaAdmin", punktId, id.sjekklisteA)).toEqual({ ok: true });
+      const p = await prisma.kontrollplanPunkt.findUniqueOrThrow({ where: { id: punktId } });
+      expect(p.sjekklisteId).toBe(id.sjekklisteA);
+      await prisma.kontrollplanPunkt.update({ where: { id: punktId }, data: { sjekklisteId: null } });
+    });
     it("flytmedlem kobler sjekkliste fra punktets flyt", async () => {
       const punktId = await lagPunkt();
       expect(await koble("godkjenner", punktId, id.sjekklisteA)).toEqual({ ok: true });
@@ -249,6 +267,9 @@ describe("K1 — Start og kobling bare for punktets flyt", () => {
       const utenFlyt = await kandidater("prosjektadmin", await lagPunkt(null));
       expect(utenFlyt.sort()).toEqual([id.sjekklisteA, id.sjekklisteB].sort());
     });
+    it("V1: firma-admin uten ProjectMember ser bare punktets flyt", async () => {
+      expect(await kandidater("firmaAdmin", await lagPunkt())).toEqual([id.sjekklisteA]);
+    });
     it("bruker i et annet prosjekt får FORBIDDEN", async () => {
       await expect(kandidater("fremmedAdmin", await lagPunkt())).rejects.toMatchObject({ code: "FORBIDDEN" });
     });
@@ -270,6 +291,8 @@ describe("K1 — Start og kobling bare for punktets flyt", () => {
 
       expect((await handlinger("flytB"))[medFlyt]).toEqual({ kanStarte: false, kanKoble: false });
       expect((await handlinger("prosjektadmin"))[medFlyt]).toEqual({ kanStarte: true, kanKoble: true });
+      // V1: firma-admin uten ProjectMember-rad får begge knappene.
+      expect((await handlinger("firmaAdmin"))[medFlyt]).toEqual({ kanStarte: true, kanKoble: true });
       await expect(handlinger("fremmedAdmin")).rejects.toMatchObject({ code: "FORBIDDEN" });
     });
   });
