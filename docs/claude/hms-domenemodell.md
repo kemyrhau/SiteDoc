@@ -1,6 +1,6 @@
 ---
 name: hms-domenemodell
-status: 🟡 § HMS-flyt er Kenneths regler 2026-11-23 (HF1 nei og HF2 ja samme dag), målt mot develop @ `1bb2d5e6` — regel 3 (bare behandlerne i HMS-flyt-kortet behandler) er bygget på `fix/hms-h3-behandler`, ikke merget (H3), og fem målte avvik står åpne (A1–A5). § Firma-HMS er domenemodellen fra 2026-07-21 — to målte avvik mot kode, ett åpent spørsmål
+status: 🟡 § HMS-flyt er Kenneths regler 2026-11-23 (HF1 nei og HF2 ja samme dag), målt mot develop @ `1bb2d5e6` — regel 3 (bare behandlerne i HMS-flyt-kortet behandler) er merget `8a481d48` (H3), og fem målte avvik står åpne (A1–A5). § Firma-HMS er domenemodellen fra 2026-07-21 — to målte avvik mot kode, ett åpent spørsmål
 eier: Kenneth (domenesannhet) · fabel (design) · orkestrator (bestiller kode)
 sist_verifisert_mot_kode: 2026-11-23 (§ HMS-flyt, develop @ `1bb2d5e6`) · 2026-07-21 (§ Firma-HMS)
 ---
@@ -28,7 +28,7 @@ Kenneth 2026-11-23, på de to spørsmålene reglene ikke avgjorde, ordrett: *«H
 |---|---|---|
 | 1 | HMS-avvik hører bare til HMS-flyten. | ✅ Nye prosjekter og prosjekter der modulen slås på, får flyten «HMS» med alle HMS-malene koblet til (`apps/api/src/services/hmsFlyt.ts:60-86`, `:129-145`; kalt fra `apps/api/src/services/prosjektSeed.ts:125` og `apps/api/src/routes/modul.ts:310`). 🔴 Avvik A1 og A2 under |
 | 2 | Alle prosjektmedlemmer kan sende inn HMS-avvik og RUH. | ✅ `oppgave.opprett` krever bare prosjektmedlemskap for maler med `domain: "hms"` (`apps/api/src/routes/oppgave.ts:548-549`). Bare melderen kan sende inn sitt eget utkast (`apps/api/src/trpc/tilgangskontroll.ts:645-650`) |
-| 3 | Bare de som står som behandlere i HMS-flyt-kortet, behandler HMS-avvik og RUH. En prosjektadmin som ikke står der, ser ikke private HMS-saker andre har meldt, og har ingen behandlerknapper. «Meld meg inn» i kortet gjør adminen til behandler. (HF2 ja) | 🟡 **2026-11-23, bygget på `fix/hms-h3-behandler` (H3, web-timer-o13), ikke merget.** På develop er alle prosjektadminer og alle i gruppen «Prosjektadministratorer» fortsatt behandlere. På branchen er behandleren medlem av HMS-gruppa eller firmaets HMS-ansvarlige (`apps/api/src/trpc/tilgangskontroll.ts:540`). Se «Regel 3 — det H3 endrer» under. 🔴 Avvik A3 |
+| 3 | Bare de som står som behandlere i HMS-flyt-kortet, behandler HMS-avvik og RUH. En prosjektadmin som ikke står der, ser ikke private HMS-saker andre har meldt, og har ingen behandlerknapper. «Meld meg inn» i kortet gjør adminen til behandler. (HF2 ja) | ✅ **H3 merget `8a481d48` 2026-11-23.** Før H3 var alle prosjektadminer og alle i gruppen «Prosjektadministratorer» behandlere. Nå er behandleren medlem av HMS-gruppa eller firmaets HMS-ansvarlige (`apps/api/src/trpc/tilgangskontroll.ts:540`). Se «Regel 3 — det H3 endrer» under. 🔴 Avvik A3 |
 | 4 | Svaret går til innsenderen, ikke til alle prosjektets medlemmer. | ✅ I flyten «HMS»: e-posten går til innsenderen når innsenderen er aktivt medlem, aldri til alle (`apps/api/src/services/prosjektmedlemskap.ts:226-238`), og ballen går til innsenderen (`packages/shared/src/utils/flytPosisjon.ts:101-121`). Målt av web-timer-o13 2026-11-23 (SVAR F13c-2 punkt b). 🔴 Avvik A1: i den gamle seed-flyten «HMS-avvik» blir ballen liggende hos gruppen saken ble sendt til |
 | 5 | HMS-flyten er frittstående og har helt egne regler. Den er en egen enhet ved siden av faggruppene og står ikke i lista over faggrupper. (HF1 nei) | ✅ Flyten har ingen faggruppe og ingen faggruppe-ledd (`hmsFlyt.ts:69-85`). Den vises bare i HMS-flyt-kortet, ikke blant faggruppenes flyter og ikke under «Uten faggruppe» (`apps/web/src/app/dashbord/oppsett/produksjon/_components/flyt-gruppering.ts:22-24`). Egne handlinger og egen vakt (under). 🔴 Flyten lagres som en vanlig dokumentflyt uten eget merke og kjennes igjen på malene (A2) |
 
@@ -38,7 +38,7 @@ Kenneth 2026-11-23, på de to spørsmålene reglene ikke avgjorde, ordrett: *«H
 - **Flyten:** `seedHmsModulOmradet` lager flyten «HMS» med to ledd: steg 1 er åpen melder uten gruppe og uten faggruppe, steg 2 er HMS-gruppen (`hmsFlyt.ts:69-85`). Finnes det alt en flyt med en HMS-mal, brukes den som den er (`hmsFlyt.ts:61-67`).
 - **Melderen:** den som oppretter dokumentet (`bestillerUserId`). Dokumentet opprettes som utkast, og melderen sender det inn (`oppgave.ts:756-764`, `tilgangskontroll.ts:645-650`).
 - **Behandlingen:** handlingene besvar, returner, lukk og gjenåpne går gjennom `verifiserHmsHandling` (`tilgangskontroll.ts:597-684`) og krever `erHmsAdmin`. Melderen kan tilføye informasjon. Det finnes ingen godkjenning i HMS-flyten.
-- **HMS-behandler i koden** (`erHmsAdmin`) er på develop hver av disse tre: prosjektadmin, medlem av en gruppe med `hms` i `domains` (også standardgruppen «Prosjektadministratorer», `types/index.ts:422`) og firmaets HMS-ansvarlige. 🟡 På `fix/hms-h3-behandler` (ikke merget) er det bare to (`tilgangskontroll.ts:540-567`):
+- **HMS-behandler i koden** (`erHmsAdmin`) var før H3 hver av disse tre: prosjektadmin, medlem av en gruppe med `hms` i `domains` (også standardgruppen «Prosjektadministratorer», `types/index.ts:422`) og firmaets HMS-ansvarlige. ✅ Etter H3 (merget `8a481d48`) er det bare to (`tilgangskontroll.ts:540-567`):
   1. aktivt medlem av prosjektets HMS-gruppe, `systemNokkel: "hms"`,
   2. firmaets HMS-ansvarlige, for prosjekter firmaet eier.
 - **HMS-gruppen** er en tilgangsgruppe (`ProjectGroup`) med `systemNokkel: "hms"` (`hmsFlyt.ts:25-28`, `types/index.ts:447-452`). Den er ikke en faggruppe.
@@ -47,7 +47,7 @@ Kenneth 2026-11-23, på de to spørsmålene reglene ikke avgjorde, ordrett: *«H
 - **Hvem som ser en sak:** HMS-behandleren ser alle HMS-saker. Andre ser saker med åpen mal, saker de selv har meldt og saker de er mottaker av (`apps/api/src/routes/hms.ts:46-57`). RUH og HMS-avvik er private og SJA er åpen (Kenneth 2026-07-21, [delplaner/hms-synlighet-regel.md](delplaner/hms-synlighet-regel.md)).
 - **Sletting:** en HMS-sak kan bare slettes som utkast ([domene-arbeidsflyt.md § VEDTAK 2026-09-04](domene-arbeidsflyt.md)).
 
-### Regel 3 — det H3 endrer (🟡 2026-11-23, bygget på `fix/hms-h3-behandler`, ikke merget)
+### Regel 3 — det H3 endrer (✅ merget `8a481d48` 2026-11-23)
 
 Målt mot develop @ `1bb2d5e6`, bygget mot develop @ `0bdee142`. Linjenumrene i «Etter H3» gjelder branchen.
 
