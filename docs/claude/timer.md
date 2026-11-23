@@ -1123,7 +1123,7 @@ Hjemmel: [vedtak-timer-web.md § Reisevinduet](vedtak-timer-web.md) punkt 21 og 
 - **Pkt 22 — Før:** «Avslutt» med «Siste dag» før periodens start slettet perioden uten å si det. **Nå:** linja `reise-avslutt` sier «Perioden din {navn} {periode} fjernes.» (`periodeFjernes`, R4-ordlyden) før trykket. Teksten og kallet kommer fra samme plan, `planleggAvslutt` (`oppmote.ts`), som `avsluttOverforing` sender (`periodeId`, V2).
 - **Tester:** `oppmote-o17.test.ts` (shared), `reise-visning.test.tsx` «O17 pkt 21», `attestering-tabell.test.tsx` «O17 pkt 21», `reise-rad-merke-o17.test.tsx`, `reise-steder.test.ts`, `reisevindu.test.tsx` «O17 pkt 22», integrasjon `o17-kontorreise-eksport.integration.test.ts` (`detaljEksport` mot ekte Postgres).
 
-### Reisevinduet: reise under terskel føres ikke som reise (O18) — 🟡 `feat/web-timer-o18-under-terskel` (2026-11-23, venter gate)
+### Reisevinduet: reise under terskel føres ikke som reise (O18) — ✅ merget `4bc05499` (2026-11-23, ikke deployet)
 
 Hjemmel: [vedtak-timer-web.md § Reisevinduet](vedtak-timer-web.md) punkt 20 (Kenneth «s1 ja / s3 ja / s4 ja», S2 ja, S5 = A). Bare web-`ReiseKort.tsx`; serveren, shared og mobilen er urørt. Ingen migrering, ingen data endres.
 
