@@ -7,6 +7,10 @@ sist_verifisert_mot_kode: 2026-07-19
 
 # HMS-synlighet-regel — firma-default-tabell (subdomain-drevet)
 
+> ⚠️ **Leses sammen med [hms-domenemodell.md § HMS-flyt](../hms-domenemodell.md) (banner 2026-11-23).** Tabellen for SJA (åpen), RUH og HMS-avvik (privat) gjelder.
+> **Presisert av Kenneth 2026-11-23 (HF2 ja):** «HMS-ansvarlig» og «administrasjonen» i fila er de som står som behandlere i HMS-flyt-kortet. En prosjektadmin som ikke står der, ser ikke private HMS-saker andre har meldt (🟡 ikke bygget, H3).
+> **Ikke avgjort:** raden «andre HMS-typer: normal dokumentflyt». Koden ruter alt med `domain: "hms"` til HMS-gruppen (`apps/api/src/routes/oppgave.ts:536`, `apps/api/src/routes/sjekkliste.ts:371`).
+
 > Kenneth-idé 2026-07-19, sprunget ut av N3-fiks del 2 F1-funnet. **Egen sak — påvirker IKKE del-2/F1-A** (F1-A respekterer den oppløste synligheten uansett hvordan den settes). Denne saken bestemmer *hvordan* synligheten settes.
 
 ## Problem (dagens tilstand, verifisert)

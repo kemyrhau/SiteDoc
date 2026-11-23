@@ -1,5 +1,9 @@
 # Spor 2 (HMS) — spec-nedbryting: tre ordrer mot godkjent mockup
 
+> ⚠️ **Utgått som regelkilde (banner 2026-11-23).** Reglene i HMS-flyten står i [hms-domenemodell.md § HMS-flyt](../hms-domenemodell.md) (Kenneth 2026-11-23). Notatet under er historikk fra august 2026 og er ikke endret.
+> **Snudd:** (1) Ordre 2.1 punkt 1 åpner for å ekskludere enkeltkontakter som melder. Regel 2 sier at alle prosjektmedlemmer kan sende inn. (2) Punkt 4 sier at HMS-flyten vises som ordinær 2-ledds flyt i dokumentflyt-oppsettet. Den vises bare i HMS-flyt-kortet (F13c-2, merget `41a39801`).
+> **Står:** melder «Følger kontaktlisten», behandlerne «Fra firma» og «lagt til i prosjektet», og «Meld meg inn».
+
 > Fasit: `Spor 2 HMS Mockup.dc.html` (til-repo-2026-08-05-1600), Kenneth-godkjent 06.08.
 > Bygger på: seedHmsModulOmradet-funnene dine (modul.ts:15/:254 — HMS-gruppe «HMS-ansvarlige», 2-ledds HMS-flyt, HMS-maler). Ingen ny backend-modell — spor 2 gjør eksisterende tilstand synlig + regel-basert.
 > Rekkefølge: 2.1 → 2.2 → 2.3 (2.2/2.3 kan gå parallelt etter 2.1 hvis touch-områdene ikke kolliderer — cowork sekvenserer).

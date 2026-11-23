@@ -181,8 +181,10 @@ vinner. Det er ikke en teoretisk risiko; det var rotårsaken til fire målte fun
 nøkkel. Flyt-id-en er kjent — bruk den.
 
 **Unntak: HMS.** HMS-dokumenter rutes av serveren til prosjektets HMS-flyt, og klienten
-skal **aldri** sende `dokumentflytId` for dem (`sjekkliste.ts:345` feiler høylytt).
-HMS *har* en flyt — den er bare ikke klientens sak.
+skal **aldri** sende `dokumentflytId` for dem. For SJA feiler serveren høylytt
+(`sjekkliste.ts:426-431`); for HMS-avvik og RUH ser den bort fra verdien (`oppgave.ts:753`).
+HMS *har* en flyt — den er bare ikke klientens sak. Reglene i HMS-flyten står i
+[hms-domenemodell.md § HMS-flyt](hms-domenemodell.md).
 
 ## 🔴 BINDENDE VEDTAK: rekkefølgen styrer flyten — kun registrator består (Kenneth 2026-08-21)
 
@@ -535,9 +537,12 @@ definerer den ikke.
 ⚠️ **Cowork foreslo først full modal med synlig forhåndsvalg; det ble avvist.** Rett ikke
 tilbake uten å lese dette avsnittet.
 
-🔴 **`Dokumentflyt.faggruppeId` er nullbar med vilje, ikke ved slurv.** `modul.ts:55-56`
-oppretter HMS-flyten som `{ projectId, name: "HMS" }` uten faggruppe når HMS-modulen slås på —
-HMS er tverrgående, ikke en part. Målt på test 2026-08-30: begge faggruppe-løse flyter heter
+🔴 **`Dokumentflyt.faggruppeId` er nullbar med vilje, ikke ved slurv.** `apps/api/src/services/hmsFlyt.ts:69-72`
+oppretter HMS-flyten som `{ projectId, name: "HMS" }` uten faggruppe, både når prosjektet opprettes
+og når HMS-modulen slås på, hvis prosjektet ikke alt har en flyt med en HMS-mal — HMS er en egen
+enhet ved siden av faggruppene, ikke en part (Kenneth 2026-11-23, HF1 nei). (Prosjekter opprettet
+før `41a39801` kan ha flyten «HMS-avvik» med faggrupper som ledd fra den gamle seeden; det er avvik
+A1 i [hms-domenemodell.md § HMS-flyt](hms-domenemodell.md).) Målt på test 2026-08-30: begge faggruppe-løse flyter heter
 «HMS». **Sett aldri feltet `NOT NULL`** — det ville stoppet HMS-modulen. En flytboks uten
 faggruppe må derfor spørre, ikke anta.
 

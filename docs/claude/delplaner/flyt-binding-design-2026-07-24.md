@@ -7,6 +7,9 @@ TIL REPO: docs/claude/delplaner/flyt-binding-design-2026-07-24.md
 
 # F1 — Flyt-binding ved opprettelse (design-innstilling)
 
+> ⚠️ **HMS-unntaket under er utgått som regelkilde (banner 2026-11-23).** Reglene i HMS-flyten står i [hms-domenemodell.md § HMS-flyt](../hms-domenemodell.md) (Kenneth 2026-11-23). Resten av notatet er ikke vurdert her og er ikke endret.
+> **Snudd:** «HMS-grenen er flyt-løs by design» (vedtak A). En HMS-sak bindes i dag til prosjektets HMS-flyt på serveren (`apps/api/src/routes/oppgave.ts:572-576`). HMS-flyten er en egen enhet ved siden av faggruppene (HF1 nei).
+
 Kontekst: `docs/claude/delplaner/flyt-rolle-verifisering-2026-07-24.md` (F1 = rotårsak).
 Visuelt beslutningskart: designprosjektet, «Flyt-binding Beslutningskart.dc.html» (1a).
 

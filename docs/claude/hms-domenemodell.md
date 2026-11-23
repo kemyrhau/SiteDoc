@@ -1,15 +1,99 @@
 ---
 name: hms-domenemodell
-status: 🟡 DOMENEMODELL fra Kenneth 2026-07-21 — to målte avvik mot kode, ett åpent spørsmål
-eier: Kenneth (domenesannhet) · fabel (design) · cowork (kode-måling)
-sist_verifisert_mot_kode: 2026-07-21
+status: 🟡 § HMS-flyt er Kenneths regler 2026-11-23 (HF1 nei og HF2 ja samme dag), målt mot develop @ `1bb2d5e6` — regel 3 (bare behandlerne i HMS-flyt-kortet behandler) er ikke bygget (H3), og fem målte avvik står åpne (A1–A5). § Firma-HMS er domenemodellen fra 2026-07-21 — to målte avvik mot kode, ett åpent spørsmål
+eier: Kenneth (domenesannhet) · fabel (design) · orkestrator (bestiller kode)
+sist_verifisert_mot_kode: 2026-11-23 (§ HMS-flyt, develop @ `1bb2d5e6`) · 2026-07-21 (§ Firma-HMS)
 ---
 
-# HMS — domenemodell (Kenneth 2026-07-21)
+# HMS — domenemodell
 
-> Nedtegnet fra Kenneths muntlige forklaring. **Dette er domenesannheten arkitekturen skal forklares fra** ([domene-arbeidsflyt.md](domene-arbeidsflyt.md)-prinsippet). Kenneth: *«så er det mange regler som har vært kommunisert tidligere som vi skal bygge etter. Ved avvik — diskuterer vi dette og løser avviket.»*
+> **Dette er domenesannheten arkitekturen skal forklares fra** ([domene-arbeidsflyt.md](domene-arbeidsflyt.md)-prinsippet). Kenneth 2026-07-21: *«så er det mange regler som har vært kommunisert tidligere som vi skal bygge etter. Ved avvik — diskuterer vi dette og løser avviket.»*
+>
+> Fila har to deler. **§ HMS-flyt** sier hvem som melder, hvem som behandler og hvem som får svaret i et prosjekt. **§ Firma-HMS** sier hva firmaets HMS ser og behandler på tvers av prosjekter.
 
-## Modellen
+## HMS-flyt — gjeldende regler (Kenneth 2026-11-23)
+
+> 🔴 **Dette avsnittet er den ene kilden for reglene i HMS-flyten.** Sier en annen fil noe annet, gjelder dette. Tekstene som sa noe annet, er rettet eller har fått banner som peker hit (se «Eldre tekst» nederst i avsnittet).
+
+Kenneth 2026-11-23, ordrett: *«HMS-avvik -> denne tillhører kun HMS-flyt. Alle prosjektmedlemmer skal kunne sende inn denne, samt RUH. Kun HMS behandler skal kunne behandle disse. Svar skal sendes til innsender, Ikke tilbake til hele prosjektets medlemmer. HMS-Flyt er en egen frittstående faggruppe med helt egne regler.»*
+
+Kenneth 2026-11-23, på de to spørsmålene reglene ikke avgjorde, ordrett: *«HF1: nei · HF2: ja»*.
+
+- **HF1** spurte om HMS også skal stå som en rad i lista over faggrupper. Svaret er nei.
+- **HF2** spurte om bare de som står som behandlere i HMS-flyt-kortet, skal behandle. Svaret er ja.
+
+### Reglene
+
+| # | Regelen | Status mot koden (develop @ `1bb2d5e6`) |
+|---|---|---|
+| 1 | HMS-avvik hører bare til HMS-flyten. | ✅ Nye prosjekter og prosjekter der modulen slås på, får flyten «HMS» med alle HMS-malene koblet til (`apps/api/src/services/hmsFlyt.ts:60-86`, `:129-145`; kalt fra `apps/api/src/services/prosjektSeed.ts:125` og `apps/api/src/routes/modul.ts:310`). 🔴 Avvik A1 og A2 under |
+| 2 | Alle prosjektmedlemmer kan sende inn HMS-avvik og RUH. | ✅ `oppgave.opprett` krever bare prosjektmedlemskap for maler med `domain: "hms"` (`apps/api/src/routes/oppgave.ts:548-549`). Bare melderen kan sende inn sitt eget utkast (`apps/api/src/trpc/tilgangskontroll.ts:645-650`) |
+| 3 | Bare de som står som behandlere i HMS-flyt-kortet, behandler HMS-avvik og RUH. En prosjektadmin som ikke står der, ser ikke private HMS-saker andre har meldt, og har ingen behandlerknapper. «Meld meg inn» i kortet gjør adminen til behandler. (HF2 ja) | 🟡 **2026-11-23, ikke bygget. Bestilles som H3 hos web-timer-o13.** I dag er alle prosjektadminer og alle i gruppen «Prosjektadministratorer» behandlere (`tilgangskontroll.ts:549-554`). Se «Regel 3 — det H3 endrer» under. 🔴 Avvik A3 og A4 |
+| 4 | Svaret går til innsenderen, ikke til alle prosjektets medlemmer. | ✅ I flyten «HMS»: e-posten går til innsenderen når innsenderen er aktivt medlem, aldri til alle (`apps/api/src/services/prosjektmedlemskap.ts:226-238`), og ballen går til innsenderen (`packages/shared/src/utils/flytPosisjon.ts:101-121`). Målt av web-timer-o13 2026-11-23 (SVAR F13c-2 punkt b). 🔴 Avvik A1: i den gamle seed-flyten «HMS-avvik» blir ballen liggende hos gruppen saken ble sendt til |
+| 5 | HMS-flyten er frittstående og har helt egne regler. Den er en egen enhet ved siden av faggruppene og står ikke i lista over faggrupper. (HF1 nei) | ✅ Flyten har ingen faggruppe og ingen faggruppe-ledd (`hmsFlyt.ts:69-85`). Den vises bare i HMS-flyt-kortet, ikke blant faggruppenes flyter og ikke under «Uten faggruppe» (`apps/web/src/app/dashbord/oppsett/produksjon/_components/flyt-gruppering.ts:22-24`). Egne handlinger og egen vakt (under). 🔴 Flyten lagres som en vanlig dokumentflyt uten eget merke og kjennes igjen på malene (A2) |
+
+### Slik er HMS-flyten bygget i dag
+
+- **Dokumentene:** HMS-avvik og RUH er oppgaver (`Task`), SJA er en sjekkliste (`Checklist`). De kjennes igjen på malen: `domain: "hms"` og `subdomain` `avvik`, `ruh` eller `sja` (`packages/shared/src/types/index.ts:548-550`, `:481-482`).
+- **Flyten:** `seedHmsModulOmradet` lager flyten «HMS» med to ledd: steg 1 er åpen melder uten gruppe og uten faggruppe, steg 2 er HMS-gruppen (`hmsFlyt.ts:69-85`). Finnes det alt en flyt med en HMS-mal, brukes den som den er (`hmsFlyt.ts:61-67`).
+- **Melderen:** den som oppretter dokumentet (`bestillerUserId`). Dokumentet opprettes som utkast, og melderen sender det inn (`oppgave.ts:756-764`, `tilgangskontroll.ts:645-650`).
+- **Behandlingen:** handlingene besvar, returner, lukk og gjenåpne går gjennom `verifiserHmsHandling` (`tilgangskontroll.ts:597-684`) og krever `erHmsAdmin`. Melderen kan tilføye informasjon. Det finnes ingen godkjenning i HMS-flyten.
+- **HMS-behandler i koden** (`erHmsAdmin`, `tilgangskontroll.ts:533-568`) er hver av disse tre. Regel 3 fjerner den første og snevrer inn den andre (H3):
+  1. prosjektadmin (`:549`),
+  2. medlem av en gruppe med `hms` i `domains` (`:550-554`). Det gjelder prosjektets HMS-gruppe og også standardgruppen «Prosjektadministratorer» (`types/index.ts:422`),
+  3. firmaets HMS-ansvarlige, for prosjekter firmaet eier (`:560-566`).
+- **HMS-gruppen** er en tilgangsgruppe (`ProjectGroup`) med `systemNokkel: "hms"` (`hmsFlyt.ts:25-28`, `types/index.ts:447-452`). Den er ikke en faggruppe.
+- **HMS-flyt-kortet** i Innstillinger → Produksjon → Dokumentflyt leser HMS-gruppen, prosjektets kontakter og firmaets HMS-ansvarlige, ikke flytraden (`apps/web/src/components/hms/HmsFlytKort.tsx:31-46`). Kortet viser melder «Følger kontaktlisten» og behandlerne: de som er lagt til i prosjektet, og firmaets HMS-ansvarlige («Fra firma»).
+- **«Meld meg inn»** legger den innloggede prosjektadminen inn i HMS-gruppen (`apps/api/src/routes/gruppe.ts:544-547`, `apps/web/src/components/hms/HmsBehandlerHandlinger.tsx:32-44`).
+- **Hvem som ser en sak:** HMS-behandleren ser alle HMS-saker. Andre ser saker med åpen mal, saker de selv har meldt og saker de er mottaker av (`apps/api/src/routes/hms.ts:46-57`). RUH og HMS-avvik er private og SJA er åpen (Kenneth 2026-07-21, [delplaner/hms-synlighet-regel.md](delplaner/hms-synlighet-regel.md)).
+- **Sletting:** en HMS-sak kan bare slettes som utkast ([domene-arbeidsflyt.md § VEDTAK 2026-09-04](domene-arbeidsflyt.md)).
+
+### Regel 3 — det H3 endrer (🟡 2026-11-23, ikke bygget)
+
+Målt mot develop @ `1bb2d5e6`. Kodeordren skrives av orkestrator; dette er det regelen krever av koden.
+
+| Sted | I dag | Etter H3 |
+|---|---|---|
+| `tilgangskontroll.ts:549` | Prosjektadmin er HMS-behandler. | Linja går ut. Prosjektadmin er behandler bare som medlem av HMS-gruppen. |
+| `tilgangskontroll.ts:550-554` | Medlem av en gruppe med `hms` i `domains` er behandler. «Prosjektadministratorer» har `hms` i `domains`. | Bare medlemmer av gruppen med `systemNokkel: "hms"` er behandlere. Fjernes bare `:549`, er alle i «Prosjektadministratorer» fortsatt behandlere. |
+| `tilgangskontroll.ts:560-566` | Firmaets HMS-ansvarlige er behandlere. | Uendret. De står i kortet som «Fra firma». |
+| `hms.ts:48`, `hms.ts:202`, `apps/api/src/routes/signatur.ts:100`, `tilgangskontroll.ts:664` | De fire kallerne av `erHmsAdmin`: lesefilteret for private saker, «er jeg HMS-behandler» til klienten, SJA-signaturen og vakten for HMS-handlingene. | Følger den nye definisjonen uten egne endringer. Kodeordren måler hver av dem. |
+| `gruppe.ts:544-547` | «Meld meg inn» krever prosjektadmin. | Uendret. Det er veien fra prosjektadmin til behandler. |
+
+- **Prosjektadmin setter fortsatt opp kortet.** Å legge til og fjerne behandlere er oppsett, ikke behandling.
+- **Prosjektadmin ser fortsatt** åpne saker (SJA), saker adminen selv har meldt, og saker adminen er mottaker av (`hms.ts:50-56`).
+- **Ikke avgjort av HF2:** sitedoc-admin ser alle HMS-saker (`hms.ts:34`). Kenneth er ikke spurt om det.
+- **Ikke målt i prod:** hvor mange prosjekter som står med 0 behandlere i kortet når prosjektadmin ikke lenger teller. Der blir innsendte saker liggende uten behandler til noen melder seg inn. HMS-siden viser et varsel med «Meld meg inn» når kortet er tomt (`apps/web/src/components/hms/HmsTomBanner.tsx`, brukt i `apps/web/src/app/dashbord/[prosjektId]/hms/page.tsx`).
+
+### Koden avviker fra reglene (målt 2026-11-23 mot develop @ `1bb2d5e6`)
+
+| # | Avvik | Kode | Regel |
+|---|---|---|---|
+| A1 | **Prosjekter opprettet før `41a39801` (2026-11-23) kan ha en HMS-flyt med faggrupper som ledd.** Prosjektopprettelsen laget da flyten «HMS-avvik» der alle faggruppene var melder og Byggherre mottaker. `seedHmsModulOmradet` finner den flyten og lar den stå. Nye prosjekter får flyten «HMS» (✅ F13c-2, merget `41a39801`). Hvor mange prosjekter i prod som har den gamle flyten, er ikke målt. | `hmsFlyt.ts:61-67` | 1, 4, 5 |
+| A2 | **En HMS-mal kan kobles til en annen dokumentflyt.** Flytoppsettet på serveren har ingen HMS-sperre (eneste treff på «hms» i `apps/api/src/routes/dokumentflyt.ts` er en kommentar om visningen), og et nytt HMS-avvik bindes til den første flyten som bruker malen. | `oppgave.ts:572-576` | 1 |
+| A3 | **Den generelle statusendringen er åpen for HMS-saker.** `oppgave.endreStatus` har ingen HMS-sperre, så den som har ballen i flyten, kan endre status uten å være HMS-behandler. Appen har de egne HMS-handlingene bare for SJA, ikke for HMS-avvik og RUH. | `oppgave.ts:1521-1525`, `apps/mobile/app/sjekkliste/[id].tsx:519-536` | 3 |
+| A4 | **Saken kan bli sendt til feil gruppe.** `oppgave.opprett` og `sjekkliste.opprett` finner mottakergruppen på `hms` i `domains` uten sortering. «Prosjektadministratorer» har også `hms` i `domains` og opprettes først, så den blir valgt i stedet for HMS-gruppen. 🟡 Rettes av H1 hos web-timer-o13 (`fix/hms-h1-h2` @ `de855d96`, ikke merget): oppslaget går på `systemNokkel`. | `oppgave.ts:552-558`, `apps/api/src/routes/sjekkliste.ts:434-440` | 3 |
+| A5 | **Prosjektopprettelsen lager HMS-malene uten `subdomain` og `hmsSynlighet`.** Da er SJA ikke åpen for andre enn melder, mottaker og behandler (`hms.ts:53`), og HMS-lista, som henter HMS-avvik, SJA og RUH hver for seg på `subdomain`, finner ikke sakene (`hms.ts:241`, `:266`, `:285`). 🟡 Seeden rettes av H2 hos web-timer-o13 (`fix/hms-h1-h2` @ `de855d96`, ikke merget). Malene som alt er laget slik, rettes ikke av H2 (se prod-målingen under). | `prosjektSeed.ts:65-75` | 1 |
+
+A2 og A3 er ikke bestilt. Retting av de gamle flytene i A1 og av de eksisterende malene i A5 er ikke bestilt.
+
+### Målt i prod (Kenneth 2026-11-23)
+
+- **0 prosjekter** har HMS-maler uten en merket HMS-gruppe. Oppslaget på `systemNokkel: "hms"` (H1, H3) finner altså en gruppe i alle prosjekter som har HMS-maler.
+- **2 prosjekter** har HMS-maler (SJA, HMS-avvik, RUH) med `subdomain` og `hmsSynlighet` = null. Det er avvik A5 i drift i de to prosjektene.
+
+Spørsmålene heter HF1 og HF2 her for ikke å blandes med funn H1 og H2 hos web-timer-o13.
+
+### Eldre tekst
+
+- **Rettet 2026-11-23:** [dokumentflyt.md § 2 HMS](dokumentflyt.md) (tabellen er erstattet med en peker hit), [domene-arbeidsflyt.md](domene-arbeidsflyt.md) (to avsnitt om HMS-flyten og flyt-id), [web.md](web.md) (HMS-siden), [forretningslogikk.md § HMS-avvik](forretningslogikk.md).
+- **Daterte designnotater har fått banner som peker hit og sier hva som er snudd:** [delplaner/hms-flyt-design-2026-07-24.md](delplaner/hms-flyt-design-2026-07-24.md), [delplaner/hms-dedikert-lop-design-2026-07-24.md](delplaner/hms-dedikert-lop-design-2026-07-24.md), [delplaner/flyt-binding-design-2026-07-24.md](delplaner/flyt-binding-design-2026-07-24.md), [delplaner/flytmodell-gate-svar-fabel.md](delplaner/flytmodell-gate-svar-fabel.md), [delplaner/spor2-hms-spec-nedbryting.md](delplaner/spor2-hms-spec-nedbryting.md) og [delplaner/a3b-perspektiv-tabell.md](delplaner/a3b-perspektiv-tabell.md). Innholdet under bannerne er historikk og er ikke endret.
+- **Synlighet:** [delplaner/hms-synlighet-regel.md](delplaner/hms-synlighet-regel.md) har fått banner. Tabellen for SJA, RUH og HMS-avvik gjelder. «Administrasjonen» i fila er behandlerne i HMS-flyt-kortet (regel 3). Raden «andre HMS-typer: normal dokumentflyt» er ikke avgjort av Kenneths ord 2026-11-23.
+- **Firmaets HMS-ansvarlige:** [fase-0-beslutninger.md A.27](fase-0-beslutninger.md) (2026-04-29) ga dem bare lesetilgang. Kenneth 2026-07-21 (§ Firma-HMS under, punkt 3) sier at firmaets HMS behandler sakene, og koden gjør dem til HMS-behandlere (`tilgangskontroll.ts:560-566`). A.27 har fått banner om dette.
+
+## Firma-HMS — modellen (Kenneth 2026-07-21)
+
+> Nedtegnet fra Kenneths muntlige forklaring.
 
 1. **HMS i prosjekt:** alle prosjektets medlemmer skal kunne lage RUH og delta på SJA etter behov.
 2. **Overføring oppover:** RUH og SJA skal overføres til firmaets HMS.

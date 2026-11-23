@@ -7,6 +7,9 @@ TIL REPO: docs/claude/delplaner/hms-flyt-design-2026-07-24.md
 
 # HMS-flyten — Kenneths modell mot koden
 
+> ⚠️ **Utgått som regelkilde (banner 2026-11-23).** Reglene i HMS-flyten står i [hms-domenemodell.md § HMS-flyt](../hms-domenemodell.md) (Kenneth 2026-11-23). Notatet under er historikk fra 2026-07-24 og er ikke endret.
+> **Snudd:** «HMS-admin» i notatet er nå bare de som står som behandlere i HMS-flyt-kortet. En prosjektadmin som ikke står der, behandler ikke og ser ikke private HMS-saker andre har meldt (HF2 ja; 🟡 ikke bygget, H3).
+
 Visuelt kart: designprosjektet, «Flyt-binding Beslutningskart.dc.html» (2a).
 Kenneth-krav (RUH, 2026-07-24): alle kan sende · oppretter leser og kan tilføye informasjon etterpå · HMS-admin leser og besvarer med begrunnelse · ingen andre kan lese · ingen godkjenningsløp · synlighet varierer per mal.
 
