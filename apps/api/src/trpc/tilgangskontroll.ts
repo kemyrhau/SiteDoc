@@ -1475,6 +1475,35 @@ export async function verifiserPunktFlytTilgang(
   }
 }
 
+/**
+ * K1-S (Kontrollør-vilkår 2026-11-23, etter H3): sjekkliste-filteret for «Koble eksisterende»
+ * på et kontrollpunkt (`kontrollplan.hentKoblbareSjekklister` og `kanKoble` i
+ * `hentPunktHandlinger`). En kontrollplan-mal kan være en privat HMS-mal, så admin kan ikke
+ * lenger få `null`-filter i kraft av rollen:
+ * - ikke admin → `byggTilgangsFilter` (som før).
+ * - sitedoc_admin → `null` (ser alt, som i `byggTilgangsFilter`).
+ * - prosjektadmin (har ProjectMember-rad) → den H3-rettede `byggTilgangsFilter`: `null` for
+ *   HMS-behandleren, ellers alt som ikke er privat HMS + egne private HMS-saker (melder/mottaker).
+ * - firma-admin uten ProjectMember-rad (V1) → `null` når hen er HMS-behandler (`erHmsAdmin`,
+ *   firmaets `hms_ansvarlig`), ellers alt som ikke er privat HMS.
+ * Speiler `koblePunkt`, så knappen og kandidatlista aldri viser noe serveren avviser.
+ */
+export async function byggPunktKoblingsFilter(
+  userId: string,
+  projectId: string,
+  tilgang: PunktFlytTilgang,
+): Promise<Record<string, unknown> | null> {
+  if (!tilgang.erAdmin) return byggTilgangsFilter(userId, projectId);
+  const bruker = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
+  if (bruker?.role === "sitedoc_admin") return null;
+  const medlem = await prisma.projectMember.findFirst({
+    where: aktivtProsjektmedlemWhere(userId, projectId),
+    select: { id: true },
+  });
+  if (medlem) return byggTilgangsFilter(userId, projectId);
+  return (await erHmsAdmin(userId, projectId)) ? null : IKKE_PRIVAT_HMS;
+}
+
 export async function byggTilgangsFilter(
   userId: string,
   projectId: string,

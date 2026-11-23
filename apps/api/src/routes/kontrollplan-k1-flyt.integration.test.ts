@@ -19,6 +19,9 @@ import { createTestCaller } from "../test-harness/context";
  *  - Prosjektisolasjon: bruker i et annet prosjekt får FORBIDDEN.
  *  - V1 (Kenneth-vedtak 2026-08-15): firma-admin uten ProjectMember-rad er admin — Start,
  *    Koble og kandidatlista virker, flytfilteret på punktets flyt gjelder fortsatt.
+ *  - K1-S (Kontrollør-vilkår etter H3): admin som ikke er HMS-behandler får verken se eller koble
+ *    en privat HMS-sjekkliste andre har meldt via kontrollplanen. HMS-behandleren (`erHmsAdmin`,
+ *    også firmaets `hms_ansvarlig` uten ProjectMember-rad) og melderen kobler fortsatt.
  */
 describe("K1 — Start og kobling bare for punktets flyt", () => {
   const NS = `k1-${randomUUID().slice(0, 8)}`;
@@ -37,6 +40,11 @@ describe("K1 — Start og kobling bare for punktets flyt", () => {
     planId: "",
     sjekklisteA: "",
     sjekklisteB: "",
+    hmsMal: "",
+    hmsApenMal: "",
+    hmsGruppeId: "",
+    hmsPrivat: "",
+    hmsApen: "",
   };
   const punkter: string[] = [];
 
@@ -50,12 +58,12 @@ describe("K1 — Start og kobling bare for punktets flyt", () => {
   async function lagPm(userId: string, projectId: string, role: "member" | "admin" = "member") {
     return prisma.projectMember.create({ data: { id: randomUUID(), userId, projectId, role } });
   }
-  async function lagPunkt(dokumentflytId: string | null = id.flytA) {
+  async function lagPunkt(dokumentflytId: string | null = id.flytA, sjekklisteMalId = id.templateId) {
     const p = await prisma.kontrollplanPunkt.create({
       data: {
         id: randomUUID(),
         kontrollplanId: id.planId,
-        sjekklisteMalId: id.templateId,
+        sjekklisteMalId,
         faggruppeId: id.faggruppeId,
         dokumentflytId,
       },
@@ -168,20 +176,64 @@ describe("K1 — Start og kobling bare for punktets flyt", () => {
       })).id;
     id.sjekklisteA = await lagSjekkliste(id.flytA, "SA");
     id.sjekklisteB = await lagSjekkliste(id.flytB, "SB");
+
+    // K1-S: en kontrollplan-mal kan være en HMS-mal. Privat = hmsSynlighet null (H3 regner null
+    // som privat, slik de seedede SJA-malene står), åpen = "apen". Begge i flyt A.
+    id.hmsMal = (await prisma.reportTemplate.create({
+      data: { id: randomUUID(), projectId: project.id, name: `${NS} HMS-mal`, category: "sjekkliste", domain: "hms" },
+    })).id;
+    id.hmsApenMal = (await prisma.reportTemplate.create({
+      data: { id: randomUUID(), projectId: project.id, name: `${NS} HMS åpen`, category: "sjekkliste", domain: "hms", hmsSynlighet: "apen" },
+    })).id;
+    for (const t of [id.hmsMal, id.hmsApenMal]) {
+      await prisma.dokumentflytMal.create({ data: { id: randomUUID(), dokumentflytId: id.flytA, templateId: t } });
+    }
+    // HMS-behandler: medlem av prosjektets HMS-gruppe (systemNokkel "hms"), ikke av flyt A.
+    id.hmsGruppeId = (await prisma.projectGroup.create({
+      data: {
+        id: randomUUID(), projectId: project.id, name: `${NS} HMS`, slug: `${NS}-hms`, category: "generelt",
+        systemNokkel: "hms", domains: ["hms"],
+      },
+    })).id;
+    const pmHms = await lagPm(await lagBruker("hmsBehandler"), project.id);
+    await prisma.projectGroupMember.create({ data: { id: randomUUID(), groupId: id.hmsGruppeId, projectMemberId: pmHms.id } });
+    // Firma-admin som også er firmaets HMS-ansvarlige, uten ProjectMember-rad.
+    await prisma.organizationMember.create({
+      data: {
+        userId: await lagBruker("firmaHms"), organizationId: id.orgId, status: "aktiv",
+        firmaRoller: ["firma_admin", "hms_ansvarlig"],
+      },
+    });
+    const lagHmsSjekkliste = async (templateId: string, tittel: string) =>
+      (await prisma.checklist.create({
+        data: {
+          id: randomUUID(),
+          templateId,
+          bestillerUserId: brukere.registrator!,
+          bestillerFaggruppeId: id.medlemsFaggruppeId,
+          utforerFaggruppeId: id.medlemsFaggruppeId,
+          dokumentflytId: id.flytA,
+          title: `${NS} ${tittel}`,
+          byggeplassId: id.byggeplassId,
+        },
+      })).id;
+    id.hmsPrivat = await lagHmsSjekkliste(id.hmsMal, "HMS privat");
+    id.hmsApen = await lagHmsSjekkliste(id.hmsApenMal, "HMS åpen");
   });
 
   afterAll(async () => {
     await prisma.kontrollplanPunkt.deleteMany({ where: { kontrollplanId: id.planId } });
-    await prisma.checklistChangeLog.deleteMany({ where: { checklist: { templateId: id.templateId } } }).catch(() => undefined);
-    await prisma.documentTransfer.deleteMany({ where: { checklist: { templateId: id.templateId } } }).catch(() => undefined);
-    await prisma.checklist.deleteMany({ where: { templateId: id.templateId } });
+    const iProsjekt = { template: { projectId: id.projectId } };
+    await prisma.checklistChangeLog.deleteMany({ where: { checklist: iProsjekt } }).catch(() => undefined);
+    await prisma.documentTransfer.deleteMany({ where: { checklist: iProsjekt } }).catch(() => undefined);
+    await prisma.checklist.deleteMany({ where: iProsjekt });
     await prisma.kontrollplan.deleteMany({ where: { projectId: id.projectId } });
     await prisma.byggeplass.deleteMany({ where: { projectId: id.projectId } });
     await prisma.dokumentflytMal.deleteMany({ where: { dokumentflytId: { in: [id.flytA, id.flytB] } } });
     await prisma.dokumentflytMedlem.deleteMany({ where: { dokumentflytId: { in: [id.flytA, id.flytB] } } });
     await prisma.dokumentflyt.deleteMany({ where: { projectId: id.projectId } });
     await prisma.reportTemplate.deleteMany({ where: { projectId: id.projectId } });
-    await prisma.projectGroupMember.deleteMany({ where: { groupId: id.gruppeId } });
+    await prisma.projectGroupMember.deleteMany({ where: { groupId: { in: [id.gruppeId, id.hmsGruppeId] } } });
     await prisma.projectGroup.deleteMany({ where: { projectId: id.projectId } });
     await prisma.faggruppeKobling.deleteMany({ where: { faggruppe: { projectId: id.projectId } } });
     await prisma.faggruppe.deleteMany({ where: { projectId: id.projectId } });
@@ -294,6 +346,61 @@ describe("K1 — Start og kobling bare for punktets flyt", () => {
       // V1: firma-admin uten ProjectMember-rad får begge knappene.
       expect((await handlinger("firmaAdmin"))[medFlyt]).toEqual({ kanStarte: true, kanKoble: true });
       await expect(handlinger("fremmedAdmin")).rejects.toMatchObject({ code: "FORBIDDEN" });
+    });
+  });
+  describe("K1-S — private HMS-sjekklister via kontrollplanen", () => {
+    const koble = (navn: string, punktId: string, sjekklisteId: string) =>
+      createTestCaller(brukere[navn]!)
+        .kontrollplan.koblePunkt({ punktId, sjekklisteId })
+        .then(async () => {
+          await prisma.kontrollplanPunkt.update({ where: { id: punktId }, data: { sjekklisteId: null } });
+          return { ok: true as const };
+        })
+        .catch((e: unknown) => ({ ok: false as const, code: (e as { code?: string }).code }));
+    const kandidater = async (navn: string, punktId: string) =>
+      (await createTestCaller(brukere[navn]!).kontrollplan.hentKoblbareSjekklister({ punktId })).map((s) => s.id);
+    const handlinger = async (navn: string, punktId: string) =>
+      (await createTestCaller(brukere[navn]!).kontrollplan.hentPunktHandlinger({ byggeplassId: id.byggeplassId }))[punktId];
+
+    // Rolle for rolle: [navn, ser og kobler den private HMS-sjekklista, kanStarte på punktet].
+    const roller = [
+      ["prosjektadmin", false, true],
+      ["firmaAdmin", false, true],
+      ["sitedocAdmin", true, true],
+      ["firmaHms", true, true],
+      ["hmsBehandler", true, false],
+      ["registrator", true, true],
+      ["utforer", false, true],
+    ] as const;
+
+    it.each(roller)("privat HMS-punkt, %s: kandidatlista", async (navn, ser) => {
+      expect(await kandidater(navn, await lagPunkt(id.flytA, id.hmsMal))).toEqual(ser ? [id.hmsPrivat] : []);
+    });
+    it.each(roller)("privat HMS-punkt, %s: hentPunktHandlinger", async (navn, ser, kanStarte) => {
+      const punktId = await lagPunkt(id.flytA, id.hmsMal);
+      expect(await handlinger(navn, punktId)).toEqual({ kanStarte, kanKoble: ser });
+    });
+    it.each(roller)("privat HMS-punkt, %s: koblePunkt", async (navn, ser) => {
+      expect(await koble(navn, await lagPunkt(id.flytA, id.hmsMal), id.hmsPrivat)).toEqual(
+        ser ? { ok: true } : { ok: false, code: "FORBIDDEN" },
+      );
+    });
+
+    it("negativkontroll: åpen HMS-sjekkliste vises og kobles av admin som før", async () => {
+      for (const navn of ["prosjektadmin", "firmaAdmin"]) {
+        const punktId = await lagPunkt(id.flytA, id.hmsApenMal);
+        expect(await kandidater(navn, punktId)).toEqual([id.hmsApen]);
+        expect(await handlinger(navn, punktId)).toEqual({ kanStarte: true, kanKoble: true });
+        expect(await koble(navn, punktId, id.hmsApen)).toEqual({ ok: true });
+      }
+    });
+    it("negativkontroll: bygg-punkt for admin uendret", async () => {
+      for (const navn of ["prosjektadmin", "firmaAdmin"]) {
+        const punktId = await lagPunkt();
+        expect(await kandidater(navn, punktId)).toEqual([id.sjekklisteA]);
+        expect(await handlinger(navn, punktId)).toEqual({ kanStarte: true, kanKoble: true });
+        expect(await koble(navn, punktId, id.sjekklisteA)).toEqual({ ok: true });
+      }
     });
   });
 });

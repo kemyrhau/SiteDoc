@@ -8,7 +8,8 @@ import {
   verifiserDokumentTilgang,
   hentPunktFlytTilgang,
   kanBrukePunktFlyt,
-  byggTilgangsFilter,
+  byggPunktKoblingsFilter,
+  erHmsAdmin,
 } from "../trpc/tilgangskontroll";
 import { koblePunktTilSjekkliste } from "../services/kontrollplanKobling";
 import {
@@ -616,8 +617,15 @@ export const kontrollplanRouter = router({
       // uten ProjectMember-rad. `hentPunktFlytTilgang().erAdmin` dekker sitedoc_admin,
       // prosjektadmin og firma-admin — admin hopper over dokument-tilgangen (som prosjektadmin
       // gjorde fra før); flyt-kravet under gjelder fortsatt.
+      //
+      // K1-S (Kontrollør-vilkår etter H3): admin-unntaket gjelder ikke en privat HMS-sjekkliste
+      // (malens domain "hms" og hmsSynlighet ikke "apen", også null). Da avgjør
+      // `verifiserDokumentTilgang` (behandler, melder, mottaker) — bortsett fra at HMS-behandleren
+      // (`erHmsAdmin`, også firmaets `hms_ansvarlig`) slipper inn uten ProjectMember-rad, så K1-S
+      // ikke stenger noen H3 slipper inn.
       const { erAdmin } = await hentPunktFlytTilgang(ctx.userId, punkt.kontrollplan.projectId);
-      if (!erAdmin) {
+      const hmsPrivat = sjekkliste.template.domain === "hms" && sjekkliste.template.hmsSynlighet !== "apen";
+      if (!erAdmin || (hmsPrivat && !(await erHmsAdmin(ctx.userId, punkt.kontrollplan.projectId)))) {
         await verifiserDokumentTilgang(
           ctx.userId,
           sjekkliste.template.projectId,
@@ -671,8 +679,9 @@ export const kontrollplanRouter = router({
       if (punkter.length === 0) return resultat;
 
       const tilgang = await hentPunktFlytTilgang(ctx.userId, projectId);
-      // V1: admin (også firma-admin uten ProjectMember-rad) ser alle sjekklister — ingen filter.
-      const tilgangsFilter = tilgang.erAdmin ? null : await byggTilgangsFilter(ctx.userId, projectId);
+      // V1 + K1-S: admin (også firma-admin uten ProjectMember-rad) ser alle sjekklister unntatt
+      // private HMS-saker andre har meldt, når admin ikke er HMS-behandler (`byggPunktKoblingsFilter`).
+      const tilgangsFilter = await byggPunktKoblingsFilter(ctx.userId, projectId, tilgang);
       const kandidater = await ctx.prisma.checklist.findMany({
         where: {
           ...IKKE_SLETTET,
@@ -696,7 +705,7 @@ export const kontrollplanRouter = router({
 
   // Kandidat-sjekklister for «Koble eksisterende» på et punkt: samme mal (kobling krever
   // mal-match) og ennå ikke koblet til noe kontrollpunkt. K1: bare sjekklister brukeren har
-  // tilgang til (`byggTilgangsFilter`; admin ser alle), og bare fra punktets flyt når den er satt — samme
+  // tilgang til (`byggPunktKoblingsFilter`; admin ser alle unntatt andres private HMS-saker), og bare fra punktets flyt når den er satt — samme
   // regel som `koblePunkt` håndhever.
   hentKoblbareSjekklister: protectedProcedure
     .input(z.object({ punktId: z.string() }))
@@ -706,10 +715,11 @@ export const kontrollplanRouter = router({
         include: { kontrollplan: { select: { projectId: true } } },
       });
       await verifiserProsjektmedlem(ctx.userId, punkt.kontrollplan.projectId);
-      // V1: admin (også firma-admin uten ProjectMember-rad) ser alle sjekklister — ingen filter;
-      // flytfilteret på punktets flyt gjelder fortsatt.
-      const { erAdmin } = await hentPunktFlytTilgang(ctx.userId, punkt.kontrollplan.projectId);
-      const tilgangsFilter = erAdmin ? null : await byggTilgangsFilter(ctx.userId, punkt.kontrollplan.projectId);
+      // V1 + K1-S: admin (også firma-admin uten ProjectMember-rad) ser alle sjekklister unntatt
+      // private HMS-saker andre har meldt, når admin ikke er HMS-behandler; flytfilteret på
+      // punktets flyt gjelder fortsatt. Samme regel som `koblePunkt`.
+      const tilgang = await hentPunktFlytTilgang(ctx.userId, punkt.kontrollplan.projectId);
+      const tilgangsFilter = await byggPunktKoblingsFilter(ctx.userId, punkt.kontrollplan.projectId, tilgang);
       return ctx.prisma.checklist.findMany({
         where: {
           ...IKKE_SLETTET,
