@@ -416,6 +416,7 @@
   "timer.prosjektkort.reiseMerke": "Путешествовать",
   "timer.prosjektkort.reiseTil": "К {{sted}}",
   "timer.prosjektkort.reiseFra": "От {{sted}}",
+  "timer.prosjektkort.reiseRute": "{{fra}} → {{til}}",
   "timer.prosjektkort.utenUnderprosjekt": "Нет подпроекта",
   "timer.rediger.reiseHavnerJobb": "Это путешествие. Он идет на работу в {{sted}}.",
   "timer.rediger.reiseHavnerEget": "Это путешествие. Он получает свою карту.",

@@ -703,17 +703,16 @@ export function ReiseKort({
   /** Avslutt uten reise. R7b (Kenneth «ja»): spør om «Siste dag», forslaget er dagen før sedeldatoen
    *  (slettes om den er før periodens start); arbeideren kan rette. */
   const [avsluttDag, setAvsluttDag] = useState<string | null>(null);
+  // O17 pkt 22: kallet og «… fjernes» regnes fra samme plan (V2: nettopp perioden linja viser).
+  const avsluttPlan = avsluttDag != null && periodeUnder ? reise.avsluttPlan(avsluttDag, periodeUnder.id) : null;
   function avsluttOverforing() {
-    if (!avsluttDag || !periodeUnder) return;
+    if (!avsluttPlan) return;
     setFeil(null);
     overforingMut.mutate(
       {
         id: crypto.randomUUID(),
         organizationId,
-        handling: "slutt",
-        dato: avsluttDag,
-        // O16 V2: nettopp perioden linja viser — ikke den serveren ville valgt ut fra datoen.
-        periodeId: periodeUnder.id,
+        ...avsluttPlan.kall,
       },
       {
         onSuccess: () => {
@@ -842,6 +841,15 @@ export function ReiseKort({
         <Button type="button" size="sm" variant="secondary" onClick={() => setAvsluttDag(null)}>
           {t("handling.avbryt")}
         </Button>
+        {/* O17 pkt 22: «Siste dag» før periodens start — perioden fjernes; sagt før arbeideren trykker. */}
+        {avsluttPlan?.fjernes && (
+          <p data-testid="reise-oppmote-fjernes" className="basis-full text-xs font-medium text-blue-900">
+            {t("timer.reiseKort.periodeFjernes", {
+              navn: reise.kontorNavn(avsluttPlan.fjernes.oppmotestedId ?? ""),
+              periode: periodeTekst(avsluttPlan.fjernes),
+            })}
+          </p>
+        )}
       </div>
     ) : null;
   // O16 pkt 1: oppmøtestedet som ett nedtrekk; redigering (pkt 5) viser det som tekst.

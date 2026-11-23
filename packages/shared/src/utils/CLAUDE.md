@@ -278,6 +278,7 @@ Delt mellom API, web og mobil (offline). Datoer er ISO `YYYY-MM-DD`-strenger; sa
 | `gjeldendeMidlertidig(dato, perioder)` | O16: midlertidig kontorperiode som gjelder på datoen (samme valg som `løsOppmote` trinn 3) |
 | `gjelderFraForslag(valg, dato, startTid)` / `sisteDagForslag(valg, dato, startTid)` / `avsluttSisteDagForslag(dato)` | O16 pkt 2: forslag i web-reisevinduets blå boks. Tur: sedelens dato / dagen før; retur: dagen etter / sedelens dato; tur 3: kl. 12-regelen (R7a). «Avslutt»: dagen før (R7b) |
 | `planleggOppmoteBytte(a)` → `OppmoteBytte` | O16: hva kontorvalget i web-reisevinduet gjør — `ingen`/`start`/`slutt`/`admin`, med kallet til `oppmotePeriode.overforing`, «forkortes»/«fjernes», overlapp og ugyldig dato. Mobil bruker den ikke |
+| `planleggAvslutt(perioder, sisteDag, periodeId)` → `{ kall, fjernes }` | O17 (vedtak pkt 22): «Avslutt» med «Siste dag» — `kall` er det web sender (`periodeId`, V2), `fjernes` = perioden når planen sier «slettet» (Siste dag før `fraDato`). Teksten og kallet regnes fra samme plan. Fasit: `oppmote-o17.test.ts` |
 
 ### Tegning-nedlasting (`tegningNedlasting.ts`, 2026-10-10)
 
@@ -295,6 +296,8 @@ Fasit: `tegningNedlasting.test.ts`.
 ### Reise-kort (`reiseManuell.ts`) — del B-tillegg
 
 `løsReiseKort`/`løsOverforingKort` tar valgfrie `naar` (`forArbeid`/`etterArbeid`), `startTid` og `sluttTid` (w15b): tidene kan rettes, klassifiseringen står på firmaets kjøretid.
+
+`kontorReiseRute(reiseRegel)` → `{ fraKontorId, tilKontorId } | null` (O17, vedtak pkt 21): kjennetegnet på en reise mellom to kontorer (tur 3) — ruten i `reiseRegel.overforing` med kontor i begge ender, lest defensivt. Ikke `reiseKilde`, som bare er «overforing» over terskel. Web (kortliste, attestering) og api (eksport) bruker den. Mobil bruker den ikke.
 
 `medOverforingPeriodeId(spor, periodeId)` setter `reiseRegel.overforing.periodeId` når perioden er kjent ved lagring (ny id ved start, lukket periode ved slutt); `null` → sporet urørt.
 

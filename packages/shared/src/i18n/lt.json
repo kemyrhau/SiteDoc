@@ -416,6 +416,7 @@
   "timer.prosjektkort.reiseMerke": "Kelionės",
   "timer.prosjektkort.reiseTil": "Kam {{sted}}",
   "timer.prosjektkort.reiseFra": "Nuo {{sted}}",
+  "timer.prosjektkort.reiseRute": "{{fra}} → {{til}}",
   "timer.prosjektkort.utenUnderprosjekt": "Nėra subprojekto",
   "timer.rediger.reiseHavnerJobb": "Tai yra kelionės. Tai atliekama {{sted}}.",
   "timer.rediger.reiseHavnerEget": "Tai yra kelionės. Jis gauna savo kortelę.",

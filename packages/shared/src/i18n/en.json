@@ -416,6 +416,7 @@
   "timer.prosjektkort.reiseMerke": "Travel",
   "timer.prosjektkort.reiseTil": "To {{sted}}",
   "timer.prosjektkort.reiseFra": "From {{sted}}",
+  "timer.prosjektkort.reiseRute": "{{fra}} → {{til}}",
   "timer.prosjektkort.utenUnderprosjekt": "No sub-project",
   "timer.rediger.reiseHavnerJobb": "This is travel. It goes in the job at {{sted}}.",
   "timer.rediger.reiseHavnerEget": "This is travel. It gets its own card.",

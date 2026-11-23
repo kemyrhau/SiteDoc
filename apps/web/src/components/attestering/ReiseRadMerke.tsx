@@ -12,6 +12,7 @@
 import { useTranslation } from "react-i18next";
 import { Car, AlertTriangle } from "lucide-react";
 import { useFirma } from "@/kontekst/firma-kontekst";
+import { kontorReiseRute } from "@sitedoc/shared";
 import { trpc } from "@/lib/trpc";
 import type { TimerRad } from "./attestering-buckets";
 import { reiseMerkeNokkel } from "./reise-merke";
@@ -39,8 +40,23 @@ export function ReiseRadMerke({ rad }: { rad: TimerRad }) {
   const bygg = rad.byggeplassId
     ? (plasser?.find((p) => p.id === rad.byggeplassId)?.name ?? null)
     : null;
-  const fra = retning === "ut" ? kontor : retning === "retur" ? bygg : null;
-  const til = retning === "ut" ? bygg : retning === "retur" ? kontor : null;
+  // O17 pkt 21: reise mellom to kontorer — begge ender er kontor, hentet fra ruten i `reiseRegel`.
+  const kontorRute = kontorReiseRute(rad.reiseRegel);
+  const kontorNavn = (id: string) => steder?.find((s) => s.id === id)?.navn ?? null;
+  const fra = kontorRute
+    ? kontorNavn(kontorRute.fraKontorId)
+    : retning === "ut"
+      ? kontor
+      : retning === "retur"
+        ? bygg
+        : null;
+  const til = kontorRute
+    ? kontorNavn(kontorRute.tilKontorId)
+    : retning === "ut"
+      ? bygg
+      : retning === "retur"
+        ? kontor
+        : null;
 
   const harDetaljer =
     rad.reiseKilde != null || rad.reiseAvstandM != null || rad.reiseKjoretidMin != null;

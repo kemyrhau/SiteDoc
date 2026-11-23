@@ -416,6 +416,7 @@
   "timer.prosjektkort.reiseMerke": "Voyage",
   "timer.prosjektkort.reiseTil": "À {{sted}}",
   "timer.prosjektkort.reiseFra": "De {{sted}}",
+  "timer.prosjektkort.reiseRute": "{{fra}} → {{til}}",
   "timer.prosjektkort.utenUnderprosjekt": "Aucun sous-projet",
   "timer.rediger.reiseHavnerJobb": "C'est un voyage. Cela va dans le travail chez {{sted}}.",
   "timer.rediger.reiseHavnerEget": "C'est un voyage. Il obtient sa propre carte.",

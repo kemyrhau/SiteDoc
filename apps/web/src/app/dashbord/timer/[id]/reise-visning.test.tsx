@@ -88,9 +88,10 @@ function reise(over: Record<string, unknown>): Rad {
   } as Rad;
 }
 
-function rendre(timer: Rad[], modus = "prosjektkort") {
+function rendre(timer: Rad[], modus = "prosjektkort", ekstra: Record<string, unknown> = {}) {
   cleanup();
   h.data = {
+    ...ekstra,
     ...dag7Data(modus),
     "timer.dagsseddel.hentMedId": { ...DAG7_SEDEL, timer, maskiner: [], tillegg: [], utlegg: [] },
     "vareforbruk.hentMineForDato": [],
@@ -415,5 +416,69 @@ describe("O6 (§ 8.22 punkt 2) — beskrivelsen ved hover på lukket prosjektkor
     const boks = hoverFor(kortHoder()[0]!)!;
     const linjer = Array.from(boks.querySelectorAll("[data-beskrivelse-hover] > span")).map((e) => e.textContent);
     expect(linjer).toEqual(["Rigging", "Forskaling"]);
+  });
+});
+
+// O17 (vedtak-timer-web.md § Reisevinduet pkt 21): reise mellom to kontorer (tur 3) vises som
+// «{fra} → {til}» med kontornavnene slik de er lagret. Kjennetegnet er ruten i `reiseRegel`.
+describe("O17 pkt 21 — kontorreise i kortlisten", () => {
+  afterEach(cleanup);
+  const KONTORER = { "oppmotested.hentForFirma": [{ id: "kt", navn: "Tromsø" }, { id: "kn", navn: "Narvik kontor" }] };
+  const KONTORREISE = reise({
+    id: "rk",
+    kortId: "k3",
+    byggeplassId: null,
+    reiseKilde: "overforing",
+    reiseRetning: "ut",
+    reiseOppmotestedId: "kt",
+    fraTid: "15:00",
+    tilTid: "18:50",
+    timer: "3.83",
+    beskrivelse: null,
+    reiseRegel: { overforing: { fra: { type: "kontor", oppmotestedId: "kt" }, til: { type: "kontor", oppmotestedId: "kn" }, periodeId: "p1" } },
+  });
+  const RUTE = 'timer.prosjektkort.reiseRute{"fra":"Tromsø","til":"Narvik kontor"}';
+  const hoverFor = (hode: HTMLElement) => {
+    const id = (hode.getAttribute("aria-describedby") ?? "").split(" ").find(Boolean);
+    const node = id ? document.getElementById(id) : null;
+    return node?.querySelector("[data-beskrivelse-hover]") ? node : null;
+  };
+
+  it("reiselinja viser «Tromsø → Narvik kontor», ikke «Til {prosjekt}»", () => {
+    rendre([ARBEID1, KONTORREISE], "prosjektkort", KONTORER);
+    for (const hode of kortHoder()) if (hode.getAttribute("aria-expanded") !== "true") fireEvent.click(hode);
+    const tekst = document.querySelector('[data-reiselinje="rk"]')!.textContent ?? "";
+    expect(tekst).toContain(RUTE);
+    expect(tekst).not.toContain("timer.prosjektkort.reiseTil");
+  });
+
+  it("lukket kort med bare kontorreisen: hover viser ruten", () => {
+    rendre([ARBEID1, KONTORREISE], "prosjektkort", KONTORER);
+    const hode = kortHoder().find((b) => b.textContent?.includes("15:00–18:50"))!;
+    expect(hode.getAttribute("aria-expanded")).toBe("false");
+    const linjer = Array.from(hoverFor(hode)!.querySelectorAll("[data-beskrivelse-hover] > span")).map((e) => e.textContent);
+    expect(linjer).toEqual([`${RUTE} · 15:00–18:50`]);
+  });
+
+  it("ukjent kontornavn: dagens tekst står, ingenting fabrikkeres", () => {
+    rendre([ARBEID1, KONTORREISE], "prosjektkort", { "oppmotested.hentForFirma": [{ id: "kt", navn: "Tromsø" }] });
+    for (const hode of kortHoder()) if (hode.getAttribute("aria-expanded") !== "true") fireEvent.click(hode);
+    const tekst = document.querySelector('[data-reiselinje="rk"]')!.textContent ?? "";
+    expect(tekst).not.toContain("timer.prosjektkort.reiseRute");
+    expect(tekst).toContain("timer.prosjektkort.reiseTil");
+  });
+
+  it("vakt: L2 kontor → byggeplass er uendret «Til {byggeplass}»", () => {
+    const l2 = reise({
+      id: "rl",
+      reiseKilde: "overforing",
+      reiseRetning: "ut",
+      reiseRegel: { overforing: { fra: { type: "kontor", oppmotestedId: "kt" }, til: { type: "byggeplass", projectId: "p1" }, periodeId: null } },
+    });
+    rendre([ARBEID1, l2], "prosjektkort", KONTORER);
+    aapneForste();
+    const tekst = document.querySelector('[data-reiselinje="rl"]')!.textContent ?? "";
+    expect(tekst).toContain("timer.prosjektkort.reiseTil");
+    expect(tekst).not.toContain("timer.prosjektkort.reiseRute");
   });
 });

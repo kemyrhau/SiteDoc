@@ -17,6 +17,7 @@ import {
   løsOppmote,
   løsOverforingKort,
   løsReiseKort,
+  planleggAvslutt,
   planleggOppmoteBytte,
   tilIsoDato,
   type DagsforslagOverforingCelle,
@@ -460,6 +461,16 @@ export function useManuellReiseWeb({
     kontorRetning,
     apenOverforing,
     kontorNavn: (id: string) => steder.find((o) => o.id === id)?.navn ?? "",
+    /**
+     * O17 pkt 22: «Avslutt» med «Siste dag» — kallet og «… fjernes» fra samme plan (`planleggAvslutt`,
+     * V2: `periodeId`). Samme periodeliste som `bytte`.
+     */
+    avsluttPlan: (sisteDag: string, periodeId: string) =>
+      planleggAvslutt(
+        perioder.map((p) => ({ ...p, id: p.id ?? "" })),
+        sisteDag,
+        periodeId,
+      ),
     regelStatus,
     oppmote,
     oppmotestedNavn,

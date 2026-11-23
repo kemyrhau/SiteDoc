@@ -416,6 +416,7 @@
   "timer.prosjektkort.reiseMerke": "Matkustaa",
   "timer.prosjektkort.reiseTil": "Vastaanottaja {{sted}}",
   "timer.prosjektkort.reiseFra": "Lähettäjä: {{sted}}",
+  "timer.prosjektkort.reiseRute": "{{fra}} → {{til}}",
   "timer.prosjektkort.utenUnderprosjekt": "Ei osaprojektia",
   "timer.rediger.reiseHavnerJobb": "Tämä on matkailua. Se menee työhön {{sted}}.",
   "timer.rediger.reiseHavnerEget": "Tämä on matkailua. Se saa oman kortin.",

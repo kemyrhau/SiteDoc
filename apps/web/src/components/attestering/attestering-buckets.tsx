@@ -64,6 +64,9 @@ export type TimerRad = {
   // O12 pkt 16 — reise ført som arbeidstid (`erReise: false`). Allerede i server-payloaden
   // (scalar; `include` uten select). Satt = raden er ingen jobbrad (RETUR O12 vilkår 2).
   arbeidReiseRetning?: "ut" | "retur" | null;
+  // O17 pkt 21 — regel-snapshotet (JSON-scalar, allerede i payloaden). `reiseRegel.overforing` med
+  // kontor i begge ender = reise mellom to kontorer (`kontorReiseRute`).
+  reiseRegel?: unknown;
 };
 
 export type TilleggRad = {

@@ -483,6 +483,22 @@ export type OppmoteBytte =
   | { type: "admin"; periode: OverforingPeriode };
 
 /**
+ * O17 (vedtak pkt 22): hva «Avslutt» med «Siste dag» gjør med perioden boksen navngir.
+ * `kall` er nøyaktig det web sender (V2: `periodeId`), og `fjernes` regnes fra samme plan —
+ * teksten «… fjernes» og kallet kan ikke bli uenige. `fjernes` = perioden når «Siste dag»
+ * ligger før periodens `fraDato` (planen sier «slettet»), ellers null (lukkes).
+ */
+export function planleggAvslutt(
+  perioder: readonly OverforingPeriode[],
+  sisteDag: string,
+  periodeId: string,
+): { kall: { handling: "slutt"; dato: string; periodeId: string }; fjernes: OverforingPeriode | null } {
+  const kall = { handling: "slutt" as const, dato: sisteDag, periodeId };
+  const plan = planleggOverforing(perioder, kall);
+  return { kall, fjernes: plan.utfall === "slettet" ? plan.apen : null };
+}
+
+/**
  * O16: hva valget av kontor i reisevinduet gjør med oppmøtestedet. `valgtKontorId` = kontoret i
  * nedtrekket (null eller dagens = ingen bytte). Datoene er arbeiderens når de er gitt, ellers
  * forslaget. «Siste dag» går som `slutt` (R2: aldri `start` til fast kontor).

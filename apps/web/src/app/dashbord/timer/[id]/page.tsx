@@ -97,6 +97,7 @@ import { jobbSkjemaLinjer, nyJobbForslag, senesteTilTid, type SkjemaKilde } from
 import type { SkjemaLonnsart } from "./JobbSkjema";
 import { KorrigeringProvider, KorrigertMerke, type KorrigeringerPrRad } from "@/components/timer/KorrigertMerke";
 import { reiseHavnerI, useReiseKjoretidOppslag, type ReiseHavnerAnnenRad } from "@/hooks/useManuellReiseWeb";
+import { kontorReiseTekst, useKontorNavn } from "@/hooks/useKontorReiseTekst";
 import { formaterBelop, formaterTimer } from "@/lib/tallformat";
 import {
   beregnKortSummer,
@@ -2793,6 +2794,7 @@ function JobbKortRamme({
   // en reise ført som arbeidstid (`erArbeidstidReise`) er også reise her — bare i hoveren.
   const hoverReiser = timer.filter((r) => r.erReise || erArbeidstidReise(r));
   const bareReiseHover = hoverReiser.length > 0 && hoverReiser.length === timer.length;
+  const kontorNavn = useKontorNavn(sedelFirmaId, bareReiseHover ? hoverReiser.map((r) => r.reiseRegel) : []);
   const reiseHover = bareReiseHover
     ? [...hoverReiser]
         .sort((a, b) => (a.fraTid ?? "").localeCompare(b.fraTid ?? ""))
@@ -2800,11 +2802,12 @@ function JobbKortRamme({
           const sted = (r.byggeplassId && byggeplassNavn.get(r.byggeplassId)) || tittel;
           const retning = r.erReise ? r.reiseRetning : r.arbeidReiseRetning;
           const stedTekst =
-            retning === "ut"
+            kontorReiseTekst(t, r.reiseRegel, kontorNavn) ??
+            (retning === "ut"
               ? t("timer.prosjektkort.reiseTil", { sted })
               : retning === "retur"
                 ? t("timer.prosjektkort.reiseFra", { sted })
-                : sted;
+                : sted);
           const linje = [stedTekst, r.fraTid && r.tilTid ? `${r.fraTid}–${r.tilTid}` : null].filter(Boolean).join(" · ");
           const tekst = r.beskrivelse?.trim();
           return tekst ? [linje, tekst] : [linje];
@@ -3457,6 +3460,7 @@ function ReiseLinje({
     | Array<{ id: string; merke: string | null; modell: string | null; internNavn: string | null; utleieEnhet?: string | null }>
     | undefined;
   const [bekreftSlett, setBekreftSlett] = useState<string[] | null>(null);
+  const kontorNavn = useKontorNavn(sedelFirmaId, [rad.reiseRegel]);
   // Samme sperre som arbeidslinja (d2c-1, R24): maskiner som krever raden, navngis først.
   function slett() {
     const navn = maskinIProsjekt
@@ -3472,15 +3476,16 @@ function ReiseLinje({
   }
 
   const sted = (rad.byggeplassId && byggeplassNavn.get(rad.byggeplassId)) || prosjektNavn;
-  // § 8.22 punkt 2: reise til annet kontor har ingen egen linjetekst — vanlig reise.
+  // O17 (vedtak pkt 21): reise mellom to kontorer vises som «{fra} → {til}» (ruten i `reiseRegel`).
   // O12 pkt 16: en reise ført som arbeidstid bærer retningen i `arbeidReiseRetning`.
   const retning = rad.erReise ? rad.reiseRetning : (rad.arbeidReiseRetning ?? null);
   const stedTekst =
-    retning === "ut"
+    kontorReiseTekst(t, rad.reiseRegel, kontorNavn) ??
+    (retning === "ut"
       ? t("timer.prosjektkort.reiseTil", { sted })
       : retning === "retur"
         ? t("timer.prosjektkort.reiseFra", { sted })
-        : sted;
+        : sted);
   const eco = rad.externalCostObjectId
     ? (ecoer ?? []).find((e) => e.id === rad.externalCostObjectId)
     : undefined;

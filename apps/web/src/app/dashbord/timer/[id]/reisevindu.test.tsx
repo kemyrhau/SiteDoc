@@ -686,6 +686,34 @@ describe("O16 — «Til annet oppmøtested» og periodene", () => {
       expect(overforing()).toEqual([expect.objectContaining({ handling: "slutt", dato: siste, periodeId: "pB" })]);
     });
   }
+  // O17 pkt 22: «Avslutt» med «Siste dag» før periodens start — linja sier «… fjernes» før trykket,
+  // regnet fra samme plan som kallet (B, aldri A).
+  for (const siste of ["2026-11-03", "2026-11-02", "2026-11-01"]) {
+    it(`O17 pkt 22: «Avslutt» ${siste} — linja sier at B fjernes før trykket, kallet navngir B`, () => {
+      const d = rendre({ perioder: toEgne() });
+      fireEvent.click(knapp(d, "timer.reiseKort.avslutt"));
+      const sporsmal = within(d).getByTestId("reise-avslutt");
+      expect(within(sporsmal).queryByTestId("reise-oppmote-fjernes")).toBeNull();
+      fireEvent.change(within(sporsmal).getByLabelText("timer.reiseKort.sisteDag"), { target: { value: siste } });
+      const tekst = within(sporsmal).getByTestId("reise-oppmote-fjernes").textContent ?? "";
+      expect(tekst).toContain("timer.reiseKort.periodeFjernes");
+      expect(tekst).toContain('"navn":"Kontor Narvik"');
+      expect(tekst).toContain("04.11");
+      expect(tekst).not.toContain("02.11");
+      expect(overforing()).toHaveLength(0);
+      fireEvent.click(within(sporsmal).getByRole("button", { name: "timer.reiseKort.avslutt" }));
+      expect(overforing()).toEqual([expect.objectContaining({ handling: "slutt", dato: siste, periodeId: "pB" })]);
+    });
+  }
+  it("O17 pkt 22: «Avslutt» 04 (forslaget, = periodens start) og 06 — perioden lukkes, ingen «fjernes»", () => {
+    const d = rendre({ perioder: toEgne() });
+    fireEvent.click(knapp(d, "timer.reiseKort.avslutt"));
+    const sporsmal = within(d).getByTestId("reise-avslutt");
+    for (const siste of ["2026-11-04", "2026-11-06"]) {
+      fireEvent.change(within(sporsmal).getByLabelText("timer.reiseKort.sisteDag"), { target: { value: siste } });
+      expect(within(sporsmal).queryByTestId("reise-oppmote-fjernes")).toBeNull();
+    }
+  });
   it("V1: web sender medSluttdato på start", async () => {
     const d = rendre();
     fireEvent.click(knapp(d, "timer.reiseKort.tilAnnetOppmotested"));
