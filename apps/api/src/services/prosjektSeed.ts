@@ -70,6 +70,10 @@ export async function seedStandardProsjektoppsett(
           prefix: malDef.prefix,
           category: malDef.kategori,
           domain: malDef.domain,
+          // H2: samme HMS-felt som modul.aktiver — uten dem faller HMS-avvik/RUH ut av
+          // «privat»-synligheten og HMS-visningen kan ikke skille avvik/SJA/RUH.
+          subdomain: malDef.subdomain ?? null,
+          hmsSynlighet: malDef.hmsSynlighet ?? null,
           subjects: (malDef.emner ?? []) as Prisma.InputJsonValue,
         },
       });

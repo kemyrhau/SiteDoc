@@ -162,6 +162,26 @@ describe("seedStandardProsjektoppsett", () => {
     expect(lager.faggruppe).toHaveLength(STANDARD_FAGGRUPPER.length);
   });
 
+  it("H2: HMS-malene får subdomain og hmsSynlighet som modul.aktiver (SJA åpen, HMS-avvik og RUH privat)", async () => {
+    const { tx, lager } = lagTx();
+    await seedStandardProsjektoppsett(tx as unknown as Prisma.TransactionClient, PROSJEKT, BRUKER);
+
+    const hmsMaler = lager.reportTemplate.filter((m) => m.domain === "hms");
+    const etterPrefiks = Object.fromEntries(
+      hmsMaler.map((m) => [m.prefix, { subdomain: m.subdomain, hmsSynlighet: m.hmsSynlighet }]),
+    );
+    expect(etterPrefiks).toEqual({
+      HMS: { subdomain: "avvik", hmsSynlighet: "privat" },
+      SJA: { subdomain: "sja", hmsSynlighet: "apen" },
+      RUH: { subdomain: "ruh", hmsSynlighet: "privat" },
+    });
+    // Maler utenfor HMS får ingen HMS-felt (null, ikke udefinert verdi fra en annen mal).
+    for (const m of lager.reportTemplate.filter((m) => m.domain !== "hms")) {
+      expect(m.subdomain ?? null).toBeNull();
+      expect(m.hmsSynlighet ?? null).toBeNull();
+    }
+  });
+
   it("dobbeltkjøring er idempotent — ingen duplikater", async () => {
     const { tx, lager } = lagTx();
     await seedStandardProsjektoppsett(tx as unknown as Prisma.TransactionClient, PROSJEKT, BRUKER);

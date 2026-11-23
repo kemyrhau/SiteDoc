@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { Prisma } from "@sitedoc/db";
+import { finnHmsGruppe } from "../services/hmsGruppe";
 import { krevOmradeVedOmradeOmfang } from "./lokasjon-omfang";
 import { byggEndringsloggInnslag, skrivEndringslogg } from "../services/endringslogg";
 import { byggeplassFilterDirekte } from "../services/byggeplassFilter";
@@ -431,13 +432,8 @@ export const sjekklisteRouter = router({
         }
         await verifiserProsjektmedlem(ctx.userId, malForDomain.projectId);
 
-        const hmsGruppe = await ctx.prisma.projectGroup.findFirst({
-          where: {
-            projectId: malForDomain.projectId,
-            domains: { array_contains: ["hms"] },
-          },
-          select: { id: true },
-        });
+        // Finn HMS-behandlergruppa entydig via systemNokkel (H1 — ikke på domenet «hms»)
+        const hmsGruppe = await finnHmsGruppe(ctx.prisma, malForDomain.projectId);
         if (!hmsGruppe) {
           throw new TRPCError({
             code: "BAD_REQUEST",

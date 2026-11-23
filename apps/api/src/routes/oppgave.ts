@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { Prisma } from "@sitedoc/db";
+import { finnHmsGruppe } from "../services/hmsGruppe";
 import { krevOmradeVedOmradeOmfang } from "./lokasjon-omfang";
 import { byggEndringsloggInnslag, skrivEndringslogg } from "../services/endringslogg";
 import { byggeplassFilterViaTegning } from "../services/byggeplassFilter";
@@ -548,14 +549,8 @@ export const oppgaveRouter = router({
       if (erHms) {
         await verifiserProsjektmedlem(ctx.userId, mal.projectId);
 
-        // Finn HMS-gruppen i prosjektet
-        const hmsGruppe = await ctx.prisma.projectGroup.findFirst({
-          where: {
-            projectId: mal.projectId,
-            domains: { array_contains: ["hms"] },
-          },
-          select: { id: true },
-        });
+        // Finn HMS-behandlergruppa entydig via systemNokkel (H1 — ikke på domenet «hms»)
+        const hmsGruppe = await finnHmsGruppe(ctx.prisma, mal.projectId);
 
         if (!hmsGruppe) {
           throw new TRPCError({
