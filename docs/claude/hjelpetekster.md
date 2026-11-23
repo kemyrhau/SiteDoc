@@ -158,6 +158,13 @@ ser det før du trykker Bekreft. Forkast sletter det.»
 
 Knappetekster: «Registrer timer» (`timer.registrerTimer`, også tittelen på prosjektvelgeren når dagen åpnes uten prosjekt) og nederst på dagen «+ Registrer timer» · «neste jobb, samme eller annet prosjekt» (`timer.prosjektkort.registrerTimer`, `…registrerTimerHint`). Dagskort-modus viser «Ny dagsseddel» som før.
 
+## Web: «Slettet og korrigert» (SL2, 🟡 ikke merget, `feat/web-timer-sl2-slettet-korrigert`)
+
+Begge sidene har `HjelpKnapp` (fanen «Slettet og korrigert», `timer.slettetKorrigert.tittel`):
+
+- **Attestering** (`app/dashbord/attestering/slettet-korrigert/page.tsx`): hva siden viser og at den er bare lesing (`timer.slettetKorrigert.hjelp.hva`); hva som ikke er med — linjer uten innhold i sporet, erstattede dager (`…hjelp.ikkeMed`); hvem ser hva, som i attesteringen (`…hjelp.hvem`); merket «N slettet» teller bare slettede linjer og åpner dagen (`…hjelp.merke`); uke, filtre og dagfilteret (`…hjelp.filter`).
+- **Mine timer** (`app/dashbord/timer/mine/slettet-korrigert/page.tsx`): egne dager, slettet av attestanten eller av deg på returnert dag (`…hjelp.egne`); hva som ikke er med — egen sletting på dag som ikke var returnert er vanlig redigering (`…hjelp.ikkeMedEgne`); Fra/Til høyst 93 dager, filtre (`…hjelp.filterEgne`).
+
 ## Web: Tilbake-knappen i timeføringen (`dashbord/timer/[id]`, `dashbord/timer/ny`, w14 leveranse 1, 🟡 ikke merget, `feat/web-timer-w14a`)
 
 Ingen ?-ikon; knappeteksten sier hvor knappen går (B39 A, 15 språk):

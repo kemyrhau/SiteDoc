@@ -161,9 +161,14 @@ interface Props {
    * har prosjektene der hen kan attestere (w10b, `mineProsjektIder`).
    */
   prosjektKontekst?: ReadonlySet<string>;
+  /**
+   * SL2 (B76 ja, L2): merket «N slettet» i dagsraden, som åpner «Slettet og korrigert» på dagen.
+   * Siden lager merket (tallet kommer fra serveren); null = ingen slettede linjer, intet merke.
+   */
+  slettetMerke?: (sheetId: string) => ReactNode;
 }
 
-export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt, gruppering = "dag", sedelUrl, onReturnerDag, prosjektKontekst }: Props) {
+export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt, gruppering = "dag", sedelUrl, onReturnerDag, prosjektKontekst, slettetMerke }: Props) {
   const { t, i18n } = useTranslation();
   const utils = trpc.useUtils();
   const oppsett = useTabelloppsett({
@@ -437,6 +442,7 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
       const attesterte = slaaSammen(linjer.filter((l) => iKontekst(l) && l.harHandling && l.attestert));
       return (
         <span className="flex items-center gap-1">
+          {slettetMerke?.(s.id)}
           {egenMerke(s)}
           {!readOnly && egne.antallLinjer > 0 && (
             <>
@@ -457,6 +463,7 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
     const egen = s.egneTimer === true;
     return (
       <span className="flex items-center gap-1">
+        {slettetMerke?.(s.id)}
         {egenMerke(s)}
         {!readOnly && !egen && (
           <>

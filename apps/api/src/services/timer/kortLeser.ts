@@ -452,7 +452,7 @@ export function regnKorrigeringer(
   return resultat;
 }
 
-type KorrigeringKlienter = {
+export type KorrigeringKlienter = {
   prisma: Pick<Context["prisma"], "user" | "activity" | "project" | "byggeplass" | "externalCostObject">;
   prismaTimer: Pick<Context["prismaTimer"], "sheetRadHistorikk" | "lonnsart" | "aktivitet">;
   prismaMaskin: MaskinKlient;
@@ -629,6 +629,29 @@ export async function hentKorrigeringer(k: KorrigeringKlienter, sedel: SedelForK
     const [type, id] = n.split(":") as [RadType, string];
     ut[type][id] = kor;
   }
+  return ut;
+}
+
+/**
+ * SL2 (plan § 4.18 del D, «Slettet og korrigert»): korrigeringene for et sett sedler i ett firma,
+ * pr. sedel, regnet som merket «Korrigert av» (samme kilder og samme regel, B73). Tre spørringer
+ * for kildene og én runde navneoppslag uansett antall sedler. Kalleren sender bare sedler
+ * brukeren har rett til å se.
+ */
+export async function hentKorrigeringerForSedler(
+  k: KorrigeringKlienter,
+  organizationId: string,
+  sedler: readonly SedelForKorrigering[],
+): Promise<Map<string, Map<string, Korrigering>>> {
+  const ut = new Map<string, Map<string, Korrigering>>();
+  if (sedler.length === 0) return ut;
+  const { hendelser, navn } = await lastKorrigeringsHendelser(k, sedler);
+  for (const s of sedler) {
+    const regnet = regnKorrigeringer(raderMedType(s), hendelser.get(s.id) ?? [], navn);
+    if (regnet.size > 0) ut.set(s.id, regnet);
+  }
+  const felter = Array.from(ut.values()).flatMap((m) => Array.from(m.values()).flatMap((r) => r.felter));
+  if (felter.length > 0) await slaaOppTekster(k, organizationId, felter);
   return ut;
 }
 

@@ -43,6 +43,7 @@ import {
   lesVarerForSpor,
   skrivSlettespor,
 } from "../../services/timer/slettespor";
+import { hentSkSedler, lesSlettetOgKorrigert } from "../../services/timer/slettetKorrigert";
 import {
   HISTORIKK_HENDELSE_GJENAAPNET,
   hentKortStedNavn,
@@ -7723,6 +7724,57 @@ export const dagsseddelRouter = router({
       }))
       .sort((a, b) => a.navn.localeCompare(b.navn, "nb"));
   }),
+
+  // SL2 (plan § 4.18 del B og D; vedtak-timer-web § Slettet og korrigert punkt 1–3): siden
+  // «Slettet og korrigert», bare lesing. `egne: false` = attestanten: omfanget og navneskjulet fra
+  // attesteringen (`attesteringsOmfang`, `navnSynlighet`), firmaets sedler uansett status (også
+  // returnerte dager som ikke er sendt på nytt, og dager der alt er slettet — SV8).
+  // `egne: true` = arbeideren i Mine timer: bare egne dager, alltid `ctx.userId` (B78, L1).
+  // `antallSlettet` pr. dag er tallet i merket «N slettet» i Attestering (B76, L2).
+  slettetOgKorrigert: protectedProcedure
+    .input(
+      z
+        .object({
+          organizationId: z.string().uuid().optional(),
+          fraOgMed: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+          tilOgMed: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+          egne: z.boolean().default(false),
+        })
+        .refine((v) => v.fraOgMed <= v.tilOgMed, { message: "fraOgMed etter tilOgMed" })
+        .refine(
+          (v) => (Date.parse(`${v.tilOgMed}T00:00:00Z`) - Date.parse(`${v.fraOgMed}T00:00:00Z`)) / 86_400_000 <= 93,
+          { message: "Perioden kan være høyst 93 dager" },
+        ),
+    )
+    .query(async ({ ctx, input }) => {
+      const fra = new Date(`${input.fraOgMed}T00:00:00.000Z`);
+      const til = new Date(`${input.tilOgMed}T23:59:59.999Z`);
+      const klienter = { prisma: ctx.prisma, prismaTimer: ctx.prismaTimer, prismaMaskin: ctx.prismaMaskin, prismaVarelager: ctx.prismaVarelager };
+      if (input.egne) {
+        // Arbeideren: valgt firma som Mine timer (`list`), bare egne sedler — aldri en annens.
+        const orgId = await resolverOrgFraInput(ctx.userId, input.organizationId);
+        const sedler = await hentSkSedler(ctx, { organizationId: orgId, fra, til, userId: ctx.userId });
+        return lesSlettetOgKorrigert(klienter, sedler, { organizationId: orgId, iOmfang: () => true, synlig: () => true });
+      }
+      if (!input.organizationId) throw new TRPCError({ code: "BAD_REQUEST", message: "organizationId mangler" });
+      const orgId = input.organizationId;
+      const omfang = await krevAttesteringsOmfang(ctx.userId, orgId);
+      const sedler = await hentSkSedler(ctx, { organizationId: orgId, fra, til });
+      if (omfang.type === "alle") {
+        return lesSlettetOgKorrigert(klienter, sedler, { organizationId: orgId, iOmfang: () => true, synlig: () => true });
+      }
+      // Prosjektlederen: bare linjer på prosjektene hen kan attestere (ikke fravær uten prosjekt),
+      // og prosjektnavn i «før → etter» bare der hen har tilgang (`navnSynlighet`, R13).
+      const mine = new Set(omfang.prosjektIder);
+      const prosjektIder = new Set<string>(mine);
+      for (const s of sedler) for (const r of [...s.timer, ...s.tillegg, ...s.maskiner]) if (typeof r.projectId === "string") prosjektIder.add(r.projectId);
+      const synlig = await navnSynlighet(ctx.userId, [orgId], prosjektIder);
+      return lesSlettetOgKorrigert(klienter, sedler, {
+        organizationId: orgId,
+        iOmfang: (projectId) => projectId !== null && mine.has(projectId),
+        synlig: (projectId) => synlig(orgId, projectId),
+      });
+    }),
 
   // Hent én dagsseddel som prosjektleder (for attestering-detaljside).
   // Skiller seg fra hentMedId ved at den autoriserer på krevAttesteringsrett

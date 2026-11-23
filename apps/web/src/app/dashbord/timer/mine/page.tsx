@@ -303,6 +303,13 @@ export default function MineTimerSide() {
         {/* w2 (B1): «+ Registrer timer» i prosjektkort-modus; dagskort-modus beholder
             «Ny dagsseddel» + skjemaet. Deaktivert (synlig) hvis ikke ansatt (2026-10-09 (2)). */}
         <div className="flex items-start gap-1">
+          {/* SL2 (B78 ja): «Slettet og korrigert» for egne dager, på perioden lista står i. */}
+          <Link
+            href={`/dashbord/timer/mine/slettet-korrigert?${new URLSearchParams({ fra, til }).toString()}`}
+            className="mr-2 self-center whitespace-nowrap text-sm text-blue-600 hover:underline"
+          >
+            {t("timer.slettetKorrigert.lenke")}
+          </Link>
           <RegistrerTimerKnapp
             organizationId={orgId ?? null}
             projectId={aktivProsjektId}

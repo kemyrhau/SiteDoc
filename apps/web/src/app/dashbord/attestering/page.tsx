@@ -11,6 +11,7 @@
 // tabellen erstatter pivotene. Nedtrekkene er kolonnefiltre i tabellhodet (§ 12.5).
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
@@ -233,6 +234,45 @@ export default function AttesteringSide() {
       },
       { enabled: !!orgId && kanAttestere },
     );
+  // SL2 (vedtak-timer-web § Slettet og korrigert punkt 1–2, L2): hendelsene i uka gir tallet i
+  // lenken «Slettet og korrigert (N)» og merket «N slettet» pr. dag. Selve visningen er egen side;
+  // attesteringskortet viser ingen slettede linjer.
+  const { data: skDager } = trpc.timer.dagsseddel.slettetOgKorrigert.useQuery(
+    { organizationId: orgId!, fraOgMed: isoDato(ukestart), tilOgMed: isoDato(ukeslutt) },
+    { enabled: !!orgId && kanAttestere },
+  );
+  const skAntall = useMemo(() => (skDager ?? []).reduce((n, d) => n + d.hendelser.length, 0), [skDager]);
+  const skSlettetPrSedel = useMemo(() => {
+    const m = new Map<string, { antall: number; dato: string; userId: string }>();
+    for (const d of skDager ?? []) if (d.antallSlettet > 0) m.set(d.sedelId, { antall: d.antallSlettet, dato: d.dato, userId: d.ansatt.id });
+    return m;
+  }, [skDager]);
+  const skHref = useCallback(
+    (ekstra?: Record<string, string>) => {
+      const p = new URLSearchParams({ uke: String(ukeOffset) });
+      if (firmaer.length > 1 && orgId) p.set("firma", orgId);
+      for (const [k, v] of Object.entries(ekstra ?? {})) p.set(k, v);
+      return `/dashbord/attestering/slettet-korrigert?${p.toString()}`;
+    },
+    [ukeOffset, firmaer.length, orgId],
+  );
+  const slettetMerke = useCallback(
+    (sheetId: string) => {
+      const m = skSlettetPrSedel.get(sheetId);
+      if (!m) return null;
+      return (
+        <Link
+          href={skHref({ dag: m.dato, ansatt: m.userId })}
+          title={t("timer.slettetKorrigert.merkeTittel")}
+          data-sk-merke=""
+          className="whitespace-nowrap rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800 hover:bg-amber-100"
+        >
+          {t("timer.slettetKorrigert.merke", { antall: m.antall })}
+        </Link>
+      );
+    },
+    [skSlettetPrSedel, skHref, t],
+  );
   const sentRader = useMemo(() => (sentRaderRaw ?? []) as unknown as AttesteringRad[], [sentRaderRaw]);
   const acceptedRader = useMemo(() => (acceptedRaderRaw ?? []) as unknown as AttesteringRad[], [acceptedRaderRaw]);
   const rader = aktivFane === "sent" ? sentRader : acceptedRader;
@@ -416,6 +456,9 @@ export default function AttesteringSide() {
             <p className="mt-1 text-sm text-gray-600">{t("firma.timer.attesteringBeskrivelse")}</p>
           </div>
           <div className="flex items-center gap-2">
+            <Link href={skHref()} data-sk-lenke="" className="whitespace-nowrap text-sm text-blue-600 hover:underline">
+              {skAntall > 0 ? t("timer.slettetKorrigert.lenkeAntall", { antall: skAntall }) : t("timer.slettetKorrigert.lenke")}
+            </Link>
             {firmaer.length > 1 && (
               <select
                 value={orgId}
@@ -523,6 +566,7 @@ export default function AttesteringSide() {
           prosjektKontekst={prosjektKontekst}
           sedelUrl={sedelUrl}
           onReturnerDag={(id) => setReturnerId(id)}
+          slettetMerke={slettetMerke}
         />
       )}
 

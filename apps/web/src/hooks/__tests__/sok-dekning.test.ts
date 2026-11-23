@@ -69,6 +69,10 @@ function dekketSett(): Set<string> {
  */
 const UNNTAK: { test: (r: string) => boolean; grunn: string }[] = [
   { test: (r) => r === "/dashbord/oppsett", grunn: "landing erstattet av hub (nyNav)" },
+  {
+    test: (r) => r === "/dashbord/attestering/slettet-korrigert" || r === "/dashbord/timer/mine/slettet-korrigert",
+    grunn: "SL2: undersider bare for lesing, åpnes fra lenken i Attestering / Mine timer og merket på dagsraden (vedtak-timer-web § Slettet og korrigert); søkeinngang er ikke vedtatt",
+  },
   { test: (r) => r === "/dashbord/oppsett/produksjon", grunn: "parent-node (O3)" },
   { test: (r) => r === "/dashbord/oppsett/produksjon/kontakter", grunn: "redirect → dokumentflyt (K6/O5)" },
   { test: (r) => r === "/dashbord/[prosjektId]/timer/godkjenning", grunn: "redirect → /dashbord/attestering (P27, w10b DK3)" },

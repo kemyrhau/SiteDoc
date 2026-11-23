@@ -144,10 +144,10 @@ Plan: `web-timeforing-plan.md` § 4.18 (versjon 24), leveranser SL1 og SL2.
 
 1. Linjer som er slettet på en returnert dag eller av attestanten, og linjer en annen enn eieren har korrigert, vises på en egen side «Slettet og korrigert», bare for lesing og utenfor attesteringskortet. Arbeiderens egne rettinger på en returnert dag vises ikke der.
     Kenneth 2026-11-23: «s1 nei -> det hører ikke til i attesteringen som da blir griset til. skal være egen visning», «s2 ja», «B77: nei».
-    🟡 Vedtatt, ikke bygget (SL1 + SL2).
+    🟡 SL1 merget `8f7f863f`; SL2 bygget på `feat/web-timer-sl2-slettet-korrigert`, ikke merget: `services/timer/slettetKorrigert.ts`, `dagsseddel.slettetOgKorrigert`, `app/dashbord/attestering/slettet-korrigert/page.tsx`.
 2. Dagsraden i Attestering får merket «N slettet» på dager med slettede linjer, og et trykk åpner siden på den dagen. En dag med bare korrigerte linjer får ikke merke. Siden kan også åpnes fra en lenke øverst i Attestering.
     Kenneth 2026-11-23: «B76: ja»; lesning L2 bekreftet «Ja, begge».
-    🟡 Vedtatt, ikke bygget (SL2).
+    🟡 Bygget på `feat/web-timer-sl2-slettet-korrigert`, ikke merget: `attestering/page.tsx` (`slettetMerke`, `data-sk-lenke`), `AttesteringTabell.tsx` prop `slettetMerke`; tallet er `antallSlettet` fra leseren.
 3. Arbeideren har lenken «Slettet og korrigert» i Mine timer og ser siden for sine egne dager, med linjer andre har slettet eller korrigert og linjer hen selv slettet på en returnert dag.
     Kenneth 2026-11-23: «B78: ja»; lesning L1 bekreftet «Ja, begge».
-    🟡 Vedtatt, ikke bygget (SL2).
+    🟡 Bygget på `feat/web-timer-sl2-slettet-korrigert`, ikke merget: `app/dashbord/timer/mine/slettet-korrigert/page.tsx`, `slettetOgKorrigert` med `egne: true`.
