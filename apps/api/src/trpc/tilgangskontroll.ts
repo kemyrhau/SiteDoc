@@ -4,6 +4,7 @@ import type { Prisma } from "@sitedoc/db";
 import { type Permission, PERMISSIONS, utvidTillatelser, avgjorDokumentTilgang, byggPosisjonsLedd, harBallenPosisjon, retningsrettigheter, erAvsenderledd, erMedlemAvFlyt } from "@sitedoc/shared";
 import type { RaFlytMedlem, FlytBruker } from "@sitedoc/shared";
 import { aktivAnsattIFirmaWhere } from "../services/ansatt";
+import { HMS_SYSTEMNOKKEL } from "../services/hmsGruppe";
 
 /**
  * Aktivt flytmedlemskap: `DokumentflytMedlem.periodeSlutt = null`. «Fjern» fra et flytledd
@@ -520,7 +521,13 @@ export async function harFirmaHmsTilgang(
 }
 
 /**
- * HMS-admin = prosjekt-admin ∪ HMS-gruppe-medlem ∪ firma-`hms_ansvarlig`.
+ * HMS-behandler = medlem av prosjektets HMS-gruppe (`systemNokkel: "hms"`) ∪ firma-`hms_ansvarlig`.
+ * Det er de som står som behandlere i HMS-flyt-kortet (HmsFlytKort.tsx).
+ *
+ * H3 (Kenneth HF2 ja, 2026-11-23; hms-domenemodell.md § HMS-flyt regel 3): prosjektadmin er
+ * IKKE behandler i kraft av rollen, og en gruppe med «hms» i `domains` gjør det heller ikke
+ * («Prosjektadministratorer» har det, `types/index.ts` STANDARD_PROJECT_GROUPS). Prosjektadmin
+ * blir behandler med «Meld meg inn» (gruppe.meldMegInn), som legger dem i HMS-gruppa.
  *
  * Delt kilde for privat-lesefilteret (`byggHmsSynlighetsFilter` i hms.ts) og
  * HMS-handlingsguarden (`verifiserHmsHandling`). Én definisjon — aldri duplisert
@@ -537,22 +544,14 @@ export async function erHmsAdmin(
   const medlem = await prisma.projectMember.findFirst({
     where: aktivtProsjektmedlemWhere(userId, projectId),
     select: {
-      role: true,
       groupMemberships: {
-        where: aktivtMedlemWhere,
-        select: { group: { select: { domains: true } } },
+        where: { ...aktivtMedlemWhere, group: { systemNokkel: HMS_SYSTEMNOKKEL } },
+        select: { id: true },
       },
     },
   });
 
-  if (medlem) {
-    if (medlem.role === "admin") return true;
-    const erHmsGruppe = medlem.groupMemberships.some((gm) => {
-      const domains = gm.group.domains;
-      return Array.isArray(domains) && (domains as unknown[]).includes("hms");
-    });
-    if (erHmsGruppe) return true;
-  }
+  if (medlem && medlem.groupMemberships.length > 0) return true;
 
   // Firma-HMS-tilgang: bruker med "hms_ansvarlig" i firmaRoller på prosjektets
   // firma behandler alle HMS-dokumenter. Standalone-prosjekter
@@ -1081,9 +1080,27 @@ export async function verifiserDokumentTilgang(
     });
   }
 
-  // Prosjektadmin ser alt — early return bevart så prosjektadmin ikke utløser
+  // H3 (Kenneth HF2 ja, 2026-11-23): private HMS-saker leses bare av HMS-behandleren
+  // (`erHmsAdmin`), melderen og mottakeren — ikke av prosjektadmin i kraft av rollen. Synligheten
+  // slås opp fra malen når kalleren ikke sendte den, så en åpen SJA ikke regnes som privat.
+  // `templateHmsSynlighet` sendes uendret videre: den styrer «hms-apen»-grenen som før.
+  let hmsPrivat = false;
+  if (templateDomain === "hms") {
+    let synlighet = templateHmsSynlighet ?? null;
+    if (templateHmsSynlighet === undefined && dokumentId && dokumentType) {
+      const mal = dokumentType === "task"
+        ? await prisma.task.findUnique({ where: { id: dokumentId }, select: { template: { select: { hmsSynlighet: true } } } })
+        : await prisma.checklist.findUnique({ where: { id: dokumentId }, select: { template: { select: { hmsSynlighet: true } } } });
+      synlighet = mal?.template?.hmsSynlighet ?? null;
+    }
+    hmsPrivat = synlighet !== "apen";
+  }
+
+  // Prosjektadmin ser alt annet — early return bevart så prosjektadmin ikke utløser
   // dokumentpart-/firma-/flyt-oppslagene under.
-  if (medlem.role === "admin") return;
+  if (medlem.role === "admin" && !hmsPrivat) return;
+
+  const erHmsBehandler = hmsPrivat ? await erHmsAdmin(userId, projectId) : false;
 
   // Last dokumentpartene én gang — brukes av firmaansvarlig-, innsender- og
   // flyt-grenen i beslutningsfunksjonen.
@@ -1171,6 +1188,8 @@ export async function verifiserDokumentTilgang(
     flytIder,
     firmaUserIder,
     harFirmaTransfer,
+    hmsPrivat,
+    erHmsBehandler,
   });
 
   if (!resultat.tillat) {

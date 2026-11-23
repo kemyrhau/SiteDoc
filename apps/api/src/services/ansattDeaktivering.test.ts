@@ -100,8 +100,15 @@ const db = vi.hoisted(() => {
 
   function modell(tabell: string) {
     const rader = () => (tabeller[tabell] ??= []);
-    const finn = (where?: Record<string, unknown>) =>
-      rader().map((r) => berik(tabell, r)).filter((r) => match(r, where));
+    // `select` ignoreres, unntatt where-filteret på en relasjon tjenestene filtrerer i spørringen
+    // (`groupMemberships.where`, H3: bare HMS-gruppa teller i hmsAnsvarlig.ts).
+    const relasjonsfilter = (r: R, select?: Record<string, unknown>): R => {
+      const gm = select?.groupMemberships as { where?: Record<string, unknown> } | undefined;
+      if (!gm?.where || !Array.isArray(r.groupMemberships)) return r;
+      return { ...r, groupMemberships: (r.groupMemberships as R[]).filter((x) => match(x, gm.where)) };
+    };
+    const finn = (where?: Record<string, unknown>, select?: Record<string, unknown>) =>
+      rader().map((r) => relasjonsfilter(berik(tabell, r), select)).filter((r) => match(r, where));
     const opprett = (data: Record<string, unknown>): R => {
       teller += 1;
       const rad = {
@@ -119,7 +126,8 @@ const db = vi.hoisted(() => {
     const oppdater = (rad: R, data: Record<string, unknown>) => Object.assign(rad, data);
     const lagret = (id: string) => rader().find((r) => r.id === id);
     return {
-      findMany: async (a: { where?: Record<string, unknown>; orderBy?: unknown } = {}) => sorter(finn(a.where), a.orderBy),
+      findMany: async (a: { where?: Record<string, unknown>; orderBy?: unknown; select?: Record<string, unknown> } = {}) =>
+        sorter(finn(a.where, a.select), a.orderBy),
       findFirst: async (a: { where?: Record<string, unknown>; orderBy?: unknown } = {}) =>
         sorter(finn(a.where), a.orderBy)[0] ?? null,
       findUnique: async (a: { where: Record<string, unknown> }) => finn(a.where)[0] ?? null,
@@ -640,7 +648,7 @@ describe("Ordre (11) — HMS-ballen ved deaktivering", () => {
   function hmsVerden(ekstra: Partial<Record<string, Rad[]>> = {}) {
     grunnverden({
       projectGroup: [
-        { id: "g-hms", projectId: P_X, name: "HMS", domains: ["hms"] },
+        { id: "g-hms", projectId: P_X, name: "HMS", domains: ["hms"], systemNokkel: "hms" },
         { id: "g-1", projectId: P_X, name: "Bygg", domains: ["bygg"] },
       ],
       checklist: [

@@ -141,10 +141,20 @@ describe("harFirmaHmsTilgang — firma_admin arver ikke HMS (2026-09-10)", () =>
     expect(findUnique).not.toHaveBeenCalled();
   });
 
-  it("🔴 prosjektadmin → HMS-admin uendret (erHmsAdmin:450, beviser at prosjektnivået IKKE ble rørt)", async () => {
-    // erHmsAdmin returnerer på medlem.role==="admin" FØR prosjekt-/firma-oppslaget.
+  it("🔴 H3: prosjektadmin uten HMS-gruppa → ikke HMS-behandler (Kenneth HF2 ja, 2026-11-23)", async () => {
+    // Oppslaget henter bare medlemskap i HMS-gruppa (systemNokkel "hms"); rollen spørres ikke.
     memberFindUnique.mockReset();
-    memberFindUnique.mockResolvedValue({ role: "admin", groupMemberships: [] });
+    memberFindUnique.mockResolvedValue({ groupMemberships: [] });
+    expect(await erHmsAdmin(USER, PROJECT)).toBe(false);
+    expect(memberFindUnique.mock.calls[0]?.[0]).toMatchObject({
+      select: { groupMemberships: { where: { periodeSlutt: null, group: { systemNokkel: "hms" } } } },
+    });
+    expect(memberFindUnique.mock.calls[0]?.[0]?.select).not.toHaveProperty("role");
+  });
+
+  it("H3: medlem av HMS-gruppa → HMS-behandler", async () => {
+    memberFindUnique.mockReset();
+    memberFindUnique.mockResolvedValue({ groupMemberships: [{ id: "gm-1" }] });
     expect(await erHmsAdmin(USER, PROJECT)).toBe(true);
   });
 });
