@@ -517,6 +517,47 @@ describe("overforing (del B)", () => {
     expect(m.periodeDelete).not.toHaveBeenCalled();
   });
 
+  // ── O16 S3/R1: «Til og med» og egne perioder med sluttdato ──
+  it("O16: start med tilDato skriver sluttdatoen; uten tilDato er perioden åpen", async () => {
+    await start({ tilDato: "2026-11-30" });
+    expect(m.periodeCreate.mock.calls[0]![0].data).toMatchObject({ fraDato: d("2026-11-15"), tilDato: d("2026-11-30"), kilde: "overforing" });
+  });
+  it("O16: tilDato før dato → BAD_REQUEST; lik dato godtas", async () => {
+    await expect(start({ tilDato: "2026-11-14" })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    expect(m.periodeCreate).not.toHaveBeenCalled();
+    await start({ tilDato: "2026-11-15" });
+    expect(m.periodeCreate).toHaveBeenCalledTimes(1);
+  });
+  it("O16: tilDato på slutt → BAD_REQUEST (gjelder bare ny periode)", async () => {
+    await expect(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      caller().overforing({ id: ID, organizationId: ORG_A, handling: "slutt", dato: "2026-11-20", tilDato: "2026-11-30" } as any),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    expect(m.periodeUpdate).not.toHaveBeenCalled();
+  });
+  it("O16 R3: overlapp med firmaadmins periode med sluttdato → CONFLICT (serverens reserve)", async () => {
+    m.periodeFindMany.mockResolvedValue([
+      fastNarvik,
+      rad({ id: "p-admin", fast: false, oppmotestedId: RAMSUND, fraDato: d("2026-11-01"), tilDato: d("2026-11-20"), kilde: "admin" }),
+    ]);
+    await expect(start()).rejects.toMatchObject({ code: "CONFLICT" });
+    expect(m.periodeCreate).not.toHaveBeenCalled();
+  });
+  it("O16 R1/R2: ny periode inne i en egen lukket periode forkorter den (før: CONFLICT)", async () => {
+    m.periodeFindMany.mockResolvedValue([fastNarvik, apenOvf({ tilDato: d("2026-11-25") })]);
+    const r = await start();
+    expect(r.utfall).toBe("opprettet");
+    expect(m.periodeUpdate.mock.calls[0]![0]).toMatchObject({ where: { id: "p-ovf" }, data: { tilDato: d("2026-11-14") } });
+    expect(m.periodeCreate).toHaveBeenCalledTimes(1);
+  });
+  it("O16 R1: en senere egen periode røres ikke når den nye slutter før den", async () => {
+    m.periodeFindMany.mockResolvedValue([fastNarvik, apenOvf({ fraDato: d("2026-11-20"), tilDato: d("2026-11-30") })]);
+    const r = await start({ tilDato: "2026-11-18" });
+    expect(r.utfall).toBe("opprettet");
+    expect(m.periodeUpdate).not.toHaveBeenCalled();
+    expect(m.periodeDelete).not.toHaveBeenCalled();
+  });
+
   it("ny Tur mens overføring er åpen: lukker den gamle (dato − 1) og oppretter ny", async () => {
     m.periodeFindMany.mockResolvedValue([fastNarvik, apenOvf()]);
     const r = await start();

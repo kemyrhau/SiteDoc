@@ -271,8 +271,13 @@ Delt mellom API, web og mobil (offline). Datoer er ISO `YYYY-MM-DD`-strenger; sa
 | `leggTilDager(dato, n)` | `YYYY-MM-DD` ± n dager i UTC (ingen tidssone-drift) |
 | `byggOverforingOppslag(args)` → `DagsforslagOverforingOppslag[]` | Slår opp overføringens kontor-/byggeplass-ende, navn og kjøretid (kontor↔kontor eller matrise) for hver dato. Flyttet hit fra mobil `dagsforslag.ts` (som re-eksporterer) i L2 commit 8, så web-`ReiseKort` og mobil deler samme oppslag |
 | `erApenOverforing(p)` | Åpen midlertidig kontorperiode med `kilde='overforing'` (del B) |
-| `planleggOverforing(perioder, {handling, oppmotestedId, dato})` → `OverforingPlan` | Del B: én regel for server, mobil og web — `ingen`/`konflikt`/`lukket`/`slettet`/`opprettet`. Rører kun egen åpen overføring; åpen admin-midlertidig → `konflikt` |
+| `planleggOverforing(perioder, {handling, oppmotestedId, dato, tilDato?})` → `OverforingPlan` | Del B: én regel for server, mobil og web — `ingen`/`konflikt`/`lukket`/`slettet`/`opprettet`. Rører kun egen overføring (O16: også med sluttdato — lukkes ikke senere enn den slutter, og en egen periode helt etter en ny med `tilDato` står urørt); åpen admin-midlertidig → `konflikt`. `tilDato` (O16 «Til og med») bare ved `start` |
 | `kontorOverforingOppsett(dato, prosjektId, perioder, aktiveKontorIder)` / `kontorOverforingRetning(oppsett, tilId)` | Del B: hva reise-kortet tilbyr (`null` ved < 2 kontorer, byggeplass-periode eller `ikkeValgt`); fast kontor = retur, ellers tur |
+| `erEgenOverforing(p)` / `finnEgenOverforing(perioder, dato)` | O16 R1: arbeiderens egen midlertidige periode (`kilde='overforing'`), med eller uten sluttdato; den som dekker datoen, ellers den tidligste senere |
+| `overforingKonflikt(perioder, plan)` | O16 R3: perioden en «opprettet»-plan overlapper etter at den egne er lukket/slettet. Server og web bruker samme regel |
+| `gjeldendeMidlertidig(dato, perioder)` | O16: midlertidig kontorperiode som gjelder på datoen (samme valg som `løsOppmote` trinn 3) |
+| `gjelderFraForslag(valg, dato, startTid)` / `sisteDagForslag(valg, dato, startTid)` / `avsluttSisteDagForslag(dato)` | O16 pkt 2: forslag i web-reisevinduets blå boks. Tur: sedelens dato / dagen før; retur: dagen etter / sedelens dato; tur 3: kl. 12-regelen (R7a). «Avslutt»: dagen før (R7b) |
+| `planleggOppmoteBytte(a)` → `OppmoteBytte` | O16: hva kontorvalget i web-reisevinduet gjør — `ingen`/`start`/`slutt`/`admin`, med kallet til `oppmotePeriode.overforing`, «forkortes»/«fjernes», overlapp og ugyldig dato. Mobil bruker den ikke |
 
 ### Tegning-nedlasting (`tegningNedlasting.ts`, 2026-10-10)
 

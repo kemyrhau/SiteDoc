@@ -1101,6 +1101,18 @@ Hjemmel: [vedtak-timer-web.md § Reisevinduet](vedtak-timer-web.md) punkt 16, 17
 - **Pkt 7 — Før:** linja sa «Fra {kontor}» i begge retninger. **Nå:** «Til {kontor}» ved «Fra byggeplass» (`timer.reiseKort.tilOppmotested`, nb+en, øvrige språk generert med `--only`).
 - **Tester:** `o14-reise-forblir-reise.test.ts` (API, pkt 1/2/5), `o14-penn-reise.test.tsx` (pkt 2/3/4), `send-mangler-beskrivelse.integration.test.ts` (pkt 4 mot ekte Postgres), `jobb-skjema.test.tsx` «O14 pkt 5», `reise-visning.test.tsx` «O14 pkt 6», `reisevindu.test.tsx` «O14 pkt 7», `prosjektkort-beskrivelse.test.ts`, mobilens vakttest i `dagsoversiktRader.test.ts`.
 
+### Reisevinduet: oppmøtestedet som ett felt, tur 3 og periodene (O16) — 🟡 `feat/web-timer-o16-oppmote` (2026-11-23, venter gate)
+
+Hjemmel: [vedtak-timer-web.md § Reisevinduet](vedtak-timer-web.md) punkt 1 og 2 (@ `0afc9977`). Bare web; mobilen er urørt (kl. 12-regelen `periodeDatoFraOverforing` er uendret). Ingen migrering: `OppmotePeriode` har `tilDato` fra før.
+
+- **Pkt 1 — Før:** to retninger, linja «Fra/Til {kontor}» og nedtrekket «Fra et annet kontor fra i dag». **Nå:** «Fra → Til» (`ReiseKort.tsx` `reise-fra-til`); oppmøtestedet er ett nedtrekk (`reise-oppmotested`) under «Fra» ved «Til byggeplass» og under «Til» ved «Fra byggeplass», merket «· fast»/«· midlertidig»; perioden under feltet (`reise-oppmote-periode`), «Avslutt» bare på arbeiderens egen periode, firmaadmins merkes «satt av firmaet» (R8).
+- **Pkt 2–3 — Før:** perioden startet alltid på sedelens dato, uten sluttdato. **Nå:** den blå boksen (`reise-oppmote-boks`) med «Gjelder fra», valgfri «Til og med» og «Siste dag», forslag fra `gjelderFraForslag`/`sisteDagForslag` (`packages/shared/src/utils/oppmote.ts`); valget planlegges av `planleggOppmoteBytte` (start/slutt/admin/ingen, «… slutter»/«… fjernes», overlapp). Serveren (`apps/api/src/routes/oppmotePeriode.ts` `overforing`) tar `tilDato` (bare `start`, ≥ `dato`) og avviser overlapp med samme regel (`overforingKonflikt`); klienten viser CONFLICT som lesbar tekst.
+- **Pkt 4 — tur 3:** «Til annet oppmøtested» når firmaet har flere kontorer: Fra = dagens oppmøtested (tekst), Til = nedtrekk; tiden fra `oppmotested.hentKontorAvstanderForFirma` via `løsOverforingKort` (spor `reiseKilde "overforing"`, `reiseRegel.overforing` med periode-id), før dagens første arbeid (til fast: etter siste); lagres i kortet vinduet ble åpnet fra, uten byggeplass. I dagskort-visning har tur 3 prosjektnedtrekket (raden trenger prosjekt).
+- **Pkt 5 — redigering:** oppmøtestedet er tekst, ingen periode skrives; en kontor → kontor-rad åpnes med bare tredje retning, Fra/Til som tekst, og «Lagre» sender ingen retning (`kontorRute`).
+- **R7a/R7b (Kenneth «ja»):** «Siste dag» ved tur 3 til det faste følger kl. 12-regelen for retur; «Avslutt» spør om «Siste dag» med dagen før som forslag (`avsluttSisteDagForslag`, `reise-avslutt`).
+- **R2-avvik (godtatt):** `planleggOverforing` ser nå også arbeiderens egne perioder med sluttdato (`finnEgenOverforing`). Mobilens etterregistrering inn i en lukket egen periode forkorter den i stedet for CONFLICT; alle andre tilfeller gir likt utfall (`oppmote-o16.test.ts` «R2»).
+- **Tester:** `oppmote-o16.test.ts` (R1, R2, H2, H3, R4, R7a, R7b, R8), `oppmotePeriode.test.ts` «O16», `reisevindu.test.tsx` «O16 …», `o14-penn-reise.test.tsx` «O16 pkt 5 (R5)», `reise-terskel-dialog.test.tsx` (hooken bruker de delte funksjonene).
+
 ### Prosjektkort-rute — egen skjerm for samlesiden (ORDRE 35, I2) — 🟡 `feat/prosjektkort-isolert` (2026-11-07, ikke merget)
 
 Kenneth-vedtak I2: prosjektkortets samleside på mobil er flyttet ut av dagskortet til egen rute, så endringer i prosjektkortet ikke kan treffe dagskortet.

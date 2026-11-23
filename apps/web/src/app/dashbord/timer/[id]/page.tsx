@@ -160,6 +160,8 @@ type TimerRad = {
   erReise?: boolean;
   // POST (13) L2: sporet — overføringsretninger som alt finnes tilbys ikke igjen.
   reiseKilde?: string | null;
+  // O16 R5: overføringens rute (`reiseRegel.overforing`) — kontor → kontor åpnes som «Til annet oppmøtested».
+  reiseRegel?: unknown;
   // w9: jobben (prosjektkortet) raden hører til — «høyst» regnes pr. jobb.
   kortId?: string | null;
   reiseRetning?: string | null;
@@ -1814,6 +1816,9 @@ export default function DagsseddelDetaljSide() {
                   externalCostObjectId: aktivModal.rad.externalCostObjectId ?? null,
                   kortId: aktivModal.rad.kortId ?? null,
                   beskrivelse: aktivModal.rad.beskrivelse ?? null,
+                  // O16 R5: en kontoroverføring åpnes som «Til annet oppmøtested».
+                  reiseKilde: aktivModal.rad.reiseKilde ?? null,
+                  reiseRegel: aktivModal.rad.reiseRegel ?? null,
                 }
               : undefined
           }

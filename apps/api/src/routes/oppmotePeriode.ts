@@ -6,6 +6,7 @@ import { router, protectedProcedure } from "../trpc/trpc";
 import { autoriserAdminForFirma } from "../trpc/tilgangskontroll";
 import {
   finnPeriodeKonflikt,
+  overforingKonflikt,
   planleggOverforing,
   tilIsoDato,
   trengerOppmoteValg,
@@ -195,11 +196,19 @@ const overforingInput = z
     handling: z.enum(["start", "slutt"]),
     oppmotestedId: z.string().uuid().optional(),
     dato: isoDato,
+    /** O16 S3: «Til og med» (bare ved `start`). Utelatt = åpen periode (mobil sender den ikke). */
+    tilDato: isoDato.optional(),
   })
   .strict()
   .superRefine((v, ctx) => {
     if (v.handling === "start" && !v.oppmotestedId) {
       ctx.addIssue({ code: "custom", message: "Velg oppmøtested", path: ["oppmotestedId"] });
+    }
+    if (v.tilDato != null && v.handling !== "start") {
+      ctx.addIssue({ code: "custom", message: "Sluttdato gjelder bare ny periode", path: ["tilDato"] });
+    }
+    if (v.tilDato != null && v.tilDato < v.dato) {
+      ctx.addIssue({ code: "custom", message: "Til-dato er før fra-dato", path: ["tilDato"] });
     }
   });
 
@@ -369,10 +378,10 @@ export const oppmotePeriodeRouter = router({
     }
 
     const { apen, lukkTil, slettApen, ny } = plan;
-    const ovrige = perioder
-      .filter((p) => p !== apen)
-      .concat(apen && !slettApen ? [{ ...apen, tilDato: lukkTil }] : []);
-    avvisKonflikt(ny, ovrige);
+    // O16 R3: samme regel som klienten viser før «Lagre» (`overforingKonflikt`, shared).
+    if (overforingKonflikt(perioder, plan)) {
+      throw new TRPCError({ code: "CONFLICT", message: "Overlapper en annen midlertidig periode" });
+    }
 
     try {
       const rad = await db.$transaction(async (tx) => {
@@ -392,7 +401,7 @@ export const oppmotePeriodeRouter = router({
             fast: false,
             oppmotestedId: ny.oppmotestedId,
             fraDato: tilDbDato(input.dato),
-            tilDato: null,
+            tilDato: ny.tilDato ? tilDbDato(ny.tilDato) : null,
             kilde: "overforing",
             sattAvUserId: ctx.userId,
           },
