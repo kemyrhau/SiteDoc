@@ -2816,6 +2816,8 @@
   "hms.subdomain.avvik": "Tapahtuma",
   "hms.subdomain.sja": "JSA",
   "hms.subdomain.ruh": "Vaararaportti",
+  "hms.subdomain.formOppgave": "Tehtävä: yksi tapaus, joka raportoidaan, käsitellään ja suljetaan. Vastaus menee ilmoituksen tekijälle.",
+  "hms.subdomain.formSjekkliste": "Tarkistuslista: asiat tarkistetaan ennen työn aloittamista.",
   "hms.hjelp.avvik": "Jotain on mennyt pieleen – henkilövahinko, aineelliset vahingot tai HSE-rikkomus",
   "hms.hjelp.sja": "Riskiarviointi ennen vaarallista työtä – osallistujien allekirjoittama ennen työn alkamista",
   "hms.hjelp.ruh": "Havaittu läheltä piti tai vaarallinen tila – matala kynnys raportoinnille",

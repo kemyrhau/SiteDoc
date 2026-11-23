@@ -2816,6 +2816,8 @@
   "hms.subdomain.avvik": "Incidents",
   "hms.subdomain.sja": "JSA",
   "hms.subdomain.ruh": "Bīstamības ziņojums",
+  "hms.subdomain.formOppgave": "Uzdevums: viens incidents, par kuru tiek ziņots, kurš tiek apstrādāts un slēgts. Atbilde tiek nosūtīta personai, kas par to ziņoja.",
+  "hms.subdomain.formSjekkliste": "Kontrolsaraksts: vienumi, kas pārskatīti pirms darba uzsākšanas.",
   "hms.hjelp.avvik": "Kaut kas ir nogājis greizi — miesas bojājumi, materiālie zaudējumi vai HSE pārkāpums",
   "hms.hjelp.sja": "Riska novērtējums pirms bīstamā darba — paraksta dalībnieki pirms darba uzsākšanas",
   "hms.hjelp.ruh": "Gandrīz garām vai bīstams stāvoklis, ko novērojat — zems ziņošanas slieksnis",

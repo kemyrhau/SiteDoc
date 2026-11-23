@@ -2816,6 +2816,8 @@
   "hms.subdomain.avvik": "Juhtum",
   "hms.subdomain.sja": "JSA",
   "hms.subdomain.ruh": "Ohuaruanne",
+  "hms.subdomain.formOppgave": "Ülesanne: üks juhtum, millest teatatakse, käsitletakse ja mis suletakse. Vastus saadetakse isikule, kes sellest teatas.",
+  "hms.subdomain.formSjekkliste": "Kontrollnimekiri: enne töö algust üle vaadatud asjad.",
   "hms.hjelp.avvik": "Midagi on valesti läinud – kehavigastus, materiaalne kahju või HSE rikkumine",
   "hms.hjelp.sja": "Riskianalüüs enne ohtlikku tööd – osalejad allkirjastavad enne töö algust",
   "hms.hjelp.ruh": "Peaaegu puudulik või ohtlik seisund, mida täheldate – teatamise madal lävi",

@@ -3,7 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { Prisma } from "@sitedoc/db";
 import type { PrismaClient } from "@sitedoc/db";
 import { router, protectedProcedure } from "../trpc/trpc";
-import { reportObjectTypeSchema, templateZoneSchema, createTemplateSchema, TRAFIKKLYS_VALG, normaliserOpsjon } from "@sitedoc/shared";
+import { reportObjectTypeSchema, templateZoneSchema, createTemplateSchema, TRAFIKKLYS_VALG, normaliserOpsjon, formForSubdomain } from "@sitedoc/shared";
 import { verifiserProsjektmedlem, verifiserAdmin, hentBrukersOpprettFlytMedlemskap } from "../trpc/tilgangskontroll";
 import { IKKE_SLETTET, KUN_SLETTET } from "../utils/softDelete";
 import { oversettMedMotor, hashTekst } from "../services/oversettelse-service";
@@ -206,16 +206,11 @@ const LOVLIG_SUBDOMAIN: Record<string, readonly string[]> = {
   kvalitet: [],
 };
 
-// subdomain → påkrevd category (dokument-form/datatabell). avvik+ruh+kontrakt bruker
-// task-shape (oppgave); sja bruker checklist-shape. HMS-fanene i hms.ts er hardkodet til
-// disse datakildene — feil kombinasjon gjør at dokumenter opprettes i feil tabell og
+// subdomain → påkrevd category (dokument-form/datatabell): `SUBDOMAIN_FORM` i
+// @sitedoc/shared (én kilde med malbyggeren, HM2). avvik+ruh+kontrakt bruker task-shape
+// (oppgave); sja bruker checklist-shape. HMS-fanene i hms.ts er hardkodet til disse
+// datakildene — feil kombinasjon gjør at dokumenter opprettes i feil tabell og
 // forsvinner stille fra alle visninger.
-const SUBDOMAIN_FORM: Record<string, "oppgave" | "sjekkliste"> = {
-  avvik: "oppgave",
-  ruh: "oppgave",
-  sja: "sjekkliste",
-  kontrakt: "oppgave",
-};
 
 /**
  * Validerer at (domain, subdomain, category) er en lovlig kombinasjon.
@@ -243,7 +238,7 @@ export function valideerSubdomainKombinasjon(
   }
   // HMS: subdomain bestemmer datatabellen (task vs checklist), ikke category.
   if (!category || category === "hms") return;
-  const forventet = SUBDOMAIN_FORM[subdomain];
+  const forventet = formForSubdomain(subdomain);
   if (forventet && category !== forventet) {
     throw new Error(
       "SJA bruker sjekkliste-format. Avvik, RUH og Kontraktssak bruker oppgave-format.",

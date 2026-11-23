@@ -2816,6 +2816,8 @@
   "hms.subdomain.avvik": "Vorfall",
   "hms.subdomain.sja": "JSA",
   "hms.subdomain.ruh": "Gefahrenbericht",
+  "hms.subdomain.formOppgave": "Aufgabe: ein Vorfall, der gemeldet, bearbeitet und geschlossen wird. Die Antwort geht an die Person, die sie gemeldet hat.",
+  "hms.subdomain.formSjekkliste": "Checkliste: Punkte, die vor Beginn der Arbeiten überprüft werden.",
   "hms.hjelp.avvik": "Es ist etwas schiefgelaufen – Personenschaden, Sachschaden oder Verstoß gegen HSE",
   "hms.hjelp.sja": "Gefährdungsbeurteilung vor gefährlichen Arbeiten – von den Teilnehmern vor Arbeitsbeginn unterzeichnet",
   "hms.hjelp.ruh": "Beinaheunfall oder gefährlicher Zustand, den Sie beobachten – niedrige Schwelle für die Meldung",

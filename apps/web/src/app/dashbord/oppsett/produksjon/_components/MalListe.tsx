@@ -14,7 +14,7 @@ import { FaggruppeTilknytningModal } from "./FaggruppeTilknytningModal";
 import { HentFraArkivModal } from "@/components/bibliotek/HentFraArkivModal";
 import { OppdaterFraHovedmalModal } from "@/components/malbygger/OppdaterFraHovedmalModal";
 import { Nivaabanner } from "@/components/nivaa/Nivaabanner";
-import { hørerTilMalListe, lagretMalKategori } from "./mal-liste-filter";
+import { hørerTilMalListe, lagretMalKategori, nyMalKategori, hmsFormForklaringNokkel } from "./mal-liste-filter";
 
 type MalKategori = "oppgave" | "sjekkliste" | "hms";
 
@@ -355,7 +355,8 @@ export function MalListe({
       name: navn.trim(),
       prefix: prefiks.trim() || undefined,
       description: beskrivelse.trim() || undefined,
-      category: kategori,
+      // HM2: «Ny HMS-mal» lagrer formen undertypen tilsier (avvik/RUH → oppgave, SJA → sjekkliste).
+      category: nyMalKategori(kategori, subdomain),
       domain: erHms ? "hms" : "bygg",
       subdomain: erHms ? subdomain : erKontrakt ? "kontrakt" : null,
       hmsSynlighet: erHms ? hmsSynlighet : null,
@@ -876,6 +877,9 @@ export function MalListe({
                     </label>
                   ))}
                 </div>
+                <p className="text-xs text-gray-500">
+                  {t(hmsFormForklaringNokkel(subdomain))}
+                </p>
               </div>
               <div className="flex flex-col gap-1">
                 <label className="text-sm font-medium text-gray-700">

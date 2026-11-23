@@ -1,3 +1,5 @@
+import { SUBDOMAIN_FORM } from "@sitedoc/shared";
+
 /**
  * HM1 (Kenneth 2026-11-23): hvilke maler hver av de tre mallistene viser.
  *
@@ -29,7 +31,7 @@ export function hørerTilMalListe(
  * (SJA → sjekkliste, avvik/RUH → oppgave), slik serveren krever.
  *  - Valgt type ikke HMS: valgt type lagres.
  *  - Valgt HMS, malen var domain hms med category oppgave/sjekkliste: form etter undertype.
- *  - Ellers: «hms» (eldre HMS-mal, eller byggmal gjort om til HMS — «Ny HMS-mal»-regelen).
+ *  - Ellers: «hms» (eldre HMS-mal, eller byggmal gjort om til HMS).
  */
 export function lagretMalKategori(
   valgt: MalListeKategori,
@@ -41,5 +43,32 @@ export function lagretMalKategori(
     opprinnelig.domain === "hms" &&
     (opprinnelig.category === "oppgave" || opprinnelig.category === "sjekkliste");
   if (!seedetHms) return "hms";
-  return hmsSubdomain === "sja" ? "sjekkliste" : "oppgave";
+  return SUBDOMAIN_FORM[hmsSubdomain];
+}
+
+/**
+ * HM2 (Kenneth 2026-11-24): kategorien «Ny …-mal» lagrer.
+ *
+ * «Ny HMS-mal» lagrer formen undertypen tilsier — avvik/RUH → «oppgave», SJA →
+ * «sjekkliste» — med `domain: "hms"`, så malen får oppgave-/sjekkliste-egenskapene og
+ * står i HMS-lista (`hørerTilMalListe`). Oppgave-/sjekklistemaler lagres som valgt.
+ * Bare nye maler: eldre maler med category «hms» røres ikke.
+ */
+export function nyMalKategori(
+  kategori: MalListeKategori,
+  hmsSubdomain: "avvik" | "sja" | "ruh",
+): "oppgave" | "sjekkliste" {
+  return kategori === "hms" ? SUBDOMAIN_FORM[hmsSubdomain] : kategori;
+}
+
+/**
+ * HM2: forklaringslinja under undertypevalget i «Ny HMS-mal» — skifter med formen
+ * undertypen gir (i18n-nøkkel).
+ */
+export function hmsFormForklaringNokkel(
+  hmsSubdomain: "avvik" | "sja" | "ruh",
+): "hms.subdomain.formOppgave" | "hms.subdomain.formSjekkliste" {
+  return SUBDOMAIN_FORM[hmsSubdomain] === "sjekkliste"
+    ? "hms.subdomain.formSjekkliste"
+    : "hms.subdomain.formOppgave";
 }

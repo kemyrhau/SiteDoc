@@ -2816,6 +2816,8 @@
   "hms.subdomain.avvik": "HMS-avvik",
   "hms.subdomain.sja": "SJA",
   "hms.subdomain.ruh": "RUH",
+  "hms.subdomain.formOppgave": "Oppgave: én hendelse som meldes, behandles og lukkes. Svaret går til den som meldte.",
+  "hms.subdomain.formSjekkliste": "Sjekkliste: punkter som gås gjennom før arbeidet starter.",
   "hms.hjelp.avvik": "Noe har gått galt — personskade, materiell skade eller brudd på HMS-krav",
   "hms.hjelp.sja": "Risikovurdering før risikoarbeid — signeres av deltakerne før jobb starter",
   "hms.hjelp.ruh": "Nestenulykke eller farlig forhold du observerer — lav terskel for innrapportering",

@@ -758,3 +758,5 @@ export {
 } from "./returSedel";
 // HM1 tillegg A: «Meld HMS» viser domain hms-maler (web + mobil).
 export { erMeldbarHmsMal, type MeldHmsSubdomain } from "./meldHmsMal";
+// HM2: undertype → dokumentform, delt av server (mal.ts) og malbyggeren.
+export { SUBDOMAIN_FORM, formForSubdomain, type MalForm, type FormSubdomain } from "./subdomainForm";
