@@ -411,6 +411,25 @@ describe("O19b F4 — ingen del av en delt reise strekker «Arbeidstid i dag»",
     expect(r).toContain("&quot;til&quot;:&quot;24:00&quot;");
   });
 
+  // B75 (Kenneth 8A): en dag som bare har deler av reise over midnatt, viser «—», ikke prefyllet tid.
+  it("B75: dag med bare deler — «—» i Start, Slutt og Pause, ikke sedelens prefylte ramme", () => {
+    for (const del of [del1, del2]) {
+      expect(arbeidstid(rendre("dagskort", { timer: [del] as typeof sheet.timer }))).toEqual({
+        start: "—",
+        slutt: "—",
+        pause: "—",
+      });
+    }
+  });
+
+  it("B75 negativkontroll: dag uten rader med tid viser fortsatt sedelens prefylte ramme", () => {
+    expect(arbeidstid(rendre("dagskort", { timer: [] as typeof sheet.timer }))).toEqual({
+      start: "07:00",
+      slutt: "15:30",
+      pause: "30 min",
+    });
+  });
+
   it("negativkontroll: dag uten delt reise viser det samme som før i dagskort-modus", () => {
     expect(arbeidstid(rendre("dagskort"))).toEqual({ start: "07:00", slutt: "15:30", pause: "30 min" });
     const html = rendre("dagskort", {

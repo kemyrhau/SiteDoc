@@ -727,6 +727,10 @@ export default function DagsseddelDetaljSide() {
     })),
   );
   const harRaderMedTid = arbeidstidVisning.startTid !== null;
+  // B75 (Kenneth 8A): har dagen bare deler av en reise delt ved midnatt, viser «Arbeidstid i dag»
+  // «—» — ikke sedelens prefylte ramme. Rammen og andre visninger er uendret.
+  const bareMidnattDeler =
+    !harRaderMedTid && timerRader.some((r) => !!r.fraTid && !!r.tilTid && !!lesMidnattDel(r.reiseRegel));
   // O19b (gate-retur, valg a): prosjektkortets «Dagens ramme» utledes UTEN `reiseRegel`,
   // så delene strekker rammen som før — dag 1 07:00–24:00, dag 2 00:00–….
   const rammeVisning = utledArbeidstidFraRader(
@@ -1575,7 +1579,7 @@ export default function DagsseddelDetaljSide() {
             {t("timer.arbeidstidIDag")}
           </h3>
           <p className="mb-3 text-xs text-gray-500">
-            {harRaderMedTid
+            {harRaderMedTid || bareMidnattDeler
               ? t("timer.arbeidstidUtledet")
               : t("timer.arbeidstidPrefyltHint")}
           </p>
@@ -1583,7 +1587,7 @@ export default function DagsseddelDetaljSide() {
             <Definisjon
               term={t("timer.felt.startTid")}
               verdi={
-                harRaderMedTid
+                harRaderMedTid || bareMidnattDeler
                   ? arbeidstidVisning.startTid ?? "—"
                   : isoTidspunktTilHHMM(sheet.startAt as string | null) || "—"
               }
@@ -1591,14 +1595,18 @@ export default function DagsseddelDetaljSide() {
             <Definisjon
               term={t("timer.felt.sluttTid")}
               verdi={
-                harRaderMedTid
+                harRaderMedTid || bareMidnattDeler
                   ? arbeidstidVisning.sluttTid ?? "—"
                   : isoTidspunktTilHHMM(sheet.endAt as string | null) || "—"
               }
             />
             <Definisjon
               term={t("timer.felt.pauseMin")}
-              verdi={`${harRaderMedTid ? arbeidstidVisning.sumPauseMin : sheet.pauseMin} min`}
+              verdi={
+                bareMidnattDeler
+                  ? "—"
+                  : `${harRaderMedTid ? arbeidstidVisning.sumPauseMin : sheet.pauseMin} min`
+              }
             />
           </dl>
         </div>
