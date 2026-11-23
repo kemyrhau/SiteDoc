@@ -2,8 +2,8 @@
 name: web-timeforing-plan
 description: Plan med bilder for timeføring på web. Dagskortet er dagen med alle registreringene; hver registrering (prosjektkort = kort = jobb) føres samlet — arbeid, reise, maskin (bare antall timer), varer, tillegg og utlegg — og attesteres samlet. Begrepene står i § 0, Kenneths gjeldende vedtak i § 8.20–8.22, og rekkefølge og status i § 9. Versjon 20 er en rydding uten nytt innhold: utgått tekst er merket ⚠️ der den står. Versjon 21 spesifiserte «Del opp» som vindu med begge kortene; vinduet er utgått (Kenneth 2026-11-23, B70 ja). Versjon 22 (attesteringen, § 4.17) står på branch `docs/fabel`, er ikke merget og er ikke med i denne fila. Versjon 23 fører status til og med 2026-11-23 (§ 9.7) og har «Del opp» med begge kortene åpne og redigerbare, flytting av linjer og nye linjer fra attestanten (§ 4.16 del G; vedtatt av Kenneth 2026-11-23, B68–B71 ja). Reisevinduet står bare i vedtak-timer-web.md § Reisevinduet.
 sist_verifisert_mot_kode: 2026-11-19 (WM1–WM73: develop @ `b8b16571`; WM74–WM92: develop @ `ee7146e5`, etter w1, w2 og w5; WM93–WM108: develop @ `1afb318a`, etter w5b og w7; K1–K14 i § 4.5: develop @ `eedbc7cd`, etter w8, w9 og w9m; FA1–FA27 i § 4.6–4.8: develop @ `57770fc0`; FA16–FA21 på nytt, FA28–FA44 og DK1–DK15 i § 4.7, § 4.9 og § 4.10: develop @ `a5483f48`, 2026-11-20; FA45–FA59 i § 4.11: develop @ `bdf2320f`, 2026-11-20; FA60–FA65 i § 4.11 og FA66–FA70 i § 4.12: develop @ `8c260833`, 2026-11-20; § 4.13 (A1–A14): develop @ `d9354caa`, 2026-11-20; TK1–TK27 i § 4.14: develop @ `4fe7b0d6`, 2026-11-20; F1–F21 i § 4.15: develop @ `30346a95`, lik test `f529b527` i `apps` og `packages`, 2026-11-20; F22–F35 i § 4.15: develop @ `12094b58`, lik `30346a95` i `apps` og `packages`, 2026-11-20; F36–F45 i § 4.15: develop @ `88d37194`, lik `12094b58` i `apps` og `packages`, 2026-11-21; F46–F56 i § 4.15: develop @ `afdaa7ac`, 2026-11-21; F57–F63 i § 4.15: develop @ `e84a4e73` og `3290a40a`, like `afdaa7ac` i `apps` og `packages`, 2026-11-21; F64–F68 i § 4.15: develop @ `fae0e363`, 2026-11-21; F69–F78 i § 4.15: develop @ `6163086f`, etter w15c og w15f, 2026-11-21; F79–F83 i § 4.15: develop @ `d4c0eecd`, etter F68, 2026-11-21; DO1–DO20 i § 4.16: develop @ `310ecf43`, 2026-11-21; DG1–DG14 i § 4.16 del G: develop @ `14869899`, 2026-11-23, lest av leseagent og stikkprøvd; DG15–DG23 i § 4.16 del G: develop @ `ae3c417b`, 2026-11-23, lest av leseagent og stikkprøvd)
-eier: fabel (plan) — orkestrator gater kode; Kenneth har besvart B1–B49 (§ 8); B68–B71 («Del opp» med begge kortene åpne, § 4.16 del G) er besvart med ja 2026-11-23 (§ 8.23); B72 og B73 (varer og utlegg fra attestanten, og merket «Lagt til av» og «Korrigert av») er besvart med ja 2026-11-23 (§ 8.24); B74 (flytte en linje når et kort åpnes alene, § 4.16 del G) er besvart med ja 2026-11-23 (§ 8.25); versjon 22 (attesteringen, § 4.17, B50–B67) står på branch `docs/fabel` og er ikke merget
-status: 🟡 2026-11-23, versjon 23 — (1) status ført til og med 2026-11-23 (§ 9 og § 9.7): merget siden versjon 21 er tallformatet, L1–L3b, maskin uten fra–til, «Slett dagsseddel», O1–O8, O10–O19 og O19b (siste: O14 `50f480c8`, O15 `6cf48d6e`, O16 `0e650523`, O17 `6ee3b632`, O18 `4bc05499`, O19 `63e7b8f6`, O19b `e1eb7ac3`); (2) «Del opp»: Kenneth 2026-11-23 «B68 ja, B69 ja, B70 ja, B71 ja» — begge kortene står åpne og redigerbare side om side etter delingen, uten kobling i data; linjer (reise, varer, maskin, utlegg og tillegg) kan flyttes mellom kortene; attestanten kan legge til nye linjer; vinduet fra versjon 21 er utgått; Kenneth 2026-11-23 «B72 ja, 73 ja -> den som korrigerer skal alltid få denne, kun brukeren selv slipper» og «et kort som redigeres må kunne redigere alle linjer, også etter at de er lukket en gang» — alle som kan attestere prosjektet, får «＋» under Varer og Utlegg; alle som legger til eller retter en linje på en annens dag, får merket «Lagt til av» eller «Korrigert av»; «＋» og redigering av alle linjene gjelder hver gang et kort redigeres, også når det åpnes alene; Kenneth 2026-11-23 «B74 ja» — en linje kan flyttes til et annet kort på dagen også når kortet åpnes alene, og også etter at det har vært lukket (§ 4.16 del G, `v23-del-opp-etter.png`; DG1–DG33; vedtatt, ikke bestilt, uten kode; én migrering, `opprettet_av_user_id` på fire tabeller, uten backfill, Kenneth kjører). Ingen spørsmål er åpne etter versjon 23. Bygget av «Del opp»: blokka i kortet med klokkeslett, underprosjekt for B og maskintimer A/B (O15). Versjon 22 (attesteringen med oversiktsrader, § 4.17, B50–B67) står på branch `docs/fabel`, er ikke merget og er ikke med i denne fila. Merget på web (O19 `63e7b8f6`, O19b `e1eb7ac3`): reisevinduet punkt 20 (blå boks) og punkt 23–25 (deling ved midnatt, kveldsreise, stopp ved reise som ikke passer kortets byggeplass) — vedtaksteksten står i vedtak-timer-web.md § Reisevinduet; mobil sperrer som før. Kenneth 2026-11-23 «ikke endre noe nå»: uka i retur-lenken til Timer-lista, og «Registrer timer» som åpner ny jobb. I BACKLOG: periodevisning fra–til og «siste måned». Ikke bygget: w3c, w4 (L4), w10c, w11 og O9 (flytte jobb på returnert dag); mobil (w12m, w15gm, reisevinduet punkt 20) venter på web. Utgått: fra–til på maskin (B5, w6), w13, «Flytt til …» (w15e), e-post ved retting og automatisk justering av nabokort (§ 8.21 punkt 1). Reisevinduet står bare i vedtak-timer-web.md. Historikken for versjon 12–19 står i § 8.13–8.20; hva som er deployet, står på tavla (STATUS-AKTUELT.md).
+eier: fabel (plan) — orkestrator gater kode; Kenneth har besvart B1–B49 (§ 8); B68–B71 («Del opp» med begge kortene åpne, § 4.16 del G) er besvart med ja 2026-11-23 (§ 8.23); B72 og B73 (varer og utlegg fra attestanten, og merket «Lagt til av» og «Korrigert av») er besvart med ja 2026-11-23 (§ 8.24); B74 (flytte en linje når et kort åpnes alene, § 4.16 del G) er besvart med ja 2026-11-23 (§ 8.25); versjon 22 (attesteringen, § 4.17, B50–B67) står på branch `docs/fabel` og er ikke merget; versjon 24 (slettede og korrigerte linjer som egen visning, § 4.18): B76–B78 er åpne (§ 8.26)
+status: 🟡 2026-11-23, versjon 23 — (1) status ført til og med 2026-11-23 (§ 9 og § 9.7): merget siden versjon 21 er tallformatet, L1–L3b, maskin uten fra–til, «Slett dagsseddel», O1–O8, O10–O19 og O19b (siste: O14 `50f480c8`, O15 `6cf48d6e`, O16 `0e650523`, O17 `6ee3b632`, O18 `4bc05499`, O19 `63e7b8f6`, O19b `e1eb7ac3`); (2) «Del opp»: Kenneth 2026-11-23 «B68 ja, B69 ja, B70 ja, B71 ja» — begge kortene står åpne og redigerbare side om side etter delingen, uten kobling i data; linjer (reise, varer, maskin, utlegg og tillegg) kan flyttes mellom kortene; attestanten kan legge til nye linjer; vinduet fra versjon 21 er utgått; Kenneth 2026-11-23 «B72 ja, 73 ja -> den som korrigerer skal alltid få denne, kun brukeren selv slipper» og «et kort som redigeres må kunne redigere alle linjer, også etter at de er lukket en gang» — alle som kan attestere prosjektet, får «＋» under Varer og Utlegg; alle som legger til eller retter en linje på en annens dag, får merket «Lagt til av» eller «Korrigert av»; «＋» og redigering av alle linjene gjelder hver gang et kort redigeres, også når det åpnes alene; Kenneth 2026-11-23 «B74 ja» — en linje kan flyttes til et annet kort på dagen også når kortet åpnes alene, og også etter at det har vært lukket (§ 4.16 del G, `v23-del-opp-etter.png`; DG1–DG33; vedtatt, ikke bestilt, uten kode; én migrering, `opprettet_av_user_id` på fire tabeller, uten backfill, Kenneth kjører). Ingen spørsmål er åpne etter versjon 23. Bygget av «Del opp»: blokka i kortet med klokkeslett, underprosjekt for B og maskintimer A/B (O15). Versjon 22 (attesteringen med oversiktsrader, § 4.17, B50–B67) står på branch `docs/fabel`, er ikke merget og er ikke med i denne fila. Merget på web (O19 `63e7b8f6`, O19b `e1eb7ac3`): reisevinduet punkt 20 (blå boks) og punkt 23–25 (deling ved midnatt, kveldsreise, stopp ved reise som ikke passer kortets byggeplass) — vedtaksteksten står i vedtak-timer-web.md § Reisevinduet; mobil sperrer som før. Kenneth 2026-11-23 «ikke endre noe nå»: uka i retur-lenken til Timer-lista, og «Registrer timer» som åpner ny jobb. I BACKLOG: periodevisning fra–til og «siste måned». Ikke bygget: w3c, w4 (L4), w10c, w11 og O9 (flytte jobb på returnert dag); mobil (w12m, w15gm, reisevinduet punkt 20) venter på web. Utgått: fra–til på maskin (B5, w6), w13, «Flytt til …» (w15e), e-post ved retting og automatisk justering av nabokort (§ 8.21 punkt 1). Reisevinduet står bare i vedtak-timer-web.md. Historikken for versjon 12–19 står i § 8.13–8.20; hva som er deployet, står på tavla (STATUS-AKTUELT.md). · **versjon 24 (2026-11-23, 🟡 forslag, ikke bygget):** slettede og korrigerte linjer som egen visning utenfor attesteringskortet (§ 4.18, `v24-slettespor-varianter.png`; Kenneth «s1 nei», «s2 ja»); ingen migrering; B76–B78 til Kenneth
 ---
 
 # Timeføring på web — plan med bilder (FORSLAG)
@@ -67,6 +67,8 @@ status: 🟡 2026-11-23, versjon 23 — (1) status ført til og med 2026-11-23 (
 > **Versjon 23:** «Del opp» etter Kenneths test 23.11. står i `v23-del-opp-etter.png` (i dag, og begge kortene åpne
 > og redigerbare side om side), § 4.16 del G. Kilde: `skisser-v23.html`. Kenneth 2026-11-23: «B68 ja, B69 ja, B70 ja,
 > B71 ja». ⚠️ `v23-del-opp-vindu.png` viser alternativet med vindu før lagring; det er utgått (B70 ja).
+> **Versjon 24:** slettede og korrigerte linjer som egen visning står i `v24-slettespor-varianter.png` (tre
+> varianter side om side), § 4.18. Kilde: `skisser-v24.html`. Forslag, B76–B78 til Kenneth.
 
 ## 0. Begreper (Kenneth 2026-11-21, § 8.22)
 
@@ -3595,6 +3597,84 @@ Koderen leverer løsning med skjermbilde før kode i hver av dem.
     kort står ikke blant målene, og serveren avviser dem. Uten andre kort på prosjektet vises ikke
     knappen.
 
+### 4.18 Slettede og korrigerte linjer: egen visning (versjon 24)
+
+🟡 **Forslag 2026-11-23, ikke bygget. B76–B78 er til Kenneth.** Bilde: `skisser-web-timeforing/v24-slettespor-varianter.png`
+(kilde `skisser-v24.html`), tre varianter side om side.
+
+Kenneth 2026-11-23, om slettede linjer i attesteringskortet (S1): «s1 nei -> det hører ikke til i attesteringen
+som da blir griset til. skal være egen visning». Om varer og utlegg i sporet (S2): «s2 ja-skal være egen
+visning». Visningen står derfor ikke i attesteringskortet, og varer og utlegg skal med.
+
+#### Del A — målt mot develop @ `cef5df0c`
+
+`D` = `apps/api/src/routes/timer/dagsseddel.ts`, `KL` = `apps/api/src/services/timer/kortLeser.ts`,
+`ST` = `packages/db-timer/prisma/schema.prisma`. Målt av en leseagent; Fabel har lest linjene i SV1, SV3–SV5 og
+SV7–SV10 og tillegg, delt reise, linje 2 og synken i SV2. Maskin og utlegg i SV2, SV6 og SV11 er ikke lest på nytt.
+
+| # | Funn | Kode |
+|---|---|---|
+| SV1 | **Sporet fra R1 skrives to steder.** Når arbeideren sletter en timelinje eller «Slett jobben» på en returnert dag, lagres timer-, maskin- og tilleggsradene i `sheet_rad_historikk` med `hendelse: "slettet"` i `snapshot`, og hele raden følger med. | `D:5546-5561`, `D:4153-4167`, `D:2530-2538` |
+| SV2 | **Fem andre sletteveier på returnert dag skriver ikke spor:** fjern én maskin, fjern ett tillegg, fjern ett utlegg, fjern en delt reise, og linje 2 når jobbens tid lagres på nytt. Appens slettinger kommer inn med synken og skriver heller ikke spor. | `D:12004-12028`, `D:6738-6760`, `D:7069-7091`, `D:5117`, `D:5814`, `D:11367-11396` |
+| SV3 | **Varer og utlegg slettes uten at innholdet lagres.** «Slett jobben» logger bare id-ene i `activity_log` (`slett_kort`). Én slettet vare logges som `vare.slettet` med bare id-en. Ett slettet utlegg logges ikke. | `D:4169-4180`, `D:7333-7344`, `apps/api/src/routes/vareforbruk.ts:759-800` |
+| SV4 | **`rad_type` er tekst uten sjekkregel.** Koden skriver `timer`, `tillegg` og `maskin`. Å skrive `utlegg` og `vare` krever kode, ikke migrering. `hendelse` er ikke en kolonne; den ligger i `snapshot`. Tabellen har indeks på dagsseddel, rad og radtype, og ingen kolonne for firma eller dato. | `ST:656-672` |
+| SV5 | **Attestantens sletting har ingen markør.** Når attestanten fjerner en linje i «Rediger sedel», skrives en post uten `hendelse`, lik en retting. En leser må lete etter en levende rad for å se forskjellen. | `D:3803-3826` |
+| SV6 | **Arbeiderens egne rettinger på returnert dag skriver ikke spor.** Det gjelder timer, tillegg og utlegg. | `oppdaterTimerRad`, `oppdaterTilleggRad`, `oppdaterUtleggRad` i `D` |
+| SV7 | **Ingen leser gir slettede rader.** `lesRevisjoner` har ingen kallere. `hentRettedeFelter` («var 5,00» i attesteringen) og `lastKorrigeringsHendelser` («Korrigert av» hos arbeideren) hopper over postene `slettet` og `gjenaapnet`. En linje attestanten har slettet, finnes ikke lenger, så merket «Korrigert av» har ingen linje å stå på. | `apps/api/src/services/arkiv/logg-lesere.ts:160`, `KL:287`, `KL:520-548` |
+| SV8 | **Attesteringslista viser bare sendte og attesterte dager.** En returnert dag som ikke er sendt på nytt, står ikke der, og en dag uten rader kan ikke åpnes i attesteringen. | `D:7366-7370`, `D:7780-7784` |
+| SV9 | **Hvem attesterer:** firma-admin og sitedoc-admin ser hele firmaet; andre ser prosjektene der de er prosjektadmin eller har «kan attestere». | `attesteringsOmfang`, `D:310-341` |
+| SV10 | **Arbeideren ser «Korrigert av»** på egne linjer andre har rettet, og ser ingen slettinger. | `apps/web/src/components/timer/KorrigertMerke.tsx`, `D:4423-4430` |
+| SV11 | **Ingen lagringstid** er satt for historikken. | [gdpr-kartlegging.md](gdpr-kartlegging.md) § revisjonsspor |
+
+#### Del B — forslaget
+
+1. **En egen side, «Slettet og korrigert».** Den hører til attesteringen og er bare lesing. Ingenting legges i
+   attesteringskortet.
+2. **Hvem ser den:** de som kan attestere, med samme omfang og samme navneskjul som attesteringen (SV9).
+   Arbeideren: B78.
+3. **Hva en hendelse viser:** merket Slettet eller Korrigert, linjetypen (timer, reise, maskin, tillegg, vare,
+   utlegg), innholdet i linja (før og etter når den er korrigert), kortet (prosjekt, byggeplass,
+   underprosjekt), hvem som gjorde det og når, og om dagen var returnert. Hendelsene står gruppert pr. dag og
+   ansatt, med dagens status nå.
+4. **Hvilke hendelser som er med:**
+   - linjer arbeideren slettet på en returnert dag, alle linjetyper (R1 b3 og S2),
+   - linjer attestanten slettet,
+   - linjer en annen enn eieren har korrigert (de samme som gir merket «Korrigert av», B73).
+   - **Ikke med:** endringer på et utkast som aldri er sendt, og gjenåpning av attesterte linjer.
+     Arbeiderens egne rettinger på returnert dag: B77.
+5. **Filter:** periode, ansatt, prosjekt og type (slettet, korrigert). Siden åpner på perioden attestanten står i.
+6. **Der den åpnes:** tre varianter i bildet. A er en lenke øverst i Attestering. B er et merke på dagsraden
+   som åpner et vindu for den dagen, uten samleside. C er A, og i tillegg merket på dagsraden, som åpner siden
+   filtrert på dagen. **Anbefaling: C.** B alene når ikke en returnert dag som ikke er sendt på nytt (SV8).
+   Valget mellom A og C er B76.
+
+#### Del C — det som må bygges
+
+| Del | Hva | Måling |
+|---|---|---|
+| Server 1 | **Sporet tettes:** hver slettevei på en returnert dag skriver en post med `hendelse: "slettet"`, også appens slettinger i synken. Attestantens sletting får samme markør. | SV2, SV5 |
+| Server 2 | **Varer og utlegg i sporet** (S2 ja): radtypene `utlegg` og `vare`, med innholdet i linja. Varene ligger i en annen database enn historikken, så rekkefølgen og hva som skjer når det andre steget feiler, beskrives i koderens løsning før kode (som Server 4 og Server 9 i § 4.16). | SV3, SV4 |
+| Server 3 | **En ny leser for siden,** med omfanget fra attesteringen. Den leser også returnerte dager og dager uten rader. | SV7, SV8, SV9 |
+| Web 1 | **Siden «Slettet og korrigert»** med filter, og lenken i Attestering. Hjelpetekst på ?-ikonet bygges sammen med siden. | |
+| Web 2 | **Merket på dagsraden** (bare variant C). | B76 |
+| Mobil | Ingen flate i appen. Appens slettinger får spor på serveren (Server 1). | SV2 |
+| Migrering | **Ingen.** Ordren foreslo å samle en migrering for varer og utlegg med migreringen for B73 i D2c. Målingen viser at `rad_type` er tekst uten sjekkregel (SV4), så S2 trenger ikke migrering. Siden leser historikken via dagssedlene i perioden og bruker indeksen som finnes. Blir den treg på store firma, er `hendelse` som egen kolonne med indeks neste steg; den kan fylles fra `snapshot` og kan da gå sammen med migreringen i D2c. | SV4 |
+
+- **Det som alt er slettet, kommer ikke tilbake.** Varer, utlegg og enkeltlinjer slettet før Server 1 og 2 er
+  i drift, har ikke innhold i sporet. Siden viser ikke slike hendelser. Timer, maskin og tillegg slettet etter
+  R1 (`641bcd41`) er med.
+- **Samordning med D2f** (§ 4.16, «Korrigert av» alle steder): D2f lar historikken ta radtypene utlegg og
+  vare for retting. Server 2 her bruker samme radtyper for sletting. Den som bygges først, legger dem inn.
+- **Regel 10 kjøres uavhengig** for Server 1 og 2: de rører arbeiderens egne skriveveier og synken fra appen.
+
+**Leveransene (forslag):** SL1 = Server 1 og 2. SL2 = Server 3 og Web 1 (og Web 2 hvis B76 er ja). Ingen i appen.
+Ikke bestilt.
+
+**Tester som skal feile først:** (1) hver slettevei på en returnert dag gir én post med `hendelse: "slettet"`,
+også synken; (2) et slettet utlegg og en slettet vare gir post med innholdet; (3) leseren gir en returnert dag
+som ikke er sendt på nytt, og en dag der alt er slettet; (4) en bruker uten attesteringsrett på prosjektet får
+ikke hendelsene; (5) attesteringskortet er uendret.
+
 ## 5. Maskintimer er en del av arbeidstiden — hva som må endres (føring 4)
 
 | Del | I dag | Endring | Fjerner noe? |
@@ -3694,7 +3774,7 @@ B1–B49 er besvart (§ 8.1–8.20), og Kenneth har ryddet i begrepene og fire m
 B68–B71 («Del opp» med begge kortene åpne) er besvart med ja 2026-11-23 (§ 8.23).
 B72 og B73 (varer og utlegg fra attestanten, og merket «Lagt til av») er besvart med ja 2026-11-23 (§ 8.24).
 B74 (flytte en linje når et kort åpnes alene) er besvart med ja 2026-11-23 (§ 8.25).
-**Ingen spørsmål er åpne etter versjon 23.**
+**Åpne etter versjon 24: B76–B78** (slettede og korrigerte linjer som egen visning, § 4.18 og § 8.26).
 Versjon 22 (attesteringen med oversiktsrader, § 4.17, B50–B67) står på branch `docs/fabel`, er ikke merget og er ikke med i denne fila.
 
 Kontrollspørsmålet om overføring til annet kontor er besvart
@@ -4212,6 +4292,22 @@ anbefalte ja. Kenneths svar, slik orkestrator førte det: «B74 ja (7A)».
 
 🟡 Vedtatt, ikke bestilt. Det som gjelder, står i § 4.16 del G punkt 5. Knappen bygges i D2b.
 
+### 8.26 Kenneth om slettede linjer (S1, S2), 2026-11-23, og B76–B78
+
+Kenneth, slik orkestrator førte det i ordre F14: «s1 nei -> det hører ikke til i attesteringen som da blir griset
+til. skal være egen visning» og «s2 ja-skal være egen visning».
+
+- **S1 nei:** slettede linjer vises ikke i attesteringskortet. De får en egen visning.
+- **S2 ja:** varer og utlegg skal med i sporet og i visningen.
+
+🟡 Forslaget står i § 4.18. Åpne spørsmål, alle om siden «Slettet og korrigert»:
+
+| # | Spørsmål | Anbefaling |
+|---|---|---|
+| B76 | Skal dagsraden i attesteringen få et merke («3 slettet») som åpner siden på den dagen? Ja = variant C, nei = variant A. | Ja |
+| B77 | Skal siden også vise det arbeideren rettet, ikke bare slettet, på en returnert dag? Det krever et nytt spor (SV6). | Nei |
+| B78 | Skal arbeideren se siden for sine egne dager? | Ja |
+
 ## 9. Rekkefølge
 
 ✅ **Status 2026-11-23 (versjon 23).** Merget til develop: w1, w2, w3a, w3b, w5, w5b, w7, w8, w9, w9m, w10 del A
@@ -4461,6 +4557,9 @@ deployet, står på tavla; ordre F12 oppgir at test står på `14869899` (O14–
 **Vedtatt, ikke bygget (2026-11-23):** «Del opp» med begge kortene åpne, flytting av linjer og nye linjer fra attestanten (§ 4.16
 del G; Kenneth «B68 ja, B69 ja, B70 ja, B71 ja», «B72 ja, 73 ja» og «B74 ja»). Merket «Lagt til av» og
 «Korrigert av» for alle som legger til eller retter på en annens dag (B73, én migrering). Ikke bestilt.
+
+**Forslag, ikke vedtatt (2026-11-23):** slettede og korrigerte linjer som egen visning (§ 4.18; Kenneth «s1 nei»,
+«s2 ja»). B76–B78 er til Kenneth. Ingen migrering.
 
 **Står som bygget, Kenneth 2026-11-23 «ikke endre noe nå»:** uka i retur-lenken til Timer-lista, og «Registrer
 timer» som åpner en ny jobb også når dagen finnes.

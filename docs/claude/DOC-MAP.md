@@ -37,6 +37,7 @@ sist_verifisert_mot_kode: 2026-05-16
 | Målt avreise/ankomst via lokal geofence (S3-kilde i timer, firmabryter, GDPR-grunnlag) spec endres | `timer-geofence-avreise-ankomst-spec.md` (🟡 UTKAST, Fabel) |
 | Prosjektkort med kort-id, dagskortet som sum av prosjektkort, lønnsart-forslag fra døgnets registreringer — spec endres | `prosjektkort-kortid-spec.md` (🟢 VEDTATT 2026-11-16, Fabel; F12 = A) |
 | Dokumentflyt-regler endres | `dokumentflyt.md` |
+| HMS-flyt-regler endres (hvem melder, behandler, får svaret og ser saken; firma-HMS) | `hms-domenemodell.md` — eneste kilde; `dokumentflyt.md` § 2 HMS peker dit |
 | Domeneflyt/arbeidsflyt endres | `domene-arbeidsflyt.md` |
 | Mobil-spec endres | `mobil.md` |
 | 3D-visning (web/mobil): funnstatus, grense mot DWG/DXF, 3D-agentenes arbeidsform | `3d-agent-prinsipper.md` |
