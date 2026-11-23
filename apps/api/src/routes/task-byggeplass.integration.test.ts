@@ -82,7 +82,7 @@ beforeAll(async () => {
   });
   ids.templateId = mal.id;
   const gruppe = await prisma.projectGroup.create({
-    data: { projectId: p.id, name: `${NS} HMS`, slug: `hms-${kjoreId}`, domains: ["hms"] },
+    data: { projectId: p.id, name: `${NS} HMS`, slug: `hms-${kjoreId}`, domains: ["hms"], systemNokkel: "hms" },
   });
   ids.groupId = gruppe.id;
 });

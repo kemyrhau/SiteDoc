@@ -1,5 +1,6 @@
 import type { Prisma } from "@sitedoc/db";
 import { PROSJEKT_MODULER } from "@sitedoc/shared";
+import { finnHmsGruppe, HMS_SYSTEMNOKKEL } from "./hmsGruppe";
 
 /**
  * Seeder HMS-spesifikk infrastruktur når hms-avvik-modulen aktiveres:
@@ -22,10 +23,7 @@ export async function sikreHmsGruppe(
   tx: Prisma.TransactionClient,
   projectId: string,
 ): Promise<{ id: string }> {
-  const eksisterende = await tx.projectGroup.findFirst({
-    where: { projectId, systemNokkel: "hms" },
-    select: { id: true },
-  });
+  const eksisterende = await finnHmsGruppe(tx, projectId);
   if (eksisterende) return eksisterende;
 
   return tx.projectGroup.create({
@@ -35,7 +33,7 @@ export async function sikreHmsGruppe(
       slug: "hms-ansvarlige",
       category: "field",
       domains: ["hms"],
-      systemNokkel: "hms",
+      systemNokkel: HMS_SYSTEMNOKKEL,
       permissions: [
         "create_tasks",
         "create_checklists",
