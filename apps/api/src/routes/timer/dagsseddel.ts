@@ -23,6 +23,8 @@ import {
   resolverOrgForEgenTimeføring,
   verifiserAnsattIFirma,
   erAnsattIFirma,
+  erSiteDocAdmin,
+  erFirmaAdmin,
   aktivtProsjektmedlemWhere,
   aktivtMedlemWhere,
 } from "../../trpc/tilgangskontroll";
@@ -1153,6 +1155,18 @@ async function finnMidnattPartner(
   };
 }
 
+/**
+ * P1-1 (Kenneth «P1: ja» 2026-11-23): felles firma-gate for å lese eller rette en ANNENS
+ * dagsseddel — sitedoc_admin, eller firma-admin i sedelens firma med ansettelse som ikke er
+ * deaktivert (`erFirmaAdmin`, samme kilde som `autoriserAdminForFirma`). Erstatter tre
+ * inline-sjekker (`list`, `hentDagstotal`, `hentEgenDagsseddel`) som leste `firmaRoller` uten
+ * status, slik at en deaktivert firma-admin kunne lese og rette firmaets sedler.
+ */
+async function erAdminForAnnensSedel(userId: string, organizationId: string): Promise<boolean> {
+  if (await erSiteDocAdmin(userId)) return true;
+  return erFirmaAdmin(userId, organizationId);
+}
+
 async function hentEgenDagsseddel(
   prismaTimer: Prisma.TransactionClient | typeof import("@sitedoc/db-timer").prismaTimer,
   ctxUserId: string,
@@ -1185,24 +1199,7 @@ async function hentEgenDagsseddel(
 
   // Eierskap: kun den som sedelen tilhører, eller admin/firmaadmin
   if (sheet.userId !== ctxUserId) {
-    const bruker = await prisma.user.findUniqueOrThrow({
-      where: { id: ctxUserId },
-      select: { role: true },
-    });
-    let erAdmin = bruker.role === "sitedoc_admin";
-    if (!erAdmin) {
-      const member = await prisma.organizationMember.findUnique({
-        where: {
-          userId_organizationId: {
-            userId: ctxUserId,
-            organizationId: sheet.organizationId,
-          },
-        },
-        select: { firmaRoller: true },
-      });
-      erAdmin = member?.firmaRoller.includes("firma_admin") ?? false;
-    }
-    if (!erAdmin) {
+    if (!(await erAdminForAnnensSedel(ctxUserId, sheet.organizationId))) {
       throw new TRPCError({
         code: "FORBIDDEN",
         message: "Du eier ikke denne dagsseddelen",
@@ -4216,19 +4213,7 @@ export const dagsseddelRouter = router({
 
       // Hvis bruker ber om noen andres seddel: krev admin
       if (userId !== ctx.userId) {
-        const bruker = await prisma.user.findUniqueOrThrow({
-          where: { id: ctx.userId },
-          select: { role: true },
-        });
-        let tillatt = bruker.role === "sitedoc_admin";
-        if (!tillatt) {
-          const member = await prisma.organizationMember.findUnique({
-            where: { userId_organizationId: { userId: ctx.userId, organizationId: orgId } },
-            select: { firmaRoller: true },
-          });
-          tillatt = member?.firmaRoller.includes("firma_admin") ?? false;
-        }
-        if (!tillatt) {
+        if (!(await erAdminForAnnensSedel(ctx.userId, orgId))) {
           throw new TRPCError({
             code: "FORBIDDEN",
             message: "Krever admin for å se andres dagssedler",
@@ -12052,19 +12037,7 @@ export const dagsseddelRouter = router({
 
       // Hvis bruker ber om noen andres dagstotal: krev admin
       if (userId !== ctx.userId) {
-        const bruker = await prisma.user.findUniqueOrThrow({
-          where: { id: ctx.userId },
-          select: { role: true },
-        });
-        let tillatt = bruker.role === "sitedoc_admin";
-        if (!tillatt) {
-          const member = await prisma.organizationMember.findUnique({
-            where: { userId_organizationId: { userId: ctx.userId, organizationId: orgId } },
-            select: { firmaRoller: true },
-          });
-          tillatt = member?.firmaRoller.includes("firma_admin") ?? false;
-        }
-        if (!tillatt) {
+        if (!(await erAdminForAnnensSedel(ctx.userId, orgId))) {
           throw new TRPCError({
             code: "FORBIDDEN",
             message: "Krever admin for å se andres dagstotal",
