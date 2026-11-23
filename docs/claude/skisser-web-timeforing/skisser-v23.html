@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="nb">
+<head>
+<meta charset="utf-8">
+<title>Skisse — versjon 23: «Del opp» med begge kortene åpne og redigerbare</title>
+<!--
+  FORSLAG (Fabel 2026-11-23, versjon 23), ikke bygget. Kilde for v23-del-opp-etter.png og
+  v23-del-opp-vindu.png (web-timeforing-plan.md § 4.16 del G). Stilen er den samme som i skisser-v21.html.
+  Dataene er fra Kenneths testbilder 2026-11-23 (relay/skisser/delopp-kenneth-1-for.webp og -2-etter.webp):
+  attestanten er Kari ansatt, prosjektet er SD-20260502-0002 · Sitedoc Boligfelt B12, registreringen er 07:00–12:00,
+  pause 30, Volvo EC220E 4,50 t, Fugesand 3 sekk, delt kl. 11:00, kort B på TILL-001. Arbeiderens navn står ikke i bildene.
+  To ark. Tegnet med Chrome uten vindu:
+    "Google Chrome" --headless=new --hide-scrollbars --force-device-scale-factor=1 \
+      --window-size=1640,<høyde> --screenshot=v23-del-opp-etter.png "file://…/skisser-v23.html#etter"
+    … --screenshot=v23-del-opp-vindu.png "file://…/skisser-v23.html#vindu"
+  Høyden måles med --dump-dom: arket skriver den i data-hoyde på <html>.
+-->
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#f3f4f6;font-family:-apple-system,"Inter","Segoe UI",Helvetica,Arial,sans-serif;color:#111827;font-size:13px}
+.ark{width:1640px;padding:22px}
+.tittel{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.pille{background:#1e40af;color:#fff;font-weight:700;border-radius:999px;padding:5px 13px;font-size:12.5px;letter-spacing:.04em;white-space:nowrap}
+.pille.alt{background:#6b7280}
+.tittel h1{font-size:21px;margin:0}
+.scen{background:#fff;border:1px solid #e5e7eb;border-radius:9px;padding:9px 12px;margin-bottom:14px;line-height:1.5}
+.scen b.gr{color:#15803d}
+.scen b.bl{color:#1d4ed8}
+.scen b.ro{color:#b91c1c}
+.lik{display:grid;grid-template-columns:470px 1fr;gap:16px;align-items:start}
+.side{background:#fafbfc;border:1px solid #d1d5db;border-radius:12px;padding:14px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.side.anb{border-color:#16a34a;box-shadow:0 0 0 2px #bbf7d0}
+.side h2{margin:0 0 4px;font-size:15px}
+.side .under{color:#6b7280;margin:0 0 12px;line-height:1.4}
+.dagsrad{display:flex;justify-content:space-between;gap:8px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:7px;padding:7px 12px;margin-bottom:8px;font-size:12.5px}
+.to{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start}
+.att{background:#fff;border:1px solid #93c5fd;border-radius:9px;box-shadow:0 0 0 1px #dbeafe}
+.att .ah{padding:9px 12px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+.att .ah b{font-size:13.5px}
+.att .ah .st{color:#6b7280;font-size:11.5px;display:block;margin-top:2px}
+.att .ah .hk{display:flex;gap:6px;align-items:center;flex:none}
+.mk{font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;border-radius:4px;padding:2px 7px;background:#f1f5f9;color:#475569;white-space:nowrap}
+.mk.b{background:#dbeafe;color:#1e40af}
+.up{display:flex;gap:6px;align-items:center;padding:8px 12px;border-bottom:1px solid #f1f5f9;flex-wrap:wrap}
+.up b{margin-right:4px}
+.adel{display:flex;gap:10px;padding:9px 12px;border-top:1px solid #f1f5f9;align-items:center;min-height:40px}
+.adel:first-of-type{border-top:0}
+.adel .nr{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#f3f4f6;color:#4b5563;font-weight:600;font-size:11px;flex:none}
+.adel .dn{width:96px;flex:none;font-weight:600}
+.adel .di{flex:1;min-width:0;font-variant-numeric:tabular-nums}
+.adel .di .tom{color:#9ca3af}
+.adel .hk{display:flex;gap:6px;flex:none;align-items:center}
+.adel.graa{color:#9ca3af}
+.rk{display:inline-block;border:1px solid #d1d5db;border-radius:6px;padding:3px 9px;background:#fff;font-size:11.5px;font-weight:600;color:#374151;white-space:nowrap}
+.ik{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border:1px solid #d1d5db;border-radius:6px;background:#fff;font-size:12px;color:#374151}
+.fl{display:inline-block;border:1px solid #93c5fd;border-radius:6px;padding:3px 8px;background:#eff6ff;font-size:11.5px;font-weight:600;color:#1e40af;white-space:nowrap}
+.pk{border:1px solid #d1d5db;border-radius:999px;padding:3px 11px;background:#fff;font-size:11.5px;font-weight:600;color:#374151;white-space:nowrap}
+.pk.paa{background:#1d4ed8;border-color:#1d4ed8;color:#fff}
+.inn{border:1px solid #d1d5db;border-radius:6px;padding:5px 9px;background:#fff;font-size:12.5px;display:inline-block}
+.inn.tall{font-variant-numeric:tabular-nums;min-width:56px;text-align:right}
+.inn.laast{background:#f3f4f6;color:#6b7280}
+.lite{color:#6b7280;font-size:11.5px;line-height:1.45}
+.kn{border-radius:6px;padding:6px 12px;font-weight:600;font-size:12.5px;background:#f3f4f6;border:1px solid #e5e7eb;display:inline-block;white-space:nowrap}
+.kn.pri{background:#1e40af;color:#fff;border-color:#1e40af}
+.kn.sm{padding:4px 9px;font-size:11.5px}
+.k{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#dc2626;color:#fff;font-weight:700;font-size:11.5px;margin-right:6px;flex:none}
+.g{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#16a34a;color:#fff;font-weight:700;font-size:11.5px;margin-right:6px;flex:none}
+.forkl{margin:12px 0 0;padding:0;list-style:none}
+.forkl li{display:flex;align-items:flex-start;margin-bottom:6px;line-height:1.4}
+.rod{outline:2px solid #dc2626;outline-offset:2px;border-radius:5px}
+.gronn{outline:2px solid #16a34a;outline-offset:2px;border-radius:5px}
+.ny-ramme{outline:2px dashed #2563eb;outline-offset:3px;border-radius:6px}
+.flytt{margin:0 12px 9px 42px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:7px;padding:8px 10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.lukket{display:flex;justify-content:space-between;gap:8px;background:#fff;border:1px solid #e5e7eb;border-left:3px solid #f59e0b;border-radius:6px;padding:8px 12px;margin-top:8px;font-size:12.5px}
+.lukket .st{color:#6b7280;font-size:11.5px;display:block;margin-top:2px}
+.eks{margin-top:12px;background:#fff;border:1px dashed #9ca3af;border-radius:9px;padding:10px 12px}
+.eks h4{margin:0 0 6px;font-size:12px;color:#4b5563}
+.eks .ln{display:flex;gap:10px;align-items:center;padding:5px 0;border-top:1px solid #f1f5f9}
+.eks .ln:first-of-type{border-top:0}
+.eks .t{display:inline-block;background:#f1f5f9;color:#475569;border-radius:4px;padding:0 6px;font-size:9.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;width:58px;text-align:center}
+.eks .t.reise{background:#fef3c7;color:#92400e}
+.eks .t.utl{background:#fce7f3;color:#9d174d}
+.eks .t.till{background:#e0e7ff;color:#3730a3}
+.eks .ln .di{flex:1}
+
+/* vinduet */
+.vindu{background:#fff;border:1px solid #d1d5db;border-radius:10px;padding:16px;box-shadow:0 6px 18px rgba(0,0,0,.14)}
+.vindu h3{margin:0 0 2px;font-size:16px;display:flex;justify-content:space-between}
+.vindu h3 span{color:#9ca3af;font-weight:400}
+.vindu .hvem{color:#6b7280;margin:0 0 14px}
+.pk-kort{border:1px solid #d1d5db;border-radius:9px;background:#fff}
+.pk-kort.b{border-color:#93c5fd;box-shadow:0 0 0 1px #dbeafe}
+.pk-hode{padding:9px 12px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center}
+.pk-hode b{font-size:14px}
+.pk-kropp{padding:12px}
+.lbl{display:block;font-size:10.5px;color:#6b7280;font-weight:600;margin-bottom:6px}
+.feltrad{display:flex;gap:14px;align-items:flex-end;margin-bottom:12px}
+.feltrad .sum{margin-left:auto;text-align:right}
+.feltrad .sum b{font-size:17px;display:block;font-variant-numeric:tabular-nums}
+.sted{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px;margin-bottom:6px}
+.sted .inn{display:block}
+.ov{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:#6b7280;font-weight:700;margin:12px 0 5px;display:flex;justify-content:space-between}
+.vl{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:5px 0;border-top:1px solid #f1f5f9;font-variant-numeric:tabular-nums}
+.vl.forste{border-top:0}
+.vl .tom{color:#9ca3af}
+.bunn{display:flex;justify-content:space-between;align-items:center;margin-top:14px;gap:12px}
+.info{background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:6px 9px;color:#1e3a8a;font-size:11.5px;line-height:1.4}
+body.en .ark{display:none}
+body.en .ark.vis{display:block}
+</style>
+</head>
+<body>
+
+<!-- ───────────── ARK 1: etter «Del opp» — begge kortene åpne ───────────── -->
+<div class="ark" id="etter">
+  <div class="tittel"><span class="pille">Versjon 23 · forslag</span><h1>Etter «Del opp»: begge kortene står åpne og kan rettes side om side</h1></div>
+  <div class="scen"><b>Kenneth 2026-11-23:</b> «nå fungerer del opp bra med maskin og timer -> men etter oppdeling vises kun et kort, det andre lukkes. hvis begge kort er åpne og redigerbare side ved side er det lettere å justere eventuelle endringer i varer, reise og utlegg/tillegg.» og «reise, + varer+ maskin, + utlegg/tillegg må også være tilgjengelig i begge kortene».
+    <div style="margin-top:6px"><b>Eksempel (Kenneths test, uke 47):</b> Kari ansatt attesterer. Én registrering på SD-20260502-0002 · Sitedoc Boligfelt B12: 07:00–12:00, pause 30 min, 4,50 t, Volvo EC220E 4,50 t og Fugesand 3 sekk. Delt kl. 11:00. Kort B er på TILL-001 · Tilleggsarbeid kantstein.</div>
+    <div style="margin-top:8px"><b class="ro">Rød ramme</b> = det som mangler i dag. <b class="gr">Grønn ramme</b> = nytt. <b class="bl">Blå stiplet ramme</b> = der du trykker.</div></div>
+
+  <div class="lik">
+
+    <div class="side">
+      <h2>I dag</h2>
+      <p class="under">Etter «✂ Del opp» står bare kort A åpent. Kort B er en lukket rad under.</p>
+      <div class="att">
+        <div class="ah"><div><b>SD-20260502-0002 · Sitedoc Boligfelt B12</b><span class="st">sommerfeldtsgt 65 · Anleggsarbeid</span></div><span class="hk"><span class="rk">✎ Rediger jobben</span><span class="ik">✕</span></span></div>
+        <div class="up"><b>Underprosjekt</b><span class="pk paa">Uten</span><span class="pk">END-002</span><span class="pk">TILL-001</span></div>
+        <div class="adel"><span class="nr">1</span><span class="dn">Fra–til</span><div class="di">07:00–11:00 · pause 0 min · <b>4,00 t</b></div><span class="hk"><span class="rk">✂ Del opp</span></span></div>
+        <div class="adel"><span class="nr">2</span><span class="dn">Lønnsart</span><div class="di">07:00–11:00 · <b>4,00 t</b> &nbsp;Timelønn</div><span class="hk"><span class="ik">✂</span><span class="ik">✎</span></span></div>
+        <div class="adel"><span class="nr">3</span><span class="dn">Hva gjorde du?</span><div class="di">kantstein</div></div>
+        <div class="adel"><span class="nr">4</span><span class="dn">Maskiner</span><div class="di">Volvo EC220E &nbsp;·&nbsp; 4,00 t</div><span class="hk"><span class="ik">✎</span></span></div>
+        <div class="adel"><span class="nr">5</span><span class="dn">Varer</span><div class="di"><span class="rod">Fugesand &nbsp;·&nbsp; 3,00 sekk</span></div></div>
+        <div class="adel"><span class="nr">6</span><span class="dn">Tillegg</span><div class="di"><span class="tom">—</span></div></div>
+        <div class="adel"><span class="nr">7</span><span class="dn">Utlegg</span><div class="di"><span class="tom">—</span></div></div>
+      </div>
+      <div class="lukket rod"><span><b>Sitedoc Boligfelt B12</b><span class="st">sommerfeldtsgt 65 · TILL-001 · Tilleggsarbeid kantstein</span></span><span>11:00–12:00 · 0,50 t</span></div>
+      <ul class="forkl">
+        <li><span class="k">1</span><span>Kort B lukkes. For å se det må kort A lukkes først: bare ett kort kan stå åpent om gangen.</span></li>
+        <li><span class="k">2</span><span>Fugesand står igjen i kort A med alle 3 sekkene. Den kan ikke flyttes eller fordeles til kort B.</span></li>
+        <li><span class="k">3</span><span>Det samme gjelder tillegg, utlegg og reise: alt blir i kort A.</span></li>
+      </ul>
+    </div>
+
+    <div class="side anb">
+      <h2>Slik det blir</h2>
+      <p class="under">«✂ Del opp» virker som i dag (klokkeslett, underprosjekt for B og maskintimene). Etterpå står kort A og kort B åpne ved siden av hverandre. Begge rettes som vanlige kort, og hver linje kan flyttes til det andre kortet.</p>
+      <div class="to">
+
+        <div class="att">
+          <div class="ah"><div><span class="mk">Kort A</span> <b>Sitedoc Boligfelt B12</b><span class="st">sommerfeldtsgt 65 · Anleggsarbeid</span></div><span class="hk"><span class="rk">✎ Rediger jobben</span><span class="ik">✕</span></span></div>
+          <div class="up"><b>Underprosjekt</b><span class="pk paa">Uten</span><span class="pk">END-002</span><span class="pk">TILL-001</span></div>
+          <div class="adel"><span class="nr">1</span><span class="dn">Fra–til</span><div class="di">07:00–11:00 · pause 0 min · <b>4,00 t</b></div><span class="hk"><span class="rk">✂ Del opp</span></span></div>
+          <div class="adel"><span class="nr">2</span><span class="dn">Lønnsart</span><div class="di">07:00–11:00 · <b>4,00 t</b> &nbsp;Timelønn</div><span class="hk"><span class="ik">✂</span><span class="ik">✎</span></span></div>
+          <div class="adel"><span class="nr">3</span><span class="dn">Hva gjorde du?</span><div class="di">kantstein</div></div>
+          <div class="adel"><span class="nr">4</span><span class="dn">Maskiner</span><div class="di">Volvo EC220E &nbsp;·&nbsp; 4,00 t</div><span class="hk"><span class="ik">✎</span></span></div>
+          <div class="adel"><span class="nr">5</span><span class="dn">Varer</span><div class="di">Fugesand &nbsp;·&nbsp; 3,00 sekk</div><span class="hk"><span class="fl ny-ramme">→ Kort B</span></span></div>
+          <div class="flytt gronn"><span>Til kort B:</span><span class="inn tall">1,00</span><span>av 3,00 sekk</span><span class="lite">2,00 sekk blir i kort A</span><span style="margin-left:auto;display:flex;gap:6px"><span class="kn sm">Avbryt</span><span class="kn sm pri">Flytt</span></span></div>
+          <div class="adel"><span class="nr">6</span><span class="dn">Tillegg</span><div class="di"><span class="tom">—</span></div></div>
+          <div class="adel"><span class="nr">7</span><span class="dn">Utlegg</span><div class="di"><span class="tom">—</span></div></div>
+          <div class="adel"><span class="nr">8</span><span class="dn">Reise</span><div class="di"><span class="tom">—</span></div></div>
+        </div>
+
+        <div class="att gronn">
+          <div class="ah"><div><span class="mk b">Kort B · nytt</span> <b>Sitedoc Boligfelt B12</b><span class="st">sommerfeldtsgt 65 · Anleggsarbeid</span></div><span class="hk"><span class="rk">✎ Rediger jobben</span><span class="ik">✕</span></span></div>
+          <div class="up"><b>Underprosjekt</b><span class="pk">Uten</span><span class="pk">END-002</span><span class="pk paa">TILL-001</span></div>
+          <div class="adel"><span class="nr">1</span><span class="dn">Fra–til</span><div class="di">11:00–12:00 · pause 30 min · <b>0,50 t</b></div><span class="hk"><span class="rk">✂ Del opp</span></span></div>
+          <div class="adel"><span class="nr">2</span><span class="dn">Lønnsart</span><div class="di">11:00–12:00 · pause 30 min · <b>0,50 t</b> &nbsp;Timelønn</div><span class="hk"><span class="ik">✂</span><span class="ik">✎</span></span></div>
+          <div class="adel"><span class="nr">3</span><span class="dn">Hva gjorde du?</span><div class="di">kantstein</div></div>
+          <div class="adel"><span class="nr">4</span><span class="dn">Maskiner</span><div class="di">Volvo EC220E &nbsp;·&nbsp; 0,50 t</div><span class="hk"><span class="ik">✎</span></span></div>
+          <div class="adel"><span class="nr">5</span><span class="dn">Varer</span><div class="di"><span class="tom">— &nbsp;etter «Flytt»: Fugesand · 1,00 sekk</span></div></div>
+          <div class="adel"><span class="nr">6</span><span class="dn">Tillegg</span><div class="di"><span class="tom">—</span></div></div>
+          <div class="adel"><span class="nr">7</span><span class="dn">Utlegg</span><div class="di"><span class="tom">—</span></div></div>
+          <div class="adel"><span class="nr">8</span><span class="dn">Reise</span><div class="di"><span class="tom">—</span></div></div>
+        </div>
+
+      </div>
+
+      <div class="eks">
+        <h4>Linjer Kenneths eksempel ikke har. Slik står de når kortet har dem:</h4>
+        <div class="ln"><span class="t till">Tillegg</span><span class="di">Smusstillegg · 1 stk</span><span class="fl">→ Kort B</span></div>
+        <div class="ln"><span class="t utl">Utlegg</span><span class="di">Parkering · 120,00 kr · med bilag</span><span class="fl">→ Kort B</span></div>
+        <div class="ln"><span class="t reise">Reise</span><span class="di">Fra byggeplass · 12:00–12:20 · 0,33 t</span><span class="hk" style="display:flex;gap:6px"><span class="ik">✎</span><span class="fl">→ Kort B</span></span></div>
+      </div>
+
+      <ul class="forkl">
+        <li><span class="g">1</span><span><b>Begge kortene står åpne</b> til du lukker dem med ✕. Kortene er to vanlige registreringer. Det finnes ingen kobling mellom dem i dataene.</span></li>
+        <li><span class="g">2</span><span><b>Alle seksjonene står i begge kortene,</b> også Reise når kortet ikke har reise. Det du kan rette i ett kort i dag (✎, ✂, «✎ Rediger jobben», underprosjekt), kan du rette i begge.</span></li>
+        <li><span class="g">3</span><span><b>«→ Kort B» på hver linje</b> under Varer, Tillegg, Utlegg og Reise. I kort B heter den «← Kort A». Linja flyttes hel. En vare kan også deles: skriv mengden som skal til det andre kortet.</span></li>
+        <li><span class="g">4</span><span><b>Maskintimene</b> fordeles i «Del opp» som i dag, og rettes etterpå med ✎ i hvert kort.</span></li>
+        <li><span class="g">5</span><span><b>Smal skjerm:</b> under 1 280 punkter står kort B under kort A, begge åpne.</span></li>
+      </ul>
+    </div>
+
+  </div>
+</div>
+
+<!-- ───────────── ARK 2: alternativet — vinduet før lagring med alle seksjonene ───────────── -->
+<div class="ark" id="vindu">
+  <div class="tittel"><span class="pille alt">Versjon 23 · alternativ</span><h1>Vinduet før lagring: kort A og kort B med alle seksjonene (erstatter v21-del-opp.png hvis vinduet skal bygges)</h1></div>
+  <div class="scen"><b>Kenneth 2026-11-23:</b> «det var avtalt at del opp skulle vise registreringer av begge side om side, slik at det er enkelt å dele opp kortene.»
+    <div style="margin-top:6px"><b>Forskjellen fra ark 1:</b> her fordeles alt <b>før</b> noe er lagret, og ett «Lagre» skriver begge kortene. Etter «Lagre» står kortene åpne som i ark 1. Samme eksempel: 07:00–12:00, pause 30 min, Volvo EC220E 4,50 t, Fugesand 3 sekk, delt kl. 11:00.</div>
+    <div style="margin-top:8px"><b class="gr">Grønn ramme</b> = nytt mot <code>v21-del-opp.png</code>. <b class="bl">Blå stiplet ramme</b> = der du trykker.</div></div>
+
+  <div class="side" style="max-width:1320px">
+    <div class="vindu">
+      <h3>Del opp <span>✕</span></h3>
+      <p class="hvem">[arbeideren] · [dato] · SD-20260502-0002 · Sitedoc Boligfelt B12 · 07:00–12:00 · pause 30 min · 4,50 t</p>
+
+      <div class="to">
+
+        <div class="pk-kort">
+          <div class="pk-hode"><b>Kort A</b><span class="mk">Blir stående</span></div>
+          <div class="pk-kropp">
+            <div class="feltrad">
+              <div><span class="lbl">Fra kl.</span><span class="inn tall">07:00</span></div>
+              <div><span class="lbl">Til kl.</span><span class="inn tall ny-ramme">11:00</span></div>
+              <div><span class="lbl">Pause (min)</span><span class="inn tall">0</span></div>
+              <div class="sum"><span class="lbl">Arbeid</span><b>4,00 t</b></div>
+            </div>
+            <div><span class="lbl">Prosjekt · byggeplass · underprosjekt</span><span class="inn laast" style="display:block">Sitedoc Boligfelt B12 · sommerfeldtsgt 65 · Uten</span></div>
+            <p class="ov"><span>Lønnsart</span></p>
+            <div class="vl forste"><span>07:00–11:00 · Timelønn</span><b>4,00 t</b></div>
+            <p class="ov"><span>Hva gjorde du?</span></p>
+            <div class="vl forste"><span class="inn" style="display:block;flex:1">kantstein</span></div>
+            <p class="ov gronn"><span>Maskiner</span><span>timer i A</span></p>
+            <div class="vl forste"><span>Volvo EC220E · 4,50 t</span><span class="inn tall">4,00</span></div>
+            <p class="ov gronn"><span>Varer</span><span>mengde i A</span></p>
+            <div class="vl forste"><span>Fugesand · 3,00 sekk</span><span class="inn tall">2,00</span></div>
+            <p class="ov gronn"><span>Tillegg</span></p>
+            <div class="vl forste"><span class="tom">—</span></div>
+            <p class="ov gronn"><span>Utlegg</span></p>
+            <div class="vl forste"><span class="tom">—</span></div>
+            <p class="ov gronn"><span>Reise</span></p>
+            <div class="vl forste"><span class="tom">—</span></div>
+          </div>
+        </div>
+
+        <div class="pk-kort b">
+          <div class="pk-hode"><b>Kort B</b><span class="mk b">Nytt kort</span></div>
+          <div class="pk-kropp">
+            <div class="feltrad">
+              <div><span class="lbl">Fra kl.</span><span class="inn tall">11:00</span></div>
+              <div><span class="lbl">Til kl.</span><span class="inn tall">12:00</span></div>
+              <div><span class="lbl">Pause (min)</span><span class="inn tall">30</span></div>
+              <div class="sum"><span class="lbl">Arbeid</span><b>0,50 t</b></div>
+            </div>
+            <div class="sted">
+              <div><span class="lbl">Prosjekt</span><span class="inn">Sitedoc Boligfelt B12 ▾</span></div>
+              <div><span class="lbl">Byggeplass</span><span class="inn">sommerfeldtsgt 65 ▾</span></div>
+              <div><span class="lbl">Underprosjekt</span><span class="inn">TILL-001 ▾</span></div>
+            </div>
+            <p class="ov"><span>Lønnsart</span></p>
+            <div class="vl forste"><span>11:00–12:00 · pause 30 min · Timelønn</span><b>0,50 t</b></div>
+            <p class="ov"><span>Hva gjorde du?</span></p>
+            <div class="vl forste"><span class="inn" style="display:block;flex:1">kantstein</span></div>
+            <p class="ov gronn"><span>Maskiner</span><span>timer i B</span></p>
+            <div class="vl forste"><span>Volvo EC220E</span><span class="inn tall">0,50</span></div>
+            <p class="ov gronn"><span>Varer</span><span>mengde i B</span></p>
+            <div class="vl forste"><span>Fugesand</span><span class="inn tall">1,00</span></div>
+            <p class="ov gronn"><span>Tillegg</span></p>
+            <div class="vl forste"><span class="tom">—</span></div>
+            <p class="ov gronn"><span>Utlegg</span></p>
+            <div class="vl forste"><span class="tom">—</span></div>
+            <p class="ov gronn"><span>Reise</span></p>
+            <div class="vl forste"><span class="tom">—</span></div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="eks">
+        <h4>Linjer Kenneths eksempel ikke har. Tillegg, utlegg og reise deles ikke; hver linje står i ett av kortene:</h4>
+        <div class="ln"><span class="t till">Tillegg</span><span class="di">Smusstillegg · 1 stk</span><span class="pk paa">Kort A</span><span class="pk">Kort B</span></div>
+        <div class="ln"><span class="t utl">Utlegg</span><span class="di">Parkering · 120,00 kr · med bilag</span><span class="pk paa">Kort A</span><span class="pk">Kort B</span></div>
+        <div class="ln"><span class="t reise">Reise</span><span class="di">Fra byggeplass · 12:00–12:20 · 0,33 t</span><span class="pk">Kort A</span><span class="pk paa">Kort B</span></div>
+      </div>
+
+      <div class="bunn">
+        <span class="info">Lagrer to registreringer. [Fornavn] ser «Korrigert av Kari ansatt» på begge. Etterpå står begge kortene åpne.</span>
+        <span style="display:flex;gap:8px"><span class="kn">Avbryt</span><span class="kn pri">Lagre</span></span>
+      </div>
+    </div>
+    <ul class="forkl">
+      <li><span class="g">1</span><span><b>Alle seksjonene i begge kortene.</b> Maskin og vare har ett tallfelt i hvert kort; summen er det arbeideren førte. Tillegg, utlegg og reise har valget «Kort A | Kort B» på hver linje.</span></li>
+      <li><span class="g">2</span><span><b>Ingenting er lagret før «Lagre».</b> «Avbryt» endrer ingenting. I ark 1 er delingen lagret før varene flyttes.</span></li>
+      <li><span class="g">3</span><span><b>Koster mer:</b> vinduet er en ny flate med egne felt for alle seksjonene, og serveren må ta imot hele fordelingen i ett kall. Ark 1 bruker kortet som finnes, to ganger.</span></li>
+    </ul>
+  </div>
+</div>
+
+<script>
+  var h = location.hash.slice(1);
+  if (h && document.getElementById(h)) { document.body.classList.add('en'); document.getElementById(h).classList.add('vis'); document.documentElement.setAttribute('data-hoyde', document.getElementById(h).offsetHeight); }
+</script>
+</body>
+</html>
