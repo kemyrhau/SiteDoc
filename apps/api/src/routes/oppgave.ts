@@ -465,17 +465,19 @@ export const oppgaveRouter = router({
       // Verifiser tilgang til sjekklisten
       const sjekkliste = await ctx.prisma.checklist.findUniqueOrThrow({
         where: { id: input.checklistId },
-        include: { template: { select: { projectId: true } } },
+        include: { template: { select: { projectId: true, domain: true, hmsSynlighet: true } } },
       });
+      // H3-2: malens domene + synlighet sendes med, ellers regnes en privat HMS-sjekkliste
+      // ikke som privat, og prosjektadmin slipper gjennom tidlig retur.
       await verifiserDokumentTilgang(
         ctx.userId,
         sjekkliste.template.projectId,
         sjekkliste.bestillerFaggruppeId,
         sjekkliste.utforerFaggruppeId,
-        undefined,
+        sjekkliste.template.domain,
         sjekkliste.id,
         "checklist",
-        undefined,
+        sjekkliste.template.hmsSynlighet,
       );
 
       return ctx.prisma.task.findMany({

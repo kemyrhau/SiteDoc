@@ -2,6 +2,7 @@ import type { Prisma } from "@sitedoc/db";
 import { nb } from "@sitedoc/shared";
 import { aktivtMedlemWhere } from "../trpc/tilgangskontroll";
 import { APENT_DOKUMENT_WHERE } from "./flytFjerning";
+import { HMS_SYSTEMNOKKEL } from "./hmsGruppe";
 import { loggMedlemsendring } from "./prosjektmedlemskap";
 
 type Db = Prisma.TransactionClient;
@@ -42,8 +43,8 @@ type Utvalg = {
 
 /**
  * Sakene som mister personpekeren når rollen fjernes: prosjekter der personen fortsatt er
- * HMS-behandler uten firma-rollen (prosjekt-admin eller aktivt medlem av en HMS-gruppe — de to
- * første grenene i `erHmsAdmin`) beholder ballen hos personen. Delt av forhåndsvisning og sweep,
+ * HMS-behandler uten firma-rollen (aktivt medlem av prosjektets HMS-gruppe, `systemNokkel: "hms"`
+ * — første gren i `erHmsAdmin`; prosjektadmin teller ikke etter H3) beholder ballen hos personen. Delt av forhåndsvisning og sweep,
  * så antallet i modalen er det sweepen treffer.
  */
 async function finnSakerSomFlyttes(
@@ -71,17 +72,14 @@ async function finnSakerSomFlyttes(
     },
     select: {
       projectId: true,
-      role: true,
-      groupMemberships: { where: aktivtMedlemWhere, select: { group: { select: { domains: true } } } },
+      groupMemberships: {
+        where: { ...aktivtMedlemWhere, group: { systemNokkel: HMS_SYSTEMNOKKEL } },
+        select: { id: true },
+      },
     },
   });
   const beholder = new Set(
-    medlemskap
-      .filter((m) =>
-        m.role === "admin" ||
-        m.groupMemberships.some((gm) => Array.isArray(gm.group.domains) && (gm.group.domains as unknown[]).includes("hms")),
-      )
-      .map((m) => m.projectId),
+    medlemskap.filter((m) => m.groupMemberships.length > 0).map((m) => m.projectId),
   );
   const flyttes = (s: Sak) => !beholder.has(s.template.projectId);
   return { sjekklister: sjekklister.filter(flyttes), oppgaver: oppgaver.filter(flyttes) };

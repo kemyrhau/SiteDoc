@@ -165,7 +165,7 @@ Flyttet hit fra CLAUDE.md 2026-07-10 (anker-prinsippet — modul-typologi bor i 
 >
 > I tillegg skrives `firmaRoller` fra ≥3 mutasjoner i `organisasjon.ts` (én merket «Speil av settFirmaAdmin» = bevisst duplisert), og leses 39 steder i 7 filer. En fjerde, utgått kilde (`User.organizationId`) forårsaket «FIRMA-kolonne tom»-bugen (fikset `4b306a14`).
 >
-> **Observerte symptomer av samme rot:** kmy står som «Bruker» på ansatte-siden (`firmaRoller = {}`) samtidig som han fungerer som HMS-behandler på prosjekt — fordi `erHmsAdmin` i dag er *union* av tre kilder (prosjektadmin ∪ HMS-gruppemedlemskap ∪ firma-`hms_ansvarlig`). Rollen hans er reelt definert et annet sted enn firmaets ansatte-side.
+> **Observerte symptomer av samme rot:** kmy står som «Bruker» på ansatte-siden (`firmaRoller = {}`) samtidig som han fungerer som HMS-behandler på prosjekt — fordi `erHmsAdmin` på develop er *union* av tre kilder (prosjektadmin ∪ HMS-gruppemedlemskap ∪ firma-`hms_ansvarlig`); 🟡 H3 (`fix/hms-h3-behandler`, ikke merget) fjerner prosjektadmin, se [hms-domenemodell.md § HMS-flyt regel 3](hms-domenemodell.md). Rollen hans er reelt definert et annet sted enn firmaets ansatte-side.
 >
 > **Konsekvens for nytt arbeid:** ny kode leser firmamedlemskap/firmarolle KUN fra `OrganizationMember`. Ingen nye lesepunkter mot `User.role` eller `erFirmaansvarlig` for firma-beslutninger. Konsolidering av eksisterende kilder = egen ordre (fabel speccer datamodell + UX + migrering); ikke improviser den inn i en pågående runde — den rører tilgangskontroll.
 

@@ -14,7 +14,8 @@ import { signerDataRader } from "../utils/vedleggSignering";
  *
  * Regler:
  * - sitedoc_admin og ikke-medlem: ser alt / defensiv null (returnerer null)
- * - HMS-admin (prosjekt-admin ∪ HMS-gruppe ∪ firma-`hms_ansvarlig`): ser alt HMS
+ * - HMS-behandler (HMS-gruppa `systemNokkel: "hms"` ∪ firma-`hms_ansvarlig`; prosjektadmin
+ *   bare som medlem av HMS-gruppa, H3): ser alt HMS
  * - Vanlig bruker: ser kun dokumenter der mal er "apen", ELLER de selv er innsender/mottaker
  *
  * HMS-admin-mengden er delt med `verifiserHmsHandling` via `erHmsAdmin` — én
@@ -43,8 +44,8 @@ async function byggHmsSynlighetsFilter(
     return null;
   }
 
-  // HMS-admin ser alt HMS (prosjekt-admin ∪ HMS-gruppe ∪ firma-hms_ansvarlig) —
-  // delt kilde med verifiserHmsHandling.
+  // HMS-behandleren ser alt HMS (HMS-gruppa ∪ firma-hms_ansvarlig; ikke prosjektadmin
+  // i kraft av rollen, H3) — delt kilde med verifiserHmsHandling.
   if (await erHmsAdmin(userId, projectId)) return null;
 
   // Vanlig bruker: "apen" ELLER innsender/mottaker
