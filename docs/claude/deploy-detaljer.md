@@ -65,8 +65,8 @@ uansett hva deploy-loggen sa.
 
 ### 🔴 `dist/` er DØDT i api-imaget — grep aldri der (målt 2026-08-21)
 
-`Dockerfile.api:54` er `CMD ["pnpm", "exec", "tsx", "src/server.ts"]`. **Runtime kjører
-TypeScript-kilden direkte.** `pnpm turbo build` (`:19`) produserer et `dist/` som aldri
+`Dockerfile.api` (siste linje) er `CMD ["pnpm", "exec", "tsx", "src/server.ts"]`. **Runtime kjører
+TypeScript-kilden direkte.** `pnpm turbo build` (build-staget) produserer et `dist/` som aldri
 startes — det fungerer som typesjekk-port i bygget, ikke som leveranse.
 
 Konsekvens: `ls /app/apps/api/dist/...` sier **ingenting** om hva som kjører. En sjekk
@@ -188,6 +188,25 @@ Imaget bærer commit-sha + byggtid (`/version` + Innstillinger-linje). **`.git` 
 «dev»/«ukjent» (ingen krasj, men stemplet blir «dev»; da vet vi ikke hvilken kode som kjører).
 Build-args interpoleres fra SAMME env-par `GIT_SHA`/`BUILD_TID` for både api og web — de kan aldri
 stemples ulikt. **Verifiser stemplet:** `curl https://api-test.sitedoc.no/version` (og prod) → `{gitSha, byggTid, node}`.
+
+### Byggekontekst og lagrekkefølge — hvorfor (DOCKER-SLANK 2026-11-24)
+
+**Brukerdata lå i imagene.** Byggekonteksten er `~/stack/sitedoc`, og der ligger `uploads/` (bind-mounten,
+4,4 G målt 2026-11-24) i roten. `.dockerignore` utelot bare `apps/api/uploads`, så `COPY . .` la alle
+brukerfilene — også `uploads/privat/` — i `/app/uploads` i både api- og web-imaget. Ingen kode leste derfra
+(cwd er `apps/api`/`apps/web`, mountene ligger der). I tillegg fulgte lokale mapper rsync tar med fra
+hovedtreet: «3D eksempelfiler» (445 M), `kilder` (40 M), `docs`, `.claude` m.fl. Containerd teller utpakket
+og komprimert innhold hver for seg, og bilder/PDF komprimeres nesten ikke — derfor 14–16 GB pr. image.
+**Nå er `.dockerignore` en tillatelsesliste:** bare `apps`, `packages`, `tests` og rotfilene bygget trenger
+slipper inn. En ny rotmappe havner aldri i imaget ved et uhell; mangler bygget en fil, feiler det høylytt.
+
+**Avhengigheter før kildekode.** Før lå `COPY . .` foran `pnpm install`, så hver kodeendring kjørte install
+og `prisma generate` på nytt og eksporterte ~2,4 GB node_modules-lag hver gang. Nå kopieres bare
+`package.json`-ene, lockfila og Prisma-skjemaene først; install- og generate-lagene gjenbrukes ved ren
+kodeendring. Api har eget `deps`-stage, så runtime kopierer avhengighetene og kildekoden som separate lag.
+**Ny workspace-pakke må legges til i COPY-lista i begge Dockerfilene** (glemt fil gir
+`ERR_PNPM_OUTDATED_LOCKFILE`, ikke stille feil). Detaljer og målinger: [DOCKER-NOTES.md § Byggekontekst og
+lagrekkefølge](../../docker/DOCKER-NOTES.md).
 
 ### ⚠️ `deploy.sh` er en FELLE — IKKE bruk (bør slettes/omskrives)
 

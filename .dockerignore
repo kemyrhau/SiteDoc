@@ -1,18 +1,45 @@
-node_modules
+# DOCKER-SLANK (2026-11-24): tillatelsesliste. Gjelder ALLE fire Dockerfilene med
+# `context: ..` i compose (api, web, ml, pdf) — hver COPY-linje i dem må slippe gjennom her.
+# Byggekonteksten på server-ny er
+# ~/stack/sitedoc, som også inneholder server-only data og lokale filer rsync tar med
+# fra Kenneths hovedtre: uploads/ (brukerfilene, 4,4 G — lå i /app/uploads i begge
+# imagene), «3D eksempelfiler» (445 M), kilder (40 M), .claude (worktrees), «Fra fabel»,
+# *-bevis, .playwright-mcp m.fl. Alt som ikke står under, holdes ute — også nye
+# rotmapper ingen har tenkt på. Trenger bygget eller kjøringen en ny rotfil, legg den
+# til her (bygget feiler høylytt, ikke stille). Se docker/DOCKER-NOTES.md § Byggekontekst.
+*
+!apps
+!packages
+!tests
+!package.json
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!.npmrc
+!turbo.json
+!tsconfig.json
+!.eslintrc.json
+
+# Dockerfile.pdf kopierer docker/pdf-render/{package.json,server.mjs}. Resten av docker/
+# (env-filer, vendor, Dockerfilene selv) holdes ute. Dockerfile.ml trenger bare
+# apps/api/src/services/*.py, som alt er med via `!apps`.
+!docker
+docker/*
+!docker/pdf-render
+
+# Mobilappen: bare package.json trengs (pnpm install --frozen-lockfile validerer
+# lockfila mot alle workspace-pakker). Resten er bloat — samme regel som rsync i deploy-*.sh.
+apps/mobile/*
+!apps/mobile/package.json
+
+# Innenfor de tillatte mappene
 **/node_modules
 **/.next
 **/dist
-.turbo
 **/.turbo
-.git
 **/.env
 **/.env.*
-docker/env/*.env
 **/*.tsbuildinfo
-apps/api/uploads
 **/.DS_Store
-docker/vendor
-
-# Lokale kundefiler og agent-relay — aldri i bilder (2026-10-13, lå i api/web-bildene via COPY . .)
-DWG eksempelfiler
-relay
+apps/api/uploads
+apps/web/uploads
+apps/api/embedding.log
