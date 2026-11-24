@@ -10,6 +10,8 @@ import {
   erArbeidstidReise,
   erFravaerArt,
   erOvertidsnivaa,
+  reiseUnderTerskel,
+  type ReiseUnderTerskel,
   type TimerTabellLinje,
   type TimerTabellKolKey,
   type TimerTabellMaskin,
@@ -113,6 +115,11 @@ export interface AttDeps {
   ukeAvvikTekst: (s: AttSedel) => string | null;
   /** w9: forklaringen på merket «Maskin over arbeid» — «Maskin 7,5 t, arbeid 4,5 t». */
   maskinOverArbeidForklaring: (maskinTimer: number, arbeidTimer: number) => string;
+  /**
+   * A3 (§ 4.17 del D, B55): merket «Reise under terskel» med forklaringen. Uten den får
+   * reiselinja ikke merke (testene som ikke gjelder A3).
+   */
+  reiseUnderTerskelMerke?: (u: ReiseUnderTerskel) => AvvikMerke;
   tekst: {
     forslagSperre: string;
     maskinUtenTimerad: string;
@@ -377,6 +384,12 @@ function byggDag(s: AttSedel, deps: AttDeps): AttDag {
       if (maskiner.some((m) => m.utenTimerad)) utenTimerad();
       if (maskiner.length > 0 && s.manglerMaskinforerbevis) utenForerbevis();
       if (maskiner.length > 0) overArbeid(r);
+      // A3 (B55): reise under terskelen, ført som reisetid — attestanten vurderer føringen.
+      const underTerskel = reiseUnderTerskel(r);
+      if (underTerskel && deps.reiseUnderTerskelMerke) {
+        const merke = deps.reiseUnderTerskelMerke(underTerskel);
+        leggTilAvvik(merke.tekst, merke);
+      }
       const ventende = r.attestertStatus === "pending";
       return {
         ...base,
@@ -617,7 +630,8 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
 export function linjeVarsel(l: AttLinje, lonnsart: LonnsartOppslag): LinjeVarsel | null {
   if (l.kilde.type !== "timer") return null;
   const r = l.kilde.rad;
-  if (r.erReise === true) return null;
+  // A3 (B55): reise under terskelen ført som reisetid er gul; annen reise er ikke det.
+  if (r.erReise === true) return reiseUnderTerskel(r) ? "reise" : null;
   const art = lonnsart(r.lonnsartId);
   if (erFravaerArt(art ? { type: art.type ?? null } : null)) return "fravaer";
   if (erOvertidsnivaa(art?.overtidsnivaa)) return "overtid";

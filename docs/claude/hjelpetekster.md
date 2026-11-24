@@ -468,6 +468,11 @@ Fra A2 i attesteringen (🟡 ikke merget, samme branch, plan § 4.17 punkt 5, B5
 - **Struktur** (`…hjelp.struktur`, endret): «byggeplass og underprosjekt under navnet» er byttet med «↳» for underprosjekt og hover på navnet (prosjektnummer, byggeplass, underprosjekt, «Hva gjorde du?»); med flere jobber viser «N jobber» det samme for hver jobb. Generert på nytt i 13 språk.
 - Hoveren bruker eksisterende etiketter: `timer.felt.byggeplass`, `timer.felt.underprosjekt`, `timer.felt.radBeskrivelse`. Ingen nye nøkler.
 
+Fra A3 i attesteringen (🟡 ikke merget, samme branch, plan § 4.17 del D, B55):
+
+- **Struktur** (`…hjelp.struktur`, endret): én setning om at en reise under firmaets terskel som er ført som reisetid også er gul, og at merket «Reise under terskel» forklarer avstanden. Generert på nytt i 13 språk.
+- Merket: «Reise under terskel» (`timer.attestering.tabell.merke.reiseUnderTerskel`). Hover: «Reisen er 22 km. Firmaets terskel er 30 km. Under terskelen regnes reisen innenfor arbeidstiden. Den er ført som reisetid.» (`…merke.reiseUnderTerskelForklaring`); uten målt avstand/kjøretid `…merke.reiseUnderTerskelForklaringUtenMaaling`. Enhetene via `timer.reiseTerskel.km` / `.min`. Nye nøkler i 15 språk. Ingen handling i varselet (B83).
+
 ## Prosjekt → Timer → Attestering (d2b-2) — ⚠️ fjernet i w10b
 
 🟡 w10b (`feat/web-timer-w10b`, ikke merget; plan web-timeføring § 4.10, B29 B): siden og menypunktet er fjernet. Adressen sender til `/dashbord/attestering`, der prosjektlederen får hjelpeteksten under Firma › Attestering (avsnittet `timer.attestering.hjelp.omfang`). Nøklene `timer.attestering.beskrivelse` og `timer.attestering.prosjekt.hjelp.laast` er slettet i alle 15 språk. Teksten under er historikk.

@@ -618,3 +618,47 @@ describe("A1 (plan § 4.17 del A) — normmerket, lønnsartmerkene og gule linje
     expect(v("t1")).toBeNull();
   });
 });
+
+describe("A3 (plan § 4.17 del D, B55) — «Reise under terskel»", () => {
+  const regel = (over: Record<string, unknown> = {}) => ({ enhet: "km", terskelM: 30000, regelKategori: "arbeidstid", ...over });
+  const merkeDeps: AttDeps = {
+    ...deps,
+    reiseUnderTerskelMerke: (u) => ({ tekst: "Reise under terskel", forklaring: `${u.maalt} av ${u.terskel} ${u.enhet}` }),
+  };
+  const dag = (reiseRegel: unknown) =>
+    byggAttesteringModell(
+      [enkel({
+        timer: [
+          timer("t1", "kA", A),
+          timer("r1", "kA", A, { erReise: true, fraTid: "06:30", tilTid: "07:00", timer: "0.5", pauseMin: 0, reiseRegel, reiseAvstandM: 22000 }),
+        ],
+      })],
+      merkeDeps,
+    )[0]!;
+  const reiselinje = (d: ReturnType<typeof dag>) =>
+    d.kort.flatMap((k) => k.linjer).find((l) => l.kilde.type === "timer" && l.kilde.rad.id === "r1")!;
+  const oppslag: LonnsartOppslag = () => ({ navn: "Ordinær" });
+
+  it("reise under terskelen ført som reisetid: merke med målt avstand og terskel, og gul linje", () => {
+    const l = reiselinje(dag(regel()));
+    expect(l.avvikMerker).toEqual([{ tekst: "Reise under terskel", forklaring: "22 av 30 km" }]);
+    expect(linjeVarsel(l, oppslag)).toBe("reise");
+  });
+
+  it("lønnsartmerket for reisen blir gult", () => {
+    const linjer = dag(regel()).kort.flatMap((k) => k.linjer);
+    expect(lonnsartMerker(linjer, oppslag).map((m) => m.varsel)).toEqual(["reise", null]); // tidsrekkefølge: reisen 06:30 først
+  });
+
+  it("negativkontroll: uten avvik fra regelen (ingen regelKategori) — intet merke, ikke gul", () => {
+    const l = reiselinje(dag(regel({ regelKategori: undefined })));
+    expect(l.avvikMerker).toEqual([]);
+    expect(linjeVarsel(l, oppslag)).toBeNull();
+  });
+
+  it("negativkontroll: eldre reise uten snapshot får ikke merke", () => {
+    const l = reiselinje(dag(null));
+    expect(l.avvikMerker).toEqual([]);
+    expect(linjeVarsel(l, oppslag)).toBeNull();
+  });
+});

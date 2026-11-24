@@ -2201,3 +2201,51 @@ describe("A1 (plan § 4.17 del A, B51 A) — gult på dagen", () => {
     expect(dagsrad(under.container).textContent).toContain('normMerke{"avvik":"−2,5"}');
   });
 });
+
+describe("A3 (plan § 4.17 del D, B55) — «Reise under terskel» på dagen", () => {
+  const a3Deps: AttDeps = {
+    ...deps,
+    reiseUnderTerskelMerke: (u) => ({ tekst: "Reise under terskel", forklaring: `Reisen er ${u.maalt} km. Terskel ${u.terskel} km.` }),
+  };
+  const reiseRegel = (over: Record<string, unknown> = {}) => ({ enhet: "km", terskelM: 30000, regelKategori: "arbeidstid", ...over });
+  const visDag = (regel: unknown) => {
+    h.data["timer.lonnsart.list"] = [{ id: "l1", navn: "Ordinær", satsEnhet: null }, { id: "lr", navn: "Reise", satsEnhet: null }];
+    const s = sedel({
+      timer: [
+        timer("t1", { fraTid: "07:00", tilTid: "15:00", timer: "7.5" }),
+        timer("r1", { erReise: true, reiseRetning: "ut", lonnsartId: "lr", fraTid: "06:30", tilTid: "07:00", timer: "0.5", pauseMin: 0, reiseRegel: regel, reiseAvstandM: 22000 }),
+      ],
+    });
+    return render(
+      <AttesteringTabell
+        dager={byggAttesteringModell([s], a3Deps)}
+        orgId="org1"
+        readOnly={false}
+        verktoy={<span>uke-og-fane</span>}
+        ukeoversikt={() => <div>ukeoversikt-innhold</div>}
+        sedelUrl={(id) => `/sedel/${id}`}
+        onReturnerDag={() => {}}
+      />,
+    );
+  };
+  const reiseMerke = (c: HTMLElement) =>
+    (Array.from(dagsrad(c).querySelectorAll("[data-lonnsart-oversikt]")) as HTMLElement[]).find((m) => m.textContent?.startsWith("Ordinær 0,5"));
+
+  it("merket står i dagsraden med forklaring i hover; reiselinja og reisens lønnsartmerke er gule", () => {
+    const { container } = visDag(reiseRegel());
+    const merke = within(dagsrad(container)).getByText("Reise under terskel");
+    const tips = document.getElementById(merke.closest("[aria-describedby]")!.getAttribute("aria-describedby")!);
+    expect(tips?.textContent).toContain("Reisen er 22 km. Terskel 30 km.");
+    expect(linje(container, "s1:reise:r1").className).toContain("bg-amber-50");
+    expect(reiseMerke(container)?.getAttribute("data-lonnsart-oversikt")).toBe("reise");
+    // Ingen handling i varselet (B83 kommer senere): merket er ikke en knapp.
+    expect(merke.closest("button")).toBeNull();
+  });
+
+  it("negativkontroll: reisen fulgte regelen (ingen regelKategori) — intet merke, linja er ikke gul", () => {
+    const { container } = visDag(reiseRegel({ regelKategori: undefined }));
+    expect(within(dagsrad(container)).queryByText("Reise under terskel")).toBeNull();
+    expect(linje(container, "s1:reise:r1").className).not.toContain("bg-amber-50");
+    expect(reiseMerke(container)?.getAttribute("data-lonnsart-oversikt")).toBe("");
+  });
+});

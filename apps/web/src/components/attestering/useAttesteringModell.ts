@@ -40,6 +40,19 @@ export function useAttesteringModell(
           maskin: maskin.toLocaleString(i18n.language, { maximumFractionDigits: 2 }),
           arbeid: arbeid.toLocaleString(i18n.language, { maximumFractionDigits: 2 }),
         }),
+      reiseUnderTerskelMerke: (u) => {
+        const enhet = (n: number) =>
+          u.enhet === "km"
+            ? t("timer.reiseTerskel.km", { km: n.toLocaleString(i18n.language, { maximumFractionDigits: 1 }) })
+            : t("timer.reiseTerskel.min", { min: n.toLocaleString(i18n.language, { maximumFractionDigits: 0 }) });
+        return {
+          tekst: t("timer.attestering.tabell.merke.reiseUnderTerskel"),
+          forklaring:
+            u.maalt == null
+              ? t("timer.attestering.tabell.merke.reiseUnderTerskelForklaringUtenMaaling", { terskel: enhet(u.terskel) })
+              : t("timer.attestering.tabell.merke.reiseUnderTerskelForklaring", { maalt: enhet(u.maalt), terskel: enhet(u.terskel) }),
+        };
+      },
       tekst: {
         forslagSperre: t("timer.forslagValg.attesterBlokkert"),
         maskinUtenTimerad: t("timer.attestering.tabell.maskinUtenTimerad"),
