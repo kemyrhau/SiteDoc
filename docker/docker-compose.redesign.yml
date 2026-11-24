@@ -1,4 +1,6 @@
 # NY-SERVER — sitedoc REDESIGN-stack (steg viii: kunderunde mot prod-kopi).
+# ⛔ FJERNET 2026-11-24: containere, images og DB sitedoc_redesign slettet på server-ny. Fila står som
+#    historikk til Kenneth beslutter sletting; bygg ikke stacken på nytt uten ny ordre (prod-kopi-DB).
 # Kjører ved siden av prod + test. Deler appnet + ML (embed/oversettelse) + postgres-containeren.
 # DB: sitedoc_redesign (KOPI av prod-DB, sessions nullstilt). Domener: redesign.sitedoc.no (web 3500)
 # + api-redesign.sitedoc.no (api 3501). Egne images (sitedoc-redesign-*) så prod/test-imagene står urørt.
