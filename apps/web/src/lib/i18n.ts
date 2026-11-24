@@ -73,17 +73,38 @@ i18next.use(initReactI18next).init({
   },
 });
 
-async function aktiver(kode: SpraakKode) {
-  await lastSpraak(kode);
+/**
+ * Løpende nummer på språkforespørsler. Bare den siste får aktivere: en forespørsel som
+ * er blitt forbigått mens fila ble hentet, laster ferdig, men kaller ikke `changeLanguage`
+ * og rører ikke `<html lang>`. Uten dette kunne en treg oppstartslasting (`spraakKlart`)
+ * fullføre etter brukerens `byttSpraak` og overstyre valget.
+ */
+let sisteForesporsel = 0;
+
+/** Aktiver språket. Gir `false` når en senere forespørsel har tatt over. */
+async function aktiver(kode: SpraakKode): Promise<boolean> {
+  const forrige = sisteForesporsel;
+  const nr = ++sisteForesporsel;
+  try {
+    await lastSpraak(kode);
+  } catch (e) {
+    // Feilet hentingen og ingen har tatt over: forrige forespørsel får gjelde igjen
+    if (sisteForesporsel === nr) sisteForesporsel = forrige;
+    throw e;
+  }
+  if (sisteForesporsel !== nr) return false;
   await i18next.changeLanguage(kode);
+  if (sisteForesporsel !== nr) return false;
   if (typeof document !== "undefined") {
     document.documentElement.lang = kode;
   }
+  return true;
 }
 
 /**
  * Lagret språk ved oppstart (klient). Løses alltid — feiler lastingen, blir siden
- * stående på nb (fallback) i stedet for å forbli skjult.
+ * stående på nb (fallback) i stedet for å forbli skjult. Har brukeren byttet språk
+ * før lastingen ble ferdig, vinner byttet (se `sisteForesporsel`).
  */
 export const spraakKlart: Promise<void> = (async () => {
   if (typeof window === "undefined") return;
@@ -94,11 +115,13 @@ export const spraakKlart: Promise<void> = (async () => {
 
 /**
  * Bytt språk: hent fila, aktiver og husk valget. Feiler hentingen (f.eks. uten nett),
- * beholdes gjeldende språk og valget lagres ikke.
+ * beholdes gjeldende språk og valget lagres ikke. Siste valg vinner, også over en
+ * oppstartslasting som ikke er ferdig; et forbigått valg lagres ikke.
  */
 export async function byttSpraak(kode: SpraakKode) {
-  try { await aktiver(kode); } catch { return; }
-  lagreSpraak(kode);
+  let aktivert: boolean;
+  try { aktivert = await aktiver(kode); } catch { return; }
+  if (aktivert) lagreSpraak(kode);
 }
 
 /**
