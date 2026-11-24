@@ -30,6 +30,7 @@ sist_verifisert_mot_kode: 2026-05-16
 | Kundeønske-status endres | `STATUS-AKTUELT.md` § Kundeønsker |
 | Timer-modul spec endres | `timer.md` |
 | Kenneth vedtar eller snur noe brukeren ser i timeføringen på web (ført: reisevinduet) | `vedtak-timer-web.md` — bare orkestrator skriver vedtak, med Kenneths ord; koderen endrer bare status. Punktet byttes ut, ikke stables |
+| Timeføring på web — planen endres (§ 3–10) | Fila for seksjonen i `web-timeforing/` — tabellen nederst i `web-timeforing-plan.md` sier hvilken. Indeksen (§ 0–2 og tabellen) i `web-timeforing-plan.md`. Ny seksjon = ny fil + ny rad i tabellen; ingen fil over ~80 000 tegn |
 | Timer/GPS/prosjekt-utredning (dag-flyt, T.8 m.fl.) | `timer-gps-prosjekt-utredning.md` |
 | PSI/§15-geofence-håndheving (nivåer, per firma/byggeplass) | `psi-geofence-handhevning-utredning.md` (🟡 parkert grunnlagsdok) |
 | Maskin-modul spec endres | `maskin.md` |
