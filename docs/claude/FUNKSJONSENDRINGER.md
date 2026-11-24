@@ -27,7 +27,7 @@ sources: cowork
 
 ### 2026-11-24
 
-**Prod-deploy `f5c9506e`** (Kenneth «lag komandoer for å deploy prod» 24.11): innhold = develop `4a126ed2` + docs. Alle rader datert 2026-11-17 til 2026-11-24 i tabellen under er nå i prod, **unntatt** `7c5bc9a7` (DOCKER-SLANK del 2). Selvattestering er av for alle firmaer i prod (Kenneth 24.11). Verifisert innlogget på sitedoc.no: innstillinger, attesteringen. OTA production ikke publisert.
+**Prod-deploy `f5c9506e`** (Kenneth «lag komandoer for å deploy prod» 24.11): innhold = develop `4a126ed2`. Alle rader datert 2026-11-17 til 2026-11-24 i tabellen under er nå i prod, **unntatt** `7c5bc9a7` (DOCKER-SLANK del 2). Selvattestering er av for alle firmaer i prod (Kenneth 24.11). Verifisert innlogget på sitedoc.no: innstillinger, attesteringen. OTA production ikke publisert.
 
 ### 2026-11-05
 
