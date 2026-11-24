@@ -717,9 +717,10 @@ export function lonnsartMerker(linjer: readonly AttLinje[], lonnsart: LonnsartOp
 /**
  * Kolonnene navnefeltet legger seg over (B14c B): de er tomme i dagsraden og jobbraden.
  * A1 (§ 4.17): Betegnelse og Fra–til bærer lønnsartmerkene (`LONNSART_KOLONNER`) og er ikke lenger
- * en del av navnefeltet.
+ * en del av navnefeltet. A2: Prosjekt-kolonnen er navnefeltets hjem i standardoppsettet; Pr.nr. og
+ * Underprosjekt, valgt i «Velg parameter», står i feltet når de står ved siden av.
  */
-export const NAVNEFELT_KOLONNER: readonly TimerTabellKolKey[] = ["prosjektnummer", "underprosjekt"];
+export const NAVNEFELT_KOLONNER: readonly TimerTabellKolKey[] = ["prosjekt", "prosjektnummer", "underprosjekt"];
 
 /** A1: lønnsartmerkene i oversiktsraden står i Betegnelse og over Fra–til når den står rett etter. */
 export const LONNSART_KOLONNER: readonly TimerTabellKolKey[] = ["betegnelse", "fraTil"];
@@ -738,12 +739,12 @@ export function lonnsartPlass(kolonner: readonly TimerTabellKolKey[]): { fra: Ti
 
 /**
  * Hvor prosjektnavnet står i dagsraden og jobbraden, for brukerens kolonneoppsett (R2):
- *  - `spenn`: over de synlige av Pr.nr., Underprosjekt, Betegnelse og Fra–til som står
+ *  - `spenn`: over de synlige av `NAVNEFELT_KOLONNER` (Prosjekt, Pr.nr., Underprosjekt) som står
  *    sammenhengende fra den første synlige av dem;
- *  - `kolonne`: ingen av de fire synlige → første synlige tekstkolonne etter Ansatt;
+ *  - `kolonne`: ingen av dem synlige → første synlige tekstkolonne etter Ansatt;
  *  - `ansatt`: finnes ingen → i Ansatt-cella under navnet.
- * `tomme`: cellene som står tomme i dagsraden og jobbraden — de fire utenfor feltet (brukeren
- * har flyttet en annen kolonne mellom), og Prosjekt og Byggeplass, som navnefeltet bærer.
+ * `tomme`: cellene som står tomme i dagsraden og jobbraden — feltets kolonner utenfor feltet
+ * (brukeren har flyttet en annen kolonne mellom), og Byggeplass, som hoveren på navnet bærer.
  * `utenfor` (avvikskolonnen) er aldri i feltet og aldri tom.
  */
 export type NavnefeltPlass =
@@ -760,13 +761,13 @@ export function navnefeltPlass(
 ): NavnefeltPlass {
   // `utenfor`: kolonnen som bærer avviket når Avvik er skjult (Betegnelse). Den står utenfor
   // feltet med avviket sitt, og feltet slutter foran den (gate O13 trinn 2, vilkår 1).
-  const fire = new Set(NAVNEFELT_KOLONNER.filter((k) => k !== utenfor));
-  const tomme = new Set<TimerTabellKolKey>(["prosjekt", "byggeplass"]);
-  const start = kolonner.findIndex((k) => fire.has(k));
+  const feltKol = new Set(NAVNEFELT_KOLONNER.filter((k) => k !== utenfor));
+  const tomme = new Set<TimerTabellKolKey>(["byggeplass"]);
+  const start = kolonner.findIndex((k) => feltKol.has(k));
   if (start !== -1) {
     let slutt = start;
-    while (slutt + 1 < kolonner.length && fire.has(kolonner[slutt + 1]!)) slutt++;
-    for (let i = 0; i < kolonner.length; i++) if (fire.has(kolonner[i]!) && (i < start || i > slutt)) tomme.add(kolonner[i]!);
+    while (slutt + 1 < kolonner.length && feltKol.has(kolonner[slutt + 1]!)) slutt++;
+    for (let i = 0; i < kolonner.length; i++) if (feltKol.has(kolonner[i]!) && (i < start || i > slutt)) tomme.add(kolonner[i]!);
     return { type: "spenn", fra: kolonner[start]!, antall: slutt - start + 1, tomme };
   }
   const etterAnsatt = kolonner.indexOf("ansatt");

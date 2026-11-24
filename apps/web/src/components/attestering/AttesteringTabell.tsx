@@ -28,6 +28,7 @@ import {
   type TimerRadTabellSortering,
 } from "@/components/timer/TimerRadTabell";
 import { SplittRadModal } from "@/components/timer/SplittRadModal";
+import { ProsjektHover, type ProsjektHoverJobb } from "./ProsjektHover";
 import type { ProsjektValg } from "@/components/timer/rediger-types";
 import { RedigerRadModal } from "./RedigerRadModal";
 import { Kvitteringer } from "./Kvitteringer";
@@ -85,11 +86,12 @@ export interface UkeoversiktApi {
  * kvitteringen på utlegg. Retting, ✂ og «✎ Rediger jobben» skjer i kortet den blå raden åpner.
  *
  * Én verktøylinje (R17): sidens uke/gruppering/fane kommer inn som `verktoy`, resten
- * eies her. Filter, sortering og «bare oversiktsrader» gjelder besøket (R7).
+ * eies her. Filter og sortering gjelder besøket (R7); «Bare oversiktsrader» huskes pr. bruker (A1, B51 A).
  */
 
 // w10a (A3, B26 A): ny listenøkkel — lagrede oppsett nullstilles én gang, alle får kjernekolonnene.
-const LISTE = "timer-attestering-v2";
+// A2 (plan § 4.17 punkt 5): v3 — nullstilles én gang til, så alle får «Prosjekt» i stedet for Pr.nr. og Underprosjekt.
+const LISTE = "timer-attestering-v3";
 const STANDARD = new Set<string>(TIMER_TABELL_STANDARD);
 // w10a: avkrysning og pil på de blå radene står sammen med smalere innrykk (`TimerRadTabell`).
 const VENSTRE = 36;
@@ -116,6 +118,8 @@ const ATTESTERING_BREDDE: Partial<Record<TimerTabellKolKey, number>> = {
   dato: 92,
   ansattnr: 86,
   ansatt: 104,
+  // A2: Prosjekt erstatter Pr.nr. og Underprosjekt i standardoppsettet og får plassen deres (66 + 88).
+  prosjekt: 154,
   prosjektnummer: 66,
   underprosjekt: 88,
   betegnelse: 74,
@@ -685,17 +689,29 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
     return undefined;
   }
 
+  /** A2: det hoveren på prosjektnavnet viser om jobben. */
+  const hoverJobb = (kort: AttKort): ProsjektHoverJobb => ({
+    nokkel: kort.nokkel,
+    prosjekt: kort.prosjekt,
+    prosjektnummer: kort.prosjektnummer,
+    byggeplass: kort.byggeplass,
+    underprosjekt: kort.underprosjekt,
+    beskrivelser: kortBeskrivelser(kort),
+  });
+
   /**
-   * O13 (pkt 2): prosjektnavnet i halvfet, under det «byggeplass · underprosjekt» (bare navnet når
-   * kortet har ingen av dem). For langt navn kuttes med «…»; ingen egen hover (R7).
+   * O13 (pkt 2) / A2 (plan § 4.17 punkt 5, B56 A): prosjektnavnet i halvfet, med «↳» når jobben har
+   * underprosjekt. Nummer, byggeplass, underprosjekt og «Hva gjorde du?» står i hoveren på navnet
+   * (`ProsjektHover`) i stedet for på linje 2. For langt navn kuttes med «…».
    */
   function navnInnhold(kort: AttKort): ReactNode {
-    const linje2 = [kort.byggeplass, kort.underprosjekt].filter((x): x is string => !!x).join(" · ");
     return (
-      <span data-prosjektnavn="" className="block min-w-0">
-        <span className="block truncate font-semibold">{kort.prosjekt}</span>
-        {linje2 && <span className="block truncate text-xs font-normal text-gray-500">{linje2}</span>}
-      </span>
+      <ProsjektHover jobber={[hoverJobb(kort)]}>
+        <span data-prosjektnavn="" className="flex min-w-0 items-baseline gap-1">
+          <span className="truncate font-semibold">{kort.prosjekt}</span>
+          {kort.underprosjekt && <span data-underprosjekt-pil="" aria-hidden className="shrink-0 font-normal text-gray-500">↳</span>}
+        </span>
+      </ProsjektHover>
     );
   }
   const antallJobber = (dag: AttDag) => {
@@ -709,7 +725,12 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
       ...(n > 0 ? [t("timer.attestering.tabell.antallJobber", { count: n })] : []),
       ...(reiser > 0 ? [t("timer.attestering.tabell.antallReiser", { count: reiser })] : []),
     ];
-    return <span data-antall-jobber="" className="block truncate font-normal text-gray-500">{deler.join(" · ")}</span>;
+    // A2: hover på «N jobber» viser én blokk pr. jobb.
+    return (
+      <ProsjektHover jobber={dag.kort.map(hoverJobb)}>
+        <span data-antall-jobber="" className="block truncate font-normal text-gray-500">{deler.join(" · ")}</span>
+      </ProsjektHover>
+    );
   };
 
   /**
@@ -800,9 +821,8 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
     const aapne = (kort: AttKort) => ({
       onKlikk: () => setAapenKort((a) => (a === kort.nokkel ? null : kort.nokkel)),
       aapen: aapenKort === kort.nokkel,
-      // O6 (§ 8.22 punkt 2): beskrivelsene ved hover på den lukkede jobbraden. Åpen rad har
-      // dem i registreringen under. Samme tekster som registreringen, ingen ny henting.
-      hover: aapenKort === kort.nokkel ? [] : kortBeskrivelser(kort),
+      // A2 (§ 4.17 punkt 5): hoveren på hele raden (O6) er tatt ut; beskrivelsene står i hoveren
+      // på prosjektnavnet (`ProsjektHover`).
     });
     const grupper = grupperModell(synlige, gruppering) ?? [{ nokkel: "", tittel: "", dager: synlige }];
     for (const gruppe of grupper) {

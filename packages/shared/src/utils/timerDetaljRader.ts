@@ -756,7 +756,8 @@ export const TIMER_TABELL_KOL: Record<TimerTabellKolKey, TimerTabellKolDef> = {
  * «Velg parameter». Lagret oppsett pr. bruker røres ikke (WM69).
  */
 export const TIMER_TABELL_STANDARD: readonly TimerTabellKolKey[] = [
-  "dato", "ansatt", "prosjektnummer", "underprosjekt", "betegnelse",
+  // A2 (plan § 4.17 punkt 5): «Prosjekt» (navnet, med hover) erstatter Pr.nr. og Underprosjekt.
+  "dato", "ansatt", "prosjekt", "betegnelse",
   "fraTil", "timer",
   // O13 (pkt 3): Reise og Overtid rett etter Timer. Et lagret oppsett får dem satt inn én gang
   // (`TIMER_TABELL_TILLAGT`, `useTabelloppsett`).

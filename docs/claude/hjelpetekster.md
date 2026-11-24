@@ -463,6 +463,11 @@ Fra A1 i attesteringen (🟡 ikke merget, `feat/attestering-a1-a3`, plan § 4.17
 - Hover på normmerket: «Arbeid X t av dagsnorm Y t · fravær Z t · overtid ført Z t · reise Z t · sum i dag Z t» (`timer.attestering.tabell.normHover.arbeid` / `.fravaer` / `.overtid` / `.reise` / `.sum`; leddene uten timer utelates). Hover på lønnsartmerket: linjene «07:00–15:00 7,5 t · …» (ingen nøkkel, bare klokkeslett og tall).
 - Fjernet i alle 15 språk: `timer.attestering.tabell.dagenAvNorm` (erstattet av `normHover.*`).
 
+Fra A2 i attesteringen (🟡 ikke merget, samme branch, plan § 4.17 punkt 5, B56 A):
+
+- **Struktur** (`…hjelp.struktur`, endret): «byggeplass og underprosjekt under navnet» er byttet med «↳» for underprosjekt og hover på navnet (prosjektnummer, byggeplass, underprosjekt, «Hva gjorde du?»); med flere jobber viser «N jobber» det samme for hver jobb. Generert på nytt i 13 språk.
+- Hoveren bruker eksisterende etiketter: `timer.felt.byggeplass`, `timer.felt.underprosjekt`, `timer.felt.radBeskrivelse`. Ingen nye nøkler.
+
 ## Prosjekt → Timer → Attestering (d2b-2) — ⚠️ fjernet i w10b
 
 🟡 w10b (`feat/web-timer-w10b`, ikke merget; plan web-timeføring § 4.10, B29 B): siden og menypunktet er fjernet. Adressen sender til `/dashbord/attestering`, der prosjektlederen får hjelpeteksten under Firma › Attestering (avsnittet `timer.attestering.hjelp.omfang`). Nøklene `timer.attestering.beskrivelse` og `timer.attestering.prosjekt.hjelp.laast` er slettet i alle 15 språk. Teksten under er historikk.

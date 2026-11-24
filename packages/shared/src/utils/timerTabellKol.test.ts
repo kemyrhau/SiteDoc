@@ -57,16 +57,16 @@ describe("T40 — samme nøkler og overskrifter som eksporten", () => {
 });
 
 describe("H9 / w5 — standardkolonnene", () => {
-  it("w5 + O13: de 13 kjernekolonnene, med Reise og Overtid rett etter Timer", () => {
+  it("w5 + O13 + A2: kjernekolonnene, med Prosjekt i stedet for Pr.nr. og Underprosjekt, og Reise og Overtid rett etter Timer", () => {
     expect([...TIMER_TABELL_STANDARD]).toEqual([
-      "dato", "ansatt", "prosjektnummer", "underprosjekt", "betegnelse",
+      "dato", "ansatt", "prosjekt", "betegnelse",
       "fraTil", "timer", "reisetimer", "overtid", "maskin", "maskintimer", "vareOgMengde",
       "antall", "belop", "avvik",
     ]);
   });
 
   it("O13 (R10, vakt): ingen av de 13 kjernekolonnene er tatt ut av standardutvalget", () => {
-    for (const k of ["dato", "ansatt", "prosjektnummer", "underprosjekt", "betegnelse", "fraTil", "timer",
+    for (const k of ["dato", "ansatt", "prosjekt", "betegnelse", "fraTil", "timer",
       "maskin", "maskintimer", "vareOgMengde", "antall", "belop", "avvik"]) {
       expect(TIMER_TABELL_STANDARD, k).toContain(k);
     }

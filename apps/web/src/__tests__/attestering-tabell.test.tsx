@@ -64,6 +64,7 @@ vi.mock("@/components/SignertBilde", () => ({
   SignertBilde: ({ url, alt }: { url: string; alt?: string }) => <img data-url={url} alt={alt} />,
 }));
 
+import { TIMER_TABELL_KOL_KEYS } from "@sitedoc/shared";
 import { AttesteringTabell } from "@/components/attestering/AttesteringTabell";
 import { byggAttesteringModell, filtrerModell, AVVIK_FILTER, type AttDeps, type AttSedel, type AttTimer } from "@/components/attestering/attestering-tabell";
 
@@ -352,7 +353,7 @@ describe("T60/T73 (w10a) — faste kanter; avkrysning og knapper på de blå rad
 });
 
 describe("T38 — kolonneoppsettet lagres under attesteringens egen liste-nøkkel", () => {
-  it("w10a (A3): flytting fra velgeren lagres som «timer-attestering-v2» (lagrede oppsett nullstilles én gang)", () => {
+  it("w10a (A3) + A2: flytting fra velgeren lagres som «timer-attestering-v3» (lagrede oppsett nullstilles én gang til)", () => {
     vi.useFakeTimers();
     try {
       vis([sedel()]);
@@ -361,7 +362,7 @@ describe("T38 — kolonneoppsettet lagres under attesteringens egen liste-nøkke
       act(() => { vi.advanceTimersByTime(900); });
       const k = kallTil("lagreTabelloppsett");
       expect(k).toHaveLength(1);
-      expect(k[0]!.input).toMatchObject({ liste: "timer-attestering-v2", oppsett: { kolonner: ["timer", "dato", "ansatt"], rekkefolge: true } });
+      expect(k[0]!.input).toMatchObject({ liste: "timer-attestering-v3", oppsett: { kolonner: ["timer", "dato", "ansatt"], rekkefolge: true } });
     } finally {
       vi.useRealTimers();
     }
@@ -585,10 +586,10 @@ describe("w5 — kjernekolonner og «Tilbakestill til standard»", () => {
     [...new Set(Array.from(c.querySelectorAll("[data-kolonne]")).map((e) => e.getAttribute("data-kolonne")))];
   afterEach(() => { delete h.data["bruker.hentTabelloppsett"]; });
 
-  it("uten lagret oppsett vises de 13 standardkolonnene og Reise og Overtid etter Timer (O13), Fra og Til i én", () => {
+  it("uten lagret oppsett vises standardkolonnene (A2: Prosjekt i stedet for Pr.nr. og Underprosjekt) og Reise og Overtid etter Timer (O13), Fra og Til i én", () => {
     const { container } = vis([sedel()]);
     expect(hodeKolonner(container)).toEqual([
-      "dato", "ansatt", "prosjektnummer", "underprosjekt", "betegnelse", "fraTil", "timer", "reisetimer", "overtid",
+      "dato", "ansatt", "prosjekt", "betegnelse", "fraTil", "timer", "reisetimer", "overtid",
       "maskin", "maskintimer", "vareOgMengde", "antall", "belop", "avvik",
     ]);
     expect(h.velger.props!.nullstillTekst).toBe("timer.attestering.tabell.tilbakestillStandard");
@@ -645,7 +646,7 @@ describe("w5 — kjernekolonner og «Tilbakestill til standard»", () => {
       expect(k).toHaveLength(1);
       const oppsett = (k[0]!.input as { oppsett: { kolonner: string[]; rekkefolge?: boolean; tillagt?: string[]; bredder: Record<string, number> } }).oppsett;
       expect(oppsett.kolonner).toEqual([
-        "dato", "ansatt", "prosjektnummer", "underprosjekt", "betegnelse", "fraTil", "timer", "reisetimer", "overtid",
+        "dato", "ansatt", "prosjekt", "betegnelse", "fraTil", "timer", "reisetimer", "overtid",
         "maskin", "maskintimer", "vareOgMengde", "antall", "belop", "avvik",
       ]);
       expect(oppsett.rekkefolge).toBe(true);
@@ -938,7 +939,7 @@ describe("w5b — dagsvisningen, alternativ A", () => {
     expect(slutt[0]!.querySelector('[data-rad="dag"]')).toBeTruthy();
   });
 
-  it("sortering gir flat liste: bare linjer, og dato, ansatt og pr.nr. står på hver linje igjen", () => {
+  it("sortering gir flat liste: bare linjer, og dato, ansatt og prosjekt står på hver linje igjen", () => {
     const { container, getByText } = vis([toProsjekter()]);
     fireEvent.click(getByText("timer.eksport.kolTimer"));
     expect(container.querySelectorAll("[data-rad]")).toHaveLength(0);
@@ -946,7 +947,7 @@ describe("w5b — dagsvisningen, alternativ A", () => {
     const l = linje(container, "s1:timer:t1");
     expect(l.textContent).toContain("16.11.");
     expect(l.textContent).toContain("Kari Nordmann");
-    expect(l.textContent).toContain("1001");
+    expect(l.textContent).toContain("Prosjekt A");
     expect(l.className).not.toMatch(/border-slate|border-emerald/);
   });
 
@@ -1565,14 +1566,16 @@ describe("w15g (pkt. 32) — kortet er tekst; ✎ på hver ventende linje åpner
   });
 });
 
-describe("O6 (§ 8.22 punkt 2) — beskrivelsen ved hover på jobbraden i attesteringen", () => {
-  const hoverFor = (rad: HTMLElement) => {
-    const id = (rad.getAttribute("aria-describedby") ?? "").split(" ").find(Boolean);
+describe("A2 (plan § 4.17 punkt 5, B56 A) — hover på prosjektnavnet; hoveren på hele raden er tatt ut (O6)", () => {
+  // Hoveren sitter på navnet (Tooltip kobler aria-describedby på triggeren).
+  const hoverFor = (el: HTMLElement | null) => {
+    const id = (el?.getAttribute("aria-describedby") ?? "").split(" ").find(Boolean);
     const node = id ? document.getElementById(id) : null;
-    return node?.querySelector("[data-beskrivelse-hover]") ? node : null;
+    return node?.querySelector("[data-prosjekt-hover]") ? node : null;
   };
-  const tekster = (boks: HTMLElement) =>
-    Array.from(boks.querySelectorAll("[data-beskrivelse-hover] > span")).map((e) => e.textContent);
+  const navn = (rad: HTMLElement) => rad.querySelector("[data-prosjektnavn]") as HTMLElement | null;
+  const blokker = (boks: HTMLElement) =>
+    Array.from(boks.querySelectorAll("[data-prosjekt-hover-jobb]")).map((e) => Array.from(e.children).map((c) => c.textContent));
   const medTekst = () =>
     sedel({ timer: [
       timer("t1", { fraTid: "12:00", tilTid: "15:00", timer: "3", pauseMin: 0, beskrivelse: "Forskaling" }),
@@ -1582,43 +1585,62 @@ describe("O6 (§ 8.22 punkt 2) — beskrivelsen ved hover på jobbraden i attest
 
   afterEach(() => vi.useRealTimers());
 
-  it("dagsraden med én jobb: hover-boksen viser beskrivelsene i klokkeslett-rekkefølge, synlig etter hover", () => {
+  it("dagsraden med én jobb: hover på navnet viser nummer og navn og beskrivelsene i klokkeslett-rekkefølge", () => {
     vi.useFakeTimers();
     const { container } = vis([medTekst()]);
-    const boks = hoverFor(dagsrad(container))!;
+    const boks = hoverFor(navn(dagsrad(container)))!;
     expect(boks.getAttribute("role")).toBe("tooltip");
-    expect(tekster(boks)).toEqual(["Rigging", "Forskaling"]);
+    expect(blokker(boks)).toEqual([["1001 · Prosjekt A", "timer.felt.radBeskrivelse RiggingForskaling"]]);
     expect(boks.className).toContain("invisible");
-    fireEvent.mouseEnter(dagsrad(container).parentElement!);
-    act(() => {
-      vi.advanceTimersByTime(400);
-    });
+    fireEvent.mouseEnter(navn(dagsrad(container))!.parentElement!);
+    act(() => { vi.advanceTimersByTime(400); });
     expect(boks.className).not.toContain("invisible");
   });
 
-  it("uten beskrivelse: ingen hover", () => {
-    const { container } = vis([sedel()]);
-    expect(hoverFor(dagsrad(container))).toBeNull();
-    expect(dagsrad(container).hasAttribute("aria-describedby")).toBe(false);
+  it("«Velg parameter» har fortsatt alle kolonnene, også Pr.nr., Underprosjekt og Byggeplass", () => {
+    vis([sedel()]);
+    const grupper = h.velger.props!.grupper as { felter: { id: string }[] }[];
+    const ider = grupper.flatMap((g) => g.felter.map((f) => f.id));
+    for (const k of ["prosjekt", "prosjektnummer", "underprosjekt", "byggeplass"]) expect(ider).toContain(k);
+    expect(new Set(ider)).toEqual(new Set(TIMER_TABELL_KOL_KEYS));
   });
 
-  it("åpen registrering: ingen hover (tekstene står i del 3)", () => {
+  it("negativkontroll: raden selv har ingen hover lenger (O6 tatt ut), heller ikke med beskrivelse", () => {
     const { container } = vis([medTekst()]);
-    fireEvent.click(dagsrad(container));
-    expect(container.querySelector("[data-registrering]")).not.toBeNull();
-    expect(hoverFor(dagsrad(container))).toBeNull();
+    expect(dagsrad(container).hasAttribute("aria-describedby")).toBe(false);
+    expect(container.querySelector("[data-beskrivelse-hover]")).toBeNull();
+    expect(document.querySelector("[data-beskrivelse-hover]")).toBeNull();
   });
 
-  it("flere jobber: hver jobbrad har sin egen; dagsraden (ikke én jobb) har ingen", () => {
+  it("byggeplass og underprosjekt står i hoveren; «↳» ved navnet bare når jobben har underprosjekt", () => {
+    const UP = { proAdmId: "100", kortNavn: "Grunn", navn: "Grunnarbeid" };
+    const med = vis([sedel({ timer: [timer("t1", { byggeplassNavn: "Tomta", externalCostObjectId: "e1", underprosjekt: UP })] })]);
+    const n = navn(dagsrad(med.container))!;
+    expect(n.querySelector("[data-underprosjekt-pil]")?.textContent).toBe("↳");
+    const tekst = hoverFor(n)!.textContent ?? "";
+    expect(tekst).toContain("timer.felt.byggeplass: Tomta");
+    expect(tekst).toContain("timer.felt.underprosjekt: ");
+    // Linje 2 under navnet er borte; feltet viser bare navnet og pila.
+    expect(n.textContent).toBe("Prosjekt A↳");
+    med.unmount();
+    // Negativkontroll: uten underprosjekt ingen pil, og ingen underprosjekt-linje i hoveren.
+    const uten = vis([sedel()]);
+    const n2 = navn(dagsrad(uten.container))!;
+    expect(n2.querySelector("[data-underprosjekt-pil]")).toBeNull();
+    expect(hoverFor(n2)!.textContent).not.toContain("timer.felt.underprosjekt");
+  });
+
+  it("flere jobber: hver jobbrad har sin hover; «N jobber» i dagsraden har én blokk pr. jobb", () => {
     const { container } = vis([sedel({ timer: [
       timer("t1", { beskrivelse: "Graving grøft" }),
       timer("t2", { kortId: "kB", fraTid: "15:00", tilTid: "16:00", timer: "1", pauseMin: 0, beskrivelse: null }),
     ] })]);
     const jobb = Array.from(container.querySelectorAll('[data-rad="jobb"]')) as HTMLElement[];
     expect(jobb).toHaveLength(2);
-    expect(tekster(hoverFor(jobb[0]!)!)).toEqual(["Graving grøft"]);
-    expect(hoverFor(jobb[1]!)).toBeNull();
-    expect(hoverFor(dagsrad(container))).toBeNull();
+    expect(blokker(hoverFor(navn(jobb[0]!))!)).toEqual([["1001 · Prosjekt A", "timer.felt.radBeskrivelse Graving grøft"]]);
+    expect(blokker(hoverFor(navn(jobb[1]!))!)).toEqual([["1001 · Prosjekt A"]]);
+    const dagHover = hoverFor(dagsrad(container).querySelector("[data-antall-jobber]"))!;
+    expect(blokker(dagHover)).toHaveLength(2);
   });
 
   it("reise i jobben: reisens tekst er ikke med (som i del 3)", () => {
@@ -1626,7 +1648,7 @@ describe("O6 (§ 8.22 punkt 2) — beskrivelsen ved hover på jobbraden i attest
       timer("t1", { beskrivelse: "Forskaling" }),
       timer("tr", { fraTid: "15:00", tilTid: "15:30", timer: "0.5", pauseMin: 0, beskrivelse: "Kjøring", erReise: true } as Partial<AttTimer>),
     ] })]);
-    expect(tekster(hoverFor(dagsrad(container))!)).toEqual(["Forskaling"]);
+    expect(blokker(hoverFor(navn(dagsrad(container)))!)).toEqual([["1001 · Prosjekt A", "timer.felt.radBeskrivelse Forskaling"]]);
   });
 });
 
@@ -1661,16 +1683,17 @@ describe("O13 — attesteringen etter vedtaksfila § Dagsvisningen pkt 2 og 3", 
   afterEach(() => { delete h.data["bruker.hentTabelloppsett"]; });
 
   describe("pkt 1 — prosjektnavnet i dagsrad og jobbrad", () => {
-    it("én jobb: navnet halvfet og under det «byggeplass · underprosjekt», over Pr.nr. og Underprosjekt (A1)", () => {
+    it("én jobb: navnet halvfet med «↳» for underprosjekt, ingen linje 2, i Prosjekt-kolonnen (A2)", () => {
       const { container } = vis([sedel({ timer: [timer("t1", { byggeplassNavn: "A sør", externalCostObjectId: "e1", underprosjekt: UP })] })]);
       const navn = dagsrad(container).querySelector("[data-prosjektnavn]") as HTMLElement;
       expect(navn).toBeTruthy();
       expect(navn.firstElementChild!.textContent).toBe("Prosjekt A");
       expect(navn.firstElementChild!.className).toContain("font-semibold");
       expect(navn.firstElementChild!.className).toContain("truncate");
-      expect(navn.children[1]!.textContent).toMatch(/^A sør · /);
+      expect(navn.children[1]!.textContent).toBe("↳");
+      expect(navn.textContent).not.toContain("A sør");
       const felt = dagsrad(container).querySelector("[data-navnefelt]") as HTMLElement;
-      expect(felt.style.gridColumn).toBe("span 2");
+      expect(felt.style.gridColumn).toBe("span 1");
       // A1: Betegnelse og Fra–til bærer lønnsartmerkene.
       expect((dagsrad(container).querySelector("[data-lonnsartfelt]") as HTMLElement).style.gridColumn).toBe("span 2");
     });
@@ -1852,12 +1875,13 @@ describe("O13 — attesteringen etter vedtaksfila § Dagsvisningen pkt 2 og 3", 
       expect(celle(dag, "betegnelse")!.textContent).toContain("Fravær over dagsnorm");
     });
 
-    it("Prosjekt- og Byggeplass-cellene står tomme i dagsrad og jobbrad", () => {
+    it("A2: Prosjekt bærer navnefeltet; Byggeplass og Pr.nr. utenfor feltet står tomme i dagsrad og jobbrad", () => {
       medOppsett(["dato", "ansatt", "prosjekt", "byggeplass", "prosjektnummer", "betegnelse", "timer"]);
       const { container } = vis([toProsjekter()]);
       for (const rad of [dagsrad(container), ...Array.from(container.querySelectorAll<HTMLElement>('[data-rad="jobb"]'))]) {
-        expect(celle(rad, "prosjekt")?.textContent ?? "").toBe("");
+        expect(celle(rad, "prosjekt")!.hasAttribute("data-navnefelt")).toBe(true);
         expect(celle(rad, "byggeplass")?.textContent ?? "").toBe("");
+        expect(celle(rad, "prosjektnummer")?.textContent ?? "").toBe("");
       }
     });
   });
@@ -2047,9 +2071,10 @@ describe("O15 — «Del opp» og attesteringen etter Kenneths test på 722d394b"
     ] })]);
     const jobb = Array.from(container.querySelectorAll('[data-rad="jobb"]')) as HTMLElement[];
     const hover = jobb.map((r) => {
-      const id = (r.getAttribute("aria-describedby") ?? "").split(" ").find(Boolean);
+      // A2: hoveren sitter på prosjektnavnet, ikke på raden.
+      const id = (r.querySelector("[data-prosjektnavn]")?.getAttribute("aria-describedby") ?? "").split(" ").find(Boolean);
       const node = id ? document.getElementById(id) : null;
-      return node ? Array.from(node.querySelectorAll("[data-beskrivelse-hover] > span")).map((e) => e.textContent) : [];
+      return node ? Array.from(node.querySelectorAll("[data-beskrivelse]")).map((e) => e.textContent) : [];
     });
     const tekster = hover.find((x) => x[0] !== "Forskaling");
     expect(tekster).toEqual(['timer.prosjektkort.reiseTil{"sted":"Prosjekt A"} · 06:26–06:56', "Henter stillas"]);
@@ -2073,9 +2098,10 @@ describe("O17 pkt 21 — kontorreise i attesteringen", () => {
   });
   const hoverTekster = (container: HTMLElement) =>
     (Array.from(container.querySelectorAll('[data-rad="jobb"]')) as HTMLElement[]).map((r) => {
-      const id = (r.getAttribute("aria-describedby") ?? "").split(" ").find(Boolean);
+      // A2: hoveren sitter på prosjektnavnet, ikke på raden.
+      const id = (r.querySelector("[data-prosjektnavn]")?.getAttribute("aria-describedby") ?? "").split(" ").find(Boolean);
       const node = id ? document.getElementById(id) : null;
-      return node ? Array.from(node.querySelectorAll("[data-beskrivelse-hover] > span")).map((e) => e.textContent) : [];
+      return node ? Array.from(node.querySelectorAll("[data-beskrivelse]")).map((e) => e.textContent) : [];
     });
 
   it("kort med bare kontorreisen: hover viser «Tromsø → Narvik kontor · 15:00–18:50»", () => {
