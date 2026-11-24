@@ -198,9 +198,10 @@ Ikke kjørt. `AD` =
    på linjene en annen enn arbeideren har lagt til (B73). Se «Merket «Lagt til av» og «Korrigert av»».
 10. **Kort A og kort B kan ikke overlappe hverandre** (B65 A, Kenneth 2026-11-24). Setter attestanten «Fra kl.»
     på kort B tidligere enn «Til kl.» på kort A, eller omvendt, står en linje i kortet: «Overlapper 15:30–16:00 på
-    kort A. Rett tidene før du lagrer.» «Lagre» er av til tidene er rettet. Overlapp mot et annet kort på dagen
-    varsles og godtas (B66 A, § 4.17 del I). Serveren kjenner ikke paret (B69), så sperren står i kortene. Om den
-    skal gjelde også etter at paret er lukket, er B88. Leveranse KF1.
+    kort A. Rett tidene før du lagrer.» «Lagre» er av til tidene er rettet. Sperren gjelder også etter
+    at paret er lukket, og mot alle andre kort attestanten kan rette; serveren avgjør den av attesteringsretten,
+    ikke av paret (B88 ja, Kenneth 2026-11-24, § 8.30). Overlapp mot et kort han ikke kan rette, varsles og godtas
+    (B66 A, § 4.17 del I). Leveranse KF1.
 
 **Attestanten legger til linjer (B71 ja, B72 ja):**
 

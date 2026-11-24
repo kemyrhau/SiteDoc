@@ -226,13 +226,25 @@ Kenneth, ordrett: «B65 A, B66 A, B67 A, B86 ja, B87 ja»
 
 | # | Spørsmål | Svar | Følge |
 |---|---|---|---|
-| B65 | Gjelder «varsles og godtas» også mellom kort A og kort B? | **A** | Kort A og kort B i samme deling kan ikke lagres med overlapp mot hverandre. Kortet sier hvorfor, og «Lagre» er av til tidene er rettet. Serveren kjenner ikke paret (B69), så sperren står i kortene på web. Om den skal gjelde også etter at paret er lukket, er B88. § 4.16 del G punkt 10, § 4.17 del I. Leveranse KF1. |
-| B66 | Gjelder «varsles og godtas» bare i «Del opp», eller alle steder attestanten retter klokkeslett? | **A** | Alle attestantens rettinger av klokkeslett: ✎ på linja og «Rett reisen» (`rettRadFelt`), «✎ Rediger jobben» (`redigerSedelRader`) og «Del opp» (`delJobb`). Overlapp mot et annet kort på dagen varsles og godtas. Arbeiderens egen føring på dagssiden og i appen beholder sperren. Erstatter sperren for attestanten i OV1 (§ 4.17 del I). Rettingene tåler en konflikt som står (OV7). Leveranse KF1. |
+| B65 | Gjelder «varsles og godtas» også mellom kort A og kort B? | **A** | Kort A og kort B i samme deling kan ikke lagres med overlapp mot hverandre. Kortet sier hvorfor, og «Lagre» er av til tidene er rettet. Sperren gjelder også etter at paret er lukket, og serveren avgjør den av attesteringsretten, ikke av paret (B88 ja, § 8.30). § 4.16 del G punkt 10, § 4.17 del I. Leveranse KF1. |
+| B66 | Gjelder «varsles og godtas» bare i «Del opp», eller alle steder attestanten retter klokkeslett? | **A** | Alle attestantens rettinger av klokkeslett: ✎ på linja og «Rett reisen» (`rettRadFelt`), «✎ Rediger jobben» (`redigerSedelRader`) og «Del opp» (`delJobb`). Overlapp mot et kort på dagen som attestanten ikke kan rette, varsles og godtas; mot et kort han kan rette er det en sperre (B88 ja, § 8.30). Arbeiderens egen føring på dagssiden og i appen beholder sperren. Erstatter sperren for attestanten i OV1 (§ 4.17 del I). Rettingene tåler en konflikt som står (OV7). Leveranse KF1. |
 | B67 | Skal attestanten på det andre prosjektet få beskjed om konflikten? | **A** | Ingen varsling. Han ser sperren og merket «Konflikt» i attesteringen sin. Attestanten som laget konflikten, følger opp. Følgen er at en konflikt kan bli stående hvis ingen følger opp, og da står dagen uattestert. § 4.17 del I. |
 | B86 | Skal halvdag og firma-fri i firmakalenderen også endre normen? | **Ja** (mot Fabels anbefaling «nei nå») | En halvdag får normen som står i kalenderen (`timerOverstyr`), og firma-fri får norm 0. Timer over det foreslås som overtid, og ukenormen blir lavere i uker med slike dager. Målt mot develop `3feb05ba`: timeføringen leser ikke halvdagstimene noe sted (HO13), så det går i H1a, i samme oppslag som helligdagen. Ingen ny migrering. § 4.17 del L. |
 | B87 | Skal dagskort-modus også få forslaget etter firmaets regler? | **Ja** | Dagskortet får samme forslag som prosjektkort-modus: dagens norm og deling ved firmaets tidsrom. Egen leveranse H1d, etter H1b på web og etter H1m i appen, med vakt-test for resten av dagskortet. Unntak fra regelen fra 2026-11-07, vedtatt av Kenneth her. § 4.17 del L. |
 
-Nytt spørsmål etter svarene: B88 (§ 8). To lesninger står i § 8: B66 gjelder også linjer attestanten legger
+Nytt spørsmål etter svarene: B88, besvart i § 8.30. To lesninger står i § 8: B66 gjelder også linjer attestanten legger
 til (D2c, D2e), og B87 gjelder også normen i summen øverst i dagskortet.
+
+🟡 Vedtatt 2026-11-24, ikke bygget, ikke bestilt.
+
+### 8.30 Kenneths svar på B88, 2026-11-24
+
+Kenneth, ordrett: «B88 ja»
+
+| # | Spørsmål | Svar | Følge |
+|---|---|---|---|
+| B88 | Skal overlapp mellom to kort attestanten selv kan rette, alltid være en sperre? | **Ja** | Lagringen avvises når attestanten kan rette begge kortene: i paret etter «Del opp», i et kort som er åpnet alene, og etter at paret er lukket. Bare overlapp mot et kort han ikke kan rette, varsles og godtas (B66 A). Serveren avgjør det av attesteringsretten, ikke av paret (B69 ja står: ingen kobling i data). Målt mot develop `ec303c15`: retten pr. prosjekt er `attesteringsFirmaer` (`dagsseddel.ts:280`), samlet pr. firma i `attesteringsOmfang` (`:318`); kort uten prosjekt avgjøres av `kanAttestereFravaer` (`:391`). Rettingsvakten bruker den samme retten (`krevRettingVedAttestering`, `:634`). Følge: firmaadministrator og sitedoc_admin har rett på alle prosjekter i firmaet, så for dem er all overlapp på dagen en sperre, aldri et varsel. Forsvinner: muligheten til å lagre en konflikt mellom to av hans egne kort og rette den senere. § 4.16 del G punkt 10, § 4.17 del I. Leveranse KF1. |
+
+Ingen nye spørsmål. Én lesning står i § 8: et attestert kort han har rett på, teller som et kort han kan rette.
 
 🟡 Vedtatt 2026-11-24, ikke bygget, ikke bestilt.

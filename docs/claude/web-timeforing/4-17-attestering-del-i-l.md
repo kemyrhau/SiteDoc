@@ -89,7 +89,7 @@ med linjene fra denne hashen; i § 4.16 del A er linjene fra `310ecf43` (`delJob
 
 | | Målt | Kilde |
 |---|---|---|
-| OV1 | ⚠️ **Vedtatt endret for attestanten (B66 A, 2026-11-24):** attestantens veier (`redigerSedelRader`, `rettRadFelt`, `delJobb`) skal varsle og godta overlapp mot et annet kort (KF1). Arbeiderens veier og appens synk beholder sperren. Målingen under er koden i dag. **Overlapp er en sperre ved lagring på alle skriveveier,** på tvers av prosjekt innen samme dagsseddel («hard sperre — Kenneth 2026-07-09»). Berøring i endepunktet er lov. Gjelder arbeiderens rader (`tilfoyTimerRad`, `oppdaterTimerRad`), jobbens tid (`lagreJobbTid`), forsoningen (`forsonDagskort`), attestantens retting (`redigerSedelRader`, `rettRadFelt`) og appens synk (`syncBatch`). | `D:2473–2510`, `:4282–4284`, `:4557–4559`, `:4867–4880`, `:5327–5340`, `:3160–3168`, `:9891–9905` |
+| OV1 | ⚠️ **Vedtatt endret for attestanten (B66 A, 2026-11-24):** attestantens veier (`redigerSedelRader`, `rettRadFelt`, `delJobb`) skal varsle og godta overlapp mot et kort attestanten ikke kan rette (KF1); mot et kort han kan rette, er det en sperre (B88 ja). Arbeiderens veier og appens synk beholder sperren. Målingen under er koden i dag. **Overlapp er en sperre ved lagring på alle skriveveier,** på tvers av prosjekt innen samme dagsseddel («hard sperre — Kenneth 2026-07-09»). Berøring i endepunktet er lov. Gjelder arbeiderens rader (`tilfoyTimerRad`, `oppdaterTimerRad`), jobbens tid (`lagreJobbTid`), forsoningen (`forsonDagskort`), attestantens retting (`redigerSedelRader`, `rettRadFelt`) og appens synk (`syncBatch`). | `D:2473–2510`, `:4282–4284`, `:4557–4559`, `:4867–4880`, `:5327–5340`, `:3160–3168`, `:9891–9905` |
 | OV2 | **Regelen er delt** mellom server, web og app: `finnOverlappendeTidsrom` og `finnTidsromKonflikt`. Reise er en timerad og telles med. | `TV:57–103` |
 | OV3 | **`delJobb` kaller ikke sjekken** (som DO13). | Søk i `D:7204–7433` (ingen kall) |
 | OV4 | **Varselet fra 2026-11-15 finnes på arbeiderens dagsside:** en gul linje over kortene i prosjektkort-modus, også når dagen er sendt. Den viser den første konflikten med de to tidsrommene, uten kortnavn, og står ikke i kortene. Attesteringen har ikke varselet. | `TV:113–133`; `DS:597–599`, `:1484–1488`; søk i `ATL` (ingen treff på radoverlapp) |
@@ -102,10 +102,10 @@ med linjene fra denne hashen; i § 4.16 del A er linjene fra `310ecf43` (`delJob
 
 **I vinduet:**
 
-- Overlapper kort 1 eller kort 2 en rad utenfor jobben, står en gul linje i kortet det gjelder: «Overlapper
+- Overlapper kort 1 eller kort 2 en rad utenfor jobben, på et kort attestanten ikke kan rette, står en gul linje i kortet det gjelder: «Overlapper
   17:30–19:00 på 2207 — Brygga. Dagen kan ikke attesteres før ett av kortene er rettet.» «Lagre» er på.
 - Forhåndsvisningen fra serveren bærer konfliktene, så vinduet og serveren bruker samme regel (OV2).
-- Overlapp mellom kort 1 og kort 2 kan ikke lagres (B65 A).
+- Overlapp mellom kort 1 og kort 2, eller mot et annet kort han kan rette, kan ikke lagres (B65 A, B88 ja).
 
 **Etter «Lagre», i attesteringen:**
 
@@ -125,7 +125,8 @@ fr. 22.11 · Kari Nordmann                           Avvik: Sperre — to kort o
   (`D:2493–2499`).
 - **Konflikten forsvinner av seg selv** når ett av kortene er rettet, fordi den regnes av klokkeslettene. Ingen
   ny kolonne i databasen.
-- **Er det andre kortet alt attestert,** godtas lagringen likevel. Kort 2 kan ikke attesteres før det er rettet,
+- **Er det andre kortet alt attestert, og på et prosjekt attestanten ikke kan rette,** godtas lagringen likevel.
+  Har han rett på det, er det en sperre (lesningen av B88 i § 8). Kort 2 kan ikke attesteres før det er rettet,
   eller det andre kortet er gjenåpnet (↺, `gjenaapneRader`, `D:8035`) og rettet. Dobbelttimen kan dermed ikke bli
   attestert på begge prosjektene.
 
@@ -149,16 +150,27 @@ fr. 22.11 · Kari Nordmann                           Avvik: Sperre — to kort o
 - **B67 A:** ingen varsling til attestanten på det andre prosjektet. Han ser sperren og merket i attesteringen
   sin; attestanten som laget konflikten, følger opp. Følgen er at en konflikt kan bli stående hvis ingen følger
   opp, og da står dagen uattestert.
+- **B88 ja** (Kenneth 2026-11-24, ordrett «B88 ja», § 8.30): overlapp mellom to kort attestanten kan rette, er en
+  sperre, også utenfor paret og etter at paret er lukket. Bare overlapp mot et kort han ikke kan rette, varsles og
+  godtas. Serveren avgjør det av attesteringsretten.
 
-**Leveranse KF1 — konflikt varsles og godtas ved attestantens retting** (B65 A, B66 A, B67 A). Server og web.
+**Leveranse KF1 — konflikt varsles og godtas ved attestantens retting** (B65 A, B66 A, B67 A, B88 ja). Server og web.
 Ingen migrering: konflikten regnes av klokkeslettene og lagres ikke. Etter D2a, fordi paret (B65) finnes først
 der. Rører attesteringstabellen, så rekkefølgen mot A1–A5 og H1a–H1c avgjøres i ordren.
 
 - **Attestantens veier varsler og godtar:** `rettRadFelt`, `redigerSedelRader` (`utforRedigerSedelRader`) og
-  `delJobb` lagrer selv om kortet overlapper et annet kort på dagen. Svaret og forhåndsvisningen bærer
+  `delJobb` lagrer selv om kortet overlapper et kort på dagen som attestanten ikke kan rette. Svaret og forhåndsvisningen bærer
   konfliktene, så vinduet viser den gule linja før «Lagre» med samme regel som serveren (OV2).
-- **Unntak, B65 A:** i paret etter «Del opp» er «Lagre» av når kort A og kort B overlapper hverandre (§ 4.16 del
-  G punkt 10). Om sperren mellom to kort attestanten selv kan rette også skal stå på serveren, er B88.
+- **Sperre mot kort attestanten kan rette (B65 A, B88 ja):** overlapper kortet et annet kort på dagen som han
+  også kan rette, avvises lagringen, og svaret navngir kortet. Det gjelder i paret etter «Del opp», i et kort som
+  er åpnet alene og etter at paret er lukket. Serveren avgjør det av attesteringsretten, ikke av paret (B69). Målt
+  mot develop `ec303c15`: én gang pr. dagsseddel slår veien opp `attesteringsOmfang(userId, sheet.organizationId)`
+  (`dagsseddel.ts:318`) og deler dagens andre kort i dem han kan rette (omfanget er «alle», eller prosjektet står
+  i lista) og dem han ikke kan rette. Kort uten prosjekt avgjøres av `kanAttestereFravaer` (`:391`), som i
+  `krevAttesteringsrett` (`:561`). Det er den samme retten som rettingsvakten bruker (`krevRettingVedAttestering`,
+  `:634`, via `attesteringsFirmaer`, `:280`), så sperren og vakten kan ikke være uenige. Vinduet viser sperren før
+  «Lagre» av forhåndsvisningen (OV2); i paret er «Lagre» av (§ 4.16 del G punkt 10). For firmaadministrator og
+  sitedoc_admin er all overlapp på dagen en sperre.
 - **Rettingene tåler en konflikt som står** (OV7): en retting avvises ikke fordi to andre rader på dagen alt
   overlapper.
 - **Arbeiderens veier beholder sperren:** `tilfoyTimerRad`, `oppdaterTimerRad`, `lagreJobbTid`, `forsonDagskort`
@@ -184,16 +196,20 @@ der. Rører attesteringstabellen, så rekkefølgen mot A1–A5 og H1a–H1c avgj
 
 | Test |
 |---|
-| Attestanten retter fra–til med ✎ slik at linja overlapper et kort på et annet prosjekt: lagringen godtas, og svaret bærer konflikten. |
+| Attestanten retter fra–til med ✎ slik at linja overlapper et kort på et prosjekt der han ikke har attesteringsrett: lagringen godtas, og svaret bærer konflikten. |
 | Det samme med «✎ Rediger jobben», «Rett reisen» og «Del opp». |
 | Arbeideren lagrer den samme overlappen på dagssiden og i `syncBatch`: avvist som i dag (vakt-test). |
 | Paret etter «Del opp»: kort B med «Fra kl.» før «Til kl.» på kort A har «Lagre» av, og linja sier hvorfor. |
+| B88: kort B åpnet alene, eller etter at paret er lukket, rettes slik at det overlapper kort A: serveren avviser lagringen, og svaret navngir kort A. |
+| B88: to kort på to prosjekter der attestanten har attesteringsrett på begge, ikke et par: overlappen avvises av serveren. Mister han retten på det ene prosjektet, godtas den samme overlappen med konflikt. |
+| B88: firmaadministrator retter et kort slik at det overlapper et kort på et hvilket som helst prosjekt i firmaet: avvist. |
+| B88: det andre kortet er attestert og på et prosjekt han har rett på: avvist (lesningen i § 8). |
 | En dag med konflikt kan ikke attesteres, verken med ✓ eller «Attester utvalget», for noen attestant. Etter at ett av kortene er rettet, kan den. |
 | En retting av et tredje kort på en dag der to andre kort alt overlapper, godtas (OV7). |
 | Ingen e-post og ingen varsling sendes når konflikten lagres (B67 A). |
 
-**Åpent spørsmål:** B88 (sperren mellom to kort attestanten selv kan rette, også etter at paret er lukket). Står i
-§ 8. B63–B67 er besvart eller dekket.
+**Åpne spørsmål:** ingen. B63–B67 og B88 er besvart eller dekket (§ 8.27, § 8.29, § 8.30). Én lesning av B88 står
+i § 8.
 
 #### Del J — enkel attestering som et menneske leser
 
