@@ -31,11 +31,12 @@ const h = vi.hoisted(() => {
         return lag([...sti, p]);
       },
     });
-  return { kall, data, velger, trpc: lag([]) };
+  const bruker = { id: "u-leder" };
+  return { kall, data, velger, bruker, trpc: lag([]) };
 });
 
 vi.mock("@/lib/trpc", () => ({ trpc: h.trpc }));
-vi.mock("next-auth/react", () => ({ useSession: () => ({ data: { user: { name: "Kari Leder" } } }) }));
+vi.mock("next-auth/react", () => ({ useSession: () => ({ data: { user: { id: h.bruker.id, name: "Kari Leder" } } }) }));
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (k: string, o?: Record<string, unknown>) => (o ? `${k}${JSON.stringify(o)}` : k),
@@ -123,7 +124,18 @@ const aapnePenn = (panel: HTMLElement, sel = '[data-timelinje="s1:timer:t1"]') =
 const lagreVindu = () => fireEvent.click(within(vindu()).getByRole("button", { name: "handling.lagre" }));
 
 // Katalogen: «Ordinær» er timebasert (satsEnhet null), så kortet retter den med fra–til (RETUR 1 w10a).
-beforeEach(() => { h.kall.length = 0; h.velger.props = null; h.data["timer.lonnsart.list"] = [{ id: "l1", navn: "Ordinær", satsEnhet: null }]; });
+// A1 (B51 A): linjene er skjult som standard. Testene under er skrevet for linjene synlige — som en
+// bruker som har slått av «Bare oversiktsrader» (valget huskes pr. bruker). A1-testene nullstiller.
+const VIS_LINJER = "sitedoc_attestering_bareOversikt_u-leder";
+// jsdom-miljøet her har ingen brukbar localStorage; et lager i minnet står i stedet.
+const lager = new Map<string, string>();
+vi.stubGlobal("localStorage", {
+  getItem: (k: string) => lager.get(k) ?? null,
+  setItem: (k: string, v: string) => { lager.set(k, String(v)); },
+  removeItem: (k: string) => { lager.delete(k); },
+  clear: () => lager.clear(),
+});
+beforeEach(() => { h.kall.length = 0; h.velger.props = null; h.data["timer.lonnsart.list"] = [{ id: "l1", navn: "Ordinær", satsEnhet: null }]; lager.clear(); localStorage.setItem(VIS_LINJER, "false"); h.bruker.id = "u-leder"; });
 afterEach(cleanup);
 
 describe("T43 — «Attester utvalget»", () => {
@@ -541,13 +553,15 @@ describe("d2b-3 (c, e) — dagsnorm på detaljen og ukeavvikets tekst", () => {
   });
 
   it("med dagsnorm teller «over normen» i «Krever vurdering», og dagteksten står (w5b: på hover av merket)", () => {
-    const { container } = visMed([sedel({ totaltimer: 9, dagsnorm: 7.5 })]);
+    // A1: normmerket regnes fra linjene (9 t arbeid), ikke fra `totaltimer`.
+    const ni = [timer("t1", { timer: "9", tilTid: "16:30" })];
+    const { container } = visMed([sedel({ totaltimer: 9, dagsnorm: 7.5, timer: ni })]);
     expect(container.textContent).toMatch(/normMerke/);
-    expect(document.body.textContent).toMatch(/dagenAvNorm/);
+    expect(document.body.textContent).toMatch(/normHover\.arbeid/);
     cleanup();
-    const uten = visMed([sedel({ totaltimer: 9, dagsnorm: null })]);
+    const uten = visMed([sedel({ totaltimer: 9, dagsnorm: null, timer: ni })]);
     expect(uten.container.textContent).not.toMatch(/normMerke/);
-    expect(document.body.textContent).not.toMatch(/dagenAvNorm/);
+    expect(document.body.textContent).not.toMatch(/normHover/);
     const vurder = (dagsnorm: number | null) =>
       filtrerModell(byggAttesteringModell([sedel({ totaltimer: 9, dagsnorm })], deps), {
         verdier: { avvik: AVVIK_FILTER.kreverVurdering },
@@ -842,7 +856,7 @@ describe("w5 / WM54 (w10a) — ✂ og «Rediger jobben» i kortet, bare når «r
 describe("w5b — dagsvisningen, alternativ A", () => {
   const dagsrader = (c: HTMLElement) => Array.from(c.querySelectorAll('[data-rad="dag"]')) as HTMLElement[];
   const jobbrader = (c: HTMLElement) => Array.from(c.querySelectorAll('[data-rad="jobb"]')) as HTMLElement[];
-  const venstreKant = (el: HTMLElement) => (el.firstElementChild as HTMLElement).className.match(/border-(blue|amber|emerald|violet|rose)-\d+/)?.[0];
+  const venstreKant = (el: HTMLElement) => (el.firstElementChild as HTMLElement).className.match(/border-(blue|slate|emerald|violet|rose)-\d+/)?.[0];
 
   it("én jobb: dagsraden bærer dato med ukedag, ansatt, prosjektnavnet (O13), sum og dagens knapper — ingen jobbrad", () => {
     const { container } = vis([sedel()]);
@@ -933,18 +947,19 @@ describe("w5b — dagsvisningen, alternativ A", () => {
     expect(l.textContent).toContain("16.11.");
     expect(l.textContent).toContain("Kari Nordmann");
     expect(l.textContent).toContain("1001");
-    expect(l.className).not.toMatch(/border-amber|border-emerald/);
+    expect(l.className).not.toMatch(/border-slate|border-emerald/);
   });
 
   it("normen står som merke bare når dagen avviker, med fortegn", () => {
-    const over = vis([sedel({ totaltimer: 8, dagsnorm: 7.5 })]);
+    // A1: timene leses fra linjene (arbeid uten reise), ikke fra `totaltimer`.
+    const over = vis([sedel({ dagsnorm: 7.5, timer: [timer("t1", { timer: "8" })] })]);
     expect(dagsrader(over.container)[0]!.textContent).toContain('normMerke{"avvik":"+0,5"}');
     cleanup();
-    const under = vis([sedel({ totaltimer: 6, dagsnorm: 7.5 })]);
+    const under = vis([sedel({ dagsnorm: 7.5, timer: [timer("t1", { timer: "6" })] })]);
     expect(dagsrader(under.container)[0]!.textContent).toContain('normMerke{"avvik":"−1,5"}');
     cleanup();
-    const lik = vis([sedel({ totaltimer: 7.5, dagsnorm: 7.5 })]);
-    expect(lik.container.textContent).not.toMatch(/normMerke|dagenAvNorm/);
+    const lik = vis([sedel({ totaltimer: 99, dagsnorm: 7.5 })]);
+    expect(lik.container.textContent).not.toMatch(/normMerke|normHover/);
   });
 
   it("«Etter prosjekt»: ingen dagsrad med «N jobber» — hver jobb er en blokk med dato og ansatt", () => {
@@ -1634,7 +1649,7 @@ describe("O13 — attesteringen etter vedtaksfila § Dagsvisningen pkt 2 og 3", 
     for (let ki = 0; ki < kolonner.length; ) {
       const b = barn[i++];
       if (!b) return null;
-      const n = b.hasAttribute("data-navnefelt") ? Number(/span (\d+)/.exec(b.style.gridColumn)![1]) : 1;
+      const n = b.hasAttribute("data-navnefelt") || b.hasAttribute("data-lonnsartfelt") ? Number(/span (\d+)/.exec(b.style.gridColumn)![1]) : 1;
       if (kolonner.slice(ki, ki + n).includes(kol)) return n === 1 ? b : null;
       ki += n;
     }
@@ -1646,7 +1661,7 @@ describe("O13 — attesteringen etter vedtaksfila § Dagsvisningen pkt 2 og 3", 
   afterEach(() => { delete h.data["bruker.hentTabelloppsett"]; });
 
   describe("pkt 1 — prosjektnavnet i dagsrad og jobbrad", () => {
-    it("én jobb: navnet halvfet og under det «byggeplass · underprosjekt», over Pr.nr. til Fra–til", () => {
+    it("én jobb: navnet halvfet og under det «byggeplass · underprosjekt», over Pr.nr. og Underprosjekt (A1)", () => {
       const { container } = vis([sedel({ timer: [timer("t1", { byggeplassNavn: "A sør", externalCostObjectId: "e1", underprosjekt: UP })] })]);
       const navn = dagsrad(container).querySelector("[data-prosjektnavn]") as HTMLElement;
       expect(navn).toBeTruthy();
@@ -1655,7 +1670,9 @@ describe("O13 — attesteringen etter vedtaksfila § Dagsvisningen pkt 2 og 3", 
       expect(navn.firstElementChild!.className).toContain("truncate");
       expect(navn.children[1]!.textContent).toMatch(/^A sør · /);
       const felt = dagsrad(container).querySelector("[data-navnefelt]") as HTMLElement;
-      expect(felt.style.gridColumn).toBe("span 4");
+      expect(felt.style.gridColumn).toBe("span 2");
+      // A1: Betegnelse og Fra–til bærer lønnsartmerkene.
+      expect((dagsrad(container).querySelector("[data-lonnsartfelt]") as HTMLElement).style.gridColumn).toBe("span 2");
     });
 
     it("uten byggeplass og underprosjekt: bare navnet", () => {
@@ -1763,20 +1780,22 @@ describe("O13 — attesteringen etter vedtaksfila § Dagsvisningen pkt 2 og 3", 
   });
 
   describe("R2 — navnefeltet følger brukerens kolonneoppsett", () => {
-    it("skjult Pr.nr.: feltet dekker de tre synlige", () => {
+    it("skjult Pr.nr.: feltet dekker Underprosjekt; lønnsartfeltet Betegnelse og Fra–til (A1)", () => {
       // Avvik synlig: med Avvik skjult bærer Betegnelse avviket og står utenfor feltet (vilkår 1, under).
       medOppsett(["dato", "ansatt", "underprosjekt", "betegnelse", "fraTil", "timer", "avvik"]);
       const { container } = vis([sedel()]);
-      expect((dagsrad(container).querySelector("[data-navnefelt]") as HTMLElement).style.gridColumn).toBe("span 3");
+      expect((dagsrad(container).querySelector("[data-navnefelt]") as HTMLElement).style.gridColumn).toBe("span 1");
+      expect((dagsrad(container).querySelector("[data-lonnsartfelt]") as HTMLElement).style.gridColumn).toBe("span 2");
     });
 
-    it("flyttet kolonne mellom: feltet stopper der; av de fire står de utenfor rekken tomme", () => {
+    it("flyttet kolonne mellom: feltet stopper der; Betegnelse og Fra–til bærer lønnsartmerkene (A1)", () => {
       medOppsett(["dato", "ansatt", "prosjektnummer", "underprosjekt", "timer", "betegnelse", "fraTil"]);
       const { container } = vis([sedel()]);
       const dag = dagsrad(container);
       expect((dag.querySelector("[data-navnefelt]") as HTMLElement).style.gridColumn).toBe("span 2");
-      expect(celle(dag, "betegnelse")?.textContent ?? "").toBe("");
-      expect(celle(dag, "fraTil")?.textContent ?? "").toBe("");
+      const lf = dag.querySelector("[data-lonnsartfelt]") as HTMLElement;
+      expect(lf.style.gridColumn).toBe("span 2");
+      expect(lf.textContent).toBe("Ordinær 7,5");
     });
 
     it("ingen av de fire synlige: første tekstkolonne etter Ansatt", () => {
@@ -1798,14 +1817,15 @@ describe("O13 — attesteringen etter vedtaksfila § Dagsvisningen pkt 2 og 3", 
     // Gate O13 trinn 2, vilkår 1: med Avvik skjult bærer Betegnelse avviket (som på 360c35a0).
     it("Avvik skjult → sperre og normmerke står i dagsraden og jobbraden (i Betegnelse, utenfor feltet)", () => {
       medOppsett(["dato", "ansatt", "prosjektnummer", "underprosjekt", "betegnelse", "fraTil", "timer"]);
-      const en = vis([sedel({ id: "sperret", totaltimer: 8, dagsnorm: 7.5 })]);
+      const en = vis([sedel({ id: "sperret", dagsnorm: 7.5, timer: [timer("t1", { timer: "8" })] })]);
       const dag = dagsrad(en.container);
       expect((dag.querySelector("[data-navnefelt]") as HTMLElement).style.gridColumn).toBe("span 2");
       expect(dag.querySelector("[data-prosjektnavn]")!.textContent).toBe("Prosjekt A");
-      const b = celle(dag, "betegnelse")!;
+      // A1: Betegnelse og Fra–til er lønnsartfeltet; avviket står etter lønnsartmerkene.
+      const b = dag.querySelector("[data-lonnsartfelt]") as HTMLElement;
+      expect(b.textContent).toContain("Ordinær 8");
       expect(b.textContent).toContain("Fravær over dagsnorm");
       expect(b.textContent).toContain('normMerke{"avvik":"+0,5"}');
-      expect(celle(dag, "fraTil")?.textContent ?? "").toBe("");
       cleanup();
       // Flere jobber: Betegnelse er cella rett etter feltet (span 2 over Pr.nr. og Underprosjekt).
       const etterFeltet = (rad: HTMLElement) => {
@@ -2071,5 +2091,87 @@ describe("O17 pkt 21 — kontorreise i attesteringen", () => {
     ] })]);
     const tekster = hoverTekster(container).find((x) => x[0] !== "Forskaling");
     expect(tekster).toEqual(['timer.prosjektkort.reiseTil{"sted":"Prosjekt A"} · 15:00–18:50']);
+  });
+});
+
+describe("A1 (plan § 4.17 del A, B51 A) — gult på dagen", () => {
+  const arter = [
+    { id: "l1", navn: "Ordinær", satsEnhet: null },
+    { id: "l2", navn: "Overtid 50 %", satsEnhet: null, overtidsnivaa: 50 },
+    { id: "lf", navn: "Sykemelding", satsEnhet: null, type: "fravaer" },
+  ];
+  const dag = () =>
+    sedel({
+      timer: [
+        timer("t1", { fraTid: "07:00", tilTid: "15:00", timer: "7.5" }),
+        timer("t2", { lonnsartId: "l2", fraTid: "15:00", tilTid: "17:00", timer: "2", pauseMin: 0 }),
+      ],
+    });
+
+  it("linjene er skjult som standard; negativkontroll: slått av vises de", () => {
+    lager.clear();
+    const en = vis([dag()]);
+    expect(en.container.querySelector("[data-linje]")).toBeNull();
+    expect((en.getByLabelText("timer.attestering.tabell.bareOversikt") as HTMLInputElement).checked).toBe(true);
+    en.unmount();
+    localStorage.setItem(VIS_LINJER, "false");
+    const to = vis([dag()]);
+    expect(to.container.querySelector("[data-linje]")).not.toBeNull();
+  });
+
+  it("valget huskes pr. bruker: samme bruker ser linjene etter ny visning, en annen bruker gjør det ikke", () => {
+    lager.clear();
+    const en = vis([dag()]);
+    fireEvent.click(en.getByLabelText("timer.attestering.tabell.bareOversikt"));
+    expect(lager.get(VIS_LINJER)).toBe("false");
+    en.unmount();
+    const to = vis([dag()]);
+    expect(to.container.querySelector("[data-linje]")).not.toBeNull();
+    to.unmount();
+    h.bruker.id = "u-annen";
+    const tre = vis([dag()]);
+    expect(tre.container.querySelector("[data-linje]")).toBeNull();
+  });
+
+  it("lønnsartmerkene på dagsraden: overtid er gul, ordinær grå; hover viser linjene", () => {
+    h.data["timer.lonnsart.list"] = arter;
+    const { container } = vis([dag()]);
+    const merker = Array.from(dagsrad(container).querySelectorAll("[data-lonnsart-oversikt]")) as HTMLElement[];
+    // Testens deps gir alle arter navnet «Ordinær»; varselet kommer fra katalogen (overtidsnivå 50).
+    expect(merker.map((m) => [m.textContent, m.getAttribute("data-lonnsart-oversikt")])).toEqual([
+      ["Ordinær 7,5", ""],
+      ["Ordinær 2", "overtid"],
+    ]);
+    expect(merker[1]!.className).toContain("amber");
+    expect(merker[0]!.className).not.toContain("amber");
+    const tips = (m: HTMLElement) => document.getElementById(m.getAttribute("aria-describedby")!)?.textContent;
+    expect(tips(merker[1]!)).toBe("15:00–17:00 2 t");
+    expect(tips(merker[0]!)).toBe("07:00–15:00 7,5 t");
+  });
+
+  it("overtid og fravær gir gul linje; negativkontroll: ordinær linje er ikke gul", () => {
+    h.data["timer.lonnsart.list"] = arter;
+    const { container } = vis([
+      sedel({
+        timer: [
+          timer("t1", { fraTid: "07:00", tilTid: "10:00", timer: "3" }),
+          timer("t2", { lonnsartId: "l2", fraTid: "15:00", tilTid: "17:00", timer: "2", pauseMin: 0 }),
+          timer("t3", { lonnsartId: "lf", fraTid: "10:00", tilTid: "12:00", timer: "2", pauseMin: 0 }),
+        ],
+      }),
+    ]);
+    expect(linje(container, "s1:timer:t2").className).toContain("bg-amber-50");
+    expect(linje(container, "s1:timer:t3").className).toContain("bg-amber-50");
+    expect(linje(container, "s1:timer:t1").className).not.toContain("bg-amber-50");
+  });
+
+  it("normmerket: fravær fyller normen — 5 t arbeid + 2,5 t fravær mot 7,5 gir ikke merke", () => {
+    h.data["timer.lonnsart.list"] = arter;
+    const full = vis([sedel({ dagsnorm: 7.5, timer: [timer("t1", { timer: "5" }), timer("t3", { lonnsartId: "lf", timer: "2.5" })] })]);
+    expect(dagsrad(full.container).textContent).not.toContain("normMerke");
+    full.unmount();
+    // Negativkontroll: uten fravær står dagen 2,5 t under.
+    const under = vis([sedel({ dagsnorm: 7.5, timer: [timer("t1", { timer: "5" })] })]);
+    expect(dagsrad(under.container).textContent).toContain('normMerke{"avvik":"−2,5"}');
   });
 });

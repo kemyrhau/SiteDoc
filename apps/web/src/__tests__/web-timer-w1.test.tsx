@@ -45,6 +45,9 @@ vi.mock("@tanstack/react-virtual", () => ({
 }));
 vi.mock("next/link", () => ({ default: ({ href, children }: { href: string; children: ReactNode }) => <a href={href}>{children}</a> }));
 vi.mock("@/components/ui/KolonneVelger", () => ({ KolonneVelger: () => null }));
+// A1 (B51 A): linjene er skjult som standard; testene her gjelder linjene, så de vises.
+vi.mock("next-auth/react", () => ({ useSession: () => ({ data: null }) }));
+vi.mock("@/components/attestering/useBareOversikt", () => ({ useBareOversikt: () => [false, () => {}] }));
 vi.mock("@/components/timer/SplittRadModal", () => ({ SplittRadModal: () => null }));
 vi.mock("@/components/attestering/RedigerRadModal", () => ({ RedigerRadModal: () => null }));
 vi.mock("@/components/SignertLenke", () => ({ SignertLenke: ({ children }: { children: ReactNode }) => <span>{children}</span> }));

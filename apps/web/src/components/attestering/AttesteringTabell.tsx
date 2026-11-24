@@ -2,6 +2,7 @@
 
 import { useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { useTranslation } from "react-i18next";
 import { Check, CornerUpLeft, RotateCcw, X, SlidersHorizontal, ExternalLink } from "lucide-react";
 import { Button, Modal, Tooltip } from "@sitedoc/ui";
@@ -31,18 +32,23 @@ import type { ProsjektValg } from "@/components/timer/rediger-types";
 import { RedigerRadModal } from "./RedigerRadModal";
 import { Kvitteringer } from "./Kvitteringer";
 import { RegistreringPanel, jobbensBeskrivelser } from "./RegistreringPanel";
+import { useBareOversikt } from "./useBareOversikt";
 import {
   AVVIK_FILTER,
   FILTER_KOLONNER,
   antallRader,
   byggJobbUtvalg,
   byggUtvalg,
+  dagensTimer,
   erBareReiseKort,
   filterAlternativer,
   filtrerModell,
   grupperModell,
   linjeIKontekst,
   linjeSpenn,
+  linjeVarsel,
+  lonnsartMerker,
+  lonnsartPlass,
   navnefeltPlass,
   slaaSammen,
   spennerFlereAar,
@@ -54,6 +60,8 @@ import {
   type AttSedel,
   type AvvikMerke,
   type Gruppering,
+  type LonnsartMerke,
+  type LonnsartOppslag,
   type RadIder,
 } from "./attestering-tabell";
 
@@ -132,7 +140,11 @@ const ATTESTERING_BREDDE: Partial<Record<TimerTabellKolKey, number>> = {
  * i rekkefølge, så to jobber samme dag skilles fra hverandre.
  */
 const DAG_KANT = "border-blue-700";
-const KORT_KANT = ["border-blue-400", "border-amber-500", "border-emerald-500", "border-violet-500", "border-rose-500"] as const;
+// A1 (§ 4.17 del B): gult betyr «se på dette», så ingen jobb har gul kant (AM17). Amber → skifer.
+const KORT_KANT = ["border-blue-400", "border-slate-500", "border-emerald-500", "border-violet-500", "border-rose-500"] as const;
+
+/** A1: linja et varsel gjelder (overtid, fravær, reise under terskel) er gul. */
+const GUL_LINJE = "bg-amber-50";
 
 /** O13 (pkt 3): merket og tallet på reise- og overtidslinja — blå reise, lilla overtid (B14c B). */
 const MERKE_FARGE = { reise: "border-sky-300 bg-sky-50 text-sky-800", overtid: "border-violet-300 bg-violet-50 text-violet-800" } as const;
@@ -191,7 +203,9 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
   const [filterVerdier, setFilterVerdier] = useState<Record<string, string>>({});
   const [beskrivelseSok, setBeskrivelseSok] = useState("");
   const [sortering, setSortering] = useState<TimerRadTabellSortering | null>(null);
-  const [bareOversikt, setBareOversikt] = useState(false);
+  // A1 (B51 A): linjene er skjult som standard; valget huskes pr. bruker.
+  const { data: session } = useSession();
+  const [bareOversikt, setBareOversikt] = useBareOversikt(session?.user?.id);
   const [visVelger, setVisVelger] = useState(false);
   const [visUke, setVisUke] = useState(false);
   const [valgte, setValgte] = useState<Set<string>>(new Set());
@@ -250,6 +264,11 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
     () => new Map((lonnsarter ?? []).map((l) => [l.id, (l as { overtidsnivaa?: number | null }).overtidsnivaa ?? null])),
     [lonnsarter],
   );
+  // A1 (§ 4.17): lønnsartens type og overtidsnivå — normmerket, lønnsartmerkene og gule linjer.
+  const lonnsart = useMemo<LonnsartOppslag>(() => {
+    const m = new Map((lonnsarter ?? []).map((l) => [l.id, l as { navn?: string | null; type?: string | null; overtidsnivaa?: number | null }]));
+    return (id: string) => m.get(id);
+  }, [lonnsarter]);
   // w10b (M3): firmaets standardverdier krever bare ansettelse — prosjektlederen er ikke firma-admin.
   const { data: innstilling } = trpc.organisasjon.hentArbeidstidDefaults.useQuery({ organizationId: orgId });
   const tidsrunding = (innstilling as { tidsrundingMinutter?: number | null } | undefined)?.tidsrundingMinutter ?? null;
@@ -376,6 +395,8 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
   const plass = useMemo(() => navnefeltPlass(kolonner, (k) => TIMER_TABELL_KOL[k].num), [kolonner]);
   // Dagsrad og jobbrad: er Avvik skjult og avviket i Betegnelse, står Betegnelse utenfor feltet.
   const sumPlass = useMemo(() => navnefeltPlass(kolonner, (k) => TIMER_TABELL_KOL[k].num, avvikKol), [kolonner, avvikKol]);
+  // A1: feltet med lønnsartmerkene i oversiktsraden (Betegnelse + Fra–til).
+  const lPlass = useMemo(() => lonnsartPlass(kolonner), [kolonner]);
 
   function handlingKnapp(props: { ikon: ReactNode; tekst: string; onClick: () => void; disabled?: boolean; tittel?: string; farge?: string }) {
     return (
@@ -591,17 +612,46 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
     return <AvvikMerker merker={[{ tekst: t("timer.attestering.egneTimer.merke"), forklaring: t("timer.attestering.egneTimer.forklaring") }]} />;
   }
 
-  /** Normen som merke (w5b): bare når dagen avviker; hele setningen på hover (mønsteret fra B7). */
+  /**
+   * Normen som merke (w5b): bare når dagen avviker; hele regnestykket på hover (mønsteret fra B7).
+   * A1 (§ 4.17, punkt 1 og 2): måles mot arbeid uten reise, med fravær som fyller normen
+   * (`dagensTimer`). En vanlig dag har ikke merke.
+   */
   function normMerke(s: AttSedel): AvvikMerke | null {
-    if (s.dagsnorm == null) return null;
-    const diff = Math.round((s.totaltimer - s.dagsnorm) * 100) / 100;
-    if (diff === 0) return null;
-    const tall = formaterNorsk(Math.abs(diff)).replace(/,?0+$/, "");
+    const d = dagensTimer(s.timer, s.dagsnorm, lonnsart);
+    if (d.norm == null || d.avvik == null || d.avvik === 0) return null;
+    const deler = [
+      t("timer.attestering.tabell.normHover.arbeid", { arbeid: formaterNorsk(d.arbeid), norm: formaterNorsk(d.norm) }),
+      ...(d.fravaer > 0 ? [t("timer.attestering.tabell.normHover.fravaer", { timer: formaterNorsk(d.fravaer) })] : []),
+      ...(d.overtid > 0 ? [t("timer.attestering.tabell.normHover.overtid", { timer: formaterNorsk(d.overtid) })] : []),
+      ...(d.reise > 0 ? [t("timer.attestering.tabell.normHover.reise", { timer: formaterNorsk(d.reise) })] : []),
+      t("timer.attestering.tabell.normHover.sum", { timer: formaterNorsk(d.sum) }),
+    ];
     return {
-      tekst: t("timer.attestering.tabell.normMerke", { avvik: `${diff > 0 ? "+" : "−"}${tall}` }),
-      forklaring: t("timer.attestering.tabell.dagenAvNorm", { timer: formaterNorsk(s.totaltimer), norm: formaterNorsk(s.dagsnorm) }),
+      tekst: t("timer.attestering.tabell.normMerke", { avvik: `${d.avvik > 0 ? "+" : "−"}${kortTall(Math.abs(d.avvik))}` }),
+      forklaring: deler.join(" · "),
     };
   }
+
+  /**
+   * A1 (§ 4.17, punkt 6): lønnsartmerkene på oversiktsraden — Betegnelse og over Fra–til.
+   * Står avviket i Betegnelse (Avvik og Beskrivelse skjult), står det etter merkene.
+   */
+  const lonnsartFelt = (linjer: readonly AttLinje[], avvik?: ReactNode) => {
+    if (!lPlass) return [];
+    const merker = lonnsartMerker(linjer, lonnsart);
+    return [{
+      fra: lPlass.fra,
+      antall: lPlass.antall,
+      felt: "lonnsartfelt" as const,
+      innhold: (
+        <span className="flex flex-wrap items-center gap-1 font-normal">
+          {merker.map((m) => <LonnsartMerkeVis key={m.nokkel} merke={m} />)}
+          {avvik}
+        </span>
+      ),
+    }];
+  };
 
   /** Kortets felt slik raden over viser dem — linja skriver dem ikke på nytt når de er like. */
   function kortVerdi(k: TimerTabellKolKey, kort: AttKort): string | null {
@@ -668,7 +718,7 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
    */
   function navnefelt(innhold: ReactNode) {
     const p = sumPlass;
-    const spenn = p.type === "spenn" ? { spenn: { fra: p.fra, antall: p.antall, innhold } } : {};
+    const spenn = p.type === "spenn" ? [{ fra: p.fra, antall: p.antall, innhold }] : [];
     const navnCelle = (k: TimerTabellKolKey, ansatt: ReactNode): ReactNode | undefined => {
       if (p.tomme.has(k)) return "";
       if (p.type === "kolonne" && k === p.kolonne) return innhold;
@@ -725,6 +775,10 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
     );
   }
 
+  // A1: dagens lønnsartmerker teller alle dagens linjer, også dem filteret skjuler (som normmerket).
+  const dagFor = useMemo(() => new Map(dager.map((d) => [d.sedel.id, d])), [dager]);
+  const helDag = (dag: AttDag) => (dagFor.get(dag.sedel.id) ?? dag).kort.flatMap((k) => k.linjer);
+
   const rader = useMemo<TimerRadTabellRad<AttLinje>[]>(() => {
     const ut: TimerRadTabellRad<AttLinje>[] = [];
     const avsluttBlokk = () => {
@@ -776,6 +830,7 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
           const overtid = overtidFor(kort.linjer);
           const norm = normMerke(s);
           const nf = navnefelt(navnInnhold(kort));
+          const kortAvvik = () => avvikCelle([...(norm ? [norm] : []), ...unikeMerker(kort.linjer.flatMap((l) => l.avvikMerker))]);
           ut.push({
             kind: "sum",
             nokkel: `o:${kort.nokkel}`,
@@ -784,7 +839,7 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
             venstre: kryss([kort], t("timer.attestering.tabell.velgJobb")),
             hoyre: kortHandlinger(kort, s),
             ...aapne(kort),
-            ...nf.spenn,
+            spenn: [...nf.spenn, ...lonnsartFelt(kort.linjer, avvikKol === "betegnelse" ? kortAvvik() : undefined)],
             celle: (k) => {
               const nc = nf.navnCelle(k, dag.ansatt);
               if (nc !== undefined) return nc;
@@ -797,7 +852,7 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
                 case "timer": return jobbTimer(sum, kort);
                 case "maskintimer": return sum.maskintimer > 0 ? formaterNorsk(sum.maskintimer) : "";
                 default:
-                  return k === avvikKol ? avvikCelle([...(norm ? [norm] : []), ...unikeMerker(kort.linjer.flatMap((l) => l.avvikMerker))]) : "";
+                  return k === avvikKol ? kortAvvik() : "";
               }
             },
           });
@@ -834,7 +889,8 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
         hoyre: dagHandlinger(dag, enKort),
         // Flere jobber: dagsraden er ikke én jobb og åpner ingenting; jobbradene gjør det.
         ...(enKort ? aapne(enKort) : {}),
-        ...dagNf.spenn,
+        // A1: lønnsartmerkene for hele dagen (alle jobbene; filteret skjuler ingen timer her).
+        spenn: [...dagNf.spenn, ...lonnsartFelt(helDag(dag), avvikKol === "betegnelse" ? avvikCelle(dagMerker, dagTekster) : undefined)],
         celle: (k) => {
           const nc = dagNf.navnCelle(k, dag.ansatt);
           if (nc !== undefined) return nc;
@@ -868,7 +924,7 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
             venstre: kryss([kort], t("timer.attestering.tabell.velgJobb")),
             hoyre: kortHandlinger(kort),
             ...aapne(kort),
-            ...nf.spenn,
+            spenn: [...nf.spenn, ...lonnsartFelt(kort.linjer, avvikKol === "betegnelse" ? avvikCelle(unikeMerker(kort.linjer.flatMap((l) => l.avvikMerker))) : undefined)],
             celle: (k) => {
               const nc = nf.navnCelle(k, "");
               if (nc !== undefined) return nc;
@@ -888,7 +944,7 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
     }
     return ut;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- handlingene leser fersk tilstand ved klikk
-  }, [synlige, gruppering, bareOversikt, t, readOnly, opptatt, plass, sumPlass, kolonner, avvikKol, prosjektKontekst, medAar, aapenKort, lonnsarter, overtidsnivaa, i18n.language, valgte, tidsrunding]);
+  }, [synlige, gruppering, bareOversikt, t, readOnly, opptatt, plass, sumPlass, lPlass, kolonner, avvikKol, prosjektKontekst, medAar, aapenKort, lonnsarter, lonnsart, overtidsnivaa, i18n.language, valgte, tidsrunding, dagFor]);
 
   /* ---------------- Filter i hodet (R8) ---------------- */
 
@@ -1006,6 +1062,7 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
           }}
           hoyre={{ bredde: HOYRE, celle: linjeHandlinger }}
           linjeKlasse={(l) => (iKontekst(l) ? undefined : "opacity-50")}
+          linjeBakgrunn={(l) => (linjeVarsel(l, lonnsart) ? GUL_LINJE : undefined)}
           standardBredder={ATTESTERING_BREDDE}
           hodeBrytes
           hodeTekst={(k) => (HODE_KORT.has(k) ? t(`timer.attestering.tabell.hode.${k}`) : undefined)}
@@ -1138,6 +1195,33 @@ function AvvikMerker({ merker }: { merker: readonly AvvikMerke[] }) {
         ),
       )}
     </span>
+  );
+}
+
+/** A1: tallet i et merke uten unødige nuller — «7,5», «10». */
+function kortTall(n: number): string {
+  return formaterNorsk(n).replace(/,?0+$/, "") || "0";
+}
+
+/**
+ * A1 (§ 4.17 del B): ett lønnsartmerke på oversiktsraden — «Overtid 50 % 2,5». Gult når
+ * linjene bak har et varsel (overtid, fravær, reise under terskel), ellers nøytralt. Hover viser
+ * linjene bak tallet med fra–til.
+ */
+function LonnsartMerkeVis({ merke }: { merke: LonnsartMerke }) {
+  const linjer = merke.linjer
+    .map((l) => (l.fraTid && l.tilTid ? `${l.fraTid}–${l.tilTid} ${kortTall(l.timer)} t` : `${kortTall(l.timer)} t`))
+    .join(" · ");
+  const farge = merke.varsel ? "border-amber-300 bg-amber-50 text-amber-800" : "border-gray-200 bg-white text-gray-700";
+  return (
+    <Tooltip tekst={linjer} side="bottom" delayMs={150}>
+      <span
+        data-lonnsart-oversikt={merke.varsel ?? ""}
+        className={`cursor-help whitespace-nowrap rounded-lg border px-1 py-px text-[11px] font-medium leading-4 ${farge}`}
+      >
+        {merke.navn} {kortTall(merke.timer)}
+      </span>
+    </Tooltip>
   );
 }
 

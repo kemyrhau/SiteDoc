@@ -457,6 +457,12 @@ Fra O13 i web-timeføring (✅ merget `72d375ae`, vedtak-timer-web.md § Dagsvis
 - **Kolonnehoder:** «Reise» (`timer.eksport.kolReisetimer`) og «Overtid» (`timer.eksport.kolOvertid`), nøklene `reisetimer` og `overtid` i `TIMER_TABELL_KOL`. Eksportens ja/nei-kolonne «Reise» (`kolReise`) står som før i «Velg parameter». I «Velg parameter» heter tallkolonnen «Reisetimer» (`timer.eksport.kolReisetimerVelger`, feltet `velgerI18n` i `TIMER_TABELL_KOL`), så de to ikke forveksles; overskriften i tabellen er «Reise» (O13-tillegg).
 - Den grå «reise X t» i jobbraden (`timer.attestering.tabell.reiseTimer`) og «1 jobb» vises ikke lenger; «N jobber» står grått der navnefeltet begynner.
 
+Fra A1 i attesteringen (🟡 ikke merget, `feat/attestering-a1-a3`, plan § 4.17 del A):
+
+- **Struktur** (`…hjelp.struktur`, endret): linjene er skjult til «Bare oversiktsrader» slås av, og valget huskes; lønnsartene med timer står under Betegnelse og Fra–til, med linjene bak ved hover; overtid og fravær er gule på merket og linja; normmerket måles mot arbeidet — reise teller ikke, fravær fyller normen — og hover viser arbeid, fravær, overtid og reise for seg. Generert på nytt i 13 språk.
+- Hover på normmerket: «Arbeid X t av dagsnorm Y t · fravær Z t · overtid ført Z t · reise Z t · sum i dag Z t» (`timer.attestering.tabell.normHover.arbeid` / `.fravaer` / `.overtid` / `.reise` / `.sum`; leddene uten timer utelates). Hover på lønnsartmerket: linjene «07:00–15:00 7,5 t · …» (ingen nøkkel, bare klokkeslett og tall).
+- Fjernet i alle 15 språk: `timer.attestering.tabell.dagenAvNorm` (erstattet av `normHover.*`).
+
 ## Prosjekt → Timer → Attestering (d2b-2) — ⚠️ fjernet i w10b
 
 🟡 w10b (`feat/web-timer-w10b`, ikke merget; plan web-timeføring § 4.10, B29 B): siden og menypunktet er fjernet. Adressen sender til `/dashbord/attestering`, der prosjektlederen får hjelpeteksten under Firma › Attestering (avsnittet `timer.attestering.hjelp.omfang`). Nøklene `timer.attestering.beskrivelse` og `timer.attestering.prosjekt.hjelp.laast` er slettet i alle 15 språk. Teksten under er historikk.
