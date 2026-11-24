@@ -22,7 +22,7 @@ Alle på docker-nett `appnet`, bundet til `127.0.0.1`.
    - `web.env` — `AUTH_SECRET`, `AUTH_GOOGLE_*`, `AUTH_MICROSOFT_*`, `AUTH_TRUST_HOST=true`, `DATABASE_URL` (samme), `RESEND_*` …
    - Kopier fra gammel server (`~/programmering/sitedoc/apps/{api/.env,web/.env.local}`), endre kun `DATABASE_URL`/`DIRECT_URL` → `@postgres:5432`.
 2. **DB-rolle:** opprett `sitedoc`-rolle (least-privilege) + database, som vi gjorde med `salsa`. Prod-DB er eid av `postgres` på gammel server — vi restorer med `--no-owner` til ny rolle.
-3. **DWG-konvertering — ingenting å skaffe (DWG-1, 2026-10-08).** libredwg 0.14 bygges fra kilde i et eget build-stage (`libredwg-build`, bookworm-slim + build-essential/curl/xz) i BÅDE Dockerfile.api og Dockerfile.web; kun `dwg2dxf`/`dwg2SVG` + `libredwg.so*` kopieres inn i runtime (+ `ldconfig`). Tarball SHA256-pinnet (`LIBREDWG_SHA256`-arg), hentes fra `ftp.gnu.org` ved BUILD-tid — ingen runtime-nettverk. ODA File Converter er valgt bort (lukket lisens) og helt fjernet fra Dockerfile + kode; xvfb fjernet (ble kun brukt av ODA; 3D-veiene er fortsatt ute, BACKLOG). **Verifiser etter rebuild:** `docker exec <api> dwg2dxf --version && docker exec <web> dwg2dxf --version` (runbok § 1 steg 3 / § 2 steg 5).
+3. **DWG-konvertering — ingenting å skaffe (DWG-1, 2026-10-08).** libredwg 0.14 bygges fra kilde i et eget build-stage (`libredwg-build`, bookworm-slim + build-essential/curl/xz) i BÅDE Dockerfile.api og Dockerfile.web; kun `dwg2dxf`/`dwg2SVG` + `libredwg.so*` kopieres inn i runtime (+ `ldconfig`) — strippet, og som én fil med symlenkene intakt (DOCKER-SLANK T1, se § Byggekontekst og lagrekkefølge). Tarball SHA256-pinnet (`LIBREDWG_SHA256`-arg), hentes fra `ftp.gnu.org` ved BUILD-tid — ingen runtime-nettverk. ODA File Converter er valgt bort (lukket lisens) og helt fjernet fra Dockerfile + kode; xvfb fjernet (ble kun brukt av ODA; 3D-veiene er fortsatt ute, BACKLOG). **Verifiser etter rebuild:** `docker exec <api> dwg2dxf --version && docker exec <web> dwg2dxf --version` (runbok § 1 steg 3 / § 2 steg 5).
 
 ## Åpne punkter å verifisere under bygg
 - **Oversettelse-URL env-navn:** sjekk `apps/api/src/services/oversettelse-service.ts` — sett riktig env (f.eks. `OVERSETTELSE_URL=http://oversettelse:3303`) i `api.env`/compose. (`NORBERT_URL` er bekreftet.)
@@ -49,11 +49,13 @@ Docker-migreringen. Feilsøkingen avdekket TRE lag som alle må stemme:
 1. **Runtime-env er for sent.** Rewrite-destinasjonen bakes inn i `.next/routes-manifest.json` ved
    `next build`-tid. `environment:` / `env_file` påvirker ikke en allerede bygd manifest.
 2. **Build-arg.** `API_PORT` settes som build-arg: `Dockerfile.web` har `ARG API_PORT=3001` → `ENV
-   API_PORT=${API_PORT}` FØR `pnpm turbo build`. Per miljø: **test 3301 / prod 3001**.
+   API_PORT=${API_PORT}` FØR `pnpm --filter @sitedoc/web build` (før DOCKER-SLANK: `pnpm turbo build`). Per miljø: **test 3301 / prod 3001**.
 3. **Turbo v2 strict-env.** Selv med ARG/ENV stripper Turbo v2 ukjente env-variabler bort fra
    build-taskens miljø → `next build` så aldri `API_PORT`. **`turbo.json` må ha
    `tasks.build.env: ["API_PORT"]`** (slipper den gjennom OG inn i cache-hashen, så portbytte
-   buster cachen). Uten dette nr. 2 er virkningsløst.
+   buster cachen). Uten dette nr. 2 er virkningsløst. *Fra DOCKER-SLANK (2026-11-24) kjører
+   `Dockerfile.web` `next build` via `pnpm --filter`, ikke turbo, så laget gjelder ikke lenger
+   i Docker-bygget — men fortsatt for `turbo build` lokalt/CI. Behold `turbo.json`-oppføringen.*
 
 **Bevist deploy-sti:** `docker build --build-arg API_PORT=<port> ...` (eksplisitt) + `up -d`.
 Hvorvidt `compose.build.args` alene når frem til buildx/bake er **uavklart** — ikke bekreftet, ikke
@@ -152,6 +154,45 @@ Krav ved deploy (test OG prod, FØR Fase 1 kjører i miljøet):
 🔴 **pdf-render er DELT MELLOM PROD OG TEST** — tjenesten er kun definert i `docker-compose.yml` (prod); `docker-compose.test.yml` peker på samme via `PDF_URL: http://pdf-render:3304`. Det finnes ingen egen test-pdf-render. **Vanlige api/web-deploys bruker `--no-deps` og rører den IKKE.** Liggende (og enhver pdf-render-endring) virker derfor ikke før containeren rebygges — **rebuild-kommandoen bor i [DEPLOY-RUNBOK.md § 2 steg 5c](../docs/claude/DEPLOY-RUNBOK.md).**
 
 Eget, eksplisitt steg Kenneth gater — ikke ta det med i en samlet api/web-deploy.
+
+## Byggekontekst og lagrekkefølge (DOCKER-SLANK, 2026-11-24)
+
+**Hvorfor:** imagene var 14–16 GB på server-ny. Byggekonteksten `~/stack/sitedoc` inneholder `uploads/`
+(4,4 G brukerfiler, også `uploads/privat/`), og `.dockerignore` utelot bare `apps/api/uploads` → `COPY . .`
+la brukerdataene i `/app/uploads` i begge imagene. I tillegg fulgte «3D eksempelfiler» (445 M), `kilder`
+(40 M), `docs` (88 M) og `.claude` (worktrees, ~1,6 G i hovedtreet etter rsync-ekskluderingene) med.
+Containerd (`DISK USAGE`) teller utpakket + komprimert innhold, og bilder/PDF komprimeres nesten ikke.
+
+**Hva som gjelder nå:**
+- **`.dockerignore` er en tillatelsesliste** (`*`, deretter `!apps`, `!packages`, `!tests` og rotfilene
+  bygget trenger). Av `apps/mobile` slipper bare `package.json` inn. Trenger bygget en ny rotfil, legg den
+  til der — bygget feiler høylytt, ikke stille.
+- **Avhengigheter før kildekode (begge Dockerfiler):** `package.json`-ene + lockfil → `pnpm install` →
+  Prisma-skjemaene → `prisma generate` → `COPY . .`. Ingen pakke har install-skript. **Ny workspace-pakke
+  må inn i COPY-lista i begge filene.** Api har eget `deps`-stage; runtime kopierer `deps` (stort, cachet)
+  og kildekoden (lite) som separate lag, og `dist` fra `build` (bare for at tsc-gaten skal kjøre).
+- **ezdxf-venv bygges fra `requirements.txt` alene** før kildekoden (render.py kommer med `COPY . .`).
+- **Api-ens bygg-stempel (`ARG/ENV GIT_SHA`, `BUILD_TID`) står sist i runtime-staget.** SHA-en endres ved
+  hver deploy; en ENV-endring ugyldiggjør cachen for alle lag etter den. Flytt den aldri opp igjen.
+- **libredwg:** `strip --strip-unneeded` + `cp -P` i build-staget; runtime får én fil på 18 MB med
+  symlenkene intakt (før: `COPY libredwg.so*` = 3 fulle kopier à 67 MB).
+- **Web bygger med `pnpm --filter @sitedoc/web build`**, ikke `turbo build` — turbo kjørte også api-`tsc`
+  (^build), som web ikke bruker. Api-imaget beholder tsc-gaten.
+
+**Målt lokalt** (arm64, Docker 29/containerd, uten uploads i konteksten — serverens gevinst er i tillegg
+~2 × 4,4 G + mappene over):
+
+| | api før | api etter | web før | web etter |
+|---|---|---|---|---|
+| DISK USAGE / innhold | 4,08 GB / 932 MB | 3,66 GB / 795 MB | 6,04 GB / 1,31 GB | 5,58 GB / 1,16 GB |
+| Bygg ved ren kodeendring (varm cache) | 176 s | 35 s (eksport 0,8 s) | 303 s | 158 s (eksport 17 s) |
+
+«Før» ved kodeendring er målt med samme `.dockerignore`; på server bygde api i tillegg apt/venv/avhengigheter
+på nytt hver gang fordi SHA-en sto øverst. Gjenstår (ikke bestilt): `.next/cache` (978 M) ligger fortsatt i
+web-imaget; Next `standalone` og filtrert api-install er egne leveranser.
+
+**Verifiser etter bygg:** `docker exec <api|web> sh -c 'ldd /usr/local/bin/dwg2SVG | grep redwg; dwg2SVG --version'`
+og `docker exec <api> sh -c 'test -d /app/uploads && echo FEIL || echo ok'`.
 
 ## Rollback
 Gammel sitedoc (PM2 på gammel server) står urørt til cutover er bekreftet; DNS tilbake + PM2 = rollback.
