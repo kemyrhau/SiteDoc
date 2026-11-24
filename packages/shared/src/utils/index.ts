@@ -760,3 +760,5 @@ export {
 export { erMeldbarHmsMal, type MeldHmsSubdomain } from "./meldHmsMal";
 // HM2: undertype → dokumentform, delt av server (mal.ts) og malbyggeren.
 export { SUBDOMAIN_FORM, formForSubdomain, type MalForm, type FormSubdomain } from "./subdomainForm";
+// A3 (web-timeforing-plan § 4.17 del D, B55): «Reise under terskel» i attesteringen.
+export { reiseUnderTerskel, type ReiseUnderTerskel, type ReiseUnderTerskelRad } from "./reiseUnderTerskel";

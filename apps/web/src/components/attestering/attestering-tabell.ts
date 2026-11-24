@@ -8,6 +8,10 @@ import {
   doegnOverArbeid,
   maskinJobbNokkel,
   erArbeidstidReise,
+  erFravaerArt,
+  erOvertidsnivaa,
+  reiseUnderTerskel,
+  type ReiseUnderTerskel,
   type TimerTabellLinje,
   type TimerTabellKolKey,
   type TimerTabellMaskin,
@@ -111,6 +115,11 @@ export interface AttDeps {
   ukeAvvikTekst: (s: AttSedel) => string | null;
   /** w9: forklaringen på merket «Maskin over arbeid» — «Maskin 7,5 t, arbeid 4,5 t». */
   maskinOverArbeidForklaring: (maskinTimer: number, arbeidTimer: number) => string;
+  /**
+   * A3 (§ 4.17 del D, B55): merket «Reise under terskel» med forklaringen. Uten den får
+   * reiselinja ikke merke (testene som ikke gjelder A3).
+   */
+  reiseUnderTerskelMerke?: (u: ReiseUnderTerskel) => AvvikMerke;
   tekst: {
     forslagSperre: string;
     maskinUtenTimerad: string;
@@ -375,6 +384,12 @@ function byggDag(s: AttSedel, deps: AttDeps): AttDag {
       if (maskiner.some((m) => m.utenTimerad)) utenTimerad();
       if (maskiner.length > 0 && s.manglerMaskinforerbevis) utenForerbevis();
       if (maskiner.length > 0) overArbeid(r);
+      // A3 (B55): reise under terskelen, ført som reisetid — attestanten vurderer føringen.
+      const underTerskel = reiseUnderTerskel(r);
+      if (underTerskel && deps.reiseUnderTerskelMerke) {
+        const merke = deps.reiseUnderTerskelMerke(underTerskel);
+        leggTilAvvik(merke.tekst, merke);
+      }
       const ventende = r.attestertStatus === "pending";
       return {
         ...base,
@@ -596,20 +611,155 @@ export function sumLinjer(linjer: readonly AttLinje[]): { timer: number; maskint
 }
 
 /* ------------------------------------------------------------------ */
+/*  Oversiktsraden (A1, plan § 4.17 del B): normmerket, lønnsartmerkene  */
+/*  og varselet på linja                                                */
+/* ------------------------------------------------------------------ */
+
+/** Lønnsarten slik oversiktsraden trenger den (katalogen `timer.lonnsart.list`). */
+export type LonnsartInfo = { navn?: string | null; type?: string | null; overtidsnivaa?: number | null };
+export type LonnsartOppslag = (id: string) => LonnsartInfo | undefined;
+
+/**
+ * Varselet en linje bærer (A1, punkt 3 og 8): overtid og fravær er gule — på lønnsartmerket i
+ * oversiktsraden og på linja. Null = vanlig linje, ingen farge.
+ */
+export type LinjeVarsel = "overtid" | "fravaer" | "reise";
+
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
+export function linjeVarsel(l: AttLinje, lonnsart: LonnsartOppslag): LinjeVarsel | null {
+  if (l.kilde.type !== "timer") return null;
+  const r = l.kilde.rad;
+  // A3 (B55): reise under terskelen ført som reisetid er gul; annen reise er ikke det.
+  if (r.erReise === true) return reiseUnderTerskel(r) ? "reise" : null;
+  const art = lonnsart(r.lonnsartId);
+  if (erFravaerArt(art ? { type: art.type ?? null } : null)) return "fravaer";
+  if (erOvertidsnivaa(art?.overtidsnivaa)) return "overtid";
+  return null;
+}
+
+/**
+ * Dagens timer slik normmerket måler dem (A1, punkt 1 og 2; § 8.22): arbeid uten reise, fravær
+ * som fyller normen, og reisen for seg. `avvik` = arbeid + fravær − dagsnorm (null uten norm).
+ * Reise ført som arbeidstid er arbeid (vedtak reisevinduet punkt 20). Samme oppdeling som
+ * serverens fraværstak (`vurderFravaerNormtak`): reise teller ikke, fravær er lønnsart av typen fravær.
+ */
+export interface DagensTimer {
+  arbeid: number;
+  overtid: number;
+  fravaer: number;
+  reise: number;
+  /** Alt som er ført: arbeid + fravær + reise. */
+  sum: number;
+  norm: number | null;
+  avvik: number | null;
+}
+
+export function dagensTimer(
+  rader: readonly { timer: unknown; erReise?: boolean | null; lonnsartId: string }[],
+  norm: number | null,
+  lonnsart: LonnsartOppslag,
+): DagensTimer {
+  let arbeid = 0;
+  let overtid = 0;
+  let fravaer = 0;
+  let reise = 0;
+  for (const r of rader) {
+    const t = tall(r.timer) ?? 0;
+    const art = lonnsart(r.lonnsartId);
+    if (r.erReise === true) reise += t;
+    else if (erFravaerArt(art ? { type: art.type ?? null } : null)) fravaer += t;
+    else {
+      arbeid += t;
+      if (erOvertidsnivaa(art?.overtidsnivaa)) overtid += t;
+    }
+  }
+  arbeid = round2(arbeid);
+  fravaer = round2(fravaer);
+  reise = round2(reise);
+  return {
+    arbeid,
+    overtid: round2(overtid),
+    fravaer,
+    reise,
+    sum: round2(arbeid + fravaer + reise),
+    norm,
+    avvik: norm == null ? null : round2(arbeid + fravaer - norm),
+  };
+}
+
+/** Ett lønnsartmerke på oversiktsraden: «Overtid 50 % 2,5», med linjene bak tallet. */
+export interface LonnsartMerke {
+  nokkel: string;
+  navn: string;
+  timer: number;
+  varsel: LinjeVarsel | null;
+  linjer: { fraTid: string | null; tilTid: string | null; timer: number }[];
+}
+
+/**
+ * Lønnsartmerkene for et utvalg linjer (A1, punkt 6): ett merke pr. lønnsart med timene,
+ * reisen for seg. Bare timelinjer; tillegg og utlegg står på linjene som før. Rekkefølgen
+ * følger klokkeslettet.
+ */
+export function lonnsartMerker(linjer: readonly AttLinje[], lonnsart: LonnsartOppslag): LonnsartMerke[] {
+  const timer = linjer
+    .filter((l) => l.kilde.type === "timer")
+    .sort((a, b) => (a.linje.fraTid ?? "").localeCompare(b.linje.fraTid ?? ""));
+  const ut = new Map<string, LonnsartMerke>();
+  for (const l of timer) {
+    if (l.kilde.type !== "timer") continue;
+    const r = l.kilde.rad;
+    const nokkel = `${r.lonnsartId}:${r.erReise === true ? "reise" : ""}`;
+    let m = ut.get(nokkel);
+    if (!m) {
+      m = { nokkel, navn: l.linje.betegnelse, timer: 0, varsel: null, linjer: [] };
+      ut.set(nokkel, m);
+    }
+    const t = l.linje.timer ?? 0;
+    m.timer = round2(m.timer + t);
+    m.varsel = m.varsel ?? linjeVarsel(l, lonnsart);
+    m.linjer.push({ fraTid: l.linje.fraTid, tilTid: l.linje.tilTid, timer: t });
+  }
+  return [...ut.values()];
+}
+
+/* ------------------------------------------------------------------ */
 /*  Navnefeltet i dagsrad og jobbrad (O13, vedtak § Dagsvisningen pkt 2) */
 /* ------------------------------------------------------------------ */
 
-/** Kolonnene navnefeltet legger seg over (B14c B): de er tomme i dagsraden og jobbraden. */
-export const NAVNEFELT_KOLONNER: readonly TimerTabellKolKey[] = ["prosjektnummer", "underprosjekt", "betegnelse", "fraTil"];
+/**
+ * Kolonnene navnefeltet legger seg over (B14c B): de er tomme i dagsraden og jobbraden.
+ * A1 (§ 4.17): Betegnelse og Fra–til bærer lønnsartmerkene (`LONNSART_KOLONNER`) og er ikke lenger
+ * en del av navnefeltet. A2: Prosjekt-kolonnen er navnefeltets hjem i standardoppsettet; Pr.nr. og
+ * Underprosjekt, valgt i «Velg parameter», står i feltet når de står ved siden av.
+ */
+export const NAVNEFELT_KOLONNER: readonly TimerTabellKolKey[] = ["prosjekt", "prosjektnummer", "underprosjekt"];
+
+/** A1: lønnsartmerkene i oversiktsraden står i Betegnelse og over Fra–til når den står rett etter. */
+export const LONNSART_KOLONNER: readonly TimerTabellKolKey[] = ["betegnelse", "fraTil"];
+
+/**
+ * Feltet med lønnsartmerkene (A1): fra Betegnelse og over de av `LONNSART_KOLONNER` som står
+ * rett etter. Null når Betegnelse er skjult.
+ */
+export function lonnsartPlass(kolonner: readonly TimerTabellKolKey[]): { fra: TimerTabellKolKey; antall: number } | null {
+  const start = kolonner.indexOf("betegnelse");
+  if (start === -1) return null;
+  let slutt = start;
+  while (slutt + 1 < kolonner.length && LONNSART_KOLONNER.includes(kolonner[slutt + 1]!)) slutt++;
+  return { fra: "betegnelse", antall: slutt - start + 1 };
+}
 
 /**
  * Hvor prosjektnavnet står i dagsraden og jobbraden, for brukerens kolonneoppsett (R2):
- *  - `spenn`: over de synlige av Pr.nr., Underprosjekt, Betegnelse og Fra–til som står
+ *  - `spenn`: over de synlige av `NAVNEFELT_KOLONNER` (Prosjekt, Pr.nr., Underprosjekt) som står
  *    sammenhengende fra den første synlige av dem;
- *  - `kolonne`: ingen av de fire synlige → første synlige tekstkolonne etter Ansatt;
+ *  - `kolonne`: ingen av dem synlige → første synlige tekstkolonne etter Ansatt, utenom
+ *    lønnsartfeltet (`lonnsartPlass`);
  *  - `ansatt`: finnes ingen → i Ansatt-cella under navnet.
- * `tomme`: cellene som står tomme i dagsraden og jobbraden — de fire utenfor feltet (brukeren
- * har flyttet en annen kolonne mellom), og Prosjekt og Byggeplass, som navnefeltet bærer.
+ * `tomme`: cellene som står tomme i dagsraden og jobbraden — feltets kolonner utenfor feltet
+ * (brukeren har flyttet en annen kolonne mellom), og Byggeplass, som hoveren på navnet bærer.
  * `utenfor` (avvikskolonnen) er aldri i feltet og aldri tom.
  */
 export type NavnefeltPlass =
@@ -626,17 +776,22 @@ export function navnefeltPlass(
 ): NavnefeltPlass {
   // `utenfor`: kolonnen som bærer avviket når Avvik er skjult (Betegnelse). Den står utenfor
   // feltet med avviket sitt, og feltet slutter foran den (gate O13 trinn 2, vilkår 1).
-  const fire = new Set(NAVNEFELT_KOLONNER.filter((k) => k !== utenfor));
-  const tomme = new Set<TimerTabellKolKey>(["prosjekt", "byggeplass"]);
-  const start = kolonner.findIndex((k) => fire.has(k));
+  const feltKol = new Set(NAVNEFELT_KOLONNER.filter((k) => k !== utenfor));
+  const tomme = new Set<TimerTabellKolKey>(["byggeplass"]);
+  const start = kolonner.findIndex((k) => feltKol.has(k));
   if (start !== -1) {
     let slutt = start;
-    while (slutt + 1 < kolonner.length && fire.has(kolonner[slutt + 1]!)) slutt++;
-    for (let i = 0; i < kolonner.length; i++) if (fire.has(kolonner[i]!) && (i < start || i > slutt)) tomme.add(kolonner[i]!);
+    while (slutt + 1 < kolonner.length && feltKol.has(kolonner[slutt + 1]!)) slutt++;
+    for (let i = 0; i < kolonner.length; i++) if (feltKol.has(kolonner[i]!) && (i < start || i > slutt)) tomme.add(kolonner[i]!);
     return { type: "spenn", fra: kolonner[start]!, antall: slutt - start + 1, tomme };
   }
   const etterAnsatt = kolonner.indexOf("ansatt");
-  const kolonne = kolonner.find((k, i) => i > etterAnsatt && !erTall(k) && !IKKE_NAVNEKOLONNE.has(k) && k !== utenfor);
+  // Gate A1–A3 vilkår 1: kolonnene lønnsartfeltet ligger over, er opptatt — spennet tegnes
+  // først, så navnet ville ikke stått der.
+  const lp = lonnsartPlass(kolonner);
+  const lStart = lp ? kolonner.indexOf(lp.fra) : -1;
+  const iLonnsartFelt = (i: number) => lp != null && i >= lStart && i < lStart + lp.antall;
+  const kolonne = kolonner.find((k, i) => i > etterAnsatt && !erTall(k) && !IKKE_NAVNEKOLONNE.has(k) && k !== utenfor && !iLonnsartFelt(i));
   if (kolonne) {
     tomme.delete(kolonne);
     return { type: "kolonne", kolonne, tomme };
@@ -657,7 +812,8 @@ export function linjeSpenn(
   if (plass.type !== "spenn") return undefined;
   const fraI = kolonner.indexOf(plass.fra);
   const b = kolonner.indexOf("betegnelse");
-  if (b === -1 || b < fraI || b >= fraI + plass.antall) return undefined;
+  // A1: Betegnelse står rett etter navnefeltet (ikke lenger inni det).
+  if (b === -1 || b < fraI || b > fraI + plass.antall) return undefined;
   let fra = b;
   while (fra - 1 >= fraI && skjul.includes(kolonner[fra - 1]!)) fra--;
   return fra < b ? { fra: kolonner[fra]!, til: "betegnelse" } : undefined;

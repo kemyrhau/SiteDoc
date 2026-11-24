@@ -301,6 +301,8 @@ Fasit: `tegningNedlasting.test.ts`.
 
 **O19 (vedtak pkt 23–25), bare web:** `tillatDeling: { omvendt: "fram" | "bak" }` gjør at en reise over midnatt får `deles` i stedet for sperren `utenforDognet`; «bak» bare når Start er skrevet, «fram» når Slutt er skrevet eller regnet (`krysserMidnatt`). Mobil sender den ikke og sperrer som før. `delVedMidnatt({dato, vei, fraTid, tilTid})` → del 1 (start–24:00) og del 2 (00:00–slutt) med dato, `null` når en del er 0 min. `lesMidnattDel(reiseRegel)` leser paret `{delId, del}`; `midnattPartnerDato(sedelDato, reiseRegel)` gir den andre delens dato (merket «fortsetter»/«fortsatt fra»). `finnReiseSomEnderPaaKontor(ny, dagsrader)` (pkt 25): kontorreisen som overlapper og ender på et kontor. `pauseBeregning` lar del 2 (00:00) og del 1 (–24:00) stå utenfor pausevinduet og «Arbeidstid i dag». Fasit: `reiseManuell-o19.test.ts`.
 
+`reiseUnderTerskel(rad)` → `{ enhet: "km" | "minutter", maalt, terskel } | null` (`reiseUnderTerskel.ts`, 🟡 A3, plan § 4.17 del D, B55): reiselinje (`erReise`) der snapshotet `reiseRegel.regelKategori` er `"arbeidstid"` (regelen ga arbeidstid, arbeideren førte reisetid) OG målt avstand/kjøretid er under terskelen (rå `<` mot `terskelM`/`terskelMin`). `regelKategori` alene er ikke nok: `klassifiserReise` gir under-typen også når km-avstanden mangler, og over-typen kan være arbeidstid. Uten måling, snapshot eller terskel → `null`. Bare web-attesteringen bruker den (merke + gul linje). Fasit: `reiseUnderTerskel.test.ts`.
+
 `medOverforingPeriodeId(spor, periodeId)` setter `reiseRegel.overforing.periodeId` når perioden er kjent ved lagring (ny id ved start, lukket periode ved slutt); `null` → sporet urørt.
 
 ### Reisekjede (`reiseKjede.ts`, ordre 2026-11-15 (17))

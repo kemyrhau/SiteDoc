@@ -97,9 +97,19 @@ export type TimerRadTabellRad<R> =
       /**
        * O13 (B14c B): ett felt over `antall` kolonner fra og med `fra` (prosjektnavnet). Cellene i
        * feltet tegnes ikke hver for seg. Utelatt → én celle pr. kolonne som før.
+       * A1 (§ 4.17): flere felt på samme rad (prosjektnavnet og lønnsartmerkene) gis som liste.
        */
-      spenn?: { fra: TimerTabellKolKey; antall: number; innhold: ReactNode };
+      spenn?: SumSpenn | readonly SumSpenn[];
     };
+
+/** Et felt over flere kolonner på en sumrad (O13, A1). */
+export type SumSpenn = {
+  fra: TimerTabellKolKey;
+  antall: number;
+  innhold: ReactNode;
+  /** Data-attributtet feltet får (`data-<felt>`). Utelatt → `data-navnefelt` som før. */
+  felt?: "navnefelt" | "lonnsartfelt";
+};
 
 export interface TimerRadTabellFilter {
   verdier: Record<string, string>;
@@ -138,6 +148,11 @@ interface Props<R> {
   hoyre?: { bredde: number; hode?: ReactNode; celle: (data: R) => ReactNode };
   /** Ekstra klasse på linja (f.eks. markert ved avvik). */
   linjeKlasse?: (data: R) => string | undefined;
+  /**
+   * A1 (§ 4.17 del B): linjas bakgrunn, også i de faste cellene (gul linje et varsel gjelder).
+   * Utelatt → hvit/grå som før.
+   */
+  linjeBakgrunn?: (data: R) => string | undefined;
   /** Klassen som setter rammas høyde. Standard som rapporten. */
   rammeKlasse?: string;
   /** Innrykk i Betegnelse (rapportens ↳-rader). */
@@ -212,6 +227,7 @@ function Tabell<R>({
   venstre,
   hoyre,
   linjeKlasse,
+  linjeBakgrunn,
   rammeKlasse = "max-h-[70vh]",
   innrykk,
   onLinjeKlikk,
@@ -468,17 +484,17 @@ function Tabell<R>({
                   </div>
                 )}
                 {kolonner.map((k, ki) => {
-                  const sp = rad.spenn;
-                  const fraI = sp ? kolonner.indexOf(sp.fra) : -1;
-                  if (sp && fraI !== -1 && ki === fraI) {
-                    const antall = Math.max(1, Math.min(sp.antall, kolonner.length - fraI));
+                  const spenn: readonly SumSpenn[] = !rad.spenn ? [] : Array.isArray(rad.spenn) ? rad.spenn : [rad.spenn as SumSpenn];
+                  const sp = spenn.find((x) => kolonner.indexOf(x.fra) === ki);
+                  if (sp) {
+                    const antall = Math.max(1, Math.min(sp.antall, kolonner.length - ki));
                     return (
-                      <div key={k} data-navnefelt="" className={`min-w-0 overflow-hidden ${celleX} py-1.5 text-left`} style={{ gridColumn: `span ${antall}` }}>
+                      <div key={k} {...{ [`data-${sp.felt ?? "navnefelt"}`]: "" }} className={`min-w-0 overflow-hidden ${celleX} py-1.5 text-left`} style={{ gridColumn: `span ${antall}` }}>
                         {sp.innhold}
                       </div>
                     );
                   }
-                  if (sp && fraI !== -1 && ki > fraI && ki < fraI + sp.antall) return null;
+                  if (spenn.some((x) => { const f = kolonner.indexOf(x.fra); return f !== -1 && ki > f && ki < f + x.antall; })) return null;
                   return (
                     <div
                       key={k}
@@ -498,7 +514,7 @@ function Tabell<R>({
           const n = Math.max(1, rad.underlinjer);
           const odde = (linjeIndeks.get(rad.nokkel) ?? 0) % 2 === 1;
           // w5b: inne i en blokk veksler ikke linjene mellom hvit og grå.
-          const bg = !blokk && odde ? "bg-gray-50" : "bg-white";
+          const bg = linjeBakgrunn?.(d) ?? (!blokk && odde ? "bg-gray-50" : "bg-white");
           const aapen = erAapen?.(d) ?? false;
           const ekstra = `${linjeKlasse?.(d) ?? ""} ${onLinjeKlikk ? "cursor-pointer hover:bg-blue-50/60" : ""} ${aapen ? "!bg-blue-50" : ""}`;
           const skjult = (k: TimerTabellKolKey) => !sortert && (rad.skjul?.includes(k) ?? false);

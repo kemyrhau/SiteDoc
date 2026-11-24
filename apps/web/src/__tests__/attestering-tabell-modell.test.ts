@@ -11,6 +11,10 @@ import {
   grupperModell,
   byggUkeoversikt,
   AVVIK_FILTER,
+  dagensTimer,
+  lonnsartMerker,
+  linjeVarsel,
+  type LonnsartOppslag,
   type AttDeps,
   type AttSedel,
   type AttTimer,
@@ -546,5 +550,115 @@ describe("w12 — reisen i jobbens kort (plan § 4.11 del C; H.7 og H.8)", () =>
     });
     const kU = byggAttesteringModell([s], deps)[0]!.kort.find((k) => k.nokkel === "s1:kU")!;
     expect(kU.reise).toBe(false);
+  });
+});
+
+describe("A1 (plan § 4.17 del A) — normmerket, lønnsartmerkene og gule linjer", () => {
+  const arter: Record<string, { navn: string; type?: string; overtidsnivaa?: number | null }> = {
+    l1: { navn: "Ordinær" },
+    l2: { navn: "Overtid 50 %", overtidsnivaa: 50 },
+    lf: { navn: "Sykemelding", type: "fravaer" },
+    lr: { navn: "Reise" },
+  };
+  const oppslag: LonnsartOppslag = (id) => arter[id];
+
+  it("normmerket måles mot arbeid uten reise; fravær fyller normen", () => {
+    const d = dagensTimer(
+      [
+        { timer: "5", lonnsartId: "l1" },
+        { timer: "1.5", lonnsartId: "lr", erReise: true },
+        { timer: "2.5", lonnsartId: "lf" },
+      ],
+      7.5,
+      oppslag,
+    );
+    expect(d).toMatchObject({ arbeid: 5, reise: 1.5, fravaer: 2.5, sum: 9, avvik: 0 });
+  });
+
+  it("negativkontroll: reisen teller ikke mot normen — uten fravær er dagen 2,5 t under", () => {
+    const d = dagensTimer([{ timer: "5", lonnsartId: "l1" }, { timer: "1.5", lonnsartId: "lr", erReise: true }], 7.5, oppslag);
+    expect(d.avvik).toBe(-2.5);
+    // Ville reisen telt, sto dagen bare 1 t under.
+    expect(d.avvik).not.toBe(-1);
+  });
+
+  it("overtid regnes som arbeid og vises for seg; uten norm er det ikke noe avvik", () => {
+    const d = dagensTimer([{ timer: "7.5", lonnsartId: "l1" }, { timer: "2", lonnsartId: "l2" }], null, oppslag);
+    expect(d).toMatchObject({ arbeid: 9.5, overtid: 2, avvik: null });
+  });
+
+  const [dag] = byggAttesteringModell(
+    [sedel({
+      timer: [
+        timer("t3", "kA", A, { lonnsartId: "l1", fraTid: "11:00", tilTid: "15:00", timer: "4" }),
+        timer("t1", "kA", A, { lonnsartId: "l1", fraTid: "07:00", tilTid: "10:30", timer: "3.5" }),
+        timer("t2", "kA", A, { lonnsartId: "l2", fraTid: "15:00", tilTid: "17:00", timer: "2" }),
+        timer("t4", "kA", A, { lonnsartId: "lf", fraTid: "17:00", tilTid: "18:00", timer: "1" }),
+      ],
+      maskiner: [], varer: [], ukeAvvikRadIder: [],
+    })],
+    { ...deps, lonnsartNavn: (id) => arter[id]?.navn ?? "?" },
+  );
+  const linjer = dag!.kort.flatMap((k) => k.linjer);
+
+  it("lønnsartmerkene: ett merke pr. art i tidsrekkefølge, med sum og linjene for hover", () => {
+    const m = lonnsartMerker(linjer, oppslag);
+    expect(m.map((x) => [x.navn, x.timer, x.varsel])).toEqual([
+      ["Ordinær", 7.5, null],
+      ["Overtid 50 %", 2, "overtid"],
+      ["Sykemelding", 1, "fravaer"],
+    ]);
+    expect(m[0]!.linjer.map((l) => l.fraTid)).toEqual(["07:00", "11:00"]);
+  });
+
+  it("gule linjer: overtid og fravær; negativkontroll: ordinær linje er ikke gul", () => {
+    const v = (id: string) => linjeVarsel(linjer.find((l) => l.kilde.type === "timer" && l.kilde.rad.id === id)!, oppslag);
+    expect(v("t2")).toBe("overtid");
+    expect(v("t4")).toBe("fravaer");
+    expect(v("t1")).toBeNull();
+  });
+});
+
+describe("A3 (plan § 4.17 del D, B55) — «Reise under terskel»", () => {
+  const regel = (over: Record<string, unknown> = {}) => ({ enhet: "km", terskelM: 30000, regelKategori: "arbeidstid", ...over });
+  const merkeDeps: AttDeps = {
+    ...deps,
+    reiseUnderTerskelMerke: (u) => ({ tekst: "Reise under terskel", forklaring: `${u.maalt} av ${u.terskel} ${u.enhet}` }),
+  };
+  const dag = (reiseRegel: unknown) =>
+    byggAttesteringModell(
+      [enkel({
+        timer: [
+          timer("t1", "kA", A),
+          timer("r1", "kA", A, { erReise: true, fraTid: "06:30", tilTid: "07:00", timer: "0.5", pauseMin: 0, reiseRegel, reiseAvstandM: 22000 }),
+        ],
+      })],
+      merkeDeps,
+    )[0]!;
+  const reiselinje = (d: ReturnType<typeof dag>) =>
+    d.kort.flatMap((k) => k.linjer).find((l) => l.kilde.type === "timer" && l.kilde.rad.id === "r1")!;
+  const oppslag: LonnsartOppslag = () => ({ navn: "Ordinær" });
+
+  it("reise under terskelen ført som reisetid: merke med målt avstand og terskel, og gul linje", () => {
+    const l = reiselinje(dag(regel()));
+    expect(l.avvikMerker).toEqual([{ tekst: "Reise under terskel", forklaring: "22 av 30 km" }]);
+    expect(linjeVarsel(l, oppslag)).toBe("reise");
+  });
+
+  it("lønnsartmerket for reisen blir gult", () => {
+    const linjer = dag(regel()).kort.flatMap((k) => k.linjer);
+    expect(lonnsartMerker(linjer, oppslag).map((m) => m.varsel)).toEqual(["reise", null]); // tidsrekkefølge: reisen 06:30 først
+  });
+
+  it("negativkontroll: uten avvik fra regelen (ingen regelKategori) — intet merke, ikke gul", () => {
+    const l = reiselinje(dag(regel({ regelKategori: undefined })));
+    expect(l.avvikMerker).toEqual([]);
+    expect(linjeVarsel(l, oppslag)).toBeNull();
+  });
+
+  it("negativkontroll: eldre reise uten snapshot får ikke merke", () => {
+    const l = reiselinje(dag(null));
+    expect(l.avvikMerker).toEqual([]);
+    expect(linjeVarsel(l, oppslag)).toBeNull();
   });
 });
