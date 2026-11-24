@@ -2,7 +2,10 @@
 
 ### 4.17 Attesteringen: oversiktsrader, gule varsler og ukekontroll (versjon 22)
 
-🟡 **Vedtatt retning 2026-11-23, ikke bestilt, ikke bygget.** Bestilt av Kenneth 2026-11-22: «nå føler jeg at vi
+✅ **A1–A3, A4 og A4b er merget til develop** (`c76b838d`, `b69918a9`, `98427663`, alle 2026-11-24); hva som er
+bygget, står i del A2 under, målt mot develop @ `0305eeb4`. Hva som er deployet, står på tavla
+(STATUS-AKTUELT.md). 🟡 **Resten er vedtatt retning, ikke bygget:** A5, A3b, U1, H1a–H1d, H1m, KF1 og T1 (del E).
+Bestilt av Kenneth 2026-11-22: «nå føler jeg at vi
 har kontroll på timeregistrering -> la fabel planlegge attestering.» Kenneth har svart på B50–B62 (§ 8.27)
 og på B53 og B79–B85 (2026-11-24, § 8.28) og B65–B67, B86 og B87 (2026-11-24, § 8.29) og B88 (2026-11-24, § 8.30). Svarene er ført inn under
 og merket med spørsmålets nummer. Ingen spørsmål er åpne.
@@ -78,6 +81,36 @@ står i del H (Bilde 6), del I («Del opp») og del J (enkel attestering).
 | AM19 | **Dagsraden summerer alt, jobbraden bare arbeid.** Dagsradens «Timer» er arbeid + reise + fravær. Jobbradens er arbeid uten reise, med reisen i grått. | `AT:699`, `:557–563` |
 | AM20 | **«Uten bevis»** er merket for manglende maskinførerbevis. Det står. | `MT:357–358` |
 
+#### Del A2 — bygget i A1–A4b, målt mot develop @ `0305eeb4`
+
+Lest i koden, ikke kjørt. Forkortelsene er de samme som i del A; linjenumrene gjelder `0305eeb4`, ikke
+`68f4775d`. `UL` = `apps/web/src/components/attestering/ukelinje.ts`, `UM` =
+`…/attestering/useAttesteringModell.ts`, `PH` = `…/attestering/ProsjektHover.tsx`, `BO` =
+`…/attestering/useBareOversikt.ts`, `RT` = `packages/shared/src/utils/reiseUnderTerskel.ts`.
+
+| # | Merge | Bygget | Kilde |
+|---|---|---|---|
+| AM1, AM2 | A1 `c76b838d` | Normmerket måles mot arbeid uten reise, med fravær som fyller normen; en dag lik dagsnormen har ikke merke. Hoveren har én opplysning pr. linje (A4b): arbeid av dagsnorm, fravær, overtid ført, reise og sum i dag. | `AT:628–644`, `MT:675` (`dagensTimer`) |
+| AM2 (helg) | — | 🟡 **Gjenstår (H1a).** Lørdag, søndag og helligdag måles fortsatt mot hverdagsnormen. | `D:2328–2330` (merknaden) |
+| AM3, AM8 | A1 `c76b838d` | Overtid og fravær er gule: på lønnsartmerket og med gul bakgrunn på linja. | `MT:647` (`linjeVarsel`), `AT:152`, `:1154`, `:1321` |
+| AM6 | A1 `c76b838d` | Lønnsartmerkene står på oversiktsraden, med linjene bak tallet ved hover. | `MT:722` (`lonnsartMerker`), `AT:701–718`, `:1317–1330` |
+| AM18 | A1 `c76b838d` | «Bare oversiktsrader» er på som standard og huskes pr. bruker (B51 A). | `BO:15–21`, `AT:213`, `:1087` |
+| AM17 | A1 `c76b838d` | Jobbfarge nummer to er skifer, ikke gul. | `AT:149` |
+| AM5 | A2 `c76b838d` | Kolonnen «Prosjekt» med navnet erstatter «Pr.nr.» og «Underprosjekt» i standardoppsettet; «↳» når jobben har underprosjekt (B56 A). Hover på navnet med nummer, byggeplass, underprosjekt og «Hva gjorde du?»; flere jobber gir én blokk pr. jobb. Hoveren på hele raden er tatt ut av attesteringen. Ny listenøkkel. | `timerDetaljRader.ts:758–766`, `AT:95`, `:764–793`, `PH:23–50` |
+| AM7 | A3 `c76b838d` | Merket «Reise under terskel» med gul reiselinje og hover «Reisen er … Firmaets terskel er …». Se del D for regelen slik den er bygget. Ingen serverendring. | `RT:37–53`, `MT:405–407`, `:651`, `UM:43–53` |
+| AM10, AM14 | A4 `b69918a9` | «Etter ansatt» er standardvisningen, med én ukelinje pr. ansatt. Prosjektlederen ser ukelinja med ukas totaltall og dagstallene bare for dager han ser (B54 A). | `AS:164–167`, `AT:670–699`, `:897–899`, `D:7667–7672` |
+| AM11 | A4 `b69918a9` | Ukelinja sier hvor mye: «Under ukenorm N t», «N t av M t overtid kan trekkes» og «+N t over ukenorm», med hele regnestykket ved hover. Dagen får «N t kan trekkes». | `UL:55–72`, `:79–82`, `AT:654–661`, `:917–918`, `:957–958` |
+| AM12 | A4 `b69918a9` | Ett regnestykke mandag–søndag uten reise på serveren; skjermen viser serverens tall og regner ikke uka selv. Regnestykket fryses i snapshotet ved attestering, med «komplett» og dagene som mangler. `Avviksbadge.tsx` er fjernet. | `OG:469` (`beregnUkeregnestykke`), `D:2314–2401`, `:8004–8007`, `UL:1–6` |
+| AM13 | A4 `b69918a9` | Ukevarselet er gult først når uka er komplett; før det «Uka så langt» og dagene som mangler, i grått (B53 A). | `D:2393–2397`, `UL:66`, `AT:690–695` |
+| — | A4 `b69918a9` | Krysset på ukelinja velger alle dagene til den ansatte (B57). | `AT:560`, `:678` |
+| — | A4 `b69918a9` | En attestert dag med «kan trekkes» i en komplett uke med ukevarsel står under ukelinja på fanen «Venter», med ↺ (B53 A). | `UL:99–107`, `AS:320–323` |
+| — | A4 `b69918a9` | Banneret i detaljen følger uka. | `AT:1367`, `AttesteringDetalj.tsx:388` |
+| — | A4b `98427663` | Se del B: linjevarselet pr. linje, mørk ukelinje og normkortet med én opplysning pr. linje. | del B |
+
+**Gjenstår i § 4.17:** A5 (statuslinja, handling i varselet, ferdige returgrunner, ✂ på jobbraden), A3b, U1,
+H1a–H1d, H1m, KF1 og T1 (del E). AM9 (ukenorm pr. arbeidstaker) er ikke bestilt (B52 A: firmaets ukenorm for
+alle). AM15, AM16 og AM20 er målinger, ikke leveranser.
+
 #### Del B — strukturen
 
 **Én regel for farge:** gult betyr at attestanten må se på det. En vanlig dag har ikke noe gult. Dagens gule
@@ -87,8 +120,8 @@ kant på jobb nummer to byttes til en annen farge (AM17).
 
 | Nivå | Rad | Viser | Finnes i dag? |
 |---|---|---|---|
-| 1 | **Ukelinja**, én pr. ansatt | Navn og uke · arbeid mot ukenorm («36,5 av 37,5») · ordinært, overtid, fravær og reise · ukevarselet · kryss som velger alle dagene | Nei (AM14). Gruppeoverskriften i «Etter ansatt» bygges ut. |
-| 2 | **Oversiktsraden for dagen** (dagsraden) | Dato · prosjekt · lønnsartene med timer · arbeid · maskintimer · varsler · ✓ ↩ | Ja, uten prosjektnavn, lønnsart og reise |
+| 1 | **Ukelinja**, én pr. ansatt | Navn og uke · arbeid mot ukenorm («36,5 av 37,5») · ordinært, overtid, fravær og reise · ukevarselet · kryss som velger alle dagene | ✅ A4 (`AT:670–699`). A4b: linja er mørk blå med hvit tekst, som skissen; merkene står i lyse kapsler (`TimerRadTabell.tsx:69–72`, `:425–427`, `AT:897`). |
+| 2 | **Oversiktsraden for dagen** (dagsraden) | Dato · prosjekt · lønnsartene med timer · arbeid · maskintimer · varsler · ✓ ↩ | ✅ A1 og A2 (del A2) |
 | 3 | **Jobbraden**, bare når dagen har flere jobber | Som nivå 2 for jobben | Ja |
 | 4 | **Linjene** og registreringen | Lønnsart, fra–til, timer, maskin, varer. Rettes med ✎ i registreringen. | Ja, uendret |
 
@@ -115,7 +148,7 @@ timelinjene (`:241–249`). § 4.17 endrer ikke kortet. `v22-uke.png` viser tirs
 | Pekeren over | Viser |
 |---|---|
 | Prosjektnavnet | Prosjektnummer · byggeplass · underprosjekt når jobben har det · «Hva gjorde du?» (punkt 5). Flere jobber: én blokk pr. jobb. Erstatter hoveren på hele raden fra O6 i attesteringen. Dagssidens hover røres ikke. |
-| Normmerket | «Arbeid 10,0 t av dagsnorm 7,5 t · overtid ført 2,5 t · reise 1,0 t · sum i dag 11,0 t» |
+| Normmerket | «Arbeid 10,0 t av dagsnorm 7,5 t · overtid ført 2,5 t · reise 1,0 t · sum i dag 11,0 t». ✅ A4b: kortet viser én opplysning pr. linje, ikke én løpende tekst med «·» (`AT:628–644`, `:1267–1280`). |
 | Et lønnsartmerke | Linjene bak tallet med fra–til: «15:00–15:30 0,5 t · 15:30–17:30 2,0 t» |
 | «Reise under terskel» | «Reisen er 22 km. Firmaets terskel er 30 km. Under terskelen regnes reisen innenfor arbeidstiden. Den er ført som reisetid.» |
 | Ukevarselet | Regnestykket: ukenorm, ukesum, timene uka mangler, timene over dagsnorm, godtatt overtid, ført overtid og timene som kan trekkes |
@@ -145,16 +178,17 @@ timelinjene (`:241–249`). § 4.17 endrer ikke kortet. `v22-uke.png` viser tirs
   overtidslinja er gul. Slik ser attestanten hvor overtiden står. Dagen viser ukas tall, men aldri mer enn
   overtiden som er ført den dagen. Har flere dager overtid, kan dagenes tall til sammen være større enn ukas
   tall: attestanten velger hvor timene trekkes, og ukelinja bærer taket.
-  🟡 A4b (`fix/attestering-a4b`, ikke merget): **overtidslinjene** følger samme regel pr. linje: «N t av M t
-  overtid kan trekkes», der N er ukas tall, men aldri mer enn overtiden på linja, og M er ukas førte overtid
-  (uten «Uke N:»). To jobber med 0,5 t og 2,0 t overtid i en uke med 2,5 t som kan trekkes gir «0,5 t av
-  2,5 t» og «2,0 t av 2,5 t». En linje uten overtid får ikke teksten (`linjeKanTrekkes` i
-  `components/attestering/ukelinje.ts`, `ukeAvvikTekst` i `attestering/page.tsx`).
+  ✅ A4b (`98427663`, Kenneths testfunn på `c203e501`): **overtidslinjene** følger samme regel pr. linje:
+  «N t av M t overtid kan trekkes», der N er ukas tall, men aldri mer enn overtiden på linja, og M er ukas
+  førte overtid (uten «Uke N:»). To jobber med 0,5 t og 2,0 t overtid i en uke med 2,5 t som kan trekkes gir
+  «0,5 t av 2,5 t» og «2,0 t av 2,5 t». En linje uten overtid får ikke teksten (`linjeKanTrekkes`,
+  `UL:89–93`; `ukeAvvikTekst`, `AS:300–309`). Før A4b viste hver linje ukas tall.
 - **En uke på eller over ukenorm** gir ikke «kan trekkes», selv om det er ført overtid.
 - **Attestanten retter selv:** åpner dagen og gjør om timene fra overtid til ordinær tid (del J punkt 4).
   Ingenting flyttes automatisk. Etter rettingen regnes uka på nytt.
 - **Uke over norm uten ført overtid** («+2,5 t over ukenorm») finnes i dag og vises på ukelinja på samme måte.
-- **Ett regnestykke:** skjermen og serveren skal regne uka likt — mandag til søndag, uten reise (retter AM12).
+- **Ett regnestykke:** skjermen og serveren regner uka likt — mandag til søndag, uten reise (retter AM12). ✅ A4:
+  serveren regner, skjermen viser (`D:2314–2401`, `OG:469`, `UL:1–6`).
 
 **Dagen og uka (B53 A).** Kenneth 2026-11-23: «b53a, men dagen skal være rett ført, og uken skal være rett ført.»
 Kenneth 2026-11-24: «b53 ukevarselet er et varsel. Attestanten kan attestere uka selv om det står.»
@@ -162,25 +196,27 @@ Kenneth 2026-11-24: «b53 ukevarselet er et varsel. Attestanten kan attestere uk
 - **Dagen:** normmerket, overtid, fravær og reise vises på dagen straks den er sendt, uavhengig av resten av
   uka. Attestanten vurderer dagen når han attesterer den.
 - **Uka:** ukevarselet er gult først når uka er komplett: alle fem arbeidsdager er sendt eller har fravær,
-  eller uka er over. Før det står «uka så langt» i grått, med dagene som mangler.
+  eller uka er over. Før det står «uka så langt» i grått, med dagene som mangler. ✅ A4: en arbeidsdag er en
+  dag med dagsnorm over 0; komplett når ingen av dem mangler sendt eller attestert seddel, eller når uka er over
+  (`D:2393–2397` @ `0305eeb4`).
 - **Kreves utover A:** uka må kunne rettes også når dagen med overtiden alt er attestert. Ukelinja teller
   attesterte dager; serverens ukeregnestykke gjør det i dag (`apps/api/src/routes/timer/dagsseddel.ts:2314–2326`
   @ `9533908f`: alle rader som ikke er erstattet). En attestert dag med «kan trekkes» vises under ukelinja med
-  ↺, som gjenåpner den (`AttesteringTabell.tsx:272`, `:416–420` @ `9533908f`). I dag står attesterte dager bare
-  på fanen «Attestert».
+  ↺, som gjenåpner den (`AttesteringTabell.tsx:272`, `:416–420` @ `9533908f`). ✅ Bygget i A4: dagen står under
+  ukelinja på fanen «Venter» i «Etter ansatt» (`UL:99–107`, `AS:320–323` @ `0305eeb4`).
 - **Ingen sperre** (bekreftet av Kenneth 2026-11-24): ukevarselet er et varsel. Attestanten kan attestere uka
   selv om det står.
 
 #### Del C — Fabels forslag til fokus, rangert
 
-1. **Uka må være komplett før varselet er gult.** Ukelinja sier hvilke arbeidsdager som mangler («tor. og fre.
+1. ✅ **Bygget i A4** (del A2, AM13). **Uka må være komplett før varselet er gult.** Ukelinja sier hvilke arbeidsdager som mangler («tor. og fre.
    mangler»): ingen dagsseddel, utkast eller returnert. Uten det varsles all overtid fra mandag (AM13), og
    attestanten trekker overtid som blir riktig når fredagen kommer. Serveren må sende dagstatus pr. ansatt; ingen
    migrering. Se B53.
 2. ⚠️ **Utgått (Kenneth 2026-11-23, B57).** ~~«Attester dager uten varsel (N)».~~ Kenneth valgte ingen ny knapp:
    «huk av Ola -> huker av hele uka-> attester utvalgte -> to trykk». Krysset på ukelinja velger alle dagene til
    den ansatte, og «Attester utvalget», som finnes, attesterer dem (`v22-uke.png`, ① og ②).
-3. **Merke når jobben har underprosjekt.** Når underprosjektet bare vises ved hover, må attestanten holde
+3. ✅ **Bygget i A2** (del A2, AM5). **Merke når jobben har underprosjekt.** Når underprosjektet bare vises ved hover, må attestanten holde
    pekeren over hver rad for å finne det. Underprosjektet styrer hva som faktureres. Et lite merke ved
    prosjektnavnet («↳») sier at det finnes. Se B56.
 4. **Helg og helligdag synes på dagsraden.** Merket «Helg» eller «Helligdag», gult. I dag måles søndag mot 7,5 t
@@ -234,6 +270,11 @@ Målt mot develop @ `9533908f` (lest, ikke kjørt):
   og har ny regel: en reiselinje (`erReise`) der firmaets regel sa arbeidstid, og arbeideren likevel førte
   reisetid (`reiseRegel.regelKategori` er «arbeidstid»). Det er føringen attestanten må vurdere (punkt 7). Gult
   merke på oversiktsraden og gul reiselinje.
+  ✅ **Bygget i A3** (`c76b838d`), med ett krav i tillegg fra gaten: merket krever også at reisen er målt og
+  under terskelen — avstanden mot `terskelM` når enheten er km, ellers kjøretiden mot `terskelMin`, med `<`
+  som i `klassifiserReise`. Uten måling, eller målt på eller over terskelen, får reisen ikke merke. Grunnen:
+  `regelKategori` «arbeidstid» betyr ikke alltid under terskel, fordi regelen kan gi arbeidstid også over
+  terskelen og når avstanden mangler (`RT:9–16`, `:37–53` @ `0305eeb4`).
 - **Får ikke merke:** reise over terskelen, uansett klokkeslett · reise under terskelen i et firma som har
   valgt «reisetid» under terskel · tid ført som arbeidstid i jobbens Fra–til (den synes ikke som reise) · eldre
   reiser ført som arbeidstid, som beholder merket «Reise · Timelønn» fra O15 uten gult
@@ -272,23 +313,27 @@ Målt mot develop @ `9533908f` (lest, ikke kjørt):
 
 | Del | Innhold | Rører | Klar? |
 |---|---|---|---|
-| **A1** | **Gult på dagen.** Normmerket måles mot arbeid uten reise, med fravær som fyller normen. Lønnsartmerkene på oversiktsraden. Overtid og fravær gule, på merket og på linja. Jobbfargen gul byttes. Hover på normmerket og lønnsartmerkene. Punkt 1, 2, 3, 6 og 8. | `AT`, `MT`, `TR` (valgfri radfarge, rapporten uendret), i18n, hjelpeteksten. Ingen serverendring. | 🟡 **Bygget på branch** `feat/attestering-a1-a3` (ikke merget). Linjene er skjult som standard, og valget huskes pr. bruker (B51 A). |
-| **A2** | **Prosjekt og hover.** Kolonnen «Prosjekt» med navnet erstatter «Pr.nr.» og «Underprosjekt» i standardoppsettet. Hover på prosjektnavnet med nummer, byggeplass, underprosjekt og beskrivelse. Hoveren på hele raden tas ut av attesteringen. Lagrede kolonneoppsett nullstilles én gang (ny listenøkkel, som B26 A). «Velg parameter» har fortsatt alle kolonnene. Punkt 5. ⚠️ Endrer kjernekolonnene i Bilde 6 (del H). | `AT`, ny hover-komponent i `attestering/`, i18n, hjelpeteksten. `BeskrivelseHover` og dagssiden røres ikke. | 🟡 **Bygget på branch** `feat/attestering-a1-a3` (ikke merget; B56 A: merket «↳» ved prosjektnavnet når jobben har underprosjekt). |
-| **A3** | **Reise under terskel** (B55, del D). Ren regel i `packages/shared` som leser `reiseRegel` på reiselinja. Merke på oversiktsraden, gul reiselinje, hover. Punkt 7. | `packages/shared`, `MT`, `AT`, i18n, hjelpeteksten. Ingen serverendring. | 🟡 **Bygget på branch** `feat/attestering-a1-a3` (ikke merget; `reiseUnderTerskel` i `packages/shared`, merket uten handling — handlingen i varselet er A3b). |
-| **A3b** | **«✎ Før som arbeidstid …»** på merket «Reise under terskel» (B83 ja, del D). Vindu med begge endringene: reiselinja slettes, og jobbens Fra–til utvides. Én lagring i én transaksjon. Arbeideren ser «Korrigert av». | `D` (ny mutasjon som bygger settet og går gjennom `utforRedigerSedelRader`), `AT`, `MT`, nytt vindu i `attestering/`, i18n, hjelpeteksten. Ingen migrering. Ikke `apps/mobile`. | **Kan bestilles**, etter A3. Koderen leverer løsning med skjermbilde før kode. Regel 10 i gaten: en lønnslinje slettes, og timer flyttes. |
-| **A4** | **Ukelinja.** «Etter ansatt» er standardvisningen, med ukelinje pr. ansatt (B50 A). Firmaets ukenorm for alle (B52 A). «Under ukenorm N t» og «N t av M t overtid kan trekkes» etter regelen i del B. Merket «N t kan trekkes» på dagene. Krysset som velger uka (B57). Ett regnestykke mandag–søndag uten reise. Dager som mangler, og attesterte dager med ↺ (B53 A). Prosjektlederen ser ukelinja med ukas totaltall, uten navn på andre prosjekter (B54 A). Punkt 4. | `D` (ukas rader og dagstatus), `OG`, `AS`, `AT`, `MT`, `Ukeoversikt.tsx`, i18n, hjelpeteksten | 🟡 **Levert** på `feat/attestering-a4`, ikke merget (B85 ja, § 8.28). ⚠️ Ukeregnestykket lagres i attestert-snapshotet (`D:7503`, `:8738`). Gaten kjører regel 10 uavhengig. |
-| **A5** | **Hurtigvalg** (del J, B59 A): statuslinja «54 venter · 46 uten varsel · 8 med varsel», handling i varselet (B60 A), ferdige returgrunner (B61 A), ✂ på jobbraden (B62 A). ⚠️ «Attester N uten varsel» er utgått (B57). ⚠️ Merket «Helg» / «Helligdag» (B58 A) er flyttet til H1a, der dagtypen lages. | `AT`, `MT`, i18n, hjelpeteksten | Etter A4. ✂ på raden åpner «Del opp» i kortet (§ 4.16 del G) og går etter D2a. |
+| **A1** | **Gult på dagen.** Normmerket måles mot arbeid uten reise, med fravær som fyller normen. Lønnsartmerkene på oversiktsraden. Overtid og fravær gule, på merket og på linja. Jobbfargen gul byttes. Hover på normmerket og lønnsartmerkene. Punkt 1, 2, 3, 6 og 8. | `AT`, `MT`, `TR` (valgfri radfarge, rapporten uendret), i18n, hjelpeteksten. Ingen serverendring. | ✅ **Merget** `c76b838d` (2026-11-24). Linjene er skjult som standard, og valget huskes pr. bruker (B51 A). Del A2. |
+| **A2** | **Prosjekt og hover.** Kolonnen «Prosjekt» med navnet erstatter «Pr.nr.» og «Underprosjekt» i standardoppsettet. Hover på prosjektnavnet med nummer, byggeplass, underprosjekt og beskrivelse. Hoveren på hele raden tas ut av attesteringen. Lagrede kolonneoppsett nullstilles én gang (ny listenøkkel, som B26 A). «Velg parameter» har fortsatt alle kolonnene. Punkt 5. ⚠️ Endrer kjernekolonnene i Bilde 6 (del H). | `AT`, ny hover-komponent i `attestering/`, i18n, hjelpeteksten. `BeskrivelseHover` og dagssiden røres ikke. | ✅ **Merget** `c76b838d` (2026-11-24; B56 A: merket «↳» ved prosjektnavnet når jobben har underprosjekt). Del A2. |
+| **A3** | **Reise under terskel** (B55, del D). Ren regel i `packages/shared` som leser `reiseRegel` på reiselinja. Merke på oversiktsraden, gul reiselinje, hover. Punkt 7. | `packages/shared`, `MT`, `AT`, i18n, hjelpeteksten. Ingen serverendring. | ✅ **Merget** `c76b838d` (2026-11-24; `reiseUnderTerskel` i `packages/shared`, merket krever måling, del D; merket uten handling — handlingen i varselet er A3b). |
+| **A3b** | **«✎ Før som arbeidstid …»** på merket «Reise under terskel» (B83 ja, del D). Vindu med begge endringene: reiselinja slettes, og jobbens Fra–til utvides. Én lagring i én transaksjon. Arbeideren ser «Korrigert av». | `D` (ny mutasjon som bygger settet og går gjennom `utforRedigerSedelRader`), `AT`, `MT`, nytt vindu i `attestering/`, i18n, hjelpeteksten. Ingen migrering. Ikke `apps/mobile`. | **Kan bestilles** (A3 er merget). Koderen leverer løsning med skjermbilde før kode. Regel 10 i gaten: en lønnslinje slettes, og timer flyttes. |
+| **A4** | **Ukelinja.** «Etter ansatt» er standardvisningen, med ukelinje pr. ansatt (B50 A). Firmaets ukenorm for alle (B52 A). «Under ukenorm N t» og «N t av M t overtid kan trekkes» etter regelen i del B. Merket «N t kan trekkes» på dagene. Krysset som velger uka (B57). Ett regnestykke mandag–søndag uten reise. Dager som mangler, og attesterte dager med ↺ (B53 A). Prosjektlederen ser ukelinja med ukas totaltall, uten navn på andre prosjekter (B54 A). Punkt 4. | `D` (ukas rader og dagstatus), `OG`, `AS`, `AT`, `MT`, `Ukeoversikt.tsx`, i18n, hjelpeteksten | ✅ **Merget** `b69918a9` (2026-11-24; B85 ja, § 8.28). Ukeregnestykket fryses i snapshotet med «komplett» og dagene som mangler (`D:2399–2401`). Del A2. |
+| **A4b** | **Kenneths testfunn på `c203e501`:** linjevarselet «N t av M t overtid kan trekkes» begrenset til linjas overtid, ukelinja mørk blå som skissen, og normkortet med én opplysning pr. linje (del B). | `AS`, `AT`, `MT`, `UL`, `TR`, i18n, hjelpeteksten | ✅ **Merget** `98427663` (2026-11-24). |
+| **A5** | **Hurtigvalg** (del J, B59 A): statuslinja «54 venter · 46 uten varsel · 8 med varsel», handling i varselet (B60 A), ferdige returgrunner (B61 A), ✂ på jobbraden (B62 A). ⚠️ «Attester N uten varsel» er utgått (B57). ⚠️ Merket «Helg» / «Helligdag» (B58 A) er flyttet til H1a, der dagtypen lages. | `AT`, `MT`, i18n, hjelpeteksten | **Neste** (A4 er merget). ✂ på raden åpner «Del opp» i kortet (§ 4.16 del G) og går etter D2a. |
 | ~~**D1**~~ | ⚠️ **Utgått 2026-11-23 (B70 ja).** Vinduet «Del opp» med kort A og kort B bygges ikke. «Del opp» med begge kortene åpne går i D2a–D2f (§ 4.16 del G). | — | Konflikten mellom kort (del I: varselet, sperren i attesteringen og vakten på serveren) er leveranse KF1 (B65–B67 A). |
 | **KF1** | **Konflikt varsles og godtas ved attestantens retting** (B65 A, B66 A, B67 A, B88 ja, del I). Attestantens rettinger av klokkeslett (✎, «Rett reisen», «✎ Rediger jobben», «Del opp») lagres med overlapp mot et kort han ikke kan rette, og viser konflikten; arbeiderens føring beholder sperren. Overlapp mot et kort han kan rette, også kort A og kort B i paret og etter at paret er lukket, avvises; serveren avgjør det av attesteringsretten (`attesteringsOmfang`, `dagsseddel.ts:318` @ `ec303c15`). Sperre og merket «Konflikt» i attesteringen, tredje vakt på serveren. Ingen varsling til den andre attestanten. | `D` (`rettRadFelt`, `redigerSedelRader`, `delJobb`, attesteringslista, `attesterRader`, `attester`), `TV`, `ATL`, `AT`, `MT`, de tre rettevinduene, i18n, hjelpeteksten. Ingen migrering. Ikke `apps/mobile`. | Etter D2a. Før bestilling: tallet på dager med overlapp som venter på attestering i test og prod (OV6). Regel 10 i gaten. |
 | **U1** | **Timer etter underprosjekt** (del K): filter, gruppering og eksport i rapporten. Rapporten åpnes også for prosjektlederen, avgrenset til prosjektene hans (B84 ja). | `rapport.ts` (vakten og utvalget i fem ruter), `timerDetaljRader.ts`, rapportsiden og plassen dens i menyen, `timer-rapport-eksport.ts`, i18n, hjelpeteksten. Ingen migrering. | **Kan bestilles.** Egen sak, uavhengig av A1–A5. Koderen leverer løsning før kode. Regel 10 i gaten: tilgang på tvers av prosjekter og grunnlag for lønn og faktura. |
-| **H1a** | **Norm pr. dagtype** (B79 ja, del L): norm 0 lørdag, søndag og helligdag som standard, egen norm for lørdag og søndag som firmaet setter, halvdag med kalenderens timer og firma-fri med norm 0 (B86 ja), ukenorm mandag–søndag, og merket «Helg» / «Helligdag». | `packages/db-timer` (**én migrering, Kenneth**), `packages/shared`, `AR`, `D`, `OG`, innstillingssiden, `AT`, `MT`, i18n, hjelpeteksten | **Kan bestilles**, etter A4. Regel 10 i gaten. |
+| **H1a** | **Norm pr. dagtype** (B79 ja, del L): norm 0 lørdag, søndag og helligdag som standard, egen norm for lørdag og søndag som firmaet setter, halvdag med kalenderens timer og firma-fri med norm 0 (B86 ja), ukenorm mandag–søndag, og merket «Helg» / «Helligdag». | `packages/db-timer` (**én migrering, Kenneth**), `packages/shared`, `AR`, `D`, `OG`, innstillingssiden, `AT`, `MT`, i18n, hjelpeteksten | **Kan bestilles** (A4 er merget). Migreringen venter på Kenneths ja til skjemaet. Regel 10 i gaten. |
 | **H1b** | **Tidsrom og forslag** (B80 ja, del L): firmaet setter tidsrom pr. dagtype med lønnsart, og dagssiden i prosjektkort-modus foreslår delingen etter klokkeslett. | `packages/shared`, `D` (`lagreJobbTid`), ny rute for reglene, innstillingssiden, dagssiden, i18n, hjelpeteksten | Etter H1a. Regel 10 i gaten. |
 | **H1c** | **Gult ved avvik fra forslaget** (B80 ja, del L) i attesteringen. | `packages/shared`, `D`, `MT`, `AT`, i18n, hjelpeteksten | Etter H1b og A1. |
 | **H1m** | **Appen regner likt** (del L). | `apps/mobile` | ⏸ Venter på web (§ 8.13). Krever OTA. |
 | **H1d** | **Dagskort-modus får forslaget** (B87 ja, del L): dagens norm og firmaets tidsrom også i dagskortet, med vakt-test for resten av dagskortet. | Web: `WS` (vinduet og summen). App: `TimerSeksjon.tsx`, `apps/mobile/app/timer/[id].tsx`. Vakt-testene, hjelpeteksten. Ingen migrering. | Web etter H1b, appen etter H1m (OTA). |
 | **T1** | **Ferdig forslag for anleggsgartner** (B82 ja, del L): «Hent forslag fra …» kopierer normer og tidsrom inn i firmaets regler. Firmaet retter etterpå; ingen kobling. | `packages/shared` (profilen som data, med kilde og dato), innstillingssiden, ruta fra H1b, i18n, hjelpeteksten. Ingen migrering. | ⏸ **Venter på avtaleteksten** fra Kenneth eller en som kjenner avtalen, og på H1b. Ingen tall føres uten kilde. |
 
-Rekkefølge: A1 → A2 → A3 → A4 → A5 → A3b. A1–A5 og A3b rører de samme to filene (`AT`, `MT`) og går etter
+✅ A1–A4 og A4b er merget (2026-11-24). **Køen fra orkestrator 2026-11-24:** A5 → A3b (w5), U1, H1a (migrering,
+venter på Kenneths ja til skjemaet) → H1b → H1c → H1m, KF1, H1d, T1 (venter på avtaleteksten, B82).
+
+Rekkefølgen slik den ble planlagt: A1 → A2 → A3 → A4 → A5 → A3b. A1–A5 og A3b rører de samme to filene (`AT`, `MT`) og går etter
 hverandre hos samme koder. Ingen av dem krever migrering. A3b krever bare A3. Den står etter A5 fordi A5
 bygger mønsteret «handling i varselet» (B60 A); den kan bestilles rett etter A3 hvis Kenneth vil ha den
 først. «Del opp» går i D2a–D2f. U1 er en egen sak og kan gå hos en annen koder. H1a → H1b → H1c går etter A4
@@ -302,6 +347,12 @@ visningene «Sedler», «Etter prosjekt» og «Etter ansatt» · sperrene (B10, 
 omfang (R13) · rapportens Detaljer (samme tabell, uten farger og merker).
 
 #### Del F — tester som skal feile først
+
+✅ A1–A4b er merget med testene i `apps/web/src/__tests__/attestering-tabell.test.tsx`,
+`attestering-tabell-modell.test.ts`, `ukelinje-a4.test.tsx`, `ukebanner-a4.test.tsx` og
+`attestering-a4b.test.tsx`, `packages/shared/src/utils/reiseUnderTerskel.test.ts` og `ukeregnestykke.test.ts`,
+og `apps/api/src/routes/attestering-a4-ukelinje.integration.test.ts`. Hvilke av punktene under hver test
+dekker, er ikke målt her; gaten gjorde det.
 
 - **A1:** 6,5 t arbeid + 1 t reise gir «−1 t» (i dag: ingen merke). 7,5 t arbeid + 1 t reise gir ingen merke
   (i dag: «+1 t»). Egenmelding 7,5 t gir ingen normmerke og gult lønnsartmerke. En dag med 7,5 t Timelønn har
@@ -358,18 +409,18 @@ Planen bygger på Bilde 6 med endringene i § 4.2 (B14 A), § 4.5 (K1–K14) og 
 |---|---|---|
 | 1 Dato («17.11.», årsvelger) | Ja | **Står.** |
 | 2 Ansatt | Ja | **Står.** I «Etter ansatt» står navnet også på ukelinja (A4). |
-| 3 Prosjektnr · 4 Underprosjekt | Ja | ⚠️ **Endres** av punkt 5: én kolonne «Prosjekt» med navnet. Nummer, byggeplass og underprosjekt vises ved hover. Kjernen går fra 13 til 12 kolonner. Begge finnes fortsatt i «Velg parameter». |
-| 5 Lønnsart (kolonnen «Betegnelse») | Ja | **Står.** I tillegg: gul på overtid og fravær (punkt 3, 8), og lønnsartmerker på oversiktsraden der det i dag står «1 jobb» (punkt 6). |
+| 3 Prosjektnr · 4 Underprosjekt | Ja | ✅ **Endret i A2** (`c76b838d`): én kolonne «Prosjekt» med navnet. Nummer, byggeplass og underprosjekt vises ved hover. Begge finnes fortsatt i «Velg parameter». Standarden er 14 kolonner, med Reise og Overtid fra O13 (`timerDetaljRader.ts:758–766`). |
+| 5 Lønnsart (kolonnen «Betegnelse») | Ja | **Står.** ✅ I tillegg, bygget i A1: gul på overtid og fravær (punkt 3, 8), og lønnsartmerker på oversiktsraden (punkt 6). |
 | 6 Fra–til | Ja | **Står.** ⚠️ Reisemerket leser ikke klokkeslettene; det leser firmaets terskel (B55, del D). |
-| 7 Timer | Ja | **Står.** Dagsraden viser arbeid uten reise (punkt 1, 2). Tallformat som dagssiden (§ 8.22): «7,5», ikke «7,50». Si fra hvis attesteringen skal ha to desimaler. |
+| 7 Timer | Ja | **Står.** ✅ Normmerket måles mot arbeid uten reise (punkt 1, 2; A1). Tallformat som dagssiden (§ 8.22): «7,5», ikke «7,50». Si fra hvis attesteringen skal ha to desimaler. |
 | 8 Maskin · 9 Maskintimer · 10 Vare og mengde | Ja | **Står uendret.** |
 | Antall · Beløp (B13 A) | Ja | **Står uendret.** |
-| 11 Avvik (korte merker, forklaring ved hover) | Ja | **Står.** De nye merkene kommer her: «+2,5 t», «Reise under terskel», «1,0 t kan trekkes», «Helg». Samme komponent (`AT:966–993`). |
+| 11 Avvik (korte merker, forklaring ved hover) | Ja | **Står.** ✅ Bygget: «+2,5 t» (A1), «Reise under terskel» (A3), «1,0 t kan trekkes» (A4), samme komponent (`AT:1267`). 🟡 «Helg» kommer i H1a. |
 | ✓ og ↩ fast til høyre | Ja, på dagsraden og jobbraden (B24 B) | **Står.** ✂ i tillegg (B62 A). |
-| «Velg parameter», «Tilbakestill til standard» | Ja (`AT:878`) | **Står.** Standarden får ny listenøkkel i A2. |
-| Dagsrad og jobbrad (B14 A) | Ja | **Står.** Ukelinja er en ny rad over dem (A4). |
+| «Velg parameter», «Tilbakestill til standard» | Ja (`AT:878`) | **Står.** ✅ Ny listenøkkel i A2 (`AT:95`). |
+| Dagsrad og jobbrad (B14 A) | Ja | **Står.** ✅ Ukelinja er en ny rad over dem (A4). |
 | Ett trykk åpner registreringen | Ja (w8) | **Står.** |
-| Overtid som egen linje, summen på kortets linje | Ja | **Står.** Gul i tillegg. |
+| Overtid som egen linje, summen på kortets linje | Ja | **Står.** ✅ Gul i tillegg (A1). |
 | «Del opp» ved klokkeslett (bilde 8) | Delvis | Se del I. |
 
 **Ikke bygget av det som er planlagt for attesteringen:** «Del opp» med begge kortene åpne (§ 4.16 del G) →

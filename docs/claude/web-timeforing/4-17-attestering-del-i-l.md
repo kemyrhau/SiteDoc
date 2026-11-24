@@ -26,7 +26,8 @@
 - **Kravene er de samme** (DO9): attesteringsrett, ikke egen dagsseddel, «rediger ved attestering» på, dagen
   sendt, og alle linjene i jobben venter. ✂ vises bare når kravene er oppfylt.
 - ⚠️ **D1 er utgått.** Neste ordre for «Del opp» er D2a (§ 4.16 del G). Sperren og merket for konflikt (under)
-  er leveranse KF1. Den rører attesteringstabellen, så rekkefølgen mot A1–A5 avklares i ordren.
+  er leveranse KF1. Den rører attesteringstabellen, så rekkefølgen mot A5 avklares i ordren (A1–A4b er merget
+  2026-11-24).
 
 **Kenneth 2026-11-22 om «Del opp» ved attestering (ordrett):** «dersom dette gjelder ved attestering -> da åpner
 vi en kopi av det andre kortet, det endring av arbeidstid i kort 1, endrer i det kortet 2 automatisk. endinger i
@@ -156,7 +157,8 @@ fr. 22.11 · Kari Nordmann                           Avvik: Sperre — to kort o
 
 **Leveranse KF1 — konflikt varsles og godtas ved attestantens retting** (B65 A, B66 A, B67 A, B88 ja). Server og web.
 Ingen migrering: konflikten regnes av klokkeslettene og lagres ikke. Etter D2a, fordi paret (B65) finnes først
-der. Rører attesteringstabellen, så rekkefølgen mot A1–A5 og H1a–H1c avgjøres i ordren.
+der. Rører attesteringstabellen, så rekkefølgen mot A5 og H1a–H1c avgjøres i ordren (A1–A4b er merget
+2026-11-24). Køen fra orkestrator 2026-11-24 står i § 4.17 del E.
 
 - **Attestantens veier varsler og godtar:** `rettRadFelt`, `redigerSedelRader` (`utforRedigerSedelRader`) og
   `delJobb` lagrer selv om kortet overlapper et kort på dagen som attestanten ikke kan rette. Svaret og forhåndsvisningen bærer
@@ -229,22 +231,23 @@ beste fra C tas med i A: varselet forklares i klartekst, og handlingen står i v
 
 **Fem grep i A** (grep 2 er utgått):
 
-1. **Statuslinja sier hva som gjenstår:** «Uke 47 · 54 dager venter · 46 uten varsel · 8 med varsel». Trykk på
+1. 🟡 Ikke bygget (A5). **Statuslinja sier hva som gjenstår:** «Uke 47 · 54 dager venter · 46 uten varsel · 8 med varsel». Trykk på
    «8 med varsel» viser bare dem. Filteret finnes i dag i hodet på Avvik-kolonnen (`AT:750–752`).
 2. ⚠️ **Utgått (B57).** ~~«Attester N uten varsel»~~. Kenneth valgte ingen ny knapp.
-3. **Krysset på ukelinja** (A4, B57): krysset velger alle dagene til den ansatte, og «Attester utvalget (N)»
-   attesterer dem. To trykk. Knappen finnes i dag (i18n `timer.attestering.tabell.attesterUtvalget`).
-4. **Handling i varselet** (B60 A): trykk på «1,0 t kan trekkes» viser forklaringen og knappen «✎ Gjør om 1,0 t
+3. ✅ **Bygget i A4** (`b69918a9`). **Krysset på ukelinja** (B57): krysset velger alle dagene til den ansatte,
+   og «Attester utvalget (N)» attesterer dem. To trykk (`AttesteringTabell.tsx:560`, `:678` @ `0305eeb4`; i18n
+   `timer.attestering.tabell.uke.velgUka` og `timer.attestering.tabell.attesterUtvalget`).
+4. 🟡 Ikke bygget (A5; for «Reise under terskel»: A3b). **Handling i varselet** (B60 A): trykk på «1,0 t kan trekkes» viser forklaringen og knappen «✎ Gjør om 1,0 t
    til ordinær tid …». Overtidslinja er 2,5 t (15:00–17:30). Handlingen deler den ved klokkeslettet som gir
    1,0 t (15:00–16:00) og setter ordinær lønnsart på den delen. Vinduet åpnes ferdig utfylt; attestanten kan
    rette klokkeslettet og trykker «Lagre». Ingenting lagres uten attestantens trykk. Etter lagringen er merket
    «kan trekkes» borte (B85 ja, del B). Delingen og lønnsarten kan lagres i én lagring med ruta som finnes
    (målt, del G). Handlingen for «Reise under terskel» er «✎ Før som arbeidstid …» (B83 ja, del D, A3b).
-5. **Ferdige returgrunner** (B61 A): returvinduet har i dag bare et påkrevd tekstfelt (`AT:912–941`). Forslag:
+5. 🟡 Ikke bygget (A5). **Ferdige returgrunner** (B61 A): returvinduet har i dag bare et påkrevd tekstfelt (`AT:912–941`). Forslag:
    knapper for «Feil timer», «Feil prosjekt eller underprosjekt», «Mangler beskrivelse», «Overtid ikke avtalt»
    og «Annet», med valgfri kommentar. «Annet» krever kommentar. Grunnen skrives inn i kommentaren arbeideren
    får; serveren er uendret.
-6. **✂ på jobbraden** (B62 A, del I).
+6. 🟡 Ikke bygget (A5, etter D2a). **✂ på jobbraden** (B62 A, del I).
 
 **Leseregler for raden** (gjelder A1–A5):
 
@@ -567,7 +570,7 @@ migrering.
 - Rører `WS`, `TimerSeksjon.tsx`, `apps/mobile/app/timer/[id].tsx`, vakt-testene, hjelpeteksten for dagssiden,
   `timer.md`, `web.md`, `mobil.md`. Koderen leverer løsning med skjermbilde av en lørdag i dagskort-modus før kode.
 
-**Rekkefølge:** A4 → H1a → H1b → H1c hos samme koder, fordi de rører `D`, `OG`, `MT` og `AT`. H1a og H1b
+**Rekkefølge:** A4 (✅ merget `b69918a9`) → H1a → H1b → H1c hos samme koder, fordi de rører `D`, `OG`, `MT` og `AT`. H1a og H1b
 deployes til test sammen. H1m bestilles når Kenneth har godkjent H1a–H1c på PC. T1 bestilles når H1b er
 merget og tabellen fra avtaleteksten er godkjent. H1d på web bestilles etter H1b, hos samme koder fordi den rører
 `WS`; H1d i appen bestilles etter H1m.
