@@ -13,7 +13,7 @@ Alle stier er relative til `~/Documents/Programmering/SiteDoc/`.
 
 | Dato | Fil | Type | Sammendrag | Status |
 |---|---|---|---|---|
-| 07-10 | docs/redesign/steg-viii-kunderunde.md | runbook | Kunderunde mot prod-kopi på egen redesign-stack | plan godkjent, infra ikke satt opp |
+| 07-10 | docs/redesign/steg-viii-kunderunde.md | runbook | Kunderunde mot prod-kopi på egen redesign-stack | avviklet 2026-11-24 (stacken reist i juli, fjernet) |
 | 07-12 | docs/redesign/FABEL-RAMMEVERK.md | vedtak | Fabels to hovedoppgaver, exit-protokoll a–d og DoD med skjermbilde-gate | besluttet |
 | 07-21 | docs/claude/FABEL-OVERLEVERING-2026-07-21.md | overlevering | Status ved øktskifte, lukkede saker og kø | historisk |
 | 08-19 | docs/redesign/ordre-demo-smoketest-fabel-2026-08-19.md | ordre | Smoketest av demo-løypa før Markussen-møtet | utført |

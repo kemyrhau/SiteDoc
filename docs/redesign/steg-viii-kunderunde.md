@@ -1,10 +1,12 @@
 ---
 name: steg-viii-kunderunde
-status: plan (godkjent Plan 1, 2026-07-07) — infra ikke reist
+status: avviklet 2026-11-24 — stacken fjernet, ikke følg
 sist_verifisert_mot_kode: 2026-07-07
 ---
 
 # Steg viii — kunderunde mot prod-kopi (redesign-stack)
+
+> ⛔ **AVVIKLET 2026-11-24 — ikke følg.** Redesign-stacken (containere, images, DB `sitedoc_redesign`, tunnelregel, DNS og innloggingsadresser hos Microsoft og Google) er fjernet etter Kenneths ordre, og `docker/docker-compose.redesign.yml` er slettet. Ny navigasjon lever i develop bak `nyNavigasjon` og testes på test.sitedoc.no. Ingen kopi av prod-data reises uten ny ordre fra Kenneth. Se STATUS-AKTUELT § Redesign navigasjon.
 
 Runbook + env-maler + kunderunde-manus for den tredje Docker-stacken (`sitedoc-redesign`)
 på server-ny. Speiler test-stacken (`docker-compose.test.yml`). **Ingen infra reises før

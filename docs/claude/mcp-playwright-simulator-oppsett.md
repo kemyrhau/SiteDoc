@@ -110,7 +110,7 @@ playwright: npx @playwright/mcp@latest --extension
 
 - **Chrome-utvidelse:** «Playwright Extension» (Microsoft, Chrome Web Store) er
   installert i Kenneths vanlige Chrome. Nettstedstilgang er begrenset til
-  `redesign.sitedoc.no`, `sitedoc.no`, `test.sitedoc.no`, modus **«Ved klikk»**.
+  `sitedoc.no`, `test.sitedoc.no` (`redesign.sitedoc.no` fjernes — stacken avviklet 2026-11-24), modus **«Ved klikk»**.
   Token-en i utvidelsen må matche `PLAYWRIGHT_MCP_EXTENSION_TOKEN` i MCP-configen.
 
 **Slik bruker en ny økt det:**
@@ -197,5 +197,3 @@ JS på nytt). Merk: reload kan nullstille valgt prosjekt → naviger firma/prosj
     på fanen.
   - Token-en er lav-risiko lokal pairing (ikke prod-hemmelighet), men hold den utenfor
     repoet; den havner i klartekst i `~/.claude.json` + evt. logg.
-- `redesign.sitedoc.no` er **ikke** en MCP-server (bare en web-app) — ikke legg den til
-  som HTTP-MCP.
