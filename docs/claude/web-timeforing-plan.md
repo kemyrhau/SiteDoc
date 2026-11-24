@@ -2,8 +2,8 @@
 name: web-timeforing-plan
 description: Plan med bilder for timeføring på web. Dagskortet er dagen med alle registreringene; hver registrering (prosjektkort = kort = jobb) føres samlet — arbeid, reise, maskin (bare antall timer), varer, tillegg og utlegg — og attesteres samlet. Begrepene står i § 0, Kenneths gjeldende vedtak i § 8.20–8.22, og rekkefølge og status i § 9. Versjon 20 er en rydding uten nytt innhold: utgått tekst er merket ⚠️ der den står. Versjon 21 spesifiserte «Del opp» som vindu med begge kortene; vinduet er utgått (Kenneth 2026-11-23, B70 ja). Versjon 22 (§ 4.17) er attesteringen med ukelinje, oversiktsrader og gule varsler; Kenneth har svart på B50–B62 (§ 8.27), og den er ikke bestilt. Versjon 23 fører status til og med 2026-11-23 (§ 9.7) og har «Del opp» med begge kortene åpne og redigerbare, flytting av linjer og nye linjer fra attestanten (§ 4.16 del G; vedtatt av Kenneth 2026-11-23, B68–B71 ja). Reisevinduet står bare i vedtak-timer-web.md § Reisevinduet.
 sist_verifisert_mot_kode: 2026-11-19 (WM1–WM73: develop @ `b8b16571`; WM74–WM92: develop @ `ee7146e5`, etter w1, w2 og w5; WM93–WM108: develop @ `1afb318a`, etter w5b og w7; K1–K14 i § 4.5: develop @ `eedbc7cd`, etter w8, w9 og w9m; FA1–FA27 i § 4.6–4.8: develop @ `57770fc0`; FA16–FA21 på nytt, FA28–FA44 og DK1–DK15 i § 4.7, § 4.9 og § 4.10: develop @ `a5483f48`, 2026-11-20; FA45–FA59 i § 4.11: develop @ `bdf2320f`, 2026-11-20; FA60–FA65 i § 4.11 og FA66–FA70 i § 4.12: develop @ `8c260833`, 2026-11-20; § 4.13 (A1–A14): develop @ `d9354caa`, 2026-11-20; TK1–TK27 i § 4.14: develop @ `4fe7b0d6`, 2026-11-20; F1–F21 i § 4.15: develop @ `30346a95`, lik test `f529b527` i `apps` og `packages`, 2026-11-20; F22–F35 i § 4.15: develop @ `12094b58`, lik `30346a95` i `apps` og `packages`, 2026-11-20; F36–F45 i § 4.15: develop @ `88d37194`, lik `12094b58` i `apps` og `packages`, 2026-11-21; F46–F56 i § 4.15: develop @ `afdaa7ac`, 2026-11-21; F57–F63 i § 4.15: develop @ `e84a4e73` og `3290a40a`, like `afdaa7ac` i `apps` og `packages`, 2026-11-21; F64–F68 i § 4.15: develop @ `fae0e363`, 2026-11-21; F69–F78 i § 4.15: develop @ `6163086f`, etter w15c og w15f, 2026-11-21; F79–F83 i § 4.15: develop @ `d4c0eecd`, etter F68, 2026-11-21; DO1–DO20 i § 4.16: develop @ `310ecf43`, 2026-11-21; DG1–DG14 i § 4.16 del G: develop @ `14869899`, 2026-11-23, lest av leseagent og stikkprøvd; DG15–DG23 i § 4.16 del G: develop @ `ae3c417b`, 2026-11-23, lest av leseagent og stikkprøvd)
-eier: fabel (plan) — orkestrator gater kode; Kenneth har besvart B1–B49 (§ 8); B68–B71 («Del opp» med begge kortene åpne, § 4.16 del G) er besvart med ja 2026-11-23 (§ 8.23); B72 og B73 (varer og utlegg fra attestanten, og merket «Lagt til av» og «Korrigert av») er besvart med ja 2026-11-23 (§ 8.24); B74 (flytte en linje når et kort åpnes alene, § 4.16 del G) er besvart med ja 2026-11-23 (§ 8.25); versjon 22 (attesteringen, § 4.17): B50–B62 er besvart 2026-11-23 (§ 8.27), B63 og B64 er dekket av B68–B72; B53 (lesningen bekreftet), B79, B80 og B85 er besvart 2026-11-24 (§ 8.28); B65–B67, B81–B84, B86 og B87 er åpne; versjon 24 (slettede og korrigerte linjer som egen visning, § 4.18): B76–B78 er besvart 2026-11-23 med ja, nei og ja (§ 8.26)
-status: 🟡 2026-11-23, versjon 23 — (1) status ført til og med 2026-11-23 (§ 9 og § 9.7): merget siden versjon 21 er tallformatet, L1–L3b, maskin uten fra–til, «Slett dagsseddel», O1–O8, O10–O19 og O19b (siste: O14 `50f480c8`, O15 `6cf48d6e`, O16 `0e650523`, O17 `6ee3b632`, O18 `4bc05499`, O19 `63e7b8f6`, O19b `e1eb7ac3`); (2) «Del opp»: Kenneth 2026-11-23 «B68 ja, B69 ja, B70 ja, B71 ja» — begge kortene står åpne og redigerbare side om side etter delingen, uten kobling i data; linjer (reise, varer, maskin, utlegg og tillegg) kan flyttes mellom kortene; attestanten kan legge til nye linjer; vinduet fra versjon 21 er utgått; Kenneth 2026-11-23 «B72 ja, 73 ja -> den som korrigerer skal alltid få denne, kun brukeren selv slipper» og «et kort som redigeres må kunne redigere alle linjer, også etter at de er lukket en gang» — alle som kan attestere prosjektet, får «＋» under Varer og Utlegg; alle som legger til eller retter en linje på en annens dag, får merket «Lagt til av» eller «Korrigert av»; «＋» og redigering av alle linjene gjelder hver gang et kort redigeres, også når det åpnes alene; Kenneth 2026-11-23 «B74 ja» — en linje kan flyttes til et annet kort på dagen også når kortet åpnes alene, og også etter at det har vært lukket (§ 4.16 del G, `v23-del-opp-etter.png`; DG1–DG33; vedtatt, ikke bestilt, uten kode; én migrering, `opprettet_av_user_id` på fire tabeller, uten backfill, Kenneth kjører). Bygget av «Del opp»: blokka i kortet med klokkeslett, underprosjekt for B og maskintimer A/B (O15). Versjon 22 (attesteringen med oversiktsrader, § 4.17): se til slutt i dette feltet. Merget på web (O19 `63e7b8f6`, O19b `e1eb7ac3`): reisevinduet punkt 20 (blå boks) og punkt 23–25 (deling ved midnatt, kveldsreise, stopp ved reise som ikke passer kortets byggeplass) — vedtaksteksten står i vedtak-timer-web.md § Reisevinduet; mobil sperrer som før. Kenneth 2026-11-23 «ikke endre noe nå»: uka i retur-lenken til Timer-lista, og «Registrer timer» som åpner ny jobb. I BACKLOG: periodevisning fra–til og «siste måned». Ikke bygget: w3c, w4 (L4), w10c, w11 og O9 (flytte jobb på returnert dag); mobil (w12m, w15gm, reisevinduet punkt 20) venter på web. Utgått: fra–til på maskin (B5, w6), w13, «Flytt til …» (w15e), e-post ved retting og automatisk justering av nabokort (§ 8.21 punkt 1). Reisevinduet står bare i vedtak-timer-web.md. Historikken for versjon 12–19 står i § 8.13–8.20; hva som er deployet, står på tavla (STATUS-AKTUELT.md). · **versjon 24 (2026-11-23, 🟡 forslag, ikke bygget):** slettede og korrigerte linjer som egen visning utenfor attesteringskortet (§ 4.18, `v24-slettespor-varianter.png`; Kenneth «s1 nei», «s2 ja»); ingen migrering; B76–B78 til Kenneth · **versjon 22 (2026-11-22, svar ført 2026-11-24, 🟡 vedtatt retning, ikke bygget, ikke bestilt):** attesteringen med ukelinje, oversiktsrader og gule varsler (§ 4.17; `v22-uke.png`, `v22-oversiktsrad.png`, `v22-enkel.png`, tegnet om 2026-11-24); Kenneth har svart på B50–B62 (§ 8.27); nye deler: timer etter underprosjekt (del K) og helg, helligdag og overtid (del L); Kenneth 2026-11-24 «b85 ja · b53 ukevarselet er et varsel … · b79 ja · b80 ja» (§ 8.28): kan trekkes = ført overtid − godtatt overtid, ukevarselet sperrer ikke, norm 0 lørdag, søndag og helligdag som standard, og firmaet setter tidsrom med lønnsart; A4 kan bestilles; H1 er delt i H1a–H1c og H1m med én migrering i H1a (del L); åpne: B65–B67, B81–B84, B86 og B87
+eier: fabel (plan) — orkestrator gater kode; Kenneth har besvart B1–B49 (§ 8); B68–B71 («Del opp» med begge kortene åpne, § 4.16 del G) er besvart med ja 2026-11-23 (§ 8.23); B72 og B73 (varer og utlegg fra attestanten, og merket «Lagt til av» og «Korrigert av») er besvart med ja 2026-11-23 (§ 8.24); B74 (flytte en linje når et kort åpnes alene, § 4.16 del G) er besvart med ja 2026-11-23 (§ 8.25); versjon 22 (attesteringen, § 4.17): B50–B62 er besvart 2026-11-23 (§ 8.27), B63 og B64 er dekket av B68–B72; B53 (lesningen bekreftet) og B79–B85 er besvart 2026-11-24 (§ 8.28); B65–B67, B86 og B87 er åpne; versjon 24 (slettede og korrigerte linjer som egen visning, § 4.18): B76–B78 er besvart 2026-11-23 med ja, nei og ja (§ 8.26)
+status: 🟡 2026-11-23, versjon 23 — (1) status ført til og med 2026-11-23 (§ 9 og § 9.7): merget siden versjon 21 er tallformatet, L1–L3b, maskin uten fra–til, «Slett dagsseddel», O1–O8, O10–O19 og O19b (siste: O14 `50f480c8`, O15 `6cf48d6e`, O16 `0e650523`, O17 `6ee3b632`, O18 `4bc05499`, O19 `63e7b8f6`, O19b `e1eb7ac3`); (2) «Del opp»: Kenneth 2026-11-23 «B68 ja, B69 ja, B70 ja, B71 ja» — begge kortene står åpne og redigerbare side om side etter delingen, uten kobling i data; linjer (reise, varer, maskin, utlegg og tillegg) kan flyttes mellom kortene; attestanten kan legge til nye linjer; vinduet fra versjon 21 er utgått; Kenneth 2026-11-23 «B72 ja, 73 ja -> den som korrigerer skal alltid få denne, kun brukeren selv slipper» og «et kort som redigeres må kunne redigere alle linjer, også etter at de er lukket en gang» — alle som kan attestere prosjektet, får «＋» under Varer og Utlegg; alle som legger til eller retter en linje på en annens dag, får merket «Lagt til av» eller «Korrigert av»; «＋» og redigering av alle linjene gjelder hver gang et kort redigeres, også når det åpnes alene; Kenneth 2026-11-23 «B74 ja» — en linje kan flyttes til et annet kort på dagen også når kortet åpnes alene, og også etter at det har vært lukket (§ 4.16 del G, `v23-del-opp-etter.png`; DG1–DG33; vedtatt, ikke bestilt, uten kode; én migrering, `opprettet_av_user_id` på fire tabeller, uten backfill, Kenneth kjører). Bygget av «Del opp»: blokka i kortet med klokkeslett, underprosjekt for B og maskintimer A/B (O15). Versjon 22 (attesteringen med oversiktsrader, § 4.17): se til slutt i dette feltet. Merget på web (O19 `63e7b8f6`, O19b `e1eb7ac3`): reisevinduet punkt 20 (blå boks) og punkt 23–25 (deling ved midnatt, kveldsreise, stopp ved reise som ikke passer kortets byggeplass) — vedtaksteksten står i vedtak-timer-web.md § Reisevinduet; mobil sperrer som før. Kenneth 2026-11-23 «ikke endre noe nå»: uka i retur-lenken til Timer-lista, og «Registrer timer» som åpner ny jobb. I BACKLOG: periodevisning fra–til og «siste måned». Ikke bygget: w3c, w4 (L4), w10c, w11 og O9 (flytte jobb på returnert dag); mobil (w12m, w15gm, reisevinduet punkt 20) venter på web. Utgått: fra–til på maskin (B5, w6), w13, «Flytt til …» (w15e), e-post ved retting og automatisk justering av nabokort (§ 8.21 punkt 1). Reisevinduet står bare i vedtak-timer-web.md. Historikken for versjon 12–19 står i § 8.13–8.20; hva som er deployet, står på tavla (STATUS-AKTUELT.md). · **versjon 24 (2026-11-23, 🟡 forslag, ikke bygget):** slettede og korrigerte linjer som egen visning utenfor attesteringskortet (§ 4.18, `v24-slettespor-varianter.png`; Kenneth «s1 nei», «s2 ja»); ingen migrering; B76–B78 til Kenneth · **versjon 22 (2026-11-22, svar ført 2026-11-24, 🟡 vedtatt retning, ikke bygget, ikke bestilt):** attesteringen med ukelinje, oversiktsrader og gule varsler (§ 4.17; `v22-uke.png`, `v22-oversiktsrad.png`, `v22-enkel.png`, tegnet om 2026-11-24); Kenneth har svart på B50–B62 (§ 8.27); nye deler: timer etter underprosjekt (del K) og helg, helligdag og overtid (del L); Kenneth 2026-11-24 «b85 ja · b53 ukevarselet er et varsel … · b79 ja · b80 ja» (§ 8.28): kan trekkes = ført overtid − godtatt overtid, ukevarselet sperrer ikke, norm 0 lørdag, søndag og helligdag som standard, og firmaet setter tidsrom med lønnsart; A4 kan bestilles; H1 er delt i H1a–H1c og H1m med én migrering i H1a (del L); Kenneth samme dag «b81ja · b82ja, anleggsgartner · b83 ja · b84ja»: overtid på en hverdag er timer over dagsnormen, første tariffprofil er anleggsgartner (T1, venter på avtaleteksten), reise under terskel får handlingen «Før som arbeidstid» (A3b), og prosjektlederen får rapporten for egne prosjekter (U1); åpne: B65–B67, B86 og B87
 ---
 
 # Timeføring på web — plan med bilder (FORSLAG)
@@ -3606,8 +3606,8 @@ Koderen leverer løsning med skjermbilde før kode i hver av dem.
 
 🟡 **Vedtatt retning 2026-11-23, ikke bestilt, ikke bygget.** Bestilt av Kenneth 2026-11-22: «nå føler jeg at vi
 har kontroll på timeregistrering -> la fabel planlegge attestering.» Kenneth har svart på B50–B62 (§ 8.27)
-og på B53, B79, B80 og B85 (2026-11-24, § 8.28). Svarene er ført inn under og merket med spørsmålets nummer.
-Åpne: B65–B67 (konflikt ved «Del opp», del I), B81–B84, B86 og B87 (§ 8). Bare web. Timeregistreringen (dagssiden), mobil og firmavalget dagskort-modus røres ikke.
+og på B53 og B79–B85 (2026-11-24, § 8.28). Svarene er ført inn under og merket med spørsmålets nummer.
+Åpne: B65–B67 (konflikt ved «Del opp», del I), B86 og B87 (§ 8). Bare web. Timeregistreringen (dagssiden), mobil og firmavalget dagskort-modus røres ikke.
 
 ![Uka — to måter å ordne attesteringen på](skisser-web-timeforing/v22-uke.png)
 
@@ -3794,6 +3794,9 @@ sak (del L). Punkt 5 er ikke bestilt.
 
 **Kenneths svar 2026-11-24 (§ 8.28):** punkt 1 → ukevarselet er et varsel, ingen sperre (B53 bekreftet).
 Punkt 4 → norm 0 lørdag, søndag og helligdag (B79 ja), og firmaet setter tidsrom med lønnsart (B80 ja).
+Overtid på en hverdag er timer over dagsnormen (B81 ja), og første ferdige forslag er for anleggsgartner
+(B82 ja). Reise under terskel får handlingen «✎ Før som arbeidstid …» (B83 ja, del D). Prosjektlederen får
+rapporten etter underprosjekt for egne prosjekter (B84 ja, del K).
 
 #### Del D — datagrunnlaget
 
@@ -3835,8 +3838,30 @@ Målt mot develop @ `9533908f` (lest, ikke kjørt):
 - **Mobil** lagrer fortsatt en arbeidstid-rad under terskelen
   (`apps/mobile/src/components/timer-detalj/ReiseKort.tsx:141–159`). Raden er ført etter regelen og får ikke
   merke. Mobil røres ikke.
-- **Handlingen i varselet** («✎ Før som arbeidstid …», B60 A) er ikke avklart: «Arbeidstid» er tatt ut av
-  «Føres som» i pennen (punkt 20). Se B83.
+- **Handlingen i varselet (Kenneth 2026-11-24, «b83 ja»):** merket «Reise under terskel» får knappen
+  «✎ Før som arbeidstid …». Den åpner et vindu som viser begge endringene: reiselinja slettes, og jobbens
+  Fra–til utvides med reisens tid. Attestanten trykker «Lagre». Arbeideren ser «Korrigert av». Leveranse A3b.
+  🟡 Vedtatt, ikke bestilt, ikke bygget.
+  - **Tilstand:** attestering, dagen er sendt, linjene venter, firmavalget «Rediger ved attestering» er på, og
+    attestanten har rett til å rette dagen. Ellers vises merket med forklaring, uten knapp.
+  - **Vinduet foreslår, attestanten bestemmer:** det viser reiselinja som slettes, med timer og det reisen
+    bærer, og jobbens linje før og etter, som «Timelønn 07:00–14:00 · 6,5 t → 07:00–15:00 · 7,5 t». Fra og til
+    kan rettes før «Lagre». Linja som utvides, er jobbens linje nærmest reisen.
+  - **Uten knapp:** reisen står i et kort uten arbeid. Da finnes ingen jobb å utvide.
+  - **Etter lagringen** regnes dagen og uka på nytt. Gir timene over dagsnorm, får dagen normmerket; ingenting
+    gjøres om til overtid automatisk.
+  - **Målt mot develop @ `7a4e8930`** (lest, ikke kjørt): ruta som retter en sendt dag, tar imot alle dagens
+    ventende linjer. En linje som er utelatt, slettes med slettespor, og en linje som er endret, oppdateres på
+    stedet med historikk. Alt skjer i én transaksjon (`D:3360–3904`; planen `:3700–3759`, transaksjonen
+    `:3766`, slettesporet `:3776–3797`). Ruta for ett felt bygger settet på serveren (`D:8964–9140`). **Begge
+    endringene kan altså gjøres i én lagring med ruta som finnes**; `splittRad` trengs ikke. Vaktene følger
+    med: ikke egen dag (`:3399`), firmavalget (`:3401–3408`), overlapp, maskin innenfor arbeid og taket på
+    timer.
+  - **Serverkrav:** én ny mutasjon som tar reiselinjas id og jobbens nye Fra–til. Serveren bygger settet selv:
+    dagens ventende linjer uten reiselinja, og jobbens linje med ny tid. Én transaksjon; feiler en vakt, er
+    ingenting endret. Klienten sender aldri to kall.
+  - ⚠️ Ikke målt: om reiselinja bærer noe som forsvinner med den, som kilometer eller et koblet tillegg.
+    Koderen måler, og vinduet viser det som slettes.
 
 #### Del E — leveranser
 
@@ -3844,19 +3869,24 @@ Målt mot develop @ `9533908f` (lest, ikke kjørt):
 |---|---|---|---|
 | **A1** | **Gult på dagen.** Normmerket måles mot arbeid uten reise, med fravær som fyller normen. Lønnsartmerkene på oversiktsraden. Overtid og fravær gule, på merket og på linja. Jobbfargen gul byttes. Hover på normmerket og lønnsartmerkene. Punkt 1, 2, 3, 6 og 8. | `AT`, `MT`, `TR` (valgfri radfarge, rapporten uendret), i18n, hjelpeteksten. Ingen serverendring. | **Klar for ordre.** Linjene er skjult som standard, og valget huskes pr. bruker (B51 A). |
 | **A2** | **Prosjekt og hover.** Kolonnen «Prosjekt» med navnet erstatter «Pr.nr.» og «Underprosjekt» i standardoppsettet. Hover på prosjektnavnet med nummer, byggeplass, underprosjekt og beskrivelse. Hoveren på hele raden tas ut av attesteringen. Lagrede kolonneoppsett nullstilles én gang (ny listenøkkel, som B26 A). «Velg parameter» har fortsatt alle kolonnene. Punkt 5. ⚠️ Endrer kjernekolonnene i Bilde 6 (del H). | `AT`, ny hover-komponent i `attestering/`, i18n, hjelpeteksten. `BeskrivelseHover` og dagssiden røres ikke. | **Klar for ordre** (B56 A: merket «↳» ved prosjektnavnet når jobben har underprosjekt). |
-| **A3** | **Reise under terskel** (B55, del D). Ren regel i `packages/shared` som leser `reiseRegel` på reiselinja. Merke på oversiktsraden, gul reiselinje, hover. Punkt 7. | `packages/shared`, `MT`, `AT`, i18n, hjelpeteksten. Ingen serverendring. | **Klar for ordre** uten handling i varselet. Handlingen venter på B83. |
+| **A3** | **Reise under terskel** (B55, del D). Ren regel i `packages/shared` som leser `reiseRegel` på reiselinja. Merke på oversiktsraden, gul reiselinje, hover. Punkt 7. | `packages/shared`, `MT`, `AT`, i18n, hjelpeteksten. Ingen serverendring. | **Klar for ordre.** Handlingen i varselet er A3b. |
+| **A3b** | **«✎ Før som arbeidstid …»** på merket «Reise under terskel» (B83 ja, del D). Vindu med begge endringene: reiselinja slettes, og jobbens Fra–til utvides. Én lagring i én transaksjon. Arbeideren ser «Korrigert av». | `D` (ny mutasjon som bygger settet og går gjennom `utforRedigerSedelRader`), `AT`, `MT`, nytt vindu i `attestering/`, i18n, hjelpeteksten. Ingen migrering. Ikke `apps/mobile`. | **Kan bestilles**, etter A3. Koderen leverer løsning med skjermbilde før kode. Regel 10 i gaten: en lønnslinje slettes, og timer flyttes. |
 | **A4** | **Ukelinja.** «Etter ansatt» er standardvisningen, med ukelinje pr. ansatt (B50 A). Firmaets ukenorm for alle (B52 A). «Under ukenorm N t» og «N t av M t overtid kan trekkes» etter regelen i del B. Merket «N t kan trekkes» på dagene. Krysset som velger uka (B57). Ett regnestykke mandag–søndag uten reise. Dager som mangler, og attesterte dager med ↺ (B53 A). Prosjektlederen ser ukelinja med ukas totaltall, uten navn på andre prosjekter (B54 A). Punkt 4. | `D` (ukas rader og dagstatus), `OG`, `AS`, `AT`, `MT`, `Ukeoversikt.tsx`, i18n, hjelpeteksten | **Klar for ordre** (B85 ja, § 8.28). ⚠️ Ukeregnestykket lagres i attestert-snapshotet (`D:7503`, `:8738`). Gaten kjører regel 10 uavhengig. |
 | **A5** | **Hurtigvalg** (del J, B59 A): statuslinja «54 venter · 46 uten varsel · 8 med varsel», handling i varselet (B60 A), ferdige returgrunner (B61 A), ✂ på jobbraden (B62 A). ⚠️ «Attester N uten varsel» er utgått (B57). ⚠️ Merket «Helg» / «Helligdag» (B58 A) er flyttet til H1a, der dagtypen lages. | `AT`, `MT`, i18n, hjelpeteksten | Etter A4. ✂ på raden åpner «Del opp» i kortet (§ 4.16 del G) og går etter D2a. |
 | ~~**D1**~~ | ⚠️ **Utgått 2026-11-23 (B70 ja).** Vinduet «Del opp» med kort A og kort B bygges ikke. «Del opp» med begge kortene åpne går i D2a–D2f (§ 4.16 del G). | — | Konflikten mellom kort (del I: varselet, sperren i attesteringen og vakten på serveren) er ikke plassert i D2a–D2f. Den venter på B65–B67. |
-| **U1** | **Timer etter underprosjekt** (del K): filter, gruppering og eksport i rapporten. | `rapport.ts`, `timerDetaljRader.ts`, rapportsiden, `timer-rapport-eksport.ts`, i18n, hjelpeteksten. Ingen migrering. | Egen sak. B84 avgjør bare tilgangen for prosjektlederen. Regel 10 i gaten. |
+| **U1** | **Timer etter underprosjekt** (del K): filter, gruppering og eksport i rapporten. Rapporten åpnes også for prosjektlederen, avgrenset til prosjektene hans (B84 ja). | `rapport.ts` (vakten og utvalget i fem ruter), `timerDetaljRader.ts`, rapportsiden og plassen dens i menyen, `timer-rapport-eksport.ts`, i18n, hjelpeteksten. Ingen migrering. | **Kan bestilles.** Egen sak, uavhengig av A1–A5. Koderen leverer løsning før kode. Regel 10 i gaten: tilgang på tvers av prosjekter og grunnlag for lønn og faktura. |
 | **H1a** | **Norm pr. dagtype** (B79 ja, del L): norm 0 lørdag, søndag og helligdag som standard, egen norm for lørdag og søndag som firmaet setter, ukenorm mandag–søndag, og merket «Helg» / «Helligdag». | `packages/db-timer` (**én migrering, Kenneth**), `packages/shared`, `AR`, `D`, `OG`, innstillingssiden, `AT`, `MT`, i18n, hjelpeteksten | **Kan bestilles**, etter A4. Regel 10 i gaten. |
 | **H1b** | **Tidsrom og forslag** (B80 ja, del L): firmaet setter tidsrom pr. dagtype med lønnsart, og dagssiden i prosjektkort-modus foreslår delingen etter klokkeslett. | `packages/shared`, `D` (`lagreJobbTid`), ny rute for reglene, innstillingssiden, dagssiden, i18n, hjelpeteksten | Etter H1a. Regel 10 i gaten. |
 | **H1c** | **Gult ved avvik fra forslaget** (B80 ja, del L) i attesteringen. | `packages/shared`, `D`, `MT`, `AT`, i18n, hjelpeteksten | Etter H1b og A1. |
 | **H1m** | **Appen regner likt** (del L). | `apps/mobile` | ⏸ Venter på web (§ 8.13). Krever OTA. |
+| **T1** | **Ferdig forslag for anleggsgartner** (B82 ja, del L): «Hent forslag fra …» kopierer normer og tidsrom inn i firmaets regler. Firmaet retter etterpå; ingen kobling. | `packages/shared` (profilen som data, med kilde og dato), innstillingssiden, ruta fra H1b, i18n, hjelpeteksten. Ingen migrering. | ⏸ **Venter på avtaleteksten** fra Kenneth eller en som kjenner avtalen, og på H1b. Ingen tall føres uten kilde. |
 
-Rekkefølge: A1 → A2 → A3 → A4 → A5. A1–A5 rører de samme to filene (`AT`, `MT`) og går etter hverandre hos
-samme koder. Ingen av dem krever migrering. «Del opp» går i D2a–D2f. U1 er en egen sak. H1a → H1b → H1c går
-etter A4 hos samme koder, fordi de rører `D`, `OG`, `AT` og `MT`. H1a har migreringen.
+Rekkefølge: A1 → A2 → A3 → A4 → A5 → A3b. A1–A5 og A3b rører de samme to filene (`AT`, `MT`) og går etter
+hverandre hos samme koder. Ingen av dem krever migrering. A3b krever bare A3. Den står etter A5 fordi A5
+bygger mønsteret «handling i varselet» (B60 A); den kan bestilles rett etter A3 hvis Kenneth vil ha den
+først. «Del opp» går i D2a–D2f. U1 er en egen sak og kan gå hos en annen koder. H1a → H1b → H1c går etter A4
+hos samme koder, fordi de rører `D`, `OG`, `AT` og `MT`. H1a har migreringen. T1 venter på avtaleteksten
+og på H1b.
 
 **Bevares uendret:** ✓ ↩ ↺ på dagsraden og jobbraden · avkrysning og «Attester utvalget» · registreringen og
 ✎ · «Del opp» (§ 4.16) · «Velg parameter», filter og sortering · fanene «Venter» og «Attestert» · ukevalget ·
@@ -3882,13 +3912,29 @@ omfang (R13) · rapportens Detaljer (samme tabell, uten farger og merker).
   andre prosjekter. Etter at 1,0 t er gjort om til ordinær tid, er «kan trekkes» borte fra ukelinja og dagen,
   og «Under ukenorm 1,0 t» står (B85 ja). En uke som mangler 1,0 t, med 2,0 t over dagsnorm og 2,5 t ført
   som overtid, gir «1,5 t kan trekkes». Negativkontroll mot develop for hver.
+- **A3b:** en dag med jobb 07:00–14:00 (6,5 t Timelønn) og reise 14:00–15:00 med merket «Reise under terskel».
+  Etter «Lagre» finnes ikke reiselinja, jobbens linje er 07:00–15:00 med 7,5 t, og arbeideren ser «Korrigert
+  av» på linja. Reiselinja står med slettespor. Når en vakt avviser lagringen, som overlapp med et annet kort,
+  er både reiselinja og jobben uendret. Knappen vises ikke på egen dag, ikke når firmavalget er av, ikke på en
+  attestert linje og ikke når reisen står i et kort uten arbeid. En bruker uten attesteringsrett på prosjektet
+  avvises av serveren. Andre reiser og linjer på dagen er uendret.
+- **U1:** filteret «Underprosjekt» gir bare radene til underprosjektet, også i Excel, PDF og CSV. En
+  prosjektleder på prosjekt A får ikke rader, summer, prosjektnavn eller ansatte fra prosjekt B: ikke i
+  rapporten, ikke i eksportene, ikke i listene over prosjekter og ansatte, og ikke når han sender prosjekt B
+  sin id selv. Han får ikke fravær uten prosjekt. En ansatt uten rolle avvises. Firmaadministrator får det
+  samme som før (vakt).
 
 #### Del G — ikke målt
 
 - Hvor mange lagrede reiser som mangler `reiseRegel` eller `regelKategori` (eldre rader). De får ikke merket
   «Reise under terskel».
-- Om delingen av en linje (`splittRad`) kan sette lønnsart på den ene delen i samme lagring (del J punkt 4).
-- Hvem som har tilgang til rapporten ut over firmanivå (del K, B84).
+- Om reiselinja bærer noe som forsvinner når den slettes i A3b, som kilometer eller et koblet tillegg
+  (del D).
+- Om rapporten viser satser eller beløp som prosjektlederen ikke ser i attesteringen (del K).
+- ✅ Målt 2026-11-24: delingen av en linje kan sette lønnsart på den ene delen i samme lagring. Ruta som
+  retter en sendt dag, tar imot flere linjer med samme opphav og lager dem i én transaksjon (`D:3700–3705`,
+  `:3766`). Lest, ikke kjørt.
+- ✅ Målt 2026-11-24: rapporten er bare for SiteDoc-admin og firmaadministrator (del K).
 - Bredden på oversiktsraden med lønnsartmerker ved 1 440. Koderen måler i nettleser; kravet er ingen sidelengs
   rulling.
 - Om varselet for lange dager (`arbeidstidVarselTimer`, `SK`) vises i tabellen i dag.
@@ -4105,8 +4151,8 @@ beste fra C tas med i A: varselet forklares i klartekst, og handlingen står i v
    til ordinær tid …». Overtidslinja er 2,5 t (15:00–17:30). Handlingen deler den ved klokkeslettet som gir
    1,0 t (15:00–16:00) og setter ordinær lønnsart på den delen. Vinduet åpnes ferdig utfylt; attestanten kan
    rette klokkeslettet og trykker «Lagre». Ingenting lagres uten attestantens trykk. Etter lagringen er merket
-   «kan trekkes» borte (B85 ja, del B). Ikke målt: om delingen kan sette lønnsart i samme lagring, eller om
-   det blir to lagringer (del G). Handlingen for «Reise under terskel» er B83.
+   «kan trekkes» borte (B85 ja, del B). Delingen og lønnsarten kan lagres i én lagring med ruta som finnes
+   (målt, del G). Handlingen for «Reise under terskel» er «✎ Før som arbeidstid …» (B83 ja, del D, A3b).
 5. **Ferdige returgrunner** (B61 A): returvinduet har i dag bare et påkrevd tekstfelt (`AT:912–941`). Forslag:
    knapper for «Feil timer», «Feil prosjekt eller underprosjekt», «Mangler beskrivelse», «Overtid ikke avtalt»
    og «Annet», med valgfri kommentar. «Annet» krever kommentar. Grunnen skrives inn i kommentaren arbeideren
@@ -4126,7 +4172,8 @@ beste fra C tas med i A: varselet forklares i klartekst, og handlingen står i v
 #### Del K — timer etter underprosjekt (B56)
 
 **Kenneth 2026-11-23:** «b56a -> vi må kunne filtrere og ta ut timer etter underprosjekt.» A er merket «↳» ved
-prosjektnavnet (A2). Kravet om å filtrere og ta ut er nytt. 🟡 Forslag, ikke bestilt, ikke bygget.
+prosjektnavnet (A2). Kravet om å filtrere og ta ut er nytt. **Kenneth 2026-11-24: «b84ja»** — rapporten åpnes
+også for prosjektlederen, avgrenset til prosjektene hans. 🟡 Vedtatt, ikke bestilt, ikke bygget.
 
 Målt mot develop @ `9533908f` (lest, ikke kjørt); linjene under er fra denne hashen. Underprosjekt er
 `ExternalCostObject` i koden (`SK:2809`), og feltet på linja er `externalCostObjectId`.
@@ -4144,16 +4191,37 @@ Målt mot develop @ `9533908f` (lest, ikke kjørt); linjene under er fra denne h
 filtrere der. Koden har plassen klar: `RA:401–403` sier at en ny dimensjon er «én kolonne … + ett filter (utvid
 periodeSchema + where under). Ikke bygget nå.»
 
-**Leveranse U1 (forslag):**
+**Tilgangen, målt mot develop @ `7a4e8930`** (lest, ikke kjørt):
+
+| | Målt | Kilde |
+|---|---|---|
+| UT1 | **Rapporten er bare for SiteDoc-admin og firmaadministrator.** Alle fem rutene har samme vakt: rapporten, Excel og CSV, PDF, lista over prosjekter og lista over ansatte. | `RA:36–42`, `:164`, `:409`, `:852`, `:985`, `:1020`; `apps/api/src/trpc/tilgangskontroll.ts:909–931` |
+| UT2 | **Siden ligger under Firma, og hele Firma krever firmaadministrator.** En prosjektleder kommer ikke inn på adressen. Attesteringen ble flyttet ut av Firma av samme grunn (w10 del B). | `apps/web/src/app/dashbord/firma/layout.tsx:23`; `apps/web/src/components/layout/firma-nav.tsx:62–64` |
+| UT3 | **Attesteringen har regelen som trengs.** «Alle» for SiteDoc-admin og firmaadministrator. Ellers prosjektene der brukeren er aktivt medlem med admin eller «kan attestere», når han er aktiv ansatt i firmaet. Tom liste gir ingen tilgang. | `D:318–348`, `:352–361` |
+| UT4 | **Rapporten har rader uten prosjekt:** fravær ført uten prosjekt. | `RA:93` |
+
+**Leveranse U1:**
 
 - Filteret «Underprosjekt» i rapporten, ved siden av prosjekt og ansatt. Valget «Uten underprosjekt» er med.
 - Grupperingen «Etter underprosjekt», med sum pr. underprosjekt.
 - Excel, PDF og CSV følger filteret. CSV og «Fakturagrunnlag» får underprosjektet som kolonne.
-- Rører `RA` (`periodeSchema` og utvalget), `DR` (`Gruppering`, `grupperDetaljRader`), `RP`, `EX`, i18n og
-  hjelpeteksten. Ingen migrering. Regel 10 i gaten: eksporten er grunnlag for lønn og faktura.
+- **Tilgang (B84 ja):** rapportens fem ruter bytter vakt til omfanget fra attesteringen (UT3), så rapporten og
+  attesteringen alltid er enige om hvem som ser hva. Firmaadministrator og SiteDoc-admin får det samme som i
+  dag. En prosjektleder får bare rader fra prosjektene sine.
+- **Grensen settes på serveren, i utvalget:** hver rute legger prosjektene hans i spørringen. Et prosjekt
+  utenfor omfanget gir ingen rader, også når id-en sendes inn. Lista over prosjekter og lista over ansatte
+  avgrenses likt. Rader uten prosjekt (UT4) vises ikke for prosjektlederen. Ingen sum eller telling tar med
+  andre prosjekter.
+- **Siden må kunne åpnes av prosjektlederen** (UT2). Fabels anbefaling: flytt den ut av Firma, slik
+  attesteringen ble flyttet, og la den gamle adressen sende videre. Menypunktet vises for dem som har omfang.
+  Koderen leverer løsning før kode.
+- ⚠️ Ikke målt: om rapporten viser satser eller beløp som prosjektlederen ikke ser i attesteringen. Koderen
+  måler, og avvik legges fram for Kenneth før kode.
+- Rører `RA` (`periodeSchema`, vakten og utvalget), `DR` (`Gruppering`, `grupperDetaljRader`), `RP` og plassen
+  i menyen, `EX`, i18n og hjelpeteksten. Ingen migrering.
+- **Regel 10 kjøres uavhengig i gaten:** eksporten er grunnlag for lønn og faktura, og tilgangen går på tvers
+  av prosjekter.
 - Attesteringen får ikke eksport. Filteret der står som i dag.
-- Ikke målt: hvem som har tilgang til rapporten ut over firmanivå. Om prosjektlederen skal kunne ta ut timer
-  etter underprosjekt, er B84.
 
 #### Del L — helg, helligdag og overtid: modell og leveranser (B58, B79, B80)
 
@@ -4161,16 +4229,20 @@ periodeSchema + where under). Ikke bygget nå.»
 tidspunkter for overtid, lørdag og søndag og bevegelige helligdager. Bør vi prøve å utlede noen regler som
 tilpasses ulike tariffer?»
 
-**Kenneth 2026-11-24:** «b79 ja» og «b80 ja» (§ 8.28).
+**Kenneth 2026-11-24:** «b79 ja», «b80 ja» og «b81ja · b82ja, anleggsgartner» (§ 8.28).
 
 - **B79 ja:** normen er 0 lørdag, søndag og helligdag som standard. Firmaet kan sette lørdag eller søndag som
   arbeidsdag med egen norm. En helligdag er en dag firmakalenderen har som helligdag.
 - **B80 ja:** firmaet setter tidsrom pr. dagtype med lønnsarten som foreslås. Dagssiden foreslår delingen etter
   klokkeslett. Attesteringen viser gult når føringen avviker fra forslaget.
+- **B81 ja:** overtid på en hverdag er timer over dagsnormen. Tidsrommene bestemmer bare lønnsarten på timene
+  som er over normen.
+- **B82 ja, første avtale anleggsgartner:** ferdige forslag kopieres inn og rettes av firmaet. Ingen kobling
+  etterpå.
 
 🟡 Vedtatt 2026-11-24, ikke bestilt, ikke bygget. **Reglene foreslår; arbeideren og attestanten bestemmer.**
-Ingen regel endrer en ført linje, og ingen regel hindrer lagring eller attestering. Åpne: B81 (hva som utløser
-overtid på en hverdag), B82 (forslag fra tariffavtaler), B86 (halvdag og firma-fri) og B87 (dagskort-modus).
+Ingen regel endrer en ført linje, og ingen regel hindrer lagring eller attestering. Åpne: B86 (halvdag og
+firma-fri) og B87 (dagskort-modus).
 
 **Målt mot develop @ `9533908f`** (lest, ikke kjørt):
 
@@ -4206,7 +4278,7 @@ overtid på en hverdag), B82 (forslag fra tariffavtaler), B86 (halvdag og firma-
 | **Dagtyper** | Hverdag · lørdag · søndag · helligdag. En helligdag er en dato firmakalenderen har med typen `helligdag`, og den går foran ukedagen. ⚠️ «Dag før helligdag» er tatt ut: den er ikke i Kenneths svar. Dagtypen lagres som tekst, så flere kan legges til senere. Halvdag og firma-fri er B86. | Kalenderen finnes (HO1). |
 | **Norm pr. dagtype** | Hverdag: firmaets dagsnorm, som i dag. Lørdag, søndag og helligdag: 0 som standard. Firmaet kan sette lørdag og søndag som arbeidsdag med egen norm. Helligdagene styrer firmaet i firmakalenderen. | Nei (HO2, HO3) |
 | **Tidsrom pr. dagtype** | En liste med fra, til og lønnsarten som foreslås. Firmaet fyller den ut selv. En dagtype uten tidsrom gir forslaget som i dag. | Nei (HO5) |
-| **Hva som utløser overtid** | Timer over dagens norm, som i dag. Tidsrommene bestemmer lønnsarten på timene som er over normen. På en dag med norm 0 er alle arbeidstimene over normen. | Regelen finnes (HO4). Alternativet er B81; H1a–H1c bygges etter regelen i dag. |
+| **Hva som utløser overtid** | Timer over dagens norm, som i dag. Tidsrommene bestemmer lønnsarten på timene som er over normen. På en dag med norm 0 er alle arbeidstimene over normen. | Regelen finnes (HO4). Vedtatt (B81 ja): overtid utløst av klokkeslett bygges ikke. |
 
 **Hva reglene gjør:**
 
@@ -4230,24 +4302,53 @@ overtid på en hverdag), B82 (forslag fra tariffavtaler), B86 (halvdag og firma-
   hverdagsnorm de dagene (HO13). ⚠️ Fabels forslag: innstillingssiden viser én linje når inneværende eller neste
   år mangler helligdager, med lenke til firmakalenderen.
 
-**Tariffer: forslag firmaet tar inn og retter (B82, åpen).**
+**Tariffer: forslag firmaet tar inn og retter (B82 ja; første avtale: anleggsgartner).**
 
 - En tariffprofil er et ferdig utfylt sett med normer og tidsrom. Firmaet velger «Hent forslag fra …», verdiene
   kopieres inn i firmaets regler, og firmaet retter dem. Etterpå er det ingen kobling til profilen. Samme mønster
   som «Importer norsk standard» i firmakalenderen (HO1).
-- ⚠️ **Fabel påstår ikke tariffinnhold.** Ingen tall i denne delen er hentet fra en tariffavtale. Satser,
-  klokkeslett og hvilke dager som regnes som helg, hentes fra avtaleteksten og føres inn av en som kjenner
-  avtalen.
+- ⚠️ **Fabel har ikke avtaleteksten og påstår ikke tariffinnhold.** Ingen tall, klokkeslett eller satser i
+  denne delen er hentet fra en tariffavtale. Fabel påstår heller ikke hva avtalen for anleggsgartnerfaget heter,
+  eller hvem som er parter. **Kenneth, eller en som kjenner avtalen, leverer avtaleteksten før noe bygges.**
+- **Verdiene som må hentes fra avtaleteksten for anleggsgartnerfaget:**
+
+| | Verdi | Brukes til |
+|---|---|---|
+| 1 | Avtalens fulle navn, partene og perioden teksten gjelder for | Navnet i «Hent forslag fra …», med dato for teksten |
+| 2 | Ordinær arbeidstid pr. dag og pr. uke, og om den er lik hele året | Dagsnormen, og om profilen trenger mer enn én norm |
+| 3 | Om lørdag er vanlig arbeidsdag i noen del av året | Norm for lørdag (B79) |
+| 4 | Når overtid inntrer: over dagsnorm, over ukenorm eller utenfor faste klokkeslett | Holdes mot B81 ja. Avviker avtalen, legges det fram for Kenneth før noe bygges. |
+| 5 | Satsene for overtid på hverdager, og klokkeslettene der satsen skifter | Tidsrommene for hverdag |
+| 6 | Satsene på lørdag, og klokkeslettene der satsen skifter | Tidsrommene for lørdag |
+| 7 | Satsene på søndag og helligdag | Tidsrommene for søndag og helligdag |
+| 8 | Hvilke dager avtalen regner som helligdag eller høytidsdag, og om dagen før har egne klokkeslett | Holdes mot firmakalenderen (HO1). Dagen før en helligdag er ikke en dagtype i H1. |
+| 9 | Om helgen eller helligdagen starter et klokkeslett dagen før | Modellen bærer det ikke i H1; legges fram hvis avtalen har det |
+| 10 | Regler modellen ikke bærer: skift, forskjøvet arbeidstid, innarbeiding og avspasering, tillegg i kroner | Står som «ikke med i forslaget» i teksten firmaet ser |
+
+- **Lønnsartene:** et tidsrom peker på firmaets egen lønnsart. Forslaget velger lønnsarten med samme sats
+  (`overtidsnivaa`, HO6). Mangler firmaet en lønnsart for en sats, stopper «Hent forslag», og firmaet får vite
+  hvilken som mangler. Ingenting hoppes over stille.
 - **Modellen må kunne bære** (form, ikke innhold): klokkeslett der satsen skifter, pr. dagtype · andre satser enn
-  50 og 100 (`overtidsnivaa` er et heltall) · flere dagtyper senere, som dagen før en helligdag · overtid utløst
-  av dagsnorm eller av klokkeslett (B81).
-- **Utenfor H1a–H1c:** tillegg i kroner for kveld, natt og skift (HO7) · skift, turnus og innarbeiding med annen norm ·
-  avspasering og timebank · betaling for helligdager uten arbeid (fraværsarten «Bevegelig helligdag» finnes) ·
-  tidsrom som krysser midnatt (føres som to tidsrom).
-- **Kandidater til de første profilene** (navn og innhold bekreftes mot kilde før noe føres inn):
-  arbeidsmiljøloven kapittel 10 som minstekrav, Fellesoverenskomsten for byggfag, Overenskomsten for private
-  anlegg og maskinentreprenørenes overenskomst. Hvilken som kommer først, er B82.
+  50 og 100 (`overtidsnivaa` er et heltall) · flere dagtyper senere, som dagen før en helligdag.
+- **Utenfor H1a–H1c og T1:** tillegg i kroner for kveld, natt og skift (HO7) · skift, turnus og innarbeiding med
+  annen norm · avspasering og timebank · betaling for helligdager uten arbeid (fraværsarten «Bevegelig
+  helligdag» finnes) · tidsrom som krysser midnatt (føres som to tidsrom).
+- **Senere profiler** velges av Kenneth. Navn og innhold bekreftes mot kilde før noe føres inn.
 - H1a–H1c trenger ikke tariffinnhold: firmaet fyller ut reglene selv.
+
+**Leveranse T1 — ferdig forslag for anleggsgartner (B82).** ⏸ Venter på avtaleteksten og på H1b. Ingen
+migrering.
+
+- **Profilen** er data i `packages/shared`: normer og tidsrom, med avtalens navn, kilde og dato for teksten.
+  Hver verdi har en henvisning til stedet i avtaleteksten.
+- **Innstillingssiden:** «Hent forslag fra …» ved overtidsreglene. Et vindu viser verdiene som kopieres inn, og
+  at de erstatter tidsrommene firmaet har. Firmaet bekrefter. Etterpå retter firmaet fritt.
+- **Serveren** lagrer med ruta fra H1b, i tabellene fra H1a. Firmaet hentes fra økta.
+- **Test:** profilen gir nøyaktig radene i tabellen fra avtaleteksten. Firmaet kan rette og slette etterpå. Et
+  annet firma er urørt. Mangler en lønnsart, lagres ingenting, og meldingen sier hvilken. Uten bekreftelse
+  lagres ingenting.
+- **Før bestilling:** Kenneth leverer avtaleteksten. Fabel fyller ut tabellen over (verdi 1–10) med henvisning
+  til teksten, og Kenneth godkjenner tabellen. Da kan T1 bestilles.
 
 **Migreringen** (én, i H1a; Kenneth kjører den på test og så i prod):
 
@@ -4348,7 +4449,8 @@ overtid på en hverdag), B82 (forslag fra tariffavtaler), B86 (halvdag og firma-
   7,5 t ordinært en lørdag, mens attesteringen viser «+10,0 t». Om dagskortet også skal få forslaget, er B87.
 
 **Rekkefølge:** A4 → H1a → H1b → H1c hos samme koder, fordi de rører `D`, `OG`, `MT` og `AT`. H1a og H1b
-deployes til test sammen. H1m bestilles når Kenneth har godkjent H1a–H1c på PC.
+deployes til test sammen. H1m bestilles når Kenneth har godkjent H1a–H1c på PC. T1 bestilles når H1b er
+merget og tabellen fra avtaleteksten er godkjent.
 
 **Testkrav.** Hver test feiler mot develop før endringen (negativkontroll).
 
@@ -4642,9 +4744,8 @@ B72 og B73 (varer og utlegg fra attestanten, og merket «Lagt til av») er besva
 B74 (flytte en linje når et kort åpnes alene) er besvart med ja 2026-11-23 (§ 8.25).
 B76–B78 (slettede og korrigerte linjer som egen visning, § 4.18) er besvart 2026-11-23 med ja, nei og ja (§ 8.26).
 B50–B62 (attesteringen, § 4.17) er besvart 2026-11-23 (§ 8.27). B63 og B64 er dekket av B68–B72 (§ 8.27).
-B53 (lesningen), B79, B80 og B85 er besvart 2026-11-24 (§ 8.28).
-**Åpne: B65–B67 (konflikt ved «Del opp», § 4.17 del I), B81–B84 (etter Kenneths svar på versjon 22) og B86
-og B87 (etter svarene 2026-11-24).**
+B53 (lesningen) og B79–B85 er besvart 2026-11-24 (§ 8.28).
+**Åpne: B65–B67 (konflikt ved «Del opp», § 4.17 del I) og B86 og B87 (etter svarene 2026-11-24).**
 
 **Åpne fra versjon 22 — konflikt ved «Del opp».** ⚠️ B65 er skrevet om 2026-11-24: vinduet er utgått (B70 ja),
 og tilstanden gjelder de to åpne kortene.
@@ -4654,60 +4755,6 @@ og tilstanden gjelder de to åpne kortene.
 | **B65** | **Gjelder «varsles og godtas» også mellom kort A og kort B?** Tilstand: attestanten har delt en jobb, begge kortene står åpne side om side (§ 4.16 del G), og han setter «Fra kl.» på kort B tidligere enn «Til kl.» på kort A. | **A:** nei. Kortet kan ikke lagres før tidene er rettet. **B:** ja, det lagres med konflikt, som mot andre kort. | **A.** Begge kortene står foran attestanten, og han retter på stedet. En konflikt han lager og må løse selv, gir bare et ekstra steg. |
 | **B66** | **Gjelder «varsles og godtas» bare i «Del opp», eller alle steder attestanten retter klokkeslett?** Tilstand: attestering, dagen er sendt, og attestanten retter fra–til med ✎ på en linje, i «✎ Rediger jobben» eller i «Rett reisen». I dag avvises lagringen ved overlapp (OV1 i § 4.17 del I). | **A:** alle attestantens rettinger av klokkeslett. Arbeiderens egen føring på dagssiden og i appen beholder sperren. **B:** bare «Del opp». ✎ avviser som i dag, men tåler en konflikt som alt står. | **A.** Grunnen er den samme: attestanten kan ikke alltid rette kortet på det andre prosjektet, og blir ellers stående fast. Etter delingen er kort B et vanlig kort (B69 ja) og rettes med ✎. Leveres som egen ordre. |
 | **B67** | **Skal attestanten på det andre prosjektet få beskjed om konflikten?** Tilstand: attestanten på ett prosjekt har lagret kort B slik at det overlapper et kort på et annet prosjekt, der en annen attesterer. | **A:** nei. Han ser sperren og merket i attesteringen sin, og attestanten som laget konflikten, følger opp: retter sitt eget kort, eller returnerer jobben til arbeideren med kommentar. **B:** han får et varsel på e-post eller i SiteDoc. | **A.** Du tok e-posten ut av w15g (versjon 19). Følgen er at en konflikt kan bli stående hvis ingen følger opp, og da står dagen uattestert. |
-
-**Åpne etter svarene på versjon 22 — B81–B84.** Fast form. B81 og B82 gjelder helg, helligdag og overtid
-(§ 4.17 del L), B83 reise under terskel (del D) og B84 timer etter underprosjekt (del K). B79, B80 og B85 er
-besvart med ja (§ 8.28).
-
-**B81 — Skal overtid på en hverdag fortsatt regnes av timer over dagsnormen?**
-
-- **Tilstand:** hverdag, firmaets arbeidstid 07:00–15:00, dagsnorm 7,5 t. Den ansatte arbeider 09:00–17:00 med
-  30 min pause: 7,5 t.
-- **I dag:** ingen overtid foreslås. Overtid er timene over 7,5 t, uansett klokkeslett (HO4).
-- **Svarer du ja:** som i dag. Klokkeslettene fra B80 bestemmer bare satsen på timene som er over normen.
-- **Forsvinner:** ingenting.
-- **Svarer du nei:** timer utenfor firmaets arbeidstid er overtid, også når dagen er på eller under normen. I
-  eksempelet foreslås 15:00–17:00 som overtid, 2,0 t. Ukekontrollen (§ 4.17 del B) må da skrives om, fordi en
-  uke kan ha riktig ført overtid og likevel være under ukenorm.
-- **Anbefaling:** ja.
-
-**B82 — Skal SiteDoc ha ferdige forslag fra tariffavtaler som firmaet tar inn og retter?**
-
-- **Tilstand:** firmaadministrator setter opp overtidsreglene (B80 ja).
-- **I dag:** tariff finnes ikke som begrep i koden (HO8).
-- **Svarer du ja:** «Hent forslag fra …» med en liste avtaler. Verdiene kopieres inn og kan rettes; ingen kobling
-  etterpå. Satser og klokkeslett hentes fra avtaleteksten før noe bygges, av deg eller en som kjenner avtalen.
-  Fabel fører ikke inn tall uten kilde. Si hvilken avtale som skal være den første.
-- **Forsvinner:** ingenting.
-- **Svarer du nei:** firmaet fyller ut reglene selv, fra et tomt skjema.
-- **Anbefaling:** ja, etter at B80 er bygget, og med én avtale først.
-
-**B83 — Skal attestanten få en handling for en reise under terskel som er ført som reisetid?**
-
-- **Tilstand:** attestering, dagen er sendt, og attestanten kan rette. En reiselinje har merket «Reise under
-  terskel»: firmaets regel sa arbeidstid, og arbeideren valgte «Før som reisetid likevel».
-- **I dag:** merket finnes ikke. Attestanten kan rette reisen med pennen, men «Arbeidstid» er tatt ut av «Føres
-  som» (vedtak reisevinduet punkt 20). Å føre reisen som arbeidstid betyr å slette reiselinja og utvide jobbens
-  Fra–til.
-- **Svarer du ja:** merket får knappen «✎ Før som arbeidstid …». Den åpner et vindu som viser begge endringene:
-  reiselinja slettes, og jobbens Fra–til utvides med reisens tid. Attestanten trykker «Lagre». Arbeideren ser
-  «Korrigert av».
-- **Forsvinner:** ingenting.
-- **Svarer du nei:** merket har bare forklaring. Attestanten attesterer reisen som ført, retter for hånd i
-  kortet, eller returnerer dagen.
-- **Anbefaling:** nei nå. Du har sagt at arbeideren kan føre reisetid under terskel om han vil; merket lar
-  attestanten vurdere føringen. Handlingen endrer to ting i én lagring og bør vente til merket er prøvd.
-
-**B84 — Skal prosjektlederen kunne ta ut timer etter underprosjekt?**
-
-- **Tilstand:** prosjektleder uten firmarolle, på et prosjekt med underprosjekter.
-- **I dag:** timer kan filtreres på underprosjekt i attesteringen, for én uke, uten eksport. Eksport finnes i
-  rapporten under Firma (§ 4.17 del K). Hvem som har tilgang til rapporten ut over firmanivå, er ikke målt.
-- **Svarer du ja:** rapporten med filter, gruppering og eksport etter underprosjekt (U1) åpnes også for
-  prosjektlederen, avgrenset til prosjektene hans.
-- **Forsvinner:** ingenting.
-- **Svarer du nei:** U1 bygges i rapporten under Firma. Prosjektlederen ber firmaadministrator om uttaket.
-- **Anbefaling:** nei nå. U1 bygges først; tilgang for prosjektlederen tas når U1 er prøvd.
 
 **Åpne etter svarene 2026-11-24 — B86 og B87.** Fast form. Begge gjelder helg, helligdag og overtid (§ 4.17
 del L).
@@ -5291,10 +5338,10 @@ som tilpasses ulike tariffer? · b59a · b60a · b61a · b62a»
 | B52 | Hvem sin ukenorm gjelder? | **A** | Firmaets ukenorm for alle. Egen ukenorm pr. ansatt er ikke bestilt. |
 | B53 | Når skal «under ukenorm» være gult? | **A**, «men dagen skal være rett ført, og uken skal være rett ført» | Dagsvarselet vises straks; ukevarselet er gult først når uka er komplett. Lesningen står i § 4.17 del B («Dagen og uka»): attesterte dager teller i uka og kan gjenåpnes derfra; ingen sperre. Bekreftet av Kenneth 2026-11-24 (§ 8.28). A4. |
 | B54 | Skal prosjektlederen se ukekontrollen? | **A** | Ukelinja med ukas totaltall, uten navn på andre prosjekter. Han retter bare linjer på sine egne. A4. |
-| B55 | Når ligger en reise «innenfor normal arbeidsdag»? | Verken A eller B: «reise regnes innenfor arbeidstiden når reisen er under firmaets terskel.» | Regelen om overlapp med klokkeslett utgår. Merket heter «Reise under terskel» og gjelder en reise som regelen sa var arbeidstid, og som er ført som reisetid (§ 4.17 del D). A3. Handlingen i varselet er B83. |
-| B56 | Skal raden si at jobben har underprosjekt? | **A**, og «vi må kunne filtrere og ta ut timer etter underprosjekt» | «↳» ved prosjektnavnet, A2. Kravet er målt i § 4.17 del K: filter finnes for én uke i attesteringen; filter, gruppering og avgrenset eksport mangler i rapporten. Leveranse U1. B84. |
+| B55 | Når ligger en reise «innenfor normal arbeidsdag»? | Verken A eller B: «reise regnes innenfor arbeidstiden når reisen er under firmaets terskel.» | Regelen om overlapp med klokkeslett utgår. Merket heter «Reise under terskel» og gjelder en reise som regelen sa var arbeidstid, og som er ført som reisetid (§ 4.17 del D). A3. Handlingen i varselet er A3b (B83 ja, § 8.28). |
+| B56 | Skal raden si at jobben har underprosjekt? | **A**, og «vi må kunne filtrere og ta ut timer etter underprosjekt» | «↳» ved prosjektnavnet, A2. Kravet er målt i § 4.17 del K: filter finnes for én uke i attesteringen; filter, gruppering og avgrenset eksport mangler i rapporten. Leveranse U1, også for prosjektlederen på egne prosjekter (B84 ja, § 8.28). |
 | B57 | Skal alle dager uten varsel kunne attesteres med ett trykk? | Ingen ny knapp: «huk av Ola -> huker av hele uka-> attester utvalgte -> to trykk» | Knappen «Attester N uten varsel» utgår. Krysset på ukelinja (A4) og «Attester utvalget», som finnes. |
-| B58 | Lørdag, søndag og helligdag måles mot hverdagsnormen. | A som visning. Nytt tema: firmaet definerer tidspunkter for overtid, lørdag, søndag og bevegelige helligdager, og regler tilpasset tariffer. | Merket «Helg» / «Helligdag» i H1a. Modellen står i § 4.17 del L, leveransene H1a–H1c og H1m. B79 og B80 er besvart med ja (§ 8.28); B81 og B82 er åpne. |
+| B58 | Lørdag, søndag og helligdag måles mot hverdagsnormen. | A som visning. Nytt tema: firmaet definerer tidspunkter for overtid, lørdag, søndag og bevegelige helligdager, og regler tilpasset tariffer. | Merket «Helg» / «Helligdag» i H1a. Modellen står i § 4.17 del L, leveransene H1a–H1c, H1m og T1. B79–B82 er besvart med ja (§ 8.28). |
 | B59 | Hvilken visning skal attesteringen ha? | **A** | Tabellen fra Bilde 6 med statuslinje og hurtigvalg. A5. |
 | B60 | Skal varselet ha en handling? | **A** | «✎ Gjør om 1,0 t til ordinær tid …» (§ 4.17 del J punkt 4). A5. |
 | B61 | Skal retur ha ferdige grunner? | **A** | Lista i § 4.17 del J punkt 5. A5. |
@@ -5312,15 +5359,15 @@ som tilpasses ulike tariffer? · b59a · b60a · b61a · b62a»
    § 8.28). Ola: godtatt overtid er 2,5 − 1,0 = 1,5 t, og 2,5 − 1,5 = 1,0 t kan trekkes. Ført i § 4.17 del B,
    E, F og J og i bildene `v22-uke.png` og `v22-oversiktsrad.png`.
 
-B65–B67 er ikke besvart og står åpne (§ 8). Nye spørsmål etter svarene: B79–B85. B79, B80 og B85 er besvart
-2026-11-24 (§ 8.28); B81–B84 er åpne (§ 8).
+B65–B67 er ikke besvart og står åpne (§ 8). Nye spørsmål etter svarene: B79–B85, alle besvart 2026-11-24
+(§ 8.28).
 
 🟡 Vedtatt retning 2026-11-23, ikke bygget, ikke bestilt. Bildene er tegnet om 2026-11-24.
 
-### 8.28 Kenneths svar på B53, B79, B80 og B85, 2026-11-24
+### 8.28 Kenneths svar på B53 og B79–B85, 2026-11-24
 
-Kenneth, ordrett: «b85 ja · b53 ukevarselet er et varsel. Attestanten kan attestere uka selv om det står. ·
-b79 ja · b80 ja»
+Kenneth, ordrett, i to meldinger: «b85 ja · b53 ukevarselet er et varsel. Attestanten kan attestere uka selv
+om det står. · b79 ja · b80 ja» og «b81ja · b82ja, anleggsgartner · b83 ja · b84ja»
 
 | # | Spørsmål | Svar | Følge |
 |---|---|---|---|
@@ -5328,8 +5375,12 @@ b79 ja · b80 ja»
 | B53 | Kan uka attesteres når ukevarselet står? | «ukevarselet er et varsel. Attestanten kan attestere uka selv om det står.» | Fabels lesning av «uken skal være rett ført» er bekreftet: ingen sperre. § 4.17 del B («Dagen og uka»). |
 | B79 | Skal normen være 0 på lørdag, søndag og helligdag? | **Ja** | Norm 0 lørdag, søndag og helligdag som standard. Firmaet kan sette lørdag eller søndag som arbeidsdag med egen norm. En helligdag er en dag i firmakalenderen. § 4.17 del L, leveranse H1a. Merket «Helg» / «Helligdag» flyttes fra A5 til H1a. |
 | B80 | Skal firmaet sette klokkeslett for satsen på overtid? | **Ja** | Firmaet setter tidsrom pr. dagtype med lønnsarten som foreslås. Dagssiden foreslår delingen etter klokkeslett (H1b), og attesteringen viser gult ved avvik (H1c). Én migrering, i H1a; Kenneth kjører den. Appen i H1m. § 4.17 del L. |
+| B81 | Skal overtid på en hverdag fortsatt regnes av timer over dagsnormen? | **Ja** | Overtid på en hverdag er timer over dagsnormen. Tidsrommene fra B80 bestemmer bare lønnsarten på timene over normen. Overtid utløst av klokkeslett bygges ikke. Ukekontrollen i § 4.17 del B står. § 4.17 del L. |
+| B82 | Skal SiteDoc ha ferdige forslag fra tariffavtaler som firmaet tar inn og retter? | **Ja**, «anleggsgartner» | Første forslag er for anleggsgartnerfaget. Verdiene kopieres inn og rettes; ingen kobling etterpå. Ingen tall, klokkeslett eller satser føres uten kilde: Kenneth, eller en som kjenner avtalen, leverer avtaleteksten. Verdiene som må hentes, står i § 4.17 del L. Leveranse T1, etter H1b. |
+| B83 | Skal attestanten få en handling for en reise under terskel som er ført som reisetid? | **Ja** (mot Fabels anbefaling «nei nå») | «✎ Før som arbeidstid …» på merket «Reise under terskel». Vinduet viser begge endringene: reiselinja slettes, og jobbens Fra–til utvides. «Lagre». Arbeideren ser «Korrigert av». Målt: ruta som finnes, gjør begge endringene i én transaksjon. § 4.17 del D, leveranse A3b. |
+| B84 | Skal prosjektlederen kunne ta ut timer etter underprosjekt? | **Ja** (mot Fabels anbefaling «nei nå») | Rapporten med filter, gruppering og eksport etter underprosjekt åpnes også for prosjektlederen, avgrenset til prosjektene hans. Målt: rapporten er i dag bare for firmaadministrator, og siden ligger under Firma. Grensen settes på serveren. § 4.17 del K, leveranse U1. |
 
-Åpne etter svarene: B65–B67, B81–B84 og de nye B86 (halvdag og firma-fri) og B87 (dagskort-modus).
+Åpne etter svarene: B65–B67 og de nye B86 (halvdag og firma-fri) og B87 (dagskort-modus).
 
 🟡 Vedtatt 2026-11-24, ikke bygget, ikke bestilt.
 
@@ -5344,7 +5395,7 @@ fra–til, «Slett dagsseddel», O1–O8, O10–O19 og O19b. Hver av dem står m
 og nye linjer fra attestanten med merket «Lagt til av» og «Korrigert av» (§ 4.16 del G; Kenneth 2026-11-23,
 B68–B74 ja). Utgått:
 «Del opp»-vinduet fra versjon 21 (B70 ja). Attesteringen med
-oversiktsrader (versjon 22, § 4.17): Kenneth har svart på B50–B62 (§ 8.27) og på B53, B79, B80 og B85 2026-11-24 (§ 8.28); vedtatt retning, ikke bestilt. **Ikke bygget:** w3c, w4 (L4), w10c, w11 og O9. Venter på web: w12m og w15gm.
+oversiktsrader (versjon 22, § 4.17): Kenneth har svart på B50–B62 (§ 8.27) og på B53 og B79–B85 2026-11-24 (§ 8.28); vedtatt retning, ikke bestilt. **Ikke bygget:** w3c, w4 (L4), w10c, w11 og O9. Venter på web: w12m og w15gm.
 Utgått: w6, w13 og w15e. Hva som er deployet, og hvilke migreringer som er kjørt, står på tavla
 (STATUS-AKTUELT.md).
 
@@ -5378,7 +5429,7 @@ delene krever ingen.
 | **Reisens kort uten særregler** | ✅ **Merget `e4b1208f`** (`feat/web-timer-forenkle`; Kenneth 2026-11-21, § 8.22 punkt 1–3 og svarene «1A, 2A»). **Server:** `sikreKortId` velger kort bare for reise uten kort-id; en lagret reise beholder kortet til prosjekt, byggeplass eller underprosjekt rettes (`kortIdForSkriving` med lagret rad bare når raden var reise). Ny jobb, tillegg, vare, sletting og synk flytter ikke reisen. Reise og arbeid i samme `syncBatch` havner i samme kort (begge rekkefølger). `velgReiseKort` og `egetReiseKort` har ingen kontorvariant (`OVERFORING_KORT_BYGGEPLASS` er fjernet). `delJobb` lar maskin og varer bli i A og kobler dem om til en rad i A (`maskinKrysserKl` er fjernet; forhåndsvisningen har ikke lenger `maskinTilB`). **Web:** Reisevinduet: se [vedtak-timer-web.md § Reisevinduet](vedtak-timer-web.md). Reiselinja har ingen egen kontortekst, og kort med bare kontorreise får «+ Timer». Maskinvinduet har ingen fra–til, heller ikke uten jobb; lagrede fra–til sendes ikke. Ingen migrering, ikke mobil (mobilens `reiseKilde «overforing»` tas imot som før). | `KI`, `D`, `RV`, `apps/api/src/routes/timer/jobb-deling.ts`, `RK`, `MR`, `WS`, `ReiseRettVindu.tsx`, `RP`, i18n (15 filer), testene, `timer.md`. | Reise ført før arbeidet står i sitt eget kort etter at jobben føres; ✎ med samme sted gir ikke nytt kort; ✎ med ny byggeplass flytter reisen. |
 | **«Del opp» med begge kortene åpne** | 🟡 **Delvis bygget; resten vedtatt 2026-11-23, ikke bestilt.** ✅ Blokka i kortet med klokkeslett, underprosjekt for B og maskintimer for A og B (O15 `6cf48d6e`). 🟡 Kenneth 2026-11-23 «B68 ja, B69 ja, B70 ja, B71 ja» (§ 4.16 del G, `v23-del-opp-etter.png`): etter delingen står kort A og kort B åpne og redigerbare side om side, uten kobling i data; linjer (reise, varer, maskin, utlegg og tillegg) flyttes mellom kortene; attestanten kan legge til nye linjer. Vinduet fra versjon 21 er utgått. 🟡 Kenneth 2026-11-23 «B72 ja, 73 ja»: alle som kan attestere prosjektet, får «＋» under Varer og Utlegg; alle som legger til eller retter en linje på en annens dag, får merket «Lagt til av» eller «Korrigert av», og bare brukeren selv slipper; «＋» og redigering av alle linjene gjelder hver gang et kort redigeres, også når det åpnes alene. 🟡 Kenneth 2026-11-23 «B74 ja»: en linje kan flyttes til et annet kort på dagen også når kortet åpnes alene, og også etter at det har vært lukket. **Seks leveranser:** D2a begge kortene åpne (bare web; kan bestilles), D2b flytt linjer, i paret og i et kort som åpnes alene (web og server; kan bestilles), D2c legg til timelinje, tillegg og maskin, og «Lagt til av» (krever migreringen; kan bestilles), D2d vare og utlegg: legge til, rette og slette (etter D2c), D2e legg til reise (etter D2c), D2f «Korrigert av» alle steder (etter D2c og D2d). Regel 10 kjøres uavhengig for D2b–D2f: de flytter eller fører lønn, varekostnad og utlegg, eller rører arbeiderens egne skriveveier. Koderen leverer løsning med skjermbilde før kode. **Én migrering, i D2c:** `opprettet_av_user_id` på fire tabeller i `packages/db-timer`, uten backfill; Kenneth kjører den. Ikke mobil. | `RP`, `AT`, `apps/web/src/components/timer/TimerRadTabell.tsx`, `D` (ny mutasjon for flytting; `redigerSedelRader` med kort-id), `VF`, `KL` og `apps/web/src/components/timer/KorrigertMerke.tsx` (merket), i18n (`nb.json` og `en.json`, generatoren for de andre), hjelpeteksten for attesteringen, `timer.md`, `api.md`, `web.md`, `hjelpetekster.md`. Ikke `apps/mobile`. | Kenneths test: 07:00–12:00 med Volvo EC220E 4,50 t og Fugesand 3 sekk deles kl. 11:00. Etterpå står kort A og kort B åpne side om side. 1 av 3 sekk flyttes til B med «→ Kort B». Et tillegg legges til i kort B med «＋», og arbeideren ser «Lagt til av» på linja. |
 | **«Slettet og korrigert»** | 🟡 **Vedtatt 2026-11-23, ikke bestilt** (§ 4.18; Kenneth «s1 nei», «s2 ja», «B76: ja · B77: nei · B78: ja», § 8.26). **SL1 (server):** hver slettevei på en returnert dag skriver spor, også appens slettinger i synken; attestantens sletting får markør; varer og utlegg lagres med innholdet. Regel 10 kjøres uavhengig. **SL2 (server og web, etter SL1):** leseren, siden «Slettet og korrigert», merket «N slettet» på dagsraden, og lenkene i Attestering og Mine timer. Ingen migrering, ingen i appen. | `apps/api/src/routes/timer/dagsseddel.ts`, `apps/api/src/routes/vareforbruk.ts` (SL1); ny leser i `apps/api/src/services/timer/`, `apps/web/src/app/dashbord/attestering/`, `apps/web/src/app/dashbord/timer/mine/`, `apps/web/src/components/timer/` (SL2) | Attestanten og arbeideren ser hva som er slettet og korrigert, uten at attesteringskortet endres. |
-| **Attesteringen: oversiktsrader, gule varsler og ukekontroll** | 🟡 **Vedtatt retning, ikke bestilt** (Kenneth 2026-11-22; svar på B50–B62 2026-11-23, § 8.27; svar på B53, B79, B80 og B85 2026-11-24, § 8.28; § 4.17, versjon 22, `v22-uke.png`, `v22-oversiktsrad.png`, `v22-enkel.png`). Fem leveranser: A1 gult på dagen og A2 prosjekt og hover (klare for ordre), A3 reise under terskel (klar uten handling i varselet; handlingen er B83), A4 ukelinja (klar for ordre, B85 ja; regel 10 i gaten) og A5 hurtigvalg (etter A4). ⚠️ D1 er utgått (B70 ja); «Del opp» går i D2a–D2f. Egne saker: U1 timer etter underprosjekt i rapporten (§ 4.17 del K, B84) og helg, helligdag og overtid i H1a–H1c og H1m (del L; B79 og B80 ja; én migrering, i H1a; B81, B82, B86 og B87 åpne). Konflikt ved «Del opp»: B65–B67 åpne. Bygger på Bilde 6 (§ 4.17 del H); A2 endrer kjernekolonne 3 og 4. A1–A5 krever ingen migrering. | `AttesteringTabell.tsx`, `attestering-tabell.ts`, `TimerRadTabell.tsx`, `dagsseddel.ts` (svaret), `overtidsgrunnlag.ts`, i18n, hjelpeteksten; U1: `rapport.ts`, `timer-rapport-eksport.ts` | En vanlig dag uten gult. Overtid, fravær og reise under terskel i gult på oversiktsraden. Ukelinja med timene som kan trekkes. |
+| **Attesteringen: oversiktsrader, gule varsler og ukekontroll** | 🟡 **Vedtatt retning, ikke bestilt** (Kenneth 2026-11-22; svar på B50–B62 2026-11-23, § 8.27; svar på B53 og B79–B85 2026-11-24, § 8.28; § 4.17, versjon 22, `v22-uke.png`, `v22-oversiktsrad.png`, `v22-enkel.png`). Seks leveranser: A1 gult på dagen og A2 prosjekt og hover (klare for ordre), A3 reise under terskel (klar for ordre), A3b «Før som arbeidstid» i varselet (B83 ja; etter A3; regel 10 i gaten), A4 ukelinja (klar for ordre, B85 ja; regel 10 i gaten) og A5 hurtigvalg (etter A4). ⚠️ D1 er utgått (B70 ja); «Del opp» går i D2a–D2f. Egne saker: U1 timer etter underprosjekt i rapporten, også for prosjektlederen på egne prosjekter (§ 4.17 del K, B84 ja; regel 10 i gaten), og helg, helligdag og overtid i H1a–H1c og H1m (del L; B79–B82 ja; én migrering, i H1a; T1 ferdig forslag for anleggsgartner venter på avtaleteksten; B86 og B87 åpne). Konflikt ved «Del opp»: B65–B67 åpne. Bygger på Bilde 6 (§ 4.17 del H); A2 endrer kjernekolonne 3 og 4. A1–A5 krever ingen migrering. | `AttesteringTabell.tsx`, `attestering-tabell.ts`, `TimerRadTabell.tsx`, `dagsseddel.ts` (svaret), `overtidsgrunnlag.ts`, i18n, hjelpeteksten; U1: `rapport.ts`, `timer-rapport-eksport.ts` | En vanlig dag uten gult. Overtid, fravær og reise under terskel i gult på oversiktsraden. Ukelinja med timene som kan trekkes. |
 
 - **2026-11-22 — Første jobb på ny dag (O8 tillegg 3):** Kenneth: «hvorfor kan ikke prosjekt og byggeplass åpnes som redigerbare nedtreksmenyer?» → «med forvalg i det prosjektet vi står i». Vedtak A: dagshodet lages uten rad; første jobb åpnes som utkast med redigerbare nedtrekk for prosjekt/byggeplass, forvalgt toppbarens prosjekt; raden lagres når Til er fylt; en helt tom draft-dag slettes når arbeideren går fra utkastet i appen (`slettTomDag`). Godtatt rest: lukket fane gir tomt hode som gjenbrukes. Lagrede jobber flyttes ikke. ~~🟡 Bestilt w5.~~ **Erstattet samme dag:** Kenneth: «det jeg ønsker er at kortene fungerer som de gjør i dag -> eneste endring -> prosjekt og byggeplass må kunne endres av bruker. Hvorfor: Bruker glemte å starte dagen på telefonen og må etterregistrere dagen. bruker var innom 3 prosjekter … Jeg ønsker å foreslå prosjektet han står i». Vedtak D: dagens flyt uendret (første rad lages på toppbarens prosjekt = forvalg); på redigerbart lagret jobbkort er prosjekt og byggeplass nedtrekk, og bytte flytter hele jobben. A (hode uten rad, `slettTomDag`) bygges ikke. 🟡 Bestilt w5, måling av det som henger på jobben før kode. ✅ D merget `fbe4aff2` (gate (138)) — timer.md § O8 punkt 6.
 - **2026-11-22 — D-punktene (flytte lagret jobb):** Kenneth: (1) underprosjekt → «Uten», velges på nytt; (2) «reisen blir igjen på det gamle prosjektet»; (3) varer til prosjekt uten varelager: heller mot «flyttes likevel», men vil først vite sperrene → **åpen**, avvises midlertidig; varelagerspørsmålet ført i BACKLOG (egen økt); (4) utlegg med annen ordning avvises. Punkt 3 avgjort samme dag: «I dag kan vi flytte fritt. hvis jeg svarer nei, og vi ikke har prosjekter med begrensning -> da skal vi jo likevel flytte varene» → varene følger med jobben, ingen sperre. «Del opp» ved attestering (kort 2 = kopi, arbeidstid i kort 1 følger kort 2, ikke motsatt; kort 2 bygges på nytt med underprosjekt, varer, utlegg/tillegg, maskin, reisetid) → Fabel § 4.17 del I. 🟡 1–4 levert w5 (`feat/web-timer-o8`, timer.md § O8 punkt 6; varesperren fjernet etter svaret på punkt 3); ✅ merget `fbe4aff2`.
@@ -5388,6 +5439,7 @@ delene krever ingen.
 - **2026-11-22 — Attesteringen planlegges (Fabel):** Kenneth: «nå føler jeg at vi har kontroll på timeregistrering -> la fabel planlegge attestering.» Poenger: strukturert; oversiktsrader per dag; hover, særlig for beskrivelse. Må fremkomme: (1) vanlig dag etter dagsnorm uten varsel; (2) totale timer over/under dagsnorm varsles; (3) overtid gul; (4) ukesattestering sjekker ukesnorm, særlig varsel under norm — attestanten reduserer overtid selv, men må se hvor den kan trekkes; (5) kun prosjekt vises, hover viser byggeplass, underprosjekt og beskrivelse; (6) lønnsart vises; (7) reisetid innenfor normal arbeidsdag vises — attestanten vurderer føringen; (8) egenmelding, permisjon og fravær i lønnsart gul. «har fabel andre forslag til fokus?» Bilde `relay/bilder/attestering-plan/205-attestering-uke47.webp`. 🟡 Planordre til Fabel (`inbox-fabel.md`), ingen kode. Tillegg samme dag: «Be fabel være kreativ og komme opp med forslag -> enkel attestering ->strukturert visning for menneske å lese ->det må være mulig å dele opp et kort til to kort slik vi tidligere planla» (jf. § 4.16, «Del opp» versjon 21). Tillegg 2: «minn om at vi allerede planla en del her -> Bilde 6 — attesteringen: de 11 kjernekolonnene» — planen bygger på § Bilde 6, § 4.2, § 4.5 og § 4.6.
 - **2026-11-23 — Kenneths svar på B50–B62 (ført av Fabel 2026-11-24):** «b50 a · b51 a · b52a · b53a, men dagen skal være rett ført, og uken skal være rett ført. · b54a · b55. reise regnes innenfor arbeidstiden når reisen er under firmaets terskel. · b56a -> vi må kunne filtrere og ta ut timer etter underprosjekt. · b57 -> … to trykk · b58 Helg utbetales normalt som overtid. … · b59a · b60a · b61a · b62a». Til `v22-uke.png`: radene åpnes for redigering som i dag, og «1 time kan trekkes», ikke 2,5. 🟡 Ført i § 8.27 og § 4.17; ingen kode bestilt. Nye spørsmål: B79–B85.
 - **2026-11-24 — Kenneths svar på B53, B79, B80 og B85:** «b85 ja · b53 ukevarselet er et varsel. Attestanten kan attestere uka selv om det står. · b79 ja · b80 ja». 🟡 Ført i § 8.28 og § 4.17 (del B, C, E, F, J og L); ingen kode bestilt. A4 kan bestilles. Helg, helligdag og overtid er delt i H1a–H1c og H1m, med én migrering i H1a. Nye spørsmål: B86 og B87.
+- **2026-11-24 — Kenneths svar på B81–B84:** «b81ja · b82ja, anleggsgartner · b83 ja · b84ja». 🟡 Ført i § 8.28 og § 4.17 (del C, D, E, F, G, J, K og L); ingen kode bestilt. Nye leveranser: A3b («Før som arbeidstid» i varselet) og T1 (ferdig forslag for anleggsgartner, venter på avtaleteksten). U1 åpnes også for prosjektlederen på egne prosjekter.
 - **2026-11-23 — «Del opp»: begge kortene åpne og redigerbare (Kenneth etter test av O15 på `14869899`):** «det var avtalt at del opp skulle vise registreringer av begge side om side … reise, + varer+ maskin, + utlegg/tillegg må også være tilgjengelig i begge kortene … etter oppdeling vises kun et kort, det andre lukkes. hvis begge kort er åpne og redigerbare side ved side er det lettere å justere eventuelle endringer i varer, reise og utlegg/tillegg.» Fabel la fram B68–B71 (§ 4.16 del G, versjon 23). **Kenneth samme dag: «B68 ja, B69 ja, B70 ja, B71 ja»** (B71 mot Fabels anbefaling): linjer kan flyttes mellom kort A og kort B; begge kortene står åpne og redigerbare side om side etter delingen, uten kobling i data; vinduet fra 21.11. utgår; attestanten kan legge til nye linjer under oppdelingen. 🟡 Vedtatt, ikke bestilt.
 - **2026-11-23 — Reisevinduet punkt 20–25:** vedtakene står i [vedtak-timer-web.md § Reisevinduet](vedtak-timer-web.md). ✅ Punkt 20 (uten blå boks), 21 og 22 er merget (O18 `4bc05499`, O17 `6ee3b632`). ✅ Punkt 20 blå boks og punkt 23–25 er merget på web (O19 `63e7b8f6`; «Dagens ramme» i O19b `e1eb7ac3`). Mobil sperrer som før.
 - **2026-11-23 — «ikke endre noe nå» (Kenneth, om to testfunn etter O17 og O18):** (1) «Tilbake til Timer» lander på uka lista sto på, også når dagsseddelen ligger i en annen uke; (2) «Registrer timer» åpner en ny jobb også når dagen finnes fra før. Begge står som de er bygget (w14 TK2; L3a `f28b4c4b`). I BACKLOG samme dag (`32a72b97`): periodevisning fra–til og «siste måned» i Timer-oversikten.
