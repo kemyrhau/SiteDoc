@@ -196,6 +196,11 @@ Ikke kjørt. `AD` =
    B74 ja).
 9. **Arbeideren og attestanten** ser «Korrigert av» på linjene som er flyttet eller rettet, og «Lagt til av»
    på linjene en annen enn arbeideren har lagt til (B73). Se «Merket «Lagt til av» og «Korrigert av»».
+10. **Kort A og kort B kan ikke overlappe hverandre** (B65 A, Kenneth 2026-11-24). Setter attestanten «Fra kl.»
+    på kort B tidligere enn «Til kl.» på kort A, eller omvendt, står en linje i kortet: «Overlapper 15:30–16:00 på
+    kort A. Rett tidene før du lagrer.» «Lagre» er av til tidene er rettet. Overlapp mot et annet kort på dagen
+    varsles og godtas (B66 A, § 4.17 del I). Serveren kjenner ikke paret (B69), så sperren står i kortene. Om den
+    skal gjelde også etter at paret er lukket, er B88. Leveranse KF1.
 
 **Attestanten legger til linjer (B71 ja, B72 ja):**
 
@@ -417,6 +422,8 @@ Koderen leverer løsning med skjermbilde før kode i hver av dem.
 14. **Grensene for ny linje** (én test pr. avvisning, og ingen linje er opprettet): attestant uten
     attesteringsrett på prosjektet; egen dagsseddel; firmavalget av; dagen ikke sendt; timelinje som
     overlapper en annen rad på dagsseddelen; maskintimer over jobbens arbeidstimer.
+    ⚠️ Overlapp avvises bare til KF1 er merget. Etter KF1 varsles og godtas overlapp mot et annet kort på
+    dagen, utenom kort A og kort B i paret (B65 A, B66 A og lesningen i § 8).
 15. **Vare og utlegg** (B72 ja): en attestant som bare har attesteringsrett, kan legge til, rette og slette en
     vare og et utlegg på en sendt dag. Varen har attestanten som «registrert av». Uten attesteringsrett
     avvises alle seks.
