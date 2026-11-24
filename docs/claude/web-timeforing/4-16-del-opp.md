@@ -455,3 +455,13 @@ Koderen leverer løsning med skjermbilde før kode i hver av dem.
     Med tre kort på prosjektet viser knappen de to andre. Et kort på et annet prosjekt og et attestert
     kort står ikke blant målene, og serveren avviser dem. Uten andre kort på prosjektet vises ikke
     knappen.
+
+#### Del H — «↶ Angre del opp» (Kenneth 2026-11-25)
+
+> **Kenneth 2026-11-25** (ved test av `5d183d4f`): *«jeg kan ikke slette dette kortet som ble delt. jeg ønsker å tilbakeføre kort A»* → på spørsmålet om «↶ Angre del opp»: *«ja, angre del opp»*.
+
+🟡 **Vedtatt, ikke bygget** (ordre til web-timer-o13 2026-11-25, `relay/inbox-web-timer-o13.md` § «ORDRE R1 + D2h»):
+- Kort B som kom fra «Del opp» (`del_jobb`-loggen, `dagsseddel.ts:8645`), får knappen «↶ Angre del opp».
+- Angring legger B tilbake i A: timeradene som ble delt, blir én rad igjen (f.eks. 07:00–14:00 + 14:00–16:00 → 07:00–16:00), med timer, pause og overtid samlet. Linjer som er flyttet til B (maskin, vare, tillegg, utlegg, reise), går tilbake til A.
+- Knappen vises bare når begge kortene venter på attestering. Angringen logges og gir «Korrigert av».
+- Dette er attestantens angring av egen deling, ikke sammenslåing av arbeiderens oppdeling (regelen om aldri å slå sammen registreringer gjelder fortsatt).
