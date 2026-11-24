@@ -25,6 +25,10 @@ sources: cowork
 
 ## 🔴 FUNKSJONSENDRINGER — krevde hjemmel
 
+### 2026-11-24
+
+**Prod-deploy `f5c9506e`** (Kenneth «lag komandoer for å deploy prod» 24.11): innhold = develop `4a126ed2` + docs. Alle rader datert 2026-11-17 til 2026-11-24 i tabellen under er nå i prod, **unntatt** `7c5bc9a7` (DOCKER-SLANK del 2). Selvattestering er av for alle firmaer i prod (Kenneth 24.11). Verifisert innlogget på sitedoc.no: innstillinger, attesteringen. OTA production ikke publisert.
+
 ### 2026-11-05
 
 **Prod-deploy `d13dbc9b`** (Kenneth «Ja, forbered prod» 05.11): innhold = develop `3a992e94`; prod-OTA `47b8e6bb`. Alle rader datert 2026-11-05 i tabellen under (dokumentflyt L1–L3, M3/M6, flytt/HMS-mottaker m.m.) er nå i prod. Verifisert innlogget på sitedoc.no: prosjektlista, «Vis tidligere medlemmer», fjern-modal uten blokk (UNN – avbrutt, ingen endring).
