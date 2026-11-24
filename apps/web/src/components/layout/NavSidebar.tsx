@@ -7,7 +7,7 @@ import { Settings, PanelLeftClose, ChevronDown, ChevronRight } from "lucide-reac
 import { useTranslation } from "react-i18next";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { ruteErFirmaKontekst } from "@/lib/ruteKontekst";
-import { useAktivSeksjon } from "@/hooks/useAktivSeksjon";
+import { useNavigasjon } from "@/kontekst/navigasjon-kontekst";
 import { useNavBredde, type NavBredde } from "@/kontekst/nav-bredde-kontekst";
 import {
   bunnelementer,
@@ -102,7 +102,8 @@ export function NavSidebar() {
   const router = useRouter();
   const pathname = usePathname();
   const { prosjektId } = useProsjekt();
-  const aktivSeksjon = useAktivSeksjon();
+  // w14: seksjonen settes av `AktivSeksjonSporer` i dashbord-layouten.
+  const { aktivSeksjon } = useNavigasjon();
   const { t } = useTranslation();
 
   // D2: bredde-trinn (full/slank/skjult) fra delt kontekst — deles med

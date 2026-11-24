@@ -81,7 +81,7 @@ Modell-antall er utledbart (`grep -c "^model " packages/db/prisma/schema.prisma`
 | `folders` | Rekursiv mappestruktur med parent_id, `access_mode` (inherit/custom), valgfri `kontrakt_id` (kobler mappe til økonomi-kontrakt → blått ikon) |
 | `folder_access` | Tilgangsoppføringer per mappe: entreprise, gruppe eller bruker |
 | `documents` | Dokumenter i mapper med fil-URL og versjon |
-| `dokumentflyter` | Dokumentflyt per prosjekt. `faggruppeId` (peker til `dokumentflyt_parts`), `roller` (JSONB — tilpassbare labels per rolle: `{ registrator?: { label }, bestiller?: { label }, utforer?: { label }, godkjenner?: { label } }`) |
+| `dokumentflyter` | Dokumentflyt per prosjekt. `faggruppeId` (eier-faggruppe, peker til `dokumentflyt_parts`; nullable i DB, men påkrevd ved opprettelse — kun HMS-flyten er eierløs, FG1 [dokumentflyt.md § 7](dokumentflyt.md)), `roller` (JSONB — tilpassbare labels per rolle: `{ registrator?: { label }, bestiller?: { label }, utforer?: { label }, godkjenner?: { label } }`) |
 | `dokumentflyt_medlemmer` | Medlemmer i dokumentflyt-steg. `rolle`, `steg`, `faggruppeId` (peker til `dokumentflyt_parts`)/`projectMemberId`/`groupId`, `erHovedansvarlig` (Boolean), `hovedansvarligPersonId` |
 | `dokumentflyt_maler` | Maltilknytning per dokumentflyt |
 | `task_comments` | Kommentarer/dialog på oppgaver |
@@ -120,6 +120,8 @@ Modell-antall er utledbart (`grep -c "^model " packages/db/prisma/schema.prisma`
 | `prosjekt_bibliotek_valg` | Sporbarhet: hvilken `BibliotekMal` som er kopiert til prosjektets `ReportTemplate`. Detaljer: [kontrollplan.md](kontrollplan.md) |
 
 **`organization_settings.timer_registreringsmodus`** (2026-11-05, `feat/prosjektkort-l1`, migrering `20261105120000_timer_registreringsmodus`, ikke kjørt): `TEXT NOT NULL DEFAULT 'dagskort'` — firmaets visningsmodus for timeføring (`dagskort` \| `prosjektkort`). Kun visning over samme `DailySheet`; ingen backfill (default er gjeldende atferd). Detaljer: [timer.md § Prosjektkort L1](timer.md).
+
+**`timer.sheet_timer.kort_id` på reiserader** (2026-11-20, B32 B, `feat/web-timer-w12`, migrering `20261120120000_w12_reise_kortid`, 🟡 ikke kjørt — Kenneth kjører): steg 1 av to — bare data, ingen ny kolonne. Reiseradene får kort-id etter den delte regelen `velgReiseKort` (`packages/shared/src/utils/reiseKort.ts`), skrevet som én sortering i SQL; reise uten jobb på prosjektet får en utledet id av egen nøkkel. Diskriminerende WHERE `er_reise = true AND kort_id IS NULL`; prosjekt, underprosjekt, byggeplass og `updated_at` røres ikke. Paritet SQL ⇔ delt regel, gate-SQL og «stille tomhet» låses av `apps/api/src/routes/reise-kortid-migrering.integration.test.ts`. Steg 2 (neste utgivelse): utfyllingen én gang til, så `CHECK (kort_id IS NOT NULL)` for alle timerader ([prosjektkort-kortid-spec.md § 3.4](prosjektkort-kortid-spec.md)).
 
 ## Viktige relasjoner
 
@@ -381,14 +383,16 @@ To DB-kolonner styrer tilgang: `User.role` (`sitedoc_admin` | `company_admin` | 
 |------|----------|-------|-------------|
 | **Superadmin** (Kenneth) | `User.role = "sitedoc_admin"` | Alt | `verifiserSiteDocAdmin()` |
 | **Org-admin** (kundens admin) | `User.role = "company_admin"` | Admin i alle org-prosjekter, UTEN ProjectMember-rad | `verifiserOrganisasjonTilgang()` |
-| **Prosjektadmin** | `ProjectMember.role = "admin"` | — | `harProsjektTilgang()` |
-| **Prosjektmedlem** | `ProjectMember.role = "member"` | — | `harProsjektTilgang()` |
+| **Prosjektadmin** | `ProjectMember.role = "admin"` | — | `verifiserAdmin()` |
+| **Prosjektmedlem** | `ProjectMember.role = "member"` | — | `verifiserProsjektmedlem()` |
+
+**Oppretter av prosjekt (F13c 1A, Kenneth 2026-11-23):** den som oppretter et prosjekt for sitt eget firma (aktiv ansettelse), blir prosjektadmin og Byggherre som før. sitedoc_admin som oppretter for et annet firma, blir ikke medlem; hen setter opp medlemmer, faggrupper og flyter via bypassen (`verifiserAdmin`, `verifiserProsjektmedlem`, `gruppe.hentMinTilgang`/`hentMinFlytInfo`). Prosjektet kan da starte med 0 medlemmer. `services/oppretterMedlemskap.ts`. Siste aktive prosjektadmin kan ikke fjernes med `medlem.fjern`.
 
 **Kapabilitets-felter på ProjectMember** (boolean, eksplisitt opt-in):
-- `kanAttestere` — gir timer-attestering uten prosjekt-admin (vedtatt 2026-05-02). `role="admin"` har implisitt attestering-tilgang i `erProsjektLeder`.
+- `kanAttestere` — gir timer-attestering uten prosjekt-admin (vedtatt 2026-05-02). `role="admin"` har implisitt attestering-tilgang. Fra w10b (plan web-timeføring § 4.6, § 4.10) avgjøres retten av `attesteringsOmfang` (liste) og `attesteringsFirmaer` (handlinger) i `apps/api/src/routes/timer/dagsseddel.ts`: aktivt prosjektmedlem med admin eller `kanAttestere`, aktiv ansatt i sedelens firma. `erProsjektLeder` er slettet.
 - `erFirmaansvarlig` — flyt-relatert ansvar (eksisterende felt).
 
-**`harProsjektTilgang(userId, projectId)`**: Sjekker ProjectMember-rad ELLER company_admin med riktig org. Alle prosjekt-ruter bruker denne — aldri inline-sjekk. Ligger i `tilgangskontroll.ts`. `company_admin` uten `organizationId` er ugyldig — fanget i `verifiserOrganisasjonTilgang()`.
+**Tilgangsfunksjonene** i [tilgangskontroll.ts](../../apps/api/src/trpc/tilgangskontroll.ts): `verifiserProsjektmedlem()` (`:750`, sitedoc_admin, aktivt medlem eller firma-admin med riktig org; firma-ansatte på interne prosjekter) og `verifiserAdmin()` (`:690`, prosjektadmin, firma-admin eller sitedoc_admin). En funksjon `harProsjektTilgang()` finnes ikke (målt 2026-11-23). 🟡 Avvik med egne sjekker, retting avventer Kenneth (P1): `psi.ts` (egen admin-sjekk), `dagsseddel` `list`/`hentDagstotal` (firma_admin uten statussjekk), inline-sjekker i byttEier/flytt/tegning. `company_admin` uten `organizationId` er ugyldig — fanget i `verifiserOrganisasjonTilgang()`.
 
 **Kritiske regler:**
 - Firma-admin ser **KUN** sitt eget firmas data — absolutt umulig å se andre firmaer

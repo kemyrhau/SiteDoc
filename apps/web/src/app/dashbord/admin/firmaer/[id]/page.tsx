@@ -8,6 +8,7 @@ import { Spinner, Button, Input, Modal } from "@sitedoc/ui";
 import { Building2, ArrowLeft, Plus, Pencil, Mail } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { HjelpKnapp, HjelpFane } from "@/components/hjelp/HjelpModal";
+import { useTilbakeAdresse } from "@/components/nivaa/TilbakeLenke";
 import { FirmaStatusBadge } from "../delte-komponenter";
 import type { FirmaStatus } from "@sitedoc/api/src/services/firmaOversikt";
 import { ProsjekterFane } from "./ProsjekterFane";
@@ -46,6 +47,13 @@ type FirmaDetalj = {
 
 export default function FirmaDetaljSide() {
   const { t } = useTranslation();
+  // w14 (TK11): åpnet fra Mine timer går knappen tilbake dit. Ellers firmalista, som før.
+  const tilbake = useTilbakeAdresse({
+    href: "/dashbord/admin/firmaer",
+    labelKey: "admin.firmaDetalj.tilbake",
+  });
+  const tilbakeHref = tilbake?.href ?? "/dashbord/admin/firmaer";
+  const tilbakeTekst = t(tilbake?.labelKey ?? "admin.firmaDetalj.tilbake");
   const params = useParams();
   const organizationId = params.id as string;
   const utils = trpc.useUtils();
@@ -98,9 +106,9 @@ export default function FirmaDetaljSide() {
   if (!firma) {
     return (
       <div>
-        <Link href="/dashbord/admin/firmaer" className="mb-4 inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700">
+        <Link href={tilbakeHref} className="mb-4 inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700">
           <ArrowLeft className="h-4 w-4" />
-          {t("admin.firmaDetalj.tilbake")}
+          {tilbakeTekst}
         </Link>
         <p className="text-sm text-gray-500">{t("admin.firmaDetalj.ikkeFunnet")}</p>
       </div>
@@ -118,9 +126,9 @@ export default function FirmaDetaljSide() {
   return (
     <div>
       <div className="mb-4 flex items-center justify-between">
-        <Link href="/dashbord/admin/firmaer" className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700">
+        <Link href={tilbakeHref} className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700">
           <ArrowLeft className="h-4 w-4" />
-          {t("admin.firmaDetalj.tilbake")}
+          {tilbakeTekst}
         </Link>
         <HjelpKnapp>
           <HjelpFane tittel={t("hjelp.firmaDetalj.hvaTittel")}>

@@ -85,22 +85,9 @@ en UI-regel via `utledDokumentRettighet`). I stedet oppdager den kollisjoner og 
 
 ### HMS
 
-| Regel | Verdi |
-|-------|-------|
-| Oppretter | Alle brukere |
-| Flyt | Enveis med automatisk retur: Innsender → HMS-gruppe → (Godkjent) → Innsender |
-| Behandling | Kun HMS-gruppen (uendret) |
-| Godkjenning | HMS-gruppe godkjenner. ❌ **IKKE IMPLEMENTERT:** «rapport returneres automatisk til innsender» finnes ikke i koden (målt av A-3b-Opus 2026-07-21: `erHms` opptrer kun i opprett-mutasjonene `oppgave.ts:329` / `sjekkliste.ts:164`; `endreStatus` har ingen HMS-gren, og ingen auto-retur-logikk finnes noe sted). Modellen er fabel-bekreftet som *intensjon* ([a3b-perspektiv-tabell.md § 7 pkt 3](delplaner/a3b-perspektiv-tabell.md)), ikke som kodefaktum. **Bygges ikke på eget initiativ** — krever egen sak |
-| Redigerbar | Innsender i kladd/sendt, HMS-gruppe når de har ballen |
-| Sletting | Kun i kladd av innsender |
-| Lese | HMS-gruppe + **administrator** + registrator i flyten + **firma-HMS-ansvarlig** (kontrolloppgave — per fase-0-beslutninger A.27). **Privat HMS (RUH/HMS-avvik): kun administrasjonen** — se [hms-domenemodell.md](hms-domenemodell.md) |
-| Administrator | Kan lese alltid, **og kan legge seg til i HMS-gruppen** |
-| Registrator | Kan lese alltid. **Kan IKKE legge seg til i HMS-gruppen** — det er skrivemakt |
-| Fremtidig | Per-ledd konfigurasjon, flere HMS-grupper per prosjekt |
+🔴 **HMS-flyten følger ikke reglene i denne fila.** Kenneth 2026-11-23: *«HMS-Flyt er en egen frittstående faggruppe med helt egne regler.»* Hvem som melder, hvem som behandler, hvem som får svaret og hvem som ser en HMS-sak, står ett sted: [hms-domenemodell.md § HMS-flyt](hms-domenemodell.md).
 
-Retursteget til innsender ved godkjenning er automatisk — ikke en manuell sending.
-
-**Firma-HMS-ansvarlig-tilgang (vedtatt 2026-04-29 per A.27):** En person med `OrganizationRole.role = "hms_ansvarlig"` får automatisk lese-tilgang til alle HMS-flyter i firmaets prosjekter — uten å være registrert som DokumentflytMedlem. Behandling (godkjenne, kommentere, redigere) forblir begrenset til HMS-gruppen på prosjektet. Kontrolloppgave: firma-HMS-ansvarlig skal kunne kontrollere at HMS-rapporter på prosjektnivå ivaretas og besvares.
+Tabellen som sto her (enveis flyt med «Godkjent» og automatisk retur, «kun HMS-gruppen» behandler, registrator leser) er fjernet 2026-11-23. Den beskrev en flyt med godkjenning som HMS-flyten ikke har, og den sa «ikke implementert» om returen til innsender etter en måling fra 2026-07-21, før de egne HMS-handlingene ble bygget (`apps/api/src/routes/oppgave.ts:1913-2341`).
 
 ### Godkjenning
 
@@ -160,16 +147,17 @@ Dokument-tilgang avgjøres nå av en **ren funksjon**, adskilt fra datahentingen
 | Eksisterende sjekkliste | Forhåndsvisning | Redigeringsmodus | Redigeringsmodus |
 | Ny oppgave | – | Redigeringsmodus | Redigeringsmodus |
 | Eksisterende oppgave | Forhåndsvisning | Forhåndsvisning + legg til nederst | Redigeringsmodus |
-| HMS | Forhåndsvisning | Opprett + fyll ut | Lese alltid |
 | Godkjenning | Forhåndsvisning (hvis i flyten) | Per-ledd | Per-ledd + overstyr |
 
 ### Hvem kan sende på tvers av faggrupper
 
-| Rolle | Sjekkliste/Oppgave | Godkjenning | HMS |
-|---|---|---|---|
-| Prosjekteier (HE/BH) | ✓ | ✗ | ✗ |
-| Registrator / Admin | ✓ | ✗ | ✗ |
-| Fag (Elektro, Tømrer osv.) | ✗ | ✗ | ✗ |
+| Rolle | Sjekkliste/Oppgave | Godkjenning |
+|---|---|---|
+| Prosjekteier (HE/BH) | ✓ | ✗ |
+| Registrator / Admin | ✓ | ✗ |
+| Fag (Elektro, Tømrer osv.) | ✗ | ✗ |
+
+HMS står ikke i tabellene over. HMS-saker sendes ikke mellom faggrupper: [hms-domenemodell.md § HMS-flyt](hms-domenemodell.md).
 
 ### Hvem kan bytte eier
 
@@ -392,6 +380,20 @@ Hver overgang lagres som en rad i `document_transfers` med snapshot-felter som f
 ## 7. Tekniske felter
 
 Sentrale modell-felter som styrer flyt-mekanikken. Full feltliste i [arkitektur.md](arkitektur.md).
+
+### `Dokumentflyt.faggruppeId` — eier-faggruppe er påkrevd (FG1, Kenneth 2026-11-23)
+
+> «det som ikke visuelt er med i UI -> de skal ikke opprettes i en db» (Kenneth 2026-11-23).
+
+En dokumentflyt står alltid under en faggruppe på Dokumentflyt-siden. En flyt uten eier-faggruppe vises ingen steder og skal derfor ikke finnes — med ett unntak: **HMS-flyten**, som er eierløs med egne regler ([hms-domenemodell.md](hms-domenemodell.md)) og bare opprettes internt av `seedHmsModulOmradet` (`apps/api/src/services/hmsFlyt.ts`).
+
+- **Skjema:** `createDokumentflytSchema.faggruppeId` er påkrevd (`packages/shared/src/validation/index.ts`). `updateDokumentflytSchema` har ikke feltet, så eier-faggruppen kan ikke nulles i ettertid.
+- **Server:** `dokumentflyt.opprett` nekter (BAD_REQUEST) en faggruppe som ikke hører til prosjektet (`apps/api/src/routes/dokumentflyt.ts`, `opprett`).
+- **Sletting av faggruppe:** `Dokumentflyt.faggruppe` er `onDelete: SetNull` i schemaet, men `faggruppe.slett` nekter så lenge faggruppen eier en flyt (`apps/api/src/routes/faggruppe.ts`, `slett`) — en flyt blir dermed ikke eierløs i stillhet.
+- **Nytt prosjekt:** seeden lager ingen faggruppeflyter (F13c); eneste eierløse flyt er HMS-flyten.
+- **HMS-kjennetegn:** en eierløs flyt med minst én mal i domenet `hms` (`erHmsFlyt`, `flyt-gruppering.ts`; samme oppslag som `seedHmsModulOmradet`).
+- **Tester:** `apps/api/src/routes/fg1-flyt-krever-faggruppe.test.ts`, `prosjektSeed.test.ts` («FG1»).
+- **Data:** prosjekter opprettet på main før F13c fikk 8 eierløse standardflyter. De ryddes med D3-skriptet (kjøres av Kenneth etter gate) — ikke kjørt i prod per 2026-11-23.
 
 ### `Dokumentflyt.roller` — JSONB-konfigurerbare labels
 

@@ -119,9 +119,9 @@ describe("ORDRE 24 — ett sett maskin/varer pr. kort, fordelt ved lagring", () 
     expect(ut[N0]?.maskiner.map((m) => m.timer)).toEqual([7.5]);
     expect(ut[N1]?.maskiner.map((m) => m.timer)).toEqual([0.5]);
     expect(ut[N1]?.maskiner[0]?.lokalId).toBe("m1#2");
-    expect(maskinerOverRaden(f, ut)).toEqual([]);
+    expect(maskinerOverRaden(f, ut, () => null)).toEqual([]);
     // Negativkontroll: ufordelt bryter regelen maskin ≤ radens timer.
-    expect(maskinerOverRaden(f, { [N0]: { maskiner: [maskin(8)], varer: [] } })).toHaveLength(1);
+    expect(maskinerOverRaden(f, { [N0]: { maskiner: [maskin(8)], varer: [] } }, () => null)).toHaveLength(1);
   });
 
   it("🔴 vare → første arbeidsrad", () => {

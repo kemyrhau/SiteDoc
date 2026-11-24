@@ -1,37 +1,32 @@
 "use client";
 
 // T7-2b1 (2026-05-14): Felleskomponent for attestering-detalj.
-// Monteres fra to wrapper-sider:
-//   - /dashbord/[prosjektId]/timer/attestering/[id] (prosjektleder-kontekst)
-//   - /dashbord/firma/timer/attestering/[id]        (firma-admin-kontekst)
+// Monteres fra /dashbord/attestering/[id] (w10b): firma-admin ser hele sedelen; prosjektlederen
+// får `prosjektKontekst` = sine prosjekter, og radene på andre prosjekter står nedtonet.
 // Per-rad-attestering: hver rad har egen status, leder velger hvilke som
 // attesteres/returneres via checkboxer.
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Button, Modal, Spinner } from "@sitedoc/ui";
-import { ArrowLeft, Check, Pencil, RotateCcw, AlertTriangle } from "lucide-react";
-import {
-  avvikRetning,
-  overlappBlokkererAttestering,
-  type ForsonRad,
-} from "@sitedoc/shared";
+import { ArrowLeft, Pencil, RotateCcw, AlertTriangle } from "lucide-react";
+import type { ForsonRad } from "@sitedoc/shared";
 import { StatusBadge } from "@/components/timer/StatusBadge";
 import { ForslagValgSeksjon } from "@/components/timer/ForslagValgSeksjon";
 import { AttesteringDetaljEdit } from "@/components/timer/AttesteringDetalj_Edit";
 import { normtakBruddLinje } from "@/lib/normtakBrudd";
 import {
-  ProsjektSectionAttest,
-  type EcoBucketAttestProps,
   type MaskinRad,
-  type RadProsjekt,
   type TilleggRad,
   type TimerRad,
   radIKontekst,
 } from "@/components/attestering/attestering-buckets";
+import { AttesteringTabell, UkeBanner } from "@/components/attestering/AttesteringTabell";
+import { useAttesteringModell } from "@/components/attestering/useAttesteringModell";
+import type { AttSedel } from "@/components/attestering/attestering-tabell";
 
 function formatDato(d: Date | string): string {
   return new Date(d).toLocaleDateString("no-NB", {
@@ -52,7 +47,7 @@ type Props = {
   sheetId: string;
   // undefined = firma-kontekst (firma-admin attesterer alle rader leder har tilgang til)
   // gitt    = prosjekt-kontekst (kun rader for det prosjektet er aktivt valgbare)
-  prosjektKontekst?: string;
+  prosjektKontekst?: ReadonlySet<string>;
   // Hvor «Tilbake» og redirect etter mutasjon peker
   tilbakeUrl: string;
 };
@@ -87,23 +82,12 @@ export function AttesteringDetalj({
       { enabled: !!sheet?.organizationId },
     );
 
-  const attesterRader = trpc.timer.dagsseddel.attesterRader.useMutation({
-    onSuccess: () => {
-      void utils.timer.dagsseddel.hentForAttestering.invalidate({ id: sheetId });
-      void utils.timer.dagsseddel.hentTilAttestering.invalidate();
-      void utils.timer.dagsseddel.hentTilAttesteringFirma.invalidate();
-      router.push(tilbakeUrl);
-    },
-    onError: (e: { message: string }) => setFeil(e.message),
-  });
-
   // F4-2 (2026-07-11): leder angrer en fullført attestering. Setter sedelen
   // tilbake til "sent" (leder-køen) og alle rader til "pending".
   const gjenaapneAttestering =
     trpc.timer.dagsseddel.gjenaapneAttestering.useMutation({
       onSuccess: () => {
         void utils.timer.dagsseddel.hentForAttestering.invalidate({ id: sheetId });
-        void utils.timer.dagsseddel.hentTilAttestering.invalidate();
         void utils.timer.dagsseddel.hentTilAttesteringFirma.invalidate();
         setGjenaapneVises(false);
         router.push(tilbakeUrl);
@@ -125,7 +109,7 @@ export function AttesteringDetalj({
     return radIKontekst(rad.projectId, prosjektKontekst, fravaerKanAttesteres);
   };
 
-  // Pre-utvalg: alle pending-rader leder har tilgang til
+  // «Returner dagen» i tabellen: alle pending-rader lederen har tilgang til
   useEffect(() => {
     if (!sheet) return;
     setValgteTimer(new Set(timerRader.filter(radTilgjengelig).map((r) => r.id)));
@@ -157,7 +141,6 @@ export function AttesteringDetalj({
     );
   }
 
-  // T7-4d: totaltimer er nå per-bucket — beregnes inne i EcoBucketAttest.
   const totaltAntallRader = timerRader.length + tilleggRader.length + maskinRader.length;
   const antallAttestert = [...timerRader, ...tilleggRader, ...maskinRader]
     .filter((r) => r.attestertStatus === "attestert").length;
@@ -165,18 +148,12 @@ export function AttesteringDetalj({
     .filter((r) => r.attestertStatus === "returnert").length;
   const antallPending = totaltAntallRader - antallAttestert - antallReturnert;
 
-  const antallValgt = valgteTimer.size + valgteTillegg.size + valgteMaskin.size;
-  const kanHandle = sheet.status === "sent" && antallValgt > 0;
 
-  // V19-C (C-2): en uavklart overlapp (konfliktVentendeSiden satt / forslag finnes)
-  // BLOKKERER attestering — arbeideren har ikke valgt mellom PC og mobil. Serveren
-  // er sannheten (A-4: krevIngenUavklartOverlapp kaster PRECONDITION_FAILED på
-  // konfliktVentendeSiden uansett); dette gater BARE attester-knappen i UI-et, og
-  // retur lar vi stå (utveien er retur, aldri attestering av et uvalgt sett).
+  // V19-C (C-2): en uavklart overlapp blokkerer attestering — tabellen sperrer ✓ på
+  // sedelens linjer (modellens `forslagSperre`); retur er utveien.
   const konfliktVentendeSiden =
     (sheet as { konfliktVentendeSiden?: string | Date | null }).konfliktVentendeSiden ??
     null;
-  const forslagBlokkert = overlappBlokkererAttestering(konfliktVentendeSiden);
   // B10 (F9 = A): bruddlinja fra hentForAttestering — null = intet brudd.
   const normtakLinje = normtakBruddLinje(t, sheet.fravaerNormtakBrudd, i18n.language);
   // Forslaget attestanten LESER (ikke velger). hentForAttestering er ett av KUN to
@@ -232,26 +209,9 @@ export function AttesteringDetalj({
   // ikke før lag 2) → intet banner (ingen falsk alarm på historiske sedler).
   const normStatus = sheet.normStatus;
 
-  function toggle(set: Set<string>, id: string, oppdater: (s: Set<string>) => void) {
-    const ny = new Set(set);
-    if (ny.has(id)) ny.delete(id);
-    else ny.add(id);
-    oppdater(ny);
-  }
-
-  function handleAttester() {
-    setFeil(null);
-    attesterRader.mutate({
-      radIder: {
-        timerIder: Array.from(valgteTimer),
-        tilleggIder: Array.from(valgteTillegg),
-        maskinIder: Array.from(valgteMaskin),
-      },
-    });
-  }
-
+  // w10a (A5, K11): full bredde — i `max-w-6xl` ble tabellens kolonner og tekst kuttet.
   return (
-    <div className={`max-w-3xl p-6`}>
+    <div className="p-6">
       <Link
         href={tilbakeUrl}
         className="mb-3 inline-flex items-center gap-1 text-sm text-sitedoc-primary hover:underline"
@@ -421,38 +381,11 @@ export function AttesteringDetalj({
         </div>
       )}
 
-      {/* D2-attestantvarsel (ORDRE 2 STEG 3 ledd 2): banner når ukens beregnede
-          overtid avviker fra det som er ført. Kun varsel — blokkerer ikke
-          attestering. Tallene: uattestert = live, attestert = frosset snapshot. */}
-      {(() => {
-        const g = sheet.ukeOvertidsgrunnlag;
-        if (!g) return null;
-        const retning = avvikRetning(g);
-        if (!retning) return null;
-        return (
-          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-            <div className="flex items-start gap-2">
-              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-              <div>
-                <p className="font-medium">
-                  {retning === "over"
-                    ? t("timer.attestering.varsel.over", {
-                        timer: (g.beregnetOvertid - g.sumOvertid).toFixed(1),
-                      })
-                    : t("timer.attestering.varsel.under")}
-                </p>
-                <p className="mt-0.5 text-xs text-amber-800">
-                  {t("timer.attestering.varsel.tall", {
-                    norm: g.norm.toFixed(1),
-                    ord: g.sumOrdinaert.toFixed(1),
-                    ot: g.sumOvertid.toFixed(1),
-                  })}
-                </p>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
+      {/* A4 RETUR vilkår 4 (plan § 4.17 del B, «Ett regnestykke»): banneret viser ukevarselet
+          fra samme regnestykke som ukelinja — B85-tallene med samme tekst — og bare når uka er
+          komplett (B53 A). Attestert sedel: frosset regnestykke når uka var komplett ved
+          attestering, ellers live. Kun varsel — blokkerer ikke attestering. */}
+      {sheet.uke && <UkeBanner uke={sheet.uke} />}
 
       {/* Diskret hint til firma-admin når rediger-flagget er av */}
       {sheet.redigerTillatt === false && kanFirmaAttestere?.kanAttestere && (
@@ -499,140 +432,43 @@ export function AttesteringDetalj({
         </dl>
       </section>
 
-      {/* T7-4d: per prosjekt+ECO-gruppering (samme mønster som T7-4c). Tillegg
-          holdes per-prosjekt (ingen ECO-felt på SheetTillegg). */}
-      {(() => {
-        const bucketKey = (pid: string, eco: string | null) =>
-          `${pid}|${eco ?? ""}`;
-        const bucketMap = new Map<string, EcoBucketAttestProps>();
-        const prosjektEcoMap = new Map<string, string[]>();
-        const prosjektRekkefolge: string[] = [];
-        const tilleggPerProsjekt = new Map<string, TilleggRad[]>();
-        const prosjektNavnMap = new Map<string, RadProsjekt | null>();
-
-        const noterProsjekt = (
-          pid: string,
-          navn: RadProsjekt | null | undefined,
-        ) => {
-          if (!prosjektEcoMap.has(pid)) {
-            prosjektEcoMap.set(pid, []);
-            prosjektRekkefolge.push(pid);
-          }
-          if (!prosjektNavnMap.has(pid) && navn) {
-            prosjektNavnMap.set(pid, navn);
-          }
-        };
-        const noterBucket = (
-          pid: string,
-          eco: string | null,
-          navn: RadProsjekt | null | undefined,
-        ) => {
-          noterProsjekt(pid, navn);
-          const ekv = eco ?? "";
-          const liste = prosjektEcoMap.get(pid)!;
-          if (!liste.includes(ekv)) liste.push(ekv);
-          const k = bucketKey(pid, eco);
-          if (!bucketMap.has(k)) {
-            bucketMap.set(k, { projectId: pid, ecoId: eco, timer: [], maskin: [] });
-          }
-        };
-
-        for (const r of timerRader) {
-          // Kort-id-spec § 11.4: fravær uten prosjekt samles under tom nøkkel («Fravær»).
-          const pid = r.projectId ?? "";
-          noterBucket(pid, r.externalCostObjectId, r.project);
-          bucketMap.get(bucketKey(pid, r.externalCostObjectId))!.timer.push(r);
-        }
-        for (const r of maskinRader) {
-          noterBucket(r.projectId, r.externalCostObjectId, r.project);
-          bucketMap.get(bucketKey(r.projectId, r.externalCostObjectId))!.maskin.push(r);
-        }
-        for (const r of tilleggRader) {
-          noterProsjekt(r.projectId, r.project);
-          const liste = tilleggPerProsjekt.get(r.projectId) ?? [];
-          liste.push(r);
-          tilleggPerProsjekt.set(r.projectId, liste);
-        }
-
-        if (prosjektRekkefolge.length === 0) {
-          return (
-            <section className="mb-6 rounded-lg border border-dashed border-gray-300 bg-white p-6 text-center text-sm text-gray-500">
-              {t("timer.detalj.ingenTimer")}
-            </section>
-          );
-        }
-
-        return prosjektRekkefolge.map((pid) => (
-          <ProsjektSectionAttest
-            key={pid}
-            projectId={pid}
-            prosjektNavn={prosjektNavnMap.get(pid) ?? null}
-            ecoKeys={prosjektEcoMap.get(pid) ?? [""]}
-            bucketMap={bucketMap}
-            tillegg={tilleggPerProsjekt.get(pid) ?? []}
+      {/* R14 (d2b-2): radene tegnes med samme tabell som lista — én dag, låst til
+          prosjektet i prosjektkontekst. ✓/retur/gjenåpne pr. linje og kort, retting i
+          cella, ✂ og flytt underprosjekt (pennen) bor i tabellen. */}
+      {totaltAntallRader + (sheet.utlegg?.length ?? 0) + (sheet.varer?.length ?? 0) === 0 ? (
+        <section className="mb-6 rounded-lg border border-dashed border-gray-300 bg-white p-6 text-center text-sm text-gray-500">
+          {t("timer.detalj.ingenTimer")}
+        </section>
+      ) : (
+        <div className="mb-6">
+          <DetaljTabell
+            sedel={{
+              ...(sheet as unknown as AttSedel),
+              totaltimer: timerRader.reduce((s, r) => s + Number(r.timer), 0),
+              // Ordre d2b-3 (c): firmaets effektive dagsnorm fra serveren (samme kilde som
+              // listene); 0 = ukjent → ingen «av norm»-tekst.
+              dagsnorm: sheet.dagsnorm > 0 ? sheet.dagsnorm : null,
+            }}
+            orgId={sheet.organizationId}
+            readOnly={sheet.status !== "sent"}
             prosjektKontekst={prosjektKontekst}
-            fravaerKanAttesteres={fravaerKanAttesteres}
-            valgteTimer={valgteTimer}
-            valgteMaskin={valgteMaskin}
-            valgteTillegg={valgteTillegg}
-            onToggleTimer={(id) => toggle(valgteTimer, id, setValgteTimer)}
-            onToggleMaskin={(id) => toggle(valgteMaskin, id, setValgteMaskin)}
-            onToggleTillegg={(id) => toggle(valgteTillegg, id, setValgteTillegg)}
-            kanFlytte={sheet.status === "sent"}
-            pauseMin={sheet.pauseMin}
+            onReturnerDag={() => setReturnerVises(true)}
           />
-        ));
-      })()}
+        </div>
+      )}
 
       {feil && <p className="mb-3 text-sm text-red-600">{feil}</p>}
 
       {sheet.status === "sent" ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white p-5">
-          <p className="text-sm text-gray-600">
-            {t("timer.attestering.radValg.antallValgt", { antall: antallValgt })}
-          </p>
-          <div className="flex flex-wrap items-center gap-3">
-            {sheet.redigerTillatt && (
-              <Button
-                variant="secondary"
-                onClick={() => setRedigerModus(true)}
-                disabled={attesterRader.isPending}
-              >
-                <Pencil className="mr-1 h-4 w-4" />
-                {t("timer.rediger.knapp")}
-              </Button>
-            )}
-            <Button
-              variant="secondary"
-              onClick={() => setReturnerVises(true)}
-              disabled={!kanHandle || attesterRader.isPending}
-            >
-              <RotateCcw className="mr-1 h-4 w-4" />
-              {t("timer.attestering.radValg.returnerValgte")}
+          {/* w7 (B15): egen sedel — tabellen har ingen knapper; si hvorfor i stedet for hintet. */}
+          <p className="text-sm text-gray-600">{sheet.egneTimer ? t("timer.attestering.egneTimer.forklaring") : t("timer.attestering.detalj.tabellHint")}</p>
+          {sheet.redigerTillatt && !sheet.egneTimer && (
+            <Button variant="secondary" onClick={() => setRedigerModus(true)}>
+              <Pencil className="mr-1 h-4 w-4" />
+              {t("timer.rediger.knapp")}
             </Button>
-            {/* V19-C (C-2): blokker attestering ved uavklart overlapp. `title` på en
-                wrapper (ikke selve knappen) så tooltipen vises selv når knappen er
-                disabled. Retur-knappen over er bevisst IKKE gatet — retur er utveien. */}
-            <span
-              title={
-                forslagBlokkert
-                  ? t("timer.forslagValg.attesterBlokkert")
-                  : normtakLinje
-                    ? t("timer.normtak.attesterSperret")
-                    : undefined
-              }
-            >
-              <Button
-                onClick={handleAttester}
-                disabled={!kanHandle || forslagBlokkert || !!normtakLinje || attesterRader.isPending}
-              >
-                <Check className="mr-1 h-4 w-4" />
-                {attesterRader.isPending
-                  ? t("handling.lagrer")
-                  : t("timer.attestering.radValg.attesterValgte")}
-              </Button>
-            </span>
-          </div>
+          )}
         </div>
       ) : (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600">
@@ -642,7 +478,7 @@ export function AttesteringDetalj({
             })}
           </p>
           {/* F4-2: leder kan angre en fullført attestering (accepted → sent). */}
-          {sheet.status === "accepted" && (
+          {sheet.status === "accepted" && !sheet.egneTimer && (
             <Button
               variant="secondary"
               onClick={() => {
@@ -746,7 +582,6 @@ function ReturnerDialog({
   const returner = trpc.timer.dagsseddel.returnerRader.useMutation({
     onSuccess: () => {
       void utils.timer.dagsseddel.hentForAttestering.invalidate();
-      void utils.timer.dagsseddel.hentTilAttestering.invalidate();
       void utils.timer.dagsseddel.hentTilAttesteringFirma.invalidate();
       onLukk();
       onFerdig();
@@ -813,3 +648,21 @@ function ReturnerDialog({
   );
 }
 
+
+/** R14: dagens rader i samme tabell som lista (én sedel). */
+function DetaljTabell({ sedel, orgId, readOnly, prosjektKontekst, onReturnerDag }: {
+  sedel: AttSedel; orgId: string; readOnly: boolean; prosjektKontekst?: ReadonlySet<string>; onReturnerDag: () => void;
+}) {
+  const sedler = useMemo(() => [sedel], [sedel]);
+  const dager = useAttesteringModell(orgId, sedler, { medAvdeling: !prosjektKontekst });
+  return (
+    <AttesteringTabell
+      dager={dager}
+      orgId={orgId}
+      readOnly={readOnly}
+      verktoy={null}
+      prosjektKontekst={prosjektKontekst}
+      onReturnerDag={onReturnerDag}
+    />
+  );
+}

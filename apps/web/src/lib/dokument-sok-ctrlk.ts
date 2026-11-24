@@ -4,6 +4,8 @@
  * (`ftdSok.sokDokumenter`: medlemskap + mappefilter), aldri her.
  */
 
+import { medRetur } from "./tilbake-adresse";
+
 export const MIN_DOK_SOK_TEGN = 3;
 export const MAKS_DOK_TREFF = 5;
 export const DOK_SOK_DEBOUNCE_MS = 250;
@@ -31,9 +33,20 @@ export function slaaSammenPrDokument<T extends { documentId: string }>(treff: re
   return ut;
 }
 
-/** Leseren med søkeordet markert; leseren scroller første markering i syne. */
-export function leserHref(prosjektId: string, dokumentId: string, q: string): string {
-  return `/dashbord/${prosjektId}/dokumenter/${dokumentId}/les?highlight=${encodeURIComponent(q.trim())}`;
+/**
+ * Leseren med søkeordet markert; leseren scroller første markering i syne. w14 (TK6): `retur` er
+ * siden søket ble åpnet fra, så pilen i leseren går dit (vakten i `medRetur`).
+ */
+export function leserHref(
+  prosjektId: string,
+  dokumentId: string,
+  q: string,
+  retur?: string | null,
+): string {
+  return medRetur(
+    `/dashbord/${prosjektId}/dokumenter/${dokumentId}/les?highlight=${encodeURIComponent(q.trim())}`,
+    retur,
+  );
 }
 
 /** «Se alle i Dokumentsøk» — siden leser `?q` og søker med en gang. */

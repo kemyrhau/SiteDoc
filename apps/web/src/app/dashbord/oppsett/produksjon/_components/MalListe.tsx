@@ -14,6 +14,7 @@ import { FaggruppeTilknytningModal } from "./FaggruppeTilknytningModal";
 import { HentFraArkivModal } from "@/components/bibliotek/HentFraArkivModal";
 import { OppdaterFraHovedmalModal } from "@/components/malbygger/OppdaterFraHovedmalModal";
 import { Nivaabanner } from "@/components/nivaa/Nivaabanner";
+import { hørerTilMalListe, lagretMalKategori, nyMalKategori, hmsFormForklaringNokkel } from "./mal-liste-filter";
 
 type MalKategori = "oppgave" | "sjekkliste" | "hms";
 
@@ -354,7 +355,8 @@ export function MalListe({
       name: navn.trim(),
       prefix: prefiks.trim() || undefined,
       description: beskrivelse.trim() || undefined,
-      category: kategori,
+      // HM2: «Ny HMS-mal» lagrer formen undertypen tilsier (avvik/RUH → oppgave, SJA → sjekkliste).
+      category: nyMalKategori(kategori, subdomain),
       domain: erHms ? "hms" : "bygg",
       subdomain: erHms ? subdomain : erKontrakt ? "kontrakt" : null,
       hmsSynlighet: erHms ? hmsSynlighet : null,
@@ -366,12 +368,16 @@ export function MalListe({
     e.preventDefault();
     if (!valgtId || !redigerNavn.trim()) return;
     setMalFeil(null);
+    const opprinneligMal = (alleMaler as MalRad[] | undefined)?.find((m) => m.id === valgtId);
     oppdaterMutation.mutate({
       id: valgtId,
       name: redigerNavn.trim(),
       prefix: redigerPrefiks.trim() || undefined,
       description: redigerBeskrivelse.trim() || undefined,
-      category: redigerCategory,
+      // HM1 tillegg B: seedet HMS-mal beholder category oppgave/sjekkliste (mal-liste-filter.ts).
+      category: opprinneligMal
+        ? lagretMalKategori(redigerCategory, opprinneligMal, redigerSubdomain)
+        : redigerCategory,
       domain: redigerErHms ? "hms" : "bygg",
       subdomain: redigerErHms ? redigerSubdomain : redigerErKontrakt ? "kontrakt" : null,
       hmsSynlighet: redigerErHms ? redigerHmsSynlighet : null,
@@ -395,8 +401,9 @@ export function MalListe({
     const subjects = Array.isArray(mal.subjects) ? (mal.subjects as string[]) : [];
     setRedigerSubjects(subjects);
     setRedigerEnableChangeLog(mal.enableChangeLog);
-    // domain="hms" er den robuste HMS-markøren (bevares av migreringen). Tvinger
-    // type til "hms" selv for evt. gammel data der category ikke er migrert ennå.
+    // domain="hms" er den robuste HMS-markøren. Dialogen viser typen «HMS» for alle
+    // domain hms-maler; lagret category avgjøres av `lagretMalKategori` (HM1 tillegg B),
+    // så en seedet HMS-mal beholder category oppgave/sjekkliste.
     const erHmsNa = mal.domain === "hms";
     setRedigerCategory(erHmsNa ? "hms" : (mal.category as MalKategori));
     setRedigerOpprinneligErHms(erHmsNa);
@@ -444,9 +451,10 @@ export function MalListe({
     );
   }
 
-  // Filtrer på kategori og søk
+  // Filtrer på liste og søk. HM1: HMS-maler = domain "hms" uansett kategori; oppgave-/
+  // sjekklistelista skjuler dem (mal-liste-filter.ts).
   const maler = (alleMaler as MalRad[] | undefined)
-    ?.filter((m) => m.category === kategori)
+    ?.filter((m) => hørerTilMalListe(m, kategori))
     ?.filter((m) => {
       if (!sok.trim()) return true;
       const s = sok.toLowerCase();
@@ -869,6 +877,9 @@ export function MalListe({
                     </label>
                   ))}
                 </div>
+                <p className="text-xs text-gray-500">
+                  {t(hmsFormForklaringNokkel(subdomain))}
+                </p>
               </div>
               <div className="flex flex-col gap-1">
                 <label className="text-sm font-medium text-gray-700">

@@ -3,6 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { prisma } from "@sitedoc/db";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { sikreKortId, vareKortIdForSkriving } from "../services/timer/kortId";
+import { lesVarerForSpor, skrivSlettespor } from "../services/timer/slettespor";
 import type { Context } from "../trpc/context";
 import {
   verifiserProsjektmedlem,
@@ -85,10 +86,15 @@ export async function gyldigVareRad(
 }
 
 /**
- * Hent prosjektets eier-firma + sjekk at modulen er aktiv på prosjekt-nivå.
- * Returnerer organizationId for videre validering.
+ * Prosjektets eier-firma (varelager-eieren). Kaster når eier-firma mangler.
+ *
+ * O11 (§ 8.22, Kenneth 2026-11-22): brukes alene for en vare som alt står på prosjektet —
+ * f.eks. fulgt med en jobb som ble flyttet til et prosjekt uten varelager. Den kan leses,
+ * endres og slettes der. Bare modulsjekken faller bort; prosjekttilgangen, sedelvakten og
+ * tilgang-policyen sjekkes som før. Ny vare og flytting TIL et prosjekt bruker
+ * `krevVarelagerForProsjekt`.
  */
-async function krevVarelagerForProsjekt(projectId: string): Promise<string> {
+async function eierFirmaForProsjekt(projectId: string): Promise<string> {
   const prosjekt = await prisma.project.findUnique({
     where: { id: projectId },
     select: { primaryOrganizationId: true },
@@ -99,8 +105,17 @@ async function krevVarelagerForProsjekt(projectId: string): Promise<string> {
       message: "Prosjektet har ikke et eier-firma satt",
     });
   }
+  return prosjekt.primaryOrganizationId;
+}
+
+/**
+ * Hent prosjektets eier-firma + sjekk at modulen er aktiv på prosjekt-nivå.
+ * Returnerer organizationId for videre validering.
+ */
+async function krevVarelagerForProsjekt(projectId: string): Promise<string> {
+  const organizationId = await eierFirmaForProsjekt(projectId);
   try {
-    await krevVarelagerAktivert(prosjekt.primaryOrganizationId, projectId);
+    await krevVarelagerAktivert(organizationId, projectId);
   } catch (e) {
     if (e instanceof VarelagerModulIkkeAktivertError) {
       throw new TRPCError({
@@ -110,7 +125,7 @@ async function krevVarelagerForProsjekt(projectId: string): Promise<string> {
     }
     throw e;
   }
-  return prosjekt.primaryOrganizationId;
+  return organizationId;
 }
 
 /**
@@ -304,6 +319,9 @@ export const vareforbrukRouter = router({
           dagsseddelId: true,
           // Radform (2026-11-12): dagsoversikten viser varen under sin timerrad.
           sheetTimerId: true,
+          // w3a: dagssiden legger varen i jobbens kort (kort-id) og sorterer som de andre linjene.
+          kortId: true,
+          createdAt: true,
           antall: true,
           // Punkt 7 (2026-11-13): vare-arket skjuler «Endre mengde»/«Slett» for attesterte
           // linjer. Bare flagget sendes — snapshotet (pris o.l.) blir på serveren.
@@ -392,7 +410,8 @@ export const vareforbrukRouter = router({
       if (!rad) throw new TRPCError({ code: "NOT_FOUND" });
 
       await verifiserProsjektmedlem(ctx.userId, rad.projectId);
-      await krevVarelagerForProsjekt(rad.projectId);
+      // O11: eksisterende vare leses også på prosjekt uten varelager.
+      await eierFirmaForProsjekt(rad.projectId);
 
       const bruker = await prisma.user.findUnique({
         where: { id: rad.registrertAvUserId },
@@ -631,7 +650,8 @@ export const vareforbrukRouter = router({
       if (input.byggeplassId) {
         await verifiserByggeplassIProsjekt(ctx.prisma, input.byggeplassId, maalProsjekt);
       }
-      const organizationId = await krevVarelagerForProsjekt(rad.projectId);
+      // O11: linjens nåværende prosjekt kan mangle varelager (jobben flyttet dit).
+      const organizationId = await eierFirmaForProsjekt(rad.projectId);
       await krevTilgangPolicy(ctx.userId, organizationId, rad.projectId);
       if (byttProsjekt) {
         await verifiserProsjekterTilhørerFirma([maalProsjekt], organizationId);
@@ -761,10 +781,33 @@ export const vareforbrukRouter = router({
 
       await verifiserProsjektmedlem(ctx.userId, rad.projectId);
       await krevVareforbrukLinjeAapen(ctx.prismaTimer, ctx.userId, rad.dagsseddelId, rad.projectId);
-      const organizationId = await krevVarelagerForProsjekt(rad.projectId);
+      // O11: eksisterende vare slettes også på prosjekt uten varelager.
+      const organizationId = await eierFirmaForProsjekt(rad.projectId);
       await krevTilgangPolicy(ctx.userId, organizationId, rad.projectId);
 
-      await ctx.prismaVarelager.vareforbruk.delete({ where: { id: input.id } });
+      // SL1 (plan § 4.18, S2 ja): på en returnert dag lagres linja med innholdet i
+      // `sheet_rad_historikk` (radtype `vare`). Varene og historikken er to klienter mot samme
+      // database, så sporet og slettingen går i ÉN transaksjon på timer-klienten, med rå SQL mot
+      // varelager-skjemaet (mønsteret fra `slettKortMedAlt`). Det finnes ikke noe «andre steg»
+      // som kan feile alene: enten står både linja og sporet urørt, eller linja er borte og
+      // sporet skrevet. Andre dager slettes som før.
+      const retur =
+        rad.dagsseddelId !== null &&
+        (await ctx.prismaTimer.dailySheet.findUnique({
+          where: { id: rad.dagsseddelId },
+          select: { status: true },
+        }))?.status === "returned";
+      if (retur) {
+        const aktor = ctx.userId;
+        await ctx.prismaTimer.$transaction(async (tx) => {
+          const [vare] = await lesVarerForSpor(tx, [input.id]);
+          if (!vare) throw new TRPCError({ code: "NOT_FOUND" });
+          await skrivSlettespor(tx, [{ radType: "vare", rad: vare }], aktor);
+          await tx.$executeRaw`DELETE FROM "varelager"."vareforbruk" WHERE "id" = ${input.id}`;
+        });
+      } else {
+        await ctx.prismaVarelager.vareforbruk.delete({ where: { id: input.id } });
+      }
 
       // Activity-log (best-effort)
       try {

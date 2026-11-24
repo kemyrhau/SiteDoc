@@ -27,6 +27,8 @@ type AttesteringRad = {
   id: string;
   dato: Date | string;
   status: string;
+  // w7 (B15): sedelen er attestantens egen og firmaet sier Nei — serveren avviser handlingene.
+  egneTimer?: boolean;
   totaltimer: number;
   antallRader: number;
   aktivitet: { id: string; navn: string; kode: string | null } | null;
@@ -207,6 +209,12 @@ function SedelKort({
           {" · "}
           {rad.antallRader} rader
         </Text>
+        {/* w7 (B15): egne timer attesteres av en annen — samme merke som på PC. */}
+        {rad.egneTimer && (
+          <View className="mt-1.5 self-start rounded bg-gray-100 px-1.5 py-0.5">
+            <Text className="text-[11px] font-medium text-gray-700">{t("timer.attestering.egneTimer.merke")}</Text>
+          </View>
+        )}
         {/* B10: dagen er i brudd — samme linje som web (attestering sperret, F9 = A). */}
         {rad.fravaerNormtakBrudd && (
           <Text className="mt-1 text-xs text-amber-700" style={{ fontVariant: ["tabular-nums"] }}>

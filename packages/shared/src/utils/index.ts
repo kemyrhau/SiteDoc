@@ -95,13 +95,19 @@ export {
   klassifiserManuellReise,
   tilManuellReiseSpor,
   manuellReiseForklaringTekst,
+  manuellReiseTerskelTekst,
   manuellReiseManglerArt,
   løsReiseKort,
   løsOverforingKort,
   medOverforingPeriodeId,
+  kontorReiseRute,
   finnDagsramme,
   klokkeTilMin,
   minTilKlokke,
+  delVedMidnatt,
+  midnattPartnerDato,
+  lesMidnattDel,
+  finnReiseSomEnderPaaKontor,
 } from "./reiseManuell";
 export { sekvenserReisekjede } from "./reiseKjede";
 export type { KjedeKort } from "./reiseKjede";
@@ -111,13 +117,19 @@ export type {
   ManuellReiseKlassifisering,
   ManuellReiseSpor,
   ReiseKortRetning,
+  ReiseKortNaar,
   ReiseKortSperre,
   OverforingKortInput,
   ReiseKortInput,
   ReiseKortResultat,
+  ReiseKortUtenKjoretid,
+  MidnattVei,
+  MidnattDel,
+  MidnattDeling,
+  MidnattMerke,
 } from "./reiseManuell";
-export { løsOppmote, finnFastOppmotested, trengerOppmoteValg, tilIsoDato, finnPeriodeKonflikt, finnOverforinger, byggOverforingOppslag, leggTilDager, periodeDatoFraOverforing, planleggOverforing, erApenOverforing, kontorOverforingOppsett, kontorOverforingRetning } from "./oppmote";
-export type { OppmotePeriodeType, OppmotePeriodeInput, OppmoteResultat, Overforing, OverforingSted, DagsforslagOverforingOppslag, DagsforslagOverforingCelle, OverforingPeriode, OverforingPlan, KontorOverforingOppsett } from "./oppmote";
+export { løsOppmote, finnFastOppmotested, trengerOppmoteValg, tilIsoDato, finnPeriodeKonflikt, finnOverforinger, byggOverforingOppslag, leggTilDager, periodeDatoFraOverforing, planleggOverforing, erApenOverforing, erEgenOverforing, finnEgenOverforing, overforingKonflikt, kontorOverforingOppsett, kontorOverforingRetning, gjeldendeMidlertidig, gjelderFraForslag, sisteDagForslag, avsluttSisteDagForslag, planleggOppmoteBytte, planleggAvslutt } from "./oppmote";
+export type { OppmotePeriodeType, OppmotePeriodeInput, OppmoteResultat, Overforing, OverforingSted, DagsforslagOverforingOppslag, DagsforslagOverforingCelle, OverforingPeriode, OverforingPlan, KontorOverforingOppsett, OppmoteByttValg, OppmoteByttKall, OppmoteBytte } from "./oppmote";
 export { utmTilWgs84, ntmTilWgs84, konverterTilWgs84, detekterKoordinatSystem, EPSG_TIL_SYSTEM } from "./koordinatKonvertering";
 export type { KoordinatSystem } from "./koordinatKonvertering";
 export { wgs84TilUtm, wgs84TilNtm, wgs84TilProjeksjon, gpsTil3D, tredjeTilGps } from "./koordinatBro";
@@ -161,11 +173,22 @@ export type { SignaturVerdi } from "./signaturVerdi";
 export {
   EPSILON_MASKIN_TIMER,
   maskinBucketNokkel,
-  overstigerMaskinTak,
-  maskinBucketKapasitet,
-  beregnMaskinBrudd,
+  maskinJobbNokkel,
+  jobbArbeidSum,
+  beregnJobbMaskinBrudd,
+  nyeEllerOkteBrudd,
+  maskinHoyst,
+  maskinHoystPerRad,
+  maskinForslagFraJobb,
+  overMaskinHoyst,
+  doegnOverArbeid,
 } from "./maskinKapasitet";
-export type { MaskinKapasitetRad, MaskinBrudd } from "./maskinKapasitet";
+export type {
+  JobbArbeidRad,
+  JobbMaskinRad,
+  MaskinJobbBrudd,
+  DoegnOverArbeid,
+} from "./maskinKapasitet";
 export {
   byggDetaljRader,
   kolonnerMedInnhold,
@@ -182,7 +205,11 @@ export {
   TIMER_TABELL_KOL,
   TIMER_TABELL_STANDARD,
   TIMER_TABELL_KOL_BREDDE,
+  TIMER_TABELL_TILLAGT,
+  erOvertidsnivaa,
+  sumOvertidTimer,
   timerTabellVerdi,
+  vareOgMengdeTekst,
   antallUnderlinjer,
 } from "./timerDetaljRader";
 export type {
@@ -215,6 +242,11 @@ export {
 } from "./lonnsregel";
 export type { ArbeidstidSegment, DognRad, OvertidLonnsartKandidat } from "./lonnsregel";
 export { foreslaOvertidSplitt } from "./overtidForslag";
+export { regnJobbTid, validerJobbTid, erGyldigHhmm } from "./jobbTid";
+export type { JobbTidLinje, JobbTidFeil, JobbTidResultat } from "./jobbTid";
+export { tolkKlokkeslett } from "./klokkeslett";
+export { foreslaMaskinDeling, erGyldigMaskinDeling } from "./maskinDeling";
+export type { DelbarMaskin, MaskinDelingForslag } from "./maskinDeling";
 export type {
   OvertidForslagRad,
   OvertidForslagDel,
@@ -241,6 +273,7 @@ export {
   dagManglerPause,
   forsokInnsending,
   svarPaaPauseSporsmaal,
+  fraFraTilOgAntall,
 } from "./pauseBeregning";
 export {
   tilErEtterFra,
@@ -299,6 +332,11 @@ export {
   beregnUkeAvvik,
   avvikRetning,
   ukeAvvikRader,
+  beregnUkeregnestykke,
+  harUkevarsel,
+  ukevarselRader,
+  lesUkeregnestykkeFraSnapshot,
+  lesFrossetUkeFraSnapshot,
 } from "./overtidsgrunnlag";
 export type {
   OvertidRad,
@@ -306,6 +344,10 @@ export type {
   UkeSedelInput,
   UkeAvvik,
   UkeAvvikRadInput,
+  Ukeregnestykke,
+  FrossetUkeregnestykke,
+  UkeregnestykkeDag,
+  UkeregnestykkeDagInput,
 } from "./overtidsgrunnlag";
 // Kort-id-spec § 12 (ordre d2a): kort-gruppering, maskin → timerad (R24), prosjektnummer (E4).
 export { grupperPaaKort, byggKortRader } from "./kortGruppering";
@@ -324,8 +366,8 @@ export type {
   KortLinjeVare,
   KortRadLinje,
 } from "./kortGruppering";
-export { maskinKreverTimerad, erGyldigTimeradKobling, finnMaskinerUtenTimerad } from "./maskinKobling";
-export type { KoblingTimerRad, KoblingMaskinRad } from "./maskinKobling";
+export { maskinKreverTimerad, erGyldigTimeradKobling, finnMaskinerUtenTimerad, velgTimeradForMaskin } from "./maskinKobling";
+export type { KoblingTimerRad, KoblingMaskinRad, KandidatTimerRad } from "./maskinKobling";
 export { visProsjektnummer } from "./prosjektnummer";
 export type { ProsjektnummerKilde } from "./prosjektnummer";
 export {
@@ -620,11 +662,17 @@ export {
   utledKortByggeplass,
   type KortByggeplassArv,
   kortStatus,
+  jobbManglerBeskrivelse,
+  radGirJobbBeskrivelse,
+  jobberSomManglerBeskrivelse,
+  type BeskrivelseRad,
   trafikklysSone,
   sumlinjeMotNorm,
+  sumlinjeDag,
   visVareforbrukKnapp,
   kortDagsseddelId,
   kortVareforbrukInput,
+  vareTimerader,
   slaaSammenVarelinjer,
   type KortVareforbrukInput,
   type TimerModus,
@@ -687,6 +735,7 @@ export {
   kortIdNokkel,
   effektivKortByggeplass,
   utledKortId,
+  utledReiseKortId,
   losKortId,
   kortPaaSedelFraRader,
   validerKortInvariant,
@@ -695,6 +744,9 @@ export {
   type KortInvariantRad,
   type KortInvariantBrudd,
 } from "./kortId";
+// w12 (B32 B, B34 B), w15c (B43 B, B44, B48 A): hvilket kort en reiserad står i — én regel for server, web og SQL.
+export { velgReiseKort, jobberFraArbeidsrader, jobbRekkefolge, egetReiseKort, arbeidsreiseKortId } from "./reiseKort";
+export type { ReiseKortJobb, ReiseKortReise, ReiseKortArbeidsrad } from "./reiseKort";
 
 // Fravær uten prosjekt (kort-id-spec § 11.2).
 export {
@@ -704,3 +756,18 @@ export {
   type UtenProsjektRad,
   type UtenProsjektResultat,
 } from "./utenProsjekt";
+export { erArbeidstidReise } from "./arbeidstidReise";
+export {
+  aktiveTimerRader,
+  beskrivOverlapp,
+  reiseUtenforArbeid,
+  linjeKanFlyttes,
+  type OverlappRad,
+  type OverlappSted,
+} from "./returSedel";
+// HM1 tillegg A: «Meld HMS» viser domain hms-maler (web + mobil).
+export { erMeldbarHmsMal, type MeldHmsSubdomain } from "./meldHmsMal";
+// HM2: undertype → dokumentform, delt av server (mal.ts) og malbyggeren.
+export { SUBDOMAIN_FORM, formForSubdomain, type MalForm, type FormSubdomain } from "./subdomainForm";
+// A3 (web-timeforing-plan § 4.17 del D, B55): «Reise under terskel» i attesteringen.
+export { reiseUnderTerskel, type ReiseUnderTerskel, type ReiseUnderTerskelRad } from "./reiseUnderTerskel";

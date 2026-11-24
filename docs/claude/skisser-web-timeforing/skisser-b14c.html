@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="nb">
+<head>
+<meta charset="utf-8">
+<title>Skisser — B14c overtid og reisetid tydelig i attesteringen</title>
+<!--
+  FORSLAG (Fabel 2026-11-22), ikke bygget. Kilde for b14c-*.png i denne mappa.
+  Hjemmel: vedtak-timer-web.md § Dagsvisningen i attesteringen punkt 2 og 3 (develop aadcd26c).
+  Ett bilde:        skisser-b14c.html?steg=idag | a | b      (1 440 css-px, 2x)
+  Sammenlikningen:  skisser-b14c.html?steg=alle              (1 440 css-px, 1x, de tre under hverandre)
+  Tegnet med Chrome uten vindu: høyden og målingene skrives i sidetittelen (--dump-dom),
+  så --screenshot med --window-size=1440,<høyde>.
+
+  De to dagene er Kenneths skjermbilde fra test 2026-11-22 (uke 47, fre. 20.11. og lør. 21.11., to jobber
+  hver dag). Tidene og timetallene er hans. Prosjektnavn, byggeplass, hele pr.nr., maskin- og varenavn
+  står ikke i skjermbildet (de er kuttet eller vises ikke) og er EKSEMPLER her.
+
+  «I dag» er tegnet etter koden på develop aadcd26c, ikke et skjermbilde, og ved 1 440 (Kenneths skjerm
+  er bredere, så kolonnene med vekt er bredere der):
+    kolonnebreddene  ATTESTERING_BREDDE, VENSTRE 36, HOYRE 176 (AttesteringTabell.tsx) — 36 + 956 + 176
+    dags-/jobbrad    én celle pr. kolonne, «min-w-0 truncate px-1.5 py-1.5» (TimerRadTabell.tsx, kind «sum»)
+    Timer i dagsrad  formaterNorsk(dagSum.timer) — alle timerader, reise medregnet
+    Timer i jobbrad  jobbTimer: sum.timer − sum.reise; reisen som grå tekst i Betegnelse (jobbEtikett)
+    normmerket       normMerke: totaltimer − dagsnorm, teksten «+4 t» (nb.json «{{avvik}} t»)
+    reiselinja       Betegnelse = <span inline-flex items-center gap-1>navn + ReiseRadMerke</span>;
+                     ReiseRadMerke er en <div mt-1> med merke og rute som flex-wrap — tegnet med samme css her
+    avviksmerket     AvvikMerker: flex-wrap, merket «max-w-full … px-1 py-px text-[11px] leading-4»
+  Skrift som i appen: Tailwinds standard (system-ui), text-sm 14 px.
+-->
+<style>
+  :root { --kant:#e5e7eb; --tekst:#111827; --demp:#6b7280; --primar:#1d4ed8; --gronn:#15803d; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:#e5e7eb; color:var(--tekst); font:14px/20px ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; -webkit-font-smoothing:antialiased; width:1440px; }
+  .steg { display:none; width:1440px; padding:18px 0 22px; }
+  .steg.vis, body.alle .steg { display:block; }
+  body.alle .steg + .steg { border-top:6px solid #9ca3af; }
+
+  .hode { display:flex; align-items:center; gap:12px; margin:0 20px 12px; }
+  .nr { background:#1e40af; color:#fff; font-weight:800; font-size:14px; letter-spacing:.04em; padding:5px 12px; border-radius:999px; white-space:nowrap; }
+  .nr.graa { background:#4b5563; } .nr.anb { background:#047857; }
+  .tittel { font-size:21px; font-weight:700; }
+  .teller { margin-left:auto; background:#fff; border:1px solid #d1d5db; color:#374151; font-weight:700; font-size:13.5px; padding:4px 12px; border-radius:999px; white-space:nowrap; }
+
+  /* skjermen: 1 440 bred. Meny og marg 270, tabellen 1 170 (målt i § 9.3 og § 9.4 i planen). */
+  .skjerm { display:flex; width:1440px; background:#f9fafb; border-top:1px solid #d1d5db; border-bottom:1px solid #d1d5db; }
+  .meny { width:270px; flex:none; background:#f3f4f6; border-right:1px solid #e5e7eb; color:#9ca3af; font-size:12px; padding:14px 16px; }
+  .flate { width:1170px; flex:none; padding:12px 0 14px; }
+  .verktoy { display:flex; align-items:center; gap:10px; margin:0 0 10px; font-size:13px; }
+  .verktoy .uke { border:1px solid var(--kant); background:#fff; border-radius:8px; padding:4px 10px; font-weight:600; }
+  .verktoy .boks { display:inline-flex; align-items:center; gap:6px; color:#374151; }
+  .verktoy .boks i { display:inline-block; width:14px; height:14px; border:1.5px solid #9ca3af; border-radius:3px; background:#fff; }
+  .verktoy .hoyre { margin-left:auto; border:1px solid var(--kant); background:#fff; border-radius:8px; padding:4px 10px; font-weight:600; }
+
+  .t { width:1170px; border:1px solid var(--kant); border-radius:8px; background:#fff; overflow:hidden; position:relative; }
+  .r { display:flex; align-items:stretch; }
+  .v { width:36px; flex:none; display:flex; align-items:flex-start; gap:4px; padding:6px 4px; }
+  .m { width:956px; flex:none; overflow:hidden; }
+  .g { display:grid; }
+  /* cella som i koden: min-w-0 truncate px-1.5 py-1.5 */
+  .g > div { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding:6px; }
+  .g > div.n { text-align:right; font-variant-numeric:tabular-nums; }
+  .h { width:176px; flex:none; display:flex; align-items:flex-start; justify-content:flex-end; gap:4px; padding:4px 8px; }
+
+  .r.hd { background:#f9fafb; border-bottom:1px solid var(--kant); font-size:12px; line-height:15px; font-weight:600; color:var(--demp); }
+  .r.hd .g > div { white-space:normal; padding:8px 6px 8px 14px; }
+  .r.hd .g > div.n { padding:8px 6px 8px 4px; }
+  .r.hd .g { align-items:center; }
+
+  .r.dag { background:#eff6ff; border-top:2px solid #1d4ed8; border-bottom:1px solid var(--kant); font-weight:600; }
+  .r.dag .v { border-left:4px solid #1d4ed8; }
+  .r.jobb { background:#fff; border-top:1px solid #d1d5db; border-bottom:1px solid var(--kant); font-weight:600; color:#1f2937; }
+  .r.li { background:#fff; border-bottom:1px solid var(--kant); color:#1f2937; }
+  .r.jobb .v, .r.li .v { border-left:4px solid #60a5fa; }
+  .r.k2 .v { border-left-color:#f59e0b; }
+  .r.dag .h, .r.jobb .h, .r.li .h { border-right:1px solid #d1d5db; }
+  .r.slutt { border-bottom:1px solid #d1d5db; }
+  .luft { height:12px; background:#fff; }
+  .et { font-weight:400; color:var(--demp); }
+
+  .cb { display:inline-block; width:13px; height:13px; border:1.5px solid #9ca3af; border-radius:3px; background:#fff; flex:none; margin-top:3px; }
+  .pil { color:#1d4ed8; font-size:16px; line-height:20px; }
+  .kn { display:inline-flex; flex:none; width:28px; height:28px; border:1px solid var(--kant); border-radius:4px; background:#fff; align-items:center; justify-content:center; font-size:13px; color:#4b5563; font-weight:400; }
+  .kn.gr { color:var(--gronn); font-weight:800; }
+  .att { display:inline-flex; align-items:center; gap:4px; height:32px; background:#1e40af; color:#fff; font-weight:500; font-size:14px; border-radius:6px; padding:0 12px; white-space:nowrap; }
+
+  /* avviksmerket som i koden (AvvikMerker + avvikCelle) */
+  .avc { display:inline-flex; align-items:center; gap:4px; white-space:nowrap; font-weight:400; }
+  .amw { display:flex; flex-wrap:wrap; align-items:flex-start; gap:4px; white-space:normal; }
+  .am { max-width:100%; border-radius:8px; border:1px solid #fcd34d; background:#fffbeb; padding:1px 4px; font-size:11px; font-weight:500; line-height:16px; color:#92400e; }
+
+  /* reiselinja i dag: navn + ReiseRadMerke i samme inline-flex (koden) */
+  .rf { display:inline-flex; align-items:center; gap:4px; }
+  .rm { margin-top:4px; }
+  .rm1 { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+  .rmp { display:inline-flex; align-items:center; gap:4px; border-radius:999px; background:#e0f2fe; padding:2px 8px; font-size:11px; font-weight:500; color:#075985; }
+  .rmp i { display:inline-block; width:12px; height:12px; border:1.5px solid #075985; border-radius:3px; }
+  .rmt { font-size:12px; line-height:16px; color:#4b5563; }
+
+  /* FORSLAGET */
+  /* feltet over Pr.nr. + Underprosjekt + Betegnelse + Fra–til (322 px) — plassering 1 fra B14b */
+  .g > div.felt { white-space:normal; padding:5px 6px; }
+  .felt .l1 { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .felt .l2 { display:flex; align-items:center; gap:6px; font-weight:400; margin-top:1px; }
+  .felt .l2t { flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:13px; line-height:18px; color:#374151; }
+  .felt .fl { display:flex; align-items:center; gap:6px; }
+  .felt .fl .et { flex:1 1 auto; }
+  .pl { display:inline-flex; gap:5px; flex:none; margin-left:auto; }
+  /* merkene: samme form og farge i dagsrad, jobbrad og på linja */
+  .pm { display:inline-block; font-size:12px; line-height:16px; font-weight:600; padding:1px 8px; border-radius:999px; border:1px solid; white-space:nowrap; font-variant-numeric:tabular-nums; }
+  .pm.re { background:#e0f2fe; border-color:#7dd3fc; color:#075985; }
+  .pm.ot { background:#f3e8ff; border-color:#d8b4fe; color:#6b21a8; }
+  .tall-re { color:#075985; font-weight:600; } .tall-ot { color:#6b21a8; font-weight:600; }
+  /* tallet i Timer på dags- og jobbraden: uten luft til venstre, så «11,50» står helt */
+  .g > div.tett { padding-left:0; overflow:visible; text-overflow:clip; }
+  /* linjas navn over de tomme cellene Pr.nr. + Underprosjekt + Betegnelse (228 px) */
+  .g > div.navn { padding-left:18px; }
+  /* normmerket i dagsraden over Antall + Beløp + Avvik (176 px), høyrestilt */
+  .g > div.avbred { text-align:right; }
+  .g > div.avbred .avc, .g > div.avbred .amw { justify-content:flex-end; }
+  .ny { outline:2px solid #f59e0b; outline-offset:-2px; border-radius:3px; }
+
+  /* VARIANT B: to nye kolonner — tabellen blir bredere enn skjermen */
+  .rull { height:12px; background:#f3f4f6; border-top:1px solid var(--kant); position:relative; }
+  .rull i { position:absolute; left:36px; top:3px; height:6px; background:#9ca3af; border-radius:3px; }
+  .skygge { box-shadow:-6px 0 6px -4px rgba(0,0,0,.18); }
+
+  .tekst { margin:12px 20px 0 290px; background:#fff; border:1px solid var(--kant); border-radius:10px; padding:10px 16px 12px; font-size:15px; line-height:22px; width:1130px; }
+  .tekst b { font-weight:700; }
+  .tekst .v2 { color:#374151; }
+  .tekst .rod { color:#b91c1c; font-weight:700; } .tekst .gro { color:#047857; font-weight:700; }
+
+  /* målefelt utenfor bildet */
+  #maal { position:absolute; left:-5000px; top:0; width:2000px; }
+</style>
+</head>
+<body>
+
+<div class="steg" id="idag"></div>
+<div class="steg" id="a"></div>
+<div class="steg" id="b"></div>
+<div id="maal"></div>
+
+<script>
+// Kolonnebredder i px. Kilde: ATTESTERING_BREDDE i AttesteringTabell.tsx (develop aadcd26c).
+const B0 = { dato:92, ansatt:104, prnr:66, uprosj:88, beteg:74, fratil:94, timer:52, maskin:76, mt:66, vare:68, antall:54, belop:54, avvik:68 };
+// Variant B: to nye tallkolonner etter Timer, 56 px hver. Tegnet, ikke målt i appen.
+const BB = { ...B0, reise:56, overtid:56 };
+const KOL0 = ["dato","ansatt","prnr","uprosj","beteg","fratil","timer","maskin","mt","vare","antall","belop","avvik"];
+const KOLB = ["dato","ansatt","prnr","uprosj","beteg","fratil","timer","reise","overtid","maskin","mt","vare","antall","belop","avvik"];
+const HODE = { dato:"Dato", ansatt:"Ansatt", prnr:"Pr.nr.", uprosj:"Under­prosjekt", beteg:"Beteg­nelse", fratil:"Fra–til", timer:"Timer", reise:"Reise", overtid:"Overtid", maskin:"Maskin", mt:"Maskin­timer", vare:"Vare og mengde", antall:"Antall", belop:"Beløp", avvik:"Avvik" };
+const NUM = new Set(["timer","reise","overtid","mt","antall","belop"]);
+
+// Kenneths to dager (test, uke 47). Tider og timetall fra skjermbildet; navn er eksempler.
+const P1 = { prnr:"SD-2026-014", prosjekt:"Sommerfeldtsgate 65 – rehabilitering", byggeplass:"Hovedbygg" };
+const P2 = { prnr:"SD-2026-021", prosjekt:"Røstbakken barnehage", byggeplass:"Uteområde" };
+const REISE = "Reise/transport til prosjekter";   // lønnsartens navn i seed (apps/api/src/services/seed/index.ts)
+const DAGER = [
+  { dato:"fre. 20.11.", ansatt:"Kenneth Myrhaug", timer:"11,50", mt:"8,50", norm:"+4 t", normNy:"4 t over norm", reise:"3,00", overtid:"",
+    kort:[
+      { ...P1, timer:"4,50", mt:"4,50", reise:"", overtid:"", merke:"Uten bevis",
+        linjer:[ { beteg:"Timelønn", fratil:"07:00–12:00", timer:"4,50", mask:[["Volvo EC220E","4,50","Fugesand · 2 t"]], merke:"Uten bevis" } ] },
+      { ...P2, timer:"4,00", mt:"4,00", reise:"3,00", overtid:"", merke:"Uten bevis",
+        linjer:[ { beteg:"Timelønn", fratil:"15:00–19:00", timer:"4,00", mask:[["Volvo EC220E","4,00",""]], merke:"Uten bevis" },
+                 { beteg:REISE, fratil:"12:00–15:00", timer:"3,00", type:"re" } ] } ] },
+  { dato:"lør. 21.11.", ansatt:"Kenneth Myrhaug", timer:"10,00", mt:"6,00", norm:"+2,5 t", normNy:"2,5 t over norm", reise:"2,00", overtid:"0,50",
+    kort:[
+      { ...P1, timer:"5,00", mt:"5,00", reise:"1,00", overtid:"", merke:"Uten bevis",
+        linjer:[ { beteg:"Timelønn", fratil:"07:00–12:30", timer:"5,00", mask:[["Volvo EC220E","2,00","Bærelag · 12 t"],["Volvo EC220E","3,00",""]], merke:"Uten bevis" },
+                 { beteg:REISE, fratil:"06:00–07:00", timer:"1,00", type:"re" } ] },
+      { ...P2, timer:"3,00", mt:"1,00", reise:"1,00", overtid:"0,50", merke:"Uten bevis",
+        linjer:[ { beteg:"Timelønn", fratil:"12:30–15:00", timer:"2,50", mask:[["Volvo EC220E","1,00","Betong · 3 m3"]], merke:"Uten bevis" },
+                 { beteg:"Overtid 50%", fratil:"15:00–15:30", timer:"0,50", type:"ot" },
+                 { beteg:REISE, fratil:"15:30–16:30", timer:"1,00", type:"re" } ] } ] },
+];
+
+const esc = (s) => String(s ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;");
+const DAG_KN  = `<span class="att">✓ Attester</span><span class="kn">↩</span><span class="kn">↗</span>`;
+const JOBB_KN = `<span class="kn gr">✓</span><span class="kn">↩</span>`;
+const merke = (tekst) => tekst ? `<span class="amw"><span class="am">${esc(tekst)}</span></span>` : "";
+const avc = (tekst) => tekst ? `<span class="avc">${merke(tekst)}</span>` : "";
+const pm = (kl, tekst) => `<span class="pm ${kl}">${esc(tekst)}</span>`;
+const piller = (x) => [x.overtid ? pm("ot", `Overtid ${x.overtid} t`) : "", x.reise ? pm("re", `Reise ${x.reise} t`) : ""].join("");
+// reisemerket slik koden tegner det i Betegnelse-cella (ReiseRadMerke): merke + rute, samme css
+const reiseIDag = (navn) => `<span class="rf">${esc(navn)}<div class="rm"><div class="rm1"><span class="rmp"><i></i>Reise ut</span><span class="rmt">Kontoret → ${esc(P2.byggeplass)} · 42 km · 55 min · Matrise</span></div></div></span>`;
+
+// En rad: celler = { kol: html | {html, span, kl, rad} }. Kolonner dekket av et felt over flere, settes til null.
+function rad(kl, v, celler, h, kol, b, underrader = 1) {
+  const bredde = kol.reduce((s, k) => s + b[k], 0);
+  let g = "";
+  for (let u = 0; u < underrader; u++) {
+    kol.forEach((k, i) => {
+      let c = celler[k];
+      if (Array.isArray(c)) c = c[u] ?? "";
+      else if (u > 0) c = "";
+      if (c === null) return;
+      const o = c && typeof c === "object" ? c : { html: c };
+      const span = o.span ?? 1;
+      g += `<div class="${NUM.has(k) ? "n " : ""}${o.kl ?? ""}" style="grid-column:${i + 1} / span ${span};grid-row:${u + 1}" data-kol="${k}">${o.html ?? ""}</div>`;
+    });
+  }
+  return `<div class="r ${kl}"><div class="v">${v}</div><div class="m"><div class="g" style="grid-template-columns:${kol.map((k) => b[k] + "px").join(" ")};width:${bredde}px">${g}</div></div><div class="h${bredde > 956 ? " skygge" : ""}">${h}</div></div>`;
+}
+
+function tabell(variant) {
+  const kol = variant === "b" ? KOLB : KOL0, b = variant === "b" ? BB : B0;
+  const bredde = kol.reduce((s, k) => s + b[k], 0);
+  const ny = variant !== "idag";
+  let ut = `<div class="r hd"><div class="v"><span class="cb" style="margin-top:0"></span></div><div class="m"><div class="g" style="grid-template-columns:${kol.map((k) => b[k] + "px").join(" ")};width:${bredde}px">${kol.map((k) => `<div class="${NUM.has(k) ? "n" : ""}">${HODE[k]}</div>`).join("")}</div></div><div class="h"></div></div>`;
+  DAGER.forEach((d, di) => {
+    // DAGSRADEN (to jobber: ingen jobb i raden)
+    const dag = { dato: esc(d.dato), ansatt: esc(d.ansatt), mt: d.mt };
+    if (!ny) {
+      Object.assign(dag, { beteg: `<span class="et">2 jobber</span>`, timer: { html: d.timer, kl: "maal-timer" }, avvik: avc(d.norm) });
+    } else {
+      Object.assign(dag, {
+        prnr: { span: 4, kl: "felt", html: `<span class="fl"><span class="et">2 jobber</span>${variant === "a" ? `<span class="pl">${piller(d)}</span>` : ""}</span>` },
+        uprosj: null, beteg: null, fratil: null,
+        timer: { html: d.timer, kl: "tett" },
+        antall: { span: 3, kl: "avbred", html: avc(d.normNy) }, belop: null, avvik: null,
+      });
+      if (variant === "b") Object.assign(dag, { reise: { html: d.reise, kl: "tall-re" }, overtid: { html: d.overtid, kl: "tall-ot" } });
+    }
+    ut += rad("dag", `<span class="cb"></span>`, dag, DAG_KN, kol, b);
+
+    d.kort.forEach((k, ki) => {
+      const farge = ki === 1 ? " k2" : "";
+      // JOBBRADEN
+      const jobb = { mt: k.mt, avvik: avc(k.merke) };
+      if (!ny) {
+        Object.assign(jobb, { prnr: esc(k.prnr), beteg: k.reise ? `<span class="et">reise ${k.reise} t</span>` : "", timer: k.timer });
+      } else {
+        const p = variant === "a" ? piller(k) : "";
+        Object.assign(jobb, {
+          prnr: { span: 4, kl: "felt", html: `<span class="l1">${esc(k.prosjekt)}</span><span class="l2"><span class="l2t">${esc(k.byggeplass)}</span>${p ? `<span class="pl">${p}</span>` : ""}</span>` },
+          uprosj: null, beteg: null, fratil: null,
+          timer: { html: k.timer, kl: "tett" },
+        });
+        if (variant === "b") Object.assign(jobb, { reise: { html: k.reise, kl: "tall-re" }, overtid: { html: k.overtid, kl: "tall-ot" } });
+      }
+      ut += rad("jobb" + farge, `<span class="cb"></span><span class="pil">▸</span>`, jobb, JOBB_KN, kol, b);
+
+      // LINJENE
+      k.linjer.forEach((l, li) => {
+        const m = l.mask ?? [];
+        const c = { fratil: l.fratil, maskin: m.map((x) => esc(x[0])), mt: m.map((x) => x[1]), vare: m.map((x) => esc(x[2])), avvik: merke(l.merke) };
+        if (!ny) {
+          c.beteg = l.type === "re" ? { html: reiseIDag(l.beteg), kl: "maal-reise" } : { html: esc(l.beteg), kl: l.type === "ot" ? "maal-ot" : "" };
+          c.timer = l.timer;
+        } else {
+          c.prnr = { span: 3, kl: "navn", html: l.type ? pm(l.type, l.beteg) : esc(l.beteg) };
+          c.uprosj = null; c.beteg = null;
+          c.timer = { html: l.timer, kl: l.type ? `tall-${l.type}` : "" };
+        }
+        const siste = li === k.linjer.length - 1 && ki === d.kort.length - 1;
+        ut += rad("li" + farge + (siste ? " slutt" : ""), "", c, "", kol, b, Math.max(1, m.length));
+      });
+    });
+    if (di < DAGER.length - 1) ut += `<div class="luft"></div>`;
+  });
+  if (variant === "b") ut += `<div class="rull"><i style="width:${Math.round(956 * 956 / bredde)}px"></i></div>`;
+  return ut;
+}
+
+const STEG = {
+  idag: { nr: "I DAG · TEGNET ETTER KODEN, 1 440 PX", kl: "graa", tittel: "Reise står i grått, overtid er en vanlig linje, og «+4 t» sier ikke hva det er",
+    tekst: `<b>Du ser:</b> dagens sum i Timer er kuttet («11,…») fordi tallet er bredere enn plassen. «+4 t» er dagens sum minus dagsnormen (11,50 − 7,50) — reisen er regnet med, og det er ikke overtid. Jobbens reise står som grå tekst («reise 3,00 t», kuttet ved 1 440). Overtidslinja ser ut som alle andre linjer («Overtid…»). Reiselinjas navn står lavere enn klokkeslettet og kuttes uten «…».<br>
+            <span class="v2"><b>Hvorfor:</b> Timer-kolonnen har 40 px til tallet. I reiselinjas navnecelle ligger et reisemerke (merke + rute) ved siden av navnet; det er høyere enn navnet og havner utenfor cella, så raden blir høy og navnet midtstilles nedover.</span>` },
+  a: { nr: "VARIANT A · ANBEFALT", kl: "anb", tittel: "Merker med timetall i dagsraden og jobbraden — samme merke på linja",
+    tekst: `<b>Du ser:</b> «Overtid 0,50 t» og «Reise 3,00 t» som fargede merker rett til venstre for Timer, i dagsraden (dagens sum) og i jobbraden (jobbens). Linja for overtid og reise har lønnsartens navn i samme merke og farge, og hele navnet står på linje med klokkeslettet. Dagens sum står hel («11,50»). «+4 t» heter «4 t over norm». Prosjektnavn, og under det byggeplass · underprosjekt, står som i plassering 1.<br>
+            <span class="v2"><b>Viker:</b> den grå teksten «reise 3,00 t» (merket erstatter den). Linjas navn står under prosjektnavnet, ikke under overskriften «Betegnelse». Byggeplass · underprosjekt kuttes tidligere når jobben har både reise og overtid. Lufta til venstre for tallet i Timer. <span class="gro">Kolonnene, bredden, summene og «Velg parameter» er urørt.</span></span>` },
+  b: { nr: "VARIANT B", kl: "", tittel: "Egne kolonner «Reise» og «Overtid» ved siden av Timer",
+    tekst: `<b>Du ser:</b> reise og overtid som tall i hver sin kolonne, i dagsraden og jobbraden. Tallene står under hverandre nedover uka. Linjene er som i variant A.<br>
+            <span class="v2"><b>Viker:</b> bredden — tabellen blir 1 282 px, 112 px for bred. <span class="rod">Avvik og det meste av Beløp havner utenfor skjermen</span> og må rulles fram. Skal alt få plass, må Antall og Beløp ut av standardutvalget. To nye kolonner i «Velg parameter» — den samme kolonnelista brukes av timerapporten. I den sorterte lista står de tomme, for der er det bare linjer.</span>` },
+};
+
+function tegn(id) {
+  const s = STEG[id];
+  document.getElementById(id).innerHTML =
+    `<div class="hode"><span class="nr ${s.kl}">${s.nr}</span><span class="tittel">${s.tittel}</span><span class="teller" data-teller="${id}"></span></div>
+     <div class="skjerm"><div class="meny">meny og marg · 270 px</div><div class="flate ${id}">
+       <div class="verktoy"><span class="uke">‹ Uke 47 · man. 16. nov.–søn. 22. nov. ›</span><span class="uke">2026 ▾</span><span class="hoyre" style="margin-left:0">Velg parameter</span><span class="boks"><i></i> Bare oversiktsrader</span></div>
+       <div class="t">${tabell(id)}</div></div></div>
+     <div class="tekst">${s.tekst}</div>`;
+}
+Object.keys(STEG).forEach(tegn);
+
+const steg = new URLSearchParams(location.search).get("steg") || "alle";
+if (steg === "alle") document.body.classList.add("alle"); else document.getElementById(steg).classList.add("vis");
+
+/* ---------------- Målinger (skrives i sidetittelen) ---------------- */
+const bredde = (el) => { const r = document.createRange(); r.selectNodeContents(el); return Math.round(r.getBoundingClientRect().width * 10) / 10; };
+const maal = {};
+for (const id of Object.keys(STEG)) {
+  const el = document.getElementById(id);
+  el.style.display = "block";
+  const t = el.querySelector(".t");
+  const kutt = (sel) => [...t.querySelectorAll(sel)].filter((x) => x.scrollWidth > x.clientWidth).map((x) => [x.dataset.kol ?? x.className, x.textContent.slice(0, 30), x.scrollWidth, x.clientWidth]);
+  maal[id] = {
+    tabell: t.offsetHeight,
+    dag: [...t.querySelectorAll(".r.dag")].map((r) => r.offsetHeight),
+    jobb: [...t.querySelectorAll(".r.jobb")].map((r) => r.offsetHeight),
+    linje: [...t.querySelectorAll(".r.li")].map((r) => r.offsetHeight),
+    kuttDagJobb: kutt(".r.dag .g > div, .r.jobb .g > div"),
+    kuttLinje: kutt(".r.li .g > div"),
+  };
+  el.querySelector("[data-teller]").textContent = `tabellen: ${t.offsetHeight} px høy`;
+  if (id === "idag") {
+    // Timer i dagsraden: tallets bredde mot plassen
+    maal.timerDag = [...t.querySelectorAll(".maal-timer")].map((x) => [x.textContent, bredde(x), x.clientWidth - 12]);
+    // Reiselinja: hvor mye lavere navnet står enn klokkeslettet i samme rad, og hva som er synlig av navnet
+    maal.reiseIDag = [...t.querySelectorAll(".maal-reise")].map((x) => {
+      const navn = document.createRange(); navn.setStart(x.querySelector(".rf").firstChild, 0); navn.setEnd(x.querySelector(".rf").firstChild, 5);
+      const ft = x.parentElement.querySelector('[data-kol="fratil"]'); const f = document.createRange(); f.selectNodeContents(ft);
+      return { radHoyde: x.closest(".r").offsetHeight, navnLavere: Math.round(navn.getBoundingClientRect().top - f.getBoundingClientRect().top), merkeHoyde: x.querySelector(".rm").offsetHeight, navnBredde: Math.round(x.querySelector(".rf").getBoundingClientRect().width), plass: x.clientWidth - 12 };
+    });
+    maal.overtidIDag = [...t.querySelectorAll(".maal-ot")].map((x) => [x.textContent, bredde(x), x.clientWidth - 12]);
+    maal.avvikIDag = [...t.querySelectorAll(".r.li .am")].slice(0, 1).map((x) => [x.textContent, x.offsetWidth, x.offsetHeight]);
+  }
+  if (id === "a") {
+    maal.piller = [...t.querySelectorAll(".pm")].map((x) => [x.textContent, x.offsetWidth]).filter((x, i, a) => a.findIndex((y) => y[0] === x[0]) === i);
+    maal.l1 = [...t.querySelectorAll(".felt .l1")].map((x) => [x.textContent, bredde(x), x.clientWidth]).filter((x, i, a) => a.findIndex((y) => y[0] === x[0]) === i);
+    maal.l2 = [...t.querySelectorAll(".felt .l2t")].map((x) => [x.textContent, x.scrollWidth, x.clientWidth]);
+    maal.timerA = [...t.querySelectorAll(".r.dag .tett")].map((x) => [x.textContent, bredde(x), x.clientWidth - 6]);
+    maal.norm = [...t.querySelectorAll(".avbred .am")].map((x) => [x.textContent, x.offsetWidth]);
+  }
+  if (id === "b") maal.bBredde = t.querySelector(".g").offsetWidth + 36 + 176 + 2;
+  el.style.display = "";
+}
+
+// Utenfor bildet: (1) reisecella ved Kenneths skjermbredde (Betegnelse om lag 146 px), til sammenlikning med
+// skjermbildet hans; (2) verste tilfelle i variant A: byggeplass · underprosjekt + begge merkene i feltet (322 px).
+const mf = document.getElementById("maal");
+mf.innerHTML = `
+  <div class="r li" id="m1"><div class="g" style="grid-template-columns:146px 94px"><div data-kol="beteg">${reiseIDag(REISE)}</div><div data-kol="fratil">12:00–15:00</div></div></div>
+  <div class="r jobb" id="m2"><div class="g" style="grid-template-columns:322px"><div class="felt"><span class="l1">${esc(P2.prosjekt)}</span><span class="l2"><span class="l2t">Uteområde · 12 Grunnarbeid</span><span class="pl">${pm("ot", "Overtid 0,50 t")}${pm("re", "Reise 1,00 t")}</span></span></div></div></div>
+  <div class="r dag" id="m3"><div class="g" style="grid-template-columns:176px"><div class="avbred"><span class="avc"><span class="amw"><span class="am">2,5 t over norm</span><span class="am">Uten bevis</span></span></span></div></div></div>
+  <div class="r li" id="m4"><div class="g" style="grid-template-columns:228px"><div class="navn">${pm("re", REISE)}</div></div></div>`;
+{
+  const c = mf.querySelector("#m1 [data-kol=beteg]"), n = document.createRange(), f = document.createRange();
+  n.setStart(c.querySelector(".rf").firstChild, 0); n.setEnd(c.querySelector(".rf").firstChild, 5);
+  f.selectNodeContents(mf.querySelector("#m1 [data-kol=fratil]"));
+  maal.reiseVed146 = { radHoyde: mf.querySelector("#m1").offsetHeight, navnLavere: Math.round(n.getBoundingClientRect().top - f.getBoundingClientRect().top) };
+  const l2 = mf.querySelector("#m2 .l2t");
+  maal.verstL2 = { tekst: l2.textContent, trenger: l2.scrollWidth, har: l2.clientWidth, radHoyde: mf.querySelector("#m2").offsetHeight };
+  const av = mf.querySelector("#m3 .avbred");
+  maal.normOgBevis = { trenger: av.scrollWidth, har: av.clientWidth, hoyde: mf.querySelector("#m3").offsetHeight };
+  const nv = mf.querySelector("#m4 .navn");
+  maal.linjeNavn = { merke: nv.querySelector(".pm").offsetWidth, plass: nv.clientWidth - 24 };
+}
+document.title = JSON.stringify({ hoyde: document.documentElement.scrollHeight, maal });
+</script>
+</body>
+</html>

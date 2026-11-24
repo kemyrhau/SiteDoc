@@ -336,7 +336,10 @@ export const oppdaterRollerSchema = z.object({
 // Dokumentflyt-validering (ny modell)
 export const createDokumentflytSchema = z.object({
   projectId: z.string().uuid(),
-  faggruppeId: z.string().uuid().optional(),
+  // FG1 (Kenneth 2026-11-23): en flyt som ikke står under en faggruppe vises ingen steder i UI
+  // og skal ikke finnes. Eier-faggruppen er derfor påkrevd. HMS-flyten (eierløs, egne regler)
+  // opprettes bare internt av `seedHmsModulOmradet` (services/hmsFlyt.ts), aldri via dette skjemaet.
+  faggruppeId: z.string().uuid(),
   name: z.string().min(1).max(255),
   // Bundet flyt: true = dokumentene kan ikke flyttes til andre flyter. Default fri.
   bundet: z.boolean().default(false),

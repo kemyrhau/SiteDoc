@@ -4,3 +4,6 @@
  */
 export * from "./utliggere";
 export * from "./zoom-fart";
+export * from "./orbit";
+export * from "./snitt-pil";
+export * from "./ifc-egenskaper";

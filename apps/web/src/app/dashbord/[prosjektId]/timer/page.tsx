@@ -2,11 +2,15 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
-import { Button, Spinner } from "@sitedoc/ui";
-import { Plus, ChevronLeft, ChevronRight } from "lucide-react";
+import { Spinner } from "@sitedoc/ui";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useFirma } from "@/kontekst/firma-kontekst";
+import { RegistrerTimerKnapp } from "@/components/timer/RegistrerTimerKnapp";
+import { lesUkeParam, medRetur, prosjektTimerAdresse, ukeIntervall } from "@/lib/tilbake-adresse";
+import { spennerFlereAar, visDagDato, visTimerTall } from "@/lib/registrerTimer";
 import { StatusBadge } from "@/components/timer/StatusBadge";
 import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
 import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
@@ -23,12 +27,10 @@ type ListeRad = {
   aktivitet: { id: string; navn: string; kode: string | null } | null;
 };
 
-function formatDato(d: Date | string): string {
-  const dato = typeof d === "string" ? new Date(d) : d;
-  return dato.toLocaleDateString("no-NB", {
-    day: "2-digit",
-    month: "short",
-  });
+// w2: dd.mm. som i attesteringen (Kenneths bilde: «17. nov.»). Uka kan spenne et årsskifte —
+// da står året med.
+function formatDato(d: Date | string, medAar = false): string {
+  return visDagDato(d, medAar);
 }
 
 function ukestart(dato: Date): Date {
@@ -40,18 +42,33 @@ function ukestart(dato: Date): Date {
   return d;
 }
 
-function tilIso(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
 
 export default function TimerListSide() {
   useToppbarFiltre({ byggeplass: false });
   const { t } = useTranslation();
   const params = useParams<{ prosjektId: string }>();
   const prosjektId = params.prosjektId;
+  const { valgtFirma } = useFirma();
 
-  const [ukeStart, setUkeStart] = useState<Date>(() => ukestart(new Date()));
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("alle");
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // w14 (TK2): uka og statusfilteret står i adressen (`?uke=`, `?status=`), så «Tilbake til
+  // Timer» fra dagen lander på samme uke og filter. Ukjent/ugyldig verdi → denne uka / «Alle».
+  const [ukeStart, setUkeStart] = useState<Date>(
+    () => lesUkeParam(searchParams.get("uke")) ?? ukestart(new Date()),
+  );
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(() => {
+    const s = searchParams.get("status");
+    return (STATUSER as readonly string[]).includes(s ?? "") ? (s as StatusFilter) : "alle";
+  });
+  const egenAdresse = prosjektTimerAdresse(prosjektId, ukeStart, statusFilter);
+
+  function velg(uke: Date, status: StatusFilter) {
+    setUkeStart(uke);
+    setStatusFilter(status);
+    router.replace(prosjektTimerAdresse(prosjektId, uke, status), { scroll: false });
+  }
 
   const ukeSlutt = useMemo(() => {
     const d = new Date(ukeStart);
@@ -61,15 +78,15 @@ export default function TimerListSide() {
 
   const { data: rader, isLoading } = trpc.timer.dagsseddel.list.useQuery({
     projectId: prosjektId,
-    fra: tilIso(ukeStart),
-    til: tilIso(ukeSlutt),
+    // Ukefeilen (plan § 8.17): lokale datoer, ikke `toISOString()` av lokal midnatt.
+    ...ukeIntervall(ukeStart),
     ...(statusFilter !== "alle" ? { status: statusFilter } : {}),
   });
 
   function endreUke(retning: -1 | 1) {
     const d = new Date(ukeStart);
     d.setDate(d.getDate() + 7 * retning);
-    setUkeStart(d);
+    velg(d, statusFilter);
   }
 
   const ukenummer = (() => {
@@ -84,6 +101,8 @@ export default function TimerListSide() {
     );
     return Math.ceil((dager + start.getDay() + 1) / 7);
   })();
+
+  const ukeMedAar = spennerFlereAar([ukeStart, ukeSlutt]);
 
   const ukeSum = useMemo(() => {
     const liste = (rader as unknown as ListeRad[] | undefined) ?? [];
@@ -102,12 +121,12 @@ export default function TimerListSide() {
               {t("timer.beskrivelse")}
             </p>
           </div>
-          <Link href={`/dashbord/${prosjektId}/timer/ny`}>
-            <Button>
-              <Plus className="mr-1.5 h-4 w-4" />
-              {t("timer.nyDagsseddel")}
-            </Button>
-          </Link>
+          {/* w2 (B1): samme handling som på Mine timer — prosjektet er denne sidens. */}
+          <RegistrerTimerKnapp
+            organizationId={valgtFirma?.id ?? null}
+            projectId={prosjektId}
+            retur={egenAdresse}
+          />
         </div>
       </SonetonetSidehode>
 
@@ -121,9 +140,9 @@ export default function TimerListSide() {
         </button>
         <span className="text-sm font-medium text-gray-900">
           {t("timer.ukeNr", { nr: ukenummer })} —{" "}
-          {formatDato(ukeStart)} – {formatDato(ukeSlutt)}
+          {formatDato(ukeStart, ukeMedAar)} – {formatDato(ukeSlutt, ukeMedAar)}
           <span className="ml-2 text-gray-500">
-            · {t("timer.ukeSum", { timer: ukeSum.toFixed(2) })}
+            · {t("timer.ukeSum", { timer: visTimerTall(ukeSum) })}
           </span>
         </span>
         <button
@@ -134,7 +153,7 @@ export default function TimerListSide() {
           <ChevronRight className="h-4 w-4" />
         </button>
         <button
-          onClick={() => setUkeStart(ukestart(new Date()))}
+          onClick={() => velg(ukestart(new Date()), statusFilter)}
           className="rounded px-3 py-1 text-xs font-medium text-sitedoc-primary hover:bg-sitedoc-primary/10"
         >
           {t("timer.idag")}
@@ -144,7 +163,7 @@ export default function TimerListSide() {
           <span className="text-sm text-gray-600">{t("timer.status")}:</span>
           <select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
+            onChange={(e) => velg(ukeStart, e.target.value as StatusFilter)}
             className="rounded border border-gray-300 px-2 py-1 text-sm"
           >
             <option value="alle">{t("timer.alleStatuser")}</option>
@@ -185,13 +204,13 @@ export default function TimerListSide() {
                   className="border-b border-gray-100 last:border-b-0 hover:bg-gray-50"
                 >
                   <td className="px-3 py-2 font-medium text-gray-900">
-                    {formatDato(rad.dato)}
+                    {formatDato(rad.dato, ukeMedAar)}
                   </td>
                   <td className="px-3 py-2 text-gray-600">
                     {rad.aktivitet?.navn ?? "—"}
                   </td>
                   <td className="px-3 py-2 text-right font-mono text-gray-900">
-                    {rad.totaltimer.toFixed(2)}
+                    {visTimerTall(rad.totaltimer)}
                   </td>
                   <td className="px-3 py-2 text-right text-gray-600">
                     {rad.antallRader}
@@ -201,7 +220,7 @@ export default function TimerListSide() {
                   </td>
                   <td className="px-3 py-2 text-right">
                     <Link
-                      href={`/dashbord/timer/${rad.id}`}
+                      href={medRetur(`/dashbord/timer/${rad.id}`, egenAdresse)}
                       className="text-sm font-medium text-sitedoc-primary hover:underline"
                     >
                       {t("timer.aapne")}

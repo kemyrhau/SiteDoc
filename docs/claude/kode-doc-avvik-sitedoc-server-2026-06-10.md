@@ -158,7 +158,7 @@ Tre agenter leste systematisk: apps/packages, hele `docker/`-mappen + deploy/inf
 | R2-DOK-2 | norbert binder `127.0.0.1` (bekreftet, ikke patchet i repo) | `norbert-server.py:168` binder loopback; `docker-compose.yml:14` adresserer `http://embed:3302`. `oversettelse-server.py:182` binder korrekt `0.0.0.0` | Middels (= runde-1 A6) |
 | R2-DOK-3 | Hele stacken merket «UTKAST 2026-06-09» | Topp-kommentar i `docker-compose.yml:1`, `Dockerfile.{api,web,ml}:2`, `DOCKER-NOTES.md:1` + cutover beskrevet som ugjort — men cutover er fullført 2026-06-10 | Middels |
 | R2-DOK-4 | ML-deps upinnet + `numpy` udokumentert | `Dockerfile.ml:9-10` `torch transformers sentencepiece numpy` uten versjoner; ingen requirements.txt for ML-serverne | Middels (reproduserbarhet) |
-| R2-DOK-5 | `.dockerignore` fanger ikke `docker/env/*.env` | `.dockerignore:8-9` matcher `.env.*`, men filnavn er `api.env`/`web.env` → COPY-es inn i image-lag ved `COPY . .` | Lav (secrets i image-lag) |
+| R2-DOK-5 | ✅ LUKKET 2026-11-24 (`7738d63b`, `.dockerignore` er tillatelsesliste; `docker/*` utelatt unntatt `docker/pdf-render`). Gammelt funn: `.dockerignore` fanger ikke `docker/env/*.env` | `.dockerignore:8-9` matcher `.env.*`, men filnavn er `api.env`/`web.env` → COPY-es inn i image-lag ved `COPY . .` | Lav (secrets i image-lag) |
 
 `DOCKER-NOTES.md` er fortsatt kun lenket fra denne rapporten, ikke fra noen styrende hovedfil (bekrefter runde-1 om udokumentert `docker/`). DOCKER-NOTES:15 («bundet til 127.0.0.1») er upresis — kun api/web publiseres på host; embed/oversettelse er intern-only på `appnet`.
 

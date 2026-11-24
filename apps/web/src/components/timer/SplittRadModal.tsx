@@ -6,6 +6,7 @@
 
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { formaterTimer } from "@/lib/tallformat";
 import { Plus } from "lucide-react";
 import { Button, Modal } from "@sitedoc/ui";
 import { KnappMedForklaring } from "@/components/KnappMedForklaring";
@@ -197,7 +198,6 @@ export function SplittRadModal(props: Props) {
   const lagre = splittProsedyre.useMutation({
     onSuccess: () => {
       void utils.timer.dagsseddel.hentForAttestering.invalidate({ id: props.sheetId });
-      void utils.timer.dagsseddel.hentTilAttestering.invalidate();
       void utils.timer.dagsseddel.hentTilAttesteringFirma.invalidate();
       props.onLagret();
     },
@@ -242,7 +242,6 @@ export function SplittRadModal(props: Props) {
       });
     } else {
       setSplitMaskin((rader) => {
-        const sisteTilTid = rader[rader.length - 1]?.tilTid ?? null;
         const o = props.original;
         // Arv ECO fra original — bruker kan endre per rad i RedigerMaskinRad-velgeren.
         const sisteEco =
@@ -256,7 +255,8 @@ export function SplittRadModal(props: Props) {
             externalCostObjectId: sisteEco,
             vehicleId: o.vehicleId,
             byggeplassId: o.byggeplassId,
-            fraTid: sisteTilTid,
+            // § 8.22 punkt 1: maskin har ikke fra–til — ny del får ingen skjult forhåndsutfylling.
+            fraTid: null,
             tilTid: null,
             timer: Math.max(0, gjenstaar),
             mengde: null,
@@ -370,8 +370,8 @@ export function SplittRadModal(props: Props) {
   const indikatorTekst = erBalansert
     ? t("timer.splitt.balansert")
     : gjenstaar < 0
-      ? t("timer.splitt.foredelt", { antall: Math.abs(gjenstaar).toFixed(2) })
-      : t("timer.splitt.gjenstaar", { antall: gjenstaar.toFixed(2) });
+      ? t("timer.splitt.foredelt", { antall: formaterTimer(Math.abs(gjenstaar)) })
+      : t("timer.splitt.gjenstaar", { antall: formaterTimer(gjenstaar) });
 
   return (
     <Modal
@@ -427,7 +427,6 @@ export function SplittRadModal(props: Props) {
                   organizationId={props.organizationId}
                   rad={rad}
                   prosjekter={props.prosjekter}
-                  tidsrundingMinutter={props.tidsrundingMinutter}
                   onChange={(felt) => oppdaterMaskin(rad.key, felt)}
                   onSlett={i === 0 ? () => {} : () => slettRad(rad.key)}
                 />
@@ -494,7 +493,7 @@ function OriginalRefVisning({
         </div>
         <div>
           <span className="text-gray-500">{t("timer.felt.antallTimer")}: </span>
-          <span className="font-mono font-medium">{tilTall(o.timer).toFixed(2)}t</span>
+          <span className="font-mono font-medium">{formaterTimer(tilTall(o.timer))}t</span>
         </div>
         {(o.fraTid || o.tilTid) && (
           <div className="col-span-2">
@@ -517,7 +516,7 @@ function OriginalRefVisning({
         </div>
         <div>
           <span className="text-gray-500">{t("timer.felt.antall")}: </span>
-          <span className="font-mono font-medium">{tilTall(o.antall).toFixed(2)}</span>
+          <span className="font-mono font-medium">{formaterTimer(tilTall(o.antall))}</span>
         </div>
         {o.kommentar && (
           <div className="col-span-2">
@@ -538,20 +537,13 @@ function OriginalRefVisning({
       </div>
       <div>
         <span className="text-gray-500">{t("timer.felt.antallTimer")}: </span>
-        <span className="font-mono font-medium">{tilTall(o.timer).toFixed(2)}t</span>
+        <span className="font-mono font-medium">{formaterTimer(tilTall(o.timer))}t</span>
       </div>
-      {(o.fraTid || o.tilTid) && (
-        <div className="col-span-2">
-          <span className="text-gray-500">{t("timer.felt.startTid")}: </span>
-          <span className="font-mono">{o.fraTid ?? "—"}</span>
-          <span className="mx-1">→</span>
-          <span className="font-mono">{o.tilTid ?? "—"}</span>
-        </div>
-      )}
+      {/* § 8.22 punkt 1: maskinens referanse viser ikke fra–til. */}
       {o.mengde !== null && o.mengde !== undefined && (
         <div className="col-span-2">
           <span className="text-gray-500">{t("timer.splitt.mengde")}: </span>
-          <span className="font-mono">{tilTall(o.mengde).toFixed(2)}</span>
+          <span className="font-mono">{formaterTimer(tilTall(o.mengde))}</span>
           {o.enhet && <span className="ml-1 text-gray-600">{o.enhet}</span>}
         </div>
       )}

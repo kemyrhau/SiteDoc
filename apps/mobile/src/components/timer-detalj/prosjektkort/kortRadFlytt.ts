@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { beregnMaskinBrudd, finnOverlappendeTidsrom, type MaskinBrudd } from "@sitedoc/shared";
+import { finnOverlappendeTidsrom } from "@sitedoc/shared";
 import type { hentDatabase } from "../../../db/database";
 import {
   dagsseddelLocal,
@@ -22,8 +22,15 @@ import {
 } from "../../../lib/prosjektkortMobil";
 import { erReiseRadVisning } from "../../../utils/reiseRad";
 import type { MaskinRad, TimerRad } from "../../../types/timer-detalj";
-import { oppdaterTimerRad, type RadKontekst } from "./radLagring";
+import { fjernTimerRad, skrivTimerRadUtenVakt, type RadKontekst } from "./radLagring";
 import { sikreLokalKortId } from "../../../services/kortIdLokal";
+import { utleieEnhetLokalt } from "../../../services/maskinKoblingLokal";
+import {
+  bruddParam,
+  jobbNavnLokalt,
+  nyeMaskinBrudd,
+  type JobbGrunnlag,
+} from "../../../services/maskinJobbLokalt";
 
 type LokalDb = NonNullable<ReturnType<typeof hentDatabase>>;
 
@@ -97,7 +104,8 @@ export function foelgKobletMaskin(db: LokalDb, timerRadId: string): void {
  * målkortet. Koblet maskin følger.
  */
 export function flyttTimerRad(db: LokalDb, kontekst: RadKontekst, rad: TimerRad, til: FlyttMaal): void {
-  oppdaterTimerRad(db, kontekst, rad.id, {
+  // w9m: uten maskinvakt pr. rad — `flyttKort` har vaktet hele flyttet (`girNyttBrudd`).
+  skrivTimerRadUtenVakt(db, kontekst, rad.id, {
     projectId: til.projectId,
     byggeplassId: til.byggeplassId,
     lonnsartId: rad.lonnsartId,
@@ -119,25 +127,66 @@ export function flyttTimerRad(db: LokalDb, kontekst: RadKontekst, rad: TimerRad,
 }
 
 /**
- * Flytt en maskin-rad alene. Er den koblet til en timer-rad, kobles den løs
- * (`sheetTimerId = null`) — ellers ville neste lagring av timer-raden dratt
- * den tilbake. Kapasitetssjekken gjøres av kalleren før flytt.
+ * Flytt en maskin-rad alene. Kapasitetssjekken gjøres av kalleren før flytt.
+ * Kort-id d2c-2 (R24): `sheetTimerId` er timeraden i målkortet maskinen skal stå
+ * på — kalleren har valgt den for en maskin som krever timerad. Utelatt (døgn-
+ * maskin) → maskinen kobles løs som før, ellers ville neste lagring av den gamle
+ * timer-raden dratt den tilbake.
  * Kontrollør A1 (ordre c): kort-id-en følger flyttet — målkortets id når den er
  * gitt, ellers `null` så normaliseringen (`sikreLokalKortId`, kalleren) utleder
  * den på nytt. Den gamle id-en blir aldri stående på en ny nøkkel.
  */
-export function flyttMaskinRad(db: LokalDb, radId: string, til: FlyttMaal): void {
+export function flyttMaskinRad(
+  db: LokalDb,
+  radId: string,
+  til: FlyttMaal,
+  sheetTimerId: string | null = null,
+): void {
   db.update(sheetMachineLocal)
     .set({
       projectId: til.projectId,
       byggeplassId: til.byggeplassId,
       externalCostObjectId: til.ecoId,
-      sheetTimerId: null,
+      sheetTimerId,
       kortId: til.kortId ?? null,
       sistEndretLokalt: Date.now(),
     })
     .where(eq(sheetMachineLocal.id, radId))
     .run();
+}
+
+/**
+ * Kort-id d2c-2 (spec § 12.2 «Sperren ved føring», HM67 a): slett en timerad og
+ * maskinene som krever den (R24). Kalleren har vist bekreftelsen som navngir dem
+ * (`maskinerSomKreverRadenLokalt`). Døgn-maskiner og varer blir stående i kortet
+ * uten rad, som før. Raden slettes først (samme sti som før, `fjernTimerRad`); så
+ * maskinene, med tombstone, i én transaksjon. Stopper det mellom de to, står
+ * maskinene under «Uten rad» som før — ingenting slettes uten at raden er borte.
+ */
+export function fjernTimerRadMedMaskiner(
+  db: LokalDb,
+  kontekst: RadKontekst,
+  radId: string,
+  maskinIder: readonly string[],
+): void {
+  fjernTimerRad(db, kontekst, radId);
+  if (maskinIder.length === 0) return;
+  db.transaction((tx) => {
+    for (const id of maskinIder) {
+      // Bare maskiner som faktisk sto på raden — en id fra et gammelt skjermbilde røres ikke.
+      const [m] = tx
+        .select({ sheetTimerId: sheetMachineLocal.sheetTimerId })
+        .from(sheetMachineLocal)
+        .where(eq(sheetMachineLocal.id, id))
+        .all();
+      if (!m || m.sheetTimerId !== radId) continue;
+      tx.delete(sheetMachineLocal).where(eq(sheetMachineLocal.id, id)).run();
+      tx.insert(slettedeRaderLocal)
+        .values({ radId: id, dagsseddelId: kontekst.sheetId, radType: "maskin", slettetVed: Date.now() })
+        .onConflictDoNothing()
+        .run();
+    }
+  });
 }
 
 /**
@@ -338,7 +387,8 @@ export type KortUtfall =
   | { utfall: "ok" }
   | { utfall: "laast" }
   | { utfall: "uendret" }
-  | { utfall: "brudd" }
+  /** w9m: nytt eller økt maskinbrudd på en jobb — parametrene til `timer.maskin.overArbeidAvvist`. */
+  | { utfall: "brudd"; jobb: string; maskin: string; arbeid: string }
   | { utfall: "offline" }
   /** RETUR (33) c pkt 1: kortets tider overlapper et kort med målnøkkelen (samme regel som lagring av en rad). */
   | { utfall: "overlapp"; fra: string; til: string; annenFra: string; annenTil: string }
@@ -356,7 +406,7 @@ export function kortUtfallTekst(u: KortUtfall, handling: "slett" | "flytt"): str
     case "uendret":
       return null;
     case "brudd":
-      return "timer.maskin.overstigerArbeid";
+      return "timer.maskin.overArbeidAvvist";
     case "offline":
       return handling === "slett" ? "timer.kort.offlineSlett" : "timer.kort.offlineFlytt";
     case "laast":
@@ -372,7 +422,9 @@ export function kortUtfallTekst(u: KortUtfall, handling: "slett" | "flytt"): str
 
 /** RETUR (33) c pkt 1: interpolasjon til teksten — overlapp bærer tidene (som `timer.feil.overlapp` ved lagring av en rad). */
 export function kortUtfallParametre(u: KortUtfall): Record<string, string> {
-  return u.utfall === "overlapp" ? { fra: u.fra, til: u.til, annenFra: u.annenFra, annenTil: u.annenTil } : {};
+  if (u.utfall === "overlapp") return { fra: u.fra, til: u.til, annenFra: u.annenFra, annenTil: u.annenTil };
+  if (u.utfall === "brudd") return { jobb: u.jobb, maskin: u.maskin, arbeid: u.arbeid };
+  return {};
 }
 
 /**
@@ -429,39 +481,53 @@ function erRedigerbar(status: string): boolean {
   return status === "draft" || status === "returned";
 }
 
-const bucket = (b: Pick<MaskinBrudd, "projectId" | "externalCostObjectId">) =>
-  `${b.projectId}|${b.externalCostObjectId ?? ""}`;
-
 /**
- * Gir endringen et NYTT maskinbrudd (maskin > arbeid + pause) i en bøtte
- * (prosjekt, underprosjekt)? `til` = null: kortets rader forsvinner (slett).
- * Brudd som fantes fra før blokkerer ikke.
+ * w9m (plan § 4.4): gir endringen et NYTT eller ØKT maskinbrudd på en jobb?
+ * Samme regel som serveren (`nyeEllerOkteBrudd`): førermaskiner mot jobbens
+ * arbeid uten reise og uten pause; døgn-maskiner telles ikke. `til` = null:
+ * kortets rader forsvinner (slett). Flyttede rader beholder kortet sitt, eller
+ * får målkortets id når målet har en (som `flyttKort`).
  */
-function girNyttBrudd(dag: KortDag, innhold: KortInnhold, til: KortValg | null): boolean {
+function girNyttBrudd(db: LokalDb, dag: KortDag, innhold: KortInnhold, til: KortValg | null): KortUtfall | null {
   const flyttes = new Set([...innhold.timer.map((r) => r.id), ...innhold.maskin.map((m) => m.id)]);
-  type R = { id: string; projectId: string | null; externalCostObjectId: string | null; timer: number | null };
+  type R = { id: string; kortId: string | null; projectId: string | null; externalCostObjectId: string | null; timer: number | null };
   const naa = (r: R) => ({
+    kortId: r.kortId ?? null,
     projectId: r.projectId ?? dag.sedel.projectId,
     externalCostObjectId: r.externalCostObjectId ?? null,
     timer: r.timer ?? 0,
   });
   const etterpaa = (r: R) =>
-    flyttes.has(r.id) && til ? { projectId: til.projectId, externalCostObjectId: til.ecoId, timer: r.timer ?? 0 } : naa(r);
-  // Ordre (6): maskin måles mot arbeid UTEN reise (mobil-SQLite har ingen
-  // erstattede rader — attestering skjer på server).
-  const arbeidRader = dag.timerRader.filter(
-    (r) => !erReiseRadVisning(r.erReise, r.lonnsartId, dag.reiseLonnsartId),
-  );
-  const for_ = new Set(
-    beregnMaskinBrudd(arbeidRader.map(naa), dag.maskinRader.map(naa), dag.pauseMin).map(bucket),
-  );
+    flyttes.has(r.id) && til
+      ? {
+          kortId: til.kortId ?? r.kortId ?? null,
+          projectId: til.projectId,
+          externalCostObjectId: til.ecoId,
+          timer: r.timer ?? 0,
+        }
+      : naa(r);
   const behold = (r: { id: string }) => til !== null || !flyttes.has(r.id);
-  const etter = beregnMaskinBrudd(
-    arbeidRader.filter(behold).map(etterpaa),
-    dag.maskinRader.filter(behold).map(etterpaa),
-    dag.pauseMin,
-  );
-  return etter.some((b) => !for_.has(bucket(b)));
+  // Ordre (6): reise er ikke arbeid (mobil-SQLite har ingen erstattede rader).
+  const foer: JobbGrunnlag = {
+    timer: dag.timerRader.map((r) => ({
+      ...naa(r),
+      erReise: erReiseRadVisning(r.erReise, r.lonnsartId, dag.reiseLonnsartId),
+    })),
+    maskin: dag.maskinRader.map((m) => ({ ...naa(m), id: m.id, utleieEnhet: utleieEnhetLokalt(db, m.vehicleId) })),
+    pauseMin: dag.pauseMin,
+  };
+  const etter: JobbGrunnlag = {
+    timer: dag.timerRader.filter(behold).map((r) => ({
+      ...etterpaa(r),
+      erReise: erReiseRadVisning(r.erReise, r.lonnsartId, dag.reiseLonnsartId),
+    })),
+    maskin: dag.maskinRader
+      .filter(behold)
+      .map((m) => ({ ...etterpaa(m), id: m.id, utleieEnhet: utleieEnhetLokalt(db, m.vehicleId) })),
+    pauseMin: dag.pauseMin,
+  };
+  const b = nyeMaskinBrudd(foer, etter)[0];
+  return b ? { utfall: "brudd", ...bruddParam(b, jobbNavnLokalt(db, b)) } : null;
 }
 
 /**
@@ -477,7 +543,8 @@ export async function slettKort(
   server: { erPaaNettet: boolean; slettVare: (id: string) => Promise<void> },
 ): Promise<KortUtfall> {
   if (!erRedigerbar(dag.status)) return { utfall: "laast" };
-  if (girNyttBrudd(dag, innhold, null)) return { utfall: "brudd" };
+  const brudd = girNyttBrudd(db, dag, innhold, null);
+  if (brudd) return brudd;
   const serverVarer = innhold.varer.filter(vareFinnesPaaServer);
   if (serverVarer.length > 0 && !server.erPaaNettet) return { utfall: "offline" };
   for (const v of serverVarer) {
@@ -584,7 +651,8 @@ export async function flyttKort(
   // både «Endre kort» og «Flytt raden» (samme utfall, samme melding).
   const kollisjon = finnKortKollisjon(dag, innhold, til);
   if (kollisjon) return kollisjon;
-  if (girNyttBrudd(dag, innhold, til)) return { utfall: "brudd" };
+  const brudd = girNyttBrudd(db, dag, innhold, til);
+  if (brudd) return brudd;
   // Varer har ingen sedel-arv: kortets effektive byggeplass lagres (RETUR 4).
   const vareMaal: FlyttMaal = { projectId: til.projectId, byggeplassId: vareByggeplassForKort(til), ecoId: til.ecoId };
   const serverVarer = innhold.varer.filter(vareFinnesPaaServer);

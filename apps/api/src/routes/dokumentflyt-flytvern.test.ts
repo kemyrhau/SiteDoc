@@ -26,6 +26,7 @@ import { dokumentflytRouter } from "./dokumentflyt";
 
 const FLYT = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 const PROSJEKT = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
+const FAGGRUPPE = "ffffffff-ffff-ffff-ffff-ffffffffffff";
 
 beforeEach(() => {
   userFindUnique.mockReset();
@@ -55,6 +56,8 @@ function prismaMed(opts: { docs?: number; eksisterendeRoller?: Array<{ rolle: st
   return {
     checklist: { count: vi.fn().mockResolvedValue(docs) },
     task: { count: vi.fn().mockResolvedValue(0) }, // sjekkliste-tallet bærer testene
+    // FG1: opprett slår opp eier-faggruppen i prosjektet.
+    faggruppe: { findFirst: vi.fn().mockResolvedValue({ id: FAGGRUPPE }) },
     dokumentflyt: {
       create: vi.fn().mockResolvedValue({ id: FLYT }),
       update: vi.fn().mockResolvedValue({ id: FLYT }),
@@ -117,14 +120,14 @@ describe("E — registrator i første ledd", () => {
   it("opprett med Godkjenner først → BAD_REQUEST", async () => {
     const prisma = prismaMed({});
     await expect(
-      lagCaller(prisma).opprett({ projectId: PROSJEKT, name: "F", roller: [{ rolle: "godkjenner" }, { rolle: "registrator" }] }),
+      lagCaller(prisma).opprett({ projectId: PROSJEKT, faggruppeId: FAGGRUPPE, name: "F", roller: [{ rolle: "godkjenner" }, { rolle: "registrator" }] }),
     ).rejects.toMatchObject({ code: "BAD_REQUEST" });
     expect(prisma.dokumentflyt.create).not.toHaveBeenCalled();
   });
 
   it("opprett uten roller → default registrator-først → tillatt", async () => {
     const prisma = prismaMed({});
-    await lagCaller(prisma).opprett({ projectId: PROSJEKT, name: "F" });
+    await lagCaller(prisma).opprett({ projectId: PROSJEKT, faggruppeId: FAGGRUPPE, name: "F" });
     expect(prisma.dokumentflyt.create).toHaveBeenCalled();
   });
 

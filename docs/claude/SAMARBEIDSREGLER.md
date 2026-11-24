@@ -38,7 +38,9 @@ som ikke tjener dem, skal slettes, ikke forklares.** *Kenneths egne ord:*
      bestilte, gater ikke; orkestrator merger mekanisk på «klar for merge».
   2. **Gate i én melding:** GODKJENT, eller én komplett vilkårsliste. Ny runde kun når et vilkår ikke er lukket.
   3. **Mål aldri det samme to ganger.** `fil:linje` er målt — stikkprøv bare påstander uten referanse.
-  4. **Regel 10 re-kjøres uavhengig bare der feil koster lønn/data** (migrering, `syncBatch`, attestering, eksport).
+  4. **Regel 10 kjøres to ganger: av koderen før levering, og uavhengig i merge-treet før push** (orkestrator, § 6).
+     Kontrollør gater diffen mot koden og kjører testene for pakkene diffen rører — ikke hele kjeden og ikke kald
+     `next build`. *(Kenneth 2026-11-24, billigere drift.)*
   5. **Bestilleren skriver posten i `relay/inbox-<agent>.md`**; orkestrator får kopi og sender nudgen (§ 2).
   6. **Ingen kvitteringer, ingen egen runde for premisser/sitater** — de går i neste reelle ordre. `git log` er kvitteringen.
   **Testen før hver melding:** *fører den til at noen skriver kode eller merger nå?* Nei → ikke send.
@@ -52,10 +54,11 @@ STATUS-AKTUELT eller historikk, aldri her. *(Kenneth 2026-09-28: «du får kun l
 
 1. **Orkestrator starter agentene som side-økter under seg** (`start_session`), samlet i sidepanel-gruppen «sitedoc»: én økt pr. rolle i sitt faste tre (§ 1). **Der `start_session` ikke finnes i orkestrator-økta:** samme rolle kjøres som subagent (Agent-verktøyet) med absolutte stier til treet.
 2. **Ordren skrives i `relay/inbox-<agent>.md` FØR den sendes** (§ 2). Orkestrator sender nudgen selv (`send_message`, fast form i § 2) til økt-ID-en (`local_…`) fra `list_sessions {linked: true}` — aldri via søk på tittel og leser leveransen nederst i `relay/inbox-orkestrator.md`.
-3. **/clear etter hver handling:** når leveransen er lest og gatet, tømmer orkestrator økta (`clear_session`). En subagent er ny pr. oppgave og trenger ingen tømming.
+3. **/clear etter hver handling, og én leveranse pr. økt:** når leveransen er lest og gatet, tømmer orkestrator økta (`clear_session`). Passerer en agent ~150 000 tokens kontekst midt i en ordre (`get_usage`), bes den skrive SJEKKPUNKT og pushe WIP-branchen, og tømmes før den fortsetter. Orkestrator selv starter ny økt når egen kontekst passerer ~150 000 tokens, med tavla og `relay/inbox-orkestrator.md` som overlevering. En subagent er ny pr. oppgave og trenger ingen tømming. *(Kenneth 2026-11-24: kostnaden er antall turer × kontekstlengde.)*
 4. **Kontrollør er alltid en egen økt/subagent**, aldri den som bygde koden.
 5. **Kenneth beholder:** beslutninger (produkt, skjema, rettigheter, prod) og alt mot server og bygg — deploy, OTA, EAS, `sudo`, migreringer, push til `main`. Orkestrator gir kommandoene i `bash`-blokker; ingen agent kjører dem.
-6. **Kenneth limer ingenting.** Han ser øktene i sidepanelet og kan gå inn i hvilken som helst av dem.
+6. **Modell og verktøy pr. rolle (Kenneth 2026-11-24):** Fabel kjører Opus når den fører inn svar, retter eller deler dokumenter, og Fable bare når den skriver ny spesifikasjon eller nye spørsmål — orkestrator bytter modell (`set_session_model`) før nudgen. Kodere og Kontrollør kjører Opus; rent mekaniske oppgaver kan gå på Sonnet. Nettleser-MCP (chrome-devtools) finnes bare i de to verktøy-agentene i `SiteDoc-verktoy-1` og `SiteDoc-verktoy-2`; andre agenter bruker den innebygde nettleseren eller ber orkestrator sende oppgaven dit.
+7. **Kenneth limer ingenting.** Han ser øktene i sidepanelet og kan gå inn i hvilken som helst av dem.
 
 ## § 1 — Roller
 
@@ -81,7 +84,7 @@ STATUS-AKTUELT eller historikk, aldri her. *(Kenneth 2026-09-28: «du får kun l
 - 🔴 **Kanalen er HOVEDTREETS kopi med absolutt sti:** `~/Documents/Programmering/SiteDoc/relay/…`. `relay/` er gitignorert (`.gitignore:68`), følger ikke med en branch og synkes ikke mellom trær — skrevet relativt i et annet tre lander det der ingen leser.
 - **Nye poster føyes til NEDERST, bare nederst.** Leseren leser halen.
 - **Leveranser og SJEKKPUNKT** skrives nederst i `relay/inbox-orkestrator.md` med overskrift `## [dato] fra <Agent> → orkestrator: …`.
-- 🔴 **Kenneths beslutning skrives i repo-dokumentet (fil fra DOC-MAP) i samme tur som den tas, ikke bare i `relay/`.** Gammel tekst byttes ut og blir ikke stående ved siden av. Det som ikke er bygget, merkes 🟡 med dato og ordre. Orkestrator viser endringen i sidepanelet før commit, senest før compact. Er beslutningen uklar, stilles et kontrollspørsmål i stedet for en tolkning. *(Kenneth 2026-11-16.)*
+- 🔴 **Kenneths beslutning skrives med hans egne ord i repo-dokumentet (fil fra DOC-MAP) i samme tur som den tas, ikke bare i `relay/`.** Punktet den gjelder, byttes ut, og det gamle slettes i samme commit. Er ingenting byttet ut, er beslutningen bare notert, og en notert beslutning er ikke hjemmel. Det som ikke er bygget, merkes 🟡 med dato og ordre. Orkestrator viser endringen som «Før / Nå» i sidepanelet før commit, senest før compact. Er beslutningen uklar, stilles et kontrollspørsmål i stedet for en tolkning. *(Kenneth 2026-11-16 og 2026-11-22.)*
 - **Innboksene ryddes av orkestrator:** avsluttede poster til `relay/arkiv/<innboks>-til-<dato>.md` ved prod-deploy eller når en innboks passerer ~300 linjer; øverst står en peker til arkivet.
 - **Endres et filnavn**, føres det gamle navnet som DØDT i innboksen.
 
@@ -147,15 +150,17 @@ Les ikke hele innboksen. Mangler noe, var posten eller sjekkpunktet dårlig — 
 
 > *«du er den som skal foreslå neste oppgave og gi ordrer. JEG ER IKKE INTERESSERT I DIALOG. kun fremdrift.»*
 
-- 🔴 **Orkestrator BESLUTTER og gir ordre.** Spørsmål til Kenneth kun når beslutningen faktisk er hans (§ 1).
+- 🔴 **Orkestrator BESLUTTER hvordan og når, og gir ordre. Hva brukeren ser eller kan gjøre, vedtar bare Kenneth.** Orkestrators tolkning av Kenneths ord er ikke et vedtak. Spørsmål til Kenneth kun når beslutningen er hans (§ 1).
 - **En anbefaling kommer med handlingen som utfører den** i samme melding.
 - **Et forbehold er konkret eller utelates.** Kan det måles bort (én spørring), mål det før meldingen sendes.
-- **Er valget Kenneths:** navngi konflikten og konsekvensen av hvert alternativ i konkrete ord.
+- **Er valget Kenneths:** still det i den faste formen (neste avsnitt).
 
-### Spørsmål: samle, ikke drypp
+### Spørsmål: ett vindu, fast form
 
-Tenk ferdig, mål det som kan måles, still **ett** spørsmål med nok kontekst til ett svar. Rangér alternativer
-og anbefal ett. **Kontrollspørsmål:** blir noe galt hvis ingen svarer? Nei → det er en beslutning orkestrator tar.
+Tenk ferdig og mål det som kan måles. Still **ett** spørsmål om **ett** vindu, med linjene
+**I dag · Svarer du ja · Forsvinner · Svarer du nei · Anbefaling**. «Nei» betyr at ingenting endres.
+🔴 **Et «ja» gjelder bare det som står under «Svarer du ja» og «Forsvinner».** Et «ja» til en samlet liste er ikke et vedtak.
+**Kontrollspørsmål:** kan bestillingen bygges uten svaret? Ja → spørsmålet stilles ikke; orkestrator avgjør hvordan og når, og endrer ikke hva brukeren ser.
 Venter et svar, står det under en egen **«KREVER SVAR»**-overskrift; er det ingenting, skriv `Krever svar: ingenting`.
 
 ### Kommandoer til Kenneth (server, deploy, OTA, EAS)
@@ -209,6 +214,8 @@ Venter et svar, står det under en egen **«KREVER SVAR»**-overskrift; er det i
 [0. SPOR + MERKE]          Plan/funn · 🔴/🟡 · REPARASJON eller FUNKSJONSENDRING + hjemmel (§ 5).
 [1. HVA SOM ER GJORT]      Hasher + hva de gjorde. Hindrer at økta gjentar landet arbeid.
 [2. OPPGAVE]               Hva og hvorfor. Data, innlogging, utgangspunkt (branch/hash).
+                           `fil:linje` for hvert sted som skal endres, målt av bestilleren — agenten
+                           leter ikke selv. Leser agenten en stor doc, oppgis seksjonen, ikke fila.
 [3. UFRAVIKELIG]           Tre + branch + filer den eier + de tre linjene under.
 [4. FORVENTET OUTPUT]      DoD. Per funn: hva, hvordan målt, alvorlighet. Mistanker merket separat.
 [5. SVAR]                  relay/inbox-orkestrator.md + SJEKKPUNKT.
@@ -287,10 +294,11 @@ En refaktorering som fjerner et trykk brukeren var vant til, har brutt fredninge
 **Ordrer som rører fredet område** navngir filene som bærer dagens atferd, krever at agenten sier hvilke han rørte, og
 peker på regresjonstestene.
 
-### Snudd vedtak og vedtak i fila
+### To sannheter, snudd vedtak og vedtak i fila
 
-- 🔴 **Et SNUDD vedtak rettes DER DET STO**, med en ⚠️-blokk (snudd av hvem, når, hvorfor) og det gamle synlig under.
-  Den som leser det gamle først, bygger det forkastede.
+- 🔴 **To sannheter.** Koden er sannheten for hva programmet gjør i dag. Kenneths vedtak er sannheten for hva det skal gjøre. Planen, loggen, ordrer og agentenes tolkninger er ikke hjemmel.
+- 🔴 **Godkjent i test er vernet.** Det Kenneth har godkjent i test, kan bare endres med hans egne ord.
+- 🔴 **Et SNUDD vedtak byttes ut DER DET STO.** Det gamle slettes i samme commit. Hvem, når og hvorfor står i commit-meldingen; historikken ligger i git. Den som leser det gamle først, bygger det forkastede.
 - 🔴 **Før du endrer en komponent: les vedtakene som står som kommentarer i den fila, og navngi i svaret hvilke som
   gjelder** (Kenneth-vedtak 2026-09-29). Står vedtaket ikke der koden bor, er funnet at det står på feil sted.
 

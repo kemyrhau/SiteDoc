@@ -3,8 +3,9 @@
  *
  * Én funksjon alle server-skriveveier kaller etter at radene er skrevet:
  * `sikreKortId(tx, sheetId)` fyller manglende `kort_id` etter regel 3 (eldste kort på sedelen
- * med samme nøkkel, ellers utledet id), setter koblet maskin = timerradens kort (K6), tar
- * kort-id av reise-rader (§ 2.2) og validerer K1–K4/K6 over hele sedelens post-tilstand med
+ * med samme nøkkel, ellers utledet id), setter koblet maskin = timerradens kort (K6), legger
+ * reiseraden i jobbens kort etter den delte regelen `velgReiseKort` (w12, B32 B; w15c: byggeplass
+ * og valgt underprosjekt er krav, ellers eget kort; attestert eller erstattet reise med kort-id står) og validerer K1–K4/K6 over hele sedelens post-tilstand med
  * den delte `validerKortInvariant` (packages/shared). Regel 1 (oppgitt id) og regel 2 (lagret
  * id ved uendret nøkkel) gjøres av kalleren når raden skrives — se `kortIdForSkriving`.
  *
@@ -17,17 +18,29 @@ import { prisma } from "@sitedoc/db";
 import { prismaVarelager } from "@sitedoc/db-varelager";
 import {
   effektivKortByggeplass,
+  egetReiseKort,
+  jobberFraArbeidsrader,
   kortIdNokkel,
   kortPaaSedelFraRader,
   losKortId,
   utledKortId,
   validerKortInvariant,
+  velgReiseKort,
   type KortInvariantBrudd,
   type KortInvariantRad,
   type KortNokkelFelt,
 } from "@sitedoc/shared";
 
 type Tx = Prisma.TransactionClient;
+
+/**
+ * O12 pkt 3/16 (vedtak-timer-web § Reisevinduet): timerradene som ER jobben i et kort — de som
+ * avgjør kortets nøkkel (prosjekt|byggeplass|underprosjekt) og «jobbens første arbeidsrad». En
+ * reise (`erReise`) og en reise ført som arbeidstid (`arbeidReiseRetning`) står i kortet som
+ * reise, også med et annet underprosjekt. Samme regel som `sikreKortId` (`erKortReiseArbeid`)
+ * og `flyttJobbTilSted`. Brukes som Prisma-filter: `where: { ...JOBBRAD, ... }`.
+ */
+export const JOBBRAD = { erReise: false, arbeidReiseRetning: null } as const;
 
 export type SedelKortKontekst = {
   sheetId: string;
@@ -111,6 +124,8 @@ export type LagretKortRad = {
   projectId: string | null;
   byggeplassId: string | null;
   externalCostObjectId: string | null;
+  /** Bare timerrader: reise eller arbeid (arbeid↔reise gir regel 3, § 8.22 punkt 3). */
+  erReise?: boolean;
 };
 
 /**
@@ -129,7 +144,7 @@ export async function lastLagretKort(
     externalCostObjectId: true,
   } as const;
   const [timer, tillegg, maskin, utlegg] = await Promise.all([
-    tx.sheetTimer.findMany({ where: { sheetId, id: { in: ider.timer } }, select }),
+    tx.sheetTimer.findMany({ where: { sheetId, id: { in: ider.timer } }, select: { ...select, erReise: true } }),
     tx.sheetTillegg.findMany({ where: { sheetId, id: { in: ider.tillegg } }, select }),
     tx.sheetMachine.findMany({ where: { sheetId, id: { in: ider.maskin } }, select }),
     tx.sheetUtlegg.findMany({ where: { sheetId, id: { in: ider.utlegg } }, select }),
@@ -188,7 +203,17 @@ export async function sikreKortId(
     createdAt: true,
   } as const;
   const [timer, maskiner, tillegg, utlegg] = await Promise.all([
-    tx.sheetTimer.findMany({ where: { sheetId }, select: { ...nokkelSelect, erReise: true } }),
+    tx.sheetTimer.findMany({
+      where: { sheetId },
+      select: {
+        ...nokkelSelect,
+        erReise: true,
+        reiseRetning: true,
+        arbeidReiseRetning: true,
+        fraTid: true,
+        attestertStatus: true,
+      },
+    }),
     tx.sheetMachine.findMany({ where: { sheetId }, select: { ...nokkelSelect, sheetTimerId: true } }),
     tx.sheetTillegg.findMany({ where: { sheetId }, select: nokkelSelect }),
     tx.sheetUtlegg.findMany({ where: { sheetId }, select: nokkelSelect }),
@@ -228,10 +253,13 @@ export async function sikreKortId(
     pr.set(kortId, l);
   };
 
-  // Reise har aldri kort (§ 2.2).
-  for (const t of timer) if (t.erReise && t.kortId) endre(somR("sheet_timer", "timer", t), null);
-
-  const arbeid = timer.filter((t) => !t.erReise).map((t) => somR("sheet_timer", "timer", t));
+  // O12 pkt 3/16 (vedtak-timer-web § Reisevinduet): en reise ført som arbeidstid
+  // (`arbeidReiseRetning`) som står i et kort, står der som en reise — kortet er
+  // stedet, også når underprosjektet er et annet. Den valideres som reise (K1/K2) og
+  // er ingen jobb. Uten kort-id følger den arbeidsregelen (regel 3) som før.
+  const erKortReiseArbeid = (t: (typeof timer)[number]) => !t.erReise && !!t.arbeidReiseRetning && !!t.kortId;
+  const arbeidsreise = timer.filter(erKortReiseArbeid).map((t) => somR("sheet_timer", "timer", t));
+  const arbeid = timer.filter((t) => !t.erReise && !erKortReiseArbeid(t)).map((t) => somR("sheet_timer", "timer", t));
   const mask = maskiner.map((m) => somR("sheet_machines", "maskin", m));
   const tl = tillegg.map((t) => somR("sheet_tillegg", "tillegg", t));
   const ut = utlegg.map((u) => somR("sheet_utlegg", "utlegg", u));
@@ -265,13 +293,58 @@ export async function sikreKortId(
     if (t) endre(m, t.kortId);
   }
 
+  // Reise (§ 4.15 del E; § 8.22 punkt 3, Kenneth 2026-11-21): kortet avgjøres bare av reisens
+  // egne felt. Regelen (`velgReiseKort`) kjøres bare for reise UTEN kort-id — når den er ny, og
+  // når prosjekt, byggeplass eller underprosjekt er rettet (skriveveiene nuller da id-en via
+  // `kortIdForSkriving`). En reise med kort-id flyttes aldri av at andre registreringer føres
+  // eller slettes. Den kjøres etter arbeidsradene over, så reise og arbeid i samme skriving
+  // havner i samme kort. Ingen jobb på stedet → eget kort (`egetReiseKort`). Regelen endrer bare
+  // kort-id, aldri prosjekt, underprosjekt eller byggeplass.
+  const jobber = jobberFraArbeidsrader(
+    timer
+      .filter((t) => !t.erReise && !erKortReiseArbeid(t))
+      .map((t) => {
+        const a = timerById.get(t.id)!;
+        return {
+          kortId: a.kortId,
+          projectId: a.nokkel.projectId,
+          ecoId: a.nokkel.ecoId,
+          byggeplassId: a.nokkel.byggeplassId,
+          fraTid: t.fraTid,
+          opprettet: a.opprettet,
+          attestertStatus: t.attestertStatus,
+        };
+      }),
+  );
+  const jobbKortIder = jobber.map((j) => j.kortId);
+  const reise = timer.filter((t) => t.erReise).map((t) => ({ t, r: somR("sheet_timer", "timer", t) }));
+  for (const { t, r } of reise) {
+    if (r.kortId) continue;
+    // Reise uten prosjekt (ugyldig, FA16; sperret av sheet_timer_uten_prosjekt_chk) røres ikke —
+    // samme vakt som w15c-utfyllingen (`project_id IS NOT NULL`).
+    if (r.nokkel.projectId === null) continue;
+    endre(
+      r,
+      velgReiseKort(
+        {
+          projectId: r.nokkel.projectId,
+          ecoId: r.nokkel.ecoId,
+          byggeplassId: r.nokkel.byggeplassId,
+          retning: t.reiseRetning,
+          fraTid: t.fraTid,
+        },
+        jobber,
+      ) ?? egetReiseKort({ userId: kontekst.userId, dato: kontekst.dato, nokkel: r.nokkel, jobbKortIder }),
+    );
+  }
+
   for (const [tabell, pr] of endringer) for (const [kortId, ider] of pr) await settKortId(tx, tabell, kortId, ider);
 
   // Koblet maskin som følger raden (K6) valideres på radens nøkkel: dens egen byggeplass/
   // underprosjekt kan avvike i eldre data, og det skal ikke gi en ny avvisning i synken
   // (backfill 2 gjør det samme — kobler på prosjekt alene).
-  const brudd = validerKortInvariant(
-    alle.map((r) => ({
+  const brudd = validerKortInvariant([
+    ...alle.map((r) => ({
       id: r.id,
       type: r.type,
       kortId: r.kortId,
@@ -280,7 +353,10 @@ export async function sikreKortId(
       // K6 bare der koblingen følger (samme prosjekt) — ellers eget kort som før.
       sheetTimerId: r.type === "maskin" && kobletFolger(r) ? r.sheetTimerId : undefined,
     })),
-  );
+    // Reise: bare K1 og K2 (samme sedel og prosjekt som kortet), § 2.3.
+    ...reise.map(({ r }) => ({ id: r.id, type: r.type, kortId: r.kortId, sheetId, nokkel: r.nokkel, erReise: true })),
+    ...arbeidsreise.map((r) => ({ id: r.id, type: r.type, kortId: r.kortId, sheetId, nokkel: r.nokkel, erReise: true })),
+  ]);
   if (opts.oppgitteKortIder?.length) {
     for (const k of await kortIdPaaAnnenSedel(tx, sheetId, opts.oppgitteKortIder))
       brudd.push({ kortId: k, grunn: "kortUlikSedel", radId: "" });
@@ -294,8 +370,7 @@ export async function sikreKortId(
       kort: kort(),
     });
   }
-  const kortIdFor = new Map<string, string | null>(alle.map((r) => [r.id, r.kortId]));
-  for (const t of timer) if (t.erReise) kortIdFor.set(t.id, null);
+  const kortIdFor = new Map<string, string | null>([...alle, ...reise.map(({ r }) => r), ...arbeidsreise].map((r) => [r.id, r.kortId]));
   return { brudd, kortIdFor };
 }
 
@@ -318,7 +393,7 @@ export async function validerOppgittKortId(
   const sel = { projectId: true, byggeplassId: true, externalCostObjectId: true } as const;
   const where = { sheetId: kontekst.sheetId, kortId };
   const iKortet = [
-    ...(await tx.sheetTimer.findMany({ where: { ...where, erReise: false }, select: sel })),
+    ...(await tx.sheetTimer.findMany({ where: { ...where, ...JOBBRAD }, select: sel })),
     ...(await tx.sheetTillegg.findMany({ where, select: sel })),
     ...(await tx.sheetUtlegg.findMany({ where, select: sel })),
   ];
@@ -397,7 +472,8 @@ export async function vareKortIdForSkriving(
     }
     const nyNokkel = kortIdNokkel(radNokkel(kontekst, args.ny));
     const radIKortet = await prismaTimer.sheetTimer.findFirst({
-      where: { sheetId: args.dagsseddelId, kortId: args.oppgittKortId },
+      // Reiseraden i kortet kan ha et annet underprosjekt (B34 B, O12 pkt 3) — bare jobbrader avgjør.
+      where: { sheetId: args.dagsseddelId, kortId: args.oppgittKortId, ...JOBBRAD },
       select: { projectId: true, byggeplassId: true, externalCostObjectId: true },
     });
     if (radIKortet && kortIdNokkel(radNokkel(kontekst, radIKortet)) !== nyNokkel) {

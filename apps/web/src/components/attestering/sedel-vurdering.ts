@@ -6,19 +6,19 @@ import { arbeidUtenReise, type ArbeidReiseRad } from "@sitedoc/shared";
  * Kriteriet er «krever et aktivt valg av attestanten» (Kenneth), IKKE «avviker fra normen»
  * alene. Standard-ekspanderingen i firma-attestering åpner disse sedlene ved lasting, og
  * «Krever vurdering»-knappen gjenoppretter settet. Delt kilde så page-en (kontrollert expand)
- * og SeddelKort (intern auto-expand i DagsKort-bruken) aldri drifter fra hverandre.
+ * og tabellmodellen (attestering-tabell.ts) aldri drifter fra hverandre.
  *
  * B ∪ C (Kenneth-vedtak 2026-08-23):
  *  - B «norm-avvik»: ført ≠ dagsnorm (dag-nivå; radene bak 9,00t / 7,50t). Bruker eksisterende
  *    felt (`totaltimer`/`dagsnorm`), ingen ny beregning.
  *  - C «vurderingsflagg»: tilleggskrav ∨ mertid ∨ maskin-over — dag-nivå anomalier som i dag
- *    auto-åpner SeddelKort. Beholdt så de sedlene ikke slutter å auto-åpne (regresjonsvern).
+ *    ga «Krever vurdering» før tabellen. Beholdt så de sedlene fortsatt merkes (regresjonsvern).
  *
  * IKKE med: `overtidsgrunnlag.avvik` (beregnet overtid ≠ ført overtid) — det er UKE-nivå og
  * formidles alt av ukesbadgen; som per-sedel-trigger ville den åpnet alle dagene i uken.
  */
 
-/** Minimal strukturell form — både SeddelKortData og page-ens Sedel-type oppfyller den. */
+/** Minimal strukturell form — tabellmodellens sedel oppfyller den. */
 export interface VurderingsSedel {
   tilleggHarKrav: boolean;
   dagsnorm: number;

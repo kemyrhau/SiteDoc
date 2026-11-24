@@ -8,7 +8,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * konsulent, byggherre) får tilgang som et vanlig medlem: medlemsrad, grupper og mappetilgang.
  *
  * Dekker predikatet `erFirmaAdminForProsjekt` og de to parallelle sjekkene som lå utenfor det:
- * `gruppe.hentMinFlytInfo` og `dagsseddel.kanAttestere` (`erProsjektLeder`).
+ * `gruppe.hentMinFlytInfo` og attesteringsretten. Attesteringsretten bæres fra w10b (plan
+ * web-timeføring § 4.10 del D) av omfanget i firmaets attestering (`attesteringsOmfang`).
  * Kjører den EKTE tilgangskontrollen mot en mocket `@sitedoc/db`.
  *
  * Rød før fiksen: firma-admin i deltakerfirmaet slapp gjennom alle tre.
@@ -58,7 +59,7 @@ const { EIER, DELTAKER, PROSJEKT, UTEN_EIER, USER, tilstand, prismaMock } = vi.h
     },
     // Ingen medlemsrad: bypassen er eneste vei inn.
     // L2: hentMinFlytInfo slår opp aktivt medlem med findFirst (aktivtProsjektmedlemWhere).
-    projectMember: { findFirst: vi.fn(async () => null) },
+    projectMember: { findFirst: vi.fn(async () => null), findMany: vi.fn(async () => []) },
   };
   return { EIER, DELTAKER, PROSJEKT, UTEN_EIER, USER, tilstand, prismaMock };
 });
@@ -71,7 +72,7 @@ vi.mock("../services/timer", () => ({ krevTimerAktivert: vi.fn(), hentEffektivAr
 
 import { erFirmaAdminForProsjekt } from "./tilgangskontroll";
 import { gruppeRouter } from "../routes/gruppe";
-import { dagsseddelRouter } from "../routes/timer/dagsseddel";
+import { attesteringsOmfang, dagsseddelRouter } from "../routes/timer/dagsseddel";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const ctx = { userId: USER, prisma: prismaMock } as any;
@@ -114,13 +115,20 @@ describe("gruppe.hentMinFlytInfo — bare eierfirmaet", () => {
   });
 });
 
-describe("dagsseddel.kanAttestere (erProsjektLeder) — bare eierfirmaet", () => {
-  it("🔴 firma-admin i deltakerfirma uten medlemsrad → false", async () => {
+describe("attesteringsOmfang — firma-admin i deltakerfirma får ikke attestere eierfirmaets timer", () => {
+  it("🔴 firma-admin i deltakerfirma uten medlemsrad → tomt omfang i eierfirmaet", async () => {
     tilstand.adminI = DELTAKER;
-    expect(await dagsseddelRouter.createCaller(ctx).kanAttestere({ projectId: PROSJEKT })).toBe(false);
+    expect(await attesteringsOmfang(USER, EIER)).toEqual({ type: "prosjekter", prosjektIder: [] });
   });
 
-  it("negativkontroll: firma-admin i eierfirmaet → true", async () => {
-    expect(await dagsseddelRouter.createCaller(ctx).kanAttestere({ projectId: PROSJEKT })).toBe(true);
+  it("🔴 … og eierfirmaets attesteringsliste avvises", async () => {
+    tilstand.adminI = DELTAKER;
+    await expect(
+      dagsseddelRouter.createCaller(ctx).hentTilAttesteringFirma({ organizationId: EIER }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
+  it("negativkontroll: firma-admin i eierfirmaet → alle", async () => {
+    expect(await attesteringsOmfang(USER, EIER)).toEqual({ type: "alle" });
   });
 });

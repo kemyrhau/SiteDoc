@@ -26,12 +26,12 @@ import type {
 } from "@/app/dashbord/[prosjektId]/3d-visning/typer";
 import { INTERNE_FELT, ifcFilCache } from "@/app/dashbord/[prosjektId]/3d-visning/konstanter";
 import {
-  hentNavn,
-  hentVerdi,
   settWebifcKonstanter,
   finnIfcTypeKode,
 } from "@/app/dashbord/[prosjektId]/3d-visning/hjelpefunksjoner";
-import { finnUtliggere, type Boks3 } from "@sitedoc/shared/tred";
+import { finnUtliggere, trekkUtIfcEgenskaper, type Boks3, type IfcEnheter } from "@sitedoc/shared/tred";
+import { hentModellEnheter, type IfcEgenskapsApi } from "@/lib/ifcEgenskaper";
+import { flyttSnittpilerTilMidten } from "@/lib/tredSnittPil";
 import {
   avstandEtterSteg,
   flyttLangsBlikk,
@@ -379,6 +379,7 @@ export function ViewerCanvas({
       };
     } | null = null;
     const openModelIds = new Map<string, number>();
+    const enhetCache = new Map<number, IfcEnheter>();
     const ifcDataMapRef = new Map<string, Uint8Array>();
 
     Promise.all([
@@ -413,6 +414,9 @@ export function ViewerCanvas({
         // grunnlag for zoom-farten), og raycast fra skjermmidten mot synlige modeller
         // (settes når raycasting er klar lenger ned)
         let sisteOrbitAvstand = 10;
+        // Boksen kamera, innramming og orbit-punkt bruker: samlet boks uten objekter langt unna
+        // (§ 3b punkt 3). Tom til modellene er lastet; orbit-punktet holdes innenfor den (§ 3c (iv)).
+        const kameraBoks = new THREE.Box3();
         let finnTreffISkjermmidten: (() => Promise<InstanceType<typeof THREE.Vector3> | null>) | null = null;
         if (world.camera.controls) {
           const ctrl = world.camera.controls;
@@ -435,14 +439,14 @@ export function ViewerCanvas({
           let orbitTeller = 0;
           async function settOrbitPunkt() {
             const nr = ++orbitTeller;
-            const start = orbitPunkt(cam.position, blikkretning(), null, sisteOrbitAvstand);
+            const start = orbitPunkt(cam.position, blikkretning(), null, sisteOrbitAvstand, kameraBoks);
             ctrl.setTarget(start.punkt.x, start.punkt.y, start.punkt.z, false);
             if (!finnTreffISkjermmidten) return;
             const kameraVedStart = cam.position.clone();
             const treff = await finnTreffISkjermmidten();
             if (nr !== orbitTeller || !treff) return;
             // Kameraet kan ha rotert litt mens raycasten gikk: legg punktet på blikklinja slik den er nå
-            const o = orbitPunkt(cam.position, blikkretning(), treff.distanceTo(kameraVedStart), sisteOrbitAvstand);
+            const o = orbitPunkt(cam.position, blikkretning(), treff.distanceTo(kameraVedStart), sisteOrbitAvstand, kameraBoks);
             sisteOrbitAvstand = o.avstand;
             ctrl.setTarget(o.punkt.x, o.punkt.y, o.punkt.z, false);
           }
@@ -504,6 +508,21 @@ export function ViewerCanvas({
         const clipper = components.get(OBC.Clipper);
         clipper.setup();
         clipper.enabled = false;
+        // Snittpilen flyttes dit planet krysser skjermmidten når kameraet har stoppet (§ 3d).
+        // Ikke mens pilen dras, og ikke mens en knapp er nede (`currentAction` 0 = ingen).
+        let snittDras = false;
+        clipper.onBeforeDrag.add(() => { snittDras = true; });
+        clipper.onAfterDrag.add(() => { snittDras = false; });
+        const flyttSnittpiler = () => {
+          const ctrl = world.camera.controls;
+          if (snittDras || !clipper.enabled || !ctrl || ctrl.currentAction !== 0) return;
+          const cam = world.camera.three;
+          flyttSnittpilerTilMidten(clipper.list.values(), cam.position, cam.getWorldDirection(new THREE.Vector3()));
+        };
+        world.camera.controls?.addEventListener("rest", flyttSnittpiler);
+        world.camera.controls?.addEventListener("sleep", flyttSnittpiler);
+        // Holdes kameraet i ro før slipp, kom rest/sleep mens knappen var nede: slippet teller også
+        world.camera.controls?.addEventListener("controlend", flyttSnittpiler);
         // W2 (1): opprett raycasteren for verdenen nå. OBC lager musesporingen
         // (pointermove) først ved Raycasters.get(world); uten dette skjedde det ved
         // første dobbeltklikk i clipper.create, og første snitt traff skjermens midte.
@@ -523,8 +542,6 @@ export function ViewerCanvas({
         const synligeModeller = new Set<string>();
         const ifcDataMap = ifcDataMapRef;
         const totalBbox = new THREE.Box3();
-        // Boksen kamera og innramming bruker: samlet boks uten objekter langt unna (§ 3b punkt 3)
-        const kameraBoks = new THREE.Box3();
         // Rom/åpninger skjult ved lasting, og objekter langt unna bygget — pr. modell
         const romIds = new Map<string, Set<number>>();
         let utliggerIds: IderPrModell = new Map();
@@ -940,9 +957,16 @@ export function ViewerCanvas({
                   }
                 } catch { /* Ikke kritisk */ }
 
-                const allPropertySets = [...propertySets, ...parentPropertySets];
-                const allTypeProps = [...typeProps, ...parentTypeProps];
                 const allMaterials = [...materials, ...parentMaterials];
+
+                // W3: felles uttrekk (attributter, egenskapssett, type, mengder) med modellens enheter
+                const enheter = hentModellEnheter(
+                  propsApiRef as unknown as IfcEgenskapsApi, modelId, WEBIFC.IFCUNITASSIGNMENT, enhetCache,
+                );
+                const egneGrupper = trekkUtIfcEgenskaper({ objekt: itemProps, egenskapssett: propertySets, typer: typeProps, enheter });
+                const foreldreGrupper = parentProps
+                  ? trekkUtIfcEgenskaper({ egenskapssett: parentPropertySets, typer: parentTypeProps, enheter })
+                  : [];
 
                 const attributter: Record<string, EgenskapVerdi> = {};
                 if (itemProps) {
@@ -951,14 +975,9 @@ export function ViewerCanvas({
                     const n = (nameVal as { value: unknown }).value;
                     if (n != null && n !== "") attributter["Name"] = { value: n };
                   }
-                  for (const [k, v] of Object.entries(itemProps)) {
-                    if (INTERNE_FELT.has(k)) continue;
-                    if (v && typeof v === "object" && "value" in (v as Record<string, unknown>)) {
-                      const val = (v as { value: unknown }).value;
-                      if (val === null || val === undefined || val === "") continue;
-                      attributter[k] = { value: val };
-                    }
-                  }
+                }
+                for (const e of egneGrupper.find((g) => g.art === "attributter")?.egenskaper ?? []) {
+                  attributter[e.navn] = e.enhet ? { value: e.verdi, enhet: e.enhet } : { value: e.verdi };
                 }
                 if (typeName) attributter["Type"] = { value: typeName };
                 if (layerName) attributter["Layer"] = { value: layerName };
@@ -1001,45 +1020,12 @@ export function ViewerCanvas({
                   }
                 }
 
-                // PropertySets
-                for (const pset of [...allPropertySets, ...allTypeProps]) {
-                  const psetNavn = pset.Name && typeof pset.Name === "object" && "value" in (pset.Name as Record<string, unknown>)
-                    ? String((pset.Name as { value: unknown }).value) : "Egenskaper";
+                // Egenskapssett, type-egenskaper og mengder (objektet først, så overordnet element)
+                for (const g of [...egneGrupper, ...foreldreGrupper]) {
+                  if (g.art === "attributter") continue;
                   const egenskaper: Record<string, EgenskapVerdi> = {};
-                  const hasProps = pset.HasProperties as Record<string, unknown>[] | undefined;
-                  if (Array.isArray(hasProps)) {
-                    for (const prop of hasProps) {
-                      const propNavn = hentNavn(prop);
-                      const nestedProps = prop.HasProperties as Record<string, unknown>[] | undefined;
-                      if (Array.isArray(nestedProps)) {
-                        for (const nested of nestedProps) {
-                          const nestedNavn = hentNavn(nested);
-                          const nestedVerdi = hentVerdi(nested);
-                          if (nestedVerdi !== null) egenskaper[`${propNavn}.${nestedNavn}`] = { value: nestedVerdi };
-                        }
-                      } else {
-                        const verdi = hentVerdi(prop);
-                        if (verdi !== null) egenskaper[propNavn] = { value: verdi };
-                      }
-                    }
-                  }
-                  const hasQuant = (pset.Quantities ?? pset.HasQuantities) as Record<string, unknown>[] | undefined;
-                  if (Array.isArray(hasQuant)) {
-                    for (const q of hasQuant) {
-                      const qNavn = hentNavn(q);
-                      const verdi = hentVerdi(q);
-                      if (verdi !== null) egenskaper[qNavn] = { value: verdi };
-                    }
-                  }
-                  const hasTemplates = pset.HasPropertyTemplates as Record<string, unknown>[] | undefined;
-                  if (Array.isArray(hasTemplates)) {
-                    for (const tmpl of hasTemplates) {
-                      const tmplNavn = hentNavn(tmpl);
-                      const verdi = hentVerdi(tmpl);
-                      if (verdi !== null) egenskaper[tmplNavn] = { value: verdi };
-                    }
-                  }
-                  if (Object.keys(egenskaper).length > 0) relasjoner.push({ navn: psetNavn, egenskaper });
+                  for (const e of g.egenskaper) egenskaper[e.navn] = e.enhet ? { value: e.verdi, enhet: e.enhet } : { value: e.verdi };
+                  relasjoner.push({ navn: g.navn ?? "", art: g.art, egenskaper });
                 }
 
                 // Materialer
@@ -1302,9 +1288,9 @@ export function ViewerCanvas({
           flyTil: (x: number, _y: number, z: number, gulvY?: number): Promise<void> => {
             const ctrl = world.camera.controls!;
             if (!ctrl) return Promise.resolve();
-            const erMm = Math.max(...kameraBoks.getSize(new THREE.Vector3()).toArray()) > 1000;
-            const øye = erMm ? 1600 : 1.6;
-            const fremover = erMm ? 5000 : 5;
+            // Scenen er alltid i meter (web-ifc skalerer IFC-enheten, ORDRE 3D-web 5 M1)
+            const øye = 1.6;
+            const fremover = 5;
             const kameraY = (gulvY != null ? gulvY : kameraBoks.getCenter(new THREE.Vector3()).y) + øye;
             const senter = kameraBoks.getCenter(new THREE.Vector3());
             const dx = senter.x - x;

@@ -276,6 +276,15 @@ function MilepelHeader({
     );
   }
 
+  // F13c-2: uten onRediger (vanlig medlem) er overskriften ren tekst — ingen redigering.
+  if (!onRediger) {
+    return (
+      <span className="text-sm font-semibold text-gray-700">
+        {milepel.navn} ({t("kontrollplan.maalUke", { uke: milepel.maalUke })})
+      </span>
+    );
+  }
+
   return (
     <button
       type="button"

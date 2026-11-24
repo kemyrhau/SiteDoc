@@ -46,7 +46,7 @@ Status fylles inn av orkestrator ved merge. ⚪ ikke målt · 🔵 målt · 🟢
 |---|---|---|
 | W1 | 3D-visningen fyller bare deler av skjermen; verre på høyere oppløsning (lerretet slutter ~y=700 av 1213 px) | 🟢 merget `470f9d57` (ikke deployet) |
 | W2 | Snitt virker dårlig eller ikke på PC | 🟢 (1)(2) merget `470f9d57` (ikke deployet). hovertekst «Dobbeltklikk på en flate for å lage snitt» 🟢 merget `23427bdb` |
-| W3 | Egenskapskortet viser for få egenskaper — mange lagrede vises ikke | 🔵 type-egenskaper kastes (`tred-viewer-kontekst.tsx:838-876`), kortet kuttes av W1; felles uttrekk med M5 (2) |
+| W3 | Egenskapskortet viser for få egenskaper — mange lagrede vises ikke | 🟢 merget `59efcf5a` (ikke deployet): felles uttrekk `packages/shared/src/tred/ifc-egenskaper.ts`, type-egenskaper via `HasPropertySets`, enhet fra modellen |
 | W4 | Pan med høyre museknapp virker ikke | 🟢 merget `470f9d57` (ikke deployet) |
 | W5 | Måling i modellen mangler | 🔵 fravær målt; felles med M6. **Kenneth 2026-11-16: første runde = punkt–punkt med avstand + høydeforskjell, uten snapping** |
 | W6 | Med Snitt aktivert: zoomer man inn, begynner modellen å drifte ned og ut av skjermen når man nærmer seg (Kenneth 2026-11-16) | 🟢 merget `23427bdb`: rotårsak `ctrl.forward()` flyttet vannrett + camera-controls' egen hjul-dolly på samme hakk; hjulet går nå langs blikket |
@@ -59,7 +59,7 @@ Status fylles inn av orkestrator ved merge. ⚪ ikke målt · 🔵 målt · 🟢
 | M2 | Zoom med to fingre er 50–60 % for rask på prod, OK på test | 🟢 merget `5266492e` · som M1 |
 | M3 | Rotere objektet virker ikke på prod, virker på test | 🔵 som M1. **Kenneth 2026-11-17:** rotasjon virker på begge, men rundt et punkt utenfor bygget; inne i bygget forsvinner det ut av skjermen og zoom nær er for rask (ønske: rask langt unna, sakte nær). Objekter langt unna bygget er ofte feil-eksport (arkitektens informasjonsfiler). 🟢 § 3b merget `5266492e` (ikke deployet). |
 | M4 | Saks / «beskjær bygget» er svært ustabil | 🔵 dobbelttapp gir objektvalg + nye plan; kameralås under dra må måles på touch |
-| M5 | Objektinfo viser ingen detaljer, egenskaper eller mål | 🟢 (1) merget `1dfb6191` (ikke deployet); (2) bare direkte attributter, felles uttrekk med W3 |
+| M5 | Objektinfo viser ingen detaljer, egenskaper eller mål | 🟢 (1) merget `1dfb6191`; (2) mobil-viewer sender `grupper` — merget `59efcf5a`; appens kort (`apps/mobile/src/lib/objektinfoRader.ts`, `IfcViewer.tsx`) merget `86e395c6` (krever OTA, ikke deployet) |
 | M6 | Måling mangler | 🔵 fravær målt; felles med W5 |
 
 W3 og M5 deler kilde i **klienten** (web-ifc i nettleseren), ikke i `ifcMetadata.ts` (som bare lagrer fil-metadata). Felles uttrekk legges i `@sitedoc/shared` av 3D-web; 3D-mobil bruker det.
@@ -72,7 +72,33 @@ Gjelder **både web og mobil** (paritet):
 2b. **Zoom går mot midten av skjermen på både web og mobil — som prøve** (Kenneth 2026-11-17: *«ja, midten på begge -> la oss prøve det. normalt liker jeg zoom mot muspeker og zoom mot midt mellom fingre -> det er egentlig bedre»*). Web-hjulet går langs blikket; mobil får `dollyToCursor = false`. Vurderes på nytt etter Kenneths test; snus det, er alternativet zoom mot muspeker (web) og mot midt mellom fingrene (mobil).
 3. **Objekter langt unna bygget skjules som standard**, med bryteren «Vis objekter langt unna». Begrunnelse (Kenneth): ofte feil-eksport DWG→IFC; arkitekter legger informasjonsfiler langt unna tegningen. Innramming og kamera ser bort fra dem uansett. Utligger-regelen er én ren funksjon i `@sitedoc/shared`, brukt av begge flater.
 
-🟢 Mobil: punkt 1, 2, 2b, 3 merget `5266492e`. Web: punkt 1 og 2b merget `23427bdb`; punkt 2 og 3 merget `4a5e1663`. Ingenting deployet.
+🟢 Mobil: punkt 1, 2, 2b, 3 merget `5266492e`. Web: punkt 1 og 2b merget `23427bdb`; punkt 2 og 3 merget `4a5e1663`. Deployet test `59606595` og prod `2319102e` 2026-11-17.
+
+### 3c. Kenneths test 2026-11-17 og vedtak «kjør i–v»
+
+Testet på test (test-modellen) og prod (prod-modellen), web og telefon. Virker: lerret fyller skjermen, høyre-pan, Snitt uten drift, ?-hjelp, språkbytte, pan med to fingre i begge modeller, bryteren for objekter langt unna. Feil:
+- Zoom inne i bygget for treg på web og mobil (utenfor OK).
+- Prod-modellen: innzoomet roterer bildet rundt et punkt utenfor bygget (web + mobil). Test-modellen: OK.
+- Mobil åpner modellen for liten: test-modellen ~30 % for liten, prod-modellen liten midt på.
+- Objektinfo på mobil («3D»): kortet viser bare navnet («Tak»), ingen egenskaper (Kenneth: «a») = W3/M5 (2), ikke i denne runden.
+
+**Vedtak (Kenneth 2026-11-17: «a, kjør i–v»):**
+- (i) Pinch på mobil i riktig fart: camera-controls måler fingeravstand fra midtpunkt til finger 2, så én enhet er 16 px, ikke 8.
+- (ii) Zoom-kurven: `ZOOM_NAERHET_M` 5 → 1, `ZOOM_MIN_STEG_M` 0,02 → 0,05 (web + mobil). Steg pr. enhet: 50 m 2,45 · 20 m 0,95 · 10 m 0,45 · 5 m 0,21 · 2 m 0,07 · 1 m 0,05.
+- (iii) Diagnoselinje `?diag=1` på mobil: avstand, steg, om trykket kommer fram, om modellen lastes fra lagret kopi.
+- (iv) Orbit-punktet holdes innenfor byggets boks (ren funksjon i `@sitedoc/shared/tred`, web + mobil).
+- (v) Innramming på mobil: modellen skal fylle skjermen ved åpning; finn hvorfor prod-modellen åpner enda mindre.
+
+🟢 (i)–(v) merget `000f08c1` (gate (88)), ikke deployet. Tillegg: kameraet flyr ikke lenger forbi bygget når skjermmidten bommer (`ctrl.distance`). Prod-modellen kan bare verifiseres av Kenneth i prod.
+
+### 3d. Test 2026-11-17 (`3b0f1abb` på test) og vedtak om snittpilen
+
+Kenneth: web *«svært bra funksjonalitet på test»*; telefon: modellen fyller skjermen, zoom og bevegelse *«fungerer godt»*. Lastetiden på telefon er fortsatt lang (ikke språkfiler — bare nb lastes; motor + `web-ifc.wasm` + modell). Diagnoselinjen viser om modellen kommer fra lagret kopi.
+
+**Feil:** snittpilen står i klikkpunktet (`@thatopen/components` 3.3.3 `createPlaneFromIntersection`, `index.mjs:16464`). Zoomer eller panorerer man inn i et rom, havner pilen utenfor bildet, på web og telefon.
+
+**Vedtak (Kenneth 2026-11-17: «ja, bygg snittpilen»):** når kameraet slipper etter zoom, pan eller rotasjon, flyttes pilen i samme plan dit planet krysser skjermmidten (står planet parallelt med siktet: nærmeste punkt på planet). Snittet endres ikke — samme normal, punkt i samme plan, via offentlig `setFromNormalAndCoplanarPoint` (`:16015`). Ikke mens pilen dras. Ren funksjon i `@sitedoc/shared/tred`, brukt av web-viseren og `mobil-viewer` (rulles ut med web-deploy, ikke OTA). 🟢 Merget `1b3edab6` (gate (92)), ikke deployet. Åpent: står planet bak kameraet (kameraet har krysset planet), havner pilen utenfor bildet — vurderes etter Kenneths test.
+
 
 ## 4. Filkart (målt 2026-11-16)
 

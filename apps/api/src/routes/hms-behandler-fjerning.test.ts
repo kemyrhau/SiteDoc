@@ -137,7 +137,7 @@ function orgCaller(
   opts: {
     sjekklister?: Sak[];
     oppgaver?: Sak[];
-    medlemskap?: { projectId: string; role: string; groupMemberships: { group: { domains: string[] } }[] }[];
+    medlemskap?: { projectId: string; role?: string; groupMemberships: { id: string }[] }[];
   } = {},
 ) {
   const update = vi.fn().mockResolvedValue({});
@@ -265,15 +265,14 @@ describe("ordre (9), A — sweep når firma-rollen fjernes", () => {
     });
   });
 
-  it.each([
-    ["prosjekt-admin", { role: "admin", groupMemberships: [] }],
-    ["aktivt medlem av en HMS-gruppe", { role: "member", groupMemberships: [{ group: { domains: ["hms"] } }] }],
-  ])("🔴 (b) %s i prosjektet beholder ballen der", async (_navn, m) => {
+  // Mocken filtrerer ikke: `groupMemberships` står her slik Prisma returnerer dem ETTER
+  // where-filteret (bare HMS-gruppa, systemNokkel "hms") — filteret sjekkes for seg under.
+  it("🔴 (b) aktivt medlem av HMS-gruppa i prosjektet beholder ballen der", async () => {
     const { caller, prisma } = orgCaller({
       sjekklister: [sak("s1", P1), sak("s2", P2)],
       medlemskap: [
-        { projectId: P1, ...m },
-        { projectId: P2, role: "member", groupMemberships: [{ group: { domains: ["bygg"] } }] },
+        { projectId: P1, groupMemberships: [{ id: "gm-1" }] },
+        { projectId: P2, groupMemberships: [] },
       ],
     });
     await caller.settFirmaHmsAnsvarlig({ userId: AKTIV, organizationId: FIRMA, harTilgang: false });
@@ -281,17 +280,27 @@ describe("ordre (9), A — sweep når firma-rollen fjernes", () => {
     expect(prisma.documentTransfer.create).toHaveBeenCalledTimes(1);
     expect(prisma.activity.create).toHaveBeenCalledWith({ data: expect.objectContaining({ projectId: P2 }) });
     expect(prisma.activity.create).not.toHaveBeenCalledWith({ data: expect.objectContaining({ projectId: P1 }) });
-    // Medlemskapet som avgjør er det aktive.
+    // Medlemskapet som avgjør er det aktive, og bare HMS-gruppa teller (H3).
     expect(prisma.projectMember.findMany.mock.calls[0]?.[0]).toMatchObject({
       where: { userId: AKTIV, periodeSlutt: null },
+      select: { groupMemberships: { where: { periodeSlutt: null, group: { systemNokkel: "hms" } } } },
     });
+  });
+
+  it("🔴 (b) H3: prosjekt-admin uten HMS-gruppa beholder ikke ballen (Kenneth HF2 ja, 2026-11-23)", async () => {
+    const { caller, prisma } = orgCaller({
+      sjekklister: [sak("s1", P1)],
+      medlemskap: [{ projectId: P1, role: "admin", groupMemberships: [] }],
+    });
+    await caller.settFirmaHmsAnsvarlig({ userId: AKTIV, organizationId: FIRMA, harTilgang: false });
+    expect(prisma.checklist.updateMany).toHaveBeenCalledWith({ where: { id: { in: ["s1"] } }, data: { recipientUserId: null } });
   });
 
   it("🔴 (c) antallet i forhåndsvisningen = antallet sweepen treffer", async () => {
     const data = {
       sjekklister: [sak("s1", P1), sak("s2", P2), sak("s3", P2)],
       oppgaver: [sak("o1", P1), sak("o2", P2)],
-      medlemskap: [{ projectId: P1, role: "admin", groupMemberships: [] }],
+      medlemskap: [{ projectId: P1, groupMemberships: [{ id: "gm-1" }] }],
     };
     const forhånd = orgCaller(data);
     const { antallApne } = await forhånd.caller.forhandsvisFjernHmsAnsvarlig({ userId: AKTIV, organizationId: FIRMA });

@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
@@ -10,7 +10,6 @@ import { KnappMedForklaring } from "@/components/KnappMedForklaring";
 import { SignertBilde } from "@/components/SignertBilde";
 import { SignertLenke } from "@/components/SignertLenke";
 import {
-  ArrowLeft,
   Pencil,
   Plus,
   Trash2,
@@ -25,9 +24,23 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { StatusBadge } from "@/components/timer/StatusBadge";
+import { SlettDagModal } from "@/components/timer/SlettDagModal";
 import { ForslagValgSeksjon } from "@/components/timer/ForslagValgSeksjon";
 import { SplittRadModal } from "@/components/timer/SplittRadModal";
 import { ProsjektRadVelger } from "@/components/timer/ProsjektRadVelger";
+import { OppmoteSporsmaalModal } from "@/components/timer/OppmoteSporsmaalModal";
+import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
+import { useFirma } from "@/kontekst/firma-kontekst";
+import { TilbakeLenke, useTilbakeAdresse } from "@/components/nivaa/TilbakeLenke";
+import { RESERVE_MINE_TIMER } from "@/lib/tilbake-adresse";
+import {
+  adresseEtterRegistrering,
+  byggeplassForRegistrering,
+  loesAapentKort,
+  nyKortId,
+  registrerTimerSteg,
+  visDagDato,
+} from "@/lib/registrerTimer";
 import { MaskinVelger } from "@/components/timer/MaskinVelger";
 import { KortVareforbrukModal } from "@/components/timer/KortVareforbrukModal";
 import {
@@ -36,22 +49,27 @@ import {
 } from "@/components/timer/RadByggeplassFelt";
 import {
   byggeplassPayload,
+  byggeplasserForProsjekt,
   radByggeplassLinje,
+  velgStandardByggeplass,
   type ByggeplassValg,
 } from "@/lib/timerByggeplass";
 import {
-  maskinBucketKapasitet,
-  overstigerMaskinTak,
+  maskinHoystPerRad,
+  maskinForslagFraJobb,
+  jobbArbeidSum,
+  overMaskinHoyst,
   DEFAULT_PAUSE_ETTER_TIMER,
-  pauseVinduFra,
   effektiveTimerFraSpenn,
   tilFraAntall,
+  fraFraTilOgAntall,
   hhmmTilMin,
   pauseOverlappMin,
   pauseMinForDag,
   pauseFraForRad,
   fastPauseFraFor,
   utledArbeidstidFraRader,
+  lesMidnattDel,
   avgjorRadPauseMin,
   finnOverlappendeTidsrom,
   foreslaOvertidSplitt,
@@ -62,23 +80,40 @@ import {
   arbeidOgReise,
   arbeidUtenReise,
   maskinKreverTimerad,
+  kortIdNokkel,
   sendDagenTekst,
   type ForsonRad,
   type ErReiseKontekst,
   type OvertidForslag,
   finnOverlappVarsel,
+  jobberSomManglerBeskrivelse,
+  radGirJobbBeskrivelse,
+  erArbeidstidReise,
+  aktiveTimerRader,
+  beskrivOverlapp,
+  reiseUtenforArbeid,
+  linjeKanFlyttes,
 } from "@sitedoc/shared";
 import { rundTilNarmeste } from "@/lib/tidsrunding";
+import { BeskrivelseHover, jobbensBeskrivelser } from "@/components/timer/BeskrivelseHover";
 import { ReiseKort } from "./ReiseKort";
+import { SlettDeltReise, midnattTekst } from "@/components/timer/SlettDeltReise";
+import { JobbSkjema } from "./JobbSkjema";
+import { jobbSkjemaLinjer, nyJobbForslag, senesteTilTid, type SkjemaKilde } from "@/lib/jobbSkjema";
+import type { SkjemaLonnsart } from "./JobbSkjema";
+import { KorrigeringProvider, KorrigertMerke, type KorrigeringerPrRad } from "@/components/timer/KorrigertMerke";
+import { reiseHavnerI, useReiseKjoretidOppslag, type ReiseHavnerAnnenRad } from "@/hooks/useManuellReiseWeb";
+import { kontorReiseTekst, useKontorNavn } from "@/hooks/useKontorReiseTekst";
+import { formaterBelop, formaterTimer } from "@/lib/tallformat";
 import {
   beregnKortSummer,
-  dagSummer,
   kortStatus,
   lesTimerModus,
-  sumlinjeMotNorm,
+  sumlinjeDag,
   utledKortByggeplass,
   visVareforbrukKnapp,
   kortDagsseddelId,
+  grupperPaaKort,
 } from "@sitedoc/shared";
 
 const ENHETER = ["m", "m2", "m3", "kg", "tonn", "stk"] as const;
@@ -87,10 +122,6 @@ function tilTall(v: unknown): number {
   if (v === null || v === undefined) return 0;
   if (typeof v === "number") return v;
   return Number(v);
-}
-
-function formatTimer(n: number): string {
-  return (Math.round(n * 100) / 100).toLocaleString("nb-NO");
 }
 
 function formatDato(d: Date | string): string {
@@ -136,7 +167,16 @@ type TimerRad = {
   erReise?: boolean;
   // POST (13) L2: sporet — overføringsretninger som alt finnes tilbys ikke igjen.
   reiseKilde?: string | null;
+  // O16 R5: overføringens rute (`reiseRegel.overforing`) — kontor → kontor åpnes som «Til annet oppmøtested».
+  reiseRegel?: unknown;
+  // w9: jobben (prosjektkortet) raden hører til — «høyst» regnes pr. jobb.
+  kortId?: string | null;
   reiseRetning?: string | null;
+  // O12 pkt 18: reisens kontor — ny kjøretid når jobben flyttes.
+  reiseOppmotestedId?: string | null;
+  // O12 pkt 16: en reise ført som arbeidstid — "ut" | "retur". Bare på arbeidsrad.
+  arbeidReiseRetning?: string | null;
+  createdAt?: string | Date;
 };
 
 type TilleggVedlegg = {
@@ -160,6 +200,9 @@ type TilleggRad = {
   // byggeplass / hovedgruppa. Valgfrie så gammel API-respons ikke bryter.
   byggeplassId?: string | null;
   externalCostObjectId?: string | null;
+  // w3a: jobben raden hører til (kort-id) og føringstidspunktet (rekkefølgen i kortet).
+  kortId?: string | null;
+  createdAt?: string | Date;
 };
 
 // U3 (2026-08-08): utlegg-rad (SheetUtlegg). Egen bærer med ordningVedFoering-
@@ -175,6 +218,8 @@ type UtleggRad = {
   vedlegg?: TilleggVedlegg[];
   byggeplassId?: string | null;
   externalCostObjectId?: string | null;
+  kortId?: string | null;
+  createdAt?: string | Date;
 };
 
 type MaskinRad = {
@@ -193,6 +238,21 @@ type MaskinRad = {
   attestertStatus: string | null;
   // Ordre d2c-1 (R24): timeraden maskinen står på. Valgfri så eldre respons ikke bryter.
   sheetTimerId?: string | null;
+  // w9: jobben maskinen hører til (K6: følger timeraden).
+  kortId?: string | null;
+  createdAt?: string | Date;
+};
+
+// w3a: jobben et vindu åpnes fra. Vinduet arver prosjekt, byggeplass, underprosjekt og
+// kort-id; `sheetTimerId` er jobbens første arbeidsrad (S2 A), `fra`/`til` jobbens spenn (S3 A).
+type JobbKontekst = {
+  kortId: string;
+  projectId: string;
+  byggeplassId: string | null;
+  ecoId: string | null;
+  sheetTimerId: string | null;
+  fra: string | null;
+  til: string | null;
 };
 
 // V22: det timer-radens sekundærlinje trenger fra sedelen og gruppa.
@@ -227,6 +287,8 @@ const SedelFirmaKontekst = createContext<string | undefined>(undefined);
 function useSedelFirma(): string | undefined {
   return useContext(SedelFirmaKontekst);
 }
+// O19 pkt 23: sedelens dato (YYYY-MM-DD) — merket «fortsetter / fortsatt fra» på en delt reise.
+const SedelDatoKontekst = createContext<string | undefined>(undefined);
 
 export default function DagsseddelDetaljSide() {
   const { t } = useTranslation();
@@ -320,6 +382,12 @@ export default function DagsseddelDetaljSide() {
   // samme sedel, samme mutasjoner. Varelinjene hentes bare i prosjektkort-modus.
   const prosjektkortModus =
     lesTimerModus(arbeidstidDefaults?.timerRegistreringsmodus) === "prosjektkort";
+  // O12 pkt 18: ny kjøretid for reisen når en jobb flyttes til et annet sted.
+  const reiseKjoretid = useReiseKjoretidOppslag({
+    organizationId: sheet?.organizationId ?? "",
+    dato: sheet ? new Date(sheet.dato).toISOString().slice(0, 10) : "",
+    enabled: prosjektkortModus && !!sheet?.organizationId && !!sheet?.dato,
+  });
   const { data: mineVarer } = trpc.vareforbruk.hentMineForDato.useQuery(
     {
       organizationId: sheet?.organizationId ?? "",
@@ -332,15 +400,66 @@ export default function DagsseddelDetaljSide() {
   );
   // Prosjektkort L3: arbeiderens vare-katalog + prosjektene med Varelager på.
   // Feil (Varelager av for firmaet, ingen tilgang) → ingen «+ Vareforbruk».
-  const { data: vareKatalog } = trpc.vareforbruk.katalogForFirma.useQuery(
+  const { data: vareKatalog, error: vareKatalogFeil } = trpc.vareforbruk.katalogForFirma.useQuery(
     { organizationId: sheet?.organizationId ?? "" },
     { enabled: prosjektkortModus && !!sheet?.organizationId, retry: false },
   );
-  const [vareModalProsjekt, setVareModalProsjekt] = useState<string | null>(null);
-  // Åpent kort: undefined = automatisk (eneste kort, eller nytt fra opprettelse).
+  // w3b (B37 A): firmaadministrator for SEDELENS firma (ikke toppens valgte) ser hvor Varelager
+  // slås på når firmaet ikke har det (katalogen svarer FORBIDDEN). Samme regel som
+  // kanAdministrereFirma (firma-kontekst.tsx): sitedoc_admin eller firma_admin-medlemskap.
+  // Serveren krever firma-admin for å slå på (organisasjon.ts verifiserFirmaAdmin).
+  const { data: adminFirmaer } = trpc.organisasjon.hentTilgjengelige.useQuery(undefined, {
+    enabled: prosjektkortModus,
+  });
+  const { data: minBrukerRaw } = trpc.bruker.hentMin.useQuery(undefined, { enabled: prosjektkortModus });
+  const visVarelagerLenke =
+    prosjektkortModus &&
+    (vareKatalogFeil as { data?: { code?: string } | null } | null | undefined)?.data?.code === "FORBIDDEN" &&
+    ((minBrukerRaw as { role?: string } | null | undefined)?.role === "sitedoc_admin" ||
+      ((adminFirmaer ?? []) as Array<{ id: string }>).some((f) => f.id === sheet?.organizationId));
+  // w3a: vare-vinduet åpnes fra en jobb (ny vare) eller fra blyanten på en varelinje (rad).
+  const [vareModal, setVareModal] = useState<
+    { projectId: string; jobb?: JobbKontekst; rad?: KortVare } | null
+  >(null);
+  // Åpent kort (w3a: kort-id, prosjekt-id for et tomt kort, eller «utenJobb»):
+  // undefined = automatisk (eneste kort, eller nytt fra opprettelse). S8 A: ett om gangen.
   const [aapentKort, setAapentKort] = useState<string | null | undefined>(
     () => nyttProsjektParam ?? undefined,
   );
+
+  // Plan § 8.22 L3a: jobbskjemaet. `skjemaKilde` gir gule felt og merket for jobben forslaget
+  // kom til (nøkkel = kort-id, eller prosjekt-id for dagens første jobb). `nyJobbUtkast` er neste
+  // jobb før Til er fylt — bare på skjermen. `ulagredeKort` sperrer «Send dagen».
+  const [skjemaKilde, setSkjemaKilde] = useState<{ nokkel: string; kilde: SkjemaKilde } | null>(null);
+  const [nyJobbUtkast, setNyJobbUtkast] = useState<{
+    kortId: string;
+    projectId: string;
+    fraTid: string;
+    tilTid: string;
+    pauseMin: number;
+    kilde: SkjemaKilde;
+  } | null>(null);
+  const [ulagredeKort, setUlagredeKort] = useState<ReadonlySet<string>>(() => new Set());
+  const meldUlagret = useCallback((kortId: string, ulagret: boolean) => {
+    setUlagredeKort((prev) => {
+      if (prev.has(kortId) === ulagret) return prev;
+      const neste = new Set(prev);
+      if (ulagret) neste.add(kortId);
+      else neste.delete(kortId);
+      return neste;
+    });
+  }, []);
+  const harUlagret = ulagredeKort.size > 0;
+  useEffect(() => {
+    if (!harUlagret) return;
+    // Nettleserens egen «Forlat siden?» — teksten styres av nettleseren.
+    const vakt = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", vakt);
+    return () => window.removeEventListener("beforeunload", vakt);
+  }, [harUlagret]);
 
   const [redigerHeader, setRedigerHeader] = useState(false);
   const [aktivModal, setAktivModal] = useState<
@@ -356,26 +475,33 @@ export default function DagsseddelDetaljSide() {
         // Ordre 2026-11-14 (6): «+ Reise» — lønnsarten er låst til den løste
         // reise-lønnsarten, og raden lagres med reiseKilde «manuell».
         reise?: { id: string; navn: string };
+        // w2 (B1, WM59): «+ Registrer timer» — ny jobb = nytt kort, og prosjektet kan
+        // byttes i vinduet (annet prosjekt uten eget steg).
+        kortId?: string;
+        aapentProsjekt?: boolean;
+        // w3a: vinduet er åpnet fra en jobb (lenkeraden eller blyanten på en linje i kortet).
+        jobb?: JobbKontekst;
       }
+    // O14 pkt 2 (R2): pennen på en reise i prosjektkort-visning åpner «Reise»-vinduet.
+    | { type: "reiseRediger"; rad: TimerRad; jobb?: JobbKontekst }
     // U3: unified velger — «Legg til på dagsseddelen» (8a). Ruter til
     // tillegg-dialog (laastTilleggId) eller utlegg-dialog etter valg.
-    | { type: "leggTil"; projectId: string }
+    | { type: "leggTil"; projectId: string; jobb?: JobbKontekst }
     // laastTilleggId: kategori valgt i velgeren (add-via-velger) → vises
     // read-only i dialogen. rad: redigering (uendret sats-flyt).
-    | { type: "tillegg"; projectId: string; rad?: TilleggRad; laastTilleggId?: string }
+    | { type: "tillegg"; projectId: string; rad?: TilleggRad; laastTilleggId?: string; jobb?: JobbKontekst }
     // U3: utlegg-registrering. expenseCategoryId ved add, rad ved redigering.
-    | { type: "utlegg"; projectId: string; expenseCategoryId?: string; rad?: UtleggRad }
+    | { type: "utlegg"; projectId: string; expenseCategoryId?: string; rad?: UtleggRad; jobb?: JobbKontekst }
     | {
         type: "maskin";
         projectId: string;
         defaultEcoId?: string | null;
-        // Maskin-fra-til (2026-05-17): forslag basert på timer-radene i
-        // samme prosjekt+ECO-bucket (Alt D — sammenheng-prinsipp).
-        defaultFraTid?: string | null;
-        defaultTilTid?: string | null;
         rad?: MaskinRad;
+        jobb?: JobbKontekst;
       }
-    | { type: "nyProsjekt" }
+    // w2: `forJobb` = «+ Registrer timer» uten kjent prosjekt — alle prosjekter
+    // (også de som alt har kort, WM47), og valget åpner timervinduet for jobben.
+    | { type: "nyProsjekt"; forJobb?: boolean }
     | null
   >(null);
   // P2 (arbeider-splitt): egen rad splittes til N plain rader via splittRadEier.
@@ -391,6 +517,20 @@ export default function DagsseddelDetaljSide() {
     nyttProsjektParam ? [nyttProsjektParam] : [],
   );
   const [notisAvvist, setNotisAvvist] = useState(false);
+  // w2 (B1): dagen åpnet fra «+ Registrer timer» (`registrer=1`). Flyten kjøres én gang når
+  // sedelen og firmaets modus er lastet: ny jobb, prosjektvalg eller gjenåpning først.
+  // «etterGjenaapning» venter på at dagen er gjenåpnet, og åpner så jobben.
+  const fraRegistrer = searchParams.get("registrer") === "1";
+  const registrerEksisterte = searchParams.get("eksisterte") === "1";
+  const [registrer, setRegistrer] = useState<"start" | "etterGjenaapning" | null>(() =>
+    fraRegistrer ? "start" : null,
+  );
+  const registrerFlyt = useRef<() => void>(() => {});
+  useEffect(() => {
+    registrerFlyt.current();
+  });
+  // B2 trinn 3: prosjektet i toppen er forvalget for neste jobb på dagen.
+  const { prosjektId: toppProsjektId } = useProsjekt();
   const [feil, setFeil] = useState<string | null>(null);
   // Bytter native confirm() til ekte modal for slett-bekreftelse
   // (CLAUDE.md § Slett-bekreftelse — confirm() blokkerer testing/automatisering).
@@ -404,9 +544,22 @@ export default function DagsseddelDetaljSide() {
   // «still spørsmål, aksepter ved bekreftelse»). Delt flyt med mobil.
   const [visPauseSporsmaal, setVisPauseSporsmaal] = useState(false);
 
+  // w14 (TK1–TK3): samme adresse som tilbake-knappen — lista brukeren kom fra, ellers Mine timer.
+  const tilbake = useTilbakeAdresse(RESERVE_MINE_TIMER);
   const slett = trpc.timer.dagsseddel.slett.useMutation({
-    onSuccess: () => router.push("/dashbord/timer/mine"),
+    onSuccess: () => router.push(tilbake?.href ?? RESERVE_MINE_TIMER.href),
     onError: (e: { message: string }) => setFeil(e.message),
+  });
+
+  // Retur O8 tillegg 2 (b): «Slett jobben» — ett feilført jobbkort, dagen står.
+  const [slettKortId, setSlettKortId] = useState<string | null>(null);
+  const slettKort = trpc.timer.dagsseddel.slettKort.useMutation({
+    onSuccess: () => {
+      setSlettKortId(null);
+      setAapentKort(null);
+      void utils.timer.dagsseddel.hentMedId.invalidate({ id: params.id });
+      void utils.vareforbruk.hentMineForDato.invalidate();
+    },
   });
 
   // Bolk (f): gjenåpne en sendt sedel (arbeiderens egen). Server nullstiller
@@ -465,13 +618,10 @@ export default function DagsseddelDetaljSide() {
     return (
       <div className="mx-auto max-w-3xl p-6">
         <p className="text-sm text-red-600">{t("timer.detalj.ikkeFunnet")}</p>
-        <Link
-          href="/dashbord/timer/mine"
+        <TilbakeLenke
+          reserve={RESERVE_MINE_TIMER}
           className="mt-3 inline-flex items-center gap-1 text-sm text-sitedoc-primary hover:underline"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          {t("timer.tilbake")}
-        </Link>
+        />
       </div>
     );
   }
@@ -479,9 +629,12 @@ export default function DagsseddelDetaljSide() {
   const erRedigerbar = sheet.status === "draft" || sheet.status === "returned";
   const sheetAktivitetId = sheet.aktivitetId ?? null;
   const timerRader = sheet.timer as unknown as TimerRad[];
+  // R1 (a): radene som teller — uten `erstattet` (leders revisjonsspor), samme utvalg som serverens
+  // overlappsperre. Brukt av overlappvarselet, forslaget for ny rad/jobb, modal-sjekken og visningen.
+  const aktiveRader = aktiveTimerRader(timerRader);
   // Kenneth-vedtak 2026-11-15 (17): overlappende rader vises med varsel i
   // kortet. Kun prosjektkort-modus — dagskortet står urørt.
-  const overlappVarsel = finnOverlappVarsel(timerRader);
+  const overlappVarsel = finnOverlappVarsel(aktiveRader);
   const utforSend = () => {
     setFeil(null);
     send.mutate({ id: sheet.id });
@@ -498,6 +651,16 @@ export default function DagsseddelDetaljSide() {
   const tilleggRader = sheet.tillegg as unknown as TilleggRad[];
   const maskinRader = (sheet.maskiner ?? []) as unknown as MaskinRad[];
   const utleggRader = ((sheet as { utlegg?: unknown }).utlegg ?? []) as unknown as UtleggRad[];
+  // w15f (F55): kort uten arbeid — linja «havner i» ser maskin, tillegg og utlegg, og regner
+  // reisens egne kort-id med sedelens eier og dato, som serveren.
+  const kortRaderUtenArbeid: ReiseHavnerAnnenRad[] = [...maskinRader, ...tilleggRader, ...utleggRader].map((r) => ({
+    kortId: r.kortId ?? null,
+    projectId: r.projectId,
+    ecoId: r.externalCostObjectId ?? null,
+    byggeplassId: r.byggeplassId ?? null,
+    opprettet: r.createdAt ? new Date(r.createdAt).getTime() : 0,
+  }));
+  const kortEier = { userId: sheet.userId, dato: new Date(sheet.dato).toISOString().slice(0, 10) };
 
   // V19-C (C-1): mobilens forslag (SheetTimerForslag) + serverradene mappet til
   // ForsonRad (timer er Decimal/streng over tRPC → tilTall). Rekkefølgen av felt
@@ -552,7 +715,25 @@ export default function DagsseddelDetaljSide() {
   // Finnes rader med tid: start = tidligste fraTid, slutt = seneste tilTid,
   // pause = Σ rad.pauseMin (delt `utledArbeidstidFraRader`). Uten slike rader
   // falles det tilbake til sedelens ramme (startAt/endAt) som prefyll-hint.
+  // O19b F4: `reiseRegel` sendes med, så ingen del av en reise delt ved midnatt
+  // strekker «Arbeidstid i dag» (timer.md § O19 «Følger»). Gjelder bare den verdien.
   const arbeidstidVisning = utledArbeidstidFraRader(
+    timerRader.map((r) => ({
+      fraTid: r.fraTid,
+      tilTid: r.tilTid,
+      pauseMin: r.pauseMin,
+      timer: tilTall(r.timer),
+      reiseRegel: r.reiseRegel,
+    })),
+  );
+  const harRaderMedTid = arbeidstidVisning.startTid !== null;
+  // B75 (Kenneth 8A): har dagen bare deler av en reise delt ved midnatt, viser «Arbeidstid i dag»
+  // «—» — ikke sedelens prefylte ramme. Rammen og andre visninger er uendret.
+  const bareMidnattDeler =
+    !harRaderMedTid && timerRader.some((r) => !!r.fraTid && !!r.tilTid && !!lesMidnattDel(r.reiseRegel));
+  // O19b (gate-retur, valg a): prosjektkortets «Dagens ramme» utledes UTEN `reiseRegel`,
+  // så delene strekker rammen som før — dag 1 07:00–24:00, dag 2 00:00–….
+  const rammeVisning = utledArbeidstidFraRader(
     timerRader.map((r) => ({
       fraTid: r.fraTid,
       tilTid: r.tilTid,
@@ -560,7 +741,14 @@ export default function DagsseddelDetaljSide() {
       timer: tilTall(r.timer),
     })),
   );
-  const harRaderMedTid = arbeidstidVisning.startTid !== null;
+  const rammeHarRaderMedTid = rammeVisning.startTid !== null;
+  // O19b: «Dagens ramme» slutter 24:00 når dagen slutter på del 1 av en reise delt ved midnatt.
+  // `minTilHhmm` klemmer 24:00 til 23:59; dette er kun visningen — beregningene er uendret.
+  const rammeSlutt = timerRader.some(
+    (r) => r.tilTid === "24:00" && lesMidnattDel(r.reiseRegel)?.del === 1,
+  )
+    ? "24:00"
+    : rammeVisning.sluttTid;
 
   // Bolk (d) R1: dagens effektive arbeidstid-vindu — kilde til fra/til-prefill
   // på nye timer-rader OG pausevindu-start (pauseFra), speiler mobilens
@@ -681,6 +869,59 @@ export default function DagsseddelDetaljSide() {
     (p) => !aktiveProsjektIder.includes(p.id),
   );
 
+  // § 8.22 L3a: grunnlaget for jobbskjemaet (prosjektkort-modus, redigerbar dag). Lønnsart-
+  // nedtrekket har arbeids-lønnsartene (ikke reise). Uten lønnsart eller aktivitet står jobben
+  // som i dag (vinduet).
+  const reiseKontekstSide = {
+    reiseLonnsartId: arbeidstidDefaults?.reiseLonnsartId ?? null,
+    grensepunktLonnsartIds: (arbeidstidDefaults?.reiseGrenser ?? [])
+      .map((g) => g.lonnsartId)
+      .filter((id): id is string => id != null),
+  };
+  const skjemaLonnsarter = (sedelLonnsarter ?? []) as SkjemaLonnsart[];
+  const velgbareLonnsarter = skjemaLonnsarter.filter(
+    (l) => l.type === "ordinaer" && !erReiseLonnsart(l.id, l.navn, reiseKontekstSide),
+  );
+  const standardLonnsartId =
+    (sedelLonnsarter ?? []).find(
+      (l) => l.erStandardvalg && velgbareLonnsarter.some((v) => v.id === l.id),
+    )?.id ??
+    velgbareLonnsarter[0]?.id ??
+    null;
+  const kanBrukeSkjema =
+    prosjektkortModus && erRedigerbar && !!sedelLonnsarter && !!standardLonnsartId && !!sheetAktivitetId;
+  const erOvertidsart = (id: string) =>
+    skjemaLonnsarter.find((l) => l.id === id)?.overtidsnivaa != null;
+  const overtidRaderUten = (ider: ReadonlySet<string>) =>
+    timerRader
+      .filter((r) => !ider.has(r.id) && r.attestertStatus !== "erstattet" && !!r.fraTid && !!r.tilTid)
+      .map((r) => ({
+        id: r.id,
+        fraTid: r.fraTid,
+        tilTid: r.tilTid,
+        pauseMin: r.pauseMin,
+        erReise: r.erReise ?? false,
+        overtidsnivaa: skjemaLonnsarter.find((l) => l.id === r.lonnsartId)?.overtidsnivaa ?? null,
+      }));
+  const skjemaPauseEtterTimer =
+    arbeidstidDefaults?.standardPauseEtterTimer ?? DEFAULT_PAUSE_ETTER_TIMER;
+  const skjemaFelles = {
+    sheetId: sheet.id,
+    lonnsarter: skjemaLonnsarter,
+    velgbareLonnsarter,
+    norm: normTimer,
+    pauseEtterTimer: skjemaPauseEtterTimer,
+    fastPauseFra: fastPauseFraFor({
+      startTid: effektivStart,
+      pauseEtterTimer: skjemaPauseEtterTimer,
+      pauseReferanse: effektivNorm?.pauseReferanse ?? "ankomst",
+    }),
+    datoTekst: visDagDato(sheet.dato, false),
+    organizationId: sheet.organizationId ?? undefined,
+    onUlagret: meldUlagret,
+    tidsrundingMinutter: arbeidstidDefaults?.tidsrundingMinutter ?? null,
+  };
+
   // Bolk (g): fra = SENESTE tilTid på HELE sedelen (alle bøtter), ellers dagens
   // effektive start. «Fortsett der du slapp» på hele dagen — ikke bare bøtta.
   // Seneste slutt hindrer at ny rad prefylles inn i et allerede registrert
@@ -689,8 +930,16 @@ export default function DagsseddelDetaljSide() {
     projectId: string,
     ecoId: string | null,
     reise?: { id: string; navn: string },
+    jobb?: {
+      kortId: string;
+      aapentProsjekt: boolean;
+      jobb?: JobbKontekst;
+      /** Retur O8 tillegg: ny jobb fra skjemaet — tidene arbeideren står på. */
+      defaultFraTid?: string | null;
+      defaultTilTid?: string | null;
+    },
   ) => {
-    const sisteTil = timerRader
+    const sisteTil = aktiveRader
       .map((r) => r.tilTid)
       .filter((t): t is string => !!t)
       .reduce<string | null>(
@@ -705,10 +954,97 @@ export default function DagsseddelDetaljSide() {
       defaultFraTid: sisteTil ?? effektivStart,
       defaultTilTid: effektivSlutt,
       reise,
+      ...jobb,
     });
   };
 
-  // Props for én ProsjektGruppe — samme i dagskortet og i et åpent prosjektkort.
+  // w2 (B1, WM59): ny jobb = nytt kort (ny kort-id), Fra etter siste til-tid (WM6).
+  // NB: dagssiden grupperer fortsatt pr. prosjekt — jobb 2 på samme prosjekt står i
+  // samme prosjektkort her til w3, men er eget kort på serveren og i attesteringen.
+  const aapneNyJobb = (projectId: string) => {
+    const kortId = nyKortId();
+    // § 8.22 L3a: i prosjektkort-modus lander jobben i skjemaet i kortet. Fra = slutten på
+    // forrige jobb, Til = firmaets slutt når den ligger etter. Ingen rad før Til er fylt.
+    if (prosjektkortModus && kanBrukeSkjema) {
+      setNyJobbUtkast({
+        kortId,
+        projectId,
+        ...nyJobbForslag({
+          sisteTil: senesteTilTid(aktiveRader),
+          firmaStart: effektivStart,
+          firmaSlutt: effektivSlutt,
+          firmaPauseMin: sheet.pauseMin,
+        }),
+      });
+      setAapentKort(kortId);
+      return;
+    }
+    setEkstraProsjektIder((prev) => (prev.includes(projectId) ? prev : [...prev, projectId]));
+    // w3a: den nye jobben får eget kort — det åpnes når raden er lagret.
+    setAapentKort(kortId);
+    aapneNyTimerRad(projectId, null, undefined, { kortId, aapentProsjekt: true });
+  };
+  const startRegistrering = () => {
+    if (toppProsjektId && prosjektNavnMap.has(toppProsjektId)) aapneNyJobb(toppProsjektId);
+    else setAktivModal({ type: "nyProsjekt", forJobb: true });
+  };
+  const ryddRegistrerAdresse = () =>
+    router.replace(adresseEtterRegistrering(`/dashbord/timer/${params.id}`, searchParams.toString()), {
+      scroll: false,
+    });
+  registrerFlyt.current = () => {
+    if (!registrer || !arbeidstidDefaults || !prosjekterRaw) return;
+    if (!prosjektkortModus) {
+      setRegistrer(null);
+      ryddRegistrerAdresse();
+      return;
+    }
+    const kjent =
+      nyttProsjektParam && prosjektNavnMap.has(nyttProsjektParam) ? nyttProsjektParam : null;
+    const steg = registrerTimerSteg({
+      eksisterte: registrer === "etterGjenaapning" || registrerEksisterte,
+      status: sheet.status,
+      harAttestertRad,
+      projectId: kjent,
+    });
+    // Venter på gjenåpningen (statusen er fortsatt «sendt»).
+    if (registrer === "etterGjenaapning" && steg === "gjenaapne") return;
+    setRegistrer(steg === "gjenaapne" ? "etterGjenaapning" : null);
+    // w15a: flyten er kjørt — omlasting skal ikke kjøre den igjen.
+    if (steg !== "gjenaapne") ryddRegistrerAdresse();
+    if (steg === "gjenaapne") {
+      setGjenaapneFeil(null);
+      setVisGjenaapneModal(true);
+    } else if (steg === "ferdig" && kjent) {
+      // § 8.22 L3a: serveren laget dagens første jobb med firmaets arbeidstid — gule felt.
+      // Uten arbeidsrad på prosjektet (ingen rad laget) lander jobben i skjemaet som utkast.
+      if (timerRader.some((r) => r.projectId === kjent && !r.erReise)) {
+        setSkjemaKilde({ nokkel: kjent, kilde: "firma" });
+      } else {
+        aapneNyJobb(kjent);
+      }
+    } else if (steg === "nyJobb" && kjent) {
+      aapneNyJobb(kjent);
+    } else if (steg === "velgProsjekt") {
+      setAktivModal({ type: "nyProsjekt", forJobb: true });
+    }
+  };
+
+  // V22: grunnlaget for timer-radens «Prosjekt · Byggeplass»-linje.
+  const radLinjeFor = (projectId: string): RadLinjeKontekst => ({
+    // Kort-id-spec § 11.6: rad uten prosjekt (null) er fravær, ikke «Ukjent prosjekt».
+    prosjektNavn:
+      projectId === null
+        ? t("timer.detalj.fravaerUtenProsjekt")
+        : (prosjektNavnMap.get(projectId)?.name ?? t("timer.detalj.ukjentProsjekt")),
+    projectId,
+    sedelByggeplassId:
+      (sheet as { byggeplassId?: string | null }).byggeplassId ?? null,
+    byggeplasser,
+    kortModus: prosjektkortModus,
+  });
+
+  // Props for én ProsjektGruppe (dagskortet).
   const gruppeProps = (projectId: string) => {
     // T7-4c: hvis ingen rader på prosjektet ennå (bruker la til via
     // "+ Legg til prosjekt"), vis kun hovedgruppen (ECO=null).
@@ -734,18 +1070,7 @@ export default function DagsseddelDetaljSide() {
       pauseMin: sheet.pauseMin,
       pauseVisning,
       byggeplassNavn,
-      radLinje: {
-        // Kort-id-spec § 11.6: rad uten prosjekt (null) er fravær, ikke «Ukjent prosjekt».
-        prosjektNavn:
-          projectId === null
-            ? t("timer.detalj.fravaerUtenProsjekt")
-            : (prosjektNavnMap.get(projectId)?.name ?? t("timer.detalj.ukjentProsjekt")),
-        projectId,
-        sedelByggeplassId:
-          (sheet as { byggeplassId?: string | null }).byggeplassId ?? null,
-        byggeplasser,
-        kortModus: prosjektkortModus,
-      },
+      radLinje: radLinjeFor(projectId),
       onTilfoyTimer: (ecoId: string | null) => aapneNyTimerRad(projectId, ecoId),
       onLeggTil: () => setAktivModal({ type: "leggTil", projectId }),
       onRedigerTimer: (rad: TimerRad) =>
@@ -775,16 +1100,338 @@ export default function DagsseddelDetaljSide() {
   };
   const kortNavnMap = new Map(aktiveProsjektIder.map((id) => [id, kortNavn(id)]));
 
+  // w3a: ett kort pr. jobb (kort-id) på PC, gruppert med den delte `grupperPaaKort`
+  // (samme linjer og rekkefølge som mobilen og attesteringen). Rader uten kort-id står i
+  // ett samlekort sist. Prosjekter lagt til uten jobb ennå får et tomt kort med «+ Timer».
+  const kortVarer = (mineVarer ?? []) as KortVare[];
+  const jobbGruppering = prosjektkortModus
+    ? grupperPaaKort({
+        timer: aktiveRader.map((r) => ({ ...r, kortId: r.kortId ?? null })),
+        maskiner: maskinRader.map((r) => ({ ...r, kortId: r.kortId ?? null })),
+        varer: kortVarer.map((v) => ({ ...v, kortId: v.kortId ?? null })),
+        tillegg: tilleggRader.map((r) => ({ ...r, kortId: r.kortId ?? null })),
+        utlegg: utleggRader.map((r) => ({ ...r, kortId: r.kortId ?? null })),
+      })
+    : null;
+  const jobbKort: JobbKortData[] = (jobbGruppering?.kort ?? []).map((k) => {
+    const arbeid = k.linjer.flatMap((l) => (l.type === "timer" ? [l.rad] : []));
+    const timer = k.linjer.flatMap((l) =>
+      l.type === "timer" || l.type === "reise" ? [l.rad] : [],
+    );
+    const maskin = k.linjer.flatMap((l) =>
+      l.type === "maskin" ? [l.rad] : l.type === "timer" ? l.maskiner : [],
+    );
+    const varer = k.linjer.flatMap((l) =>
+      l.type === "vare" ? [l.rad] : l.type === "timer" ? l.varer : [],
+    );
+    const forste = k.linjer[0]?.rad as { projectId?: string | null } | undefined;
+    const fraer = arbeid.map((r) => r.fraTid).filter((x): x is string => !!x);
+    const tiler = arbeid.map((r) => r.tilTid).filter((x): x is string => !!x);
+    return {
+      jobb: {
+        kortId: k.kortId,
+        projectId: (k.hode?.projectId ?? forste?.projectId ?? null) as string,
+        byggeplassId: k.hode?.byggeplassId ?? null,
+        ecoId: k.hode?.externalCostObjectId ?? null,
+        sheetTimerId: arbeid[0]?.id ?? null,
+        fra: fraer.length > 0 ? fraer.reduce((a, b) => (hhmmTilMin(b) < hhmmTilMin(a) ? b : a)) : null,
+        til: tiler.length > 0 ? tiler.reduce((a, b) => (hhmmTilMin(b) > hhmmTilMin(a) ? b : a)) : null,
+      },
+      linjer: k.linjer,
+      timer,
+      maskin,
+      varer,
+    };
+  });
+  const tommeProsjektKort = ekstraProsjektIder.filter(
+    (pid) => !jobbKort.some((k) => k.jobb.projectId === pid),
+  );
+  const utenJobbLinjer: KortLinje[] = jobbGruppering
+    ? [
+        ...jobbGruppering.utenKort,
+        ...jobbGruppering.reise.map((rad): KortLinje => ({ type: "reise", rad })),
+      ]
+    : [];
+  const kortNokler = [
+    ...jobbKort.map((k) => k.jobb.kortId),
+    ...tommeProsjektKort,
+    ...(utenJobbLinjer.length > 0 ? [UTEN_JOBB] : []),
+  ];
+  // w15a (B41 A): prosjekt-id fra «+ Registrer timer»/«Ny dagsseddel» åpner jobbens kort.
+  const aapentKortNokkel = loesAapentKort({
+    aapentKort,
+    kortNokler,
+    jobbKort: jobbKort.map((k) => ({ kortId: k.jobb.kortId, projectId: k.jobb.projectId })),
+  });
+
+  // w3b (B38 A): «+ Maskin» fra jobben fører Utstyr og Antall timer, ingen fra–til.
+  const aapneMaskinForJobb = (jobb: JobbKontekst) =>
+    setAktivModal({
+      type: "maskin",
+      projectId: jobb.projectId,
+      defaultEcoId: jobb.ecoId,
+      jobb,
+    });
+
+  // § 8.22 L3a: skjemaet for en jobb, eller null når jobben står som i dag (mer enn to linjer,
+  // hull, linje 2 som ikke er overtid, linje uten fra–til, attestert linje).
+  const skjemaFor = (k: JobbKortData): SkjemaOppsett | null => {
+    if (!kanBrukeSkjema) return null;
+    // O14 pkt 5 (R4): en reise ført som arbeidstid er ingen skjemalinje — den står i «6 · Reise».
+    const arbeid = k.linjer.flatMap((l) => (l.type === "timer" && !erArbeidstidReise(l.rad) ? [l.rad] : []));
+    const linjer = jobbSkjemaLinjer(arbeid, erOvertidsart);
+    if (!linjer) return null;
+    const forste = linjer[0]!;
+    const forsteJobbIProsjekt =
+      skjemaKilde?.nokkel === k.jobb.projectId &&
+      jobbKort.filter((j) => j.jobb.projectId === k.jobb.projectId).length === 1;
+    const kilde =
+      skjemaKilde && (skjemaKilde.nokkel === k.jobb.kortId || forsteJobbIProsjekt)
+        ? skjemaKilde.kilde
+        : null;
+    // Utkastet er lagret og står nå som kortet: forslaget er arbeiderens tid (ikke gult), og
+    // skjemaet (montert på nytt her) starter med «✓ Lagret».
+    const fraUtkast = nyJobbUtkast?.kortId === k.jobb.kortId;
+    return {
+      ...skjemaFelles,
+      startLagret: fraUtkast,
+      kortId: k.jobb.kortId,
+      linjer: linjer.map((r) => ({
+        id: r.id,
+        fraTid: r.fraTid as string,
+        tilTid: r.tilTid as string,
+        pauseMin: r.pauseMin,
+        lonnsartId: r.lonnsartId,
+        timer: tilTall(r.timer),
+        beskrivelse: r.beskrivelse,
+      })),
+      kilde,
+      andreRader: overtidRaderUten(new Set(linjer.map((r) => r.id))),
+      projectId: k.jobb.projectId,
+      ecoId: k.jobb.ecoId,
+      byggeplassId: k.jobb.byggeplassId,
+      // O8 D (§ 8.22): prosjekt og byggeplass kan endres på lagret jobb; jobben får ny kort-id.
+      // Bare når serveren tar flyttingen (alle linjer venter på attestering, Kontrollør 138 vilkår 1).
+      kanFlytteUnderprosjekt: kanFlytteUnderprosjekt(k, sheet.status),
+      stedValg: alleLinjerVenter(k, sheet.status) ? {
+        prosjekter: [
+          ...(prosjekterFlat.some((p) => p.id === k.jobb.projectId) ? [] : [k.jobb.projectId]),
+          ...prosjekterFlat.map((p) => p.id),
+        ].map((id) => ({ id, navn: kortNavn(id) })),
+        byggeplasser: byggeplasser ?? [],
+        onFlyttet: (nyKortId) => setAapentKort(nyKortId),
+        // O12 pkt 18: reisene i jobben (reisetid og arbeidstid merket som reise).
+        reiser: k.timer
+          .filter((r) => r.erReise || !!r.arbeidReiseRetning)
+          .map((r) => {
+            const retning = r.erReise ? r.reiseRetning : r.arbeidReiseRetning;
+            return {
+              id: r.id,
+              retning: retning === "ut" || retning === "retur" ? retning : null,
+              fraTid: r.fraTid,
+              tilTid: r.tilTid,
+              oppmotestedId: r.erReise ? (r.reiseOppmotestedId ?? null) : null,
+            };
+          }),
+        nyKjoretid: reiseKjoretid,
+      } : undefined,
+      onAapneVindu: () =>
+        setAktivModal({ type: "timer", projectId: forste.projectId, rad: forste, jobb: k.jobb }),
+    };
+  };
+  const utkastSkjema: SkjemaOppsett | null =
+    nyJobbUtkast &&
+    kanBrukeSkjema &&
+    standardLonnsartId &&
+    sheetAktivitetId &&
+    !jobbKort.some((k) => k.jobb.kortId === nyJobbUtkast.kortId)
+      ? {
+          ...skjemaFelles,
+          kortId: nyJobbUtkast.kortId,
+          linjer: [],
+          ny: {
+            projectId: nyJobbUtkast.projectId,
+            aktivitetId: sheetAktivitetId,
+            byggeplassId: byggeplassForRegistrering({
+              toppbarByggeplassId: (sheet as { byggeplassId?: string | null }).byggeplassId ?? null,
+              projectId: nyJobbUtkast.projectId,
+              byggeplasser,
+            }),
+            fraTid: nyJobbUtkast.fraTid,
+            tilTid: nyJobbUtkast.tilTid,
+            pauseMin: nyJobbUtkast.pauseMin,
+            lonnsartId: standardLonnsartId,
+          },
+          kilde: nyJobbUtkast.kilde,
+          andreRader: overtidRaderUten(new Set()),
+          projectId: nyJobbUtkast.projectId,
+          ecoId: null,
+          // Retur O8 tillegg (§ 8.22 punkt 4): «Sted og aktivitet» på ny jobb åpner timevinduet
+          // for ny rad med prosjektet åpent (samme vei som ny jobb utenfor skjemaet), så prosjekt,
+          // byggeplass og aktivitet kan velges. Raden får utkastets kort-id og tidene i skjemaet.
+          onAapneVindu: (tider) =>
+            aapneNyTimerRad(nyJobbUtkast.projectId, null, undefined, {
+              kortId: nyJobbUtkast.kortId,
+              aapentProsjekt: true,
+              ...(tider ? { defaultFraTid: tider.fraTid || null, defaultTilTid: tider.tilTid || null } : {}),
+            }),
+        }
+      : null;
+  const velgKort = (nokkel: string | null) => {
+    setAapentKort(nokkel);
+    // Neste jobb uten Til forsvinner når et annet kort åpnes (ingenting er lagret).
+    if (nyJobbUtkast && nokkel !== nyJobbUtkast.kortId) setNyJobbUtkast(null);
+  };
+
+  // O14 pkt 2 (R2, vedtak Reisevinduet pkt 17): i prosjektkort-visning åpner pennen på en reise
+  // (reisetid, eller arbeidstid med reisemerke) «Reise»-vinduet. Dagskort-visning er uendret.
+  const redigerReise = (r: TimerRad, jobb: JobbKontekst | undefined) =>
+    prosjektkortModus && (r.erReise || erArbeidstidReise(r))
+      ? setAktivModal({ type: "reiseRediger", rad: r, jobb })
+      : setAktivModal({ type: "timer", projectId: r.projectId, rad: r, jobb });
+
+  // Linjene i et kort. Blyanten åpner vinduet med jobben (S7 A); samlekortet har ingen jobb.
+  const renderLinjer = (linjer: KortLinje[], jobb: JobbKontekst | undefined) => (
+    <div className="divide-y divide-gray-100">
+      {linjer.map((l) => {
+        const nokkel = `${l.type}:${l.rad.id}`;
+        // w15d (F18): reisen har egen tegning — merket «Reise», stedet og klokka.
+        if (l.type === "reise") {
+          const rad = l.rad;
+          return (
+            <ReiseLinje
+              key={nokkel}
+              rad={rad}
+              jobbEcoId={jobb ? jobb.ecoId : undefined}
+              prosjektNavn={radLinjeFor(rad.projectId).prosjektNavn}
+              byggeplassNavn={byggeplassNavn}
+              maskinIProsjekt={maskinRader.filter((m) => m.projectId === rad.projectId)}
+              erRedigerbar={erRedigerbar}
+              onRediger={(r) => redigerReise(r, jobb)}
+              onSplitt={(r) => setSplittModal({ type: "timer", rad: r })}
+            />
+          );
+        }
+        if (l.type === "timer") {
+          const rad = l.rad;
+          // O12 pkt 16: en reise ført som arbeidstid vises med «Reise»-merket og «Reise til/fra …»;
+          // den teller som arbeid (kortsummene er uendret).
+          const somReise = !rad.erReise && !!rad.arbeidReiseRetning;
+          return (
+            <div key={nokkel}>
+              {somReise ? (
+                <ReiseLinje
+                  rad={rad}
+                  jobbEcoId={jobb ? jobb.ecoId : undefined}
+                  prosjektNavn={radLinjeFor(rad.projectId).prosjektNavn}
+                  byggeplassNavn={byggeplassNavn}
+                  maskinIProsjekt={maskinRader.filter((m) => m.projectId === rad.projectId)}
+                  erRedigerbar={erRedigerbar}
+                  onRediger={(r) => redigerReise(r, jobb)}
+                  onSplitt={(r) => setSplittModal({ type: "timer", rad: r })}
+                />
+              ) : (
+              <RaderTimer
+                rader={[rad]}
+                maskinIProsjekt={maskinRader.filter((m) => m.projectId === rad.projectId)}
+                erRedigerbar={erRedigerbar}
+                pauseVisning={pauseVisning}
+                radLinje={radLinjeFor(rad.projectId)}
+                onRediger={(r) =>
+                  setAktivModal({ type: "timer", projectId: r.projectId, rad: r, jobb })
+                }
+                onSplitt={(r) => setSplittModal({ type: "timer", rad: r })}
+              />
+              )}
+              {(l.maskiner.length > 0 || l.varer.length > 0) && (
+                <div className="mb-2 ml-3 border-l-2 border-gray-200 pl-3">
+                  {l.maskiner.length > 0 && (
+                    <RaderMaskinKompakt
+                      rader={l.maskiner}
+                      erRedigerbar={erRedigerbar}
+                      byggeplassNavn={byggeplassNavn}
+                      onRediger={(r) =>
+                        setAktivModal({ type: "maskin", projectId: r.projectId, rad: r, jobb })
+                      }
+                      onSplitt={(r) => setSplittModal({ type: "maskin", rad: r })}
+                    />
+                  )}
+                  {l.varer.length > 0 && (
+                    <RaderVare
+                      rader={l.varer}
+                      erRedigerbar={erRedigerbar}
+                      byggeplassNavn={byggeplassNavn}
+                      onRediger={(v) => setVareModal({ projectId: v.projectId, rad: v, jobb })}
+                    />
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        }
+        if (l.type === "maskin") {
+          return (
+            <RaderMaskinKompakt
+              key={nokkel}
+              rader={[l.rad]}
+              erRedigerbar={erRedigerbar}
+              byggeplassNavn={byggeplassNavn}
+              onRediger={(r) =>
+                setAktivModal({ type: "maskin", projectId: r.projectId, rad: r, jobb })
+              }
+              onSplitt={(r) => setSplittModal({ type: "maskin", rad: r })}
+            />
+          );
+        }
+        if (l.type === "vare") {
+          return (
+            <RaderVare
+              key={nokkel}
+              rader={[l.rad]}
+              erRedigerbar={erRedigerbar}
+              byggeplassNavn={byggeplassNavn}
+              onRediger={(v) => setVareModal({ projectId: v.projectId, rad: v, jobb })}
+            />
+          );
+        }
+        if (l.type === "tillegg") {
+          return (
+            <RaderTillegg
+              key={nokkel}
+              rader={[l.rad]}
+              erRedigerbar={erRedigerbar}
+              onRediger={(r) =>
+                setAktivModal({ type: "tillegg", projectId: r.projectId, rad: r, jobb })
+              }
+              onSplitt={(r) => setSplittModal({ type: "tillegg", rad: r })}
+            />
+          );
+        }
+        return (
+          <RaderUtlegg
+            key={nokkel}
+            rader={[l.rad]}
+            projectId={l.rad.projectId}
+            erRedigerbar={erRedigerbar}
+            onRediger={(r) =>
+              setAktivModal({ type: "utlegg", projectId: r.projectId, rad: r, jobb })
+            }
+          />
+        );
+      })}
+    </div>
+  );
+
   return (
     <SedelFirmaKontekst.Provider value={sheet.organizationId ?? undefined}>
+    <SedelDatoKontekst.Provider value={new Date(sheet.dato).toISOString().slice(0, 10)}>
     <div className="max-w-3xl p-6">
-      <Link
-        href="/dashbord/timer/mine"
+      {/* w2: skjemaet hoppes over i prosjektkort-modus — spørsmålet følger med hit. */}
+      {fraRegistrer && <OppmoteSporsmaalModal organizationId={sheet.organizationId ?? null} />}
+      <TilbakeLenke
+        reserve={RESERVE_MINE_TIMER}
         className="mb-3 inline-flex items-center gap-1 text-sm text-sitedoc-primary hover:underline"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        {t("timer.tilbake")}
-      </Link>
+      />
 
       <div className="mb-4 flex items-start justify-between gap-4">
         <div>
@@ -932,7 +1579,7 @@ export default function DagsseddelDetaljSide() {
             {t("timer.arbeidstidIDag")}
           </h3>
           <p className="mb-3 text-xs text-gray-500">
-            {harRaderMedTid
+            {harRaderMedTid || bareMidnattDeler
               ? t("timer.arbeidstidUtledet")
               : t("timer.arbeidstidPrefyltHint")}
           </p>
@@ -940,7 +1587,7 @@ export default function DagsseddelDetaljSide() {
             <Definisjon
               term={t("timer.felt.startTid")}
               verdi={
-                harRaderMedTid
+                harRaderMedTid || bareMidnattDeler
                   ? arbeidstidVisning.startTid ?? "—"
                   : isoTidspunktTilHHMM(sheet.startAt as string | null) || "—"
               }
@@ -948,14 +1595,18 @@ export default function DagsseddelDetaljSide() {
             <Definisjon
               term={t("timer.felt.sluttTid")}
               verdi={
-                harRaderMedTid
+                harRaderMedTid || bareMidnattDeler
                   ? arbeidstidVisning.sluttTid ?? "—"
                   : isoTidspunktTilHHMM(sheet.endAt as string | null) || "—"
               }
             />
             <Definisjon
               term={t("timer.felt.pauseMin")}
-              verdi={`${harRaderMedTid ? arbeidstidVisning.sumPauseMin : sheet.pauseMin} min`}
+              verdi={
+                bareMidnattDeler
+                  ? "—"
+                  : `${harRaderMedTid ? arbeidstidVisning.sumPauseMin : sheet.pauseMin} min`
+              }
             />
           </dl>
         </div>
@@ -971,50 +1622,52 @@ export default function DagsseddelDetaljSide() {
 
       {/* Prosjekt-grupper (dagskort) / prosjektkort-samleside */}
       {prosjektkortModus ? (
+        // w15g: merket «Korrigert av» gis bare i prosjektkort-modus (dagskortet er urørt).
+        <KorrigeringProvider korrigeringer={(sheet as { korrigeringer?: KorrigeringerPrRad }).korrigeringer}>
         <ProsjektkortSamleside
-          prosjektIder={aktiveProsjektIder}
-          aapentKort={
-            aapentKort === undefined
-              ? aktiveProsjektIder.length === 1
-                ? aktiveProsjektIder[0]!
-                : null
-              : aapentKort
-          }
-          onVelgKort={setAapentKort}
-          kortNavn={kortNavnMap}
+          jobbKort={jobbKort}
+          tommeProsjektKort={tommeProsjektKort}
+          utenJobbLinjer={utenJobbLinjer}
+          aapentKort={aapentKortNokkel}
+          onVelgKort={velgKort}
+          skjemaFor={skjemaFor}
+          utkastSkjema={utkastSkjema}
+          harUlagret={harUlagret}
+          kortNavn={kortNavn}
           timerRader={timerRader}
           maskinRader={maskinRader}
-          varer={(mineVarer ?? []) as KortVare[]}
           sedelByggeplassId={(sheet as { byggeplassId?: string | null }).byggeplassId ?? null}
           byggeplassNavn={byggeplassNavn}
           byggeplasser={byggeplasser}
           erRedigerbar={erRedigerbar}
-          kanLeggeTilKort={ledigeProsjekter.length > 0}
+          kanLeggeTilKort={prosjekterForVelger.length > 0}
           ramme={{
-            fra: harRaderMedTid
-              ? arbeidstidVisning.startTid ?? "—"
+            fra: rammeHarRaderMedTid
+              ? rammeVisning.startTid ?? "—"
               : isoTidspunktTilHHMM(sheet.startAt as string | null) || "—",
-            til: harRaderMedTid
-              ? arbeidstidVisning.sluttTid ?? "—"
+            til: rammeHarRaderMedTid
+              ? rammeSlutt ?? "—"
               : isoTidspunktTilHHMM(sheet.endAt as string | null) || "—",
-            pauseMin: harRaderMedTid
-              ? arbeidstidVisning.sumPauseMin
+            pauseMin: rammeHarRaderMedTid
+              ? rammeVisning.sumPauseMin
               : sheet.pauseMin,
             aktivitet: sheet.aktivitet?.navn ?? null,
             beskrivelse: sheet.beskrivelse ?? null,
           }}
           normTimer={normTimer}
           erReturnert={sheet.status === "returned"}
-          kanSlette={
-            sheet.status === "draft" ||
-            (sheet.status === "returned" && !sheet.attestertVed)
-          }
+          kanSlette={sheet.status === "draft"}
           sender={send.isPending}
           sletter={slett.isPending}
-          renderKort={(projectId) => (
-            <ProsjektGruppe iKort {...gruppeProps(projectId)} />
-          )}
-          onNyTimer={(projectId) => aapneNyTimerRad(projectId, null)}
+          renderLinjer={renderLinjer}
+          onNyTimer={(jobb) =>
+            aapneNyTimerRad(jobb.projectId, jobb.ecoId, undefined, {
+              kortId: jobb.kortId,
+              aapentProsjekt: false,
+              jobb,
+            })
+          }
+          onNyJobb={aapneNyJobb}
           reiseLonnsart={reiseKnapp?.lonnsart ?? null}
           // Firmaadmin (hentSetting lykkes kun for admin) ser hvorfor «+ Reise»
           // mangler, med lenke til innstillingen. Andre ser ingenting.
@@ -1024,26 +1677,32 @@ export default function DagsseddelDetaljSide() {
               ? reiseKnapp.status
               : null
           }
-          onNyReise={(projectId, lonnsart) =>
-            aapneNyTimerRad(projectId, null, lonnsart)
-          }
-          onNyMaskin={(projectId) =>
+          onNyReise={(jobb, lonnsart) =>
             setAktivModal({
-              type: "maskin",
-              projectId,
-              defaultEcoId: null,
-              defaultFraTid: effektivStart,
-              defaultTilTid: effektivSlutt,
+              type: "timer",
+              projectId: jobb.projectId,
+              defaultEcoId: jobb.ecoId,
+              reise: lonnsart,
+              jobb,
             })
           }
-          onLeggTil={(projectId) => setAktivModal({ type: "leggTil", projectId })}
+          onNyMaskin={aapneMaskinForJobb}
+          onLeggTil={(jobb) =>
+            setAktivModal({ type: "leggTil", projectId: jobb.projectId, jobb })
+          }
           varelagerProsjekter={vareKatalog?.prosjektIderMedVarelager}
-          onNyVare={setVareModalProsjekt}
-          onNyttKort={() => setAktivModal({ type: "nyProsjekt" })}
+          varelagerLenkeFirmaId={visVarelagerLenke ? (sheet?.organizationId ?? undefined) : undefined}
+          onNyVare={(jobb) => setVareModal({ projectId: jobb.projectId, jobb })}
+          onNyttKort={startRegistrering}
           onEndreRamme={() => setRedigerHeader(true)}
           onSlett={() => setVisSlettModal(true)}
+          onSlettKort={(kortId) => {
+            slettKort.reset();
+            setSlettKortId(kortId);
+          }}
           onSend={sendMedPauseSporsmaal}
         />
+        </KorrigeringProvider>
       ) : aktiveProsjektIder.length === 0 ? (
         <section className="mb-6 rounded-lg border border-dashed border-gray-300 bg-white p-6 text-center text-sm text-gray-500">
           {t("timer.detalj.ingenProsjektGrupper")}
@@ -1097,13 +1756,13 @@ export default function DagsseddelDetaljSide() {
           return (
             <div className={`mb-4 rounded-lg border p-4 text-sm ${farge}`}>
               {t("timer.summering", {
-                registrert: bannerArbeid.toFixed(2),
-                total: normTimer === null ? "?" : normTimer.toFixed(2),
+                registrert: formaterTimer(bannerArbeid),
+                total: normTimer === null ? "?" : formaterTimer(normTimer),
               })}
               {bannerReise > 0 && (
                 <>
                   {" · "}
-                  {t("timer.summeringReise", { reise: bannerReise.toFixed(2) })}
+                  {t("timer.summeringReise", { reise: formaterTimer(bannerReise) })}
                 </>
               )}
             </div>
@@ -1113,10 +1772,9 @@ export default function DagsseddelDetaljSide() {
       {/* Send + slett (prosjektkort-modus: bunnlinja i samlesiden) */}
       {!prosjektkortModus && erRedigerbar && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white p-5">
-          {/* Kenneth-vedtak 2026-10-09 (2): utkast ELLER returnert-og-ikke-attestert
-              kan slettes av eieren (server håndhever samme regel). */}
-          {(sheet.status === "draft" ||
-            (sheet.status === "returned" && !sheet.attestertVed)) && (
+          {/* S1 (plan § 8.22, Kenneth 2026-11-21): bare utkast kan slettes — en returnert
+              dag rettes og sendes på nytt (server håndhever samme regel). */}
+          {sheet.status === "draft" && (
             <Button
               variant="secondary"
               onClick={() => setVisSlettModal(true)}
@@ -1152,24 +1810,71 @@ export default function DagsseddelDetaljSide() {
           onLukk={() => setRedigerHeader(false)}
         />
       )}
-      {aktivModal?.type === "timer" && aktivModal.reise && !aktivModal.rad && (
+      {((aktivModal?.type === "timer" && aktivModal.reise && !aktivModal.rad) || aktivModal?.type === "reiseRediger") && (
         // POST (13) L2 § 7 C: «+ Reise» åpner reise-kortet (Tur / Retur /
-        // overføring) — ikke den generelle timer-dialogen.
+        // overføring) — ikke den generelle timer-dialogen. O14 pkt 2: pennen på en reise også.
         <ReiseKort
           sheetId={sheet.id}
           organizationId={sheet.organizationId}
           dato={new Date(sheet.dato).toISOString().slice(0, 10)}
-          projectId={aktivModal.projectId}
+          projectId={aktivModal.type === "reiseRediger" ? aktivModal.rad.projectId : aktivModal.projectId}
+          prosjekter={prosjekterForVelger}
+          sedelByggeplassId={(sheet as { byggeplassId?: string | null }).byggeplassId ?? null}
           byggeplasser={byggeplasser}
           prosjektNavn={kortNavn}
           aktivitetId={sheetAktivitetId ?? null}
-          dagsrader={timerRader.map((r) => ({ fraTid: r.fraTid, tilTid: r.tilTid, erReise: r.erReise ?? false, erOverforing: r.reiseKilde === "overforing" }))}
-          resolverLonnsartId={aktivModal.reise.id}
-          skjulOverforingRetninger={timerRader
-            .filter((r) => r.reiseKilde === "overforing")
-            .map((r) => r.reiseRetning)
-            .filter((x): x is "ut" | "retur" => x === "ut" || x === "retur")}
+          // w15b: radene bærer kort, sted og prosjekt — overlapp-sperren og linja «havner i».
+          dagsrader={timerRader.filter((r) => aktivModal.type !== "reiseRediger" || r.id !== aktivModal.rad.id).map((r) => ({
+            fraTid: r.fraTid,
+            tilTid: r.tilTid,
+            erReise: r.erReise ?? false,
+            kortId: r.kortId ?? null,
+            projectId: r.projectId,
+            ecoId: r.externalCostObjectId,
+            byggeplassId: r.byggeplassId,
+            opprettet: r.createdAt ? new Date(r.createdAt).getTime() : 0,
+            attestertStatus: r.attestertStatus,
+            arbeidReise: !r.erReise && !!r.arbeidReiseRetning,
+            beskrivelse: r.beskrivelse ?? null,
+            // O19 pkt 25: kontorreisen (kontor → kontor) kjennes på sporet.
+            reiseRegel: r.reiseRegel ?? null,
+          }))}
+          andreRader={kortRaderUtenArbeid}
+          eierId={sheet.userId}
+          resolverLonnsartId={aktivModal.type === "reiseRediger" ? (reiseKnapp?.lonnsart?.id ?? null) : (aktivModal.reise?.id ?? null)}
           erFirmaAdmin={!!orgSetting}
+          forvalgtByggeplassId={aktivModal.type === "reiseRediger" ? undefined : aktivModal.jobb?.byggeplassId}
+          forvalgtEcoId={aktivModal.type === "reiseRediger" ? undefined : aktivModal.jobb?.ecoId}
+          jobbKortId={aktivModal.jobb?.kortId}
+          // O12 pkt 3: åpnet fra et prosjektkort — kortet er stedet.
+          kortModus={prosjektkortModus && (!!aktivModal.jobb || aktivModal.type === "reiseRediger")}
+          rad={
+            aktivModal.type === "reiseRediger"
+              ? {
+                  id: aktivModal.rad.id,
+                  fraTid: aktivModal.rad.fraTid,
+                  tilTid: aktivModal.rad.tilTid,
+                  erReise: aktivModal.rad.erReise === true,
+                  reiseRetning: aktivModal.rad.reiseRetning ?? null,
+                  arbeidReiseRetning: aktivModal.rad.arbeidReiseRetning ?? null,
+                  byggeplassId: aktivModal.rad.byggeplassId ?? null,
+                  externalCostObjectId: aktivModal.rad.externalCostObjectId ?? null,
+                  kortId: aktivModal.rad.kortId ?? null,
+                  beskrivelse: aktivModal.rad.beskrivelse ?? null,
+                  // O16 R5: en kontoroverføring åpnes som «Til annet oppmøtested».
+                  reiseKilde: aktivModal.rad.reiseKilde ?? null,
+                  reiseRegel: aktivModal.rad.reiseRegel ?? null,
+                }
+              : undefined
+          }
+          // O19 pkt 25: «Sted og aktivitet» for kortet vinduet ble åpnet fra (som kortets egen lenke).
+          onAapneSted={(() => {
+            if (aktivModal.type !== "timer" || !aktivModal.jobb) return undefined;
+            const jobb = aktivModal.jobb;
+            const forste = timerRader.find((r) => r.kortId === jobb.kortId && !r.erReise);
+            if (!forste) return undefined;
+            return () => setAktivModal({ type: "timer", projectId: forste.projectId, rad: forste, jobb });
+          })()}
           onLukk={() => setAktivModal(null)}
         />
       )}
@@ -1190,7 +1895,15 @@ export default function DagsseddelDetaljSide() {
           alleTimerRader={timerRader}
           // Prosjektkort L1: inne i et kort er prosjektet låst, og overlapp-
           // meldingen navngir det andre kortet.
-          laastProsjekt={prosjektkortModus}
+          laastProsjekt={prosjektkortModus && !aktivModal.aapentProsjekt}
+          kortId={aktivModal.kortId ?? aktivModal.jobb?.kortId}
+          // w3a (S1 A, S7 A): åpnet fra en jobb — stedet arves, feltene skjules.
+          jobb={aktivModal.jobb}
+          // w3b (A13): maskindelen er lik i «Legg til» og «Rediger» i prosjektkort-modus.
+          kortModus={prosjektkortModus}
+          sedelByggeplassId={(sheet as { byggeplassId?: string | null }).byggeplassId ?? null}
+          kortRaderUtenArbeid={kortRaderUtenArbeid}
+          kortEier={kortEier}
           kortNavn={prosjektkortModus ? kortNavnMap : undefined}
           // P1 (maskin-i-rad): sedelens maskin-rader + sedel-pause for den valgfrie
           // maskin-seksjonen (bucket-kapasitet, samme regel som MaskinRadDialog).
@@ -1224,15 +1937,18 @@ export default function DagsseddelDetaljSide() {
           onLukk={() => setAktivModal(null)}
         />
       )}
-      {vareModalProsjekt && vareKatalog && (
+      {vareModal && vareKatalog && (
         <KortVareforbrukModal
-          projectId={vareModalProsjekt}
-          prosjektNavn={kortNavn(vareModalProsjekt)}
+          projectId={vareModal.projectId}
+          prosjektNavn={kortNavn(vareModal.projectId)}
           dato={new Date(sheet.dato).toISOString().slice(0, 10)}
-          dagsseddelId={kortDagsseddelId(sheet.id, timerRader, vareModalProsjekt)}
+          dagsseddelId={kortDagsseddelId(sheet.id, timerRader, vareModal.projectId)}
+          timerRader={timerRader}
           varer={vareKatalog.varer}
           byggeplasser={byggeplasser}
-          onClose={() => setVareModalProsjekt(null)}
+          rad={vareModal.rad}
+          jobb={vareModal.jobb}
+          onClose={() => setVareModal(null)}
         />
       )}
 
@@ -1244,6 +1960,7 @@ export default function DagsseddelDetaljSide() {
               type: "tillegg",
               projectId: aktivModal.projectId,
               laastTilleggId: tilleggId,
+              jobb: aktivModal.jobb,
             })
           }
           onValgUtlegg={(expenseCategoryId) =>
@@ -1251,6 +1968,7 @@ export default function DagsseddelDetaljSide() {
               type: "utlegg",
               projectId: aktivModal.projectId,
               expenseCategoryId,
+              jobb: aktivModal.jobb,
             })
           }
           onLukk={() => setAktivModal(null)}
@@ -1263,6 +1981,7 @@ export default function DagsseddelDetaljSide() {
           byggeplasser={byggeplasser}
           rad={aktivModal.rad}
           laastTilleggId={aktivModal.laastTilleggId}
+          jobb={aktivModal.jobb}
           onLukk={() => setAktivModal(null)}
         />
       )}
@@ -1273,6 +1992,7 @@ export default function DagsseddelDetaljSide() {
           byggeplasser={byggeplasser}
           expenseCategoryId={aktivModal.expenseCategoryId}
           rad={aktivModal.rad}
+          jobb={aktivModal.jobb}
           onLukk={() => setAktivModal(null)}
         />
       )}
@@ -1282,9 +2002,6 @@ export default function DagsseddelDetaljSide() {
           projectId={aktivModal.projectId}
           byggeplasser={byggeplasser}
           defaultEcoId={aktivModal.defaultEcoId ?? null}
-          defaultFraTid={aktivModal.defaultFraTid ?? null}
-          defaultTilTid={aktivModal.defaultTilTid ?? null}
-          tidsrundingMinutter={orgSetting?.tidsrundingMinutter ?? null}
           rad={aktivModal.rad}
           // Del 2 (maskin ≤ arbeid): hele sedelen sendes inn så modalen kan
           // beregne bucket-kapasitet reaktivt for gjeldende (projectId, ECO).
@@ -1292,18 +2009,23 @@ export default function DagsseddelDetaljSide() {
           alleMaskinRader={maskinRader}
           sistBrukteMaskiner={sistBrukteMaskiner ?? []}
           pauseMin={sheet.pauseMin}
-          // B1/B2 (bolk e): pausevindu-parametre for spenn↔antall-synk. Samme
-          // kilde som timer-modalen; standardPauseMin ≠ pauseMin (bucket-tak).
-          skiftStart={effektivStart}
-          standardPauseMin={arbeidstidDefaults?.standardPauseMin ?? 30}
-          standardPauseEtterTimer={
-            arbeidstidDefaults?.standardPauseEtterTimer ??
-            DEFAULT_PAUSE_ETTER_TIMER
-          }
+          jobb={aktivModal.jobb}
+          kortModus={prosjektkortModus}
           onLukk={() => setAktivModal(null)}
         />
       )}
-      {aktivModal?.type === "nyProsjekt" && (
+      {aktivModal?.type === "nyProsjekt" && aktivModal.forJobb && (
+        <NyProsjektDialog
+          tittel={t("timer.registrerTimer")}
+          ledigeProsjekter={prosjekterForVelger}
+          onLukk={() => setAktivModal(null)}
+          onVelg={(id) => {
+            setAktivModal(null);
+            aapneNyJobb(id);
+          }}
+        />
+      )}
+      {aktivModal?.type === "nyProsjekt" && !aktivModal.forJobb && (
         <NyProsjektDialog
           ledigeProsjekter={ledigeProsjekter}
           onLukk={() => setAktivModal(null)}
@@ -1401,7 +2123,11 @@ export default function DagsseddelDetaljSide() {
       {visGjenaapneModal && (
         <Modal
           open={true}
-          onClose={() => setVisGjenaapneModal(false)}
+          onClose={() => {
+            setVisGjenaapneModal(false);
+            if (registrer) ryddRegistrerAdresse();
+            setRegistrer(null);
+          }}
           title={t("timer.gjenaapne.bekreftTittel")}
         >
           <div className="space-y-4">
@@ -1414,7 +2140,11 @@ export default function DagsseddelDetaljSide() {
             <div className="flex justify-end gap-2">
               <Button
                 variant="secondary"
-                onClick={() => setVisGjenaapneModal(false)}
+                onClick={() => {
+                  setVisGjenaapneModal(false);
+                  if (registrer) ryddRegistrerAdresse();
+                  setRegistrer(null);
+                }}
               >
                 {t("handling.avbryt")}
               </Button>
@@ -1455,64 +2185,140 @@ export default function DagsseddelDetaljSide() {
       )}
 
       {/* Slett-bekreftelse — ekte modal (erstatter native confirm(),
-          CLAUDE.md § Slett-bekreftelse). */}
+          CLAUDE.md § Slett-bekreftelse). S1: lister alt som slettes, med antall. */}
+      {slettKortId && (
+        <SlettDagModal
+          sheetId={sheet.id}
+          kortId={slettKortId}
+          overskrift={t("timer.slettKort.ingress")}
+          onClose={() => setSlettKortId(null)}
+          onBekreft={() => slettKort.mutate({ id: sheet.id, kortId: slettKortId })}
+          sletter={slettKort.isPending}
+          feil={slettKort.error?.message ?? null}
+        />
+      )}
       {visSlettModal && (
-        <Modal
-          open={true}
+        <SlettDagModal
+          sheetId={sheet.id}
+          overskrift={t("timer.slettDag.ingress")}
           onClose={() => setVisSlettModal(false)}
-          title={t("timer.detalj.slett")}
-        >
-          <div className="space-y-4">
-            <p className="text-sm text-gray-700">
-              {t("timer.detalj.slettBekreft")}
-            </p>
-            <div className="flex justify-end gap-2">
-              <Button
-                variant="secondary"
-                onClick={() => setVisSlettModal(false)}
-              >
-                {t("handling.avbryt")}
-              </Button>
-              <Button
-                variant="danger"
-                onClick={() => slett.mutate({ id: sheet.id })}
-                loading={slett.isPending}
-              >
-                {t("handling.slett")}
-              </Button>
-            </div>
-          </div>
-        </Modal>
+          onBekreft={() => slett.mutate({ id: sheet.id })}
+          sletter={slett.isPending}
+          feil={slett.error?.message ?? null}
+        />
       )}
     </div>
+    </SedelDatoKontekst.Provider>
     </SedelFirmaKontekst.Provider>
   );
 }
 
 /* ------------------------------------------------------------------ */
-/*  ProsjektkortSamleside — Prosjektkort L1 (2026-11-05)                */
-/*  Visningsmodus over samme DailySheet (modell A): ett kort pr.        */
-/*  prosjekt med Arbeid/Maskin/Varer/Reise, åpnes på plass. Innholdet   */
-/*  i et åpent kort er dagskortets ProsjektGruppe (iKort). Sedelens      */
-/*  ramme vises som nedtonet linje; innsending pr. dag i bunnlinja.     */
+/*  ProsjektkortSamleside — Prosjektkort L1 (2026-11-05), w3a           */
+/*  Visningsmodus over samme DailySheet (modell A). w3a: ett kort pr.   */
+/*  jobb (kort-id, `grupperPaaKort`) med Arbeid/Maskin/Varer/Reise for  */
+/*  jobben; linjene med blyant og søppelkasse og lenkeraden pr. jobb.   */
+/*  Sedelens ramme vises nedtonet; innsending pr. dag i bunnlinja.      */
 /* ------------------------------------------------------------------ */
 
 type KortVare = {
   id: string;
   projectId: string;
   byggeplassId: string | null;
+  externalCostObjectId?: string | null;
+  sheetTimerId?: string | null;
+  kortId?: string | null;
+  createdAt?: string | Date;
   antall: number;
+  // Punkt 7 (2026-11-13): attestert vare har ingen blyant eller søppelkasse.
+  attestert?: boolean;
   vare: { id: string; navn: string; enhet: string };
 };
 
+// w3a: én linje i et kort (delt `grupperPaaKort`).
+type KortLinje =
+  | { type: "timer"; rad: TimerRad; maskiner: MaskinRad[]; varer: KortVare[] }
+  | { type: "maskin"; rad: MaskinRad }
+  | { type: "vare"; rad: KortVare }
+  | { type: "tillegg"; rad: TilleggRad }
+  | { type: "utlegg"; rad: UtleggRad }
+  | { type: "reise"; rad: TimerRad };
+
+type SkjemaOppsett = Omit<React.ComponentProps<typeof JobbSkjema>, "rader47">;
+
+type JobbKortData = {
+  jobb: JobbKontekst;
+  linjer: KortLinje[];
+  /** Arbeid og reise i jobben (summene i hodet). */
+  timer: TimerRad[];
+  maskin: MaskinRad[];
+  varer: KortVare[];
+};
+
+/**
+ * O8 D (Kontrollør 138 vilkår 1): `flyttJobb` flytter bare en jobb der alle linjene venter på
+ * attestering (`flyttJobbTilSted`) — attestert linje eller attestert vare gir avvisning. Da tilbys
+ * ikke nedtrekkene. Erstattet historikk teller ikke (serveren hopper over den). R1 b1 (Kenneth
+ * 2026-11-23): på egen returnert sedel regnes `returnert` som ventende — samme regel som serveren
+ * (`linjeKanFlyttes`).
+ */
+function alleLinjerVenter(k: JobbKortData, sedelStatus: string): boolean {
+  const venter = (s: string | null) =>
+    s === "erstattet" || linjeKanFlyttes(s, { status: sedelStatus, egenSedel: true });
+  return (
+    k.timer.every((r) => venter(r.attestertStatus)) &&
+    k.maskin.every((m) => venter(m.attestertStatus)) &&
+    k.varer.every((v) => !v.attestert) &&
+    k.linjer.every((l) => l.type !== "tillegg" || venter(l.rad.attestertStatus))
+  );
+}
+
+/**
+ * R1 b1: underprosjektet flyttes med `flyttHeleJobben` — jobbradene (ikke reise, heller ikke reise
+ * ført som arbeidstid), maskin, tillegg og varer må kunne flyttes. Nedtrekket vises bare da, så
+ * valget aldri kan gjøres og så feile.
+ */
+function kanFlytteUnderprosjekt(k: JobbKortData, sedelStatus: string): boolean {
+  const venter = (s: string | null) =>
+    s === "erstattet" || linjeKanFlyttes(s, { status: sedelStatus, egenSedel: true });
+  return (
+    k.timer.every((r) => r.erReise || erArbeidstidReise(r) || venter(r.attestertStatus)) &&
+    k.maskin.every((m) => venter(m.attestertStatus)) &&
+    k.varer.every((v) => !v.attestert) &&
+    k.linjer.every((l) => l.type !== "tillegg" || venter(l.rad.attestertStatus))
+  );
+}
+
+/** Nøkkelen til samlekortet for rader uten kort-id. */
+const UTEN_JOBB = "utenJobb";
+
+/** w3b (B37 A): lenken til firmaets moduler. Modulsiden leser firmaet valgt i toppen, så sedelens
+ *  firma velges før navigeringen — ellers havner en admin med et annet firma valgt på feil firma. */
+function VarelagerLenke({ firmaId, className }: { firmaId: string; className: string }) {
+  const { t } = useTranslation();
+  const { velgFirma } = useFirma();
+  return (
+    <p className="mt-1 text-xs text-gray-500" data-testid="varelager-lenke">
+      {t("timer.prosjektkort.varelagerAv")}{" "}
+      <Link href="/dashbord/firma/moduler" onClick={() => velgFirma(firmaId)} className={className}>
+        {t("timer.prosjektkort.slaaPaaVarelager")}
+      </Link>
+    </p>
+  );
+}
+
 function ProsjektkortSamleside({
-  prosjektIder,
+  jobbKort,
+  tommeProsjektKort,
+  utenJobbLinjer,
   aapentKort,
   onVelgKort,
+  skjemaFor,
+  utkastSkjema,
+  harUlagret,
   kortNavn,
   timerRader,
   maskinRader,
-  varer,
   sedelByggeplassId,
   byggeplassNavn,
   byggeplasser,
@@ -1524,27 +2330,39 @@ function ProsjektkortSamleside({
   kanSlette,
   sender,
   sletter,
-  renderKort,
+  renderLinjer,
   onNyTimer,
+  onNyJobb,
   reiseLonnsart,
   visReiseHint,
   onNyReise,
   onNyMaskin,
   onLeggTil,
   varelagerProsjekter,
+  varelagerLenkeFirmaId,
   onNyVare,
   onNyttKort,
   onEndreRamme,
   onSlett,
+  onSlettKort,
   onSend,
 }: {
-  prosjektIder: string[];
+  jobbKort: JobbKortData[];
+  /** Prosjekter lagt til på dagen uten jobb ennå — tomt kort med «+ Timer». */
+  tommeProsjektKort: string[];
+  /** Rader uten kort-id (ført før kortet pr. jobb) — ett samlekort sist. */
+  utenJobbLinjer: KortLinje[];
   aapentKort: string | null;
-  onVelgKort: (projectId: string | null) => void;
-  kortNavn: Map<string, string>;
+  onVelgKort: (nokkel: string | null) => void;
+  /** § 8.22 L3a: skjemaet for jobben, eller null (jobben står som i dag). */
+  skjemaFor: (k: JobbKortData) => SkjemaOppsett | null;
+  /** Neste jobb før Til er fylt — eget kort med skjemaet. */
+  utkastSkjema: SkjemaOppsett | null;
+  /** Noe i et skjema er ikke lagret: «Send dagen» er sperret. */
+  harUlagret: boolean;
+  kortNavn: (projectId: string) => string;
   timerRader: TimerRad[];
   maskinRader: MaskinRad[];
-  varer: KortVare[];
   sedelByggeplassId: string | null;
   byggeplassNavn: Map<string, string>;
   /** Funn 3: byggeplassens prosjekt, så arv på tvers av prosjekt ikke teller i kortoverskriften. */
@@ -1563,34 +2381,37 @@ function ProsjektkortSamleside({
   kanSlette: boolean;
   sender: boolean;
   sletter: boolean;
-  renderKort: (projectId: string) => JSX.Element;
-  onNyTimer: (projectId: string) => void;
+  renderLinjer: (linjer: KortLinje[], jobb: JobbKontekst | undefined) => JSX.Element;
+  onNyTimer: (jobb: JobbKontekst) => void;
+  /** Tomt prosjektkort: «+ Timer» starter jobben. */
+  onNyJobb: (projectId: string) => void;
   /** Løst reise-lønnsart for «+ Reise»; null = knappen skjules. */
   reiseLonnsart: { id: string; navn: string } | null;
   /** Firmaadmin-hint når knappen er skjult (ingen/flere kandidater). */
   visReiseHint: "ingen" | "flere" | null;
-  onNyReise: (projectId: string, lonnsart: { id: string; navn: string }) => void;
-  onNyMaskin: (projectId: string) => void;
-  onLeggTil: (projectId: string) => void;
+  onNyReise: (jobb: JobbKontekst, lonnsart: { id: string; navn: string }) => void;
+  onNyMaskin: (jobb: JobbKontekst) => void;
+  onLeggTil: (jobb: JobbKontekst) => void;
   varelagerProsjekter: readonly string[] | undefined;
-  onNyVare: (projectId: string) => void;
+  /** w3b (B37 A): satt (sedelens firma-id) når firmaet ikke har Varelager og brukeren er
+   *  firmaadministrator for sedelens firma. */
+  varelagerLenkeFirmaId?: string;
+  onNyVare: (jobb: JobbKontekst) => void;
   onNyttKort: () => void;
   onEndreRamme: () => void;
   onSlett: () => void;
+  /** Retur O8 tillegg 2 (b): «Slett jobben» nederst i det åpne kortet. */
+  onSlettKort: (kortId: string) => void;
   onSend: () => void;
 }) {
   const { t } = useTranslation();
-  const enhet = t("timer.timerEnhet");
-  const visTimer = (n: number) =>
-    n > 0
-      ? `${n.toLocaleString("nb-NO", { minimumFractionDigits: 1, maximumFractionDigits: 2 })} ${enhet}`
-      : "—";
 
   // «Send dagen (7,5 t · reise 2 t)»: arbeid og reise hver for seg (ordre
-  // 2026-11-14 (6)). Sumlinja mot normen teller ikke reise.
+  // 2026-11-14 (6)). Bunnlinja: totalt = arbeid + reise (Kenneth
+  // 2026-11-21); trafikklyset regnes mot normen uten reise.
   const dagArbeidReise = arbeidOgReise(timerRader);
-  const dag = dagSummer(timerRader, maskinRader);
-  const { registrert: motNorm, sone } = sumlinjeMotNorm(timerRader, normTimer);
+  const dag = sumlinjeDag(timerRader, maskinRader, normTimer);
+  const sone = dag.sone;
   const prikk =
     sone === "grå"
       ? "bg-gray-400"
@@ -1603,182 +2424,279 @@ function ProsjektkortSamleside({
   const pauseBaerer = timerRader.find(
     (r) => r.attestertStatus !== "erstattet" && r.pauseMin > 0,
   );
+  const lenke = "font-medium text-sitedoc-primary hover:underline";
+  const antallKort = jobbKort.length + tommeProsjektKort.length;
+  // Plan § 8.22 L2 «ikke ferdig»: jobber uten «Hva gjorde du?» merkes, og «Send dagen» åpner
+  // den første i stedet for å sende. Samlesiden vises bare i prosjektkort-modus.
+  const manglerJobber = erRedigerbar ? jobberSomManglerBeskrivelse(timerRader) : [];
+  const [sendSperret, setSendSperret] = useState(false);
+  const sendDagen = () => {
+    if (harUlagret) return;
+    const forste = manglerJobber[0];
+    if (forste === undefined) {
+      setSendSperret(false);
+      onSend();
+      return;
+    }
+    setSendSperret(true);
+    onVelgKort(forste.startsWith("rad:") ? UTEN_JOBB : forste);
+  };
+
+  // § 8.22 L3a rad 4–7: dagens linjer med blyant og vinduer, og lenken for en ny linje.
+  const rader47For = (k: JobbKortData, jobb: JobbKontekst) => {
+    const maskiner = k.linjer.flatMap((l): KortLinje[] =>
+      l.type === "maskin" ? [l] : l.type === "timer" ? l.maskiner.map((rad) => ({ type: "maskin", rad })) : [],
+    );
+    const varer = k.linjer.flatMap((l): KortLinje[] =>
+      l.type === "vare" ? [l] : l.type === "timer" ? l.varer.map((rad) => ({ type: "vare", rad })) : [],
+    );
+    // O14 pkt 5: arbeidstid-reisen står her som reiselinje (maskin og vare på den står i 4 og 5).
+    const reise = k.linjer.flatMap((l): KortLinje[] =>
+      l.type === "reise" ? [l] : l.type === "timer" && erArbeidstidReise(l.rad) ? [{ type: "reise", rad: l.rad }] : [],
+    );
+    const tilleggUtlegg = k.linjer.filter((l) => l.type === "tillegg" || l.type === "utlegg");
+    const blokk = (linjer: KortLinje[], lenkeTekst: string | null, onLenke: () => void) => (
+      <>
+        {linjer.length > 0 && renderLinjer(linjer, jobb)}
+        {lenkeTekst && (
+          <button type="button" onClick={onLenke} className={`text-sm ${lenke}`}>
+            {lenkeTekst}
+          </button>
+        )}
+      </>
+    );
+    const visVare = visVareforbrukKnapp({
+      prosjektIderMedVarelager: varelagerProsjekter,
+      projectId: jobb.projectId,
+      erRedigerbar,
+    });
+    return [
+      { nr: 4, etikett: t("timer.jobbSkjema.maskiner"), innhold: blokk(maskiner, t("timer.prosjektkort.nyMaskin"), () => onNyMaskin(jobb)) },
+      {
+        nr: 5,
+        etikett: t("timer.jobbSkjema.varer"),
+        innhold: (
+          <>
+            {blokk(varer, visVare ? t("timer.prosjektkort.nyVareKort") : null, () => onNyVare(jobb))}
+            {varelagerLenkeFirmaId && <VarelagerLenke firmaId={varelagerLenkeFirmaId} className={lenke} />}
+          </>
+        ),
+      },
+      {
+        nr: 6,
+        etikett: t("timer.jobbSkjema.reise"),
+        innhold: (
+          <>
+            {blokk(reise, reiseLonnsart ? t("timer.prosjektkort.nyReise") : null, () =>
+              reiseLonnsart ? onNyReise(jobb, reiseLonnsart) : undefined,
+            )}
+            {visReiseHint && (
+              <p className="mt-1 text-xs text-gray-500">
+                {visReiseHint === "ingen"
+                  ? t("timer.prosjektkort.reiseSkjultIngen")
+                  : t("timer.prosjektkort.reiseSkjultFlere")}{" "}
+                <Link href="/dashbord/firma/innstillinger#reise-regelsett" className={lenke}>
+                  {t("timer.prosjektkort.reiseVelgLonnsart")}
+                </Link>
+              </p>
+            )}
+          </>
+        ),
+      },
+      { nr: 7, etikett: t("timer.jobbSkjema.tilleggUtlegg"), innhold: blokk(tilleggUtlegg, t("timer.prosjektkort.leggTil"), () => onLeggTil(jobb)) },
+    ];
+  };
 
   return (
     <section className="mb-6">
       <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
-        {t("timer.prosjektkort.overskrift", { antall: prosjektIder.length })}
+        {t("timer.prosjektkort.overskrift", { antall: antallKort })}
       </h2>
 
-      {prosjektIder.length === 0 && (
+      {antallKort === 0 && utenJobbLinjer.length === 0 && (
         <div className="mb-3 rounded-lg border border-dashed border-gray-300 bg-white p-6 text-center text-sm text-gray-500">
           {t("timer.prosjektkort.ingenKort")}
         </div>
       )}
 
       <div className="space-y-3">
-        {prosjektIder.map((projectId) => {
-          const kTimer = timerRader.filter((r) => r.projectId === projectId);
-          const kMaskin = maskinRader.filter((r) => r.projectId === projectId);
-          const kVarer = varer.filter((v) => v.projectId === projectId);
-          const summer = beregnKortSummer(kTimer, kMaskin, kVarer);
-          const bp = utledKortByggeplass([...kTimer, ...kMaskin], sedelByggeplassId, {
-            projectId,
-            byggeplassProsjekt: (id) => byggeplasser?.find((b) => b.id === id)?.projectId,
-          });
-          const status = kortStatus([...kTimer, ...kMaskin]);
-          const aapen = aapentKort === projectId;
-          const varerTekst =
-            summer.varer === null
-              ? "—"
-              : summer.varer.type === "mengde"
-                ? `${summer.varer.antall.toLocaleString("nb-NO")} ${summer.varer.enhet}`
-                : t("timer.prosjektkort.varelinjer", { antall: summer.varer.antall });
-          const kolonner: [string, string][] = [
-            [t("timer.prosjektkort.kolonne.arbeid"), visTimer(summer.arbeid)],
-            [t("timer.prosjektkort.kolonne.maskin"), visTimer(summer.maskin)],
-            [t("timer.prosjektkort.kolonne.varer"), varerTekst],
-            [t("timer.prosjektkort.kolonne.reise"), visTimer(summer.reise)],
-          ];
+        {jobbKort.map((k) => {
+          const { jobb } = k;
+          const aapen = aapentKort === jobb.kortId;
+          // w15d (B45 A + § 8.19): maskin og vare hører til en timerad — kortet med bare
+          // reise har dem ikke før det får en. § 8.22: reise til annet kontor har ingen
+          // særregel — alle kort får «+ Timer».
+          const harArbeid = k.linjer.some((l) => l.type === "timer");
+          const skjema = skjemaFor(k);
           return (
-            <div
-              key={projectId}
-              className={`rounded-lg border bg-white ${aapen ? "border-blue-400 ring-1 ring-blue-200" : "border-gray-200"}`}
+            <JobbKortRamme
+              key={jobb.kortId}
+              tittel={kortNavn(jobb.projectId)}
+              projectId={jobb.projectId}
+              ecoId={jobb.ecoId}
+              timer={k.timer}
+              maskin={k.maskin}
+              varer={k.varer}
+              sedelByggeplassId={sedelByggeplassId}
+              byggeplassNavn={byggeplassNavn}
+              byggeplasser={byggeplasser}
+              aapen={aapen}
+              onVelg={() => onVelgKort(aapen ? null : jobb.kortId)}
+              manglerBeskrivelse={manglerJobber.includes(jobb.kortId)}
             >
-              <button
-                type="button"
-                aria-expanded={aapen}
-                onClick={() => onVelgKort(aapen ? null : projectId)}
-                className="flex w-full flex-wrap items-center gap-x-6 gap-y-2 p-4 text-left"
-              >
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="truncate text-sm font-semibold text-gray-900">
-                      {kortNavn.get(projectId) ?? t("timer.detalj.ukjentProsjekt")}
-                    </span>
-                    {status === "returnert" && (
-                      <span className="rounded bg-orange-100 px-1.5 py-0.5 text-[10px] font-semibold text-orange-700">
-                        {t("timer.prosjektkort.status.returnert")}
-                      </span>
-                    )}
-                    {status === "attestert" && (
-                      <span className="rounded bg-green-100 px-1.5 py-0.5 text-[10px] font-semibold text-green-700">
-                        {t("timer.prosjektkort.status.attestert")}
-                      </span>
-                    )}
+              {skjema ? (
+                <>
+                  <JobbSkjema {...skjema} rader47={rader47For(k, jobb)} />
+                  <div className="mt-3 text-sm">
+                    <button type="button" onClick={() => onNyTimer(jobb)} className={lenke}>
+                      {t("timer.prosjektkort.nyTimer")}
+                    </button>
                   </div>
-                  {bp.type !== "ingen" && (
-                    <div className="mt-0.5 truncate text-xs text-gray-500">
-                      {bp.type === "en"
-                        ? byggeplassNavn.get(bp.id) ?? ""
-                        : t("timer.prosjektkort.flereByggeplasser", { antall: bp.antall })}
-                    </div>
+                </>
+              ) : (
+                renderLinjer(k.linjer, jobb)
+              )}
+              {erRedigerbar && !skjema && (
+                <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+                  <button type="button" onClick={() => onNyTimer(jobb)} className={lenke}>
+                    {t("timer.prosjektkort.nyTimer")}
+                  </button>
+                  {harArbeid && (
+                    <button type="button" onClick={() => onNyMaskin(jobb)} className={lenke}>
+                      {t("timer.prosjektkort.nyMaskin")}
+                    </button>
                   )}
-                </div>
-                <dl className="flex gap-6">
-                  {kolonner.map(([etikett, verdi]) => (
-                    <div key={etikett} className="min-w-[56px] text-right">
-                      <dt className="text-[10px] uppercase tracking-wide text-gray-400">
-                        {etikett}
-                      </dt>
-                      <dd className="text-sm font-medium tabular-nums text-gray-900">
-                        {verdi}
-                      </dd>
-                    </div>
-                  ))}
-                </dl>
-                <ChevronDown
-                  className={`h-4 w-4 shrink-0 text-gray-400 transition-transform ${aapen ? "rotate-180" : ""}`}
-                />
-              </button>
-
-              {aapen && (
-                <div className="border-t border-gray-100 p-4">
-                  {renderKort(projectId)}
-
-                  {kVarer.length > 0 && (
-                    <ul className="mt-3 space-y-1">
-                      {kVarer.map((v) => (
-                        <li key={v.id} className="flex items-center gap-2 text-sm text-gray-700">
-                          <span className="rounded bg-green-100 px-1.5 py-0.5 text-[10px] font-semibold text-green-700">
-                            {t("timer.prosjektkort.vareMerke")}
-                          </span>
-                          <span>
-                            {v.vare.navn} · {v.antall.toLocaleString("nb-NO")} {v.vare.enhet}
-                            {v.byggeplassId && byggeplassNavn.get(v.byggeplassId)
-                              ? ` · ${byggeplassNavn.get(v.byggeplassId)}`
-                              : ""}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
+                  {harArbeid && visVareforbrukKnapp({
+                    prosjektIderMedVarelager: varelagerProsjekter,
+                    projectId: jobb.projectId,
+                    erRedigerbar,
+                  }) && (
+                    <button type="button" onClick={() => onNyVare(jobb)} className={lenke}>
+                      {t("timer.prosjektkort.nyVareKort")}
+                    </button>
                   )}
-
-                  {erRedigerbar && (
-                    <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-sm">
-                      <button
-                        type="button"
-                        onClick={() => onNyTimer(projectId)}
-                        className="font-medium text-sitedoc-primary hover:underline"
-                      >
-                        {t("timer.prosjektkort.nyTimer")}
-                      </button>
-                      {reiseLonnsart && (
-                        <button
-                          type="button"
-                          onClick={() => onNyReise(projectId, reiseLonnsart)}
-                          className="font-medium text-sitedoc-primary hover:underline"
-                        >
-                          {t("timer.prosjektkort.nyReise")}
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => onNyMaskin(projectId)}
-                        className="font-medium text-sitedoc-primary hover:underline"
-                      >
-                        {t("timer.prosjektkort.nyMaskin")}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onLeggTil(projectId)}
-                        className="font-medium text-sitedoc-primary hover:underline"
-                      >
-                        {t("timer.prosjektkort.leggTil")}
-                      </button>
-                      {visVareforbrukKnapp({
-                        prosjektIderMedVarelager: varelagerProsjekter,
-                        projectId,
-                        erRedigerbar,
-                      }) && (
-                        <button
-                          type="button"
-                          onClick={() => onNyVare(projectId)}
-                          className="font-medium text-sitedoc-primary hover:underline"
-                        >
-                          {t("timer.prosjektkort.nyVare")}
-                        </button>
-                      )}
-                    </div>
+                  {reiseLonnsart && (
+                    <button
+                      type="button"
+                      onClick={() => onNyReise(jobb, reiseLonnsart)}
+                      className={lenke}
+                    >
+                      {t("timer.prosjektkort.nyReise")}
+                    </button>
                   )}
-                  {erRedigerbar && visReiseHint && (
-                    <p className="mt-1 text-xs text-gray-500">
-                      {visReiseHint === "ingen"
-                        ? t("timer.prosjektkort.reiseSkjultIngen")
-                        : t("timer.prosjektkort.reiseSkjultFlere")}{" "}
-                      <Link
-                        href="/dashbord/firma/innstillinger#reise-regelsett"
-                        className="font-medium text-sitedoc-primary hover:underline"
-                      >
-                        {t("timer.prosjektkort.reiseVelgLonnsart")}
-                      </Link>
-                    </p>
-                  )}
+                  <button type="button" onClick={() => onLeggTil(jobb)} className={lenke}>
+                    {t("timer.prosjektkort.leggTil")}
+                  </button>
                 </div>
               )}
-            </div>
+              {erRedigerbar && !skjema && varelagerLenkeFirmaId && (
+                <VarelagerLenke firmaId={varelagerLenkeFirmaId} className={lenke} />
+              )}
+              {erRedigerbar && !skjema && visReiseHint && (
+                <p className="mt-1 text-xs text-gray-500">
+                  {visReiseHint === "ingen"
+                    ? t("timer.prosjektkort.reiseSkjultIngen")
+                    : t("timer.prosjektkort.reiseSkjultFlere")}{" "}
+                  <Link href="/dashbord/firma/innstillinger#reise-regelsett" className={lenke}>
+                    {t("timer.prosjektkort.reiseVelgLonnsart")}
+                  </Link>
+                </p>
+              )}
+              {/* Retur O8 tillegg 2 (b): kortets hode er selve knappen som åpner/lukker kortet,
+                  så slettingen står nederst i det åpne kortet. */}
+              {erRedigerbar && (
+                <div className="mt-3 flex justify-end text-sm">
+                  <button
+                    type="button"
+                    onClick={() => onSlettKort(jobb.kortId)}
+                    className="text-red-600 hover:underline"
+                    data-testid="slett-jobben"
+                  >
+                    {t("timer.slettKort.lenke")}
+                  </button>
+                </div>
+              )}
+            </JobbKortRamme>
           );
         })}
+
+        {tommeProsjektKort.map((projectId) => {
+          const aapen = aapentKort === projectId;
+          return (
+            <JobbKortRamme
+              key={projectId}
+              tittel={kortNavn(projectId)}
+              projectId={projectId}
+              ecoId={null}
+              timer={[]}
+              maskin={[]}
+              varer={[]}
+              sedelByggeplassId={sedelByggeplassId}
+              byggeplassNavn={byggeplassNavn}
+              byggeplasser={byggeplasser}
+              aapen={aapen}
+              onVelg={() => onVelgKort(aapen ? null : projectId)}
+            >
+              {erRedigerbar && (
+                <button type="button" onClick={() => onNyJobb(projectId)} className={`text-sm ${lenke}`}>
+                  {t("timer.prosjektkort.nyTimer")}
+                </button>
+              )}
+            </JobbKortRamme>
+          );
+        })}
+
+        {utkastSkjema && (
+          <JobbKortRamme
+            key={utkastSkjema.kortId}
+            tittel={kortNavn(utkastSkjema.projectId)}
+            projectId={utkastSkjema.projectId}
+            ecoId={null}
+            timer={[]}
+            maskin={[]}
+            varer={[]}
+            sedelByggeplassId={sedelByggeplassId}
+            byggeplassNavn={byggeplassNavn}
+            byggeplasser={byggeplasser}
+            aapen={aapentKort === utkastSkjema.kortId}
+            onVelg={() => onVelgKort(aapentKort === utkastSkjema.kortId ? null : utkastSkjema.kortId)}
+          >
+            <JobbSkjema
+              {...utkastSkjema}
+              rader47={[
+                { nr: 4, etikett: t("timer.jobbSkjema.maskiner"), innhold: null },
+                { nr: 5, etikett: t("timer.jobbSkjema.varer"), innhold: null },
+                { nr: 6, etikett: t("timer.jobbSkjema.reise"), innhold: null },
+                { nr: 7, etikett: t("timer.jobbSkjema.tilleggUtlegg"), innhold: null },
+              ]}
+            />
+          </JobbKortRamme>
+        )}
+
+        {utenJobbLinjer.length > 0 && (
+          <JobbKortRamme
+            tittel={t("timer.prosjektkort.utenJobb")}
+            undertittel={t("timer.prosjektkort.utenJobbHint")}
+            projectId={null}
+            ecoId={null}
+            timer={utenJobbLinjer.flatMap((l) =>
+              l.type === "timer" || l.type === "reise" ? [l.rad] : [],
+            )}
+            maskin={utenJobbLinjer.flatMap((l) => (l.type === "maskin" ? [l.rad] : []))}
+            varer={utenJobbLinjer.flatMap((l) => (l.type === "vare" ? [l.rad] : []))}
+            sedelByggeplassId={sedelByggeplassId}
+            byggeplassNavn={byggeplassNavn}
+            byggeplasser={byggeplasser}
+            aapen={aapentKort === UTEN_JOBB}
+            onVelg={() => onVelgKort(aapentKort === UTEN_JOBB ? null : UTEN_JOBB)}
+            manglerBeskrivelse={utenJobbLinjer.some(
+              (l) => l.type === "timer" && manglerJobber.includes(`rad:${l.rad.id}`),
+            )}
+            stiplet
+          >
+            {renderLinjer(utenJobbLinjer, undefined)}
+          </JobbKortRamme>
+        )}
       </div>
 
       {erRedigerbar && kanLeggeTilKort && (
@@ -1787,7 +2705,8 @@ function ProsjektkortSamleside({
           onClick={onNyttKort}
           className="mt-3 w-full rounded-lg border border-dashed border-gray-300 p-3 text-sm font-medium text-gray-600 hover:border-gray-400 hover:bg-gray-50"
         >
-          {t("timer.prosjektkort.nyttKort")}
+          <span className="text-gray-900">{t("timer.prosjektkort.registrerTimer")}</span>
+          <span className="font-normal text-gray-500"> · {t("timer.prosjektkort.registrerTimerHint")}</span>
         </button>
       )}
 
@@ -1801,7 +2720,7 @@ function ProsjektkortSamleside({
           })}
           {pauseBaerer &&
             ` ${t("timer.prosjektkort.pauseBaeres", {
-              kort: kortNavn.get(pauseBaerer.projectId) ?? "",
+              kort: kortNavn(pauseBaerer.projectId),
             })}`}
           {ramme.aktivitet && ` · ${ramme.aktivitet}`}
           {ramme.beskrivelse && ` · ${ramme.beskrivelse}`}
@@ -1822,14 +2741,15 @@ function ProsjektkortSamleside({
         <div className="mt-4 flex flex-wrap items-center gap-3 rounded-lg border border-gray-200 bg-white p-4">
           <span className={`h-2.5 w-2.5 rounded-full ${prikk}`} aria-hidden />
           <span className="text-sm text-gray-700">
-            {t("timer.prosjektkort.sumIDag", {
-              registrert: formatTimer(motNorm),
-              total: normTimer === null ? "?" : formatTimer(normTimer),
+            {t("timer.prosjektkort.sumArbeid", {
+              timer: formaterTimer(dag.arbeid),
+              norm: normTimer === null ? "?" : formaterTimer(normTimer),
             })}
             {dag.maskin > 0 &&
-              ` · ${t("timer.prosjektkort.sumMaskin", { timer: formatTimer(dag.maskin) })}`}
+              ` · ${t("timer.prosjektkort.sumMaskin", { timer: formaterTimer(dag.maskin) })}`}
             {dag.reise > 0 &&
-              ` · ${t("timer.prosjektkort.sumReise", { timer: formatTimer(dag.reise) })}`}
+              ` · ${t("timer.prosjektkort.sumReise", { timer: formaterTimer(dag.reise) })}`}
+            {` · ${t("timer.prosjektkort.sumTotalt", { timer: formaterTimer(dag.totalt) })}`}
           </span>
           <div className="ml-auto flex gap-2">
             {kanSlette && (
@@ -1839,10 +2759,20 @@ function ProsjektkortSamleside({
               </Button>
             )}
             <KnappMedForklaring
-              sperret={timerRader.length === 0 && !sender}
-              forklaring={t("sperret.minstEnRad")}
+              sperret={(timerRader.length === 0 || manglerJobber.length > 0 || harUlagret) && !sender}
+              forklaring={
+                timerRader.length === 0
+                  ? t("sperret.minstEnRad")
+                  : harUlagret
+                    ? t("timer.jobbSkjema.ulagretSperre")
+                    : t("timer.prosjektkort.sendSperretBeskrivelse")
+              }
             >
-              <Button onClick={onSend} disabled={sender || timerRader.length === 0}>
+              <Button
+                onClick={sendDagen}
+                disabled={sender || timerRader.length === 0 || harUlagret}
+                className={manglerJobber.length > 0 ? "opacity-50" : undefined}
+              >
                 <Send className="mr-1 h-4 w-4" />
                 {/* Returnert sedel: samme tekst som dagskortets «Send på nytt». */}
                 {(() => {
@@ -1853,19 +2783,326 @@ function ProsjektkortSamleside({
                   );
                   if (tekst.nokkel === "timer.detalj.sendPaaNytt") return t(tekst.nokkel);
                   if (tekst.nokkel === "timer.prosjektkort.sendDagen") {
-                    return t(tekst.nokkel, { timer: formatTimer(tekst.timer) });
+                    return t(tekst.nokkel, { timer: formaterTimer(tekst.timer) });
                   }
                   return t(tekst.nokkel, {
-                    timer: formatTimer(tekst.timer),
-                    reise: formatTimer(tekst.reise),
+                    timer: formaterTimer(tekst.timer),
+                    reise: formaterTimer(tekst.reise),
                   });
                 })()}
               </Button>
             </KnappMedForklaring>
           </div>
+          {sendSperret && manglerJobber.length > 0 && (
+            <p className="w-full text-sm text-red-600" role="alert">
+              {t("timer.prosjektkort.sendSperretBeskrivelse")}
+            </p>
+          )}
         </div>
       )}
     </section>
+  );
+}
+
+/**
+ * w3a: ett kort — hodet (prosjekt, byggeplass · underprosjekt, fire summer for jobben) og
+ * innholdet når kortet er åpent. Underprosjektet står i hodet, ikke i en bøtte (A).
+ */
+function JobbKortRamme({
+  tittel,
+  undertittel,
+  projectId,
+  ecoId,
+  timer,
+  maskin,
+  varer,
+  sedelByggeplassId,
+  byggeplassNavn,
+  byggeplasser,
+  aapen,
+  onVelg,
+  stiplet,
+  manglerBeskrivelse,
+  children,
+}: {
+  tittel: string;
+  undertittel?: string;
+  /** null = samlekortet (ingen byggeplass/underprosjekt i hodet). */
+  projectId: string | null;
+  ecoId: string | null;
+  timer: TimerRad[];
+  maskin: MaskinRad[];
+  varer: KortVare[];
+  sedelByggeplassId: string | null;
+  byggeplassNavn: Map<string, string>;
+  byggeplasser: ByggeplassValg[] | undefined;
+  aapen: boolean;
+  onVelg: () => void;
+  stiplet?: boolean;
+  /** Plan § 8.22 L2: jobben mangler «Hva gjorde du?» — merket står også når kortet er lukket. */
+  manglerBeskrivelse?: boolean;
+  children: React.ReactNode;
+}) {
+  const { t } = useTranslation();
+  const sedelFirmaId = useSedelFirma();
+  const sedelDato = useContext(SedelDatoKontekst);
+  const { data: ecoer } = trpc.eksternKostObjekt.list.useQuery(
+    { projectId: projectId ?? "", organizationId: sedelFirmaId },
+    { enabled: !!projectId && !!ecoId },
+  );
+  const eco = ecoId ? (ecoer ?? []).find((e) => e.id === ecoId) : undefined;
+  const enhet = t("timer.timerEnhet");
+  const visTimer = (n: number) =>
+    n > 0
+      ? `${formaterTimer(n)} ${enhet}`
+      : "—";
+  const summer = beregnKortSummer(timer, maskin, varer);
+  // w15d (F19, F20): hodet regner sted og klokke av arbeidet — reisen teller ikke. Et kort
+  // uten arbeid er reise: merket «Reise», reisens sted og klokka for reisene.
+  const arbeid = timer.filter((r) => !r.erReise);
+  const reiseRader = timer.filter((r) => r.erReise);
+  const bareReise = arbeid.length === 0 && reiseRader.length > 0;
+  // O14 pkt 6: et lukket kort med bare reise viser reiselinja («Til {sted} · fra–til») og reisens
+  // beskrivelse ved hover. Kort med arbeid er uendret (beskrivelsene på arbeidet). RETUR trinn 2:
+  // en reise ført som arbeidstid (`erArbeidstidReise`) er også reise her — bare i hoveren.
+  const hoverReiser = timer.filter((r) => r.erReise || erArbeidstidReise(r));
+  const bareReiseHover = hoverReiser.length > 0 && hoverReiser.length === timer.length;
+  const kontorNavn = useKontorNavn(sedelFirmaId, bareReiseHover ? hoverReiser.map((r) => r.reiseRegel) : []);
+  const reiseHover = bareReiseHover
+    ? [...hoverReiser]
+        .sort((a, b) => (a.fraTid ?? "").localeCompare(b.fraTid ?? ""))
+        .flatMap((r) => {
+          const sted = (r.byggeplassId && byggeplassNavn.get(r.byggeplassId)) || tittel;
+          const retning = r.erReise ? r.reiseRetning : r.arbeidReiseRetning;
+          const stedTekst =
+            kontorReiseTekst(t, r.reiseRegel, kontorNavn) ??
+            (retning === "ut"
+              ? t("timer.prosjektkort.reiseTil", { sted })
+              : retning === "retur"
+                ? t("timer.prosjektkort.reiseFra", { sted })
+                : sted);
+          const linje = [
+            stedTekst,
+            r.fraTid && r.tilTid ? `${r.fraTid}–${r.tilTid}` : null,
+            // O19 pkt 23: delt ved midnatt.
+            midnattTekst(t, sedelDato, r.reiseRegel),
+          ]
+            .filter(Boolean)
+            .join(" · ");
+          const tekst = r.beskrivelse?.trim();
+          return tekst ? [linje, tekst] : [linje];
+        })
+    : null;
+  const stedKilde = bareReise ? reiseRader : arbeid;
+  const fraer = stedKilde.map((r) => r.fraTid).filter((x): x is string => !!x);
+  const tiler = stedKilde.map((r) => r.tilTid).filter((x): x is string => !!x);
+  const klokke =
+    fraer.length > 0 && tiler.length > 0
+      ? `${fraer.reduce((a, b) => (hhmmTilMin(b) < hhmmTilMin(a) ? b : a))}–${tiler.reduce((a, b) => (hhmmTilMin(b) > hhmmTilMin(a) ? b : a))}`
+      : "";
+  const bp = projectId
+    ? utledKortByggeplass([...stedKilde, ...maskin], sedelByggeplassId, {
+        projectId,
+        byggeplassProsjekt: (id) => byggeplasser?.find((b) => b.id === id)?.projectId,
+      })
+    : ({ type: "ingen" } as const);
+  const status = kortStatus([...timer, ...maskin]);
+  const varerTekst =
+    summer.varer === null
+      ? "—"
+      : summer.varer.type === "mengde"
+        ? `${summer.varer.antall.toLocaleString("nb-NO")} ${summer.varer.enhet}`
+        : t("timer.prosjektkort.varelinjer", { antall: summer.varer.antall });
+  const kolonner: [string, string][] = [
+    [t("timer.prosjektkort.kolonne.arbeid"), visTimer(summer.arbeid)],
+    [t("timer.prosjektkort.kolonne.maskin"), visTimer(summer.maskin)],
+    [t("timer.prosjektkort.kolonne.varer"), varerTekst],
+    [t("timer.prosjektkort.kolonne.reise"), visTimer(summer.reise)],
+  ];
+  const stedDeler = [
+    bp.type === "en"
+      ? byggeplassNavn.get(bp.id) ?? ""
+      : bp.type === "flere"
+        ? t("timer.prosjektkort.flereByggeplasser", { antall: bp.antall })
+        : "",
+    klokke,
+    // R1 (a): reise utenfor arbeidet står i hodet, ellers sees den bare når kortet åpnes.
+    ...reiseUtenforArbeid(timer).map((r) => t("timer.prosjektkort.reiseTid", { fra: r.fra, til: r.til })),
+    ecoId
+      ? eco
+        ? `${eco.proAdmId} ${eco.kortNavn}`
+        : t("timer.detalj.ukjentEco")
+      : "",
+  ].filter(Boolean);
+
+  return (
+    <div
+      className={`rounded-lg border bg-white ${
+        aapen
+          ? "border-blue-400 ring-1 ring-blue-200"
+          : stiplet
+            ? "border-dashed border-gray-300"
+            : "border-gray-200"
+      }`}
+    >
+      {/* O6 (§ 8.22 punkt 2): lukket kort viser beskrivelsene ved hover. Åpent kort har dem i linjene. */}
+      <BeskrivelseHover beskrivelser={aapen ? [] : (reiseHover ?? jobbensBeskrivelser(arbeid))}>
+      <button
+        type="button"
+        aria-expanded={aapen}
+        onClick={onVelg}
+        className="flex w-full flex-wrap items-center gap-x-6 gap-y-2 p-4 text-left"
+      >
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span className="truncate text-sm font-semibold text-gray-900">{tittel}</span>
+            {status === "returnert" && (
+              <span className="rounded bg-orange-100 px-1.5 py-0.5 text-[10px] font-semibold text-orange-700">
+                {t("timer.prosjektkort.status.returnert")}
+              </span>
+            )}
+            {status === "attestert" && (
+              <span className="rounded bg-green-100 px-1.5 py-0.5 text-[10px] font-semibold text-green-700">
+                {t("timer.prosjektkort.status.attestert")}
+              </span>
+            )}
+            {manglerBeskrivelse && (
+              <span
+                data-testid="mangler-beskrivelse"
+                className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-700"
+              >
+                {t("timer.dagsoversikt.manglerBeskrivelse")}
+              </span>
+            )}
+          </div>
+          {(stedDeler.length > 0 || undertittel || bareReise) && (
+            <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-gray-500">
+              {bareReise && !undertittel && (
+                <span className="shrink-0 rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-semibold text-sky-800">
+                  {t("timer.prosjektkort.reiseMerke")}
+                </span>
+              )}
+              <span className="truncate">{undertittel ?? stedDeler.join(" · ")}</span>
+            </div>
+          )}
+          {ecoId && (
+            <span
+              className="mt-1 inline-flex items-center rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-medium text-indigo-800"
+              title={t("timer.gruppe.tilByggherreHint")}
+            >
+              → {t("timer.gruppe.tilByggherre")}
+            </span>
+          )}
+        </div>
+        <dl className="flex gap-6">
+          {kolonner.map(([etikett, verdi]) => (
+            <div key={etikett} className="min-w-[56px] text-right">
+              <dt className="text-[10px] uppercase tracking-wide text-gray-400">{etikett}</dt>
+              <dd className="text-sm font-medium tabular-nums text-gray-900">{verdi}</dd>
+            </div>
+          ))}
+        </dl>
+        <ChevronDown
+          className={`h-4 w-4 shrink-0 text-gray-400 transition-transform ${aapen ? "rotate-180" : ""}`}
+        />
+      </button>
+      </BeskrivelseHover>
+      {aapen && <div className="border-t border-gray-100 px-4 pb-4 pt-2">{children}</div>}
+    </div>
+  );
+}
+
+/**
+ * w3a: varelinjer i kortet med blyant og søppelkasse. Blyanten åpner vare-vinduet med
+ * linja (mengden kan rettes); søppelkassen spør før sletting. Attestert vare er låst.
+ */
+function RaderVare({
+  rader,
+  erRedigerbar,
+  byggeplassNavn,
+  onRediger,
+}: {
+  rader: KortVare[];
+  erRedigerbar: boolean;
+  byggeplassNavn: Map<string, string>;
+  onRediger: (rad: KortVare) => void;
+}) {
+  const { t } = useTranslation();
+  const utils = trpc.useUtils();
+  const [bekreft, setBekreft] = useState<KortVare | null>(null);
+  const slett = trpc.vareforbruk.slett.useMutation({
+    onSuccess: () => {
+      void utils.vareforbruk.hentMineForDato.invalidate();
+      setBekreft(null);
+    },
+    onError: (e: { message: string }) => alert(e.message),
+  });
+  return (
+    <>
+      {bekreft && (
+        <Modal open={true} onClose={() => setBekreft(null)} title={t("timer.prosjektkort.slettVareTittel")}>
+          <div className="space-y-4">
+            <p className="text-sm text-gray-700">
+              {t("timer.prosjektkort.slettVareTekst", {
+                navn: bekreft.vare.navn,
+                antall: bekreft.antall.toLocaleString("nb-NO"),
+                enhet: bekreft.vare.enhet,
+              })}
+            </p>
+            <div className="flex justify-end gap-2">
+              <Button variant="secondary" onClick={() => setBekreft(null)}>
+                {t("handling.avbryt")}
+              </Button>
+              <Button
+                variant="danger"
+                loading={slett.isPending}
+                onClick={() => slett.mutate({ id: bekreft.id })}
+              >
+                {t("handling.slett")}
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+      <ul className="divide-y divide-gray-100">
+        {rader.map((v) => (
+          <li key={v.id} className="flex items-center justify-between py-2">
+            <p className="text-sm font-medium text-gray-900">
+              <span className="mr-2 inline-flex items-center rounded bg-green-100 px-1.5 py-0.5 text-[10px] font-semibold text-green-700">
+                {t("timer.prosjektkort.vareMerke")}
+              </span>
+              {v.vare.navn}
+              {v.byggeplassId && byggeplassNavn.get(v.byggeplassId)
+                ? ` · ${byggeplassNavn.get(v.byggeplassId)}`
+                : ""}
+            </p>
+            <div className="flex items-center gap-3">
+              <span className="font-mono text-sm text-gray-900">
+                {v.antall.toLocaleString("nb-NO")} {v.vare.enhet}
+              </span>
+              {erRedigerbar && !v.attestert && (
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => onRediger(v)}
+                    className="rounded p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                    title={t("handling.rediger")}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => setBekreft(v)}
+                    className="rounded p-1.5 text-gray-500 hover:bg-red-50 hover:text-red-600"
+                    title={t("handling.slett")}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              )}
+            </div>
+          </li>
+        ))}
+      </ul>
+    </>
   );
 }
 
@@ -2116,8 +3353,6 @@ function EcoGruppe({
   // og maskin-kontrollen bruker arbeid UTEN reise (og uten erstattede rader).
   const { arbeid: sumTimer, reise: sumReise } = arbeidOgReise(timer);
   const sumMaskin = maskin.reduce((acc, r) => acc + tilTall(r.timer), 0);
-  // D6 (web-paritet): bruk delt overstigerMaskinTak MED pause-buffer — identisk
-  // med attestering (`attestering-buckets.tsx`) og server.
 
   return (
     <div
@@ -2148,11 +3383,11 @@ function EcoGruppe({
           <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-700">
             {t("timer.gruppe.arbeidstimer")}{" "}
             <span className="font-mono font-normal text-gray-500">
-              ({sumTimer.toFixed(2)} {t("timer.timerEnhet")})
+              ({formaterTimer(sumTimer)} {t("timer.timerEnhet")})
             </span>
             {sumReise > 0 && (
               <span className="ml-2 font-mono font-normal normal-case text-gray-500">
-                {t("timer.gruppe.reise", { timer: sumReise.toFixed(2) })}
+                {t("timer.gruppe.reise", { timer: formaterTimer(sumReise) })}
               </span>
             )}
           </h4>
@@ -2228,7 +3463,7 @@ function EcoGruppe({
         <div
           className="mt-3 rounded border px-3 py-1.5 text-xs font-medium border-gray-200 bg-white text-gray-700"
         >
-          {t("timer.gruppe.maskin", { maskin: sumMaskin.toFixed(2) })}
+          {t("timer.gruppe.maskin", { maskin: formaterTimer(sumMaskin) })}
         </div>
       )}
     </div>
@@ -2261,6 +3496,194 @@ function Definisjon({
 /* ------------------------------------------------------------------ */
 /*  RaderTimer + RaderTillegg + MaskinSeksjon                           */
 /* ------------------------------------------------------------------ */
+
+/**
+ * w15d (F18, § 4.15 del C pkt. 2): reiselinja i prosjektkortet — merket «Reise», «Til/Fra
+ * {sted}» og klokka; under: beskrivelse · lønnsart. Ingen aktivitet og ingen matpause.
+ * Underprosjektet vises når det avviker fra jobbens (B48 A: «Uten underprosjekt» når reisen
+ * ikke har og jobben har). Knappene er de samme som på arbeidslinja. `RaderTimer` (begge
+ * moduser) er urørt.
+ */
+function ReiseLinje({
+  rad,
+  jobbEcoId,
+  prosjektNavn,
+  byggeplassNavn,
+  maskinIProsjekt,
+  erRedigerbar,
+  onRediger,
+  onSplitt,
+}: {
+  rad: TimerRad;
+  /** Jobbens underprosjekt; undefined = samlekortet (ingen jobb å sammenligne med). */
+  jobbEcoId: string | null | undefined;
+  prosjektNavn: string;
+  byggeplassNavn: Map<string, string>;
+  maskinIProsjekt: MaskinRad[];
+  erRedigerbar: boolean;
+  onRediger: (rad: TimerRad) => void;
+  onSplitt: (rad: TimerRad) => void;
+}) {
+  const { t } = useTranslation();
+  const utils = trpc.useUtils();
+  const sedelFirmaId = useSedelFirma();
+  const { data: lonnsarter } = trpc.timer.lonnsart.list.useQuery({ organizationId: sedelFirmaId });
+  const ecoAvviker = jobbEcoId !== undefined && (rad.externalCostObjectId ?? null) !== (jobbEcoId ?? null);
+  const { data: ecoer } = trpc.eksternKostObjekt.list.useQuery(
+    { projectId: rad.projectId, organizationId: sedelFirmaId },
+    { enabled: ecoAvviker && !!rad.externalCostObjectId },
+  );
+  const fjern = trpc.timer.dagsseddel.fjernTimerRad.useMutation({
+    onSuccess: () => void utils.timer.dagsseddel.hentMedId.invalidate(),
+    onError: (e: { message: string }) => alert(e.message),
+  });
+  const { data: equipmentRaw } = trpc.maskin.equipment.list.useQuery({ organizationId: sedelFirmaId });
+  const equipment = equipmentRaw as unknown as
+    | Array<{ id: string; merke: string | null; modell: string | null; internNavn: string | null; utleieEnhet?: string | null }>
+    | undefined;
+  const [bekreftSlett, setBekreftSlett] = useState<string[] | null>(null);
+  const kontorNavn = useKontorNavn(sedelFirmaId, [rad.reiseRegel]);
+  // O19 pkt 23: en reise delt ved midnatt spør om den andre delen.
+  const sedelDato = useContext(SedelDatoKontekst);
+  const [slettDelt, setSlettDelt] = useState(false);
+  const midnatt = midnattTekst(t, sedelDato, rad.reiseRegel);
+  // Samme sperre som arbeidslinja (d2c-1, R24): maskiner som krever raden, navngis først.
+  function slett() {
+    if (midnatt) {
+      setSlettDelt(true);
+      return;
+    }
+    const navn = maskinIProsjekt
+      .filter((m) => m.sheetTimerId === rad.id)
+      .flatMap((m) => {
+        const e = equipment?.find((x) => x.id === m.vehicleId);
+        if (e && !maskinKreverTimerad(e.utleieEnhet)) return [];
+        const merkeModell = [e?.merke, e?.modell].filter(Boolean).join(" ");
+        return [merkeModell || e?.internNavn || "—"];
+      });
+    if (navn.length > 0) setBekreftSlett(navn);
+    else fjern.mutate({ id: rad.id });
+  }
+
+  const sted = (rad.byggeplassId && byggeplassNavn.get(rad.byggeplassId)) || prosjektNavn;
+  // O17 (vedtak pkt 21): reise mellom to kontorer vises som «{fra} → {til}» (ruten i `reiseRegel`).
+  // O12 pkt 16: en reise ført som arbeidstid bærer retningen i `arbeidReiseRetning`.
+  const retning = rad.erReise ? rad.reiseRetning : (rad.arbeidReiseRetning ?? null);
+  const stedTekst =
+    kontorReiseTekst(t, rad.reiseRegel, kontorNavn) ??
+    (retning === "ut"
+      ? t("timer.prosjektkort.reiseTil", { sted })
+      : retning === "retur"
+        ? t("timer.prosjektkort.reiseFra", { sted })
+        : sted);
+  const eco = rad.externalCostObjectId
+    ? (ecoer ?? []).find((e) => e.id === rad.externalCostObjectId)
+    : undefined;
+  const ecoTekst = !ecoAvviker
+    ? null
+    : rad.externalCostObjectId
+      ? eco
+        ? `${eco.proAdmId} ${eco.kortNavn}`
+        : t("timer.detalj.ukjentEco")
+      : t("timer.prosjektkort.utenUnderprosjekt");
+  const lonnsart = lonnsarter?.find((l) => l.id === rad.lonnsartId)?.navn;
+  const under = [rad.beskrivelse, lonnsart, ecoTekst].filter(Boolean).join(" · ");
+  const hoved = (
+    <>
+      <span className="mr-2 rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-800">
+        {t("timer.prosjektkort.reiseMerke")}
+      </span>
+      <span className="text-sm font-medium text-gray-900">{stedTekst}</span>
+      {rad.fraTid && rad.tilTid && (
+        <span className="ml-2 text-xs text-gray-500">
+          {rad.fraTid}–{rad.tilTid}
+          {midnatt && <span data-testid="reise-midnatt-merke"> · {midnatt}</span>}
+        </span>
+      )}
+    </>
+  );
+
+  return (
+    <>
+      {slettDelt && <SlettDeltReise radId={rad.id} onLukk={() => setSlettDelt(false)} />}
+      {bekreftSlett && (
+        <Modal open={true} onClose={() => setBekreftSlett(null)} title={t("timer.fjernTimerRad.tittel")}>
+          <div className="space-y-4">
+            <p className="text-sm text-gray-700">
+              {t("timer.fjernTimerRad.maskiner", {
+                count: bekreftSlett.length,
+                navn: bekreftSlett.join(", "),
+              })}
+            </p>
+            <div className="flex justify-end gap-2">
+              <Button variant="secondary" onClick={() => setBekreftSlett(null)}>
+                {t("handling.avbryt")}
+              </Button>
+              <Button
+                variant="danger"
+                loading={fjern.isPending}
+                onClick={() =>
+                  fjern.mutate(
+                    { id: rad.id, slettMaskiner: true },
+                    { onSettled: () => setBekreftSlett(null) },
+                  )
+                }
+              >
+                {t("timer.fjernTimerRad.bekreft")}
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+      <ul>
+        <li className="flex items-center justify-between py-2" data-reiselinje={rad.id}>
+          <div className="min-w-0">
+            {erRedigerbar ? (
+              <button type="button" onClick={() => onRediger(rad)} className="block text-left hover:underline">
+                {hoved}
+              </button>
+            ) : (
+              <p>{hoved}</p>
+            )}
+            {under && <p className="mt-0.5 text-xs text-gray-500">{under}</p>}
+            <KorrigertMerke type="timer" radId={rad.id} />
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="font-mono text-sm text-gray-900">
+              {formaterTimer(tilTall(rad.timer))} {t("timer.timerEnhet")}
+            </span>
+            {erRedigerbar && (
+              <div className="flex gap-1">
+                <button
+                  onClick={() => onRediger(rad)}
+                  className="rounded p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                  title={t("handling.rediger")}
+                >
+                  <Pencil className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => onSplitt(rad)}
+                  className="rounded p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                  title={t("timer.rediger.splittRad")}
+                >
+                  <Split className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={slett}
+                  disabled={fjern.isPending}
+                  className="rounded p-1.5 text-gray-500 hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
+                  title={t("handling.slett")}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            )}
+          </div>
+        </li>
+      </ul>
+    </>
+  );
+}
 
 function RaderTimer({
   rader,
@@ -2298,7 +3721,14 @@ function RaderTimer({
     | Array<{ id: string; merke: string | null; modell: string | null; internNavn: string | null; utleieEnhet?: string | null }>
     | undefined;
   const [bekreftSlett, setBekreftSlett] = useState<{ radId: string; navn: string[] } | null>(null);
+  // O19 pkt 23: en reise delt ved midnatt spør om den andre delen.
+  const sedelDato = useContext(SedelDatoKontekst);
+  const [slettDeltId, setSlettDeltId] = useState<string | null>(null);
   function slettRad(rad: TimerRad) {
+    if (midnattTekst(t, sedelDato, rad.reiseRegel)) {
+      setSlettDeltId(rad.id);
+      return;
+    }
     const navn = maskinIProsjekt
       .filter((m) => m.sheetTimerId === rad.id)
       .flatMap((m) => {
@@ -2313,6 +3743,7 @@ function RaderTimer({
 
   return (
     <>
+    {slettDeltId && <SlettDeltReise radId={slettDeltId} onLukk={() => setSlettDeltId(null)} />}
     {bekreftSlett && (
       <Modal
         open={true}
@@ -2403,6 +3834,9 @@ function RaderTimer({
               {rad.fraTid && rad.tilTid && (
                 <p className="text-xs text-gray-500">
                   {rad.fraTid}–{rad.tilTid}
+                  {midnattTekst(t, sedelDato, rad.reiseRegel) && (
+                    <span data-testid="reise-midnatt-merke"> · {midnattTekst(t, sedelDato, rad.reiseRegel)}</span>
+                  )}
                 </p>
               )}
               {/* V20/PK3: matpause-status (les-visning). */}
@@ -2437,10 +3871,12 @@ function RaderTimer({
               ) : (
                 <p className="mt-0.5 text-xs text-gray-500">{linjeInnhold}</p>
               )}
+              {/* w15g: «Korrigert av» (bare i prosjektkort-modus, via kontekst). */}
+              <KorrigertMerke type="timer" radId={rad.id} />
             </div>
             <div className="flex items-center gap-3">
               <span className="font-mono text-sm text-gray-900">
-                {tilTall(rad.timer).toFixed(2)} {t("timer.timerEnhet")}
+                {formaterTimer(tilTall(rad.timer))} {t("timer.timerEnhet")}
               </span>
               {erRedigerbar && (
                 <div className="flex gap-1">
@@ -2531,6 +3967,7 @@ function RaderTillegg({
                   ))}
                 </div>
               )}
+              <KorrigertMerke type="tillegg" radId={rad.id} />
             </div>
             <div className="flex items-center gap-3">
               <span className="font-mono text-sm text-gray-900">
@@ -2538,7 +3975,7 @@ function RaderTillegg({
                   ? tilTall(rad.antall) > 0
                     ? "✓"
                     : "—"
-                  : tilTall(rad.antall).toFixed(2)}
+                  : formaterTimer(tilTall(rad.antall))}
               </span>
               {erRedigerbar && (
                 <div className="flex gap-1">
@@ -2644,13 +4081,14 @@ function RaderMaskinKompakt({
                 </p>
                 {rad.mengde !== null && rad.mengde !== undefined && (
                   <p className="text-xs text-gray-500">
-                    {tilTall(rad.mengde).toFixed(2)} {rad.enhet ?? ""}
+                    {formaterTimer(tilTall(rad.mengde))} {rad.enhet ?? ""}
                   </p>
                 )}
+                <KorrigertMerke type="maskin" radId={rad.id} />
               </div>
               <div className="flex items-center gap-3">
                 <span className="font-mono text-sm text-gray-900">
-                  {tilTall(rad.timer).toFixed(2)} {t("timer.timerEnhet")}
+                  {formaterTimer(tilTall(rad.timer))} {t("timer.timerEnhet")}
                 </span>
                 {erRedigerbar && (
                   <div className="flex gap-1">
@@ -2689,6 +4127,12 @@ function RaderMaskinKompakt({
 /*  TimerRadDialog                                                      */
 /* ------------------------------------------------------------------ */
 
+// w3b: utstyrets navn som i maskinlinja i kortet («Merke Modell (internnavn)»).
+function utstyrVisningsnavn(e: { merke: string | null; modell: string | null; internNavn: string | null }): string {
+  const merkeModell = [e.merke, e.modell].filter(Boolean).join(" ");
+  return merkeModell ? `${merkeModell}${e.internNavn ? ` (${e.internNavn})` : ""}` : (e.internNavn ?? "—");
+}
+
 function TimerRadDialog({
   sheetId,
   organizationId,
@@ -2713,6 +4157,12 @@ function TimerRadDialog({
   pauseReferanse,
   normTimer,
   reiseKontekst,
+  kortId,
+  jobb,
+  kortModus,
+  sedelByggeplassId,
+  kortRaderUtenArbeid,
+  kortEier,
   onLukk,
 }: {
   sheetId: string;
@@ -2751,6 +4201,21 @@ function TimerRadDialog({
   // reise-kontekst (reise er aldri overtid).
   normTimer: number | null;
   reiseKontekst: ErReiseKontekst;
+  /** w2 (B1, WM59): «+ Registrer timer» — ny jobb = nytt kort. Sendes på alle nye
+   *  rader dialogen lager (også overtid-delen), så jobben står samlet på ett kort. */
+  kortId?: string;
+  /** w3a (S1 A, S7 A): vinduet er åpnet fra en jobb. Prosjekt, underprosjekt og byggeplass
+   *  arves fra jobben og vises ikke; ny rad sendes med jobbens sted. */
+  jobb?: JobbKontekst;
+  /** w3b (A13, S2 A): prosjektkort-modus — maskindelen er lik i «Legg til» og «Rediger»,
+   *  viser jobbens maskiner og én ny linje med Utstyr og Antall timer. Uten: som i dag. */
+  kortModus?: boolean;
+  /** w15d: sedelens byggeplass — jobbenes effektive byggeplass i teksten under lønnsarten. */
+  sedelByggeplassId?: string | null;
+  /** w15f (F55): maskin, tillegg og utlegg på sedelen — linja «havner i» ser kort uten arbeid. */
+  kortRaderUtenArbeid?: readonly ReiseHavnerAnnenRad[];
+  /** w15f (F55): sedelens eier og dato — reisens egen kort-id regnes som på serveren. */
+  kortEier?: { userId: string; dato: string };
   onLukk: () => void;
 }) {
   const { t, i18n } = useTranslation();
@@ -2808,8 +4273,8 @@ function TimerRadDialog({
   }
 
   // D2 (web-paritet): prosjekt velges i modalen (som mobil). Ved NY rad kan den
-  // endres (raden opprettes under valgt prosjekt); ved redigering er den låst —
-  // server-oppdaterTimerRad flytter ikke rad mellom prosjekter (egen oppfølger).
+  // endres (raden opprettes under valgt prosjekt); ved redigering er den låst for
+  // arbeid. w15f: på en reise kan prosjektet byttes (`oppdaterTimerRad` tar det imot).
   const [valgtProjectId, setValgtProjectId] = useState<string>(
     rad?.projectId ?? projectId,
   );
@@ -2819,7 +4284,12 @@ function TimerRadDialog({
     { enabled: !!valgtProjectId },
   );
   // Ordre (10): følger valgt prosjekt — prosjektbytte nullstiller ugyldig valg.
-  const bp = useRadByggeplass({ byggeplasser, projectId: valgtProjectId, rad });
+  // w3a: ny rad i en jobb tar jobbens byggeplass (ingen auto-forslag) — jobben er stedet.
+  const bp = useRadByggeplass({
+    byggeplasser,
+    projectId: valgtProjectId,
+    rad: rad ?? (jobb ? { byggeplassId: jobb.byggeplassId } : undefined),
+  });
 
   // T.10 / §2.D: maskinvelger for kostnadsbærer ved maskinvedlikehold. Hentes
   // kun for interne prosjekter (verksted). Tom liste / inaktiv maskin-modul →
@@ -2873,9 +4343,21 @@ function TimerRadDialog({
   // T7-4c: defaultEcoId pre-selekteres når bruker klikker "+Legg til timer"
   // i en spesifikk ECO-gruppe (eks. ECO «Mur øst»). Ved redigering brukes
   // radens egen ECO.
+  // § 8.22 punkt 7 (O4): «Legg til timer-rad» fra en jobb forvelger «—» (uten underprosjekt),
+  // ikke jobbens underprosjekt.
   const [ecoId, setEcoId] = useState<string | null>(
-    rad?.externalCostObjectId ?? defaultEcoId ?? null,
+    rad ? (rad.externalCostObjectId ?? null) : jobb ? null : (defaultEcoId ?? null),
   );
+  // O4: en ny rad med annen kort-nøkkel (prosjekt|byggeplass|underprosjekt) enn jobbens blir en
+  // egen jobb med egen kort-id (regel 1) — registreringer slås aldri sammen med en annen jobb.
+  // Lik nøkkel: jobbens kort-id som før.
+  const [egenJobbKortId] = useState(() => nyKortId());
+  const nyRadEgenJobb =
+    !!jobb &&
+    !rad &&
+    kortIdNokkel({ projectId: valgtProjectId, byggeplassId: bp.byggeplassId ?? null, ecoId }) !==
+      kortIdNokkel({ projectId: jobb.projectId, byggeplassId: jobb.byggeplassId, ecoId: jobb.ecoId });
+  const lagreKortId = nyRadEgenJobb ? egenJobbKortId : kortId;
   // T.10: kostnadsbærer for maskinvedlikehold (kun interne prosjekter).
   const [vehicleId, setVehicleId] = useState<string | null>(
     rad?.vehicleId ?? null,
@@ -2892,6 +4374,115 @@ function TimerRadDialog({
   const [tilTid, setTilTid] = useState<string>(
     rad?.tilTid ?? (prefillGyldig ? defaultTilTid! : ""),
   );
+  // w15d (§ 4.15 del C pkt. 4, F21): er lønnsarten reise, sier vinduet hvor reisen havner —
+  // samme regel som reisevinduet (`reiseHavnerI` → `velgReiseKort`), så teksten følger
+  // regelen når w15c merges. Bare prosjektkort-modus; dagskortet er urørt.
+  const valgtLonnsartNavn = lonnsarter?.find((l) => l.id === lonnsartId)?.navn ?? "";
+  const erReiseValgt =
+    !!kortModus && !!lonnsartId && erReiseLonnsart(lonnsartId, valgtLonnsartNavn, reiseKontekst);
+  // Plan § 8.22 L2: i prosjektkort-modus er «Hva gjorde du?» påkrevd på arbeid — ett kort = én
+  // beskrivelse, så feltet kan stå tomt når en annen arbeidsrad i samme jobb alt har den (overtid).
+  // Reise og dagskort-modus: valgfritt som før.
+  const jobbensKortId = rad?.kortId ?? lagreKortId ?? jobb?.kortId ?? null;
+  const annenRadHarBeskrivelse =
+    jobbensKortId != null &&
+    alleTimerRader.some(
+      (r) =>
+        r.id !== rad?.id &&
+        r.kortId === jobbensKortId &&
+        // Samme filter som sperren: ikke reise, ikke `erstattet`, ikke uten prosjekt.
+        radGirJobbBeskrivelse(r),
+    );
+  const beskrivelsePakrevd =
+    !!kortModus && !erReiseValgt && rad?.erReise !== true && !annenRadHarBeskrivelse;
+  const beskrivelseMangler = beskrivelsePakrevd && beskrivelse.trim() === "";
+  const reiseHavner = erReiseValgt
+    ? reiseHavnerI({
+        rader: alleTimerRader
+          .filter((r) => r.id !== rad?.id)
+          .map((r) => ({
+            fraTid: r.fraTid,
+            erReise: r.erReise ?? false,
+            kortId: r.kortId ?? null,
+            projectId: r.projectId,
+            ecoId: r.externalCostObjectId,
+            byggeplassId: r.byggeplassId,
+            opprettet: r.createdAt ? new Date(r.createdAt).getTime() : 0,
+            attestertStatus: r.attestertStatus,
+          })),
+        andreRader: kortRaderUtenArbeid,
+        eier: kortEier ?? null,
+        sedelByggeplass: sedelByggeplassId
+          ? ((byggeplasser ?? []).find((b) => b.id === sedelByggeplassId) ?? null)
+          : null,
+        reise: {
+          projectId: valgtProjectId,
+          ecoId,
+          byggeplassId: bp.byggeplassId,
+          retning:
+            rad?.reiseRetning === "ut" || rad?.reiseRetning === "retur" ? rad.reiseRetning : null,
+          fraTid: fraTid || null,
+          erReise: true,
+        },
+        // § 8.22 punkt 3: en lagret reise blir i kortet sitt til prosjekt/byggeplass/underprosjekt rettes.
+        lagret: rad
+          ? {
+              kortId: rad.kortId ?? null,
+              projectId: rad.projectId,
+              byggeplassId: rad.byggeplassId,
+              ecoId: rad.externalCostObjectId,
+              erReise: rad.erReise ?? false,
+            }
+          : null,
+      })
+    : null;
+  // O14 pkt 2 (R2): i prosjektkort-visning åpner pennen på en reise «Reise»-vinduet (ReiseKort),
+  // så dette vinduet ser bare reiser i dagskort-visning.
+  // w15f (§ 4.15 del E): prosjektfeltet er åpent på en reise som finnes, låst for arbeid.
+  const prosjektApent = !!rad && !!rad.erReise && erReiseValgt;
+  const prosjektByttet = !!rad && valgtProjectId !== rad.projectId;
+  function byttProsjekt(id: string) {
+    setValgtProjectId(id);
+    setEcoId(null); // ECO tilhører gammelt prosjekt
+    // w15f: på en reise foreslås byggeplassen på nytt for det nye prosjektet, som i reisevinduet.
+    if (rad) {
+      bp.setByggeplassId(
+        velgStandardByggeplass({ gjeldende: null, kandidater: byggeplasserForProsjekt(byggeplasser, id), toppbar: null }),
+      );
+    }
+  }
+  // w15f: bytter arbeideren lønnsarten bort fra reise etter et prosjektbytte, går prosjektet
+  // og stedet tilbake til radens — arbeid bytter ikke prosjekt.
+  useEffect(() => {
+    if (!rad || prosjektApent || valgtProjectId === rad.projectId) return;
+    setValgtProjectId(rad.projectId);
+    setEcoId(rad.externalCostObjectId ?? null);
+    bp.setByggeplassId(rad.byggeplassId ?? null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prosjektApent]);
+  // Prosjekt, byggeplass og underprosjekt sendes i samme kall når prosjektet er byttet.
+  const prosjektPayload = prosjektByttet
+    ? { projectId: valgtProjectId, byggeplassId: bp.byggeplassId, externalCostObjectId: ecoId }
+    : {};
+  const reiseHavnerTekst = !reiseHavner
+    ? null
+    : reiseHavner.type === "jobb"
+      ? t("timer.rediger.reiseHavnerJobb", {
+          sted:
+            (reiseHavner.byggeplassId &&
+              (byggeplasser ?? []).find((b) => b.id === reiseHavner.byggeplassId)?.name) ||
+            prosjekter.find((p) => p.id === reiseHavner.projectId)?.name ||
+            "",
+        })
+      : reiseHavner.type === "kort"
+        ? t("timer.rediger.reiseHavnerKort", {
+            sted:
+              (reiseHavner.byggeplassId &&
+                (byggeplasser ?? []).find((b) => b.id === reiseHavner.byggeplassId)?.name) ||
+              prosjekter.find((p) => p.id === reiseHavner.projectId)?.name ||
+              "",
+          })
+        : t("timer.rediger.reiseHavnerEget");
   // V20/PK3: brukerens overstyring av matpause-avkrysningen. `null` = følg
   // auto-bæreren (PK2); et tall (0 / standardPauseMin) = bruker har huket av/på
   // selv. Ved redigering starter den fra radens lagrede tilstand, så krysset
@@ -2913,6 +4504,7 @@ function TimerRadDialog({
         internNavn: string | null;
         internNummer: string | null;
         kategori: string | null;
+        utleieEnhet?: string | null;
       }>
     | undefined;
   // Speiler resolveren: maskin-modulens firmatak (ingen prosjektId → firmatak
@@ -3007,29 +4599,178 @@ function TimerRadDialog({
     }
   }
 
-  // P1 (maskin-i-rad): bucket-kapasitet for den valgfrie maskin-seksjonen.
-  // Samme (projectId, ECO)-bøtte-regel som MaskinRadDialog — arbeidSum og
-  // maskin-sum for gjeldende (valgtProjectId, ecoId), ledig via delt regel.
-  const maskinKapasitet = useMemo(() => {
-    const iBucket = (r: {
-      projectId: string;
-      externalCostObjectId: string | null;
-    }) =>
-      r.projectId === valgtProjectId &&
-      (r.externalCostObjectId ?? null) === (ecoId ?? null);
-    // Ordre 2026-11-14 (6): maskin måles mot arbeid UTEN reise og uten
-    // erstattede rader (delt regel).
-    const arbeidSum = arbeidUtenReise(alleTimerRader.filter(iBucket));
-    const sumMaskin = alleMaskinRader
-      .filter(iBucket)
-      .reduce((acc, r) => acc + tilTall(r.timer), 0);
-    const { ledig } = maskinBucketKapasitet({
-      arbeidSum,
-      sumMaskinEksisterende: sumMaskin,
+  // w9 (2c): «høyst X t» for maskinen på den nye timeraden. Maskinen får radens
+  // timer og følger radens jobb (K6). Jobben er den eldste med samme prosjekt,
+  // byggeplass og underprosjekt (regel 3), ellers en ny jobb uten andre maskiner.
+  // Delt regel med serveren (maskinHoystPerRad); serveren avgjør til slutt.
+  const maskinHoyst = useMemo(() => {
+    if (!maskinVehicleId) return null;
+    const utstyr = maskinEquipment?.find((e) => e.id === maskinVehicleId);
+    if (!utstyr) return null;
+    const jobb = alleTimerRader.find(
+      (r) =>
+        r.kortId &&
+        r.erReise !== true &&
+        r.projectId === valgtProjectId &&
+        (r.externalCostObjectId ?? null) === (ecoId ?? null) &&
+        (r.byggeplassId ?? null) === (bp.byggeplassId ?? null),
+    );
+    const kortId = jobb?.kortId ?? "ny-jobb";
+    const nyTimer = parseFloat(timer);
+    const nyTimerTall = isNaN(nyTimer) ? 0 : nyTimer;
+    const enhetFor = (vehicleIdArg: string) =>
+      maskinEquipment?.find((e) => e.id === vehicleIdArg)?.utleieEnhet ?? null;
+    const [denne] = maskinHoystPerRad(
+      [
+        ...alleTimerRader.map((r) => ({
+          kortId: r.kortId ?? null,
+          projectId: r.projectId,
+          externalCostObjectId: r.externalCostObjectId,
+          timer: tilTall(r.timer),
+          erReise: r.erReise === true,
+        })),
+        { kortId, projectId: valgtProjectId, externalCostObjectId: ecoId, timer: nyTimerTall, erReise: false },
+      ],
+      [
+        { kortId, projectId: valgtProjectId, externalCostObjectId: ecoId, timer: nyTimerTall, utleieEnhet: utstyr.utleieEnhet ?? null },
+        ...alleMaskinRader.map((r) => ({
+          kortId: r.kortId ?? null,
+          projectId: r.projectId,
+          externalCostObjectId: r.externalCostObjectId,
+          timer: tilTall(r.timer),
+          utleieEnhet: enhetFor(r.vehicleId),
+        })),
+      ],
+    );
+    return denne ?? null;
+  }, [maskinVehicleId, maskinEquipment, alleTimerRader, alleMaskinRader, valgtProjectId, ecoId, bp.byggeplassId, timer]);
+  const maskinOverHoyst = overMaskinHoyst(parseFloat(timer) || 0, maskinHoyst);
+
+  // w3b (A13, S2 A): maskindelen i prosjektkort-modus. Jobben er kortet (jobbens, radens
+  // eller den nye jobbens kort-id); eldre rad uten kort: maskinene koblet til raden.
+  const jobbKortId = nyRadEgenJobb ? egenJobbKortId : (jobb?.kortId ?? rad?.kortId ?? kortId ?? null);
+  const visKortMaskin = !!kortModus && rad?.erReise !== true;
+  // O7 (§ 8.22 punkt 3): en reise har ingen maskinseksjon — heller ikke når lønnsarten byttes
+  // til reise mens vinduet er åpent. Jobbens maskiner står da urørt ved lagring (ingen
+  // opprett/endre/slett); bytter arbeideren tilbake, står linjene som før.
+  const maskinPaaRad = visKortMaskin && !erReiseValgt;
+  const [jobbMaskiner, setJobbMaskiner] = useState<
+    Array<{ rad: MaskinRad; timer: string; fjernet: boolean; laast: boolean }>
+  >(() =>
+    // § 8.22 punkt 3 (O3): «Legg til timer-rad» starter tom — en maskin som føres der, hører
+    // bare til den nye raden. «Rediger timer-rad» viser jobbens maskiner som før (punkt 6).
+    !visKortMaskin || !rad
+      ? []
+      : alleMaskinRader
+          .filter((m) =>
+            jobbKortId ? m.kortId === jobbKortId : !!rad && m.sheetTimerId === rad.id,
+          )
+          .map((m) => ({
+            rad: m,
+            timer: String(tilTall(m.timer)),
+            fjernet: false,
+            laast: m.attestertStatus === "attestert",
+          })),
+  );
+  const [nyMaskinTimerInput, setNyMaskinTimerInput] = useState<string>("");
+  const [nyMaskinRort, setNyMaskinRort] = useState(false);
+  const enhetForUtstyr = (vehicleIdArg: string) =>
+    maskinEquipment?.find((e) => e.id === vehicleIdArg)?.utleieEnhet ?? null;
+  const nyUtstyr = maskinEquipment?.find((e) => e.id === maskinVehicleId);
+  // Timeradene med denne radens gjeldende verdier, og nøkkelen ny maskin får.
+  const kortTimerLive = useMemo(() => {
+    const nyTimer = parseFloat(timer);
+    return [
+      ...alleTimerRader
+        .filter((r) => r.id !== rad?.id)
+        .map((r) => ({
+          kortId: r.kortId ?? null,
+          projectId: r.projectId,
+          externalCostObjectId: r.externalCostObjectId,
+          timer: tilTall(r.timer),
+          erReise: r.erReise === true,
+        })),
+      {
+        kortId: rad ? (rad.kortId ?? null) : (jobbKortId ?? "ny-jobb"),
+        projectId: valgtProjectId,
+        externalCostObjectId: ecoId,
+        timer: isNaN(nyTimer) ? 0 : nyTimer,
+        erReise: rad?.erReise === true,
+      },
+    ];
+  }, [alleTimerRader, rad, jobbKortId, valgtProjectId, ecoId, timer]);
+  const nyMaskinNokkel = {
+    kortId: jobbKortId ?? (rad ? null : "ny-jobb"),
+    projectId: valgtProjectId,
+    externalCostObjectId: ecoId,
+  };
+  const andreMaskinerLive = useMemo(() => {
+    const jobbIder = new Set(jobbMaskiner.map((l) => l.rad.id));
+    return alleMaskinRader
+      .filter((m) => !jobbIder.has(m.id))
+      .map((m) => ({
+        kortId: m.kortId ?? null,
+        projectId: m.projectId,
+        externalCostObjectId: m.externalCostObjectId,
+        timer: tilTall(m.timer),
+        utleieEnhet: enhetForUtstyr(m.vehicleId),
+      }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [alleMaskinRader, jobbMaskiner, maskinEquipment]);
+  const jobbMaskinerLive = jobbMaskiner
+    .filter((l) => !l.fjernet)
+    .map((l) => ({
+      kortId: l.rad.kortId ?? null,
+      projectId: l.rad.projectId,
+      externalCostObjectId: l.rad.externalCostObjectId,
+      timer: parseFloat(l.timer) || 0,
+      utleieEnhet: enhetForUtstyr(l.rad.vehicleId),
+    }));
+  // S1 A: forslaget = «høyst» for en førermaskin; døgn-maskin får jobbens arbeid.
+  // § 8.22 punkt 3 (O3): i «Legg til timer-rad» foreslås bare radens egne timer (førermaskin
+  // aldri over «høyst»). Forslaget er et åpent felt; maskin har aldri fra–til.
+  const nyMaskinForslag = (() => {
+    if (!visKortMaskin) return "";
+    if (!rad) {
+      const radTimer = parseFloat(timer);
+      if (isNaN(radTimer) || radTimer <= 0) return "";
+      if (nyUtstyr && !maskinKreverTimerad(nyUtstyr.utleieEnhet)) return String(radTimer);
+      const [forer] = maskinHoystPerRad(
+        kortTimerLive,
+        [{ ...nyMaskinNokkel, timer: 0, utleieEnhet: null }, ...andreMaskinerLive],
+        pauseMin,
+      );
+      const forslag = forer !== null && forer !== undefined ? Math.min(radTimer, forer) : radTimer;
+      return forslag > 0 ? String(forslag) : "";
+    }
+    if (nyUtstyr && !maskinKreverTimerad(nyUtstyr.utleieEnhet)) {
+      const arbeid = jobbArbeidSum(kortTimerLive, nyMaskinNokkel, pauseMin);
+      return arbeid > 0 ? String(arbeid) : "";
+    }
+    const [forer] = maskinHoystPerRad(
+      kortTimerLive,
+      [{ ...nyMaskinNokkel, timer: 0, utleieEnhet: null }, ...jobbMaskinerLive, ...andreMaskinerLive],
       pauseMin,
-    });
-    return { arbeidSum, sumMaskin, ledig };
-  }, [alleTimerRader, alleMaskinRader, valgtProjectId, ecoId, pauseMin]);
+    );
+    return forer !== null && forer !== undefined && forer > 0 ? String(forer) : "";
+  })();
+  const nyMaskinTimer = nyMaskinRort ? nyMaskinTimerInput : nyMaskinForslag;
+  // «Høyst» over alle linjene: jobbens maskiner først, så den nye.
+  const kortHoyst = useMemo(() => {
+    if (!visKortMaskin) return [] as Array<number | null>;
+    const ny = nyUtstyr
+      ? [{ ...nyMaskinNokkel, timer: parseFloat(nyMaskinTimer) || 0, utleieEnhet: nyUtstyr.utleieEnhet ?? null }]
+      : [];
+    return maskinHoystPerRad(kortTimerLive, [...jobbMaskinerLive, ...ny, ...andreMaskinerLive], pauseMin);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visKortMaskin, nyUtstyr, nyMaskinTimer, kortTimerLive, jobbMaskiner, andreMaskinerLive, pauseMin, valgtProjectId, ecoId]);
+  const aktiveJobbMaskiner = jobbMaskiner.filter((l) => !l.fjernet);
+  const hoystForJobbLinje = (i: number) => kortHoyst[i] ?? null;
+  const nyMaskinHoyst = nyUtstyr ? (kortHoyst[aktiveJobbMaskiner.length] ?? null) : null;
+  const kortOverHoyst =
+    maskinPaaRad &&
+    (aktiveJobbMaskiner.some((l, i) => overMaskinHoyst(parseFloat(l.timer) || 0, hoystForJobbLinje(i))) ||
+      overMaskinHoyst(parseFloat(nyMaskinTimer) || 0, nyMaskinHoyst));
 
   // Sist-rørte felt vinner (mobil-atferd): endrer fra/til → regn antall;
   // skriver antall → regn til (pausevinduet skyves inn ved lunsj-kryssing).
@@ -3058,6 +4799,12 @@ function TimerRadDialog({
   function endreTimer(v: string) {
     setTimer(v);
     const n = parseFloat(v);
+    // O6 (§ 8.22): reise «Til byggeplass» — ankomsten (Til) er jobbstart og står fast, så
+    // antall flytter Fra. Reise bærer aldri matpausen. Samme regel som reise-kortet.
+    if (rad?.erReise === true && rad.reiseRetning === "ut" && tilTid && !isNaN(n) && n > 0) {
+      setFraTid(fraFraTilOgAntall(tilTid, n));
+      return;
+    }
     if (fraTid && !isNaN(n) && n > 0) {
       // Antall er autoritativt → utled til-tid med gjeldende pause (radens).
       // ORDRE 2026-11-13: pausen ligger alltid i bærer-raden → til = fra +
@@ -3082,9 +4829,65 @@ function TimerRadDialog({
     onError: (e: { message: string }) => setFeil(e.message),
   });
 
+  // w3b (S2 A): jobbens maskiner lagres sammen med raden. Ingen onSuccess her — kalleren
+  // venter på alle kallene og lukker til slutt.
+  const maskinTilfoyKort = trpc.timer.dagsseddel.maskin.tilfoy.useMutation({
+    onError: (e: { message: string }) => setFeil(e.message),
+  });
+  const maskinOppdaterKort = trpc.timer.dagsseddel.maskin.oppdater.useMutation({
+    onError: (e: { message: string }) => setFeil(e.message),
+  });
+  const maskinFjernKort = trpc.timer.dagsseddel.maskin.fjern.useMutation({
+    onError: (e: { message: string }) => setFeil(e.message),
+  });
+
+  // Rekkefølgen holder hvert mellomsteg innenfor serverens maskinregel (w9: ingen nye eller
+  // økte brudd): først det som minker eller fjernes, så raden, så det som øker og den nye.
+  async function lagreJobbMaskinerFoer(): Promise<void> {
+    if (!maskinPaaRad) return; // O7: reise rører ikke jobbens maskiner.
+    for (const l of jobbMaskiner) {
+      if (l.laast) continue;
+      const ny = parseFloat(l.timer);
+      if (l.fjernet) await maskinFjernKort.mutateAsync({ id: l.rad.id });
+      else if (!isNaN(ny) && ny < tilTall(l.rad.timer)) {
+        await maskinOppdaterKort.mutateAsync({ id: l.rad.id, timer: ny });
+      }
+    }
+  }
+  async function lagreJobbMaskinerEtter(radId: string | null): Promise<void> {
+    if (!maskinPaaRad) return; // O7: reise rører ikke jobbens maskiner.
+    for (const l of jobbMaskiner) {
+      if (l.laast || l.fjernet) continue;
+      const ny = parseFloat(l.timer);
+      if (!isNaN(ny) && ny > tilTall(l.rad.timer)) {
+        await maskinOppdaterKort.mutateAsync({ id: l.rad.id, timer: ny });
+      }
+    }
+    const nyTimer = parseFloat(nyMaskinTimer);
+    if (maskinVehicleId && !isNaN(nyTimer) && nyTimer > 0) {
+      // B38 A / B37 A: uten fra–til, mengde og enhet.
+      await maskinTilfoyKort.mutateAsync({
+        sheetId,
+        projectId: valgtProjectId,
+        sheetTimerId: radId,
+        externalCostObjectId: ecoId,
+        vehicleId: maskinVehicleId,
+        timer: nyTimer,
+        byggeplassId: bp.byggeplassId,
+        ...(jobbKortId ? { kortId: jobbKortId } : {}),
+      });
+    }
+  }
+
   const oppdater = trpc.timer.dagsseddel.oppdaterTimerRad.useMutation({
-    onSuccess: () => {
+    onSuccess: (_data: unknown) => {
       utils.timer.dagsseddel.hentMedId.invalidate();
+      // Gate 107: raden er lagret, men koblet vare ble ikke flyttet. Vinduet står åpent med
+      // meldingen — et nytt «Lagre» retter varen.
+      if ((_data as { vareIkkeFlyttet?: boolean } | null)?.vareIkkeFlyttet) {
+        setFeil(t("timer.feil.vareIkkeFlyttet"));
+        return;
+      }
       onLukk();
     },
     onError: (e: { message: string }) => setFeil(e.message),
@@ -3159,15 +4962,30 @@ function TimerRadDialog({
     fastPauseFra,
   ]);
 
-  const formaterT = (n: number) =>
-    n.toLocaleString(i18n.language, { maximumFractionDigits: 2 });
+  const formaterT = (n: number) => formaterTimer(n, i18n.language);
   const lonnsartNavn = (id: string) =>
     lonnsarter?.find((l) => l.id === id)?.navn ?? "";
+
+  // O5 B (§ 8.22, Kenneth etter test d4bec43e: «overtid må fremgå»): i prosjektkort-modus deles
+  // raden automatisk ved lagring når dagen går over normen — samme regel og samme to kall som
+  // V21-knappen (`foreslaOvertidSplitt` → `brukOvertidForslag`, regelen `regnJobbTid` bygger på).
+  // «Rediger» deler bare når tiden er endret, som jobbskjemaet (`lagreJobbTid`, gate 129 V1):
+  // et bevisst bytte av lønnsart på uendret tid står.
+  const tidEndret =
+    !rad ||
+    fraTid !== (rad.fraTid ?? "") ||
+    tilTid !== (rad.tilTid ?? "") ||
+    radPauseMin > 0 !== rad.pauseMin > 0;
+  const autoOvertid = kortModus && tidEndret ? overtidForslag : null;
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const tNum = validerSkjema();
     if (tNum == null) return;
+    if (autoOvertid) {
+      void brukOvertidForslag(autoOvertid);
+      return;
+    }
     lagreRad(tNum, lonnsartId);
   }
 
@@ -3192,19 +5010,25 @@ function TimerRadDialog({
     };
     // Ordre d2c-1: maskinen føres på normal-delen (timeraden den gikk på).
     let normalRadId: string | null = null;
+    // Gate 134 V1 (paritet m/ `lagreRadKort`, gate 107): raden er lagret, men koblet vare ble
+    // ikke flyttet. Kall 2 og maskinene fullføres; vinduet står åpent med meldingen.
+    let vareIkkeFlyttet = false;
     try {
+      if (visKortMaskin) await lagreJobbMaskinerFoer();
       if (rad) {
-        await oppdaterDel.mutateAsync({
+        const svar: unknown = await oppdaterDel.mutateAsync({
           id: rad.id,
           ...felles,
           lonnsartId,
           ...f.normal,
           ...byggeplassPayload(bp),
         });
+        vareIkkeFlyttet = (svar as { vareIkkeFlyttet?: boolean } | null)?.vareIkkeFlyttet === true;
       } else {
         const normal: unknown = await tilfoy.mutateAsync({
           sheetId,
           projectId: valgtProjectId,
+          ...(lagreKortId ? { kortId: lagreKortId } : {}),
           ...felles,
           lonnsartId,
           ...f.normal,
@@ -3215,6 +5039,7 @@ function TimerRadDialog({
       await tilfoy.mutateAsync({
         sheetId,
         projectId: valgtProjectId,
+        ...(lagreKortId ? { kortId: lagreKortId } : {}),
         ...felles,
         lonnsartId: f.overtidLonnsart.id,
         ...f.overtid,
@@ -3226,7 +5051,27 @@ function TimerRadDialog({
       utils.timer.dagsseddel.hentMedId.invalidate();
       return;
     }
+    if (visKortMaskin) {
+      try {
+        await lagreJobbMaskinerEtter(normalRadId ?? rad?.id ?? null);
+      } catch {
+        utils.timer.dagsseddel.hentMedId.invalidate();
+        return;
+      }
+      utils.timer.dagsseddel.hentMedId.invalidate();
+      if (vareIkkeFlyttet) {
+        setFeil(t("timer.feil.vareIkkeFlyttet"));
+        return;
+      }
+      onLukk();
+      return;
+    }
     utils.timer.dagsseddel.hentMedId.invalidate();
+    if (vareIkkeFlyttet) {
+      // Bare «Rediger» (rad finnes) kan gi flagget — maskin-grenen under gjelder ny rad.
+      setFeil(t("timer.feil.vareIkkeFlyttet"));
+      return;
+    }
     if (!rad && maskinVehicleId) {
       maskinTilfoy.mutate({
         sheetId,
@@ -3272,24 +5117,21 @@ function TimerRadDialog({
       // P4b: kryss-bøtte overlapp-vakt (paritet m/ mobil TimerSeksjon + server).
       // Én arbeider kan ikke være to steder samtidig — sjekk mot alle andre
       // rader på sedelen (unntatt raden som redigeres). Delt @sitedoc/shared-regel.
-      const andreRader = alleTimerRader.filter((r) => r.id !== rad?.id);
+      // R1 (a): samme utvalg som serveren (uten `erstattet`), og meldingen sier hva og hvor.
+      const aktive = aktiveTimerRader(alleTimerRader);
+      const andreRader = aktive.filter((r) => r.id !== rad?.id);
       const overlapp = finnOverlappendeTidsrom(fraTid, tilTid, andreRader);
       if (overlapp) {
+        const sted = beskrivOverlapp(overlapp, aktive);
+        const kortTekst =
+          kortNavn && sted.kort
+            ? `${(sted.kort.byggeplassId && byggeplasser?.find((b) => b.id === sted.kort?.byggeplassId)?.name) || (sted.kort.projectId ? (kortNavn.get(sted.kort.projectId) ?? "") : "")} · ${sted.kort.fra}–${sted.kort.til}`
+            : null;
+        const verdier = { fra: fraTid, til: tilTid, annenFra: sted.fra, annenTil: sted.til, kort: kortTekst ?? "" };
         setFeil(
-          kortNavn
-            ? t("timer.feil.overlappKort", {
-                fra: fraTid,
-                til: tilTid,
-                annenFra: overlapp.fraTid,
-                annenTil: overlapp.tilTid,
-                kort: kortNavn.get(overlapp.projectId) ?? "",
-              })
-            : t("timer.feil.overlapp", {
-                fra: fraTid,
-                til: tilTid,
-                annenFra: overlapp.fraTid,
-                annenTil: overlapp.tilTid,
-              }),
+          kortTekst
+            ? t(sted.hva === "reise" ? "timer.feil.overlappReiseIKort" : "timer.feil.overlappRadIKort", verdier)
+            : t("timer.feil.overlapp", verdier),
         );
         return null;
       }
@@ -3300,7 +5142,7 @@ function TimerRadDialog({
         radPauseMin,
       );
       if (Math.abs(forventet - tNum) > 0.01) {
-        setFeil(t("timer.feil.timerAvvik", { forventet: forventet.toFixed(2) }));
+        setFeil(t("timer.feil.timerAvvik", { forventet: formaterTimer(forventet) }));
         return null;
       }
     }
@@ -3310,6 +5152,10 @@ function TimerRadDialog({
   // Vanlig lagring av raden (uendret sti); V21 sender inn overtid-lønnsarten
   // når hele raden ligger over dagsnormen.
   function lagreRad(tNum: number, lagreLonnsartId: string) {
+    if (visKortMaskin) {
+      void lagreRadKort(tNum, lagreLonnsartId);
+      return;
+    }
     if (rad) {
       oppdater.mutate({
         id: rad.id,
@@ -3326,6 +5172,7 @@ function TimerRadDialog({
         pauseMin: radPauseMin,
         // Ordre (10): kun ved endring — mobilens byggeplass overskrives ikke.
         ...byggeplassPayload(bp),
+        ...prosjektPayload,
       });
     } else {
       // P1 (maskin-i-rad): dual-mutasjon. Per-kall onSuccess fanger tNum +
@@ -3336,6 +5183,7 @@ function TimerRadDialog({
         {
           sheetId,
           projectId: valgtProjectId,
+          ...(lagreKortId ? { kortId: lagreKortId } : {}),
           lonnsartId: lagreLonnsartId,
           aktivitetId,
           timer: tNum,
@@ -3375,7 +5223,66 @@ function TimerRadDialog({
     }
   }
 
+  // w3b (S2 A): prosjektkort-modus — raden og jobbens maskiner i én lagring.
+  async function lagreRadKort(tNum: number, lagreLonnsartId: string): Promise<void> {
+    let vareIkkeFlyttet = false;
+    try {
+      await lagreJobbMaskinerFoer();
+      let radId: string;
+      if (rad) {
+        const svar: unknown = await oppdaterDel.mutateAsync({
+          id: rad.id,
+          lonnsartId: lagreLonnsartId,
+          aktivitetId,
+          timer: tNum,
+          externalCostObjectId: ecoId,
+          vehicleId: erInternt ? vehicleId : null,
+          beskrivelse: beskrivelse.trim() || null,
+          fraTid: fraTid || null,
+          tilTid: tilTid || null,
+          pauseMin: radPauseMin,
+          ...byggeplassPayload(bp),
+          ...prosjektPayload,
+        });
+        vareIkkeFlyttet = (svar as { vareIkkeFlyttet?: boolean } | null)?.vareIkkeFlyttet === true;
+        radId = rad.id;
+      } else {
+        const lagret: unknown = await tilfoy.mutateAsync({
+          sheetId,
+          projectId: valgtProjectId,
+          ...(lagreKortId ? { kortId: lagreKortId } : {}),
+          lonnsartId: lagreLonnsartId,
+          aktivitetId,
+          timer: tNum,
+          externalCostObjectId: ecoId,
+          vehicleId: erInternt ? vehicleId : null,
+          beskrivelse: beskrivelse.trim() || null,
+          fraTid: fraTid || null,
+          tilTid: tilTid || null,
+          pauseMin: radPauseMin,
+          byggeplassId: bp.byggeplassId,
+        });
+        radId = (lagret as { id: string }).id;
+      }
+      await lagreJobbMaskinerEtter(radId);
+    } catch {
+      // Hook-nivå onError har satt feilen; vis det som faktisk ble lagret.
+      utils.timer.dagsseddel.hentMedId.invalidate();
+      return;
+    }
+    utils.timer.dagsseddel.hentMedId.invalidate();
+    // Gate 107: raden er lagret, men koblet vare ble ikke flyttet — vinduet står åpent.
+    if (vareIkkeFlyttet) {
+      setFeil(t("timer.feil.vareIkkeFlyttet"));
+      return;
+    }
+    onLukk();
+  }
+
   const lagrer =
+    maskinTilfoyKort.isPending ||
+    maskinOppdaterKort.isPending ||
+    maskinFjernKort.isPending ||
     tilfoy.isPending ||
     oppdater.isPending ||
     oppdaterDel.isPending ||
@@ -3392,18 +5299,16 @@ function TimerRadDialog({
       }
     >
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* D2: prosjekt i modalen (mobil-paritet). Låst ved redigering. */}
-        <div>
+        {/* D2: prosjekt i modalen (mobil-paritet). Låst ved redigering. w3a: skjult bare for ny rad
+            fra jobben — ved redigering står feltene, så A7 kan nås fra kortet (gate 107). */}
+        {!(jobb && !rad) && (<div>
           <label className="mb-1 block text-sm font-medium text-gray-700">
             {t("timer.felt.prosjekt")}
           </label>
           <select
             value={valgtProjectId}
-            onChange={(e) => {
-              setValgtProjectId(e.target.value);
-              setEcoId(null); // ECO tilhører gammelt prosjekt
-            }}
-            disabled={!!rad || !!laastProsjekt}
+            onChange={(e) => byttProsjekt(e.target.value)}
+            disabled={prosjektApent ? false : !!rad || !!laastProsjekt}
             className="w-full rounded border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-100 disabled:text-gray-500"
             required
           >
@@ -3414,12 +5319,14 @@ function TimerRadDialog({
               </option>
             ))}
           </select>
-        </div>
-        <RadByggeplassFelt
-          kandidater={bp.kandidater}
-          verdi={bp.byggeplassId}
-          onEndre={bp.setByggeplassId}
-        />
+        </div>)}
+        {!(jobb && !rad) && (
+          <RadByggeplassFelt
+            kandidater={bp.kandidater}
+            verdi={bp.byggeplassId}
+            onEndre={bp.setByggeplassId}
+          />
+        )}
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700">
             {t("firma.timer.fane.lonnsarter")}
@@ -3437,6 +5344,9 @@ function TimerRadDialog({
               </option>
             ))}
           </select>
+          {reiseHavnerTekst && (
+            <p className="mt-1 text-xs text-gray-600">{reiseHavnerTekst}</p>
+          )}
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700">
@@ -3535,9 +5445,28 @@ function TimerRadDialog({
             </span>
           </button>
         )}
+        {/* O5 B: prosjektkort-modus — ingen knapp; en opplysning om hvordan raden lagres. */}
+        {kortModus && autoOvertid && (
+          <p className="text-sm text-gray-600" data-testid="overtid-ved-lagring">
+            {autoOvertid.normal
+              ? t("timer.overtidForslag.delesVedLagring", {
+                  over: formaterT(autoOvertid.overTimer),
+                  normalNavn: lonnsartNavn(lonnsartId),
+                  nFra: autoOvertid.normal.fraTid,
+                  nTil: autoOvertid.normal.tilTid,
+                  otNavn: autoOvertid.overtidLonnsart.navn,
+                  oFra: autoOvertid.overtid.fraTid,
+                  oTil: autoOvertid.overtid.tilTid,
+                })
+              : t("timer.overtidForslag.helRadVedLagring", {
+                  over: formaterT(autoOvertid.overTimer),
+                  otNavn: autoOvertid.overtidLonnsart.navn,
+                })}
+          </p>
+        )}
         {/* V21: overtidsforslag — én linje, én knapp. Vises kun når raden (eller
-            dagen) passerer dagsnormen og firmaet har en overtid-lønnsart. */}
-        {overtidForslag && (
+            dagen) passerer dagsnormen og firmaet har en overtid-lønnsart. Dagskort-modus. */}
+        {!kortModus && overtidForslag && (
           <div className="flex items-center justify-between gap-3 rounded border border-amber-200 bg-amber-50 px-3 py-2">
             <span className="text-sm text-amber-900">
               {overtidForslag.normal
@@ -3567,7 +5496,9 @@ function TimerRadDialog({
             </button>
           </div>
         )}
-        <div>
+        {/* O4: fra en jobb vises nedtrekket bare når prosjektet har åpne underprosjekter
+            (lista har ikke lukkede). */}
+        {(!(jobb && !rad) || (ecoer?.length ?? 0) > 0) && (<div>
           <label className="mb-1 block text-sm font-medium text-gray-700">
             {t("timer.felt.underprosjekt")}{" "}
             <span className="text-xs text-gray-400">
@@ -3598,7 +5529,7 @@ function TimerRadDialog({
               </button>
             )}
           </div>
-        </div>
+        </div>)}
         {/* T.10: maskinvedlikehold-kostnadsbærer — kun interne prosjekter med
             maskiner i firmaets register. */}
         {erInternt && equipment && equipment.length > 0 && (
@@ -3635,27 +5566,164 @@ function TimerRadDialog({
             </div>
           </div>
         )}
-        {/* T.12: fritekst per rad — «hva gjorde du?» (valgfritt). Speiler mobil. */}
+        {/* T.12: fritekst per rad — «hva gjorde du?». Speiler mobil. Plan § 8.22 L2: påkrevd på
+            arbeid i prosjektkort-modus (rød markør), ellers valgfritt. */}
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700">
             {t("timer.felt.radBeskrivelse")}{" "}
-            <span className="text-xs text-gray-400">
-              ({t("label.valgfritt")})
-            </span>
+            {beskrivelsePakrevd ? (
+              <span className="text-red-500">*</span>
+            ) : (
+              <span className="text-xs text-gray-400">
+                ({t("label.valgfritt")})
+              </span>
+            )}
           </label>
           <textarea
             value={beskrivelse}
             onChange={(e) => setBeskrivelse(e.target.value)}
             placeholder={t("timer.radBeskrivelsePlaceholder")}
             rows={3}
-            className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+            required={beskrivelsePakrevd}
+            aria-invalid={beskrivelseMangler || undefined}
+            className={`w-full rounded border px-3 py-2 text-sm ${
+              beskrivelseMangler ? "border-red-400" : "border-gray-300"
+            }`}
           />
         </div>
         {/* P1 (maskin-i-rad): valgfri kollapsbar maskin-seksjon — kun ved NY rad.
             Maskintimer settes lik timer-radens antall; kortere drift redigeres
             på maskin-raden etterpå. Speiler resolveren (maskinAktiv) + tom-liste-
             sjekk, samme mønster som kostnadsbærer-feltet over (:2066). */}
-        {!rad && maskinAktiv && maskinEquipment && maskinEquipment.length > 0 && (
+        {/* w3b (A13, S2 A): prosjektkort-modus — lik i «Legg til» og «Rediger». Jobbens maskiner
+            (utstyr låst, antall kan rettes, × fjerner) og én ny linje med Utstyr og Antall timer. */}
+        {maskinPaaRad && maskinAktiv && maskinEquipment && maskinEquipment.length > 0 && (
+          <div className="rounded-lg border border-gray-200 bg-gray-50" data-testid="kort-maskindel">
+            <button
+              type="button"
+              onClick={() => setVisMaskin((v) => !v)}
+              className="flex w-full items-center justify-between px-3 py-2 text-left text-sm font-medium text-gray-700"
+            >
+              <span className="inline-flex items-center gap-2">
+                <span className="inline-flex items-center rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
+                  {t("timer.maskinSeksjon.merke")}
+                </span>
+                {t("timer.maskinSeksjon.tittel")}
+              </span>
+              <ChevronDown
+                className={`h-4 w-4 flex-shrink-0 text-gray-400 transition-transform ${
+                  visMaskin || jobbMaskiner.length > 0 ? "rotate-180" : ""
+                }`}
+              />
+            </button>
+            {(visMaskin || jobbMaskiner.length > 0) && (
+              <div className="space-y-3 border-t border-gray-200 p-3">
+                {aktiveJobbMaskiner.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-gray-500">
+                      {t("timer.maskinSeksjon.jobbensMaskiner")}
+                    </p>
+                    {aktiveJobbMaskiner.map((l, i) => {
+                      const utstyr = maskinEquipment.find((e) => e.id === l.rad.vehicleId);
+                      const h = hoystForJobbLinje(i);
+                      const over = overMaskinHoyst(parseFloat(l.timer) || 0, h);
+                      return (
+                        <div key={l.rad.id} data-testid="jobb-maskin">
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 truncate rounded border border-gray-200 bg-white px-3 py-2 text-sm text-gray-500">
+                              {utstyr ? utstyrVisningsnavn(utstyr) : "—"}
+                            </div>
+                            <Input
+                              type="number"
+                              step="0.25"
+                              min={0}
+                              max={24}
+                              aria-label={t("timer.felt.antallTimer")}
+                              value={l.timer}
+                              disabled={l.laast}
+                              onChange={(e) =>
+                                setJobbMaskiner((alle) =>
+                                  alle.map((x) => (x.rad.id === l.rad.id ? { ...x, timer: e.target.value } : x)),
+                                )
+                              }
+                              aria-invalid={over || undefined}
+                              className={`!w-24 ${over ? "!border-red-500 !text-red-600" : ""}`}
+                            />
+                            {!l.laast && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setJobbMaskiner((alle) =>
+                                    alle.map((x) => (x.rad.id === l.rad.id ? { ...x, fjernet: true } : x)),
+                                  )
+                                }
+                                className="rounded p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+                                title={t("timer.maskinSeksjon.fjern")}
+                              >
+                                <X className="h-4 w-4" />
+                              </button>
+                            )}
+                          </div>
+                          {h !== null && over && (
+                            <p className="mt-1 text-xs font-medium text-red-600">
+                              {t("timer.maskin.hoyst", { timer: formaterTimer(h) })}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                <div className="flex items-start gap-2">
+                  <div className="flex-1">
+                    <MaskinVelger
+                      utstyr={maskinEquipment ?? []}
+                      valgtId={maskinVehicleId}
+                      onVelg={setMaskinVehicleId}
+                      bruktPaaSeddel={alleMaskinRader.map((m) => m.vehicleId)}
+                      sistBrukt={sistBrukteMaskiner}
+                      iVindu={!!kortModus}
+                    />
+                  </div>
+                  <Input
+                    type="number"
+                    step="0.25"
+                    min={0}
+                    max={24}
+                    aria-label={t("timer.felt.antallTimer")}
+                    data-testid="ny-maskin-timer"
+                    value={nyMaskinTimer}
+                    onChange={(e) => {
+                      setNyMaskinTimerInput(e.target.value);
+                      setNyMaskinRort(true);
+                    }}
+                    aria-invalid={overMaskinHoyst(parseFloat(nyMaskinTimer) || 0, nyMaskinHoyst) || undefined}
+                    className={`!w-24 ${
+                      overMaskinHoyst(parseFloat(nyMaskinTimer) || 0, nyMaskinHoyst)
+                        ? "!border-red-500 !text-red-600"
+                        : ""
+                    }`}
+                  />
+                  <span className="w-8" />
+                </div>
+                {nyMaskinHoyst !== null && (
+                  <p
+                    data-testid="maskin-hoyst"
+                    className={`text-xs ${
+                      overMaskinHoyst(parseFloat(nyMaskinTimer) || 0, nyMaskinHoyst)
+                        ? "font-medium text-red-600"
+                        : "text-gray-500"
+                    }`}
+                  >
+                    {t("timer.maskin.hoyst", { timer: formaterTimer(nyMaskinHoyst) })}
+                  </p>
+                )}
+                <p className="text-xs text-gray-400">{t("timer.maskinSeksjon.hintJobb")}</p>
+              </div>
+            )}
+          </div>
+        )}
+        {!kortModus && !rad && maskinAktiv && maskinEquipment && maskinEquipment.length > 0 && (
           <div className="rounded-lg border border-gray-200 bg-gray-50">
             <button
               type="button"
@@ -3722,13 +5790,14 @@ function TimerRadDialog({
                     </select>
                   </div>
                 </div>
-                <p className="text-xs text-gray-500">
-                  {t("timer.maskinSeksjon.kapasitet", {
-                    arbeid: maskinKapasitet.arbeidSum.toFixed(2),
-                    maskin: maskinKapasitet.sumMaskin.toFixed(2),
-                    ledig: maskinKapasitet.ledig.toFixed(2),
-                  })}
-                </p>
+                {maskinHoyst !== null && (
+                  <p
+                    data-testid="maskin-hoyst"
+                    className={`text-xs ${maskinOverHoyst ? "font-medium text-red-600" : "text-gray-500"}`}
+                  >
+                    {t("timer.maskin.hoyst", { timer: formaterTimer(maskinHoyst) })}
+                  </p>
+                )}
                 <p className="text-xs text-gray-400">
                   {t("timer.maskinSeksjon.hint")}
                 </p>
@@ -3743,9 +5812,13 @@ function TimerRadDialog({
           </Button>
           <KnappMedForklaring
             sperret={
-              (!lonnsartId || !aktivitetId || !timer || !fraTid || !tilTid) && !lagrer
+              (!lonnsartId || !aktivitetId || !timer || !fraTid || !tilTid || beskrivelseMangler) && !lagrer
             }
-            forklaring={t("sperret.timerRad")}
+            forklaring={
+              !lonnsartId || !aktivitetId || !timer || !fraTid || !tilTid
+                ? t("sperret.timerRad")
+                : t("sperret.beskrivelse")
+            }
           >
             <Button
               type="submit"
@@ -3756,7 +5829,13 @@ function TimerRadDialog({
                 !timer ||
                 // Fra/til obligatorisk på timer-rader (2026-07-13) — reverserer a2.
                 !fraTid ||
-                !tilTid
+                !tilTid ||
+                // w9 (2c): maskinen over jobbens «høyst».
+                (!kortModus && maskinOverHoyst) ||
+                // w3b: en av jobbens maskiner eller den nye over «høyst».
+                kortOverHoyst ||
+                // Plan § 8.22 L2: «Hva gjorde du?» påkrevd i prosjektkort-modus.
+                beskrivelseMangler
               }
             >
               {lagrer ? t("handling.lagrer") : t("handling.lagre")}
@@ -3783,8 +5862,10 @@ function useRadSted(args: {
   byggeplasser: readonly ByggeplassValg[] | undefined;
   projectId: string;
   rad?: { byggeplassId?: string | null; externalCostObjectId?: string | null };
+  /** w3a: åpnet fra en jobb — stedet arves (ny rad får jobbens sted) og feltene skjules. */
+  jobb?: JobbKontekst;
 }) {
-  const { byggeplasser, projectId, rad } = args;
+  const { byggeplasser, projectId, rad, jobb } = args;
   const bp = useRadByggeplass({
     byggeplasser,
     projectId,
@@ -3799,15 +5880,19 @@ function useRadSted(args: {
   const opprinneligEco = rad?.externalCostObjectId ?? null;
   const [ecoId, setEcoId] = useState<string | null>(opprinneligEco);
   const ecoEndret = !rad || ecoId !== opprinneligEco;
-  const payload: { byggeplassId?: string | null; externalCostObjectId?: string | null } = {
-    ...(rad ? byggeplassPayload(bp) : { byggeplassId: bp.byggeplassId }),
-    ...(ecoEndret ? { externalCostObjectId: ecoId } : {}),
-  };
-  return { bp, ecoer: ecoer ?? [], ecoId, setEcoId, payload };
+  const payload: { byggeplassId?: string | null; externalCostObjectId?: string | null; kortId?: string } =
+    jobb && !rad
+      ? { byggeplassId: jobb.byggeplassId, externalCostObjectId: jobb.ecoId, kortId: jobb.kortId }
+      : {
+          ...(rad ? byggeplassPayload(bp) : { byggeplassId: bp.byggeplassId }),
+          ...(ecoEndret ? { externalCostObjectId: ecoId } : {}),
+        };
+  return { bp, ecoer: ecoer ?? [], ecoId, setEcoId, payload, skjult: !!jobb };
 }
 
 function RadStedFelt({ sted }: { sted: ReturnType<typeof useRadSted> }) {
   const { t } = useTranslation();
+  if (sted.skjult) return null;
   return (
     <>
       <RadByggeplassFelt
@@ -3845,6 +5930,7 @@ function TilleggRadDialog({
   byggeplasser,
   rad,
   laastTilleggId,
+  jobb,
   onLukk,
 }: {
   sheetId: string;
@@ -3854,6 +5940,7 @@ function TilleggRadDialog({
   // U3 (8a): kategori valgt i den unified velgeren → vises read-only her.
   // Redigering (rad) og fri-select-veien er uendret (bit-for-bit sats-flyt).
   laastTilleggId?: string;
+  jobb?: JobbKontekst;
   onLukk: () => void;
 }) {
   const { t } = useTranslation();
@@ -3870,7 +5957,7 @@ function TilleggRadDialog({
     rad ? String(tilTall(rad.antall)) : "1",
   );
   const [kommentar, setKommentar] = useState<string>(rad?.kommentar ?? "");
-  const sted = useRadSted({ byggeplasser, projectId, rad });
+  const sted = useRadSted({ byggeplasser, projectId, rad, jobb });
   const [feil, setFeil] = useState<string | null>(null);
   // D4 (web-paritet): kvittering-opplasting (mobil har kamera/galleri).
   const [vedleggFeil, setVedleggFeil] = useState<string | null>(null);
@@ -4257,7 +6344,7 @@ function RaderUtlegg({
               <span className="font-mono text-sm text-gray-900">
                 {ordning === "fakturert"
                   ? "✓"
-                  : `${tilTall(rad.belop).toFixed(2)} kr`}
+                  : `${formaterBelop(tilTall(rad.belop))} kr`}
               </span>
               {erRedigerbar && (
                 <div className="flex gap-1">
@@ -4506,6 +6593,7 @@ function UtleggRadDialog({
   byggeplasser,
   expenseCategoryId,
   rad,
+  jobb,
   onLukk,
 }: {
   sheetId: string;
@@ -4513,6 +6601,7 @@ function UtleggRadDialog({
   byggeplasser: readonly ByggeplassValg[] | undefined;
   expenseCategoryId?: string;
   rad?: UtleggRad;
+  jobb?: JobbKontekst;
   onLukk: () => void;
 }) {
   const { t } = useTranslation();
@@ -4520,7 +6609,7 @@ function UtleggRadDialog({
   const sedelFirmaId = useSedelFirma();
   const { data: katalog } = trpc.timer.expenseCategory.list.useQuery({ projectId, organizationId: sedelFirmaId });
 
-  const sted = useRadSted({ byggeplasser, projectId, rad });
+  const sted = useRadSted({ byggeplasser, projectId, rad, jobb });
   const kategoriId = rad?.expenseCategoryId ?? expenseCategoryId ?? "";
   const kat = (katalog as UtleggKategori[] | undefined)?.find(
     (k) => k.id === kategoriId,
@@ -4800,44 +6889,32 @@ function MaskinRadDialog({
   projectId,
   byggeplasser,
   defaultEcoId,
-  defaultFraTid,
-  defaultTilTid,
-  tidsrundingMinutter,
   rad,
   alleTimerRader,
   alleMaskinRader,
   sistBrukteMaskiner,
   pauseMin,
-  skiftStart,
-  standardPauseMin,
-  standardPauseEtterTimer,
+  jobb,
+  kortModus = false,
   onLukk,
 }: {
   sheetId: string;
   projectId: string;
   byggeplasser: readonly ByggeplassValg[] | undefined;
   defaultEcoId?: string | null;
-  // Maskin-fra-til (2026-05-17): forslag fra parent basert på timer-rader
-  // i bucket (Alt D — sammenheng-prinsipp). null hvis bucket er tom og
-  // ingen firma-default. Brukes kun for ny rad (ikke rediger).
-  defaultFraTid?: string | null;
-  defaultTilTid?: string | null;
-  tidsrundingMinutter?: number | null;
+  /** § 8.22 L1: prosjektkort-modus — maskinlista i full høyde. Dagskort-modus uendret. */
+  kortModus?: boolean;
+  /** w3a: åpnet fra en jobb — timerad, byggeplass og underprosjekt følger jobben og
+   *  vises ikke. Ny maskin kobles til jobbens første arbeidsrad og sendes med kort-id. */
+  jobb?: JobbKontekst;
   rad?: MaskinRad;
-  // Del 2 (maskin ≤ arbeid): hele sedelens rader + sedel-pause, for reaktiv
-  // bucket-kapasitet. Samme regel som server (validerMaskinUnderArbeid).
+  // w9 (maskin ≤ arbeid): hele sedelens rader + sedel-pause, for «høyst» pr. jobb
+  // (maskinHoystPerRad). Samme regel som serveren (krevIngenNyeMaskinBrudd).
   alleTimerRader: TimerRad[];
   alleMaskinRader: MaskinRad[];
   /** ORDRE 29: egne sist brukte maskiner (nyeste først) — øverst i velgeren. */
   sistBrukteMaskiner: string[];
   pauseMin: number;
-  // B1/B2 (bolk e): pause-bevisst spenn↔antall-synk + spenn-validering på
-  // maskin-rad. standardPauseMin = firma-default (samme kilde som timer-
-  // modalen, IKKE sheet.pauseMin som bucket-taket bruker) — maskin følger
-  // førerens økt, så fradraget må være identisk med timer-radens.
-  skiftStart: string;
-  standardPauseMin: number;
-  standardPauseEtterTimer: number;
   onLukk: () => void;
 }) {
   const { t } = useTranslation();
@@ -4866,34 +6943,13 @@ function MaskinRadDialog({
   const bp = useRadByggeplass({ byggeplasser, projectId, rad });
 
   const [vehicleId, setVehicleId] = useState<string>(rad?.vehicleId ?? "");
-  // Bolk (g): prefill gyldig kun når begge tider finnes OG fra < til.
-  const prefillGyldig =
-    !!defaultFraTid &&
-    !!defaultTilTid &&
-    hhmmTilMin(defaultFraTid) < hhmmTilMin(defaultTilTid);
-  const [timer, setTimer] = useState<string>(() => {
-    if (rad) return String(tilTall(rad.timer));
-    // B3: init antall fra prefill-spennet (pause-bevisst) — kun ved gyldig
-    // prefill; ellers tom (ingen 0-rad).
-    if (prefillGyldig) {
-      return String(
-        effektiveTimerFraSpenn(
-          defaultFraTid!,
-          defaultTilTid!,
-          pauseVinduFra(skiftStart, standardPauseEtterTimer),
-          standardPauseMin,
-        ),
-      );
-    }
-    return "";
-  });
-  const [fraTid, setFraTid] = useState<string>(
-    rad?.fraTid ?? defaultFraTid ?? "",
-  );
-  // Bolk (g): til prefylles kun ved gyldig prefill (fra < til).
-  const [tilTid, setTilTid] = useState<string>(
-    rad?.tilTid ?? (prefillGyldig ? defaultTilTid! : ""),
-  );
+  // § 8.22 punkt 4 (Kenneth 2026-11-21): maskin føres som antall timer etter skjønn —
+  // aldri fra–til. Fra jobben foreslås antall = jobbens arbeid minus maskintimene alt ført
+  // på jobben (O5) til brukeren rører feltet; uten jobb er feltet tomt. Mengde og enhet føres ikke
+  // fra jobben (B37 A).
+  const fraJobb = !!jobb;
+  const [timerRort, setTimerRort] = useState<boolean>(!!rad || !jobb);
+  const [timerInput, setTimer] = useState<string>(() => (rad ? String(tilTall(rad.timer)) : ""));
   const [mengde, setMengde] = useState<string>(
     rad?.mengde !== null && rad?.mengde !== undefined
       ? String(tilTall(rad.mengde))
@@ -4901,7 +6957,7 @@ function MaskinRadDialog({
   );
   const [enhet, setEnhet] = useState<string>(rad?.enhet ?? "");
   const [ecoId, setEcoId] = useState<string | null>(
-    rad?.externalCostObjectId ?? defaultEcoId ?? null,
+    rad ? (rad.externalCostObjectId ?? null) : (jobb?.ecoId ?? defaultEcoId ?? null),
   );
   const [feil, setFeil] = useState<string | null>(null);
 
@@ -4915,6 +6971,7 @@ function MaskinRadDialog({
     [alleTimerRader, projectId],
   );
   const [sheetTimerId, setSheetTimerId] = useState<string>(() => {
+    if (jobb && !rad) return jobb.sheetTimerId ?? "";
     if (rad?.sheetTimerId && arbeidsrader.some((r) => r.id === rad.sheetTimerId)) {
       return rad.sheetTimerId;
     }
@@ -4924,89 +6981,80 @@ function MaskinRadDialog({
   // Utstyret er ikke lastet ennå → ukjent; serveren avgjør (H15 A).
   const kreverTimerad = valgtUtstyr ? maskinKreverTimerad(valgtUtstyr.utleieEnhet) : false;
 
-  // T7-2e-mønster: tving step ≤ 1800 (30 min) slik at minutt-selektor vises
-  // selv om firmaet har tidsrunding på 60 min — Chrome skjuler minutter ved
-  // step=3600. Default 15 min hvis ingen orgSetting.
-  const timeStep = Math.min((tidsrundingMinutter ?? 15) * 60, 1800);
-
-  // B1/B2 (bolk e): pausevindu + pause-bevisst spenn↔antall-synk, speiler
-  // TimerRadDialog. standardPauseMin (ikke pauseMin) — maskin følger føreren.
-  const pauseFra = pauseVinduFra(skiftStart, standardPauseEtterTimer);
-
-  // R3-transparens: hvor mange minutter lunsjpause maskin-raden trekker fra.
-  const pauseOverlapp = useMemo(() => {
-    if (!fraTid || !tilTid) return 0;
-    const fm = hhmmTilMin(fraTid);
-    const tm = hhmmTilMin(tilTid);
-    if (tm <= fm) return 0;
-    return pauseOverlappMin(fm, tm, hhmmTilMin(pauseFra), standardPauseMin);
-  }, [fraTid, tilTid, pauseFra, standardPauseMin]);
-
-  // Sist-rørte felt vinner: fra/til → antall (spenn − pause); antall → til
-  // (pausevindu skjøvet inn ved lunsj-kryssing). R4: rund fra/til ved commit.
-  function endreFra(v: string) {
-    const r = rundTilNarmeste(v, tidsrundingMinutter ?? null);
-    setFraTid(r);
-    if (r && tilTid) {
-      setTimer(
-        String(effektiveTimerFraSpenn(r, tilTid, pauseFra, standardPauseMin)),
-      );
-    }
-  }
-  function endreTil(v: string) {
-    const r = rundTilNarmeste(v, tidsrundingMinutter ?? null);
-    setTilTid(r);
-    if (fraTid && r) {
-      setTimer(
-        String(effektiveTimerFraSpenn(fraTid, r, pauseFra, standardPauseMin)),
-      );
-    }
-  }
   function endreTimer(v: string) {
     setTimer(v);
-    const n = parseFloat(v);
-    if (fraTid && !isNaN(n) && n > 0) {
-      setTilTid(tilFraAntall(fraTid, n, pauseFra, standardPauseMin));
-    }
+    setTimerRort(true);
   }
 
-  // Del 2 (maskin ≤ arbeid): reaktiv bucket-kapasitet for gjeldende
-  // (projectId, ecoId). Bruker delt @sitedoc/shared-regel — identisk med
-  // serverens validerMaskinUnderArbeid (samme epsilon + pause-modell).
-  const kapasitet = useMemo(() => {
-    const iBucket = (r: {
-      projectId: string;
-      externalCostObjectId: string | null;
-    }) =>
-      r.projectId === projectId &&
-      (r.externalCostObjectId ?? null) === (ecoId ?? null);
-    // Ordre 2026-11-14 (6): arbeid uten reise og uten erstattede rader.
-    const arbeidSum = arbeidUtenReise(alleTimerRader.filter(iBucket));
-    const sumMaskinEksisterende = alleMaskinRader
-      .filter((r) => iBucket(r) && r.id !== rad?.id)
-      .reduce((acc, r) => acc + tilTall(r.timer), 0);
-    const { tak, ledig } = maskinBucketKapasitet({
-      arbeidSum,
-      sumMaskinEksisterende,
-      pauseMin,
-    });
-    const nyTimer = parseFloat(timer);
-    const nyBidrag = isNaN(nyTimer) ? 0 : nyTimer;
-    const overstiger = overstigerMaskinTak(
-      sumMaskinEksisterende + nyBidrag,
-      arbeidSum,
+  // w9 (2c): «høyst X t» = jobbens arbeid − de andre førermaskinene på jobben.
+  // Jobben er timeradens (K6), ellers radens egen; uten jobb gjelder bøtta med pause.
+  // Delt regel med serveren (maskinHoystPerRad). Døgn-maskin: ingen grense.
+  // O5 (§ 8.22): forslaget fra jobben = jobbens arbeid minus ALLE maskintimer som alt er ført
+  // på jobben (fører- og døgn-maskin), aldri under 0. Det er aldri over «høyst» (som bare trekker
+  // fra førermaskinene), så taket står uendret.
+  const jobbForslag = useMemo(() => {
+    if (!jobb || rad) return "";
+    const forslag = maskinForslagFraJobb(
+      alleTimerRader.map((r) => ({
+        kortId: r.kortId ?? null,
+        projectId: r.projectId,
+        externalCostObjectId: r.externalCostObjectId,
+        timer: tilTall(r.timer),
+        erReise: r.erReise === true,
+      })),
+      alleMaskinRader.map((r) => ({
+        kortId: r.kortId ?? null,
+        projectId: r.projectId,
+        externalCostObjectId: r.externalCostObjectId,
+        timer: tilTall(r.timer),
+      })),
+      { kortId: jobb.kortId, projectId, externalCostObjectId: jobb.ecoId },
       pauseMin,
     );
-    return { arbeidSum, sumMaskinEksisterende, tak, ledig, overstiger };
-  }, [
-    alleTimerRader,
-    alleMaskinRader,
-    projectId,
-    ecoId,
-    rad?.id,
-    pauseMin,
-    timer,
-  ]);
+    return forslag > 0 ? String(forslag) : "";
+  }, [jobb, rad, alleTimerRader, alleMaskinRader, projectId, pauseMin]);
+  const timer = timerRort ? timerInput : jobbForslag;
+
+  const hoyst = useMemo(() => {
+    const kobletTimerrad = alleTimerRader.find((r) => r.id === sheetTimerId);
+    const kortId = kreverTimerad
+      ? (kobletTimerrad?.kortId ?? rad?.kortId ?? null)
+      : (rad?.kortId ?? null);
+    const enhetFor = (vehicleIdArg: string) =>
+      equipment?.find((e) => e.id === vehicleIdArg)?.utleieEnhet ?? null;
+    const nyTimer = parseFloat(timer);
+    const [denne] = maskinHoystPerRad(
+      alleTimerRader.map((r) => ({
+        kortId: r.kortId ?? null,
+        projectId: r.projectId,
+        externalCostObjectId: r.externalCostObjectId,
+        timer: tilTall(r.timer),
+        erReise: r.erReise === true,
+      })),
+      [
+        {
+          kortId,
+          projectId,
+          externalCostObjectId: kortId ? (kobletTimerrad?.externalCostObjectId ?? ecoId) : ecoId,
+          timer: isNaN(nyTimer) ? 0 : nyTimer,
+          utleieEnhet: valgtUtstyr ? (valgtUtstyr.utleieEnhet ?? null) : null,
+        },
+        ...alleMaskinRader
+          .filter((r) => r.id !== rad?.id)
+          .map((r) => ({
+            kortId: r.kortId ?? null,
+            projectId: r.projectId,
+            externalCostObjectId: r.externalCostObjectId,
+            timer: tilTall(r.timer),
+            utleieEnhet: enhetFor(r.vehicleId),
+          })),
+      ],
+      pauseMin,
+    );
+    // Utstyret ikke lastet: ukjent enhet → ingen tekst; serveren avgjør (H15 A).
+    return valgtUtstyr ? (denne ?? null) : null;
+  }, [alleTimerRader, alleMaskinRader, sheetTimerId, kreverTimerad, rad?.kortId, rad?.id, equipment, timer, projectId, ecoId, valgtUtstyr, pauseMin]);
+  const overHoyst = overMaskinHoyst(parseFloat(timer) || 0, hoyst);
 
   const tilfoy = trpc.timer.dagsseddel.maskin.tilfoy.useMutation({
     onSuccess: () => {
@@ -5041,25 +7089,6 @@ function MaskinRadDialog({
       );
       return;
     }
-    // B2 (bolk e): når begge tider er satt MÅ antall stemme med (spenn − pause).
-    // Standardvalget er «maskinen gikk hele økta»; kortere drift krever justert
-    // fra/til. Bolk (g): krev FØRST til > fra (lukker 0==0-hullet).
-    if (fraTid && tilTid) {
-      if (hhmmTilMin(tilTid) <= hhmmTilMin(fraTid)) {
-        setFeil(t("timer.feil.sluttForStart"));
-        return;
-      }
-      const forventet = effektiveTimerFraSpenn(
-        fraTid,
-        tilTid,
-        pauseFra,
-        standardPauseMin,
-      );
-      if (Math.abs(forventet - tNum) > 0.01) {
-        setFeil(t("timer.feil.timerAvvik", { forventet: forventet.toFixed(2) }));
-        return;
-      }
-    }
     const mengdeNum = mengde.trim() ? parseFloat(mengde) : null;
     if (mengdeNum !== null && (isNaN(mengdeNum) || mengdeNum < 0)) {
       setFeil(t("timer.feil.ugyldigInput"));
@@ -5068,21 +7097,20 @@ function MaskinRadDialog({
     const data = {
       vehicleId,
       timer: tNum,
-      mengde: mengdeNum,
-      enhet: enhet || null,
+      // § 8.22 punkt 4: fra–til sendes aldri — ved redigering står lagrede verdier
+      // (maskin.oppdater: undefined = urørt). w3b: fra jobben føres verken mengde eller enhet.
+      ...(fraJobb ? {} : { mengde: mengdeNum, enhet: enhet || null }),
       externalCostObjectId: ecoId,
-      // Maskin-fra-til (2026-05-17): tom streng → null (felt er valgfrie).
-      fraTid: fraTid || null,
-      tilTid: tilTid || null,
       // Ordre (10): kun ved endring — mobilens byggeplass overskrives ikke.
-      ...byggeplassPayload(bp),
+      // w3a: ny maskin i en jobb tar jobbens byggeplass (serveren bekrefter, A7).
+      ...(jobb && !rad ? { byggeplassId: jobb.byggeplassId } : byggeplassPayload(bp)),
       // Ordre d2c-1: tom = uten timerad (bare døgn-maskin slipper gjennom).
       sheetTimerId: sheetTimerId || null,
     };
     if (rad) {
       oppdater.mutate({ id: rad.id, ...data });
     } else {
-      tilfoy.mutate({ sheetId, projectId, ...data });
+      tilfoy.mutate({ sheetId, projectId, ...data, ...(jobb ? { kortId: jobb.kortId } : {}) });
     }
   }
 
@@ -5107,10 +7135,11 @@ function MaskinRadDialog({
             onVelg={setVehicleId}
             bruktPaaSeddel={alleMaskinRader.map((m) => m.vehicleId)}
             sistBrukt={sistBrukteMaskiner}
+            iVindu={kortModus}
           />
         </div>
-        {/* Ordre d2c-1 (R24): timeraden maskinen gikk på. */}
-        <div>
+        {/* Ordre d2c-1 (R24): timeraden maskinen gikk på. w3a: i en jobb følger den jobben. */}
+        {!jobb && (<div>
           <label className="mb-1 block text-sm font-medium text-gray-700">
             {t("timer.felt.timerad")}{" "}
             {!kreverTimerad && (
@@ -5140,12 +7169,14 @@ function MaskinRadDialog({
               {t("timer.maskinTimerad.ingenArbeidsrad")}
             </p>
           )}
-        </div>
-        <RadByggeplassFelt
-          kandidater={bp.kandidater}
-          verdi={bp.byggeplassId}
-          onEndre={bp.setByggeplassId}
-        />
+        </div>)}
+        {!jobb && (
+          <RadByggeplassFelt
+            kandidater={bp.kandidater}
+            verdi={bp.byggeplassId}
+            onEndre={bp.setByggeplassId}
+          />
+        )}
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700">
             {t("timer.felt.antallTimer")}
@@ -5158,47 +7189,20 @@ function MaskinRadDialog({
             value={timer}
             onChange={(e) => endreTimer(e.target.value)}
             required
+            aria-invalid={overHoyst || undefined}
+            className={overHoyst ? "!border-red-500 !text-red-600" : undefined}
           />
+          {hoyst !== null && (
+            <p
+              data-testid="maskin-hoyst"
+              className={`mt-1 text-xs ${overHoyst ? "font-medium text-red-600" : "text-gray-500"}`}
+            >
+              {t("timer.maskin.hoyst", { timer: formaterTimer(hoyst) })}
+            </p>
+          )}
         </div>
-        {/* Maskin-fra-til = maskinens driftsvindu. B1/B2 (bolk e): antall er
-            pause-bevisst avledet av spennet og validert mot det. Prefill fra
-            bucketens arbeidsspenn (B4). Kortere drift → juster fra/til. */}
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              {t("timer.felt.startTid")}{" "}
-              <span className="text-xs text-gray-400">
-                ({t("label.valgfritt")})
-              </span>
-            </label>
-            <Input
-              type="time"
-              step={timeStep}
-              value={fraTid}
-              onChange={(e) => endreFra(e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              {t("timer.felt.sluttTid")}{" "}
-              <span className="text-xs text-gray-400">
-                ({t("label.valgfritt")})
-              </span>
-            </label>
-            <Input
-              type="time"
-              step={timeStep}
-              value={tilTid}
-              onChange={(e) => endreTil(e.target.value)}
-            />
-          </div>
-        </div>
-        {/* R3-transparens: hvor mange minutter lunsjpause maskin-raden trekker. */}
-        {pauseOverlapp > 0 && (
-          <p className="-mt-2 text-xs text-gray-500">
-            {t("timer.pauseFradrag", { min: pauseOverlapp })}
-          </p>
-        )}
+        {/* w3b (B37 A): fra jobben vises verken mengde eller enhet. */}
+        {!fraJobb && (<>
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">
@@ -5233,7 +7237,8 @@ function MaskinRadDialog({
             </select>
           </div>
         </div>
-        <div>
+        </>)}
+        {!jobb && (<div>
           <label className="mb-1 block text-sm font-medium text-gray-700">
             {t("timer.felt.underprosjekt")}{" "}
             <span className="text-xs text-gray-400">
@@ -5264,27 +7269,7 @@ function MaskinRadDialog({
               </button>
             )}
           </div>
-        </div>
-        {/* Del 2: inline kapasitet-linje — arbeid/maskin/ledig for bucketen.
-            Rød når inntastet verdi overstiger taket; Lagre disables da. */}
-        <div
-          className={`rounded border px-3 py-2 text-xs ${
-            kapasitet.overstiger
-              ? "border-sitedoc-error/40 bg-sitedoc-error/5 text-sitedoc-error"
-              : "border-gray-200 bg-gray-50 text-gray-500"
-          }`}
-        >
-          {t("timer.maskin.kapasitet", {
-            arbeid: formatTimer(kapasitet.arbeidSum),
-            maskin: formatTimer(kapasitet.sumMaskinEksisterende),
-            ledig: formatTimer(Math.max(0, kapasitet.ledig)),
-          })}
-          {kapasitet.overstiger && (
-            <span className="mt-0.5 block font-medium">
-              {t("timer.maskin.overstigerArbeid")}
-            </span>
-          )}
-        </div>
+        </div>)}
         {feil && <p className="text-sm text-red-600">{feil}</p>}
         <div className="flex justify-end gap-3 pt-2">
           <Button type="button" variant="secondary" onClick={onLukk}>
@@ -5296,7 +7281,7 @@ function MaskinRadDialog({
           >
             <Button
               type="submit"
-              disabled={lagrer || !vehicleId || !timer || kapasitet.overstiger}
+              disabled={lagrer || !vehicleId || !timer || overHoyst}
             >
               {lagrer ? t("handling.lagrer") : t("handling.lagre")}
             </Button>
@@ -5471,10 +7456,12 @@ function RedigerHeaderDialog({
 /* ------------------------------------------------------------------ */
 
 function NyProsjektDialog({
+  tittel,
   ledigeProsjekter,
   onVelg,
   onLukk,
 }: {
+  tittel?: string;
   ledigeProsjekter: Array<{ id: string; name: string; internalProjectNumber: string | null }>;
   onVelg: (id: string) => void;
   onLukk: () => void;
@@ -5483,7 +7470,7 @@ function NyProsjektDialog({
   const [valgtId, setValgtId] = useState<string | null>(null);
 
   return (
-    <Modal open={true} onClose={onLukk} title={t("timer.leggTilProsjekt")}>
+    <Modal open={true} onClose={onLukk} title={tittel ?? t("timer.leggTilProsjekt")}>
       <div className="space-y-4">
         <ProsjektRadVelger
           valgtId={valgtId}

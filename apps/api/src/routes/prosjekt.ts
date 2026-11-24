@@ -20,6 +20,7 @@ import { hentAktiveFirmamoduler } from "../services/firmamodul";
 import { autoLeggFirmaAdmins } from "../services/autoProsjektAdmin";
 import { provisjonerProsjektmedlemskap } from "../services/prosjektTilgangEvaluator";
 import { seedStandardProsjektoppsett } from "../services/prosjektSeed";
+import { skalOppretterBliMedlem } from "../services/oppretterMedlemskap";
 
 export const prosjektRouter = router({
   // Hent prosjekter der innlogget bruker er medlem — uavhengig av rolle.
@@ -431,18 +432,18 @@ export const prosjektRouter = router({
       // forhåndsvalg for prosjekttilgang-evaluatoren, ikke prosjektdata.
       const { organizationId: _ignore, medlemUserIds, ...projectData } = input;
 
+      // F13c 1A: oppretter for et annet firma enn sitt eget → ikke medlem (se oppretterMedlemskap.ts).
+      const oppretterBlirMedlem = await skalOppretterBliMedlem(ctx.userId!, valgtOrgId);
+
       return ctx.prisma.$transaction(async (tx) => {
         const prosjekt = await tx.project.create({
           data: {
             ...projectData,
             projectNumber: prosjektnummer,
             primaryOrganizationId: valgtOrgId,
-            members: {
-              create: {
-                userId: ctx.userId!,
-                role: "admin",
-              },
-            },
+            ...(oppretterBlirMedlem
+              ? { members: { create: { userId: ctx.userId!, role: "admin" } } }
+              : {}),
           },
         });
 
@@ -522,6 +523,9 @@ export const prosjektRouter = router({
       const prosjektnummer = generateProjectNumber(antall + 1);
       const prosjektNavn = `Testside ${bruker.name || "Ukjent"}`;
 
+      // F13c 1A: oppretter for et annet firma enn sitt eget → ikke medlem (se oppretterMedlemskap.ts).
+      const oppretterBlirMedlem = await skalOppretterBliMedlem(ctx.userId!, valgtOrgId);
+
       return ctx.prisma.$transaction(async (tx) => {
         // Opprett prosjektet
         const prosjekt = await tx.project.create({
@@ -529,12 +533,9 @@ export const prosjektRouter = router({
             name: prosjektNavn,
             projectNumber: prosjektnummer,
             primaryOrganizationId: valgtOrgId,
-            members: {
-              create: {
-                userId: ctx.userId!,
-                role: "admin",
-              },
-            },
+            ...(oppretterBlirMedlem
+              ? { members: { create: { userId: ctx.userId!, role: "admin" } } }
+              : {}),
           },
         });
 

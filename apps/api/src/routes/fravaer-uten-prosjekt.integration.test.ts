@@ -548,6 +548,9 @@ describe("TF5 — attesteringsrett F1", () => {
 
     const detalj = await dag(LEDER).hentForAttestering({ id: sid });
     expect(detalj.fravaerKanAttesteres).toBe(false);
+    // w10b (plan § 4.10 del D): firmalista med prosjektleder-omfang gir samme flagg.
+    const koAv = await dag(LEDER).hentTilAttesteringFirma({ organizationId: ORG });
+    expect((koAv.find((s) => s.id === sid) as { fravaerKanAttesteres?: boolean } | undefined)?.fravaerKanAttesteres).toBe(false);
     await expect(
       dag(LEDER).attesterRader({ radIder: { timerIder: [f] } }),
     ).rejects.toMatchObject({ code: "FORBIDDEN" });
@@ -568,8 +571,8 @@ describe("TF5 — attesteringsrett F1", () => {
     await arbeid(sid, P1);
     const f = await fravaer(sid);
 
-    // Prosjektkøen viser sedelen med riktig flagg.
-    const ko = await dag(LEDER).hentTilAttestering({ projectId: P1 });
+    // Firmalista med prosjektleder-omfang (w10b) viser sedelen med riktig flagg.
+    const ko = await dag(LEDER).hentTilAttesteringFirma({ organizationId: ORG });
     const iKo = ko.find((s) => s.id === sid) as { fravaerKanAttesteres?: boolean } | undefined;
     expect(iKo?.fravaerKanAttesteres).toBe(true);
     expect((await dag(LEDER).hentForAttestering({ id: sid })).fravaerKanAttesteres).toBe(true);
@@ -591,6 +594,9 @@ describe("TF5 — attesteringsrett F1", () => {
     await expect(
       dag(LEDER).attesterRader({ radIder: { timerIder: [f] } }),
     ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    // w10b (§ 4.6 punkt 2): prosjektlederen ser ikke sedler med bare fravær i firmalista.
+    const lederKo = await dag(LEDER).hentTilAttesteringFirma({ organizationId: ORG });
+    expect(lederKo.some((s) => s.id === sid)).toBe(false);
 
     const ko = await dag(FADMIN).hentTilAttesteringFirma({ organizationId: ORG });
     const iKo = ko.find((s) => s.id === sid) as { fravaerKanAttesteres?: boolean } | undefined;

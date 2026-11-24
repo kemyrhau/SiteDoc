@@ -372,6 +372,7 @@ export function kjorMigreringer() {
       intern_nummer TEXT,
       registreringsnummer TEXT,
       status TEXT NOT NULL DEFAULT 'tilgjengelig',
+      utleie_enhet TEXT,
       sist_oppdatert INTEGER NOT NULL
     );
 
@@ -1434,6 +1435,21 @@ export function kjorMigreringer() {
     }
   }
 
+  // Kort-id d2c-2 (spec § 12.2 R24): maskinens utleieenhet i den lokale maskinlista.
+  // Additiv, nullable TEXT, INGEN backfill — `refreshMaskinKatalog` fyller den ved neste
+  // henting (full overskriving). Til da er enheten ukjent og maskinen krever timerad
+  // (H15 = A). Idempotent via PRAGMA.
+  for (const [tabell, kol] of MASKIN_ENHET_LOCAL_KOLONNER) {
+    try {
+      const kolonner = db.getAllSync(`PRAGMA table_info(${tabell})`) as Array<{ name: string }>;
+      if (!kolonner.find((k) => k.name === kol)) {
+        db.execSync(`ALTER TABLE ${tabell} ADD COLUMN ${kol} TEXT`);
+      }
+    } catch (e) {
+      console.warn(`[MIG] ${kol} på ${tabell} feilet`, e);
+    }
+  }
+
   // L4-A (2026-11-12, spec timer-gps-lag3-4 § 2.2): byggeplass-besøk gjennom dagen.
   // KUN lokal, synkes aldri, ingen lat/lng. Ny tabell — eksisterende installasjoner
   // får den uten å røre andre data. Idempotent via IF NOT EXISTS.
@@ -1623,6 +1639,9 @@ export const PAA_SERVER_KOLONNER = [
   ["sheet_tillegg_local", "paa_server"],
   ["sheet_utlegg_local", "paa_server"],
 ] as const;
+
+/** Kort-id d2c-2 (R24): maskinens utleieenhet i den lokale maskinlista (tabell, kolonne). */
+export const MASKIN_ENHET_LOCAL_KOLONNER = [["equipment_local", "utleie_enhet"]] as const;
 
 /** Prosjektkort L3: lokale tabeller for vare-katalog og vareforbruk ført fra kortet. */
 export const VAREFORBRUK_LOCAL_TABELLER = ["vare_local", "vareforbruk_local"] as const;

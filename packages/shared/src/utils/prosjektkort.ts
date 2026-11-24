@@ -167,6 +167,62 @@ export function kortStatus(
 }
 
 /**
+ * Plan § 8.22 L2 «ikke ferdig» (Kenneth 2026-11-21): en jobb er ikke ferdig når arbeidet
+ * mangler «Hva gjorde du?». Ett kort = én beskrivelse (som mobilens `manglerBeskrivelse`,
+ * ORDRE 24): jobben er ferdig når minst én av arbeidsradene har tekst etter trim — også når
+ * overtid deler arbeidet i flere rader. Reise, erstattede rader og fravær (uten prosjekt)
+ * teller ikke. En jobb uten arbeidsrader mangler ingenting.
+ */
+export type BeskrivelseRad = {
+  id: string;
+  kortId?: string | null;
+  projectId: string | null;
+  erReise?: boolean | null;
+  attestertStatus: string | null;
+  beskrivelse: string | null;
+};
+
+const erArbeid = (r: Omit<BeskrivelseRad, "id" | "kortId">) =>
+  gjelder(r) && r.erReise !== true && r.projectId != null;
+
+/** Raden er en arbeidsrad som gir jobben «Hva gjorde du?» — samme filter som sperren bruker. */
+export function radGirJobbBeskrivelse(r: Omit<BeskrivelseRad, "id" | "kortId">): boolean {
+  return erArbeid(r) && (r.beskrivelse ?? "").trim() !== "";
+}
+
+const erReiseRad = (r: Omit<BeskrivelseRad, "id" | "kortId">) =>
+  gjelder(r) && r.erReise === true && r.projectId != null;
+
+/**
+ * O14 pkt 4 (R5, vedtak Reisevinduet): et kort med bare reise er også en jobb — det mangler
+ * beskrivelse til en av reisene har tekst. Et kort med arbeid er uendret (reisens tekst teller ikke).
+ */
+export function jobbManglerBeskrivelse(
+  rader: readonly Omit<BeskrivelseRad, "id" | "kortId">[],
+): boolean {
+  const arbeid = rader.filter(erArbeid);
+  if (arbeid.length > 0) return !arbeid.some(radGirJobbBeskrivelse);
+  const reiser = rader.filter(erReiseRad);
+  return reiser.length > 0 && !reiser.some((r) => (r.beskrivelse ?? "").trim() !== "");
+}
+
+/**
+ * Sedelens jobber som mangler beskrivelse, i radenes rekkefølge. Jobben er kort-id-en; en rad
+ * uten kort-id (eldre data) er sin egen jobb med nøkkelen `rad:<id>`. Delt mellom kortets merke,
+ * klientens sperre i «Send dagen» og serverens sperre i `send`.
+ */
+export function jobberSomManglerBeskrivelse(rader: readonly BeskrivelseRad[]): string[] {
+  const jobber = new Map<string, BeskrivelseRad[]>();
+  for (const r of rader) {
+    const nokkel = r.kortId ?? `rad:${r.id}`;
+    const liste = jobber.get(nokkel);
+    if (liste) liste.push(r);
+    else jobber.set(nokkel, [r]);
+  }
+  return [...jobber].filter(([, liste]) => jobbManglerBeskrivelse(liste)).map(([nokkel]) => nokkel);
+}
+
+/**
  * Trafikklys for dagsummen relativt til dagsnorm — samme regel som dagskortets
  * topp-sum (rund kun for farge, nærmeste 15 min).
  */
@@ -196,6 +252,36 @@ export function sumlinjeMotNorm(
     .filter((r) => gjelder(r) && !r.erReise)
     .reduce((acc, r) => acc + tilTall(r.timer), 0);
   return { registrert, sone: trafikklysSone(registrert, norm) };
+}
+
+/**
+ * Bunnlinja på dagen «Arbeid X t av N t · maskin Y t · reise Z t · sum i dag T t»
+ * (Kenneth 2026-11-21, plan § 8.21 + § 8.22 — snur 2026-11-14): reisetid er lønnet
+ * arbeid og legges til totalen; maskintimer vises, men legges ikke til.
+ * Trafikklyset regnes fortsatt mot normen uten reise (`sumlinjeMotNorm`):
+ * reise er ikke overtid, jf. `foreslaOvertidSplitt`. Erstattede rader teller
+ * ikke.
+ */
+export function sumlinjeDag(
+  timer: readonly KortTimerRad[],
+  maskin: readonly KortMaskinRad[],
+  norm: number | null,
+): {
+  arbeid: number;
+  maskin: number;
+  reise: number;
+  totalt: number;
+  sone: ReturnType<typeof trafikklysSone>;
+} {
+  const s = beregnKortSummer(timer, maskin, []);
+  const { sone } = sumlinjeMotNorm(timer, norm);
+  return {
+    arbeid: s.arbeid,
+    maskin: s.maskin,
+    reise: s.reise,
+    totalt: s.arbeid + s.reise,
+    sone,
+  };
 }
 
 /* ------------------------------------------------------------------ */
@@ -240,6 +326,22 @@ export type KortVareforbrukInput = {
   /** Radform (2026-11-12): timerraden varen er ført fra — kun sammen med `dagsseddelId`. */
   sheetTimerId?: string;
 };
+
+/**
+ * w1 (plan web-timeføring § 6 (g), WM11): timeradene en vare ført på PC kan kobles til —
+ * jobbens arbeidsrader (samme prosjekt, ikke reise, mer enn 0 timer, ikke erstattet), sortert
+ * på fra-tid. Samme utvalg som maskinvinduets timerad (d2c-1). Den første er forvalgt, så
+ * varen står på jobbens ordinære linje i attesteringen uten ekstra trykk (føring 3);
+ * mobilen kobler til linja «+ Vare» trykkes fra (`ProsjektkortDagsoversikt`).
+ */
+export function vareTimerader<T extends { id: string; projectId: string; fraTid?: string | null; timer: Tall; erReise?: boolean | null; attestertStatus?: string | null }>(
+  timer: readonly T[],
+  projectId: string,
+): T[] {
+  return timer
+    .filter((r) => r.projectId === projectId && r.attestertStatus !== "erstattet" && !r.erReise && Number(r.timer) > 0)
+    .sort((a, b) => (a.fraTid ?? "").localeCompare(b.fraTid ?? ""));
+}
 
 /** Opprett-input fra kortet. Prosjektet (og underprosjektet, 36b) er alltid kortets — kan ikke velges. */
 export function kortVareforbrukInput(args: {

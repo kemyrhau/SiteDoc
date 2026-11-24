@@ -29,6 +29,8 @@ sist_verifisert_mot_kode: 2026-05-16
 | Gammel STATUS § Sist oppdatert-changelog-oppføring (docs-endring historikk) | `historikk-docs.md` (arkiv) — STATUS beholder kun de 3 nyeste |
 | Kundeønske-status endres | `STATUS-AKTUELT.md` § Kundeønsker |
 | Timer-modul spec endres | `timer.md` |
+| Kenneth vedtar eller snur noe brukeren ser i timeføringen på web (ført: reisevinduet) | `vedtak-timer-web.md` — bare orkestrator skriver vedtak, med Kenneths ord; koderen endrer bare status. Punktet byttes ut, ikke stables |
+| Timeføring på web — planen endres (§ 3–10) | Fila for seksjonen i `web-timeforing/` — tabellen nederst i `web-timeforing-plan.md` sier hvilken. Indeksen (§ 0–2 og tabellen) i `web-timeforing-plan.md`. Ny seksjon = ny fil + ny rad i tabellen; ingen fil over ~80 000 tegn |
 | Timer/GPS/prosjekt-utredning (dag-flyt, T.8 m.fl.) | `timer-gps-prosjekt-utredning.md` |
 | PSI/§15-geofence-håndheving (nivåer, per firma/byggeplass) | `psi-geofence-handhevning-utredning.md` (🟡 parkert grunnlagsdok) |
 | Maskin-modul spec endres | `maskin.md` |
@@ -36,6 +38,7 @@ sist_verifisert_mot_kode: 2026-05-16
 | Målt avreise/ankomst via lokal geofence (S3-kilde i timer, firmabryter, GDPR-grunnlag) spec endres | `timer-geofence-avreise-ankomst-spec.md` (🟡 UTKAST, Fabel) |
 | Prosjektkort med kort-id, dagskortet som sum av prosjektkort, lønnsart-forslag fra døgnets registreringer — spec endres | `prosjektkort-kortid-spec.md` (🟢 VEDTATT 2026-11-16, Fabel; F12 = A) |
 | Dokumentflyt-regler endres | `dokumentflyt.md` |
+| HMS-flyt-regler endres (hvem melder, behandler, får svaret og ser saken; firma-HMS) | `hms-domenemodell.md` — eneste kilde; `dokumentflyt.md` § 2 HMS peker dit |
 | Domeneflyt/arbeidsflyt endres | `domene-arbeidsflyt.md` |
 | Mobil-spec endres | `mobil.md` |
 | 3D-visning (web/mobil): funnstatus, grense mot DWG/DXF, 3D-agentenes arbeidsform | `3d-agent-prinsipper.md` |

@@ -42,7 +42,7 @@ import { erReiseRadVisning } from "../../utils/reiseRad";
 import { splittDelVerdier, splittNormtakBrudd } from "../../utils/splittFravaer";
 import type { TimerRad, MaskinRad, TilleggRad } from "../../types/timer-detalj";
 import { VelgerFelt } from "./VelgerFelt";
-import { hentKobledeMaskiner, maskinerOverRad } from "../../services/kobledeMaskiner";
+import { enhetLokalt, hentKobledeMaskiner, maskinerOverRad } from "../../services/kobledeMaskiner";
 import { TastaturFerdig, TASTATUR_FERDIG_ID } from "./TastaturFerdig";
 import {
   LonnsartVelgerModal,
@@ -299,7 +299,7 @@ export function SplittRadModal(props: Props) {
       // (originalens id). Får del 1 færre timer enn en koblet maskin, sier vi fra
       // og lagrer ikke — maskintimene rettes aldri stille.
       const del1Timer = tilTall(timerDeler[0]!.timerTekst);
-      const overDel1 = maskinerOverRad(del1Timer, hentKobledeMaskiner(db, o.id));
+      const overDel1 = maskinerOverRad(del1Timer, hentKobledeMaskiner(db, o.id), enhetLokalt(db));
       if (overDel1.length > 0) {
         const m = overDel1[0]!;
         const e = db.select().from(equipmentLocal).where(eq(equipmentLocal.id, m.vehicleId)).all()[0];
@@ -383,6 +383,9 @@ export function SplittRadModal(props: Props) {
           .values({
             id: randomUUID(),
             dagsseddelId: o.dagsseddelId,
+            // Kort-id d2c-2 (R24): delene arver koblingen til timeraden (del 1
+            // beholder den, siden original-raden oppdateres).
+            sheetTimerId: o.sheetTimerId ?? null,
             projectId: o.projectId,
             externalCostObjectId: d.externalCostObjectId,
             vehicleId: d.vehicleId,

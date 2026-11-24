@@ -1,16 +1,29 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTilbakeAdresse } from "@/components/nivaa/TilbakeLenke";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Card, Button, Input, Textarea } from "@sitedoc/ui";
 import { Building2 } from "lucide-react";
 import { useFirma } from "@/kontekst/firma-kontekst";
 
+// w14 (leveranse 2): siden leser `?retur` (useSearchParams) og er statisk — Next 14 krever Suspense-grense.
 export default function NyttProsjektSide() {
+  return (
+    <Suspense fallback={null}>
+      <NyttProsjektSideInnhold />
+    </Suspense>
+  );
+}
+
+function NyttProsjektSideInnhold() {
   const { t } = useTranslation();
   const router = useRouter();
+  // w14 (TK26): «Avbryt» går dit brukeren kom fra (Firma › Prosjekter, firmaoppsettet), ellers
+  // til prosjektvelgeren — også når siden åpnes direkte.
+  const tilbake = useTilbakeAdresse({ href: "/dashbord", labelKey: "handling.avbryt" });
   const { valgtFirma, erSitedocAdmin, kanAdministrereFirma } = useFirma();
   const [navn, setNavn] = useState("");
   const [beskrivelse, setBeskrivelse] = useState("");
@@ -120,7 +133,7 @@ export default function NyttProsjektSide() {
             <Button
               type="button"
               variant="secondary"
-              onClick={() => router.back()}
+              onClick={() => router.push(tilbake?.href ?? "/dashbord")}
             >
               Avbryt
             </Button>

@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="nb">
+<head>
+<meta charset="utf-8">
+<title>Skisse — L3 Bilde 2-jobben i dagssiden</title>
+<!--
+  FORSLAG (web-timer-w5 2026-11-21, plan § 8.22 L3), ikke bygget. Kilde for l3-*.png i denne mappa.
+  l3-jobbskjema.html?steg=a | b | c   (bredde 1000 css-px, 2x)
+  Tegnet etter dagens dagsside i prosjektkort-modus (l2-*.png): samme kort, hode med tall, «Mangler beskrivelse»,
+  «+ Registrer timer», «Dagens ramme», «Send dagen». Nytt er bare innholdet i den åpne jobben (Bilde 2).
+  Dag: fredag 20.11.2026, firmaets arbeidstid 07:00–15:00, pause 30, norm 7,5 t (Alt 2, ingen innsjekk).
+-->
+<style>
+  :root { --bg:#f9fafb; --kant:#e5e7eb; --tekst:#111827; --demp:#6b7280; --demp2:#9ca3af;
+          --primar:#1e3a8a; --lenke:#1e40af; --gul:#fef9c3; --gulkant:#fde68a; --rod:#dc2626; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--tekst); font:14px/1.45 Inter, -apple-system, "Segoe UI", sans-serif; }
+  .steg { display:none; width:1000px; padding:20px 28px 28px; }
+  .steg.vis { display:block; }
+  .merke-steg { display:flex; gap:10px; align-items:center; margin-bottom:14px; }
+  .nr { background:#1e40af; color:#fff; font-weight:700; font-size:13px; padding:4px 11px; border-radius:999px; }
+  .stegtittel { font-size:17px; font-weight:700; }
+  .side { max-width:720px; }
+  .dato { display:flex; justify-content:space-between; align-items:center; margin:6px 0 16px; }
+  .dato h1 { font-size:24px; margin:0; font-weight:700; }
+  .status { background:#f3f4f6; font-size:12px; padding:3px 10px; border-radius:6px; }
+  .seksjon { font-size:12px; letter-spacing:.06em; color:var(--demp); font-weight:600; margin:0 0 8px; }
+  .kort { background:#fff; border:1px solid var(--kant); border-radius:8px; margin-bottom:12px; }
+  .kort.aapen { border-color:#93c5fd; box-shadow:0 0 0 1px #bfdbfe; }
+  .khode { display:flex; align-items:flex-start; padding:14px 16px; gap:12px; }
+  .khode .venstre { flex:1; }
+  .ktittel { font-weight:600; font-size:14px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .ksub { color:var(--demp); font-size:12px; margin-top:2px; }
+  .badge-rod { background:#fee2e2; color:#b91c1c; font-size:10.5px; font-weight:600; padding:1px 6px; border-radius:4px; }
+  .kilde { background:#ecfdf5; color:#047857; font-size:11px; font-weight:600; padding:1px 7px; border-radius:999px; }
+  .tall { display:flex; gap:26px; text-align:center; }
+  .tall div span { display:block; font-size:9.5px; letter-spacing:.06em; color:var(--demp2); }
+  .tall div b { font-weight:600; font-size:14px; }
+  .chev { color:var(--demp2); padding-top:6px; }
+  .rad { display:flex; align-items:center; gap:12px; padding:9px 16px; border-top:1px solid #f3f4f6; }
+  .rad .num { width:22px; height:22px; border-radius:999px; background:#f3f4f6; color:#4b5563; font-size:11.5px; font-weight:700; display:flex; align-items:center; justify-content:center; flex:none; }
+  .rad .num.aktiv { background:#1e40af; color:#fff; }
+  .rad .navn { width:120px; font-weight:600; flex:none; }
+  .felt { display:inline-block; border:1px solid #d1d5db; border-radius:6px; padding:4px 9px; min-width:58px; text-align:center; font-variant-numeric:tabular-nums; background:#fff; }
+  .felt.gul { background:var(--gul); border-color:var(--gulkant); }
+  .felt.tom { border-color:var(--rod); color:var(--demp2); }
+  .felt.nedtrekk::after { content:" ▾"; color:var(--demp); }
+  .demp { color:var(--demp); }
+  .knapp { border:1px solid #d1d5db; border-radius:999px; padding:3px 11px; font-size:12.5px; background:#fff; }
+  .knapp.valgt { background:#1e40af; color:#fff; border-color:#1e40af; font-weight:600; }
+  .linjer { display:flex; flex-direction:column; gap:6px; }
+  .linje { display:flex; align-items:center; gap:12px; }
+  .linje .tid { width:150px; font-variant-numeric:tabular-nums; }
+  .over { background:#fff7ed; color:#c2410c; font-size:11.5px; font-weight:600; padding:2px 8px; border-radius:999px; }
+  .tekstfelt { flex:1; border:1px solid #d1d5db; border-radius:6px; padding:7px 10px; color:var(--demp2); }
+  .tekstfelt.krav { border-color:var(--rod); }
+  .tekstfelt.fylt { color:var(--tekst); }
+  .stjerne { color:var(--rod); }
+  .lenke { color:var(--lenke); font-weight:500; }
+  .underlinje { display:flex; align-items:center; gap:10px; padding:7px 0 0; }
+  .tag { font-size:10px; letter-spacing:.06em; border:1px solid var(--kant); background:#f9fafb; color:#4b5563; padding:2px 6px; border-radius:4px; }
+  .verktoy { margin-left:auto; color:var(--demp2); letter-spacing:6px; }
+  .regtimer { border:1px dashed #d1d5db; border-radius:8px; padding:11px; text-align:center; background:#fff; margin-bottom:10px; }
+  .ramme { border:1px dashed var(--kant); border-radius:8px; padding:8px 16px; font-size:12px; color:var(--demp); display:flex; justify-content:space-between; margin-bottom:12px; }
+  .bunn { background:#fff; border:1px solid var(--kant); border-radius:8px; padding:14px 16px; }
+  .bunn .sum { display:flex; gap:10px; align-items:center; }
+  .prikk { width:9px; height:9px; border-radius:99px; background:#eab308; }
+  .knapper { display:flex; justify-content:flex-end; gap:8px; margin-top:12px; }
+  .k-graa { background:#f3f4f6; padding:7px 14px; border-radius:6px; }
+  .k-bla { background:#1e40af; color:#fff; padding:7px 14px; border-radius:6px; }
+  .k-bla.svak { opacity:.5; }
+  .notat { margin-top:16px; background:#fff; border:1px solid var(--kant); border-radius:8px; padding:12px 16px; font-size:13px; }
+  .notat b { display:inline-block; min-width:18px; }
+  .notat p { margin:4px 0; }
+  .lagret { font-size:11.5px; color:#047857; margin-left:auto; }
+  .hint { font-size:11.5px; color:var(--rod); }
+</style>
+</head>
+<body>
+
+<!-- ============ A: rett etter «+ Registrer timer» på ny dag ============ -->
+<section class="steg" id="a">
+  <div class="merke-steg"><span class="nr">L3 · A</span><span class="stegtittel">Rett etter «+ Registrer timer» på ny dag — jobben åpnes som skjema</span></div>
+  <div class="side">
+    <div class="demp" style="color:#1e40af">← Til Mine timer</div>
+    <div class="dato"><h1>fredag 20. november 2026</h1><span class="status">Utkast</span></div>
+    <p class="seksjon">PROSJEKTKORT (1)</p>
+
+    <div class="kort aapen">
+      <div class="khode">
+        <div class="venstre">
+          <div class="ktittel">2041 — Skole <span class="badge-rod">Mangler beskrivelse</span> <span class="kilde">fra firmaets arbeidstid</span></div>
+          <div class="ksub">fre. 20.11. · Ingen byggeplass · <span class="lenke">Endre</span></div>
+        </div>
+        <div class="tall"><div><span>ARBEID</span><b>7,5 t</b></div><div><span>MASKIN</span><b>—</b></div><div><span>VARER</span><b>—</b></div><div><span>REISE</span><b>—</b></div></div>
+        <div class="chev">⌃</div>
+      </div>
+      <div class="rad"><span class="navn" style="width:142px">Underprosjekt</span>
+        <span class="knapp valgt">Uten</span><span class="knapp">12 · Grøft felt B</span><span class="knapp">14 · Skifer tak</span></div>
+      <div class="rad"><span class="num">1</span><span class="navn">Fra–til</span>
+        <span class="felt gul">07:00</span> – <span class="felt gul">15:00</span> <span class="demp">pause</span> <span class="felt gul">30</span> <b>= 7,5 t</b></div>
+      <div class="rad" style="align-items:flex-start"><span class="num">2</span><span class="navn">Lønnsart</span>
+        <div class="linjer"><div class="linje"><span class="tid">07:00–15:00 · 7,5 t</span><span class="felt gul nedtrekk">Timelønn</span></div></div></div>
+      <div class="rad" style="background:#f8fafc"><span class="num aktiv">3</span><span class="navn">Hva gjorde du? <span class="stjerne">*</span></span>
+        <span class="tekstfelt krav">Skriv hva du gjorde</span></div>
+      <div class="rad"><span class="num">4</span><span class="navn">Maskiner</span><span class="lenke">+ Maskin</span></div>
+      <div class="rad"><span class="num">5</span><span class="navn">Varer</span><span class="lenke">+ Vare</span></div>
+      <div class="rad"><span class="num">6</span><span class="navn">Reise</span><span class="lenke">+ Reise</span></div>
+      <div class="rad"><span class="num">7</span><span class="navn">Tillegg/utlegg</span><span class="lenke">+ Tillegg/Utlegg</span></div>
+    </div>
+
+    <div class="regtimer"><b>+ Registrer timer</b> <span class="demp">· neste jobb, samme eller annet prosjekt</span></div>
+    <div class="ramme"><span>Dagens ramme · 07:00–15:00 · pause 30 min (bæres av 2041 — Skole) · Arbeid</span><span class="lenke">Endre</span></div>
+    <div class="bunn"><div class="sum"><span class="prikk"></span>Arbeid 7,5 t av 7,5 t · sum i dag 7,5 t</div>
+      <div class="knapper"><span class="k-graa">🗑 Slett dagsseddel</span><span class="k-bla svak">➤ Send dagen (7,5 t)</span></div></div>
+  </div>
+  <div class="notat">
+    <p><b>•</b> Serveren har alt lagret jobben (som i dag, Alt 2). Går du fra den, står den som utkast med «Mangler beskrivelse» (L2).</p>
+    <p><b>•</b> Gult = fylt ut for deg. Rettes et felt, blir det hvitt. Lagres når du går ut av feltet — ingen Lagre-knapp.</p>
+    <p><b>•</b> Underprosjekt-raden vises bare når prosjektet har åpne underprosjekter. Flere enn 6: søkbar nedtrekk med «Uten» valgt.</p>
+  </div>
+</section>
+
+<!-- ============ B: Til rettet til 15:30 ============ -->
+<section class="steg" id="b">
+  <div class="merke-steg"><span class="nr">L3 · B</span><span class="stegtittel">Til rettet til 15:30 — overtidslinja kommer med én gang</span></div>
+  <div class="side">
+    <div class="dato"><h1>fredag 20. november 2026</h1><span class="status">Utkast</span></div>
+    <p class="seksjon">PROSJEKTKORT (1)</p>
+    <div class="kort aapen">
+      <div class="khode">
+        <div class="venstre">
+          <div class="ktittel">2041 — Skole <span class="badge-rod">Mangler beskrivelse</span> <span class="kilde">fra firmaets arbeidstid</span></div>
+          <div class="ksub">fre. 20.11. · Ingen byggeplass · <span class="lenke">Endre</span></div>
+        </div>
+        <div class="tall"><div><span>ARBEID</span><b>8,0 t</b></div><div><span>MASKIN</span><b>—</b></div><div><span>VARER</span><b>—</b></div><div><span>REISE</span><b>—</b></div></div>
+        <div class="chev">⌃</div>
+      </div>
+      <div class="rad"><span class="navn" style="width:142px">Underprosjekt</span>
+        <span class="knapp valgt">Uten</span><span class="knapp">12 · Grøft felt B</span><span class="knapp">14 · Skifer tak</span></div>
+      <div class="rad"><span class="num">1</span><span class="navn">Fra–til</span>
+        <span class="felt gul">07:00</span> – <span class="felt">15:30</span> <span class="demp">pause</span> <span class="felt gul">30</span> <b>= 8,0 t</b><span class="lagret">✓ Lagret</span></div>
+      <div class="rad" style="align-items:flex-start"><span class="num">2</span><span class="navn">Lønnsart</span>
+        <div class="linjer">
+          <div class="linje"><span class="tid">07:00–15:00 · 7,5 t</span><span class="felt gul nedtrekk">Timelønn</span></div>
+          <div class="linje"><span class="tid">15:00–15:30 · 0,5 t</span><span class="felt gul nedtrekk">Overtid 50 %</span><span class="over">over dagsnormen 20.11.: 7,5 t</span></div>
+        </div></div>
+      <div class="rad" style="background:#f8fafc"><span class="num aktiv">3</span><span class="navn">Hva gjorde du? <span class="stjerne">*</span></span>
+        <span class="tekstfelt krav">Skriv hva du gjorde</span></div>
+      <div class="rad"><span class="num">4</span><span class="navn">Maskiner</span><span class="lenke">+ Maskin</span></div>
+      <div class="rad"><span class="num">5</span><span class="navn">Varer</span><span class="lenke">+ Vare</span></div>
+      <div class="rad"><span class="num">6</span><span class="navn">Reise</span><span class="lenke">+ Reise</span></div>
+      <div class="rad"><span class="num">7</span><span class="navn">Tillegg/utlegg</span><span class="lenke">+ Tillegg/Utlegg</span></div>
+    </div>
+    <div class="bunn"><div class="sum"><span class="prikk"></span>Arbeid 8,0 t av 7,5 t · sum i dag 8,0 t</div>
+      <div class="knapper"><span class="k-graa">🗑 Slett dagsseddel</span><span class="k-bla svak">➤ Send dagen (8,0 t)</span></div></div>
+  </div>
+  <div class="notat">
+    <p><b>•</b> 07:00–15:30 − 30 min = 8,0 t. Normen 20.11. er 7,5 t → 0,5 t på firmaets overtidsart. Regelen er den samme som i dag («Del raden»-forslaget), men linja lages med én gang.</p>
+    <p><b>•</b> Jobben lagres som to timerader i samme kort, i én transaksjon. Bytter du lønnsart på en linje, beholdes valget når tiden rettes igjen.</p>
+    <p><b>•</b> Går dagen under normen igjen (Til 15:00), forsvinner overtidslinja.</p>
+  </div>
+</section>
+
+<!-- ============ C: neste jobb samme dag ============ -->
+<section class="steg" id="c">
+  <div class="merke-steg"><span class="nr">L3 · C</span><span class="stegtittel">Neste jobb samme dag — Fra fra slutten på forrige, Til tom</span></div>
+  <div class="side">
+    <div class="dato"><h1>fredag 20. november 2026</h1><span class="status">Utkast</span></div>
+    <p class="seksjon">PROSJEKTKORT (2)</p>
+    <div class="kort">
+      <div class="khode">
+        <div class="venstre"><div class="ktittel">2041 — Skole</div><div class="ksub">07:00–15:30 · Støpte fundament, akse B</div></div>
+        <div class="tall"><div><span>ARBEID</span><b>8,0 t</b></div><div><span>MASKIN</span><b>—</b></div><div><span>VARER</span><b>—</b></div><div><span>REISE</span><b>—</b></div></div>
+        <div class="chev">⌄</div>
+      </div>
+    </div>
+    <div class="kort aapen">
+      <div class="khode">
+        <div class="venstre">
+          <div class="ktittel">2050 — Boligfelt <span class="kilde">fra slutten på forrige jobb</span></div>
+          <div class="ksub">fre. 20.11. · Ingen byggeplass · <span class="lenke">Endre</span></div>
+        </div>
+        <div class="tall"><div><span>ARBEID</span><b>—</b></div><div><span>MASKIN</span><b>—</b></div><div><span>VARER</span><b>—</b></div><div><span>REISE</span><b>—</b></div></div>
+        <div class="chev">⌃</div>
+      </div>
+      <div class="rad"><span class="num">1</span><span class="navn">Fra–til</span>
+        <span class="felt gul">15:30</span> – <span class="felt tom">--:--</span> <span class="demp">pause</span> <span class="felt gul">0</span>
+        <span class="hint">Fyll inn Til — jobben lagres når Til er fylt</span></div>
+      <div class="rad"><span class="num">2</span><span class="navn">Lønnsart</span><span class="demp">Kommer når Til er fylt</span></div>
+      <div class="rad" style="background:#f8fafc"><span class="num aktiv">3</span><span class="navn">Hva gjorde du? <span class="stjerne">*</span></span>
+        <span class="tekstfelt krav">Skriv hva du gjorde</span></div>
+      <div class="rad"><span class="num">4</span><span class="navn">Maskiner</span><span class="demp">—</span></div>
+      <div class="rad"><span class="num">5</span><span class="navn">Varer</span><span class="demp">—</span></div>
+      <div class="rad"><span class="num">6</span><span class="navn">Reise</span><span class="demp">—</span></div>
+      <div class="rad"><span class="num">7</span><span class="navn">Tillegg/utlegg</span><span class="demp">—</span></div>
+    </div>
+    <div class="regtimer"><b>+ Registrer timer</b> <span class="demp">· neste jobb, samme eller annet prosjekt</span></div>
+    <div class="bunn"><div class="sum"><span class="prikk"></span>Arbeid 8,0 t av 7,5 t · sum i dag 8,0 t</div>
+      <div class="knapper"><span class="k-graa">🗑 Slett dagsseddel</span><span class="k-bla">➤ Send dagen (8,0 t)</span></div></div>
+  </div>
+  <div class="notat">
+    <p><b>•</b> Fra = 15:30, der forrige jobb sluttet. Firmaets slutt (15:00) er tidligere, så Til gjettes ikke — feltet står tomt med rød kant.</p>
+    <p><b>•</b> Jobben finnes bare i skjermen til Til er fylt (ingen rad uten sluttid). Går du fra den uten Til, lagres ingenting, og kortet forsvinner — som «Avbryt» i dagens vindu.</p>
+    <p><b>•</b> Pause 0: dagens pause er alt trukket i 2041 — Skole (dagens ramme).</p>
+    <p><b>•</b> Maskin, vare, reise og tillegg kan føres først når jobben er lagret.</p>
+  </div>
+</section>
+
+<script>
+  const steg = new URLSearchParams(location.search).get("steg") || "a";
+  document.getElementById(steg).classList.add("vis");
+  document.title = String(document.body.scrollHeight);
+  requestAnimationFrame(() => { document.title = String(document.getElementById(steg).offsetHeight); });
+</script>
+</body>
+</html>

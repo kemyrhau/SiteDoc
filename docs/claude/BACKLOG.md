@@ -4138,7 +4138,9 @@ søk v1 (unntaksliste i `sok-dekning.test.ts`). **Sjekk:** er siden fortsatt i b
 (dyplenke/historisk), eller er den død kode som kan slettes? Hvis død → slett +
 fjern unntaks-raden. Ikke blokkerende.
 
-### 🟡 Server-ny vedlikehold: OS-oppdateringer + restart (før redesign-stack)
+### 🟡 Server-ny vedlikehold: OS-oppdateringer + restart
+
+> **[2026-11-24]** Redesign-stacken som nevnes under, er avviklet; restart-behovet gjelder fortsatt prod + test.
 
 server-ny melder «System restart required» + ~36 ventende pakke-oppdateringer (observert 2026-07-05 under test-web-rebuild). Ikke akutt, men **bør gjøres før dere reiser den tredje redesign-stacken** (`-p redesign`, `sitedoc_redesign`) på samme maskin — en restart midt i tre kjørende stacks (prod + test + redesign) er mer risikabelt. Handling: planlagt vedlikeholdsvindu → `apt upgrade` + `reboot` (Kenneth, sudo), verifiser prod + test kommer opp igjen (innlogget) etterpå.
 
@@ -4173,6 +4175,8 @@ Bygg images **sekvensielt** (`build` per tjeneste, så `up -d`) i stedet for par
 Verifisert 2026-07-09: `development`- og `preview`-profilene i `apps/mobile/eas.json` har `EXPO_PUBLIC_API_URL=https://api.sitedoc.no` — **kun `test`-profilen** går mot `api-test.sitedoc.no`. **Et utviklings- eller preview-bygg via EAS skriver til produksjon.** Fiks: pek `development`/`preview` mot `api-test.sitedoc.no` (eller egen dev-api). Reell prod-forurensnings-risiko ved neste dev/preview-bygg.
 
 ### 🔴 OAuth: redesign holder prods nøkler (FØR steg viii)
+
+> **[2026-11-24]** Redesign-stacken og `sitedoc_redesign` er fjernet (STATUS-AKTUELT § Redesign navigasjon). Redirect-URI `redesign.sitedoc.no` fjernet fra Entra `d7735b7a` og Google samme dag — tillits-koblingen er borte. **Lukket.**
 
 > **[triage 2026-08-26]** ❓ ikke verifiserbar — server-env (`web.env` vs `web-redesign.env`) + Entra/Google-registreringer, ikke i repo. Berører ikke mobil timeføring på `sitedoc.no`. Kan vente.
 
@@ -4404,6 +4408,10 @@ Egen ordre etter d i kort-id-specen, med egen spec fra Fabel. Kenneth 2026-11-16
 ### 🔵 B10-taket i dagskort-modus (firma uten prosjektkort) — F11 (Kenneth 2026-11-16)
 
 Kenneth 2026-11-16: «før f 11 i backlogg». Taket for betalt fravær (B10: fravær med tak + arbeid ≤ dagsnormen) bygges i prosjektkort-flaten i ordre b–d, men ikke i rad-vinduet i dagskort-modus, fordi den skjermen er vernet (dagskort isolert). Til det bygges, stopper F9 = A en dag over taket ved attestering. Spec: `prosjektkort-kortid-spec.md` § 11.9 F11 og § 11.10. Ikke bygget.
+
+### 🟡 Timer web: periodevisning i Timeregistrering-oversikten — fra–til og «siste måned» (Kenneth 2026-11-23)
+
+I dag: oversikten (`/dashbord/[prosjektId]/timer?uke=…`) viser én uke om gangen; en dagsseddel i neste uke synes ikke før man blar (test 23.11: sedelen lå i uke 48, oversikten sto på uke 47). Kenneth 2026-11-23: «kanskje visning fra til og siste mnd kan være en ide». Forslag: velger ved siden av uke-navigasjonen — «Uke» (som i dag) · «Siste måned» · «Fra–til» (to datoer). Ikke bestilt; tas opp etter web-timer-rundene.
 
 ### 🟡 Arbeider-side splitt av egen timerad ved feilregistrering (Fase C-funn 2026-07-11)
 
@@ -5765,6 +5773,27 @@ direkte fra listen.
 - **Adaptivt søk for sjekklister/oppgaver/HMS/RUH** 🔴 — krever kode-utforskning. Se [adaptiv-sok-plan.md](adaptiv-sok-plan.md).
 - **Dokumentflyt mobil** 🔴 — finner ikke arbeidsforløp (bruker-basert vs entreprise-basert matching).
 - ~~**Oppgave-mobil rettighetsoppfølger**~~ ✅ DEPLOYET TIL PROD 2026-05-29 (prod-merge `526db462`, impl `32dd43ac`). `apps/mobile/app/oppgave/[id].tsx` får nå `rettighetInput` ved kall til `useOppgaveSkjema` — speil av sjekkliste-mønster fra `60601d3c`. Aktiveres på mobil ved neste EAS-bygg + TestFlight/Play Store-distribusjon.
+
+## 🟡 Varelager: firmavalg «kun vareforbruk» + nullstilling (Kenneth 2026-11-22, egen økt)
+
+Kenneth, ordrett: «hvilke blokeringer rundt varelager har et firma? Kan firma velge å kun registrere varer uten at varer kjøpes inn og legges på lager? I anleggsbransjen er det lite hensiktsmessig med varelager som f.eks en butikk har. Varelager administreres i økonomisystem og jeg har ikke bygget varelager for bruk i regnskap, annet enn at varer er et huskepunkt for fakturering. Vi bør ha i instillinger for firma valg for dette. "varelager med mengde kontroll ved innkjøp/salg er ikke støttet i dag, kun registrering av vareforbruk ved timeregistrering er støttet" bør være et valg. -> varelager bør kunne nullstilles ved behov, evt automatisk nullstilling ved overgang nytt år. lagre informasjon om varelager for en egen økt. ta med kun det som er nødvendig for timeregistreringen.»
+
+Målt 2026-11-22 (`origin/develop`):
+- **Sperren** er firmamodulbryteren, og det finnes ingen annen. `erVarelagerAktivert` (`apps/api/src/services/varelager/moduleGate.ts`) krever at firmaets bryter er på. Prosjektraden den også leser, settes av firmabryteren, se rettelsen under.
+- **Ingen beholdning eller mengdekontroll.** Skjemaet `packages/db-varelager/prisma/schema.prisma` har bare `VareKategori`, `Vare` (med `internkostnad` = innkjøpspris) og `Vareforbruk` (`antall`). Det finnes ingen saldo, innkjøp eller salg.
+- I praksis er «varelager» i dag bare registrering av vareforbruk ved timeføring.
+
+Omfang når økta startes:
+- tydelig firmainnstilling eller hjelpetekst: «kun vareforbruk ved timeregistrering»;
+- nullstilling ved behov, og eventuelt automatisk ved nytt år.
+
+Bare det timeregistreringen trenger. Uavklart: hva betyr «nullstilling» når det ikke finnes beholdning — tømme katalog, arkivere forbruk, eller nullstille en fremtidig teller? Spør Kenneth før kode.
+
+Koblet til O8/D punkt 3: **avgjort 2026-11-22**, varene følger med jobben og ingen sperre.
+
+**Kenneth 2026-11-22, ordrett:** «varelager bør inn i firmainstillinger sammen maskin -> dette bør være en firmainstilling, ikke en prosjekt instilling.» **Rettet 2026-11-22 (orkestrators feil):** varelager **er allerede** en firmainnstilling, ved siden av Timer og Maskin («Firmamoduler … Prosjektet arver firmaets valg»). Når firmaet slår modulen på eller av, settes `ProjectModule`-radene for alle firmaets prosjekter (`syncProjektModulerPaaAktiver` og `…PaaDeaktiver`, `apps/api/src/services/firmamodul.ts:111–160`). Interne prosjekter får ingen rad. Serveren leser prosjektraden (`resolver.ts:100–105`), men den speiler bare firmavalget. Ikke målt: får et prosjekt som opprettes etter aktiveringen en rad? Det må måles i den egne økta. Gjenstår da bare teksten «kun vareforbruk» og nullstilling.
+
+**Kenneth 2026-11-22, avgrensning for timer:** «det eneste som påvirker timeregistrering -> dersom firma slår av varelager -> gamle registreringer blir stående -> nye registreringer av timer mister varelager i kortene». Målt av w5 under O8: med varelager av vises varene fortsatt, fordi `hentMineForDato` ikke filtrerer på modul. Etter O11 (`e88e94a5`, Kenneth 2026-11-22 «som anbefalt»: «varene kan endres og slettes. Nye varer kan ikke legges til») kan de endres og slettes i kortet (`eierFirmaForProsjekt` uten modulsjekk); «+ Vare» er skjult og `opprett` avvises.
 
 ## 3. Fremtidige faser
 

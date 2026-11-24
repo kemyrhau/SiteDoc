@@ -576,6 +576,11 @@ modulProcedure(slug, input?: { projectId: string; byggeplassId?: string })
 
 ### A.27 Firma-HMS-ansvarlig får automatisk lese-tilgang til HMS-rapporter på tvers av prosjekter — ✅ **VEDTATT 2026-04-29**
 
+> ⚠️ **To punkter i dette vedtaket er utgått (banner 2026-11-23). Gjeldende regler: [hms-domenemodell.md § HMS-flyt](hms-domenemodell.md).**
+> **«Behandling: Nei»** for firmaets HMS-ansvarlige er snudd. Kenneth 2026-07-21 ([hms-domenemodell.md § Firma-HMS](hms-domenemodell.md), punkt 3): firmaets HMS behandler sakene. Koden gjør dem til HMS-behandlere (`apps/api/src/trpc/tilgangskontroll.ts:560-566`), og de står i HMS-flyt-kortet som «Fra firma».
+> **«admin/registrator kan lese alltid»** er snudd for private HMS-saker. Kenneth 2026-11-23 (HF2 ja): en prosjektadmin som ikke står som behandler i HMS-flyt-kortet, ser ikke private HMS-saker andre har meldt (🟡 ikke bygget, H3).
+> **Står:** firmaets HMS-ansvarlige leser HMS-saker i firmaets prosjekter, og ser ikke andre firmaers.
+
 Alt A fra HMS-flyt-koblings-vurdering. Firma-HMS-ansvarlig (User med `OrganizationRole.role = "hms_ansvarlig"` per A.25) får implisitt lese-tilgang til alle HMS-flyter i firmaets prosjekter — uten å være registrert som DokumentflytMedlem.
 
 **Begrunnelse (Kenneth 2026-04-29):**
@@ -2108,6 +2113,8 @@ kontekst — leder må vurdere hva som skjer med maskin og varer når
 timer-raden splittes (følger nye timer-rad? deles? blir på original?).
 
 **Sammenheng-validering (låst 2026-05-17, utvidet 2026-05-18):**
+
+> 🔵 **Endret 2026-11-19 (Kenneth, w9 — B21 A / B22 A / B23 B):** regelen er nå pr. jobb (`kortId`): maskiner som krever fører ≤ jobbens arbeid, uten reise og **uten pausen**. Døgn-maskiner sperres aldri, men får merket «Maskin over arbeid». Bøtta med pause under gjelder bare eldre rader uten jobb. Serveren (`krevIngenNyeMaskinBrudd`, alle veier og synken) avviser bare brudd en skriving lager eller øker; ventende jobber med gamle brudd kan attesteres med merket. Detalj: [timer.md § Maskin ≤ arbeidstimer](timer.md). Teksten under er historikk.
 - `sum(maskin.timer) ≤ sum(arbeidstimer) + pauseMin/60` PER prosjekt+ECO-gruppe
 - Pause-buffer-tillegget (utvidelse 2026-05-18) er nødvendig fordi
   døgn-utleide maskiner (se § utleie_enhet-prinsipp under) går mens

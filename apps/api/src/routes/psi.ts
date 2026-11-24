@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { router, protectedProcedure, publicProcedure } from "../trpc/trpc";
 import { TRPCError } from "@trpc/server";
-import { verifiserProsjektmedlem, verifiserProsjektIkkeFrosset, aktivtMedlemWhere } from "../trpc/tilgangskontroll";
+import { verifiserProsjektmedlem, verifiserProsjektIkkeFrosset, verifiserAdmin } from "../trpc/tilgangskontroll";
 import { verifiserByggeplassIProsjekt } from "../services/tegningVakt";
 import { oversettFritekst } from "../services/oversettelse-service";
 import { tolkPsiOpprettFeil } from "./psi-feil";
@@ -55,11 +55,9 @@ export const psiRouter = router({
       byggeplassId: z.string().uuid().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
-      await verifiserProsjektIkkeFrosset(ctx.userId, input.projectId);
-      const medlem = await ctx.prisma.projectMember.findFirst({
-        where: { userId: ctx.userId, projectId: input.projectId, role: "admin", ...aktivtMedlemWhere },
-      });
-      if (!medlem) throw new TRPCError({ code: "FORBIDDEN", message: "Kun admin kan opprette PSI" });
+      // P1-2: felles admin-gate (prosjektadmin · firma-admin i eierfirmaet · sitedoc_admin;
+      // deaktivert ansettelse og frosset prosjekt sperrer) — sikkerhet.md § 8q.
+      await verifiserAdmin(ctx.userId, input.projectId);
 
       // Hent bygningsnavn for malnavn
       let byggeplassNavn = "";
@@ -232,11 +230,9 @@ Risikovurderinger (SJA) for ditt arbeidsområde finnes i HMS-dokumentasjonen i S
     .input(z.object({ psiId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const psi = await ctx.prisma.psi.findUniqueOrThrow({ where: { id: input.psiId } });
-      await verifiserProsjektIkkeFrosset(ctx.userId, psi.projectId);
-      const medlem = await ctx.prisma.projectMember.findFirst({
-        where: { userId: ctx.userId, projectId: psi.projectId, role: "admin", ...aktivtMedlemWhere },
-      });
-      if (!medlem) throw new TRPCError({ code: "FORBIDDEN" });
+      // P1-2: felles admin-gate (prosjektadmin · firma-admin i eierfirmaet · sitedoc_admin;
+      // deaktivert ansettelse og frosset prosjekt sperrer) — sikkerhet.md § 8q.
+      await verifiserAdmin(ctx.userId, psi.projectId);
 
       return ctx.prisma.psi.update({
         where: { id: input.psiId },
@@ -252,11 +248,18 @@ Risikovurderinger (SJA) for ditt arbeidsområde finnes i HMS-dokumentasjonen i S
     }))
     .mutation(async ({ ctx, input }) => {
       const psi = await ctx.prisma.psi.findUniqueOrThrow({ where: { id: input.psiId } });
-      await verifiserProsjektIkkeFrosset(ctx.userId, psi.projectId);
-      const medlem = await ctx.prisma.projectMember.findFirst({
-        where: { userId: ctx.userId, projectId: psi.projectId, role: "admin", ...aktivtMedlemWhere },
+      // P1-2: felles admin-gate (prosjektadmin · firma-admin i eierfirmaet · sitedoc_admin;
+      // deaktivert ansettelse og frosset prosjekt sperrer) — sikkerhet.md § 8q.
+      await verifiserAdmin(ctx.userId, psi.projectId);
+      // P1-2 isolasjon: malen MÅ tilhøre PSI-ens prosjekt — ellers viste hentMedObjekter et
+      // fremmed prosjekts mal til alle medlemmer her. Fremmed og ukjent mal gir samme svar.
+      const mal = await ctx.prisma.reportTemplate.findUnique({
+        where: { id: input.templateId },
+        select: { projectId: true },
       });
-      if (!medlem) throw new TRPCError({ code: "FORBIDDEN" });
+      if (mal?.projectId !== psi.projectId) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Malen finnes ikke i dette prosjektet" });
+      }
 
       return ctx.prisma.psi.update({
         where: { id: input.psiId },
@@ -269,11 +272,9 @@ Risikovurderinger (SJA) for ditt arbeidsområde finnes i HMS-dokumentasjonen i S
     .input(z.object({ psiId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const psi = await ctx.prisma.psi.findUniqueOrThrow({ where: { id: input.psiId } });
-      await verifiserProsjektIkkeFrosset(ctx.userId, psi.projectId);
-      const medlem = await ctx.prisma.projectMember.findFirst({
-        where: { userId: ctx.userId, projectId: psi.projectId, role: "admin", ...aktivtMedlemWhere },
-      });
-      if (!medlem) throw new TRPCError({ code: "FORBIDDEN" });
+      // P1-2: felles admin-gate (prosjektadmin · firma-admin i eierfirmaet · sitedoc_admin;
+      // deaktivert ansettelse og frosset prosjekt sperrer) — sikkerhet.md § 8q.
+      await verifiserAdmin(ctx.userId, psi.projectId);
       return ctx.prisma.psi.update({ where: { id: input.psiId }, data: { active: false } });
     }),
 
@@ -282,11 +283,9 @@ Risikovurderinger (SJA) for ditt arbeidsområde finnes i HMS-dokumentasjonen i S
     .input(z.object({ psiId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const psi = await ctx.prisma.psi.findUniqueOrThrow({ where: { id: input.psiId } });
-      await verifiserProsjektIkkeFrosset(ctx.userId, psi.projectId);
-      const medlem = await ctx.prisma.projectMember.findFirst({
-        where: { userId: ctx.userId, projectId: psi.projectId, role: "admin", ...aktivtMedlemWhere },
-      });
-      if (!medlem) throw new TRPCError({ code: "FORBIDDEN" });
+      // P1-2: felles admin-gate (prosjektadmin · firma-admin i eierfirmaet · sitedoc_admin;
+      // deaktivert ansettelse og frosset prosjekt sperrer) — sikkerhet.md § 8q.
+      await verifiserAdmin(ctx.userId, psi.projectId);
       return ctx.prisma.psi.update({ where: { id: input.psiId }, data: { active: true } });
     }),
 
@@ -295,11 +294,9 @@ Risikovurderinger (SJA) for ditt arbeidsområde finnes i HMS-dokumentasjonen i S
     .input(z.object({ psiId: z.string().uuid(), guestMessage: z.string().max(2000).nullable() }))
     .mutation(async ({ ctx, input }) => {
       const psi = await ctx.prisma.psi.findUniqueOrThrow({ where: { id: input.psiId } });
-      await verifiserProsjektIkkeFrosset(ctx.userId, psi.projectId);
-      const medlem = await ctx.prisma.projectMember.findFirst({
-        where: { userId: ctx.userId, projectId: psi.projectId, role: "admin", ...aktivtMedlemWhere },
-      });
-      if (!medlem) throw new TRPCError({ code: "FORBIDDEN" });
+      // P1-2: felles admin-gate (prosjektadmin · firma-admin i eierfirmaet · sitedoc_admin;
+      // deaktivert ansettelse og frosset prosjekt sperrer) — sikkerhet.md § 8q.
+      await verifiserAdmin(ctx.userId, psi.projectId);
       return ctx.prisma.psi.update({ where: { id: input.psiId }, data: { guestMessage: input.guestMessage } });
     }),
 
@@ -308,11 +305,9 @@ Risikovurderinger (SJA) for ditt arbeidsområde finnes i HMS-dokumentasjonen i S
     .input(z.object({ psiId: z.string().uuid(), languages: z.array(z.string().min(2).max(5)) }))
     .mutation(async ({ ctx, input }) => {
       const psi = await ctx.prisma.psi.findUniqueOrThrow({ where: { id: input.psiId } });
-      await verifiserProsjektIkkeFrosset(ctx.userId, psi.projectId);
-      const medlem = await ctx.prisma.projectMember.findFirst({
-        where: { userId: ctx.userId, projectId: psi.projectId, role: "admin", ...aktivtMedlemWhere },
-      });
-      if (!medlem) throw new TRPCError({ code: "FORBIDDEN" });
+      // P1-2: felles admin-gate (prosjektadmin · firma-admin i eierfirmaet · sitedoc_admin;
+      // deaktivert ansettelse og frosset prosjekt sperrer) — sikkerhet.md § 8q.
+      await verifiserAdmin(ctx.userId, psi.projectId);
       return ctx.prisma.psi.update({
         where: { id: input.psiId },
         data: { languages: input.languages },
@@ -327,11 +322,9 @@ Risikovurderinger (SJA) for ditt arbeidsområde finnes i HMS-dokumentasjonen i S
         where: { id: input.psiId },
         include: { template: { include: { objects: { orderBy: { sortOrder: "asc" } } } } },
       });
-      await verifiserProsjektIkkeFrosset(ctx.userId, psi.projectId);
-      const medlem = await ctx.prisma.projectMember.findFirst({
-        where: { userId: ctx.userId, projectId: psi.projectId, role: "admin", ...aktivtMedlemWhere },
-      });
-      if (!medlem) throw new TRPCError({ code: "FORBIDDEN" });
+      // P1-2: felles admin-gate (prosjektadmin · firma-admin i eierfirmaet · sitedoc_admin;
+      // deaktivert ansettelse og frosset prosjekt sperrer) — sikkerhet.md § 8q.
+      await verifiserAdmin(ctx.userId, psi.projectId);
 
       if (psi.languages.length === 0) return { oversatt: 0 };
 
@@ -420,11 +413,9 @@ Risikovurderinger (SJA) for ditt arbeidsområde finnes i HMS-dokumentasjonen i S
     .input(z.object({ psiId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const psi = await ctx.prisma.psi.findUniqueOrThrow({ where: { id: input.psiId } });
-      await verifiserProsjektIkkeFrosset(ctx.userId, psi.projectId);
-      const medlem = await ctx.prisma.projectMember.findFirst({
-        where: { userId: ctx.userId, projectId: psi.projectId, role: "admin", ...aktivtMedlemWhere },
-      });
-      if (!medlem) throw new TRPCError({ code: "FORBIDDEN" });
+      // P1-2: felles admin-gate (prosjektadmin · firma-admin i eierfirmaet · sitedoc_admin;
+      // deaktivert ansettelse og frosset prosjekt sperrer) — sikkerhet.md § 8q.
+      await verifiserAdmin(ctx.userId, psi.projectId);
 
       const signaturer = await ctx.prisma.psiSignatur.findMany({
         where: { psiId: input.psiId },
@@ -650,12 +641,9 @@ Risikovurderinger (SJA) for ditt arbeidsområde finnes i HMS-dokumentasjonen i S
           byggeplass: { select: { name: true } },
         },
       });
-      await verifiserProsjektIkkeFrosset(ctx.userId, kildePsi.projectId);
-
-      const medlem = await ctx.prisma.projectMember.findFirst({
-        where: { userId: ctx.userId, projectId: kildePsi.projectId, role: "admin", ...aktivtMedlemWhere },
-      });
-      if (!medlem) throw new TRPCError({ code: "FORBIDDEN" });
+      // P1-2: felles admin-gate (prosjektadmin · firma-admin i eierfirmaet · sitedoc_admin;
+      // deaktivert ansettelse og frosset prosjekt sperrer) — sikkerhet.md § 8q.
+      await verifiserAdmin(ctx.userId, kildePsi.projectId);
       // ORDRE 29 #14: målbyggeplassen MÅ tilhøre kilde-PSI-ens prosjekt.
       await verifiserByggeplassIProsjekt(ctx.prisma, input.targetByggeplassId, kildePsi.projectId);
 

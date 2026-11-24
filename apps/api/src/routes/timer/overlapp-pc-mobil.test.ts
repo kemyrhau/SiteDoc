@@ -41,7 +41,7 @@ vi.mock("../../services/timer", () => ({
 }));
 vi.mock("@sitedoc/db", () => ({
   prisma: {
-    // sitedoc_admin → erProsjektLeder/verifiserProsjektmedlem slipper gjennom
+    // sitedoc_admin → attesteringsFirmaer/verifiserProsjektmedlem slipper gjennom
     // (attester-vaktens auth-forledd, A-4-testene).
     user: { findUnique: vi.fn().mockResolvedValue({ role: "sitedoc_admin" }) },
     organizationSetting: { findUnique: vi.fn().mockResolvedValue({ reiseLonnsartId: null }) },

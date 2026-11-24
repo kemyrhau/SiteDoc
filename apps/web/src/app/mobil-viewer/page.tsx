@@ -2,9 +2,17 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { dollyFartForAvstand, finnUtliggere } from "@sitedoc/shared/tred";
+import {
+  erGyldigBoks, finnUtliggere, orbitAvstandIBygg, trekkUtIfcEgenskaper, zoomSteg,
+  type IfcEgenskapsGruppe, type IfcEnheter,
+} from "@sitedoc/shared/tred";
 import { hentIfcRaadata, lagRaadataLager, lesAttributter } from "./ifcRaadata";
-import { beregnInnramming, orbitAvstand, type Boks } from "./kameraInnramming";
+import { beregnInnramming, dollyFartMobil, orbitAvstand, type Boks } from "./kameraInnramming";
+import { DIAG_LAGRINGSNØKKEL, diagFraUrlEllerLager, lagDiagHemmeligTrykk } from "./diagnose";
+import { lagTrykkTolk, type TrykkUtfall } from "./trykkTolk";
+import { forstørrPilTreff } from "./snittPilTreff";
+import { flyttSnittpilerTilMidten } from "@/lib/tredSnittPil";
+import { hentModellEnheter, type IfcEgenskapsApi } from "@/lib/ifcEgenskaper";
 
 /**
  * Standalone IFC 3D-viewer for bruk i React Native WebView.
@@ -19,7 +27,8 @@ import { beregnInnramming, orbitAvstand, type Boks } from "./kameraInnramming";
  *     { type: "klar" }
  *     { type: "modellLastet", index: number, navn: string, totalt: number }
  *     { type: "alleLastet", antall: number }
- *     { type: "objektValgt", data: { localId, modelId, kategori, attributter } }
+ *     { type: "objektValgt", data: { localId, modelId, kategori, attributter, grupper, punkt } }
+ *       grupper: IfcEgenskapsGruppe[] fra `trekkUtIfcEgenskaper` (@sitedoc/shared/tred), ren JSON
  *     { type: "objektFjernet" }
  *     { type: "feil", melding: string }
  */
@@ -37,8 +46,13 @@ export default function MobilViewer() {
   const [status, setStatus] = useState("Initialiserer...");
   const [antallLastet, setAntallLastet] = useState(0);
   const [totalt, setTotalt] = useState(0);
-  // Diagnose (?diag=1): bbox pr. modell, robust boks og kameraverdier (M1–M3)
+  // Diagnose (?diag=1 eller 5 trykk øverst til venstre, ORDRE 8 (iii)): bbox pr. modell,
+  // robust boks og kameraverdier (M1–M3) + levende linje: flaten foran, radius, steg,
+  // siste trykk og om modellen kom fra lagret kopi
+  const [diagPå, setDiagPå] = useState(false);
+  const diagPåRef = useRef(false);
   const [diag, setDiag] = useState<string | null>(null);
+  const [diagLive, setDiagLive] = useState("");
   const { t } = useTranslation();
   // Objekter langt unna bygget (§ 3b punkt 3): skjult som standard, bryter vises bare når det finnes noen
   const [antallUtliggere, setAntallUtliggere] = useState(0);
@@ -59,6 +73,7 @@ export default function MobilViewer() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let propsApi: any = null;
     const openModelIds = new Map<string, number>();
+    const enhetCache = new Map<number, IfcEnheter>();
 
     async function init() {
       const [OBC, THREE, WEBIFC] = await Promise.all([
@@ -103,6 +118,30 @@ export default function MobilViewer() {
       const clipper = components.get(OBC.Clipper);
       clipper.setup();
       clipper.enabled = false;
+      // Raycasteren som `clipper.create` bruker sporer fingeren (OBC `Mouse`: pointermove/touchstart)
+      // først fra den opprettes. Opprettes den ved første dobbelttrykk, har den ingen posisjon og
+      // skyter fra skjermmidten — første snitt havnet feil eller uteble. Samme grep som web (W2). ORDRE 10
+      components.get(OBC.Raycasters).get(world);
+      // Snittpilen flyttes dit planet krysser skjermmidten når kameraet har stoppet (§ 3d,
+      // samme regel som web). Ikke mens pilen dras, og ikke mens en finger er nede.
+      let snittDras = false;
+      // Trykket startet på snittpilen (TransformControls grep den i samme pointerdown) — ORDRE 10
+      let pilGrepet = false;
+      clipper.onBeforeDrag.add(() => { snittDras = true; });
+      clipper.onBeforeDrag.add(() => { pilGrepet = true; });
+      // Større treffflate på pilen for fingre; synlig pil uendret (ORDRE 10)
+      clipper.onAfterCreate.add((plan) => { forstørrPilTreff(plan.controls); });
+      clipper.onAfterDrag.add(() => { snittDras = false; });
+      const flyttSnittpiler = () => {
+        const ctrl = world.camera.controls;
+        if (snittDras || !clipper.enabled || !ctrl || ctrl.currentAction !== 0) return;
+        const cam = world.camera.three;
+        flyttSnittpilerTilMidten(clipper.list.values(), cam.position, cam.getWorldDirection(new THREE.Vector3()));
+      };
+      world.camera.controls?.addEventListener("rest", flyttSnittpiler);
+      world.camera.controls?.addEventListener("sleep", flyttSnittpiler);
+      // Holdes kameraet i ro før slipp, kom rest/sleep mens knappen var nede: slippet teller også
+      world.camera.controls?.addEventListener("controlend", flyttSnittpiler);
 
       const ifcLoader = components.get(OBC.IfcLoader);
       ifcLoader.settings.autoSetWasm = false;
@@ -170,11 +209,41 @@ export default function MobilViewer() {
       let minDistanceNå = 0.05;
       // Avstand til orbit-punktet sist — brukes når midten av skjermen ikke treffer noe
       let sisteOrbitAvstand = 0;
+      // Byggets boks uten utliggere (fra innrammingen) — orbit-punktet holdes innenfor (§ 3c (iv))
+      let byggBoks: Boks | null = null;
       // Pr. modell: objekter langt unna (skjult som standard) og rom/åpninger (alltid skjult)
       const utliggerIds = new Map<string, number[]>();
       const skjulteRomIds = new Map<string, Set<number>>();
       let utliggereSynlige = false;
-      const visDiag = new URLSearchParams(window.location.search).get("diag") === "1";
+      diagPåRef.current = diagFraUrlEllerLager(window.location.search);
+      setDiagPå(diagPåRef.current);
+      // Levende diagnose (ORDRE 8 (iii)) — samles alltid, vises bare når diagnosen er på
+      const live = {
+        flateForan: null as number | null,
+        flateTid: "",
+        trykk: "–",
+        kilder: new Map<number, string>(),
+      };
+      // Fingre som er nede (pointerId) — to eller flere = pinch
+      const fingre = new Set<number>();
+      let sisteLiveTegning = 0;
+      const klokke = () => new Date().toLocaleTimeString("nb-NO", { hour12: false });
+      function tegnLive(tving = false) {
+        if (!diagPåRef.current) return;
+        const nå = Date.now();
+        if (!tving && nå - sisteLiveTegning < 250) return;
+        sisteLiveTegning = nå;
+        const ctrl = world.camera.controls;
+        const radius = ctrl?.distance ?? NaN;
+        const m = (v: number | null) => (v == null || !Number.isFinite(v) ? "–" : `${v.toFixed(2)} m`);
+        const kilder = [...live.kilder].map(([i, k]) => `modell ${i + 1}: ${k}`).join(" · ");
+        setDiagLive(
+          `flate foran ${m(live.flateForan)}${live.flateTid ? ` (${live.flateTid})` : ""} · radius ${m(radius)}\n` +
+          `steg ${m(zoomSteg(radius))} pr. 8 px pinch / hjulhakk · fingre ${fingre.size}\n` +
+          `trykk ${live.trykk}\n` +
+          (kilder || "modell: –"),
+        );
+      }
 
       // Raycasting
       const rendererDom = threeRenderer.domElement;
@@ -224,8 +293,17 @@ export default function MobilViewer() {
             if (!ctrl || renset) break;
             const kamera = threeCamera.position;
             const treffAvstand = treff ? kamera.distanceTo(treff.point) : null;
-            const avstand = orbitAvstand(treffAvstand, sisteOrbitAvstand || ctrl.distance, minDistanceNå);
+            live.flateForan = treffAvstand;
+            live.flateTid = klokke();
             const retning = threeCamera.getWorldDirection(new THREE.Vector3());
+            // Står kameraet inne i bygget, kortes treff utenfor og bom til byggets vegg
+            // (`orbitAvstandIBygg`, felles med web); deretter mobilens gulv 1,5·minDistance.
+            // Ved bom: gjeldende radius, ikke sist satte avstand — etter zoom er den gamle
+            // avstanden for lang og la punktet langt bak bygget (målt ORDRE 8: hver pinch
+            // flyttet kameraet 166 m forbi E3). Radius er riktig etter pan, rotasjon og zoom.
+            const forrige = Number.isFinite(ctrl.distance) && ctrl.distance > 0 ? ctrl.distance : sisteOrbitAvstand;
+            const iBygg = orbitAvstandIBygg(kamera, retning, treffAvstand, forrige, byggBoks);
+            const avstand = orbitAvstand(iBygg, forrige, minDistanceNå);
             const punkt = kamera.clone().addScaledVector(retning, avstand);
             ctrl.setOrbitPoint(punkt.x, punkt.y, punkt.z);
             sisteOrbitAvstand = avstand;
@@ -239,24 +317,111 @@ export default function MobilViewer() {
       // Kurven er felles med web (`zoomSteg` / `dollyFartForAvstand` i @sitedoc/shared).
       // Pinch zoomer mot skjermmidten, ikke mot fingrene — PRØVE (§ 3b punkt 2b, Kenneth
       // 2026-11-17). OBC setter true som standard; slett linja for å gå tilbake.
+      // Pinch: camera-controls teller 16 px fingeravstand pr. enhet, ikke 8 — farten
+      // dobles mens to fingre er nede (`dollyFartMobil`, ORDRE 8 (i)).
       if (world.camera.controls) world.camera.controls.dollyToCursor = false;
       world.camera.controls?.addEventListener("update", () => {
         const ctrl = world.camera.controls;
-        if (ctrl) ctrl.dollySpeed = dollyFartForAvstand(ctrl.distance);
+        if (ctrl) ctrl.dollySpeed = dollyFartMobil(ctrl.distance, fingre.size);
+        tegnLive();
+      });
+      // Diagnose: flaten foran måles på nytt når kameraet har stoppet (orbit-punktet røres ikke)
+      world.camera.controls?.addEventListener("sleep", () => {
+        if (!diagPåRef.current || renset) return;
+        const rect = rendererDom.getBoundingClientRect();
+        void raycastSynlige(rect.left + rect.width / 2, rect.top + rect.height / 2).then((treff) => {
+          live.flateForan = treff ? threeCamera.position.distanceTo(treff.point) : null;
+          live.flateTid = klokke();
+          tegnLive(true);
+        }).catch(() => { /* diagnose */ });
       });
 
+      // Med saksen aktiv tolkes trykkene her i stedet for click/dblclick (ORDRE 10):
+      // enkelttrykk utenfor pilen = objektvalg (etter dobbelttrykk-vinduet), dobbelttrykk = snitt.
+      const trykkTolk = lagTrykkTolk();
+      let enkeltTimer: ReturnType<typeof setTimeout> | null = null;
+      const utførEnkelt = (p: { x: number; y: number } | null) => {
+        if (!p || !clipper.enabled || renset) return;
+        void velgObjektPå(p.x, p.y, klokke(), performance.now(), "saks · ");
+      };
+      const lagSnitt = async (tekst: string) => {
+        try {
+          const plan = await clipper.create(world);
+          live.trykk = `${tekst} → ${plan ? "snitt laget" : "traff ingen flate"}`;
+        } catch { live.trykk = `${tekst} → feil`; }
+        tegnLive(true);
+      };
+      const vedTolketSlipp = (u: TrykkUtfall) => {
+        if (!clipper.enabled) return; // uten saks: click som før
+        const tid = klokke();
+        if (u.type === "venter") {
+          if (enkeltTimer) clearTimeout(enkeltTimer);
+          enkeltTimer = setTimeout(() => { enkeltTimer = null; utførEnkelt(trykkTolk.utløp(performance.now())); }, u.fristMs + 20);
+          live.trykk = `${tid} saks · trykk, venter ${u.fristMs} ms på dobbelttrykk`;
+        } else if (u.type === "dobbelt") {
+          if (enkeltTimer) { clearTimeout(enkeltTimer); enkeltTimer = null; }
+          live.trykk = `${tid} saks · dobbelttrykk (${u.mellomromMs} ms mellom) → snitt`;
+          void lagSnitt(`${tid} saks · dobbelttrykk (${u.mellomromMs} ms mellom)`);
+        } else if (u.type === "pil") {
+          live.trykk = `${tid} saks · trykk på snittpilen, ikke objektvalg`;
+        } else if (u.grunn !== "fingre igjen") {
+          live.trykk = `${tid} saks · ikke et trykk (${u.grunn})`;
+        }
+        tegnLive(true);
+      };
+
+      const slippFinger = (e: PointerEvent) => { fingre.delete(e.pointerId); };
       rendererDom.addEventListener("pointerdown", (e: PointerEvent) => {
+        if (e.pointerType === "touch") fingre.add(e.pointerId);
+        if (e.isPrimary) pilGrepet = false;
         mouseDownPos = { x: e.clientX, y: e.clientY };
+        live.trykk = `${klokke()} ned · venter på klikk`;
+        tegnLive(true);
         void settOrbitPunkt();
+        const løst = trykkTolk.ned(e.pointerId, e.clientX, e.clientY, performance.now());
+        if (løst) {
+          if (enkeltTimer) { clearTimeout(enkeltTimer); enkeltTimer = null; }
+          utførEnkelt(løst);
+        }
       });
+      rendererDom.addEventListener("pointerup", slippFinger);
+      rendererDom.addEventListener("pointercancel", slippFinger);
+      rendererDom.addEventListener("pointerup", (e: PointerEvent) => {
+        vedTolketSlipp(trykkTolk.opp(e.pointerId, e.clientX, e.clientY, performance.now(), pilGrepet));
+      });
+      rendererDom.addEventListener("pointercancel", (e: PointerEvent) => { trykkTolk.avbryt(e.pointerId); });
+
+      // Slå diagnosen av/på fra appen uten OTA: 5 raske trykk øverst til venstre (huskes)
+      const hemmeligTrykk = lagDiagHemmeligTrykk(() => {
+        diagPåRef.current = !diagPåRef.current;
+        try { localStorage.setItem(DIAG_LAGRINGSNØKKEL, diagPåRef.current ? "1" : "0"); } catch { /* */ }
+        setDiagPå(diagPåRef.current);
+        tegnLive(true);
+      });
+      const vedHemmeligTrykk = (e: PointerEvent) => hemmeligTrykk(e.clientX, e.clientY, Date.now());
+      window.addEventListener("pointerdown", vedHemmeligTrykk, true);
 
       async function handleKlikk(event: MouseEvent) {
         if (renset) return;
+        // Med saksen aktiv tar trykk-tolken over (ORDRE 10)
+        if (clipper.enabled) return;
+        const klikkStart = performance.now();
+        const klikkTid = klokke();
         if (mouseDownPos) {
           const dx = event.clientX - mouseDownPos.x;
           const dy = event.clientY - mouseDownPos.y;
-          if (Math.sqrt(dx * dx + dy * dy) > 5) return;
+          if (Math.sqrt(dx * dx + dy * dy) > 5) {
+            live.trykk = `${klikkTid} klikk · flyttet > 5 px, ikke et trykk`;
+            tegnLive(true);
+            return;
+          }
         }
+        await velgObjektPå(event.clientX, event.clientY, klikkTid, klikkStart, "");
+      }
+
+      /** Objektvalg i et skjermpunkt: utheving + `objektValgt`/`objektFjernet` til appen */
+      async function velgObjektPå(x: number, y: number, klikkTid: string, klikkStart: number, kilde: "" | "saks · ") {
+        const ms = () => `${Math.round(performance.now() - klikkStart)} ms`;
 
         if (currentHighlight) {
           try {
@@ -267,10 +432,12 @@ export default function MobilViewer() {
         }
 
         try {
-          const hitResult = await raycastSynlige(event.clientX, event.clientY);
+          const hitResult = await raycastSynlige(x, y);
 
           if (!hitResult) {
             sendTilApp({ type: "objektFjernet" });
+            live.trykk = `${klikkTid} ${kilde}klikk · traff ingenting → objektFjernet (${ms()})`;
+            tegnLive(true);
             return;
           }
 
@@ -288,30 +455,42 @@ export default function MobilViewer() {
           // fortsatt hentes i bakgrunnen (modell lastet fra fragment-cache).
           const rawData = await raadata.hent(hitModel.modelId);
           let attributter: Record<string, unknown> = {};
+          // W3/M5 (2): samme uttrekk som egenskapskortet på web (attributter, egenskapssett, type, mengder)
+          let grupper: IfcEgenskapsGruppe[] = [];
           if (rawData && propsApi) {
             try {
               const modelId = åpneIfc(hitModel.modelId, rawData);
-              const itemProps = await propsApi.properties.getItemProperties(modelId, localId, true).catch(() => null);
+              const api = propsApi as unknown as IfcEgenskapsApi;
+              const [itemProps, egenskapssett, typer] = await Promise.all([
+                api.properties.getItemProperties(modelId, localId, true).catch(() => null),
+                api.properties.getPropertySets(modelId, localId, true).catch(() => []),
+                api.properties.getTypeProperties(modelId, localId, true).catch(() => []),
+              ]);
               attributter = lesAttributter(itemProps);
+              const enheter = hentModellEnheter(api, modelId, WEBIFC.IFCUNITASSIGNMENT, enhetCache);
+              grupper = trekkUtIfcEgenskaper({ objekt: itemProps, egenskapssett, typer, enheter });
             } catch { /* */ }
           }
 
           sendTilApp({
             type: "objektValgt",
-            data: { localId, modelId: hitModel.modelId, kategori, attributter,
+            data: { localId, modelId: hitModel.modelId, kategori, attributter, grupper,
               punkt: { x: hitResult.point.x, y: hitResult.point.y, z: hitResult.point.z } },
           });
+          live.trykk = `${klikkTid} ${kilde}klikk · objektValgt ${kategori ?? "uten kategori"}, ` +
+            `${Object.keys(attributter).length} egenskaper, ${grupper.length} grupper, råfil ${rawData ? "ja" : "nei"} (${ms()})`;
+          tegnLive(true);
         } catch {
           sendTilApp({ type: "objektFjernet" });
+          live.trykk = `${klikkTid} ${kilde}klikk · feil → objektFjernet (${ms()})`;
+          tegnLive(true);
         }
       }
 
       rendererDom.addEventListener("click", handleKlikk);
 
-      rendererDom.addEventListener("dblclick", async () => {
-        if (!clipper.enabled || renset) return;
-        await clipper.create(world);
-      });
+      // Dobbelttrykk med saksen aktiv lager snitt via trykk-tolken over (ORDRE 10), ikke `dblclick`:
+      // nettleserens dblclick kom i tillegg til to click (objektvalg) og var upålitelig på iOS.
 
       /** Åpne råfila i web-ifc én gang pr. modell */
       function åpneIfc(fragModelId: string, ifcData: Uint8Array): number {
@@ -368,6 +547,8 @@ export default function MobilViewer() {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let model: any;
         let fraCache = false;
+        let kildeTekst = "IFC";
+        const lastStart = performance.now();
 
         // Prøv fragment-cache først (mye raskere enn IFC-parsing)
         if (cachedFrag) {
@@ -377,8 +558,10 @@ export default function MobilViewer() {
             model = await (fragmentsManager as unknown as { load: (b: ArrayBuffer, o: Record<string, unknown>) => Promise<unknown> })
               .load(fragData.buffer as ArrayBuffer, { modelId: `modell-${index}`, camera: threeCamera });
             fraCache = true;
+            kildeTekst = "lagret kopi";
           } catch {
             model = null; // Fallback til IFC
+            kildeTekst = "lagret kopi feilet → IFC";
           }
         }
 
@@ -405,6 +588,9 @@ export default function MobilViewer() {
             sendTilApp({ type: "cacheFragment", url, data: b64 });
           } catch { /* Fragment-caching er valgfritt */ }
         }
+
+        live.kilder.set(index, `${kildeTekst} (${Math.round(performance.now() - lastStart)} ms)`);
+        tegnLive(true);
 
         // Legg til i scene
         const mf = model as { object: InstanceType<typeof THREE.Object3D>; useCamera: (c: unknown) => void; box: InstanceType<typeof THREE.Box3>; modelId: string };
@@ -492,11 +678,9 @@ export default function MobilViewer() {
           } catch { ids = []; bokser = []; /* faller tilbake til mf.box */ }
           if (bokser.length !== ids.length) { ids = []; bokser = []; }
           bokser.forEach((b, i) => { alle.push(b); eiere.push({ modelId: mf.modelId, localId: ids[i]! }); });
-          if (visDiag) {
-            const r = finnUtliggere(bokser);
-            diagLinjer.push(`modell ${index + 1}: bbox ${beskriv(mf.box)}`);
-            if (r) diagLinjer.push(`  robust ${beskriv(r.boks)} · ${r.utliggere.length}/${r.antall} utliggere`);
-          }
+          const r = finnUtliggere(bokser);
+          diagLinjer.push(`modell ${index + 1}: bbox ${beskriv(mf.box)}`);
+          if (r) diagLinjer.push(`  robust ${beskriv(r.boks)} · ${r.utliggere.length}/${r.antall} utliggere`);
         }
         const robust = finnUtliggere(alle);
         const boks: Boks | null = robust?.boks ?? (totalBbox.isEmpty() ? null : totalBbox);
@@ -514,11 +698,15 @@ export default function MobilViewer() {
 
         if (!boks) return;
 
-        const inn = beregnInnramming(boks, threeCamera.fov, threeCamera.aspect || 1);
+        // Objektboksene som er med i innrammingen (gyldige, ikke utliggere)
+        const utliggerSett = new Set(robust?.utliggere ?? []);
+        const med = robust ? alle.filter((b, i) => !utliggerSett.has(i) && erGyldigBoks(b)) : [];
+        const inn = beregnInnramming(boks, threeCamera.fov, threeCamera.aspect || 1, med);
         threeCamera.near = inn.near;
         threeCamera.far = inn.far;
         threeCamera.updateProjectionMatrix();
         minDistanceNå = inn.minDistance;
+        byggBoks = { min: { x: boks.min.x, y: boks.min.y, z: boks.min.z }, max: { x: boks.max.x, y: boks.max.y, z: boks.max.z } };
         sisteOrbitAvstand = inn.avstand;
         innrammingsSenter = new THREE.Vector3(inn.target.x, inn.target.y, inn.target.z);
         const ctrl = world.camera.controls;
@@ -530,13 +718,23 @@ export default function MobilViewer() {
           );
         }
 
-        if (visDiag) {
-          if (!totalBbox.isEmpty()) diagLinjer.push(`samlet bbox ${beskriv(totalBbox)}`);
-          if (robust) diagLinjer.push(`samlet robust ${beskriv(robust.boks)} · ${robust.utliggere.length}/${robust.antall} utliggere`);
-          diagLinjer.push(`kamera avstand ${f(inn.avstand)} near ${inn.near.toFixed(3)} far ${f(inn.far)} minDistance ${inn.minDistance.toFixed(3)}`);
-          setDiag(diagLinjer.join("\n"));
-          console.log("[mobil-viewer diag]\n" + diagLinjer.join("\n"));
+        if (!totalBbox.isEmpty()) diagLinjer.push(`samlet bbox ${beskriv(totalBbox)}`);
+        if (robust) diagLinjer.push(`samlet robust ${beskriv(robust.boks)} · ${robust.utliggere.length}/${robust.antall} utliggere`);
+        // De tre største objektene i innrammingen — finner tomt/terreng som gjør modellen liten
+        const størst = alle
+          .map((b, i) => ({ b, i, s: Math.max(b.max.x - b.min.x, b.max.y - b.min.y, b.max.z - b.min.z) }))
+          .filter((o) => !utliggerSett.has(o.i) && Number.isFinite(o.s))
+          .sort((a, c) => c.s - a.s)
+          .slice(0, 3);
+        for (const o of størst) {
+          const e = eiere[o.i]!;
+          let kat: string | null = null;
+          try { kat = await fragmentsManager.list.get(e.modelId)?.getItem(e.localId).getCategory() ?? null; } catch { /* */ }
+          diagLinjer.push(`  stor: ${kat ?? "#" + e.localId} ${beskriv(o.b)}`);
         }
+        diagLinjer.push(`kamera avstand ${f(inn.avstand)} near ${inn.near.toFixed(3)} far ${f(inn.far)} minDistance ${inn.minDistance.toFixed(3)}`);
+        setDiag(diagLinjer.join("\n"));
+        if (diagPåRef.current) console.log("[mobil-viewer diag]\n" + diagLinjer.join("\n"));
       }
 
       // Meldingshåndtering
@@ -557,6 +755,9 @@ export default function MobilViewer() {
         } else if (msg.type === "klippmodus") {
           clipper.enabled = msg.aktiv;
           clipper.visible = msg.aktiv;
+          // Trykk fra før saksen ble slått av/på skal ikke tolkes etterpå (RETUR 1, ORDRE 10)
+          trykkTolk.nullstill();
+          if (enkeltTimer) { clearTimeout(enkeltTimer); enkeltTimer = null; }
           if (!msg.aktiv) clipper.deleteAll();
         } else if (msg.type === "flyTil") {
           const { x, y, z } = msg;
@@ -588,7 +789,9 @@ export default function MobilViewer() {
 
       return () => {
         window.removeEventListener("message", handleMessage);
+        window.removeEventListener("pointerdown", vedHemmeligTrykk, true);
         rendererDom.removeEventListener("click", handleKlikk);
+        if (enkeltTimer) clearTimeout(enkeltTimer);
         document.removeEventListener("visibilitychange", handleVisibility);
         if (animFrameId !== null) cancelAnimationFrame(animFrameId);
       };
@@ -629,9 +832,9 @@ export default function MobilViewer() {
           {t("3d.visObjekterLangtUnna")} ({antallUtliggere})
         </label>
       )}
-      {diag && (
+      {diagPå && (
         <pre className="pointer-events-none absolute left-2 top-2 max-w-[90vw] whitespace-pre-wrap rounded bg-white/90 p-2 text-[10px] leading-tight text-gray-800">
-          {diag}
+          {[diagLive, diag].filter(Boolean).join("\n")}
         </pre>
       )}
       {status && (

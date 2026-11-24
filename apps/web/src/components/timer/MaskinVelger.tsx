@@ -16,6 +16,9 @@ import type { MaskinKategori } from "@/lib/maskin-typer";
  *   Småutstyr) — labels + ikoner speiler /dashbord/maskin
  * - Sortering (delt `sorterMaskiner`, ORDRE 29): sist brukt → brukt-på-seddelen
  *   → internNummer (numerisk) → navn
+ * - `iVindu` (plan § 8.22 L1): lista legges i flyten uten høydetak, så vinduet
+ *   rundt vokser til skjermhøyden og ruller inni (`<dialog>` ruller selv).
+ *   Default = svevende liste med `max-h-64` (dagskort-modus uendret).
  */
 export type MaskinVelgerUtstyr = {
   id: string;
@@ -57,6 +60,7 @@ export function MaskinVelger({
   sistBrukt = [],
   disabled = false,
   id,
+  iVindu = false,
 }: {
   utstyr: MaskinVelgerUtstyr[];
   valgtId: string;
@@ -68,6 +72,8 @@ export function MaskinVelger({
   sistBrukt?: string[];
   disabled?: boolean;
   id?: string;
+  /** § 8.22 L1: lista i full høyde i flyten (vindu), ikke svevende med høydetak. */
+  iVindu?: boolean;
 }) {
   const { t } = useTranslation();
   const [apen, setApen] = useState(false);
@@ -126,7 +132,14 @@ export function MaskinVelger({
       </button>
 
       {apen && (
-        <div className="absolute z-30 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg">
+        <div
+          data-testid="maskinvelger-liste"
+          className={
+            iVindu
+              ? "mt-1 w-full rounded-lg border border-gray-200 bg-white"
+              : "absolute z-30 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg"
+          }
+        >
           <div className="space-y-2 border-b border-gray-100 p-2">
             <SearchInput verdi={sok} onChange={setSok} />
             <div className="flex flex-wrap gap-1">
@@ -148,7 +161,7 @@ export function MaskinVelger({
               ))}
             </div>
           </div>
-          <div className="max-h-64 overflow-y-auto">
+          <div data-testid="maskinvelger-rader" className={iVindu ? "" : "max-h-64 overflow-y-auto"}>
             {synlige.length === 0 ? (
               <div className="px-3 py-2 text-sm text-gray-500">—</div>
             ) : (

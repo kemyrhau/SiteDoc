@@ -4,6 +4,7 @@ import type { Prisma } from "@sitedoc/db";
 import { type Permission, PERMISSIONS, utvidTillatelser, avgjorDokumentTilgang, byggPosisjonsLedd, harBallenPosisjon, retningsrettigheter, erAvsenderledd, erMedlemAvFlyt } from "@sitedoc/shared";
 import type { RaFlytMedlem, FlytBruker } from "@sitedoc/shared";
 import { aktivAnsattIFirmaWhere } from "../services/ansatt";
+import { HMS_SYSTEMNOKKEL } from "../services/hmsGruppe";
 
 /**
  * Aktivt flytmedlemskap: `DokumentflytMedlem.periodeSlutt = null`. «Fjern» fra et flytledd
@@ -520,7 +521,13 @@ export async function harFirmaHmsTilgang(
 }
 
 /**
- * HMS-admin = prosjekt-admin ∪ HMS-gruppe-medlem ∪ firma-`hms_ansvarlig`.
+ * HMS-behandler = medlem av prosjektets HMS-gruppe (`systemNokkel: "hms"`) ∪ firma-`hms_ansvarlig`.
+ * Det er de som står som behandlere i HMS-flyt-kortet (HmsFlytKort.tsx).
+ *
+ * H3 (Kenneth HF2 ja, 2026-11-23; hms-domenemodell.md § HMS-flyt regel 3): prosjektadmin er
+ * IKKE behandler i kraft av rollen, og en gruppe med «hms» i `domains` gjør det heller ikke
+ * («Prosjektadministratorer» har det, `types/index.ts` STANDARD_PROJECT_GROUPS). Prosjektadmin
+ * blir behandler med «Meld meg inn» (gruppe.meldMegInn), som legger dem i HMS-gruppa.
  *
  * Delt kilde for privat-lesefilteret (`byggHmsSynlighetsFilter` i hms.ts) og
  * HMS-handlingsguarden (`verifiserHmsHandling`). Én definisjon — aldri duplisert
@@ -537,22 +544,14 @@ export async function erHmsAdmin(
   const medlem = await prisma.projectMember.findFirst({
     where: aktivtProsjektmedlemWhere(userId, projectId),
     select: {
-      role: true,
       groupMemberships: {
-        where: aktivtMedlemWhere,
-        select: { group: { select: { domains: true } } },
+        where: { ...aktivtMedlemWhere, group: { systemNokkel: HMS_SYSTEMNOKKEL } },
+        select: { id: true },
       },
     },
   });
 
-  if (medlem) {
-    if (medlem.role === "admin") return true;
-    const erHmsGruppe = medlem.groupMemberships.some((gm) => {
-      const domains = gm.group.domains;
-      return Array.isArray(domains) && (domains as unknown[]).includes("hms");
-    });
-    if (erHmsGruppe) return true;
-  }
+  if (medlem && medlem.groupMemberships.length > 0) return true;
 
   // Firma-HMS-tilgang: bruker med "hms_ansvarlig" i firmaRoller på prosjektets
   // firma behandler alle HMS-dokumenter. Standalone-prosjekter
@@ -1081,9 +1080,27 @@ export async function verifiserDokumentTilgang(
     });
   }
 
-  // Prosjektadmin ser alt — early return bevart så prosjektadmin ikke utløser
+  // H3 (Kenneth HF2 ja, 2026-11-23): private HMS-saker leses bare av HMS-behandleren
+  // (`erHmsAdmin`), melderen og mottakeren — ikke av prosjektadmin i kraft av rollen. Synligheten
+  // slås opp fra malen når kalleren ikke sendte den, så en åpen SJA ikke regnes som privat.
+  // `templateHmsSynlighet` sendes uendret videre: den styrer «hms-apen»-grenen som før.
+  let hmsPrivat = false;
+  if (templateDomain === "hms") {
+    let synlighet = templateHmsSynlighet ?? null;
+    if (templateHmsSynlighet === undefined && dokumentId && dokumentType) {
+      const mal = dokumentType === "task"
+        ? await prisma.task.findUnique({ where: { id: dokumentId }, select: { template: { select: { hmsSynlighet: true } } } })
+        : await prisma.checklist.findUnique({ where: { id: dokumentId }, select: { template: { select: { hmsSynlighet: true } } } });
+      synlighet = mal?.template?.hmsSynlighet ?? null;
+    }
+    hmsPrivat = synlighet !== "apen";
+  }
+
+  // Prosjektadmin ser alt annet — early return bevart så prosjektadmin ikke utløser
   // dokumentpart-/firma-/flyt-oppslagene under.
-  if (medlem.role === "admin") return;
+  if (medlem.role === "admin" && !hmsPrivat) return;
+
+  const erHmsBehandler = hmsPrivat ? await erHmsAdmin(userId, projectId) : false;
 
   // Last dokumentpartene én gang — brukes av firmaansvarlig-, innsender- og
   // flyt-grenen i beslutningsfunksjonen.
@@ -1171,6 +1188,8 @@ export async function verifiserDokumentTilgang(
     flytIder,
     firmaUserIder,
     harFirmaTransfer,
+    hmsPrivat,
+    erHmsBehandler,
   });
 
   if (!resultat.tillat) {
@@ -1387,6 +1406,109 @@ export async function hentBrukersOpprettFlytMedlemskap(
   return [...new Set(medlemskap.map((m) => m.dokumentflytId))];
 }
 
+/**
+ * Prisma-fragment: dokumentet er IKKE en privat HMS-sak. Privat = malens domain "hms" og
+ * hmsSynlighet ikke "apen" — også null (H3; Prisma `{ not: "apen" }` tar ikke med null, derfor
+ * eksplisitt OR). Dokument uten mal (oppgave) er ikke HMS. Brukes i `byggTilgangsFilter` (H3-1).
+ */
+export const IKKE_PRIVAT_HMS: Record<string, unknown> = {
+  NOT: {
+    template: {
+      is: {
+        domain: "hms",
+        OR: [{ hmsSynlighet: null }, { hmsSynlighet: { not: "apen" } }],
+      },
+    },
+  },
+};
+
+/**
+ * K1 (Kenneth 2026-11-23): hvem kan bruke et kontrollpunkt som er bundet til en flyt —
+ * Start og «Koble eksisterende». Regelen: aktivt medlem, uansett rolle og binding
+ * (person/faggruppe/gruppe), av PUNKTETS flyt, eller admin (`verifiserAdmin`-semantikk:
+ * sitedoc_admin, prosjektadmin, firma-admin). Faggruppe-tilhørighet alene gir ikke lenger
+ * Start (erstatter `verifiserFaggruppeTilhorighet(punkt.faggruppeId)`).
+ *
+ * Hentes én gang pr. prosjekt så `kontrollplan.hentPunktHandlinger` kan avgjøre alle
+ * punkter med samme regel som serveren uten N+1. `kanBrukePunktFlyt` er predikatet.
+ */
+export interface PunktFlytTilgang {
+  erAdmin: boolean;
+  flytIder: Set<string>;
+}
+
+export async function hentPunktFlytTilgang(
+  userId: string,
+  projectId: string,
+): Promise<PunktFlytTilgang> {
+  const bruker = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
+  if (bruker?.role === "sitedoc_admin") return { erAdmin: true, flytIder: new Set() };
+
+  await krevAktivAnsettelse(userId, projectId);
+  await verifiserProsjektIkkeFrosset(userId, projectId);
+
+  const medlem = await prisma.projectMember.findFirst({
+    where: aktivtProsjektmedlemWhere(userId, projectId),
+    select: { role: true },
+  });
+  if (medlem?.role === "admin" || (await erFirmaAdminForProsjekt(userId, projectId))) {
+    return { erAdmin: true, flytIder: new Set() };
+  }
+  return { erAdmin: false, flytIder: new Set(await hentBrukersFlytMedlemskap(userId, projectId)) };
+}
+
+export function kanBrukePunktFlyt(tilgang: PunktFlytTilgang, dokumentflytId: string): boolean {
+  return tilgang.erAdmin || tilgang.flytIder.has(dokumentflytId);
+}
+
+export async function verifiserPunktFlytTilgang(
+  userId: string,
+  projectId: string,
+  dokumentflytId: string,
+): Promise<void> {
+  const tilgang = await hentPunktFlytTilgang(userId, projectId);
+  if (!kanBrukePunktFlyt(tilgang, dokumentflytId)) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Du er ikke med i dokumentflyten til dette kontrollpunktet",
+    });
+  }
+}
+
+/**
+ * K1-S (Kontrollør-vilkår 2026-11-23, etter H3): sjekkliste-filteret for «Koble eksisterende»
+ * på et kontrollpunkt (`kontrollplan.hentKoblbareSjekklister` og `kanKoble` i
+ * `hentPunktHandlinger`). En kontrollplan-mal kan være en privat HMS-mal, så admin kan ikke
+ * lenger få `null`-filter i kraft av rollen:
+ * - ikke admin → `byggTilgangsFilter` (som før).
+ * - sitedoc_admin → `null` (ser alt, som i `byggTilgangsFilter`).
+ * - prosjektadmin (ProjectMember-rad med rolle `admin`) → den H3-rettede `byggTilgangsFilter`:
+ *   `null` for HMS-behandleren, ellers alt som ikke er privat HMS + egne private HMS-saker.
+ * - firma-admin som ikke er prosjektadmin (V1, K1-S V1) — grenen velges etter rollen, ikke etter
+ *   om det finnes en PM-rad: `null` når hen er HMS-behandler (`erHmsAdmin`, firmaets
+ *   `hms_ansvarlig`), ellers alt som ikke er privat HMS. Har hen en PM-rad (f.eks. `member`),
+ *   legges `byggTilgangsFilter` til som OR, så egne private HMS-saker (melder/mottaker) er med.
+ * Speiler `koblePunkt`, så knappen og kandidatlista aldri viser noe serveren avviser.
+ */
+export async function byggPunktKoblingsFilter(
+  userId: string,
+  projectId: string,
+  tilgang: PunktFlytTilgang,
+): Promise<Record<string, unknown> | null> {
+  if (!tilgang.erAdmin) return byggTilgangsFilter(userId, projectId);
+  const bruker = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
+  if (bruker?.role === "sitedoc_admin") return null;
+  const medlem = await prisma.projectMember.findFirst({
+    where: aktivtProsjektmedlemWhere(userId, projectId),
+    select: { role: true },
+  });
+  if (medlem?.role === "admin") return byggTilgangsFilter(userId, projectId);
+  if (await erHmsAdmin(userId, projectId)) return null;
+  if (!medlem) return IKKE_PRIVAT_HMS;
+  const egne = await byggTilgangsFilter(userId, projectId);
+  return egne === null ? null : { OR: [IKKE_PRIVAT_HMS, egne] };
+}
+
 export async function byggTilgangsFilter(
   userId: string,
   projectId: string,
@@ -1422,11 +1544,25 @@ export async function byggTilgangsFilter(
     });
   }
 
-  // Prosjektadmin ser alt
-  if (medlem.role === "admin") return null;
+  // H3-1 (Kenneth HF2 ja, 2026-11-23; hms-domenemodell.md § HMS-flyt regel 3): private HMS-saker
+  // (malens domain = "hms" og hmsSynlighet ikke "apen", også null) leses bare av HMS-behandleren
+  // (`erHmsAdmin`), ikke av prosjektadmin i kraft av rollen og ikke via en gruppe med «hms» i
+  // `domains`. Lista speiler detaljgaten (`avgjorDokumentTilgang`): prosjektadmin ser alt som ikke
+  // er privat HMS; private HMS-saker nås bare gjennom de samme grenene som for et vanlig medlem.
+  const trengerBehandlerSjekk =
+    medlem.role === "admin" ||
+    medlem.groupMemberships.some((gm) => (gm.group.domains as string[]).includes("hms"));
+  // `null` = ikke slått opp ennå (flyt-grenen under slår opp ved behov).
+  const erHmsBehandler: boolean | null = trengerBehandlerSjekk ? await erHmsAdmin(userId, projectId) : null;
+
+  // Prosjektadmin som er HMS-behandler ser alt (som før H3).
+  if (medlem.role === "admin" && erHmsBehandler) return null;
 
   // Samle alle OR-betingelser
   const orBetingelser: Record<string, unknown>[] = [];
+
+  // Prosjektadmin (ikke behandler): alt som ikke er en privat HMS-sak.
+  if (medlem.role === "admin") orBetingelser.push(IKKE_PRIVAT_HMS);
 
   // Firmaansvarlig: ser dokumenter der firmamedlemmer er direkte involvert
   if (medlem.erFirmaansvarlig) {
@@ -1478,16 +1614,21 @@ export async function byggTilgangsFilter(
     const gruppeDomener = gm.group.domains as string[];
     if (gruppeDomener.length === 0) continue;
 
+    // H3-1: «hms» i en gruppes domener gir ikke private HMS-saker (bare HMS-behandleren).
+    const utenPrivatHms = (betingelse: Record<string, unknown>, gjelderHms: boolean) =>
+      gjelderHms && !erHmsBehandler ? { AND: [betingelse, IKKE_PRIVAT_HMS] } : betingelse;
+
     if (gm.group.groupFaggrupper.length === 0) {
       // Tverrgående tilgang: alle dokumenter med matchende domain
-      orBetingelser.push({
-        template: { domain: { in: gruppeDomener } },
-      });
+      orBetingelser.push(utenPrivatHms(
+        { template: { domain: { in: gruppeDomener } } },
+        gruppeDomener.includes("hms"),
+      ));
     } else {
       // Faggruppe-begrenset: kun dokumenter med matchende domain OG faggruppe
       const gruppeFaggruppeIder = gm.group.groupFaggrupper.map((ge) => ge.faggruppeId);
       for (const domain of gruppeDomener) {
-        orBetingelser.push({
+        orBetingelser.push(utenPrivatHms({
           AND: [
             { template: { domain } },
             {
@@ -1497,7 +1638,7 @@ export async function byggTilgangsFilter(
               ],
             },
           ],
-        });
+        }, domain === "hms"));
       }
     }
   }
@@ -1511,7 +1652,21 @@ export async function byggTilgangsFilter(
     medlem.groupMemberships.map((gm) => gm.groupId),
   );
   if (flytIder.length > 0) {
-    orBetingelser.push({ dokumentflytId: { in: flytIder } });
+    // F1-A i detaljgaten: flyt-medlemskap alene gir ikke private HMS-saker. Lista følger (H3-1),
+    // så en tittel ikke vises for noen som ikke kan åpne saken. HMS-behandleren ser alt; en part
+    // (bestiller/mottaker) i flyten beholder saken, som `erPart && i flyten` i detaljgaten (H3-3).
+    const behandler = erHmsBehandler ?? (await erHmsAdmin(userId, projectId));
+    const flytBetingelse = { dokumentflytId: { in: flytIder } };
+    orBetingelser.push(
+      behandler
+        ? flytBetingelse
+        : {
+            AND: [
+              flytBetingelse,
+              { OR: [IKKE_PRIVAT_HMS, { bestillerUserId: userId }, { recipientUserId: userId }] },
+            ],
+          },
+    );
   }
 
   if (orBetingelser.length === 0) {

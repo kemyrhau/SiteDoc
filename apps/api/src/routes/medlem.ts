@@ -502,10 +502,29 @@ export const medlemRouter = router({
 
       const medlem = await ctx.prisma.projectMember.findFirst({
         where: { id: input.id, projectId: input.projectId, ...aktivtMedlemWhere },
-        select: { id: true, userId: true },
+        select: { id: true, userId: true, role: true },
       });
       if (!medlem) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Medlemmet finnes ikke (eller er allerede fjernet)" });
+      }
+
+      // F13c 2A: siste aktive prosjektadmin kan ikke fjernes — prosjektet skal ikke bli
+      // stående uten admin via denne knappen. Gjør en annen kontakt til admin først.
+      if (medlem.role === "admin") {
+        const andreAdmins = await ctx.prisma.projectMember.count({
+          where: {
+            projectId: input.projectId,
+            role: "admin",
+            id: { not: medlem.id },
+            ...aktivtMedlemWhere,
+          },
+        });
+        if (andreAdmins === 0) {
+          throw new TRPCError({
+            code: "PRECONDITION_FAILED",
+            message: "Kan ikke fjerne siste admin i prosjektet. Gjør en annen kontakt til admin først.",
+          });
+        }
       }
 
       return ctx.prisma.$transaction(async (tx) => {
@@ -981,7 +1000,7 @@ export const medlemRouter = router({
     }),
 
   // Toggle kanAttestere-kapabilitet (timer-attestering) for et prosjektmedlem.
-  // role="admin" har implisitt attestering-tilgang via erProsjektLeder, men
+  // role="admin" har implisitt attestering-tilgang (attesteringsOmfang/attesteringsFirmaer), men
   // kanAttestere lar prosjekt-admin gi eksplisitt opt-in til medlemmer
   // (role="member") som ikke skal være full prosjekt-admin.
   settKanAttestere: protectedProcedure

@@ -31,6 +31,7 @@ export function KoblePunktDialog({
   const koble = trpc.kontrollplan.koblePunkt.useMutation({
     onSuccess: () => {
       utils.kontrollplan.hentForByggeplass.invalidate({ byggeplassId });
+      utils.kontrollplan.hentPunktHandlinger.invalidate({ byggeplassId });
       onKoblet();
     },
     onError: (err: { message: string }) => setFeil(err.message),

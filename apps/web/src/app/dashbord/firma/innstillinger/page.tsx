@@ -860,6 +860,8 @@ function RedigerVedAttesteringSeksjon() {
   if (!setting || !orgId) return null;
 
   const aktiv = setting.tillattRedigerVedAttestering;
+  // w7 (B15, § 8.5): «Attestant kan attestere egne timer». Standard Nei for alle firmaer.
+  const selvAttestering = setting.tillattSelvAttestering === true;
 
   function endre(nyVerdi: boolean) {
     oppdater.mutate({
@@ -894,6 +896,38 @@ function RedigerVedAttesteringSeksjon() {
           </div>
         </div>
       </label>
+
+      {/* w7 (B15): Ja/Nei — håndheves på serveren (`krevIkkeEgenSedel`). */}
+      <div className="mt-3 flex items-start justify-between gap-4 rounded-md border border-gray-200 p-3">
+        <div>
+          <div className="flex items-center gap-1.5 text-sm font-medium text-gray-900">
+            {t("firma.innstillinger.selvAttestering.tittel")}
+            <span title={t("firma.innstillinger.selvAttestering.hjelpIkon")}>
+              <HelpCircle className="h-3.5 w-3.5 text-gray-400" aria-label={t("firma.innstillinger.selvAttestering.hjelpIkon")} />
+            </span>
+          </div>
+          <div className="mt-1 text-xs text-gray-600">
+            {t(selvAttestering ? "firma.innstillinger.selvAttestering.hintJa" : "firma.innstillinger.selvAttestering.hintNei")}
+          </div>
+        </div>
+        <div role="radiogroup" aria-label={t("firma.innstillinger.selvAttestering.tittel")} className="inline-flex shrink-0 overflow-hidden rounded-md border border-gray-300 text-sm">
+          {([true, false] as const).map((verdi) => (
+            <button
+              key={String(verdi)}
+              type="button"
+              role="radio"
+              aria-checked={selvAttestering === verdi}
+              disabled={oppdater.isPending}
+              onClick={() => {
+                if (selvAttestering !== verdi) oppdater.mutate({ organizationId: orgId!, tillattSelvAttestering: verdi });
+              }}
+              className={`px-3 py-1 font-medium ${verdi ? "" : "border-l border-gray-300"} ${selvAttestering === verdi ? "bg-sitedoc-primary text-white" : "bg-white text-gray-700 hover:bg-gray-50"}`}
+            >
+              {t(verdi ? "ja" : "nei")}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {oppdater.isError && (
         <p className="mt-3 text-sm text-red-500">

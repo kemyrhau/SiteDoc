@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="nb">
+<head>
+<meta charset="utf-8">
+<title>Skisse — dagsseddelen på PC etter Kenneths test 2026-11-20: jobben som ett sammenhengende kort</title>
+<!--
+  FORSLAG (Fabel 2026-11-20, versjon 12), ikke bygget. Kilde for v12-jobbkort.png.
+  Venstre: dagen slik Kenneth så den (k7.webp, test 51160003). Høyre: samme dag med ett kort pr. jobb
+  (web-timeforing-plan.md § 4.13, w3a og w3b). Kortets hode og timelinja er som i dag (#2). Nede: maskin
+  på jobben = utstyr + antall timer.
+  Linjene for vare, reise, tillegg og utlegg på jobb 2 er eksempler for å vise plassen; Kenneths dag hadde dem ikke.
+  Tegnet med Chrome uten vindu:
+    "Google Chrome" --headless=new --hide-scrollbars --force-device-scale-factor=2 \
+      --window-size=1444,<høyde> --screenshot=v12-jobbkort.png "file://…/skisser-v12.html"
+-->
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#f3f4f6;font-family:-apple-system,"Inter","Segoe UI",Helvetica,Arial,sans-serif;color:#111827;font-size:13px}
+.ark{width:1400px;padding:22px}
+.tittel{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.pille{background:#1e40af;color:#fff;font-weight:700;border-radius:999px;padding:5px 13px;font-size:12.5px;letter-spacing:.04em}
+.tittel h1{font-size:21px;margin:0}
+.to{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start}
+.side{background:#fafbfc;border:1px solid #d1d5db;border-radius:12px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.side h2{margin:0 0 4px;font-size:16px}
+.side .under{color:#6b7280;margin:0 0 12px}
+.ov{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:#6b7280;font-weight:700;margin:0 0 8px}
+.kort{background:#fff;border:1px solid #93c5fd;border-radius:9px;margin-bottom:10px;box-shadow:0 0 0 1px #dbeafe}
+.hode{display:flex;align-items:center;gap:18px;padding:12px 14px;border-bottom:1px solid #f1f5f9}
+.hode .navn{flex:1;min-width:0}
+.hode .navn b{display:block;font-size:14px}
+.hode .navn span{color:#6b7280;font-size:12px}
+.tall{text-align:right;min-width:50px}
+.tall small{display:block;font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:#9ca3af}
+.tall b{font-size:13.5px}
+.kropp{padding:12px 14px}
+.bolk{background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:10px 12px;margin-bottom:10px}
+.bolk.eco{border-color:#c7d2fe}
+.bolkhode{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.bolkhode b{font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:#374151}
+.knapp{border:1px solid #d1d5db;background:#f3f4f6;border-radius:6px;padding:4px 9px;font-weight:600;font-size:12px}
+.ecohode{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #e5e7eb;padding-bottom:6px;margin-bottom:8px;font-weight:700;font-size:12px}
+.merke{border-radius:999px;background:#e0e7ff;color:#3730a3;padding:2px 8px;font-size:11px;font-weight:600}
+.linje{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-top:1px solid #f1f5f9}
+.linje:first-of-type{border-top:0}
+.linje .v b{display:block;font-size:13px}
+.linje .v span{display:block;color:#6b7280;font-size:11.5px;line-height:1.45}
+.linje .v span.type,.linje .v span.k{display:inline-flex;color:inherit}
+.linje .v span.k{color:#fff;line-height:1}
+.linje .v span.type{display:inline-block;color:#475569;line-height:1.5}
+.hode .navn span.g{display:inline-flex;color:#fff;font-size:11.5px}
+.hode .navn span.merke{display:inline-block;color:#3730a3;font-size:11px;margin-top:4px}
+.linje .h{display:flex;align-items:center;gap:10px;font-family:ui-monospace,Menlo,monospace;font-size:12.5px;white-space:nowrap}
+.ik{color:#6b7280;font-family:inherit;font-size:12px;letter-spacing:.2em}
+.type{display:inline-block;background:#f1f5f9;color:#475569;border-radius:4px;padding:1px 6px;font-size:9.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;margin-right:7px;min-width:58px;text-align:center}
+.type.vare{background:#dcfce7;color:#15803d}
+.type.reise{background:#fef3c7;color:#92400e}
+.type.till{background:#ede9fe;color:#6d28d9}
+.type.utl{background:#ffe4e6;color:#be123c}
+.del{display:flex;justify-content:space-between;align-items:center;padding:6px 0 6px 14px;border-top:1px solid #f1f5f9;border-left:3px solid #e5e7eb;margin-left:4px}
+.sumboks{border:1px solid #e5e7eb;background:#fff;border-radius:5px;padding:5px 9px;font-size:11.5px;font-weight:600;margin-top:8px}
+.lenker{display:flex;gap:16px;flex-wrap:wrap;color:#1d4ed8;font-weight:600;margin-top:10px;font-size:12.5px}
+.rod{outline:2px solid #dc2626;outline-offset:2px;border-radius:5px}
+.k{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#dc2626;color:#fff;font-weight:700;font-size:11.5px;margin-right:6px;flex:none}
+.g{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#16a34a;color:#fff;font-weight:700;font-size:11.5px;margin-right:6px;flex:none}
+.forkl{margin:12px 0 0;padding:0;list-style:none}
+.forkl li{display:flex;align-items:flex-start;margin-bottom:6px;line-height:1.4}
+.neste{border:1px dashed #d1d5db;border-radius:9px;padding:9px;text-align:center;color:#6b7280;background:#fff}
+.neste b{color:#111827}
+.nede{margin-top:20px;display:grid;grid-template-columns:420px 1fr;gap:20px}
+.vindu{background:#fff;border:1px solid #d1d5db;border-radius:10px;padding:16px;box-shadow:0 4px 14px rgba(0,0,0,.10)}
+.vindu h3{margin:0 0 12px;font-size:15px}
+.felt{margin-bottom:10px}
+.felt label{display:block;font-weight:600;margin-bottom:4px;font-size:12.5px}
+.inn{border:1px solid #d1d5db;border-radius:6px;padding:7px 10px;background:#fff}
+.gul{background:#fef9c3;border-color:#fde047}
+.hint{color:#6b7280;font-size:11.5px;margin-top:3px}
+.ut{color:#9ca3af;text-decoration:line-through}
+table{border-collapse:collapse;width:100%;background:#fff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden}
+th,td{text-align:left;padding:6px 10px;border-bottom:1px solid #f1f5f9;vertical-align:top;font-size:12.5px}
+th{background:#f9fafb;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:#6b7280}
+</style>
+</head>
+<body>
+<div class="ark">
+  <div class="tittel"><span class="pille">VERSJON 12</span><h1>Dagsseddelen på PC — jobben som ett sammenhengende kort</h1></div>
+
+  <div class="to">
+    <!-- I DAG -->
+    <div class="side">
+      <h2>I dag — bilde #7 (test <code>51160003</code>)</h2>
+      <p class="under">Ett kort pr. prosjekt. Inni: én boks pr. underprosjekt.</p>
+      <p class="ov">Prosjektkort (1)</p>
+      <div class="kort">
+        <div class="hode">
+          <div class="navn"><b>Sitedoc Boligfelt B12</b><span>sommerfeldtsgt 65</span></div>
+          <div class="tall rod"><small>Arbeid</small><b>8,5 t</b></div>
+          <div class="tall"><small>Maskin</small><b>1,0 t</b></div>
+          <div class="tall"><small>Varer</small><b>—</b></div>
+          <div class="tall"><small>Reise</small><b>—</b></div>
+        </div>
+        <div class="kropp">
+          <div class="bolk">
+            <div class="bolkhode"><b>Arbeidstimer (7.50 t)</b><span class="knapp">+ Legg til timer-rad</span></div>
+            <div class="linje"><div class="v"><b>Timelønn</b><span>Anleggsarbeid · 07:00–15:00</span><span>☑ Matpause trukket (30 min)</span></div><div class="h">7.50 t <span class="ik">✎ ⑂ 🗑</span></div></div>
+          </div>
+          <div class="bolk eco rod">
+            <div class="ecohode"><span><span class="k">1</span>TILL-001 · Tilleggsarbeid kantstein</span><span class="merke">→ Godkjenning byggherre</span></div>
+            <div class="bolkhode"><b>Arbeidstimer (1.00 t)</b><span class="knapp">+ Legg til timer-rad</span></div>
+            <div class="linje"><div class="v"><b>Timelønn</b><span>Anleggsarbeid · 15:00–16:00</span><span><i>Satte kantstein</i></span></div><div class="h">1.00 t <span class="ik">✎ ⑂ 🗑</span></div></div>
+            <div class="linje"><div class="v"><b><span class="type">Maskin</span>Volvo EC220E · sommerfeldtsgt 65</b><span><span class="k">2</span>1.00</span></div><div class="h">1.00 t <span class="ik">✎ ⑂ 🗑</span></div></div>
+            <div class="sumboks"><span class="k">3</span>Maskin 1.00 t</div>
+          </div>
+          <b>Tillegg og utlegg</b>
+          <div style="color:#6b7280;margin:4px 0 0">Ingen tillegg eller utlegg ennå.</div>
+          <div class="lenker rod" style="display:inline-flex"><span class="k">4</span>+ Timer<span>+ Reise</span><span>+ Maskin</span><span>+ Tillegg/Utlegg</span><span>+ Vareforbruk</span></div>
+        </div>
+      </div>
+      <ul class="forkl">
+        <li><span class="k">1</span><span>15–16 på TILL-001 er en egen jobb på serveren, men vises som en boks inne i den første, med eget hode og egen knapp. Hodet øverst summerer begge.</span></li>
+        <li><span class="k">2</span><span>«1.00» er maskinens felt Mengde, ført uten enhet. Vinduet hadde ikke noe felt for maskinens timer.</span></li>
+        <li><span class="k">3</span><span>Boksen gjentar tallet på linja over.</span></li>
+        <li><span class="k">4</span><span>Lenkene hører til prosjektet. Hvert vindu spør derfor på nytt om timerad, byggeplass og underprosjekt.</span></li>
+      </ul>
+    </div>
+
+    <!-- SLIK DET BLIR -->
+    <div class="side">
+      <h2>Slik det blir — samme dag</h2>
+      <p class="under">Ett kort pr. jobb. Hodet og timelinja er som i dag (#2).</p>
+      <p class="ov">Prosjektkort (2)</p>
+      <div class="kort">
+        <div class="hode">
+          <div class="navn"><b>Sitedoc Boligfelt B12</b><span>sommerfeldtsgt 65</span></div>
+          <div class="tall"><small>Arbeid</small><b>7,5 t</b></div>
+          <div class="tall"><small>Maskin</small><b>—</b></div>
+          <div class="tall"><small>Varer</small><b>—</b></div>
+          <div class="tall"><small>Reise</small><b>—</b></div>
+        </div>
+        <div class="kropp">
+          <div class="linje"><div class="v"><b>Timelønn</b><span>Anleggsarbeid · 07:00–15:00</span><span>☑ Matpause trukket (30 min)</span></div><div class="h">7,5 t <span class="ik">✎ ⑂ 🗑</span></div></div>
+          <div class="lenker">+ Timer<span>+ Maskin</span><span>+ Vare</span><span>+ Reise</span><span>+ Tillegg/Utlegg</span></div>
+        </div>
+      </div>
+      <div class="kort">
+        <div class="hode">
+          <div class="navn"><b>Sitedoc Boligfelt B12</b><span><span class="g">A</span>sommerfeldtsgt 65 · TILL-001 Tilleggsarbeid kantstein</span><span class="merke">→ Godkjenning byggherre</span></div>
+          <div class="tall"><small>Arbeid</small><b>1,0 t</b></div>
+          <div class="tall"><small>Maskin</small><b>1,0 t</b></div>
+          <div class="tall"><small>Varer</small><b>12 stk</b></div>
+          <div class="tall"><small>Reise</small><b>0,5 t</b></div>
+        </div>
+        <div class="kropp">
+          <div class="linje"><div class="v"><b>Timelønn</b><span>Anleggsarbeid · 15:00–16:00</span><span><i>Satte kantstein</i></span></div><div class="h">1,0 t <span class="ik">✎ ⑂ 🗑</span></div></div>
+          <div class="del"><div><span class="g">B</span><span class="type">Maskin</span>Volvo EC220E</div><div class="h">1,0 t <span class="ik">✎ 🗑</span></div></div>
+          <div class="del"><div><span class="g">C</span><span class="type vare">Vare</span>Kantstein granitt</div><div class="h">12 stk <span class="ik">✎ 🗑</span></div></div>
+          <div class="del"><div><span class="type reise">Reise</span>Retur · 16:00–16:30</div><div class="h">0,5 t <span class="ik">✎ 🗑</span></div></div>
+          <div class="del"><div><span class="type till">Tillegg</span>Smusstillegg</div><div class="h">1 <span class="ik">✎ 🗑</span></div></div>
+          <div class="del"><div><span class="type utl">Utlegg</span>Parkering · kvittering</div><div class="h">120 kr <span class="ik">✎ 🗑</span></div></div>
+          <div class="lenker"><span><span class="g">D</span>+ Timer</span><span>+ Maskin</span><span>+ Vare</span><span>+ Reise</span><span>+ Tillegg/Utlegg</span></div>
+        </div>
+      </div>
+      <div class="neste"><b>+ Registrer timer</b> · neste jobb, samme eller annet prosjekt</div>
+      <ul class="forkl">
+        <li><span class="g">A</span><span>Underprosjektet står i jobbens hode og gjelder alt i jobben. Hodet summerer bare denne jobben.</span></li>
+        <li><span class="g">B</span><span>Maskinen står i jobben med timene sine. Ingen mengde, ingen egen boks.</span></li>
+        <li><span class="g">C</span><span>Vare, reise, tillegg og utlegg står i samme kort. (Eksempler — dagen din hadde dem ikke.)</span></li>
+        <li><span class="g">D</span><span>Lenkene hører til jobben. Vinduene spør ikke om timerad, byggeplass eller underprosjekt.</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="nede">
+    <div class="vindu">
+      <h3>+ Maskin på jobben</h3>
+      <div class="felt"><label>Utstyr</label><div class="inn">Volvo EC220E (Gravemaskin EQ-042)</div></div>
+      <div class="felt"><label>Antall timer</label><div class="inn gul" style="width:110px">1,0</div><div class="hint">høyst 1,0 t — jobbens arbeidstimer</div></div>
+      <div class="hint" style="margin-top:12px">Ut av vinduet: <span class="ut">Timerad</span> · <span class="ut">Byggeplass</span> · <span class="ut">Fra kl. / Til kl.</span> · <span class="ut">Mengde / Enhet</span> · <span class="ut">Underprosjekt</span></div>
+    </div>
+    <table>
+      <tr><th>Felt i «Legg til maskinbruk» i dag (#3)</th><th>Etter</th><th>Hvorfor</th></tr>
+      <tr><td>Utstyr</td><td>Står</td><td>«hvilken maskin»</td></tr>
+      <tr><td>Antall timer</td><td>Står, forhåndsutfylt med jobbens timer</td><td>«hvor mange timer kjørte maskinen»</td></tr>
+      <tr><td>Timerad</td><td>Ut</td><td>Maskinen føres på jobben. Serveren kobler den til jobbens timerad selv.</td></tr>
+      <tr><td>Byggeplass, Underprosjekt</td><td>Ut — arves fra jobben</td><td>«Underprosjekt arves fra timerad»</td></tr>
+      <tr><td>Fra kl., Til kl.</td><td>Ut</td><td>«kun antall» (B38)</td></tr>
+      <tr><td>Mengde, Enhet</td><td>Ut — føres som vare på jobben</td><td>«Enheten må nødvendigvis være timer» · «Mengde og enhet tilhører varer»</td></tr>
+    </table>
+  </div>
+</div>
+</body>
+</html>

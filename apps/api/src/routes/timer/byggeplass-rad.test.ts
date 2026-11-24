@@ -31,6 +31,8 @@ vi.mock("../../services/timer", () => ({
 }));
 vi.mock("@sitedoc/db", () => ({
   prisma: {
+    // w5 (B10): retting ved attestering krever attesteringsrett; sitedoc_admin har den overalt.
+    user: { findUnique: vi.fn().mockResolvedValue({ role: "sitedoc_admin" }) },
     organizationSetting: { findUnique: vi.fn().mockResolvedValue(null) },
     organizationReiseGrense: { findMany: vi.fn().mockResolvedValue([]) },
     reisetidMatrise: { findMany: vi.fn().mockResolvedValue([]) },
@@ -53,6 +55,9 @@ import {
 } from "./byggeplass-rad";
 
 const USER = "user-1";
+
+// w7 (B15): egne timer attesteres/rettes av en annen — lederveiene kalles av en annen enn eieren.
+const ATTESTANT = "attestant-1";
 const ORG = "11111111-1111-1111-1111-111111111111";
 const SHEET = "22222222-2222-2222-2222-222222222222";
 const PROSJEKT_A = "33333333-3333-3333-3333-333333333333";
@@ -93,6 +98,8 @@ function lagCtx() {
         aggregate: vi.fn().mockResolvedValue({ _sum: { pauseMin: 0 } }),
       },
       dailySheet: { update: vi.fn().mockResolvedValue({}) },
+      // w3a (A7): stedsbytte på timeraden tar med koblede maskiner.
+      sheetMachine: { updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
     }),
   );
   const upsert = vi.fn();
@@ -104,6 +111,8 @@ function lagCtx() {
         findUnique: vi.fn().mockResolvedValue({ tillattRedigerVedAttestering: true }),
       },
     },
+    // w3a (A7): koblede varer følger stedsbyttet.
+    prismaVarelager: { $executeRawUnsafe: vi.fn().mockResolvedValue(0) },
     prismaTimer: {
       $transaction: transaction,
       dailySheet: { findUnique: vi.fn().mockResolvedValue(sheet), upsert },
@@ -126,7 +135,11 @@ function lagCtx() {
         findMany: vi.fn().mockResolvedValue([]),
         create: maskinCreate,
         update: maskinUpdate,
+        // w3a (A7): stedsbytte på timeraden tar med koblede maskiner.
+        updateMany: vi.fn().mockResolvedValue({ count: 0 }),
       },
+      // w5 (B10): retting ved attestering leser de ventende tilleggsradenes prosjekt.
+      sheetTillegg: { findMany: vi.fn().mockResolvedValue([]) },
     },
   };
   return { ctx, sheet, timerCreate, timerUpdate, maskinCreate, maskinUpdate, transaction, upsert };
@@ -235,6 +248,7 @@ describe("byggeplass-grense i de øvrige skriveveiene (ordre 12)", () => {
     ]) {
       const { ctx, sheet, transaction } = lagCtx();
       sheet.status = "sent";
+      ctx.userId = ATTESTANT;
       await expect(
         caller(ctx).redigerSedelRader({ sheetId: SHEET, nyeRader }),
       ).rejects.toThrow(AVVIST);

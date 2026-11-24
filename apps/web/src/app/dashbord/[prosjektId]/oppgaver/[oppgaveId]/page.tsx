@@ -1,5 +1,6 @@
 "use client";
 
+import { dokumentRetur, gyldigRetur } from "@/lib/tilbake-adresse";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { Spinner, StatusBadge, Card } from "@sitedoc/ui";
@@ -310,13 +311,18 @@ export default function OppgaveDetaljSide() {
   // godtas (må starte med «/» og ikke «//») så en manipulert param ikke kan redirecte ut av appen.
   const sokeParams = useSearchParams();
   const returnerTilRaa = sokeParams.get("returnerTil");
-  const returnerTil =
-    returnerTilRaa && returnerTilRaa.startsWith("/") && !returnerTilRaa.startsWith("//")
-      ? returnerTilRaa
-      : null;
+  // w14 (TK22): samme vakt som tilbake-knappen — bare stier under /dashbord/.
+  const returnerTil = gyldigRetur(returnerTilRaa);
   // Dokumentnummeret til det som opprettet oppgaven (til tilbake-lenken «← Tilbake til BEF-006»).
   const returnerNavn = returnerTil ? sokeParams.get("returnerNavn") : null;
-  const listeSti = returnerTil ?? `/dashbord/${params.prosjektId}/${erHms ? "hms" : "oppgaver"}`;
+  // w14 (TK7, TK9): «← HMS» går til HMS-lista brukeren kom fra (Firma › HMS eller prosjektets);
+  // sletting går dit oppgaven ble åpnet fra (`?retur`), ellers lista.
+  const { hms: hmsSti, etterSletting: listeSti } = dokumentRetur({
+    retur: sokeParams.get("retur"),
+    returnerTil,
+    standardListe: `/dashbord/${params.prosjektId}/${erHms ? "hms" : "oppgaver"}`,
+    prosjektHms: `/dashbord/${params.prosjektId}/hms`,
+  });
 
   // Flyt-kontekst — ekstrahert hook (TS2589-avlastning): de fire tunge tRPC-type-memoene
   // bor nå i useFlytKontekst der rå-outputene widenes til unknown. Identisk logikk.
@@ -701,7 +707,7 @@ export default function OppgaveDetaljSide() {
         {erHms && (
           <button
             type="button"
-            onClick={() => router.push(listeSti)}
+            onClick={() => router.push(hmsSti)}
             className="mb-1.5 inline-flex min-h-8 items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-sitedoc-primary"
           >
             <ArrowLeft className="h-3.5 w-3.5" />

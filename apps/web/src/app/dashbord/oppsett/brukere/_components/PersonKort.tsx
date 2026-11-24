@@ -21,7 +21,7 @@ import { Modal } from "@sitedoc/ui";
 import { KnappMedForklaring } from "@/components/KnappMedForklaring";
 import { useTranslation } from "react-i18next";
 import { useRouter } from "next/navigation";
-import { X, Pencil, Check, Shield, Plus, CreditCard, Building2 } from "lucide-react";
+import { X, Pencil, Check, Shield, Plus, CreditCard, Building2, UserMinus } from "lucide-react";
 import { erHmsGruppe } from "@/components/hms/hms-utils";
 
 const FARGE_DOT: Record<string, string> = {
@@ -123,6 +123,8 @@ export function PersonKort({
     { faggruppeId: string; faggruppeNavn: string } | null
   >(null);
   const [endreFirmaAapen, setEndreFirmaAapen] = useState(false);
+  // F13c 2A: «Fjern fra prosjektet» — bekreftes i modal før `medlem.fjern` (myk fjerning, L2b).
+  const [fjernFraProsjektAapen, setFjernFraProsjektAapen] = useState(false);
   const [nyttFirmaId, setNyttFirmaId] = useState("");
   const [firmaModus, setFirmaModus] = useState<"feilregistrering" | "firmabytte">("firmabytte");
 
@@ -138,6 +140,15 @@ export function PersonKort({
   const fjernFaggruppeMutation = trpc.medlem.fjernFraFaggruppe.useMutation({ onSuccess: () => { invalider(); setFjernFaggruppeMaal(null); } });
   const registrerMutation = trpc.medlem.registrer.useMutation({ onSuccess: () => { invalider(); setLeggTilGruppeAapen(false); } });
   const fjernMedlemMutation = trpc.gruppe.fjernMedlem.useMutation({ onSuccess: invalider });
+  // Siste admin avvises av serveren; meldingen vises i modalen.
+  const fjernFraProsjektMutation = trpc.medlem.fjern.useMutation({
+    onSuccess: () => {
+      invalider();
+      utils.dokumentflyt.hentForProsjekt.invalidate({ projectId: prosjektId });
+      setFjernFraProsjektAapen(false);
+      onClose();
+    },
+  });
   const endreFirmaMutation = trpc.medlem.endreFirma.useMutation({
     onSuccess: () => { invalider(); setEndreFirmaAapen(false); setNyttFirmaId(""); },
   });
@@ -530,6 +541,19 @@ export function PersonKort({
               {t("kontakter.administrerFlytLenke")}
             </button>
           </section>
+
+          {/* 5. Fjern fra prosjektet (F13c 2A) — kun prosjektadmin, kun aktive medlemmer */}
+          {erProsjektAdmin && !medlem.periodeSlutt && (
+            <section className="border-t border-gray-100 pt-4">
+              <button
+                onClick={() => { fjernFraProsjektMutation.reset(); setFjernFraProsjektAapen(true); }}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50"
+              >
+                <UserMinus className="h-4 w-4" />
+                {t("kontakter.fjernFraProsjektet")}
+              </button>
+            </section>
+          )}
         </div>
       </div>
 
@@ -625,6 +649,28 @@ export function PersonKort({
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* Bekreft fjerning fra prosjektet (F13c 2A) */}
+      <Modal open={fjernFraProsjektAapen} onClose={() => setFjernFraProsjektAapen(false)} title={t("kontakter.fjernFraProsjektet")} className="max-w-md">
+        <div className="space-y-4">
+          <p className="text-sm text-gray-700">
+            {t("kontakter.fjernFraProsjektetTekst", { navn: bruker.name ?? bruker.email })}
+          </p>
+          {fjernFraProsjektMutation.error && <p className="text-sm text-red-600">{fjernFraProsjektMutation.error.message}</p>}
+          <div className="flex justify-end gap-2">
+            <button onClick={() => setFjernFraProsjektAapen(false)} className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50">
+              {t("handling.avbryt")}
+            </button>
+            <button
+              disabled={fjernFraProsjektMutation.isPending}
+              onClick={() => fjernFraProsjektMutation.mutate({ id: medlem.id, projectId: prosjektId })}
+              className="rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+            >
+              {t("handling.fjern")}
+            </button>
+          </div>
+        </div>
       </Modal>
     </>
   );

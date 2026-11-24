@@ -114,8 +114,8 @@ export function KontekstChip() {
   // (lengste href-prefiks av pathname), ikke deler[3]. Motpart finnes kun når et
   // nav-element med SAMME relative path finnes i den ANDRE kontekstens nav (begge
   // tilgangs-/modul-filtrert). Slik: timer↔timer, hms↔hms; men firma/timer/rapport
-  // (relpath timer/rapport, kun firma) og prosjekt/timer/attestering (relpath
-  // timer/attestering, kun prosjekt) → chip UTEN ⇄. Undersider uten eget
+  // (relpath timer/rapport, kun firma) og /dashbord/attestering (bare firma, w10b)
+  // → chip UTEN ⇄. Undersider uten eget
   // nav-element (onboarding/oppsett/aktiviteter) eies av «timer» via prefiks →
   // ⇄ vises der (det ER timer-flaten). Kontekst-roten (relpath "") parer aldri.
   const pathnameNaa = pathname ?? "";

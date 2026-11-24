@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="nb">
+<head>
+<meta charset="utf-8">
+<title>Skisser — B14 dagsvisning i attesteringen</title>
+<!--
+  FORSLAG (Fabel 2026-11-17, plan versjon 5), ikke bygget. Kilde for b14-*.png i denne mappa.
+  Ett bilde:        skisser-b14.html?steg=idag | a | b | c     (bredde 1200 css-px, 2x)
+  Sammenlikningen:  skisser-b14.html?steg=alle                  (2 x 2, 2400 css-px, 1x)
+  Tegnet med Chrome uten vindu, som skisser.html: høyden leses fra sidetittelen med --dump-dom,
+  så --screenshot med --window-size=<bredde>,<høyde>.
+  Samme tre dager i alle fire: Ola 17.11. (én jobb, tre linjer), Kari 17.11. (to jobber), Ola 18.11. (én jobb, én linje).
+  «I dag» er tegnet etter koden (AttesteringTabell.tsx:532–589, TimerRadTabell.tsx:331–405), ikke et skjermbilde.
+-->
+<style>
+  :root { --bg:#f3f4f6; --kant:#e5e7eb; --tekst:#111827; --demp:#6b7280; --demp2:#9ca3af;
+          --primar:#1e40af; --lys:#eff6ff; --gronn:#059669; --rod:#dc2626; --amber:#b45309; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--tekst); font:17px/1.4 -apple-system, "Segoe UI", Inter, sans-serif; }
+  .steg { display:none; width:1200px; padding:22px 24px 26px; }
+  .steg.vis { display:block; }
+  body.alle { display:grid; grid-template-columns:repeat(2, 1200px); align-items:start; width:2400px; }
+  body.alle .steg { display:block; }
+
+  .hode { display:flex; align-items:center; gap:12px; margin-bottom:14px; }
+  .nr { background:var(--primar); color:#fff; font-weight:800; font-size:15px; letter-spacing:.04em; padding:5px 12px; border-radius:999px; white-space:nowrap; }
+  .nr.graa { background:#4b5563; }
+  .nr.anb { background:#047857; }
+  .tittel { font-size:22px; font-weight:700; }
+  .teller { margin-left:auto; background:#fee2e2; color:#991b1b; font-weight:800; font-size:15px; padding:4px 12px; border-radius:999px; white-space:nowrap; }
+
+  .flate { background:#fff; border:1px solid #d1d5db; border-radius:12px; overflow:hidden; box-shadow:0 8px 24px rgba(0,0,0,.08); }
+  .innhold { padding:14px 16px 16px; background:#f9fafb; }
+  .verktoy { display:flex; align-items:center; gap:10px; margin:0 0 10px; font-size:14px; }
+  .verktoy .uke { display:inline-flex; align-items:center; gap:8px; border:1px solid var(--kant); background:#fff; border-radius:8px; padding:4px 10px; font-weight:600; }
+  .verktoy .boks { display:inline-flex; align-items:center; gap:6px; color:#374151; }
+  .verktoy .boks i { display:inline-block; width:14px; height:14px; border:1.5px solid #9ca3af; border-radius:3px; background:#fff; }
+  .verktoy .hoyre { margin-left:auto; border:1px solid var(--kant); background:#fff; border-radius:8px; padding:4px 10px; font-weight:600; }
+
+  /* tabellen: avkrysning · dato · ansatt · pr.nr. · underprosjekt · betegnelse · fra–til · timer · maskin · m.t. · vare · antall · beløp · avvik · handlinger */
+  .t { background:#fff; border:1px solid var(--kant); border-radius:8px; overflow:hidden; }
+  .r { display:grid; grid-template-columns:20px 70px 58px 44px 100px 92px 86px 46px 96px 40px 96px 46px 46px 1fr 136px; column-gap:6px;
+       padding:0 10px 0 0; font-size:13px; align-items:center; white-space:nowrap; min-height:34px; }
+  .r > div { overflow:hidden; text-overflow:ellipsis; padding:7px 0; }
+  .r > div:first-child { align-self:stretch; padding:0; display:flex; align-items:center; justify-content:center; }
+  .r .n { text-align:right; font-variant-numeric:tabular-nums; }
+  .r .hl { display:flex; justify-content:flex-end; align-items:center; gap:4px; overflow:visible; }
+  .r.h { font-size:10.5px; color:var(--demp); text-transform:uppercase; letter-spacing:.03em; background:#f9fafb; border-bottom:1px solid var(--kant); min-height:30px; font-weight:600; }
+  .kn { display:inline-flex; width:22px; height:22px; border:1px solid var(--kant); border-radius:4px; background:#fff; align-items:center; justify-content:center; font-size:13px; color:#4b5563; }
+  .kn.g { color:var(--gronn); font-weight:800; }
+  .att { display:inline-flex; align-items:center; gap:4px; background:var(--primar); color:#fff; font-weight:600; font-size:12px; border-radius:6px; padding:3px 8px; }
+  .cb { display:inline-block; width:13px; height:13px; border:1.5px solid #9ca3af; border-radius:3px; background:#fff; }
+  .avm { font-size:11px; font-weight:700; padding:1px 7px; border-radius:999px; background:#fef3c7; color:#92400e; }
+  .svak { color:var(--demp2); }
+  b.s { font-weight:700; }
+
+  /* ── I DAG (målt) ── */
+  .idag .r { border-bottom:1px solid var(--kant); }
+  .idag .r.ov { background:#fafbfc; font-weight:500; color:#374151; }
+  .idag .r.li > div:first-child { border-left:4px solid #93c5fd; }
+  .idag .r.li.odde { background:#f9fafb; }
+  .idag .r.ds { border-top:2px solid #d1d5db; background:#f9fafb; font-weight:600; }
+
+  /* ── A: dagen øverst, jobben som blokk ── */
+  .a .t { background:transparent; border:0; border-radius:0; overflow:visible; }
+  .a .r.h { border:1px solid var(--kant); border-radius:8px 8px 0 0; }
+  .a .dag { background:#fff; border:1px solid #cbd5e1; border-radius:8px; overflow:hidden; margin-top:10px; }
+  .a .dag:first-of-type { margin-top:6px; }
+  .a .r.dh { background:#dbeafe; border-top:3px solid var(--primar); font-weight:700; min-height:38px; }
+  .a .r.jh { background:#f8fafc; font-weight:600; border-top:1px solid #cbd5e1; }
+  .a .r.li { border-top:1px solid #f1f5f9; }
+  .a .r.jh > div:first-child, .a .r.li > div:first-child { border-left:5px solid #60a5fa; }
+  .a .r.j2 > div:first-child { border-left-color:#f59e0b; }
+  .a .r.dh > div:first-child { border-left:5px solid var(--primar); }
+
+  /* ── B: sammenslåtte celler ── */
+  .b .t { background:transparent; border:0; overflow:visible; }
+  .bh, .bd { display:grid; grid-template-columns:150px 150px 92px 86px 46px 96px 40px 104px 40px 46px 1fr 62px; column-gap:6px; font-size:13px; white-space:nowrap; }
+  .bh { font-size:10.5px; color:var(--demp); text-transform:uppercase; letter-spacing:.03em; background:#f9fafb; border:1px solid var(--kant); border-radius:8px 8px 0 0; font-weight:600; padding:7px 10px 7px 0; }
+  .bh > div:first-child { padding-left:12px; }
+  .bd { background:#fff; border:1px solid #cbd5e1; border-radius:8px; margin-top:10px; overflow:hidden; padding-right:10px; }
+  .bd > div { padding:7px 0; overflow:hidden; text-overflow:ellipsis; min-height:34px; border-top:1px solid #f1f5f9; }
+  .bd > div.f { border-top:0; }
+  .bd .dc { background:#dbeafe; border-left:5px solid var(--primar); padding:8px 8px 8px 10px; border-top:0; white-space:normal; line-height:1.35; }
+  .bd .dc b { display:block; font-size:14px; }
+  .bd .jc { background:#f8fafc; border-left:5px solid #60a5fa; padding:8px 6px 8px 8px; white-space:normal; line-height:1.35; }
+  .bd .jc.j2 { border-left-color:#f59e0b; border-top:1px solid #cbd5e1; }
+  .bd .jt { border-top:1px solid #cbd5e1; }
+  .bd .n { text-align:right; font-variant-numeric:tabular-nums; }
+  .bd .hl { display:flex; justify-content:flex-end; align-items:flex-start; gap:4px; overflow:visible; }
+  .bd .rad2 { display:flex; align-items:center; gap:4px; margin-top:4px; }
+
+  /* ── C: som i dag, tydeliggjort ── */
+  .c .t { background:transparent; border:0; overflow:visible; }
+  .c .r.h { border:1px solid var(--kant); border-radius:8px 8px 0 0; }
+  .c .dag { background:#fff; border:1px solid #cbd5e1; border-radius:8px; overflow:hidden; margin-top:10px; }
+  .c .dag:first-of-type { margin-top:6px; }
+  .c .r.ov { background:#eff6ff; font-weight:600; border-top:1px solid #bfdbfe; }
+  .c .dag .r.ov:first-child { border-top:0; }
+  .c .r.li { border-top:1px solid #f1f5f9; }
+  .c .r.ov > div:first-child, .c .r.li > div:first-child { border-left:5px solid #60a5fa; }
+  .c .r.j2 > div:first-child { border-left-color:#f59e0b; }
+  .c .r.ds { background:#e2e8f0; font-weight:700; border-top:2px solid #94a3b8; }
+
+  /* teksten under */
+  .tekst { margin-top:14px; background:#fff; border:1px solid var(--kant); border-radius:10px; padding:12px 16px 14px; font-size:15.5px; }
+  .tekst table { border-collapse:collapse; width:100%; }
+  .tekst td { vertical-align:top; padding:5px 8px 5px 0; border-top:1px solid #f3f4f6; }
+  .tekst tr:first-child td { border-top:0; }
+  .tekst td:first-child { font-weight:700; white-space:nowrap; width:1%; padding-right:16px; }
+  .tekst .hv { color:var(--demp); font-size:14.5px; display:block; }
+  .ja { color:#047857; font-weight:700; } .delvis { color:var(--amber); font-weight:700; } .nei { color:var(--rod); font-weight:700; }
+</style>
+</head>
+<body>
+
+<!-- ══════════ I DAG ══════════ -->
+<div class="steg idag" id="idag">
+  <div class="hode"><span class="nr graa">I DAG · TEGNET ETTER KODEN</span><span class="tittel">Oversiktsrad pr. jobb, linjer, dagsum nederst</span><span class="teller">14 rader for 3 dager</span></div>
+  <div class="flate"><div class="innhold">
+    <div class="verktoy"><span class="uke">‹ Uke 47 ›</span><span class="uke">2026 ▾</span><span class="boks"><i></i> Bare oversiktsrader</span><span class="hoyre">Velg parameter</span></div>
+    <div class="t">
+      <div class="r h"><div></div><div>Dato</div><div>Ansatt</div><div>Pr.nr.</div><div>Underprosjekt</div><div>Betegnelse</div><div>Fra–til</div><div class="n">Timer</div><div>Maskin</div><div class="n">M.t.</div><div>Vare</div><div class="n">Antall</div><div class="n">Beløp</div><div>Avvik</div><div></div></div>
+
+      <div class="r ov"><div></div><div>17.11.</div><div>Ola N.</div><div>1042</div><div></div><div></div><div></div><div class="n">8,00</div><div></div><div class="n">4,00</div><div></div><div></div><div></div><div>Dagen: 8,0 t av dagsnorm 7,5 t</div><div class="hl"><span class="kn g">✓</span><span class="kn">↩</span></div></div>
+      <div class="r li"><div><span class="cb"></span></div><div>17.11.</div><div>Ola N.</div><div>1042</div><div></div><div>Timelønn</div><div>07:00–15:00</div><div class="n">7,50</div><div>Volvo EC220E</div><div class="n">4,00</div><div>Betong · 4 m3</div><div></div><div></div><div></div><div class="hl"><span class="kn g">✓</span><span class="kn">↩</span><span class="kn">✂</span><span class="kn">✎</span></div></div>
+      <div class="r li odde"><div><span class="cb"></span></div><div>17.11.</div><div>Ola N.</div><div>1042</div><div></div><div>Overtid 50 %</div><div>15:00–15:30</div><div class="n">0,50</div><div></div><div></div><div></div><div></div><div></div><div></div><div class="hl"><span class="kn g">✓</span><span class="kn">↩</span><span class="kn">✂</span><span class="kn">✎</span></div></div>
+      <div class="r li"><div><span class="cb"></span></div><div>17.11.</div><div>Ola N.</div><div>1042</div><div></div><div>Smusstillegg</div><div></div><div></div><div></div><div></div><div></div><div class="n">1</div><div></div><div></div><div class="hl"><span class="kn g">✓</span><span class="kn">↩</span><span class="kn">✂</span><span class="kn">✎</span></div></div>
+      <div class="r ds"><div></div><div></div><div></div><div></div><div></div><div>Sum 17.11. · Ola N.</div><div></div><div class="n">8,00</div><div></div><div class="n">4,00</div><div></div><div></div><div></div><div></div><div class="hl"><span class="att">✓ Attester</span><span class="kn">↩</span><span class="kn">↗</span></div></div>
+
+      <div class="r ov"><div></div><div>17.11.</div><div>Kari H.</div><div>1042</div><div>12 Grunnarbeid</div><div></div><div></div><div class="n">4,00</div><div></div><div class="n">2,00</div><div></div><div></div><div></div><div>Dagen: 7,5 t av dagsnorm 7,5 t</div><div class="hl"><span class="kn g">✓</span><span class="kn">↩</span></div></div>
+      <div class="r li odde"><div><span class="cb"></span></div><div>17.11.</div><div>Kari H.</div><div>1042</div><div>12 Grunnarbeid</div><div>Timelønn</div><div>07:00–11:00</div><div class="n">4,00</div><div>Cat 308</div><div class="n">2,00</div><div></div><div></div><div></div><div></div><div class="hl"><span class="kn g">✓</span><span class="kn">↩</span><span class="kn">✂</span><span class="kn">✎</span></div></div>
+      <div class="r ov"><div></div><div>17.11.</div><div>Kari H.</div><div>1051</div><div></div><div></div><div></div><div class="n">3,50</div><div></div><div></div><div></div><div></div><div></div><div>Dagen: 7,5 t av dagsnorm 7,5 t</div><div class="hl"><span class="kn g">✓</span><span class="kn">↩</span></div></div>
+      <div class="r li"><div><span class="cb"></span></div><div>17.11.</div><div>Kari H.</div><div>1051</div><div></div><div>Timelønn</div><div>11:30–15:00</div><div class="n">3,50</div><div></div><div></div><div>Pukk 6-32 · 6 t</div><div></div><div></div><div></div><div class="hl"><span class="kn g">✓</span><span class="kn">↩</span><span class="kn">✂</span><span class="kn">✎</span></div></div>
+      <div class="r li odde"><div><span class="cb"></span></div><div>17.11.</div><div>Kari H.</div><div>1051</div><div></div><div>Parkering</div><div></div><div></div><div></div><div></div><div></div><div></div><div class="n">120</div><div></div><div class="hl"><span class="kn">📎</span></div></div>
+      <div class="r ds"><div></div><div></div><div></div><div></div><div></div><div>Sum 17.11. · Kari H.</div><div></div><div class="n">7,50</div><div></div><div class="n">2,00</div><div></div><div></div><div></div><div></div><div class="hl"><span class="att">✓ Attester</span><span class="kn">↩</span><span class="kn">↗</span></div></div>
+
+      <div class="r ov"><div></div><div>18.11.</div><div>Ola N.</div><div>1042</div><div></div><div></div><div></div><div class="n">7,50</div><div></div><div></div><div></div><div></div><div></div><div>Dagen: 7,5 t av dagsnorm 7,5 t</div><div class="hl"><span class="kn g">✓</span><span class="kn">↩</span></div></div>
+      <div class="r li"><div><span class="cb"></span></div><div>18.11.</div><div>Ola N.</div><div>1042</div><div></div><div>Timelønn</div><div>07:00–15:00</div><div class="n">7,50</div><div></div><div></div><div></div><div></div><div></div><div></div><div class="hl"><span class="kn g">✓</span><span class="kn">↩</span><span class="kn">✂</span><span class="kn">✎</span></div></div>
+      <div class="r ds" style="border-bottom:0"><div></div><div></div><div></div><div></div><div></div><div>Sum 18.11. · Ola N.</div><div></div><div class="n">7,50</div><div></div><div></div><div></div><div></div><div></div><div></div><div class="hl"><span class="att">✓ Attester</span><span class="kn">↩</span><span class="kn">↗</span></div></div>
+    </div>
+  </div></div>
+  <div class="tekst"><table>
+    <tr><td>Dagskille</td><td><span class="nei">Svakt.</span> En grå strek over dagsummen, på slutten av dagen. Neste dag begynner med en rad som ser ut som alle andre.<span class="hv">Alle tre radtypene er hvite eller lysegrå. Annenhver linje er grå gjennom hele tabellen, uavhengig av dag og jobb.</span></td></tr>
+    <tr><td>Hører sammen</td><td><span class="nei">Svakt.</span> Jobbens linjer har ikke innrykk, ramme eller egen farge. Dato, ansatt og pr.nr. gjentas på hver rad.</td></tr>
+    <tr><td>Én jobb, én linje</td><td>3 rader med samme tall tre ganger (18.11.). «Dagen: … av dagsnorm» står én gang pr. jobb, så Kari har den to ganger.<span class="hv">Teksten kuttes av cellebredden: «Sum 17.11. · Ola N.» står i en kolonne på 78 punkter, og «Dagen: …» i en på 70. Regnet fra koden, ikke sett i nettleser.</span></td></tr>
+  </table></div>
+</div>
+
+<!-- ══════════ A ══════════ -->
+<div class="steg a" id="a">
+  <div class="hode"><span class="nr anb">ALTERNATIV A · ANBEFALT</span><span class="tittel">Dagen øverst, jobben som blokk under</span><span class="teller">12 rader for 3 dager</span></div>
+  <div class="flate"><div class="innhold">
+    <div class="verktoy"><span class="uke">‹ Uke 47 ›</span><span class="uke">2026 ▾</span><span class="boks"><i></i> Bare oversiktsrader</span><span class="hoyre">Velg parameter</span></div>
+    <div class="t">
+      <div class="r h"><div></div><div>Dato</div><div>Ansatt</div><div>Pr.nr.</div><div>Underprosjekt</div><div>Betegnelse</div><div>Fra–til</div><div class="n">Timer</div><div>Maskin</div><div class="n">M.t.</div><div>Vare</div><div class="n">Antall</div><div class="n">Beløp</div><div>Avvik</div><div></div></div>
+
+      <div class="dag">
+        <div class="r dh"><div></div><div>tir. 17.11.</div><div>Ola N.</div><div>1042</div><div></div><div class="svak" style="font-weight:500">1 jobb</div><div></div><div class="n">8,00</div><div></div><div class="n">4,00</div><div></div><div></div><div></div><div><span class="avm">+0,5 t</span></div><div class="hl"><span class="att">✓ Attester</span><span class="kn">↩</span><span class="kn">↗</span></div></div>
+        <div class="r li"><div><span class="cb"></span></div><div></div><div></div><div></div><div></div><div>Timelønn</div><div>07:00–15:00</div><div class="n">7,50</div><div>Volvo EC220E</div><div class="n">4,00</div><div>Betong · 4 m3</div><div></div><div></div><div></div><div class="hl"><span class="kn g">✓</span><span class="kn">↩</span><span class="kn">✂</span><span class="kn">✎</span></div></div>
+        <div class="r li"><div><span class="cb"></span></div><div></div><div></div><div></div><div></div><div>Overtid 50 %</div><div>15:00–15:30</div><div class="n">0,50</div><div></div><div></div><div></div><div></div><div></div><div></div><div class="hl"><span class="kn g">✓</span><span class="kn">↩</span><span class="kn">✂</span><span class="kn">✎</span></div></div>
+        <div class="r li"><div><span class="cb"></span></div><div></div><div></div><div></div><div></div><div>Smusstillegg</div><div></div><div></div><div></div><div></div><div></div><div class="n">1</div><div></div><div></div><div class="hl"><span class="kn g">✓</span><span class="kn">↩</span><span class="kn">✂</span><span class="kn">✎</span></div></div>
+      </div>
+
+      <div class="dag">
+        <div class="r dh"><div></div><div>tir. 17.11.</div><div>Kari H.</div><div></div><div></div><div class="svak" style="font-weight:500">2 jobber</div><div></div><div class="n">7,50</div><div></div><div class="n">2,00</div><div></div><div></div><div></div><div></div><div class="hl"><span class="att">✓ Attester</span><span class="kn">↩</span><span class="kn">↗</span></div></div>
+        <div class="r jh"><div></div><div></div><div></div><div>1042</div><div>12 Grunnarbeid</div><div></div><div></div><div class="n">4,00</div><div></div><div class="n">2,00</div><div></div><div></div><div></div><div></div><div class="hl"><span class="kn g">✓</span><span class="kn">↩</span></div></div>
+        <div class="r li"><div><span class="cb"></span></div><div></div><div></div><div></div><div></div><div>Timelønn</div><div>07:00–11:00</div><div class="n">4,00</div><div>Cat 308</div><div class="n">2,00</div><div></div><div></div><div></div><div></div><div class="hl"><span class="kn g">✓</span><span class="kn">↩</span><span class="kn">✂</span><span class="kn">✎</span></div></div>
+        <div class="r jh j2"><div></div><div></div><div></div><div>1051</div><div class="svak">Uten</div><div></div><div></div><div class="n">3,50</div><div></div><div></div><div></div><div></div><div></div><div></div><div class="hl"><span class="kn g">✓</span><span class="kn">↩</span></div></div>
+        <div class="r li j2"><div><span class="cb"></span></div><div></div><div></div><div></div><div></div><div>Timelønn</div><div>11:30–15:00</div><div class="n">3,50</div><div></div><div></div><div>Pukk 6-32 · 6 t</div><div></div><div></div><div></div><div class="hl"><span class="kn g">✓</span><span class="kn">↩</span><span class="kn">✂</span><span class="kn">✎</span></div></div>
+        <div class="r li j2"><div><span class="cb"></span></div><div></div><div></div><div></div><div></div><div>Parkering</div><div></div><div></div><div></div><div></div><div></div><div></div><div class="n">120</div><div></div><div class="hl"><span class="kn">📎</span></div></div>
+      </div>
+
+      <div class="dag">
+        <div class="r dh"><div></div><div>ons. 18.11.</div><div>Ola N.</div><div>1042</div><div></div><div class="svak" style="font-weight:500">1 jobb</div><div></div><div class="n">7,50</div><div></div><div></div><div></div><div></div><div></div><div></div><div class="hl"><span class="att">✓ Attester</span><span class="kn">↩</span><span class="kn">↗</span></div></div>
+        <div class="r li"><div><span class="cb"></span></div><div></div><div></div><div></div><div></div><div>Timelønn</div><div>07:00–15:00</div><div class="n">7,50</div><div></div><div></div><div></div><div></div><div></div><div></div><div class="hl"><span class="kn g">✓</span><span class="kn">↩</span><span class="kn">✂</span><span class="kn">✎</span></div></div>
+      </div>
+    </div>
+  </div></div>
+  <div class="tekst"><table>
+    <tr><td>Dagskille</td><td><span class="ja">Tydelig.</span> Hver dag er en egen ramme med luft imellom, og begynner med en blå dagsrad: dato, ansatt, dagens sum og «Attester».<span class="hv">Dagsummen flyttes fra bunnen til toppen. Du leser hvem og når før du leser linjene.</span></td></tr>
+    <tr><td>Hører sammen</td><td><span class="ja">Tydelig.</span> Jobbens linjer har en sammenhengende farget kant. To jobber samme dag får hver sin farge og hver sin jobbrad med pr.nr., underprosjekt, jobbens sum og ✓.<span class="hv">Dato, ansatt og pr.nr. skrives én gang, ikke på hver linje. Sorterer du på en kolonne, vises de på hver linje igjen, som i dag.</span></td></tr>
+    <tr><td>Én jobb, én linje</td><td>2 rader: dagsraden og linja. Jobbraden vises bare når dagen har flere jobber.<span class="hv">«Bare oversiktsrader» består og skjuler linjene. Da er en dag med én jobb én rad — reserven din, i samme visning.</span></td></tr>
+    <tr><td>Koster</td><td><span class="delvis">Middels.</span> Radene bygges ett sted, og tabellen har radtypene som trengs. Kolonnene og «Velg parameter» er urørt.</td></tr>
+  </table></div>
+</div>
+
+<!-- ══════════ B ══════════ -->
+<div class="steg b" id="b">
+  <div class="hode"><span class="nr">ALTERNATIV B</span><span class="tittel">Sammenslåtte celler: dagen og jobben til venstre</span><span class="teller">7 rader for 3 dager</span></div>
+  <div class="flate"><div class="innhold">
+    <div class="verktoy"><span class="uke">‹ Uke 47 ›</span><span class="uke">2026 ▾</span><span class="boks"><i></i> Bare oversiktsrader</span><span class="hoyre">Velg parameter</span></div>
+    <div class="t">
+      <div class="bh"><div>Dag · ansatt</div><div>Jobb</div><div>Betegnelse</div><div>Fra–til</div><div class="n" style="text-align:right">Timer</div><div>Maskin</div><div style="text-align:right">M.t.</div><div>Vare</div><div style="text-align:right">Antall</div><div style="text-align:right">Beløp</div><div>Avvik</div><div></div></div>
+
+      <div class="bd">
+        <div class="dc" style="grid-row:1 / span 3"><b>tir. 17.11. · Ola N.</b>8,00 t · maskin 4,00 <span class="avm">+0,5</span><div class="rad2"><span class="att">✓ Attester</span><span class="kn">↩</span><span class="kn">↗</span></div></div>
+        <div class="jc" style="grid-row:1 / span 3"><b class="s">1042</b> · Uten<br>8,00 t<div class="rad2"><span class="kn g">✓</span><span class="kn">↩</span></div></div>
+        <div class="f">Timelønn</div><div class="f">07:00–15:00</div><div class="f n">7,50</div><div class="f">Volvo EC220E</div><div class="f n">4,00</div><div class="f">Betong · 4 m3</div><div class="f"></div><div class="f"></div><div class="f"></div><div class="f hl"><span class="kn g">✓</span><span class="kn">✎</span></div>
+        <div>Overtid 50 %</div><div>15:00–15:30</div><div class="n">0,50</div><div></div><div></div><div></div><div></div><div></div><div></div><div class="hl"><span class="kn g">✓</span><span class="kn">✎</span></div>
+        <div>Smusstillegg</div><div></div><div></div><div></div><div></div><div></div><div class="n">1</div><div></div><div></div><div class="hl"><span class="kn g">✓</span><span class="kn">✎</span></div>
+      </div>
+
+      <div class="bd">
+        <div class="dc" style="grid-row:1 / span 3"><b>tir. 17.11. · Kari H.</b>7,50 t · maskin 2,00<div class="rad2"><span class="att">✓ Attester</span><span class="kn">↩</span><span class="kn">↗</span></div></div>
+        <div class="jc" style="grid-row:1"><b class="s">1042</b> · 12 Grunnarbeid<div class="rad2">4,00 t <span class="kn g">✓</span><span class="kn">↩</span></div></div>
+        <div class="f">Timelønn</div><div class="f">07:00–11:00</div><div class="f n">4,00</div><div class="f">Cat 308</div><div class="f n">2,00</div><div class="f"></div><div class="f"></div><div class="f"></div><div class="f"></div><div class="f hl"><span class="kn g">✓</span><span class="kn">✎</span></div>
+        <div class="jc j2" style="grid-row:2 / span 2"><b class="s">1051</b> · Uten<div class="rad2">3,50 t <span class="kn g">✓</span><span class="kn">↩</span></div></div>
+        <div class="jt">Timelønn</div><div class="jt">11:30–15:00</div><div class="jt n">3,50</div><div class="jt"></div><div class="jt"></div><div class="jt">Pukk 6-32 · 6 t</div><div class="jt"></div><div class="jt"></div><div class="jt"></div><div class="jt hl"><span class="kn g">✓</span><span class="kn">✎</span></div>
+        <div>Parkering</div><div></div><div></div><div></div><div></div><div></div><div></div><div class="n">120</div><div></div><div class="hl"><span class="kn">📎</span></div>
+      </div>
+
+      <div class="bd">
+        <div class="dc" style="grid-row:1"><b>ons. 18.11. · Ola N.</b>7,50 t<div class="rad2"><span class="att">✓ Attester</span><span class="kn">↩</span><span class="kn">↗</span></div></div>
+        <div class="jc" style="grid-row:1"><b class="s">1042</b> · Uten<div class="rad2">7,50 t <span class="kn g">✓</span><span class="kn">↩</span></div></div>
+        <div class="f">Timelønn</div><div class="f">07:00–15:00</div><div class="f n">7,50</div><div class="f"></div><div class="f"></div><div class="f"></div><div class="f"></div><div class="f"></div><div class="f"></div><div class="f hl"><span class="kn g">✓</span><span class="kn">✎</span></div>
+      </div>
+    </div>
+  </div></div>
+  <div class="tekst"><table>
+    <tr><td>Dagskille</td><td><span class="ja">Tydeligst.</span> Dagen er én celle som går over alle radene sine.</td></tr>
+    <tr><td>Hører sammen</td><td><span class="ja">Tydeligst.</span> Jobben er én celle ved siden av linjene sine. Ingen egne sumrader.</td></tr>
+    <tr><td>Én jobb, én linje</td><td>1 rad — men den blir to–tre ganger så høy som en vanlig rad, fordi dagscellen må romme navn, sum og knapper.<span class="hv">Knappene står tre steder: til venstre for dagen, i midten for jobben og til høyre for linja.</span></td></tr>
+    <tr><td>Koster</td><td><span class="nei">Mest.</span> Tabellen tegner én rad om gangen og kan ikke slå sammen celler over rader. Dato, ansatt, pr.nr. og underprosjekt kan da ikke lenger flyttes, skjules eller sorteres som egne kolonner i «Velg parameter» — det du ba om å beholde (B9).</td></tr>
+  </table></div>
+</div>
+
+<!-- ══════════ C ══════════ -->
+<div class="steg c" id="c">
+  <div class="hode"><span class="nr">ALTERNATIV C</span><span class="tittel">Som i dag, med farger, rammer og én rad mindre</span><span class="teller">12 rader for 3 dager</span></div>
+  <div class="flate"><div class="innhold">
+    <div class="verktoy"><span class="uke">‹ Uke 47 ›</span><span class="uke">2026 ▾</span><span class="boks"><i></i> Bare oversiktsrader</span><span class="hoyre">Velg parameter</span></div>
+    <div class="t">
+      <div class="r h"><div></div><div>Dato</div><div>Ansatt</div><div>Pr.nr.</div><div>Underprosjekt</div><div>Betegnelse</div><div>Fra–til</div><div class="n">Timer</div><div>Maskin</div><div class="n">M.t.</div><div>Vare</div><div class="n">Antall</div><div class="n">Beløp</div><div>Avvik</div><div></div></div>
+
+      <div class="dag">
+        <div class="r ov"><div></div><div>17.11.</div><div>Ola N.</div><div>1042</div><div></div><div></div><div></div><div class="n">8,00</div><div></div><div class="n">4,00</div><div></div><div></div><div></div><div><span class="avm">+0,5 t</span></div><div class="hl"><span class="att">✓ Attester</span><span class="kn">↩</span><span class="kn">↗</span></div></div>
+        <div class="r li"><div><span class="cb"></span></div><div>17.11.</div><div>Ola N.</div><div>1042</div><div></div><div>Timelønn</div><div>07:00–15:00</div><div class="n">7,50</div><div>Volvo EC220E</div><div class="n">4,00</div><div>Betong · 4 m3</div><div></div><div></div><div></div><div class="hl"><span class="kn g">✓</span><span class="kn">↩</span><span class="kn">✂</span><span class="kn">✎</span></div></div>
+        <div class="r li"><div><span class="cb"></span></div><div>17.11.</div><div>Ola N.</div><div>1042</div><div></div><div>Overtid 50 %</div><div>15:00–15:30</div><div class="n">0,50</div><div></div><div></div><div></div><div></div><div></div><div></div><div class="hl"><span class="kn g">✓</span><span class="kn">↩</span><span class="kn">✂</span><span class="kn">✎</span></div></div>
+        <div class="r li"><div><span class="cb"></span></div><div>17.11.</div><div>Ola N.</div><div>1042</div><div></div><div>Smusstillegg</div><div></div><div></div><div></div><div></div><div></div><div class="n">1</div><div></div><div></div><div class="hl"><span class="kn g">✓</span><span class="kn">↩</span><span class="kn">✂</span><span class="kn">✎</span></div></div>
+      </div>
+
+      <div class="dag">
+        <div class="r ov"><div></div><div>17.11.</div><div>Kari H.</div><div>1042</div><div>12 Grunnarbeid</div><div></div><div></div><div class="n">4,00</div><div></div><div class="n">2,00</div><div></div><div></div><div></div><div></div><div class="hl"><span class="kn g">✓</span><span class="kn">↩</span></div></div>
+        <div class="r li"><div><span class="cb"></span></div><div>17.11.</div><div>Kari H.</div><div>1042</div><div>12 Grunnarbeid</div><div>Timelønn</div><div>07:00–11:00</div><div class="n">4,00</div><div>Cat 308</div><div class="n">2,00</div><div></div><div></div><div></div><div></div><div class="hl"><span class="kn g">✓</span><span class="kn">↩</span><span class="kn">✂</span><span class="kn">✎</span></div></div>
+        <div class="r ov j2"><div></div><div>17.11.</div><div>Kari H.</div><div>1051</div><div></div><div></div><div></div><div class="n">3,50</div><div></div><div></div><div></div><div></div><div></div><div></div><div class="hl"><span class="kn g">✓</span><span class="kn">↩</span></div></div>
+        <div class="r li j2"><div><span class="cb"></span></div><div>17.11.</div><div>Kari H.</div><div>1051</div><div></div><div>Timelønn</div><div>11:30–15:00</div><div class="n">3,50</div><div></div><div></div><div>Pukk 6-32 · 6 t</div><div></div><div></div><div></div><div class="hl"><span class="kn g">✓</span><span class="kn">↩</span><span class="kn">✂</span><span class="kn">✎</span></div></div>
+        <div class="r li j2"><div><span class="cb"></span></div><div>17.11.</div><div>Kari H.</div><div>1051</div><div></div><div>Parkering</div><div></div><div></div><div></div><div></div><div></div><div></div><div class="n">120</div><div></div><div class="hl"><span class="kn">📎</span></div></div>
+        <div class="r ds"><div></div><div></div><div></div><div></div><div></div><div>Sum dagen</div><div></div><div class="n">7,50</div><div></div><div class="n">2,00</div><div></div><div></div><div></div><div></div><div class="hl"><span class="att">✓ Attester</span><span class="kn">↩</span><span class="kn">↗</span></div></div>
+      </div>
+
+      <div class="dag">
+        <div class="r ov"><div></div><div>18.11.</div><div>Ola N.</div><div>1042</div><div></div><div></div><div></div><div class="n">7,50</div><div></div><div></div><div></div><div></div><div></div><div></div><div class="hl"><span class="att">✓ Attester</span><span class="kn">↩</span><span class="kn">↗</span></div></div>
+        <div class="r li"><div><span class="cb"></span></div><div>18.11.</div><div>Ola N.</div><div>1042</div><div></div><div>Timelønn</div><div>07:00–15:00</div><div class="n">7,50</div><div></div><div></div><div></div><div></div><div></div><div></div><div class="hl"><span class="kn g">✓</span><span class="kn">↩</span><span class="kn">✂</span><span class="kn">✎</span></div></div>
+      </div>
+    </div>
+  </div></div>
+  <div class="tekst"><table>
+    <tr><td>Dagskille</td><td><span class="delvis">Bedre enn i dag.</span> Hver dag får egen ramme med luft imellom. Men dagen har ingen egen overskrift: den begynner med første jobb, og dagens sum står nederst.</td></tr>
+    <tr><td>Hører sammen</td><td><span class="delvis">Bedre enn i dag.</span> Jobbraden er blå, og linjene har farget kant. Dato, ansatt og pr.nr. gjentas fortsatt på hver rad.</td></tr>
+    <tr><td>Én jobb, én linje</td><td>2 rader: dagsummen slås inn i jobbraden når dagen har én jobb. Har dagen flere jobber, står dagsummen nederst som i dag.<span class="hv">Dagen ser derfor ulik ut etter hvor mange jobber den har: «Attester» står øverst den ene dagen og nederst den neste.</span></td></tr>
+    <tr><td>Koster</td><td><span class="ja">Minst.</span> Samme rader som i dag, nye farger og én regel for sammenslåing.</td></tr>
+  </table></div>
+</div>
+
+<script>
+  const q = new URLSearchParams(location.search).get('steg') || 'a';
+  if (q === 'alle') document.body.classList.add('alle');
+  else document.getElementById(q).classList.add('vis');
+  const maal = q === 'alle' ? document.body : document.getElementById(q);
+  document.title = String(Math.ceil(maal.getBoundingClientRect().height)) + 'x' + String(Math.ceil(maal.getBoundingClientRect().width));
+</script>
+</body>
+</html>

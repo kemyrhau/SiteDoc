@@ -11,6 +11,7 @@ import { STOETTEDE_SPRAAK } from "@sitedoc/shared";
 import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
 import { SignertBilde } from "@/components/SignertBilde";
 import { SignertLenke } from "@/components/SignertLenke";
+import { useTilbakeAdresse } from "@/components/nivaa/TilbakeLenke";
 import { beregnLesertilstand, KLARGJORING_POLL_MS } from "@/lib/lesertilstand";
 
 export default function DokumentLeser() {
@@ -20,6 +21,12 @@ export default function DokumentLeser() {
   const searchParams = useSearchParams();
   const prosjektId = params.prosjektId as string;
   const dokumentId = params.dokumentId as string;
+  // w14 (TK6): pilen går dit leseren ble åpnet fra (mappen, eller siden søket ble åpnet fra).
+  // Åpnet direkte: Mapper.
+  const tilbake = useTilbakeAdresse({
+    href: `/dashbord/${prosjektId}/mapper`,
+    labelKey: "tilbake.tilMapper",
+  });
   const highlight = searchParams.get("highlight") ?? "";
 
   const [språk, setSpråk] = useState("nb"); // Start alltid med kildespråk
@@ -130,7 +137,9 @@ export default function DokumentLeser() {
       <div className="flex h-full flex-col bg-gray-50">
         <header className="shrink-0 flex items-center gap-3 border-b border-gray-200 bg-white px-4 py-3 shadow-sm">
           <Link
-            href={`/dashbord/${prosjektId}/mapper`}
+            href={tilbake?.href ?? `/dashbord/${prosjektId}/mapper`}
+            title={tilbake ? t(tilbake.labelKey) : undefined}
+            aria-label={tilbake ? t(tilbake.labelKey) : undefined}
             className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100"
           >
             <ArrowLeft className="h-5 w-5" />
@@ -195,7 +204,9 @@ export default function DokumentLeser() {
       <header className="shrink-0 flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3 shadow-sm">
         <div className="flex items-center gap-3">
           <Link
-            href={`/dashbord/${prosjektId}/mapper`}
+            href={tilbake?.href ?? `/dashbord/${prosjektId}/mapper`}
+            title={tilbake ? t(tilbake.labelKey) : undefined}
+            aria-label={tilbake ? t(tilbake.labelKey) : undefined}
             className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100"
           >
             <ArrowLeft className="h-5 w-5" />

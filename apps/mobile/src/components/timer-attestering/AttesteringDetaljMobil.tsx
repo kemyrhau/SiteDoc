@@ -86,23 +86,26 @@ export function AttesteringDetaljMobil({
   const timerRader = (sheet?.timer ?? []) as unknown as TimerRad[];
   const tilleggRader = (sheet?.tillegg ?? []) as unknown as TilleggRad[];
   const maskinRader = (sheet?.maskiner ?? []) as unknown as MaskinRad[];
+  // w7 (B15): egen sedel — kan leses, ikke attesteres/returneres (serveren avviser uansett).
+  const egneTimer = sheet?.egneTimer === true;
+  const radKanVelges = (r: { attestertStatus: string | null }) => !egneTimer && r.attestertStatus === "pending";
 
   // Pre-utvalg: alle pending-rader (firma-kontekst — ingen projectId-filter)
   useEffect(() => {
     if (!sheet) return;
     setValgteTimer(
       new Set(
-        timerRader.filter((r) => r.attestertStatus === "pending").map((r) => r.id),
+        timerRader.filter(radKanVelges).map((r) => r.id),
       ),
     );
     setValgteTillegg(
       new Set(
-        tilleggRader.filter((r) => r.attestertStatus === "pending").map((r) => r.id),
+        tilleggRader.filter(radKanVelges).map((r) => r.id),
       ),
     );
     setValgteMaskin(
       new Set(
-        maskinRader.filter((r) => r.attestertStatus === "pending").map((r) => r.id),
+        maskinRader.filter(radKanVelges).map((r) => r.id),
       ),
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -301,7 +304,7 @@ export function AttesteringDetaljMobil({
             <RadCheckbox
               key={rad.id}
               valgt={valgteTimer.has(rad.id)}
-              tilgjengelig={rad.attestertStatus === "pending"}
+              tilgjengelig={radKanVelges(rad)}
               status={rad.attestertStatus}
               hovedtekst={`${tilTall(rad.timer).toFixed(2)} ${t("timer.timerEnhet")}`}
               // V20 TILLEGG 2: bæreren viser matpausen skrivebeskyttet (parité med web).
@@ -325,7 +328,7 @@ export function AttesteringDetaljMobil({
             <RadCheckbox
               key={rad.id}
               valgt={valgteTillegg.has(rad.id)}
-              tilgjengelig={rad.attestertStatus === "pending"}
+              tilgjengelig={radKanVelges(rad)}
               status={rad.attestertStatus}
               hovedtekst={`${tilTall(rad.antall).toFixed(2)}`}
               undertekst={rad.kommentar ?? null}
@@ -344,7 +347,7 @@ export function AttesteringDetaljMobil({
             <RadCheckbox
               key={rad.id}
               valgt={valgteMaskin.has(rad.id)}
-              tilgjengelig={rad.attestertStatus === "pending"}
+              tilgjengelig={radKanVelges(rad)}
               status={rad.attestertStatus}
               hovedtekst={`${tilTall(rad.timer).toFixed(2)} ${t("timer.timerEnhet")}`}
               undertekst={
@@ -368,7 +371,13 @@ export function AttesteringDetaljMobil({
         )}
       </ScrollView>
 
-      {/* Bunn-action-bar */}
+      {/* Bunn-action-bar — w7 (B15): på egen sedel står forklaringen i stedet for knappene. */}
+      {egneTimer ? (
+        <View className="border-t border-gray-200 bg-white p-4">
+          <Text className="text-center text-sm font-medium text-gray-900">{t("timer.attestering.egneTimer.merke")}</Text>
+          <Text className="mt-1 text-center text-xs text-gray-600">{t("timer.attestering.egneTimer.forklaring")}</Text>
+        </View>
+      ) : (
       <View className="border-t border-gray-200 bg-white p-4">
         <Text className="mb-2 text-center text-xs text-gray-500">
           {t("timer.attestering.radValg.antallValgt", { antall: antallValgt })}
@@ -404,6 +413,7 @@ export function AttesteringDetaljMobil({
         </View>
         </KnappMedForklaring>
       </View>
+      )}
 
       {returnerVises && (
         <ReturnerModal

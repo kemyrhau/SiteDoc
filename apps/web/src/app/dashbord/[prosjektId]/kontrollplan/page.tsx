@@ -103,20 +103,23 @@ export default function KontrollplanSide() {
 
   // L1.5/L1.6: kan innlogget bruker sette forhåndsvalgt flyt (admin)? Styrer «Velg flyt for
   // punktet»-handlingen i feilmeldingen (vises kun til den som faktisk kan det).
+  // F13c-2 (Kenneth 2026-11-23): samme flagg styrer alle planendringer — «kontrollplanen er
+  // for prosjektadmin». Vanlige medlemmer ser planen og utfører sjekklister fra den.
   const { data: kanRedigere } = trpc.mal.kanRedigere.useQuery(
     { projectId: params.prosjektId },
     { enabled: !!params.prosjektId }
   );
 
-  // Auto-opprett kontrollplan når byggeplass byttes
+  // Auto-opprett kontrollplan når byggeplass byttes — bare for prosjektadmin (F13c-2,
+  // serveren krever verifiserAdmin). Vanlige medlemmer ser tom plan til admin har laget den.
   useEffect(() => {
-    if (aktivByggeplass?.id && params.prosjektId && !kontrollplan && !isLoading) {
+    if (kanRedigere === true && aktivByggeplass?.id && params.prosjektId && !kontrollplan && !isLoading) {
       opprettEllerHent.mutate({
         projectId: params.prosjektId,
         byggeplassId: aktivByggeplass.id,
       });
     }
-  }, [aktivByggeplass?.id, params.prosjektId, kontrollplan, isLoading]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [aktivByggeplass?.id, params.prosjektId, kontrollplan, isLoading, kanRedigere]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Filtrerte punkter
   const filteredPunkter = useMemo(() => {
@@ -288,7 +291,7 @@ export default function KontrollplanSide() {
               <List className="h-4 w-4" />
             </button>
           </div>
-          {kontrollplan && (
+          {kanRedigere === true && kontrollplan && (
             <button
               onClick={() => setVisImportDialog(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 border text-gray-600 text-sm rounded hover:bg-gray-50 transition"
@@ -297,7 +300,7 @@ export default function KontrollplanSide() {
               {t("kontrollplan.importFremdriftsplan")}
             </button>
           )}
-          {kontrollplan && kontrollplan.punkter.some((p) => p.importTaskUid != null) && (
+          {kanRedigere === true && kontrollplan && kontrollplan.punkter.some((p) => p.importTaskUid != null) && (
             <button
               onClick={() => setVisRevisjonDialog(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 border text-gray-600 text-sm rounded hover:bg-gray-50 transition"
@@ -308,13 +311,15 @@ export default function KontrollplanSide() {
           )}
           {kontrollplan && kontrollplan.punkter.length > 0 && (
             <>
-              <button
-                onClick={() => setVisKopierDialog(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 border text-gray-600 text-sm rounded hover:bg-gray-50 transition"
-              >
-                <Copy className="h-4 w-4" />
-                Kopier
-              </button>
+              {kanRedigere === true && (
+                <button
+                  onClick={() => setVisKopierDialog(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 border text-gray-600 text-sm rounded hover:bg-gray-50 transition"
+                >
+                  <Copy className="h-4 w-4" />
+                  Kopier
+                </button>
+              )}
               <button
                 onClick={() => handleSluttrapport()}
                 className="flex items-center gap-1.5 px-3 py-1.5 border text-gray-600 text-sm rounded hover:bg-gray-50 transition"
@@ -324,13 +329,15 @@ export default function KontrollplanSide() {
               </button>
             </>
           )}
-          <button
-            onClick={() => setVisOpprettDialog(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-sitedoc-primary text-white text-sm rounded hover:bg-sitedoc-primary/90 transition"
-          >
-            <Plus className="h-4 w-4" />
-            {t("kontrollplan.leggTilPunkt")}
-          </button>
+          {kanRedigere === true && (
+            <button
+              onClick={() => setVisOpprettDialog(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-sitedoc-primary text-white text-sm rounded hover:bg-sitedoc-primary/90 transition"
+            >
+              <Plus className="h-4 w-4" />
+              {t("kontrollplan.leggTilPunkt")}
+            </button>
+          )}
         </div>
       </div>
       </SonetonetSidehode>
@@ -384,7 +391,7 @@ export default function KontrollplanSide() {
           punkter={filteredPunkter}
           milepeler={kontrollplan?.milepeler ?? []}
           onPunktKlikk={handlePunktKlikk}
-          onMilepelRediger={handleMilepelRediger}
+          onMilepelRediger={kanRedigere === true ? handleMilepelRediger : undefined}
         />
       ) : (
         <ListeVisning
@@ -396,7 +403,7 @@ export default function KontrollplanSide() {
       )}
 
       {/* Opprett punkt-dialog */}
-      {visOpprettDialog && kontrollplan && (
+      {kanRedigere === true && visOpprettDialog && kontrollplan && (
         <OpprettPunktDialog
           kontrollplanId={kontrollplan.id}
           projectId={params.prosjektId}
@@ -416,11 +423,12 @@ export default function KontrollplanSide() {
           onLukk={() => setValgtPunkt(null)}
           onOppdatert={handleRefresh}
           renderHandling={renderPunktHandling}
+          kanRedigere={kanRedigere === true}
         />
       )}
 
       {/* Importer fremdriftsplan */}
-      {visImportDialog && kontrollplan && (
+      {kanRedigere === true && visImportDialog && kontrollplan && (
         <ImportFremdriftsplanDialog
           kontrollplanId={kontrollplan.id}
           projectId={params.prosjektId}
@@ -431,7 +439,7 @@ export default function KontrollplanSide() {
       )}
 
       {/* Revider fra fremdriftsplan (del 2) */}
-      {visRevisjonDialog && kontrollplan && aktivByggeplass && (
+      {kanRedigere === true && visRevisjonDialog && kontrollplan && aktivByggeplass && (
         <RevidereFremdriftsplanDialog
           kontrollplanId={kontrollplan.id}
           projectId={params.prosjektId}
@@ -443,7 +451,7 @@ export default function KontrollplanSide() {
       )}
 
       {/* Kopier mellom områder */}
-      {visKopierDialog && kontrollplan && aktivByggeplass && (
+      {kanRedigere === true && visKopierDialog && kontrollplan && aktivByggeplass && (
         <KopierDialog
           kontrollplanId={kontrollplan.id}
           byggeplassId={aktivByggeplass.id}

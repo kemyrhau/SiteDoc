@@ -10,6 +10,7 @@ import { SokModalProvider } from "@/kontekst/sok-modal-kontekst";
 import { NavBreddeProvider } from "@/kontekst/nav-bredde-kontekst";
 import { Toppbar } from "@/components/layout/Toppbar";
 import { NavSidebar } from "@/components/layout/NavSidebar";
+import { AktivSeksjonSporer } from "@/hooks/useAktivSeksjon";
 import { ImpersoneringBanner } from "@/components/layout/ImpersoneringBanner";
 import { DeaktivertForklaring } from "@/components/DeaktivertForklaring";
 import { trpc } from "@/lib/trpc";
@@ -37,6 +38,7 @@ export default function DashbordLayout({
               <PresenceProvider>
                 <SokModalProvider>
                   <NavBreddeProvider>
+                  <AktivSeksjonSporer />
                   <div className="flex h-screen flex-col overflow-hidden">
                     <Toppbar />
                     <ImpersoneringBanner />

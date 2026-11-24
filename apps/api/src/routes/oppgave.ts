@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { Prisma } from "@sitedoc/db";
+import { finnHmsGruppe } from "../services/hmsGruppe";
 import { krevOmradeVedOmradeOmfang } from "./lokasjon-omfang";
 import { byggEndringsloggInnslag, skrivEndringslogg } from "../services/endringslogg";
 import { byggeplassFilterViaTegning } from "../services/byggeplassFilter";
@@ -464,17 +465,19 @@ export const oppgaveRouter = router({
       // Verifiser tilgang til sjekklisten
       const sjekkliste = await ctx.prisma.checklist.findUniqueOrThrow({
         where: { id: input.checklistId },
-        include: { template: { select: { projectId: true } } },
+        include: { template: { select: { projectId: true, domain: true, hmsSynlighet: true } } },
       });
+      // H3-2: malens domene + synlighet sendes med, ellers regnes en privat HMS-sjekkliste
+      // ikke som privat, og prosjektadmin slipper gjennom tidlig retur.
       await verifiserDokumentTilgang(
         ctx.userId,
         sjekkliste.template.projectId,
         sjekkliste.bestillerFaggruppeId,
         sjekkliste.utforerFaggruppeId,
-        undefined,
+        sjekkliste.template.domain,
         sjekkliste.id,
         "checklist",
-        undefined,
+        sjekkliste.template.hmsSynlighet,
       );
 
       return ctx.prisma.task.findMany({
@@ -548,19 +551,13 @@ export const oppgaveRouter = router({
       if (erHms) {
         await verifiserProsjektmedlem(ctx.userId, mal.projectId);
 
-        // Finn HMS-gruppen i prosjektet
-        const hmsGruppe = await ctx.prisma.projectGroup.findFirst({
-          where: {
-            projectId: mal.projectId,
-            domains: { array_contains: ["hms"] },
-          },
-          select: { id: true },
-        });
+        // Finn HMS-behandlergruppa entydig via systemNokkel (H1 — ikke på domenet «hms»)
+        const hmsGruppe = await finnHmsGruppe(ctx.prisma, mal.projectId);
 
         if (!hmsGruppe) {
           throw new TRPCError({
             code: "BAD_REQUEST",
-            message: "HMS-gruppe ikke konfigurert i dette prosjektet. Opprett en tilgangsgruppe med HMS-domene under Oppsett → Kontakter.",
+            message: "HMS-gruppe ikke konfigurert i dette prosjektet. Aktiver HMS-modulen på nytt under Oppsett → Moduler.",
           });
         }
 

@@ -4,10 +4,15 @@
  * raddialogen, og overlapp-meldingen navngir det andre kortet.
  */
 import type { ReactNode } from "react";
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({ data: {} as Record<string, unknown> }));
+
+// w2: dagssiden leser prosjektet fra toppen (useProsjekt) for «+ Registrer timer».
+vi.mock("@/kontekst/prosjekt-kontekst", () => ({
+  useProsjekt: () => ({ prosjektId: null }),
+}));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: () => {}, replace: () => {}, back: () => {} }),
@@ -79,6 +84,8 @@ const rad = (id: string, projectId: string, fraTid: string, tilTid: string, time
   beskrivelse: null,
   attestertStatus: "pending",
   erReise: false,
+  // w3a: hver rad er sin egen jobb (eget kort).
+  kortId: `k-${id}`,
 });
 
 function rendre(modus: string) {
@@ -124,14 +131,15 @@ function aapneNyRadIKort(kort: string) {
 describe("prosjektkort — raddialogen", () => {
   afterEach(cleanup);
 
-  it("prosjektet er låst når raden legges til fra et kort", () => {
+  // w3a (S1 A): vinduet fra en jobb arver prosjektet og viser ikke feltet (var: låst nedtrekk).
+  it("prosjektet arves og vises ikke når raden legges til fra et kort", () => {
     rendre("prosjektkort");
     const dialog = aapneNyRadIKort("2050 — Barnehage");
-    const prosjektValg = within(dialog).getAllByRole("combobox")[0] as HTMLSelectElement;
-    expect(prosjektValg.value).toBe("p2");
-    expect(prosjektValg.disabled).toBe(true);
+    expect(dialog.textContent).not.toContain("timer.felt.prosjekt");
+    expect(dialog.textContent).not.toContain("timer.felt.underprosjekt");
   });
 
+  // R1 (a): meldingen sier at det er en rad, og kortet med fra–til (byggeplass, ellers prosjektet).
   it("overlapp-meldingen navngir kortet den andre raden ligger på", () => {
     rendre("prosjektkort");
     const dialog = aapneNyRadIKort("2050 — Barnehage");
@@ -139,7 +147,7 @@ describe("prosjektkort — raddialogen", () => {
     fireEvent.change(fra!, { target: { value: "08:00" } });
     fireEvent.change(til!, { target: { value: "09:00" } });
     fireEvent.submit(dialog.querySelector("form")!);
-    expect(dialog.textContent).toContain("timer.feil.overlappKort");
-    expect(dialog.textContent).toContain('"kort":"2041 — Skole"');
+    expect(dialog.textContent).toContain("timer.feil.overlappRadIKort");
+    expect(dialog.textContent).toContain('"kort":"2041 — Skole · 07:00–11:00"');
   });
 });

@@ -49,8 +49,8 @@ export interface Overtidsgrunnlag {
   /** F-F1: timer på fraværsrader — holdt UTENFOR overtidsfordelingen. */
   fravaerTimer: number;
   /**
-   * F-F1 uke-nivå: timene raden(e) teller med i en ukesum — totaltimer der fravær bare
-   * fyller normen, aldri mer: totaltimer − fravær + min(fravær, max(0, norm − arbeid)).
+   * F-F1 uke-nivå: timene raden(e) teller med i en ukesum — arbeid pluss fravær som bare
+   * fyller normen, aldri mer: arbeid + min(fravær, max(0, norm − arbeid)). Uten reise (A4, B85).
    * Meningsfull på dag-nivå (norm = dagsnorm); ukesbadgen summerer den.
    */
   ukeTimer: number;
@@ -62,6 +62,15 @@ export interface Overtidsgrunnlag {
   beregnetOvertid: number;
   /** true når beregnet og valgt overtid spriker (utover 0,01 t). */
   avvik: boolean;
+  /**
+   * A4 (B85): ukeregnestykket, bare på uke-grunnlaget serveren fryser i attestert-snapshotet.
+   * Lesesiden bruker `lesUkeregnestykkeFraSnapshot`.
+   */
+  ukeregnestykke?: Ukeregnestykke;
+  /** A4 (B53 A): var uka komplett da regnestykket ble fryst? Lesesiden: `lesFrossetUkeFraSnapshot`. */
+  ukeKomplett?: boolean;
+  /** A4: arbeidsdagene som manglet sendt eller attestert sedel da regnestykket ble fryst (ISO). */
+  ukeManglerDager?: string[];
 }
 
 const round2 = (n: number): number => Math.round(n * 100) / 100;
@@ -84,7 +93,8 @@ export function beregnOvertidsgrunnlag(
   const reisetimer = round2(reiseRader.reduce((s, r) => s + r.timer, 0));
   const fravaerTimer = round2(fravaerRader.reduce((s, r) => s + r.timer, 0));
   const totaltimer = round2(arbeidstimer + reisetimer + fravaerTimer);
-  const ukeTimer = round2(totaltimer - fravaerTimer + fravaerINorm(fravaerTimer, arbeidstimer, norm));
+  // A4 (B85, retter AM12): ukesummen er uten reise — arbeid + fravær som fyller normen.
+  const ukeTimer = round2(arbeidstimer + fravaerINorm(fravaerTimer, arbeidstimer, norm));
   const sumOvertid = round2(
     arbeidRader
       .filter((r) => r.overtidsnivaa !== null)
@@ -148,7 +158,8 @@ export function beregnUkeOvertidsgrunnlag(
     arbeidstimer,
     reisetimer,
     fravaerTimer,
-    ukeTimer: round2(totaltimer - fravaerTimer + iNorm),
+    // A4 (B85, retter AM12): uten reise.
+    ukeTimer: round2(arbeidstimer + iNorm),
     sumOrdinaert,
     sumOvertid,
     beregnetOvertid,
@@ -322,20 +333,38 @@ export function ukeAvvikRader(
 ): string[] {
   const retning = avvikRetning(g);
   if (retning === null) return [];
+  const sortert = sorterRader(rader);
+  if (retning === "under") {
+    return overtidsRader(sortert);
+  }
+
+  return raderEtterNorm(sortert, g.norm, dagsnorm);
+}
+
+/** Ukas rader i tidsrekkefølge (dato, fraTid, opprettet, id). */
+function sorterRader<R extends UkeAvvikRadInput>(rader: readonly R[]): R[] {
   const ms = (t: Date | string | null | undefined): number =>
     t == null ? Number.POSITIVE_INFINITY : typeof t === "string" ? Date.parse(t) : t.getTime();
-  const sortert = [...rader].sort(
+  return [...rader].sort(
     (a, b) =>
       (a.dato < b.dato ? -1 : a.dato > b.dato ? 1 : 0) ||
       ((a.fraTid ?? "99:99") < (b.fraTid ?? "99:99") ? -1 : (a.fraTid ?? "99:99") > (b.fraTid ?? "99:99") ? 1 : 0) ||
       ms(a.createdAt) - ms(b.createdAt) ||
       (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
   );
-  const erArbeid = (r: UkeAvvikRadInput) => !r.erReise && !r.erFravaer;
-  if (retning === "under") {
-    return sortert.filter((r) => erArbeid(r) && r.overtidsnivaa !== null).map((r) => r.id);
-  }
+}
 
+/** Ukas overtidslinjer: arbeid (ikke reise, ikke fravær) med overtidsnivå. */
+function overtidsRader(sortert: readonly UkeAvvikRadInput[]): string[] {
+  return sortert.filter((r) => !r.erReise && !r.erFravaer && r.overtidsnivaa !== null).map((r) => r.id);
+}
+
+/** De ordinære arbeidsradene etter at `norm` er passert (sortert input). */
+function raderEtterNorm(
+  sortert: readonly UkeAvvikRadInput[],
+  norm: number,
+  dagsnorm?: (iso: string) => number,
+): string[] {
   // F-F1: fravær fyller bare dagens norm — beregn hvor mye fravær som teller pr. dato.
   const fravaerKreditt = new Map<string, number>();
   if (dagsnorm) {
@@ -368,7 +397,177 @@ export function ukeAvvikRader(
       continue;
     }
     sum = round2(sum + r.timer);
-    if (r.overtidsnivaa === null && sum > g.norm + 0.005) merket.push(r.id);
+    if (r.overtidsnivaa === null && sum > norm + 0.005) merket.push(r.id);
   }
   return merket;
+}
+
+// ============================================================================
+//  A4 — ukeregnestykket (plan § 4.17 del B «Ukevarselet og hvor overtid kan
+//  trekkes», Kenneth B85 ja 2026-11-24; retter AM12).
+//
+//  ÉN funksjon for skjerm og server: mandag–søndag, uten reise. Serveren regner
+//  den (`lastUkeOvertid`), sender den til attesteringen og fryser den i
+//  attestert-snapshotet; skjermen viser serverens tall og regner ikke selv.
+//
+//  · ukesum       = arbeid (ordinært + overtid) + fravær som fyller dagens norm
+//  · mangler      = ukenorm − ukesum (aldri under 0)
+//  · overDagsnorm = summen av dagenes «+»-merker: max(0, arbeid + fravær − dagsnorm)
+//  · godtatt      = overDagsnorm − mangler (aldri under 0)
+//  · kanTrekkes   = ført overtid − godtatt (aldri under 0), bare når uka er under
+//                   ukenorm. Dagen viser ukas tall, aldri mer enn dagens førte overtid.
+//  · overIkkeFort = overtid regelen gir over ukenorm, minus ført overtid — «over
+//                   ukenorm uten ført overtid», som før.
+// ============================================================================
+
+/** Én dag i uka: datoens dagsnorm og radene (reise og fravær merket). */
+export interface UkeregnestykkeDagInput {
+  /** ISO-dato YYYY-MM-DD. */
+  dato: string;
+  dagsnorm: number;
+  rader: readonly OvertidRad[];
+}
+
+export interface UkeregnestykkeDag {
+  dato: string;
+  dagsnorm: number;
+  arbeid: number;
+  fravaer: number;
+  reise: number;
+  /** Ført overtid den dagen (arbeid med overtidsnivå). */
+  overtid: number;
+  /** Dagens normmerke: arbeid + fravær − dagsnorm. */
+  avvik: number;
+  /** Timer av ukas «kan trekkes» som kan trekkes her: min(uka, dagens overtid). */
+  kanTrekkes: number;
+}
+
+export interface Ukeregnestykke {
+  ukenorm: number;
+  /** Arbeid + fravær som fyller normen, uten reise. */
+  ukesum: number;
+  /** Reisen i uka — står for seg, teller ikke i ukesummen. */
+  reise: number;
+  sumOrdinaert: number;
+  /** Ført overtid i uka. */
+  sumOvertid: number;
+  fravaer: number;
+  /** Timene uka mangler til ukenorm (0 når uka er på eller over). */
+  mangler: number;
+  /** Summen av dagenes «+»-merker. */
+  overDagsnorm: number;
+  /** Overtid som er godtatt: overDagsnorm − mangler. */
+  godtattOvertid: number;
+  /** Ført overtid som kan trekkes (B85). 0 når uka er på eller over ukenorm. */
+  kanTrekkes: number;
+  /** Timer over ukenorm som ikke er ført som overtid. */
+  overIkkeFort: number;
+  dager: UkeregnestykkeDag[];
+}
+
+/** Ukeregnestykket (B85) for dagene i uka mot ukenormen. REN. */
+export function beregnUkeregnestykke(
+  dager: readonly UkeregnestykkeDagInput[],
+  ukenorm: number,
+): Ukeregnestykke {
+  const perDag = [...dager]
+    .sort((a, b) => (a.dato < b.dato ? -1 : a.dato > b.dato ? 1 : 0))
+    .map((d) => ({ d, g: beregnOvertidsgrunnlag([...d.rader], d.dagsnorm) }));
+  const sum = (f: (g: Overtidsgrunnlag) => number) => round2(perDag.reduce((a, x) => a + f(x.g), 0));
+  const ukesum = sum((g) => g.ukeTimer);
+  const sumOvertid = sum((g) => g.sumOvertid);
+  const arbeid = sum((g) => g.arbeidstimer);
+  const mangler = ukenorm > 0 ? round2(Math.max(0, ukenorm - ukesum)) : 0;
+  const overDagsnorm = round2(
+    perDag.reduce((a, { d, g }) => a + (d.dagsnorm > 0 ? Math.max(0, g.arbeidstimer + g.fravaerTimer - d.dagsnorm) : 0), 0),
+  );
+  const godtattOvertid = round2(Math.max(0, overDagsnorm - mangler));
+  const kanTrekkes = mangler > 0.005 ? round2(Math.max(0, sumOvertid - godtattOvertid)) : 0;
+  const beregnet = ukenorm > 0
+    ? round2(
+        klassifiserArbeidstid({ arbeidstimer: ukesum, dagsnorm: ukenorm })
+          .filter((s) => s.overtidsnivaa !== null)
+          .reduce((a, s) => a + s.timer, 0),
+      )
+    : 0;
+  return {
+    ukenorm,
+    ukesum,
+    reise: sum((g) => g.reisetimer),
+    sumOrdinaert: round2(arbeid - sumOvertid),
+    sumOvertid,
+    fravaer: sum((g) => g.fravaerTimer),
+    mangler,
+    overDagsnorm,
+    godtattOvertid,
+    kanTrekkes,
+    overIkkeFort: round2(Math.max(0, beregnet - sumOvertid)),
+    dager: perDag.map(({ d, g }) => ({
+      dato: d.dato,
+      dagsnorm: d.dagsnorm,
+      arbeid: g.arbeidstimer,
+      fravaer: g.fravaerTimer,
+      reise: g.reisetimer,
+      overtid: g.sumOvertid,
+      avvik: round2(g.arbeidstimer + g.fravaerTimer - d.dagsnorm),
+      kanTrekkes: round2(Math.min(kanTrekkes, g.sumOvertid)),
+    })),
+  };
+}
+
+/** Har uka et ukevarsel (overtid som kan trekkes, eller timer over ukenorm uten overtid)? */
+export function harUkevarsel(r: Pick<Ukeregnestykke, "kanTrekkes" | "overIkkeFort">): boolean {
+  return r.kanTrekkes > 0.005 || r.overIkkeFort > 0.005;
+}
+
+/**
+ * Linjene ukevarselet peker på (A4, erstatter `ukeAvvikRader` i attesteringen):
+ * «kan trekkes» → alle ukas overtidslinjer; «over ukenorm uten overtid» → de
+ * ordinære arbeidslinjene etter at ukenormen er passert. Reise pekes aldri ut.
+ */
+export function ukevarselRader(
+  rader: readonly UkeAvvikRadInput[],
+  r: Pick<Ukeregnestykke, "ukenorm" | "kanTrekkes" | "overIkkeFort">,
+  dagsnorm?: (iso: string) => number,
+): string[] {
+  const sortert = sorterRader(rader);
+  if (r.kanTrekkes > 0.005) return overtidsRader(sortert);
+  if (r.overIkkeFort > 0.005) return raderEtterNorm(sortert, r.ukenorm, dagsnorm);
+  return [];
+}
+
+/**
+ * Les det frosne ukeregnestykket ut av et attestertSnapshot (`overtidsgrunnlag.ukeregnestykke`,
+ * A4). Snapshots fra før A4 har det ikke → `null` (lesesiden regner live).
+ */
+export function lesUkeregnestykkeFraSnapshot(snapshot: unknown): Ukeregnestykke | null {
+  if (!snapshot || typeof snapshot !== "object") return null;
+  const o = (snapshot as Record<string, unknown>).overtidsgrunnlag;
+  if (!o || typeof o !== "object") return null;
+  const u = (o as Record<string, unknown>).ukeregnestykke;
+  if (!u || typeof u !== "object") return null;
+  const g = u as Record<string, unknown>;
+  const tall = ["ukenorm", "ukesum", "mangler", "sumOvertid", "kanTrekkes", "overIkkeFort"] as const;
+  if (tall.some((k) => typeof g[k] !== "number") || !Array.isArray(g.dager)) return null;
+  return u as Ukeregnestykke;
+}
+
+/** Det frosne ukeregnestykket med uka-status slik den var ved attestering (A4, B53 A). */
+export interface FrossetUkeregnestykke {
+  regnestykke: Ukeregnestykke;
+  /** Var uka komplett da den ble fryst? Mangler feltet, regnes den som ikke komplett. */
+  komplett: boolean;
+  manglerDager: string[];
+}
+
+/**
+ * Les ukeregnestykket og om uka var komplett ut av et attestertSnapshot. Et frosset
+ * regnestykke fra en uke som ikke var komplett, skal ikke peke ut linjer (B53 A).
+ */
+export function lesFrossetUkeFraSnapshot(snapshot: unknown): FrossetUkeregnestykke | null {
+  const regnestykke = lesUkeregnestykkeFraSnapshot(snapshot);
+  if (!regnestykke) return null;
+  const o = (snapshot as { overtidsgrunnlag: Record<string, unknown> }).overtidsgrunnlag;
+  const mangler = Array.isArray(o.ukeManglerDager) ? o.ukeManglerDager.filter((d): d is string => typeof d === "string") : [];
+  return { regnestykke, komplett: o.ukeKomplett === true, manglerDager: mangler };
 }

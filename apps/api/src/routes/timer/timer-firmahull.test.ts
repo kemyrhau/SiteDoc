@@ -125,7 +125,12 @@ function lagMaskinCtx() {
       equipment: { findMany: vi.fn().mockResolvedValue([{ id: VEHICLE, merke: "Volvo", modell: "EC220E", internNavn: null, utleieEnhet: "doegn" }]) },
     },
     prismaTimer: {
-      $transaction: vi.fn((arg: unknown) => Promise.all(arg as Promise<unknown>[])),
+      // w9: maskin.tilfoy/oppdater kjører interaktiv transaksjon (maskinvakten); tx = klienten selv.
+      $transaction: vi.fn((arg: unknown): Promise<unknown> =>
+        typeof arg === "function"
+          ? (arg as (tx: unknown) => Promise<unknown>)(ctx.prismaTimer)
+          : Promise.all(arg as Promise<unknown>[]),
+      ),
       dailySheet: { findUnique: vi.fn().mockResolvedValue(sheet), update: vi.fn().mockResolvedValue({}) },
       sheetTimer: {
         findMany: vi.fn().mockResolvedValue([
@@ -138,6 +143,8 @@ function lagMaskinCtx() {
         findUnique: vi.fn().mockResolvedValue({ id: RAD, sheetId: SHEET, projectId: PROSJEKT_A, externalCostObjectId: null, timer: 1, vehicleId: VEHICLE, sheetTimerId: null }),
         create: maskinCreate,
         update: maskinUpdate,
+        // w3a (A7): stedsbytte på timeraden tar med koblede maskiner.
+        updateMany: vi.fn().mockResolvedValue({ count: 0 }),
       },
     },
   };
@@ -212,7 +219,8 @@ function lagSyncCtx() {
       aggregate: vi.fn().mockResolvedValue({ _sum: { pauseMin: 0 } }),
     },
     sheetTillegg: { deleteMany: vi.fn().mockResolvedValue({ count: 0 }), createMany: tilleggCreateMany },
-    sheetMachine: { deleteMany: vi.fn().mockResolvedValue({ count: 0 }), createMany: maskinCreateMany },
+    // w3a (A7): updateMany — stedsbytte på timeraden tar med koblede maskiner.
+    sheetMachine: { deleteMany: vi.fn().mockResolvedValue({ count: 0 }), createMany: maskinCreateMany, updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
     sheetUtlegg: { deleteMany: vi.fn().mockResolvedValue({ count: 0 }), createMany: utleggCreateMany },
     sheetTimerForslag: { deleteMany: vi.fn(), createMany: vi.fn() },
   };
@@ -370,10 +378,13 @@ function lagTimerCtx() {
         update: timerUpdate,
         aggregate: vi.fn().mockResolvedValue({ _sum: { pauseMin: 0 } }),
       },
-      sheetMachine: { findMany: vi.fn().mockResolvedValue([]) },
+      // w3a (A7): updateMany — stedsbytte på timeraden tar med koblede maskiner.
+      sheetMachine: { findMany: vi.fn().mockResolvedValue([]), updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
       sheetTillegg: { findMany: vi.fn().mockResolvedValue([]) },
       sheetUtlegg: { findMany: vi.fn().mockResolvedValue([]) },
     },
+    // w3a (A7): koblede varer følger stedsbyttet.
+    prismaVarelager: { $executeRawUnsafe: vi.fn().mockResolvedValue(0) },
   };
   return { ctx, timerCreate, timerUpdate };
 }

@@ -160,6 +160,20 @@ export function utledKortId(args: {
   );
 }
 
+/**
+ * Variant-id for en reise i eget kort (w15c, F25; web-timeforing-plan.md § 4.15 del E). Prefikset
+ * `reisekort|` gjør at den aldri blir lik en `utledKortId`. Samme uttrykk i SQL-utfyllingen
+ * 20261121120000_w15c_reise_kort.
+ */
+export function utledReiseKortId(args: { userId: string; dato: string; nokkel: KortNokkelFelt }): string {
+  const k = args.nokkel;
+  return somUuid(
+    md5Hex(
+      `reisekort|${args.userId}|${args.dato}|${k.projectId ?? INGEN}|${k.byggeplassId ?? INGEN}|${k.ecoId ?? INGEN}`,
+    ),
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Regel 1–3 (§ 2.4)
 // ---------------------------------------------------------------------------
@@ -217,6 +231,11 @@ export type KortInvariantRad = {
   nokkel: KortNokkelFelt;
   /** Bare maskin/vare: timerraden den er koblet til. */
   sheetTimerId?: string | null;
+  /**
+   * w12 (B32 B, B34 B): reiserad i et kort. Sammenliknes bare på sedel (K1) og prosjekt (K2);
+   * underprosjekt og byggeplass kan avvike, og reisen bestemmer aldri kortets nøkkel.
+   */
+  erReise?: boolean;
 };
 
 export type KortInvariantBrudd = {
@@ -228,14 +247,25 @@ export type KortInvariantBrudd = {
 /**
  * Validerer K1 (samme sedel), K2–K4 (samme nøkkel) og K6 (koblet maskin/vare = radens kort)
  * over et sett rader — kalleren sender hele sedelens post-tilstand. Rader uten `kortId`
- * (reise, vare uten sedel) hoppes over. Tom liste = gyldig.
+ * (vare uten sedel) hoppes over. Reiserader (w12) sjekkes bare mot K1 og K2, mot kortets
+ * første andre rad, eller mot første reise når kortet bare har reise. Tom liste = gyldig.
  */
 export function validerKortInvariant(rader: readonly KortInvariantRad[]): KortInvariantBrudd[] {
   const brudd: KortInvariantBrudd[] = [];
   const forste = new Map<string, KortInvariantRad>();
   const timerKort = new Map<string, string | null>();
   for (const r of rader) if (r.type === "timer") timerKort.set(r.id, r.kortId);
-  for (const r of rader) {
+  // Reise sist: kortets nøkkel settes av de andre radene.
+  const ordnet = [...rader.filter((r) => !r.erReise), ...rader.filter((r) => r.erReise)];
+  for (const r of ordnet) {
+    if (r.kortId && r.erReise) {
+      const f = forste.get(r.kortId);
+      if (!f) forste.set(r.kortId, r);
+      else if (f.sheetId !== r.sheetId) brudd.push({ kortId: r.kortId, grunn: "kortUlikSedel", radId: r.id });
+      else if (f.nokkel.projectId !== r.nokkel.projectId)
+        brudd.push({ kortId: r.kortId, grunn: "kortUlikeRader", radId: r.id });
+      continue;
+    }
     if (r.kortId) {
       const f = forste.get(r.kortId);
       if (!f) forste.set(r.kortId, r);

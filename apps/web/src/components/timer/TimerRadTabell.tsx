@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, useCallback, type ReactNode, type CSSProperties, type MouseEvent as ReactMouseEvent } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback, type ReactElement, type ReactNode, type CSSProperties, type MouseEvent as ReactMouseEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
@@ -12,6 +12,7 @@ import {
 } from "@sitedoc/ui";
 import { TIMER_TABELL_KOL, TIMER_TABELL_KOL_BREDDE, type TimerTabellKolKey } from "@sitedoc/shared";
 import { FlyttbareKolonner, useFlyttbarKolonne } from "@/components/FlyttbareKolonner";
+import { BeskrivelseHover } from "./BeskrivelseHover";
 
 /**
  * Tabellen for timeregistreringer — ÉN komponent for firma-attesteringen og rapportens
@@ -33,9 +34,44 @@ import { FlyttbareKolonner, useFlyttbarKolonne } from "@/components/FlyttbareKol
  *    kalleren filtrerer hele strukturen og viser brikkene over tabellen.
  */
 
+/**
+ * w5b (B14 A): radens plass i en dagsblokk. Utelatt → vanlig rad, som i timerapporten.
+ * En blokk har farget venstrekant, ramme til høyre og luft etter siste rad; linjene i
+ * blokka veksler ikke mellom hvit og grå.
+ */
+export interface TimerRadBlokk {
+  /** Venstrekantens farge (Tailwind `border-…`-klasse). */
+  kant: string;
+  /** Siste rad i blokka: bunnstrek og luft til neste blokk. */
+  slutt?: boolean;
+}
+
 export type TimerRadTabellRad<R> =
-  | { kind: "linje"; nokkel: string; data: R; underlinjer: number }
-  | { kind: "overskrift"; nokkel: string; innhold: ReactNode }
+  | {
+      kind: "linje";
+      nokkel: string;
+      data: R;
+      underlinjer: number;
+      blokk?: TimerRadBlokk;
+      /**
+       * w5b: kolonner som står tomme fordi raden over viser verdien (dato, ansatt, pr.nr.).
+       * Sortert tabell er en flat liste, og da vises de igjen (WM82).
+       */
+      skjul?: readonly TimerTabellKolKey[];
+      /**
+       * O13 (B14c B): én celle over kolonnene `fra`…`til` (sammenhengende i `kolonner`), med
+       * innholdet til `til`. Kalleren setter det bare der kolonnene foran `til` står tomme
+       * (`skjul`). Sortert tabell er en flat liste, og da står hver kolonne for seg (WM82).
+       */
+      spenn?: { fra: TimerTabellKolKey; til: TimerTabellKolKey };
+    }
+  /**
+   * `tone: "uke"` (A4b): ukelinja i attesteringen — mørk blå (`sitedoc-primary`) med hvit tekst,
+   * som skissen `v22-uke.png`. Utelatt = lys grå gruppeoverskrift som før.
+   */
+  | { kind: "overskrift"; nokkel: string; innhold: ReactNode; tone?: "uke" }
+  /** w5 (bilde 7): innhold under en linje i tabellens synlige bredde (registreringen åpnet). */
+  | { kind: "panel"; nokkel: string; innhold: ReactNode; blokk?: TimerRadBlokk }
   | {
       kind: "sum";
       nokkel: string;
@@ -44,7 +80,40 @@ export type TimerRadTabellRad<R> =
       sterk?: boolean;
       venstre?: ReactNode;
       hoyre?: ReactNode;
+      /**
+       * w5b: «dag» = blå dagsrad øverst i dagen; «jobb» = jobbrad (ett kort) med strek over.
+       * Utelatt → sumrad som før.
+       */
+      variant?: "dag" | "jobb";
+      blokk?: TimerRadBlokk;
+      /**
+       * w8: klikk på raden (ikke på knapper, felt eller merker i den) åpner jobbens registrering.
+       * Raden får pil i venstrekolonnen og nås med tastaturet. Utelatt → raden er ikke klikkbar.
+       */
+      onKlikk?: () => void;
+      /** w8: raden har registreringen åpen under seg (mørkere bakgrunn, pil ned). */
+      aapen?: boolean;
+      /**
+       * O6 (§ 8.22 punkt 2): beskrivelsene som vises ved hover på raden. Tom liste = ingen hover
+       * nå (raden pakkes likevel, så den ikke monteres på nytt). Utelatt → raden som før.
+       */
+      hover?: readonly string[];
+      /**
+       * O13 (B14c B): ett felt over `antall` kolonner fra og med `fra` (prosjektnavnet). Cellene i
+       * feltet tegnes ikke hver for seg. Utelatt → én celle pr. kolonne som før.
+       * A1 (§ 4.17): flere felt på samme rad (prosjektnavnet og lønnsartmerkene) gis som liste.
+       */
+      spenn?: SumSpenn | readonly SumSpenn[];
     };
+
+/** Et felt over flere kolonner på en sumrad (O13, A1). */
+export type SumSpenn = {
+  fra: TimerTabellKolKey;
+  antall: number;
+  innhold: ReactNode;
+  /** Data-attributtet feltet får (`data-<felt>`). Utelatt → `data-navnefelt` som før. */
+  felt?: "navnefelt" | "lonnsartfelt";
+};
 
 export interface TimerRadTabellFilter {
   verdier: Record<string, string>;
@@ -83,17 +152,46 @@ interface Props<R> {
   hoyre?: { bredde: number; hode?: ReactNode; celle: (data: R) => ReactNode };
   /** Ekstra klasse på linja (f.eks. markert ved avvik). */
   linjeKlasse?: (data: R) => string | undefined;
+  /**
+   * A1 (§ 4.17 del B): linjas bakgrunn, også i de faste cellene (gul linje et varsel gjelder).
+   * Utelatt → hvit/grå som før.
+   */
+  linjeBakgrunn?: (data: R) => string | undefined;
   /** Klassen som setter rammas høyde. Standard som rapporten. */
   rammeKlasse?: string;
   /** Innrykk i Betegnelse (rapportens ↳-rader). */
   innrykk?: (k: TimerTabellKolKey, data: R) => boolean;
+  /**
+   * w5 (bilde 7): klikk på linja (ikke på knapper, felt eller lenker i den). Utelatt →
+   * linja er ikke klikkbar.
+   */
+  onLinjeKlikk?: (data: R) => void;
+  /** Linja som har registreringen åpen (markeres). */
+  erAapen?: (data: R) => boolean;
+  /** Standardbredde pr. kolonne når kalleren vil ha andre enn den delte lista (px). */
+  standardBredder?: Partial<Record<TimerTabellKolKey, number>>;
+  /**
+   * Kompakt hode (smale kolonner, w5): vanlige bokstaver i stedet for versaler, og overskriften
+   * brytes over inntil to linjer ved mellomrom eller myk bindestrek i stedet for å kuttes.
+   */
+  hodeBrytes?: boolean;
+  /** Kortere overskrift pr. kolonne i hodet; full tittel vises ved hover. */
+  hodeTekst?: (k: TimerTabellKolKey) => string | undefined;
 }
+
+/** Klikk på disse i en linje er cellens egne og åpner ikke registreringen. */
+const INTERAKTIV = "button,input,select,textarea,a,label,[role=button],[data-avvik-merke]";
 
 const UNDERLINJE_HOYDE = 30;
 
-function standardBredde(k: TimerTabellKolKey): string {
+function minBredde(k: TimerTabellKolKey, egne?: Partial<Record<TimerTabellKolKey, number>>): number {
+  return egne?.[k] ?? TIMER_TABELL_KOL_BREDDE[k].min;
+}
+
+function standardBredde(k: TimerTabellKolKey, egne?: Partial<Record<TimerTabellKolKey, number>>): string {
   const b = TIMER_TABELL_KOL_BREDDE[k];
-  return b.vekt === 0 ? `${b.min}px` : `minmax(${b.min}px, ${b.vekt}fr)`;
+  const min = minBredde(k, egne);
+  return b.vekt === 0 ? `${min}px` : `minmax(${min}px, ${b.vekt}fr)`;
 }
 
 function sammenlign(a: string | number | null, b: string | number | null): number {
@@ -133,8 +231,14 @@ function Tabell<R>({
   venstre,
   hoyre,
   linjeKlasse,
+  linjeBakgrunn,
   rammeKlasse = "max-h-[70vh]",
   innrykk,
+  onLinjeKlikk,
+  erAapen,
+  standardBredder,
+  hodeBrytes = false,
+  hodeTekst,
 }: Props<R>) {
   const { t } = useTranslation();
   const parentRef = useRef<HTMLDivElement>(null);
@@ -182,7 +286,18 @@ function Tabell<R>({
     return m;
   }, [synlige]);
 
-  const midtKolonner = kolonner.map((k) => (breddeAlle[k] ? `${breddeAlle[k]}px` : standardBredde(k)));
+  // Synlig bredde (panelet under en linje står i den, uansett sidelengs rulling).
+  const [synligBredde, setSynligBredde] = useState<number | null>(null);
+  useEffect(() => {
+    const el = parentRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const obs = new ResizeObserver(() => setSynligBredde(el.clientWidth));
+    obs.observe(el);
+    setSynligBredde(el.clientWidth);
+    return () => obs.disconnect();
+  }, []);
+
+  const midtKolonner = kolonner.map((k) => (breddeAlle[k] ? `${breddeAlle[k]}px` : standardBredde(k, standardBredder)));
   const gridTemplate = [
     ...(venstre ? [`${venstre.bredde}px`] : []),
     ...midtKolonner,
@@ -191,7 +306,7 @@ function Tabell<R>({
   const totalBredde =
     (venstre?.bredde ?? 0) +
     (hoyre?.bredde ?? 0) +
-    kolonner.reduce((s, k) => s + (breddeAlle[k] ?? TIMER_TABELL_KOL_BREDDE[k].min), 0);
+    kolonner.reduce((s, k) => s + (breddeAlle[k] ?? minBredde(k, standardBredder)), 0);
   const forskyvning = venstre ? 1 : 0;
 
   const virtualizer = useVirtualizer({
@@ -204,11 +319,16 @@ function Tabell<R>({
     overscan: 12,
   });
 
+  // Sortert tabell er en flat liste (WM82): da vises også kolonnene en blokk-linje skjuler.
+  const sortert = !!(sort && sorterVerdi);
+
   function klikkSorter(k: TimerTabellKolKey) {
     if (!sorterVerdi) return;
     setSort(sort?.k !== k ? { k, retning: "asc" } : sort.retning === "asc" ? { k, retning: "desc" } : null);
   }
 
+  // Kompakt (w5): smalere sidemarg i cellene, så kjernen får plass på 1 440.
+  const celleX = hodeBrytes ? "px-1.5" : "px-2";
   const fastVenstre: CSSProperties = { position: "sticky", left: 0, zIndex: 2 };
   const fastHoyre: CSSProperties = { position: "sticky", right: 0, zIndex: 2 };
 
@@ -216,7 +336,9 @@ function Tabell<R>({
     <div ref={parentRef} className={`${rammeKlasse} overflow-auto rounded-lg border border-gray-200 bg-white`}>
       {/* Hodet — fast øverst (R5) */}
       <div
-        className="sticky top-0 z-10 grid border-b border-gray-200 bg-gray-50 text-xs font-semibold uppercase tracking-wide text-gray-500"
+        className={`sticky top-0 z-10 grid border-b border-gray-200 bg-gray-50 text-xs font-semibold text-gray-500 ${
+          hodeBrytes ? "" : "uppercase tracking-wide"
+        }`}
         style={{ gridTemplateColumns: gridTemplate, minWidth: totalBredde }}
       >
         {venstre && (
@@ -229,12 +351,14 @@ function Tabell<R>({
             key={k}
             k={k}
             overskrift={t(`timer.eksport.${TIMER_TABELL_KOL[k].i18n}`)}
+            kort={hodeTekst?.(k)}
             num={TIMER_TABELL_KOL[k].num}
             flyttbar={!!onRekkefolgeEndring}
             sortRetning={sort?.k === k ? sort.retning : null}
             onSorter={sorterVerdi ? () => klikkSorter(k) : undefined}
             filter={filter}
             hodeRef={(el) => { hodeRef.current[k] = el; }}
+            brytes={hodeBrytes}
             bredde={onBreddeEndring ? { aktiv: dragning.aktivId === k, start: (e) => dragning.start(e, k) } : undefined}
           />
         ))}
@@ -257,6 +381,39 @@ function Tabell<R>({
             width: "100%",
             transform: `translateY(${vi.start}px)`,
           };
+          // w5b: luft etter en dagsblokk. Rada pakkes i en ytre div med bunnmarg, så målingen
+          // tar luften med. Rader uten blokk tegnes nøyaktig som før (timerapporten).
+          // Sortert tabell er en flat liste uten blokker (WM82).
+          const blokk = sortert || rad.kind === "overskrift" ? undefined : rad.blokk;
+          const luft = !!blokk?.slutt;
+          // O6: rad med hover pakkes i en ytre div (som luft-raden), så Tooltip-wrapperen
+          // ligger inni den målte, plasserte diven.
+          const hover = rad.kind === "sum" ? rad.hover : undefined;
+          const ytre = luft || hover !== undefined;
+          const maal = { "data-index": vi.index, ref: virtualizer.measureElement };
+          const p = ytre ? {} : maal;
+          const st: CSSProperties = ytre ? {} : plass;
+          const pakk = (el: ReactElement) =>
+            ytre ? (
+              <div
+                key={vi.key}
+                {...maal}
+                style={plass}
+                className={luft ? "pb-3" : undefined}
+                data-blokk-slutt={luft ? "" : undefined}
+              >
+                {hover !== undefined ? (
+                  <BeskrivelseHover beskrivelser={hover} wrapperClassName="relative block">
+                    {el}
+                  </BeskrivelseHover>
+                ) : (
+                  el
+                )}
+              </div>
+            ) : el;
+          const bunn = luft ? "border-b border-gray-300" : "border-b border-gray-200";
+          const kantV = blokk ? `border-l-4 ${blokk.kant}` : "";
+          const kantH = blokk ? "border-r border-gray-300" : "";
 
           if (rad.kind === "overskrift") {
             return (
@@ -265,38 +422,99 @@ function Tabell<R>({
                 data-index={vi.index}
                 ref={virtualizer.measureElement}
                 style={plass}
-                className="flex items-center border-b border-gray-200 bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700"
+                data-tone={rad.tone}
+                className={
+                  rad.tone === "uke"
+                    ? "flex items-center border-b border-sitedoc-primary bg-sitedoc-primary px-3 py-1.5 text-xs font-semibold text-white"
+                    : "flex items-center border-b border-gray-200 bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700"
+                }
               >
                 {rad.innhold}
               </div>
             );
           }
 
+          if (rad.kind === "panel") {
+            return pakk(
+              <div key={vi.key} {...p} style={st} className={`${bunn} bg-blue-50/40 ${kantV} ${kantH}`}>
+                <div style={{ position: "sticky", left: 0, width: synligBredde ?? "100%" }}>{rad.innhold}</div>
+              </div>,
+            );
+          }
+
           if (rad.kind === "sum") {
-            const bg = rad.sterk ? "bg-gray-50" : "bg-gray-100";
-            return (
+            const v = rad.variant;
+            const klikk = rad.onKlikk;
+            const aapenRad = !!klikk && !!rad.aapen;
+            // w8: åpen rad er mørkere; klikkbar rad blir det samme ved hover. De faste cellene
+            // følger med (group-hover), ellers står venstre- og høyrekanten lyse.
+            const bgGrunn = v === "dag" ? "bg-blue-50" : v === "jobb" ? "bg-white" : rad.sterk ? "bg-gray-50" : "bg-gray-100";
+            const bg = aapenRad ? "bg-blue-100" : klikk ? `${bgGrunn} group-hover:bg-blue-100` : bgGrunn;
+            const utseende =
+              v === "dag" ? "border-t-2 border-blue-700 font-semibold text-gray-900" :
+              v === "jobb" ? "border-t border-gray-300 font-semibold text-gray-800" :
+              rad.sterk ? "border-t-2 border-gray-300 bg-gray-50 font-semibold text-gray-900" :
+              "border-t border-gray-200 bg-gray-50/60 font-medium text-gray-700";
+            const radBg = v !== "dag" && v !== "jobb" ? "" : aapenRad ? "bg-blue-100" : klikk ? `${bgGrunn} hover:bg-blue-100` : bgGrunn;
+            return pakk(
               <div
                 key={vi.key}
-                data-index={vi.index}
-                ref={virtualizer.measureElement}
-                className={`grid text-sm ${
-                  rad.sterk
-                    ? "border-t-2 border-gray-300 bg-gray-50 font-semibold text-gray-900"
-                    : "border-t border-gray-200 bg-gray-50/60 font-medium text-gray-700"
-                } border-b border-gray-200`}
-                style={{ ...plass, gridTemplateColumns: gridTemplate }}
+                {...p}
+                data-rad={v}
+                data-aapen={aapenRad ? "" : undefined}
+                {...(klikk
+                  ? {
+                      role: "button",
+                      tabIndex: 0,
+                      "aria-expanded": aapenRad,
+                      onClick: (e: ReactMouseEvent) => {
+                        // Raden selv har role=button; bare knapper o.l. inne i den stopper klikket.
+                        if ((e.target as HTMLElement).closest(INTERAKTIV) !== e.currentTarget) return;
+                        klikk();
+                      },
+                      onKeyDown: (e: ReactKeyboardEvent) => {
+                        if (e.target !== e.currentTarget || (e.key !== "Enter" && e.key !== " ")) return;
+                        e.preventDefault();
+                        klikk();
+                      },
+                    }
+                  : {})}
+                className={`grid text-sm ${utseende} ${radBg} ${bunn} ${klikk ? "group cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500" : ""}`}
+                style={{ ...st, gridTemplateColumns: gridTemplate }}
               >
-                {venstre && <div className={`px-2 py-1.5 ${bg}`} style={fastVenstre}>{rad.venstre}</div>}
-                {kolonner.map((k) => (
-                  <div
-                    key={k}
-                    className={`min-w-0 truncate px-2 py-1.5 ${TIMER_TABELL_KOL[k].num ? "text-right tabular-nums" : "text-left"}`}
-                  >
-                    {rad.celle(k)}
+                {venstre && (
+                  // w10a (A7): avkrysningen og pila står sammen på de blå radene; med begge er
+                  // innrykket smalere, så de får plass i 36 px.
+                  <div className={`${klikk && rad.venstre ? "flex items-center gap-1 px-1" : "px-2"} py-1.5 ${bg} ${kantV}`} style={fastVenstre}>
+                    {klikk && rad.venstre}
+                    {klikk ? (
+                      <span aria-hidden className="text-base leading-none text-blue-700" data-pil="">{aapenRad ? "▾" : "▸"}</span>
+                    ) : rad.venstre}
                   </div>
-                ))}
-                {hoyre && <div className={`flex items-center justify-end px-2 py-1 ${bg}`} style={fastHoyre}>{rad.hoyre}</div>}
-              </div>
+                )}
+                {kolonner.map((k, ki) => {
+                  const spenn: readonly SumSpenn[] = !rad.spenn ? [] : Array.isArray(rad.spenn) ? rad.spenn : [rad.spenn as SumSpenn];
+                  const sp = spenn.find((x) => kolonner.indexOf(x.fra) === ki);
+                  if (sp) {
+                    const antall = Math.max(1, Math.min(sp.antall, kolonner.length - ki));
+                    return (
+                      <div key={k} {...{ [`data-${sp.felt ?? "navnefelt"}`]: "" }} className={`min-w-0 overflow-hidden ${celleX} py-1.5 text-left`} style={{ gridColumn: `span ${antall}` }}>
+                        {sp.innhold}
+                      </div>
+                    );
+                  }
+                  if (spenn.some((x) => { const f = kolonner.indexOf(x.fra); return f !== -1 && ki > f && ki < f + x.antall; })) return null;
+                  return (
+                    <div
+                      key={k}
+                      className={`min-w-0 truncate ${celleX} py-1.5 ${TIMER_TABELL_KOL[k].num ? "text-right tabular-nums" : "text-left"}`}
+                    >
+                      {rad.celle(k)}
+                    </div>
+                  );
+                })}
+                {hoyre && <div className={`flex items-center justify-end px-2 py-1 ${bg} ${kantH}`} style={fastHoyre}>{rad.hoyre}</div>}
+              </div>,
             );
           }
 
@@ -304,20 +522,30 @@ function Tabell<R>({
           const d = rad.data;
           const n = Math.max(1, rad.underlinjer);
           const odde = (linjeIndeks.get(rad.nokkel) ?? 0) % 2 === 1;
-          const bg = odde ? "bg-gray-50" : "bg-white";
-          const ekstra = linjeKlasse?.(d) ?? "";
-          return (
+          // w5b: inne i en blokk veksler ikke linjene mellom hvit og grå.
+          const bg = linjeBakgrunn?.(d) ?? (!blokk && odde ? "bg-gray-50" : "bg-white");
+          const aapen = erAapen?.(d) ?? false;
+          const ekstra = `${linjeKlasse?.(d) ?? ""} ${onLinjeKlikk ? "cursor-pointer hover:bg-blue-50/60" : ""} ${aapen ? "!bg-blue-50" : ""}`;
+          const skjult = (k: TimerTabellKolKey) => !sortert && (rad.skjul?.includes(k) ?? false);
+          // O13: linjas felt over flere tomme kolonner (ikke i sortert liste).
+          const lSpenn = !sortert && rad.spenn ? { fra: kolonner.indexOf(rad.spenn.fra), til: kolonner.indexOf(rad.spenn.til) } : null;
+          const spennOk = !!lSpenn && lSpenn.fra !== -1 && lSpenn.til > lSpenn.fra;
+          return pakk(
             <div
               key={vi.key}
-              data-index={vi.index}
-              ref={virtualizer.measureElement}
+              {...p}
               data-linje={rad.nokkel}
-              className={`grid border-b border-gray-200 text-sm text-gray-800 ${bg} ${ekstra}`}
-              style={{ ...plass, gridTemplateColumns: gridTemplate, gridTemplateRows: `repeat(${n}, auto)` }}
+              data-aapen={aapen ? "" : undefined}
+              onClick={onLinjeKlikk ? (e) => {
+                if ((e.target as HTMLElement).closest(INTERAKTIV)) return;
+                onLinjeKlikk(d);
+              } : undefined}
+              className={`grid ${bunn} text-sm text-gray-800 ${bg} ${ekstra}`}
+              style={{ ...st, gridTemplateColumns: gridTemplate, gridTemplateRows: `repeat(${n}, auto)` }}
             >
               {venstre && (
                 <div
-                  className={`flex items-start border-l-4 border-blue-300 px-2 py-1.5 ${bg}`}
+                  className={`flex items-start border-l-4 ${blokk?.kant ?? "border-blue-300"} px-2 py-1.5 ${bg}`}
                   style={{ ...fastVenstre, gridColumn: 1, gridRow: `1 / span ${n}` }}
                 >
                   {venstre.celle(d)}
@@ -325,31 +553,38 @@ function Tabell<R>({
               )}
               {Array.from({ length: n }, (_, under) =>
                 kolonner.map((k, ki) => {
+                  if (spennOk && lSpenn && ki >= lSpenn.fra && ki < lSpenn.til) return null;
+                  const iSpenn = spennOk && lSpenn && ki === lSpenn.til;
                   const num = TIMER_TABELL_KOL[k].num;
                   const nøsting = innrykk?.(k, d) ?? false;
+                  const tom = skjult(k);
                   return (
                     <div
                       key={`${under}-${k}`}
-                      className={`min-w-0 px-2 py-1.5 ${num ? "text-right tabular-nums" : "text-left"} ${
+                      className={`min-w-0 ${celleX} py-1.5 ${num ? "text-right tabular-nums" : "text-left"} ${
                         k === "beskrivelse" ? "whitespace-pre-wrap break-words" : "truncate"
                       } ${nøsting ? "pl-5 text-gray-500" : ""}`}
-                      style={{ gridColumn: ki + 1 + forskyvning, gridRow: under + 1 }}
-                      title={celleTittel?.(k, d, under)}
+                      style={{
+                        gridColumn: iSpenn && lSpenn ? `${lSpenn.fra + 1 + forskyvning} / ${ki + 2 + forskyvning}` : ki + 1 + forskyvning,
+                        gridRow: under + 1,
+                      }}
+                      data-linjefelt={iSpenn ? "" : undefined}
+                      title={tom ? undefined : celleTittel?.(k, d, under)}
                     >
-                      {celle(k, d, under)}
+                      {tom ? null : celle(k, d, under)}
                     </div>
                   );
                 }),
               )}
               {hoyre && (
                 <div
-                  className={`flex items-start justify-end px-2 py-1 ${bg}`}
+                  className={`flex items-start justify-end px-2 py-1 ${bg} ${kantH}`}
                   style={{ ...fastHoyre, gridColumn: kolonner.length + 1 + forskyvning, gridRow: `1 / span ${n}` }}
                 >
                   {hoyre.celle(d)}
                 </div>
               )}
-            </div>
+            </div>,
           );
         })}
       </div>
@@ -367,10 +602,14 @@ function Hodecelle({
   filter,
   hodeRef,
   bredde,
+  brytes,
+  kort,
 }: {
   k: TimerTabellKolKey;
   overskrift: string;
+  kort?: string;
   num: boolean;
+  brytes?: boolean;
   flyttbar: boolean;
   sortRetning: SorterRetning | null;
   onSorter?: () => void;
@@ -384,7 +623,9 @@ function Hodecelle({
   const innhold = (
     <>
       <span className={`inline-flex min-w-0 items-center gap-1 ${num ? "justify-end" : ""}`}>
-        <span className="truncate">{overskrift}</span>
+        <span className={brytes ? "line-clamp-2 leading-tight [overflow-wrap:normal]" : "truncate"} title={overskrift}>
+          {kort ?? overskrift}
+        </span>
         {sortRetning && <SorterPil retning={sortRetning} />}
       </span>
       {filter && (alternativer || sok) && (
@@ -399,12 +640,14 @@ function Hodecelle({
       {bredde && <BreddeHandtak aktiv={bredde.aktiv} onMouseDown={bredde.start} />}
     </>
   );
-  const klasse = `group relative flex items-center px-2 py-2 ${num ? "justify-end text-right" : "text-left"} ${
+  // Kompakt (w5b retur 1): filterikonet uten egen venstremarg, så korte overskrifter som
+  // «Avvik» står hele ved 1 440 (målt).
+  const klasse = `group relative flex items-center ${brytes ? "pl-1.5 pr-1 [&>div>button]:ml-0" : "px-2"} py-2 ${num ? "justify-end text-right" : "text-left"} ${
     onSorter ? "cursor-pointer select-none hover:text-gray-700" : ""
   }`;
   if (flyttbar) {
     return (
-      <FlyttbarHodecelle k={k} overskrift={overskrift} klasse={klasse} hodeRef={hodeRef} onClick={onSorter}>
+      <FlyttbarHodecelle k={k} overskrift={overskrift} klasse={klasse} kompakt={brytes} hodeRef={hodeRef} onClick={onSorter}>
         {innhold}
       </FlyttbarHodecelle>
     );
@@ -420,6 +663,7 @@ function FlyttbarHodecelle({
   k,
   overskrift,
   klasse,
+  kompakt,
   hodeRef,
   onClick,
   children,
@@ -427,6 +671,8 @@ function FlyttbarHodecelle({
   k: TimerTabellKolKey;
   overskrift: string;
   klasse: string;
+  /** Kompakt hode: innrykket er nøyaktig håndtakets bredde (left-0.5 + 12 px = 14 px). */
+  kompakt?: boolean;
   hodeRef: (el: HTMLDivElement | null) => void;
   onClick?: () => void;
   children: ReactNode;
@@ -436,7 +682,7 @@ function FlyttbarHodecelle({
   return (
     <div
       ref={(el) => { hodeRef(el); setNodeRef(el); }}
-      className={`${klasse} pl-4`}
+      className={`${klasse} ${kompakt ? "pl-3.5" : "pl-4"}`}
       style={flyttStil}
       onClick={onClick}
       data-kolonne={k}

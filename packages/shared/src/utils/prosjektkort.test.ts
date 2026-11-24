@@ -5,6 +5,7 @@ import {
   kortStatus,
   lesTimerModus,
   sumIDag,
+  sumlinjeDag,
   sumlinjeMotNorm,
   trafikklysSone,
   utledKortByggeplass,
@@ -54,6 +55,11 @@ describe("beregnKortSummer", () => {
       [],
     );
     expect(s).toEqual({ arbeid: 6, maskin: 2, reise: 2, varer: null });
+  });
+
+  it("O12 pkt 16 (uendret): reise ført som arbeidstid (arbeidReiseRetning) teller som arbeid", () => {
+    const merket = { ...t("0.5"), arbeidReiseRetning: "ut" } as ReturnType<typeof t>;
+    expect(beregnKortSummer([t("4"), merket], [], [])).toEqual({ arbeid: 4.5, maskin: 0, reise: 0, varer: null });
   });
 
   it("varer: én enhet gir summert mengde", () => {
@@ -196,5 +202,48 @@ describe("sumlinjeMotNorm — reise teller ikke mot normen (Kenneth 2026-11-14)"
 
   it("arbeid over normen er fortsatt gul — reisen skjuler ikke overtid", () => {
     expect(sumlinjeMotNorm([t(8.5), t(1, { erReise: true })], 7.5).sone).toBe("gul");
+  });
+});
+
+describe("sumlinjeDag — reisetid legges til totalen (Kenneth 2026-11-21)", () => {
+  const m = (timer: number, attestertStatus: string | null = "pending") => ({
+    projectId: "p1",
+    byggeplassId: null,
+    timer,
+    attestertStatus,
+  });
+
+  it("Kenneths eksempel: arbeid 7,5 + maskin 5 + reise 3 → totalt 10,5", () => {
+    const rader = [t(7.5), t(3, { erReise: true })];
+    expect(sumlinjeDag(rader, [m(5)], 7.5)).toEqual({
+      arbeid: 7.5,
+      maskin: 5,
+      reise: 3,
+      totalt: 10.5,
+      sone: "grønn",
+    });
+  });
+
+  it("dagen 20.11.: arbeid 4,5 + reise 3 → totalt 7,5, trafikklys mot normen uten reise", () => {
+    const rader = [t(4.5), t(3, { erReise: true })];
+    const s = sumlinjeDag(rader, [m(4.5)], 7.5);
+    expect(s.totalt).toBe(7.5);
+    expect(s.sone).toBe("blå");
+  });
+
+  it("Kenneths eksempel § 8.22: arbeid 8,0 + reise 3 → «8,0 av 7,5» og sum i dag 11, gul", () => {
+    const s = sumlinjeDag([t(8), t(3, { erReise: true })], [], 7.5);
+    expect(s).toEqual({ arbeid: 8, maskin: 0, reise: 3, totalt: 11, sone: "gul" });
+  });
+
+  it("erstattede rader (timer og maskin) teller ikke", () => {
+    const rader = [
+      t(4),
+      t(3, { attestertStatus: "erstattet" }),
+      t(1, { erReise: true }),
+      t(2, { erReise: true, attestertStatus: "erstattet" }),
+    ];
+    const s = sumlinjeDag(rader, [m(2), m(9, "erstattet")], null);
+    expect(s).toEqual({ arbeid: 4, maskin: 2, reise: 1, totalt: 5, sone: "grå" });
   });
 });

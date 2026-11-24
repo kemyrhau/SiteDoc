@@ -89,7 +89,9 @@ import type {
 import {
   effektiveTimerFraSpenn,
   hhmmTilMin,
-  maskinBucketKapasitet,
+  maskinHoystPerRad,
+  overMaskinHoyst,
+  maskinKreverTimerad,
   pauseOverlappMin,
   tilFraAntall,
   tilErEtterFra,
@@ -116,12 +118,15 @@ import {
 } from "../../services/nyTimerRad";
 import {
   hentKobledeMaskiner,
+  enhetLokalt,
   maskinerOverRad,
   maskinerOverRadEtterLagring,
   skrivKobledeMaskiner,
   type MaskinEndringer,
   type MaskinLinje,
 } from "../../services/kobledeMaskiner";
+import { bruddTekst, jobbTall, lesJobbGrunnlag, skrivMedMaskinVakt } from "../../services/maskinJobbLokalt";
+import { maskinNavnLokalt, utleieEnhetLokalt } from "../../services/maskinKoblingLokal";
 import { DatoVelgerFelt } from "../DatoVelgerFelt";
 import { formatNorskDato } from "../../utils/dato";
 import { prosjektVisningsnavn } from "../../utils/prosjektNavn";
@@ -152,8 +157,8 @@ interface TimerSeksjonProps {
    *  (`rad.byggeplassId = null`) — kun når raden hører til sedelens primær-
    *  prosjekt (arv gjelder ikke sekundær-prosjekt-rader). */
   sedelByggeplassId: string | null;
-  /** Sedel-nivå pause (min) — inngår i bucket-kapasitet for den valgfrie maskin-
-   *  seksjonen på ny timer-rad (P1 maskin-i-rad, samme regel som MaskinRadModal). */
+  /** Sedel-nivå pause (min). w9m: maskinregelen leser pausen selv fra SQLite
+   *  (`lesJobbGrunnlag`), og bare for eldre rader uten jobb. */
   pauseMin: number;
   /** P1 (maskin-i-rad): equipment-cache populert (Maskin-modul aktiv + firmaet
    *  har utstyr). Gater den valgfrie maskin-seksjonen på ny timer-rad. */
@@ -194,7 +199,7 @@ export function TimerSeksjon({
   visHeader = true,
   dato,
   sedelByggeplassId,
-  pauseMin,
+  pauseMin: _sedelPauseMin,
   harEquipmentCache,
   defaultAktivitetId,
   redigerbar,
@@ -346,37 +351,42 @@ export function TimerSeksjon({
       if (maskinerOverRadEtterLagring(db, radId, timer, maskiner).length > 0) {
         return { ok: false as const, grunn: "maskinOverRad" as const };
       }
-      db.update(sheetTimerLocal)
-        .set({
-          projectId: radProjectId,
-          // F3: per-rad byggeplass (null = arv fra dagskortet).
-          byggeplassId,
-          lonnsartId,
-          aktivitetId,
-          timer,
-          externalCostObjectId,
-          fraTid,
-          tilTid,
-          beskrivelse,
-          // V20 PK2: oppdater radens matpause-bærer (avkrysningen = pauseMin > 0).
-          pauseMin,
-          ...reiseSet,
-          ...(tidEndret ? { tidKilde: "manuell" as const } : {}),
-          sistEndretLokalt: Date.now(),
-        })
-        .where(eq(sheetTimerLocal.id, radId))
-        .run();
-      // NY BESLUTNING: bare maskinlinjene modalen sender, skrives. Koblede maskiner
-      // som ikke er nevnt, røres ikke. undefined = ingen maskin røres.
-      if (maskiner !== undefined) {
-        skrivKobledeMaskiner(
-          db,
-          sheetId,
-          radId,
-          { projectId: radProjectId, byggeplassId, externalCostObjectId, timer, fraTid, tilTid },
-          maskiner,
-        );
-      }
+      // w9m (WM108): senkes arbeidet så en maskin på jobben blir over, stopper
+      // lagringen her — samme vakt som serveren (maskinJobbLokalt).
+      const brudd = skrivMedMaskinVakt(db, sheetId, hentReiseLonnsartId(organizationId), (tx) => {
+        tx.update(sheetTimerLocal)
+          .set({
+            projectId: radProjectId,
+            // F3: per-rad byggeplass (null = arv fra dagskortet).
+            byggeplassId,
+            lonnsartId,
+            aktivitetId,
+            timer,
+            externalCostObjectId,
+            fraTid,
+            tilTid,
+            beskrivelse,
+            // V20 PK2: oppdater radens matpause-bærer (avkrysningen = pauseMin > 0).
+            pauseMin,
+            ...reiseSet,
+            ...(tidEndret ? { tidKilde: "manuell" as const } : {}),
+            sistEndretLokalt: Date.now(),
+          })
+          .where(eq(sheetTimerLocal.id, radId))
+          .run();
+        // NY BESLUTNING: bare maskinlinjene modalen sender, skrives. Koblede maskiner
+        // som ikke er nevnt, røres ikke. undefined = ingen maskin røres.
+        if (maskiner !== undefined) {
+          skrivKobledeMaskiner(
+            tx,
+            sheetId,
+            radId,
+            { projectId: radProjectId, byggeplassId, externalCostObjectId, timer, fraTid, tilTid },
+            maskiner,
+          );
+        }
+      });
+      if (brudd.length > 0) return { ok: false as const, grunn: "maskinOverArbeid" as const, brudd };
       onEndret();
       return { ok: true as const };
     },
@@ -562,7 +572,6 @@ export function TimerSeksjon({
           defaultProjectId={projectId}
           defaultEcoId={defaultEcoId}
           dato={dato}
-          sheetPauseMin={pauseMin}
           harEquipmentCache={harEquipmentCache}
           eksisterendeRader={rader}
           alleTimerRader={alleTimerRader}
@@ -617,7 +626,7 @@ export function TimerSeksjon({
             maskin,
           ) => {
             if (redigerRadId) {
-              oppdater(
+              const res = oppdater(
                 redigerRadId,
                 radProjectId,
                 byggeplassId,
@@ -633,6 +642,10 @@ export function TimerSeksjon({
                 // NY BESLUTNING: maskinlinjene fra modalen (unevnte røres ikke).
                 maskin,
               );
+              // w9m (WM108): stoppet → modalen står med teksten, ingenting skrevet.
+              if (res && !res.ok && res.grunn === "maskinOverArbeid") {
+                return bruddTekst(t, hentDatabase(), res.brudd);
+              }
             } else {
               leggTil(
                 radProjectId,
@@ -1034,7 +1047,6 @@ export function TimerRadModal({
   defaultByggeplassId,
   defaultEcoId,
   dato,
-  sheetPauseMin,
   harEquipmentCache,
   eksisterendeRader,
   alleTimerRader,
@@ -1061,10 +1073,6 @@ export function TimerRadModal({
   defaultByggeplassId?: string | null;
   defaultEcoId: string | null;
   dato: string;
-  /** Sedel-nivå pause (min) — bucket-kapasitet i den valgfrie maskin-seksjonen.
-   *  Skilt fra den lokale `pauseMin` (firma standardPauseMin) som styrer fra/til-
-   *  synken; kapasitets-taket bruker sedel-pausen (D6), speiler MaskinRadModal. */
-  sheetPauseMin: number;
   /** P1 (maskin-i-rad): gater den valgfrie maskin-seksjonen (kun ved ny rad). */
   harEquipmentCache: boolean;
   eksisterendeRader: TimerRad[];
@@ -1125,7 +1133,8 @@ export function TimerRadModal({
     pauseMin: number,
     // NY BESLUTNING: maskinlinjene (nye uten id) + fjernede koblede maskiner.
     maskiner: MaskinEndringer,
-  ) => void;
+    // w9m (WM108): tekst = lagringen ble stoppet; modalen viser den og blir stående.
+  ) => string | void;
   onLukk: () => void;
 }) {
   const { t, i18n } = useTranslation();
@@ -1593,42 +1602,66 @@ export function TimerRadModal({
       .map((r) => r.vehicleId);
   }, [sheetId]);
 
-  // P1 (maskin-i-rad): proaktiv bucket-kapasitet for maskin-seksjonen. «Så langt»-
-  // visning: arbeidSum + eksisterende maskin i (valgtProjectId, valgtEcoId), ledig
-  // via delt @sitedoc/shared-regel. Sedel-pausen (`sheetPauseMin`) er kapasitets-
-  // taket (D6) — IKKE den lokale `pauseMin` (firma standardPauseMin, fra/til-synk).
-  const maskinKapasitet = useMemo(() => {
+  // w9m (plan § 4.4): «høyst X t» pr. maskinlinje med skjemaets verdier — jobbens
+  // arbeid (uten reise, uten pause) minus de andre førermaskinene på jobben. Døgn-
+  // maskin: ingen grense. Selve stoppet skjer ved lagring (`skrivMedMaskinVakt`),
+  // likt med serveren. Jobben = radens kort; ny rad: kortet den går inn i.
+  const maskinHoyst = useMemo((): Array<number | null> => {
     const db = hentDatabase();
-    if (!db) return { arbeidSum: 0, sumMaskin: 0, ledig: 0 };
-    const iBucket = (r: {
-      projectId: string | null;
-      externalCostObjectId: string | null;
-    }) =>
+    if (!db || maskinLinjer.length === 0) return [];
+    const g = lesJobbGrunnlag(db, sheetId, hentReiseLonnsartId(organizationId));
+    const somDialog = (r: { projectId: string | null; byggeplassId: string | null; externalCostObjectId: string | null }) =>
       (r.projectId ?? defaultProjectId) === valgtProjectId &&
+      (r.byggeplassId ?? null) === (valgtByggeplassId ?? null) &&
       (r.externalCostObjectId ?? null) === (valgtEcoId ?? null);
-    // Ordre (6): maskin måles mot arbeid UTEN reise.
-    const reiseArtId = hentReiseLonnsartId(organizationId);
-    const arbeidSum = db
-      .select()
-      .from(sheetTimerLocal)
-      .where(eq(sheetTimerLocal.dagsseddelId, sheetId))
-      .all()
-      .filter((r) => iBucket(r) && !erReiseRadVisning(r.erReise, r.lonnsartId, reiseArtId))
-      .reduce((acc, r) => acc + (r.timer ?? 0), 0);
-    const sumMaskin = db
-      .select()
-      .from(sheetMachineLocal)
-      .where(eq(sheetMachineLocal.dagsseddelId, sheetId))
-      .all()
-      .filter(iBucket)
-      .reduce((acc, r) => acc + (r.timer ?? 0), 0);
-    const { ledig } = maskinBucketKapasitet({
-      arbeidSum,
-      sumMaskinEksisterende: sumMaskin,
-      pauseMin: sheetPauseMin,
-    });
-    return { arbeidSum, sumMaskin, ledig };
-  }, [sheetId, valgtProjectId, valgtEcoId, sheetPauseMin, defaultProjectId, organizationId]);
+    const kortId =
+      eksisterendeRad?.kortId ??
+      eksisterendeRader.find((r) => r.kortId && r.id !== eksisterendeRad?.id && somDialog(r))?.kortId ??
+      "__ny-rad__";
+    const tall = (v: string) => {
+      const n = Number(v.replace(",", "."));
+      return Number.isFinite(n) && n > 0 ? n : 0;
+    };
+    const timerRader = [
+      ...g.timer.filter((r) => r.id !== eksisterendeRad?.id),
+      {
+        id: "__rad__",
+        kortId,
+        projectId: valgtProjectId,
+        externalCostObjectId: valgtEcoId ?? null,
+        timer: tall(timer),
+        erReise: erReiseRad || erReiseLonnsartLokalt(organizationId, valgtLonnsartId),
+      },
+    ];
+    const iSkjema = new Set([
+      ...maskinLinjer.map((l) => l.id).filter((id): id is string => !!id),
+      ...fjernedeMaskinIds,
+    ]);
+    const andre = g.maskin.filter((m) => !iSkjema.has(m.id));
+    const egne = maskinLinjer.map((l) => ({
+      id: l.id ?? l.noekkel,
+      kortId,
+      projectId: valgtProjectId,
+      externalCostObjectId: valgtEcoId ?? null,
+      timer: tall(l.timer),
+      utleieEnhet: l.vehicleId ? utleieEnhetLokalt(db, l.vehicleId) : null,
+    }));
+    return maskinHoystPerRad(timerRader, [...andre, ...egne], g.pauseMin).slice(andre.length);
+  }, [
+    sheetId,
+    organizationId,
+    maskinLinjer,
+    fjernedeMaskinIds,
+    timer,
+    valgtProjectId,
+    valgtByggeplassId,
+    valgtEcoId,
+    valgtLonnsartId,
+    erReiseRad,
+    eksisterendeRad,
+    eksisterendeRader,
+    defaultProjectId,
+  ]);
 
   // Speiler web-TimerRadDialogs disabled-logikk: kjernefeltene + fra/til
   // obligatorisk på timer-rader (2026-07-13, reverserer a2). Validering i lagre()
@@ -1748,7 +1781,7 @@ export function TimerRadModal({
           effektiveTimerFraSpenn(fraTid, tilTid, pauseFraFor(fraTid, tilTid), radPauseMinFor(fraTid, tilTid)) - tallN,
         ) <= 0.01;
       if (!stemmer) {
-        onLagre(
+        const avvist = onLagre(
           valgtProjectId,
           valgtByggeplassId,
           valgtLonnsartId,
@@ -1761,6 +1794,7 @@ export function TimerRadModal({
           0,
           { linjer: [], fjernede: [] },
         );
+        if (avvist) setFeil(avvist);
         return;
       }
     }
@@ -1844,7 +1878,24 @@ export function TimerRadModal({
         enhet: l.enhet || null,
       });
     }
-    const over = maskinerOverRad(radTimerLagret, linjer)[0];
+    // Kort-id d2c-2 (R24, spec § 12.2): en timerad som bærer maskin som krever
+    // timerad, kan ikke bli reise — som serveren (d2c-1). Meldingen navngir maskinen.
+    // 0 timer stoppes alt over (ugyldigTimer).
+    const dbR24 = hentDatabase();
+    if (dbR24 && (erReiseRad || erReiseLonnsartLokalt(organizationId, valgtLonnsartId))) {
+      const krever = linjer.filter((l) => maskinKreverTimerad(utleieEnhetLokalt(dbR24, l.vehicleId)));
+      if (krever.length > 0) {
+        setFeil(
+          t("timer.maskinTimerad.reiseSperre", {
+            count: krever.length,
+            navn: krever.map((l) => `«${maskinNavnLokalt(dbR24, l.vehicleId)}»`).join(", "),
+          }),
+        );
+        return;
+      }
+    }
+    const dbOver = hentDatabase();
+    const over = dbOver ? maskinerOverRad(radTimerLagret, linjer, enhetLokalt(dbOver))[0] : undefined;
     if (over) {
       setFeil(
         t("timer.maskinSeksjon.overRad", {
@@ -1860,7 +1911,7 @@ export function TimerRadModal({
     // lønnsarten. Krysser normen → normal-delen via onLagre (beholder id, maskin
     // og lønnsart), overtid-delen som ny rad via onLeggTilOvertidDel.
     if (forslag?.normal && onLeggTilOvertidDel) {
-      onLagre(
+      const avvist = onLagre(
         valgtProjectId,
         valgtByggeplassId,
         valgtLonnsartId,
@@ -1873,6 +1924,10 @@ export function TimerRadModal({
         forslag.normal.pauseMin,
         maskin,
       );
+      if (avvist) {
+        setFeil(avvist);
+        return;
+      }
       onLeggTilOvertidDel(
         valgtProjectId,
         valgtByggeplassId,
@@ -1887,7 +1942,7 @@ export function TimerRadModal({
       );
       return;
     }
-    onLagre(
+    const avvist = onLagre(
       valgtProjectId,
       valgtByggeplassId,
       forslag ? forslag.overtidLonnsart.id : valgtLonnsartId,
@@ -1901,6 +1956,7 @@ export function TimerRadModal({
       radPauseMin,
       maskin,
     );
+    if (avvist) setFeil(avvist);
   }
 
   return (
@@ -2219,8 +2275,17 @@ export function TimerRadModal({
                             placeholder="0,00"
                             keyboardType="decimal-pad"
                             inputAccessoryViewID={TASTATUR_FERDIG_ID}
-                            className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-base text-gray-900"
+                            className={`rounded-lg border bg-white px-3 py-2 text-base text-gray-900 ${
+                              overMaskinHoyst(Number(l.timer.replace(",", ".")) || 0, maskinHoyst[i] ?? null)
+                                ? "border-red-400"
+                                : "border-gray-300"
+                            }`}
                           />
+                          {maskinHoyst[i] != null ? (
+                            <Text className="mt-1 text-xs text-gray-500">
+                              {t("timer.maskin.hoyst", { timer: jobbTall(maskinHoyst[i]!) })}
+                            </Text>
+                          ) : null}
                         </View>
                         <View className="flex-1">
                           <Text className="mb-1 text-xs text-gray-500">
@@ -2264,13 +2329,6 @@ export function TimerRadModal({
                       {t("timer.maskinSeksjon.leggTil")}
                     </Text>
                   </Pressable>
-                  <Text className="text-xs text-gray-500">
-                    {t("timer.maskinSeksjon.kapasitet", {
-                      arbeid: maskinKapasitet.arbeidSum.toFixed(2),
-                      maskin: maskinKapasitet.sumMaskin.toFixed(2),
-                      ledig: Math.max(0, maskinKapasitet.ledig).toFixed(2),
-                    })}
-                  </Text>
                   <Text className="text-xs text-gray-400">
                     {t("timer.maskinSeksjon.hint")}
                   </Text>

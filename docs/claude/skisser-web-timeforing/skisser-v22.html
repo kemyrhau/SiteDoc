@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="nb">
+<head>
+<meta charset="utf-8">
+<title>Skisse — versjon 22: attesteringen med oversiktsrader, gule varsler og ukekontroll</title>
+<!--
+  VEDTATT RETNING (Kenneth 2026-11-23: B50 A, B51 A, B56 A, B57 «to trykk», B59 A–B62 A), ikke bygget.
+  Rettet 2026-11-24 etter Kenneths svar (B85 ja): godtatt overtid = timer over dagsnorm − det uka mangler; «kan trekkes» = ført overtid − godtatt overtid = 1,0 t;
+  åpnet kort med ✎ og ✂; knappen «Attester 46 uten varsel» er tatt ut (B57).
+  Kilde for v22-uke.png og v22-oversiktsrad.png
+  (web-timeforing-plan.md § 4.17). Tre ark, valgt med #uke, #rad og #enkel (v22-enkel.png). Tegnet med Chrome uten vindu:
+    "Google Chrome" --headless=new --hide-scrollbars --force-device-scale-factor=1 \
+      --window-size=1440,<høyde> --screenshot=v22-uke.png "file://…/skisser-v22.html#uke"
+  Høyden måles med --dump-dom: arket skriver den i data-hoyde på <html>.
+  Tallene er et eksempel: Ola Hansen, uke 47, firmaets dagsnorm 7,5 t og reiseterskel 30 km.
+-->
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#f3f4f6;font-family:-apple-system,"Inter","Segoe UI",Helvetica,Arial,sans-serif;color:#111827;font-size:12.5px}
+.ark{width:1440px;padding:22px;display:none}
+.ark.vis{display:block}
+.tittel{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.pille{background:#1e40af;color:#fff;font-weight:700;border-radius:999px;padding:5px 13px;font-size:12.5px;letter-spacing:.04em}
+.tittel h1{font-size:20px;margin:0}
+.scen{background:#fff;border:1px solid #e5e7eb;border-radius:9px;padding:9px 12px;margin-bottom:14px;line-height:1.5}
+.to{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start}
+#rad .to{grid-template-columns:minmax(0,640px) minmax(0,1fr)}
+tr.uke td{white-space:normal !important}
+tr.uke td:nth-child(2),tr.uke td.t{white-space:nowrap !important}
+table.b td:nth-child(4){white-space:nowrap}
+table.idag td{padding:6px 5px}
+table.idag td:nth-child(6){white-space:nowrap}
+table.idag th{padding:6px 5px}
+.side{background:#fafbfc;border:1px solid #d1d5db;border-radius:12px;padding:14px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.side.anb{border-color:#16a34a;box-shadow:0 0 0 2px #bbf7d0}
+.side h2{margin:0 0 4px;font-size:15px}
+.side .under{color:#6b7280;margin:0 0 10px;line-height:1.45}
+.anbm{display:inline-block;background:#16a34a;color:#fff;border-radius:999px;padding:1px 9px;font-size:11px;font-weight:700;margin-left:6px;vertical-align:middle}
+table{border-collapse:separate;border-spacing:0;width:100%;background:#fff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden}
+th{font-size:11px;font-weight:600;color:#6b7280;text-align:left;padding:6px 8px;background:#f9fafb;border-bottom:1px solid #e5e7eb;white-space:nowrap}
+td{padding:6px 7px;border-bottom:1px solid #f1f5f9;white-space:normal;vertical-align:middle;line-height:1.7}
+td:nth-child(-n+3),td.t,td:last-child{white-space:nowrap}
+td.t,th.t{text-align:right;font-variant-numeric:tabular-nums}
+tr.uke td{background:#1e3a8a;color:#fff;font-weight:600;border-bottom:0}
+tr.uke.gul td{background:#1e3a8a}
+tr.dag td{background:#eff6ff;font-weight:600;border-left:0}
+tr.dag td:first-child{border-left:4px solid #1d4ed8}
+tr.jobb td{background:#f8fafc}
+tr.jobb td:first-child{border-left:4px solid #60a5fa}
+tr.jobb.to td:first-child{border-left:4px solid #10b981}
+tr.lin td{color:#374151}
+tr.lin td:first-child{border-left:4px solid #bfdbfe}
+tr.luft td{height:8px;background:#f3f4f6;border:0;padding:0}
+.m{display:inline-block;white-space:nowrap;border:1px solid #fcd34d;background:#fffbeb;color:#92400e;border-radius:7px;padding:0 6px;font-size:11px;font-weight:600;line-height:17px}
+.m.rod{border-color:#fca5a5;background:#fef2f2;color:#991b1b}
+.c{display:inline-block;white-space:nowrap;border:1px solid #e5e7eb;background:#f9fafb;color:#374151;border-radius:7px;padding:0 6px;font-size:11px;line-height:17px;margin-right:3px}
+.c.g{border-color:#fcd34d;background:#fef3c7;color:#92400e;font-weight:600}
+.gulrad td{background:#fef9c3 !important}
+.kn{display:inline-block;background:#1d4ed8;color:#fff;border-radius:6px;padding:3px 9px;font-size:11.5px;font-weight:600}
+.kn.sek{background:#fff;color:#374151;border:1px solid #d1d5db}
+.ik{display:inline-block;width:22px;height:22px;border:1px solid #d1d5db;border-radius:5px;background:#fff;text-align:center;line-height:20px;color:#15803d;font-size:12px}
+.kb{display:inline-block;width:13px;height:13px;border:1px solid #9ca3af;border-radius:3px;background:#fff;vertical-align:middle}
+.graa{color:#6b7280;font-weight:400}
+.hov{position:relative}
+.boks{background:#111827;color:#fff;border-radius:8px;padding:8px 10px;font-size:11.5px;line-height:1.5;font-weight:400;white-space:normal;width:300px;box-shadow:0 6px 16px rgba(0,0,0,.25)}
+.boks b{color:#fde68a;font-weight:600}
+.pek{color:#6b7280;font-size:11.5px;margin:6px 0 0;line-height:1.45}
+.pluss{color:#15803d}.minus{color:#b91c1c}
+ul.pm{margin:10px 0 0;padding-left:18px;line-height:1.55}
+.leg{display:grid;grid-template-columns:150px 1fr;gap:5px 12px;background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:10px 12px;margin-top:12px;line-height:1.45}
+.vt{background:#fff;border:1px solid #d1d5db;border-radius:8px;padding:6px 10px;display:flex;gap:8px;align-items:center;margin-bottom:8px;font-size:11.5px;color:#374151}
+.vt .pk{border:1px solid #d1d5db;border-radius:6px;padding:2px 8px;background:#fff}
+.vt .pk.paa{background:#eff6ff;border-color:#93c5fd;color:#1d4ed8;font-weight:600}
+
+.tre{display:grid;grid-template-columns:minmax(0,1.62fr) minmax(0,1fr) minmax(0,.95fr);gap:14px;align-items:start}
+.stat{background:#fff;border:1px solid #d1d5db;border-radius:8px;padding:7px 10px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px;font-size:11.5px}
+.stat b{font-size:12.5px}
+.kn.gr{background:#15803d}
+.set{background:#fff;border:1px solid #e5e7eb;border-left:4px solid #1d4ed8;border-radius:8px;padding:8px 10px;margin-bottom:7px;line-height:1.55}
+.set .hd{display:flex;justify-content:space-between;gap:8px;font-weight:600}
+.set .it{color:#6b7280;font-style:italic}
+.gm{background:#fef3c7;border-radius:4px;padding:0 3px;font-weight:600;color:#92400e}
+.fok{background:#fff;border:1px solid #d1d5db;border-radius:10px;padding:12px}
+.fok .tl{display:grid;grid-template-columns:86px 1fr;gap:4px 10px;margin:8px 0;line-height:1.5}
+.fok .tl .k{color:#6b7280;font-variant-numeric:tabular-nums}
+.fok .var{background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:8px 10px;margin:8px 0;line-height:1.5}
+.fok .kn{padding:5px 8px;font-size:11.5px;white-space:nowrap}
+#enkel td,#enkel th{padding:5px 5px;font-size:11.5px}
+#enkel .ik{width:20px;height:20px;line-height:18px}
+.pop{background:#fff;border:1px solid #fcd34d;border-radius:8px;padding:8px 10px;box-shadow:0 6px 16px rgba(0,0,0,.18);font-size:11.5px;line-height:1.5;white-space:normal;font-weight:400;max-width:330px}
+.ik.sak{color:#374151}.ik.ret{color:#b45309}
+.kb.paa{background:#1d4ed8;border-color:#1d4ed8;position:relative}
+.kb.paa::after{content:"✓";color:#fff;font-size:10px;position:absolute;left:1.5px;top:-5.5px;font-weight:700}
+.nr{display:inline-block;width:17px;height:17px;border-radius:999px;background:#f59e0b;color:#111827;font-size:11px;font-weight:700;text-align:center;line-height:17px;margin-right:4px}
+.ikkev{display:inline-block;background:#e5e7eb;color:#4b5563;border-radius:999px;padding:1px 9px;font-size:11px;font-weight:700;margin-left:6px;vertical-align:middle}
+.kort{border:1px solid #bfdbfe;border-radius:9px;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.08);overflow:hidden;font-weight:400}
+.kort .kh{display:flex;gap:8px;align-items:center;padding:7px 10px;background:#f8fafc;border-bottom:1px solid #e5e7eb}
+.kort .kl{display:grid;grid-template-columns:150px 110px 60px 1fr;gap:8px;align-items:center;padding:5px 10px;border-bottom:1px solid #f1f5f9}
+.kort .kl:last-child{border-bottom:0}
+.kort .kl.gul{background:#fef9c3}
+.kort .kl .tt{text-align:right;font-variant-numeric:tabular-nums}
+.kort .kl .hk{text-align:right}
+td.fri{white-space:normal !important}
+td.fri .ik{white-space:nowrap}
+</style>
+</head>
+<body>
+
+<!-- ========================= ARK 1: UKA ========================= -->
+<div class="ark" id="uke">
+  <div class="tittel"><span class="pille">VERSJON 22 · A</span><h1>Hvor står uka? To måter å ordne attesteringen på</h1></div>
+  <div class="scen">
+    <b>Eksempel:</b> Ola Hansen, uke 47. Dagsnorm 7,5 t, ukenorm 37,5 t, firmaets reiseterskel 30 km.
+    Man: vanlig dag. Tir: 2,5 t overtid. Ons: egenmelding. Tor: reise 14:00–15:00. Fre: 5 t.
+    Uka: 36,5 t av 37,5 — 1,0 t under norm, og 2,5 t er ført som overtid. <b>1,0 t av overtiden kan trekkes</b>
+    (godtatt overtid er 2,5 t over dagsnorm − 1,0 t som uka mangler = 1,5 t; ført 2,5 − godtatt 1,5 = 1,0 t). Kari Olsen har en vanlig uke.
+    <b>Gult = attestanten må se på det.</b> En vanlig dag har ikke noe gult.
+  </div>
+
+  <div class="to">
+    <!-- ---------- Alternativ A ---------- -->
+    <div class="side anb">
+      <h2>A — uka øverst, pr. ansatt <span class="anbm">Valgt · B50 A</span></h2>
+      <p class="under">Visningen «Etter ansatt» får en ukelinje pr. ansatt. Under den står én oversiktsrad pr. dag. Klikk på dagsraden åpner kortet, der det rettes og deles.</p>
+      <div class="vt"><span class="pk">Sedler</span><span class="pk">Etter prosjekt</span><span class="pk paa">Etter ansatt</span><span>Uke 47 · 16.–22. nov.</span><span style="margin-left:auto"><span class="nr">2</span><span class="kn">✓ Attester utvalget (5)</span></span></div>
+      <table>
+        <tr><th style="width:26px"></th><th>Dag</th><th>Prosjekt</th><th>Lønnsart</th><th class="t">Arbeid</th><th>Varsel</th><th></th></tr>
+        <tr class="uke"><td><span class="kb paa"></span></td><td colspan="2"><span class="nr">1</span>Ola Hansen · uke 47</td><td><span style="color:#c7d2fe;font-weight:400">ord. 26,5 · overtid 2,5 · fravær 7,5 · reise 1,0</span></td><td class="t">36,5 av 37,5</td><td colspan="2"><span class="m">Under ukenorm 1,0 t</span> <span class="m">1,0 t av 2,5 t overtid kan trekkes</span></td></tr>
+        <tr class="dag"><td><span class="kb paa"></span></td><td>man. 16.11.</td><td>Nordlia skole</td><td><span class="c">Timelønn 7,5</span></td><td class="t">7,5</td><td></td><td><span class="ik">✓</span></td></tr>
+        <tr class="dag"><td><span class="kb paa"></span></td><td>tir. 17.11.</td><td>Nordlia skole</td><td><span class="c">Timelønn 7,5</span><span class="c g">Overtid 50 % 2,5</span></td><td class="t">10,0</td><td><span class="m">+2,5 t</span> <span class="m">1,0 t kan trekkes</span></td><td><span class="ik">✓</span></td></tr>
+        <tr><td class="fri" colspan="7" style="background:#fff;padding:8px 10px 10px 34px">
+          <div class="kort">
+            <div class="kh"><b>Nordlia skole</b><span class="graa">07:00–17:30 · pause 30 min · 10,0 t</span><span style="margin-left:auto" class="kn sek">✎ Rediger jobben</span><span class="kn sek">✂ Del opp</span></div>
+            <div class="kl"><span>Timelønn</span><span class="graa">07:00–15:00</span><span class="tt">7,5 t</span><span class="hk"><span class="ik sak">✂</span> <span class="ik sak">✎</span></span></div>
+            <div class="kl gul"><span><b>Overtid 50 %</b></span><span class="graa">15:00–17:30</span><span class="tt">2,5 t</span><span class="hk"><span class="ik sak">✂</span> <span class="ik sak">✎</span></span></div>
+          </div>
+          <p class="pek">↑ Tirsdag er åpnet med klikk på dagsraden. Kortet er det som finnes i dag: «✎ Rediger jobben» og «✂ Del opp» øverst, ✂ (del linja) og ✎ (rett linja) ved linjene. 1,0 t trekkes ved å dele overtidslinja ved 16:00 og rette første del til Timelønn.</p>
+        </td></tr>
+        <tr class="dag"><td><span class="kb paa"></span></td><td>ons. 18.11.</td><td><span class="graa">Fravær</span></td><td><span class="c g">Egenmelding 7,5</span></td><td class="t graa">–</td><td></td><td><span class="ik">✓</span></td></tr>
+        <tr class="dag"><td><span class="kb paa"></span></td><td>tor. 19.11.</td><td>Nordlia skole</td><td><span class="c">Timelønn 6,5</span><span class="c g">Reise 1,0</span></td><td class="t">6,5</td><td><span class="m">−1,0 t</span> <span class="m">Reise under terskel</span></td><td><span class="ik">✓</span></td></tr>
+        <tr class="dag"><td><span class="kb paa"></span></td><td>fre. 20.11.</td><td>2 jobber</td><td><span class="c">Timelønn 5,0</span></td><td class="t">5,0</td><td><span class="m">−2,5 t</span></td><td><span class="ik">✓</span></td></tr>
+        <tr class="luft"><td colspan="7"></td></tr>
+        <tr class="uke"><td><span class="kb"></span></td><td colspan="2">Kari Olsen · uke 47</td><td><span style="color:#c7d2fe;font-weight:400">ordinært 37,5</span></td><td class="t">37,5 av 37,5</td><td colspan="2"></td></tr>
+        <tr class="dag"><td><span class="kb"></span></td><td>man. 16.11.</td><td>Havnegata 4</td><td><span class="c">Timelønn 7,5</span></td><td class="t">7,5</td><td></td><td><span class="ik">✓</span></td></tr>
+        <tr class="dag"><td></td><td colspan="6" class="graa">… tir.–fre.: fire like dager uten varsel</td></tr>
+      </table>
+      <ul class="pm">
+        <li><span class="pluss">+</span> Ukevarselet står der uka står, én gang, med tallet som kan trekkes: ført overtid minus godtatt overtid.</li>
+        <li><span class="pluss">+</span> <span class="nr">1</span>Krysset på ukelinja velger alle dagene til den ansatte. <span class="nr">2</span>«Attester utvalget» attesterer dem. To trykk, ingen ny knapp (B57).</li>
+        <li><span class="pluss">+</span> Radene åpnes for redigering som i dag, med ✎ og ✂ i kortet.</li>
+        <li><span class="pluss">+</span> Bygger på grupperingen og ukeregnestykket som finnes.</li>
+        <li><span class="minus">−</span> Dagene til flere ansatte står ikke lenger i datorekkefølge. «Sedler» finnes fortsatt for det.</li>
+      </ul>
+    </div>
+
+    <!-- ---------- Alternativ B ---------- -->
+    <div class="side">
+      <h2>B — dagene i datorekkefølge, uka som merke <span class="ikkev">Ikke valgt</span></h2>
+      <p class="under">«Sedler» er standard, som i dag. Ukevarselet står som merke på hver dag med overtid. Ukas tall ligger i «Ukeoversikt», som må åpnes.</p>
+      <div class="vt"><span class="pk paa">Sedler</span><span class="pk">Etter prosjekt</span><span class="pk">Etter ansatt</span><span>Uke 47 · 16.–22. nov.</span><span class="pk">Ukeoversikt</span><span style="margin-left:auto" class="kn">✓ Attester utvalget</span></div>
+      <table class="b">
+        <tr><th style="width:26px"></th><th>Dag</th><th>Ansatt</th><th>Prosjekt</th><th>Lønnsart</th><th class="t">Arbeid</th><th>Varsel</th><th></th></tr>
+        <tr class="dag"><td><span class="kb"></span></td><td>man. 16.11.</td><td>Kari Olsen</td><td>Havnegata 4</td><td><span class="c">Timelønn 7,5</span></td><td class="t">7,5</td><td></td><td><span class="ik">✓</span></td></tr>
+        <tr class="dag"><td><span class="kb"></span></td><td>man. 16.11.</td><td>Ola Hansen</td><td>Nordlia skole</td><td><span class="c">Timelønn 7,5</span></td><td class="t">7,5</td><td></td><td><span class="ik">✓</span></td></tr>
+        <tr class="dag"><td><span class="kb"></span></td><td>tir. 17.11.</td><td>Kari Olsen</td><td>Havnegata 4</td><td><span class="c">Timelønn 7,5</span></td><td class="t">7,5</td><td></td><td><span class="ik">✓</span></td></tr>
+        <tr class="dag"><td><span class="kb"></span></td><td>tir. 17.11.</td><td>Ola Hansen</td><td>Nordlia skole</td><td><span class="c">Timelønn 7,5</span><span class="c g">Overtid 50 % 2,5</span></td><td class="t">10,0</td><td><span class="m">+2,5 t</span> <span class="m">Uke under norm</span></td><td><span class="ik">✓</span></td></tr>
+        <tr class="dag"><td><span class="kb"></span></td><td>ons. 18.11.</td><td>Kari Olsen</td><td>Havnegata 4</td><td><span class="c">Timelønn 7,5</span></td><td class="t">7,5</td><td></td><td><span class="ik">✓</span></td></tr>
+        <tr class="dag"><td><span class="kb"></span></td><td>ons. 18.11.</td><td>Ola Hansen</td><td><span class="graa">Fravær</span></td><td><span class="c g">Egenmelding 7,5</span></td><td class="t graa">–</td><td></td><td><span class="ik">✓</span></td></tr>
+        <tr class="dag"><td><span class="kb"></span></td><td>tor. 19.11.</td><td>Ola Hansen</td><td>Nordlia skole</td><td><span class="c">Timelønn 6,5</span><span class="c g">Reise 1,0</span></td><td class="t">6,5</td><td><span class="m">−1,0 t</span> <span class="m">Reise under terskel</span></td><td><span class="ik">✓</span></td></tr>
+        <tr class="dag"><td></td><td colspan="7" class="graa">… resten av uka, blandet på ansatte</td></tr>
+      </table>
+      <ul class="pm">
+        <li><span class="pluss">+</span> Minst endring fra i dag.</li>
+        <li><span class="minus">−</span> Uka til én ansatt er spredt på radene. Ukesummen ses bare i «Ukeoversikt».</li>
+        <li><span class="minus">−</span> Merket sier at uka er under norm, men ikke hvor mye som kan trekkes, uten å holde pekeren over.</li>
+        <li><span class="minus">−</span> En hel uke kan ikke attesteres samlet pr. ansatt.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ========================= ARK 2: OVERSIKTSRADEN ========================= -->
+<div class="ark" id="rad">
+  <div class="tittel"><span class="pille">VERSJON 22 · B</span><h1>Oversiktsraden for dagen — i dag og forslaget</h1></div>
+  <div class="scen">
+    <b>Samme dag i begge:</b> Ola Hansen tir. 17.11. på Nordlia skole, 07:00–17:30 med 30 min pause: 7,5 t ordinært og 2,5 t overtid,
+    Volvo i 8 timer. Og tor. 19.11.: arbeid 07:00–14:00, reise hjem 14:00–15:00.
+  </div>
+
+  <div class="to">
+    <div class="side">
+      <h2>I dag (målt i koden, slik bilde 205 viser)</h2>
+      <p class="under">Oversiktsraden viser dato, ansatt, pr.nr., sum og «+2,5 t». Lønnsart, overtid og reise ses bare på linjene under. Hover på raden viser bare beskrivelsen.</p>
+      <table class="idag">
+        <tr><th>Dato</th><th>Ansatt</th><th>Pr.nr.</th><th>Underpr.</th><th>Betegnelse</th><th>Fra–til</th><th class="t">Timer</th><th>Avvik</th><th></th></tr>
+        <tr class="dag"><td>tir. 17.11.</td><td>Ola Hansen</td><td>SD-2…</td><td></td><td class="graa">1 jobb</td><td></td><td class="t">10,00</td><td><span class="m">+2,5 t</span></td><td><span class="kn">✓ Attester</span></td></tr>
+        <tr class="lin"><td></td><td></td><td></td><td></td><td>Timelønn</td><td>07:00–15:00</td><td class="t">7,50</td><td></td><td></td></tr>
+        <tr class="lin"><td></td><td></td><td></td><td></td><td>Overtid 50%</td><td>15:00–17:30</td><td class="t">2,50</td><td></td><td></td></tr>
+        <tr class="luft"><td colspan="9"></td></tr>
+        <tr class="dag"><td>tor. 19.11.</td><td>Ola Hansen</td><td>SD-2…</td><td></td><td class="graa">1 jobb</td><td></td><td class="t">7,50</td><td></td><td><span class="kn">✓ Attester</span></td></tr>
+        <tr class="lin"><td></td><td></td><td></td><td></td><td>Timelønn</td><td>07:00–14:00</td><td class="t">6,50</td><td></td><td></td></tr>
+        <tr class="lin"><td></td><td></td><td></td><td></td><td>Reise/transport</td><td>14:00–15:00</td><td class="t">1,00</td><td></td><td></td></tr>
+      </table>
+      <ul class="pm">
+        <li>Torsdag ser vanlig ut: 6,5 t arbeid + 1 t reise = 7,5 t, lik normen. Ingen varsel.</li>
+        <li>Overtid og fravær har ingen farge.</li>
+        <li>Byggeplass og underprosjekt er egne kolonner eller skjult. Prosjektnavnet vises ikke som standard.</li>
+      </ul>
+    </div>
+
+    <div class="side anb">
+      <h2>Forslaget <span class="anbm">Valgt · B51 A, B56 A</span></h2>
+      <p class="under">Oversiktsraden bærer det attestanten trenger. Linjene er skjult til raden åpnes. Stedet og beskrivelsen vises når pekeren holdes over prosjektnavnet.</p>
+      <table>
+        <tr><th>Dato</th><th>Ansatt</th><th>Prosjekt</th><th>Lønnsart</th><th class="t">Arbeid</th><th class="t">Maskin</th><th>Varsel</th><th></th></tr>
+        <tr class="dag"><td>tir. 17.11.</td><td>Ola Hansen</td><td class="hov"><u style="text-decoration-style:dotted">Nordlia skole</u> <span class="graa" title="har underprosjekt">↳</span></td><td><span class="c">Timelønn 7,5</span><span class="c g">Overtid 50 % 2,5</span></td><td class="t">10,0</td><td class="t">8,0</td><td><span class="m">+2,5 t</span> <span class="m">1,0 t kan trekkes</span></td><td><span class="kn">✓ Attester</span></td></tr>
+        <tr><td class="fri" colspan="8" style="background:#fff;padding:6px 8px 10px 150px">
+          <div class="boks"><b>Nordlia skole</b> · SD-2041<br>Byggeplass: Bygg B<br>Underprosjekt: Tillegg 12 – ekstra grøft<br><b>Hva gjorde du?</b> Gravde grøft for overvann langs østveggen. Ventet på rørlegger 30 min.</div>
+          <p class="pek">↑ Vises når pekeren holdes over prosjektnavnet. Ingen boks når raden er åpen.</p>
+        </td></tr>
+        <tr class="dag"><td>tor. 19.11.</td><td>Ola Hansen</td><td><u style="text-decoration-style:dotted">Nordlia skole</u></td><td><span class="c">Timelønn 6,5</span><span class="c g">Reise 1,0</span></td><td class="t">6,5</td><td class="t"></td><td><span class="m">−1,0 t</span> <span class="m">Reise under terskel</span></td><td><span class="kn">✓ Attester</span></td></tr>
+        <tr class="lin"><td></td><td></td><td></td><td>Timelønn</td><td class="t">6,5</td><td></td><td class="graa">07:00–14:00</td><td></td></tr>
+        <tr class="lin gulrad"><td></td><td></td><td></td><td>Reise/transport</td><td class="t">1,0</td><td></td><td class="graa">14:00–15:00 · 22 km · under firmaets terskel 30 km</td><td></td></tr>
+      </table>
+      <p class="pek">Torsdag er åpnet: linjene vises under raden, og linja varselet gjelder er gul.</p>
+      <div class="leg">
+        <b>Ingen farge</b><span>Dagen er lik dagsnormen, med ordinær lønnsart. Ingenting å se på.</span>
+        <b><span class="m">+2,5 t</span> <span class="m">−1,0 t</span></b><span>Arbeidstiden er over eller under dagsnormen. Reise teller ikke med.</span>
+        <b><span class="c g">Overtid 50 % 2,5</span></b><span>Overtid er ført. Timene står i merket.</span>
+        <b><span class="c g">Egenmelding 7,5</span></b><span>Fravær: alle lønnsarter av typen fravær.</span>
+        <b><span class="m">Reise under terskel</span></b><span>Reisen er under firmaets terskel og regnes innenfor arbeidstiden, men er ført som reisetid (B55).</span>
+        <b><span class="m">1,0 t kan trekkes</span></b><span>Uka er under ukenorm, og dagen har overtid. Godtatt overtid er timene over dagsnorm minus timene uka mangler (2,5 − 1,0 = 1,5 t). Tallet er ført overtid minus godtatt overtid (2,5 − 1,5 = 1,0 t).</span>
+        <b>Nordlia skole <span class="graa">↳</span></b><span>Jobben har underprosjekt (B56 A). Navnet vises når pekeren holdes over prosjektnavnet.</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========================= ARK 3: ENKEL ATTESTERING ========================= -->
+<div class="ark" id="enkel">
+  <div class="tittel"><span class="pille">VERSJON 22 · C</span><h1>Enkel attestering som et menneske leser — tre alternativer</h1></div>
+  <div class="scen">
+    <b>Samme uke i alle tre:</b> uke 47, 54 dager venter, 46 er vanlige dager og 8 har varsel. Ola Hansen tir. 17.11.: 07:00–17:30 på Nordlia skole,
+    7,5 t Timelønn og 2,5 t Overtid 50 %, Volvo 8 t. Uka hans er 1,0 t under ukenorm, så 1,0 t av overtiden kan trekkes.
+  </div>
+  <div class="tre">
+
+    <div class="side anb">
+      <h2>A — tabellen fra Bilde 6, med hurtigvalg <span class="anbm">Valgt · B59 A</span></h2>
+      <p class="under">Kjernekolonnene og «Velg parameter» står. Nytt: statuslinja, krysset på ukelinja (en uke med to trykk), handling i varselet og ✂ på raden.</p>
+      <div class="stat"><b>Uke 47</b><span>54 dager venter</span><span>·</span><span>46 uten varsel</span><span>·</span><span class="m">8 med varsel</span>
+        <span style="margin-left:auto" class="kn sek">Vis bare varsler</span><span class="kn">✓ Attester utvalget (5)</span></div>
+      <table>
+        <tr><th style="width:22px"></th><th>Dag</th><th>Prosjekt</th><th>Lønnsart</th><th class="t">Arbeid</th><th>Varsel</th><th></th></tr>
+        <tr class="uke"><td><span class="kb paa"></span></td><td colspan="2">Ola Hansen · uke 47</td><td><span style="color:#c7d2fe;font-weight:400">overtid 2,5 · fravær 7,5</span></td><td class="t">36,5 av 37,5</td><td colspan="2"><span class="m">Under ukenorm 1,0 t</span> <span class="m">1,0 t av 2,5 t overtid kan trekkes</span></td></tr>
+        <tr class="dag"><td><span class="kb paa"></span></td><td>man. 16.11.</td><td>Nordlia skole</td><td><span class="c">Timelønn 7,5</span></td><td class="t">7,5</td><td></td><td><span class="ik">✓</span> <span class="ik ret">↩</span> <span class="ik sak">✂</span></td></tr>
+        <tr class="dag"><td><span class="kb paa"></span></td><td>tir. 17.11.</td><td>Nordlia skole</td><td><span class="c">Timelønn 7,5</span><span class="c g">Overtid 50 % 2,5</span></td><td class="t">10,0</td><td><span class="m">+2,5 t</span> <span class="m">1,0 t kan trekkes</span></td><td><span class="ik">✓</span> <span class="ik ret">↩</span> <span class="ik sak">✂</span></td></tr>
+        <tr><td class="fri" colspan="7" style="background:#fff;padding:6px 8px 10px 150px">
+          <div class="pop"><b>1,0 t kan trekkes</b><br>Uka er 1,0 t under ukenorm (36,5 av 37,5), og 2,5 t er ført som overtid. 1,0 t av overtiden kan gjøres om til ordinær tid. Denne dagen: Overtid 50 % 15:00–17:30.<br>
+          <span class="kn sek" style="margin-top:6px">✎ Gjør om 1,0 t til ordinær tid …</span></div>
+          <p class="pek">↑ Trykk på varselet. Knappen åpner delingen av overtidslinja ferdig utfylt (15:00–16:00 Timelønn, 16:00–17:30 Overtid 50 %). Attestanten kan rette klokkeslettet og trykker «Lagre».</p>
+        </td></tr>
+        <tr class="dag"><td><span class="kb paa"></span></td><td>ons. 18.11.</td><td><span class="graa">Fravær</span></td><td><span class="c g">Egenmelding 7,5</span></td><td class="t graa">–</td><td></td><td><span class="ik">✓</span> <span class="ik ret">↩</span></td></tr>
+      </table>
+      <ul class="pm">
+        <li><span class="pluss">+</span> Bygger på Bilde 6, B14 A og det som er bygget. Kolonner, filter og sortering står.</li>
+        <li><span class="pluss">+</span> En uke: to trykk — kryss på ukelinja, så «Attester utvalget». Ingen egen knapp for dager uten varsel (B57). Et varsel: to trykk til rettet.</li>
+        <li><span class="pluss">+</span> ✂ åpner «Del opp» i kortet (§ 4.16) rett fra raden.</li>
+        <li><span class="minus">−</span> Tettest av de tre. Krever at merkene er få og like fra dag til dag.</li>
+      </ul>
+    </div>
+
+    <div class="side">
+      <h2>B — én setning pr. dag <span class="ikkev">Ikke valgt</span></h2>
+      <p class="under">Dagen skrives som tekst, slik en leder ville sagt det. Ingen kolonner på oversiktsnivået.</p>
+      <div class="set"><div class="hd"><span>man. 16.11. · Ola Hansen</span><span><span class="ik">✓</span> <span class="ik ret">↩</span></span></div>
+        Nordlia skole 07:00–15:00. 7,5 t Timelønn. <span class="it">«Forskaling langs akse 3.»</span></div>
+      <div class="set"><div class="hd"><span>tir. 17.11. · Ola Hansen</span><span><span class="ik">✓</span> <span class="ik ret">↩</span></span></div>
+        Nordlia skole 07:00–17:30. 7,5 t Timelønn og <span class="gm">2,5 t Overtid 50 %</span>. Volvo 8 t.
+        <span class="it">«Gravde grøft for overvann langs østveggen.»</span><br><span class="gm">2,5 t over dagsnorm</span> · <span class="gm">uka er 1,0 t under ukenorm, 1,0 t av overtiden kan trekkes</span></div>
+      <div class="set"><div class="hd"><span>ons. 18.11. · Ola Hansen</span><span><span class="ik">✓</span> <span class="ik ret">↩</span></span></div>
+        <span class="gm">Egenmelding 7,5 t.</span></div>
+      <ul class="pm">
+        <li><span class="pluss">+</span> Lettest å lese første gang. Beskrivelsen står åpent, uten hover.</li>
+        <li><span class="minus">−</span> Tallene står ikke under hverandre. Ti dager kan ikke sammenlignes med ett blikk.</li>
+        <li><span class="minus">−</span> Bryter med Bilde 6: kolonnevalg, sortering og filter i hodet faller bort på oversiktsnivået (B9).</li>
+        <li><span class="minus">−</span> Tre ganger så høyt. 54 dager blir mange skjermer.</li>
+      </ul>
+    </div>
+
+    <div class="side">
+      <h2>C — ett varsel om gangen <span class="ikkev">Ikke valgt</span></h2>
+      <p class="under">Etter at de vanlige dagene er attestert, går attestanten gjennom varslene ett for ett.</p>
+      <div class="fok">
+        <div style="display:flex;justify-content:space-between;color:#6b7280"><span>Varsel 1 av 8</span><span>Neste →</span></div>
+        <div style="font-weight:700;font-size:14px;margin-top:4px">Ola Hansen · tir. 17.11.</div>
+        <div class="tl">
+          <span class="k">07:00–15:00</span><span>Nordlia skole · Timelønn 7,5 t · Volvo 8 t</span>
+          <span class="k">15:00–17:30</span><span><span class="gm">Overtid 50 % 2,5 t</span></span>
+          <span class="k"></span><span class="graa" style="font-style:italic">«Gravde grøft for overvann langs østveggen.»</span>
+        </div>
+        <div class="var"><b>Hvorfor stopper vi her?</b><br>Dagen er 2,5 t over dagsnormen. Uka er 1,0 t under ukenormen, så 1,0 t av overtiden kan trekkes.</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap"><span class="kn gr">✓ Attester</span><span class="kn sek">✎ Rett</span><span class="kn sek">✂ Del opp</span><span class="kn sek">↩ Returner</span></div>
+      </div>
+      <ul class="pm">
+        <li><span class="pluss">+</span> Ingenting å lete etter. Varselet er forklart i klartekst.</li>
+        <li><span class="minus">−</span> En ny flate ved siden av tabellen: to steder å holde like.</li>
+        <li><span class="minus">−</span> Attestanten mister uka rundt dagen mens han avgjør.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<script>
+  var id = (location.hash || "#uke").slice(1);
+  var ark = document.getElementById(id) || document.getElementById("uke");
+  ark.classList.add("vis");
+  document.documentElement.setAttribute("data-hoyde", String(Math.ceil(ark.getBoundingClientRect().height)));
+</script>
+</body>
+</html>

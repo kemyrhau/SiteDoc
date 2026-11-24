@@ -21,9 +21,9 @@ Vedtatt arbeids- og doc-routing for redesignet:
   navigasjon (sidebar/toppbar) endres kun når flagget er på. Reversering = skru av flagget.
 - **`main` holdes ren:** ingenting redesign-spesifikt til prod/`main` før redesignet er
   verifisert komplett og kunde-godkjent. Test-miljøet (via `develop`) brukes til iterasjon.
-- **Eget stack senere:** for kundesammenligning mot prod-data reises en dedikert redesign-stack
-  (`-p redesign`, DB `sitedoc_redesign`, eget subdomene) når vi når det steget — se
-  § Implementeringsplan pkt 3. Ikke bygget ennå.
+- **Eget stack — AVVIKLET 2026-11-24:** redesign-stacken (`-p redesign`, DB `sitedoc_redesign`,
+  subdomene) ble reist i juli og er fjernet. Ikke reis den igjen uten ny ordre fra Kenneth;
+  ny navigasjon testes på test.sitedoc.no bak `nyNavigasjon`.
 - **Doc-routing:** disiplin-/prosess-docer (worktree-regler o.l.) går til `develop` umiddelbart;
   **redesign-docene (denne fila, paritetssjekkliste, designreferanser) reiser med
   redesign-mergen** — indeks-rad (CLAUDE.md) + DOC-MAP-rad legges på `redesign/navigasjon` slik
@@ -134,7 +134,7 @@ Kenneths hovedbekymring: **alle funksjoner i dagens UI skal ivaretas.** Paritets
 
 1. **Branch**: `redesign/navigasjon` fra `develop`. Ingen schema-endringer. Merge fra develop inn minst ukentlig.
 2. **Feature-flag**: `nyNavigasjon` per bruker — gammel og ny UI side om side i samme kode; reversering = skru av flagget. Merge inkrementelt til develop bak flagget.
-3. **Redesign-stack på server-ny**: tredje Docker-stack (`-p redesign`, DB `sitedoc_redesign`, subdomene). Prod-datakopi dit for sammenligning (dump av test-DB først; ekskluder sessions; Resend av/sandbox; avklar S3-tilgang for vedlegg). Migrerings-gate: sjekk `$DATABASE_URL` før alt.
+3. ⛔ **AVVIKLET 2026-11-24 — ikke følg (stacken, DB, DNS og innloggingsadresser er fjernet).** ~~**Redesign-stack på server-ny**~~: tredje Docker-stack (`-p redesign`, DB `sitedoc_redesign`, subdomene). Prod-datakopi dit for sammenligning (dump av test-DB først; ekskluder sessions; Resend av/sandbox; avklar S3-tilgang for vedlegg). Migrerings-gate: sjekk `$DATABASE_URL` før alt.
    **Vaktposter fra DOCKER-NOTES (Opus, denne økta):**
    - **Delt build-kontekst**: prod/test/redesign bygger fra samme `~/stack/sitedoc` — **re-rsync redesign-branchen før hver redesign-build**, ellers bygges feil branch inn. Aldri `--remove-orphans`. rsync ekskluderer `docker/` og env-filer.
    - **OAuth**: `redesign.sitedoc.no` trenger egen callback-URI i web-Entra-appen (`d7735b7a`) OG Google — samme AADSTS50011-felle som på test.

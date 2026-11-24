@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import {
   tilFraAntall,
+  fraFraTilOgAntall,
   effektiveTimerFraSpenn,
   pauseVinduForDag,
   utledArbeidstidFraRader,
@@ -342,5 +343,21 @@ describe("forsokInnsending + svarPaaPauseSporsmaal — flyten", () => {
     const send = vi.fn();
     svarPaaPauseSporsmaal("avbryt", send);
     expect(send).not.toHaveBeenCalled();
+  });
+});
+
+describe("O6 — fraFraTilOgAntall (slutten står fast)", () => {
+  it("til 07:00 − 1 t → 06:00 (Kenneths eksempel)", () => {
+    expect(fraFraTilOgAntall("07:00", 1)).toBe("06:00");
+  });
+  it("kvarter: til 07:00 − 0,25 t → 06:45", () => {
+    expect(fraFraTilOgAntall("07:00", 0.25)).toBe("06:45");
+  });
+  it("krysser ikke midnatt: klemmes til 00:00, som tilFraAntall klemmes til 23:59", () => {
+    expect(fraFraTilOgAntall("00:30", 1)).toBe("00:00");
+    expect(tilFraAntall("23:30", 1, "23:30", 0)).toBe("23:59");
+  });
+  it("invers av tilFraAntall uten pause", () => {
+    expect(tilFraAntall(fraFraTilOgAntall("09:10", 1.5), 1.5, "00:00", 0)).toBe("09:10");
   });
 });

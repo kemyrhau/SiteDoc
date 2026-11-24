@@ -24,6 +24,7 @@ const ORG2 = id("05"); // annet firma (isolasjon)
 const USER = id("02");
 const USER2 = id("03");
 const ADMIN = id("04"); // sitedoc_admin
+const LEDER = id("06"); // w10b: prosjektadmin på P1 og P2 — firmalista med prosjektleder-omfang
 const P1 = id("11");
 const P2 = id("12");
 const B1 = id("21"); // i P1
@@ -42,7 +43,7 @@ const M_UKJENT = id("53");
 const VARE = id("61");
 const VARE_ORG2 = id("62");
 
-const BRUKERE = [USER, USER2, ADMIN];
+const BRUKERE = [USER, USER2, ADMIN, LEDER];
 
 function ctx(userId: string) {
   return {
@@ -185,6 +186,9 @@ const firmaListe = async (status: "sent" | "accepted" = "sent"): Promise<Løs[]>
   (await dag().hentTilAttesteringFirma({ organizationId: ORG, status })) as Løs[];
 const finnSedel = async (sid: string, status: "sent" | "accepted" = "sent"): Promise<Løs> =>
   (await firmaListe(status)).find((s) => s.id === sid);
+// w10b (plan § 4.10 del D): den tredje leseren er firmalista med prosjektleder-omfang.
+const lederListe = async (): Promise<Løs[]> =>
+  (await dag(LEDER).hentTilAttesteringFirma({ organizationId: ORG })) as Løs[];
 
 // ── Oppsett / rydding ───────────────────────────────────────────────────────
 async function ryddOpp() {
@@ -233,6 +237,7 @@ async function seed() {
       { id: USER, email: "kortid-d2a-1@sitedoc.test", name: "Arbeider Én", role: "user" },
       { id: USER2, email: "kortid-d2a-2@sitedoc.test", name: "Arbeider To", role: "user" },
       { id: ADMIN, email: "kortid-d2a-admin@sitedoc.test", name: "Attestant", role: "sitedoc_admin" },
+      { id: LEDER, email: "kortid-d2a-leder@sitedoc.test", name: "Prosjektleder", role: "user" },
     ],
   });
   await prisma.organization.createMany({
@@ -245,6 +250,7 @@ async function seed() {
     data: [
       { userId: USER, organizationId: ORG, status: "aktiv" },
       { userId: USER2, organizationId: ORG, status: "aktiv" },
+      { userId: LEDER, organizationId: ORG, status: "aktiv" },
     ],
   });
   await prisma.organizationModule.createMany({
@@ -270,7 +276,7 @@ async function seed() {
     data: [USER, USER2].flatMap((u) => [
       { userId: u, projectId: P1, role: "member" },
       { userId: u, projectId: P2, role: "member" },
-    ]),
+    ]).concat([P1, P2].map((p) => ({ userId: LEDER, projectId: p, role: "admin" }))),
   });
   await prisma.projectModule.createMany({
     data: [P1, P2].flatMap((p) => [
@@ -327,7 +333,7 @@ afterAll(ryddOpp);
 //  Lesere (commit 1)
 // ════════════════════════════════════════════════════════════════════════════
 describe("T24 — leserne gir varer, utlegg og maskiner", () => {
-  it("varer med sheetTimerId og kortId i alle tre leserne; utlegg i detaljen; maskiner i prosjektlista", async () => {
+  it("varer med sheetTimerId og kortId i alle tre leserne; utlegg i detaljen; maskiner i prosjektlederens liste", async () => {
     const sid = await nySedel();
     const t1 = await timerRad(sid);
     await maskinRad(sid, { sheetTimerId: t1 });
@@ -352,7 +358,7 @@ describe("T24 — leserne gir varer, utlegg og maskiner", () => {
     expect(detalj.utlegg).toHaveLength(1);
     expect(detalj.utlegg[0]).toMatchObject({ belop: expect.anything(), kortId: "kort-1", expenseCategory: { navn: "Parkering" } });
 
-    const prosjektListe: Løs[] = await dag().hentTilAttestering({ projectId: P1 });
+    const prosjektListe: Løs[] = await lederListe();
     const ps = prosjektListe.find((s) => s.id === sid);
     expect(ps.maskiner).toHaveLength(1);
     expect(ps.varer.map((v: Løs) => v.id)).toEqual([v1]);
@@ -390,7 +396,7 @@ describe("T25 — navn på underprosjekt og byggeplass for alle sedelens prosjek
     };
     sjekk(await finnSedel(sid));
     sjekk(await dag().hentForAttestering({ id: sid }));
-    sjekk(((await dag().hentTilAttestering({ projectId: P1 })) as Løs[]).find((s) => s.id === sid));
+    sjekk((await lederListe()).find((s) => s.id === sid));
   });
 
   it("radene er sortert på fraTid, så opprettet", async () => {
@@ -453,7 +459,7 @@ describe("T69 — maskinens enhet og «mangler timerad»", () => {
     for (const s of [
       await finnSedel(sid),
       (await dag().hentForAttestering({ id: sid })) as Løs,
-      ((await dag().hentTilAttestering({ projectId: P1 })) as Løs[]).find((x) => x.id === sid),
+      (await lederListe()).find((x) => x.id === sid),
     ]) {
       const m = (radId: string) => s.maskiner.find((r: Løs) => r.id === radId);
       expect(m(mTime)).toMatchObject({ utleieEnhet: "time", manglerTimerad: true });
@@ -474,7 +480,7 @@ describe("Avvik pekes ut — rader ukeavviket gjelder", () => {
     expect(s.ukeAvvikRadIder).not.toContain(ord);
     const d: Løs = await dag().hentForAttestering({ id: sid });
     expect(d.ukeAvvikRadIder).toEqual([ot]);
-    const p = ((await dag().hentTilAttestering({ projectId: P1 })) as Løs[]).find((x) => x.id === sid);
+    const p = (await lederListe()).find((x) => x.id === sid);
     expect(p.ukeAvvikRadIder).toEqual([ot]);
   });
 });
@@ -604,14 +610,15 @@ describe("T56 — rettRadFelt", () => {
 });
 
 describe("T70 — sperren (R24) i attestantens veier", () => {
-  it("rettRadFelt: bytte til maskin som krever timerad på ukoblet maskinrad avvises, gamle maskin står", async () => {
+  // w9-tillegget: serveren kobler maskinen til jobbens timerad; sperren gjelder bare jobb uten arbeid.
+  it("rettRadFelt: bytte fra døgn- til time-maskin på ukoblet maskinrad kobles til jobbens timerad", async () => {
     const sid = await nySedel();
-    await timerRad(sid);
+    const t = await timerRad(sid);
     const m = await maskinRad(sid, { vehicleId: M_DOEGN });
-    await expect(dag().rettRadFelt({ radType: "maskin", radId: m, felter: { vehicleId: M_TIME } })).rejects.toThrow(
-      /timerad/i,
-    );
-    expect((await prismaTimer.sheetMachine.findUniqueOrThrow({ where: { id: m } })).vehicleId).toBe(M_DOEGN);
+    await dag().rettRadFelt({ radType: "maskin", radId: m, felter: { vehicleId: M_TIME } });
+    const lagret = await prismaTimer.sheetMachine.findUniqueOrThrow({ where: { id: m } });
+    expect(lagret.vehicleId).toBe(M_TIME);
+    expect(lagret.sheetTimerId).toBe(t);
   });
 
   const radInput = async (sid: string) => {
@@ -646,31 +653,67 @@ describe("T70 — sperren (R24) i attestantens veier", () => {
     };
   };
 
-  it("redigerSedelRader: slette timerad med time-maskin uten å slette maskinen avvises", async () => {
+  // Ordrens bevis (w9-tillegget): «Rediger arbeid» bytter døgn-maskin til førermaskin.
+  it("redigerSedelRader: bytte døgn-maskin til førermaskin går gjennom og kobles til jobbens timerad", async () => {
+    const sid = await nySedel();
+    await timerRad(sid, { fra: "07:00", til: "11:00", timer: 4 });
+    const stor = await timerRad(sid, { fra: "11:30", til: "15:30", timer: 4 });
+    const m = await maskinRad(sid, { vehicleId: M_DOEGN, timer: 2 });
+    await prismaTimer.sheetMachine.update({ where: { id: m }, data: { fraTid: "12:00", tilTid: "14:00" } });
+    const inn = await radInput(sid);
+    inn.maskin[0]!.vehicleId = M_TIME;
+    await dag().redigerSedelRader({ sheetId: sid, nyeRader: inn });
+    const lagret = await prismaTimer.sheetMachine.findUniqueOrThrow({ where: { id: m } });
+    expect(lagret.vehicleId).toBe(M_TIME);
+    // Overlapp i fra–til velger raden 11:30–15:30.
+    expect(lagret.sheetTimerId).toBe(stor);
+  });
+
+  it("redigerSedelRader: bytte døgn-maskin til førermaskin på jobb uten arbeid avvises med ny tekst; ingenting endres", async () => {
+    const sid = await nySedel();
+    await timerRad(sid, { kortId: "kort-annen" });
+    const m = await maskinRad(sid, { vehicleId: M_DOEGN, timer: 2, kortId: "kort-uten-arbeid" });
+    const inn = await radInput(sid);
+    inn.maskin[0]!.vehicleId = M_TIME;
+    const feil = await dag().redigerSedelRader({ sheetId: sid, nyeRader: inn }).catch((e: unknown) => e);
+    expect((feil as { cause?: { feilNokkel?: string } }).cause?.feilNokkel).toBe("timer.maskin.utenArbeidAvvist");
+    expect(String((feil as Error).message)).not.toMatch(/timerad|prosjektkort/);
+    expect((await prismaTimer.sheetMachine.findUniqueOrThrow({ where: { id: m } })).vehicleId).toBe(M_DOEGN);
+  });
+
+  it("redigerSedelRader: slette timeraden en time-maskin står på, kobler maskinen til jobbens andre timerad", async () => {
     const sid = await nySedel();
     const t1 = await timerRad(sid);
-    await timerRad(sid, { fra: "12:00", til: "14:00", timer: 2 });
-    await maskinRad(sid, { sheetTimerId: t1, vehicleId: M_TIME });
+    const t2 = await timerRad(sid, { fra: "12:00", til: "14:00", timer: 2 });
+    const m = await maskinRad(sid, { sheetTimerId: t1, vehicleId: M_TIME, timer: 1 });
+    const inn = await radInput(sid);
+    inn.timer = inn.timer.filter((r) => r.originalId !== t1);
+    await dag().redigerSedelRader({ sheetId: sid, nyeRader: inn });
+    expect((await prismaTimer.sheetMachine.findUniqueOrThrow({ where: { id: m } })).sheetTimerId).toBe(t2);
+  });
+
+  it("redigerSedelRader: slette jobbens eneste arbeid med time-maskin igjen avvises", async () => {
+    const sid = await nySedel();
+    const t1 = await timerRad(sid);
+    await maskinRad(sid, { sheetTimerId: t1, vehicleId: M_TIME, timer: 1 });
     const inn = await radInput(sid);
     inn.timer = inn.timer.filter((r) => r.originalId !== t1);
     await expect(dag().redigerSedelRader({ sheetId: sid, nyeRader: inn })).rejects.toThrow(/Volvo EC220E/);
-    expect(await prismaTimer.sheetTimer.count({ where: { sheetId: sid } })).toBe(2);
+    expect(await prismaTimer.sheetTimer.count({ where: { sheetId: sid } })).toBe(1);
   });
 
-  it("redigerSedelRader: ny maskinrad uten originalId som krever timerad avvises; ukoblet rad som ikke endres går gjennom", async () => {
+  it("redigerSedelRader: ny maskinrad uten originalId kobles til jobbens timerad; ukoblet rad som ikke endres røres ikke", async () => {
     const sid = await nySedel();
-    await timerRad(sid, { fra: "07:00", til: "15:00", timer: 8 });
+    const t = await timerRad(sid, { fra: "07:00", til: "15:00", timer: 8 });
     const ukoblet = await maskinRad(sid, { vehicleId: M_TIME, timer: 1 });
     const inn = await radInput(sid);
     const ny = { ...inn.maskin[0]!, originalId: null, timer: 1 };
-    await expect(
-      dag().redigerSedelRader({ sheetId: sid, nyeRader: { ...inn, maskin: [...inn.maskin, ny] } }),
-    ).rejects.toThrow(/timerad/i);
-    // Uendret ukoblet maskin + endret timerad → går gjennom.
-    inn.timer[0]!.timer = 7.5;
-    inn.timer[0]!.tilTid = "14:30";
-    await dag().redigerSedelRader({ sheetId: sid, nyeRader: inn });
-    expect(await prismaTimer.sheetMachine.findUnique({ where: { id: ukoblet } })).not.toBeNull();
+    await dag().redigerSedelRader({ sheetId: sid, nyeRader: { ...inn, maskin: [...inn.maskin, ny] } });
+    const maskiner = await prismaTimer.sheetMachine.findMany({ where: { sheetId: sid } });
+    expect(maskiner).toHaveLength(2);
+    expect(maskiner.find((r) => r.id !== ukoblet)?.sheetTimerId).toBe(t);
+    // Den uendrede, ukoblede eldre raden står ukoblet.
+    expect(maskiner.find((r) => r.id === ukoblet)?.sheetTimerId).toBeNull();
   });
 });
 
@@ -829,6 +872,16 @@ describe("T68 — splitt beholder koblingene", () => {
     const forste = deler[0]!.id;
     for (const m of [m1, m2]) expect((await prismaTimer.sheetMachine.findUniqueOrThrow({ where: { id: m } })).sheetTimerId).toBe(forste);
     expect((await prismaVarelager.vareforbruk.findUniqueOrThrow({ where: { id: v } })).sheetTimerId).toBe(forste);
+  });
+
+  it("w10a (A9) splittRad: begge delene får originalens beskrivelse", async () => {
+    const sid = await nySedel();
+    const t1 = await timerRad(sid);
+    await prismaTimer.sheetTimer.update({ where: { id: t1 }, data: { beskrivelse: "Forskaling akse 3" } });
+    await dag().splittRad(splittTimer(t1));
+    const deler = await prismaTimer.sheetTimer.findMany({ where: { sheetId: sid }, orderBy: { fraTid: "asc" } });
+    expect(deler).toHaveLength(2);
+    expect(deler.map((d) => d.beskrivelse)).toEqual(["Forskaling akse 3", "Forskaling akse 3"]);
   });
 
   it("splittRadEier: samme for eieren på egen sedel", async () => {

@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="nb"><head><meta charset="utf-8"><title>w15f løsning</title>
+<style>
+body{font-family:-apple-system,Helvetica,Arial,sans-serif;background:#f3f4f6;margin:0;padding:28px;color:#111827;width:1384px}
+h1{font-size:22px;margin:0 0 4px}.sub{color:#6b7280;font-size:14px;margin-bottom:18px}
+.kol{display:flex;gap:24px;align-items:flex-start}.v{flex:1.35}.h{flex:1}
+.kort{background:#fff;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:12px}
+.kort.aapen{border-color:#60a5fa;box-shadow:0 0 0 1px #bfdbfe}
+.hode{display:flex;align-items:center;gap:24px;padding:14px 16px}
+.tit{font-weight:600;font-size:14px}.sted{font-size:12px;color:#6b7280;margin-top:2px}.sted b{color:#374151;font-weight:600}
+.sum{display:flex;gap:22px;margin-left:auto}.sum div{text-align:right;min-width:52px}
+.sum dt{font-size:10px;letter-spacing:.05em;color:#9ca3af;text-transform:uppercase}.sum dd{margin:0;font-size:14px;font-weight:500}
+.innh{border-top:1px solid #f3f4f6;padding:6px 16px 14px}
+.linje{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f3f4f6}
+.l1{font-size:14px;font-weight:500}.l2{font-size:12px;color:#6b7280}.it{font-style:italic;color:#4b5563}
+.merke{display:inline-block;font-size:10px;font-weight:700;border-radius:4px;padding:2px 6px;margin-right:8px}
+.reise{background:#fef3c7;color:#92400e}.reiselinje{border-left:3px solid #fcd34d;padding-left:10px}
+.t{font-family:Menlo,monospace;font-size:14px}.ik{color:#6b7280;margin-left:10px}
+.lenker{margin-top:10px;font-size:14px;font-weight:500;color:#2563eb;display:flex;gap:16px}
+.ny{outline:2px solid #22c55e;outline-offset:3px;border-radius:4px}
+.nr{display:inline-flex;width:20px;height:20px;border-radius:50%;background:#16a34a;color:#fff;font-size:12px;font-weight:700;align-items:center;justify-content:center;margin-right:6px;vertical-align:middle}
+.nr.r{background:#dc2626}
+.note{font-size:13px;color:#374151;margin:4px 0 0}
+.modal{background:#fff;border-radius:10px;border:1px solid #e5e7eb;box-shadow:0 10px 30px rgba(0,0,0,.08);padding:18px 20px}
+.modal h3{margin:0 0 12px;font-size:16px}
+.f{margin-bottom:10px}.f label{display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:3px}
+.inp{border:1px solid #d1d5db;border-radius:4px;padding:7px 10px;font-size:13px;background:#fff}
+.inp.dis{background:#f3f4f6;color:#6b7280}.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.hint{font-size:12px;color:#92400e;background:#fffbeb;border:1px solid #fde68a;border-radius:4px;padding:6px 8px;margin-top:6px}
+.fot{font-size:12px;color:#6b7280}
+
+.v,.h{flex:1}
+.knapp{display:inline-block;border-radius:6px;padding:7px 14px;font-size:13px;font-weight:500}
+.prim{background:#2563eb;color:#fff}.sek{background:#fff;border:1px solid #d1d5db;color:#374151}
+.penn{display:inline-flex;width:26px;height:26px;border:1px solid #e5e7eb;border-radius:4px;align-items:center;justify-content:center;color:#4b5563;font-size:13px;margin-left:6px}
+.del{display:flex;gap:14px;padding:10px 16px;border-top:1px solid #f3f4f6}
+.delnr{width:22px;height:22px;border-radius:50%;background:#eff6ff;color:#1d4ed8;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center}
+.knappsett{display:flex;gap:6px;flex-wrap:wrap}.ub{border:1px solid #d1d5db;border-radius:4px;padding:4px 9px;font-size:12px;background:#fff}
+.ub.valgt{background:#2563eb;color:#fff;border-color:#2563eb}
+.strek{text-decoration:line-through;color:#9ca3af}
+.tag{font-size:11px;color:#6b7280}
+</style></head><body>
+<h1>w15f — prosjektet kan byttes på en reise som finnes</h1>
+<div class="sub">Løsningsskisse før kode. Venstre: pennen på dagssiden (arbeideren). Høyre: reiselinja i attesteringen og vinduet bak ✎ (attestanten). Grønt = nytt, rødt = tas ut.</div>
+<div class="kol">
+<div class="v">
+  <div class="kort aapen"><div class="hode"><div><div class="tit">1050 · Hålogalandsbrua</div><div class="sted">Byggeplass <b>Narvik sør</b></div></div></div>
+  <div class="innh"><div class="linje reiselinje"><div><span class="merke reise">REISE</span><span class="t">06:25–07:00</span> <span class="l2">Utreise · Kontor → Narvik sør · 35 min</span></div><div><span class="penn">✎</span></div></div></div></div>
+  <div class="modal" style="margin-top:14px">
+    <h3>Rediger timer-rad</h3>
+    <div class="f ny"><label><span class="nr">1</span>Prosjekt</label><div class="inp">1060 — Bjerkvik skole ▾</div></div>
+    <div class="f"><label>Byggeplass</label><div class="inp">Bjerkvik skole, hovedbygg ▾ <span class="tag">(foreslått for nytt prosjekt)</span></div></div>
+    <div class="f"><label>Underprosjekt</label><div class="knappsett"><span class="ub valgt">Uten</span><span class="ub">UP-01 Grunnarbeid</span><span class="ub">UP-02 Råbygg</span></div><div class="note tag">Tømt ved prosjektbytte</div></div>
+    <div class="f"><label>Lønnsart</label><div class="inp">Reise ▾</div></div>
+    <div class="g2"><div class="f"><label>Fra</label><div class="inp">06:25</div></div><div class="f"><label>Til</label><div class="inp">07:00</div></div></div>
+    <div class="hint ny"><span class="nr">2</span>Får eget kort på 1060 — Bjerkvik skole</div>
+    <div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end"><span class="knapp sek">Avbryt</span><span class="knapp prim">Lagre</span></div>
+  </div>
+  <p class="note"><span class="nr">1</span>Prosjektfeltet er åpent bare når raden er reise. For arbeid er det låst som i dag. Bytte tømmer underprosjektet og foreslår byggeplass, som reisevinduet.</p>
+  <p class="note"><span class="nr">2</span>Linja «havner i» følger feltene og ser også kort med bare maskin, tillegg eller utlegg (F55). Kallet sender prosjekt, byggeplass og underprosjekt sammen.</p>
+</div>
+<div class="h">
+  <div class="kort aapen"><div class="hode"><div><div class="tit">1050 · Hålogalandsbrua</div><div class="sted">Narvik sør · Armering</div></div><div class="sum"><span class="knapp sek" style="font-size:12px">✎ Rediger jobben</span></div></div>
+  <div class="del"><div class="delnr">8</div><div style="flex:1">
+    <div class="l1" style="margin-bottom:6px">Reise</div>
+    <div class="l2">Utreise · Kontor → Narvik sør · 35 min</div>
+    <div class="linje" style="border:0"><div class="ny"><span class="t">06:25–07:00</span> · Reise · 1050 · Narvik sør · Uten underprosjekt</div><span><span class="penn">✂</span><span class="penn ny">✎</span></span></div>
+    <div class="note"><span class="nr r">3</span><span class="strek">[06:25] [07:00] [Reise ▾] · Føres på: [Uten] [UP-01] [UP-02]</span></div>
+  </div></div></div>
+  <div class="modal" style="margin-top:14px">
+    <h3>Rett reisen</h3>
+    <div class="g2"><div class="f"><label>Start kl.</label><div class="inp">06:25</div></div><div class="f"><label>Slutt kl.</label><div class="inp">07:00</div></div></div>
+    <div class="f ny"><label><span class="nr">4</span>Prosjekt</label><div class="inp">1060 — Bjerkvik skole ▾</div></div>
+    <div class="f"><label>Byggeplass</label><div class="inp">Bjerkvik skole, hovedbygg ▾</div></div>
+    <div class="f"><label>Underprosjekt</label><div class="knappsett"><span class="ub valgt">Uten</span><span class="ub">UP-01 Grunnarbeid</span></div></div>
+    <div class="hint">Får eget kort på 1060 — Bjerkvik skole</div>
+    <div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end"><span class="knapp sek">Avbryt</span><span class="knapp prim">Lagre</span></div>
+  </div>
+  <div class="modal" style="margin-top:14px">
+    <h3>Rett reisen <span class="tag" style="font-weight:400">— firmavalget «Rediger ved attestering» er av</span></h3>
+    <div class="g2"><div class="f"><label>Start kl.</label><div class="inp dis">06:25</div></div><div class="f"><label>Slutt kl.</label><div class="inp dis">07:00</div></div></div>
+    <div class="f"><label>Prosjekt</label><div class="inp dis">1050 — Hålogalandsbrua</div></div>
+    <div class="f"><label>Byggeplass</label><div class="inp dis">Narvik sør</div></div>
+    <div class="f"><label>Underprosjekt</label><div class="knappsett"><span class="ub valgt">Uten</span><span class="ub">UP-01 Armering</span></div></div>
+    <div class="note tag">Firmaet tillater ikke at tid og sted rettes ved attestering. Underprosjektet kan rettes.</div>
+    <div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end"><span class="knapp sek">Avbryt</span><span class="knapp prim">Lagre</span></div>
+  </div>
+  <p class="note"><span class="nr r">3</span>De åpne feltene og «Føres på» på reiselinja tas ut. ✂ står. Lønnsarten på reisen rettes i «✎ Rediger jobben», som i dag.</p>
+  <p class="note"><span class="nr">4</span>Lista har bare prosjektene attestanten kan attestere. «Lagre» sender ett kall (<code>rettRadFelt</code>); endres bare underprosjektet, <code>flyttTimerRadEco</code> som i dag. Etter lagring står reisen i kortet linja «havner i» viste.</p>
+</div></div></body></html>

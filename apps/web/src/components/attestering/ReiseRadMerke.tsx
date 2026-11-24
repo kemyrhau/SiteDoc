@@ -12,11 +12,15 @@
 import { useTranslation } from "react-i18next";
 import { Car, AlertTriangle } from "lucide-react";
 import { useFirma } from "@/kontekst/firma-kontekst";
+import { kontorReiseRute } from "@sitedoc/shared";
 import { trpc } from "@/lib/trpc";
 import type { TimerRad } from "./attestering-buckets";
 import { reiseMerkeNokkel } from "./reise-merke";
+import { midnattTekst } from "../timer/SlettDeltReise";
 
-export function ReiseRadMerke({ rad }: { rad: TimerRad }) {
+/** `sedelDato`: O19 pkt 23 — gir merket «fortsetter / fortsatt fra {dato}» på en reise delt ved
+ *  midnatt. Utelatt = intet merke. */
+export function ReiseRadMerke({ rad, sedelDato }: { rad: TimerRad; sedelDato?: string | Date }) {
   const { t } = useTranslation();
   const { valgtFirma } = useFirma();
   const orgId = valgtFirma?.id;
@@ -39,8 +43,23 @@ export function ReiseRadMerke({ rad }: { rad: TimerRad }) {
   const bygg = rad.byggeplassId
     ? (plasser?.find((p) => p.id === rad.byggeplassId)?.name ?? null)
     : null;
-  const fra = retning === "ut" ? kontor : retning === "retur" ? bygg : null;
-  const til = retning === "ut" ? bygg : retning === "retur" ? kontor : null;
+  // O17 pkt 21: reise mellom to kontorer — begge ender er kontor, hentet fra ruten i `reiseRegel`.
+  const kontorRute = kontorReiseRute(rad.reiseRegel);
+  const kontorNavn = (id: string) => steder?.find((s) => s.id === id)?.navn ?? null;
+  const fra = kontorRute
+    ? kontorNavn(kontorRute.fraKontorId)
+    : retning === "ut"
+      ? kontor
+      : retning === "retur"
+        ? bygg
+        : null;
+  const til = kontorRute
+    ? kontorNavn(kontorRute.tilKontorId)
+    : retning === "ut"
+      ? bygg
+      : retning === "retur"
+        ? kontor
+        : null;
 
   const harDetaljer =
     rad.reiseKilde != null || rad.reiseAvstandM != null || rad.reiseKjoretidMin != null;
@@ -70,6 +89,7 @@ export function ReiseRadMerke({ rad }: { rad: TimerRad }) {
     ruteDeler.push(t("timer.attestering.reise.kjoretid", { min: String(rad.reiseKjoretidMin) }));
   }
   if (rad.reiseKilde) ruteDeler.push(t(`timer.reise.kilde.${rad.reiseKilde}`));
+  const midnatt = midnattTekst(t, sedelDato == null ? null : new Date(sedelDato).toISOString().slice(0, 10), rad.reiseRegel);
 
   return (
     <div className="mt-1 space-y-0.5">
@@ -82,6 +102,11 @@ export function ReiseRadMerke({ rad }: { rad: TimerRad }) {
           {harDetaljer ? ruteDeler.join(" · ") : t("timer.attestering.reise.kildeUkjent")}
         </span>
         {tidMerke && <span className="text-[11px] italic text-gray-400">{tidMerke}</span>}
+        {midnatt && (
+          <span data-testid="reise-midnatt-merke" className="text-[11px] text-gray-600">
+            {midnatt}
+          </span>
+        )}
       </div>
       {rad.reiseAvvik === true && (
         <span className="inline-flex items-center gap-1 rounded border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[11px] font-medium text-amber-800">

@@ -33,6 +33,8 @@ vi.mock("../../services/timer", () => ({
 }));
 vi.mock("@sitedoc/db", () => ({
   prisma: {
+    // w5 (B10): retting ved attestering krever attesteringsrett; sitedoc_admin har den overalt.
+    user: { findUnique: vi.fn().mockResolvedValue({ role: "sitedoc_admin" }) },
     organizationSetting: { findUnique: vi.fn().mockResolvedValue(null) },
     organizationReiseGrense: { findMany: vi.fn().mockResolvedValue([]) },
     reisetidMatrise: { findMany: vi.fn().mockResolvedValue([]) },
@@ -50,6 +52,9 @@ vi.mock("@sitedoc/db-maskin", () => ({
 import { dagsseddelRouter, krevKatalogIFirma } from "./dagsseddel";
 
 const USER = "user-1";
+
+// w7 (B15): egne timer attesteres/rettes av en annen — lederveiene kalles av en annen enn eieren.
+const ATTESTANT = "attestant-1";
 const ORG = "11111111-1111-1111-1111-111111111111";
 const ORG_B = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
 const SHEET = "22222222-2222-2222-2222-222222222222";
@@ -120,7 +125,9 @@ function lagCtx(opts: {
   }));
   const ctx = {
     userId: USER,
-    req: { log: { info: vi.fn(), warn: vi.fn() } },
+    req: { log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } },
+    // w3a (gate 107): varesynken i oppdaterTimerRad kjøres ved hvert lagre.
+    prismaVarelager: { $executeRawUnsafe: vi.fn().mockResolvedValue(0) },
     // Ordre d2c-1: døgn-maskin — R24 (krever timerad) er ikke det som måles her.
     prismaMaskin: {
       equipment: { findMany: vi.fn().mockResolvedValue([{ id: UTSTYR, merke: "Volvo", modell: "EC220E", internNavn: null, utleieEnhet: "doegn" }]) },
@@ -296,12 +303,14 @@ describe("redigerSedelRader — katalog-firmavakt (punkt 1)", () => {
     ["tillegg", { tillegg: [tilleggRad(FREMMED_TILLEGG)] }, /Tillegg finnes ikke i firmaets katalog/],
   ])("🔴 fremmed %s: BAD_REQUEST, ingen transaksjon", async (_navn, nyeRader, feil) => {
     const { ctx } = lagCtx({ status: "sent" });
+    ctx.userId = ATTESTANT;
     await expect(kjør(ctx, nyeRader)).rejects.toThrow(feil);
     expect(ctx.prismaTimer.$transaction).not.toHaveBeenCalled();
   });
 
   it("egne ID-er passerer katalog-vakten", async () => {
     const { ctx } = lagCtx({ status: "sent" });
+    ctx.userId = ATTESTANT;
     // Senere steg i redigeringen er utenfor denne testens mock; kravet er at
     // katalog-vakten slår opp med firma-filter og ikke avviser egne ID-er.
     const feil = await kjør(ctx, {
@@ -332,13 +341,8 @@ describe("maskin-kontrollen måles mot arbeid uten reise (punkt 5)", () => {
     expect(maskinCreate).toHaveBeenCalled();
   });
 
-  it("🔴 maskin 8 / arbeid 7 / reise 2: avvises (reise teller ikke som arbeid)", async () => {
-    const { ctx, maskinCreate } = lagCtx({ timerRader: ARBEID_OG_REISE });
-    await expect(
-      caller(ctx).maskin.tilfoy({ sheetId: SHEET, projectId: PROSJEKT, vehicleId: UTSTYR, timer: 8 }),
-    ).rejects.toThrow(/Maskintimer \(8\.00t\) overstiger arbeidstimer \(7\.00t\)/);
-    expect(maskinCreate).not.toHaveBeenCalled();
-  });
+  // w9: avvisningen (maskin 8 / arbeid 7 / reise 2) måles nå mot ekte Postgres —
+  // routes/maskin-over-arbeid.integration.test.ts («reise teller ikke som arbeid»).
 });
 
 /**
@@ -366,6 +370,7 @@ describe("splitt — katalog-firmavakt i validerSplittFelles (RETUR 1 V2)", () =
     ["leder, timer, fremmed aktivitet", "sent", "splittRad", { radType: "timer", radId: RAD, nyeRader: timerDeler(LONNSART, FREMMED_AKTIVITET) }, /Aktivitet finnes ikke i firmaets katalog/],
   ] as const)("🔴 %s: BAD_REQUEST, ingen transaksjon", async (_navn, status, inngang, input, feil) => {
     const { ctx } = lagCtx({ status });
+    if (inngang === "splittRad") ctx.userId = ATTESTANT;
     const c = caller(ctx) as unknown as Record<string, (i: unknown) => Promise<unknown>>;
     await expect(c[inngang]!(input)).rejects.toMatchObject({ code: "BAD_REQUEST", message: expect.stringMatching(feil) });
     expect(ctx.prismaTimer.$transaction).not.toHaveBeenCalled();
@@ -377,6 +382,7 @@ describe("splitt — katalog-firmavakt i validerSplittFelles (RETUR 1 V2)", () =
     ["leder, timer", "sent", "splittRad", { radType: "timer", radId: RAD, nyeRader: timerDeler(LONNSART, AKTIVITET) }],
   ] as const)("%s med egne ID-er: slipper forbi vakten (transaksjonen startes)", async (_navn, status, inngang, input) => {
     const { ctx } = lagCtx({ status });
+    if (inngang === "splittRad") ctx.userId = ATTESTANT;
     const c = caller(ctx) as unknown as Record<string, (i: unknown) => Promise<unknown>>;
     // Transaksjons-mocken dekker ikke splitt-skrivingen; det som måles er at vakten slapp gjennom.
     const feil = await c[inngang]!(input).then(() => null, (e: unknown) => e as Error);

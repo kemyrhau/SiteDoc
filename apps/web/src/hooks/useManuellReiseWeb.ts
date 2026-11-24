@@ -2,21 +2,33 @@
 
 import { useMemo } from "react";
 import {
-  byggOverforingOppslag,
+  leggTilDager,
+  effektivKortByggeplass,
+  arbeidsreiseKortId,
+  egetReiseKort,
   erApenOverforing,
+  jobberFraArbeidsrader,
+  kortIdNokkel,
+  kortPaaSedelFraRader,
+  velgReiseKort,
   finnDagsramme,
+  gjeldendeMidlertidig,
   kontorOverforingOppsett,
   kontorOverforingRetning,
   løsOppmote,
   løsOverforingKort,
   løsReiseKort,
-  periodeDatoFraOverforing,
-  planleggOverforing,
+  planleggAvslutt,
+  planleggOppmoteBytte,
+  tilIsoDato,
   type DagsforslagOverforingCelle,
-  type DagsforslagOverforingOppslag,
+  type OppmoteBytte,
+  type OppmoteByttKall,
+  type OppmotePeriodeInput,
   type OppmoteResultat,
   type ReiseKortResultat,
   type ReiseRegelsett,
+  type ReiseKategori,
 } from "@sitedoc/shared";
 import { trpc } from "@/lib/trpc";
 
@@ -26,41 +38,218 @@ import { trpc } from "@/lib/trpc";
  *  Samme regel som mobilens `useManuellReise` — kun datakilden er tRPC i
  *  stedet for lokal cache. Den ansatte velger aldri oppmøtested: periodene
  *  (`oppmotePeriode.hentMine`) løses med den DELTE `løsOppmote`, og tid,
- *  kjøretid og lønnsart regnes med `løsReiseKort`. Overføring første/siste dag
- *  i en periode (TILLEGG) regnes med `løsOverforingKort` fra
- *  `byggOverforingOppslag` — samme oppslag som mobil og Bekreft dag.
+ *  kjøretid og lønnsart regnes med `løsReiseKort`.
+ *
+ *  O16 (vedtak-timer-web.md § Reisevinduet pkt 1–2): oppmøtestedet er ett felt i «Fra → Til»
+ *  (`annetKontorId` = kontoret arbeideren har valgt i feltet; null = dagens). Et annet kontor
+ *  blir midlertidig oppmøtested fra «Gjelder fra» (til og med «Til og med»); det faste kontoret
+ *  mens et eget midlertidig gjelder, avslutter det på «Siste dag». Planen er den delte
+ *  `planleggOppmoteBytte`. Tredje valg «Til annet oppmøtested» (`{ type: "kontor" }`) er en
+ *  reise kontor → kontor med firmaets kjøretid mellom kontorene (`løsOverforingKort`, som mobil).
  *
  *  «Siste valg på enheten» (lagret i nettleseren) er fjernet (Kenneth-beslutning 7).
  * ============================================================================ */
 
-export type ReiseKortValg =
-  | { type: "tur" }
-  | { type: "retur" }
-  | { type: "overforing"; indeks: number }
-  /** Del B: overføring til annet kontor (setter/avslutter midlertidig oppmøtested). */
-  | { type: "kontor"; oppmotestedId: string };
+export type ReiseKortValg = { type: "tur" } | { type: "retur" } | { type: "kontor" };
 
-/** Kallet `oppmotePeriode.overforing` får når et kontorvalg lagres (uten id/organizationId). */
-export type KontorOverforingKall = {
-  handling: "start" | "slutt";
-  oppmotestedId: string | null;
-  /** Periodedato etter kl. 12-regelen. */
-  dato: string;
-};
+/** Kallet `oppmotePeriode.overforing` får når oppmøtestedet byttes (O16: arbeiderens datoer). */
+export type KontorOverforingKall = OppmoteByttKall;
 
 export type ReiseKortByggeplass = { id: string; projectId: string; name: string | null };
+
+/** w15b: en rad på sedelen slik linja «havner i» og overlapp-sperren leser den. */
+export type ReiseHavnerRad = {
+  fraTid: string | null;
+  erReise: boolean;
+  kortId?: string | null;
+  projectId?: string | null;
+  ecoId?: string | null;
+  /** Radens egen byggeplass; den effektive regnes med sedelens. */
+  byggeplassId?: string | null;
+  /** ms */
+  opprettet?: number;
+  attestertStatus?: string | null;
+};
+
+/** w15f (F55): maskin-, tillegg- og utleggsrader på sedelen — kort som ikke har arbeid. */
+export type ReiseHavnerAnnenRad = {
+  kortId: string | null;
+  projectId: string | null;
+  ecoId: string | null;
+  byggeplassId: string | null;
+  /** ms */
+  opprettet: number;
+};
+
+export type ReiseHavnerI =
+  | { type: "jobb"; kortId: string; byggeplassId: string | null; projectId: string }
+  /** w15f (F55): et kort som finnes, men ikke har arbeid (bare maskin, tillegg eller utlegg). */
+  | { type: "kort"; kortId: string; byggeplassId: string | null; projectId: string }
+  | { type: "eget"; projectId: string };
+
+/**
+ * w15b: hvilket kort reisen havner i — det serveren gjør i `sikreKortId`
+ * (`apps/api/src/services/timer/kortId.ts`) etter lagring, regnet før lagring:
+ *  - reise (`erReise`): den delte `velgReiseKort` på dagens jobber; `null` → eget kort.
+ *  - under terskel (`erReise` false): raden er arbeid og står i kortet med samme
+ *    nøkkel (prosjekt, effektiv byggeplass, underprosjekt), ellers eget kort.
+ * Linja følger regelen den kaller — endres `velgReiseKort` (w15c), endres linja.
+ * § 8.22 punkt 3: en lagret reise (`lagret`) med uendret nøkkel blir i kortet den står i —
+ * regelen gjelder bare ny reise og reise der prosjekt, byggeplass eller underprosjekt rettes.
+ * w15f (F55): med `andreRader` og `eier` ser linja også kort uten arbeid. Reise uten jobb får
+ * `egetReiseKort` (serveren, `kortId.ts`); har en maskin-, tillegg- eller utleggsrad den id-en,
+ * står reisen i det kortet. Under terskel brukes `losKortId`-regelen mot alle radtypene.
+ */
+export function reiseHavnerI(args: {
+  rader: readonly ReiseHavnerRad[];
+  /** w15f (F55): maskin, tillegg og utlegg på sedelen. */
+  andreRader?: readonly ReiseHavnerAnnenRad[];
+  /** w15f (F55): sedelens eier og dato (ÅÅÅÅ-MM-DD) — kort-id-en regnes som på serveren. */
+  eier?: { userId: string; dato: string } | null;
+  sedelByggeplass: { id: string; projectId: string } | null;
+  reise: {
+    projectId: string;
+    ecoId: string | null;
+    byggeplassId: string | null;
+    retning: "ut" | "retur" | null;
+    fraTid: string | null;
+    erReise: boolean;
+  };
+  /** O1 (§ 8.22): jobben vinduet ble åpnet fra. Under terskel står turen i den jobben når
+   *  nøkkelen er lik (`arbeidsreiseKortId`), ellers i eldste jobb med nøkkelen som før. */
+  jobbKortId?: string | null;
+  /** § 8.22 punkt 3: reiseraden slik den er lagret (ved retting). Utelatt = ny reise. */
+  lagret?: {
+    kortId: string | null;
+    projectId: string | null;
+    byggeplassId: string | null;
+    ecoId: string | null;
+    erReise: boolean;
+  } | null;
+}): ReiseHavnerI {
+  const { rader, sedelByggeplass, reise } = args;
+  const andre = (args.andreRader ?? []).map((r) => ({
+    kortId: r.kortId,
+    nokkel: kortIdNokkel({
+      projectId: r.projectId,
+      byggeplassId: effektivKortByggeplass(r.projectId, r.byggeplassId, sedelByggeplass),
+      ecoId: r.ecoId,
+    }),
+    opprettet: r.opprettet,
+  }));
+  const jobber = jobberFraArbeidsrader(
+    rader
+      .filter((r) => !r.erReise)
+      .map((r) => ({
+        kortId: r.kortId ?? null,
+        projectId: r.projectId ?? null,
+        ecoId: r.ecoId ?? null,
+        byggeplassId: effektivKortByggeplass(r.projectId ?? null, r.byggeplassId, sedelByggeplass),
+        fraTid: r.fraTid,
+        opprettet: r.opprettet ?? 0,
+        attestertStatus: r.attestertStatus ?? null,
+      })),
+  );
+  const reiseNokkel = {
+    projectId: reise.projectId,
+    byggeplassId: effektivKortByggeplass(reise.projectId, reise.byggeplassId, sedelByggeplass),
+    ecoId: reise.ecoId,
+  };
+  let kortId: string | null;
+  // F55: kortet uten arbeid reisen havner i, når den ikke står i en jobb.
+  let annetKort: string | null = null;
+  const lagret = args.lagret;
+  const lagretKort =
+    reise.erReise &&
+    lagret?.erReise &&
+    lagret.kortId &&
+    kortIdNokkel({
+      projectId: lagret.projectId,
+      byggeplassId: effektivKortByggeplass(lagret.projectId, lagret.byggeplassId, sedelByggeplass),
+      ecoId: lagret.ecoId,
+    }) === kortIdNokkel(reiseNokkel)
+      ? lagret.kortId
+      : null;
+  if (lagretKort) {
+    kortId = lagretKort;
+    if (!jobber.some((j) => j.kortId === lagretKort) && andre.some((r) => r.kortId === lagretKort))
+      annetKort = lagretKort;
+  } else if (reise.erReise) {
+    kortId = velgReiseKort(
+      {
+        projectId: reise.projectId,
+        ecoId: reise.ecoId,
+        // Effektiv byggeplass, som serveren (w15c).
+        byggeplassId: effektivKortByggeplass(reise.projectId, reise.byggeplassId, sedelByggeplass),
+        retning: reise.retning,
+        fraTid: reise.fraTid,
+      },
+      jobber,
+    );
+    if (!kortId && args.eier) {
+      const egen = egetReiseKort({
+        userId: args.eier.userId,
+        dato: args.eier.dato,
+        nokkel: reiseNokkel,
+        jobbKortIder: jobber.map((j) => j.kortId),
+      });
+      annetKort = andre.some((r) => r.kortId === egen) ? egen : null;
+    }
+  } else {
+    const nokkel = kortIdNokkel(reiseNokkel);
+    kortId =
+      arbeidsreiseKortId(reiseNokkel, jobber, args.jobbKortId) ??
+      jobber.find((j) => kortIdNokkel(j) === nokkel)?.kortId ??
+      null;
+    if (!kortId) annetKort = kortPaaSedelFraRader(andre).find((k) => k.nokkel === nokkel)?.kortId ?? null;
+  }
+  const jobb = kortId ? jobber.find((j) => j.kortId === kortId) : undefined;
+  if (jobb) return { type: "jobb", kortId: jobb.kortId, byggeplassId: jobb.byggeplassId, projectId: reise.projectId };
+  if (annetKort) return { type: "kort", kortId: annetKort, byggeplassId: reiseNokkel.byggeplassId, projectId: reise.projectId };
+  return { type: "eget", projectId: reise.projectId };
+}
+
+/**
+ * Gate (123) vilkår 1 (§ 8.22: «kjøring før første sted eller etter siste sted er reise»):
+ * på byggeplassperiodens første dag er Tur en vanlig reise, og på siste dag er Retur det.
+ * Reisen regnes fra hjemstedet — samme hjemsted som `finnOverforinger` bruker
+ * (`løsOppmote` uten byggeplassperioden). Mellomdagene, og Retur første dag / Tur siste
+ * dag, beholder `byggeplass` (sperret). Ingen egen kortregel, ingen periodekall.
+ */
+export function oppmoteForReise(
+  dato: string,
+  projectId: string,
+  retning: "tur" | "retur",
+  perioder: readonly OppmotePeriodeInput[],
+  periodeOppmote: OppmoteResultat,
+): OppmoteResultat {
+  if (periodeOppmote.kilde !== "byggeplass") return periodeOppmote;
+  const p = perioder.find((q) => {
+    if (q.type !== "byggeplass" || q.projectId !== projectId) return false;
+    const fra = tilIsoDato(q.fraDato);
+    const til = q.tilDato != null ? tilIsoDato(q.tilDato) : null;
+    return retning === "tur" ? fra === dato : til === dato;
+  });
+  if (!p) return periodeOppmote;
+  const hjem = løsOppmote(dato, null, perioder.filter((q) => q !== p), null);
+  return hjem.kilde === "ikkeValgt" || hjem.kilde === "byggeplass" ? periodeOppmote : hjem;
+}
 
 export function useManuellReiseWeb({
   organizationId,
   dato,
   projectId,
   byggeplassId,
-  byggeplasser,
-  prosjektNavn,
   dagsrader,
   resolverLonnsartId,
   valg,
-  skjulOverforingRetninger = [],
+  annetKontorId = null,
+  gjelderFra = null,
+  tilOgMed = null,
+  sisteDag = null,
+  startTid = null,
+  sluttTid = null,
+  kategoriValg = null,
 }: {
   organizationId: string;
   /** Sedelens dato (YYYY-MM-DD) — perioden som gjaldt da. */
@@ -68,16 +257,22 @@ export function useManuellReiseWeb({
   projectId: string;
   /** Byggeplassen reisen går til (kortets valg). null = ikke valgt. */
   byggeplassId: string | null;
-  /** Firmaets byggeplasser (alle prosjekter) — overføringens byggeplass-ende. */
-  byggeplasser: readonly ReiseKortByggeplass[];
-  prosjektNavn: (projectId: string) => string;
   /** Dagens rader — dagsrammen regnes av ikke-reise-radene. */
-  dagsrader: readonly { fraTid: string | null; tilTid: string | null; erReise: boolean; erOverforing?: boolean }[];
+  dagsrader: readonly { fraTid: string | null; tilTid: string | null; erReise: boolean }[];
   resolverLonnsartId: string | null;
-  /** null = standardvalget: første tilbudte overføring, ellers Tur (TILLEGG). */
+  /** null = Tur. */
   valg: ReiseKortValg | null;
-  /** Retninger sedelen alt har en overføringsrad for — tilbys ikke igjen. */
-  skjulOverforingRetninger?: ReadonlyArray<"ut" | "retur">;
+  /** O16 pkt 1: kontoret i oppmøtested-feltet. null = dagens oppmøtested. */
+  annetKontorId?: string | null;
+  /** O16 pkt 2: arbeiderens «Gjelder fra», «Til og med» og «Siste dag». null = forslaget. */
+  gjelderFra?: string | null;
+  tilOgMed?: string | null;
+  sisteDag?: string | null;
+  /** w15b: arbeiderens rettede start/slutt (HH:MM). null = forslaget. */
+  startTid?: string | null;
+  sluttTid?: string | null;
+  /** O1 TILLEGG: arbeiderens valg reisetid/arbeidstid. null = regelen (terskelen) foreslår. */
+  kategoriValg?: ReiseKategori | null;
 }) {
   const aktivert = !!organizationId;
   const q = { organizationId };
@@ -85,14 +280,17 @@ export function useManuellReiseWeb({
   const defaultsQ = trpc.organisasjon.hentArbeidstidDefaults.useQuery(q, opt);
   const stederQ = trpc.oppmotested.hentForFirma.useQuery(q, opt);
   const matriseQ = trpc.oppmotested.hentMatriseForFirma.useQuery(q, opt);
-  const kontorQ = trpc.oppmotested.hentKontorAvstanderForFirma.useQuery(q, opt);
   const perioderQ = trpc.oppmotePeriode.hentMine.useQuery(q, opt);
   const lonnsarterQ = trpc.timer.lonnsart.list.useQuery(q, opt);
+  // O16 pkt 4: kjøretid kontor–kontor (paret er lagret med fra < til, som mobilens katalog).
+  const kontorAvstandQ = trpc.oppmotested.hentKontorAvstanderForFirma.useQuery(q, {
+    enabled: aktivert && valg?.type === "kontor",
+  });
 
   // RETUR (11) vilkår 1 (lønn): resultatet er bare gyldig når ALT det bygger
   // på er lastet. Kalleren sperrer Lagre til status er «klar» — aldri stille
   // tilbakefall.
-  const oppslag = [defaultsQ, stederQ, matriseQ, kontorQ, perioderQ, lonnsarterQ];
+  const oppslag = [defaultsQ, stederQ, matriseQ, perioderQ, lonnsarterQ];
   const regelStatus: "klar" | "laster" | "feilet" = oppslag.some((x) => x.isError)
     ? "feilet"
     : oppslag.every((x) => x.data !== undefined)
@@ -136,115 +334,94 @@ export function useManuellReiseWeb({
     }
     return m;
   }, [matriseQ.data]);
-  // Kontor↔kontor lagres normalisert (fra < til) — slå opp begge veier.
-  const kontorAvstand = useMemo(() => {
-    const m = new Map<string, DagsforslagOverforingCelle>();
-    for (const r of kontorQ.data ?? []) {
-      if (r.kjoretidMin == null) continue;
-      const celle = { kjoretidMin: r.kjoretidMin, avstandM: r.avstandM ?? null };
-      m.set(`${r.fraOppmotestedId}|${r.tilOppmotestedId}`, celle);
-      m.set(`${r.tilOppmotestedId}|${r.fraOppmotestedId}`, celle);
-    }
-    return m;
-  }, [kontorQ.data]);
-
   // Manuell dag har ingen GPS-start → gpsStartKontorId null.
-  const oppmote: OppmoteResultat = useMemo(
+  const periodeOppmote: OppmoteResultat = useMemo(
     () => løsOppmote(dato, projectId, perioder, null),
     [dato, projectId, perioder],
   );
 
-  const overforinger: DagsforslagOverforingOppslag[] = useMemo(
-    () =>
-      byggOverforingOppslag({
-        datoer: [dato],
-        perioder,
-        destinasjonByggeplassId: null,
-        kontekstByggeplassId: byggeplassId,
-        byggeplasserForProsjekt: (pid) =>
-          byggeplasser.filter((b) => b.projectId === pid).map((b) => ({ id: b.id, navn: b.name })),
-        kontorNavn: (id) => steder.find((o) => o.id === id)?.navn ?? "",
-        prosjektNavn,
-        kontorAvstand: (x, y) => kontorAvstand.get(`${x}|${y}`) ?? null,
-        matrise: (o, b) => matrise.get(`${o}|${b}`) ?? null,
-      }),
-    // prosjektNavn er en ren oppslagsfunksjon fra kalleren.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [dato, perioder, byggeplassId, byggeplasser, steder, kontorAvstand, matrise],
-  );
-
-  // Overføringene som tilbys; indeksen peker inn i `overforinger`.
-  const overforingValg = overforinger
-    .map((o, indeks) => ({ o, indeks }))
-    .filter(({ o }) => !skjulOverforingRetninger.includes(o.overforing.retning));
-  const forsteOverforing = overforingValg[0]?.indeks ?? null;
-  const aktivtValg: ReiseKortValg =
-    valg ?? (forsteOverforing != null ? { type: "overforing", indeks: forsteOverforing } : { type: "tur" });
-
+  const aktivtValg: ReiseKortValg = valg ?? { type: "tur" };
   const ramme = useMemo(() => finnDagsramme(dagsrader), [dagsrader]);
 
-  // Del B: «Overføring til annet kontor» — `hentForFirma` gir bare aktive kontorer.
+  // «Fra et annet kontor fra i dag» — `hentForFirma` gir bare aktive kontorer.
   const kontorOppsett = useMemo(
     () => kontorOverforingOppsett(dato, projectId, perioder, steder.map((o) => o.id)),
     [dato, projectId, perioder, steder],
   );
   const apenOverforing = useMemo(() => perioder.find(erApenOverforing) ?? null, [perioder]);
-  const kontorValg = aktivtValg.type === "kontor" && kontorOppsett ? aktivtValg.oppmotestedId : null;
-  const kontorRetning = kontorValg && kontorOppsett ? kontorOverforingRetning(kontorOppsett, kontorValg) : null;
+  // O16 pkt 1: perioden som gir dagens oppmøtested når den er midlertidig (egen eller firmaadmins).
+  const gjeldende = useMemo(() => gjeldendeMidlertidig(dato, perioder), [dato, perioder]);
+  const valgtKontor = annetKontorId && kontorOppsett?.andre.includes(annetKontorId) ? annetKontorId : null;
+  // Reisen regnes fra det valgte kontoret, som om perioden alt var satt.
+  const kontorRetning =
+    aktivtValg.type === "kontor" && kontorOppsett && valgtKontor ? kontorOverforingRetning(kontorOppsett, valgtKontor) : null;
+  const retning = aktivtValg.type === "retur" || kontorRetning === "retur" ? "retur" : "tur";
+  const oppmote: OppmoteResultat = useMemo(
+    () =>
+      valgtKontor
+        ? { kilde: "midlertidig", oppmotestedId: valgtKontor }
+        : oppmoteForReise(dato, projectId, retning, perioder, periodeOppmote),
+    [valgtKontor, dato, projectId, retning, perioder, periodeOppmote],
+  );
 
-  const resultat: ReiseKortResultat = useMemo(() => {
-    const felles = {
-      dagStart: ramme.dagStart,
-      dagSlutt: ramme.dagSlutt,
-      regel,
-      grensepunkter,
-      resolverLonnsartId,
-      standardLonnsartId,
-    };
-    if (kontorValg && kontorOppsett && kontorRetning) {
-      const celle = kontorAvstand.get(`${kontorOppsett.fraKontorId}|${kontorValg}`) ?? null;
-      return løsOverforingKort({
-        ...felles,
-        // (17) P1: overføringen ligger ytterst i kjeden, aldri oppå en reise.
-        dagStart: ramme.kjedeStart,
-        dagSlutt: ramme.kjedeSlutt,
-        overforing: {
-          retning: kontorRetning === "tur" ? "ut" : "retur",
-          fra: { type: "kontor", oppmotestedId: kontorOppsett.fraKontorId },
-          til: { type: "kontor", oppmotestedId: kontorValg },
-          // Tur: settes til den nye periodens id ved lagring. Retur: perioden som avsluttes.
-          periodeId: kontorRetning === "retur" ? (apenOverforing?.id ?? null) : null,
-        },
-        oppmotestedId: kontorOppsett.fraKontorId,
-        kjoretidMin: celle?.kjoretidMin ?? null,
-        avstandM: celle?.avstandM ?? null,
-      });
-    }
-    if (aktivtValg.type === "overforing") {
-      const o = overforinger[aktivtValg.indeks];
-      if (o) {
-        return løsOverforingKort({
-          ...felles,
-          // (17) P1: overføringen ligger ytterst i kjeden, aldri oppå en reise.
-          dagStart: ramme.kjedeStart,
-          dagSlutt: ramme.kjedeSlutt,
-          overforing: o.overforing,
-          oppmotestedId: o.oppmotestedId,
-          kjoretidMin: o.celle?.kjoretidMin ?? null,
-          avstandM: o.celle?.avstandM ?? null,
-        });
-      }
-    }
-    return løsReiseKort({
-      ...felles,
-      retning: aktivtValg.type === "retur" ? "retur" : "tur",
-      oppmote,
-      byggeplassId,
-      kjoretidFor: (o, b) => matrise.get(`${o}|${b}`)?.kjoretidMin ?? null,
-      avstandFor: (o, b) => matrise.get(`${o}|${b}`)?.avstandM ?? null,
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- aktivtValg er avledet av valg + overforinger
-  }, [valg, forsteOverforing, overforinger, kontorOppsett, apenOverforing, kontorAvstand, ramme, regel, grensepunkter, resolverLonnsartId, standardLonnsartId, oppmote, byggeplassId, matrise]);
+  // O12 pkt 10: forslaget er firmaets kjøretid uten avrunding (som mobil).
+  // O12 pkt 14: mangler kjøretiden, skriver arbeideren tiden selv (`tillatUtenKjoretid`).
+  const kontorCelle = useMemo(() => {
+    if (!kontorOppsett || !valgtKontor) return null;
+    const [a, b] = [kontorOppsett.fraKontorId, valgtKontor].sort();
+    const rad = (kontorAvstandQ.data ?? []).find((r) => r.fraOppmotestedId === a && r.tilOppmotestedId === b);
+    return rad ? { kjoretidMin: rad.kjoretidMin ?? null, avstandM: rad.avstandM ?? null } : null;
+  }, [kontorOppsett, valgtKontor, kontorAvstandQ.data]);
+
+  const resultat: ReiseKortResultat = useMemo(
+    () =>
+      aktivtValg.type === "kontor" && kontorOppsett && valgtKontor
+        ? // O16 pkt 4 / R6: «Til annet oppmøtested» — samme rad som mobilens kontoroverføring.
+          løsOverforingKort({
+            overforing: {
+              retning: kontorRetning === "retur" ? "retur" : "ut",
+              fra: { type: "kontor", oppmotestedId: kontorOppsett.fraKontorId },
+              til: { type: "kontor", oppmotestedId: valgtKontor },
+              periodeId: null,
+            },
+            oppmotestedId: kontorOppsett.fraKontorId,
+            kjoretidMin: kontorCelle?.kjoretidMin ?? null,
+            avstandM: kontorCelle?.avstandM ?? null,
+            dagStart: ramme.dagStart,
+            dagSlutt: ramme.dagSlutt,
+            regel,
+            grensepunkter,
+            resolverLonnsartId,
+            standardLonnsartId,
+            startTid,
+            sluttTid,
+            kategoriValg,
+            tillatUtenKjoretid: true,
+            // O19 pkt 23: «Til annet oppmøtested» med Slutt før Start slutter dagen etter.
+            tillatDeling: { omvendt: "fram" },
+          })
+        : løsReiseKort({
+        dagStart: ramme.dagStart,
+        dagSlutt: ramme.dagSlutt,
+        regel,
+        grensepunkter,
+        resolverLonnsartId,
+        standardLonnsartId,
+        startTid,
+        sluttTid,
+        kategoriValg,
+        retning,
+        oppmote,
+        byggeplassId,
+        kjoretidFor: (o, b) => matrise.get(`${o}|${b}`)?.kjoretidMin ?? null,
+        avstandFor: (o, b) => matrise.get(`${o}|${b}`)?.avstandM ?? null,
+        tillatUtenKjoretid: true,
+        // O19 pkt 23–24: «Til byggeplass» med Start etter Slutt startet kvelden før; «Fra
+        // byggeplass» med Slutt før Start slutter dagen etter.
+        tillatDeling: { omvendt: retning === "tur" ? "bak" : "fram" },
+      }),
+    [aktivtValg.type, kontorOppsett, valgtKontor, kontorRetning, kontorCelle, retning, ramme, regel, grensepunkter, resolverLonnsartId, standardLonnsartId, oppmote, byggeplassId, matrise, startTid, sluttTid, kategoriValg],
+  );
 
   // Oppmøtestedet vises som tekst bare når firmaet har flere (§ 7 C).
   const oppmotestedNavn =
@@ -252,31 +429,96 @@ export function useManuellReiseWeb({
       ? (steder.find((o) => o.id === oppmote.oppmotestedId)?.navn ?? null)
       : null;
 
-  // Kallet lagringen gjør, og om serveren ville avvist det (admin-satt midlertidig).
-  const kontorKall: KontorOverforingKall | null =
-    kontorValg && kontorRetning
-      ? {
-          handling: kontorRetning === "tur" ? "start" : "slutt",
-          oppmotestedId: kontorRetning === "tur" ? kontorValg : null,
-          dato: periodeDatoFraOverforing(dato, resultat.fraTid, kontorRetning),
-        }
+  // O16 pkt 2: hva kontorvalget gjør med oppmøtestedet (den blå boksen) og kallet «Lagre» gjør.
+  const dagensKontorId =
+    periodeOppmote.kilde === "fast" || periodeOppmote.kilde === "midlertidig" || periodeOppmote.kilde === "gps"
+      ? periodeOppmote.oppmotestedId
       : null;
+  const bytte: OppmoteBytte = useMemo(
+    () =>
+      planleggOppmoteBytte({
+        valg: aktivtValg.type,
+        // O19 (pkt 23 kl. 12-regelen): en reise som startet kvelden før, regnes fra startdagen.
+        dato: resultat.deles === "bak" ? leggTilDager(dato, -1) : dato,
+        startTid: resultat.fraTid,
+        perioder: perioder.map((p) => ({ ...p, id: p.id ?? "" })),
+        dagensKontorId,
+        fastKontorId: kontorOppsett?.fastKontorId ?? null,
+        valgtKontorId: valgtKontor,
+        gjelderFra,
+        tilOgMed,
+        sisteDag,
+      }),
+    [aktivtValg.type, dato, resultat.deles, resultat.fraTid, perioder, dagensKontorId, kontorOppsett, valgtKontor, gjelderFra, tilOgMed, sisteDag],
+  );
+  const kontorKall: KontorOverforingKall | null =
+    (bytte.type === "start" && !bytte.ugyldig) || bytte.type === "slutt" ? bytte.kall : null;
+  // Sperrer «Lagre»: firmaadmins periode (R8), overlapp (R3), ugyldig dato.
   const kontorKonflikt =
-    kontorKall != null && planleggOverforing(perioder, kontorKall).utfall === "konflikt";
+    bytte.type === "admin" || (bytte.type === "start" && (bytte.konflikt != null || bytte.ugyldig != null));
 
   return {
     kontorOppsett,
     kontorKall,
     kontorKonflikt,
+    bytte,
+    gjeldende,
+    dagensKontorId,
+    valgtKontor,
+    kontorRetning,
     apenOverforing,
     kontorNavn: (id: string) => steder.find((o) => o.id === id)?.navn ?? "",
+    /**
+     * O17 pkt 22: «Avslutt» med «Siste dag» — kallet og «… fjernes» fra samme plan (`planleggAvslutt`,
+     * V2: `periodeId`). Samme periodeliste som `bytte`.
+     */
+    avsluttPlan: (sisteDag: string, periodeId: string) =>
+      planleggAvslutt(
+        perioder.map((p) => ({ ...p, id: p.id ?? "" })),
+        sisteDag,
+        periodeId,
+      ),
     regelStatus,
     oppmote,
     oppmotestedNavn,
-    overforinger,
-    overforingValg,
     aktivtValg,
     resultat,
+    /** O12 pkt 9: firmaets regelsett (terskel og enhet) — varselet og km-avhukingen. */
+    regel,
     lonnsartNavn: (id: string | null) => (id ? (lonnsartNavn.get(id) ?? null) : null),
   };
+}
+
+/**
+ * O12 pkt 18 (vedtak-timer-web.md § Reisevinduet): ny kjøretid for en lagret reise når jobbkortet
+ * flyttes. Kontoret er reisens lagrede oppmøtested (reisetid), ellers det perioden gir på sedel-
+ * datoen for det nye prosjektet (samme `løsOppmote` som vinduet). null = ingen kjøretid (ingen
+ * byggeplass, ingen celle eller uoppnåelig) — reisen flyttes da med de gamle tidene.
+ */
+export function useReiseKjoretidOppslag({
+  organizationId,
+  dato,
+  enabled,
+}: {
+  organizationId: string;
+  dato: string;
+  enabled: boolean;
+}) {
+  const opt = { enabled: enabled && !!organizationId };
+  const matriseQ = trpc.oppmotested.hentMatriseForFirma.useQuery({ organizationId }, opt);
+  const perioderQ = trpc.oppmotePeriode.hentMine.useQuery({ organizationId }, opt);
+  return useMemo(() => {
+    const matrise = new Map((matriseQ.data ?? []).map((c) => [`${c.oppmotestedId}|${c.byggeplassId}`, c.kjoretidMin]));
+    const perioder = perioderQ.data?.perioder ?? [];
+    return (r: { projectId: string; byggeplassId: string | null; oppmotestedId: string | null }): number | null => {
+      if (!r.byggeplassId) return null;
+      const oppmote = løsOppmote(dato, r.projectId, perioder, null);
+      const kontor =
+        r.oppmotestedId ??
+        (oppmote.kilde === "fast" || oppmote.kilde === "midlertidig" || oppmote.kilde === "gps" ? oppmote.oppmotestedId : null);
+      if (!kontor) return null;
+      const min = matrise.get(`${kontor}|${r.byggeplassId}`);
+      return min == null || min < 0 ? null : min;
+    };
+  }, [matriseQ.data, perioderQ.data, dato]);
 }

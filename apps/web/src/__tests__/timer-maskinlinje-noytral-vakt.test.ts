@@ -13,8 +13,8 @@ function les(rel: string): string {
 
 const flater: [string, string][] = [
   ["web EcoGruppe (timer/[id]/page.tsx)", "../app/dashbord/timer/[id]/page.tsx"],
-  ["web attestering-buckets", "../components/attestering/attestering-buckets.tsx"],
-  ["web SeddelKort", "../components/attestering/SeddelKort.tsx"],
+  // EcoBucketAttest i attestering-buckets.tsx er slettet i w10b (plan § 4.10 DK14, var død).
+  // SeddelKort.tsx er slettet i ordre d2b-3 (erstattet av AttesteringTabell, d2b-2).
   ["web AttesteringDetalj_Edit", "../components/timer/AttesteringDetalj_Edit.tsx"],
   [
     "mobil ProsjektGruppe",

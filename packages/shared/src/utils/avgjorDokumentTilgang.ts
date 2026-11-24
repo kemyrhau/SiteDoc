@@ -7,8 +7,12 @@
  * flytting av beslutningsgrenene, i uendret rekkefølge og semantikk.
  *
  * Rekkefølge (ufravikelig — jf. spor2-ordre § 4):
- *   admin → ikke-medlem → prosjektadmin → firmaansvarlig → bestiller/mottaker →
+ *   admin → ikke-medlem → prosjektadmin → HMS-behandler → firmaansvarlig → bestiller/mottaker →
  *   faggruppe-direkte → gruppe-domain → HMS-åpen → flyt-medlemskap → avvis.
+ *
+ * H3 (Kenneth HF2 ja, 2026-11-23; hms-domenemodell.md § HMS-flyt regel 3): for en privat
+ * HMS-sak (`hmsPrivat`) gjelder ikke prosjektadmin-grenen og ikke gruppe-domain-grenen. Bare
+ * HMS-behandleren (`erHmsBehandler`, = `erHmsAdmin`) leser alle; ellers melder/mottaker.
  *
  * `packages/shared/src/utils/tilgangsmatrise.test.ts` kjører den delte MATRISE
  * mot BÅDE denne funksjonen og den frosne referanse-transkripsjonen. Divergens =
@@ -60,6 +64,16 @@ export interface TilgangsFakta {
   firmaUserIder: string[];
   /** Fant DocumentTransfer med senderId i firmaets brukere? */
   harFirmaTransfer: boolean;
+
+  // HMS-behandling (H3)
+  /**
+   * Dokumentet er en privat HMS-sak: malens `domain = "hms"` og malens `hmsSynlighet` er ikke
+   * «apen» (null regnes som privat). Slås opp fra malen når kalleren ikke sendte synligheten,
+   * så den kan være satt selv om `templateHmsSynlighet` er null her.
+   */
+  hmsPrivat: boolean;
+  /** Brukeren er HMS-behandler på prosjektet (`erHmsAdmin`). Hentes bare når `hmsPrivat`. */
+  erHmsBehandler: boolean;
 }
 
 export interface TilgangsResultat {
@@ -80,8 +94,12 @@ export function avgjorDokumentTilgang(f: TilgangsFakta): TilgangsResultat {
   // Ikke medlem av prosjektet
   if (!f.erMedlem) return { tillat: false, grunn: "ikke-medlem" };
 
-  // Prosjektadmin ser alt
-  if (f.prosjektmedlemRolle === "admin") return { tillat: true, grunn: "prosjektadmin" };
+  // Prosjektadmin ser alt — unntatt private HMS-saker (H3): der er adminen behandler bare
+  // som medlem av HMS-gruppa, ellers som melder/mottaker under.
+  if (f.prosjektmedlemRolle === "admin" && !f.hmsPrivat) return { tillat: true, grunn: "prosjektadmin" };
+
+  // HMS-behandleren leser alle private HMS-saker i prosjektet (H3).
+  if (f.hmsPrivat && f.erHmsBehandler) return { tillat: true, grunn: "hms-behandler" };
 
   // Dokumentpartene lastes kun når dokumentId && dokumentType finnes. `harParter`
   // speiler originalens `if (dokumentParter)`-guard; i fakta-modellen faller null-
@@ -125,8 +143,9 @@ export function avgjorDokumentTilgang(f: TilgangsFakta): TilgangsResultat {
     (f.utforerFaggruppeId && f.direkteFaggruppeIder.includes(f.utforerFaggruppeId));
   if (harDirekteTilgang) return { tillat: true, grunn: "faggruppe-direkte" };
 
-  // Fagområde-tilgang via grupper
-  if (f.templateDomain) {
+  // Fagområde-tilgang via grupper. Gjelder ikke private HMS-saker (H3): «hms» i en gruppes
+  // domener gjør ingen til behandler — det gjør bare HMS-gruppa, via grenen over.
+  if (f.templateDomain && !f.hmsPrivat) {
     for (const gm of f.gruppeMedlemskap) {
       if (!gm.domener.includes(f.templateDomain)) continue;
       // Tverrgående: gruppe uten faggrupper ser alle dok med matchende domain

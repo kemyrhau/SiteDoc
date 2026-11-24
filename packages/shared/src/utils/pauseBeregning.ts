@@ -105,6 +105,18 @@ export function effektiveTimerFraSpenn(
 }
 
 /**
+ * O19 (vedtak-timer-web § Reisevinduet pkt 23): del av en reise delt ved midnatt
+ * (`reiseRegel.midnatt.del`). Lest her uten `reiseManuell.ts` (den importerer denne fila).
+ */
+function midnattDel(reiseRegel: unknown): 1 | 2 | null {
+  if (reiseRegel == null || typeof reiseRegel !== "object") return null;
+  const m = (reiseRegel as { midnatt?: unknown }).midnatt;
+  if (m == null || typeof m !== "object") return null;
+  const del = (m as { del?: unknown }).del;
+  return del === 1 || del === 2 ? del : null;
+}
+
+/**
  * V20/PK5 — pausevinduets START (HH:MM) for en hel dag, én kilde for mobil
  * manuell rad, web og server. Erstatter at manuell mobil-rad alltid brukte
  * fastStart (P6) mens GPS-forslaget fulgte `pauseReferanse`:
@@ -115,7 +127,7 @@ export function effektiveTimerFraSpenn(
  * ramme, slik at vinduet alltid er definert. Kenneths «4 timer» = `pauseEtterTimer`.
  */
 export function pauseVinduForDag(
-  rader: readonly { fraTid?: string | null }[],
+  rader: readonly { fraTid?: string | null; reiseRegel?: unknown }[],
   dag: {
     startTid: string;
     pauseEtterTimer: number;
@@ -123,7 +135,10 @@ export function pauseVinduForDag(
   },
 ): string {
   if (dag.pauseReferanse === "ankomst") {
+    // O19 pkt 23: del 2 av en reise over midnatt (00:00–) er ikke ankomsten — arbeidsdagen
+    // etter starter som før.
     const forsteFra = rader
+      .filter((r) => midnattDel(r.reiseRegel) !== 2)
       .map((r) => r.fraTid)
       .filter((f): f is string => !!f)
       .reduce<string | null>(
@@ -148,6 +163,7 @@ export function utledArbeidstidFraRader(
     tilTid?: string | null;
     pauseMin?: number | null;
     timer: number;
+    reiseRegel?: unknown;
   }[],
 ): {
   startTid: string | null;
@@ -162,7 +178,8 @@ export function utledArbeidstidFraRader(
   for (const r of rader) {
     nettoTimer += r.timer;
     sumPauseMin += r.pauseMin ?? 0;
-    if (r.fraTid && r.tilTid) {
+    // O19 pkt 23: en reise delt ved midnatt (24:00 / 00:00) strekker ikke arbeidstiden.
+    if (r.fraTid && r.tilTid && midnattDel(r.reiseRegel) == null) {
       const fm = hhmmTilMin(r.fraTid);
       const tm = hhmmTilMin(r.tilTid);
       if (startMin === null || fm < startMin) startMin = fm;
@@ -442,4 +459,15 @@ export function tilFraAntall(
   if (antallMin <= forPause) return minTilHhmm(fraMin + antallMin);
   // Krysser (eller starter inne i) lunsj → skyv resten forbi pausevinduet.
   return minTilHhmm(pauseSlutt + (antallMin - forPause));
+}
+
+/**
+ * O6 (§ 8.22): Fra-tid gitt Til + antall timer, uten pause — `tilFraAntall` baklengs med
+ * pause 0. Brukes når slutten står fast: reise «Til byggeplass», der ankomsten er jobbstart.
+ * Reise bærer aldri matpausen. Klemmes til 00:00, slik `tilFraAntall` klemmes til 23:59.
+ *   til 07:00 − 1 t   → 06:00
+ *   til 00:30 − 1 t   → 00:00 (krysser ikke midnatt)
+ */
+export function fraFraTilOgAntall(til: string, antallTimer: number): string {
+  return minTilHhmm(hhmmTilMin(til) - Math.round(antallTimer * 60));
 }

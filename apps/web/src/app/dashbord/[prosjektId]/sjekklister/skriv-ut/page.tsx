@@ -18,6 +18,7 @@ function sigTid(s: { signertTidspunkt?: string | null; completedAt?: string | Da
 }
 import { prosjektReferanseForUtskrift } from "@sitedoc/pdf";
 import type { RapportObjekt, ProsjektForPdf, Utskriftsinnstillinger } from "@sitedoc/pdf";
+import { useTilbakeAdresse } from "@/components/nivaa/TilbakeLenke";
 import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
 import { useTranslation } from "react-i18next";
 
@@ -55,6 +56,13 @@ export default function SkrivUtFlereSide() {
   const params = useParams<{ prosjektId: string }>();
   const searchParams = useSearchParams();
   const router = useRouter();
+  // w14 (TK24): «Tilbake» går til lista utskriften ble åpnet fra. Åpnet i ny fane eller fra et
+  // bokmerke finnes ingen forrige side i appen — da går den til Sjekklister.
+  const tilbake = useTilbakeAdresse({
+    href: `/dashbord/${params.prosjektId}/sjekklister`,
+    labelKey: "handling.tilbake",
+  });
+  const tilbakeHref = tilbake?.href ?? `/dashbord/${params.prosjektId}/sjekklister`;
 
   const iderParam = searchParams.get("ider") ?? "";
   const ider = iderParam.split(",").filter(Boolean);
@@ -77,7 +85,7 @@ export default function SkrivUtFlereSide() {
       <div className="flex flex-col items-center gap-4 py-12">
         <p className="text-gray-500">{t("print.ingenValgt")}</p>
         <button
-          onClick={() => router.back()}
+          onClick={() => router.push(tilbakeHref)}
           className="flex items-center gap-1.5 text-sm text-blue-600 hover:underline"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -109,7 +117,7 @@ export default function SkrivUtFlereSide() {
           {/* Verktøylinje: skjules ved print */}
           <div className="print-skjul mb-6 flex items-center gap-3 border-b border-gray-200 pb-4">
             <button
-              onClick={() => router.back()}
+              onClick={() => router.push(tilbakeHref)}
               className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
             >
               <ArrowLeft className="h-4 w-4" />

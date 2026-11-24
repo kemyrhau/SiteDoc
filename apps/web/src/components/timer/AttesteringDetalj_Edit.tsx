@@ -113,7 +113,7 @@ export function AttesteringDetaljEdit({
   );
 
   // T.5: hent tidsrunding fra firma-setting for time-input runding.
-  const { data: setting } = trpc.organisasjon.hentSetting.useQuery(
+  const { data: setting } = trpc.organisasjon.hentArbeidstidDefaults.useQuery(
     { organizationId },
     { enabled: !!organizationId },
   );
@@ -218,7 +218,6 @@ export function AttesteringDetaljEdit({
   const lagre = trpc.timer.dagsseddel.redigerSedelRader.useMutation({
     onSuccess: () => {
       void utils.timer.dagsseddel.hentForAttestering.invalidate({ id: sheetId });
-      void utils.timer.dagsseddel.hentTilAttestering.invalidate();
       void utils.timer.dagsseddel.hentTilAttesteringFirma.invalidate();
       onLagret();
     },
@@ -938,7 +937,6 @@ function EcoBucketEdit({
                   organizationId={organizationId}
                   rad={rad}
                   prosjekter={prosjekter}
-                  tidsrundingMinutter={tidsrundingMinutter}
                   onChange={(felt) => oppdaterMaskin(rad.key, felt)}
                   onSlett={() => slettMaskin(rad.key)}
                   onSplitt={

@@ -147,6 +147,62 @@ ser det før du trykker Bekreft. Forkast sletter det.»
   «Bekreft og lagre»: `sperre.kjedeKonflikt`. Prosjektkortet viser overlapp mellom lagrede rader med `timer.feil.overlapp`.
 - Merke i Timer-lista (`DagsseddelListe.tsx`): «Ikke bekreftet» (`timer.utkast.ikkeBekreftet`) — ved siden av statusen, eller på egen rad med 0 t når datoen ikke har sedel.
 
+## Web: Mine timer — «+ Registrer timer» (w2 i web-timeføring, 🟡 ikke merget, `feat/web-timer-w2`)
+
+`apps/web/src/app/dashbord/timer/mine/page.tsx` har `HjelpKnapp` (fanen «Mine timer», `timer.mine.tittel`) ved knappen:
+
+- **Registrer** (`timer.mine.hjelp.registrer`): «+ Registrer timer» fører en jobb på prosjektet i toppen; første gang på en dato lages dagen med firmaets arbeidstid og byggeplassen i toppen; uten prosjekt i toppen velges prosjekt først.
+- **Dagen** (`timer.mine.hjelp.dagen`): neste jobb legges på samme dag med Fra der forrige jobb sluttet; sendt dag gjenåpnes først; attestert → lederen må returnere; «Send dagen» sender alle jobbene samlet.
+- **Skjemaet** (`timer.mine.hjelp.skjema`, 🟡 L3a `feat/web-timer-l3-jobbskjema`): jobben føres rett i prosjektkortet (Fra, Til, pause, lønnsart, «Hva gjorde du?»); feltet lagres når det forlates («✓ Lagret»); overtid over dagsnormen får egen linje; gule felt er forslag fra firmaets arbeidstid eller forrige jobb; ny jobb lagres når Til er fylt; rødt «Ikke lagret» sperrer sending.
+- **Dato** (`timer.mine.hjelp.dato`): dd.mm., med år når lista spenner over flere år.
+
+Knappetekster: «Registrer timer» (`timer.registrerTimer`, også tittelen på prosjektvelgeren når dagen åpnes uten prosjekt) og nederst på dagen «+ Registrer timer» · «neste jobb, samme eller annet prosjekt» (`timer.prosjektkort.registrerTimer`, `…registrerTimerHint`). Dagskort-modus viser «Ny dagsseddel» som før.
+
+## Web: «Slettet og korrigert» (SL2, ✅ merget `24a3ed32`)
+
+Begge sidene har `HjelpKnapp` (fanen «Slettet og korrigert», `timer.slettetKorrigert.tittel`):
+
+- **Attestering** (`app/dashbord/attestering/slettet-korrigert/page.tsx`): hva siden viser og at den er bare lesing (`timer.slettetKorrigert.hjelp.hva`); hva som ikke er med — linjer uten innhold i sporet, erstattede dager (`…hjelp.ikkeMed`); hvem ser hva, som i attesteringen (`…hjelp.hvem`); merket «N slettet» teller bare slettede linjer og åpner dagen (`…hjelp.merke`); uke, filtre og dagfilteret (`…hjelp.filter`).
+- **Mine timer** (`app/dashbord/timer/mine/slettet-korrigert/page.tsx`): egne dager, slettet av attestanten eller av deg på returnert dag (`…hjelp.egne`); hva som ikke er med — egen sletting på dag som ikke var returnert er vanlig redigering (`…hjelp.ikkeMedEgne`); Fra/Til høyst 93 dager, filtre (`…hjelp.filterEgne`).
+
+## Web: Tilbake-knappen i timeføringen (`dashbord/timer/[id]`, `dashbord/timer/ny`, w14 leveranse 1, 🟡 ikke merget, `feat/web-timer-w14a`)
+
+Ingen ?-ikon; knappeteksten sier hvor knappen går (B39 A, 15 språk):
+- Fra prosjektets Timer: «Tilbake til Timer» (`timer.tilbakeTilTimer`) — samme uke og filter.
+- Fra Mine timer: «Tilbake til Mine timer» (`timer.tilbakeTilMineTimer`).
+- Åpnet direkte (bokmerke, e-post): «Til Mine timer» (`timer.tilMineTimer`).
+`timer.tilbake` («Tilbake til oversikt») brukes ikke lenger i koden; nøkkelen står.
+
+## Web: Tilbake-knappene utenfor timeføringen (w14 leveranse 2, 🟡 ikke merget, `feat/web-timer-w14b`)
+
+Ingen ?-ikon; knappen sier hvor den går (B39 A, 15 språk). Nye tekster (`tilbake.*`):
+- «Tilbake til Mapper» (`tilbake.tilMapper`), «Tilbake til HMS» (`tilbake.tilHms`), «Tilbake til Sjekklister» (`tilbake.tilSjekklister`), «Tilbake til Innstillinger» (`tilbake.tilInnstillinger`).
+- Dokumentleserens pil har ingen synlig tekst; målet står i `title` (hold musa over pila).
+- Importsidene: pila sier «Tilbake til Innstillinger» når siden ble åpnet derfra, ellers som før.
+- Firmasiden for SiteDoc-admin: «Tilbake til Mine timer» når den ble åpnet derfra, ellers «Tilbake til firmaer».
+- «← HMS», «Tilbake» på utskrift og «Avbryt» på «Nytt prosjekt» beholder teksten; bare målet endres.
+
+## Web: Kortet pr. jobb (`dashbord/timer/[id]/page.tsx`, w3a i web-timeføring, 🟡 ikke merget, `feat/web-timer-w3a`)
+
+Dagsseddel-siden har ikke ?-ikon; teksten står i kortet (`timer.prosjektkort.*`, 15 språk):
+- **Lenkeraden pr. jobb:** «+ Timer», «+ Maskin», «+ Vare» (`nyVareKort`, bare når Varelager er på for prosjektet), «+ Reise», «+ Tillegg/Utlegg». Kort uten timerad: «+ Timer», «+ Reise», «+ Tillegg/Utlegg»; bare overføring til annet kontor: uten «+ Timer» (w15d, 🟡 `feat/web-timer-w15d`).
+- **Reiselinja og kort med bare reise (w15d):** merket «Reise» (`reiseMerke`), «Til {sted}» / «Fra {sted}» (`reiseTil`/`reiseFra`), «Overføring til annet kontor» (`timer.reiseKort.annetKontor`) / «Overføring fra annet kontor» ved retur (`timer.reiseKort.fraAnnetKontor`), «Uten underprosjekt» (`utenUnderprosjekt`). Under lønnsarten i «Rediger timer-rad»: «Dette er reise. Den står i jobben på {sted}.» (`timer.rediger.reiseHavnerJobb`) / «Dette er reise. Den får eget kort.» (`timer.rediger.reiseHavnerEget`).
+- **«Korrigert av» (w15g, 🟡 `feat/web-timer-w15g`):** ?-fanen har nytt avsnitt `timer.mine.hjelp.korrigert` (merket ved statusen, hva linja på dagen viser, at merket står etter attestering). Merket på dagen: «Korrigert av {navn}» / «… m.fl.» / «Korrigert ved attestering» (`timer.korrigert.av`, `…avFlere`, `…vedAttestering`); på linja med tidspunkt (`…avMedTid`, `…vedAttesteringMedTid`, `…tidspunkt`) og feltene før → etter (`timer.korrigert.felt.*`). Dagen har ingen egen ?-fane.
+- **Pennen på reiselinja (w15f, 🟡 `feat/web-timer-w15f`):** prosjektfeltet er åpent for reise; linja under lønnsarten kan også si «Dette er reise. Den står i kortet på {sted}.» (`timer.rediger.reiseHavnerKort`, ny — kort med bare maskin, tillegg eller utlegg, F55). Mine timer ?-fanen: nytt avsnitt `timer.mine.hjelp.reise`.
+- **Pennen på reisen åpner «Reise» (O14, 🟡 `feat/web-timer-o14-reise`):** ingen ny tekst i redigeringen — vinduet har tittelen «Reise» (`timer.reiseKort.tittel`) og «Lagre». Nytt felt «Hva gjorde du?» (`timer.felt.radBeskrivelse`) med «*» når reisen står alene i kortet, ellers «(valgfritt)» (`label.valgfritt`); sperret «Lagre» forklares med `sperret.beskrivelse`. Ved «Fra byggeplass» sier linja «Til {kontor}» (`timer.reiseKort.tilOppmotested`, ny). Teksten «Feil sted? …» (`timer.rediger.reiseFeilSted`) er fjernet.
+- **Bunnlinja på dagen (🟡 `feat/web-timer-sumlinje`):** «Arbeid X t av Y t» (`timer.prosjektkort.sumArbeid`, ny), « · maskin Y t», « · reise Z t», « · sum i dag T t» (`timer.prosjektkort.sumTotalt`, ny). Mine timer ?-fanen: `timer.mine.hjelp.dagen` har fått setningen om at sum i dag er arbeid pluss reise og at maskintimene ikke legges til (13 språk regenerert fra ny kilde).
+- **Samlekortet:** «Ført uten jobb» (`utenJobb`) med «Eldre føringer fra før kortet pr. jobb» (`utenJobbHint`) under.
+- **Slett varelinje:** tittel «Slette varelinjen?» (`slettVareTittel`), teksten «Pukk 6-32 · 5 m3 fjernes fra dagen.» (`slettVareTekst`).
+- **Vinduene fra en jobb:** ingen ny tekst. På en ny linje vises ikke prosjekt, byggeplass, underprosjekt og timerad — jobbens hode viser dem. «+ Reise» har feltene med jobbens verdier forvalgt. «Rediger timer-rad» fra blyanten har feltene, med prosjektet låst.
+- **Varen ble ikke flyttet:** «Timeraden er lagret, men varen på raden ble ikke flyttet til det nye stedet. Trykk Lagre igjen.» (`timer.feil.vareIkkeFlyttet`) i timerad-vinduet, som står åpent.
+
+## Web: Maskin er utstyr og antall timer (`dashbord/timer/[id]/page.tsx`, w3b i web-timeføring, 🟡 ikke merget, `feat/web-timer-w3b`)
+
+Gjelder prosjektkort-modus. Teksten står ved feltet (`timer.maskinSeksjon.*`, `timer.prosjektkort.*`, 15 språk):
+- **Under maskinens Antall timer** (maskinvinduet fra jobben og maskindelen i timerad-vinduet): «Skriv hvor mange timer maskinen gikk på jobben.» (`timer.maskinSeksjon.hintJobb`). Grensen står i «høyst X t» ved feltet (w9); hjelpeteksten lover ingen grense, fordi døgn-maskiner kan ha flere timer enn arbeidet.
+- **Overskrift over maskinene i timerad-vinduet:** «Jobbens maskiner» (`timer.maskinSeksjon.jobbensMaskiner`). × har tittelen «Fjern» (`timer.maskinSeksjon.fjern`).
+- **Varelager av, firmaadministrator:** «Varelager er ikke på for firmaet.» (`timer.prosjektkort.varelagerAv`) og lenken «Slå på Varelager →» (`timer.prosjektkort.slaaPaaVarelager`) til Firma → Moduler. Arbeideren ser ingenting.
+
 ## Web: Timerad på maskin (`dashbord/timer/[id]/page.tsx`, ordre d2c-1, 🟡 ikke merget)
 
 Dagsseddel-siden på web har ikke ?-ikon. Hjelpen står i skjemaet der valget tas (`timer.felt.timerad`, `timer.maskinTimerad.*`, `timer.fjernTimerRad.*`, 15 språk):
@@ -154,6 +210,23 @@ Dagsseddel-siden på web har ikke ?-ikon. Hjelpen står i skjemaet der valget ta
 - **Uten valgt timerad:** «Velg timeraden maskinen gikk på.»
 - **Kortet har ingen arbeidsrad:** «Før timeraden maskinen gikk på først — maskinen står på den.» (også som hint under feltet)
 - **Slett timerad med maskin:** tittel «Slette timeraden?», teksten «Raden har 2 maskiner: Volvo EC220E, Dumper. De slettes sammen med raden.» og knappen «Slett rad og maskiner». Døgn-maskiner nevnes ikke; de blir stående uten timerad.
+
+## Web: Maskin høyst jobbens arbeid (web-timeføring w9, 🟡 ikke merget)
+
+Ingen ?-fane; teksten står ved feltet og i attesteringen (`timer.maskin.*`, `timer.attestering.*`, 15 språk):
+- **Ved maskinens timer-felt** (registreringen, Rediger sedel, dagssidens maskinvindu og timerad-vindu): «høyst 4,5 t» (`timer.maskin.hoyst`). Rød når tallet er over; Lagre er da sperret med forklaringen «En maskin har flere timer enn høyst-grensen for jobben. Rett maskintimene først.» (`timer.maskin.overHoystSperret`). Døgn-maskiner har ingen grense.
+- **Når serveren avviser:** «END-002: maskin 7,5 t, arbeid 4,5 t. En maskin med fører kan ikke ha flere timer enn arbeidet på jobben. Rett maskintimene, eller flytt hele jobben.» (`timer.maskin.overArbeidAvvist`, på brukerens språk).
+- **Attestering, jobbraden:** merket «Over arbeid» (`timer.attestering.merkeMaskinOverArbeid`, kort så det står helt i Avvik ved 1 440 — w9 retur 1) med hover «Maskin 7,5 t, arbeid 4,5 t» (`timer.attestering.forklaringMaskinOverArbeid`). Jobben kan attesteres.
+- **`timer.maskin.utenArbeidAvvist`** (w9-tillegget): «Maskinen «{{maskin}}» kan bare føres der det er ført arbeidstimer på samme prosjekt. Før arbeidstimene først, eller fjern maskinen.» Vises når en maskin med fører ikke kan kobles fordi jobben ikke har arbeid. Ellers kobler serveren maskinen selv, uten tekst.
+
+## Mobil: Timerad på maskin (`MaskinSeksjon.tsx`, `ProsjektkortDagsoversikt.tsx`, ordre d2c-2, 🟡 ikke merget)
+
+Samme tekster som PC (d2c-1). Hjelpen står i skjemaet der valget tas (`timer.felt.timerad`, `timer.maskinTimerad.*`, `timer.fjernTimerRad.*`, 15 språk):
+- **Maskinvinduet, «Timerad»:** felt som åpner lista over arbeidsradene («07:00–11:00 · 4 t»), tomt felt viser «— Velg timerad —». Forvalgt når det er én. «(valgfritt)» når maskinen leies pr. døgn, og da kan valget tømmes.
+- **Ingen arbeidsrad:** «Før timeraden maskinen gikk på først — maskinen står på den.» under feltet.
+- **«Flytt» av maskin til et kort uten arbeidsrad:** «Kortet har ingen timerad maskinen kan stå på. Før timeraden der først, eller velg et annet kort.»
+- **Timerad gjøres om til reise:** «Raden bærer maskinen «Volvo EC220E» og kan ikke bli reise. Flytt maskinen til en annen timerad, eller fjern den først.»
+- **Slett timerad med maskin (prosjektkort-modus):** som PC — «Slette timeraden?» og «Slett rad og maskiner».
 
 ## Web: 3d-visning (`dashbord/[prosjektId]/3d-visning/page.tsx:297-319`, ORDRE 3D-web 5 / gate (85) M3, 🟡 ikke merget)
 
@@ -224,6 +297,7 @@ Ingen ?-tekst — kortet viser én resultatlinje og, når Lagre er sperret, én 
 - **Oppmøtested** vises som tekst «Fra {navn}» (`timer.reiseKort.fraOppmotested`) bare når firmaet har flere — den ansatte velger det aldri.
 - **Resultat:** «08:00–08:45 · 45 min kjøring» (`timer.reiseKort.resultat`) + grå forklaringslinje (arbeid/reise og hvorfor).
 - **Sperretekster** (`timer.reiseKort.sperre.*`): «Møter på byggeplass, ingen reise» · «Oppmøtested er ikke valgt — koble til nett for å velge» · «Kjøretid mangler for denne strekningen — be firmaadmin legge den inn under Avstander» · «Før arbeidstid på dagen først — reisen legges før eller etter den» · «Reisen går over midnatt — før den på dagen den hører til» · «Firmaet har ikke satt opp reiseregler — be firmaadmin sette dem». Mangler standard lønnsart: `timer.reiseTerskel.manglerArt` (over).
+- **Web-reisevinduet (w15b, 🟡 `feat/web-timer-w15b`):** «Til annet kontor» (`timer.reiseKort.tilAnnetKontor`), «Hvor kjørte du til?»/«Hvor kjørte du fra?» (`hvorTil`/`hvorFra`), «Når kjørte du?» med «Før arbeid»/«Etter arbeid» (`naar`, `forArbeid`, `etterArbeid`), «Start kl.»/«Slutt kl.» (`startKl`, `sluttKl`), «Forslag: N min kjøring (firmaets tabell)» (`forslag`, erstatter resultatlinja på web), blå linje «Står i jobben på {sted}.» / «Får eget kort på {prosjekt}.» (`havnerJobb`/`havnerEget`). Sperrer: «Tidsrommet … overlapper … på prosjektkortet …» (`timer.feil.overlappKort`), slutt før start (`timer.feil.sluttForStart`).
 - **Overføring til annet kontor** (del B, POST (13)): seksjon «Overføring til annet kontor» (`timer.reiseKort.annetKontor`) med knapper «Til {navn}» (`timer.reiseKort.tilKontor`), bare ved ≥ 2 aktive kontorer. Åpen overføring vises som «Midlertidig: {navn} fra {dato}» (`timer.reiseKort.midlertidigLinje`) med «Avslutt» (`timer.reiseKort.avslutt`). Åpen admin-satt periode sperrer: «Firmaadmin har satt et midlertidig oppmøtested — be firmaadmin endre det» (`timer.reiseKort.sperre.adminMidlertidig`). Firmaadmin ser «via overføring» (`firma.ansatte.oppmote.viaOverforing`) på perioden.
 
 ## Web: HMS-flytkortet på Dokumentflyt-siden (`HmsFlytKort.tsx`, ordre 2026-11-05 (9))
@@ -298,7 +372,7 @@ Avkrysning i lønnsart-skjemaet når typen er Fravær (`apps/web/src/app/dashbor
 
 ## Attestering: dag over taket (kort-id-spec § 11.10.4, F9 = A, ordre (30) b3, 🟡 ikke merget)
 
-- **Bruddlinje** (amber) i seddelkortet, attesteringsdetaljen og prosjektattesteringen: «Egenmelding 7,5 t + arbeid 2,0 t = 9,5 t — over dagsnormen 7,5 t» (`timer.normtak.leddArt`/`leddArbeid`/`leddAnnet`/`brudd`, tallene fra serverens `fravaerNormtakBrudd`).
+- **Bruddlinje** (amber) i seddelkortet, attesteringsdetaljen og attesteringslista (fra w10b også prosjektlederens): «Egenmelding 7,5 t + arbeid 2,0 t = 9,5 t — over dagsnormen 7,5 t» (`timer.normtak.leddArt`/`leddArbeid`/`leddAnnet`/`brudd`, tallene fra serverens `fravaerNormtakBrudd`).
 - **✓ er sperret** med tooltip «Datoen kan ikke attesteres før fraværet er rettet. Returner sedelen, eller rett timene.» (`timer.normtak.attesterSperret`). Serveren avviser uansett (`krevIngenNormtakBrudd`).
 
 ## Firmainnstillinger → Timeføring: «Prosjektleder kan attestere fravær» (kort-id-spec § 11.9 F1, ordre (30) b2, 🟡 ikke merget)
@@ -321,10 +395,95 @@ Avkrysning i eksportmenyen, rett over CSV/Excel/PDF, og i mal-redigereren (`apps
 
 ## Firma → Timer → Attestering: Sedler som tabell (kort-id-spec d2b-1, § 12.8.5, 🟡 ikke merget)
 
-`apps/web/src/app/dashbord/firma/timer/attestering/page.tsx` har `HjelpKnapp` med fanen «Attestering» (`timer.attestering.tabell.hjelp.tittel`). Den løse beskrivelsen over fanene er flyttet inn som første avsnitt (`firma.timer.attesteringBeskrivelse`). Øvrige avsnitt:
+`apps/web/src/app/dashbord/attestering/page.tsx` (🟡 w10b, `feat/web-timer-w10b`: flyttet fra `/dashbord/firma/timer/attestering`, som nå sender hit) har `HjelpKnapp` med fanen «Attestering» (`timer.attestering.tabell.hjelp.tittel`) i sidehodet. Første avsnitt er `firma.timer.attesteringBeskrivelse`; andre avsnitt (w10b) er hvem som ser hva: «Firmaadministrator ser alle sedler i firmaet. Prosjektleder og den som kan attestere på et prosjekt, ser sedlene med rader på sine prosjekter og attesterer bare de radene; rader på andre prosjekter står nedtonet.» (`timer.attestering.hjelp.omfang`). Uten tilgang i noe firma: «Du kan ikke attestere timer i noe firma.» (`timer.attestering.ingenTilgangFirma`). Firmavalget i sidehodet (`firma.velgFirma`) står bare når brukeren kan attestere i mer enn ett firma. Øvrige avsnitt:
 
 - **Struktur:** «Hver dag er én dagsseddel. Under den står prosjektsedlene med en oversiktsrad, og linjene under hver prosjektseddel. Nederst på dagen står summen for dagsseddelen.» (`…hjelp.struktur`)
 - **Handlinger:** ✓/↩/↺ på linje, oversiktsrad og dag; sperren står i Avvik-kolonnen og stopper ✓ (`…hjelp.handlinger`).
 - **Retting:** klikk i cella på en ventende linje når firmaet tillater retting; Enter/Tab lagrer, Esc angrer; «var …» viser gammel verdi (`…hjelp.retting`).
 - **Verktøy:** «Velg parameter», sortering og filter i kolonnehodet, «Attester utvalget» = avkryssede linjer, ellers alle synlige ventende; gjelder besøket (`…hjelp.verktoy`).
 - **Mikrotekst i tabellen** (`timer.attestering.tabell.*`): «Attester utvalget (n)», «n linjer har sperre og ble stående.», «Dagen: X t av dagsnorm Y t», «Uke N: X t overtid ikke ført (ukenorm Y t)», «var X», «Bare oversiktsrader», «Ukeoversikt».
+- **Grupperinger og ukeoversikt** (d2b-2, 🟡 ikke merget): «Sedler», «Etter prosjekt» og «Etter ansatt» viser de samme linjene, bare gruppert ulikt; ukeoversikten viser timene pr. dag, klikk på en dag viser bare den dagen, hold over et tall for dagskortet (`…hjelp.grupperinger`). Grupperaden viser «X t» (`timer.attestering.tabell.gruppeSum`); dagknappen i ukeoversikten har «Vis bare denne dagen i tabellen» (`timer.attestering.uke.filtrerDag`).
+
+Fra w5 i web-timeføring (🟡 ikke merget, `feat/web-timer-w5`), begge sidene:
+
+- **Registreringen** (`…hjelp.registrering`, nytt): «Klikk på en linje for å åpne registreringen slik den ansatte førte den. Hver retting lagres med en gang. Underprosjektet gjelder hele jobben. «Del opp» deler jobben ved et klokkeslett: del A er jobben som var, del B blir et eget kort. Timene regnes fra klokkeslettene, og summen er den samme.»
+- **Retting** (`…hjelp.retting`, endret): sier at den som attesterer linjen kan rette, og at verken blyant eller saks vises når retting ikke er tillatt.
+- **Verktøy** (`…hjelp.verktoy`, endret, nå også på prosjektsiden): «Tilbakestill til standard» gir standardkolonnene tilbake.
+- **Handlinger** (`…hjelp.handlinger`, endret): dagknappen heter «Attester» (full tekst som tooltip), og «Gjenåpne» (`timer.attestering.tabell.gjenaapne`).
+- Registreringens mikrotekst: `timer.attestering.registrering.*` (delene, «Uten», «Del opp», «Del ved», «Jobb A»/«Jobb B»).
+
+Fra w5b i web-timeføring (🟡 ikke merget, `feat/web-timer-w5b`, B14 A), begge sidene:
+
+- **Struktur** (`…hjelp.struktur`, endret): «Hver dag står i sin egen ramme. Den blå dagsraden øverst viser dato, ansatt, dagens sum og avvik. Har dagen flere jobber, får hver jobb en egen rad og en egen kantfarge, med linjene under. Med én jobb står jobbens prosjekt og underprosjekt i dagsraden. Et merke som «+0,5 t» betyr at dagen avviker fra dagsnormen; hold pekeren over merket for å se hele setningen.»
+- **Handlinger** (`…hjelp.handlinger`, endret): knappene på en jobbrad gjelder hele jobben; «Attester» på dagsraden gjelder hele dagsseddelen.
+- Mikrotekst: «N jobb/jobber» (`timer.attestering.tabell.antallJobber_one/_other`), normmerket «+0,5 t» (`timer.attestering.tabell.normMerke`). «Dagen: X t av dagsnorm Y t» står nå bare ved hover på merket. `timer.attestering.tabell.dagsum` er fjernet.
+
+Fra w8 i web-timeføring (🟡 ikke merget, `feat/web-timer-w8`, plan § 8.6 punkt 1), begge sidene:
+
+- **Registreringen** (`…hjelp.registrering`, endret): «Klikk på jobbraden for å åpne registreringen slik den ansatte førte den. Har dagen bare én jobb, er det dagsraden. Pilen ▸ til venstre viser hvilke rader som kan åpnes, og ▾ viser raden som er åpen. Hver retting lagres med en gang. …» (resten som før). Timeradene åpner ikke lenger registreringen.
+
+Fra w10a i web-timeføring (🟡 ikke merget, `feat/web-timer-w10a`, plan § 4.5 / § 8.9 B30 A, B31 B), begge sidene:
+
+- **Handlinger** (`…hjelp.handlinger`, endret): knappene står på de blå radene; linjene under har ingen knapper.
+- **Retting** (`…hjelp.retting`, endret): retting skjer i registreringen — fra, til og pause er felt, timene regnes ut, lagres ved utgang av feltet eller Enter; avvist endring setter feltet tilbake og grunnen står ved linjen; ✂ og «Rediger jobben» står i kortet; cellene i tabellen er bare lesing.
+- **Verktøy** (`…hjelp.verktoy`, endret): avkrysningen står på jobb- og dagsradene; «Attester utvalget» tar hele de avkryssede jobbene, også linjer filteret skjuler.
+- **Kvittering** (`…hjelp.kvittering`, endret): står også under «Utlegg» i registreringen.
+- **Registreringen** (`…hjelp.registrering`, endret): «Ikke utfylt» betyr at den ansatte ikke skrev noe under «Hva gjorde du?».
+- **Detaljsiden** (`timer.attestering.detalj.tabellHint`, endret): «Attester, returner eller gjenåpne i tabellen: pr. jobb eller hele dagen.»
+- Ny mikrotekst: «Åpne dagsseddelen» (`timer.attestering.tabell.aapneDagsseddel`, ↗), «Velg jobben» / «Velg alle jobbene denne dagen» (`…tabell.velgJobb` / `…velgDagen`, avkrysningens etikett), «Velg alle synlige jobber» (`…tabell.velgAlle`, endret), og i kortet «Rediger jobben», «Fra», «Til», «Pause (min)», «Ikke utfylt», «Kommentar til dagen», «Skriv fra og til som tt:mm, med til etter fra.», «Pausen er like lang som tiden mellom fra og til.» (`timer.attestering.registrering.redigerJobben`/`fra`/`til`/`pauseFelt`/`ikkeUtfylt`/`kommentarTilDagen`/`ugyldigTid`/`pauseForLang`).
+- Fjernet i alle 15 språk: `timer.attestering.tabell.rettCelle`, `…ugyldigTall`, `…velgLinje`, `…gjenaapneLinje`.
+
+Fra w12 i web-timeføring (🟡 ikke merget, `feat/web-timer-w12`, plan § 4.11 del C), begge sidene:
+
+- Reisen står sist i jobben den hører til, med Type «Reise». Jobbraden viser arbeidstimene og «reise X t» i grått ved siden av (`timer.attestering.tabell.reiseTimer`); dagsraden viser hele dagen.
+- Registreringen har del 8 «Reise» (`timer.attestering.registrering.reise`) med «Føres på» (`…registrering.foresPaa`): underprosjektet reisen føres på. Å bytte underprosjekt i jobbens hode flytter ikke reisen (C6). ⚠️ Tatt ut i w15f (under).
+- `…hjelp.struktur` og `…hjelp.registrering` er ikke endret i w12.
+
+Fra w15f i web-timeføring (🟡 ikke merget, `feat/web-timer-w15f`, plan § 4.15 del E):
+
+- Reiselinja i del 8 er tekst «fra–til · lønnsart · prosjekt · byggeplass · underprosjekt» med ✂ og ✎ («Rett reisen», `timer.attestering.reiseRett.tittel`). «Føres på» og de åpne feltene på reiselinja er tatt ut; `…registrering.foresPaa` står i språkfilene uten bruker.
+- Vinduet «Rett reisen»: «Start kl.» / «Slutt kl.» (`…reiseRett.start` / `…slutt`), Lønnsart (`…registrering.lonnsart`, bare reisearter, RETUR w15f), Prosjekt, Byggeplass, Underprosjekt, og linja «Står i jobben på …» / «Står i kortet på …» / «Får eget kort på …» (`timer.reiseKort.havnerJobb` / `havnerKort` (ny) / `havnerEget`). Firmavalget av: «Firmaet tillater ikke at tid og sted rettes ved attestering. Underprosjektet kan rettes.» (`…reiseRett.bareUnderprosjekt`).
+- ?-fanen: nytt avsnitt `timer.attestering.tabell.hjelp.reise` (✎, lønnsarten, lista, linja «havner i», firmavalget; endret i RETUR w15f: lønnsarten rettes i vinduet, ikke i «Rediger jobben» — 13 språk regenerert fra ny kilde).
+
+Fra w15g i web-timeføring (🟡 ikke merget, `feat/web-timer-w15g`, plan § 4.15 del F):
+
+- Kortet er tekst. ✎ på timelinja, maskinlinja og tilleggslinja åpner «Rett timelinja» / «Rett maskinlinja» / «Rett tillegget» (`timer.korrigert.vindu.timer` / `…maskin` / `…tillegg`) med feltene som før sto i kortet. Linja i vinduet: «{arbeider} ser «Korrigert av {attestant}» på linja.» (`timer.korrigert.vinduLinje`; uten attestantens navn `…vinduLinjeUtenNavn`). Ugyldig tall: «Skriv et tall.» (`…vindu.ugyldigTall`).
+- «Rediger arbeid» (`RedigerRadModal`): «Ola Tømrer ser «Korrigert av Kari Leder» på linjene du endrer.» (`timer.korrigert.rrmLinje`, `…rrmLinjeUtenNavn`).
+- ?-fanen: `…hjelp.retting` skrevet om (✎ og vinduet, «Lagre»/«Avbryt», «Korrigert av»); i `…hjelp.registrering` er «Hver retting lagres med en gang» byttet med «Linjene er tekst; ✎ på linja åpner retting. Underprosjektet … lagres når du velger det.» 13 språk regenerert.
+
+Fra O13 i web-timeføring (✅ merget `72d375ae`, vedtak-timer-web.md § Dagsvisningen pkt 2 og 3, skisse B14c B), begge sidene:
+
+- **Struktur** (`…hjelp.struktur`, endret): «Med én jobb står jobbens prosjekt og underprosjekt i dagsraden» er byttet med «Dagsraden og jobbraden viser prosjektets navn, og under det byggeplass og underprosjekt. Reise og Overtid står i egne kolonner ved siden av Timer: dagens timer i dagsraden, jobbens i jobbraden. Reise- og overtidslinjene har lønnsartens navn i et farget merke.»
+- **Kolonnehoder:** «Reise» (`timer.eksport.kolReisetimer`) og «Overtid» (`timer.eksport.kolOvertid`), nøklene `reisetimer` og `overtid` i `TIMER_TABELL_KOL`. Eksportens ja/nei-kolonne «Reise» (`kolReise`) står som før i «Velg parameter». I «Velg parameter» heter tallkolonnen «Reisetimer» (`timer.eksport.kolReisetimerVelger`, feltet `velgerI18n` i `TIMER_TABELL_KOL`), så de to ikke forveksles; overskriften i tabellen er «Reise» (O13-tillegg).
+- Den grå «reise X t» i jobbraden (`timer.attestering.tabell.reiseTimer`) og «1 jobb» vises ikke lenger; «N jobber» står grått der navnefeltet begynner.
+
+Fra A1 i attesteringen (🟡 ikke merget, `feat/attestering-a1-a3`, plan § 4.17 del A):
+
+- **Struktur** (`…hjelp.struktur`, endret): linjene er skjult til «Bare oversiktsrader» slås av, og valget huskes; lønnsartene med timer står under Betegnelse og Fra–til, med linjene bak ved hover; overtid og fravær er gule på merket og linja; normmerket måles mot arbeidet — reise teller ikke, fravær fyller normen — og hover viser arbeid, fravær, overtid og reise for seg. Generert på nytt i 13 språk.
+- Hover på normmerket: «Arbeid X t av dagsnorm Y t · fravær Z t · overtid ført Z t · reise Z t · sum i dag Z t» (`timer.attestering.tabell.normHover.arbeid` / `.fravaer` / `.overtid` / `.reise` / `.sum`; leddene uten timer utelates). Hover på lønnsartmerket: linjene «07:00–15:00 7,5 t · …» (ingen nøkkel, bare klokkeslett og tall).
+- Fjernet i alle 15 språk: `timer.attestering.tabell.dagenAvNorm` (erstattet av `normHover.*`).
+
+Fra A2 i attesteringen (🟡 ikke merget, samme branch, plan § 4.17 punkt 5, B56 A):
+
+- **Struktur** (`…hjelp.struktur`, endret): «byggeplass og underprosjekt under navnet» er byttet med «↳» for underprosjekt og hover på navnet (prosjektnummer, byggeplass, underprosjekt, «Hva gjorde du?»); med flere jobber viser «N jobber» det samme for hver jobb. Generert på nytt i 13 språk.
+- Hoveren bruker eksisterende etiketter: `timer.felt.byggeplass`, `timer.felt.underprosjekt`, `timer.felt.radBeskrivelse`. Ingen nye nøkler.
+
+Fra A3 i attesteringen (🟡 ikke merget, samme branch, plan § 4.17 del D, B55):
+
+- **Struktur** (`…hjelp.struktur`, endret): én setning om at en reise under firmaets terskel som er ført som reisetid også er gul, og at merket «Reise under terskel» forklarer avstanden. Generert på nytt i 13 språk.
+- Merket: «Reise under terskel» (`timer.attestering.tabell.merke.reiseUnderTerskel`). Hover: «Reisen er 22 km. Firmaets terskel er 30 km. Under terskelen regnes reisen innenfor arbeidstiden. Den er ført som reisetid.» (`…merke.reiseUnderTerskelForklaring`). Enhetene via `timer.reiseTerskel.km` / `.min`. Nye nøkler i 15 språk. Uten målt avstand/kjøretid vises ikke merket (gate vilkår 2), så det finnes ingen tekst for det. Ingen handling i varselet (B83).
+
+## Prosjekt → Timer → Attestering (d2b-2) — ⚠️ fjernet i w10b
+
+🟡 w10b (`feat/web-timer-w10b`, ikke merget; plan web-timeføring § 4.10, B29 B): siden og menypunktet er fjernet. Adressen sender til `/dashbord/attestering`, der prosjektlederen får hjelpeteksten under Firma › Attestering (avsnittet `timer.attestering.hjelp.omfang`). Nøklene `timer.attestering.beskrivelse` og `timer.attestering.prosjekt.hjelp.laast` er slettet i alle 15 språk. Teksten under er historikk.
+
+Før w10b: `apps/web/src/app/dashbord/[prosjektId]/timer/attestering/page.tsx` hadde `HjelpKnapp` (fanen «Attestering»). Første avsnitt: «Her attesterer du timene som er ført på dette prosjektet. Linjer den ansatte har ført på andre prosjekter samme dag, står nedtonet og kan ikke velges. Har du ikke tilgang til det andre prosjektet, står det «Annet prosjekt».» (`timer.attestering.prosjekt.hjelp.laast`); deretter struktur, handlinger og retting som på firmasiden. Dagsumraden har «Attester radene på dine prosjekter» (`timer.attestering.tabell.attesterDineProsjekter`, 🟡 w10b — erstatter «Attester prosjektets del»; samme knapp står for prosjektlederen på `/dashbord/attestering`).
+
+Fra d2b-3 (🟡 ikke merget) har firmasiden også «Avvik denne uka»-avsnittet (`timer.attestering.tabell.hjelp.ukeavvik`; fra A4, 🟡 `feat/attestering-a4`: «Ukelinja i «Etter ansatt» regner hele uka mandag–søndag, uten reise … Er uka under ukenorm og det er ført overtid, viser den hvor mange timer overtid som kan trekkes … Varselet er gult først når alle arbeidsdagene er sendt eller uka er over; før det står «Uka så langt» og dagene som mangler. Attesterte dager med overtid står under ukelinja med ↺. Varselet sperrer ikke attesteringen.» — avsnittet vises nå for alle som attesterer; 🟡 A4b `fix/attestering-a4b`: etter «Dagene med overtid får merket «N t kan trekkes».» står «Hver overtidslinje viser det samme for linja: «N t av M t overtid kan trekkes», med ukas tall, men aldri mer enn overtiden på linja.») og kvitteringsavsnittet (`…hjelp.kvittering`: «Et utlegg med kvittering viser et miniatyrbilde eller en binders på linjen. Klikk for å åpne kvitteringen og kontrollere den før du attesterer.»); prosjektsiden har kvitteringsavsnittet. Lenken har tittelen «Åpne kvitteringen (filnavn)» (`…tabell.aapneKvittering`).
+
+Fra w1 i web-timeføring (🟡 ikke merget, `feat/web-timer-w1`) har begge sidene avsnittene om dato og avviksmerker, og firmasiden i tillegg om årsvelgeren:
+
+- **Dato** (`…hjelp.dato`): «Datoen står som dd.mm. Har tabellen dager fra flere år, står året med. Eksporten viser alltid hele datoen med år.» Firmasiden legger til (`…hjelp.aar`): «Året står ved ukevalget. Velg et annet år for å gå til samme uke det året.»
+- **Merker** (`…hjelp.merker`): avvik står som korte merker; hold pekeren over eller trykk for hele forklaringen. «Uten timerad» (`…merke.utenTimerad`, forklaring `…merke.utenTimeradForklaring`) og «Uten bevis» (`…merke.utenForerbevis`, forklaring `timer.maskinforerbevis.leder`; var «Uten førerbevis» til w9 retur 1). Merkene stables og brytes ved mellomrom, aldri «…» (`AvvikMerker`, `AttesteringTabell.tsx`). Hele teksten i Avvik-filteret og ukeoversikten er «Maskin uten timerad» (`timer.attestering.tabell.maskinUtenTimerad`, WM22). Årsvelgerens etikett: «År» (`timer.attestering.uke.aar`). Fra w9m (🟡 ikke merget) forklarer avsnittet også «Over arbeid»: en maskin med fører har flere timer enn arbeidet på jobben, og linjen kan attesteres.
+
+Detaljsiden (`AttesteringDetalj.tsx`) har under tabellen: «Attester, returner eller gjenåpne i tabellen: pr. linje, pr. prosjektseddel eller hele dagen.» (`timer.attestering.detalj.tabellHint`).

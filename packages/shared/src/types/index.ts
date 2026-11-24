@@ -714,84 +714,9 @@ export interface StandardFaggruppe {
 
 export const STANDARD_FAGGRUPPER: StandardFaggruppe[] = [
   { navn: "Byggherre", bransje: "Byggherre", farge: "blue", faggruppeNummer: "K00" },
-  { navn: "Bygg", bransje: "Bygg", farge: "emerald", faggruppeNummer: "K01" },
-  { navn: "Elektro", bransje: "Elektro", farge: "amber", faggruppeNummer: "K02" },
-  { navn: "VVS", bransje: "VVS", farge: "purple", faggruppeNummer: "K03" },
-  { navn: "Ventilasjon", bransje: "Ventilasjon", farge: "teal", faggruppeNummer: "K04" },
-];
-
-// Standard dokumentflyter for malprosjekt
-// Refererer til faggrupper og maler via indeks (løst opp under opprettelse)
-export interface StandardDokumentflyt {
-  navn: string;
-  /** Indekser inn i STANDARD_FAGGRUPPER for bestiller-rolle */
-  oppretter: number[];
-  /** Indekser inn i STANDARD_FAGGRUPPER for utfører-rolle */
-  svarer: number[];
-  /** Mal-slugger fra PROSJEKT_MODULER som skal tilknyttes */
-  malPrefixer: string[];
-}
-
-export const STANDARD_DOKUMENTFLYTER: StandardDokumentflyt[] = [
-  // --- Bygg (K01): begge retninger ---
-  {
-    navn: "Byggherre → Bygg",
-    oppretter: [0], // Byggherre
-    svarer: [1],     // Bygg
-    malPrefixer: ["GM", "BEF"],
-  },
-  {
-    navn: "Bygg → Byggherre",
-    oppretter: [1], // Bygg
-    svarer: [0],     // Byggherre
-    malPrefixer: ["GM"],
-  },
-  // --- Elektro (K02): begge retninger ---
-  {
-    navn: "Byggherre → Elektro",
-    oppretter: [0], // Byggherre
-    svarer: [2],     // Elektro
-    malPrefixer: ["GM", "BEF"],
-  },
-  {
-    navn: "Elektro → Byggherre",
-    oppretter: [2], // Elektro
-    svarer: [0],     // Byggherre
-    malPrefixer: ["GM"],
-  },
-  // --- VVS (K03): begge retninger ---
-  {
-    navn: "Byggherre → VVS",
-    oppretter: [0], // Byggherre
-    svarer: [3],     // VVS
-    malPrefixer: ["GM", "BEF"],
-  },
-  {
-    navn: "VVS → Byggherre",
-    oppretter: [3], // VVS
-    svarer: [0],     // Byggherre
-    malPrefixer: ["GM"],
-  },
-  // --- Ventilasjon (K04): begge retninger ---
-  {
-    navn: "Byggherre → Ventilasjon",
-    oppretter: [0], // Byggherre
-    svarer: [4],     // Ventilasjon
-    malPrefixer: ["GM", "BEF"],
-  },
-  {
-    navn: "Ventilasjon → Byggherre",
-    oppretter: [4], // Ventilasjon
-    svarer: [0],     // Byggherre
-    malPrefixer: ["GM"],
-  },
-  // --- HMS-avvik: alle kan opprette, byggherre mottar ---
-  {
-    navn: "HMS-avvik",
-    oppretter: [0, 1, 2, 3, 4], // Alle faggrupper
-    svarer: [0],                  // Byggherre
-    malPrefixer: ["HMS"],
-  },
+  { navn: "Elektro", bransje: "Elektro", farge: "amber", faggruppeNummer: "K01" },
+  { navn: "VVS", bransje: "VVS", farge: "purple", faggruppeNummer: "K02" },
+  { navn: "Ventilasjon", bransje: "Ventilasjon", farge: "teal", faggruppeNummer: "K03" },
 ];
 
 // Betingelser i malbygger

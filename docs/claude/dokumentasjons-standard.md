@@ -33,7 +33,7 @@ den ene råtner, og lesere lander tilfeldig på én av dem.
 |---|---|
 | Innholdet **bor et annet sted** | Slett her, lenk dit. Én eier. |
 | Innholdet **bor her**, men er ikke verifisert | ⚠️ er riktig — den sier «usikker», ikke «duplikat» |
-| Vedtaket er **snudd** | ⚠️-blokk med hva som gjelder nå, gammel tekst synlig under (§ snudde vedtak) |
+| Vedtaket er **snudd** | Bytt ut der det sto. Det gamle slettes i samme commit; hvem, når og hvorfor står i commit-meldingen ([SAMARBEIDSREGLER § 5](SAMARBEIDSREGLER.md)) |
 
 **⚠️ er for usikkerhet om SANNHET. Den er aldri et svar på duplisering.**
 

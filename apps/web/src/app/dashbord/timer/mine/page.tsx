@@ -6,9 +6,19 @@ import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { useFirma } from "@/kontekst/firma-kontekst";
 import { skalVarsleSkjulteTimer } from "@sitedoc/shared";
-import { Spinner, Input, Modal, Button } from "@sitedoc/ui";
+import { Spinner, Input, Button } from "@sitedoc/ui";
 import { MultiComboks } from "@/components/ui/MultiComboks";
-import { Clock, FileText, Briefcase, Activity, Plus, Info, ChevronRight, Trash2 } from "lucide-react";
+import { RegistrerTimerKnapp } from "@/components/timer/RegistrerTimerKnapp";
+import { SlettDagModal } from "@/components/timer/SlettDagModal";
+import { lokalIsoDato, medRetur, mineTimerIntervall } from "@/lib/tilbake-adresse";
+import { HjelpKnapp, HjelpFane } from "@/components/hjelp/HjelpModal";
+import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
+import { spennerFlereAar, visDagDato, visTimerTall } from "@/lib/registrerTimer";
+import { Clock, FileText, Briefcase, Activity, Info, ChevronRight, Trash2 } from "lucide-react";
+import { KorrigertAvDag, type DagKorrigertAv } from "@/components/timer/KorrigertMerke";
+
+/** w14 (TK3): dagene herfra går tilbake til Mine timer («Tilbake til Mine timer»). */
+const MINE_TIMER_STI = "/dashbord/timer/mine";
 
 /**
  * «Mine timer» — personlig rapport-visning på tvers av prosjekter
@@ -50,6 +60,8 @@ type ListeRad = {
   aktivitet: { id: string; navn: string; kode: string | null } | null;
   // Rad-beskrivelser for fritekstsøk (TILLEGG 3). list() inkluderer timer-radene.
   timer?: { beskrivelse: string | null }[];
+  // w15g: «Korrigert av [navn]» — hvem som korrigerte sist på dagen, og om flere har gjort det.
+  korrigertAv?: DagKorrigertAv | null;
 };
 
 // TILLEGG 2 punkt 2 / TILLEGG 3: valgt filter huskes på tvers av navigasjon.
@@ -88,8 +100,9 @@ function ukestart(dato: Date): Date {
   return d;
 }
 
-function tilIso(d: Date): string {
-  return d.toISOString().slice(0, 10);
+/** Dagsseddelens dato fra serveren (UTC-midnatt) som YYYY-MM-DD. */
+function datoIso(d: Date | string): string {
+  return new Date(d).toISOString().slice(0, 10);
 }
 
 function formatDato(d: Date | string): string {
@@ -100,31 +113,6 @@ function formatDato(d: Date | string): string {
   });
 }
 
-function periodeRange(periode: Periode, fraEgen: string, tilEgen: string): { fra: string; til: string } {
-  const naa = new Date();
-  if (periode === "denne_uken") {
-    const start = ukestart(naa);
-    const slutt = new Date(start);
-    slutt.setDate(slutt.getDate() + 6);
-    return { fra: tilIso(start), til: tilIso(slutt) };
-  }
-  if (periode === "denne_maaneden") {
-    const start = new Date(naa.getFullYear(), naa.getMonth(), 1);
-    const slutt = new Date(naa.getFullYear(), naa.getMonth() + 1, 0);
-    return { fra: tilIso(start), til: tilIso(slutt) };
-  }
-  if (periode === "forrige_maaneden") {
-    const start = new Date(naa.getFullYear(), naa.getMonth() - 1, 1);
-    const slutt = new Date(naa.getFullYear(), naa.getMonth(), 0);
-    return { fra: tilIso(start), til: tilIso(slutt) };
-  }
-  if (periode === "siste_3_mnd") {
-    // Siste 3 måneder t.o.m. i dag (inklusivt). TILLEGG 3: lengre tidsperspektiv.
-    const start = new Date(naa.getFullYear(), naa.getMonth() - 3, naa.getDate());
-    return { fra: tilIso(start), til: tilIso(naa) };
-  }
-  return { fra: fraEgen, til: tilEgen };
-}
 
 export default function MineTimerSide() {
   const { t } = useTranslation();
@@ -132,6 +120,8 @@ export default function MineTimerSide() {
   // både prosjektliste og dagsseddel-lista.
   const { valgtFirma, erSitedocAdmin } = useFirma();
   const orgId = valgtFirma?.id ?? undefined;
+  // w2 (B2 trinn 3): prosjektet i toppen er forvalget for «+ Registrer timer».
+  const { prosjektId: aktivProsjektId } = useProsjekt();
   const utils = trpc.useUtils();
 
   // TILLEGG 2/3: hydrer filter fra localStorage (lazy init — kun på klient).
@@ -139,8 +129,8 @@ export default function MineTimerSide() {
     typeof window === "undefined" ? {} : lesLagretFilter(),
   );
   const [periode, setPeriode] = useState<Periode>(lagret.periode ?? "denne_uken");
-  const [fraEgen, setFraEgen] = useState<string>(lagret.fraEgen ?? tilIso(ukestart(new Date())));
-  const [tilEgen, setTilEgen] = useState<string>(lagret.tilEgen ?? tilIso(new Date()));
+  const [fraEgen, setFraEgen] = useState<string>(lagret.fraEgen ?? lokalIsoDato(ukestart(new Date())));
+  const [tilEgen, setTilEgen] = useState<string>(lagret.tilEgen ?? lokalIsoDato(new Date()));
   // TILLEGG 3: søk på én enkelt dato på tvers av prosjekter — overstyrer perioden.
   const [datoSok, setDatoSok] = useState<string>(lagret.datoSok ?? "");
   const [statusFilter, setStatusFilter] = useState<StatusValg>(lagret.statusFilter ?? "alle");
@@ -156,7 +146,7 @@ export default function MineTimerSide() {
 
   // Effektivt dato-vindu: en valgt enkeltdato vinner over perioden.
   const { fra, til } = useMemo(
-    () => (datoSok ? { fra: datoSok, til: datoSok } : periodeRange(periode, fraEgen, tilEgen)),
+    () => (datoSok ? { fra: datoSok, til: datoSok } : mineTimerIntervall(periode, new Date(), fraEgen, tilEgen)),
     [datoSok, periode, fraEgen, tilEgen],
   );
 
@@ -230,8 +220,12 @@ export default function MineTimerSide() {
     });
   }, [alleRader, statusFilter, valgteProsjekter, fritekst, prosjektListe]);
 
-  const kanSlettes = (r: ListeRad) =>
-    r.status === "draft" || (r.status === "returned" && !r.attestertVed);
+  // w2: dd.mm. som i attesteringen — året står med når lista spenner over flere år.
+  const listeMedAar = useMemo(() => spennerFlereAar(liste.map((r) => r.dato)), [liste]);
+
+  // S1 (plan § 8.22, Kenneth 2026-11-21): bare utkast kan slettes — en returnert dag rettes
+  // og sendes på nytt. Serveren håndhever samme regel (`dagsseddel.slett`).
+  const kanSlettes = (r: ListeRad) => r.status === "draft";
 
   // D8 (web-paritet 2026-07-09): kladd-påminnelse — usendte drafts MED innhold
   // fra TIDLIGERE dager (mobil `DagsseddelListe` UF-3). Periode-UAVHENGIG: egen
@@ -242,10 +236,10 @@ export default function MineTimerSide() {
     organizationId: orgId,
   });
   const usendteKladder = useMemo(() => {
-    const iDag = tilIso(new Date());
+    const iDag = lokalIsoDato(new Date());
     return ((draftRader as unknown as ListeRad[] | undefined) ?? [])
-      .filter((r) => r.antallRader > 0 && tilIso(new Date(r.dato)) < iDag)
-      .sort((a, b) => tilIso(new Date(b.dato)).localeCompare(tilIso(new Date(a.dato))));
+      .filter((r) => r.antallRader > 0 && datoIso(r.dato) < iDag)
+      .sort((a, b) => datoIso(b.dato).localeCompare(datoIso(a.dato)));
   }, [draftRader]);
   const eldsteKladd = usendteKladder[usendteKladder.length - 1];
 
@@ -306,25 +300,33 @@ export default function MineTimerSide() {
             {t("timer.mine.beskrivelse")}
           </p>
         </div>
-        {/* D8: «Ny»-inngang. Prosjekt velges på ny-siden (D7), ikke her.
-            Kenneth-vedtak 2026-10-09 (2): deaktivert (synlig) hvis ikke ansatt. */}
-        {kanFoereTimer ? (
+        {/* w2 (B1): «+ Registrer timer» i prosjektkort-modus; dagskort-modus beholder
+            «Ny dagsseddel» + skjemaet. Deaktivert (synlig) hvis ikke ansatt (2026-10-09 (2)). */}
+        <div className="flex items-start gap-1">
+          {/* SL2 (B78 ja): «Slettet og korrigert» for egne dager, på perioden lista står i. */}
           <Link
-            href="/dashbord/timer/ny"
-            className="inline-flex shrink-0 items-center gap-1 rounded bg-sitedoc-primary px-3 py-2 text-sm font-medium text-white hover:bg-sitedoc-primary/90"
+            href={`/dashbord/timer/mine/slettet-korrigert?${new URLSearchParams({ fra, til }).toString()}`}
+            className="mr-2 self-center whitespace-nowrap text-sm text-blue-600 hover:underline"
           >
-            <Plus className="h-4 w-4" />
-            {t("timer.nyDagsseddel")}
+            {t("timer.slettetKorrigert.lenke")}
           </Link>
-        ) : (
-          <span
-            className="inline-flex shrink-0 cursor-not-allowed items-center gap-1 rounded bg-gray-200 px-3 py-2 text-sm font-medium text-gray-400"
-            title={t("timer.ikkeAnsatt", { firma: ansattFirmanavn })}
-          >
-            <Plus className="h-4 w-4" />
-            {t("timer.nyDagsseddel")}
-          </span>
-        )}
+          <RegistrerTimerKnapp
+            organizationId={orgId ?? null}
+            projectId={aktivProsjektId}
+            retur={MINE_TIMER_STI}
+          />
+          <HjelpKnapp>
+            <HjelpFane tittel={t("timer.mine.tittel")}>
+              <p>{t("timer.mine.hjelp.registrer")}</p>
+              <p className="mt-2">{t("timer.mine.hjelp.dagen")}</p>
+              <p className="mt-2">{t("timer.mine.hjelp.ferdig")}</p>
+              <p className="mt-2">{t("timer.mine.hjelp.skjema")}</p>
+              <p className="mt-2">{t("timer.mine.hjelp.dato")}</p>
+              <p className="mt-2">{t("timer.mine.hjelp.reise")}</p>
+              <p className="mt-2">{t("timer.mine.hjelp.korrigert")}</p>
+            </HjelpFane>
+          </HjelpKnapp>
+        </div>
       </div>
 
       {!kanFoereTimer && (
@@ -336,7 +338,7 @@ export default function MineTimerSide() {
       {/* D8: kladd-påminnelse — usendte drafts fra tidligere dager (mobil UF-3). */}
       {eldsteKladd && (
         <Link
-          href={`/dashbord/timer/${eldsteKladd.id}`}
+          href={medRetur(`/dashbord/timer/${eldsteKladd.id}`, MINE_TIMER_STI)}
           className="mb-4 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 hover:bg-amber-100"
         >
           <Info className="h-4 w-4 shrink-0 text-amber-700" />
@@ -446,7 +448,7 @@ export default function MineTimerSide() {
         <OppsummeringKort
           ikon={<Clock className="h-4 w-4 text-blue-600" />}
           label={t("timer.mine.totaltTimer")}
-          verdi={`${oppsummering.totalt.toFixed(2)}t`}
+          verdi={`${visTimerTall(oppsummering.totalt)} t`}
         />
         <OppsummeringKort
           ikon={<FileText className="h-4 w-4 text-purple-600" />}
@@ -477,7 +479,7 @@ export default function MineTimerSide() {
                 {t("timer.mine.skjultForAdmin", { firma: ansattFirmanavn })}
               </p>
               <Link
-                href={`/dashbord/admin/firmaer/${orgId}?fane=brukere`}
+                href={medRetur(`/dashbord/admin/firmaer/${orgId}?fane=brukere`, "/dashbord/timer/mine")}
                 className="mt-2 inline-block text-sm text-blue-600 hover:underline"
               >
                 {t("timer.mine.gaaTilBrukere", { firma: ansattFirmanavn })}
@@ -500,7 +502,7 @@ export default function MineTimerSide() {
                   <tr key={a.navn} className="border-b border-gray-100 last:border-b-0">
                     <td className="py-1.5 text-gray-700">{a.navn}</td>
                     <td className="py-1.5 text-right font-mono text-gray-900">
-                      {a.timer.toFixed(2)}t
+                      {visTimerTall(a.timer)} t
                     </td>
                     <td className="py-1.5 pl-2 text-right text-xs text-gray-500">
                       {oppsummering.totalt > 0
@@ -527,7 +529,7 @@ export default function MineTimerSide() {
                     </td>
                     <td className="py-1.5 text-right text-gray-600">{s.antall}</td>
                     <td className="py-1.5 pl-2 text-right font-mono text-gray-900">
-                      {s.timer.toFixed(2)}t
+                      {visTimerTall(s.timer)} t
                     </td>
                   </tr>
                 ))}
@@ -558,7 +560,7 @@ export default function MineTimerSide() {
                     className="border-b border-gray-100 last:border-b-0 hover:bg-gray-50"
                   >
                     <td className="px-2 py-1.5 font-medium text-gray-900">
-                      {formatDato(rad.dato)}
+                      {visDagDato(rad.dato, listeMedAar)}
                     </td>
                     <td className="px-2 py-1.5 text-gray-700">
                       {rad.prosjektIder
@@ -570,15 +572,16 @@ export default function MineTimerSide() {
                       {rad.aktivitet?.navn ?? "—"}
                     </td>
                     <td className="px-2 py-1.5 text-right font-mono text-gray-900">
-                      {rad.totaltimer.toFixed(2)}
+                      {visTimerTall(rad.totaltimer)}
                     </td>
                     <td className="px-2 py-1.5 text-xs text-gray-500">
                       {t(`timer.statusType.${rad.status}`)}
+                      <KorrigertAvDag korrigertAv={rad.korrigertAv} />
                     </td>
                     <td className="px-2 py-1.5 text-right">
                       <div className="flex items-center justify-end gap-3">
                         <Link
-                          href={`/dashbord/timer/${rad.id}`}
+                          href={medRetur(`/dashbord/timer/${rad.id}`, MINE_TIMER_STI)}
                           className="text-sm font-medium text-sitedoc-primary hover:underline"
                         >
                           {t("timer.aapne")}
@@ -612,23 +615,17 @@ export default function MineTimerSide() {
 
       {/* Slett-bekreftelse (CLAUDE.md § Slett-bekreftelse — modal, ikke confirm()). */}
       {slettMål && (
-        <Modal open onClose={() => setSlettMål(null)} title={t("timer.detalj.slett")}>
-          <p className="text-sm text-gray-700">
-            {t("timer.mine.slettBekreft", { dato: formatDato(slettMål.dato) })}
-          </p>
-          <div className="mt-4 flex justify-end gap-3">
-            <Button variant="secondary" onClick={() => setSlettMål(null)}>
-              {t("handling.avbryt")}
-            </Button>
-            <Button
-              variant="danger"
-              onClick={() => slett.mutate({ id: slettMål.id })}
-              loading={slett.isPending}
-            >
-              {t("timer.detalj.slett")}
-            </Button>
-          </div>
-        </Modal>
+        <SlettDagModal
+          sheetId={slettMål.id}
+          overskrift={t("timer.slettDag.ingressDato", { dato: formatDato(slettMål.dato) })}
+          onClose={() => {
+            setSlettMål(null);
+            slett.reset();
+          }}
+          onBekreft={() => slett.mutate({ id: slettMål.id })}
+          sletter={slett.isPending}
+          feil={slett.error?.message ?? null}
+        />
       )}
     </div>
   );

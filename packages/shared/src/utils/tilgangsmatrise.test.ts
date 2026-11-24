@@ -43,8 +43,11 @@ function avgjorDokumentTilgangReferanse(f: TilgangsFakta): TilgangsResultat {
   // :510 — ikke medlem av prosjektet
   if (!f.erMedlem) return { tillat: false, grunn: "ikke-medlem" };
 
-  // :518 — prosjektadmin ser alt
-  if (f.prosjektmedlemRolle === "admin") return { tillat: true, grunn: "prosjektadmin" };
+  // :518 — prosjektadmin ser alt. H3 (Kenneth HF2 ja, 2026-11-23): unntatt private HMS-saker.
+  if (f.prosjektmedlemRolle === "admin" && !f.hmsPrivat) return { tillat: true, grunn: "prosjektadmin" };
+
+  // H3 — HMS-behandleren (erHmsAdmin) leser alle private HMS-saker.
+  if (f.hmsPrivat && f.erHmsBehandler) return { tillat: true, grunn: "hms-behandler" };
 
   // :521–534 — dokumentParter lastes kun når dokumentId && dokumentType finnes
   const harParter = f.harDokument;
@@ -86,8 +89,8 @@ function avgjorDokumentTilgangReferanse(f: TilgangsFakta): TilgangsResultat {
     (f.utforerFaggruppeId && f.direkteFaggruppeIder.includes(f.utforerFaggruppeId));
   if (harDirekteTilgang) return { tillat: true, grunn: "faggruppe-direkte" };
 
-  // :591–606 — fagområde-tilgang via grupper
-  if (f.templateDomain) {
+  // :591–606 — fagområde-tilgang via grupper. H3: ikke for private HMS-saker.
+  if (f.templateDomain && !f.hmsPrivat) {
     for (const gm of f.gruppeMedlemskap) {
       if (!gm.domener.includes(f.templateDomain)) continue;
       // :597 tverrgående: gruppe uten faggrupper ser alle dok med matchende domain
@@ -137,6 +140,8 @@ const BASIS: TilgangsFakta = {
   flytIder: [],
   firmaUserIder: [],
   harFirmaTransfer: false,
+  hmsPrivat: false,
+  erHmsBehandler: false,
 };
 
 const fakta = (over: Partial<TilgangsFakta>): TilgangsFakta => ({ ...BASIS, ...over });
@@ -456,6 +461,84 @@ export const MATRISE: MatriseRad[] = [
       templateDomain: "hms",
       templateHmsSynlighet: "skjult",
     }),
+    forventet: { tillat: false, grunn: "ingen-tilgang" },
+  },
+
+  // — H3: bare HMS-behandlerne behandler (Kenneth HF2 ja, 2026-11-23) ——————————
+  {
+    navn: "H3: prosjektadmin, privat HMS-sak andre har meldt → AVVIS",
+    fakta: fakta({
+      prosjektmedlemRolle: "admin",
+      harDokument: true,
+      bestillerUserId: "u-annen",
+      dokumentflytId: "flyt-hms",
+      templateDomain: "hms",
+      hmsPrivat: true,
+    }),
+    forventet: { tillat: false, grunn: "ingen-tilgang" },
+  },
+  {
+    navn: "H3: prosjektadmin som har meldt saken selv → tillat (melder)",
+    fakta: fakta({
+      prosjektmedlemRolle: "admin",
+      harDokument: true,
+      bestillerUserId: "u-selv",
+      dokumentflytId: "flyt-hms",
+      templateDomain: "hms",
+      hmsPrivat: true,
+    }),
+    forventet: { tillat: true, grunn: "innsender-mottaker" },
+  },
+  {
+    navn: "H3: prosjektadmin, åpen HMS-sak (SJA) → tillat som før",
+    fakta: fakta({ prosjektmedlemRolle: "admin", templateDomain: "hms", templateHmsSynlighet: "apen" }),
+    forventet: { tillat: true, grunn: "prosjektadmin" },
+  },
+  {
+    navn: "H3: prosjektadmin i HMS-gruppa → tillat (behandler)",
+    fakta: fakta({
+      prosjektmedlemRolle: "admin",
+      harDokument: true,
+      bestillerUserId: "u-annen",
+      templateDomain: "hms",
+      hmsPrivat: true,
+      erHmsBehandler: true,
+    }),
+    forventet: { tillat: true, grunn: "hms-behandler" },
+  },
+  {
+    navn: "H3: medlem av «Prosjektadministratorer» (hms i domains), privat HMS → AVVIS",
+    fakta: fakta({
+      harDokument: true,
+      bestillerUserId: "u-annen",
+      templateDomain: "hms",
+      hmsPrivat: true,
+      gruppeMedlemskap: [{ domener: ["bygg", "hms", "kvalitet"], faggruppeIder: [] }],
+    }),
+    forventet: { tillat: false, grunn: "ingen-tilgang" },
+  },
+  {
+    navn: "H3 kontroll: samme gruppe, bygg-dokument → tillat som før",
+    fakta: fakta({
+      templateDomain: "bygg",
+      gruppeMedlemskap: [{ domener: ["bygg", "hms", "kvalitet"], faggruppeIder: [] }],
+    }),
+    forventet: { tillat: true, grunn: "gruppe-tverrgaende" },
+  },
+  {
+    navn: "H3: vanlig medlem som er HMS-behandler (HMS-gruppa) → tillat",
+    fakta: fakta({
+      harDokument: true,
+      bestillerUserId: "u-annen",
+      templateDomain: "hms",
+      hmsPrivat: true,
+      erHmsBehandler: true,
+    }),
+    forventet: { tillat: true, grunn: "hms-behandler" },
+  },
+  {
+    navn: "H3 negativkontroll: erHmsBehandler uten privat HMS gir ingenting",
+    fakta: fakta({ templateDomain: "bygg", erHmsBehandler: true }),
     forventet: { tillat: false, grunn: "ingen-tilgang" },
   },
 

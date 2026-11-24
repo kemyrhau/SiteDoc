@@ -106,8 +106,8 @@ i et redesign som bare leser ankeret:
 | P23 | PSI (personlig gjennomføring / utfylling) | sidebar `psi` / `/[pid]/psi` | sidebar-P | `kreverModul="psi"` | Nei | |
 | P24 | Mannskap (§15-innsjekk/utsjekk-vy) | sidebar `mannskap` / `/[pid]/mannskap` | **sidebar-P (redesign re-homes)** | `kreverModul="psi"` | Nei | |
 | P25 | Timer (dagsseddel, registrering) | sidebar `timer` / `/[pid]/timer`(+`/ny`,`/[id]`) | sidebar-P | `kreverFirmaModul="timer"` (via ProjectModule på prosjekt) | Nei | |
-| P26 | Timer-attestering (leder) | sidebar `timer-attestering` / `/[pid]/timer/attestering`(+`/[id]`) | sidebar-P | `kreverFirmaModul="timer"` + `kreverTimerLeder` (kanAttestere) | Nei | |
-| P27 | Timer-godkjenning (legacy alias) | `/[pid]/timer/godkjenning` | redirect → attestering | (behold ≥1 uke, slett etter mobil-oppdatering) | **Ja** | |
+| P26 | Timer-attestering (leder) | ~~sidebar `timer-attestering` / `/[pid]/timer/attestering`(+`/[id]`)~~ 🟡 w10b: fjernet (plan web-timeføring § 4.10 DK1–DK5); adressene sender til `/dashbord/attestering` (+`/[id]`), menypunktet står i FIRMA-sonen (F16) | ~~sidebar-P~~ redirect | ~~`kreverFirmaModul="timer"` + `kreverTimerLeder` (kanAttestere)~~ | **Ja** |  🟡 w10a (`feat/web-timer-w10a`): **Fjernet etter ordren:** ✓ ↩ ↺ pr. linje (B24 B — står nå på jobb-/dagsraden), retting i cella (B25 A — skjer nå i registreringskortet: fra/til/pause på timebaserte lønnsarter, tallfelt på `per_km`/`per_dag`/`per_natt`) og avkrysning pr. linje (B30 A — avkrysning pr. jobb/dag). Flyttet: ✂ og «Rediger jobben» til registreringskortet; kvitteringen også i kortet. |
+| P27 | Timer-godkjenning (legacy alias) | `/[pid]/timer/godkjenning` | redirect → `/dashbord/attestering` (w10b DK3) | (behold ≥1 uke, slett etter mobil-oppdatering) | **Ja** | |
 | P28 | Vareforbruk | sidebar `vareforbruk` / `/[pid]/vareforbruk` | sidebar-P | `kreverFirmaModul="varelager"` (via ProjectModule) | Nei | |
 | P29 | Maler (bibliotekvalg for prosjekt) | `/[pid]/maler`(+`/[malId]`); mobilmeny «maler» | 1a PROSJEKT «Maler» + søk | `kreverProsjekt` | Nei | |
 | P30 | Faggrupper (liste/CRUD, alltid-på) | `/[pid]/faggrupper` | 1a PROSJEKT «Medlemmer › Faggrupper» | `kreverProsjekt` | Nei | |
@@ -152,7 +152,7 @@ Hele firma-sidebaren gates på `kanAdministrereFirma && valgtFirma` (company_adm
 | F13 | Timer-katalog: Tillegg | `/firma/timer/tillegg` | 1a «Timer › Tillegg» | do. | Nei | |
 | F14 | Timer-onboarding | `/firma/timer/onboarding` | 1a «Timer › Oppsett» | do. | Nei | |
 | F15 | Timer-rapport (firma-aggregat + eksport CSV/XLSX) | firma-sidebar `Timer-rapport` / `/firma/timer/rapport` | 1a «Timer › Rapport» | do. | Nei | |
-| F16 | Timer-attestering (firma-nivå) | `/firma/timer/attestering`(+`/[id]`) | 1a «Timer › Attestering» | do. | Nei | |
+| F16 | Timer-attestering (firma-nivå) | `/attestering`(+`/[id]`) — 🟡 w10b: flyttet fra `/firma/timer/attestering`(+`/[id]`), som sender videre | 1a «Timer › Attestering» + FIRMA-sonen «Attestering» (w10b) | firma-admin, eller prosjektleder/«kan attestere» (w10b, `kanAttestereFirma.omfang`) | Nei | 🟡 w10b: ingen funksjon fjernet — ny plass, og prosjektlederen får samme side med sine prosjekter. 🟡 w10a (`feat/web-timer-w10a`): **Fjernet etter ordren:** ✓ ↩ ↺ pr. linje (B24 B — står nå på jobb-/dagsraden), retting i cella (B25 A — skjer nå i registreringskortet: fra/til/pause på timebaserte lønnsarter, tallfelt på `per_km`/`per_dag`/`per_natt`) og avkrysning pr. linje (B30 A — avkrysning pr. jobb/dag). Flyttet: ✂ og «Rediger jobben» til registreringskortet; kvitteringen også i kortet. |
 | F17 | Kalender | firma-sidebar `Kalender` / `/firma/kalender` | 1a FIRMA «Kalender» | company_admin/sitedoc_admin | Nei | |
 | F18 | Varelager (katalog) | firma-sidebar `Varelager` / `/firma/varelager` | 1a «Varelager › Katalog» | `kreverFirmaModul="varelager"` | Nei | |
 | F19 | Varelager-import | `/firma/varelager/import` | 1a «Varelager › Import» | do. | Nei | |
@@ -219,10 +219,10 @@ Kilde: `apps/web/src/components/layout/HovedSidebar.tsx` + `firma/layout.tsx` + 
 |---|---|---|---|---|
 | G1 | `kreverModul` (ProjectModule aktiv) | HovedSidebar `filtrertHovedelementer` | hms-avvik, kontrollplan, okonomi, psi | ✓ (delt `useSidebarElementer`) |
 | G2 | `kreverGruppemodul` (mineModuler; admin/registrator-bypass) | HovedSidebar:270 | sjekklister, oppgaver, tegninger, 3d | ✓ (delt, verbatim) |
-| G3 | `kreverFirmaModul` timer/varelager (ProjectModule på prosjekt) | HovedSidebar:273-274 | timer, timer-attestering, vareforbruk — **K7: leses via felles gating-abstraksjonslag** | ✓ gating bevart (K7-abstraksjon fortsatt utsatt) |
+| G3 | `kreverFirmaModul` timer/varelager (ProjectModule på prosjekt) | HovedSidebar:273-274 | timer, vareforbruk (timer-attestering fjernet i w10b) — **K7: leses via felles gating-abstraksjonslag** | ✓ gating bevart (K7-abstraksjon fortsatt utsatt) |
 | G4 | `kreverFirmaModul="maskin"` (aktiveFirmamoduler) | HovedSidebar bunnelement:347 | maskin — **K7: samme abstraksjonslag** (én endring ved OrganizationModule-overgang) | ✓ gating bevart; Maskin nå i FIRMA-sone (K1) |
 | G5 | `kreverIfc` (avledet fra byggeplassens drawings) | HovedSidebar:253-258 | 3d-visning, tegning-3d | ✓ |
-| G6 | `kreverTimerLeder` (kanAttestere) | HovedSidebar:276 | timer-attestering | ✓ |
+| G6 | ~~`kreverTimerLeder` (kanAttestere)~~ | — | ~~timer-attestering~~ | 🟡 w10b: fjernet (§ 4.10 DK5); attesteringen gates i firma-nav (`kreverAttestering`, `gateFirmaNav`) |
 | G7 | `tillatelse` (Permission) | HovedSidebar:264 / oppsett `manage_field` | generisk permission-gate | ✓ |
 | G8 | `kreverHmsTilgang` (harHmsTilgang / `hms_ansvarlig`) | firma/layout | firma-HMS | ✓ (FIRMA-sone) |
 | G9 | `kreverSitedocAdmin` | firma/layout (Fakturering) | fakturering | ✓ (FIRMA-sone) |
@@ -328,7 +328,7 @@ Faggrupper/Medlemmer + gjensidig synonym-cluster (dokumentflyt↔faggruppe↔med
 | F14 | `/dashbord/firma/timer/onboarding` | 1 | Hub-underlenke «Timer › Onboarding» (K13-g) |
 | F14b | `/dashbord/firma/timer/oppsett` | 1 | Hub-underlenke «Timer › Oppsett» (K13-g — develop la til; gjenbruker `firma.timer.fane.oppsett`) |
 | P29 | `/dashbord/[pid]/maler` | 2 | `dypeSider` (arbeidsflate) |
-| F16 | `/dashbord/firma/timer/attestering` | 2 | `dypeSider` (arbeidsflate, `kreverFirmaModul="timer"`) |
+| F16 | `/dashbord/attestering` (🟡 w10b; før: `/dashbord/firma/timer/attestering`) | 1 | firma-nav «Attestering» (`kreverAttestering`) — dyp-siden `firmaAttestering` er tatt ut, siden har nav-hjem |
 
 **Nye søketreff (dyp side, K13-a):** `kom-i-gang` — tittel «Kom i gang», INGEN sone-brødsmule.
 

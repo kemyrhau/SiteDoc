@@ -13,15 +13,16 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useSession } from "next-auth/react";
 import { Button, Modal, Spinner } from "@sitedoc/ui";
 import { KnappMedForklaring } from "@/components/KnappMedForklaring";
 import { Trash2 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { rundTilNarmeste } from "@/lib/tidsrunding";
 import {
-  arbeidUtenReise,
-  overstigerMaskinTak,
   finnTidsromKonflikt,
+  maskinHoystPerRad,
+  overMaskinHoyst,
 } from "@sitedoc/shared";
 import { MaskinVelger } from "@/components/timer/MaskinVelger";
 
@@ -95,9 +96,129 @@ type EditMaskin = {
   enhet: string | null;
 };
 
+/** Ventende timerad på sedelen slik leseren gir den (feltene lagringen bruker). */
+export type VentendeTimer = {
+  id: string;
+  projectId: string;
+  externalCostObjectId: string | null;
+  byggeplassId?: string | null;
+  lonnsartId: string;
+  aktivitetId: string;
+  fraTid: string | null;
+  tilTid: string | null;
+  timer: unknown;
+};
+export type VentendeMaskin = {
+  id: string;
+  projectId: string;
+  externalCostObjectId: string | null;
+  byggeplassId?: string | null;
+  vehicleId: string;
+  fraTid: string | null;
+  tilTid: string | null;
+  timer: unknown;
+  mengde: unknown;
+  enhet: string | null;
+};
+export type VentendeTillegg = {
+  id: string;
+  projectId: string;
+  tilleggId: string;
+  antall: unknown;
+  kommentar: string | null;
+  byggeplassId?: string | null;
+  externalCostObjectId?: string | null;
+};
+
+/**
+ * `nyeRader` til `redigerSedelRader` fra «Lagre endringer». Radene utenfor jobben
+ * sendes uendret; jobbens rader med det attestanten rettet. Vinduet retter ikke
+ * byggeplassen, så hver rad sender byggeplassen den har (F68: `null` tømte den,
+ * og kort-id fulgte den nye nøkkelen). Delte rader (samme `originalId`) arver
+ * originalens byggeplass.
+ */
+export function byggRedigerNyeRader(a: {
+  projectId: string;
+  ecoId: string | null;
+  pendingTimer: readonly VentendeTimer[];
+  pendingMaskin: readonly VentendeMaskin[];
+  pendingTillegg: readonly VentendeTillegg[];
+  editTimer: readonly EditTimer[];
+  editMaskin: readonly EditMaskin[];
+}) {
+  const iJobben = (r: { projectId: string; externalCostObjectId: string | null }) =>
+    r.projectId === a.projectId && r.externalCostObjectId === a.ecoId;
+  const timerBygg = new Map(a.pendingTimer.map((r) => [r.id, r.byggeplassId ?? null] as const));
+  const maskinBygg = new Map(a.pendingMaskin.map((r) => [r.id, r.byggeplassId ?? null] as const));
+  const { pendingTillegg } = a;
+  return {
+    timer: [
+      ...a.pendingTimer.filter((r) => !iJobben(r)).map((r) => ({
+        originalId: r.id,
+        projectId: r.projectId,
+        lonnsartId: r.lonnsartId,
+        aktivitetId: r.aktivitetId,
+        externalCostObjectId: r.externalCostObjectId,
+        byggeplassId: r.byggeplassId ?? null,
+        fraTid: r.fraTid,
+        tilTid: r.tilTid,
+        timer: tilTall(r.timer),
+      })),
+      ...a.editTimer.map((r) => ({
+        originalId: r.originalId,
+        projectId: a.projectId,
+        lonnsartId: r.lonnsartId,
+        aktivitetId: r.aktivitetId,
+        externalCostObjectId: a.ecoId,
+        byggeplassId: timerBygg.get(r.originalId) ?? null,
+        fraTid: r.fraTid,
+        tilTid: r.tilTid,
+        timer: r.timer,
+      })),
+    ],
+    tillegg: pendingTillegg.map((r) => ({
+      originalId: r.id,
+      projectId: r.projectId,
+      tilleggId: r.tilleggId,
+      antall: tilTall(r.antall),
+      kommentar: r.kommentar,
+      byggeplassId: r.byggeplassId ?? null,
+      externalCostObjectId: r.externalCostObjectId ?? null,
+    })),
+    maskin: [
+      ...a.pendingMaskin.filter((r) => !iJobben(r)).map((r) => ({
+        originalId: r.id,
+        projectId: r.projectId,
+        externalCostObjectId: r.externalCostObjectId,
+        vehicleId: r.vehicleId,
+        byggeplassId: r.byggeplassId ?? null,
+        fraTid: r.fraTid,
+        tilTid: r.tilTid,
+        timer: tilTall(r.timer),
+        mengde: r.mengde === null || r.mengde === undefined ? null : tilTall(r.mengde),
+        enhet: r.enhet,
+      })),
+      ...a.editMaskin.map((r) => ({
+        originalId: r.originalId,
+        projectId: a.projectId,
+        externalCostObjectId: a.ecoId,
+        vehicleId: r.vehicleId,
+        byggeplassId: maskinBygg.get(r.originalId) ?? null,
+        fraTid: r.fraTid,
+        tilTid: r.tilTid,
+        timer: r.timer,
+        mengde: r.mengde,
+        enhet: r.enhet,
+      })),
+    ],
+  };
+}
+
 export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
+  // w15g (§ 4.15 del F): linja som sier hva arbeideren ser — attestantens eget navn.
+  const { data: session } = useSession();
 
   const { data: sheet, isLoading } =
     trpc.timer.dagsseddel.hentForAttestering.useQuery(
@@ -127,13 +248,14 @@ export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
         internNavn: string | null;
         internNummer: string | null;
         kategori: string | null;
+        utleieEnhet?: string | null;
       }>
     | undefined;
   const { data: ecoListe } = trpc.eksternKostObjekt.list.useQuery(
     { projectId, organizationId: sheet?.organizationId },
     { enabled: !!projectId },
   );
-  const { data: setting } = trpc.organisasjon.hentSetting.useQuery(
+  const { data: setting } = trpc.organisasjon.hentArbeidstidDefaults.useQuery(
     { organizationId: sheet?.organizationId ?? "" },
     { enabled: !!sheet?.organizationId },
   );
@@ -159,47 +281,26 @@ export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
 
   const pendingTimer = useMemo(
     () =>
-      ((sheet?.timer ?? []) as Array<{
-        id: string;
-        projectId: string;
-        externalCostObjectId: string | null;
+      ((sheet?.timer ?? []) as Array<VentendeTimer & {
         attestertStatus: string | null;
-        lonnsartId: string;
-        aktivitetId: string;
-        fraTid: string | null;
-        tilTid: string | null;
-        timer: unknown;
         erReise?: boolean;
+        kortId?: string | null;
       }>).filter((r) => r.attestertStatus === "pending"),
     [sheet?.timer],
   );
   const pendingMaskin = useMemo(
     () =>
-      ((sheet?.maskiner ?? []) as Array<{
-        id: string;
-        projectId: string;
-        externalCostObjectId: string | null;
+      ((sheet?.maskiner ?? []) as Array<VentendeMaskin & {
         attestertStatus: string | null;
-        vehicleId: string;
-        fraTid: string | null;
-        tilTid: string | null;
-        timer: unknown;
-        mengde: unknown;
-        enhet: string | null;
+        kortId?: string | null;
+        utleieEnhet?: string | null;
       }>).filter((r) => r.attestertStatus === "pending"),
     [sheet?.maskiner],
   );
   const pendingTillegg = useMemo(
     () =>
-      ((sheet?.tillegg ?? []) as Array<{
-        id: string;
-        projectId: string;
+      ((sheet?.tillegg ?? []) as Array<VentendeTillegg & {
         attestertStatus: string | null;
-        tilleggId: string;
-        antall: unknown;
-        kommentar: string | null;
-        byggeplassId?: string | null;
-        externalCostObjectId?: string | null;
       }>).filter((r) => r.attestertStatus === "pending"),
     [sheet?.tillegg],
   );
@@ -330,7 +431,6 @@ export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
     onSuccess: () => {
       void utils.timer.dagsseddel.hentForAttestering.invalidate({ id: sheetId });
       void utils.timer.dagsseddel.hentTilAttesteringFirma.invalidate();
-      void utils.timer.dagsseddel.hentTilAttestering.invalidate();
       onLukk();
     },
     onError: (e: { message: string }) => setFeil(e.message),
@@ -352,11 +452,10 @@ export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
       }
     }
 
-    // Bygg full payload: andre bukers pending-rader uendret + edit-rader for vår bucket.
-    // Tillegg redigeres ikke i denne modalen — sendes uendret, inkl. byggeplass og
-    // underprosjekt (utelatt felt nuller dem på serveren).
+    // Full payload bygges i `byggRedigerNyeRader`: andre bøtters ventende rader og
+    // tillegg uendret (inkl. byggeplass og underprosjekt — utelatt felt nuller dem
+    // på serveren) + edit-radene for vår bøtte.
     const andreTimer = pendingTimer.filter((r) => !bucketPredikat(r));
-    const andreMaskin = pendingMaskin.filter((r) => !bucketPredikat(r));
 
     // F-f: speil server-vakten for umiddelbar tilbakemelding — fra/til påkrevd +
     // fra<til + overlapp på HELE timer-settet (andre bøtter + denne bøttens
@@ -392,72 +491,94 @@ export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
       sheetId,
       pauseFra: editPauseFra,
       pauseTil: editPauseTil,
-      nyeRader: {
-        timer: [
-          ...andreTimer.map((r) => ({
-            originalId: r.id,
-            projectId: r.projectId,
-            lonnsartId: r.lonnsartId,
-            aktivitetId: r.aktivitetId,
-            externalCostObjectId: r.externalCostObjectId,
-            byggeplassId: null,
-            fraTid: r.fraTid,
-            tilTid: r.tilTid,
-            timer: tilTall(r.timer),
-          })),
-          ...editTimer.map((r) => ({
-            originalId: r.originalId,
-            projectId,
-            lonnsartId: r.lonnsartId,
-            aktivitetId: r.aktivitetId,
-            externalCostObjectId: ecoId,
-            byggeplassId: null,
-            fraTid: r.fraTid,
-            tilTid: r.tilTid,
-            timer: r.timer,
-          })),
-        ],
-        tillegg: pendingTillegg.map((r) => ({
-          originalId: r.id,
-          projectId: r.projectId,
-          tilleggId: r.tilleggId,
-          antall: tilTall(r.antall),
-          kommentar: r.kommentar,
-          byggeplassId: r.byggeplassId ?? null,
-          externalCostObjectId: r.externalCostObjectId ?? null,
-        })),
-        maskin: [
-          ...andreMaskin.map((r) => ({
-            originalId: r.id,
-            projectId: r.projectId,
-            externalCostObjectId: r.externalCostObjectId,
-            vehicleId: r.vehicleId,
-            byggeplassId: null,
-            fraTid: r.fraTid,
-            tilTid: r.tilTid,
-            timer: tilTall(r.timer),
-            mengde:
-              r.mengde === null || r.mengde === undefined
-                ? null
-                : tilTall(r.mengde),
-            enhet: r.enhet,
-          })),
-          ...editMaskin.map((r) => ({
-            originalId: r.originalId,
-            projectId,
-            externalCostObjectId: ecoId,
-            vehicleId: r.vehicleId,
-            byggeplassId: null,
-            fraTid: r.fraTid,
-            tilTid: r.tilTid,
-            timer: r.timer,
-            mengde: r.mengde,
-            enhet: r.enhet,
-          })),
-        ],
-      },
+      nyeRader: byggRedigerNyeRader({
+        projectId,
+        ecoId,
+        pendingTimer,
+        pendingMaskin,
+        pendingTillegg,
+        editTimer,
+        editMaskin,
+      }),
     });
   }
+
+  // w9 (2c): «høyst X t» per maskinrad = jobbens arbeid − de andre førermaskinene
+  // på jobben. Samme delte regel som serveren (maskinHoystPerRad). Radene utenfor
+  // bøtta (også attesterte) teller med uendret, slik serveren leser dem.
+  const maskinHoyst = useMemo(() => {
+    type R = {
+      id: string;
+      projectId: string;
+      externalCostObjectId: string | null;
+      attestertStatus: string | null;
+      timer: unknown;
+      erReise?: boolean;
+      kortId?: string | null;
+      lonnsartId?: string;
+      vehicleId?: string;
+      utleieEnhet?: string | null;
+    };
+    const alleTimer = (sheet?.timer ?? []) as R[];
+    const alleMaskin = (sheet?.maskiner ?? []) as R[];
+    const iBotta = new Set(initTimer.map((r) => r.originalId));
+    const iBottaMaskin = new Set(initMaskin.map((r) => r.originalId));
+    const timerById = new Map(alleTimer.map((r) => [r.id, r]));
+    const maskinById = new Map(alleMaskin.map((r) => [r.id, r]));
+    // Redigerte rader bærer ikke erReise; lønnsarter som er reise på sedelens
+    // rader teller som reise (ordre 2026-11-14 (6)).
+    const reiseLonnsartIder = new Set(
+      alleTimer.filter((r) => r.erReise === true).map((r) => r.lonnsartId),
+    );
+    const enhetFor = (vehicleId: string, fallback: string | null | undefined) =>
+      equipment?.find((e) => e.id === vehicleId)?.utleieEnhet ?? fallback ?? null;
+    const timer = [
+      ...alleTimer
+        .filter((r) => !iBotta.has(r.id))
+        .map((r) => ({
+          kortId: r.kortId ?? null,
+          projectId: r.projectId,
+          externalCostObjectId: r.externalCostObjectId,
+          timer: tilTall(r.timer),
+          erReise: r.erReise === true,
+        })),
+      ...editTimer.map((r) => ({
+        kortId: timerById.get(r.originalId)?.kortId ?? null,
+        projectId,
+        externalCostObjectId: ecoId,
+        timer: r.timer,
+        erReise: reiseLonnsartIder.has(r.lonnsartId),
+      })),
+    ];
+    const andre = alleMaskin
+      .filter((r) => !iBottaMaskin.has(r.id))
+      .map((r) => ({
+        kortId: r.kortId ?? null,
+        projectId: r.projectId,
+        externalCostObjectId: r.externalCostObjectId,
+        timer: tilTall(r.timer),
+        utleieEnhet: r.utleieEnhet ?? null,
+      }));
+    const redigert = editMaskin.map((r) => {
+      const original = maskinById.get(r.originalId);
+      return {
+        kortId: original?.kortId ?? null,
+        projectId,
+        externalCostObjectId: ecoId,
+        timer: r.timer,
+        utleieEnhet: enhetFor(r.vehicleId, original?.utleieEnhet),
+      };
+    });
+    const hoyst = maskinHoystPerRad(
+      timer,
+      [...redigert, ...andre],
+      pauseMinutter(editPauseFra, editPauseTil),
+    );
+    return new Map(editMaskin.map((r, i) => [r.key, hoyst[i] ?? null]));
+  }, [sheet?.timer, sheet?.maskiner, initTimer, initMaskin, editTimer, editMaskin, equipment, projectId, ecoId, editPauseFra, editPauseTil]);
+  const maskinOverHoyst = editMaskin.some((r) =>
+    overMaskinHoyst(r.timer, maskinHoyst.get(r.key) ?? null),
+  );
 
   // Navn-oppslag for header.
   const ecoNavn = useMemo(() => {
@@ -504,13 +625,17 @@ export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
                 {/* T7-5f: grønn farge når harEndringer for å signalere at
                     klikk vil lagre. Samme mønster som AttesteringDetalj_Edit. */}
                 <KnappMedForklaring
-                  sperret={!harEndringer && !lagre.isPending}
-                  forklaring={t("sperret.ingenEndringer")}
+                  sperret={(!harEndringer || maskinOverHoyst) && !lagre.isPending}
+                  forklaring={
+                    maskinOverHoyst
+                      ? t("timer.maskin.overHoystSperret")
+                      : t("sperret.ingenEndringer")
+                  }
                 >
                   <Button
                     size="sm"
                     onClick={handleLagre}
-                    disabled={lagre.isPending || !harEndringer}
+                    disabled={lagre.isPending || !harEndringer || maskinOverHoyst}
                     className={
                       harEndringer
                         ? "!bg-green-600 hover:!bg-green-700 focus:!ring-green-500"
@@ -524,6 +649,14 @@ export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
                 </KnappMedForklaring>
               </div>
             </div>
+
+            {sheet.ansatt?.name && (
+              <p data-korrigert-linje="" className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-800">
+                {session?.user?.name
+                  ? t("timer.korrigert.rrmLinje", { arbeider: sheet.ansatt.name, attestant: session.user.name })
+                  : t("timer.korrigert.rrmLinjeUtenNavn", { arbeider: sheet.ansatt.name })}
+              </p>
+            )}
 
             <div className="space-y-5 px-4 py-4">
               {/* Arbeidstimer */}
@@ -628,52 +761,26 @@ export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
                   </p>
                 ) : (
                   <div className="space-y-1">
-                    {(() => {
-                      // Ordre 2026-11-14 (6): maskin måles mot arbeid UTEN
-                      // reise. Redigerte rader bærer ikke erReise; lønnsarter
-                      // som er reise på sedelens originale rader teller som reise.
-                      const reiseLonnsartIder = new Set(
-                        pendingTimer
-                          .filter((r) => r.erReise === true)
-                          .map((r) => r.lonnsartId),
-                      );
-                      const sumArbeid = arbeidUtenReise(
-                        editTimer.map((r) => ({
-                          timer: r.timer,
-                          erReise: reiseLonnsartIder.has(r.lonnsartId),
-                        })),
-                      );
-                      const pauseMin = pauseMinutter(editPauseFra, editPauseTil);
-                      return editMaskin.map((rad) => (
-                        <KompaktMaskinRad
-                          key={rad.key}
-                          rad={rad}
-                          equipment={equipment}
-                          timeStep={timeStep}
-                          tidsrundingMinutter={tidsrundingMinutter}
-                          // Delt regel (@sitedoc/shared) — per-rad-advarsel, samme
-                          // epsilon + pause-modell som server. Ikke-blokkerende her.
-                          overstigerArbeid={overstigerMaskinTak(
-                            rad.timer,
-                            sumArbeid,
-                            pauseMin,
-                          )}
-                          pauseMin={pauseMin}
-                          onChange={(felt) =>
-                            setEditMaskin((rader) =>
-                              rader.map((r) =>
-                                r.key === rad.key ? { ...r, ...felt } : r,
-                              ),
-                            )
-                          }
-                          onSlett={() =>
-                            setEditMaskin((rader) =>
-                              rader.filter((r) => r.key !== rad.key),
-                            )
-                          }
-                        />
-                      ));
-                    })()}
+                    {editMaskin.map((rad) => (
+                      <KompaktMaskinRad
+                        key={rad.key}
+                        rad={rad}
+                        equipment={equipment}
+                        hoyst={maskinHoyst.get(rad.key) ?? null}
+                        onChange={(felt) =>
+                          setEditMaskin((rader) =>
+                            rader.map((r) =>
+                              r.key === rad.key ? { ...r, ...felt } : r,
+                            ),
+                          )
+                        }
+                        onSlett={() =>
+                          setEditMaskin((rader) =>
+                            rader.filter((r) => r.key !== rad.key),
+                          )
+                        }
+                      />
+                    ))}
                   </div>
                 )}
               </section>
@@ -790,6 +897,13 @@ function KompaktTimerRad({
           className="rounded border border-gray-300 px-1.5 py-1"
           placeholder="HH:MM"
         />
+        {/* O19 pkt 23: 24:00 (del 1 av en reise delt ved midnatt) kan ikke vises i et tidsfelt —
+            grensen står som tekst og lagres uendret. */}
+        {rad.tilTid === "24:00" ? (
+          <span data-testid="rad-til-2400" className="px-1.5 py-1 tabular-nums text-gray-800">
+            24:00
+          </span>
+        ) : (
         <input
           type="time"
           value={rad.tilTid ?? ""}
@@ -804,6 +918,7 @@ function KompaktTimerRad({
           className="rounded border border-gray-300 px-1.5 py-1"
           placeholder="HH:MM"
         />
+        )}
         <select
           value={rad.lonnsartId}
           onChange={(e) => onChange({ lonnsartId: e.target.value })}
@@ -935,10 +1050,7 @@ function KompaktTimerRad({
 function KompaktMaskinRad({
   rad,
   equipment,
-  timeStep,
-  tidsrundingMinutter,
-  overstigerArbeid,
-  pauseMin,
+  hoyst,
   onChange,
   onSlett,
 }: {
@@ -953,54 +1065,28 @@ function KompaktMaskinRad({
         kategori: string | null;
       }>
     | undefined;
-  timeStep: number;
-  tidsrundingMinutter: number | null;
-  overstigerArbeid: boolean;
-  pauseMin: number;
+  /** w9 (2c): jobbens grense for denne maskinen; `null` = døgn-maskin, ingen tekst. */
+  hoyst: number | null;
   onChange: (felt: Partial<EditMaskin>) => void;
   onSlett: () => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [timerStr, setTimerStr] = useState(String(rad.timer));
+  const over = overMaskinHoyst(rad.timer, hoyst);
   useEffect(() => {
     setTimerStr(String(rad.timer));
   }, [rad.timer]);
 
   return (
     <div className="space-y-1">
-      <div className="grid grid-cols-[80px_80px_1fr_80px_auto] items-center gap-2 rounded border border-gray-200 bg-gray-50 px-2 py-1.5 text-xs">
-        <input
-          type="time"
-          value={rad.fraTid ?? ""}
-          step={timeStep}
-          onChange={(e) => onChange({ fraTid: e.target.value || null })}
-          onBlur={(e) => {
-            if (tidsrundingMinutter && e.target.value) {
-              const rundet = rundTilNarmeste(e.target.value, tidsrundingMinutter);
-              if (rundet !== e.target.value) onChange({ fraTid: rundet });
-            }
-          }}
-          className="rounded border border-gray-300 px-1.5 py-1"
-          placeholder="HH:MM"
-        />
-        <input
-          type="time"
-          value={rad.tilTid ?? ""}
-          step={timeStep}
-          onChange={(e) => onChange({ tilTid: e.target.value || null })}
-          onBlur={(e) => {
-            if (tidsrundingMinutter && e.target.value) {
-              const rundet = rundTilNarmeste(e.target.value, tidsrundingMinutter);
-              if (rundet !== e.target.value) onChange({ tilTid: rundet });
-            }
-          }}
-          className="rounded border border-gray-300 px-1.5 py-1"
-          placeholder="HH:MM"
-        />
+      {/* § 8.22 L1: items-start — maskinlista åpnes i full høyde i raden, feltene står øverst.
+          § 8.22 punkt 1: maskin har bare antall timer, aldri fra–til. Lagret fraTid/tilTid sendes uendret videre. */}
+      <div className="grid grid-cols-[1fr_80px_auto] items-start gap-2 rounded border border-gray-200 bg-gray-50 px-2 py-1.5 text-xs">
         <MaskinVelger
           utstyr={equipment ?? []}
           valgtId={rad.vehicleId}
           onVelg={(id) => onChange({ vehicleId: id })}
+          iVindu
         />
         <input
           type="number"
@@ -1028,13 +1114,14 @@ function KompaktMaskinRad({
           <Trash2 className="h-3.5 w-3.5" />
         </button>
       </div>
-      {/* Info-rad: maskin > arbeid antyder mannsbetjent maskin + pause-fradrag.
-          Ingen automatisk korreksjon (krever kreverForer-flagg, egen PR). */}
-      {overstigerArbeid && (
-        <div className="ml-2 text-[11px] text-amber-700">
-          {pauseMin > 0
-            ? t("timer.rediger.maskinOverstigerMedPause", { pauseMin })
-            : t("timer.rediger.maskinOverstiger")}
+      {hoyst !== null && (
+        <div
+          className={`ml-2 text-[11px] ${over ? "font-medium text-red-600" : "text-gray-500"}`}
+          data-testid="maskin-hoyst"
+        >
+          {t("timer.maskin.hoyst", {
+            timer: hoyst.toLocaleString(i18n.language, { maximumFractionDigits: 2 }),
+          })}
         </div>
       )}
     </div>

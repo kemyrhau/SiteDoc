@@ -94,7 +94,7 @@ Kode, kommentarer, commits og chat på **norsk bokmål** med æ, ø, å — aldr
 
 - **Firma (Organization)** eier prosjekter og firmamoduler (Timer, Maskin, Varelager). **Faggruppe** = deltaker i dokumentflyt på ett prosjekt. **Prosjektmoduler** slås av/på per prosjekt. Full anker: [terminologi.md § 0](docs/claude/terminologi.md).
 - **Attestering ≠ Godkjenning** (låst 2026-04-26): attestering = lønn for registrert tid (Timer); godkjenning = byggherre godtar kostnad (Dokumentflyt).
-- Roller: `User.role` (`sitedoc_admin` | `company_admin` | `user`) + `ProjectMember.role` (`admin` | `member`) + kapabiliteter (`kanAttestere`, `erFirmaansvarlig`). Alle prosjekt-ruter bruker `harProsjektTilgang()`; firma-grense sjekkes **alltid** i server-laget; API-nøkler sendes aldri til klienten. Tabell + organisasjonsmodell + kryssorg-deling: [arkitektur.md § Roller](docs/claude/arkitektur.md).
+- Roller: `User.role` (`sitedoc_admin` | `company_admin` | `user`) + `ProjectMember.role` (`admin` | `member`) + kapabiliteter (`kanAttestere`, `erFirmaansvarlig`). Prosjekt-ruter sjekker med `verifiserProsjektmedlem()` eller `verifiserAdmin()` (kjente avvik i arkitektur.md); firma-grense sjekkes **alltid** i server-laget; API-nøkler sendes aldri til klienten. Tabell + organisasjonsmodell + kryssorg-deling: [arkitektur.md § Roller](docs/claude/arkitektur.md).
 
 ## Ufravikelige regler
 

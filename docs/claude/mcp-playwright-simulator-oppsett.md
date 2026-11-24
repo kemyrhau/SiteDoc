@@ -110,7 +110,7 @@ playwright: npx @playwright/mcp@latest --extension
 
 - **Chrome-utvidelse:** «Playwright Extension» (Microsoft, Chrome Web Store) er
   installert i Kenneths vanlige Chrome. Nettstedstilgang er begrenset til
-  `redesign.sitedoc.no`, `sitedoc.no`, `test.sitedoc.no`, modus **«Ved klikk»**.
+  `sitedoc.no`, `test.sitedoc.no` (`redesign.sitedoc.no` fjernes — stacken avviklet 2026-11-24), modus **«Ved klikk»**.
   Token-en i utvidelsen må matche `PLAYWRIGHT_MCP_EXTENSION_TOKEN` i MCP-configen.
 
 **Slik bruker en ny økt det:**
@@ -132,6 +132,8 @@ playwright: npx @playwright/mcp@latest --extension
 - Refs (`f8e1` osv.) endres ved hver navigasjon — ta nytt `browser_snapshot` etter navigasjon.
 
 ## 2. chrome-devtools MCP → isolert automasjons-Chrome (begrenset nytte)
+
+> **Fra 2026-11-24 (Kenneth, billigere drift):** chrome-devtools står ikke lenger i repoets `.mcp.json`. Den er lagt inn med `claude mcp add -s local` bare i `SiteDoc-verktoy-1` og `SiteDoc-verktoy-2` (verktøy-agentene, [SAMARBEIDSREGLER § 0b.6](SAMARBEIDSREGLER.md)). Skills som bruker den (`test-import-veiviser`, `test-redesign-nav`, `test-sluttrapport`) kjøres der.
 
 ```
 chrome-devtools: npx -y chrome-devtools-mcp@latest --isolated=false --channel=stable
@@ -195,5 +197,3 @@ JS på nytt). Merk: reload kan nullstille valgt prosjekt → naviger firma/prosj
     på fanen.
   - Token-en er lav-risiko lokal pairing (ikke prod-hemmelighet), men hold den utenfor
     repoet; den havner i klartekst i `~/.claude.json` + evt. logg.
-- `redesign.sitedoc.no` er **ikke** en MCP-server (bare en web-app) — ikke legg den til
-  som HTTP-MCP.

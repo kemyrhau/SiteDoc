@@ -10,10 +10,12 @@ import { createTestCaller } from "../test-harness/context";
  * settPunktFlyt). Er den satt, er flyten plan-autorisert → Start bruker den direkte,
  * UAVHENGIG av om klikkeren er registrator. L1.6 strammer gulvet: klikkeren må tilhøre
  * PUNKTETS faggruppe (ikke bare være prosjektmedlem). Er feltet null, kan punktet ikke
- * startes uten at en admin setter flyten. Testen låser tre greiner mot kjørende kode:
- *   1) preset-punkt + faggruppe-medlem (ikke registrator) → Start LYKKES (bypass virker)
+ * startes uten at en admin setter flyten. K1 (2026-11-23) erstattet L1.6-gulvet med
+ * «medlem av punktets flyt (uansett rolle) eller admin» — dekket fullt av
+ * kontrollplan-k1-flyt.integration.test.ts. Testen låser tre greiner mot kjørende kode:
+ *   1) preset-punkt + flyt-medlem (utfører, ikke registrator) → Start LYKKES (bypass virker)
  *   2) uten-preset-punkt + klient-valgt flyt + ikke-registrator → FORBIDDEN (registrator-gate)
- *   3) preset-punkt + prosjektmedlem UTENFOR punktets faggruppe → FORBIDDEN (L1.6-gulvet)
+ *   3) preset-punkt + prosjektmedlem UTENFOR punktets flyt → FORBIDDEN (K1-gulvet)
  *
  * Uten grein (1) ville bypass vært funksjonsløs; uten grein (2) ville registrator-kravet
  * vært omgåelig for klient-valgt flyt; uten grein (3) kunne ethvert prosjektmedlem starte
@@ -91,6 +93,11 @@ describe("sjekkliste.opprett — forhåndsvalgt flyt gjør Start uavhengig av re
     id.dokumentflytId = flyt.id;
     await prisma.dokumentflytMedlem.create({
       data: { id: randomUUID(), dokumentflytId: flyt.id, rolle: "registrator", steg: 1, projectMemberId: pmReg.id },
+    });
+    // K1 (Kenneth 2026-11-23): Start krever medlemskap i PUNKTETS flyt (uansett rolle).
+    // Klikkeren er utfører-medlem — ikke registrator — så bypass-poenget i test 1 står.
+    await prisma.dokumentflytMedlem.create({
+      data: { id: randomUUID(), dokumentflytId: flyt.id, rolle: "utforer", steg: 2, projectMemberId: pmKlikker.id },
     });
 
     const template = await prisma.reportTemplate.create({
@@ -182,7 +189,7 @@ describe("sjekkliste.opprett — forhåndsvalgt flyt gjør Start uavhengig av re
     expect(String(feil?.message)).toMatch(/oppretter-medlem/i);
   });
 
-  it("preset-punkt: prosjektmedlem UTENFOR punktets faggruppe avvises (L1.6-gulvet)", async () => {
+  it("preset-punkt: prosjektmedlem UTENFOR punktets flyt avvises (K1-gulvet)", async () => {
     const caller = createTestCaller(id.fremmedUserId);
     const feil = await caller.sjekkliste
       .opprett({
@@ -193,10 +200,9 @@ describe("sjekkliste.opprett — forhåndsvalgt flyt gjør Start uavhengig av re
       .then(() => null)
       .catch((e: unknown) => e as { code?: string; message: string });
     expect(feil).toBeTruthy();
-    // L1.6: gulvet er faggruppe-tilhørighet, ikke prosjektmedlemskap. Fremmed er
-    // prosjektmedlem men ikke i punktets faggruppe → verifiserFaggruppeTilhorighet avviser.
-    // Uten L1.6 (bare verifiserProsjektmedlem) ville denne Start lyktes — det var hullet.
+    // K1 (erstatter L1.6-gulvet): gulvet er medlemskap i punktets flyt eller admin. Fremmed
+    // er prosjektmedlem, men ikke i flyten → verifiserPunktFlytTilgang avviser.
     expect(feil?.code).toBe("FORBIDDEN");
-    expect(String(feil?.message)).toMatch(/tilhører ikke denne faggruppen/i);
+    expect(String(feil?.message)).toMatch(/dokumentflyten til dette kontrollpunktet/i);
   });
 });

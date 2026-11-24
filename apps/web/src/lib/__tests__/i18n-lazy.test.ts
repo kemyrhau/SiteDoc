@@ -86,6 +86,9 @@ describe("lib/i18n — dynamisk språklasting", () => {
     localStorage.setItem("sitedoc-language", "xx");
     new Function(m.SPRAAK_VENTER_SKRIPT)();
     expect(document.body.style.visibility).toBe("");
+    // i18next overlever vi.resetModules: fr-aktiveringen må bli ferdig her, ellers kan den
+    // slå inn midt i neste test under last.
+    await m.spraakKlart;
   });
 
   it("alle 15 språk er velgbare (14 lastere + nb statisk)", async () => {

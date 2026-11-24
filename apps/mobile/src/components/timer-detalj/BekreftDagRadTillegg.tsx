@@ -21,7 +21,8 @@ import {
   type TilleggMaskin,
   type VaktGrunnlag,
 } from "../../utils/bekreftDagTillegg";
-import { maskinerOverRad } from "../../services/kobledeMaskiner";
+import { enhetLokalt, maskinerOverRad } from "../../services/kobledeMaskiner";
+import { bruddTekst } from "../../services/maskinJobbLokalt";
 
 /**
  * Hva arbeideren kan føre: utstyrsbufferen (maskin) og prosjektene med
@@ -67,6 +68,7 @@ export function BekreftDagRadTillegg({
   dato,
   byggeplassId,
   radTimer,
+  kortId,
   grunnlag,
   andreMaskiner,
   katalog,
@@ -81,6 +83,8 @@ export function BekreftDagRadTillegg({
   /** Radens effektive byggeplass — forhåndsvalg i vare-modalen. */
   byggeplassId: string | null;
   radTimer: number;
+  /** w9m: kortets id (jobben maskinene måles mot). */
+  kortId: string | null;
   /** Datoens sedel (sum-vakten). */
   grunnlag: VaktGrunnlag | null;
   /** Maskiner på datoens andre rader — teller med i sum-vakten. */
@@ -146,8 +150,9 @@ export function BekreftDagRadTillegg({
         vehicleId={maskinId}
         grunnlag={grunnlag}
         radTimer={radTimer}
-        eksisterende={[...andreMaskiner, ...tillegg.maskiner]}
+        eksisterende={[...andreMaskiner, ...tillegg.maskiner.map((m) => ({ ...m, kortId }))]}
         projectId={projectId}
+        kortId={kortId}
         onLukk={() => setMaskinId(null)}
         onLeggTil={(timer) => {
           if (!maskinId) return;
@@ -252,6 +257,7 @@ function MaskinTimerArk({
   radTimer,
   eksisterende,
   projectId,
+  kortId,
   onLukk,
   onLeggTil,
 }: {
@@ -261,6 +267,7 @@ function MaskinTimerArk({
   /** Datoens øvrige maskiner (andre rader + denne). */
   eksisterende: TilleggMaskin[];
   projectId: string;
+  kortId: string | null;
   onLukk: () => void;
   onLeggTil: (timer: number) => void;
 }) {
@@ -272,10 +279,11 @@ function MaskinTimerArk({
   }, [vehicleId, radTimer]);
   const timer = Number(tekst.replace(",", "."));
   const gyldig = Number.isFinite(timer) && timer > 0;
-  const ny = nyTilleggMaskin({ lokalId: "ny", projectId, vehicleId: vehicleId ?? "", timer });
-  const overRad = gyldig && maskinerOverRad(radTimer, [ny]).length > 0;
-  const brudd =
-    gyldig && (overRad || maskinBruddForTillegg(grunnlag, [...eksisterende, ny]).length > 0);
+  const ny = { ...nyTilleggMaskin({ lokalId: "ny", projectId, vehicleId: vehicleId ?? "", timer }), kortId };
+  const dbArk = hentDatabase();
+  const overRad = gyldig && !!dbArk && maskinerOverRad(radTimer, [ny], enhetLokalt(dbArk)).length > 0;
+  const jobbBrudd = gyldig && !overRad ? maskinBruddForTillegg(grunnlag, [...eksisterende, ny]) : [];
+  const brudd = gyldig && (overRad || jobbBrudd.length > 0);
 
   return (
     <Modal visible={vehicleId != null} transparent animationType="fade" onRequestClose={onLukk}>
@@ -297,7 +305,7 @@ function MaskinTimerArk({
             <Text className="text-xs text-red-700">
               {overRad
                 ? t("timer.bekreftDag.tillegg.overKort", { timer: formaterTimer(radTimer) })
-                : t("timer.maskin.overstigerArbeid")}
+                : bruddTekst(t, hentDatabase(), jobbBrudd)}
             </Text>
           ) : null}
           <View className="flex-row gap-2">

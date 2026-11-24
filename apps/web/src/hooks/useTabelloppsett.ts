@@ -2,12 +2,14 @@
 
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
-import { effektivRekkefolge, vekslKolonne, type LagretKolonner } from "@/lib/kolonneRekkefolge";
+import { effektivRekkefolge, medTillagteKolonner, vekslKolonne, type LagretKolonner, type TillagteKolonner } from "@/lib/kolonneRekkefolge";
 
 interface Tabelloppsett {
   kolonner: string[];
   /** true = `kolonner` er visningsrekkefølgen (se lib/kolonneRekkefolge.ts). */
   rekkefolge?: boolean;
+  /** O13 (R3): kolonnene som er satt inn i oppsettet (`medTillagteKolonner`). */
+  tillagt?: string[];
   bredder: Record<string, number>;
   sortering: { kolonne: string; retning: "asc" | "desc" } | null;
 }
@@ -17,6 +19,16 @@ interface UseTabelloppsettParams {
   standardKolonner: Set<string>;
   /** Sidens standardrekkefølge for alle kolonner; brukes for oppsett lagret uten rekkefølge. */
   kanoniskRekkefolge: readonly string[];
+  /**
+   * true = standardkolonnene (ny bruker og «Nullstill») vises i sin egen rekkefølge og lagres
+   * med `rekkefolge: true`. Uten flagget følger standarden `kanoniskRekkefolge` som før.
+   */
+  standardMedRekkefolge?: boolean;
+  /**
+   * O13 (R3): kolonner lagt til standardutvalget etter at brukere har lagret oppsett. Et lagret
+   * oppsett får dem satt inn rett etter `etter`, én gang; skjuler brukeren dem, står de skjult.
+   */
+  tillegg?: TillagteKolonner;
   /** localStorage-nøkkel for migrering av eksisterende innstillinger */
   migrerNokkel?: string;
   migrerBreddeNokkel?: string;
@@ -31,10 +43,17 @@ export function useTabelloppsett({
   liste,
   standardKolonner,
   kanoniskRekkefolge,
+  standardMedRekkefolge,
+  tillegg,
   migrerNokkel,
   migrerBreddeNokkel,
 }: UseTabelloppsettParams) {
   const standardArr = [...standardKolonner];
+  // O13 (R3): standarden har de tillagte kolonnene med, så de føres i `tillagt` fra første lagring.
+  const standardTillagt = tillegg ? { tillagt: tillegg.ider.filter((id) => standardKolonner.has(id)) } : {};
+  const standardOppsett: LagretKolonner & { tillagt?: string[] } = standardMedRekkefolge
+    ? { kolonner: standardArr, rekkefolge: true, ...standardTillagt }
+    : { kolonner: standardArr, ...standardTillagt };
 
   // Hent fra API
   const { data: serverOppsett, isLoading } = trpc.bruker.hentTabelloppsett.useQuery(
@@ -44,7 +63,7 @@ export function useTabelloppsett({
 
   // Migrer fra localStorage ved første lasting
   const [initialisert, setInitialisert] = useState(false);
-  const [lagretKolonner, setLagretKolonner] = useState<LagretKolonner>({ kolonner: standardArr });
+  const [lagretKolonner, setLagretKolonner] = useState<LagretKolonner & { tillagt?: string[] }>(standardOppsett);
   const [kolonneBredder, setKolonneBredder] = useState<Record<string, number>>({});
   const [sortering, setSortering] = useState<{ kolonne: string; retning: "asc" | "desc" } | null>(null);
 
@@ -53,7 +72,8 @@ export function useTabelloppsett({
     if (isLoading || initialisert) return;
 
     if (serverOppsett) {
-      setLagretKolonner({ kolonner: serverOppsett.kolonner, rekkefolge: serverOppsett.rekkefolge });
+      const lest = { kolonner: serverOppsett.kolonner, rekkefolge: serverOppsett.rekkefolge, tillagt: serverOppsett.tillagt };
+      setLagretKolonner(tillegg ? medTillagteKolonner(lest, kanoniskRekkefolge, tillegg) : lest);
       setKolonneBredder(serverOppsett.bredder ?? {});
       setSortering(serverOppsett.sortering as { kolonne: string; retning: "asc" | "desc" } | null ?? null);
     } else if (typeof window !== "undefined") {
@@ -76,6 +96,7 @@ export function useTabelloppsett({
       } catch { /* ignorer */ }
     }
     setInitialisert(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- leses én gang ved første lasting
   }, [isLoading, serverOppsett, initialisert, migrerNokkel, migrerBreddeNokkel]);
 
   /** Aktive kolonner i visningsrekkefølge. */
@@ -88,7 +109,7 @@ export function useTabelloppsett({
   // Debounced lagring til API
   const lagreMutation = trpc.bruker.lagreTabelloppsett.useMutation();
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
-  const sisteOppsett = useRef<Tabelloppsett>({ kolonner: standardArr, bredder: {}, sortering: null });
+  const sisteOppsett = useRef<Tabelloppsett>({ ...standardOppsett, bredder: {}, sortering: null });
 
   const lagreTilServer = useCallback(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -101,34 +122,40 @@ export function useTabelloppsett({
   }, [liste, lagreMutation]);
 
   const oppdaterOgLagre = useCallback((
-    nyeKolonner?: LagretKolonner,
+    nyeKolonner?: LagretKolonner & { tillagt?: string[] },
     nyeBredder?: Record<string, number>,
   ) => {
     const k = nyeKolonner ?? lagretKolonner;
     const b = nyeBredder ?? kolonneBredder;
-    sisteOppsett.current = { kolonner: k.kolonner, rekkefolge: k.rekkefolge, bredder: b, sortering };
+    sisteOppsett.current = {
+      kolonner: k.kolonner,
+      rekkefolge: k.rekkefolge,
+      ...(k.tillagt ? { tillagt: k.tillagt } : {}),
+      bredder: b,
+      sortering,
+    };
     lagreTilServer();
   }, [lagretKolonner, kolonneBredder, sortering, lagreTilServer]);
 
   /** Ny visningsrekkefølge for de aktive kolonnene (fra tabellhodet eller velgeren). */
   const handleRekkefolgeEndring = useCallback((ny: string[]) => {
-    const neste = { kolonner: ny, rekkefolge: true };
+    // `tillagt` følger med, så en tillagt kolonne brukeren skjuler, står skjult (O13, R3).
+    const neste = { kolonner: ny, rekkefolge: true, ...(lagretKolonner.tillagt ? { tillagt: lagretKolonner.tillagt } : {}) };
     setLagretKolonner(neste);
     oppdaterOgLagre(neste);
-  }, [oppdaterOgLagre]);
+  }, [oppdaterOgLagre, lagretKolonner.tillagt]);
 
   const handleToggleKolonne = useCallback((id: string) => {
     if (id === "__reset__") {
-      // Standard: standardkolonnene i sidens standardrekkefølge.
-      const standard = { kolonner: standardArr };
-      setLagretKolonner(standard);
+      // Standard: standardkolonnene i sidens standardrekkefølge (eller sin egen, se flagget).
+      setLagretKolonner(standardOppsett);
       setKolonneBredder({});
-      oppdaterOgLagre(standard, {});
+      oppdaterOgLagre(standardOppsett, {});
       return;
     }
     // En kolonne som slås på, havner sist.
     handleRekkefolgeEndring(vekslKolonne(kolonneRekkefolge, id));
-  }, [standardArr, oppdaterOgLagre, handleRekkefolgeEndring, kolonneRekkefolge]);
+  }, [standardOppsett, oppdaterOgLagre, handleRekkefolgeEndring, kolonneRekkefolge]);
 
   const handleBreddeEndring = useCallback((bredder: Record<string, number>) => {
     setKolonneBredder(bredder);
