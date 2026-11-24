@@ -82,6 +82,17 @@ export function dagKanTrekkes(uke: AttUke | null | undefined, dato: string): num
 }
 
 /**
+ * A4b: «N t av M t overtid kan trekkes» på en overtidslinje — ukas tall, aldri mer enn overtiden
+ * på linja (samme prinsipp som `dagKanTrekkes`). 0 når uka ikke er komplett, uka ikke har noe som
+ * kan trekkes, eller linja ikke har overtid.
+ */
+export function linjeKanTrekkes(uke: AttUke | null | undefined, linjeOvertid: number): number {
+  if (!uke || !uke.komplett || linjeOvertid <= 0.005) return 0;
+  const k = uke.regnestykke.kanTrekkes;
+  return k > 0.005 ? Math.min(k, linjeOvertid) : 0;
+}
+
+/**
  * B53 A: attesterte dager som skal stå under ukelinja med ↺ — dager med overtid som kan
  * trekkes, i en komplett uke med ukevarsel. Uka må kunne rettes også når dagen er attestert.
  */

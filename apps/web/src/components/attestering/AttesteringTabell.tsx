@@ -638,6 +638,8 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
     return {
       tekst: t("timer.attestering.tabell.normMerke", { avvik: `${d.avvik > 0 ? "+" : "−"}${kortTall(Math.abs(d.avvik))}` }),
       forklaring: deler.join(" · "),
+      // A4b: kortet på hover viser én opplysning pr. linje.
+      linjer: deler,
     };
   }
 
@@ -662,6 +664,8 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
    * Ukelinja (B50 A): navn · uke · ukesum av ukenorm · ordinært, overtid, fravær og reise ·
    * ukevarselet · kryss som velger alle dagene (B57). Uten reise i ukesummen (B85). Gult først
    * når uka er komplett; før det «Uka så langt» og dagene som mangler, i grått (B53 A).
+   * A4b: linja er mørk blå med hvit tekst (`tone: "uke"`, skissen v22-uke.png); merkene står i
+   * lyse kapsler, så det gule leses mot den mørke bakgrunnen.
    */
   function ukelinje(tittel: string, uke: AttUke, gDager: readonly AttDag[]): ReactNode {
     const r = uke.regnestykke;
@@ -678,13 +682,13 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
       <span data-ukelinje={uke.komplett ? "komplett" : "saaLangt"} className="flex w-full flex-wrap items-center gap-x-3 gap-y-1">
         {boks}
         <span>{tittel}</span>
-        <span className="font-normal text-gray-600">{t("timer.attestering.uke.label", { nr: isoUkenummer(uke.ukestart) })}</span>
+        <span className="font-normal text-blue-100">{t("timer.attestering.uke.label", { nr: isoUkenummer(uke.ukestart) })}</span>
         <span data-ukesum="" className="tabular-nums">
           {t("timer.attestering.tabell.uke.sum", { sum: ukeTall(r.ukesum), norm: ukeTall(r.ukenorm) })}
         </span>
-        {fordeling.length > 0 && <span className="font-normal text-gray-600">{fordeling.join(" · ")}</span>}
+        {fordeling.length > 0 && <span className="font-normal text-blue-100">{fordeling.join(" · ")}</span>}
         {!uke.komplett && (
-          <span data-uke-saa-langt="" className="font-normal text-gray-500">
+          <span data-uke-saa-langt="" className="font-normal text-blue-100">
             {t("timer.attestering.tabell.uke.saaLangt")}
             {mangler ? ` · ${t("timer.attestering.tabell.uke.mangler", { dager: mangler })}` : ""}
           </span>
@@ -890,6 +894,7 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
       ut.push({
         kind: "overskrift",
         nokkel: `g:${gruppe.nokkel}`,
+        ...(uke ? { tone: "uke" as const } : {}),
         innhold: uke ? (
           ukelinje(gruppe.tittel, uke, gruppe.dager)
         ) : (
@@ -1264,7 +1269,24 @@ function AvvikMerker({ merker }: { merker: readonly AvvikMerke[] }) {
     <span className="flex flex-wrap items-start gap-1 whitespace-normal text-amber-700">
       {merker.map((m, i) =>
         m.forklaring ? (
-          <Tooltip key={`${i}:${m.tekst}`} tekst={m.forklaring} side="bottom" delayMs={150}>
+          <Tooltip
+            key={`${i}:${m.tekst}`}
+            // A4b: med `linjer` står hver opplysning på egen linje og brytes aldri inne i linja;
+            // boksen blir så bred som lengste linje (aria leser linjene i rekkefølge).
+            {...(m.linjer && m.linjer.length > 0
+              ? {
+                  tekst: "",
+                  maxBreddeKlasse: "max-w-none",
+                  innhold: m.linjer.map((l) => (
+                    <span key={l} data-forklaring-linje="" className="block whitespace-nowrap">
+                      {l}
+                    </span>
+                  )),
+                }
+              : { tekst: m.forklaring })}
+            side="bottom"
+            delayMs={150}
+          >
             <span
               data-avvik-merke=""
               className="max-w-full cursor-help rounded-lg border border-amber-300 bg-amber-50 px-1 py-px text-[11px] font-medium leading-4 text-amber-800"

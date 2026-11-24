@@ -145,6 +145,11 @@ timelinjene (`:241–249`). § 4.17 endrer ikke kortet. `v22-uke.png` viser tirs
   overtidslinja er gul. Slik ser attestanten hvor overtiden står. Dagen viser ukas tall, men aldri mer enn
   overtiden som er ført den dagen. Har flere dager overtid, kan dagenes tall til sammen være større enn ukas
   tall: attestanten velger hvor timene trekkes, og ukelinja bærer taket.
+  🟡 A4b (`fix/attestering-a4b`, ikke merget): **overtidslinjene** følger samme regel pr. linje: «N t av M t
+  overtid kan trekkes», der N er ukas tall, men aldri mer enn overtiden på linja, og M er ukas førte overtid
+  (uten «Uke N:»). To jobber med 0,5 t og 2,0 t overtid i en uke med 2,5 t som kan trekkes gir «0,5 t av
+  2,5 t» og «2,0 t av 2,5 t». En linje uten overtid får ikke teksten (`linjeKanTrekkes` i
+  `components/attestering/ukelinje.ts`, `ukeAvvikTekst` i `attestering/page.tsx`).
 - **En uke på eller over ukenorm** gir ikke «kan trekkes», selv om det er ført overtid.
 - **Attestanten retter selv:** åpner dagen og gjør om timene fra overtid til ordinær tid (del J punkt 4).
   Ingenting flyttes automatisk. Etter rettingen regnes uka på nytt.
