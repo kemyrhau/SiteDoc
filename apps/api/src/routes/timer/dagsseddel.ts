@@ -126,8 +126,9 @@ import {
   ukeAvvikRader,
   beregnUkeregnestykke,
   ukevarselRader,
-  lesUkeregnestykkeFraSnapshot,
+  lesFrossetUkeFraSnapshot,
   type Ukeregnestykke,
+  type FrossetUkeregnestykke,
   type UkeAvvikRadInput,
   maskinKreverTimerad,
   erGyldigTimeradKobling,
@@ -2395,7 +2396,8 @@ async function lastUkeOvertid(
   const manglerDager = uke.perDag.filter((d) => d.dagsnorm > 0 && !sendt.has(d.dato)).map((d) => d.dato);
   const komplett = manglerDager.length === 0 || idagOslo() > ukeslutt;
   return {
-    grunnlag: { ...grunnlag, ukeregnestykke: regnestykke },
+    // A4 RETUR vilkår 2: `komplett` og dagene som mangler fryses sammen med regnestykket.
+    grunnlag: { ...grunnlag, ukeregnestykke: regnestykke, ukeKomplett: komplett, ukeManglerDager: manglerDager },
     uke: { ukestart, regnestykke, komplett, manglerDager },
     rader: avvikRader,
     dagsnorm: dagsnormMap,
@@ -2403,7 +2405,7 @@ async function lastUkeOvertid(
 }
 
 /** Det frosne ukegrunnlaget på en ferdig attestert sedel (detaljen). */
-type FrossetUke = { grunnlag: Overtidsgrunnlag | null; regnestykke: Ukeregnestykke | null };
+type FrossetUke = { grunnlag: Overtidsgrunnlag | null; uke: FrossetUkeregnestykke | null };
 
 /**
  * Ordre d2a / A4: pr. sedel id-ene til radene ukevarselet peker på (bare sedelens egne
@@ -2431,15 +2433,18 @@ async function hentUkeAvvikRadIder(
       const f = frosset?.(s.id) ?? null;
       const dagsnorm = (iso: string) => u.dagsnorm.get(iso) ?? 0;
       const egne = new Set(s.timer.map((r) => r.id));
-      const alle = f?.regnestykke
-        ? ukevarselRader(u.rader, f.regnestykke, dagsnorm)
-        : f?.grunnlag
+      // A4 RETUR vilkår 2: et frosset regnestykke brukes bare når uka var komplett da det
+      // ble fryst. Ellers regnes uka live, som i lista — samme regnestykke begge steder.
+      const fryst = f?.uke?.komplett ? f.uke : null;
+      const alle = fryst
+        ? ukevarselRader(u.rader, fryst.regnestykke, dagsnorm)
+        : f?.grunnlag && !f.uke
           ? ukeAvvikRader(u.rader, f.grunnlag, dagsnorm)
           : u.uke.komplett
             ? ukevarselRader(u.rader, u.uke.regnestykke, dagsnorm)
             : [];
       ider.set(s.id, alle.filter((id) => egne.has(id)));
-      ukeInfo.set(s.id, f?.regnestykke ? { ...u.uke, regnestykke: f.regnestykke, komplett: true } : u.uke);
+      ukeInfo.set(s.id, fryst ? { ...u.uke, regnestykke: fryst.regnestykke, komplett: true, manglerDager: fryst.manglerDager } : u.uke);
     }),
   );
   return { ider, uke: ukeInfo };
@@ -7647,6 +7652,25 @@ export const dagsseddelRouter = router({
         sedler.flatMap((s) => s.utlegg.map((u) => ({ id: u.id, projectId: u.projectId, organizationId: s.organizationId }))),
       );
 
+      // A4 RETUR vilkår 1 (B54 A): prosjektlederen får ukas totaltall, men tall pr. dag
+      // bare for datoene der hen ser en sedel (ansatt + uke). Dager på andre prosjekter og
+      // dager med bare fravær uten prosjekt står ikke i `dager[]`.
+      const synligeDager = new Map<string, Set<string>>();
+      if (leder) {
+        for (const s of sedler) {
+          const nokkel = `${s.userId}:${mandagIso(s.dato)}`;
+          const sett = synligeDager.get(nokkel) ?? new Set<string>();
+          sett.add(s.dato.toISOString().slice(0, 10));
+          synligeDager.set(nokkel, sett);
+        }
+      }
+      const ukeFor = (s: (typeof sedler)[number]): UkeInfo | null => {
+        const u = kort.uke.get(s.id) ?? null;
+        if (!u || !leder) return u;
+        const sett = synligeDager.get(`${s.userId}:${mandagIso(s.dato)}`) ?? new Set<string>();
+        return { ...u, regnestykke: { ...u.regnestykke, dager: u.regnestykke.dager.filter((d) => sett.has(d.dato)) } };
+      };
+
       return sedler.map((s) => {
         // Første rad MED prosjekt (fravær uten prosjekt bærer ikke sedelens prosjekt).
         const projectId = s.timer.find((r) => r.projectId)?.projectId ?? null;
@@ -7693,9 +7717,9 @@ export const dagsseddelRouter = router({
           // Ordre d2a: varer pr. sedel og radene ukeavviket peker på.
           varer: kort.varer.get(s.id) ?? [],
           ukeAvvikRadIder: kort.ukeAvvik.get(s.id) ?? [],
-          // A4 (B50 A, B54 A): ukas regnestykke for ukelinja — hele ukas tall, også for
-          // prosjektlederen, uten navn på andre prosjekter (bare tall).
-          uke: kort.uke.get(s.id) ?? null,
+          // A4 (B50 A, B54 A): ukas regnestykke for ukelinja — ukas totaltall, også for
+          // prosjektlederen; dagstallene bare for dager hen ser (vilkår 1).
+          uke: ukeFor(s),
           fravaerKanAttesteres: fravaerRett.get(s.id) ?? false,
           // w7 (B15): sedelen er den innloggedes egen og firmaet sier Nei — PC/telefon skjuler knappene.
           egneTimer: egne.has(s.id),
@@ -7980,7 +8004,7 @@ export const dagsseddelRouter = router({
       // A4: snapshots fra A4 og senere har ukeregnestykket; eldre bare grunnlaget.
       const snap = sheet.status === "accepted" ? timer.find((r) => r.attestertSnapshot)?.attestertSnapshot : null;
       const frosset: FrossetUke | null = snap
-        ? { grunnlag: lesOvertidsgrunnlagFraSnapshot(snap), regnestykke: lesUkeregnestykkeFraSnapshot(snap) }
+        ? { grunnlag: lesOvertidsgrunnlagFraSnapshot(snap), uke: lesFrossetUkeFraSnapshot(snap) }
         : null;
       const kortBerikelse = await lastKortBerikelse(
         ctx,
@@ -8042,6 +8066,14 @@ export const dagsseddelRouter = router({
         maskiner.length > 0 &&
         !(await harGyldigMaskinforerbevis(sheet.userId, sheet.organizationId));
 
+      const ukeRa = kortBerikelse.uke.get(sheet.id) ?? null;
+      const detaljOmfang = ukeRa ? await attesteringsOmfang(ctx.userId, sheet.organizationId) : null;
+      const sedelIso = sheet.dato.toISOString().slice(0, 10);
+      const ukeDetalj: UkeInfo | null =
+        ukeRa && detaljOmfang?.type !== "alle"
+          ? { ...ukeRa, regnestykke: { ...ukeRa.regnestykke, dager: ukeRa.regnestykke.dager.filter((d) => d.dato === sedelIso) } }
+          : ukeRa;
+
       // ORDRE 2 STEG 3 ledd 2 (D2): uke-overtidsgrunnlag for detalj-banneret.
       // Kilde-regel (uendret fra STEG 1): attestert sedel leser FROSSET snapshot
       // (tallene som gjaldt ved attestering, ikke live omregning); uattestert
@@ -8087,6 +8119,9 @@ export const dagsseddelRouter = router({
           vedlegg: utleggVedlegg.get(u.id) ?? [],
         })),
         ukeAvvikRadIder: kortBerikelse.ukeAvvik.get(sheet.id) ?? [],
+        // A4 RETUR vilkår 4: banneret leser ukas regnestykke (frosset når uka var komplett ved
+        // attestering, ellers live). Prosjektlederen får dagstall bare for denne dagen (B54 A).
+        uke: ukeDetalj,
         prosjekt: prosjekt && navnSynlig(prosjekt.id) ? prosjekt : null,
         // Ordre d2b-3 (c): effektiv dagsnorm for datoen; 0 = ukjent (klienten viser ingen norm).
         dagsnorm,

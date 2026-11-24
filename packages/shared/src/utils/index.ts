@@ -336,6 +336,7 @@ export {
   harUkevarsel,
   ukevarselRader,
   lesUkeregnestykkeFraSnapshot,
+  lesFrossetUkeFraSnapshot,
 } from "./overtidsgrunnlag";
 export type {
   OvertidRad,
@@ -344,6 +345,7 @@ export type {
   UkeAvvik,
   UkeAvvikRadInput,
   Ukeregnestykke,
+  FrossetUkeregnestykke,
   UkeregnestykkeDag,
   UkeregnestykkeDagInput,
 } from "./overtidsgrunnlag";

@@ -67,6 +67,10 @@ export interface Overtidsgrunnlag {
    * Lesesiden bruker `lesUkeregnestykkeFraSnapshot`.
    */
   ukeregnestykke?: Ukeregnestykke;
+  /** A4 (B53 A): var uka komplett da regnestykket ble fryst? Lesesiden: `lesFrossetUkeFraSnapshot`. */
+  ukeKomplett?: boolean;
+  /** A4: arbeidsdagene som manglet sendt eller attestert sedel da regnestykket ble fryst (ISO). */
+  ukeManglerDager?: string[];
 }
 
 const round2 = (n: number): number => Math.round(n * 100) / 100;
@@ -546,4 +550,24 @@ export function lesUkeregnestykkeFraSnapshot(snapshot: unknown): Ukeregnestykke 
   const tall = ["ukenorm", "ukesum", "mangler", "sumOvertid", "kanTrekkes", "overIkkeFort"] as const;
   if (tall.some((k) => typeof g[k] !== "number") || !Array.isArray(g.dager)) return null;
   return u as Ukeregnestykke;
+}
+
+/** Det frosne ukeregnestykket med uka-status slik den var ved attestering (A4, B53 A). */
+export interface FrossetUkeregnestykke {
+  regnestykke: Ukeregnestykke;
+  /** Var uka komplett da den ble fryst? Mangler feltet, regnes den som ikke komplett. */
+  komplett: boolean;
+  manglerDager: string[];
+}
+
+/**
+ * Les ukeregnestykket og om uka var komplett ut av et attestertSnapshot. Et frosset
+ * regnestykke fra en uke som ikke var komplett, skal ikke peke ut linjer (B53 A).
+ */
+export function lesFrossetUkeFraSnapshot(snapshot: unknown): FrossetUkeregnestykke | null {
+  const regnestykke = lesUkeregnestykkeFraSnapshot(snapshot);
+  if (!regnestykke) return null;
+  const o = (snapshot as { overtidsgrunnlag: Record<string, unknown> }).overtidsgrunnlag;
+  const mangler = Array.isArray(o.ukeManglerDager) ? o.ukeManglerDager.filter((d): d is string => typeof d === "string") : [];
+  return { regnestykke, komplett: o.ukeKomplett === true, manglerDager: mangler };
 }

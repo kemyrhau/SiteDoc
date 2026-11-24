@@ -4,7 +4,7 @@ import { prisma } from "@sitedoc/db";
 import { prismaTimer } from "@sitedoc/db-timer";
 import { prismaMaskin } from "@sitedoc/db-maskin";
 import { prismaVarelager } from "@sitedoc/db-varelager";
-import { lesOvertidsgrunnlagFraSnapshot, lesUkeregnestykkeFraSnapshot } from "@sitedoc/shared";
+import { lesFrossetUkeFraSnapshot, lesOvertidsgrunnlagFraSnapshot, lesUkeregnestykkeFraSnapshot } from "@sitedoc/shared";
 import { dagsseddelRouter } from "./timer/dagsseddel";
 
 /**
@@ -51,7 +51,7 @@ function ctx(userId: string) {
 }
 const dag = (userId = ADMIN) => dagsseddelRouter.createCaller(ctx(userId));
 
-type Rad = { timer: number; lonnsartId?: string; erReise?: boolean; projectId?: string; fra?: string };
+type Rad = { timer: number; lonnsartId?: string; erReise?: boolean; projectId?: string | null; fra?: string };
 async function sedel(dato: string, rader: Rad[], status = "sent") {
   const sid = randomUUID();
   await prismaTimer.dailySheet.create({
@@ -65,7 +65,8 @@ async function sedel(dato: string, rader: Rad[], status = "sent") {
     const rad = await prismaTimer.sheetTimer.create({
       data: {
         sheetId: sid,
-        projectId: r.projectId ?? P1,
+        projectId: r.projectId === undefined ? P1 : r.projectId,
+        utenProsjekt: r.projectId === null,
         lonnsartId: r.lonnsartId ?? ORD,
         aktivitetId: AKT,
         fraTid: r.fra ?? hh(fra),
@@ -215,6 +216,7 @@ describe("A4 — eksempeluka (uke 2, 2030)", () => {
     const rad = await prismaTimer.sheetTimer.findUniqueOrThrow({ where: { id: uke.tirsdag.ider[1] } });
     expect(lesUkeregnestykkeFraSnapshot(rad.attestertSnapshot)).toMatchObject({ ukesum: 36.5, kanTrekkes: 1, mangler: 1 });
     expect(lesOvertidsgrunnlagFraSnapshot(rad.attestertSnapshot)).toMatchObject({ ukeTimer: 36.5, reisetimer: 1 });
+    expect(lesFrossetUkeFraSnapshot(rad.attestertSnapshot)).toMatchObject({ komplett: true, manglerDager: [] });
     // Den attesterte dagen bærer fortsatt ukas regnestykke (B53 A: står under ukelinja med ↺).
     const attestert = await finn(uke.tirsdag.sid, ADMIN, "accepted");
     expect(attestert.uke).toMatchObject({ komplett: true, regnestykke: { kanTrekkes: 1 } });
@@ -267,3 +269,44 @@ describe("A4 — helg og komplett uke", () => {
     expect(s.ukeAvvikRadIder).toEqual([mandag.ider[1]]);
   });
 });
+
+const dagI = (man: string, i: number) => new Date(Date.parse(`${man}T00:00:00Z`) + i * 86_400_000).toISOString().slice(0, 10);
+
+describe("A4 RETUR vilkår 1 — B54 A: prosjektlederen får dagstall bare for dager hen ser", () => {
+  it("mandagen på P2 og dagen med bare fravær uten prosjekt står ikke i lederens dager[]", async () => {
+    const man = "2030-02-11";
+    await sedel(dagI(man, 0), [{ timer: 7.5, projectId: P2 }]);
+    const tirsdag = await sedel(dagI(man, 1), [{ timer: 7.5 }, { timer: 2.5, lonnsartId: OT50 }]);
+    await sedel(dagI(man, 2), [{ timer: 7.5, lonnsartId: EGEN, projectId: null }]);
+    // Attestanten (firma) ser alle tre dagene.
+    const admin = await finn(tirsdag.sid);
+    expect(admin.uke.regnestykke.dager.map((d: Løs) => d.dato)).toEqual([dagI(man, 0), dagI(man, 1), dagI(man, 2)]);
+    // Lederen: ukas totaltall som før, dagstall bare for tirsdagen.
+    const leder = await finn(tirsdag.sid, LEDER);
+    expect(leder.uke.regnestykke).toMatchObject({ ukesum: 25, sumOvertid: 2.5, fravaer: 7.5 });
+    expect(leder.uke.regnestykke.dager.map((d: Løs) => d.dato)).toEqual([dagI(man, 1)]);
+    // Detaljen: lederen får bare sedelens egen dag.
+    const detalj = (await dag(LEDER).hentForAttestering({ id: tirsdag.sid })) as Løs;
+    expect(detalj.uke.regnestykke.dager.map((d: Løs) => d.dato)).toEqual([dagI(man, 1)]);
+  });
+});
+
+describe("A4 RETUR vilkår 2 — frosset regnestykke fra en uke som ikke var komplett", () => {
+  it("dag med overtid attestert mens to arbeidsdager mangler: detaljen peker ikke ut linjer", async () => {
+    const man = "2030-02-18";
+    const mandag = await sedel(dagI(man, 0), [{ timer: 7.5 }, { timer: 2, lonnsartId: OT50 }]);
+    await sedel(dagI(man, 1), [{ timer: 7.5 }]);
+    await sedel(dagI(man, 2), [{ timer: 7.5 }]);
+    await dag().attester({ id: mandag.sid });
+    const rad = await prismaTimer.sheetTimer.findUniqueOrThrow({ where: { id: mandag.ider[1] } });
+    expect(lesFrossetUkeFraSnapshot(rad.attestertSnapshot)).toMatchObject({
+      komplett: false,
+      manglerDager: [dagI(man, 3), dagI(man, 4)],
+      regnestykke: { kanTrekkes: 2 },
+    });
+    const detalj = (await dag().hentForAttestering({ id: mandag.sid })) as Løs;
+    expect(detalj.ukeAvvikRadIder).toEqual([]);
+    expect(detalj.uke).toMatchObject({ komplett: false, manglerDager: [dagI(man, 3), dagI(man, 4)] });
+  });
+});
+

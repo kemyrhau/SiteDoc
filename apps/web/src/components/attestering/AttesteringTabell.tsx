@@ -4,7 +4,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useTranslation } from "react-i18next";
-import { Check, CornerUpLeft, RotateCcw, X, SlidersHorizontal, ExternalLink } from "lucide-react";
+import { Check, CornerUpLeft, RotateCcw, X, SlidersHorizontal, ExternalLink, AlertTriangle } from "lucide-react";
 import { Button, Modal, Tooltip } from "@sitedoc/ui";
 import {
   TIMER_TABELL_KOL,
@@ -1335,6 +1335,28 @@ export function UkevarselMerker({ uke }: { uke: AttUke }) {
     <span className="flex flex-wrap items-center gap-1">
       {merker.map((m) => <UkeMerkeVis key={m.tekst} merke={m} />)}
     </span>
+  );
+}
+
+/**
+ * A4 RETUR vilkår 4: banneret i attesteringsdetaljen — samme merker og regnestykke som
+ * ukelinja, bare når uka er komplett (B53 A). Kun varsel; sperrer ikke.
+ */
+export function UkeBanner({ uke }: { uke: AttUke }) {
+  const { t } = useTranslation();
+  if (!uke.komplett) return null;
+  const merker = ukeMerker(uke, lagUkeTekster(t), ukeTall);
+  if (merker.length === 0) return null;
+  return (
+    <div data-ukebanner="" className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+      <div className="flex items-start gap-2">
+        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+        <div>
+          <p className="font-medium">{merker.map((m) => m.tekst).join(" · ")}</p>
+          <p className="mt-0.5 text-xs text-amber-800">{merker[0]!.forklaring}</p>
+        </div>
+      </div>
+    </div>
   );
 }
 

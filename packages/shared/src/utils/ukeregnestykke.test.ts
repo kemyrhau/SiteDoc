@@ -4,6 +4,7 @@ import {
   beregnUkeOvertidsgrunnlag,
   harUkevarsel,
   lesUkeregnestykkeFraSnapshot,
+  lesFrossetUkeFraSnapshot,
   ukevarselRader,
   type OvertidRad,
   type UkeAvvikRadInput,
@@ -107,3 +108,16 @@ describe("lesUkeregnestykkeFraSnapshot", () => {
     expect(lesUkeregnestykkeFraSnapshot(null)).toBeNull();
   });
 });
+
+describe("lesFrossetUkeFraSnapshot (A4 RETUR vilkår 2)", () => {
+  it("leser komplett og dagene som manglet; uten feltet regnes uka som ikke komplett", () => {
+    const r = beregnUkeregnestykke(eksempel(), 37.5);
+    expect(lesFrossetUkeFraSnapshot({ overtidsgrunnlag: { ukeregnestykke: r, ukeKomplett: true, ukeManglerDager: [] } }))
+      .toEqual({ regnestykke: r, komplett: true, manglerDager: [] });
+    expect(lesFrossetUkeFraSnapshot({ overtidsgrunnlag: { ukeregnestykke: r, ukeKomplett: false, ukeManglerDager: ["2026-11-19"] } }))
+      .toMatchObject({ komplett: false, manglerDager: ["2026-11-19"] });
+    expect(lesFrossetUkeFraSnapshot({ overtidsgrunnlag: { ukeregnestykke: r } })).toMatchObject({ komplett: false, manglerDager: [] });
+    expect(lesFrossetUkeFraSnapshot({ overtidsgrunnlag: { ukeTimer: 36.5 } })).toBeNull();
+  });
+});
+

@@ -181,7 +181,7 @@ røres. `accent` og `warning` har i dag samme verdi. Ryddingen er en egen sak (a
 
 ### Tallformat for timer, antall, mengde og beløp (web, 2026-11-21)
 
-Timer, antall og mengde vises med `formaterTimer` i `apps/web/src/lib/tallformat.ts`: minst 1, høyst 2 desimaler, desimaltegn etter språket («4,0 t», «4,5 t», «4,25 t»). Beløp vises med `formaterBelop` (nøyaktig 2 desimaler, «250,00 kr»). Aldri `toFixed` til visning — det gir punktum («4.00 t»). Kun visning: skjemafelt og verdier til serveren formateres ikke. Tatt i bruk på dagssiden (`dashbord/timer/[id]/page.tsx`) og i `SplittRadModal.tsx`; test `apps/web/src/__tests__/web-timer-timeformat.test.tsx`. ⚠️ Ikke tatt i bruk ennå: `AttesteringDetalj.tsx`, `AttesteringDetalj_Edit.tsx`, `attestering/Avviksbadge.tsx`, `attestering/RedigerRadModal.tsx` (`toFixed` i visning).
+Timer, antall og mengde vises med `formaterTimer` i `apps/web/src/lib/tallformat.ts`: minst 1, høyst 2 desimaler, desimaltegn etter språket («4,0 t», «4,5 t», «4,25 t»). Beløp vises med `formaterBelop` (nøyaktig 2 desimaler, «250,00 kr»). Aldri `toFixed` til visning — det gir punktum («4.00 t»). Kun visning: skjemafelt og verdier til serveren formateres ikke. Tatt i bruk på dagssiden (`dashbord/timer/[id]/page.tsx`) og i `SplittRadModal.tsx`; test `apps/web/src/__tests__/web-timer-timeformat.test.tsx`. ⚠️ Ikke tatt i bruk ennå: `AttesteringDetalj.tsx`, `AttesteringDetalj_Edit.tsx`, `attestering/RedigerRadModal.tsx` (`toFixed` i visning).
 
 ## Fargepalett
 
