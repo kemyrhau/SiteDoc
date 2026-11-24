@@ -50,6 +50,7 @@
     "react-dom": "^18.3.0",
     "react-i18next": "^17.0.2",
     "react-leaflet": "^5.0.0",
+    "sharp": "^0.35.5",
     "three": "^0.183.2",
     "web-ifc": "^0.0.77"
   },

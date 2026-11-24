@@ -208,6 +208,28 @@ kodeendring. Api har eget `deps`-stage, så runtime kopierer avhengighetene og k
 `ERR_PNPM_OUTDATED_LOCKFILE`, ikke stille feil). Detaljer og målinger: [DOCKER-NOTES.md § Byggekontekst og
 lagrekkefølge](../../docker/DOCKER-NOTES.md).
 
+### Standalone web og filtrert api-install — hvorfor (DOCKER-SLANK del 2, 2026-11-24)
+
+**Web kjører Next-standalone** (`output: "standalone"`, `CMD node server.js`). Etter del 1 var web-imaget
+5,7 GB på server-ny: full `node_modules` (2,2 G med mobil, playwright, next-swc for alle plattformer),
+`.next/cache` (978 M webpack-cache som aldri brukes ved kjøring), g++/make fra byggesteget og hele kildekoden.
+Standalone-bygget sporer hvilke filer serveren laster og tar bare dem med; flertrinnsbygget holder
+bygg-verktøyene ute. Det som lastes uten at sporingen ser det, kopieres eksplisitt: `public/` og
+`.next/static` (følger aldri standalone), ezdxf `render.py` (leses av Python), Prisma-motorene for de fire
+klientene (egendefinert output + beregnet sti) og pdfjs' worker og canvas-polyfill (dynamisk lastet).
+**Fella som ble funnet:** web-koden laster `sharp`, men `@sitedoc/web` hadde den ikke som avhengighet — den
+ble bare funnet via `NODE_PATH` som pnpm-shimmen bak `pnpm start` setter. Med `node server.js` feilet hele
+tRPC-ruten. `sharp` er derfor lagt til i `apps/web/package.json`. Detaljer, tabell og målinger:
+[DOCKER-NOTES.md § Standalone web og filtrert api-install](../../docker/DOCKER-NOTES.md).
+
+**Konsekvens for verifisering:** web-imaget har ingen `src`. «Har imaget koden min?» sjekkes i
+`/app/apps/web/.next/server` med en kode-streng, ikke en i18n-streng ([DEPLOY-RUNBOK.md](DEPLOY-RUNBOK.md)).
+
+**Api installerer filtrert** (`--filter "@sitedoc/api..."`): bare api og det den avhenger av, med devDeps,
+fordi `tsx` er CMD og migreringen kjører prisma-CLI-en i api-containeren. Ikke `pnpm deploy`: Prisma-
+klientene ligger i rot-`node_modules/.prisma`, og `pnpm --filter @sitedoc/<db> exec prisma migrate deploy`
+trenger workspace-oppsettet.
+
 ### ⚠️ `deploy.sh` er en FELLE — IKKE bruk (bør slettes/omskrives)
 
 `deploy.sh` rsyncer fra `~/Documents/Programmering/SiteDoc/` (som står på **develop**) og kjører

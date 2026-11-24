@@ -1,5 +1,12 @@
+const path = require("path");
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // DOCKER-SLANK T3 (2026-11-24): standalone-bygg for et lite web-image. `next build`
+  // sporer hvilke filer serveren trenger og legger dem i `.next/standalone` (med en
+  // egen `server.js`). Dockerfile.web kopierer bare den + `.next/static` + `public/`.
+  // Påvirker ikke `next dev`. Se docker/DOCKER-NOTES.md § Standalone.
+  output: "standalone",
   // Pakke A / A7: fjern «X-Powered-By: Next.js» (avslører rammeverk/versjon).
   poweredByHeader: false,
   // S-PAK-1 (2026-11-10): slår av Next sin bildeoptimerer (`/_next/image`), som har
@@ -16,6 +23,26 @@ const nextConfig = {
     // Aktiverer src/instrumentation.ts (boot-guard for FIL_SIGNING_SECRET —
     // tRPC/signering kjører i web-prosessen). Next 14.2 krever eksplisitt flagg.
     instrumentationHook: true,
+    // DOCKER-SLANK T3: sporingsroten er monorepo-roten, så workspace-pakkene og den
+    // hoistede rot-`node_modules` følger med (`server.js` havner i
+    // `.next/standalone/apps/web/`).
+    outputFileTracingRoot: path.join(__dirname, "../../"),
+    // Filer sporingen ikke finner selv, fordi de lastes dynamisk:
+    // - Prisma: de tre firmaklientene genereres til `node_modules/.prisma/<navn>-client`
+    //   (egendefinert output), og query-engine-`.so.node` lastes med en beregnet sti.
+    //   Standardklienten (`@sitedoc/db`) ligger under `.pnpm/@prisma+client*`.
+    // - pdfjs-dist: den falske workeren (`pdf.worker.mjs`) importeres dynamisk i Node.
+    //   (`@napi-rs/canvas`, som pdfjs laster med createRequire, kopieres i Dockerfile.web
+    //   med `cp -a` — glob her følger pnpm-symlenkene og lager kopier i stedet for lenker.)
+    // Stiene er relative til apps/web. Nøkkelen er alle ruter (tRPC kjører i
+    // route-handleren, Auth.js i sin egen).
+    outputFileTracingIncludes: {
+      "/**/*": [
+        "../../node_modules/.prisma/**/*",
+        "../../node_modules/.pnpm/@prisma+client*/node_modules/.prisma/client/**/*",
+        "../../node_modules/.pnpm/pdfjs-dist*/node_modules/pdfjs-dist/legacy/build/**/*",
+      ],
+    },
   },
   transpilePackages: ["@sitedoc/shared", "@sitedoc/ui"],
   webpack: (config, { isServer }) => {
