@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="nb">
+<head>
+<meta charset="utf-8">
+<title>Skisse — B92 (aktivitet i kortets hode) og B93 (attestert linje stengt)</title>
+<!--
+  FORSLAG (Fabel 2026-11-24), ikke bygget. Kilde for b92-b93.png (mobil-timeforing-plan.md § 5).
+  Forenklet skisse, ikke skjermbilde. «I dag» er tegnet etter koden på develop @ bcf29423:
+  B92: page.tsx:2811-3013 (kortets hode uten aktivitet), attestering-tabell.ts:425, 534-541, 576,
+       dagsseddel.ts:4697, 4922 (ingen sperre mot to aktiviteter i ett kort).
+  B93: page.tsx:3641-3655, 3863-3881, 3980, 4093 (blyant og søppelkasse etter dagens status),
+       dagsseddel.ts:5245, 5309, 5496-5499 (oppdaterTimerRad lagrer; linja står som attestert), 5710-5715.
+  Navn, tider og tall er eksempler (planen § 1, varianten).
+  Tegnet med Chrome uten vindu, og beskåret til innholdet:
+    "Google Chrome" --headless=new --hide-scrollbars --force-device-scale-factor=2 \
+      --window-size=1260,2600 --screenshot=b92-b93.png "file://…/skisser-b92-b93.html"
+-->
+<link rel="stylesheet" href="skisser.css">
+<style>
+  .halv { flex:1; }
+  .halv h2 { font-size:14px; margin:0 0 2px; }
+  .halv .sp { color:var(--demp); font-size:12px; margin-bottom:10px; min-height:34px; }
+  .par { display:flex; gap:14px; }
+  .tlf { min-height:470px; }
+  .rad-tittel { margin:0 0 6px; }
+  .rad-tittel .tx { font-size:12px; }
+</style>
+</head>
+<body><div class="ark">
+<h1>B92 og B93 — skjerm i dag, ved ja og ved nei</h1>
+<div class="under">Firma i prosjektkort-modus. Forenklet skisse, ikke skjermbilde. Navn og tall er eksempler (planen § 1).</div>
+
+<div class="rad">
+  <div class="halv">
+    <h2>B92 — Skal et kort ha én aktivitet, og skal den stå i kortets hode?</h2>
+    <div class="sp">Arbeiderens dag på PC og telefon, og attestantens visning. «I dag» viser et kort der arbeideren har ført to linjer med hver sin aktivitet.</div>
+    <div class="par">
+      <div class="kol"><div class="rad-tittel"><span class="et">I DAG = VED NEI</span></div>
+        <div class="tlf pc"><div class="topp"><span class="t">tir 24. nov</span><span class="l">arbeiderens dag</span></div>
+          <div class="kort"><div class="h"><span>2041 — Skolegården</span><span>6,5 t</span></div><div class="u">Parkveien 12 · 07:00–14:00</div>
+            <div class="linje"><span>07:00–11:30 · Timelønn</span><span class="v">4,0 t</span></div>
+            <div class="linje"><span>11:30–14:00 · Timelønn</span><span class="v">2,5 t</span></div>
+            <div class="linje kost"><span><span class="ty">Maskin</span> · Gravemaskin CAT 308</span><span class="v">3,0 t</span></div>
+            <div class="linje kost galt"><span><span class="ty">Tillegg</span> · Smusstillegg</span><span class="v">2,5 t</span></div></div>
+          <div class="merk">Aktiviteten står ikke i kortet. Den ligger under blyanten (PC) og i vinduet for linja (telefon). Kortet har to aktiviteter.</div>
+          <div class="topp" style="margin-top:12px"><span class="t">Attestering</span><span class="l">samme kort</span></div>
+          <div class="kort"><div class="h"><span>2041 Skolegården</span><span>6,5 t</span></div><div class="u">Parkveien 12</div>
+            <div class="linje"><span>07:00–11:30</span><span class="v">Graving</span></div>
+            <div class="linje"><span>11:30–14:00</span><span class="v">Steinlegging</span></div>
+            <div class="linje kost galt"><span>Smusstillegg 2,5 t</span><span class="v">aktivitet: —</span></div></div>
+          <div class="merk galt">Ingen kan se om smusstillegget hører til gravingen eller steinleggingen.</div></div></div>
+      <div class="kol"><div class="rad-tittel"><span class="et ja">VED JA</span></div>
+        <div class="tlf pc"><div class="topp"><span class="t">tir 24. nov</span><span class="l">arbeiderens dag</span></div>
+          <div class="kort"><div class="h"><span>2041 — Skolegården</span><span>4,0 t</span></div><div class="u">Parkveien 12 · 07:00–11:30</div><span class="akt">Graving</span>
+            <div class="linje"><span>07:00–11:30 · Timelønn</span><span class="v">4,0 t</span></div>
+            <div class="linje kost"><span><span class="ty">Maskin</span> · Gravemaskin CAT 308</span><span class="v">3,0 t</span></div></div>
+          <div class="kort"><div class="h"><span>2041 — Skolegården</span><span>2,5 t</span></div><div class="u">Parkveien 12 · 11:30–14:00</div><span class="akt">Steinlegging</span>
+            <div class="linje"><span>11:30–14:00 · Timelønn</span><span class="v">2,5 t</span></div>
+            <div class="linje kost"><span><span class="ty">Tillegg</span> · Smusstillegg</span><span class="v">2,5 t</span></div></div>
+          <div class="merk ok">Én aktivitet pr. kort, vist i hodet. En annen aktivitet er et nytt kort. Alt i kortet hører til kortets aktivitet.</div>
+          <div class="topp" style="margin-top:12px"><span class="t">Attestering</span><span class="l">samme dag</span></div>
+          <div class="kort"><div class="h"><span>2041 Skolegården</span><span>4,0 t</span></div><div class="u">Parkveien 12</div><span class="akt">Graving</span></div>
+          <div class="kort"><div class="h"><span>2041 Skolegården</span><span>2,5 t</span></div><div class="u">Parkveien 12</div><span class="akt">Steinlegging</span>
+            <div class="linje kost"><span>Smusstillegg</span><span class="v">2,5 t</span></div></div></div></div>
+    </div>
+  </div>
+  <div class="skille"></div>
+  <div class="halv">
+    <h2>B93 — Skal en attestert linje være stengt for arbeideren også på PC?</h2>
+    <div class="sp">Arbeiderens egen dag på PC. Status: returnert. Attestanten har attestert kort 1 og returnert kort 2.</div>
+    <div class="par">
+      <div class="kol"><div class="rad-tittel"><span class="et">I DAG = VED NEI</span></div>
+        <div class="tlf pc"><div class="topp"><span class="t">tir 24. nov</span><span class="l">Returnert</span></div>
+          <div class="banner"><b>Returnert:</b> «Kantsteinen skal på E-014»</div>
+          <div class="kort"><div class="h"><span>2041 — Skolegården</span><span class="st att">Attestert</span></div><div class="u">Parkveien 12 · 07:00–11:30</div>
+            <div class="linje"><span>07:00–11:30 · Timelønn · 4,0 t</span><span class="ikon">✎ 🗑</span></div>
+            <div class="linje kost"><span>Gravemaskin CAT 308 · 3,0 t</span><span class="ikon">✎ 🗑</span></div></div>
+          <div class="merk galt">Blyanten virker: retter du 4,0 t til 5,0 t, lagres det, og linja står fortsatt som «Attestert». Attestanten får ikke vite det.</div>
+          <div class="kort aapen"><div class="h"><span>2041 — Skolegården</span><span class="st ret">Returnert</span></div><div class="u">Parkveien 12 · 11:30–14:00</div>
+            <div class="chips" style="margin-top:4px"><span class="chip">Ingen</span><span class="chip valgt">E-014 Ekstra kantstein</span></div>
+            <div class="fire"><div class="felt"><span class="e">Fra</span>11:30</div><div class="felt"><span class="e">Til</span>14:00</div><div class="felt"><span class="e">Pause</span>0</div><div class="felt"><span class="e">Timer</span>2,5</div></div></div>
+          <div class="btn">Send på nytt</div>
+          <div class="merk">På telefonen i dag: alle linjer kan endres, og de står som «venter» etter ny sending.</div></div></div>
+      <div class="kol"><div class="rad-tittel"><span class="et ja">VED JA</span></div>
+        <div class="tlf pc"><div class="topp"><span class="t">tir 24. nov</span><span class="l">Returnert</span></div>
+          <div class="banner"><b>Returnert:</b> «Kantsteinen skal på E-014»</div>
+          <div class="kort"><div class="h"><span>2041 — Skolegården</span><span class="st att">Attestert</span></div><div class="u">Parkveien 12 · 07:00–11:30</div>
+            <div class="linje"><span>07:00–11:30 · Timelønn · 4,0 t</span><span class="st">låst</span></div>
+            <div class="linje kost"><span>Gravemaskin CAT 308 · 3,0 t</span><span class="st">låst</span></div></div>
+          <div class="merk ok">Ingen blyant og ingen søppelkasse på en attestert linje, på PC og på telefonen. Serveren avviser endring. Må linja rettes, gjenåpner attestanten den (↺).</div>
+          <div class="kort aapen"><div class="h"><span>2041 — Skolegården</span><span class="st ret">Returnert</span></div><div class="u">Parkveien 12 · 11:30–14:00</div>
+            <div class="chips" style="margin-top:4px"><span class="chip">Ingen</span><span class="chip valgt">E-014 Ekstra kantstein</span></div>
+            <div class="fire"><div class="felt"><span class="e">Fra</span>11:30</div><div class="felt"><span class="e">Til</span>14:00</div><div class="felt"><span class="e">Pause</span>0</div><div class="felt"><span class="e">Timer</span>2,5</div></div></div>
+          <div class="btn">Send på nytt</div></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="fot"><b>B92 ved nei</b> er skjermen til venstre i dag: aktiviteten står på arbeidslinja, og et tillegg i et kort med to aktiviteter kan ikke leses mot én av dem. <b>B93 ved nei</b> er skjermen til venstre i dag på PC; telefonen får da samme regel (endringen lagres, linja står som «attestert»).</div>
+</div></body></html>

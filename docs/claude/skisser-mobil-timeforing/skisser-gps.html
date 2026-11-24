@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="nb">
+<head>
+<meta charset="utf-8">
+<title>Skisse — eksempeldagen som GPS-dag («Start dag» → «Bekreft dagen»)</title>
+<!--
+  FORSLAG (Fabel 2026-11-24, revisjon 2), ikke bygget. Kilde for gps-dag.png (mobil-timeforing-plan.md § 4).
+  Forenklet skisse, ikke skjermbilde. Øverste rad er tegnet etter koden på develop @ bcf29423
+  (arbeidsdagBesok.ts:60-93, 252-320; dagsforslag.ts:1168-1183, 1388-1394; dagsforslagInput.ts:192-203;
+  bekreft-dag.tsx:1453-1513, 1576-1648, 1807-1819; DelKortModal.tsx; BekreftDagLonnUtlegg.tsx:62-93).
+  Nederste rad er forslaget (G1, G2, G3 og M4-skjemaet).
+  Navn, tider og tall er eksempler (planen § 1).
+  Tegnet med Chrome uten vindu, og beskåret til innholdet:
+    "Google Chrome" --headless=new --hide-scrollbars --force-device-scale-factor=2 \
+      --window-size=1260,2600 --screenshot=gps-dag.png "file://…/skisser-gps.html"
+-->
+<link rel="stylesheet" href="skisser.css">
+</head>
+<body><div class="ark">
+<h1>Eksempeldagen som GPS-dag — «Start dag», to besøk, «Slutt dag»</h1>
+<div class="under">Firma i prosjektkort-modus. Forenklet skisse, ikke skjermbilde. Navn og tall er eksempler (planen § 1).</div>
+
+<div class="rad-tittel"><span class="et">I DAG</span><span class="tx">Forslaget er ett kort for hele dagen: ett prosjekt og én aktivitet. Besøkene brukes ikke.</span><span class="tall">dagen må rettes linje for linje etterpå</span></div>
+<div class="rad">
+  <div class="kol"><div class="steg"><span class="n">1</span>Telefonen har lagret to besøk i løpet av dagen.</div>
+    <div class="tlf"><div class="topp"><span class="t">Arbeidsdag</span><span class="l">tir 24. nov</span></div>
+      <div class="listerad"><span>06:30 · Start dag</span><span class="st">hjemme</span></div>
+      <div class="listerad"><span>07:00 · Ankommet<br><b>Parkveien 12</b> · Skolegården</span><span class="st">besøk 1</span></div>
+      <div class="listerad"><span>14:00 · Ankommet<br><b>Storgata 3</b> · Torget</span><span class="st">besøk 2</span></div>
+      <div class="listerad"><span>15:00 · Slutt dag</span><span></span></div>
+      <div class="merk">Besøket har byggeplass, prosjekt og klokkeslett. Det har ikke underprosjekt og ikke aktivitet. Forslaget bruker bare «målt ankomst».</div></div></div>
+  <div class="pil">→</div>
+  <div class="kol"><div class="steg"><span class="n">2</span>«Bekreft dagen»: ett kort, 07:00–15:00, på prosjektet der dagen sluttet.</div>
+    <div class="tlf"><div class="topp"><span class="l">‹ Ikke nå</span><span class="t">Bekreft dagen</span><span></span></div>
+      <div class="sum">tir 24. nov · Arbeid 7,5 t · reise 1,0 t</div>
+      <div class="boks"><div class="o">Prosjekt · byggeplass · aktivitet — gjelder hele dagen</div>
+        <div class="linje" style="border:0;margin:0"><span><b>Torget</b><br>Anleggsarbeid</span><span class="l" style="color:#2563eb;font-weight:600">Endre</span></div></div>
+      <div class="kort">
+        <div class="to"><div class="felt"><span class="e">Fra</span>07:00</div><div class="felt"><span class="e">Til</span>15:00</div></div>
+        <div class="u" style="margin-top:5px">Arbeid 7,5 t · målt ankomst 07:00</div>
+        <div class="chips"><span class="chip valgt">Timelønn</span></div>
+        <div class="felt tom"><span>Hva gjorde du?</span></div>
+        <div class="legg">+ Maskin &nbsp;·&nbsp; + Varer &nbsp;·&nbsp; Del til eget kort</div></div>
+      <div class="kort"><div class="h"><span>Reise</span></div>
+        <div class="linje kost"><span>Tur 06:30–07:00</span><span class="v">0,5 t</span></div>
+        <div class="linje kost"><span>Retur 15:00–15:30</span><span class="v">0,5 t</span></div></div>
+      <div class="kort"><div class="h"><span>Lønn og utlegg</span></div><div class="legg" style="margin-top:3px">+ Tillegg &nbsp;·&nbsp; + Utlegg</div></div>
+      <div class="btn">Bekreft og lagre</div></div></div>
+  <div class="pil">→</div>
+  <div class="kol"><div class="steg"><span class="n">3</span>Bytt til Skolegården og «Del til eget kort» to ganger: tre kort med samme prosjekt og aktivitet.</div>
+    <div class="tlf"><div class="topp"><span class="l">‹ Ikke nå</span><span class="t">Bekreft dagen</span><span></span></div>
+      <div class="boks"><div class="o">Prosjekt · byggeplass · aktivitet — gjelder hele dagen</div>
+        <div class="linje" style="border:0;margin:0"><span><b>Skolegården</b><br>Parkveien 12 · Anleggsarbeid</span><span class="l" style="color:#2563eb;font-weight:600">Endre</span></div></div>
+      <div class="kort"><div class="h"><span>07:00–11:30</span><span>4,0 t</span></div>
+        <div class="linje kost"><span><span class="ty">Maskin</span> · Gravemaskin CAT 308</span><span class="v">3,0 t</span></div>
+        <div class="linje kost"><span><span class="ty">Vare</span> · Drensrør 110 mm</span><span class="v">12 m</span></div></div>
+      <div class="kort"><div class="h"><span>11:30–14:00</span><span>2,5 t</span></div>
+        <div class="chips" style="margin-top:3px"><span class="chip">Ingen</span><span class="chip valgt">E-014 Ekstra kantstein</span></div>
+        <div class="linje kost"><span><span class="ty">Vare</span> · Kantstein granitt</span><span class="v">18 m</span></div></div>
+      <div class="kort feil"><div class="h"><span>14:00–15:00</span><span>1,0 t</span></div>
+        <div class="u">Kan ikke settes på Torget</div>
+        <div class="linje kost"><span><span class="ty">Maskin</span> · Vibroplate</span><span class="v">1,0 t</span></div></div>
+      <div class="kort"><div class="h"><span>Lønn og utlegg</span></div>
+        <div class="linje kost"><span>Smusstillegg 2,5 t</span><span class="v">kort: 07:00 ▾</span></div>
+        <div class="linje kost"><span>Parkering 85 kr</span><span class="v">kort: 07:00 ▾</span></div></div>
+      <div class="merk">Tillegg og utlegg føres for hele dagen med kortvelger. Forhåndsvalgt er kortet med flest timer.</div>
+      <div class="btn">Bekreft og lagre</div></div></div>
+  <div class="pil">→</div>
+  <div class="kol"><div class="steg"><span class="n">4</span>Dagen etterpå: feil prosjekt på kort 3, samme aktivitet på alt.</div>
+    <div class="tlf"><div class="topp"><span class="l">‹ Timer</span><span class="t">tir 24. nov</span><span></span></div>
+      <div class="sum">7,5 av 7,5 t · Kladd</div>
+      <div class="kort"><div class="h"><span>Skolegården</span><span>4,0 t</span></div><div class="u">Parkveien 12</div>
+        <div class="linje"><span>07:00–11:30 · Timelønn</span><span class="v">4,0 t</span></div>
+        <div class="linje kost galt"><span>Aktivitet: Anleggsarbeid</span><span class="v">skulle vært Graving</span></div></div>
+      <div class="kort"><div class="h"><span>Skolegården</span><span>2,5 t</span></div><div class="u">Parkveien 12 · E-014 Ekstra kantstein</div>
+        <div class="linje"><span>11:30–14:00 · Timelønn</span><span class="v">2,5 t</span></div>
+        <div class="linje kost galt"><span>Aktivitet: Anleggsarbeid</span><span class="v">Steinlegging</span></div></div>
+      <div class="kort feil"><div class="h"><span>Skolegården</span><span>1,0 t</span></div><div class="u">Parkveien 12</div>
+        <div class="linje"><span>14:00–15:00 · Timelønn</span><span class="v">1,0 t</span></div>
+        <div class="linje kost galt"><span>Prosjekt: Skolegården</span><span class="v">skulle vært Torget</span></div></div>
+      <div class="merk galt">Prosjekt og aktivitet rettes i vinduet for hver linje. Aktiviteten vises ikke i kortet, så feilen syns ikke her (tegnet i rødt for å vise den).</div>
+      <div class="btn">Send dagen</div></div></div>
+</div>
+
+<div class="rad-tittel"><span class="et ja">ETTER PLANEN</span><span class="tx">Ett kort pr. besøk. Hvert kort er det samme skjemaet som i manuell føring, med egne felt og egne knapper.</span><span class="tall ja">tre riktige kort før «Bekreft og lagre»</span></div>
+<div class="rad">
+  <div class="kol"><div class="steg"><span class="n">1</span>«Bekreft dagen»: to kort, ett pr. besøk, med besøkets prosjekt, byggeplass og tid.</div>
+    <div class="tlf"><div class="topp"><span class="l">‹ Ikke nå</span><span class="t">Bekreft dagen</span><span></span></div>
+      <div class="sum">tir 24. nov · Arbeid 7,5 t · reise 1,0 t</div>
+      <div class="kort aapen"><div class="h"><span>Skolegården</span><span class="lenke">Bytt</span></div><div class="u">2041 · Parkveien 12</div>
+        <div class="etikett">Underprosjekt</div>
+        <div class="chips" style="margin-top:3px"><span class="chip valgt">Ingen</span><span class="chip">E-014 Ekstra kantstein</span></div>
+        <div class="felt"><span class="e">Aktivitet</span>Anleggsarbeid ▾</div>
+        <div class="fire"><div class="felt"><span class="e">Fra</span>07:00</div><div class="felt"><span class="e">Til</span>14:00</div><div class="felt"><span class="e">Pause</span>30</div><div class="felt"><span class="e">Timer</span>6,5</div></div>
+        <div class="kilde">fra besøket på Parkveien 12</div>
+        <div class="felt tom"><span>Hva gjorde du?</span></div>
+        <div class="linje kost"><span><span class="ty">Reise</span> · Tur 06:30–07:00</span><span class="v">0,5 t</span></div>
+        <div class="legg">+ Maskin &nbsp;·&nbsp; + Vare &nbsp;·&nbsp; + Tillegg/utlegg &nbsp;·&nbsp; Del til eget kort</div></div>
+      <div class="kort"><div class="h"><span>Torget</span><span>1,0 t</span></div><div class="u">2055 · Storgata 3 · 14:00–15:00</div>
+        <div class="linje kost"><span><span class="ty">Reise</span> · Retur 15:00–15:30</span><span class="v">0,5 t</span></div></div>
+      <div class="btn sek">Bekreft og lagre</div></div></div>
+  <div class="pil">→</div>
+  <div class="kol"><div class="steg"><span class="n">2</span>«Del til eget kort» kl. 11:30: det nye kortet får eget underprosjekt og egen aktivitet.</div>
+    <div class="tlf"><div class="topp"><span class="l">‹ Ikke nå</span><span class="t">Bekreft dagen</span><span></span></div>
+      <div class="kort"><div class="h"><span>Skolegården</span><span>4,0 t</span></div><div class="u">Parkveien 12 · 07:00–11:30</div><span class="akt">Graving</span></div>
+      <div class="kort aapen"><div class="h"><span>Skolegården</span><span>2,5 t</span></div><div class="u">2041 · Parkveien 12</div>
+        <div class="etikett">Underprosjekt</div>
+        <div class="chips" style="margin-top:3px"><span class="chip">Ingen</span><span class="chip valgt">E-014 Ekstra kantstein</span></div>
+        <div class="felt hev"><span class="e">Aktivitet</span>Steinlegging ▾</div>
+        <div class="fire"><div class="felt"><span class="e">Fra</span>11:30</div><div class="felt"><span class="e">Til</span>14:00</div><div class="felt"><span class="e">Pause</span>0</div><div class="felt"><span class="e">Timer</span>2,5</div></div>
+        <div class="felt"><span>Satt kantstein, felt B</span></div>
+        <div class="legg">+ Maskin &nbsp;·&nbsp; + Vare &nbsp;·&nbsp; + Tillegg/utlegg</div></div>
+      <div class="kort"><div class="h"><span>Torget</span><span>1,0 t</span></div><div class="u">Storgata 3 · 14:00–15:00</div><span class="akt">Asfaltering</span></div>
+      <div class="merk ok">Telefonen ser ikke to jobber i samme besøk. Arbeideren deler på klokkeslettet.</div></div></div>
+  <div class="pil">→</div>
+  <div class="kol"><div class="steg"><span class="n">3</span>Kostnaden føres i hvert kort. «Bekreft og lagre» skriver tre kort.</div>
+    <div class="tlf"><div class="topp"><span class="l">‹ Ikke nå</span><span class="t">Bekreft dagen</span><span></span></div>
+      <div class="sum">tir 24. nov · Arbeid 7,5 t · reise 1,0 t</div>
+      <div class="kort"><div class="h"><span>Skolegården</span><span>4,0 t</span></div><div class="u">Parkveien 12 · 07:00–11:30</div><span class="akt">Graving</span>
+        <div class="linje kost"><span><span class="ty">Reise</span> · Tur</span><span class="v">0,5 t</span></div>
+        <div class="linje kost"><span><span class="ty">Maskin</span> · Gravemaskin CAT 308</span><span class="v">3,0 t</span></div>
+        <div class="linje kost"><span><span class="ty">Vare</span> · Drensrør 110 mm</span><span class="v">12 m</span></div></div>
+      <div class="kort"><div class="h"><span>Skolegården</span><span>2,5 t</span></div><div class="u">Parkveien 12 · E-014 Ekstra kantstein · 11:30–14:00</div><span class="akt">Steinlegging</span>
+        <div class="linje kost"><span><span class="ty">Vare</span> · Kantstein granitt</span><span class="v">18 m</span></div>
+        <div class="linje kost"><span><span class="ty">Tillegg</span> · Smusstillegg</span><span class="v">2,5 t</span></div></div>
+      <div class="kort"><div class="h"><span>Torget</span><span>1,0 t</span></div><div class="u">Storgata 3 · 14:00–15:00</div><span class="akt">Asfaltering</span>
+        <div class="linje kost"><span><span class="ty">Maskin</span> · Vibroplate</span><span class="v">1,0 t</span></div>
+        <div class="linje kost"><span><span class="ty">Utlegg</span> · Parkering</span><span class="v">85 kr</span></div>
+        <div class="linje kost"><span><span class="ty">Reise</span> · Retur</span><span class="v">0,5 t</span></div></div>
+      <div class="btn">Bekreft og lagre</div></div></div>
+  <div class="pil">→</div>
+  <div class="kol"><div class="steg"><span class="n">4</span>Attestanten på PC: tre kort, kostnaden under hvert, merke på tiden.</div>
+    <div class="tlf pc"><div class="topp"><span class="t">Attestering</span><span class="l">tir 24. nov</span></div>
+      <div class="kort"><div class="h"><span>2041 Skolegården</span><span>4,0 t</span></div><div class="u">Parkveien 12</div><span class="akt">Graving</span>
+        <div class="linje"><span>07:00–11:30 · Timelønn</span><span class="st ret">rettet</span></div>
+        <div class="linje kost"><span>Reise · Tur · 0,5 t</span><span class="st">utledet</span></div>
+        <div class="linje kost"><span>Gravemaskin CAT 308</span><span class="v">3,0 t</span></div>
+        <div class="linje kost"><span>Drensrør 110 mm</span><span class="v">12 m</span></div></div>
+      <div class="kort"><div class="h"><span>2041 Skolegården</span><span>2,5 t</span></div><div class="u">Parkveien 12 · E-014 Ekstra kantstein</div><span class="akt">Steinlegging</span>
+        <div class="linje"><span>11:30–14:00 · Timelønn</span><span class="st ret">rettet</span></div>
+        <div class="linje kost"><span>Kantstein granitt</span><span class="v">18 m</span></div>
+        <div class="linje kost"><span>Smusstillegg</span><span class="v">2,5 t</span></div></div>
+      <div class="kort"><div class="h"><span>2055 Torget</span><span>1,0 t</span></div><div class="u">Storgata 3</div><span class="akt">Asfaltering</span>
+        <div class="linje"><span>14:00–15:00 · Timelønn</span><span class="st fors">foreslått</span></div>
+        <div class="linje kost"><span>Vibroplate</span><span class="v">1,0 t</span></div>
+        <div class="linje kost"><span>Parkering (utlegg)</span><span class="v">85 kr</span></div>
+        <div class="linje kost"><span>Reise · Retur · 0,5 t</span><span class="st">utledet</span></div></div></div></div>
+</div>
+
+<div class="fot"><b>Forskjellen:</b> i dag regnes forslaget ut uten besøkene, og «Del til eget kort» kopierer prosjekt, byggeplass og aktivitet. Etter planen lager hvert besøk sitt kort (G2), kortet er det samme skjemaet som i manuell føring (M4), og tillegg og utlegg føres i kortet. «foreslått» = tiden står som telefonen foreslo, «rettet» = arbeideren har endret den (G3, B91 ja). <b>Den blå brikken med aktiviteten i kortets hode gjelder ved ja på B92.</b> Forflytningen mellom byggeplassene har ingen egen linje.</div>
+</div></body></html>

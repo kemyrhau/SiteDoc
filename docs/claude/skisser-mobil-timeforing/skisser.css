@@ -1,0 +1,69 @@
+/* Felles stil for skissene i mobil-timeforing-plan.md (Fabel 2026-11-24). Forenklede skisser, ikke skjermbilder. */
+:root { --bg:#f3f4f6; --kant:#e5e7eb; --tekst:#111827; --demp:#6b7280; --primar:#2563eb; --primar-bg:#eff6ff; --gul-bg:#fef3c7; --gul:#92400e; --gronn:#16a34a; --gronn-bg:#ecfdf5; --rod:#b91c1c; --rod-bg:#fee2e2; }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--bg); color:var(--tekst); font:13px/1.4 -apple-system,"Inter","Segoe UI",Helvetica,Arial,sans-serif; }
+.ark { width:1260px; padding:24px 26px; }
+h1 { font-size:16px; margin:0 0 4px; }
+.under { color:var(--demp); font-size:12px; margin-bottom:16px; }
+.rad-tittel { display:flex; align-items:center; gap:10px; margin:6px 0 10px; }
+.rad-tittel .et { font-size:12px; font-weight:800; padding:3px 10px; border-radius:999px; background:#111827; color:#fff; white-space:nowrap; }
+.rad-tittel .et.ja { background:var(--primar); }
+.rad-tittel .tx { font-weight:700; font-size:14px; }
+.rad-tittel .tall { font-size:12px; font-weight:700; padding:2px 9px; border-radius:999px; background:var(--gul-bg); color:var(--gul); white-space:nowrap; }
+.rad-tittel .tall.ja { background:var(--gronn-bg); color:#166534; }
+.rad { display:flex; gap:14px; align-items:flex-start; margin-bottom:22px; }
+.kol { width:270px; flex:none; }
+.steg { font-size:12px; font-weight:700; color:#1e3a8a; margin-bottom:6px; min-height:52px; }
+.steg .n { display:inline-flex; width:20px; height:20px; border-radius:50%; background:var(--primar); color:#fff; align-items:center; justify-content:center; font-size:11px; margin-right:5px; }
+.pil { align-self:center; color:#9ca3af; font-size:24px; flex:none; width:12px; text-align:center; }
+.skille { align-self:stretch; width:1px; background:#d1d5db; flex:none; margin:0 5px; }
+.tlf { position:relative; background:#fff; border:1px solid #d1d5db; border-radius:22px; padding:12px 10px 14px; box-shadow:0 8px 24px rgba(0,0,0,.10); font-size:12px; min-height:560px; }
+.tlf.pc { border-radius:10px; }
+.topp { display:flex; justify-content:space-between; align-items:center; padding:2px 4px 8px; }
+.topp .t { font-weight:700; font-size:14px; }
+.topp .l { color:var(--primar); font-size:12px; }
+.sum { border-radius:9px; padding:7px 9px; font-size:11px; margin-bottom:7px; background:var(--primar-bg); color:#1e3a8a; }
+.banner { border-radius:9px; padding:7px 9px; font-size:11px; margin-bottom:7px; background:var(--gul-bg); color:var(--gul); }
+.boks { border:1px dashed #9ca3af; border-radius:11px; padding:7px 10px; margin-bottom:7px; background:#f9fafb; }
+.boks .o { font-size:10px; font-weight:700; color:var(--demp); text-transform:uppercase; letter-spacing:.02em; }
+.kort { border:1px solid var(--kant); border-radius:11px; padding:8px 10px; margin-bottom:7px; background:#fff; }
+.kort.aapen { border-color:#93c5fd; box-shadow:0 0 0 2px #dbeafe; }
+.kort.feil { border-color:#fca5a5; box-shadow:0 0 0 2px var(--rod-bg); }
+.kort .h { display:flex; justify-content:space-between; font-weight:700; gap:6px; }
+.kort .h .lenke { color:var(--primar); font-weight:600; }
+.kort .u { color:var(--demp); font-size:11px; }
+.akt { display:inline-block; margin-top:4px; font-size:11px; font-weight:700; padding:1px 8px; border-radius:999px; background:var(--primar-bg); color:#1e3a8a; border:1px solid #bfdbfe; }
+.st { display:inline-block; font-size:10px; font-weight:700; padding:1px 7px; border-radius:999px; background:#f3f4f6; color:var(--demp); white-space:nowrap; }
+.st.att { background:var(--gronn-bg); color:#166534; }
+.st.ret { background:var(--gul-bg); color:var(--gul); }
+.st.fors { background:#e0e7ff; color:#3730a3; }
+.linje { display:flex; justify-content:space-between; gap:6px; padding:4px 0; border-top:1px solid #f3f4f6; margin-top:4px; }
+.linje .v { white-space:nowrap; }
+.linje.kost { color:#374151; font-size:11px; padding:3px 0; margin-top:0; }
+.linje.kost .ty { color:var(--demp); }
+.linje.galt { color:var(--rod); font-weight:700; }
+.linje.galt .ty { color:var(--rod); }
+.felt { border:1px solid #d1d5db; border-radius:8px; padding:6px 8px; margin-top:5px; display:flex; justify-content:space-between; }
+.felt .e { color:var(--demp); font-size:11px; }
+.felt.tom { color:#9ca3af; }
+.felt.hev { border-color:var(--primar); box-shadow:0 0 0 2px #dbeafe; font-weight:700; }
+.to { display:flex; gap:6px; } .to .felt { flex:1; }
+.fire { display:flex; gap:4px; } .fire .felt { flex:1; flex-direction:column; padding:4px 6px; }
+.fire .felt .e { font-size:10px; }
+.chips { display:flex; gap:5px; margin-top:6px; flex-wrap:wrap; }
+.chip { border:1px solid var(--kant); border-radius:999px; padding:3px 9px; font-size:11px; color:#374151; }
+.chip.valgt { background:var(--primar); border-color:var(--primar); color:#fff; font-weight:700; }
+.kilde { font-size:10px; color:var(--demp); margin-top:6px; font-style:italic; }
+.etikett { font-size:10px; font-weight:700; color:var(--demp); margin-top:7px; }
+.legg { color:var(--primar); font-weight:600; font-size:11px; margin-top:7px; }
+.btn { border-radius:9px; padding:10px 12px; font-weight:700; text-align:center; background:var(--primar); color:#fff; margin-top:8px; }
+.btn.sek { background:#fff; color:var(--demp); border:1px solid var(--kant); font-weight:600; }
+.fab { position:absolute; right:14px; bottom:16px; width:44px; height:44px; border-radius:50%; background:var(--primar); color:#fff; font-size:26px; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 10px rgba(37,99,235,.4); }
+.listerad { display:flex; justify-content:space-between; align-items:flex-start; gap:6px; padding:9px 4px; border-bottom:1px solid #f3f4f6; }
+.merk { font-size:11px; border-radius:8px; padding:6px 8px; margin:8px 0; background:var(--gul-bg); color:var(--gul); }
+.merk.ok { background:var(--gronn-bg); color:#166534; }
+.merk.galt { background:var(--rod-bg); color:var(--rod); }
+.ikon { color:var(--demp); letter-spacing:3px; white-space:nowrap; }
+.ikon.av { color:#d1d5db; text-decoration:line-through; }
+.fot { font-size:12px; color:var(--demp); max-width:1200px; }
+.fot b { color:#374151; }

@@ -2,146 +2,152 @@
 <html lang="nb">
 <head>
 <meta charset="utf-8">
-<title>Skisse — B89: ny dag ført for hånd på telefonen (prosjektkort-modus)</title>
+<title>Skisse — eksempeldagen ført for hånd på telefonen (prosjektkort-modus)</title>
 <!--
-  FORSLAG (Fabel 2026-11-24), ikke bygget. Kilde for b89-ny-dag.png (mobil-timeforing-plan.md § 5, B89).
-  Forenklet skisse, ikke skjermbilde. Øverste rad er tegnet etter koden på develop @ 4a126ed2
-  (DagsseddelListe.tsx:124-140, bekreft-dag.tsx, ProsjektkortDagsoversikt.tsx, TimerSeksjon.tsx:1043-2468).
-  Nederste rad er forslaget: samme mønster som web (RegistrerTimerKnapp.tsx:139-152, JobbSkjema.tsx:693-868).
-  Navn, tider og tall er eksempler.
-  Tegnet med Chrome uten vindu:
+  FORSLAG (Fabel 2026-11-24, revisjon 2), ikke bygget. Kilde for b89-ny-dag.png (mobil-timeforing-plan.md § 3).
+  Forenklet skisse, ikke skjermbilde. Øverste rad er tegnet etter koden på develop @ bcf29423
+  (bekreft-dag.tsx:1453-1513, 2281-2295; prosjektkort.tsx:378-385; ProsjektkortDagsoversikt.tsx:721-849;
+  kort/[projectId].tsx:576-597; tilleggUtleggSkriv.ts:40-43).
+  Nederste rad er forslaget: samme mønster som web (RegistrerTimerKnapp.tsx:101-136, dagsseddel.ts:2982-3056,
+  JobbSkjema.tsx:538-544 og 694-735, page.tsx:964-990 og 2446-2508).
+  Navn, tider og tall er eksempler (planen § 1).
+  Tegnet med Chrome uten vindu, og beskåret til innholdet:
     "Google Chrome" --headless=new --hide-scrollbars --force-device-scale-factor=2 \
-      --window-size=1180,1230 --screenshot=b89-ny-dag.png "file://…/skisser-b89.html"
+      --window-size=1260,2600 --screenshot=b89-ny-dag.png "file://…/skisser-b89.html"
 -->
-<style>
-  :root { --bg:#f3f4f6; --kant:#e5e7eb; --tekst:#111827; --demp:#6b7280; --primar:#2563eb; --primar-bg:#eff6ff; --gul-bg:#fef3c7; --gul:#92400e; --gronn:#16a34a; --gronn-bg:#ecfdf5; }
-  * { box-sizing:border-box; }
-  body { margin:0; background:var(--bg); color:var(--tekst); font:13px/1.4 -apple-system,"Inter","Segoe UI",Helvetica,Arial,sans-serif; }
-  .ark { width:1180px; padding:24px 26px; }
-  h1 { font-size:16px; margin:0 0 4px; }
-  .under { color:var(--demp); font-size:12px; margin-bottom:16px; }
-  .rad-tittel { display:flex; align-items:center; gap:10px; margin:6px 0 10px; }
-  .rad-tittel .et { font-size:12px; font-weight:800; padding:3px 10px; border-radius:999px; background:#111827; color:#fff; }
-  .rad-tittel .et.ja { background:var(--primar); }
-  .rad-tittel .tx { font-weight:700; font-size:14px; }
-  .rad-tittel .tall { font-size:12px; font-weight:700; padding:2px 9px; border-radius:999px; background:var(--gul-bg); color:var(--gul); }
-  .rad-tittel .tall.ja { background:var(--gronn-bg); color:#166534; }
-  .rad { display:flex; gap:14px; align-items:flex-start; margin-bottom:22px; }
-  .kol { width:270px; }
-  .steg { font-size:12px; font-weight:700; color:#1e3a8a; margin-bottom:6px; min-height:34px; }
-  .steg .n { display:inline-flex; width:20px; height:20px; border-radius:50%; background:var(--primar); color:#fff; align-items:center; justify-content:center; font-size:11px; margin-right:5px; }
-  .pil { align-self:center; color:#9ca3af; font-size:24px; }
-  .tlf { position:relative; background:#fff; border:1px solid #d1d5db; border-radius:22px; padding:12px 10px 14px; box-shadow:0 8px 24px rgba(0,0,0,.10); font-size:12px; min-height:430px; }
-  .topp { display:flex; justify-content:space-between; align-items:center; padding:2px 4px 8px; }
-  .topp .t { font-weight:700; font-size:14px; }
-  .topp .l { color:var(--primar); font-size:12px; }
-  .sum { border-radius:9px; padding:7px 9px; font-size:11px; margin-bottom:7px; background:var(--primar-bg); color:#1e3a8a; }
-  .kort { border:1px solid var(--kant); border-radius:11px; padding:8px 10px; margin-bottom:7px; background:#fff; }
-  .kort.aapen { border-color:#93c5fd; box-shadow:0 0 0 2px #dbeafe; }
-  .kort .h { display:flex; justify-content:space-between; font-weight:700; }
-  .kort .u { color:var(--demp); font-size:11px; }
-  .linje { display:flex; justify-content:space-between; padding:5px 0; border-top:1px solid #f3f4f6; margin-top:5px; }
-  .felt { border:1px solid #d1d5db; border-radius:8px; padding:6px 8px; margin-top:5px; display:flex; justify-content:space-between; }
-  .felt .e { color:var(--demp); font-size:11px; }
-  .felt.tom { color:#9ca3af; }
-  .to { display:flex; gap:6px; } .to .felt { flex:1; }
-  .chips { display:flex; gap:5px; margin-top:6px; flex-wrap:wrap; }
-  .chip { border:1px solid var(--kant); border-radius:999px; padding:3px 9px; font-size:11px; color:#374151; }
-  .chip.valgt { background:var(--primar); border-color:var(--primar); color:#fff; font-weight:700; }
-  .legg { color:var(--primar); font-weight:600; font-size:12px; margin-top:7px; }
-  .btn { border-radius:9px; padding:10px 12px; font-weight:700; text-align:center; background:var(--primar); color:#fff; margin-top:8px; }
-  .btn.sek { background:#fff; color:var(--demp); border:1px solid var(--kant); font-weight:600; }
-  .fab { position:absolute; right:14px; bottom:16px; width:44px; height:44px; border-radius:50%; background:var(--primar); color:#fff; font-size:26px; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 10px rgba(37,99,235,.4); }
-  .listerad { display:flex; justify-content:space-between; padding:9px 4px; border-bottom:1px solid #f3f4f6; }
-  .listerad .s { font-size:10px; font-weight:700; padding:1px 7px; border-radius:999px; background:#f3f4f6; color:var(--demp); }
-  .merk { font-size:11px; border-radius:8px; padding:6px 8px; margin-top:8px; background:var(--gul-bg); color:var(--gul); }
-  .merk.ok { background:var(--gronn-bg); color:#166534; }
-  .ark2 { position:absolute; left:8px; right:8px; bottom:8px; background:#fff; border:1px solid #d1d5db; border-radius:14px; padding:10px; box-shadow:0 -8px 24px rgba(0,0,0,.18); }
-  .dempet { opacity:.35; }
-  .fot { font-size:12px; color:var(--demp); max-width:1100px; }
-  .fot b { color:#374151; }
-</style>
+<link rel="stylesheet" href="skisser.css">
 </head>
 <body><div class="ark">
-<h1>B89 — ny dag ført for hånd på telefonen</h1>
-<div class="under">Firma i prosjektkort-modus. Forenklet skisse, ikke skjermbilde. Navn og tall er eksempler.</div>
+<h1>Eksempeldagen ført for hånd på telefonen — tre kort, tre aktiviteter</h1>
+<div class="under">Firma i prosjektkort-modus. Forenklet skisse, ikke skjermbilde. Navn og tall er eksempler (planen § 1).</div>
 
-<div class="rad-tittel"><span class="et">I DAG = VED NEI</span><span class="tx">«+» åpner skjemaet «Bekreft dagen». Etterpå rettes linjene i egne vinduer.</span><span class="tall">to ulike skjemaer for samme jobb</span></div>
+<div class="rad-tittel"><span class="et">I DAG</span><span class="tx">Hvert nytt kort føres i skjemaet «Bekreft dagen». Tillegg og utlegg føres på en egen skjerm, uten kortets id.</span><span class="tall">kostnad kan havne på feil kort</span></div>
 <div class="rad">
-  <div class="kol"><div class="steg"><span class="n">1</span>Timer-lista: trykk «+»</div>
-    <div class="tlf"><div class="topp"><span class="t">Timer</span><span class="l">uke 48</span></div>
-      <div class="listerad"><span>man 23. nov · 7,5 t</span><span class="s">Sendt</span></div>
-      <div class="listerad"><span>fre 20. nov · 8,0 t</span><span class="s">Attestert</span></div>
-      <div class="listerad"><span>tor 19. nov · 7,5 t</span><span class="s">Attestert</span></div>
-      <div class="fab">+</div></div></div>
-  <div class="pil">→</div>
-  <div class="kol"><div class="steg"><span class="n">2</span>«Bekreft dagen»: alt fylles ut her</div>
+  <div class="kol"><div class="steg"><span class="n">1</span>«+» åpner «Bekreft dagen». Verdiene er fylt inn, men ingenting er lagret.</div>
     <div class="tlf"><div class="topp"><span class="l">‹ Ikke nå</span><span class="t">Bekreft dagen</span><span></span></div>
-      <div class="sum">tir 24. nov · 7,5 t arbeid · norm 7,5 t</div>
-      <div class="kort"><div class="h"><span>Skolegården</span><span class="l" style="color:#2563eb;font-weight:600">Endre</span></div><div class="u">2041 · Parkveien 12</div>
+      <div class="sum">tir 24. nov · Arbeid 7,5 t · norm 7,5 t</div>
+      <div class="boks"><div class="o">Prosjekt · byggeplass · aktivitet — gjelder hele dagen</div>
+        <div class="linje" style="border:0;margin:0"><span><b>Skolegården</b><br>Parkveien 12 · Anleggsarbeid</span><span class="l" style="color:#2563eb;font-weight:600">Endre</span></div></div>
+      <div class="kort">
         <div class="to"><div class="felt"><span class="e">Fra</span>07:00</div><div class="felt"><span class="e">Til</span>15:00</div></div>
+        <div class="u" style="margin-top:5px">Arbeid 7,5 t (regnet ut — ikke et felt)</div>
         <div class="chips"><span class="chip valgt">Timelønn</span><span class="chip">Overtid 50 %</span></div>
-        <div class="felt"><span>Støpt kantstein, felt B</span></div>
+        <div class="felt tom"><span>Hva gjorde du?</span></div>
         <div class="legg">+ Maskin &nbsp;·&nbsp; + Varer</div></div>
-      <div class="legg">+ Nytt prosjektkort</div>
-      <div class="merk">Ingenting er lagret før du trykker knappen. Går du ut, ligger dagen som «Ikke bekreftet».</div>
+      <div class="merk">For 4 timer må Til settes til 11:30 for hånd. Aktiviteten endres i boksen øverst og gjelder hele skjemaet.</div>
       <div class="btn">Bekreft og lagre</div></div></div>
   <div class="pil">→</div>
-  <div class="kol"><div class="steg"><span class="n">3</span>Dagen: kort med linjer</div>
+  <div class="kol"><div class="steg"><span class="n">2</span>Kort 2: «+ Nytt prosjektkort» åpner «Bekreft dagen» på nytt.</div>
+    <div class="tlf"><div class="topp"><span class="l">‹ Ikke nå</span><span class="t">Bekreft dagen</span><span></span></div>
+      <div class="sum">tir 24. nov (låst) · Arbeid 2,5 t</div>
+      <div class="boks"><div class="o">Prosjekt · byggeplass · aktivitet — gjelder hele dagen</div>
+        <div class="linje" style="border:0;margin:0"><span><b>Skolegården</b><br>Parkveien 12 · Steinlegging</span><span class="l" style="color:#2563eb;font-weight:600">Endre</span></div></div>
+      <div class="kort">
+        <div class="to"><div class="felt"><span class="e">Fra</span>11:30</div><div class="felt"><span class="e">Til</span>14:00</div></div>
+        <div class="etikett">Underprosjekt</div>
+        <div class="chips" style="margin-top:3px"><span class="chip">Ingen</span><span class="chip valgt">E-014 Ekstra kantstein</span></div>
+        <div class="chips"><span class="chip valgt">Timelønn</span><span class="chip">Overtid 50 %</span></div>
+        <div class="felt"><span>Satt kantstein, felt B</span></div>
+        <div class="legg">+ Maskin &nbsp;·&nbsp; + Varer</div></div>
+      <div class="merk">Fra er forrige korts til-tid. Tillegg og utlegg kan ikke føres her.</div>
+      <div class="btn">Bekreft og lagre</div></div></div>
+  <div class="pil">→</div>
+  <div class="kol"><div class="steg"><span class="n">3</span>Dagen: tre kort med linjer. Hodet viser ikke aktiviteten.</div>
     <div class="tlf"><div class="topp"><span class="l">‹ Timer</span><span class="t">tir 24. nov</span><span></span></div>
       <div class="sum">7,5 av 7,5 t · Kladd</div>
-      <div class="kort"><div class="h"><span>Skolegården</span><span>7,5 t</span></div><div class="u">Parkveien 12</div>
-        <div class="linje"><span>07:00–15:00 · Timelønn</span><span>7,5 t</span></div>
-        <div class="legg">+ Maskin &nbsp;·&nbsp; + Vare</div></div>
-      <div class="kort"><div class="h"><span>Dagen</span></div><div class="legg" style="margin-top:3px">+ Reise</div></div>
+      <div class="kort"><div class="h"><span>Skolegården</span><span>4,0 t</span></div><div class="u">Parkveien 12</div>
+        <div class="linje"><span>07:00–11:30 · Timelønn</span><span class="v">4,0 t</span></div>
+        <div class="linje kost"><span><span class="ty">↳</span> Gravemaskin CAT 308</span><span class="v">3,0 t</span></div>
+        <div class="linje kost"><span><span class="ty">↳</span> Drensrør 110 mm</span><span class="v">12 m</span></div></div>
+      <div class="kort"><div class="h"><span>Skolegården</span><span>2,5 t</span></div><div class="u">Parkveien 12 · E-014 Ekstra kantstein · Tillegg 1</div>
+        <div class="linje"><span>11:30–14:00 · Timelønn</span><span class="v">2,5 t</span></div>
+        <div class="linje kost"><span><span class="ty">↳</span> Kantstein granitt</span><span class="v">18 m</span></div></div>
+      <div class="kort"><div class="h"><span>Torget</span><span>1,0 t</span></div><div class="u">Storgata 3 · Utlegg 1</div>
+        <div class="linje"><span>14:00–15:00 · Timelønn</span><span class="v">1,0 t</span></div>
+        <div class="linje kost"><span><span class="ty">↳</span> Vibroplate</span><span class="v">1,0 t</span></div></div>
+      <div class="kort"><div class="h"><span>Dagen</span></div>
+        <div class="linje kost"><span>Reise · Tur 06:30–07:00</span><span class="v">0,5 t</span></div>
+        <div class="linje kost"><span>Reise · Retur 15:00–15:30</span><span class="v">0,5 t</span></div></div>
       <div class="btn">Send dagen</div></div></div>
   <div class="pil">→</div>
-  <div class="kol"><div class="steg"><span class="n">4</span>Rette en linje: eget vindu med «Lagre»</div>
-    <div class="tlf"><div class="dempet"><div class="topp"><span class="l">‹ Timer</span><span class="t">tir 24. nov</span><span></span></div>
-      <div class="sum">7,5 av 7,5 t · Kladd</div>
-      <div class="kort"><div class="h"><span>Skolegården</span><span>7,5 t</span></div></div></div>
-      <div class="ark2"><div class="topp"><span class="t">Rediger linje</span><span class="l">Avbryt</span></div>
-        <div class="felt"><span class="e">Prosjekt</span>Skolegården</div>
-        <div class="felt"><span class="e">Lønnsart</span>Timelønn</div>
-        <div class="felt"><span class="e">Aktivitet</span>Anleggsarbeid</div>
-        <div class="to"><div class="felt"><span class="e">Fra</span>07:00</div><div class="felt"><span class="e">Til</span>15:00</div></div>
-        <div class="felt"><span class="e">Hva gjorde du?</span></div>
-        <div class="btn">Lagre</div></div></div></div>
+  <div class="kol"><div class="steg"><span class="n">4</span>Tillegg og utlegg: egen skjerm for kortet. Lagres uten kortets id.</div>
+    <div class="tlf"><div class="topp"><span class="l">‹ tir 24. nov</span><span class="t">Skolegården</span><span></span></div>
+      <div class="sum">Parkveien 12 · E-014 Ekstra kantstein</div>
+      <div class="kort"><div class="h"><span>Tillegg</span></div>
+        <div class="linje"><span>Smusstillegg</span><span class="v">2,5 t</span></div>
+        <div class="legg">+ Tillegg</div></div>
+      <div class="kort"><div class="h"><span>Utlegg</span></div>
+        <div class="legg" style="margin-top:3px">+ Utlegg</div></div>
+      <div class="merk">Linja lagres med byggeplass og underprosjekt. Serveren legger den på det eldste kortet med samme sted.</div>
+      <div class="merk galt"><b>Varianten</b> (kort 2 uten underprosjekt, altså samme sted som kort 1): smusstillegget havner på kort 1 (Graving), ikke kort 2 (Steinlegging). Lest ut av koden, ikke kjørt.</div></div></div>
 </div>
 
-<div class="rad-tittel"><span class="et ja">VED JA</span><span class="tx">Som på PC: «+» lager dagen og åpner kortet. Kortet er skjemaet, og feltene lagres når du går ut av dem.</span><span class="tall ja">ett skjema, også når du retter</span></div>
+<div class="rad-tittel"><span class="et ja">ETTER PLANEN</span><span class="tx">Som på PC: kortet er skjemaet, det er forhåndsutfylt, og alt som hører til jobben, føres i kortet.</span><span class="tall ja">kostnaden står i kortet den hører til</span></div>
 <div class="rad">
-  <div class="kol"><div class="steg"><span class="n">1</span>Timer-lista: trykk «+»</div>
-    <div class="tlf"><div class="topp"><span class="t">Timer</span><span class="l">uke 48</span></div>
-      <div class="listerad"><span>man 23. nov · 7,5 t</span><span class="s">Sendt</span></div>
-      <div class="listerad"><span>fre 20. nov · 8,0 t</span><span class="s">Attestert</span></div>
-      <div class="listerad"><span>tor 19. nov · 7,5 t</span><span class="s">Attestert</span></div>
-      <div class="fab">+</div></div></div>
-  <div class="pil">→</div>
-  <div class="kol"><div class="steg"><span class="n">2</span>Dagen er laget. Kortet står åpent og tomt.</div>
+  <div class="kol"><div class="steg"><span class="n">1</span>«+»: dagen er lagret, og kort 1 står åpent med det samme som PC fyller inn.</div>
     <div class="tlf"><div class="topp"><span class="l">‹ Timer</span><span class="t">tir 24. nov</span><span></span></div>
-      <div class="sum">0 av 7,5 t · Kladd</div>
-      <div class="kort aapen"><div class="h"><span>Skolegården</span><span class="l" style="color:#2563eb;font-weight:600">Bytt</span></div><div class="u">2041 · Parkveien 12</div>
-        <div class="to"><div class="felt tom"><span class="e">Fra</span>—</div><div class="felt tom"><span class="e">Til</span>—</div></div>
+      <div class="sum">7,5 av 7,5 t · Kladd</div>
+      <div class="kort aapen"><div class="h"><span>Skolegården</span><span class="lenke">Bytt</span></div><div class="u">2041 · Parkveien 12</div>
+        <div class="etikett">Underprosjekt</div>
+        <div class="chips" style="margin-top:3px"><span class="chip valgt">Ingen</span><span class="chip">E-014 Ekstra kantstein</span></div>
+        <div class="felt"><span class="e">Aktivitet</span>Anleggsarbeid ▾</div>
+        <div class="fire"><div class="felt"><span class="e">Fra</span>07:00</div><div class="felt"><span class="e">Til</span>15:00</div><div class="felt"><span class="e">Pause</span>30</div><div class="felt"><span class="e">Timer</span>7,5</div></div>
+        <div class="kilde">fra firmaets arbeidstid</div>
         <div class="chips"><span class="chip valgt">Timelønn</span><span class="chip">Overtid 50 %</span></div>
         <div class="felt tom"><span>Hva gjorde du?</span></div>
         <div class="legg">+ Reise &nbsp;·&nbsp; + Maskin &nbsp;·&nbsp; + Vare &nbsp;·&nbsp; + Tillegg/utlegg</div></div>
-      <div class="legg">+ Nytt prosjektkort</div>
-      <div class="btn sek">Send dagen</div></div></div>
+      <div class="legg">+ Registrer timer</div>
+      <div class="merk ok">Tomt er bare underprosjekt og «Hva gjorde du?» — som på PC.</div></div></div>
   <div class="pil">→</div>
-  <div class="kol"><div class="steg"><span class="n">3</span>Fyll ut i kortet. Samme kort når du retter senere.</div>
+  <div class="kol"><div class="steg"><span class="n">2</span>Skriv 4 i Timer: Til blir 11:30. Maskin, vare og reise føres i kortet.</div>
     <div class="tlf"><div class="topp"><span class="l">‹ Timer</span><span class="t">tir 24. nov</span><span></span></div>
-      <div class="sum">7,5 av 7,5 t · sum i dag 8,0 t · Kladd</div>
-      <div class="kort aapen"><div class="h"><span>Skolegården</span><span>7,5 t</span></div><div class="u">2041 · Parkveien 12</div>
-        <div class="to"><div class="felt"><span class="e">Fra</span>07:00</div><div class="felt"><span class="e">Til</span>15:00</div></div>
+      <div class="sum">4,0 av 7,5 t · sum i dag 4,5 t · Kladd</div>
+      <div class="kort aapen"><div class="h"><span>Skolegården</span><span>4,0 t</span></div><div class="u">2041 · Parkveien 12</div>
+        <span class="akt">Graving</span>
+        <div class="fire"><div class="felt"><span class="e">Fra</span>07:00</div><div class="felt"><span class="e">Til</span>11:30</div><div class="felt"><span class="e">Pause</span>30</div><div class="felt hev"><span class="e">Timer</span>4</div></div>
         <div class="chips"><span class="chip valgt">Timelønn</span><span class="chip">Overtid 50 %</span></div>
-        <div class="felt"><span>Støpt kantstein, felt B</span></div>
-        <div class="linje"><span>Reise · Tur · 06:30–07:00</span><span>0,5 t</span></div>
-        <div class="linje"><span>Gravemaskin CAT 308</span><span>3,0 t</span></div>
+        <div class="felt"><span>Gravd grøft for drensrør</span></div>
+        <div class="linje kost"><span><span class="ty">Reise</span> · Tur 06:30–07:00</span><span class="v">0,5 t</span></div>
+        <div class="linje kost"><span><span class="ty">Maskin</span> · Gravemaskin CAT 308</span><span class="v">3,0 t</span></div>
+        <div class="linje kost"><span><span class="ty">Vare</span> · Drensrør 110 mm</span><span class="v">12 m</span></div>
         <div class="legg">+ Reise &nbsp;·&nbsp; + Maskin &nbsp;·&nbsp; + Vare &nbsp;·&nbsp; + Tillegg/utlegg</div></div>
-      <div class="merk ok">Lagret på telefonen. Sendes til serveren når det er nett.</div>
-      <div class="btn">Send dagen (7,5 t · reise 0,5 t)</div></div></div>
+      <div class="legg">+ Registrer timer</div>
+      <div class="merk ok">Hvert felt lagres når du går ut av det. Virker uten nett.</div></div></div>
+  <div class="pil">→</div>
+  <div class="kol"><div class="steg"><span class="n">3</span>«+ Registrer timer»: kort 2 åpnes fra 11:30 med egen kort-id.</div>
+    <div class="tlf"><div class="topp"><span class="l">‹ Timer</span><span class="t">tir 24. nov</span><span></span></div>
+      <div class="sum">6,5 av 7,5 t · sum i dag 7,0 t · Kladd</div>
+      <div class="kort"><div class="h"><span>Skolegården</span><span>4,0 t</span></div><div class="u">Parkveien 12 · 07:00–11:30</div><span class="akt">Graving</span></div>
+      <div class="kort aapen"><div class="h"><span>Skolegården</span><span>2,5 t</span></div><div class="u">2041 · Parkveien 12</div>
+        <div class="etikett">Underprosjekt</div>
+        <div class="chips" style="margin-top:3px"><span class="chip">Ingen</span><span class="chip valgt">E-014 Ekstra kantstein</span></div>
+        <div class="felt"><span class="e">Aktivitet</span>Steinlegging ▾</div>
+        <div class="fire"><div class="felt"><span class="e">Fra</span>11:30</div><div class="felt"><span class="e">Til</span>14:00</div><div class="felt"><span class="e">Pause</span>0</div><div class="felt"><span class="e">Timer</span>2,5</div></div>
+        <div class="kilde">fra slutten på forrige jobb</div>
+        <div class="chips"><span class="chip valgt">Timelønn</span><span class="chip">Overtid 50 %</span></div>
+        <div class="felt"><span>Satt kantstein, felt B</span></div>
+        <div class="linje kost"><span><span class="ty">Vare</span> · Kantstein granitt</span><span class="v">18 m</span></div>
+        <div class="linje kost"><span><span class="ty">Tillegg</span> · Smusstillegg</span><span class="v">2,5 t</span></div>
+        <div class="legg">+ Reise &nbsp;·&nbsp; + Maskin &nbsp;·&nbsp; + Vare &nbsp;·&nbsp; + Tillegg/utlegg</div></div>
+      <div class="legg">+ Registrer timer</div></div></div>
+  <div class="pil">→</div>
+  <div class="kol"><div class="steg"><span class="n">4</span>Dagen: tre kort. Kostnaden står i kortet den hører til.</div>
+    <div class="tlf"><div class="topp"><span class="l">‹ Timer</span><span class="t">tir 24. nov</span><span></span></div>
+      <div class="sum">7,5 av 7,5 t · sum i dag 8,5 t · Kladd</div>
+      <div class="kort"><div class="h"><span>Skolegården</span><span>4,0 t</span></div><div class="u">Parkveien 12 · 07:00–11:30</div><span class="akt">Graving</span>
+        <div class="linje kost"><span><span class="ty">Reise</span> · Tur</span><span class="v">0,5 t</span></div>
+        <div class="linje kost"><span><span class="ty">Maskin</span> · Gravemaskin CAT 308</span><span class="v">3,0 t</span></div>
+        <div class="linje kost"><span><span class="ty">Vare</span> · Drensrør 110 mm</span><span class="v">12 m</span></div></div>
+      <div class="kort"><div class="h"><span>Skolegården</span><span>2,5 t</span></div><div class="u">Parkveien 12 · E-014 Ekstra kantstein · 11:30–14:00</div><span class="akt">Steinlegging</span>
+        <div class="linje kost"><span><span class="ty">Vare</span> · Kantstein granitt</span><span class="v">18 m</span></div>
+        <div class="linje kost"><span><span class="ty">Tillegg</span> · Smusstillegg</span><span class="v">2,5 t</span></div></div>
+      <div class="kort"><div class="h"><span>Torget</span><span>1,0 t</span></div><div class="u">Storgata 3 · 14:00–15:00</div><span class="akt">Asfaltering</span>
+        <div class="linje kost"><span><span class="ty">Maskin</span> · Vibroplate</span><span class="v">1,0 t</span></div>
+        <div class="linje kost"><span><span class="ty">Utlegg</span> · Parkering</span><span class="v">85 kr</span></div>
+        <div class="linje kost"><span><span class="ty">Reise</span> · Retur</span><span class="v">0,5 t</span></div></div>
+      <div class="legg">+ Registrer timer</div>
+      <div class="btn">Send dagen (7,5 t · reise 1,0 t)</div></div></div>
 </div>
 
-<div class="fot"><b>Forskjellen:</b> i dag føres en ny jobb i skjemaet «Bekreft dagen» (ingenting lagres før knappen), og rettes etterpå i egne vinduer med «Lagre». Ved ja føres og rettes jobben på samme sted, i kortet, slik PC-en gjør. «Bekreft dagen» brukes da bare når dagen er startet med «Start dag» (GPS). Begge virker uten nett. Reisen er tegnet i jobbens kort i nederste rad; det er vedtatt fra før (B34 B, B43 B) og gjelder uansett svar.</div>
+<div class="fot"><b>Forskjellen:</b> i dag føres hvert nytt kort i «Bekreft dagen», rettes i egne vinduer, og tillegg, utlegg og varer uten timelinje lagres uten kortets id. Etter planen føres og rettes jobben i kortet, og alt som føres i et kort, lagres med det kortets id (M4, M8). <b>Den blå brikken med aktiviteten i kortets hode gjelder ved ja på B92.</b> Ved nei velges aktiviteten i kortet, men vises ikke i hodet. Begge rader virker uten nett.</div>
 </div></body></html>
