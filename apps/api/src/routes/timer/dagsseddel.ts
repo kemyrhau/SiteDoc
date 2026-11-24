@@ -124,6 +124,11 @@ import {
   beregnUkeOvertidsgrunnlag,
   type OvertidRad,
   ukeAvvikRader,
+  beregnUkeregnestykke,
+  ukevarselRader,
+  lesFrossetUkeFraSnapshot,
+  type Ukeregnestykke,
+  type FrossetUkeregnestykke,
   type UkeAvvikRadInput,
   maskinKreverTimerad,
   erGyldigTimeradKobling,
@@ -2282,24 +2287,49 @@ async function byggUkeOvertidsgrunnlag(
   return (await lastUkeOvertid(prismaTimer, organizationId, userId, dato)).grunnlag;
 }
 
+/** A4: ukeregnestykket for én ansatt og uke, slik attesteringen viser det. */
+export interface UkeInfo {
+  /** Mandagen (ISO). */
+  ukestart: string;
+  regnestykke: Ukeregnestykke;
+  /** Alle arbeidsdager (man–fre med norm) er sendt eller attestert, eller uka er over. */
+  komplett: boolean;
+  /** Arbeidsdagene uten sendt eller attestert dagsseddel (ISO). */
+  manglerDager: string[];
+}
+
+/** Dagens dato i Norge (ISO) — avgjør om uka er over. */
+function idagOslo(): string {
+  return new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Oslo" });
+}
+
 /**
  * Ukens overtidsgrunnlag + radene det er regnet av (ordre d2a: leserne peker ut
- * radene ukeavviket gjelder). Regnestykket er uendret — `byggUkeOvertidsgrunnlag`
- * gir bare `grunnlag` videre.
+ * radene ukeavviket gjelder).
+ *
+ * A4 (plan § 4.17 del B, B85 ja; retter AM12): mandag–søndag, uten reise, og bare
+ * dager som er sendt eller attestert — samme dager attesteringen viser. Ukeregnestykket
+ * (`beregnUkeregnestykke`) er det samme skjermen viser og snapshotet fryser.
  */
 async function lastUkeOvertid(
   prismaTimer: PrismaTimerKlient,
   organizationId: string,
   userId: string,
   dato: Date,
-): Promise<{ grunnlag: Overtidsgrunnlag; rader: UkeAvvikRadInput[]; dagsnorm: Map<string, number> }> {
+): Promise<{
+  grunnlag: Overtidsgrunnlag;
+  uke: UkeInfo;
+  rader: UkeAvvikRadInput[];
+  dagsnorm: Map<string, number>;
+}> {
   const ukestart = mandagIso(dato);
-  const ukeslutt = leggTilDagerIso(ukestart, 4); // fredag
+  const ukeslutt = leggTilDagerIso(ukestart, 6); // søndag
 
-  // Effektiv (sommertid-bevisst) dagsnorm for ukens fem arbeidsdager.
+  // Effektiv (sommertid-bevisst) dagsnorm for ukens sju dager. Helg/helligdag leses
+  // ikke her (H1a); ukenormen er fortsatt firmaets man–fre (B52 A).
   const dagsnormMap = new Map<string, number>();
   await Promise.all(
-    [0, 1, 2, 3, 4].map(async (i) => {
+    [0, 1, 2, 3, 4, 5, 6].map(async (i) => {
       const iso = leggTilDagerIso(ukestart, i);
       const eff = await hentEffektivArbeidstid(
         organizationId,
@@ -2309,30 +2339,34 @@ async function lastUkeOvertid(
     }),
   );
   const uke = beregnUkenorm(ukestart, (iso) => dagsnormMap.get(iso) ?? 0);
+  const ukeVindu = {
+    gte: new Date(`${ukestart}T00:00:00.000Z`),
+    lte: new Date(`${ukeslutt}T23:59:59.999Z`),
+  };
 
-  // Ukens aktive timer-rader for brukeren (org-isolert, ikke-erstattet).
-  const rader = await prismaTimer.sheetTimer.findMany({
-    where: {
-      attestertStatus: { not: "erstattet" },
-      sheet: {
-        organizationId,
-        userId,
-        dato: {
-          gte: new Date(`${ukestart}T00:00:00.000Z`),
-          lte: new Date(`${ukeslutt}T23:59:59.999Z`),
-        },
+  // Ukens aktive timer-rader for brukeren (org-isolert, ikke-erstattet) på sendte og
+  // attesterte dager. Utkast og returnerte dager er «dager som mangler» (B53 A).
+  const [rader, sendteDager] = await Promise.all([
+    prismaTimer.sheetTimer.findMany({
+      where: {
+        attestertStatus: { not: "erstattet" },
+        sheet: { organizationId, userId, status: { in: ["sent", "accepted"] }, dato: ukeVindu },
       },
-    },
-    select: {
-      id: true,
-      fraTid: true,
-      createdAt: true,
-      timer: true,
-      erReise: true,
-      sheet: { select: { dato: true } },
-      lonnsart: { select: { overtidsnivaa: true, type: true } },
-    },
-  });
+      select: {
+        id: true,
+        fraTid: true,
+        createdAt: true,
+        timer: true,
+        erReise: true,
+        sheet: { select: { dato: true } },
+        lonnsart: { select: { overtidsnivaa: true, type: true } },
+      },
+    }),
+    prismaTimer.dailySheet.findMany({
+      where: { organizationId, userId, status: { in: ["sent", "accepted"] }, dato: ukeVindu },
+      select: { dato: true },
+    }),
+  ]);
 
   // F-F1 (kort-id-spec § 11.10.4): fravær er ikke arbeid, men fyller dagens norm i
   // ukesummen (aldri mer) — derfor gruppert pr. dato med datoens dagsnorm.
@@ -2352,25 +2386,41 @@ async function lastUkeOvertid(
     perDato.set(iso, liste);
     avvikRader.push({ ...rad, id: r.id, dato: iso, fraTid: r.fraTid, createdAt: r.createdAt });
   }
-  const grunnlag = beregnUkeOvertidsgrunnlag(
-    [...perDato].map(([iso, liste]) => ({ dagsnorm: dagsnormMap.get(iso) ?? 0, rader: liste })),
-    uke.norm,
-  );
-  return { grunnlag, rader: avvikRader, dagsnorm: dagsnormMap };
+  const dager = [...perDato].map(([iso, liste]) => ({ dato: iso, dagsnorm: dagsnormMap.get(iso) ?? 0, rader: liste }));
+  const regnestykke = beregnUkeregnestykke(dager, uke.norm);
+  const grunnlag = beregnUkeOvertidsgrunnlag(dager, uke.norm);
+
+  // B53 A: uka er komplett når alle arbeidsdager (man–fre med norm) er sendt eller
+  // attestert, eller uka er over.
+  const sendt = new Set(sendteDager.map((d) => d.dato.toISOString().slice(0, 10)));
+  const manglerDager = uke.perDag.filter((d) => d.dagsnorm > 0 && !sendt.has(d.dato)).map((d) => d.dato);
+  const komplett = manglerDager.length === 0 || idagOslo() > ukeslutt;
+  return {
+    // A4 RETUR vilkår 2: `komplett` og dagene som mangler fryses sammen med regnestykket.
+    grunnlag: { ...grunnlag, ukeregnestykke: regnestykke, ukeKomplett: komplett, ukeManglerDager: manglerDager },
+    uke: { ukestart, regnestykke, komplett, manglerDager },
+    rader: avvikRader,
+    dagsnorm: dagsnormMap,
+  };
 }
 
+/** Det frosne ukegrunnlaget på en ferdig attestert sedel (detaljen). */
+type FrossetUke = { grunnlag: Overtidsgrunnlag | null; uke: FrossetUkeregnestykke | null };
+
 /**
- * Ordre d2a: pr. sedel id-ene til radene ukeavviket peker på (bare sedelens egne
- * rader). Én lasting pr. (firma, ansatt, uke). `grunnlagFor` lar detaljen bruke
- * frosset grunnlag på ferdig attestert sedel.
+ * Ordre d2a / A4: pr. sedel id-ene til radene ukevarselet peker på (bare sedelens egne
+ * rader) og ukeregnestykket. Én lasting pr. (firma, ansatt, uke). Linjene pekes ut først
+ * når uka er komplett (B53 A). `frosset` lar detaljen bruke frosset regnestykke på ferdig
+ * attestert sedel; snapshots fra før A4 har bare grunnlaget og pekes ut som før.
  */
 async function hentUkeAvvikRadIder(
   prismaTimer: PrismaTimerKlient,
   sedler: ReadonlyArray<{ id: string; organizationId: string; userId: string; dato: Date; timer: ReadonlyArray<{ id: string }> }>,
-  grunnlagFor?: (sheetId: string) => Overtidsgrunnlag | null,
-): Promise<Map<string, string[]>> {
+  frosset?: (sheetId: string) => FrossetUke | null,
+): Promise<{ ider: Map<string, string[]>; uke: Map<string, UkeInfo> }> {
   const uker = new Map<string, Promise<Awaited<ReturnType<typeof lastUkeOvertid>>>>();
-  const resultat = new Map<string, string[]>();
+  const ider = new Map<string, string[]>();
+  const ukeInfo = new Map<string, UkeInfo>();
   await Promise.all(
     sedler.map(async (s) => {
       const nokkel = `${s.organizationId}:${s.userId}:${mandagIso(s.dato)}`;
@@ -2380,13 +2430,24 @@ async function hentUkeAvvikRadIder(
         uker.set(nokkel, uke);
       }
       const u = await uke;
-      const g = grunnlagFor?.(s.id) ?? u.grunnlag;
+      const f = frosset?.(s.id) ?? null;
+      const dagsnorm = (iso: string) => u.dagsnorm.get(iso) ?? 0;
       const egne = new Set(s.timer.map((r) => r.id));
-      const ider = ukeAvvikRader(u.rader, g, (iso) => u.dagsnorm.get(iso) ?? 0);
-      resultat.set(s.id, ider.filter((id) => egne.has(id)));
+      // A4 RETUR vilkår 2: et frosset regnestykke brukes bare når uka var komplett da det
+      // ble fryst. Ellers regnes uka live, som i lista — samme regnestykke begge steder.
+      const fryst = f?.uke?.komplett ? f.uke : null;
+      const alle = fryst
+        ? ukevarselRader(u.rader, fryst.regnestykke, dagsnorm)
+        : f?.grunnlag && !f.uke
+          ? ukeAvvikRader(u.rader, f.grunnlag, dagsnorm)
+          : u.uke.komplett
+            ? ukevarselRader(u.rader, u.uke.regnestykke, dagsnorm)
+            : [];
+      ider.set(s.id, alle.filter((id) => egne.has(id)));
+      ukeInfo.set(s.id, fryst ? { ...u.uke, regnestykke: fryst.regnestykke, komplett: true, manglerDager: fryst.manglerDager } : u.uke);
     }),
   );
-  return resultat;
+  return { ider, uke: ukeInfo };
 }
 
 // ---------------------------------------------------------------------------
@@ -2420,6 +2481,8 @@ interface KortBerikelse {
   varer: Map<string, SedelVare[]>;
   rettede: Map<string, RettetFelt[]>;
   ukeAvvik: Map<string, string[]>;
+  /** A4: ukeregnestykket pr. sedel (samme objekt for sedlene i samme uke). */
+  uke: Map<string, UkeInfo>;
 }
 
 /** Ett batchet oppslag for alle sedlene leseren gir tilbake. */
@@ -2440,7 +2503,7 @@ async function lastKortBerikelse(
     tillegg: ReadonlyArray<RadMedKort>;
     maskiner: ReadonlyArray<MaskinRadForBerikelse>;
   }>,
-  grunnlagFor?: (sheetId: string) => Overtidsgrunnlag | null,
+  frosset?: (sheetId: string) => FrossetUke | null,
 ): Promise<KortBerikelse> {
   const [sted, utstyr, varer, rettede, ukeAvvik] = await Promise.all([
     hentKortStedNavn(
@@ -2462,9 +2525,9 @@ async function lastKortBerikelse(
         ...s.maskiner.map((rad) => ({ type: "maskin" as const, rad })),
       ]),
     ),
-    hentUkeAvvikRadIder(ctx.prismaTimer, sedler, grunnlagFor),
+    hentUkeAvvikRadIder(ctx.prismaTimer, sedler, frosset),
   ]);
-  return { sted, utstyr, varer, rettede, ukeAvvik };
+  return { sted, utstyr, varer, rettede, ukeAvvik: ukeAvvik.ider, uke: ukeAvvik.uke };
 }
 
 /**
@@ -7589,6 +7652,25 @@ export const dagsseddelRouter = router({
         sedler.flatMap((s) => s.utlegg.map((u) => ({ id: u.id, projectId: u.projectId, organizationId: s.organizationId }))),
       );
 
+      // A4 RETUR vilkår 1 (B54 A): prosjektlederen får ukas totaltall, men tall pr. dag
+      // bare for datoene der hen ser en sedel (ansatt + uke). Dager på andre prosjekter og
+      // dager med bare fravær uten prosjekt står ikke i `dager[]`.
+      const synligeDager = new Map<string, Set<string>>();
+      if (leder) {
+        for (const s of sedler) {
+          const nokkel = `${s.userId}:${mandagIso(s.dato)}`;
+          const sett = synligeDager.get(nokkel) ?? new Set<string>();
+          sett.add(s.dato.toISOString().slice(0, 10));
+          synligeDager.set(nokkel, sett);
+        }
+      }
+      const ukeFor = (s: (typeof sedler)[number]): UkeInfo | null => {
+        const u = kort.uke.get(s.id) ?? null;
+        if (!u || !leder) return u;
+        const sett = synligeDager.get(`${s.userId}:${mandagIso(s.dato)}`) ?? new Set<string>();
+        return { ...u, regnestykke: { ...u.regnestykke, dager: u.regnestykke.dager.filter((d) => sett.has(d.dato)) } };
+      };
+
       return sedler.map((s) => {
         // Første rad MED prosjekt (fravær uten prosjekt bærer ikke sedelens prosjekt).
         const projectId = s.timer.find((r) => r.projectId)?.projectId ?? null;
@@ -7635,6 +7717,9 @@ export const dagsseddelRouter = router({
           // Ordre d2a: varer pr. sedel og radene ukeavviket peker på.
           varer: kort.varer.get(s.id) ?? [],
           ukeAvvikRadIder: kort.ukeAvvik.get(s.id) ?? [],
+          // A4 (B50 A, B54 A): ukas regnestykke for ukelinja — ukas totaltall, også for
+          // prosjektlederen; dagstallene bare for dager hen ser (vilkår 1).
+          uke: ukeFor(s),
           fravaerKanAttesteres: fravaerRett.get(s.id) ?? false,
           // w7 (B15): sedelen er den innloggedes egen og firmaet sier Nei — PC/telefon skjuler knappene.
           egneTimer: egne.has(s.id),
@@ -7916,10 +8001,11 @@ export const dagsseddelRouter = router({
 
       // Ordre d2a: kort-berikelsen. Ferdig attestert sedel peker ukeavviket ut
       // fra det frosne grunnlaget (samme kilde som banneret under).
-      const frosset =
-        sheet.status === "accepted"
-          ? lesOvertidsgrunnlagFraSnapshot(timer.find((r) => r.attestertSnapshot)?.attestertSnapshot)
-          : null;
+      // A4: snapshots fra A4 og senere har ukeregnestykket; eldre bare grunnlaget.
+      const snap = sheet.status === "accepted" ? timer.find((r) => r.attestertSnapshot)?.attestertSnapshot : null;
+      const frosset: FrossetUke | null = snap
+        ? { grunnlag: lesOvertidsgrunnlagFraSnapshot(snap), uke: lesFrossetUkeFraSnapshot(snap) }
+        : null;
       const kortBerikelse = await lastKortBerikelse(
         ctx,
         [{ ...sheet, timer, tillegg, maskiner }],
@@ -7980,6 +8066,14 @@ export const dagsseddelRouter = router({
         maskiner.length > 0 &&
         !(await harGyldigMaskinforerbevis(sheet.userId, sheet.organizationId));
 
+      const ukeRa = kortBerikelse.uke.get(sheet.id) ?? null;
+      const detaljOmfang = ukeRa ? await attesteringsOmfang(ctx.userId, sheet.organizationId) : null;
+      const sedelIso = sheet.dato.toISOString().slice(0, 10);
+      const ukeDetalj: UkeInfo | null =
+        ukeRa && detaljOmfang?.type !== "alle"
+          ? { ...ukeRa, regnestykke: { ...ukeRa.regnestykke, dager: ukeRa.regnestykke.dager.filter((d) => d.dato === sedelIso) } }
+          : ukeRa;
+
       // ORDRE 2 STEG 3 ledd 2 (D2): uke-overtidsgrunnlag for detalj-banneret.
       // Kilde-regel (uendret fra STEG 1): attestert sedel leser FROSSET snapshot
       // (tallene som gjaldt ved attestering, ikke live omregning); uattestert
@@ -8025,6 +8119,9 @@ export const dagsseddelRouter = router({
           vedlegg: utleggVedlegg.get(u.id) ?? [],
         })),
         ukeAvvikRadIder: kortBerikelse.ukeAvvik.get(sheet.id) ?? [],
+        // A4 RETUR vilkår 4: banneret leser ukas regnestykke (frosset når uka var komplett ved
+        // attestering, ellers live). Prosjektlederen får dagstall bare for denne dagen (B54 A).
+        uke: ukeDetalj,
         prosjekt: prosjekt && navnSynlig(prosjekt.id) ? prosjekt : null,
         // Ordre d2b-3 (c): effektiv dagsnorm for datoen; 0 = ukjent (klienten viser ingen norm).
         dagsnorm,

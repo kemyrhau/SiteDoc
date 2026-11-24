@@ -13,7 +13,7 @@ import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Button, Modal, Spinner } from "@sitedoc/ui";
 import { ArrowLeft, Pencil, RotateCcw, AlertTriangle } from "lucide-react";
-import { avvikRetning, type ForsonRad } from "@sitedoc/shared";
+import type { ForsonRad } from "@sitedoc/shared";
 import { StatusBadge } from "@/components/timer/StatusBadge";
 import { ForslagValgSeksjon } from "@/components/timer/ForslagValgSeksjon";
 import { AttesteringDetaljEdit } from "@/components/timer/AttesteringDetalj_Edit";
@@ -24,7 +24,7 @@ import {
   type TimerRad,
   radIKontekst,
 } from "@/components/attestering/attestering-buckets";
-import { AttesteringTabell } from "@/components/attestering/AttesteringTabell";
+import { AttesteringTabell, UkeBanner } from "@/components/attestering/AttesteringTabell";
 import { useAttesteringModell } from "@/components/attestering/useAttesteringModell";
 import type { AttSedel } from "@/components/attestering/attestering-tabell";
 
@@ -381,38 +381,11 @@ export function AttesteringDetalj({
         </div>
       )}
 
-      {/* D2-attestantvarsel (ORDRE 2 STEG 3 ledd 2): banner når ukens beregnede
-          overtid avviker fra det som er ført. Kun varsel — blokkerer ikke
-          attestering. Tallene: uattestert = live, attestert = frosset snapshot. */}
-      {(() => {
-        const g = sheet.ukeOvertidsgrunnlag;
-        if (!g) return null;
-        const retning = avvikRetning(g);
-        if (!retning) return null;
-        return (
-          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-            <div className="flex items-start gap-2">
-              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-              <div>
-                <p className="font-medium">
-                  {retning === "over"
-                    ? t("timer.attestering.varsel.over", {
-                        timer: (g.beregnetOvertid - g.sumOvertid).toFixed(1),
-                      })
-                    : t("timer.attestering.varsel.under")}
-                </p>
-                <p className="mt-0.5 text-xs text-amber-800">
-                  {t("timer.attestering.varsel.tall", {
-                    norm: g.norm.toFixed(1),
-                    ord: g.sumOrdinaert.toFixed(1),
-                    ot: g.sumOvertid.toFixed(1),
-                  })}
-                </p>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
+      {/* A4 RETUR vilkår 4 (plan § 4.17 del B, «Ett regnestykke»): banneret viser ukevarselet
+          fra samme regnestykke som ukelinja — B85-tallene med samme tekst — og bare når uka er
+          komplett (B53 A). Attestert sedel: frosset regnestykke når uka var komplett ved
+          attestering, ellers live. Kun varsel — blokkerer ikke attestering. */}
+      {sheet.uke && <UkeBanner uke={sheet.uke} />}
 
       {/* Diskret hint til firma-admin når rediger-flagget er av */}
       {sheet.redigerTillatt === false && kanFirmaAttestere?.kanAttestere && (

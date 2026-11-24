@@ -332,6 +332,11 @@ export {
   beregnUkeAvvik,
   avvikRetning,
   ukeAvvikRader,
+  beregnUkeregnestykke,
+  harUkevarsel,
+  ukevarselRader,
+  lesUkeregnestykkeFraSnapshot,
+  lesFrossetUkeFraSnapshot,
 } from "./overtidsgrunnlag";
 export type {
   OvertidRad,
@@ -339,6 +344,10 @@ export type {
   UkeSedelInput,
   UkeAvvik,
   UkeAvvikRadInput,
+  Ukeregnestykke,
+  FrossetUkeregnestykke,
+  UkeregnestykkeDag,
+  UkeregnestykkeDagInput,
 } from "./overtidsgrunnlag";
 // Kort-id-spec § 12 (ordre d2a): kort-gruppering, maskin → timerad (R24), prosjektnummer (E4).
 export { grupperPaaKort, byggKortRader } from "./kortGruppering";
