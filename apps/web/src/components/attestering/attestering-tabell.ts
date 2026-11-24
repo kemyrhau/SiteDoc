@@ -18,6 +18,7 @@ import {
   type TimerTabellVare,
   type KortLinjeGruppe,
 } from "@sitedoc/shared";
+import type { AttUke } from "./ukelinje";
 import type { MaskinRad, RadProsjekt, TilleggRad, TimerRad } from "./attestering-buckets";
 import { radIKontekst } from "./attestering-buckets";
 import { sedelKreverVurdering } from "./sedel-vurdering";
@@ -95,6 +96,13 @@ export type AttSedel = {
   utlegg: AttUtlegg[];
   varer?: AttVare[];
   ukeAvvikRadIder?: string[];
+  /** A4: ukas regnestykke fra serveren (ukelinja, «N t kan trekkes» på dagen). */
+  uke?: AttUke | null;
+  /**
+   * A4 (B53 A): attestert dag vist under ukelinja på fanen «Venter», fordi uka har ukevarsel.
+   * Dagen er låst som på fanen «Attestert» og har ↺.
+   */
+  attestertVisning?: boolean;
   fravaerKanAttesteres?: boolean;
   /** w7 (B15): sedelen er attestantens egen og firmaet sier Nei — vises, men kan ikke attesteres/rettes. */
   egneTimer?: boolean;

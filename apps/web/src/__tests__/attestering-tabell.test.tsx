@@ -574,7 +574,7 @@ describe("d2b-3 (c, e) — dagsnorm på detaljen og ukeavvikets tekst", () => {
 
   it("teksten sier at avviket gjelder uka (nb)", () => {
     const nb = JSON.parse(kilde("../../../../packages/shared/src/i18n/nb.json")) as Record<string, string>;
-    for (const k of ["timer.attestering.tabell.ukeAvvikOver", "timer.attestering.tabell.ukeAvvikUnder", "timer.attestering.pivot.avvikTooltip", "timer.attestering.pivot.norm"]) {
+    for (const k of ["timer.attestering.tabell.ukeAvvikOver", "timer.attestering.pivot.avvikTooltip", "timer.attestering.pivot.norm"]) {
       expect(nb[k]).toMatch(/Avvik denne uka/);
     }
     expect(nb["timer.attestering.pivot.avvikOver"]).toMatch(/ukenorm/);

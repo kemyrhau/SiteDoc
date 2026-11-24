@@ -24,7 +24,7 @@ import {
   FolderKanban,
   Users,
 } from "lucide-react";
-import { avvikRetning, beregnUkeAvvik, mandagIso, type UkeAvvik, type NormtakBruddData } from "@sitedoc/shared";
+import type { NormtakBruddData } from "@sitedoc/shared";
 import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
 import { useAttesteringsFirma } from "@/components/attestering/useAttesteringsFirma";
 import type {
@@ -36,6 +36,7 @@ import { AttesteringTabell } from "@/components/attestering/AttesteringTabell";
 import { Ukeoversikt } from "@/components/attestering/Ukeoversikt";
 import { useAttesteringModell } from "@/components/attestering/useAttesteringModell";
 import type { AttSedel } from "@/components/attestering/attestering-tabell";
+import { attesterteMedUkevarsel, ukeTall, type AttUke } from "@/components/attestering/ukelinje";
 import { HjelpKnapp, HjelpFane } from "@/components/hjelp/HjelpModal";
 import { aarValg, isoUke, ukeOffsetForAar } from "@/components/attestering/ukevalg";
 
@@ -161,8 +162,9 @@ export default function AttesteringSide() {
   // rad + scroll bevisst UTELATT — visning + uke er nok til å finne konteksten på ett blikk.
   // ORDRE 2 STEG 2 (D3): visningsvelger — Sedler (dagens) · Per prosjekt · Per ansatt.
   const [visning, setVisning] = useState<"sedler" | "prosjekt" | "ansatt">(() => {
+    // A4 (B50 A): «Etter ansatt» er standardvisningen — ukelinja står der.
     const v = searchParams.get("visning");
-    return v === "prosjekt" || v === "ansatt" ? v : "sedler";
+    return v === "prosjekt" || v === "sedler" ? v : "ansatt";
   });
   const [ukeOffset, setUkeOffset] = useState<number>(() => {
     const u = Number(searchParams.get("uke"));
@@ -279,70 +281,48 @@ export default function AttesteringSide() {
   const isLoading = aktivFane === "sent" ? sentLaster : acceptedLaster;
   const readOnly = aktivFane === "accepted";
 
-  // Avviksbadgen og -teksten gjelder HELE uken (sendt + attestert), ikke den aktive
-  // fanen (ORDRE 2 STEG 2). Kolonnefiltrene snevrer bare visningen, ikke ukeavviket.
-  const ukeGrunnlag = useMemo(() => [...sentRader, ...acceptedRader], [sentRader, acceptedRader]);
-
-  // ORDRE 2 STEG 3 ledd 2 (D2): uke-avvik pr. (ansatt + uke) for tabellens
-  // avvikstekst på Sedler-visningen. Regnet på HELE ukens grunnlag (union sent+
-  // accepted) — samme kilde og funksjon som AnsattPivot-badgen, så de aldri
-  // drifter. Nøkkel = ansatt + mandag (lista er én uke, men nøkkelen er robust).
-  const avvikPerNokkel = useMemo(() => {
-    const bøtter = new Map<
-      string,
-      { totaltimer: number; ukenorm: number; sumOvertid: number; ukeTimer?: number }[]
-    >();
-    for (const s of ukeGrunnlag) {
-      const ansattId = s.ansatt?.id;
-      if (!ansattId) continue;
-      const nokkel = `${ansattId}-${mandagIso(s.dato)}`;
-      const liste = bøtter.get(nokkel) ?? [];
-      liste.push({
-        totaltimer: s.totaltimer,
-        ukenorm: s.ukenorm,
-        sumOvertid: s.overtidsgrunnlag?.sumOvertid ?? 0,
-        // F-F1: fravær fyller bare dagens norm i ukesummen (eldre svar → totaltimer).
-        ukeTimer: s.overtidsgrunnlag?.ukeTimer,
-      });
-      bøtter.set(nokkel, liste);
+  // A4 (plan § 4.17 del B, B85): ukas regnestykke kommer fra serveren på hver sedel
+  // (`uke`, mandag–søndag uten reise) — skjermen regner ikke uka selv (retter AM12).
+  // Samme tall for firma-admin og prosjektleder (B54 A); prosjektlederen får ikke navn
+  // på andre prosjekter, bare ukas totaltall.
+  const ukeForAnsatt = useMemo(() => {
+    const m = new Map<string, AttUke>();
+    for (const s of [...sentRader, ...acceptedRader]) {
+      const uke = (s as unknown as AttSedel).uke;
+      if (s.ansatt?.id && uke && !m.has(s.ansatt.id)) m.set(s.ansatt.id, uke);
     }
-    const ut = new Map<string, UkeAvvik>();
-    for (const [nokkel, liste] of bøtter) ut.set(nokkel, beregnUkeAvvik(liste));
-    return ut;
-  }, [ukeGrunnlag]);
+    return m;
+  }, [sentRader, acceptedRader]);
 
-  const avvikFor = useCallback(
-    (s: AttesteringRad): UkeAvvik | null => {
-      const ansattId = s.ansatt?.id;
-      if (!ansattId) return null;
-      return avvikPerNokkel.get(`${ansattId}-${mandagIso(s.dato)}`) ?? null;
-    },
-    [avvikPerNokkel],
-  );
-
-  // Tabellen (spec prosjektkort-kortid d2b-1 § 12.8.5, d2b-2 R12): dagseddel →
-  // prosjektsedler → linjer, i alle tre visningene; visningen er bare grupperingen.
+  // Linjeteksten (ukevarselet på overtidslinja / linjene etter ukenorm), ukas tall (B85).
   const ukeAvvikTekst = useCallback(
     (s: AttSedel) => {
-      const avvik = avvikFor(s as unknown as AttesteringRad);
-      const retning = avvik ? avvikRetning(avvik) : null;
-      if (!avvik || !retning) return null;
-      const uke = ukeNummer(new Date(s.dato));
-      return retning === "over"
-        ? t("timer.attestering.tabell.ukeAvvikOver", { uke, timer: avvik.avvikTimer.toFixed(1), norm: avvik.norm.toFixed(1) })
-        : t("timer.attestering.tabell.ukeAvvikUnder", { uke, norm: avvik.norm.toFixed(1) });
+      const uke = s.uke;
+      if (!uke || !uke.komplett) return null;
+      const r = uke.regnestykke;
+      const nr = ukeNummer(new Date(`${uke.ukestart}T12:00:00`));
+      if (r.kanTrekkes > 0.005)
+        return t("timer.attestering.tabell.uke.linjeKanTrekkes", { uke: nr, timer: ukeTall(r.kanTrekkes), overtid: ukeTall(r.sumOvertid) });
+      if (r.overIkkeFort > 0.005)
+        return t("timer.attestering.tabell.ukeAvvikOver", { uke: nr, timer: ukeTall(r.overIkkeFort), norm: ukeTall(r.ukenorm) });
+      return null;
     },
-    [avvikFor, t],
+    [t],
   );
-  // Ukeavviket og avdelingen gjelder hele uken og hele firmaet — bare for firma-admin (w10b).
-  const dager = useAttesteringModell(orgId, rader as unknown as AttSedel[], {
+
+  // B53 A: på fanen «Venter» i «Etter ansatt» står attesterte dager med overtid som kan
+  // trekkes under ukelinja, låst og med ↺ — uka må kunne rettes når dagen alt er attestert.
+  const visteRader = useMemo(() => {
+    if (aktivFane !== "sent" || visning !== "ansatt") return rader;
+    const ekstra = attesterteMedUkevarsel(acceptedRader as unknown as AttSedel[]).map((s) => ({ ...s, attestertVisning: true }));
+    return [...rader, ...(ekstra as unknown as AttesteringRad[])];
+  }, [aktivFane, visning, rader, acceptedRader]);
+
+  // Avdelingen gjelder hele firmaet — bare for firma-admin (w10b). Ukevarselet ser begge (B54 A).
+  const dager = useAttesteringModell(orgId, visteRader as unknown as AttSedel[], {
     medAvdeling: erFirmaAdmin,
-    ukeAvvikTekst: erFirmaAdmin ? ukeAvvikTekst : undefined,
+    ukeAvvikTekst,
   });
-  const avvikForAnsatt = useCallback(
-    (ansattId: string) => avvikPerNokkel.get(`${ansattId}-${mandagIso(isoDato(ukestart))}`) ?? null,
-    [avvikPerNokkel, ukestart],
-  );
 
   // Bær retur-konteksten som EKSPLISITTE verdier (?fraVisning/fraUke/fraFane), ikke en
   // encodet retur-URL — sistnevnte er et open-redirect-mønster som må valideres. Detaljsiden
@@ -558,7 +538,7 @@ export default function AttesteringSide() {
                     api={api}
                     ukestart={ukestart}
                     akse={visning === "prosjekt" ? "prosjekt" : "ansatt"}
-                    avvikFor={avvikForAnsatt}
+                    ukeFor={(id) => ukeForAnsatt.get(id) ?? null}
                   />
                 )
               : undefined

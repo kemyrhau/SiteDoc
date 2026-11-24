@@ -34,6 +34,7 @@ import { RedigerRadModal } from "./RedigerRadModal";
 import { Kvitteringer } from "./Kvitteringer";
 import { RegistreringPanel, jobbensBeskrivelser } from "./RegistreringPanel";
 import { useBareOversikt } from "./useBareOversikt";
+import { dagKanTrekkes, ukeFor, ukeMerker, ukeTall, type AttUke, type UkeMerke, type UkeTekster } from "./ukelinje";
 import {
   AVVIK_FILTER,
   FILTER_KOLONNER,
@@ -234,6 +235,9 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
     return linjeIKontekst(l, s, prosjektKontekst);
   };
 
+  /** A4 (B53 A): dagen er låst — fanen «Attestert», eller attestert dag under ukelinja. */
+  const laast = (s: AttSedel | undefined) => readOnly || s?.attestertVisning === true;
+
   const synlige = useMemo(
     () => filtrerModell(dager, { verdier: filterVerdier, beskrivelseSok }),
     [dager, filterVerdier, beskrivelseSok],
@@ -425,7 +429,7 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
     return (
       <span className="flex items-center gap-1">
         {s && egenMerke(s)}
-        {!readOnly && ventende.length > 0 && (
+        {!laast(sedelFor(kort.sheetId)) && ventende.length > 0 && (
           <>
             {handlingKnapp({ ikon: <Check className="h-4 w-4" />, tekst: t("timer.attestering.tabell.attesterKort"), tittel: sperre ?? undefined, disabled: opptatt || !!sperre, onClick: () => attester(slaaSammen(ventende)), farge: "text-green-700 hover:bg-green-50" })}
             {handlingKnapp({ ikon: <CornerUpLeft className="h-4 w-4" />, tekst: t("timer.attestering.tabell.returnerKort"), onClick: () => setReturner(slaaSammen(ventende)) })}
@@ -469,7 +473,7 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
         <span className="flex items-center gap-1">
           {slettetMerke?.(s.id)}
           {egenMerke(s)}
-          {!readOnly && egne.antallLinjer > 0 && (
+          {!laast(s) && egne.antallLinjer > 0 && (
             <>
               <Button size="sm" className="whitespace-nowrap" onClick={() => attester(egne.radIder)} disabled={opptatt} title={t("timer.attestering.tabell.attesterDineProsjekter")} aria-label={t("timer.attestering.tabell.attesterDineProsjekter")}>
                 <Check className="mr-1 h-3.5 w-3.5" />
@@ -490,7 +494,7 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
       <span className="flex items-center gap-1">
         {slettetMerke?.(s.id)}
         {egenMerke(s)}
-        {!readOnly && !egen && (
+        {!laast(s) && !egen && (
           <>
             {/* Kort tekst (w5): raden heter alt «Sum <dato> · <ansatt>»; full tekst som tittel. */}
             <Button size="sm" className="whitespace-nowrap" onClick={() => { setMelding(null); attesterDag.mutate({ id: s.id }); }} disabled={opptatt || !!dag.sperre} title={dag.sperre ?? t("timer.attestering.tabell.attesterDagen")} aria-label={t("timer.attestering.tabell.attesterDagen")}>
@@ -500,8 +504,8 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
             {handlingKnapp({ ikon: <CornerUpLeft className="h-4 w-4" />, tekst: t("timer.attestering.returner"), onClick: () => onReturnerDag?.(s.id) })}
           </>
         )}
-        {enKort && kortGjenaapne(enKort)}
-        {readOnly && !egen && (
+        {enKort && !s.attestertVisning && kortGjenaapne(enKort)}
+        {laast(s) && !egen && (
           <Button size="sm" variant="secondary" className="whitespace-nowrap" onClick={() => setGjenaapneDag(s.id)} title={t("timer.attestering.tabell.gjenaapneDagen")} aria-label={t("timer.attestering.tabell.gjenaapneDagen")}>
             <RotateCcw className="mr-1 h-3.5 w-3.5" />
             {t("timer.attestering.tabell.gjenaapne")}
@@ -529,7 +533,7 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
   function kanSplitte(l: AttLinje): boolean {
     if (!iKontekst(l)) return false;
     const redigerTillatt = sedelFor(l.sheetId)?.redigerTillatt === true;
-    return !readOnly && redigerTillatt && l.ventende && l.projectId !== null && (l.kilde.type === "timer" || l.kilde.type === "maskin" || l.kilde.type === "tillegg");
+    return !laast(sedelFor(l.sheetId)) && redigerTillatt && l.ventende && l.projectId !== null && (l.kilde.type === "timer" || l.kilde.type === "maskin" || l.kilde.type === "tillegg");
   }
 
   /**
@@ -538,7 +542,7 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
    */
   function redigerJobb(kort: AttKort): (() => void) | undefined {
     const redigerTillatt = sedelFor(kort.sheetId)?.redigerTillatt === true;
-    const kan = kort.linjer.some((l) => iKontekst(l) && !readOnly && redigerTillatt && l.ventende && l.projectId !== null && l.kilde.type !== "utlegg");
+    const kan = kort.linjer.some((l) => iKontekst(l) && !laast(sedelFor(kort.sheetId)) && redigerTillatt && l.ventende && l.projectId !== null && l.kilde.type !== "utlegg");
     if (!kan || kort.projectId === null) return undefined;
     const projectId = kort.projectId;
     const medEco = kort.linjer.find((l) => l.kilde.type === "timer" || l.kilde.type === "maskin");
@@ -550,7 +554,7 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
 
   /** Jobben kan krysses av: minst én ventende linje med handling, i konteksten, uten sperre. */
   const kortKanVelges = (kort: AttKort) =>
-    !readOnly && kort.linjer.some((l) => l.harHandling && l.ventende && !l.sperre && iKontekst(l));
+    !laast(sedelFor(kort.sheetId)) && kort.linjer.some((l) => l.harHandling && l.ventende && !l.sperre && iKontekst(l));
 
   /** Kryss for jobbene `kort` (én jobb, eller alle jobbene på dagen). Ingen å velge → ingen kryss. */
   function kryss(kort: readonly AttKort[], etikett: string): ReactNode | undefined {
@@ -577,7 +581,7 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
   /** Registreringen åpnet under jobbraden (w8): hele jobben (kortet). */
   function registrering(kort: AttKort, s: AttSedel) {
     const egne = kort.linjer.filter((l) => iKontekst(l) && l.harHandling);
-    const kanAttestere = !readOnly && egne.length > 0;
+    const kanAttestere = !laast(s) && egne.length > 0;
     return (
       <RegistreringPanel
         key={kort.nokkel}
@@ -635,6 +639,59 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
       tekst: t("timer.attestering.tabell.normMerke", { avvik: `${d.avvik > 0 ? "+" : "−"}${kortTall(Math.abs(d.avvik))}` }),
       forklaring: deler.join(" · "),
     };
+  }
+
+  /* ---------------- Ukelinja (A4, plan § 4.17 del B) ---------------- */
+
+  const ukeTekster = lagUkeTekster(t);
+
+  /**
+   * «N t kan trekkes» på dagen (B85): ukas tall, aldri mer enn dagens førte overtid. Bare når
+   * uka er komplett (B53 A); hoveren er ukas regnestykke.
+   */
+  function kanTrekkesMerke(s: AttSedel, iso: string): AvvikMerke | null {
+    const n = dagKanTrekkes(s.uke, iso);
+    if (n <= 0.005 || !s.uke) return null;
+    return {
+      tekst: t("timer.attestering.tabell.uke.dagKanTrekkes", { timer: ukeTall(n) }),
+      forklaring: ukeMerker(s.uke, ukeTekster, ukeTall)[0]?.forklaring ?? null,
+    };
+  }
+
+  /**
+   * Ukelinja (B50 A): navn · uke · ukesum av ukenorm · ordinært, overtid, fravær og reise ·
+   * ukevarselet · kryss som velger alle dagene (B57). Uten reise i ukesummen (B85). Gult først
+   * når uka er komplett; før det «Uka så langt» og dagene som mangler, i grått (B53 A).
+   */
+  function ukelinje(tittel: string, uke: AttUke, gDager: readonly AttDag[]): ReactNode {
+    const r = uke.regnestykke;
+    const merker = ukeMerker(uke, ukeTekster, ukeTall);
+    const fordeling = [
+      r.sumOrdinaert > 0 ? t("timer.attestering.tabell.uke.ordinaert", { timer: ukeTall(r.sumOrdinaert) }) : null,
+      r.sumOvertid > 0 ? t("timer.attestering.tabell.uke.overtid", { timer: ukeTall(r.sumOvertid) }) : null,
+      r.fravaer > 0 ? t("timer.attestering.tabell.uke.fravaer", { timer: ukeTall(r.fravaer) }) : null,
+      r.reise > 0 ? t("timer.attestering.tabell.uke.reise", { timer: ukeTall(r.reise) }) : null,
+    ].filter((x): x is string => !!x);
+    const mangler = uke.manglerDager.map((iso) => ukedagDato(iso)).join(", ");
+    const boks = kryss(gDager.flatMap((d) => d.kort), t("timer.attestering.tabell.uke.velgUka"));
+    return (
+      <span data-ukelinje={uke.komplett ? "komplett" : "saaLangt"} className="flex w-full flex-wrap items-center gap-x-3 gap-y-1">
+        {boks}
+        <span>{tittel}</span>
+        <span className="font-normal text-gray-600">{t("timer.attestering.uke.label", { nr: isoUkenummer(uke.ukestart) })}</span>
+        <span data-ukesum="" className="tabular-nums">
+          {t("timer.attestering.tabell.uke.sum", { sum: ukeTall(r.ukesum), norm: ukeTall(r.ukenorm) })}
+        </span>
+        {fordeling.length > 0 && <span className="font-normal text-gray-600">{fordeling.join(" · ")}</span>}
+        {!uke.komplett && (
+          <span data-uke-saa-langt="" className="font-normal text-gray-500">
+            {t("timer.attestering.tabell.uke.saaLangt")}
+            {mangler ? ` · ${t("timer.attestering.tabell.uke.mangler", { dager: mangler })}` : ""}
+          </span>
+        )}
+        {merker.map((m) => <UkeMerkeVis key={m.tekst} merke={m} />)}
+      </span>
+    );
   }
 
   /**
@@ -828,10 +885,14 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
     for (const gruppe of grupper) {
     if (gruppe.nokkel) {
       const gSum = sumLinjer(gruppe.dager.flatMap((d) => d.kort.flatMap((k) => k.linjer)));
+      // A4 (B50 A): «Etter ansatt» har ukelinja med ukas regnestykke fra serveren.
+      const uke = gruppering === "ansatt" ? ukeFor(gruppe.dager) : null;
       ut.push({
         kind: "overskrift",
         nokkel: `g:${gruppe.nokkel}`,
-        innhold: (
+        innhold: uke ? (
+          ukelinje(gruppe.tittel, uke, gruppe.dager)
+        ) : (
           <span className="flex items-center justify-between gap-4">
             <span>{gruppe.tittel}</span>
             <span className="tabular-nums">{t("timer.attestering.tabell.gruppeSum", { timer: formaterNorsk(gSum.timer) })}</span>
@@ -849,8 +910,9 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
           const sum = sumLinjer(kort.linjer);
           const overtid = overtidFor(kort.linjer);
           const norm = normMerke(s);
+          const trekkes = kort.linjer.some((l) => linjeSlag(l) === "overtid") ? kanTrekkesMerke(s, dag.dato) : null;
           const nf = navnefelt(navnInnhold(kort));
-          const kortAvvik = () => avvikCelle([...(norm ? [norm] : []), ...unikeMerker(kort.linjer.flatMap((l) => l.avvikMerker))]);
+          const kortAvvik = () => avvikCelle([...(norm ? [norm] : []), ...(trekkes ? [trekkes] : []), ...unikeMerker(kort.linjer.flatMap((l) => l.avvikMerker))]);
           ut.push({
             kind: "sum",
             nokkel: `o:${kort.nokkel}`,
@@ -888,8 +950,10 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
       const alle = dag.kort.flatMap((k) => k.linjer);
       const dagSum = sumLinjer(alle);
       const norm = normMerke(s);
+      const trekkes = kanTrekkesMerke(s, dag.dato);
       const dagMerker = [
         ...(norm ? [norm] : []),
+        ...(trekkes ? [trekkes] : []),
         ...(enKort ? unikeMerker(enKort.linjer.flatMap((l) => l.avvikMerker)) : []),
       ];
       const dagTekster = [
@@ -1250,4 +1314,50 @@ function unikeMerker(merker: readonly AvvikMerke[]): AvvikMerke[] {
   const sett = new Map<string, AvvikMerke>();
   for (const m of merker) if (!sett.has(m.tekst)) sett.set(m.tekst, m);
   return [...sett.values()];
+}
+
+/** A4: tekstene til ukelinjas merker og regnestykket på hover. */
+function lagUkeTekster(t: (k: string, o?: Record<string, unknown>) => string): UkeTekster {
+  return {
+    underNorm: (timer) => t("timer.attestering.tabell.uke.underNorm", { timer }),
+    kanTrekkes: (timer, overtid) => t("timer.attestering.tabell.uke.kanTrekkes", { timer, overtid }),
+    overNorm: (timer) => t("timer.attestering.tabell.uke.overNorm", { timer }),
+    regnestykke: (r) => t("timer.attestering.tabell.uke.regnestykke", r),
+  };
+}
+
+/** A4: ukevarselet som merker — ukelinja og ukeoversiktens normkolonne. */
+export function UkevarselMerker({ uke }: { uke: AttUke }) {
+  const { t } = useTranslation();
+  const merker = ukeMerker(uke, lagUkeTekster(t), ukeTall);
+  if (merker.length === 0) return null;
+  return (
+    <span className="flex flex-wrap items-center gap-1">
+      {merker.map((m) => <UkeMerkeVis key={m.tekst} merke={m} />)}
+    </span>
+  );
+}
+
+/** A4: ett merke på ukelinja — gult når uka er komplett, grått før det; regnestykket på hover. */
+function UkeMerkeVis({ merke }: { merke: UkeMerke }) {
+  const farge = merke.gul ? "border-amber-300 bg-amber-50 text-amber-800" : "border-gray-200 bg-white text-gray-500";
+  return (
+    <Tooltip tekst={merke.forklaring} side="bottom" delayMs={150}>
+      <span
+        data-ukevarsel={merke.gul ? "gul" : "graa"}
+        className={`cursor-help whitespace-nowrap rounded-lg border px-1 py-px text-[11px] font-medium leading-4 ${farge}`}
+      >
+        {merke.tekst}
+      </span>
+    </Tooltip>
+  );
+}
+
+/** ISO-ukenummeret til en mandag (YYYY-MM-DD). */
+function isoUkenummer(iso: string): number {
+  const d = new Date(`${iso}T00:00:00.000Z`);
+  const dag = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dag);
+  const aarStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  return Math.ceil(((d.getTime() - aarStart.getTime()) / 86400000 + 1) / 7);
 }

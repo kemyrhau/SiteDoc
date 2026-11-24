@@ -3,11 +3,10 @@
 import { Fragment, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronDown, ChevronRight } from "lucide-react";
-import type { UkeAvvik } from "@sitedoc/shared";
 import { formaterNorsk } from "@/lib/timer-rapport-eksport";
-import { Avviksbadge } from "./Avviksbadge";
 import { HoverKort } from "./DagsKort";
-import type { UkeoversiktApi } from "./AttesteringTabell";
+import { UkevarselMerker, type UkeoversiktApi } from "./AttesteringTabell";
+import type { AttUke } from "./ukelinje";
 import { byggUkeoversikt, type AttDag, type UkeRad } from "./attestering-tabell";
 
 /**
@@ -33,16 +32,19 @@ interface Props {
   ukestart: Date;
   /** «ansatt»: ansatte med prosjektene under. «prosjekt»: prosjekter med de ansatte under. */
   akse: "ansatt" | "prosjekt";
-  /** Ukeavviket pr. ansatt (hele uken, sendt + attestert) — normkolonnen på ansattraden. */
-  avvikFor?: (ansattId: string) => UkeAvvik | null;
+  /**
+   * A4: ukas regnestykke pr. ansatt fra serveren — normkolonnen viser samme ukevarsel som
+   * ukelinja (B85). Cellene er fortsatt ført tid pr. dag (T45), med reise.
+   */
+  ukeFor?: (ansattId: string) => AttUke | null;
 }
 
-export function Ukeoversikt({ api, ukestart, akse, avvikFor }: Props) {
+export function Ukeoversikt({ api, ukestart, akse, ukeFor }: Props) {
   const { t } = useTranslation();
   const dager = useMemo(() => ukedager(ukestart), [ukestart]);
   const rader = useMemo(() => byggUkeoversikt(api.dager, akse), [api.dager, akse]);
   const [apne, setApne] = useState<Set<string>>(new Set());
-  const visNorm = akse === "ansatt" && !!avvikFor;
+  const visNorm = akse === "ansatt" && !!ukeFor;
 
   if (rader.length === 0) {
     return <div className="rounded-lg border border-gray-200 bg-white p-6 text-center text-sm text-gray-500">{t("timer.attestering.pivot.ingenData")}</div>;
@@ -90,7 +92,7 @@ export function Ukeoversikt({ api, ukestart, akse, avvikFor }: Props) {
         <tbody>
           {rader.map((r) => {
             const apen = apne.has(r.nokkel);
-            const avvik = visNorm && r.ansattId ? avvikFor!(r.ansattId) : null;
+            const uke = visNorm && r.ansattId ? ukeFor!(r.ansattId) : null;
             return (
               <Fragment key={r.nokkel}>
                 <tr className="border-t border-gray-100">
@@ -107,7 +109,7 @@ export function Ukeoversikt({ api, ukestart, akse, avvikFor }: Props) {
                   </td>
                   {dager.map((d) => <td key={d.iso} className="px-2 py-1.5 text-right">{celle(r, d.iso, prosjektAv(r))}</td>)}
                   <td className="px-3 py-1.5 text-right font-semibold tabular-nums">{formaterNorsk(r.sum)}</td>
-                  {visNorm && <td className="px-3 py-1.5">{avvik && <Avviksbadge avvik={avvik} />}</td>}
+                  {visNorm && <td className="px-3 py-1.5">{uke && <UkevarselMerker uke={uke} />}</td>}
                 </tr>
                 {apen &&
                   r.under.map((u) => (
