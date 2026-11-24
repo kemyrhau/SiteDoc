@@ -38,7 +38,9 @@ som ikke tjener dem, skal slettes, ikke forklares.** *Kenneths egne ord:*
      bestilte, gater ikke; orkestrator merger mekanisk på «klar for merge».
   2. **Gate i én melding:** GODKJENT, eller én komplett vilkårsliste. Ny runde kun når et vilkår ikke er lukket.
   3. **Mål aldri det samme to ganger.** `fil:linje` er målt — stikkprøv bare påstander uten referanse.
-  4. **Regel 10 re-kjøres uavhengig bare der feil koster lønn/data** (migrering, `syncBatch`, attestering, eksport).
+  4. **Regel 10 kjøres to ganger: av koderen før levering, og uavhengig i merge-treet før push** (orkestrator, § 6).
+     Kontrollør gater diffen mot koden og kjører testene for pakkene diffen rører — ikke hele kjeden og ikke kald
+     `next build`. *(Kenneth 2026-11-24, billigere drift.)*
   5. **Bestilleren skriver posten i `relay/inbox-<agent>.md`**; orkestrator får kopi og sender nudgen (§ 2).
   6. **Ingen kvitteringer, ingen egen runde for premisser/sitater** — de går i neste reelle ordre. `git log` er kvitteringen.
   **Testen før hver melding:** *fører den til at noen skriver kode eller merger nå?* Nei → ikke send.
@@ -52,10 +54,11 @@ STATUS-AKTUELT eller historikk, aldri her. *(Kenneth 2026-09-28: «du får kun l
 
 1. **Orkestrator starter agentene som side-økter under seg** (`start_session`), samlet i sidepanel-gruppen «sitedoc»: én økt pr. rolle i sitt faste tre (§ 1). **Der `start_session` ikke finnes i orkestrator-økta:** samme rolle kjøres som subagent (Agent-verktøyet) med absolutte stier til treet.
 2. **Ordren skrives i `relay/inbox-<agent>.md` FØR den sendes** (§ 2). Orkestrator sender nudgen selv (`send_message`, fast form i § 2) til økt-ID-en (`local_…`) fra `list_sessions {linked: true}` — aldri via søk på tittel og leser leveransen nederst i `relay/inbox-orkestrator.md`.
-3. **/clear etter hver handling:** når leveransen er lest og gatet, tømmer orkestrator økta (`clear_session`). En subagent er ny pr. oppgave og trenger ingen tømming.
+3. **/clear etter hver handling, og én leveranse pr. økt:** når leveransen er lest og gatet, tømmer orkestrator økta (`clear_session`). Passerer en agent ~150 000 tokens kontekst midt i en ordre (`get_usage`), bes den skrive SJEKKPUNKT og pushe WIP-branchen, og tømmes før den fortsetter. Orkestrator selv starter ny økt når egen kontekst passerer ~150 000 tokens, med tavla og `relay/inbox-orkestrator.md` som overlevering. En subagent er ny pr. oppgave og trenger ingen tømming. *(Kenneth 2026-11-24: kostnaden er antall turer × kontekstlengde.)*
 4. **Kontrollør er alltid en egen økt/subagent**, aldri den som bygde koden.
 5. **Kenneth beholder:** beslutninger (produkt, skjema, rettigheter, prod) og alt mot server og bygg — deploy, OTA, EAS, `sudo`, migreringer, push til `main`. Orkestrator gir kommandoene i `bash`-blokker; ingen agent kjører dem.
-6. **Kenneth limer ingenting.** Han ser øktene i sidepanelet og kan gå inn i hvilken som helst av dem.
+6. **Modell og verktøy pr. rolle (Kenneth 2026-11-24):** Fabel kjører Opus når den fører inn svar, retter eller deler dokumenter, og Fable bare når den skriver ny spesifikasjon eller nye spørsmål — orkestrator bytter modell (`set_session_model`) før nudgen. Kodere og Kontrollør kjører Opus; rent mekaniske oppgaver kan gå på Sonnet. Nettleser-MCP (chrome-devtools) finnes bare i de to verktøy-agentene i `SiteDoc-verktoy-1` og `SiteDoc-verktoy-2`; andre agenter bruker den innebygde nettleseren eller ber orkestrator sende oppgaven dit.
+7. **Kenneth limer ingenting.** Han ser øktene i sidepanelet og kan gå inn i hvilken som helst av dem.
 
 ## § 1 — Roller
 
@@ -211,6 +214,8 @@ Venter et svar, står det under en egen **«KREVER SVAR»**-overskrift; er det i
 [0. SPOR + MERKE]          Plan/funn · 🔴/🟡 · REPARASJON eller FUNKSJONSENDRING + hjemmel (§ 5).
 [1. HVA SOM ER GJORT]      Hasher + hva de gjorde. Hindrer at økta gjentar landet arbeid.
 [2. OPPGAVE]               Hva og hvorfor. Data, innlogging, utgangspunkt (branch/hash).
+                           `fil:linje` for hvert sted som skal endres, målt av bestilleren — agenten
+                           leter ikke selv. Leser agenten en stor doc, oppgis seksjonen, ikke fila.
 [3. UFRAVIKELIG]           Tre + branch + filer den eier + de tre linjene under.
 [4. FORVENTET OUTPUT]      DoD. Per funn: hva, hvordan målt, alvorlighet. Mistanker merket separat.
 [5. SVAR]                  relay/inbox-orkestrator.md + SJEKKPUNKT.

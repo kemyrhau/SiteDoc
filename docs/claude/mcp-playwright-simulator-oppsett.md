@@ -133,6 +133,8 @@ playwright: npx @playwright/mcp@latest --extension
 
 ## 2. chrome-devtools MCP → isolert automasjons-Chrome (begrenset nytte)
 
+> **Fra 2026-11-24 (Kenneth, billigere drift):** chrome-devtools står ikke lenger i repoets `.mcp.json`. Den er lagt inn med `claude mcp add -s local` bare i `SiteDoc-verktoy-1` og `SiteDoc-verktoy-2` (verktøy-agentene, [SAMARBEIDSREGLER § 0b.6](SAMARBEIDSREGLER.md)). Skills som bruker den (`test-import-veiviser`, `test-redesign-nav`, `test-sluttrapport`) kjøres der.
+
 ```
 chrome-devtools: npx -y chrome-devtools-mcp@latest --isolated=false --channel=stable
 ```
