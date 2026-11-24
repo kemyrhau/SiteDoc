@@ -11,7 +11,7 @@ B50–B62 (attesteringen, § 4.17) er besvart 2026-11-23 (§ 8.27). B63 og B64 e
 B53 (lesningen) og B79–B85 er besvart 2026-11-24 (§ 8.28).
 B65–B67 (konflikt ved «Del opp») og B86 og B87 (halvdag og firma-fri, dagskort-modus) er besvart 2026-11-24 (§ 8.29).
 B88 (sperren mellom to kort attestanten selv kan rette) er besvart med ja 2026-11-24 (§ 8.30).
-**Ingen åpne spørsmål.** Neste nummer er B89.
+**Ingen åpne spørsmål i web-planen.** B89–B91 (telefonen og GPS-veien) er åpne og står i [mobil-timeforing-plan.md § 5](../mobil-timeforing-plan.md). Neste nummer er B92.
 
 Kontrollspørsmålet om overføring til annet kontor er besvart
 (§ 8.22 punkt 2: «Ja, samme regel»).

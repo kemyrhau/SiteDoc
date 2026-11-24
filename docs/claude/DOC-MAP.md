@@ -36,6 +36,7 @@ sist_verifisert_mot_kode: 2026-05-16
 | Timeradens livsløp (lagring, visning, sletting, synk, overtid, reise) målt — rotårsaker R1–R7 og hva som er rettet | `maaling-timerad-livslop.md` (statusseksjonen øverst føres når en R rettes) |
 | Kenneth vedtar eller snur noe brukeren ser i timeføringen på web (ført: reisevinduet) | `vedtak-timer-web.md` — bare orkestrator skriver vedtak, med Kenneths ord; koderen endrer bare status. Punktet byttes ut, ikke stables |
 | Timeføring på web — planen endres (§ 3–10) | Fila for seksjonen i `web-timeforing/` — tabellen nederst i `web-timeforing-plan.md` sier hvilken. Indeksen (§ 0–2 og tabellen) i `web-timeforing-plan.md`. Ny seksjon = ny fil + ny rad i tabellen; ingen fil over ~80 000 tegn |
+| Timeføring på telefonen — planen for likhet med web og GPS-veien som lager kort endres | `mobil-timeforing-plan.md` (skisser i `skisser-mobil-timeforing/`). Spørsmål til Kenneth fortsetter B-serien fra `web-timeforing/8-apne-sporsmal.md` |
 | Timer/GPS/prosjekt-utredning (dag-flyt, T.8 m.fl.) | `timer-gps-prosjekt-utredning.md` |
 | PSI/§15-geofence-håndheving (nivåer, per firma/byggeplass) | `psi-geofence-handhevning-utredning.md` (🟡 parkert grunnlagsdok) |
 | Maskin-modul spec endres | `maskin.md` |
