@@ -4174,7 +4174,7 @@ Verifisert 2026-07-09: `development`- og `preview`-profilene i `apps/mobile/eas.
 
 ### 🔴 OAuth: redesign holder prods nøkler (FØR steg viii)
 
-> **[2026-11-24]** Redesign-stacken og `sitedoc_redesign` er fjernet (STATUS-AKTUELT § Redesign navigasjon). Gjenstår kun: fjern redirect-URI `redesign.sitedoc.no` fra prod-appene (Entra `d7735b7a` + Google) — Kenneth, delt infra.
+> **[2026-11-24]** Redesign-stacken og `sitedoc_redesign` er fjernet (STATUS-AKTUELT § Redesign navigasjon). Redirect-URI `redesign.sitedoc.no` fjernet fra Entra `d7735b7a` og Google samme dag — tillits-koblingen er borte. **Lukket.**
 
 > **[triage 2026-08-26]** ❓ ikke verifiserbar — server-env (`web.env` vs `web-redesign.env`) + Entra/Google-registreringer, ikke i repo. Berører ikke mobil timeføring på `sitedoc.no`. Kan vente.
 
