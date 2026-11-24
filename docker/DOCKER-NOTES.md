@@ -165,8 +165,11 @@ Containerd (`DISK USAGE`) teller utpakket + komprimert innhold, og bilder/PDF ko
 
 **Hva som gjelder nå:**
 - **`.dockerignore` er en tillatelsesliste** (`*`, deretter `!apps`, `!packages`, `!tests` og rotfilene
-  bygget trenger). Av `apps/mobile` slipper bare `package.json` inn. Trenger bygget en ny rotfil, legg den
-  til der — bygget feiler høylytt, ikke stille.
+  bygget trenger). Av `apps/mobile` slipper bare `package.json` inn, og av `docker/` bare `docker/pdf-render/`.
+  **Lista gjelder alle fire Dockerfilene** med `context: ..` (api, web, ml, pdf) — hver COPY-linje i dem
+  må slippe gjennom. Trenger et bygg en ny fil utenfor lista, legg den til der — bygget feiler høylytt
+  (`not found`), ikke stille. Første versjon (`f518e155`) stengte ute `docker/pdf-render/` og brakk
+  `Dockerfile.pdf` (fanget i gate).
 - **Avhengigheter før kildekode (begge Dockerfiler):** `package.json`-ene + lockfil → `pnpm install` →
   Prisma-skjemaene → `prisma generate` → `COPY . .`. Ingen pakke har install-skript. **Ny workspace-pakke
   må inn i COPY-lista i begge filene.** Api har eget `deps`-stage; runtime kopierer `deps` (stort, cachet)
