@@ -119,8 +119,11 @@ export interface AttDeps {
   avdelingNavn: (id: string | null) => string | null;
   /** Sedelens sperre-tekst (B10 fraværstak), eller null. */
   normtakLinje: (s: AttSedel) => string | null;
-  /** Ukeavvikets tekst med ukenummer og normens navn (T29/T39), eller null. */
-  ukeAvvikTekst: (s: AttSedel) => string | null;
+  /**
+   * Ukeavvikets tekst på en merket linje (T29/T39), eller null. `linjeTimer` = timene på linja;
+   * A4b: «kan trekkes» begrenses til dem.
+   */
+  ukeAvvikTekst: (s: AttSedel, linjeTimer: number) => string | null;
   /** w9: forklaringen på merket «Maskin over arbeid» — «Maskin 7,5 t, arbeid 4,5 t». */
   maskinOverArbeidForklaring: (maskinTimer: number, arbeidTimer: number) => string;
   /**
@@ -164,7 +167,11 @@ export type AttKilde =
  * én linje, og forklaringen vises når pekeren holdes over (trykk på berøringsskjerm).
  * Uten `forklaring` står teksten som før.
  */
-export type AvvikMerke = { tekst: string; forklaring: string | null };
+/**
+ * Et merke med forklaring på hover. `linjer` (A4b): forklaringen vist som én opplysning pr.
+ * linje uten bryting inne i linja; `forklaring` er de samme delene på én linje (tekstflater).
+ */
+export type AvvikMerke = { tekst: string; forklaring: string | null; linjer?: readonly string[] };
 
 export interface AttLinje {
   nokkel: string;
@@ -334,7 +341,6 @@ function byggDag(s: AttSedel, deps: AttDeps): AttDag {
   const forslag = overlappBlokkererAttestering(s.konfliktVentendeSiden ?? null) ? deps.tekst.forslagSperre : null;
   const normtak = deps.normtakLinje(s);
   const sperre = [normtak, forslag].filter(Boolean).join(" · ") || null;
-  const ukeTekst = deps.ukeAvvikTekst(s);
   const ukeIder = new Set(s.ukeAvvikRadIder ?? []);
   const maskinOverArbeid = maskinOverArbeidMerker(s, deps);
 
@@ -388,7 +394,10 @@ function byggDag(s: AttSedel, deps: AttDeps): AttDag {
       const gVarer = g.type === "timer" ? g.varer : [];
       const maskiner = gMaskiner.map((m) => maskinTilLinje(m, deps));
       if (sperre) leggTilAvvik(sperre);
-      if (ukeTekst && ukeIder.has(r.id)) leggTilAvvik(ukeTekst);
+      if (ukeIder.has(r.id)) {
+        const ukeTekst = deps.ukeAvvikTekst(s, tall(r.timer) ?? 0);
+        if (ukeTekst) leggTilAvvik(ukeTekst);
+      }
       if (maskiner.some((m) => m.utenTimerad)) utenTimerad();
       if (maskiner.length > 0 && s.manglerMaskinforerbevis) utenForerbevis();
       if (maskiner.length > 0) overArbeid(r);

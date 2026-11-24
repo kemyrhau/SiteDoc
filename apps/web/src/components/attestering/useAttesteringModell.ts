@@ -18,7 +18,7 @@ import { byggAttesteringModell, type AttDag, type AttSedel } from "./attestering
 export function useAttesteringModell(
   orgId: string | undefined,
   sedler: readonly AttSedel[],
-  valg: { medAvdeling?: boolean; ukeAvvikTekst?: (s: AttSedel) => string | null } = {},
+  valg: { medAvdeling?: boolean; ukeAvvikTekst?: (s: AttSedel, linjeTimer: number) => string | null } = {},
 ): AttDag[] {
   const { t, i18n } = useTranslation();
   const katalog = useKatalogNavn(orgId);

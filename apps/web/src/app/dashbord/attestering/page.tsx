@@ -36,7 +36,7 @@ import { AttesteringTabell } from "@/components/attestering/AttesteringTabell";
 import { Ukeoversikt } from "@/components/attestering/Ukeoversikt";
 import { useAttesteringModell } from "@/components/attestering/useAttesteringModell";
 import type { AttSedel } from "@/components/attestering/attestering-tabell";
-import { attesterteMedUkevarsel, ukeTall, type AttUke } from "@/components/attestering/ukelinje";
+import { attesterteMedUkevarsel, linjeKanTrekkes, ukeTall, type AttUke } from "@/components/attestering/ukelinje";
 import { HjelpKnapp, HjelpFane } from "@/components/hjelp/HjelpModal";
 import { aarValg, isoUke, ukeOffsetForAar } from "@/components/attestering/ukevalg";
 
@@ -295,14 +295,19 @@ export default function AttesteringSide() {
   }, [sentRader, acceptedRader]);
 
   // Linjeteksten (ukevarselet på overtidslinja / linjene etter ukenorm), ukas tall (B85).
+  // A4b: «kan trekkes» på linja er ukas tall, aldri mer enn overtiden på linja (samme prinsipp
+  // som dagsmerket). Linjene som merkes når uka er under norm, er overtidslinjene (serveren).
   const ukeAvvikTekst = useCallback(
-    (s: AttSedel) => {
+    (s: AttSedel, linjeTimer: number) => {
       const uke = s.uke;
       if (!uke || !uke.komplett) return null;
       const r = uke.regnestykke;
       const nr = ukeNummer(new Date(`${uke.ukestart}T12:00:00`));
-      if (r.kanTrekkes > 0.005)
-        return t("timer.attestering.tabell.uke.linjeKanTrekkes", { uke: nr, timer: ukeTall(r.kanTrekkes), overtid: ukeTall(r.sumOvertid) });
+      if (r.kanTrekkes > 0.005) {
+        const n = linjeKanTrekkes(uke, linjeTimer);
+        if (n <= 0.005) return null;
+        return t("timer.attestering.tabell.uke.linjeKanTrekkes", { timer: ukeTall(n), overtid: ukeTall(r.sumOvertid) });
+      }
       if (r.overIkkeFort > 0.005)
         return t("timer.attestering.tabell.ukeAvvikOver", { uke: nr, timer: ukeTall(r.overIkkeFort), norm: ukeTall(r.ukenorm) });
       return null;

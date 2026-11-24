@@ -65,7 +65,11 @@ export type TimerRadTabellRad<R> =
        */
       spenn?: { fra: TimerTabellKolKey; til: TimerTabellKolKey };
     }
-  | { kind: "overskrift"; nokkel: string; innhold: ReactNode }
+  /**
+   * `tone: "uke"` (A4b): ukelinja i attesteringen — mørk blå (`sitedoc-primary`) med hvit tekst,
+   * som skissen `v22-uke.png`. Utelatt = lys grå gruppeoverskrift som før.
+   */
+  | { kind: "overskrift"; nokkel: string; innhold: ReactNode; tone?: "uke" }
   /** w5 (bilde 7): innhold under en linje i tabellens synlige bredde (registreringen åpnet). */
   | { kind: "panel"; nokkel: string; innhold: ReactNode; blokk?: TimerRadBlokk }
   | {
@@ -418,7 +422,12 @@ function Tabell<R>({
                 data-index={vi.index}
                 ref={virtualizer.measureElement}
                 style={plass}
-                className="flex items-center border-b border-gray-200 bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700"
+                data-tone={rad.tone}
+                className={
+                  rad.tone === "uke"
+                    ? "flex items-center border-b border-sitedoc-primary bg-sitedoc-primary px-3 py-1.5 text-xs font-semibold text-white"
+                    : "flex items-center border-b border-gray-200 bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700"
+                }
               >
                 {rad.innhold}
               </div>

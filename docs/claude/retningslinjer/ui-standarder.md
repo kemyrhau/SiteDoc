@@ -187,7 +187,7 @@ Timer, antall og mengde vises med `formaterTimer` i `apps/web/src/lib/tallformat
 
 | Farge | Hex | Bruk |
 |-------|-----|------|
-| `sitedoc-primary` | `#1e40af` | Primærfarge (toppbar, knapper) |
+| `sitedoc-primary` | `#1e40af` | Primærfarge (toppbar, knapper). Også mørk linjefarge med hvit tekst: ukelinja i attesteringen (`TimerRadTabell` `tone: "uke"`, A4b) |
 | `sitedoc-secondary` | `#3b82f6` | Sekundær (lenker, hover) |
 | `sitedoc-accent` | `#f59e0b` | Aksent (varsler) |
 | `sitedoc-success` | `#10b981` | Suksess (godkjent) |
