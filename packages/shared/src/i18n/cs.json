@@ -5902,7 +5902,6 @@
   "timer.attestering.tabell.merke.utenForerbevis": "Žádný certifikát",
   "timer.attestering.tabell.merke.reiseUnderTerskel": "Cestování pod prahem",
   "timer.attestering.tabell.merke.reiseUnderTerskelForklaring": "Cesta je {{maalt}}. Limit společnosti je {{terskel}}. Pod prahem se cestování počítá jako pracovní doba. Byl zadán jako doba jízdy.",
-  "timer.attestering.tabell.merke.reiseUnderTerskelForklaringUtenMaaling": "Práh společnosti je {{terskel}} a cesta je pod ním. Pod prahem se cestování počítá jako pracovní doba. Byl zadán jako doba jízdy.",
   "timer.attestering.merkeMaskinOverArbeid": "Přes práci",
   "timer.attestering.forklaringMaskinOverArbeid": "Stroj {{maskin}} h, práce {{arbeid}} h",
   "timer.attestering.tabell.hjelp.merker": "Odchylky jsou zobrazeny jako krátké značky. Chcete-li zobrazit úplné vysvětlení, umístěte ukazatel myši na značku nebo na ni klepněte na dotykové obrazovce. „Žádný časový údaj“: stroj není propojen se záznamem času a je zobrazen jako samostatný řádek. „Žádný certifikát“: práce se strojem bez registrovaného certifikátu obsluhy, označeno pro viditelnost. Obě linky lze schválit. „Přepracování“: stroj s obsluhou má více hodin než práce na zakázce. Linka může být schválena.",

@@ -5902,7 +5902,6 @@
   "timer.attestering.tabell.merke.utenForerbevis": "Kein Zertifikat",
   "timer.attestering.tabell.merke.reiseUnderTerskel": "Fahren Sie unter der Schwelle",
   "timer.attestering.tabell.merke.reiseUnderTerskelForklaring": "Die Reise ist {{maalt}}. Der Schwellenwert des Unternehmens liegt bei {{terskel}}. Unterhalb dieser Schwelle gelten Fahrten als Arbeitszeit. Es wurde als Reisezeit eingegeben.",
-  "timer.attestering.tabell.merke.reiseUnderTerskelForklaringUtenMaaling": "Der Schwellenwert des Unternehmens liegt bei {{terskel}} und die Reise liegt darunter. Unterhalb dieser Schwelle gelten Fahrten als Arbeitszeit. Es wurde als Reisezeit eingegeben.",
   "timer.attestering.merkeMaskinOverArbeid": "Über Arbeit",
   "timer.attestering.forklaringMaskinOverArbeid": "Maschine {{maskin}} h, Arbeit {{arbeid}} h",
   "timer.attestering.tabell.hjelp.merker": "Abweichungen werden als kurze Tags angezeigt. Bewegen Sie den Mauszeiger über ein Tag oder tippen Sie auf einem Touchscreen darauf, um die vollständige Erklärung anzuzeigen. „Kein Zeiteintrag“: Die Maschine ist nicht mit einem Zeiteintrag verknüpft und wird als separate Zeile angezeigt. „Kein Zertifikat“: Maschinenarbeiten ohne registriertes Bedienerzertifikat, zur Sichtbarkeit gekennzeichnet. Beide Linien können genehmigt werden. „Überarbeit“: Eine Maschine mit einem Bediener hat mehr Stunden als die Arbeit am Arbeitsplatz. Die Linie kann genehmigt werden.",

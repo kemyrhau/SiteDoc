@@ -5902,7 +5902,6 @@
   "timer.attestering.tabell.merke.utenForerbevis": "Pas de certificat",
   "timer.attestering.tabell.merke.reiseUnderTerskel": "Voyage sous le seuil",
   "timer.attestering.tabell.merke.reiseUnderTerskelForklaring": "Le voyage est {{maalt}}. Le seuil de l'entreprise est de {{terskel}}. Sous ce seuil, les déplacements comptent comme du temps de travail. Il a été saisi comme temps de trajet.",
-  "timer.attestering.tabell.merke.reiseUnderTerskelForklaringUtenMaaling": "Le seuil de l'entreprise est de {{terskel}} et le voyage est inférieur à ce seuil. Sous ce seuil, les déplacements comptent comme du temps de travail. Il a été saisi comme temps de trajet.",
   "timer.attestering.merkeMaskinOverArbeid": "Au cours du travail",
   "timer.attestering.forklaringMaskinOverArbeid": "Machine {{maskin}} h, travail {{arbeid}} h",
   "timer.attestering.tabell.hjelp.merker": "Les écarts sont affichés sous forme de balises courtes. Passez la souris sur une balise ou appuyez dessus sur un écran tactile pour voir l'explication complète. « Pas de saisie de temps » : la machine n'est pas liée à une saisie de temps et est affichée sur une ligne distincte. « Pas de certificat » : travail sur machine sans certificat d'opérateur enregistré, signalé pour visibilité. Les deux lignes peuvent être approuvées. « Surmenage » : une machine avec un opérateur compte plus d'heures que le travail effectué sur le chantier. La ligne peut être approuvée.",

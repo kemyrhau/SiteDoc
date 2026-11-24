@@ -5902,7 +5902,6 @@
   "timer.attestering.tabell.merke.utenForerbevis": "Uten bevis",
   "timer.attestering.tabell.merke.reiseUnderTerskel": "Reise under terskel",
   "timer.attestering.tabell.merke.reiseUnderTerskelForklaring": "Reisen er {{maalt}}. Firmaets terskel er {{terskel}}. Under terskelen regnes reisen innenfor arbeidstiden. Den er ført som reisetid.",
-  "timer.attestering.tabell.merke.reiseUnderTerskelForklaringUtenMaaling": "Firmaets terskel er {{terskel}}, og reisen er under den. Under terskelen regnes reisen innenfor arbeidstiden. Den er ført som reisetid.",
   "timer.attestering.merkeMaskinOverArbeid": "Over arbeid",
   "timer.attestering.forklaringMaskinOverArbeid": "Maskin {{maskin}} t, arbeid {{arbeid}} t",
   "timer.attestering.tabell.hjelp.merker": "Avvik står som korte merker. Hold pekeren over et merke, eller trykk på det på en berøringsskjerm, for å se hele forklaringen. «Uten timerad»: maskinen er ikke koblet til en timerad og står som egen linje. «Uten bevis»: maskinarbeid uten registrert maskinførerbevis, flagget for synlighet. Begge linjene kan attesteres. «Over arbeid»: en maskin med fører har flere timer enn arbeidet på jobben. Linjen kan attesteres.",

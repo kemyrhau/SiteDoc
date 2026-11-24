@@ -5902,7 +5902,6 @@
   "timer.attestering.tabell.merke.utenForerbevis": "Nėra sertifikato",
   "timer.attestering.tabell.merke.reiseUnderTerskel": "Keliaukite žemiau slenksčio",
   "timer.attestering.tabell.merke.reiseUnderTerskelForklaring": "Kelionė yra {{maalt}}. Įmonės riba yra {{terskel}}. Neviršijant slenksčio, kelionės skaičiuojamos kaip darbo laikas. Jis buvo įrašytas kaip kelionės laikas.",
-  "timer.attestering.tabell.merke.reiseUnderTerskelForklaringUtenMaaling": "Įmonės slenkstis yra {{terskel}}, o kelionė yra žemiau jos. Neviršijant slenksčio, kelionės skaičiuojamos kaip darbo laikas. Jis buvo įrašytas kaip kelionės laikas.",
   "timer.attestering.merkeMaskinOverArbeid": "Per darbą",
   "timer.attestering.forklaringMaskinOverArbeid": "Mašina {{maskin}} val., darbas {{arbeid}} val",
   "timer.attestering.tabell.hjelp.merker": "Nukrypimai rodomi kaip trumpos žymos. Užveskite pelės žymeklį virš žymos arba palieskite ją jutikliniame ekrane, kad pamatytumėte visą paaiškinimą. „Nėra laiko įvesties“: aparatas nesusietas su laiko įrašu ir rodomas kaip atskira eilutė. „Nėra sertifikato“: mašinos darbas be registruoto operatoriaus pažymėjimo, pažymėtas matomumui. Abi eilutės gali būti patvirtintos. „Per daug darbo“: mašina su operatoriumi turi daugiau valandų nei darbas. Linija gali būti patvirtinta.",

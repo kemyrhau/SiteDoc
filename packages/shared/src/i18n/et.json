@@ -5902,7 +5902,6 @@
   "timer.attestering.tabell.merke.utenForerbevis": "Sertifikaadi pole",
   "timer.attestering.tabell.merke.reiseUnderTerskel": "Reisida alla läve",
   "timer.attestering.tabell.merke.reiseUnderTerskelForklaring": "Reis on {{maalt}}. Ettevõtte künnis on {{terskel}}. Künnise allapoole läheb reisimine tööaja hulka. See on sisestatud reisiajaks.",
-  "timer.attestering.tabell.merke.reiseUnderTerskelForklaringUtenMaaling": "Ettevõtte künnis on {{terskel}} ja reis on selle all. Künnise allapoole läheb reisimine tööaja hulka. See on sisestatud reisiajaks.",
   "timer.attestering.merkeMaskinOverArbeid": "Üle töö",
   "timer.attestering.forklaringMaskinOverArbeid": "Masin {{maskin}} h, töö {{arbeid}} h",
   "timer.attestering.tabell.hjelp.merker": "Kõrvalekalded kuvatakse lühikeste siltidena. Täieliku selgituse nägemiseks hõljutage kursorit sildi kohal või puudutage seda puuteekraanil. “Aja sisestus puudub”: masin ei ole ajakirjega seotud ja kuvatakse eraldi reana. “Sertifikaat puudub”: masinatöö ilma registreeritud operaatoritunnistuseta, nähtavuse huvides märgistatud. Mõlemat rida saab kinnitada. \"Ületöö\": operaatoriga masinal on rohkem tunde kui tööl. Liin saab heaks kiita.",

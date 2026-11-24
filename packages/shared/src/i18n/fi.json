@@ -5902,7 +5902,6 @@
   "timer.attestering.tabell.merke.utenForerbevis": "Ei todistusta",
   "timer.attestering.tabell.merke.reiseUnderTerskel": "Matkustaa kynnyksen alle",
   "timer.attestering.tabell.merke.reiseUnderTerskelForklaring": "Matka on {{maalt}}. Yrityksen kynnys on {{terskel}}. Kynnyksen alle matkustaminen lasketaan työajaksi. Se on merkitty matka-ajaksi.",
-  "timer.attestering.tabell.merke.reiseUnderTerskelForklaringUtenMaaling": "Yrityksen kynnys on {{terskel}} ja matka on sen alle. Kynnyksen alle matkustaminen lasketaan työajaksi. Se on merkitty matka-ajaksi.",
   "timer.attestering.merkeMaskinOverArbeid": "Työn yli",
   "timer.attestering.forklaringMaskinOverArbeid": "Kone {{maskin}} h, työ {{arbeid}} h",
   "timer.attestering.tabell.hjelp.merker": "Poikkeamat näytetään lyhyinä tunnisteina. Vie hiiri tunnisteen päälle tai napauta sitä kosketusnäytöllä nähdäksesi täydellisen selityksen. \"Ei ajan syöttöä\": konetta ei ole linkitetty aikamerkintään ja se näkyy erillisenä rivinä. \"Ei sertifikaattia\": konetyö ilman rekisteröityä käyttäjätodistusta, merkitty näkyvyyden vuoksi. Molemmat rivit voidaan hyväksyä. \"Ylityö\": koneella, jossa on kuljettaja, on enemmän tunteja kuin työssä. Linja voidaan hyväksyä.",

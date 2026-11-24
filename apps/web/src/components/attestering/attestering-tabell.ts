@@ -755,7 +755,8 @@ export function lonnsartPlass(kolonner: readonly TimerTabellKolKey[]): { fra: Ti
  * Hvor prosjektnavnet står i dagsraden og jobbraden, for brukerens kolonneoppsett (R2):
  *  - `spenn`: over de synlige av `NAVNEFELT_KOLONNER` (Prosjekt, Pr.nr., Underprosjekt) som står
  *    sammenhengende fra den første synlige av dem;
- *  - `kolonne`: ingen av dem synlige → første synlige tekstkolonne etter Ansatt;
+ *  - `kolonne`: ingen av dem synlige → første synlige tekstkolonne etter Ansatt, utenom
+ *    lønnsartfeltet (`lonnsartPlass`);
  *  - `ansatt`: finnes ingen → i Ansatt-cella under navnet.
  * `tomme`: cellene som står tomme i dagsraden og jobbraden — feltets kolonner utenfor feltet
  * (brukeren har flyttet en annen kolonne mellom), og Byggeplass, som hoveren på navnet bærer.
@@ -785,7 +786,12 @@ export function navnefeltPlass(
     return { type: "spenn", fra: kolonner[start]!, antall: slutt - start + 1, tomme };
   }
   const etterAnsatt = kolonner.indexOf("ansatt");
-  const kolonne = kolonner.find((k, i) => i > etterAnsatt && !erTall(k) && !IKKE_NAVNEKOLONNE.has(k) && k !== utenfor);
+  // Gate A1–A3 vilkår 1: kolonnene lønnsartfeltet ligger over, er opptatt — spennet tegnes
+  // først, så navnet ville ikke stått der.
+  const lp = lonnsartPlass(kolonner);
+  const lStart = lp ? kolonner.indexOf(lp.fra) : -1;
+  const iLonnsartFelt = (i: number) => lp != null && i >= lStart && i < lStart + lp.antall;
+  const kolonne = kolonner.find((k, i) => i > etterAnsatt && !erTall(k) && !IKKE_NAVNEKOLONNE.has(k) && k !== utenfor && !iLonnsartFelt(i));
   if (kolonne) {
     tomme.delete(kolonne);
     return { type: "kolonne", kolonne, tomme };

@@ -1,13 +1,19 @@
 /**
  * A3 (web-timeforing-plan.md § 4.17 del D, B55): «Reise under terskel».
  *
- * En reiselinje (`erReise`) der firmaets regel sa arbeidstid — reisen var under terskelen — og
- * arbeideren likevel førte reisetid. Regelen leses fra snapshotet på linja (`reiseRegel`), slik den
- * var da reisen ble ført: `regelKategori` er satt bare når arbeideren valgte annet enn regelen
- * (`reiseManuell.ts`). Ingen serverendring; eldre rader uten snapshot får ikke merke.
+ * En reiselinje (`erReise`) der firmaets regel ga arbeidstid, arbeideren likevel førte reisetid,
+ * og den MÅLTE reisen er under terskelen. Regelen leses fra snapshotet på linja (`reiseRegel`),
+ * slik den var da reisen ble ført: `regelKategori` er `klassifiserReise`-svaret, satt bare når
+ * arbeideren valgte annet enn regelen (`reiseManuell.ts`). Ingen serverendring; eldre rader uten
+ * snapshot får ikke merke.
  *
- * Får ikke merke: reise over terskelen, reise under terskelen i et firma som har «reisetid» under
- * terskel, og tid ført som arbeidstid (ikke reiselinje).
+ * Gate A1–A3 vilkår 2: «arbeidstid» betyr ikke «under terskel» — `klassifiserReise` gir
+ * `reiseUnderTerskelType` også når km-avstanden mangler, og `reiseOverTerskelType` kan være
+ * arbeidstid. Merket krever derfor målingen, sammenlignet rått med terskelen (`<`, som
+ * `klassifiserReise`).
+ *
+ * Får ikke merke: reise uten måling, målt reise på eller over terskelen, reise ført etter regelen,
+ * og tid ført som arbeidstid (ikke reiselinje).
  */
 
 export interface ReiseUnderTerskelRad {
@@ -19,8 +25,8 @@ export interface ReiseUnderTerskelRad {
 
 export interface ReiseUnderTerskel {
   enhet: "minutter" | "km";
-  /** Reisens lengde i enheten (km eller minutter); null når linja ikke har målingen. */
-  maalt: number | null;
+  /** Reisens målte lengde i enheten (km med én desimal, eller hele minutter). */
+  maalt: number;
   /** Firmaets terskel i enheten. */
   terskel: number;
 }
@@ -36,12 +42,12 @@ export function reiseUnderTerskel(rad: ReiseUnderTerskelRad): ReiseUnderTerskel 
   if (r.regelKategori !== "arbeidstid") return null;
   if (r.enhet === "km") {
     const terskelM = tall(r.terskelM);
-    if (terskelM == null) return null;
     const avstand = tall(rad.reiseAvstandM);
-    return { enhet: "km", maalt: avstand == null ? null : rund1(avstand / 1000), terskel: rund1(terskelM / 1000) };
+    if (terskelM == null || avstand == null || avstand < 0 || avstand >= terskelM) return null;
+    return { enhet: "km", maalt: rund1(avstand / 1000), terskel: rund1(terskelM / 1000) };
   }
   const terskelMin = tall(r.terskelMin);
-  if (terskelMin == null) return null;
   const kjoretid = tall(rad.reiseKjoretidMin);
-  return { enhet: "minutter", maalt: kjoretid == null ? null : Math.round(kjoretid), terskel: terskelMin };
+  if (terskelMin == null || kjoretid == null || kjoretid < 0 || kjoretid >= terskelMin) return null;
+  return { enhet: "minutter", maalt: Math.round(kjoretid), terskel: terskelMin };
 }

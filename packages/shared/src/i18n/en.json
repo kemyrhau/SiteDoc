@@ -5902,7 +5902,6 @@
   "timer.attestering.tabell.merke.utenForerbevis": "No certificate",
   "timer.attestering.tabell.merke.reiseUnderTerskel": "Travel under threshold",
   "timer.attestering.tabell.merke.reiseUnderTerskelForklaring": "The trip is {{maalt}}. The company's threshold is {{terskel}}. Under the threshold, travel counts as working time. It has been entered as travel time.",
-  "timer.attestering.tabell.merke.reiseUnderTerskelForklaringUtenMaaling": "The company's threshold is {{terskel}}, and the trip is under it. Under the threshold, travel counts as working time. It has been entered as travel time.",
   "timer.attestering.merkeMaskinOverArbeid": "Over work",
   "timer.attestering.forklaringMaskinOverArbeid": "Machine {{maskin}} h, work {{arbeid}} h",
   "timer.attestering.tabell.hjelp.merker": "Deviations are shown as short tags. Hover over a tag, or tap it on a touch screen, to see the full explanation. “No time entry”: the machine is not linked to a time entry and is shown as a separate line. “No certificate”: machine work without a registered operator certificate, flagged for visibility. Both lines can be approved. “Over work”: a machine with an operator has more hours than the work on the job. The line can be approved.",

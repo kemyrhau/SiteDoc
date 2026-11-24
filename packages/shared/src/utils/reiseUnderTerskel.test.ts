@@ -16,9 +16,23 @@ describe("reiseUnderTerskel", () => {
       .toEqual({ enhet: "minutter", maalt: 18, terskel: 30 });
   });
 
-  it("uten måling på linja: terskelen står, målingen er null", () => {
-    expect(reiseUnderTerskel({ erReise: true, reiseRegel: { ...regelKm, regelKategori: "arbeidstid" } }))
-      .toEqual({ enhet: "km", maalt: null, terskel: 30 });
+  // Gate A1–A3 vilkår 2: «arbeidstid» fra regelen er ikke det samme som «under terskel».
+  it("vilkår 2: km uten avstand → ikke merke (regelen ga arbeidstid fordi avstanden manglet)", () => {
+    expect(reiseUnderTerskel({ erReise: true, reiseRegel: { ...regelKm, regelKategori: "arbeidstid" } })).toBeNull();
+    expect(reiseUnderTerskel({ erReise: true, reiseRegel: { ...regelKm, regelKategori: "arbeidstid" }, reiseAvstandM: -1 })).toBeNull();
+    expect(reiseUnderTerskel({ erReise: true, reiseRegel: { ...regelMin, regelKategori: "arbeidstid" } })).toBeNull();
+  });
+
+  it("vilkår 2: målt over terskelen med regelKategori «arbeidstid» (firma med arbeidstid over terskel) → ikke merke", () => {
+    const overArbeidstid = { ...regelKm, overType: "arbeidstid", regelKategori: "arbeidstid" };
+    expect(reiseUnderTerskel({ erReise: true, reiseRegel: overArbeidstid, reiseAvstandM: 45000 })).toBeNull();
+    expect(reiseUnderTerskel({ erReise: true, reiseRegel: overArbeidstid, reiseAvstandM: 30000 })).toBeNull(); // på terskelen = over
+    expect(reiseUnderTerskel({ erReise: true, reiseRegel: { ...regelMin, overType: "arbeidstid", regelKategori: "arbeidstid" }, reiseKjoretidMin: 40 })).toBeNull();
+  });
+
+  it("rå sammenligning: 29 950 m er under 30 000 m selv om begge vises som 30 km", () => {
+    expect(reiseUnderTerskel({ erReise: true, reiseRegel: { ...regelKm, regelKategori: "arbeidstid" }, reiseAvstandM: 29950 }))
+      .toEqual({ enhet: "km", maalt: 30, terskel: 30 });
   });
 
   it("negativkontroll: reise ført etter regelen (ingen regelKategori) får ikke merke", () => {

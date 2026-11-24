@@ -1683,6 +1683,20 @@ describe("O13 — attesteringen etter vedtaksfila § Dagsvisningen pkt 2 og 3", 
   afterEach(() => { delete h.data["bruker.hentTabelloppsett"]; });
 
   describe("pkt 1 — prosjektnavnet i dagsrad og jobbrad", () => {
+    it("gate A1–A3 vilkår 1: uten Prosjekt, Pr.nr. og Underprosjekt står navnet likevel i dags- og jobbraden", () => {
+      medOppsett(["dato", "ansatt", "betegnelse", "fraTil", "timer", "avvik"]);
+      const { container } = vis([
+        sedel({ timer: [timer("t1"), timer("t2", { kortId: "kB", projectId: "pB", project: { id: "pB", name: "Prosjekt B", internalProjectNumber: "1002", projectNumber: "SD-2" } })] }),
+      ]);
+      // Lønnsartfeltet beholder Betegnelse og Fra–til; navnet står under ansattnavnet.
+      expect((dagsrad(container).querySelector("[data-lonnsartfelt]") as HTMLElement).style.gridColumn).toBe("span 2");
+      expect(dagsrad(container).textContent).toContain("Kari Nordmann");
+      // To jobber: dagsraden viser «N jobber» (under ansattnavnet), jobbradene navnet.
+      expect(dagsrad(container).textContent).toContain("timer.attestering.tabell.antallJobber");
+      const jobber = Array.from(container.querySelectorAll('[data-rad="jobb"]')) as HTMLElement[];
+      expect(jobber.map((j) => j.querySelector("[data-prosjektnavn]")?.firstElementChild?.textContent)).toEqual(["Prosjekt A", "Prosjekt B"]);
+    });
+
     it("én jobb: navnet halvfet med «↳» for underprosjekt, ingen linje 2, i Prosjekt-kolonnen (A2)", () => {
       const { container } = vis([sedel({ timer: [timer("t1", { byggeplassNavn: "A sør", externalCostObjectId: "e1", underprosjekt: UP })] })]);
       const navn = dagsrad(container).querySelector("[data-prosjektnavn]") as HTMLElement;

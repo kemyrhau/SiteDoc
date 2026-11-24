@@ -5902,7 +5902,6 @@
   "timer.attestering.tabell.merke.utenForerbevis": "Нет сертификата",
   "timer.attestering.tabell.merke.reiseUnderTerskel": "Проезд под порогом",
   "timer.attestering.tabell.merke.reiseUnderTerskelForklaring": "Поездка — {{maalt}}. Порог компании — {{terskel}}. При достижении порога поездка считается рабочим временем. Оно было введено как время в пути.",
-  "timer.attestering.tabell.merke.reiseUnderTerskelForklaringUtenMaaling": "Порог компании — {{terskel}}, поездка — ниже него. При достижении порога поездка считается рабочим временем. Оно было введено как время в пути.",
   "timer.attestering.merkeMaskinOverArbeid": "Над работой",
   "timer.attestering.forklaringMaskinOverArbeid": "Машина {{maskin}} ч, работа {{arbeid}} ч",
   "timer.attestering.tabell.hjelp.merker": "Отклонения отображаются в виде коротких тегов. Наведите указатель мыши на тег или коснитесь его на сенсорном экране, чтобы просмотреть полное объяснение. «Нет ввода времени»: машина не привязана к вводу времени и отображается отдельной строкой. «Нет сертификата»: машина работает без зарегистрированного сертификата оператора, помеченного для видимости. Обе линии могут быть одобрены. «Сверхработа»: у станка с оператором больше часов, чем работы на рабочем месте. Линия может быть одобрена.",

@@ -5902,7 +5902,6 @@
   "timer.attestering.tabell.merke.utenForerbevis": "Asnjë certifikatë",
   "timer.attestering.tabell.merke.reiseUnderTerskel": "Udhëtoni nën pragun",
   "timer.attestering.tabell.merke.reiseUnderTerskelForklaring": "Udhëtimi është {{maalt}}. Pragu i kompanisë është {{terskel}}. Nën pragun, udhëtimi llogaritet si kohë pune. Është futur si kohë udhëtimi.",
-  "timer.attestering.tabell.merke.reiseUnderTerskelForklaringUtenMaaling": "Pragu i kompanisë është {{terskel}} dhe udhëtimi është nën të. Nën pragun, udhëtimi llogaritet si kohë pune. Është futur si kohë udhëtimi.",
   "timer.attestering.merkeMaskinOverArbeid": "Mbi punë",
   "timer.attestering.forklaringMaskinOverArbeid": "Makina {{maskin}} h, puna {{arbeid}} h",
   "timer.attestering.tabell.hjelp.merker": "Devijimet shfaqen si etiketa të shkurtra. Zhvendosni pezull mbi një etiketë ose prekni atë në një ekran me prekje, për të parë shpjegimin e plotë. \"Nuk ka hyrje në kohë\": makina nuk është e lidhur me një hyrje kohore dhe shfaqet si një rresht i veçantë. “Pa certifikatë”: puna e makinerisë pa certifikatë operatori të regjistruar, e shënuar për dukshmëri. Të dy linjat mund të miratohen. \"Mbi punë\": një makinë me një operator ka më shumë orë se puna në punë. Linja mund të miratohet.",

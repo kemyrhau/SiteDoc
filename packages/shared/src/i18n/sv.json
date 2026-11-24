@@ -5902,7 +5902,6 @@
   "timer.attestering.tabell.merke.utenForerbevis": "Inget certifikat",
   "timer.attestering.tabell.merke.reiseUnderTerskel": "Resa under tröskeln",
   "timer.attestering.tabell.merke.reiseUnderTerskelForklaring": "Resan är {{maalt}}. Företagets tröskel är {{terskel}}. Under tröskeln räknas resor som arbetstid. Den har angivits som restid.",
-  "timer.attestering.tabell.merke.reiseUnderTerskelForklaringUtenMaaling": "Företagets tröskelvärde är {{terskel}}, och resan ligger under den. Under tröskeln räknas resor som arbetstid. Den har angivits som restid.",
   "timer.attestering.merkeMaskinOverArbeid": "Över arbete",
   "timer.attestering.forklaringMaskinOverArbeid": "Maskin {{maskin}} h, arbete {{arbeid}} h",
   "timer.attestering.tabell.hjelp.merker": "Avvikelser visas som korta taggar. Håll muspekaren över en tagg eller tryck på den på en pekskärm för att se hela förklaringen. \"Ingen tidsinmatning\": maskinen är inte kopplad till en tidsinmatning och visas som en separat rad. \"Inget certifikat\": maskinarbete utan registrerat operatörscertifikat, flaggad för synlighet. Båda linjerna kan godkännas. \"Överarbete\": en maskin med en operatör har fler timmar än arbetet på jobbet. Linjen kan godkännas.",

@@ -5902,7 +5902,6 @@
   "timer.attestering.tabell.merke.utenForerbevis": "Fără certificat",
   "timer.attestering.tabell.merke.reiseUnderTerskel": "Călătorie sub prag",
   "timer.attestering.tabell.merke.reiseUnderTerskelForklaring": "Călătoria este {{maalt}}. Pragul companiei este {{terskel}}. Sub prag, călătoria contează ca timp de lucru. A fost introdus ca timp de călătorie.",
-  "timer.attestering.tabell.merke.reiseUnderTerskelForklaringUtenMaaling": "Pragul companiei este {{terskel}}, iar călătoria este sub acesta. Sub prag, călătoria contează ca timp de lucru. A fost introdus ca timp de călătorie.",
   "timer.attestering.merkeMaskinOverArbeid": "Peste munca",
   "timer.attestering.forklaringMaskinOverArbeid": "Mașină {{maskin}} h, lucru {{arbeid}} h",
   "timer.attestering.tabell.hjelp.merker": "Abaterile sunt afișate ca etichete scurte. Plasați cursorul peste o etichetă sau atingeți-o pe un ecran tactil pentru a vedea explicația completă. „Fără introducere de timp”: aparatul nu este legat de o intrare de timp și este afișat ca o linie separată. „Fără certificat”: lucru cu mașina fără un certificat de operator înregistrat, marcat pentru vizibilitate. Ambele linii pot fi aprobate. „Peste muncă”: o mașină cu un operator are mai multe ore decât munca la locul de muncă. Linia poate fi aprobată.",

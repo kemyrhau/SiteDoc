@@ -5902,7 +5902,6 @@
   "timer.attestering.tabell.merke.utenForerbevis": "Nav sertifikāta",
   "timer.attestering.tabell.merke.reiseUnderTerskel": "Ceļot zem sliekšņa",
   "timer.attestering.tabell.merke.reiseUnderTerskelForklaring": "Brauciens ir {{maalt}}. Uzņēmuma slieksnis ir {{terskel}}. Zem sliekšņa ceļošana tiek uzskatīta par darba laiku. Tas ir ievadīts kā ceļojuma laiks.",
-  "timer.attestering.tabell.merke.reiseUnderTerskelForklaringUtenMaaling": "Uzņēmuma slieksnis ir {{terskel}}, un ceļojums ir zem tā. Zem sliekšņa ceļošana tiek uzskatīta par darba laiku. Tas ir ievadīts kā ceļojuma laiks.",
   "timer.attestering.merkeMaskinOverArbeid": "Pāri darbam",
   "timer.attestering.forklaringMaskinOverArbeid": "Mašīna {{maskin}} h, darbs {{arbeid}} h",
   "timer.attestering.tabell.hjelp.merker": "Novirzes tiek parādītas kā īsas atzīmes. Virziet kursoru virs atzīmes vai pieskarieties tai skārienekrānā, lai skatītu pilnu skaidrojumu. “Nav laika ievades”: iekārta nav saistīta ar laika ierakstu un tiek parādīta kā atsevišķa rinda. “Bez sertifikāta”: mašīnas darbs bez reģistrēta operatora sertifikāta, atzīmēts redzamības dēļ. Abas līnijas var apstiprināt. “Pārstrādāt”: mašīnai ar operatoru ir vairāk stundu nekā darbam pie darba. Līniju var apstiprināt.",

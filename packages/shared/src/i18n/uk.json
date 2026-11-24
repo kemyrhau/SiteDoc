@@ -5902,7 +5902,6 @@
   "timer.attestering.tabell.merke.utenForerbevis": "Без сертифіката",
   "timer.attestering.tabell.merke.reiseUnderTerskel": "Проїзд під поріг",
   "timer.attestering.tabell.merke.reiseUnderTerskelForklaring": "Подорож {{maalt}}. Поріг компанії становить {{terskel}}. Під порогом проїзд зараховується як робочий час. Його було введено як час у дорозі.",
-  "timer.attestering.tabell.merke.reiseUnderTerskelForklaringUtenMaaling": "Поріг компанії — {{terskel}}, а поїздка — під ним. Під порогом проїзд зараховується як робочий час. Його було введено як час у дорозі.",
   "timer.attestering.merkeMaskinOverArbeid": "Над роботою",
   "timer.attestering.forklaringMaskinOverArbeid": "Машина {{maskin}} h, робота {{arbeid}} h",
   "timer.attestering.tabell.hjelp.merker": "Відхилення відображаються короткими тегами. Наведіть курсор на тег або торкніться його на сенсорному екрані, щоб переглянути повне пояснення. «Без введення часу»: автомат не пов’язаний із введенням часу та відображається окремим рядком. «Без сертифікату»: робота машини без зареєстрованого сертифіката оператора, позначена для видимості. Обидві лінії можуть бути затверджені. «Надмір роботи»: машина з оператором має більше годин, ніж робота на робочому місці. Лінія може бути затверджена.",

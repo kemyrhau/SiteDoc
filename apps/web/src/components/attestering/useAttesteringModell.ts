@@ -47,10 +47,7 @@ export function useAttesteringModell(
             : t("timer.reiseTerskel.min", { min: n.toLocaleString(i18n.language, { maximumFractionDigits: 0 }) });
         return {
           tekst: t("timer.attestering.tabell.merke.reiseUnderTerskel"),
-          forklaring:
-            u.maalt == null
-              ? t("timer.attestering.tabell.merke.reiseUnderTerskelForklaringUtenMaaling", { terskel: enhet(u.terskel) })
-              : t("timer.attestering.tabell.merke.reiseUnderTerskelForklaring", { maalt: enhet(u.maalt), terskel: enhet(u.terskel) }),
+          forklaring: t("timer.attestering.tabell.merke.reiseUnderTerskelForklaring", { maalt: enhet(u.maalt), terskel: enhet(u.terskel) }),
         };
       },
       tekst: {
