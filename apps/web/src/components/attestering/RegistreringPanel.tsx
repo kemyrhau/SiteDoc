@@ -12,7 +12,7 @@ import { Kvitteringer } from "./Kvitteringer";
 import { ReiseRadMerke } from "./ReiseRadMerke";
 import { ReiseRettVindu } from "./ReiseRettVindu";
 import { LinjeRettVindu, type LinjeRett } from "./LinjeRettVindu";
-import type { AttKort, AttLinje, AttMaskin, AttSedel, AttTimer } from "./attestering-tabell";
+import type { AttKort, AttLinje, AttMaskin, AttSedel, AttTimer, AttVare, FlyttMaal } from "./attestering-tabell";
 import { jobbensBeskrivelser } from "../timer/BeskrivelseHover";
 
 /**
@@ -36,6 +36,12 @@ import { jobbensBeskrivelser } from "../timer/BeskrivelseHover";
  *  - w15f (§ 4.15 del E): reiselinja i del 8 er tekst «fra–til · lønnsart · prosjekt · byggeplass ·
  *    underprosjekt» med ✂ og ✎. ✎ åpner «Rett reisen» (`ReiseRettVindu`): start, slutt, prosjekt,
  *    byggeplass og underprosjekt. Lønnsarten på reisen rettes i «✎ Rediger jobben».
+ *  - D2a (skissen `d2ab-losning.png`): etter «Del opp» står kort A og B åpne side om side
+ *    (`parRolle`), med merket «Kort A»/«Kort B» i hodet. Del 8 «Reise» vises alltid når
+ *    attestanten kan rette kortet, så en reise kan flyttes inn.
+ *  - D2b: linjene under Maskiner, Varer, Tillegg, Utlegg og Reise har en flytteknapp
+ *    (`flyttLinjeTilKort`). I paret «→ Kort B» / «← Kort A»; alene «→ underprosjekt · fra–til»
+ *    for ett mål, «→ Flytt til ▾» for flere, ingen knapp uten mål. Vare åpner et mengdefelt.
  */
 
 /** Til og med så mange underprosjekter vises som knapper (B11). */
@@ -64,6 +70,12 @@ interface Props {
   onLukk: () => void;
   /** w15f: prosjektene attestanten kan attestere (`undefined` = alle) — lista i «Rett reisen». */
   prosjektKontekst?: ReadonlySet<string>;
+  /** D2a: kortet står i paret etter «Del opp» — «a» er kortet som ble delt, «b» det nye. */
+  parRolle?: "a" | "b";
+  /** D2a: «Del opp» er utført; kortet B fikk denne kort-id-en. */
+  onDelt?: (kortIdB: string) => void;
+  /** D2b: kortene en linje kan flyttes til (`flyttMaal`). I paret bare partneren. */
+  flyttMaal?: readonly FlyttMaal[];
 }
 
 /**
@@ -114,7 +126,7 @@ export function jobbensTidsrom(rader: readonly { fraTid: string | null; tilTid: 
   return { fra: fraMin(Math.min(...fra)), til: fraMin(Math.max(...til)) };
 }
 
-export function RegistreringPanel({ kort, sedel, orgId, kanAttestere, kanRette, lonnsarter, tidsrunding = null, kanSplitte, onSplitt, onRedigerJobb, onEndret, onLukk, prosjektKontekst }: Props) {
+export function RegistreringPanel({ kort, sedel, orgId, kanAttestere, kanRette, lonnsarter, tidsrunding = null, kanSplitte, onSplitt, onRedigerJobb, onEndret, onLukk, prosjektKontekst, parRolle, onDelt, flyttMaal = [] }: Props) {
   const { t } = useTranslation();
   const [feil, setFeil] = useState<string | null>(null);
   const [delOpp, setDelOpp] = useState(false);
@@ -122,6 +134,8 @@ export function RegistreringPanel({ kort, sedel, orgId, kanAttestere, kanRette, 
   const [reiseRett, setReiseRett] = useState<AttTimer | null>(null);
   // w15g: linja som rettes i vinduet bak ✎.
   const [linjeRett, setLinjeRett] = useState<LinjeRett | null>(null);
+  // D2b: vare som flyttes — mengdefeltet står under linja.
+  const [vareFlytt, setVareFlytt] = useState<{ v: AttVare; maal: FlyttMaal; tekst: string } | null>(null);
 
   // w12 (A punkt 7): del 1–7 leser bare arbeidsradene; reisen står i del 8.
   const timerLinjer = useMemo(
@@ -167,7 +181,8 @@ export function RegistreringPanel({ kort, sedel, orgId, kanAttestere, kanRette, 
     );
     return new Map(maskinRader.map((m, i) => [m.id, hoyst[i] ?? null]));
   }, [sedel.timer, sedel.maskiner, sedel.pauseMin]);
-  const varer = kort.linjer.flatMap((l) => l.linje.type === "timer" || l.linje.type === "vare" ? l.linje.varer : []);
+  // D2b: varene med kilden (attestert, antall) — flytteknappen trenger dem.
+  const varer = kort.linjer.flatMap((l): AttVare[] => (l.kilde.type === "timer" ? l.kilde.varer : l.kilde.type === "vare" ? [l.kilde.rad] : []));
   const tillegg = kort.linjer.filter((l) => l.kilde.type === "tillegg");
   const utlegg = kort.linjer.filter((l) => l.kilde.type === "utlegg");
 
@@ -209,6 +224,18 @@ export function RegistreringPanel({ kort, sedel, orgId, kanAttestere, kanRette, 
   });
 
   const alleVenter = kort.linjer.every((l) => !l.harHandling || l.ventende);
+
+  // D2b: flytt én linje til et annet kort i samme prosjekt.
+  const flyttLinje = trpc.timer.dagsseddel.flyttLinjeTilKort.useMutation({
+    onSuccess: (_d: unknown) => { setFeil(null); setVareFlytt(null); onEndret(); },
+    onError: (e: { message: string }) => setFeil(e.message),
+  });
+  const flyttTil = (radType: "maskin" | "tillegg" | "utlegg" | "reise" | "vare", radId: string, maal: FlyttMaal, mengde?: number) =>
+    flyttLinje.mutate({ sheetId: kort.sheetId, radType, radId, tilKortId: maal.kortId, ...(mengde !== undefined ? { mengde } : {}) });
+  const kildeNavn = parRolle === "a" ? t("timer.attestering.registrering.kortA") : parRolle === "b" ? t("timer.attestering.registrering.kortB") : t("timer.attestering.registrering.flytt.detteKortet");
+  const flyttKnapp = (radType: "maskin" | "tillegg" | "utlegg" | "reise", radId: string) => (
+    <FlyttKnapp maal={flyttMaal} parRolle={parRolle} disabled={flyttLinje.isPending} onVelg={(m) => flyttTil(radType, radId, m)} />
+  );
   // Eldre rader uten kortId er ingen jobb — serveren avviser «hele jobben» og del opp for dem.
   const jobbId = forste?.kortId ?? tilleggForste?.kortId ?? null;
   const kanFlytte = kanAttestere && alleVenter && kort.projectId !== null && jobbId !== null;
@@ -275,16 +302,26 @@ export function RegistreringPanel({ kort, sedel, orgId, kanAttestere, kanRette, 
   };
 
   const tom = <span className="text-gray-400">—</span>;
+  // D2a: del 8 står alltid når kortet kan rettes, så en reise kan flyttes inn.
+  const visReise = reiseLinjer.length > 0 || kanRette;
   const tittel = [kort.prosjektnummer, kort.prosjekt].filter(Boolean).join(" · ");
 
   return (
     <div
       data-registrering={kort.nokkel}
-      className="mx-3 my-2 rounded-lg border border-blue-300 bg-white text-sm text-gray-800 shadow-sm"
+      {...(parRolle ? { "data-par-rolle": parRolle } : {})}
+      className={`${parRolle ? "min-w-0" : "mx-3 my-2"} rounded-lg border border-blue-300 bg-white text-sm text-gray-800 shadow-sm`}
     >
       <div className="flex items-center justify-between gap-3 border-b border-gray-200 px-4 py-2">
         <div className="min-w-0">
-          <p className="truncate font-semibold text-gray-900">{tittel}</p>
+          <p className="flex items-center gap-2 font-semibold text-gray-900">
+            {parRolle && (
+              <span data-kort-merke="" className="shrink-0 rounded bg-blue-600 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                {t(parRolle === "a" ? "timer.attestering.registrering.kortA" : "timer.attestering.registrering.kortB")}
+              </span>
+            )}
+            <span className="truncate">{tittel}</span>
+          </p>
           {/* w10a (A6): aktiviteten står i hodet, ved byggeplassen. */}
           {(kort.byggeplass || aktivitetene.length > 0) && (
             <p data-kort-hode="" className="truncate text-xs text-gray-500">{[kort.byggeplass, ...aktivitetene].filter(Boolean).join(" · ")}</p>
@@ -354,7 +391,7 @@ export function RegistreringPanel({ kort, sedel, orgId, kanAttestere, kanRette, 
           eco={ecoListe}
           naaEco={naaEco}
           onAvbryt={() => setDelOpp(false)}
-          onDelt={() => { setDelOpp(false); onEndret(); }}
+          onDelt={(kortIdB) => { setDelOpp(false); onEndret(); onDelt?.(kortIdB); }}
         />
       )}
 
@@ -398,6 +435,7 @@ export function RegistreringPanel({ kort, sedel, orgId, kanAttestere, kanRette, 
                   <span className="ml-auto flex items-center gap-1.5">
                     {/* S1: ✂ på en maskin som står på egen linje; en maskin på timelinja deles med den. */}
                     {linje.kilde.type === "maskin" && splittKnapp(linje)}
+                    {kan && flyttKnapp("maskin", m.id)}
                     {kan && pennKnapp(t("timer.korrigert.vindu.maskin"), {
                       type: "maskin",
                       radId: m.id,
@@ -417,9 +455,33 @@ export function RegistreringPanel({ kort, sedel, orgId, kanAttestere, kanRette, 
         {varer.length === 0 ? tom : (
           <div className="flex flex-col gap-1">
             {varer.map((v) => (
-              <div key={v.id} className="flex items-center gap-3">
-                <span className="w-48 truncate">{v.navn ?? "—"}</span>
-                <span className="tabular-nums">{v.mengde == null ? "—" : formaterNorsk(v.mengde)} {v.enhet ?? ""}</span>
+              <div key={v.id} data-varelinje={v.id} className="flex flex-col gap-1.5">
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="w-48 truncate">{v.navn ?? "—"}</span>
+                  <span className="tabular-nums">{formaterNorsk(Number(v.antall))} {v.enhet ?? ""}</span>
+                  <span className="ml-auto flex items-center gap-1.5">
+                    {kanRette && !v.attestert && (
+                      <FlyttKnapp
+                        maal={flyttMaal}
+                        parRolle={parRolle}
+                        disabled={flyttLinje.isPending}
+                        onVelg={(m) => setVareFlytt({ v, maal: m, tekst: tallTekst(Math.min(1, Number(v.antall))) })}
+                      />
+                    )}
+                  </span>
+                </div>
+                {vareFlytt?.v.id === v.id && (
+                  <VareFlyttSkjema
+                    vare={v}
+                    maalNavn={maalTekst(vareFlytt.maal, parRolle, t)}
+                    kildeNavn={kildeNavn}
+                    tekst={vareFlytt.tekst}
+                    opptatt={flyttLinje.isPending}
+                    onTekst={(tekst) => setVareFlytt({ ...vareFlytt, tekst })}
+                    onAvbryt={() => setVareFlytt(null)}
+                    onFlytt={(mengde) => flyttTil("vare", v.id, vareFlytt.maal, mengde)}
+                  />
+                )}
               </div>
             ))}
           </div>
@@ -436,6 +498,7 @@ export function RegistreringPanel({ kort, sedel, orgId, kanAttestere, kanRette, 
                   <span className="tabular-nums">{l.linje.antall == null ? "—" : formaterNorsk(l.linje.antall)}</span>
                   <span className="ml-auto flex items-center gap-1.5">
                     {splittKnapp(l)}
+                    {kanRette && l.ventende && l.kilde.type === "tillegg" && flyttKnapp("tillegg", l.kilde.rad.id)}
                     {kanRette && l.ventende && l.kilde.type === "tillegg" && pennKnapp(t("timer.korrigert.vindu.tillegg"), {
                       type: "tillegg",
                       radId: l.kilde.rad.id,
@@ -450,23 +513,26 @@ export function RegistreringPanel({ kort, sedel, orgId, kanAttestere, kanRette, 
         )}
       </Del>
 
-      <Del nr={7} navn={t("timer.attestering.registrering.utlegg")} sist={reiseLinjer.length === 0}>
+      <Del nr={7} navn={t("timer.attestering.registrering.utlegg")} sist={!visReise}>
         {utlegg.length === 0 ? tom : (
           <div className="flex flex-col gap-1">
             {utlegg.map((l) => (
-              <div key={l.nokkel} className="flex items-center gap-3">
+              <div key={l.nokkel} data-utleggslinje={l.nokkel} className="flex items-center gap-3">
                 <span className="w-48 truncate">{l.linje.betegnelse}</span>
                 <span className="tabular-nums">{l.linje.belop == null ? "—" : `${formaterNorsk(l.linje.belop)} kr`}</span>
                 {/* w10a (A8, B31 B): kvitteringen også i kortet, samme komponent som på linja. */}
                 {l.kilde.type === "utlegg" && <span className="flex items-center gap-1"><Kvitteringer vedlegg={l.kilde.rad.vedlegg ?? []} /></span>}
+                {/* Lesning 3: utlegg flyttes bare når alle linjene i kortet venter. */}
+                {kanRette && alleVenter && l.kilde.type === "utlegg" && <span className="ml-auto flex items-center gap-1.5">{flyttKnapp("utlegg", l.kilde.rad.id)}</span>}
               </div>
             ))}
           </div>
         )}
       </Del>
 
-      {reiseLinjer.length > 0 && (
+      {visReise && (
         <Del nr={8} navn={t("timer.attestering.registrering.reise")} sist>
+          {reiseLinjer.length === 0 ? tom : (
           <div className="flex flex-col gap-3">
             {reiseLinjer.map((l) => {
               const r = l.kilde.rad;
@@ -489,6 +555,7 @@ export function RegistreringPanel({ kort, sedel, orgId, kanAttestere, kanRette, 
                     <span data-reise-tekst="" className="tabular-nums text-gray-900">{tekst}</span>
                     <span className="ml-auto flex items-center gap-1.5">
                       {splittKnapp(l)}
+                      {kanRette && l.ventende && l.harHandling && flyttKnapp("reise", r.id)}
                       {kanRetteReise && (
                         <button
                           type="button"
@@ -506,6 +573,7 @@ export function RegistreringPanel({ kort, sedel, orgId, kanAttestere, kanRette, 
               );
             })}
           </div>
+          )}
         </Del>
       )}
 
@@ -793,7 +861,7 @@ const lesTall = (tekst: string): number | null => {
  * utlegg og reise blir i A («s3.nei»). O15 pkt 3 (K4): klokkeslettet tolkes (`tolkKlokkeslett`).
  */
 function DelOppSkjema({ sheetId, kortId, tidsrom, eco, naaEco, onAvbryt, onDelt }: {
-  sheetId: string; kortId: string; tidsrom: { fra: string; til: string }; eco: readonly Eco[]; naaEco: string | null; onAvbryt: () => void; onDelt: () => void;
+  sheetId: string; kortId: string; tidsrom: { fra: string; til: string }; eco: readonly Eco[]; naaEco: string | null; onAvbryt: () => void; onDelt: (kortIdB: string) => void;
 }) {
   const { t } = useTranslation();
   const [klTekst, setKlTekst] = useState("");
@@ -851,7 +919,7 @@ function DelOppSkjema({ sheetId, kortId, tidsrom, eco, naaEco, onAvbryt, onDelt 
     setFeil(null);
     del.mutate(
       { sheetId, kortId, kl, externalCostObjectIdB: ecoB, maskinDeling: maskinDeling(deling) },
-      { onSuccess: (_d: unknown) => onDelt(), onError: (e: { message: string }) => setFeil(e.message) },
+      { onSuccess: (d: unknown) => onDelt((d as { kortIdB: string }).kortIdB), onError: (e: { message: string }) => setFeil(e.message) },
     );
   }
 
@@ -919,6 +987,87 @@ function DelOppSkjema({ sheetId, kortId, tidsrom, eco, naaEco, onAvbryt, onDelt 
           {t("timer.attestering.registrering.delOpp")}
         </Button>
       </div>
+    </div>
+  );
+}
+
+type T = (k: string, o?: Record<string, unknown>) => string;
+
+/** D2b: teksten på knappen for ett mål — partneren i paret, ellers «underprosjekt · fra–til». */
+function maalTekst(m: FlyttMaal, parRolle: "a" | "b" | undefined, t: T): string {
+  if (parRolle === "a") return t("timer.attestering.registrering.kortB");
+  if (parRolle === "b") return t("timer.attestering.registrering.kortA");
+  return m.navn;
+}
+
+/**
+ * D2b: flytteknappen på en linje. I paret «→ Kort B» / «← Kort A»; alene «→ navn» for ett mål,
+ * «→ Flytt til ▾» med liste for flere. Ingen mål → ingen knapp.
+ */
+function FlyttKnapp({ maal, parRolle, disabled, onVelg }: { maal: readonly FlyttMaal[]; parRolle?: "a" | "b"; disabled?: boolean; onVelg: (m: FlyttMaal) => void }) {
+  const { t } = useTranslation();
+  const [aapen, setAapen] = useState(false);
+  if (maal.length === 0) return null;
+  const stil = "inline-flex h-7 items-center rounded border border-gray-200 bg-white px-2 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50";
+  const tittel = t("timer.attestering.registrering.flytt.tittel");
+  if (maal.length === 1) {
+    const m = maal[0]!;
+    const tekst = parRolle === "a" ? t("timer.attestering.registrering.flytt.tilKortB")
+      : parRolle === "b" ? t("timer.attestering.registrering.flytt.tilKortA")
+      : t("timer.attestering.registrering.flytt.til", { navn: m.navn });
+    return <button type="button" data-flytt-knapp="" title={tittel} disabled={disabled} onClick={() => onVelg(m)} className={stil}>{tekst}</button>;
+  }
+  return (
+    <span className="relative">
+      <button type="button" data-flytt-knapp="" title={tittel} aria-expanded={aapen} disabled={disabled} onClick={() => setAapen((v) => !v)} className={stil}>
+        {t("timer.attestering.registrering.flytt.flyttTil")} ▾
+      </button>
+      {aapen && (
+        <span role="menu" data-flytt-liste="" className="absolute right-0 top-full z-20 mt-1 flex min-w-[12rem] flex-col rounded-md border border-gray-200 bg-white py-1 shadow-lg">
+          {maal.map((m) => (
+            <button key={m.kortId} type="button" role="menuitem" onClick={() => { setAapen(false); onVelg(m); }} className="px-3 py-1.5 text-left text-xs text-gray-800 hover:bg-gray-50">
+              {m.navn}
+            </button>
+          ))}
+        </span>
+      )}
+    </span>
+  );
+}
+
+/** D2b: «Til kort B: [1,00] av 3,00 sekk · 2,00 sekk blir i kort A» med Avbryt og Flytt. */
+function VareFlyttSkjema({ vare, maalNavn, kildeNavn, tekst, opptatt, onTekst, onAvbryt, onFlytt }: {
+  vare: AttVare; maalNavn: string; kildeNavn: string; tekst: string; opptatt: boolean;
+  onTekst: (tekst: string) => void; onAvbryt: () => void; onFlytt: (mengde: number) => void;
+}) {
+  const { t } = useTranslation();
+  const antall = Number(vare.antall);
+  const mengde = lesTall(tekst);
+  const gyldig = mengde !== null && mengde > 0 && mengde <= antall;
+  const enhet = vare.enhet ?? "";
+  return (
+    <div data-vare-flytt="" className="flex flex-wrap items-center gap-2 rounded-md border border-gray-200 bg-gray-50 px-3 py-2">
+      <span className="font-medium text-gray-900">{t("timer.attestering.registrering.flytt.vareTil", { maal: maalNavn })}</span>
+      <input
+        autoFocus
+        value={tekst}
+        inputMode="decimal"
+        aria-label={t("timer.attestering.registrering.flytt.mengde")}
+        onChange={(e) => onTekst(e.target.value)}
+        className="w-16 rounded border border-gray-300 px-2 py-1 text-right text-sm tabular-nums"
+      />
+      <span className="tabular-nums text-gray-700">{t("timer.attestering.registrering.flytt.vareAv", { antall: tallTekst(antall), enhet })}</span>
+      {gyldig && (
+        <span className="tabular-nums text-gray-500">
+          · {t("timer.attestering.registrering.flytt.vareBlir", { rest: tallTekst(Math.round((antall - mengde) * 100) / 100), enhet, kilde: kildeNavn })}
+        </span>
+      )}
+      <span className="ml-auto flex gap-2">
+        <Button type="button" size="sm" variant="secondary" onClick={onAvbryt}>{t("handling.avbryt")}</Button>
+        <Button type="button" size="sm" disabled={!gyldig || opptatt} onClick={() => gyldig && onFlytt(mengde)}>
+          {t("timer.attestering.registrering.flytt.flytt")}
+        </Button>
+      </span>
     </div>
   );
 }

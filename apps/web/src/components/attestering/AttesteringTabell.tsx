@@ -47,6 +47,7 @@ import {
   filtrerModell,
   grupperModell,
   linjeIKontekst,
+  flyttMaal,
   linjeSpenn,
   linjeVarsel,
   lonnsartMerker,
@@ -221,7 +222,8 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
   // w10a (A2): «✎ Rediger jobben» i kortet åpner vinduet for jobbens prosjekt og underprosjekt.
   const [rediger, setRediger] = useState<{ sheetId: string; projectId: string; ecoId: string | null } | null>(null);
   // w8: jobben (kortet) som har registreringen åpen under jobbraden. Besøkets tilstand.
-  const [aapenKort, setAapenKort] = useState<string | null>(null);
+  // D2a: etter «Del opp» står kort B åpent ved siden av A (`par`). ✕ lukker ett kort om gangen.
+  const [aapenKort, setAapenKort] = useState<{ nokkel: string; par: string | null } | null>(null);
 
   const sedelFor = useMemo(() => {
     const m = new Map<string, AttSedel>();
@@ -579,9 +581,12 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
   }
 
   /** Registreringen åpnet under jobbraden (w8): hele jobben (kortet). */
-  function registrering(kort: AttKort, s: AttSedel) {
+  function registrering(kort: AttKort, s: AttSedel, parRolle?: "a" | "b", partner?: AttKort) {
     const egne = kort.linjer.filter((l) => iKontekst(l) && l.harHandling);
     const kanAttestere = !laast(s) && egne.length > 0;
+    // D2b: målene for flytteknappen — i paret bare partneren.
+    const alleMaal = flyttMaal(kort, dagFor.get(s.id)?.kort ?? [], t("timer.attestering.registrering.uten"));
+    const maal = partner ? alleMaal.filter((m) => m.nokkel === partner.nokkel) : alleMaal;
     return (
       <RegistreringPanel
         key={kort.nokkel}
@@ -596,8 +601,19 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
         onSplitt={setSplitt}
         onRedigerJobb={redigerJobb(kort)}
         onEndret={oppfrisk}
-        onLukk={() => setAapenKort(null)}
+        onLukk={() =>
+          setAapenKort((a) => {
+            if (!a) return null;
+            // ✕ på A: B blir stående alene. ✕ på B: A blir stående alene.
+            if (a.par && kort.nokkel === a.nokkel) return { nokkel: a.par, par: null };
+            if (a.par && kort.nokkel === a.par) return { nokkel: a.nokkel, par: null };
+            return null;
+          })
+        }
+        onDelt={(kortIdB) => setAapenKort({ nokkel: kort.nokkel, par: `${kort.sheetId}:${kortIdB}` })}
         prosjektKontekst={prosjektKontekst}
+        parRolle={parRolle}
+        flyttMaal={maal}
       />
     );
   }
@@ -870,7 +886,21 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
     // w8: registreringen står rett under raden som åpnet den (jobbraden, eller dagsraden når
     // dagen har én jobb), over timeradene. Timeradene åpner den ikke.
     const linjerFor = (kort: AttKort, s: AttSedel, kant: string) => {
-      if (aapenKort === kort.nokkel) ut.push({ kind: "panel", nokkel: `p:${kort.nokkel}`, innhold: registrering(kort, s), blokk: { kant } });
+      if (aapenKort?.nokkel === kort.nokkel) {
+        // D2a: paret står på A-ens panelrad — side om side fra ca. 1 280 px, ellers B under A.
+        const partner = aapenKort.par ? dagFor.get(s.id)?.kort.find((k) => k.nokkel === aapenKort.par) : undefined;
+        ut.push({
+          kind: "panel",
+          nokkel: `p:${kort.nokkel}`,
+          innhold: partner ? (
+            <div data-kort-par="" className="mx-3 my-2 grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 632px), 1fr))" }}>
+              {registrering(kort, s, "a", partner)}
+              {registrering(partner, s, "b", kort)}
+            </div>
+          ) : registrering(kort, s),
+          blokk: { kant },
+        });
+      }
       if (bareOversikt) return;
       for (const l of kort.linjer) {
         const skjul = skjulPaaLinje(l, kort);
@@ -880,8 +910,14 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
       }
     };
     const aapne = (kort: AttKort) => ({
-      onKlikk: () => setAapenKort((a) => (a === kort.nokkel ? null : kort.nokkel)),
-      aapen: aapenKort === kort.nokkel,
+      // D2a: klikk på B-ens rad lukker bare B; en annen rad lukker paret og åpner seg selv.
+      onKlikk: () =>
+        setAapenKort((a) => {
+          if (a?.nokkel === kort.nokkel) return null;
+          if (a?.par === kort.nokkel) return { nokkel: a.nokkel, par: null };
+          return { nokkel: kort.nokkel, par: null };
+        }),
+      aapen: aapenKort?.nokkel === kort.nokkel || aapenKort?.par === kort.nokkel,
       // A2 (§ 4.17 punkt 5): hoveren på hele raden (O6) er tatt ut; beskrivelsene står i hoveren
       // på prosjektnavnet (`ProsjektHover`).
     });
