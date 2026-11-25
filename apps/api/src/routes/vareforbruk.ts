@@ -11,6 +11,9 @@ import {
   aktivtMedlemWhere,
   verifiserOrganisasjonTilgang,
   erFirmaAdmin,
+  erAnsattIFirma,
+  aktivAnsattIEierfirma,
+  verifiserProsjektIkkeFrosset,
   verifiserProsjekterTilhørerFirma,
 } from "../trpc/tilgangskontroll";
 import { verifiserByggeplassIProsjekt } from "../services/tegningVakt";
@@ -131,27 +134,51 @@ async function krevVarelagerForProsjekt(projectId: string): Promise<string> {
 /**
  * Tilgang-policy: håndhev OrganizationSetting.vareforbrukTilgangDefault.
  *
- *   - alle-ansatte         → kun harProsjektTilgang (verifiserProsjektmedlem
- *                            håndterer dette + company_admin-fallback).
+ *   - alle-ansatte         → aktiv ansatt i eierfirmaet eller prosjektmedlem
+ *                            (krevVareProsjektTilgang, FIRMAADMIN-TILGANG D).
  *   - kun-prosjektmedlemmer → krever ekte ProjectMember-rad (ikke kun
  *                              company_admin-bypass).
  *   - sertifiserte         → fallback til kun-prosjektmedlemmer (Kompetanse-
  *                              sjekk utsettes til Kompetansetype får
  *                              «kreves for vareregistrering»-flagg).
  */
+/** Firmaets vare-policy (`OrganizationSetting.vareforbrukTilgangDefault`), default «alle-ansatte». */
+async function hentVarePolicy(organizationId: string): Promise<string> {
+  const setting = await prisma.organizationSetting.findUnique({
+    where: { organizationId },
+    select: { vareforbrukTilgangDefault: true },
+  });
+  return setting?.vareforbrukTilgangDefault ?? "alle-ansatte";
+}
+
+/**
+ * FIRMAADMIN-TILGANG D (Kenneth 2026-11-25: «finn ut hva som skal til for at silje og
+ * medlemmer kan registrere varer i kortet sitt»). Prosjekttilgangen for en vare-linje.
+ *
+ * Med policy «alle-ansatte» gjelder samme prosjektsett som timer (`prosjekt.hentForTimer`):
+ * en aktiv ansatt i prosjektets EIERFIRMA slipper inn uten ProjectMember-rad. Varelageret
+ * eies av eierfirmaet (`krevVarelagerForProsjekt`), så et prosjekt firmaet bare deltar i
+ * (annen eier, annen varekatalog) gir ikke denne veien — der gjelder `verifiserProsjektmedlem`
+ * som før. Frysevakten gjelder som for medlemmer. Andre policy-verdier: uendret.
+ */
+async function krevVareProsjektTilgang(userId: string, projectId: string): Promise<void> {
+  const eierOrg = await aktivAnsattIEierfirma(userId, projectId);
+  if (eierOrg && (await hentVarePolicy(eierOrg)) === "alle-ansatte") {
+    await verifiserProsjektIkkeFrosset(userId, projectId);
+    return;
+  }
+  await verifiserProsjektmedlem(userId, projectId);
+}
+
 async function krevTilgangPolicy(
   userId: string,
   organizationId: string,
   projectId: string,
 ): Promise<void> {
-  const setting = await prisma.organizationSetting.findUnique({
-    where: { organizationId },
-    select: { vareforbrukTilgangDefault: true },
-  });
-  const policy = setting?.vareforbrukTilgangDefault ?? "alle-ansatte";
+  const policy = await hentVarePolicy(organizationId);
 
   if (policy === "alle-ansatte") {
-    await verifiserProsjektmedlem(userId, projectId);
+    await krevVareProsjektTilgang(userId, projectId);
     return;
   }
 
@@ -251,6 +278,19 @@ export const vareforbrukRouter = router({
         });
       }
 
+      // FIRMAADMIN-TILGANG D (2026-11-25): med «alle-ansatte» tilbys alle prosjekter firmaet
+      // EIER, som timer — aktiv ansatt trenger ingen medlemsrad (samme regel som
+      // `krevVareProsjektTilgang` i opprett). Ellers: bare egne aktive medlemskap, som før.
+      const alleAnsatte =
+        (await hentVarePolicy(input.organizationId)) === "alle-ansatte" &&
+        (await erAnsattIFirma(ctx.userId, input.organizationId));
+      const prosjektWhere = alleAnsatte
+        ? { primaryOrganizationId: input.organizationId }
+        : {
+            primaryOrganizationId: input.organizationId,
+            members: { some: { userId: ctx.userId, ...aktivtMedlemWhere } },
+          };
+
       const [varer, prosjekter] = await Promise.all([
         ctx.prismaVarelager.vare.findMany({
           where: { organizationId: input.organizationId, aktiv: true },
@@ -258,10 +298,7 @@ export const vareforbrukRouter = router({
           orderBy: [{ navn: "asc" }],
         }),
         prisma.project.findMany({
-          where: {
-            primaryOrganizationId: input.organizationId,
-            members: { some: { userId: ctx.userId, ...aktivtMedlemWhere } },
-          },
+          where: prosjektWhere,
           select: { id: true },
         }),
       ]);
@@ -463,7 +500,7 @@ export const vareforbrukRouter = router({
       const eksisterende = await hentEksisterende();
       if (eksisterende) return eksisterende;
 
-      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      await krevVareProsjektTilgang(ctx.userId, input.projectId);
       // ORDRE 29 #14: byggeplassen (hoved-DB) MÅ tilhøre prosjektet.
       if (input.byggeplassId) {
         await verifiserByggeplassIProsjekt(ctx.prisma, input.byggeplassId, input.projectId);
@@ -643,9 +680,9 @@ export const vareforbrukRouter = router({
       const byttProsjekt = maalProsjekt !== rad.projectId;
 
       // Tilgang til linjens NÅVÆRENDE prosjekt (uendret når projectId ikke byttes).
-      await verifiserProsjektmedlem(ctx.userId, rad.projectId);
+      await krevVareProsjektTilgang(ctx.userId, rad.projectId);
       await krevVareforbrukLinjeAapen(ctx.prismaTimer, ctx.userId, rad.dagsseddelId, rad.projectId);
-      if (byttProsjekt) await verifiserProsjektmedlem(ctx.userId, maalProsjekt);
+      if (byttProsjekt) await krevVareProsjektTilgang(ctx.userId, maalProsjekt);
       // ORDRE 29 #14: ny byggeplass MÅ tilhøre (mål)prosjektet. `null` = fjern, ingen sjekk.
       if (input.byggeplassId) {
         await verifiserByggeplassIProsjekt(ctx.prisma, input.byggeplassId, maalProsjekt);
@@ -779,7 +816,7 @@ export const vareforbrukRouter = router({
         });
       }
 
-      await verifiserProsjektmedlem(ctx.userId, rad.projectId);
+      await krevVareProsjektTilgang(ctx.userId, rad.projectId);
       await krevVareforbrukLinjeAapen(ctx.prismaTimer, ctx.userId, rad.dagsseddelId, rad.projectId);
       // O11: eksisterende vare slettes også på prosjekt uten varelager.
       const organizationId = await eierFirmaForProsjekt(rad.projectId);

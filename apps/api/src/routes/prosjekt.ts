@@ -9,6 +9,7 @@ import {
   verifiserAdmin,
   hentBrukersOrg,
   hentDeaktiverteOrgIder,
+  hentFirmaAdminOrgIder,
   erFirmaAdminForProsjekt,
   kanOppretteProsjekt,
   prosjektTilhørerFirmaWhere,
@@ -21,6 +22,21 @@ import { autoLeggFirmaAdmins } from "../services/autoProsjektAdmin";
 import { provisjonerProsjektmedlemskap } from "../services/prosjektTilgangEvaluator";
 import { seedStandardProsjektoppsett } from "../services/prosjektSeed";
 import { skalOppretterBliMedlem } from "../services/oppretterMedlemskap";
+
+/**
+ * Scope for prosjektlistene for alle unntatt sitedoc_admin (FIRMAADMIN-TILGANG A, Kenneth
+ * 2026-11-25): aktivt medlemskap, ELLER prosjektet EIES av et firma der brukeren er aktiv
+ * `firma_admin`. Aldri prosjekter firmaet bare deltar i (samme grense som
+ * `erFirmaAdminForProsjekt`). `hentMine` bruker den ikke — «Mine» er fortsatt medlemskap.
+ */
+export function medlemEllerFirmaAdminWhere(
+  userId: string,
+  firmaAdminOrgIder: string[],
+): Prisma.ProjectWhereInput {
+  const medlem: Prisma.ProjectWhereInput = { members: { some: { userId, ...aktivtMedlemWhere } } };
+  if (firmaAdminOrgIder.length === 0) return medlem;
+  return { OR: [medlem, { primaryOrganizationId: { in: firmaAdminOrgIder } }] };
+}
 
 export const prosjektRouter = router({
   // Hent prosjekter der innlogget bruker er medlem — uavhengig av rolle.
@@ -151,9 +167,9 @@ export const prosjektRouter = router({
       const bruker = await ctx.prisma.user.findUniqueOrThrow({ where: { id: ctx.userId }, select: { role: true } });
       const erSitedocAdmin = bruker.role === "sitedoc_admin";
       // Fase 2 / T.10: hentAlle er en kundevendt liste — interne prosjekter
-      // (type="internt") filtreres alltid ut. For ikke-admin er member-scopet
-      // allerede uten interne (de har ingen ProjectMember-rader); type-filteret
-      // er nødvendig for sitedoc_admin-grenen (tomt filter / org-filter).
+      // (type="internt") filtreres alltid ut. Member-scopet er allerede uten interne
+      // (de har ingen ProjectMember-rader); type-filteret er nødvendig for
+      // sitedoc_admin-grenen og firmaadmin-grenen (eierfirmaets prosjekter, A 2026-11-25).
       //
       // Deaktivert ansettelse: L3 avslutter ProjectMember-radene i firmaets
       // prosjekter, men rader skånet av vilkåret og deaktiveringer fra før L3 står
@@ -162,13 +178,14 @@ export const prosjektRouter = router({
       const deaktiverteOrgIder = erSitedocAdmin
         ? []
         : await hentDeaktiverteOrgIder(ctx.userId!);
+      const firmaAdminOrgIder = erSitedocAdmin ? [] : await hentFirmaAdminOrgIder(ctx.userId!);
       const where: Prisma.ProjectWhereInput = erSitedocAdmin
         ? input?.organizationId
           ? { type: "kunde", primaryOrganizationId: input.organizationId }
           : { type: "kunde" }
         : {
             type: "kunde",
-            members: { some: { userId: ctx.userId, ...aktivtMedlemWhere } },
+            ...medlemEllerFirmaAdminWhere(ctx.userId!, firmaAdminOrgIder),
             // FL (Kenneth-vedtak 2026-09-06): frosne prosjekter (avsluttet/arkivert/
             // deaktivert) er borte for vanlige brukere. Firma-admin finner dem i
             // firmalisten (organisasjon.hentProsjekter), ikke her — to steder å se det
@@ -226,7 +243,7 @@ export const prosjektRouter = router({
       if (distinkte.length === 0) return [];
 
       // Samme tilgangs-/scope-regel som hentAlle: kunde-prosjekter, sitedoc_admin
-      // ser alle (valgfritt firma-filter), øvrige kun der de er medlem.
+      // ser alle (valgfritt firma-filter), øvrige der de er medlem eller firmaadmin i eierfirmaet.
       const bruker = await ctx.prisma.user.findUniqueOrThrow({
         where: { id: ctx.userId },
         select: { role: true },
@@ -235,11 +252,14 @@ export const prosjektRouter = router({
       const deaktiverteOrgIder = erSitedocAdmin
         ? []
         : await hentDeaktiverteOrgIder(ctx.userId!);
+      const firmaAdminOrgIder = erSitedocAdmin ? [] : await hentFirmaAdminOrgIder(ctx.userId!);
       const where: Prisma.ProjectWhereInput = {
         id: { in: distinkte },
         type: "kunde",
         ...(input?.organizationId ? { primaryOrganizationId: input.organizationId } : {}),
-        ...(erSitedocAdmin ? {} : { members: { some: { userId: ctx.userId, ...aktivtMedlemWhere } }, status: "active" }),
+        ...(erSitedocAdmin
+          ? {}
+          : { ...medlemEllerFirmaAdminWhere(ctx.userId!, firmaAdminOrgIder), status: "active" }),
         ...(deaktiverteOrgIder.length > 0
           ? { NOT: { primaryOrganizationId: { in: deaktiverteOrgIder } } }
           : {}),

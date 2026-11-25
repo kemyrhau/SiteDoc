@@ -20,6 +20,8 @@ Den som har ballen akkurat nå. Endres for hvert steg i flyten.
 ### Faggruppe
 Prosjektdeltaker innen et fag (Elektro, Tømrer, Rør osv.). Definerer hvilke parter som kan motta et dokument innen denne flyten.
 
+**Ingen er automatisk medlem av en faggruppe** (Kenneth 2026-11-25, FIRMAADMIN-TILGANG C): «Ingen skal være automatisk medlem av en faggruppe. prosjektadmin og firmaadmin skal kunne legge til medlemmer/grupper inn i dokumentflyten.» Den som oppretter et prosjekt, kobles ikke lenger til Byggherre (`apps/api/src/services/prosjektSeed.ts`); Byggherre-faggruppa starter tom. Koblinger fra før står (ingen sletting, ingen migrering). Oppretteren er prosjektadmin og trenger ingen faggruppe for å opprette eller lese (`verifiserFaggruppeTilhorighet` har admin-unntak, `medlem.hentMineFaggrupper` gir admin alle faggrupper). Legges Byggherre senere inn i en flyt, må oppretteren legges inn i flyten eller faggruppa eksplisitt for å få flytmedlemskap. `autoLeggFirmaAdmins` (prosjektmedlemskap) er uendret. Test: `prosjektSeed.test.ts` («FIRMAADMIN-TILGANG C»).
+
 ### Prosjekteier
 HE-Leder eller BH. Avhenger av hvem som eier prosjektet.
 
@@ -133,7 +135,7 @@ Dokument-tilgang avgjøres nå av en **ren funksjon**, adskilt fra datahentingen
 - **`avgjorDokumentTilgang(fakta) → { tillat, grunn }`** (`packages/shared/src/utils/avgjorDokumentTilgang.ts`) — all beslutningslogikk, ingen avhengigheter, ingen Prisma.
 - **`verifiserDokumentTilgang`** (`apps/api/src/trpc/tilgangskontroll.ts`) beholder alle Prisma-oppslag, bygger `TilgangsFakta` og kaller den rene funksjonen.
 
-**Grenene i fast rekkefølge:** admin → ikke-medlem → prosjektadmin → firmaansvarlig → bestiller/mottaker → faggruppe-direkte → gruppe-domain → HMS-åpen → flyt-medlemskap → avvis.
+**Grenene i fast rekkefølge:** admin → ikke-medlem → prosjektadmin → firmaadmin i eierfirmaet (FIRMAADMIN-TILGANG B, 2026-11-25; også uten medlemsrad) → HMS-behandler → firmaansvarlig → bestiller/mottaker → faggruppe-direkte → gruppe-domain → HMS-åpen → flyt-medlemskap → avvis.
 
 **Håndhevet av `packages/shared/src/utils/tilgangsmatrise.test.ts`** — tabelldrevet matrise (bindingstype × status × dokument-attributter → forventet utfall), kjørt mot både en **frossen referanse** (dagens oppførsel, endres aldri) og produksjonsfunksjonen. Divergens = test-feil. **Nye tilgangsregler legges til som RADER i matrisen, ikke som nye testfiler.**
 
