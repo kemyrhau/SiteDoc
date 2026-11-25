@@ -147,6 +147,8 @@ function rendre({
   regel = REGEL,
   /** O20 TILLEGG: dagsnorm 7,5 t og overtidsart «lot» (O5). */
   o5 = false,
+  /** O21: firmaets kjøretid Tromsø → b1 mangler i tabellen. */
+  utenKjoretid = false,
 } = {}) {
   h.kall = [];
   h.utelat.clear();
@@ -195,7 +197,7 @@ function rendre({
     },
     "oppmotested.hentForFirma": steder,
     "oppmotested.hentMatriseForFirma": [
-      { oppmotestedId: "tromso", byggeplassId: "b1", kjoretidMin: 4, avstandM: 2000 },
+      ...(utenKjoretid ? [] : [{ oppmotestedId: "tromso", byggeplassId: "b1", kjoretidMin: 4, avstandM: 2000 }]),
       { oppmotestedId: "tromso", byggeplassId: "b2", kjoretidMin: 35, avstandM: 30000 },
       { oppmotestedId: "narvik", byggeplassId: "b1", kjoretidMin: narvikMin, avstandM: 250000 },
       { oppmotestedId: "alta", byggeplassId: "b1", kjoretidMin: 300, avstandM: 400000 },
@@ -1019,5 +1021,78 @@ describe("O20 TILLEGG — jobb delt i normal + overtid (O5) viser ny fordeling",
     expect(within(d).getByTestId("reise-flytt-jobb").textContent).toContain(
       'timer.reiseKort.flyttJobb.blir{"fra":"07:50","til":"17:30","timer":"9,2"}',
     );
+  });
+});
+
+describe("O21 (vedtak-timer-web § Reisevinduet pkt 27) — Start inne i jobben: Slutt følger", () => {
+  afterEach(cleanup);
+  // Kenneths dag (B12, 19.11): normal 07:00–15:00 + Overtid 50 % 15:00–17:30. Kjøretid 4 min.
+  const o5Jobb = () => [
+    arbeid({ fraTid: "07:00", tilTid: "15:00", timer: "7.5", pauseMin: 30 }),
+    arbeid({ id: "r2", fraTid: "15:00", tilTid: "17:30", timer: "2.5", pauseMin: 0, lonnsartId: "lot", createdAt: "2026-11-05T07:01:00.000Z" }),
+  ];
+  const flyttBoks = (d: HTMLElement) => within(d).queryByTestId("reise-flytt-jobb");
+
+  it("Kenneths tilfelle: Til byggeplass, Start 07:00 → Slutt 07:04, og «Flytt jobbens start til 07:04» vises", () => {
+    const d = rendre({ timer: o5Jobb(), o5: true });
+    expect(start(d).value).toBe("06:56");
+    expect(slutt(d).value).toBe("07:00");
+    fireEvent.change(start(d), { target: { value: "07:00" } });
+    expect(slutt(d).value).toBe("07:04");
+    expect(d.textContent).not.toContain("timer.feil.sluttForStart");
+    const boks = flyttBoks(d)!;
+    expect(within(boks).getByRole("button", { name: 'timer.reiseKort.flyttJobb.start{"tid":"07:04"}' })).toBeTruthy();
+  });
+
+  it("tidsfeltets mellomverdi (06:56 → 07:56 → 07:00) ender på 07:04, ikke 08:00", () => {
+    const d = rendre({ timer: o5Jobb(), o5: true });
+    fireEvent.change(start(d), { target: { value: "07:56" } });
+    expect(slutt(d).value).toBe("08:00");
+    fireEvent.change(start(d), { target: { value: "07:00" } });
+    expect(slutt(d).value).toBe("07:04");
+  });
+
+  it("Slutt rettes fritt etterpå (07:50), og knappen følger", () => {
+    const d = rendre({ timer: o5Jobb(), o5: true });
+    fireEvent.change(start(d), { target: { value: "07:00" } });
+    fireEvent.change(slutt(d), { target: { value: "07:50" } });
+    expect(within(flyttBoks(d)!).getByRole("button", { name: 'timer.reiseKort.flyttJobb.start{"tid":"07:50"}' })).toBeTruthy();
+    // Arbeiderens egen Slutt står når neste Start ligger før den.
+    fireEvent.change(start(d), { target: { value: "07:10" } });
+    expect(slutt(d).value).toBe("07:50");
+    // … og følger igjen når Start går forbi den, inne i jobben.
+    fireEvent.change(start(d), { target: { value: "08:00" } });
+    expect(slutt(d).value).toBe("08:04");
+  });
+
+  it("regresjon pkt 6: Start 06:30 (før jobben) → Slutt står", () => {
+    const d = rendre({ timer: o5Jobb(), o5: true });
+    fireEvent.change(start(d), { target: { value: "06:30" } });
+    expect(slutt(d).value).toBe("07:00");
+  });
+
+  it("regresjon pkt 24: Start 19:00 (etter jobben) → «Startet du kvelden før?»", () => {
+    const d = rendre({ timer: o5Jobb(), o5: true });
+    fireEvent.change(start(d), { target: { value: "19:00" } });
+    expect(slutt(d).value).toBe("07:00");
+    expect(within(d).getByTestId("reise-midnatt-boks").textContent).toContain("timer.reiseKort.startetKveldenFoer");
+  });
+
+  it("regresjon: kort uten jobb → Slutt står som i dag", () => {
+    const d = rendre({ timer: [arbeid({ kortId: "k1", erReise: true, fraTid: "06:00", tilTid: "06:30", timer: "0.5" })] });
+    // Uten arbeid finnes ikke noe forslag; skrevet Start gir Start + kjøretid (w15b), som før O21.
+    expect(slutt(d).value).toBe("");
+    fireEvent.change(start(d), { target: { value: "07:00" } });
+    expect(slutt(d).value).toBe("07:04");
+  });
+
+  it("uten kjøretid: Slutt står (dagens sperre «Slutt-tid må være etter start-tid»)", () => {
+    const d = rendre({ timer: o5Jobb(), o5: true, utenKjoretid: true });
+    expect(within(d).getByTestId("reise-uten-kjoretid")).toBeTruthy();
+    expect(slutt(d).value).toBe("07:00");
+    fireEvent.change(start(d), { target: { value: "07:00" } });
+    expect(slutt(d).value).toBe("07:00");
+    expect(d.textContent).toContain("timer.feil.sluttForStart");
+    expect(flyttBoks(d)).toBeNull();
   });
 });

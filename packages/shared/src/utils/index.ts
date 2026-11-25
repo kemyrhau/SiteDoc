@@ -109,6 +109,7 @@ export {
   lesMidnattDel,
   finnReiseSomEnderPaaKontor,
   finnKantFlytt,
+  sluttEtterStartIJobb,
 } from "./reiseManuell";
 export { sekvenserReisekjede } from "./reiseKjede";
 export type { KjedeKort } from "./reiseKjede";

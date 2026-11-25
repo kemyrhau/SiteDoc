@@ -303,6 +303,8 @@ Fasit: `tegningNedlasting.test.ts`.
 
 `reiseUnderTerskel(rad)` → `{ enhet: "km" | "minutter", maalt, terskel } | null` (`reiseUnderTerskel.ts`, 🟡 A3, plan § 4.17 del D, B55): reiselinje (`erReise`) der snapshotet `reiseRegel.regelKategori` er `"arbeidstid"` (regelen ga arbeidstid, arbeideren førte reisetid) OG målt avstand/kjøretid er under terskelen (rå `<` mot `terskelM`/`terskelMin`). `regelKategori` alene er ikke nok: `klassifiserReise` gir under-typen også når km-avstanden mangler, og over-typen kan være arbeidstid. Uten måling, snapshot eller terskel → `null`. Bare web-attesteringen bruker den (merke + gul linje). Fasit: `reiseUnderTerskel.test.ts`.
 
+**O21 (vedtak pkt 27), bare web:** `sluttEtterStartIJobb({startTid, sluttTid, kjoretidMin, folger, kortId, rader})` → ny Slutt (Start + kjøretid) når «Til byggeplass»-Start ligger inne i jobben i kortet (samme jobb som `finnKantFlytt`) og er ≥ Slutt — eller `folger` (Slutt satt av regelen, tidsfeltets mellomverdier); ellers `null` (Slutt står). Fasit: `reiseManuell-o21.test.ts`.
+
 `medOverforingPeriodeId(spor, periodeId)` setter `reiseRegel.overforing.periodeId` når perioden er kjent ved lagring (ny id ved start, lukket periode ved slutt); `null` → sporet urørt.
 
 ### Reisekjede (`reiseKjede.ts`, ordre 2026-11-15 (17))

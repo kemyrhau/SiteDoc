@@ -17,6 +17,7 @@ import {
   lesMidnattDel,
   finnReiseSomEnderPaaKontor,
   finnKantFlytt,
+  sluttEtterStartIJobb,
   jobbManglerBeskrivelse,
   erEgenOverforing,
   type OverforingPeriode,
@@ -297,6 +298,8 @@ export function ReiseKort({
   // w15b: arbeiderens rettede tider. null = forslaget.
   const [rettetStart, setRettetStart] = useState<string | null>(redigering?.fraTid ?? null);
   const [rettetSlutt, setRettetSlutt] = useState<string | null>(redigering?.tilTid ?? null);
+  // O21 (pkt 27): Slutt er satt av «Start inne i jobben» og ikke rettet av arbeideren siden.
+  const [sluttFolger, setSluttFolger] = useState(false);
   // O1 TILLEGG: arbeiderens valg reisetid/arbeidstid (null = terskelen foreslår) og
   // «Antall timer» slik han skrev det (null = vises fra start og slutt).
   const [kategoriValg, setKategoriValg] = useState<ReiseKategori | null>(
@@ -316,6 +319,7 @@ export function ReiseKort({
   const nullstillTider = () => {
     setRettetStart(null);
     setRettetSlutt(null);
+    setSluttFolger(false);
     setAntallTekst(null);
     setKategoriValg(null);
     setKmAvhuket(null);
@@ -1268,7 +1272,26 @@ export function ReiseKort({
                     // O14 pkt 2: i redigering står slutten også ved «Fra byggeplass» (som O7 i
                     // «Rediger reise»): antall timer regnes av start og slutt.
                     if (tidRetning === "tur" || redigering) {
-                      setRettetSlutt(rettetSlutt ?? tid.tilTid ?? null);
+                      // O21 (pkt 27): «Til byggeplass», ny reise fra kortet — Start inne i jobben
+                      // flytter Slutt til Start + kjøretiden, så O20-knappen kommer. Før jobben
+                      // (pkt 6), etter jobben (pkt 24), uten jobb eller kjøretid: Slutt står.
+                      const fulgt =
+                        !redigering && aktivtValg.type === "tur" && iKort && regelStatus === "klar"
+                          ? sluttEtterStartIJobb({
+                              startTid: start,
+                              sluttTid: rettetSlutt ?? tid.tilTid ?? null,
+                              kjoretidMin: resultat.utenKjoretid ? null : resultat.kjoretidMin,
+                              folger: sluttFolger,
+                              kortId: jobbKortId,
+                              rader: dagsrader.flatMap((r) =>
+                                r.id
+                                  ? [{ id: r.id, fraTid: r.fraTid, tilTid: r.tilTid, erReise: r.erReise, arbeidReise: r.arbeidReise, kortId: r.kortId, attestertStatus: r.attestertStatus }]
+                                  : [],
+                              ),
+                            })
+                          : null;
+                      setSluttFolger(fulgt != null);
+                      setRettetSlutt(fulgt ?? rettetSlutt ?? tid.tilTid ?? null);
                       setAntallTekst(null);
                       return;
                     }
@@ -1298,6 +1321,7 @@ export function ReiseKort({
                   value={rettetSlutt ?? tid.tilTid ?? ""}
                   onChange={(e) => {
                     setRettetSlutt(e.target.value || null);
+                    setSluttFolger(false);
                     // Rettet slutt → antall timer regnes av start og slutt.
                     setAntallTekst(null);
                   }}
@@ -1329,6 +1353,7 @@ export function ReiseKort({
                       // O6: «Til byggeplass» flytter Start; «Fra byggeplass» flytter Slutt.
                       if (tidRetning === "tur") setRettetStart(tider.start);
                       setRettetSlutt(tider.slutt);
+                      setSluttFolger(false);
                       // Gate (136) vilkår 1: viser feltet det som faktisk lagres (`resultat.timer`).
                       // O19: klokka går rundt midnatt — 24 timer gir start = slutt (0 timer).
                       const startMin = klokkeTilMin(tider.start);

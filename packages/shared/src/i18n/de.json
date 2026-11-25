@@ -6043,6 +6043,7 @@
   "timer.attestering.reiseRett.slutt": "Endzeit",
   "timer.attestering.reiseRett.bareUnderprosjekt": "Das Unternehmen lässt keine Zeit- und Ortskorrektur während der Genehmigung zu. Das Teilprojekt kann korrigiert werden.",
   "timer.mine.hjelp.reise": "Auf einer Fahrt können Sie mit ✎ das Projekt ändern: Der Bauplatz wird erneut vorgeschlagen und das Teilprojekt freigegeben. In der Zeile unter der Lohnart steht, in welche Karte die Reise geht. Die Arbeit verändert das Projekt nicht; Registrieren Sie es als neuen Job.",
+  "timer.mine.hjelp.reiseStartIJobb": "Zur Baustelle: Wenn Sie Start innerhalb der Auftragszeit festlegen, folgt Ende mit der Fahrzeit und Sie können den Auftragsbeginn verschieben.",
   "timer.attestering.tabell.hjelp.reise": "Die Fahrt wird in Teil 8 als eine Zeile dargestellt. ✎ öffnet „Reise korrigieren“ mit Start, Ende, Lohnart (nur Reisearten), Projekt, Baustelle und Teilprojekt; Die Liste enthält die Projekte, die Sie genehmigen können, und in der Zeile unten steht, auf welcher Karte die Reise landet. Wenn das Unternehmen bei der Genehmigung keine Korrekturen zulässt, kann nur das Teilprojekt korrigiert werden.",
   "timer.jobbSkjema.underprosjekt": "Teilprojekt",
   "timer.jobbSkjema.utenUnderprosjekt": "Keiner",

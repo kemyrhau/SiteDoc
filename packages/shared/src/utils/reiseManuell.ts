@@ -471,6 +471,53 @@ export interface KantFlytt {
 
 const runde2 = (v: number) => Math.round(v * 100) / 100;
 
+/** Jobben i kortet: arbeidsrader (ikke reise, ikke reise ført som arbeidstid) med begge tider. */
+function jobbRader<T extends KantFlyttRad>(rader: readonly T[], kortId: string): T[] {
+  return rader.filter(
+    (r) =>
+      r.kortId === kortId &&
+      !r.erReise &&
+      !r.arbeidReise &&
+      klokkeTilMin(r.fraTid) != null &&
+      klokkeTilMin(r.tilTid) != null,
+  );
+}
+
+/**
+ * O21 (vedtak-timer-web.md § Reisevinduet pkt 27): «Til byggeplass», ny reise. Arbeideren retter
+ * Start til et klokkeslett inne i jobben i samme kort (`jobbStart ≤ Start < jobbSlutt`, samme jobb
+ * som `finnKantFlytt`) — da følger Slutt: Start + kjøretiden, uten avrunding. Gir den nye Slutt,
+ * eller null når Slutt står (pkt 6: Start før jobben; pkt 24: Start etter jobben; ingen jobb;
+ * ingen kjøretid).
+ *  - `folger` = Slutt er satt av denne regelen og ikke rettet av arbeideren siden. Da følger den
+ *    også når Start < Slutt — et tidsfelt går gjennom mellomverdier mens timene og minuttene
+ *    skrives (06:56 → 07:56 → 07:00), og Slutt skal ende på 07:04, ikke 08:00.
+ *  - Ellers bare når Start ≥ Slutt (Slutt er arbeiderens egen og står så lenge den er etter Start).
+ */
+export function sluttEtterStartIJobb(a: {
+  startTid: string | null;
+  sluttTid: string | null;
+  kjoretidMin: number | null;
+  folger: boolean;
+  kortId: string | null | undefined;
+  rader: readonly KantFlyttRad[];
+}): string | null {
+  const s = klokkeTilMin(a.startTid);
+  if (s == null || !a.kortId || a.kjoretidMin == null || a.kjoretidMin <= 0) return null;
+  const sl = klokkeTilMin(a.sluttTid);
+  if (!a.folger && sl != null && s < sl) return null;
+  const jobb = jobbRader(
+    a.rader.filter((r) => r.attestertStatus !== "erstattet"),
+    a.kortId,
+  );
+  if (jobb.length === 0) return null;
+  const jobbStart = Math.min(...jobb.map((r) => klokkeTilMin(r.fraTid) as number));
+  const jobbSlutt = Math.max(...jobb.map((r) => klokkeTilMin(r.tilTid) as number));
+  if (s < jobbStart || s >= jobbSlutt) return null;
+  const ny = s + a.kjoretidMin;
+  return ny > DOGN_MIN ? null : minTilKlokke(ny);
+}
+
 /**
  * Finner kantflyttingen for en ny reise i kortet `kortId`, ellers null.
  *  - «ut» (Til byggeplass): reisen starter på eller før den tidligste radens start og slutter
@@ -488,14 +535,7 @@ export function finnKantFlytt(a: {
   const rT = klokkeTilMin(a.reise.tilTid);
   if (!a.kortId || rF == null || rT == null || rT <= rF) return null;
   const aktive = a.rader.filter((r) => r.attestertStatus !== "erstattet");
-  const jobb = aktive.filter(
-    (r) =>
-      r.kortId === a.kortId &&
-      !r.erReise &&
-      !r.arbeidReise &&
-      klokkeTilMin(r.fraTid) != null &&
-      klokkeTilMin(r.tilTid) != null,
-  );
+  const jobb = jobbRader(aktive, a.kortId);
   if (jobb.length === 0) return null;
   const fra = (r: KantFlyttRad) => klokkeTilMin(r.fraTid) as number;
   const til = (r: KantFlyttRad) => klokkeTilMin(r.tilTid) as number;

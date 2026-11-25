@@ -6043,6 +6043,7 @@
   "timer.attestering.reiseRett.slutt": "Slutt kl.",
   "timer.attestering.reiseRett.bareUnderprosjekt": "Firmaet tillater ikke at tid og sted rettes ved attestering. Underprosjektet kan rettes.",
   "timer.mine.hjelp.reise": "På en reise kan du bytte prosjekt med ✎: byggeplassen foreslås på nytt, og underprosjektet tømmes. Linja under lønnsarten sier hvilket kort reisen havner i. Arbeid bytter ikke prosjekt; før det som en ny jobb.",
+  "timer.mine.hjelp.reiseStartIJobb": "Til byggeplass: setter du Start inne i jobbens tid, følger Slutt etter med kjøretiden, og du kan flytte jobbens start.",
   "timer.attestering.tabell.hjelp.reise": "Reisen står i del 8 som én linje. ✎ åpner «Rett reisen» med start, slutt, lønnsart (bare reisearter), prosjekt, byggeplass og underprosjekt; lista har prosjektene du kan attestere, og linja nederst sier hvilket kort reisen havner i. Tillater ikke firmaet retting ved attestering, kan bare underprosjektet rettes.",
   "timer.jobbSkjema.underprosjekt": "Underprosjekt",
   "timer.jobbSkjema.utenUnderprosjekt": "Uten",

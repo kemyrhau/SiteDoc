@@ -6043,6 +6043,7 @@
   "timer.attestering.reiseRett.slutt": "End time",
   "timer.attestering.reiseRett.bareUnderprosjekt": "The company does not allow time and place to be corrected during approval. The sub-project can be corrected.",
   "timer.mine.hjelp.reise": "On a trip you can change the project with ✎: the building site is suggested again and the sub-project is cleared. The line under the wage type says which card the trip goes in. Work does not change project; register it as a new job.",
+  "timer.mine.hjelp.reiseStartIJobb": "To the building site: if you set Start within the job's time, End follows with the driving time, and you can move the job's start.",
   "timer.attestering.tabell.hjelp.reise": "The trip is shown in part 8 as one line. ✎ opens \"Correct the trip\" with start, end, wage type (travel types only), project, building site and sub-project; the list has the projects you can approve, and the line at the bottom says which card the trip goes in. If the company does not allow corrections during approval, only the sub-project can be corrected.",
   "timer.jobbSkjema.underprosjekt": "Sub-project",
   "timer.jobbSkjema.utenUnderprosjekt": "None",
