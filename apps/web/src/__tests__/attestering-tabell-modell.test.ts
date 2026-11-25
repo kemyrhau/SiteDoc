@@ -662,3 +662,12 @@ describe("A3 (plan § 4.17 del D, B55) — «Reise under terskel»", () => {
     expect(linjeVarsel(l, oppslag)).toBeNull();
   });
 });
+
+describe("D2b — kortIdAv", () => {
+  it("reiseblokken og «uten kort» er ingen jobb å flytte til", async () => {
+    const { kortIdAv } = await import("@/components/attestering/attestering-tabell");
+    expect(kortIdAv({ nokkel: "s1:kA", sheetId: "s1" })).toBe("kA");
+    expect(kortIdAv({ nokkel: "s1:reise", sheetId: "s1" })).toBeNull();
+    expect(kortIdAv({ nokkel: "s1:utenKort", sheetId: "s1" })).toBeNull();
+  });
+});

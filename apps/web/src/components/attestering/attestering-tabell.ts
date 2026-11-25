@@ -104,6 +104,8 @@ export type AttSedel = {
    */
   attestertVisning?: boolean;
   fravaerKanAttesteres?: boolean;
+  /** D2h: kort-id-ene som får «↶ Angre del opp» (kort B fra «Del opp», regnet av serveren). */
+  angreDelOppKort?: string[];
   /** w7 (B15): sedelen er attestantens egen og firmaet sier Nei — vises, men kan ikke attesteres/rettes. */
   egneTimer?: boolean;
   /** w10a (A6): dagens «Kommentar» (`DailySheet.beskrivelse`), vist i kortet som «Kommentar til dagen». */
@@ -1111,4 +1113,46 @@ export function byggUkeoversikt(dager: readonly AttDag[], akse: "ansatt" | "pros
     r.under = samle(bidrag.filter((b) => b.nokkel === r.nokkel).map((b) => ({ ...b.under, dag: b.dag })));
   }
   return topp;
+}
+
+/* ------------------------------------------------------------------ */
+/*  D2b — flytt en linje til et annet kort                              */
+/* ------------------------------------------------------------------ */
+
+/** Kortets kort-id, eller null for reiseblokken og «uten kort» (de er ingen jobb å flytte til). */
+export function kortIdAv(kort: Pick<AttKort, "nokkel" | "sheetId">): string | null {
+  const id = kort.nokkel.slice(kort.sheetId.length + 1);
+  return id === "" || id === "reise" || id === "utenKort" ? null : id;
+}
+
+export type FlyttMaal = { kortId: string; nokkel: string; navn: string };
+
+const minutt = (hhmm: string | null | undefined): number | null => {
+  if (!hhmm || !/^\d{2}:\d{2}$/.test(hhmm)) return null;
+  const [t, m] = hhmm.split(":").map(Number);
+  return (t ?? 0) * 60 + (m ?? 0);
+};
+const klokke = (min: number) => `${String(Math.floor(min / 60)).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}`;
+
+/**
+ * D2b (skissen `d2ab-losning.png`): kortene en linje i `kort` kan flyttes til — andre kort på samme
+ * dagsseddel og samme prosjekt, med ekte kort-id, der alle linjene venter. Det samme sjekker
+ * serveren (`flyttLinjeTilKort`); lista styrer bare hvilken knapp som vises. Navnet er
+ * underprosjektets nummer (første ledd), ellers `utenTekst`, og jobbens fra–til.
+ */
+export function flyttMaal(kort: AttKort, dagensKort: readonly AttKort[], utenTekst: string): FlyttMaal[] {
+  if (kort.projectId === null || kortIdAv(kort) === null) return [];
+  const ut: FlyttMaal[] = [];
+  for (const k of dagensKort) {
+    const kortId = kortIdAv(k);
+    if (k.nokkel === kort.nokkel || k.sheetId !== kort.sheetId || k.projectId !== kort.projectId || kortId === null) continue;
+    if (!k.linjer.every((l) => !l.harHandling || l.ventende)) continue;
+    const arbeid = k.linjer.filter((l) => l.kilde.type === "timer" && l.kilde.rad.erReise !== true);
+    const fra = arbeid.map((l) => minutt(l.linje.fraTid)).filter((x): x is number => x !== null);
+    const til = arbeid.map((l) => minutt(l.linje.tilTid)).filter((x): x is number => x !== null);
+    const tid = fra.length > 0 && til.length > 0 ? `${klokke(Math.min(...fra))}–${klokke(Math.max(...til))}` : null;
+    const under = k.underprosjekt?.split(" · ")[0]?.trim() || utenTekst;
+    ut.push({ kortId, nokkel: k.nokkel, navn: [under, tid].filter(Boolean).join(" · ") });
+  }
+  return ut;
 }

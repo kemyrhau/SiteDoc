@@ -26,7 +26,6 @@ Alle på docker-nett `appnet`, bundet til `127.0.0.1`.
 
 ## Åpne punkter å verifisere under bygg
 - **Oversettelse-URL env-navn:** sjekk `apps/api/src/services/oversettelse-service.ts` — sett riktig env (f.eks. `OVERSETTELSE_URL=http://oversettelse:3303`) i `api.env`/compose. (`NORBERT_URL` er bekreftet.)
-- **web build** kan trenge `output: "standalone"` i `next.config.mjs` for slankere/raskere runtime (oppfølger, ikke blokkerende).
 - **ML første start** laster flere GB modellvekter fra HuggingFace → `ml_models`-volum. Bygg/kjør `embed` først så vekter caches.
 
 ## Build-/test-rekkefølge (TEST-miljø først — generalprøve)
@@ -115,7 +114,7 @@ Denne deployen traff gjentatt friksjon som ikke var dokumentert → «gjenoppdag
 
 6. **Deploy KUN api+web** (ikke rør embed/oversettelse): `up -d --no-deps sitedoc-api sitedoc-web`. `--no-deps` hindrer at compose gjenskaper `embed`/`oversettelse` (begge `sitedoc-ml:latest`) — viktig når ml-imaget også ble bygd men NorBERT-rebuild skal være egen oppgave.
 
-7. **Verifiser hvilken kode et KJØRENDE image inneholder (lærdom 2026-07-04).** Ved «er commit X allerede på prod?» — IKKE stol på i18n-streng-grep i `.next`: Next inliner ikke UI-strenger grep-bart i standalone-buildet (kontroll-grep `Geofence` traff bare `.next/trace`, ikke chunks → alle i18n-markører falt falskt ABSENT). To pålitelige metoder: **(a) commit-dato vs image-byggetid** — `docker inspect -f '{{.Created}}' sitedoc-web` gir image-tid; `git show -s --format=%cI <commit>` gir commit-tid; commit nyere enn image → IKKE i kjørende image. **(b) kode-streng-markør i `apps/*/src`** — runtime-imaget kopierer `COPY --from=build /app` (inkl. `src`), så `docker exec sitedoc-api grep -rl '<distinkt norsk kode-streng>' /app/apps/api` er pålitelig for api-kode. Merk: `main` kan ligge FORAN kjørende prod (commits merget for f.eks. mobil-bunt uten prod-server-deploy) — sammenlign alltid mot image-byggetid, ikke mot `main`-tip.
+7. **Verifiser hvilken kode et KJØRENDE image inneholder (lærdom 2026-07-04).** Ved «er commit X allerede på prod?» — IKKE stol på i18n-streng-grep i `.next`: Next inliner ikke UI-strenger grep-bart i standalone-buildet (kontroll-grep `Geofence` traff bare `.next/trace`, ikke chunks → alle i18n-markører falt falskt ABSENT). To pålitelige metoder: **(a) commit-dato vs image-byggetid** — `docker inspect -f '{{.Created}}' sitedoc-web` gir image-tid; `git show -s --format=%cI <commit>` gir commit-tid; commit nyere enn image → IKKE i kjørende image. **(b) kode-streng-markør i `apps/api/src`** — api-runtime har kildekoden (`COPY . .`), så `docker exec sitedoc-api grep -rl '<distinkt norsk kode-streng>' /app/apps/api` er pålitelig for api-kode. **Web har ingen `src` fra DOCKER-SLANK T3 (standalone)** — grep i `/app/apps/web/.next/server` etter en kode-streng (ikke en i18n-streng), se § Standalone. Merk: `main` kan ligge FORAN kjørende prod (commits merget for f.eks. mobil-bunt uten prod-server-deploy) — sammenlign alltid mot image-byggetid, ikke mot `main`-tip.
 
 8. **Env-endring (secret) krever RECREATE, ikke restart — og web force-recreate pga. delt namespace (lærdom 2026-07-06).** Ny verdi i `docker/env/api-test.env` (f.eks. `DEV_LOGIN_SECRET`) plukkes IKKE opp av `docker restart` — `env_file` leses kun ved container-**opprettelse**. Kjør `up -d --force-recreate --no-deps sitedoc-test-api`. Fordi `sitedoc-test-web` deler api-ens nett-namespace (`network_mode: service:sitedoc-test-api`, jf. punkt 4), **invalideres web-en når api recreates** → force-recreate web også (`up -d --force-recreate --no-deps sitedoc-test-api sitedoc-test-web`), ellers står web med død namespace-referanse (connection reset på :3300). **Verifiser runtime-env ved secret-mistanke (aldri echo verdien):**
    ```
@@ -191,11 +190,59 @@ Containerd (`DISK USAGE`) teller utpakket + komprimert innhold, og bilder/PDF ko
 | Bygg ved ren kodeendring (varm cache) | 176 s | 35 s (eksport 0,8 s) | 303 s | 158 s (eksport 17 s) |
 
 «Før» ved kodeendring er målt med samme `.dockerignore`; på server bygde api i tillegg apt/venv/avhengigheter
-på nytt hver gang fordi SHA-en sto øverst. Gjenstår (ikke bestilt): `.next/cache` (978 M) ligger fortsatt i
-web-imaget; Next `standalone` og filtrert api-install er egne leveranser.
+på nytt hver gang fordi SHA-en sto øverst. Del 2 (standalone web, filtrert api-install): § Standalone under.
 
 **Verifiser etter bygg:** `docker exec <api|web> sh -c 'ldd /usr/local/bin/dwg2SVG | grep redwg; dwg2SVG --version'`
 og `docker exec <api> sh -c 'test -d /app/uploads && echo FEIL || echo ok'`.
+
+## Standalone web og filtrert api-install (DOCKER-SLANK del 2, 2026-11-24)
+
+**Web (T3) — `output: "standalone"` + flertrinnsbygg** (`apps/web/next.config.js`, `docker/Dockerfile.web`):
+- `deps` (g++/make, full install, `prisma generate`) → `build` (`COPY . .`, `next build`) → `runtime`
+  (node-slim + poppler/tesseract/openssl/python3-venv, libredwg, ezdxf-venv). **Sluttimaget har ingen
+  g++/make, ingen full `node_modules`, ingen `src` og ingen `.next/cache`** (978 M webpack-cache før).
+- `CMD ["node", "server.js"]` med `WORKDIR /app/apps/web` og `HOSTNAME=0.0.0.0` (uten den binder
+  server.js til containerens vertsnavn). cwd er uendret, så uploads-volumet og `join(process.cwd(), "uploads")`
+  virker som før. Compose, porter, env og volumer er uendret.
+- `outputFileTracingRoot` = monorepo-roten (`server.js` havner i `.next/standalone/apps/web/`).
+- **Kopieres eksplisitt** fordi Next-sporingen ikke ser dem:
+  | Hva | Hvorfor | Hvor |
+  |---|---|---|
+  | `.next/static`, `public/` (dxf-viewer-worker, pdf.worker, web-ifc.wasm, fonts) | følger aldri med standalone | Dockerfile.web `COPY` |
+  | ezdxf `render.py` | leses av Python via `EZDXF_RENDER_PY`, ikke av Node | Dockerfile.web `COPY` |
+  | Prisma-motorene (4 klienter) | firmaklientene har egendefinert output `node_modules/.prisma/<navn>-client`; `.so.node` lastes med beregnet sti | `outputFileTracingIncludes` |
+  | pdfjs-dist `legacy/build` | falsk worker importeres dynamisk i Node | `outputFileTracingIncludes` |
+  | `@napi-rs/canvas` (pdfjs' DOMMatrix/ImageData/Path2D-polyfill) | lastes med `createRequire`; glob i next.config følger pnpm-symlenkene og lager kopier | `cp -a` i build-staget (bevarer lenkene; bare glibc-binæren) |
+- **`sharp` er nå en avhengighet av `@sitedoc/web`** (samme versjon som api, ingen ny pakke i lockfila).
+  tRPC-ruten (arkivets bilde-inliner, svg-sharp, tegning) laster `sharp` som webpack-external. Før fant
+  web den bare fordi pnpm-shimmen bak `pnpm start` satte `NODE_PATH` til `.pnpm/node_modules`; `node
+  server.js` har ingen slik sti, og ruten feilet med `Cannot find module 'sharp'` (målt lokalt).
+- **Ny dynamisk lastet pakke i server-koden** (createRequire, beregnet sti, ikke-JS-fil) må verifiseres i
+  standalone-imaget — sporingen ser den ikke. Sjekk: `docker exec <web> sh -c 'cd /app/apps/web && node -e
+  "require.resolve(\"<pakke>\")"'`.
+
+**Api (T4) — `pnpm install --frozen-lockfile --filter "@sitedoc/api..."`** (`docker/Dockerfile.api`):
+api + workspace-avhengighetene (db, db-*, pdf, shared) med devDeps (`tsx` er CMD; prisma-CLI-en brukes av
+migreringskommandoen i `deploy-test.sh`). Web (next/swc), mobil (expo/react-native) og e2e (playwright)
+installeres ikke. Alle `package.json`-ene må fortsatt kopieres inn (lockfila beskriver hele workspacet).
+Typegaten kjører `pnpm --filter @sitedoc/api build` — turbo er en rot-devDep som ikke installeres, og ingen
+av api-ens workspace-avhengigheter har et build-skript. Ikke `pnpm deploy` (Prisma-klientene ligger i
+rot-`node_modules/.prisma`, og migreringen trenger workspace-oppsettet).
+
+**Målt lokalt** (arm64, Docker 29/containerd; «før» = etter del 1):
+
+| | api før | api etter | web før | web etter |
+|---|---|---|---|---|
+| DISK USAGE / innhold | 3,66 GB / 795 MB | 2,01 GB / 467 MB | 5,58 GB / 1,16 GB | 1,20 GB / 292 MB |
+| `du -sxh /` i container | 2,7 G | 1,5 G | 4,1 G | 861 M |
+| `/app/node_modules` | 2,1 G | 814 M | 2,1 G | 232 M |
+| Bygg ved ren kodeendring (varm cache) | 35 s | 41 s (eksport 1,1 s) | 158 s | 165 s (eksport 6,4 s) |
+
+Byggetiden ved kodeendring domineres av api-`tsc` og `next build` (151 s) lokalt; gevinsten er eksporten,
+som på server-ny tok 321 s for web før del 1 og skalerer med størrelsen.
+
+**Verifiser etter bygg:** `docker exec <web> sh -c 'ls /app/apps/web/server.js; which g++ || echo ingen-g++'`
+og en innlogget side + én tRPC-spørring (tRPC kjører i web).
 
 ## Rollback
 Gammel sitedoc (PM2 på gammel server) står urørt til cutover er bekreftet; DNS tilbake + PM2 = rollback.

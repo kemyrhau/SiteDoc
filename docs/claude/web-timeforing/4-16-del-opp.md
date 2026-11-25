@@ -455,3 +455,17 @@ Koderen leverer løsning med skjermbilde før kode i hver av dem.
     Med tre kort på prosjektet viser knappen de to andre. Et kort på et annet prosjekt og et attestert
     kort står ikke blant målene, og serveren avviser dem. Uten andre kort på prosjektet vises ikke
     knappen.
+
+#### Del H — «↶ Angre del opp» (Kenneth 2026-11-25)
+
+> **Kenneth 2026-11-25** (ved test av `5d183d4f`): *«jeg kan ikke slette dette kortet som ble delt. jeg ønsker å tilbakeføre kort A»* → på spørsmålet om «↶ Angre del opp»: *«ja, angre del opp»*.
+
+✅ **Bygget** (web-timer-o13, branch `fix/del-opp-r1-d2h`; ordre `relay/inbox-web-timer-o13.md` § «JA D2h fase 2»):
+- **Knappen** «Angre del opp» (ikon ↶) står i hodet på kort B, til venstre for «Rediger jobben» (`RegistreringPanel.tsx:245` `kanAngre`, knapp `:342`). Kort A har ingen knapp. Serveren sender hvilke kort som kan angres i `angreDelOppKort` (`dagsseddel.ts:7764` firma-lista, `:8186` enkeltseddel; regel `angreDelOpp.ts:344` `angreDelOppKort`). Etter klikk lukkes paret og kort A står åpent alene (`AttesteringTabell.tsx:615`). Ingen bekreftelsesvindu.
+- **Opphav:** kort B må komme fra en `del_jobb`-post som ikke er angret. Nye poster bærer `kortIdA`/`kortIdB` og `fraSheetTimerId` for maskin og vare (`dagsseddel.ts:8678`); gamle poster gjenkjennes via `tilB`/`delt` (`angreDelOpp.ts:118` `delOppOpphav`). Kun ett steg tilbake: er B delt videre (B → B + C), står knappen bare i C (`angreDelOpp.ts:167` `finnAngreOpphav`).
+- **Sammenslåing fra historikken, ikke en sum:** timeradene som ble delt, får fra–til, timer og pause fra historikkposten «Del opp» skrev (raden slik den var). Rader som gikk hele til B, får kort, underprosjekt og byggeplass tilbake; B-delene slettes. Maskin som ble delt, blir én rad med timene fra før; varer slås sammen til én linje (mengdene summeres). Tillegg, utlegg, reise og linjer flyttet til B med «Flytt linje» går tilbake til A (`dagsseddel.ts:8904` `angreDelJobb`). Det finnes ikke noe eget overtidsfelt på raden; overtid følger lønnsarten.
+- **Avvises** (`angreDelOpp.ts:212` `vurderAngre`): en linje i A eller B er attestert, også vare og utlegg i retur (knappen vises ikke); de delte timeradene er rettet etter delingen (fra–til, pause, timer, lønnsart, maskintimer — underprosjektet på B teller ikke); kort B har linjer fra et tredje kort; kortet kom ikke fra «Del opp» (arbeiderens egen jobb, ingen knapp). Meldingen står i kortet.
+- **Logg og «Korrigert av»:** handlingen logges som `angre_del_jobb` med historikk og `etterPrRad` (`kortLeser.ts:470`). «Korrigert av» følger dagens regel: er raden lik før og etter, gir det ingen markør. Ingen unntak i `regnKorrigeringer`.
+- **«Flytt linje» sjekker også varer i målkortet:** et attestert vare i målkortet avviser flyttingen (`dagsseddel.ts:8788`).
+- Test: `apps/api/src/routes/d2h-angre-del-opp.integration.test.ts` (17 tester mot ekte Postgres). Skjermbilder: `relay/skisser/d2h-for-angre.png`, `relay/skisser/d2h-etter-angre.png`.
+- Dette er attestantens angring av egen deling, ikke sammenslåing av arbeiderens oppdeling (regelen om aldri å slå sammen registreringer gjelder fortsatt).

@@ -45,6 +45,17 @@ import {
 } from "../../services/timer/slettespor";
 import { hentSkSedler, lesSlettetOgKorrigert } from "../../services/timer/slettetKorrigert";
 import {
+  lastAngreGrunnlag,
+  angreDelOppKort,
+  finnAngreOpphav,
+  flyttPoster,
+  vurderAngre,
+  snapshotFoer,
+  ANGRE_FEILTEKST,
+  ANGRE_IKKE_SISTE,
+  ANGRE_IKKE_DELT,
+} from "../../services/timer/angreDelOpp";
+import {
   HISTORIKK_HENDELSE_GJENAAPNET,
   hentKortStedNavn,
   hentRettedeFelter,
@@ -1251,6 +1262,33 @@ function touchSedel(
     where: { id: sheetId },
     data: { updatedAt: new Date() },
   });
+}
+
+/**
+ * D2b: aktivitetsloggen for «→ Kort B» (`flyttLinjeTilKort`). Ikke-blokkerende — flyttingen er
+ * lagret. `etterPrRad` gir «Korrigert av» verdiene attestanten satte (som ✂ og «Del opp»).
+ */
+async function loggFlytting(
+  ctx: Context & { userId: string },
+  sheet: { id: string; organizationId: string; userId: string },
+  projectId: string,
+  payload: Record<string, unknown>,
+): Promise<void> {
+  try {
+    await prisma.activity.create({
+      data: {
+        actorUserId: ctx.userId,
+        organizationId: sheet.organizationId,
+        projectId,
+        targetType: "DailySheet",
+        targetId: sheet.id,
+        action: "flytt_linje",
+        payload: { sedelEier: sheet.userId, ...payload } as Prisma.InputJsonValue,
+      },
+    });
+  } catch {
+    // Ikke-blokkerende.
+  }
 }
 
 /**
@@ -7642,6 +7680,8 @@ export const dagsseddelRouter = router({
 
       // F1: firma-admin har alltid rett; samme regel som serveren håndhever.
       const fravaerRett = await fravaerRettPrSedel(ctx.userId, sedler);
+      // D2h: kortene som får «↶ Angre del opp» (serveren regner, klienten viser).
+      const angreKort = await angreDelOppKort(ctx, sedler.map((s) => s.id));
       // w7 (B15): egne sedler vises, men kan ikke attesteres/rettes når firmaet sier Nei.
       const egne = await egneSperredeSedler(sedler, ctx.userId);
       const kort = await lastKortBerikelse(ctx, sedler);
@@ -7721,6 +7761,7 @@ export const dagsseddelRouter = router({
           // prosjektlederen; dagstallene bare for dager hen ser (vilkår 1).
           uke: ukeFor(s),
           fravaerKanAttesteres: fravaerRett.get(s.id) ?? false,
+          angreDelOppKort: angreKort.get(s.id) ?? [],
           // w7 (B15): sedelen er den innloggedes egen og firmaet sier Nei — PC/telefon skjuler knappene.
           egneTimer: egne.has(s.id),
           timer: timerMedProsjekt,
@@ -8141,6 +8182,8 @@ export const dagsseddelRouter = router({
         // Kort-id-spec § 11.4 (F1): serverens svar på om brukeren kan attestere
         // fraværsrader uten prosjekt på denne sedelen — klienten regner det aldri selv.
         fravaerKanAttesteres: fravaerRett.get(sheet.id) ?? false,
+        // D2h: kortene som får «↶ Angre del opp».
+        angreDelOppKort: (await angreDelOppKort(ctx, [sheet.id])).get(sheet.id) ?? [],
         // w7 (B15): sedelen er den innloggedes egen og firmaet sier Nei — lesing er lov (B18 A).
         egneTimer: (await egneSperredeSedler([sheet], ctx.userId)).has(sheet.id),
         // B10: tallene bak «Egenmelding 7,5 t + arbeid 2,0 t = 9,5 t — over dagsnormen 7,5 t»; null = intet brudd.
@@ -8473,7 +8516,7 @@ export const dagsseddelRouter = router({
       const tilBHel = new Set(maskinDeling.filter((d) => d.timerA <= 0 && d.timerB > 0).map((d) => d.maskin.id));
       const maskinOmkobling = maskiner
         .filter((m) => m.sheetTimerId && tilB.has(m.sheetTimerId) && !tilBHel.has(m.id))
-        .map((m) => ({ id: m.id, sheetTimerId: radIAFor(m) }));
+        .map((m) => ({ id: m.id, sheetTimerId: radIAFor(m), fraSheetTimerId: m.sheetTimerId }));
 
       if (input.forhandsvis) {
         const rund = (n: number) => Math.round(n * 100) / 100;
@@ -8598,11 +8641,20 @@ export const dagsseddelRouter = router({
       });
       // Varer koblet til rader som gikk til del B, blir i A og kobles til en rad i A (eget skjema,
       // egen klient). Kort og underprosjekt er A sine, som før delingen.
+      // D2h: koblingen varen hadde, lagres i loggen så «↶ Angre del opp» kan sette den tilbake.
+      let vareOmkoblet: { id: string; fraSheetTimerId: string | null }[] = [];
       if (plan.tilB.length > 0) {
-        await ctx.prismaVarelager.vareforbruk.updateMany({
+        const varer = await ctx.prismaVarelager.vareforbruk.findMany({
           where: { dagsseddelId: sheet.id, sheetTimerId: { in: plan.tilB } },
-          data: { sheetTimerId: radIAFor({}) },
+          select: { id: true, sheetTimerId: true },
         });
+        vareOmkoblet = varer.map((v) => ({ id: v.id, fraSheetTimerId: v.sheetTimerId }));
+        if (varer.length > 0) {
+          await ctx.prismaVarelager.vareforbruk.updateMany({
+            where: { id: { in: varer.map((v) => v.id) } },
+            data: { sheetTimerId: radIAFor({}) },
+          });
+        }
       }
       await touchSedel(pt, sheet.id);
       await sikreKortId(pt, sheet.id);
@@ -8622,7 +8674,11 @@ export const dagsseddelRouter = router({
               tilEcoId: input.externalCostObjectIdB,
               delt: plan.delt.map((d) => d.id),
               tilB: plan.tilB,
-              maskinOmkoblet: maskinOmkobling.map((m) => m.id),
+              // D2h: kortene og koblingene før delingen — «↶ Angre del opp» leser dem.
+              kortIdA: input.kortId,
+              kortIdB: nyKortId,
+              maskinOmkoblet: maskinOmkobling.map((m) => ({ id: m.id, fraSheetTimerId: m.fraSheetTimerId })),
+              vareOmkoblet,
               maskinDelt,
               etterPrRad,
             },
@@ -8632,6 +8688,417 @@ export const dagsseddelRouter = router({
         // Ikke-blokkerende — delingen er allerede lagret.
       }
       return { kortIdB: nyKortId, delt: plan.delt.length, flyttet: plan.tilB.length, forhandsvisning: null };
+    }),
+
+  /**
+   * D2b (plan § 4.16 del G, B68 ja, B74 ja): flytt én linje — maskin, tillegg, utlegg, reise
+   * eller vare — til et annet kort på samme dagsseddel og samme prosjekt. I paret etter «Del
+   * opp» og i et kort som åpnes alene. Samme krav som «Del opp» (DO9): attesteringsrett på
+   * prosjektet, ikke egen sedel, «rediger ved attestering» på, dagen sendt og linja venter.
+   * Målkortet må vente helt (et attestert kort gjenåpnes først). Linja får målkortets kort-id,
+   * underprosjekt og byggeplass; maskin og vare kobles til en timerad i målkortet. En vare kan
+   * deles (`mengde`): resten blir stående, den nye linja står i målkortet.
+   */
+  flyttLinjeTilKort: protectedProcedure
+    .input(
+      z.object({
+        sheetId: z.string().uuid(),
+        radType: z.enum(["maskin", "tillegg", "utlegg", "reise", "vare"]),
+        radId: z.string().uuid(),
+        tilKortId: z.string().min(1),
+        // Bare vare: mengden som flyttes. Mangler den, flyttes hele linja.
+        mengde: z.number().positive().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const pt = ctx.prismaTimer;
+      const sheet = await pt.dailySheet.findUnique({
+        where: { id: input.sheetId },
+        select: { id: true, organizationId: true, status: true, userId: true },
+      });
+      if (!sheet) throw new TRPCError({ code: "NOT_FOUND" });
+
+      // Linja (kilden), lest med feltene som avgjør kortet.
+      type Kilde = { id: string; projectId: string | null; kortId: string | null; venter: boolean; antall?: number };
+      let kilde: Kilde | null = null;
+      if (input.radType === "reise") {
+        const r = await pt.sheetTimer.findFirst({ where: { id: input.radId, sheetId: sheet.id, erReise: true } });
+        if (r) kilde = { id: r.id, projectId: r.projectId, kortId: r.kortId, venter: r.attestertStatus === "pending" };
+      } else if (input.radType === "maskin") {
+        const r = await pt.sheetMachine.findFirst({ where: { id: input.radId, sheetId: sheet.id } });
+        if (r) kilde = { id: r.id, projectId: r.projectId, kortId: r.kortId, venter: r.attestertStatus === "pending" };
+      } else if (input.radType === "tillegg") {
+        const r = await pt.sheetTillegg.findFirst({ where: { id: input.radId, sheetId: sheet.id } });
+        if (r) kilde = { id: r.id, projectId: r.projectId, kortId: r.kortId, venter: r.attestertStatus === "pending" };
+      } else if (input.radType === "utlegg") {
+        const r = await pt.sheetUtlegg.findFirst({ where: { id: input.radId, sheetId: sheet.id } });
+        // Utlegg har ingen attestert-status: det venter når alle linjene i kortet venter (under).
+        if (r) kilde = { id: r.id, projectId: r.projectId, kortId: r.kortId, venter: true };
+      } else {
+        const v = await ctx.prismaVarelager.vareforbruk.findFirst({ where: { id: input.radId, dagsseddelId: sheet.id } });
+        if (v) kilde = { id: v.id, projectId: v.projectId, kortId: v.kortId, venter: v.attestertSnapshot === null, antall: Number(v.antall) };
+      }
+      if (!kilde) throw new TRPCError({ code: "NOT_FOUND", message: "Linja finnes ikke på dagsseddelen. Last siden på nytt." });
+      if (kilde.projectId === null) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Linjer uten prosjekt kan ikke flyttes til et annet kort" });
+      }
+
+      await krevRettingVedAttestering(pt, ctx.userId, sheet, [kilde.projectId]);
+      await krevIkkeEgenSedel(ctx.userId, [sheet]);
+      const setting = await ctx.prisma.organizationSetting.findUnique({
+        where: { organizationId: sheet.organizationId },
+        select: { tillattRedigerVedAttestering: true },
+      });
+      if (!setting?.tillattRedigerVedAttestering) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: "Rediger ved attestering er ikke tillatt for dette firmaet. Slå på i innstillinger.",
+        });
+      }
+      if (sheet.status !== "sent") {
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: `Kun innsendte dagssedler kan rettes (status: ${sheet.status})` });
+      }
+      if (kilde.kortId === input.tilKortId) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Linja står allerede i kortet" });
+      }
+
+      // Kortene på sedelen: kilde- og målkortets linjer (timer-basen).
+      const ikkeErstattet = { attestertStatus: { not: "erstattet" } } as const;
+      const kortRader = (kortId: string) =>
+        Promise.all([
+          pt.sheetTimer.findMany({
+            where: { sheetId: sheet.id, kortId, ...ikkeErstattet },
+            orderBy: [{ fraTid: "asc" }, { createdAt: "asc" }],
+          }),
+          pt.sheetTillegg.findMany({ where: { sheetId: sheet.id, kortId, ...ikkeErstattet } }),
+          pt.sheetMachine.findMany({ where: { sheetId: sheet.id, kortId, ...ikkeErstattet } }),
+          pt.sheetUtlegg.findMany({ where: { sheetId: sheet.id, kortId } }),
+        ]);
+      const [malTimer, malTillegg, malMaskin, malUtlegg] = await kortRader(input.tilKortId);
+      const malLinjer = [...malTimer, ...malTillegg, ...malMaskin];
+      // Kortets nøkkel: arbeid først (jobbens underprosjekt), ellers tillegg, maskin, utlegg, reise.
+      const malArbeid = malTimer.filter((r) => !r.erReise && !r.arbeidReiseRetning);
+      const malNokkel = malArbeid[0] ?? malTillegg[0] ?? malMaskin[0] ?? malUtlegg[0] ?? malTimer[0];
+      if (!malNokkel) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Målkortet finnes ikke på dagsseddelen. Last siden på nytt." });
+      }
+      if (malNokkel.projectId !== kilde.projectId) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Linja kan bare flyttes til et kort på samme prosjekt" });
+      }
+      // D2h: også en attestert vare i målkortet stopper flyttingen (varen har ingen status-kolonne).
+      const malVarer = await ctx.prismaVarelager.vareforbruk.findMany({
+        where: { dagsseddelId: sheet.id, kortId: input.tilKortId },
+        select: { attestertSnapshot: true },
+      });
+      if (malLinjer.some((r) => r.attestertStatus !== "pending") || malVarer.some((v) => v.attestertSnapshot !== null)) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: "Målkortet har linjer som ikke venter på attestering. Gjenåpne linjene først.",
+        });
+      }
+      if (!kilde.venter) {
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Bare linjer som venter på attestering kan flyttes. Gjenåpne linja først." });
+      }
+      if (input.radType === "utlegg" && kilde.kortId) {
+        const [kt, ktl, km] = await kortRader(kilde.kortId);
+        if ([...kt, ...ktl, ...km].some((r) => r.attestertStatus !== "pending")) {
+          throw new TRPCError({
+            code: "PRECONDITION_FAILED",
+            message: "Utlegg flyttes bare når alle linjene i kortet venter på attestering. Gjenåpne linjene først.",
+          });
+        }
+      }
+      const mal = {
+        kortId: input.tilKortId,
+        externalCostObjectId: malNokkel.externalCostObjectId ?? null,
+        byggeplassId: malNokkel.byggeplassId ?? null,
+      };
+      // Timeraden en maskin eller vare kobles til i målkortet (størst overlapp, ellers flest timer).
+      const malRader = malArbeid.map((r) => ({
+        id: r.id, kortId: r.kortId, projectId: r.projectId, timer: Number(r.timer), erReise: false,
+        attestertStatus: r.attestertStatus, fraTid: r.fraTid, tilTid: r.tilTid,
+      }));
+
+      // Vare: bare varelager-basen skrives, i én transaksjon der — ingen halv tilstand mellom basene.
+      if (input.radType === "vare") {
+        const antall = kilde.antall ?? 0;
+        const mengde = input.mengde === undefined ? antall : Math.round(input.mengde * 100) / 100;
+        if (mengde <= 0 || mengde > antall) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: `Mengden må være mellom 0 og ${tallNb(antall)}` });
+        }
+        const v = await ctx.prismaVarelager.vareforbruk.findUniqueOrThrow({ where: { id: kilde.id } });
+        const sheetTimerId = velgTimeradForMaskin({ kortId: mal.kortId }, malRader);
+        let nyId: string | null = null;
+        await ctx.prismaVarelager.$transaction(async (vtx) => {
+          if (mengde >= antall) {
+            await vtx.vareforbruk.update({ where: { id: v.id }, data: { ...mal, sheetTimerId } });
+            return;
+          }
+          await vtx.vareforbruk.update({ where: { id: v.id }, data: { antall: Math.round((antall - mengde) * 100) / 100 } });
+          const ny = await vtx.vareforbruk.create({
+            data: {
+              dato: v.dato,
+              projectId: v.projectId,
+              vareId: v.vareId,
+              antall: mengde,
+              // Delt linje er retting, ikke en ny linje: den arver hvem som førte den.
+              registrertAvUserId: v.registrertAvUserId,
+              kommentar: v.kommentar,
+              dagsseddelId: v.dagsseddelId,
+              ...mal,
+              sheetTimerId,
+            },
+          });
+          nyId = ny.id;
+        });
+        await touchSedel(pt, sheet.id);
+        await loggFlytting(ctx, sheet, kilde.projectId, { radType: "vare", radId: kilde.id, fraKortId: kilde.kortId, tilKortId: mal.kortId, mengde, nyId });
+        return { tilKortId: mal.kortId, nyId };
+      }
+
+      const naa = new Date();
+      const etterPrRad: Record<string, Record<string, string | number | null>> = {};
+      await pt.$transaction(async (tx) => {
+        const maskinFoer = await lesMaskinJobbTilstand(tx, ctx.prismaMaskin, sheet.id);
+        if (input.radType === "maskin") {
+          const o = await tx.sheetMachine.findUniqueOrThrow({ where: { id: kilde.id } });
+          await tx.sheetRadHistorikk.create({ data: byggHistorikkPost("maskin", o, ctx.userId, naa) });
+          const ny = await tx.sheetMachine.update({
+            where: { id: o.id },
+            data: { ...mal, sheetTimerId: velgTimeradForMaskin({ kortId: mal.kortId, fraTid: o.fraTid, tilTid: o.tilTid }, malRader) },
+          });
+          etterPrRad[ny.id] = korrigerbareVerdier("maskin", ny);
+        } else if (input.radType === "tillegg") {
+          const o = await tx.sheetTillegg.findUniqueOrThrow({ where: { id: kilde.id } });
+          await tx.sheetRadHistorikk.create({ data: byggHistorikkPost("tillegg", o, ctx.userId, naa) });
+          const ny = await tx.sheetTillegg.update({ where: { id: o.id }, data: mal });
+          etterPrRad[ny.id] = korrigerbareVerdier("tillegg", ny);
+        } else if (input.radType === "reise") {
+          const o = await tx.sheetTimer.findUniqueOrThrow({ where: { id: kilde.id } });
+          await tx.sheetRadHistorikk.create({ data: byggHistorikkPost("timer", o, ctx.userId, naa) });
+          const ny = await tx.sheetTimer.update({ where: { id: o.id }, data: mal });
+          etterPrRad[ny.id] = korrigerbareVerdier("timer", ny);
+        } else {
+          // Utlegg: «Korrigert av» på utlegg kommer i D2f (leseren tar ikke radtypen ennå).
+          await tx.sheetUtlegg.update({ where: { id: kilde.id }, data: mal });
+        }
+        await sikreKortId(tx, sheet.id);
+        // Maskin høyst jobbens arbeidstimer (DO15) i målkortet: brudd ruller tilbake.
+        await krevIngenNyeMaskinBrudd(tx, ctx.prismaMaskin, sheet.id, maskinFoer);
+      });
+      await touchSedel(pt, sheet.id);
+      await loggFlytting(ctx, sheet, kilde.projectId, {
+        radType: input.radType, radId: kilde.id, fraKortId: kilde.kortId, tilKortId: mal.kortId, etterPrRad,
+      });
+      return { tilKortId: mal.kortId, nyId: null };
+    }),
+
+  /**
+   * D2h (plan § 4.16 del H, Kenneth 2026-11-25): «↶ Angre del opp» på kort B. Kort B slås sammen
+   * med kort A slik jobben var før delingen: verdiene hentes fra historikken «Del opp» skrev, ikke
+   * fra en sum. Linjer flyttet fra A til B etterpå går tilbake til A; en vare delt med mengde slås
+   * sammen med kilden. Ett steg tilbake. Samme krav som «Del opp»; i tillegg venter alle linjene i
+   * A og B, radene «Del opp» skrev er urørt, og B har ingen linjer fra et tredje kort
+   * (`vurderAngre`). Ingen bekreftelse — angringen kan gjøres om med «Del opp».
+   */
+  angreDelJobb: protectedProcedure
+    .input(z.object({ sheetId: z.string().uuid(), kortId: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      const pt = ctx.prismaTimer;
+      const sheet = await pt.dailySheet.findUnique({
+        where: { id: input.sheetId },
+        select: { id: true, organizationId: true, status: true, userId: true },
+      });
+      if (!sheet) throw new TRPCError({ code: "NOT_FOUND" });
+      const g = (await lastAngreGrunnlag(ctx, [sheet.id])).get(sheet.id);
+      const { opphav: o, deltVidere } = finnAngreOpphav(g?.opphav ?? [], input.kortId);
+      if (!g || !o) {
+        throw new TRPCError(deltVidere ? { code: "PRECONDITION_FAILED", message: ANGRE_IKKE_SISTE } : { code: "NOT_FOUND", message: ANGRE_IKKE_DELT });
+      }
+      const forsteA = g.tilstand.timer.find((r) => r.kortId === o.kortIdA) ?? g.tilstand.timer.find((r) => r.kortId === o.kortIdB);
+      const projectId = forsteA?.projectId ?? null;
+      if (projectId === null) throw new TRPCError({ code: "NOT_FOUND", message: ANGRE_FEILTEKST.manglerA });
+      await krevRettingVedAttestering(pt, ctx.userId, sheet, [projectId]);
+      await krevIkkeEgenSedel(ctx.userId, [sheet]);
+      const setting = await ctx.prisma.organizationSetting.findUnique({
+        where: { organizationId: sheet.organizationId },
+        select: { tillattRedigerVedAttestering: true },
+      });
+      if (!setting?.tillattRedigerVedAttestering) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: "Rediger ved attestering er ikke tillatt for dette firmaet. Slå på i innstillinger.",
+        });
+      }
+      if (sheet.status !== "sent") {
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: `Kun innsendte dagssedler kan rettes (status: ${sheet.status})` });
+      }
+      const v = vurderAngre(o, g.tilstand, flyttPoster(g.poster, o.ved));
+      if ("feil" in v) {
+        throw new TRPCError({ code: v.feil === "manglerA" || v.feil === "manglerB" ? "NOT_FOUND" : "PRECONDITION_FAILED", message: ANGRE_FEILTEKST[v.feil] });
+      }
+      const snap = (type: "timer" | "maskin", id: string) => {
+        const s = snapshotFoer(g.historikk, type, id, o.ved);
+        if (!s) throw new TRPCError({ code: "PRECONDITION_FAILED", message: ANGRE_FEILTEKST.rettet });
+        return s;
+      };
+      const str = (x: unknown) => (typeof x === "string" ? x : null);
+      // Kort A sitt sted (underprosjekt og byggeplass) slik det var før delingen.
+      const forsteSnap = snap("timer", (o.delt[0] ?? o.tilB[0])!);
+      const aMal = {
+        kortId: o.kortIdA,
+        externalCostObjectId: str(forsteSnap.externalCostObjectId),
+        byggeplassId: str(forsteSnap.byggeplassId),
+      };
+
+      const naa = new Date();
+      const etterPrRad: Record<string, Record<string, string | number | null>> = {};
+      const slettet: { radType: string; snapshot: unknown }[] = [];
+      const ikkeErstattet = { attestertStatus: { not: "erstattet" } } as const;
+      await pt.$transaction(async (tx) => {
+        const maskinFoer = await lesMaskinJobbTilstand(tx, ctx.prismaMaskin, sheet.id);
+        const hist = (type: "timer" | "maskin" | "tillegg", rad: { id: string; sheetId: string; parentRadId?: string | null }) =>
+          tx.sheetRadHistorikk.create({ data: byggHistorikkPost(type, rad, ctx.userId, naa) });
+
+        // Timeradene: del A får verdiene fra før delingen; del B slettes; rader som gikk til B, kommer tilbake.
+        for (const id of o.delt) {
+          const s = snap("timer", id);
+          await hist("timer", await tx.sheetTimer.findUniqueOrThrow({ where: { id } }));
+          const ny = await tx.sheetTimer.update({
+            where: { id },
+            data: { fraTid: str(s.fraTid), tilTid: str(s.tilTid), timer: String(s.timer ?? 0), pauseMin: Number(s.pauseMin ?? 0) },
+          });
+          etterPrRad[id] = korrigerbareVerdier("timer", ny);
+        }
+        for (const id of o.tilB) {
+          const s = snap("timer", id);
+          await hist("timer", await tx.sheetTimer.findUniqueOrThrow({ where: { id } }));
+          const ny = await tx.sheetTimer.update({
+            where: { id },
+            data: { kortId: o.kortIdA, externalCostObjectId: str(s.externalCostObjectId), byggeplassId: str(s.byggeplassId) },
+          });
+          etterPrRad[id] = korrigerbareVerdier("timer", ny);
+        }
+        if (v.plan.bDeler.length > 0) {
+          const bRader = await tx.sheetTimer.findMany({ where: { id: { in: v.plan.bDeler } } });
+          slettet.push(...bRader.map((r) => ({ radType: "timer", snapshot: JSON.parse(JSON.stringify(r)) as unknown })));
+          await tx.sheetTimer.deleteMany({ where: { id: { in: v.plan.bDeler } } });
+        }
+        // Timeradene i A etter sammenslåingen — maskin og vare kobles til en av dem.
+        const aRader = (await tx.sheetTimer.findMany({ where: { sheetId: sheet.id, kortId: o.kortIdA, ...ikkeErstattet, ...JOBBRAD } })).map((r) => ({
+          id: r.id, kortId: r.kortId, projectId: r.projectId, timer: Number(r.timer), erReise: false,
+          attestertStatus: r.attestertStatus, fraTid: r.fraTid, tilTid: r.tilTid,
+        }));
+        const aIder = new Set(aRader.map((r) => r.id));
+        const radIA = (m: { fraTid?: string | null; tilTid?: string | null }) =>
+          velgTimeradForMaskin({ kortId: o.kortIdA, fraTid: m.fraTid, tilTid: m.tilTid }, aRader);
+
+        // Maskin: delt → A får timene fra før, B-raden slettes; hel til B → tilbake som før.
+        for (const md of o.maskinDelt) {
+          const s = snap("maskin", md.id);
+          const m = await tx.sheetMachine.findUniqueOrThrow({ where: { id: md.id } });
+          await hist("maskin", m);
+          const ny = md.nyId
+            ? await tx.sheetMachine.update({ where: { id: m.id }, data: { timer: String(s.timer ?? 0) } })
+            : await tx.sheetMachine.update({
+                where: { id: m.id },
+                data: {
+                  kortId: o.kortIdA,
+                  externalCostObjectId: str(s.externalCostObjectId),
+                  byggeplassId: str(s.byggeplassId),
+                  sheetTimerId: str(s.sheetTimerId) && aIder.has(str(s.sheetTimerId)!) ? str(s.sheetTimerId) : radIA(m),
+                },
+              });
+          etterPrRad[ny.id] = korrigerbareVerdier("maskin", ny);
+          if (md.nyId) {
+            const b = await tx.sheetMachine.findUniqueOrThrow({ where: { id: md.nyId } });
+            slettet.push({ radType: "maskin", snapshot: JSON.parse(JSON.stringify(b)) as unknown });
+            await tx.sheetMachine.delete({ where: { id: md.nyId } });
+          }
+        }
+        for (const mo of o.maskinOmkoblet) {
+          const m = await tx.sheetMachine.findUnique({ where: { id: mo.id } });
+          if (!m || m.kortId !== o.kortIdA) continue;
+          const til = mo.fraSheetTimerId && aIder.has(mo.fraSheetTimerId) ? mo.fraSheetTimerId : radIA(m);
+          if (til !== m.sheetTimerId) await tx.sheetMachine.update({ where: { id: m.id }, data: { sheetTimerId: til } });
+        }
+
+        // Linjer flyttet fra A til B etter delingen: tilbake til A (varene under, sist).
+        for (const l of v.plan.innFlyttet) {
+          if (l.radType === "maskin") {
+            const m = await tx.sheetMachine.findUniqueOrThrow({ where: { id: l.id } });
+            await hist("maskin", m);
+            const ny = await tx.sheetMachine.update({ where: { id: m.id }, data: { ...aMal, sheetTimerId: radIA(m) } });
+            etterPrRad[ny.id] = korrigerbareVerdier("maskin", ny);
+          } else if (l.radType === "tillegg") {
+            await hist("tillegg", await tx.sheetTillegg.findUniqueOrThrow({ where: { id: l.id } }));
+            const ny = await tx.sheetTillegg.update({ where: { id: l.id }, data: aMal });
+            etterPrRad[ny.id] = korrigerbareVerdier("tillegg", ny);
+          } else if (l.radType === "reise") {
+            await hist("timer", await tx.sheetTimer.findUniqueOrThrow({ where: { id: l.id } }));
+            const ny = await tx.sheetTimer.update({ where: { id: l.id }, data: aMal });
+            etterPrRad[ny.id] = korrigerbareVerdier("timer", ny);
+          } else if (l.radType === "utlegg") {
+            await tx.sheetUtlegg.update({ where: { id: l.id }, data: aMal });
+          }
+        }
+        await synkroniserHodePause(tx, sheet.id);
+        await sikreKortId(tx, sheet.id);
+        await krevIngenNyeMaskinBrudd(tx, ctx.prismaMaskin, sheet.id, maskinFoer);
+
+        // Varene i SAMME transaksjon, sist (som jobb-sted): rå SQL på `tx` — timer og varelager er to
+        // klienter mot samme database, og `sikreKortId` over retter vare-kort-id på egen tilkobling.
+        for (const vo of o.vareOmkoblet) {
+          if (!vo.fraSheetTimerId || !aIder.has(vo.fraSheetTimerId)) continue;
+          await tx.$executeRaw`UPDATE "varelager"."vareforbruk" SET "sheet_timer_id" = ${vo.fraSheetTimerId}, "updated_at" = now()
+            WHERE "id" = ${vo.id} AND "dagsseddel_id" = ${sheet.id} AND "kort_id" = ${o.kortIdA}`;
+        }
+        const vareRad = radIA({});
+        for (const l of v.plan.innFlyttet) {
+          if (l.radType !== "vare") continue;
+          if (l.slaaSammenMed) {
+            const [ny] = await tx.$queryRaw<Record<string, unknown>[]>`SELECT * FROM "varelager"."vareforbruk" WHERE "id" = ${l.id}`;
+            if (ny) slettet.push({ radType: "vare", snapshot: JSON.parse(JSON.stringify(ny)) as unknown });
+            await tx.$executeRaw`UPDATE "varelager"."vareforbruk" AS k
+              SET "antall" = k."antall" + n."antall", "updated_at" = now()
+              FROM "varelager"."vareforbruk" AS n
+              WHERE k."id" = ${l.slaaSammenMed} AND n."id" = ${l.id}`;
+            await tx.$executeRaw`DELETE FROM "varelager"."vareforbruk" WHERE "id" = ${l.id}`;
+          } else {
+            await tx.$executeRaw`UPDATE "varelager"."vareforbruk"
+              SET "kort_id" = ${o.kortIdA}, "external_cost_object_id" = ${aMal.externalCostObjectId},
+                  "byggeplass_id" = ${aMal.byggeplassId}, "sheet_timer_id" = ${vareRad}, "updated_at" = now()
+              WHERE "id" = ${l.id}`;
+          }
+        }
+      });
+      await touchSedel(pt, sheet.id);
+      await sikreKortId(pt, sheet.id);
+
+      try {
+        await prisma.activity.create({
+          data: {
+            actorUserId: ctx.userId,
+            organizationId: sheet.organizationId,
+            projectId,
+            targetType: "DailySheet",
+            targetId: sheet.id,
+            action: "angre_del_jobb",
+            payload: {
+              sedelEier: sheet.userId,
+              delJobbId: o.postId,
+              kortIdA: o.kortIdA,
+              kortIdB: o.kortIdB,
+              innFlyttet: v.plan.innFlyttet,
+              slettet,
+              etterPrRad,
+            } as Prisma.InputJsonValue,
+          },
+        });
+      } catch {
+        // Ikke-blokkerende — angringen er allerede lagret.
+      }
+      return { kortIdA: o.kortIdA };
     }),
 
   // ============================================================================

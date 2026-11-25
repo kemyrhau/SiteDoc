@@ -178,11 +178,14 @@ En grønn deploy-logg beviser ikke at imaget har koden din. Bygger rsync fra et 
 cacher Docker et gammelt image uten at noe feiler (målt 2026-08-21 — «build» på 3,8 s, alt cached,
 fiksen ikke med). Grep etter en distinkt streng fra endringen i den KJØRENDE containeren:
 
+Web (standalone fra DOCKER-SLANK T3 — imaget har ingen `src`, bare det kompilerte `.next`). Velg en
+kode-streng (feilmelding, konstant, rutenavn), ikke en i18n-streng — Next inliner ikke UI-tekstene grep-bart:
+
 ```sh
-ssh -t server-ny 'sudo docker exec sitedoc-web grep -c "<distinkt streng>" /app/apps/web/src/<fil>'
+ssh -t server-ny 'sudo docker exec sitedoc-web grep -rl "<distinkt streng>" /app/apps/web/.next/server | head -3'
 ```
 
-🔴 **Grep KILDEN, aldri et kompilat.** Api-runtime kjører `tsx src/server.ts` direkte — `dist/`
+🔴 **Api: grep KILDEN, aldri et kompilat.** Api-runtime kjører `tsx src/server.ts` direkte — `dist/`
 startes aldri, og `packages/pdf` har intet byggetrinn (`main`/`types`/`exports` peker alle på
 `./src`). Arkiv-PDF-endringer verifiseres i **api**-containeren, som er den som rendrer:
 

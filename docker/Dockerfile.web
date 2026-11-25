@@ -1,7 +1,8 @@
 # syntax=docker/dockerfile:1
 # NY-SERVER — sitedoc web (Next.js 14) i monorepo (i prod fra 2026-06-10).
-# Bygger api-pakken også (tRPC-typer er devDependency av web). Fett image (web er IKKE standalone ennaa).
-# Oppfoelger: sett `output: "standalone"` i apps/web/next.config.mjs for slankere image.
+# DOCKER-SLANK T3 (2026-11-24): flertrinnsbygg. `deps` + `build` har bygg-verktøyene
+# (g++, make) og hele node_modules; sluttimaget (`runtime`) får bare Next-standalone-utdataen
+# (`output: "standalone"` i apps/web/next.config.js) + runtime-binærene. Se DOCKER-NOTES § Standalone.
 
 # ============ libredwg (DWG/DXF→SVG, bygges fra kilde) ============
 # DWG-1 (2026-10-08): tRPC kjører in-process i web (route.ts importerer appRouter), så
@@ -28,39 +29,18 @@ RUN strip --strip-unneeded /usr/local/bin/dwg2dxf /usr/local/bin/dwg2SVG /usr/lo
  && mkdir -p /out/lib \
  && cp -P /usr/local/lib/libredwg.so* /out/lib/
 
-FROM node:20-bookworm-slim AS build
+# ============ Deps (avhengigheter + Prisma-klienter, uten kildekode) ============
+FROM node:20-bookworm-slim AS deps
 RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
 WORKDIR /app
-# python3 make g++ openssl = build-tid native (prisma engines, sharp, node-gyp).
-# poppler-utils + tesseract = RUNTIME: tRPC kjorer in-process i web (route.ts importerer
-# appRouter), saa tRPC-prosedyrer som shell-er ut til pdftoppm (PDF-tegninger, tegning.ts)
-# og tesseract (OCR, ftd-prosessering.ts) trenger binaerene i DETTE imaget. Dockerfile.web
-# er ett-stegs (build ER runtime), saa de maa staa her. xvfb er UTELATT med vilje — den
-# hoerte til ODA-DWG-veien (fjernet i DWG-1) og 3D (utsatt, BACKLOG).
-RUN apt-get update && apt-get install -y --no-install-recommends \
-      python3 python3-venv make g++ openssl \
-      poppler-utils tesseract-ocr tesseract-ocr-nor \
+# Build-tid native (prisma engines, sharp, node-gyp). Blir IKKE med i sluttimaget.
+RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ openssl \
     && rm -rf /var/lib/apt/lists/*
-# DWG-1: libredwg-binærene + .so fra build-staget (D-M2 — konvertering skjer også her).
-COPY --from=libredwg-build /usr/local/bin/dwg2dxf /usr/local/bin/dwg2dxf
-COPY --from=libredwg-build /usr/local/bin/dwg2SVG /usr/local/bin/dwg2SVG
-COPY --from=libredwg-build /out/lib/ /usr/local/lib/
-RUN ldconfig
-# ezdxf-motor (DWG_MOTOR=ezdxf, L9 2026-10-11): isolert Python-venv med hash-låste hjul.
-# Nettleser-opplasting konverterer i web-containeren (D-M2), så ezdxf MÅ ligge her også.
-# INERT til DWG_MOTOR=ezdxf settes i env. Identisk venv-oppsett som Dockerfile.api —
-# hold i synk. DOCKER-SLANK T2: bare requirements.txt før kildekoden, så venv-laget
-# gjenbrukes ved kodeendring; render.py kommer med `COPY . .` under.
-COPY apps/api/src/services/ezdxf/requirements.txt /tmp/ezdxf-requirements.txt
-RUN python3 -m venv /opt/ezdxf-venv \
- && /opt/ezdxf-venv/bin/pip install --no-cache-dir --require-hashes \
-      -r /tmp/ezdxf-requirements.txt
-ENV EZDXF_PYTHON=/opt/ezdxf-venv/bin/python3
-ENV EZDXF_RENDER_PY=/app/apps/api/src/services/ezdxf/render.py
 # DOCKER-SLANK T2 (2026-11-24): avhengighetsfilene først, kildekoden etterpå, så install-
 # og generate-lagene (~2,4 GB) gjenbrukes ved ren kodeendring. Ingen pakke har install-
 # skript. Ny workspace-pakke: legg package.json-en til her og i Dockerfile.api (glemt fil
-# gir ERR_PNPM_OUTDATED_LOCKFILE, ikke stille feil).
+# gir ERR_PNPM_OUTDATED_LOCKFILE, ikke stille feil). Full install her (ikke filtrert): web
+# importerer api-kilden, og installen blir ikke med i sluttimaget uansett.
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/
@@ -82,6 +62,9 @@ RUN pnpm --filter @sitedoc/db exec prisma generate \
  && pnpm --filter @sitedoc/db-maskin exec prisma generate \
  && pnpm --filter @sitedoc/db-timer exec prisma generate \
  && pnpm --filter @sitedoc/db-varelager exec prisma generate
+
+# ============ Build (kildekode + next build → .next/standalone) ============
+FROM deps AS build
 COPY . .
 # API_PORT bakes inn i Next routes-manifest (/api/upload(s)-rewrites) ved BUILD-tid og MÅ
 # matche API-ens interne PORT per miljø (prod 3001 / test 3301). Runtime-env er for sent —
@@ -89,8 +72,8 @@ COPY . .
 ARG API_PORT=3001
 ENV API_PORT=${API_PORT}
 # NEXT_PUBLIC_NY_NAV_DEFAULT bakes inn i klient-bundelen ved BUILD-tid (NEXT_PUBLIC → runtime-env
-# er for sent). Kun redesign-stacken setter "1" (via build-arg) → ny nav default-på der. Usatt
-# (prod/test) = "av". Se docker-compose.redesign.yml + docs/redesign/steg-viii-kunderunde.md.
+# er for sent). Ingen compose-fil setter den i dag (redesign-stacken som satte "1" er avviklet
+# 2026-11-24). Usatt = "av".
 ARG NEXT_PUBLIC_NY_NAV_DEFAULT=
 ENV NEXT_PUBLIC_NY_NAV_DEFAULT=${NEXT_PUBLIC_NY_NAV_DEFAULT}
 # Bygg-stempel: NEXT_PUBLIC_* bakes inn i klient-bundelen ved BUILD-tid (runtime-env
@@ -109,10 +92,61 @@ ENV NEXT_PUBLIC_TEGNING_MOTOR=${NEXT_PUBLIC_TEGNING_MOTOR}
 # også kjørte api-`tsc` (^build, ~46 s). Web bruker ikke api-dist — tRPC-ruten importerer
 # api-kilden via webpack, og `next build` typesjekker den. api-imaget beholder tsc-gaten.
 RUN pnpm --filter @sitedoc/web build
+# DOCKER-SLANK T3: `@napi-rs/canvas` (pdfjs-dist sin DOMMatrix/ImageData/Path2D-polyfill i
+# Node) lastes med createRequire fra pdf.mjs, så Next-sporingen ser den ikke. Kopieres inn i
+# standalone med `cp -a`, som bevarer pnpm-symlenkene (pdfjs → canvas → plattformbinær).
+# Bare glibc-binæren (bookworm), ikke musl. Glob i stedet for versjonsnummer.
+RUN cd /app && for d in node_modules/.pnpm/pdfjs-dist@*/node_modules/@napi-rs \
+      node_modules/.pnpm/@napi-rs+canvas@* node_modules/.pnpm/@napi-rs+canvas-linux-*-gnu@*; do \
+      mkdir -p "apps/web/.next/standalone/$(dirname "$d")" \
+      && cp -a "$d" "apps/web/.next/standalone/$(dirname "$d")/"; \
+    done
+
+# ============ Runtime (standalone + binærene tRPC shell-er ut til) ============
+FROM node:20-bookworm-slim AS runtime
+# poppler-utils + tesseract = RUNTIME: tRPC kjører in-process i web (route.ts importerer
+# appRouter), så prosedyrer som shell-er ut til pdftoppm (PDF-tegninger, tegning.ts) og
+# tesseract (OCR, ftd-prosessering.ts) trenger binærene i DETTE imaget. openssl = Prisma-
+# motorene. python3-venv = ezdxf. Ingen g++/make (DOCKER-SLANK T3). xvfb er UTELATT med
+# vilje — den hørte til ODA-DWG-veien (fjernet i DWG-1) og 3D (utsatt, BACKLOG).
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      poppler-utils tesseract-ocr tesseract-ocr-nor \
+      openssl ca-certificates \
+      python3 python3-venv \
+    && rm -rf /var/lib/apt/lists/*
+# DWG-1: libredwg-binærene + .so fra build-staget (D-M2 — konvertering skjer også her).
+COPY --from=libredwg-build /usr/local/bin/dwg2dxf /usr/local/bin/dwg2dxf
+COPY --from=libredwg-build /usr/local/bin/dwg2SVG /usr/local/bin/dwg2SVG
+COPY --from=libredwg-build /out/lib/ /usr/local/lib/
+RUN ldconfig
+# ezdxf-motor (DWG_MOTOR=ezdxf, L9 2026-10-11): isolert Python-venv med hash-låste hjul.
+# Nettleser-opplasting konverterer i web-containeren (D-M2), så ezdxf MÅ ligge her også.
+# INERT til DWG_MOTOR=ezdxf settes i env. Identisk venv-oppsett som Dockerfile.api —
+# hold i synk. Bare requirements.txt, så venv-laget gjenbrukes ved kodeendring.
+COPY apps/api/src/services/ezdxf/requirements.txt /tmp/ezdxf-requirements.txt
+RUN python3 -m venv /opt/ezdxf-venv \
+ && /opt/ezdxf-venv/bin/pip install --no-cache-dir --require-hashes \
+      -r /tmp/ezdxf-requirements.txt
+ENV EZDXF_PYTHON=/opt/ezdxf-venv/bin/python3
+ENV EZDXF_RENDER_PY=/app/apps/api/src/services/ezdxf/render.py
+
+WORKDIR /app
+# DOCKER-SLANK T3: standalone-utdataen (server.js + sporet node_modules + workspace-kilde
+# som serveren laster). `.next/static` og `public/` (dxf-viewer-worker, pdf.worker,
+# web-ifc.wasm, fonts) følger IKKE med standalone og kopieres eksplisitt. render.py
+# leses av Python (ikke av Node), så sporingen ser den ikke — kopieres eksplisitt.
+COPY --from=build /app/apps/web/.next/standalone ./
+COPY --from=build /app/apps/web/.next/static ./apps/web/.next/static
+COPY --from=build /app/apps/web/public ./apps/web/public
+COPY --from=build /app/apps/api/src/services/ezdxf/render.py ./apps/api/src/services/ezdxf/render.py
 
 ENV NODE_ENV=production
 ENV PORT=3100
+# server.js lytter på HOSTNAME — uten 0.0.0.0 binder den til containerens vertsnavn og
+# svarer ikke via port-publiseringen.
+ENV HOSTNAME=0.0.0.0
+# cwd = apps/web som før: uploads-volumet monteres på /app/apps/web/uploads og koden
+# bruker join(process.cwd(), "uploads").
 WORKDIR /app/apps/web
 EXPOSE 3100
-# `next start` respekterer PORT-env
-CMD ["pnpm", "start"]
+CMD ["node", "server.js"]

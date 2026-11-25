@@ -1267,7 +1267,9 @@ describe("w12 (§ 4.11 C) — reiselinja i jobben, del 8 «Reise» og «Føres p
     const uten = vis([sedel()]);
     const p0 = aapnePanel(uten.container);
     const foer = [1, 2, 3, 4, 5, 6, 7].map((n) => del(p0, n)!.textContent);
-    expect(del(p0, 8)).toBeNull();
+    // D2a: del 8 står alltid når kortet kan rettes — tom («—») uten reise.
+    expect(del(p0, 8)!.querySelector("[data-reiselinje]")).toBeNull();
+    expect(del(p0, 8)!.textContent).toContain("—");
     cleanup();
     const med = vis([sedel({ timer: [timer("t1"), reise()] })]);
     const p1 = aapnePanel(med.container);
@@ -2261,5 +2263,174 @@ describe("A3 (plan § 4.17 del D, B55) — «Reise under terskel» på dagen", (
     expect(within(dagsrad(container)).queryByText("Reise under terskel")).toBeNull();
     expect(linje(container, "s1:reise:r1").className).not.toContain("bg-amber-50");
     expect(reiseMerke(container)?.getAttribute("data-lonnsart-oversikt")).toBe("");
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/*  D2a + D2b — paret etter «Del opp» og flytteknappen                  */
+/* ------------------------------------------------------------------ */
+
+describe("D2a — kort A og B åpne side om side etter «Del opp»", () => {
+  const toKort = (over: Partial<AttSedel> = {}) =>
+    sedel({ timer: [timer("t1", { tilTid: "11:00", timer: "3.5" }), timer("t2", { kortId: "kB", fraTid: "11:00", pauseMin: 0, timer: "4" })], ...over });
+  const jobbrader = (c: HTMLElement) => Array.from(c.querySelectorAll('[data-rad="jobb"]')) as HTMLElement[];
+  const paneler = (c: HTMLElement) => Array.from(c.querySelectorAll("[data-registrering]")) as HTMLElement[];
+  const lukk = (panel: HTMLElement) => fireEvent.click(within(panel).getAllByRole("button", { name: "handling.lukk" })[0]!);
+
+  function delOgAapnePar(c: HTMLElement) {
+    fireEvent.click(jobbrader(c)[0]!);
+    const panel = c.querySelector("[data-registrering]") as HTMLElement;
+    vi.useFakeTimers();
+    fireEvent.click(within(panel).getByRole("button", { name: /registrering\.delOpp/ }));
+    const skjema = panel.querySelector("[data-del-opp]") as HTMLElement;
+    fireEvent.change(within(skjema).getByPlaceholderText("11:00"), { target: { value: "10:00" } });
+    act(() => { vi.advanceTimersByTime(400); });
+    vi.useRealTimers();
+    act(() => kallTil("delJobb")[0]!.opts!.onSuccess!({ forhandsvisning: { timerA: 2.5, timerB: 1, maskinPaaA: 0, maskiner: [] } }));
+    const knapper = within(skjema).getAllByRole("button", { name: /registrering\.delOpp/ });
+    fireEvent.click(knapper[knapper.length - 1]!);
+    act(() => kallTil("delJobb")[1]!.opts!.onSuccess!({ kortIdB: "kB" }));
+  }
+
+  afterEach(() => { h.kall.length = 0; });
+
+  it("test 1: etter «Del opp» står A og B i samme rad, merket «Kort A» og «Kort B»", () => {
+    const { container } = vis([toKort()]);
+    delOgAapnePar(container);
+    const par = container.querySelector("[data-kort-par]") as HTMLElement;
+    expect(par).not.toBeNull();
+    expect(par.getAttribute("style")).toContain("minmax(min(100%, 632px), 1fr)");
+    const [a, b] = paneler(par);
+    expect(a!.getAttribute("data-registrering")).toBe("s1:kA");
+    expect(a!.getAttribute("data-par-rolle")).toBe("a");
+    expect(b!.getAttribute("data-registrering")).toBe("s1:kB");
+    expect(b!.getAttribute("data-par-rolle")).toBe("b");
+    expect(a!.querySelector("[data-kort-merke]")!.textContent).toBe("timer.attestering.registrering.kortA");
+    expect(b!.querySelector("[data-kort-merke]")!.textContent).toBe("timer.attestering.registrering.kortB");
+    // Begge jobbradene står som åpne.
+    expect(jobbrader(container).every((r) => r.hasAttribute("data-aapen"))).toBe(true);
+  });
+
+  it("test 2: ✕ lukker ett kort om gangen", () => {
+    const { container } = vis([toKort()]);
+    delOgAapnePar(container);
+    lukk(paneler(container)[0]!);
+    expect(container.querySelector("[data-kort-par]")).toBeNull();
+    expect(paneler(container).map((p) => p.getAttribute("data-registrering"))).toEqual(["s1:kB"]);
+    lukk(paneler(container)[0]!);
+    expect(paneler(container)).toHaveLength(0);
+  });
+
+  it("test 2b: ✕ på B lar A stå; klikk på B-ens rad lukker bare B; en annen rad lukker paret", () => {
+    const { container } = vis([toKort()]);
+    delOgAapnePar(container);
+    lukk(paneler(container)[1]!);
+    expect(paneler(container).map((p) => p.getAttribute("data-registrering"))).toEqual(["s1:kA"]);
+    cleanup();
+    h.kall.length = 0;
+    const v = vis([toKort()]);
+    delOgAapnePar(v.container);
+    fireEvent.click(jobbrader(v.container)[1]!);
+    expect(paneler(v.container).map((p) => p.getAttribute("data-registrering"))).toEqual(["s1:kA"]);
+    fireEvent.click(jobbrader(v.container)[0]!);
+    expect(paneler(v.container)).toHaveLength(0);
+  });
+
+  it("test 3: del 8 «Reise» står i begge kortene når kortet kan rettes, også uten reise", () => {
+    const { container } = vis([toKort()]);
+    delOgAapnePar(container);
+    for (const p of paneler(container)) expect(p.querySelector('[data-del="8"]')).not.toBeNull();
+  });
+});
+
+describe("D2b — flytt en linje til et annet kort", () => {
+  const P_TILL = { proAdmId: "TILL-001", kortNavn: "Tillegg", navn: null };
+  const tl = (over: Record<string, unknown> = {}) => ({ id: "g1", tilleggId: "x", antall: "1", kortId: "kA", projectId: "pA", project: P, attestertStatus: "pending", externalCostObjectId: null, ...over }) as never;
+  const ma = (over: Record<string, unknown> = {}) => ({ id: "m1", vehicleId: "v1", timer: "3", mengde: null, enhet: null, kortId: "kA", projectId: "pA", project: P, attestertStatus: "pending", timerRadId: null, ...over }) as never;
+  const va = (over: Partial<AttSedel["varer"] extends (infer V)[] | undefined ? V : never> = {}) =>
+    ({ id: "v1", navn: "Fugesand", enhet: "sekk", antall: 3, projectId: "pA", sheetTimerId: "t1", kortId: "kA", attestert: false, ...over });
+  const ut = (over: Record<string, unknown> = {}) => ({ id: "u1", belop: "100", expenseCategory: { navn: "Parkering" }, kortId: "kA", projectId: "pA", project: P, ...over }) as never;
+  const kortB = (over: Partial<AttTimer> = {}) => timer("t2", { kortId: "kB", fraTid: "11:00", pauseMin: 0, timer: "4", externalCostObjectId: "eT", underprosjekt: P_TILL, ...over });
+  const dag = (over: Partial<AttSedel> = {}) => sedel({ timer: [timer("t1", { tilTid: "11:00", timer: "3.5" }), kortB()], ...over });
+  const aapneA = (c: HTMLElement) => {
+    fireEvent.click(c.querySelectorAll('[data-rad="jobb"]')[0] as HTMLElement);
+    return c.querySelector('[data-registrering="s1:kA"]') as HTMLElement;
+  };
+
+  afterEach(() => { h.kall.length = 0; });
+
+  it("test 4: kortet alene med ett mål — «→ TILL-001 · 11:00–15:00» flytter tillegget", () => {
+    const { container } = vis([dag({ tillegg: [tl()] })]);
+    const panel = aapneA(container);
+    const knapp = panel.querySelector('[data-tilleggslinje] [data-flytt-knapp]') as HTMLElement;
+    expect(knapp.textContent).toBe('timer.attestering.registrering.flytt.til{"navn":"TILL-001 · 11:00–15:00"}');
+    fireEvent.click(knapp);
+    expect(kallTil("flyttLinjeTilKort")[0]!.input).toEqual({ sheetId: "s1", radType: "tillegg", radId: "g1", tilKortId: "kB" });
+  });
+
+  it("test 5: uten underprosjekt heter målet «Uten · fra–til»; flere mål gir «→ Flytt til ▾» med liste", () => {
+    const { container } = vis([dag({
+      timer: [timer("t1", { tilTid: "11:00", timer: "3.5" }), timer("t2", { kortId: "kB", fraTid: "11:00", tilTid: "13:00", pauseMin: 0, timer: "2" }), kortB({ id: "t3", kortId: "kC", fraTid: "13:00" } as Partial<AttTimer>)],
+      maskiner: [ma()],
+    })]);
+    const panel = aapneA(container);
+    const knapp = panel.querySelector("[data-maskinlinje] [data-flytt-knapp]") as HTMLElement;
+    expect(knapp.textContent).toContain("timer.attestering.registrering.flytt.flyttTil");
+    fireEvent.click(knapp);
+    const valg = Array.from(panel.querySelectorAll("[data-flytt-liste] [role=menuitem]")).map((b) => b.textContent);
+    expect(valg).toEqual(["timer.attestering.registrering.uten · 11:00–13:00", "TILL-001 · 13:00–15:00"]);
+    fireEvent.click(panel.querySelectorAll("[data-flytt-liste] [role=menuitem]")[1] as HTMLElement);
+    expect(kallTil("flyttLinjeTilKort")[0]!.input).toEqual({ sheetId: "s1", radType: "maskin", radId: "m1", tilKortId: "kC" });
+  });
+
+  it("test 6: ingen mål — én jobb, annet prosjekt eller målkort som ikke venter — gir ingen knapp", () => {
+    const en = vis([sedel({ tillegg: [tl()] })]);
+    fireEvent.click(dagsrad(en.container));
+    expect(en.container.querySelector("[data-flytt-knapp]")).toBeNull();
+    cleanup();
+    const annet = vis([dag({ timer: [timer("t1", { tilTid: "11:00" }), kortB({ projectId: "pB" })], tillegg: [tl()] })]);
+    expect(aapneA(annet.container).querySelector("[data-flytt-knapp]")).toBeNull();
+    cleanup();
+    const attestert = vis([dag({ timer: [timer("t1", { tilTid: "11:00" }), kortB({ attestertStatus: "attestert" })], tillegg: [tl()] })]);
+    expect(aapneA(attestert.container).querySelector("[data-flytt-knapp]")).toBeNull();
+  });
+
+  it("test 7: vare åpner mengdefeltet — «1,00 av 3,00 sekk · 2,00 sekk blir i dette kortet», Flytt sender mengden", () => {
+    const { container } = vis([dag({ varer: [va()] })]);
+    const panel = aapneA(container);
+    fireEvent.click(panel.querySelector("[data-varelinje] [data-flytt-knapp]") as HTMLElement);
+    const skjema = panel.querySelector("[data-vare-flytt]") as HTMLElement;
+    const felt = within(skjema).getByLabelText("timer.attestering.registrering.flytt.mengde") as HTMLInputElement;
+    expect(felt.value).toBe("1,00");
+    expect(skjema.textContent).toContain('flytt.vareAv{"antall":"3,00","enhet":"sekk"}');
+    expect(skjema.textContent).toContain('flytt.vareBlir{"rest":"2,00","enhet":"sekk","kilde":"timer.attestering.registrering.flytt.detteKortet"}');
+    fireEvent.change(felt, { target: { value: "4" } });
+    expect((within(skjema).getByRole("button", { name: "timer.attestering.registrering.flytt.flytt" }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.change(felt, { target: { value: "1,5" } });
+    fireEvent.click(within(skjema).getByRole("button", { name: "timer.attestering.registrering.flytt.flytt" }));
+    expect(kallTil("flyttLinjeTilKort")[0]!.input).toEqual({ sheetId: "s1", radType: "vare", radId: "v1", tilKortId: "kB", mengde: 1.5 });
+    fireEvent.click(within(skjema).getByRole("button", { name: "handling.avbryt" }));
+    expect(panel.querySelector("[data-vare-flytt]")).toBeNull();
+  });
+
+  it("test 8: attestert vare og utlegg i kort med attestert linje har ingen knapp; uten «rediger ved attestering» ingen knapper", () => {
+    const a = vis([dag({ varer: [va({ attestert: true })], utlegg: [ut()], tillegg: [tl({ attestertStatus: "attestert" })] })]);
+    const p = aapneA(a.container);
+    expect(p.querySelector("[data-varelinje] [data-flytt-knapp]")).toBeNull();
+    expect(p.querySelector("[data-utleggslinje] [data-flytt-knapp]")).toBeNull();
+    cleanup();
+    const venter = vis([dag({ utlegg: [ut()] })]);
+    expect(aapneA(venter.container).querySelector("[data-utleggslinje] [data-flytt-knapp]")).not.toBeNull();
+    cleanup();
+    const av = vis([dag({ redigerTillatt: false, tillegg: [tl()], maskiner: [ma()], varer: [va()], utlegg: [ut()] })]);
+    expect(aapneA(av.container).querySelector("[data-flytt-knapp]")).toBeNull();
+  });
+
+  it("test 9: feil fra serveren står i kortet", () => {
+    const { container } = vis([dag({ tillegg: [tl()] })]);
+    const panel = aapneA(container);
+    fireEvent.click(panel.querySelector("[data-tilleggslinje] [data-flytt-knapp]") as HTMLElement);
+    act(() => kallTil("flyttLinjeTilKort")[0]!.opts!.onError!({ message: "Målkortet har linjer som ikke venter" }));
+    expect(panel.textContent).toContain("Målkortet har linjer som ikke venter");
   });
 });
