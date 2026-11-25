@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { trpc } from "@/lib/trpc";
 import { rensSvg } from "@/lib/sanitize";
+import { klassifiserWheel, hjulFaktor, knipFaktor, anvendZoomFaktorPan } from "@/lib/tegningZoomGest";
 import { Button, Input, Select, Textarea, Modal, Spinner, EmptyState } from "@sitedoc/ui";
 import { AdresseTreffliste, type AdresseTreff } from "@/components/AdresseTreffliste";
 import { KnappMedForklaring } from "@/components/KnappMedForklaring";
@@ -13,6 +14,7 @@ import { useTranslation } from "react-i18next";
 import {
   DRAWING_DISCIPLINES,
   DRAWING_TYPES,
+  beregnStartutsnittZoom,
 } from "@sitedoc/shared";
 import {
   Plus,
@@ -140,6 +142,10 @@ function grupperTegninger(tegninger: TegningRad[]): TegningGruppe[] {
   return grupper;
 }
 
+// Zoomgrenser for forhåndsvisningen (uendret fra før ordre ZOOM-OPPSETT: 10 %–5000 %).
+const MIN_ZOOM = 0.1;
+const MAKS_ZOOM = 50;
+
 /* ------------------------------------------------------------------ */
 /*  RedigerLokasjon — fullskjerm overlay for å redigere en lokasjon     */
 /* ------------------------------------------------------------------ */
@@ -165,6 +171,15 @@ function RedigerLokasjon({
   const [erDraging, setErDraging] = useState(false);
   const dragStart = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
   const forhåndsvisningRef = useRef<HTMLDivElement>(null);
+  const svgBoksRef = useRef<HTMLDivElement>(null);
+  // Siste zoom/pan for wheel-lytteren (registrert én gang). Oppdateres både i
+  // handleren (raske hakk før neste render) og i render (dra, nullstill).
+  const zoomRef = useRef(1);
+  const panRef = useRef({ x: 0, y: 0 });
+  zoomRef.current = zoom;
+  panRef.current = pan;
+  // Startutsnitt anvendt for denne tegnings-id-en (null = ikke ennå / nullstilt).
+  const [startutsnittAnvendtId, setStartutsnittAnvendtId] = useState<string | null>(null);
 
   // Georeferanse-visning
   const [visGeoEditor, setVisGeoEditor] = useState(false);
@@ -173,6 +188,11 @@ function RedigerLokasjon({
   const [svgInnhold, setSvgInnhold] = useState<string | null>(null);
 
   // Zoom via native event listener (React onWheel er passiv og kan ikke preventDefault)
+  // Ordre ZOOM-OPPSETT 2026-11-25 (Kenneth i prod: «scroll /zoom mot muspeker er den
+  // normale måten på web»): samme gest-logikk som tegningssiden (`@/lib/tegningZoomGest`).
+  // Zoomen er forankret i pekeren — punktet under pekeren står stille — og ett hakk er
+  // alltid samme relative endring (×1,25 / ×0,8). Den gamle formelen flyttet med absolutt
+  // `skalaDiff`, ignorerte gjeldende pan og bommet mer jo høyere zoom.
   useEffect(() => {
     const container = forhåndsvisningRef.current;
     if (!container) return;
@@ -181,22 +201,32 @@ function RedigerLokasjon({
       e.preventDefault();
       e.stopPropagation();
 
+      const gest = klassifiserWheel(e);
+      // Styreflate-scroll (tofinger, horisontal komponent) panorerer, som på tegningssiden.
+      if (gest === "styreflate-scroll") {
+        const p = { x: panRef.current.x - e.deltaX, y: panRef.current.y - e.deltaY };
+        panRef.current = p;
+        setPan(p);
+        return;
+      }
+
       const rect = container.getBoundingClientRect();
-      const mx = (e.clientX - rect.left) / rect.width;
-      const my = (e.clientY - rect.top) / rect.height;
-
-      setZoom((prev) => {
-        const faktor = e.deltaY > 0 ? 0.9 : 1.1;
-        const neste = Math.min(50, Math.max(0.1, prev * faktor));
-        const skalaDiff = neste - prev;
-
-        setPan((p) => ({
-          x: p.x - skalaDiff * (mx - 0.5) * rect.width,
-          y: p.y - skalaDiff * (my - 0.5) * rect.height,
-        }));
-
-        return neste;
-      });
+      const faktor = gest === "knip" ? knipFaktor(e.deltaY) : hjulFaktor(e.deltaY);
+      const r = anvendZoomFaktorPan(
+        zoomRef.current,
+        faktor,
+        { min: MIN_ZOOM, maks: MAKS_ZOOM },
+        {
+          viewX: e.clientX - rect.left,
+          viewY: e.clientY - rect.top,
+          panX: panRef.current.x,
+          panY: panRef.current.y,
+        },
+      );
+      zoomRef.current = r.zoom;
+      panRef.current = r.pan;
+      setZoom(r.zoom);
+      setPan(r.pan);
     };
 
     container.addEventListener("wheel", handleWheel, { passive: false });
@@ -221,15 +251,19 @@ function RedigerLokasjon({
     setErDraging(false);
   }, []);
 
+  // Dobbeltklikk: tilbake til startutsnittet når tegningen har ett (effekten under
+  // anvender det på nytt), ellers hele tegningen som før.
   const nullstillVisning = useCallback(() => {
     setZoom(1);
     setPan({ x: 0, y: 0 });
+    setStartutsnittAnvendtId(null);
   }, []);
 
   const velgTegning = useCallback((id: string | null) => {
     setValgtTegningId(id);
     setZoom(1);
     setPan({ x: 0, y: 0 });
+    setStartutsnittAnvendtId(null);
     setVisGeoEditor(false);
     setSvgInnhold(null);
   }, []);
@@ -892,6 +926,76 @@ function RedigerLokasjon({
   const tegninger = (lokasjon?.drawings ?? []) as TegningRad[];
   const valgtTegning = tegninger.find((t) => t.id === valgtTegningId) ?? null;
 
+  // Startutsnitt — samme vedtak som tegningssiden (DWG-2/RETUR 2 § 3, `tegninger/page.tsx`
+  // «startutsnitt»): åpne zoomet inn der innholdet er tett, ikke «veldig utzoomet» (Kenneth
+  // 2026-11-25 i prod). `startutsnitt` er {x,y,w,h}-brøk av SVG-ens viewBox. Cast via smal
+  // struktur: feltet er Prisma Json? (TS2589 ved direkte aksess).
+  const valgtStartutsnitt = ((valgtTegning as unknown as { startutsnitt?: unknown } | null)?.startutsnitt ?? null) as
+    | { x: number; y: number; w: number; h: number }
+    | null;
+  const harStartutsnitt =
+    !!valgtStartutsnitt &&
+    typeof valgtStartutsnitt.x === "number" &&
+    typeof valgtStartutsnitt.y === "number" &&
+    typeof valgtStartutsnitt.w === "number" &&
+    typeof valgtStartutsnitt.h === "number" &&
+    valgtStartutsnitt.w > 0 &&
+    valgtStartutsnitt.h > 0;
+  // Holdes skjult til startutsnittet er satt (som tegningssiden, issue 3), så tegningen
+  // ikke vises i full størrelse og hopper. `visibility` lar SVG-en fortsatt måles.
+  const venterStartutsnitt =
+    harStartutsnitt && !!svgInnhold && !!valgtTegningId && startutsnittAnvendtId !== valgtTegningId;
+  useEffect(() => {
+    if (!harStartutsnitt || !svgInnhold || !valgtTegningId) return;
+    if (startutsnittAnvendtId === valgtTegningId) return;
+    const nøkkel = valgtTegningId;
+    const raf = requestAnimationFrame(() => {
+      const container = forhåndsvisningRef.current;
+      const svgEl = svgBoksRef.current?.querySelector("svg");
+      const su = valgtStartutsnitt;
+      // Kan vi ikke måle, avdekk likevel — aldri stå skjult.
+      if (!container || !svgEl || !su) { setStartutsnittAnvendtId(nøkkel); return; }
+      const cRect = container.getBoundingClientRect();
+      const sRect = svgEl.getBoundingClientRect();
+      const cw = container.clientWidth;
+      const ch = container.clientHeight;
+      // SVG-ens boks uten transform (origo 0 0: skjerm = pan + zoom·p).
+      const z0 = zoomRef.current;
+      const p0 = panRef.current;
+      const bx = (sRect.left - cRect.left - p0.x) / z0;
+      const by = (sRect.top - cRect.top - p0.y) / z0;
+      const bw = sRect.width / z0;
+      const bh = sRect.height / z0;
+      if (!cw || !ch || !bw || !bh) { setStartutsnittAnvendtId(nøkkel); return; }
+      // Delt formel (`beregnStartutsnittZoom`) regner zoom der innerflaten ved z=1 er
+      // containerbredden; her er den SVG-ens målte bredde. k omregner, og klemmen blir
+      // [1, MAKS_ZOOM] i sidens egen skala — aldri mer utzoomet enn i dag.
+      const k = bw / cw;
+      const z =
+        beregnStartutsnittZoom({
+          bredde: su.w,
+          høyde: su.h,
+          cw,
+          ch,
+          forhold: bh / bw,
+          minZoom: k,
+          maksZoom: MAKS_ZOOM * k,
+        }) / k;
+      const p = {
+        x: cw / 2 - z * (bx + (su.x + su.w / 2) * bw),
+        y: ch / 2 - z * (by + (su.y + su.h / 2) * bh),
+      };
+      zoomRef.current = z;
+      panRef.current = p;
+      setZoom(z);
+      setPan(p);
+      setStartutsnittAnvendtId(nøkkel);
+    });
+    return () => cancelAnimationFrame(raf);
+    // valgtStartutsnitt er stabil pr. tegning (id) → ikke i deps (Json?-type).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [harStartutsnitt, svgInnhold, valgtTegningId, startutsnittAnvendtId]);
+
   // R6: fag-gruppering (standard) eller dagens etasje-gruppering (veksel).
   const tegningGrupper: TegningGruppe[] = useMemo(() => {
     if (!grupperFag) return grupperTegninger(tegninger);
@@ -1303,10 +1407,13 @@ function RedigerLokasjon({
           >
             {valgtTegning?.fileUrl ? (
               <div
-                className="flex min-h-full min-w-full items-center justify-center transition-transform duration-100 ease-out"
+                className="flex min-h-full min-w-full items-center justify-center"
                 style={{
+                  // Origo 0 0 + ingen transition (ordre ZOOM-OPPSETT): pekerforankret zoom
+                  // regnes i den geometrien, og etterslepet fra `duration-100` er borte.
                   transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-                  transformOrigin: "center center",
+                  transformOrigin: "0 0",
+                  visibility: venterStartutsnitt ? "hidden" : undefined,
                 }}
               >
                 {(valgtTegning.fileType ?? "") === "dwg" ? (
@@ -1316,6 +1423,7 @@ function RedigerLokasjon({
                 ) : ["png", "jpg", "jpeg", "svg"].includes(valgtTegning.fileType ?? "") ? (
                   (valgtTegning.fileType ?? "") === "svg" && svgInnhold ? (
                     <div
+                      ref={svgBoksRef}
                       className="max-w-full"
                       style={{ "--svg-zoom": zoom } as React.CSSProperties}
                       dangerouslySetInnerHTML={{ __html: svgInnhold }}

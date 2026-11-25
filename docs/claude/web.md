@@ -605,6 +605,13 @@ Lett gruppering oppå T1 (Kenneth-gatet 2026-10-06: «merk tegninger → flytt d
 - **Mobil:** ingen serie-UI; `serieId` følger bare med i `hentForProsjekt`-responsen (ignoreres av de lokale interface-castene).
 - **Last ned som ZIP (2026-10-10):** handlingslinja har «Last ned (n)» (valgte), og hver serie-gruppe har et «Last ned serie»-ikon ved blyanten. `lastNedZip`-helper gjør FØRST en `HEAD`-preflight mot `/api/tegning/last-ned-zip?ider=…`/`?serieId=…`; ved 413 (over 200 tegninger / 2 GB, `x-zip-grense`-header) vises en `alert` (i18n `tegninger.nedlasting.forMange`/`forStor`/`feil` — `alert` matcher filas eksisterende feil-mønster), ellers trigges nedlastingen via skjult `<a>` (cookie-sesjon). Serveren strømmer zip-en med originalfilene — prosjektet utledes server-side, en fremmed id avviser hele forespørselen. Ingen mobil-UI.
 
+
+### Forhåndsvisning i byggeplass-oppsett — zoom mot pekeren og startutsnitt (ordre ZOOM-OPPSETT, 2026-11-25)
+
+🟡 `oppsett/byggeplasser/page.tsx` (`RedigerLokasjon`, høyre forhåndsvisning) er en transform-visning (`translate(pan) scale(zoom)`, `transformOrigin: "0 0"`, ingen `transition`), ikke tegningssidens scroll-visning. Kenneth i prod 2026-11-25: tegningen åpnet «veldig utzoomet», og ett hjulhakk flyttet bildet for mye mot pekersiden.
+- **Zoom mot pekeren:** `handleWheel` bruker samme gest-logikk som tegningssiden: `klassifiserWheel`, `hjulFaktor` (×1,25/×0,8) og `knipFaktor`, og `anvendZoomFaktorPan` (`lib/tegningZoomGest.ts`). Den gjenbruker `anvendZoomFaktor` uendret med `scroll = −pan`. Punktet under pekeren står stille, og ett hakk er samme relative endring ved alle zoomnivå (testet i `tegningZoomGest.test.ts`). Styreflate-scroll med horisontal komponent panorerer. Grenser 10 %–5000 % som før.
+- **Startutsnitt:** har en SVG-tegning `startutsnitt`, åpner den der (samme vedtak som § Tegningsvisning, delt `beregnStartutsnittZoom`), målt mot SVG-ens faktiske boks ved zoom 1 og klemt til ≥ 100 %. Dobbeltklikk går tilbake til startutsnittet, ellers til hele tegningen. Visningen er `visibility:hidden` til utsnittet er satt. PDF/PNG og SVG uten startutsnitt åpner som før.
+
 ## Tegningsvisning
 
 Interaktiv visning med musesentrert zoom (0.25x–50x / 25%–5000%):

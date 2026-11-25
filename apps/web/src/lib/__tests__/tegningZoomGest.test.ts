@@ -4,6 +4,7 @@ import {
   anvendZoomFaktor,
   knipFaktor,
   hjulFaktor,
+  anvendZoomFaktorPan,
 } from "../tegningZoomGest";
 
 // Modell av nettleserens scroll-klipping (nettleser-atferd, ikke komponentens).
@@ -111,5 +112,45 @@ describe("knip vs. dagens musehjul-trinn — dagens oppførsel er feil for knip"
     const knip = knipFaktor(-3 * 10);
     expect(knip).toBeGreaterThan(1);
     expect(knip).toBeLessThan(1.4);
+  });
+});
+
+// Byggeplass-oppsett (transform-visning, origo 0 0): skjerm = pan + zoom·p.
+describe("anvendZoomFaktorPan — punktet under pekeren står stille (oppsett-siden)", () => {
+  const grenser = { min: 0.1, maks: 50 };
+  const punkt = (z: number, pan: { x: number; y: number }, v: { x: number; y: number }) => ({
+    x: (v.x - pan.x) / z,
+    y: (v.y - pan.y) / z,
+  });
+
+  for (const z of [1, 30]) {
+    for (const deltaY of [-100, 100]) {
+      it(`zoom ${z}, pan ≠ 0, ett hakk ${deltaY < 0 ? "inn" : "ut"}`, () => {
+        const pan = { x: 120, y: -80 };
+        const v = { x: 200, y: 150 };
+        const før = punkt(z, pan, v);
+        const r = anvendZoomFaktorPan(z, hjulFaktor(deltaY), grenser, { viewX: v.x, viewY: v.y, panX: pan.x, panY: pan.y });
+        const etter = punkt(r.zoom, r.pan, v);
+        expect(etter.x).toBeCloseTo(før.x, 6);
+        expect(etter.y).toBeCloseTo(før.y, 6);
+      });
+    }
+  }
+
+  it("ett hakk gir samme relative endring ved zoom 1 og 30", () => {
+    const f = { viewX: 200, viewY: 150, panX: 120, panY: -80 };
+    expect(anvendZoomFaktorPan(1, hjulFaktor(-100), grenser, f).zoom / 1).toBeCloseTo(1.25, 9);
+    expect(anvendZoomFaktorPan(30, hjulFaktor(-100), grenser, f).zoom / 30).toBeCloseTo(1.25, 9);
+  });
+
+  it("klemmes til maks uten at pekerpunktet flytter seg", () => {
+    const pan = { x: -5000, y: 300 };
+    const v = { x: 640, y: 20 };
+    const før = punkt(45, pan, v);
+    const r = anvendZoomFaktorPan(45, hjulFaktor(-100), grenser, { viewX: v.x, viewY: v.y, panX: pan.x, panY: pan.y });
+    expect(r.zoom).toBe(50);
+    const etter = punkt(r.zoom, r.pan, v);
+    expect(etter.x).toBeCloseTo(før.x, 6);
+    expect(etter.y).toBeCloseTo(før.y, 6);
   });
 });
