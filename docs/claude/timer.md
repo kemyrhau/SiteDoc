@@ -1187,7 +1187,7 @@ Hjemmel: [vedtak-timer-web.md § Reisevinduet](vedtak-timer-web.md) punkt 26 (or
 - **i18n:** `timer.reiseKort.flyttJobb.start`, `.slutt`, `.blir`, `.blirOvertid`, `.blirUtenTimer`, alle 15 språk.
 - **Tester:** `reiseManuell-o20.test.ts` (13), `reisevindu.test.tsx` «O20» (6) + «O20 TILLEGG» (4), `o20-flytt-jobb.integration.test.ts` (15, ekte Postgres; § TILLEGG 5: forutsetning, Til og Fra lik `lagreJobbTid` for samme Fra–til, overtid 0, én arbeidsrad). Negativkontroll: integrasjonstestene mot develops `dagsseddel.ts` → 4 av 10 røde (Til, Fra, ikke-kant, Zod); de grønne er sperre- og rettighetsvaktene. TILLEGG mot `d95660a4`: server 2 av 15 røde (Til, overtid 0; Fra var riktig fra før), web 2 av 65 røde (Til, Fra).
 
-### Reisevinduet: Start inne i jobben flytter Slutt (O21) — 🟡 `fix/reise-start-i-jobb`, ikke merget
+### Reisevinduet: Start inne i jobben flytter Slutt (O21) — ✅ Merget `4abc6187` (2026-11-25), ikke deployet
 
 Vedtak: `vedtak-timer-web.md` § Reisevinduet pkt 27 (Kenneth 2026-11-25).
 - **Regel:** «Til byggeplass», ny reise fra prosjektkortet. Start rettet til jobbens start ≤ Start < jobbens slutt (jobb = som `finnKantFlytt`: kortets rader som ikke er reise, ikke arbeidstid-reise, ikke erstattet) og Start ≥ Slutt → Slutt = Start + firmaets kjøretid (`sluttEtterStartIJobb`, `packages/shared/src/utils/reiseManuell.ts:497`). Reisen overlapper da jobbens start, og O20-knappen kommer.
@@ -1195,7 +1195,7 @@ Vedtak: `vedtak-timer-web.md` § Reisevinduet pkt 27 (Kenneth 2026-11-25).
 - **Står som før:** Start før jobben (pkt 6), etter jobben (pkt 24), kort uten jobb, uten kjøretid (`utenKjoretid` → sperren «Slutt-tid må være etter start-tid»), O14-retting, dagskort-visning. «Fra byggeplass» har speilregelen (O23, under).
 - **Tester:** `reiseManuell-o21.test.ts` (8), `reisevindu.test.tsx` «O21» (7). Negativkontroll: «O21» mot develops `ReiseKort.tsx` → 3 av 7 røde (Kenneths tilfelle, mellomverdi, Slutt rettes etterpå); de fire regresjonene er grønne.
 
-### Reisevinduet: Slutt inne i jobben flytter Start (O23) — 🟡 `fix/reise-fra-slutt-i-jobb`, ikke merget
+### Reisevinduet: Slutt inne i jobben flytter Start (O23) — ✅ Merget `23f9f8ec` (2026-11-25), ikke deployet
 
 Vedtak: `vedtak-timer-web.md` § Reisevinduet pkt 29 (Kenneth 2026-11-25).
 - **Regel:** «Fra byggeplass», ny reise fra prosjektkortet. Slutt rettet til jobbens start < Slutt ≤ jobbens slutt (samme jobb som `finnKantFlytt`) og Slutt ≤ Start → Start = Slutt − firmaets kjøretid (`startEtterSluttIJobb`, `packages/shared/src/utils/reiseManuell.ts:566`). `ReiseKort.tsx` holder `startFolger` mens Start er satt av regelen (tidsfeltets mellomverdier); rettet Start eller «Antall timer» slår den av.
@@ -1204,7 +1204,7 @@ Vedtak: `vedtak-timer-web.md` § Reisevinduet pkt 29 (Kenneth 2026-11-25).
 - **Står som før:** Slutt før/på jobbens start, Slutt etter jobben, kort uten jobb, O14-retting, dagskort-visning (uten `jobbKortId` sendes ingen jobb, og Slutt før Start deles over midnatt som før), mobil, «Til byggeplass».
 - **Tester:** `reiseManuell-o23.test.ts` (12), `reisevindu.test.tsx` «O23» (8). Negativkontroll: «O23» mot `0a7fc689`s `ReiseKort.tsx` + `useManuellReiseWeb.ts` → 5 av 8 røde (17:00 → 16:56, 17:30 → knapp, mellomverdi, uten kjøretid, uten oppmøtested); de tre regresjonene er grønne.
 
-### Attestering: merket «uten oppmøtested» (O24) — 🟡 `fix/reise-merke-uten-oppmote`, ikke merget
+### Attestering: merket «uten oppmøtested» (O24) — ✅ Merget `07d9afb2` (2026-11-26), ikke deployet
 
 Vedtak: `vedtak-timer-web.md` § Reisevinduet pkt 30 (Kenneth 2026-11-25).
 - **Regel:** `erReiseUtenOppmote(rad)` (`apps/web/src/components/attestering/ReiseRadMerke.tsx:27`) er sann når `erReise`, `reiseKilde = "manuell"`, `reiseOppmotestedId = null` og `reiseRetning` er satt. Da viser `ReiseRadMerke` «uten oppmøtested» (`timer.attestering.reise.utenOppmote`) etter rutelinja, med hover `…reise.utenOppmoteForklaring`.
