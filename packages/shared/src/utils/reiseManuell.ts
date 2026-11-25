@@ -211,9 +211,6 @@ export type ReiseKortNaar = "forArbeid" | "etterArbeid";
 /**
  * Hvorfor reise-kortet ikke kan lagres. null = kan lagres.
  *  - byggeplassPeriode: den ansatte møter på byggeplassen — ingen reise.
- *  - oppmoteIkkeValgt: den ansatte har ikke valgt oppmøtested (første valg
- *    ikke gjort, enheten offline). Kenneth-vedtak 2026-11-15: Lagre sperres —
- *    kortet har ikke noe tidsfelt, så uten oppmøtested finnes ingen kjøretid.
  *  - manglerKjoretid: ingen byggeplass, ingen matrisecelle eller uoppnåelig
  *    par. Ingen estimat-fallback (V13).
  *  - manglerDagstid: sedelen har ingen arbeidsrad med tid å regne fra.
@@ -223,7 +220,6 @@ export type ReiseKortNaar = "forArbeid" | "etterArbeid";
  */
 export type ReiseKortSperre =
   | "byggeplassPeriode"
-  | "oppmoteIkkeValgt"
   | "manglerKjoretid"
   | "manglerDagstid"
   | "utenforDognet"
@@ -271,8 +267,11 @@ export interface ReiseKortInput {
   tillatDeling?: { omvendt: MidnattVei };
 }
 
-/** O12 pkt 14: hvorfor forslaget mangler når `tillatUtenKjoretid` er satt. */
-export type ReiseKortUtenKjoretid = "mangler" | "utenByggeplass";
+/**
+ * O12 pkt 14: hvorfor forslaget mangler når `tillatUtenKjoretid` er satt. O22 pkt 28:
+ * «utenOppmote» = den ansatte har ikke oppmøtested — gjelder alltid (web og mobil), uten flagget.
+ */
+export type ReiseKortUtenKjoretid = "mangler" | "utenByggeplass" | "utenOppmote";
 
 export interface ReiseKortResultat {
   /**
@@ -287,7 +286,10 @@ export interface ReiseKortResultat {
   klassifisering: ManuellReiseKlassifisering | null;
   spor: ManuellReiseSpor | null;
   sperre: ReiseKortSperre | null;
-  /** O12 pkt 14: satt når kjøretiden mangler og kalleren tillot det (web). Ellers utelatt. */
+  /**
+   * O12 pkt 14: satt når kjøretiden mangler og kalleren tillot det (web). O22: alltid
+   * «utenOppmote» når oppmøtested ikke er valgt. Ellers utelatt.
+   */
   utenKjoretid?: ReiseKortUtenKjoretid;
   /**
    * O19 pkt 23–24: satt når reisen krysser midnatt og kalleren tillot deling. `fraTid`/`tilTid`
@@ -638,9 +640,10 @@ export function løsReiseKort(k: ReiseKortInput): ReiseKortResultat {
   // 1. Byggeplass-periode: møter på byggeplassen, arbeidstid fra første minutt.
   if (k.oppmote.kilde === "byggeplass") return tom("byggeplassPeriode");
 
-  // 2. Uten oppmøtested finnes ingen kjøretid — og ikke noe manuelt timefelt å
-  //    falle tilbake på. Egen sperre, så kortet kan be om nett (vedtak 2026-11-15).
-  if (k.oppmote.kilde === "ikkeValgt") return tom("oppmoteIkkeValgt");
+  // 2. Uten oppmøtested finnes ingen kjøretid. O22 (vedtak-timer-web.md § Reisevinduet pkt 28,
+  //    Kenneth 2026-11-25, retter vedtaket 2026-11-15 om sperre): arbeideren skriver reisetiden
+  //    selv mens firmaadmin legger inn stedet — på web og mobil, også offline. Ingen sperre.
+  if (k.oppmote.kilde === "ikkeValgt") return løsReiseKortUtenKjoretid(k, null, "utenOppmote");
 
   // 3. Kjøretid fra oppmøtested × byggeplass.
   const oppmotestedId = k.oppmote.oppmotestedId;

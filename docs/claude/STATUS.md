@@ -12,6 +12,7 @@
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
 **Sist oppdatert:** 2026-11-25
+- 2026-11-25 — **`vedtak-timer-web.md` § Reisevinduet pkt 28 (ny) + `timer.md` (Oppmøtested med perioder, Reise-kort-regelen) + `hjelpetekster.md` + `mobil.md` + `packages/shared/src/utils/CLAUDE.md`: REISE-UTEN-OPPMOTESTED — uten oppmøtested fører arbeideren reisetiden selv (web + mobil, offline), blå tekst ber firmaadmin legge inn stedet; vedtaket 2026-11-15 om sperre rettet** (branch `fix/reise-uten-oppmotested`, kode + docs, o13, ⚠️ venter Kontrollør-gate).
 - 2026-11-25 — **`arkitektur.md` § Roller: SYSADMIN-IKKE-DEAKTIVERT — sitedoc_admin regnes aldri som deaktivert i `bruker.hentMin`** (branch `fix/sysadmin-ikke-deaktivert`, kode + docs, o13, ⚠️ venter Kontrollør-gate). Ingen fil opprettet/slettet i docs/claude — tellinger uendret.
 - 2026-11-25 — **`web.md` § 3D-visning + `hjelpetekster.md` § 3d-visning: 3D-SKJUL-SNARVEI — hold X og klikk skjuler objektet uten kort; hover på øyet og ?-hjelpen nevner snarveien** (branch `feat/3d-skjul-snarvei`, kode + docs, 3D-web, 🟡 ikke merget). Ingen fil opprettet eller slettet i docs/claude — tellingene er uendret.
 - 2026-11-25 — **`web.md` § Tegningsvisning: VERKTOYLINJE-IKONER 🟡 → ✅ — topplinja i tegningsviseren har ikoner med hover i stedet for knappetekster og lange statustekster, og `flex-wrap` som sikkerhetsnett** (branch `fix/tegning-verktoylinje-bryt`, kode + docs, web-timer-w5, ⚠️ venter Kontrollør-gate). Ingen fil opprettet eller slettet i docs/claude — tellingene er uendret.

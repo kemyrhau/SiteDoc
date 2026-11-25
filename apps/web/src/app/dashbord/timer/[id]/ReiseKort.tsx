@@ -184,7 +184,6 @@ function tidFraStartSlutt(fra: string | null, til: string | null): { fraTid: str
 
 export const SPERRE_NOKKEL: Record<ReiseKortSperre, string> = {
   byggeplassPeriode: "timer.reiseKort.sperre.byggeplassPeriode",
-  oppmoteIkkeValgt: "timer.reiseKort.sperre.oppmoteIkkeValgt",
   manglerKjoretid: "timer.reiseKort.sperre.manglerKjoretid",
   manglerDagstid: "timer.reiseKort.sperre.manglerDagstid",
   utenforDognet: "timer.reiseKort.sperre.utenforDognet",
@@ -1068,7 +1067,13 @@ export function ReiseKort({
   // O16 pkt 1: oppmøtestedet som ett nedtrekk; redigering (pkt 5) viser det som tekst.
   const oppmoteFelt =
     redigering || !kontorOppsett ? (
-      <p className="text-sm text-gray-800">{dagensKontorId ? kontorMedMerke(dagensKontorId) : "—"}</p>
+      <p data-testid="reise-oppmote-tekst" className="text-sm text-gray-800">
+        {dagensKontorId
+          ? kontorMedMerke(dagensKontorId)
+          : reise.oppmote.kilde === "ikkeValgt"
+            ? t("timer.reiseKort.oppmoteIkkeValgt")
+            : "—"}
+      </p>
     ) : (
       <div>
         <select
@@ -1211,8 +1216,9 @@ export function ReiseKort({
           )}
         </div>
 
-        {/* O16 pkt 1: «Fra → Til». Oppmøtestedet vises bare når firmaet har flere kontorer (§ 7 C). */}
-        {kontorOppsett || redigertRute ? (
+        {/* O16 pkt 1: «Fra → Til». Oppmøtestedet vises bare når firmaet har flere kontorer (§ 7 C).
+            O22 (pkt 28): også når oppmøtested ikke er valgt — feltet sier «Oppmøtested ikke valgt». */}
+        {kontorOppsett || redigertRute || (!redigering && reise.oppmote.kilde === "ikkeValgt") ? (
           <div data-testid="reise-fra-til" className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto_1fr] sm:items-start">
             <div className="min-w-0">
               <p className="mb-1 text-sm font-medium text-gray-700">{t("timer.reiseKort.fra")}</p>
@@ -1236,9 +1242,24 @@ export function ReiseKort({
         {!redigering && oppmoteBoks}
 
         {/* w15b: start og slutt er forslaget og kan rettes. Skjult bare når det ikke finnes
-            noe å foreslå fra (byggeplass-periode, oppmøtested ikke valgt, kjøretid mangler). */}
+            noe å foreslå fra (byggeplass-periode, kjøretid mangler uten flagget). O22: oppmøtested ikke
+            valgt gir tidsfeltene (manuell modus). */}
         {/* O12 pkt 14: mangler kjøretid (eller byggeplass) skriver arbeideren tiden selv. */}
-        {!redigering && regelStatus === "klar" && resultat.utenKjoretid && (
+        {/* O22 (pkt 28): uten oppmøtested — blå hint (ingen sperre); firmaadmin får lenke til Ansatte. */}
+        {!redigering && regelStatus === "klar" && resultat.utenKjoretid === "utenOppmote" && (
+          <p data-testid="reise-uten-oppmote" className="rounded border border-blue-100 bg-blue-50 px-3 py-2 text-sm text-blue-900">
+            {t("timer.reiseKort.utenOppmote")}
+            {erFirmaAdmin && (
+              <>
+                {" "}
+                <Link href="/dashbord/firma/ansatte" className="font-medium text-blue-700 underline">
+                  {t("timer.reiseKort.aapneAnsatte")}
+                </Link>
+              </>
+            )}
+          </p>
+        )}
+        {!redigering && regelStatus === "klar" && resultat.utenKjoretid && resultat.utenKjoretid !== "utenOppmote" && (
           <p data-testid="reise-uten-kjoretid" className="text-xs text-gray-500">
             {t(resultat.utenKjoretid === "utenByggeplass" ? "timer.reiseKort.utenByggeplass" : "timer.reiseKort.utenKjoretid")}
           </p>
@@ -1246,7 +1267,6 @@ export function ReiseKort({
         {(redigering ||
           (regelStatus === "klar" &&
             sperre !== "byggeplassPeriode" &&
-            sperre !== "oppmoteIkkeValgt" &&
             sperre !== "manglerKjoretid")) && (
             <div className="grid grid-cols-2 gap-3">
               <div>
