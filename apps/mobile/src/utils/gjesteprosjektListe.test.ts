@@ -68,19 +68,23 @@ describe("velgerGjesteprosjekter — (16) punkt 2", () => {
   });
   const server = [g("p-x", X), g("p-y", Y)];
   it("🔴 prosjekt eid av valgt firma ligger ikke i gjestegruppen (valgt firma uten ansettelse)", () => {
-    const ider = velgerGjesteprosjekter({ visning: "server", server, lokale: [], valgtFirmaId: X }).map((p) => p.id);
+    const ider = velgerGjesteprosjekter({ visning: "server", server, lokale: [], valgtFirmaId: X, adminIFremmedFirma: false }).map((p) => p.id);
     expect(ider).toEqual(["p-y"]);
   });
   it("🔴 samme regel offline (lokal cache)", () => {
-    const ider = velgerGjesteprosjekter({ visning: "lokal", server: [], lokale: server, valgtFirmaId: X }).map((p) => p.id);
+    const ider = velgerGjesteprosjekter({ visning: "lokal", server: [], lokale: server, valgtFirmaId: X, adminIFremmedFirma: false }).map((p) => p.id);
     expect(ider).toEqual(["p-y"]);
   });
   it("valgt firma blir i hovedlista: utenGjesteprosjekter fjerner ikke valgt firmas prosjekt", () => {
-    const gjester = velgerGjesteprosjekter({ visning: "server", server, lokale: [], valgtFirmaId: X });
+    const gjester = velgerGjesteprosjekter({ visning: "server", server, lokale: [], valgtFirmaId: X, adminIFremmedFirma: false });
     expect(utenGjesteprosjekter([{ id: "p-x" }], gjester).map((p) => p.id)).toEqual(["p-x"]);
   });
+  it("🔴 ADMIN-GJEST: sitedoc_admin i fremmed firma → ingen gjestegruppe (på nett og offline)", () => {
+    expect(velgerGjesteprosjekter({ visning: "server", server, lokale: [], valgtFirmaId: X, adminIFremmedFirma: true })).toEqual([]);
+    expect(velgerGjesteprosjekter({ visning: "lokal", server: [], lokale: server, valgtFirmaId: X, adminIFremmedFirma: true })).toEqual([]);
+  });
   it("feil-/lastevisning → ingen gjestegruppe", () => {
-    expect(velgerGjesteprosjekter({ visning: "feil", server, lokale: server, valgtFirmaId: null })).toEqual([]);
+    expect(velgerGjesteprosjekter({ visning: "feil", server, lokale: server, valgtFirmaId: null, adminIFremmedFirma: false })).toEqual([]);
   });
 });
 
@@ -94,6 +98,9 @@ describe("koblinger (kilde-vakt)", () => {
     // (16): gruppen filtreres mot valgt firma.
     expect(k).toContain("valgtFirmaId: valgtFirmaId ?? null");
     expect(k).toContain("velgerGjesteprosjekter({");
+    // ADMIN-GJEST: regelen får rolle + ansatt-status inn.
+    expect(k).toMatch(/erAdminIFremmedFirma\(\{\s*rolle: minBruker\.data\?\.role,\s*erAnsattIValgtFirma,\s*\}\)/);
+    expect(k).toMatch(/\n\s*adminIFremmedFirma,\n\s*\}\);/);
   });
   it("ProsjektVelger viser gruppen og Hjem finner valgt gjesteprosjekt", () => {
     expect(les("../components/ProsjektVelger.tsx")).toContain('t("prosjektVelger.andreFirma")');

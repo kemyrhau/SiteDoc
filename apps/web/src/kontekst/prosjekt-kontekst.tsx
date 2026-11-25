@@ -11,6 +11,7 @@ import { useParams, usePathname, useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { useFirma } from "./firma-kontekst";
 import { skalNullstilleProsjekt } from "@/lib/gjesteprosjekt";
+import { erAdminIFremmedFirma, gjesteIderForNullstilling } from "@sitedoc/shared";
 
 const STORAGE_KEY = "sitedoc-valgt-prosjekt";
 const SCOPE_STORAGE_KEY = "sitedoc-prosjekt-scope";
@@ -67,7 +68,7 @@ export function ProsjektProvider({ children }: { children: ReactNode }) {
   const params = useParams<{ prosjektId?: string }>();
   const router = useRouter();
   const pathname = usePathname();
-  const { valgtFirma } = useFirma();
+  const { valgtFirma, erSitedocAdmin, erAnsattIValgtFirma } = useFirma();
   const urlProsjektId = params.prosjektId ?? null;
 
   // Initialiser som null for å unngå hydration-mismatch (localStorage kun på klient)
@@ -123,7 +124,13 @@ export function ProsjektProvider({ children }: { children: ReactNode }) {
   // (15): gjesteprosjekter nullstilles ikke (skalNullstilleProsjekt).
   const lasterGjester = gjesteQuery.isLoading;
   const gjesteIder = gjesteprosjekter.map((p) => p.id);
-  const gjesteNokkel = gjesteIder.join(",");
+  // ADMIN-GJEST tillegg A (2026-11-25): sitedoc_admin i et firma hen ikke er ansatt i
+  // beholder ikke et valgt gjesteprosjekt ved firmabytte — som et eget-firma-prosjekt.
+  const adminIFremmedFirma = erAdminIFremmedFirma({
+    rolle: erSitedocAdmin ? "sitedoc_admin" : null,
+    erAnsattIValgtFirma,
+  });
+  const gjesteNokkel = gjesteIderForNullstilling(gjesteIder, adminIFremmedFirma).join(",");
   useEffect(() => {
     if (lasterValgt) return;
     if (

@@ -21,6 +21,8 @@ interface Firma {
    */
   aktiveFirmamoduler: string[];
   erKunde: boolean;
+  /** Aktivt ansatt (OrganizationMember «aktiv»). Satt av `hentMineMedlemskap` for sitedoc_admin. */
+  erAnsatt?: boolean;
 }
 
 interface FirmaKontekstType {
@@ -38,6 +40,11 @@ interface FirmaKontekstType {
    * firma-admin-flatene gates på denne, ikke på `valgtFirma`-eksistens.
    */
   kanAdministrereFirma: boolean;
+  /**
+   * ADMIN-GJEST (Kenneth 2026-11-25): er brukeren aktivt ansatt i valgt firma? Lest fra
+   * `hentMineMedlemskap` (`erAnsatt`, sendes for sitedoc_admin). `null` = ukjent/intet firma.
+   */
+  erAnsattIValgtFirma: boolean | null;
   isLoading: boolean;
   velgFirma: (id: string) => void;
 }
@@ -93,6 +100,12 @@ export function FirmaProvider({ children }: { children: ReactNode }) {
   const kanAdministrereFirma =
     erSitedocAdmin || tilgjengelige.some((f) => f.id === valgtFirma?.id);
 
+  const valgtMedlemskap = valgtFirma
+    ? mineMedlemskap.find((f) => f.id === valgtFirma?.id)
+    : undefined;
+  const erAnsattIValgtFirma =
+    typeof valgtMedlemskap?.erAnsatt === "boolean" ? valgtMedlemskap.erAnsatt : null;
+
   // Fase 1 — divergensvakt (firmarolle-konsolidering, ORDRE-v2 2026-08-10).
   // Warn (ALDRI blokker) når gammel kilde (User.role === "company_admin") og ny
   // kilde (firma_admin-medlemskap via firmaRoller → `tilgjengelige`) er uenige,
@@ -147,6 +160,7 @@ export function FirmaProvider({ children }: { children: ReactNode }) {
         tilgjengelige,
         erSitedocAdmin,
         kanAdministrereFirma,
+        erAnsattIValgtFirma,
         isLoading:
           tilgjengeligeQuery.isLoading ||
           mineMedlemskapQuery.isLoading ||

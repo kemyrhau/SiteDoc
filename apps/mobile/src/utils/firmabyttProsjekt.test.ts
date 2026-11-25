@@ -47,10 +47,25 @@ describe("firmabyttUtfall — (19)", () => {
   });
 });
 
+describe("firmabyttUtfall — ADMIN-GJEST tillegg A (2026-11-25)", () => {
+  it("🔴 admin i fremmed firma: valgt gjesteprosjekt nullstilles", () => {
+    expect(utfall({ prosjektId: GJEST.id, adminIFremmedFirma: true })).toBe("nullstill");
+  });
+  it("admin i fremmed firma: gjesteprosjekt eid av det nye firmaet beholdes", () => {
+    expect(
+      utfall({ prosjektId: "p-g", gjester: [{ id: "p-g", primaryOrganizationId: G }], adminIFremmedFirma: true }),
+    ).toBe("behold");
+  });
+  it("ellers beholdes gjesteprosjektet (15)", () => {
+    expect(utfall({ prosjektId: GJEST.id, adminIFremmedFirma: false })).toBe("behold");
+  });
+});
+
 describe("kildevakt — ProsjektKontekst bruker den delte regelen", () => {
   const kilde = readFileSync(join(__dirname, "../kontekst/ProsjektKontekst.tsx"), "utf8");
   it("firmabytte går via firmabyttUtfall, ikke ubetinget nullstilling", () => {
     expect(kilde).toContain("firmabyttUtfall(");
+    expect(kilde).toMatch(/lasterGjester,\n\s*adminIFremmedFirma,\n\s*\}\);/);
     expect(kilde).not.toMatch(/if \(previous && previous !== valgtFirmaId\) \{\s*setValgtProsjektId\(null\)/);
   });
   it("firmabyttUtfall bruker skalNullstilleProsjekt fra @sitedoc/shared (ingen kopi)", () => {

@@ -701,6 +701,9 @@ export {
   erGjesteprosjekt,
   skjulFirmaModulForGjest,
   gjesteprosjekterIAndreFirma,
+  erAdminIFremmedFirma,
+  velgerGjestegruppe,
+  gjesteIderForNullstilling,
   skalNullstilleProsjekt,
   type ProsjektForNullstilling,
 } from "./gjesteprosjekt";

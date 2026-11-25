@@ -10,7 +10,11 @@ import {
   velgerGjesteprosjekter,
   type GjesteprosjektRad,
 } from "../utils/gjesteprosjektListe";
-import { velgHjemProsjektVisning, type HjemProsjektVisning } from "@sitedoc/shared";
+import {
+  erAdminIFremmedFirma,
+  velgHjemProsjektVisning,
+  type HjemProsjektVisning,
+} from "@sitedoc/shared";
 
 /* ============================================================================
  *  useProsjektListe — ÉN delt kilde for `prosjekt.hentMine` + offline-fallback.
@@ -53,7 +57,13 @@ export interface ProsjektListeResultat {
 
 export function useProsjektListe(): ProsjektListeResultat {
   const { erPaaNettet } = useNettverk();
-  const { valgtFirmaId, firmaer, lasterFirmaer, erAnsattIFirma } = useFirma();
+  const { valgtFirmaId, firmaer, lasterFirmaer, erAnsattIFirma, erAnsattIValgtFirma } = useFirma();
+  // ADMIN-GJEST (Kenneth 2026-11-25): rolle som i DagsseddelListe (TILLEGG (14)).
+  const minBruker = trpc.bruker.hentMin.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
+  const adminIFremmedFirma = erAdminIFremmedFirma({
+    rolle: minBruker.data?.role,
+    erAnsattIValgtFirma,
+  });
 
   const query = trpc.prosjekt.hentMine.useQuery(
     { organizationId: valgtFirmaId ?? undefined },
@@ -99,8 +109,9 @@ export function useProsjektListe(): ProsjektListeResultat {
       server: data ? serverGjesteprosjekter(data) : [],
       lokale: lokaleGjester,
       valgtFirmaId: valgtFirmaId ?? null,
+      adminIFremmedFirma,
     });
-  }, [visning, gjesteQuery.data, lokaleGjester, valgtFirmaId]);
+  }, [visning, gjesteQuery.data, lokaleGjester, valgtFirmaId, adminIFremmedFirma]);
 
   const prosjekter = useMemo<ProsjektRad[]>(() => {
     if (visning === "server") {

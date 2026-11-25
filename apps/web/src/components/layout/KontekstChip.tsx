@@ -10,7 +10,8 @@ import { trpc } from "@/lib/trpc";
 import { ruteErFirmaKontekst } from "@/lib/ruteKontekst";
 import { erProsjektRadValgt } from "@/lib/prosjektvelger";
 import {
-  gjesteprosjekterIAndreFirma,
+  velgerGjestegruppe,
+  erAdminIFremmedFirma,
   antallByggeplasser,
   vedProsjektTrykk,
   vedByggeplassTrykk,
@@ -90,7 +91,14 @@ function relativPath(href: string, prefiks: string): string {
  */
 export function KontekstChip() {
   const { t } = useTranslation();
-  const { valgtFirma, kanAdministrereFirma, tilgjengelige, velgFirma } = useFirma();
+  const {
+    valgtFirma,
+    kanAdministrereFirma,
+    tilgjengelige,
+    velgFirma,
+    erSitedocAdmin,
+    erAnsattIValgtFirma,
+  } = useFirma();
   const {
     valgtProsjekt,
     prosjektId,
@@ -247,7 +255,13 @@ export function KontekstChip() {
   // for vanlige brukere uavhengig av valgt firma).
   // (16): gruppen tar bare prosjekter der eier-firmaet ≠ valgt firma. Har brukeren valgt et
   // firma hen ikke er ansatt i (sitedoc_admin), står det firmaets prosjekter i hovedlista.
-  const andreFirmaProsjekter = gjesteprosjekterIAndreFirma(gjesteprosjekter, valgtFirma?.id);
+  // ADMIN-GJEST (Kenneth 2026-11-25): sitedoc_admin i et firma hen ikke er ansatt i ser
+  // velgeren som firmaets ansatte — gruppen skjules (`velgerGjestegruppe`, @sitedoc/shared).
+  const andreFirmaProsjekter = velgerGjestegruppe(
+    gjesteprosjekter,
+    valgtFirma?.id,
+    erAdminIFremmedFirma({ rolle: erSitedocAdmin ? "sitedoc_admin" : null, erAnsattIValgtFirma }),
+  );
   const gjesteIdSet = new Set(andreFirmaProsjekter.map((p) => p.id));
   const prosjektKilde = (
     visScopePille
