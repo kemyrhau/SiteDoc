@@ -57,3 +57,24 @@ describe("KonverteringMarkorLinje — stille konverteringsmetadata", () => {
     expect(screen.queryByText(/tegninger\.markor\.konvertert:/)).toBeNull();
   });
 });
+
+describe("KonverteringMarkorLinje visning=\"ikon\" (VERKTOYLINJE-IKONER)", () => {
+  it("viser ett ikon uten synlig tekst; teksten står i title + aria-label", () => {
+    const { container } = render(
+      <KonverteringMarkorLinje
+        markor={{ kodeversjon: "2034396e1234", konvertertTid: "2026-10-11T08:45:00.000Z", motor: "egen" }}
+        erKonvertert
+        visning="ikon"
+      />,
+    );
+    const el = screen.getByRole("img");
+    expect(el.getAttribute("aria-label")).toMatch(/tegninger\.markor\.konvertert:/);
+    expect(el.getAttribute("title")).toBe(el.getAttribute("aria-label"));
+    expect(container.textContent).toBe("");
+  });
+
+  it("konvertering pågår → ikon med «Konverterer …» i hover", () => {
+    render(<KonverteringMarkorLinje markor={null} erKonvertert konverterer visning="ikon" />);
+    expect(screen.getByRole("img").getAttribute("aria-label")).toBe("tegninger.konverterer");
+  });
+});

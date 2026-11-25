@@ -70,7 +70,7 @@ interface DokumentflytRad {
   faggruppeId: string | null;
   maler: DokumentflytMalRad[];
 }
-import { Map, FileText, MapPin, Plus, ZoomIn, ZoomOut, ArrowLeft, Crosshair, Loader2, AlertTriangle, Info, Pentagon, Trash2, RefreshCw, Ruler, Pencil, Waypoints, VectorSquare, TriangleRight, Magnet, Spline, Check, RotateCw, Download, Layers } from "lucide-react";
+import { Map, FileText, MapPin, Plus, ZoomIn, ZoomOut, ArrowLeft, Crosshair, Loader2, AlertTriangle, Info, Pentagon, Trash2, RefreshCw, Ruler, Pencil, Waypoints, VectorSquare, TriangleRight, Magnet, Spline, Check, RotateCw, Download, Layers, Compass, MousePointerClick } from "lucide-react";
 import { MaalingOverlay, type MaalingSegment } from "@/components/tegning/MaalingOverlay";
 import { konverteringBanner } from "@/lib/tegningKonverteringBanner";
 import { tegningVisningTilstand } from "@/lib/tegningRekonverteringVisning";
@@ -1790,8 +1790,13 @@ export default function TegningerSide() {
         </div>
       )}
 
-      {/* Header */}
-      <div className="flex items-center gap-2 border-b border-gray-200 bg-white px-6 py-2">
+      {/* Header — VERKTOYLINJE-IKONER (Kenneth 2026-11-25: «Bytt lange tekster med hover i
+          topplinjen. behold rene iconer heller»). Knapper med tekst er rene ikoner; teksten
+          står i title + aria-label. Korte ting (navn, «Rev. X», zoom-%, målestokk, 90°, «Auto»)
+          beholdes. flex-wrap er sikkerhetsnett: forelderen har overflow-hidden, så uten wrap
+          ble høyre del klippet. Hver knappegruppe er egen div og deles aldri. Høyden under
+          re-måles av ResizeObserver på forelderen (settVisningshøyde). */}
+      <div data-testid="tegning-verktoylinje" className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-gray-200 bg-white px-6 py-2">
         <FileText className="h-4 w-4 text-gray-400" />
         <span className="text-sm font-medium text-gray-900">{tegning.name}</span>
         {tegning.drawingNumber && (
@@ -1819,18 +1824,18 @@ export default function TegningerSide() {
         {/* Stille metadata: hvilken kode som sist konverterte tegningen (2026-10-11).
             RETUR 2 rekonverter: under rekonvertering med gyldig gammel visning holder
             den diskrete «Oppdaterer visning …»-linjen over — ikke dupliser meldingen her. */}
-        <KonverteringMarkorLinje markor={konvMarkor} erKonvertert={tegningErKonvertert} konverterer={visBlokkerendeKonvertering} />
+        <KonverteringMarkorLinje markor={konvMarkor} erKonvertert={tegningErKonvertert} konverterer={visBlokkerendeKonvertering} visning="ikon" />
         <div className="flex-1" />
 
         {/* Last ned originalfila (DWG/PDF slik den ble lastet opp) */}
         {nedlastUrl && (
           <button
             onClick={lastNedTegning}
-            className="flex items-center gap-1 rounded px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100"
+            className="rounded p-1 text-gray-600 hover:bg-gray-100"
             title={t("handling.lastNed")}
+            aria-label={t("handling.lastNed")}
           >
             <Download className="h-4 w-4" />
-            {t("handling.lastNed")}
           </button>
         )}
 
@@ -1876,18 +1881,22 @@ export default function TegningerSide() {
           <>
             <div className="mx-2 h-4 w-px bg-gray-200" />
             <div className="flex items-center gap-1">
-              {Math.round(effektivRot) !== 0 && (
-                <span className="whitespace-nowrap text-xs text-gray-500">
-                  {rotOverstyrt == null && autoRot != null
-                    ? t("tegninger.rotertAuto", { grader: Math.round(autoRot) })
-                    : t("tegninger.rotert", { grader: Math.round(effektivRot) })}
-                </span>
-              )}
+              {Math.round(effektivRot) !== 0 && (() => {
+                const rotertTekst = rotOverstyrt == null && autoRot != null
+                  ? t("tegninger.rotertAuto", { grader: Math.round(autoRot) })
+                  : t("tegninger.rotert", { grader: Math.round(effektivRot) });
+                return (
+                  <span role="img" className="p-1 text-gray-500" title={rotertTekst} aria-label={rotertTekst}>
+                    <Compass className="h-4 w-4" />
+                  </span>
+                );
+              })()}
               <button
                 onClick={roterNittiGrader}
                 disabled={settRotasjonMutation.isPending}
                 className="rounded p-1 text-gray-500 hover:bg-gray-100 disabled:text-gray-300"
                 title={t("tegninger.roter90")}
+                aria-label={t("tegninger.roter90")}
               >
                 <RotateCw className="h-4 w-4" />
               </button>
@@ -1922,9 +1931,10 @@ export default function TegningerSide() {
                   visMalestokkPanel ? "bg-sitedoc-primary text-white" : "text-gray-600 hover:bg-gray-100"
                 }`}
                 title={t("maaling.malestokkTittel")}
+                aria-label={t("maaling.malestokk")}
               >
-                <Crosshair className="h-3 w-3" />
-                {tegning.scale && !harGeoref ? tegning.scale : t("maaling.malestokk")}
+                <Crosshair className="h-3.5 w-3.5" />
+                {tegning.scale && !harGeoref ? tegning.scale : null}
               </button>
               {/* Tre måleverktøy (RETUR 3 § C, som Adobe): linjal · polylinje · areal.
                   Ett aktivt om gangen; klikk på aktivt verktøy slår det av. */}
@@ -1935,9 +1945,9 @@ export default function TegningerSide() {
                   aktivVerktoy === "linjal" ? "bg-sitedoc-primary text-white" : "text-gray-600 hover:bg-gray-100"
                 } disabled:cursor-not-allowed disabled:opacity-40`}
                 title={kanMaleNaa ? t("maaling.verktoyLinjal") : (maleAvslagGrunn ?? "")}
+                aria-label={t("maaling.verktoyLinjal")}
               >
-                <Ruler className="h-3 w-3" />
-                {t("maaling.verktoyLinjal")}
+                <Ruler className="h-3.5 w-3.5" />
               </button>
               <button
                 disabled={!kanMaleNaa}
@@ -1946,9 +1956,9 @@ export default function TegningerSide() {
                   aktivVerktoy === "polylinje" ? "bg-sitedoc-primary text-white" : "text-gray-600 hover:bg-gray-100"
                 } disabled:cursor-not-allowed disabled:opacity-40`}
                 title={kanMaleNaa ? t("maaling.verktoyPolylinje") : (maleAvslagGrunn ?? "")}
+                aria-label={t("maaling.verktoyPolylinje")}
               >
-                <Waypoints className="h-3 w-3" />
-                {t("maaling.verktoyPolylinje")}
+                <Waypoints className="h-3.5 w-3.5" />
               </button>
               <button
                 disabled={!kanMaleNaa}
@@ -1957,9 +1967,9 @@ export default function TegningerSide() {
                   aktivVerktoy === "areal" ? "bg-sitedoc-primary text-white" : "text-gray-600 hover:bg-gray-100"
                 } disabled:cursor-not-allowed disabled:opacity-40`}
                 title={kanMaleNaa ? t("maaling.verktoyAreal") : (maleAvslagGrunn ?? "")}
+                aria-label={t("maaling.verktoyAreal")}
               >
-                <VectorSquare className="h-3 w-3" />
-                {t("maaling.verktoyAreal")}
+                <VectorSquare className="h-3.5 w-3.5" />
               </button>
             </div>
             {/* 🟢 90°-lås · snap · referanselinje (ordre 90-snap + GJENOPPTA). */}
@@ -1971,6 +1981,7 @@ export default function TegningerSide() {
                   ortho ? "bg-sitedoc-primary text-white" : "text-gray-600 hover:bg-gray-100"
                 } disabled:cursor-not-allowed disabled:opacity-40`}
                 title={t("maaling.laasVinkelHjelp")}
+                aria-label={t("maaling.laasVinkel")}
               >
                 <TriangleRight className="h-3 w-3" />
                 {t("maaling.laasVinkel")}
@@ -1981,10 +1992,10 @@ export default function TegningerSide() {
                 className={`flex items-center gap-1 border-l border-gray-200 px-2 py-1 text-xs ${
                   velgReferanseModus || referanselinje ? "bg-sitedoc-primary text-white" : "text-gray-600 hover:bg-gray-100"
                 } disabled:cursor-not-allowed disabled:opacity-40`}
-                title={t("maaling.referanselinjeHjelp")}
+                title={`${t("maaling.referanselinje")} — ${t("maaling.referanselinjeHjelp")}`}
+                aria-label={t("maaling.referanselinje")}
               >
-                <Spline className="h-3 w-3" />
-                {t("maaling.referanselinje")}
+                <Spline className="h-3.5 w-3.5" />
               </button>
               <button
                 disabled={!kanMaleNaa}
@@ -1992,10 +2003,10 @@ export default function TegningerSide() {
                 className={`flex items-center gap-1 rounded-r border-l border-gray-200 px-2 py-1 text-xs ${
                   snapPaa ? "bg-sitedoc-primary text-white" : "text-gray-600 hover:bg-gray-100"
                 } disabled:cursor-not-allowed disabled:opacity-40`}
-                title={t("maaling.snapHjelp")}
+                title={`${t("maaling.snap")} — ${t("maaling.snapHjelp")}`}
+                aria-label={t("maaling.snap")}
               >
-                <Magnet className="h-3 w-3" />
-                {t("maaling.snap")}
+                <Magnet className="h-3.5 w-3.5" />
               </button>
             </div>
           </>
@@ -2013,9 +2024,9 @@ export default function TegningerSide() {
                   klikkModus === "plassering" ? "bg-sitedoc-primary text-white" : "text-gray-600 hover:bg-gray-100"
                 }`}
                 title="Klikk for å opprette oppgave"
+                aria-label="Oppgave"
               >
-                <MapPin className="h-3 w-3" />
-                Oppgave
+                <MapPin className="h-3.5 w-3.5" />
               </button>
               <button
                 onClick={() => { setKlikkModus("inspeksjon"); setNyMarkør(null); }}
@@ -2023,9 +2034,9 @@ export default function TegningerSide() {
                   klikkModus === "inspeksjon" ? "bg-sitedoc-primary text-white" : "text-gray-600 hover:bg-gray-100"
                 }`}
                 title="Klikk for å se DWG-egenskaper"
+                aria-label="Inspeksjon"
               >
-                <Info className="h-3 w-3" />
-                Inspeksjon
+                <Info className="h-3.5 w-3.5" />
               </button>
               <button
                 disabled={!kanAdministrereOmrade}
@@ -2034,9 +2045,9 @@ export default function TegningerSide() {
                   klikkModus === "omrade" ? "bg-sitedoc-primary text-white" : "text-gray-600 hover:bg-gray-100"
                 } disabled:cursor-not-allowed disabled:opacity-40`}
                 title={kanAdministrereOmrade ? "Tegn nytt område (polygon)" : "Kun administratorer kan opprette områder"}
+                aria-label="Område"
               >
-                <Pentagon className="h-3 w-3" />
-                Område
+                <Pentagon className="h-3.5 w-3.5" />
               </button>
             </div>
           </>
@@ -2056,9 +2067,10 @@ export default function TegningerSide() {
                   visKontrollpunkter ? "bg-sitedoc-primary/10 text-sitedoc-primary" : "text-gray-400 hover:bg-gray-100"
                 }`}
                 title={t("kontrollplan.lagKontrollpunkter")}
+                aria-label={`${t("kontrollplan.lagKontrollpunkter")} (${kontrollpunkter.length})`}
               >
-                <MapPin className="h-3 w-3" />
-                {t("kontrollplan.lagKontrollpunkter")} ({kontrollpunkter.length})
+                <MapPin className="h-3.5 w-3.5" />
+                <span className="tabular-nums">{kontrollpunkter.length}</span>
               </button>
               <button
                 onClick={() => setVisOppgaver((v) => !v)}
@@ -2066,9 +2078,10 @@ export default function TegningerSide() {
                   visOppgaver ? "bg-red-50 text-red-600" : "text-gray-400 hover:bg-gray-100"
                 }`}
                 title={t("kontrollplan.lagOppgaver")}
+                aria-label={`${t("kontrollplan.lagOppgaver")} (${markører.length})`}
               >
-                <MapPin className="h-3 w-3" />
-                {t("kontrollplan.lagOppgaver")} ({markører.length})
+                <MapPin className="h-3.5 w-3.5" />
+                <span className="tabular-nums">{markører.length}</span>
               </button>
             </div>
           </>
@@ -2089,14 +2102,17 @@ export default function TegningerSide() {
         {transformasjon && !brukDxfViewer && (
           <>
             <div className="mx-2 h-4 w-px bg-gray-200" />
-            <MapPin className="h-3.5 w-3.5 text-green-600" />
+            {/* Koordinatene er data og står som tekst; venteteksten flyttes til hover på ikonet. */}
             {gpsKoordinat ? (
-              <span className="font-mono text-xs text-gray-600">
-                {gpsKoordinat.lat.toFixed(6)}, {gpsKoordinat.lng.toFixed(6)}
-              </span>
+              <>
+                <MapPin className="h-3.5 w-3.5 text-green-600" />
+                <span className="font-mono text-xs text-gray-600">
+                  {gpsKoordinat.lat.toFixed(6)}, {gpsKoordinat.lng.toFixed(6)}
+                </span>
+              </>
             ) : (
-              <span className="text-xs text-gray-400">
-                Beveg musen over tegningen
+              <span role="img" title="Beveg musen over tegningen" aria-label="Beveg musen over tegningen">
+                <MapPin className="h-3.5 w-3.5 text-green-600" />
               </span>
             )}
           </>
@@ -2107,8 +2123,8 @@ export default function TegningerSide() {
         {!posisjonsvelgerAktiv && !brukDxfViewer && (
           <>
             <div className="mx-2 h-4 w-px bg-gray-200" />
-            <span className="text-xs text-gray-400">
-              Klikk i tegningen for å opprette
+            <span role="img" className="p-1 text-gray-400" title="Klikk i tegningen for å opprette" aria-label="Klikk i tegningen for å opprette">
+              <MousePointerClick className="h-4 w-4" />
             </span>
           </>
         )}
@@ -2125,6 +2141,7 @@ export default function TegningerSide() {
               disabled={oppdaterVisningMutation.isPending}
               className="flex items-center gap-1 rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-sitedoc-primary disabled:opacity-50"
               title={t("tegninger.oppdaterVisningHjelp")}
+              aria-label={t("tegninger.oppdaterVisningHjelp")}
             >
               <RefreshCw className={`h-4 w-4 ${oppdaterVisningMutation.isPending ? "animate-spin" : ""}`} />
             </button>
