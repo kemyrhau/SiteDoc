@@ -108,8 +108,10 @@ Begge skal skrive `1.4.4`. Svarer én ikke, er ezdxf-motoren utilgjengelig der �
 ### Steg 1 — merge develop inn i main
 
 ```sh
-cd ~/Documents/Programmering/SiteDoc && git checkout main && git pull --ff-only && git merge --no-ff develop -m "release: <hva som går ut>"
+cd ~/Documents/Programmering/SiteDoc && git checkout develop && git pull --ff-only && git checkout main && git pull --ff-only && git merge --no-ff develop -m "release: <hva som går ut>"
 ```
+
+Lokal `develop` hentes først fordi mergen ellers tar med en utdatert `develop`: 2026-11-25 ble release `ccfcf7b8` bygget fra `develop` @ `b9757bc5`, tre commits bak `origin/develop`, og dxf-viewer for prod manglet til ny release `e844ce70`.
 
 🔴 **`--no-ff`, ALDRI `--ff-only`.** `main` og `develop` divergerer permanent fordi hver release
 lager en merge-commit som aldri går tilbake. **Målt 2026-09-07: 125 slike commits.**
