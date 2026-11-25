@@ -103,6 +103,7 @@ import {
 import {
   tilErEtterFra,
   finnOverlappendeTidsrom,
+  finnKantFlytt,
   finnTidsromKonflikt,
   beskrivOverlapp,
   linjeKanFlyttes,
@@ -2923,6 +2924,82 @@ async function sjekkTimerOverlapp(
   }
 }
 
+/**
+ * O20 (vedtak-timer-web § Reisevinduet pkt 26): flyttingen `tilfoyTimerRad` gjør med `flyttRad`.
+ * Regnes av serveren med `finnKantFlytt` (samme regel som vinduet) og må være lik den klienten
+ * sendte. Timer på en timebasert rad følger tiden (pausen står); km/dag-rader beholder timer.
+ */
+async function planleggKantFlytt(
+  prismaTimer: typeof import("@sitedoc/db-timer").prismaTimer,
+  input: {
+    sheetId: string;
+    fraTid?: string | null;
+    tilTid?: string | null;
+    kortId?: string | null;
+    reiseIKort?: boolean;
+    flyttRad?: { radId: string; nyFra?: string; nyTil?: string };
+  },
+  erReise: boolean,
+  sporRetning: string | null,
+): Promise<{ radId: string; foerFra: string; foerTil: string; nyFra: string; nyTil: string; timer: number | null }> {
+  const avvis = (message: string): never => {
+    throw new TRPCError({ code: "BAD_REQUEST", message });
+  };
+  const f = input.flyttRad;
+  if (!f) return avvis("Ingen flytting oppgitt");
+  if (!erReise || !input.reiseIKort || !input.kortId) {
+    return avvis("Jobben flyttes bare for en reise ført i jobbens kort");
+  }
+  // Kanten gir retningen: start = «Til byggeplass» (ut), slutt = «Fra byggeplass» (retur).
+  const retning = f.nyFra !== undefined ? "ut" : "retur";
+  if (sporRetning != null && sporRetning !== retning) {
+    return avvis("Flyttingen gjelder ikke jobbens start eller slutt i dette kortet");
+  }
+  const rader = await prismaTimer.sheetTimer.findMany({
+    where: { sheetId: input.sheetId },
+    select: {
+      id: true,
+      fraTid: true,
+      tilTid: true,
+      erReise: true,
+      arbeidReiseRetning: true,
+      kortId: true,
+      attestertStatus: true,
+      timer: true,
+      lonnsart: { select: { satsEnhet: true } },
+    },
+  });
+  const plan = finnKantFlytt({
+    reise: { fraTid: input.fraTid ?? null, tilTid: input.tilTid ?? null },
+    retning,
+    kortId: input.kortId,
+    rader: rader.map((r) => ({
+      id: r.id,
+      fraTid: r.fraTid,
+      tilTid: r.tilTid,
+      erReise: r.erReise,
+      arbeidReise: !r.erReise && r.arbeidReiseRetning != null,
+      kortId: r.kortId,
+      attestertStatus: r.attestertStatus,
+      timer: Number(r.timer),
+    })),
+  });
+  const oppgitt = f.nyFra !== undefined ? { kant: "start", tid: f.nyFra } : { kant: "slutt", tid: f.nyTil };
+  if (!plan || plan.radId !== f.radId || plan.kant !== oppgitt.kant || plan.tid !== oppgitt.tid) {
+    return avvis("Flyttingen gjelder ikke jobbens start eller slutt i dette kortet");
+  }
+  const rad = rader.find((r) => r.id === plan.radId);
+  if (!rad || !rad.fraTid || !rad.tilTid) return avvis("Jobben finnes ikke");
+  return {
+    radId: rad.id,
+    foerFra: rad.fraTid,
+    foerTil: rad.tilTid,
+    nyFra: plan.kant === "start" ? plan.tid : rad.fraTid,
+    nyTil: plan.kant === "slutt" ? plan.tid : rad.tilTid,
+    timer: erTimebasert(rad.lonnsart?.satsEnhet) ? plan.radTimer : null,
+  };
+}
+
 /** R1 (a): feltene overlappmeldingen trenger (hva som sperrer, og kortet det står i). */
 const OVERLAPP_RAD_FELT = {
   fraTid: true,
@@ -4766,6 +4843,18 @@ export const dagsseddelRouter = router({
         reiseIKort: z.boolean().optional(),
         // O12 pkt 16: en reise ført som arbeidstid lagrer retningen. Bare på arbeidsrad.
         arbeidReiseRetning: z.enum(["ut", "retur"]).nullable().optional(),
+        // O20 (vedtak-timer-web § Reisevinduet pkt 26): reisen overlapper bare kanten av jobben i
+        // samme kort — jobbens start (nyFra) eller slutt (nyTil) flyttes i samme transaksjon.
+        flyttRad: z
+          .object({
+            radId: z.string().uuid(),
+            nyFra: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+            nyTil: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+          })
+          .refine((f) => (f.nyFra === undefined) !== (f.nyTil === undefined), {
+            message: "Oppgi enten nyFra eller nyTil",
+          })
+          .optional(),
       }).superRefine(refineFraForTil).superRefine(refineProsjektEllerFravaer),
     )
     .mutation(async ({ ctx, input }) => {
@@ -4897,14 +4986,25 @@ export const dagsseddelRouter = router({
 
       // w9: maskin høyst jobbens arbeid sjekkes sist i transaksjonen under.
 
+      // O20 (pkt 26): «Flytt jobbens start/slutt». Serveren regner flyttingen selv med samme
+      // delte regel som vinduet (`finnKantFlytt`) og godtar bare nøyaktig den: en reise ført i
+      // kortet, kantraden i samme kort, ny tid = reisens slutt (Til) eller start (Fra), raden
+      // minst 1 minutt og timer over 0. Rettigheten er sedelens (egen, kladd/returnert, over).
+      const flytt = input.flyttRad
+        ? await planleggKantFlytt(ctx.prismaTimer, input, erReise, reiseSpor?.reiseRetning ?? input.reiseRetning ?? null)
+        : null;
+
       // Bolk (g): overlapp-vakt — ny rads spenn kan ikke overlappe en annen
-      // timer-rad på sedelen (på tvers av prosjekt/ECO).
-      await sjekkTimerOverlapp(
-        ctx.prismaTimer,
-        input.sheetId,
-        input.fraTid,
-        input.tilTid,
-      );
+      // timer-rad på sedelen (på tvers av prosjekt/ECO). Med flytting sjekkes det i
+      // transaksjonen, etter at jobbens kant er flyttet.
+      if (!flytt) {
+        await sjekkTimerOverlapp(
+          ctx.prismaTimer,
+          input.sheetId,
+          input.fraTid,
+          input.tilTid,
+        );
+      }
 
       // V20/PK4a — vurder timetallet mot radens pause og pausevinduet. Vinduet
       // (PK5) regnes fra alle rader på dagen (ankomst = tidligste fraTid, inkl.
@@ -4946,6 +5046,17 @@ export const dagsseddelRouter = router({
       // raden og hodet = Σ rad i samme skriving.
       const rad = await ctx.prismaTimer.$transaction(async (tx) => {
         const maskinFoer = await lesMaskinJobbTilstand(tx, ctx.prismaMaskin, input.sheetId);
+        if (flytt) {
+          // Bare raden slik den ble lest: endret i mellomtiden → ingenting skrives.
+          const { count } = await tx.sheetTimer.updateMany({
+            where: { id: flytt.radId, sheetId: input.sheetId, fraTid: flytt.foerFra, tilTid: flytt.foerTil },
+            data: { fraTid: flytt.nyFra, tilTid: flytt.nyTil, ...(flytt.timer != null ? { timer: flytt.timer } : {}) },
+          });
+          if (count !== 1) {
+            throw new TRPCError({ code: "CONFLICT", message: "Jobben er endret. Lukk vinduet og prøv igjen." });
+          }
+          await sjekkTimerOverlapp(tx, input.sheetId, input.fraTid, input.tilTid);
+        }
         const ny = await tx.sheetTimer.create({
           data: {
             ...byggTimerRadData(

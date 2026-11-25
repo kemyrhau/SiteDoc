@@ -432,6 +432,111 @@ export function finnReiseSomEnderPaaKontor(
   return null;
 }
 
+// ============================================================================
+//  O20 (vedtak-timer-web.md § Reisevinduet pkt 26): en reise ført fra et kort som bare overlapper
+//  kanten av jobben i SAMME kort, gir knappen «Flytt jobbens start/slutt». Jobben er kortets
+//  arbeidsrader (ikke reise, ikke arbeidstid-reise, ikke erstattet). «Til byggeplass» flytter
+//  starten på den tidligste raden til reisens slutt; «Fra byggeplass» slutten på den seneste til
+//  reisens start. Overlapper reisen noe annet etter flyttingen, finnes ingen flytting (sperren
+//  står). Én regel for vinduet og serveren (`tilfoyTimerRad` `flyttRad`).
+// ============================================================================
+
+/** En rad på sedelen, slik kantflyttingen ser den. */
+export interface KantFlyttRad {
+  id: string;
+  fraTid: string | null;
+  tilTid: string | null;
+  erReise: boolean;
+  /** Reise ført som arbeidstid (`arbeidReiseRetning` satt) — er ikke jobb. */
+  arbeidReise?: boolean;
+  kortId?: string | null;
+  attestertStatus?: string | null;
+  /** Radens timer. Utelatt → jobbens timer regnes ikke. */
+  timer?: number | null;
+}
+
+/** Flyttingen knappen gjør, og jobben etterpå. */
+export interface KantFlytt {
+  radId: string;
+  /** «start»: radens Fra blir `tid`. «slutt»: radens Til blir `tid`. */
+  kant: "start" | "slutt";
+  tid: string;
+  /** Den flyttede radens timer etter flyttingen (pausen står). null når timer mangler. */
+  radTimer: number | null;
+  /** Jobbens Fra–til og sum timer etter flyttingen. */
+  jobbFra: string;
+  jobbTil: string;
+  jobbTimer: number | null;
+}
+
+const runde2 = (v: number) => Math.round(v * 100) / 100;
+
+/**
+ * Finner kantflyttingen for en ny reise i kortet `kortId`, ellers null.
+ *  - «ut» (Til byggeplass): reisen starter på eller før den tidligste radens start og slutter
+ *    etter starten, men før radens slutt.
+ *  - «retur» (Fra byggeplass): speilvendt mot den seneste radens slutt.
+ * Raden må bli minst 1 minutt og beholde timer over 0. En attestert rad flyttes ikke.
+ */
+export function finnKantFlytt(a: {
+  reise: { fraTid: string | null; tilTid: string | null };
+  retning: "ut" | "retur";
+  kortId: string | null | undefined;
+  rader: readonly KantFlyttRad[];
+}): KantFlytt | null {
+  const rF = klokkeTilMin(a.reise.fraTid);
+  const rT = klokkeTilMin(a.reise.tilTid);
+  if (!a.kortId || rF == null || rT == null || rT <= rF) return null;
+  const aktive = a.rader.filter((r) => r.attestertStatus !== "erstattet");
+  const jobb = aktive.filter(
+    (r) =>
+      r.kortId === a.kortId &&
+      !r.erReise &&
+      !r.arbeidReise &&
+      klokkeTilMin(r.fraTid) != null &&
+      klokkeTilMin(r.tilTid) != null,
+  );
+  if (jobb.length === 0) return null;
+  const fra = (r: KantFlyttRad) => klokkeTilMin(r.fraTid) as number;
+  const til = (r: KantFlyttRad) => klokkeTilMin(r.tilTid) as number;
+  const kant =
+    a.retning === "ut"
+      ? [...jobb].sort((x, y) => fra(x) - fra(y))[0]!
+      : [...jobb].sort((x, y) => til(y) - til(x))[0]!;
+  if (kant.attestertStatus === "attestert") return null;
+  const kF = fra(kant);
+  const kT = til(kant);
+  let nyF = kF;
+  let nyT = kT;
+  if (a.retning === "ut") {
+    if (!(rF <= kF && rT > kF && rT < kT)) return null;
+    nyF = rT;
+  } else {
+    if (!(rT >= kT && rF < kT && rF > kF)) return null;
+    nyT = rF;
+  }
+  const bortMin = nyF - kF + (kT - nyT);
+  const radTimer = kant.timer == null ? null : runde2(kant.timer - bortMin / 60);
+  if (radTimer != null && radTimer <= 0) return null;
+  const tid = minTilKlokke(a.retning === "ut" ? nyF : nyT);
+  // Etter flyttingen kan reisen ikke overlappe noe (andre kort, rader midt i jobben, reiser).
+  const etter = aktive.map((r) =>
+    r.id === kant.id ? { ...r, fraTid: minTilKlokke(nyF), tilTid: minTilKlokke(nyT) } : r,
+  );
+  if (finnOverlappendeTidsrom(a.reise.fraTid, a.reise.tilTid, etter)) return null;
+  const jobbEtter = jobb.map((r) => (r.id === kant.id ? { f: nyF, t: nyT, timer: radTimer } : { f: fra(r), t: til(r), timer: r.timer ?? null }));
+  const harTimer = jobbEtter.every((r) => r.timer != null);
+  return {
+    radId: kant.id,
+    kant: a.retning === "ut" ? "start" : "slutt",
+    tid,
+    radTimer,
+    jobbFra: minTilKlokke(Math.min(...jobbEtter.map((r) => r.f))),
+    jobbTil: minTilKlokke(Math.max(...jobbEtter.map((r) => r.t))),
+    jobbTimer: harTimer ? runde2(jobbEtter.reduce((s, r) => s + (r.timer as number), 0)) : null,
+  };
+}
+
 /**
  * Dagens ramme for reise-kortet: første fraTid og siste tilTid blant
  * sedelens arbeidsrader (ikke reise, ikke overføring). Rader uten gyldig tid

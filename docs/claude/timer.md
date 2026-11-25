@@ -1175,6 +1175,18 @@ Hjemmel: [vedtak-timer-web.md § Reisevinduet](vedtak-timer-web.md) punkt 20 (bl
 - **i18n:** 17 nye nøkler (`timer.reiseKort.delesVedMidnatt`, `startetKveldenFoer`, `naboSedel*`, `sperre.paaKontor`, `delLaast`, `rettDel.*`; `timer.reise.fortsetter`, `fortsattFra`, `deltSlettLaast`, `deltSlett.*`), alle 15 språk.
 - **Tester:** `packages/shared/src/utils/reiseManuell-o19.test.ts`; `reisevindu.test.tsx` «O19 — reisevinduet: pkt 20, 23–25»; `o14-penn-reise.test.tsx` «O19»; `jobbSkjema.test.ts` `senesteTilTid`; `components/attestering/__tests__/reise-rad-merke-o19.test.tsx`; `apps/api/src/routes/timer/dagsseddel-delt-reise.integration.test.ts` (10).
 
+### Reisevinduet: «Flytt jobbens start/slutt» (O20) — 🟡 `feat/reise-flytt-jobb`, ikke merget
+
+Hjemmel: [vedtak-timer-web.md § Reisevinduet](vedtak-timer-web.md) punkt 26 (ordre REISE-FLYTT-JOBB 2026-11-25). Bare web. Ingen migrering.
+
+- **Når knappen vises:** ny reise (ikke retting, ikke midnattsdeling, ikke kontorvalg, ikke pkt 25) fra et prosjektkort, der overlappen bare gjelder jobbens kantrad i samme kort: «Til byggeplass» som starter før eller på jobbens start og slutter inne i jobben → «Flytt jobbens start til {reisens slutt}»; «Fra byggeplass» som starter inne i jobben og slutter på eller etter jobbens slutt → «Flytt jobbens slutt til {reisens start}». Jobb = kortets rader som ikke er reise, ikke arbeidstid-reise og ikke erstattet; kantraden er tidligste rad (start) eller seneste (slutt). Attestert kantrad, timer ≤ 0 etter flytting eller overlapp med noe annet etter flytting → ingen knapp, sperren står (`finnKantFlytt`, `packages/shared/src/utils/reiseManuell.ts:481`).
+- **Lagring:** knappen følger samme vei som vinduets lagreknapp (under terskel: som «Før som reisetid likevel»; over: som «Lagre»; kortsjekken spør først), men sender `flyttRad: { radId, nyFra | nyTil }` med `tilfoyTimerRad`. Serveren (`planleggKantFlytt`, `apps/api/src/routes/timer/dagsseddel.ts:2932`) krever reise i jobbens kort (`reiseIKort`), utleder retningen av kanten, regner `finnKantFlytt` på sedelens rader og godtar bare samme rad, kant og tid. I transaksjonen flyttes raden betinget på tidene den hadde (ellers CONFLICT «Jobben er endret …»), overlapp sjekkes, reisen opprettes, og maskinvakten (w9) ruller alt tilbake om maskintimene ville passert jobbens timer.
+- **Timer:** kantraden får `timer = før − flyttede minutter/60` når lønnsarten er timebasert; pausen står. Ikke-timebaserte lønnsarter beholder timer. Linja under knappen viser jobbens sum avrundet til én desimal («9,2 t»); lagret er 9,17.
+- **Maskin og tillegg:** maskinrader har ingen fra–til på web (§ 8.22) og flyttes ikke; tillegg har ingen tid. To timerader kan ikke dele Fra–til (overlappregelen), så bare kantraden flyttes.
+- ⚠️ **Overtidssplitt (funn, ikke rettet):** står jobben som normal + overtid (O5), forkortes bare kantraden; «Til» flytter normalraden og overtidsraden står med sine timer.
+- **i18n:** `timer.reiseKort.flyttJobb.start`, `.slutt`, `.blir`, `.blirUtenTimer`, alle 15 språk.
+- **Tester:** `reiseManuell-o20.test.ts` (13), `reisevindu.test.tsx` «O20» (6), `o20-flytt-jobb.integration.test.ts` (10, ekte Postgres). Negativkontroll: integrasjonstestene mot develops `dagsseddel.ts` → 4 av 10 røde (Til, Fra, ikke-kant, Zod); de grønne er sperre- og rettighetsvaktene.
+
 ### Returnert sedel: overlappmelding, flytting og spor ved sletting (R1) — ✅ Merget `641bcd41` (2026-11-23), ikke deployet
 
 Kenneth 2026-11-23: (a) ja, b1 ja, b2 nei, b3 ja. Delte regler i `packages/shared/src/utils/returSedel.ts` (`aktiveTimerRader`, `beskrivOverlapp`, `reiseUtenforArbeid`, `linjeKanFlyttes`).

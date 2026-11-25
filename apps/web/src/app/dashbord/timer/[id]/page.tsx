@@ -1825,6 +1825,9 @@ export default function DagsseddelDetaljSide() {
           aktivitetId={sheetAktivitetId ?? null}
           // w15b: radene bærer kort, sted og prosjekt — overlapp-sperren og linja «havner i».
           dagsrader={timerRader.filter((r) => aktivModal.type !== "reiseRediger" || r.id !== aktivModal.rad.id).map((r) => ({
+            // O20 (pkt 26): «Flytt jobbens start/slutt» trenger radens id og timer.
+            id: r.id,
+            timer: Number(r.timer),
             fraTid: r.fraTid,
             tilTid: r.tilTid,
             erReise: r.erReise ?? false,

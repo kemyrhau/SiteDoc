@@ -143,6 +143,8 @@ function rendre({
   perioder = [FAST_TROMSO] as OppmotePeriodeInput[],
   /** O18 S1: kjøretid Narvik → b1 (230 = over terskel). */
   narvikMin = 230,
+  /** O20: firmaets reiseregel (terskel). */
+  regel = REGEL,
 } = {}) {
   h.kall = [];
   h.utelat.clear();
@@ -187,7 +189,7 @@ function rendre({
       timerRegistreringsmodus: "prosjektkort",
       reiseLonnsartId: "lr",
       reiseGrenser: [],
-      ...REGEL,
+      ...regel,
     },
     "oppmotested.hentForFirma": steder,
     "oppmotested.hentMatriseForFirma": [
@@ -880,5 +882,83 @@ describe("O19 — reisevinduet: pkt 20, 23–25", () => {
     const d = rendre({ timer: [kontorreise(), arbeid()], perioder: [FAST_TROMSO, narvikEgen] });
     fireEvent.click(knapp(d, "timer.reiseKort.retur"));
     expect(within(d).queryByTestId("reise-paa-kontor")).toBeNull();
+  });
+});
+
+describe("O20 (vedtak-timer-web § Reisevinduet pkt 26) — «Flytt jobbens start/slutt»", () => {
+  afterEach(cleanup);
+  // Siljes dag: én arbeidsrad 07:00–17:30, 30 min pause = 10,0 t.
+  const jobb = () => arbeid({ fraTid: "07:00", tilTid: "17:30", timer: "10", pauseMin: 30 });
+  const OVER = { ...REGEL, reiseTerskelMin: 2 };
+  const flyttBoks = (d: HTMLElement) => within(d).queryByTestId("reise-flytt-jobb");
+  const settTid = (d: HTMLElement, fra: string, til: string) => {
+    fireEvent.change(slutt(d), { target: { value: til } });
+    fireEvent.change(start(d), { target: { value: fra } });
+  };
+  const tilfoyKall = () => h.kall.find((k) => k.key === "timer.dagsseddel.tilfoyTimerRad")?.input;
+
+  it("Til-reise 07:00–07:50 under terskel: knappen flytter jobbens start og lagrer reisen (Reisetid) i ett kall", async () => {
+    const d = rendre({ timer: [jobb()] });
+    settTid(d, "07:00", "07:50");
+    // Overlapp-teksten står, og den gamle knappen er fortsatt sperret.
+    expect(d.textContent).toContain("timer.feil.overlappKort");
+    expect(lagreKnapp(d).disabled).toBe(true);
+    const boks = flyttBoks(d)!;
+    expect(boks.textContent).toContain('timer.reiseKort.flyttJobb.blir{"fra":"07:50","til":"17:30","timer":"9,2"}');
+    fireEvent.click(within(boks).getByRole("button", { name: 'timer.reiseKort.flyttJobb.start{"tid":"07:50"}' }));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(tilfoyKall()).toMatchObject({
+      fraTid: "07:00",
+      tilTid: "07:50",
+      lonnsartId: "lr",
+      kortId: "k1",
+      reiseIKort: true,
+      flyttRad: { radId: "r1", nyFra: "07:50" },
+    });
+  });
+
+  it("Fra-reise 17:00–17:40 over terskel: knappen flytter jobbens slutt til 17:00", async () => {
+    const d = rendre({ timer: [jobb()], regel: OVER });
+    fireEvent.click(knapp(d, "timer.reiseKort.retur"));
+    fireEvent.change(start(d), { target: { value: "17:00" } });
+    fireEvent.change(slutt(d), { target: { value: "17:40" } });
+    const boks = flyttBoks(d)!;
+    expect(boks.textContent).toContain('timer.reiseKort.flyttJobb.blir{"fra":"07:00","til":"17:00","timer":"9,5"}');
+    fireEvent.click(within(boks).getByRole("button", { name: 'timer.reiseKort.flyttJobb.slutt{"tid":"17:00"}' }));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(tilfoyKall()).toMatchObject({ fraTid: "17:00", tilTid: "17:40", flyttRad: { radId: "r1", nyTil: "17:00" } });
+    expect((tilfoyKall()!.flyttRad as Record<string, unknown>).nyFra).toBeUndefined();
+  });
+
+  it("negativkontroll: ingen overlapp → ingen knapp, og «Lagre» sender ingen flytting", async () => {
+    const d = rendre({ timer: [jobb()], regel: OVER });
+    settTid(d, "06:10", "07:00");
+    expect(flyttBoks(d)).toBeNull();
+    const input = (await lagre(d))!;
+    expect(input.flyttRad).toBeUndefined();
+  });
+
+  it("regresjon: reise midt i jobben sperrer som før, ingen knapp", () => {
+    const d = rendre({ timer: [jobb()] });
+    settTid(d, "10:00", "10:30");
+    expect(d.textContent).toContain("timer.feil.overlappKort");
+    expect(flyttBoks(d)).toBeNull();
+    expect(lagreKnapp(d).disabled).toBe(true);
+  });
+
+  it("regresjon: overlapp med et annet kort sperrer som før, ingen knapp", () => {
+    const annen = arbeid({ id: "r2", fraTid: "06:00", tilTid: "07:10", timer: "1.17", kortId: "k2", projectId: "p2", byggeplassId: "b2" });
+    const d = rendre({ timer: [jobb(), annen] });
+    settTid(d, "07:00", "07:50");
+    expect(flyttBoks(d)).toBeNull();
+    expect(lagreKnapp(d).disabled).toBe(true);
+  });
+
+  it("feil retning: «Fra byggeplass» mot jobbens start gir ingen knapp", () => {
+    const d = rendre({ timer: [jobb()], regel: OVER });
+    fireEvent.click(knapp(d, "timer.reiseKort.retur"));
+    fireEvent.change(start(d), { target: { value: "07:00" } });
+    fireEvent.change(slutt(d), { target: { value: "07:50" } });
+    expect(flyttBoks(d)).toBeNull();
   });
 });
