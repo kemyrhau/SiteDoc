@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, type KeyboardEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { Pencil, Scissors, X } from "lucide-react";
+import { Pencil, Scissors, Undo2, X } from "lucide-react";
 import { Button } from "@sitedoc/ui";
 import { effektiveTimerFraSpenn, erReiseLonnsart, maskinHoystPerRad, overMaskinHoyst, tolkKlokkeslett, type ErReiseKontekst } from "@sitedoc/shared";
 import { trpc } from "@/lib/trpc";
@@ -74,6 +74,8 @@ interface Props {
   parRolle?: "a" | "b";
   /** D2a: «Del opp» er utført; kortet B fikk denne kort-id-en. */
   onDelt?: (kortIdB: string) => void;
+  /** D2h: kort B er slått sammen med kort A igjen («↶ Angre del opp»). */
+  onAngret?: (kortIdA: string) => void;
   /** D2b: kortene en linje kan flyttes til (`flyttMaal`). I paret bare partneren. */
   flyttMaal?: readonly FlyttMaal[];
 }
@@ -126,7 +128,7 @@ export function jobbensTidsrom(rader: readonly { fraTid: string | null; tilTid: 
   return { fra: fraMin(Math.min(...fra)), til: fraMin(Math.max(...til)) };
 }
 
-export function RegistreringPanel({ kort, sedel, orgId, kanAttestere, kanRette, lonnsarter, tidsrunding = null, kanSplitte, onSplitt, onRedigerJobb, onEndret, onLukk, prosjektKontekst, parRolle, onDelt, flyttMaal = [] }: Props) {
+export function RegistreringPanel({ kort, sedel, orgId, kanAttestere, kanRette, lonnsarter, tidsrunding = null, kanSplitte, onSplitt, onRedigerJobb, onEndret, onLukk, prosjektKontekst, parRolle, onDelt, onAngret, flyttMaal = [] }: Props) {
   const { t } = useTranslation();
   const [feil, setFeil] = useState<string | null>(null);
   const [delOpp, setDelOpp] = useState(false);
@@ -239,6 +241,12 @@ export function RegistreringPanel({ kort, sedel, orgId, kanAttestere, kanRette, 
   // Eldre rader uten kortId er ingen jobb — serveren avviser «hele jobben» og del opp for dem.
   const jobbId = forste?.kortId ?? tilleggForste?.kortId ?? null;
   const kanFlytte = kanAttestere && alleVenter && kort.projectId !== null && jobbId !== null;
+  // D2h: «↶ Angre del opp» på kort B som kom fra «Del opp» — serveren sier hvilke kort (`angreDelOppKort`).
+  const kanAngre = kanRette && jobbId !== null && (sedel.angreDelOppKort ?? []).includes(jobbId);
+  const angreDel = trpc.timer.dagsseddel.angreDelJobb.useMutation({
+    onSuccess: (d: { kortIdA: string }) => { setFeil(null); onEndret(); onAngret?.(d.kortIdA); },
+    onError: (e: { message: string }) => setFeil(e.message),
+  });
 
   function velgEco(ecoId: string | null) {
     if (ecoId === naaEco) return;
@@ -328,6 +336,19 @@ export function RegistreringPanel({ kort, sedel, orgId, kanAttestere, kanRette, 
           )}
         </div>
         <span className="flex shrink-0 items-center gap-2">
+          {kanAngre && jobbId && (
+            <button
+              type="button"
+              data-angre-del-opp=""
+              onClick={() => angreDel.mutate({ sheetId: kort.sheetId, kortId: jobbId })}
+              disabled={angreDel.isPending}
+              title={t("timer.attestering.registrering.angreDelOppHjelp")}
+              className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            >
+              <Undo2 className="h-3.5 w-3.5" />
+              {t("timer.attestering.registrering.angreDelOpp")}
+            </button>
+          )}
           {onRedigerJobb && (
             <button
               type="button"

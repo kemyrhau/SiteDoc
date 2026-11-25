@@ -467,7 +467,7 @@ export type SedelForKorrigering = {
   maskiner: ReadonlyArray<RadForKorrigering>;
 };
 
-const RETTE_HANDLINGER = ["rett_rad_felt", "rediger_sedel_rader", "splitt_rad", "del_jobb", "flytt_linje"] as const;
+const RETTE_HANDLINGER = ["rett_rad_felt", "rediger_sedel_rader", "splitt_rad", "del_jobb", "flytt_linje", "angre_del_jobb"] as const;
 
 /**
  * Verdiene en rad fikk, slik merket regner dem — skrives pr. rad-id i loggen fra ✂ og «Del opp»
@@ -529,8 +529,9 @@ async function lastKorrigeringsHendelser(
       .filter((l) => l.targetId === p.sheetId && l.actorUserId === p.erstattetAvUserId && l.createdAt.getTime() >= t0 && l.createdAt.getTime() - t0 <= LOGG_VINDU_MS)
       .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())[0];
     const payload = (treff?.payload ?? null) as { nyeSnapshot?: unknown; etterPrRad?: Record<string, Record<string, unknown>> } | null;
-    // ✂, «Del opp» og «→ Kort B» (D2b): verdiene pr. rad-id (eldre poster uten dem faller tilbake på raden nå).
-    const etterPrRad = treff && (treff.action === "splitt_rad" || treff.action === "del_jobb" || treff.action === "flytt_linje") ? (payload?.etterPrRad ?? null) : null;
+    // ✂, «Del opp», «→ Kort B» (D2b) og «↶ Angre del opp» (D2h): verdiene pr. rad-id (eldre poster
+    // uten dem faller tilbake på raden nå). Angringen setter verdiene fra før delingen — før = etter gir ingen merke.
+    const etterPrRad = treff && (treff.action === "splitt_rad" || treff.action === "del_jobb" || treff.action === "flytt_linje" || treff.action === "angre_del_jobb") ? (payload?.etterPrRad ?? null) : null;
     const nye = treff && !etterPrRad && payload?.nyeSnapshot && !Array.isArray(payload.nyeSnapshot)
       ? ((payload.nyeSnapshot as Record<string, unknown>)[radType] as Array<Record<string, unknown>> | undefined)
       : undefined;
