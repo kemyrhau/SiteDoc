@@ -84,19 +84,19 @@ export function serverGjesteprosjekter(
  * lokal cache frakoblet — og bare prosjekter der eier-firmaet ≠ valgt firma. Et valgt
  * firma brukeren ikke er ansatt i (typisk sitedoc_admin) skal ha sine prosjekter i
  * hovedlista, ikke under «Prosjekter i andre firma».
- * ADMIN-GJEST (Kenneth 2026-11-25): sitedoc_admin i et firma hen ikke er ansatt i
- * (`adminIFremmedFirma`) ser ingen gjestegruppe — velgeren som firmaets ansatte ser den.
+ * ADMIN-UTEN-GJESTEGRUPPE (Kenneth 2026-11-26, utvider ADMIN-GJEST): sitedoc_admin
+ * (`adminUtenGjestegruppe`) ser ingen gjestegruppe — heller ikke i eget firma.
  */
 export function velgerGjesteprosjekter(input: {
   visning: "server" | "lokal" | string;
   server: GjesteprosjektRad[];
   lokale: GjesteprosjektRad[];
   valgtFirmaId: string | null;
-  adminIFremmedFirma: boolean;
+  adminUtenGjestegruppe: boolean;
 }): GjesteprosjektRad[] {
   const kilde =
     input.visning === "server" ? input.server : input.visning === "lokal" ? input.lokale : [];
-  return velgerGjestegruppe(kilde, input.valgtFirmaId, input.adminIFremmedFirma);
+  return velgerGjestegruppe(kilde, input.valgtFirmaId, input.adminUtenGjestegruppe);
 }
 
 /** Hovedlista uten prosjekter som vises i gjestegruppen. */

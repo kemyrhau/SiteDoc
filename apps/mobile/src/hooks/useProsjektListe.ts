@@ -11,7 +11,7 @@ import {
   type GjesteprosjektRad,
 } from "../utils/gjesteprosjektListe";
 import {
-  erAdminIFremmedFirma,
+  erAdminUtenGjestegruppe,
   velgHjemProsjektVisning,
   type HjemProsjektVisning,
 } from "@sitedoc/shared";
@@ -57,13 +57,11 @@ export interface ProsjektListeResultat {
 
 export function useProsjektListe(): ProsjektListeResultat {
   const { erPaaNettet } = useNettverk();
-  const { valgtFirmaId, firmaer, lasterFirmaer, erAnsattIFirma, erAnsattIValgtFirma } = useFirma();
-  // ADMIN-GJEST (Kenneth 2026-11-25): rolle som i DagsseddelListe (TILLEGG (14)).
+  const { valgtFirmaId, firmaer, lasterFirmaer, erAnsattIFirma } = useFirma();
+  // ADMIN-UTEN-GJESTEGRUPPE (Kenneth 2026-11-26): sitedoc_admin ser aldri gjestegruppen,
+  // heller ikke i eget firma. Rolle som i DagsseddelListe (TILLEGG (14)).
   const minBruker = trpc.bruker.hentMin.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
-  const adminIFremmedFirma = erAdminIFremmedFirma({
-    rolle: minBruker.data?.role,
-    erAnsattIValgtFirma,
-  });
+  const adminUtenGjestegruppe = erAdminUtenGjestegruppe(minBruker.data?.role);
 
   const query = trpc.prosjekt.hentMine.useQuery(
     { organizationId: valgtFirmaId ?? undefined },
@@ -109,9 +107,9 @@ export function useProsjektListe(): ProsjektListeResultat {
       server: data ? serverGjesteprosjekter(data) : [],
       lokale: lokaleGjester,
       valgtFirmaId: valgtFirmaId ?? null,
-      adminIFremmedFirma,
+      adminUtenGjestegruppe,
     });
-  }, [visning, gjesteQuery.data, lokaleGjester, valgtFirmaId, adminIFremmedFirma]);
+  }, [visning, gjesteQuery.data, lokaleGjester, valgtFirmaId, adminUtenGjestegruppe]);
 
   const prosjekter = useMemo<ProsjektRad[]>(() => {
     if (visning === "server") {

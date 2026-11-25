@@ -3,7 +3,7 @@ import {
   erGjesteprosjekt,
   skjulFirmaModulForGjest,
   gjesteprosjekterIAndreFirma,
-  erAdminIFremmedFirma,
+  erAdminUtenGjestegruppe,
   velgerGjestegruppe,
   gjesteIderForNullstilling,
   skalNullstilleProsjekt,
@@ -61,41 +61,53 @@ describe("gjesteprosjekterIAndreFirma — (16) punkt 2", () => {
   });
 });
 
-describe("ADMIN-GJEST — velgerens gjestegruppe og nullstilling (Kenneth 2026-11-25)", () => {
+describe("ADMIN-UTEN-GJESTEGRUPPE — velgerens gjestegruppe og nullstilling (Kenneth 2026-11-26)", () => {
   const SITEDOC = "sitedoc";
   const Z = "martin-wulf";
   const P = { id: "p-sitedoc", primaryOrganizationId: SITEDOC };
-  const gruppe = (rolle: string, erAnsatt: boolean | null) =>
-    velgerGjestegruppe([P], Z, erAdminIFremmedFirma({ rolle, erAnsattIValgtFirma: erAnsatt }));
+  // Prosessanlegg-tilfellet: admin står i eget firma (SITEDOC), gjesteprosjektet eies av Z.
+  const PZ = { id: "p-prosessanlegg", primaryOrganizationId: Z };
+  const gruppe = (rolle: string | null, valgtFirma: string, gjester = [P]) =>
+    velgerGjestegruppe(gjester, valgtFirma, erAdminUtenGjestegruppe(rolle));
 
-  it("🔴 admin + ikke ansatt i valgt firma → tom gruppe", () => {
-    expect(gruppe("sitedoc_admin", false)).toEqual([]);
+  it("🔴 admin i eget firma → tom gruppe", () => {
+    expect(gruppe("sitedoc_admin", SITEDOC, [PZ])).toEqual([]);
   });
-  it("admin + ansatt i valgt firma → gruppen vises", () => {
-    expect(gruppe("sitedoc_admin", true).map((p) => p.id)).toEqual(["p-sitedoc"]);
+  it("admin i fremmed firma → tom gruppe (ADMIN-GJEST står)", () => {
+    expect(gruppe("sitedoc_admin", Z)).toEqual([]);
   });
-  it("admin + ukjent ansatt-status → gruppen vises (dagens atferd)", () => {
-    expect(gruppe("sitedoc_admin", null).map((p) => p.id)).toEqual(["p-sitedoc"]);
+  it("regresjon: vanlig bruker ser fortsatt gruppen", () => {
+    expect(gruppe("user", SITEDOC, [PZ]).map((p) => p.id)).toEqual(["p-prosessanlegg"]);
   });
-  it("vanlig bruker, ikke ansatt i valgt firma → gruppen vises", () => {
-    expect(gruppe("user", false).map((p) => p.id)).toEqual(["p-sitedoc"]);
+  it("regresjon: company_admin ser fortsatt gruppen", () => {
+    expect(gruppe("company_admin", SITEDOC, [PZ]).map((p) => p.id)).toEqual(["p-prosessanlegg"]);
+  });
+  it("ukjent rolle (laster) → gruppen vises (ingen admin-atferd)", () => {
+    expect(gruppe(null, SITEDOC, [PZ]).map((p) => p.id)).toEqual(["p-prosessanlegg"]);
   });
   it("(16) står: eget-firma-prosjekt i valgt firma er ikke i gruppen", () => {
     const iZ = { id: "p-z", primaryOrganizationId: Z };
     expect(velgerGjestegruppe([P, iZ], Z, false).map((p) => p.id)).toEqual(["p-sitedoc"]);
   });
 
-  const nullstill = (adminIFremmed: boolean) =>
+  const nullstill = (rolle: string, valgtFirma: string, prosjekt: typeof P) =>
     skalNullstilleProsjekt({
-      valgtFirmaId: Z,
-      prosjekt: P,
-      gjesteIder: gjesteIderForNullstilling([P.id], adminIFremmed),
+      valgtFirmaId: valgtFirma,
+      prosjekt,
+      gjesteIder: gjesteIderForNullstilling([prosjekt.id], erAdminUtenGjestegruppe(rolle)),
       lasterGjester: false,
     });
-  it("🔴 A: admin i fremmed firma → valgt gjesteprosjekt nullstilles", () => {
-    expect(nullstill(true)).toBe(true);
+  it("🔴 admin i eget firma med valgt gjesteprosjekt → valget nullstilles", () => {
+    expect(nullstill("sitedoc_admin", SITEDOC, PZ)).toBe(true);
   });
-  it("ellers beholdes valgt gjesteprosjekt (15)", () => {
-    expect(nullstill(false)).toBe(false);
+  it("admin i fremmed firma → valgt gjesteprosjekt nullstilles (tillegg A står)", () => {
+    expect(nullstill("sitedoc_admin", Z, P)).toBe(true);
+  });
+  it("admin: gjesteprosjekt eid av valgt firma beholdes", () => {
+    expect(nullstill("sitedoc_admin", Z, PZ)).toBe(false);
+  });
+  it("regresjon: vanlig bruker og company_admin beholder valgt gjesteprosjekt (15)", () => {
+    expect(nullstill("user", SITEDOC, PZ)).toBe(false);
+    expect(nullstill("company_admin", SITEDOC, PZ)).toBe(false);
   });
 });

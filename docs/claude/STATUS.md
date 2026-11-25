@@ -11,7 +11,8 @@
 > - `Arbeidsanker:` — bruks-aktiv (pågående arbeid, endres ofte)
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
-**Sist oppdatert:** 2026-11-25
+**Sist oppdatert:** 2026-11-26
+- 2026-11-26 — **`web.md` + `mobil.md` «Prosjekter i andre firma» + `hjelpetekster.md`: ADMIN-UTEN-GJESTEGRUPPE — sitedoc-admin ser aldri gruppen, heller ikke i eget firma, og et valgt gjesteprosjekt utenfor valgt firma nullstilles også uten firmabytte** (branch `fix/admin-uten-gjestegruppe`, kode + docs, web-timer-w5, ⚠️ venter Kontrollør-gate). Ingen fil opprettet eller slettet i docs/claude — tellingene er uendret.
 - 2026-11-25 — **`vedtak-timer-web.md` § Reisevinduet pkt 30 (ny) + `timer.md` (O24) + `hjelpetekster.md`: REISE-MERKE-UTEN-OPPMOTE — reise ført uten oppmøtested får merket «uten oppmøtested» i attesteringens rutelinje** (branch `fix/reise-merke-uten-oppmote`, kode + docs, o13, ⚠️ venter Kontrollør-gate). Ingen fil opprettet eller slettet i docs/claude — tellingene er uendret.
 - 2026-11-25 — **`vedtak-timer-web.md` § Reisevinduet pkt 29 (ny; pkt 27 rettet) + `timer.md` (O23, O21) + `hjelpetekster.md` + `packages/shared/src/utils/CLAUDE.md`: REISE-FRA-SLUTT-I-JOBB — «Fra byggeplass» med Slutt inne i jobben flytter Start til Slutt − kjøretid, og Slutt inne i jobben leses aldri som reise over midnatt** (branch `fix/reise-fra-slutt-i-jobb` på `fix/reise-uten-oppmotested`, kode + docs, o13, ⚠️ venter Kontrollør-gate). Ingen fil opprettet eller slettet i docs/claude — tellingene er uendret.
 - 2026-11-25 — **`vedtak-timer-web.md` § Reisevinduet pkt 28 (ny) + `timer.md` (Oppmøtested med perioder, Reise-kort-regelen) + `hjelpetekster.md` + `mobil.md` + `packages/shared/src/utils/CLAUDE.md`: REISE-UTEN-OPPMOTESTED — uten oppmøtested fører arbeideren reisetiden selv (web + mobil, offline), blå tekst ber firmaadmin legge inn stedet; vedtaket 2026-11-15 om sperre rettet** (branch `fix/reise-uten-oppmotested`, kode + docs, o13, ⚠️ venter Kontrollør-gate).

@@ -11,7 +11,7 @@ import { ruteErFirmaKontekst } from "@/lib/ruteKontekst";
 import { erProsjektRadValgt } from "@/lib/prosjektvelger";
 import {
   velgerGjestegruppe,
-  erAdminIFremmedFirma,
+  erAdminUtenGjestegruppe,
   antallByggeplasser,
   vedProsjektTrykk,
   vedByggeplassTrykk,
@@ -97,7 +97,6 @@ export function KontekstChip() {
     tilgjengelige,
     velgFirma,
     erSitedocAdmin,
-    erAnsattIValgtFirma,
   } = useFirma();
   const {
     valgtProsjekt,
@@ -255,12 +254,12 @@ export function KontekstChip() {
   // for vanlige brukere uavhengig av valgt firma).
   // (16): gruppen tar bare prosjekter der eier-firmaet ≠ valgt firma. Har brukeren valgt et
   // firma hen ikke er ansatt i (sitedoc_admin), står det firmaets prosjekter i hovedlista.
-  // ADMIN-GJEST (Kenneth 2026-11-25): sitedoc_admin i et firma hen ikke er ansatt i ser
-  // velgeren som firmaets ansatte — gruppen skjules (`velgerGjestegruppe`, @sitedoc/shared).
+  // ADMIN-UTEN-GJESTEGRUPPE (Kenneth 2026-11-26): sitedoc_admin ser aldri gruppen — heller
+  // ikke i eget firma; admin bytter firma først (`velgerGjestegruppe`, @sitedoc/shared).
   const andreFirmaProsjekter = velgerGjestegruppe(
     gjesteprosjekter,
     valgtFirma?.id,
-    erAdminIFremmedFirma({ rolle: erSitedocAdmin ? "sitedoc_admin" : null, erAnsattIValgtFirma }),
+    erAdminUtenGjestegruppe(erSitedocAdmin ? "sitedoc_admin" : null),
   );
   const gjesteIdSet = new Set(andreFirmaProsjekter.map((p) => p.id));
   const prosjektKilde = (
