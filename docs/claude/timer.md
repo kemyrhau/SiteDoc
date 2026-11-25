@@ -1204,6 +1204,14 @@ Vedtak: `vedtak-timer-web.md` § Reisevinduet pkt 29 (Kenneth 2026-11-25).
 - **Står som før:** Slutt før/på jobbens start, Slutt etter jobben, kort uten jobb, O14-retting, dagskort-visning (uten `jobbKortId` sendes ingen jobb, og Slutt før Start deles over midnatt som før), mobil, «Til byggeplass».
 - **Tester:** `reiseManuell-o23.test.ts` (12), `reisevindu.test.tsx` «O23» (8). Negativkontroll: «O23» mot `0a7fc689`s `ReiseKort.tsx` + `useManuellReiseWeb.ts` → 5 av 8 røde (17:00 → 16:56, 17:30 → knapp, mellomverdi, uten kjøretid, uten oppmøtested); de tre regresjonene er grønne.
 
+### Attestering: merket «uten oppmøtested» (O24) — 🟡 `fix/reise-merke-uten-oppmote`, ikke merget
+
+Vedtak: `vedtak-timer-web.md` § Reisevinduet pkt 30 (Kenneth 2026-11-25).
+- **Regel:** `erReiseUtenOppmote(rad)` (`apps/web/src/components/attestering/ReiseRadMerke.tsx:27`) er sann når `erReise`, `reiseKilde = "manuell"`, `reiseOppmotestedId = null` og `reiseRetning` er satt. Da viser `ReiseRadMerke` «uten oppmøtested» (`timer.attestering.reise.utenOppmote`) etter rutelinja, med hover `…reise.utenOppmoteForklaring`.
+- **Hvor:** `ReiseRadMerke` brukes bare i del 8 «Reise» i `RegistreringPanel.tsx:574` (attesteringen, `apps/web/src/app/dashbord/attestering/page.tsx`). Dagsseddelen bruker ikke komponenten og har ikke merket.
+- **Grensen mot eldre rader:** O22 lagrer alltid retning («ut»/«retur») via `løsReiseKortUtenKjoretid` → `tilManuellReiseSpor`. «+ Reise» før L2 (POST 2026-11-14 (9)/(11), `8e074671`/`bab9dd94`) lagret `manuell` uten retning, og oppmøtestedet kunne mangle der uten at det betydde noe — retning null gir derfor aldri merket. Mellom L2 og O22 sperret `oppmoteIkkeValgt` lagring, så ingen slike rader finnes. Manglende kjøretid / uten byggeplass bærer oppmøtestedet og får ikke merket. Overføring krever oppmøtested (`apps/api/src/routes/timer/reise-sporbarhet.ts:341`); matrise krever bare retning, kjøretid, avstand og regel (`:321–333`). Andre kilder enn `manuell` får aldri merket.
+- **Tester:** `reise-rad-merke-o24.test.tsx` (4). 1 av 4 er rød på atferd («merket vises»); de 3 andre (ingen merke med oppmøtested, andre kilder, eldre rad uten retning) er regresjonsvakter. Mot develop feiler 3 av 4 fordi `erReiseUtenOppmote` ikke finnes der — ikke fordi atferden er feil.
+
 ### Returnert sedel: overlappmelding, flytting og spor ved sletting (R1) — ✅ Merget `641bcd41` (2026-11-23), ikke deployet
 
 Kenneth 2026-11-23: (a) ja, b1 ja, b2 nei, b3 ja. Delte regler i `packages/shared/src/utils/returSedel.ts` (`aktiveTimerRader`, `beskrivOverlapp`, `reiseUtenforArbeid`, `linjeKanFlyttes`).
