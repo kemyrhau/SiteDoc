@@ -1096,3 +1096,85 @@ describe("O21 (vedtak-timer-web § Reisevinduet pkt 27) — Start inne i jobben:
     expect(flyttBoks(d)).toBeNull();
   });
 });
+
+describe("O23 (vedtak-timer-web § Reisevinduet pkt 29) — Fra byggeplass: Slutt inne i jobben, Start følger", () => {
+  afterEach(cleanup);
+  // Kenneths dag (B12, 19.11): normal 07:00–15:00 + Overtid 50 % 15:00–17:30. Kjøretid 4 min.
+  const o5Jobb = () => [
+    arbeid({ fraTid: "07:00", tilTid: "15:00", timer: "7.5", pauseMin: 30 }),
+    arbeid({ id: "r2", fraTid: "15:00", tilTid: "17:30", timer: "2.5", pauseMin: 0, lonnsartId: "lot", createdAt: "2026-11-05T07:01:00.000Z" }),
+  ];
+  const flyttBoks = (d: HTMLElement) => within(d).queryByTestId("reise-flytt-jobb");
+  const midnatt = (d: HTMLElement) => within(d).queryByTestId("reise-midnatt-boks");
+  const fra = (d: HTMLElement) => {
+    fireEvent.click(knapp(d, "timer.reiseKort.retur"));
+    return d;
+  };
+
+  it("Kenneths tilfelle: Slutt 17:00 → Start 16:56, ingen deling over midnatt", () => {
+    const d = fra(rendre({ timer: o5Jobb(), o5: true }));
+    expect(start(d).value).toBe("17:30");
+    fireEvent.change(slutt(d), { target: { value: "17:00" } });
+    expect(start(d).value).toBe("16:56");
+    expect(slutt(d).value).toBe("17:00");
+    expect(midnatt(d)).toBeNull();
+    expect(d.textContent).not.toContain("timer.feil.sluttForStart");
+  });
+
+  it("Slutt på jobbens slutt (17:30) → Start 17:26, og «Flytt jobbens slutt til 17:26» vises", () => {
+    const d = fra(rendre({ timer: o5Jobb(), o5: true }));
+    fireEvent.change(slutt(d), { target: { value: "17:30" } });
+    expect(start(d).value).toBe("17:26");
+    expect(within(flyttBoks(d)!).getByRole("button", { name: 'timer.reiseKort.flyttJobb.slutt{"tid":"17:26"}' })).toBeTruthy();
+  });
+
+  it("tidsfeltets mellomverdi (17:34 → 16:34 → 16:50) ender på Start 16:46", () => {
+    const d = fra(rendre({ timer: o5Jobb(), o5: true }));
+    expect(slutt(d).value).toBe("17:34");
+    fireEvent.change(slutt(d), { target: { value: "16:34" } });
+    expect(start(d).value).toBe("16:30");
+    fireEvent.change(slutt(d), { target: { value: "16:50" } });
+    expect(start(d).value).toBe("16:46");
+  });
+
+  it("Start rettet av arbeideren står når Slutt er etter den", () => {
+    const d = fra(rendre({ timer: o5Jobb(), o5: true }));
+    fireEvent.change(slutt(d), { target: { value: "17:00" } });
+    fireEvent.change(start(d), { target: { value: "16:30" } });
+    fireEvent.change(slutt(d), { target: { value: "16:50" } });
+    expect(start(d).value).toBe("16:30");
+  });
+
+  it("regresjon pkt 23: Slutt 01:00 (utenfor jobben) → reisen deles over midnatt som før", () => {
+    const d = fra(rendre({ timer: o5Jobb(), o5: true }));
+    fireEvent.change(slutt(d), { target: { value: "01:00" } });
+    expect(start(d).value).toBe("17:30");
+    expect(midnatt(d)).toBeTruthy();
+  });
+
+  it("regresjon: Slutt etter jobben (17:50) → Start står, som i dag", () => {
+    const d = fra(rendre({ timer: o5Jobb(), o5: true }));
+    fireEvent.change(slutt(d), { target: { value: "17:50" } });
+    expect(start(d).value).toBe("17:30");
+    expect(midnatt(d)).toBeNull();
+    expect(d.textContent).not.toContain("timer.feil.sluttForStart");
+  });
+
+  it("uten kjøretid: Start står, «Slutt-tid må være etter start-tid» — ingen reise på 23,5 t", () => {
+    const d = fra(rendre({ timer: o5Jobb(), o5: true, utenKjoretid: true }));
+    fireEvent.change(slutt(d), { target: { value: "17:00" } });
+    expect(start(d).value).toBe("17:30");
+    expect(midnatt(d)).toBeNull();
+    expect(d.textContent).toContain("timer.feil.sluttForStart");
+    expect(lagreKnapp(d).disabled).toBe(true);
+  });
+
+  it("uten oppmøtested (O22): Start står, sperre — ingen reise på 23,5 t", () => {
+    const d = fra(rendre({ timer: o5Jobb(), o5: true, perioder: [] }));
+    expect(within(d).getByText("timer.reiseKort.utenOppmote")).toBeTruthy();
+    fireEvent.change(slutt(d), { target: { value: "17:00" } });
+    expect(start(d).value).toBe("17:30");
+    expect(midnatt(d)).toBeNull();
+    expect(d.textContent).toContain("timer.feil.sluttForStart");
+  });
+});

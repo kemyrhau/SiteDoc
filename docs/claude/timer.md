@@ -1192,8 +1192,17 @@ Hjemmel: [vedtak-timer-web.md § Reisevinduet](vedtak-timer-web.md) punkt 26 (or
 Vedtak: `vedtak-timer-web.md` § Reisevinduet pkt 27 (Kenneth 2026-11-25).
 - **Regel:** «Til byggeplass», ny reise fra prosjektkortet. Start rettet til jobbens start ≤ Start < jobbens slutt (jobb = som `finnKantFlytt`: kortets rader som ikke er reise, ikke arbeidstid-reise, ikke erstattet) og Start ≥ Slutt → Slutt = Start + firmaets kjøretid (`sluttEtterStartIJobb`, `packages/shared/src/utils/reiseManuell.ts:497`). Reisen overlapper da jobbens start, og O20-knappen kommer.
 - **Følger til arbeideren retter Slutt:** `ReiseKort.tsx` holder `sluttFolger` mens Slutt er satt av regelen; da følger Slutt hver Start inne i jobben (tidsfeltets mellomverdier). Rettet Slutt eller «Antall timer» slår den av.
-- **Står som før:** Start før jobben (pkt 6), etter jobben (pkt 24), kort uten jobb, uten kjøretid (`utenKjoretid` → sperren «Slutt-tid må være etter start-tid»), O14-retting, dagskort-visning, «Fra byggeplass».
+- **Står som før:** Start før jobben (pkt 6), etter jobben (pkt 24), kort uten jobb, uten kjøretid (`utenKjoretid` → sperren «Slutt-tid må være etter start-tid»), O14-retting, dagskort-visning. «Fra byggeplass» har speilregelen (O23, under).
 - **Tester:** `reiseManuell-o21.test.ts` (8), `reisevindu.test.tsx` «O21» (7). Negativkontroll: «O21» mot develops `ReiseKort.tsx` → 3 av 7 røde (Kenneths tilfelle, mellomverdi, Slutt rettes etterpå); de fire regresjonene er grønne.
+
+### Reisevinduet: Slutt inne i jobben flytter Start (O23) — 🟡 `fix/reise-fra-slutt-i-jobb`, ikke merget
+
+Vedtak: `vedtak-timer-web.md` § Reisevinduet pkt 29 (Kenneth 2026-11-25).
+- **Regel:** «Fra byggeplass», ny reise fra prosjektkortet. Slutt rettet til jobbens start < Slutt ≤ jobbens slutt (samme jobb som `finnKantFlytt`) og Slutt ≤ Start → Start = Slutt − firmaets kjøretid (`startEtterSluttIJobb`, `packages/shared/src/utils/reiseManuell.ts:566`). `ReiseKort.tsx` holder `startFolger` mens Start er satt av regelen (tidsfeltets mellomverdier); rettet Start eller «Antall timer» slår den av.
+- **Ikke over midnatt inne i jobben:** vinduet sender jobbens Fra–til (`finnJobbTid`, `:550`) som `tillatDeling.jobb` via `useManuellReiseWeb`; `krysserMidnatt` (`:334`) leser da Slutt inne i jobben som «slutt før start», ikke «fram». Uten kjøretid og uten oppmøtested (O22) gir det sperren «Slutt-tid må være etter start-tid» i stedet for 23,5 t. Slutt utenfor jobben (01:00) deles som før (pkt 23).
+- **O20-knappen:** kommer når reisen dekker jobbens slutt (Slutt 17:30 → Start 17:26 → «Flytt jobbens slutt til 17:26»). Reise som slutter inne i jobben (16:56–17:00) er «reise midt i jobben» i `finnKantFlytt` og sperrer med overlapp-teksten; regelen er uendret (server og vindu deler den).
+- **Står som før:** Slutt før/på jobbens start, Slutt etter jobben, kort uten jobb, O14-retting, dagskort-visning (uten `jobbKortId` sendes ingen jobb, og Slutt før Start deles over midnatt som før), mobil, «Til byggeplass».
+- **Tester:** `reiseManuell-o23.test.ts` (12), `reisevindu.test.tsx` «O23» (8). Negativkontroll: «O23» mot `0a7fc689`s `ReiseKort.tsx` + `useManuellReiseWeb.ts` → 5 av 8 røde (17:00 → 16:56, 17:30 → knapp, mellomverdi, uten kjøretid, uten oppmøtested); de tre regresjonene er grønne.
 
 ### Returnert sedel: overlappmelding, flytting og spor ved sletting (R1) — ✅ Merget `641bcd41` (2026-11-23), ikke deployet
 

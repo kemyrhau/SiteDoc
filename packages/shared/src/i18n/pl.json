@@ -6043,6 +6043,7 @@
   "timer.attestering.reiseRett.bareUnderprosjekt": "Firma nie pozwala na zmianę czasu i miejsca w trakcie zatwierdzania. Podprojekt można poprawić.",
   "timer.mine.hjelp.reise": "Podczas wycieczki możesz zmienić projekt za pomocą ✎: miejsce budowy zostanie ponownie zasugerowane, a podprojekt zostanie zatwierdzony. Wiersz pod rodzajem wynagrodzenia informuje, na jaką kartę przypada podróż. Praca nie powoduje zmiany projektu; zarejestruj to jako nową pracę.",
   "timer.mine.hjelp.reiseStartIJobb": "Na plac budowy: jeśli ustawisz Start w czasie zadania, Koniec nastąpi wraz z czasem jazdy i możesz przesunąć początek zadania.",
+  "timer.mine.hjelp.reiseSluttIJobb": "Z placu budowy: jeśli ustawisz Koniec w czasie zadania, Start nastąpi wraz z czasem jazdy i będziesz mógł przesunąć koniec zadania.",
   "timer.attestering.tabell.hjelp.reise": "Podróż pokazana jest w części 8 jako jedna linia. ✎ otwiera opcję „Popraw podróż” zawierającą początek, koniec, rodzaj wynagrodzenia (tylko rodzaje podróży), projekt, plac budowy i podprojekt; na liście znajdują się projekty, które możesz zatwierdzić, a linia na dole wskazuje, na jaką kartę przypada wycieczka. Jeśli firma nie pozwala na poprawki w trakcie zatwierdzania, można poprawić tylko podprojekt.",
   "timer.jobbSkjema.underprosjekt": "Podprojekt",
   "timer.jobbSkjema.utenUnderprosjekt": "Nic",

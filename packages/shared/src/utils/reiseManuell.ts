@@ -263,8 +263,11 @@ export interface ReiseKortInput {
    * `utenforDognet`. `omvendt` sier hvordan Slutt før Start leses: «fram» = slutten er dagen etter
    * («Fra byggeplass», «Til annet oppmøtested»), «bak» = starten var kvelden før («Til byggeplass»).
    * Utelatt = som før (mobil sender den ikke og sperrer fortsatt).
+   * O23 (pkt 29): `jobb` = jobbens Fra–til i kortet (`finnJobbTid`). Ved «fram» leses en Slutt inne
+   * i jobben (`jobbFra < Slutt ≤ jobbTil`) aldri som et kryss over midnatt — Slutt før Start blir
+   * «slutt før start» (kalleren sperrer). Utelatt/null = som før.
    */
-  tillatDeling?: { omvendt: MidnattVei };
+  tillatDeling?: { omvendt: MidnattVei; jobb?: { fra: string; til: string } | null };
 }
 
 /**
@@ -328,9 +331,20 @@ const DOGN_MIN = 24 * 60;
 
 /** O19 pkt 23–24: Slutt før Start er en reise over midnatt når kalleren deler og arbeideren skrev
  *  tiden som krysser — Start ved «bak» (pkt 24), Slutt ved «fram». */
-function krysserMidnatt(k: { tillatDeling?: { omvendt: MidnattVei }; startTid?: string | null; sluttTid?: string | null }, fra: number, til: number): boolean {
+function krysserMidnatt(
+  k: { tillatDeling?: ReiseKortInput["tillatDeling"]; startTid?: string | null; sluttTid?: string | null },
+  fra: number,
+  til: number,
+): boolean {
   if (!k.tillatDeling || til >= fra) return false;
-  return k.tillatDeling.omvendt === "bak" ? k.startTid != null : k.sluttTid != null;
+  if (k.tillatDeling.omvendt === "bak") return k.startTid != null;
+  if (k.sluttTid == null) return false;
+  // O23 pkt 29: Slutt inne i egen jobb er aldri dagen etter — bare Slutt utenfor jobben (01:00).
+  const jobb = k.tillatDeling.jobb;
+  const jF = klokkeTilMin(jobb?.fra);
+  const jT = klokkeTilMin(jobb?.til);
+  if (jF != null && jT != null && til > jF && til <= jT) return false;
+  return true;
 }
 
 /** «fram» = del 2 på dagen etter vinduets dato; «bak» = del 1 på dagen før. */
@@ -508,16 +522,64 @@ export function sluttEtterStartIJobb(a: {
   if (s == null || !a.kortId || a.kjoretidMin == null || a.kjoretidMin <= 0) return null;
   const sl = klokkeTilMin(a.sluttTid);
   if (!a.folger && sl != null && s < sl) return null;
-  const jobb = jobbRader(
-    a.rader.filter((r) => r.attestertStatus !== "erstattet"),
-    a.kortId,
-  );
-  if (jobb.length === 0) return null;
-  const jobbStart = Math.min(...jobb.map((r) => klokkeTilMin(r.fraTid) as number));
-  const jobbSlutt = Math.max(...jobb.map((r) => klokkeTilMin(r.tilTid) as number));
-  if (s < jobbStart || s >= jobbSlutt) return null;
+  const jobb = jobbSpenn(a.rader, a.kortId);
+  if (!jobb) return null;
+  if (s < jobb.fra || s >= jobb.til) return null;
   const ny = s + a.kjoretidMin;
   return ny > DOGN_MIN ? null : minTilKlokke(ny);
+}
+
+/** Jobbens første start og siste slutt i kortet (minutter), samme jobb som `finnKantFlytt`. */
+function jobbSpenn(rader: readonly KantFlyttRad[], kortId: string): { fra: number; til: number } | null {
+  const jobb = jobbRader(
+    rader.filter((r) => r.attestertStatus !== "erstattet"),
+    kortId,
+  );
+  if (jobb.length === 0) return null;
+  return {
+    fra: Math.min(...jobb.map((r) => klokkeTilMin(r.fraTid) as number)),
+    til: Math.max(...jobb.map((r) => klokkeTilMin(r.tilTid) as number)),
+  };
+}
+
+/**
+ * O23 (vedtak-timer-web.md § Reisevinduet pkt 29): jobbens Fra–til i kortet (samme jobb som
+ * `finnKantFlytt`), ellers null. Web-vinduet sender den med `tillatDeling` så en Slutt inne i
+ * jobben aldri leses som en reise over midnatt.
+ */
+export function finnJobbTid(a: { kortId: string | null | undefined; rader: readonly KantFlyttRad[] }): { fra: string; til: string } | null {
+  if (!a.kortId) return null;
+  const j = jobbSpenn(a.rader, a.kortId);
+  return j ? { fra: minTilKlokke(j.fra), til: minTilKlokke(j.til) } : null;
+}
+
+/**
+ * O23 (vedtak-timer-web.md § Reisevinduet pkt 29): speilregelen til `sluttEtterStartIJobb` for
+ * «Fra byggeplass», ny reise. Arbeideren retter Slutt til et klokkeslett inne i jobben i samme kort
+ * (`jobbStart < Slutt ≤ jobbSlutt`) — da følger Start: Slutt − kjøretiden, uten avrunding. Gir den
+ * nye Start, eller null når Start står (Slutt før/etter jobben, ingen jobb, ingen kjøretid).
+ *  - `folger` = Start er satt av denne regelen og ikke rettet av arbeideren siden. Da følger den
+ *    også når Slutt > Start (tidsfeltets mellomverdier).
+ *  - Ellers bare når Slutt ≤ Start (Start er arbeiderens egen, eller forslaget, og står så lenge
+ *    Slutt er etter den).
+ */
+export function startEtterSluttIJobb(a: {
+  startTid: string | null;
+  sluttTid: string | null;
+  kjoretidMin: number | null;
+  folger: boolean;
+  kortId: string | null | undefined;
+  rader: readonly KantFlyttRad[];
+}): string | null {
+  const sl = klokkeTilMin(a.sluttTid);
+  if (sl == null || !a.kortId || a.kjoretidMin == null || a.kjoretidMin <= 0) return null;
+  const s = klokkeTilMin(a.startTid);
+  if (!a.folger && s != null && sl > s) return null;
+  const jobb = jobbSpenn(a.rader, a.kortId);
+  if (!jobb) return null;
+  if (sl <= jobb.fra || sl > jobb.til) return null;
+  const ny = sl - a.kjoretidMin;
+  return ny < 0 ? null : minTilKlokke(ny);
 }
 
 /**

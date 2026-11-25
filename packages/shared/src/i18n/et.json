@@ -6043,6 +6043,7 @@
   "timer.attestering.reiseRett.bareUnderprosjekt": "Ettevõte ei luba kooskõlastamisel aega ja kohta parandada. Alamprojekti saab parandada.",
   "timer.mine.hjelp.reise": "Reisil saad projekti muuta nupuga ✎: ehitusplatsi soovitatakse uuesti ja alamprojekt tühjendatakse. Palga liigi all olev rida ütleb, millise kaardiga reis läheb. Töö ei muuda projekti; registreerige see uue tööna.",
   "timer.mine.hjelp.reiseStartIJobb": "Ehitusplatsile: kui määrate Start töö aja jooksul, järgneb Lõpp koos sõiduajaga ja saate töö algust liigutada.",
+  "timer.mine.hjelp.reiseSluttIJobb": "Ehitusplatsilt: kui määrate suvandi End töö aja jooksul, järgneb Start sõiduajale ja saate töö lõppu liigutada.",
   "timer.attestering.tabell.hjelp.reise": "Reis on 8. osas näidatud ühe reana. ✎ avab \"Paranda reisi\" alguse, lõpu, palgatüübi (ainult reisitüübid), projekti, ehitusplatsi ja alamprojektiga; nimekirjas on projektid, mida saate kinnitada ja allservas olev rida ütleb, millisele kaardile reis läheb. Kui ettevõte ei luba kinnitamisel parandusi teha, saab parandada ainult alamprojekti.",
   "timer.jobbSkjema.underprosjekt": "Alamprojekt",
   "timer.jobbSkjema.utenUnderprosjekt": "Mitte ühtegi",

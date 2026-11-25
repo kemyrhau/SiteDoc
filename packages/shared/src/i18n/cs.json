@@ -6043,6 +6043,7 @@
   "timer.attestering.reiseRett.bareUnderprosjekt": "Společnost neumožňuje při schvalování opravu času a místa. Dílčí projekt lze opravit.",
   "timer.mine.hjelp.reise": "Na výletě můžete změnit projekt pomocí ✎: staveniště je znovu navrženo a dílčí projekt je vymazán. Řádek pod mzdovým druhem říká, na kterou kartu cesta jde. Práce nemění projekt; zaregistrovat jako novou práci.",
   "timer.mine.hjelp.reiseStartIJobb": "Na staveniště: pokud nastavíte Začátek v rámci času úlohy, Konec následuje s dobou jízdy a začátek úlohy můžete posunout.",
+  "timer.mine.hjelp.reiseSluttIJobb": "Ze staveniště: pokud nastavíte Konec v rámci času úlohy, Start následuje s dobou jízdy a můžete přesunout konec úlohy.",
   "timer.attestering.tabell.hjelp.reise": "Cesta je zobrazena v části 8 jako jeden řádek. ✎ otevře \"Opravit cestu\" se začátkem, koncem, typem mzdy (pouze typy cest), projektem, staveništěm a dílčím projektem; seznam obsahuje projekty, které můžete schválit, a řádek ve spodní části říká, na kterou kartu cesta jde. Pokud společnost během schvalování neumožňuje opravy, lze opravit pouze dílčí projekt.",
   "timer.jobbSkjema.underprosjekt": "Dílčí projekt",
   "timer.jobbSkjema.utenUnderprosjekt": "Žádný",
