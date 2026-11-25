@@ -30,8 +30,11 @@ describe("KontekstChip — (16) vakt", () => {
     expect(kilde.match(/valgt=\{erProsjektRadValgt\(p\.id, markertId \?\? undefined\)\}/g)?.length).toBe(2);
     expect(kilde).toMatch(/function åpne\(\) \{[\s\S]*?setMarkertId\(prosjektId \?\? null\)/);
   });
-  it("🔴 «andre firma»-gruppen filtreres mot valgt firma", () => {
-    expect(kilde).toMatch(/gjesteprosjekterIAndreFirma\(gjesteprosjekter, valgtFirma\?\.id\)/);
+  it("🔴 «andre firma»-gruppen filtreres mot valgt firma og skjules for admin i fremmed firma", () => {
+    // (16) via velgerGjestegruppe → gjesteprosjekterIAndreFirma; ADMIN-GJEST (2026-11-25).
+    expect(kilde).toMatch(
+      /velgerGjestegruppe\(\s*gjesteprosjekter,\s*valgtFirma\?\.id,\s*erAdminIFremmedFirma\(\{ rolle: erSitedocAdmin \? "sitedoc_admin" : null, erAnsattIValgtFirma \}\),?\s*\)/,
+    );
     expect(kilde).not.toMatch(/new Set\(gjesteprosjekter\.map/);
   });
 });

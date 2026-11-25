@@ -36,7 +36,11 @@ export const brukerRouter = router({
     // erDeaktivert: har minst ett firmamedlemskap, men INGEN er aktivt. Skiller den
     // deaktiverte ansatte (forklarende empty-state) fra den org-løse (venter på
     // prosjekttilgang). Fase 1 registreringsmodell (2026-08-28).
-    const erDeaktivert = medlemskap.length > 0 && !aktivtMedlem;
+    // SYSADMIN-IKKE-DEAKTIVERT (Kenneth 2026-11-25): sitedoc_admin regnes aldri som
+    // deaktivert — serverportene slipper ham inn uansett, og flagget stengte hele web
+    // (dashbord/layout.tsx) da hans eneste ansattrad ble deaktivert i prod.
+    const erDeaktivert =
+      user.role !== "sitedoc_admin" && medlemskap.length > 0 && !aktivtMedlem;
     return {
       ...user,
       organizationId: aktivtMedlem?.organizationId ?? medlemskap[0]?.organizationId ?? null,

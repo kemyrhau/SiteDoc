@@ -264,7 +264,7 @@ dropdownen — ikke gjort).
 
 **Tilgangslogikk for dokumentvisning:**
 - Admin ser alltid alt
-- company_admin ser alt i alle prosjekter tilknyttet sin organisasjon (uten ProjectMember-rad)
+- Firmaadmin (aktiv `firma_admin` i `OrganizationMember.firmaRoller`) ser alt i prosjekter **eget firma eier** (`primaryOrganizationId`), også uten ProjectMember-rad — unntatt private HMS-saker, som for prosjektadmin. Deltakerfirma gir det ikke. Kode: `erFirmaAdminForProsjekt` brukt i `byggTilgangsFilter` og `verifiserDokumentTilgang` → `avgjorDokumentTilgang` (grunn «firmaadmin»). Vedtak: § Roller, FIRMAADMIN-TILGANG
 - Direkte faggruppe-tilgang: bruker ser dokumenter der egen faggruppe er bestiller/utfører
 - Fagområde-tilgang via grupper:
   - Gruppe uten faggrupper → tverrgående: ser ALLE dokumenter med matchende domain
@@ -382,11 +382,11 @@ To DB-kolonner styrer tilgang: `User.role` (`sitedoc_admin` | `company_admin` | 
 | Nivå | DB-verdi | Arver | Beskyttelse |
 |------|----------|-------|-------------|
 | **Superadmin** (Kenneth) | `User.role = "sitedoc_admin"` | Alt | `verifiserSiteDocAdmin()` |
-| **Org-admin** (kundens admin) | `User.role = "company_admin"` | Admin i alle org-prosjekter, UTEN ProjectMember-rad | `verifiserOrganisasjonTilgang()` |
+| **Firmaadmin** (kundens admin) | `OrganizationMember.firmaRoller` inneholder `"firma_admin"` (aktiv) | Admin i alle prosjekter **eget firma eier**, UTEN ProjectMember-rad (FIRMAADMIN-TILGANG 2026-11-25) | `erFirmaAdminForProsjekt()` i `verifiserAdmin()`/`verifiserProsjektmedlem()` |
 | **Prosjektadmin** | `ProjectMember.role = "admin"` | — | `verifiserAdmin()` |
 | **Prosjektmedlem** | `ProjectMember.role = "member"` | — | `verifiserProsjektmedlem()` |
 
-**Oppretter av prosjekt (F13c 1A, Kenneth 2026-11-23):** den som oppretter et prosjekt for sitt eget firma (aktiv ansettelse), blir prosjektadmin og Byggherre som før. sitedoc_admin som oppretter for et annet firma, blir ikke medlem; hen setter opp medlemmer, faggrupper og flyter via bypassen (`verifiserAdmin`, `verifiserProsjektmedlem`, `gruppe.hentMinTilgang`/`hentMinFlytInfo`). Prosjektet kan da starte med 0 medlemmer. `services/oppretterMedlemskap.ts`. Siste aktive prosjektadmin kan ikke fjernes med `medlem.fjern`.
+**Oppretter av prosjekt (F13c 1A, Kenneth 2026-11-23):** den som oppretter et prosjekt for sitt eget firma (aktiv ansettelse), blir prosjektadmin. Hen kobles ikke til noen faggruppe (FIRMAADMIN-TILGANG C, 2026-11-25, [dokumentflyt.md § Faggruppe](dokumentflyt.md)). sitedoc_admin som oppretter for et annet firma, blir ikke medlem; hen setter opp medlemmer, faggrupper og flyter via bypassen (`verifiserAdmin`, `verifiserProsjektmedlem`, `gruppe.hentMinTilgang`/`hentMinFlytInfo`). Prosjektet kan da starte med 0 medlemmer. `services/oppretterMedlemskap.ts`. Siste aktive prosjektadmin kan ikke fjernes med `medlem.fjern`.
 
 **Kapabilitets-felter på ProjectMember** (boolean, eksplisitt opt-in):
 - `kanAttestere` — gir timer-attestering uten prosjekt-admin (vedtatt 2026-05-02). `role="admin"` har implisitt attestering-tilgang. Fra w10b (plan web-timeføring § 4.6, § 4.10) avgjøres retten av `attesteringsOmfang` (liste) og `attesteringsFirmaer` (handlinger) i `apps/api/src/routes/timer/dagsseddel.ts`: aktivt prosjektmedlem med admin eller `kanAttestere`, aktiv ansatt i sedelens firma. `erProsjektLeder` er slettet.
@@ -396,6 +396,11 @@ To DB-kolonner styrer tilgang: `User.role` (`sitedoc_admin` | `company_admin` | 
 
 **Kritiske regler:**
 - Firma-admin ser **KUN** sitt eget firmas data — absolutt umulig å se andre firmaer
+- **SYSADMIN-IKKE-DEAKTIVERT (Kenneth 2026-11-25, «Ja, bestill»):** en systemadmin (`User.role = "sitedoc_admin"`) regnes aldri som deaktivert. `bruker.hentMin` gir `erDeaktivert: false` for sitedoc_admin selv når alle hens ansattrader er `deaktivert` (`apps/api/src/routes/bruker.ts:42`), så deaktivert-skjermen i `apps/web/src/app/dashbord/layout.tsx:30` og `dashbord/page.tsx:136` aldri stenger hen ute. Serverportene (`krevAktivAnsettelse` m.fl.) slipper allerede sitedoc_admin inn før ansettelsessjekken. `organizationId` i svaret er uendret. Mobil leser ikke flagget. Vanlig ansatt med bare deaktiverte rader ser fortsatt forklaringen; bruker uten rader venter på tilgang som før. Test: `apps/api/src/routes/bruker-hentmin-deaktivert.test.ts`.
+- **FIRMAADMIN-TILGANG (Kenneth 2026-11-25, «Ja, A–D»):** «Silje må som firma admin ha full tilgang på alle firmaets prosjekter. må kunne legge seg selv til og fra etterbehov, både i dokumentflyter og prosjektadgang. samt som attestator for timer.» og «Ja prosjektadmin og firmaadmin trenger samme unntak som de andre sjekkene, isolert til eget firma.» Alt gjelder bare prosjekter eget firma **eier** (`primaryOrganizationId`), aldri deltakerfirma:
+  - **A — prosjektlistene:** `prosjekt.hentAlle` og `hentSistBrukte` viser også alle prosjekter eid av firmaer der brukeren er aktiv `firma_admin` (`hentFirmaAdminOrgIder`, `medlemEllerFirmaAdminWhere` i `apps/api/src/routes/prosjekt.ts`). «Mine» (`hentMine`) er fortsatt bare medlemskap (B1-vedtaket). Frosne prosjekter er fortsatt skjult uten `inkluderFrosne`. Mobil bruker ingen av de to. Test: `apps/api/src/routes/prosjekt-firmaadmin-liste.test.ts`.
+  - **B — dokumenter uten medlemsrad:** `byggTilgangsFilter` (liste) og `verifiserDokumentTilgang` (detalj) gir firmaadmin prosjektadmin-grenen, med samme unntak for private HMS-saker (`IKKE_PRIVAT_HMS`; HMS-behandler via firmaets `hms_ansvarlig` ser alt). Den delte beslutningen er `avgjorDokumentTilgang` (`erFirmaAdminEier`). Firmaadmin får ikke flytrettigheter automatisk ([dokumentflyt.md § Admin-nivå i flyt-laget](dokumentflyt.md)). Test: `apps/api/src/trpc/firmaadmin-tilgang.test.ts` + matriseradene «B:» i `packages/shared/src/utils/tilgangsmatrise.test.ts`.
+  - Fra før (målt 2026-11-25): porten (`verifiserProsjektmedlem`/`verifiserAdmin`), attestering (`timer/dagsseddel.ts`), å legge seg selv til som medlem (`medlem.ts`) og i dokumentflyt (`dokumentflyt.ts`).
 - Firma-grense-sjekk ligger **ALLTID** i server-laget (tRPC), aldri kun i frontend
 - **Én bruker, ett firma** (Kenneth 2026-11-15, POST (15), ✅ merget `ca50ba1f`):
   - `medlem.registrer` med `organizationId` avviser med FORBIDDEN når brukeren allerede er aktivt ansatt i et annet firma og ikke har rad i dette (`medlem.ts`). Uten `organizationId` legges brukeren til prosjektet som før.

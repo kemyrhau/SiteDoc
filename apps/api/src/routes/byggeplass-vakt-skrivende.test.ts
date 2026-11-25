@@ -15,6 +15,7 @@ vi.mock("../trpc/tilgangskontroll", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../trpc/tilgangskontroll")>()),
   verifiserProsjektmedlem: vi.fn().mockResolvedValue(undefined),
   verifiserProsjektIkkeFrosset: vi.fn().mockResolvedValue(undefined),
+  aktivAnsattIEierfirma: vi.fn().mockResolvedValue(null),
   verifiserAdmin: vi.fn().mockResolvedValue(undefined),
 }));
 

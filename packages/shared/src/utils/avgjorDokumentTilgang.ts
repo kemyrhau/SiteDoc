@@ -7,7 +7,7 @@
  * flytting av beslutningsgrenene, i uendret rekkefølge og semantikk.
  *
  * Rekkefølge (ufravikelig — jf. spor2-ordre § 4):
- *   admin → ikke-medlem → prosjektadmin → HMS-behandler → firmaansvarlig → bestiller/mottaker →
+ *   admin → ikke-medlem → prosjektadmin → firmaadmin (eierfirma) → HMS-behandler → firmaansvarlig → bestiller/mottaker →
  *   faggruppe-direkte → gruppe-domain → HMS-åpen → flyt-medlemskap → avvis.
  *
  * H3 (Kenneth HF2 ja, 2026-11-23; hms-domenemodell.md § HMS-flyt regel 3): for en privat
@@ -31,6 +31,12 @@ export interface TilgangsFakta {
   erMedlem: boolean;
   /** ProjectMember.role — "admin" = prosjektadmin (ser alt). */
   prosjektmedlemRolle: string | null;
+  /**
+   * Aktiv `firma_admin` i prosjektets EIERFIRMA (`erFirmaAdminForProsjekt`), med eller uten
+   * ProjectMember-rad. FIRMAADMIN-TILGANG B (Kenneth 2026-11-25): samme gren som prosjektadmin,
+   * med samme unntak for private HMS-saker. Deltakerfirma gir aldri dette.
+   */
+  erFirmaAdminEier: boolean;
   /** ProjectMember.erFirmaansvarlig. */
   erFirmaansvarlig: boolean;
   /** Innlogget brukers id (for innsender/mottaker-sammenligning). */
@@ -91,12 +97,15 @@ export function avgjorDokumentTilgang(f: TilgangsFakta): TilgangsResultat {
   // sitedoc_admin ser alt
   if (f.brukerRolle === "sitedoc_admin") return { tillat: true, grunn: "admin" };
 
-  // Ikke medlem av prosjektet
-  if (!f.erMedlem) return { tillat: false, grunn: "ikke-medlem" };
+  // Ikke medlem av prosjektet — firmaadmin i eierfirmaet slipper inn uten medlemsrad (B).
+  if (!f.erMedlem && !f.erFirmaAdminEier) return { tillat: false, grunn: "ikke-medlem" };
 
   // Prosjektadmin ser alt — unntatt private HMS-saker (H3): der er adminen behandler bare
   // som medlem av HMS-gruppa, ellers som melder/mottaker under.
   if (f.prosjektmedlemRolle === "admin" && !f.hmsPrivat) return { tillat: true, grunn: "prosjektadmin" };
+
+  // Firmaadmin i eierfirmaet: samme gren som prosjektadmin, samme HMS-unntak (B, 2026-11-25).
+  if (f.erFirmaAdminEier && !f.hmsPrivat) return { tillat: true, grunn: "firmaadmin" };
 
   // HMS-behandleren leser alle private HMS-saker i prosjektet (H3).
   if (f.hmsPrivat && f.erHmsBehandler) return { tillat: true, grunn: "hms-behandler" };

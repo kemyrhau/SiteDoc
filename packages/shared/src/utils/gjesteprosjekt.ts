@@ -53,6 +53,43 @@ export function gjesteprosjekterIAndreFirma<T extends { primaryOrganizationId: s
   return gjesteprosjekter.filter((p) => p.primaryOrganizationId !== valgtFirmaId);
 }
 
+/**
+ * ADMIN-GJEST (Kenneth 2026-11-25, `web.md` § «Prosjekter i andre firma»): sitedoc_admin som
+ * står i et firma hen ikke er aktivt ansatt i, skal se velgeren slik firmaets ansatte ser den —
+ * bare det firmaets prosjekter. Ukjent ansatt-status (`null`/`undefined`) gir dagens atferd.
+ */
+export function erAdminIFremmedFirma(args: {
+  rolle: string | null | undefined;
+  erAnsattIValgtFirma: boolean | null | undefined;
+}): boolean {
+  return args.rolle === "sitedoc_admin" && args.erAnsattIValgtFirma === false;
+}
+
+/**
+ * Gruppen «Prosjekter i andre firma» slik velgeren viser den (web + mobil). Tom for admin i
+ * fremmed firma; ellers (16)-regelen `gjesteprosjekterIAndreFirma`. Påvirker kun visningen.
+ */
+export function velgerGjestegruppe<T extends { primaryOrganizationId: string | null }>(
+  gjesteprosjekter: readonly T[],
+  valgtFirmaId: string | null | undefined,
+  adminIFremmedFirma: boolean,
+): T[] {
+  if (adminIFremmedFirma) return [];
+  return gjesteprosjekterIAndreFirma(gjesteprosjekter, valgtFirmaId);
+}
+
+/**
+ * Gjeste-IDer som skal beskytte valgt prosjekt mot nullstilling ved firmabytte (tillegg A,
+ * orkestrator 2026-11-25). Admin i fremmed firma: ingen — et valgt gjesteprosjekt nullstilles
+ * som et eget-firma-prosjekt, slik en ansatt i det valgte firmaet aldri har det valgt.
+ */
+export function gjesteIderForNullstilling(
+  gjesteIder: readonly string[],
+  adminIFremmedFirma: boolean,
+): string[] {
+  return adminIFremmedFirma ? [] : [...gjesteIder];
+}
+
 export interface ProsjektForNullstilling {
   id: string;
   primaryOrganizationId: string | null;

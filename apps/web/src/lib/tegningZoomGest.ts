@@ -90,3 +90,40 @@ export function knipFaktor(akkumulertDeltaY: number): number {
 export function hjulFaktor(deltaY: number): number {
   return deltaY > 0 ? 0.8 : 1.25;
 }
+
+/** Forankring for en transform-visning: peker i viewporten + gjeldende `translate`. */
+export interface PanForankring {
+  /** `clientX - rect.left`. */
+  viewX: number;
+  /** `clientY - rect.top`. */
+  viewY: number;
+  /** Gjeldende `translate(panX, …)` i piksler. */
+  panX: number;
+  /** Gjeldende `translate(…, panY)` i piksler. */
+  panY: number;
+}
+
+/**
+ * Pekerforankret zoom for en visning som flytter med `transform:
+ * translate(pan) scale(zoom)` og `transform-origin: 0 0` (byggeplass-oppsett),
+ * i stedet for å scrolle en overflow-beholder (tegningssiden).
+ *
+ * Med origo 0 0 er skjermpunktet `pan + zoom·p` — samme geometri som
+ * scroll-modellen `zoom·p − scroll`, med `scroll = −pan`. Derfor gjenbrukes
+ * `anvendZoomFaktor` uendret, og punktet under pekeren står stille. Ingen
+ * klipping: en transform har ikke scroll-maksimum.
+ */
+export function anvendZoomFaktorPan(
+  forrigeZoom: number,
+  faktor: number,
+  grenser: { min: number; maks: number },
+  f: PanForankring,
+): { zoom: number; pan: { x: number; y: number } } {
+  const { zoom, scroll } = anvendZoomFaktor(forrigeZoom, faktor, grenser, {
+    viewX: f.viewX,
+    viewY: f.viewY,
+    scrollLeft: -f.panX,
+    scrollTop: -f.panY,
+  });
+  return { zoom, pan: { x: -scroll.left, y: -scroll.top } };
+}

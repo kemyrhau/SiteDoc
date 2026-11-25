@@ -40,11 +40,15 @@ function avgjorDokumentTilgangReferanse(f: TilgangsFakta): TilgangsResultat {
   // :492 — sitedoc_admin ser alt
   if (f.brukerRolle === "sitedoc_admin") return { tillat: true, grunn: "admin" };
 
-  // :510 — ikke medlem av prosjektet
-  if (!f.erMedlem) return { tillat: false, grunn: "ikke-medlem" };
+  // :510 — ikke medlem av prosjektet. FIRMAADMIN-TILGANG B (Kenneth 2026-11-25) — BEVISST
+  // endring av referansen: firmaadmin i eierfirmaet slipper inn uten medlemsrad.
+  if (!f.erMedlem && !f.erFirmaAdminEier) return { tillat: false, grunn: "ikke-medlem" };
 
   // :518 — prosjektadmin ser alt. H3 (Kenneth HF2 ja, 2026-11-23): unntatt private HMS-saker.
   if (f.prosjektmedlemRolle === "admin" && !f.hmsPrivat) return { tillat: true, grunn: "prosjektadmin" };
+
+  // B (2026-11-25): firmaadmin i eierfirmaet = prosjektadmin-grenen, samme HMS-unntak.
+  if (f.erFirmaAdminEier && !f.hmsPrivat) return { tillat: true, grunn: "firmaadmin" };
 
   // H3 — HMS-behandleren (erHmsAdmin) leser alle private HMS-saker.
   if (f.hmsPrivat && f.erHmsBehandler) return { tillat: true, grunn: "hms-behandler" };
@@ -125,6 +129,7 @@ const BASIS: TilgangsFakta = {
   brukerRolle: "user",
   erMedlem: true,
   prosjektmedlemRolle: "member",
+  erFirmaAdminEier: false,
   erFirmaansvarlig: false,
   userId: "u-selv",
   harDokument: false,
@@ -540,6 +545,33 @@ export const MATRISE: MatriseRad[] = [
     navn: "H3 negativkontroll: erHmsBehandler uten privat HMS gir ingenting",
     fakta: fakta({ templateDomain: "bygg", erHmsBehandler: true }),
     forventet: { tillat: false, grunn: "ingen-tilgang" },
+  },
+
+  // — Firmaadmin i eierfirmaet (FIRMAADMIN-TILGANG B, Kenneth 2026-11-25) ————————————
+  {
+    navn: "B: firmaadmin i eierfirmaet uten medlemsrad ser dokumentet",
+    fakta: fakta({ erMedlem: false, prosjektmedlemRolle: null, erFirmaAdminEier: true, harDokument: true, bestillerUserId: "u-annen", templateDomain: "bygg" }),
+    forventet: { tillat: true, grunn: "firmaadmin" },
+  },
+  {
+    navn: "B: firmaadmin i eierfirmaet med vanlig medlemsrad ser dokumentet",
+    fakta: fakta({ erFirmaAdminEier: true, harDokument: true, bestillerUserId: "u-annen" }),
+    forventet: { tillat: true, grunn: "firmaadmin" },
+  },
+  {
+    navn: "B: firmaadmin uten medlemsrad ser IKKE privat HMS-sak (ikke behandler, ikke part)",
+    fakta: fakta({ erMedlem: false, prosjektmedlemRolle: null, erFirmaAdminEier: true, harDokument: true, bestillerUserId: "u-annen", templateDomain: "hms", hmsPrivat: true }),
+    forventet: { tillat: false, grunn: "ingen-tilgang" },
+  },
+  {
+    navn: "B: firmaadmin uten medlemsrad som er HMS-behandler ser privat HMS-sak",
+    fakta: fakta({ erMedlem: false, prosjektmedlemRolle: null, erFirmaAdminEier: true, harDokument: true, bestillerUserId: "u-annen", templateDomain: "hms", hmsPrivat: true, erHmsBehandler: true }),
+    forventet: { tillat: true, grunn: "hms-behandler" },
+  },
+  {
+    navn: "B negativ: firmaadmin i et annet firma / deltakerfirma (erFirmaAdminEier=false) uten medlemsrad → avvis",
+    fakta: fakta({ erMedlem: false, prosjektmedlemRolle: null, erFirmaAdminEier: false, harDokument: true, bestillerUserId: "u-annen" }),
+    forventet: { tillat: false, grunn: "ikke-medlem" },
   },
 
   // — Baseline ——————————————————————————————————————————————————

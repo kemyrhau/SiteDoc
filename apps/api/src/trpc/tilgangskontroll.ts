@@ -384,6 +384,24 @@ export async function erAnsattIFirma(
   return member?.status === "aktiv";
 }
 
+/**
+ * Prosjektets eierfirma (`primaryOrganizationId`) når brukeren er AKTIV ansatt der, ellers
+ * `null`. Deltakerfirma (ProjectOrganization) teller ikke. Brukt av vare-tilgangen
+ * (FIRMAADMIN-TILGANG D): samme prosjektsett som timer for eierfirmaets ansatte.
+ */
+export async function aktivAnsattIEierfirma(
+  userId: string,
+  projectId: string,
+): Promise<string | null> {
+  const prosjekt = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: { primaryOrganizationId: true },
+  });
+  const eierOrg = prosjekt?.primaryOrganizationId;
+  if (!eierOrg) return null;
+  return (await erAnsattIFirma(userId, eierOrg)) ? eierOrg : null;
+}
+
 export async function verifiserAnsattIFirma(
   userId: string,
   organizationId: string,
@@ -428,6 +446,21 @@ export async function erFirmaAdmin(
   });
   if (!member || member.status === "deaktivert") return false;
   return member.firmaRoller.includes("firma_admin");
+}
+
+/**
+ * Org-ID-ene der brukeren er aktiv `firma_admin` (FIRMAADMIN-TILGANG A, Kenneth 2026-11-25:
+ * «Silje må som firma admin ha full tilgang på alle firmaets prosjekter»). Samme regel som
+ * `erFirmaAdmin` — deaktivert ansettelse gir ingen. Prosjektlistene (`prosjekt.hentAlle`,
+ * `hentSistBrukte`) slipper inn prosjekter disse firmaene EIER (`primaryOrganizationId`), aldri
+ * prosjekter firmaet bare deltar i — samme grense som `erFirmaAdminForProsjekt`.
+ */
+export async function hentFirmaAdminOrgIder(userId: string): Promise<string[]> {
+  const rader = await prisma.organizationMember.findMany({
+    where: { userId, status: { not: "deaktivert" }, firmaRoller: { has: "firma_admin" } },
+    select: { organizationId: true },
+  });
+  return rader.map((r) => r.organizationId);
 }
 
 /**
@@ -1072,8 +1105,12 @@ export async function verifiserDokumentTilgang(
     },
   });
 
-  // Ikke medlem — data-eksistens-guard bevart inline (gater dokumentpart-oppslaget).
-  if (!medlem) {
+  // FIRMAADMIN-TILGANG B (Kenneth 2026-11-25): firmaadmin i prosjektets EIERFIRMA har
+  // prosjektadmin-grenen også uten medlemsrad. Deltakerfirma gir det ikke.
+  const erFirmaAdminEier = medlem?.role === "admin" ? false : await erFirmaAdminForProsjekt(userId, projectId);
+
+  // Ikke medlem (og ikke firmaadmin i eierfirmaet) — data-eksistens-guard bevart inline.
+  if (!medlem && !erFirmaAdminEier) {
     throw new TRPCError({
       code: "FORBIDDEN",
       message: "Du er ikke medlem av dette prosjektet",
@@ -1096,9 +1133,9 @@ export async function verifiserDokumentTilgang(
     hmsPrivat = synlighet !== "apen";
   }
 
-  // Prosjektadmin ser alt annet — early return bevart så prosjektadmin ikke utløser
-  // dokumentpart-/firma-/flyt-oppslagene under.
-  if (medlem.role === "admin" && !hmsPrivat) return;
+  // Prosjektadmin (og firmaadmin i eierfirmaet) ser alt annet — early return bevart så de
+  // ikke utløser dokumentpart-/firma-/flyt-oppslagene under.
+  if ((medlem?.role === "admin" || erFirmaAdminEier) && !hmsPrivat) return;
 
   const erHmsBehandler = hmsPrivat ? await erHmsAdmin(userId, projectId) : false;
 
@@ -1119,7 +1156,7 @@ export async function verifiserDokumentTilgang(
         });
   }
 
-  const direkteFaggruppeIder = medlem.faggruppeKoblinger.map((e) => e.faggruppeId);
+  const direkteFaggruppeIder = medlem?.faggruppeKoblinger.map((e) => e.faggruppeId) ?? [];
 
   // Firmaansvarlig-oppslag: firmaets brukere + evt. transfer-avsender-treff.
   // Gate uendret (erFirmaansvarlig && dokument && org). MERK: transfer-spørringen
@@ -1130,7 +1167,7 @@ export async function verifiserDokumentTilgang(
   // funksjonen); kun én ekstra read i det sjeldne part-treff-tilfellet. FLAGGET.
   let firmaUserIder: string[] = [];
   let harFirmaTransfer = false;
-  if (medlem.erFirmaansvarlig && dokumentId && dokumentType) {
+  if (medlem?.erFirmaansvarlig && dokumentId && dokumentType) {
     const brukerOrgId = await hentBrukersOrg(userId);
     if (brukerOrgId) {
       firmaUserIder = (await prisma.organizationMember.findMany({
@@ -1158,7 +1195,7 @@ export async function verifiserDokumentTilgang(
   // ekstra read i privat-HMS-med-flyt-tilfellet der gammel kode gatet bort
   // oppslaget; utfallet er identisk (F1-A avviser uansett). FLAGGET.
   let flytIder: string[] = [];
-  if (dokumentParter?.dokumentflytId) {
+  if (medlem && dokumentParter?.dokumentflytId) {
     flytIder = await hentFlytIderForMedlem(
       medlem.id,
       direkteFaggruppeIder,
@@ -1168,9 +1205,10 @@ export async function verifiserDokumentTilgang(
 
   const resultat = avgjorDokumentTilgang({
     brukerRolle: bruker?.role ?? null,
-    erMedlem: true,
-    prosjektmedlemRolle: medlem.role,
-    erFirmaansvarlig: medlem.erFirmaansvarlig,
+    erMedlem: Boolean(medlem),
+    prosjektmedlemRolle: medlem?.role ?? null,
+    erFirmaAdminEier,
+    erFirmaansvarlig: medlem?.erFirmaansvarlig ?? false,
     userId,
     harDokument: Boolean(dokumentId && dokumentType),
     bestillerUserId: dokumentParter?.bestillerUserId ?? null,
@@ -1181,7 +1219,7 @@ export async function verifiserDokumentTilgang(
     templateDomain: templateDomain ?? null,
     templateHmsSynlighet: templateHmsSynlighet ?? null,
     direkteFaggruppeIder,
-    gruppeMedlemskap: medlem.groupMemberships.map((gm) => ({
+    gruppeMedlemskap: (medlem?.groupMemberships ?? []).map((gm) => ({
       domener: gm.group.domains as string[],
       faggruppeIder: gm.group.groupFaggrupper.map((ge) => ge.faggruppeId),
     })),
@@ -1537,12 +1575,19 @@ export async function byggTilgangsFilter(
     },
   });
 
-  if (!medlem) {
+  // FIRMAADMIN-TILGANG B (Kenneth 2026-11-25): firmaadmin i prosjektets EIERFIRMA får samme
+  // gren som prosjektadmin, også uten medlemsrad. Deltakerfirma gir det ikke
+  // (`erFirmaAdminForProsjekt`). Speiler detaljgaten (`avgjorDokumentTilgang`, grunn «firmaadmin»).
+  const erFirmaAdminEier = medlem?.role === "admin" ? false : await erFirmaAdminForProsjekt(userId, projectId);
+
+  if (!medlem && !erFirmaAdminEier) {
     throw new TRPCError({
       code: "FORBIDDEN",
       message: "Du er ikke medlem av dette prosjektet",
     });
   }
+  const erAdminGren = medlem?.role === "admin" || erFirmaAdminEier;
+  const gruppeMedlemskap = medlem?.groupMemberships ?? [];
 
   // H3-1 (Kenneth HF2 ja, 2026-11-23; hms-domenemodell.md § HMS-flyt regel 3): private HMS-saker
   // (malens domain = "hms" og hmsSynlighet ikke "apen", også null) leses bare av HMS-behandleren
@@ -1550,22 +1595,22 @@ export async function byggTilgangsFilter(
   // `domains`. Lista speiler detaljgaten (`avgjorDokumentTilgang`): prosjektadmin ser alt som ikke
   // er privat HMS; private HMS-saker nås bare gjennom de samme grenene som for et vanlig medlem.
   const trengerBehandlerSjekk =
-    medlem.role === "admin" ||
-    medlem.groupMemberships.some((gm) => (gm.group.domains as string[]).includes("hms"));
+    erAdminGren ||
+    gruppeMedlemskap.some((gm) => (gm.group.domains as string[]).includes("hms"));
   // `null` = ikke slått opp ennå (flyt-grenen under slår opp ved behov).
   const erHmsBehandler: boolean | null = trengerBehandlerSjekk ? await erHmsAdmin(userId, projectId) : null;
 
-  // Prosjektadmin som er HMS-behandler ser alt (som før H3).
-  if (medlem.role === "admin" && erHmsBehandler) return null;
+  // Prosjektadmin (eller firmaadmin i eierfirmaet) som er HMS-behandler ser alt (som før H3).
+  if (erAdminGren && erHmsBehandler) return null;
 
   // Samle alle OR-betingelser
   const orBetingelser: Record<string, unknown>[] = [];
 
-  // Prosjektadmin (ikke behandler): alt som ikke er en privat HMS-sak.
-  if (medlem.role === "admin") orBetingelser.push(IKKE_PRIVAT_HMS);
+  // Prosjektadmin / firmaadmin i eierfirmaet (ikke behandler): alt som ikke er en privat HMS-sak.
+  if (erAdminGren) orBetingelser.push(IKKE_PRIVAT_HMS);
 
   // Firmaansvarlig: ser dokumenter der firmamedlemmer er direkte involvert
-  if (medlem.erFirmaansvarlig) {
+  if (medlem?.erFirmaansvarlig) {
     const brukerOrgId = await hentBrukersOrg(userId);
     if (brukerOrgId) {
       const firmaUserIder = (await prisma.organizationMember.findMany({
@@ -1603,14 +1648,14 @@ export async function byggTilgangsFilter(
   orBetingelser.push({ recipientUserId: userId, dokumentflytId: null });
 
   // Direkte faggruppe-tilgang (alle domener)
-  const direkteFaggruppeIder = medlem.faggruppeKoblinger.map((e) => e.faggruppeId);
+  const direkteFaggruppeIder = medlem?.faggruppeKoblinger.map((e) => e.faggruppeId) ?? [];
   if (direkteFaggruppeIder.length > 0) {
     orBetingelser.push({ bestillerFaggruppeId: { in: direkteFaggruppeIder } });
     orBetingelser.push({ utforerFaggruppeId: { in: direkteFaggruppeIder } });
   }
 
   // Fagområde-tilgang via grupper
-  for (const gm of medlem.groupMemberships) {
+  for (const gm of gruppeMedlemskap) {
     const gruppeDomener = gm.group.domains as string[];
     if (gruppeDomener.length === 0) continue;
 
@@ -1646,11 +1691,14 @@ export async function byggTilgangsFilter(
   // Dokumentflyt-medlemskap: dokumenter i flyter brukeren er medlem av.
   // Fanger person-direkte (project_member_id) binding som faggruppe-/gruppe-veiene over
   // er blinde for. Gjenbruker allerede-hentet `medlem` (ingen ekstra medlems-oppslag).
-  const flytIder = await hentFlytIderForMedlem(
-    medlem.id,
-    direkteFaggruppeIder,
-    medlem.groupMemberships.map((gm) => gm.groupId),
-  );
+  // Firmaadmin uten medlemsrad har ingen flytmedlemskap å slå opp.
+  const flytIder = medlem
+    ? await hentFlytIderForMedlem(
+        medlem.id,
+        direkteFaggruppeIder,
+        gruppeMedlemskap.map((gm) => gm.groupId),
+      )
+    : [];
   if (flytIder.length > 0) {
     // F1-A i detaljgaten: flyt-medlemskap alene gir ikke private HMS-saker. Lista følger (H3-1),
     // så en tittel ikke vises for noen som ikke kan åpne saken. HMS-behandleren ser alt; en part

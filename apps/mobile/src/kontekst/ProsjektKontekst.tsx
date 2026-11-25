@@ -14,6 +14,7 @@ import { trpc } from "../lib/trpc";
 import { hentGjesteprosjekterLokalt } from "../services/prosjektKatalog";
 import { mineAnsattFirmaIder } from "../utils/gjesteprosjektListe";
 import { firmabyttUtfall } from "../utils/firmabyttProsjekt";
+import { erAdminIFremmedFirma } from "@sitedoc/shared";
 
 const VALGT_PROSJEKT_KEY = "sitedoc_valgt_prosjekt";
 
@@ -60,7 +61,14 @@ export function useProsjekt() {
 }
 
 export function ProsjektProvider({ children }: { children: ReactNode }) {
-  const { valgtFirmaId, firmaer, erAnsattIFirma } = useFirma();
+  const { valgtFirmaId, firmaer, erAnsattIFirma, erAnsattIValgtFirma } = useFirma();
+  // ADMIN-GJEST tillegg A (2026-11-25): sitedoc_admin i et firma hen ikke er ansatt i
+  // beholder ikke et valgt gjesteprosjekt ved firmabytte (som web, `gjesteIderForNullstilling`).
+  const minBruker = trpc.bruker.hentMin.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
+  const adminIFremmedFirma = erAdminIFremmedFirma({
+    rolle: minBruker.data?.role,
+    erAnsattIValgtFirma,
+  });
   const [valgtProsjektId, setValgtProsjektId] = useState<string | null>(null);
   const [lasterProsjektId, setLasterProsjektId] = useState(true);
   const prevFirmaId = useRef<string | null>(null);
@@ -122,6 +130,7 @@ export function ProsjektProvider({ children }: { children: ReactNode }) {
       prosjektId: valgtProsjektId,
       gjester,
       lasterGjester,
+      adminIFremmedFirma,
     });
     if (utfall === "vent") return;
     if (utfall === "nullstill") {
@@ -129,7 +138,7 @@ export function ProsjektProvider({ children }: { children: ReactNode }) {
       slettVerdi(VALGT_PROSJEKT_KEY).catch(() => {});
     }
     setVentendeForrigeFirmaId(null);
-  }, [ventendeForrigeFirmaId, valgtFirmaId, valgtProsjektId, gjester, lasterGjester]);
+  }, [ventendeForrigeFirmaId, valgtFirmaId, valgtProsjektId, gjester, lasterGjester, adminIFremmedFirma]);
 
   const byttProsjekt = useCallback((id: string) => {
     // Eget valg etter firmabyttet vinner over en ventende nullstilling.
