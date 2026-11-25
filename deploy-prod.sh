@@ -42,6 +42,9 @@ read -r -p "   Dette deployer til PRODUKSJON. Skriv 'prod' for å fortsette: " S
 #   docker/env  = server-.env for BÅDE prod og test — KRITISK, må aldri slettes.
 #                 Finnes ikke i git (gitignored) og kan ikke gjenskapes derfra.
 #   uploads     = server-only brukerdata + bind-mount, delt test↔prod
+#   .claude     = lokale worktrees (~1,6 G); Docker bruker dem ikke (.dockerignore). Uten
+#                 exclude ble fjernede worktrees stående på server som «cannot delete
+#                 non-empty directory» (apps/mobile/** beskyttet). Kenneth 2026-11-25.
 #   node_modules/.next/.git/apps/mobile/.turbo/.pnpm-store = bloat
 #
 # ⚠️ apps/mobile: innholdet ekskluderes, MEN package.json MÅ synkes — ellers
@@ -61,6 +64,7 @@ rsync -a --delete \
   --exclude uploads \
   --exclude 'DWG eksempelfiler' \
   --exclude relay \
+  --exclude .claude \
   "$SRC" "$DST"
 
 # --- 2. Skriv ut docker-kommandoene (kjøres IKKE her — sudo krever TTY) -----
