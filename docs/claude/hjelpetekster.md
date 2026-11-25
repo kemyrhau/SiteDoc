@@ -266,6 +266,7 @@ Siden hadde ikke ?-ikon før. `HjelpKnapp` står sist i verktøylinja, etter Sni
 - **Gruppeoverskrift:** «Prosjekter i andre firma» (`prosjektVelger.andreFirma`).
 - **Forklaring:** «Du er medlem av disse prosjektene, men de eies av et firma du ikke er ansatt i.» (`prosjektVelger.andreFirmaHjelp`). På web står den som ?-ikon med tooltip ved overskriften (`KontekstChip.tsx`). På mobil står den som grå linje under overskriften (`ProsjektVelger.tsx`).
 - **Rad:** prosjektnavn · eierfirma (web på samme linje, mobil på linja under; eierfirma mangler offline).
+- **Hvem ser gruppen:** vanlige brukere og company_admin. Sitedoc-admin ser den aldri, heller ikke i eget firma (ADMIN-UTEN-GJESTEGRUPPE, Kenneth 2026-11-26) — admin bytter firma først. Forklaringsteksten nevner ikke admin og er uendret.
 
 ## Web og mobil: byggeplassfilteret husker siste valg (ORDRE 2026-11-15 (22), 🟡 ikke merget)
 

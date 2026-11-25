@@ -707,7 +707,7 @@ export {
   erGjesteprosjekt,
   skjulFirmaModulForGjest,
   gjesteprosjekterIAndreFirma,
-  erAdminIFremmedFirma,
+  erAdminUtenGjestegruppe,
   velgerGjestegruppe,
   gjesteIderForNullstilling,
   skalNullstilleProsjekt,

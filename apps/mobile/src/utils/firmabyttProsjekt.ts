@@ -14,9 +14,10 @@ import { gjesteIderForNullstilling } from "@sitedoc/shared";
  *
  *  Uten valgt firma (utlogging/firma fjernet) nullstilles alltid, som før.
  *
- *  ADMIN-GJEST tillegg A (2026-11-25): `adminIFremmedFirma` (sitedoc_admin, ikke ansatt i
- *  valgt firma) → gjesteprosjektet beskyttes ikke (`gjesteIderForNullstilling`). Eieren slås
- *  fortsatt opp i gjestelista, så et gjesteprosjekt eid av det nye firmaet beholdes.
+ *  ADMIN-GJEST tillegg A (2026-11-25) / ADMIN-UTEN-GJESTEGRUPPE (2026-11-26):
+ *  `adminUtenGjestegruppe` (sitedoc_admin, uansett firma) → gjesteprosjektet beskyttes ikke
+ *  (`gjesteIderForNullstilling`). Eieren slås fortsatt opp i gjestelista, så et
+ *  gjesteprosjekt eid av det nye firmaet beholdes.
  * ========================================================================== */
 
 export type FirmabyttUtfall = "behold" | "nullstill" | "vent";
@@ -27,7 +28,7 @@ export function firmabyttUtfall(input: {
   prosjektId: string | null;
   gjester: ReadonlyArray<{ id: string; primaryOrganizationId: string | null }>;
   lasterGjester: boolean;
-  adminIFremmedFirma?: boolean;
+  adminUtenGjestegruppe?: boolean;
 }): FirmabyttUtfall {
   const { forrigeFirmaId, valgtFirmaId, prosjektId, gjester, lasterGjester } = input;
   if (!prosjektId) return "behold";
@@ -39,10 +40,35 @@ export function firmabyttUtfall(input: {
     prosjekt: { id: prosjektId, primaryOrganizationId: gjest ? gjest.primaryOrganizationId : forrigeFirmaId },
     gjesteIder: gjesteIderForNullstilling(
       gjester.map((g) => g.id),
-      input.adminIFremmedFirma ?? false,
+      input.adminUtenGjestegruppe ?? false,
     ),
     lasterGjester: false,
   })
     ? "nullstill"
     : "behold";
+}
+
+/**
+ * ADMIN-UTEN-GJESTEGRUPPE (Kenneth 2026-11-26) punkt 2: sitedoc_admin som står med et
+ * gjesteprosjekt valgt (lagret fra før, også i eget firma) får valget nullstilt på samme måte
+ * som ved firmabytte — uten at firmaet byttes. Samme regel (`firmabyttUtfall`), med valgt firma
+ * som «forrige»: et prosjekt som ikke er gjest, regnes da som det valgte firmaets og beholdes;
+ * et gjesteprosjekt i et annet firma nullstilles. Andre roller: alltid «behold».
+ */
+export function adminValgtGjestUtfall(input: {
+  valgtFirmaId: string | null;
+  prosjektId: string | null;
+  gjester: ReadonlyArray<{ id: string; primaryOrganizationId: string | null }>;
+  lasterGjester: boolean;
+  adminUtenGjestegruppe: boolean;
+}): FirmabyttUtfall {
+  if (!input.adminUtenGjestegruppe || !input.valgtFirmaId || !input.prosjektId) return "behold";
+  return firmabyttUtfall({
+    forrigeFirmaId: input.valgtFirmaId,
+    valgtFirmaId: input.valgtFirmaId,
+    prosjektId: input.prosjektId,
+    gjester: input.gjester,
+    lasterGjester: input.lasterGjester,
+    adminUtenGjestegruppe: true,
+  });
 }
