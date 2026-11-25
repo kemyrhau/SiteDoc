@@ -6043,6 +6043,7 @@
   "timer.attestering.reiseRett.slutt": "Päättymisaika",
   "timer.attestering.reiseRett.bareUnderprosjekt": "Yritys ei salli aikaa ja paikkaa korjata hyväksynnän aikana. Osaprojektia voidaan korjata.",
   "timer.mine.hjelp.reise": "Retkellä projektia voi muuttaa ✎-näppäimellä: rakennustyömaa ehdotetaan uudelleen ja osaprojekti tyhjennetään. Palkkatyypin alla oleva rivi kertoo, millä kortilla matka menee. Työ ei muuta projektia; rekisteröi se uudeksi työksi.",
+  "timer.mine.hjelp.reiseStartIJobb": "Rakennustyömaalle: jos asetat Aloitus-asetuksen työn ajassa, loppu seuraa ajoaikaa ja voit siirtää työn alkamista.",
   "timer.attestering.tabell.hjelp.reise": "Matka on esitetty osassa 8 yhtenä rivinä. ✎ avaa \"Korjaa matka\", jossa on alku, loppu, palkkalaji (vain matkatyypit), projekti, rakennustyömaa ja osaprojekti; listassa on projektit, jotka voit hyväksyä, ja alareunassa oleva rivi kertoo, millä kortilla matka menee. Jos yritys ei salli korjauksia hyväksynnän aikana, vain osaprojekti voidaan korjata.",
   "timer.jobbSkjema.underprosjekt": "Osaprojekti",
   "timer.jobbSkjema.utenUnderprosjekt": "Ei mitään",

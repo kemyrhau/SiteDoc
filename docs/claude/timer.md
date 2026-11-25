@@ -1187,6 +1187,14 @@ Hjemmel: [vedtak-timer-web.md § Reisevinduet](vedtak-timer-web.md) punkt 26 (or
 - **i18n:** `timer.reiseKort.flyttJobb.start`, `.slutt`, `.blir`, `.blirOvertid`, `.blirUtenTimer`, alle 15 språk.
 - **Tester:** `reiseManuell-o20.test.ts` (13), `reisevindu.test.tsx` «O20» (6) + «O20 TILLEGG» (4), `o20-flytt-jobb.integration.test.ts` (15, ekte Postgres; § TILLEGG 5: forutsetning, Til og Fra lik `lagreJobbTid` for samme Fra–til, overtid 0, én arbeidsrad). Negativkontroll: integrasjonstestene mot develops `dagsseddel.ts` → 4 av 10 røde (Til, Fra, ikke-kant, Zod); de grønne er sperre- og rettighetsvaktene. TILLEGG mot `d95660a4`: server 2 av 15 røde (Til, overtid 0; Fra var riktig fra før), web 2 av 65 røde (Til, Fra).
 
+### Reisevinduet: Start inne i jobben flytter Slutt (O21) — 🟡 `fix/reise-start-i-jobb`, ikke merget
+
+Vedtak: `vedtak-timer-web.md` § Reisevinduet pkt 27 (Kenneth 2026-11-25).
+- **Regel:** «Til byggeplass», ny reise fra prosjektkortet. Start rettet til jobbens start ≤ Start < jobbens slutt (jobb = som `finnKantFlytt`: kortets rader som ikke er reise, ikke arbeidstid-reise, ikke erstattet) og Start ≥ Slutt → Slutt = Start + firmaets kjøretid (`sluttEtterStartIJobb`, `packages/shared/src/utils/reiseManuell.ts:497`). Reisen overlapper da jobbens start, og O20-knappen kommer.
+- **Følger til arbeideren retter Slutt:** `ReiseKort.tsx` holder `sluttFolger` mens Slutt er satt av regelen; da følger Slutt hver Start inne i jobben (tidsfeltets mellomverdier). Rettet Slutt eller «Antall timer» slår den av.
+- **Står som før:** Start før jobben (pkt 6), etter jobben (pkt 24), kort uten jobb, uten kjøretid (`utenKjoretid` → sperren «Slutt-tid må være etter start-tid»), O14-retting, dagskort-visning, «Fra byggeplass».
+- **Tester:** `reiseManuell-o21.test.ts` (8), `reisevindu.test.tsx` «O21» (7). Negativkontroll: «O21» mot develops `ReiseKort.tsx` → 3 av 7 røde (Kenneths tilfelle, mellomverdi, Slutt rettes etterpå); de fire regresjonene er grønne.
+
 ### Returnert sedel: overlappmelding, flytting og spor ved sletting (R1) — ✅ Merget `641bcd41` (2026-11-23), ikke deployet
 
 Kenneth 2026-11-23: (a) ja, b1 ja, b2 nei, b3 ja. Delte regler i `packages/shared/src/utils/returSedel.ts` (`aktiveTimerRader`, `beskrivOverlapp`, `reiseUtenforArbeid`, `linjeKanFlyttes`).

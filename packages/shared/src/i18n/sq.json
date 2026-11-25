@@ -6043,6 +6043,7 @@
   "timer.attestering.reiseRett.slutt": "Koha e përfundimit",
   "timer.attestering.reiseRett.bareUnderprosjekt": "Kompania nuk lejon që koha dhe vendi të korrigjohen gjatë miratimit. Nën-projekti mund të korrigjohet.",
   "timer.mine.hjelp.reise": "Në një udhëtim mund ta ndryshoni projektin me ✎: kantieri i ndërtimit sugjerohet përsëri dhe nën-projekti pastrohet. Rreshti nën llojin e pagës tregon se në cilën kartë shkon udhëtimi. Puna nuk ndryshon projektin; regjistrojeni atë si një punë të re.",
+  "timer.mine.hjelp.reiseStartIJobb": "Tek kantieri: nëse vendosni Start brenda kohës së punës, Fundi pason me kohën e drejtimit dhe mund të zhvendosni fillimin e punës.",
   "timer.attestering.tabell.hjelp.reise": "Udhëtimi tregohet në pjesën 8 si një rresht. ✎ hap \"Korrigjo udhëtimin\" me fillimin, fundin, llojin e pagës (vetëm llojet e udhëtimit), projektin, kantierin dhe nënprojektin; lista ka projektet që mund të miratoni, dhe rreshti në fund tregon se në cilën kartë shkon udhëtimi. Nëse kompania nuk lejon korrigjime gjatë miratimit, vetëm nën-projekti mund të korrigjohet.",
   "timer.jobbSkjema.underprosjekt": "Nënprojekt",
   "timer.jobbSkjema.utenUnderprosjekt": "Asnjë",

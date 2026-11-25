@@ -6043,6 +6043,7 @@
   "timer.attestering.reiseRett.slutt": "Ora de sfârșit",
   "timer.attestering.reiseRett.bareUnderprosjekt": "Compania nu permite ca timpul și locul să fie corectate în timpul aprobării. Subproiectul poate fi corectat.",
   "timer.mine.hjelp.reise": "Într-o călătorie, puteți schimba proiectul cu ✎: șantierul este sugerat din nou și subproiectul este șters. Rândul de sub tipul de salariu spune pe ce card merge călătoria. Munca nu schimbă proiectul; înregistrați-l ca un loc de muncă nou.",
+  "timer.mine.hjelp.reiseStartIJobb": "Spre șantier: dacă setați Start în timpul lucrării, End urmează cu timpul de conducere și puteți muta începutul lucrării.",
   "timer.attestering.tabell.hjelp.reise": "Călătoria este prezentată în partea 8 ca o singură linie. ✎ deschide „Corectează călătoria” cu început, sfârșit, tip de salariu (numai tipuri de călătorie), proiect, șantier și subproiect; lista are proiectele pe care le puteți aproba, iar linia de jos spune în ce card se îndreaptă călătoria. Dacă compania nu permite corecții în timpul aprobării, doar subproiectul poate fi corectat.",
   "timer.jobbSkjema.underprosjekt": "Subproiect",
   "timer.jobbSkjema.utenUnderprosjekt": "Nici unul",
