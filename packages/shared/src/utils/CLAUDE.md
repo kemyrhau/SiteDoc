@@ -305,6 +305,8 @@ Fasit: `tegningNedlasting.test.ts`.
 
 **O21 (vedtak pkt 27), bare web:** `sluttEtterStartIJobb({startTid, sluttTid, kjoretidMin, folger, kortId, rader})` → ny Slutt (Start + kjøretid) når «Til byggeplass»-Start ligger inne i jobben i kortet (samme jobb som `finnKantFlytt`) og er ≥ Slutt — eller `folger` (Slutt satt av regelen, tidsfeltets mellomverdier); ellers `null` (Slutt står). Fasit: `reiseManuell-o21.test.ts`.
 
+**O22 (vedtak pkt 28), web + mobil:** `ikkeValgt` fra `løsOppmote` er ikke lenger en sperre — `løsReiseKort` går til manuell modus (`løsReiseKortUtenKjoretid`) med `utenKjoretid: "utenOppmote"`, uten å kreve `tillatUtenKjoretid`. Sporet får `reiseOppmotestedId`/`reiseAvstandM`/`reiseKjoretidMin` = null. Sperren `oppmoteIkkeValgt` er fjernet fra `ReiseKortSperre`. Fasit: `reiseManuell.test.ts` (O22-testene).
+
 `medOverforingPeriodeId(spor, periodeId)` setter `reiseRegel.overforing.periodeId` når perioden er kjent ved lagring (ny id ved start, lukket periode ved slutt); `null` → sporet urørt.
 
 ### Reisekjede (`reiseKjede.ts`, ordre 2026-11-15 (17))
