@@ -1,5 +1,13 @@
 import { describe, it, expect } from "vitest";
-import { erGjesteprosjekt, skjulFirmaModulForGjest, gjesteprosjekterIAndreFirma } from "./gjesteprosjekt";
+import {
+  erGjesteprosjekt,
+  skjulFirmaModulForGjest,
+  gjesteprosjekterIAndreFirma,
+  erAdminIFremmedFirma,
+  velgerGjestegruppe,
+  gjesteIderForNullstilling,
+  skalNullstilleProsjekt,
+} from "./gjesteprosjekt";
 
 /** POST 2026-11-15 (15) test (a): gjesteprosjekt-regelen som tabell. */
 const A = "firma-a";
@@ -50,5 +58,44 @@ describe("gjesteprosjekterIAndreFirma — (16) punkt 2", () => {
   });
   it("uten valgt firma → hele gjestelista som før", () => {
     expect(gjesteprosjekterIAndreFirma([iX, iY], null).map((p) => p.id)).toEqual(["p-x", "p-y"]);
+  });
+});
+
+describe("ADMIN-GJEST — velgerens gjestegruppe og nullstilling (Kenneth 2026-11-25)", () => {
+  const SITEDOC = "sitedoc";
+  const Z = "martin-wulf";
+  const P = { id: "p-sitedoc", primaryOrganizationId: SITEDOC };
+  const gruppe = (rolle: string, erAnsatt: boolean | null) =>
+    velgerGjestegruppe([P], Z, erAdminIFremmedFirma({ rolle, erAnsattIValgtFirma: erAnsatt }));
+
+  it("🔴 admin + ikke ansatt i valgt firma → tom gruppe", () => {
+    expect(gruppe("sitedoc_admin", false)).toEqual([]);
+  });
+  it("admin + ansatt i valgt firma → gruppen vises", () => {
+    expect(gruppe("sitedoc_admin", true).map((p) => p.id)).toEqual(["p-sitedoc"]);
+  });
+  it("admin + ukjent ansatt-status → gruppen vises (dagens atferd)", () => {
+    expect(gruppe("sitedoc_admin", null).map((p) => p.id)).toEqual(["p-sitedoc"]);
+  });
+  it("vanlig bruker, ikke ansatt i valgt firma → gruppen vises", () => {
+    expect(gruppe("user", false).map((p) => p.id)).toEqual(["p-sitedoc"]);
+  });
+  it("(16) står: eget-firma-prosjekt i valgt firma er ikke i gruppen", () => {
+    const iZ = { id: "p-z", primaryOrganizationId: Z };
+    expect(velgerGjestegruppe([P, iZ], Z, false).map((p) => p.id)).toEqual(["p-sitedoc"]);
+  });
+
+  const nullstill = (adminIFremmed: boolean) =>
+    skalNullstilleProsjekt({
+      valgtFirmaId: Z,
+      prosjekt: P,
+      gjesteIder: gjesteIderForNullstilling([P.id], adminIFremmed),
+      lasterGjester: false,
+    });
+  it("🔴 A: admin i fremmed firma → valgt gjesteprosjekt nullstilles", () => {
+    expect(nullstill(true)).toBe(true);
+  });
+  it("ellers beholdes valgt gjesteprosjekt (15)", () => {
+    expect(nullstill(false)).toBe(false);
   });
 });

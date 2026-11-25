@@ -1,4 +1,5 @@
 import { skalNullstilleProsjekt } from "@sitedoc/shared";
+import { gjesteIderForNullstilling } from "@sitedoc/shared";
 
 /* ============================================================================
  *  Valgt prosjekt ved firmabytte på mobil (ordre 2026-11-15 (19)).
@@ -12,6 +13,10 @@ import { skalNullstilleProsjekt } from "@sitedoc/shared";
  *  det valgt i forrige firma — eieren settes da til forrige firma.
  *
  *  Uten valgt firma (utlogging/firma fjernet) nullstilles alltid, som før.
+ *
+ *  ADMIN-GJEST tillegg A (2026-11-25): `adminIFremmedFirma` (sitedoc_admin, ikke ansatt i
+ *  valgt firma) → gjesteprosjektet beskyttes ikke (`gjesteIderForNullstilling`). Eieren slås
+ *  fortsatt opp i gjestelista, så et gjesteprosjekt eid av det nye firmaet beholdes.
  * ========================================================================== */
 
 export type FirmabyttUtfall = "behold" | "nullstill" | "vent";
@@ -22,6 +27,7 @@ export function firmabyttUtfall(input: {
   prosjektId: string | null;
   gjester: ReadonlyArray<{ id: string; primaryOrganizationId: string | null }>;
   lasterGjester: boolean;
+  adminIFremmedFirma?: boolean;
 }): FirmabyttUtfall {
   const { forrigeFirmaId, valgtFirmaId, prosjektId, gjester, lasterGjester } = input;
   if (!prosjektId) return "behold";
@@ -31,7 +37,10 @@ export function firmabyttUtfall(input: {
   return skalNullstilleProsjekt({
     valgtFirmaId,
     prosjekt: { id: prosjektId, primaryOrganizationId: gjest ? gjest.primaryOrganizationId : forrigeFirmaId },
-    gjesteIder: gjester.map((g) => g.id),
+    gjesteIder: gjesteIderForNullstilling(
+      gjester.map((g) => g.id),
+      input.adminIFremmedFirma ?? false,
+    ),
     lasterGjester: false,
   })
     ? "nullstill"
