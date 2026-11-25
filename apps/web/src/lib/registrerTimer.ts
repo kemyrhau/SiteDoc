@@ -7,7 +7,7 @@
  * Plan: `docs/claude/web-timeforing-plan.md` § 4 bilde 1 (tabellen «Når → Det som skjer»).
  */
 
-import { medRetur } from "@/lib/tilbake-adresse";
+import { lokalIsoDato, medRetur } from "@/lib/tilbake-adresse";
 
 /** Hva dagssiden gjør når den åpnes fra «+ Registrer timer». */
 export type RegistrerSteg =
@@ -93,6 +93,44 @@ export function byggeplassForRegistrering(a: {
   if (!a.toppbarByggeplassId || !a.projectId) return null;
   const bp = a.byggeplasser?.find((b) => b.id === a.toppbarByggeplassId);
   return bp && bp.projectId === a.projectId ? bp.id : null;
+}
+
+/**
+ * REGISTRER-DATO (Kenneth 2026-11-25): datoen «Velg dato» på «+ Registrer timer» foreslår.
+ * En valgt enkeltdato (Mine timers datosøk) vinner; ellers uka siden står på — denne uka gir i
+ * dag, en tidligere uke gir ukas mandag. Aldri en dag etter i dag (ingen regel tillater
+ * fremtidige dager; serveren har ingen grense, men skjemaet åpner ikke for dem).
+ */
+export function standardRegistrerDato(a: {
+  naa: Date;
+  /** Mandagen i uka siden viser (`?uke=`). */
+  ukeStart?: Date | null;
+  /** En enkeltdato siden filtrerer på (YYYY-MM-DD). */
+  valgtDato?: string | null;
+}): string {
+  const iDag = lokalIsoDato(a.naa);
+  if (a.valgtDato && gyldigRegistrerDato(a.valgtDato, a.naa)) return a.valgtDato;
+  if (a.ukeStart) {
+    const mandag = lokalIsoDato(a.ukeStart);
+    return mandag < iDag ? senesteAv(mandag, iDag, a.ukeStart) : iDag;
+  }
+  return iDag;
+}
+
+/** Ukas mandag, men i dag når uka er denne (mandag ≤ i dag ≤ søndag). */
+function senesteAv(mandag: string, iDag: string, ukeStart: Date): string {
+  const sondag = new Date(ukeStart);
+  sondag.setDate(sondag.getDate() + 6);
+  return lokalIsoDato(sondag) >= iDag ? iDag : mandag;
+}
+
+/** YYYY-MM-DD som finnes i kalenderen og ikke er etter i dag. */
+export function gyldigRegistrerDato(dato: string, naa: Date): boolean {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dato);
+  if (!m) return false;
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  if (d.getMonth() !== Number(m[2]) - 1 || d.getDate() !== Number(m[3])) return false;
+  return dato <= lokalIsoDato(naa);
 }
 
 /** Lenken til dagen etter `opprett`. `registrer=1` starter flyten på dagssiden. */

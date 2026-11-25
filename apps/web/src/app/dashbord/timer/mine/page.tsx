@@ -13,7 +13,7 @@ import { SlettDagModal } from "@/components/timer/SlettDagModal";
 import { lokalIsoDato, medRetur, mineTimerIntervall } from "@/lib/tilbake-adresse";
 import { HjelpKnapp, HjelpFane } from "@/components/hjelp/HjelpModal";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
-import { spennerFlereAar, visDagDato, visTimerTall } from "@/lib/registrerTimer";
+import { spennerFlereAar, standardRegistrerDato, visDagDato, visTimerTall } from "@/lib/registrerTimer";
 import { Clock, FileText, Briefcase, Activity, Info, ChevronRight, Trash2 } from "lucide-react";
 import { KorrigertAvDag, type DagKorrigertAv } from "@/components/timer/KorrigertMerke";
 
@@ -314,10 +314,12 @@ export default function MineTimerSide() {
             organizationId={orgId ?? null}
             projectId={aktivProsjektId}
             retur={MINE_TIMER_STI}
+            dato={standardRegistrerDato({ naa: new Date(), valgtDato: datoSok || null })}
           />
           <HjelpKnapp>
             <HjelpFane tittel={t("timer.mine.tittel")}>
               <p>{t("timer.mine.hjelp.registrer")}</p>
+              <p className="mt-2">{t("timer.mine.hjelp.velgDato")}</p>
               <p className="mt-2">{t("timer.mine.hjelp.dagen")}</p>
               <p className="mt-2">{t("timer.mine.hjelp.ferdig")}</p>
               <p className="mt-2">{t("timer.mine.hjelp.skjema")}</p>

@@ -9,8 +9,10 @@ import {
   nyKortId,
   registrerLenke,
   registrerTimerSteg,
+  gyldigRegistrerDato,
   spennerFlereAar,
   standardAktivitetId,
+  standardRegistrerDato,
   visDagDato,
   visTimerTall,
 } from "../registrerTimer";
@@ -130,5 +132,36 @@ describe("adresseEtterRegistrering", () => {
     expect(adresseEtterRegistrering("/dashbord/timer/s1", "registrer=1&nyttProsjekt=p1")).toBe(
       "/dashbord/timer/s1",
     );
+  });
+});
+
+describe("standardRegistrerDato (REGISTRER-DATO)", () => {
+  const naa = new Date(2026, 10, 25, 12); // onsdag 25.11.2026
+  it("uten uke eller dato: i dag", () => {
+    expect(standardRegistrerDato({ naa })).toBe("2026-11-25");
+  });
+  it("denne uka: i dag", () => {
+    expect(standardRegistrerDato({ naa, ukeStart: new Date(2026, 10, 23) })).toBe("2026-11-25");
+  });
+  it("tidligere uke: ukas mandag", () => {
+    expect(standardRegistrerDato({ naa, ukeStart: new Date(2026, 10, 16) })).toBe("2026-11-16");
+  });
+  it("fremtidig uke: i dag (ingen dag etter i dag)", () => {
+    expect(standardRegistrerDato({ naa, ukeStart: new Date(2026, 10, 30) })).toBe("2026-11-25");
+  });
+  it("valgt enkeltdato vinner, men ikke etter i dag", () => {
+    expect(standardRegistrerDato({ naa, valgtDato: "2026-11-20" })).toBe("2026-11-20");
+    expect(standardRegistrerDato({ naa, valgtDato: "2026-12-01" })).toBe("2026-11-25");
+  });
+});
+
+describe("gyldigRegistrerDato", () => {
+  const naa = new Date(2026, 10, 25, 12);
+  it("i dag og tidligere er gyldig; i morgen, tomt og ugyldig er ikke", () => {
+    expect(gyldigRegistrerDato("2026-11-25", naa)).toBe(true);
+    expect(gyldigRegistrerDato("2026-11-24", naa)).toBe(true);
+    expect(gyldigRegistrerDato("2026-11-26", naa)).toBe(false);
+    expect(gyldigRegistrerDato("", naa)).toBe(false);
+    expect(gyldigRegistrerDato("2026-02-30", naa)).toBe(false);
   });
 });
