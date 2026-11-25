@@ -6088,6 +6088,7 @@
   "timer.reiseKort.flyttJobb.start": "Flytta jobbets början till {{tid}}",
   "timer.reiseKort.flyttJobb.slutt": "Flytta jobbets slut till {{tid}}",
   "timer.reiseKort.flyttJobb.blir": "Jobbet blir {{fra}}–{{til}} ({{timer}} h)",
+  "timer.reiseKort.flyttJobb.blirOvertid": "Jobbet blir {{fra}}–{{til}} ({{normal}} h + {{overtid}} h övertid)",
   "timer.reiseKort.flyttJobb.blirUtenTimer": "Jobbet blir {{fra}}–{{til}}",
   "timer.reiseKort.lagreOppmotested": "Spara mötesplats",
   "timer.reiseKort.underTerskelOverVindu": "Tiden i fönstret är över företagets tröskelvärde ({{terskel}}). Registrera som restid?",

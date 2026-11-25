@@ -6088,6 +6088,7 @@
   "timer.reiseKort.flyttJobb.start": "Przenieś początek zadania na {{tid}}",
   "timer.reiseKort.flyttJobb.slutt": "Przenieś koniec zadania do {{tid}}",
   "timer.reiseKort.flyttJobb.blir": "Zadanie zmienia się na {{fra}}–{{til}} ({{timer}} godz.)",
+  "timer.reiseKort.flyttJobb.blirOvertid": "Praca zmienia się na {{fra}}–{{til}} ({{normal}} godz. + {{overtid}} godz. nadgodzin)",
   "timer.reiseKort.flyttJobb.blirUtenTimer": "Praca staje się {{fra}}–{{til}}",
   "timer.reiseKort.lagreOppmotested": "Zapisz miejsce spotkania",
   "timer.reiseKort.underTerskelOverVindu": "Czas w oknie przekracza próg firmy ({{terskel}}). Zapisać jako czas podróży?",

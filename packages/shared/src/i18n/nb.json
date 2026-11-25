@@ -6088,6 +6088,7 @@
   "timer.reiseKort.flyttJobb.start": "Flytt jobbens start til {{tid}}",
   "timer.reiseKort.flyttJobb.slutt": "Flytt jobbens slutt til {{tid}}",
   "timer.reiseKort.flyttJobb.blir": "Jobben blir {{fra}}–{{til}} ({{timer}} t)",
+  "timer.reiseKort.flyttJobb.blirOvertid": "Jobben blir {{fra}}–{{til}} ({{normal}} t + {{overtid}} t overtid)",
   "timer.reiseKort.flyttJobb.blirUtenTimer": "Jobben blir {{fra}}–{{til}}",
   "timer.reiseKort.lagreOppmotested": "Lagre oppmøtested",
   "timer.reiseKort.underTerskelOverVindu": "Tiden i vinduet er over firmaets terskel ({{terskel}}). Før som reisetid?",

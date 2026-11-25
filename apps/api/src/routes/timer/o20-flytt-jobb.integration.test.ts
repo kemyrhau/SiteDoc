@@ -23,6 +23,7 @@ const KONTOR = id("31");
 const ORD = id("41");
 const REISE = id("42");
 const AKT = id("43");
+const OT = id("44");
 
 function ctx(userId: string) {
   return {
@@ -57,7 +58,7 @@ async function ryddSedler() {
 
 async function ryddOpp() {
   await ryddSedler();
-  await prismaTimer.lonnsart.deleteMany({ where: { id: { in: [ORD, REISE] } } });
+  await prismaTimer.lonnsart.deleteMany({ where: { id: { in: [ORD, REISE, OT] } } });
   await prismaTimer.aktivitet.deleteMany({ where: { id: AKT } });
   await prisma.activity.deleteMany({ where: { actorUserId: { in: [USER, ANNEN] } } });
   await prisma.oppmotested.deleteMany({ where: { id: KONTOR } });
@@ -83,7 +84,7 @@ async function seed() {
   for (const o of [ORG, ORG2]) {
     await prisma.organizationModule.create({ data: { organizationId: o, moduleSlug: "timer", status: "aktiv" } });
   }
-  await prisma.organizationSetting.create({ data: { organizationId: ORG, timerRegistreringsmodus: "prosjektkort", reiseLonnsartId: REISE } });
+  await prisma.organizationSetting.create({ data: { organizationId: ORG, timerRegistreringsmodus: "prosjektkort", reiseLonnsartId: REISE, dagsnorm: 7.5, standardPauseMin: 30, standardPauseEtterTimer: 4 } });
   await prisma.project.create({ data: { id: P1, projectNumber: "O20-1", name: "O20 Instinniforbotn", primaryOrganizationId: ORG } });
   await prisma.projectMember.create({ data: { userId: USER, projectId: P1, role: "member" } });
   await prisma.projectModule.create({ data: { projectId: P1, moduleSlug: "timer", organizationId: ORG, status: "aktiv" } });
@@ -94,6 +95,9 @@ async function seed() {
   });
   await prismaTimer.lonnsart.create({
     data: { id: REISE, organizationId: ORG, type: "ordinaer", navn: "Reisetid", erStandardvalg: false, aktiv: true },
+  });
+  await prismaTimer.lonnsart.create({
+    data: { id: OT, organizationId: ORG, type: "ordinaer", navn: "Overtid 50 %", aktiv: true, overtidsnivaa: 50, rekkefolge: 2 },
   });
   await prismaTimer.aktivitet.create({ data: { id: AKT, organizationId: ORG, navn: "Anleggsarbeid" } });
 }
@@ -279,5 +283,81 @@ describe("O20 — tilfoyTimerRad med flyttRad", () => {
       dag().tilfoyTimerRad(reise(sid, jobb.kortId, { flyttRad: { radId: jobb.id, nyFra: "07:50" } })),
     ).rejects.toMatchObject({ code: "PRECONDITION_FAILED" });
     expect((await prismaTimer.sheetTimer.findUniqueOrThrow({ where: { id: jobb.id } })).fraTid).toBe("07:00");
+  });
+
+  // TILLEGG (Kenneth 2026-11-25 «ja, fordel normaltid og overtid på nytt»): jobb delt i normal +
+  // overtid (O5) fordeles på nytt med samme regel som `lagreJobbTid`.
+  describe("TILLEGG — O5-jobb (normal + overtid) fordeles på nytt", () => {
+    /** Jobben 07:00–17:30 lagret gjennom jobbskjemaet (O5): normal 07:00–15:00 + overtid 15:00–17:30. */
+    async function lagO5Jobb(sid: string, fraTid = "07:00", tilTid = "17:30") {
+      const min = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3));
+      const j = await lagJobb(sid, fraTid, tilTid, Math.round(((min(tilTid) - min(fraTid) - 30) / 60) * 100) / 100, 30);
+      await dag().lagreJobbTid({ sheetId: sid, kortId: j.kortId, fraTid, tilTid, pauseMin: 30, linjer: [{ radId: j.id, lonnsartId: ORD }] });
+      return j;
+    }
+    const arbeid = async (sid: string) =>
+      (await rader(sid))
+        .filter((r) => !r.erReise)
+        .map((r) => ({ fraTid: r.fraTid, tilTid: r.tilTid, timer: Number(r.timer), pauseMin: r.pauseMin, lonnsartId: r.lonnsartId }));
+
+    it("forutsetning: O5 deler 07:00–17:30 i normal 07:00–15:00 (7,5) + overtid 15:00–17:30 (2,5)", async () => {
+      const sid = await lagSedel("2026-11-24");
+      await lagO5Jobb(sid);
+      expect(await arbeid(sid)).toEqual([
+        { fraTid: "07:00", tilTid: "15:00", timer: 7.5, pauseMin: 30, lonnsartId: ORD },
+        { fraTid: "15:00", tilTid: "17:30", timer: 2.5, pauseMin: 0, lonnsartId: OT },
+      ]);
+    });
+
+    it("Til 07:00–07:50: normal- og overtidsrader blir lik det O5 gir for 07:50–17:30", async () => {
+      const fasit = await lagSedel("2026-11-25");
+      await lagO5Jobb(fasit, "07:50", "17:30");
+      const forventet = await arbeid(fasit);
+      expect(forventet).toHaveLength(2);
+
+      const sid = await lagSedel("2026-11-24");
+      const jobb = await lagO5Jobb(sid);
+      await dag().tilfoyTimerRad(reise(sid, jobb.kortId, { flyttRad: { radId: jobb.id, nyFra: "07:50" } }));
+      expect(await arbeid(sid)).toEqual(forventet);
+      expect(forventet[1]).toMatchObject({ fraTid: "15:50", tilTid: "17:30", timer: 1.67, lonnsartId: OT });
+      expect((await rader(sid)).filter((r) => r.erReise)).toHaveLength(1);
+    });
+
+    it("Fra 17:00–17:40: overtiden tas først — lik det O5 gir for 07:00–17:00", async () => {
+      const fasit = await lagSedel("2026-11-25");
+      await lagO5Jobb(fasit, "07:00", "17:00");
+      const forventet = await arbeid(fasit);
+
+      const sid = await lagSedel("2026-11-24");
+      const jobb = await lagO5Jobb(sid);
+      const ot = (await rader(sid)).find((r) => r.lonnsartId === OT)!;
+      await dag().tilfoyTimerRad(
+        reise(sid, jobb.kortId, { fraTid: "17:00", tilTid: "17:40", timer: 40 / 60, reiseRetning: "retur", flyttRad: { radId: ot.id, nyTil: "17:00" } }),
+      );
+      expect(await arbeid(sid)).toEqual(forventet);
+      expect(forventet).toEqual([
+        { fraTid: "07:00", tilTid: "15:00", timer: 7.5, pauseMin: 30, lonnsartId: ORD },
+        { fraTid: "15:00", tilTid: "17:00", timer: 2, pauseMin: 0, lonnsartId: OT },
+      ]);
+    });
+
+    it("overtid blir 0 (Til 07:00–09:30): overtidslinja går, som O5 når jobben blir én linje", async () => {
+      const fasit = await lagSedel("2026-11-25");
+      await lagO5Jobb(fasit, "09:30", "17:30");
+      const forventet = await arbeid(fasit);
+      expect(forventet).toEqual([{ fraTid: "09:30", tilTid: "17:30", timer: 7.5, pauseMin: 30, lonnsartId: ORD }]);
+
+      const sid = await lagSedel("2026-11-24");
+      const jobb = await lagO5Jobb(sid);
+      await dag().tilfoyTimerRad(reise(sid, jobb.kortId, { tilTid: "09:30", timer: 2.5, flyttRad: { radId: jobb.id, nyFra: "09:30" } }));
+      expect(await arbeid(sid)).toEqual(forventet);
+    });
+
+    it("regresjon: jobb med én arbeidsrad flytter bare kanten (ingen overtidslinje lages)", async () => {
+      const sid = await lagSedel("2026-11-24");
+      const jobb = await lagJobb(sid);
+      await dag().tilfoyTimerRad(reise(sid, jobb.kortId, { flyttRad: { radId: jobb.id, nyFra: "07:50" } }));
+      expect(await arbeid(sid)).toEqual([{ fraTid: "07:50", tilTid: "17:30", timer: 9.17, pauseMin: 30, lonnsartId: ORD }]);
+    });
   });
 });

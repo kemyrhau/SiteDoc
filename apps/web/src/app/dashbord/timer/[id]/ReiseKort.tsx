@@ -209,6 +209,7 @@ export function ReiseKort({
   forvalgtByggeplassId,
   forvalgtEcoId,
   jobbKortId,
+  jobbFordeling,
   kortModus = false,
   rad,
   onAapneSted,
@@ -243,6 +244,14 @@ export function ReiseKort({
   /** O1 (§ 8.22): kort-id-en til jobben vinduet ble åpnet fra. Under terskel føres turen
    *  som arbeid i DEN jobben når nøkkelen er lik. Utelatt = som før (serveren velger). */
   jobbKortId?: string | null;
+  /**
+   * O20 TILLEGG: jobbens nye fordeling (normal + overtid) når jobben står delt (O5), regnet med
+   * samme delte regel som serveren (`regnJobbTid`). null = jobben er ikke delt; linja viser sum.
+   */
+  jobbFordeling?: (a: { kortId: string; fraTid: string; tilTid: string; reiseFra: string; reiseTil: string }) => {
+    normal: number;
+    overtid: number;
+  } | null;
   /** O12 pkt 3: vinduet er åpnet fra et prosjektkort (prosjektkort-visning). Prosjekt og
    *  byggeplass er kortets og vises som tekst; reisen lagres i kortet `jobbKortId`. */
   kortModus?: boolean;
@@ -486,6 +495,12 @@ export function ReiseKort({
               : [],
           ),
         })
+      : null;
+
+  // O20 TILLEGG: jobben delt i normal + overtid vises med ny fordeling (serveren regner selv).
+  const flyttFordeling =
+    kantFlytt && jobbKortId && jobbFordeling && dFra && dTil
+      ? jobbFordeling({ kortId: jobbKortId, fraTid: kantFlytt.jobbFra, tilTid: kantFlytt.jobbTil, reiseFra: dFra, reiseTil: dTil })
       : null;
 
   // w15b: hvilket kort reisen havner i — samme regel serveren kjører etter lagring.
@@ -1464,7 +1479,20 @@ export function ReiseKort({
               {t(kantFlytt.kant === "start" ? "timer.reiseKort.flyttJobb.start" : "timer.reiseKort.flyttJobb.slutt", { tid: kantFlytt.tid })}
             </Button>
             <p className="text-xs text-gray-600">
-              {kantFlytt.jobbTimer != null
+              {flyttFordeling && flyttFordeling.overtid > 0
+                ? t("timer.reiseKort.flyttJobb.blirOvertid", {
+                    fra: kantFlytt.jobbFra,
+                    til: kantFlytt.jobbTil,
+                    normal: formaterTimer(Math.round(flyttFordeling.normal * 10) / 10),
+                    overtid: formaterTimer(Math.round(flyttFordeling.overtid * 10) / 10),
+                  })
+                : flyttFordeling
+                  ? t("timer.reiseKort.flyttJobb.blir", {
+                      fra: kantFlytt.jobbFra,
+                      til: kantFlytt.jobbTil,
+                      timer: formaterTimer(Math.round(flyttFordeling.normal * 10) / 10),
+                    })
+                  : kantFlytt.jobbTimer != null
                 ? t("timer.reiseKort.flyttJobb.blir", {
                     fra: kantFlytt.jobbFra,
                     til: kantFlytt.jobbTil,

@@ -6088,6 +6088,7 @@
   "timer.reiseKort.flyttJobb.start": "Teisalda töö algus asukohta {{tid}}",
   "timer.reiseKort.flyttJobb.slutt": "Teisalda töö lõpp asukohta {{tid}}",
   "timer.reiseKort.flyttJobb.blir": "Töö saab {{fra}}–{{til}} ({{timer}} h)",
+  "timer.reiseKort.flyttJobb.blirOvertid": "Tööks saab {{fra}}–{{til}} ({{normal}} h + {{overtid}} h ületunnid)",
   "timer.reiseKort.flyttJobb.blirUtenTimer": "Töö saab {{fra}}–{{til}}",
   "timer.reiseKort.lagreOppmotested": "Salvesta kohtumispunkt",
   "timer.reiseKort.underTerskelOverVindu": "Aknas kuvatav aeg on üle ettevõtte läve ({{terskel}}). Kas salvestada reisiajaks?",

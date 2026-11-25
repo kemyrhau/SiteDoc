@@ -6088,6 +6088,7 @@
   "timer.reiseKort.flyttJobb.start": "Pārvietot darba sākumu uz {{tid}}",
   "timer.reiseKort.flyttJobb.slutt": "Pārvietot darba beigas uz {{tid}}",
   "timer.reiseKort.flyttJobb.blir": "Darbs kļūst par {{fra}}–{{til}} ({{timer}} h)",
+  "timer.reiseKort.flyttJobb.blirOvertid": "Darbs kļūst par {{fra}}–{{til}} ({{normal}} h + {{overtid}} h virsstundas)",
   "timer.reiseKort.flyttJobb.blirUtenTimer": "Darbs kļūst par {{fra}}–{{til}}",
   "timer.reiseKort.lagreOppmotested": "Saglabāt tikšanās vietu",
   "timer.reiseKort.underTerskelOverVindu": "Laiks logā pārsniedz uzņēmuma slieksni ({{terskel}}). Ierakstīt kā ceļojuma laiku?",

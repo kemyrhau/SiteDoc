@@ -6088,6 +6088,7 @@
   "timer.reiseKort.flyttJobb.start": "Переместить начало задания на {{tid}}.",
   "timer.reiseKort.flyttJobb.slutt": "Переместить конец задания на {{tid}}",
   "timer.reiseKort.flyttJobb.blir": "Задание становится {{fra}}–{{til}} ({{timer}} ч)",
+  "timer.reiseKort.flyttJobb.blirOvertid": "Работа становится {{fra}}–{{til}} ({{normal}} ч + {{overtid}} ч сверхурочно)",
   "timer.reiseKort.flyttJobb.blirUtenTimer": "Работа становится {{fra}}–{{til}}",
   "timer.reiseKort.lagreOppmotested": "Сохранить место встречи",
   "timer.reiseKort.underTerskelOverVindu": "Время в окне превышает порог компании ({{terskel}}). Записать как время в пути?",

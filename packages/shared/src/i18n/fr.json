@@ -6088,6 +6088,7 @@
   "timer.reiseKort.flyttJobb.start": "Déplacer le début du travail à {{tid}}",
   "timer.reiseKort.flyttJobb.slutt": "Déplacer la fin du travail à {{tid}}",
   "timer.reiseKort.flyttJobb.blir": "Le travail devient {{fra}}–{{til}} ({{timer}} h)",
+  "timer.reiseKort.flyttJobb.blirOvertid": "Le travail devient {{fra}}–{{til}} ({{normal}} h + {{overtid}} h heures supplémentaires)",
   "timer.reiseKort.flyttJobb.blirUtenTimer": "Le travail devient {{fra}}–{{til}}",
   "timer.reiseKort.lagreOppmotested": "Enregistrer le point de rendez-vous",
   "timer.reiseKort.underTerskelOverVindu": "Le temps écoulé dans la fenêtre dépasse le seuil de l'entreprise ({{terskel}}). Enregistrer comme temps de trajet ?",

@@ -6088,6 +6088,7 @@
   "timer.reiseKort.flyttJobb.start": "Zhvendosni fillimin e punës në {{tid}}",
   "timer.reiseKort.flyttJobb.slutt": "Zhvendose fundin e punës në {{tid}}",
   "timer.reiseKort.flyttJobb.blir": "Puna bëhet {{fra}}–{{til}} ({{timer}} orë)",
+  "timer.reiseKort.flyttJobb.blirOvertid": "Puna bëhet {{fra}}–{{til}} ({{normal}} h + {{overtid}} orë jashtë orarit)",
   "timer.reiseKort.flyttJobb.blirUtenTimer": "Puna bëhet {{fra}}–{{til}}",
   "timer.reiseKort.lagreOppmotested": "Ruaj pikën e takimit",
   "timer.reiseKort.underTerskelOverVindu": "Koha në dritare është mbi pragun e kompanisë ({{terskel}}). Të regjistrohet si kohë udhëtimi?",

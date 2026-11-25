@@ -6088,6 +6088,7 @@
   "timer.reiseKort.flyttJobb.start": "Перемістити початок завдання на {{tid}}",
   "timer.reiseKort.flyttJobb.slutt": "Перемістити кінець завдання до {{tid}}",
   "timer.reiseKort.flyttJobb.blir": "Робота стає {{fra}}–{{til}} ({{timer}} год)",
+  "timer.reiseKort.flyttJobb.blirOvertid": "Робота стає {{fra}}–{{til}} ({{normal}} год + {{overtid}} год понаднормово)",
   "timer.reiseKort.flyttJobb.blirUtenTimer": "Робота стає {{fra}}–{{til}}",
   "timer.reiseKort.lagreOppmotested": "Зберегти місце зустрічі",
   "timer.reiseKort.underTerskelOverVindu": "Час у вікні перевищує поріг компанії ({{terskel}}). Записати як час у дорозі?",
