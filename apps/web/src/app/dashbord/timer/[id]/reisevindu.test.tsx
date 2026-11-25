@@ -143,6 +143,10 @@ function rendre({
   perioder = [FAST_TROMSO] as OppmotePeriodeInput[],
   /** O18 S1: kjøretid Narvik → b1 (230 = over terskel). */
   narvikMin = 230,
+  /** O20: firmaets reiseregel (terskel). */
+  regel = REGEL,
+  /** O20 TILLEGG: dagsnorm 7,5 t og overtidsart «lot» (O5). */
+  o5 = false,
 } = {}) {
   h.kall = [];
   h.utelat.clear();
@@ -187,7 +191,7 @@ function rendre({
       timerRegistreringsmodus: "prosjektkort",
       reiseLonnsartId: "lr",
       reiseGrenser: [],
-      ...REGEL,
+      ...regel,
     },
     "oppmotested.hentForFirma": steder,
     "oppmotested.hentMatriseForFirma": [
@@ -203,7 +207,11 @@ function rendre({
     "timer.lonnsart.list": [
       { id: "l1", navn: "Ordinær", aktiv: true, erStandardvalg: true, type: "ordinaer" },
       { id: "lr", navn: "Reise", aktiv: true, erStandardvalg: false, type: "ordinaer" },
+      ...(o5 ? [{ id: "lot", navn: "Overtid 50 %", aktiv: true, erStandardvalg: false, type: "ordinaer", overtidsnivaa: 50, rekkefolge: 2 }] : []),
     ],
+    ...(o5
+      ? { "organisasjon.hentEffektivArbeidstid": { dagsnorm: 7.5, startTid: "07:00", sluttTid: "15:00", pauseMin: 30, pauseReferanse: "ankomst" } }
+      : {}),
     "timer.aktivitet.list": [{ id: "a1", navn: "Arbeid", aktiv: true }],
     "vareforbruk.hentMineForDato": [],
   };
@@ -880,5 +888,136 @@ describe("O19 — reisevinduet: pkt 20, 23–25", () => {
     const d = rendre({ timer: [kontorreise(), arbeid()], perioder: [FAST_TROMSO, narvikEgen] });
     fireEvent.click(knapp(d, "timer.reiseKort.retur"));
     expect(within(d).queryByTestId("reise-paa-kontor")).toBeNull();
+  });
+});
+
+describe("O20 (vedtak-timer-web § Reisevinduet pkt 26) — «Flytt jobbens start/slutt»", () => {
+  afterEach(cleanup);
+  // Siljes dag: én arbeidsrad 07:00–17:30, 30 min pause = 10,0 t.
+  const jobb = () => arbeid({ fraTid: "07:00", tilTid: "17:30", timer: "10", pauseMin: 30 });
+  const OVER = { ...REGEL, reiseTerskelMin: 2 };
+  const flyttBoks = (d: HTMLElement) => within(d).queryByTestId("reise-flytt-jobb");
+  const settTid = (d: HTMLElement, fra: string, til: string) => {
+    fireEvent.change(slutt(d), { target: { value: til } });
+    fireEvent.change(start(d), { target: { value: fra } });
+  };
+  const tilfoyKall = () => h.kall.find((k) => k.key === "timer.dagsseddel.tilfoyTimerRad")?.input;
+
+  it("Til-reise 07:00–07:50 under terskel: knappen flytter jobbens start og lagrer reisen (Reisetid) i ett kall", async () => {
+    const d = rendre({ timer: [jobb()] });
+    settTid(d, "07:00", "07:50");
+    // Overlapp-teksten står, og den gamle knappen er fortsatt sperret.
+    expect(d.textContent).toContain("timer.feil.overlappKort");
+    expect(lagreKnapp(d).disabled).toBe(true);
+    const boks = flyttBoks(d)!;
+    expect(boks.textContent).toContain('timer.reiseKort.flyttJobb.blir{"fra":"07:50","til":"17:30","timer":"9,2"}');
+    fireEvent.click(within(boks).getByRole("button", { name: 'timer.reiseKort.flyttJobb.start{"tid":"07:50"}' }));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(tilfoyKall()).toMatchObject({
+      fraTid: "07:00",
+      tilTid: "07:50",
+      lonnsartId: "lr",
+      kortId: "k1",
+      reiseIKort: true,
+      flyttRad: { radId: "r1", nyFra: "07:50" },
+    });
+  });
+
+  it("Fra-reise 17:00–17:40 over terskel: knappen flytter jobbens slutt til 17:00", async () => {
+    const d = rendre({ timer: [jobb()], regel: OVER });
+    fireEvent.click(knapp(d, "timer.reiseKort.retur"));
+    fireEvent.change(start(d), { target: { value: "17:00" } });
+    fireEvent.change(slutt(d), { target: { value: "17:40" } });
+    const boks = flyttBoks(d)!;
+    expect(boks.textContent).toContain('timer.reiseKort.flyttJobb.blir{"fra":"07:00","til":"17:00","timer":"9,5"}');
+    fireEvent.click(within(boks).getByRole("button", { name: 'timer.reiseKort.flyttJobb.slutt{"tid":"17:00"}' }));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(tilfoyKall()).toMatchObject({ fraTid: "17:00", tilTid: "17:40", flyttRad: { radId: "r1", nyTil: "17:00" } });
+    expect((tilfoyKall()!.flyttRad as Record<string, unknown>).nyFra).toBeUndefined();
+  });
+
+  it("negativkontroll: ingen overlapp → ingen knapp, og «Lagre» sender ingen flytting", async () => {
+    const d = rendre({ timer: [jobb()], regel: OVER });
+    settTid(d, "06:10", "07:00");
+    expect(flyttBoks(d)).toBeNull();
+    const input = (await lagre(d))!;
+    expect(input.flyttRad).toBeUndefined();
+  });
+
+  it("regresjon: reise midt i jobben sperrer som før, ingen knapp", () => {
+    const d = rendre({ timer: [jobb()] });
+    settTid(d, "10:00", "10:30");
+    expect(d.textContent).toContain("timer.feil.overlappKort");
+    expect(flyttBoks(d)).toBeNull();
+    expect(lagreKnapp(d).disabled).toBe(true);
+  });
+
+  it("regresjon: overlapp med et annet kort sperrer som før, ingen knapp", () => {
+    const annen = arbeid({ id: "r2", fraTid: "06:00", tilTid: "07:10", timer: "1.17", kortId: "k2", projectId: "p2", byggeplassId: "b2" });
+    const d = rendre({ timer: [jobb(), annen] });
+    settTid(d, "07:00", "07:50");
+    expect(flyttBoks(d)).toBeNull();
+    expect(lagreKnapp(d).disabled).toBe(true);
+  });
+
+  it("feil retning: «Fra byggeplass» mot jobbens start gir ingen knapp", () => {
+    const d = rendre({ timer: [jobb()], regel: OVER });
+    fireEvent.click(knapp(d, "timer.reiseKort.retur"));
+    fireEvent.change(start(d), { target: { value: "07:00" } });
+    fireEvent.change(slutt(d), { target: { value: "07:50" } });
+    expect(flyttBoks(d)).toBeNull();
+  });
+});
+
+describe("O20 TILLEGG — jobb delt i normal + overtid (O5) viser ny fordeling", () => {
+  afterEach(cleanup);
+  // Jobben 07:00–17:30 lagret av O5: normal 07:00–15:00 (7,5 t, pause 30) + overtid 15:00–17:30 (2,5 t).
+  const o5Jobb = () => [
+    arbeid({ fraTid: "07:00", tilTid: "15:00", timer: "7.5", pauseMin: 30 }),
+    arbeid({ id: "r2", fraTid: "15:00", tilTid: "17:30", timer: "2.5", pauseMin: 0, lonnsartId: "lot", createdAt: "2026-11-05T07:01:00.000Z" }),
+  ];
+  const OVER = { ...REGEL, reiseTerskelMin: 2 };
+  const tilfoyKall = () => h.kall.find((k) => k.key === "timer.dagsseddel.tilfoyTimerRad")?.input;
+
+  it("Til 07:00–07:50: linja viser 7,5 t + 1,7 t overtid, og bare kanten sendes (serveren regner fordelingen)", async () => {
+    const d = rendre({ timer: o5Jobb(), o5: true, regel: OVER });
+    fireEvent.change(slutt(d), { target: { value: "07:50" } });
+    fireEvent.change(start(d), { target: { value: "07:00" } });
+    const boks = within(d).getByTestId("reise-flytt-jobb");
+    expect(boks.textContent).toContain(
+      'timer.reiseKort.flyttJobb.blirOvertid{"fra":"07:50","til":"17:30","normal":"7,5","overtid":"1,7"}',
+    );
+    fireEvent.click(within(boks).getByRole("button", { name: 'timer.reiseKort.flyttJobb.start{"tid":"07:50"}' }));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(tilfoyKall()).toMatchObject({ flyttRad: { radId: "r1", nyFra: "07:50" } });
+  });
+
+  it("Fra 17:00–17:40: linja viser 7,5 t + 2,0 t overtid (overtiden tas først)", () => {
+    const d = rendre({ timer: o5Jobb(), o5: true, regel: OVER });
+    fireEvent.click(knapp(d, "timer.reiseKort.retur"));
+    fireEvent.change(start(d), { target: { value: "17:00" } });
+    fireEvent.change(slutt(d), { target: { value: "17:40" } });
+    const boks = within(d).getByTestId("reise-flytt-jobb");
+    expect(boks.textContent).toContain(
+      'timer.reiseKort.flyttJobb.blirOvertid{"fra":"07:00","til":"17:00","normal":"7,5","overtid":"2,0"}',
+    );
+    expect(within(boks).getByRole("button", { name: 'timer.reiseKort.flyttJobb.slutt{"tid":"17:00"}' })).toBeTruthy();
+  });
+
+  it("overtiden blir 0 (Til 07:00–09:30): linja viser bare sum", () => {
+    const d = rendre({ timer: o5Jobb(), o5: true, regel: OVER });
+    fireEvent.change(slutt(d), { target: { value: "09:30" } });
+    fireEvent.change(start(d), { target: { value: "07:00" } });
+    const boks = within(d).getByTestId("reise-flytt-jobb");
+    expect(boks.textContent).toContain('timer.reiseKort.flyttJobb.blir{"fra":"09:30","til":"17:30","timer":"7,5"}');
+  });
+
+  it("regresjon: jobb med én arbeidsrad viser sum som før, også med norm", () => {
+    const d = rendre({ timer: [arbeid({ fraTid: "07:00", tilTid: "17:30", timer: "10", pauseMin: 30 })], o5: true, regel: OVER });
+    fireEvent.change(slutt(d), { target: { value: "07:50" } });
+    fireEvent.change(start(d), { target: { value: "07:00" } });
+    expect(within(d).getByTestId("reise-flytt-jobb").textContent).toContain(
+      'timer.reiseKort.flyttJobb.blir{"fra":"07:50","til":"17:30","timer":"9,2"}',
+    );
   });
 });
