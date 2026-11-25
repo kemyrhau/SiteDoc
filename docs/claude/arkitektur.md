@@ -382,7 +382,7 @@ To DB-kolonner styrer tilgang: `User.role` (`sitedoc_admin` | `company_admin` | 
 | Nivå | DB-verdi | Arver | Beskyttelse |
 |------|----------|-------|-------------|
 | **Superadmin** (Kenneth) | `User.role = "sitedoc_admin"` | Alt | `verifiserSiteDocAdmin()` |
-| **Org-admin** (kundens admin) | `User.role = "company_admin"` | Admin i alle org-prosjekter, UTEN ProjectMember-rad | `verifiserOrganisasjonTilgang()` |
+| **Firmaadmin** (kundens admin) | `OrganizationMember.firmaRoller` inneholder `"firma_admin"` (aktiv) | Admin i alle prosjekter **eget firma eier**, UTEN ProjectMember-rad (FIRMAADMIN-TILGANG 2026-11-25) | `erFirmaAdminForProsjekt()` i `verifiserAdmin()`/`verifiserProsjektmedlem()` |
 | **Prosjektadmin** | `ProjectMember.role = "admin"` | — | `verifiserAdmin()` |
 | **Prosjektmedlem** | `ProjectMember.role = "member"` | — | `verifiserProsjektmedlem()` |
 
