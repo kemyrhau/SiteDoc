@@ -231,11 +231,12 @@ Samme tekster som PC (d2c-1). Hjelpen står i skjemaet der valget tas (`timer.fe
 - **Timerad gjøres om til reise:** «Raden bærer maskinen «Volvo EC220E» og kan ikke bli reise. Flytt maskinen til en annen timerad, eller fjern den først.»
 - **Slett timerad med maskin (prosjektkort-modus):** som PC — «Slette timeraden?» og «Slett rad og maskiner».
 
-## Web: 3d-visning (`dashbord/[prosjektId]/3d-visning/page.tsx:297-319`, ORDRE 3D-web 5 / gate (85) M3, 🟡 ikke merget)
+## Web: 3d-visning (`dashbord/[prosjektId]/3d-visning/page.tsx:297-323`, ORDRE 3D-web 5 / gate (85) M3, 🟡 ikke merget)
 
 Siden hadde ikke ?-ikon før. `HjelpKnapp` står sist i verktøylinja, etter Snitt-gruppa (`3d.hjelp.*`, 15 språk):
 - **Hva er dette?** Prosjektets IFC-modeller i 3D; klikk på et objekt for egenskaper.
 - **Mus:** venstre knapp roterer rundt det som er midt på skjermen (legg det du vil se på midt i bildet først); høyre knapp flytter bildet; hjulet går fram og tilbake mot midten av skjermen — raskt langt unna, sakte nær en flate ([3d-agent-prinsipper.md § 3b](3d-agent-prinsipper.md) punkt 1, 2, 2b).
+- **Skjule objekter** (`3d.hjelp.skjul*`, ordre 3D-SKJUL-SNARVEI 2026-11-25, 🟡 ikke merget): klikk på et objekt og trykk øyet i egenskapskortet; snarvei: hold X og klikk på objektet — skjules med en gang, uten kort. Skjulte objekter telles i knappen «skjult» øverst, der de kan vises igjen. Hover på øyet (`3d.skjulObjektHint`) nevner også snarveien.
 - **Snitt:** trykk Snitt og dobbeltklikk på en flate; «Fjern alle» tar bort snittene.
 - **Objekter langt unna:** skjult som standard; ofte feil i eksporten fra arkitektens tegning (informasjonsfiler lagt et stykke unna). Kryss av «Vis objekter langt unna»; tallet viser hvor mange. Bryteren vises bare når modellen har slike objekter (§ 3b punkt 3).
 - Vakt: `apps/web/src/lib/__tests__/tred-hjelpetekst.test.ts`.
