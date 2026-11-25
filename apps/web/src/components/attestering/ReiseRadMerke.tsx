@@ -22,7 +22,8 @@ import { midnattTekst } from "../timer/SlettDeltReise";
  * O24 (vedtak-timer-web.md § Reisevinduet pkt 30): reisen er ført i O22s manuelle modus — uten
  * oppmøtested, med tiden arbeideren skrev. Retningen skiller den fra eldre «+ Reise»-rader (før
  * L2, 2026-11-15), som aldri bar retning og kunne mangle oppmøtested uten at det betød noe.
- * Overføring og matrise bærer alltid oppmøtested (C2), og andre kilder får aldri merket.
+ * Overføring krever oppmøtested (`reise-sporbarhet.ts:341`), og andre kilder enn `manuell` får
+ * aldri merket.
  */
 export function erReiseUtenOppmote(rad: TimerRad): boolean {
   return (
