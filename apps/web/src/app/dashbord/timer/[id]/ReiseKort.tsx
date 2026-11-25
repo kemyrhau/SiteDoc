@@ -18,6 +18,8 @@ import {
   finnReiseSomEnderPaaKontor,
   finnKantFlytt,
   sluttEtterStartIJobb,
+  startEtterSluttIJobb,
+  finnJobbTid,
   jobbManglerBeskrivelse,
   erEgenOverforing,
   type OverforingPeriode,
@@ -299,6 +301,8 @@ export function ReiseKort({
   const [rettetSlutt, setRettetSlutt] = useState<string | null>(redigering?.tilTid ?? null);
   // O21 (pkt 27): Slutt er satt av «Start inne i jobben» og ikke rettet av arbeideren siden.
   const [sluttFolger, setSluttFolger] = useState(false);
+  // O23 (pkt 29): Start er satt av «Slutt inne i jobben» (Fra byggeplass) og ikke rettet siden.
+  const [startFolger, setStartFolger] = useState(false);
   // O1 TILLEGG: arbeiderens valg reisetid/arbeidstid (null = terskelen foreslår) og
   // «Antall timer» slik han skrev det (null = vises fra start og slutt).
   const [kategoriValg, setKategoriValg] = useState<ReiseKategori | null>(
@@ -319,6 +323,7 @@ export function ReiseKort({
     setRettetStart(null);
     setRettetSlutt(null);
     setSluttFolger(false);
+    setStartFolger(false);
     setAntallTekst(null);
     setKategoriValg(null);
     setKmAvhuket(null);
@@ -337,6 +342,15 @@ export function ReiseKort({
   });
   const { data: ecoer } = trpc.eksternKostObjekt.list.useQuery({ projectId: reiseProsjektId, organizationId });
 
+  // O20/O21/O23: kortets rader slik kantflyttingen og følge-reglene ser dem.
+  const kantRader = dagsrader.flatMap((r) =>
+    r.id
+      ? [{ id: r.id, fraTid: r.fraTid, tilTid: r.tilTid, erReise: r.erReise, arbeidReise: r.arbeidReise, kortId: r.kortId, attestertStatus: r.attestertStatus, timer: r.timer ?? null }]
+      : [],
+  );
+  // O23 (pkt 29): ny reise fra kortet — Slutt inne i jobben leses aldri som et kryss over midnatt.
+  const jobbTid = !redigering && iKort ? finnJobbTid({ kortId: jobbKortId, rader: kantRader }) : null;
+
   const reise = useManuellReiseWeb({
     organizationId,
     dato,
@@ -353,6 +367,7 @@ export function ReiseKort({
     startTid: rettetStart,
     sluttTid: rettetSlutt,
     kategoriValg,
+    jobbTid,
   });
   const { aktivtValg, resultat, regelStatus } = reise;
   const { kontorOppsett, kontorKall, kontorKonflikt, apenOverforing, bytte, gjeldende, dagensKontorId, valgtKontor } = reise;
@@ -492,11 +507,7 @@ export function ReiseKort({
           reise: { fraTid: dFra, tilTid: dTil },
           retning: aktivtValg.type === "retur" ? "retur" : "ut",
           kortId: jobbKortId,
-          rader: dagsrader.flatMap((r) =>
-            r.id
-              ? [{ id: r.id, fraTid: r.fraTid, tilTid: r.tilTid, erReise: r.erReise, arbeidReise: r.arbeidReise, kortId: r.kortId, attestertStatus: r.attestertStatus, timer: r.timer ?? null }]
-              : [],
-          ),
+          rader: kantRader,
         })
       : null;
 
@@ -1303,11 +1314,7 @@ export function ReiseKort({
                               kjoretidMin: resultat.utenKjoretid ? null : resultat.kjoretidMin,
                               folger: sluttFolger,
                               kortId: jobbKortId,
-                              rader: dagsrader.flatMap((r) =>
-                                r.id
-                                  ? [{ id: r.id, fraTid: r.fraTid, tilTid: r.tilTid, erReise: r.erReise, arbeidReise: r.arbeidReise, kortId: r.kortId, attestertStatus: r.attestertStatus }]
-                                  : [],
-                              ),
+                              rader: kantRader,
                             })
                           : null;
                       setSluttFolger(fulgt != null);
@@ -1317,6 +1324,7 @@ export function ReiseKort({
                     }
                     // «Fra byggeplass»: slutten følger starten — start + skrevet antall timer,
                     // ellers start + kjøretid, til den rettes igjen.
+                    setStartFolger(false);
                     const antall = tolkAntall(antallTekst);
                     setRettetSlutt(start && antall != null ? flyttKlokke(start, Math.round(antall * 60)) : null);
                   }}
@@ -1340,8 +1348,25 @@ export function ReiseKort({
                   type="time"
                   value={rettetSlutt ?? tid.tilTid ?? ""}
                   onChange={(e) => {
-                    setRettetSlutt(e.target.value || null);
+                    const slutt = e.target.value || null;
+                    setRettetSlutt(slutt);
                     setSluttFolger(false);
+                    // O23 (pkt 29): «Fra byggeplass», ny reise fra kortet — Slutt inne i jobben
+                    // flytter Start til Slutt − kjøretiden, så O20-knappen kan komme. Slutt før eller
+                    // etter jobben, uten jobb, kjøretid eller oppmøtested: Start står.
+                    const fulgt =
+                      !redigering && aktivtValg.type === "retur" && iKort && regelStatus === "klar"
+                        ? startEtterSluttIJobb({
+                            startTid: rettetStart ?? tid.fraTid ?? null,
+                            sluttTid: slutt,
+                            kjoretidMin: resultat.utenKjoretid ? null : resultat.kjoretidMin,
+                            folger: startFolger,
+                            kortId: jobbKortId,
+                            rader: kantRader,
+                          })
+                        : null;
+                    setStartFolger(fulgt != null);
+                    if (fulgt) setRettetStart(fulgt);
                     // Rettet slutt → antall timer regnes av start og slutt.
                     setAntallTekst(null);
                   }}
@@ -1374,6 +1399,7 @@ export function ReiseKort({
                       if (tidRetning === "tur") setRettetStart(tider.start);
                       setRettetSlutt(tider.slutt);
                       setSluttFolger(false);
+                      setStartFolger(false);
                       // Gate (136) vilkår 1: viser feltet det som faktisk lagres (`resultat.timer`).
                       // O19: klokka går rundt midnatt — 24 timer gir start = slutt (0 timer).
                       const startMin = klokkeTilMin(tider.start);

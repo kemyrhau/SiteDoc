@@ -250,6 +250,7 @@ export function useManuellReiseWeb({
   startTid = null,
   sluttTid = null,
   kategoriValg = null,
+  jobbTid = null,
 }: {
   organizationId: string;
   /** Sedelens dato (YYYY-MM-DD) — perioden som gjaldt da. */
@@ -273,6 +274,11 @@ export function useManuellReiseWeb({
   sluttTid?: string | null;
   /** O1 TILLEGG: arbeiderens valg reisetid/arbeidstid. null = regelen (terskelen) foreslår. */
   kategoriValg?: ReiseKategori | null;
+  /**
+   * O23 (vedtak-timer-web.md § Reisevinduet pkt 29): jobbens Fra–til i kortet (`finnJobbTid`).
+   * «Fra byggeplass» med Slutt inne i jobben leses da aldri som en reise over midnatt. null = som før.
+   */
+  jobbTid?: { fra: string; til: string } | null;
 }) {
   const aktivert = !!organizationId;
   const q = { organizationId };
@@ -342,6 +348,8 @@ export function useManuellReiseWeb({
 
   const aktivtValg: ReiseKortValg = valg ?? { type: "tur" };
   const ramme = useMemo(() => finnDagsramme(dagsrader), [dagsrader]);
+  const jobbFra = jobbTid?.fra ?? null;
+  const jobbTil = jobbTid?.til ?? null;
 
   // «Fra et annet kontor fra i dag» — `hentForFirma` gir bare aktive kontorer.
   const kontorOppsett = useMemo(
@@ -418,9 +426,10 @@ export function useManuellReiseWeb({
         tillatUtenKjoretid: true,
         // O19 pkt 23–24: «Til byggeplass» med Start etter Slutt startet kvelden før; «Fra
         // byggeplass» med Slutt før Start slutter dagen etter.
-        tillatDeling: { omvendt: retning === "tur" ? "bak" : "fram" },
+        // O23 pkt 29: Slutt inne i egen jobb er aldri dagen etter.
+        tillatDeling: retning === "tur" ? { omvendt: "bak" } : { omvendt: "fram", jobb: jobbFra && jobbTil ? { fra: jobbFra, til: jobbTil } : null },
       }),
-    [aktivtValg.type, kontorOppsett, valgtKontor, kontorRetning, kontorCelle, retning, ramme, regel, grensepunkter, resolverLonnsartId, standardLonnsartId, oppmote, byggeplassId, matrise, startTid, sluttTid, kategoriValg],
+    [aktivtValg.type, kontorOppsett, valgtKontor, kontorRetning, kontorCelle, retning, ramme, regel, grensepunkter, resolverLonnsartId, standardLonnsartId, oppmote, byggeplassId, matrise, startTid, sluttTid, kategoriValg, jobbFra, jobbTil],
   );
 
   // Oppmøtestedet vises som tekst bare når firmaet har flere (§ 7 C).

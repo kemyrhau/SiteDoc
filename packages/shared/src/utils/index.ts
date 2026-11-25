@@ -110,6 +110,8 @@ export {
   finnReiseSomEnderPaaKontor,
   finnKantFlytt,
   sluttEtterStartIJobb,
+  startEtterSluttIJobb,
+  finnJobbTid,
 } from "./reiseManuell";
 export { sekvenserReisekjede } from "./reiseKjede";
 export type { KjedeKort } from "./reiseKjede";
