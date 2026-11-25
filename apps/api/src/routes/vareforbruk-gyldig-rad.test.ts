@@ -9,6 +9,9 @@ import { describe, it, expect, vi } from "vitest";
 vi.mock("@sitedoc/db", () => ({ prisma: {} }));
 vi.mock("../trpc/tilgangskontroll", () => ({
   verifiserProsjektmedlem: vi.fn(),
+  erAnsattIFirma: vi.fn().mockResolvedValue(false),
+  aktivAnsattIEierfirma: vi.fn().mockResolvedValue(null),
+  verifiserProsjektIkkeFrosset: vi.fn(),
   aktivtProsjektmedlemWhere: vi.fn(),
   aktivtMedlemWhere: { periodeSlutt: null },
   verifiserOrganisasjonTilgang: vi.fn(),

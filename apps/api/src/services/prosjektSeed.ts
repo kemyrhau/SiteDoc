@@ -14,9 +14,9 @@
  * i det hele tatt. Denne funksjonen samler seedingen ett sted og kalles fra alle
  * tre veiene, så hullet ikke kan gjenoppstå per-vei.
  *
- * Kalles INNE i samme $transaction som prosjektopprettingen, ETTER at
- * oppretter-medlemmet er laget (Byggherre-koblingen slår opp medlemmet på
- * brukerId). Feiler seedingen, ruller hele opprettelsen tilbake.
+ * Kalles INNE i samme $transaction som prosjektopprettingen. Oppretteren kobles ikke
+ * til noen faggruppe (FIRMAADMIN-TILGANG C, 2026-11-25); `_brukerId` står i signaturen
+ * så de tre kallerne er uendret. Feiler seedingen, ruller hele opprettelsen tilbake.
  */
 import { type Prisma } from "@sitedoc/db";
 import {
@@ -31,7 +31,7 @@ type TxClient = Prisma.TransactionClient;
 export async function seedStandardProsjektoppsett(
   tx: TxClient,
   projectId: string,
-  brukerId: string,
+  _brukerId: string,
 ): Promise<void> {
   // Idempotent: seed kun et tomt prosjekt. Speiler den opprinnelige klient-
   // lazy-seeden (`dbGrupper.length === 0` → seed) og gjør funksjonen trygg å
@@ -94,9 +94,8 @@ export async function seedStandardProsjektoppsett(
   }
 
   // Standard faggrupper
-  const faggruppeIder: string[] = [];
   for (const fgDef of STANDARD_FAGGRUPPER) {
-    const fg = await tx.faggruppe.create({
+    await tx.faggruppe.create({
       data: {
         projectId,
         name: fgDef.navn,
@@ -105,22 +104,13 @@ export async function seedStandardProsjektoppsett(
         faggruppeNummer: fgDef.faggruppeNummer,
       },
     });
-    faggruppeIder.push(fg.id);
   }
 
-  // Koble oppretter til Byggherre-faggruppen (første). F13c 1A: oppretter for et annet
-  // firma er ikke medlem (oppretterMedlemskap.ts) → findFirst gir null → ingen kobling.
-  const medlem = await tx.projectMember.findFirst({
-    where: { projectId, userId: brukerId },
-  });
-  if (medlem && faggruppeIder.length > 0) {
-    await tx.faggruppeKobling.create({
-      data: {
-        projectMemberId: medlem.id,
-        faggruppeId: faggruppeIder[0]!,
-      },
-    });
-  }
+  // FIRMAADMIN-TILGANG C (Kenneth 2026-11-25): «Ingen skal være automatisk medlem av en
+  // faggruppe. prosjektadmin og firmaadmin skal kunne legge til medlemmer/grupper inn i
+  // dokumentflyten.» Oppretteren kobles derfor ikke lenger til Byggherre. Koblinger fra før
+  // står urørt (ingen sletting, ingen migrering). Oppretteren er prosjektadmin
+  // (oppretterMedlemskap.ts) og trenger ingen faggruppe for å opprette eller lese.
 
   // Dokumentflyter. F13c (Kenneth 2026-11-23, A/3A): ingen faggruppeflyter ved nytt prosjekt.
   // F13c-2 (F1): HMS-flyten er en frittstående flyt uten faggruppe-ledd — melder er prosjektets

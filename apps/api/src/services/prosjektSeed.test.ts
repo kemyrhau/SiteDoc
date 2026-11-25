@@ -112,10 +112,20 @@ describe("seedStandardProsjektoppsett", () => {
     const hms = lager.projectGroup.find((g) => g.slug === "hms-ledere");
     expect(hms?.domains).toEqual(["hms"]);
 
-    // maler seedes (minst én), og oppretteren kobles til Byggherre-faggruppa
+    // maler seedes (minst én)
     const antallMaler = PROSJEKT_MODULER.reduce((n, m) => n + m.maler.length, 0);
     expect(lager.reportTemplate).toHaveLength(antallMaler);
-    expect(lager.faggruppeKobling).toHaveLength(1);
+  });
+
+  it("🔴 FIRMAADMIN-TILGANG C: oppretteren (medlem) kobles ikke til Byggherre — faggruppa er tom", async () => {
+    // Kenneth 2026-11-25: «Ingen skal være automatisk medlem av en faggruppe.»
+    const { tx, lager } = lagTx();
+    await seedStandardProsjektoppsett(tx as unknown as Prisma.TransactionClient, PROSJEKT, BRUKER);
+
+    const byggherre = lager.faggruppe[0];
+    expect(byggherre?.name).toBe(STANDARD_FAGGRUPPER[0]!.navn);
+    expect(lager.faggruppeKobling.filter((k) => k.faggruppeId === byggherre?.id)).toHaveLength(0);
+    expect(lager.faggruppeKobling).toHaveLength(0);
   });
 
   it("🔴 FG1: nytt prosjekt får ingen ikke-HMS-flyt uten eier-faggruppe", async () => {
