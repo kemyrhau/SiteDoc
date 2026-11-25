@@ -33,6 +33,7 @@ export function EgenskapsPopup({
   onFilterLag?: (lag: string) => void;
   onFilterSystem?: (system: string) => void;
 }) {
+  const { t } = useTranslation();
   const kategoriNavn = objekt.kategori?.replace(/^Ifc/, "") ?? "Ukjent";
 
   const layerVerdi = objekt.attributter["Layer"]?.value ? String(objekt.attributter["Layer"].value) : null;
@@ -64,7 +65,8 @@ export function EgenskapsPopup({
           <button
             onClick={onSkjul}
             className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-            title="Skjul objekt"
+            title={t("3d.skjulObjektHint")}
+            aria-label={t("3d.skjulObjekt")}
           >
             <EyeOff className="h-4 w-4" />
           </button>

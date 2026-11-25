@@ -307,6 +307,10 @@ function Fane3DModell() {
                   </ul>
                 </div>
                 <div>
+                  <h4 className="font-semibold text-gray-900">{t("3d.hjelp.skjulTittel")}</h4>
+                  <p className="mt-1">{t("3d.hjelp.skjul")}</p>
+                </div>
+                <div>
                   <h4 className="font-semibold text-gray-900">{t("3d.hjelp.snittTittel")}</h4>
                   <p className="mt-1">{t("3d.hjelp.snitt")}</p>
                 </div>

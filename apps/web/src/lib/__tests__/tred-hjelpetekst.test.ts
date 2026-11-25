@@ -10,6 +10,7 @@ const en = JSON.parse(readFileSync(resolve(__dirname, "../../../../../packages/s
 const NOKLER = [
   "3d.hjelp.hvaTittel", "3d.hjelp.hva", "3d.hjelp.musTittel", "3d.hjelp.venstre", "3d.hjelp.hoyre",
   "3d.hjelp.hjul", "3d.hjelp.snittTittel", "3d.hjelp.snitt", "3d.hjelp.langtUnnaTittel", "3d.hjelp.langtUnna",
+  "3d.hjelp.skjulTittel", "3d.hjelp.skjul",
 ];
 
 describe("?-hjelp på 3d-visning", () => {

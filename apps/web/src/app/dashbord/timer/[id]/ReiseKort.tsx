@@ -16,6 +16,7 @@ import {
   delVedMidnatt,
   lesMidnattDel,
   finnReiseSomEnderPaaKontor,
+  finnKantFlytt,
   jobbManglerBeskrivelse,
   erEgenOverforing,
   type OverforingPeriode,
@@ -23,6 +24,7 @@ import {
   type ReiseKortSperre,
 } from "@sitedoc/shared";
 import { trpc } from "@/lib/trpc";
+import { formaterTimer } from "@/lib/tallformat";
 import { KnappMedForklaring } from "@/components/KnappMedForklaring";
 import { RadByggeplassFelt, useRadByggeplass } from "@/components/timer/RadByggeplassFelt";
 import { byggeplasserForProsjekt, velgStandardByggeplass, type ByggeplassValg } from "@/lib/timerByggeplass";
@@ -94,6 +96,9 @@ import {
 
 /** w15b: en rad på sedelen — dagsrammen, overlapp-sperren og linja «havner i». */
 export type ReiseKortDagsrad = ReiseHavnerRad & {
+  /** O20 pkt 26: radens id og timer — «Flytt jobbens start/slutt». Utelatt → ingen knapp for raden. */
+  id?: string;
+  timer?: number | null;
   tilTid: string | null;
   /** O12 pkt 12: reise ført som arbeidstid — ingen jobb, teller ikke som dagens første/siste kort. */
   arbeidReise?: boolean;
@@ -204,6 +209,7 @@ export function ReiseKort({
   forvalgtByggeplassId,
   forvalgtEcoId,
   jobbKortId,
+  jobbFordeling,
   kortModus = false,
   rad,
   onAapneSted,
@@ -238,6 +244,14 @@ export function ReiseKort({
   /** O1 (§ 8.22): kort-id-en til jobben vinduet ble åpnet fra. Under terskel føres turen
    *  som arbeid i DEN jobben når nøkkelen er lik. Utelatt = som før (serveren velger). */
   jobbKortId?: string | null;
+  /**
+   * O20 TILLEGG: jobbens nye fordeling (normal + overtid) når jobben står delt (O5), regnet med
+   * samme delte regel som serveren (`regnJobbTid`). null = jobben er ikke delt; linja viser sum.
+   */
+  jobbFordeling?: (a: { kortId: string; fraTid: string; tilTid: string; reiseFra: string; reiseTil: string }) => {
+    normal: number;
+    overtid: number;
+  } | null;
   /** O12 pkt 3: vinduet er åpnet fra et prosjektkort (prosjektkort-visning). Prosjekt og
    *  byggeplass er kortets og vises som tekst; reisen lagres i kortet `jobbKortId`. */
   kortModus?: boolean;
@@ -294,6 +308,8 @@ export function ReiseKort({
   // O12 pkt 12: dialogen «Lagre» åpner (kortet). null = ingen.
   const [dialog, setDialog] = useState<"kort" | "rettDel" | null>(null);
   const [lagreSignal, setLagreSignal] = useState(0);
+  // O20 (pkt 26): arbeideren trykket «Flytt jobbens start/slutt» — lagringen tar med flyttingen.
+  const [medFlytt, setMedFlytt] = useState(false);
   // O12 pkt 3: i prosjektkort-visning er kortet stedet — bare når det finnes en jobb å lagre i.
   // O14 pkt 2: en reise som redigeres, står alt i kortet sitt.
   const iKort = kortModus && (!!jobbKortId || !!redigering);
@@ -402,7 +418,11 @@ export function ReiseKort({
       utils.timer.dagsseddel.hentMedId.invalidate();
       onLukk();
     },
-    onError: (e: { message: string }) => setFeil(e.message),
+    onError: (e: { message: string }) => {
+      // O20: en avvist flytting står ikke som valgt — neste trykk velger på nytt.
+      setMedFlytt(false);
+      setFeil(e.message);
+    },
   });
   // O19: «Rett også delen …» — den andre delen skrives først; vinduet lukkes av `oppdater`.
   const oppdaterDel = trpc.timer.dagsseddel.oppdaterTimerRad.useMutation({
@@ -457,6 +477,30 @@ export function ReiseKort({
             annenFra: overlapp.fraTid,
             annenTil: overlapp.tilTid,
           })
+      : null;
+
+  // O20 (vedtak-timer-web.md § Reisevinduet pkt 26): en ny reise ført fra kortet som bare
+  // overlapper starten (Til) eller slutten (Fra) av jobben i samme kort, får knappen «Flytt …».
+  // Samme delte regel som serveren (`finnKantFlytt`). Annet kort, midt i jobben, kontorreise,
+  // delt reise og redigering: sperren står som før.
+  const kantFlytt =
+    !redigering && !deling && iKort && !!jobbKortId && overlapp && !paaKontor && !sluttForStart && aktivtValg.type !== "kontor"
+      ? finnKantFlytt({
+          reise: { fraTid: dFra, tilTid: dTil },
+          retning: aktivtValg.type === "retur" ? "retur" : "ut",
+          kortId: jobbKortId,
+          rader: dagsrader.flatMap((r) =>
+            r.id
+              ? [{ id: r.id, fraTid: r.fraTid, tilTid: r.tilTid, erReise: r.erReise, arbeidReise: r.arbeidReise, kortId: r.kortId, attestertStatus: r.attestertStatus, timer: r.timer ?? null }]
+              : [],
+          ),
+        })
+      : null;
+
+  // O20 TILLEGG: jobben delt i normal + overtid vises med ny fordeling (serveren regner selv).
+  const flyttFordeling =
+    kantFlytt && jobbKortId && jobbFordeling && dFra && dTil
+      ? jobbFordeling({ kortId: jobbKortId, fraTid: kantFlytt.jobbFra, tilTid: kantFlytt.jobbTil, reiseFra: dFra, reiseTil: dTil })
       : null;
 
   // w15b: hvilket kort reisen havner i — samme regel serveren kjører etter lagring.
@@ -610,12 +654,14 @@ export function ReiseKort({
     !!tid.tilTid &&
     !beskrivelseMangler &&
     (!kategoriEndret || (regelStatus === "klar" && !!resultat.klassifisering?.lonnsartId));
-  const kanLagre = redigering
-    ? kanLagreRedigering
-    : !beskrivelseMangler &&
-      regelStatus === "klar" &&
+  // O20: med flyttingen er overlappen med jobbens kant ikke en sperre. `tidOk` er tidssperren
+  // slik den gjelder for knappen som lagrer.
+  const tidOk = tidSperre == null || (medFlytt && !!kantFlytt);
+  const kanLagreNy = (tidOkHer: boolean) =>
+    !beskrivelseMangler &&
+    regelStatus === "klar" &&
     sperre == null &&
-    tidSperre == null &&
+    tidOkHer &&
     tid.timer > 0 &&
     !kontorKonflikt &&
     !manglerKontor &&
@@ -627,13 +673,14 @@ export function ReiseKort({
     !!tid.tilTid &&
     // O19: en delt reise lagres alltid med spor.
     (!deling || !!resultat.spor.reiseKilde);
+  const kanLagre = redigering ? kanLagreRedigering : kanLagreNy(tidOk);
   // O18: «Før som reisetid likevel» — samme sperrer som «Lagre» i dag (pkt 13). Lønnsarten
   // regnes etter byttet til Reisetid.
-  const kanForeLikevel =
+  const kanForeLikevelNy = (tidOkHer: boolean) =>
     underTerskel &&
     !beskrivelseMangler &&
     sperre == null &&
-    tidSperre == null &&
+    tidOkHer &&
     tid.timer > 0 &&
     !kontorKonflikt &&
     !manglerKontor &&
@@ -642,6 +689,10 @@ export function ReiseKort({
     !!resultat.spor &&
     !!tid.fraTid &&
     !!tid.tilTid;
+  const kanForeLikevel = kanForeLikevelNy(tidOk);
+  // O20: «Flytt jobbens start/slutt» — samme sperrer som knappen den erstatter, uten kantoverlappen.
+  // Under terskel lagres reisen som Reisetid (som «Før som reisetid likevel»); over terskel som «Lagre».
+  const kanFlytt = !!kantFlytt && (underTerskel ? kanForeLikevelNy(true) : kanLagreNy(true));
   // O18 S1: under terskel med den blå boksen lagrer «Lagre oppmøtested» bare stedsbyttet.
   const kanLagreOppmotested = underTerskel && !!kontorKall && !kontorKonflikt && !manglerKontor && !overforingMut.isPending;
 
@@ -779,6 +830,10 @@ export function ReiseKort({
       ...(reiseKortId ? { kortId: reiseKortId } : {}),
       // O12 pkt 3: Reisetid lagres også i kortet vinduet ble åpnet fra.
       ...(iKort ? { reiseIKort: true } : {}),
+      // O20: jobbens kant flyttes i samme transaksjon som reisen lagres.
+      ...(medFlytt && kantFlytt
+        ? { flyttRad: kantFlytt.kant === "start" ? { radId: kantFlytt.radId, nyFra: kantFlytt.tid } : { radId: kantFlytt.radId, nyTil: kantFlytt.tid } }
+        : {}),
       // Sporet når regelen gir det (reiseKilde null → serveren nuller sporet).
       ...(s.reiseKilde
         ? {
@@ -819,6 +874,16 @@ export function ReiseKort({
     if (!kanForeLikevel) return;
     if (kortSjekk) setDialog("kort");
     else forSomReisetid();
+  }
+  // O20 (pkt 26): «Flytt jobbens start/slutt» — lagrer reisen og flytter kanten i ett kall.
+  // Kortsjekken (pkt 12) gjelder som for «Lagre». Lagringen skjer i neste render, når
+  // `medFlytt` er satt (og under terskel: når «Reisetid» er regnet).
+  function trykkFlytt() {
+    if (!kanFlytt) return;
+    setMedFlytt(true);
+    if (kortSjekk) setDialog("kort");
+    else if (underTerskel) forSomReisetid();
+    else setLagreSignal((n) => n + 1);
   }
   // O18 S1: bare stedsbyttet (perioden), ingen rad — tiden føres i jobbens Fra–til.
   async function lagreOppmotested() {
@@ -1406,6 +1471,36 @@ export function ReiseKort({
               </>
             )}
           </p>
+        )}
+        {/* O20 (pkt 26): reisen overlapper bare kanten av jobben i dette kortet — knappen flytter den. */}
+        {!redigering && !sperre && tidSperre && kantFlytt && (
+          <div data-testid="reise-flytt-jobb" className="flex flex-col items-start gap-1">
+            <Button type="button" variant="secondary" size="sm" onClick={trykkFlytt} disabled={!kanFlytt || lagrerNy}>
+              {t(kantFlytt.kant === "start" ? "timer.reiseKort.flyttJobb.start" : "timer.reiseKort.flyttJobb.slutt", { tid: kantFlytt.tid })}
+            </Button>
+            <p className="text-xs text-gray-600">
+              {flyttFordeling && flyttFordeling.overtid > 0
+                ? t("timer.reiseKort.flyttJobb.blirOvertid", {
+                    fra: kantFlytt.jobbFra,
+                    til: kantFlytt.jobbTil,
+                    normal: formaterTimer(Math.round(flyttFordeling.normal * 10) / 10),
+                    overtid: formaterTimer(Math.round(flyttFordeling.overtid * 10) / 10),
+                  })
+                : flyttFordeling
+                  ? t("timer.reiseKort.flyttJobb.blir", {
+                      fra: kantFlytt.jobbFra,
+                      til: kantFlytt.jobbTil,
+                      timer: formaterTimer(Math.round(flyttFordeling.normal * 10) / 10),
+                    })
+                  : kantFlytt.jobbTimer != null
+                ? t("timer.reiseKort.flyttJobb.blir", {
+                    fra: kantFlytt.jobbFra,
+                    til: kantFlytt.jobbTil,
+                    timer: formaterTimer(Math.round(kantFlytt.jobbTimer * 10) / 10),
+                  })
+                : t("timer.reiseKort.flyttJobb.blirUtenTimer", { fra: kantFlytt.jobbFra, til: kantFlytt.jobbTil })}
+            </p>
+          </div>
         )}
         {!redigering && !sperre && !tidSperre && (kontorSperreTekst || manglerKontor) && (
           <p data-testid="reise-oppmote-sperre" className="text-xs font-medium text-red-700">

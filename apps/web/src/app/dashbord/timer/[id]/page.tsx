@@ -73,6 +73,7 @@ import {
   avgjorRadPauseMin,
   finnOverlappendeTidsrom,
   foreslaOvertidSplitt,
+  regnJobbTid,
   erReiseLonnsart,
   forsokInnsending,
   svarPaaPauseSporsmaal,
@@ -1175,6 +1176,32 @@ export default function DagsseddelDetaljSide() {
 
   // § 8.22 L3a: skjemaet for en jobb, eller null når jobben står som i dag (mer enn to linjer,
   // hull, linje 2 som ikke er overtid, linje uten fra–til, attestert linje).
+  // O20 TILLEGG (vedtak-timer-web § Reisevinduet pkt 26): «Flytt jobbens start/slutt» på en jobb
+  // delt i normal + overtid (O5) viser ny fordeling — jobbskjemaets regel (`regnJobbTid`) med
+  // jobbens oppsett. Serveren regner selv ved lagring. null = jobben er ikke delt.
+  const jobbFordeling = (a: { kortId: string; fraTid: string; tilTid: string; reiseFra: string; reiseTil: string }) => {
+    const k = jobbKort.find((j) => j.jobb.kortId === a.kortId);
+    const sk = k ? skjemaFor(k) : null;
+    if (!sk || sk.linjer.length !== 2) return null;
+    const regnet = regnJobbTid({
+      fraTid: a.fraTid,
+      tilTid: a.tilTid,
+      pauseMin: sk.linjer.reduce((sum, l) => sum + (l.pauseMin ?? 0), 0),
+      linje1Overtidsnivaa: null,
+      andreRader: [
+        ...sk.andreRader,
+        { id: "__reise__", fraTid: a.reiseFra, tilTid: a.reiseTil, pauseMin: 0, erReise: true, overtidsnivaa: null },
+      ],
+      norm: sk.norm,
+      lonnsarter: sk.lonnsarter,
+      pauseEtterTimer: sk.pauseEtterTimer,
+      fastPauseFra: sk.fastPauseFra,
+    });
+    if (!regnet.ok) return null;
+    const overtid = regnet.linjer.filter((l) => l.overtid).reduce((sum, l) => sum + l.timer, 0);
+    return { normal: Math.round((regnet.timer - overtid) * 100) / 100, overtid };
+  };
+
   const skjemaFor = (k: JobbKortData): SkjemaOppsett | null => {
     if (!kanBrukeSkjema) return null;
     // O14 pkt 5 (R4): en reise ført som arbeidstid er ingen skjemalinje — den står i «6 · Reise».
@@ -1825,6 +1852,9 @@ export default function DagsseddelDetaljSide() {
           aktivitetId={sheetAktivitetId ?? null}
           // w15b: radene bærer kort, sted og prosjekt — overlapp-sperren og linja «havner i».
           dagsrader={timerRader.filter((r) => aktivModal.type !== "reiseRediger" || r.id !== aktivModal.rad.id).map((r) => ({
+            // O20 (pkt 26): «Flytt jobbens start/slutt» trenger radens id og timer.
+            id: r.id,
+            timer: Number(r.timer),
             fraTid: r.fraTid,
             tilTid: r.tilTid,
             erReise: r.erReise ?? false,
@@ -1846,6 +1876,7 @@ export default function DagsseddelDetaljSide() {
           forvalgtByggeplassId={aktivModal.type === "reiseRediger" ? undefined : aktivModal.jobb?.byggeplassId}
           forvalgtEcoId={aktivModal.type === "reiseRediger" ? undefined : aktivModal.jobb?.ecoId}
           jobbKortId={aktivModal.jobb?.kortId}
+          jobbFordeling={jobbFordeling}
           // O12 pkt 3: åpnet fra et prosjektkort — kortet er stedet.
           kortModus={prosjektkortModus && (!!aktivModal.jobb || aktivModal.type === "reiseRediger")}
           rad={

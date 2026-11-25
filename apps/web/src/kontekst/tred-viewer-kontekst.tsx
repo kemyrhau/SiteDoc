@@ -9,7 +9,7 @@ import {
   useEffect,
   type ReactNode,
 } from "react";
-import { useParams } from "next/navigation";
+import { useParams, usePathname } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { Loader2 } from "lucide-react";
 import { useByggeplass as useByggeplassKontekst } from "@/kontekst/byggeplass-kontekst";
@@ -32,6 +32,11 @@ import {
 import { finnUtliggere, trekkUtIfcEgenskaper, type Boks3, type IfcEnheter } from "@sitedoc/shared/tred";
 import { hentModellEnheter, type IfcEgenskapsApi } from "@/lib/ifcEgenskaper";
 import { flyttSnittpilerTilMidten } from "@/lib/tredSnittPil";
+import {
+  lyttEtterSkjulSnarvei,
+  snarveiGjelderSiden,
+  type SkjulSnarvei,
+} from "@/app/dashbord/[prosjektId]/3d-visning/skjulSnarvei";
 import {
   avstandEtterSteg,
   flyttLangsBlikk,
@@ -339,7 +344,9 @@ export function ViewerCanvas({
     setValgtObjekt,
     setAntallUtliggere,
     oppdaterModellStatus,
+    skjulObjektOgLeggTil,
   } = useTreDViewer();
+  const pathname = usePathname();
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [laster, setLaster] = useState(true);
@@ -350,6 +357,19 @@ export function ViewerCanvas({
   onObjektValgtRef.current = setValgtObjekt;
   const onModellStatusRef = useRef(oppdaterModellStatus);
   onModellStatusRef.current = oppdaterModellStatus;
+  // Hold X + klikk = skjul objektet direkte (ordre 3D-SKJUL-SNARVEI, Kenneth 2026-11-25)
+  const skjulObjektRef = useRef(skjulObjektOgLeggTil);
+  skjulObjektRef.current = skjulObjektOgLeggTil;
+  const skjulSnarveiRef = useRef<SkjulSnarvei | null>(null);
+  useEffect(() => {
+    if (!snarveiGjelderSiden(pathname)) return;
+    const snarvei = lyttEtterSkjulSnarvei(window);
+    skjulSnarveiRef.current = snarvei;
+    return () => {
+      snarvei.stopp();
+      skjulSnarveiRef.current = null;
+    };
+  }, [pathname]);
   // Snitt-modus (Snitt-knappen) — lest fra klikk-handleren i scenen (W2)
   const klippModusRef = useRef(klippModus);
   klippModusRef.current = klippModus;
@@ -828,6 +848,24 @@ export function ViewerCanvas({
               return;
             }
             const { localId, fragments: hitModel } = hitResult;
+            // Hold X + klikk: skjul objektet direkte uten egenskapskort, i samme liste som øyeknappen.
+            // Etter dra-sperren over, så klikk-og-dra (kamera) aldri skjuler noe.
+            if (skjulSnarveiRef.current?.erAktiv()) {
+              const objektItem = hitModel.getItem(localId);
+              const [objektKategori, objektAttr] = await Promise.all([
+                objektItem.getCategory().catch(() => null),
+                objektItem.getAttributes().catch(() => null),
+              ]);
+              const navn = objektAttr?.get("Name")?.value;
+              await skjulObjektRef.current({
+                localId,
+                modelId: hitModel.modelId,
+                kategori: objektKategori,
+                attributter: navn != null && navn !== "" ? { Name: { value: navn } } : {},
+                relasjoner: [],
+              });
+              return;
+            }
             placeMarker(hitResult.point);
             sisteKlikkPunkt3D = { x: hitResult.point.x, y: hitResult.point.y, z: hitResult.point.z };
             // DEBUG: Logg raycast-punkt vs kameraposisjon

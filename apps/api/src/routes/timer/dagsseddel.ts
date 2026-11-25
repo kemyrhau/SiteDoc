@@ -103,6 +103,7 @@ import {
 import {
   tilErEtterFra,
   finnOverlappendeTidsrom,
+  finnKantFlytt,
   finnTidsromKonflikt,
   beskrivOverlapp,
   linjeKanFlyttes,
@@ -2923,6 +2924,275 @@ async function sjekkTimerOverlapp(
   }
 }
 
+type JobbRad = Prisma.SheetTimerGetPayload<true>;
+type JobbLonnsart = Parameters<typeof regnJobbTid>[0]["lonnsarter"][number] & { id: string };
+
+/**
+ * O5-fordelingen av en jobb (normal + overtid) på sedelens dag: `regnJobbTid` med firmaets
+ * norm og pauseregel. Én kilde for `lagreJobbTid` og O20 (`flyttRad`) — ingen kopi av regelen.
+ */
+async function regnJobbTidPaaSedel<L extends JobbLonnsart>(
+  sheet: { organizationId: string; dato: Date },
+  a: {
+    fraTid: string;
+    tilTid: string;
+    pauseMin: number;
+    linje1Overtidsnivaa: number | null;
+    /** Dagens andre rader (uten jobbens egne linjer). Reise teller ikke mot normen. */
+    andre: readonly { id: string; fraTid: string | null; tilTid: string | null; pauseMin: number | null; erReise: boolean; lonnsartId: string }[];
+    lonnsarter: readonly L[];
+  },
+) {
+  const eff = await hentEffektivArbeidstid(sheet.organizationId, sheet.dato);
+  const artFor = (id: string) => a.lonnsarter.find((l) => l.id === id) ?? null;
+  return regnJobbTid({
+    fraTid: a.fraTid,
+    tilTid: a.tilTid,
+    pauseMin: a.pauseMin,
+    linje1Overtidsnivaa: a.linje1Overtidsnivaa,
+    andreRader: a.andre
+      .filter((r): r is typeof r & { fraTid: string; tilTid: string } => !!r.fraTid && !!r.tilTid)
+      .map((r) => ({
+        id: r.id,
+        fraTid: r.fraTid,
+        tilTid: r.tilTid,
+        pauseMin: r.pauseMin ?? 0,
+        erReise: r.erReise,
+        overtidsnivaa: artFor(r.lonnsartId)?.overtidsnivaa ?? null,
+      })),
+    norm: eff.dagsnorm > 0 ? eff.dagsnorm : null,
+    lonnsarter: [...a.lonnsarter],
+    pauseEtterTimer: eff.pauseEtterTimer,
+    fastPauseFra: fastPauseFraFor(eff),
+  });
+}
+
+/**
+ * Skriver jobbens regnede linjer (`regnJobbTid`) i transaksjonen: linje 1 oppdateres, linje 2
+ * oppdateres/opprettes, eller går når jobben ble én linje (maskinene følger linje 1, slettespor
+ * på returnert dag). Varer på en slettet linje 2 flyttes av kalleren etter transaksjonen.
+ * Delt av `lagreJobbTid` og O20 (`flyttRad`).
+ */
+async function skrivJobbLinjer(
+  tx: Prisma.TransactionClient,
+  a: {
+    sheetId: string;
+    sheetStatus: string;
+    userId: string;
+    kortId: string;
+    rad1: JobbRad;
+    rad2Foer: JobbRad | undefined;
+    l1: JobbTidLinje;
+    l2: JobbTidLinje | undefined;
+    linje1Lagres: string;
+    linje2Art: string | null;
+  },
+): Promise<string | null> {
+  const { rad1, rad2Foer, l1, l2, linje2Art } = a;
+  await tx.sheetTimer.update({
+    where: { id: rad1.id },
+    data: {
+      lonnsartId: a.linje1Lagres,
+      fraTid: l1.fraTid,
+      tilTid: l1.tilTid,
+      pauseMin: l1.pauseMin,
+      timer: l1.timer,
+    },
+  });
+  if (l2 && linje2Art) {
+    if (rad2Foer) {
+      await tx.sheetTimer.update({
+        where: { id: rad2Foer.id },
+        data: { lonnsartId: linje2Art, fraTid: l2.fraTid, tilTid: l2.tilTid, pauseMin: 0, timer: l2.timer },
+      });
+      return rad2Foer.id;
+    }
+    const ny = await tx.sheetTimer.create({
+      data: {
+        ...byggTimerRadData(
+          a.sheetId,
+          {
+            projectId: rad1.projectId,
+            byggeplassId: rad1.byggeplassId,
+            lonnsartId: linje2Art,
+            aktivitetId: rad1.aktivitetId,
+            timer: l2.timer,
+            fraTid: l2.fraTid,
+            tilTid: l2.tilTid,
+            pauseMin: 0,
+            beskrivelse: rad1.beskrivelse,
+            externalCostObjectId: rad1.externalCostObjectId,
+            vehicleId: rad1.vehicleId,
+          },
+          false,
+        ),
+        kortId: a.kortId,
+      },
+    });
+    return ny.id;
+  }
+  if (rad2Foer) {
+    // Jobben ble én linje: linje 2 går, maskinene på den følger linje 1 (som fjernTimerRad,
+    // men koblingen flyttes i stedet for å nulles — det er samme jobb).
+    await tx.sheetMachine.updateMany({
+      where: { sheetId: a.sheetId, sheetTimerId: rad2Foer.id },
+      data: { sheetTimerId: rad1.id },
+    });
+    // SL1: linje 2 som går på en returnert dag, til historikken først.
+    if (a.sheetStatus === "returned") {
+      await skrivSlettespor(tx, [{ radType: "timer", rad: rad2Foer }], a.userId);
+    }
+    await tx.sheetTimer.delete({ where: { id: rad2Foer.id } });
+  }
+  return null;
+}
+
+/**
+ * O20 (vedtak-timer-web § Reisevinduet pkt 26): flyttingen `tilfoyTimerRad` gjør med `flyttRad`.
+ * Regnes av serveren med `finnKantFlytt` (samme regel som vinduet) og må være lik den klienten
+ * sendte. Timer på en timebasert rad følger tiden (pausen står); km/dag-rader beholder timer.
+ *
+ * TILLEGG (Kenneth 2026-11-25 «ja, fordel normaltid og overtid på nytt»): står jobben som
+ * normal + overtid (O5: to linjer, linje 2 på overtidsart, ingen attestert), regnes jobbens nye
+ * Fra–til med O5-regelen (`regnJobbTidPaaSedel` → `regnJobbTid`) og skrives som `lagreJobbTid`
+ * gjør (`skrivJobbLinjer`): overtid 0 → linje 2 går. Pausen står (summen av linjenes pause).
+ */
+async function planleggKantFlytt(
+  prismaTimer: typeof import("@sitedoc/db-timer").prismaTimer,
+  sheet: { organizationId: string; dato: Date },
+  input: {
+    sheetId: string;
+    fraTid?: string | null;
+    tilTid?: string | null;
+    kortId?: string | null;
+    reiseIKort?: boolean;
+    flyttRad?: { radId: string; nyFra?: string; nyTil?: string };
+  },
+  erReise: boolean,
+  sporRetning: string | null,
+): Promise<{
+  radId: string;
+  foerFra: string;
+  foerTil: string;
+  nyFra: string;
+  nyTil: string;
+  timer: number | null;
+  /** O5-jobb (normal + overtid): linjene skrives på nytt. null = bare kantraden flyttes. */
+  fordel: {
+    rad1: JobbRad;
+    rad2Foer: JobbRad;
+    l1: JobbTidLinje;
+    l2: JobbTidLinje | undefined;
+    linje1Lagres: string;
+    linje2Art: string | null;
+  } | null;
+}> {
+  const avvis = (message: string): never => {
+    throw new TRPCError({ code: "BAD_REQUEST", message });
+  };
+  const f = input.flyttRad;
+  if (!f) return avvis("Ingen flytting oppgitt");
+  if (!erReise || !input.reiseIKort || !input.kortId) {
+    return avvis("Jobben flyttes bare for en reise ført i jobbens kort");
+  }
+  // Kanten gir retningen: start = «Til byggeplass» (ut), slutt = «Fra byggeplass» (retur).
+  const retning = f.nyFra !== undefined ? "ut" : "retur";
+  if (sporRetning != null && sporRetning !== retning) {
+    return avvis("Flyttingen gjelder ikke jobbens start eller slutt i dette kortet");
+  }
+  const rader = await prismaTimer.sheetTimer.findMany({
+    where: { sheetId: input.sheetId },
+    include: { lonnsart: { select: { satsEnhet: true, overtidsnivaa: true } } },
+  });
+  const plan = finnKantFlytt({
+    reise: { fraTid: input.fraTid ?? null, tilTid: input.tilTid ?? null },
+    retning,
+    kortId: input.kortId,
+    rader: rader.map((r) => ({
+      id: r.id,
+      fraTid: r.fraTid,
+      tilTid: r.tilTid,
+      erReise: r.erReise,
+      arbeidReise: !r.erReise && r.arbeidReiseRetning != null,
+      kortId: r.kortId,
+      attestertStatus: r.attestertStatus,
+      timer: Number(r.timer),
+    })),
+  });
+  const oppgitt = f.nyFra !== undefined ? { kant: "start", tid: f.nyFra } : { kant: "slutt", tid: f.nyTil };
+  if (!plan || plan.radId !== f.radId || plan.kant !== oppgitt.kant || plan.tid !== oppgitt.tid) {
+    return avvis("Flyttingen gjelder ikke jobbens start eller slutt i dette kortet");
+  }
+  const rad = rader.find((r) => r.id === plan.radId);
+  if (!rad || !rad.fraTid || !rad.tilTid) return avvis("Jobben finnes ikke");
+  const kant = {
+    radId: rad.id,
+    foerFra: rad.fraTid,
+    foerTil: rad.tilTid,
+    nyFra: plan.kant === "start" ? plan.tid : rad.fraTid,
+    nyTil: plan.kant === "slutt" ? plan.tid : rad.tilTid,
+    timer: erTimebasert(rad.lonnsart?.satsEnhet) ? plan.radTimer : null,
+  };
+
+  // TILLEGG: O5-jobb (normal + overtid) fordeles på nytt.
+  const aktive = rader.filter((r) => r.attestertStatus !== "erstattet");
+  const linjer = jobbLinjerIKort(aktive, input.kortId).sort(
+    (a, b) => hhmmTilMin(a.fraTid ?? "00:00") - hhmmTilMin(b.fraTid ?? "00:00"),
+  );
+  const [r1, r2] = linjer as [JobbRad & (typeof rader)[number], (JobbRad & (typeof rader)[number]) | undefined];
+  const erO5Jobb =
+    linjer.length === 2 &&
+    !!r2 &&
+    !!r1.fraTid &&
+    !!r1.tilTid &&
+    !!r2.tilTid &&
+    r2.fraTid === r1.tilTid &&
+    r1.lonnsart?.overtidsnivaa == null &&
+    r2.lonnsart?.overtidsnivaa != null &&
+    !linjer.some((r) => r.attestertStatus === "attestert");
+  if (!erO5Jobb || !r2 || !r1.fraTid || !r2.tilTid) return { ...kant, fordel: null };
+
+  const lonnsarter = await prismaTimer.lonnsart.findMany({
+    where: { organizationId: sheet.organizationId },
+    select: {
+      id: true,
+      navn: true,
+      overtidsnivaa: true,
+      aktiv: true,
+      type: true,
+      rekkefolge: true,
+      satsEnhet: true,
+      fravaerNormtak: true,
+    },
+  });
+  const regnet = await regnJobbTidPaaSedel(sheet, {
+    fraTid: plan.kant === "start" ? plan.tid : r1.fraTid,
+    tilTid: plan.kant === "slutt" ? plan.tid : r2.tilTid,
+    pauseMin: (r1.pauseMin ?? 0) + (r2.pauseMin ?? 0),
+    linje1Overtidsnivaa: null,
+    // Den nye reisen står på dagen når O5 regner (reise teller ikke mot normen).
+    andre: [
+      ...aktive.filter((r) => r.id !== r1.id && r.id !== r2.id),
+      { id: "__reise__", fraTid: input.fraTid ?? null, tilTid: input.tilTid ?? null, pauseMin: 0, erReise: true, lonnsartId: "" },
+    ],
+    lonnsarter,
+  });
+  if (!regnet.ok) return avvis("Flyttingen gir jobben ugyldig tid");
+  const [l1, l2] = regnet.linjer as [JobbTidLinje, JobbTidLinje | undefined];
+  return {
+    ...kant,
+    fordel: {
+      rad1: r1,
+      rad2Foer: r2,
+      l1,
+      l2,
+      // Som `lagreJobbTid` (gate 129 V1): hele jobben over normen → linje 1 får overtidsarten.
+      linje1Lagres: regnet.helOvertid && regnet.overtidLonnsart ? regnet.overtidLonnsart.id : r1.lonnsartId,
+      linje2Art: l2 ? r2.lonnsartId : null,
+    },
+  };
+}
+
 /** R1 (a): feltene overlappmeldingen trenger (hva som sperrer, og kortet det står i). */
 const OVERLAPP_RAD_FELT = {
   fraTid: true,
@@ -4766,6 +5036,18 @@ export const dagsseddelRouter = router({
         reiseIKort: z.boolean().optional(),
         // O12 pkt 16: en reise ført som arbeidstid lagrer retningen. Bare på arbeidsrad.
         arbeidReiseRetning: z.enum(["ut", "retur"]).nullable().optional(),
+        // O20 (vedtak-timer-web § Reisevinduet pkt 26): reisen overlapper bare kanten av jobben i
+        // samme kort — jobbens start (nyFra) eller slutt (nyTil) flyttes i samme transaksjon.
+        flyttRad: z
+          .object({
+            radId: z.string().uuid(),
+            nyFra: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+            nyTil: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+          })
+          .refine((f) => (f.nyFra === undefined) !== (f.nyTil === undefined), {
+            message: "Oppgi enten nyFra eller nyTil",
+          })
+          .optional(),
       }).superRefine(refineFraForTil).superRefine(refineProsjektEllerFravaer),
     )
     .mutation(async ({ ctx, input }) => {
@@ -4897,14 +5179,25 @@ export const dagsseddelRouter = router({
 
       // w9: maskin høyst jobbens arbeid sjekkes sist i transaksjonen under.
 
+      // O20 (pkt 26): «Flytt jobbens start/slutt». Serveren regner flyttingen selv med samme
+      // delte regel som vinduet (`finnKantFlytt`) og godtar bare nøyaktig den: en reise ført i
+      // kortet, kantraden i samme kort, ny tid = reisens slutt (Til) eller start (Fra), raden
+      // minst 1 minutt og timer over 0. Rettigheten er sedelens (egen, kladd/returnert, over).
+      const flytt = input.flyttRad
+        ? await planleggKantFlytt(ctx.prismaTimer, sheet, input, erReise, reiseSpor?.reiseRetning ?? input.reiseRetning ?? null)
+        : null;
+
       // Bolk (g): overlapp-vakt — ny rads spenn kan ikke overlappe en annen
-      // timer-rad på sedelen (på tvers av prosjekt/ECO).
-      await sjekkTimerOverlapp(
-        ctx.prismaTimer,
-        input.sheetId,
-        input.fraTid,
-        input.tilTid,
-      );
+      // timer-rad på sedelen (på tvers av prosjekt/ECO). Med flytting sjekkes det i
+      // transaksjonen, etter at jobbens kant er flyttet.
+      if (!flytt) {
+        await sjekkTimerOverlapp(
+          ctx.prismaTimer,
+          input.sheetId,
+          input.fraTid,
+          input.tilTid,
+        );
+      }
 
       // V20/PK4a — vurder timetallet mot radens pause og pausevinduet. Vinduet
       // (PK5) regnes fra alle rader på dagen (ankomst = tidligste fraTid, inkl.
@@ -4946,6 +5239,39 @@ export const dagsseddelRouter = router({
       // raden og hodet = Σ rad i samme skriving.
       const rad = await ctx.prismaTimer.$transaction(async (tx) => {
         const maskinFoer = await lesMaskinJobbTilstand(tx, ctx.prismaMaskin, input.sheetId);
+        let flyttRad2Slettet = false;
+        if (flytt?.fordel) {
+          // TILLEGG: O5-jobben skrives på nytt — bare når linjene står slik de ble lest.
+          const f = flytt.fordel;
+          const naa = await tx.sheetTimer.findMany({ where: { id: { in: [f.rad1.id, f.rad2Foer.id] }, sheetId: input.sheetId } });
+          const uendret = [f.rad1, f.rad2Foer].every((foer) => {
+            const r = naa.find((n) => n.id === foer.id);
+            return !!r && r.fraTid === foer.fraTid && r.tilTid === foer.tilTid && r.lonnsartId === foer.lonnsartId &&
+              r.pauseMin === foer.pauseMin && r.attestertStatus === foer.attestertStatus;
+          });
+          if (!uendret) {
+            throw new TRPCError({ code: "CONFLICT", message: "Jobben er endret. Lukk vinduet og prøv igjen." });
+          }
+          const rad2Id = await skrivJobbLinjer(tx, {
+            sheetId: input.sheetId,
+            sheetStatus: sheet.status,
+            userId: ctx.userId,
+            kortId: input.kortId as string,
+            ...f,
+          });
+          flyttRad2Slettet = rad2Id === null;
+          await sjekkTimerOverlapp(tx, input.sheetId, input.fraTid, input.tilTid);
+        } else if (flytt) {
+          // Bare raden slik den ble lest: endret i mellomtiden → ingenting skrives.
+          const { count } = await tx.sheetTimer.updateMany({
+            where: { id: flytt.radId, sheetId: input.sheetId, fraTid: flytt.foerFra, tilTid: flytt.foerTil },
+            data: { fraTid: flytt.nyFra, tilTid: flytt.nyTil, ...(flytt.timer != null ? { timer: flytt.timer } : {}) },
+          });
+          if (count !== 1) {
+            throw new TRPCError({ code: "CONFLICT", message: "Jobben er endret. Lukk vinduet og prøv igjen." });
+          }
+          await sjekkTimerOverlapp(tx, input.sheetId, input.fraTid, input.tilTid);
+        }
         const ny = await tx.sheetTimer.create({
           data: {
             ...byggTimerRadData(
@@ -4968,9 +5294,22 @@ export const dagsseddelRouter = router({
           oppgitteKortIder: input.kortId ? [input.kortId] : [],
         });
         await krevIngenNyeMaskinBrudd(tx, ctx.prismaMaskin, input.sheetId, maskinFoer);
-        return { ...ny, kortId: kortIdFor.get(ny.id) ?? ny.kortId };
+        return { ...ny, kortId: kortIdFor.get(ny.id) ?? ny.kortId, flyttRad2Slettet };
       });
-      return rad;
+      const { flyttRad2Slettet, ...nyRad } = rad;
+      // TILLEGG: overtidslinja gikk (overtid 0) — varene på den følger linje 1, som `lagreJobbTid`
+      // (egen database, ingen felles transaksjon).
+      if (flyttRad2Slettet && flytt?.fordel) {
+        try {
+          await ctx.prismaVarelager.vareforbruk.updateMany({
+            where: { dagsseddelId: input.sheetId, sheetTimerId: flytt.fordel.rad2Foer.id },
+            data: { sheetTimerId: flytt.fordel.rad1.id },
+          });
+        } catch (err) {
+          ctx.req.log.error({ err, sheetId: input.sheetId }, "tilfoyTimerRad/flyttRad: vare ble ikke flyttet til linje 1");
+        }
+      }
+      return nyRad;
     }),
 
   // ----- O19 (vedtak-timer-web § Reisevinduet pkt 23–24): reise delt ved midnatt -----------
@@ -5791,27 +6130,14 @@ export const dagsseddelRouter = router({
         throw new TRPCError({ code: "BAD_REQUEST", message: await overlappMelding(overlapp, dagensRader) });
       }
 
-      const eff = await hentEffektivArbeidstid(sheet.organizationId, sheet.dato);
       const linje1Art = artFor(linje1LonnsartId);
-      const regnet = regnJobbTid({
+      const regnet = await regnJobbTidPaaSedel(sheet, {
         fraTid: input.fraTid,
         tilTid: input.tilTid,
         pauseMin: input.pauseMin,
         linje1Overtidsnivaa: linje1Art?.overtidsnivaa ?? null,
-        andreRader: andre
-          .filter((r): r is typeof r & { fraTid: string; tilTid: string } => !!r.fraTid && !!r.tilTid)
-          .map((r) => ({
-            id: r.id,
-            fraTid: r.fraTid,
-            tilTid: r.tilTid,
-            pauseMin: r.pauseMin ?? 0,
-            erReise: r.erReise,
-            overtidsnivaa: artFor(r.lonnsartId)?.overtidsnivaa ?? null,
-          })),
-        norm: eff.dagsnorm > 0 ? eff.dagsnorm : null,
+        andre,
         lonnsarter,
-        pauseEtterTimer: eff.pauseEtterTimer,
-        fastPauseFra: fastPauseFraFor(eff),
       });
       if (!regnet.ok) {
         throw new TRPCError({ code: "BAD_REQUEST", message: "Ugyldig tid." });
@@ -5836,62 +6162,18 @@ export const dagsseddelRouter = router({
 
       const resultat = await ctx.prismaTimer.$transaction(async (tx) => {
         const maskinFoer = await lesMaskinJobbTilstand(tx, ctx.prismaMaskin, input.sheetId);
-        await tx.sheetTimer.update({
-          where: { id: rad1.id },
-          data: {
-            lonnsartId: linje1Lagres,
-            fraTid: l1.fraTid,
-            tilTid: l1.tilTid,
-            pauseMin: l1.pauseMin,
-            timer: l1.timer,
-          },
+        const rad2Id = await skrivJobbLinjer(tx, {
+          sheetId: input.sheetId,
+          sheetStatus: sheet.status,
+          userId: ctx.userId,
+          kortId: input.kortId,
+          rad1,
+          rad2Foer,
+          l1,
+          l2,
+          linje1Lagres,
+          linje2Art,
         });
-        let rad2Id: string | null = null;
-        if (l2 && linje2Art) {
-          if (rad2Foer) {
-            await tx.sheetTimer.update({
-              where: { id: rad2Foer.id },
-              data: { lonnsartId: linje2Art, fraTid: l2.fraTid, tilTid: l2.tilTid, pauseMin: 0, timer: l2.timer },
-            });
-            rad2Id = rad2Foer.id;
-          } else {
-            const ny = await tx.sheetTimer.create({
-              data: {
-                ...byggTimerRadData(
-                  input.sheetId,
-                  {
-                    projectId: rad1.projectId,
-                    byggeplassId: rad1.byggeplassId,
-                    lonnsartId: linje2Art,
-                    aktivitetId: rad1.aktivitetId,
-                    timer: l2.timer,
-                    fraTid: l2.fraTid,
-                    tilTid: l2.tilTid,
-                    pauseMin: 0,
-                    beskrivelse: rad1.beskrivelse,
-                    externalCostObjectId: rad1.externalCostObjectId,
-                    vehicleId: rad1.vehicleId,
-                  },
-                  false,
-                ),
-                kortId: input.kortId,
-              },
-            });
-            rad2Id = ny.id;
-          }
-        } else if (rad2Foer) {
-          // Jobben ble én linje: linje 2 går, maskinene på den følger linje 1 (som fjernTimerRad,
-          // men koblingen flyttes i stedet for å nulles — det er samme jobb).
-          await tx.sheetMachine.updateMany({
-            where: { sheetId: input.sheetId, sheetTimerId: rad2Foer.id },
-            data: { sheetTimerId: rad1.id },
-          });
-          // SL1: linje 2 som går på en returnert dag, til historikken først.
-          if (sheet.status === "returned") {
-            await skrivSlettespor(tx, [{ radType: "timer", rad: rad2Foer }], ctx.userId);
-          }
-          await tx.sheetTimer.delete({ where: { id: rad2Foer.id } });
-        }
         await synkroniserHodePause(tx, input.sheetId);
         await sikreKortId(tx, input.sheetId, { kast: true, oppgitteKortIder: [input.kortId] });
         await krevIngenNyeMaskinBrudd(tx, ctx.prismaMaskin, input.sheetId, maskinFoer);

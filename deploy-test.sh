@@ -99,6 +99,9 @@ COMPOSE="docker/docker-compose.test.yml"
 # Excludes beskyttes automatisk mot --delete (uten --delete-excluded):
 #   docker/env  = server-.env — KRITISK, må aldri slettes/overskrives
 #   uploads     = server-only brukerdata (~1,4G) + bind-mount — MÅ aldri slettes, som docker/env
+#   .claude     = lokale worktrees (~1,6 G); Docker bruker dem ikke (.dockerignore). Uten
+#                 exclude ble fjernede worktrees stående på server som «cannot delete
+#                 non-empty directory» (apps/mobile/** beskyttet). Kenneth 2026-11-25.
 #   node_modules/.next/.git/apps/mobile/.turbo/.pnpm-store = bloat (apps/mobile ~3 GB kontekst)
 #
 # ⚠️ apps/mobile: innholdet ekskluderes (bloat), MEN package.json MÅ synkes.
@@ -122,6 +125,7 @@ rsync -a --delete \
   --exclude uploads \
   --exclude 'DWG eksempelfiler' \
   --exclude relay \
+  --exclude .claude \
   "$SRC" "$DST"
 
 # --- 2. Skriv ut docker-kommandoen (kjøres IKKE her — sudo krever TTY) -------
