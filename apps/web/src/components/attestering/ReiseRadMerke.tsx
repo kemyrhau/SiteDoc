@@ -18,6 +18,21 @@ import type { TimerRad } from "./attestering-buckets";
 import { reiseMerkeNokkel } from "./reise-merke";
 import { midnattTekst } from "../timer/SlettDeltReise";
 
+/**
+ * O24 (vedtak-timer-web.md § Reisevinduet pkt 30): reisen er ført i O22s manuelle modus — uten
+ * oppmøtested, med tiden arbeideren skrev. Retningen skiller den fra eldre «+ Reise»-rader (før
+ * L2, 2026-11-15), som aldri bar retning og kunne mangle oppmøtested uten at det betød noe.
+ * Overføring og matrise bærer alltid oppmøtested (C2), og andre kilder får aldri merket.
+ */
+export function erReiseUtenOppmote(rad: TimerRad): boolean {
+  return (
+    rad.erReise === true &&
+    rad.reiseKilde === "manuell" &&
+    rad.reiseOppmotestedId == null &&
+    rad.reiseRetning != null
+  );
+}
+
 /** `sedelDato`: O19 pkt 23 — gir merket «fortsetter / fortsatt fra {dato}» på en reise delt ved
  *  midnatt. Utelatt = intet merke. */
 export function ReiseRadMerke({ rad, sedelDato }: { rad: TimerRad; sedelDato?: string | Date }) {
@@ -101,6 +116,15 @@ export function ReiseRadMerke({ rad, sedelDato }: { rad: TimerRad; sedelDato?: s
         <span className="text-xs text-gray-600">
           {harDetaljer ? ruteDeler.join(" · ") : t("timer.attestering.reise.kildeUkjent")}
         </span>
+        {erReiseUtenOppmote(rad) && (
+          <span
+            data-testid="reise-uten-oppmote"
+            title={t("timer.attestering.reise.utenOppmoteForklaring")}
+            className="text-[11px] text-gray-500"
+          >
+            {t("timer.attestering.reise.utenOppmote")}
+          </span>
+        )}
         {tidMerke && <span className="text-[11px] italic text-gray-400">{tidMerke}</span>}
         {midnatt && (
           <span data-testid="reise-midnatt-merke" className="text-[11px] text-gray-600">

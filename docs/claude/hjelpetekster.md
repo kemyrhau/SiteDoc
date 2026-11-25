@@ -453,6 +453,11 @@ Fra w15f i web-timeføring (🟡 ikke merget, `feat/web-timer-w15f`, plan § 4.1
 - Vinduet «Rett reisen»: «Start kl.» / «Slutt kl.» (`…reiseRett.start` / `…slutt`), Lønnsart (`…registrering.lonnsart`, bare reisearter, RETUR w15f), Prosjekt, Byggeplass, Underprosjekt, og linja «Står i jobben på …» / «Står i kortet på …» / «Får eget kort på …» (`timer.reiseKort.havnerJobb` / `havnerKort` (ny) / `havnerEget`). Firmavalget av: «Firmaet tillater ikke at tid og sted rettes ved attestering. Underprosjektet kan rettes.» (`…reiseRett.bareUnderprosjekt`).
 - ?-fanen: nytt avsnitt `timer.attestering.tabell.hjelp.reise` (✎, lønnsarten, lista, linja «havner i», firmavalget; endret i RETUR w15f: lønnsarten rettes i vinduet, ikke i «Rediger jobben» — 13 språk regenerert fra ny kilde).
 
+Fra O24 (🟡 ikke merget, `fix/reise-merke-uten-oppmote`, vedtak pkt 30):
+
+- ?-fanen `timer.attestering.tabell.hjelp.reise` har ny siste setning: «Merket «uten oppmøtested» på reiselinja betyr at oppmøtestedet ikke var registrert, og at arbeideren førte reisetiden selv.» (13 språk regenerert kirurgisk fra ny kilde).
+- Merket «uten oppmøtested» (`timer.attestering.reise.utenOppmote`) med hover «Oppmøtested var ikke registrert — reisetiden er ført av arbeideren» (`…reise.utenOppmoteForklaring`), 15 språk.
+
 Fra w15g i web-timeføring (🟡 ikke merget, `feat/web-timer-w15g`, plan § 4.15 del F):
 
 - Kortet er tekst. ✎ på timelinja, maskinlinja og tilleggslinja åpner «Rett timelinja» / «Rett maskinlinja» / «Rett tillegget» (`timer.korrigert.vindu.timer` / `…maskin` / `…tillegg`) med feltene som før sto i kortet. Linja i vinduet: «{arbeider} ser «Korrigert av {attestant}» på linja.» (`timer.korrigert.vinduLinje`; uten attestantens navn `…vinduLinjeUtenNavn`). Ugyldig tall: «Skriv et tall.» (`…vindu.ugyldigTall`).
