@@ -10,7 +10,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useFirma } from "@/kontekst/firma-kontekst";
 import { RegistrerTimerKnapp } from "@/components/timer/RegistrerTimerKnapp";
 import { lesUkeParam, medRetur, prosjektTimerAdresse, ukeIntervall } from "@/lib/tilbake-adresse";
-import { spennerFlereAar, visDagDato, visTimerTall } from "@/lib/registrerTimer";
+import { spennerFlereAar, standardRegistrerDato, visDagDato, visTimerTall } from "@/lib/registrerTimer";
 import { StatusBadge } from "@/components/timer/StatusBadge";
 import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
 import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
@@ -126,6 +126,7 @@ export default function TimerListSide() {
             organizationId={valgtFirma?.id ?? null}
             projectId={prosjektId}
             retur={egenAdresse}
+            dato={standardRegistrerDato({ naa: new Date(), ukeStart })}
           />
         </div>
       </SonetonetSidehode>
