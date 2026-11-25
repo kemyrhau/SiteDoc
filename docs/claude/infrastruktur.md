@@ -76,13 +76,13 @@ Tilbake til `egen`: fjern linja fra begge filer og recreate på nytt. **Faller e
 
 tRPC kjører **in-process i web-containeren** for alt nettleseren trigger, så web må ha env for de tjenestene: `NORBERT_URL`/`OVERSETTELSE_URL`/`PDF_URL` (i `docker/docker-compose.yml` og `docker-compose.test.yml` på web) og `VEGVESEN_API_KEY` (i `web.env`/`web-test.env`, kopiert fra api-filene). Sjekk paritet med navn-diff (aldri verdier): `diff <(docker exec sitedoc-api printenv | cut -d= -f1 | sort) <(docker exec sitedoc-web printenv | cut -d= -f1 | sort)`. Forventet differanse: `BUILD_TID`, `GIT_SHA`, `HOST`, `MICROSOFT_MOBILE_CLIENT_ID` (mobilauth går mot api).
 
-### Arbeidstegning — `TEGNING_MOTOR` (leveranse 1, 2026-10-13; standard på i test fra 2026-11-25)
+### Arbeidstegning — `TEGNING_MOTOR` (leveranse 1, 2026-10-13; standard på i test og prod fra 2026-11-25)
 
-Standard **på i test, av i prod** (Kenneth 2026-11-25: dxf-viewer står permanent på i test, så en vanlig test-deploy slår den ikke lenger av). Uavhengig akse fra `DWG_MOTOR` (plan: `relay/inbox-orkestrator.md` § PLAN app-integrasjon): `DWG_MOTOR` avgjør hvilken SVG som **finnes på disk**, `TEGNING_MOTOR` avgjør om web/mobil **bruker** den eller tegner `dxf-viewer` (WebGL) direkte fra en forenklet DXF + O1-register i stedet.
+Standard **på i test og prod** (Kenneth 2026-11-25: dxf-viewer står permanent på i test, så en vanlig test-deploy slår den ikke lenger av; samme dag for prod: «vi må rette opp prod nå»). `DWG_MOTOR` i prod er uendret (egen-motoren lager SVG-en). Uavhengig akse fra `DWG_MOTOR` (plan: `relay/inbox-orkestrator.md` § PLAN app-integrasjon): `DWG_MOTOR` avgjør hvilken SVG som **finnes på disk**, `TEGNING_MOTOR` avgjør om web/mobil **bruker** den eller tegner `dxf-viewer` (WebGL) direkte fra en forenklet DXF + O1-register i stedet.
 
 - **Server (api):** `TEGNING_MOTOR=dxfviewer` slår på `genererDxfViewerArtefakter()` i `dwgKonvertering.ts` — krever samme `EZDXF_PYTHON`/`EZDXF_RENDER_PY` som ezdxf-motoren (uavhengig av `DWG_MOTOR`). Skriver `Drawing.dxfViewerFileUrl` (forenklet DXF, spike 0,5b: XDATA/extension-dicts/ubrukte blokker fjernet, koordinater avrundet ≤0,1 mm) + `Drawing.registerWorldUrl` (O1-register, rå DXF-verdenskoordinater) — begge `/uploads/`-URL-er, signert automatisk av den globale tRPC-middlewaren (`signerUploadsOutput.ts`, ingen eksplisitt kall trengt).
 - **Klient (web):** `NEXT_PUBLIC_TEGNING_MOTOR=dxfviewer` er den FAKTISKE kill-switchen (build-time, samme to-var-mønster som `GIT_SHA`/`NEXT_PUBLIC_BUILD_SHA`) — server-flagget avgjør kun om NYE konverteringer produserer artefaktene. `tegninger/page.tsx` krever BEGGE (client-flagg PÅ + artefaktene finnes på raden) før den bruker `DxfViewerTegning`-komponenten (dynamic import, `ssr:false` — egen three.js-kopi ^0.186 lastes kun på tegningssiden, ikke globalt).
-- **Begge flagg er wiret i `docker-compose.test.yml` som shell-variabler med standardverdi `dxfviewer` (ikke env-fil-append), kun test — prod (`docker/docker-compose.yml`) har dem ikke, altså av:**
+- **Begge flagg er wiret i både `docker-compose.test.yml` og `docker-compose.yml` (prod) som shell-variabler med standardverdi `dxfviewer` (ikke env-fil-append), altså på. Under: test-tjenestenavn; prod har de samme linjene på `sitedoc-api`/`sitedoc-web`:**
   - `TEGNING_MOTOR` (runtime) står i `environment:` på **begge** `sitedoc-test-api` og `sitedoc-test-web` (web konverterer selv ved nettleser-opplasting, D-M2) — `TEGNING_MOTOR: ${TEGNING_MOTOR-dxfviewer}`.
   - `NEXT_PUBLIC_TEGNING_MOTOR` (build-time) står i `sitedoc-test-web`s `build.args` — `${NEXT_PUBLIC_TEGNING_MOTOR-dxfviewer}` — og `Dockerfile.web` har tilsvarende `ARG`/`ENV` (samme mønster som `NEXT_PUBLIC_BUILD_SHA`).
   - Bevisst `-` uten kolon: usatt variabel gir `dxfviewer`, tom variabel gir tom = av. Med `:-` ville også tom gitt `dxfviewer`, og flagget kunne ikke slås av (målt med `docker compose config` 2026-11-25). Koden sammenligner eksakt mot `"dxfviewer"`.
@@ -93,6 +93,8 @@ Standard **på i test, av i prod** (Kenneth 2026-11-25: dxf-viewer står permane
       TEGNING_MOTOR= sudo -E docker compose -f docker/docker-compose.test.yml up -d sitedoc-test-api sitedoc-test-web"
     ```
     `sudo -E` er påkrevd begge steder — uten den arver ikke `sudo` den tomme variabelen, og standardverdien `dxfviewer` gjelder. Neste vanlige test-deploy slår flagget på igjen.
+  - **Slå av i prod:** samme kommando med `docker/docker-compose.yml` og tjenestene `sitedoc-web` / `sitedoc-api sitedoc-web`. Neste vanlige prod-deploy slår flagget på igjen.
+  - **Eksisterende tegninger** får dxf-artefakter først når de rekonverteres: Tegninger → «Oppdater alle tegninger» (pr. prosjekt, prosjektadmin) — se DEPLOY-RUNBOK.md § 2 steg 5.
 - Ingen migrering trengs for å bytte (additive, nullable felt).
 
 ### 🔴 STYRENDE: env-filer overskrives — tre hendelser på fem dager (2026-08-13 → 08-18)

@@ -172,6 +172,11 @@ docker exec sitedoc-api /opt/ezdxf-venv/bin/python3 -c "import ezdxf; print(ezdx
  && docker exec sitedoc-web /opt/ezdxf-venv/bin/python3 -c "import ezdxf; print(ezdxf.__version__)"
 ```
 
+🟢 **Etter første prod-deploy med dxf-viewer (`TEGNING_MOTOR`, standard på fra 2026-11-25):**
+eksisterende DWG/DXF-tegninger har ingen dxf-artefakter og vises fortsatt som SVG. Åpne
+Tegninger i hvert prosjekt med tegninger → «Oppdater alle tegninger» (krever prosjektadmin).
+Nye opplastinger får artefaktene automatisk. Se infrastruktur.md § `TEGNING_MOTOR`.
+
 ### Steg 5b — bekreft at koden FAKTISK er i imaget (ved tvil)
 
 En grønn deploy-logg beviser ikke at imaget har koden din. Bygger rsync fra et tre som lå bak,
