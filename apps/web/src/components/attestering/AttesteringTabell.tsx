@@ -611,6 +611,8 @@ export function AttesteringTabell({ dager, orgId, readOnly, verktoy, ukeoversikt
           })
         }
         onDelt={(kortIdB) => setAapenKort({ nokkel: kort.nokkel, par: `${kort.sheetId}:${kortIdB}` })}
+        // D2h: etter «↶ Angre del opp» lukkes paret; kort A står åpent (B finnes ikke lenger).
+        onAngret={(kortIdA) => setAapenKort({ nokkel: `${kort.sheetId}:${kortIdA}`, par: null })}
         prosjektKontekst={prosjektKontekst}
         parRolle={parRolle}
         flyttMaal={maal}

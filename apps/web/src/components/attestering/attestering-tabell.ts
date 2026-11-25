@@ -104,6 +104,8 @@ export type AttSedel = {
    */
   attestertVisning?: boolean;
   fravaerKanAttesteres?: boolean;
+  /** D2h: kort-id-ene som får «↶ Angre del opp» (kort B fra «Del opp», regnet av serveren). */
+  angreDelOppKort?: string[];
   /** w7 (B15): sedelen er attestantens egen og firmaet sier Nei — vises, men kan ikke attesteres/rettes. */
   egneTimer?: boolean;
   /** w10a (A6): dagens «Kommentar» (`DailySheet.beskrivelse`), vist i kortet som «Kommentar til dagen». */
