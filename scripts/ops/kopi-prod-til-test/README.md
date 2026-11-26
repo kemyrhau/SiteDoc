@@ -17,7 +17,7 @@ Engangsskript (Kenneth 2026-11-26). Det kopierer A.Markussen AS og SITEDOC MYRHA
 - **Begge firma:** organisasjonen, firmainnstillinger, reisegrenser, partnere (kontaktfelt = NULL), firmamoduler, seed-policy, avdelinger, arbeidstidskalender, kompetansetyper, medlemskap, oppmøtesteder og avstander, oppmøteperioder, reisetidsmatrise, ECO, lønnsarter, aktiviteter, tillegg, utleggskategorier, prosjekt-overstyring av utleggsordning, eksportoppsett, maskiner (`maskin.equipment`, bilder = NULL), varekategorier og varer.
 - **Prosjektene som tomme prosjekter:** prosjekt (logo = NULL), firmakobling, byggeplasser, prosjektmoduler, faggrupper (`kontrakt_id` og `partner_id` = NULL), prosjektmedlemmer, dokumentflyt-koblinger, grupper, gruppemedlemmer, gruppe-faggrupper og gruppe-byggeplasser.
 - **Bare SITEDOC MYRHAUG:** dagssedler med timerader, forslag, tillegg, utlegg, maskinlinjer, radhistorikk og vareforbruk på sedlene.
-- **Brukere:** alle som radene over peker på, unntatt Kenneth. E-posten blir `<8 første tegn av id>@test.sitedoc.invalid`. Telefon, bilde, fødselsdato, nasjonalitet, HMS-kort, arbeidstillatelse og `email_verified` settes til NULL. Brukere som ikke er medlem i noen av de to firmaene får `can_login = false`. Firmaets faktura-e-post blir fiktiv.
+- **Brukere:** alle som radene over peker på, unntatt Kenneth. E-posten blir `<8 første tegn av id>@test.sitedoc.invalid`. Telefon, bilde, fødselsdato, nasjonalitet, HMS-kort, arbeidstillatelse og `email_verified` settes til NULL. Brukere som ikke er medlem i noen av de to firmaene (tredjepersoner med via prosjektmedlemskap) får `can_login = false` og navnet `Ekstern <8 første tegn av id>`. Prosjektmedlemskapet deres beholdes. Firmaets faktura-e-post blir fiktiv.
 - **Kopieres ikke:** innlogging (`accounts`, `sessions`, tokens, push-tokens), API-nøkler (`organization_integrations`), revisjonslogg, impersonering, 3D, tegninger, sjekklister, oppgaver, HMS/PSI, dokumenter, mapper, økonomi, dokumentsøk, filer på disk, vedleggsrader på tillegg og utlegg, `ansatt_kompetanser`, `bruker_innstilling`, sjekkliste-maler (`organization_templates`), maskinservice, feilmeldinger, vegvesen-kø, maskinansvarlige og utlevering, og A.Markussens dagssedler.
 
 ## Id-omskriving (på test, i TEMP-tabellene)
@@ -36,11 +36,12 @@ Dette blir stående: organisasjonsraden, test-SMs prosjekter med innhold, firmak
 ## Kontroller (stopper og ruller tilbake ved feil)
 
 - **E0/I0:** firma-id, navn og Kenneths id stemmer i begge databaser. Det finnes ingen A.Markussen på test. Manifestet har 44 tabeller, og kolonnerekkefølge og typer er like i prod og test.
-- **I2:** ingen slettede rader er igjen. Ingen rad som står igjen på test peker på en slettet rad. Logg-tabellene `activity_log` og `impersonation_audit` er unntatt.
+- **I1b (før sletting):** ingen rad som blir stående på test, peker på en rad som skal slettes. Det fanger Restrict, Cascade og SetNull (f.eks. `Faggruppe.partner`, `OrganizationMember.avdeling`, `Oppmotested.avdeling`), slik at test-SMs prosjekter står urørt. Treff = STOPP.
+- **I2 (etter sletting):** ingen slettede rader er igjen. Ingen rad som står igjen på test peker på en slettet rad. Logg-tabellene `activity_log` og `impersonation_audit` er unntatt.
 - **I4:** ingen prod-id for SM eller Kenneth er igjen etter omskrivingen.
 - **K1:** antall per tabell er det samme i prod-eksporten, i det som er lest inn og på test. Det er 2 organisasjoner, og det er minst én seddel og én bruker.
 - **K2:** importerte rader har 0 hengende `*_id`-referanser. Unntatt er `kort_id`, `original_rad_id`, `proadm_id` og `kilde_id`, som ikke peker på en rad.
-- **K3 (negativkontroll):** ingen importert bruker har en e-post som ikke slutter på `@test.sitedoc.invalid`. Ingen har md5 lik sin prod-e-post, og ingen har persondata igjen. Kontrollen stopper hvis den er tom.
+- **K3 (negativkontroll):** ingen importert bruker har en e-post som ikke slutter på `@test.sitedoc.invalid`. Ingen har persondata igjen, og ingen ikke-medlem har ekte navn. Kontrollen stopper hvis den er tom. Ingen avledning av ekte e-post (heller ikke md5) skrives til fil.
 - **K4:** viser prosjektnavn som finnes to ganger i samme firma. Begge beholdes.
 - **K5:** oversikt per firma (medlemmer, prosjekter, lønnsarter, sedler, maskiner og reise-lønnsart).
 
@@ -65,7 +66,7 @@ ssh -t server-ny "sudo docker exec postgres psql -U sitedoc -d sitedoc_test -v c
 ```
 Siste linje skal være «FERDIG: COMMIT».
 
-**D. Rydding (steg 4). Fjerner CSV-ene (bruker-id-er og md5) og SQL-filene. Backupen blir liggende**
+**D. Rydding (steg 4). Fjerner CSV-ene (bruker-id-er og anonymiserte rader) og SQL-filene. Backupen blir liggende**
 ```bash
 ssh -t server-ny "sudo docker exec postgres rm -rf /tmp/kopi-prod-til-test /tmp/1-eksport-prod.sql /tmp/2-import-test.sql; rm -f /tmp/1-eksport-prod.sql /tmp/2-import-test.sql"
 ```

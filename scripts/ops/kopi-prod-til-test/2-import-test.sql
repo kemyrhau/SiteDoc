@@ -17,10 +17,8 @@ END $$;
 -- TEMP-tabeller lever bare i økta (spørsmål 10). Ingen skjemaendring.
 CREATE TEMP TABLE _manifest (tabell text PRIMARY KEY, antall bigint);
 CREATE TEMP TABLE _kolonner (tabell text PRIMARY KEY, kolonner text);
-CREATE TEMP TABLE _epost_md5 (id text, md5 text);
 \copy _manifest FROM '/tmp/kopi-prod-til-test/_manifest.csv' WITH (FORMAT csv)
 \copy _kolonner FROM '/tmp/kopi-prod-til-test/_kolonner.csv' WITH (FORMAT csv)
-\copy _epost_md5 FROM '/tmp/kopi-prod-til-test/_epost_md5.csv' WITH (FORMAT csv)
 
 BEGIN;
 
@@ -96,6 +94,31 @@ INSERT INTO slettet SELECT 'public.organization_reise_grenser', id FROM public.o
 INSERT INTO slettet SELECT 'public.organization_seed_policies', id FROM public.organization_seed_policies WHERE organization_id = 'f1000001-0000-0000-0000-000000000002';
 INSERT INTO slettet SELECT 'public.organization_partners', id FROM public.organization_partners WHERE organization_id = 'f1000001-0000-0000-0000-000000000002';
 SELECT tabell, count(*) AS slettes FROM slettet GROUP BY 1 ORDER BY 1;
+
+\echo '== I1b kontroll før sletting: ingen rad som blir stående, peker på en rad som slettes'
+DO $$
+DECLARE r record; n bigint; feil text := '';
+BEGIN
+  FOR r IN SELECT c.table_schema, c.table_name, c.column_name FROM information_schema.columns c
+           JOIN information_schema.tables t USING (table_schema, table_name)
+           WHERE t.table_type = 'BASE TABLE' AND c.table_schema IN ('public','timer','maskin','varelager')
+             AND c.column_name LIKE '%\_id' AND c.data_type IN ('text','character varying')
+             AND c.column_name NOT IN ('kort_id', 'original_rad_id', 'proadm_id', 'kilde_id')
+             AND c.table_schema || '.' || c.table_name NOT IN ('public.activity_log', 'public.impersonation_audit') LOOP
+    IF EXISTS (SELECT 1 FROM information_schema.columns
+                WHERE table_schema = r.table_schema AND table_name = r.table_name AND column_name = 'id') THEN
+      EXECUTE format('SELECT count(*) FROM %I.%I WHERE %I IN (SELECT id FROM slettet) '
+                     'AND id NOT IN (SELECT id FROM slettet WHERE tabell = %L)',
+                     r.table_schema, r.table_name, r.column_name, r.table_schema || '.' || r.table_name) INTO n;
+    ELSE
+      EXECUTE format('SELECT count(*) FROM %I.%I WHERE %I IN (SELECT id FROM slettet)',
+                     r.table_schema, r.table_name, r.column_name) INTO n;
+    END IF;
+    IF n > 0 THEN feil := feil || format(' %s.%s.%s peker på rad som slettes: %s;', r.table_schema, r.table_name, r.column_name, n); END IF;
+  END LOOP;
+  IF feil <> '' THEN RAISE EXCEPTION 'STOPP I1b:%', feil; END IF;
+  RAISE NOTICE 'I1b ok: ingen rad som blir stående, peker på det som slettes';
+END $$;
 DELETE FROM varelager.vareforbruk WHERE id IN (SELECT id FROM slettet WHERE tabell = 'varelager.vareforbruk');
 DELETE FROM timer.sheet_rad_historikk WHERE id IN (SELECT id FROM slettet WHERE tabell = 'timer.sheet_rad_historikk');
 DELETE FROM timer.daily_sheets WHERE id IN (SELECT id FROM slettet WHERE tabell = 'timer.daily_sheets');
@@ -376,30 +399,33 @@ BEGIN
   RAISE NOTICE 'K2 ok: 0 hengende referanser';
 END $$;
 
-\echo '== K3 negativkontroll persondata: importerte brukere har bare fiktiv e-post, og ingen har prod-e-posten sin'
+\echo '== K3 negativkontroll persondata: importerte brukere har bare fiktiv e-post, ingen persondata, og ikke-medlemmer har ikke ekte navn'
 SELECT count(*) AS importerte_brukere,
        count(*) FILTER (WHERE u.email NOT LIKE '%@test.sitedoc.invalid') AS ekte_epost,
-       count(*) FILTER (WHERE md5(lower(u.email)) IN (SELECT md5 FROM _epost_md5)) AS prod_epost_treff,
        count(*) FILTER (WHERE u.phone IS NOT NULL OR u.image IS NOT NULL OR u.fodselsdato IS NOT NULL
                           OR u.hms_kort_nr IS NOT NULL OR u.nasjonalitet IS NOT NULL
                           OR u.arbeidstillatelse IS NOT NULL) AS persondata_igjen,
+       count(*) FILTER (WHERE u.id NOT IN (SELECT user_id FROM stg_public__organization_members)) AS ikke_medlem,
+       count(*) FILTER (WHERE u.id NOT IN (SELECT user_id FROM stg_public__organization_members)
+                          AND u.name IS DISTINCT FROM 'Ekstern ' || left(u.id, 8)) AS ikke_medlem_ekte_navn,
        count(*) FILTER (WHERE NOT u.can_login) AS kan_ikke_logge_inn
   FROM users u WHERE u.id IN (SELECT id FROM stg_public__users);
 DO $$
-DECLARE n_imp bigint; n_ekte bigint; n_md5 bigint; n_pd bigint;
+DECLARE n_imp bigint; n_ekte bigint; n_pd bigint; n_navn bigint;
 BEGIN
   SELECT count(*), count(*) FILTER (WHERE email NOT LIKE '%@test.sitedoc.invalid'),
-         count(*) FILTER (WHERE md5(lower(email)) IN (SELECT md5 FROM _epost_md5)),
          count(*) FILTER (WHERE phone IS NOT NULL OR image IS NOT NULL OR fodselsdato IS NOT NULL
-                            OR hms_kort_nr IS NOT NULL OR nasjonalitet IS NOT NULL OR arbeidstillatelse IS NOT NULL)
-    INTO n_imp, n_ekte, n_md5, n_pd
+                            OR hms_kort_nr IS NOT NULL OR nasjonalitet IS NOT NULL OR arbeidstillatelse IS NOT NULL),
+         count(*) FILTER (WHERE id NOT IN (SELECT user_id FROM stg_public__organization_members)
+                            AND name IS DISTINCT FROM 'Ekstern ' || left(id, 8))
+    INTO n_imp, n_ekte, n_pd, n_navn
     FROM users WHERE id IN (SELECT id FROM stg_public__users);
-  -- Kontrollen er ikke tom: den må ha brukere å se på, og prod-md5-lista må ha innhold.
-  IF n_imp = 0 OR (SELECT count(*) FROM _epost_md5) = 0 THEN
-    RAISE EXCEPTION 'STOPP K3: negativkontrollen er tom (importerte=%, md5=%)', n_imp, (SELECT count(*) FROM _epost_md5);
+  -- Kontrollen er ikke tom: den må ha brukere å se på.
+  IF n_imp = 0 THEN
+    RAISE EXCEPTION 'STOPP K3: negativkontrollen er tom (importerte=0)';
   END IF;
-  IF n_ekte > 0 OR n_md5 > 0 OR n_pd > 0 THEN
-    RAISE EXCEPTION 'STOPP K3: ekte e-post=%, prod-e-post-treff=%, persondata igjen=%', n_ekte, n_md5, n_pd;
+  IF n_ekte > 0 OR n_pd > 0 OR n_navn > 0 THEN
+    RAISE EXCEPTION 'STOPP K3: ekte e-post=%, persondata igjen=%, ikke-medlem med ekte navn=%', n_ekte, n_pd, n_navn;
   END IF;
   IF EXISTS (SELECT 1 FROM organizations WHERE id IN ('4488fe17-7490-409f-9c1c-2827f257c54d', 'f1000001-0000-0000-0000-000000000002')
              AND invoice_email IS NOT NULL AND invoice_email NOT LIKE '%@test.sitedoc.invalid') THEN
@@ -407,8 +433,6 @@ BEGIN
   END IF;
   RAISE NOTICE 'K3 ok: % importerte brukere, alle fiktive', n_imp;
 END $$;
-\echo '   (info) test-brukere fra før med samme e-post som en prod-bruker i omfanget — forventet: Kenneth + de som T3 viste'
-SELECT count(*) AS test_brukere_med_prod_epost FROM users WHERE md5(lower(email)) IN (SELECT md5 FROM _epost_md5);
 
 \echo '== K4 prosjektnavn som finnes to ganger i samme firma etter import (meldes, begge beholdes)'
 SELECT o.name AS firma, p.name AS prosjekt, count(*) AS antall

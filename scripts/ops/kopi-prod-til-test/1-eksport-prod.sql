@@ -27,7 +27,7 @@ END $$;
 
 \echo '== E1 eksport per tabell (antall rader står i manifestet E2)'
 \o /tmp/kopi-prod-til-test/public.users.csv
-COPY (SELECT (jsonb_populate_record(x, jsonb_build_object('email', left(x.id, 8) || '@test.sitedoc.invalid', 'email_verified', NULL, 'image', NULL, 'phone', NULL, 'fodselsdato', NULL, 'nasjonalitet', NULL, 'hms_kort_nr', NULL, 'hms_kort_utloper', NULL, 'arbeidstillatelse', NULL, 'arbeidstillatelse_utloper', NULL, 'can_login', CASE WHEN x.id IN (SELECT user_id FROM organization_members WHERE organization_id IN ('4488fe17-7490-409f-9c1c-2827f257c54d','0bca7497-40e1-41ad-87da-d6e77f208598')) THEN x.can_login ELSE false END))).* FROM public.users x WHERE x.id IN (SELECT user_id FROM organization_members WHERE organization_id IN ('4488fe17-7490-409f-9c1c-2827f257c54d','0bca7497-40e1-41ad-87da-d6e77f208598')
+COPY (SELECT (jsonb_populate_record(x, jsonb_build_object('email', left(x.id, 8) || '@test.sitedoc.invalid', 'email_verified', NULL, 'image', NULL, 'phone', NULL, 'fodselsdato', NULL, 'nasjonalitet', NULL, 'hms_kort_nr', NULL, 'hms_kort_utloper', NULL, 'arbeidstillatelse', NULL, 'arbeidstillatelse_utloper', NULL, 'can_login', CASE WHEN x.id IN (SELECT user_id FROM organization_members WHERE organization_id IN ('4488fe17-7490-409f-9c1c-2827f257c54d','0bca7497-40e1-41ad-87da-d6e77f208598')) THEN x.can_login ELSE false END, 'name', CASE WHEN x.id IN (SELECT user_id FROM organization_members WHERE organization_id IN ('4488fe17-7490-409f-9c1c-2827f257c54d','0bca7497-40e1-41ad-87da-d6e77f208598')) THEN x.name ELSE 'Ekstern ' || left(x.id, 8) END))).* FROM public.users x WHERE x.id IN (SELECT user_id FROM organization_members WHERE organization_id IN ('4488fe17-7490-409f-9c1c-2827f257c54d','0bca7497-40e1-41ad-87da-d6e77f208598')
    UNION SELECT deaktivert_av_user_id FROM organization_members WHERE organization_id IN ('4488fe17-7490-409f-9c1c-2827f257c54d','0bca7497-40e1-41ad-87da-d6e77f208598')
    UNION SELECT aktivert_av_user_id FROM organization_modules WHERE organization_id IN ('4488fe17-7490-409f-9c1c-2827f257c54d','0bca7497-40e1-41ad-87da-d6e77f208598')
    UNION SELECT deaktivert_av_user_id FROM organization_modules WHERE organization_id IN ('4488fe17-7490-409f-9c1c-2827f257c54d','0bca7497-40e1-41ad-87da-d6e77f208598')
@@ -182,7 +182,7 @@ COPY (SELECT x.* FROM varelager.vareforbruk x WHERE x.dagsseddel_id IN (SELECT i
 \echo '== E2 manifest: antall rader per tabell i eksporten'
 \o /tmp/kopi-prod-til-test/_manifest.csv
 COPY (
-  SELECT 'public.users', count(*) FROM (SELECT (jsonb_populate_record(x, jsonb_build_object('email', left(x.id, 8) || '@test.sitedoc.invalid', 'email_verified', NULL, 'image', NULL, 'phone', NULL, 'fodselsdato', NULL, 'nasjonalitet', NULL, 'hms_kort_nr', NULL, 'hms_kort_utloper', NULL, 'arbeidstillatelse', NULL, 'arbeidstillatelse_utloper', NULL, 'can_login', CASE WHEN x.id IN (SELECT user_id FROM organization_members WHERE organization_id IN ('4488fe17-7490-409f-9c1c-2827f257c54d','0bca7497-40e1-41ad-87da-d6e77f208598')) THEN x.can_login ELSE false END))).* FROM public.users x WHERE x.id IN (SELECT user_id FROM organization_members WHERE organization_id IN ('4488fe17-7490-409f-9c1c-2827f257c54d','0bca7497-40e1-41ad-87da-d6e77f208598')
+  SELECT 'public.users', count(*) FROM (SELECT (jsonb_populate_record(x, jsonb_build_object('email', left(x.id, 8) || '@test.sitedoc.invalid', 'email_verified', NULL, 'image', NULL, 'phone', NULL, 'fodselsdato', NULL, 'nasjonalitet', NULL, 'hms_kort_nr', NULL, 'hms_kort_utloper', NULL, 'arbeidstillatelse', NULL, 'arbeidstillatelse_utloper', NULL, 'can_login', CASE WHEN x.id IN (SELECT user_id FROM organization_members WHERE organization_id IN ('4488fe17-7490-409f-9c1c-2827f257c54d','0bca7497-40e1-41ad-87da-d6e77f208598')) THEN x.can_login ELSE false END, 'name', CASE WHEN x.id IN (SELECT user_id FROM organization_members WHERE organization_id IN ('4488fe17-7490-409f-9c1c-2827f257c54d','0bca7497-40e1-41ad-87da-d6e77f208598')) THEN x.name ELSE 'Ekstern ' || left(x.id, 8) END))).* FROM public.users x WHERE x.id IN (SELECT user_id FROM organization_members WHERE organization_id IN ('4488fe17-7490-409f-9c1c-2827f257c54d','0bca7497-40e1-41ad-87da-d6e77f208598')
    UNION SELECT deaktivert_av_user_id FROM organization_members WHERE organization_id IN ('4488fe17-7490-409f-9c1c-2827f257c54d','0bca7497-40e1-41ad-87da-d6e77f208598')
    UNION SELECT aktivert_av_user_id FROM organization_modules WHERE organization_id IN ('4488fe17-7490-409f-9c1c-2827f257c54d','0bca7497-40e1-41ad-87da-d6e77f208598')
    UNION SELECT deaktivert_av_user_id FROM organization_modules WHERE organization_id IN ('4488fe17-7490-409f-9c1c-2827f257c54d','0bca7497-40e1-41ad-87da-d6e77f208598')
@@ -258,30 +258,6 @@ COPY (
   GROUP BY 1
 ) TO STDOUT WITH (FORMAT csv);
 \o
-\echo '== E4 md5 av ekte e-post for brukerne i omfanget (negativkontroll på test; e-posten selv eksporteres aldri)'
-\o /tmp/kopi-prod-til-test/_epost_md5.csv
-COPY (SELECT x.id, md5(lower(x.email)) FROM users x WHERE x.id IN (SELECT user_id FROM organization_members WHERE organization_id IN ('4488fe17-7490-409f-9c1c-2827f257c54d','0bca7497-40e1-41ad-87da-d6e77f208598')
-   UNION SELECT deaktivert_av_user_id FROM organization_members WHERE organization_id IN ('4488fe17-7490-409f-9c1c-2827f257c54d','0bca7497-40e1-41ad-87da-d6e77f208598')
-   UNION SELECT aktivert_av_user_id FROM organization_modules WHERE organization_id IN ('4488fe17-7490-409f-9c1c-2827f257c54d','0bca7497-40e1-41ad-87da-d6e77f208598')
-   UNION SELECT deaktivert_av_user_id FROM organization_modules WHERE organization_id IN ('4488fe17-7490-409f-9c1c-2827f257c54d','0bca7497-40e1-41ad-87da-d6e77f208598')
-   UNION SELECT sett_av_user_id FROM organization_seed_policies WHERE organization_id IN ('4488fe17-7490-409f-9c1c-2827f257c54d','0bca7497-40e1-41ad-87da-d6e77f208598')
-   UNION SELECT satt_av_user_id FROM oppmote_perioder WHERE organization_id IN ('4488fe17-7490-409f-9c1c-2827f257c54d','0bca7497-40e1-41ad-87da-d6e77f208598')
-   UNION SELECT opprettet_av_user_id FROM external_cost_objects WHERE organization_id IN ('4488fe17-7490-409f-9c1c-2827f257c54d','0bca7497-40e1-41ad-87da-d6e77f208598')
-   UNION SELECT lukket_av_user_id FROM external_cost_objects WHERE organization_id IN ('4488fe17-7490-409f-9c1c-2827f257c54d','0bca7497-40e1-41ad-87da-d6e77f208598')
-   UNION SELECT eier_id FROM timer.eksport_oppsett WHERE organization_id IN ('4488fe17-7490-409f-9c1c-2827f257c54d','0bca7497-40e1-41ad-87da-d6e77f208598')
-   UNION SELECT opprettet_av_id FROM timer.eksport_oppsett WHERE organization_id IN ('4488fe17-7490-409f-9c1c-2827f257c54d','0bca7497-40e1-41ad-87da-d6e77f208598')
-   UNION SELECT ansvarlig_user_id FROM maskin.equipment WHERE organization_id IN ('4488fe17-7490-409f-9c1c-2827f257c54d','0bca7497-40e1-41ad-87da-d6e77f208598')
-   UNION SELECT user_id FROM project_members WHERE project_id IN (SELECT id FROM projects WHERE primary_organization_id IN ('4488fe17-7490-409f-9c1c-2827f257c54d','0bca7497-40e1-41ad-87da-d6e77f208598') UNION SELECT project_id FROM project_organizations WHERE organization_id IN ('4488fe17-7490-409f-9c1c-2827f257c54d','0bca7497-40e1-41ad-87da-d6e77f208598'))
-   UNION SELECT ansvarlig_id FROM dokumentflyt_parts WHERE project_id IN (SELECT id FROM projects WHERE primary_organization_id IN ('4488fe17-7490-409f-9c1c-2827f257c54d','0bca7497-40e1-41ad-87da-d6e77f208598') UNION SELECT project_id FROM project_organizations WHERE organization_id IN ('4488fe17-7490-409f-9c1c-2827f257c54d','0bca7497-40e1-41ad-87da-d6e77f208598'))
-   UNION SELECT user_id FROM timer.daily_sheets WHERE id IN (SELECT id FROM timer.daily_sheets WHERE organization_id = '0bca7497-40e1-41ad-87da-d6e77f208598')
-   UNION SELECT registrert_av_user_id FROM timer.daily_sheets WHERE id IN (SELECT id FROM timer.daily_sheets WHERE organization_id = '0bca7497-40e1-41ad-87da-d6e77f208598')
-   UNION SELECT attestert_av_user_id FROM timer.daily_sheets WHERE id IN (SELECT id FROM timer.daily_sheets WHERE organization_id = '0bca7497-40e1-41ad-87da-d6e77f208598')
-   UNION SELECT attestert_av_user_id FROM timer.sheet_timer WHERE sheet_id IN (SELECT id FROM timer.daily_sheets WHERE organization_id = '0bca7497-40e1-41ad-87da-d6e77f208598')
-   UNION SELECT attestert_av_user_id FROM timer.sheet_tillegg WHERE sheet_id IN (SELECT id FROM timer.daily_sheets WHERE organization_id = '0bca7497-40e1-41ad-87da-d6e77f208598')
-   UNION SELECT attestert_av_user_id FROM timer.sheet_machines WHERE sheet_id IN (SELECT id FROM timer.daily_sheets WHERE organization_id = '0bca7497-40e1-41ad-87da-d6e77f208598')
-   UNION SELECT erstattet_av_user_id FROM timer.sheet_rad_historikk WHERE sheet_id IN (SELECT id FROM timer.daily_sheets WHERE organization_id = '0bca7497-40e1-41ad-87da-d6e77f208598')
-   UNION SELECT registrert_av_user_id FROM varelager.vareforbruk WHERE dagsseddel_id IN (SELECT id FROM timer.daily_sheets WHERE organization_id = '0bca7497-40e1-41ad-87da-d6e77f208598'))) TO STDOUT WITH (FORMAT csv);
-\o
 ROLLBACK;
-\! chmod 600 /tmp/kopi-prod-til-test/*.csv && wc -l /tmp/kopi-prod-til-test/_manifest.csv /tmp/kopi-prod-til-test/_kolonner.csv /tmp/kopi-prod-til-test/_epost_md5.csv
+\! chmod 600 /tmp/kopi-prod-til-test/*.csv && wc -l /tmp/kopi-prod-til-test/_manifest.csv /tmp/kopi-prod-til-test/_kolonner.csv
 

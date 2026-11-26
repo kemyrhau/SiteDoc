@@ -66,6 +66,8 @@ TABELLER = [
         "hms_kort_utloper": "NULL", "arbeidstillatelse": "NULL",
         "arbeidstillatelse_utloper": "NULL",
         "can_login": f"CASE WHEN x.id IN {MEDLEM} THEN x.can_login ELSE false END",
+        # Tredjepersoner (med via prosjektmedlemskap, ikke medlem i AM/SM) får fiktivt navn.
+        "name": f"CASE WHEN x.id IN {MEDLEM} THEN x.name ELSE 'Ekstern ' || left(x.id, 8) END",
     }),
     ("public.organizations", f"x.id IN {ORG}", {
         "logo_url": "NULL",
@@ -182,12 +184,8 @@ COPY (
   GROUP BY 1
 ) TO STDOUT WITH (FORMAT csv);
 \\o
-\\echo '== E4 md5 av ekte e-post for brukerne i omfanget (negativkontroll på test; e-posten selv eksporteres aldri)'
-\\o {DIR}/_epost_md5.csv
-COPY (SELECT x.id, md5(lower(x.email)) FROM users x WHERE x.id IN {BRUKERE}) TO STDOUT WITH (FORMAT csv);
-\\o
 ROLLBACK;
-\\! chmod 600 {DIR}/*.csv && wc -l {DIR}/_manifest.csv {DIR}/_kolonner.csv {DIR}/_epost_md5.csv
+\\! chmod 600 {DIR}/*.csv && wc -l {DIR}/_manifest.csv {DIR}/_kolonner.csv
 """)
     return "\n".join(o)
 
@@ -259,6 +257,13 @@ ORG_OPPDATER = ["name", "organization_number", "invoice_address", "invoice_email
 
 def importer() -> str:
     q = lambda xs: ", ".join(f"'{x}'" for x in xs)
+    # Alle tekst-kolonner *_id som kan peke på en rad (brukes av I1b før og I2 etter sletting).
+    PEKERKOLONNER = f"""SELECT c.table_schema, c.table_name, c.column_name FROM information_schema.columns c
+           JOIN information_schema.tables t USING (table_schema, table_name)
+           WHERE t.table_type = 'BASE TABLE' AND c.table_schema IN ('public','timer','maskin','varelager')
+             AND c.column_name LIKE '%\\_id' AND c.data_type IN ('text','character varying')
+             AND c.column_name NOT IN ({q(IKKE_PEKER)})
+             AND c.table_schema || '.' || c.table_name NOT IN ({q(LOGG)})"""
     o = [f"""-- KOPI-PROD-TIL-TEST · STEG 2+3 · IMPORT TIL TEST (sitedoc_test). GENERERT av generer.py — ikke rediger for hånd.
 -- Én transaksjon, ON_ERROR_STOP: første feil eller kontroll som ikke holder = psql avslutter og alt rulles tilbake.
 -- Tørrkjøring (standard):  psql -v commit=0 …   → alt kjøres og kontrolleres, så ROLLBACK.
@@ -278,10 +283,8 @@ END $$;
 -- TEMP-tabeller lever bare i økta (spørsmål 10). Ingen skjemaendring.
 CREATE TEMP TABLE _manifest (tabell text PRIMARY KEY, antall bigint);
 CREATE TEMP TABLE _kolonner (tabell text PRIMARY KEY, kolonner text);
-CREATE TEMP TABLE _epost_md5 (id text, md5 text);
 \\copy _manifest FROM '{DIR}/_manifest.csv' WITH (FORMAT csv)
 \\copy _kolonner FROM '{DIR}/_kolonner.csv' WITH (FORMAT csv)
-\\copy _epost_md5 FROM '{DIR}/_epost_md5.csv' WITH (FORMAT csv)
 
 BEGIN;
 
@@ -321,6 +324,30 @@ CREATE TEMP TABLE slettet (tabell text, id text);"""]
     for t, where in SLETT:
         o.append(f"INSERT INTO slettet SELECT '{t}', id FROM {t} WHERE {where};")
     o.append("SELECT tabell, count(*) AS slettes FROM slettet GROUP BY 1 ORDER BY 1;")
+    # Før sletting: ingen rad som IKKE selv skal slettes, peker på en rad som skal slettes.
+    # Fanger Restrict, Cascade og SetNull (f.eks. Faggruppe.partner, OrganizationMember.avdeling,
+    # Oppmotested.avdeling) — slik at test-SMs prosjekter står urørt. Tabeller uten id-kolonne
+    # kan ikke stå i slettet, så alle pekere derfra teller.
+    o.append(f"""
+\\echo '== I1b kontroll før sletting: ingen rad som blir stående, peker på en rad som slettes'
+DO $$
+DECLARE r record; n bigint; feil text := '';
+BEGIN
+  FOR r IN {PEKERKOLONNER} LOOP
+    IF EXISTS (SELECT 1 FROM information_schema.columns
+                WHERE table_schema = r.table_schema AND table_name = r.table_name AND column_name = 'id') THEN
+      EXECUTE format('SELECT count(*) FROM %I.%I WHERE %I IN (SELECT id FROM slettet) '
+                     'AND id NOT IN (SELECT id FROM slettet WHERE tabell = %L)',
+                     r.table_schema, r.table_name, r.column_name, r.table_schema || '.' || r.table_name) INTO n;
+    ELSE
+      EXECUTE format('SELECT count(*) FROM %I.%I WHERE %I IN (SELECT id FROM slettet)',
+                     r.table_schema, r.table_name, r.column_name) INTO n;
+    END IF;
+    IF n > 0 THEN feil := feil || format(' %s.%s.%s peker på rad som slettes: %s;', r.table_schema, r.table_name, r.column_name, n); END IF;
+  END LOOP;
+  IF feil <> '' THEN RAISE EXCEPTION 'STOPP I1b:%', feil; END IF;
+  RAISE NOTICE 'I1b ok: ingen rad som blir stående, peker på det som slettes';
+END $$;""")
     for t in SLETT_REKKEFOLGE:
         o.append(f"DELETE FROM {t} WHERE id IN (SELECT id FROM slettet WHERE tabell = '{t}');")
     o.append(f"""
@@ -332,12 +359,7 @@ BEGIN
     EXECUTE format('SELECT count(*) FROM %s WHERE id IN (SELECT id FROM slettet WHERE tabell = %L)', r.tabell, r.tabell) INTO n;
     IF n > 0 THEN feil := feil || format(' %s: %s rader igjen;', r.tabell, n); END IF;
   END LOOP;
-  FOR r IN SELECT c.table_schema, c.table_name, c.column_name FROM information_schema.columns c
-           JOIN information_schema.tables t USING (table_schema, table_name)
-           WHERE t.table_type = 'BASE TABLE' AND c.table_schema IN ('public','timer','maskin','varelager')
-             AND c.column_name LIKE '%\\_id' AND c.data_type IN ('text','character varying')
-             AND c.column_name NOT IN ({q(IKKE_PEKER)})
-             AND c.table_schema || '.' || c.table_name NOT IN ({q(LOGG)}) LOOP
+  FOR r IN {PEKERKOLONNER} LOOP
     EXECUTE format('SELECT count(*) FROM %I.%I WHERE %I IN (SELECT id FROM slettet)', r.table_schema, r.table_name, r.column_name) INTO n;
     IF n > 0 THEN feil := feil || format(' %s.%s.%s peker på slettet rad: %s;', r.table_schema, r.table_name, r.column_name, n); END IF;
   END LOOP;
@@ -452,30 +474,33 @@ BEGIN
   RAISE NOTICE 'K2 ok: 0 hengende referanser';
 END $$;
 
-\\echo '== K3 negativkontroll persondata: importerte brukere har bare fiktiv e-post, og ingen har prod-e-posten sin'
+\\echo '== K3 negativkontroll persondata: importerte brukere har bare fiktiv e-post, ingen persondata, og ikke-medlemmer har ikke ekte navn'
 SELECT count(*) AS importerte_brukere,
        count(*) FILTER (WHERE u.email NOT LIKE '%@test.sitedoc.invalid') AS ekte_epost,
-       count(*) FILTER (WHERE md5(lower(u.email)) IN (SELECT md5 FROM _epost_md5)) AS prod_epost_treff,
        count(*) FILTER (WHERE u.phone IS NOT NULL OR u.image IS NOT NULL OR u.fodselsdato IS NOT NULL
                           OR u.hms_kort_nr IS NOT NULL OR u.nasjonalitet IS NOT NULL
                           OR u.arbeidstillatelse IS NOT NULL) AS persondata_igjen,
+       count(*) FILTER (WHERE u.id NOT IN (SELECT user_id FROM {stg('public.organization_members')})) AS ikke_medlem,
+       count(*) FILTER (WHERE u.id NOT IN (SELECT user_id FROM {stg('public.organization_members')})
+                          AND u.name IS DISTINCT FROM 'Ekstern ' || left(u.id, 8)) AS ikke_medlem_ekte_navn,
        count(*) FILTER (WHERE NOT u.can_login) AS kan_ikke_logge_inn
   FROM users u WHERE u.id IN (SELECT id FROM {stg('public.users')});
 DO $$
-DECLARE n_imp bigint; n_ekte bigint; n_md5 bigint; n_pd bigint;
+DECLARE n_imp bigint; n_ekte bigint; n_pd bigint; n_navn bigint;
 BEGIN
   SELECT count(*), count(*) FILTER (WHERE email NOT LIKE '%@test.sitedoc.invalid'),
-         count(*) FILTER (WHERE md5(lower(email)) IN (SELECT md5 FROM _epost_md5)),
          count(*) FILTER (WHERE phone IS NOT NULL OR image IS NOT NULL OR fodselsdato IS NOT NULL
-                            OR hms_kort_nr IS NOT NULL OR nasjonalitet IS NOT NULL OR arbeidstillatelse IS NOT NULL)
-    INTO n_imp, n_ekte, n_md5, n_pd
+                            OR hms_kort_nr IS NOT NULL OR nasjonalitet IS NOT NULL OR arbeidstillatelse IS NOT NULL),
+         count(*) FILTER (WHERE id NOT IN (SELECT user_id FROM {stg('public.organization_members')})
+                            AND name IS DISTINCT FROM 'Ekstern ' || left(id, 8))
+    INTO n_imp, n_ekte, n_pd, n_navn
     FROM users WHERE id IN (SELECT id FROM {stg('public.users')});
-  -- Kontrollen er ikke tom: den må ha brukere å se på, og prod-md5-lista må ha innhold.
-  IF n_imp = 0 OR (SELECT count(*) FROM _epost_md5) = 0 THEN
-    RAISE EXCEPTION 'STOPP K3: negativkontrollen er tom (importerte=%, md5=%)', n_imp, (SELECT count(*) FROM _epost_md5);
+  -- Kontrollen er ikke tom: den må ha brukere å se på.
+  IF n_imp = 0 THEN
+    RAISE EXCEPTION 'STOPP K3: negativkontrollen er tom (importerte=0)';
   END IF;
-  IF n_ekte > 0 OR n_md5 > 0 OR n_pd > 0 THEN
-    RAISE EXCEPTION 'STOPP K3: ekte e-post=%, prod-e-post-treff=%, persondata igjen=%', n_ekte, n_md5, n_pd;
+  IF n_ekte > 0 OR n_pd > 0 OR n_navn > 0 THEN
+    RAISE EXCEPTION 'STOPP K3: ekte e-post=%, persondata igjen=%, ikke-medlem med ekte navn=%', n_ekte, n_pd, n_navn;
   END IF;
   IF EXISTS (SELECT 1 FROM organizations WHERE id IN ('{AM}', '{SMT}')
              AND invoice_email IS NOT NULL AND invoice_email NOT LIKE '%@test.sitedoc.invalid') THEN
@@ -483,8 +508,6 @@ BEGIN
   END IF;
   RAISE NOTICE 'K3 ok: % importerte brukere, alle fiktive', n_imp;
 END $$;
-\\echo '   (info) test-brukere fra før med samme e-post som en prod-bruker i omfanget — forventet: Kenneth + de som T3 viste'
-SELECT count(*) AS test_brukere_med_prod_epost FROM users WHERE md5(lower(email)) IN (SELECT md5 FROM _epost_md5);
 
 \\echo '== K4 prosjektnavn som finnes to ganger i samme firma etter import (meldes, begge beholdes)'
 SELECT o.name AS firma, p.name AS prosjekt, count(*) AS antall
