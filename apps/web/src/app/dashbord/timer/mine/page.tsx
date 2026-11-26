@@ -328,6 +328,7 @@ export default function MineTimerSide() {
               <p className="mt-2">{t("timer.mine.hjelp.reiseStartIJobb")}</p>
               <p className="mt-2">{t("timer.mine.hjelp.reiseSluttIJobb")}</p>
               <p className="mt-2">{t("timer.mine.hjelp.reiseDagskort")}</p>
+              <p className="mt-2">{t("timer.mine.hjelp.reiseAnnetSted")}</p>
               <p className="mt-2">{t("timer.mine.hjelp.korrigert")}</p>
             </HjelpFane>
           </HjelpKnapp>

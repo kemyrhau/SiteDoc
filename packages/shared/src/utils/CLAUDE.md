@@ -307,6 +307,8 @@ Fasit: `tegningNedlasting.test.ts`.
 
 **O23 (vedtak pkt 29), bare web:** `startEtterSluttIJobb({startTid, sluttTid, kjoretidMin, folger, kortId, rader})` → ny Start (Slutt − kjøretid) når «Fra byggeplass»-Slutt ligger inne i jobben (`jobbStart < Slutt ≤ jobbSlutt`) og er ≤ Start — eller `folger`; ellers `null`. `finnJobbTid({kortId, rader})` → jobbens Fra–til; går som `tillatDeling.jobb`, og da leser `krysserMidnatt` en Slutt inne i jobben aldri som «fram». Fasit: `reiseManuell-o23.test.ts`.
 
+**«Annet sted» (runde 2 timer), bare web:** `løsAnnetStedKort({fraOppmotestedId, sted, startTid?, sluttTid?, regel, …, tillatDeling?})` → `løsReiseKort`-tur uten byggeplass og kjøretid (manuell modus, O22-veien), retning «ut», `reiseRegel.annetSted = { sted }` når stedet ikke er tomt. `annetStedTekst(reiseRegel)` leser stedet (trimmet) eller `null`. Fasit: `reiseManuell-annetsted.test.ts`.
+
 **O22 (vedtak pkt 28), web + mobil:** `ikkeValgt` fra `løsOppmote` er ikke lenger en sperre — `løsReiseKort` går til manuell modus (`løsReiseKortUtenKjoretid`) med `utenKjoretid: "utenOppmote"`, uten å kreve `tillatUtenKjoretid`. Sporet får `reiseOppmotestedId`/`reiseAvstandM`/`reiseKjoretidMin` = null. Sperren `oppmoteIkkeValgt` er fjernet fra `ReiseKortSperre`. Fasit: `reiseManuell.test.ts` (O22-testene).
 
 `medOverforingPeriodeId(spor, periodeId)` setter `reiseRegel.overforing.periodeId` når perioden er kjent ved lagring (ny id ved start, lukket periode ved slutt); `null` → sporet urørt.

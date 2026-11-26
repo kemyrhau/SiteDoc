@@ -92,6 +92,7 @@ import {
   beskrivOverlapp,
   reiseUtenforArbeid,
   linjeKanFlyttes,
+  annetStedTekst,
 } from "@sitedoc/shared";
 import { rundTilNarmeste } from "@/lib/tidsrunding";
 import { BeskrivelseHover, jobbensBeskrivelser } from "@/components/timer/BeskrivelseHover";
@@ -1943,6 +1944,8 @@ export default function DagsseddelDetaljSide() {
                   // O16 R5: en kontoroverføring åpnes som «Til annet oppmøtested».
                   reiseKilde: aktivModal.rad.reiseKilde ?? null,
                   reiseRegel: aktivModal.rad.reiseRegel ?? null,
+                  // Runde 2 («Annet sted»): «Fra» i redigering.
+                  reiseOppmotestedId: aktivModal.rad.reiseOppmotestedId ?? null,
                 }
               : undefined
           }
@@ -2945,7 +2948,8 @@ function JobbKortRamme({
     ? [...hoverReiser]
         .sort((a, b) => (a.fraTid ?? "").localeCompare(b.fraTid ?? ""))
         .flatMap((r) => {
-          const sted = (r.byggeplassId && byggeplassNavn.get(r.byggeplassId)) || tittel;
+          // Runde 2 («Annet sted»): stedet arbeideren skrev.
+          const sted = annetStedTekst(r.reiseRegel) || (r.byggeplassId && byggeplassNavn.get(r.byggeplassId)) || tittel;
           const retning = r.erReise ? r.reiseRetning : r.arbeidReiseRetning;
           const stedTekst =
             kontorReiseTekst(t, r.reiseRegel, kontorNavn) ??
@@ -3656,7 +3660,8 @@ function ReiseLinje({
     else fjern.mutate({ id: rad.id });
   }
 
-  const sted = (rad.byggeplassId && byggeplassNavn.get(rad.byggeplassId)) || prosjektNavn;
+  // Runde 2 («Annet sted»): stedet arbeideren skrev.
+  const sted = annetStedTekst(rad.reiseRegel) || (rad.byggeplassId && byggeplassNavn.get(rad.byggeplassId)) || prosjektNavn;
   // O17 (vedtak pkt 21): reise mellom to kontorer vises som «{fra} → {til}» (ruten i `reiseRegel`).
   // O12 pkt 16: en reise ført som arbeidstid bærer retningen i `arbeidReiseRetning`.
   const retning = rad.erReise ? rad.reiseRetning : (rad.arbeidReiseRetning ?? null);

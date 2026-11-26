@@ -77,6 +77,12 @@ export interface ReiseRegelSnapshot {
    * begge radene; `del` 1 = start–24:00, 2 = 00:00–slutt. Les med `lesMidnattDel`.
    */
   midnatt?: { delId: string; del: 1 | 2 };
+  /**
+   * Runde 2 timer (Kenneth 2026-11-26, «Annet sted»): reisen gikk til et sted som ikke er en
+   * byggeplass eller et oppmøtested (kurs o.l.). `sted` er arbeiderens fritekst. Les med
+   * `annetStedTekst`. Ingen migrering: snapshoten er Json.
+   */
+  annetSted?: { sted: string };
 }
 
 /**

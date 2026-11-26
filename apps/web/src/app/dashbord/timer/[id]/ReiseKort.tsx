@@ -22,6 +22,7 @@ import {
   finnJobbTid,
   jobbManglerBeskrivelse,
   erEgenOverforing,
+  annetStedTekst,
   type OverforingPeriode,
   type ReiseKategori,
   type ReiseKortSperre,
@@ -162,6 +163,8 @@ export type ReiseKortRedigerRad = {
   /** O16 R5: sporet — en kontoroverføring (kontor → kontor) åpnes som «Til annet oppmøtested». */
   reiseKilde?: string | null;
   reiseRegel?: unknown;
+  /** Runde 2 («Annet sted»): oppmøtestedet reisen gikk fra — vist som «Fra» i redigering. */
+  reiseOppmotestedId?: string | null;
 };
 
 /** O16 R5: kontor→kontor-ruten i en lagret overføringsrad, ellers null. */
@@ -222,8 +225,9 @@ export function ReiseKort({
   /** Sedelens dato (YYYY-MM-DD). */
   dato: string;
   projectId: string;
-  /** w15b: prosjektene arbeideren kan føre timer på («Hvor kjørte du til?»). */
-  prosjekter: readonly { id: string }[];
+  /** w15b: prosjektene arbeideren kan føre timer på («Hvor kjørte du til?»). Runde 2 («Annet
+   *  sted»): `type` «internt» og navnet «Internt arbeid» gir forslaget. */
+  prosjekter: readonly { id: string; name?: string | null; type?: string | null }[];
   /** w15b: sedelens byggeplass — jobbenes effektive byggeplass i linja «havner i». */
   sedelByggeplassId: string | null;
   /** Firmaets byggeplasser (alle prosjekter). */
@@ -270,9 +274,13 @@ export function ReiseKort({
   const redigering = rad ?? null;
   // O16 R5: en lagret kontoroverføring åpnes som «Til annet oppmøtested»; retningen står.
   const redigertRute = redigering ? kontorRute(redigering) : null;
+  // Runde 2 («Annet sted»): en lagret reise til et sted arbeideren skrev, åpnes som «Annet sted».
+  const redigertAnnetSted = redigering ? annetStedTekst(redigering.reiseRegel) : null;
   const [valg, setValg] = useState<ReiseKortValg | null>(
     redigering
-      ? redigertRute
+      ? redigertAnnetSted
+        ? { type: "annetSted" }
+        : redigertRute
         ? { type: "kontor" }
         : { type: reiseRadRetning(redigering) === "retur" ? "retur" : "tur" }
       : null,
@@ -287,6 +295,10 @@ export function ReiseKort({
   const [prosjektId, setProsjektId] = useState(projectId);
   // O16 pkt 1: kontoret i oppmøtested-feltet. null = dagens oppmøtested.
   const [annetKontorId, setAnnetKontorId] = useState<string | null>(null);
+  // Runde 2 («Annet sted»): stedet arbeideren skriver, og «Fra» (undefined = dagens oppmøtested).
+  const [annetSted, setAnnetSted] = useState(redigertAnnetSted ?? "");
+  const [annetFraId, setAnnetFraId] = useState<string | null | undefined>(undefined);
+  const erAnnetSted = valg?.type === "annetSted";
   // O16 pkt 2: arbeiderens datoer i den blå boksen. null = forslaget.
   const [gjelderFra, setGjelderFra] = useState<string | null>(null);
   const [tilOgMed, setTilOgMed] = useState<string | null>(null);
@@ -318,7 +330,8 @@ export function ReiseKort({
   const [medFlytt, setMedFlytt] = useState(false);
   // O12 pkt 3: i prosjektkort-visning er kortet stedet — bare når det finnes en jobb å lagre i.
   // O14 pkt 2: en reise som redigeres, står alt i kortet sitt.
-  const iKort = kortModus && (!!jobbKortId || !!redigering);
+  // Runde 2: «Annet sted» står aldri i et prosjektkort — det er firmaets interne prosjekt.
+  const iKort = kortModus && !erAnnetSted && (!!jobbKortId || !!redigering);
   const nullstillTider = () => {
     setRettetStart(null);
     setRettetSlutt(null);
@@ -348,8 +361,47 @@ export function ReiseKort({
       ? [{ id: r.id, fraTid: r.fraTid, tilTid: r.tilTid, erReise: r.erReise, arbeidReise: r.arbeidReise, kortId: r.kortId, attestertStatus: r.attestertStatus, timer: r.timer ?? null }]
       : [],
   );
+  // Runde 2 (b) (Kenneth 2026-11-26: reise fra 07:00 samme dag som normaldagen): jobbene vinduet
+  // følger (O21/O23) og flytter (O20). Fra kortet: kortets jobb, som før. Fra dagskort (ingen
+  // kort-id): dagens jobber i samme prosjekt, tidligste først. Redigering og «Annet sted»: ingen.
+  const kandidatKort: string[] =
+    redigering || erAnnetSted
+      ? []
+      : iKort
+        ? jobbKortId
+          ? [jobbKortId]
+          : []
+        : [
+            ...new Set(
+              [...dagsrader]
+                .filter(
+                  (r) =>
+                    r.id && r.kortId && !r.erReise && !r.arbeidReise && r.attestertStatus !== "erstattet" && r.projectId === prosjektId,
+                )
+                .sort((a, b) => (klokkeTilMin(a.fraTid) ?? 1e9) - (klokkeTilMin(b.fraTid) ?? 1e9))
+                .map((r) => r.kortId as string),
+            ),
+          ];
+  const forsteKort = <T,>(f: (kortId: string) => T | null): T | null => {
+    for (const k of kandidatKort) {
+      const v = f(k);
+      if (v != null) return v;
+    }
+    return null;
+  };
   // O23 (pkt 29): ny reise fra kortet — Slutt inne i jobben leses aldri som et kryss over midnatt.
-  const jobbTid = !redigering && iKort ? finnJobbTid({ kortId: jobbKortId, rader: kantRader }) : null;
+  // Runde 2 (b): fra dagskort er det jobben Slutt står inne i.
+  const jobbTid = iKort
+    ? !redigering
+      ? finnJobbTid({ kortId: jobbKortId, rader: kantRader })
+      : null
+    : forsteKort((k) => {
+        const j = finnJobbTid({ kortId: k, rader: kantRader });
+        const sl = klokkeTilMin(rettetSlutt);
+        const jf = klokkeTilMin(j?.fra ?? null);
+        const jt = klokkeTilMin(j?.til ?? null);
+        return j && sl != null && jf != null && jt != null && sl > jf && sl <= jt ? j : null;
+      });
 
   const reise = useManuellReiseWeb({
     organizationId,
@@ -368,12 +420,15 @@ export function ReiseKort({
     sluttTid: rettetSlutt,
     kategoriValg,
     jobbTid,
+    annetSted: erAnnetSted && !redigering ? { ...(annetFraId !== undefined ? { fraOppmotestedId: annetFraId } : {}), sted: annetSted } : null,
   });
   const { aktivtValg, resultat, regelStatus } = reise;
   const { kontorOppsett, kontorKall, kontorKonflikt, apenOverforing, bytte, gjeldende, dagensKontorId, valgtKontor } = reise;
   const erKontorValg = aktivtValg.type === "kontor";
   // O16 pkt 4: «Til annet oppmøtested» legges før dagens første arbeid (hjemreisen til fast: etter siste).
-  const tidRetning: "tur" | "retur" = aktivtValg.type === "retur" || (erKontorValg && reise.kontorRetning === "retur") ? "retur" : "tur";
+  // Runde 2 («Annet sted»): ingen kjøretid — Start står, og «Antall timer» flytter Slutt.
+  const tidRetning: "tur" | "retur" =
+    aktivtValg.type === "retur" || erAnnetSted || (erKontorValg && reise.kontorRetning === "retur") ? "retur" : "tur";
   // O16 pkt 1: perioden under feltet — den som gjelder, ellers arbeiderens åpne (som før).
   const periodeUnder: OverforingPeriode | null = (gjeldende as OverforingPeriode | null) ?? (apenOverforing as OverforingPeriode | null);
   const periodeTekst = (p: { fraDato: string; tilDato: string | null }) =>
@@ -397,6 +452,8 @@ export function ReiseKort({
             })
           : null;
   const manglerKontor = erKontorValg && !redigering && !valgtKontor;
+  // Runde 2 («Annet sted»): stedet er påkrevd.
+  const manglerSted = erAnnetSted && !redigering && annetSted.trim() === "";
   // O14 pkt 2: i redigering er tiden arbeiderens (radens) — forslag og sperrer om kjøretid
   // gjelder ikke en reise som finnes.
   const tid = redigering ? tidFraStartSlutt(rettetStart, rettetSlutt) : resultat;
@@ -497,24 +554,28 @@ export function ReiseKort({
           })
       : null;
 
-  // O20 (vedtak-timer-web.md § Reisevinduet pkt 26): en ny reise ført fra kortet som bare
-  // overlapper starten (Til) eller slutten (Fra) av jobben i samme kort, får knappen «Flytt …».
-  // Samme delte regel som serveren (`finnKantFlytt`). Annet kort, midt i jobben, kontorreise,
-  // delt reise og redigering: sperren står som før.
+  // O20 (vedtak-timer-web.md § Reisevinduet pkt 26): en ny reise som bare overlapper starten
+  // (Til) eller slutten (Fra) av jobben, får knappen «Flytt …». Samme delte regel som serveren
+  // (`finnKantFlytt`). Runde 2 (b): jobben er kortets (prosjektkort) eller dagens jobb i samme
+  // prosjekt (dagskort), og «Til annet oppmøtested» får knappen også. Midt i jobben, delt reise
+  // og redigering: sperren står som før.
   const kantFlytt =
-    !redigering && !deling && iKort && !!jobbKortId && overlapp && !paaKontor && !sluttForStart && aktivtValg.type !== "kontor"
-      ? finnKantFlytt({
-          reise: { fraTid: dFra, tilTid: dTil },
-          retning: aktivtValg.type === "retur" ? "retur" : "ut",
-          kortId: jobbKortId,
-          rader: kantRader,
+    !redigering && !deling && overlapp && !paaKontor && !sluttForStart
+      ? forsteKort((k) => {
+          const f = finnKantFlytt({
+            reise: { fraTid: dFra, tilTid: dTil },
+            retning: tidRetning === "retur" ? "retur" : "ut",
+            kortId: k,
+            rader: kantRader,
+          });
+          return f ? { ...f, kortId: k } : null;
         })
       : null;
 
   // O20 TILLEGG: jobben delt i normal + overtid vises med ny fordeling (serveren regner selv).
   const flyttFordeling =
-    kantFlytt && jobbKortId && jobbFordeling && dFra && dTil
-      ? jobbFordeling({ kortId: jobbKortId, fraTid: kantFlytt.jobbFra, tilTid: kantFlytt.jobbTil, reiseFra: dFra, reiseTil: dTil })
+    kantFlytt && jobbFordeling && dFra && dTil
+      ? jobbFordeling({ kortId: kantFlytt.kortId, fraTid: kantFlytt.jobbFra, tilTid: kantFlytt.jobbTil, reiseFra: dFra, reiseTil: dTil })
       : null;
 
   // w15b: hvilket kort reisen havner i — samme regel serveren kjører etter lagring.
@@ -679,6 +740,7 @@ export function ReiseKort({
     tid.timer > 0 &&
     !kontorKonflikt &&
     !manglerKontor &&
+    !manglerSted &&
     !overforingMut.isPending &&
     !!aktivitetId &&
     !!resultat.spor &&
@@ -698,6 +760,7 @@ export function ReiseKort({
     tid.timer > 0 &&
     !kontorKonflikt &&
     !manglerKontor &&
+    !manglerSted &&
     !overforingMut.isPending &&
     !!aktivitetId &&
     !!resultat.spor &&
@@ -735,6 +798,8 @@ export function ReiseKort({
           ? tidSperre
           : manglerKontor
             ? t("timer.reiseKort.sperre.velgKontor")
+          : manglerSted
+            ? t("timer.reiseKort.sperre.manglerSted")
           : kontorKonflikt && kontorSperreTekst
             ? kontorSperreTekst
             : !aktivitetId
@@ -811,7 +876,7 @@ export function ReiseKort({
         del1: { fraTid: deling.del1.fraTid, tilTid: "24:00" },
         del2: { fraTid: "00:00", tilTid: deling.del2.tilTid },
         projectId: reiseProsjektId,
-        byggeplassId: erKontorValg ? null : lagretByggeplassId,
+        byggeplassId: erKontorValg || erAnnetSted ? null : lagretByggeplassId,
         lonnsartId: resultat.klassifisering.lonnsartId,
         aktivitetId,
         beskrivelse: beskrivelse.trim() || null,
@@ -844,10 +909,15 @@ export function ReiseKort({
       // Reise bærer aldri matpausen (pauseFraForRad hopper over erReise).
       pauseMin: 0,
       // O16 R6: kontor → kontor har ingen byggeplass (som mobil).
-      byggeplassId: erKontorValg ? null : lagretByggeplassId,
-      ...(reiseKortId ? { kortId: reiseKortId } : {}),
-      // O12 pkt 3: Reisetid lagres også i kortet vinduet ble åpnet fra.
-      ...(iKort ? { reiseIKort: true } : {}),
+      byggeplassId: erKontorValg || erAnnetSted ? null : lagretByggeplassId,
+      // Runde 2 (b): med flyttingen fra dagskort står reisen i jobbens kort (serveren krever det).
+      ...(medFlytt && kantFlytt
+        ? { kortId: kantFlytt.kortId, reiseIKort: true }
+        : {
+            ...(reiseKortId ? { kortId: reiseKortId } : {}),
+            // O12 pkt 3: Reisetid lagres også i kortet vinduet ble åpnet fra.
+            ...(iKort ? { reiseIKort: true } : {}),
+          }),
       // O20: jobbens kant flyttes i samme transaksjon som reisen lagres.
       ...(medFlytt && kantFlytt
         ? { flyttRad: kantFlytt.kant === "start" ? { radId: kantFlytt.radId, nyFra: kantFlytt.tid } : { radId: kantFlytt.radId, nyTil: kantFlytt.tid } }
@@ -962,6 +1032,21 @@ export function ReiseKort({
     setAnnetKontorId(null);
     nullstillDatoer();
     nullstillTider();
+    // Runde 2 («Annet sted»): forslaget er firmaets «Internt arbeid», uten byggeplass. Tilbake til
+    // en annen retning gir prosjektet og byggeplassen vinduet ble åpnet med.
+    if (v.type === "annetSted") {
+      setProsjektId(interntForslag ?? projectId);
+      setEcoId(null);
+      bp.setByggeplassId(null);
+    } else if (erAnnetSted) {
+      setProsjektId(projectId);
+      setEcoId(forvalgtEcoId ?? null);
+      bp.setByggeplassId(
+        forvalgtByggeplassId !== undefined
+          ? forvalgtByggeplassId
+          : velgStandardByggeplass({ gjeldende: null, kandidater: byggeplasserForProsjekt(byggeplasser, projectId), toppbar: null }),
+      );
+    }
   }
   function velgKontor(id: string | null) {
     setAnnetKontorId(id && id !== dagensKontorId ? id : null);
@@ -977,6 +1062,12 @@ export function ReiseKort({
     );
     nullstillTider();
   }
+
+  // Runde 2 («Annet sted»): firmaets interne prosjekt «Internt arbeid» er forslaget; ellers det
+  // første interne. Finnes ingen, står prosjektet vinduet ble åpnet med.
+  const interne = prosjekter.filter((p) => p.type === "internt");
+  const interntForslag =
+    (interne.find((p) => (p.name ?? "").trim().toLowerCase() === "internt arbeid") ?? interne[0])?.id ?? null;
 
   // ── O16: delene av «Fra → Til» ──────────────────────────────────────────────
   const prosjektFelt = (
@@ -1195,6 +1286,50 @@ export function ReiseKort({
       </div>
     ) : null;
 
+  // Runde 2 («Annet sted»): «Fra» er oppmøtestedet (dagens er forslaget, kan byttes), «Til» er
+  // stedet arbeideren skriver. Redigering viser begge som tekst.
+  const annetFraVerdi = redigering ? (redigering.reiseOppmotestedId ?? null) : reise.annetFra;
+  const annetFraFelt =
+    redigering || reise.oppmotesteder.length < 2 ? (
+      <p data-testid="reise-annet-fra-tekst" className="text-sm text-gray-800">
+        {annetFraVerdi ? reise.kontorNavn(annetFraVerdi) || "—" : t("timer.reiseKort.oppmoteIkkeValgt")}
+      </p>
+    ) : (
+      <select
+        id="reise-annet-fra"
+        aria-label={t("timer.reiseKort.oppmotested")}
+        value={annetFraVerdi ?? ""}
+        onChange={(e) => {
+          setAnnetFraId(e.target.value || null);
+          nullstillTider();
+        }}
+        className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+      >
+        {!annetFraVerdi && <option value="">{t("timer.reiseKort.oppmoteIkkeValgt")}</option>}
+        {reise.oppmotesteder.map((o) => (
+          <option key={o.id} value={o.id}>
+            {o.id === dagensKontorId ? kontorMedMerke(o.id) : o.navn}
+          </option>
+        ))}
+      </select>
+    );
+  const annetTilFelt = redigering ? (
+    <p data-testid="reise-annet-sted-tekst" className="text-sm text-gray-800">
+      {redigertAnnetSted}
+    </p>
+  ) : (
+    <input
+      id="reise-annet-sted"
+      type="text"
+      maxLength={200}
+      aria-label={t("timer.reiseKort.annetStedFelt")}
+      placeholder={t("timer.reiseKort.annetStedPlassholder")}
+      value={annetSted}
+      onChange={(e) => setAnnetSted(e.target.value)}
+      className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+    />
+  );
+
   const valgKnapp = (v: ReiseKortValg, tekst: string, key: string) => {
     const aktiv = v.type === aktivtValg.type;
     return (
@@ -1218,7 +1353,9 @@ export function ReiseKort({
     <Modal open={true} onClose={onLukk} title={t("timer.reiseKort.tittel")}>
       <div className="space-y-4">
         <div className="flex flex-wrap gap-2">
-          {redigertRute ? (
+          {redigertAnnetSted ? (
+            valgKnapp({ type: "annetSted" }, t("timer.reiseKort.annetSted"), "annetSted")
+          ) : redigertRute ? (
             valgKnapp({ type: "kontor" }, t("timer.reiseKort.tilAnnetOppmotested"), "kontor")
           ) : (
             <>
@@ -1227,24 +1364,26 @@ export function ReiseKort({
               {/* O16 pkt 4: tredje retning, bare når firmaet har flere kontorer. */}
               {!redigering && kontorOppsett && kontorOppsett.andre.length > 0 &&
                 valgKnapp({ type: "kontor" }, t("timer.reiseKort.tilAnnetOppmotested"), "kontor")}
+              {/* Runde 2: fjerde retning — reise til et sted som ikke er et prosjekt (kurs o.l.). */}
+              {!redigering && valgKnapp({ type: "annetSted" }, t("timer.reiseKort.annetSted"), "annetSted")}
             </>
           )}
         </div>
 
         {/* O16 pkt 1: «Fra → Til». Oppmøtestedet vises bare når firmaet har flere kontorer (§ 7 C).
             O22 (pkt 28): også når oppmøtested ikke er valgt — feltet sier «Oppmøtested ikke valgt». */}
-        {kontorOppsett || redigertRute || (!redigering && reise.oppmote.kilde === "ikkeValgt") ? (
+        {erAnnetSted || kontorOppsett || redigertRute || (!redigering && reise.oppmote.kilde === "ikkeValgt") ? (
           <div data-testid="reise-fra-til" className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto_1fr] sm:items-start">
             <div className="min-w-0">
               <p className="mb-1 text-sm font-medium text-gray-700">{t("timer.reiseKort.fra")}</p>
-              {aktivtValg.type === "retur" ? stedBlokk : erKontorValg ? fraKontorTekst : oppmoteFelt}
+              {erAnnetSted ? annetFraFelt : aktivtValg.type === "retur" ? stedBlokk : erKontorValg ? fraKontorTekst : oppmoteFelt}
             </div>
             <span aria-hidden className="hidden pt-7 text-gray-400 sm:block">
               →
             </span>
             <div className="min-w-0">
               <p className="mb-1 text-sm font-medium text-gray-700">{t("timer.reiseKort.til")}</p>
-              {aktivtValg.type === "retur" ? oppmoteFelt : erKontorValg ? tilKontorFelt : stedBlokk}
+              {erAnnetSted ? annetTilFelt : aktivtValg.type === "retur" ? oppmoteFelt : erKontorValg ? tilKontorFelt : stedBlokk}
             </div>
           </div>
         ) : (
@@ -1252,6 +1391,15 @@ export function ReiseKort({
         )}
         {/* O16 pkt 4: «Til annet oppmøtested» i dagskort-visning — raden trenger et prosjekt. */}
         {erKontorValg && !iKort && !redigering && prosjektFelt}
+        {/* Runde 2 («Annet sted»): prosjektet — «Internt arbeid» er forslaget, kan byttes. */}
+        {erAnnetSted &&
+          (redigering ? (
+            <p data-testid="reise-annet-prosjekt" className="text-sm text-gray-800">
+              {prosjektNavn(prosjektId)}
+            </p>
+          ) : (
+            prosjektFelt
+          ))}
 
         {/* O16 pkt 2: den blå boksen — hva kontorvalget gjør med oppmøtestedet, og fra hvilken dag. */}
         {!redigering && oppmoteBoks}
@@ -1261,7 +1409,7 @@ export function ReiseKort({
             valgt gir tidsfeltene (manuell modus). */}
         {/* O12 pkt 14: mangler kjøretid (eller byggeplass) skriver arbeideren tiden selv. */}
         {/* O22 (pkt 28): uten oppmøtested — blå hint (ingen sperre); firmaadmin får lenke til Ansatte. */}
-        {!redigering && regelStatus === "klar" && resultat.utenKjoretid === "utenOppmote" && (
+        {!redigering && !erAnnetSted && regelStatus === "klar" && resultat.utenKjoretid === "utenOppmote" && (
           <p data-testid="reise-uten-oppmote" className="rounded border border-blue-100 bg-blue-50 px-3 py-2 text-sm text-blue-900">
             {t("timer.reiseKort.utenOppmote")}
             {erFirmaAdmin && (
@@ -1274,7 +1422,7 @@ export function ReiseKort({
             )}
           </p>
         )}
-        {!redigering && regelStatus === "klar" && resultat.utenKjoretid && resultat.utenKjoretid !== "utenOppmote" && (
+        {!redigering && !erAnnetSted && regelStatus === "klar" && resultat.utenKjoretid && resultat.utenKjoretid !== "utenOppmote" && (
           <p data-testid="reise-uten-kjoretid" className="text-xs text-gray-500">
             {t(resultat.utenKjoretid === "utenByggeplass" ? "timer.reiseKort.utenByggeplass" : "timer.reiseKort.utenKjoretid")}
           </p>
@@ -1310,16 +1458,20 @@ export function ReiseKort({
                       // O21 (pkt 27): «Til byggeplass», ny reise fra kortet — Start inne i jobben
                       // flytter Slutt til Start + kjøretiden, så O20-knappen kommer. Før jobben
                       // (pkt 6), etter jobben (pkt 24), uten jobb eller kjøretid: Slutt står.
+                      // Runde 2 (b): også fra dagskort (dagens jobb i prosjektet) og for «Til annet
+                      // oppmøtested» (kjøretiden mellom kontorene).
                       const fulgt =
-                        !redigering && aktivtValg.type === "tur" && iKort && regelStatus === "klar"
-                          ? sluttEtterStartIJobb({
-                              startTid: start,
-                              sluttTid: rettetSlutt ?? tid.tilTid ?? null,
-                              kjoretidMin: resultat.utenKjoretid ? null : resultat.kjoretidMin,
-                              folger: sluttFolger,
-                              kortId: jobbKortId,
-                              rader: kantRader,
-                            })
+                        !redigering && aktivtValg.type !== "retur" && regelStatus === "klar"
+                          ? forsteKort((k) =>
+                              sluttEtterStartIJobb({
+                                startTid: start,
+                                sluttTid: rettetSlutt ?? tid.tilTid ?? null,
+                                kjoretidMin: resultat.utenKjoretid ? null : resultat.kjoretidMin,
+                                folger: sluttFolger,
+                                kortId: k,
+                                rader: kantRader,
+                              }),
+                            )
                           : null;
                       setSluttFolger(fulgt != null);
                       setRettetSlutt(fulgt ?? rettetSlutt ?? tid.tilTid ?? null);
@@ -1358,16 +1510,19 @@ export function ReiseKort({
                     // O23 (pkt 29): «Fra byggeplass», ny reise fra kortet — Slutt inne i jobben
                     // flytter Start til Slutt − kjøretiden, så O20-knappen kan komme. Slutt før eller
                     // etter jobben, uten jobb, kjøretid eller oppmøtested: Start står.
+                    // Runde 2 (b): også fra dagskort (dagens jobb i prosjektet).
                     const fulgt =
-                      !redigering && aktivtValg.type === "retur" && iKort && regelStatus === "klar"
-                        ? startEtterSluttIJobb({
-                            startTid: rettetStart ?? tid.fraTid ?? null,
-                            sluttTid: slutt,
-                            kjoretidMin: resultat.utenKjoretid ? null : resultat.kjoretidMin,
-                            folger: startFolger,
-                            kortId: jobbKortId,
-                            rader: kantRader,
-                          })
+                      !redigering && tidRetning === "retur" && regelStatus === "klar"
+                        ? forsteKort((k) =>
+                            startEtterSluttIJobb({
+                              startTid: rettetStart ?? tid.fraTid ?? null,
+                              sluttTid: slutt,
+                              kjoretidMin: resultat.utenKjoretid ? null : resultat.kjoretidMin,
+                              folger: startFolger,
+                              kortId: k,
+                              rader: kantRader,
+                            }),
+                          )
                         : null;
                     setStartFolger(fulgt != null);
                     if (fulgt) setRettetStart(fulgt);
@@ -1387,7 +1542,8 @@ export function ReiseKort({
                 <input
                   id="reise-antall"
                   type="number"
-                  step="0.25"
+                  // Runde 2 (c): minuttnøyaktig — 0,07 t lagres som 4 min (`reiseTiderFraAntall`).
+                  step="any"
                   min={0}
                   max={24}
                   value={antallTekst ?? (tid.fraTid && tid.tilTid ? String(Math.round(tid.timer * 100) / 100) : "")}

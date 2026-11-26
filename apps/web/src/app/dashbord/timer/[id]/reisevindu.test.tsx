@@ -151,6 +151,8 @@ function rendre({
   utenKjoretid = false,
   /** R7 (runde 1 timer): firmaets visningsmodus. */
   modus = "prosjektkort",
+  /** Runde 2 («Annet sted»): firmaets interne prosjekter finnes i prosjektlisten. */
+  internt = false,
 } = {}) {
   h.kall = [];
   h.utelat.clear();
@@ -185,6 +187,12 @@ function rendre({
     "prosjekt.hentForTimer": [
       { id: "p1", name: "Sitedoc Boligfelt B12", internalProjectNumber: null },
       { id: "p2", name: "Prosjekt 1050", internalProjectNumber: null },
+      ...(internt
+        ? [
+            { id: "pv", name: "Verksted/maskinvedlikehold", internalProjectNumber: null, type: "internt" },
+            { id: "pi", name: "Internt arbeid", internalProjectNumber: null, type: "internt" },
+          ]
+        : []),
     ],
     "bygning.hentForFirma": [
       { id: "b1", projectId: "p1", name: "sommerfeldtsgt 65" },
@@ -1193,5 +1201,219 @@ describe("VAKTTEST 2026-11-26 (Kenneth: «runde 1 virker») — R7 — «+ Reise
     const input = (await lagre(d))!;
     expect(input).toMatchObject({ projectId: "p1", reiseKilde: "manuell", externalCostObjectId: "eco1" });
     expect(input.kortId ?? null).toBeNull();
+  });
+});
+
+// Runde 2 timer (b) — FASIT Kenneth 2026-11-26: «Føring av reisekort med transport fra kl 07:00
+// fungerer fremdeles ikke samme dag som normal dag er automatisk opprettet». Normaldagen
+// (`opprettForsteTimerRadForslag`) er 07:00–15:00 med pause 30 og kort-id. Fra dagskort (R7) har
+// vinduet ingen kort-id; jobben er dagens jobb i samme prosjekt.
+describe("Runde 2 (b) — reise fra 07:00 mot automatisk normaldag 07:00–15:00", () => {
+  afterEach(cleanup);
+  const normaldag = () => [arbeid({ fraTid: "07:00", tilTid: "15:00", timer: "7.5", pauseMin: 30 })];
+  const flyttBoks = (d: HTMLElement) => within(d).queryByTestId("reise-flytt-jobb");
+  async function flytt(d: HTMLElement, navn: string) {
+    fireEvent.click(within(flyttBoks(d)!).getByRole("button", { name: navn }));
+    const sjekk = screen.queryByRole("dialog", { name: "timer.reiseKort.kortSjekk.tittel" });
+    if (sjekk) fireEvent.click(within(sjekk).getByRole("button", { name: "timer.reiseKort.kortSjekk.jaLagre" }));
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
+    return h.kall.find((k) => k.key === "timer.dagsseddel.tilfoyTimerRad")?.input;
+  }
+
+  for (const modus of ["dagskort", "prosjektkort"] as const) {
+    it(`${modus}: Til byggeplass, Start 07:00 → Slutt 07:04, og «Flytt jobbens start til 07:04» lagrer i jobbens kort`, async () => {
+      const d = rendre({ timer: normaldag(), modus });
+      fireEvent.change(start(d), { target: { value: "07:00" } });
+      expect(slutt(d).value).toBe("07:04");
+      expect(d.textContent).not.toContain("timer.feil.sluttForStart");
+      const input = (await flytt(d, 'timer.reiseKort.flyttJobb.start{"tid":"07:04"}'))!;
+      expect(input).toMatchObject({
+        fraTid: "07:00",
+        tilTid: "07:04",
+        kortId: "k1",
+        reiseIKort: true,
+        flyttRad: { radId: "r1", nyFra: "07:04" },
+      });
+    });
+
+    it(`${modus}: Til annet oppmøtested (Narvik, 180 min), Start 07:00 → Slutt 10:00, og «Flytt jobbens start til 10:00»`, async () => {
+      const d = rendre({ timer: normaldag(), modus });
+      fireEvent.click(knapp(d, "timer.reiseKort.tilAnnetOppmotested"));
+      fireEvent.change(within(d).getByLabelText("timer.reiseKort.tilKontorFelt"), { target: { value: "narvik" } });
+      fireEvent.change(start(d), { target: { value: "07:00" } });
+      expect(slutt(d).value).toBe("10:00");
+      const input = (await flytt(d, 'timer.reiseKort.flyttJobb.start{"tid":"10:00"}'))!;
+      expect(input).toMatchObject({
+        fraTid: "07:00",
+        tilTid: "10:00",
+        kortId: "k1",
+        reiseIKort: true,
+        reiseKilde: "overforing",
+        flyttRad: { radId: "r1", nyFra: "10:00" },
+      });
+      // O16: perioden skrives først, som før.
+      expect(h.kall.some((k) => k.key === "oppmotePeriode.overforing")).toBe(true);
+    });
+  }
+
+  it("dagskort: Fra byggeplass, Slutt 15:00 → Start 14:56, og «Flytt jobbens slutt til 14:56» (samme hull som Til)", async () => {
+    const d = rendre({ timer: normaldag(), modus: "dagskort" });
+    fireEvent.click(knapp(d, "timer.reiseKort.retur"));
+    fireEvent.change(slutt(d), { target: { value: "15:00" } });
+    expect(start(d).value).toBe("14:56");
+    const input = (await flytt(d, 'timer.reiseKort.flyttJobb.slutt{"tid":"14:56"}'))!;
+    expect(input).toMatchObject({ fraTid: "14:56", tilTid: "15:00", kortId: "k1", reiseIKort: true, flyttRad: { radId: "r1", nyTil: "14:56" } });
+  });
+
+  it("dagskort: jobben i et annet prosjekt følges ikke (Slutt står)", () => {
+    const d = rendre({ timer: [arbeid({ projectId: "p2", byggeplassId: "b2", fraTid: "07:00", tilTid: "15:00", timer: "7.5", pauseMin: 30 })], modus: "dagskort" });
+    // Vinduet åpnes fra p2-bøtta; bytt til p1 — dagens jobb er ikke i p1.
+    fireEvent.change(within(d).getByLabelText("timer.felt.prosjekt"), { target: { value: "p1" } });
+    fireEvent.change(start(d), { target: { value: "07:00" } });
+    expect(flyttBoks(d)).toBeNull();
+  });
+
+  it("dagskort uten flytting: Lagre fører fortsatt uten kort (R7 står)", async () => {
+    const d = rendre({ timer: normaldag(), modus: "dagskort" });
+    fireEvent.change(start(d), { target: { value: "06:00" } });
+    expect(slutt(d).value).toBe("07:00");
+    const input = (await lagre(d))!;
+    expect(input.kortId ?? null).toBeNull();
+    expect(input.flyttRad).toBeUndefined();
+  });
+});
+
+// Runde 2 timer (c): «Antall timer» i reisevinduet er minuttnøyaktig.
+describe("Runde 2 (c) — antall timer i minutter", () => {
+  afterEach(cleanup);
+  const antall = (d: HTMLElement) => within(d).getByLabelText("timer.felt.antallTimer") as HTMLInputElement;
+
+  it("0,07 t godtas av feltet og lagres som 4 min", async () => {
+    const d = rendre({ timer: [arbeid({ fraTid: "08:00", tilTid: "12:00", timer: "4" })] });
+    fireEvent.change(antall(d), { target: { value: "0.07" } });
+    expect(antall(d).validity.valid).toBe(true);
+    expect(start(d).value).toBe("07:56");
+    expect(slutt(d).value).toBe("08:00");
+    const input = (await lagre(d))!;
+    expect(input).toMatchObject({ fraTid: "07:56", tilTid: "08:00" });
+    expect(input.timer as number).toBeCloseTo(4 / 60, 5);
+  });
+
+  it("0,12 t → 7 min (ikke trinn på 0,25)", () => {
+    const d = rendre({ timer: [arbeid({ fraTid: "08:00", tilTid: "12:00", timer: "4" })] });
+    fireEvent.change(antall(d), { target: { value: "0.12" } });
+    expect(antall(d).validity.valid).toBe(true);
+    expect(start(d).value).toBe("07:53");
+  });
+});
+
+// Runde 2 timer — kursreise «Annet sted» (Kenneth 2026-11-26: «hva om jeg sendes til bergen på kurs»
+// → «1. ja»): fjerde valg; Fra = dagens oppmøtested (forslag), Til = fritekst, prosjekt «Internt
+// arbeid» (forslag). Ingen byggeplass, kjøretidstabell eller oppmøtested-periode.
+describe("Runde 2 — kursreise «Annet sted»", () => {
+  afterEach(cleanup);
+  const annet = (d: HTMLElement) => {
+    fireEvent.click(knapp(d, "timer.reiseKort.annetSted"));
+    return d;
+  };
+  const sted = (d: HTMLElement) => within(d).getByLabelText("timer.reiseKort.annetStedFelt") as HTMLInputElement;
+  const prosjekt = (d: HTMLElement) => within(d).getByLabelText("timer.felt.prosjekt") as HTMLSelectElement;
+
+  it("fjerde valg: Fra = dagens oppmøtested, Til = fritekst, prosjekt = «Internt arbeid», ingen byggeplass", () => {
+    const d = annet(rendre({ internt: true }));
+    expect((within(d).getByLabelText("timer.reiseKort.oppmotested") as HTMLSelectElement).value).toBe("tromso");
+    expect(sted(d).value).toBe("");
+    expect(prosjekt(d).value).toBe("pi");
+    expect(within(d).queryByLabelText("timer.felt.byggeplass")).toBeNull();
+    expect(within(d).queryByTestId("reise-uten-kjoretid")).toBeNull();
+    expect(within(d).queryByTestId("reise-oppmote-boks")).toBeNull();
+    // Arbeideren skriver tiden selv (O22-veien): ingen forslag.
+    expect(start(d).value).toBe("");
+    expect(slutt(d).value).toBe("");
+  });
+
+  it("Lagre er sperret til stedet er skrevet", () => {
+    const d = annet(rendre({ internt: true }));
+    fireEvent.change(start(d), { target: { value: "13:00" } });
+    fireEvent.change(slutt(d), { target: { value: "16:30" } });
+    expect(lagreKnapp(d).disabled).toBe(true);
+    // Forklaringen står i knappens tooltip (KnappMedForklaring).
+    fireEvent.mouseEnter(lagreKnapp(d).parentElement!);
+    fireEvent.focus(lagreKnapp(d));
+    expect(document.body.textContent).toContain("timer.reiseKort.sperre.manglerSted");
+    fireEvent.change(sted(d), { target: { value: "Bergen" } });
+    expect(lagreKnapp(d).disabled).toBe(false);
+  });
+
+  it("lagres på «Internt arbeid» med stedet i sporet, uten byggeplass, kort eller oppmøtested-periode", async () => {
+    const d = annet(rendre({ internt: true }));
+    fireEvent.change(sted(d), { target: { value: "Bergen" } });
+    fireEvent.change(start(d), { target: { value: "13:00" } });
+    fireEvent.change(slutt(d), { target: { value: "16:30" } });
+    const input = (await lagre(d))!;
+    expect(input).toMatchObject({
+      erReise: true,
+      projectId: "pi",
+      byggeplassId: null,
+      externalCostObjectId: null,
+      fraTid: "13:00",
+      tilTid: "16:30",
+      timer: 3.5,
+      lonnsartId: "lr",
+      reiseKilde: "manuell",
+      reiseRetning: "ut",
+      reiseOppmotestedId: "tromso",
+      reiseKjoretidMin: null,
+    });
+    expect((input.reiseRegel as { annetSted?: unknown }).annetSted).toEqual({ sted: "Bergen" });
+    expect(input.kortId ?? null).toBeNull();
+    expect(input.reiseIKort).toBeUndefined();
+    expect(h.kall.some((k) => k.key === "oppmotePeriode.overforing")).toBe(false);
+  });
+
+  it("Fra og prosjekt kan byttes (Narvik, Prosjekt 1050)", async () => {
+    const d = annet(rendre({ internt: true }));
+    fireEvent.change(within(d).getByLabelText("timer.reiseKort.oppmotested"), { target: { value: "narvik" } });
+    fireEvent.change(prosjekt(d), { target: { value: "p2" } });
+    fireEvent.change(sted(d), { target: { value: "Bergen" } });
+    fireEvent.change(start(d), { target: { value: "13:00" } });
+    fireEvent.change(slutt(d), { target: { value: "16:30" } });
+    const input = (await lagre(d))!;
+    expect(input).toMatchObject({ projectId: "p2", byggeplassId: null, reiseOppmotestedId: "narvik" });
+    expect(h.kall.some((k) => k.key === "oppmotePeriode.overforing")).toBe(false);
+  });
+
+  it("antall timer flytter Slutt (Start står)", () => {
+    const d = annet(rendre({ internt: true }));
+    fireEvent.change(start(d), { target: { value: "06:00" } });
+    fireEvent.change(within(d).getByLabelText("timer.felt.antallTimer"), { target: { value: "3.5" } });
+    expect(start(d).value).toBe("06:00");
+    expect(slutt(d).value).toBe("09:30");
+  });
+
+  it("O19: over midnatt deles som i dag, med stedet i begge deler", async () => {
+    const d = annet(rendre({ internt: true }));
+    fireEvent.change(sted(d), { target: { value: "Bergen" } });
+    fireEvent.change(start(d), { target: { value: "22:00" } });
+    fireEvent.change(slutt(d), { target: { value: "02:00" } });
+    expect(within(d).getByTestId("reise-midnatt-boks")).toBeTruthy();
+    fireEvent.click(lagreKnapp(d));
+    await new Promise((r) => setTimeout(r, 0));
+    const delt = h.kall.find((k) => k.key === "timer.dagsseddel.tilfoyDeltReise")?.input;
+    expect(delt).toMatchObject({ projectId: "pi", byggeplassId: null, reiseOppmotestedId: "tromso" });
+    expect((delt!.reiseRegel as { annetSted?: unknown }).annetSted).toEqual({ sted: "Bergen" });
+  });
+
+  it("uten internt prosjekt: prosjektet vinduet ble åpnet med står", () => {
+    const d = annet(rendre());
+    expect(prosjekt(d).value).toBe("p1");
+  });
+
+  it("tilbake til «Til byggeplass»: prosjektet og byggeplassen fra jobben kommer tilbake", () => {
+    const d = annet(rendre({ internt: true, modus: "dagskort" }));
+    fireEvent.click(knapp(d, "timer.reiseKort.tur"));
+    expect(prosjekt(d).value).toBe("p1");
+    expect(start(d).value).toBe("06:56");
   });
 });
