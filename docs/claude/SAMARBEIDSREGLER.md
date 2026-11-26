@@ -87,7 +87,7 @@ STATUS-AKTUELT eller historikk, aldri her. *(Kenneth 2026-09-28: «du får kun l
 - **Leveranser og SJEKKPUNKT** skrives nederst i `relay/inbox-orkestrator.md` med overskrift `## [dato] fra <Agent> → orkestrator: …`.
 - 🔴 **Kenneths beslutning skrives med hans egne ord i repo-dokumentet (fil fra DOC-MAP) i samme tur som den tas, ikke bare i `relay/`.** Punktet den gjelder, byttes ut, og det gamle slettes i samme commit. Er ingenting byttet ut, er beslutningen bare notert, og en notert beslutning er ikke hjemmel. Det som ikke er bygget, merkes 🟡 med dato og ordre. Orkestrator viser endringen som «Før / Nå» i sidepanelet før commit, senest før compact. Er beslutningen uklar, stilles et kontrollspørsmål i stedet for en tolkning. *(Kenneth 2026-11-16 og 2026-11-22.)*
 - **Innboksene ryddes av orkestrator:** avsluttede poster til `relay/arkiv/<innboks>-til-<dato>.md` ved prod-deploy eller når en innboks passerer ~300 linjer; øverst står en peker til arkivet.
-- **Innboksfiler:** `inbox-<agent>-<emne>.md` pr. oppdrag; `inbox-kontrollor.md` og `inbox-fabel.md` er faste. **Endres et filnavn**, føres det gamle som DØDT i innboksen.
+- **Innboksfiler:** `inbox-<agent>-<emne>.md` pr. oppdrag (Redesign, Dokgen); `inbox-kontrollor.md` og `inbox-fabel.md` er faste. **Endres et filnavn**, føres det gamle som DØDT i innboksen.
 
 ### Hvem skriver hva — én regel
 
@@ -231,7 +231,7 @@ Tenk ferdig og mål det som kan måles. Ett spørsmål gjelder ett vindu, og vis
 - **Delt logikk navngis** (§ 6b).
 - **Verifisering:** navngi **handlingen** som trigger kodeveien, og **hvem** som verifiserer: *et tall eller en regel* → funksjonstest, ingen nettleser · *et utseende* → Kenneth (ikke automatiser et blikk) · *en flyt agenten ikke kan nå* → si det i rapporten («dette kunne jeg ikke se» er en gyldig leveranse). Ber ordren om å finne noe: be om HVOR det ble funnet og HVOR MANGE TRYKK det tok.
 - **Bevis agenten kan levere.** Bevis som krever utstyr agenten ikke har, bestilles ikke av den.
-- **Mobil:** verifiseres med tester + Kenneth på telefon; simulator kreves ikke. Timing, nett og WebView-livssyklus er ikke verifisert før sett på fysisk enhet. Skjermbilder kun når spørsmålet er visuelt.
+- **Mobil:** verifiseres med tester + Kenneth på telefon; simulator kreves ikke. Timing, nett og WebView-livssyklus er ikke verifisert før sett på fysisk enhet. Skjermbilder kun når spørsmålet er visuelt — det er bildene som er dyre.
 
 ### Tolkning av bestillinger
 
@@ -298,7 +298,7 @@ peker på regresjonstestene.
 
 - 🔴 **Lar planen seg ikke kode som skrevet, eller avviker koden fra planen eller et vedtak: STOPP og spør Kenneth** — er planen feil, eller har vi tolket den feil? Verken kode eller plan rettes før svaret.
 - 🔴 **Godkjent i test er vernet.** Det Kenneth har godkjent i test, kan bare endres med hans egne ord.
-- 🔴 **Et snudd vedtak byttes ut der det sto** (§ 2). Hvem, når og hvorfor står i commit-meldingen.
+- 🔴 **Et snudd vedtak byttes ut der det sto** (§ 2). Hvem, når og hvorfor står i commit-meldingen; historikken ligger i git. Den som leser det gamle først, bygger det forkastede.
 - 🔴 **Før du endrer en komponent: les vedtakene som står som kommentarer i den fila, og navngi i svaret hvilke som
   gjelder** (Kenneth-vedtak 2026-09-29). Står vedtaket ikke der koden bor, er funnet at det står på feil sted.
 

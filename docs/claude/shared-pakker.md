@@ -152,6 +152,7 @@ Når en nøkkel mangler i ett språk men finnes i et annet, **verifiser kode-bru
 - `grupperPaaKort` (`kortGruppering.ts`): w12 (🟡 `feat/web-timer-w12`) — reise med kort-id er en linje av typen `reise` sist i kortet (ut, uten retning, retur); hode, rekkefølge og alder fra arbeidsradene; reise uten kort-id i `reise`-bøtta som før. `byggKortRader` har `reise`-linjen.
 - `validerKortInvariant` (`kortId.ts`): w12 — en rad med `erReise` sjekkes bare mot K1 (sedel) og K2 (prosjekt), og bestemmer aldri kortets nøkkel (🟡 `feat/web-timer-w12`).
 - `vareTimerader(timer, projectId)` (`prosjektkort.ts`, w1 i web-timeføring, 🟡 ikke merget) — timeradene en vare ført på PC kan kobles til: jobbens arbeidsrader (samme prosjekt, ikke reise, over 0 timer, ikke erstattet), sortert på fra-tid. Web `KortVareforbrukModal` forvalger den første og sender den som `sheetTimerId` via `kortVareforbrukInput`. Fasit: `apps/web/src/__tests__/web-timer-w1.test.tsx`.
+- **Hvorfor delt logikk navngis i ordren** (2026-09-06, [SAMARBEIDSREGLER § 6b](SAMARBEIDSREGLER.md)): kopier driver fra hverandre, og en resolver som normaliserer annerledes enn visningen gir stille feil i dokumenter byggherren mottar. Kanonisk repeater-traversering: `utils/repeaterRad.ts`, med tvilling i `packages/pdf/src/arkivmal/repeaterRad.ts`.
 
 ### Søk-utsnitt (`packages/shared/src/sok/`)
 

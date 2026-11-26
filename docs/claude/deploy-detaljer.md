@@ -241,6 +241,7 @@ i prod med OOM-risiko. Bruk `deploy-prod.sh` via [runbok § 2](DEPLOY-RUNBOK.md)
 - **rsync FØR build:** build-kontekst = server-fila; uten fersk rsync gjenbrukes cache (~6s «build», nye ruter 404).
 - **Migrate `-c` ikke `-lc`; aldri pipe migrate gjennom tail/grep** (svelger feil-exit → deploy fortsetter uten schema).
 - **Delt build-kontekst:** re-rsync riktig branch før HVER build (main=prod, develop=test).
+- **Web build dekker `apps/api` transitivt (målt 2026-09-02):** derfor er et eget api-typecheck i regel 10 ledd 4 hastighet, ikke dekning ([SAMARBEIDSREGLER § 6](SAMARBEIDSREGLER.md)).
 
 **Prod bruker `prisma migrate deploy`** — IKKE `pnpm db:migrate` (som kjører interaktiv `prisma migrate dev`). `prisma generate` må kjøres etter migrate for at API-bygget skal se nye Prisma-modeller. **Kjør for alle fire db-pakker** (`@sitedoc/db` + `@sitedoc/db-maskin` + `@sitedoc/db-timer` + `@sitedoc/db-varelager`) — uten `db-maskin`-generate feiler `@sitedoc/api`-bygget med `Cannot find module '.prisma/maskin-client'` (tilsvarende for `db-timer`/`.prisma/timer-client`). Lærdom fra prod-deploy 2026-04-30 (db-maskin) + test-deploy 2026-05-01 (db-timer).
 
@@ -270,6 +271,8 @@ Etter endringer, oppgi alltid hvilken reload-metode som trengs:
 | **JS ut til TestFlight-appen** | OTA ([DEPLOY-RUNBOK § 3](DEPLOY-RUNBOK.md)) | «Åpne appen → «Ny versjon er klar · Oppdater» → trykk Oppdater (ev. Mer → «Se etter oppdatering»)». Ikke tving-lukk |
 
 **Regel:** Etter HVER commit som påvirker mobil, skriv eksplisitt: «**Reload:** [metode]»
+
+**Verifiseringssløyfen uten byggkvote:** kode → `r` i Metro → telefon. Timing, nett og WebView-livssyklus er ikke verifisert før de er sett på fysisk enhet ([SAMARBEIDSREGLER § 4](SAMARBEIDSREGLER.md)).
 
 ## tRPC-mutations kjører i web-prosessen — env-konsekvens
 
