@@ -1000,7 +1000,7 @@ Reisevinduet: se [vedtak-timer-web.md § Reisevinduet](vedtak-timer-web.md). LØ
 - **Tester:** `reiseManuell.test.ts` § «w15b — start og slutt kan rettes» (8), `apps/web/src/app/dashbord/timer/[id]/reisevindu.test.tsx` (9), `apps/web/src/hooks/reise-havner-i.test.ts` (6). Negativkontroll mot develop `45a388c5`: 6 av 8 (shared) og 14 av 15 (web) røde; de grønne er bevaringstestene. `dagskort-vakt.test.tsx` + snapshot urørt.
 - **Skjermbilder (1 440 px, lokal seed):** `skisser-web-timeforing/w15b-etter-arbeid.png` («+ Reise» → «Til annet kontor» → «Etter arbeid»: Kontor Narvik, 12:00–15:50, 230 min), `w15b-byttet-prosjekt.png` («Til byggeplass», prosjektet byttet til Agent-testprosjekt: Byggeplass 1, 06:25–07:00, «Får eget kort på Agent-testprosjekt.»).
 
-### Runde 2 timer: reise fra 07:00 i dagskortet, minutter i «Antall timer», «Annet sted» — 🟡 `fix/timer-runde2`, venter gate
+### Runde 2 timer: reise fra 07:00 i dagskortet, minutter i «Antall timer», «Annet sted» — ✅ merget 2026-11-27 (Kenneth: «alt fungerer såvidt jeg kan se»)
 
 Hjemmel: Kenneth 2026-11-26 (b) «Føring av reisekort med transport fra kl 07:00 fungerer fremdeles ikke samme dag som normal dag er automatisk opprettet» og kursreisen «hva om jeg sendes til bergen på kurs» → «1. ja»; «Ja, bestill» runde 2. Vedtak: [vedtak-timer-web.md § Reisevinduet](vedtak-timer-web.md) pkt 26/27/29 (status).
 
