@@ -295,7 +295,7 @@ describe("w15f pkt. 21 — oppdaterTimerRad avviser prosjektbyttet", () => {
     const sid = await nySedel();
     const reise = await raReise(sid);
     await expect(
-      dag().oppdaterTimerRad({ id: reise, ...tid, lonnsartId: ORD, projectId: P2, byggeplassId: null, externalCostObjectId: null }),
+      dag().oppdaterTimerRad({ id: reise, ...tid, lonnsartId: ORD, erReise: false, projectId: P2, byggeplassId: null, externalCostObjectId: null }),
     ).rejects.toMatchObject({ code: "BAD_REQUEST" });
     const etter = await rad(reise);
     expect(etter.projectId).toBe(P1);

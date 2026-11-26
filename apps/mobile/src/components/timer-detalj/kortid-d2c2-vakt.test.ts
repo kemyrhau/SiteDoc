@@ -57,6 +57,7 @@ describe("Kort-id d2c-2: maskin koblet til timerad", () => {
 
   it("🔴 timerad som bærer maskin som krever den, kan ikke bli reise", () => {
     expect(TIMER).toContain('t("timer.maskinTimerad.reiseSperre"');
-    expect(TIMER).toMatch(/erReiseRad \|\| erReiseLonnsartLokalt\(organizationId, valgtLonnsartId\)\)\) \{\s*const krever/);
+    // O25: reise leses av radens flagg (erReiseFlagg), aldri av valgt lønnsart.
+    expect(TIMER).toMatch(/if \(dbR24 && erReiseFlagg\) \{\s*const krever/);
   });
 });

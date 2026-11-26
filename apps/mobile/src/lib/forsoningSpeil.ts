@@ -46,6 +46,8 @@ export type ForsonetServerRad = {
   kortId?: string | null;
   // Fraværskortet (spec § 11.3): forsoningen bærer flagget. Mangler mot eldre API.
   utenProsjekt?: boolean | null;
+  // O25: radens reise-flagg speiles, så synken aldri sender en speilet reise som arbeid.
+  erReise?: boolean | null;
   timer: number | string;
   fraTid: string | null;
   tilTid: string | null;
@@ -137,6 +139,7 @@ export function anvendForsonetLokalt(
         tilTid: r.tilTid,
         beskrivelse: r.beskrivelse,
         pauseMin: r.pauseMin ?? 0,
+        erReise: r.erReise ?? null,
         serverVersjon: tilIsoVersjon(r.updatedAt),
         sistEndretLokalt: naa,
       })

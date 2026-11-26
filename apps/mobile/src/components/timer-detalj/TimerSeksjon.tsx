@@ -63,7 +63,6 @@ import { hentArbeidsdagTiderLokalt } from "../../services/kalenderKatalog";
 import {
   hentStandardLonnsartLokalt,
   hentReiseLonnsartId,
-  erReiseLonnsartLokalt,
   hentUnderprosjekterLokalt,
   hentLonnsarterLokalt,
   hentFravaerLonnsartIderLokalt,
@@ -320,31 +319,7 @@ export function TimerSeksjon({
         gammel != null &&
         ((gammel.fraTid ?? null) !== (fraTid ?? null) ||
           (gammel.tilTid ?? null) !== (tilTid ?? null));
-      // B4: re-utled erReise fra (ev. byttet) lønnsart. Tre tilfeller:
-      //  - ikke reise  → erReise=false + RENS alt reise-spor (C2: false ⇒ spor null).
-      //  - matrise-rad → behold matrise-provenance (reiseKilde/retning/km/regel i
-      //    .set() urørt), bare erReise bekreftes true.
-      //  - manuell reise → reiseKilde="manuell", retning/km/avstand/regel null.
-      const erReise = erReiseLonnsartLokalt(organizationId, lonnsartId);
-      const reiseSet = !erReise
-        ? {
-            erReise: false,
-            reiseKilde: null,
-            reiseRetning: null,
-            reiseKjoretidMin: null,
-            reiseAvstandM: null,
-            reiseRegel: null,
-          }
-        : gammel?.reiseKilde === "matrise"
-          ? { erReise: true as const } // behold matrise-spor
-          : {
-              erReise: true as const,
-              reiseKilde: "manuell" as const,
-              reiseRetning: null,
-              reiseKjoretidMin: null,
-              reiseAvstandM: null,
-              reiseRegel: null,
-            };
+      // O25: redigering skifter aldri arbeid ↔ reise — radens flagg og reisespor står.
       // NY BESLUTNING maskinkobling (Kenneth 2026-11-12): maskintimer følger ALDRI
       // raden stille. Ville en koblet maskin fått flere timer enn raden, avvises
       // hele lagringen før noe skrives (rad-modalen sier fra og ber om retting).
@@ -368,7 +343,6 @@ export function TimerSeksjon({
             beskrivelse,
             // V20 PK2: oppdater radens matpause-bærer (avkrysningen = pauseMin > 0).
             pauseMin,
-            ...reiseSet,
             ...(tidEndret ? { tidKilde: "manuell" as const } : {}),
             sistEndretLokalt: Date.now(),
           })
@@ -1176,6 +1150,8 @@ export function TimerRadModal({
   // ORDRE 36c del B: en reiserad bærer aldri matpausen. Boolsk i dep-arrayene
   // — `reise`-objektet er nytt hver render hos kalleren.
   const erReiseRad = !!reise;
+  // O25: reise leses av radens flagg (eller reise-inngangen), aldri av valgt lønnsart.
+  const erReiseFlagg = erReiseRad || eksisterendeRad?.erReise === true;
   const radPauseMinFor = useCallback(
     (fra: string | null, til: string | null): number =>
       erReiseRad
@@ -1630,7 +1606,7 @@ export function TimerRadModal({
         projectId: valgtProjectId,
         externalCostObjectId: valgtEcoId ?? null,
         timer: tall(timer),
-        erReise: erReiseRad || erReiseLonnsartLokalt(organizationId, valgtLonnsartId),
+        erReise: erReiseFlagg,
       },
     ];
     const iSkjema = new Set([
@@ -1657,7 +1633,7 @@ export function TimerRadModal({
     valgtByggeplassId,
     valgtEcoId,
     valgtLonnsartId,
-    erReiseRad,
+    erReiseFlagg,
     eksisterendeRad,
     eksisterendeRader,
     defaultProjectId,
@@ -1694,9 +1670,7 @@ export function TimerRadModal({
         fraTid,
         tilTid,
         pauseMin: radPauseMinFor(fraTid, tilTid),
-        erReise:
-          erReiseRad ||
-          erReiseLonnsartLokalt(organizationId, valgtLonnsartId),
+        erReise: erReiseFlagg,
         overtidsnivaa: nivaaFor(valgtLonnsartId),
       },
     ];
@@ -1720,7 +1694,7 @@ export function TimerRadModal({
     eksisterendeRad?.id,
     alleTimerRader,
     radPauseMinFor,
-    erReiseRad,
+    erReiseFlagg,
     pauseKontekst,
   ]);
 
@@ -1751,10 +1725,7 @@ export function TimerRadModal({
     // Kenneth 2026-11-12: arbeidsrad krever beskrivelse (reise unntatt).
     // Feltmelding under beskrivelsesfeltet; ingenting lagres.
     if (
-      radManglerBeskrivelse(
-        beskrivelse,
-        erReiseRad || erReiseLonnsartLokalt(organizationId, valgtLonnsartId),
-      )
+      radManglerBeskrivelse(beskrivelse, erReiseFlagg)
     ) {
       setBeskrivelseFeil(true);
       beskrivelseRef.current?.focus();
@@ -1882,7 +1853,7 @@ export function TimerRadModal({
     // timerad, kan ikke bli reise — som serveren (d2c-1). Meldingen navngir maskinen.
     // 0 timer stoppes alt over (ugyldigTimer).
     const dbR24 = hentDatabase();
-    if (dbR24 && (erReiseRad || erReiseLonnsartLokalt(organizationId, valgtLonnsartId))) {
+    if (dbR24 && erReiseFlagg) {
       const krever = linjer.filter((l) => maskinKreverTimerad(utleieEnhetLokalt(dbR24, l.vehicleId)));
       if (krever.length > 0) {
         setFeil(

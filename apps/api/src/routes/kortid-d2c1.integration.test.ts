@@ -418,12 +418,12 @@ describe("fjernTimerRad — bekreftelse når maskiner står på raden", () => {
 //  oppdaterTimerRad
 // ════════════════════════════════════════════════════════════════════════════
 describe("oppdaterTimerRad — rad med maskin kan ikke bli reise eller 0 timer", () => {
-  it("bytte til reise-lønnsart avvises og navngir maskinen (selv når taket holder)", async () => {
+  it("bytte til reise avvises og navngir maskinen (selv når taket holder)", async () => {
     const sid = await nySedel();
     const t = await timerRad(sid);
     await timerRad(sid, { fra: "12:00", til: "16:00", timer: 4 });
     await maskinRad(sid, { sheetTimerId: t });
-    await expect(dag().oppdaterTimerRad({ id: t, lonnsartId: REISE, fraTid: "07:00", tilTid: "11:00" })).rejects.toThrow(/Volvo EC220E/);
+    await expect(dag().oppdaterTimerRad({ id: t, lonnsartId: REISE, erReise: true, fraTid: "07:00", tilTid: "11:00" })).rejects.toThrow(/Volvo EC220E/);
     const r = await prismaTimer.sheetTimer.findUniqueOrThrow({ where: { id: t } });
     expect(r.erReise).toBe(false);
   });
@@ -441,7 +441,7 @@ describe("oppdaterTimerRad — rad med maskin kan ikke bli reise eller 0 timer",
     const t = await timerRad(sid);
     await timerRad(sid, { fra: "12:00", til: "16:00", timer: 4 });
     await maskinRad(sid, { vehicleId: M_DOEGN, sheetTimerId: t });
-    await dag().oppdaterTimerRad({ id: t, lonnsartId: REISE, fraTid: "07:00", tilTid: "11:00" });
+    await dag().oppdaterTimerRad({ id: t, lonnsartId: REISE, erReise: true, fraTid: "07:00", tilTid: "11:00" });
     const r = await prismaTimer.sheetTimer.findUniqueOrThrow({ where: { id: t } });
     expect(r.erReise).toBe(true);
   });

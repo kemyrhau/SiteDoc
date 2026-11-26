@@ -225,8 +225,8 @@ describe("w15d — reiselinja og hodet i jobben", () => {
 describe("w15d — teksten under lønnsarten i timerad-vinduet (del C pkt. 4)", () => {
   afterEach(cleanup);
 
-  // O14 pkt 2 (R2): pennen på en reise åpner «Reise»-vinduet. Teksten under lønnsarten står når
-  // lønnsarten på en rad i timerad-vinduet byttes til reise.
+  // O14 pkt 2 (R2): pennen på en reise åpner «Reise»-vinduet. O25: å velge firmaets reise-lønnsart
+  // i timerad-vinduet gjør ikke raden til reise — ingen reisetekst.
   const velgReiseArt = (dialog: HTMLElement) => {
     const art = Array.from(dialog.querySelectorAll("select")).find((s) =>
       Array.from(s.options).some((o) => o.value === "lr"),
@@ -234,7 +234,7 @@ describe("w15d — teksten under lønnsarten i timerad-vinduet (del C pkt. 4)", 
     fireEvent.change(art, { target: { value: "lr" } });
   };
 
-  it("reise i en jobb: «Dette er reise. Den står i jobben på {sted}.»", () => {
+  it("O25: reise-lønnsarten valgt på en arbeidsrad gir ingen reisetekst (raden er arbeid)", () => {
     const ETTER = { ...ARBEID1, id: "r3", fraTid: "15:00", tilTid: "16:00", timer: "1", pauseMin: 0 } as Rad;
     rendre([ARBEID1, ETTER]);
     aapneForste();
@@ -244,16 +244,7 @@ describe("w15d — teksten under lønnsarten i timerad-vinduet (del C pkt. 4)", 
     fireEvent.click(blyant!);
     const dialog = screen.getByRole("dialog", { name: "timer.detalj.redigerTimerRad" });
     velgReiseArt(dialog);
-    expect(dialog.textContent).toContain('timer.rediger.reiseHavnerJobb{"sted":"Blokk A"}');
-  });
-
-  it("ingen jobb på dagen: «Dette er reise. Den får eget kort.»", () => {
-    rendre([ARBEID1]);
-    aapneForste();
-    fireEvent.click(screen.getAllByTitle("timer.jobbSkjema.aapneVinduHint")[0]!);
-    const dialog = screen.getByRole("dialog", { name: "timer.detalj.redigerTimerRad" });
-    velgReiseArt(dialog);
-    expect(dialog.textContent).toContain("timer.rediger.reiseHavnerEget");
+    expect(dialog.textContent).not.toContain("timer.rediger.reiseHavner");
   });
 
   it("arbeid: ingen reisetekst", () => {

@@ -171,6 +171,11 @@ describe("leggTilTimerRad", () => {
     expect(maskinRader()).toHaveLength(0);
   });
 
+  it("O25 (7): ny rad på firmaets reise-lønnsart lagres som arbeid", () => {
+    const id = leggTilTimerRad(db(), K, { ...felt, lonnsartId: "l-reise" }, []);
+    expect(timerRad(id)).toMatchObject({ lonnsartId: "l-reise", erReise: false, reiseKilde: null });
+  });
+
   it("med maskin: koblet maskinrad (sheetTimerId = raden), egne timer", () => {
     const id = leggTilTimerRad(db(), K, felt, [{ vehicleId: "v1", timer: 7.5, mengde: null, enhet: null }]);
     expect(maskinRader()).toHaveLength(1);
@@ -180,7 +185,7 @@ describe("leggTilTimerRad", () => {
 
 describe("oppdaterTimerRad", () => {
   it("oppdaterer felt; uendret fra/til stempler IKKE tidKilde", () => {
-    seedTimer("t1", { tidKilde: "utledet" });
+    seedTimer("t1", { tidKilde: "utledet", erReise: false });
     oppdaterTimerRad(db(), K, "t1", { ...felt, timer: 6, beskrivelse: "Ny" });
     expect(timerRad("t1")).toMatchObject({ timer: 6, beskrivelse: "Ny", tidKilde: "utledet", erReise: false });
     expect(timerRad("t1").sistEndretLokalt).toBeGreaterThan(1000);
@@ -192,23 +197,22 @@ describe("oppdaterTimerRad", () => {
     expect(timerRad("t1").tidKilde).toBe("manuell");
   });
 
-  it("reise-lønnsart: manuell reise; matrise-spor beholdes; ikke reise renser sporet", () => {
-    seedTimer("t1");
+  it("O25 (7): arbeidsrad som får firmaets reise-lønnsart forblir arbeid (erReise false, uten spor)", () => {
+    seedTimer("t1", { erReise: false });
     oppdaterTimerRad(db(), K, "t1", { ...felt, lonnsartId: "l-reise" });
-    expect(timerRad("t1")).toMatchObject({ erReise: true, reiseKilde: "manuell" });
+    expect(timerRad("t1")).toMatchObject({ lonnsartId: "l-reise", erReise: false, reiseKilde: null });
+  });
 
+  it("O25: redigering av en lagret reise beholder radens flagg og spor — også ved arbeids-lønnsart", () => {
     seedTimer("t2", { erReise: true, reiseKilde: "matrise", reiseAvstandM: 4200, lonnsartId: "l-reise" });
     oppdaterTimerRad(db(), K, "t2", { ...felt, lonnsartId: "l-reise" });
     expect(timerRad("t2")).toMatchObject({ erReise: true, reiseKilde: "matrise", reiseAvstandM: 4200 });
-
     oppdaterTimerRad(db(), K, "t2", felt);
-    expect(timerRad("t2")).toMatchObject({ erReise: false, reiseKilde: null, reiseAvstandM: null });
-  });
+    expect(timerRad("t2")).toMatchObject({ lonnsartId: "l-arb", erReise: true, reiseKilde: "matrise", reiseAvstandM: 4200 });
 
-  it("POST (13) L2: redigert overføringsrad blir manuell reise — overføringssporet følger ikke med", () => {
     seedTimer("t3", { erReise: true, reiseKilde: "overforing", reiseAvstandM: 250000, reiseKjoretidMin: 180, lonnsartId: "l-reise" });
     oppdaterTimerRad(db(), K, "t3", { ...felt, lonnsartId: "l-reise" });
-    expect(timerRad("t3")).toMatchObject({ erReise: true, reiseKilde: "manuell", reiseAvstandM: null, reiseKjoretidMin: null });
+    expect(timerRad("t3")).toMatchObject({ erReise: true, reiseKilde: "overforing", reiseAvstandM: 250000, reiseKjoretidMin: 180 });
   });
 
   it("maskin undefined rører ikke koblet maskinrad; ny linje oppretter, linje med id oppdaterer", () => {

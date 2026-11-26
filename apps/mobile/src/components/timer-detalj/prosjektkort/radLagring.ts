@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { randomUUID } from "expo-crypto";
 import type { hentDatabase } from "../../../db/database";
 import { sheetTimerLocal, sheetMachineLocal, slettedeRaderLocal } from "../../../db/schema";
-import { erReiseLonnsartLokalt, hentReiseLonnsartId } from "../../../services/timerKatalog";
+import { hentReiseLonnsartId } from "../../../services/timerKatalog";
 import { skrivMedMaskinVakt } from "../../../services/maskinJobbLokalt";
 import type { MaskinJobbBrudd } from "@sitedoc/shared";
 import { settInnTimerRad, type NyRad } from "../../../services/nyTimerRad";
@@ -156,28 +156,7 @@ export function skrivTimerRadUtenVakt(
     gammel != null &&
     ((gammel.fraTid ?? null) !== (fraTid ?? null) ||
       (gammel.tilTid ?? null) !== (tilTid ?? null));
-  // B4: re-utled erReise fra (ev. byttet) lønnsart — ikke reise renser sporet,
-  // matrise-rad beholder sporet, manuell reise får reiseKilde «manuell».
-  const erReise = erReiseLonnsartLokalt(organizationId, lonnsartId);
-  const reiseSet = !erReise
-    ? {
-        erReise: false,
-        reiseKilde: null,
-        reiseRetning: null,
-        reiseKjoretidMin: null,
-        reiseAvstandM: null,
-        reiseRegel: null,
-      }
-    : gammel?.reiseKilde === "matrise"
-      ? { erReise: true as const }
-      : {
-          erReise: true as const,
-          reiseKilde: "manuell" as const,
-          reiseRetning: null,
-          reiseKjoretidMin: null,
-          reiseAvstandM: null,
-          reiseRegel: null,
-        };
+  // O25: redigering skifter aldri arbeid ↔ reise — radens flagg og reisespor står.
   tx.update(sheetTimerLocal)
     .set({
       projectId: radProjectId,
@@ -190,7 +169,6 @@ export function skrivTimerRadUtenVakt(
       tilTid,
       beskrivelse,
       pauseMin,
-      ...reiseSet,
       ...(tidEndret ? { tidKilde: "manuell" as const } : {}),
       sistEndretLokalt: Date.now(),
     })

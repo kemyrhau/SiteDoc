@@ -346,6 +346,8 @@ export function SplittRadModal(props: Props) {
             fraTid: o.fraTid,
             tilTid: o.tilTid,
             beskrivelse: o.beskrivelse,
+            // O25: delene av en reise er reise — flagget følger originalen, aldri lønnsarten.
+            erReise: o.erReise ?? null,
             sistEndretLokalt: Date.now(),
           })
           .run();

@@ -65,10 +65,11 @@ export async function hentErReiseKontekst(
 }
 
 /**
- * Utled erReise for en rad når klienten IKKE sendte flagget eksplisitt
- * (overgangsperioden: gamle apper / web-skrivestier). SPEILER backfillen via den
- * delte `erReiseLonnsart` — samme regel, ett hjem. reiseKilde forblir null (vi
- * utledet, arbeideren klassifiserte ikke).
+ * Utled erReise for en rad når klienten IKKE sendte flagget eksplisitt — KUN
+ * overgangsgrenen i mobil-synken for gamle app-bygg (O25; fjernes når alle har fått
+ * OTA). Ingen annen skrivesti gjetter reise fra lønnsarten. SPEILER backfillen via
+ * den delte `erReiseLonnsart`. reiseKilde forblir null (vi utledet, arbeideren
+ * klassifiserte ikke).
  */
 export function utledErReise(
   lonnsartId: string,
@@ -76,43 +77,6 @@ export function utledErReise(
   ktx: ErReiseKontekst,
 ): boolean {
   return erReiseLonnsart(lonnsartId, lonnsartNavn, ktx);
-}
-
-/** Minimal klient-form helperen trenger (ekte klient ELLER tx-klient). */
-type LonnsartLeser = {
-  lonnsart: {
-    findMany: (args: {
-      where: { id: { in: string[] } };
-      select: { id: true; navn: true };
-    }) => Promise<{ id: string; navn: string }[]>;
-  };
-};
-
-/**
- * Utled erReise for et sett lønnsart-IDer (presisering 2) — de interaktive
- * skrivestiene (web/firma-admin) sender ikke flagget, så det MÅ utledes her, med
- * SAMME regel som backfillen og synken. Henter kontekst + navn ÉN gang og
- * returnerer et kart lonnsartId → erReise. Brukes av tilfoy/oppdater/forson/
- * splitt/rediger — ingen rad slipper gjennom som stille `false`.
- */
-export async function hentErReiseForLonnsarter(
-  prismaTimer: LonnsartLeser,
-  organizationId: string,
-  lonnsartIds: string[],
-): Promise<Map<string, boolean>> {
-  const unike = Array.from(new Set(lonnsartIds));
-  const res = new Map<string, boolean>();
-  if (unike.length === 0) return res;
-  const ktx = await hentErReiseKontekst(organizationId);
-  const arter = await prismaTimer.lonnsart.findMany({
-    where: { id: { in: unike } },
-    select: { id: true, navn: true },
-  });
-  const navnMap = new Map(arter.map((a) => [a.id, a.navn]));
-  for (const id of unike) {
-    res.set(id, erReiseLonnsart(id, navnMap.get(id) ?? "", ktx));
-  }
-  return res;
 }
 
 /** Reise-sporet slik det ligger lest på en original-rad (for splitt-arv). */

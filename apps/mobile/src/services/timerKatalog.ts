@@ -341,9 +341,9 @@ export function hentReiseKnappLokalt(organizationId: string): ReiseKnappResultat
 /**
  * LAG 2 (B4): ER lønnsarten en reise-art? Bygger `ErReiseKontekst` fra lokal
  * cache og delegerer til den DELTE `erReiseLonnsart` (`@sitedoc/shared`) — SAMME
- * regel som serverens `utledErReise` og backfill-SQL-en. Brukt når arbeideren
- * legger til/endrer en rad manuelt (TimerSeksjon), så `erReise` settes eksplisitt
- * på raden (M3) i stedet for at serveren gjetter. Ingen lokal kopi av regelen.
+ * regel som serverens `utledErReise` og backfill-SQL-en. Ingen lokal kopi av regelen.
+ * O25 (Kenneth 2026-11-26): ingen skrivevei bruker den lenger — `erReise` settes bare fra
+ * «+ Reise» (reisesporet), aldri av lønnsarten. Står til den fjernes sammen med testen.
  */
 export function erReiseLonnsartLokalt(
   organizationId: string,

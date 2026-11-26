@@ -10,6 +10,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * kastet når `erReise` byttet (`lagret: rad.erReise === postErReise ? rad : null`).
  * Drives via createCaller med mocket ctx, som byggeplass-rad.test.ts. `kortIdForSkriving` er
  * ekte (kortIdEnhetsmock bytter bare DB-delene).
+ * O25: «Føres som» sender `erReise` eksplisitt; lønnsart-bytte alene endrer ikke flagget.
  */
 
 vi.mock("../../trpc/tilgangskontroll", () => ({
@@ -103,7 +104,7 @@ beforeEach(() => {
 describe("O14 pkt 1 — en reise forblir en reise (oppdaterTimerRad)", () => {
   it("Reisetid → Arbeidstid: kortet står, retningen settes fra reiseRetning", async () => {
     const { ctx, update } = lagCtx(REISETID);
-    await caller(ctx).oppdaterTimerRad({ ...felles, lonnsartId: TIMELONN });
+    await caller(ctx).oppdaterTimerRad({ ...felles, lonnsartId: TIMELONN, erReise: false });
     const data = update.mock.calls[0]![0].data;
     expect(data.erReise).toBe(false);
     expect(data.kortId).toBe(KORT);
@@ -112,13 +113,13 @@ describe("O14 pkt 1 — en reise forblir en reise (oppdaterTimerRad)", () => {
 
   it("Reisetid → Arbeidstid med oppgitt retning: oppgitt vinner", async () => {
     const { ctx, update } = lagCtx(REISETID);
-    await caller(ctx).oppdaterTimerRad({ ...felles, lonnsartId: TIMELONN, arbeidReiseRetning: "retur" });
+    await caller(ctx).oppdaterTimerRad({ ...felles, lonnsartId: TIMELONN, erReise: false, arbeidReiseRetning: "retur" });
     expect(update.mock.calls[0]![0].data.arbeidReiseRetning).toBe("retur");
   });
 
   it("Arbeidstid → Reisetid: kortet står, merket nulles, reisen får retningen", async () => {
     const { ctx, update } = lagCtx(ARBEIDSTID);
-    await caller(ctx).oppdaterTimerRad({ ...felles, lonnsartId: REISE_ART });
+    await caller(ctx).oppdaterTimerRad({ ...felles, lonnsartId: REISE_ART, erReise: true });
     const data = update.mock.calls[0]![0].data;
     expect(data.erReise).toBe(true);
     expect(data.kortId).toBe(KORT);
@@ -136,16 +137,16 @@ describe("O14 pkt 1 — en reise forblir en reise (oppdaterTimerRad)", () => {
     expect(data).not.toHaveProperty("lonnsartId");
   });
 
-  it("negativkontroll: vanlig arbeid → reise-lønnsart gir fortsatt nytt kort (regel 3)", async () => {
+  it("negativkontroll: vanlig arbeid → reise gir fortsatt nytt kort (regel 3)", async () => {
     const { ctx, update } = lagCtx({ ...ARBEIDSTID, arbeidReiseRetning: null });
-    await caller(ctx).oppdaterTimerRad({ ...felles, lonnsartId: REISE_ART });
+    await caller(ctx).oppdaterTimerRad({ ...felles, lonnsartId: REISE_ART, erReise: true });
     expect(update.mock.calls[0]![0].data.kortId).toBeNull();
   });
 
   it("maskinvakten: Arbeidstid → Reisetid avvises når raden bærer maskin som krever timerad", async () => {
     utstyr.mockResolvedValue([{ id: "v1", merke: "Volvo", modell: "EC220", internNavn: null, utleieEnhet: "time" }]);
     const { ctx, update } = lagCtx(ARBEIDSTID, [{ id: "m1", vehicleId: "v1" }]);
-    await expect(caller(ctx).oppdaterTimerRad({ ...felles, lonnsartId: REISE_ART })).rejects.toThrow(/kan ikke bli reise/);
+    await expect(caller(ctx).oppdaterTimerRad({ ...felles, lonnsartId: REISE_ART, erReise: true })).rejects.toThrow(/kan ikke bli reise/);
     expect(update).not.toHaveBeenCalled();
   });
 });

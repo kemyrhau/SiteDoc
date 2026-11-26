@@ -86,7 +86,6 @@ import {
 } from "./byggeplass-rad";
 import {
   hentErReiseKontekst,
-  hentErReiseForLonnsarter,
   utledErReise,
   beregnReiseAvvik,
   validerReiseInvarianter,
@@ -2076,6 +2075,8 @@ async function byggReiseFelterForSynk(
       // Overgangsperioden: klienten sendte ikke flagget → utled fra lønnsarten
       // (samme regel som backfillen). Ingen klassifisering fra arbeideren → spor
       // er null, reiseAvvik null (ikke kontrollerbart uten snapshot).
+      // O25: grenen gjelder bare gamle app-bygg som ikke sender flagget; den eneste
+      // som fortsatt gjetter reise fra lønnsarten. Fjernes når alle har fått OTA.
       const navn = lonnsartNavnMap.get(r.lonnsartId) ?? "";
       felter.set(r.id, {
         erReise: utledErReise(r.lonnsartId, navn, ktx),
@@ -3336,10 +3337,9 @@ async function opprettForsteTimerRadForslag(
   const timer = effektiveTimerFraSpenn(fraTid, tilTid, fraTid, radPauseMin);
   if (timer <= 0) return;
 
-  // LAG 2 (presisering 2): utled erReise også her. Standard-lønnsarten er normalt
-  // en ordinær art (erReise=false), men vi gjetter ikke — regelen avgjør.
-  const erReiseKtx = await hentErReiseKontekst(orgId);
-  const erReise = utledErReise(standardLonnsart.id, standardLonnsart.navn, erReiseKtx);
+  // O25: dagens første rad er arbeid. Reise oppstår bare fra reisevinduet — også når
+  // firmaets reise-lønnsart er standard-lønnsarten.
+  const erReise = false;
 
   await prismaTimer.$transaction(async (tx) => {
     await tx.sheetTimer.create({
@@ -3988,13 +3988,11 @@ async function utforRedigerSedelRader(
 
   const naa = new Date();
 
-  // LAG 2 (presisering 2): utled erReise for de nye rad-ene (firma-admin
-  // rediger sender ikke flagget). Ett oppslag for alle arter i edit-settet.
-  const redigerErReiseMap = await hentErReiseForLonnsarter(
-    ctx.prismaTimer,
-    sheet.organizationId,
-    input.nyeRader.timer.map((r) => r.lonnsartId),
-  );
+  // O25: en rettet rad beholder originalens flagg; en ny rad i edit-settet er arbeid.
+  // Lønnsarten avgjør aldri om noe er reise.
+  const eksErReise = new Map(eksTimer.map((e) => [e.id, e.erReise]));
+  const redigerErReise = (r: { originalId: string | null }) =>
+    r.originalId ? (eksErReise.get(r.originalId) ?? false) : false;
   // B10 (§ 11.10.4): edit-settet erstatter alle pending timer-rader. Øker det fravær
   // med tak og etterlater dagen over taket, avvises det med tallene; en retting som
   // senker fraværet på en dag i brudd godtas (attestanten retter slik).
@@ -4003,7 +4001,7 @@ async function utforRedigerSedelRader(
       ...foer.filter((r) => r.attestertStatus !== "pending"),
       ...input.nyeRader.timer.map((r) => ({
         timer: r.timer,
-        erReise: redigerErReiseMap.get(r.lonnsartId) ?? false,
+        erReise: redigerErReise(r),
         lonnsart: redigerArt.get(r.lonnsartId) ?? null,
       })),
     ]);
@@ -4095,8 +4093,8 @@ async function utforRedigerSedelRader(
         timer: rad.timer,
         pauseMin: timerPause[i] ?? 0,
         vehicleId: rad.vehicleId ?? null,
-        erReise: redigerErReiseMap.get(rad.lonnsartId) ?? false,
-        kortId: arvKortId(rad, redigerErReiseMap.get(rad.lonnsartId) ?? false),
+        erReise: redigerErReise(rad),
+        kortId: arvKortId(rad, redigerErReise(rad)),
       },
     })),
     nyeTillegg: input.nyeRader.tillegg.map((rad) => ({
@@ -5017,12 +5015,13 @@ export const dagsseddelRouter = router({
         externalCostObjectId: z.string().uuid().nullable().optional(),
         // T.10: kostnadsbærer for maskinvedlikehold (svak FK → Equipment).
         vehicleId: z.string().uuid().nullable().optional(),
-        // Ordre 2026-11-14 (6): «+ Reise» sender kilden "manuell". Flagget
-        // erReise utledes fortsatt fra lønnsarten; kilden avvises hvis
-        // lønnsarten ikke er en reise-art (ingen falsk reise-rad).
+        // O25: reisevinduet sender `erReise: true`. Utelatt = arbeid, med mindre et
+        // reisespor (`reiseKilde`) følger med. Lønnsarten avgjør aldri om noe er reise.
+        erReise: z.boolean().optional(),
+        // Ordre 2026-11-14 (6): «+ Reise» sender kilden "manuell".
         // POST (13) L2 commit 8: reise-kortet kan også sende "overforing" og
-        // hele sporet. Sporet lagres KUN sammen med en kilde på en reise-art
-        // (C2-validert som i synken); uten kilde ignoreres feltene (null-spor).
+        // hele sporet. Sporet lagres KUN på en reise (C2-validert som i synken);
+        // uten kilde ignoreres feltene (null-spor).
         reiseKilde: z.enum(["manuell", "overforing"]).optional(),
         reiseRetning: z.enum(["ut", "retur"]).nullable().optional(),
         reiseOppmotestedId: z.string().uuid().nullable().optional(),
@@ -5122,10 +5121,10 @@ export const dagsseddelRouter = router({
         await verifiserKjoretoyTilhørerFirma(input.vehicleId, sheet.organizationId);
       }
 
-      // LAG 2 (presisering 2): utled erReise fra lønnsarten (web sender ikke
-      // flagget). Samme regel som backfill/synk; bruker navnet vi alt lastet.
+      // O25: reise bare fra reisevinduet — eksplisitt flagg, ellers et reisespor.
+      // Lønnsarten avgjør aldri (firmaets reise-art kan være standard-arten).
       const erReiseKtx = await hentErReiseKontekst(sheet.organizationId);
-      const erReise = utledErReise(input.lonnsartId, lonnsart.navn, erReiseKtx);
+      const erReise = input.erReise ?? input.reiseKilde != null;
       // § 11.2: rad uten prosjekt kan ikke være reise (CHECK + K-regel).
       if (utenProsjekt && erReise) krevGyldigUtenProsjekt({ ...input, erReise }, lonnsart.type);
       // B10 (§ 11.10.4): ny fraværsrad med tak må holde seg innenfor resten av dagsnormen.
@@ -5138,7 +5137,7 @@ export const dagsseddelRouter = router({
       if (input.reiseKilde && !erReise) {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: "Lønnsarten er ikke en reise-lønnsart",
+          message: "Et reisespor kan bare lagres på en reise",
         });
       }
       // POST (13) L2 commit 8: sporet valideres (C2) og kontrolleres (C3) med
@@ -5394,10 +5393,9 @@ export const dagsseddelRouter = router({
       await krevByggeplassIProsjekt(input.byggeplassId, input.projectId);
       await krevEcoerIProsjekt([input], sheet.organizationId);
 
+      // O25: en delt reise kommer alltid fra reisevinduet og er reise uansett lønnsart.
+      // Firmaets reise-lønnsart er bare vinduets forslag.
       const erReiseKtx = await hentErReiseKontekst(sheet.organizationId);
-      if (!utledErReise(input.lonnsartId, lonnsart.navn, erReiseKtx)) {
-        throw new TRPCError({ code: "BAD_REQUEST", message: "Lønnsarten er ikke en reise-lønnsart" });
-      }
       const delId = randomUUID();
       const firmaOppmotesteder = await prisma.oppmotested.findMany({
         where: { organizationId: sheet.organizationId },
@@ -5597,6 +5595,9 @@ export const dagsseddelRouter = router({
         // O14 pkt 2 (R2): retningen på en reise ført som reisetid. Brukes bare når raden er
         // reisetid etter skrivingen. Utelatt = urørt.
         reiseRetning: z.enum(["ut", "retur"]).optional(),
+        // O25: «Føres som» i reisevinduet — reisetid (true) eller arbeidstid (false).
+        // Utelatt = radens flagg står, også ved bytte av lønnsart.
+        erReise: z.boolean().optional(),
       }).superRefine(refineFraForTil),
     )
     .mutation(async ({ ctx, input }) => {
@@ -5659,15 +5660,10 @@ export const dagsseddelRouter = router({
       const data: Prisma.SheetTimerUpdateInput = {};
       if (input.lonnsartId !== undefined) {
         data.lonnsart = { connect: { id: input.lonnsartId } };
-        // LAG 2 (presisering 2): lønnsart-bytte → re-utled erReise (klienten sender
-        // ikke flagget). Raden kan gå fra arbeid til reise eller omvendt.
-        const erReiseMap = await hentErReiseForLonnsarter(
-          ctx.prismaTimer,
-          sheet.organizationId,
-          [input.lonnsartId],
-        );
-        data.erReise = erReiseMap.get(input.lonnsartId) ?? false;
       }
+      // O25: arbeid ↔ reise skifter bare med eksplisitt flagg («Føres som» i reisevinduet).
+      // Et lønnsart-bytte alene beholder radens flagg.
+      if (input.erReise !== undefined) data.erReise = input.erReise;
       if (input.aktivitetId !== undefined) {
         data.aktivitet = { connect: { id: input.aktivitetId } };
       }
@@ -6110,10 +6106,11 @@ export const dagsseddelRouter = router({
         },
       });
       const artFor = (id: string) => lonnsarter.find((l) => l.id === id) ?? null;
-      const erReiseKtx = await hentErReiseKontekst(sheet.organizationId);
+      // O25: jobbens linjer er arbeid; firmaets reise-lønnsart avvises ikke (den kan være
+      // standard-arten). Fravær med tak føres for seg.
       for (const l of input.linjer) {
         const art = artFor(l.lonnsartId);
-        if (!art || utledErReise(art.id, art.navn, erReiseKtx) || harNormtak(art)) {
+        if (!art || harNormtak(art)) {
           throw new TRPCError({
             code: "BAD_REQUEST",
             message: "Jobbens lønnsart må være en arbeids-lønnsart. Reise og fravær føres for seg.",
@@ -6381,6 +6378,9 @@ export const dagsseddelRouter = router({
                 // Kort-id (spec § 4.3): valgfri. Uten → forslagets id (samme tid/nøkkel),
                 // ellers regel 2/3.
                 kortId: z.string().uuid().nullable().optional(),
+                // O25: forslagets eget reiseflagg. Utelatt = oppdatering beholder radens
+                // flagg, ny rad er arbeid. Lønnsarten avgjør aldri.
+                erReise: z.boolean().optional(),
               })
               .superRefine(refineFraForTil)
               .superRefine(refineProsjektEllerFravaer),
@@ -6406,6 +6406,9 @@ export const dagsseddelRouter = router({
                 // Kort-id (spec § 4.3): valgfri. Uten → forslagets id (samme tid/nøkkel),
                 // ellers regel 2/3.
                 kortId: z.string().uuid().nullable().optional(),
+                // O25: forslagets eget reiseflagg. Utelatt = oppdatering beholder radens
+                // flagg, ny rad er arbeid. Lønnsarten avgjør aldri.
+                erReise: z.boolean().optional(),
               })
               .superRefine(refineFraForTil)
               .superRefine(refineProsjektEllerFravaer),
@@ -6534,16 +6537,12 @@ export const dagsseddelRouter = router({
           });
         }
       }
-      // LAG 2 (presisering 2): utled erReise for hver rad (oppdatering = kan ha
-      // byttet lønnsart → re-utled; ny rad = utled). Ett oppslag for alle arter.
-      const erReiseMap = await hentErReiseForLonnsarter(
-        ctx.prismaTimer,
-        sheet.organizationId,
-        [
-          ...input.oppdateringer.map((o) => o.lonnsartId),
-          ...input.nyeRader.map((r) => r.lonnsartId),
-        ],
-      );
+      // O25: lønnsarten avgjør aldri om noe er reise. En oppdatering beholder radens flagg
+      // med mindre klienten sender forslagets eget (eksplisitte) flagg; en ny rad er arbeid
+      // med mindre forslaget er en reise fra reisevinduet (flagget følger forslaget).
+      const lagretErReise = new Map(naavaerendeAlle.map((r) => [r.id, r.erReise]));
+      const erReiseFor = (r: { id?: string; erReise?: boolean }) =>
+        r.erReise ?? (r.id ? (lagretErReise.get(r.id) ?? false) : false);
       const oppdatertEtterId = new Map(input.oppdateringer.map((o) => [o.id, o]));
       type SluttRad = {
         projectId: string | null;
@@ -6565,7 +6564,7 @@ export const dagsseddelRouter = router({
                 timer: o.timer,
                 fraTid: o.fraTid,
                 tilTid: o.tilTid,
-                erReise: erReiseMap.get(o.lonnsartId) ?? false,
+                erReise: erReiseFor(o),
                 attestertStatus: r.attestertStatus,
               }
             : {
@@ -6584,7 +6583,7 @@ export const dagsseddelRouter = router({
           timer: r.timer,
           fraTid: r.fraTid,
           tilTid: r.tilTid,
-          erReise: erReiseMap.get(r.lonnsartId) ?? false,
+          erReise: erReiseFor(r),
           attestertStatus: null,
         })),
       ];
@@ -6615,8 +6614,8 @@ export const dagsseddelRouter = router({
       // attestering ser enten draft/returned (vi vinner) eller har alt committet accepted
       // (count=0 → vi kaster → ALT rulles tilbake). updateMany erstatter samtidig touchSedel
       // (begge bumper updatedAt). Alle rad-writes + sluttlesningen kjører på samme `tx`.
-      // LAG 2 (presisering 2): erReiseMap er utledet over (før maskin-vakten,
-      // post (7) punkt 5) og gjenbrukes for rad-skrivingen.
+      // O25: erReiseFor er løst over (før maskin-vakten, post (7) punkt 5) og
+      // gjenbrukes for rad-skrivingen.
 
       // V20/PK4a — vurder timetallet mot pause + vindu for hver skrevne rad.
       // Vinduet (PK5) regnes fra hele sluttsettet. Bæreren spores på tvers av
@@ -6752,7 +6751,7 @@ export const dagsseddelRouter = router({
           ).map((r) => [r.id, r]),
         );
         for (const o of input.oppdateringer) {
-          const erReise = erReiseMap.get(o.lonnsartId) ?? false;
+          const erReise = erReiseFor(o);
           const lagretRad = lagredeForOppdatering.get(o.id) ?? null;
           await tx.sheetTimer.update({
             where: { id: o.id },
@@ -6777,7 +6776,7 @@ export const dagsseddelRouter = router({
         }
         for (let i = 0; i < input.nyeRader.length; i++) {
           const r = input.nyeRader[i]!;
-          const erReise = erReiseMap.get(r.lonnsartId) ?? false;
+          const erReise = erReiseFor(r);
           await tx.sheetTimer.create({
             data: {
               ...byggTimerRadData(
@@ -6805,7 +6804,7 @@ export const dagsseddelRouter = router({
           oppgitteKortIder: [
             // Reisens id fra klienten brukes ikke (sikreKortId velger jobben, w12) og K1-sjekkes ikke.
             ...[...input.oppdateringer, ...input.nyeRader].flatMap((r) =>
-              r.kortId && !erReiseMap.get(r.lonnsartId) ? [r.kortId] : [],
+              r.kortId && !erReiseFor(r) ? [r.kortId] : [],
             ),
             ...forslagKort.flatMap((f) => (f.kortId ? [f.kortId] : [])),
           ],

@@ -1052,18 +1052,20 @@ describe("w10a (A1) — lønnsartvalget følger linjetypen", () => {
   const arter = [{ id: "l1", navn: "Ordinær" }, { id: "lr", navn: "Reise" }, { id: "lg", navn: "Reise 30–60 km" }, { id: "l2", navn: "Overtid 50 %" }];
   const linje = (erReise: boolean | null) => ({ erReise });
 
-  it("arbeidslinja tilbyr ingen reisearter; reiselinja bare reisearter", () => {
-    expect(tillatteLonnsarter(linje(false), arter, ktx, "l1").map((x) => x.id)).toEqual(["l1", "l2"]);
-    expect(tillatteLonnsarter(linje(null), arter, ktx, "l1").map((x) => x.id)).toEqual(["l1", "l2"]);
+  it("O25: arbeidslinja tilbyr alle lønnsarter, også reise-lønnsarten; reiselinja bare reisearter", () => {
+    const alle = ["l1", "lr", "lg", "l2"];
+    expect(tillatteLonnsarter(linje(false), arter, ktx, "l1").map((x) => x.id)).toEqual(alle);
+    expect(tillatteLonnsarter(linje(null), arter, ktx, "l1").map((x) => x.id)).toEqual(alle);
+    expect(tillatteLonnsarter(linje(false), arter, null, "l1").map((x) => x.id)).toEqual(alle);
     expect(tillatteLonnsarter(linje(true), arter, ktx, "lr").map((x) => x.id)).toEqual(["lr", "lg"]);
   });
 
-  it("den lagrede arten står alltid, også når den bryter regelen; uten kontekst bare den lagrede", () => {
-    expect(tillatteLonnsarter(linje(false), arter, ktx, "lr").map((x) => x.id)).toEqual(["l1", "lr", "l2"]);
-    expect(tillatteLonnsarter(linje(false), arter, null, "l1").map((x) => x.id)).toEqual(["l1"]);
+  it("reiselinja: den lagrede arten står alltid, også når den bryter regelen; uten kontekst bare den lagrede", () => {
+    expect(tillatteLonnsarter(linje(true), arter, ktx, "l1").map((x) => x.id)).toEqual(["l1", "lr", "lg"]);
+    expect(tillatteLonnsarter(linje(true), arter, null, "lr").map((x) => x.id)).toEqual(["lr"]);
   });
 
-  it("i kortet: valget viser bare jobbens arter, og et valg sendes som lonnsartId", () => {
+  it("i kortet: arbeidslinja viser alle arter (O25), og et valg sendes som lonnsartId", () => {
     h.data["timer.lonnsart.list"] = arter;
     h.data["organisasjon.hentArbeidstidDefaults"] = { reiseLonnsartId: "lr", reiseGrenser: [{ lonnsartId: "lg" }] };
     try {
@@ -1072,7 +1074,7 @@ describe("w10a (A1) — lønnsartvalget følger linjetypen", () => {
       const panel = container.querySelector("[data-registrering]") as HTMLElement;
       const v = aapnePenn(panel);
       const valg = within(v).getByLabelText("timer.attestering.registrering.lonnsart") as HTMLSelectElement;
-      expect(Array.from(valg.options).map((o) => o.value)).toEqual(["l1", "l2"]);
+      expect(Array.from(valg.options).map((o) => o.value)).toEqual(["l1", "lr", "lg", "l2"]);
       fireEvent.change(valg, { target: { value: "l2" } });
       expect(kallTil("rettRadFelt")).toHaveLength(0);
       lagreVindu();
@@ -1280,12 +1282,12 @@ describe("w12 (§ 4.11 C) — reiselinja i jobben, del 8 «Reise» og «Føres p
     expect(d8.querySelector('[data-reiselinje="s1:reise:r1"]')).toBeTruthy();
   });
 
-  it("H.9: arbeidslinja tilbyr ikke reisearter; reiselinja har ingen lønnsart-select (w15f: rettes i «✎ Rediger jobben»)", () => {
+  it("H.9 (O25): arbeidslinja tilbyr alle lønnsarter, også reise-lønnsarten; reiselinja har ingen lønnsart-select (w15f: rettes i «✎ Rediger jobben»)", () => {
     const { container } = vis([sedel({ timer: [timer("t1"), reise()] })]);
     const p = aapnePanel(container);
     const v = aapnePenn(del(p, 2)!);
     const valg = Array.from((within(v).getByLabelText("timer.attestering.registrering.lonnsart") as HTMLSelectElement).options).map((o) => o.value);
-    expect(valg).toEqual(["l1", "l2"]);
+    expect(valg).toEqual(["l1", "lr", "l2"]);
     expect(del(p, 8)!.querySelector("select")).toBeNull();
   });
 

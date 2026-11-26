@@ -30,7 +30,7 @@ function blokk(kilde: string, start: string): string {
 function beskrivelseSperret(kilde: string): boolean {
   const b = blokk(kilde, "function lagre(");
   const sjekk = b.search(
-    /if\s*\(\s*radManglerBeskrivelse\(\s*beskrivelse,\s*erReiseRad\s*\|\|\s*erReiseLonnsartLokalt\(organizationId,\s*valgtLonnsartId\)\s*,?\s*\)\s*,?\s*\)\s*\{\s*setBeskrivelseFeil\(true\);[^}]*return;\s*\}/,
+    /if\s*\(\s*radManglerBeskrivelse\(\s*beskrivelse,\s*erReiseFlagg\s*,?\s*\)\s*,?\s*\)\s*\{\s*setBeskrivelseFeil\(true\);[^}]*return;\s*\}/,
   );
   const skriv = Math.min(
     ...["onLagre(", "onLeggTilOvertidDel("].map((s) => b.indexOf(s)).filter((i) => i >= 0),
@@ -68,7 +68,7 @@ describe("punkt 1 — beskrivelse påkrevd på arbeidsrad", () => {
   });
 
   it("mutant: reise-unntaket fjernet → vakta feiler", () => {
-    const mutert = TIMER.replace(/erReiseRad\s*\|\|\s*erReiseLonnsartLokalt\(organizationId,\s*valgtLonnsartId\)\s*,?\s*\)\s*,?\s*\)\s*\{\s*setBeskrivelseFeil/, "false)) { setBeskrivelseFeil");
+    const mutert = TIMER.replace(/erReiseFlagg\s*,?\s*\)\s*,?\s*\)\s*\{\s*setBeskrivelseFeil/, "false)) { setBeskrivelseFeil");
     expect(mutert).not.toBe(TIMER);
     expect(beskrivelseSperret(mutert)).toBe(false);
   });
