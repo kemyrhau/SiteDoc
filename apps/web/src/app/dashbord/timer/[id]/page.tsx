@@ -72,7 +72,7 @@ import {
   lesMidnattDel,
   avgjorRadPauseMin,
   finnOverlappendeTidsrom,
-  foreslaOvertidSplitt,
+  vurderOvertidSplitt,
   regnJobbTid,
   forsokInnsending,
   svarPaaPauseSporsmaal,
@@ -1100,6 +1100,17 @@ export default function DagsseddelDetaljSide() {
       byggeplassNavn,
       radLinje: radLinjeFor(projectId),
       onTilfoyTimer: (ecoId: string | null) => aapneNyTimerRad(projectId, ecoId),
+      // R7 (runde 1 timer): dagskort-modus får samme reisevindu som prosjektkortets
+      // «+ Reise» (`ReiseKort`), uten kort. Ingen knapp når firmaet ikke har én reise-lønnsart.
+      onTilfoyReise: reiseKnapp?.lonnsart
+        ? (ecoId: string | null) =>
+            setAktivModal({
+              type: "timer",
+              projectId,
+              defaultEcoId: ecoId,
+              reise: reiseKnapp.lonnsart ?? undefined,
+            })
+        : null,
       onLeggTil: () => setAktivModal({ type: "leggTil", projectId }),
       onRedigerTimer: (rad: TimerRad) =>
         setAktivModal({ type: "timer", projectId, rad }),
@@ -1339,8 +1350,12 @@ export default function DagsseddelDetaljSide() {
       : null;
   const velgKort = (nokkel: string | null) => {
     setAapentKort(nokkel);
-    // Neste jobb uten Til forsvinner når et annet kort åpnes (ingenting er lagret).
-    if (nyJobbUtkast && nokkel !== nyJobbUtkast.kortId) setNyJobbUtkast(null);
+    // Neste jobb uten Til forsvinner når et annet kort åpnes (ingenting er lagret). R1: står
+    // utkastet som ulagret (lagring pågår eller feilet, ugyldig tid), blir det stående lukket —
+    // det som er skrevet, forsvinner ikke i stillhet, og «Send dagen» er sperret til det er løst.
+    if (nyJobbUtkast && nokkel !== nyJobbUtkast.kortId && !ulagredeKort.has(nyJobbUtkast.kortId)) {
+      setNyJobbUtkast(null);
+    }
   };
 
   // O14 pkt 2 (R2, vedtak Reisevinduet pkt 17): i prosjektkort-visning åpner pennen på en reise
@@ -1907,7 +1922,7 @@ export default function DagsseddelDetaljSide() {
           resolverLonnsartId={aktivModal.type === "reiseRediger" ? (reiseKnapp?.lonnsart?.id ?? null) : (aktivModal.reise?.id ?? null)}
           erFirmaAdmin={!!orgSetting}
           forvalgtByggeplassId={aktivModal.type === "reiseRediger" ? undefined : aktivModal.jobb?.byggeplassId}
-          forvalgtEcoId={aktivModal.type === "reiseRediger" ? undefined : aktivModal.jobb?.ecoId}
+          forvalgtEcoId={aktivModal.type === "reiseRediger" ? undefined : (aktivModal.jobb?.ecoId ?? aktivModal.defaultEcoId)}
           jobbKortId={aktivModal.jobb?.kortId}
           jobbFordeling={jobbFordeling}
           // O12 pkt 3: åpnet fra et prosjektkort — kortet er stedet.
@@ -3194,6 +3209,7 @@ function ProsjektGruppe({
   byggeplassNavn,
   radLinje,
   onTilfoyTimer,
+  onTilfoyReise,
   onLeggTil,
   onRedigerTimer,
   onRedigerTillegg,
@@ -3223,6 +3239,8 @@ function ProsjektGruppe({
   // Bolk (d) R1: sender timer-radene i bucket slik at parent kan avlede
   // fra/til-prefill (siste rads tilTid).
   onTilfoyTimer: (ecoId: string | null, timerRaderIBucket: TimerRad[]) => void;
+  // R7: «+ Reise» i dagskort-modus (null = firmaet har ikke én reise-lønnsart).
+  onTilfoyReise?: ((ecoId: string | null) => void) | null;
   // U3: unified «Legg til»-velger (tillegg + utlegg i ett).
   onLeggTil: () => void;
   onRedigerTimer: (rad: TimerRad) => void;
@@ -3297,6 +3315,7 @@ function ProsjektGruppe({
             byggeplassNavn={byggeplassNavn}
             radLinje={radLinje}
             onTilfoyTimer={() => onTilfoyTimer(bucket.ecoId, bucket.timer)}
+            onTilfoyReise={onTilfoyReise ? () => onTilfoyReise(bucket.ecoId) : undefined}
             onRedigerTimer={onRedigerTimer}
             onRedigerMaskin={onRedigerMaskin}
             onSplittTimer={onSplittTimer}
@@ -3377,6 +3396,7 @@ function EcoGruppe({
   byggeplassNavn,
   radLinje,
   onTilfoyTimer,
+  onTilfoyReise,
   onRedigerTimer,
   onRedigerMaskin,
   onSplittTimer,
@@ -3401,6 +3421,7 @@ function EcoGruppe({
   byggeplassNavn: Map<string, string>;
   radLinje: RadLinjeKontekst;
   onTilfoyTimer: () => void;
+  onTilfoyReise?: () => void;
   onRedigerTimer: (rad: TimerRad) => void;
   onRedigerMaskin: (rad: MaskinRad) => void;
   onSplittTimer: (rad: TimerRad) => void;
@@ -3449,11 +3470,23 @@ function EcoGruppe({
               </span>
             )}
           </h4>
-          {erRedigerbar && (
+          {erRedigerbar && !onTilfoyReise && (
             <Button variant="secondary" size="sm" onClick={onTilfoyTimer}>
               <Plus className="mr-1 h-3 w-3" />
               {t("timer.detalj.tilfoyTimer")}
             </Button>
+          )}
+          {/* R7: med reise-lønnsart står «+ Reise» ved siden av; uten er markupen som før. */}
+          {erRedigerbar && onTilfoyReise && (
+            <div className="flex gap-2">
+              <Button variant="secondary" size="sm" onClick={onTilfoyTimer}>
+                <Plus className="mr-1 h-3 w-3" />
+                {t("timer.detalj.tilfoyTimer")}
+              </Button>
+              <Button variant="secondary" size="sm" onClick={onTilfoyReise}>
+                {t("timer.prosjektkort.nyReise")}
+              </Button>
+            </div>
           )}
         </div>
         {timer.length === 0 && maskin.length === 0 ? (
@@ -4954,9 +4987,10 @@ function TimerRadDialog({
   });
 
   // V21: overtidsforslag for DENNE raden — de andre radene på sedelen + dialogens
-  // gjeldende verdier, delt regel (`foreslaOvertidSplitt`). Kun et forslag; ingenting
-  // skrives før brukeren trykker knappen.
-  const overtidForslag = useMemo(() => {
+  // gjeldende verdier, delt regel (`vurderOvertidSplitt`). Kun et forslag; ingenting
+  // skrives før brukeren trykker knappen. R3 (runde 1): `manglerNivaa` = dagen går over
+  // normen, men firmaet har ingen aktiv overtidsart med nivået — da sier dialogen fra.
+  const overtidVurdering = useMemo(() => {
     if (!lonnsarter || !fraTid || !tilTid) return null;
     const nivaaFor = (id: string) =>
       lonnsarter.find((l) => l.id === id)?.overtidsnivaa ?? null;
@@ -4982,8 +5016,7 @@ function TimerRadDialog({
         overtidsnivaa: lonnsartId ? nivaaFor(lonnsartId) : null,
       },
     ];
-    return (
-      foreslaOvertidSplitt(rader, normTimer, lonnsarter, {
+    const v = vurderOvertidSplitt(rader, normTimer, lonnsarter, {
         pauseFra: (r) =>
           r.id === egenId
             ? pauseFra
@@ -4997,10 +5030,11 @@ function TimerRadDialog({
                   fastPauseFra,
                 })
               : "00:00",
-      }).find(
-        (f) => f.radId === egenId,
-      ) ?? null
-    );
+    });
+    return {
+      forslag: v.forslag.find((f) => f.radId === egenId) ?? null,
+      manglerNivaa: v.manglerArt?.radIder.includes(egenId) ? v.manglerArt.nivaa : null,
+    };
   }, [
     lonnsarter,
     fraTid,
@@ -5015,6 +5049,8 @@ function TimerRadDialog({
     standardPauseEtterTimer,
     fastPauseFra,
   ]);
+  const overtidForslag = overtidVurdering?.forslag ?? null;
+  const overtidManglerNivaa = overtidVurdering?.manglerNivaa ?? null;
 
   const formaterT = (n: number) => formaterTimer(n, i18n.language);
   const lonnsartNavn = (id: string) =>
@@ -5022,7 +5058,7 @@ function TimerRadDialog({
 
   // O5 B (§ 8.22, Kenneth etter test d4bec43e: «overtid må fremgå»): i prosjektkort-modus deles
   // raden automatisk ved lagring når dagen går over normen — samme regel og samme to kall som
-  // V21-knappen (`foreslaOvertidSplitt` → `brukOvertidForslag`, regelen `regnJobbTid` bygger på).
+  // V21-knappen (`vurderOvertidSplitt` → `brukOvertidForslag`, regelen `regnJobbTid` bygger på).
   // «Rediger» deler bare når tiden er endret, som jobbskjemaet (`lagreJobbTid`, gate 129 V1):
   // et bevisst bytte av lønnsart på uendret tid står.
   const tidEndret =
@@ -5516,6 +5552,12 @@ function TimerRadDialog({
                   over: formaterT(autoOvertid.overTimer),
                   otNavn: autoOvertid.overtidLonnsart.navn,
                 })}
+          </p>
+        )}
+        {/* R3: over normen uten overtidsart med nivå — begge modi, samme tekst som jobbskjemaet. */}
+        {overtidManglerNivaa != null && (
+          <p className="text-sm text-amber-800" data-testid="overtid-mangler-art">
+            {t("timer.overtidForslag.manglerArt", { nivaa: overtidManglerNivaa })}
           </p>
         )}
         {/* V21: overtidsforslag — én linje, én knapp. Vises kun når raden (eller

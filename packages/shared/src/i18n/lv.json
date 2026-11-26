@@ -672,6 +672,7 @@
   "timer.overtidForslag.helKnapp": "Ierakstīt kā virsstundas",
   "timer.overtidForslag.delesVedLagring": "{{over}} h pārsniedz dienas normu — saglabāts kā {{normalNavn}} {{nFra}}–{{nTil}} un {{otNavn}} {{oFra}}–{{oTil}}.",
   "timer.overtidForslag.helRadVedLagring": "{{over}} h pārsniedz dienas normu — saglabāts kā {{otNavn}}.",
+  "timer.overtidForslag.manglerArt": "Virs dienas normas, bet uzņēmumam nav aktīva virsstundu darba samaksas veida ar līmeni {{nivaa}} % — saglabāts kā pamatlaiks. Uzņēmuma administrators nosaka līmeni sadaļā Uzņēmums → Darba laika uzskaites tabulas → Algu veidi.",
   "timer.matpause.annenRadBaerer": "Citā rindā ir dienas pusdienu pārtraukums",
   "timer.matpause.flyttet": "Pārtraukums tiek ieturēts no {{tidsrom}}",
   "timer.matpause.fjernTittel": "Pārtraukums netiek ieturēts",

@@ -672,6 +672,7 @@
   "timer.overtidForslag.helKnapp": "Įrašyti kaip viršvalandžius",
   "timer.overtidForslag.delesVedLagring": "{{over}} val. viršija dienos normą – išsaugota kaip {{normalNavn}} {{nFra}}–{{nTil}} ir {{otNavn}} {{oFra}}–{{oTil}}.",
   "timer.overtidForslag.helRadVedLagring": "{{over}} val. viršija dienos normą – išsaugota kaip {{otNavn}}.",
+  "timer.overtidForslag.manglerArt": "Virš dienos normos, tačiau įmonė neturi aktyvaus viršvalandžių darbo užmokesčio tipo, kurio lygis yra {{nivaa}} % – išsaugomas kaip įprastas laikas. Įmonės administratorius nustato lygį skiltyje Įmonė → Darbo laiko apskaitos žiniaraščiai → Darbo užmokesčio rūšys.",
   "timer.matpause.annenRadBaerer": "Kitoje eilutėje yra dienos pietų pertrauka",
   "timer.matpause.flyttet": "Pertrauka išskaičiuojama iš {{tidsrom}}",
   "timer.matpause.fjernTittel": "Pertrauka neatskaičiuota",

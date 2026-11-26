@@ -672,6 +672,7 @@
   "timer.overtidForslag.helKnapp": "Записати як понаднормову роботу",
   "timer.overtidForslag.delesVedLagring": "На {{over}} год понад добову норму — збережено як {{normalNavn}} {{nFra}}–{{nTil}} і {{otNavn}} {{oFra}}–{{oTil}}.",
   "timer.overtidForslag.helRadVedLagring": "На {{over}} год понад добову норму — збережено як {{otNavn}}.",
+  "timer.overtidForslag.manglerArt": "Понад денну норму, але компанія не має активного виду понаднормової оплати праці з рівнем {{nivaa}} % — зберігається як звичайний час. Адміністратор компанії встановлює рівень у розділі Компанія → Табель → Типи заробітної плати.",
   "timer.matpause.annenRadBaerer": "Інший ряд несе обідню перерву протягом дня",
   "timer.matpause.flyttet": "Перерва вираховується з {{tidsrom}}",
   "timer.matpause.fjernTittel": "Перерва не вираховується",

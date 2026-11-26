@@ -672,6 +672,7 @@
   "timer.overtidForslag.helKnapp": "Kirjaa ylityöksi",
   "timer.overtidForslag.delesVedLagring": "{{over}} h yli päivittäisen normin – tallennettuna {{normalNavn}} {{nFra}}–{{nTil}} ja {{otNavn}} {{oFra}}–{{oTil}}.",
   "timer.overtidForslag.helRadVedLagring": "{{over}} h yli päivittäisen normin – tallennettu nimellä {{otNavn}}.",
+  "timer.overtidForslag.manglerArt": "Yli päivänormin, mutta yrityksellä ei ole aktiivista ylityöpalkkatyyppiä tasolla {{nivaa}} % — varsinaiseksi työajaksi tallennettuna. Yrityksen ylläpitäjä määrittää tason kohdassa Yritys → Työaikalomakkeet → Palkkatyypit.",
   "timer.matpause.annenRadBaerer": "Toinen rivi kantaa päivän lounastauon",
   "timer.matpause.flyttet": "Tauko vähennetään {{tidsrom}}",
   "timer.matpause.fjernTittel": "Ei taukoa vähennetty",

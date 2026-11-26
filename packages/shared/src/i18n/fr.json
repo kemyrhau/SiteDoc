@@ -672,6 +672,7 @@
   "timer.overtidForslag.helKnapp": "Enregistrer comme heures supplémentaires",
   "timer.overtidForslag.delesVedLagring": "{{over}} h au-dessus de la norme quotidienne — enregistrés sous {{normalNavn}} {{nFra}}–{{nTil}} et {{otNavn}} {{oFra}}–{{oTil}}.",
   "timer.overtidForslag.helRadVedLagring": "{{over}} h au-dessus de la norme quotidienne – enregistré sous {{otNavn}}.",
+  "timer.overtidForslag.manglerArt": "Au-dessus de la norme quotidienne, mais l'entreprise n'a pas de type de salaire d'heures supplémentaires actives avec un niveau {{nivaa}} % - enregistré comme temps normal. Un administrateur d'entreprise définit le niveau sous Entreprise → Feuilles de temps → Types de salaire.",
   "timer.matpause.annenRadBaerer": "Une autre rangée porte la pause déjeuner de la journée",
   "timer.matpause.flyttet": "La pause est déduite de {{tidsrom}}",
   "timer.matpause.fjernTittel": "Aucune pause déduite",

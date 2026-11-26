@@ -672,6 +672,7 @@
   "timer.overtidForslag.helKnapp": "Rekord som övertid",
   "timer.overtidForslag.delesVedLagring": "{{over}} h över den dagliga normen — sparad som {{normalNavn}} {{nFra}}–{{nTil}} och {{otNavn}} {{oFra}}–{{oTil}}.",
   "timer.overtidForslag.helRadVedLagring": "{{over}} h över den dagliga normen — sparad som {{otNavn}}.",
+  "timer.overtidForslag.manglerArt": "Över dagsnormen, men företaget har ingen aktiv övertidslöneslag med nivå {{nivaa}} % — sparad som ordinarie tid. En företagsadministratör ställer in nivån under Företag → Tidrapporter → Lönearter.",
   "timer.matpause.annenRadBaerer": "En annan rad bär lunchrasten för dagen",
   "timer.matpause.flyttet": "Pausen dras av från {{tidsrom}}",
   "timer.matpause.fjernTittel": "Ingen paus dras av",

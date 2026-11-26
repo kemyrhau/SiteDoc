@@ -4,7 +4,7 @@ import { prisma } from "@sitedoc/db";
 import { prismaTimer } from "@sitedoc/db-timer";
 import { prismaMaskin } from "@sitedoc/db-maskin";
 import { prismaVarelager } from "@sitedoc/db-varelager";
-import { foreslaOvertidSplitt } from "@sitedoc/shared";
+import { foreslaOvertidSplitt, vurderOvertidSplitt } from "@sitedoc/shared";
 import { dagsseddelRouter } from "./dagsseddel";
 
 /**
@@ -18,6 +18,9 @@ import { dagsseddelRouter } from "./dagsseddel";
  * RØDE tester er poenget: de beskriver det Kenneth forventer («ting blir ikke borte», «overtid
  * regnes ut eller det sies hvorfor») og feiler på dagens kode. De skal ikke rettes i denne
  * leveransen. Navnet starter med «RØD i dag:» når testen er ment å feile på f7a277d3.
+ *
+ * Runde 1 timer (R1, R3 — ordre 2026-11-26): overtid-testene og «ny jobb»-testene er skrevet om til
+ * det som nå er rettet. «RØD i dag:»-tester som står igjen, gjelder R4–R6 (ikke i runde 1).
  *
  * Faste id-er med prefiks 0a11fe00, ryddes i afterAll.
  */
@@ -131,38 +134,40 @@ afterAll(ryddOpp);
 // Spørsmål 5 — stille utfall: overtid
 // ---------------------------------------------------------------------------------------------
 describe("M1 vei «Legg til timer-rad» / «Lagre jobb» — overtid når firmaets overtidsarter mangler overtidsnivaa", () => {
-  it("regelen klienten deler med (`foreslaOvertidSplitt`) gir INGEN forslag og ingen grunn — 15–18 etter 7,5 t", async () => {
+  const DAG_15_18 = [
+    { id: "a", fraTid: "07:00", tilTid: "15:00", pauseMin: 30, erReise: false, overtidsnivaa: null },
+    { id: "b", fraTid: "15:00", tilTid: "18:00", pauseMin: 0, erReise: false, overtidsnivaa: null },
+  ];
+  const pauseFra = { pauseFra: (r: { id: string }) => (r.id === "a" ? "11:00" : "00:00") };
+
+  it("`foreslaOvertidSplitt` (mobil) er uendret: tom liste; `vurderOvertidSplitt` sier hvorfor (R3)", async () => {
     const lonnsarter = await prismaTimer.lonnsart.findMany({ where: { organizationId: ORG } });
-    const forslag = foreslaOvertidSplitt(
-      [
-        { id: "a", fraTid: "07:00", tilTid: "15:00", pauseMin: 30, erReise: false, overtidsnivaa: null },
-        { id: "b", fraTid: "15:00", tilTid: "18:00", pauseMin: 0, erReise: false, overtidsnivaa: null },
-      ],
-      7.5,
-      lonnsarter,
-      { pauseFra: (r) => (r.id === "a" ? "11:00" : "00:00") },
-    );
-    // Målt: tom liste. Returtypen har ikke plass til «overtid, men ingen art» — det er det stille utfallet.
-    expect(forslag).toEqual([]);
+    expect(foreslaOvertidSplitt(DAG_15_18, 7.5, lonnsarter, pauseFra)).toEqual([]);
+    // R3: over normen, ingen aktiv art med nivå 50 — sies fra, med nivå og rad.
+    expect(vurderOvertidSplitt(DAG_15_18, 7.5, lonnsarter, pauseFra)).toEqual({
+      forslag: [],
+      manglerArt: { nivaa: 50, radIder: ["b"] },
+    });
   });
 
-  it("RØD i dag: «Legg til» 15–18 lagres som Timelønn, og serveren sier ingenting om at overtiden falt bort", async () => {
+  // R3 for «Legg til» er klientens (TimerRadDialog regner med `vurderOvertidSplitt` og viser
+  // meldingen — web-test i jobb-vinduer.test.tsx). Serveren lagrer raden som før.
+  it("R3 «Legg til» 15–18: raden lagres som Timelønn, og regelen dialogen viser fra, sier at overtidsart mangler", async () => {
     const { sid, felles } = await dagMedJobb1();
     const k2 = randomUUID();
-    // Klienten (TimerRadDialog) sender én rad når forslaget er tomt — det gjør vi også.
-    const svar = (await dag().tilfoyTimerRad({ ...felles, kortId: k2, lonnsartId: TL, timer: 3, fraTid: "15:00", tilTid: "18:00", pauseMin: 0 })) as Record<string, unknown>;
+    await dag().tilfoyTimerRad({ ...felles, kortId: k2, lonnsartId: TL, timer: 3, fraTid: "15:00", tilTid: "18:00", pauseMin: 0 });
     const r = await rader(sid);
     expect(r.map((x) => [x.fraTid, x.tilTid, Number(x.timer), x.lonnsartId])).toEqual([
       ["07:00", "15:00", 7.5, TL],
       ["15:00", "18:00", 3, TL],
     ]);
-    // Forventet (Kenneth): overtid regnes ut — eller det sies hvorfor ikke. Ingen av delene skjer.
-    const overtidFoert = r.some((x) => x.lonnsartId === OT50 || x.lonnsartId === OT100);
-    const sagtFra = Object.keys(svar).some((k) => /overtid|advarsel|varsel/i.test(k));
-    expect(overtidFoert || sagtFra).toBe(true);
+    const lonnsarter = await prismaTimer.lonnsart.findMany({ where: { organizationId: ORG } });
+    const dagensRader = r.map((x, i) => ({ id: x.id, fraTid: x.fraTid, tilTid: x.tilTid, pauseMin: x.pauseMin, erReise: false, overtidsnivaa: null, i }));
+    const v = vurderOvertidSplitt(dagensRader, 7.5, lonnsarter, { pauseFra: (x) => (x.id === r[0]!.id ? "11:00" : "00:00") });
+    expect(v.manglerArt).toEqual({ nivaa: 50, radIder: [r[1]!.id] });
   });
 
-  it("RØD i dag: «Lagre jobb» (lagreJobbTid) 15–18 regnes som én normallinje, `overtidsnivaa: null`, uten grunn", async () => {
+  it("R3 «Lagre jobb» (lagreJobbTid) 15–18: én normallinje, og svaret sier `overtidManglerArt: 50`", async () => {
     const { sid, felles } = await dagMedJobb1();
     const k2 = randomUUID();
     const ny = (await dag().tilfoyTimerRad({ ...felles, kortId: k2, lonnsartId: TL, timer: 1, fraTid: "15:00", tilTid: "16:00", pauseMin: 0 })) as { id: string };
@@ -171,8 +176,7 @@ describe("M1 vei «Legg til timer-rad» / «Lagre jobb» — overtid når firmae
     expect(svar.rad2Id).toBeNull();
     const r = await rader(sid);
     expect(r.filter((x) => x.kortId === k2).map((x) => [x.fraTid, x.tilTid, Number(x.timer), x.lonnsartId])).toEqual([["15:00", "18:00", 3, TL]]);
-    const sagtFra = Object.keys(svar).some((k) => /mangler|advarsel|varsel|grunn/i.test(k));
-    expect(svar.overtidsnivaa !== null || sagtFra).toBe(true);
+    expect(svar.overtidManglerArt).toBe(50);
   });
 
   it("kontroll: med `overtidsnivaa = 50` på «Overtid 50%» deler samme lagring 15–18 i overtid (grønn)", async () => {
@@ -188,6 +192,79 @@ describe("M1 vei «Legg til timer-rad» / «Lagre jobb» — overtid når firmae
     } finally {
       await prismaTimer.lonnsart.update({ where: { id: OT50 }, data: { overtidsnivaa: null } });
     }
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
+// R1 (runde 1 timer) — ny jobb i kortet er ETT kall: `tilfoyTimerRad` med `somJobb`
+// ---------------------------------------------------------------------------------------------
+describe("R1 — ny jobb som ett kall (`tilfoyTimerRad` + `somJobb`)", () => {
+  it("15–18 etter 7,5 t med «Overtid 50%» nivå 50: ett kall gir én overtidslinje (hel overtid)", async () => {
+    await prismaTimer.lonnsart.update({ where: { id: OT50 }, data: { overtidsnivaa: 50 } });
+    try {
+      const { sid, felles } = await dagMedJobb1();
+      const k2 = randomUUID();
+      // Sendt som Timelønn: serveren ser at hele jobben er over normen og lagrer overtidsarten.
+      const svar = (await dag().tilfoyTimerRad({ ...felles, kortId: k2, lonnsartId: TL, timer: 3, fraTid: "15:00", tilTid: "18:00", pauseMin: 0, somJobb: true })) as Record<string, unknown>;
+      expect(svar.helOvertid).toBe(true);
+      const r = await rader(sid);
+      expect(r.filter((x) => x.kortId === k2).map((x) => [x.fraTid, x.tilTid, Number(x.timer), x.lonnsartId])).toEqual([["15:00", "18:00", 3, OT50]]);
+      // Sendt som overtidsarten (det klienten gjør, `art1Lagres`): samme rad lagres.
+      const k3 = randomUUID();
+      await dag().tilfoyTimerRad({ ...felles, kortId: k3, lonnsartId: OT50, timer: 1, fraTid: "18:00", tilTid: "19:00", pauseMin: 0, somJobb: true });
+      expect((await rader(sid)).filter((x) => x.kortId === k3).map((x) => [x.fraTid, x.tilTid, x.lonnsartId])).toEqual([["18:00", "19:00", OT50]]);
+    } finally {
+      await prismaTimer.lonnsart.update({ where: { id: OT50 }, data: { overtidsnivaa: null } });
+    }
+  });
+
+  it("14–16 når 7,5 t passeres kl. 15 (jobb 1 07–14): ett kall gir to linjer, normal + overtid", async () => {
+    await prismaTimer.lonnsart.update({ where: { id: OT50 }, data: { overtidsnivaa: 50 } });
+    try {
+      const sid = randomUUID();
+      await prismaTimer.dailySheet.create({
+        data: { id: sid, clientUuid: sid, organizationId: ORG, userId: USER, registrertAvUserId: USER, aktivitetId: AKT, dato: new Date(nyDato()), status: "draft" },
+      });
+      const felles = { sheetId: sid, projectId: P1, aktivitetId: AKT, externalCostObjectId: null, vehicleId: null, beskrivelse: "UNN" };
+      await dag().tilfoyTimerRad({ ...felles, lonnsartId: TL, timer: 6.5, fraTid: "07:00", tilTid: "14:00", pauseMin: 30, kortId: randomUUID() });
+      const k2 = randomUUID();
+      const svar = (await dag().tilfoyTimerRad({ ...felles, kortId: k2, lonnsartId: TL, timer: 2, fraTid: "14:00", tilTid: "16:00", pauseMin: 0, somJobb: true })) as Record<string, unknown>;
+      expect(svar.rad2Id).toBeTruthy();
+      expect(svar.overtidsnivaa).toBe(50);
+      const r = await rader(sid);
+      expect(r.filter((x) => x.kortId === k2).map((x) => [x.fraTid, x.tilTid, Number(x.timer), x.lonnsartId])).toEqual([
+        ["14:00", "15:00", 1, TL],
+        ["15:00", "16:00", 1, OT50],
+      ]);
+    } finally {
+      await prismaTimer.lonnsart.update({ where: { id: OT50 }, data: { overtidsnivaa: null } });
+    }
+  });
+
+  it("uten overtidsart med nivå (prod-tilstanden): én normallinje, svaret sier `overtidManglerArt: 50`", async () => {
+    const { sid, felles } = await dagMedJobb1();
+    const k2 = randomUUID();
+    const svar = (await dag().tilfoyTimerRad({ ...felles, kortId: k2, lonnsartId: TL, timer: 3, fraTid: "15:00", tilTid: "18:00", pauseMin: 0, somJobb: true })) as Record<string, unknown>;
+    expect(svar.overtidManglerArt).toBe(50);
+    const r = await rader(sid);
+    expect(r.filter((x) => x.kortId === k2).map((x) => [x.fraTid, x.tilTid, Number(x.timer), x.lonnsartId])).toEqual([["15:00", "18:00", 3, TL]]);
+  });
+
+  it("overlapp med jobb 1: kallet avvises og INGENTING er lagret (alt eller ingenting)", async () => {
+    const { sid, felles } = await dagMedJobb1();
+    const k2 = randomUUID();
+    await expect(
+      dag().tilfoyTimerRad({ ...felles, kortId: k2, lonnsartId: TL, timer: 3, fraTid: "14:00", tilTid: "17:00", pauseMin: 0, somJobb: true }),
+    ).rejects.toBeTruthy();
+    expect((await rader(sid)).filter((x) => x.kortId === k2)).toHaveLength(0);
+  });
+
+  it("kortet har alt linjer: `somJobb` avvises (ny jobb er bare for et tomt kort)", async () => {
+    const { sid, k1, felles } = await dagMedJobb1();
+    await expect(
+      dag().tilfoyTimerRad({ ...felles, kortId: k1, lonnsartId: TL, timer: 1, fraTid: "15:00", tilTid: "16:00", pauseMin: 0, somJobb: true }),
+    ).rejects.toBeTruthy();
+    expect(await rader(sid)).toHaveLength(1);
   });
 });
 

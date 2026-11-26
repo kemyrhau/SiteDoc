@@ -672,6 +672,7 @@
   "timer.overtidForslag.helKnapp": "Als Überstunden erfassen",
   "timer.overtidForslag.delesVedLagring": "{{over}} h über der Tagesnorm – gespeichert als {{normalNavn}} {{nFra}}–{{nTil}} und {{otNavn}} {{oFra}}–{{oTil}}.",
   "timer.overtidForslag.helRadVedLagring": "{{over}} h über der Tagesnorm – gespeichert als {{otNavn}}.",
+  "timer.overtidForslag.manglerArt": "Über der Tagesnorm, aber das Unternehmen hat keine aktive Überstundenlohnart mit der Stufe {{nivaa}} % – als reguläre Zeit gespeichert. Ein Unternehmensadministrator legt die Ebene unter Unternehmen → Stundenzettel → Lohnarten fest.",
   "timer.matpause.annenRadBaerer": "Eine weitere Reihe trägt die Mittagspause des Tages",
   "timer.matpause.flyttet": "Die Pause wird von {{tidsrom}} abgezogen",
   "timer.matpause.fjernTittel": "Keine Pause abgezogen",

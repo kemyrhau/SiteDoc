@@ -672,6 +672,7 @@
   "timer.overtidForslag.helKnapp": "Записать как сверхурочную работу",
   "timer.overtidForslag.delesVedLagring": "{{over}} ч сверх дневной нормы — сохраняется как {{normalNavn}} {{nFra}}–{{nTil}} и {{otNavn}} {{oFra}}–{{oTil}}.",
   "timer.overtidForslag.helRadVedLagring": "На {{over}} ч сверх дневной нормы — сохранено как {{otNavn}}.",
+  "timer.overtidForslag.manglerArt": "Сверх дневной нормы, но в компании нет активного вида оплаты за сверхурочную работу с уровнем {{nivaa}} % — сохраняется как основное время. Администратор компании устанавливает уровень в разделе Компания → Табели учета рабочего времени → Виды оплаты.",
   "timer.matpause.annenRadBaerer": "В другом ряду указан обеденный перерыв на день.",
   "timer.matpause.flyttet": "Перерыв вычитается из {{tidsrom}}",
   "timer.matpause.fjernTittel": "Перерыв не вычитается",

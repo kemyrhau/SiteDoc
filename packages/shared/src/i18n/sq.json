@@ -672,6 +672,7 @@
   "timer.overtidForslag.helKnapp": "Regjistro si shtesë",
   "timer.overtidForslag.delesVedLagring": "{{over}} orë mbi normën ditore — e ruajtur si {{normalNavn}} {{nFra}}–{{nTil}} dhe {{otNavn}} {{oFra}}–{{oTil}}.",
   "timer.overtidForslag.helRadVedLagring": "{{over}} orë mbi normën ditore — e ruajtur si {{otNavn}}.",
+  "timer.overtidForslag.manglerArt": "Mbi normën ditore, por kompania nuk ka lloj pagash aktive jashtë orarit me nivelin {{nivaa}} % — e ruajtur si kohë e rregullt. Një administrator i kompanisë cakton nivelin nën Kompania → Fletë kohore → Llojet e pagave.",
   "timer.matpause.annenRadBaerer": "Një rresht tjetër mbart pushimin e drekës për ditën",
   "timer.matpause.flyttet": "Pushimi zbritet nga {{tidsrom}}",
   "timer.matpause.fjernTittel": "Nuk zbritet asnjë pushim",

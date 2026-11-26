@@ -672,6 +672,7 @@
   "timer.overtidForslag.helKnapp": "Záznam jako přesčas",
   "timer.overtidForslag.delesVedLagring": "{{over}} h nad denní normou – uloženo jako {{normalNavn}} {{nFra}}–{{nTil}} a {{otNavn}} {{oFra}}–{{oTil}}.",
   "timer.overtidForslag.helRadVedLagring": "{{over}} h nad denní normu – uloženo jako {{otNavn}}.",
+  "timer.overtidForslag.manglerArt": "Nad denní normou, ale společnost nemá aktivní typ přesčasové mzdy s úrovní {{nivaa}} % — uložený jako běžná doba. Administrátor společnosti nastavuje úroveň v části Firma → Časové rozvrhy → Mzdové druhy.",
   "timer.matpause.annenRadBaerer": "Další řada nese polední přestávku na daný den",
   "timer.matpause.flyttet": "Přestávka se odečítá z {{tidsrom}}",
   "timer.matpause.fjernTittel": "Žádná přestávka se neodečítá",

@@ -3,6 +3,9 @@
  * M1 TIMERAD-LIVSLØP — MÅLING, INGEN RETTING (ordre 2026-11-26, rapport
  * `docs/claude/maaling-timerad-livslop.md`). Klientdelen av livsløpet i `JobbSkjema`.
  *
+ * Runde 1 timer (R1, R3) gjorde de røde i «ny jobb i kortet» grønne; testene er skrevet om til
+ * ett-kalls-kontrakten (`tilfoyTimerRad` med `somJobb`). R2-testen står rød (`it.fails`).
+ *
  * Samme trpc-proxy-mock som O2/gate 129, utvidet med (a) logg av `invalidate`-kall og (b) en
  * mutasjon som kan holdes åpen («lagrer»). Navn som starter med «RØD i dag:» feiler på f7a277d3
  * med vilje — de beskriver det Kenneth forventer og skal ikke rettes i denne leveransen.
@@ -66,10 +69,13 @@ const LAGRE = "timer.dagsseddel.lagreJobbTid";
 const TILFOY = "timer.dagsseddel.tilfoyTimerRad";
 const INVALIDATE = "timer.dagsseddel.hentMedId.invalidate";
 
-function rendre(a: { linjer?: SkjemaLinje[]; ny?: { fraTid: string; tilTid: string; pauseMin: number } }) {
+type AnnenRad = { id: string; fraTid: string; tilTid: string; pauseMin: number; erReise: boolean; overtidsnivaa: number | null };
+const FORMIDDAG: AnnenRad[] = [{ id: "x0", fraTid: "07:00", tilTid: "15:00", pauseMin: 30, erReise: false, overtidsnivaa: null }];
+
+function rendre(a: { linjer?: SkjemaLinje[]; ny?: { fraTid: string; tilTid: string; pauseMin: number }; andre?: AnnenRad[] }) {
   h.kall = [];
   const onUlagret = vi.fn();
-  render(
+  const { unmount } = render(
     <JobbSkjema
       sheetId="s1"
       kortId="k2"
@@ -78,7 +84,7 @@ function rendre(a: { linjer?: SkjemaLinje[]; ny?: { fraTid: string; tilTid: stri
       kilde={null}
       lonnsarter={[TL]}
       velgbareLonnsarter={[TL]}
-      andreRader={[{ id: "x0", fraTid: "07:00", tilTid: "15:00", pauseMin: 30, erReise: false, overtidsnivaa: null }]}
+      andreRader={a.andre ?? FORMIDDAG}
       norm={7.5}
       pauseEtterTimer={4}
       fastPauseFra={null}
@@ -91,7 +97,7 @@ function rendre(a: { linjer?: SkjemaLinje[]; ny?: { fraTid: string; tilTid: stri
       tidsrundingMinutter={null}
     />,
   );
-  return { onUlagret };
+  return { onUlagret, unmount };
 }
 const vent = () => new Promise((r) => setTimeout(r, 0));
 const kallTil = (sti: string) => h.kall.filter((k) => k.sti === sti);
@@ -104,39 +110,99 @@ afterEach(() => {
   h.hold = {};
 });
 
-describe("M1 vei «ny jobb i kortet» (JobbSkjema: tilfoyTimerRad + lagreJobbTid)", () => {
-  it("RØD i dag: kall 1 lagrer raden, kall 2 feiler — skjermen hentes ikke på nytt, så kortet viser «—» og gammel sum til F5", async () => {
-    h.feilMut[LAGRE] = "Jobben har endret seg — last siden på nytt.";
+describe("M1 vei «ny jobb i kortet» — R1 (runde 1 timer): ett kall, skjermen hentes alltid", () => {
+  it("R1: kallet feiler — ingenting lagret, feilen vises, og skjermen hentes likevel på nytt", async () => {
+    h.feilMut[TILFOY] = "Jobben har endret seg — last siden på nytt.";
     rendre({ ny: { fraTid: "15:00", tilTid: "", pauseMin: 0 } });
     skriv(tilFelt(), "18:00");
     fireEvent.blur(tilFelt());
     await act(vent);
     await act(vent);
-    // Kall 1 gikk: raden 15–18 står på serveren.
+    // Ny jobb = ETT kall; serveren lager raden og deler linjene i samme transaksjon.
     expect(kallTil(TILFOY)).toHaveLength(1);
-    expect(kallTil(TILFOY)[0]?.input).toMatchObject({ fraTid: "15:00", tilTid: "18:00", kortId: "k2" });
-    // Kall 2 feilet og meldes i skjemaet …
-    expect(kallTil(LAGRE)).toHaveLength(1);
+    expect(kallTil(TILFOY)[0]?.input).toMatchObject({ fraTid: "15:00", tilTid: "18:00", kortId: "k2", somJobb: true });
+    expect(kallTil(LAGRE)).toHaveLength(0);
     expect(screen.getByText(/Jobben har endret seg/)).toBeTruthy();
-    // … men `ferdig` (JobbSkjema.tsx:316–327) invaliderer bare ved suksess. Forventet: det som er
-    // lagret, vises. Målt: ingen invalidate — hode og sum står på det gamle (`hentMedId`).
+    // Før R1: invalidate bare ved suksess (målt rødt 26.11). Nå i `finally`.
     expect(kallTil(INVALIDATE)).toHaveLength(1);
   });
 
-  it("kontroll: begge kall lykkes — skjermen hentes på nytt (grønn)", async () => {
+  it("kontroll: kallet lykkes — ett kall og skjermen hentes på nytt", async () => {
     rendre({ ny: { fraTid: "15:00", tilTid: "", pauseMin: 0 } });
     skriv(tilFelt(), "18:00");
     fireEvent.blur(tilFelt());
     await act(vent);
     await act(vent);
     expect(kallTil(TILFOY)).toHaveLength(1);
-    expect(kallTil(LAGRE)).toHaveLength(1);
+    expect(kallTil(LAGRE)).toHaveLength(0);
     expect(kallTil(INVALIDATE)).toHaveLength(1);
   });
 });
 
+describe("R1 — avmontering låser ikke opp «Send dagen»", () => {
+  it("lagring feilet, skjemaet lukkes (annet kort åpnet): kortet står fortsatt som ulagret", async () => {
+    h.feilMut[TILFOY] = "nettfeil";
+    const { onUlagret, unmount } = rendre({ ny: { fraTid: "15:00", tilTid: "", pauseMin: 0 } });
+    skriv(tilFelt(), "18:00");
+    fireEvent.blur(tilFelt());
+    await act(vent);
+    await act(vent);
+    expect(onUlagret.mock.calls.at(-1)).toEqual(["k2", true]);
+    unmount();
+    // Før R1 meldte avmonteringen `false` — «Send dagen» låst opp med ulagret jobb.
+    expect(onUlagret.mock.calls.at(-1)).toEqual(["k2", true]);
+  });
+
+  it("skjemaet lukkes MENS lagringen pågår: lykkes den, meldes kortet lagret etterpå", async () => {
+    let slipp: () => void = () => {};
+    h.hold[TILFOY] = new Promise<void>((r) => {
+      slipp = r;
+    });
+    const { onUlagret, unmount } = rendre({ ny: { fraTid: "15:00", tilTid: "", pauseMin: 0 } });
+    skriv(tilFelt(), "18:00");
+    fireEvent.blur(tilFelt());
+    await act(vent);
+    expect(onUlagret.mock.calls.at(-1)).toEqual(["k2", true]);
+    unmount();
+    expect(onUlagret.mock.calls.at(-1)).toEqual(["k2", true]);
+    await act(async () => {
+      slipp();
+      await vent();
+    });
+    await act(vent);
+    expect(onUlagret.mock.calls.at(-1)).toEqual(["k2", false]);
+    expect(kallTil(INVALIDATE)).toHaveLength(1);
+  });
+
+  it("ny jobb uten Til (ingenting å lagre): avmontering frigjør kortet som før", () => {
+    const { onUlagret, unmount } = rendre({ ny: { fraTid: "15:00", tilTid: "", pauseMin: 0 } });
+    unmount();
+    expect(onUlagret.mock.calls.at(-1)).toEqual(["k2", false]);
+  });
+});
+
+describe("R3 — overtid sier fra (JobbSkjema «Lagre jobb»)", () => {
+  it("over normen og firmaet har ingen overtidsart med nivå: skjemaet sier det, med nivået", async () => {
+    rendre({ ny: { fraTid: "15:00", tilTid: "", pauseMin: 0 } });
+    skriv(tilFelt(), "18:00");
+    await act(vent);
+    const melding = screen.getByTestId("overtid-mangler-art");
+    expect(melding.textContent).toContain("timer.overtidForslag.manglerArt");
+    expect(melding.textContent).toContain('"nivaa":50');
+  });
+
+  it("under normen: ingen melding", async () => {
+    rendre({ ny: { fraTid: "15:00", tilTid: "", pauseMin: 0 }, andre: [] });
+    skriv(tilFelt(), "18:00");
+    await act(vent);
+    expect(screen.queryByTestId("overtid-mangler-art")).toBeNull();
+  });
+});
+
 describe("M1 vei «endre tid i lagret jobb» (JobbSkjema: lagreJobbTid ved blur)", () => {
-  it("RØD i dag: ny Til skrevet mens forrige lagring pågår blir verken sendt eller merket ulagret", async () => {
+  // R2 er ikke i runde 1 (ordre 2026-11-26): fortsatt rød — `it.fails` holder `pnpm test` grønn
+  // og slår ut den dagen R2 rettes (da skal `.fails` fjernes).
+  it.fails("RØD (R2, ikke i runde 1): ny Til skrevet mens forrige lagring pågår blir verken sendt eller merket ulagret", async () => {
     let slipp: () => void = () => {};
     h.hold[LAGRE] = new Promise<void>((r) => {
       slipp = r;

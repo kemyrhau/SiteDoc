@@ -672,6 +672,7 @@
   "timer.overtidForslag.helKnapp": "Înregistrați ca ore suplimentare",
   "timer.overtidForslag.delesVedLagring": "{{over}} h peste norma zilnică — salvate ca {{normalNavn}} {{nFra}}–{{nTil}} și {{otNavn}} {{oFra}}–{{oTil}}.",
   "timer.overtidForslag.helRadVedLagring": "{{over}} h peste norma zilnică — salvată ca {{otNavn}}.",
+  "timer.overtidForslag.manglerArt": "Peste norma zilnică, dar compania nu are un tip de salariu activ pentru ore suplimentare cu nivelul {{nivaa}} % — economisit ca timp normal. Un administrator de companie stabilește nivelul în Companie → Fișe de pontaj → Tipuri de salariu.",
   "timer.matpause.annenRadBaerer": "Un alt rând poartă pauza de prânz pentru ziua respectivă",
   "timer.matpause.flyttet": "Pauza se scade din {{tidsrom}}",
   "timer.matpause.fjernTittel": "Nicio pauză dedusă",

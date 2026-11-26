@@ -672,6 +672,7 @@
   "timer.overtidForslag.helKnapp": "Record as overtime",
   "timer.overtidForslag.delesVedLagring": "{{over}} h over the daily norm — saved as {{normalNavn}} {{nFra}}–{{nTil}} and {{otNavn}} {{oFra}}–{{oTil}}.",
   "timer.overtidForslag.helRadVedLagring": "{{over}} h over the daily norm — saved as {{otNavn}}.",
+  "timer.overtidForslag.manglerArt": "Over the daily norm, but the company has no active overtime wage type with level {{nivaa}} % — saved as regular time. A company administrator sets the level under Company → Timesheets → Wage types.",
   "timer.matpause.annenRadBaerer": "Another row carries the lunch break for the day",
   "timer.matpause.flyttet": "The break is deducted from {{tidsrom}}",
   "timer.matpause.fjernTittel": "No break deducted",

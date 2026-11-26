@@ -155,20 +155,23 @@ describe("gate 129 V2 — regnet linjedeling ≠ lagrede linjer", () => {
     expect(sisteUlagret(onUlagret)).toBe(false);
   });
 
-  it("ny jobb: kall 2 feiler → «Prøv igjen» tar bare kall 2 med rad-id-en fra kall 1", async () => {
+  // R1 (runde 1 timer): ny jobb er ETT kall (`tilfoyTimerRad` med `somJobb`) — feiler det, er
+  // ingenting lagret, og «Prøv igjen» sender hele kallet på nytt. Før: to kall, der kall 1 sto.
+  it("ny jobb: kallet feiler → «Prøv igjen» sender samme ene kall på nytt", async () => {
     rendre({ ny: { fraTid: "15:00", tilTid: "", pauseMin: 0 }, andre: [{ fraTid: "07:00", tilTid: "15:00", pauseMin: 30 }] });
-    h.feilMut[LAGRE] = "nettfeil";
+    h.feilMut[TILFOY] = "nettfeil";
     const til = screen.getByLabelText("timer.jobbSkjema.til");
     fireEvent.change(til, { target: { value: "16:00" } });
     fireEvent.blur(til);
     await vent();
-    expect(h.kall.map((k) => k.sti)).toEqual([TILFOY, LAGRE]);
+    expect(h.kall.map((k) => k.sti)).toEqual([TILFOY]);
     expect(screen.getByTestId("ikke-lagret")).toBeTruthy();
 
-    delete h.feilMut[LAGRE];
+    delete h.feilMut[TILFOY];
     fireEvent.click(screen.getByText("timer.jobbSkjema.provIgjen"));
     await vent();
-    expect(h.kall.map((k) => k.sti)).toEqual([TILFOY, LAGRE, LAGRE]);
-    expect(h.kall[2]?.input.linjer).toEqual([{ radId: "ny", lonnsartId: "ot" }]);
+    expect(h.kall.map((k) => k.sti)).toEqual([TILFOY, TILFOY]);
+    // Hele jobben ligger over normen: raden får overtidsarten med en gang.
+    expect(h.kall[1]?.input).toMatchObject({ somJobb: true, lonnsartId: "ot", fraTid: "15:00", tilTid: "16:00" });
   });
 });

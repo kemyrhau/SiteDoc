@@ -149,6 +149,8 @@ function rendre({
   o5 = false,
   /** O21: firmaets kjøretid Tromsø → b1 mangler i tabellen. */
   utenKjoretid = false,
+  /** R7 (runde 1 timer): firmaets visningsmodus. */
+  modus = "prosjektkort",
 } = {}) {
   h.kall = [];
   h.utelat.clear();
@@ -190,7 +192,7 @@ function rendre({
     ],
     "eksternKostObjekt.list": [{ id: "eco1", proAdmId: "END-001", kortNavn: "Endring 1" }],
     "organisasjon.hentArbeidstidDefaults": {
-      timerRegistreringsmodus: "prosjektkort",
+      timerRegistreringsmodus: modus,
       reiseLonnsartId: "lr",
       reiseGrenser: [],
       ...regel,
@@ -1176,5 +1178,20 @@ describe("O23 (vedtak-timer-web § Reisevinduet pkt 29) — Fra byggeplass: Slut
     expect(start(d).value).toBe("17:30");
     expect(midnatt(d)).toBeNull();
     expect(d.textContent).toContain("timer.feil.sluttForStart");
+  });
+});
+
+// R7 (runde 1 timer, Kenneth 2026-11-26 «reisefunksjonen som var ganske bra tidligere. fungerer ikke
+// lenger som forventet»): dagskort-modus hadde ingen «+ Reise» (kun prosjektkortet, 07e15472), og O25
+// tok bort reise via lønnsart. Nå: samme reisevindu (`ReiseKort`) fra underprosjekt-bøtta.
+describe("R7 — «+ Reise» i dagskort-modus åpner samme reisevindu", () => {
+  afterEach(cleanup);
+
+  it("dagskort: «+ Reise» åpner reisevinduet, og Lagre fører reisen på prosjektet uten kort", async () => {
+    const d = rendre({ modus: "dagskort" });
+    expect(within(d).getByLabelText("timer.reiseKort.oppmotested")).toBeTruthy();
+    const input = (await lagre(d))!;
+    expect(input).toMatchObject({ projectId: "p1", reiseKilde: "manuell", externalCostObjectId: "eco1" });
+    expect(input.kortId ?? null).toBeNull();
   });
 });

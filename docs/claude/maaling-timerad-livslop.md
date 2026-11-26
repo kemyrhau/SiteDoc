@@ -17,11 +17,11 @@
 
 | Fil | Kjøres med | I dag |
 |-----|-----------|-------|
-| `apps/api/src/routes/timer/m1-timerad-livslop.integration.test.ts` | `cd apps/api && DATABASE_URL=…/sitedoc_o25 npx vitest run --config vitest.integration.config.ts src/routes/timer/m1-timerad-livslop.integration.test.ts` | **5 røde, 13 grønne** |
-| `apps/web/src/app/dashbord/timer/[id]/m1-timerad-livslop.test.tsx` | `cd apps/web && npx vitest run "src/app/dashbord/timer/[id]/m1-timerad-livslop.test.tsx"` | **2 røde, 1 grønn** |
+| `apps/api/src/routes/timer/m1-timerad-livslop.integration.test.ts` | `cd apps/api && DATABASE_URL=…/sitedoc_o25 npx vitest run --config vitest.integration.config.ts src/routes/timer/m1-timerad-livslop.integration.test.ts` | Målt: 5 røde, 13 grønne. Etter runde 1: **3 røde (R4, R5), 20 grønne** |
+| `apps/web/src/app/dashbord/timer/[id]/m1-timerad-livslop.test.tsx` | `cd apps/web && npx vitest run "src/app/dashbord/timer/[id]/m1-timerad-livslop.test.tsx"` | Målt: 2 røde, 1 grønn. Etter runde 1: **7 grønne, 1 `it.fails` (R2)** |
 
 - Røde tester starter med «RØD i dag:». De beskriver det Kenneth forventer og skal ikke rettes i M1.
-- Web-fila ligger under `vitest.config.ts`. Den blir derfor rød i `pnpm test` fra rot til rotårsak R1 og R2 er rettet. **Orkestrator avgjør** om den skal merges før rettingen, eller bæres av rette-branchen.
+- Web-fila ligger under `vitest.config.ts` og bæres av `fix/timer-runde1`: R1-testene er grønne, R2-testen står som `it.fails` til R2 rettes (da fjernes `.fails`).
 - Integrasjonsfila kjøres ikke av `pnpm test`.
 
 ## Tabell
@@ -75,6 +75,13 @@ Felles for hele web:
 | **T3** Dagsforslag fra telefon | `lagreOverlappForslag` → `ForslagValgSeksjon` → `forsonDagskort` | D:1441–1501, P:1595–1604, `forsonValg.ts` | Forslag lagres | Ja (banner) | — | — | **Ja.** Ingen forslag når sedelen er sendt/godkjent («laast», D:1454–1457) eller uten tidsoverlapp. | kode | **Endret O25:** `forsonDagskort` leser `erReise` fra forslaget, ikke fra lønnsarten. Forslag fra gammel app uten flagg lagres `false` (D:1484) og blir arbeid ved forsoning, mens vanlig synk fortsatt gjetter reise (D:2074–2083). Smal regresjonskandidat, ikke målt. |
 
 Regresjonskolonnen for radene uten T: filene for veiene er uendret siden `36c64c82` (`git diff --quiet` på `JobbSkjema.tsx`, `lib/jobbSkjema.ts`, `RegistrerTimerKnapp.tsx`, `overtidForslag.ts`, `jobbTid.ts`). O25s endringer i D gjelder bare `erReise` (hunkene i `git diff 36c64c82 -- dagsseddel.ts`), ikke slett, synk av tillegg eller overtid.
+
+## Status etter runde 1 timer (`fix/timer-runde1`, 🟡 venter gate)
+
+- **R1 rettet:** invalidate i `finally`, ny jobb = ett kall (`tilfoyTimerRad` + `somJobb`), avmontering låser ikke opp «Send dagen». De røde web-testene for R1 er skrevet om til ett-kalls-kontrakten og er grønne. Detalj: [timer.md](timer.md) § Jobbskjemaet.
+- **R3 rettet på web:** `vurderOvertidSplitt` skiller «over normen uten art» ut; jobbskjemaet og «Legg til timer-rad» sier fra. API-testen «Legg til 15–18» måler nå den delte regelen (meldingen er klientens); «Lagre jobb» svarer `overtidManglerArt: 50`. Mobil viser ikke meldingen ennå.
+- **R7 rettet:** dagskort-modus har «+ Reise» som åpner samme `ReiseKort`.
+- **Ikke i runde 1:** R2 (web-testen står som `it.fails`), R4, R5, R6 (API-testene «RØD i dag» står røde).
 
 ## Rotårsaker
 

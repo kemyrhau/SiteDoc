@@ -672,6 +672,7 @@
   "timer.overtidForslag.helKnapp": "Zapisz jako nadgodziny",
   "timer.overtidForslag.delesVedLagring": "O {{over}} godz. powyżej normy dziennej — zapisane jako {{normalNavn}} {{nFra}}–{{nTil}} i {{otNavn}} {{oFra}}–{{oTil}}.",
   "timer.overtidForslag.helRadVedLagring": "O {{over}} godz. powyżej normy dziennej — zapisane jako {{otNavn}}.",
+  "timer.overtidForslag.manglerArt": "Ponad normę dzienną, ale firma nie ma aktywnego wynagrodzenia za nadgodziny na poziomie {{nivaa}} % — zapisane jako normalny czas pracy. Administrator firmy ustawia poziom w opcji Firma → Arkusze czasu pracy → Rodzaje wynagrodzeń.",
   "timer.matpause.annenRadBaerer": "W kolejnym rzędzie znajduje się przerwa na lunch w ciągu dnia",
   "timer.matpause.flyttet": "Przerwa jest odliczana od {{tidsrom}}",
   "timer.matpause.fjernTittel": "Nie odlicza się przerwy",

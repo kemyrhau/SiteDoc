@@ -672,6 +672,7 @@
   "timer.overtidForslag.helKnapp": "Arvestage ületunnitööna",
   "timer.overtidForslag.delesVedLagring": "{{over}} h üle päevanormi – salvestatud kui {{normalNavn}} {{nFra}}–{{nTil}} ja {{otNavn}} {{oFra}}–{{oTil}}.",
   "timer.overtidForslag.helRadVedLagring": "{{over}} h üle päevanormi – salvestatud kui {{otNavn}}.",
+  "timer.overtidForslag.manglerArt": "Üle päevanormi, kuid ettevõttel puudub aktiivne ületunnitöö palgaliik tasemega {{nivaa}} % — salvestatud tavatunnina. Ettevõtte administraator määrab taseme jaotises Ettevõte → Tööajalehed → Palgatüübid.",
   "timer.matpause.annenRadBaerer": "Teine rida kannab päeva lõunapausi",
   "timer.matpause.flyttet": "Vaheaeg arvatakse maha {{tidsrom}}-st",
   "timer.matpause.fjernTittel": "Pausi maha ei arvestatud",
