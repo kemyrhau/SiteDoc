@@ -298,3 +298,18 @@ describe("O14 pkt 5 — arbeidstid-reisen hindrer ikke skjemaet", () => {
     expect(document.querySelector('[data-reiselinje="ra"]')).not.toBeNull();
   });
 });
+
+describe("O25 — firmaets reise-lønnsart er også en arbeids-lønnsart i jobben", () => {
+  afterEach(cleanup);
+
+  it("(5) reise-lønnsart = standard = Timelønn: Timelønn står i jobbnedtrekket", () => {
+    rendre({
+      data: {
+        "organisasjon.hentArbeidstidDefaults": { timerRegistreringsmodus: "prosjektkort", reiseLonnsartId: "l1" },
+      },
+    });
+    const skjema = aapneJobb1();
+    const nedtrekk = within(skjema).getAllByLabelText<HTMLSelectElement>("timer.jobbSkjema.lonnsart")[0]!;
+    expect(Array.from(nedtrekk.options).map((o) => o.textContent)).toContain("Timelønn");
+  });
+});

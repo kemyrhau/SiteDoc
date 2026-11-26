@@ -19,9 +19,9 @@ export const MAKS_LINJE_CHIPS = 6;
 /**
  * Artene en linje kan få — aktive `ordinaer` (med og uten overtidsnivå).
  * ORDRE (33) F5 (Kenneth 2026-11-16): fravær-arter tilbys ikke lenger på
- * prosjektkortets linjer — fravær føres i fraværskortet («+ Fravær»). Reise-arter
- * (valgt reiseart, båndarter, navne-match) tilbys ikke — reise føres med
- * «+ Reise». Feriepenger og diett tilbys ikke. `alle` er firmaets katalog
+ * prosjektkortets linjer — fravær føres i fraværskortet («+ Fravær»). `erReise`
+ * holder arter ute etter kallerens regel (O25: Bekreft dag holder ingen ute — en linje
+ * blir aldri reise av lønnsarten; reise føres med «+ Reise»). Feriepenger og diett tilbys ikke. `alle` er firmaets katalog
  * (firmafiltrert av kalleren). Katalogorden.
  */
 export function lonnsarterForLinje<T extends DagsforslagLonnsart>(

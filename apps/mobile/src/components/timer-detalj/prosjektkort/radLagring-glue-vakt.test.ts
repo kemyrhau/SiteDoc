@@ -71,7 +71,6 @@ function skriveNokler(kilde: string): string[] {
 /** Kall og tokens som skal finnes like mange ganger i originalene og modulen. */
 const TOKENS = [
   "settInnTimerRad(",
-  "erReiseLonnsartLokalt(",
   // w9m: timeraden skrives inne i maskinvakten (skrivMedMaskinVakt) i begge kopier.
   "tx.update(sheetTimerLocal)",
   "skrivMedMaskinVakt(",
@@ -88,7 +87,6 @@ const TOKENS = [
   'radType: "maskin"',
   "serverVersjon: radForSletting?.serverVersjon ?? null",
   'tidKilde: "manuell" as const',
-  'gammel?.reiseKilde === "matrise"',
   "(gammel.fraTid ?? null) !== (fraTid ?? null)",
   "(gammel.tilTid ?? null) !== (tilTid ?? null)",
   // NY BESLUTNING maskinkobling (2026-11-12): koblede maskiner skrives via
@@ -130,7 +128,7 @@ describe("ORDRE 36b — radLagring er en tro kopi av seksjonenes skrivesemantikk
     const utenVersjon = MODUL.replace("serverVersjon: radForSletting?.serverVersjon ?? null,", "");
     expect(avvik(ORIGINAL, utenVersjon, TOKENS)).toEqual(["serverVersjon: radForSletting?.serverVersjon ?? null"]);
     expect(skriveNokler(utenVersjon)).not.toEqual(skriveNokler(ORIGINAL));
-    const utenPause = MODUL.replace("      pauseMin,\n      ...reiseSet", "      ...reiseSet");
+    const utenPause = MODUL.replace("      pauseMin,\n      ...(tidEndret", "      ...(tidEndret");
     expect(skriveNokler(utenPause)).not.toEqual(skriveNokler(ORIGINAL));
   });
 });

@@ -404,14 +404,13 @@ describe("forsonDagskort — 🔴 funn 5: maskinlinjer følger raden som vant (r
  */
 describe("forsonDagskort — O12: uendret for reise og arbeidstid-reise", () => {
   it("ny reiserad via forsoning → create med kortId null selv om klienten sendte kort-id", async () => {
-    const { prisma } = await import("@sitedoc/db");
-    vi.mocked(prisma.organizationSetting.findUnique).mockResolvedValueOnce({ reiseLonnsartId: LONNSART } as never);
+    // O25: forslagets eget flagg bærer reisen; lønnsarten avgjør ikke.
     const { ctx, create } = lagCtx({ status: "returned", eksisterende: [rad({ id: RAD1 })] });
     const caller = dagsseddelRouter.createCaller(ctx);
     await caller.forsonDagskort({
       sheetId: SHEET,
       oppdateringer: [],
-      nyeRader: [{ ...nyRad, kortId: "99999999-9999-4999-8999-999999999999" }],
+      nyeRader: [{ ...nyRad, erReise: true, kortId: "99999999-9999-4999-8999-999999999999" }],
     });
     const data = create.mock.calls[0]![0].data;
     expect(data.erReise).toBe(true);
@@ -424,5 +423,14 @@ describe("forsonDagskort — O12: uendret for reise og arbeidstid-reise", () => 
     const caller = dagsseddelRouter.createCaller(ctx);
     await caller.forsonDagskort({ sheetId: SHEET, oppdateringer: [oppdatering], nyeRader: [] });
     expect(update.mock.calls[0]![0].data).not.toHaveProperty("arbeidReiseRetning");
+  });
+
+  it("O25: ny rad på firmaets reise-lønnsart uten flagg → arbeid", async () => {
+    const { prisma } = await import("@sitedoc/db");
+    vi.mocked(prisma.organizationSetting.findUnique).mockResolvedValueOnce({ reiseLonnsartId: LONNSART } as never);
+    const { ctx, create } = lagCtx({ status: "returned", eksisterende: [rad({ id: RAD1 })] });
+    const caller = dagsseddelRouter.createCaller(ctx);
+    await caller.forsonDagskort({ sheetId: SHEET, oppdateringer: [], nyeRader: [nyRad] });
+    expect(create.mock.calls[0]![0].data.erReise).toBe(false);
   });
 });

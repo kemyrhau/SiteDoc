@@ -7,7 +7,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * Ingen serverendring: en under-terskel-rad er en vanlig rad på ordinær art,
  * UTEN reiseKilde og UTEN avstand. Testen låser at begge skrivestiene tar den
  * imot uendret, og at vakta i tilfoyTimerRad (dagsseddel.ts — `reiseKilde &&
- * !erReise` → BAD_REQUEST) fortsatt stopper en falsk reise-rad.
+ * !erReise` → BAD_REQUEST) stopper et reisespor på en rad som sier den er arbeid.
+ * O25: reise avgjøres av vinduet (flagg eller spor), aldri av lønnsarten.
  *
  *  - tilfoyTimerRad (web-stien): driver ruteren via createCaller med mocket ctx.
  *  - syncBatch (mobil-stien): mater `klassifiserManuellReise`-resultatet rett inn
@@ -113,12 +114,22 @@ beforeEach(() => {
 });
 
 describe("tilfoyTimerRad — vakta står (ordre 9)", () => {
-  it("🔴 reiseKilde på ordinær art → BAD_REQUEST, ingen rad", async () => {
+  it("🔴 reisespor på en rad som sier den er arbeid → BAD_REQUEST, ingen rad", async () => {
     const { ctx, timerCreate } = lagCtx();
-    await expect(caller(ctx).tilfoyTimerRad(rad(ORDINAER, "manuell"))).rejects.toThrow(
-      /Lønnsarten er ikke en reise-lønnsart/,
-    );
+    await expect(
+      caller(ctx).tilfoyTimerRad({ ...rad(ORDINAER, "manuell"), erReise: false }),
+    ).rejects.toThrow(/Et reisespor kan bare lagres på en reise/);
     expect(timerCreate).not.toHaveBeenCalled();
+  });
+
+  it("O25: reise fra vinduet på ordinær art → reise (lønnsarten avgjør ikke)", async () => {
+    const { ctx, timerCreate } = lagCtx();
+    await caller(ctx).tilfoyTimerRad(rad(ORDINAER, "manuell"));
+    expect(timerCreate.mock.calls[0]![0].data).toMatchObject({
+      lonnsartId: ORDINAER,
+      erReise: true,
+      reiseKilde: "manuell",
+    });
   });
 
   it("under terskel: ordinær art uten reiseKilde → erReise false, null-spor", async () => {

@@ -1055,7 +1055,7 @@ describe("ORDRE (28) — lønnsart pr. linje før lagring, fravær bruker ikke n
 
   // RETUR (28) 2026-11-16 — A1 (Kontrollør GATE (57)) og B9 (spec § 10 B9).
   // B9-scenarioene i ordren regner uten pause (9 t på 08–17) → `pauseMin: 0`.
-  it("🔴 A1: reise-art i linjevalget avvises — faller tilbake til standardarten", () => {
+  it("O25: firmaets reise-art kan velges på en arbeidslinje — linja beholder arten og er arbeid", () => {
     settNorm();
     arter();
     db().insert(lonnsartLocal).values({
@@ -1063,7 +1063,7 @@ describe("ORDRE (28) — lønnsart pr. linje før lagring, fravær bruker ikke n
     }).run();
     const tider = { arbeidFra: "08:00", arbeidTil: "10:00" };
     expect(vis(arbeid({ perDato: { [DATO]: { ...tider, lonnsartPerLinje: { normal: "L-reise" } } } }))).toEqual([
-      ["08:00", "10:00", 2, "L-normal"],
+      ["08:00", "10:00", 2, "L-reise"],
     ]);
   });
 

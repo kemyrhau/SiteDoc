@@ -250,7 +250,7 @@ describe("§ 8.22 L3a — lagreJobbTid", () => {
     const inn = { sheetId: a.sheetId, kortId: a.kortId, fraTid: "07:00", tilTid: "15:30", pauseMin: 30, linjer: [{ radId: a.rad1, lonnsartId: TL }] };
     await expect(dag(ANNEN).lagreJobbTid(inn)).rejects.toMatchObject({ code: "FORBIDDEN" });
     await expect(dag().lagreJobbTid({ ...inn, linjer: [{ radId: a.rad1, lonnsartId: TL_DK }] })).rejects.toMatchObject({ code: "BAD_REQUEST" });
-    await expect(dag().lagreJobbTid({ ...inn, linjer: [{ radId: a.rad1, lonnsartId: REISE }] })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    // O25: firmaets reise-lønnsart avvises ikke lenger i jobben (lønnsarten avgjør ikke reise).
 
     await prismaTimer.dailySheet.update({ where: { id: a.sheetId }, data: { status: "sent" } });
     await expect(dag().lagreJobbTid(inn)).rejects.toMatchObject({ code: "PRECONDITION_FAILED" });

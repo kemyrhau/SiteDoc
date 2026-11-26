@@ -799,16 +799,13 @@ function EcoBucketEdit({
   aapneSplitt: (aktiv: SplittAktivLokal) => void;
 }) {
   const { t } = useTranslation();
-  // Ordre 2026-11-14 (6): arbeid og reise hver for seg. Redigerte rader bærer
-  // ikke erReise; en rad regnes som reise når lønnsarten er en reise-lønnsart
-  // på sedelens originale rader (serveren utleder på nytt ved lagring).
-  const reiseLonnsartIder = new Set(
-    pendingTimer.filter((r) => r.erReise === true).map((r) => r.lonnsartId),
-  );
+  // Ordre 2026-11-14 (6): arbeid og reise hver for seg. O25: en redigert rad er
+  // reise bare når originalraden er det (som serveren); lønnsarten avgjør aldri.
+  const reiseIder = new Set(pendingTimer.filter((r) => r.erReise === true).map((r) => r.id));
   const { arbeid: sumTimer, reise: sumReise } = arbeidOgReise(
     timer.map((r) => ({
       timer: r.timer,
-      erReise: reiseLonnsartIder.has(r.lonnsartId),
+      erReise: r.originalId != null && reiseIder.has(r.originalId),
     })),
   );
   const sumMaskin = maskin.reduce((acc, r) => acc + r.timer, 0);

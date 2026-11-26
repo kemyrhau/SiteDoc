@@ -9,7 +9,6 @@ import {
   sheetTimerLocal,
 } from "../db/schema";
 import { finnEllerOpprettDagsseddel, finnSedelIAnnetFirma } from "./dagsseddelOpprett";
-import { erReiseLonnsartLokalt } from "./timerKatalog";
 import { enhetLokalt, maskinerOverRad, skrivKobledeMaskiner, type NyMaskin } from "./kobledeMaskiner";
 import {
   SIST_BRUKTE_MASKINER_ANTALL,
@@ -264,14 +263,11 @@ export function settInnTimerRad(
   // Del B pkt 1: fang timer-radens id så maskin-raden kan stemples med den.
   const timerRadId = randomUUID();
   // B4 (L2-B, valg A): arbeideren satte tiden selv → tidKilde="manuell".
-  // erReise settes EKSPLISITT fra lønnsarten (delt regel, ikke server-gjetting,
-  // M3). En manuell reise-rad får reiseKilde="manuell", reiseRetning/avstand/
-  // kjøretid/regel null (retning er informasjon, ikke lønn — C2 krever retning
-  // KUN for matrise-kilde). Ikke-reise → erReise=false, ingen reise-spor.
+  // O25 (Kenneth 2026-11-26: «reise på mobil kun via «+ Reise»»): erReise settes
+  // EKSPLISITT og bare fra reisesporet «+ Reise» gir. Uten spor («+»-raden,
+  // prosjektkortet) er raden arbeid — også på firmaets reise-lønnsart.
   const spor = rad.reiseSpor;
-  const manuellErReise = spor
-    ? spor.erReise
-    : erReiseLonnsartLokalt(organizationId, rad.lonnsartId);
+  const manuellErReise = spor ? spor.erReise : false;
   db.insert(sheetTimerLocal)
     .values({
       id: timerRadId,
@@ -291,7 +287,7 @@ export function settInnTimerRad(
       // V20 PK2: radens matpause-bærer (avkrysningen = pauseMin > 0).
       pauseMin: rad.pauseMin,
       erReise: manuellErReise,
-      reiseKilde: spor ? spor.reiseKilde : manuellErReise ? "manuell" : null,
+      reiseKilde: spor ? spor.reiseKilde : null,
       // Ordre (9): ikke-reise-rad bærer aldri avstand/oppmøtested (C2 + DB-CHECK);
       // regelen lagres på begge så klassifiseringen kan etterprøves.
       reiseAvstandM: spor?.erReise ? spor.reiseAvstandM : null,

@@ -749,6 +749,8 @@ export function ReiseKort({
   const felles = () => ({
     externalCostObjectId: ecoId,
     ...(kategoriEndret && resultat.klassifisering?.lonnsartId ? { lonnsartId: resultat.klassifisering.lonnsartId } : {}),
+    // O25: «Føres som» skifter arbeid ↔ reise med eksplisitt flagg — lønnsarten avgjør aldri.
+    ...(kategoriEndret ? { erReise: kategoriValg === "reisetid" } : {}),
     ...(beskrivelseEndret ? { beskrivelse: beskrivelse.trim() || null } : {}),
   });
   const sporRettDel = !!delPartner && !partnerLaast && (beskrivelseEndret || ecoEndret || kategoriEndret);
@@ -827,6 +829,8 @@ export function ReiseKort({
     }
     tilfoy.mutate({
       sheetId,
+      // O25: en ny rad fra reisevinduet er reise — også når lønnsarten er en arbeids-lønnsart.
+      erReise: true,
       projectId: reiseProsjektId,
       lonnsartId: resultat.klassifisering.lonnsartId,
       aktivitetId,

@@ -82,9 +82,10 @@ interface Props {
 
 /**
  * Lønnsartene linja tilbyr (w10a A1, plan § 4.7 punkt 6; Fabel 2026-11-20): regelen gjelder
- * linjetypen, ikke kortet. En reiselinje (`erReise`) tilbyr bare reisearter, en arbeidslinje ingen
- * reisearter. Lagret art står alltid med, så valget aldri viser feil verdi. Uten reisekonteksten
- * (ikke lastet) tilbys bare lagret art.
+ * linjetypen (radens flagg), ikke kortet. En reiselinje (`erReise`) tilbyr bare reisearter.
+ * O25: en arbeidslinje tilbyr alle lønnsarter — også den firmaet bruker som reise-lønnsart; valget
+ * gjør aldri raden til reise. Lagret art står alltid med, så valget aldri viser feil verdi. Uten
+ * reisekonteksten (ikke lastet) tilbyr reiselinja bare lagret art.
  */
 export function tillatteLonnsarter<L extends { id: string; navn: string }>(
   linje: { erReise?: boolean | null },
@@ -92,8 +93,8 @@ export function tillatteLonnsarter<L extends { id: string; navn: string }>(
   ktx: ErReiseKontekst | null,
   lagretId: string,
 ): L[] {
-  const vilReise = linje.erReise === true;
-  return lonnsarter.filter((l) => l.id === lagretId || (ktx !== null && erReiseLonnsart(l.id, l.navn, ktx) === vilReise));
+  if (linje.erReise !== true) return [...lonnsarter];
+  return lonnsarter.filter((l) => l.id === lagretId || (ktx !== null && erReiseLonnsart(l.id, l.navn, ktx)));
 }
 
 /**

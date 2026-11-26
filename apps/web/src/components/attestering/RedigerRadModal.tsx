@@ -525,11 +525,8 @@ export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
     const iBottaMaskin = new Set(initMaskin.map((r) => r.originalId));
     const timerById = new Map(alleTimer.map((r) => [r.id, r]));
     const maskinById = new Map(alleMaskin.map((r) => [r.id, r]));
-    // Redigerte rader bærer ikke erReise; lønnsarter som er reise på sedelens
-    // rader teller som reise (ordre 2026-11-14 (6)).
-    const reiseLonnsartIder = new Set(
-      alleTimer.filter((r) => r.erReise === true).map((r) => r.lonnsartId),
-    );
+    // O25: en redigert rad er reise bare når originalraden er det — som serveren
+    // (`utforRedigerSedelRader`). Lønnsarten avgjør aldri.
     const enhetFor = (vehicleId: string, fallback: string | null | undefined) =>
       equipment?.find((e) => e.id === vehicleId)?.utleieEnhet ?? fallback ?? null;
     const timer = [
@@ -547,7 +544,7 @@ export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
         projectId,
         externalCostObjectId: ecoId,
         timer: r.timer,
-        erReise: reiseLonnsartIder.has(r.lonnsartId),
+        erReise: timerById.get(r.originalId)?.erReise === true,
       })),
     ];
     const andre = alleMaskin
