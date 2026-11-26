@@ -345,7 +345,7 @@
   "timer.hjelpGodkjenningTekst": "Esimies näkee kaikkien työntekijöiden työaikalomakkeet ja hyväksyy tai hylkää. Hyväksyttyjä työaikaraportteja ei voi muuttaa. Kuittikuvien kulut hyväksytään samanaikaisesti.",
   "timer.hjelpEksport": "Viedä",
   "timer.hjelpEksportTekst": "Hyväksytyt työaikalomakkeet viedään palkkajärjestelmiin (Tripletex, Visma, CSV). Jokaisella palkkatyypillä on oma sarake - normaalitunnit, ylityöt 50%, ylityöt 100%, matka-aika ja lisät.",
-  "timer.beskrivelse": "Päivittäiset lakanat tälle projektille. Yksi rivi per työpäivä.",
+  "timer.beskrivelse": "Päivittäiset arkkisi kaikille projekteille. Yksi rivi per työpäivä.",
   "timer.tilbake": "Takaisin yleiskatsaukseen",
   "timer.tilbakeTilTimer": "Takaisin aukioloaikoihin",
   "timer.tilbakeTilMineTimer": "Takaisin aukioloaikoihin",

@@ -76,8 +76,9 @@ export default function TimerListSide() {
     return d;
   }, [ukeStart]);
 
+  // O26 A (Kenneth 2026-11-26): «Vis timer for alle prosjekter, ingen filter». Lista viser alle
+  // brukerens dagssedler i uka; prosjektet er bare forslag i «Registrer timer».
   const { data: rader, isLoading } = trpc.timer.dagsseddel.list.useQuery({
-    projectId: prosjektId,
     // Ukefeilen (plan § 8.17): lokale datoer, ikke `toISOString()` av lokal midnatt.
     ...ukeIntervall(ukeStart),
     ...(statusFilter !== "alle" ? { status: statusFilter } : {}),

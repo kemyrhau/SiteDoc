@@ -345,7 +345,7 @@
   "timer.hjelpGodkjenningTekst": "Chefen ser alla medarbetares tidrapporter och godkänner eller avslår. Godkända tidrapporter kan inte ändras. Kostnader med kvittobilder godkänns samtidigt.",
   "timer.hjelpEksport": "Exportera",
   "timer.hjelpEksportTekst": "Godkända tidrapporter exporteras till lönesystem (Tripletex, Visma, CSV). Varje löneslag har sin egen kolumn — normala timmar, övertid 50 %, övertid 100 %, restid och tillägg.",
-  "timer.beskrivelse": "Dina dagliga blad för detta projekt. En rad per arbetsdag.",
+  "timer.beskrivelse": "Dina dagliga blad för alla projekt. En rad per arbetsdag.",
   "timer.tilbake": "Tillbaka till översikten",
   "timer.tilbakeTilTimer": "Tillbaka till timmar",
   "timer.tilbakeTilMineTimer": "Tillbaka till Mina timmar",

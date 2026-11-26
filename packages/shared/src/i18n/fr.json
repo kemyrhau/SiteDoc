@@ -345,7 +345,7 @@
   "timer.hjelpGodkjenningTekst": "Le responsable voit les feuilles de temps de tous les employés et approuve ou rejette. Les feuilles de temps approuvées ne peuvent pas être modifiées. Les dépenses avec photos du reçu sont approuvées simultanément.",
   "timer.hjelpEksport": "Exporter",
   "timer.hjelpEksportTekst": "Les feuilles de temps approuvées sont exportées vers les systèmes de paie (Tripletex, Visma, CSV). Each pay type has its own column — normal hours, overtime 50%, overtime 100%, travel time and supplements.",
-  "timer.beskrivelse": "Vos fiches quotidiennes pour ce projet. Une ligne par jour ouvrable.",
+  "timer.beskrivelse": "Vos fiches quotidiennes pour tous les projets. Une ligne par jour ouvrable.",
   "timer.tilbake": "Retour à l'aperçu",
   "timer.tilbakeTilTimer": "Retour aux horaires",
   "timer.tilbakeTilMineTimer": "Retour à Mes horaires",

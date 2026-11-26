@@ -345,7 +345,7 @@
   "timer.hjelpGodkjenningTekst": "Juht näeb kõigi töötajate tööaja tabeleid ja kiidab heaks või lükkab tagasi. Heakskiidetud ajatabeleid ei saa muuta. Kviitungifotodega kulud kinnitatakse samaaegselt.",
   "timer.hjelpEksport": "Ekspordi",
   "timer.hjelpEksportTekst": "Kinnitatud ajatabelid eksporditakse palgaarvestussüsteemidesse (Tripletex, Visma, CSV). Igal palgaliigil on oma veerg — tavatunnid, ületunnid 50%, ületunnid 100%, sõiduaeg ja lisatasud.",
-  "timer.beskrivelse": "Teie päevalehed selle projekti jaoks. Üks rida tööpäeva kohta.",
+  "timer.beskrivelse": "Teie igapäevased lehed kõigi projektide jaoks. Üks rida tööpäeva kohta.",
   "timer.tilbake": "Tagasi ülevaate juurde",
   "timer.tilbakeTilTimer": "Tagasi tundidesse",
   "timer.tilbakeTilMineTimer": "Tagasi Minu tundide juurde",

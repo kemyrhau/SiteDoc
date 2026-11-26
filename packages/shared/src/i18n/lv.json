@@ -345,7 +345,7 @@
   "timer.hjelpGodkjenningTekst": "Vadītājs redz visu darbinieku darba laika uzskaites tabulas un apstiprina vai noraida. Apstiprinātās laika uzskaites tabulas nevar mainīt. Izdevumi ar čeku fotogrāfijām tiek apstiprināti vienlaicīgi.",
   "timer.hjelpEksport": "Eksportēt",
   "timer.hjelpEksportTekst": "Apstiprinātās darba laika uzskaites lapas tiek eksportētas uz algu sistēmām (Tripletex, Visma, CSV). Katram samaksas veidam ir sava sleja — parastās stundas, virsstundas 50%, virsstundas 100%, brauciena laiks un piemaksas.",
-  "timer.beskrivelse": "Jūsu ikdienas lapas šim projektam. Viena rinda darba dienā.",
+  "timer.beskrivelse": "Jūsu ikdienas lapas visiem projektiem. Viena rinda darba dienā.",
   "timer.tilbake": "Atpakaļ uz pārskatu",
   "timer.tilbakeTilTimer": "Atpakaļ uz darbalaiku",
   "timer.tilbakeTilMineTimer": "Atpakaļ uz manu darbalaiku",

@@ -345,7 +345,7 @@
   "timer.hjelpGodkjenningTekst": "Vadovas mato visų darbuotojų darbo laiko apskaitos žiniaraščius ir patvirtina arba atmeta. Patvirtintų darbo laiko apskaitos žiniaraščių keisti negalima. Išlaidos su kvito nuotraukomis tvirtinamos vienu metu.",
   "timer.hjelpEksport": "Eksportuoti",
   "timer.hjelpEksportTekst": "Patvirtinti darbo laiko apskaitos žiniaraščiai eksportuojami į darbo užmokesčio sistemas (Tripletex, Visma, CSV). Kiekviena darbo užmokesčio rūšis turi savo stulpelį – įprastos valandos, viršvalandžiai 50%, viršvalandžiai 100%, kelionės laikas ir priedai.",
-  "timer.beskrivelse": "Jūsų dienos lapai šiam projektui. Viena eilutė per darbo dieną.",
+  "timer.beskrivelse": "Jūsų kasdieniniai visų projektų lapai. Viena eilutė per darbo dieną.",
   "timer.tilbake": "Grįžti į apžvalgą",
   "timer.tilbakeTilTimer": "Grįžti į valandas",
   "timer.tilbakeTilMineTimer": "Grįžti į Mano valandas",
