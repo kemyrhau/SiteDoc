@@ -1069,7 +1069,7 @@ native-modul, `app.config.js` uendret (`checkAutomatically: "ON_LOAD"`, `fallbac
 «Leser» = kun lese. **De ekte rollene** (Registrator/Bestiller/Utfører/Godkjenner) vises i
 per-flyt-detaljen når raden ekspanderes (`:308`).
 
-**Hvorfor det ikke er en paritetsfeil:** [feltarbeid-skillet](SAMARBEIDSREGLER.md) sier at
+**Hvorfor det ikke er en paritetsfeil:** [feltarbeid-skillet](ordre-og-agent.md) sier at
 mobil får feltarbeidet og web kontorarbeidet. **Å konfigurere en dokumentflyt er kontorarbeid.**
 Testen for ekte paritetsfeil er *«kan samme handling gi ULIKT UTFALL på de to flatene»* — og
 mobil har ingen handling som skriver. **Ulik form er greit; ulikt utfall er ikke.**
