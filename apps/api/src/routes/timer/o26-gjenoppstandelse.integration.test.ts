@@ -4,7 +4,6 @@ import { prisma } from "@sitedoc/db";
 import { prismaTimer } from "@sitedoc/db-timer";
 import { prismaMaskin } from "@sitedoc/db-maskin";
 import { prismaVarelager } from "@sitedoc/db-varelager";
-import { finnSedlerÅSlette } from "@sitedoc/shared";
 import { dagsseddelRouter } from "./dagsseddel";
 
 /**
@@ -26,6 +25,7 @@ const ORG = id("01");
 const USER = id("02");
 const ADMIN = id("03");
 const P1 = id("11");
+const P2 = id("12");
 const TL = id("41"); // Timelønn
 const TILLEGG = id("44");
 const AKT = id("43");
@@ -51,10 +51,6 @@ function ctx(userId: string) {
 }
 const dag = (userId = USER) => dagsseddelRouter.createCaller(ctx(userId));
 
-let datoTeller = 0;
-function nyDato(): string {
-  return new Date(Date.UTC(2026, 9, 1) + datoTeller++ * 86_400_000).toISOString().slice(0, 10);
-}
 
 const raderPaa = (sheetId: string) =>
   prismaTimer.sheetTimer.findMany({ where: { sheetId }, orderBy: { createdAt: "asc" } });
@@ -74,9 +70,9 @@ async function ryddOpp() {
   await prismaTimer.lonnsart.deleteMany({ where: { id: TL } });
   await prismaTimer.aktivitet.deleteMany({ where: { id: AKT } });
   await prisma.activity.deleteMany({ where: { actorUserId: { in: BRUKERE } } });
-  await prisma.projectModule.deleteMany({ where: { projectId: P1 } });
-  await prisma.projectMember.deleteMany({ where: { projectId: P1 } });
-  await prisma.project.deleteMany({ where: { id: P1 } });
+  await prisma.projectModule.deleteMany({ where: { projectId: { in: [P1, P2] } } });
+  await prisma.projectMember.deleteMany({ where: { projectId: { in: [P1, P2] } } });
+  await prisma.project.deleteMany({ where: { id: { in: [P1, P2] } } });
   await prisma.organizationModule.deleteMany({ where: { organizationId: ORG } });
   await prisma.organizationMember.deleteMany({ where: { organizationId: ORG } });
   await prisma.organization.deleteMany({ where: { id: ORG } });
@@ -96,6 +92,9 @@ async function seed() {
   await prisma.project.create({ data: { id: P1, projectNumber: "O26-1", name: "O26 P1", primaryOrganizationId: ORG } });
   await prisma.projectMember.create({ data: { userId: USER, projectId: P1, role: "member" } });
   await prisma.projectModule.create({ data: { projectId: P1, moduleSlug: "timer", organizationId: ORG, status: "aktiv" } });
+  await prisma.project.create({ data: { id: P2, projectNumber: "O26-2", name: "O26 P2", primaryOrganizationId: ORG } });
+  await prisma.projectMember.create({ data: { userId: USER, projectId: P2, role: "member" } });
+  await prisma.projectModule.create({ data: { projectId: P2, moduleSlug: "timer", organizationId: ORG, status: "aktiv" } });
   await prismaTimer.lonnsart.create({
     data: { id: TL, organizationId: ORG, type: "ordinaer", navn: "Timelønn", erStandardvalg: true, aktiv: true },
   });
@@ -231,6 +230,39 @@ describe("O27 — rad slettet på PC kommer ikke tilbake", () => {
     expect((await spor(radA))?.type).toBe("timer");
     await push(telefonSedel(sid, dato, radA, { kortId }));
     expect(await prismaTimer.sheetTimer.findUnique({ where: { id: radA } })).toBeNull();
+  });
+
+  it("«Flytt jobb» med «Slett reisen»: reisen får spor og kommer ikke tilbake (dør 9)", async () => {
+    const sid = randomUUID();
+    const dato = iDag(9);
+    const jobb = randomUUID();
+    const reise = randomUUID();
+    const reiseRad = {
+      id: reise, projectId: P1, lonnsartId: TL, aktivitetId: AKT, timer: 1,
+      fraTid: "06:00", tilTid: "07:00", pauseMin: 0, erReise: true, reiseKilde: "manuell",
+    };
+    const sedel = telefonSedel(sid, dato, jobb);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect((await push({ ...sedel, timer: [...sedel.timer, reiseRad] as any[] })).resultat).toBe("ok");
+    const kortId = (await prismaTimer.sheetTimer.findUniqueOrThrow({ where: { id: jobb } })).kortId!;
+    await prismaTimer.sheetTimer.update({ where: { id: reise }, data: { kortId } });
+    const lagret = await prismaTimer.sheetTimer.findUniqueOrThrow({ where: { id: reise } });
+
+    await dag().flyttJobb({ sheetId: sid, kortId, projectId: P2, byggeplassId: null, reise: { valg: "slett" } });
+    expect(await prismaTimer.sheetTimer.findUnique({ where: { id: reise } })).toBeNull();
+    expect((await spor(reise))?.type).toBe("timer");
+
+    const svar = await push({
+      ...sedel,
+      timer: [
+        { ...sedel.timer[0]!, projectId: P2, kortId },
+        { ...reiseRad, kortId, serverVersjon: lagret.updatedAt.toISOString(), endretLokalt: true, tilTid: "07:30", timer: 1.5 },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ] as any[],
+    });
+    expect(svar.serverData?.slettetPaPc).toContain(reise);
+    expect(await prismaTimer.sheetTimer.findUnique({ where: { id: reise } })).toBeNull();
+    expect(await prismaTimer.sheetTimerForslag.count({ where: { sheetId: sid } })).toBe(0);
   });
 
   it("vakt: ny rad på samme sedel (ingen spor) skrives som før", async () => {

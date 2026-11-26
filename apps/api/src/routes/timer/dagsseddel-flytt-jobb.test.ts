@@ -177,8 +177,12 @@ function oppsett(
         where.id === SHEET
           ? { id: SHEET, clientUuid: SHEET, userId: USER, organizationId: "org", status, dato: new Date() }
           : null,
+      // O27: sporet leser eier og dato.
+      findUniqueOrThrow: async () => ({ userId: USER, organizationId: "org", dato: new Date() }),
       update: async () => ({ id: SHEET }),
     },
+    // O27: sporet etter sletting på PC.
+    slettetFraPc: { findMany: async () => [], createMany: async () => ({ count: 0 }) },
   };
   // Vare-steget er rå SQL på transaksjonen (Kontrollør 138 vilkår 2). Verdiene kommer i
   // rekkefølgen prosjekt, byggeplass, eco, kort-id, id-lista (`Prisma.join`).

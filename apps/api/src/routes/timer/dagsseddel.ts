@@ -1042,6 +1042,8 @@ async function flyttJobbTilSted(
         const rader = await tx.sheetTimer.findMany({ where: ider(reise) });
         await skrivSlettespor(tx, rader.map((rad) => ({ radType: "timer" as const, rad })), ctx.userId);
       }
+      // O27: reisen er slettet på PC — telefonen skal ikke lage den på nytt.
+      await skrivRaderSlettetFraPc(tx, sheet.id, reise.map((r) => ({ id: r.id, type: "timer" as const })), ctx.userId);
       await tx.sheetTimer.deleteMany({ where: ider(reise) });
     } else if (reiseValg?.valg === "flytt") {
       await tx.sheetTimer.updateMany({ where: ider(reise), data });
