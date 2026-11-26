@@ -101,6 +101,8 @@ export {
   løsOverforingKort,
   medOverforingPeriodeId,
   kontorReiseRute,
+  annetStedTekst,
+  løsAnnetStedKort,
   finnDagsramme,
   klokkeTilMin,
   minTilKlokke,
@@ -247,7 +249,7 @@ export {
   velgOvertidLonnsart,
 } from "./lonnsregel";
 export type { ArbeidstidSegment, DognRad, OvertidLonnsartKandidat } from "./lonnsregel";
-export { foreslaOvertidSplitt } from "./overtidForslag";
+export { foreslaOvertidSplitt, vurderOvertidSplitt } from "./overtidForslag";
 export { regnJobbTid, validerJobbTid, erGyldigHhmm } from "./jobbTid";
 export type { JobbTidLinje, JobbTidFeil, JobbTidResultat } from "./jobbTid";
 export { tolkKlokkeslett } from "./klokkeslett";
@@ -257,6 +259,8 @@ export type {
   OvertidForslagRad,
   OvertidForslagDel,
   OvertidForslag,
+  OvertidManglerArt,
+  OvertidVurdering,
 } from "./overtidForslag";
 export {
   DEFAULT_PAUSE_ETTER_TIMER,

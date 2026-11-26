@@ -146,7 +146,7 @@ export function RedigerTimerRad({
 
       <input
         type="number"
-        step="0.25"
+        step="any"
         min="0"
         value={timerStr}
         onChange={(e) => setTimerStr(e.target.value)}

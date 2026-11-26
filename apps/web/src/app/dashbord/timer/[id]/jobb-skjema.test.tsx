@@ -245,7 +245,7 @@ describe("L3a — «+ Registrer timer» lander i skjemaet", () => {
     expect(within(skjema).getByTestId("skjema-kilde").textContent).toContain("timer.jobbSkjema.kildeForrige");
   });
 
-  it("ingen rad før Til er fylt; Til fylt → raden lages med jobbens kort og deles av lagreJobbTid", async () => {
+  it("ingen rad før Til er fylt; Til fylt → raden lages med jobbens kort i ett kall (R1)", async () => {
     rendre({ sok: "registrer=1&nyttProsjekt=p1&eksisterte=1", sedel: SLUTT_FOR });
     const skjema = screen.getByTestId("jobb-skjema");
     fireEvent.change(felt(skjema, "fra"), { target: { value: "16:30" } });
@@ -256,19 +256,14 @@ describe("L3a — «+ Registrer timer» lander i skjemaet", () => {
 
     fireEvent.change(felt(skjema, "til"), { target: { value: "18:00" } });
     fireEvent.blur(felt(skjema, "til"));
-    await vi.waitFor(() => expect(kallTil("lagreJobbTid")).toHaveLength(1));
+    await vi.waitFor(() => expect(kallTil("tilfoyTimerRad")).toHaveLength(1));
     const ny = kallTil("tilfoyTimerRad");
-    expect(ny).toHaveLength(1);
-    expect(ny[0]!.input).toMatchObject({ sheetId: "s1", projectId: "p1", fraTid: "16:30", tilTid: "18:00" });
+    // R1: serveren deler linjene i samme kall (`somJobb`); ingen lagreJobbTid for en ny jobb.
+    expect(ny[0]!.input).toMatchObject({ sheetId: "s1", projectId: "p1", fraTid: "16:30", tilTid: "18:00", somJobb: true });
     const kortId = ny[0]!.input.kortId as string;
     expect(kortId).toBeTruthy();
     expect(["k1", "k2"]).not.toContain(kortId);
-    expect(kallTil("lagreJobbTid")[0]!.input).toMatchObject({
-      kortId,
-      fraTid: "16:30",
-      tilTid: "18:00",
-      linjer: [{ radId: "ny" }],
-    });
+    expect(kallTil("lagreJobbTid")).toHaveLength(0);
   });
 });
 

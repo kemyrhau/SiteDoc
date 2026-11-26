@@ -12,7 +12,7 @@
 import { useTranslation } from "react-i18next";
 import { Car, AlertTriangle } from "lucide-react";
 import { useFirma } from "@/kontekst/firma-kontekst";
-import { kontorReiseRute } from "@sitedoc/shared";
+import { annetStedTekst, kontorReiseRute } from "@sitedoc/shared";
 import { trpc } from "@/lib/trpc";
 import type { TimerRad } from "./attestering-buckets";
 import { reiseMerkeNokkel } from "./reise-merke";
@@ -69,9 +69,13 @@ export function ReiseRadMerke({ rad, sedelDato }: { rad: TimerRad; sedelDato?: s
       : retning === "retur"
         ? bygg
         : null;
+  // Runde 2 («Annet sted»): målet er stedet arbeideren skrev (kurs o.l.), ikke en byggeplass.
+  const annetSted = annetStedTekst(rad.reiseRegel);
   const til = kontorRute
     ? kontorNavn(kontorRute.tilKontorId)
-    : retning === "ut"
+    : annetSted
+      ? annetSted
+      : retning === "ut"
       ? bygg
       : retning === "retur"
         ? kontor

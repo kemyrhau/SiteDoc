@@ -16,6 +16,7 @@ import {
   kontorOverforingOppsett,
   kontorOverforingRetning,
   løsOppmote,
+  løsAnnetStedKort,
   løsOverforingKort,
   løsReiseKort,
   planleggAvslutt,
@@ -47,10 +48,14 @@ import { trpc } from "@/lib/trpc";
  *  `planleggOppmoteBytte`. Tredje valg «Til annet oppmøtested» (`{ type: "kontor" }`) er en
  *  reise kontor → kontor med firmaets kjøretid mellom kontorene (`løsOverforingKort`, som mobil).
  *
+ *  Runde 2 timer (Kenneth 2026-11-26, «Annet sted»): fjerde valg `{ type: "annetSted" }` — reise
+ *  fra et oppmøtested til et sted arbeideren skriver selv (kurs o.l.). Ingen byggeplass, ingen
+ *  kjøretidstabell, ingen oppmøtested-periode: arbeideren fører tiden (`løsAnnetStedKort`).
+ *
  *  «Siste valg på enheten» (lagret i nettleseren) er fjernet (Kenneth-beslutning 7).
  * ============================================================================ */
 
-export type ReiseKortValg = { type: "tur" } | { type: "retur" } | { type: "kontor" };
+export type ReiseKortValg = { type: "tur" } | { type: "retur" } | { type: "kontor" } | { type: "annetSted" };
 
 /** Kallet `oppmotePeriode.overforing` får når oppmøtestedet byttes (O16: arbeiderens datoer). */
 export type KontorOverforingKall = OppmoteByttKall;
@@ -251,6 +256,7 @@ export function useManuellReiseWeb({
   sluttTid = null,
   kategoriValg = null,
   jobbTid = null,
+  annetSted = null,
 }: {
   organizationId: string;
   /** Sedelens dato (YYYY-MM-DD) — perioden som gjaldt da. */
@@ -279,6 +285,9 @@ export function useManuellReiseWeb({
    * «Fra byggeplass» med Slutt inne i jobben leses da aldri som en reise over midnatt. null = som før.
    */
   jobbTid?: { fra: string; til: string } | null;
+  /** Runde 2 («Annet sted»): oppmøtestedet reisen går fra og stedet arbeideren skrev.
+   *  `fraOppmotestedId` utelatt = dagens oppmøtested (forslaget); null = uten oppmøtested. */
+  annetSted?: { fraOppmotestedId?: string | null; sted: string } | null;
 }) {
   const aktivert = !!organizationId;
   const q = { organizationId };
@@ -381,9 +390,29 @@ export function useManuellReiseWeb({
     return rad ? { kjoretidMin: rad.kjoretidMin ?? null, avstandM: rad.avstandM ?? null } : null;
   }, [kontorOppsett, valgtKontor, kontorAvstandQ.data]);
 
+  const periodeKontorId =
+    periodeOppmote.kilde === "fast" || periodeOppmote.kilde === "midlertidig" || periodeOppmote.kilde === "gps"
+      ? periodeOppmote.oppmotestedId
+      : null;
+  const annetFra = annetSted?.fraOppmotestedId !== undefined ? annetSted.fraOppmotestedId : periodeKontorId;
+  const annetStedNavn = annetSted?.sted ?? "";
   const resultat: ReiseKortResultat = useMemo(
     () =>
-      aktivtValg.type === "kontor" && kontorOppsett && valgtKontor
+      aktivtValg.type === "annetSted"
+        ? løsAnnetStedKort({
+            fraOppmotestedId: annetFra,
+            sted: annetStedNavn,
+            regel,
+            grensepunkter,
+            resolverLonnsartId,
+            standardLonnsartId,
+            startTid,
+            sluttTid,
+            kategoriValg,
+            // O19: Slutt før Start slutter dagen etter, som «Til annet oppmøtested».
+            tillatDeling: { omvendt: "fram" },
+          })
+        : aktivtValg.type === "kontor" && kontorOppsett && valgtKontor
         ? // O16 pkt 4 / R6: «Til annet oppmøtested» — samme rad som mobilens kontoroverføring.
           løsOverforingKort({
             overforing: {
@@ -429,7 +458,7 @@ export function useManuellReiseWeb({
         // O23 pkt 29: Slutt inne i egen jobb er aldri dagen etter.
         tillatDeling: retning === "tur" ? { omvendt: "bak" } : { omvendt: "fram", jobb: jobbFra && jobbTil ? { fra: jobbFra, til: jobbTil } : null },
       }),
-    [aktivtValg.type, kontorOppsett, valgtKontor, kontorRetning, kontorCelle, retning, ramme, regel, grensepunkter, resolverLonnsartId, standardLonnsartId, oppmote, byggeplassId, matrise, startTid, sluttTid, kategoriValg, jobbFra, jobbTil],
+    [aktivtValg.type, annetFra, annetStedNavn, kontorOppsett, valgtKontor, kontorRetning, kontorCelle, retning, ramme, regel, grensepunkter, resolverLonnsartId, standardLonnsartId, oppmote, byggeplassId, matrise, startTid, sluttTid, kategoriValg, jobbFra, jobbTil],
   );
 
   // Oppmøtestedet vises som tekst bare når firmaet har flere (§ 7 C).
@@ -439,21 +468,19 @@ export function useManuellReiseWeb({
       : null;
 
   // O16 pkt 2: hva kontorvalget gjør med oppmøtestedet (den blå boksen) og kallet «Lagre» gjør.
-  const dagensKontorId =
-    periodeOppmote.kilde === "fast" || periodeOppmote.kilde === "midlertidig" || periodeOppmote.kilde === "gps"
-      ? periodeOppmote.oppmotestedId
-      : null;
+  const dagensKontorId = periodeKontorId;
   const bytte: OppmoteBytte = useMemo(
     () =>
       planleggOppmoteBytte({
-        valg: aktivtValg.type,
+        // «Annet sted» bytter aldri oppmøtested (valgtKontorId null → «ingen»); regnes som tur.
+        valg: aktivtValg.type === "annetSted" ? "tur" : aktivtValg.type,
         // O19 (pkt 23 kl. 12-regelen): en reise som startet kvelden før, regnes fra startdagen.
         dato: resultat.deles === "bak" ? leggTilDager(dato, -1) : dato,
         startTid: resultat.fraTid,
         perioder: perioder.map((p) => ({ ...p, id: p.id ?? "" })),
         dagensKontorId,
         fastKontorId: kontorOppsett?.fastKontorId ?? null,
-        valgtKontorId: valgtKontor,
+        valgtKontorId: aktivtValg.type === "annetSted" ? null : valgtKontor,
         gjelderFra,
         tilOgMed,
         sisteDag,
@@ -477,6 +504,10 @@ export function useManuellReiseWeb({
     kontorRetning,
     apenOverforing,
     kontorNavn: (id: string) => steder.find((o) => o.id === id)?.navn ?? "",
+    /** Runde 2 («Annet sted»): firmaets aktive oppmøtesteder — nedtrekket «Fra». */
+    oppmotesteder: steder,
+    /** Runde 2 («Annet sted»): oppmøtestedet reisen regnes fra (forslaget er dagens). */
+    annetFra,
     /**
      * O17 pkt 22: «Avslutt» med «Siste dag» — kallet og «… fjernes» fra samme plan (`planleggAvslutt`,
      * V2: `periodeId`). Samme periodeliste som `bytte`.

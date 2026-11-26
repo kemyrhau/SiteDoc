@@ -942,7 +942,7 @@ function KompaktTimerRad({
         </select>
         <input
           type="number"
-          step="0.25"
+          step="any"
           min="0"
           value={timerStr}
           onChange={(e) => setTimerStr(e.target.value)}
@@ -1087,7 +1087,7 @@ function KompaktMaskinRad({
         />
         <input
           type="number"
-          step="0.25"
+          step="any"
           min="0"
           value={timerStr}
           onChange={(e) => setTimerStr(e.target.value)}

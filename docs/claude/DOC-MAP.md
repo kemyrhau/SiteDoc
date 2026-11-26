@@ -20,7 +20,11 @@ sist_verifisert_mot_kode: 2026-05-16
 | UI-standard endres (filter, toppbar-filtre, adaptive nedtrekk, slett-bekreftelse, fargepalett) | `retningslinjer/ui-standarder.md` |
 | Presens-påstand skrives i docs (systemet «gjør» noe) / dokumentasjons-standard endres | `dokumentasjons-standard.md` (referanse eller markør kreves) |
 | Parallell-arbeid / worktree-koordinering / frossen sone endres | `parallell-arbeid-lock.md` |
-| Tvil om hvem gjør hva / meldingsflyt | `SAMARBEIDSREGLER.md` |
+| Tvil om hvem gjør hva / meldingsflyt | `SAMARBEIDSREGLER.md` (kjernen) |
+| Ordre skrives, /clear-REGELEN, SJEKKPUNKT, funksjonsfredning, paritet, kjøreregler fra feilklasser, exit-spørsmål | `ordre-og-agent.md` |
+| Regel 9/10, merge-kjeden, gaten i kommandoen, rydding etter merge | `merge-og-gate.md` |
+| Kommando til Kenneth skrives (form, maskin, BSD-flagg) | `deploy-detaljer.md` § Kommandoer til Kenneth |
+| **Lokal testflate** (Kenneths testrunder: tre, DB, rutine pr. runde, melding) | `lokal-dev.md` § 7 |
 | **Skal se/teste en endring før test-deploy** (localhost) | `lokal-dev.md` |
 | **Localhost virker ikke** — `AccessDenied`, `psql: command not found`, tom lokal DB | `lokal-dev.md` § 2 Feilsøking |
 | **Lokal test-data må oppdateres** (DB bak test / etter migrering) | `lokal-dev.md` § 3 |
@@ -29,6 +33,7 @@ sist_verifisert_mot_kode: 2026-05-16
 | Gammel STATUS § Sist oppdatert-changelog-oppføring (docs-endring historikk) | `historikk-docs.md` (arkiv) — STATUS beholder kun de 3 nyeste |
 | Kundeønske-status endres | `STATUS-AKTUELT.md` § Kundeønsker |
 | Timer-modul spec endres | `timer.md` |
+| Timeradens livsløp (lagring, visning, sletting, synk, overtid, reise) målt — rotårsaker R1–R7 og hva som er rettet | `maaling-timerad-livslop.md` (statusseksjonen øverst føres når en R rettes) |
 | Kenneth vedtar eller snur noe brukeren ser i timeføringen på web (ført: reisevinduet) | `vedtak-timer-web.md` — bare orkestrator skriver vedtak, med Kenneths ord; koderen endrer bare status. Punktet byttes ut, ikke stables |
 | Timeføring på web — planen endres (§ 3–10) | Fila for seksjonen i `web-timeforing/` — tabellen nederst i `web-timeforing-plan.md` sier hvilken. Indeksen (§ 0–2 og tabellen) i `web-timeforing-plan.md`. Ny seksjon = ny fil + ny rad i tabellen; ingen fil over ~80 000 tegn |
 | Timer/GPS/prosjekt-utredning (dag-flyt, T.8 m.fl.) | `timer-gps-prosjekt-utredning.md` |
@@ -59,7 +64,7 @@ sist_verifisert_mot_kode: 2026-05-16
 ## Regel
 
 Ingen PR-commit uten at riktig doc er oppdatert i samme commit. Se også
-[SAMARBEIDSREGLER § 6](SAMARBEIDSREGLER.md) og
+[merge-og-gate.md § Merge-kjeden](merge-og-gate.md) og
 [dokumentasjons-standard § Dokumentasjons-disiplin](dokumentasjons-standard.md) — status-dokumenter
 som oppdateres i en glemt oppfølger-commit drifter.
 

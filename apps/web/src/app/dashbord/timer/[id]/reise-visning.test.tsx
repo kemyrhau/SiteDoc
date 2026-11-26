@@ -7,7 +7,7 @@
  * hvor en reise havner. Dagen er #7 (`testdata-dag7.ts`).
  */
 import type { ReactNode } from "react";
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DAG7_SEDEL, dag7Data } from "./testdata-dag7";
 
@@ -471,5 +471,42 @@ describe("O17 pkt 21 — kontorreise i kortlisten", () => {
     const tekst = document.querySelector('[data-reiselinje="rl"]')!.textContent ?? "";
     expect(tekst).toContain("timer.prosjektkort.reiseTil");
     expect(tekst).not.toContain("timer.prosjektkort.reiseRute");
+  });
+});
+
+// Runde 2 timer («Annet sted»): reiseraden viser stedet arbeideren skrev; pennen åpner reisevinduet
+// som «Annet sted» med stedet som tekst.
+describe("VAKTTEST 2026-11-26 (Kenneth: «alt fungerer såvidt jeg kan se», runde 2) — Runde 2 — reise til «Annet sted» i dagens liste", () => {
+  afterEach(cleanup);
+  const KURS = reise({
+    id: "rk2",
+    kortId: "k3",
+    byggeplassId: null,
+    reiseRetning: "ut",
+    reiseOppmotestedId: "kt",
+    fraTid: "13:00",
+    tilTid: "16:30",
+    timer: "3.5",
+    reiseRegel: { annetSted: { sted: "Bergen" } },
+  });
+  const KONTORER = { "oppmotested.hentForFirma": [{ id: "kt", navn: "Tromsø" }] };
+
+  it("reiselinja sier «Til Bergen»", () => {
+    rendre([ARBEID1, KURS], "prosjektkort", KONTORER);
+    for (const hode of kortHoder()) if (hode.getAttribute("aria-expanded") !== "true") fireEvent.click(hode);
+    const tekst = document.querySelector('[data-reiselinje="rk2"]')!.textContent ?? "";
+    expect(tekst).toContain('timer.prosjektkort.reiseTil{"sted":"Bergen"}');
+  });
+
+  it("pennen åpner «Annet sted» med Fra og Til som tekst", () => {
+    rendre([ARBEID1, KURS], "prosjektkort", KONTORER);
+    for (const hode of kortHoder()) if (hode.getAttribute("aria-expanded") !== "true") fireEvent.click(hode);
+    const linje = document.querySelector('[data-reiselinje="rk2"]') as HTMLElement;
+    fireEvent.click(linje.querySelector('[title="handling.rediger"]')!);
+    const d = screen.getByRole("dialog", { name: "timer.reiseKort.tittel" });
+    expect(within(d).getByRole("button", { name: "timer.reiseKort.annetSted" }).getAttribute("aria-pressed")).toBe("true");
+    expect(within(d).queryByRole("button", { name: "timer.reiseKort.tur" })).toBeNull();
+    expect(within(d).getByTestId("reise-annet-sted-tekst").textContent).toBe("Bergen");
+    expect(within(d).getByTestId("reise-annet-fra-tekst").textContent).toBe("Tromsø");
   });
 });

@@ -14,7 +14,7 @@
  *   - ligger hele jobben over normen, blir det én linje merket `helOvertid`
  */
 import type { OvertidLonnsartKandidat } from "./lonnsregel";
-import { foreslaOvertidSplitt, type OvertidForslagRad } from "./overtidForslag";
+import { vurderOvertidSplitt, type OvertidForslagRad } from "./overtidForslag";
 import { effektiveTimerFraSpenn, hhmmTilMin, pauseFraForRad } from "./pauseBeregning";
 
 /** Én lønnslinje i jobben. */
@@ -42,6 +42,11 @@ export type JobbTidResultat<L> =
       overtidsnivaa: number | null;
       /** Hele jobben ligger over normen (én linje, overtid). */
       helOvertid: boolean;
+      /**
+       * R3 (runde 1 timer): jobben går over normen, men firmaet har ingen aktiv ordinær
+       * lønnsart med dette `overtidsnivaa` — jobben lagres som én normallinje. Nivået, ellers null.
+       */
+      overtidManglerArt: number | null;
     };
 
 const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -102,7 +107,7 @@ export function regnJobbTid<L extends OvertidLonnsartKandidat & { id: string }>(
   const enLinje = (overtid: boolean): JobbTidLinje[] => [
     { fraTid: a.fraTid, tilTid: a.tilTid, timer, pauseMin: a.pauseMin, overtid },
   ];
-  const ingen = { overtidLonnsart: null, overtidsnivaa: null, helOvertid: false };
+  const ingen = { overtidLonnsart: null, overtidsnivaa: null, helOvertid: false, overtidManglerArt: null };
 
   if (a.linje1Overtidsnivaa != null) return { ok: true, linjer: enLinje(true), timer, ...ingen };
 
@@ -114,17 +119,21 @@ export function regnJobbTid<L extends OvertidLonnsartKandidat & { id: string }>(
     erReise: false,
     overtidsnivaa: null,
   };
-  const forslag = foreslaOvertidSplitt([...a.andreRader, jobbRad], a.norm, a.lonnsarter, {
+  const vurdering = vurderOvertidSplitt([...a.andreRader, jobbRad], a.norm, a.lonnsarter, {
     pauseFra: (r) =>
       r.id === jobbId
         ? jobbPauseFra
         : r.fraTid && r.tilTid
           ? pauseFraFor({ id: r.id, fraTid: r.fraTid, tilTid: r.tilTid, pauseMin: r.pauseMin }, r.id)
           : "00:00",
-  }).find((f) => f.radId === jobbId);
-  if (!forslag) return { ok: true, linjer: enLinje(false), timer, ...ingen };
+  });
+  const forslag = vurdering.forslag.find((f) => f.radId === jobbId);
+  if (!forslag) {
+    const mangler = vurdering.manglerArt?.radIder.includes(jobbId) ? vurdering.manglerArt.nivaa : null;
+    return { ok: true, linjer: enLinje(false), timer, ...ingen, overtidManglerArt: mangler };
+  }
 
-  const ot = { overtidLonnsart: forslag.overtidLonnsart, overtidsnivaa: forslag.overtidsnivaa };
+  const ot = { overtidLonnsart: forslag.overtidLonnsart, overtidsnivaa: forslag.overtidsnivaa, overtidManglerArt: null };
   if (!forslag.normal) return { ok: true, linjer: enLinje(true), timer, ...ot, helOvertid: true };
   return {
     ok: true,

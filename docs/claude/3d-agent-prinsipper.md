@@ -7,7 +7,7 @@ sist_verifisert_mot_kode: 2026-11-16
 # 3D-agentene — prinsipper
 
 > 🔴 **Leses av 3D-web og 3D-mobil ved HVER oppstart, compact og /clear** — før posten i innboksen
-> ([SAMARBEIDSREGLER § /clear-REGELEN punkt C](SAMARBEIDSREGLER.md)). Fila er Kenneths bestilling
+> ([ordre-og-agent.md § /clear-REGELEN punkt C](ordre-og-agent.md)). Fila er Kenneths bestilling
 > 2026-11-16; endres bare av orkestrator etter Kenneths beslutning.
 
 ## 1. Hard grense — DWG/DXF røres ikke
@@ -31,7 +31,7 @@ Utenfor 3D-agentenes område (målt med `git ls-files` 2026-11-16):
 1. **Mål først, ingen kode i første runde.** Første leveranse pr. funn er måling + rotårsak + løsningsforslag med ord. Kode først etter orkestratorens ordre (Kenneth godkjenner funksjonsendringer, [SAMARBEIDSREGLER § 5](SAMARBEIDSREGLER.md)).
 2. **Test vs prod-forskjell er et måleobjekt, ikke en gjetning.** Kenneth melder at samme gest virker på test og ikke på prod. Det kan være modellen (enheter, koordinat-origo, størrelse, IFC-skjema), data eller kodeversjon. Mål build-hash (`/version`) og modellfil på begge før du forklarer.
 3. **Bevar funksjoner.** Det som virker i dag (f.eks. pan på test, snitt på mobil) skal virke etterpå. Fjerner du noe udiskutert: STOPP og meld.
-4. **Paritet web ↔ mobil der det hører hjemme.** Egenskaper og måling er samme funksjon på begge flater; ta del i felles logikk via `@sitedoc/shared` og navngi den ([SAMARBEIDSREGLER § 6b](SAMARBEIDSREGLER.md)). Web-agenten og mobil-agenten melder hverandres berøringsflate til orkestrator, ikke direkte.
+4. **Paritet web ↔ mobil der det hører hjemme.** Egenskaper og måling er samme funksjon på begge flater; ta del i felles logikk via `@sitedoc/shared` og navngi den ([ordre-og-agent.md § 6b](ordre-og-agent.md)). Web-agenten og mobil-agenten melder hverandres berøringsflate til orkestrator, ikke direkte.
 5. **Verifisering:** et tall eller en regel → test. Et utseende eller en gest → skjermbilde/opptak av Kenneth på test (mobil: Kenneth på telefon, [mobil.md](mobil.md)); si «dette kunne jeg ikke se» når du ikke kan.
 6. **Regel 10** før «klar for merge». Egen feature-branch, aldri `develop`/`main`.
 7. **3D-filer kan være store.** Ikke commit modellfiler. Testmodeller hentes fra test-prosjektet; ikke generer egne IFC-filer (Kenneth: be om ekte fil).

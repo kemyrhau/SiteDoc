@@ -88,7 +88,7 @@ export function RedigerMaskinRad({
           Lagret fraTid/tilTid sendes uendret videre (ingen data endres). */}
       <input
         type="number"
-        step="0.25"
+        step="any"
         min="0"
         value={timerStr}
         onChange={(e) => setTimerStr(e.target.value)}

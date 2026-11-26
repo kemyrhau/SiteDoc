@@ -78,3 +78,27 @@ describe("validerJobbTid", () => {
     expect(validerJobbTid({ fraTid: "07:00", tilTid: "08:00", pauseMin: -5 })).toBe("pause");
   });
 });
+
+// R3 (runde 1 timer): «Lagre jobb» sier fra når dagen går over normen uten overtidsart med nivå.
+describe("VAKTTEST 2026-11-26 (Kenneth: «runde 1 virker») — regnJobbTid — R3 overtidManglerArt", () => {
+  const forrige: OvertidForslagRad = {
+    id: "r1", fraTid: "07:00", tilTid: "15:00", pauseMin: 30, erReise: false, overtidsnivaa: null,
+  };
+  it("over normen uten art med nivå: én linje på normaltid, overtidManglerArt = 50", () => {
+    const r = regnJobbTid({ ...grunn, lonnsarter: [TIMELONN], andreRader: [forrige], fraTid: "15:00", tilTid: "18:00", pauseMin: 0 });
+    if (!r.ok) throw new Error("ugyldig");
+    expect(r.linjer).toHaveLength(1);
+    expect(r.linjer[0]!.overtid).toBe(false);
+    expect(r.overtidManglerArt).toBe(50);
+  });
+  it("med art: overtidManglerArt null", () => {
+    const r = regnJobbTid({ ...grunn, andreRader: [forrige], fraTid: "15:00", tilTid: "18:00", pauseMin: 0 });
+    if (!r.ok) throw new Error("ugyldig");
+    expect(r.overtidManglerArt).toBeNull();
+  });
+  it("under normen: overtidManglerArt null", () => {
+    const r = regnJobbTid({ ...grunn, lonnsarter: [TIMELONN], fraTid: "07:00", tilTid: "12:00", pauseMin: 0 });
+    if (!r.ok) throw new Error("ugyldig");
+    expect(r.overtidManglerArt).toBeNull();
+  });
+});

@@ -1,16 +1,10 @@
-# Samarbeidsregler — roller, meldingsflyt, gate og merge
+# Samarbeidsregler — kjernen
 
-> Fasit for hvem gjør hva mellom agentøktene på SiteDoc. **Les § 0 og § 0b ved sesjonsstart**, deretter
-> tavla i [STATUS-AKTUELT.md](STATUS-AKTUELT.md). Treoversikt og frossen sone: [parallell-arbeid-lock.md](parallell-arbeid-lock.md).
->
-> **Navn:** *orkestrator* er rollen som tidligere het «cowork» og «kontroll-Claude». *Fabel* er rollen som en
-> periode (18.09–06.10) het «design». Eldre filer, ordrer og historikk bruker de gamle navnene; reglene her
-> gjelder rollen uansett navn.
+> **Les hele kjernen ved sesjonsstart**, så tavla i STATUS-AKTUELT.md. Utskilt 2026-11-26: ordre-og-agent.md, merge-og-gate.md, deploy-detaljer.md. Gamle navn: cowork/kontroll-Claude = orkestrator, design (18.09–06.10) = Fabel.
 
 ## § 0 — KENNETHS FORVENTNINGER (2026-09-28)
 
-🔴 **Dette er ankeret. Alt annet i fila er mekanikk som skal tjene disse punktene — og en regel
-som ikke tjener dem, skal slettes, ikke forklares.** *Kenneths egne ord:*
+🔴 **Dette er ankeret. Alt annet i fila er mekanikk som skal tjene disse punktene — og en regel som ikke tjener dem, skal slettes, ikke forklares.** *Kenneths egne ord:*
 
 ### Til meg som svarer
 
@@ -19,8 +13,7 @@ som ikke tjener dem, skal slettes, ikke forklares.** *Kenneths egne ord:*
 - **Belys konsekvens av arbeidet.**
 - **Konsekvent og minimalisert svar** — forklar på enkel måte hva hensikt og konsekvens er.
 - **Gi anbefaling.**
-- 🔴 **Ingen småprat og ros som ikke er myntet i faktiske forhold.** «jeg trenger kun fakta, kort
-  fortalt.»
+- 🔴 **Ingen småprat og ros som ikke er myntet i faktiske forhold.** «jeg trenger kun fakta, kort fortalt.»
 
 ### Til samarbeidet mellom agentene
 
@@ -28,121 +21,73 @@ som ikke tjener dem, skal slettes, ikke forklares.** *Kenneths egne ord:*
 - **Kontroll mot kode** forventes.
 - **Agentene skal kunne jobbe sammen.**
 - **Agentene kontrollerer hverandres arbeid og sjekker det.**
-- 🔴 **Spør når Kenneth er uklar.** *«ikke gjett hva jeg sier for så å kode i vei → forstå
-  grunnleggende hensikt, spør meg når min tolkning kan gå flere veier eller har flere betydninger.»*
-- 🔴 **FØLG MASTERPLANEN I TILLEGG TIL Å FIKSE FEIL SOM OPPDAGES.** *(Kenneth 2026-09-30.)*
-  Feltfunn skal ikke fortrenge planen — begge spor går (§ 3). En uke der planen ikke flyttet seg, skal
-  forklares.
+- 🔴 **Spør når Kenneth er uklar.** *«ikke gjett hva jeg sier for så å kode i vei → forstå grunnleggende hensikt, spør meg når min tolkning kan gå flere veier eller har flere betydninger.»*
+- 🔴 **FØLG MASTERPLANEN I TILLEGG TIL Å FIKSE FEIL SOM OPPDAGES.** *(Kenneth 2026-09-30.)* Feltfunn fortrenger ikke planen — begge spor går (§ 3). En uke der planen ikke flyttet seg, forklares.
 - 🔴 **ÉN GATE, ÉN MELDING, INGEN SMÅTURER — hver runde koster Kenneth usage** *(Kenneth 2026-10-06/07).*
-  1. **Én gate pr. leveranse, hos bestilleren** (§ 5). Mal/spec → Fabel. Kode → Kontrollør. Den som ikke
-     bestilte, gater ikke; orkestrator merger mekanisk på «klar for merge».
+  1. **Én gate pr. leveranse, hos bestilleren** (§ 6): mal/spec → Fabel, kode → Kontrollør. Den som ikke bestilte, gater ikke; orkestrator merger mekanisk på «klar for merge».
   2. **Gate i én melding:** GODKJENT, eller én komplett vilkårsliste. Ny runde kun når et vilkår ikke er lukket.
   3. **Mål aldri det samme to ganger.** `fil:linje` er målt — stikkprøv bare påstander uten referanse.
-  4. **Regel 10 kjøres to ganger: av koderen før levering, og uavhengig i merge-treet før push** (orkestrator, § 6).
-     Kontrollør gater diffen mot koden og kjører testene for pakkene diffen rører — ikke hele kjeden og ikke kald
-     `next build`. *(Kenneth 2026-11-24, billigere drift.)*
+  4. **Regel 10 kjøres to ganger:** av koderen før levering, uavhengig i merge-treet før push. Kontrollør gater mot Kenneths ord (FASIT i ordren), så ordren, så diffen mot koden; svaret starter «FASIT oppfylt»/«FASIT ikke oppfylt». Avvik ordre ↔ Kenneths ord er et SPØRSMÅL til Kenneth, ikke et stille valg. Kontrollør tester pakkene diffen rører, + e2e for timeføring når Timer røres (🔴 Ikke bygget — bestilles etter første testrunde); ikke hele kjeden, ikke kald `next build`. *(Kenneth 2026-11-24, billigere drift.)*
   5. **Bestilleren skriver posten i `relay/inbox-<agent>.md`**; orkestrator får kopi og sender nudgen (§ 2).
-  6. **Ingen kvitteringer, ingen egen runde for premisser/sitater** — de går i neste reelle ordre. `git log` er kvitteringen.
+  6. **Ingen kvitteringer eller egen runde for premisser/sitater** — de går i neste reelle ordre. `git log` er kvitteringen.
   **Testen før hver melding:** *fører den til at noen skriver kode eller merger nå?* Nei → ikke send.
 
-**Om nye regler:** en ny regel erstatter en eksisterende, eller den skrives ikke. Hendelseslogger hører i
-STATUS-AKTUELT eller historikk, aldri her. *(Kenneth 2026-09-28: «du får kun lov til å forbedre regler.»)*
+**Nye regler** erstatter en eksisterende, eller skrives ikke. Hendelseslogg hører i STATUS-AKTUELT/historikk. *(Kenneth 2026-09-28: «du får kun lov til å forbedre regler.»)*
 
 ## § 0b — ARBEIDSFORM FRA 2026-10-28: orkestrator kjører agentene selv (Kenneth-vedtak)
 
 > **Kenneth 2026-10-28:** *«kan vi ordne det slik at du selv relayer til fabel og agenter. sjekker svarene. jeg beholder selv all kommunikasjon med server og bygg»* · *«husk at alle agenter må clear etter hver handling»* · *«se hvordan teamhunt kjører sitt område. jeg ønsker at du gjør det samme»*
 
-1. **Orkestrator starter agentene som side-økter under seg** (`start_session`), samlet i sidepanel-gruppen «sitedoc»: én økt pr. rolle i sitt faste tre (§ 1). **Der `start_session` ikke finnes i orkestrator-økta:** samme rolle kjøres som subagent (Agent-verktøyet) med absolutte stier til treet.
-2. **Ordren skrives i `relay/inbox-<agent>.md` FØR den sendes** (§ 2). Orkestrator sender nudgen selv (`send_message`, fast form i § 2) til økt-ID-en (`local_…`) fra `list_sessions {linked: true}` — aldri via søk på tittel og leser leveransen nederst i `relay/inbox-orkestrator.md`.
-3. **/clear etter hver handling, og én leveranse pr. økt:** når leveransen er lest og gatet, tømmer orkestrator økta (`clear_session`). Passerer en agent ~150 000 tokens kontekst midt i en ordre (`get_usage`), bes den skrive SJEKKPUNKT og pushe WIP-branchen, og tømmes før den fortsetter. Orkestrator selv starter ny økt når egen kontekst passerer ~150 000 tokens, med tavla og `relay/inbox-orkestrator.md` som overlevering. En subagent er ny pr. oppgave og trenger ingen tømming. *(Kenneth 2026-11-24: kostnaden er antall turer × kontekstlengde.)*
-4. **Kontrollør er alltid en egen økt/subagent**, aldri den som bygde koden.
-5. **Kenneth beholder:** beslutninger (produkt, skjema, rettigheter, prod) og alt mot server og bygg — deploy, OTA, EAS, `sudo`, migreringer, push til `main`. Orkestrator gir kommandoene i `bash`-blokker; ingen agent kjører dem.
-6. **Modell og verktøy pr. rolle (Kenneth 2026-11-24):** Fabel kjører Opus når den fører inn svar, retter eller deler dokumenter, og Fable bare når den skriver ny spesifikasjon eller nye spørsmål — orkestrator bytter modell (`set_session_model`) før nudgen. Kodere og Kontrollør kjører Opus; rent mekaniske oppgaver kan gå på Sonnet. Nettleser-MCP (chrome-devtools) finnes bare i de to verktøy-agentene i `SiteDoc-verktoy-1` og `SiteDoc-verktoy-2`; andre agenter bruker den innebygde nettleseren eller ber orkestrator sende oppgaven dit.
-7. **Kenneth limer ingenting.** Han ser øktene i sidepanelet og kan gå inn i hvilken som helst av dem.
+1. **Agentene er side-økter** (`start_session`, gruppe «sitedoc»), én pr. rolle i sitt tre (§ 1); ellers subagent med absolutte stier.
+2. **Nudgen** (`send_message`, etter posten, § 2) går til `local_…`-ID fra `list_sessions {linked: true}`, aldri via titelsøk; leveransen leses nederst i `inbox-orkestrator.md`.
+3. **/clear etter hver handling, én leveranse pr. økt:** lest og gatet → `clear_session`. Over ~150 000 tokens midt i en ordre (`get_usage`): SJEKKPUNKT, push WIP, tøm, fortsett. Orkestrator: ny økt ved ~150 000, overlevering via tavla og egen innboks. *(Kenneth 2026-11-24: kostnad = turer × kontekst.)*
+4. **Kontrollør er alltid egen økt/subagent**, aldri den som bygde koden.
+5. **Kenneth beholder** beslutninger (produkt, skjema, rettigheter, prod) og alt mot server og bygg: deploy, OTA, EAS, `sudo`, migreringer, push til `main`. Orkestrator gir kommandoene i `bash`-blokker; ingen agent kjører dem.
+6. **Modell (2026-11-24):** Fabel Opus for å føre inn, rette og dele, Fable bare for ny spec/nye spørsmål (`set_session_model` før nudgen). Kodere og Kontrollør Opus; rent mekanisk Sonnet. Chrome-devtools-MCP bare i `SiteDoc-verktoy-1/-2`; ellers innebygd nettleser.
+7. **Kenneth limer ingenting**; han ser alle øktene i sidepanelet.
 
 ## § 1 — Roller
 
-| Agent | Tre | Gjør | Gjør aldri |
-|---|---|---|---|
-| **Orkestrator** | hovedtreet `SiteDoc` (relay, lesing) + `SiteDoc-merge` (merge, docs-commits) | Skriver kode-ordrer, kontrollerer Fabels plan mot kode før den blir ordre, sender alle nudger, leser leveranser, merger og pusher `develop`, fører tavla, STATUS-AKTUELT og [FUNKSJONSENDRINGER.md](FUNKSJONSENDRINGER.md), gir Kenneth deploy-kommandoer | Skriver plan/design · gater kode den selv har skrevet · kjører `sudo`/deploy/OTA/EAS/migrering |
-| **Fabel** | `SiteDoc-fabel` (Desktop-økt «Fabel») | **Eier planen og designet** — modell, lagdeling, beslutningsliste, specs *(Kenneth-vedtak 2026-10-01)*. Skriver mal-ordrer og gater maler. Pusher egne docs-brancher fra `origin/develop` | Merger · pusher `develop` · gater kode |
-| **Kontrollør** | `SiteDoc-gate` | Uavhengig gate av kode-leveranser mot faktisk kode før merge. Stående ordre: `relay/inbox-kontrollor.md` | Skriver kode · merger |
-| **Redesign**, **Dokgen**, **3D-web**, **3D-mobil** | `SiteDoc-redesign`, `SiteDoc-dokgen`; 3D-agentene i eget app-tre pr. ordre (`SiteDoc/.claude/worktrees/…`) | Koder én oppgave på egen branch, pusher egen branch, leverer med SJEKKPUNKT | Pusher `develop`/`main` · rører filer ordren ikke gir dem |
-| **Kenneth** | — | Beslutninger, server, deploy, OTA, EAS, `sudo`, migreringer, push til `main` | Limer nudger (§ 0b.6) |
+- **Orkestrator** (`SiteDoc` relay/lesing, `SiteDoc-merge`): kode-ordrer, Fabels plan mot kode før ordre, nudger, leveranser, merge/push av `develop`, tavla, STATUS-AKTUELT, FUNKSJONSENDRINGER, deploy-kommandoer. Aldri: plan/design · gate av egen kode · § 0b.5.
+- **Fabel** (`SiteDoc-fabel`): **eier plan og design** (modell, lagdeling, beslutningsliste, specs; 2026-10-01), mal-ordrer, malgate, egne docs-brancher. Aldri: merge · push av `develop` · kodegate.
+- **Kontrollør** (`SiteDoc-gate`): uavhengig kodegate mot koden før merge; stående ordre i `inbox-kontrollor.md`. Aldri: kode · merge.
+- **Redesign, Dokgen, 3D-web/-mobil** (`SiteDoc-redesign`, `SiteDoc-dokgen`; 3D: app-tre pr. ordre): én oppgave på egen branch, pusher den, leverer med SJEKKPUNKT. Aldri: push av `develop`/`main` · filer ordren ikke gir.
+- **Kenneth:** § 0b.5 og § 0b.7.
 
-- **Agentnavn, aldri mappenavn**, når noen omtales eller adresseres (Kenneth 2026-10-06). `SiteDoc-fabel` = Fabel, `SiteDoc-gate` = Kontrollør.
-- **Sovende trær** (`SiteDoc-kontrollplan`, `SiteDoc-mal`) har ingen fast agent. Orkestrator kan starte en rolle der ved behov; den følger reglene for utviklere og får rad på tavla.
-- 🔴 **Tavla i [STATUS-AKTUELT § TAVLA](STATUS-AKTUELT.md) er eneste register over hvilke agenter som finnes nå.** Tabellen over sier hva en rolle *har lov til*; tavla sier hvem som er der. Ordre gitt ⇒ rad skrives i samme handling. Merget og ryddet ⇒ raden fjernes. Tavla tømmes aldri ved rundeslutt. Føres fra måling (`git worktree list`, `git log origin/develop`), aldri fra hukommelse. Skriver Kenneth «tavla», svarer orkestrator med aktive rader: agent · branch · alder · venter på · hvem har ballen.
-- **Hvem avgjør ved uenighet:** Fabel — plan, design, tekst, malinnhold. Orkestrator — ordre, merge, rekkefølge, timing, kollisjoner. Kenneth — alt som endrer hva som bygges (innhold, skjema, rettigheter, prod) og grensesaker. **Maks én runde** mellom Fabel og orkestrator; deretter én melding til Kenneth med begge standpunkt, hva hver har målt, og rangert anbefaling.
-- **Orkestrator beslutter arbeidsledelse selv** — hvem, hvilket tre, hvilken rekkefølge, om en ordre skal skrives. Spørsmål til Kenneth er beslutninger i siste kolonne over, ikke arbeidsledelse.
+- **Agentnavn, aldri mappenavn** (2026-10-06). Rolle i sovende tre (`SiteDoc-kontrollplan`, `SiteDoc-mal`) følger utviklerreglene, får tavle-rad.
+- 🔴 **Tavla (STATUS-AKTUELT § TAVLA) er eneste register over agentene som finnes nå**; lista sier hva en rolle har lov til. Ordre gitt ⇒ rad i samme handling; merget og ryddet ⇒ fjernes; tømmes aldri ved rundeslutt; føres fra måling (`git worktree list`, `git log origin/develop`). «tavla» → agent · branch · alder · venter på · ballen.
+- **Uenighet:** Fabel avgjør plan, design, tekst, malinnhold; orkestrator ordre, merge, rekkefølge, timing, kollisjoner; Kenneth hva som bygges (innhold, skjema, rettigheter, prod) og grensesaker. Maks én runde Fabel ↔ orkestrator, så én melding til Kenneth: begge standpunkt, målinger, rangert anbefaling. Arbeidsledelse (hvem, tre, rekkefølge, om ordre skrives) avgjør orkestrator.
 
 ## § 2 — Meldingsflyt (ufravikelig)
 
 ### Kanalen er innboksfila
 
-- 🔴 **Ingen oppgave uten POST i `relay/inbox-<agent>.md` FØR nudgen sendes** (regel 11). En nudge alene overlever ikke /clear.
-- 🔴 **Kanalen er HOVEDTREETS kopi med absolutt sti:** `~/Documents/Programmering/SiteDoc/relay/…`. `relay/` er gitignorert (`.gitignore:68`), følger ikke med en branch og synkes ikke mellom trær — skrevet relativt i et annet tre lander det der ingen leser.
-- **Nye poster føyes til NEDERST, bare nederst.** Leseren leser halen.
-- **Leveranser og SJEKKPUNKT** skrives nederst i `relay/inbox-orkestrator.md` med overskrift `## [dato] fra <Agent> → orkestrator: …`.
-- 🔴 **Kenneths beslutning skrives med hans egne ord i repo-dokumentet (fil fra DOC-MAP) i samme tur som den tas, ikke bare i `relay/`.** Punktet den gjelder, byttes ut, og det gamle slettes i samme commit. Er ingenting byttet ut, er beslutningen bare notert, og en notert beslutning er ikke hjemmel. Det som ikke er bygget, merkes 🟡 med dato og ordre. Orkestrator viser endringen som «Før / Nå» i sidepanelet før commit, senest før compact. Er beslutningen uklar, stilles et kontrollspørsmål i stedet for en tolkning. *(Kenneth 2026-11-16 og 2026-11-22.)*
-- **Innboksene ryddes av orkestrator:** avsluttede poster til `relay/arkiv/<innboks>-til-<dato>.md` ved prod-deploy eller når en innboks passerer ~300 linjer; øverst står en peker til arkivet.
-- **Endres et filnavn**, føres det gamle navnet som DØDT i innboksen.
+- 🔴 **Ingen oppgave uten POST i `relay/inbox-<agent>.md` FØR nudgen** (regel 11); en nudge alene overlever ikke /clear.
+- 🔴 **Kanalen er HOVEDTREETS kopi, absolutt sti** `~/Documents/Programmering/SiteDoc/relay/…` — `relay/` er gitignorert (`.gitignore:68`) og synkes ikke mellom trær.
+- **Nye poster nederst, bare nederst.** Leveranser og SJEKKPUNKT nederst i `inbox-orkestrator.md`: `## [dato] fra <Agent> → orkestrator: …`.
+- 🔴 **Kenneths beslutning skrives med hans ord i repo-dokumentet (DOC-MAP) samme tur, ikke bare i `relay/`.** Punktet byttes ut, det gamle slettes i samme commit; ellers er den bare notert, ikke hjemmel. Ikke bygget → 🟡 med dato og ordre. «Før / Nå» i sidepanelet før commit, senest før compact. Uklar → kontrollspørsmål. *(Kenneth 2026-11-16, 2026-11-22.)*
+- Orkestrator arkiverer innbokser til `relay/arkiv/<innboks>-til-<dato>.md` ved prod-deploy eller >300 linjer (peker øverst). Endret filnavn føres DØDT.
 
-### Hvem skriver hva — én regel
+### Hvem skriver hva
 
-- **Bestilleren skriver posten** i mottakerens innboks: orkestrator for kode-ordrer, Fabel for mal-ordrer og spec-spørsmål. Fabel gir orkestrator kopi i `inbox-orkestrator.md` med **branch + hash** på docs-branchen og filene ordren rører.
-- **Orkestrator sender alle nudger** (§ 0b.2). Ingen annen agent nudger, og Kenneth limer ingenting. Orkestrator har dermed alltid sett hvilke filer en ordre rører før den går ut (kollisjonskartet, § 6).
-- **En ordre peker bare på committede filer på origin**, med hash (`git show origin/<branch>:<sti>` virker uten merge). Avsender verifiserer med `git ls-remote --heads origin <branch>` FØR hashen meldes — **tomt svar = branchen finnes ikke = ingen hash meldes.**
+- **Bestilleren skriver posten:** orkestrator kode-ordrer, Fabel mal-ordrer og spec-spørsmål (kopi i `inbox-orkestrator.md`: branch + hash, filene ordren rører). Orkestrator sender alle nudger og har dermed sett filene (kollisjonskartet, ordre-og-agent § 6b).
+- **En ordre peker bare på committede filer på origin**, med hash (`git show origin/<branch>:<sti>`). `git ls-remote --heads origin <branch>` FØR hashen meldes — **tomt svar = ingen branch = ingen hash.**
 
 ### Fast nudge-form
 
 ```
-Du er <Agent>. Innboks: ~/Documents/Programmering/SiteDoc/relay/<fil>. Er du nettopp tømt: følg § /clear-REGELEN punkt C i docs/claude/SAMARBEIDSREGLER.md først. Ny post: «<overskrift i innboksen>».
+Du er <Agent>. Innboks: ~/Documents/Programmering/SiteDoc/relay/<fil>. Er du nettopp tømt: følg § /clear-REGELEN punkt C i docs/claude/ordre-og-agent.md først. Ny post: «<overskrift i innboksen>».
 ```
 
 Nudgen bærer aldri innhold som ikke står i posten.
 
 ### En sendt ordre er frosset
 
-- Når nudgen er sendt, endres ikke posten stille. Endring går som ny post med `TILLEGG til ordren om X` eller `ERSTATTER ordren om X` i overskriften.
-- **Ingen ny ordre som hviler på et ubesvart svar.** «Ferdigskrevet» og «sendt» er to tilstander.
-- **Spør aldri en agent om noe som ble lagt til etter at den startet** — den kan ikke svare riktig.
-- **Hver post er selvstendig.** Aldri «som i forrige ordre» eller «steg 2–4» uten at stegene står der.
+- Etter nudgen endres posten ikke stille: ny post `TILLEGG til ordren om X` / `ERSTATTER ordren om X`.
+- **Ingen ny ordre på et ubesvart svar** («ferdigskrevet» ≠ «sendt»). **Spør aldri en agent om noe lagt til etter at den startet.**
+- **Hver post er selvstendig** — aldri «som i forrige ordre» eller «steg 2–4» uten stegene.
 
-### /clear-REGELEN — agenten skal kunne tømmes når som helst (Kenneth-vedtak 2026-10-14)
-
-Orkestrator tømmer en agent etter hver levert handling (§ 0b.3). Det er bare trygt hvis ingenting bor kun i chatten. **Tilstand som ikke står i en fil eller på origin, finnes ikke.**
-
-#### A. Orkestrator: posten må kunne utføres av en agent som husker null
-
-Minstekrav (full mal i § 4 Ordre-anatomi): **hva og hvorfor** · **utgangspunkt** (branch/hash, miljø/test-hash) · **data** (prosjekt/fil ved navn; innlogging via [dev-login-agent.md](dev-login-agent.md) + bruker) · **DoD** · **hvor svaret skal** (`relay/inbox-orkestrator.md` + SJEKKPUNKT).
-
-#### B. Agenten: SJEKKPUNKT ved hver leveranse
-
-Nederst i `~/Documents/Programmering/SiteDoc/relay/inbox-orkestrator.md`:
-```
-SJEKKPUNKT <Agent> <dato tid>
-Branch: <navn> @ <hash>   (verifisert: git ls-remote --heads origin <branch>)
-Worktree: <absolutt sti>
-Ordre: <innboksfil> § <overskrift>
-Status: levert / under arbeid / venter på <hva>
-Kunnskap å ta med: <det du lærte som ikke står i ordren: testdata, ID-er, innlogging, kjørende prosesser, fallgruver>
-Åpent: <det som ikke er gjort, eller «ingenting»>
-Neste steg: <én setning, eller «vent på ordre»>
-```
-- Midt i en oppgave: commit og push pågående arbeid på **egen feature-branch** (WIP-commit lov der, aldri på develop/main), skriv SJEKKPUNKT, svar **«klar for clear»**.
-- 🔴 **«Kunnskap å ta med» er feltet som gjør /clear trygt** — også prosesser som lever videre (tunneler, dev-servere, installerte bygg), så neste økt ikke bygger dem på nytt.
-
-#### C. Agenten etter /clear: les før du gjør noe
-
-1. Denne regelen. **3D-web og 3D-mobil:** deretter hele [3d-agent-prinsipper.md](3d-agent-prinsipper.md) (hard grense mot DWG/DXF).
-2. Posten nudgen navngir, i egen innboks (søk på overskriften). Finnes den ikke: **STOPP og meld «posten finnes ikke»**.
-3. Siste `SJEKKPUNKT <Agent>` i `relay/inbox-orkestrator.md`.
-4. `git -C <worktree> status` + `git log -1`. Avviker treet fra sjekkpunktet: **meld avviket før du gjør noe.**
-
-Les ikke hele innboksen. Mangler noe, var posten eller sjekkpunktet dårlig — meld det.
-
-**Innboksfiler:** `inbox-<agent>-<emne>.md` pr. oppdrag (Redesign, Dokgen); `inbox-kontrollor.md` og `inbox-fabel.md` faste. Den gjeldende fila står i nudgen.
+**/clear-REGELEN** (A post, B SJEKKPUNKT, C etter /clear): [ordre-og-agent.md](ordre-og-agent.md).
 
 ## § 3 — Til Kenneth og arbeidsform
 
@@ -150,97 +95,38 @@ Les ikke hele innboksen. Mangler noe, var posten eller sjekkpunktet dårlig — 
 
 > *«du er den som skal foreslå neste oppgave og gi ordrer. JEG ER IKKE INTERESSERT I DIALOG. kun fremdrift.»*
 
-- 🔴 **Orkestrator BESLUTTER hvordan og når, og gir ordre. Hva brukeren ser eller kan gjøre, vedtar bare Kenneth.** Orkestrators tolkning av Kenneths ord er ikke et vedtak. Spørsmål til Kenneth kun når beslutningen er hans (§ 1).
-- **En anbefaling kommer med handlingen som utfører den** i samme melding.
-- **Et forbehold er konkret eller utelates.** Kan det måles bort (én spørring), mål det før meldingen sendes.
-- **Er valget Kenneths:** still det i den faste formen (neste avsnitt).
+- 🔴 **Orkestrator BESLUTTER hvordan og når, og gir ordre. Hva brukeren ser eller kan gjøre, vedtar bare Kenneth.** Orkestrators tolkning er ikke vedtak; Kenneth spørres bare om sine beslutninger (§ 1).
+- **Anbefaling kommer med handlingen som utfører den.** Forbehold er konkret eller utelates; kan det måles bort (én spørring), mål først.
 
 ### Spørsmål: ett vindu, fast form
 
-Tenk ferdig og mål det som kan måles. Still **ett** spørsmål om **ett** vindu, med linjene
-**I dag · Svarer du ja · Forsvinner · Svarer du nei · Anbefaling**. «Nei» betyr at ingenting endres.
-🔴 **Et «ja» gjelder bare det som står under «Svarer du ja» og «Forsvinner».** Et «ja» til en samlet liste er ikke et vedtak.
-**Kontrollspørsmål:** kan bestillingen bygges uten svaret? Ja → spørsmålet stilles ikke; orkestrator avgjør hvordan og når, og endrer ikke hva brukeren ser.
-Venter et svar, står det under en egen **«KREVER SVAR»**-overskrift; er det ingenting, skriv `Krever svar: ingenting`.
+Tenk ferdig, mål. Ett spørsmål om ett vindu: **I dag · Svarer du ja · Forsvinner · Svarer du nei · Anbefaling**. «Nei» = ingenting endres. 🔴 **«Ja» gjelder bare «Svarer du ja» og «Forsvinner»**, ikke en samlet liste. **Kan bestillingen bygges uten svaret?** Ja → ikke spør; orkestrator avgjør hvordan og når, og endrer ikke hva brukeren ser. Ventende svar under **«KREVER SVAR»**, ellers `Krever svar: ingenting`.
 
-### Kommandoer til Kenneth (server, deploy, OTA, EAS)
-
-- **Bash-blokka inneholder KUN kommandoen.** Steg-nummer, maskin, runbok-referanse, forventet utfall og advarsler står i prosa rundt.
-- **Deploy-kommandoer kun fra [DEPLOY-RUNBOK.md](DEPLOY-RUNBOK.md)** — aldri skrevet fra hukommelsen.
-- **Si hvilken maskin** ved hvert skifte Mac ↔ `server-ny`; aldri begge i samme blokk.
-- **POSIX/BSD-flagg** (Macen har BSD-verktøy): unngå `xargs -a` · `sed -i` uten argument · `grep -P` · `date -d` · `readlink -f` · `stat -c`. En slettende/endrende kommando følges av en telling som avslører om ingenting skjedde.
-- **Hver melding er selvstendig** — aldri «kjør blokken fra forrige melding».
-- **Nummerert rekkefølge** med forventet resultat pr. steg; orkestrator verifiserer mot forventningen før neste steg.
-- **Skjermbilder eller klikk-test fra Kenneth:** følg [skjermbilde-forespoersel.md](skjermbilde-forespoersel.md) — limbar URL, nummererte steg, forventning pr. bilde.
-- **`git checkout -B` gis én gang** — gjentatt tilbakestiller den branchen og kaster commits.
+**Kommandoer til Kenneth:** [deploy-detaljer.md](deploy-detaljer.md) § Kommandoer; deploy kun fra DEPLOY-RUNBOK.md.
 
 ### Plan-spor og funn-spor (Kenneth-vedtak 2026-08-31)
 
-- **Plan-sporet** har alltid neste masterplan-punkt og røres ikke av feltfunn. **Funn-sporet** tar feltfunn; er det tomt, BACKLOG. Hver ordre og tavle-rad sier hvilket spor.
-- **Feltfunn samles** — de blir ikke ordrer på minuttet. **Én skala** for både prioritet og deploy:
+- **Plan-sporet** har alltid neste masterplan-punkt, urørt av feltfunn; funn-sporet tar feltfunn, ellers BACKLOG. Ordre og tavle-rad navngir sporet. Feltfunn samles, blir ikke ordre på minuttet. Én skala, prioritet og deploy:
 
-| Merke | Betyr | Handling |
-|---|---|---|
-| 🔴 | Bruker kommer ikke videre, data tapes, regresjon fra merget arbeid, eller noe Kenneth venter på | Avbryter plan-sporet. Ordre nå, deploy nå |
-| 🟡 | Virker, men skjemmer · rydding · teknisk gjeld · i18n | Funn-sporet i tur. Samles til neste 🔴-deploy |
-| 🔵 | Observasjon uten smerte i dag | BACKLOG |
+  - 🔴 bruker kommer ikke videre, data tapes, regresjon fra merget arbeid, eller noe Kenneth venter på → avbryter plan-sporet; ordre og deploy nå.
+  - 🟡 virker, men skjemmer · rydding · teknisk gjeld · i18n → funn-sporet i tur; samles til neste 🔴-deploy.
+  - 🔵 observasjon uten smerte i dag → BACKLOG.
 
-  **Kontrollspørsmål før noe avbryter planen:** *kommer noen ikke videre uten dette?* Merket står i ordrens første linje.
-- **Målestokken er piloten:** [REDESIGN-MASTERPLAN.md](../redesign/REDESIGN-MASTERPLAN.md) § Rekkefølge (50 ansatte, mobil viktigst; funksjonelt produkt først, GDPR og lovkrav så godt vi kan).
+  **Før noe avbryter planen:** *kommer noen ikke videre uten dette?* Merket står i ordrens første linje.
+- **Målestokken er piloten** (REDESIGN-MASTERPLAN § Rekkefølge): 50 ansatte, mobil viktigst; funksjonelt produkt først, GDPR og lovkrav så godt vi kan.
 
-### 🔴 DEPLOY KOSTER KENNETHS TID — MERGE GJØR IKKE (vedtak 2026-09-10)
+### 🔴 DEPLOY OG TESTRUNDER KOSTER KENNETHS TID
 
-- Hver deploy/OTA koster Kenneth ~20 min. **Samle 🟡** til neste 🔴; uten 🔴 deployes samlepakken når Kenneth sier fra. Oppgi hva kommandoen bærer og hvem som venter.
-- **Mens Kenneth deployer:** orkestrator merger ikke (hash-guarden i `deploy-test.sh` feiler hvis develop flytter seg) før `/version` bekrefter hashen. Utviklere bygger videre på egne brancher; orkestrator skriver ordrer og gater. **Orkestrator venter ikke på deploy før neste ordre.**
-- **`/version` FØR hver kjede som avhenger av en deploy** (`curl -s https://api-test.sitedoc.no/version`). En seed eller test mot gammelt image måler ingenting.
-- Ingenting blir liggende gatet-men-ikke-deployet uten en grunn ført i STATUS-AKTUELT.
+- Deploy/OTA ≈ 20 min for Kenneth. Samle 🟡 til neste 🔴; uten 🔴 deployes samlepakken når han sier fra. Oppgi hva kommandoen bærer og hvem som venter.
+- **Mens Kenneth deployer** merges ikke (hash-guard i `deploy-test.sh`) før `/version` bekrefter hashen; ordrer og gate fortsetter.
+- 🔴 **Testrunder:** inntil tre beslektede rettinger i én modul, testet av Kenneth på lokal testflate før merge (orkestrator starter, [lokal-dev.md](lokal-dev.md) § 7). Neste runde i modulen bestilles når han har meldt resultatet; imens skriver agentene tester eller måler, uten å røre rundens filer. Prod får bare runder han har sagt «virker» til. Andre moduler går parallelt.
+- **`/version` FØR hver kjede som hviler på en deploy** (`curl -s https://api-test.sitedoc.no/version`). Gatet-men-ikke-deployet krever grunn i STATUS-AKTUELT.
 
 ## § 4 — Ordrer
 
-### Mål premisset (ufravikelig)
+Mål premisset, ordre-anatomi, tolkning: [ordre-og-agent.md](ordre-og-agent.md) § 4.
 
-- **Før du skriver en ordre:** mål premisset i koden — også for et sidefunn. En velskrevet agentrapport er ikke en måling.
-- **På en innkommende rapport:** den er input, ikke fasit. Relé, rapport og SJEKKPUNKT er input.
-- **Før du ber noen teste:** branchen er rebaset på `origin/develop`, og `git merge-base --is-ancestor <fiks> <bygget som kjører>` er sant. Aldri bestill verifisering av kode som ikke er deployet.
-- **Påstanden kommer fra verktøyet som eier svaret:** `pnpm lint` for lint, hele funksjonen (lest fra toppen) for kontrollflyt, hele skrivestien for «skjer dette». Et `sed`-vindu eller et grep-treff er ikke en måling. For dyrt å måle → skriv «ikke målt».
-- **Et binærnavn, en filsti eller `fil:linje` måles av den som skriver det inn** — arvet: skriv «umålt».
-- **Miljø-påstander måles mot maskinen** (`lsof`, `ps`, `git worktree list`), ikke mot docs. Kommandoer i docs kjøres minst én gang før de føres.
-- **Miljø/DB/test-oppsett:** les [LOKALT-OPPSETT.md](LOKALT-OPPSETT.md) + `ls .env*` først; spør Kenneth kun om den ene variabelen som faktisk mangler.
-- **Verktøyrapporter (Aikido o.l.) vurderer deklarerte versjoner** — sjekk resolved versjon før noe kalles eksponering.
-
-### Ordre-anatomi
-
-```
-[0. SPOR + MERKE]          Plan/funn · 🔴/🟡 · REPARASJON eller FUNKSJONSENDRING + hjemmel (§ 5).
-[1. HVA SOM ER GJORT]      Hasher + hva de gjorde. Hindrer at økta gjentar landet arbeid.
-[2. OPPGAVE]               Hva og hvorfor. Data, innlogging, utgangspunkt (branch/hash).
-                           `fil:linje` for hvert sted som skal endres, målt av bestilleren — agenten
-                           leter ikke selv. Leser agenten en stor doc, oppgis seksjonen, ikke fila.
-[3. UFRAVIKELIG]           Tre + branch + filer den eier + de tre linjene under.
-[4. FORVENTET OUTPUT]      DoD. Per funn: hva, hvordan målt, alvorlighet. Mistanker merket separat.
-[5. SVAR]                  relay/inbox-orkestrator.md + SJEKKPUNKT.
-```
-
-**De tre linjene, ordrett i blokk 3:**
-- «Denne ordren er **input, ikke fasit** — mål premisset selv. **SI DET, ikke gjett.**»
-- «**Sjekk treets alder før du melder et fravær**» — `git fetch` først; test på commit-hash, aldri branchnavn.
-- «**Fjerner du en funksjon ordren ikke nevner: STOPP og meld**» (§ 5).
-
-**Faste krav i ordren når de gjelder:**
-- **Steg 0 — BACKLOG-grep** med minst to søkeformer (funksjonsnavn + symptom). Treff refereres (`§<linje>`); null treff skrives. BACKLOG er ikke fasit — et treff betyr «mål dette».
-- **Paritetsmatrise** (§ 5) når funksjonen gjelder dokumenttyper eller flater.
-- **Funksjonsinventar** når ordren rører en eksisterende kodevei: hver funksjon kodeveien bærer, med vedtak BEVARES/ENDRES.
-- **Delt logikk navngis** (§ 6).
-- **Verifisering:** navngi **handlingen** som trigger kodeveien, og **hvem** som verifiserer: *et tall eller en regel* → funksjonstest, ingen nettleser · *et utseende* → Kenneth (ikke automatiser et blikk) · *en flyt agenten ikke kan nå* → si det i rapporten («dette kunne jeg ikke se» er en gyldig leveranse). Ber ordren om å finne noe: be om HVOR det ble funnet og HVOR MANGE TRYKK det tok.
-- **Bevis agenten kan levere.** Bevis som krever utstyr agenten ikke har, bestilles ikke av den.
-- **Mobil:** verifiseres med tester + Kenneth på telefon; simulator kreves ikke. Timing, nett og WebView-livssyklus er ikke verifisert før sett på fysisk enhet (sløyfen er kode → `r` i Metro → telefon, uten byggkvote). Skjermbilder kun når spørsmålet er visuelt — det er bildene som er dyre.
-
-### Tolkning av bestillinger
-
-- 🔴 **«Sjekkliste» betyr ofte «dokument»** (Kenneth 2026-09-04): sier Kenneth «sjekkliste» om en funksjon, gjelder den sjekkliste, oppgave og HMS med mindre noe er spesifikt for én. Tvil → ett spørsmål.
-- **Testplan med forventet utfall pr. steg** utledet fra kode før test — ellers har observasjonen ingenting å måles mot. Funn mater både kode og plan.
-
-## § 5 — Funksjoner: hva som bevares, hva som krever Kenneth
+## § 5 — Funksjoner og hjemmel
 
 ### 🔴 LUKKER HULL vs ENDRER FUNKSJON — Kenneths kontrollflate (Kenneth-vedtak 2026-09-27)
 
@@ -248,255 +134,32 @@ Venter et svar, står det under en egen **«KREVER SVAR»**-overskrift; er det i
 > forbedringer uten funksjonsendring»
 
 **Testen er om INTENSJONEN endres, ikke om brukeren merker noe.**
+- 🟢 **REPARASJON:** var det meningen at dette skulle virke, og gjorde det ikke? · bringer vi koden tilbake til noe Kenneth har sagt/spesifisert?
+- 🔴 **FUNKSJONSENDRING:** bytter vi én intensjon mot en annen? · endrer opplevelsen seg uten at det var en del av planen?
 
-| Spørsmål | Svar | Klassifisering |
-|---|---|---|
-| Var det meningen at dette skulle virke, og gjorde det ikke? | ja | 🟢 **REPARASJON** |
-| Bringer vi koden tilbake til noe Kenneth har sagt/spesifisert? | ja | 🟢 **REPARASJON** |
-| Bytter vi én intensjon mot en annen? | ja | 🔴 **FUNKSJONSENDRING** |
-| Endrer opplevelsen seg uten at det var en del av planen? | ja | 🔴 **FUNKSJONSENDRING** |
+**Presedenser (2026-09-27):** P2002 stille feil → melding = 🟢 · signaturlevetid 24 t → 15 min = 🔴 *selv om planlagt* (planlagt gir hjemmel, fritar ikke fra registeret) · PSI partiell unik indeks = 🟢 (rettet misforstått beskjed). **Feiltilfeller teller som funksjon.** Sikkerhetsendring som fjerner noe brukeren kunne = funksjonsendring.
 
-**Presedenser (Kenneth 2026-09-27):** P2002 stille feil → melding = 🟢 reparasjon · signaturlevetid 24 t → 15 min =
-🔴 funksjonsendring, *selv om det var planlagt* (planlagt gir hjemmel, fritar ikke fra registeret) · PSI partiell unik
-indeks = 🟢 reparasjon (rettet en misforståelse av opprinnelig beskjed). **Feiltilfeller teller som funksjon.**
+🔴 **Intensjon teller BARE hvis skrevet ned FØR endringen** (Kenneths beslutning, spec eller styrende dokument) **med referanse i ordren**; ellers **FUNKSJONSENDRING.** «Produktvalget er tatt» i en Fabel-ordre er ikke hjemmel: **Fabel foreslår; Kenneth beslutter.**
 
-🔴 **Intensjon teller BARE hvis den er skrevet ned FØR endringen** — beslutning fra Kenneth, spec eller styrende
-dokument, **med referanse i ordren.** Ingen skriftlig intensjon → **FUNKSJONSENDRING som standard.**
-«Produktvalget er tatt» i en Fabel-ordre er ikke hjemmel: **Fabel foreslår; Kenneth beslutter.**
+**Løypa — gaten ligger på ordre-tidspunktet:** (1) orkestrator klassifiserer hver ordre i ordren · (2) funksjonsendring sendes ikke uten hjemmel (beslutning + dato); ellers til Kenneth først, én blokk: **hva brukeren ser i dag · etterpå · hvorfor**; svar ja/nei/«endre» · (3) orkestrator fører FUNKSJONSENDRINGER.md ved merge: funksjonsendringer og reparasjoner med synlig virkning.
 
-**Løypa — gaten ligger på ordre-tidspunktet, ikke før merge:**
-1. **Orkestrator klassifiserer hver ordre** og skriver det i ordren.
-2. **En funksjonsendrings-ordre sendes ikke før den navngir hjemmelen** (beslutning + dato). Finnes ingen: til Kenneth
-   først, én kort blokk — **hva brukeren ser i dag · hva han ser etterpå · hvorfor.** Svar: ja, nei eller «endre».
-3. **Orkestrator fører [FUNKSJONSENDRINGER.md](FUNKSJONSENDRINGER.md) ved merge** — funksjonsendringer (krevde ja) og
-   reparasjoner med synlig virkning (til orientering).
-
-Sikkerhetsendringer er ikke unntatt: fjerner de noe brukeren kunne, er det funksjonsendring.
-
-### 🔴 KODEN ER ALDRI FROSSET — det er FUNKSJONENE vi bevarer (Kenneth-vedtak 2026-09-04)
-
-> *«Koden er aldri frosset → det er funksjonene vi må bevare → funksjoner som er feil må vi korrigere → men jeg vil ha
-> tilbakemelding dersom vi fjerner funksjoner som ikke har vært diskutert.»*
-
-1. **Ingen kode er fredet.** Et «ikke rør den» gjelder det brukeren opplever, ikke implementasjonen.
-2. **Er funksjonen feil, skal den korrigeres** — bevaring gjelder det som er riktig, ikke det som er gammelt.
-3. 🔴 **Fjerner du en funksjon som ikke har vært diskutert — STOPP og meld FØR levering.** «Ingen klient gjør dette i
-   dag» er en observasjon, ikke en garanti. Tom tabell eller null kallere er ofte halvferdig vedtatt funksjon — sjekk
-   `git log -S`, spec og fallback før noe kalles dødt.
-
-| Bevares (hvis riktig) | Fritt å endre |
-|---|---|
-| Det brukeren ser og gjør | Hvor verdien kommer fra |
-| Antall trykk, rekkefølge, hva som huskes | Datastruktur, kontekst, cache-strategi |
-| At funksjonen finnes og virker | Robusthet, avgrensning, testdekning |
-
-En refaktorering som fjerner et trykk brukeren var vant til, har brutt fredningen selv om ingen funksjon forsvant.
-**Ordrer som rører fredet område** navngir filene som bærer dagens atferd, krever at agenten sier hvilke han rørte, og
-peker på regresjonstestene.
+**KODEN ER ALDRI FROSSET** (udiskutert fjerning = STOPP og meld) **og PARITET:** [ordre-og-agent.md](ordre-og-agent.md) § 5.
 
 ### To sannheter, snudd vedtak og vedtak i fila
 
-- 🔴 **To sannheter.** Koden er sannheten for hva programmet gjør i dag. Kenneths vedtak er sannheten for hva det skal gjøre. Planen, loggen, ordrer og agentenes tolkninger er ikke hjemmel.
-- 🔴 **Godkjent i test er vernet.** Det Kenneth har godkjent i test, kan bare endres med hans egne ord.
-- 🔴 **Et SNUDD vedtak byttes ut DER DET STO.** Det gamle slettes i samme commit. Hvem, når og hvorfor står i commit-meldingen; historikken ligger i git. Den som leser det gamle først, bygger det forkastede.
-- 🔴 **Før du endrer en komponent: les vedtakene som står som kommentarer i den fila, og navngi i svaret hvilke som
-  gjelder** (Kenneth-vedtak 2026-09-29). Står vedtaket ikke der koden bor, er funnet at det står på feil sted.
+- 🔴 **To sannheter:** koden for hva programmet gjør i dag, Kenneths vedtak for hva det skal gjøre. Plan, logg, ordrer og tolkninger er ikke hjemmel.
+- 🔴 **Det Kenneth har sagt «virker» til, låses som vakttest** i samme commit som runden merges, navngitt med dato og hans ord; endres/slettes bare med hans ord, aldri fordi en ny ordre gjør den rød.
+- 🔴 **Et SNUDD vedtak byttes ut DER DET STO**; det gamle slettes i samme commit, hvem/når/hvorfor i commit-meldingen. Den som leser det gamle først, bygger det forkastede.
+- 🔴 **Før du endrer en komponent: les vedtakene i fila, navngi hvilke som gjelder** (2026-09-29). Står vedtaket ikke der koden bor, står det feil — et funn.
 
-### 🔴 PARITET GJELDER TO AKSER — dokumenttype OG flate (Kenneth 2026-09-04)
+## § 6 — Gate og merge
 
-Enhver ordre for en dokumentfunksjon fyller ut matrisen. Hver rute er ✅ (bygges), ❌ (gjelder ikke — med grunn) eller
-⚠️ (finnes ikke i dag — eget funn). **Tomme ruter er ikke tillatt.**
+- **Gate og klarsignal:** kode → **Kontrollør** («GODKJENT – klar for merge» / «Avvik: …») · mal → **Fabel**, innhold + teknikk på agentens regel 10-tall («klar for merge») · docs-only fra Fabel → Fabels «klar for merge»; orkestrator sjekker at diffen bare er docs.
 
-| | Web | Mobil-app | Arkiv-PDF |
-|---|---|---|---|
-| **Sjekkliste** | | | |
-| **Oppgave** | | | |
-| **HMS** (avvik/SJA/RUH) | | | |
+- 🔴 **Gate-MELDINGEN for nøyaktig den hashen utløser merge**, ikke at branchen finnes. Orkestrator stadfester gaten med kilde (`inbox-orkestrator.md:<linje>`) i merge-commit eller tavla; mangler den, merges ikke.
+- UI-utseende verifiseres av Kenneth før deploy, ikke av ekstra gate; Fabel gater ikke kode på nytt.
+- **Etter «klar for merge» er branchen FROSSET:** ny push = ny hash meldt + ny gate.
+- **Agenten pusher egen feature-branch** når egen gate er grønn: rebase på `origin/develop` rett før push, `--force-with-lease` (aldri `--force`, aldri mot `develop`/`main`); diffen kun egne filer.
+- **Regel 9 (`--no-ff`), regel 10, merge-kjeden, rydding:** [merge-og-gate.md](merge-og-gate.md).
 
-**Paritet er ikke likhet — mobil får det som hører i felt** (*«avanserte funksjoner overlater vi til web»*):
-
-| Hører på MOBIL — feltarbeid | Hører i WEB — kontorarbeid |
-|---|---|
-| Registrere observasjon, avvik, RUH | Bygge og redigere maler |
-| Ta bilde, sette pin, velge tegning | Firmaadministrasjon, malarkiv, moduloppsett |
-| Fylle ut og sende dokument | Rapportering, analyse, eksport-oppsett |
-| Se og kontrollere eget arbeid | Attestering i volum, kolonnevalg, bulk |
-
-`❌` for mobil begrunnes med *hvor arbeidet skjer* (anleggsarbeider med hansker, i regn), ikke med at det ble tungt å
-bygge. Ulik leveringsvei (OTA vs prod-deploy) betyr ulik timing, ikke ulikt omfang.
-
-## § 6 — Gate og merge (Commit-orden)
-
-### Hvem gater hva — én gate pr. leveranse
-
-| Leveranse | Gate | Klarsignal |
-|---|---|---|
-| Kode (alle kode-ordrer) | **Kontrollør** | «GODKJENT – klar for merge» eller «Avvik: …» |
-| Mal (seed/innhold) | **Fabel** (innhold + teknikk på agentens regel 10-tall) | «klar for merge» |
-| Docs-only fra Fabel | Fabels melding er klarsignalet; orkestrator sjekker mekanisk at diffen bare er docs | «klar for merge» |
-
-- 🔴 **Gate-MELDINGEN utløser merge, ikke branchens eksistens.** En pushet branch uten klarsignal for nøyaktig den
-  hashen er ikke gatet — også når orkestrator har målt at den finnes.
-- **Orkestrator stadfester gaten i merge-commit-meldingen eller tavla** med kilde (`inbox-orkestrator.md:<linje>`).
-  Mangler den, merges ikke.
-- Utseende på en UI-endring verifiseres av Kenneth før deploy (ikke av en ekstra gate). Fabel gater ikke koden på nytt.
-- **Etter «klar for merge» er branchen FROSSET:** ny push krever ny hash meldt, og ny gate for den hashen.
-- **Agenten pusher sin egen feature-branch** så snart egen gate er grønn. Rebase pushes med `--force-with-lease`, aldri
-  `--force`, aldri mot `develop`/`main`. `git fetch && git rebase origin/develop` rett før push; diffen skal være kun egne filer.
-
-### Regel 9 og regel 10
-
-- **Regel 9:** merge til `develop` alltid `--no-ff`.
-- **Regel 10 — ingen merge uten grønt på alle ledd, kjørt i merge-treet etter mergen:**
-  1. **Forsteg:** `pnpm install` + `prisma generate` for `db`, `db-timer`, `db-maskin`, `db-varelager`. Uten det gir
-     `Module not found` (node_modules bak lockfila) og `does not exist in type '<Modell>Select'` (klient bak schema)
-     falske røde.
-  2. `npx turbo run typecheck --force` fra rot — **«N successful, N total» med like tall.** Lavt N betyr at turbo
-     stoppet på første røde pakke.
-  3. `pnpm --filter @sitedoc/web exec tsc --noEmit` **eksplisitt** — `next build` typesjekker ikke testfiler, og
-     mobilens typecheck dekker ikke web. Falske `TS2307` i `.next/types/` skilles ut (`grep -v '^\.next/'`); er alle
-     feilene der, kjør byggeleddet og mål på nytt.
-  4. `pnpm --filter @sitedoc/web build` — **kaldt** når web-filer er rørt
-     (`rm -f apps/web/tsconfig.tsbuildinfo && rm -rf apps/web/.next`): inkrementell build kan skjule TS2589 som
-     Docker-bygget avviser. `tsc` stopper på første TS2589 — kjør til grønt. Web build dekker `apps/api` transitivt
-     (målt 2026-09-02); eget api-typecheck er hastighet, ikke dekning.
-  5. `pnpm exec turbo run test --force` fra **rot** — «N successful, N total» like tall. «FULL TURBO» eller urimelig
-     kort kjøretid = cache, ikke kjøring.
-- **Rapporten bærer den ordrette siste linja fra hver kommando** og test-fordelingen
-  `unit-mock: <n> · unit-ren: <n> · integrasjon: <n> · e2e: <n>`. «Rent» uten app-navn er ikke en kvittering. Krav (c) i
-  «stille tomhet er forbudt» kan aldri oppfylles av en mocket test — kvitteres som «delvis — mock».
-- ⚠️ **Kjent hull:** `tests/e2e` har intet `typecheck`-script (turbo teller no-op som suksess). Bestilles eget ledd hvis
-  e2e-drift skal fanges.
-
-### Gaten skal ligge i kommandoen
-
-- 🔴 **Aldri en pipe som gate.** `cmd | grep | tail` returnerer `tail` sin kode — alltid 0. Bruk eksplisitt
-  `> log 2>&1; echo "exit=$?"`, eller `set -o pipefail` først. Sammenlign tall maskinelt
-  (`grep -E "Tasks:" | awk '{exit !($2==$4)}'`), ikke bare finn linja.
-- **Mål at en ny gate stopper** — kjør den mot noe som feiler før du stoler på den. Et grep-treff på null er ikke bevis
-  for fravær (kasus!); kompilatoren og databasen er fasit.
-
-### Merge-kjeden (orkestrator, `SiteDoc-merge`)
-
-`SiteDoc-merge` står detached på `origin/develop` og bærer aldri egne commits ([parallell-arbeid-lock.md](parallell-arbeid-lock.md)
-§ Worktrees). Verifiser at treet finnes (`git worktree list`) før merge; gjenoppretting står i samme fil.
-
-```sh
-cd ~/Documents/Programmering/SiteDoc-merge && git fetch --prune origin && \
-test "$(git rev-parse origin/<branch>)" = "<hash>" && \
-! git merge-base --is-ancestor <hash> origin/develop && \
-git checkout -q --detach origin/develop && \
-git merge --no-ff <hash> -m "merge: <branch> -> develop (<hva>; <gate-kilde>)"
-# regel 10 her — så:
-git push origin HEAD:develop
-```
-
-- Linje 2 stopper hvis hashen ikke er branchens tipp; linje 3 hvis den alt er i develop (duplisert ordre stopper seg selv).
-- **Push avvist** (develop flyttet seg): `reset --hard origin/develop`, merg på nytt, kjør regel 10 på nytt, push. Aldri force.
-- **Uventet — konflikt, migrering/`schema.prisma` som ordren ikke nevner, rødt ledd: STOPP og meld.** En merge som
-  «ble løst underveis» er en merge ingen har gatet.
-- **Verifiser mot agentens hash, ikke merge-commitens:** `git merge-base --is-ancestor <agentens-hash> origin/develop`.
-- **Merge nr. 2 av brancher fra samme base:** verifiser resultatet mot `origin/develop..HEAD`, ikke `develop..branch`.
-  `git diff develop..branch` viser ikke hva branchen gjorde — bruk tre punktum eller diff mot `merge-base`.
-- **Docs-commits** (STATUS-AKTUELT, FUNKSJONSENDRINGER, tavla) gjøres i samme tre **etter** mergen, aldri samtidig.
-  STATUS-AKTUELT, tavla og FUNKSJONSENDRINGER har én skribent: orkestrator. Agenten fører egne spec-filer, BACKLOG-lukking
-  og STATUS.md i sin egen commit; orkestrator sjekker at berørt STATUS/BACKLOG-linje er i commit-settet før merge, og
-  leser innholdet på begge sider — en ren merge av to statusfiler kan flette motstridende påstander uten konflikt.
-- **Migrering og seed kjøres aldri** i merge-kjeden — det er Kenneths, ved deploy.
-- **Hovedtreet `SiteDoc`:** orkestrator kjører bare `git fetch` der, aldri `pull`/merge/commit (stale `ORIG_HEAD.lock`
-  fire ganger 09.–10.09). `pull --ff-only` der er Kenneths steg i [DEPLOY-RUNBOK § 1](DEPLOY-RUNBOK.md). Stale
-  `.lock`: diagnostiser (prosess? alder?) og meld før den fjernes.
-- **Status-påstander har kilde:** «pushet», «deployet», «klar for X» bærer hash eller dato. Berører diffen et område med en ❌-markør, re-verifiseres markøren i samme commit-sett ([dokumentasjons-standard.md § 11b](dokumentasjons-standard.md)).
-
-### Rydding etter merge (Opus-livssyklus fase 4)
-
-```sh
-git -C ~/Documents/Programmering/SiteDoc-merge worktree remove <agentens tre>   # nekter ved endringer — da: meld
-git -C ~/Documents/Programmering/SiteDoc-merge branch -d <branch>     # -d, aldri -D
-git -C ~/Documents/Programmering/SiteDoc-merge push origin --delete <branch>
-```
-
-- 🔴 **Treet fjernes når leveransen er merget og agenten ikke har mer i det** (Kenneth-vedtak 2026-11-11; før ble trær
-  bare satt detached og hopet seg opp — 34 trær 11.11). Faste rolletrær står: `SiteDoc-merge`, `SiteDoc-gate`,
-  `SiteDoc-fabel`. Neste ordre får et nytt tre fra `origin/develop`, ikke et gjenbrukt.
-- **App-trær** (`SiteDoc/.claude/worktrees/<navn>-xxxxxx`): arkiver økten først (Kenneth godkjenner) — arkivering
-  fjerner IKKE treet (målt 11.11), så kjør `worktree remove` etterpå.
-- `worktree remove` kan melde «Directory not empty» når Finder har mappa åpen: git har da meldt ut treet. Slett resten
-  først når `.git`-fila i mappa peker til en gitdir som ikke finnes.
-- **Plass måles med `df` før/etter, ikke `du` per tre** — pnpm hardlenker `node_modules`, så `du` teller samme fil i
-  hvert tre (20 trær «60 GB» frigjorde 9 GB, 11.11).
-- 🔴 **Mål `git worktree list` og tavla før rydding; rydd aldri et tre en agent står i** (`lsof -d cwd`), og slett aldri `SiteDoc-merge`.
-- Før du berger noe som ser tapt ut: `git log -S` og `merge-base --is-ancestor` — en «tapt» leveranse er oftest merget
-  under et annet navn.
-- **Inventar ved hver lukking:** `git -C ~/Documents/Programmering/SiteDoc worktree list` + `git status --porcelain` og
-  `git stash list` i hvert tre. Et tre, en fil eller en stash ingen vet om, er et funn. Et merget tre uten agent på
-  tavla ryddes.
-- **Hver økt som produserer en fil, får en git-vei for den i ordren** (docs-branch). En rapport som ikke committes,
-  finnes ikke.
-
-## § 6b — Kjøreregler fra målte feilklasser
-
-### Kollisjonssjekken gjelder ORDRER, ikke bare arbeidstrær
-
-Før to ordrer går ut parallelt:
-```sh
-comm -12 <(git diff --name-only origin/develop...origin/<branch-a> | sort) \
-         <(git diff --name-only origin/develop...origin/<branch-b> | sort)
-```
-- 🔴 **`git merge-tree` har gitt 0 konfliktmarkører på ekte konflikt** — belegget er en ekte prøvemerge i et engangstre.
-- **Delte ressurser filoverlapp ikke fanger:** i18n-generatoren (aldri to parallelt — konflikt i 15 filer) ·
-  `localhost:3100/3001` (én dev-server; sjekk `cwd` på pid-en; drep etter bruk) · delte komponenter bak ulike sider
-  (sjekk hva sidene *importerer*) · statusfilene (STATUS-AKTUELT/STATUS.md/BACKLOG) · nettleseren.
-- **Nettleser:** egen headless nettleser + dev-login ([mcp-playwright-simulator-oppsett.md](mcp-playwright-simulator-oppsett.md)).
-  Et verktøy som styrer Kenneths egen Chrome brukes ikke uten at han har sagt ja; to økter aldri samtidig. Foretrekk
-  render-test (jsdom) når den beviser det samme.
-
-### 🔴 DELT LOGIKK SKAL NAVNGIS I ORDREN — ellers fødes den femte kopien (2026-09-06)
-
-Enhver ordre som lar en flate lese eller tolke mal-config **navngir den delte kilden i `@sitedoc/shared`** (fil + funksjon).
-Finnes den ikke: **trinn 0** pakker den ut og sletter de gamle kopiene i samme trinn. En ny kopi senere er ordrebrudd.
-Sanksjonert tvilling (`@sitedoc/pdf`, null avhengigheter) krever paritetstest som kjører begge på samme inndata
-(mønster `85c8ecd5`). Kanonisk repeater-traversering: `@sitedoc/shared/utils/repeaterRad.ts` med tvilling i
-`packages/pdf/src/arkivmal/repeaterRad.ts` — ikke lag en tredje. *Hvorfor:* kopier driver fra hverandre, og en resolver
-som normaliserer annerledes enn visningen gir stille feil i dokumenter byggherren mottar.
-
-### 🔴 EN NEGATIV ASSERTION ER IKKE BEVIST FØR TRE TING ER VIST (2026-09-27)
-
-En `not.toMatch`/`not.toContain` som aldri har vært rød, er en tillatelse, ikke en test.
-1. **Den har vært RØD — i en engangsfil, aldri i den ekte.** Kvittering på origin, ikke i treet:
-   `comm -13 <(git ls-tree --name-only origin/develop <kat>/ | sort) <(git ls-tree --name-only origin/<branch> <kat>/ | sort)` → tomt.
-2. **Rød-beviset bruker varianten risikoen faktisk kommer i** (f.eks. bar `DROP INDEX` som Prisma genererer, ikke bare `IF EXISTS`).
-3. **Falsk-positiv-sjekk:** vis at vakten ikke fyrer på den legitime setningen.
-
-### Produksjonsformen, kildene og databasen
-
-- **Produksjonsformen testes FØRST.** En grønn test mot en datastruktur produksjonen ikke bruker, måler ingenting.
-  Legacy-former i egen navngitt bakoverkompatibilitet-blokk.
-- **Byggnummer, profil og distribusjon leses fra kilden** (`eas build:list` og App Store Connect). Er de uenige, står
-  begge målingene til noen har målt hvorfor.
-- **Mål mot riktig database:** Kenneth tester på `test.sitedoc.no` → `-d sitedoc_test`. `-d sitedoc` er PROD og brukes
-  bare når spørsmålet gjelder prod. Ta alltid med `created_at` i utvalget.
-- **Mildne aldri et funn** til noe mindre enn det brukeren opplever. En endring er ikke levert før noen som ikke vet hva
-  som ble endret, kan finne den.
-
-### Kode som lyver
-
-- 🔴 **`as unknown as` skjuler manglende felt.** Forsvinner en verdi uten feil: mistenk casten. Erstatt med en typet
-  hjelper som leser fra rå kilde.
-- 🔴 **En kommentar som sier «KUN X» skal håndheves av konstruksjonen** — Prisma `select`, ikke `include`; bash
-  `pipefail`/`exit=$?`. Sterkest er garanti ved konstruksjon.
-
-### Diverse
-
-- **Aldri commit** `tests/e2e/*-state.json` (Playwright storage-state med session-cookies).
-
-## § 7 — Exit-spørsmålene (ved avsluttet oppdrag)
-
-En rapport svarer på det den lette etter. Ved avsluttet oppdrag (ikke hver småleveranse) svarer agenten i leveransen:
-
-1. **Hva så du som ikke passet i noen kategori?**
-2. **Hva forkastet du som støy?** Særlig om en heuristikk ble strammet underveis.
-3. **Hvilke filer/flater føltes feil uten at du kunne bevise det?** Merk som mistanke, ikke funn.
-4. **Hvilke av funnene dine mistenker du har søsken du ikke rakk?**
-
-Svar merket som usikkerhet er nyttige. En gjetning ført som funn er ikke.
+**§ 6b kjøreregler og § 7 exit-spørsmål:** [ordre-og-agent.md](ordre-og-agent.md).

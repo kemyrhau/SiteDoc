@@ -7,6 +7,12 @@
  * `regnJobbTid`, samme som forhåndsvisningen her). Rad 4–7 er dagens linjer med blyant,
  * vinduer og lenker, levert av siden. Ny jobb (`ny`) finnes bare på skjermen til Til er fylt.
  *
+ * R1 (runde 1 timer, 2026-11-26 — Kenneth: «ting blir "borte"»): skjermen viser alltid det
+ * serveren har. Alle skrivekall går gjennom `ferdig`, som henter `hentMedId` på nytt også når
+ * kallet feiler. Ny jobb lagres i ett kall (`tilfoyTimerRad` med `somJobb`), så halv lagring ikke
+ * kan oppstå. Avmonteres skjemaet mens noe ikke er lagret, står kortet som ulagret («Send dagen»
+ * sperret) til en pågående lagring er ferdig eller kortet åpnes og står som serveren har det.
+ *
  * O2: timer redigeres der de står («= X t»): skrevne timer gir Til = Fra + timer + pause (delt
  * `tilFraAntall`); endres Til eller pause, regnes timer på nytt. Fra/Til er klokkefelt
  * (`type="time"`) med timevinduets steg, rundes ved blur som timevinduet; feilmelding først ved blur.
@@ -306,24 +312,39 @@ export function JobbSkjema({
   // er ingen ulagret endring: den forsvinner når kortet forlates (§ 2e).
   const ulagret =
     lagring === "feil" || lagring === "lagrer" || avvik || (!tilMangler && !!tidFeil && tidEndret);
-  // Ny jobb: raden fra kall 1 (`tilfoyTimerRad`). Feiler kall 2, tar «Prøv igjen» bare kall 2.
-  const nyRadId = useRef<string | null>(null);
   useEffect(() => {
     onUlagret(kortId, ulagret);
   }, [kortId, ulagret, onUlagret]);
-  useEffect(() => () => onUlagret(kortId, false), [kortId, onUlagret]);
+  // R1: avmonteres skjemaet (annet kort åpnet), står «ulagret» som det var — en avmontering
+  // låser ikke opp «Send dagen». En lagring som pågår, melder selv når den er ferdig (`ferdig`).
+  const montert = useRef(true);
+  const sistUlagret = useRef(ulagret);
+  sistUlagret.current = ulagret;
+  useEffect(() => {
+    montert.current = true;
+    return () => {
+      montert.current = false;
+      if (!sistUlagret.current) onUlagret(kortId, false);
+    };
+  }, [kortId, onUlagret]);
 
   const ferdig = async (oppdatert: Promise<unknown>) => {
     setLagring("lagrer");
     setServerFeil(null);
+    let ok = false;
     try {
       await oppdatert;
-      await utils.timer.dagsseddel.hentMedId.invalidate({ id: sheetId });
-      setLagring("lagret");
+      ok = true;
     } catch (e) {
-      setServerFeil((e as { message?: string }).message ?? null);
-      setLagring("feil");
+      if (montert.current) setServerFeil((e as { message?: string }).message ?? null);
+    } finally {
+      // R1: også ved feil — det som ble lagret (helt eller delvis), skal vises uten F5.
+      await utils.timer.dagsseddel.hentMedId.invalidate({ id: sheetId });
     }
+    if (montert.current) setLagring(ok ? "lagret" : "feil");
+    // Avmontert under lagringen: skjemaet kan ikke lenger melde. Lykkes lagringen, er kortet
+    // som serveren har det; feiler den, står det som ulagret til kortet åpnes igjen.
+    else if (ok) onUlagret(kortId, false);
   };
 
   const lagreTiden = () => {
@@ -337,36 +358,24 @@ export function JobbSkjema({
     if (!tidEndret && !avvik && lagring !== "feil") return;
     if (!l1) {
       if (!ny) return;
-      // Ny jobb: raden lages med hele spennet, så regner serveren linjene (lagreJobbTid).
-      // Ligger hele jobben over normen, får den firmaets overtidsart med en gang (`art1Lagres`).
-      const art = art1Lagres;
+      // Ny jobb (R1): ett kall. Raden lages med hele spennet, og serveren fordeler linjene i
+      // samme transaksjon (som `lagreJobbTid`). Feiler kallet, er ingenting lagret.
       void ferdig(
-        (async () => {
-          const radId =
-            nyRadId.current ??
-            (await tilfoy.mutateAsync({
-            sheetId,
-            projectId: ny.projectId,
-            byggeplassId: ny.byggeplassId,
-            lonnsartId: art,
-            aktivitetId: ny.aktivitetId,
-            externalCostObjectId: nyEcoId,
-            timer: regnet?.ok ? regnet.timer : 0,
-            fraTid: fra,
-            tilTid: til,
-            pauseMin,
-            kortId,
-          })).id;
-          nyRadId.current = radId;
-          await lagreTid.mutateAsync({
-            sheetId,
-            kortId,
-            fraTid: fra,
-            tilTid: til,
-            pauseMin,
-            linjer: [{ radId, lonnsartId: art }],
-          });
-        })(),
+        tilfoy.mutateAsync({
+          sheetId,
+          projectId: ny.projectId,
+          byggeplassId: ny.byggeplassId,
+          // Ligger hele jobben over normen, får den firmaets overtidsart med en gang (`art1Lagres`).
+          lonnsartId: art1Lagres,
+          aktivitetId: ny.aktivitetId,
+          externalCostObjectId: nyEcoId,
+          timer: regnet?.ok ? regnet.timer : 0,
+          fraTid: fra,
+          tilTid: til,
+          pauseMin,
+          kortId,
+          somJobb: true,
+        }),
       );
       return;
     }
@@ -784,6 +793,12 @@ export function JobbSkjema({
                   {regnet.helOvertid && norm !== null && (
                     <span className="text-xs text-gray-500">
                       {t("timer.jobbSkjema.helOvertid", { dato: datoTekst, norm: fmt(norm) })}
+                    </span>
+                  )}
+                  {/* R3: over normen, men firmaet har ingen overtidsart med nivå — sies fra. */}
+                  {regnet.overtidManglerArt != null && (
+                    <span className="text-xs text-amber-800" data-testid="overtid-mangler-art">
+                      {t("timer.overtidForslag.manglerArt", { nivaa: regnet.overtidManglerArt })}
                     </span>
                   )}
                   {r2 && (

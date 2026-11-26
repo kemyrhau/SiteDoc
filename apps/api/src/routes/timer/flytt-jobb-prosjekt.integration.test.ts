@@ -9,8 +9,8 @@ import { dagsseddelRouter } from "./dagsseddel";
 /**
  * O8 D (plan § 8.22, Kenneth 2026-11-22): `flyttJobb` — prosjekt og byggeplass endres på et lagret
  * jobbkort. Mot EKTE Postgres (kastbar sandkasse, aldri test/prod): timer, maskin, tillegg,
- * utlegg og vare flyttes med ny felles kort-id; reisen står på gammelt prosjekt og får kort etter
- * egne felt (`sikreKortId`); annen jobb er urørt. Faste id-er (prefiks d8a5f1c2), ryddes før og etter.
+ * utlegg og vare flyttes med ny felles kort-id; reisen flyttes med ny tid eller slettes etter
+ * arbeiderens valg (O12 pkt 18); annen jobb er urørt. Faste id-er (prefiks d8a5f1c2), ryddes før og etter.
  */
 
 const id = (n: string) => `d8a5f1c2-0000-4000-8000-0000000000${n}`;
@@ -178,46 +178,67 @@ beforeAll(async () => {
 afterAll(ryddOpp);
 
 describe("O8 D — flyttJobb", () => {
-  it("jobben flyttes til P2/BP2 med ny kort-id; intet unntatt reisen står igjen på P1; reisen havner i jobb B", async () => {
+  it("O12 pkt 18 «Flytt reisen med ny tid»: jobben og reisen flyttes til P2/BP2 med ny kort-id; reisen får ny tid; bare jobb B står igjen på P1", async () => {
     const { sheetId, kortA, kortB, reiseId } = await sedel("2026-11-02", { medJobbB: true });
-    const svar = await dag().flyttJobb({ sheetId, kortId: kortA, projectId: P2, byggeplassId: BP2 });
+    const svar = await dag().flyttJobb({
+      sheetId,
+      kortId: kortA,
+      projectId: P2,
+      byggeplassId: BP2,
+      reise: { valg: "flytt", tider: [{ id: reiseId, fraTid: "06:15", tilTid: "07:00", kjoretidMin: 45 }] },
+    });
     expect(svar.kortId).not.toBe(kortA);
     const etter = await alle(sheetId);
     const jobb = [
-      ...etter.timer.filter((r) => !r.erReise && r.kortId !== kortB),
+      ...etter.timer.filter((r) => r.kortId !== kortB),
       ...etter.maskin,
       ...etter.tillegg,
       ...etter.utlegg,
       ...etter.vare,
     ];
-    expect(jobb).toHaveLength(5);
+    // Arbeid, reise, maskin, tillegg, utlegg og vare.
+    expect(jobb).toHaveLength(6);
     for (const r of jobb) {
       expect({ id: r.id, p: r.projectId, bp: r.byggeplassId, eco: r.externalCostObjectId, k: r.kortId }).toEqual({
         id: r.id, p: P2, bp: BP2, eco: null, k: svar.kortId,
       });
     }
-    // Intet igjen på P1 unntatt reisen og jobb B.
+    // Intet igjen på P1 unntatt jobb B.
     const paaP1 = [...etter.timer, ...etter.maskin, ...etter.tillegg, ...etter.utlegg, ...etter.vare]
       .filter((r) => r.projectId === P1)
       .map((r) => r.id);
     const jobbB = etter.timer.find((r) => r.kortId === kortB && !r.erReise)!;
-    expect(paaP1.sort()).toEqual([reiseId, jobbB.id].sort());
-    // Reisen er ikke flyttet; den står i jobb B (samme prosjekt, byggeplass og «Uten»).
-    const reise = etter.timer.find((r) => r.id === reiseId)!;
-    expect({ p: reise.projectId, bp: reise.byggeplassId, eco: reise.externalCostObjectId }).toEqual({
-      p: P1, bp: null, eco: null,
+    expect(paaP1).toEqual([jobbB.id]);
+    // Reisen har fått den nye tiden fra kjøretiden.
+    const reise = await prismaTimer.sheetTimer.findUniqueOrThrow({
+      where: { id: reiseId },
+      select: { fraTid: true, tilTid: true, timer: true, reiseKjoretidMin: true, erReise: true },
     });
-    expect(reise.kortId).toBe(kortB);
+    expect({ ...reise, timer: Number(reise.timer) }).toEqual({
+      fraTid: "06:15", tilTid: "07:00", timer: 0.75, reiseKjoretidMin: 45, erReise: true,
+    });
   });
 
-  it("uten annen jobb på P1 får reisen eget kort, ikke den flyttede jobbens", async () => {
+  it("O12 pkt 18 «Slett reisen»: uten valg avvises flyttingen og ingenting endres; med «Slett reisen» flyttes jobben og reisen er borte", async () => {
     const { sheetId, kortA, reiseId } = await sedel("2026-11-03");
-    const svar = await dag().flyttJobb({ sheetId, kortId: kortA, projectId: P2, byggeplassId: null });
-    const reise = (await alle(sheetId)).timer.find((r) => r.id === reiseId)!;
-    expect(reise.projectId).toBe(P1);
-    expect(reise.kortId).not.toBeNull();
-    expect(reise.kortId).not.toBe(svar.kortId);
-    expect(reise.kortId).not.toBe(kortA);
+    const foer = await alle(sheetId);
+    await expect(dag().flyttJobb({ sheetId, kortId: kortA, projectId: P2, byggeplassId: null })).rejects.toMatchObject({
+      code: "PRECONDITION_FAILED",
+      message: "Jobben har en reise. Velg om reisen flyttes med ny tid eller slettes.",
+    });
+    expect(await alle(sheetId)).toEqual(foer);
+
+    const svar = await dag().flyttJobb({ sheetId, kortId: kortA, projectId: P2, byggeplassId: null, reise: { valg: "slett" } });
+    const etter = await alle(sheetId);
+    expect(etter.timer.find((r) => r.id === reiseId)).toBeUndefined();
+    const jobb = [...etter.timer, ...etter.maskin, ...etter.tillegg, ...etter.utlegg, ...etter.vare];
+    // Arbeid, maskin, tillegg, utlegg og vare — alle på P2 med den nye kort-id-en, ingenting igjen på P1.
+    expect(jobb).toHaveLength(5);
+    for (const r of jobb) {
+      expect({ id: r.id, p: r.projectId, bp: r.byggeplassId, k: r.kortId }).toEqual({
+        id: r.id, p: P2, bp: null, k: svar.kortId,
+      });
+    }
   });
 
   it("sendt dag avvises — ingenting endres", async () => {
@@ -249,20 +270,21 @@ describe("O8 D — flyttJobb", () => {
     expect(await alle(sheetId)).toEqual(foer);
   });
 
-  it("varene følger jobben til prosjekt uten varelager — ingen blir igjen (punkt 3)", async () => {
+  it("varene følger jobben til prosjekt uten varelager — ingen blir igjen (punkt 3; reisevalg etter O12 pkt 18)", async () => {
     const { sheetId, kortA } = await sedel("2026-11-07");
-    const { kortId } = await dag().flyttJobb({ sheetId, kortId: kortA, projectId: P3, byggeplassId: null });
+    // O12 pkt 18: jobben har en reise, så et reisevalg kreves; påstandene gjelder ikke reisen.
+    const { kortId } = await dag().flyttJobb({ sheetId, kortId: kortA, projectId: P3, byggeplassId: null, reise: { valg: "flytt" } });
     const etter = await alle(sheetId);
     expect(etter.timer.filter((r) => !r.erReise).map((r) => r.projectId)).toEqual([P3]);
     expect(etter.vare.map((v) => [v.projectId, v.kortId])).toEqual([[P3, kortId]]);
   });
 
-  it("utlegg med annen ordning på nytt prosjekt avvises med Kenneths tekst", async () => {
+  it("utlegg med annen ordning på nytt prosjekt avvises med Kenneths tekst (reisevalg etter O12 pkt 18)", async () => {
     const { sheetId, kortA } = await sedel("2026-11-09");
     await prismaTimer.prosjektOrdningOverstyring.create({ data: { prosjektId: P2, expenseCategoryId: KATEGORI, ordning: "fakturert" } });
     try {
       const foer = await alle(sheetId);
-      await expect(dag().flyttJobb({ sheetId, kortId: kortA, projectId: P2, byggeplassId: BP2 })).rejects.toMatchObject({
+      await expect(dag().flyttJobb({ sheetId, kortId: kortA, projectId: P2, byggeplassId: BP2, reise: { valg: "flytt" } })).rejects.toMatchObject({
         code: "PRECONDITION_FAILED",
         message: "Utlegget føres annerledes på dette prosjektet. Fjern det først.",
       });

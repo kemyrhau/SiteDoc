@@ -883,7 +883,7 @@ kosmetisk, mens denne er en REGEL som kan bli foreslått slettet.**
 `expect(alleMigreringer).not.toMatch(/DROP INDEX (IF EXISTS )?"psi_prosjektniva_unik"/)`, med
 rød-først bevist i en engangskatalog og falsk-positiv-sjekk mot CREATE-linja. Standarden for slike
 vakter står nå i
-[SAMARBEIDSREGLER § En negativ assertion er ikke bevist før tre ting er vist](SAMARBEIDSREGLER.md).
+[ordre-og-agent.md § En negativ assertion er ikke bevist før tre ting er vist](ordre-og-agent.md).
 
 🔴 **KORRIGERT 2026-09-27 av cowork — mønsteret er IKKE nytt, og det endrer alvoret i to retninger.**
 Jeg skrev posten over som om en partiell indeks utenfor skjemaet var et unntak. **Målt: det er
