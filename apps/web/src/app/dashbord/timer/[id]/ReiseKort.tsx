@@ -17,6 +17,9 @@ import {
   lesMidnattDel,
   finnReiseSomEnderPaaKontor,
   finnKantFlytt,
+  sluttEtterStartIJobb,
+  startEtterSluttIJobb,
+  finnJobbTid,
   jobbManglerBeskrivelse,
   erEgenOverforing,
   type OverforingPeriode,
@@ -183,7 +186,6 @@ function tidFraStartSlutt(fra: string | null, til: string | null): { fraTid: str
 
 export const SPERRE_NOKKEL: Record<ReiseKortSperre, string> = {
   byggeplassPeriode: "timer.reiseKort.sperre.byggeplassPeriode",
-  oppmoteIkkeValgt: "timer.reiseKort.sperre.oppmoteIkkeValgt",
   manglerKjoretid: "timer.reiseKort.sperre.manglerKjoretid",
   manglerDagstid: "timer.reiseKort.sperre.manglerDagstid",
   utenforDognet: "timer.reiseKort.sperre.utenforDognet",
@@ -297,6 +299,10 @@ export function ReiseKort({
   // w15b: arbeiderens rettede tider. null = forslaget.
   const [rettetStart, setRettetStart] = useState<string | null>(redigering?.fraTid ?? null);
   const [rettetSlutt, setRettetSlutt] = useState<string | null>(redigering?.tilTid ?? null);
+  // O21 (pkt 27): Slutt er satt av «Start inne i jobben» og ikke rettet av arbeideren siden.
+  const [sluttFolger, setSluttFolger] = useState(false);
+  // O23 (pkt 29): Start er satt av «Slutt inne i jobben» (Fra byggeplass) og ikke rettet siden.
+  const [startFolger, setStartFolger] = useState(false);
   // O1 TILLEGG: arbeiderens valg reisetid/arbeidstid (null = terskelen foreslår) og
   // «Antall timer» slik han skrev det (null = vises fra start og slutt).
   const [kategoriValg, setKategoriValg] = useState<ReiseKategori | null>(
@@ -316,6 +322,8 @@ export function ReiseKort({
   const nullstillTider = () => {
     setRettetStart(null);
     setRettetSlutt(null);
+    setSluttFolger(false);
+    setStartFolger(false);
     setAntallTekst(null);
     setKategoriValg(null);
     setKmAvhuket(null);
@@ -334,6 +342,15 @@ export function ReiseKort({
   });
   const { data: ecoer } = trpc.eksternKostObjekt.list.useQuery({ projectId: reiseProsjektId, organizationId });
 
+  // O20/O21/O23: kortets rader slik kantflyttingen og følge-reglene ser dem.
+  const kantRader = dagsrader.flatMap((r) =>
+    r.id
+      ? [{ id: r.id, fraTid: r.fraTid, tilTid: r.tilTid, erReise: r.erReise, arbeidReise: r.arbeidReise, kortId: r.kortId, attestertStatus: r.attestertStatus, timer: r.timer ?? null }]
+      : [],
+  );
+  // O23 (pkt 29): ny reise fra kortet — Slutt inne i jobben leses aldri som et kryss over midnatt.
+  const jobbTid = !redigering && iKort ? finnJobbTid({ kortId: jobbKortId, rader: kantRader }) : null;
+
   const reise = useManuellReiseWeb({
     organizationId,
     dato,
@@ -350,6 +367,7 @@ export function ReiseKort({
     startTid: rettetStart,
     sluttTid: rettetSlutt,
     kategoriValg,
+    jobbTid,
   });
   const { aktivtValg, resultat, regelStatus } = reise;
   const { kontorOppsett, kontorKall, kontorKonflikt, apenOverforing, bytte, gjeldende, dagensKontorId, valgtKontor } = reise;
@@ -489,11 +507,7 @@ export function ReiseKort({
           reise: { fraTid: dFra, tilTid: dTil },
           retning: aktivtValg.type === "retur" ? "retur" : "ut",
           kortId: jobbKortId,
-          rader: dagsrader.flatMap((r) =>
-            r.id
-              ? [{ id: r.id, fraTid: r.fraTid, tilTid: r.tilTid, erReise: r.erReise, arbeidReise: r.arbeidReise, kortId: r.kortId, attestertStatus: r.attestertStatus, timer: r.timer ?? null }]
-              : [],
-          ),
+          rader: kantRader,
         })
       : null;
 
@@ -735,6 +749,8 @@ export function ReiseKort({
   const felles = () => ({
     externalCostObjectId: ecoId,
     ...(kategoriEndret && resultat.klassifisering?.lonnsartId ? { lonnsartId: resultat.klassifisering.lonnsartId } : {}),
+    // O25: «Føres som» skifter arbeid ↔ reise med eksplisitt flagg — lønnsarten avgjør aldri.
+    ...(kategoriEndret ? { erReise: kategoriValg === "reisetid" } : {}),
     ...(beskrivelseEndret ? { beskrivelse: beskrivelse.trim() || null } : {}),
   });
   const sporRettDel = !!delPartner && !partnerLaast && (beskrivelseEndret || ecoEndret || kategoriEndret);
@@ -813,6 +829,8 @@ export function ReiseKort({
     }
     tilfoy.mutate({
       sheetId,
+      // O25: en ny rad fra reisevinduet er reise — også når lønnsarten er en arbeids-lønnsart.
+      erReise: true,
       projectId: reiseProsjektId,
       lonnsartId: resultat.klassifisering.lonnsartId,
       aktivitetId,
@@ -1064,7 +1082,13 @@ export function ReiseKort({
   // O16 pkt 1: oppmøtestedet som ett nedtrekk; redigering (pkt 5) viser det som tekst.
   const oppmoteFelt =
     redigering || !kontorOppsett ? (
-      <p className="text-sm text-gray-800">{dagensKontorId ? kontorMedMerke(dagensKontorId) : "—"}</p>
+      <p data-testid="reise-oppmote-tekst" className="text-sm text-gray-800">
+        {dagensKontorId
+          ? kontorMedMerke(dagensKontorId)
+          : reise.oppmote.kilde === "ikkeValgt"
+            ? t("timer.reiseKort.oppmoteIkkeValgt")
+            : "—"}
+      </p>
     ) : (
       <div>
         <select
@@ -1207,8 +1231,9 @@ export function ReiseKort({
           )}
         </div>
 
-        {/* O16 pkt 1: «Fra → Til». Oppmøtestedet vises bare når firmaet har flere kontorer (§ 7 C). */}
-        {kontorOppsett || redigertRute ? (
+        {/* O16 pkt 1: «Fra → Til». Oppmøtestedet vises bare når firmaet har flere kontorer (§ 7 C).
+            O22 (pkt 28): også når oppmøtested ikke er valgt — feltet sier «Oppmøtested ikke valgt». */}
+        {kontorOppsett || redigertRute || (!redigering && reise.oppmote.kilde === "ikkeValgt") ? (
           <div data-testid="reise-fra-til" className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto_1fr] sm:items-start">
             <div className="min-w-0">
               <p className="mb-1 text-sm font-medium text-gray-700">{t("timer.reiseKort.fra")}</p>
@@ -1232,9 +1257,24 @@ export function ReiseKort({
         {!redigering && oppmoteBoks}
 
         {/* w15b: start og slutt er forslaget og kan rettes. Skjult bare når det ikke finnes
-            noe å foreslå fra (byggeplass-periode, oppmøtested ikke valgt, kjøretid mangler). */}
+            noe å foreslå fra (byggeplass-periode, kjøretid mangler uten flagget). O22: oppmøtested ikke
+            valgt gir tidsfeltene (manuell modus). */}
         {/* O12 pkt 14: mangler kjøretid (eller byggeplass) skriver arbeideren tiden selv. */}
-        {!redigering && regelStatus === "klar" && resultat.utenKjoretid && (
+        {/* O22 (pkt 28): uten oppmøtested — blå hint (ingen sperre); firmaadmin får lenke til Ansatte. */}
+        {!redigering && regelStatus === "klar" && resultat.utenKjoretid === "utenOppmote" && (
+          <p data-testid="reise-uten-oppmote" className="rounded border border-blue-100 bg-blue-50 px-3 py-2 text-sm text-blue-900">
+            {t("timer.reiseKort.utenOppmote")}
+            {erFirmaAdmin && (
+              <>
+                {" "}
+                <Link href="/dashbord/firma/ansatte" className="font-medium text-blue-700 underline">
+                  {t("timer.reiseKort.aapneAnsatte")}
+                </Link>
+              </>
+            )}
+          </p>
+        )}
+        {!redigering && regelStatus === "klar" && resultat.utenKjoretid && resultat.utenKjoretid !== "utenOppmote" && (
           <p data-testid="reise-uten-kjoretid" className="text-xs text-gray-500">
             {t(resultat.utenKjoretid === "utenByggeplass" ? "timer.reiseKort.utenByggeplass" : "timer.reiseKort.utenKjoretid")}
           </p>
@@ -1242,7 +1282,6 @@ export function ReiseKort({
         {(redigering ||
           (regelStatus === "klar" &&
             sperre !== "byggeplassPeriode" &&
-            sperre !== "oppmoteIkkeValgt" &&
             sperre !== "manglerKjoretid")) && (
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -1268,12 +1307,28 @@ export function ReiseKort({
                     // O14 pkt 2: i redigering står slutten også ved «Fra byggeplass» (som O7 i
                     // «Rediger reise»): antall timer regnes av start og slutt.
                     if (tidRetning === "tur" || redigering) {
-                      setRettetSlutt(rettetSlutt ?? tid.tilTid ?? null);
+                      // O21 (pkt 27): «Til byggeplass», ny reise fra kortet — Start inne i jobben
+                      // flytter Slutt til Start + kjøretiden, så O20-knappen kommer. Før jobben
+                      // (pkt 6), etter jobben (pkt 24), uten jobb eller kjøretid: Slutt står.
+                      const fulgt =
+                        !redigering && aktivtValg.type === "tur" && iKort && regelStatus === "klar"
+                          ? sluttEtterStartIJobb({
+                              startTid: start,
+                              sluttTid: rettetSlutt ?? tid.tilTid ?? null,
+                              kjoretidMin: resultat.utenKjoretid ? null : resultat.kjoretidMin,
+                              folger: sluttFolger,
+                              kortId: jobbKortId,
+                              rader: kantRader,
+                            })
+                          : null;
+                      setSluttFolger(fulgt != null);
+                      setRettetSlutt(fulgt ?? rettetSlutt ?? tid.tilTid ?? null);
                       setAntallTekst(null);
                       return;
                     }
                     // «Fra byggeplass»: slutten følger starten — start + skrevet antall timer,
                     // ellers start + kjøretid, til den rettes igjen.
+                    setStartFolger(false);
                     const antall = tolkAntall(antallTekst);
                     setRettetSlutt(start && antall != null ? flyttKlokke(start, Math.round(antall * 60)) : null);
                   }}
@@ -1297,7 +1352,25 @@ export function ReiseKort({
                   type="time"
                   value={rettetSlutt ?? tid.tilTid ?? ""}
                   onChange={(e) => {
-                    setRettetSlutt(e.target.value || null);
+                    const slutt = e.target.value || null;
+                    setRettetSlutt(slutt);
+                    setSluttFolger(false);
+                    // O23 (pkt 29): «Fra byggeplass», ny reise fra kortet — Slutt inne i jobben
+                    // flytter Start til Slutt − kjøretiden, så O20-knappen kan komme. Slutt før eller
+                    // etter jobben, uten jobb, kjøretid eller oppmøtested: Start står.
+                    const fulgt =
+                      !redigering && aktivtValg.type === "retur" && iKort && regelStatus === "klar"
+                        ? startEtterSluttIJobb({
+                            startTid: rettetStart ?? tid.fraTid ?? null,
+                            sluttTid: slutt,
+                            kjoretidMin: resultat.utenKjoretid ? null : resultat.kjoretidMin,
+                            folger: startFolger,
+                            kortId: jobbKortId,
+                            rader: kantRader,
+                          })
+                        : null;
+                    setStartFolger(fulgt != null);
+                    if (fulgt) setRettetStart(fulgt);
                     // Rettet slutt → antall timer regnes av start og slutt.
                     setAntallTekst(null);
                   }}
@@ -1329,6 +1402,8 @@ export function ReiseKort({
                       // O6: «Til byggeplass» flytter Start; «Fra byggeplass» flytter Slutt.
                       if (tidRetning === "tur") setRettetStart(tider.start);
                       setRettetSlutt(tider.slutt);
+                      setSluttFolger(false);
+                      setStartFolger(false);
                       // Gate (136) vilkår 1: viser feltet det som faktisk lagres (`resultat.timer`).
                       // O19: klokka går rundt midnatt — 24 timer gir start = slutt (0 timer).
                       const startMin = klokkeTilMin(tider.start);

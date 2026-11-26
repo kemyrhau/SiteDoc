@@ -13,8 +13,8 @@ import { useFirma } from "./FirmaKontekst";
 import { trpc } from "../lib/trpc";
 import { hentGjesteprosjekterLokalt } from "../services/prosjektKatalog";
 import { mineAnsattFirmaIder } from "../utils/gjesteprosjektListe";
-import { firmabyttUtfall } from "../utils/firmabyttProsjekt";
-import { erAdminIFremmedFirma } from "@sitedoc/shared";
+import { adminValgtGjestUtfall, firmabyttUtfall } from "../utils/firmabyttProsjekt";
+import { erAdminUtenGjestegruppe } from "@sitedoc/shared";
 
 const VALGT_PROSJEKT_KEY = "sitedoc_valgt_prosjekt";
 
@@ -61,14 +61,12 @@ export function useProsjekt() {
 }
 
 export function ProsjektProvider({ children }: { children: ReactNode }) {
-  const { valgtFirmaId, firmaer, erAnsattIFirma, erAnsattIValgtFirma } = useFirma();
-  // ADMIN-GJEST tillegg A (2026-11-25): sitedoc_admin i et firma hen ikke er ansatt i
-  // beholder ikke et valgt gjesteprosjekt ved firmabytte (som web, `gjesteIderForNullstilling`).
+  const { valgtFirmaId, firmaer, erAnsattIFirma } = useFirma();
+  // ADMIN-UTEN-GJESTEGRUPPE (Kenneth 2026-11-26, utvider tillegg A): sitedoc_admin beholder
+  // aldri et valgt gjesteprosjekt i et annet firma enn det valgte — heller ikke i eget firma
+  // (som web, `gjesteIderForNullstilling`).
   const minBruker = trpc.bruker.hentMin.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
-  const adminIFremmedFirma = erAdminIFremmedFirma({
-    rolle: minBruker.data?.role,
-    erAnsattIValgtFirma,
-  });
+  const adminUtenGjestegruppe = erAdminUtenGjestegruppe(minBruker.data?.role);
   const [valgtProsjektId, setValgtProsjektId] = useState<string | null>(null);
   const [lasterProsjektId, setLasterProsjektId] = useState(true);
   const prevFirmaId = useRef<string | null>(null);
@@ -104,14 +102,16 @@ export function ProsjektProvider({ children }: { children: ReactNode }) {
     }
   }, [valgtFirmaId]);
 
-  // Gjestelista hentes bare når et firmabytte venter. Server når den svarer;
+  // Gjestelista hentes når et firmabytte venter, og for sitedoc_admin (ADMIN-UTEN-GJESTEGRUPPE:
+  // et lagret gjestevalg skal nullstilles også uten firmabytte). Server når den svarer;
   // ellers (frakoblet/feil) utledet fra prosjekt_local + ansettelser (15).
+  const trengerGjester = ventendeForrigeFirmaId !== null || adminUtenGjestegruppe;
   const gjesteQuery = trpc.prosjekt.hentGjesteprosjekter.useQuery(undefined, {
-    enabled: ventendeForrigeFirmaId !== null,
+    enabled: trengerGjester,
   });
   const lasterGjester = gjesteQuery.isPending && gjesteQuery.fetchStatus === "fetching";
   const gjester = useMemo<{ id: string; primaryOrganizationId: string | null }[]>(() => {
-    if (ventendeForrigeFirmaId === null) return [];
+    if (!trengerGjester) return [];
     // Lean cast (TS2589-vern, som useProsjektListe).
     const data = gjesteQuery.data as unknown as
       | { id: string; primaryOrganizationId: string | null }[]
@@ -120,7 +120,7 @@ export function ProsjektProvider({ children }: { children: ReactNode }) {
     return hentGjesteprosjekterLokalt(mineAnsattFirmaIder(firmaer, (id) => erAnsattIFirma(id))).map(
       (p) => ({ id: p.id, primaryOrganizationId: p.primaryOrganizationId }),
     );
-  }, [ventendeForrigeFirmaId, gjesteQuery.data, firmaer, erAnsattIFirma]);
+  }, [trengerGjester, gjesteQuery.data, firmaer, erAnsattIFirma]);
 
   useEffect(() => {
     if (ventendeForrigeFirmaId === null) return;
@@ -130,7 +130,7 @@ export function ProsjektProvider({ children }: { children: ReactNode }) {
       prosjektId: valgtProsjektId,
       gjester,
       lasterGjester,
-      adminIFremmedFirma,
+      adminUtenGjestegruppe,
     });
     if (utfall === "vent") return;
     if (utfall === "nullstill") {
@@ -138,7 +138,24 @@ export function ProsjektProvider({ children }: { children: ReactNode }) {
       slettVerdi(VALGT_PROSJEKT_KEY).catch(() => {});
     }
     setVentendeForrigeFirmaId(null);
-  }, [ventendeForrigeFirmaId, valgtFirmaId, valgtProsjektId, gjester, lasterGjester, adminIFremmedFirma]);
+  }, [ventendeForrigeFirmaId, valgtFirmaId, valgtProsjektId, gjester, lasterGjester, adminUtenGjestegruppe]);
+
+  // ADMIN-UTEN-GJESTEGRUPPE punkt 2: sitedoc_admin med et gjesteprosjekt valgt (lagret fra
+  // før, også i eget firma) får valget nullstilt som ved firmabytte. Venter til lagret valg er
+  // lest og et eventuelt firmabytte er avgjort; admin går inn i prosjektet ved å bytte firma.
+  useEffect(() => {
+    if (lasterProsjektId || ventendeForrigeFirmaId !== null) return;
+    const utfall = adminValgtGjestUtfall({
+      valgtFirmaId,
+      prosjektId: valgtProsjektId,
+      gjester,
+      lasterGjester,
+      adminUtenGjestegruppe,
+    });
+    if (utfall !== "nullstill") return;
+    setValgtProsjektId(null);
+    slettVerdi(VALGT_PROSJEKT_KEY).catch(() => {});
+  }, [lasterProsjektId, ventendeForrigeFirmaId, valgtFirmaId, valgtProsjektId, gjester, lasterGjester, adminUtenGjestegruppe]);
 
   const byttProsjekt = useCallback((id: string) => {
     // Eget valg etter firmabyttet vinner over en ventende nullstilling.

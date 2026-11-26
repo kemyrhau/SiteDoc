@@ -62,7 +62,7 @@ Sporbarhet må deklareres i begge ender i samme release.
 
 | Felt | Type | Betydning |
 |---|---|---|
-| `SheetTimer.erReise` | `Boolean @default(false)` | 🔴 **Eksplisitt flagg.** Ingen leser skal gjette reise fra lønnsart/regex etter lag 2 |
+| `SheetTimer.erReise` | `Boolean @default(false)` | 🔴 **Eksplisitt flagg.** Ingen leser skal gjette reise fra lønnsart/regex etter lag 2. ✅ O25 (`fix/reise-kun-fra-reisevindu`): flagget kommer bare fra reisevinduet eller reisesporet — `tilfoyTimerRad` (`dagsseddel.ts:5127`, `input.erReise ?? reiseKilde != null`), `oppdaterTimerRad` (`:5666`, bare når sendt), mobil `settInnTimerRad` (`nyTimerRad.ts`). Overgang: synk av rad uten flagg (`dagsseddel.ts:2082` `utledErReise`) |
 | `reiseRetning` | `"ut" \| "retur" \| null` | Etappens retning (lag 4 legger til `"mellom"`) |
 | `reiseOppmotestedId` | `String?` (svak FK → `Oppmotested`, A.20-mønster) | Fra-/til-kontoret |
 | `byggeplassId` | finnes | Destinasjonen (allerede på raden — skal nå faktisk skrives, M1) |
@@ -106,7 +106,7 @@ Sporbarhet må deklareres i begge ender i samme release.
   (`tidsromOverlapper` er streng) — **test, ikke slutning:** Dag A synkes med fire rader (ut, ordinær, OT50,
   retur) og passerer serverens vakt.
 - **B4** Når arbeideren **legger til eller endrer** en reise-rad manuelt (`TimerSeksjon`): `erReise = true`
-  (lønnsart-velgeren setter det når arten er reise-art), `reiseKilde = "manuell"`, `tidKilde = "manuell"`,
+  (bare fra «+ Reise»/reisevinduet; lønnsart-velgeren endrer aldri flagget — O25), `reiseKilde = "manuell"`, `tidKilde = "manuell"`,
   avstand/kjøretid `null`, **og `reiseRetning = null`** — manuell-UI-et har ingen retningsvelger, og skal ikke få
   en (🟢 **valg A, 2026-10-03**: retningen er informasjon, ikke lønn; lønnsarten avgjøres av arten arbeideren
   velger, og et ekstra trykk kjøper ingenting). Attestanten ser «Reise (manuell)». Endrer han tiden på en

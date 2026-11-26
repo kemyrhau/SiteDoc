@@ -959,11 +959,12 @@ async function kjorTimerSync(
             // F5: per-rad matpause-bærer (min). 0 = ingen pause på raden.
             pauseMin: t.pauseMin ?? 0,
             // LAG 2 (B1): reise-sporet opp til server (M6 — MÅ sendes eksplisitt
-            // ellers stripper Zod dem). erReise null lokalt (eldre rad) → undefined
-            // så serveren UTLEDER flagget (overgangsperioden), ikke false. reiseRegel
+            // ellers stripper Zod dem). O25: flagget sendes alltid eksplisitt —
+            // null lokalt (eldre rad) er reise bare med reisespor, ellers arbeid;
+            // serveren gjetter aldri av lønnsarten for denne appen. reiseRegel
             // parses fra JSON-streng til objekt (server Zod = z.unknown()). Gammel
             // server uten feltene stripper dem stille — raden lagres uten spor.
-            erReise: t.erReise ?? undefined,
+            erReise: t.erReise ?? t.reiseKilde != null,
             reiseRetning: (t.reiseRetning ?? null) as "ut" | "retur" | null,
             reiseOppmotestedId: t.reiseOppmotestedId ?? null,
             reiseKjoretidMin: t.reiseKjoretidMin ?? null,

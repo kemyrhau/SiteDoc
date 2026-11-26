@@ -349,23 +349,52 @@ describe("web «+ Reise» — Lagre sperret (beslutning 2 og 3)", () => {
     expect((dialog.querySelector("#reise-slutt") as HTMLInputElement).value).toBe("07:00");
   });
 
-  it("ikke valgt oppmøtested: sperret med egen tekst — i kortet og i tooltipen (vedtak 2026-11-15)", () => {
+  // O22 (vedtak-timer-web.md § Reisevinduet pkt 28, Kenneth 2026-11-25): uten oppmøtested skriver
+  // arbeideren tiden selv — retter vedtaket 2026-11-15 om sperre.
+  it("O22: ikke valgt oppmøtested — tidsfeltene står, Slutt = jobbstart, blå hint (ikke rød), Fra-teksten; Lagre virker", () => {
     const dialog = rendre({ perioder: [] });
-    const knapp = lagreKnapp(dialog);
-    expect(knapp.disabled).toBe(true);
-    expect(rodSperretekst(dialog)).toBe("timer.reiseKort.sperre.oppmoteIkkeValgt");
-    fireEvent.mouseEnter(knapp.parentElement!);
-    expect(screen.getByRole("tooltip", { hidden: true }).textContent).toContain(
-      "timer.reiseKort.sperre.oppmoteIkkeValgt",
-    );
-    expect(lagre(dialog)).toBeUndefined();
+    const felt = (id: string) => dialog.querySelector(`#${id}`) as HTMLInputElement;
+    expect(felt("reise-start").value).toBe("");
+    expect(felt("reise-slutt").value).toBe("07:00");
+    expect(felt("reise-antall")).not.toBeNull();
+    const hint = within(dialog).getByTestId("reise-uten-oppmote");
+    expect(hint.textContent).toBe("timer.reiseKort.utenOppmote");
+    expect(hint.className).toContain("bg-blue-50");
+    expect(within(dialog).getByTestId("reise-oppmote-tekst").textContent).toBe("timer.reiseKort.oppmoteIkkeValgt");
+    expect(rodSperretekst(dialog)).toBeNull();
+    expect(dialog.textContent).not.toContain("timer.reiseKort.sperre.oppmoteIkkeValgt");
+    // Arbeider: ingen lenke.
+    expect(within(dialog).queryByRole("link", { name: "timer.reiseKort.aapneAnsatte" })).toBeNull();
+    expect(lagreKnapp(dialog).disabled).toBe(true);
+    fireEvent.change(felt("reise-start"), { target: { value: "06:00" } });
+    expect(lagreKnapp(dialog).disabled).toBe(false);
+    const input = lagre(dialog)!;
+    expect(input).toMatchObject({ fraTid: "06:00", tilTid: "07:00", kortId: "k1", reiseOppmotestedId: null });
+    expect(input.timer).toBe(1);
+  });
+
+  it("O22: firmaadmin får lenke til Firma → Ansatte i hinten", () => {
+    const dialog = rendre({ perioder: [], admin: true });
+    const lenke = within(dialog).getByRole("link", { name: "timer.reiseKort.aapneAnsatte" });
+    expect(lenke.getAttribute("href")).toBe("/dashbord/firma/ansatte");
+  });
+
+  it("O22: med valgt oppmøtested er vinduet uendret — ingen hint, kjøretiden fyller Start", () => {
+    const dialog = rendre();
+    expect(within(dialog).queryByTestId("reise-uten-oppmote")).toBeNull();
+    expect((dialog.querySelector("#reise-start") as HTMLInputElement).value).toBe("06:45");
   });
 
   it("commit 9: sperreårsaken står som rød tekst i KORTET (ikke bare i tooltipen, som er portalet til body)", () => {
-    // O12 pkt 14: «mangler kjøretid» sperrer ikke lenger på web — ikke valgt oppmøtested gjør.
-    const dialog = rendre({ perioder: [] });
+    // O22: ikke valgt oppmøtested sperrer ikke lenger — byggeplass-perioden (mellomdag) gjør.
+    const dialog = rendre({
+      perioder: [
+        FAST_KONTOR,
+        { id: "pb", type: "byggeplass", fast: false, oppmotestedId: null, projectId: "p1", fraDato: "2026-11-01", tilDato: "2026-11-20" },
+      ],
+    });
     expect(screen.getByRole("tooltip", { hidden: true }).closest('[role="dialog"]')).toBeNull();
-    expect(rodSperretekst(dialog)).toBe("timer.reiseKort.sperre.oppmoteIkkeValgt");
+    expect(rodSperretekst(dialog)).toBe("timer.reiseKort.sperre.byggeplassPeriode");
   });
 
   it("negativkontroll: uten sperre finnes ingen rød sperretekst i kortet", () => {

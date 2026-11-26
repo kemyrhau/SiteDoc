@@ -5,9 +5,24 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Check, X } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { randomUUID } from "expo-crypto";
-import { medOverforingPeriodeId, periodeDatoFraOverforing, type ReiseKortSperre } from "@sitedoc/shared";
+import {
+  manuellReiseTerskelTekst,
+  medOverforingPeriodeId,
+  periodeDatoFraOverforing,
+  type ReiseKortSperre,
+} from "@sitedoc/shared";
 import { forklaringTekst, useManuellReise, type ManuellReiseSpor, type ReiseKortValg } from "./useManuellReise";
 import { VelgerFelt } from "./VelgerFelt";
+import { FraTilTidFelt } from "./FraTilTidFelt";
+import {
+  erUtenOppmote,
+  reiseKortKanLagre,
+  reiseKortRad,
+  reiseKortSluttForStart,
+  TOMT_MANUELL_VALG,
+  type ReiseKortManuellValg,
+} from "./reiseKortManuell";
+import { hentOrganizationSettingLokalt } from "../../services/organizationSettingKatalog";
 import { UnderprosjektVelgerModal } from "./TimerSeksjon";
 import { KnappMedForklaring } from "../KnappMedForklaring";
 import { hentByggeplasserForProsjektLokalt } from "../../services/byggeplassKatalog";
@@ -30,6 +45,11 @@ import { useTimerSync } from "../../providers/TimerSyncProvider";
  *  kontorer) setter et midlertidig oppmøtested ved lagring
  *  (`registrerOverforing`, optimistisk + kø); valg av eget faste kontor
  *  avslutter det. Kortlinjen «Midlertidig: X fra dd.mm · Avslutt» angrer.
+ *
+ *  O22 (vedtak-timer-web.md § Reisevinduet pkt 28): uten oppmøtested er kortet
+ *  ikke sperret. Arbeideren skriver Start/Slutt selv (tidspunktet som henger på
+ *  arbeidet er fylt ut), km-firma huker av for terskelen, og en blå tekst ber
+ *  firmaadmin legge inn stedet. Offline — ingen nettkall (`reiseKortManuell.ts`).
  * ============================================================================ */
 
 /** YYYY-MM-DD → dd.mm */
@@ -51,7 +71,6 @@ export type ReiseKortLagring = {
 
 const SPERRE_NOKKEL: Record<ReiseKortSperre, string> = {
   byggeplassPeriode: "timer.reiseKort.sperre.byggeplassPeriode",
-  oppmoteIkkeValgt: "timer.reiseKort.sperre.oppmoteIkkeValgt",
   manglerKjoretid: "timer.reiseKort.sperre.manglerKjoretid",
   manglerDagstid: "timer.reiseKort.sperre.manglerDagstid",
   utenforDognet: "timer.reiseKort.sperre.utenforDognet",
@@ -103,7 +122,17 @@ export function ReiseKort({
   );
   const [ecoId, setEcoId] = useState<string | null>(null);
   const [visEcoVelger, setVisEcoVelger] = useState(false);
-  const [valg, setValg] = useState<ReiseKortValg | null>(null);
+  const [valg, setValgRaa] = useState<ReiseKortValg | null>(null);
+  // O22: arbeiderens tider uten oppmøtested — nullstilles når retningen byttes.
+  const [manuell, setManuell] = useState<ReiseKortManuellValg>(TOMT_MANUELL_VALG);
+  const setValg = (v: ReiseKortValg | null) => {
+    setValgRaa(v);
+    setManuell(TOMT_MANUELL_VALG);
+  };
+  const tidsrundingMinutter = useMemo(
+    () => hentOrganizationSettingLokalt(organizationId)?.tidsrundingMinutter ?? null,
+    [organizationId],
+  );
 
   const reise = useManuellReise({
     organizationId,
@@ -117,6 +146,7 @@ export function ReiseKort({
     skjulOverforingRetninger,
     medOverforing,
     kontekstByggeplassId: byggeplassId,
+    manuellValg: manuell,
   });
 
   const { overforingValg, aktivtValg, resultat, oppmotestedNavn } = reise;
@@ -129,18 +159,17 @@ export function ReiseKort({
   const eco = underprosjekter.find((u) => u.id === ecoId) ?? null;
 
   const sperre = resultat.sperre;
-  const kanLagre =
-    sperre == null &&
-    !kontorKonflikt &&
-    !!aktivitetId &&
-    !!resultat.spor &&
-    !!resultat.klassifisering?.lonnsartId &&
-    !!resultat.fraTid &&
-    !!resultat.tilTid;
+  const kanLagre = reiseKortKanLagre({ resultat, kontorKonflikt, aktivitetId });
+  const utenOppmote = erUtenOppmote(resultat);
+  const sluttForStart = reiseKortSluttForStart(resultat);
+  // O22: km-firma huker av om reisen var lengre enn terskelen (som web, O12 pkt 9).
+  const regel = reise.regel;
+  const kmFirma = regel?.reiseTerskelEnhet === "km" && regel.reiseTerskelM != null;
 
   function lagre() {
-    if (!kanLagre || !aktivitetId || !resultat.spor || !resultat.klassifisering?.lonnsartId) return;
-    let reiseSpor = resultat.spor;
+    const rad = reiseKortRad({ resultat, kontorKonflikt, aktivitetId });
+    if (!rad || !aktivitetId) return;
+    let reiseSpor = rad.reiseSpor;
     if (erKontor && kontorKall) {
       // Perioden skrives FØR raden, så raden bærer periodens id i reiseRegel.
       const r = registrerOverforing({ userId, organizationId, ...kontorKall, id: randomUUID() });
@@ -150,11 +179,11 @@ export function ReiseKort({
     onLagre({
       projectId,
       byggeplassId: erKontor ? null : erOverforing ? (overforing?.byggeplassId ?? byggeplassId) : byggeplassId,
-      lonnsartId: resultat.klassifisering.lonnsartId,
+      lonnsartId: rad.lonnsartId,
       aktivitetId,
-      timer: resultat.timer,
-      fraTid: resultat.fraTid!,
-      tilTid: resultat.tilTid!,
+      timer: rad.timer,
+      fraTid: rad.fraTid,
+      tilTid: rad.tilTid,
       externalCostObjectId: ecoId,
       reiseSpor,
     });
@@ -236,6 +265,13 @@ export function ReiseKort({
               {t("timer.reiseKort.fraOppmotested", { navn: oppmotestedNavn })}
             </Text>
           )}
+          {/* O22: oppmøtested mangler — feltet sier det, og arbeideren skriver tiden selv. */}
+          {utenOppmote && (
+            <Text className="text-sm text-gray-700">
+              {aktivtValg.type === "retur" ? t("timer.reiseKort.til") : t("timer.reiseKort.fra")}:{" "}
+              {t("timer.reiseKort.oppmoteIkkeValgt")}
+            </Text>
+          )}
 
           {apenOverforing && apenOverforing.oppmotestedId && (
             <View className="flex-row items-center gap-2">
@@ -292,6 +328,66 @@ export function ReiseKort({
             </View>
           )}
 
+          {/* O22: manuell modus uten oppmøtested — Start/Slutt, antall timer, km-avhuking, blå tekst. */}
+          {utenOppmote && (
+            <View className="gap-3">
+              <View className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2">
+                <Text className="text-sm text-blue-900">{t("timer.reiseKort.utenOppmote")}</Text>
+              </View>
+              <FraTilTidFelt
+                fraTid={resultat.fraTid}
+                tilTid={resultat.tilTid}
+                tidsrundingMinutter={tidsrundingMinutter}
+                onFraEndret={(hhmm) => setManuell((m) => ({ ...m, startTid: hhmm }))}
+                onTilEndret={(hhmm) => setManuell((m) => ({ ...m, sluttTid: hhmm }))}
+                paakrevd
+              />
+              {resultat.fraTid && resultat.tilTid && resultat.timer > 0 && (
+                <Text className="text-sm text-gray-900">
+                  {t("timer.felt.antallTimer")}: {(Math.round(resultat.timer * 100) / 100).toLocaleString("nb-NO")}
+                </Text>
+              )}
+              {kmFirma && regel && resultat.klassifisering && (
+                <Pressable
+                  onPress={() =>
+                    setManuell((m) => ({
+                      ...m,
+                      kategoriValg: m.kategoriValg === "reisetid" ? regel.reiseUnderTerskelType : "reisetid",
+                    }))
+                  }
+                  className="flex-row items-center gap-2"
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: manuell.kategoriValg === "reisetid" }}
+                >
+                  <View
+                    className={`h-5 w-5 items-center justify-center rounded border ${
+                      manuell.kategoriValg === "reisetid" ? "border-blue-600 bg-blue-600" : "border-gray-400 bg-white"
+                    }`}
+                  >
+                    {manuell.kategoriValg === "reisetid" && <Check size={14} color="#ffffff" />}
+                  </View>
+                  <Text className="text-sm text-gray-800">
+                    {t("timer.reiseKort.merEnnKm", {
+                      terskel: manuellReiseTerskelTekst(t, { type: "over", enhet: "km", terskelM: regel.reiseTerskelM! }),
+                    })}
+                  </Text>
+                </Pressable>
+              )}
+              {resultat.klassifisering && resultat.klassifisering.lonnsartId != null && (
+                <Text className="text-xs text-gray-500">
+                  {forklaringTekst(
+                    t,
+                    resultat.klassifisering,
+                    reise.lonnsartNavn(resultat.klassifisering.lonnsartId),
+                  )}
+                </Text>
+              )}
+              {sluttForStart && (
+                <Text className="text-xs font-medium text-red-700">{t("timer.feil.sluttForStart")}</Text>
+              )}
+            </View>
+          )}
+
           {/* Sperreårsaken synlig i kortet — på telefon er den ellers bare
               tilgjengelig ved trykk på den grå Lagre-knappen (L2 commit 9 / vilkår 1). */}
           {sperre && (
@@ -317,6 +413,8 @@ export function ReiseKort({
                 ? t(SPERRE_NOKKEL[sperre])
                 : kontorKonflikt
                   ? t("timer.reiseKort.sperre.adminMidlertidig")
+                  : sluttForStart
+                    ? t("timer.feil.sluttForStart")
                   : !aktivitetId
                     ? t("timer.feil.aktivitetPaakrevd")
                     : ""

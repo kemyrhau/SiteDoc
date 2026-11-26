@@ -74,7 +74,6 @@ import {
   finnOverlappendeTidsrom,
   foreslaOvertidSplitt,
   regnJobbTid,
-  erReiseLonnsart,
   forsokInnsending,
   svarPaaPauseSporsmaal,
   løsReiseKnappLonnsart,
@@ -84,7 +83,6 @@ import {
   kortIdNokkel,
   sendDagenTekst,
   type ForsonRad,
-  type ErReiseKontekst,
   type OvertidForslag,
   finnOverlappVarsel,
   jobberSomManglerBeskrivelse,
@@ -558,6 +556,8 @@ export default function DagsseddelDetaljSide() {
     onSuccess: () => {
       setSlettKortId(null);
       setAapentKort(null);
+      // O26 B: slettet er borte — ingen utkast for neste jobb står igjen.
+      setNyJobbUtkast(null);
       void utils.timer.dagsseddel.hentMedId.invalidate({ id: params.id });
       void utils.vareforbruk.hentMineForDato.invalidate();
     },
@@ -606,6 +606,38 @@ export default function DagsseddelDetaljSide() {
   }, [prosjekterFlat]);
 
   const prosjekterForVelger = prosjekterFlat;
+
+  // O26 B: et prosjekt som hadde rader på dagen og ikke har det lenger (jobben eller siste rad
+  // er slettet), kommer ikke tilbake som tomt kort. Hooken står før de tidlige returene.
+  const radProsjektNokkel = sheet
+    ? [
+        ...new Set(
+          [
+            ...(sheet.timer as unknown as { projectId: string | null }[]),
+            ...(sheet.maskiner as unknown as { projectId: string | null }[]),
+            ...(sheet.tillegg as unknown as { projectId: string | null }[]),
+          ]
+            .map((r) => r.projectId)
+            .filter((pid): pid is string => !!pid),
+        ),
+      ]
+        .sort()
+        .join("|")
+    : null;
+  const forrigeRadProsjekter = useRef<string | null>(null);
+  useEffect(() => {
+    if (radProsjektNokkel === null) return;
+    const forrige = forrigeRadProsjekter.current;
+    forrigeRadProsjekter.current = radProsjektNokkel;
+    if (!forrige) return;
+    const naa = new Set(radProsjektNokkel.split("|"));
+    const borte = forrige.split("|").filter((pid) => !naa.has(pid));
+    if (borte.length === 0) return;
+    setEkstraProsjektIder((prev) => {
+      const neste = prev.filter((pid) => !borte.includes(pid));
+      return neste.length === prev.length ? prev : neste;
+    });
+  }, [radProsjektNokkel]);
 
   if (isLoading) {
     return (
@@ -682,6 +714,8 @@ export default function DagsseddelDetaljSide() {
     // V19.9 (C'-1): forslagsradens grunn (SheetTimerForslag.grunn) styrer slot-
     // visningen. Sedelradene (serverens timer) har den ikke → undefined (ren overlapp).
     grunn?: string | null;
+    // O25: radens reise-flagg følger med, så forsoningen aldri gjetter reise av lønnsarten.
+    erReise?: boolean | null;
   }): ForsonRad => ({
     id: r.id,
     projectId: r.projectId,
@@ -695,6 +729,7 @@ export default function DagsseddelDetaljSide() {
     externalCostObjectId: r.externalCostObjectId,
     vehicleId: r.vehicleId,
     grunn: r.grunn as ForsonRad["grunn"],
+    ...(r.erReise != null ? { erReise: r.erReise } : {}),
   });
   type ForslagRad = Parameters<typeof tilForsonRad>[0];
   const forslagRader = ((sheet as { forslag?: ForslagRad[] }).forslag ?? []).map(
@@ -871,18 +906,10 @@ export default function DagsseddelDetaljSide() {
   );
 
   // § 8.22 L3a: grunnlaget for jobbskjemaet (prosjektkort-modus, redigerbar dag). Lønnsart-
-  // nedtrekket har arbeids-lønnsartene (ikke reise). Uten lønnsart eller aktivitet står jobben
-  // som i dag (vinduet).
-  const reiseKontekstSide = {
-    reiseLonnsartId: arbeidstidDefaults?.reiseLonnsartId ?? null,
-    grensepunktLonnsartIds: (arbeidstidDefaults?.reiseGrenser ?? [])
-      .map((g) => g.lonnsartId)
-      .filter((id): id is string => id != null),
-  };
+  // nedtrekket har alle ordinære lønnsarter — O25: også den firmaet bruker som reise-lønnsart;
+  // en rad blir reise bare fra reisevinduet. Uten lønnsart eller aktivitet står jobben som i dag.
   const skjemaLonnsarter = (sedelLonnsarter ?? []) as SkjemaLonnsart[];
-  const velgbareLonnsarter = skjemaLonnsarter.filter(
-    (l) => l.type === "ordinaer" && !erReiseLonnsart(l.id, l.navn, reiseKontekstSide),
-  );
+  const velgbareLonnsarter = skjemaLonnsarter.filter((l) => l.type === "ordinaer");
   const standardLonnsartId =
     (sedelLonnsarter ?? []).find(
       (l) => l.erStandardvalg && velgbareLonnsarter.some((v) => v.id === l.id),
@@ -1144,9 +1171,19 @@ export default function DagsseddelDetaljSide() {
       varer,
     };
   });
+  // O26 B: utkastet for neste jobb er prosjektets kort — da står det ikke også et tomt kort.
+  const utkastVises =
+    !!nyJobbUtkast &&
+    !!kanBrukeSkjema &&
+    !!standardLonnsartId &&
+    !!sheetAktivitetId &&
+    !jobbKort.some((k) => k.jobb.kortId === nyJobbUtkast.kortId);
   const tommeProsjektKort = ekstraProsjektIder.filter(
-    (pid) => !jobbKort.some((k) => k.jobb.projectId === pid),
+    (pid) =>
+      !jobbKort.some((k) => k.jobb.projectId === pid) &&
+      !(utkastVises && nyJobbUtkast?.projectId === pid),
   );
+
   const utenJobbLinjer: KortLinje[] = jobbGruppering
     ? [
         ...jobbGruppering.utenKort,
@@ -1267,11 +1304,7 @@ export default function DagsseddelDetaljSide() {
     };
   };
   const utkastSkjema: SkjemaOppsett | null =
-    nyJobbUtkast &&
-    kanBrukeSkjema &&
-    standardLonnsartId &&
-    sheetAktivitetId &&
-    !jobbKort.some((k) => k.jobb.kortId === nyJobbUtkast.kortId)
+    nyJobbUtkast && utkastVises && standardLonnsartId && sheetAktivitetId
       ? {
           ...skjemaFelles,
           kortId: nyJobbUtkast.kortId,
@@ -1957,14 +1990,8 @@ export default function DagsseddelDetaljSide() {
           // V20/PK5: pausereferanse fra kalender-effektiv norm (samme kilde som
           // serveren). Default «ankomst» (firma-standard) til normen er lastet.
           pauseReferanse={effektivNorm?.pauseReferanse ?? "ankomst"}
-          // V21: dagsnorm + reise-kontekst for overtidsforslaget i dialogen.
+          // V21: dagsnorm for overtidsforslaget i dialogen.
           normTimer={normTimer}
-          reiseKontekst={{
-            reiseLonnsartId: arbeidstidDefaults?.reiseLonnsartId ?? null,
-            grensepunktLonnsartIds: (arbeidstidDefaults?.reiseGrenser ?? [])
-              .map((g) => g.lonnsartId)
-              .filter((id): id is string => id != null),
-          }}
           onLukk={() => setAktivModal(null)}
         />
       )}
@@ -4187,7 +4214,6 @@ function TimerRadDialog({
   standardPauseEtterTimer,
   pauseReferanse,
   normTimer,
-  reiseKontekst,
   kortId,
   jobb,
   kortModus,
@@ -4228,10 +4254,9 @@ function TimerRadDialog({
   // rad-fraTid, «fastStart» fra skiftstart. Må matche serverens vindu, ellers
   // avviser den interaktive PK4-vakten.
   pauseReferanse: "fastStart" | "ankomst";
-  // V21: firmaets dagsnorm for datoen (null = ikke lastet → ingen forslag) og
-  // reise-kontekst (reise er aldri overtid).
+  // V21: firmaets dagsnorm for datoen (null = ikke lastet → ingen forslag). Reise er aldri
+  // overtid; O25: reise leses av radens flagg.
   normTimer: number | null;
-  reiseKontekst: ErReiseKontekst;
   /** w2 (B1, WM59): «+ Registrer timer» — ny jobb = nytt kort. Sendes på alle nye
    *  rader dialogen lager (også overtid-delen), så jobben står samlet på ett kort. */
   kortId?: string;
@@ -4408,9 +4433,8 @@ function TimerRadDialog({
   // w15d (§ 4.15 del C pkt. 4, F21): er lønnsarten reise, sier vinduet hvor reisen havner —
   // samme regel som reisevinduet (`reiseHavnerI` → `velgReiseKort`), så teksten følger
   // regelen når w15c merges. Bare prosjektkort-modus; dagskortet er urørt.
-  const valgtLonnsartNavn = lonnsarter?.find((l) => l.id === lonnsartId)?.navn ?? "";
-  const erReiseValgt =
-    !!kortModus && !!lonnsartId && erReiseLonnsart(lonnsartId, valgtLonnsartNavn, reiseKontekst);
+  // O25: reise leses av radens flagg, aldri av lønnsarten — en ny rad herfra er arbeid.
+  const erReiseValgt = !!kortModus && rad?.erReise === true;
   // Plan § 8.22 L2: i prosjektkort-modus er «Hva gjorde du?» påkrevd på arbeid — ett kort = én
   // beskrivelse, så feltet kan stå tomt når en annen arbeidsrad i samme jobb alt har den (overtid).
   // Reise og dagskort-modus: valgfritt som før.
@@ -4937,7 +4961,6 @@ function TimerRadDialog({
     const nivaaFor = (id: string) =>
       lonnsarter.find((l) => l.id === id)?.overtidsnivaa ?? null;
     const egenId = rad?.id ?? "__ny__";
-    const egenNavn = lonnsarter.find((l) => l.id === lonnsartId)?.navn ?? "";
     const rader = [
       ...alleTimerRader
         .filter((r) => r.id !== rad?.id)
@@ -4954,8 +4977,8 @@ function TimerRadDialog({
         fraTid,
         tilTid,
         pauseMin: radPauseMin,
-        erReise:
-          !!lonnsartId && erReiseLonnsart(lonnsartId, egenNavn, reiseKontekst),
+        // O25: radens eget flagg; en ny rad herfra er arbeid.
+        erReise: rad?.erReise ?? false,
         overtidsnivaa: lonnsartId ? nivaaFor(lonnsartId) : null,
       },
     ];
@@ -4986,7 +5009,7 @@ function TimerRadDialog({
     lonnsartId,
     alleTimerRader,
     radPauseMin,
-    reiseKontekst,
+    rad?.erReise,
     normTimer,
     pauseFra,
     standardPauseEtterTimer,

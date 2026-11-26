@@ -55,6 +55,18 @@ import {
   type KortVare,
 } from "./kortRadFlytt";
 import { leggTilTimerRad, type TimerRadFelt } from "./radLagring";
+import type { NyRad } from "../../../services/nyTimerRad";
+
+// O25: en reise oppstår bare fra «+ Reise» (reisesporet) — aldri av lønnsarten.
+const REISESPOR = {
+  erReise: true,
+  reiseKilde: "manuell",
+  reiseAvstandM: null,
+  reiseOppmotestedId: null,
+  reiseRetning: null,
+  reiseKjoretidMin: null,
+  reiseRegel: null,
+} as unknown as NonNullable<NyRad["reiseSpor"]>;
 import type { KortValg, SedelKortKontekst } from "../../../lib/prosjektkortMobil";
 
 const {
@@ -184,7 +196,7 @@ function byggDag() {
   const koblet = maskinAlle()[0].id;
   db().update(sheetMachineLocal).set({ timer: 5 }).where(eq(sheetMachineLocal.id, koblet)).run(); // under arbeid → ingen brudd
   lagMaskin("m-a", "p1", "bp1", 1);
-  const reise = leggTilTimerRad(db(), K, { ...felt, lonnsartId: "l-reise", timer: 1 }, []);
+  const reise = leggTilTimerRad(db(), K, { ...felt, lonnsartId: "l-reise", timer: 1 }, [], REISESPOR);
   const nabo = leggTilTimerRad(db(), K, { ...felt, projectId: "p2", byggeplassId: null, beskrivelse: "Støping" }, []);
   lagMaskin("m-b", "p2", null, 1);
   lagVare("v-a", "p1", "bp1", "pending");
@@ -354,7 +366,7 @@ describe("slettKort", () => {
 
   it("ordre (6): reise i bøtta dekker ikke maskin — maskin måles mot arbeid uten reise", async () => {
     const a = leggTilTimerRad(db(), K, felt, []);
-    leggTilTimerRad(db(), K, { ...felt, byggeplassId: "bp2", lonnsartId: "l-reise", timer: 7 }, []);
+    leggTilTimerRad(db(), K, { ...felt, byggeplassId: "bp2", lonnsartId: "l-reise", timer: 7 }, [], REISESPOR);
     lagMaskin("m-c", "p1", "bp2", 6); // 6 t maskin ≤ 7 t reise, men reise er ikke arbeid
     expect(await slettKort(db(), dagFor(), innholdFor(A), SERVER_OK)).toMatchObject({ utfall: "brudd" });
     expect(timerRad(a)).toBeDefined();

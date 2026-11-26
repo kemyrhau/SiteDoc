@@ -303,6 +303,12 @@ Fasit: `tegningNedlasting.test.ts`.
 
 `reiseUnderTerskel(rad)` → `{ enhet: "km" | "minutter", maalt, terskel } | null` (`reiseUnderTerskel.ts`, 🟡 A3, plan § 4.17 del D, B55): reiselinje (`erReise`) der snapshotet `reiseRegel.regelKategori` er `"arbeidstid"` (regelen ga arbeidstid, arbeideren førte reisetid) OG målt avstand/kjøretid er under terskelen (rå `<` mot `terskelM`/`terskelMin`). `regelKategori` alene er ikke nok: `klassifiserReise` gir under-typen også når km-avstanden mangler, og over-typen kan være arbeidstid. Uten måling, snapshot eller terskel → `null`. Bare web-attesteringen bruker den (merke + gul linje). Fasit: `reiseUnderTerskel.test.ts`.
 
+**O21 (vedtak pkt 27), bare web:** `sluttEtterStartIJobb({startTid, sluttTid, kjoretidMin, folger, kortId, rader})` → ny Slutt (Start + kjøretid) når «Til byggeplass»-Start ligger inne i jobben i kortet (samme jobb som `finnKantFlytt`) og er ≥ Slutt — eller `folger` (Slutt satt av regelen, tidsfeltets mellomverdier); ellers `null` (Slutt står). Fasit: `reiseManuell-o21.test.ts`.
+
+**O23 (vedtak pkt 29), bare web:** `startEtterSluttIJobb({startTid, sluttTid, kjoretidMin, folger, kortId, rader})` → ny Start (Slutt − kjøretid) når «Fra byggeplass»-Slutt ligger inne i jobben (`jobbStart < Slutt ≤ jobbSlutt`) og er ≤ Start — eller `folger`; ellers `null`. `finnJobbTid({kortId, rader})` → jobbens Fra–til; går som `tillatDeling.jobb`, og da leser `krysserMidnatt` en Slutt inne i jobben aldri som «fram». Fasit: `reiseManuell-o23.test.ts`.
+
+**O22 (vedtak pkt 28), web + mobil:** `ikkeValgt` fra `løsOppmote` er ikke lenger en sperre — `løsReiseKort` går til manuell modus (`løsReiseKortUtenKjoretid`) med `utenKjoretid: "utenOppmote"`, uten å kreve `tillatUtenKjoretid`. Sporet får `reiseOppmotestedId`/`reiseAvstandM`/`reiseKjoretidMin` = null. Sperren `oppmoteIkkeValgt` er fjernet fra `ReiseKortSperre`. Fasit: `reiseManuell.test.ts` (O22-testene).
+
 `medOverforingPeriodeId(spor, periodeId)` setter `reiseRegel.overforing.periodeId` når perioden er kjent ved lagring (ny id ved start, lukket periode ved slutt); `null` → sporet urørt.
 
 ### Reisekjede (`reiseKjede.ts`, ordre 2026-11-15 (17))

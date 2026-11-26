@@ -36,6 +36,14 @@ describe("skalNullstilleProsjekt — (15) test (d)", () => {
     expect(kilde).toMatch(/skalNullstilleProsjekt\(\{/);
     expect(kilde).not.toMatch(/primaryOrganizationId === valgtFirma\.id\) return/);
   });
+  it("🔴 ADMIN-UTEN-GJESTEGRUPPE: nullstillingen tar sitedoc_admin uansett firma (bare rollen)", () => {
+    const kilde = readFileSync(join(__dirname, "../../kontekst/prosjekt-kontekst.tsx"), "utf-8");
+    expect(kilde).toMatch(
+      /erAdminUtenGjestegruppe\(erSitedocAdmin \? "sitedoc_admin" : null\)/,
+    );
+    expect(kilde).toMatch(/gjesteIderForNullstilling\(gjesteIder, adminUtenGjestegruppe\)/);
+    expect(kilde).not.toContain("erAdminIFremmedFirma");
+  });
 });
 
 // (e) Sidebar: Timer/Vareforbruk-elementene gates på gjestestatus.

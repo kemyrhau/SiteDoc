@@ -119,6 +119,8 @@ type ForsonRad = {
   tilTid: string;
   beskrivelse?: string | null;
   externalCostObjectId?: string | null;
+  // O25: radens reise-flagg bæres til serveren; utelatt = serveren beholder/gir false.
+  erReise?: boolean;
 };
 
 /**
@@ -138,6 +140,8 @@ function lokalRadTilForson(r: TimerRad): ForsonRad | null {
     tilTid: r.tilTid,
     beskrivelse: r.beskrivelse,
     externalCostObjectId: r.externalCostObjectId,
+    // O25: en lokal «+ Reise»-rad forblir reise; null (eldre rad) = reisespor avgjør.
+    erReise: r.erReise ?? r.reiseKilde != null,
   };
 }
 
@@ -157,6 +161,7 @@ type RaaRad = {
   // V19.9 (B'-6): forslagsradens grunn (SheetTimerForslag.grunn). Kun på forslag-
   // rader; serverens timer-rader har den ikke (→ undefined, ren overlapp-slot).
   grunn?: string | null;
+  erReise?: boolean | null;
 };
 
 /**
@@ -179,6 +184,7 @@ function raaTilForsonRad(r: RaaRad): DeltForsonRad {
     externalCostObjectId: r.externalCostObjectId ?? null,
     vehicleId: r.vehicleId ?? null,
     grunn: r.grunn as DeltForsonRad["grunn"],
+    ...(r.erReise != null ? { erReise: r.erReise } : {}),
   };
 }
 

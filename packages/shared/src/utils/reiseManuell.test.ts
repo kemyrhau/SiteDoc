@@ -208,10 +208,48 @@ describe("løsReiseKort", () => {
     expect(kort({ kjoretidFor: () => -1 }).sperre).toBe("manglerKjoretid");
   });
 
-  it("ikkeValgt → sperret med oppmoteIkkeValgt (vedtak 2026-11-15: ingen kjøretid uten oppmøtested)", () => {
+  // O22 (pkt 28, Kenneth 2026-11-25): uten oppmøtested skriver arbeideren tiden selv — ingen
+  // sperre, også uten `tillatUtenKjoretid` (mobilens kall). Retter vedtaket 2026-11-15.
+  it("O22: ikkeValgt → manuell modus uten sperre, Slutt = dagStart, «utenOppmote» (også uten flagget)", () => {
     const r = kort({ oppmote: { kilde: "ikkeValgt" } });
-    expect(r.sperre).toBe("oppmoteIkkeValgt");
+    expect(r).toMatchObject({ sperre: null, fraTid: null, tilTid: "07:00", utenKjoretid: "utenOppmote", kjoretidMin: null, timer: 0 });
     expect(r.spor).toBeNull();
+  });
+
+  it("O22: ikkeValgt + skrevet Start → reise på skrevet tid, sporet uten oppmøtested/avstand/kjøretid", () => {
+    const r = kort({ oppmote: { kilde: "ikkeValgt" }, startTid: "06:00" });
+    expect(r).toMatchObject({ sperre: null, fraTid: "06:00", tilTid: "07:00", timer: 1, utenKjoretid: "utenOppmote" });
+    expect(r.klassifisering?.erReise).toBe(true);
+    expect(r.spor).toMatchObject({
+      erReise: true,
+      reiseKilde: "manuell",
+      reiseOppmotestedId: null,
+      reiseAvstandM: null,
+      reiseKjoretidMin: null,
+      reiseRetning: "ut",
+    });
+  });
+
+  it("O22: ikkeValgt, minuttgrense måles på skrevet tid (20 min < 30 → arbeidstid)", () => {
+    const r = kort({ oppmote: { kilde: "ikkeValgt" }, startTid: "06:40" });
+    expect(r.klassifisering?.erReise).toBe(false);
+    expect(r.sperre).toBeNull();
+  });
+
+  it("O22: ikkeValgt, Retur → Start = dagSlutt, arbeideren skriver Slutt", () => {
+    const r = kort({ oppmote: { kilde: "ikkeValgt" }, retning: "retur", sluttTid: "16:00" });
+    expect(r).toMatchObject({ sperre: null, fraTid: "15:00", tilTid: "16:00", timer: 1 });
+  });
+
+  it("O22: ikkeValgt bevarer manglerRegel, og Slutt før Start gir 0 timer", () => {
+    expect(kort({ oppmote: { kilde: "ikkeValgt" }, startTid: "06:00", regel: null }).sperre).toBe("manglerRegel");
+    expect(kort({ oppmote: { kilde: "ikkeValgt" }, startTid: "08:00", dagStart: "07:00" }).timer).toBe(0);
+    // Slutt før Start: som manuell modus — timer 0, kalleren holder Lagre grå.
+    expect(kort({ oppmote: { kilde: "ikkeValgt" }, retning: "retur", dagSlutt: "23:00", sluttTid: "01:00" }).timer).toBe(0);
+  });
+
+  it("O22: byggeplass-periode går fortsatt foran (sperret)", () => {
+    expect(kort({ oppmote: { kilde: "byggeplass", projectId: "p" } }).sperre).toBe("byggeplassPeriode");
   });
 
   it("uten byggeplass → manglerKjoretid", () => {

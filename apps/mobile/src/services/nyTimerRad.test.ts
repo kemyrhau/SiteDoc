@@ -515,3 +515,43 @@ describe("ORDRE 29: sistBrukteMaskiner (egne, i firmaet, nyeste først, N = 5)",
     expect(sistBrukteMaskiner(db(), "u1", "o2")).toEqual(["v-annet-firma"]);
   });
 });
+
+describe("O25 (8): reise på mobil kun via «+ Reise» — lønnsarten avgjør aldri", () => {
+  it("«+»-raden med firmaets reise-lønnsart lagres som arbeid (erReise false, uten reisespor)", () => {
+    seedLonnsart("Reise", { standard: true });
+    seedAktivitet("a1", "Anleggsarbeid");
+    const r = lagreNyTimerRad(db(), { userId: "u1", organizationId: "o1", dato: "2026-11-26", rad: { ...rad, lonnsartId: "Reise" } });
+    expect(r.ok).toBe(true);
+    const lagret = db().select().from(sheetTimerLocal).all();
+    expect(lagret).toHaveLength(1);
+    expect(lagret[0]).toMatchObject({ lonnsartId: "Reise", erReise: false, reiseKilde: null });
+  });
+
+  it("«+ Reise» (reisesporet) lagres som reise — også på en arbeids-lønnsart", () => {
+    seedLonnsart("l1", { standard: true });
+    seedAktivitet("a1", "Anleggsarbeid");
+    const r = lagreNyTimerRad(db(), {
+      userId: "u1",
+      organizationId: "o1",
+      dato: "2026-11-26",
+      rad: {
+        ...rad,
+        fraTid: "06:00",
+        tilTid: "07:00",
+        timer: 1,
+        pauseMin: 0,
+        reiseSpor: {
+          erReise: true,
+          reiseKilde: "manuell",
+          reiseAvstandM: null,
+          reiseOppmotestedId: null,
+          reiseRetning: "ut",
+          reiseKjoretidMin: null,
+          reiseRegel: null,
+        } as unknown as NonNullable<NyRad["reiseSpor"]>,
+      },
+    });
+    expect(r.ok).toBe(true);
+    expect(db().select().from(sheetTimerLocal).all()[0]).toMatchObject({ lonnsartId: "l1", erReise: true, reiseKilde: "manuell" });
+  });
+});

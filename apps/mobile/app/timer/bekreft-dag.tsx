@@ -42,7 +42,6 @@ import {
   hentUnderprosjekterLokalt,
   hentReiseKnappLokalt,
   hentLonnsarterLokalt,
-  erReiseLonnsartLokalt,
   finnLonnsartLokalt,
 } from "../../src/services/timerKatalog";
 import { FravaerKortModal } from "../../src/components/timer-detalj/prosjektkort/FravaerKortModal";
@@ -460,12 +459,10 @@ export default function BekreftDagSkjerm() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- normNonce: re-les svar-cachen (funn 3); sendtNonce: re-les sedel-status (ORDRE 26)
   }, [manuell, manuellDato, normNonce, dag, bruker?.id, orgId, sluttIso, rettetSluttIso, endLat, endLng, valgtBygningId, valgtProsjektId, sisteSegmentKilde, valgtByggeplassId, retting, periodeVersjon, sendtNonce]);
   // ORDRE (28) V4-⚠️: artene en linje kan få — firmaets aktive ordinære
-  // (med og uten overtidsnivå) og fravær; reise-arter ute.
+  // (med og uten overtidsnivå). O25: også firmaets reise-lønnsart; en arbeidslinje
+  // blir aldri reise av lønnsarten (reise føres med «+ Reise»).
   const linjeArter = useMemo(
-    () =>
-      orgId
-        ? lonnsarterForLinje(hentLonnsarterLokalt(orgId), (l) => erReiseLonnsartLokalt(orgId, l.id))
-        : [],
+    () => (orgId ? lonnsarterForLinje(hentLonnsarterLokalt(orgId), () => false) : []),
     [orgId],
   );
   // DEL 5 c: panelet for anslått slutt — GPS-veien, slutten satt av systemet

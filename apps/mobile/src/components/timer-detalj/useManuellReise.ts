@@ -27,6 +27,7 @@ import { hentLonnsarterLokalt, hentStandardLonnsartLokalt } from "../../services
 import { hentOverforingOppslagLokalt } from "../../services/overforingOppslag";
 import { hentKontorAvstandLokalt } from "../../services/oppmotestedAvstandKatalog";
 import type { DagsforslagOverforingOppslag } from "../../utils/dagsforslag";
+import { manuellReiseInput, TOMT_MANUELL_VALG, type ReiseKortManuellValg } from "./reiseKortManuell";
 
 /* ============================================================================
  *  POST 2026-11-15 (13) L2 § 7 C: reise-kortet («+ Reise») på mobil.
@@ -84,6 +85,7 @@ export function useManuellReise({
   skjulOverforingRetninger = [],
   medOverforing,
   kontekstByggeplassId,
+  manuellValg = TOMT_MANUELL_VALG,
 }: {
   organizationId: string;
   userId: string;
@@ -103,6 +105,8 @@ export function useManuellReise({
   medOverforing: boolean;
   /** Kontekst-byggeplassen overføringen til et prosjekt lander på. */
   kontekstByggeplassId: string | null;
+  /** O22: arbeiderens tider (og km-avhuking) når oppmøtested ikke er valgt. Ellers ignorert. */
+  manuellValg?: ReiseKortManuellValg;
 }) {
   const regel = useMemo(() => lesRegel(organizationId), [organizationId]);
   const oppmotesteder = useMemo(() => hentOppmotederLokalt(organizationId), [organizationId]);
@@ -216,9 +220,11 @@ export function useManuellReise({
       byggeplassId,
       kjoretidFor: (o, b) => hentMatriseRadLokalt(o, b)?.kjoretidMin ?? null,
       avstandFor: (o, b) => hentMatriseRadLokalt(o, b)?.avstandM ?? null,
+      // O22: uten oppmøtested skriver arbeideren tiden selv (manuell modus, offline).
+      ...manuellReiseInput(oppmote, manuellValg),
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- aktivtValg er avledet av valg + overforinger
-  }, [valg, forsteOverforing, overforinger, kontorOppsett, apenOverforing, ramme, regel, grensepunkter, resolverLonnsartId, standardLonnsartId, oppmote, byggeplassId]);
+  }, [valg, forsteOverforing, overforinger, kontorOppsett, apenOverforing, ramme, regel, grensepunkter, resolverLonnsartId, standardLonnsartId, oppmote, byggeplassId, manuellValg]);
 
   // Oppmøtestedet vises som tekst bare når firmaet har flere (§ 7 C).
   const oppmotestedNavn =
@@ -252,6 +258,7 @@ export function useManuellReise({
     overforingValg,
     aktivtValg,
     resultat,
+    regel,
     lonnsartNavn: (id: string | null) => (id ? (lonnsartNavn.get(id) ?? null) : null),
   };
 }

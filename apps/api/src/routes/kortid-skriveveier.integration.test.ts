@@ -338,7 +338,7 @@ describe("T5 — server-skriveveier fyller kort_id (reise i jobbens kort, w12)",
   it("tilfoyTimerRad: reise-rad står i jobbens kort, oppgitt id brukes ikke (w12)", async () => {
     const sid = await nySedel();
     await dag().tilfoyTimerRad({
-      sheetId: sid, projectId: P1, lonnsartId: REISE, aktivitetId: AKT,
+      sheetId: sid, projectId: P1, lonnsartId: REISE, aktivitetId: AKT, erReise: true,
       timer: 1, fraTid: "06:00", tilTid: "07:00", pauseMin: 0, kortId: randomUUID(),
     });
     await dag().tilfoyTimerRad({
@@ -953,7 +953,7 @@ describe("w12 — reiserad står i jobbens kort i hver skrivevei", () => {
       },
     });
     const reiseB = await dag(USER2).tilfoyTimerRad({
-      sheetId: sidB, projectId: P1, lonnsartId: REISE, aktivitetId: AKT,
+      sheetId: sidB, projectId: P1, lonnsartId: REISE, aktivitetId: AKT, erReise: true,
       timer: 1, fraTid: "06:00", tilTid: "07:00", pauseMin: 0,
     });
     expect((await rad(reiseB.id)).kortId).not.toBe(jobbA.kortId);
@@ -1078,7 +1078,7 @@ describe("w15c — reisens kort på serveren (web-timeforing-plan.md § 4.15 del
   it("H 18: kort-id fra klienten leses ikke — reise på et sted med jobb står i jobben, uten jobb i eget kort", async () => {
     const sid = await nySedel();
     const jobb = await arbeid(sid, "07:00", "11:00");
-    const base = { sheetId: sid, projectId: P1, lonnsartId: REISE, aktivitetId: AKT, timer: 0.5, pauseMin: 0 };
+    const base = { sheetId: sid, projectId: P1, lonnsartId: REISE, aktivitetId: AKT, erReise: true, timer: 0.5, pauseMin: 0 };
     const iJobb = await dag().tilfoyTimerRad({ ...base, fraTid: "06:00", tilTid: "06:30", kortId: randomUUID() });
     expect(await kort(iJobb.id)).toBe(jobb.kortId);
     const ny = randomUUID();
@@ -1128,7 +1128,7 @@ describe("§ 8.22 — reisen flyttes bare når prosjekt, byggeplass eller underp
     const jobbE = await arbeid(sid, "12:00", "14:00", ECO_1);
     const ut = (
       await dag().tilfoyTimerRad({
-        sheetId: sid, projectId: P1, lonnsartId: REISE, aktivitetId: AKT, timer: 0.5,
+        sheetId: sid, projectId: P1, lonnsartId: REISE, aktivitetId: AKT, erReise: true, timer: 0.5,
         fraTid: "06:00", tilTid: "06:30", pauseMin: 0,
       })
     ).id;

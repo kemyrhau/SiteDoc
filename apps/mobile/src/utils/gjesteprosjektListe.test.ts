@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { erAdminUtenGjestegruppe } from "@sitedoc/shared";
 import {
   mineAnsattFirmaIder,
   lokaleGjesteprosjekter,
@@ -68,23 +69,43 @@ describe("velgerGjesteprosjekter — (16) punkt 2", () => {
   });
   const server = [g("p-x", X), g("p-y", Y)];
   it("🔴 prosjekt eid av valgt firma ligger ikke i gjestegruppen (valgt firma uten ansettelse)", () => {
-    const ider = velgerGjesteprosjekter({ visning: "server", server, lokale: [], valgtFirmaId: X, adminIFremmedFirma: false }).map((p) => p.id);
+    const ider = velgerGjesteprosjekter({ visning: "server", server, lokale: [], valgtFirmaId: X, adminUtenGjestegruppe: false }).map((p) => p.id);
     expect(ider).toEqual(["p-y"]);
   });
   it("🔴 samme regel offline (lokal cache)", () => {
-    const ider = velgerGjesteprosjekter({ visning: "lokal", server: [], lokale: server, valgtFirmaId: X, adminIFremmedFirma: false }).map((p) => p.id);
+    const ider = velgerGjesteprosjekter({ visning: "lokal", server: [], lokale: server, valgtFirmaId: X, adminUtenGjestegruppe: false }).map((p) => p.id);
     expect(ider).toEqual(["p-y"]);
   });
   it("valgt firma blir i hovedlista: utenGjesteprosjekter fjerner ikke valgt firmas prosjekt", () => {
-    const gjester = velgerGjesteprosjekter({ visning: "server", server, lokale: [], valgtFirmaId: X, adminIFremmedFirma: false });
+    const gjester = velgerGjesteprosjekter({ visning: "server", server, lokale: [], valgtFirmaId: X, adminUtenGjestegruppe: false });
     expect(utenGjesteprosjekter([{ id: "p-x" }], gjester).map((p) => p.id)).toEqual(["p-x"]);
   });
   it("🔴 ADMIN-GJEST: sitedoc_admin i fremmed firma → ingen gjestegruppe (på nett og offline)", () => {
-    expect(velgerGjesteprosjekter({ visning: "server", server, lokale: [], valgtFirmaId: X, adminIFremmedFirma: true })).toEqual([]);
-    expect(velgerGjesteprosjekter({ visning: "lokal", server: [], lokale: server, valgtFirmaId: X, adminIFremmedFirma: true })).toEqual([]);
+    expect(velgerGjesteprosjekter({ visning: "server", server, lokale: [], valgtFirmaId: X, adminUtenGjestegruppe: true })).toEqual([]);
+    expect(velgerGjesteprosjekter({ visning: "lokal", server: [], lokale: server, valgtFirmaId: X, adminUtenGjestegruppe: true })).toEqual([]);
+  });
+  // ADMIN-UTEN-GJESTEGRUPPE (Kenneth 2026-11-26): rollen alene avgjør — Kenneths prod-oppsett
+  // (admin i eget firma, Prosessanlegg eid av et annet firma).
+  const EGET = "firma-eget";
+  const gruppeFor = (rolle: string) =>
+    velgerGjesteprosjekter({
+      visning: "server",
+      server,
+      lokale: [],
+      valgtFirmaId: EGET,
+      adminUtenGjestegruppe: erAdminUtenGjestegruppe(rolle),
+    }).map((p) => p.id);
+  it("🔴 sitedoc_admin i eget firma → ingen gjestegruppe", () => {
+    expect(gruppeFor("sitedoc_admin")).toEqual([]);
+  });
+  it("regresjon: vanlig bruker ser fortsatt gruppen", () => {
+    expect(gruppeFor("user")).toEqual(["p-x", "p-y"]);
+  });
+  it("regresjon: company_admin ser fortsatt gruppen", () => {
+    expect(gruppeFor("company_admin")).toEqual(["p-x", "p-y"]);
   });
   it("feil-/lastevisning → ingen gjestegruppe", () => {
-    expect(velgerGjesteprosjekter({ visning: "feil", server, lokale: server, valgtFirmaId: null, adminIFremmedFirma: false })).toEqual([]);
+    expect(velgerGjesteprosjekter({ visning: "feil", server, lokale: server, valgtFirmaId: null, adminUtenGjestegruppe: false })).toEqual([]);
   });
 });
 
@@ -98,9 +119,11 @@ describe("koblinger (kilde-vakt)", () => {
     // (16): gruppen filtreres mot valgt firma.
     expect(k).toContain("valgtFirmaId: valgtFirmaId ?? null");
     expect(k).toContain("velgerGjesteprosjekter({");
-    // ADMIN-GJEST: regelen får rolle + ansatt-status inn.
-    expect(k).toMatch(/erAdminIFremmedFirma\(\{\s*rolle: minBruker\.data\?\.role,\s*erAnsattIValgtFirma,\s*\}\)/);
-    expect(k).toMatch(/\n\s*adminIFremmedFirma,\n\s*\}\);/);
+    // ADMIN-UTEN-GJESTEGRUPPE (2026-11-26): regelen tar bare rollen — admin i eget firma
+    // ser heller ingen gjestegruppe.
+    expect(k).toMatch(/erAdminUtenGjestegruppe\(minBruker\.data\?\.role\)/);
+    expect(k).toMatch(/\n\s*adminUtenGjestegruppe,\n\s*\}\);/);
+    expect(k).not.toContain("erAdminIFremmedFirma");
   });
   it("ProsjektVelger viser gruppen og Hjem finner valgt gjesteprosjekt", () => {
     expect(les("../components/ProsjektVelger.tsx")).toContain('t("prosjektVelger.andreFirma")');

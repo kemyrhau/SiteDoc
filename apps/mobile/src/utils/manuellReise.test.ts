@@ -280,7 +280,7 @@ describe("Ordre (9) — terskel-sporet på manuell reise", () => {
     expect(HOOK).not.toContain("SecureStore");
     expect(HOOK).not.toContain("velgOppmotested(");
     expect(KORT).toContain("useManuellReise(");
-    expect(KORT).toContain("let reiseSpor = resultat.spor;");
+    expect(KORT).toContain("let reiseSpor = rad.reiseSpor;"); // O22: raden fra `reiseKortRad`
     // Del B: overføringen fører bare periode-id-en inn i samme spor, ingen nytt spor.
     expect(KORT).toContain("reiseSpor = medOverforingPeriodeId(reiseSpor,");
     expect(KORT).toMatch(/onLagre\(\{[^}]*\breiseSpor\b/);
@@ -288,9 +288,10 @@ describe("Ordre (9) — terskel-sporet på manuell reise", () => {
     expect(BEKREFT).toContain("reiseSpor: l.reiseSpor");
   });
 
-  it("gate (32) vilkår 1: sperreårsaken (også oppmoteIkkeValgt) står som rød tekst i kortet, ikke bare bak Lagre", () => {
+  it("gate (32) vilkår 1: sperreårsaken står som rød tekst i kortet, ikke bare bak Lagre", () => {
+    // O22: ikke valgt oppmøtested er ikke lenger en sperre (reiseKortManuell.test.ts).
     const KORT = les("../components/timer-detalj/ReiseKort.tsx").replace(/\s+/g, " ");
-    expect(KORT).toContain('oppmoteIkkeValgt: "timer.reiseKort.sperre.oppmoteIkkeValgt"');
+    expect(KORT).toContain('byggeplassPeriode: "timer.reiseKort.sperre.byggeplassPeriode"');
     expect(KORT).toContain(
       '{sperre && ( <Text className="text-xs font-medium text-red-700">{t(SPERRE_NOKKEL[sperre])}</Text> )}',
     );

@@ -109,6 +109,9 @@ export {
   lesMidnattDel,
   finnReiseSomEnderPaaKontor,
   finnKantFlytt,
+  sluttEtterStartIJobb,
+  startEtterSluttIJobb,
+  finnJobbTid,
 } from "./reiseManuell";
 export { sekvenserReisekjede } from "./reiseKjede";
 export type { KjedeKort } from "./reiseKjede";
@@ -704,7 +707,7 @@ export {
   erGjesteprosjekt,
   skjulFirmaModulForGjest,
   gjesteprosjekterIAndreFirma,
-  erAdminIFremmedFirma,
+  erAdminUtenGjestegruppe,
   velgerGjestegruppe,
   gjesteIderForNullstilling,
   skalNullstilleProsjekt,

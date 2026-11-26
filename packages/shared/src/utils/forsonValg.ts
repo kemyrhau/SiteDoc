@@ -74,6 +74,8 @@ export interface ForsonRad {
   beskrivelse?: string | null;
   externalCostObjectId?: string | null;
   vehicleId?: string | null;
+  /** O25: radens eget reise-flagg. Uten flagg beholder serveren lagret rads flagg (ny rad = arbeid). */
+  erReise?: boolean;
   // V19.9: hvorfor dette forslaget oppsto. Fravær/`"overlapp"` = V19-A (uendret).
   // Settes KUN på forslagsrader (serverrader bærer den aldri).
   grunn?: ForsonGrunn | null;
@@ -94,6 +96,8 @@ export interface ForsonOppdatering {
   beskrivelse?: string | null;
   externalCostObjectId?: string | null;
   vehicleId?: string | null;
+  /** O25: reise bare fra radens flagg, aldri fra lønnsarten. */
+  erReise?: boolean;
 }
 
 /** En `forsonDagskort.nyeRader`-rad (opprett — forslagsrad uten motpart). */
@@ -243,6 +247,7 @@ function tilNyRad(f: ForsonRad): ForsonNyRad {
     beskrivelse: f.beskrivelse ?? null,
     externalCostObjectId: f.externalCostObjectId ?? null,
     vehicleId: f.vehicleId ?? null,
+    ...(f.erReise !== undefined ? { erReise: f.erReise } : {}),
   };
 }
 
