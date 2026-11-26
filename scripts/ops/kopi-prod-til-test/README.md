@@ -47,11 +47,11 @@ Dette blir stående: organisasjonsraden, test-SMs prosjekter med innhold, firmak
 
 ## Kommandoer (Kenneth)
 
-`<HASH>` er commiten Kontrollør har gatet.
+`f724508b` er commiten med SQL-filene som skal gates (RETUR 2026-11-26). Denne README-commiten endrer ikke SQL-filene.
 
 **A. Hent de gatede filene og legg dem på server-ny**
 ```bash
-cd ~/Documents/Programmering/SiteDoc && git fetch -q origin && for f in 1-eksport-prod 2-import-test; do git show <HASH>:scripts/ops/kopi-prod-til-test/$f.sql > /tmp/$f.sql; done && scp /tmp/1-eksport-prod.sql /tmp/2-import-test.sql server-ny:/tmp/
+cd ~/Documents/Programmering/SiteDoc && git fetch -q origin && for f in 1-eksport-prod 2-import-test; do git show f724508b:scripts/ops/kopi-prod-til-test/$f.sql > /tmp/$f.sql; done && scp /tmp/1-eksport-prod.sql /tmp/2-import-test.sql server-ny:/tmp/
 ```
 
 **B. Backup av test, eksport fra prod og tørrkjøring (ingenting lagres på test)**
