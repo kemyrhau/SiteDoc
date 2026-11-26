@@ -173,6 +173,7 @@ import {
   type PayloadRad as VersjonPayloadRad,
   type Tombstone as VersjonTombstone,
 } from "./sync-versjon";
+import { hentAnsattLonnsgruppeId } from "../../services/lonnsgruppe";
 
 const STATUS_VERDIER = ["draft", "sent", "returned", "accepted"] as const;
 // Lukket ordning-enum for sync-input. Klienten STEMPLER ordningen ved føring
@@ -4775,6 +4776,8 @@ export const dagsseddelRouter = router({
         // velger mellom PC og mobil (C-1); tomt array når ingen overlapp venter.
         forslag,
         korrigeringer,
+        // L1 lønnsgrupper: EIERENS gruppe (spec § 3 punkt 3) — velgerne filtrerer på den (L4/L5).
+        eierLonnsgruppeId: await hentAnsattLonnsgruppeId(ctx.prismaTimer, sheet.organizationId, sheet.userId),
       };
     }),
 
@@ -8428,6 +8431,8 @@ export const dagsseddelRouter = router({
 
       return {
         ...sheet,
+        // L1 lønnsgrupper: EIERENS gruppe (spec § 3 punkt 3, B4) — attestanten får den ansattes utvalg (L4).
+        eierLonnsgruppeId: await hentAnsattLonnsgruppeId(ctx.prismaTimer, sheet.organizationId, sheet.userId),
         aktivitet,
         timer: timerMedProsjekt,
         tillegg: tilleggMedProsjekt,

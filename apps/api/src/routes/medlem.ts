@@ -37,6 +37,7 @@ import {
   aktivtMedlemWhere,
   aktivtProsjektmedlemWhere,
 } from "../trpc/tilgangskontroll";
+import { sikreAnsattLonnsgruppeApi } from "../services/lonnsgruppe";
 
 export const medlemRouter = router({
   // Hent alle medlemmer for et prosjekt
@@ -430,6 +431,16 @@ export const medlemRouter = router({
           projectMemberId: projectMember.id,
         };
       });
+
+      // L1 lønnsgrupper (V2): rett etter at firmamedlemmet er lagret — egen Prisma-klient, så
+      // utenfor tx. Firmaets «Ordinær» med mindre personen alt har en gruppe (B10: intet felt her).
+      if (organizationId) {
+        await sikreAnsattLonnsgruppeApi(ctx.prismaTimer, {
+          organizationId,
+          userId: resultat.userId,
+          sattAvUserId: ctx.userId,
+        });
+      }
 
       // 7. Invitasjon + e-post — best-effort UTENFOR tx. Kun hvis brukeren ikke har
       //    logget inn (ingen Account), og kun én gang (dedup på ventende invitasjon).
@@ -885,6 +896,15 @@ export const medlemRouter = router({
             userAgent: ctx.userAgent,
           },
         });
+      });
+
+      // L1 lønnsgrupper (V3): til-firmaets «Ordinær» — gruppene er firmaets egne, så den gamle
+      // følger ikke med. Rett etter tx (egen Prisma-klient). Har personen alt en gruppe i
+      // til-firmaet (tidligere ansatt der), står den.
+      await sikreAnsattLonnsgruppeApi(ctx.prismaTimer, {
+        organizationId: input.tilOrganizationId,
+        userId,
+        sattAvUserId: ctx.userId,
       });
 
       return { ok: true };

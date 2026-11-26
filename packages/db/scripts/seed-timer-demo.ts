@@ -52,7 +52,7 @@
  */
 
 import { prisma } from "../src/index";
-import { prismaTimer } from "../../db-timer/src";
+import { prismaTimer, sikreAnsattLonnsgruppe } from "../../db-timer/src";
 import { prismaMaskin } from "../../db-maskin/src";
 
 /* ------------------------------------------------------------------ */
@@ -311,6 +311,8 @@ async function seedKjerne(): Promise<{
       update: { ansattnummer: a.ansattnummer },
       create: { userId: bruker.id, organizationId: orgId, ansattnummer: a.ansattnummer },
     });
+    // L1 lønnsgrupper: firmaets «Ordinær» (lages om den mangler).
+    await sikreAnsattLonnsgruppe(prismaTimer, { organizationId: orgId, userId: bruker.id });
   }
 
   // Attestant (firma_admin) — egen bruker uten dagsedler. firmaRoller settes i
@@ -330,6 +332,7 @@ async function seedKjerne(): Promise<{
       firmaRoller: ["firma_admin"],
     },
   });
+  await sikreAnsattLonnsgruppe(prismaTimer, { organizationId: orgId, userId: attestant.id });
 
   // Selv-verifikasjon av gaten: attestanten MÅ ha firma_admin i demo-orgen,
   // ellers ser hun tom side. Speiler autoriserAdminForFirma → erFirmaAdmin

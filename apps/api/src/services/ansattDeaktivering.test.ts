@@ -191,6 +191,11 @@ vi.mock("../trpc/tilgangskontroll", async (importActual) => ({
   verifiserAdmin: vi.fn().mockResolvedValue(undefined),
 }));
 
+// L1 lønnsgrupper: gruppe-raden (db-timer) er ikke en del av minne-Prismaen her.
+vi.mock("./lonnsgruppe", () => ({
+  sikreAnsattLonnsgruppeApi: vi.fn().mockResolvedValue({ lonnsgruppeId: "g-ordinaer" }),
+  hentAnsattLonnsgruppeId: vi.fn().mockResolvedValue("g-ordinaer"),
+}));
 import type { Prisma } from "@sitedoc/db";
 import { avsluttMedlemskapForPerson, forhandsvisDeaktivering, gjenapneMedlemskapFraPayload } from "./ansattDeaktivering";
 import { flyttHmsSakerVedRollefjerning } from "./hmsAnsvarlig";

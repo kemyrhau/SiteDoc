@@ -48,7 +48,8 @@ model Lonnsart {
   createdAt        DateTime @default(now()) @map("created_at")
   updatedAt        DateTime @updatedAt @map("updated_at")
 
-  sheetTimer SheetTimer[]
+  sheetTimer   SheetTimer[]
+  lonnsgrupper LonnsartLonnsgruppe[]
 
   @@unique([organizationId, kode], name: "uq_lonnsart_kode_per_org", map: "uq_lonnsart_kode_per_org")
   @@index([organizationId, aktiv])
@@ -102,6 +103,7 @@ model Tillegg {
   updatedAt        DateTime @updatedAt @map("updated_at")
 
   sheetTillegg SheetTillegg[]
+  lonnsgrupper TilleggLonnsgruppe[]
 
   @@unique([organizationId, kode], name: "uq_tillegg_kode_per_org", map: "uq_tillegg_kode_per_org")
   @@index([organizationId, aktiv])
@@ -139,6 +141,7 @@ model ExpenseCategory {
 
   sheetUtlegg   SheetUtlegg[]
   overstyringer ProsjektOrdningOverstyring[]
+  lonnsgrupper  ExpenseCategoryLonnsgruppe[]
 
   @@index([organizationId])
   @@map("expense_categories")
@@ -706,5 +709,95 @@ model EksportOppsett {
   @@index([organizationId])
   @@index([basertPaId])
   @@map("eksport_oppsett")
+  @@schema("timer")
+}
+
+// ==========================================================================
+//  Lønnsgrupper (L1, spec-lonnsgrupper.md § 2, Kenneth 2026-11-26)
+//  Hvert firma lager egne grupper. Hvert firma har alltid nøyaktig én standardgruppe
+//  («Ordinær», erStandard) — håndhevet av en delvis unik indeks i migreringen
+//  (Prisma kan ikke uttrykke WHERE-indekser). Grupper slettes ikke, de slås av.
+//  En lønnsart/et tillegg/en utleggskategori UTEN koblinger gjelder alle; med
+//  koblinger gjelder den bare de gruppene. Regelen: @sitedoc/shared utils/lonnsgruppe.ts.
+// ==========================================================================
+
+model Lonnsgruppe {
+  id                 String   @id @default(uuid())
+  organizationId     String   @map("organization_id") // svak FK → organizations.id
+  navn               String
+  aktiv              Boolean  @default(true)
+  rekkefolge         Int      @default(0)
+  erStandard         Boolean  @default(false) @map("er_standard")
+  // B7: gruppas egen standard lønnsart på ny rad (brukes fra L2). Svak peker innen
+  // samme skjema; ingen relasjon, så en avslått art ikke blokkerer noe.
+  standardLonnsartId String?  @map("standard_lonnsart_id")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  ansatte           AnsattLonnsgruppe[]
+  lonnsarter        LonnsartLonnsgruppe[]
+  tillegg           TilleggLonnsgruppe[]
+  expenseCategories ExpenseCategoryLonnsgruppe[]
+
+  @@unique([organizationId, navn], name: "uq_lonnsgruppe_navn_per_org", map: "uq_lonnsgruppe_navn_per_org")
+  @@index([organizationId, aktiv])
+  @@map("lonnsgrupper")
+  @@schema("timer")
+}
+
+// Én gruppe pr. ansatt pr. firma (B1). Raden finnes alltid for et firmamedlem
+// (sikreAnsattLonnsgruppe i V1–V3 + vern ved oppslag). Ingen fra-dato (B6).
+model AnsattLonnsgruppe {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id") // svak FK → organizations.id
+  userId         String   @map("user_id") // svak FK → users.id
+  lonnsgruppeId  String   @map("lonnsgruppe_id")
+  sattAvUserId   String?  @map("satt_av_user_id") // null = satt av migreringen/systemet
+  sattVed        DateTime @default(now()) @map("satt_ved")
+
+  lonnsgruppe Lonnsgruppe @relation(fields: [lonnsgruppeId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, userId], name: "uq_ansatt_lonnsgruppe", map: "uq_ansatt_lonnsgruppe")
+  @@index([lonnsgruppeId])
+  @@map("ansatt_lonnsgrupper")
+  @@schema("timer")
+}
+
+model LonnsartLonnsgruppe {
+  lonnsartId    String @map("lonnsart_id")
+  lonnsgruppeId String @map("lonnsgruppe_id")
+
+  lonnsart    Lonnsart    @relation(fields: [lonnsartId], references: [id], onDelete: Restrict)
+  lonnsgruppe Lonnsgruppe @relation(fields: [lonnsgruppeId], references: [id], onDelete: Restrict)
+
+  @@id([lonnsartId, lonnsgruppeId])
+  @@index([lonnsgruppeId])
+  @@map("lonnsart_lonnsgrupper")
+  @@schema("timer")
+}
+
+model TilleggLonnsgruppe {
+  tilleggId     String @map("tillegg_id")
+  lonnsgruppeId String @map("lonnsgruppe_id")
+
+  tillegg     Tillegg     @relation(fields: [tilleggId], references: [id], onDelete: Restrict)
+  lonnsgruppe Lonnsgruppe @relation(fields: [lonnsgruppeId], references: [id], onDelete: Restrict)
+
+  @@id([tilleggId, lonnsgruppeId])
+  @@index([lonnsgruppeId])
+  @@map("tillegg_lonnsgrupper")
+  @@schema("timer")
+}
+
+model ExpenseCategoryLonnsgruppe {
+  expenseCategoryId String @map("expense_category_id")
+  lonnsgruppeId     String @map("lonnsgruppe_id")
+
+  expenseCategory ExpenseCategory @relation(fields: [expenseCategoryId], references: [id], onDelete: Restrict)
+  lonnsgruppe     Lonnsgruppe     @relation(fields: [lonnsgruppeId], references: [id], onDelete: Restrict)
+
+  @@id([expenseCategoryId, lonnsgruppeId])
+  @@index([lonnsgruppeId])
+  @@map("expense_category_lonnsgrupper")
   @@schema("timer")
 }

@@ -37,6 +37,7 @@ import {
   flyttHmsSakerVedRollefjerning,
   tellHmsSakerHosPerson,
 } from "../services/hmsAnsvarlig";
+import { sikreAnsattLonnsgruppeApi } from "../services/lonnsgruppe";
 
 /**
  * Verifiser at bruker er firmaadmin for et firma.
@@ -858,11 +859,23 @@ export const organisasjonRouter = router({
           .optional(),
         erFirmaAdmin: z.boolean().optional(),
         erHmsAnsvarlig: z.boolean().optional(),
+        // L1 lønnsgrupper (B10): valgfri — uten den får den ansatte firmaets «Ordinær».
+        lonnsgruppeId: z.string().uuid().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
       const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId, input.organizationId);
       const ansattRolle = input.ansattRolle ?? "ansatt";
+      // L1: en oppgitt gruppe må være firmaets og aktiv — sjekkes FØR noe lagres.
+      if (input.lonnsgruppeId) {
+        const gruppe = await ctx.prismaTimer.lonnsgruppe.findFirst({
+          where: { id: input.lonnsgruppeId, organizationId: orgId, aktiv: true },
+          select: { id: true },
+        });
+        if (!gruppe) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Lønnsgruppa finnes ikke i firmaet eller er slått av" });
+        }
+      }
       const firmaRoller: string[] = [];
       if (input.erFirmaAdmin) firmaRoller.push("firma_admin");
       if (input.erHmsAnsvarlig) firmaRoller.push("hms_ansvarlig");
@@ -912,6 +925,14 @@ export const organisasjonRouter = router({
           },
         });
 
+        // L1: rett etter at firmamedlemmet er lagret.
+        await sikreAnsattLonnsgruppeApi(ctx.prismaTimer, {
+          organizationId: orgId,
+          userId: adoptert.id,
+          lonnsgruppeId: input.lonnsgruppeId,
+          sattAvUserId: ctx.userId,
+        });
+
         await provisjonerNyAnsattIProsjekter(ctx.prisma, orgId, adoptert.id);
 
         return adoptert;
@@ -936,6 +957,14 @@ export const organisasjonRouter = router({
           ansattRolle,
           firmaRoller,
         },
+      });
+
+      // L1: rett etter at firmamedlemmet er lagret.
+      await sikreAnsattLonnsgruppeApi(ctx.prismaTimer, {
+        organizationId: orgId,
+        userId: opprettet.id,
+        lonnsgruppeId: input.lonnsgruppeId,
+        sattAvUserId: ctx.userId,
       });
 
       await provisjonerNyAnsattIProsjekter(ctx.prisma, orgId, opprettet.id);

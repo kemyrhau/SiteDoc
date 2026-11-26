@@ -31,6 +31,11 @@ vi.mock("../services/ansattDeaktivering", () => ({
   lesDeaktiveringsPayload: vi.fn().mockReturnValue(null),
 }));
 
+// L1 lønnsgrupper: gruppe-raden skrives i db-timer etter firmamedlemmet (egen test under).
+const sikreAnsattLonnsgruppeApi = vi.fn().mockResolvedValue({ lonnsgruppeId: "g-ordinaer" });
+vi.mock("../services/lonnsgruppe", () => ({
+  sikreAnsattLonnsgruppeApi: (...a: unknown[]) => sikreAnsattLonnsgruppeApi(...a),
+}));
 import { medlemRouter } from "./medlem";
 import { verifiserAdmin, autoriserAdminForFirma } from "../trpc/tilgangskontroll";
 import { avsluttMedlemskapForPerson } from "../services/ansattDeaktivering";
@@ -186,4 +191,17 @@ describe("medlem.endreFirma — de to hendelsene", () => {
       lagCaller(p).endreFirma({ ...basis, tilOrganizationId: FRA, modus: "firmabytte" }),
     ).rejects.toMatchObject({ code: "BAD_REQUEST" });
   });
+});
+
+describe("medlem.endreFirma — L1: mottakerfirmaets lønnsgruppe", () => {
+  it.each(["firmabytte", "feilregistrering"] as const)(
+    "%s → den ansatte får en lønnsgruppe i TIL-firmaet (standardgruppa når ingen er valgt)",
+    async (modus) => {
+      const p = lagPrisma({ harTil: false });
+      await lagCaller(p).endreFirma({ ...basis, modus });
+      expect(sikreAnsattLonnsgruppeApi).toHaveBeenCalledOnce();
+      expect(sikreAnsattLonnsgruppeApi.mock.calls[0]![1]).toMatchObject({ organizationId: TIL, userId: BRUKER });
+      expect(sikreAnsattLonnsgruppeApi.mock.calls[0]![1]).not.toHaveProperty("lonnsgruppeId");
+    },
+  );
 });

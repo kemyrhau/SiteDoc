@@ -32,6 +32,11 @@ vi.mock("@sitedoc/db", () => ({ prisma: {} }));
 vi.mock("../services/epost", () => ({ sendInvitasjonsEpost: vi.fn() }));
 
 import { TRPCError } from "@trpc/server";
+// L1 lønnsgrupper: gruppe-raden skrives i db-timer etter firmamedlemmet (testet i medlem-registrer.test.ts).
+const sikreAnsattLonnsgruppeApi = vi.fn().mockResolvedValue({ lonnsgruppeId: "g-ordinaer" });
+vi.mock("../services/lonnsgruppe", () => ({
+  sikreAnsattLonnsgruppeApi: (...a: unknown[]) => sikreAnsattLonnsgruppeApi(...a),
+}));
 import { medlemRouter } from "./medlem";
 import { autoriserAdminForFirma } from "../trpc/tilgangskontroll";
 

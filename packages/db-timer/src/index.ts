@@ -12,3 +12,8 @@ if (process.env.NODE_ENV !== "production") {
 
 export { PrismaClient, Prisma } from ".prisma/timer-client";
 export type * from ".prisma/timer-client";
+export {
+  STANDARD_LONNSGRUPPE_NAVN,
+  sikreStandardLonnsgruppe,
+  sikreAnsattLonnsgruppe,
+} from "./lonnsgruppe";

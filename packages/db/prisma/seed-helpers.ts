@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import { prismaTimer, sikreAnsattLonnsgruppe } from "../../db-timer/src";
 
 /**
  * Delte seed-hjelpere for firma-tilknytning.
@@ -51,4 +52,6 @@ export async function sikreFirmamedlem(
     update: {},
     create: { userId, organizationId, ansattRolle: "ansatt" },
   });
+  // L1 lønnsgrupper: en ansatt er aldri uten gruppe — firmaets «Ordinær» (lages om den mangler).
+  await sikreAnsattLonnsgruppe(prismaTimer, { organizationId, userId });
 }

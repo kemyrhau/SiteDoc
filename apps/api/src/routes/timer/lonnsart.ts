@@ -5,6 +5,7 @@ import { router, protectedProcedure } from "../../trpc/trpc";
 import { autoriserAdminForFirma, resolverOrgFraInput } from "../../trpc/tilgangskontroll";
 import { krevTimerAktivert } from "../../services/timer";
 import { lonnsartBruktUtenProsjekt } from "./dagsseddel";
+import { LONNSGRUPPE_INCLUDE, medLonnsgruppeIder } from "../../services/lonnsgruppe";
 
 const TYPE_VERDIER = ["ordinaer", "fravaer", "feriepenger", "diett"] as const;
 const SATS_ENHET_VERDIER = ["per_dag", "per_natt", "per_km", "per_time"] as const;
@@ -30,13 +31,17 @@ export const lonnsartRouter = router({
       const orgId = await resolverOrgFraInput(ctx.userId, input?.organizationId);
       const inkluderInaktiv = input?.inkluderInaktiv ?? false;
 
-      return ctx.prismaTimer.lonnsart.findMany({
+      // L1 lønnsgrupper: hver art får `lonnsgruppeIder` (tom = gjelder alle). Klienten filtrerer
+      // med @sitedoc/shared filtrerForLonnsgruppe (L4/L5); ingen velger endrer seg i L1.
+      const arter = await ctx.prismaTimer.lonnsart.findMany({
         where: {
           organizationId: orgId,
           ...(inkluderInaktiv ? {} : { aktiv: true }),
         },
         orderBy: [{ rekkefolge: "asc" }, { navn: "asc" }],
+        include: LONNSGRUPPE_INCLUDE,
       });
+      return arter.map(medLonnsgruppeIder);
     }),
 
   opprett: protectedProcedure

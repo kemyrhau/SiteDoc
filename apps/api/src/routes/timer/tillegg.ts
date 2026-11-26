@@ -4,6 +4,7 @@ import { Prisma } from "@sitedoc/db-timer";
 import { router, protectedProcedure } from "../../trpc/trpc";
 import { autoriserAdminForFirma, resolverOrgFraInput } from "../../trpc/tilgangskontroll";
 import { krevTimerAktivert } from "../../services/timer";
+import { LONNSGRUPPE_INCLUDE, medLonnsgruppeIder } from "../../services/lonnsgruppe";
 
 const TYPE_VERDIER = ["avhuking", "antall"] as const;
 
@@ -27,13 +28,16 @@ export const tilleggRouter = router({
       const orgId = await resolverOrgFraInput(ctx.userId, input?.organizationId);
       const inkluderInaktiv = input?.inkluderInaktiv ?? false;
 
-      return ctx.prismaTimer.tillegg.findMany({
+      // L1 lønnsgrupper: hvert tillegg får `lonnsgruppeIder` (tom = gjelder alle).
+      const tillegg = await ctx.prismaTimer.tillegg.findMany({
         where: {
           organizationId: orgId,
           ...(inkluderInaktiv ? {} : { aktiv: true }),
         },
         orderBy: [{ rekkefolge: "asc" }, { navn: "asc" }],
+        include: LONNSGRUPPE_INCLUDE,
       });
+      return tillegg.map(medLonnsgruppeIder);
     }),
 
   opprett: protectedProcedure

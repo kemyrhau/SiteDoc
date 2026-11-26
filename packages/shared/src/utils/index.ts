@@ -780,3 +780,5 @@ export { erMeldbarHmsMal, type MeldHmsSubdomain } from "./meldHmsMal";
 export { SUBDOMAIN_FORM, formForSubdomain, type MalForm, type FormSubdomain } from "./subdomainForm";
 // A3 (web-timeforing-plan § 4.17 del D, B55): «Reise under terskel» i attesteringen.
 export { reiseUnderTerskel, type ReiseUnderTerskel, type ReiseUnderTerskelRad } from "./reiseUnderTerskel";
+export { gjelderLonnsgruppe, filtrerForLonnsgruppe } from "./lonnsgruppe";
+export type { LonnsgruppeMerket } from "./lonnsgruppe";

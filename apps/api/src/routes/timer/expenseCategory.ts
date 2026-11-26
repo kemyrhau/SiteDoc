@@ -7,6 +7,7 @@ import {
 } from "@sitedoc/shared";
 import { router, protectedProcedure } from "../../trpc/trpc";
 import { resolverOrgFraInput, autoriserAdminForFirma } from "../../trpc/tilgangskontroll";
+import { LONNSGRUPPE_INCLUDE } from "../../services/lonnsgruppe";
 
 // Modelljustering (2026-08-11): `fakturert` er IKKE lenger valgbar (enum beholdt
 // for historikk; gjeninnføres som `fakturavarsel` når varselet er bygget). Firma-
@@ -56,6 +57,7 @@ export const expenseCategoryRouter = router({
           ...(inkluderInaktiv ? {} : { aktiv: true }),
         },
         orderBy: { navn: "asc" },
+        include: LONNSGRUPPE_INCLUDE,
       });
 
       // Prosjekt-overstyringer for dette prosjektet (om oppgitt) — én spørring,
@@ -94,6 +96,8 @@ export const expenseCategoryRouter = router({
           muligSkattepliktig: k.muligSkattepliktig,
           // Kilde-linjen på raden (8b): «firma-standard» / «overstyrt for prosjektet».
           kilde: prosjektOverstyring ? ("overstyrt" as const) : ("firma-standard" as const),
+          // L1 lønnsgrupper: tom = gjelder alle.
+          lonnsgruppeIder: k.lonnsgrupper.map((g) => g.lonnsgruppeId),
         };
       });
     }),
@@ -116,6 +120,7 @@ export const expenseCategoryRouter = router({
       const kategorier = await ctx.prismaTimer.expenseCategory.findMany({
         where: { organizationId: orgId },
         orderBy: { navn: "asc" },
+        include: LONNSGRUPPE_INCLUDE,
       });
       const katIder = kategorier.map((k) => k.id);
       // Alle overstyringer for firmaets kategorier (org-bredt, ikke per prosjekt):
@@ -140,6 +145,8 @@ export const expenseCategoryRouter = router({
           aktiv: k.aktiv,
           // Drift-sikring: ukjent verdi → 'utlegg' (samme som `list`).
           ordning: (erGyldigOrdning(k.ordning) ? k.ordning : "utlegg") as UtleggOrdning,
+          // L1 lønnsgrupper: tom = gjelder alle (mobil lagrer dem i L5).
+          lonnsgruppeIder: k.lonnsgrupper.map((g) => g.lonnsgruppeId),
         })),
         overstyringer: overstyringer
           .filter((o) => erGyldigOrdning(o.ordning))

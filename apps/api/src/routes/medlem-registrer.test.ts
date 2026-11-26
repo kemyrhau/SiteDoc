@@ -26,6 +26,11 @@ vi.mock("../services/epost", () => ({
   sendInvitasjonsEpost: (...a: unknown[]) => sendInvitasjonsEpost(...a),
 }));
 
+// L1 lønnsgrupper: gruppe-raden skrives i db-timer etter firmamedlemmet (egen test under).
+const sikreAnsattLonnsgruppeApi = vi.fn().mockResolvedValue({ lonnsgruppeId: "g-ordinaer" });
+vi.mock("../services/lonnsgruppe", () => ({
+  sikreAnsattLonnsgruppeApi: (...a: unknown[]) => sikreAnsattLonnsgruppeApi(...a),
+}));
 import { medlemRouter } from "./medlem";
 
 const PROSJEKT = "11111111-1111-1111-1111-111111111111";
@@ -309,5 +314,14 @@ describe("medlem.registrer — én ansettelse pr. bruker (15)", () => {
     const p = medAnsettelser([]);
     await lagCaller(p).registrer({ ...input, organizationId: ORG_NY });
     expect(upsertAv(p)).toHaveBeenCalledOnce();
+  });
+
+  it("L1: med firma → sikreAnsattLonnsgruppeApi for (firma, bruker), uten valgt gruppe", async () => {
+    sikreAnsattLonnsgruppeApi.mockClear();
+    const p = medAnsettelser([]);
+    await lagCaller(p).registrer({ ...input, organizationId: ORG_NY });
+    expect(sikreAnsattLonnsgruppeApi).toHaveBeenCalledOnce();
+    expect(sikreAnsattLonnsgruppeApi.mock.calls[0]![1]).toMatchObject({ organizationId: ORG_NY, userId: BRUKER });
+    expect(sikreAnsattLonnsgruppeApi.mock.calls[0]![1]).not.toHaveProperty("lonnsgruppeId");
   });
 });
