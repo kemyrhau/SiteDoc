@@ -39,7 +39,10 @@ som ikke tjener dem, skal slettes, ikke forklares.** *Kenneths egne ord:*
   2. **Gate i én melding:** GODKJENT, eller én komplett vilkårsliste. Ny runde kun når et vilkår ikke er lukket.
   3. **Mål aldri det samme to ganger.** `fil:linje` er målt — stikkprøv bare påstander uten referanse.
   4. **Regel 10 kjøres to ganger: av koderen før levering, og uavhengig i merge-treet før push** (orkestrator, § 6).
-     Kontrollør gater diffen mot koden og kjører testene for pakkene diffen rører — ikke hele kjeden og ikke kald
+     Kontrollør gater først mot Kenneths ord (FASIT i ordren), så mot ordren, så diffen mot koden. Svaret starter med
+     «FASIT oppfylt» eller «FASIT ikke oppfylt». Avvik mellom ordren og Kenneths ord er et SPØRSMÅL til Kenneth, ikke et
+     stille valg. Kontrollør kjører testene for pakkene diffen rører, pluss e2e-testen for timeføring når diffen rører
+     Timer (🔴 Ikke bygget — orkestrator bestiller den etter første testrunde) — ikke hele kjeden og ikke kald
      `next build`. *(Kenneth 2026-11-24, billigere drift.)*
   5. **Bestilleren skriver posten i `relay/inbox-<agent>.md`**; orkestrator får kopi og sender nudgen (§ 2).
   6. **Ingen kvitteringer, ingen egen runde for premisser/sitater** — de går i neste reelle ordre. `git log` er kvitteringen.
@@ -188,10 +191,15 @@ Venter et svar, står det under en egen **«KREVER SVAR»**-overskrift; er det i
   **Kontrollspørsmål før noe avbryter planen:** *kommer noen ikke videre uten dette?* Merket står i ordrens første linje.
 - **Målestokken er piloten:** [REDESIGN-MASTERPLAN.md](../redesign/REDESIGN-MASTERPLAN.md) § Rekkefølge (50 ansatte, mobil viktigst; funksjonelt produkt først, GDPR og lovkrav så godt vi kan).
 
-### 🔴 DEPLOY KOSTER KENNETHS TID — MERGE GJØR IKKE (vedtak 2026-09-10)
+### 🔴 DEPLOY OG TESTRUNDER KOSTER KENNETHS TID
 
 - Hver deploy/OTA koster Kenneth ~20 min. **Samle 🟡** til neste 🔴; uten 🔴 deployes samlepakken når Kenneth sier fra. Oppgi hva kommandoen bærer og hvem som venter.
-- **Mens Kenneth deployer:** orkestrator merger ikke (hash-guarden i `deploy-test.sh` feiler hvis develop flytter seg) før `/version` bekrefter hashen. Utviklere bygger videre på egne brancher; orkestrator skriver ordrer og gater. **Orkestrator venter ikke på deploy før neste ordre.**
+- **Mens Kenneth deployer:** orkestrator merger ikke (hash-guarden i `deploy-test.sh` feiler hvis develop flytter seg) før `/version` bekrefter hashen. Utviklere bygger videre på egne brancher; orkestrator skriver ordrer og gater.
+- 🔴 **Testrunder:** en runde er inntil tre beslektede rettinger i samme modul. Kenneth tester runden på lokal
+  testflate før merge (treet `SiteDoc-lokaltest`, DB `sitedoc_lokaltest`, preview «lokaltest» på localhost:3100,
+  startet av orkestrator). Neste runde i samme modul bestilles først når Kenneth har meldt resultatet. Mens han
+  tester, skriver agentene tester eller måler, men rører ikke filene runden endrer. Prod får bare runder Kenneth har
+  sagt «virker» til. Andre moduler går parallelt.
 - **`/version` FØR hver kjede som avhenger av en deploy** (`curl -s https://api-test.sitedoc.no/version`). En seed eller test mot gammelt image måler ingenting.
 - Ingenting blir liggende gatet-men-ikke-deployet uten en grunn ført i STATUS-AKTUELT.
 
@@ -211,11 +219,14 @@ Venter et svar, står det under en egen **«KREVER SVAR»**-overskrift; er det i
 ### Ordre-anatomi
 
 ```
-[0. SPOR + MERKE]          Plan/funn · 🔴/🟡 · REPARASJON eller FUNKSJONSENDRING + hjemmel (§ 5).
+[0. SPOR + MERKE]          FASIT: Kenneths ordrette ord (bestillingen hans) først, før orkestrators tolkning.
+                           Plan/funn · 🔴/🟡 · REPARASJON eller FUNKSJONSENDRING + hjemmel (§ 5).
 [1. HVA SOM ER GJORT]      Hasher + hva de gjorde. Hindrer at økta gjentar landet arbeid.
 [2. OPPGAVE]               Hva og hvorfor. Data, innlogging, utgangspunkt (branch/hash).
-                           `fil:linje` for hvert sted som skal endres, målt av bestilleren — agenten
-                           leter ikke selv. Leser agenten en stor doc, oppgis seksjonen, ikke fila.
+                           `fil:linje` for hvert sted som skal endres, målt av bestilleren, er startpunktet.
+                           Agenten søker selv gjennom alle kodeveier som leser eller skriver samme data (web,
+                           server, mobil, synk) og lister dem i leveransen før koding. Leser agenten en stor
+                           doc, oppgis seksjonen, ikke fila.
 [3. UFRAVIKELIG]           Tre + branch + filer den eier + de tre linjene under.
 [4. FORVENTET OUTPUT]      DoD. Per funn: hva, hvordan målt, alvorlighet. Mistanker merket separat.
 [5. SVAR]                  relay/inbox-orkestrator.md + SJEKKPUNKT.
@@ -297,7 +308,9 @@ peker på regresjonstestene.
 ### To sannheter, snudd vedtak og vedtak i fila
 
 - 🔴 **To sannheter.** Koden er sannheten for hva programmet gjør i dag. Kenneths vedtak er sannheten for hva det skal gjøre. Planen, loggen, ordrer og agentenes tolkninger er ikke hjemmel.
-- 🔴 **Godkjent i test er vernet.** Det Kenneth har godkjent i test, kan bare endres med hans egne ord.
+- 🔴 **Det Kenneth har sagt «virker» til, låses som en vakttest** i samme commit som runden merges. Testen navngis
+  med dato og hans ord. En vakttest endres eller slettes bare med Kenneths egne ord — aldri fordi en ny ordre gjør
+  den rød.
 - 🔴 **Et SNUDD vedtak byttes ut DER DET STO.** Det gamle slettes i samme commit. Hvem, når og hvorfor står i commit-meldingen; historikken ligger i git. Den som leser det gamle først, bygger det forkastede.
 - 🔴 **Før du endrer en komponent: les vedtakene som står som kommentarer i den fila, og navngi i svaret hvilke som
   gjelder** (Kenneth-vedtak 2026-09-29). Står vedtaket ikke der koden bor, er funnet at det står på feil sted.
@@ -361,7 +374,11 @@ bygge. Ulik leveringsvei (OTA vs prod-deploy) betyr ulik timing, ikke ulikt omfa
      Docker-bygget avviser. `tsc` stopper på første TS2589 — kjør til grønt. Web build dekker `apps/api` transitivt
      (målt 2026-09-02); eget api-typecheck er hastighet, ikke dekning.
   5. `pnpm exec turbo run test --force` fra **rot** — «N successful, N total» like tall. «FULL TURBO» eller urimelig
-     kort kjøretid = cache, ikke kjøring.
+     kort kjøretid = cache, ikke kjøring. **Og** `test:integration` for pakkene diffen rører, mot sandkasse-DB (i dag
+     har bare `@sitedoc/api` det, `apps/api/package.json:12`). Endrer leveransen vedtatt atferd, oppdateres testene
+     for den atferden i samme leveranse. Unntak: en vakttest for det Kenneth har sagt «virker» til, endres bare med
+     hans ord. Rød stopper merge — også når testen er rød likt på `develop`; da listes testen og rettes eller fjernes
+     med Kenneths ord før merge.
 - **Rapporten bærer den ordrette siste linja fra hver kommando** og test-fordelingen
   `unit-mock: <n> · unit-ren: <n> · integrasjon: <n> · e2e: <n>`. «Rent» uten app-navn er ikke en kvittering. Krav (c) i
   «stille tomhet er forbudt» kan aldri oppfylles av en mocket test — kvitteres som «delvis — mock».

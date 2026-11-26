@@ -16,7 +16,9 @@ De andre vinduene står i [web-timeforing-plan.md](web-timeforing-plan.md) til d
    skal gjøre. Planen, loggen, ordrer og agentenes tolkninger er ikke hjemmel.
 2. **Bruker bestemmer, programmet foreslår.** Kenneth: «Bruker bestemmer registrering -> programmet bestemmer
    ingen ting -> vi kun foreslår» og «åpne redigerbare felter -> ikke fastlåst. Men vi skal foreslå løsning».
-3. **Godkjent i test er vernet.** Det Kenneth har godkjent i test, kan bare endres med hans egne ord.
+3. **Det Kenneth har sagt «virker» til, låses som en vakttest** i samme commit som runden merges. Testen navngis
+   med dato og hans ord. En vakttest endres eller slettes bare med Kenneths egne ord — aldri fordi en ny ordre gjør
+   den rød.
 4. **Et «ja» er smalt.** Et «ja» gjelder bare det som står under «Svarer du ja» og «Forsvinner» i ett spørsmål
    i den faste formen. Et «ja» til en samlet liste er ikke et vedtak.
 
