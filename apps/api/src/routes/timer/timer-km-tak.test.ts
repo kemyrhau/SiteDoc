@@ -121,6 +121,8 @@ function lagForsonCtx(satsEnhet: string | null) {
   const updateMany = vi.fn().mockResolvedValue({ count: 1 });
   const tx = {
     // V20/PK6: synkroniserHodePause bruker dailySheet.update + sheetTimer.aggregate.
+    // O27: sporet etter sletting på PC (tomt).
+    slettetFraPc: { findMany: async () => [], createMany: async () => ({ count: 0 }) },
     dailySheet: { updateMany, update: vi.fn().mockResolvedValue({}) },
     sheetTimer: {
       update,
@@ -137,6 +139,8 @@ function lagForsonCtx(satsEnhet: string | null) {
     req: { log: { info: vi.fn(), warn: vi.fn() } },
     prisma: {},
     prismaTimer: {
+      // O27: sporet etter sletting på PC (tomt).
+      slettetFraPc: { findMany: async () => [], createMany: async () => ({ count: 0 }) },
       dailySheet: {
         findUnique: vi.fn().mockResolvedValue(sheet),
         update: vi.fn().mockResolvedValue(sheet),
@@ -217,6 +221,8 @@ function lagRedigerCtx(satsEnhet: string | null) {
       },
     },
     prismaTimer: {
+      // O27: sporet etter sletting på PC (tomt).
+      slettetFraPc: { findMany: async () => [], createMany: async () => ({ count: 0 }) },
       dailySheet: { findUnique: vi.fn().mockResolvedValue(sheet) },
       sheetTimer: { findMany: vi.fn().mockResolvedValue([]) },
       sheetTillegg: { findMany: vi.fn().mockResolvedValue([]) },
@@ -281,6 +287,8 @@ function lagSyncCtx(satsEnhet: string | null) {
     // LAG 2: syncBatch leser firmaets oppmøtesteder (C2-firmagrense) fra ctx.prisma.
     prisma: { oppmotested: { findMany: vi.fn().mockResolvedValue([]) } },
     prismaTimer: {
+      // O27: sporet etter sletting på PC (tomt).
+      slettetFraPc: { findMany: async () => [], createMany: async () => ({ count: 0 }) },
       dailySheet: { findUnique: vi.fn().mockResolvedValue(null) },
       aktivitet: {
         findFirst: vi.fn().mockResolvedValue({ id: AKTIVITET }),

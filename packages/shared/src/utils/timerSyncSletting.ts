@@ -21,6 +21,13 @@
  *            om id-en mangler i settet: upushet offline-arbeid er ikke slettet på
  *            server, det finnes bare ikke DER ennå.
  *
+ * Unntak — «slettet på PC» (O27, Kenneth 2026-11-26: «Når en timerad slettes -> da må
+ *            den slettes helt»): en sedel serveren har sporet som slettet på PC
+ *            (`slettetPaPc`) slettes lokalt uansett vindu og syncStatus — også med
+ *            usendte endringer. Ellers lager neste push den på nytt. Vaktene over
+ *            gjelder uendret for alt annet. En sedel som likevel står i `levendeNokler`,
+ *            røres ikke.
+ *
  * Ren og uten avhengigheter — delt kilde slik at synk-koden (`timerSync.ts`) og
  * testen deler nøyaktig samme vakt-logikk.
  */
@@ -54,9 +61,15 @@ export function finnSedlerÅSlette(
   lokale: readonly LokalSedelUtsnitt[],
   levendeNokler: ReadonlySet<string>,
   vindu: Slettevindu,
+  slettetPaPc: ReadonlySet<string> = new Set(),
 ): string[] {
   const slett: string[] = [];
   for (const s of lokale) {
+    // O27: slettet på PC → slettes, forbi vakt 1 og 2 (men aldri en levende sedel).
+    if (slettetPaPc.has(s.id) && !levendeNokler.has(s.id)) {
+      slett.push(s.id);
+      continue;
+    }
     // Vakt 1: kun innenfor det serveren uttalte seg om.
     if (s.dato < vindu.fraDato) continue;
     if (vindu.tilDato !== null && s.dato > vindu.tilDato) continue;

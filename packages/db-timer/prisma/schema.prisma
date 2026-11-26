@@ -672,6 +672,30 @@ model SheetRadHistorikk {
 }
 
 // ==========================================================================
+//  SlettetFraPc — O27 (Kenneth 2026-11-26): «Når en timerad slettes -> da må den
+//  slettes helt». Sporet for en sedel eller rad som er slettet på PC (web), så
+//  telefonens synk aldri lager den på nytt. Skrives i samme transaksjon som
+//  slettingen. `syncBatch` avviser en sedel med spor (grunn `slettetPaPc`) og
+//  hopper over rader med spor; pull sender sedel-sporene så telefonen fjerner sin
+//  kopi, også med usendte endringer. Slettes aldri (id-ene er uuid og gjenbrukes ikke).
+// ==========================================================================
+model SlettetFraPc {
+  id              String   @id // sedelens clientUuid, eller radens id
+  type            String // "sedel" | "timer" | "tillegg" | "maskin" | "utlegg"
+  sheetId         String   @map("sheet_id")
+  userId          String   @map("user_id") // sedelens eier (svak FK → users)
+  organizationId  String   @map("organization_id") // svak FK → organizations
+  dato            DateTime @db.Date // sedelens dato — telefonens informasjonslinje
+  slettetAvUserId String   @map("slettet_av_user_id") // svak FK → users
+  slettetVed      DateTime @default(now()) @map("slettet_ved") @db.Timestamptz()
+
+  @@index([userId, type])
+  @@index([sheetId])
+  @@map("slettet_fra_pc")
+  @@schema("timer")
+}
+
+// ==========================================================================
 //  EksportOppsett — lagrede utskriftsmaler for timer-rapport (printmotor fase 3)
 //  Lagrer en VISNING (radTyper + format i JSON), IKKE dokumentstruktur — derfor
 //  IKKE ReportTemplate/OrganizationTemplate (fabel-vedtak: ikke et tredje

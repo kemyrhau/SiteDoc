@@ -222,6 +222,8 @@ let sisteHodePause: number | null = null;
 
 function lagSyncCtx() {
   const txMock = {
+    // O27: sporet etter sletting på PC (tomt).
+    slettetFraPc: { findMany: async () => [], createMany: async () => ({ count: 0 }) },
     dailySheet: {
       findUnique: vi.fn().mockResolvedValue(null),
       create: vi.fn().mockResolvedValue({
@@ -263,6 +265,8 @@ function lagSyncCtx() {
     req: { log: { info: vi.fn(), warn: vi.fn() } },
     prisma: { oppmotested: { findMany: vi.fn().mockResolvedValue([]) } },
     prismaTimer: {
+      // O27: sporet etter sletting på PC (tomt).
+      slettetFraPc: { findMany: async () => [], createMany: async () => ({ count: 0 }) },
       dailySheet: { findUnique: vi.fn().mockResolvedValue(null) },
       aktivitet: {
         findFirst: vi.fn().mockResolvedValue({ id: AKTIVITET }),
@@ -412,6 +416,8 @@ function lagSplittCtx(opts: { status: string; eier?: boolean }) {
   };
   const txMock = {
     sheetRadHistorikk: { createMany: vi.fn().mockResolvedValue({ count: 1 }) },
+    // O27: sporet etter sletting på PC (tomt).
+    slettetFraPc: { findMany: async () => [], createMany: async () => ({ count: 0 }) },
     dailySheet: {
       update: vi.fn((args: { data: { pauseMin?: number } }) => {
         if (typeof args.data.pauseMin === "number") hode = args.data.pauseMin;
@@ -451,6 +457,8 @@ function lagSplittCtx(opts: { status: string; eier?: boolean }) {
         findUnique: vi.fn().mockResolvedValue(original),
         findMany: vi.fn().mockResolvedValue([]), // ingen andre rader på dagen
       },
+      // O27: sporet etter sletting på PC (tomt).
+      slettetFraPc: { findMany: async () => [], createMany: async () => ({ count: 0 }) },
       dailySheet: {
         findUnique: vi.fn().mockResolvedValue({
           id: SHEET,

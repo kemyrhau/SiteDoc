@@ -6202,5 +6202,8 @@
   "timer.slettetKorrigert.hjelp.filter": "Lëvizni ndërmjet javëve me shigjeta. Filtro sipas punonjësit, projektit dhe llojit. Filtri i ditës nga distinktivi hiqet me kryq ose \"Trego gjithë periudhën\".",
   "timer.slettetKorrigert.hjelp.egne": "Faqja tregon rreshta në ditët tuaja që janë fshirë ose korrigjuar - nga miratuesi ose nga ju ndërsa dita është kthyer. Një rresht i fshirë shfaqet me përmbajtjen që kishte; një linjë e korrigjuar me vlerën para dhe pas. Lexo vetëm.",
   "timer.slettetKorrigert.hjelp.ikkeMedEgne": "Nuk përfshihen: rreshtat që keni fshirë ndërsa dita nuk është kthyer (që është redaktimi i zakonshëm), rreshtat e fshirë përpara se gjurma të kishte përmbajtje dhe ditët e zëvendësuara nga një version më i ri.",
-  "timer.slettetKorrigert.hjelp.filterEgne": "Zgjidhni periudhën me Nga dhe Për (më së shumti 93 ditë). Filtro sipas projektit dhe llojit."
+  "timer.slettetKorrigert.hjelp.filterEgne": "Zgjidhni periudhën me Nga dhe Për (më së shumti 93 ditë). Filtro sipas projektit dhe llojit.",
+  "timer.sync.slettetPaPcLinje_one": "Dita {{datoer}} u fshi në kompjuter dhe u hoq nga telefoni.",
+  "timer.sync.slettetPaPcLinje_other": "Ditët {{datoer}} u fshinë në PC dhe u hoqën nga telefoni.",
+  "timer.sync.slettetPaPc": "Dita {{dato}} u fshi në PC."
 }

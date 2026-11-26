@@ -131,6 +131,8 @@ function lagMaskinCtx() {
           ? (arg as (tx: unknown) => Promise<unknown>)(ctx.prismaTimer)
           : Promise.all(arg as Promise<unknown>[]),
       ),
+      // O27: sporet etter sletting på PC (tomt).
+      slettetFraPc: { findMany: async () => [], createMany: async () => ({ count: 0 }) },
       dailySheet: { findUnique: vi.fn().mockResolvedValue(sheet), update: vi.fn().mockResolvedValue({}) },
       sheetTimer: {
         findMany: vi.fn().mockResolvedValue([
@@ -205,6 +207,8 @@ function lagSyncCtx() {
     lederKommentar: null, attestertVed: null, updatedAt: new Date("2026-11-13T10:00:00Z"),
   };
   const txMock = {
+    // O27: sporet etter sletting på PC (tomt).
+    slettetFraPc: { findMany: async () => [], createMany: async () => ({ count: 0 }) },
     dailySheet: {
       findUnique: vi.fn().mockResolvedValue(null),
       updateMany: vi.fn().mockResolvedValue({ count: 1 }),
@@ -229,6 +233,8 @@ function lagSyncCtx() {
     req: { log: { info: vi.fn(), warn: vi.fn() } },
     prisma: { oppmotested: { findMany: vi.fn().mockResolvedValue([]) } },
     prismaTimer: {
+      // O27: sporet etter sletting på PC (tomt).
+      slettetFraPc: { findMany: async () => [], createMany: async () => ({ count: 0 }) },
       dailySheet: { findUnique: vi.fn().mockResolvedValue(null) },
       aktivitet: {
         findFirst: vi.fn().mockResolvedValue({ id: AKTIVITET }),
@@ -328,6 +334,8 @@ describe("(ii-b) ikke aktivt ansatt i firmaet → ingen ny sedel eller rad", () 
       req: { log: { info: vi.fn(), warn: vi.fn() } },
       prisma: {},
       prismaTimer: {
+        // O27: sporet etter sletting på PC (tomt).
+        slettetFraPc: { findMany: async () => [], createMany: async () => ({ count: 0 }) },
         dailySheet: { findUnique: vi.fn().mockResolvedValue(sheet), update: vi.fn() },
         sheetTimer: { create: timerCreate, findMany: vi.fn().mockResolvedValue([]) },
         $transaction: timerCreate,
@@ -362,6 +370,8 @@ function lagTimerCtx() {
           ? (arg as (tx: unknown) => Promise<unknown>)(ctx.prismaTimer)
           : Promise.all(arg as Promise<unknown>[]),
       ),
+      // O27: sporet etter sletting på PC (tomt).
+      slettetFraPc: { findMany: async () => [], createMany: async () => ({ count: 0 }) },
       dailySheet: { findUnique: vi.fn().mockResolvedValue(sheet), update: vi.fn().mockResolvedValue({}) },
       lonnsart: {
         findFirst: vi.fn().mockResolvedValue({ id: LONNSART, satsEnhet: "time", erReise: false }),

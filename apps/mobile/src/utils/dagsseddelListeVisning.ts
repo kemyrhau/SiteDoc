@@ -101,3 +101,15 @@ export function haandterStatusbarTrykk(args: {
   const id = args.finnKonfliktSedelId();
   if (id) args.aapneSedel(id);
 }
+
+/**
+ * O27 SLETTET-ER-SLETTET: linja over timer-lista når sedler er slettet på PC og fjernet fra
+ * telefonen. Datoene (YYYY-MM-DD) vises som «24.11», flere skilt med komma.
+ */
+export function slettetPaPcTekst(
+  t: (k: string, p?: Record<string, unknown>) => string,
+  datoer: readonly string[],
+): string {
+  const kort = datoer.map((d) => `${d.slice(8, 10)}.${d.slice(5, 7)}`).join(", ");
+  return t("timer.sync.slettetPaPcLinje", { count: datoer.length, datoer: kort });
+}

@@ -120,6 +120,8 @@ function lagCtx(initielleRader: Rad[]) {
     !where?.id?.in || where.id.in.includes(r.id);
 
   const txMock = {
+    // O27: sporet etter sletting på PC (tomt).
+    slettetFraPc: { findMany: async () => [], createMany: async () => ({ count: 0 }) },
     dailySheet: {
       findUnique: vi.fn().mockResolvedValue({ id: CLIENT_UUID }),
       updateMany: vi.fn().mockResolvedValue({ count: 1 }),
@@ -174,6 +176,8 @@ function lagCtx(initielleRader: Rad[]) {
     req: { log: { info: vi.fn(), warn: vi.fn() } },
     prisma: { oppmotested: { findMany: vi.fn().mockResolvedValue([]) } },
     prismaTimer: {
+      // O27: sporet etter sletting på PC (tomt).
+      slettetFraPc: { findMany: async () => [], createMany: async () => ({ count: 0 }) },
       dailySheet: {
         findUnique: vi.fn(async (args: { where: Record<string, unknown> }) => {
           if ("clientUuid" in args.where) {

@@ -56,11 +56,20 @@ function lagCaller(sheet: { status: string; attestertVed: Date | null }) {
     sheetMachine: teller,
     sheetTilleggVedlegg: teller,
     sheetUtleggVedlegg: teller,
-    dailySheet: { delete: (...a: unknown[]) => slett(...a) },
+    // O27: sporet etter sletting på PC (tomt).
+    slettetFraPc: { findMany: async () => [], createMany: async () => ({ count: 0 }) },
+    dailySheet: {
+      delete: (...a: unknown[]) => slett(...a),
+      // O27: sporet leser eier og dato.
+      findUniqueOrThrow: () =>
+        Promise.resolve({ clientUuid: SHEET, userId: USER, organizationId: "org", dato: new Date("2026-11-20") }),
+    },
   };
   const ctx = {
     userId: USER,
     prismaTimer: {
+      // O27: sporet etter sletting på PC (tomt).
+      slettetFraPc: { findMany: async () => [], createMany: async () => ({ count: 0 }) },
       dailySheet: {
         findUnique: (...a: unknown[]) => findUnique(...(a as [{ where: { id?: string; clientUuid?: string } }])),
       },

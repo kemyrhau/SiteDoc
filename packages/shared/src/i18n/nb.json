@@ -6202,5 +6202,8 @@
   "timer.slettetKorrigert.hjelp.filter": "Bla mellom uker med pilene. Filtrer på ansatt, prosjekt og type. Dagfilteret fra merket fjernes med krysset eller «Vis hele perioden».",
   "timer.slettetKorrigert.hjelp.egne": "Siden viser linjer på dine egne dager som er slettet eller korrigert — av attestanten, eller av deg selv mens dagen var returnert. En slettet linje vises med innholdet den hadde; en korrigert linje med verdien før og etter. Bare lesing.",
   "timer.slettetKorrigert.hjelp.ikkeMedEgne": "Ikke med: linjer du slettet mens dagen ikke var returnert (det er vanlig redigering), linjer slettet før sporet fikk innhold, og dager som er erstattet av en nyere versjon.",
-  "timer.slettetKorrigert.hjelp.filterEgne": "Velg periode med Fra og Til (høyst 93 dager). Filtrer på prosjekt og type."
+  "timer.slettetKorrigert.hjelp.filterEgne": "Velg periode med Fra og Til (høyst 93 dager). Filtrer på prosjekt og type.",
+  "timer.sync.slettetPaPcLinje_one": "Dagen {{datoer}} er slettet på PC og fjernet fra telefonen.",
+  "timer.sync.slettetPaPcLinje_other": "Dagene {{datoer}} er slettet på PC og fjernet fra telefonen.",
+  "timer.sync.slettetPaPc": "Dagen {{dato}} er slettet på PC."
 }

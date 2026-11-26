@@ -60,6 +60,12 @@ interface TimerSyncKontekst {
   triggerKatalogRefresh: () => Promise<void>;
   /** Refresh tellere fra DB uten å kjøre sync (etter lokal opprett/slett). */
   oppdaterTellere: () => void;
+  /**
+   * O27: datoene (YYYY-MM-DD) for sedler som er slettet på PC og fjernet fra telefonen.
+   * Står til arbeideren har trykket linja bort (`kvitterSlettetPaPc`).
+   */
+  slettetPaPc: string[];
+  kvitterSlettetPaPc: () => void;
 }
 
 const TimerSyncContext = createContext<TimerSyncKontekst>({
@@ -74,6 +80,8 @@ const TimerSyncContext = createContext<TimerSyncKontekst>({
   pushSedel: async () => false,
   triggerKatalogRefresh: async () => {},
   oppdaterTellere: () => {},
+  slettetPaPc: [],
+  kvitterSlettetPaPc: () => {},
 });
 
 export function useTimerSync() {
@@ -94,6 +102,8 @@ export function TimerSyncProvider({ children }: { children: ReactNode }) {
   const [syncerNa, setSyncerNa] = useState(false);
   const [sisteFeil, setSisteFeil] = useState<string | null>(null);
   const [katalogLastet, setKatalogLastet] = useState(false);
+  const [slettetPaPc, setSlettetPaPc] = useState<string[]>([]);
+  const kvitterSlettetPaPc = useCallback(() => setSlettetPaPc([]), []);
 
   const syncerRef = useRef(false);
   // 36c-kort-3: løses når pågående sync er ferdig — `pushSedel` venter på den.
@@ -221,6 +231,10 @@ export function TimerSyncProvider({ children }: { children: ReactNode }) {
       );
       setSistSynkronisert(Date.now());
       setSisteFeil(resultat.feil ?? null);
+      // O27: nye datoer legges til linja (samme dato én gang).
+      if (resultat.slettetPaPc.length > 0) {
+        setSlettetPaPc((foer) => [...new Set([...foer, ...resultat.slettetPaPc])].sort());
+      }
       // Refresh tellere fra DB etter sync
       setPendingAntall(tellPending(bruker.id));
       setConflictAntall(tellConflict(bruker.id));
@@ -314,6 +328,8 @@ export function TimerSyncProvider({ children }: { children: ReactNode }) {
         pushSedel,
         triggerKatalogRefresh,
         oppdaterTellere,
+        slettetPaPc,
+        kvitterSlettetPaPc,
       }}
     >
       {children}

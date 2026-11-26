@@ -125,6 +125,8 @@ function lagCtx(opts: {
   const timerDeleteMany = vi.fn().mockResolvedValue({ count: 0 });
 
   const txMock = {
+    // O27: sporet etter sletting på PC (tomt).
+    slettetFraPc: { findMany: async () => [], createMany: async () => ({ count: 0 }) },
     dailySheet: {
       findUnique: vi.fn().mockResolvedValue(eksisterende ? { id: eksisterende.id } : null),
       updateMany: dsUpdateMany,
@@ -163,6 +165,8 @@ function lagCtx(opts: {
       oppmotested: { findMany: vi.fn().mockResolvedValue([]) },
     },
     prismaTimer: {
+      // O27: sporet etter sletting på PC (tomt).
+      slettetFraPc: { findMany: async () => [], createMany: async () => ({ count: 0 }) },
       dailySheet: {
         // Ytre eksisterende-oppslag (clientUuid) + S2-oppslag (userId_dato).
         findUnique: vi.fn(async (args: { where: Record<string, unknown> }) => {
@@ -349,6 +353,8 @@ describe("V19 A-4 — attester-vakt blokkerer mens overlapp venter (spec § 6 te
           sheetTillegg: { findMany: vi.fn().mockResolvedValue([]) },
           sheetMachine: { findMany: vi.fn().mockResolvedValue([]) },
           // Vakten: sedelen har uavklart overlapp.
+          // O27: sporet etter sletting på PC (tomt).
+          slettetFraPc: { findMany: async () => [], createMany: async () => ({ count: 0 }) },
           dailySheet: {
             findFirst: vi.fn().mockResolvedValue({ id: SERVER_ID }),
             findMany: vi.fn().mockResolvedValue([]),
@@ -371,6 +377,8 @@ describe("V19 A-4 — attester-vakt blokkerer mens overlapp venter (spec § 6 te
       req: { log: { info: vi.fn(), warn: vi.fn() } },
       prisma: {},
       prismaTimer: {
+        // O27: sporet etter sletting på PC (tomt).
+        slettetFraPc: { findMany: async () => [], createMany: async () => ({ count: 0 }) },
         dailySheet: {
           findUnique: vi.fn().mockResolvedValue({
             status: "sent",

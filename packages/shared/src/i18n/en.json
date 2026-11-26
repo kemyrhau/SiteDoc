@@ -6202,5 +6202,8 @@
   "timer.slettetKorrigert.hjelp.filter": "Move between weeks with the arrows. Filter by employee, project and type. The day filter from the badge is removed with the cross or “Show the whole period”.",
   "timer.slettetKorrigert.hjelp.egne": "The page shows lines on your own days that were deleted or corrected — by the approver, or by you while the day was returned. A deleted line is shown with the content it had; a corrected line with the value before and after. Read only.",
   "timer.slettetKorrigert.hjelp.ikkeMedEgne": "Not included: lines you deleted while the day was not returned (that is ordinary editing), lines deleted before the trail had content, and days replaced by a newer version.",
-  "timer.slettetKorrigert.hjelp.filterEgne": "Choose the period with From and To (at most 93 days). Filter by project and type."
+  "timer.slettetKorrigert.hjelp.filterEgne": "Choose the period with From and To (at most 93 days). Filter by project and type.",
+  "timer.sync.slettetPaPcLinje_one": "The day {{datoer}} was deleted on the PC and removed from the phone.",
+  "timer.sync.slettetPaPcLinje_other": "The days {{datoer}} were deleted on the PC and removed from the phone.",
+  "timer.sync.slettetPaPc": "The day {{dato}} was deleted on the PC."
 }

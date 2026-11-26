@@ -73,9 +73,14 @@ function oppsett(status: string, data: { timer?: Rad[]; maskin?: Rad[]; tillegg?
     sheetRadHistorikk: { createMany: () => Promise.resolve({ count: 0 }) },
     sheetTilleggVedlegg: modell("tilleggVedlegg", []),
     sheetUtleggVedlegg: modell("utleggVedlegg", []),
+    // O27: sporet etter sletting på PC (tomt).
+    slettetFraPc: { findMany: async () => [], createMany: async () => ({ count: 0 }) },
     dailySheet: {
       findUnique: ({ where }: { where: { id?: string } }) =>
         Promise.resolve(where.id === SHEET ? { id: SHEET, clientUuid: SHEET, userId: USER, organizationId: "org", status } : null),
+      // O27: sporet leser eier og dato.
+      findUniqueOrThrow: () =>
+        Promise.resolve({ clientUuid: SHEET, userId: USER, organizationId: "org", dato: new Date("2026-11-20") }),
       delete: () => {
         slettet.dag = [SHEET];
         return Promise.resolve({ id: SHEET });

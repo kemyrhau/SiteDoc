@@ -6202,5 +6202,8 @@
   "timer.slettetKorrigert.hjelp.filter": "Pārvietojieties starp nedēļām ar bultiņām. Filtrējiet pēc darbinieka, projekta un veida. Dienas filtrs no emblēmas tiek noņemts ar krustiņu vai “Rādīt visu periodu”.",
   "timer.slettetKorrigert.hjelp.egne": "Lapā tiek rādītas rindas par jūsu dienām, kuras tika dzēstas vai labotas — apstiprinātājs vai jūs, kamēr diena tika atgriezta. Tiek parādīta dzēsta rindiņa ar tās saturu; koriģēta līnija ar vērtību pirms un pēc. Tikai lasāms.",
   "timer.slettetKorrigert.hjelp.ikkeMedEgne": "Nav iekļauts: rindas, kuras izdzēsāt, kamēr diena netika atgriezta (tā ir parasta rediģēšana), rindas, kas izdzēstas, pirms takas saturs bija klāt, un dienas, kas aizstātas ar jaunāku versiju.",
-  "timer.slettetKorrigert.hjelp.filterEgne": "Izvēlieties periodu ar No un Līdz (ne vairāk kā 93 dienas). Filtrējiet pēc projekta un veida."
+  "timer.slettetKorrigert.hjelp.filterEgne": "Izvēlieties periodu ar No un Līdz (ne vairāk kā 93 dienas). Filtrējiet pēc projekta un veida.",
+  "timer.sync.slettetPaPcLinje_one": "Diena {{datoer}} tika izdzēsta datorā un noņemta no tālruņa.",
+  "timer.sync.slettetPaPcLinje_other": "Dienas {{datoer}} tika izdzēstas datorā un noņemtas no tālruņa.",
+  "timer.sync.slettetPaPc": "Datorā tika izdzēsta diena {{dato}}."
 }

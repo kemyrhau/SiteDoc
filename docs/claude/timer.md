@@ -2721,6 +2721,17 @@ Feltarbeider må kunne registrere maskinbruk på dagsseddel offline. Mobilen ved
 
 **Sedel-nivå projectId er nullbar (F4-4, 2026-07-11).** Rad-nivå `projectId` er kanon (T.1); sedel-nivå er kun en fallback-shim. `syncBatch`-input krevde før `projectId: z.string().uuid()` (påkrevd) → en tom/plassholder-sedel (mobil-lokal `""` fra pull-plassholderen `serverSedel.projectId ?? ""`) ga Zod 400 på **hele batchen** (poison) og sedelen ble gift-isolert til `avvist`. Nå: sedel-nivå `z.union([uuid, ""]).nullable().optional().transform(v => v || null)` (tåler `""` fra #37 + `null` fra #38, datatap-fri), en `radProsjekt`-resolver med `avvist`-guard for rader uten prosjekt (DB-feltet er NOT NULL), og mobil push sender `sedel.projectId || null` + rad-fallback `|| undefined`. **En tom sedel (0 rader) synker rent** som bart sedelhode. Gift-isoleringen (`timerSync.ts:406`) redder gode sedler ved en 400 uansett.
 
+### Slettet på PC er slettet (O27, 🟡 `fix/slettet-er-slettet`, ikke merget)
+
+Kenneth 2026-11-26: «Når en timerad slettes -> da må den slettes helt». Før O27 kom en sedel slettet på PC tilbake når telefonen hadde den som ventende (målt i O26 C), og en rad slettet på PC og endret på telefonen kom tilbake som forslag (R7).
+
+- **Sporet:** `timer.slettet_fra_pc` (`SlettetFraPc` i `packages/db-timer/prisma/schema.prisma`, migrering `20261126120000_o27_slettet_fra_pc`, additiv). Én post pr. slettet sedel (id = sedelens `clientUuid`, `type: "sedel"`) eller rad (id = rad-id, `type`: timer/tillegg/maskin/utlegg), med `userId`, `organizationId`, `dato`, `slettetAvUserId` og `slettetVed`. Skrives av `apps/api/src/services/timer/slettetFraPc.ts` i samme transaksjon som slettingen, før den, i alle slettedører i `routes/timer/dagsseddel.ts`: `slett` (`slettSedelMedAlt`), `slettKort` (`slettKortMedAlt`), `fjernTimerRad` (med `slettMaskinIder`), `fjernDeltReise`, `fjernTilleggRad`, `fjernUtleggRad`, `maskin.fjern` og radplanens slett i `redigerSedelRader`. Interne flyttinger (del opp, flytt, forsoning) skriver ikke spor — der skal R7-forslaget fortsatt virke.
+- **`syncBatch`:** sedel uten serverkopi med spor → `avvist`, `grunn: "slettetPaPc"`, `feilNokkel: "timer.sync.slettetPaPc"`; ingenting opprettes. Rader med spor filtreres bort før skriving og står i `serverData.slettetPaPc`; timer-radene også i `hoppetOver`. Idempotent re-send av en levende sedel er urørt.
+- **`hentEndringerSiden`:** `slettetPaPc: [{ id, clientUuid, dato }]` for brukerens sedel-spor i firmaet, alle datoer.
+- **Mobil:** se [mobil.md § Slettet på PC](mobil.md).
+- **Gammel app (før OTA):** `avvist` med ukjent `grunn` gir rødt banner med «Dagen dd.mm er slettet på PC.» og ingen ny sending før arbeideren endrer — ingen løkke. Timer-rader i `hoppetOver` fjernes lokalt (R8); tillegg/maskin/utlegg står lokalt til neste pull av sedelen, men skrives aldri.
+- **Ikke dekket:** sedler som alt har kommet tilbake før O27 (ingen spor finnes for dem).
+
 ### Synk-intervall
 
 - **Aktiv app:** Sync hvert 30. sekund når nettdekning finnes

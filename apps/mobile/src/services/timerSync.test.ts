@@ -52,6 +52,7 @@ import * as schema from "../db/schema";
 import { kjorMigreringer } from "../db/migreringer";
 import { syncTimer, bekreftConflict, pushEnSedel } from "./timerSync";
 import { planleggVaresending } from "./vareforbrukSync";
+import { slettetPaPcTekst } from "../utils/dagsseddelListeVisning";
 import {
   anvendForsonetLokalt,
   byggForsonOverlappKall,
@@ -2012,5 +2013,108 @@ describe("Telefontest A funn 2 — kvitteringen står til serveren har bekreftet
       await pushEnSedel(klientMedVedlegg(kall), "u1", "s-e");
       expect(kall).toEqual([]);
     });
+  });
+});
+
+describe("O27 SLETTET-ER-SLETTET — telefonen fjerner det som er slettet på PC", () => {
+  // Kenneth 2026-11-26: «Når en timerad slettes -> da må den slettes helt».
+  function seedTillegg(id: string, dagsseddelId: string) {
+    db()
+      .insert(schema.sheetTilleggLocal)
+      .values({ id, dagsseddelId, tilleggId: "t1", antall: 1, sistEndretLokalt: 1000 })
+      .run();
+  }
+  const tilleggFor = (dagsseddelId: string) =>
+    db()
+      .select()
+      .from(schema.sheetTilleggLocal)
+      .where(eq(schema.sheetTilleggLocal.dagsseddelId, dagsseddelId))
+      .all();
+
+  it("🔴 avvist «slettet på PC»: ventende sedel med rader fjernes, dagen meldes til linja", async () => {
+    seedSedel({ id: "s-pc", dato: "2026-11-20", status: "draft", syncStatus: "pending" });
+    seedTimerRad("r-pc", "s-pc", 7.5);
+    seedTillegg("t-pc", "s-pc");
+    const { klient } = lagKlientFanger([
+      {
+        clientUuid: "s-pc",
+        resultat: "avvist",
+        grunn: "slettetPaPc",
+        feilmelding: "Dagen 20.11 er slettet på PC.",
+      } as PushResultat,
+    ]);
+
+    const res = await syncTimer(klient, "u1");
+
+    expect(sedelFor("s-pc")).toBeUndefined();
+    expect(timerRaderFor("s-pc")).toHaveLength(0);
+    expect(tilleggFor("s-pc")).toHaveLength(0);
+    expect(res.slettetPaPc).toEqual(["2026-11-20"]);
+    expect(res.push.avvist).toBe(0);
+  });
+
+  it("🔴 ok med linjer slettet på PC: de linjene fjernes, de andre står", async () => {
+    seedSedel({ id: "s-ok", dato: "2026-11-21", status: "draft", syncStatus: "pending" });
+    seedTimerRad("r-ok", "s-ok", 7.5);
+    seedTillegg("t-slettet", "s-ok");
+    seedTillegg("t-bor", "s-ok");
+    const { klient } = lagKlientFanger([
+      {
+        clientUuid: "s-ok",
+        resultat: "ok",
+        serverData: {
+          id: "s-ok",
+          status: "draft",
+          lederKommentar: null,
+          attestertVed: null,
+          updatedAt: "2026-11-26T10:00:00.000Z",
+          slettetPaPc: ["t-slettet"],
+        },
+      } as PushResultat,
+    ]);
+
+    await syncTimer(klient, "u1");
+
+    expect(tilleggFor("s-ok").map((r) => r.id)).toEqual(["t-bor"]);
+    expect(timerRad("r-ok")).toBeDefined();
+    expect(sedelFor("s-ok")).toBeDefined();
+  });
+
+  it("🔴 pull: sedel slettet på PC fjernes også utenfor slettevinduet", async () => {
+    seedSedel({ id: "s-gml", dato: "2026-05-01", status: "draft", syncStatus: "synced" });
+    seedTimerRad("r-gml", "s-gml", 7.5);
+    const k = lagKlient({
+      ...tomtPull,
+      slettevindu: { fraDato: "2026-10-27", tilDato: null },
+      slettetPaPc: [{ id: "srv-gml", clientUuid: "s-gml", dato: "2026-05-01" }],
+    } as typeof tomtPull);
+
+    const res = await syncTimer(k, "u1");
+
+    expect(sedelFor("s-gml")).toBeUndefined();
+    expect(timerRaderFor("s-gml")).toHaveLength(0);
+    expect(res.slettetPaPc).toEqual(["2026-05-01"]);
+  });
+
+  it("vakt: annen avvisning beholder sedelen med rødt banner", async () => {
+    seedSedel({ id: "s-annen", dato: "2026-11-22", status: "draft", syncStatus: "pending" });
+    const { klient } = lagKlientFanger([
+      { clientUuid: "s-annen", resultat: "avvist", feilmelding: "Overlapp" },
+    ]);
+
+    const res = await syncTimer(klient, "u1");
+
+    expect(sedelFor("s-annen")?.syncStatus).toBe("avvist");
+    expect(res.slettetPaPc).toEqual([]);
+  });
+
+  it("linja: én dag og flere dager", () => {
+    const t = (k: string, p?: Record<string, unknown>) => `${k}${JSON.stringify(p)}`;
+    expect(slettetPaPcTekst(t, ["2026-11-20"])).toBe(
+      'timer.sync.slettetPaPcLinje{"count":1,"datoer":"20.11"}',
+    );
+    expect(slettetPaPcTekst(t, ["2026-11-20", "2026-11-21"])).toBe(
+      'timer.sync.slettetPaPcLinje{"count":2,"datoer":"20.11, 21.11"}',
+    );
   });
 });

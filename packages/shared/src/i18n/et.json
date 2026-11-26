@@ -6202,5 +6202,8 @@
   "timer.slettetKorrigert.hjelp.filter": "Liikuge nädalate vahel nooltega. Filtreerige töötaja, projekti ja tüübi järgi. Märgilt eemaldatakse päevafilter ristiga või \"Näita kogu perioodi\".",
   "timer.slettetKorrigert.hjelp.egne": "Lehel kuvatakse read teie enda päevade kohta, mis kustutati või parandati – kinnitaja või teie poolt päeva tagastamise ajal. Kuvatakse kustutatud rida koos selle sisuga; parandatud rida väärtusega enne ja pärast. Ainult lugemiseks.",
   "timer.slettetKorrigert.hjelp.ikkeMedEgne": "Ei sisalda: read, mille kustutasite, kui päeva ei tagastatud (see on tavaline redigeerimine), read, mis kustutati enne, kui rajal oli sisu, ja päevad, mis asendati uuema versiooniga.",
-  "timer.slettetKorrigert.hjelp.filterEgne": "Valige periood vahemikus Alates ja Kuni (maksimaalselt 93 päeva). Filtreerige projekti ja tüübi järgi."
+  "timer.slettetKorrigert.hjelp.filterEgne": "Valige periood vahemikus Alates ja Kuni (maksimaalselt 93 päeva). Filtreerige projekti ja tüübi järgi.",
+  "timer.sync.slettetPaPcLinje_one": "Päev {{datoer}} kustutati arvutist ja eemaldati telefonist.",
+  "timer.sync.slettetPaPcLinje_other": "Päevad {{datoer}} kustutati arvutist ja eemaldati telefonist.",
+  "timer.sync.slettetPaPc": "Päev {{dato}} kustutati arvutist."
 }

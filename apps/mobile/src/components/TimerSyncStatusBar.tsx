@@ -1,6 +1,6 @@
-import { Text, Pressable, ActivityIndicator } from "react-native";
+import { Text, Pressable, ActivityIndicator, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { CloudOff, RefreshCw, AlertTriangle, CheckCircle } from "lucide-react-native";
+import { CloudOff, RefreshCw, AlertTriangle, CheckCircle, Info } from "lucide-react-native";
 import { useTimerSync } from "../providers/TimerSyncProvider";
 import { useNettverk } from "../providers/NettverkProvider";
 import { useRouter } from "expo-router";
@@ -8,7 +8,7 @@ import { useAuth } from "../providers/AuthProvider";
 import { useFirma } from "../kontekst/FirmaKontekst";
 import { finnEldsteKonfliktSedelId } from "../services/timerListeLokal";
 import { useFirmaSyncTellere } from "../hooks/useFirmaSyncTellere";
-import { haandterStatusbarTrykk } from "../utils/dagsseddelListeVisning";
+import { haandterStatusbarTrykk, slettetPaPcTekst } from "../utils/dagsseddelListeVisning";
 
 function formatTid(ms: number): string {
   return new Date(ms).toLocaleTimeString("no-NB", {
@@ -42,6 +42,8 @@ export function TimerSyncStatusBar() {
     sistSynkronisert,
     syncerNa,
     triggerSync,
+    slettetPaPc,
+    kvitterSlettetPaPc,
   } = useTimerSync();
 
   let bg = "bg-green-50";
@@ -83,6 +85,7 @@ export function TimerSyncStatusBar() {
   }
 
   return (
+    <View>
     <Pressable
       onPress={() =>
         haandterStatusbarTrykk({
@@ -101,5 +104,17 @@ export function TimerSyncStatusBar() {
         <RefreshCw size={14} color="#6b7280" />
       )}
     </Pressable>
+    {/* O27: dager slettet på PC og fjernet fra telefonen — én linje, trykk fjerner den. */}
+    {slettetPaPc.length > 0 && (
+      <Pressable
+        onPress={kvitterSlettetPaPc}
+        className="flex-row items-center gap-2 px-4 py-2 bg-blue-50"
+        testID="slettet-paa-pc-linje"
+      >
+        <Info size={14} color="#1e40af" />
+        <Text className="flex-1 text-sm text-blue-800">{slettetPaPcTekst(t, slettetPaPc)}</Text>
+      </Pressable>
+    )}
+    </View>
   );
 }

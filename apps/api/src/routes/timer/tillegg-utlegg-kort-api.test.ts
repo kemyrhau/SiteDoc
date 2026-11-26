@@ -141,6 +141,8 @@ function lagCtx(opts: { status?: string; originalTillegg?: Record<string, unknow
     },
     prismaTimer: {
       $transaction: transaction,
+      // O27: sporet etter sletting på PC (tomt).
+      slettetFraPc: { findMany: async () => [], createMany: async () => ({ count: 0 }) },
       dailySheet: {
         findUnique: vi.fn().mockResolvedValue(sheet),
         update: vi.fn().mockResolvedValue({}),
@@ -262,6 +264,8 @@ function lagSyncCtx() {
     lederKommentar: null, attestertVed: null, updatedAt: new Date("2026-11-13T10:00:00Z"),
   };
   const txMock = {
+    // O27: sporet etter sletting på PC (tomt).
+    slettetFraPc: { findMany: async () => [], createMany: async () => ({ count: 0 }) },
     dailySheet: {
       findUnique: vi.fn().mockResolvedValue(null),
       updateMany: vi.fn().mockResolvedValue({ count: 1 }),
@@ -285,6 +289,8 @@ function lagSyncCtx() {
     req: { log: { info: vi.fn(), warn: vi.fn() } },
     prisma: { oppmotested: { findMany: vi.fn().mockResolvedValue([]) } },
     prismaTimer: {
+      // O27: sporet etter sletting på PC (tomt).
+      slettetFraPc: { findMany: async () => [], createMany: async () => ({ count: 0 }) },
       dailySheet: { findUnique: vi.fn().mockResolvedValue(null) },
       aktivitet: {
         findFirst: vi.fn().mockResolvedValue({ id: AKTIVITET }),
@@ -382,6 +388,8 @@ describe("T3 — hentEndringerSiden returnerer kortfeltene", () => {
       req: { log: { info: vi.fn(), warn: vi.fn() } },
       prisma: {},
       prismaTimer: {
+        // O27: sporet etter sletting på PC (tomt).
+        slettetFraPc: { findMany: async () => [], createMany: async () => ({ count: 0 }) },
         dailySheet: {
           findMany: vi.fn()
             .mockResolvedValueOnce([{ id: SHEET, clientUuid: SHEET }])

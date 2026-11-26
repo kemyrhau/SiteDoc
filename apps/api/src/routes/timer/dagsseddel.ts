@@ -43,6 +43,11 @@ import {
   lesVarerForSpor,
   skrivSlettespor,
 } from "../../services/timer/slettespor";
+import {
+  lesSlettetFraPc,
+  skrivRaderSlettetFraPc,
+  skrivSedelSlettetFraPc,
+} from "../../services/timer/slettetFraPc";
 import { hentSkSedler, lesSlettetOgKorrigert } from "../../services/timer/slettetKorrigert";
 import {
   lastAngreGrunnlag,
@@ -4161,6 +4166,17 @@ async function utforRedigerSedelRader(
         data: { sheetTimerId: null },
       });
     }
+    // O27: radene slettet her kommer aldri tilbake fra telefonen.
+    await skrivRaderSlettetFraPc(
+      tx,
+      sheet.id,
+      [
+        ...plan.timer.slett.map((r) => ({ id: r.id, type: "timer" as const })),
+        ...plan.tillegg.slett.map((r) => ({ id: r.id, type: "tillegg" as const })),
+        ...plan.maskin.slett.map((r) => ({ id: r.id, type: "maskin" as const })),
+      ],
+      ctx.userId,
+    );
     await tx.sheetMachine.deleteMany({ where: { id: { in: plan.maskin.slett.map((r) => r.id) } } });
     await tx.sheetTillegg.deleteMany({ where: { id: { in: plan.tillegg.slett.map((r) => r.id) } } });
     await tx.sheetTimer.deleteMany({ where: { id: { in: slettedeTimerIder } } });
@@ -4344,6 +4360,7 @@ async function krevSlettbar(
 export async function slettSedelMedAlt(
   prismaTimer: PrismaClientTimer,
   sheetId: string,
+  aktorUserId: string,
 ): Promise<{ id: string; slettet: SedelInnhold }> {
   return prismaTimer.$transaction(async (tx) => {
     // Lås raden: en samtidig «send» venter til vi er ferdige, og vakten ser siste status.
@@ -4363,6 +4380,8 @@ export async function slettSedelMedAlt(
       await tx.sheetUtleggVedlegg.deleteMany({ where: { sheetUtleggId: { in: utleggIder } } });
     }
     await tx.$executeRaw`DELETE FROM "varelager"."vareforbruk" WHERE "dagsseddel_id" = ${sheet.id}`;
+    // O27: sedelen kommer aldri tilbake fra telefonen.
+    await skrivSedelSlettetFraPc(tx, sheet.id, aktorUserId);
     // Kaskade på sheetId: timer (med reise), forslag, tillegg, utlegg, maskin.
     await tx.dailySheet.delete({ where: { id: sheet.id } });
     return { id: sheet.id, slettet };
@@ -4516,6 +4535,20 @@ export async function slettKortMedAlt(
     const tilleggIder = kort.tillegg.map((r) => r.id);
     const utleggIder = kort.utlegg.map((r) => r.id);
     const vareIder = kort.varer.map((v) => v.id);
+    // O27: jobbens linjer kommer aldri tilbake fra telefonen.
+    if (aktorUserId) {
+      await skrivRaderSlettetFraPc(
+        tx,
+        sheet.id,
+        [
+          ...kort.timer.map((r) => ({ id: r.id, type: "timer" as const })),
+          ...kort.maskiner.map((r) => ({ id: r.id, type: "maskin" as const })),
+          ...tilleggIder.map((id) => ({ id, type: "tillegg" as const })),
+          ...utleggIder.map((id) => ({ id, type: "utlegg" as const })),
+        ],
+        aktorUserId,
+      );
+    }
     if (vareIder.length > 0) {
       await tx.$executeRaw`DELETE FROM "varelager"."vareforbruk" WHERE "id" IN (${Prisma.join(vareIder)})`;
     }
@@ -5553,6 +5586,8 @@ export const dagsseddelRouter = router({
             const hel = await tx.sheetTimer.findUnique({ where: { id: r.id } });
             if (hel) await skrivSlettespor(tx, [{ radType: "timer", rad: hel }], ctx.userId);
           }
+          // O27: delen kommer aldri tilbake fra telefonen.
+          await skrivRaderSlettetFraPc(tx, r.sheetId, [{ id: r.id, type: "timer" }], ctx.userId);
           // Reise bærer ingen maskiner; koblinger nulles som i fjernTimerRad.
           await tx.sheetMachine.updateMany({ where: { sheetId: r.sheetId, sheetTimerId: r.id }, data: { sheetTimerId: null } });
           await tx.sheetTimer.delete({ where: { id: r.id } });
@@ -5969,6 +6004,13 @@ export const dagsseddelRouter = router({
             ],
           });
         }
+        // O27: raden (og maskinene som slettes med den) kommer aldri tilbake fra telefonen.
+        await skrivRaderSlettetFraPc(
+          tx,
+          rad.sheetId,
+          [{ id: rad.id, type: "timer" }, ...slettMaskinIder.map((id) => ({ id, type: "maskin" as const }))],
+          ctx.userId,
+        );
         if (maskiner.alle.length > 0) {
           await tx.sheetMachine.deleteMany({ where: { id: { in: slettMaskinIder } } });
           await tx.sheetMachine.updateMany({
@@ -7120,14 +7162,16 @@ export const dagsseddelRouter = router({
 
       // F4-1d: rad-write + touchSedel atomisk. SL1: på returnert dag skrives sporet i samme
       // transaksjon.
-      const [slettet] = await ctx.prismaTimer.$transaction([
-        ctx.prismaTimer.sheetTillegg.delete({ where: { id: input.id } }),
-        touchSedel(ctx.prismaTimer, rad.sheetId),
-        ...(sheet.status === "returned"
-          ? [ctx.prismaTimer.sheetRadHistorikk.createMany({ data: [byggSlettePost("tillegg", rad, ctx.userId, new Date())] })]
-          : []),
-      ]);
-      return slettet;
+      // O27: raden kommer aldri tilbake fra telefonen (sporet i samme transaksjon).
+      return ctx.prismaTimer.$transaction(async (tx) => {
+        await skrivRaderSlettetFraPc(tx, rad.sheetId, [{ id: rad.id, type: "tillegg" }], ctx.userId);
+        if (sheet.status === "returned") {
+          await tx.sheetRadHistorikk.createMany({ data: [byggSlettePost("tillegg", rad, ctx.userId, new Date())] });
+        }
+        const slettet = await tx.sheetTillegg.delete({ where: { id: input.id } });
+        await touchSedel(tx, rad.sheetId);
+        return slettet;
+      });
     }),
 
   // ----- Utlegg-vedlegg (kvittering) — U3 (2026-08-08) -------------------
@@ -7454,14 +7498,16 @@ export const dagsseddelRouter = router({
       }
 
       // SL1: på returnert dag skrives sporet (med innholdet, S2 ja) i samme transaksjon.
-      const [slettet] = await ctx.prismaTimer.$transaction([
-        ctx.prismaTimer.sheetUtlegg.delete({ where: { id: input.id } }),
-        touchSedel(ctx.prismaTimer, rad.sheetId),
-        ...(sheet.status === "returned"
-          ? [ctx.prismaTimer.sheetRadHistorikk.createMany({ data: [byggSlettePost("utlegg", rad, ctx.userId, new Date())] })]
-          : []),
-      ]);
-      return slettet;
+      // O27: raden kommer aldri tilbake fra telefonen (sporet i samme transaksjon).
+      return ctx.prismaTimer.$transaction(async (tx) => {
+        await skrivRaderSlettetFraPc(tx, rad.sheetId, [{ id: rad.id, type: "utlegg" }], ctx.userId);
+        if (sheet.status === "returned") {
+          await tx.sheetRadHistorikk.createMany({ data: [byggSlettePost("utlegg", rad, ctx.userId, new Date())] });
+        }
+        const slettet = await tx.sheetUtlegg.delete({ where: { id: input.id } });
+        await touchSedel(tx, rad.sheetId);
+        return slettet;
+      });
     }),
 
   // ----- Status-overgang -------------------------------------------------
@@ -7675,7 +7721,7 @@ export const dagsseddelRouter = router({
     .mutation(async ({ ctx, input }) => {
       // Eierskap + identitets-robust oppslag (id eller clientUuid) før transaksjonen.
       const sheet = await hentEgenDagsseddel(ctx.prismaTimer, ctx.userId, input.id, { krevAnsatt: false });
-      return slettSedelMedAlt(ctx.prismaTimer, sheet.id);
+      return slettSedelMedAlt(ctx.prismaTimer, sheet.id, ctx.userId);
     }),
 
   // Det «Slett jobben» vil slette i ett kort, med antall (retur O8 tillegg 2). Samme vakt som
@@ -10900,6 +10946,14 @@ export const dagsseddelRouter = router({
         where: { organizationId: orgId, userId: ctx.userId, dato: { gte: minDato } },
         select: { id: true, clientUuid: true },
       });
+      // O27 SLETTET-ER-SLETTET: sedlene brukeren har slettet på PC (alle datoer — også
+      // gamle utenfor vinduet ligger igjen på telefonen). Telefonen fjerner sin kopi, også
+      // med usendte endringer, og viser dagen i en linje. `sheetId` og sporets id
+      // (clientUuid) begge, så telefonen treffer uansett hvilken identitet den bruker.
+      const slettetPaPc = await ctx.prismaTimer.slettetFraPc.findMany({
+        where: { organizationId: orgId, userId: ctx.userId, type: "sedel" },
+        select: { id: true, sheetId: true, dato: true },
+      });
 
       const sedler = await ctx.prismaTimer.dailySheet.findMany({
         where,
@@ -10969,6 +11023,12 @@ export const dagsseddelRouter = router({
         // ORDRE 1a: intervallet id-settet gjelder for + de levende sedlene i det.
         slettevindu,
         levendeSedler,
+        // O27: valgfritt for eldre klient (ignoreres).
+        slettetPaPc: slettetPaPc.map((d) => ({
+          id: d.sheetId,
+          clientUuid: d.id,
+          dato: d.dato.toISOString().slice(0, 10),
+        })),
         sedler: sedler.map((s) => ({
           id: s.id,
           clientUuid: s.clientUuid,
@@ -11373,6 +11433,10 @@ export const dagsseddelRouter = router({
           // Kort-id (spec § 4.1): serverens løste id pr. skrevet rad. Valgfritt.
           rader?: { id: string; updatedAt: string; kortId?: string | null }[];
           hoppetOver?: string[];
+          // O27: rad-id-er (alle typer) i payloaden som er slettet på PC — ikke skrevet.
+          // Telefonen fjerner dem lokalt. Timer-radene står også i `hoppetOver`, så en
+          // eldre app speiler dem bort (R8). Valgfritt → eldre klient ignorerer feltet.
+          slettetPaPc?: string[];
           // Telefontest A funn 1: false = serveren skrev INGENTING fra pushen (tidlig
           // V19-A-overlapp, A-1a, laast) — heller ikke tillegg/utlegg/maskin. true =
           // avvik-veien skrev hode, uomstridte rader, tillegg og utlegg. Mobilen lar da
@@ -11387,7 +11451,8 @@ export const dagsseddelRouter = router({
         feilParam?: FeilParam;
         // Kort-id-spec § 11.3: maskinlesbar grunn på avvisning. Valgfritt → eldre
         // klient ignorerer feltet.
-        grunn?: "utenProsjektKreverFravaer";
+        // O27: «slettetPaPc» = sedelen er slettet på PC; telefonen fjerner sin kopi.
+        grunn?: "utenProsjektKreverFravaer" | "slettetPaPc";
         // B10 (§ 11.10.4, F9 = A): synken lagrer alltid; ligger dagen over taket etter
         // skrivingen, returneres bruddlinja. Valgfritt → eldre klient ignorerer feltet.
         fravaerNormtakBrudd?: NormtakBrudd;
@@ -11395,12 +11460,58 @@ export const dagsseddelRouter = router({
 
       const resultater: ResultatRad[] = [];
 
+      // O27 SLETTET-ER-SLETTET (Kenneth 2026-11-26): «Når en timerad slettes -> da må den
+      // slettes helt». Sporet for hele batchen i én spørring: sedler og rader slettet på PC.
+      const slettetFraPc = await lesSlettetFraPc(
+        ctx.prismaTimer,
+        input.sedler.flatMap((s) => [
+          s.clientUuid,
+          ...s.timer.map((r) => r.id),
+          ...s.tillegg.map((r) => r.id),
+          ...s.maskiner.map((r) => r.id),
+          ...s.utlegg.map((r) => r.id),
+        ]),
+      );
+
       for (const lokal of input.sedler) {
         try {
           // Sjekk eksisterende — verifiser eierskap + om låst
           const eksisterende = await ctx.prismaTimer.dailySheet.findUnique({
             where: { clientUuid: lokal.clientUuid },
           });
+
+          // O27: sedelen er slettet på PC → lag den aldri på nytt. `avvist` (ikke `ok`/
+          // `feilet`): en eldre app gjør den terminal (rødt banner, ingen ny sending) i
+          // stedet for å sende den hver synk; ny app fjerner kopien (grunn `slettetPaPc`).
+          if (!eksisterende && slettetFraPc.has(lokal.clientUuid)) {
+            const kort = `${lokal.dato.slice(8, 10)}.${lokal.dato.slice(5, 7)}`;
+            resultater.push({
+              clientUuid: lokal.clientUuid,
+              resultat: "avvist",
+              grunn: "slettetPaPc",
+              feilmelding: `Dagen ${kort} er slettet på PC.`,
+              feilNokkel: "timer.sync.slettetPaPc",
+              feilParam: { dato: kort },
+            });
+            continue;
+          }
+          // O27: rader slettet på PC tas ut av payloaden før noe annet — de valideres,
+          // klassifiseres og skrives aldri (heller ikke som forslag, R7).
+          const sporTimer = lokal.timer.filter((r) => slettetFraPc.has(r.id)).map((r) => r.id);
+          const sporRader = [
+            ...sporTimer,
+            ...[...lokal.tillegg, ...lokal.maskiner, ...lokal.utlegg]
+              .filter((r) => slettetFraPc.has(r.id))
+              .map((r) => r.id),
+          ];
+          if (sporRader.length > 0) {
+            lokal.timer = lokal.timer.filter((r) => !slettetFraPc.has(r.id));
+            lokal.tillegg = lokal.tillegg.filter((r) => !slettetFraPc.has(r.id));
+            lokal.maskiner = lokal.maskiner.filter((r) => !slettetFraPc.has(r.id));
+            lokal.utlegg = lokal.utlegg.filter((r) => !slettetFraPc.has(r.id));
+          }
+          const sporSvar =
+            sporRader.length > 0 ? { slettetPaPc: sporRader } : {};
 
           if (eksisterende) {
             if (eksisterende.userId !== ctx.userId) {
@@ -12504,8 +12615,9 @@ export const dagsseddelRouter = router({
                   attestertVed: serverSedel.attestertVed?.toISOString() ?? null,
                   updatedAt: serverSedel.updatedAt.toISOString(),
                   rader: txResultat.skrevneRader,
-                  hoppetOver: txResultat.hoppetOver,
+                  hoppetOver: [...txResultat.hoppetOver, ...sporTimer],
                   skrevet: txResultat.skrevet,
+                  ...sporSvar,
                 },
               });
             } else {
@@ -12545,7 +12657,8 @@ export const dagsseddelRouter = router({
               updatedAt: oppdatert.updatedAt.toISOString(),
               // V19.9.8 (A'-5): versjonene for skrevne rader + hoppede rad-id-er.
               rader: txResultat.skrevneRader,
-              hoppetOver: txResultat.hoppetOver,
+              hoppetOver: [...txResultat.hoppetOver, ...sporTimer],
+              ...sporSvar,
             },
           });
         } catch (e) {
@@ -12934,14 +13047,16 @@ export const dagsseddelRouter = router({
 
         // F4-1d: rad-write + touchSedel atomisk. SL1: på returnert dag skrives sporet i samme
         // transaksjon.
-        const [slettet] = await ctx.prismaTimer.$transaction([
-          ctx.prismaTimer.sheetMachine.delete({ where: { id: input.id } }),
-          touchSedel(ctx.prismaTimer, rad.sheetId),
-          ...(sheet.status === "returned"
-            ? [ctx.prismaTimer.sheetRadHistorikk.createMany({ data: [byggSlettePost("maskin", rad, ctx.userId, new Date())] })]
-            : []),
-        ]);
-        return slettet;
+        // O27: raden kommer aldri tilbake fra telefonen (sporet i samme transaksjon).
+        return ctx.prismaTimer.$transaction(async (tx) => {
+          await skrivRaderSlettetFraPc(tx, rad.sheetId, [{ id: rad.id, type: "maskin" }], ctx.userId);
+          if (sheet.status === "returned") {
+            await tx.sheetRadHistorikk.createMany({ data: [byggSlettePost("maskin", rad, ctx.userId, new Date())] });
+          }
+          const slettet = await tx.sheetMachine.delete({ where: { id: input.id } });
+          await touchSedel(tx, rad.sheetId);
+          return slettet;
+        });
       }),
   }),
 

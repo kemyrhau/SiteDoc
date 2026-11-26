@@ -6202,5 +6202,8 @@
   "timer.slettetKorrigert.hjelp.filter": "Deplasați-vă între săptămâni cu săgețile. Filtrați după angajat, proiect și tip. Filtrul de zi de pe insignă este îndepărtat cu crucea sau „Afișează întreaga perioadă”.",
   "timer.slettetKorrigert.hjelp.egne": "Pagina afișează linii din zilele tale care au fost șterse sau corectate — de către aprobator sau de către tine în timp ce ziua a fost returnată. O linie ștearsă este afișată cu conținutul pe care l-a avut; o linie corectată cu valoarea înainte și după. Numai citire.",
   "timer.slettetKorrigert.hjelp.ikkeMedEgne": "Nu sunt incluse: liniile pe care le-ați șters în timp ce ziua nu a fost returnată (adică o editare obișnuită), liniile șterse înainte ca traseul să aibă conținut și zilele înlocuite cu o versiune mai nouă.",
-  "timer.slettetKorrigert.hjelp.filterEgne": "Alegeți perioada cu De la și Până (cel mult 93 de zile). Filtrați după proiect și tip."
+  "timer.slettetKorrigert.hjelp.filterEgne": "Alegeți perioada cu De la și Până (cel mult 93 de zile). Filtrați după proiect și tip.",
+  "timer.sync.slettetPaPcLinje_one": "Ziua în care {{datoer}} a fost șters de pe computer și de pe telefon.",
+  "timer.sync.slettetPaPcLinje_other": "Zilele în care {{datoer}} au fost șterse de pe computer și de pe telefon.",
+  "timer.sync.slettetPaPc": "Ziua în care {{dato}} a fost șters de pe computer."
 }

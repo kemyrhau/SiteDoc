@@ -78,6 +78,8 @@ function lagCtx() {
     { id: ORDINAER_LONNSART, navn: "Timelønn", satsEnhet: null },
   ];
   const txMock = {
+    // O27: sporet etter sletting på PC (tomt).
+    slettetFraPc: { findMany: async () => [], createMany: async () => ({ count: 0 }) },
     dailySheet: {
       findUnique: vi.fn().mockResolvedValue(null),
       create: vi.fn().mockResolvedValue({
@@ -121,6 +123,8 @@ function lagCtx() {
       oppmotested: { findMany: vi.fn().mockResolvedValue([{ id: KONTOR }]) },
     },
     prismaTimer: {
+      // O27: sporet etter sletting på PC (tomt).
+      slettetFraPc: { findMany: async () => [], createMany: async () => ({ count: 0 }) },
       dailySheet: { findUnique: vi.fn().mockResolvedValue(null) },
       aktivitet: {
         findFirst: vi.fn().mockResolvedValue({ id: AKTIVITET }),

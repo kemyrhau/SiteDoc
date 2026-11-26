@@ -1,5 +1,5 @@
 import { prosjektFeltFraServer, prosjektFeltTilServer } from "../utils/utenProsjektSynk";
-import { eq, and, gt, gte, lte, inArray, isNull, isNotNull } from "drizzle-orm";
+import { eq, and, gt, gte, lt, lte, inArray, isNull, isNotNull } from "drizzle-orm";
 import { finnSedlerÅSlette } from "@sitedoc/shared";
 import { hentDatabase } from "../db/database";
 import {
@@ -130,6 +130,9 @@ type SyncResultat = {
   // — merge setter `syncStatus="pending"`, så den telles aldri som konflikt der.
   push: { ok: number; merged: number; conflict: number; avvist: number; feilet: number };
   pull: { mottatt: number; slettet: number };
+  // O27: datoene (YYYY-MM-DD) for sedler som er slettet på PC og fjernet fra telefonen i
+  // denne kjøringen — statusbaren viser dem i én linje.
+  slettetPaPc: string[];
   feil?: string;
 };
 
@@ -419,12 +422,13 @@ async function kjorTimerSync(
 ): Promise<SyncResultat> {
   const db = hentDatabase();
   if (!db) {
-    return { push: { ok: 0, merged: 0, conflict: 0, avvist: 0, feilet: 0 }, pull: { mottatt: 0, slettet: 0 } };
+    return { push: { ok: 0, merged: 0, conflict: 0, avvist: 0, feilet: 0 }, pull: { mottatt: 0, slettet: 0 }, slettetPaPc: [] };
   }
 
   const resultat: SyncResultat = {
     push: { ok: 0, merged: 0, conflict: 0, avvist: 0, feilet: 0 },
     pull: { mottatt: 0, slettet: 0 },
+    slettetPaPc: [],
   };
   // ORDRE 36e (pkt. 1c): kjøringens start — pull-vakten under beskytter timer-
   // rader skrevet MENS denne kjøringen pågår.
@@ -494,6 +498,38 @@ async function kjorTimerSync(
           .run();
       }
     });
+  };
+
+  // O27 SLETTET-ER-SLETTET (Kenneth 2026-11-26): «Når en timerad slettes -> da må den
+  // slettes helt». Sedelen er slettet på PC: fjern den lokale kopien med alle linjer og
+  // ventende rad-slettinger — også med usendte endringer (ellers lager neste push den på
+  // nytt). Datoen samles til statusbarens linje. Ingen sedel lokalt → ingenting.
+  const fjernSedelSlettetPaPc = (sheetId: string): void => {
+    const dato = db
+      .select({ dato: dagsseddelLocal.dato })
+      .from(dagsseddelLocal)
+      .where(eq(dagsseddelLocal.id, sheetId))
+      .all()[0]?.dato;
+    if (dato === undefined) return;
+    db.transaction((tx) => {
+      tx.delete(sheetTimerLocal).where(eq(sheetTimerLocal.dagsseddelId, sheetId)).run();
+      tx.delete(sheetTilleggLocal).where(eq(sheetTilleggLocal.dagsseddelId, sheetId)).run();
+      tx.delete(sheetMachineLocal).where(eq(sheetMachineLocal.dagsseddelId, sheetId)).run();
+      tx.delete(sheetUtleggLocal).where(eq(sheetUtleggLocal.dagsseddelId, sheetId)).run();
+      tx.delete(slettedeRaderLocal).where(eq(slettedeRaderLocal.dagsseddelId, sheetId)).run();
+      tx.delete(dagsseddelLocal).where(eq(dagsseddelLocal.id, sheetId)).run();
+    });
+    if (!resultat.slettetPaPc.includes(dato)) resultat.slettetPaPc.push(dato);
+  };
+
+  // O27: linjer serveren ikke skrev fordi de er slettet på PC — fjernes lokalt (alle typer).
+  const fjernRaderSlettetPaPc = (sheetId: string, ider: readonly string[] | undefined): void => {
+    if (!ider || ider.length === 0) return;
+    for (const tabell of [sheetTimerLocal, sheetTilleggLocal, sheetMachineLocal, sheetUtleggLocal] as const) {
+      db.delete(tabell)
+        .where(and(eq(tabell.dagsseddelId, sheetId), inArray(tabell.id, [...ider])))
+        .run();
+    }
   };
 
   // V19.9.8 (B'-4) — etter push-`ok`/`conflict-overlapp`: skriv radversjonen
@@ -580,6 +616,8 @@ async function kjorTimerSync(
           .run();
         // V19.9.8: skriv versjon for skrevne rader (ikke hoppetOver) + restemple.
         skrivRadVersjoner(r.clientUuid, r.serverData.rader, naa, byggetVed);
+        // O27: linjer slettet på PC er ikke skrevet — de fjernes her.
+        fjernRaderSlettetPaPc(r.clientUuid, r.serverData.slettetPaPc);
         // Plan A: linjene payloaden bar, finnes nå på serveren. En linje opprettet eller
         // endret under pushen (stempel > byggetVed) merkes ikke — den sendes neste gang.
         for (const tabell of [sheetTilleggLocal, sheetUtleggLocal, sheetMachineLocal] as const) {
@@ -706,12 +744,16 @@ async function kjorTimerSync(
           // som `ok`). laast/nyere skrev ingenting (rader tomt/undefined → no-op).
           if (aarsak === "overlapp") {
             skrivRadVersjoner(målId, r.serverData.rader, naa, byggetVed);
+            fjernRaderSlettetPaPc(målId, r.serverData.slettetPaPc);
           }
           // B-2: statusbaren plukker opp conflict (tellConflict), og sedelens banner
           // ([id].tsx) viser overlapp-teksten + knapp til sammenligningen. Et ekte
           // OS-push-varsel krever `expo-notifications` (ikke installert) — flagget
           // til orkestrator; surfacingen er statusbar + banner.
         }
+      } else if (r.resultat === "avvist" && r.grunn === "slettetPaPc") {
+        // O27: sedelen er slettet på PC — fjern kopien, ikke rødt banner.
+        fjernSedelSlettetPaPc(r.clientUuid);
       } else if (r.resultat === "avvist") {
         // SYNC-1: permanent avvisning — terminal. Raden forlater pending
         // (stopper retry) og settes til "avvist" så [id].tsx + statusbar viser
@@ -1805,12 +1847,42 @@ async function kjorTimerSync(
         ),
       )
       .all();
+    // O27: sedler slettet på PC — fjernes også med usendte endringer og utenfor vinduet.
+    // Eldre server sender ikke feltet → tom mengde (som før).
+    const slettetPaPcNokler = new Set<string>();
+    for (const d of svar.slettetPaPc ?? []) {
+      slettetPaPcNokler.add(d.id);
+      slettetPaPcNokler.add(d.clientUuid);
+    }
+    const slettetPaPcUtenforVindu =
+      slettetPaPcNokler.size > 0
+        ? db
+            .select({
+              id: dagsseddelLocal.id,
+              dato: dagsseddelLocal.dato,
+              syncStatus: dagsseddelLocal.syncStatus,
+            })
+            .from(dagsseddelLocal)
+            .where(
+              and(
+                eq(dagsseddelLocal.userId, userId),
+                inArray(dagsseddelLocal.id, [...slettetPaPcNokler]),
+                lt(dagsseddelLocal.dato, svar.slettevindu.fraDato),
+              ),
+            )
+            .all()
+        : [];
     const skalSlettes = finnSedlerÅSlette(
-      lokaleIVindu,
+      [...lokaleIVindu, ...slettetPaPcUtenforVindu],
       levendeNokler,
       svar.slettevindu,
+      slettetPaPcNokler,
     );
     for (const sheetId of skalSlettes) {
+      if (slettetPaPcNokler.has(sheetId)) {
+        fjernSedelSlettetPaPc(sheetId);
+        continue;
+      }
       db.delete(sheetTimerLocal).where(eq(sheetTimerLocal.dagsseddelId, sheetId)).run();
       db.delete(sheetTilleggLocal).where(eq(sheetTilleggLocal.dagsseddelId, sheetId)).run();
       db.delete(sheetMachineLocal).where(eq(sheetMachineLocal.dagsseddelId, sheetId)).run();

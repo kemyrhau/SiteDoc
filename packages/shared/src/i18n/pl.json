@@ -6202,5 +6202,8 @@
   "timer.slettetKorrigert.hjelp.filter": "Poruszaj się między tygodniami za pomocą strzałek. Filtruj według pracownika, projektu i typu. Filtr dzienny z plakietki jest usuwany wraz z krzyżykiem lub „Pokaż cały okres”.",
   "timer.slettetKorrigert.hjelp.egne": "Na stronie widoczne są wiersze dotyczące Twoich dni, które zostały usunięte lub poprawione — przez osobę zatwierdzającą lub przez Ciebie w momencie zwrotu danego dnia. Usunięta linia zostanie wyświetlona wraz z zawartością; poprawiona linia z wartością przed i po. Tylko do odczytu.",
   "timer.slettetKorrigert.hjelp.ikkeMedEgne": "Nieuwzględnione: linie usunięte, gdy dzień nie został zwrócony (tzn. zwykła edycja), linie usunięte, zanim szlak zawierał treść, oraz dni zastąpione nowszą wersją.",
-  "timer.slettetKorrigert.hjelp.filterEgne": "Wybierz okres za pomocą Od i Do (maksymalnie 93 dni). Filtruj według projektu i typu."
+  "timer.slettetKorrigert.hjelp.filterEgne": "Wybierz okres za pomocą Od i Do (maksymalnie 93 dni). Filtruj według projektu i typu.",
+  "timer.sync.slettetPaPcLinje_one": "Dzień, w którym {{datoer}} został usunięty z komputera i telefonu.",
+  "timer.sync.slettetPaPcLinje_other": "Dni {{datoer}} zostały usunięte na komputerze i usunięte z telefonu.",
+  "timer.sync.slettetPaPc": "Dzień {{dato}} został usunięty na komputerze."
 }

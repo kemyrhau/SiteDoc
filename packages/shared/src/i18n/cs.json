@@ -6202,5 +6202,8 @@
   "timer.slettetKorrigert.hjelp.filter": "Mezi týdny se pohybujte pomocí šipek. Filtrujte podle zaměstnance, projektu a typu. Denní filtr z odznaku se odstraní křížkem nebo „Zobrazit celé období“.",
   "timer.slettetKorrigert.hjelp.egne": "Stránka zobrazuje řádky ve vašich vlastních dnech, které byly odstraněny nebo opraveny – schvalovatelem nebo vámi, když byl den vrácen. Smazaný řádek se zobrazí s obsahem, který měl; opravený řádek s hodnotou před a za. Pouze pro čtení.",
   "timer.slettetKorrigert.hjelp.ikkeMedEgne": "Nezahrnuje: řádky, které jste smazali, když nebyl vrácen den (to je běžná úprava), řádky smazané předtím, než trasa měla obsah, a dny nahrazené novější verzí.",
-  "timer.slettetKorrigert.hjelp.filterEgne": "Vyberte období pomocí Od a Do (maximálně 93 dní). Filtrujte podle projektu a typu."
+  "timer.slettetKorrigert.hjelp.filterEgne": "Vyberte období pomocí Od a Do (maximálně 93 dní). Filtrujte podle projektu a typu.",
+  "timer.sync.slettetPaPcLinje_one": "Den, kdy byl {{datoer}} smazán z počítače a odstraněn z telefonu.",
+  "timer.sync.slettetPaPcLinje_other": "Dny {{datoer}} byly smazány na PC a odstraněny z telefonu.",
+  "timer.sync.slettetPaPc": "Den {{dato}} byl smazán na PC."
 }

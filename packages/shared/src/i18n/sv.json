@@ -6202,5 +6202,8 @@
   "timer.slettetKorrigert.hjelp.filter": "Flytta mellan veckorna med pilarna. Filtrera efter anställd, projekt och typ. Dagfiltret från märket tas bort med krysset eller \"Visa hela perioden\".",
   "timer.slettetKorrigert.hjelp.egne": "Sidan visar rader om dina egna dagar som raderades eller korrigerades – av godkännaren eller av dig medan dagen returnerades. En raderad rad visas med innehållet den hade; en korrigerad linje med värdet före och efter. Endast läs.",
   "timer.slettetKorrigert.hjelp.ikkeMedEgne": "Ej inkluderat: rader som du raderade medan dagen inte returnerades (det vill säga vanlig redigering), rader raderade innan spåret hade innehåll och dagar ersatta av en nyare version.",
-  "timer.slettetKorrigert.hjelp.filterEgne": "Välj period med Från och Till (högst 93 dagar). Filtrera efter projekt och typ."
+  "timer.slettetKorrigert.hjelp.filterEgne": "Välj period med Från och Till (högst 93 dagar). Filtrera efter projekt och typ.",
+  "timer.sync.slettetPaPcLinje_one": "Dagen {{datoer}} raderades på datorn och togs bort från telefonen.",
+  "timer.sync.slettetPaPcLinje_other": "Dagarna {{datoer}} raderades på datorn och togs bort från telefonen.",
+  "timer.sync.slettetPaPc": "Dagen {{dato}} raderades på datorn."
 }

@@ -6202,5 +6202,8 @@
   "timer.slettetKorrigert.hjelp.filter": "Siirry viikkojen välillä nuolilla. Suodata työntekijän, projektin ja tyypin mukaan. Merkin päiväsuodatin poistetaan rastilla tai \"Näytä koko ajanjakso\".",
   "timer.slettetKorrigert.hjelp.egne": "Sivulla näkyvät omien päiviesi rivit, jotka on poistettu tai korjattu – hyväksyjän toimesta tai sinä, kun päivä palautettiin. Poistettu rivi näytetään sen sisällön kanssa; korjattu rivi, jonka arvo on ennen ja jälkeen. Vain luku.",
   "timer.slettetKorrigert.hjelp.ikkeMedEgne": "Ei sisälly: rivit, jotka poistit, kun päivää ei palautettu (eli tavallista muokkausta), rivit, jotka poistettiin ennen kuin polulla oli sisältöä, ja päivät korvattiin uudemmalla versiolla.",
-  "timer.slettetKorrigert.hjelp.filterEgne": "Valitse ajanjakso Alkaen ja To (enintään 93 päivää). Suodata projektin ja tyypin mukaan."
+  "timer.slettetKorrigert.hjelp.filterEgne": "Valitse ajanjakso Alkaen ja To (enintään 93 päivää). Suodata projektin ja tyypin mukaan.",
+  "timer.sync.slettetPaPcLinje_one": "Päivä {{datoer}} poistettiin tietokoneelta ja poistettiin puhelimesta.",
+  "timer.sync.slettetPaPcLinje_other": "Päivät {{datoer}} poistettiin tietokoneelta ja poistettiin puhelimesta.",
+  "timer.sync.slettetPaPc": "The day {{dato}} was deleted on the PC."
 }

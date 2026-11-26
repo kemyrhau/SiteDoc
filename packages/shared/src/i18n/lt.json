@@ -6202,5 +6202,8 @@
   "timer.slettetKorrigert.hjelp.filter": "Perkelkite tarp savaičių rodyklėmis. Filtruokite pagal darbuotoją, projektą ir tipą. Dienos filtras nuo ženklelio pašalinamas su kryželiu arba „Rodyti visą laikotarpį“.",
   "timer.slettetKorrigert.hjelp.egne": "Puslapyje rodomos eilutės apie jūsų dienas, kurias ištrynė arba pataisė – patvirtintojo arba jūsų, kol diena buvo grąžinta. Rodoma ištrinta eilutė su turiniu, kurį ji turėjo; pataisyta eilutė su reikšme prieš ir po. Tik skaityti.",
   "timer.slettetKorrigert.hjelp.ikkeMedEgne": "Neįtraukta: eilutės, kurias ištrynėte, kol diena nebuvo grąžinta (tai yra įprastas redagavimas), eilutės, ištrintos prieš tai, kai takas turėjo turinį, ir dienos, pakeistos naujesne versija.",
-  "timer.slettetKorrigert.hjelp.filterEgne": "Pasirinkite laikotarpį nuo ir iki (daugiausia 93 dienos). Filtruokite pagal projektą ir tipą."
+  "timer.slettetKorrigert.hjelp.filterEgne": "Pasirinkite laikotarpį nuo ir iki (daugiausia 93 dienos). Filtruokite pagal projektą ir tipą.",
+  "timer.sync.slettetPaPcLinje_one": "Diena {{datoer}} buvo ištrinta iš kompiuterio ir pašalinta iš telefono.",
+  "timer.sync.slettetPaPcLinje_other": "Dienos {{datoer}} buvo ištrintos kompiuteryje ir pašalintos iš telefono.",
+  "timer.sync.slettetPaPc": "Diena {{dato}} buvo ištrinta kompiuteryje."
 }

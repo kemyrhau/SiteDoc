@@ -6202,5 +6202,8 @@
   "timer.slettetKorrigert.hjelp.filter": "Wechseln Sie mit den Pfeilen zwischen den Wochen. Filtern Sie nach Mitarbeiter, Projekt und Typ. Mit dem Kreuz oder „Ganzen Zeitraum anzeigen“ wird der Tagesfilter aus dem Badge entfernt.",
   "timer.slettetKorrigert.hjelp.egne": "Auf der Seite werden Zeilen zu Ihren eigenen Tagen angezeigt, die gelöscht oder korrigiert wurden – vom Genehmiger oder von Ihnen, während der Tag zurückgegeben wurde. Eine gelöschte Zeile wird mit ihrem Inhalt angezeigt; eine korrigierte Zeile mit dem Wert davor und danach. Nur lesen.",
   "timer.slettetKorrigert.hjelp.ikkeMedEgne": "Nicht enthalten: Zeilen, die Sie gelöscht haben, während der Tag nicht zurückgegeben wurde (das ist eine normale Bearbeitung), Zeilen, die gelöscht wurden, bevor der Trail Inhalt hatte, und Tage, die durch eine neuere Version ersetzt wurden.",
-  "timer.slettetKorrigert.hjelp.filterEgne": "Wählen Sie mit Von und Bis den Zeitraum aus (höchstens 93 Tage). Filtern Sie nach Projekt und Typ."
+  "timer.slettetKorrigert.hjelp.filterEgne": "Wählen Sie mit Von und Bis den Zeitraum aus (höchstens 93 Tage). Filtern Sie nach Projekt und Typ.",
+  "timer.sync.slettetPaPcLinje_one": "Der Tag {{datoer}} wurde auf dem PC gelöscht und vom Telefon entfernt.",
+  "timer.sync.slettetPaPcLinje_other": "Die Tage {{datoer}} wurden auf dem PC gelöscht und vom Telefon entfernt.",
+  "timer.sync.slettetPaPc": "Der Tag {{dato}} wurde auf dem PC gelöscht."
 }
