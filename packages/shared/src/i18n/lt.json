@@ -6047,6 +6047,7 @@
   "timer.mine.hjelp.reise": "Kelionėje projektą galite pakeisti mygtuku ✎: dar kartą pasiūloma statybvietė, o paprojekis išvalomas. Eilutėje po darbo užmokesčio tipu nurodoma, su kokia kortele vyksta kelionė. Darbas projekto nekeičia; užregistruokite jį kaip naują darbą.",
   "timer.mine.hjelp.reiseStartIJobb": "Į statybvietę: jei nustatote Pradėti per darbo laiką, pabaiga eina kartu su vairavimo laiku ir galite perkelti darbo pradžią.",
   "timer.mine.hjelp.reiseSluttIJobb": "Iš statybvietės: jei nustatote Pabaiga per darbo laiką, „Start“ seka vairavimo laiką ir galite perkelti užduoties pabaigą.",
+  "timer.mine.hjelp.reiseDagskort": "Su dienos kortele \"+ Kelionė\" yra šalia \"Pridėti valandų eilutę\" kiekviename paprojekte; atidaromas tas pats kelionės langas kaip ir kiekvieno darbo kortelė.",
   "timer.attestering.tabell.hjelp.reise": "Kelionė parodyta 8 dalyje kaip viena eilutė. ✎ atidaro „Pataisyti kelionę“ su pradžia, pabaiga, darbo užmokesčio rūšimi (tik kelionės tipai), projektu, statybviete ir subprojektu; sąraše yra projektai, kuriuos galite tvirtinti, o apačioje esanti eilutė nurodo, į kurią kortelę vyksta kelionė. Jei įmonė patvirtinimo metu neleidžia taisyti, galima taisyti tik paprojektį. Etiketė „nėra susitikimo vietos“ kelionės eilutėje reiškia, kad susitikimo vieta nebuvo užregistruota ir darbuotojas įvedė kelionės laiką.",
   "timer.jobbSkjema.underprosjekt": "Subprojektas",
   "timer.jobbSkjema.utenUnderprosjekt": "Nėra",

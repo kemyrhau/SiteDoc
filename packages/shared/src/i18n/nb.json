@@ -6047,6 +6047,7 @@
   "timer.mine.hjelp.reise": "På en reise kan du bytte prosjekt med ✎: byggeplassen foreslås på nytt, og underprosjektet tømmes. Linja under lønnsarten sier hvilket kort reisen havner i. Arbeid bytter ikke prosjekt; før det som en ny jobb.",
   "timer.mine.hjelp.reiseStartIJobb": "Til byggeplass: setter du Start inne i jobbens tid, følger Slutt etter med kjøretiden, og du kan flytte jobbens start.",
   "timer.mine.hjelp.reiseSluttIJobb": "Fra byggeplass: setter du Slutt inne i jobbens tid, følger Start med kjøretiden, og du kan flytte jobbens slutt.",
+  "timer.mine.hjelp.reiseDagskort": "Med dagskort står «+ Reise» ved «Legg til timer-rad» i hvert underprosjekt; den åpner samme reisevindu som kortet pr. jobb.",
   "timer.attestering.tabell.hjelp.reise": "Reisen står i del 8 som én linje. ✎ åpner «Rett reisen» med start, slutt, lønnsart (bare reisearter), prosjekt, byggeplass og underprosjekt; lista har prosjektene du kan attestere, og linja nederst sier hvilket kort reisen havner i. Tillater ikke firmaet retting ved attestering, kan bare underprosjektet rettes. Merket «uten oppmøtested» på reiselinja betyr at oppmøtestedet ikke var registrert, og at arbeideren førte reisetiden selv.",
   "timer.jobbSkjema.underprosjekt": "Underprosjekt",
   "timer.jobbSkjema.utenUnderprosjekt": "Uten",

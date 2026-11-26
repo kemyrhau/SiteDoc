@@ -6047,6 +6047,7 @@
   "timer.mine.hjelp.reise": "Într-o călătorie, puteți schimba proiectul cu ✎: șantierul este sugerat din nou și subproiectul este șters. Rândul de sub tipul de salariu spune pe ce card merge călătoria. Munca nu schimbă proiectul; înregistrați-l ca un loc de muncă nou.",
   "timer.mine.hjelp.reiseStartIJobb": "Spre șantier: dacă setați Start în timpul lucrării, End urmează cu timpul de conducere și puteți muta începutul lucrării.",
   "timer.mine.hjelp.reiseSluttIJobb": "De la șantier: dacă setați Sfârșit în timpul lucrării, Start urmează cu timpul de conducere și puteți muta sfârșitul lucrării.",
+  "timer.mine.hjelp.reiseDagskort": "Cu cardul de zi, „+ Călătorie” se află lângă „Adăugați rândul oră” în fiecare subproiect; deschide aceeași fereastră de călătorie ca și cardul per job.",
   "timer.attestering.tabell.hjelp.reise": "Călătoria este prezentată în partea 8 ca o singură linie. ✎ deschide „Corectează călătoria” cu început, sfârșit, tip de salariu (numai tipuri de călătorie), proiect, șantier și subproiect; lista are proiectele pe care le puteți aproba, iar linia de jos spune în ce card se îndreaptă călătoria. Dacă compania nu permite corecții în timpul aprobării, doar subproiectul poate fi corectat. Eticheta „fără punct de întâlnire” de pe linia călătoriei înseamnă că punctul de întâlnire nu a fost înregistrat și lucrătorul a introdus timpul de călătorie.",
   "timer.jobbSkjema.underprosjekt": "Subproiect",
   "timer.jobbSkjema.utenUnderprosjekt": "Nici unul",

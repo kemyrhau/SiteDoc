@@ -6047,6 +6047,7 @@
   "timer.mine.hjelp.reise": "Brauciena laikā jūs varat mainīt projektu ar ✎: tiek ieteikts atkārtoti būvlaukums un apakšprojekts tiek atbrīvots. Rindā zem algas veida ir norādīts, kurā kartē brauc ceļojums. Darbs nemaina projektu; reģistrēt to kā jaunu darbu.",
   "timer.mine.hjelp.reiseStartIJobb": "Uz būvlaukumu: ja iestatāt Sākt darba laikā, Beigas seko braukšanas laikam, un jūs varat pārvietot darba sākumu.",
   "timer.mine.hjelp.reiseSluttIJobb": "No būvlaukuma: ja iestatāt Beigt darba laikā, Sākt seko braukšanas laikam, un jūs varat pārvietot darba beigas.",
+  "timer.mine.hjelp.reiseDagskort": "Ar dienas karti \"+ Ceļojums\" atrodas blakus \"Pievienot stundu rindu\" katrā apakšprojektā; tas atver to pašu ceļojuma logu, kurā tiek atvērta karte katram darbam.",
   "timer.attestering.tabell.hjelp.reise": "Brauciens ir parādīts 8. daļā kā viena rinda. ✎ atver \"Izlabot braucienu\" ar sākumu, beigām, algas veidu (tikai ceļojuma veidiem), projektu, būvlaukumu un apakšprojektu; sarakstā ir projekti, kurus varat apstiprināt, un rindiņa apakšā norāda, kurā kartē brauc ceļojums. Ja uzņēmums apstiprināšanas laikā neatļauj labojumus, var labot tikai apakšprojektu. Uzlīme \"nav tikšanās vietas\" uz brauciena līnijas nozīmē, ka tikšanās vieta nav reģistrēta un darbinieks ievadīja ceļojuma laiku.",
   "timer.jobbSkjema.underprosjekt": "Apakšprojekts",
   "timer.jobbSkjema.utenUnderprosjekt": "Nav",

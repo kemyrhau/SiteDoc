@@ -6047,6 +6047,7 @@
   "timer.mine.hjelp.reise": "Na výletě můžete změnit projekt pomocí ✎: staveniště je znovu navrženo a dílčí projekt je vymazán. Řádek pod mzdovým druhem říká, na kterou kartu cesta jde. Práce nemění projekt; zaregistrovat jako novou práci.",
   "timer.mine.hjelp.reiseStartIJobb": "Na staveniště: pokud nastavíte Začátek v rámci času úlohy, Konec následuje s dobou jízdy a začátek úlohy můžete posunout.",
   "timer.mine.hjelp.reiseSluttIJobb": "Ze staveniště: pokud nastavíte Konec v rámci času úlohy, Start následuje s dobou jízdy a můžete přesunout konec úlohy.",
+  "timer.mine.hjelp.reiseDagskort": "Na denní kartě je \"+ Cestování\" vedle \"Přidat řádek hodiny\" v každém dílčím projektu; otevře stejné cestovní okno jako karta pro úlohu.",
   "timer.attestering.tabell.hjelp.reise": "Cesta je zobrazena v části 8 jako jeden řádek. ✎ otevře \"Opravit cestu\" se začátkem, koncem, typem mzdy (pouze typy cest), projektem, staveništěm a dílčím projektem; seznam obsahuje projekty, které můžete schválit, a řádek ve spodní části říká, na jakou kartu cesta jde. Pokud společnost během schvalování neumožňuje opravy, lze opravit pouze dílčí projekt. Štítek „žádné místo setkání“ na čáře cesty znamená, že místo setkání nebylo zaregistrováno a pracovník zadal dobu cesty.",
   "timer.jobbSkjema.underprosjekt": "Dílčí projekt",
   "timer.jobbSkjema.utenUnderprosjekt": "Žádný",

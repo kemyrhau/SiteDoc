@@ -6047,6 +6047,7 @@
   "timer.mine.hjelp.reise": "Në një udhëtim mund ta ndryshoni projektin me ✎: kantieri i ndërtimit sugjerohet përsëri dhe nën-projekti pastrohet. Rreshti nën llojin e pagës tregon se në cilën kartë shkon udhëtimi. Puna nuk ndryshon projektin; regjistrojeni atë si një punë të re.",
   "timer.mine.hjelp.reiseStartIJobb": "Tek kantieri: nëse vendosni Start brenda kohës së punës, Fundi pason me kohën e drejtimit dhe mund të zhvendosni fillimin e punës.",
   "timer.mine.hjelp.reiseSluttIJobb": "Nga kantieri: nëse caktoni Fund brenda kohës së punës, Start vijon me kohën e drejtimit dhe mund të lëvizni fundin e punës.",
+  "timer.mine.hjelp.reiseDagskort": "Me kartën e ditës, \"+ Travel\" qëndron pranë \"Shto rreshtin e orës\" në çdo nënprojekt; hap të njëjtën dritare udhëtimi si karta për punë.",
   "timer.attestering.tabell.hjelp.reise": "Udhëtimi tregohet në pjesën 8 si një rresht. ✎ hap \"Korrigjo udhëtimin\" me fillimin, fundin, llojin e pagës (vetëm llojet e udhëtimit), projektin, kantierin dhe nënprojektin; lista ka projektet që mund të miratoni, dhe rreshti në fund tregon se në cilën kartë shkon udhëtimi. Nëse kompania nuk lejon korrigjime gjatë miratimit, vetëm nën-projekti mund të korrigjohet. Etiketa \"nuk ka pikë takimi\" në linjën e udhëtimit do të thotë se pika e takimit nuk ishte regjistruar dhe punëtori ka futur kohën e udhëtimit.",
   "timer.jobbSkjema.underprosjekt": "Nënprojekt",
   "timer.jobbSkjema.utenUnderprosjekt": "Asnjë",
