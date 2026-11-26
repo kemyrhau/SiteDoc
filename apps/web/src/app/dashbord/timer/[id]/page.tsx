@@ -5758,7 +5758,7 @@ function TimerRadDialog({
                             </div>
                             <Input
                               type="number"
-                              step="0.25"
+                              step="any"
                               min={0}
                               max={24}
                               aria-label={t("timer.felt.antallTimer")}
@@ -5810,7 +5810,7 @@ function TimerRadDialog({
                   </div>
                   <Input
                     type="number"
-                    step="0.25"
+                    step="any"
                     min={0}
                     max={24}
                     aria-label={t("timer.felt.antallTimer")}
@@ -7306,7 +7306,7 @@ function MaskinRadDialog({
           </label>
           <Input
             type="number"
-            step="0.25"
+            step="any"
             min={0}
             max={24}
             value={timer}
