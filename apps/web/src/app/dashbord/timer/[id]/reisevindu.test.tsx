@@ -1417,3 +1417,94 @@ describe("Runde 2 — kursreise «Annet sted»", () => {
     expect(start(d).value).toBe("06:56");
   });
 });
+
+// RETUR 1 runde 2 (Kenneth 2026-11-26 etter test: «til annet oppmøtested -> feil i feilmeldingen» ·
+// «Reise på møte blokeres»).
+describe("RETUR 1 runde 2 — kontorreise og «Annet sted» mot dagens jobb", () => {
+  afterEach(cleanup);
+  const normaldag = () => [arbeid({ fraTid: "07:00", tilTid: "15:00", timer: "7.5", pauseMin: 30 })];
+  const egen = (sted: string, fraDato: string): OppmotePeriodeInput => ({
+    id: "pe", type: "kontor", fast: false, oppmotestedId: sted, projectId: null, fraDato, tilDato: null, kilde: "overforing",
+  });
+  const flyttBoks = (d: HTMLElement) => within(d).queryByTestId("reise-flytt-jobb");
+  async function flytt(d: HTMLElement, navn: string) {
+    fireEvent.click(within(flyttBoks(d)!).getByRole("button", { name: navn }));
+    const sjekk = screen.queryByRole("dialog", { name: "timer.reiseKort.kortSjekk.tittel" });
+    if (sjekk) fireEvent.click(within(sjekk).getByRole("button", { name: "timer.reiseKort.kortSjekk.jaLagre" }));
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
+    return h.kall.find((k) => k.key === "timer.dagsseddel.tilfoyTimerRad")?.input;
+  }
+
+  it("R2-1: «Til annet oppmøtested» uten valgt kontor — grå flytt-knapp sier «Velg kontor»", () => {
+    const d = rendre({ timer: normaldag(), modus: "dagskort" });
+    fireEvent.click(knapp(d, "timer.reiseKort.tilAnnetOppmotested"));
+    fireEvent.change(start(d), { target: { value: "07:00" } });
+    fireEvent.change(slutt(d), { target: { value: "10:00" } });
+    const boks = flyttBoks(d)!;
+    expect((within(boks).getByRole("button") as HTMLButtonElement).disabled).toBe(true);
+    expect(within(d).getByTestId("reise-flytt-sperre").textContent).toBe("timer.reiseKort.sperre.velgKontor");
+  });
+
+  it("R2-1: med kontor valgt står ingen sperretekst under knappen", () => {
+    const d = rendre({ timer: normaldag(), modus: "dagskort" });
+    fireEvent.click(knapp(d, "timer.reiseKort.tilAnnetOppmotested"));
+    fireEvent.change(within(d).getByLabelText("timer.reiseKort.tilKontorFelt"), { target: { value: "narvik" } });
+    fireEvent.change(start(d), { target: { value: "07:00" } });
+    expect((within(flyttBoks(d)!).getByRole("button") as HTMLButtonElement).disabled).toBe(false);
+    expect(within(d).queryByTestId("reise-flytt-sperre")).toBeNull();
+  });
+
+  it("R2-2: hjemreise Narvik (midlertidig) → Tromsø (fast) som overlapper jobbens start — «Flytt jobbens start», kontorbyttet står", async () => {
+    const d = rendre({ timer: normaldag(), modus: "dagskort", perioder: [FAST_TROMSO, egen("narvik", "2026-11-01")] });
+    fireEvent.click(knapp(d, "timer.reiseKort.tilAnnetOppmotested"));
+    fireEvent.change(within(d).getByLabelText("timer.reiseKort.tilKontorFelt"), { target: { value: "tromso" } });
+    fireEvent.change(start(d), { target: { value: "07:00" } });
+    fireEvent.change(slutt(d), { target: { value: "10:50" } });
+    expect(within(d).getByTestId("reise-oppmote-boks").textContent).toContain('timer.reiseKort.avsluttesMidlertidig{"navn":"Kontor Narvik"}');
+    const input = (await flytt(d, 'timer.reiseKort.flyttJobb.start{"tid":"10:50"}'))!;
+    expect(input).toMatchObject({
+      fraTid: "07:00",
+      tilTid: "10:50",
+      kortId: "k1",
+      reiseIKort: true,
+      reiseKilde: "overforing",
+      reiseRetning: "retur",
+      flyttRad: { radId: "r1", nyFra: "10:50" },
+    });
+    expect(h.kall.some((k) => k.key === "oppmotePeriode.overforing")).toBe(true);
+  });
+
+  it("R2-3: «Annet sted» 07:00–10:00 på «Internt arbeid» mot jobben på et annet prosjekt — «Flytt jobbens start», reisen på eget kort", async () => {
+    const d = rendre({ timer: normaldag(), modus: "dagskort", internt: true });
+    fireEvent.click(knapp(d, "timer.reiseKort.annetSted"));
+    fireEvent.change(within(d).getByLabelText("timer.reiseKort.annetStedFelt"), { target: { value: "Gardermoen, Møte" } });
+    fireEvent.change(start(d), { target: { value: "07:00" } });
+    fireEvent.change(slutt(d), { target: { value: "10:00" } });
+    const input = (await flytt(d, 'timer.reiseKort.flyttJobb.start{"tid":"10:00"}'))!;
+    expect(input).toMatchObject({ projectId: "pi", fraTid: "07:00", tilTid: "10:00", flyttKortId: "k1", flyttRad: { radId: "r1", nyFra: "10:00" } });
+    expect(input.kortId ?? null).toBeNull();
+    expect(input.reiseIKort).toBeUndefined();
+    expect((input.reiseRegel as { annetSted?: unknown }).annetSted).toEqual({ sted: "Gardermoen, Møte" });
+  });
+
+  it("R2-3: «Annet sted» som overlapper jobbens slutt — «Flytt jobbens slutt»", async () => {
+    const d = rendre({ timer: normaldag(), modus: "dagskort", internt: true });
+    fireEvent.click(knapp(d, "timer.reiseKort.annetSted"));
+    fireEvent.change(within(d).getByLabelText("timer.reiseKort.annetStedFelt"), { target: { value: "Gardermoen" } });
+    fireEvent.change(start(d), { target: { value: "14:00" } });
+    fireEvent.change(slutt(d), { target: { value: "17:00" } });
+    const input = (await flytt(d, 'timer.reiseKort.flyttJobb.slutt{"tid":"14:00"}'))!;
+    expect(input).toMatchObject({ flyttKortId: "k1", flyttRad: { radId: "r1", nyTil: "14:00" } });
+  });
+
+  it("R2-3: «Annet sted» midt i jobben sperrer som før (ingen knapp)", () => {
+    const d = rendre({ timer: normaldag(), modus: "dagskort", internt: true });
+    fireEvent.click(knapp(d, "timer.reiseKort.annetSted"));
+    fireEvent.change(within(d).getByLabelText("timer.reiseKort.annetStedFelt"), { target: { value: "Gardermoen" } });
+    fireEvent.change(start(d), { target: { value: "10:00" } });
+    fireEvent.change(slutt(d), { target: { value: "11:00" } });
+    expect(flyttBoks(d)).toBeNull();
+    expect(lagreKnapp(d).disabled).toBe(true);
+  });
+});

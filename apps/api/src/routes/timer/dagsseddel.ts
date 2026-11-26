@@ -166,6 +166,7 @@ import {
   jobberSomManglerBeskrivelse,
   leggTilDager,
   lesMidnattDel,
+  annetStedTekst,
 } from "@sitedoc/shared";
 import {
   klassifiserSyncRader,
@@ -3129,10 +3130,17 @@ async function planleggKantFlytt(
     kortId?: string | null;
     reiseIKort?: boolean;
     flyttRad?: { radId: string; nyFra?: string; nyTil?: string };
+    flyttKortId?: string;
   },
   erReise: boolean,
   sporRetning: string | null,
+  /** RETUR 1 R2-2/R2-3: kontorreise og «Annet sted» — kanten reisen overlapper avgjør, ikke retningen. */
+  friKant: boolean,
+  /** RETUR 1 R2-3: «Annet sted» står på eget kort — jobben i kortet `flyttKortId` flyttes. */
+  annetSted: boolean,
 ): Promise<{
+  /** Kortet jobben står i (reisens kort, eller `flyttKortId` for «Annet sted»). */
+  kortId: string;
   radId: string;
   foerFra: string;
   foerTil: string;
@@ -3154,12 +3162,16 @@ async function planleggKantFlytt(
   };
   const f = input.flyttRad;
   if (!f) return avvis("Ingen flytting oppgitt");
-  if (!erReise || !input.reiseIKort || !input.kortId) {
+  if (input.flyttKortId !== undefined && (!erReise || !annetSted)) {
+    return avvis("Jobben i et annet kort flyttes bare for en reise til «Annet sted»");
+  }
+  const jobbKortId = input.flyttKortId ?? (erReise && input.reiseIKort ? input.kortId : null);
+  if (!erReise || !jobbKortId) {
     return avvis("Jobben flyttes bare for en reise ført i jobbens kort");
   }
   // Kanten gir retningen: start = «Til byggeplass» (ut), slutt = «Fra byggeplass» (retur).
   const retning = f.nyFra !== undefined ? "ut" : "retur";
-  if (sporRetning != null && sporRetning !== retning) {
+  if (!friKant && sporRetning != null && sporRetning !== retning) {
     return avvis("Flyttingen gjelder ikke jobbens start eller slutt i dette kortet");
   }
   const rader = await prismaTimer.sheetTimer.findMany({
@@ -3169,7 +3181,7 @@ async function planleggKantFlytt(
   const plan = finnKantFlytt({
     reise: { fraTid: input.fraTid ?? null, tilTid: input.tilTid ?? null },
     retning,
-    kortId: input.kortId,
+    kortId: jobbKortId,
     rader: rader.map((r) => ({
       id: r.id,
       fraTid: r.fraTid,
@@ -3188,6 +3200,7 @@ async function planleggKantFlytt(
   const rad = rader.find((r) => r.id === plan.radId);
   if (!rad || !rad.fraTid || !rad.tilTid) return avvis("Jobben finnes ikke");
   const kant = {
+    kortId: jobbKortId,
     radId: rad.id,
     foerFra: rad.fraTid,
     foerTil: rad.tilTid,
@@ -3198,7 +3211,7 @@ async function planleggKantFlytt(
 
   // TILLEGG: O5-jobb (normal + overtid) fordeles på nytt.
   const aktive = rader.filter((r) => r.attestertStatus !== "erstattet");
-  const linjer = jobbLinjerIKort(aktive, input.kortId).sort(
+  const linjer = jobbLinjerIKort(aktive, jobbKortId).sort(
     (a, b) => hhmmTilMin(a.fraTid ?? "00:00") - hhmmTilMin(b.fraTid ?? "00:00"),
   );
   const [r1, r2] = linjer as [JobbRad & (typeof rader)[number], (JobbRad & (typeof rader)[number]) | undefined];
@@ -5108,6 +5121,8 @@ export const dagsseddelRouter = router({
             message: "Oppgi enten nyFra eller nyTil",
           })
           .optional(),
+        // RETUR 1 R2-3: «Annet sted» står på eget kort; jobben som flyttes står i dette kortet.
+        flyttKortId: z.string().uuid().optional(),
         // R1 (runde 1 timer, 2026-11-26): ny jobb fra jobbskjemaet i ETT kall. Raden lages med
         // hele spennet og fordeles i samme transaksjon som `lagreJobbTid` gjør (normal + overtid,
         // `regnJobbTidPaaSedel` → `skrivJobbLinjer`). Uten flagget: som før (mobil og vinduene).
@@ -5248,7 +5263,16 @@ export const dagsseddelRouter = router({
       // kortet, kantraden i samme kort, ny tid = reisens slutt (Til) eller start (Fra), raden
       // minst 1 minutt og timer over 0. Rettigheten er sedelens (egen, kladd/returnert, over).
       const flytt = input.flyttRad
-        ? await planleggKantFlytt(ctx.prismaTimer, sheet, input, erReise, reiseSpor?.reiseRetning ?? input.reiseRetning ?? null)
+        ? await planleggKantFlytt(
+            ctx.prismaTimer,
+            sheet,
+            input,
+            erReise,
+            reiseSpor?.reiseRetning ?? input.reiseRetning ?? null,
+            (reiseSpor?.reiseKilde ?? input.reiseKilde ?? null) === "overforing" ||
+              annetStedTekst(reiseSpor?.reiseRegel ?? input.reiseRegel ?? null) != null,
+            annetStedTekst(reiseSpor?.reiseRegel ?? input.reiseRegel ?? null) != null,
+          )
         : null;
 
       // Bolk (g): overlapp-vakt — ny rads spenn kan ikke overlappe en annen
@@ -5324,7 +5348,7 @@ export const dagsseddelRouter = router({
             sheetId: input.sheetId,
             sheetStatus: sheet.status,
             userId: ctx.userId,
-            kortId: input.kortId as string,
+            kortId: flytt.kortId,
             ...f,
           });
           flyttRad2Slettet = rad2Id === null;

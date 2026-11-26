@@ -363,9 +363,10 @@ export function ReiseKort({
   );
   // Runde 2 (b) (Kenneth 2026-11-26: reise fra 07:00 samme dag som normaldagen): jobbene vinduet
   // følger (O21/O23) og flytter (O20). Fra kortet: kortets jobb, som før. Fra dagskort (ingen
-  // kort-id): dagens jobber i samme prosjekt, tidligste først. Redigering og «Annet sted»: ingen.
+  // kort-id): dagens jobber i samme prosjekt, tidligste først. Redigering: ingen.
+  // RETUR 1 R2-3: «Annet sted» følger dagens jobb uansett prosjekt (reisen får eget kort).
   const kandidatKort: string[] =
-    redigering || erAnnetSted
+    redigering
       ? []
       : iKort
         ? jobbKortId
@@ -376,7 +377,7 @@ export function ReiseKort({
               [...dagsrader]
                 .filter(
                   (r) =>
-                    r.id && r.kortId && !r.erReise && !r.arbeidReise && r.attestertStatus !== "erstattet" && r.projectId === prosjektId,
+                    r.id && r.kortId && !r.erReise && !r.arbeidReise && r.attestertStatus !== "erstattet" && (erAnnetSted || r.projectId === prosjektId),
                 )
                 .sort((a, b) => (klokkeTilMin(a.fraTid) ?? 1e9) - (klokkeTilMin(b.fraTid) ?? 1e9))
                 .map((r) => r.kortId as string),
@@ -559,16 +560,18 @@ export function ReiseKort({
   // (`finnKantFlytt`). Runde 2 (b): jobben er kortets (prosjektkort) eller dagens jobb i samme
   // prosjekt (dagskort), og «Til annet oppmøtested» får knappen også. Midt i jobben, delt reise
   // og redigering: sperren står som før.
+  // RETUR 1 R2-2/R2-3: kontorreisen og «Annet sted» har ingen fast kant — kanten reisen faktisk
+  // overlapper avgjør (start → «Flytt jobbens start», slutt → «Flytt jobbens slutt»).
+  const friKant = erKontorValg || erAnnetSted;
+  const kantRetninger: ("ut" | "retur")[] = friKant ? ["ut", "retur"] : [tidRetning === "retur" ? "retur" : "ut"];
   const kantFlytt =
     !redigering && !deling && overlapp && !paaKontor && !sluttForStart
       ? forsteKort((k) => {
-          const f = finnKantFlytt({
-            reise: { fraTid: dFra, tilTid: dTil },
-            retning: tidRetning === "retur" ? "retur" : "ut",
-            kortId: k,
-            rader: kantRader,
-          });
-          return f ? { ...f, kortId: k } : null;
+          for (const retning of kantRetninger) {
+            const f = finnKantFlytt({ reise: { fraTid: dFra, tilTid: dTil }, retning, kortId: k, rader: kantRader });
+            if (f) return { ...f, kortId: k };
+          }
+          return null;
         })
       : null;
 
@@ -770,6 +773,18 @@ export function ReiseKort({
   // O20: «Flytt jobbens start/slutt» — samme sperrer som knappen den erstatter, uten kantoverlappen.
   // Under terskel lagres reisen som Reisetid (som «Før som reisetid likevel»); over terskel som «Lagre».
   const kanFlytt = !!kantFlytt && (underTerskel ? kanForeLikevelNy(true) : kanLagreNy(true));
+  // RETUR 1 R2-1: hvorfor «Flytt jobbens start/slutt» er grå (overlappen er ikke årsaken).
+  const flyttGrunn = manglerKontor
+    ? t("timer.reiseKort.sperre.velgKontor")
+    : kontorKonflikt && kontorSperreTekst
+      ? kontorSperreTekst
+      : manglerSted
+        ? t("timer.reiseKort.sperre.manglerSted")
+        : !aktivitetId
+          ? t("timer.feil.aktivitetPaakrevd")
+          : beskrivelseMangler
+            ? t("sperret.beskrivelse")
+            : null;
   // O18 S1: under terskel med den blå boksen lagrer «Lagre oppmøtested» bare stedsbyttet.
   const kanLagreOppmotested = underTerskel && !!kontorKall && !kontorKonflikt && !manglerKontor && !overforingMut.isPending;
 
@@ -911,7 +926,10 @@ export function ReiseKort({
       // O16 R6: kontor → kontor har ingen byggeplass (som mobil).
       byggeplassId: erKontorValg || erAnnetSted ? null : lagretByggeplassId,
       // Runde 2 (b): med flyttingen fra dagskort står reisen i jobbens kort (serveren krever det).
-      ...(medFlytt && kantFlytt
+      // RETUR 1 R2-3: «Annet sted» står på sitt eget kort; jobben i et annet kort flyttes (`flyttKortId`).
+      ...(medFlytt && kantFlytt && erAnnetSted
+        ? { flyttKortId: kantFlytt.kortId }
+        : medFlytt && kantFlytt
         ? { kortId: kantFlytt.kortId, reiseIKort: true }
         : {
             ...(reiseKortId ? { kortId: reiseKortId } : {}),
@@ -1512,7 +1530,7 @@ export function ReiseKort({
                     // etter jobben, uten jobb, kjøretid eller oppmøtested: Start står.
                     // Runde 2 (b): også fra dagskort (dagens jobb i prosjektet).
                     const fulgt =
-                      !redigering && tidRetning === "retur" && regelStatus === "klar"
+                      !redigering && !erAnnetSted && tidRetning === "retur" && regelStatus === "klar"
                         ? forsteKort((k) =>
                             startEtterSluttIJobb({
                               startTid: rettetStart ?? tid.fraTid ?? null,
@@ -1732,6 +1750,12 @@ export function ReiseKort({
                 : t("timer.reiseKort.flyttJobb.blirUtenTimer", { fra: kantFlytt.jobbFra, til: kantFlytt.jobbTil })}
             </p>
           </div>
+        )}
+        {/* RETUR 1 R2-1: flytt-knappen er grå — årsaken står under den. */}
+        {!redigering && !sperre && tidSperre && kantFlytt && !kanFlytt && flyttGrunn && (
+          <p data-testid="reise-flytt-sperre" className="text-xs font-medium text-red-700">
+            {flyttGrunn}
+          </p>
         )}
         {!redigering && !sperre && !tidSperre && (kontorSperreTekst || manglerKontor) && (
           <p data-testid="reise-oppmote-sperre" className="text-xs font-medium text-red-700">
