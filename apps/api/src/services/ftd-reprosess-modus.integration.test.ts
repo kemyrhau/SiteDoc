@@ -117,7 +117,7 @@ afterAll(async () => {
 });
 
 describe("reprosesserDokument — modus uten tving", () => {
-  it("uten tving lar reprosesseringen sidene stå feil (modus embedding)", async () => {
+  it("uten tving lar reprosesseringen sidene stå feil (modus blokker etter DL-2)", async () => {
     const navn = `repmodus-${Date.now()}.pdf`;
     const sti = join(UPLOADS_DIR, navn);
     await writeFile(sti, await lagTreSidersPdf());
@@ -127,7 +127,9 @@ describe("reprosesserDokument — modus uten tving", () => {
     const caller = mappeRouter.createCaller(ctx(ids.userId));
 
     const res = await caller.reprosesserDokument({ documentId: dokId });
-    expect(res.modus).toBe("embedding"); // completed + chunks → ingen re-ekstraksjon
+    // DL-2 (d5ff4bc3): completed + chunks, men PDF uten leser-blokker → re-embedding og
+    // blokker fra lagret fil; chunkene ekstraheres ikke på nytt.
+    expect(res.modus).toBe("blokker");
 
     const etter = await prisma.ftdDocumentChunk.findMany({
       where: { documentId: dokId },
