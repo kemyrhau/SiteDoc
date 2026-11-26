@@ -29,6 +29,7 @@ sist_verifisert_mot_kode: 2026-05-16
 | Gammel STATUS § Sist oppdatert-changelog-oppføring (docs-endring historikk) | `historikk-docs.md` (arkiv) — STATUS beholder kun de 3 nyeste |
 | Kundeønske-status endres | `STATUS-AKTUELT.md` § Kundeønsker |
 | Timer-modul spec endres | `timer.md` |
+| Timeradens livsløp (lagring, visning, sletting, synk, overtid, reise) målt — rotårsaker R1–R7 og hva som er rettet | `maaling-timerad-livslop.md` (statusseksjonen øverst føres når en R rettes) |
 | Kenneth vedtar eller snur noe brukeren ser i timeføringen på web (ført: reisevinduet) | `vedtak-timer-web.md` — bare orkestrator skriver vedtak, med Kenneths ord; koderen endrer bare status. Punktet byttes ut, ikke stables |
 | Timeføring på web — planen endres (§ 3–10) | Fila for seksjonen i `web-timeforing/` — tabellen nederst i `web-timeforing-plan.md` sier hvilken. Indeksen (§ 0–2 og tabellen) i `web-timeforing-plan.md`. Ny seksjon = ny fil + ny rad i tabellen; ingen fil over ~80 000 tegn |
 | Timer/GPS/prosjekt-utredning (dag-flyt, T.8 m.fl.) | `timer-gps-prosjekt-utredning.md` |

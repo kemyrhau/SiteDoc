@@ -790,9 +790,9 @@ describe("O5 B — overtid deles automatisk ved lagring i prosjektkort-modus (§
   const OT = { id: "ot", navn: "Overtid 50 %", type: "ordinaer", aktiv: true, satsEnhet: "time", overtidsnivaa: 50, rekkefolge: 2 };
   const r2 = DAG7_SEDEL.timer[1]!;
   /** Jobb 2 (k2, TILL-001) er 07:00–13:30 med 30 min pause = 6 t; dagsnorm 7,5 t. `ekstra` er flere rader i jobben. */
-  function dag6t(modus = "prosjektkort", ekstra: Record<string, unknown>[] = []) {
+  function dag6t(modus = "prosjektkort", ekstra: Record<string, unknown>[] = [], arter: unknown[] = [TL, OT]) {
     rendre(modus);
-    h.data["timer.lonnsart.list"] = [TL, OT];
+    h.data["timer.lonnsart.list"] = arter;
     h.data["organisasjon.hentEffektivArbeidstid"] = { dagsnorm: 7.5, pauseReferanse: "ankomst", pauseEtterTimer: 4 };
     h.data["timer.dagsseddel.hentMedId"] = {
       ...DAG7_SEDEL,
@@ -859,11 +859,43 @@ describe("O5 B — overtid deles automatisk ved lagring i prosjektkort-modus (§
     });
   });
 
+  // R3 (runde 1 timer, Kenneth 2026-11-26 «overtid regnes ikke ut»): firmaet har overtidsart, men
+  // uten nivå (prod SITEDOC MYRHAUG). Før: ingen opplysning, samme som under normen. Nå sier vinduet fra.
+  const OT_UTEN_NIVAA = { ...OT, overtidsnivaa: null };
+  it("R3: «Legg til» over normen uten overtidsart med nivå: vinduet sier fra, én rad lagres", async () => {
+    dag6t("prosjektkort", [], [TL, OT_UTEN_NIVAA]);
+    const dialog = leggTil1330();
+    expect(within(dialog).queryByTestId("overtid-ved-lagring")).toBeNull();
+    expect(within(dialog).getByTestId("overtid-mangler-art").textContent).toBe(
+      'timer.overtidForslag.manglerArt{"nivaa":50}',
+    );
+    fireEvent.submit(dialog.querySelector("form")!);
+    await vi.waitFor(() => expect(timerKall()).toHaveLength(1));
+    expect(timerKall()[0]!.input).toMatchObject({ fraTid: "13:30", tilTid: "15:30", lonnsartId: "l1" });
+  });
+
+  it("R3: dagskort-modus sier også fra (og har ingen V21-knapp uten art)", () => {
+    dag6t("dagskort", [], [TL, OT_UTEN_NIVAA]);
+    fireEvent.click(screen.getAllByRole("button", { name: /timer\.detalj\.tilfoyTimer/ })[0]!);
+    const dialog = screen.getByRole("dialog");
+    settTid(dialog, "13:30", "15:30");
+    expect(within(dialog).getByTestId("overtid-mangler-art")).toBeTruthy();
+    expect(within(dialog).queryByRole("button", { name: "timer.overtidForslag.delKnapp" })).toBeNull();
+  });
+
+  it("R3 kontroll: med overtidsart med nivå står delingen som før, uten R3-melding", () => {
+    dag6t();
+    const dialog = leggTil1330();
+    expect(within(dialog).getByTestId("overtid-ved-lagring")).toBeTruthy();
+    expect(within(dialog).queryByTestId("overtid-mangler-art")).toBeNull();
+  });
+
   it("«Legg til» innenfor normen (13:30–14:30): én rad, ingen opplysning", async () => {
     dag6t();
     const dialog = leggTil1330();
     settTid(dialog, null, "14:30");
     expect(within(dialog).queryByTestId("overtid-ved-lagring")).toBeNull();
+    expect(within(dialog).queryByTestId("overtid-mangler-art")).toBeNull();
     fireEvent.submit(dialog.querySelector("form")!);
     await vi.waitFor(() => expect(timerKall()).toHaveLength(1));
     expect(timerKall()[0]!.input).toMatchObject({ fraTid: "13:30", tilTid: "14:30", timer: 1, lonnsartId: "l1" });

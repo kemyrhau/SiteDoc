@@ -165,8 +165,9 @@ describe("O2 punkt 1 — timer redigeres i Fra–til-raden", () => {
     expect(tilFelt().value).toBe("13:00");
     fireEvent.blur(timerFelt());
     await vent();
-    expect(h.kall.map((k) => k.sti)).toEqual([TILFOY, LAGRE]);
-    expect(lagreKall()[0]?.input).toMatchObject({ fraTid: "12:00", tilTid: "13:00" });
+    // R1: ny jobb er ett kall.
+    expect(h.kall.map((k) => k.sti)).toEqual([TILFOY]);
+    expect(h.kall[0]?.input).toMatchObject({ fraTid: "12:00", tilTid: "13:00", somJobb: true });
   });
 
   it("tom Fra: ingenting regnes ut", () => {

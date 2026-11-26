@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { foreslaOvertidSplitt, type OvertidForslagRad } from "./overtidForslag";
+import { foreslaOvertidSplitt, vurderOvertidSplitt, type OvertidForslagRad } from "./overtidForslag";
 
 // V21 — overtidsforslag (spec timer-pause-en-kilde-spec.md § 8). Pausevindu i
 // alle casene: 11:00–11:30 (pauseFra="11:00", pauseMin=30 på bæreren).
@@ -255,5 +255,46 @@ describe("foreslaOvertidSplitt", () => {
       timer: 5.5,
       pauseMin: 30,
     });
+  });
+});
+
+// R3 (runde 1 timer, Kenneth 2026-11-26 «overtid regnes ikke ut»): «under normen» og «over normen
+// uten overtidsart med nivå» ga samme tomme svar. `vurderOvertidSplitt` skiller dem.
+describe("vurderOvertidSplitt — R3", () => {
+  const OT_UTEN_NIVAA = { ...OT50, id: "ot-uten", overtidsnivaa: null };
+
+  it("over normen, ingen art med nivå → manglerArt med nivå og radene; ingen forslag", () => {
+    const v = vurderOvertidSplitt(
+      [rad("a", "07:00", "15:00", { pauseMin: 30 }), rad("b", "15:00", "18:00")],
+      7.5,
+      [TIMELONN, OT_UTEN_NIVAA],
+      PAUSE,
+    );
+    expect(v.forslag).toEqual([]);
+    expect(v.manglerArt).toEqual({ nivaa: 50, radIder: ["b"] });
+  });
+
+  it("raden som krysser normen står også i manglerArt", () => {
+    const v = vurderOvertidSplitt([rad("a", "07:00", "16:00", { pauseMin: 30 })], 7.5, [TIMELONN], PAUSE);
+    expect(v.manglerArt).toEqual({ nivaa: 50, radIder: ["a"] });
+  });
+
+  it("under normen → verken forslag eller manglerArt", () => {
+    const v = vurderOvertidSplitt([rad("a", "07:00", "14:00", { pauseMin: 30 })], 7.5, [TIMELONN], PAUSE);
+    expect(v).toEqual({ forslag: [], manglerArt: null });
+  });
+
+  it("med art → samme forslag som foreslaOvertidSplitt, manglerArt null", () => {
+    const rader = [rad("a", "07:00", "16:00", { pauseMin: 30 })];
+    const v = vurderOvertidSplitt(rader, 7.5, LONNSARTER, PAUSE);
+    expect(v.manglerArt).toBeNull();
+    expect(v.forslag).toEqual(foreslaOvertidSplitt(rader, 7.5, LONNSARTER, PAUSE));
+    expect(v.forslag).toHaveLength(1);
+  });
+
+  it("foreslaOvertidSplitt (mobil) er uendret uten art: tom liste", () => {
+    expect(
+      foreslaOvertidSplitt([rad("a", "07:00", "16:00", { pauseMin: 30 })], 7.5, [TIMELONN], PAUSE),
+    ).toEqual([]);
   });
 });

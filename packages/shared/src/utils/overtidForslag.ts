@@ -65,6 +65,19 @@ export type OvertidForslag<L> = {
 };
 
 /**
+ * R3 (runde 1 timer, Kenneth 2026-11-26 «overtid regnes ikke ut»): dagen går over normen,
+ * men firmaet har ingen aktiv ordinær lønnsart med dette `overtidsnivaa`. Før ga det samme
+ * tomme svar som «under normen». `radIder` = radene som ellers ville fått forslag.
+ */
+export type OvertidManglerArt = { nivaa: number; radIder: string[] };
+
+export type OvertidVurdering<L> = {
+  forslag: OvertidForslag<L>[];
+  /** null = ingen overtid på dagen, eller forslag finnes. */
+  manglerArt: OvertidManglerArt | null;
+};
+
+/**
  * Regn ut overtidsforslag for dagens rader. Returnerer ett forslag pr. berørt
  * rad (tom liste når normen ikke passeres, normen mangler eller firmaet ikke
  * har en overtid-lønnsart). `pauseFra` = pausepunktet: fast streng, eller pr. rad
@@ -79,7 +92,23 @@ export function foreslaOvertidSplitt<
   lonnsarter: readonly L[],
   opts: { pauseFra: string | ((rad: OvertidForslagRad) => string) },
 ): OvertidForslag<L>[] {
-  if (norm == null || norm <= 0) return [];
+  return vurderOvertidSplitt(rader, norm, lonnsarter, opts).forslag;
+}
+
+/**
+ * Som `foreslaOvertidSplitt`, men skiller «under normen» fra «over normen uten overtidsart»
+ * (`manglerArt`). Samme regel og samme rader — forslaget er det samme.
+ */
+export function vurderOvertidSplitt<
+  L extends OvertidLonnsartKandidat & { id: string },
+>(
+  rader: readonly OvertidForslagRad[],
+  norm: number | null,
+  lonnsarter: readonly L[],
+  opts: { pauseFra: string | ((rad: OvertidForslagRad) => string) },
+): OvertidVurdering<L> {
+  const ingen: OvertidVurdering<L> = { forslag: [], manglerArt: null };
+  if (norm == null || norm <= 0) return ingen;
   const pauseFraFor = (rad: OvertidForslagRad): string =>
     typeof opts.pauseFra === "string" ? opts.pauseFra : opts.pauseFra(rad);
 
@@ -112,12 +141,17 @@ export function foreslaOvertidSplitt<
     arbeidstimer: normalMin / 60,
     dagsnorm: norm,
   }).find((s) => s.overtidsnivaa != null)?.overtidsnivaa;
-  if (nivaa == null) return [];
+  if (nivaa == null) return ingen;
   const lonnsart = velgOvertidLonnsart([...lonnsarter], nivaa);
-  if (!lonnsart) return [];
 
   const normMin = Math.round(norm * 60);
   const forslag: OvertidForslag<L>[] = [];
+  // R3: uten art regnes delingen likevel, så det er kjent hvilke rader som går over normen.
+  const overRader: string[] = [];
+  const leggTil = (f: Omit<OvertidForslag<L>, "overtidLonnsart">) => {
+    overRader.push(f.radId);
+    if (lonnsart) forslag.push({ ...f, overtidLonnsart: lonnsart });
+  };
   let brukt = 0;
   for (const { rad, fraMin, tilMin, effMin, pauseFra, pauseFraMin } of arbeid) {
     if (rad.overtidsnivaa != null) continue;
@@ -132,10 +166,9 @@ export function foreslaOvertidSplitt<
         pauseFra,
         rad.pauseMin,
       );
-      forslag.push({
+      leggTil({
         radId: rad.id,
         overTimer: timer,
-        overtidLonnsart: lonnsart,
         overtidsnivaa: nivaa,
         normal: null,
         overtid: {
@@ -172,10 +205,9 @@ export function foreslaOvertidSplitt<
       overtidPause,
     );
     if (overtidTimer <= 0) continue;
-    forslag.push({
+    leggTil({
       radId: rad.id,
       overTimer: overtidTimer,
-      overtidLonnsart: lonnsart,
       overtidsnivaa: nivaa,
       normal: {
         fraTid: rad.fraTid,
@@ -191,5 +223,6 @@ export function foreslaOvertidSplitt<
       },
     });
   }
-  return forslag;
+  if (lonnsart || overRader.length === 0) return { forslag, manglerArt: null };
+  return { forslag: [], manglerArt: { nivaa, radIder: overRader } };
 }
