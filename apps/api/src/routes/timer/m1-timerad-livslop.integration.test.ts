@@ -322,3 +322,45 @@ describe("M1 — `synced_at` på en sedel laget på web", () => {
     expect(etter.syncedAt).toBeNull();
   });
 });
+
+// ---------------------------------------------------------------------------------------------
+// TILLEGG 1 scenario 1 — avbryte et kort som er startet («+ Registrer timer»)
+// `RegistrerTimerKnapp` kaller `opprett` med prosjektet (RegistrerTimerKnapp.tsx:147–158);
+// serveren lager dagen OG første rad etter normen før brukeren har skrevet noe
+// (`opprettForsteTimerRadForslag`, dagsseddel.ts:3290–3360). Uendret siden 36c64c82.
+// ---------------------------------------------------------------------------------------------
+describe("M1 T1 vei «+ Registrer timer» (opprett med prosjekt) — hva står igjen hvis brukeren går ut", () => {
+  it("ett trykk lager sedel + lagret timerad 07:00–15:00 (7,5 t) før noe er skrevet (grønn, målt)", async () => {
+    const cu = randomUUID();
+    const sedel = await dag().opprett({ clientUuid: cu, aktivitetId: AKT, projectId: P1, dato: nyDato(), pauseMin: 0 });
+    const r = await rader(sedel.id);
+    expect(r.map((x) => [x.fraTid, x.tilTid, Number(x.timer), x.pauseMin, x.lonnsartId, x.projectId])).toEqual([
+      ["07:00", "15:00", 7.5, 30, TL, P1],
+    ]);
+  });
+
+  it("RØD i dag (Kenneth: «jeg kan ikke avbryte noe jeg ser starter feil»): å gå ut uten å skrive noe etterlater en lagret 7,5 t-rad — ingen avbryt-vei uten sletting", async () => {
+    const sedel = await dag().opprett({ clientUuid: randomUUID(), aktivitetId: AKT, projectId: P1, dato: nyDato(), pauseMin: 0 });
+    // Brukeren lukker / navigerer bort. Ingen mutasjon kalles. Det som står igjen på serveren:
+    expect(await rader(sedel.id)).toHaveLength(0);
+  });
+
+  it("«Slett dagsseddel» og så «+ Registrer timer» samme dag: 07:00–15:00 er tilbake (grønn, målt — oppleves som «slettet kommer tilbake»)", async () => {
+    const dato = nyDato();
+    const s1 = await dag().opprett({ clientUuid: randomUUID(), aktivitetId: AKT, projectId: P1, dato, pauseMin: 0 });
+    await dag().slett({ id: s1.id });
+    const s2 = await dag().opprett({ clientUuid: randomUUID(), aktivitetId: AKT, projectId: P1, dato, pauseMin: 0 });
+    expect(s2.eksisterte).toBe(false);
+    expect((await rader(s2.id)).map((x) => [x.fraTid, x.tilTid])).toEqual([["07:00", "15:00"]]);
+  });
+
+  it("«Slett jobben» og så «+ Registrer timer» samme dag: sedelen finnes (tom), ingen ny auto-rad (grønn, målt)", async () => {
+    const dato = nyDato();
+    const s1 = await dag().opprett({ clientUuid: randomUUID(), aktivitetId: AKT, projectId: P1, dato, pauseMin: 0 });
+    const [rad] = await rader(s1.id);
+    await dag().slettKort({ id: s1.id, kortId: rad!.kortId! });
+    const s2 = await dag().opprett({ clientUuid: randomUUID(), aktivitetId: AKT, projectId: P1, dato, pauseMin: 0 });
+    expect(s2.eksisterte).toBe(true);
+    expect(await rader(s2.id)).toHaveLength(0);
+  });
+});
