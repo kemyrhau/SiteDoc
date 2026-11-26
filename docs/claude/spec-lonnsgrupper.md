@@ -1,13 +1,14 @@
 ---
 name: spec-lonnsgrupper
-description: 🟡 SPEC, ikke bygget — lønnsgrupper i Timer. Firmaet lager egne grupper, hvert firma har standardgruppa «Ordinær», den ansatte står alltid i én, og lønnsart/tillegg/utleggskategori kan merkes «Gjelder lønnsgrupper». Styrer valg og forslag, også overtid.
+description: 🟡 SPEC vedtatt 2026-11-26, ikke bygget — lønnsgrupper i Timer. Firmaet lager egne grupper, hvert firma har standardgruppa «Ordinær», den ansatte står alltid i én, og lønnsart/tillegg/utleggskategori kan merkes «Gjelder lønnsgrupper». Styrer valg og forslag, også overtid.
 sist_verifisert_mot_kode: 2026-11-26
 ---
 
 # Spec: lønnsgrupper (Timer)
 
-🟡 **Spec — ingenting er bygget.** Skrevet av Fabel 2026-11-26. Målt mot `origin/develop` @ `2fc26af9`.
-Alt under «I dag» har `fil:linje`. Alt under «Foreslått» er forslag til Kenneth svarer nederst.
+🟡 **Vedtatt 2026-11-26, ikke bygget.** Skrevet av Fabel 2026-11-26. Målt mot `origin/develop` @ `2fc26af9`.
+Alt under «I dag» har `fil:linje`. Beslutningspunktene i § 6 er Kenneths vedtak. Datamodellen og ordrene i § 2–§ 7
+er Fabels utforming av dem.
 
 > **FASIT (Kenneth 2026-11-26):**
 > - «har du sett at noe er merket lærling? vi må faktisk skille ut lønnsarter som lærlinger er tilknyttet»
@@ -102,7 +103,7 @@ En ansatt er en rad i `OrganizationMember`. Firmatilhørighet leses bare derfra
 - **Raden ligger i `packages/db`, gruppa i `packages/db-timer`.** De har hver sin Prisma-klient
   (`packages/db-timer/prisma/schema.prisma:2-3`), så de to skrivingene kan ikke stå i samme transaksjon.
 
-## 2 · Foreslått datamodell
+## 2 · Datamodell
 
 Alt nytt ligger i `packages/db-timer` (postgres-skjema `timer`). Regelen er at firmamodulers tabeller aldri skal
 inn i `packages/db` (`arkitektur.md:426-428`). Den ansatte pekes på med svak nøkkel `userId`, som `DailySheet.userId`
@@ -159,7 +160,7 @@ Da virker det uten nett på mobil, og gamle rader får navnet sitt selv om arten
 |---|---|
 | Lønnsart-, tillegg- og utleggsvelgere (web 18 kall i 8 filer, mobil fra lokal katalog) | viser bare det som gjelder seddelens eier |
 | Mobil uten nett | lokal katalog får gruppene og egen gruppe i samme henting (`timerKatalog.ts:75-81`) |
-| Lagring på server | se beslutning B5 |
+| Lagring på server | raden lagres alltid. Har den en art som ikke gjelder seddelens eier, merkes den «utenfor lønnsgruppe» i attesteringen. Serveren avviser ikke (B5) |
 
 ### Automatiske forslag
 
@@ -225,7 +226,7 @@ Lista har alltid «Ordinær» øverst, merket «Standard». Den har «Gi nytt na
 | Vei | Skjerm | Felt |
 |---|---|---|
 | V1 | «Legg til ansatt» på `firma/ansatte` | Nedtrekket «Lønnsgruppe» med firmaets aktive grupper, forhåndsvalgt «Ordinær». Ingen ekstra klikk når standarden passer |
-| V2 | Kontakt i prosjektoppsettet | Se beslutning B10. Forslag: ikke noe felt; serveren setter «Ordinær» |
+| V2 | Kontakt i prosjektoppsettet | Ikke noe felt. Serveren setter «Ordinær» (B10) |
 | V3 | Firmabytte | Ikke noe felt. Gruppene er firmaets egne, så den gamle gruppa kan ikke følge med. Serveren setter til-firmaets «Ordinær» |
 
 I tillegg, uten ny side:
@@ -247,34 +248,37 @@ ansatte» med lenke, og L6 kjøres samme dag som firmaadmin flytter lærlingene.
 **Andre firma** har «Ordinær» og lager resten selv («Hvert firma lager egne grupper»). Standardpakken oppretter
 ingen flere grupper.
 
-## 6 · Beslutningspunkter
+## 6 · Vedtak
 
-| Nr. | Spørsmål | Skjerm i dag | Ved ja | Ved nei |
-|---|---|---|---|---|
-| **B1** | Én lønnsgruppe pr. ansatt? | Ansatt har ingen gruppe | Ett nedtrekk på den ansatte. En art som gjelder flere, merkes med flere grupper | Flervalg på den ansatte. Overtid må da ha en regel for hvilken gruppe som vinner |
-| **B2** | *Utgår — avgjort av TILLEGG 1.* Ingen ansatt er uten gruppe; alle står i «Ordinær» til de flyttes | — | — | — |
-| **B3** | Egen gruppe foran «alle» ved overtid? | Første art etter rekkefølge | Lærling får 172, andre får 170, uten at 170 må merkes | Firmaadmin må merke 170 med «Ordinær» og hver ny gruppe som skal ha den |
-| **B4** | Lederen får den ansattes utvalg i attesteringen? | Lederen ser alle arter | Lederen kan ikke føre en fagarbeider på lærlingart ved et uhell. Er gruppa feil, rettes den på den ansatte | Lederen ser alt og kan velge fritt |
-| **B5** | Serveren avviser en rad med art utenfor gruppa? | Serveren sjekker bare firma | Feilføring er umulig. En telefon som ikke er oppdatert, eller har ført uten nett før gruppa ble satt, får raden avvist ved synk | Raden lagres og får merket «utenfor lønnsgruppe» i attesteringen. Attestanten retter |
-| **B6** | Gruppebytte gjelder fra nå, uten fra-dato? | — | Ett felt. Retter man en gammel dag etter at lærlingen er blitt fagarbeider, tilbys fagarbeiderens arter. Lagrede rader står | Perioder med fra-dato, som oppmøtested (`OppmotePeriode`). Flere felt, og velgeren må slå opp gruppa pr. dato |
-| **B7** | Standard lønnsart pr. gruppe? | Én pr. firma | Prosjektleder kan få 109 «Timer prosjektleder» forhåndsvalgt, lærling sin egen | Alle får firmaets standard. Gjelder den ikke gruppa, er feltet tomt |
-| **B8** | A.Markussen: bare «Lærling» i katalogen nå, i tillegg til «Ordinær»? | Ingen grupper | To grupper, tre arter merket «Lærling». Fastlønn/timelønn, prosjektleder og innleid lager firmaet selv | Katalogen får også disse gruppene, og ti fraværsarter merkes |
-| **B9** | Standardgruppa «Ordinær» finnes alltid, kan gis nytt navn, kan ikke slettes eller slås av? (TILLEGG 1 punkt 1) | `firma/timer` har ingen side for grupper | Siden `firma/timer/lonnsgrupper` viser «Ordinær — Standard» fra første dag, i alle firma. Raden har «Gi nytt navn», ikke «Slå av» | Firmaet lager første gruppe selv. Fram til da har ingen ansatt gruppe — i strid med TILLEGG 1 |
-| **B10** | Lønnsgruppe-feltet bare i «Legg til ansatt» (V1); V2 og V3 setter «Ordinær» uten å spørre? (punkt 2) | Ingen av vinduene har feltet | «Legg til ansatt» får ett nedtrekk, forhåndsvalgt «Ordinær». Kontaktvinduene i prosjektoppsettet og firmabyttet er som i dag. En lærling lagt til fra prosjektet står som «Ordinær» til firmaadmin flytter hen | Kontaktvinduene i prosjektoppsettet får også nedtrekket. Det vises da for en firmaansvarlig som ikke er firmaadmin, i et vindu som handler om prosjektet |
-| **B11** | Alle eksisterende ansatte settes til «Ordinær» i migreringen? (punkt 3) | Ingen har gruppe | Alle ansatte, også deaktiverte, står som «Ordinær» etter migreringen. Ingen velger endrer seg. Lærlingene flyttes for hånd etterpå | Ingen etterfylling: ansatte er uten gruppe til firmaadmin har gått gjennom lista — i strid med TILLEGG 1 |
+**Kenneth 2026-11-26**, ordrett svar på orkestrators spørsmål: «1 ja, 2 ja, 3 merk, 4 ja, 5 ja». Svar 2 gjaldt B10,
+svar 3 B5, svar 4 B8 og svar 5 resten.
 
-**Anbefalt:** ja på alle (B2 utgår), unntatt **B5: nei** (merk, ikke avvis — telefonen må virke uten nett, og attestanten ser raden uansett).
+| Nr. | Vedtak | Skjermen når det er bygget |
+|---|---|---|
+| **B1** | Én lønnsgruppe pr. ansatt | Ett nedtrekk på den ansatte. En art som gjelder flere grupper, merkes med flere |
+| **B2** | Utgikk med TILLEGG 1 | Ingen ansatt er uten gruppe |
+| **B3** | Egen gruppe går foran «alle» ved overtid | Lærling får 172, andre får 170, uten at 170 må merkes |
+| **B4** | Lederen får den ansattes utvalg i attesteringen | Lederen kan ikke føre en fagarbeider på lærlingart ved et uhell. Er gruppa feil, rettes den på den ansatte |
+| **B5** | Merk, ikke avvis | Raden lagres, også fra en telefon med gammel katalog eller ført uten nett. Attesteringen viser «utenfor lønnsgruppe» på raden. Attestanten retter |
+| **B6** | Gruppebytte gjelder fra nå, uten fra-dato | Ett felt. Retter man en gammel dag etter at lærlingen er blitt fagarbeider, tilbys fagarbeiderens arter. Lagrede rader står |
+| **B7** | Standard lønnsart pr. gruppe | Prosjektleder kan få 109 «Timer prosjektleder» forhåndsvalgt, lærling sin egen |
+| **B8** | A.Markussen-katalogen får bare «Lærling» nå, i tillegg til «Ordinær» | To grupper, tre arter merket «Lærling». Fastlønn/timelønn, prosjektleder og innleid lager firmaet selv |
+| **B9** | «Ordinær» finnes alltid, kan gis nytt navn, kan ikke slettes eller slås av | Siden `firma/timer/lonnsgrupper` viser «Ordinær — Standard» fra første dag, i alle firma. Raden har «Gi nytt navn», ikke «Slå av» |
+| **B10** | Lønnsgruppe-feltet bare i «Legg til ansatt» (V1). V2 og V3 setter «Ordinær» uten å spørre | «Legg til ansatt» har ett nedtrekk, forhåndsvalgt «Ordinær». Kontaktvinduene i prosjektoppsettet og firmabyttet er som i dag. En lærling lagt til fra prosjektet står som «Ordinær» til firmaadmin flytter hen |
+| **B11** | Alle eksisterende ansatte settes til «Ordinær» i migreringen | Alle ansatte, også deaktiverte, står som «Ordinær» etter migreringen. Ingen velger endrer seg. Lærlingene flyttes for hånd etterpå |
 
 ## 7 · Leveranserekkefølge
 
+🟡 **Vedtatt 2026-11-26, ikke bygget.** L1 er bestilt hos w5 samme dag (ordre «L1 LØNNSGRUPPER SERVER»).
+
 | Ordre | Innhold | Migrering | Avhenger av |
 |---|---|---|---|
-| **L1 — server** | Tabellene i § 2. Ruter `timer.lonnsgruppe` (list, opprett, gi nytt navn, slå av, sett ansatt, sett «Gjelder»). `sikreAnsattLonnsgruppe` kalt fra V1–V3 og fra testdata-skriptene; `inviterBruker` tar valgfri `lonnsgruppeId`. Katalogsvarene får gruppene. Seddelsvarene får eierens gruppe. `utils/lonnsgruppe.ts` med tester. Ingen velger endrer seg så lenge ingen art er merket | **ja** — se «Migreringen» under | — |
-| **L2 — delt regel og server-overtid** | `velgOvertidLonnsart` med gruppe, `foreslaOvertidSplitt` med årsak, `regnJobbTid` på server, standard lønnsart pr. gruppe. `timer.md:372` rettes | nei | L1 |
-| **L3 — web firmaadmin** | Siden `firma/timer/lonnsgrupper`, nedtrekket i «Legg til ansatt» og i rediger-vinduet, feltene i lønnsart-, tillegg- og utleggsvinduene, varsellinjene, hjelpetekst | nei | L1, L2 |
-| **L4 — web timeføring og attestering** | Filtrering i de 18 kallene (8 filer), meldingen til arbeider, merket fra B5 | nei | L2 |
-| **L5 — mobil** | Lokal katalog får gruppene, filtrering, forslagene (`dagsforslag.ts:855`, `:1903`, `linjeLonnsart.ts:155`, `nyTimerRad.ts:78`), varselet for både automatisk og manuell føring | nei på server. Lokal SQLite får nye kolonner | L2 |
-| **L6 — katalog** | A.Markussen-fila og importen. Kjøres i prod av Kenneth | nei (data, ikke skjema) | L1, L3 |
+| 🟡 **L1 — server** | Tabellene i § 2. Ruter `timer.lonnsgruppe` (list, opprett, gi nytt navn, slå av, sett ansatt, sett «Gjelder»). `sikreAnsattLonnsgruppe` kalt fra V1–V3 og fra testdata-skriptene; `inviterBruker` tar valgfri `lonnsgruppeId`. Katalogsvarene får gruppene. Seddelsvarene får eierens gruppe. `utils/lonnsgruppe.ts` med tester. Ingen velger endrer seg så lenge ingen art er merket | **ja** — se «Migreringen» under | — |
+| 🟡 **L2 — delt regel og server-overtid** | `velgOvertidLonnsart` med gruppe, `foreslaOvertidSplitt` med årsak, `regnJobbTid` på server, standard lønnsart pr. gruppe. `timer.md:372` rettes | nei | L1 |
+| 🟡 **L3 — web firmaadmin** | Siden `firma/timer/lonnsgrupper`, nedtrekket i «Legg til ansatt» og i rediger-vinduet, feltene i lønnsart-, tillegg- og utleggsvinduene, varsellinjene, hjelpetekst | nei | L1, L2 |
+| 🟡 **L4 — web timeføring og attestering** | Filtrering i de 18 kallene (8 filer), meldingen til arbeider, merket «utenfor lønnsgruppe» (B5) | nei | L2 |
+| 🟡 **L5 — mobil** | Lokal katalog får gruppene, filtrering, forslagene (`dagsforslag.ts:855`, `:1903`, `linjeLonnsart.ts:155`, `nyTimerRad.ts:78`), varselet for både automatisk og manuell føring | nei på server. Lokal SQLite får nye kolonner | L2 |
+| 🟡 **L6 — katalog** | A.Markussen-fila og importen. Kjøres i prod av Kenneth | nei (data, ikke skjema) | L1, L3 |
 
 L3 kan gå parallelt med L4 og L5. L6 sist, slik at siden finnes når lærlingene skal krysses av.
 
@@ -312,11 +316,3 @@ vernet i § 2.
 | Overtidsforslaget er stille | Riktig for web og server. Mobilen varsler, men bare på automatisk laget seddel og bare firma-bredt (`[id].tsx:573-577`) |
 | Gruppa styrer forslag for natt/smuss | Slike forslag finnes ikke i koden |
 | Prod: 170/175 har nivå, 172/177 ikke | Ikke målt av Fabel (ingen tilgang til prod) |
-
-## SPØRSMÅL
-
-Se tabellen i § 6 for skjerm i dag, ved ja og ved nei. B2 er avgjort av TILLEGG 1. De tre som avgjør mest:
-
-1. **B10 — skal lønnsgruppe-feltet bare stå i «Legg til ansatt», mens kontakt fra prosjektoppsettet og firmabytte får «Ordinær» uten å spørre?** *I dag:* ingen av vinduene har feltet. *Ved ja:* ett nedtrekk i «Legg til ansatt», forhåndsvalgt «Ordinær»; de andre vinduene er som i dag, og en lærling lagt til fra prosjektet står som «Ordinær» til firmaadmin flytter hen. *Forsvinner:* ingenting. *Ved nei:* nedtrekket vises også i kontaktvinduene i prosjektoppsettet, for firmaansvarlige som ikke er firmaadmin. *Anbefaling:* ja.
-2. **B5 — skal serveren avvise en rad utenfor gruppa?** *I dag:* serveren sjekker bare firma. *Ved ja:* feilføring er umulig, men en telefon uten oppdatering får rader avvist ved synk. *Forsvinner:* føring uten nett på gammel katalog. *Ved nei:* raden lagres og merkes «utenfor lønnsgruppe» for attestanten. *Anbefaling:* nei.
-3. **B8 — hvilke grupper skal A.Markussen få i katalogen, i tillegg til «Ordinær»?** *I dag:* ingen. *Ved ja (bare Lærling):* to grupper, tre arter merket. *Forsvinner:* ingenting. *Ved nei:* også Fastlønn, Timelønn, Prosjektleder og Innleid, med ti fraværsarter merket — det må du i så fall bekrefte art for art. *Anbefaling:* bare Lærling nå.
