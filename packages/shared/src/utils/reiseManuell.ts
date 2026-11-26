@@ -934,6 +934,69 @@ export function kontorReiseRute(reiseRegel: unknown): { fraKontorId: string; til
   return { fraKontorId, tilKontorId };
 }
 
+/**
+ * Runde 2 timer («Annet sted», Kenneth 2026-11-26): stedet arbeideren skrev for en reise til et
+ * annet sted enn byggeplass eller oppmøtested (`reiseRegel.annetSted.sted`). Leser JSON defensivt.
+ * null = ikke en «Annet sted»-reise, eller tomt sted.
+ */
+export function annetStedTekst(reiseRegel: unknown): string | null {
+  if (reiseRegel == null || typeof reiseRegel !== "object") return null;
+  const a = (reiseRegel as Record<string, unknown>).annetSted;
+  if (a == null || typeof a !== "object") return null;
+  const sted = (a as Record<string, unknown>).sted;
+  return typeof sted === "string" && sted.trim() !== "" ? sted.trim() : null;
+}
+
+/**
+ * Runde 2 timer («Annet sted», Kenneth 2026-11-26: «hva om jeg sendes til bergen på kurs»): reisen
+ * går fra et oppmøtested til et sted arbeideren skriver selv. Ingen byggeplass og ingen
+ * kjøretidstabell — arbeideren fører Start og Slutt selv, samme vei som O12 pkt 14 / O22
+ * (`løsReiseKortUtenKjoretid`). Ingen forslag fra dagens arbeid: tidene står tomme til de er
+ * skrevet. Terskelen måles på tiden arbeideren skrev. Retningen er alltid «ut» (fra
+ * oppmøtestedet). Sporet bærer stedet i `reiseRegel.annetSted`.
+ */
+export interface AnnetStedKortInput {
+  /** Oppmøtestedet reisen starter fra. null = ikke valgt (O22). */
+  fraOppmotestedId: string | null;
+  sted: string;
+  regel: ReiseRegelsett | null;
+  grensepunkter: ReiseGrensepunkt[];
+  resolverLonnsartId: string | null;
+  standardLonnsartId: string | null;
+  startTid?: string | null;
+  sluttTid?: string | null;
+  kategoriValg?: ReiseKategori | null;
+  /** O19 (web): Slutt før Start = reisen slutter dagen etter. */
+  tillatDeling?: { omvendt: MidnattVei };
+}
+
+export function løsAnnetStedKort(k: AnnetStedKortInput): ReiseKortResultat {
+  const r = løsReiseKort({
+    retning: "tur",
+    oppmote: k.fraOppmotestedId ? { kilde: "fast", oppmotestedId: k.fraOppmotestedId } : { kilde: "ikkeValgt" },
+    dagStart: null,
+    dagSlutt: null,
+    byggeplassId: null,
+    kjoretidFor: () => null,
+    avstandFor: () => null,
+    regel: k.regel,
+    grensepunkter: k.grensepunkter,
+    resolverLonnsartId: k.resolverLonnsartId,
+    standardLonnsartId: k.standardLonnsartId,
+    startTid: k.startTid,
+    sluttTid: k.sluttTid,
+    kategoriValg: k.kategoriValg,
+    tillatUtenKjoretid: true,
+    tillatDeling: k.tillatDeling,
+  });
+  if (!r.spor) return r;
+  const sted = k.sted.trim();
+  return {
+    ...r,
+    spor: { ...r.spor, reiseRegel: { ...r.spor.reiseRegel, ...(sted ? { annetSted: { sted } } : {}) } },
+  };
+}
+
 /** i18next-kompatibel oversetter (samme form som `grenseSjekk`). */
 type Oversett = (key: string, opts?: Record<string, unknown>) => string;
 

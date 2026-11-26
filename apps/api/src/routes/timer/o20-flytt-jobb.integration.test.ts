@@ -24,6 +24,8 @@ const ORD = id("41");
 const REISE = id("42");
 const AKT = id("43");
 const OT = id("44");
+const PI = id("12"); // RETUR 1 runde 2: «Internt arbeid»
+const KONTOR2 = id("32"); // RETUR 1 runde 2: Kontor Tromsø (fast)
 
 function ctx(userId: string) {
   return {
@@ -61,11 +63,11 @@ async function ryddOpp() {
   await prismaTimer.lonnsart.deleteMany({ where: { id: { in: [ORD, REISE, OT] } } });
   await prismaTimer.aktivitet.deleteMany({ where: { id: AKT } });
   await prisma.activity.deleteMany({ where: { actorUserId: { in: [USER, ANNEN] } } });
-  await prisma.oppmotested.deleteMany({ where: { id: KONTOR } });
+  await prisma.oppmotested.deleteMany({ where: { id: { in: [KONTOR, KONTOR2] } } });
   await prisma.byggeplass.deleteMany({ where: { id: B1 } });
-  await prisma.projectModule.deleteMany({ where: { projectId: P1 } });
-  await prisma.projectMember.deleteMany({ where: { projectId: P1 } });
-  await prisma.project.deleteMany({ where: { id: P1 } });
+  await prisma.projectModule.deleteMany({ where: { projectId: { in: [P1, PI] } } });
+  await prisma.projectMember.deleteMany({ where: { projectId: { in: [P1, PI] } } });
+  await prisma.project.deleteMany({ where: { id: { in: [P1, PI] } } });
   await prisma.organizationSetting.deleteMany({ where: { organizationId: { in: [ORG, ORG2] } } });
   await prisma.organizationModule.deleteMany({ where: { organizationId: { in: [ORG, ORG2] } } });
   await prisma.organizationMember.deleteMany({ where: { organizationId: { in: [ORG, ORG2] } } });
@@ -90,6 +92,10 @@ async function seed() {
   await prisma.projectModule.create({ data: { projectId: P1, moduleSlug: "timer", organizationId: ORG, status: "aktiv" } });
   await prisma.byggeplass.create({ data: { id: B1, projectId: P1, name: "O20 B1" } });
   await prisma.oppmotested.create({ data: { id: KONTOR, organizationId: ORG, navn: "Kontor Narvik", lat: 68.43, lng: 17.43 } });
+  await prisma.oppmotested.create({ data: { id: KONTOR2, organizationId: ORG, navn: "Kontor Tromsø", lat: 69.65, lng: 18.96 } });
+  await prisma.project.create({ data: { id: PI, projectNumber: "O20-INT", name: "Internt arbeid", type: "internt", primaryOrganizationId: ORG } });
+  await prisma.projectMember.create({ data: { userId: USER, projectId: PI, role: "member" } });
+  await prisma.projectModule.create({ data: { projectId: PI, moduleSlug: "timer", organizationId: ORG, status: "aktiv" } });
   await prismaTimer.lonnsart.create({
     data: { id: ORD, organizationId: ORG, type: "ordinaer", navn: "Timelønn", erStandardvalg: true, aktiv: true },
   });
@@ -359,5 +365,99 @@ describe("O20 — tilfoyTimerRad med flyttRad", () => {
       await dag().tilfoyTimerRad(reise(sid, jobb.kortId, { flyttRad: { radId: jobb.id, nyFra: "07:50" } }));
       expect(await arbeid(sid)).toEqual([{ fraTid: "07:50", tilTid: "17:30", timer: 9.17, pauseMin: 30, lonnsartId: ORD }]);
     });
+  });
+});
+
+// RETUR 1 runde 2 (Kenneth 2026-11-26: «til annet oppmøtested -> feil i feilmeldingen» · «Reise på
+// møte blokeres»): kontorreisen og «Annet sted» flytter kanten reisen faktisk overlapper; «Annet
+// sted» står på sitt eget kort og flytter jobben i et annet kort (`flyttKortId`).
+describe("VAKTTEST 2026-11-26 (Kenneth: «alt fungerer såvidt jeg kan se», runde 2) — RETUR 1 runde 2 — kontorreise og «Annet sted» flytter jobbens kant", () => {
+  beforeAll(async () => {
+    await ryddOpp();
+    await seed();
+  });
+  afterAll(async () => {
+    await ryddOpp();
+  });
+  beforeEach(async () => {
+    await ryddSedler();
+  });
+
+  const kontorRetur = (sid: string, kortId: string, over: Record<string, unknown> = {}) =>
+    reise(sid, kortId, {
+      byggeplassId: null,
+      fraTid: "07:00",
+      tilTid: "10:50",
+      timer: 230 / 60,
+      reiseKilde: "overforing",
+      reiseRetning: "retur",
+      reiseOppmotestedId: KONTOR,
+      reiseKjoretidMin: 230,
+      reiseAvstandM: 250000,
+      reiseRegel: { ...regel, overforing: { fra: { type: "kontor", oppmotestedId: KONTOR }, til: { type: "kontor", oppmotestedId: KONTOR2 }, periodeId: null } },
+      ...over,
+    });
+
+  it("R2-2: hjemreise kontor → kontor (retur) over jobbens start — «Flytt jobbens start» godtas", async () => {
+    const sid = await lagSedel("2026-11-24");
+    const jobb = await lagJobb(sid);
+    await dag().tilfoyTimerRad(kontorRetur(sid, jobb.kortId, { flyttRad: { radId: jobb.id, nyFra: "10:50" } }));
+    const j = await prismaTimer.sheetTimer.findUniqueOrThrow({ where: { id: jobb.id } });
+    expect(j).toMatchObject({ fraTid: "10:50", tilTid: "17:30" });
+    expect(await rader(sid)).toHaveLength(2);
+  });
+
+  it("R2-2 vakt: «Fra byggeplass» (manuell retur) kan fortsatt ikke flytte jobbens start", async () => {
+    const sid = await lagSedel("2026-11-24");
+    const jobb = await lagJobb(sid);
+    await expect(
+      dag().tilfoyTimerRad(reise(sid, jobb.kortId, { reiseRetning: "retur", flyttRad: { radId: jobb.id, nyFra: "07:50" } })),
+    ).rejects.toThrow(/jobbens start eller slutt/);
+    expect(await rader(sid)).toHaveLength(1);
+  });
+
+  const annetSted = (sid: string, over: Record<string, unknown> = {}) =>
+    reise(sid, "", {
+      projectId: PI,
+      byggeplassId: null,
+      kortId: undefined,
+      reiseIKort: undefined,
+      fraTid: "07:00",
+      tilTid: "10:00",
+      timer: 3,
+      reiseKjoretidMin: null,
+      reiseAvstandM: null,
+      reiseRegel: { ...regel, annetSted: { sted: "Gardermoen, Møte" } },
+      ...over,
+    });
+
+  it("R2-3: «Annet sted» på «Internt arbeid» over jobbens start i et annet prosjekt — jobben flyttes, reisen står på eget kort", async () => {
+    const sid = await lagSedel("2026-11-24");
+    const jobb = await lagJobb(sid);
+    const ny = await dag().tilfoyTimerRad(annetSted(sid, { flyttKortId: jobb.kortId, flyttRad: { radId: jobb.id, nyFra: "10:00" } }));
+    const j = await prismaTimer.sheetTimer.findUniqueOrThrow({ where: { id: jobb.id } });
+    expect(j).toMatchObject({ fraTid: "10:00", tilTid: "17:30", projectId: P1, kortId: jobb.kortId });
+    const r = await prismaTimer.sheetTimer.findUniqueOrThrow({ where: { id: ny.id } });
+    expect(r).toMatchObject({ projectId: PI, erReise: true, fraTid: "07:00", tilTid: "10:00" });
+    expect(r.kortId).not.toBeNull();
+    expect(r.kortId).not.toBe(jobb.kortId);
+  });
+
+  it("R2-3: «Annet sted» over jobbens slutt — «Flytt jobbens slutt» godtas", async () => {
+    const sid = await lagSedel("2026-11-24");
+    const jobb = await lagJobb(sid);
+    await dag().tilfoyTimerRad(annetSted(sid, { fraTid: "17:00", tilTid: "19:00", timer: 2, flyttKortId: jobb.kortId, flyttRad: { radId: jobb.id, nyTil: "17:00" } }));
+    const j = await prismaTimer.sheetTimer.findUniqueOrThrow({ where: { id: jobb.id } });
+    expect(j).toMatchObject({ fraTid: "07:00", tilTid: "17:00" });
+  });
+
+  it("R2-3 vakt: `flyttKortId` på en vanlig reise avvises, ingenting flyttet", async () => {
+    const sid = await lagSedel("2026-11-24");
+    const jobb = await lagJobb(sid);
+    await expect(
+      dag().tilfoyTimerRad(reise(sid, jobb.kortId, { reiseIKort: undefined, kortId: undefined, flyttKortId: jobb.kortId, flyttRad: { radId: jobb.id, nyFra: "07:50" } })),
+    ).rejects.toThrow(/«Annet sted»/);
+    const j = await prismaTimer.sheetTimer.findUniqueOrThrow({ where: { id: jobb.id } });
+    expect(j).toMatchObject({ fraTid: "07:00", tilTid: "17:30" });
   });
 });

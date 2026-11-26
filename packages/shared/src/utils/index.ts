@@ -101,6 +101,8 @@ export {
   løsOverforingKort,
   medOverforingPeriodeId,
   kontorReiseRute,
+  annetStedTekst,
+  løsAnnetStedKort,
   finnDagsramme,
   klokkeTilMin,
   minTilKlokke,

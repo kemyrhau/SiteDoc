@@ -92,6 +92,7 @@ import {
   beskrivOverlapp,
   reiseUtenforArbeid,
   linjeKanFlyttes,
+  annetStedTekst,
 } from "@sitedoc/shared";
 import { rundTilNarmeste } from "@/lib/tidsrunding";
 import { BeskrivelseHover, jobbensBeskrivelser } from "@/components/timer/BeskrivelseHover";
@@ -1943,6 +1944,8 @@ export default function DagsseddelDetaljSide() {
                   // O16 R5: en kontoroverføring åpnes som «Til annet oppmøtested».
                   reiseKilde: aktivModal.rad.reiseKilde ?? null,
                   reiseRegel: aktivModal.rad.reiseRegel ?? null,
+                  // Runde 2 («Annet sted»): «Fra» i redigering.
+                  reiseOppmotestedId: aktivModal.rad.reiseOppmotestedId ?? null,
                 }
               : undefined
           }
@@ -2945,15 +2948,12 @@ function JobbKortRamme({
     ? [...hoverReiser]
         .sort((a, b) => (a.fraTid ?? "").localeCompare(b.fraTid ?? ""))
         .flatMap((r) => {
-          const sted = (r.byggeplassId && byggeplassNavn.get(r.byggeplassId)) || tittel;
+          // Runde 2 («Annet sted»): stedet arbeideren skrev.
+          const sted = annetStedTekst(r.reiseRegel) || (r.byggeplassId && byggeplassNavn.get(r.byggeplassId)) || tittel;
           const retning = r.erReise ? r.reiseRetning : r.arbeidReiseRetning;
           const stedTekst =
             kontorReiseTekst(t, r.reiseRegel, kontorNavn) ??
-            (retning === "ut"
-              ? t("timer.prosjektkort.reiseTil", { sted })
-              : retning === "retur"
-                ? t("timer.prosjektkort.reiseFra", { sted })
-                : sted);
+            retningsStedTekst(t, retning, sted);
           const linje = [
             stedTekst,
             r.fraTid && r.tilTid ? `${r.fraTid}–${r.tilTid}` : null,
@@ -3565,6 +3565,23 @@ function EcoGruppe({
 /*  Definisjon — liten labelrad i dl                                    */
 /* ------------------------------------------------------------------ */
 
+/**
+ * V1 (RETUR 3 runde 2): reiseradens stedstekst — «Til {sted}» ut, «Fra {sted}» retur, ellers
+ * stedet alene. Delt av prosjektkortets reiselinje (`ReiseLinje`), hoveren og dagskortets
+ * rad (`RaderTimer`, R2-5), så de tre aldri sier ulikt.
+ */
+function retningsStedTekst(
+  t: (k: string, o?: Record<string, unknown>) => string,
+  retning: string | null | undefined,
+  sted: string,
+): string {
+  return retning === "ut"
+    ? t("timer.prosjektkort.reiseTil", { sted })
+    : retning === "retur"
+      ? t("timer.prosjektkort.reiseFra", { sted })
+      : sted;
+}
+
 function Definisjon({
   term,
   verdi,
@@ -3656,17 +3673,13 @@ function ReiseLinje({
     else fjern.mutate({ id: rad.id });
   }
 
-  const sted = (rad.byggeplassId && byggeplassNavn.get(rad.byggeplassId)) || prosjektNavn;
+  // Runde 2 («Annet sted»): stedet arbeideren skrev.
+  const sted = annetStedTekst(rad.reiseRegel) || (rad.byggeplassId && byggeplassNavn.get(rad.byggeplassId)) || prosjektNavn;
   // O17 (vedtak pkt 21): reise mellom to kontorer vises som «{fra} → {til}» (ruten i `reiseRegel`).
   // O12 pkt 16: en reise ført som arbeidstid bærer retningen i `arbeidReiseRetning`.
   const retning = rad.erReise ? rad.reiseRetning : (rad.arbeidReiseRetning ?? null);
   const stedTekst =
-    kontorReiseTekst(t, rad.reiseRegel, kontorNavn) ??
-    (retning === "ut"
-      ? t("timer.prosjektkort.reiseTil", { sted })
-      : retning === "retur"
-        ? t("timer.prosjektkort.reiseFra", { sted })
-        : sted);
+    kontorReiseTekst(t, rad.reiseRegel, kontorNavn) ?? retningsStedTekst(t, retning, sted);
   const eco = rad.externalCostObjectId
     ? (ecoer ?? []).find((e) => e.id === rad.externalCostObjectId)
     : undefined;
@@ -3920,6 +3933,17 @@ function RaderTimer({
                 {lonnsart?.navn ?? "—"}
               </p>
               <p className="text-xs text-gray-500">{aktivitet?.navn ?? "—"}</p>
+              {/* RETUR 2 R2-5: «Annet sted»-reisen viser stedet arbeideren skrev, som i
+                  prosjektkortets reiselinje («Til/Fra {sted}»). */}
+              {annetStedTekst(rad.reiseRegel) && (
+                <p className="text-xs text-gray-700" data-testid="reise-annet-sted">
+                  {retningsStedTekst(
+                    t,
+                    rad.erReise ? rad.reiseRetning : (rad.arbeidReiseRetning ?? null),
+                    annetStedTekst(rad.reiseRegel) ?? "",
+                  )}
+                </p>
+              )}
               {/* Bolk (d) R2: fra–til under aktiviteten når begge er satt
                   (speiler mobil TimerRadVis). */}
               {rad.fraTid && rad.tilTid && (
@@ -5496,7 +5520,10 @@ function TimerRadDialog({
           </label>
           <Input
             type="number"
-            step="0.25"
+            // R2-6 (RETUR 3 runde 2): minuttnøyaktig som reisevinduet (runde 2 (c)). En reise
+            // som slutter 10:53 gir jobben 10:53–15:00 = 3,62 t; med step 0.25 sperret
+            // nettleseren Lagre stille, og dagen kunne ikke fylles.
+            step="any"
             min={0}
             max={24}
             value={timer}
@@ -5731,7 +5758,7 @@ function TimerRadDialog({
                             </div>
                             <Input
                               type="number"
-                              step="0.25"
+                              step="any"
                               min={0}
                               max={24}
                               aria-label={t("timer.felt.antallTimer")}
@@ -5783,7 +5810,7 @@ function TimerRadDialog({
                   </div>
                   <Input
                     type="number"
-                    step="0.25"
+                    step="any"
                     min={0}
                     max={24}
                     aria-label={t("timer.felt.antallTimer")}
@@ -7279,7 +7306,7 @@ function MaskinRadDialog({
           </label>
           <Input
             type="number"
-            step="0.25"
+            step="any"
             min={0}
             max={24}
             value={timer}

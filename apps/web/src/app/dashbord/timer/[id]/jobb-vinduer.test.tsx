@@ -1062,3 +1062,72 @@ describe("O7 — reise-rad uten maskinseksjon (§ 8.22 punkt 3)", () => {
     expect(input.erReise).toBeUndefined();
   });
 });
+
+describe("VAKTTEST 2026-11-26 (Kenneth: «alt fungerer såvidt jeg kan se», runde 2) — RETUR 4 runde 2 V2 — maskinens «Antall timer» godtar minutter (Kenneth: «lønnsarter tilpasses deretter»)", () => {
+  afterEach(cleanup);
+
+  function medMaskinModul(sedel: Record<string, unknown> = {}) {
+    rendre();
+    h.data["modul.effektivTilstand"] = { maskin: true };
+    h.data["timer.dagsseddel.hentMedId"] = {
+      ...(h.data["timer.dagsseddel.hentMedId"] as Record<string, unknown>),
+      ...sedel,
+    };
+    cleanup();
+    return render(<Side />);
+  }
+  /** Påkrevd lønnsart og beskrivelse fylles ut, så skjemaets gyldighet bare måler timefeltene. */
+  function fyllBeskrivelse(dialog: HTMLElement) {
+    for (const ta of Array.from(dialog.querySelectorAll("textarea"))) fireEvent.change(ta, { target: { value: "Graving" } });
+    for (const s of Array.from(dialog.querySelectorAll("select"))) {
+      if (s.required && !s.value) fireEvent.change(s, { target: { value: s.options[1]!.value } });
+    }
+  }
+
+  it("«+ Timer» 16:00–18:37 med valgt maskin: forslaget 2,62 sperrer ikke Lagre", async () => {
+    medMaskinModul({ maskiner: [] });
+    const dialog = fraJobb2("timer.prosjektkort.nyTimer");
+    fireEvent.change(underprosjektValg(dialog), { target: { value: "e1" } });
+    const [fra, til] = Array.from(dialog.querySelectorAll<HTMLInputElement>('input[type="time"]'));
+    fireEvent.change(fra!, { target: { value: "16:00" } });
+    fireEvent.blur(fra!);
+    fireEvent.change(til!, { target: { value: "18:37" } });
+    fireEvent.blur(til!);
+    fireEvent.click(within(dialog).getByText("timer.maskinSeksjon.tittel"));
+    fireEvent.click(within(dialog).getByRole("button", { name: /timer\.velgUtstyr/ }));
+    fireEvent.click(within(dialog).getAllByText(/Gravemaskin G-12/).at(-1)!);
+    const felt = within(dialog).getByTestId<HTMLInputElement>("ny-maskin-timer");
+    expect(felt.value).toBe("2.62");
+    expect(felt.checkValidity()).toBe(true);
+    fyllBeskrivelse(dialog);
+    expect(dialog.querySelector("form")!.checkValidity()).toBe(true);
+  });
+
+  it("blyant på jobben med maskinrad 0,62: feltet sperrer ikke Lagre, og 0,62 sendes", async () => {
+    medMaskinModul();
+    const kort = screen.getAllByRole("button").find((b) => b.textContent?.includes("TILL-001"));
+    fireEvent.click(kort!);
+    fireEvent.click(screen.getAllByTitle("timer.jobbSkjema.aapneVinduHint")[0]!);
+    const dialog = screen.getByRole("dialog", { name: "timer.detalj.redigerTimerRad" });
+    const felt = within(dialog).getByTestId("jobb-maskin").querySelector("input")!;
+    fireEvent.change(felt, { target: { value: "0.62" } });
+    expect(felt.checkValidity()).toBe(true);
+    fyllBeskrivelse(dialog);
+    expect(dialog.querySelector("form")!.checkValidity()).toBe(true);
+    fireEvent.submit(dialog.querySelector("form")!);
+    await vi.waitFor(() => expect(h.kall.map((k) => k.sti)).toContain("timer.dagsseddel.oppdaterTimerRad"));
+    expect(h.kall[0]!.input).toEqual({ id: "m1", timer: 0.62 });
+  });
+
+  it("«+ Maskin» (MaskinRadDialog): 3,62 sperrer ikke Lagre", () => {
+    medMaskinModul({ maskiner: [] });
+    const dialog = fraJobb2("timer.prosjektkort.nyMaskin");
+    fireEvent.click(within(dialog).getAllByRole("button")[0]!);
+    fireEvent.click(within(dialog).getAllByText(/Gravemaskin G-12/).at(-1)!);
+    const felt = dialog.querySelector<HTMLInputElement>('input[type="number"]')!;
+    fireEvent.change(felt, { target: { value: "3.62" } });
+    expect(felt.checkValidity()).toBe(true);
+    fyllBeskrivelse(dialog);
+    expect(dialog.querySelector("form")!.checkValidity()).toBe(true);
+  });
+});
