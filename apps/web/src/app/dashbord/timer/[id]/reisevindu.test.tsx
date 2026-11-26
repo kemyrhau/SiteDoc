@@ -1601,3 +1601,43 @@ describe("RETUR 2 runde 2 R2-5 — «Annet sted»-reisen viser stedet i dagskort
     expect(screen.queryByTestId("reise-annet-sted")).toBeNull();
   });
 });
+
+describe("RETUR 3 runde 2 R2-6 — jobb etter en minuttnøyaktig reise kan lagres", () => {
+  afterEach(cleanup);
+  // Kenneths dag 12.11: reise 07:00–10:53 (runde 2 (c): minutter), så jobben fra 10:53.
+  const reise = arbeid({
+    id: "r8",
+    lonnsartId: "lr",
+    erReise: true,
+    fraTid: "07:00",
+    tilTid: "10:53",
+    timer: "3.88",
+    reiseRetning: "ut",
+    byggeplassId: null,
+    kortId: null,
+  });
+  const antallTimer = (d: HTMLElement) =>
+    within(d)
+      .getAllByRole("spinbutton")
+      .find((e) => (e as HTMLInputElement).value === "3.62") as HTMLInputElement;
+  const lukkReisen = (d: HTMLElement) => fireEvent.click(within(d).getByRole("button", { name: "handling.avbryt" }));
+
+  it("«Legg til timer-rad» etter reisen: 10:53–15:00 gir 3,62 t, og feltet sperrer ikke Lagre", () => {
+    lukkReisen(rendre({ timer: [reise], modus: "dagskort" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "timer.detalj.tilfoyTimer" })[0]!);
+    const d = screen.getByRole("dialog", { name: "timer.detalj.tilfoyTimer" });
+    const felt = antallTimer(d);
+    expect(felt).toBeTruthy();
+    expect(felt.checkValidity()).toBe(true);
+    expect(d.querySelector("form")!.checkValidity()).toBe(true);
+  });
+
+  it("pennen på jobben 10:53–15:00 (flyttet kant): feltet sperrer ikke Lagre", () => {
+    const jobb = arbeid({ id: "r1", fraTid: "10:53", tilTid: "15:00", timer: "3.62", pauseMin: 30, kortId: null });
+    lukkReisen(rendre({ timer: [reise, jobb], modus: "dagskort" }));
+    const penner = screen.getAllByTitle("handling.rediger");
+    fireEvent.click(penner[penner.length - 1]!);
+    const d = screen.getByRole("dialog", { name: "timer.detalj.redigerTimerRad" });
+    expect(d.querySelector("form")!.checkValidity()).toBe(true);
+  });
+});
