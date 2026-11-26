@@ -1068,6 +1068,8 @@ export function ReiseKort({
   }
   function velgKontor(id: string | null) {
     setAnnetKontorId(id && id !== dagensKontorId ? id : null);
+    // R2-4: et åpent «Avslutt»-spørsmål lukkes — kontorbyttet har sin egen «Siste dag».
+    if (id && id !== dagensKontorId) setAvsluttDag(null);
     nullstillDatoer();
     nullstillTider();
   }
@@ -1134,30 +1136,39 @@ export function ReiseKort({
       />
     </div>
   );
+  // RETUR 2 R2-4 (Kenneth 2026-11-26: «flere parallelle valg»): når den blå boksen for kontorbyttet
+  // vises, er den eneste stedet å sette siste dag — «Avslutt»-lenken og spørsmålet skjules.
+  const byttBoksVises = !redigering && (bytte.type === "start" || bytte.type === "slutt");
   // Perioden som gjelder, under feltet: egen med «Avslutt», firmaadmins uten (R8).
   const periodeLinje =
     !redigering && periodeUnder && periodeUnder.oppmotestedId ? (
       <p data-testid="reise-oppmote-periode" className="mt-1 text-xs text-gray-600">
         {t("timer.reiseKort.midlertidigPeriode", { periode: periodeTekst(periodeUnder) })}
-        <span className="mx-1 text-gray-400">·</span>
         {erEgenOverforing(periodeUnder) ? (
-          avsluttDag == null && (
-            <button
-              type="button"
-              onClick={() => setAvsluttDag(avsluttSisteDagForslag(dato))}
-              className="font-medium text-blue-700 hover:underline"
-            >
-              {t("timer.reiseKort.avslutt")}
-            </button>
+          avsluttDag == null &&
+          !byttBoksVises && (
+            <>
+              <span className="mx-1 text-gray-400">·</span>
+              <button
+                type="button"
+                onClick={() => setAvsluttDag(avsluttSisteDagForslag(dato))}
+                className="font-medium text-blue-700 hover:underline"
+              >
+                {t("timer.reiseKort.avslutt")}
+              </button>
+            </>
           )
         ) : (
-          t("timer.reiseKort.sattAvFirmaet")
+          <>
+            <span className="mx-1 text-gray-400">·</span>
+            {t("timer.reiseKort.sattAvFirmaet")}
+          </>
         )}
       </p>
     ) : null;
   // R7b: «Avslutt» spør om «Siste dag» før perioden lukkes.
   const avsluttSporsmal =
-    periodeLinje && avsluttDag != null ? (
+    periodeLinje && avsluttDag != null && !byttBoksVises ? (
       <div data-testid="reise-avslutt" className="mt-2 flex flex-wrap items-end gap-2 rounded border border-blue-100 bg-blue-50 px-3 py-2">
         <div>
           <label className="mb-1 block text-xs font-medium text-blue-900" htmlFor="reise-avslutt-siste-dag">

@@ -3925,6 +3925,21 @@ function RaderTimer({
                 {lonnsart?.navn ?? "—"}
               </p>
               <p className="text-xs text-gray-500">{aktivitet?.navn ?? "—"}</p>
+              {/* RETUR 2 R2-5: «Annet sted»-reisen viser stedet arbeideren skrev, som i
+                  prosjektkortets reiselinje («Til/Fra {sted}»). */}
+              {annetStedTekst(rad.reiseRegel) && (
+                <p className="text-xs text-gray-700" data-testid="reise-annet-sted">
+                  {(() => {
+                    const sted = annetStedTekst(rad.reiseRegel);
+                    const retning = rad.erReise ? rad.reiseRetning : (rad.arbeidReiseRetning ?? null);
+                    return retning === "ut"
+                      ? t("timer.prosjektkort.reiseTil", { sted })
+                      : retning === "retur"
+                        ? t("timer.prosjektkort.reiseFra", { sted })
+                        : sted;
+                  })()}
+                </p>
+              )}
               {/* Bolk (d) R2: fra–til under aktiviteten når begge er satt
                   (speiler mobil TimerRadVis). */}
               {rad.fraTid && rad.tilTid && (

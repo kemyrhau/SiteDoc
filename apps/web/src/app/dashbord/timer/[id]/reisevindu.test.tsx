@@ -1508,3 +1508,96 @@ describe("RETUR 1 runde 2 — kontorreise og «Annet sted» mot dagens jobb", ()
     expect(lagreKnapp(d).disabled).toBe(true);
   });
 });
+
+// RETUR 2 runde 2 (Kenneth 2026-11-26: «det er flere paralelle valg -> en avsluttknapp under narvik
+// i kort1 … dette virker ikke -> knapp blokkert»). R2-4: når den blå boksen for kontorbyttet vises,
+// er den eneste stedet å sette «Siste dag» — «Avslutt»-lenken under Fra skjules.
+describe("RETUR 2 runde 2 — ett sted å avslutte det midlertidige kontoret", () => {
+  afterEach(cleanup);
+  const normaldag = () => [arbeid({ fraTid: "07:00", tilTid: "15:00", timer: "7.5", pauseMin: 30 })];
+  const narvik: OppmotePeriodeInput = {
+    id: "pe", type: "kontor", fast: false, oppmotestedId: "narvik", projectId: null, fraDato: "2026-11-01", tilDato: null, kilde: "overforing",
+  };
+  const avsluttLenke = (d: HTMLElement) =>
+    within(d).queryByTestId("reise-oppmote-periode")
+      ? within(within(d).getByTestId("reise-oppmote-periode")).queryByRole("button", { name: "timer.reiseKort.avslutt" })
+      : null;
+
+  it("R2-4: uten kontorbytte står «Avslutt» under Fra (som før)", () => {
+    const d = rendre({ timer: normaldag(), modus: "dagskort", perioder: [FAST_TROMSO, narvik] });
+    fireEvent.click(knapp(d, "timer.reiseKort.tilAnnetOppmotested"));
+    expect(within(d).queryByTestId("reise-oppmote-boks")).toBeNull();
+    expect(avsluttLenke(d)).not.toBeNull();
+  });
+
+  it("R2-4: blå boks «… avsluttes» vises — «Avslutt»-lenken er borte, perioden står", () => {
+    const d = rendre({ timer: normaldag(), modus: "dagskort", perioder: [FAST_TROMSO, narvik] });
+    fireEvent.click(knapp(d, "timer.reiseKort.tilAnnetOppmotested"));
+    fireEvent.change(within(d).getByLabelText("timer.reiseKort.tilKontorFelt"), { target: { value: "tromso" } });
+    fireEvent.change(start(d), { target: { value: "07:00" } });
+    expect(within(d).getByTestId("reise-oppmote-boks").textContent).toContain('timer.reiseKort.avsluttesMidlertidig{"navn":"Kontor Narvik"}');
+    expect(within(d).getByTestId("reise-oppmote-periode").textContent).toContain("timer.reiseKort.midlertidigPeriode");
+    expect(avsluttLenke(d)).toBeNull();
+    expect(within(d).queryByTestId("reise-avslutt")).toBeNull();
+  });
+
+  it("R2-4: åpent «Avslutt»-spørsmål lukkes når et annet kontor velges", () => {
+    const d = rendre({ timer: normaldag(), modus: "dagskort", perioder: [FAST_TROMSO, narvik] });
+    fireEvent.click(knapp(d, "timer.reiseKort.tilAnnetOppmotested"));
+    fireEvent.click(avsluttLenke(d)!);
+    expect(within(d).getByTestId("reise-avslutt")).toBeTruthy();
+    fireEvent.change(within(d).getByLabelText("timer.reiseKort.tilKontorFelt"), { target: { value: "tromso" } });
+    expect(within(d).queryByTestId("reise-avslutt")).toBeNull();
+    // Tilbake til dagens kontor: lenken kommer igjen, spørsmålet er ikke åpent.
+    fireEvent.change(within(d).getByLabelText("timer.reiseKort.tilKontorFelt"), { target: { value: "" } });
+    expect(within(d).queryByTestId("reise-avslutt")).toBeNull();
+    expect(avsluttLenke(d)).not.toBeNull();
+  });
+
+  it("R2-4: kontorreisen med blå boks lagres fortsatt med «Flytt jobbens start» (vakt for steg 2)", () => {
+    const d = rendre({ timer: normaldag(), modus: "dagskort", perioder: [FAST_TROMSO, narvik] });
+    fireEvent.click(knapp(d, "timer.reiseKort.tilAnnetOppmotested"));
+    fireEvent.change(within(d).getByLabelText("timer.reiseKort.tilKontorFelt"), { target: { value: "tromso" } });
+    fireEvent.change(start(d), { target: { value: "07:00" } });
+    fireEvent.change(slutt(d), { target: { value: "10:50" } });
+    const boks = within(d).getByTestId("reise-flytt-jobb");
+    expect((within(boks).getByRole("button") as HTMLButtonElement).disabled).toBe(false);
+  });
+});
+
+describe("RETUR 2 runde 2 R2-5 — «Annet sted»-reisen viser stedet i dagskortet", () => {
+  afterEach(cleanup);
+  const annetSted = (over: Rad = {}): Rad =>
+    arbeid({
+      id: "r9",
+      lonnsartId: "lr",
+      erReise: true,
+      fraTid: "07:00",
+      tilTid: "10:00",
+      timer: "3",
+      reiseRetning: "ut",
+      byggeplassId: null,
+      reiseRegel: { annetSted: { sted: "Gardermoen, Møte" } },
+      ...over,
+    });
+
+  it("raden viser «Til Gardermoen, Møte»", () => {
+    const d = rendre({ timer: [annetSted()], modus: "dagskort" });
+    void d;
+    expect(screen.getByTestId("reise-annet-sted").textContent).toBe(
+      'timer.prosjektkort.reiseTil{"sted":"Gardermoen, Møte"}',
+    );
+  });
+
+  it("«Hva gjorde du?» står på raden når den er fylt ut", () => {
+    const d = rendre({ timer: [annetSted({ beskrivelse: "Kundemøte" })], modus: "dagskort" });
+    void d;
+    expect(screen.getByTestId("reise-annet-sted").closest("li")!.textContent).toContain("Kundemøte");
+  });
+
+  it("vakt: vanlig arbeidsrad får ingen stedslinje", () => {
+    const d = rendre({ modus: "dagskort" });
+    void d;
+    expect(screen.queryByTestId("reise-annet-sted")).toBeNull();
+  });
+});
