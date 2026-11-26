@@ -19,7 +19,7 @@ sist_endret: 2026-07-09
 | `…/SiteDoc-deploy` | `main` | Prod-deploy (rsync-kilde). |
 | `…/SiteDoc-mal` | **detached på `origin/develop`** | **mal-Opus.** Bygger sjekklistemaler i `packages/db/prisma/seed-bibliotek.ts` etter fabels selvbærende ordrer, én om gangen. Egen branch per mal. Metode: [MAL-METODE.md](MAL-METODE.md). |
 
-**Fem trær. Et sjette krever en tavle-rad for å eksistere** ([SAMARBEIDSREGLER § Statustavle](SAMARBEIDSREGLER.md)) — raden bærer tre-stien.
+**Fem trær. Et sjette krever en tavle-rad for å eksistere** ([SAMARBEIDSREGLER § 1](SAMARBEIDSREGLER.md), tavla) — raden bærer tre-stien.
 
 ### Gjenopprett merge-treet (kjør FØR merge hvis mappa mangler)
 

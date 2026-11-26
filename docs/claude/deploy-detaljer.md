@@ -89,6 +89,19 @@ Riktig sjekk for en `packages/pdf`-leveranse er **kilden, aldri kompilatet**, i 
 - **Aldri `-p` for api/web:** containerne ligger i tre ulike compose-prosjekter; ingen enkelt `-p` adopterer alle. Lærdom 2026-07-20: CLAUDE.md-indeksen sa `-p docker` og førte en økt feil. Mekanikk: [DOCKER-NOTES.md](../../docker/DOCKER-NOTES.md).
 - **Sudo:** ingen agent kan `sudo` ikke-interaktivt → Kenneth kjører alle `sudo docker`-steg via `! ssh -t server-ny ...` (ekte TTY); ikke kast bort runder på `ssh -t`/`sudo -n`. Native `git`/`rsync` kan agentene kjøre.
 
+## Kommandoer til Kenneth (server, deploy, OTA, EAS)
+
+> Flyttet ordrett fra [SAMARBEIDSREGLER.md](SAMARBEIDSREGLER.md) § 3 (2026-11-26).
+
+- **Bash-blokka inneholder KUN kommandoen.** Steg-nummer, maskin, runbok-referanse, forventet utfall og advarsler står i prosa rundt.
+- **Deploy-kommandoer kun fra [DEPLOY-RUNBOK.md](DEPLOY-RUNBOK.md)** — aldri skrevet fra hukommelsen.
+- **Si hvilken maskin** ved hvert skifte Mac ↔ `server-ny`; aldri begge i samme blokk.
+- **POSIX/BSD-flagg** (Macen har BSD-verktøy): unngå `xargs -a` · `sed -i` uten argument · `grep -P` · `date -d` · `readlink -f` · `stat -c`. En slettende/endrende kommando følges av en telling som avslører om ingenting skjedde.
+- **Hver melding er selvstendig** — aldri «kjør blokken fra forrige melding».
+- **Nummerert rekkefølge** med forventet resultat pr. steg; orkestrator verifiserer mot forventningen før neste steg.
+- **Skjermbilder eller klikk-test fra Kenneth:** følg [skjermbilde-forespoersel.md](skjermbilde-forespoersel.md) — limbar URL, nummererte steg, forventning pr. bilde.
+- **`git checkout -B` gis én gang** — gjentatt tilbakestiller den branchen og kaster commits.
+
 ## Worktree-deploy (parallell-arbeid)
 
 Flere git-worktrees deler samme repo (se [parallell-arbeid-lock.md](parallell-arbeid-lock.md)). **Prod-deploy kjøres ALLTID fra `../SiteDoc-deploy` (branch `main`)** — aldri fra det delte redesign-treet (`…/SiteDoc`, `redesign/navigasjon`) eller develop-treet. rsync-kilden må være riktig branch, ellers bygges feil kode (prod/test/redesign deler build-kontekst på server-ny).

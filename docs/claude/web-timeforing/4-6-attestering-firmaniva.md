@@ -87,7 +87,7 @@ Målt mot develop @ `57770fc0`. `TK` = `apps/api/src/trpc/tilgangskontroll.ts`, 
 10. **Firmaets tidsrunding** skal gjelde også når en prosjektleder retter fra–til (FA13). Lista sender den med,
     slik den alt sender «rediger ved attestering» (`redigerTillatt`).
 11. **Telefonen røres ikke.** Der er attesteringen fortsatt bare for firmaadministrator. Om prosjektlederen skal
-    attestere på telefonen, er ikke en del av w10 (attestering i volum hører på PC, `SAMARBEIDSREGLER.md` § 5).
+    attestere på telefonen, er ikke en del av w10 (attestering i volum hører på PC, `ordre-og-agent.md` § 5 PARITET).
 
 **Tester som må til** (attestering er lønn; regel 10 kjøres uavhengig):
 - Prosjektlederen får ikke en sedel uten rad på prosjektene sine.

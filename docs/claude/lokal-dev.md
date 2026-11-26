@@ -135,6 +135,50 @@ psql -U kennethmyrhaug -d sitedoc -c "SELECT email, can_login FROM users WHERE e
 
 🔴 **Benken er for ØYNENE, ikke for en agent.** Den finnes for at Kenneth skal dømme tykkelse, kontrast og plassering på et ekte bilde i løpet av sekunder, i stedet for en merge-og-deploy-syklus pr. forsøk. **Den skal ikke drives av Playwright eller annen nettleserautomatisering.** ⚠️ **Målt to ganger 2026-09-29: forsøk på å automatisere den kostet 33 og 31 minutter og ga ingen resultater.** 🟢 **Skal et tall verifiseres, er det en funksjonstest** — forholdet mellom pilhode og strek er matematikk, ikke noe man klikker seg fram til. **Hvem som verifiserer hva: [SAMARBEIDSREGLER § En verifiseringsordre](SAMARBEIDSREGLER.md).**
 
+## 7. Lokal testflate (Kenneth tester runder her, fra 2026-11-26)
+
+Kenneth 2026-11-26: «kan vi teste i et annet miljø enn på server … jeg slipper å deploye hele tiden». Regelen for
+testrunder står i [SAMARBEIDSREGLER § 3 DEPLOY OG TESTRUNDER](SAMARBEIDSREGLER.md); her står oppsettet.
+
+| Ting | Verdi (målt 2026-11-26) |
+|------|-------|
+| **Tre** | `~/Documents/Programmering/SiteDoc-lokaltest`, alltid **detached** på rundens hash |
+| **DB** | `sitedoc_lokaltest` (kopi av `sitedoc_test`). De seks env-filene i treet (`apps/api/.env`, `apps/web/.env.local`, `packages/db*/.env`) peker hit; hovedtreets `.env` er urørt |
+| **Start** | `preview_start {name: "lokaltest"}` (`.claude/launch.json`, gitignorert) — web 3100 + api 3001 |
+| **Eier** | Orkestrator starter og bytter; agentene rører verken treet eller `sitedoc_lokaltest` |
+
+⚠️ **Postgres-serveren er 17.9, `pg_dump`/`psql` på PATH er 16** (`/opt/homebrew/opt/postgresql@16/bin`) og avbryter med
+«server version mismatch» (målt 2026-11-26). Bruk `postgresql@17`-binærene. § 1-tabellens «`postgresql@16`» er derfor
+utdatert for serveren.
+
+**Rutine pr. runde** (orkestrator, maskin: Mac):
+1. `preview_stop` på «lokaltest».
+2. Sjekk ut rundens hash:
+   ```
+   cd ~/Documents/Programmering/SiteDoc-lokaltest && git fetch -q origin && git checkout -q --detach <hash>
+   ```
+3. `pnpm install --frozen-lockfile`
+4. `prisma generate` ×4:
+   ```
+   for p in db db-timer db-maskin db-varelager; do pnpm --filter @sitedoc/$p generate; done
+   ```
+5. Ved ny migrering i runden, i pakken som har den (lov mot lokal DB, aldri mot server):
+   ```
+   pnpm --filter @sitedoc/<pakke> migrate:deploy
+   ```
+6. `preview_start {name: "lokaltest"}`, og poll til siden svarer før meldingen sendes.
+
+**Meldingen til Kenneth** har alltid fire deler: **(a)** er lokal server endret (hash før → nå) · **(b)** Cmd+Shift+R
+før test · **(c)** teststeg med forventet resultat pr. steg · **(d)** hva svaret fører til.
+
+**Kopi-DB for agentens skjermbilder** (UI-retting, [ordre-og-agent.md § 4 Ordre-anatomi](ordre-og-agent.md)):
+```
+P=/opt/homebrew/opt/postgresql@17/bin; $P/createdb sitedoc_<agent> && $P/pg_dump sitedoc_lokaltest | $P/psql -q sitedoc_<agent>
+```
+`pg_dump`-leddet er målt (2026-11-26, `--schema-only` mot `sitedoc_lokaltest`); `createdb`/`psql`-leddet er umålt.
+
+**Dekker ikke:** mobil (telefonen peker mot test), prod-oppsett, opplastede filer.
+
 ## Historikk
 
 Oppsettet var **udokumentert til 2026-07-15**. Frem til da ble `AccessDenied` lest som et OAuth-problem, og `deploy-detaljer.md`-linjene `postgresql://kemyr:kemyr@localhost:5432/...` (som gjelder den **utgåtte WSL-serveren**, ikke Mac-en) ble feillest som lokal dev. Kartlagt via `lsof -i :5432` → `ps -p <pid> -o comm=` → Homebrew pg16. Lærdom: miljø-påstander verifiseres mot maskinen (`lsof`/`ps`), ikke mot docs eller hukommelse — samme regel som gjelder kode.

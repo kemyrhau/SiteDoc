@@ -20,7 +20,11 @@ sist_verifisert_mot_kode: 2026-05-16
 | UI-standard endres (filter, toppbar-filtre, adaptive nedtrekk, slett-bekreftelse, fargepalett) | `retningslinjer/ui-standarder.md` |
 | Presens-påstand skrives i docs (systemet «gjør» noe) / dokumentasjons-standard endres | `dokumentasjons-standard.md` (referanse eller markør kreves) |
 | Parallell-arbeid / worktree-koordinering / frossen sone endres | `parallell-arbeid-lock.md` |
-| Tvil om hvem gjør hva / meldingsflyt | `SAMARBEIDSREGLER.md` |
+| Tvil om hvem gjør hva / meldingsflyt | `SAMARBEIDSREGLER.md` (kjernen) |
+| Ordre skrives, /clear-REGELEN, SJEKKPUNKT, funksjonsfredning, paritet, kjøreregler fra feilklasser, exit-spørsmål | `ordre-og-agent.md` |
+| Regel 9/10, merge-kjeden, gaten i kommandoen, rydding etter merge | `merge-og-gate.md` |
+| Kommando til Kenneth skrives (form, maskin, BSD-flagg) | `deploy-detaljer.md` § Kommandoer til Kenneth |
+| **Lokal testflate** (Kenneths testrunder: tre, DB, rutine pr. runde, melding) | `lokal-dev.md` § 7 |
 | **Skal se/teste en endring før test-deploy** (localhost) | `lokal-dev.md` |
 | **Localhost virker ikke** — `AccessDenied`, `psql: command not found`, tom lokal DB | `lokal-dev.md` § 2 Feilsøking |
 | **Lokal test-data må oppdateres** (DB bak test / etter migrering) | `lokal-dev.md` § 3 |
@@ -60,7 +64,7 @@ sist_verifisert_mot_kode: 2026-05-16
 ## Regel
 
 Ingen PR-commit uten at riktig doc er oppdatert i samme commit. Se også
-[SAMARBEIDSREGLER § 6](SAMARBEIDSREGLER.md) og
+[merge-og-gate.md § Merge-kjeden](merge-og-gate.md) og
 [dokumentasjons-standard § Dokumentasjons-disiplin](dokumentasjons-standard.md) — status-dokumenter
 som oppdateres i en glemt oppfølger-commit drifter.
 

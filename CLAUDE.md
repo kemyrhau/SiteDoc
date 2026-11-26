@@ -4,7 +4,7 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 
 ## Sesjonstart
 
-- 🔴 **Orkestrator leser CLAUDE.md og hele [SAMARBEIDSREGLER.md](docs/claude/SAMARBEIDSREGLER.md) FØRST** — også etter compact/clear. Deretter tavla øverst i [STATUS-AKTUELT.md](docs/claude/STATUS-AKTUELT.md). En agent som nettopp er tømt, følger § /clear-REGELEN punkt C.
+- 🔴 **Orkestrator leser CLAUDE.md og hele [SAMARBEIDSREGLER.md](docs/claude/SAMARBEIDSREGLER.md) FØRST** — også etter compact/clear. Deretter tavla øverst i [STATUS-AKTUELT.md](docs/claude/STATUS-AKTUELT.md). En agent som nettopp er tømt, følger [ordre-og-agent.md](docs/claude/ordre-og-agent.md) § /clear-REGELEN punkt C.
 - [SITEDOC-CLAUDE-VEILEDER.md](docs/claude/SITEDOC-CLAUDE-VEILEDER.md) vises ved sesjonstart. [BACKLOG.md](docs/claude/BACKLOG.md) leses kun ved strategisk planlegging.
 - **Ved «oppdater CLAUDE.md»:** oppdater detaljfila i `docs/claude/` ([DOC-MAP.md](docs/claude/DOC-MAP.md) sier hvilken), ikke denne — med mindre det gjelder tech stack, struktur, kommandoer, kodestil eller ufravikelige regler.
 
@@ -12,7 +12,7 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 
 | Fil | Innhold |
 |-----|---------|
-| [SAMARBEIDSREGLER.md](docs/claude/SAMARBEIDSREGLER.md) | 🔴 **Styrende:** Kenneths forventninger (§ 0), arbeidsform (§ 0b), roller, meldingsflyt, gate, merge |
+| [SAMARBEIDSREGLER.md](docs/claude/SAMARBEIDSREGLER.md) | 🔴 **Styrende kjerne:** Kenneths forventninger (§ 0), arbeidsform (§ 0b), roller, meldingsflyt, hull vs funksjon, hvem gater. Detaljer: [ordre-og-agent.md](docs/claude/ordre-og-agent.md) (/clear-REGELEN, ordre-anatomi, fredning, paritet, kjøreregler) · [merge-og-gate.md](docs/claude/merge-og-gate.md) (regel 9/10, merge-kjeden, rydding) |
 | [STATUS-AKTUELT.md](docs/claude/STATUS-AKTUELT.md) | Tavla (agentregister) + pågående arbeid, maks 3 aktive PR-er |
 | [FUNKSJONSENDRINGER.md](docs/claude/FUNKSJONSENDRINGER.md) | 🔴 Kenneths kontrollflate: merger som endret det brukeren ser |
 | [DOC-MAP.md](docs/claude/DOC-MAP.md) | **Indeksen:** hendelse → fil som oppdateres. Sjekk ved tvil |
@@ -99,14 +99,14 @@ Kode, kommentarer, commits og chat på **norsk bokmål** med æ, ø, å — aldr
 ## Ufravikelige regler
 
 - **Beskriv løsningen først** og få godkjenning fra bestilleren før kode; funksjonsendring krever hjemmel fra Kenneth ([SAMARBEIDSREGLER § 5](docs/claude/SAMARBEIDSREGLER.md)).
-- **Kode + docs i samme commit** — riktig fil per [DOC-MAP.md](docs/claude/DOC-MAP.md). Presens i docs krever kode-referanse eller status-markør ([dokumentasjons-standard.md](docs/claude/dokumentasjons-standard.md)). Status-dokumenter (STATUS-AKTUELT, FUNKSJONSENDRINGER, tavla) føres av orkestrator i docs-commit rett etter merge, aldri i en glemt oppfølger ([SAMARBEIDSREGLER § 6](docs/claude/SAMARBEIDSREGLER.md)). STATUS.md oppdateres (dato, tellinger, tagger) i samme commit som endrer fil-status.
+- **Kode + docs i samme commit** — riktig fil per [DOC-MAP.md](docs/claude/DOC-MAP.md). Presens i docs krever kode-referanse eller status-markør ([dokumentasjons-standard.md](docs/claude/dokumentasjons-standard.md)). Status-dokumenter (STATUS-AKTUELT, FUNKSJONSENDRINGER, tavla) føres av orkestrator i docs-commit rett etter merge, aldri i en glemt oppfølger ([merge-og-gate.md § Merge-kjeden](docs/claude/merge-og-gate.md)). STATUS.md oppdateres (dato, tellinger, tagger) i samme commit som endrer fil-status.
 - **Prosjektisolering:** alle spørringer filtrerer på `projectId` (prosjektmoduler) eller `organizationId` (firmamoduler). Ingen data lekker mellom prosjekter eller firmaer. Sensitive felt som fra/til (innsjekk/utsjekk-tidspunkt) er firma-isolert uansett modul.
 - **Firma påkrevd ved prosjekt-opprettelse:** Zod `organizationId: z.string().uuid()` uten `.optional()` — [api.md § Firma påkrevd](docs/claude/api.md).
 - **Migreringer:** alltid via Prisma; aldri slett data; to-stegs policy (legg til → migrer → neste release dropper); backfill med diskriminerende WHERE; **stille tomhet er forbudt** (ny identitets-/koblingskolonne krever backfill + unik-garanti + test som feiler når tom) — [arkitektur.md § Schema- og migreringsregler](docs/claude/arkitektur.md).
 - **Modul-avhengighet:** endringer i delte entiteter (dagsseddel) verifiseres mot alle berørte modul-docs før koding — [dagsseddel-design.md § Modul-avhengigheter](docs/claude/dagsseddel-design.md).
 - **API-bakoverkompatibilitet:** ved rename av tRPC-router beholdes gammel som alias i minst 1 uke — mobilbrukere oppdaterer ikke umiddelbart. Mobil-appen MÅ fungere offline. Statusoverganger via `isValidStatusTransition()` på server og klient. Bilder komprimeres til 300–400 KB før opplasting.
 - **ALDRI commit `.env`-filer, aldri `>` mot en** — gitignorert, ingen historikk. Aldri håndskrevet rsync til server; bruk `deploy-*.sh` ([infrastruktur.md § Miljøvariabler](docs/claude/infrastruktur.md)).
-- **Commit + push:** agenten pusher egen feature-branch når egen gate er grønn; rebase på `origin/develop` rett før push, `--force-with-lease`, aldri `--force`. Etter «klar for merge» er branchen frosset. Merge og push av `develop` eies av orkestrator fra `SiteDoc-merge` etter én gate pr. leveranse, og fjerner deretter agentens worktree — rolletrærne merge/gate/fabel står ([SAMARBEIDSREGLER § 6](docs/claude/SAMARBEIDSREGLER.md)).
+- **Commit + push:** agenten pusher egen feature-branch når egen gate er grønn; rebase på `origin/develop` rett før push, `--force-with-lease`, aldri `--force`. Etter «klar for merge» er branchen frosset. Merge og push av `develop` eies av orkestrator fra `SiteDoc-merge` etter én gate pr. leveranse, og fjerner deretter agentens worktree — rolletrærne merge/gate/fabel står ([merge-og-gate.md](docs/claude/merge-og-gate.md)).
 - **CLAUDE.md maks 15 000 tegn** (Kenneth-vedtak 2026-10-28) — mål med python, ikke `wc -m` ([dokumentasjons-standard.md § CLAUDE.md-taket](docs/claude/dokumentasjons-standard.md)). Deployet arbeid flyttes fra STATUS-AKTUELT til `historikk-YYYY-MM.md` i samme commit.
 
 ## Nøkkelhåndtering (ufravikelig)
