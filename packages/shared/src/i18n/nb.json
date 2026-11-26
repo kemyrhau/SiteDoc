@@ -345,7 +345,7 @@
   "timer.hjelpGodkjenningTekst": "Leder ser alle ansattes dagssedler og godkjenner eller avviser. Godkjente sedler kan ikke endres. Utlegg med kvitteringsbilder godkjennes samtidig.",
   "timer.hjelpEksport": "Eksport",
   "timer.hjelpEksportTekst": "Godkjente dagssedler eksporteres til lønnssystem (Tripletex, Visma, CSV). Hver lønnsart har egen kolonne — normaltid, overtid 50%, overtid 100%, reisetid og tillegg.",
-  "timer.beskrivelse": "Dine dagssedler for dette prosjektet. Én rad per arbeidsdag.",
+  "timer.beskrivelse": "Dine dagssedler for alle prosjekter. Én rad per arbeidsdag.",
   "timer.tilbake": "Tilbake til oversikt",
   "timer.tilbakeTilTimer": "Tilbake til Timer",
   "timer.tilbakeTilMineTimer": "Tilbake til Mine timer",

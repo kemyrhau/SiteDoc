@@ -345,7 +345,7 @@
   "timer.hjelpGodkjenningTekst": "Menaxheri sheh të gjitha fletët e punës së punonjësve dhe miraton ose refuzon. Fletët kohore të miratuara nuk mund të modifikohen. Shpenzimet me foto dëftese miratohen njëkohësisht.",
   "timer.hjelpEksport": "Eksporto",
   "timer.hjelpEksportTekst": "Fletët kohore të miratuara eksportohen në sistemet e listës së pagave (Tripletex, Visma, CSV). Çdo lloj pagese ka kolonën e vet - orë normale, jashtë orarit 50%, jashtë orarit 100%, kohë udhëtimi dhe shtesa.",
-  "timer.beskrivelse": "Fletët tuaja ditore për këtë projekt. Një rresht në ditë pune.",
+  "timer.beskrivelse": "Fletët tuaja ditore për të gjitha projektet. Një rresht në ditë pune.",
   "timer.tilbake": "Kthehu te përmbledhja",
   "timer.tilbakeTilTimer": "Kthehu te Orari",
   "timer.tilbakeTilMineTimer": "Kthehu te Orari i Mi",

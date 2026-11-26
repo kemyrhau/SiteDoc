@@ -345,7 +345,7 @@
   "timer.hjelpGodkjenningTekst": "Der Manager sieht die Stundenzettel aller Mitarbeiter und genehmigt oder lehnt sie ab. Genehmigte Stundenzettel können nicht geändert werden. Spesen mit Belegfotos werden gleichzeitig genehmigt.",
   "timer.hjelpEksport": "Export",
   "timer.hjelpEksportTekst": "Genehmigte Stundenzettel werden in Lohnabrechnungssysteme (Tripletex, Visma, CSV) exportiert. Für jede Lohnart gibt es eine eigene Spalte: Normalstunden, 50 % Überstunden, 100 % Überstunden, Reisezeit und Zuschläge.",
-  "timer.beskrivelse": "Ihre Tagesblätter für dieses Projekt. Eine Zeile pro Arbeitstag.",
+  "timer.beskrivelse": "Ihre Tagesblätter für alle Projekte. Eine Zeile pro Arbeitstag.",
   "timer.tilbake": "Zurück zur Übersicht",
   "timer.tilbakeTilTimer": "Zurück zu Stunden",
   "timer.tilbakeTilMineTimer": "Zurück zu meinen Stunden",

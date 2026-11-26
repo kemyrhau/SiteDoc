@@ -345,7 +345,7 @@
   "timer.hjelpGodkjenningTekst": "Managerul vede toate foile de pontaj ale angajaților și aprobă sau respinge. Foile de pontaj aprobate nu pot fi modificate. Cheltuielile cu fotografii de chitanță sunt aprobate simultan.",
   "timer.hjelpEksport": "Export",
   "timer.hjelpEksportTekst": "Foile de pontaj aprobate sunt exportate în sistemele de salarizare (Tripletex, Visma, CSV). Fiecare tip de salariu are propria sa coloană - ore normale, ore suplimentare 50%, ore suplimentare 100%, timp de călătorie și suplimente.",
-  "timer.beskrivelse": "Foile tale zilnice pentru acest proiect. Un rând pe zi lucrătoare.",
+  "timer.beskrivelse": "Foile tale zilnice pentru toate proiectele. Un rând pe zi lucrătoare.",
   "timer.tilbake": "Înapoi la prezentare generală",
   "timer.tilbakeTilTimer": "Înapoi la ore",
   "timer.tilbakeTilMineTimer": "Înapoi la orele mele",

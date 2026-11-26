@@ -345,7 +345,7 @@
   "timer.hjelpGodkjenningTekst": "Manažer vidí pracovní výkazy všech zaměstnanců a schvaluje nebo zamítá. Schválené časové rozvrhy nelze upravovat. Výdaje s fotkami účtenek se schvalují současně.",
   "timer.hjelpEksport": "Vývozní",
   "timer.hjelpEksportTekst": "Schválené časové výkazy jsou exportovány do mzdových systémů (Tripletex, Visma, CSV). Každý typ mzdy má svůj vlastní sloupec — normální hodiny, přesčas 50 %, přesčas 100 %, doba jízdy a příplatky.",
-  "timer.beskrivelse": "Vaše denní listy pro tento projekt. Jeden řádek za pracovní den.",
+  "timer.beskrivelse": "Vaše denní listy pro všechny projekty. Jeden řádek za pracovní den.",
   "timer.tilbake": "Zpět na přehled",
   "timer.tilbakeTilTimer": "Zpět na hodiny",
   "timer.tilbakeTilMineTimer": "Zpět do mých hodin",

@@ -556,6 +556,8 @@ export default function DagsseddelDetaljSide() {
     onSuccess: () => {
       setSlettKortId(null);
       setAapentKort(null);
+      // O26 B: slettet er borte — ingen utkast for neste jobb står igjen.
+      setNyJobbUtkast(null);
       void utils.timer.dagsseddel.hentMedId.invalidate({ id: params.id });
       void utils.vareforbruk.hentMineForDato.invalidate();
     },
@@ -604,6 +606,38 @@ export default function DagsseddelDetaljSide() {
   }, [prosjekterFlat]);
 
   const prosjekterForVelger = prosjekterFlat;
+
+  // O26 B: et prosjekt som hadde rader på dagen og ikke har det lenger (jobben eller siste rad
+  // er slettet), kommer ikke tilbake som tomt kort. Hooken står før de tidlige returene.
+  const radProsjektNokkel = sheet
+    ? [
+        ...new Set(
+          [
+            ...(sheet.timer as unknown as { projectId: string | null }[]),
+            ...(sheet.maskiner as unknown as { projectId: string | null }[]),
+            ...(sheet.tillegg as unknown as { projectId: string | null }[]),
+          ]
+            .map((r) => r.projectId)
+            .filter((pid): pid is string => !!pid),
+        ),
+      ]
+        .sort()
+        .join("|")
+    : null;
+  const forrigeRadProsjekter = useRef<string | null>(null);
+  useEffect(() => {
+    if (radProsjektNokkel === null) return;
+    const forrige = forrigeRadProsjekter.current;
+    forrigeRadProsjekter.current = radProsjektNokkel;
+    if (!forrige) return;
+    const naa = new Set(radProsjektNokkel.split("|"));
+    const borte = forrige.split("|").filter((pid) => !naa.has(pid));
+    if (borte.length === 0) return;
+    setEkstraProsjektIder((prev) => {
+      const neste = prev.filter((pid) => !borte.includes(pid));
+      return neste.length === prev.length ? prev : neste;
+    });
+  }, [radProsjektNokkel]);
 
   if (isLoading) {
     return (
@@ -1137,9 +1171,19 @@ export default function DagsseddelDetaljSide() {
       varer,
     };
   });
+  // O26 B: utkastet for neste jobb er prosjektets kort — da står det ikke også et tomt kort.
+  const utkastVises =
+    !!nyJobbUtkast &&
+    !!kanBrukeSkjema &&
+    !!standardLonnsartId &&
+    !!sheetAktivitetId &&
+    !jobbKort.some((k) => k.jobb.kortId === nyJobbUtkast.kortId);
   const tommeProsjektKort = ekstraProsjektIder.filter(
-    (pid) => !jobbKort.some((k) => k.jobb.projectId === pid),
+    (pid) =>
+      !jobbKort.some((k) => k.jobb.projectId === pid) &&
+      !(utkastVises && nyJobbUtkast?.projectId === pid),
   );
+
   const utenJobbLinjer: KortLinje[] = jobbGruppering
     ? [
         ...jobbGruppering.utenKort,
@@ -1260,11 +1304,7 @@ export default function DagsseddelDetaljSide() {
     };
   };
   const utkastSkjema: SkjemaOppsett | null =
-    nyJobbUtkast &&
-    kanBrukeSkjema &&
-    standardLonnsartId &&
-    sheetAktivitetId &&
-    !jobbKort.some((k) => k.jobb.kortId === nyJobbUtkast.kortId)
+    nyJobbUtkast && utkastVises && standardLonnsartId && sheetAktivitetId
       ? {
           ...skjemaFelles,
           kortId: nyJobbUtkast.kortId,
