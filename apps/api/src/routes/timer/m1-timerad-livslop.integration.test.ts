@@ -20,7 +20,7 @@ import { dagsseddelRouter } from "./dagsseddel";
  * leveransen. Navnet starter med «RØD i dag:» når testen er ment å feile på f7a277d3.
  *
  * Runde 1 timer (R1, R3 — ordre 2026-11-26): overtid-testene og «ny jobb»-testene er skrevet om til
- * det som nå er rettet. «RØD i dag:»-tester som står igjen, gjelder R4–R6 (ikke i runde 1).
+ * det som nå er rettet. Testene for R4/R5 (ikke i runde 1) står som `it.fails` — `.fails` fjernes når de rettes.
  *
  * Faste id-er med prefiks 0a11fe00, ryddes i afterAll.
  */
@@ -349,7 +349,7 @@ async function push(sedel: ReturnType<typeof telefonSedel>) {
 }
 
 describe("M1 vei telefonsynk (syncBatch) — tillegg er ikke versjonert", () => {
-  it("RØD i dag: tillegg slettet på PC kommer tilbake når telefonen pusher sedelen (pending) med tillegget i lasten", async () => {
+  it.fails("RØD (R4, ikke i runde 1): tillegg slettet på PC kommer tilbake når telefonen pusher sedelen (pending) med tillegget i lasten", async () => {
     const { sid, dato, k1, r1, felles } = await dagMedJobb1();
     const t = (await dag().tilfoyTilleggRad({ sheetId: sid, projectId: P1, tilleggId: TILLEGG, antall: 1, kortId: k1 })) as { id: string };
     void felles;
@@ -363,7 +363,7 @@ describe("M1 vei telefonsynk (syncBatch) — tillegg er ikke versjonert", () => 
     expect(await prismaTimer.sheetTillegg.findUnique({ where: { id: t.id } })).toBeNull();
   });
 
-  it("RØD i dag: tillegg rettet på PC (antall 1 → 3) overskrives i stillhet av telefonens gamle verdi", async () => {
+  it.fails("RØD (R4, ikke i runde 1): tillegg rettet på PC (antall 1 → 3) overskrives i stillhet av telefonens gamle verdi", async () => {
     const { sid, dato, k1, r1 } = await dagMedJobb1();
     const t = (await dag().tilfoyTilleggRad({ sheetId: sid, projectId: P1, tilleggId: TILLEGG, antall: 1, kortId: k1 })) as { id: string };
     await dag().oppdaterTilleggRad({ id: t.id, antall: 3 });
@@ -416,7 +416,7 @@ describe("M1 T1 vei «+ Registrer timer» (opprett med prosjekt) — hva står i
     ]);
   });
 
-  it("RØD i dag (Kenneth: «jeg kan ikke avbryte noe jeg ser starter feil»): å gå ut uten å skrive noe etterlater en lagret 7,5 t-rad — ingen avbryt-vei uten sletting", async () => {
+  it.fails("RØD (R5, ikke i runde 1) (Kenneth: «jeg kan ikke avbryte noe jeg ser starter feil»): å gå ut uten å skrive noe etterlater en lagret 7,5 t-rad — ingen avbryt-vei uten sletting", async () => {
     const sedel = await dag().opprett({ clientUuid: randomUUID(), aktivitetId: AKT, projectId: P1, dato: nyDato(), pauseMin: 0 });
     // Brukeren lukker / navigerer bort. Ingen mutasjon kalles. Det som står igjen på serveren:
     expect(await rader(sedel.id)).toHaveLength(0);

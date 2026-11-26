@@ -249,20 +249,21 @@ describe("O8 D — flyttJobb", () => {
     expect(await alle(sheetId)).toEqual(foer);
   });
 
-  it("varene følger jobben til prosjekt uten varelager — ingen blir igjen (punkt 3)", async () => {
+  it("varene følger jobben til prosjekt uten varelager — ingen blir igjen (punkt 3; reisevalg etter O12 pkt 18)", async () => {
     const { sheetId, kortA } = await sedel("2026-11-07");
-    const { kortId } = await dag().flyttJobb({ sheetId, kortId: kortA, projectId: P3, byggeplassId: null });
+    // O12 pkt 18: jobben har en reise, så et reisevalg kreves; påstandene gjelder ikke reisen.
+    const { kortId } = await dag().flyttJobb({ sheetId, kortId: kortA, projectId: P3, byggeplassId: null, reise: { valg: "flytt" } });
     const etter = await alle(sheetId);
     expect(etter.timer.filter((r) => !r.erReise).map((r) => r.projectId)).toEqual([P3]);
     expect(etter.vare.map((v) => [v.projectId, v.kortId])).toEqual([[P3, kortId]]);
   });
 
-  it("utlegg med annen ordning på nytt prosjekt avvises med Kenneths tekst", async () => {
+  it("utlegg med annen ordning på nytt prosjekt avvises med Kenneths tekst (reisevalg etter O12 pkt 18)", async () => {
     const { sheetId, kortA } = await sedel("2026-11-09");
     await prismaTimer.prosjektOrdningOverstyring.create({ data: { prosjektId: P2, expenseCategoryId: KATEGORI, ordning: "fakturert" } });
     try {
       const foer = await alle(sheetId);
-      await expect(dag().flyttJobb({ sheetId, kortId: kortA, projectId: P2, byggeplassId: BP2 })).rejects.toMatchObject({
+      await expect(dag().flyttJobb({ sheetId, kortId: kortA, projectId: P2, byggeplassId: BP2, reise: { valg: "flytt" } })).rejects.toMatchObject({
         code: "PRECONDITION_FAILED",
         message: "Utlegget føres annerledes på dette prosjektet. Fjern det først.",
       });
