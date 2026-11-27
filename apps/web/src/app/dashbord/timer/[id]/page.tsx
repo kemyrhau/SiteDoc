@@ -7247,6 +7247,13 @@ function MaskinRadDialog({
     }
     return arbeidsrader.length === 1 ? arbeidsrader[0]!.id : "";
   });
+  // Runde 7 (Kenneth 2026-11-27: «Ja, arv timeraden»): med valgt timerad arver maskinen og
+  // varene timeradens underprosjekt, og feltet vises ikke. Uten timerad (døgnmaskin) står
+  // eget valg. Prosjektkort (`jobb`) følger jobben som før.
+  const timeradEco = sheetTimerId
+    ? alleTimerRader.find((r) => r.id === sheetTimerId)?.externalCostObjectId
+    : undefined;
+  const effektivEco = !jobb && sheetTimerId && timeradEco !== undefined ? (timeradEco ?? null) : ecoId;
   const valgtUtstyr = equipment?.find((e) => e.id === vehicleId);
   // Utstyret er ikke lastet ennå → ukjent; serveren avgjør (H15 A).
   const kreverTimerad = valgtUtstyr ? maskinKreverTimerad(valgtUtstyr.utleieEnhet) : false;
@@ -7347,11 +7354,13 @@ function MaskinRadDialog({
             vareId: l.vareId,
             antall: parseFloat(l.antall),
             byggeplassId: bp.byggeplassId,
-            externalCostObjectId: ecoId,
+            externalCostObjectId: effektivEco,
             dagsseddelId: vare.dagsseddelId,
             sheetTimerId: sheetTimerId || null,
           }),
           sheetMachineId: mId,
+          // Runde 7: dagskortets vare krever timerad — serveren avviser i stedet for stille null.
+          krevTimerad: true,
         }),
       ),
     );
@@ -7406,6 +7415,11 @@ function MaskinRadDialog({
       setFeil(t("timer.feil.ugyldigInput"));
       return;
     }
+    // Runde 7 (svar 2 «som anbefalt»): vare på maskin uten timerad (døgn) krever timerad.
+    if (vare && varerTilSending.length > 0 && !sheetTimerId) {
+      setFeil(t("timer.maskinVare.timeradForVare"));
+      return;
+    }
     if (maskinId) {
       void lagreVarer(maskinId);
       return;
@@ -7429,7 +7443,7 @@ function MaskinRadDialog({
       timer: tNum,
       // § 8.22 punkt 4: fra–til sendes aldri — ved redigering står lagrede verdier
       // (maskin.oppdater: undefined = urørt). Mengde og enhet sendes aldri (B37 A, retur 1 runde 3).
-      externalCostObjectId: ecoId,
+      externalCostObjectId: effektivEco,
       // Ordre (10): kun ved endring — mobilens byggeplass overskrives ikke.
       // w3a: ny maskin i en jobb tar jobbens byggeplass (serveren bekrefter, A7).
       ...(jobb && !rad ? { byggeplassId: jobb.byggeplassId } : byggeplassPayload(bp)),
@@ -7531,7 +7545,7 @@ function MaskinRadDialog({
             </p>
           )}
         </div>
-        {!jobb && (<div>
+        {!jobb && !sheetTimerId && (<div data-testid="maskin-underprosjekt">
           <label className="mb-1 block text-sm font-medium text-gray-700">
             {t("timer.felt.underprosjekt")}{" "}
             <span className="text-xs text-gray-400">

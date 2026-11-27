@@ -123,7 +123,8 @@ export function KortVareforbrukModal({
         dagsseddelId,
         sheetTimerId: sheetTimerId || null,
       }),
-      ...(jobb ? { kortId: jobb.kortId } : {}),
+      // Runde 7: dagskortets vare (uten jobb) krever timerad — serveren avviser i stedet for stille null.
+      ...(jobb ? { kortId: jobb.kortId } : { krevTimerad: true }),
     });
   }
 

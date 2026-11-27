@@ -15,6 +15,7 @@ import {
   tallNb,
   type MaskinJobbTilstand,
 } from "../../services/timer/maskinJobbVakt";
+import { arvTimeradEcoForDeler, arvTimeradEcoForMaskiner } from "../../services/timer/arvTimeradEco";
 import {
   verifiserProsjektmedlem,
   verifiserProsjekterTilhørerFirma,
@@ -8730,6 +8731,19 @@ export const dagsseddelRouter = router({
               where: { id: input.timerRadId },
               data: { externalCostObjectId: input.externalCostObjectId, ...kortData },
             });
+        // Runde 7 (Kenneth: «Ja, arv timeraden»): koblede maskiner følger timeradens nye
+        // underprosjekt, som `oppdaterTimerRad` (A7). Attestert og erstattet står (S5).
+        if (!erTillegg) {
+          await tx.sheetMachine.updateMany({
+            where: {
+              sheetId: rad.sheetId,
+              sheetTimerId: rad.id,
+              projectId: rad.projectId ?? undefined,
+              OR: [{ attestertStatus: null }, { attestertStatus: { notIn: ["attestert", "erstattet"] } }],
+            },
+            data: { externalCostObjectId: input.externalCostObjectId },
+          });
+        }
         await touchSedel(tx, rad.sheetId);
         const { kortIdFor } = await sikreKortId(tx, rad.sheetId, { kontekst: kortKontekst });
         await krevIngenNyeMaskinBrudd(tx, ctx.prismaMaskin, rad.sheetId, maskinFoer);
@@ -8738,6 +8752,27 @@ export const dagsseddelRouter = router({
           kortId: kortIdFor.get(input.timerRadId) ?? oppdatertRad?.kortId ?? null,
         };
       });
+
+      // Runde 7: koblede varer (egen database) følger raden, som `oppdaterTimerRad` (A7).
+      // Attestert vare (snapshot satt) står. Feil her ruller ikke tilbake flyttingen — den logges.
+      if (!erTillegg) {
+        try {
+          await ctx.prismaVarelager.$executeRawUnsafe(
+            `UPDATE "varelager"."vareforbruk" SET "external_cost_object_id" = $1, "updated_at" = now()
+             WHERE "dagsseddel_id" = $2 AND "sheet_timer_id" = $3 AND "project_id" = $4 AND "attestert_snapshot" IS NULL
+               AND "external_cost_object_id" IS DISTINCT FROM $1`,
+            input.externalCostObjectId,
+            rad.sheetId,
+            rad.id,
+            rad.projectId,
+          );
+        } catch (err) {
+          ctx.req.log.error(
+            { err, sheetTimerId: rad.id, sheetId: rad.sheetId },
+            "flyttTimerRadEco: koblet vare ble ikke flyttet til radens underprosjekt",
+          );
+        }
+      }
 
       // Activity-log (best-effort — ikke blokker ved skrivefeil)
       try {
@@ -10481,6 +10516,9 @@ export const dagsseddelRouter = router({
         ]);
         for (const t of nyeTillegg) etterPrRad[t.id] = korrigerbareVerdier("tillegg", t);
       } else {
+        // Runde 7 (Kenneth: «Ja, arv timeraden»; «Del opp maskin» deler bare timer): delene
+        // står på originalens timerad og får timeradens underprosjekt i samme prosjekt.
+        const maskinDeler = await arvTimeradEcoForDeler(ctx.prismaTimer, original, input.nyeRader);
         // w9: maskin høyst jobbens arbeid sjekkes sist i transaksjonen.
         await ctx.prismaTimer.$transaction(async (tx) => {
           const maskinFoer = await lesMaskinJobbTilstand(tx, ctx.prismaMaskin, sheet.id);
@@ -10490,7 +10528,7 @@ export const dagsseddelRouter = router({
             data: [byggHistorikkPost("maskin", original, ctx.userId, naa)],
           });
           await tx.sheetMachine.delete({ where: { id: original.id } });
-          for (const rad of input.nyeRader) {
+          for (const rad of maskinDeler) {
             const lagret = await tx.sheetMachine.create({
               data: {
                 sheetId: sheet.id,
@@ -10736,10 +10774,13 @@ export const dagsseddelRouter = router({
           ),
         ]);
       } else {
+        // Runde 7 (Kenneth: «Ja, arv timeraden»; «Del opp maskin» deler bare timer): delene
+        // står på originalens timerad og får timeradens underprosjekt i samme prosjekt.
+        const maskinDeler = await arvTimeradEcoForDeler(ctx.prismaTimer, original, input.nyeRader);
         await ctx.prismaTimer.$transaction(async (tx) => {
           const maskinFoer = await lesMaskinJobbTilstand(tx, ctx.prismaMaskin, sheet.id);
           await tx.sheetMachine.delete({ where: { id: original.id } });
-          for (const rad of input.nyeRader) {
+          for (const rad of maskinDeler) {
             await tx.sheetMachine.create({
               data: {
                 sheetId: sheet.id,
@@ -12966,8 +13007,15 @@ export const dagsseddelRouter = router({
           await touchSedel(tx, input.sheetId);
           const { kortIdFor } = await sikreKortId(tx, input.sheetId, { kontekst: kortKontekst });
           const koblet = await koblMaskinerTilJobb(tx, ctx.prismaMaskin, input.sheetId, [ny.id]);
+          // Runde 7 (Kenneth: «Ja, arv timeraden»): koblet maskin får timeradens underprosjekt.
+          const arvet = await arvTimeradEcoForMaskiner(tx, [ny.id]);
           await krevIngenNyeMaskinBrudd(tx, ctx.prismaMaskin, input.sheetId, maskinFoer);
-          return { ...ny, sheetTimerId: koblet?.get(ny.id) ?? ny.sheetTimerId, kortId: kortIdFor.get(ny.id) ?? ny.kortId ?? null };
+          return {
+            ...ny,
+            externalCostObjectId: arvet.has(ny.id) ? (arvet.get(ny.id) ?? null) : ny.externalCostObjectId,
+            sheetTimerId: koblet?.get(ny.id) ?? ny.sheetTimerId,
+            kortId: kortIdFor.get(ny.id) ?? ny.kortId ?? null,
+          };
         });
         return rad;
       }),
@@ -13067,9 +13115,12 @@ export const dagsseddelRouter = router({
           await touchSedel(tx, rad.sheetId);
           const { kortIdFor } = await sikreKortId(tx, rad.sheetId, { kontekst: kortKontekst });
           const koblet = await koblMaskinerTilJobb(tx, ctx.prismaMaskin, rad.sheetId, [input.id]);
+          // Runde 7: koblet maskin får timeradens underprosjekt (utledes, avvises ikke).
+          const arvet = await arvTimeradEcoForMaskiner(tx, [input.id]);
           await krevIngenNyeMaskinBrudd(tx, ctx.prismaMaskin, rad.sheetId, maskinFoer);
           return {
             ...oppdatert,
+            ...(arvet.has(input.id) ? { externalCostObjectId: arvet.get(input.id) ?? null } : {}),
             sheetTimerId: koblet?.get(input.id) ?? oppdatert.sheetTimerId,
             kortId: kortIdFor.get(input.id) ?? oppdatert.kortId ?? null,
           };

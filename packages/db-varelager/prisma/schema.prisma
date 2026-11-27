@@ -83,8 +83,9 @@ model Vareforbruk {
   kommentar            String?
   dagsseddelId         String?  @map("dagsseddel_id") // svak FK → daily_sheets (db-timer)
   // Radform (Kenneth 2026-11-12): timerraden varen er ført fra. Svak FK → sheet_timer.id
-  // (db-timer). NULL = ikke koblet (eldre linjer, web, Bekreft dag uten rad) → vises
-  // under «Uten rad». Ingen backfill: koblingen kan ikke utledes uten å gjette.
+  // (db-timer). NULL = ikke koblet (eldre linjer, telefonen, Bekreft dag uten rad) → vises
+  // under «Uten rad». Webens dagskortvinduer krever timerad (runde 7, `krevTimerad`).
+  // Koblet vare har timeradens underprosjekt. Ingen backfill: koblingen kan ikke utledes uten å gjette.
   sheetTimerId         String?  @map("sheet_timer_id")
   // Kort-id (prosjektkort-kortid-spec.md § 2.2): koblet vare har timerradens kort; uten sedel → NULL.
   // Svak referanse (annet skjema). Settes av losKortId (packages/shared).

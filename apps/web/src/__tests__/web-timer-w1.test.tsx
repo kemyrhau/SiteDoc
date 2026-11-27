@@ -188,6 +188,8 @@ describe("w1 (g) — varen ført fra jobben på PC står på timeradens linje", 
   it("vinduet sender timeraden (første arbeidsrad forvalgt) — og varen foldes på linja i attesteringen", () => {
     const input = lagreVareFraVinduet(SEDEL_RADER);
     expect(input).toMatchObject({ projectId: "pA", dagsseddelId: "s1", sheetTimerId: "t1", vareId: "vare1", antall: 4 });
+    // Runde 7 (Kenneth 2026-11-27: «Ja, arv timeraden»): vinduet uten jobb krever timerad på serveren.
+    expect(input).toMatchObject({ krevTimerad: true });
 
     const { container } = vis([sedel({ varer: [lagretVare(input)] })]);
     expect(linje(container, "s1:timer:t1")!.textContent).toContain("Betong");
