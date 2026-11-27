@@ -104,7 +104,7 @@ import { jobbSkjemaLinjer, nyJobbForslag, senesteTilTid, type SkjemaKilde } from
 import type { SkjemaLonnsart } from "./JobbSkjema";
 import { KorrigeringProvider, KorrigertMerke, type KorrigeringerPrRad } from "@/components/timer/KorrigertMerke";
 import { reiseHavnerI, useReiseKjoretidOppslag, type ReiseHavnerAnnenRad } from "@/hooks/useManuellReiseWeb";
-import { kontorReiseTekst, useKontorNavn } from "@/hooks/useKontorReiseTekst";
+import { annetStedRuteTekst, kontorReiseTekst, useKontorNavn } from "@/hooks/useKontorReiseTekst";
 import { formaterBelop, formaterTimer } from "@/lib/tallformat";
 import {
   beregnKortSummer,
@@ -2987,6 +2987,7 @@ function JobbKortRamme({
           const retning = r.erReise ? r.reiseRetning : r.arbeidReiseRetning;
           const stedTekst =
             kontorReiseTekst(t, r.reiseRegel, kontorNavn) ??
+            annetStedRuteTekst(t, r, kontorNavn) ??
             retningsStedTekst(t, retning, sted);
           const linje = [
             stedTekst,
@@ -3771,7 +3772,7 @@ function ReiseLinje({
   // O12 pkt 16: en reise ført som arbeidstid bærer retningen i `arbeidReiseRetning`.
   const retning = rad.erReise ? rad.reiseRetning : (rad.arbeidReiseRetning ?? null);
   const stedTekst =
-    kontorReiseTekst(t, rad.reiseRegel, kontorNavn) ?? retningsStedTekst(t, retning, sted);
+    kontorReiseTekst(t, rad.reiseRegel, kontorNavn) ?? annetStedRuteTekst(t, rad, kontorNavn) ?? retningsStedTekst(t, retning, sted);
   const eco = rad.externalCostObjectId
     ? (ecoer ?? []).find((e) => e.id === rad.externalCostObjectId)
     : undefined;
@@ -3904,6 +3905,8 @@ function RaderTimer({
   const sedelFirmaId = useSedelFirma();
   const { data: lonnsarter } = trpc.timer.lonnsart.list.useQuery({ organizationId: sedelFirmaId });
   const { data: aktiviteter } = trpc.timer.aktivitet.list.useQuery({ organizationId: sedelFirmaId });
+  // Runde 4: hjemreisen fra «Annet sted» viser oppmøtestedet («{sted} → {oppmøtested}»).
+  const kontorNavn = useKontorNavn(sedelFirmaId, rader.map((r) => r.reiseRegel));
 
   const fjern = trpc.timer.dagsseddel.fjernTimerRad.useMutation({
     onSuccess: () => void utils.timer.dagsseddel.hentMedId.invalidate(),
@@ -4029,11 +4032,12 @@ function RaderTimer({
                   prosjektkortets reiselinje («Til/Fra {sted}»). */}
               {annetStedTekst(rad.reiseRegel) && (
                 <p className="text-xs text-gray-700" data-testid="reise-annet-sted">
-                  {retningsStedTekst(
-                    t,
-                    rad.erReise ? rad.reiseRetning : (rad.arbeidReiseRetning ?? null),
-                    annetStedTekst(rad.reiseRegel) ?? "",
-                  )}
+                  {annetStedRuteTekst(t, rad, kontorNavn) ??
+                    retningsStedTekst(
+                      t,
+                      rad.erReise ? rad.reiseRetning : (rad.arbeidReiseRetning ?? null),
+                      annetStedTekst(rad.reiseRegel) ?? "",
+                    )}
                 </p>
               )}
               {/* Bolk (d) R2: fra–til under aktiviteten når begge er satt

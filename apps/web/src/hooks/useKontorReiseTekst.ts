@@ -6,7 +6,7 @@
 // Navnet vises slik det er lagret (beslutning 2). Ukjent navn → null, og kalleren beholder dagens
 // tekst — ingenting fabrikkeres.
 
-import { kontorReiseRute } from "@sitedoc/shared";
+import { annetStedTekst, kontorReiseRute } from "@sitedoc/shared";
 import { trpc } from "@/lib/trpc";
 
 type Oversett = (key: string, opts?: Record<string, unknown>) => string;
@@ -26,14 +26,39 @@ export function kontorReiseTekst(
 }
 
 /**
+ * Runde 4 timer (Kenneth 2026-11-26: «annet sted, foreslå hjemmreise men ikke bloker annen
+ * registrering»): hjemreisen fra et «Annet sted» vises «{sted} → {oppmøtested}». Ren; null når
+ * raden ikke er en «Annet sted»-reise med retning retur, eller oppmøtestedets navn er ukjent —
+ * kalleren beholder da dagens tekst («Fra {sted}»). Utreisen er uendret («Til {sted}»).
+ */
+export function annetStedRuteTekst(
+  t: Oversett,
+  rad: {
+    erReise?: boolean;
+    reiseRetning?: string | null;
+    arbeidReiseRetning?: string | null;
+    reiseRegel?: unknown;
+    reiseOppmotestedId?: string | null;
+  },
+  kontorNavn: (id: string) => string | null | undefined,
+): string | null {
+  const sted = annetStedTekst(rad.reiseRegel);
+  const retning = rad.erReise ? rad.reiseRetning : rad.arbeidReiseRetning;
+  if (!sted || retning !== "retur" || !rad.reiseOppmotestedId) return null;
+  const til = kontorNavn(rad.reiseOppmotestedId);
+  return til ? t("timer.prosjektkort.reiseRute", { fra: sted, til }) : null;
+}
+
+/**
  * Firmaets oppmøtesteder som navneoppslag. Spørringen kjøres bare når en av radene har
- * kontor-rute (`reiseRegler`), og deler cache med reisevinduet og `ReiseRadMerke`.
+ * kontor-rute eller er en «Annet sted»-reise (`reiseRegler`), og deler cache med reisevinduet og
+ * `ReiseRadMerke`.
  */
 export function useKontorNavn(
   organizationId: string | null | undefined,
   reiseRegler: readonly unknown[],
 ): (id: string) => string | null {
-  const trengs = !!organizationId && reiseRegler.some((r) => kontorReiseRute(r) != null);
+  const trengs = !!organizationId && reiseRegler.some((r) => kontorReiseRute(r) != null || annetStedTekst(r) != null);
   const { data: steder } = trpc.oppmotested.hentForFirma.useQuery(
     { organizationId: organizationId ?? "" },
     { enabled: trengs },

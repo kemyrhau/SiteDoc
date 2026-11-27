@@ -309,6 +309,8 @@ Fasit: `tegningNedlasting.test.ts`.
 
 **«Annet sted» (runde 2 timer), bare web:** `løsAnnetStedKort({fraOppmotestedId, sted, startTid?, sluttTid?, regel, …, tillatDeling?})` → `løsReiseKort`-tur uten byggeplass og kjøretid (manuell modus, O22-veien), retning «ut», `reiseRegel.annetSted = { sted }` når stedet ikke er tomt. `annetStedTekst(reiseRegel)` leser stedet (trimmet) eller `null`. Fasit: `reiseManuell-annetsted.test.ts`.
 
+**Hjemreise fra «Annet sted» (runde 4 timer, 🟡 `fix/timer-r4`), bare web + api:** `løsAnnetStedHjemreise(k)` → som `løsAnnetStedKort`, men retning «retur»; `fraOppmotestedId` er oppmøtestedet reisen ender på (sporets `reiseOppmotestedId`). `finnApenAnnetStedReise(rader)` → siste «Annet sted»-utreise (`reiseRetning`/`arbeidReiseRetning` «ut») uten senere hjemreise med samme sted (trimmet, små/store bokstaver likt), erstattede rader utelatt; `{ sted, oppmotestedId, projectId, externalCostObjectId, dato } | null`. Bare forslag — ingen sperre. Fasit: `reiseManuell-hjemreise.test.ts`.
+
 **O22 (vedtak pkt 28), web + mobil:** `ikkeValgt` fra `løsOppmote` er ikke lenger en sperre — `løsReiseKort` går til manuell modus (`løsReiseKortUtenKjoretid`) med `utenKjoretid: "utenOppmote"`, uten å kreve `tillatUtenKjoretid`. Sporet får `reiseOppmotestedId`/`reiseAvstandM`/`reiseKjoretidMin` = null. Sperren `oppmoteIkkeValgt` er fjernet fra `ReiseKortSperre`. Fasit: `reiseManuell.test.ts` (O22-testene).
 
 `medOverforingPeriodeId(spor, periodeId)` setter `reiseRegel.overforing.periodeId` når perioden er kjent ved lagring (ny id ved start, lukket periode ved slutt); `null` → sporet urørt.

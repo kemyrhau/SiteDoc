@@ -17,6 +17,7 @@ import {
   kontorOverforingRetning,
   løsOppmote,
   løsAnnetStedKort,
+  løsAnnetStedHjemreise,
   løsOverforingKort,
   løsReiseKort,
   planleggAvslutt,
@@ -51,11 +52,14 @@ import { trpc } from "@/lib/trpc";
  *  Runde 2 timer (Kenneth 2026-11-26, «Annet sted»): fjerde valg `{ type: "annetSted" }` — reise
  *  fra et oppmøtested til et sted arbeideren skriver selv (kurs o.l.). Ingen byggeplass, ingen
  *  kjøretidstabell, ingen oppmøtested-periode: arbeideren fører tiden (`løsAnnetStedKort`).
+ *  Runde 4 timer: `{ type: "annetSted", hjem: true }` er hjemreisen derfra — samme vei, retning
+ *  retur (`løsAnnetStedHjemreise`); `annetSted.fraOppmotestedId` er da oppmøtestedet reisen ender på.
  *
  *  «Siste valg på enheten» (lagret i nettleseren) er fjernet (Kenneth-beslutning 7).
  * ============================================================================ */
 
-export type ReiseKortValg = { type: "tur" } | { type: "retur" } | { type: "kontor" } | { type: "annetSted" };
+/** Runde 4 timer: `hjem` = hjemreisen fra «Annet sted» (retur — Fra stedet, Til oppmøtestedet). */
+export type ReiseKortValg = { type: "tur" } | { type: "retur" } | { type: "kontor" } | { type: "annetSted"; hjem?: boolean };
 
 /** Kallet `oppmotePeriode.overforing` får når oppmøtestedet byttes (O16: arbeiderens datoer). */
 export type KontorOverforingKall = OppmoteByttKall;
@@ -396,10 +400,11 @@ export function useManuellReiseWeb({
       : null;
   const annetFra = annetSted?.fraOppmotestedId !== undefined ? annetSted.fraOppmotestedId : periodeKontorId;
   const annetStedNavn = annetSted?.sted ?? "";
+  const annetHjem = aktivtValg.type === "annetSted" && !!aktivtValg.hjem;
   const resultat: ReiseKortResultat = useMemo(
     () =>
       aktivtValg.type === "annetSted"
-        ? løsAnnetStedKort({
+        ? (annetHjem ? løsAnnetStedHjemreise : løsAnnetStedKort)({
             fraOppmotestedId: annetFra,
             sted: annetStedNavn,
             regel,
@@ -458,7 +463,7 @@ export function useManuellReiseWeb({
         // O23 pkt 29: Slutt inne i egen jobb er aldri dagen etter.
         tillatDeling: retning === "tur" ? { omvendt: "bak" } : { omvendt: "fram", jobb: jobbFra && jobbTil ? { fra: jobbFra, til: jobbTil } : null },
       }),
-    [aktivtValg.type, annetFra, annetStedNavn, kontorOppsett, valgtKontor, kontorRetning, kontorCelle, retning, ramme, regel, grensepunkter, resolverLonnsartId, standardLonnsartId, oppmote, byggeplassId, matrise, startTid, sluttTid, kategoriValg, jobbFra, jobbTil],
+    [aktivtValg.type, annetHjem, annetFra, annetStedNavn, kontorOppsett, valgtKontor, kontorRetning, kontorCelle, retning, ramme, regel, grensepunkter, resolverLonnsartId, standardLonnsartId, oppmote, byggeplassId, matrise, startTid, sluttTid, kategoriValg, jobbFra, jobbTil],
   );
 
   // Oppmøtestedet vises som tekst bare når firmaet har flere (§ 7 C).

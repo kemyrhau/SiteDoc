@@ -153,10 +153,15 @@ function rendre({
   modus = "prosjektkort",
   /** Runde 2 («Annet sted»): firmaets interne prosjekter finnes i prosjektlisten. */
   internt = false,
+  /** Runde 4: svaret fra `apenAnnetStedReise` (utreise uten hjemreise). Utelatt = ingen. */
+  apenUtreise = null as Rad | null,
+  /** Runde 4: oppslag som feiler. */
+  feilNokler = [] as string[],
 } = {}) {
   h.kall = [];
   h.utelat.clear();
   h.feil.clear();
+  for (const k of feilNokler) h.feil.add(k);
   h.avvis.clear();
   const steder = [
     { id: "tromso", navn: "Kontor Tromsø", lat: 0, lng: 0, radiusM: 100 },
@@ -226,6 +231,7 @@ function rendre({
       : {}),
     "timer.aktivitet.list": [{ id: "a1", navn: "Arbeid", aktiv: true }],
     "vareforbruk.hentMineForDato": [],
+    "timer.dagsseddel.apenAnnetStedReise": apenUtreise,
   };
   render(<Side />);
   // Første jobb: åpne kortet hvis det er lukket, og «+ Reise» der.
@@ -1639,5 +1645,94 @@ describe("VAKTTEST 2026-11-26 (Kenneth: «alt fungerer såvidt jeg kan se», run
     fireEvent.click(penner[penner.length - 1]!);
     const d = screen.getByRole("dialog", { name: "timer.detalj.redigerTimerRad" });
     expect(d.querySelector("form")!.checkValidity()).toBe(true);
+  });
+});
+
+// Runde 4 timer — hjemreise fra «Annet sted» (Kenneth 2026-11-26: «annet sted, foreslå hjemmreise
+// men ikke bloker annen registrering»). Forslaget er en egen knapp; Fra = stedet, Til = oppmøtestedet
+// utreisen startet fra, retning retur. Aldri forhåndsvalgt, aldri påkrevd.
+describe("Runde 4 — hjemreise fra «Annet sted»", () => {
+  afterEach(cleanup);
+  const UTREISE: Rad = { sted: "Bergen", oppmotestedId: "tromso", projectId: "pi", externalCostObjectId: null, dato: "2026-11-03" };
+  const hjemKnapp = (d: HTMLElement) => within(d).queryByRole("button", { name: 'timer.reiseKort.hjemreiseFra{"sted":"Bergen"}' });
+  const sted = (d: HTMLElement) => within(d).getByLabelText("timer.reiseKort.annetStedFelt") as HTMLInputElement;
+
+  it("åpen utreise: knappen «Hjemreise fra Bergen» står, ikke valgt", () => {
+    const d = rendre({ internt: true, apenUtreise: UTREISE });
+    const k = hjemKnapp(d)!;
+    expect(k).toBeTruthy();
+    expect(k.getAttribute("aria-pressed")).toBe("false");
+    expect(knapp(d, "timer.reiseKort.tur").getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("ingen åpen utreise / spørringen feiler: ingen knapp, vinduet som før", () => {
+    expect(hjemKnapp(rendre({ internt: true }))).toBeNull();
+    cleanup();
+    expect(hjemKnapp(rendre({ internt: true, apenUtreise: UTREISE, feilNokler: ["timer.dagsseddel.apenAnnetStedReise"] }))).toBeNull();
+  });
+
+  it("ett klikk: Fra = Bergen, Til = utreisens oppmøtested, utreisens prosjekt, tidene tomme", () => {
+    const d = rendre({ internt: true, apenUtreise: UTREISE });
+    fireEvent.click(hjemKnapp(d)!);
+    expect(hjemKnapp(d)!.getAttribute("aria-pressed")).toBe("true");
+    expect(knapp(d, "timer.reiseKort.annetSted").getAttribute("aria-pressed")).toBe("false");
+    const ft = within(d).getByTestId("reise-fra-til");
+    const [fraKol, tilKol] = Array.from(ft.querySelectorAll(":scope > div"));
+    expect(within(fraKol as HTMLElement).getByLabelText("timer.reiseKort.annetStedFelt")).toBe(sted(d));
+    expect(sted(d).value).toBe("Bergen");
+    expect((within(tilKol as HTMLElement).getByLabelText("timer.reiseKort.oppmotested") as HTMLSelectElement).value).toBe("tromso");
+    expect((within(d).getByLabelText("timer.felt.prosjekt") as HTMLSelectElement).value).toBe("pi");
+    expect(start(d).value).toBe("");
+    expect(slutt(d).value).toBe("");
+  });
+
+  it("lagres som retur med stedet i sporet og oppmøtestedet som Til", async () => {
+    const d = rendre({ internt: true, apenUtreise: UTREISE });
+    fireEvent.click(hjemKnapp(d)!);
+    fireEvent.change(start(d), { target: { value: "15:00" } });
+    fireEvent.change(slutt(d), { target: { value: "18:30" } });
+    const input = (await lagre(d))!;
+    expect(input).toMatchObject({
+      erReise: true, projectId: "pi", byggeplassId: null, fraTid: "15:00", tilTid: "18:30", timer: 3.5,
+      reiseKilde: "manuell", reiseRetning: "retur", reiseOppmotestedId: "tromso",
+    });
+    expect((input.reiseRegel as { annetSted?: unknown }).annetSted).toEqual({ sted: "Bergen" });
+    expect(h.kall.some((k) => k.key === "oppmotePeriode.overforing")).toBe(false);
+  });
+
+  it("tilbake til «Annet sted»: stedet følger ikke med, retning ut", async () => {
+    const d = rendre({ internt: true, apenUtreise: UTREISE });
+    fireEvent.click(hjemKnapp(d)!);
+    fireEvent.click(knapp(d, "timer.reiseKort.annetSted"));
+    expect(sted(d).value).toBe("");
+    fireEvent.change(sted(d), { target: { value: "Oslo" } });
+    fireEvent.change(start(d), { target: { value: "13:00" } });
+    fireEvent.change(slutt(d), { target: { value: "15:00" } });
+    expect((await lagre(d))!.reiseRetning).toBe("ut");
+  });
+
+  it("VAKTTEST aldri sperre: med åpen utreise lagres en vanlig Tur som før", async () => {
+    const d = rendre({ apenUtreise: UTREISE });
+    expect(hjemKnapp(d)).toBeTruthy();
+    expect(lagreKnapp(d).disabled).toBe(false);
+    const input = (await lagre(d))!;
+    expect(input.reiseRetning).toBe("ut");
+    expect((input.reiseRegel as { annetSted?: unknown } | undefined)?.annetSted).toBeUndefined();
+  });
+
+  it("dagskortet: hjemreisen vises «Bergen → Kontor Tromsø»; utreisen «Til Bergen» som før", () => {
+    const rad = (over: Rad) =>
+      arbeid({ lonnsartId: "lr", erReise: true, byggeplassId: null, projectId: "pi", externalCostObjectId: null, reiseOppmotestedId: "tromso", reiseRegel: { annetSted: { sted: "Bergen" } }, ...over });
+    rendre({
+      internt: true,
+      modus: "dagskort",
+      timer: [
+        rad({ id: "u1", fraTid: "06:00", tilTid: "09:30", timer: "3.5", reiseRetning: "ut" }),
+        rad({ id: "h1", fraTid: "15:00", tilTid: "18:30", timer: "3.5", reiseRetning: "retur" }),
+      ],
+    });
+    const tekster = screen.getAllByTestId("reise-annet-sted").map((e) => e.textContent);
+    expect(tekster).toContain('timer.prosjektkort.reiseTil{"sted":"Bergen"}');
+    expect(tekster).toContain('timer.prosjektkort.reiseRute{"fra":"Bergen","til":"Kontor Tromsø"}');
   });
 });

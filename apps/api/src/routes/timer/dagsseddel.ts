@@ -167,6 +167,7 @@ import {
   leggTilDager,
   lesMidnattDel,
   annetStedTekst,
+  finnApenAnnetStedReise,
 } from "@sitedoc/shared";
 import {
   klassifiserSyncRader,
@@ -5634,6 +5635,47 @@ export const dagsseddelRouter = router({
       if (!rad) throw new TRPCError({ code: "NOT_FOUND" });
       const sheet = await hentEgenDagsseddel(ctx.prismaTimer, ctx.userId, rad.sheetId, { krevAnsatt: false });
       return finnMidnattPartner(ctx.prismaTimer, sheet, rad);
+    }),
+
+  // Runde 4 timer (Kenneth 2026-11-26: «annet sted, foreslå hjemmreise men ikke bloker annen
+  // registrering»): siste «Annet sted»-utreise uten hjemreise, siste 31 dager t.o.m. sedelens dato,
+  // på sedeleierens egne sedler i sedelens firma. Bare lesing for forslaget i reisevinduet — ingen
+  // skrivevei eller sperre bygger på svaret.
+  apenAnnetStedReise: protectedProcedure
+    .input(z.object({ sheetId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const sheet = await hentEgenDagsseddel(ctx.prismaTimer, ctx.userId, input.sheetId, { krevAnsatt: false });
+      const til = new Date(sheet.dato);
+      const fra = new Date(til);
+      fra.setUTCDate(fra.getUTCDate() - 31);
+      const sedler = await ctx.prismaTimer.dailySheet.findMany({
+        where: { userId: sheet.userId, organizationId: sheet.organizationId, dato: { gte: fra, lte: til } },
+        select: {
+          dato: true,
+          timer: {
+            where: { reiseRegel: { not: Prisma.AnyNull } },
+            select: {
+              fraTid: true,
+              tilTid: true,
+              erReise: true,
+              reiseRetning: true,
+              arbeidReiseRetning: true,
+              reiseRegel: true,
+              reiseOppmotestedId: true,
+              projectId: true,
+              externalCostObjectId: true,
+              attestertStatus: true,
+            },
+          },
+        },
+      });
+      return finnApenAnnetStedReise(
+        sedler.flatMap((s) =>
+          s.timer.flatMap((r) =>
+            r.projectId ? [{ ...r, projectId: r.projectId, dato: s.dato.toISOString().slice(0, 10) }] : [],
+          ),
+        ),
+      );
     }),
 
   // O19 pkt 23: «Slett begge» — begge delene i én transaksjon. Er den andre sedelen låst, slettes
