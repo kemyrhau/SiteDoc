@@ -70,7 +70,7 @@ describe("PDF-ekstraksjon virker uten native Promise.withResolvers (Node 20-nede
       if (orig !== undefined) P.withResolvers = orig;
       vi.resetModules();
     }
-  });
+  }, 20_000); // Tunge PDF-kall: 5 s-grensen ryker under turbo-last (Kontrollør, gate R7).
 
   // Funksjonell kontroll på native runtime (grønn på Node 20 ETTER fiks og på
   // nyere Node): begge veiene gir riktig innhold, flere kall i samme prosess
@@ -84,5 +84,5 @@ describe("PDF-ekstraksjon virker uten native Promise.withResolvers (Node 20-nede
       const pos = await mod.ekstraherPdfMedPosisjoner(pdf);
       expect(pos).toContain("vernerunde");
     }
-  });
+  }, 20_000);
 });

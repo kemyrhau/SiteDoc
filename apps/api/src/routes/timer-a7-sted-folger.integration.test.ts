@@ -32,6 +32,7 @@ const ORD = id("41");
 const REISE = id("42");
 const AKT = id("43");
 const MASKIN = id("51");
+const DOEGN = id("52");
 const VARE = id("61");
 
 const BRUKERE = [USER, ADMIN];
@@ -102,13 +103,25 @@ async function timerRad(sheetId: string, kortId: string, sted: Sted = {}, projec
 
 async function maskinRad(
   sheetId: string,
-  f: Sted & { kortId: string | null; sheetTimerId?: string | null; projectId?: string; attestertStatus?: string },
+  f: Sted & {
+    kortId: string | null;
+    sheetTimerId?: string | null;
+    projectId?: string;
+    attestertStatus?: string;
+    vehicleId?: string;
+    fraTid?: string;
+    tilTid?: string;
+    createdAt?: Date;
+  },
 ) {
   const r = await prismaTimer.sheetMachine.create({
     data: {
       sheetId,
       projectId: f.projectId ?? P1,
-      vehicleId: MASKIN,
+      vehicleId: f.vehicleId ?? MASKIN,
+      fraTid: f.fraTid ?? null,
+      tilTid: f.tilTid ?? null,
+      ...(f.createdAt ? { createdAt: f.createdAt } : {}),
       timer: 2,
       kortId: f.kortId,
       sheetTimerId: f.sheetTimerId ?? null,
@@ -166,7 +179,7 @@ async function ryddOpp() {
   }
   await prismaVarelager.vareforbruk.deleteMany({ where: { registrertAvUserId: { in: BRUKERE } } });
   await prismaVarelager.vare.deleteMany({ where: { id: VARE } });
-  await prismaMaskin.equipment.deleteMany({ where: { id: MASKIN } });
+  await prismaMaskin.equipment.deleteMany({ where: { id: { in: [MASKIN, DOEGN] } } });
   await prismaTimer.lonnsart.deleteMany({ where: { id: { in: [ORD, REISE] } } });
   await prismaTimer.aktivitet.deleteMany({ where: { id: AKT } });
   await prisma.activity.deleteMany({ where: { actorUserId: { in: BRUKERE } } });
@@ -230,8 +243,11 @@ async function seed() {
     ],
   });
   await prismaTimer.aktivitet.create({ data: { id: AKT, organizationId: ORG, navn: "Transport" } });
-  await prismaMaskin.equipment.create({
-    data: { id: MASKIN, organizationId: ORG, kategori: "kjoretoy", type: "lastebil" },
+  await prismaMaskin.equipment.createMany({
+    data: [
+      { id: MASKIN, organizationId: ORG, kategori: "kjoretoy", type: "lastebil" },
+      { id: DOEGN, organizationId: ORG, kategori: "anleggsmaskin", type: "hoppetusse", utleieEnhet: "doegn" },
+    ],
   });
   await prismaVarelager.vare.create({ data: { id: VARE, organizationId: ORG, navn: "Pukk 6-32", enhet: "m3" } });
 }
@@ -276,19 +292,70 @@ describe("A7 — oppdaterTimerRad: koblet maskin og vare følger byttet", () => 
     expect(await vareSted(v)).toEqual({ byggeplassId: BP_2, externalCostObjectId: null });
   });
 
-  it("(3) ukoblet maskin og maskin i annet prosjekt står", async () => {
+  // Opprettelsestid i begge rekkefølger: kortets nøkkel skal ikke avhenge av hvilken rad
+  // som er eldst (rotårsaken til den ustabile vakten, 2026-11-27).
+  const T0 = new Date(Date.UTC(2026, 0, 1));
+  const T1 = new Date(Date.UTC(2026, 0, 2));
+  const rekkefolger = [
+    { navn: "koblet eldst", koblet: T0, ukoblet: T1 },
+    { navn: "ukoblet eldst", koblet: T1, ukoblet: T0 },
+  ];
+  const kortFor = async (tid: string) => (await prismaTimer.sheetTimer.findUniqueOrThrow({ where: { id: tid } })).kortId;
+  const maskin = (mid: string) => prismaTimer.sheetMachine.findUniqueOrThrow({ where: { id: mid } });
+
+  for (const r of rekkefolger) {
+    it(`(3a) ${r.navn}: ukoblet døgnmaskin og maskin i annet prosjekt står; timeraden får eget kort`, async () => {
+      const { sid } = await nySedel();
+      const k = randomUUID();
+      const tid = await timerRad(sid, k, { externalCostObjectId: ECO_1 });
+      const koblet = await maskinRad(sid, { kortId: k, sheetTimerId: tid, externalCostObjectId: ECO_1, createdAt: r.koblet });
+      const ukoblet = await maskinRad(sid, { kortId: k, externalCostObjectId: ECO_1, vehicleId: DOEGN, createdAt: r.ukoblet });
+      const annet = await maskinRad(sid, { kortId: randomUUID(), sheetTimerId: tid, projectId: P2 });
+
+      await dag().oppdaterTimerRad({ id: tid, fraTid: "07:00", tilTid: "15:00", timer: 8, externalCostObjectId: ECO_2 });
+
+      expect(await maskinSted(koblet)).toEqual({ byggeplassId: null, externalCostObjectId: ECO_2 });
+      expect(await maskinSted(ukoblet)).toEqual({ byggeplassId: null, externalCostObjectId: ECO_1 });
+      expect(await maskinSted(annet)).toEqual({ byggeplassId: null, externalCostObjectId: null });
+      // Ingen blandede kort: timeraden (ECO_2) står ikke i kortet med døgnmaskinen (ECO_1).
+      const nyttKort = await kortFor(tid);
+      expect(nyttKort).not.toBe(k);
+      expect((await maskin(koblet)).kortId).toBe(nyttKort);
+      expect((await maskin(ukoblet)).kortId).toBe(k);
+    });
+
+    it(`(3b) ${r.navn}: Kenneth 2026-11-27 «La den følge» — ukoblet førermaskin kobles til timeraden og følger den`, async () => {
+      const { sid } = await nySedel();
+      const k = randomUUID();
+      const tid = await timerRad(sid, k, { externalCostObjectId: ECO_1 });
+      const koblet = await maskinRad(sid, { kortId: k, sheetTimerId: tid, externalCostObjectId: ECO_1, createdAt: r.koblet });
+      const ukoblet = await maskinRad(sid, { kortId: k, externalCostObjectId: ECO_1, createdAt: r.ukoblet });
+
+      await dag().oppdaterTimerRad({ id: tid, fraTid: "07:00", tilTid: "15:00", timer: 8, externalCostObjectId: ECO_2 });
+
+      const nyttKort = await kortFor(tid);
+      for (const mid of [koblet, ukoblet]) {
+        const m = await maskin(mid);
+        expect(m).toMatchObject({ sheetTimerId: tid, kortId: nyttKort, externalCostObjectId: ECO_2 });
+      }
+    });
+  }
+
+  it("(3c) flere timerader i kortet: ukoblet førermaskin følger bare raden den overlapper mest", async () => {
     const { sid } = await nySedel();
     const k = randomUUID();
-    const tid = await timerRad(sid, k, { externalCostObjectId: ECO_1 });
-    const koblet = await maskinRad(sid, { kortId: k, sheetTimerId: tid, externalCostObjectId: ECO_1 });
-    const ukoblet = await maskinRad(sid, { kortId: k, externalCostObjectId: ECO_1 });
-    const annet = await maskinRad(sid, { kortId: randomUUID(), sheetTimerId: tid, projectId: P2 });
+    const formiddag = await timerRad(sid, k, { externalCostObjectId: ECO_1 });
+    await prismaTimer.sheetTimer.update({ where: { id: formiddag }, data: { fraTid: "07:00", tilTid: "11:00", timer: 4 } });
+    const ettermiddag = await timerRad(sid, k, { externalCostObjectId: ECO_1 });
+    await prismaTimer.sheetTimer.update({ where: { id: ettermiddag }, data: { fraTid: "11:00", tilTid: "15:00", timer: 4 } });
+    const iFormiddag = await maskinRad(sid, { kortId: k, externalCostObjectId: ECO_1, fraTid: "07:00", tilTid: "09:00" });
+    const iEttermiddag = await maskinRad(sid, { kortId: k, externalCostObjectId: ECO_1, fraTid: "12:00", tilTid: "14:00" });
 
-    await dag().oppdaterTimerRad({ id: tid, fraTid: "07:00", tilTid: "15:00", timer: 8, externalCostObjectId: ECO_2 });
+    await dag().oppdaterTimerRad({ id: ettermiddag, fraTid: "11:00", tilTid: "15:00", timer: 4, externalCostObjectId: ECO_2 });
 
-    expect(await maskinSted(koblet)).toEqual({ byggeplassId: null, externalCostObjectId: ECO_2 });
-    expect(await maskinSted(ukoblet)).toEqual({ byggeplassId: null, externalCostObjectId: ECO_1 });
-    expect(await maskinSted(annet)).toEqual({ byggeplassId: null, externalCostObjectId: null });
+    expect(await maskin(iEttermiddag)).toMatchObject({ sheetTimerId: ettermiddag, kortId: await kortFor(ettermiddag), externalCostObjectId: ECO_2 });
+    expect(await maskin(iFormiddag)).toMatchObject({ sheetTimerId: null, kortId: k, externalCostObjectId: ECO_1 });
+    expect(await kortFor(formiddag)).toBe(k);
   });
 
   it("(4) attestert maskin og attestert vare står (S5 A)", async () => {

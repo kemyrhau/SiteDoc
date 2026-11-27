@@ -47,6 +47,7 @@ vi.mock("../../services/timer/maskinJobbVakt", () => ({
   lesMaskinJobbTilstand: vi.fn(async () => ({})),
   krevIngenNyeMaskinBrudd: vi.fn(async () => undefined),
   koblMaskinerTilJobb: vi.fn(),
+  koblUkobledeForerMaskinerTilRad: vi.fn(async () => []),
 }));
 vi.mock("../../services/timer/kortId", async (orig) => ({
   ...(await orig<typeof import("../../services/timer/kortId")>()),

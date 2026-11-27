@@ -35,5 +35,6 @@ vi.mock("../services/timer/maskinJobbVakt", async (importOriginal) => {
     lesMaskinJobbTilstand: vi.fn(async () => ({ timer: [], maskin: [], pauseMin: 0 })),
     krevIngenNyeMaskinBrudd: vi.fn(async () => undefined),
     koblMaskinerTilJobb: vi.fn(async () => new Map<string, string>()),
+    koblUkobledeForerMaskinerTilRad: vi.fn(async () => [] as string[]),
   };
 });

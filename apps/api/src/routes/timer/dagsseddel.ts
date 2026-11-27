@@ -11,6 +11,7 @@ import { planleggJobbDeling, JOBB_DELING_FEILTEKST } from "./jobb-deling";
 import {
   lesMaskinJobbTilstand,
   krevIngenNyeMaskinBrudd,
+  koblUkobledeForerMaskinerTilRad,
   koblMaskinerTilJobb,
   tallNb,
   type MaskinJobbTilstand,
@@ -6275,6 +6276,12 @@ export const dagsseddelRouter = router({
               input.externalCostObjectId !== undefined ? input.externalCostObjectId : rad.externalCostObjectId,
           },
         });
+        // A7-vakt (Kenneth 2026-11-27: «La den følge»): ukoblet førermaskin i radens kort
+        // kobles til raden før den skrives, så updateMany under tar den med. Erstatter S4
+        // («ukoblet maskin står») for førermaskin.
+        if (stedEndret) {
+          await koblUkobledeForerMaskinerTilRad(tx, ctx.prismaMaskin, rad);
+        }
         const o = await tx.sheetTimer.update({
           where: { id: input.id },
           data,
