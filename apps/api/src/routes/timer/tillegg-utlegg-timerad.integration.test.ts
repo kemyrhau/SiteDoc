@@ -327,17 +327,23 @@ describe("runde 6 — T6 syncBatch", () => {
     const ut = randomUUID();
     const timer = [syncTimer(a, "07:00", "11:00"), syncTimer(b, "11:00", "15:00")];
 
-    await sync(cu, dato, { timer, tillegg: [syncTillegg(tl, { sheetTimerId: a })], utlegg: [syncUtlegg(ut, { sheetTimerId: b })] });
+    expect((await sync(cu, dato, { timer, tillegg: [syncTillegg(tl, { sheetTimerId: a })], utlegg: [syncUtlegg(ut, { sheetTimerId: b })] })).resultat).toBe("ok");
     expect((await tillegg(tl)).sheetTimerId).toBe(a);
     expect((await utlegg(ut)).sheetTimerId).toBe(b);
 
     // Eldre klient: feltet utelatt → koblingen beholdes.
-    await sync(cu, dato, { timer, tillegg: [syncTillegg(tl)], utlegg: [syncUtlegg(ut)] });
+    expect((await sync(cu, dato, { timer, tillegg: [syncTillegg(tl)], utlegg: [syncUtlegg(ut)] })).resultat).toBe("ok");
     expect((await tillegg(tl)).sheetTimerId).toBe(a);
     expect((await utlegg(ut)).sheetTimerId).toBe(b);
 
-    // Timerad b slettes → utlegget står uten kobling.
-    await sync(cu, dato, { timer: [timer[0]], tillegg: [syncTillegg(tl)], utlegg: [syncUtlegg(ut)], slettedeIder: { timer: [b], tillegg: [], maskiner: [], utlegg: [] } });
+    // Timerad b slettes (versjonert tombstone, V19.9) → utlegget står uten kobling.
+    const radB = await prismaTimer.sheetTimer.findUniqueOrThrow({ where: { id: b } });
+    const etterSletting = await sync(cu, dato, {
+      timer: [timer[0]], tillegg: [syncTillegg(tl)], utlegg: [syncUtlegg(ut)],
+      slettedeIder: { timer: [], timerVersjoner: [{ id: b, serverVersjon: radB.updatedAt.toISOString() }], tillegg: [], maskiner: [], utlegg: [] },
+    });
+    expect(etterSletting.resultat).toBe("ok");
+    expect(await prismaTimer.sheetTimer.count({ where: { id: b } })).toBe(0);
     expect((await utlegg(ut)).sheetTimerId).toBeNull();
     expect((await tillegg(tl)).sheetTimerId).toBe(a);
 
