@@ -24,7 +24,14 @@ const BUNNMARG_CSS = `
 html[data-testpanel] body { padding-bottom: var(--testpanel-h); }
 html[data-testpanel] .h-screen { height: calc(100vh - var(--testpanel-h)); }
 html[data-testpanel] .min-h-screen { min-height: calc(100vh - var(--testpanel-h)); }
+html[data-testpanel] dialog:modal {
+  bottom: var(--testpanel-h);
+  max-height: calc(100vh - var(--testpanel-h) - 2em - 6px);
+}
 `;
+// dialog:modal (Kenneth 2026-11-27: «modalen er så lang at den ligger bak testpanelet»):
+// top layer sentreres mot hele viewporten (UA inset 0). Bunnen løftes over panelet og høyden
+// kappes, så vinduet ruller inni (UA overflow: auto) og Lagre kan nås.
 
 function lesMinimert(): boolean {
   try {
