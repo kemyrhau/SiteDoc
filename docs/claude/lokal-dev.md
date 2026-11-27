@@ -209,6 +209,7 @@ Kenneth 2026-11-27: «under vinduet til sitedoc lager vi et testvindu … Knappe
 - **Lagre forbedring** kan brukes når som helst, også mens agenten kjører. Teksten legges i `steg.forbedringer[]`, og status endres ikke.
 - Det som står i forbedring-feltet når du trykker Neste, går som før til `kenneth.forbedring`.
 - Linjen «Agenten: …» viser `agentNaa`.
+- `handling` (selve testen agenten utfører) står i **fet** tekst for fokus; `hvaTestes`, `forventet` og «Agenten så» er normal tekst (Kenneth 2026-11-27, `Testpanel.tsx`).
 - `markering` tegnes som en amber ramme rundt elementet. Rammen er et eget overlegg med `pointer-events: none` (`components/testpanel/Markering.tsx`), så siden under test endres ikke.
 - Oppslag skjer på synlig tekst, `aria-label` eller input-verdi blant knapper, lenker, faner og etiketter. `selektor` er reserve.
 - Finnes ikke elementet, viser panelet «Fant ikke «…»».
@@ -219,6 +220,13 @@ Kenneth 2026-11-27: «under vinduet til sitedoc lager vi et testvindu … Knappe
 - **Lagres ikke:** figurene ligger kun i React-state — ingen fil, localStorage eller POST. De forsvinner ved Tøm, reload og stibytte (`usePathname`).
 - Skjermbildet tar du selv (Cmd+Shift+4). Tekst til tegningen skrives i forbedring eller merknad.
 - **Kjent grense:** overlegget følger viewporten, ikke siden. Ruller du, blir tegningen stående mens siden flytter seg.
+
+**Med SiteDoc-vindu åpent (retur 2026-11-27, Kenneth: «modalen deaktiverte testpanelet»):**
+- SiteDocs `Modal` åpner med native `dialog.showModal()`. Nettleseren gjør da alt utenfor vinduet inert, og et klikk på panelet traff vinduets backdrop (målt i Chromium; `popover` er også inert).
+- Panelet, tegnelaget og markeringen rendres derfor via portal i én fast vert som flyttes inn i det øverste åpne vinduet og tilbake til `body` når det lukkes (`components/testpanel/Vert.ts`, `useVert`). Verten flyttes, portalen byttes ikke, så merknad, vurdering og tegning står.
+- Klikk i panelet lukker ikke vinduet. Esc i et panelfelt med vindu åpent får `preventDefault` og lukker ikke vinduet; Esc slår fortsatt av Tegn.
+- Markering: med vindu åpent velges treff inni vinduet før treff bak det (`finnMarkert`).
+- **Kjent grense:** fokus mistes i øyeblikket vinduet åpnes eller lukkes (verten flyttes); teksten står.
 
 **Testagentens regler:**
 - Skriver planen og egne felt (`agentSa`, `agentVurdering`, `status` → `venter_kenneth`, `markering`, `agentNaa`) direkte i fila, **atomisk** (skriv til tmp, så `rename`).

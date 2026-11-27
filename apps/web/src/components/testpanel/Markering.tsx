@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from "react";
 import type { Markering as MarkeringData } from "./schema";
+import { øversteVindu } from "./Vert";
 
 /**
  * Markerer elementet agenten skal klikke neste gang (RETUR 2, Kenneth 2026-11-27:
@@ -23,16 +24,20 @@ function synligTekst(el: Element): string {
 export function finnMarkert(m: MarkeringData, rot: ParentNode = document): Element | null {
   const utenfor = (el: Element) =>
     !el.closest('[data-testid="testpanel"], [hidden], [aria-hidden="true"]');
+  // Åpent SiteDoc-vindu: alt bak er inert og kan ikke klikkes — treff inni vinduet går først.
+  const vindu = øversteVindu(rot);
+  const iVinduFørst = (liste: Element[]) =>
+    vindu ? [...liste.filter((el) => vindu.contains(el)), ...liste.filter((el) => !vindu.contains(el))] : liste;
   if ("selektor" in m) {
     try {
-      return Array.from(rot.querySelectorAll(m.selektor)).find(utenfor) ?? null;
+      return iVinduFørst(Array.from(rot.querySelectorAll(m.selektor))).find(utenfor) ?? null;
     } catch {
       return null; // ugyldig selektor
     }
   }
   const mål = m.tekst.replace(/\s+/g, " ").trim();
   return (
-    Array.from(rot.querySelectorAll(KANDIDATER)).find(
+    iVinduFørst(Array.from(rot.querySelectorAll(KANDIDATER))).find(
       (el) =>
         utenfor(el) &&
         (synligTekst(el) === mål ||
