@@ -6147,9 +6147,41 @@ function useRadSted(args: {
   return { bp, ecoer: ecoer ?? [], ecoId, setEcoId, payload, skjult: !!jobb };
 }
 
-function RadStedFelt({ sted }: { sted: ReturnType<typeof useRadSted> }) {
+/** Retur 1 runde 6: med timerad-velger sendes ikke underprosjekt — serveren arver timeradens. */
+function stedUtenEco<T extends { externalCostObjectId?: string | null }>(
+  payload: T,
+  timerad: ReturnType<typeof useTimeradValg>,
+): Omit<T, "externalCostObjectId"> | T {
+  if (!timerad.aktiv) return payload;
+  const { externalCostObjectId: _eco, ...rest } = payload;
+  return rest;
+}
+
+function RadStedFelt({
+  sted,
+  timerad,
+}: {
+  sted: ReturnType<typeof useRadSted>;
+  /** Retur 1 runde 6: aktiv velger → underprosjektet vises fra timeraden, ikke som valg. */
+  timerad?: ReturnType<typeof useTimeradValg>;
+}) {
   const { t } = useTranslation();
   if (sted.skjult) return null;
+  if (timerad?.aktiv) {
+    const eco = timerad.ecoId ? sted.ecoer.find((e) => e.id === timerad.ecoId) : undefined;
+    return (
+      <>
+        <RadByggeplassFelt
+          kandidater={sted.bp.kandidater}
+          verdi={sted.bp.byggeplassId}
+          onEndre={sted.bp.setByggeplassId}
+        />
+        <p className="text-sm text-gray-700" data-testid="timerad-underprosjekt">
+          {t("timer.felt.underprosjekt")}: {eco ? `${eco.proAdmId} — ${eco.kortNavn}` : "—"}
+        </p>
+      </>
+    );
+  }
   return (
     <>
       <RadByggeplassFelt
@@ -6218,7 +6250,7 @@ function TilleggRadDialog({
   );
   const [kommentar, setKommentar] = useState<string>(rad?.kommentar ?? "");
   const sted = useRadSted({ byggeplasser, projectId, rad, jobb });
-  const timerad = useTimeradValg(jobb ? undefined : timerader, projectId, rad?.sheetTimerId);
+  const timerad = useTimeradValg(jobb ? undefined : timerader, projectId, rad?.sheetTimerId, !!rad);
   const [feil, setFeil] = useState<string | null>(null);
   // D4 (web-paritet): kvittering-opplasting (mobil har kamera/galleri).
   const [vedleggFeil, setVedleggFeil] = useState<string | null>(null);
@@ -6339,9 +6371,9 @@ function TilleggRadDialog({
       kommentar: kommentar.trim() || null,
     };
     if (rad) {
-      oppdater.mutate({ id: rad.id, ...data, ...sted.payload, ...timerad.payload });
+      oppdater.mutate({ id: rad.id, ...data, ...stedUtenEco(sted.payload, timerad), ...timerad.payload });
     } else {
-      tilfoy.mutate({ sheetId, projectId, ...data, ...sted.payload, ...timerad.payload });
+      tilfoy.mutate({ sheetId, projectId, ...data, ...stedUtenEco(sted.payload, timerad), ...timerad.payload });
     }
   }
 
@@ -6358,7 +6390,7 @@ function TilleggRadDialog({
       }
     >
       <form onSubmit={handleSubmit} className="space-y-4">
-        <RadStedFelt sted={sted} />
+        <RadStedFelt sted={sted} timerad={timerad} />
         <TimeradVelger valg={timerad} />
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700">
@@ -6879,7 +6911,7 @@ function UtleggRadDialog({
   const { data: katalog } = trpc.timer.expenseCategory.list.useQuery({ projectId, organizationId: sedelFirmaId });
 
   const sted = useRadSted({ byggeplasser, projectId, rad, jobb });
-  const timerad = useTimeradValg(jobb ? undefined : timerader, projectId, rad?.sheetTimerId);
+  const timerad = useTimeradValg(jobb ? undefined : timerader, projectId, rad?.sheetTimerId, !!rad);
   const kategoriId = rad?.expenseCategoryId ?? expenseCategoryId ?? "";
   const kat = (katalog as UtleggKategori[] | undefined)?.find(
     (k) => k.id === kategoriId,
@@ -7011,7 +7043,7 @@ function UtleggRadDialog({
         id: rad.id,
         belop: belopVal,
         kommentar: kommentarVal,
-        ...sted.payload,
+        ...stedUtenEco(sted.payload, timerad),
         ...timerad.payload,
       });
     } else {
@@ -7021,7 +7053,7 @@ function UtleggRadDialog({
         expenseCategoryId: kategoriId,
         belop: belopVal,
         kommentar: kommentarVal,
-        ...sted.payload,
+        ...stedUtenEco(sted.payload, timerad),
         ...timerad.payload,
       });
     }
@@ -7037,7 +7069,7 @@ function UtleggRadDialog({
       title={rad ? t("timer.utleggReg.redigerUtlegg") : t("timer.detalj.leggTil")}
     >
       <form onSubmit={handleSubmit} className="space-y-4">
-        <RadStedFelt sted={sted} />
+        <RadStedFelt sted={sted} timerad={timerad} />
         <TimeradVelger valg={timerad} />
         {/* Kategori-overskrift + ordnings-pille + kilde (8b). Aldri et valg. */}
         <div>

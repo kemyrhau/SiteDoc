@@ -625,7 +625,7 @@
   "timer.felt.enhet": "Jednostka",
   "timer.felt.timerad": "Rząd czasu",
   "timer.maskinTimerad.valg": "{{fra}}–{{til}} · {{timer}} godz",
-  "timer.mine.hjelp.tilleggUtleggTimerad": "Dzięki karcie dziennej diety i wydatki zapisywane są w rzędzie godzinowym w ramach projektu, pracy lub podróży. Wybierz wiersz w oknie; jeśli projekt taki posiada, zostaje on wybrany. Opcja „Dodaj” w obszarze dodatków i wydatków pojawia się, gdy projekt zawiera wiersz godzinowy. Jeżeli w wierszu następuje zmiana projektu, następuje zasiłek i wydatek. Jeśli wiersz zostanie usunięty, pozostaną one bez wiersza godzinowego.",
+  "timer.mine.hjelp.tilleggUtleggTimerad": "Dzięki karcie dziennej diety i wydatki zapisywane są w rzędzie godzinowym w ramach projektu, pracy lub podróży. Wybierz wiersz w oknie; jeśli projekt taki posiada, zostaje on wybrany. Opcja „Dodaj” w obszarze dodatków i wydatków pojawia się, gdy projekt zawiera wiersz godzinowy. Biorą podprojekt wiersza. Jeśli w wierszu zmienia się projekt lub podprojekt, następuje zwrot ulgi i wydatku. Jeśli wiersz zostanie usunięty, pozostaną one bez wiersza godzinowego.",
   "timer.utleggTimerad.velg": "Wybierz wiersz godzinowy, do którego należy wydatek.",
   "timer.tilleggTimerad.velg": "Wybierz wiersz godzinowy, do którego należy zasiłek.",
   "timer.timeradValg.reise": "Podróż {{fra}}–{{til}} · {{timer}} godz",

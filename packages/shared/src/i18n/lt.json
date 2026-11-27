@@ -625,7 +625,7 @@
   "timer.felt.enhet": "Vienetas",
   "timer.felt.timerad": "Laiko eilutė",
   "timer.maskinTimerad.valg": "{{fra}}–{{til}} · {{timer}} val",
-  "timer.mine.hjelp.tilleggUtleggTimerad": "Su dienos kortele pašalpos ir išlaidos yra valandos eilutėje projekte, darbe ar kelionėje. Lange pasirinkite eilutę; jei projektas turi, jis pasirenkamas. „Pridėti“ prie išmokų ir išlaidų rodoma, kai projekte yra valandos eilutė. Jei eilutėje pakeičiamas projektas, seka pašalpa ir išlaidos. Jei eilutė ištrinta, jos lieka be valandos eilutės.",
+  "timer.mine.hjelp.tilleggUtleggTimerad": "Su dienos kortele pašalpos ir išlaidos yra valandos eilutėje projekte, darbe ar kelionėje. Lange pasirinkite eilutę; jei projektas turi, jis pasirenkamas. „Pridėti“ prie išmokų ir išlaidų rodoma, kai projekte yra valandos eilutė. Jie imasi eilutės subprojekto. Jei eilutėje pakeičiamas projektas ar paprojektis, toliau nurodoma pašalpa ir išlaidos. Jei eilutė ištrinta, jos lieka be valandos eilutės.",
   "timer.utleggTimerad.velg": "Pasirinkite valandų eilutę, kuriai priklauso išlaidos.",
   "timer.tilleggTimerad.velg": "Pasirinkite valandų eilutę, kuriai priklauso pašalpa.",
   "timer.timeradValg.reise": "Kelionė {{fra}}–{{til}} · {{timer}} val",

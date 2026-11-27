@@ -625,7 +625,7 @@
   "timer.felt.enhet": "Üksus",
   "timer.felt.timerad": "Ajarida",
   "timer.maskinTimerad.valg": "{{fra}}–{{til}} · {{timer}} h",
-  "timer.mine.hjelp.tilleggUtleggTimerad": "Päevakaardiga istuvad toetused ja kulud tunnireal projektis, tööl või reisil. Valige aknas rida; kui projektil on see olemas, valitakse see välja. \"Lisa\" toetuste ja kulude all kuvatakse siis, kui projektil on tunnirida. Kui rida muudab projekti, järgneb toetus ja kulu. Kui rida kustutatakse, jäävad need ilma tunnireata.",
+  "timer.mine.hjelp.tilleggUtleggTimerad": "Päevakaardiga istuvad toetused ja kulud tunnireal projektis, tööl või reisil. Valige aknas rida; kui projektil on see olemas, valitakse see välja. \"Lisa\" toetuste ja kulude all kuvatakse siis, kui projektil on tunnirida. Nad võtavad rea alamprojekti. Kui rida muudab projekti või alamprojekti, järgneb toetus ja kulu. Kui rida kustutatakse, jäävad need ilma tunnireata.",
   "timer.utleggTimerad.velg": "Valige tunnirida, kuhu kulu kuulub.",
   "timer.tilleggTimerad.velg": "Valige tunnirida, kuhu toetus kuulub.",
   "timer.timeradValg.reise": "Reisimine {{fra}}–{{til}} · {{timer}} h",

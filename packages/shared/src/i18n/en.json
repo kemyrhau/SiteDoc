@@ -625,7 +625,7 @@
   "timer.felt.enhet": "Unit",
   "timer.felt.timerad": "Time row",
   "timer.maskinTimerad.valg": "{{fra}}–{{til}} · {{timer}} h",
-  "timer.mine.hjelp.tilleggUtleggTimerad": "With the day card, allowances and expenses sit on an hour row in the project, work or travel. Choose the row in the window; if the project has one, it is selected. \"Add\" under allowances and expenses appears once the project has an hour row. If the row changes project, the allowance and expense follow. If the row is deleted, they remain without an hour row.",
+  "timer.mine.hjelp.tilleggUtleggTimerad": "With the day card, allowances and expenses sit on an hour row in the project, work or travel. Choose the row in the window; if the project has one, it is selected. \"Add\" under allowances and expenses appears once the project has an hour row. They take the row's sub-project. If the row changes project or sub-project, the allowance and expense follow. If the row is deleted, they remain without an hour row.",
   "timer.utleggTimerad.velg": "Choose the hour row the expense belongs to.",
   "timer.tilleggTimerad.velg": "Choose the hour row the allowance belongs to.",
   "timer.timeradValg.reise": "Travel {{fra}}–{{til}} · {{timer}} h",

@@ -625,7 +625,7 @@
   "timer.felt.enhet": "Jednotka",
   "timer.felt.timerad": "Časová řada",
   "timer.maskinTimerad.valg": "{{fra}} – {{til}} · {{timer}} h",
-  "timer.mine.hjelp.tilleggUtleggTimerad": "S denní kartou jsou příspěvky a výdaje na hodinové řadě v projektu, práci nebo cestování. Vyberte řádek v okně; pokud ho projekt má, je vybrán. \"Přidat\" pod povolenkami a výdaji se objeví, jakmile má projekt řádek s hodinami. Pokud řádek změní projekt, následuje příspěvek a výdaj. Pokud je řádek odstraněn, zůstanou bez řádku hodin.",
+  "timer.mine.hjelp.tilleggUtleggTimerad": "S denní kartou jsou příspěvky a výdaje na hodinové řadě v projektu, práci nebo cestování. Vyberte řádek v okně; pokud ho projekt má, je vybrán. \"Přidat\" pod povolenkami a výdaji se objeví, jakmile má projekt řádek s hodinami. Berou dílčí projekt řady. Pokud řádek změní projekt nebo dílčí projekt, následuje příspěvek a výdaj. Pokud je řádek odstraněn, zůstanou bez řádku hodin.",
   "timer.utleggTimerad.velg": "Vyberte řádek hodin, do kterého výdaj patří.",
   "timer.tilleggTimerad.velg": "Vyberte řádek hodin, ke kterému příspěvek náleží.",
   "timer.timeradValg.reise": "Cesta {{fra}}–{{til}} · {{timer}} h",

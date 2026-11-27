@@ -625,7 +625,7 @@
   "timer.felt.enhet": "Vienība",
   "timer.felt.timerad": "Laika rinda",
   "timer.maskinTimerad.valg": "{{fra}}–{{til}} · {{timer}} h",
-  "timer.mine.hjelp.tilleggUtleggTimerad": "Ar dienas karti pabalsti un izdevumi atrodas stundu rindā projektā, darbā vai ceļojumā. Logā izvēlieties rindu; ja projektā tāds ir, tas tiek atlasīts. \"Pievienot\" zem piemaksām un izdevumiem parādās, kad projektā ir stundu rinda. Ja rinda maina projektu, seko pabalsts un izdevumi. Ja rinda tiek dzēsta, tās paliek bez stundu rindas.",
+  "timer.mine.hjelp.tilleggUtleggTimerad": "Ar dienas karti pabalsti un izdevumi atrodas stundu rindā projektā, darbā vai ceļojumā. Logā izvēlieties rindu; ja projektā tāds ir, tas tiek atlasīts. \"Pievienot\" zem piemaksām un izdevumiem parādās, kad projektā ir stundu rinda. Viņi ņem rindas apakšprojektu. Ja rindā tiek mainīts projekts vai apakšprojekts, seko pabalsts un izdevumi. Ja rinda tiek dzēsta, tās paliek bez stundu rindas.",
   "timer.utleggTimerad.velg": "Izvēlieties stundu rindu, kurai pieder izdevumi.",
   "timer.tilleggTimerad.velg": "Izvēlieties stundu rindu, kurai pieder piemaksa.",
   "timer.timeradValg.reise": "Ceļojums {{fra}}–{{til}} · {{timer}} h",

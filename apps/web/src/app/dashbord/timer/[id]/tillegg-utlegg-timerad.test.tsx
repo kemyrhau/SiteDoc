@@ -165,3 +165,44 @@ describe("Runde 6 — tillegg og utlegg på timerad i dagskortet", () => {
     expect(knapper("timer.detalj.leggTil")).toHaveLength(0);
   });
 });
+
+describe("Retur 1 runde 6 — tillegg og utlegg arver timeradens underprosjekt", () => {
+  const ecoTekst = () => within(dialog()).getByTestId("timerad-underprosjekt").textContent;
+
+  it("ingen nedtrekk for underprosjekt; lesetekst følger valgt timerad; underprosjekt sendes ikke", () => {
+    rendre();
+    nyttTillegg();
+    expect(within(dialog()).queryByRole("option", { name: "TILL-001 — Tillegg 1" })).toBeNull();
+    expect(ecoTekst()).toBe("timer.felt.underprosjekt: —");
+    fireEvent.change(velger(), { target: { value: "r2" } });
+    expect(ecoTekst()).toBe("timer.felt.underprosjekt: TILL-001 — Tillegg 1");
+    fireEvent.change(velger(), { target: { value: "r1" } });
+    expect(ecoTekst()).toBe("timer.felt.underprosjekt: —");
+    fireEvent.click(lagre());
+    const kall = h.kall.find((k) => k.sti === "timer.dagsseddel.tilfoyTilleggRad");
+    expect(kall?.input).toMatchObject({ sheetTimerId: "r1" });
+    expect(kall?.input).not.toHaveProperty("externalCostObjectId");
+  });
+
+  it("utlegg: samme lesetekst, underprosjekt sendes ikke", () => {
+    rendre();
+    nyttUtlegg();
+    fireEvent.change(velger(), { target: { value: "r2" } });
+    expect(ecoTekst()).toBe("timer.felt.underprosjekt: TILL-001 — Tillegg 1");
+    fireEvent.click(lagre());
+    const kall = h.kall.find((k) => k.sti === "timer.dagsseddel.tilfoyUtleggRad");
+    expect(kall?.input).not.toHaveProperty("externalCostObjectId");
+  });
+
+  it("eldre tillegg i prosjekt uten timerad: ingen velger, Lagre tillatt, ingen kobling sendes", () => {
+    rendre({ sedel: { timer: [], maskiner: [] }, data: { "vareforbruk.hentMineForDato": [] } });
+    redigerTillegg();
+    expect(within(dialog()).queryByTestId("timerad-velger")).toBeNull();
+    expect(within(dialog()).queryByTestId("timerad-underprosjekt")).toBeNull();
+    expect(lagre().disabled).toBe(false);
+    fireEvent.click(lagre());
+    const kall = h.kall.find((k) => k.sti === "timer.dagsseddel.oppdaterTilleggRad");
+    expect(kall?.input).toMatchObject({ id: "t1" });
+    expect(kall?.input).not.toHaveProperty("sheetTimerId");
+  });
+});

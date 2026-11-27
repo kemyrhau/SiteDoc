@@ -45,6 +45,10 @@ import {
 } from "../../services/timer/slettespor";
 import { hentSkSedler, lesSlettetOgKorrigert } from "../../services/timer/slettetKorrigert";
 import {
+  arvTimeradEcoForTilleggUtlegg,
+  ecoForTimeradTilleggUtlegg,
+} from "../../services/timer/arvTimeradEcoTilleggUtlegg";
+import {
   lastAngreGrunnlag,
   angreDelOppKort,
   finnAngreOpphav,
@@ -2856,6 +2860,19 @@ async function krevTimeradVedFoering(
   }
 }
 
+/**
+ * Retur 1 runde 6 («Ja, arv timeraden»): koblet tillegg/utlegg får timeradens underprosjekt,
+ * uansett input. Ukoblet (prosjektkort, eldre rad) → input som før.
+ */
+async function medArvetTimeradEco<T extends { externalCostObjectId?: string | null }>(
+  prismaTimer: PrismaTimerKlient,
+  input: T,
+  sheetTimerId: string | null | undefined,
+): Promise<T> {
+  const eco = await ecoForTimeradTilleggUtlegg(prismaTimer, sheetTimerId);
+  return eco === undefined ? input : { ...input, externalCostObjectId: eco };
+}
+
 /** Runde 6, ved oppdatering: oppgitt id valideres mot radens prosjekt; null avvises i dagskort. */
 async function timeradVedOppdatering(
   prismaTimer: PrismaTimerKlient,
@@ -2970,8 +2987,8 @@ async function flyttTilleggUtleggKobling(
 
 /**
  * Runde 6, svar 1 (Kenneth: aldri sperre arbeid): timeraden bytter prosjekt → tillegg og
- * utlegg på raden følger til det nye prosjektet i samme transaksjon. Underprosjekt og
- * byggeplass som ikke finnes i det nye prosjektet nullstilles; kort-id fylles på nytt
+ * utlegg på raden følger til det nye prosjektet i samme transaksjon. Underprosjektet blir
+ * timeradens (retur 1); byggeplass som ikke finnes i det nye prosjektet nullstilles; kort-id fylles på nytt
  * (`sikreKortId`, regel 3). Attestert tillegg står (S5) og mister koblingen i stedet, så
  * regelen «samme prosjekt» holder.
  */
@@ -2989,14 +3006,15 @@ async function tilleggUtleggFoelgerProsjekt(
   ]);
   if (tillegg.length === 0 && utlegg.length === 0) return;
   const alle = [...tillegg, ...utlegg];
-  const [vaskBp, vaskEco] = await Promise.all([
+  // Retur 1 runde 6: underprosjektet er timeradens (allerede gyldig i det nye prosjektet).
+  const [vaskBp, timeradEco] = await Promise.all([
     lagByggeplassVasker(alle.map((r) => r.byggeplassId)),
-    lagEcoVasker(alle.map((r) => r.externalCostObjectId), a.organizationId),
+    ecoForTimeradTilleggUtlegg(tx, a.sheetTimerId),
   ]);
-  const flytt = (r: { byggeplassId: string | null; externalCostObjectId: string | null }) => ({
+  const flytt = (r: { byggeplassId: string | null }) => ({
     projectId: a.projectId,
     byggeplassId: vaskBp(r.byggeplassId, a.projectId),
-    externalCostObjectId: vaskEco(r.externalCostObjectId, a.projectId),
+    externalCostObjectId: timeradEco ?? null,
     kortId: null,
   });
   for (const r of tillegg) {
@@ -4491,6 +4509,8 @@ async function utforRedigerSedelRader(
     }
     // Runde 6: et tillegg attestanten flyttet til et annet prosjekt enn timeraden, mister koblingen.
     await sikreTimeradKoblingEtterSync(tx, sheet.id, []);
+    // Retur 1 runde 6: tillegg og utlegg følger timeradens (ev. nye) underprosjekt.
+    await arvTimeradEcoForTilleggUtlegg(tx, sheet.id);
     for (const n of plan.maskin.opprett) {
       const ny = await tx.sheetMachine.create({
         data: {
@@ -6282,6 +6302,8 @@ export const dagsseddelRouter = router({
           });
         }
         await synkroniserHodePause(tx, rad.sheetId);
+        // Retur 1 runde 6: tillegg og utlegg på raden følger radens underprosjekt.
+        await arvTimeradEcoForTilleggUtlegg(tx, rad.sheetId);
         const { kortIdFor } = await sikreKortId(tx, rad.sheetId);
         await krevIngenNyeMaskinBrudd(tx, ctx.prismaMaskin, rad.sheetId, maskinFoer);
         return { ...o, kortId: kortIdFor.get(input.id) ?? o?.kortId ?? null };
@@ -7393,6 +7415,8 @@ export const dagsseddelRouter = router({
       await sjekkAldersgrense(sheet.organizationId, sheet.status, sheet.dato);
       // H3: samme firma-grense på rad-projectId som tilfoyTimerRad.
       await verifiserProsjekterTilhørerFirma([input.projectId], sheet.organizationId);
+      // Retur 1 runde 6: koblet tillegg får timeradens underprosjekt (utledes, avvises ikke).
+      input = await medArvetTimeradEco(ctx.prismaTimer, input, input.sheetTimerId);
       // Prosjektkortet: byggeplass og underprosjekt må høre til radens prosjekt.
       await krevByggeplasserIProsjekt([input]);
       await krevEcoerIProsjekt([input], sheet.organizationId);
@@ -7455,6 +7479,12 @@ export const dagsseddelRouter = router({
         where: { id: input.id },
       });
       if (!rad) throw new TRPCError({ code: "NOT_FOUND" });
+      // Retur 1 runde 6: koblet rad (ny eller lagret kobling) får timeradens underprosjekt.
+      input = await medArvetTimeradEco(
+        ctx.prismaTimer,
+        input,
+        input.sheetTimerId !== undefined ? input.sheetTimerId : rad.sheetTimerId,
+      );
 
       const sheet = await hentEgenDagsseddel(ctx.prismaTimer, ctx.userId, rad.sheetId);
       if (!erRedigerbar(sheet.status)) {
@@ -7689,6 +7719,8 @@ export const dagsseddelRouter = router({
       // H3: samme firma-grense på rad-projectId som tilfoyTimerRad — før
       // prosjekt-overstyringen under leses på projectId.
       await verifiserProsjekterTilhørerFirma([input.projectId], sheet.organizationId);
+      // Retur 1 runde 6: koblet utlegg får timeradens underprosjekt (utledes, avvises ikke).
+      input = await medArvetTimeradEco(ctx.prismaTimer, input, input.sheetTimerId);
       // Prosjektkortet: byggeplass og underprosjekt må høre til radens prosjekt.
       await krevByggeplasserIProsjekt([input]);
       await krevEcoerIProsjekt([input], sheet.organizationId);
@@ -7790,6 +7822,12 @@ export const dagsseddelRouter = router({
         where: { id: input.id },
       });
       if (!rad) throw new TRPCError({ code: "NOT_FOUND" });
+      // Retur 1 runde 6: koblet rad (ny eller lagret kobling) får timeradens underprosjekt.
+      input = await medArvetTimeradEco(
+        ctx.prismaTimer,
+        input,
+        input.sheetTimerId !== undefined ? input.sheetTimerId : rad.sheetTimerId,
+      );
 
       const sheet = await hentEgenDagsseddel(ctx.prismaTimer, ctx.userId, rad.sheetId);
       if (!erRedigerbar(sheet.status)) {
@@ -12882,6 +12920,8 @@ export const dagsseddelRouter = router({
             ];
             if (oppgitteKoblinger.length > 0 || [...lagretTimerad.values()].some(Boolean)) {
               await sikreTimeradKoblingEtterSync(tx, sedel.id, oppgitteKoblinger);
+              // Retur 1 runde 6: koblet tillegg/utlegg får timeradens underprosjekt.
+              await arvTimeradEcoForTilleggUtlegg(tx, sedel.id);
             }
 
             // Kort-id (spec § 4.1): regel 3 for rader uten id, K6 for koblet maskin, og

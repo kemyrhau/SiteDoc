@@ -12,6 +12,8 @@ export type TimeradValgRad = {
   timer: unknown;
   attestertStatus: string | null;
   erReise?: boolean;
+  /** Retur 1 runde 6: tillegg og utlegg arver timeradens underprosjekt. */
+  externalCostObjectId?: string | null;
 };
 
 const tilTall = (v: unknown): number => (v === null || v === undefined ? 0 : Number(v));
@@ -22,11 +24,16 @@ const tilTall = (v: unknown): number => (v === null || v === undefined ? 0 : Num
  * på: prosjektets arbeid og reise, ikke erstattet. Forvalgt når prosjektet har én; ved redigering
  * radens egen. `timerader` utelatt (prosjektkort-modus, eller åpnet fra en jobb) = ingen velger,
  * og payloaden er som før.
+ *
+ * Retur 1 runde 6 (Kenneth: «Ja, arv timeraden»): underprosjektet utledes av serveren fra valgt
+ * timerad (`ecoId` viser det). Redigering av en lagret rad uten kobling i et prosjekt uten
+ * timerad: ingen velger, Lagre tillates (aldri sperre) — `redigerer` = vinduet har en lagret rad.
  */
 export function useTimeradValg(
   timerader: readonly TimeradValgRad[] | undefined,
   projectId: string,
   lagret: string | null | undefined,
+  redigerer = false,
 ) {
   const rader = useMemo(
     () =>
@@ -39,7 +46,8 @@ export function useTimeradValg(
     if (lagret && rader.some((r) => r.id === lagret)) return lagret;
     return rader.length === 1 ? rader[0]!.id : "";
   });
-  const aktiv = timerader !== undefined;
+  const aktiv = timerader !== undefined && !(redigerer && !lagret && rader.length === 0);
+  const valgt = rader.find((r) => r.id === id);
   return {
     aktiv,
     rader,
@@ -48,6 +56,8 @@ export function useTimeradValg(
     /** Klar til lagring: velgeren er av, eller en rad er valgt. */
     klar: !aktiv || !!id,
     payload: aktiv ? { sheetTimerId: id } : {},
+    /** Valgt timerads underprosjekt (null = uten); `undefined` = ingen rad valgt. */
+    ecoId: valgt ? (valgt.externalCostObjectId ?? null) : undefined,
   };
 }
 

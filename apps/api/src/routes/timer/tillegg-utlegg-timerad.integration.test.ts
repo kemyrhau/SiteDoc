@@ -31,6 +31,7 @@ const ATT = id("04");
 const P1 = id("11");
 const P2 = id("12");
 const ECO1 = id("31"); // i P1
+const ECO2 = id("32"); // i P2
 const ORD = id("41");
 const REISE = id("42");
 const AKT = id("43");
@@ -73,12 +74,12 @@ async function nySedel(opts: { status?: string } = {}) {
   return sid;
 }
 
-async function raArbeid(sheetId: string, f: { projectId?: string; fra?: string; til?: string; status?: string } = {}) {
+async function raArbeid(sheetId: string, f: { projectId?: string; fra?: string; til?: string; status?: string; eco?: string | null } = {}) {
   const r = await prismaTimer.sheetTimer.create({
     data: {
       sheetId, projectId: f.projectId ?? P1, lonnsartId: ORD, aktivitetId: AKT,
       fraTid: f.fra ?? "07:00", tilTid: f.til ?? "11:00", timer: 4, kortId: randomUUID(),
-      attestertStatus: f.status ?? "pending",
+      attestertStatus: f.status ?? "pending", externalCostObjectId: f.eco ?? null,
     },
   });
   return r.id;
@@ -120,7 +121,7 @@ async function ryddOpp() {
   await prismaTimer.tillegg.deleteMany({ where: { id: TILLEGG } });
   await prismaTimer.expenseCategory.deleteMany({ where: { id: KATEGORI } });
   await prisma.activity.deleteMany({ where: { actorUserId: { in: BRUKERE } } });
-  await prisma.externalCostObject.deleteMany({ where: { id: ECO1 } });
+  await prisma.externalCostObject.deleteMany({ where: { id: { in: [ECO1, ECO2] } } });
   await prisma.projectModule.deleteMany({ where: { projectId: { in: [P1, P2] } } });
   await prisma.projectMember.deleteMany({ where: { projectId: { in: [P1, P2] } } });
   await prisma.project.deleteMany({ where: { id: { in: [P1, P2] } } });
@@ -168,6 +169,9 @@ async function seed() {
   });
   await prisma.externalCostObject.create({
     data: { id: ECO1, organizationId: ORG, projectId: P1, proAdmId: "R6-E1", kortNavn: "Grøft", kilde: "manuell", opprettetAvUserId: ATT },
+  });
+  await prisma.externalCostObject.create({
+    data: { id: ECO2, organizationId: ORG, projectId: P2, proAdmId: "R6-E2", kortNavn: "Kum", kilde: "manuell", opprettetAvUserId: ATT },
   });
   await prismaTimer.lonnsart.createMany({
     data: [
@@ -383,5 +387,102 @@ describe("runde 6 — T7 svar 1: timeraden bytter prosjekt", () => {
     const etter = await tillegg(tl.id);
     expect(etter.projectId).toBe(P2);
     expect(etter.sheetTimerId).toBe(r);
+  });
+});
+
+describe("retur 1 runde 6 — tillegg og utlegg arver timeradens underprosjekt", () => {
+  const eco = async (rid: string) => (await tillegg(rid)).externalCostObjectId;
+  const ecoU = async (rid: string) => (await utlegg(rid)).externalCostObjectId;
+
+  it("opprett: annet underprosjekt i input lagres som timeradens (utledes, avvises ikke)", async () => {
+    const sid = await nySedel();
+    const uten = await raArbeid(sid);
+    const med = await raArbeid(sid, { fra: "11:00", til: "15:00", eco: ECO1 });
+    const t1 = await dag().tilfoyTilleggRad({ sheetId: sid, projectId: P1, tilleggId: TILLEGG, antall: 1, externalCostObjectId: ECO1, sheetTimerId: uten });
+    const t2 = await dag().tilfoyTilleggRad({ sheetId: sid, projectId: P1, tilleggId: TILLEGG, antall: 1, externalCostObjectId: null, sheetTimerId: med });
+    const u1 = await dag().tilfoyUtleggRad({ sheetId: sid, projectId: P1, expenseCategoryId: KATEGORI, belop: 10, externalCostObjectId: ECO1, sheetTimerId: uten });
+    const u2 = await dag().tilfoyUtleggRad({ sheetId: sid, projectId: P1, expenseCategoryId: KATEGORI, belop: 10, sheetTimerId: med });
+    expect([t1.externalCostObjectId, t2.externalCostObjectId]).toEqual([null, ECO1]);
+    expect([await eco(t1.id), await eco(t2.id), await ecoU(u1.id), await ecoU(u2.id)]).toEqual([null, ECO1, null, ECO1]);
+    // Kortet følger underprosjektet: tillegget står i timeradens kort.
+    const kortMed = (await prismaTimer.sheetTimer.findUniqueOrThrow({ where: { id: med } })).kortId;
+    expect((await tillegg(t2.id)).kortId).toBe(kortMed);
+  });
+
+  it("oppdater: koblet rad får timeradens underprosjekt også når input sier noe annet", async () => {
+    const sid = await nySedel();
+    const a = await raArbeid(sid, { eco: ECO1 });
+    const tl = await nyttTillegg(sid, a);
+    const ut = await nyttUtlegg(sid, a);
+    await dag().oppdaterTilleggRad({ id: tl.id, antall: 3, externalCostObjectId: null });
+    await dag().oppdaterUtleggRad({ id: ut.id, belop: 99, externalCostObjectId: null });
+    expect(await eco(tl.id)).toBe(ECO1);
+    expect(await ecoU(ut.id)).toBe(ECO1);
+  });
+
+  it("timeraden får nytt underprosjekt (rettRadFelt): tillegg og utlegg følger; attestert tillegg står", async () => {
+    const sid = await nySedel();
+    const a = await raArbeid(sid);
+    const tl = await nyttTillegg(sid, a);
+    const fast = await nyttTillegg(sid, a);
+    const ut = await nyttUtlegg(sid, a);
+    await prismaTimer.sheetTillegg.update({ where: { id: fast.id }, data: { attestertStatus: "attestert" } });
+    await prismaTimer.dailySheet.update({ where: { id: sid }, data: { status: "sent" } });
+    await dag(ATT).rettRadFelt({ radType: "timer", radId: a, felter: { externalCostObjectId: ECO1 } });
+    expect(await eco(tl.id)).toBe(ECO1);
+    expect(await ecoU(ut.id)).toBe(ECO1);
+    expect(await eco(fast.id)).toBeNull();
+    expect((await tillegg(tl.id)).kortId).not.toBeNull();
+  });
+
+  it("eier retter timeradens underprosjekt (oppdaterTimerRad): tillegget følger", async () => {
+    const sid = await nySedel();
+    const a = await raArbeid(sid);
+    const tl = await nyttTillegg(sid, a);
+    await dag().oppdaterTimerRad({ id: a, fraTid: "07:00", tilTid: "11:00", externalCostObjectId: ECO1 });
+    expect(await eco(tl.id)).toBe(ECO1);
+  });
+
+  it("prosjektbytte: tillegg og utlegg får timeradens underprosjekt i det nye prosjektet, ikke tomt", async () => {
+    const sid = await nySedel();
+    const a = await raArbeid(sid, { eco: ECO1 });
+    const tl = await nyttTillegg(sid, a);
+    const ut = await nyttUtlegg(sid, a);
+    await prismaTimer.dailySheet.update({ where: { id: sid }, data: { status: "sent" } });
+    await dag(ATT).rettRadFelt({ radType: "timer", radId: a, felter: { projectId: P2, byggeplassId: null, externalCostObjectId: ECO2 } });
+    expect((await tillegg(tl.id)).projectId).toBe(P2);
+    expect(await eco(tl.id)).toBe(ECO2);
+    expect(await ecoU(ut.id)).toBe(ECO2);
+  });
+
+  it("syncBatch: koblet tillegg får timeradens underprosjekt", async () => {
+    const cu = randomUUID();
+    const dato = nyDato().toISOString().slice(0, 10);
+    const a = randomUUID();
+    const tl = randomUUID();
+    const svar = await dag().syncBatch({
+      sedler: [{
+        clientUuid: cu, projectId: P1, aktivitetId: AKT, dato, status: "draft", pauseMin: 0,
+        timer: [{ id: a, projectId: P1, lonnsartId: ORD, aktivitetId: AKT, timer: 4, fraTid: "07:00", tilTid: "11:00", pauseMin: 0, externalCostObjectId: ECO1 }],
+        tillegg: [{ id: tl, projectId: P1, tilleggId: TILLEGG, antall: 1, externalCostObjectId: null, sheetTimerId: a }],
+        maskiner: [], utlegg: [],
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any],
+    });
+    expect(svar.resultater[0]!.resultat).toBe("ok");
+    expect(await eco(tl)).toBe(ECO1);
+  });
+
+  it("prosjektkort-firma: oppgitt underprosjekt beholdes (ingen kobling, ingen arv)", async () => {
+    await settModus("prosjektkort");
+    try {
+      const sid = await nySedel();
+      await raArbeid(sid);
+      const tl = await dag().tilfoyTilleggRad({ sheetId: sid, projectId: P1, tilleggId: TILLEGG, antall: 1, externalCostObjectId: ECO1 });
+      expect(tl.sheetTimerId).toBeNull();
+      expect(await eco(tl.id)).toBe(ECO1);
+    } finally {
+      await settModus("dagskort");
+    }
   });
 });
