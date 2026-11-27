@@ -255,7 +255,7 @@ describe("w3a — vinduene arver jobben", () => {
     for (const felt of ["fraTid", "tilTid", "mengde", "enhet"]) expect(oppdater?.input).not.toHaveProperty(felt);
   });
 
-  it("§ 8.22 punkt 4: maskinvinduet uten jobb (dagskort) har ingen fra–til; lagrede fra–til sendes ikke, mengde står", () => {
+  it("§ 8.22 punkt 4 + retur 1 runde 3: maskinvinduet uten jobb (dagskort) har verken fra–til eller mengde/enhet; lagrede sendes ikke", () => {
     rendre("dagskort");
     const sedel = h.data["timer.dagsseddel.hentMedId"] as typeof DAG7_SEDEL;
     const lagret = { fraTid: "15:00", tilTid: "16:00", mengde: "12", enhet: "m3" };
@@ -270,8 +270,8 @@ describe("w3a — vinduene arver jobben", () => {
     expect(dialog.querySelectorAll('input[type="time"]')).toHaveLength(0);
     expect(dialog.textContent).not.toContain("timer.felt.startTid");
     expect(dialog.textContent).not.toContain("timer.felt.sluttTid");
-    // Negativkontroll: uten jobb står mengde og enhet.
-    expect(dialog.textContent).toContain("timer.felt.mengde");
+    // Retur 1 runde 3 (Kenneth 2026-11-27): heller ikke mengde og enhet i dagskortet.
+    expect(dialog.textContent).not.toContain("timer.felt.mengde");
     fireEvent.change(dialog.querySelector('input[type="number"]')!, { target: { value: "0.75" } });
     // Maskinen krever timerad (d2c-1): velg den første.
     const timerad = Array.from(dialog.querySelectorAll("select")).find((el) =>
@@ -280,8 +280,8 @@ describe("w3a — vinduene arver jobben", () => {
     fireEvent.change(timerad, { target: { value: timerad.options[1]!.value } });
     fireEvent.submit(dialog.querySelector("form")!);
     const oppdater = h.kall.find((k) => k.sti === "timer.dagsseddel.maskin.oppdater");
-    expect(oppdater?.input).toMatchObject({ timer: 0.75, mengde: 12, enhet: "m3" });
-    for (const felt of ["fraTid", "tilTid"]) expect(oppdater?.input).not.toHaveProperty(felt);
+    expect(oppdater?.input).toMatchObject({ timer: 0.75 });
+    for (const felt of ["fraTid", "tilTid", "mengde", "enhet"]) expect(oppdater?.input).not.toHaveProperty(felt);
   });
 
   it("«+ Vare»: ingen prosjekt/timerad/byggeplass, varen følger jobbens første arbeidsrad (S2 A)", () => {
@@ -565,13 +565,13 @@ describe("w3b — maskindelen i «Legg til» og «Rediger timer-rad» (prosjektk
     for (const felt of ["fraTid", "tilTid", "mengde", "enhet"]) expect(maskin).not.toHaveProperty(felt);
   });
 
-  it("dagskort-modus: maskindelen er som før (ingen jobbens maskiner, Mengde og Enhet står)", () => {
+  it("dagskort-modus: maskindelen er som før (ingen jobbens maskiner), men uten Mengde og Enhet (retur 1 runde 3)", () => {
     medMaskinModul("dagskort");
     fireEvent.click(screen.getAllByRole("button", { name: /timer\.detalj\.tilfoyTimer/ })[0]!);
     const dialog = screen.getByRole("dialog");
     expect(within(dialog).queryByTestId("kort-maskindel")).toBeNull();
     fireEvent.click(within(dialog).getByText("timer.maskinSeksjon.tittel"));
-    expect(dialog.textContent).toContain("timer.felt.mengde");
+    expect(dialog.textContent).not.toContain("timer.felt.mengde");
     expect(dialog.textContent).toContain("timer.maskinSeksjon.hint");
     expect(dialog.textContent).not.toContain("timer.maskinSeksjon.hintJobb");
   });

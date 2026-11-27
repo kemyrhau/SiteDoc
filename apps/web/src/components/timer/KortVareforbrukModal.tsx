@@ -21,6 +21,8 @@ export type VareTimeradKandidat = {
   timer: unknown;
   erReise?: boolean | null;
   attestertStatus?: string | null;
+  /** Runde 3: uten jobb følger varens underprosjekt den valgte timeraden. */
+  externalCostObjectId?: string | null;
 };
 
 /**
@@ -114,7 +116,10 @@ export function KortVareforbrukModal({
         vareId,
         antall: n,
         byggeplassId: jobb ? jobb.byggeplassId : bp.byggeplassId,
-        externalCostObjectId: jobb?.ecoId ?? null,
+        // Runde 3 (dagskortet, uten jobb): underprosjektet følger den valgte timeraden.
+        externalCostObjectId: jobb
+          ? jobb.ecoId
+          : (arbeidsrader.find((r) => r.id === sheetTimerId)?.externalCostObjectId ?? null),
         dagsseddelId,
         sheetTimerId: sheetTimerId || null,
       }),
