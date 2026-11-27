@@ -557,3 +557,108 @@ describe("retur 2 runde 6 — Kontrollørens vilkår", () => {
   });
 });
 
+
+describe("retur 3 runde 6 — flytting av koblet tillegg og utlegg (Kenneths regel)", () => {
+  const eco = async (rid: string) => (await tillegg(rid)).externalCostObjectId;
+  const timerRad = (rid: string) => prismaTimer.sheetTimer.findUniqueOrThrow({ where: { id: rid } });
+  const send = (sid: string) => prismaTimer.dailySheet.update({ where: { id: sid }, data: { status: "sent" } });
+  /** Et kort uten timerad på sedelen: et ukoblet tillegg med eget underprosjekt. */
+  async function kortUtenTimerad(sid: string): Promise<string> {
+    const t = await prismaTimer.sheetTillegg.create({
+      data: { sheetId: sid, projectId: P1, tilleggId: TILLEGG, antall: 1, externalCostObjectId: ECO1 },
+    });
+    await dag().oppdaterTilleggRad({ id: t.id, antall: 1 }); // fyller kort-id
+    return (await tillegg(t.id)).kortId!;
+  }
+
+  it("punkt 1: koblet tillegg bytter underprosjekt → timeraden flyttes, og alt koblet til den følger", async () => {
+    const sid = await nySedel();
+    const a = await raArbeid(sid);
+    const tl = await nyttTillegg(sid, a);
+    const tl2 = await nyttTillegg(sid, a);
+    const ut = await nyttUtlegg(sid, a);
+    await send(sid);
+    await dag(ATT).flyttTimerRadEco({ timerRadId: tl.id, radType: "tillegg", externalCostObjectId: ECO1 });
+    expect((await timerRad(a)).externalCostObjectId).toBe(ECO1);
+    expect(await eco(tl.id)).toBe(ECO1);
+    expect(await eco(tl2.id)).toBe(ECO1);
+    expect((await utlegg(ut.id)).externalCostObjectId).toBe(ECO1);
+    expect((await tillegg(tl.id)).sheetTimerId).toBe(a);
+    // Neste arv angrer ingenting.
+    await dag(ATT).rettRadFelt({ radType: "timer", radId: a, felter: { fraTid: "07:30", tilTid: "11:00", timer: 3.5 } });
+    expect(await eco(tl.id)).toBe(ECO1);
+    expect((await tillegg(tl.id)).kortId).toBe((await timerRad(a)).kortId);
+  });
+
+  it("punkt 1-vakt: timeraden er attestert → avvist, ingenting endret", async () => {
+    const sid = await nySedel();
+    const a = await raArbeid(sid);
+    const tl = await nyttTillegg(sid, a);
+    await send(sid);
+    await prismaTimer.sheetTimer.update({ where: { id: a }, data: { attestertStatus: "attestert" } });
+    await expect(
+      dag(ATT).flyttTimerRadEco({ timerRadId: tl.id, radType: "tillegg", externalCostObjectId: ECO1 }),
+    ).rejects.toMatchObject({ code: "PRECONDITION_FAILED", message: expect.stringContaining("Tillegget følger timeraden") });
+    expect((await timerRad(a)).externalCostObjectId).toBeNull();
+    expect(await eco(tl.id)).toBeNull();
+  });
+
+  it("punkt 1-retting: rettRadFelt med underprosjekt på koblet tillegg avvises; antall alene går", async () => {
+    const sid = await nySedel();
+    const a = await raArbeid(sid);
+    const tl = await nyttTillegg(sid, a);
+    await send(sid);
+    await expect(
+      dag(ATT).rettRadFelt({ radType: "tillegg", radId: tl.id, felter: { externalCostObjectId: ECO1 } }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST", message: "Underprosjektet følger timeraden. Flytt timeraden." });
+    expect(await eco(tl.id)).toBeNull();
+    await dag(ATT).rettRadFelt({ radType: "tillegg", radId: tl.id, felter: { antall: 2 } });
+  });
+
+  it("punkt 2-arbeider: ny timerad i vinduet → ny rads underprosjekt og kort, gammel kobling borte", async () => {
+    const sid = await nySedel();
+    const a = await raArbeid(sid, { fra: "07:00", til: "11:00" });
+    const b = await raArbeid(sid, { fra: "11:00", til: "15:00", eco: ECO1 });
+    const tl = await nyttTillegg(sid, a);
+    await dag().oppdaterTilleggRad({ id: tl.id, sheetTimerId: b });
+    const etter = await tillegg(tl.id);
+    expect(etter.sheetTimerId).toBe(b);
+    expect(etter.externalCostObjectId).toBe(ECO1);
+    expect(etter.kortId).toBe((await timerRad(b)).kortId);
+  });
+
+  it("punkt 2-attestant: koblet tillegg eller utlegg til kort uten timerad → avvist, koblingen står", async () => {
+    const sid = await nySedel();
+    const a = await raArbeid(sid);
+    const tl = await nyttTillegg(sid, a);
+    const ut = await nyttUtlegg(sid, a);
+    const tom = await kortUtenTimerad(sid);
+    await send(sid);
+    await expect(
+      dag(ATT).flyttLinjeTilKort({ sheetId: sid, radType: "tillegg", radId: tl.id, tilKortId: tom }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST", message: "Kortet har ingen timerad å knytte tillegget til." });
+    await expect(
+      dag(ATT).flyttLinjeTilKort({ sheetId: sid, radType: "utlegg", radId: ut.id, tilKortId: tom }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST", message: "Kortet har ingen timerad å knytte utlegget til." });
+    expect((await tillegg(tl.id)).sheetTimerId).toBe(a);
+    expect((await utlegg(ut.id)).sheetTimerId).toBe(a);
+    expect(await eco(tl.id)).toBeNull();
+  });
+
+  it("punkt 3: ukoblet tillegg får eget underprosjekt som før og kan flyttes til kort uten timerad", async () => {
+    const sid = await nySedel();
+    await raArbeid(sid);
+    const t = await prismaTimer.sheetTillegg.create({ data: { sheetId: sid, projectId: P1, tilleggId: TILLEGG, antall: 1 } });
+    await dag().oppdaterTilleggRad({ id: t.id, antall: 1 });
+    const t2 = await prismaTimer.sheetTillegg.create({ data: { sheetId: sid, projectId: P1, tilleggId: TILLEGG, antall: 1 } });
+    await dag().oppdaterTilleggRad({ id: t2.id, antall: 1 });
+    const tom = await kortUtenTimerad(sid);
+    await send(sid);
+    await dag(ATT).flyttTimerRadEco({ timerRadId: t.id, radType: "tillegg", externalCostObjectId: ECO1 });
+    expect(await eco(t.id)).toBe(ECO1);
+    expect((await tillegg(t.id)).sheetTimerId).toBeNull();
+    await dag(ATT).flyttLinjeTilKort({ sheetId: sid, radType: "tillegg", radId: t2.id, tilKortId: tom });
+    expect((await tillegg(t2.id)).kortId).toBe(tom);
+    expect((await tillegg(t2.id)).sheetTimerId).toBeNull();
+  });
+});

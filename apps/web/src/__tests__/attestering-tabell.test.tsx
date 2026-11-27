@@ -2385,6 +2385,18 @@ describe("D2b — flytt en linje til et annet kort", () => {
     expect(kallTil("flyttLinjeTilKort")[0]!.input).toEqual({ sheetId: "s1", radType: "maskin", radId: "m1", tilKortId: "kC" });
   });
 
+  it("retur 3 runde 6: koblet tillegg tilbys bare kort med timerad; ukoblet får også kortet uten", () => {
+    // kC har bare et ukoblet tillegg (ingen timerad). kB har timeraden t2.
+    const kortC = tl({ id: "g9", kortId: "kC", externalCostObjectId: "eX" });
+    const koblet = vis([dag({ tillegg: [tl({ sheetTimerId: "t1" }), kortC] })]);
+    const k1 = aapneA(koblet.container).querySelector("[data-tilleggslinje] [data-flytt-knapp]") as HTMLElement;
+    expect(k1.textContent).toBe('timer.attestering.registrering.flytt.til{"navn":"TILL-001 · 11:00–15:00"}');
+    cleanup();
+    const ukoblet = vis([dag({ tillegg: [tl(), kortC] })]);
+    const k2 = aapneA(ukoblet.container).querySelector("[data-tilleggslinje] [data-flytt-knapp]") as HTMLElement;
+    expect(k2.textContent).toContain("timer.attestering.registrering.flytt.flyttTil");
+  });
+
   it("test 6: ingen mål — én jobb, annet prosjekt eller målkort som ikke venter — gir ingen knapp", () => {
     const en = vis([sedel({ tillegg: [tl()] })]);
     fireEvent.click(dagsrad(en.container));

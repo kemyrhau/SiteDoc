@@ -62,6 +62,8 @@ export type AttVare = {
 };
 export type AttUtlegg = {
   id: string;
+  /** R6: timeraden utlegget er koblet til (dagskort). Retur 3: styrer flyttmålene. */
+  sheetTimerId?: string | null;
   belop: unknown;
   expenseCategory: { navn: string } | null;
   kortId: string | null;
@@ -1125,7 +1127,8 @@ export function kortIdAv(kort: Pick<AttKort, "nokkel" | "sheetId">): string | nu
   return id === "" || id === "reise" || id === "utenKort" ? null : id;
 }
 
-export type FlyttMaal = { kortId: string; nokkel: string; navn: string };
+/** `harTimerad`: kortet har arbeid (retur 3 runde 6 — koblet tillegg og utlegg flyttes bare dit). */
+export type FlyttMaal = { kortId: string; nokkel: string; navn: string; harTimerad: boolean };
 
 const minutt = (hhmm: string | null | undefined): number | null => {
   if (!hhmm || !/^\d{2}:\d{2}$/.test(hhmm)) return null;
@@ -1147,12 +1150,14 @@ export function flyttMaal(kort: AttKort, dagensKort: readonly AttKort[], utenTek
     const kortId = kortIdAv(k);
     if (k.nokkel === kort.nokkel || k.sheetId !== kort.sheetId || k.projectId !== kort.projectId || kortId === null) continue;
     if (!k.linjer.every((l) => !l.harHandling || l.ventende)) continue;
-    const arbeid = k.linjer.filter((l) => l.kilde.type === "timer" && l.kilde.rad.erReise !== true);
+    const arbeid = k.linjer.filter(
+      (l) => l.kilde.type === "timer" && l.kilde.rad.erReise !== true && !l.kilde.rad.arbeidReiseRetning,
+    );
     const fra = arbeid.map((l) => minutt(l.linje.fraTid)).filter((x): x is number => x !== null);
     const til = arbeid.map((l) => minutt(l.linje.tilTid)).filter((x): x is number => x !== null);
     const tid = fra.length > 0 && til.length > 0 ? `${klokke(Math.min(...fra))}–${klokke(Math.max(...til))}` : null;
     const under = k.underprosjekt?.split(" · ")[0]?.trim() || utenTekst;
-    ut.push({ kortId, nokkel: k.nokkel, navn: [under, tid].filter(Boolean).join(" · ") });
+    ut.push({ kortId, nokkel: k.nokkel, navn: [under, tid].filter(Boolean).join(" · "), harTimerad: arbeid.length > 0 });
   }
   return ut;
 }

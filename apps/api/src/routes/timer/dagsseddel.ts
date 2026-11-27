@@ -8296,6 +8296,8 @@ export const dagsseddelRouter = router({
               // Tillegg/utlegg på prosjektkortet (spec § 6): kortet raden hører til.
               byggeplassId: true,
               externalCostObjectId: true,
+              // Retur 3 runde 6: koblet utlegg flyttes bare til et kort med timerad.
+              sheetTimerId: true,
               expenseCategory: { select: { navn: true } },
             },
           },
@@ -8951,11 +8953,12 @@ export const dagsseddelRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const erTillegg = input.radType === "tillegg";
-      const rad = erTillegg
+      let erTillegg = input.radType === "tillegg";
+      let rad = erTillegg
         ? await ctx.prismaTimer.sheetTillegg.findUnique({ where: { id: input.timerRadId } })
         : await ctx.prismaTimer.sheetTimer.findUnique({ where: { id: input.timerRadId } });
       if (!rad) throw new TRPCError({ code: "NOT_FOUND" });
+      let radId = input.timerRadId;
 
       const sheet = await ctx.prismaTimer.dailySheet.findUnique({
         where: { id: rad.sheetId },
@@ -8969,6 +8972,8 @@ export const dagsseddelRouter = router({
           message: "Fravær uten prosjekt kan ikke flyttes til et underprosjekt",
         });
       }
+      // Timeraden til et koblet tillegg har samme prosjekt (R6-gyldighet).
+      const prosjektId = rad.projectId;
       // T.1 (2026-05-11): projectId ligger på rad — bruk rad.projectId
       // for auth og ECO-validering.
       await krevAttesteringsrett(ctx.userId, [
@@ -8985,9 +8990,28 @@ export const dagsseddelRouter = router({
         });
       }
 
+      // Retur 3 runde 6 (Kenneth: «et tillegg som bytter underprosjekt, da må den beholde sin
+      // timerad, og både tillegget og timeraden flyttes»): et koblet tillegg flyttes ved at
+      // timeraden flyttes — arven tar tillegget og alt annet koblet til raden med.
+      if (erTillegg && !input.helJobb && "sheetTimerId" in rad && rad.sheetTimerId) {
+        const timerad = await ctx.prismaTimer.sheetTimer.findUnique({ where: { id: rad.sheetTimerId } });
+        if (timerad && timerad.sheetId === rad.sheetId) {
+          const flyttbar = { status: sheet.status, egenSedel: false };
+          if (!linjeKanFlyttes(rad.attestertStatus, flyttbar) || !linjeKanFlyttes(timerad.attestertStatus, flyttbar)) {
+            throw new TRPCError({
+              code: "PRECONDITION_FAILED",
+              message: "Tillegget følger timeraden, og timeraden er attestert eller låst. Gjenåpne timeraden først.",
+            });
+          }
+          rad = timerad;
+          erTillegg = false;
+          radId = timerad.id;
+        }
+      }
+
       // ECO-validering hvis ikke null — finnes, samme firma+prosjekt,
       // status=aktiv, åpen for timer-registrering
-      await validerEcoForFlytt(input.externalCostObjectId, sheet.organizationId, rad.projectId);
+      await validerEcoForFlytt(input.externalCostObjectId, sheet.organizationId, prosjektId);
 
       // w5 (bilde 7, K3): underprosjektet gjelder hele jobben — timer, maskin, vare,
       // tillegg og utlegg på kortet flyttes sammen. Kortets id beholdes: det er samme jobb.
@@ -9020,11 +9044,11 @@ export const dagsseddelRouter = router({
         const maskinFoer = await lesMaskinJobbTilstand(tx, ctx.prismaMaskin, rad.sheetId);
         const oppdatertRad = erTillegg
           ? await tx.sheetTillegg.update({
-              where: { id: input.timerRadId },
+              where: { id: radId },
               data: { externalCostObjectId: input.externalCostObjectId, ...kortData },
             })
           : await tx.sheetTimer.update({
-              where: { id: input.timerRadId },
+              where: { id: radId },
               data: { externalCostObjectId: input.externalCostObjectId, ...kortData },
             });
         await touchSedel(tx, rad.sheetId);
@@ -9035,7 +9059,7 @@ export const dagsseddelRouter = router({
         await krevIngenNyeMaskinBrudd(tx, ctx.prismaMaskin, rad.sheetId, maskinFoer);
         return {
           ...oppdatertRad,
-          kortId: kortIdFor.get(input.timerRadId) ?? oppdatertRad?.kortId ?? null,
+          kortId: kortIdFor.get(radId) ?? oppdatertRad?.kortId ?? null,
         };
       });
 
@@ -9047,7 +9071,7 @@ export const dagsseddelRouter = router({
             organizationId: sheet.organizationId,
             projectId: rad.projectId,
             targetType: erTillegg ? "sheet_tillegg" : "sheet_timer",
-            targetId: input.timerRadId,
+            targetId: radId,
             action: erTillegg ? "tillegg.eco-flyttet" : "timer.eco-flyttet",
             payload: {
               sheetId: sheet.id,
@@ -9571,6 +9595,12 @@ export const dagsseddelRouter = router({
         id: r.id, kortId: r.kortId, projectId: r.projectId, timer: Number(r.timer), erReise: false,
         attestertStatus: r.attestertStatus, fraTid: r.fraTid, tilTid: r.tilTid,
       }));
+      // Retur 3 runde 6: et koblet tillegg eller utlegg flyttes bare til et kort med gyldig timerad.
+      const timeradIMaal = (hva: "tillegget" | "utlegget"): string => {
+        const id = velgTimeradForMaskin({ kortId: mal.kortId }, malRader);
+        if (!id) throw new TRPCError({ code: "BAD_REQUEST", message: `Kortet har ingen timerad å knytte ${hva} til.` });
+        return id;
+      };
 
       // Vare: bare varelager-basen skrives, i én transaksjon der — ingen halv tilstand mellom basene.
       if (input.radType === "vare") {
@@ -9624,12 +9654,13 @@ export const dagsseddelRouter = router({
         } else if (input.radType === "tillegg") {
           const o = await tx.sheetTillegg.findUniqueOrThrow({ where: { id: kilde.id } });
           await tx.sheetRadHistorikk.create({ data: byggHistorikkPost("tillegg", o, ctx.userId, naa) });
-          // Retur 2 runde 6 (vilkår 2): koblet tillegg kobles om til en timerad i målkortet
-          // (ingen → null), ellers drar neste arv det tilbake til den gamle timeradens
-          // underprosjekt. Ukoblet (prosjektkort, eldre rad) forblir ukoblet.
+          // Retur 2 runde 6 (vilkår 2): koblet tillegg kobles om til en timerad i målkortet,
+          // ellers drar neste arv det tilbake til den gamle timeradens underprosjekt. Retur 3
+          // (Kenneth: «kan kun flyttes til en annen gyldig timerad»): uten timerad i målkortet
+          // avvises flyttet. Ukoblet (prosjektkort, eldre rad) forblir ukoblet.
           const ny = await tx.sheetTillegg.update({
             where: { id: o.id },
-            data: o.sheetTimerId ? { ...mal, sheetTimerId: velgTimeradForMaskin({ kortId: mal.kortId }, malRader) } : mal,
+            data: o.sheetTimerId ? { ...mal, sheetTimerId: timeradIMaal("tillegget") } : mal,
           });
           etterPrRad[ny.id] = korrigerbareVerdier("tillegg", ny);
         } else if (input.radType === "reise") {
@@ -9643,7 +9674,7 @@ export const dagsseddelRouter = router({
           const o = await tx.sheetUtlegg.findUniqueOrThrow({ where: { id: kilde.id }, select: { sheetTimerId: true } });
           await tx.sheetUtlegg.update({
             where: { id: kilde.id },
-            data: o.sheetTimerId ? { ...mal, sheetTimerId: velgTimeradForMaskin({ kortId: mal.kortId }, malRader) } : mal,
+            data: o.sheetTimerId ? { ...mal, sheetTimerId: timeradIMaal("utlegget") } : mal,
           });
         }
         await sikreKortId(tx, sheet.id);
@@ -10368,6 +10399,28 @@ export const dagsseddelRouter = router({
           code: "PRECONDITION_FAILED",
           message: "Bare rader som venter på attestering kan rettes. Gjenåpne raden først.",
         });
+      }
+      // Retur 3 runde 6 (Kenneths regel): et koblet tillegg har timeradens underprosjekt. Å sette
+      // underprosjekt eller prosjekt på tillegget alene ville arven angre stille — avvises.
+      if (input.radType === "tillegg") {
+        const t = await pt.sheetTillegg.findUnique({
+          where: { id: input.radId },
+          select: { sheetTimerId: true, externalCostObjectId: true },
+        });
+        const timerad = t?.sheetTimerId
+          ? await pt.sheetTimer.findUnique({
+              where: { id: t.sheetTimerId },
+              select: { projectId: true, externalCostObjectId: true },
+            })
+          : null;
+        const f = input.felter;
+        if (
+          timerad &&
+          (("externalCostObjectId" in f && (f.externalCostObjectId ?? null) !== (timerad.externalCostObjectId ?? null)) ||
+            ("projectId" in f && f.projectId !== timerad.projectId))
+        ) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Underprosjektet følger timeraden. Flytt timeraden." });
+        }
       }
 
       // w15f (F51): underprosjektet på en timerad holdes mot radens prosjekt etter skrivingen.

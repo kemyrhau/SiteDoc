@@ -236,8 +236,15 @@ export function RegistreringPanel({ kort, sedel, orgId, kanAttestere, kanRette, 
   const flyttTil = (radType: "maskin" | "tillegg" | "utlegg" | "reise" | "vare", radId: string, maal: FlyttMaal, mengde?: number) =>
     flyttLinje.mutate({ sheetId: kort.sheetId, radType, radId, tilKortId: maal.kortId, ...(mengde !== undefined ? { mengde } : {}) });
   const kildeNavn = parRolle === "a" ? t("timer.attestering.registrering.kortA") : parRolle === "b" ? t("timer.attestering.registrering.kortB") : t("timer.attestering.registrering.flytt.detteKortet");
-  const flyttKnapp = (radType: "maskin" | "tillegg" | "utlegg" | "reise", radId: string) => (
-    <FlyttKnapp maal={flyttMaal} parRolle={parRolle} disabled={flyttLinje.isPending} onVelg={(m) => flyttTil(radType, radId, m)} />
+  // Retur 3 runde 6 (Kenneth: «kan kun flyttes til en annen gyldig timerad»): koblet tillegg og
+  // utlegg tilbys bare kort med timerad. Serveren avviser det samme (`flyttLinjeTilKort`).
+  const flyttKnapp = (radType: "maskin" | "tillegg" | "utlegg" | "reise", radId: string, koblet = false) => (
+    <FlyttKnapp
+      maal={koblet ? flyttMaal.filter((m) => m.harTimerad) : flyttMaal}
+      parRolle={parRolle}
+      disabled={flyttLinje.isPending}
+      onVelg={(m) => flyttTil(radType, radId, m)}
+    />
   );
   // Eldre rader uten kortId er ingen jobb — serveren avviser «hele jobben» og del opp for dem.
   const jobbId = forste?.kortId ?? tilleggForste?.kortId ?? null;
@@ -520,7 +527,7 @@ export function RegistreringPanel({ kort, sedel, orgId, kanAttestere, kanRette, 
                   <span className="tabular-nums">{l.linje.antall == null ? "—" : formaterNorsk(l.linje.antall)}</span>
                   <span className="ml-auto flex items-center gap-1.5">
                     {splittKnapp(l)}
-                    {kanRette && l.ventende && l.kilde.type === "tillegg" && flyttKnapp("tillegg", l.kilde.rad.id)}
+                    {kanRette && l.ventende && l.kilde.type === "tillegg" && flyttKnapp("tillegg", l.kilde.rad.id, !!l.kilde.rad.sheetTimerId)}
                     {kanRette && l.ventende && l.kilde.type === "tillegg" && pennKnapp(t("timer.korrigert.vindu.tillegg"), {
                       type: "tillegg",
                       radId: l.kilde.rad.id,
@@ -545,7 +552,7 @@ export function RegistreringPanel({ kort, sedel, orgId, kanAttestere, kanRette, 
                 {/* w10a (A8, B31 B): kvitteringen også i kortet, samme komponent som på linja. */}
                 {l.kilde.type === "utlegg" && <span className="flex items-center gap-1"><Kvitteringer vedlegg={l.kilde.rad.vedlegg ?? []} /></span>}
                 {/* Lesning 3: utlegg flyttes bare når alle linjene i kortet venter. */}
-                {kanRette && alleVenter && l.kilde.type === "utlegg" && <span className="ml-auto flex items-center gap-1.5">{flyttKnapp("utlegg", l.kilde.rad.id)}</span>}
+                {kanRette && alleVenter && l.kilde.type === "utlegg" && <span className="ml-auto flex items-center gap-1.5">{flyttKnapp("utlegg", l.kilde.rad.id, !!l.kilde.rad.sheetTimerId)}</span>}
               </div>
             ))}
           </div>
