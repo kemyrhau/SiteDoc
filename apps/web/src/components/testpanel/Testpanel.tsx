@@ -2,9 +2,11 @@
 /* eslint-disable i18next/no-literal-string -- utviklerverktøy som aldri bygges inn i prod; faste norske strenger etter ordre 2026-11-27 pkt 5 */
 
 import { useCallback, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Markering } from "./Markering";
 import { FARGER, TegneLag, useTegning, VERKTØY, type Farge, type Verktøy } from "./Tegning";
 import { aktivtSteg, kanNeste, type Post, type Runde, type Vurdering } from "./schema";
+import { useVert } from "./Vert";
 
 /**
  * Testpanel — fast rute nederst på lokal testflate (lokal-dev.md § 7). Utviklerverktøy,
@@ -53,6 +55,8 @@ export function Testpanel() {
   const [farge, setFarge] = useState<Farge>(FARGER[0].hex);
   const tegning = useTegning();
   const tegnAv = useCallback(() => setTegn(false), []);
+  // Flyttes inn i åpent SiteDoc-vindu, ellers er panelet inert (Vert.ts).
+  const vert = useVert();
 
   const hent = useCallback(async () => {
     try {
@@ -145,7 +149,9 @@ export function Testpanel() {
   const stegIndeks =
     steg && runde ? [...runde.steg].sort((a, b) => a.nr - b.nr).indexOf(steg) + 1 : antall;
 
-  return (
+  if (!vert) return null;
+
+  return createPortal(
     <>
       {/* Søsken av panelet (ikke barn): panelets stacking-kontekst ville ellers lagt overlegget over panelet. */}
       <TegneLag
@@ -278,7 +284,12 @@ export function Testpanel() {
                       Hva agenten tester
                     </div>
                     <div>{steg.hvaTestes}</div>
-                    {steg.handling && <div className="text-gray-600">{steg.handling}</div>}
+                    {/* Fet: selve testen agenten utfører (Kenneth 2026-11-27: «skrives med bold tekst for å gi meg fokus»). */}
+                    {steg.handling && (
+                      <div data-testid="testpanel-handling" className="font-bold text-gray-900">
+                        {steg.handling}
+                      </div>
+                    )}
                   </div>
                   <div>
                     <div className="text-xs font-semibold uppercase text-gray-500">Forventet</div>
@@ -388,6 +399,7 @@ export function Testpanel() {
           </div>
         )}
       </div>
-    </>
+    </>,
+    vert,
   );
 }
