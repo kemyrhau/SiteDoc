@@ -644,6 +644,7 @@
   "timer.maskin.utenArbeidAvvist": "Maszynę «{{maskin}}» można zarejestrować tylko wtedy, gdy godziny pracy są rejestrowane w tym samym projekcie. Najpierw zapisz godziny pracy lub usuń maszynę.",
   "timer.maskinSeksjon.merke": "Maszyna",
   "timer.maskinSeksjon.tittel": "Maszyna (opcjonalnie)",
+  "timer.maskinVare.vareFeilet": "Użycie sprzętu zostaje zapisane. Materiał nie został zapisany: {{feil}}",
   "timer.maskinSeksjon.hint": "Każda maszyna otrzymuje godziny wiersza. Jeśli działał krócej, wpisz mniej godzin — nigdy więcej niż w wierszu.",
   "timer.maskinSeksjon.hintJobb": "Wprowadź liczbę godzin pracy maszyny podczas wykonywania zadania.",
   "timer.maskinSeksjon.jobbensMaskiner": "Maszyny w tej pracy",

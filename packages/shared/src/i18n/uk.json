@@ -644,6 +644,7 @@
   "timer.maskin.utenArbeidAvvist": "Машину «{{maskin}}» можна записати лише там, де зареєстровано години роботи на тому самому проекті. Спочатку запишіть робочі години або зніміть машину.",
   "timer.maskinSeksjon.merke": "машина",
   "timer.maskinSeksjon.tittel": "Машина (опціонально)",
+  "timer.maskinVare.vareFeilet": "Зберігається використання обладнання. Матеріал не зберігся: {{feil}}",
   "timer.maskinSeksjon.hint": "Кожна машина отримує години ряду. Якщо він працював менше, введіть менше годин — ніколи більше, ніж рядок.",
   "timer.maskinSeksjon.hintJobb": "Введіть, скільки годин машина працювала на роботі.",
   "timer.maskinSeksjon.jobbensMaskiner": "Машини на цій роботі",

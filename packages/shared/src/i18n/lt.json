@@ -644,6 +644,7 @@
   "timer.maskin.utenArbeidAvvist": "Mašina «{{maskin}}» gali būti įrašoma tik tada, kai tame pačiame projekte fiksuojamos darbo valandos. Pirmiausia užrašykite darbo valandas arba išimkite mašiną.",
   "timer.maskinSeksjon.merke": "Mašina",
   "timer.maskinSeksjon.tittel": "Mašina (neprivaloma)",
+  "timer.maskinVare.vareFeilet": "Išsaugomas įrangos naudojimas. Medžiaga nebuvo išsaugota: {{feil}}",
   "timer.maskinSeksjon.hint": "Kiekviena mašina gauna eilutės valandas. Jei jis veikė trumpiau, įveskite mažiau valandų – niekada daugiau nei eilutė.",
   "timer.maskinSeksjon.hintJobb": "Įveskite, kiek valandų mašina dirbo atlikdama užduotį.",
   "timer.maskinSeksjon.jobbensMaskiner": "Mašinos šiame darbe",

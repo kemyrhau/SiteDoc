@@ -644,6 +644,7 @@
   "timer.maskin.utenArbeidAvvist": "Makina «{{maskin}}» mund të regjistrohet vetëm aty ku regjistrohen orët e punës në të njëjtin projekt. Regjistroni fillimisht orët e punës ose hiqni makinën.",
   "timer.maskinSeksjon.merke": "Makinë",
   "timer.maskinSeksjon.tittel": "Makinë (opsionale)",
+  "timer.maskinVare.vareFeilet": "Përdorimi i pajisjes ruhet. Materiali nuk u ruajt: {{feil}}",
   "timer.maskinSeksjon.hint": "Çdo makinë merr orët e rreshtit. Nëse u zhvillua për më pak, futni më pak orë - asnjëherë më shumë se rreshti.",
   "timer.maskinSeksjon.hintJobb": "Futni sa orë ka punuar pajisja në punë.",
   "timer.maskinSeksjon.jobbensMaskiner": "Makinat në këtë punë",

@@ -644,6 +644,7 @@
   "timer.maskin.utenArbeidAvvist": "Masinat «{{maskin}}» saab salvestada ainult siis, kui töötunnid on salvestatud samasse projekti. Esmalt registreerige töötunnid või eemaldage masin.",
   "timer.maskinSeksjon.merke": "Masin",
   "timer.maskinSeksjon.tittel": "Masin (valikuline)",
+  "timer.maskinVare.vareFeilet": "Seadme kasutamine on säästetud. Materjali ei salvestatud: {{feil}}",
   "timer.maskinSeksjon.hint": "Iga masin saab rea tunnid. Kui see kestis vähem, sisestage vähem tunde – mitte kunagi rohkem kui rida.",
   "timer.maskinSeksjon.hintJobb": "Sisestage, mitu tundi masin tööga töötas.",
   "timer.maskinSeksjon.jobbensMaskiner": "Masinad sellel tööl",

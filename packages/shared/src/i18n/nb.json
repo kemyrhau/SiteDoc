@@ -644,6 +644,7 @@
   "timer.maskin.utenArbeidAvvist": "Maskinen «{{maskin}}» kan bare føres der det er ført arbeidstimer på samme prosjekt. Før arbeidstimene først, eller fjern maskinen.",
   "timer.maskinSeksjon.merke": "Maskin",
   "timer.maskinSeksjon.tittel": "Maskin (valgfritt)",
+  "timer.maskinVare.vareFeilet": "Maskinen er lagret. Varen ble ikke lagret: {{feil}}",
   "timer.maskinSeksjon.hint": "Hver maskin får radens timer. Gikk den kortere, sett lavere timer — aldri flere enn raden.",
   "timer.maskinSeksjon.hintJobb": "Skriv hvor mange timer maskinen gikk på jobben.",
   "timer.maskinSeksjon.jobbensMaskiner": "Jobbens maskiner",

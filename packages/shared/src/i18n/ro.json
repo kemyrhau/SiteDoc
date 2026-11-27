@@ -644,6 +644,7 @@
   "timer.maskin.utenArbeidAvvist": "Aparatul «{{maskin}}» poate fi înregistrat numai acolo unde orele de lucru sunt înregistrate pe același proiect. Înregistrați mai întâi orele de lucru sau scoateți mașina.",
   "timer.maskinSeksjon.merke": "Maşină",
   "timer.maskinSeksjon.tittel": "Mașină (opțional)",
+  "timer.maskinVare.vareFeilet": "Utilizarea echipamentului este salvată. Materialul nu a fost salvat: {{feil}}",
   "timer.maskinSeksjon.hint": "Fiecare mașină primește orele rândului. Dacă a rulat mai puțin, introduceți mai puține ore - niciodată mai mult decât rândul.",
   "timer.maskinSeksjon.hintJobb": "Introduceți câte ore a funcționat mașina la lucrare.",
   "timer.maskinSeksjon.jobbensMaskiner": "Mașini la acest loc de muncă",

@@ -644,6 +644,7 @@
   "timer.maskin.utenArbeidAvvist": "Kone «{{maskin}}» voidaan tallentaa vain, jos työtunnit on tallennettu samaan projektiin. Kirjaa ensin työtunnit ylös tai poista kone.",
   "timer.maskinSeksjon.merke": "Kone",
   "timer.maskinSeksjon.tittel": "Kone (valinnainen)",
+  "timer.maskinVare.vareFeilet": "Laitteiden käyttö säästyy. Materiaalia ei tallennettu: {{feil}}",
   "timer.maskinSeksjon.hint": "Each machine gets the row's hours. Jos se kesti vähemmän, kirjoita vähemmän tunteja – ei koskaan enempää kuin rivi.",
   "timer.maskinSeksjon.hintJobb": "Syötä, kuinka monta tuntia kone käytti työtä.",
   "timer.maskinSeksjon.jobbensMaskiner": "Koneita tähän työhön",

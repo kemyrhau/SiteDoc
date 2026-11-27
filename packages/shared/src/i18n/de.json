@@ -644,6 +644,7 @@
   "timer.maskin.utenArbeidAvvist": "Die Maschine „{{maskin}}“ kann nur erfasst werden, wenn Arbeitsstunden für dasselbe Projekt erfasst werden. Notieren Sie zunächst die Arbeitsstunden oder entfernen Sie die Maschine.",
   "timer.maskinSeksjon.merke": "Maschine",
   "timer.maskinSeksjon.tittel": "Maschine (optional)",
+  "timer.maskinVare.vareFeilet": "Der Geräteeinsatz wird gespeichert. Das Material wurde nicht gespeichert: {{feil}}",
   "timer.maskinSeksjon.hint": "Jede Maschine erhält die Stunden der Zeile. Wenn die Laufzeit kürzer war, geben Sie weniger Stunden ein – niemals mehr als die Zeile.",
   "timer.maskinSeksjon.hintJobb": "Geben Sie ein, wie viele Stunden die Maschine für den Auftrag lief.",
   "timer.maskinSeksjon.jobbensMaskiner": "Maschinen für diesen Job",

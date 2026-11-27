@@ -644,6 +644,7 @@
   "timer.maskin.utenArbeidAvvist": "Iekārtu «{{maskin}}» var ierakstīt tikai tad, ja tajā pašā projektā ir ierakstītas darba stundas. Vispirms pierakstiet darba stundas vai noņemiet iekārtu.",
   "timer.maskinSeksjon.merke": "Mašīna",
   "timer.maskinSeksjon.tittel": "Mašīna (pēc izvēles)",
+  "timer.maskinVare.vareFeilet": "Iekārtas izmantošana ir saglabāta. Materiāls netika saglabāts: {{feil}}",
   "timer.maskinSeksjon.hint": "Each machine gets the row's hours. If it ran for less, enter fewer hours — never more than the row.",
   "timer.maskinSeksjon.hintJobb": "Ievadiet, cik stundas mašīna darbojās ar darbu.",
   "timer.maskinSeksjon.jobbensMaskiner": "Mašīnas šajā darbā",

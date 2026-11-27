@@ -644,6 +644,7 @@
   "timer.maskin.utenArbeidAvvist": "Stroj «{{maskin}}» lze zaznamenat pouze tam, kde jsou na stejném projektu zaznamenány pracovní hodiny. Nejprve zaznamenejte pracovní dobu, nebo stroj odeberte.",
   "timer.maskinSeksjon.merke": "Stroj",
   "timer.maskinSeksjon.tittel": "Stroj (volitelně)",
+  "timer.maskinVare.vareFeilet": "Využití zařízení je uloženo. Materiál nebyl uložen: {{feil}}",
   "timer.maskinSeksjon.hint": "Každý stroj dostane hodiny řádku. Pokud to trvalo méně, zadejte méně hodin – nikdy více než řádek.",
   "timer.maskinSeksjon.hintJobb": "Zadejte, kolik hodin stroj běžel na úloze.",
   "timer.maskinSeksjon.jobbensMaskiner": "Stroje na tuto práci",

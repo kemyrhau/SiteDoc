@@ -43,6 +43,7 @@ import {
 } from "@/lib/registrerTimer";
 import { MaskinVelger } from "@/components/timer/MaskinVelger";
 import { KortVareforbrukModal } from "@/components/timer/KortVareforbrukModal";
+import { VareVelger, type VareValg } from "@/components/varelager/VareVelger";
 import {
   RadByggeplassFelt,
   useRadByggeplass,
@@ -114,6 +115,7 @@ import {
   visVareforbrukKnapp,
   vareTimerader,
   kortDagsseddelId,
+  kortVareforbrukInput,
   grupperPaaKort,
 } from "@sitedoc/shared";
 
@@ -2100,6 +2102,25 @@ export default function DagsseddelDetaljSide() {
           pauseMin={sheet.pauseMin}
           jobb={aktivModal.jobb}
           kortModus={prosjektkortModus}
+          vare={
+            !aktivModal.jobb &&
+            !aktivModal.rad &&
+            vareKatalog &&
+            visVareforbrukKnapp({
+              prosjektIderMedVarelager: vareKatalog.prosjektIderMedVarelager,
+              projectId: aktivModal.projectId,
+              erRedigerbar,
+            })
+              ? {
+                  varer: vareKatalog.varer,
+                  dato: new Date(sheet.dato).toISOString().slice(0, 10),
+                  dagsseddelId: kortDagsseddelId(sheet.id, timerRader, aktivModal.projectId),
+                }
+              : undefined
+          }
+          varelagerLenkeFirmaId={
+            erRedigerbar && visVarelagerLenke ? (sheet.organizationId ?? undefined) : undefined
+          }
           onLukk={() => setAktivModal(null)}
         />
       )}
@@ -7051,6 +7072,8 @@ function MaskinRadDialog({
   pauseMin,
   jobb,
   kortModus = false,
+  vare,
+  varelagerLenkeFirmaId,
   onLukk,
 }: {
   sheetId: string;
@@ -7059,6 +7082,10 @@ function MaskinRadDialog({
   defaultEcoId?: string | null;
   /** § 8.22 L1: prosjektkort-modus — maskinlista i full høyde. Dagskort-modus uendret. */
   kortModus?: boolean;
+  /** Retur 1 runde 3: valgfri vare i dagskortets nye maskinrad (Varelager på for prosjektet). */
+  vare?: { varer: VareValg[]; dato: string; dagsseddelId: string | undefined };
+  /** B37 A: firmaadmin ser lenken der Varelager slås på (firma uten Varelager). */
+  varelagerLenkeFirmaId?: string;
   /** w3a: åpnet fra en jobb — timerad, byggeplass og underprosjekt følger jobben og
    *  vises ikke. Ny maskin kobles til jobbens første arbeidsrad og sendes med kort-id. */
   jobb?: JobbKontekst;
@@ -7108,6 +7135,13 @@ function MaskinRadDialog({
     rad ? (rad.externalCostObjectId ?? null) : (jobb?.ecoId ?? defaultEcoId ?? null),
   );
   const [feil, setFeil] = useState<string | null>(null);
+  // Retur 1 runde 3 (Kenneth 2026-11-27): «en nedtreksmeny for å hente varer samtidig som vi
+  // registrerer maskin». Maskinen lagres først; varen etterpå på maskinens timerad, sted og
+  // underprosjekt. Feiler varen, står vinduet med maskinen låst — Lagre sender bare varen.
+  const [vareId, setVareId] = useState("");
+  const [vareAntall, setVareAntall] = useState("");
+  const [maskinLagret, setMaskinLagret] = useState(false);
+  const valgtVare = vare?.varer.find((v) => v.id === vareId);
 
   // Ordre d2c-1 (R24): timeraden maskinen gikk på — kortets arbeidsrader (samme
   // prosjekt, ikke reise, mer enn 0 timer). Forvalgt når kortet har én.
@@ -7202,12 +7236,42 @@ function MaskinRadDialog({
     // Utstyret ikke lastet: ukjent enhet → ingen tekst; serveren avgjør (H15 A).
     return valgtUtstyr ? (denne ?? null) : null;
   }, [alleTimerRader, alleMaskinRader, sheetTimerId, kreverTimerad, rad?.kortId, rad?.id, equipment, timer, projectId, ecoId, valgtUtstyr, pauseMin]);
-  const overHoyst = overMaskinHoyst(parseFloat(timer) || 0, hoyst);
+  // Retur 1 runde 3: er maskinen alt lagret (varen feilet), teller den ikke mot seg selv igjen.
+  const overHoyst = !maskinLagret && overMaskinHoyst(parseFloat(timer) || 0, hoyst);
+
+  const opprettVare = trpc.vareforbruk.opprett.useMutation({
+    onSuccess: () => {
+      void utils.vareforbruk.hentMineForDato.invalidate();
+      onLukk();
+    },
+    onError: (e: { message: string }) =>
+      setFeil(t("timer.maskinVare.vareFeilet", { feil: t(e.message, { defaultValue: e.message }) })),
+  });
+  function lagreVare() {
+    if (!vare) return;
+    opprettVare.mutate(
+      kortVareforbrukInput({
+        kortProsjektId: projectId,
+        dato: vare.dato,
+        vareId,
+        antall: parseFloat(vareAntall),
+        byggeplassId: bp.byggeplassId,
+        externalCostObjectId: ecoId,
+        dagsseddelId: vare.dagsseddelId,
+        sheetTimerId: sheetTimerId || null,
+      }),
+    );
+  }
 
   const tilfoy = trpc.timer.dagsseddel.maskin.tilfoy.useMutation({
     onSuccess: () => {
       utils.timer.dagsseddel.hentMedId.invalidate();
-      onLukk();
+      if (vareId) {
+        setMaskinLagret(true);
+        lagreVare();
+      } else {
+        onLukk();
+      }
     },
     onError: (e: { message: string }) => setFeil(e.message),
   });
@@ -7223,6 +7287,15 @@ function MaskinRadDialog({
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setFeil(null);
+    if (maskinLagret) {
+      lagreVare();
+      return;
+    }
+    const vareNum = parseFloat(vareAntall);
+    if (vareId && (isNaN(vareNum) || vareNum <= 0)) {
+      setFeil(t("timer.feil.ugyldigInput"));
+      return;
+    }
     const tNum = parseFloat(timer);
     if (!vehicleId || isNaN(tNum) || tNum <= 0 || tNum > 24) {
       setFeil(t("timer.feil.ugyldigInput"));
@@ -7256,7 +7329,7 @@ function MaskinRadDialog({
     }
   }
 
-  const lagrer = tilfoy.isPending || oppdater.isPending;
+  const lagrer = tilfoy.isPending || oppdater.isPending || opprettVare.isPending;
 
   return (
     <Modal
@@ -7267,6 +7340,7 @@ function MaskinRadDialog({
       }
     >
       <form onSubmit={handleSubmit} className="space-y-4">
+        <fieldset disabled={maskinLagret} className="space-y-4">
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700">
             {t("timer.felt.utstyr")}
@@ -7375,6 +7449,39 @@ function MaskinRadDialog({
             )}
           </div>
         </div>)}
+        </fieldset>
+        {vare && !rad && !jobb && (
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                {t("vareforbruk.felt.vare")}{" "}
+                <span className="text-xs text-gray-400">({t("label.valgfritt")})</span>
+              </label>
+              <VareVelger varer={vare.varer} value={vareId} onChange={setVareId} />
+            </div>
+            {valgtVare && (
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  {t("timer.felt.mengde")} ({valgtVare.enhet})
+                </label>
+                <Input
+                  type="number"
+                  step="any"
+                  min={0}
+                  value={vareAntall}
+                  onChange={(e) => setVareAntall(e.target.value)}
+                  required
+                />
+              </div>
+            )}
+          </div>
+        )}
+        {!vare && !rad && !jobb && varelagerLenkeFirmaId && (
+          <VarelagerLenke
+            firmaId={varelagerLenkeFirmaId}
+            className="font-medium text-sitedoc-primary hover:underline"
+          />
+        )}
         {feil && <p className="text-sm text-red-600">{feil}</p>}
         <div className="flex justify-end gap-3 pt-2">
           <Button type="button" variant="secondary" onClick={onLukk}>

@@ -644,6 +644,7 @@
   "timer.maskin.utenArbeidAvvist": "The machine «{{maskin}}» can only be recorded where work hours are recorded on the same project. Record the work hours first, or remove the machine.",
   "timer.maskinSeksjon.merke": "Machine",
   "timer.maskinSeksjon.tittel": "Machine (facultatif)",
+  "timer.maskinVare.vareFeilet": "L'utilisation du matériel est sauvegardée. Le matériel n'a pas été enregistré : {{feil}}",
   "timer.maskinSeksjon.hint": "Chaque machine obtient les heures de la ligne. S'il a duré moins longtemps, entrez moins d'heures, jamais plus que la ligne.",
   "timer.maskinSeksjon.hintJobb": "Entrez le nombre d'heures pendant lesquelles la machine a fonctionné sur le travail.",
   "timer.maskinSeksjon.jobbensMaskiner": "Machines sur ce travail",
