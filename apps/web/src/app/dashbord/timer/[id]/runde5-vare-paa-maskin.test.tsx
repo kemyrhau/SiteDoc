@@ -231,4 +231,14 @@ describe("Kenneth 2026-11-27: «varer tilhører denne maskinen, men det kan jeg 
     expect(underMaskin("m1")).toBeNull();
     expect(varerBlokk()?.textContent).toContain("Grus 0-16");
   });
+
+  it("(f) maskinen flyttet til et annet underprosjekt på samme timerad: varen står i Varer-blokka, ikke under maskinen", () => {
+    const sedel = DAG7_SEDEL;
+    rendre({
+      sedel: { maskiner: sedel.maskiner.map((m) => (m.id === "m1" ? { ...m, externalCostObjectId: null } : m)) },
+      data: { "vareforbruk.hentMineForDato": [MED_MASKIN] },
+    });
+    expect(underMaskin("m1")).toBeNull();
+    expect(varerBlokk()?.textContent).toContain("Grus 0-16");
+  });
 });

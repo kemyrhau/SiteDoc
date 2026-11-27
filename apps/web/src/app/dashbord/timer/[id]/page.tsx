@@ -4372,7 +4372,8 @@ function RaderMaskinKompakt({
 }
 
 /** Runde 5: fordeler gruppens varer — under maskinen den er ført fra (maskinraden vises og
- *  står på samme timerad som varen), ellers i Varer-blokka. En vare forsvinner aldri. */
+ *  står på samme timerad og samme underprosjekt som varen), ellers i Varer-blokka. En vare
+ *  forsvinner aldri. */
 function fordelVarerPaaMaskin(
   varer: KortVare[],
   maskiner: MaskinRad[],
@@ -4382,7 +4383,13 @@ function fordelVarerPaaMaskin(
   const prMaskin = new Map<string, KortVare[]>();
   for (const v of varer) {
     const m = v.sheetMachineId ? synlig.get(v.sheetMachineId) : undefined;
-    if (m && v.sheetTimerId && m.sheetTimerId === v.sheetTimerId) {
+    if (
+      m &&
+      v.sheetTimerId &&
+      m.sheetTimerId === v.sheetTimerId &&
+      // Retur 1 runde 5: samme underprosjekt — maskinen kan bytte ECO på samme timerad.
+      (m.externalCostObjectId ?? null) === (v.externalCostObjectId ?? null)
+    ) {
       prMaskin.set(m.id, [...(prMaskin.get(m.id) ?? []), v]);
     } else {
       utenMaskin.push(v);
