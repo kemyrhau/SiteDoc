@@ -1,13 +1,13 @@
 ---
 status: aktiv
-sist_verifisert_mot_kode: 2026-11-22
+sist_verifisert_mot_kode: 2026-11-27
 avhenger_av:
   - SAMARBEIDSREGLER.md
 ---
 
 # Vedtak — timer på web
 
-Hva timeføringen på web **skal** gjøre, vindu for vindu, med Kenneths ord. Reisevinduet og dagsvisningen i attesteringen er ført og står bare her.
+Hva timeføringen på web **skal** gjøre, vindu for vindu, med Kenneths ord. Reisevinduet, dagskort-modusens tilknytning og dagsvisningen i attesteringen er ført og står bare her. Tilknytningen gjelder også telefonen.
 De andre vinduene står i [web-timeforing-plan.md](web-timeforing-plan.md) til de føres hit på samme måte.
 
 ## Grunnregler
@@ -137,6 +137,23 @@ Filer: `RK` = `apps/web/src/app/dashbord/timer/[id]/ReiseKort.tsx` · `MR` = `ap
 31. Hjemreise fra «Annet sted»: har arbeideren ført en «Annet sted»-reise ut (kurs o.l.) og ikke ført hjemreisen derfra, viser reisevinduet for en ny reise knappen «Hjemreise fra {sted}» etter «Annet sted». Utreisen letes etter i arbeiderens egne sedler i samme firma de siste 31 dagene t.o.m. sedelens dato; den siste uten hjemreise gjelder. En hjemreise teller når den kommer etter utreisen og har samme sted (store/små bokstaver og mellomrom teller ikke). Knappen er ikke forhåndsvalgt. Ett klikk fyller Fra = stedet (kan rettes), Til = oppmøtestedet utreisen startet fra (nedtrekk ved flere), og utreisens prosjekt og underprosjekt; Start og Slutt står tomme og føres selv, som «Annet sted». Lagret er reisen en vanlig manuell reise med retning retur, oppmøtestedet i `reiseOppmotestedId` og stedet i `reiseRegel.annetSted` — ingen migrering. Den vises «{sted} → {oppmøtested}» på dagen (prosjektkortets reiselinje, dagskortets rad, hoveren) og i attesteringens rutelinje. Pennen åpner den som «Hjemreise fra {sted}» og beholder retur. Forslaget sperrer aldri: jobb, annen reise, send dag og Bekreft dag er uendret, og ingen varsler om manglende hjemreise. Feiler oppslaget, vises ingen knapp. Utreisen vises som før («Til {sted}» på dagen). Mobil er urørt.
     Kenneth 2026-11-26 (spørsmål om hjemreise Bergen → Tromsø): «annet sted, foreslå hjemmreise men ikke bloker annen registrering». Orkestrator 2026-11-27: knappen i vinduet med 31 dagers tilbakeblikk (1 = ja); utreisens visning på dagen endres ikke (2 = nei).
     🟡 Bygget på `fix/timer-r4`, ikke merget. `finnApenAnnetStedReise` og `løsAnnetStedHjemreise` (`packages/shared/src/utils/reiseManuell.ts`), spørringen `timer.dagsseddel.apenAnnetStedReise` (`apps/api/src/routes/timer/dagsseddel.ts`), knappen `velgHjemreise` (`ReiseKort.tsx`), visningen `annetStedRuteTekst` (`apps/web/src/hooks/useKontorReiseTekst.ts`) og `ReiseRadMerke.tsx`. Tester: `reiseManuell-hjemreise.test.ts`, `hjemreise-annet-sted.integration.test.ts`, `reisevindu.test.tsx` § «Runde 4», `o14-penn-reise.test.tsx` § «Runde 4», `reise-rad-merke-hjemreise.test.tsx`.
+
+## Dagskort-modus: alt knyttes til menneskets timerad
+
+Gjelder firmaer i dagskort-modus (`timerRegistreringsmodus` er ikke «prosjektkort»; `lesTimerModus` i `packages/shared/src/utils/prosjektkort.ts`, ukjent verdi = dagskort), på web og telefon. **Prosjektkort-modus er unntatt og uendret** — der står tillegg, utlegg, maskin og varer på jobbens kort (`kortId`). «Dagskortet» som dagsoversikt over prosjektkortene (`timer.md` § Prosjektkort og dagskort — definisjon) er ikke dagskort-modus.
+
+Kenneth 2026-11-27: «Varer under maskinen også i attesteringen. -> trengs ikke dersom timeraden har varetilknytning. Varer, utlegg, tillegg som registreres og maskintimer, disse må knyttes til menneskets timer · reisetid og knyttes til prosjekt» og «1 timeraden, 2 ja, 3 ja, men disse endringene gjelder dagskort. Ikke rør prosjektkort registreringen. den er jo veldig bra som den er, og der er disse allerede knyttet til menneskenes timer ved attestering og filtrering i rapporter». Spørsmålene var: 1 timeraden eller kortet, 2 døgnmaskin uten timerad fortsatt lov, 3 føres som vedtak og måles før koding.
+
+1. Maskintimer knyttes til en timerad. En døgnmaskin (utstyrets `utleieEnhet` = «doegn») kan stå uten timerad.
+    ✅ Web: `MaskinRadDialog` sperrer uten timerad, serveren `krevKoblingVedFoering`/`koblMaskinerTilJobb` (`maskinKreverTimerad` i `packages/shared/src/utils/maskinKobling.ts`). ✅ Telefon ved føring: `timeradSperre` (`apps/mobile/src/utils/maskinTimerad.ts`). 🔴 `syncBatch` håndhever ikke koblingen på serveren.
+2. Varer knyttes til en timerad.
+    ✅ Web «Legg til vare» (`KortVareforbrukModal` uten jobb, vises bare med arbeidsrad, rad forvalgt). 🔴 Vare ført i maskinvinduet sammen med en døgnmaskin uten timerad lagres uten timerad. 🔴 `vareforbruk.opprett` godtar manglende eller ugyldig `sheetTimerId` og lagrer null uten å si fra (`gyldigVareRad`). Telefonens dagskort fører ikke varer (bare visning).
+3. Tillegg og utlegg knyttes til en timerad.
+    🔴 Ikke bygget: `SheetTillegg` og `SheetUtlegg` har ingen `sheetTimerId` (server, telefonens lokale tabeller, `syncBatch`); dagskortets «Legg til» krever ikke arbeid i prosjektet.
+4. Reisetid knyttes til prosjekt.
+    ✅ Reiseraden krever prosjekt (`validerUtenProsjekt` i `packages/shared/src/utils/utenProsjekt.ts`, `tilfoyTimerRad`, `syncBatch`). ❓ Om tillegg og utlegg også kan knyttes til en reiserad — SPØRSMÅL 2026-11-27.
+5. Attesteringen viser ikke varen under maskinen når varen står på timeraden.
+    ✅ `grupperPaaKort` (`packages/shared/src/utils/kortGruppering.ts`): timelinja bærer maskinene og varene som er koblet til den.
 
 ## Dagsvisningen i attesteringen
 
