@@ -29,7 +29,7 @@ afterEach(() => {
 /** Deklarasjonene i regelen for `html[data-testpanel] dialog:modal`, uten mellomrom. */
 function dialogRegel(css: string): string | null {
   const m = /html\[data-testpanel\]\s+dialog:modal\s*\{([^}]*)\}/.exec(css);
-  return m ? m[1].replace(/\s+/g, "") : null;
+  return m ? (m[1] ?? "").replace(/\s+/g, "") : null;
 }
 
 describe("Kenneth: «modalen er så lang at den ligger bak testpanelet»", () => {
