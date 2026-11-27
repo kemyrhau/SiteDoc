@@ -369,7 +369,9 @@ describe("A7 — maskin.tilfoy: stedet", () => {
     expect(lagret.kortId).toBe(k);
   });
 
-  it("(6) uten kort-id (dagskort-modus) → vinduets sted lagres uendret (S4 C)", async () => {
+  // Runde 7 (Kenneth 2026-11-27: «Ja, arv timeraden», vedtak-timer-web.md pkt 7): koblet maskin
+  // får timeradens underprosjekt. Byggeplassen er ikke berørt — vinduets står (S4 C).
+  it("(6) uten kort-id (dagskort-modus) → vinduets byggeplass lagres uendret (S4 C); underprosjektet arves fra timeraden (runde 7)", async () => {
     const { sid } = await nySedel();
     const k = randomUUID();
     const tid = await timerRad(sid, k, { byggeplassId: BP_1, externalCostObjectId: ECO_1 });
@@ -384,6 +386,6 @@ describe("A7 — maskin.tilfoy: stedet", () => {
       externalCostObjectId: ECO_2,
     });
 
-    expect(await maskinSted(ny.id)).toEqual({ byggeplassId: BP_2, externalCostObjectId: ECO_2 });
+    expect(await maskinSted(ny.id)).toEqual({ byggeplassId: BP_2, externalCostObjectId: ECO_1 });
   });
 });
