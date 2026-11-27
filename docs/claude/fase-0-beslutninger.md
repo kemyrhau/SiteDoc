@@ -773,7 +773,7 @@ Ved sync-konflikt vises modal til klient som taper:
 **Filtreringspattern (kanon):** Når bruker filtrerer på spesifikk byggeplass, OR-include NULL-rader. UI viser «Alle byggeplasser» som default — ikke separat «Ikke satt»-kategori.
 
 **Konsekvenser for fremtidige moduler:**
-- **Timer (Fase 3):** dagsseddel.byggeplassId nullable. NULL = timer ført uten byggeplass-spesifikasjon (gjelder hele prosjektet). Lønn/eksport-filtrering kan inkludere NULL ved spørring per byggeplass. **Avgrenset 2026-11-27:** i dagskort-modus skal timeraden knyttes til byggeplass (Kenneth, [vedtak-timer-web.md § Dagskort-modus](vedtak-timer-web.md) punkt 6, 🔴 ikke bygget); NULL er der et hull, ikke «hele prosjektet». Prosjekt uten byggeplasser er ❓. Prosjektkort-modus er uendret.
+- **Timer (Fase 3):** dagsseddel.byggeplassId nullable. NULL = timer ført uten byggeplass-spesifikasjon (gjelder hele prosjektet). Lønn/eksport-filtrering kan inkludere NULL ved spørring per byggeplass. **Avgrenset 2026-11-27:** i dagskort-modus skal timeraden knyttes til byggeplass (Kenneth, [vedtak-timer-web.md § Dagskort-modus](vedtak-timer-web.md) punkt 6, 🔴 ikke bygget); NULL er der et hull, ikke «hele prosjektet». Unntak: prosjekt uten byggeplasser og reise til kontor eller «Annet sted» fører uten byggeplass (Kenneth 2026-11-27, svar 4 og 5). Prosjektkort-modus er uendret.
 - **Mannskap-innsjekk (Fase 4):** byggeplassId required (geofence-innsjekk forutsetter spesifikk byggeplass). §15-liste-eksport per byggeplass viser kun rader for den byggeplassen, ikke NULL.
 - **Funksjoner som krever byggeplass:** Kontrollplan, Mannskap-innsjekk, Område — required byggeplassId. UI viser «Opprett byggeplass først»-melding (eksisterende mønster).
 
