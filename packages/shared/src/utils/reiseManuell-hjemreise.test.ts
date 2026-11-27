@@ -24,7 +24,7 @@ const basis = {
   standardLonnsartId: "l1",
 };
 
-describe("runde 4 — løsAnnetStedHjemreise", () => {
+describe("VAKTTEST 2026-11-27 (Kenneth: Godkjent steg 2–6 i testpanelet, runde 4) — runde 4 — løsAnnetStedHjemreise", () => {
   it("retning retur, oppmøtestedet er Til, stedet i sporet", () => {
     const r = løsAnnetStedHjemreise({ ...basis, startTid: "15:00", sluttTid: "18:30" });
     expect(r).toMatchObject({ fraTid: "15:00", tilTid: "18:30", timer: 3.5, sperre: null });
@@ -55,7 +55,7 @@ const rad = (o: Partial<AnnetStedReiseRad>): AnnetStedReiseRad => ({
   ...o,
 });
 
-describe("runde 4 — finnApenAnnetStedReise", () => {
+describe("VAKTTEST 2026-11-27 (Kenneth: Godkjent steg 2–6 i testpanelet, runde 4) — runde 4 — finnApenAnnetStedReise", () => {
   it("utreise uten hjemreise → forslaget med sted, oppmøtested og prosjekt", () => {
     expect(finnApenAnnetStedReise([rad({})])).toEqual({
       sted: "Bergen",

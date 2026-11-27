@@ -1651,7 +1651,7 @@ describe("VAKTTEST 2026-11-26 (Kenneth: «alt fungerer såvidt jeg kan se», run
 // Runde 4 timer — hjemreise fra «Annet sted» (Kenneth 2026-11-26: «annet sted, foreslå hjemmreise
 // men ikke bloker annen registrering»). Forslaget er en egen knapp; Fra = stedet, Til = oppmøtestedet
 // utreisen startet fra, retning retur. Aldri forhåndsvalgt, aldri påkrevd.
-describe("Runde 4 — hjemreise fra «Annet sted»", () => {
+describe("VAKTTEST 2026-11-27 (Kenneth: Godkjent steg 2–6 i testpanelet, runde 4) — Runde 4 — hjemreise fra «Annet sted»", () => {
   afterEach(cleanup);
   const UTREISE: Rad = { sted: "Bergen", oppmotestedId: "tromso", projectId: "pi", externalCostObjectId: null, dato: "2026-11-03" };
   const hjemKnapp = (d: HTMLElement) => within(d).queryByRole("button", { name: 'timer.reiseKort.hjemreiseFra{"sted":"Bergen"}' });

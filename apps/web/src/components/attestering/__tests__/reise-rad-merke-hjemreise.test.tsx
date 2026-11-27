@@ -33,7 +33,7 @@ import { ReiseRadMerke } from "../ReiseRadMerke";
 const rad = (over: Partial<TimerRad>): TimerRad =>
   ({ id: "r1", erReise: true, reiseRetning: "retur", reiseKilde: "manuell", reiseOppmotestedId: "kt", byggeplassId: null, reiseKjoretidMin: null, reiseRegel: { annetSted: { sted: "Bergen" } }, ...over }) as TimerRad;
 
-describe("Runde 4 — ReiseRadMerke for hjemreise fra «Annet sted»", () => {
+describe("VAKTTEST 2026-11-27 (Kenneth: Godkjent steg 2–6 i testpanelet, runde 4) — Runde 4 — ReiseRadMerke for hjemreise fra «Annet sted»", () => {
   afterEach(cleanup);
 
   it("«Bergen → Kontor Tromsø»", () => {

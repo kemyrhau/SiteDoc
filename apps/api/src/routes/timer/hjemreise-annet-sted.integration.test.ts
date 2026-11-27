@@ -145,7 +145,7 @@ async function forReise(sid: string, hjem: boolean, startTid: string, sluttTid: 
 
 const dagFor = (dato: string, n: number) => new Date(Date.parse(dato) + n * 86_400_000).toISOString().slice(0, 10);
 
-describe("Runde 4 — hjemreise fra «Annet sted»", () => {
+describe("VAKTTEST 2026-11-27 (Kenneth: Godkjent steg 2–6 i testpanelet, runde 4) — Runde 4 — hjemreise fra «Annet sted»", () => {
   it("utreise mandag: onsdagens sedel får forslaget; hjemreisen lagres som retur og lukker det", async () => {
     const man = nyDato();
     nyDato(); nyDato();

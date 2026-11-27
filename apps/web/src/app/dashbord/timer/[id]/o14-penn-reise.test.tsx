@@ -564,7 +564,7 @@ describe("O19 pkt 23 — en reise delt ved midnatt på sedelen", () => {
 // Runde 4 timer (Kenneth 2026-11-26: «annet sted, foreslå hjemmreise men ikke bloker annen
 // registrering»): en lagret hjemreise fra «Annet sted» vises «{sted} → {oppmøtested}» og beholder
 // retur når pennen lagrer.
-describe("Runde 4 — pennen på en hjemreise fra «Annet sted»", () => {
+describe("VAKTTEST 2026-11-27 (Kenneth: Godkjent steg 2–6 i testpanelet, runde 4) — Runde 4 — pennen på en hjemreise fra «Annet sted»", () => {
   afterEach(cleanup);
   const HJEM = arbeid({
     id: "rh",
