@@ -213,6 +213,13 @@ Kenneth 2026-11-27: «under vinduet til sitedoc lager vi et testvindu … Knappe
 - Oppslag skjer på synlig tekst, `aria-label` eller input-verdi blant knapper, lenker, faner og etiketter. `selektor` er reserve.
 - Finnes ikke elementet, viser panelet «Fant ikke «…»».
 
+**Tegning (TILLEGG 4, Kenneth 2026-11-27: «markere rett i sitedoc slik at jeg kan ta skjermbilde. markeringer lagres ikke»):**
+- **Tegn** i toppstripa slår tegning på. Verktøy: pil, linje, rektangel, ellipse, frihånd; farger rød/gul/blå/svart; **Angre** og **Tøm** (`components/testpanel/Tegning.tsx`).
+- Mens Tegn er på, fanger overlegget pekeren, og klikk når ikke SiteDoc. **Esc** eller Tegn igjen slår av; tegningen står (`pointer-events: none`) og SiteDoc kan brukes til du trykker Tøm.
+- **Lagres ikke:** figurene ligger kun i React-state — ingen fil, localStorage eller POST. De forsvinner ved Tøm, reload og stibytte (`usePathname`).
+- Skjermbildet tar du selv (Cmd+Shift+4). Tekst til tegningen skrives i forbedring eller merknad.
+- **Kjent grense:** overlegget følger viewporten, ikke siden. Ruller du, blir tegningen stående mens siden flytter seg.
+
 **Testagentens regler:**
 - Skriver planen og egne felt (`agentSa`, `agentVurdering`, `status` → `venter_kenneth`, `markering`, `agentNaa`) direkte i fila, **atomisk** (skriv til tmp, så `rename`).
   - **Les fila rett før hver skriving** og rør bare egne felt.
