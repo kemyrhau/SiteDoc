@@ -273,8 +273,15 @@ export async function sikreKortId(
   };
 
   // Regel 3 for rader uten id, eldste rad først (eldste kort vinner).
+  // A7-vakt (Kenneth 2026-11-27: «La den følge»): en koblet maskin som følger timeraden (K6)
+  // avgjør ikke kortets nøkkel — den kan nettopp ha fått timeradens nye sted (A7) mens
+  // timeraden står uten kort-id. Ellers velger «eldste rad» kortet tilfeldig.
   const kort = () =>
-    kortPaaSedelFraRader(alle.map((r) => ({ kortId: r.kortId, nokkel: kortIdNokkel(r.nokkel), opprettet: r.opprettet })));
+    kortPaaSedelFraRader(
+      alle
+        .filter((r) => !(r.type === "maskin" && kobletFolger(r)))
+        .map((r) => ({ kortId: r.kortId, nokkel: kortIdNokkel(r.nokkel), opprettet: r.opprettet })),
+    );
   const utenId = [...arbeid, ...tl, ...ut, ...mask.filter((m) => !kobletFolger(m))]
     .filter((r) => !r.kortId)
     .sort((a, b) => a.opprettet - b.opprettet || (a.id < b.id ? -1 : 1));

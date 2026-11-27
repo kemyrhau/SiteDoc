@@ -203,3 +203,48 @@ export async function koblMaskinerTilJobb(
   }
   return koblet;
 }
+
+// ============================================================================
+//  A7-vakt (Kenneth 2026-11-27: «La den følge»): når timeradens underprosjekt eller
+//  byggeplass endres, følger en førermaskin i samme kort som står uten gyldig
+//  kobling, timeraden — den kobles til raden og får radens sted. Hvilken timerad
+//  maskinen hører til, avgjør `velgTimeradForMaskin` blant kortets rader FØR
+//  endringen (størst overlapp, ellers flest timer). Den følger bare når det er
+//  den endrede raden. Døgnmaskin, attestert og erstattet står.
+//  Kalles i transaksjonen før timeraden skrives. Gir tilbake maskinene som ble koblet.
+// ============================================================================
+
+export async function koblUkobledeForerMaskinerTilRad(
+  tx: MaskinJobbTx,
+  prismaMaskin: MaskinKlientForVakt,
+  rad: { id: string; sheetId: string; kortId: string | null; projectId: string | null },
+): Promise<string[]> {
+  if (!rad.kortId || !rad.projectId) return [];
+  const maskiner = await tx.sheetMachine.findMany({
+    where: {
+      sheetId: rad.sheetId,
+      kortId: rad.kortId,
+      projectId: rad.projectId,
+      OR: [{ attestertStatus: null }, { attestertStatus: { notIn: ["attestert", "erstattet"] } }],
+    },
+    select: { id: true, sheetId: true, kortId: true, sheetTimerId: true, vehicleId: true, fraTid: true, tilTid: true },
+  });
+  if (maskiner.length === 0) return [];
+  const timer = (
+    await tx.sheetTimer.findMany({
+      where: { sheetId: rad.sheetId },
+      orderBy: [{ fraTid: "asc" }, { createdAt: "asc" }],
+      select: { id: true, sheetId: true, kortId: true, projectId: true, timer: true, erReise: true, attestertStatus: true, fraTid: true, tilTid: true },
+    })
+  ).map((t) => ({ ...t, timer: Number(t.timer) }));
+  const ukoblede = maskiner.filter((m) => !erGyldigTimeradKobling(m, timer));
+  if (ukoblede.length === 0) return [];
+  const utstyr = await hentUtstyrOppslag(prismaMaskin, ukoblede.map((m) => m.vehicleId));
+  const folger = ukoblede.filter(
+    (m) => maskinKreverTimerad(utstyr.utleieEnhet.get(m.vehicleId) ?? null) && velgTimeradForMaskin(m, timer) === rad.id,
+  );
+  if (folger.length === 0) return [];
+  const ider = folger.map((m) => m.id);
+  await tx.sheetMachine.updateMany({ where: { id: { in: ider } }, data: { sheetTimerId: rad.id } });
+  return ider;
+}
