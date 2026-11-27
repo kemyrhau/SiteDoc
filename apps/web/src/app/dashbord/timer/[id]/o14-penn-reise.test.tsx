@@ -560,3 +560,51 @@ describe("O19 pkt 23 — en reise delt ved midnatt på sedelen", () => {
     expect(kall("timer.dagsseddel.fjernTimerRad")).toEqual([{ id: "rr" }]);
   });
 });
+
+// Runde 4 timer (Kenneth 2026-11-26: «annet sted, foreslå hjemmreise men ikke bloker annen
+// registrering»): en lagret hjemreise fra «Annet sted» vises «{sted} → {oppmøtested}» og beholder
+// retur når pennen lagrer.
+describe("Runde 4 — pennen på en hjemreise fra «Annet sted»", () => {
+  afterEach(cleanup);
+  const HJEM = arbeid({
+    id: "rh",
+    lonnsartId: "lr",
+    byggeplassId: null,
+    externalCostObjectId: null,
+    fraTid: "15:30",
+    tilTid: "18:30",
+    timer: "3",
+    pauseMin: 0,
+    beskrivelse: "Kurs",
+    erReise: true,
+    reiseKilde: "manuell",
+    reiseRetning: "retur",
+    reiseOppmotestedId: "tromso",
+    reiseRegel: { annetSted: { sted: "Bergen" } },
+    kortId: "k9",
+    createdAt: "2026-11-05T15:30:00.000Z",
+  });
+
+  it("reiselinja viser «Bergen → Kontor Tromsø»", () => {
+    rendre([arbeid(), HJEM]);
+    aapneKort();
+    const linje = document.querySelector('[data-reiselinje="rh"]') as HTMLElement;
+    expect(linje.textContent).toContain('timer.prosjektkort.reiseRute{"fra":"Bergen","til":"Kontor Tromsø"}');
+  });
+
+  it("pennen åpner «Hjemreise fra Bergen» (Fra = Bergen, Til = Kontor Tromsø); Lagre beholder retur", () => {
+    rendre([arbeid(), HJEM]);
+    pennenPaa("rh");
+    const d = reiseVindu();
+    expect(knapp(d, 'timer.reiseKort.hjemreiseFra{"sted":"Bergen"}').getAttribute("aria-pressed")).toBe("true");
+    const ft = within(d).getByTestId("reise-fra-til");
+    const [fraKol, tilKol] = Array.from(ft.querySelectorAll(":scope > div")) as HTMLElement[];
+    expect(fraKol!.textContent).toContain("Bergen");
+    expect(tilKol!.textContent).toContain("Kontor Tromsø");
+    fireEvent.change(slutt(d), { target: { value: "19:00" } });
+    fireEvent.click(knapp(d, "handling.lagre"));
+    const o = kall("timer.dagsseddel.oppdaterTimerRad");
+    expect(o).toHaveLength(1);
+    expect(o[0]).toMatchObject({ id: "rh", tilTid: "19:00", reiseRetning: "retur" });
+  });
+});

@@ -62,18 +62,24 @@ export function ReiseRadMerke({ rad, sedelDato }: { rad: TimerRad; sedelDato?: s
   // O17 pkt 21: reise mellom to kontorer — begge ender er kontor, hentet fra ruten i `reiseRegel`.
   const kontorRute = kontorReiseRute(rad.reiseRegel);
   const kontorNavn = (id: string) => steder?.find((s) => s.id === id)?.navn ?? null;
+  // Runde 2 («Annet sted»): målet er stedet arbeideren skrev (kurs o.l.), ikke en byggeplass.
+  // Runde 4: hjemreisen derfra (retur) går fra stedet til oppmøtestedet.
+  const annetSted = annetStedTekst(rad.reiseRegel);
+  const annetHjem = !!annetSted && retning === "retur";
   const fra = kontorRute
     ? kontorNavn(kontorRute.fraKontorId)
-    : retning === "ut"
+    : annetHjem
+      ? annetSted
+      : retning === "ut"
       ? kontor
       : retning === "retur"
         ? bygg
         : null;
-  // Runde 2 («Annet sted»): målet er stedet arbeideren skrev (kurs o.l.), ikke en byggeplass.
-  const annetSted = annetStedTekst(rad.reiseRegel);
   const til = kontorRute
     ? kontorNavn(kontorRute.tilKontorId)
-    : annetSted
+    : annetHjem
+      ? kontor
+      : annetSted
       ? annetSted
       : retning === "ut"
       ? bygg

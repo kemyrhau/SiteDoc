@@ -279,7 +279,10 @@ export function ReiseKort({
   const [valg, setValg] = useState<ReiseKortValg | null>(
     redigering
       ? redigertAnnetSted
-        ? { type: "annetSted" }
+        ? // Runde 4: en lagret hjemreise (retur) åpnes som «Hjemreise fra {sted}».
+          reiseRadRetning(redigering) === "retur"
+          ? { type: "annetSted", hjem: true }
+          : { type: "annetSted" }
         : redigertRute
         ? { type: "kontor" }
         : { type: reiseRadRetning(redigering) === "retur" ? "retur" : "tur" }
@@ -299,6 +302,15 @@ export function ReiseKort({
   const [annetSted, setAnnetSted] = useState(redigertAnnetSted ?? "");
   const [annetFraId, setAnnetFraId] = useState<string | null | undefined>(undefined);
   const erAnnetSted = valg?.type === "annetSted";
+  // Runde 4 timer (Kenneth 2026-11-26: «annet sted, foreslå hjemmreise men ikke bloker annen
+  // registrering»): hjemreisen fra «Annet sted» — Fra = stedet, Til = oppmøtestedet.
+  const erHjemreise = valg?.type === "annetSted" && !!valg.hjem;
+  // Forslaget: siste «Annet sted»-utreise uten hjemreise (31 dager). Bare ny reise; feiler
+  // spørringen, vises ingen knapp — ingenting annet avhenger av den.
+  const { data: apenUtreise } = trpc.timer.dagsseddel.apenAnnetStedReise.useQuery(
+    { sheetId },
+    { enabled: !redigering, retry: false },
+  );
   // O16 pkt 2: arbeiderens datoer i den blå boksen. null = forslaget.
   const [gjelderFra, setGjelderFra] = useState<string | null>(null);
   const [tilOgMed, setTilOgMed] = useState<string | null>(null);
@@ -840,7 +852,8 @@ export function ReiseKort({
   async function lagreRedigering(rettDel = false) {
     if (!redigering || !kanLagreRedigering || !tid.fraTid || !tid.tilTid) return;
     setFeil(null);
-    const retning = aktivtValg.type === "retur" ? ("retur" as const) : ("ut" as const);
+    // Runde 4: en hjemreise fra «Annet sted» beholder retur.
+    const retning = aktivtValg.type === "retur" || erHjemreise ? ("retur" as const) : ("ut" as const);
     try {
       if (rettDel && delPartner) await oppdaterDel.mutateAsync({ id: delPartner.id, ...felles() });
       oppdater.mutate({
@@ -1056,6 +1069,11 @@ export function ReiseKort({
       setProsjektId(interntForslag ?? projectId);
       setEcoId(null);
       bp.setByggeplassId(null);
+      // Runde 4: mellom «Annet sted» og «Hjemreise fra {sted}» følger ikke stedet med.
+      if (!!v.hjem !== erHjemreise) {
+        setAnnetSted("");
+        setAnnetFraId(undefined);
+      }
     } else if (erAnnetSted) {
       setProsjektId(projectId);
       setEcoId(forvalgtEcoId ?? null);
@@ -1064,6 +1082,18 @@ export function ReiseKort({
           ? forvalgtByggeplassId
           : velgStandardByggeplass({ gjeldende: null, kandidater: byggeplasserForProsjekt(byggeplasser, projectId), toppbar: null }),
       );
+    }
+  }
+  // Runde 4: «Hjemreise fra {sted}» — ett klikk fyller stedet, oppmøtestedet utreisen startet fra
+  // og utreisens prosjekt/underprosjekt. Tidene står tomme (føres selv, som «Annet sted»).
+  function velgHjemreise() {
+    if (!apenUtreise) return;
+    velg({ type: "annetSted", hjem: true });
+    setAnnetSted(apenUtreise.sted);
+    setAnnetFraId(apenUtreise.oppmotestedId ?? undefined);
+    if (prosjekter.some((p) => p.id === apenUtreise.projectId)) {
+      setProsjektId(apenUtreise.projectId);
+      setEcoId(apenUtreise.externalCostObjectId);
     }
   }
   function velgKontor(id: string | null) {
@@ -1359,14 +1389,15 @@ export function ReiseKort({
     />
   );
 
-  const valgKnapp = (v: ReiseKortValg, tekst: string, key: string) => {
-    const aktiv = v.type === aktivtValg.type;
+  const valgKnapp = (v: ReiseKortValg, tekst: string, key: string, onVelg?: () => void) => {
+    // Runde 4: «Annet sted» og «Hjemreise fra {sted}» deler type — `hjem` skiller dem.
+    const aktiv = v.type === aktivtValg.type && (v.type !== "annetSted" || !!v.hjem === erHjemreise);
     return (
       <button
         key={key}
         type="button"
         onClick={() => {
-          if (!aktiv) velg(v);
+          if (!aktiv) (onVelg ?? (() => velg(v)))();
         }}
         aria-pressed={aktiv}
         className={`rounded-lg border px-3 py-2 text-sm ${
@@ -1383,7 +1414,11 @@ export function ReiseKort({
       <div className="space-y-4">
         <div className="flex flex-wrap gap-2">
           {redigertAnnetSted ? (
-            valgKnapp({ type: "annetSted" }, t("timer.reiseKort.annetSted"), "annetSted")
+            erHjemreise ? (
+              valgKnapp({ type: "annetSted", hjem: true }, t("timer.reiseKort.hjemreiseFra", { sted: redigertAnnetSted }), "hjemreise")
+            ) : (
+              valgKnapp({ type: "annetSted" }, t("timer.reiseKort.annetSted"), "annetSted")
+            )
           ) : redigertRute ? (
             valgKnapp({ type: "kontor" }, t("timer.reiseKort.tilAnnetOppmotested"), "kontor")
           ) : (
@@ -1395,6 +1430,10 @@ export function ReiseKort({
                 valgKnapp({ type: "kontor" }, t("timer.reiseKort.tilAnnetOppmotested"), "kontor")}
               {/* Runde 2: fjerde retning — reise til et sted som ikke er et prosjekt (kurs o.l.). */}
               {!redigering && valgKnapp({ type: "annetSted" }, t("timer.reiseKort.annetSted"), "annetSted")}
+              {/* Runde 4: forslaget — bare når en «Annet sted»-utreise mangler hjemreise. Aldri påkrevd. */}
+              {!redigering &&
+                apenUtreise &&
+                valgKnapp({ type: "annetSted", hjem: true }, t("timer.reiseKort.hjemreiseFra", { sted: apenUtreise.sted }), "hjemreise", velgHjemreise)}
             </>
           )}
         </div>
@@ -1405,14 +1444,15 @@ export function ReiseKort({
           <div data-testid="reise-fra-til" className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto_1fr] sm:items-start">
             <div className="min-w-0">
               <p className="mb-1 text-sm font-medium text-gray-700">{t("timer.reiseKort.fra")}</p>
-              {erAnnetSted ? annetFraFelt : aktivtValg.type === "retur" ? stedBlokk : erKontorValg ? fraKontorTekst : oppmoteFelt}
+              {/* Runde 4: hjemreisen snur feltene — Fra = stedet, Til = oppmøtestedet. */}
+              {erAnnetSted ? (erHjemreise ? annetTilFelt : annetFraFelt) : aktivtValg.type === "retur" ? stedBlokk : erKontorValg ? fraKontorTekst : oppmoteFelt}
             </div>
             <span aria-hidden className="hidden pt-7 text-gray-400 sm:block">
               →
             </span>
             <div className="min-w-0">
               <p className="mb-1 text-sm font-medium text-gray-700">{t("timer.reiseKort.til")}</p>
-              {erAnnetSted ? annetTilFelt : aktivtValg.type === "retur" ? oppmoteFelt : erKontorValg ? tilKontorFelt : stedBlokk}
+              {erAnnetSted ? (erHjemreise ? annetFraFelt : annetTilFelt) : aktivtValg.type === "retur" ? oppmoteFelt : erKontorValg ? tilKontorFelt : stedBlokk}
             </div>
           </div>
         ) : (

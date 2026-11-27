@@ -103,6 +103,8 @@ export {
   kontorReiseRute,
   annetStedTekst,
   løsAnnetStedKort,
+  løsAnnetStedHjemreise,
+  finnApenAnnetStedReise,
   finnDagsramme,
   klokkeTilMin,
   minTilKlokke,
@@ -135,6 +137,8 @@ export type {
   MidnattMerke,
   KantFlyttRad,
   KantFlytt,
+  AnnetStedReiseRad,
+  ApenAnnetStedReise,
 } from "./reiseManuell";
 export { løsOppmote, finnFastOppmotested, trengerOppmoteValg, tilIsoDato, finnPeriodeKonflikt, finnOverforinger, byggOverforingOppslag, leggTilDager, periodeDatoFraOverforing, planleggOverforing, erApenOverforing, erEgenOverforing, finnEgenOverforing, overforingKonflikt, kontorOverforingOppsett, kontorOverforingRetning, gjeldendeMidlertidig, gjelderFraForslag, sisteDagForslag, avsluttSisteDagForslag, planleggOppmoteBytte, planleggAvslutt } from "./oppmote";
 export type { OppmotePeriodeType, OppmotePeriodeInput, OppmoteResultat, Overforing, OverforingSted, DagsforslagOverforingOppslag, DagsforslagOverforingCelle, OverforingPeriode, OverforingPlan, KontorOverforingOppsett, OppmoteByttValg, OppmoteByttKall, OppmoteBytte } from "./oppmote";

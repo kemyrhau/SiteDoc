@@ -971,8 +971,22 @@ export interface AnnetStedKortInput {
 }
 
 export function løsAnnetStedKort(k: AnnetStedKortInput): ReiseKortResultat {
+  return løsAnnetSted(k, "tur");
+}
+
+/**
+ * Runde 4 timer (Kenneth 2026-11-26: «annet sted, foreslå hjemmreise men ikke bloker annen
+ * registrering»): hjemreisen fra et «Annet sted» — samme manuelle vei som `løsAnnetStedKort`, men
+ * retning «retur». `fraOppmotestedId` er her oppmøtestedet reisen ENDER på (Til); sporet bærer det
+ * i `reiseOppmotestedId` og stedet i `reiseRegel.annetSted`. Retningen alene skiller ut fra hjem.
+ */
+export function løsAnnetStedHjemreise(k: AnnetStedKortInput): ReiseKortResultat {
+  return løsAnnetSted(k, "retur");
+}
+
+function løsAnnetSted(k: AnnetStedKortInput, retning: ReiseKortRetning): ReiseKortResultat {
   const r = løsReiseKort({
-    retning: "tur",
+    retning,
     oppmote: k.fraOppmotestedId ? { kilde: "fast", oppmotestedId: k.fraOppmotestedId } : { kilde: "ikkeValgt" },
     dagStart: null,
     dagSlutt: null,
@@ -994,6 +1008,66 @@ export function løsAnnetStedKort(k: AnnetStedKortInput): ReiseKortResultat {
   return {
     ...r,
     spor: { ...r.spor, reiseRegel: { ...r.spor.reiseRegel, ...(sted ? { annetSted: { sted } } : {}) } },
+  };
+}
+
+/** Runde 4 timer: en reise-rad slik `finnApenAnnetStedReise` leser den (server og test). */
+export interface AnnetStedReiseRad {
+  dato: string;
+  fraTid: string | null;
+  tilTid: string | null;
+  erReise: boolean;
+  reiseRetning: string | null;
+  /** O12: en reise ført som arbeidstid bærer retningen her. */
+  arbeidReiseRetning?: string | null;
+  reiseRegel: unknown;
+  reiseOppmotestedId: string | null;
+  projectId: string;
+  externalCostObjectId: string | null;
+  attestertStatus?: string | null;
+}
+
+export interface ApenAnnetStedReise {
+  sted: string;
+  /** Oppmøtestedet utreisen startet fra = hjemreisens Til. null = ført uten oppmøtested (O22). */
+  oppmotestedId: string | null;
+  projectId: string;
+  externalCostObjectId: string | null;
+  dato: string;
+}
+
+const stedNokkel = (s: string) => s.trim().toLocaleLowerCase("nb-NO");
+
+/**
+ * Runde 4 timer (Kenneth 2026-11-26: «annet sted, foreslå hjemmreise men ikke bloker annen
+ * registrering»): den siste «Annet sted»-utreisen som ennå ikke har en hjemreise fra samme sted.
+ * En hjemreise teller når den kommer etter utreisen (senere dato, eller samme dato med Start ≥
+ * utreisens Slutt). Stedet sammenlignes trimmet og uten hensyn til store/små bokstaver. Erstattede
+ * rader teller ikke. Kun forslag — ingen sperre bygges på svaret. null = ingenting å foreslå.
+ */
+export function finnApenAnnetStedReise(rader: readonly AnnetStedReiseRad[]): ApenAnnetStedReise | null {
+  const retning = (r: AnnetStedReiseRad) => (r.erReise ? r.reiseRetning : (r.arbeidReiseRetning ?? null));
+  const nokkel = (r: AnnetStedReiseRad) => `${r.dato} ${r.fraTid ?? r.tilTid ?? ""}`;
+  const aktuelle = rader
+    .filter((r) => r.attestertStatus !== "erstattet" && annetStedTekst(r.reiseRegel) != null)
+    .sort((a, b) => nokkel(a).localeCompare(nokkel(b)));
+  const ut = [...aktuelle].reverse().find((r) => retning(r) === "ut");
+  if (!ut) return null;
+  const sted = annetStedTekst(ut.reiseRegel)!;
+  const utSlutt = ut.tilTid ?? ut.fraTid ?? "";
+  const hjemme = aktuelle.some(
+    (r) =>
+      retning(r) === "retur" &&
+      stedNokkel(annetStedTekst(r.reiseRegel)!) === stedNokkel(sted) &&
+      (r.dato > ut.dato || (r.dato === ut.dato && (r.fraTid ?? "") >= utSlutt)),
+  );
+  if (hjemme) return null;
+  return {
+    sted,
+    oppmotestedId: ut.reiseOppmotestedId,
+    projectId: ut.projectId,
+    externalCostObjectId: ut.externalCostObjectId,
+    dato: ut.dato,
   };
 }
 
