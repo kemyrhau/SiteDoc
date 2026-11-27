@@ -69,7 +69,8 @@ const activityCreate = vi.fn().mockResolvedValue({});
 vi.mock("@sitedoc/db", () => ({
   prisma: {
     user: { findUnique: vi.fn().mockResolvedValue({ role: "sitedoc_admin" }) },
-    organizationSetting: { findUnique: vi.fn().mockResolvedValue(null) },
+    // Runde 6: testene gjelder prosjektkortet — dagskort krever timerad på tillegg/utlegg.
+    organizationSetting: { findUnique: vi.fn().mockResolvedValue({ timerRegistreringsmodus: "prosjektkort" }) },
     organizationReiseGrense: { findMany: vi.fn().mockResolvedValue([]) },
     reisetidMatrise: { findMany: vi.fn().mockResolvedValue([]) },
     oppmotested: { findMany: vi.fn().mockResolvedValue([]) },
@@ -275,9 +276,9 @@ function lagSyncCtx() {
       createMany: vi.fn().mockResolvedValue({ count: 0 }),
       aggregate: vi.fn().mockResolvedValue({ _sum: { pauseMin: 0 } }),
     },
-    sheetTillegg: { deleteMany: vi.fn().mockResolvedValue({ count: 0 }), createMany: tilleggCreateMany },
+    sheetTillegg: { deleteMany: vi.fn().mockResolvedValue({ count: 0 }), createMany: tilleggCreateMany, findMany: vi.fn().mockResolvedValue([]) },
     sheetMachine: { deleteMany: vi.fn().mockResolvedValue({ count: 0 }), createMany: vi.fn().mockResolvedValue({ count: 0 }) },
-    sheetUtlegg: { deleteMany: vi.fn().mockResolvedValue({ count: 0 }), createMany: utleggCreateMany },
+    sheetUtlegg: { deleteMany: vi.fn().mockResolvedValue({ count: 0 }), createMany: utleggCreateMany, findMany: vi.fn().mockResolvedValue([]) },
     sheetTimerForslag: { deleteMany: vi.fn(), createMany: vi.fn() },
   };
   const ctx = {

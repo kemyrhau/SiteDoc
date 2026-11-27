@@ -1039,6 +1039,7 @@ async function flyttJobbTilSted(
         const rader = await tx.sheetTimer.findMany({ where: ider(reise) });
         await skrivSlettespor(tx, rader.map((rad) => ({ radType: "timer" as const, rad })), ctx.userId);
       }
+      await nullTilleggUtleggKobling(tx, sheet.id, reise.map((r) => r.id));
       await tx.sheetTimer.deleteMany({ where: ider(reise) });
     } else if (reiseValg?.valg === "flytt") {
       await tx.sheetTimer.updateMany({ where: ider(reise), data });
@@ -2808,6 +2809,206 @@ async function krevIngenKoblingVedProsjektbytte(
 }
 
 /**
+ * Runde 6 (Kenneth 2026-11-27: «Varer, utlegg, tillegg … disse må knyttes til menneskets
+ * timer · reisetid og knyttes til prosjekt»; gjelder dagskort). Timeraden et tillegg eller
+ * utlegg står på: samme sedel, samme prosjekt, ikke erstattet. Arbeid OG reise godtas (svar 3)
+ * — raden trenger ikke arbeid, i motsetning til maskinen (`krevKoblingVedFoering`).
+ */
+async function krevTimeradForTilleggUtlegg(
+  prismaTimer: PrismaTimerKlient,
+  a: { sheetId: string; projectId: string; sheetTimerId: string; hva: "Tillegget" | "Utlegget" },
+): Promise<void> {
+  const t = await prismaTimer.sheetTimer.findUnique({
+    where: { id: a.sheetTimerId },
+    select: { sheetId: true, projectId: true, attestertStatus: true },
+  });
+  if (!t || t.sheetId !== a.sheetId || t.projectId !== a.projectId || t.attestertStatus === "erstattet") {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: `${a.hva} kan bare stå på en timerad i samme prosjekt på denne dagsseddelen.`,
+    });
+  }
+}
+
+/**
+ * Runde 6, ved føring (`tilfoyTilleggRad`/`tilfoyUtleggRad`, bare web kaller dem): oppgitt
+ * timerad valideres i begge moduser; uten timerad avvises raden i dagskort-modus.
+ * Prosjektkort-modus uten feltet er som før (kolonnen NULL).
+ */
+async function krevTimeradVedFoering(
+  prismaTimer: PrismaTimerKlient,
+  organizationId: string,
+  input: { sheetId: string; projectId: string; sheetTimerId?: string | null },
+  hva: "Tillegget" | "Utlegget",
+): Promise<void> {
+  if (input.sheetTimerId) {
+    await krevTimeradForTilleggUtlegg(prismaTimer, {
+      sheetId: input.sheetId,
+      projectId: input.projectId,
+      sheetTimerId: input.sheetTimerId,
+      hva,
+    });
+  } else if (await erDagskortFirma(organizationId)) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: `Velg timeraden ${hva === "Tillegget" ? "tillegget" : "utlegget"} hører til.`,
+    });
+  }
+}
+
+/** Runde 6, ved oppdatering: oppgitt id valideres mot radens prosjekt; null avvises i dagskort. */
+async function timeradVedOppdatering(
+  prismaTimer: PrismaTimerKlient,
+  organizationId: string,
+  rad: { sheetId: string; projectId: string },
+  sheetTimerId: string | null,
+  hva: "Tillegget" | "Utlegget",
+): Promise<string | null> {
+  await krevTimeradVedFoering(prismaTimer, organizationId, { ...rad, sheetTimerId }, hva);
+  return sheetTimerId;
+}
+
+/** Runde 6: firmaet fører pr. dagskort (alt annet enn «prosjektkort», som `lesTimerModus`). */
+async function erDagskortFirma(organizationId: string): Promise<boolean> {
+  const modus = await prisma.organizationSetting.findUnique({
+    where: { organizationId },
+    select: { timerRegistreringsmodus: true },
+  });
+  return lesTimerModus(modus?.timerRegistreringsmodus) !== "prosjektkort";
+}
+
+/**
+ * Runde 6, punkt 3 (svar 2 = alle stier): timerader som slettes → tillegg og utlegg på dem
+ * mister koblingen i samme transaksjon og blir stående. No-op der kolonnen er NULL
+ * (prosjektkort). Ingen peker viser til en rad som ikke finnes.
+ */
+async function nullTilleggUtleggKobling(
+  tx: Prisma.TransactionClient,
+  sheetId: string,
+  timerIder: string[],
+): Promise<void> {
+  if (timerIder.length === 0) return;
+  const hvor = { sheetId, sheetTimerId: { in: timerIder } };
+  await tx.sheetTillegg.updateMany({ where: hvor, data: { sheetTimerId: null } });
+  await tx.sheetUtlegg.updateMany({ where: hvor, data: { sheetTimerId: null } });
+}
+
+/** Runde 6, syncBatch: lagret timerad-kobling for tillegg og utlegg i payloaden. */
+async function lesLagretTimerad(
+  tx: Prisma.TransactionClient,
+  sheetId: string,
+  tilleggIder: string[],
+  utleggIder: string[],
+): Promise<Map<string, string | null>> {
+  const [tillegg, utlegg] = await Promise.all([
+    tilleggIder.length > 0
+      ? tx.sheetTillegg.findMany({ where: { sheetId, id: { in: tilleggIder } }, select: { id: true, sheetTimerId: true } })
+      : [],
+    utleggIder.length > 0
+      ? tx.sheetUtlegg.findMany({ where: { sheetId, id: { in: utleggIder } }, select: { id: true, sheetTimerId: true } })
+      : [],
+  ]);
+  return new Map([...tillegg, ...utlegg].map((r) => [r.id, r.sheetTimerId]));
+}
+
+/**
+ * Runde 6, syncBatch etter skrivingen: hver kobling på sedelen må peke på en timerad på
+ * sedelen i samme prosjekt som ikke er erstattet. `oppgitte` (id-er klienten sendte kobling
+ * for) avvises med BAD_REQUEST når den er ugyldig; en beholdt eller eldre kobling nulles.
+ */
+async function sikreTimeradKoblingEtterSync(
+  tx: Prisma.TransactionClient,
+  sheetId: string,
+  oppgitte: string[],
+): Promise<void> {
+  const koblet = { sheetId, sheetTimerId: { not: null } };
+  const sel = { id: true, sheetTimerId: true, projectId: true } as const;
+  const [tillegg, utlegg] = await Promise.all([
+    tx.sheetTillegg.findMany({ where: koblet, select: sel }),
+    tx.sheetUtlegg.findMany({ where: koblet, select: sel }),
+  ]);
+  if (tillegg.length === 0 && utlegg.length === 0) return;
+  const timer = await tx.sheetTimer.findMany({
+    where: { sheetId, attestertStatus: { not: "erstattet" } },
+    select: { id: true, projectId: true },
+  });
+  const prosjektFor = new Map(timer.map((t) => [t.id, t.projectId]));
+  const ugyldig = (r: { sheetTimerId: string | null; projectId: string }) =>
+    !r.sheetTimerId || prosjektFor.get(r.sheetTimerId) !== r.projectId;
+  const oppgitt = new Set(oppgitte);
+  if ([...tillegg, ...utlegg].some((r) => oppgitt.has(r.id) && ugyldig(r))) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "Tillegg og utlegg kan bare stå på en timerad i samme prosjekt på denne dagsseddelen.",
+    });
+  }
+  const nullTillegg = tillegg.filter(ugyldig).map((r) => r.id);
+  const nullUtlegg = utlegg.filter(ugyldig).map((r) => r.id);
+  if (nullTillegg.length > 0) {
+    await tx.sheetTillegg.updateMany({ where: { id: { in: nullTillegg } }, data: { sheetTimerId: null } });
+  }
+  if (nullUtlegg.length > 0) {
+    await tx.sheetUtlegg.updateMany({ where: { id: { in: nullUtlegg } }, data: { sheetTimerId: null } });
+  }
+}
+
+/**
+ * Runde 6: der en timerad går inn i en annen (sammenslåing, forslag som vinner), følger
+ * tillegg og utlegg raden som står — som maskinen (Funn 5). Samme prosjekt i begge ender.
+ */
+async function flyttTilleggUtleggKobling(
+  tx: Prisma.TransactionClient,
+  sheetId: string,
+  fraTimerIder: string[],
+  tilTimerId: string,
+): Promise<void> {
+  if (fraTimerIder.length === 0) return;
+  const hvor = { sheetId, sheetTimerId: { in: fraTimerIder } };
+  await tx.sheetTillegg.updateMany({ where: hvor, data: { sheetTimerId: tilTimerId } });
+  await tx.sheetUtlegg.updateMany({ where: hvor, data: { sheetTimerId: tilTimerId } });
+}
+
+/**
+ * Runde 6, svar 1 (Kenneth: aldri sperre arbeid): timeraden bytter prosjekt → tillegg og
+ * utlegg på raden følger til det nye prosjektet i samme transaksjon. Underprosjekt og
+ * byggeplass som ikke finnes i det nye prosjektet nullstilles; kort-id fylles på nytt
+ * (`sikreKortId`, regel 3). Attestert tillegg står (S5) og mister koblingen i stedet, så
+ * regelen «samme prosjekt» holder.
+ */
+async function tilleggUtleggFoelgerProsjekt(
+  tx: Prisma.TransactionClient,
+  a: { sheetId: string; sheetTimerId: string; projectId: string; organizationId: string },
+): Promise<void> {
+  const hvor = { sheetId: a.sheetId, sheetTimerId: a.sheetTimerId, projectId: { not: a.projectId } };
+  const [tillegg, utlegg] = await Promise.all([
+    tx.sheetTillegg.findMany({
+      where: hvor,
+      select: { id: true, attestertStatus: true, byggeplassId: true, externalCostObjectId: true },
+    }),
+    tx.sheetUtlegg.findMany({ where: hvor, select: { id: true, byggeplassId: true, externalCostObjectId: true } }),
+  ]);
+  if (tillegg.length === 0 && utlegg.length === 0) return;
+  const alle = [...tillegg, ...utlegg];
+  const [vaskBp, vaskEco] = await Promise.all([
+    lagByggeplassVasker(alle.map((r) => r.byggeplassId)),
+    lagEcoVasker(alle.map((r) => r.externalCostObjectId), a.organizationId),
+  ]);
+  const flytt = (r: { byggeplassId: string | null; externalCostObjectId: string | null }) => ({
+    projectId: a.projectId,
+    byggeplassId: vaskBp(r.byggeplassId, a.projectId),
+    externalCostObjectId: vaskEco(r.externalCostObjectId, a.projectId),
+    kortId: null,
+  });
+  for (const r of tillegg) {
+    const laast = r.attestertStatus === "attestert" || r.attestertStatus === "erstattet";
+    await tx.sheetTillegg.update({ where: { id: r.id }, data: laast ? { sheetTimerId: null } : flytt(r) });
+  }
+  for (const r of utlegg) {
+    await tx.sheetUtlegg.update({ where: { id: r.id }, data: flytt(r) });
+  }
+}
+
+/**
  * R24 i attestantens retting (w9-tillegget): hvilke eksisterende maskinrader som
  * skal stå med gyldig kobling etter rettingen — endrede rader, og uendrede som
  * hadde en gyldig kobling før. `koblMaskinerTilJobb` kobler dem i transaksjonen
@@ -3102,6 +3303,8 @@ async function skrivJobbLinjer(
       where: { sheetId: a.sheetId, sheetTimerId: rad2Foer.id },
       data: { sheetTimerId: rad1.id },
     });
+    // Runde 6: tillegg og utlegg følger også linje 1.
+    await flyttTilleggUtleggKobling(tx, a.sheetId, [rad2Foer.id], rad1.id);
     // SL1: linje 2 som går på en returnert dag, til historikken først.
     if (a.sheetStatus === "returned") {
       await skrivSlettespor(tx, [{ radType: "timer", rad: rad2Foer }], a.userId);
@@ -4238,6 +4441,7 @@ async function utforRedigerSedelRader(
     }
     await tx.sheetMachine.deleteMany({ where: { id: { in: plan.maskin.slett.map((r) => r.id) } } });
     await tx.sheetTillegg.deleteMany({ where: { id: { in: plan.tillegg.slett.map((r) => r.id) } } });
+    await nullTilleggUtleggKobling(tx, sheet.id, slettedeTimerIder);
     await tx.sheetTimer.deleteMany({ where: { id: { in: slettedeTimerIder } } });
     for (const o of plan.timer.oppdater) {
       await tx.sheetTimer.update({
@@ -4263,10 +4467,30 @@ async function utforRedigerSedelRader(
       });
     }
     for (const n of plan.tillegg.opprett) {
+      // Runde 6: et erstattende tillegg arver timeraden til raden det erstatter.
+      const arvet = n.parentRadId
+        ? ((await tx.sheetTillegg.findUnique({ where: { id: n.parentRadId }, select: { sheetTimerId: true } }))
+            ?.sheetTimerId ?? null)
+        : null;
       await tx.sheetTillegg.create({
-        data: { ...n.data, sheetId: sheet.id, attestertStatus: "pending", parentRadId: n.parentRadId },
+        data: { ...n.data, sheetId: sheet.id, attestertStatus: "pending", parentRadId: n.parentRadId, sheetTimerId: arvet },
       });
     }
+    // Runde 6, svar 1: timerad som bytter prosjekt tar tillegg og utlegg med seg (etter
+    // tilleggenes egen retting, så koblingen holder «samme prosjekt»).
+    for (const o of plan.timer.oppdater) {
+      const nyttProsjekt = (o.data as { projectId?: string | null }).projectId ?? null;
+      if (nyttProsjekt && nyttProsjekt !== o.foer.projectId) {
+        await tilleggUtleggFoelgerProsjekt(tx, {
+          sheetId: sheet.id,
+          sheetTimerId: o.foer.id,
+          projectId: nyttProsjekt,
+          organizationId: sheet.organizationId,
+        });
+      }
+    }
+    // Runde 6: et tillegg attestanten flyttet til et annet prosjekt enn timeraden, mister koblingen.
+    await sikreTimeradKoblingEtterSync(tx, sheet.id, []);
     for (const n of plan.maskin.opprett) {
       const ny = await tx.sheetMachine.create({
         data: {
@@ -4606,6 +4830,7 @@ export async function slettKortMedAlt(
       await tx.sheetMachine.deleteMany({ where: { id: { in: kort.maskiner.map((r) => r.id) } } });
     }
     if (kort.timer.length > 0) {
+      await nullTilleggUtleggKobling(tx, sheet.id, kort.timer.map((r) => r.id));
       await tx.sheetTimer.deleteMany({ where: { id: { in: kort.timer.map((r) => r.id) } } });
     }
     return { id: sheet.id, kortId, slettet: kort.innhold };
@@ -5717,6 +5942,7 @@ export const dagsseddelRouter = router({
           }
           // Reise bærer ingen maskiner; koblinger nulles som i fjernTimerRad.
           await tx.sheetMachine.updateMany({ where: { sheetId: r.sheetId, sheetTimerId: r.id }, data: { sheetTimerId: null } });
+          await nullTilleggUtleggKobling(tx, r.sheetId, [r.id]);
           await tx.sheetTimer.delete({ where: { id: r.id } });
           await synkroniserHodePause(tx, r.sheetId);
           await sikreKortId(tx, r.sheetId);
@@ -6032,6 +6258,16 @@ export const dagsseddelRouter = router({
           where: { id: input.id },
           data,
         });
+        // Runde 6, svar 1: reisen som bytter prosjekt tar tillegg og utlegg med seg (maskin
+        // og vare sperrer fortsatt, krevIngenKoblingVedProsjektbytte).
+        if (nyttProsjektId && nyttProsjektId !== rad.projectId) {
+          await tilleggUtleggFoelgerProsjekt(tx, {
+            sheetId: rad.sheetId,
+            sheetTimerId: rad.id,
+            projectId: nyttProsjektId,
+            organizationId: sheet.organizationId,
+          });
+        }
         // w3a (A7): bytte av underprosjekt eller byggeplass tar med koblede maskiner i samme
         // prosjekt. Attestert og erstattet står (S5). Før sikreKortId, så kortet stemmer.
         if (stedEndret) {
@@ -6138,6 +6374,8 @@ export const dagsseddelRouter = router({
             data: { sheetTimerId: null },
           });
         }
+        // Runde 6: tillegg og utlegg på raden står, uten kobling.
+        await nullTilleggUtleggKobling(tx, rad.sheetId, [input.id]);
         const s = await tx.sheetTimer.delete({ where: { id: input.id } });
         await synkroniserHodePause(tx, rad.sheetId);
         // w12: å slette arbeid kan endre hvilken jobb reisen står i (eller fjerne jobben).
@@ -6864,6 +7102,7 @@ export const dagsseddelRouter = router({
             });
             await skrivSlettespor(tx, rader.map((rad) => ({ radType: "timer" as const, rad })), ctx.userId);
           }
+          await nullTilleggUtleggKobling(tx, input.sheetId, input.slettinger);
           await tx.sheetTimer.deleteMany({
             where: { sheetId: input.sheetId, id: { in: input.slettinger } },
           });
@@ -7136,6 +7375,8 @@ export const dagsseddelRouter = router({
         externalCostObjectId: z.string().uuid().nullable().optional(),
         // Kort-id (spec § 4.3): valgfri. Uten → regel 3 (eldste kort med samme nøkkel).
         kortId: z.string().uuid().nullable().optional(),
+        // Runde 6: timeraden (arbeid eller reise) raden står på. Påkrevd i dagskort-modus.
+        sheetTimerId: z.string().uuid().nullable().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -7155,6 +7396,7 @@ export const dagsseddelRouter = router({
       // Prosjektkortet: byggeplass og underprosjekt må høre til radens prosjekt.
       await krevByggeplasserIProsjekt([input]);
       await krevEcoerIProsjekt([input], sheet.organizationId);
+      await krevTimeradVedFoering(ctx.prismaTimer, sheet.organizationId, input, "Tillegget");
 
       const tillegg = await ctx.prismaTimer.tillegg.findFirst({
         where: { id: input.tilleggId, organizationId: sheet.organizationId },
@@ -7185,6 +7427,7 @@ export const dagsseddelRouter = router({
             byggeplassId: input.byggeplassId ?? null,
             externalCostObjectId: input.externalCostObjectId ?? null,
             kortId: input.kortId ?? null,
+            sheetTimerId: input.sheetTimerId ?? null,
           },
         }),
         touchSedel(ctx.prismaTimer, input.sheetId),
@@ -7203,6 +7446,8 @@ export const dagsseddelRouter = router({
         // Utelatt = urørt; null = arv/uten underprosjekt.
         byggeplassId: z.string().uuid().nullable().optional(),
         externalCostObjectId: z.string().uuid().nullable().optional(),
+        // Runde 6: utelatt = urørt; oppgitt valideres; null avvises i dagskort-modus.
+        sheetTimerId: z.string().uuid().nullable().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -7241,6 +7486,9 @@ export const dagsseddelRouter = router({
           sheet.organizationId,
         );
         data.externalCostObjectId = input.externalCostObjectId;
+      }
+      if (input.sheetTimerId !== undefined) {
+        data.sheetTimerId = await timeradVedOppdatering(ctx.prismaTimer, sheet.organizationId, rad, input.sheetTimerId, "Tillegget");
       }
 
       // Kort-id (spec § 4.3): uendret nøkkel → står; ellers regel 3 (sikreKortId etterpå).
@@ -7422,6 +7670,8 @@ export const dagsseddelRouter = router({
         externalCostObjectId: z.string().uuid().nullable().optional(),
         // Kort-id (spec § 4.3): valgfri. Uten → regel 3 (eldste kort med samme nøkkel).
         kortId: z.string().uuid().nullable().optional(),
+        // Runde 6: timeraden (arbeid eller reise) raden står på. Påkrevd i dagskort-modus.
+        sheetTimerId: z.string().uuid().nullable().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -7442,6 +7692,7 @@ export const dagsseddelRouter = router({
       // Prosjektkortet: byggeplass og underprosjekt må høre til radens prosjekt.
       await krevByggeplasserIProsjekt([input]);
       await krevEcoerIProsjekt([input], sheet.organizationId);
+      await krevTimeradVedFoering(ctx.prismaTimer, sheet.organizationId, input, "Utlegget");
 
       const kategori = await ctx.prismaTimer.expenseCategory.findFirst({
         where: { id: input.expenseCategoryId, organizationId: sheet.organizationId },
@@ -7510,6 +7761,7 @@ export const dagsseddelRouter = router({
             byggeplassId: input.byggeplassId ?? null,
             externalCostObjectId: input.externalCostObjectId ?? null,
             kortId: input.kortId ?? null,
+            sheetTimerId: input.sheetTimerId ?? null,
           },
         }),
         touchSedel(ctx.prismaTimer, input.sheetId),
@@ -7529,6 +7781,8 @@ export const dagsseddelRouter = router({
         // Utelatt = urørt; null = arv/uten underprosjekt.
         byggeplassId: z.string().uuid().nullable().optional(),
         externalCostObjectId: z.string().uuid().nullable().optional(),
+        // Runde 6: utelatt = urørt; oppgitt valideres; null avvises i dagskort-modus.
+        sheetTimerId: z.string().uuid().nullable().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -7580,6 +7834,9 @@ export const dagsseddelRouter = router({
           sheet.organizationId,
         );
         data.externalCostObjectId = input.externalCostObjectId;
+      }
+      if (input.sheetTimerId !== undefined) {
+        data.sheetTimerId = await timeradVedOppdatering(ctx.prismaTimer, sheet.organizationId, rad, input.sheetTimerId, "Utlegget");
       }
 
       // Kort-id (spec § 4.3): uendret nøkkel → står; ellers regel 3 (sikreKortId etterpå).
@@ -9427,6 +9684,7 @@ export const dagsseddelRouter = router({
         if (v.plan.bDeler.length > 0) {
           const bRader = await tx.sheetTimer.findMany({ where: { id: { in: v.plan.bDeler } } });
           slettet.push(...bRader.map((r) => ({ radType: "timer", snapshot: JSON.parse(JSON.stringify(r)) as unknown })));
+          await nullTilleggUtleggKobling(tx, sheet.id, v.plan.bDeler);
           await tx.sheetTimer.deleteMany({ where: { id: { in: v.plan.bDeler } } });
         }
         // Timeradene i A etter sammenslåingen — maskin og vare kobles til en av dem.
@@ -11390,6 +11648,8 @@ export const dagsseddelRouter = router({
                 // Kort-id (prosjektkort-kortid-spec § 4.1, B1 = A): valgfri. Uten → regel 2/3
                 // på serveren (eldre klient). Vises aldri i UI.
                 kortId: z.string().uuid().nullable().optional(),
+                // Runde 6: timeraden. Utelatt = behold lagret kobling; null = ingen kobling.
+                sheetTimerId: z.string().uuid().nullable().optional(),
               }),
             ),
             maskiner: z
@@ -11443,6 +11703,8 @@ export const dagsseddelRouter = router({
                   foertVed: z.string(),
                   // Kort-id (§ 4.1): valgfri, som tillegg.
                   kortId: z.string().uuid().nullable().optional(),
+                  // Runde 6: som tillegg.
+                  sheetTimerId: z.string().uuid().nullable().optional(),
                 }),
               )
               .default([]),
@@ -12380,6 +12642,9 @@ export const dagsseddelRouter = router({
               const lagret = lagretKort.get(id) ?? null;
               return kortIdForSkriving(kortKontekst, { lagret: lagret?.erReise === true ? lagret : null, ny });
             };
+            // Runde 6: telefonen sender ikke timerad-koblingen ennå (runde C). Utelatt felt =
+            // behold koblingen web satte — les den før payload-replace sletter radene.
+            const lagretTimerad = await lesLagretTimerad(tx, sedel.id, tilleggIder, utleggIderPayload);
             const oppgitteKortIder = [
               ...skrivTimerListe.filter((t) => !reiseFelterMap.get(t.id)?.erReise),
               ...lokal.tillegg,
@@ -12448,6 +12713,7 @@ export const dagsseddelRouter = router({
                 );
               }
               if (slettTimer.length > 0) {
+                await nullTilleggUtleggKobling(tx, sedel.id, slettTimer);
                 await tx.sheetTimer.deleteMany({
                   where: { sheetId: sedel.id, id: { in: slettTimer } },
                 });
@@ -12550,6 +12816,7 @@ export const dagsseddelRouter = router({
                     kommentar: tl.kommentar ?? null,
                     ...kf,
                     kortId: kortVedSync(tl.id, tl.kortId, { projectId: radProsjekt(tl.projectId)!, ...kf }),
+                    sheetTimerId: tl.sheetTimerId !== undefined ? tl.sheetTimerId : (lagretTimerad.get(tl.id) ?? null),
                   };
                 }),
               });
@@ -12601,9 +12868,20 @@ export const dagsseddelRouter = router({
                     ...kf,
                     kortId: kortVedSync(u.id, u.kortId, { projectId: radProsjekt(u.projectId)!, ...kf }),
                     createdAt: new Date(u.foertVed),
+                    sheetTimerId: u.sheetTimerId !== undefined ? u.sheetTimerId : (lagretTimerad.get(u.id) ?? null),
                   };
                 }),
               });
+            }
+            // Runde 6: oppgitt kobling må være gyldig (samme sedel og prosjekt); en beholdt
+            // kobling står bare hvis timeraden fortsatt finnes i samme prosjekt, ellers NULL.
+            // Ingen oppgitt og ingen lagret kobling (prosjektkort, eldre data) → ingenting å sjekke.
+            const oppgitteKoblinger = [
+              ...lokal.tillegg.filter((r) => r.sheetTimerId).map((r) => r.id),
+              ...lokal.utlegg.filter((r) => r.sheetTimerId).map((r) => r.id),
+            ];
+            if (oppgitteKoblinger.length > 0 || [...lagretTimerad.values()].some(Boolean)) {
+              await sikreTimeradKoblingEtterSync(tx, sedel.id, oppgitteKoblinger);
             }
 
             // Kort-id (spec § 4.1): regel 3 for rader uten id, K6 for koblet maskin, og

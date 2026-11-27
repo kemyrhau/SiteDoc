@@ -149,7 +149,7 @@ Kenneth 2026-11-27: «Varer under maskinen også i attesteringen. -> trengs ikke
 2. Varer knyttes til en timerad. Det gjelder også en vare på en døgnmaskin uten timerad: timeraden velges i maskinvinduet.
     ✅ Web «Legg til vare» (`KortVareforbrukModal` uten jobb, vises bare med arbeidsrad, rad forvalgt). 🔴 Maskinvinduet lar en vare på en døgnmaskin uten timerad lagres uten timerad. 🔴 `vareforbruk.opprett` godtar manglende eller ugyldig `sheetTimerId` og lagrer null uten å si fra (`gyldigVareRad`). Telefonens dagskort fører ikke varer (bare visning).
 3. Tillegg og utlegg knyttes til en timerad — også en reiserad; velgeren viser reiseradene. Koblingen brukes til filter og sletting. I attesteringen vises de som i dag, som egne linjer (`grupperPaaKort`, G5/G6).
-    🔴 Ikke bygget: `SheetTillegg` og `SheetUtlegg` har ingen `sheetTimerId` (server, telefonens lokale tabeller, `syncBatch`); dagskortets «Legg til» krever ikke arbeid i prosjektet.
+    🟡 `fix/timer-r6`, ikke merget: `sheet_tillegg.sheet_timer_id` og `sheet_utlegg.sheet_timer_id` (migrering `20261127120000_r6_tillegg_utlegg_timerad`); web «Timerad» i tillegg- og utleggsvinduet (`TimeradVelger.tsx`), «Legg til» krever en timerad i prosjektet; serveren krever timerad ved føring i dagskort, nuller koblingen når raden slettes og tar tillegg og utlegg med når raden bytter prosjekt (`timer.md` § Runde 6). 🔴 Telefonen: lokale tabeller og vinduene fører ikke timerad ennå; `syncBatch` beholder lagret kobling når feltet mangler.
 4. Reisetid knyttes til prosjekt.
     ✅ Reiseraden krever prosjekt (`validerUtenProsjekt` i `packages/shared/src/utils/utenProsjekt.ts`, `tilfoyTimerRad`, `syncBatch`).
 5. Attesteringen viser ikke varen under maskinen når varen står på timeraden.

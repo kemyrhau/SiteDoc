@@ -101,6 +101,7 @@ import { BeskrivelseHover, jobbensBeskrivelser } from "@/components/timer/Beskri
 import { ReiseKort } from "./ReiseKort";
 import { SlettDeltReise, midnattTekst } from "@/components/timer/SlettDeltReise";
 import { JobbSkjema } from "./JobbSkjema";
+import { TimeradVelger, useTimeradValg } from "./TimeradVelger";
 import { jobbSkjemaLinjer, nyJobbForslag, senesteTilTid, type SkjemaKilde } from "@/lib/jobbSkjema";
 import type { SkjemaLonnsart } from "./JobbSkjema";
 import { KorrigeringProvider, KorrigertMerke, type KorrigeringerPrRad } from "@/components/timer/KorrigertMerke";
@@ -204,6 +205,8 @@ type TilleggRad = {
   externalCostObjectId?: string | null;
   // w3a: jobben raden hører til (kort-id) og føringstidspunktet (rekkefølgen i kortet).
   kortId?: string | null;
+  // Runde 6: timeraden (arbeid eller reise) tillegget står på. NULL i prosjektkort-modus.
+  sheetTimerId?: string | null;
   createdAt?: string | Date;
 };
 
@@ -221,6 +224,8 @@ type UtleggRad = {
   byggeplassId?: string | null;
   externalCostObjectId?: string | null;
   kortId?: string | null;
+  // Runde 6: som tillegg.
+  sheetTimerId?: string | null;
   createdAt?: string | Date;
 };
 
@@ -2083,6 +2088,7 @@ export default function DagsseddelDetaljSide() {
           rad={aktivModal.rad}
           laastTilleggId={aktivModal.laastTilleggId}
           jobb={aktivModal.jobb}
+          timerader={prosjektkortModus ? undefined : timerRader}
           onLukk={() => setAktivModal(null)}
         />
       )}
@@ -2094,6 +2100,7 @@ export default function DagsseddelDetaljSide() {
           expenseCategoryId={aktivModal.expenseCategoryId}
           rad={aktivModal.rad}
           jobb={aktivModal.jobb}
+          timerader={prosjektkortModus ? undefined : timerRader}
           onLukk={() => setAktivModal(null)}
         />
       )}
@@ -3333,6 +3340,7 @@ function ProsjektGruppe({
   );
 
   const Ramme = iKort ? "div" : "section";
+  const harTimerad = ecoBuckets.some((b) => b.timer.some((r) => r.attestertStatus !== "erstattet"));
   return (
     <Ramme
       className={
@@ -3430,7 +3438,8 @@ function ProsjektGruppe({
           <h3 className="text-sm font-semibold text-gray-700">
             {t("timer.detalj.tilleggUtlegg")}
           </h3>
-          {erRedigerbar && !iKort && (
+          {/* Runde 6: tillegg og utlegg står på en timerad — knappen kommer med den første. */}
+          {erRedigerbar && !iKort && harTimerad && (
             <Button variant="secondary" onClick={onLeggTil}>
               <Plus className="mr-1 h-3 w-3" />
               {t("timer.detalj.leggTil")}
@@ -6179,11 +6188,14 @@ function TilleggRadDialog({
   rad,
   laastTilleggId,
   jobb,
+  timerader,
   onLukk,
 }: {
   sheetId: string;
   projectId: string;
   byggeplasser: readonly ByggeplassValg[] | undefined;
+  /** Runde 6: sedelens timerader i dagskort-modus — gir «Timerad»-velgeren. */
+  timerader?: readonly TimerRad[];
   rad?: TilleggRad;
   // U3 (8a): kategori valgt i den unified velgeren → vises read-only her.
   // Redigering (rad) og fri-select-veien er uendret (bit-for-bit sats-flyt).
@@ -6206,6 +6218,7 @@ function TilleggRadDialog({
   );
   const [kommentar, setKommentar] = useState<string>(rad?.kommentar ?? "");
   const sted = useRadSted({ byggeplasser, projectId, rad, jobb });
+  const timerad = useTimeradValg(jobb ? undefined : timerader, projectId, rad?.sheetTimerId);
   const [feil, setFeil] = useState<string | null>(null);
   // D4 (web-paritet): kvittering-opplasting (mobil har kamera/galleri).
   const [vedleggFeil, setVedleggFeil] = useState<string | null>(null);
@@ -6316,15 +6329,19 @@ function TilleggRadDialog({
       setFeil(t("timer.feil.ugyldigInput"));
       return;
     }
+    if (!timerad.klar) {
+      setFeil(t("timer.tilleggTimerad.velg"));
+      return;
+    }
     const data = {
       tilleggId,
       antall: a,
       kommentar: kommentar.trim() || null,
     };
     if (rad) {
-      oppdater.mutate({ id: rad.id, ...data, ...sted.payload });
+      oppdater.mutate({ id: rad.id, ...data, ...sted.payload, ...timerad.payload });
     } else {
-      tilfoy.mutate({ sheetId, projectId, ...data, ...sted.payload });
+      tilfoy.mutate({ sheetId, projectId, ...data, ...sted.payload, ...timerad.payload });
     }
   }
 
@@ -6342,6 +6359,7 @@ function TilleggRadDialog({
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         <RadStedFelt sted={sted} />
+        <TimeradVelger valg={timerad} />
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700">
             {t("firma.timer.fane.tillegg")}
@@ -6457,7 +6475,7 @@ function TilleggRadDialog({
             {t("handling.avbryt")}
           </Button>
           <KnappMedForklaring sperret={!tilleggId && !lagrer} forklaring={t("sperret.velgTillegg")}>
-            <Button type="submit" disabled={lagrer || !tilleggId}>
+            <Button type="submit" disabled={lagrer || !tilleggId || !timerad.klar}>
               {lagrer ? t("handling.lagrer") : t("handling.lagre")}
             </Button>
           </KnappMedForklaring>
@@ -6842,6 +6860,7 @@ function UtleggRadDialog({
   expenseCategoryId,
   rad,
   jobb,
+  timerader,
   onLukk,
 }: {
   sheetId: string;
@@ -6850,6 +6869,8 @@ function UtleggRadDialog({
   expenseCategoryId?: string;
   rad?: UtleggRad;
   jobb?: JobbKontekst;
+  /** Runde 6: som tillegg. */
+  timerader?: readonly TimerRad[];
   onLukk: () => void;
 }) {
   const { t } = useTranslation();
@@ -6858,6 +6879,7 @@ function UtleggRadDialog({
   const { data: katalog } = trpc.timer.expenseCategory.list.useQuery({ projectId, organizationId: sedelFirmaId });
 
   const sted = useRadSted({ byggeplasser, projectId, rad, jobb });
+  const timerad = useTimeradValg(jobb ? undefined : timerader, projectId, rad?.sheetTimerId);
   const kategoriId = rad?.expenseCategoryId ?? expenseCategoryId ?? "";
   const kat = (katalog as UtleggKategori[] | undefined)?.find(
     (k) => k.id === kategoriId,
@@ -6979,6 +7001,10 @@ function UtleggRadDialog({
       }
       belopVal = b;
     }
+    if (!timerad.klar) {
+      setFeil(t("timer.utleggTimerad.velg"));
+      return;
+    }
     const kommentarVal = kommentar.trim() || null;
     if (rad) {
       oppdater.mutate({
@@ -6986,6 +7012,7 @@ function UtleggRadDialog({
         belop: belopVal,
         kommentar: kommentarVal,
         ...sted.payload,
+        ...timerad.payload,
       });
     } else {
       tilfoy.mutate({
@@ -6995,6 +7022,7 @@ function UtleggRadDialog({
         belop: belopVal,
         kommentar: kommentarVal,
         ...sted.payload,
+        ...timerad.payload,
       });
     }
   }
@@ -7010,6 +7038,7 @@ function UtleggRadDialog({
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         <RadStedFelt sted={sted} />
+        <TimeradVelger valg={timerad} />
         {/* Kategori-overskrift + ordnings-pille + kilde (8b). Aldri et valg. */}
         <div>
           <div className="flex flex-wrap items-center gap-2">
@@ -7118,7 +7147,7 @@ function UtleggRadDialog({
             {t("handling.avbryt")}
           </Button>
           <KnappMedForklaring sperret={!kategoriId && !lagrer} forklaring={t("sperret.velgKategori")}>
-            <Button type="submit" disabled={lagrer || !kategoriId}>
+            <Button type="submit" disabled={lagrer || !kategoriId || !timerad.klar}>
               {lagrer ? t("handling.lagrer") : t("handling.lagre")}
             </Button>
           </KnappMedForklaring>
