@@ -114,7 +114,7 @@ describe("API-ruten", () => {
       vi.stubEnv("NEXT_PUBLIC_SITEDOC_TESTPANEL", "1");
       const { GET, POST } = await rute();
       expect((await GET()).status).toBe(404);
-      expect((await POST(post({ nr: 1, vurdering: "godkjent" }))).status).toBe(404);
+      expect((await POST(post({ type: "svar", nr: 1, vurdering: "godkjent" }))).status).toBe(404);
       expect(rundeSchema.parse(JSON.parse(await readFile(rundeFil, "utf8"))).steg[0]!.kenneth).toBeNull();
     });
     it("GET og POST gir 404 i development uten flagget", async () => {
@@ -122,7 +122,7 @@ describe("API-ruten", () => {
       vi.stubEnv("NEXT_PUBLIC_SITEDOC_TESTPANEL", "0");
       const { GET, POST } = await rute();
       expect((await GET()).status).toBe(404);
-      expect((await POST(post({ nr: 1, vurdering: "godkjent" }))).status).toBe(404);
+      expect((await POST(post({ type: "svar", nr: 1, vurdering: "godkjent" }))).status).toBe(404);
     });
     it("GET gir runden i dev med flagget (negativkontroll)", async () => {
       påDev();
@@ -139,9 +139,12 @@ describe("API-ruten", () => {
 
     it.each([
       ["ugyldig JSON", "{ikke json"],
-      ["ukjent vurdering", { nr: 1, vurdering: "kanskje" }],
-      ["nr mangler", { vurdering: "godkjent" }],
-      ["avvik uten merknad", { nr: 1, vurdering: "avvik", merknad: "  " }],
+      ["ukjent vurdering", { type: "svar", nr: 1, vurdering: "kanskje" }],
+      ["nr mangler", { type: "svar", vurdering: "godkjent" }],
+      ["type mangler", { nr: 1, vurdering: "godkjent" }],
+      ["ukjent type", { type: "slett", nr: 1 }],
+      ["tom forbedring", { type: "forbedring", nr: 2, tekst: "  " }],
+      ["avvik uten merknad", { type: "svar", nr: 1, vurdering: "avvik", merknad: "  " }],
     ])("%s → 400, fila uendret", async (_navn, body) => {
       påDev();
       const { POST } = await rute();
@@ -152,7 +155,7 @@ describe("API-ruten", () => {
     it("steg som venter på agenten → 409, fila uendret", async () => {
       påDev();
       const { POST } = await rute();
-      expect((await POST(post({ nr: 2, vurdering: "godkjent" }))).status).toBe(409);
+      expect((await POST(post({ type: "svar", nr: 2, vurdering: "godkjent" }))).status).toBe(409);
       await uendret();
     });
 
@@ -173,7 +176,7 @@ describe("API-ruten", () => {
       };
       await writeFile(rundeFil, JSON.stringify(medEkstra));
       const { POST } = await rute();
-      expect((await POST(post({ nr: 1, vurdering: "godkjent" }))).status).toBe(200);
+      expect((await POST(post({ type: "svar", nr: 1, vurdering: "godkjent" }))).status).toBe(200);
       const lagret = JSON.parse(await readFile(rundeFil, "utf8")) as Record<string, unknown> & {
         steg: Record<string, unknown>[];
       };
@@ -187,11 +190,46 @@ describe("API-ruten", () => {
       expect(lagret.steg[1]).toEqual(medEkstra.steg[1]);
     });
 
+    it("RETUR 2: pause-POST endrer kun runde.pause og bevarer alt annet (rå JSON)", async () => {
+      påDev();
+      const medEkstra = { ...lagRunde(), agentNotat: "x", agentNaa: "går til Timer" };
+      await writeFile(rundeFil, JSON.stringify(medEkstra));
+      const { POST } = await rute();
+      expect((await POST(post({ type: "pause", pause: true }))).status).toBe(200);
+      const lagret = JSON.parse(await readFile(rundeFil, "utf8")) as Record<string, unknown>;
+      expect(lagret).toEqual({ ...medEkstra, pause: true });
+      expect((await POST(post({ type: "pause", pause: false }))).status).toBe(200);
+      expect(JSON.parse(await readFile(rundeFil, "utf8"))).toEqual({ ...medEkstra, pause: false });
+    });
+
+    it("RETUR 2: forbedring lagres mens agenten kjører, uten å endre status", async () => {
+      påDev();
+      const { POST } = await rute();
+      expect((await POST(post({ type: "forbedring", nr: 2, tekst: " Større knapp " }))).status).toBe(200);
+      expect((await POST(post({ type: "forbedring", nr: 2, tekst: "Kortere tekst" }))).status).toBe(200);
+      const lagret = JSON.parse(await readFile(rundeFil, "utf8")) as Runde;
+      const før = lagRunde();
+      expect(lagret.steg[0]).toEqual(før.steg[0]);
+      const { forbedringer, ...resten } = lagret.steg[1]!;
+      expect(resten).toEqual(før.steg[1]);
+      expect(resten.status).toBe("venter_agent");
+      expect(forbedringer?.map((f) => f.tekst)).toEqual(["Større knapp", "Kortere tekst"]);
+    });
+
+    it("RETUR 2: forbedring på ferdig steg → 409, fila uendret", async () => {
+      påDev();
+      const { POST } = await rute();
+      expect((await POST(post({ type: "svar", nr: 1, vurdering: "godkjent" }))).status).toBe(200);
+      const etterSvar = await readFile(rundeFil, "utf8");
+      expect((await POST(post({ type: "forbedring", nr: 1, tekst: "for sent" }))).status).toBe(409);
+      expect(await readFile(rundeFil, "utf8")).toBe(etterSvar);
+    });
+
     it("gyldig svar lagres: kun kenneth + status på steget, resten uendret", async () => {
       påDev();
       const { POST } = await rute();
       const svar = await POST(
-        post({ nr: 1, vurdering: "avvik", merknad: " Feil tekst ", forbedring: "" }),
+        post({ type: "svar", nr: 1, vurdering: "avvik", merknad: " Feil tekst ", forbedring: "" }),
       );
       expect(svar.status).toBe(200);
       const lagret = rundeSchema.parse(JSON.parse(await readFile(rundeFil, "utf8")));

@@ -18,6 +18,15 @@ const kennethSvarSchema = z.object({
   tid: z.string().datetime(),
 });
 
+/** Element agenten skal klikke neste gang. Tekst (synlig tekst / aria-label) er hovedveien, selektor reserve. */
+export const markeringSchema = z.union([
+  z.object({ tekst: z.string().min(1) }).strict(),
+  z.object({ selektor: z.string().min(1) }).strict(),
+]);
+export type Markering = z.infer<typeof markeringSchema>;
+
+const forbedringSchema = z.object({ tekst: z.string().min(1), tid: z.string().datetime() });
+
 export const stegSchema = z
   .object({
     nr: z.number().int().positive(),
@@ -28,6 +37,8 @@ export const stegSchema = z
     agentVurdering: vurderingSchema.nullable(),
     status: stegStatusSchema,
     kenneth: kennethSvarSchema.nullable(),
+    markering: markeringSchema.nullable().optional(),
+    forbedringer: z.array(forbedringSchema).optional(),
   })
   .superRefine((s, ctx) => {
     if ((s.status === "ferdig") !== (s.kenneth !== null)) {
@@ -47,6 +58,8 @@ export const rundeSchema = z
     runde: z.string().min(1),
     hash: z.string().regex(/^[0-9a-f]{7,40}$/),
     steg: z.array(stegSchema).min(1),
+    pause: z.boolean().optional(),
+    agentNaa: z.string().nullable().optional(),
   })
   .superRefine((r, ctx) => {
     const nr = r.steg.map((s) => s.nr);
@@ -60,15 +73,30 @@ export const aktivSchema = z.object({
   fil: z.string().regex(/^[a-z0-9-]+\.json$/),
 });
 
-export const svarSchema = z
-  .object({
-    nr: z.number().int().positive(),
-    vurdering: vurderingSchema,
-    merknad: z.string().default(""),
-    forbedring: z.string().default(""),
-  })
-  .refine((s) => kanNeste(s.vurdering, s.merknad), { message: "avvik krever merknad" });
-export type Svar = z.infer<typeof svarSchema>;
+/** POST fra panelet. `type` er påkrevd; panelet er eneste klient. */
+export const postSchema = z
+  .discriminatedUnion("type", [
+    z.object({
+      type: z.literal("svar"),
+      nr: z.number().int().positive(),
+      vurdering: vurderingSchema,
+      merknad: z.string().default(""),
+      forbedring: z.string().default(""),
+    }),
+    z.object({ type: z.literal("pause"), pause: z.boolean() }),
+    z.object({
+      type: z.literal("forbedring"),
+      nr: z.number().int().positive(),
+      tekst: z.string().refine((t) => t.trim().length > 0, "forbedring kan ikke være tom"),
+    }),
+  ])
+  .superRefine((p, ctx) => {
+    if (p.type === "svar" && !kanNeste(p.vurdering, p.merknad)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "avvik krever merknad" });
+    }
+  });
+export type Post = z.infer<typeof postSchema>;
+export type Svar = Extract<Post, { type: "svar" }>;
 
 /** Neste er åpen når en vurdering er valgt, og ved avvik kun med utfylt merknad. Forbedring påvirker aldri. */
 export function kanNeste(vurdering: Vurdering | null, merknad: string): boolean {

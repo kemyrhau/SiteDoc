@@ -87,6 +87,7 @@ describe("Testpanel — Neste", () => {
     ) as unknown[] | undefined;
     expect(postKall).toBeDefined();
     expect(JSON.parse((postKall![1] as RequestInit).body as string)).toEqual({
+      type: "svar",
       nr: 1,
       vurdering: "godkjent",
       merknad: "",

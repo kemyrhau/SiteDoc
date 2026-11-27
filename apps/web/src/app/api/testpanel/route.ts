@@ -1,6 +1,13 @@
 import { NextResponse } from "next/server";
-import { testpanelPå, svarSchema } from "@/components/testpanel/schema";
-import { aktivFil, lagreSvar, lesRunde, TestpanelFeil } from "@/components/testpanel/lagring";
+import { postSchema, testpanelPå } from "@/components/testpanel/schema";
+import {
+  aktivFil,
+  lagreForbedring,
+  lagrePause,
+  lagreSvar,
+  lesRunde,
+  TestpanelFeil,
+} from "@/components/testpanel/lagring";
 
 // Testpanel for lokal testflate (lokal-dev.md § 7). Finnes i prod-bygget, men svarer
 // alltid 404 der: vilkåret sjekkes før noe annet, og ingen fil leses.
@@ -33,12 +40,18 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json({ feil: "Ugyldig JSON" }, { status: 400 });
   }
-  const svar = svarSchema.safeParse(body);
-  if (!svar.success) {
-    return NextResponse.json({ feil: svar.error.issues[0]?.message ?? "Ugyldig svar" }, { status: 400 });
+  const tolket = postSchema.safeParse(body);
+  if (!tolket.success) {
+    return NextResponse.json({ feil: tolket.error.issues[0]?.message ?? "Ugyldig svar" }, { status: 400 });
   }
+  const p = tolket.data;
   try {
-    const runde = await lagreSvar(svar.data);
+    const runde =
+      p.type === "svar"
+        ? await lagreSvar(p)
+        : p.type === "pause"
+          ? await lagrePause(p.pause)
+          : await lagreForbedring(p.nr, p.tekst);
     return NextResponse.json({ runde });
   } catch (e) {
     return feilsvar(e);

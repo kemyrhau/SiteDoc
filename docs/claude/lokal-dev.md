@@ -199,13 +199,31 @@ Kenneth 2026-11-27: «under vinduet til sitedoc lager vi et testvindu … Knappe
 |------|-------|
 | **Vilkår** | `NODE_ENV=development` **og** `NEXT_PUBLIC_SITEDOC_TESTPANEL=1` (`apps/web/src/components/testpanel/TestpanelPort.tsx`). Prod-bygg: grenen er død kode, panel-chunken lages ikke; API-ruten svarer 404 (`apps/web/src/app/api/testpanel/route.ts`) |
 | **Mappe** | `SITEDOC_TESTPANEL_DIR` (server-env, i lokaltest-treets `apps/web/.env.local`) = `<hovedtre>/relay/testrunder`. `NEXT_PUBLIC_*` byttes inn ved start → start dev-serveren på nytt etter endring |
-| **Filer** | `aktiv.json` = `{ "fil": "<runde>.json" }` (kun `[a-z0-9-]+.json` i samme mappe). Runde-fila: `{ runde, hash, steg[] }`; steg: `nr, hvaTestes, handling, forventet, agentSa, agentVurdering (godkjent/avvik/null), status, kenneth { vurdering, merknad, forbedring, tid } \| null`. Schema: `components/testpanel/schema.ts` (Zod) |
+| **Filer** | `aktiv.json` = `{ "fil": "<runde>.json" }` (kun `[a-z0-9-]+.json` i samme mappe). Runde-fila: `{ runde, hash, steg[], pause?, agentNaa? }`; steg: `nr, hvaTestes, handling, forventet, agentSa, agentVurdering (godkjent/avvik/null), status, kenneth { vurdering, merknad, forbedring, tid } \| null, markering? ({ tekst } \| { selektor } \| null), forbedringer? ([{ tekst, tid }])`. Schema: `components/testpanel/schema.ts` (Zod). Panelets POST (`type`: `svar` / `pause` / `forbedring`) patcher rå JSON og bevarer alle andre felt, også felt utenfor schemaet (`lagring.ts`) |
 | **Plass** | Fast rute nederst (260 px, 32 px minimert). Mens den er montert krympes `body`, `.h-screen` og `.min-h-screen` med panelhøyden (`html[data-testpanel]`); sider med inline `100vh`/`100dvh` dekkes ikke |
 
-**Statusflyt pr. steg:** `venter_agent` (panelet viser «Agenten kjører steget …», feltene låst) → agenten fyller `agentSa` + `agentVurdering` og setter `venter_kenneth` → Kenneth velger Godkjent/Avvik, skriver merknad (påkrevd ved Avvik) og ev. forbedring (valgfri) → **Neste** (grå til kravene er oppfylt) lagrer `kenneth` og setter `ferdig` → agenten ser `ferdig` og tar neste steg. Aktivt steg = laveste `nr` som ikke er `ferdig`. Panelet poller hvert 2. sekund.
+**Statusflyt pr. steg:** `venter_agent` (panelet viser «Agenten kjører steget …», feltene låst) → agenten fyller `agentSa` + `agentVurdering` og setter `venter_kenneth` → Kenneth velger Godkjent/Avvik, skriver merknad (påkrevd ved Avvik) og ev. forbedring (valgfri) → **Neste** (grå til kravene er oppfylt) lagrer `kenneth` og setter `ferdig` → agenten ser `ferdig` og tar neste steg. Aktivt steg = laveste `nr` som ikke er `ferdig`. Panelet poller hvert 500. ms.
+
+**Underveis (RETUR 2, Kenneth 2026-11-27):**
+- **Pause/Fortsett** i toppstripa setter `pause` på runden.
+- **Lagre forbedring** kan brukes når som helst, også mens agenten kjører. Teksten legges i `steg.forbedringer[]`, og status endres ikke.
+- Det som står i forbedring-feltet når du trykker Neste, går som før til `kenneth.forbedring`.
+- Linjen «Agenten: …» viser `agentNaa`.
+- `markering` tegnes som en amber ramme rundt elementet. Rammen er et eget overlegg med `pointer-events: none` (`components/testpanel/Markering.tsx`), så siden under test endres ikke.
+- Oppslag skjer på synlig tekst, `aria-label` eller input-verdi blant knapper, lenker, faner og etiketter. `selektor` er reserve.
+- Finnes ikke elementet, viser panelet «Fant ikke «…»».
 
 **Testagentens regler:**
-- Skriver planen og egne felt (`agentSa`, `agentVurdering`, `status` → `venter_kenneth`) direkte i fila, **atomisk** (skriv til tmp, så `rename`), og rører aldri `kenneth`.
+- Skriver planen og egne felt (`agentSa`, `agentVurdering`, `status` → `venter_kenneth`, `markering`, `agentNaa`) direkte i fila, **atomisk** (skriv til tmp, så `rename`).
+  - **Les fila rett før hver skriving** og rør bare egne felt.
+  - Rør aldri `kenneth`, `pause` eller `forbedringer`, fordi de eies av panelet.
+- **For hver handling, også veien inn til testen:**
+  1. Les fila. Står `pause` på, vent og les på nytt.
+  2. Sett `agentNaa` (f.eks. «går til Timer → Mine timer») og `markering` til elementet du skal klikke.
+  3. **Vent 2 s.**
+  4. Klikk.
+  5. Tøm `markering`.
+  6. **Vent 2 s** før neste handling.
 - Klikker og leser kun i appen.
 - Rapporten går til orkestrator.
 - Avvik + merknad blir retur.

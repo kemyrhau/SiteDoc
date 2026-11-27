@@ -2,7 +2,8 @@
 /* eslint-disable i18next/no-literal-string -- utviklerverktøy som aldri bygges inn i prod; faste norske strenger etter ordre 2026-11-27 pkt 5 */
 
 import { useCallback, useEffect, useState } from "react";
-import { aktivtSteg, kanNeste, type Runde, type Vurdering } from "./schema";
+import { Markering } from "./Markering";
+import { aktivtSteg, kanNeste, type Post, type Runde, type Vurdering } from "./schema";
 
 /**
  * Testpanel — fast rute nederst på lokal testflate (lokal-dev.md § 7). Utviklerverktøy,
@@ -11,7 +12,8 @@ import { aktivtSteg, kanNeste, type Runde, type Vurdering } from "./schema";
 
 const HØYDE_ÅPEN = 260;
 const HØYDE_MINIMERT = 32;
-const POLL_MS = 2000;
+// 500 ms: agenten skriver `markering`, venter 2 s og klikker — markeringen skal stå synlig ≥ 1,5 s.
+const POLL_MS = 500;
 const MINIMERT_NØKKEL = "sitedoc-testpanel-minimert";
 
 // Krymper sider låst til skjermhøyden (f.eks. dashbord-layouten) mens panelet er montert.
@@ -93,23 +95,37 @@ export function Testpanel() {
   const låst = !steg || venterAgent || sender;
   const nesteÅpen = !låst && steg?.status === "venter_kenneth" && kanNeste(vurdering, merknad);
 
-  async function neste() {
-    if (!steg || !nesteÅpen || !vurdering) return;
+  async function send(body: Post): Promise<boolean> {
     setSender(true);
     try {
       const svar = await fetch("/api/testpanel", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nr: steg.nr, vurdering, merknad, forbedring }),
+        body: JSON.stringify(body),
       });
       const data = (await svar.json()) as { runde?: Runde; feil?: string };
       if (!svar.ok) setFeil(data.feil ?? `HTTP ${svar.status}`);
       else if (data.runde) setRunde(data.runde);
       await hent();
+      return svar.ok;
     } finally {
       setSender(false);
     }
   }
+
+  async function neste() {
+    if (!steg || !nesteÅpen || !vurdering) return;
+    await send({ type: "svar", nr: steg.nr, vurdering, merknad, forbedring });
+  }
+
+  // Forbedring kan lagres når som helst, også mens agenten kjører; status endres ikke.
+  const kanLagreForbedring = !!steg && !sender && forbedring.trim().length > 0;
+  async function lagreForbedring() {
+    if (!steg || !kanLagreForbedring) return;
+    if (await send({ type: "forbedring", nr: steg.nr, tekst: forbedring })) setForbedring("");
+  }
+
+  const pause = runde?.pause === true;
 
   function veksleMinimert() {
     setMinimert((v) => {
@@ -129,6 +145,7 @@ export function Testpanel() {
       style={{ height: høyde }}
     >
       <style>{BUNNMARG_CSS}</style>
+      <Markering markering={steg?.markering ?? null} />
       <div className="flex h-8 shrink-0 items-center gap-3 bg-amber-50 px-3">
         <span className="font-semibold text-amber-800">Testpanel</span>
         {runde ? (
@@ -140,10 +157,22 @@ export function Testpanel() {
           <span className="text-gray-500">Ingen aktiv runde</span>
         )}
         {feil && <span className="truncate text-red-600">{feil}</span>}
+        {runde && (
+          <button
+            type="button"
+            disabled={sender}
+            onClick={() => void send({ type: "pause", pause: !pause })}
+            className={`ml-auto rounded px-2 font-medium ${
+              pause ? "bg-amber-500 text-white" : "text-amber-800 hover:bg-amber-100"
+            }`}
+          >
+            {pause ? "Fortsett" : "Pause"}
+          </button>
+        )}
         <button
           type="button"
           onClick={veksleMinimert}
-          className="ml-auto rounded px-2 text-gray-600 hover:bg-amber-100"
+          className={`${runde ? "" : "ml-auto "}rounded px-2 text-gray-600 hover:bg-amber-100`}
         >
           {minimert ? "Vis" : "Minimer"}
         </button>
@@ -158,6 +187,14 @@ export function Testpanel() {
           ) : (
             <>
               <div className="flex min-w-0 flex-1 flex-col gap-2">
+                {pause && (
+                  <div className="rounded bg-amber-100 px-2 py-1 font-medium text-amber-900">
+                    Pause — agenten venter
+                  </div>
+                )}
+                {runde.agentNaa && (
+                  <div className="text-amber-800">Agenten: {runde.agentNaa}</div>
+                )}
                 <div>
                   <div className="text-xs font-semibold uppercase text-gray-500">Hva agenten tester</div>
                   <div>{steg.hvaTestes}</div>
@@ -223,12 +260,32 @@ export function Testpanel() {
                 <textarea
                   aria-label="Forbedring"
                   placeholder="Forbedring (valgfri)"
-                  disabled={låst}
+                  disabled={!steg || sender}
                   value={forbedring}
                   onChange={(e) => setForbedring(e.target.value)}
                   rows={2}
                   className="rounded border border-gray-300 px-2 py-1 disabled:bg-gray-50"
                 />
+                <div className="flex items-start gap-2">
+                  <button
+                    type="button"
+                    disabled={!kanLagreForbedring}
+                    onClick={() => void lagreForbedring()}
+                    className="shrink-0 rounded border border-amber-600 px-2 py-0.5 text-amber-800 disabled:border-gray-300 disabled:text-gray-400"
+                  >
+                    Lagre forbedring
+                  </button>
+                  {steg.forbedringer && steg.forbedringer.length > 0 && (
+                    <ul data-testid="testpanel-forbedringer" className="min-w-0 text-xs text-gray-600">
+                      {steg.forbedringer.map((f) => (
+                        <li key={f.tid} className="truncate">
+                          {new Date(f.tid).toLocaleTimeString("nb-NO", { hour: "2-digit", minute: "2-digit" })}{" "}
+                          {f.tekst}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
                 <button
                   type="button"
                   disabled={!nesteÅpen}

@@ -57,12 +57,16 @@ async function skrivAtomisk(fil: string, innhold: unknown): Promise<void> {
   await fs.rename(tmp, fil);
 }
 
+type RåSteg = Record<string, unknown>;
+type RåRunde = Record<string, unknown> & { steg: RåSteg[] };
+
 /**
- * Leser fila på nytt, endrer kun `kenneth` + `status` for steget, skriver atomisk.
- * Patcher RÅ JSON (ikke schema-resultatet): Zod stripper ukjente nøkler, og alt
- * agenten har skrevet utover schemaet (notater, skjermbilder …) skal bevares.
+ * Felles skrivevei for alle POST-varianter. Leser fila på nytt, validerer med schemaet,
+ * lar `endre` patche RÅ JSON (ikke schema-resultatet: Zod stripper ukjente nøkler, og
+ * alt agenten har skrevet utover schemaet skal bevares — VILKÅR 1), validerer igjen
+ * og skriver atomisk.
  */
-export async function lagreSvar(svar: Svar, nå: Date = new Date()): Promise<Runde> {
+async function patchRå(endre: (rå: RåRunde, runde: Runde) => void): Promise<Runde> {
   const fil = await aktivFil();
   if (!fil) throw new TestpanelFeil("Ingen aktiv runde", 404);
   const rå = await lesJson(fil);
@@ -71,21 +75,49 @@ export async function lagreSvar(svar: Svar, nå: Date = new Date()): Promise<Run
   if (!runde.success) {
     throw new TestpanelFeil(`${path.basename(fil)} er ugyldig: ${runde.error.issues[0]?.message}`, 500);
   }
-  const steg = runde.data.steg.find((s) => s.nr === svar.nr);
-  if (!steg) throw new TestpanelFeil(`Steg ${svar.nr} finnes ikke`, 404);
-  if (steg.status !== "venter_kenneth") {
-    throw new TestpanelFeil(`Steg ${svar.nr} venter ikke på deg (${steg.status})`, 409);
-  }
-  // Schemaet over har bekreftet formen; `rå.steg` er samme liste i samme rekkefølge.
-  const råSteg = (rå as { steg: Record<string, unknown>[] }).steg.find((s) => s.nr === svar.nr)!;
-  råSteg.kenneth = {
-    vurdering: svar.vurdering,
-    merknad: svar.merknad.trim(),
-    forbedring: svar.forbedring.trim(),
-    tid: nå.toISOString(),
-  };
-  råSteg.status = "ferdig";
+  endre(rå as RåRunde, runde.data);
   const gyldig = rundeSchema.parse(rå);
   await skrivAtomisk(fil, rå);
   return gyldig;
+}
+
+/** Schemaet har bekreftet formen; `rå.steg` er samme liste i samme rekkefølge. */
+function finnSteg(rå: RåRunde, runde: Runde, nr: number): { steg: Runde["steg"][number]; råSteg: RåSteg } {
+  const i = runde.steg.findIndex((s) => s.nr === nr);
+  if (i < 0) throw new TestpanelFeil(`Steg ${nr} finnes ikke`, 404);
+  return { steg: runde.steg[i]!, råSteg: rå.steg[i]! };
+}
+
+/** Kenneths svar: endrer kun `kenneth` + `status` på steget. */
+export function lagreSvar(svar: Svar, nå: Date = new Date()): Promise<Runde> {
+  return patchRå((rå, runde) => {
+    const { steg, råSteg } = finnSteg(rå, runde, svar.nr);
+    if (steg.status !== "venter_kenneth") {
+      throw new TestpanelFeil(`Steg ${svar.nr} venter ikke på deg (${steg.status})`, 409);
+    }
+    råSteg.kenneth = {
+      vurdering: svar.vurdering,
+      merknad: svar.merknad.trim(),
+      forbedring: svar.forbedring.trim(),
+      tid: nå.toISOString(),
+    };
+    råSteg.status = "ferdig";
+  });
+}
+
+/** Pause/Fortsett: endrer kun `runde.pause`. Agenten venter mens den er sann. */
+export function lagrePause(pause: boolean): Promise<Runde> {
+  return patchRå((rå) => {
+    rå.pause = pause;
+  });
+}
+
+/** Forbedring underveis: legges til i `steg.forbedringer`; status endres ikke. Ferdig steg → 409. */
+export function lagreForbedring(nr: number, tekst: string, nå: Date = new Date()): Promise<Runde> {
+  return patchRå((rå, runde) => {
+    const { steg, råSteg } = finnSteg(rå, runde, nr);
+    if (steg.status === "ferdig") throw new TestpanelFeil(`Steg ${nr} er ferdig`, 409);
+    const før = Array.isArray(råSteg.forbedringer) ? råSteg.forbedringer : [];
+    råSteg.forbedringer = [...før, { tekst: tekst.trim(), tid: nå.toISOString() }];
+  });
 }
