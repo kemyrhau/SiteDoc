@@ -163,6 +163,30 @@ describe("API-ruten", () => {
       expect((await GET()).status).toBe(500);
     });
 
+    it("VILKÅR 1: POST bevarer ukjente nøkler i runde og steg (rå JSON)", async () => {
+      påDev();
+      const rå = lagRunde() as Runde & { agentNotat?: string };
+      const medEkstra = {
+        ...rå,
+        agentNotat: "notat på toppnivå",
+        steg: rå.steg.map((s) => ({ ...s, skjermbilde: `steg-${s.nr}.png` })),
+      };
+      await writeFile(rundeFil, JSON.stringify(medEkstra));
+      const { POST } = await rute();
+      expect((await POST(post({ nr: 1, vurdering: "godkjent" }))).status).toBe(200);
+      const lagret = JSON.parse(await readFile(rundeFil, "utf8")) as Record<string, unknown> & {
+        steg: Record<string, unknown>[];
+      };
+      expect(lagret.agentNotat).toBe("notat på toppnivå");
+      expect(lagret.steg[0]!.skjermbilde).toBe("steg-1.png");
+      expect(lagret.steg[1]!.skjermbilde).toBe("steg-2.png");
+      expect(lagret.steg[0]!.status).toBe("ferdig");
+      const { kenneth: _k, status: _s, ...før0 } = medEkstra.steg[0]!;
+      const { kenneth: _k2, status: _s2, ...etter0 } = lagret.steg[0]!;
+      expect(etter0).toEqual(før0);
+      expect(lagret.steg[1]).toEqual(medEkstra.steg[1]);
+    });
+
     it("gyldig svar lagres: kun kenneth + status på steget, resten uendret", async () => {
       påDev();
       const { POST } = await rute();
