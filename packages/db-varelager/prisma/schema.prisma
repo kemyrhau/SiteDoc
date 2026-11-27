@@ -89,6 +89,12 @@ model Vareforbruk {
   // Kort-id (prosjektkort-kortid-spec.md § 2.2): koblet vare har timerradens kort; uten sedel → NULL.
   // Svak referanse (annet skjema). Settes av losKortId (packages/shared).
   kortId               String?  @map("kort_id")
+  // Runde 5 (Kenneth 2026-11-27, vedtak A): maskinraden varen er ført fra i maskinvinduet.
+  // Svak FK → sheet_machine.id (db-timer). NULL = vare uten maskin (eldre linjer og
+  // «+ Legg til vare») — riktig betydning, ikke tomhet. Ingen backfill: kan ikke utledes
+  // uten å gjette. Leseren viser varen under maskinen bare når maskinraden finnes på
+  // samme timerad; ellers står den i Varer-blokka (slettes aldri med maskinen).
+  sheetMachineId       String?  @map("sheet_machine_id")
 
   // Snapshot ved attestering (A.7) — {prisSnapshot, internkostnadSnapshot, varenavnSnapshot, enhetSnapshot, attestertVed}
   attestertSnapshot Json? @map("attestert_snapshot")
@@ -102,6 +108,7 @@ model Vareforbruk {
   @@index([dagsseddelId])
   @@index([dagsseddelId, kortId])
   @@index([sheetTimerId])
+  @@index([sheetMachineId])
   @@index([externalCostObjectId])
   @@index([vareId])
   @@map("vareforbruk")

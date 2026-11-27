@@ -89,6 +89,36 @@ export async function gyldigVareRad(
 }
 
 /**
+ * Runde 5 (Kenneth 2026-11-27, vedtak A): varen kobles til maskinraden den er ført fra i
+ * maskinvinduet — men bare når maskinen ligger på samme sedel, samme (allerede validerte)
+ * timerad, samme prosjekt og samme underprosjekt. Ellers `null` (myk, som `gyldigVareRad`):
+ * linjen lagres likevel og vises i Varer-blokka. Firma er dekket av sedel- og prosjektsjekken.
+ */
+export async function gyldigVareMaskin(
+  prismaTimer: Pick<Context["prismaTimer"], "sheetMachine">,
+  sheetMachineId: string | null | undefined,
+  args: {
+    dagsseddelId: string | null;
+    sheetTimerId: string | null;
+    projectId: string;
+    externalCostObjectId: string | null;
+  },
+): Promise<string | null> {
+  if (!sheetMachineId || !args.dagsseddelId || !args.sheetTimerId) return null;
+  const m = await prismaTimer.sheetMachine.findUnique({
+    where: { id: sheetMachineId },
+    select: { sheetId: true, sheetTimerId: true, projectId: true, externalCostObjectId: true },
+  });
+  return m &&
+    m.sheetId === args.dagsseddelId &&
+    m.sheetTimerId === args.sheetTimerId &&
+    m.projectId === args.projectId &&
+    (m.externalCostObjectId ?? null) === args.externalCostObjectId
+    ? sheetMachineId
+    : null;
+}
+
+/**
  * Prosjektets eier-firma (varelager-eieren). Kaster når eier-firma mangler.
  *
  * O11 (§ 8.22, Kenneth 2026-11-22): brukes alene for en vare som alt står på prosjektet —
@@ -356,6 +386,8 @@ export const vareforbrukRouter = router({
           dagsseddelId: true,
           // Radform (2026-11-12): dagsoversikten viser varen under sin timerrad.
           sheetTimerId: true,
+          // Runde 5: dagskortet viser varen under maskinraden den er ført fra.
+          sheetMachineId: true,
           // w3a: dagssiden legger varen i jobbens kort (kort-id) og sorterer som de andre linjene.
           kortId: true,
           createdAt: true,
@@ -475,6 +507,9 @@ export const vareforbrukRouter = router({
         // Radform (2026-11-12): timerraden varen er ført fra. Krever dagsseddelId,
         // og raden må ligge på den sedelen og ha samme prosjekt.
         sheetTimerId: z.string().uuid().nullable().optional(),
+        // Runde 5: maskinraden varen er ført fra (maskinvinduet). Må ligge på samme sedel,
+        // timerad, prosjekt og underprosjekt — ellers lagres varen uten maskin.
+        sheetMachineId: z.string().uuid().nullable().optional(),
         // Kort-id (prosjektkort-kortid-spec § 4.3): valgfri. Koblet vare får radens id;
         // uten sedel → NULL; ellers regel 3.
         kortId: z.string().uuid().nullable().optional(),
@@ -550,6 +585,13 @@ export const vareforbrukRouter = router({
         input.projectId,
       );
 
+      const sheetMachineId = await gyldigVareMaskin(ctx.prismaTimer, input.sheetMachineId, {
+        dagsseddelId: input.dagsseddelId ?? null,
+        sheetTimerId,
+        projectId: input.projectId,
+        externalCostObjectId: input.externalCostObjectId ?? null,
+      });
+
       const kortId = await vareKortIdForSkriving(ctx.prismaTimer, {
         dagsseddelId: input.dagsseddelId ?? null,
         sheetTimerId,
@@ -575,6 +617,7 @@ export const vareforbrukRouter = router({
             kommentar: input.kommentar?.trim() || null,
             dagsseddelId: input.dagsseddelId ?? null,
             sheetTimerId,
+            sheetMachineId,
             kortId,
             registrertAvUserId: ctx.userId,
           },
