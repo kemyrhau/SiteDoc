@@ -165,6 +165,8 @@ function lagCtx(opts: { status?: string; originalTillegg?: Record<string, unknow
           id: RAD, sheetId: SHEET, projectId: PROSJEKT_A, expenseCategoryId: KATEGORI,
           belop: 100, ordningVedFoering: "utlegg", byggeplassId: null, externalCostObjectId: null,
         }),
+        // Retur 2 runde 6: arven i flyttTimerRadEco leser koblede utlegg.
+        findMany: vi.fn().mockResolvedValue([]),
         create: utleggCreate,
         update: utleggUpdate,
       },
