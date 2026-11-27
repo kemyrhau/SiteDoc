@@ -4,7 +4,7 @@
  * bøtte uten underprosjekt (r1, 7,5 t) og TILL-001 (r2, 1 t, gravemaskin G-12 1 t).
  */
 import type { ReactNode } from "react";
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DAG7_SEDEL, dag7Data } from "./testdata-dag7";
 
@@ -72,7 +72,13 @@ vi.mock("@/lib/trpc", () => {
                 kallOpt?.onSuccess?.({ id: "ny" });
               }
             },
-            mutateAsync: async () => ({ id: "ny" }),
+            // Runde 5: maskinvinduet sender varelinjene med mutateAsync (samme logg og feil).
+            mutateAsync: async (input: Record<string, unknown>) => {
+              h.kall.push({ sti: key, input });
+              const feil = h.feiler[key];
+              if (feil) throw new Error(feil);
+              return { id: "ny" };
+            },
             isPending: false,
           });
         }
@@ -173,7 +179,7 @@ describe(
   "VAKTTEST 2026-11-27 (Kenneth: «ok» pkt 1–3 + «merge runde 3 nå», runde 3) — Kenneth 2026-11-27: «ved registrering av dagskort der vi styrer vare og maskin mot en timerad -> " +
     "da kan vi legge på en nedtreksmeny for å hente varer samtidig som vi registrerer maskin»",
   () => {
-    it("(c) vare valgt: maskinen lagres først, så varen på maskinens timerad, underprosjekt og sedel", () => {
+    it("(c) vare valgt: maskinen lagres først, så varen på maskinens timerad, underprosjekt og sedel", async () => {
       const vindu = nyMaskinPaaBotte2();
       fireEvent.change(vareValg(vindu)!, { target: { value: "va1" } });
       // Mengde med varens enhet som låst tekst — ikke noe Enhet-valg.
@@ -190,8 +196,10 @@ describe(
         externalCostObjectId: "e1",
         dagsseddelId: "s1",
         sheetTimerId: "r2",
+        // Runde 5 (vedtak A): varen bærer maskinens id.
+        sheetMachineId: "ny",
       });
-      expect(screen.queryByRole("dialog")).toBeNull();
+      await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     });
 
     it("(c) uten vare: bare maskinen lagres", () => {
@@ -215,14 +223,14 @@ describe(
       expect(vareValg(rediger)).toBeUndefined();
     });
 
-    it("(e) varen feiler etter at maskinen er lagret: vinduet står, Lagre sender bare varen — aldri dobbel maskin", () => {
+    it("(e) varen feiler etter at maskinen er lagret: vinduet står, Lagre sender bare varen — aldri dobbel maskin", async () => {
       const vindu = nyMaskinPaaBotte2();
       h.feiler["vareforbruk.opprett"] = "Feil fra server";
       fireEvent.change(vareValg(vindu)!, { target: { value: "va1" } });
       fireEvent.change(within(vindu).getAllByRole("spinbutton")[1]!, { target: { value: "3" } });
       fireEvent.submit(vindu.querySelector("form")!);
       const åpent = screen.getByRole("dialog");
-      expect(åpent.textContent).toContain("timer.maskinVare.vareFeilet");
+      await waitFor(() => expect(åpent.textContent).toContain("timer.maskinVare.vareFeilet"));
       delete h.feiler["vareforbruk.opprett"];
       fireEvent.submit(åpent.querySelector("form")!);
       expect(stier()).toEqual([
@@ -230,7 +238,7 @@ describe(
         "vareforbruk.opprett",
         "vareforbruk.opprett",
       ]);
-      expect(screen.queryByRole("dialog")).toBeNull();
+      await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     });
   },
 );

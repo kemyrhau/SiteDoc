@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
@@ -20,6 +20,7 @@ import {
   ChevronDown,
   Split,
   CheckSquare,
+  Check,
   Square,
   AlertTriangle,
 } from "lucide-react";
@@ -1077,22 +1078,30 @@ export default function DagsseddelDetaljSide() {
     // "+ Legg til prosjekt"), vis kun hovedgruppen (ECO=null).
     const ecoIder = prosjektEcoIder.get(projectId);
     const ecoListe = ecoIder && ecoIder.length > 0 ? ecoIder : [""];
+    const ecoBuckets = ecoListe.map((ekv) => {
+      const ecoId = ekv === "" ? null : ekv;
+      const data = ecoGrupper.get(ecoGruppeKey(projectId, ecoId));
+      return {
+        ecoId,
+        timer: data?.timer ?? [],
+        maskin: data?.maskin ?? [],
+        tillegg: data?.tillegg ?? [],
+        utlegg: data?.utlegg ?? [],
+      };
+    });
+    // Runde 5 (Kenneth 2026-11-27): «varer tilhører denne maskinen, men det kan jeg ikke se».
+    // En vare står under maskinen den er ført fra når maskinraden vises i gruppen og står på
+    // samme timerad som varen. Ellers (maskinen slettet eller flyttet) står den i Varer-blokka.
+    const { utenMaskin, prMaskin } = fordelVarerPaaMaskin(
+      kortVarer.filter((v) => v.projectId === projectId),
+      ecoBuckets.flatMap((b) => b.maskin),
+    );
     return {
       projectId,
       prosjektNavn: prosjektNavnMap.get(projectId),
       tillegg: tilleggPerProsjekt.get(projectId) ?? [],
       utlegg: utleggPerProsjekt.get(projectId) ?? [],
-      ecoBuckets: ecoListe.map((ekv) => {
-        const ecoId = ekv === "" ? null : ekv;
-        const data = ecoGrupper.get(ecoGruppeKey(projectId, ecoId));
-        return {
-          ecoId,
-          timer: data?.timer ?? [],
-          maskin: data?.maskin ?? [],
-          tillegg: data?.tillegg ?? [],
-          utlegg: data?.utlegg ?? [],
-        };
-      }),
+      ecoBuckets,
       erRedigerbar,
       pauseMin: sheet.pauseMin,
       pauseVisning,
@@ -1127,7 +1136,8 @@ export default function DagsseddelDetaljSide() {
       // prosjektkortet, prosjektet låst til gruppen. Uten arbeid ingen knapp (som prosjektkortet).
       onTilfoyMaskin: (ecoId: string | null) =>
         setAktivModal({ type: "maskin", projectId, defaultEcoId: ecoId }),
-      varer: kortVarer.filter((v) => v.projectId === projectId),
+      varer: utenMaskin,
+      varerPrMaskin: prMaskin,
       visVare:
         !!vareKatalog &&
         vareTimerader(timerRader, projectId).length > 0 &&
@@ -2337,6 +2347,8 @@ type KortVare = {
   byggeplassId: string | null;
   externalCostObjectId?: string | null;
   sheetTimerId?: string | null;
+  // Runde 5: maskinraden varen er ført fra (maskinvinduet). Null = vare uten maskin.
+  sheetMachineId?: string | null;
   kortId?: string | null;
   createdAt?: string | Date;
   antall: number;
@@ -3258,6 +3270,7 @@ function ProsjektGruppe({
   varelagerLenkeFirmaId,
   onNyVare,
   onRedigerVare,
+  varerPrMaskin,
 }: {
   // Prosjektkort L1: innhold i et åpent kort — kortet bærer ramme, overskrift
   // og «+ Tillegg/Utlegg», så gruppa tegner bare bøttene og radene.
@@ -3301,6 +3314,8 @@ function ProsjektGruppe({
   varelagerLenkeFirmaId?: string;
   onNyVare?: () => void;
   onRedigerVare?: (rad: KortVare) => void;
+  // Runde 5: varer ført fra maskinvinduet, vist under maskinraden (maskin-id → varer).
+  varerPrMaskin?: Map<string, KortVare[]>;
 }) {
   const { t } = useTranslation();
 
@@ -3370,6 +3385,8 @@ function ProsjektGruppe({
             onRedigerMaskin={onRedigerMaskin}
             onSplittTimer={onSplittTimer}
             onSplittMaskin={onSplittMaskin}
+            varerPrMaskin={varerPrMaskin}
+            onRedigerVare={onRedigerVare}
           />
         ))}
       </div>
@@ -3482,6 +3499,8 @@ function EcoGruppe({
   onRedigerMaskin,
   onSplittTimer,
   onSplittMaskin,
+  varerPrMaskin,
+  onRedigerVare,
 }: {
   ecoId: string | null;
   ecoNavn: { kortNavn: string; proAdmId: string } | null;
@@ -3508,6 +3527,9 @@ function EcoGruppe({
   onRedigerMaskin: (rad: MaskinRad) => void;
   onSplittTimer: (rad: TimerRad) => void;
   onSplittMaskin: (rad: MaskinRad) => void;
+  // Runde 5: varer under maskinraden (dagskortet).
+  varerPrMaskin?: Map<string, KortVare[]>;
+  onRedigerVare?: (rad: KortVare) => void;
 }) {
   const { t } = useTranslation();
   // Ordre 2026-11-14 (6): arbeid og reise hver for seg. «Arbeidstimer (N t)»
@@ -3598,6 +3620,8 @@ function EcoGruppe({
                 byggeplassNavn={byggeplassNavn}
                 onRediger={onRedigerMaskin}
                 onSplitt={onSplittMaskin}
+                varerPrMaskin={varerPrMaskin}
+                onRedigerVare={onRedigerVare}
               />
             )}
           </>
@@ -4230,12 +4254,17 @@ function RaderMaskinKompakt({
   byggeplassNavn,
   onRediger,
   onSplitt,
+  varerPrMaskin,
+  onRedigerVare,
 }: {
   rader: MaskinRad[];
   erRedigerbar: boolean;
   byggeplassNavn: Map<string, string>;
   onRediger: (rad: MaskinRad) => void;
   onSplitt: (rad: MaskinRad) => void;
+  // Runde 5 (bare dagskortet): varene ført fra maskinvinduet, innrykket under maskinen.
+  varerPrMaskin?: Map<string, KortVare[]>;
+  onRedigerVare?: (rad: KortVare) => void;
 }) {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
@@ -4273,7 +4302,8 @@ function RaderMaskinKompakt({
   return (
         <ul className="divide-y divide-gray-100">
           {rader.map((rad) => (
-            <li key={rad.id} className="flex items-center justify-between py-2">
+            <Fragment key={rad.id}>
+            <li className="flex items-center justify-between py-2">
               <div>
                 <p className="text-sm font-medium text-gray-900">
                   {/* P1 (maskin-i-rad): slate-merke skiller maskin-rader fra
@@ -4325,9 +4355,40 @@ function RaderMaskinKompakt({
                 )}
               </div>
             </li>
+            {onRedigerVare && (varerPrMaskin?.get(rad.id)?.length ?? 0) > 0 && (
+              <li data-maskinvarer={rad.id} className="mb-2 ml-6 border-l-2 border-gray-200 pl-3">
+                <RaderVare
+                  rader={varerPrMaskin!.get(rad.id)!}
+                  erRedigerbar={erRedigerbar}
+                  byggeplassNavn={byggeplassNavn}
+                  onRediger={onRedigerVare}
+                />
+              </li>
+            )}
+            </Fragment>
           ))}
         </ul>
   );
+}
+
+/** Runde 5: fordeler gruppens varer — under maskinen den er ført fra (maskinraden vises og
+ *  står på samme timerad som varen), ellers i Varer-blokka. En vare forsvinner aldri. */
+function fordelVarerPaaMaskin(
+  varer: KortVare[],
+  maskiner: MaskinRad[],
+): { utenMaskin: KortVare[]; prMaskin: Map<string, KortVare[]> } {
+  const synlig = new Map(maskiner.map((m) => [m.id, m]));
+  const utenMaskin: KortVare[] = [];
+  const prMaskin = new Map<string, KortVare[]>();
+  for (const v of varer) {
+    const m = v.sheetMachineId ? synlig.get(v.sheetMachineId) : undefined;
+    if (m && v.sheetTimerId && m.sheetTimerId === v.sheetTimerId) {
+      prMaskin.set(m.id, [...(prMaskin.get(m.id) ?? []), v]);
+    } else {
+      utenMaskin.push(v);
+    }
+  }
+  return { utenMaskin, prMaskin };
 }
 
 /* ------------------------------------------------------------------ */
@@ -7060,6 +7121,9 @@ function UtleggRadDialog({
 /*  MaskinRadDialog                                                     */
 /* ------------------------------------------------------------------ */
 
+/** Runde 5: én varelinje i maskinvinduet. `lagret` = sendt og lagret; `feil` = siste feil. */
+type MaskinVareLinje = { nokkel: number; vareId: string; antall: string; lagret?: boolean; feil?: string };
+
 function MaskinRadDialog({
   sheetId,
   projectId,
@@ -7138,10 +7202,23 @@ function MaskinRadDialog({
   // Retur 1 runde 3 (Kenneth 2026-11-27): «en nedtreksmeny for å hente varer samtidig som vi
   // registrerer maskin». Maskinen lagres først; varen etterpå på maskinens timerad, sted og
   // underprosjekt. Feiler varen, står vinduet med maskinen låst — Lagre sender bare varen.
-  const [vareId, setVareId] = useState("");
-  const [vareAntall, setVareAntall] = useState("");
-  const [maskinLagret, setMaskinLagret] = useState(false);
-  const valgtVare = vare?.varer.find((v) => v.id === vareId);
+  // Runde 5 (Kenneth 2026-11-27): «savner nå en + linje for å legge til flere varer dersom
+  // både pukk og bærelag ble levert» — flere linjer, hver lagret med maskinens id (vedtak A).
+  // `maskinId` er satt når maskinen er lagret: da er maskinfeltene låst og Lagre sender bare
+  // linjene som ikke er lagret (feilet) — maskinen sendes aldri to ganger.
+  const [vareLinjer, setVareLinjer] = useState<MaskinVareLinje[]>([{ nokkel: 1, vareId: "", antall: "" }]);
+  const [maskinId, setMaskinId] = useState<string | null>(null);
+  const [senderVarer, setSenderVarer] = useState(false);
+  const maskinLagret = maskinId !== null;
+  const endreVareLinje = (nokkel: number, endring: Partial<MaskinVareLinje>) =>
+    setVareLinjer((ls) => ls.map((l) => (l.nokkel === nokkel ? { ...l, ...endring } : l)));
+  const fjernVareLinje = (nokkel: number) =>
+    setVareLinjer((ls) => {
+      const rest = ls.filter((l) => l.nokkel !== nokkel);
+      return rest.length > 0 ? rest : [{ nokkel: nokkel + 1, vareId: "", antall: "" }];
+    });
+  const leggTilVareLinje = () =>
+    setVareLinjer((ls) => [...ls, { nokkel: Math.max(0, ...ls.map((l) => l.nokkel)) + 1, vareId: "", antall: "" }]);
 
   // Ordre d2c-1 (R24): timeraden maskinen gikk på — kortets arbeidsrader (samme
   // prosjekt, ikke reise, mer enn 0 timer). Forvalgt når kortet har én.
@@ -7239,36 +7316,59 @@ function MaskinRadDialog({
   // Retur 1 runde 3: er maskinen alt lagret (varen feilet), teller den ikke mot seg selv igjen.
   const overHoyst = !maskinLagret && overMaskinHoyst(parseFloat(timer) || 0, hoyst);
 
-  const opprettVare = trpc.vareforbruk.opprett.useMutation({
-    onSuccess: () => {
-      void utils.vareforbruk.hentMineForDato.invalidate();
-      onLukk();
-    },
-    onError: (e: { message: string }) =>
-      setFeil(t("timer.maskinVare.vareFeilet", { feil: t(e.message, { defaultValue: e.message }) })),
-  });
-  function lagreVare() {
+  const opprettVare = trpc.vareforbruk.opprett.useMutation();
+  // TS2589: svar-typen er dyp — vinduet trenger bare om kallet lyktes.
+  const sendVare = opprettVare.mutateAsync as unknown as (input: Record<string, unknown>) => Promise<unknown>;
+  // Linjer som skal sendes: valgt vare, ikke alt lagret.
+  const varerTilSending = vareLinjer.filter((l) => l.vareId && !l.lagret);
+  /** Lagrer varelinjene på maskinen (samme timerad, sted, underprosjekt og sedel). Feiler en
+   *  linje, står vinduet med den linjen og feilen; de lagrede er låst. */
+  async function lagreVarer(mId: string) {
     if (!vare) return;
-    opprettVare.mutate(
-      kortVareforbrukInput({
-        kortProsjektId: projectId,
-        dato: vare.dato,
-        vareId,
-        antall: parseFloat(vareAntall),
-        byggeplassId: bp.byggeplassId,
-        externalCostObjectId: ecoId,
-        dagsseddelId: vare.dagsseddelId,
-        sheetTimerId: sheetTimerId || null,
+    setSenderVarer(true);
+    const linjer = varerTilSending;
+    const svar = await Promise.allSettled(
+      linjer.map((l) =>
+        sendVare({
+          ...kortVareforbrukInput({
+            kortProsjektId: projectId,
+            dato: vare.dato,
+            vareId: l.vareId,
+            antall: parseFloat(l.antall),
+            byggeplassId: bp.byggeplassId,
+            externalCostObjectId: ecoId,
+            dagsseddelId: vare.dagsseddelId,
+            sheetTimerId: sheetTimerId || null,
+          }),
+          sheetMachineId: mId,
+        }),
+      ),
+    );
+    setSenderVarer(false);
+    void utils.vareforbruk.hentMineForDato.invalidate();
+    const utfall = new Map(linjer.map((l, i) => [l.nokkel, svar[i]!]));
+    if (svar.every((r) => r.status === "fulfilled")) {
+      onLukk();
+      return;
+    }
+    setVareLinjer((ls) =>
+      ls.map((l) => {
+        const r = utfall.get(l.nokkel);
+        if (!r) return l;
+        if (r.status === "fulfilled") return { ...l, lagret: true, feil: undefined };
+        const melding = (r.reason as { message?: string } | undefined)?.message ?? "";
+        return { ...l, feil: t(melding, { defaultValue: melding }) };
       }),
     );
   }
 
   const tilfoy = trpc.timer.dagsseddel.maskin.tilfoy.useMutation({
-    onSuccess: () => {
+    onSuccess: (_data: unknown) => {
       utils.timer.dagsseddel.hentMedId.invalidate();
-      if (vareId) {
-        setMaskinLagret(true);
-        lagreVare();
+      const nyId = (_data as { id?: string } | undefined)?.id;
+      if (vare && nyId && varerTilSending.length > 0) {
+        setMaskinId(nyId);
+        void lagreVarer(nyId);
       } else {
         onLukk();
       }
@@ -7287,13 +7387,16 @@ function MaskinRadDialog({
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setFeil(null);
-    if (maskinLagret) {
-      lagreVare();
+    const ugyldigVare = varerTilSending.some((l) => {
+      const n = parseFloat(l.antall);
+      return isNaN(n) || n <= 0;
+    });
+    if (vare && ugyldigVare) {
+      setFeil(t("timer.feil.ugyldigInput"));
       return;
     }
-    const vareNum = parseFloat(vareAntall);
-    if (vareId && (isNaN(vareNum) || vareNum <= 0)) {
-      setFeil(t("timer.feil.ugyldigInput"));
+    if (maskinId) {
+      void lagreVarer(maskinId);
       return;
     }
     const tNum = parseFloat(timer);
@@ -7329,7 +7432,7 @@ function MaskinRadDialog({
     }
   }
 
-  const lagrer = tilfoy.isPending || oppdater.isPending || opprettVare.isPending;
+  const lagrer = tilfoy.isPending || oppdater.isPending || senderVarer;
 
   return (
     <Modal
@@ -7451,29 +7554,74 @@ function MaskinRadDialog({
         </div>)}
         </fieldset>
         {vare && !rad && !jobb && (
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                {t("vareforbruk.felt.vare")}{" "}
-                <span className="text-xs text-gray-400">({t("label.valgfritt")})</span>
-              </label>
-              <VareVelger varer={vare.varer} value={vareId} onChange={setVareId} />
-            </div>
-            {valgtVare && (
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">
-                  {t("timer.felt.mengde")} ({valgtVare.enhet})
-                </label>
-                <Input
-                  type="number"
-                  step="any"
-                  min={0}
-                  value={vareAntall}
-                  onChange={(e) => setVareAntall(e.target.value)}
-                  required
-                />
-              </div>
-            )}
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-700">
+              {t("vareforbruk.felt.vare")}{" "}
+              <span className="text-xs text-gray-400">({t("label.valgfritt")})</span>
+            </label>
+            {vareLinjer.map((l) => {
+              const valgt = vare.varer.find((v) => v.id === l.vareId);
+              return (
+                <div key={l.nokkel} data-varelinje="">
+                  <div className="flex items-center gap-2">
+                    <div className="min-w-0 flex-1">
+                      <VareVelger
+                        varer={vare.varer}
+                        value={l.vareId}
+                        onChange={(id) => endreVareLinje(l.nokkel, { vareId: id })}
+                        disabled={l.lagret}
+                      />
+                    </div>
+                    {valgt && (
+                      <div className="flex w-36 shrink-0 items-center gap-1">
+                        <div className="min-w-0 flex-1">
+                          <Input
+                            className="w-full"
+                            type="number"
+                            step="any"
+                            min={0}
+                            aria-label={`${t("timer.felt.mengde")} (${valgt.enhet})`}
+                            value={l.antall}
+                            onChange={(e) => endreVareLinje(l.nokkel, { antall: e.target.value })}
+                            disabled={l.lagret}
+                            required
+                          />
+                        </div>
+                        <span className="shrink-0 text-sm text-gray-500">({valgt.enhet})</span>
+                      </div>
+                    )}
+                    {l.lagret ? (
+                      <Check className="h-4 w-4 text-green-600" aria-label={t("lagring.lagret")} />
+                    ) : (
+                      (vareLinjer.length > 1 || l.vareId) && (
+                        <button
+                          type="button"
+                          onClick={() => fjernVareLinje(l.nokkel)}
+                          className="rounded p-1 text-gray-400 hover:text-red-600"
+                          title={t("handling.fjern")}
+                          aria-label={t("handling.fjern")}
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      )
+                    )}
+                  </div>
+                  {l.feil && (
+                    <p className="mt-1 text-sm text-red-600">
+                      {t("timer.maskinVare.vareFeilet", { feil: l.feil })}
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+            <button
+              type="button"
+              onClick={leggTilVareLinje}
+              className="flex items-center gap-1 text-sm font-medium text-sitedoc-primary hover:underline"
+            >
+              <Plus className="h-3 w-3" />
+              {t("timer.detalj.tilfoyVare")}
+            </button>
           </div>
         )}
         {!vare && !rad && !jobb && varelagerLenkeFirmaId && (
