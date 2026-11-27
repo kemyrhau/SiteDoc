@@ -191,6 +191,26 @@ Kenneth: «kan du nå finne en måte å jobbe på slik at jeg slipper dødtid me
 
 **Dekker ikke:** mobil (telefonen peker mot test), prod-oppsett, opplastede filer.
 
+### Testpanel — strukturert testrunde nederst i lokal SiteDoc (Kenneth 2026-11-27)
+
+Kenneth 2026-11-27: «under vinduet til sitedoc lager vi et testvindu … Knappen neste er et signal på at jeg er klar å vurdere neste steg.» Bygget på `feat/testpanel` 🟡 (ikke merget).
+
+| Ting | Verdi |
+|------|-------|
+| **Vilkår** | `NODE_ENV=development` **og** `NEXT_PUBLIC_SITEDOC_TESTPANEL=1` (`apps/web/src/components/testpanel/TestpanelPort.tsx`). Prod-bygg: grenen er død kode, panel-chunken lages ikke; API-ruten svarer 404 (`apps/web/src/app/api/testpanel/route.ts`) |
+| **Mappe** | `SITEDOC_TESTPANEL_DIR` (server-env, i lokaltest-treets `apps/web/.env.local`) = `<hovedtre>/relay/testrunder`. `NEXT_PUBLIC_*` byttes inn ved start → start dev-serveren på nytt etter endring |
+| **Filer** | `aktiv.json` = `{ "fil": "<runde>.json" }` (kun `[a-z0-9-]+.json` i samme mappe). Runde-fila: `{ runde, hash, steg[] }`; steg: `nr, hvaTestes, handling, forventet, agentSa, agentVurdering (godkjent/avvik/null), status, kenneth { vurdering, merknad, forbedring, tid } \| null`. Schema: `components/testpanel/schema.ts` (Zod) |
+| **Plass** | Fast rute nederst (260 px, 32 px minimert). Mens den er montert krympes `body`, `.h-screen` og `.min-h-screen` med panelhøyden (`html[data-testpanel]`); sider med inline `100vh`/`100dvh` dekkes ikke |
+
+**Statusflyt pr. steg:** `venter_agent` (panelet viser «Agenten kjører steget …», feltene låst) → agenten fyller `agentSa` + `agentVurdering` og setter `venter_kenneth` → Kenneth velger Godkjent/Avvik, skriver merknad (påkrevd ved Avvik) og ev. forbedring (valgfri) → **Neste** (grå til kravene er oppfylt) lagrer `kenneth` og setter `ferdig` → agenten ser `ferdig` og tar neste steg. Aktivt steg = laveste `nr` som ikke er `ferdig`. Panelet poller hvert 2. sekund.
+
+**Testagentens regler:**
+- Skriver planen og egne felt (`agentSa`, `agentVurdering`, `status` → `venter_kenneth`) direkte i fila, **atomisk** (skriv til tmp, så `rename`), og rører aldri `kenneth`.
+- Klikker og leser kun i appen.
+- Rapporten går til orkestrator.
+- Avvik + merknad blir retur.
+- Forbedring blir backlog-kandidat, som måles mot koden før noe bestilles.
+
 ## Historikk
 
 Oppsettet var **udokumentert til 2026-07-15**. Frem til da ble `AccessDenied` lest som et OAuth-problem, og `deploy-detaljer.md`-linjene `postgresql://kemyr:kemyr@localhost:5432/...` (som gjelder den **utgåtte WSL-serveren**, ikke Mac-en) ble feillest som lokal dev. Kartlagt via `lsof -i :5432` → `ps -p <pid> -o comm=` → Homebrew pg16. Lærdom: miljø-påstander verifiseres mot maskinen (`lsof`/`ps`), ikke mot docs eller hukommelse — samme regel som gjelder kode.

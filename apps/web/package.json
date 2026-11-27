@@ -52,7 +52,8 @@
     "react-leaflet": "^5.0.0",
     "sharp": "^0.35.5",
     "three": "^0.183.2",
-    "web-ifc": "^0.0.77"
+    "web-ifc": "^0.0.77",
+    "zod": "^3.24.0"
   },
   "devDependencies": {
     "@sitedoc/api": "workspace:*",

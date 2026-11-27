@@ -470,6 +470,9 @@ importers:
       web-ifc:
         specifier: ^0.0.77
         version: 0.0.77
+      zod:
+        specifier: ^3.24.0
+        version: 3.25.76
     devDependencies:
       '@sitedoc/api':
         specifier: workspace:*

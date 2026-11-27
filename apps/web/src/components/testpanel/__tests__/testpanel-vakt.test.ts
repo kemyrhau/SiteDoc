@@ -1,0 +1,185 @@
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { kanNeste, rundeSchema, type Runde } from "../schema";
+
+/** Vakttester for testpanelet (ordre 2026-11-27): (a) port, (b) 404, (c) kanNeste, (d) POST-schema. */
+
+function lagRunde(): Runde {
+  return {
+    runde: "eksempel",
+    hash: "99aa02d4",
+    steg: [
+      {
+        nr: 1,
+        hvaTestes: "Reisevinduet åpnes",
+        handling: "Klikk Reise",
+        forventet: "Vinduet vises",
+        agentSa: "Vinduet vises",
+        agentVurdering: "godkjent",
+        status: "venter_kenneth",
+        kenneth: null,
+      },
+      {
+        nr: 2,
+        hvaTestes: "Hjemreise-knappen",
+        handling: "Åpne vinduet onsdag",
+        forventet: "Knappen vises",
+        agentSa: null,
+        agentVurdering: null,
+        status: "venter_agent",
+        kenneth: null,
+      },
+    ],
+  };
+}
+
+describe("(c) kanNeste", () => {
+  it("låst uten vurdering", () => {
+    expect(kanNeste(null, "")).toBe(false);
+    expect(kanNeste(null, "noe")).toBe(false);
+  });
+  it("låst ved avvik uten merknad, også bare mellomrom", () => {
+    expect(kanNeste("avvik", "")).toBe(false);
+    expect(kanNeste("avvik", "   \n")).toBe(false);
+  });
+  it("åpen ved avvik med merknad", () => {
+    expect(kanNeste("avvik", "feil tekst")).toBe(true);
+  });
+  it("åpen ved godkjent med tom merknad (forbedring påvirker ikke)", () => {
+    expect(kanNeste("godkjent", "")).toBe(true);
+  });
+});
+
+describe("(a) TestpanelPort", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.resetModules();
+  });
+
+  async function port() {
+    vi.resetModules();
+    return (await import("../TestpanelPort")).TestpanelPort;
+  }
+
+  it("rendrer null i production, også med flagget satt", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("NEXT_PUBLIC_SITEDOC_TESTPANEL", "1");
+    expect((await port())()).toBeNull();
+  });
+  it("rendrer null i development uten flagget", async () => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("NEXT_PUBLIC_SITEDOC_TESTPANEL", "");
+    expect((await port())()).toBeNull();
+  });
+  it("rendrer panelet i development med flagget (negativkontroll)", async () => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("NEXT_PUBLIC_SITEDOC_TESTPANEL", "1");
+    expect((await port())()).not.toBeNull();
+  });
+});
+
+describe("API-ruten", () => {
+  let dir: string;
+  let rundeFil: string;
+
+  beforeEach(async () => {
+    dir = await mkdtemp(path.join(tmpdir(), "testpanel-"));
+    rundeFil = path.join(dir, "eksempel.json");
+    await writeFile(rundeFil, JSON.stringify(lagRunde()));
+    await writeFile(path.join(dir, "aktiv.json"), JSON.stringify({ fil: "eksempel.json" }));
+    vi.stubEnv("SITEDOC_TESTPANEL_DIR", dir);
+  });
+  afterEach(async () => {
+    vi.unstubAllEnvs();
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  const rute = () => import("@/app/api/testpanel/route");
+  const post = (body: unknown) =>
+    new Request("http://x/api/testpanel", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: typeof body === "string" ? body : JSON.stringify(body),
+    });
+  const påDev = () => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("NEXT_PUBLIC_SITEDOC_TESTPANEL", "1");
+  };
+
+  describe("(b) 404 utenfor dev+flagg", () => {
+    it("GET og POST gir 404 i production med flagget satt", async () => {
+      vi.stubEnv("NODE_ENV", "production");
+      vi.stubEnv("NEXT_PUBLIC_SITEDOC_TESTPANEL", "1");
+      const { GET, POST } = await rute();
+      expect((await GET()).status).toBe(404);
+      expect((await POST(post({ nr: 1, vurdering: "godkjent" }))).status).toBe(404);
+      expect(rundeSchema.parse(JSON.parse(await readFile(rundeFil, "utf8"))).steg[0]!.kenneth).toBeNull();
+    });
+    it("GET og POST gir 404 i development uten flagget", async () => {
+      vi.stubEnv("NODE_ENV", "development");
+      vi.stubEnv("NEXT_PUBLIC_SITEDOC_TESTPANEL", "0");
+      const { GET, POST } = await rute();
+      expect((await GET()).status).toBe(404);
+      expect((await POST(post({ nr: 1, vurdering: "godkjent" }))).status).toBe(404);
+    });
+    it("GET gir runden i dev med flagget (negativkontroll)", async () => {
+      påDev();
+      const { GET } = await rute();
+      const svar = await GET();
+      expect(svar.status).toBe(200);
+      expect(((await svar.json()) as { runde: Runde }).runde.runde).toBe("eksempel");
+    });
+  });
+
+  describe("(d) POST avviser ugyldig svar", () => {
+    const uendret = async () =>
+      expect(JSON.parse(await readFile(rundeFil, "utf8"))).toEqual(lagRunde());
+
+    it.each([
+      ["ugyldig JSON", "{ikke json"],
+      ["ukjent vurdering", { nr: 1, vurdering: "kanskje" }],
+      ["nr mangler", { vurdering: "godkjent" }],
+      ["avvik uten merknad", { nr: 1, vurdering: "avvik", merknad: "  " }],
+    ])("%s → 400, fila uendret", async (_navn, body) => {
+      påDev();
+      const { POST } = await rute();
+      expect((await POST(post(body))).status).toBe(400);
+      await uendret();
+    });
+
+    it("steg som venter på agenten → 409, fila uendret", async () => {
+      påDev();
+      const { POST } = await rute();
+      expect((await POST(post({ nr: 2, vurdering: "godkjent" }))).status).toBe(409);
+      await uendret();
+    });
+
+    it("aktiv.json som peker ut av mappa avvises", async () => {
+      påDev();
+      await writeFile(path.join(dir, "aktiv.json"), JSON.stringify({ fil: "../x.json" }));
+      const { GET } = await rute();
+      expect((await GET()).status).toBe(500);
+    });
+
+    it("gyldig svar lagres: kun kenneth + status på steget, resten uendret", async () => {
+      påDev();
+      const { POST } = await rute();
+      const svar = await POST(
+        post({ nr: 1, vurdering: "avvik", merknad: " Feil tekst ", forbedring: "" }),
+      );
+      expect(svar.status).toBe(200);
+      const lagret = rundeSchema.parse(JSON.parse(await readFile(rundeFil, "utf8")));
+      const før = lagRunde();
+      const { kenneth: _k, ...uten } = før.steg[0]!;
+      expect(lagret.steg[0]).toMatchObject({ ...uten, status: "ferdig" });
+      expect(lagret.steg[0]!.kenneth).toMatchObject({
+        vurdering: "avvik",
+        merknad: "Feil tekst",
+        forbedring: "",
+      });
+      expect(lagret.steg[1]).toEqual(før.steg[1]);
+    });
+  });
+});
