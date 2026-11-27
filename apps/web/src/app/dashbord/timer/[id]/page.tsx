@@ -112,6 +112,7 @@ import {
   sumlinjeDag,
   utledKortByggeplass,
   visVareforbrukKnapp,
+  vareTimerader,
   kortDagsseddelId,
   grupperPaaKort,
 } from "@sitedoc/shared";
@@ -379,7 +380,7 @@ export default function DagsseddelDetaljSide() {
     );
 
   // Prosjektkort L1: firmaets visningsmodus (default dagskort). Kun visning —
-  // samme sedel, samme mutasjoner. Varelinjene hentes bare i prosjektkort-modus.
+  // samme sedel, samme mutasjoner. Runde 3 timer: varelinjene hentes i begge modusene.
   const prosjektkortModus =
     lesTimerModus(arbeidstidDefaults?.timerRegistreringsmodus) === "prosjektkort";
   // O12 pkt 18: ny kjøretid for reisen når en jobb flyttes til et annet sted.
@@ -394,7 +395,7 @@ export default function DagsseddelDetaljSide() {
       dato: sheet ? new Date(sheet.dato).toISOString().slice(0, 10) : "",
     },
     {
-      enabled: prosjektkortModus && !!sheet?.organizationId && !!sheet?.dato,
+      enabled: !!sheet?.organizationId && !!sheet?.dato,
       retry: false,
     },
   );
@@ -402,18 +403,15 @@ export default function DagsseddelDetaljSide() {
   // Feil (Varelager av for firmaet, ingen tilgang) → ingen «+ Vareforbruk».
   const { data: vareKatalog, error: vareKatalogFeil } = trpc.vareforbruk.katalogForFirma.useQuery(
     { organizationId: sheet?.organizationId ?? "" },
-    { enabled: prosjektkortModus && !!sheet?.organizationId, retry: false },
+    { enabled: !!sheet?.organizationId, retry: false },
   );
   // w3b (B37 A): firmaadministrator for SEDELENS firma (ikke toppens valgte) ser hvor Varelager
   // slås på når firmaet ikke har det (katalogen svarer FORBIDDEN). Samme regel som
   // kanAdministrereFirma (firma-kontekst.tsx): sitedoc_admin eller firma_admin-medlemskap.
   // Serveren krever firma-admin for å slå på (organisasjon.ts verifiserFirmaAdmin).
-  const { data: adminFirmaer } = trpc.organisasjon.hentTilgjengelige.useQuery(undefined, {
-    enabled: prosjektkortModus,
-  });
-  const { data: minBrukerRaw } = trpc.bruker.hentMin.useQuery(undefined, { enabled: prosjektkortModus });
+  const { data: adminFirmaer } = trpc.organisasjon.hentTilgjengelige.useQuery(undefined);
+  const { data: minBrukerRaw } = trpc.bruker.hentMin.useQuery(undefined);
   const visVarelagerLenke =
-    prosjektkortModus &&
     (vareKatalogFeil as { data?: { code?: string } | null } | null | undefined)?.data?.code === "FORBIDDEN" &&
     ((minBrukerRaw as { role?: string } | null | undefined)?.role === "sitedoc_admin" ||
       ((adminFirmaer ?? []) as Array<{ id: string }>).some((f) => f.id === sheet?.organizationId));
@@ -1125,6 +1123,23 @@ export default function DagsseddelDetaljSide() {
       onSplittTillegg: (rad: TilleggRad) =>
         setSplittModal({ type: "tillegg", rad }),
       onSplittMaskin: (rad: MaskinRad) => setSplittModal({ type: "maskin", rad }),
+      // Runde 3 timer: «+ Maskin» pr. bøtte og «+ Vare» pr. gruppe — samme vinduer som
+      // prosjektkortet, prosjektet låst til gruppen. Uten arbeid ingen knapp (som prosjektkortet).
+      onTilfoyMaskin: (ecoId: string | null) =>
+        setAktivModal({ type: "maskin", projectId, defaultEcoId: ecoId }),
+      varer: kortVarer.filter((v) => v.projectId === projectId),
+      visVare:
+        !!vareKatalog &&
+        vareTimerader(timerRader, projectId).length > 0 &&
+        visVareforbrukKnapp({
+          prosjektIderMedVarelager: vareKatalog.prosjektIderMedVarelager,
+          projectId,
+          erRedigerbar,
+        }),
+      varelagerLenkeFirmaId:
+        erRedigerbar && visVarelagerLenke ? (sheet?.organizationId ?? undefined) : undefined,
+      onNyVare: () => setVareModal({ projectId }),
+      onRedigerVare: (v: KortVare) => setVareModal({ projectId: v.projectId, rad: v }),
     };
   };
 
@@ -3218,6 +3233,12 @@ function ProsjektGruppe({
   onSplittTimer,
   onSplittTillegg,
   onSplittMaskin,
+  onTilfoyMaskin,
+  varer = [],
+  visVare = false,
+  varelagerLenkeFirmaId,
+  onNyVare,
+  onRedigerVare,
 }: {
   // Prosjektkort L1: innhold i et åpent kort — kortet bærer ramme, overskrift
   // og «+ Tillegg/Utlegg», så gruppa tegner bare bøttene og radene.
@@ -3252,6 +3273,15 @@ function ProsjektGruppe({
   onSplittTimer: (rad: TimerRad) => void;
   onSplittTillegg: (rad: TilleggRad) => void;
   onSplittMaskin: (rad: MaskinRad) => void;
+  // Runde 3 timer: «+ Maskin» pr. bøtte (samme maskinvindu som prosjektkortet, bøttens ECO).
+  onTilfoyMaskin?: (ecoId: string | null) => void;
+  // Runde 3 timer: dagens varer i gruppen, «+ Vare» (Varelager på, arbeid i gruppen) og
+  // Varelager-lenken for firmaadministrator — samme regler som prosjektkortet.
+  varer?: KortVare[];
+  visVare?: boolean;
+  varelagerLenkeFirmaId?: string;
+  onNyVare?: () => void;
+  onRedigerVare?: (rad: KortVare) => void;
 }) {
   const { t } = useTranslation();
 
@@ -3316,6 +3346,7 @@ function ProsjektGruppe({
             radLinje={radLinje}
             onTilfoyTimer={() => onTilfoyTimer(bucket.ecoId, bucket.timer)}
             onTilfoyReise={onTilfoyReise ? () => onTilfoyReise(bucket.ecoId) : undefined}
+            onTilfoyMaskin={onTilfoyMaskin ? () => onTilfoyMaskin(bucket.ecoId) : undefined}
             onRedigerTimer={onRedigerTimer}
             onRedigerMaskin={onRedigerMaskin}
             onSplittTimer={onSplittTimer}
@@ -3323,6 +3354,36 @@ function ProsjektGruppe({
           />
         ))}
       </div>
+
+      {/* Runde 3 timer: varer pr. prosjekt (blyant + søppelkasse), «+ Vare» og Varelager-lenken.
+          `data-runde3` lar dagskort-vakttesten fjerne blokken før den sammenligner. */}
+      {(varer.length > 0 || visVare || !!varelagerLenkeFirmaId) && (
+        <div data-runde3="" className="mt-4 border-t border-gray-100 pt-3">
+          <div className="mb-2 flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-gray-700">{t("timer.detalj.varer")}</h3>
+            {visVare && onNyVare && (
+              <Button variant="secondary" onClick={onNyVare}>
+                <Plus className="mr-1 h-3 w-3" />
+                {t("timer.detalj.tilfoyVare")}
+              </Button>
+            )}
+          </div>
+          {varer.length > 0 && onRedigerVare && (
+            <RaderVare
+              rader={varer}
+              erRedigerbar={erRedigerbar}
+              byggeplassNavn={byggeplassNavn}
+              onRediger={onRedigerVare}
+            />
+          )}
+          {varelagerLenkeFirmaId && (
+            <VarelagerLenke
+              firmaId={varelagerLenkeFirmaId}
+              className="text-sm font-medium text-sitedoc-primary hover:underline"
+            />
+          )}
+        </div>
+      )}
 
       {/* Tillegg + utlegg — per-prosjekt, separat fra ECO-bukets. U3 (8a):
           ÉN «Legg til»-inngang (velger med to grupper); registrerte rader
@@ -3397,6 +3458,7 @@ function EcoGruppe({
   radLinje,
   onTilfoyTimer,
   onTilfoyReise,
+  onTilfoyMaskin,
   onRedigerTimer,
   onRedigerMaskin,
   onSplittTimer,
@@ -3422,6 +3484,7 @@ function EcoGruppe({
   radLinje: RadLinjeKontekst;
   onTilfoyTimer: () => void;
   onTilfoyReise?: () => void;
+  onTilfoyMaskin?: () => void;
   onRedigerTimer: (rad: TimerRad) => void;
   onRedigerMaskin: (rad: MaskinRad) => void;
   onSplittTimer: (rad: TimerRad) => void;
@@ -3519,6 +3582,16 @@ function EcoGruppe({
               />
             )}
           </>
+        )}
+        {/* Runde 3 timer: «+ Maskin» under radene. Bare med arbeid i bøtta (uten reise),
+            som prosjektkortet — maskin ≤ arbeid sperres i maskinvinduet. */}
+        {erRedigerbar && onTilfoyMaskin && sumTimer > 0 && (
+          <div data-runde3="" className="mt-2">
+            <Button variant="secondary" size="sm" onClick={onTilfoyMaskin}>
+              <Plus className="mr-1 h-3 w-3" />
+              {t("timer.detalj.tilfoyMaskin")}
+            </Button>
+          </div>
         )}
       </div>
 

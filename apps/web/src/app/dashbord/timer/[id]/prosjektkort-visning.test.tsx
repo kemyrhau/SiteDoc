@@ -52,6 +52,7 @@ vi.mock("@/lib/trpc", () => {
 
 import Side from "./page";
 import { DAG7_SEDEL, DAG7_VARER, dag7Data } from "./testdata-dag7";
+import { fjernRunde3 } from "./fjern-runde3";
 
 const sheet = {
   id: "s1",
@@ -246,8 +247,12 @@ describe("timer-sedel — L3 «+ Vareforbruk» på kortet", () => {
     expect(vareLinje(laast)).not.toContain("<button");
   });
 
-  it("dagskort er uendret når katalogen finnes", () => {
-    expect(rendre("dagskort", {}, katalog(["p1", "p2"]))).toBe(rendre("dagskort"));
+  // Runde 3 timer (2026-11-27): dagskortet får «+ Vare» når katalogen finnes. Utenom
+  // runde 3-elementene (`data-runde3`, variant A) er dagskortet fortsatt uendret.
+  it("dagskort er uendret når katalogen finnes, utenom runde 3-elementene", () => {
+    const med = rendre("dagskort", {}, katalog(["p1", "p2"]));
+    expect(med).toContain("timer.detalj.tilfoyVare");
+    expect(fjernRunde3(med)).toBe(fjernRunde3(rendre("dagskort")));
   });
 });
 

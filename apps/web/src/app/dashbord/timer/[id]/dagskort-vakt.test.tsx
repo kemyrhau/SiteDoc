@@ -52,6 +52,7 @@ vi.mock("@/lib/trpc", () => {
 
 import Side from "./page";
 import { dag7Data } from "./testdata-dag7";
+import { fjernRunde3 } from "./fjern-runde3";
 
 function rendre(modus: string | undefined) {
   h.data = dag7Data(modus);
@@ -60,7 +61,9 @@ function rendre(modus: string | undefined) {
 
 describe("w3a — vakt: dagskort-modus er uendret", () => {
   it("dagen fra #7 i dagskort-modus gir samme markup som før w3a", () => {
-    const html = rendre("dagskort");
+    // Runde 3 timer (variant A, 2026-11-27): «+ Maskin»/«+ Vare» og vare-blokken (`data-runde3`)
+    // fjernes før sammenligningen — snapshotet står urørt, resten av dagskortet er byte-likt.
+    const html = fjernRunde3(rendre("dagskort"));
     // Fornuftssjekk: snapshotet er av dagskortet med innhold, ikke en tom side.
     expect(html).toContain("timer.detalj.sendTilLeder");
     expect(html).toContain("Skole");
