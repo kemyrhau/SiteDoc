@@ -117,8 +117,6 @@ import {
   grupperPaaKort,
 } from "@sitedoc/shared";
 
-const ENHETER = ["m", "m2", "m3", "kg", "tonn", "stk"] as const;
-
 function tilTall(v: unknown): number {
   if (v === null || v === undefined) return 0;
   if (typeof v === "number") return v;
@@ -4703,8 +4701,6 @@ function TimerRadDialog({
   const maskinAktiv = maskinModulTilstand?.maskin === true;
   const [visMaskin, setVisMaskin] = useState(false);
   const [maskinVehicleId, setMaskinVehicleId] = useState<string>("");
-  const [maskinMengde, setMaskinMengde] = useState<string>("");
-  const [maskinEnhet, setMaskinEnhet] = useState<string>("");
 
   // ORDRE 2026-11-13: pausepunktet for GJELDENDE fra/til.
   const pauseFra = useMemo(
@@ -5268,8 +5264,6 @@ function TimerRadDialog({
         vehicleId: maskinVehicleId,
         timer: tNum,
         byggeplassId: bp.byggeplassId,
-        mengde: maskinMengde ? parseFloat(maskinMengde) : null,
-        enhet: maskinEnhet || null,
         fraTid: fraTid || null,
         tilTid: tilTid || null,
       });
@@ -5396,8 +5390,6 @@ function TimerRadDialog({
                 vehicleId: maskinVehicleId,
                 timer: tNum,
                 byggeplassId: bp.byggeplassId,
-                mengde: maskinMengde ? parseFloat(maskinMengde) : null,
-                enhet: maskinEnhet || null,
                 fraTid: fraTid || null,
                 tilTid: tilTid || null,
               });
@@ -5952,40 +5944,7 @@ function TimerRadDialog({
                     sistBrukt={sistBrukteMaskiner}
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="mb-1 block text-sm font-medium text-gray-700">
-                      {t("timer.felt.mengde")}{" "}
-                      <span className="text-xs text-gray-400">
-                        ({t("label.valgfritt")})
-                      </span>
-                    </label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min={0}
-                      value={maskinMengde}
-                      onChange={(e) => setMaskinMengde(e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-sm font-medium text-gray-700">
-                      {t("timer.felt.enhet")}
-                    </label>
-                    <select
-                      value={maskinEnhet}
-                      onChange={(e) => setMaskinEnhet(e.target.value)}
-                      className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
-                    >
-                      <option value="">—</option>
-                      {ENHETER.map((e) => (
-                        <option key={e} value={e}>
-                          {e}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
+                {/* Retur 1 runde 3 (Kenneth 2026-11-27): maskin føres uten mengde og enhet. */}
                 {maskinHoyst !== null && (
                   <p
                     data-testid="maskin-hoyst"
@@ -7142,16 +7101,9 @@ function MaskinRadDialog({
   // § 8.22 punkt 4 (Kenneth 2026-11-21): maskin føres som antall timer etter skjønn —
   // aldri fra–til. Fra jobben foreslås antall = jobbens arbeid minus maskintimene alt ført
   // på jobben (O5) til brukeren rører feltet; uten jobb er feltet tomt. Mengde og enhet føres ikke
-  // fra jobben (B37 A).
-  const fraJobb = !!jobb;
+  // (B37 A fra jobben; retur 1 runde 3, Kenneth 2026-11-27, også i dagskortet) — lagrede står urørt.
   const [timerRort, setTimerRort] = useState<boolean>(!!rad || !jobb);
   const [timerInput, setTimer] = useState<string>(() => (rad ? String(tilTall(rad.timer)) : ""));
-  const [mengde, setMengde] = useState<string>(
-    rad?.mengde !== null && rad?.mengde !== undefined
-      ? String(tilTall(rad.mengde))
-      : "",
-  );
-  const [enhet, setEnhet] = useState<string>(rad?.enhet ?? "");
   const [ecoId, setEcoId] = useState<string | null>(
     rad ? (rad.externalCostObjectId ?? null) : (jobb?.ecoId ?? defaultEcoId ?? null),
   );
@@ -7285,17 +7237,11 @@ function MaskinRadDialog({
       );
       return;
     }
-    const mengdeNum = mengde.trim() ? parseFloat(mengde) : null;
-    if (mengdeNum !== null && (isNaN(mengdeNum) || mengdeNum < 0)) {
-      setFeil(t("timer.feil.ugyldigInput"));
-      return;
-    }
     const data = {
       vehicleId,
       timer: tNum,
       // § 8.22 punkt 4: fra–til sendes aldri — ved redigering står lagrede verdier
-      // (maskin.oppdater: undefined = urørt). w3b: fra jobben føres verken mengde eller enhet.
-      ...(fraJobb ? {} : { mengde: mengdeNum, enhet: enhet || null }),
+      // (maskin.oppdater: undefined = urørt). Mengde og enhet sendes aldri (B37 A, retur 1 runde 3).
       externalCostObjectId: ecoId,
       // Ordre (10): kun ved endring — mobilens byggeplass overskrives ikke.
       // w3a: ny maskin i en jobb tar jobbens byggeplass (serveren bekrefter, A7).
@@ -7397,43 +7343,6 @@ function MaskinRadDialog({
             </p>
           )}
         </div>
-        {/* w3b (B37 A): fra jobben vises verken mengde eller enhet. */}
-        {!fraJobb && (<>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              {t("timer.felt.mengde")}{" "}
-              <span className="text-xs text-gray-400">
-                ({t("label.valgfritt")})
-              </span>
-            </label>
-            <Input
-              type="number"
-              step="0.01"
-              min={0}
-              value={mengde}
-              onChange={(e) => setMengde(e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              {t("timer.felt.enhet")}
-            </label>
-            <select
-              value={enhet}
-              onChange={(e) => setEnhet(e.target.value)}
-              className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
-            >
-              <option value="">—</option>
-              {ENHETER.map((e) => (
-                <option key={e} value={e}>
-                  {e}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-        </>)}
         {!jobb && (<div>
           <label className="mb-1 block text-sm font-medium text-gray-700">
             {t("timer.felt.underprosjekt")}{" "}
