@@ -177,6 +177,18 @@ P=/opt/homebrew/opt/postgresql@17/bin; $P/createdb sitedoc_<agent> && $P/pg_dump
 ```
 `pg_dump`-leddet er målt (2026-11-26, `--schema-only` mot `sitedoc_lokaltest`); `createdb`/`psql`-leddet er umålt.
 
+### Parallelle runder — ingen dødtid for Kenneth (Kenneth 2026-11-27)
+
+Kenneth: «kan du nå finne en måte å jobbe på slik at jeg slipper dødtid mens vi venter på koding» → «ja».
+
+- **To spor samtidig**, hvert med **én agent og ett tema** (maks 3 beslektede rettinger). Eksempel 2026-11-27: w1 = runde 3 (maskin/vare i dagskortet), w5 = runde 4 (hjemreise fra «Annet sted»).
+- **Filgrense i ordren:** hver ordre navngir delene den andre agenten eier (komponent/linjer) og sier «rør ikke; trenger du dem: STOPP og meld i løsningsforslaget».
+- **Løsning før kode:** agenten skriver løsningsforslag (målt fil:linje, før/etter for brukeren, hva som bevares) i `inbox-orkestrator.md`; orkestrator godkjenner på vedtatt innhold (hjemmel = Kenneths ord i FASIT) og nudger «kod».
+- **Kø til testflaten:** runden som **først** har Kontrollør-GODKJENT settes opp på 3100 (rutinen over) og Kenneth tester den; den andre står klar når han er ferdig. Aldri to temaer i samme testliste.
+- **Merge i den rekkefølgen Kenneth sier «virker».** Runden som merges sist: agenten rebaser på `origin/develop` og kjører regel 10 på nytt; konflikt = én ekstra agenttur, ikke Kenneth-tid. Deploy = siste lokalt godkjente merge (SAMARBEIDSREGLER § 3).
+- **Agenten jobber i SITT EGET worktree** (sesjonen er hook-låst dit). Ny runde = `git fetch && git switch -c <branch> origin/develop` i eget tre, etter `git status` rent. **Aldri** be agenten lage nytt worktree (2026-11-27: w1/w5 fikk hook-stopp i `web-timer-w1-r3`/`-w5-r4`). Etter merge slettes branchen, ikke agentens tre.
+- Trenger Kenneth to runder oppe samtidig: testflate nr. 2 (egen port + egen DB-kopi) settes opp først når én flate faktisk er flaskehalsen.
+
 **Dekker ikke:** mobil (telefonen peker mot test), prod-oppsett, opplastede filer.
 
 ## Historikk
