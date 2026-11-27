@@ -3,6 +3,8 @@ import { TRPCError } from "@trpc/server";
 import { prisma } from "@sitedoc/db";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { sikreKortId, vareKortIdForSkriving } from "../services/timer/kortId";
+import { ecoForTimerad } from "../services/timer/arvTimeradEco";
+import { nokkelFeil } from "../trpc/feilformat";
 import { lesVarerForSpor, skrivSlettespor } from "../services/timer/slettespor";
 import type { Context } from "../trpc/context";
 import {
@@ -513,6 +515,10 @@ export const vareforbrukRouter = router({
         // Kort-id (prosjektkort-kortid-spec § 4.3): valgfri. Koblet vare får radens id;
         // uten sedel → NULL; ellers regel 3.
         kortId: z.string().uuid().nullable().optional(),
+        // Runde 7 (vedtak dagskort: «Varer … må knyttes til menneskets timer»): webens
+        // vinduer i dagskort-modus sender true — manglende/ugyldig timerad avvises da med
+        // melding. Utelatt (telefonens kø, eldre klienter): myk `null` som før.
+        krevTimerad: z.boolean().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -585,11 +591,25 @@ export const vareforbrukRouter = router({
         input.projectId,
       );
 
+      if (input.krevTimerad && !sheetTimerId) {
+        throw nokkelFeil(
+          "BAD_REQUEST",
+          "Varen må stå på en timerad med arbeid i samme prosjekt på dagsseddelen.",
+          "vareforbruk.timeradPaakrevd",
+        );
+      }
+
+      // Runde 7 (Kenneth: «Ja, arv timeraden»): koblet vare får timeradens underprosjekt —
+      // utledes, avvises ikke (telefonens kø skal aldri miste en vare).
+      const arvetEco = await ecoForTimerad(ctx.prismaTimer, sheetTimerId);
+      const externalCostObjectId =
+        arvetEco !== undefined ? arvetEco : (input.externalCostObjectId ?? null);
+
       const sheetMachineId = await gyldigVareMaskin(ctx.prismaTimer, input.sheetMachineId, {
         dagsseddelId: input.dagsseddelId ?? null,
         sheetTimerId,
         projectId: input.projectId,
-        externalCostObjectId: input.externalCostObjectId ?? null,
+        externalCostObjectId,
       });
 
       const kortId = await vareKortIdForSkriving(ctx.prismaTimer, {
@@ -599,7 +619,7 @@ export const vareforbrukRouter = router({
         ny: {
           projectId: input.projectId,
           byggeplassId: input.byggeplassId ?? null,
-          externalCostObjectId: input.externalCostObjectId ?? null,
+          externalCostObjectId,
         },
       });
 
@@ -613,7 +633,7 @@ export const vareforbrukRouter = router({
             vareId: input.vareId,
             antall: input.antall,
             byggeplassId: input.byggeplassId ?? null,
-            externalCostObjectId: input.externalCostObjectId ?? null,
+            externalCostObjectId,
             kommentar: input.kommentar?.trim() || null,
             dagsseddelId: input.dagsseddelId ?? null,
             sheetTimerId,
@@ -769,12 +789,17 @@ export const vareforbrukRouter = router({
       // nye — uten eksplisitt verdi i input nullstilles de i stedet for å bli stående.
       const byggeplassId =
         input.byggeplassId !== undefined ? input.byggeplassId : byttProsjekt ? null : undefined;
+      // Runde 7 (Kenneth: «Ja, arv timeraden»): koblet vare i samme prosjekt har alltid
+      // timeradens underprosjekt — oppgitt verdi overskrives (utledes, avvises ikke).
+      const arvetEco = byttProsjekt ? undefined : await ecoForTimerad(ctx.prismaTimer, rad.sheetTimerId);
       const externalCostObjectId =
-        input.externalCostObjectId !== undefined
-          ? input.externalCostObjectId
-          : byttProsjekt
-            ? null
-            : undefined;
+        arvetEco !== undefined && (input.externalCostObjectId !== undefined || arvetEco !== (rad.externalCostObjectId ?? null))
+          ? arvetEco
+          : input.externalCostObjectId !== undefined
+            ? input.externalCostObjectId
+            : byttProsjekt
+              ? null
+              : undefined;
       // Kort-id (§ 4.3): uendret nøkkel → står; ellers koblet rad / regel 3.
       const kortId = await vareKortIdForSkriving(ctx.prismaTimer, {
         dagsseddelId: rad.dagsseddelId,

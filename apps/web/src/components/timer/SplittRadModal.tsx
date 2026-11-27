@@ -243,7 +243,7 @@ export function SplittRadModal(props: Props) {
     } else {
       setSplitMaskin((rader) => {
         const o = props.original;
-        // Arv ECO fra original — bruker kan endre per rad i RedigerMaskinRad-velgeren.
+        // Arv ECO fra original. Runde 7: «Del opp maskin» deler bare timer — ingen velger; serveren gir delene timeradens.
         const sisteEco =
           rader[rader.length - 1]?.externalCostObjectId ?? o.externalCostObjectId;
         return [
@@ -423,6 +423,7 @@ export function SplittRadModal(props: Props) {
             {props.radType === "maskin" &&
               splitMaskin.map((rad, i) => (
                 <RedigerMaskinRad
+                  utenUnderprosjekt
                   key={rad.key}
                   organizationId={props.organizationId}
                   rad={rad}

@@ -1000,6 +1000,16 @@ Reisevinduet: se [vedtak-timer-web.md § Reisevinduet](vedtak-timer-web.md). LØ
 - **Tester:** `reiseManuell.test.ts` § «w15b — start og slutt kan rettes» (8), `apps/web/src/app/dashbord/timer/[id]/reisevindu.test.tsx` (9), `apps/web/src/hooks/reise-havner-i.test.ts` (6). Negativkontroll mot develop `45a388c5`: 6 av 8 (shared) og 14 av 15 (web) røde; de grønne er bevaringstestene. `dagskort-vakt.test.tsx` + snapshot urørt.
 - **Skjermbilder (1 440 px, lokal seed):** `skisser-web-timeforing/w15b-etter-arbeid.png` («+ Reise» → «Til annet kontor» → «Etter arbeid»: Kontor Narvik, 12:00–15:50, 230 min), `w15b-byttet-prosjekt.png` («Til byggeplass», prosjektet byttet til Agent-testprosjekt: Byggeplass 1, 06:25–07:00, «Får eget kort på Agent-testprosjekt.»).
 
+### Runde 7 timer: maskin og vare arver timeradens underprosjekt — 🟡 `fix/timer-r7`, ikke merget
+
+Hjemmel (Kenneth 2026-11-27): «Ja, arv timeraden» · «vi må kunne dele opp et underprosjekt til det opprinnelige og til et annet underprosjekt. vi må da tillate å dele opp tilhørende rader -> maskin, varer, tillegg/utlegg og timer» · «2 ja». Vedtak: `vedtak-timer-web.md` § Dagskort-modus pkt 7 (gjelder begge moduser).
+
+- **Server (begge moduser):** `apps/api/src/services/timer/arvTimeradEco.ts`. `maskin.tilfoy` og `maskin.oppdater` kaller `arvTimeradEcoForMaskiner` etter koblingen (også `koblMaskinerTilJobb`). `vareforbruk.opprett`/`oppdater` bruker `ecoForTimerad`: et annet underprosjekt i input lagres som timeradens, uten melding, så eldre klienter og telefonens kø aldri mister en registrering. `flyttTimerRadEco` uten `helJobb` flytter koblet maskin (i transaksjonen) og koblet vare uten snapshot (rå UPDATE etterpå) med timeraden. `splittRad`/`splittRadEier` for maskin: `arvTimeradEcoForDeler`. Unntak: døgnmaskin uten timerad og ukoblet vare beholder eget valg. Attestert og erstattet står (S5). Ingen datamigrering.
+- **`krevTimerad`:** `vareforbruk.opprett` tar valgfritt flagg. Satt og ingen gyldig timerad (`gyldigVareRad`) gir BAD_REQUEST `vareforbruk.timeradPaakrevd`. Web sender det fra maskinvinduet og fra `KortVareforbrukModal` uten jobb. Telefonen sender det ikke (myk null som før).
+- **Web:** `MaskinRadDialog` (uten jobb) skjuler underprosjekt-feltet (`data-testid="maskin-underprosjekt"`) når en timerad er valgt, og sender timeradens underprosjekt (`effektivEco`). Varelinjer på en maskin uten timerad (døgn) stoppes med `timer.maskinVare.timeradForVare`. «Del opp maskin» (`SplittRadModal` → `RedigerMaskinRad utenUnderprosjekt`) har ikke underprosjekt-felt.
+- **Uendret:** `delJobb` og `flyttLinjeTilKort` (holder regelen, bekreftet med test), `RedigerTimerRad`/`RedigerTilleggRad` (fritt underprosjekt per del ligger til Kenneth), mobil, attestantens «Rediger sedel».
+- **Tester:** `timer-r7-arv-timerad.integration.test.ts` (13, 8 røde uten rettingen), `runde7-arv-timerad.test.tsx` (3), `web-timer-w1.test.tsx` (`krevTimerad`), `web-timer-maskin-uten-fratil.test.tsx` (ingen underprosjekt i «Del opp maskin»).
+
 ### Runde 5 timer: vare på maskinen + flere varer i maskinvinduet — 🟡 `fix/timer-r5`, ikke merget
 
 Hjemmel (Kenneth 2026-11-27): «varer tilhører denne maskinen, men det kan jeg ikke se» · «savner nå en + linje for å legge til flere varer dersom både pukk og bærelag ble levert» · «ja til A, merge runde 3 nå, A som runde 5».

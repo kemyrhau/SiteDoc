@@ -19,6 +19,9 @@ type Props = {
   onSlett: () => void;
   /** T7-2c3: hvis satt, vis Splitt-knapp som kaller denne. */
   onSplitt?: () => void;
+  /** Runde 7 (Kenneth: «Del opp maskin» deler bare timer): ingen velger for underprosjekt —
+   *  delen beholder originalens, og serveren gir koblet del timeradens (begge moduser). */
+  utenUnderprosjekt?: boolean;
 };
 
 export function RedigerMaskinRad({
@@ -28,6 +31,7 @@ export function RedigerMaskinRad({
   onChange,
   onSlett,
   onSplitt,
+  utenUnderprosjekt = false,
 }: Props) {
   const { t } = useTranslation();
   const { data: equipmentRaw } = trpc.maskin.equipment.list.useQuery(
@@ -50,7 +54,7 @@ export function RedigerMaskinRad({
   // fra T7-4b.
   const { data: ecoer } = trpc.eksternKostObjekt.list.useQuery(
     { projectId: rad.projectId, organizationId },
-    { enabled: !!rad.projectId },
+    { enabled: !!rad.projectId && !utenUnderprosjekt },
   );
 
   // T7-2e: lokal string-state for timer-input (samme mønster som RedigerTimerRad).
@@ -132,32 +136,36 @@ export function RedigerMaskinRad({
 
       {/* T7-4d: ECO-velger + action-knapper på samme rad for plass-effektivitet. */}
       <div className="col-span-12 -mt-1 flex items-center gap-2 pt-1">
-        <label className="text-xs font-medium text-gray-600">
-          {t("timer.felt.underprosjekt")}:
-        </label>
-        <select
-          value={rad.externalCostObjectId ?? ""}
-          onChange={(e) =>
-            onChange({ externalCostObjectId: e.target.value || null })
-          }
-          className="flex-1 rounded border border-gray-300 px-2 py-1 text-xs"
-        >
-          <option value="">—</option>
-          {ecoer?.map((eco) => (
-            <option key={eco.id} value={eco.id}>
-              {eco.proAdmId} · {eco.kortNavn}
-            </option>
-          ))}
-        </select>
-        {rad.externalCostObjectId && (
-          <button
-            type="button"
-            onClick={() => onChange({ externalCostObjectId: null })}
-            className="rounded p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
-            title={t("handling.fjern")}
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
+        {!utenUnderprosjekt && (
+          <>
+            <label className="text-xs font-medium text-gray-600">
+              {t("timer.felt.underprosjekt")}:
+            </label>
+            <select
+              value={rad.externalCostObjectId ?? ""}
+              onChange={(e) =>
+                onChange({ externalCostObjectId: e.target.value || null })
+              }
+              className="flex-1 rounded border border-gray-300 px-2 py-1 text-xs"
+            >
+              <option value="">—</option>
+              {ecoer?.map((eco) => (
+                <option key={eco.id} value={eco.id}>
+                  {eco.proAdmId} · {eco.kortNavn}
+                </option>
+              ))}
+            </select>
+            {rad.externalCostObjectId && (
+              <button
+                type="button"
+                onClick={() => onChange({ externalCostObjectId: null })}
+                className="rounded p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                title={t("handling.fjern")}
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </>
         )}
         {onSplitt && (
           <button

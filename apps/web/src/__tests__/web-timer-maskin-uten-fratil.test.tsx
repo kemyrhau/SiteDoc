@@ -90,6 +90,12 @@ describe("§ 8.22 punkt 1 — «Splitt maskin-rad»", () => {
     );
   };
 
+  it("VAKTTEST 2026-11-28 (Kenneth: Godkjent steg 1–3 i testpanelet, runde 6+7) — runde 7 (Kenneth 2026-11-27: «Del opp maskin» deler bare timer): ingen underprosjekt-felt — delene arver timeradens", () => {
+    vis();
+    fireEvent.click(screen.getByText("timer.splitt.leggTilRad"));
+    expect(screen.queryByText(/timer\.felt\.underprosjekt/)).toBeNull();
+  });
+
   it("ingen fra–til i vinduet, heller ikke i referansen", () => {
     vis();
     expect(tidsfelt()).toBe(0);
