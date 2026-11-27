@@ -110,7 +110,8 @@ function lagCtx(opts: {
       aggregate: vi.fn().mockResolvedValue({ _sum: { pauseMin: 0 } }),
     },
     sheetTillegg: { update: tilleggUpdate },
-    sheetMachine: { create: maskinCreate },
+    // Runde 7: maskin.tilfoy slår opp koblingen for å arve timeradens underprosjekt.
+    sheetMachine: { create: maskinCreate, findMany: vi.fn().mockResolvedValue([]) },
     dailySheet: { update: sheetUpdate },
   };
   const transaction = vi.fn(async (arg: unknown) =>

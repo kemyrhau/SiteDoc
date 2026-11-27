@@ -133,7 +133,7 @@ function lagCtx(opts: { status?: string; originalTillegg?: Record<string, unknow
   );
   const ctx = {
     userId: USER,
-    req: { log: { info: vi.fn(), warn: vi.fn() } },
+    req: { log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } },
     prisma: {
       organizationSetting: {
         findUnique: vi.fn().mockResolvedValue({ tillattRedigerVedAttestering: true }),
@@ -174,7 +174,8 @@ function lagCtx(opts: { status?: string; originalTillegg?: Record<string, unknow
         findMany: vi.fn().mockResolvedValue([]),
         update: timerUpdate,
       },
-      sheetMachine: { findMany: vi.fn().mockResolvedValue([]) },
+      // Runde 7: flyttTimerRadEco flytter koblede maskiner med timeraden.
+      sheetMachine: { findMany: vi.fn().mockResolvedValue([]), updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
     },
   };
   return { ctx, sheet, transaction, tilleggCreate, tilleggUpdate, utleggCreate, utleggUpdate, timerUpdate };
