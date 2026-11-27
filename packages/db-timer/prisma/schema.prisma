@@ -440,8 +440,14 @@ model SheetTillegg {
   // Nullable til ordre e (CHECK, B2). Tillegget følger valgt kort.
   kortId String? @map("kort_id")
 
+  // Runde 6 (Kenneth 2026-11-27): timeraden (arbeid eller reise) tillegget/utlegget hører til
+  // i dagskort-modus. Svak FK → sheet_timer.id (A.20). NULL = ført før vedtaket eller i
+  // prosjektkort-modus (ingen backfill). Nulles når timeraden slettes; følger raden ved prosjektbytte.
+  sheetTimerId String? @map("sheet_timer_id")
+
   @@index([sheetId])
   @@index([sheetId, kortId])
+  @@index([sheetTimerId])
   @@index([tilleggId])
   @@index([projectId])
   @@index([attestertStatus])
@@ -518,8 +524,14 @@ model SheetUtlegg {
   // Nullable til ordre e (CHECK, B2). Utlegget følger valgt kort.
   kortId String? @map("kort_id")
 
+  // Runde 6 (Kenneth 2026-11-27): timeraden (arbeid eller reise) tillegget/utlegget hører til
+  // i dagskort-modus. Svak FK → sheet_timer.id (A.20). NULL = ført før vedtaket eller i
+  // prosjektkort-modus (ingen backfill). Nulles når timeraden slettes; følger raden ved prosjektbytte.
+  sheetTimerId String? @map("sheet_timer_id")
+
   @@index([sheetId])
   @@index([sheetId, kortId])
+  @@index([sheetTimerId])
   @@index([projectId])
   @@index([expenseCategoryId])
   @@index([byggeplassId])

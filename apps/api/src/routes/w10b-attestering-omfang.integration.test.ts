@@ -419,6 +419,8 @@ describe("O6 — firma-admin får samme svar som før", () => {
   const UTLEGG_FOR = ["belop", "byggeplassId", "expenseCategory", "externalCostObjectId", "id", "projectId", "vedlegg"];
   // S2 A (Kenneth, plan § 8.12): de eneste nye utleggsfeltene for firma-admin.
   const UTLEGG_S2 = ["kortId", "project"];
+  // Retur 3 runde 6: timeraden utlegget er koblet til (id på samme sedel) — styrer «→ Kort»-målene.
+  const UTLEGG_R6 = ["sheetTimerId"];
 
   it("alle firmaets sedler, også bare fravær; ingen andre firmas", async () => {
     const ider = (await liste(FADMIN)).map((s) => s.id).sort();
@@ -430,7 +432,7 @@ describe("O6 — firma-admin får samme svar som før", () => {
     const s = svar.find((x) => x.id === S_P1)!;
     expect(s.timer.find((r) => r.id === R_P3)!.project?.name).toBe("Hemmelig bygg");
     expect(s.timer.find((r) => r.id === R_P3)!.byggeplassNavn).toBe("Hemmelig byggeplass");
-    for (const u of s.utlegg) expect(Object.keys(u).sort()).toEqual([...UTLEGG_FOR, ...UTLEGG_S2].sort());
+    for (const u of s.utlegg) expect(Object.keys(u).sort()).toEqual([...UTLEGG_FOR, ...UTLEGG_S2, ...UTLEGG_R6].sort());
     expect(s.mineProsjektIder).toBeNull();
     for (const k of NYE) expect(Object.keys(s)).toContain(k);
   });

@@ -105,6 +105,8 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@sitedoc/db", () => {
   const prisma = new Proxy(
     {
+      // Runde 6: tillegg/utlegg uten timerad er prosjektkort-føring (dagskort krever timerad).
+      organizationSetting: modell({ findUnique: vi.fn(async () => ({ timerRegistreringsmodus: "prosjektkort" })) }),
       user: modell({
         findUnique: vi.fn(async () => ({ role: "user" })),
         findMany: vi.fn(async ({ where }: { where: { id: { in: string[] } } }) =>

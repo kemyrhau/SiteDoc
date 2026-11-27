@@ -374,9 +374,16 @@ describe("T5 — server-skriveveier fyller kort_id (reise i jobbens kort, w12)",
     forventAlleMedKort(timer);
   });
 
+  /** R6: i dagskort-firma krever tillegg/utlegg en timerad på sedelen. */
+  async function timerad(sid: string): Promise<string> {
+    return (await prismaTimer.sheetTimer.create({
+      data: { sheetId: sid, projectId: P1, lonnsartId: ORD, aktivitetId: AKT, timer: 4, fraTid: "07:00", tilTid: "11:00" },
+    })).id;
+  }
+
   it("tilfoyTilleggRad: tillegg får kort-id", async () => {
     const sid = await nySedel();
-    const rad = await dag().tilfoyTilleggRad({ sheetId: sid, projectId: P1, tilleggId: TILLEGG, antall: 1 });
+    const rad = await dag().tilfoyTilleggRad({ sheetId: sid, projectId: P1, tilleggId: TILLEGG, antall: 1, sheetTimerId: await timerad(sid) });
     expect(rad.kortId).not.toBeNull();
     forventAlleMedKort((await kortPaaSedel(sid)).tillegg);
   });
@@ -392,7 +399,7 @@ describe("T5 — server-skriveveier fyller kort_id (reise i jobbens kort, w12)",
 
   it("tilfoyUtleggRad: utlegg får kort-id", async () => {
     const sid = await nySedel();
-    const rad = await dag().tilfoyUtleggRad({ sheetId: sid, projectId: P1, expenseCategoryId: KATEGORI, belop: 120 });
+    const rad = await dag().tilfoyUtleggRad({ sheetId: sid, projectId: P1, expenseCategoryId: KATEGORI, belop: 120, sheetTimerId: await timerad(sid) });
     expect(rad.kortId).not.toBeNull();
     forventAlleMedKort((await kortPaaSedel(sid)).utlegg);
   });
@@ -784,8 +791,12 @@ describe("T9 — kort-id fra annen brukers sedel", () => {
 
   it("tilfoyTilleggRad med annen brukers kortId → kortUlikeRader, ingen rad", async () => {
     const sid = await nySedel();
+    // R6: gyldig timerad, så kort-id-vakten er den som slår til.
+    const rid = (await prismaTimer.sheetTimer.create({
+      data: { sheetId: sid, projectId: P1, lonnsartId: ORD, aktivitetId: AKT, timer: 4, fraTid: "07:00", tilTid: "11:00" },
+    })).id;
     await expect(
-      dag().tilfoyTilleggRad({ sheetId: sid, projectId: P1, tilleggId: TILLEGG, antall: 1, kortId: fremmedKort }),
+      dag().tilfoyTilleggRad({ sheetId: sid, projectId: P1, tilleggId: TILLEGG, antall: 1, kortId: fremmedKort, sheetTimerId: rid }),
     ).rejects.toThrow("kortUlikeRader");
     expect(await prismaTimer.sheetTillegg.count({ where: { sheetId: sid } })).toBe(0);
   });
@@ -1142,7 +1153,7 @@ describe("§ 8.22 — reisen flyttes bare når prosjekt, byggeplass eller underp
     const uten = await arbeid(sid, "07:00", "09:00"); // gammel regel: reisen til «Uten»
     expect(uten.kortId).not.toBe(jobbE.kortId);
     expect(await kort(ut)).toBe(jobbE.kortId);
-    await dag().tilfoyTilleggRad({ sheetId: sid, projectId: P1, tilleggId: TILLEGG, antall: 1 });
+    await dag().tilfoyTilleggRad({ sheetId: sid, projectId: P1, tilleggId: TILLEGG, antall: 1, sheetTimerId: jobbE.id });
     expect(await kort(ut)).toBe(jobbE.kortId);
     await vare().opprett({ projectId: P1, dato: "2026-10-01", vareId: VARE, antall: 1, dagsseddelId: sid });
     expect(await kort(ut)).toBe(jobbE.kortId);

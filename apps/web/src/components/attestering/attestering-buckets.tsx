@@ -81,6 +81,8 @@ export type TilleggRad = {
   // underprosjekt. Valgfrie så eldre API-respons ikke bryter.
   byggeplassId?: string | null;
   externalCostObjectId?: string | null;
+  /** R6: timeraden tillegget er koblet til (dagskort). Retur 3: styrer flyttmålene. */
+  sheetTimerId?: string | null;
 };
 
 export type MaskinRad = {

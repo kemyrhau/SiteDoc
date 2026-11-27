@@ -57,6 +57,8 @@ function oppsett(status: string, data: { timer?: Rad[]; maskin?: Rad[]; tillegg?
       slettet[navn] = [...(slettet[navn] ?? []), ...ider];
       return Promise.resolve({ count: ider.length });
     },
+    // Runde 6: timeradens kobling på tillegg/utlegg nulles før timeraden slettes.
+    updateMany: () => Promise.resolve({ count: 0 }),
   });
   const db = {
     $queryRaw: (deler: TemplateStringsArray) =>
