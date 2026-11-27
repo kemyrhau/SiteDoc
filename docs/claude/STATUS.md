@@ -12,6 +12,7 @@
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
 **Sist oppdatert:** 2026-11-27
+- 2026-11-27 — **`timer.md` § Runde 6 (RETUR 2): arven i `flyttTimerRadEco`, omkobling i `flyttLinjeTilKort` og `delJobb`** (Kontrollørens vilkår; branch `fix/timer-r6`, kode + docs, web-timer-w5). Tellingene er uendret.
 - 2026-11-27 — **`timer.md` § Runde 6 (RETUR 1) + `vedtak-timer-web.md` § Dagskort-modus pkt 3 (status): tillegg og utlegg arver timeradens underprosjekt** (Kenneth «Ja, arv timeraden»; branch `fix/timer-r6`, kode + docs, web-timer-w5). Tellingene er uendret.
 - 2026-11-27 — **`vedtak-timer-web.md` § Dagskort-modus pkt 7 (ny): maskin og vare arver timeradens underprosjekt** (Kenneth «Ja, arv timeraden», 🔴 ikke bygget, målt mot develop; branch `docs/fabel`, docs-only, Fabel på ordre fra orkestrator). Tellingene er uendret.
 - 2026-11-27 — **`timer.md` (ny seksjon «Runde 6 timer») + `vedtak-timer-web.md` § Dagskort-modus pkt 3 (status) + `hjelpetekster.md`: RUNDE 6 TIMER — tillegg og utlegg knyttes til timeraden i dagskort-modus (`sheet_timer_id`, web-velger, nulling ved sletting, følger ved prosjektbytte)** (branch `fix/timer-r6`, kode + docs, web-timer-w5). Ingen fil opprettet eller slettet i docs/claude — tellingene er uendret.

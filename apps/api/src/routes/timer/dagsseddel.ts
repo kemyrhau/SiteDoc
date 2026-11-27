@@ -9028,6 +9028,9 @@ export const dagsseddelRouter = router({
               data: { externalCostObjectId: input.externalCostObjectId, ...kortData },
             });
         await touchSedel(tx, rad.sheetId);
+        // Retur 2 runde 6 (vilkår 1): timeraden bytter underprosjekt → koblede tillegg og
+        // utlegg følger («Ja, arv timeraden»). Før sikreKortId, så kortet stemmer.
+        if (!erTillegg) await arvTimeradEcoForTilleggUtlegg(tx, rad.sheetId);
         const { kortIdFor } = await sikreKortId(tx, rad.sheetId, { kontekst: kortKontekst });
         await krevIngenNyeMaskinBrudd(tx, ctx.prismaMaskin, rad.sheetId, maskinFoer);
         return {
@@ -9375,6 +9378,14 @@ export const dagsseddelRouter = router({
         for (const m of maskinOmkobling) {
           await tx.sheetMachine.update({ where: { id: m.id }, data: { sheetTimerId: m.sheetTimerId } });
         }
+        // Retur 2 runde 6 (vilkår 3, § 8.22): tillegg og utlegg blir i del A. Koblet til en rad som
+        // går til B → kobles om til en rad i A (som varen), ellers drar arven dem til B.
+        if (plan.tilB.length > 0) {
+          const hvorB = { sheetId: sheet.id, sheetTimerId: { in: plan.tilB } };
+          const radIA = radIAFor({});
+          await tx.sheetTillegg.updateMany({ where: hvorB, data: { sheetTimerId: radIA } });
+          await tx.sheetUtlegg.updateMany({ where: hvorB, data: { sheetTimerId: radIA } });
+        }
         await synkroniserHodePause(tx, sheet.id);
         // w9 (WM98): begge delene sjekkes etter delingen — også maskiner uten klokkeslett
         // eller uten kobling til en delt rad, som de to vaktene over slipper.
@@ -9613,7 +9624,13 @@ export const dagsseddelRouter = router({
         } else if (input.radType === "tillegg") {
           const o = await tx.sheetTillegg.findUniqueOrThrow({ where: { id: kilde.id } });
           await tx.sheetRadHistorikk.create({ data: byggHistorikkPost("tillegg", o, ctx.userId, naa) });
-          const ny = await tx.sheetTillegg.update({ where: { id: o.id }, data: mal });
+          // Retur 2 runde 6 (vilkår 2): koblet tillegg kobles om til en timerad i målkortet
+          // (ingen → null), ellers drar neste arv det tilbake til den gamle timeradens
+          // underprosjekt. Ukoblet (prosjektkort, eldre rad) forblir ukoblet.
+          const ny = await tx.sheetTillegg.update({
+            where: { id: o.id },
+            data: o.sheetTimerId ? { ...mal, sheetTimerId: velgTimeradForMaskin({ kortId: mal.kortId }, malRader) } : mal,
+          });
           etterPrRad[ny.id] = korrigerbareVerdier("tillegg", ny);
         } else if (input.radType === "reise") {
           const o = await tx.sheetTimer.findUniqueOrThrow({ where: { id: kilde.id } });
@@ -9622,7 +9639,12 @@ export const dagsseddelRouter = router({
           etterPrRad[ny.id] = korrigerbareVerdier("timer", ny);
         } else {
           // Utlegg: «Korrigert av» på utlegg kommer i D2f (leseren tar ikke radtypen ennå).
-          await tx.sheetUtlegg.update({ where: { id: kilde.id }, data: mal });
+          // Retur 2 runde 6 (vilkår 2): som tillegget — koblet utlegg kobles om i målkortet.
+          const o = await tx.sheetUtlegg.findUniqueOrThrow({ where: { id: kilde.id }, select: { sheetTimerId: true } });
+          await tx.sheetUtlegg.update({
+            where: { id: kilde.id },
+            data: o.sheetTimerId ? { ...mal, sheetTimerId: velgTimeradForMaskin({ kortId: mal.kortId }, malRader) } : mal,
+          });
         }
         await sikreKortId(tx, sheet.id);
         // Maskin høyst jobbens arbeidstimer (DO15) i målkortet: brudd ruller tilbake.

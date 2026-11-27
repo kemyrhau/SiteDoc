@@ -486,3 +486,74 @@ describe("retur 1 runde 6 — tillegg og utlegg arver timeradens underprosjekt",
     }
   });
 });
+
+describe("retur 2 runde 6 — Kontrollørens vilkår", () => {
+  const eco = async (rid: string) => (await tillegg(rid)).externalCostObjectId;
+  const timerKort = async (rid: string) => (await prismaTimer.sheetTimer.findUniqueOrThrow({ where: { id: rid } })).kortId!;
+  const send = (sid: string) => prismaTimer.dailySheet.update({ where: { id: sid }, data: { status: "sent" } });
+
+  it("vilkår 1: flyttTimerRadEco (enkeltrad) — koblet tillegg og utlegg følger timeradens underprosjekt", async () => {
+    const sid = await nySedel();
+    const a = await raArbeid(sid);
+    const tl = await nyttTillegg(sid, a);
+    const ut = await nyttUtlegg(sid, a);
+    await send(sid);
+    await dag(ATT).flyttTimerRadEco({ timerRadId: a, externalCostObjectId: ECO1 });
+    expect((await prismaTimer.sheetTimer.findUniqueOrThrow({ where: { id: a } })).externalCostObjectId).toBe(ECO1);
+    expect(await eco(tl.id)).toBe(ECO1);
+    expect((await utlegg(ut.id)).externalCostObjectId).toBe(ECO1);
+    expect((await tillegg(tl.id)).kortId).toBe(await timerKort(a));
+  });
+
+  it("vilkår 2: flyttLinjeTilKort — flyttet tillegg kobles om i målkortet og står når en annen rad rettes", async () => {
+    const sid = await nySedel();
+    const a = await raArbeid(sid, { fra: "07:00", til: "11:00" });
+    const b = await raArbeid(sid, { fra: "11:00", til: "15:00", eco: ECO1 });
+    const tl = await nyttTillegg(sid, a);
+    const ut = await nyttUtlegg(sid, a);
+    await send(sid);
+    const kortB = await timerKort(b);
+    await dag(ATT).flyttLinjeTilKort({ sheetId: sid, radType: "tillegg", radId: tl.id, tilKortId: kortB });
+    await dag(ATT).flyttLinjeTilKort({ sheetId: sid, radType: "utlegg", radId: ut.id, tilKortId: kortB });
+    expect((await tillegg(tl.id)).sheetTimerId).toBe(b);
+    expect((await utlegg(ut.id)).sheetTimerId).toBe(b);
+    expect(await eco(tl.id)).toBe(ECO1);
+    // En annen rad rettes → arven kjører over sedelen; den flyttede linja står.
+    await dag(ATT).rettRadFelt({ radType: "timer", radId: a, felter: { fraTid: "07:30", tilTid: "11:00", timer: 3.5 } });
+    expect(await eco(tl.id)).toBe(ECO1);
+    expect((await utlegg(ut.id)).externalCostObjectId).toBe(ECO1);
+    expect((await tillegg(tl.id)).kortId).toBe(kortB);
+  });
+
+  it("vilkår 2: ukoblet tillegg forblir ukoblet ved flytting", async () => {
+    const sid = await nySedel();
+    await raArbeid(sid, { fra: "07:00", til: "11:00" });
+    const b = await raArbeid(sid, { fra: "11:00", til: "15:00", eco: ECO1 });
+    const t = await prismaTimer.sheetTillegg.create({ data: { sheetId: sid, projectId: P1, tilleggId: TILLEGG, antall: 1 } });
+    await dag().oppdaterTilleggRad({ id: t.id, antall: 1 }); // fyller kort-id
+    await send(sid);
+    await dag(ATT).flyttLinjeTilKort({ sheetId: sid, radType: "tillegg", radId: t.id, tilKortId: await timerKort(b) });
+    expect((await tillegg(t.id)).sheetTimerId).toBeNull();
+  });
+
+  it("vilkår 3: delJobb — tillegg på en rad som går til B kobles om til A og står i A også etter neste arv", async () => {
+    const sid = await nySedel();
+    const a = await raArbeid(sid, { fra: "07:00", til: "11:00" });
+    const b = await raArbeid(sid, { fra: "11:00", til: "15:00" });
+    const k = await timerKort(a);
+    await prismaTimer.sheetTimer.update({ where: { id: b }, data: { kortId: k } }); // én jobb, to rader
+    const tl = await nyttTillegg(sid, b);
+    const ut = await nyttUtlegg(sid, b);
+    await send(sid);
+    await dag(ATT).delJobb({ sheetId: sid, kortId: k, kl: "11:00", externalCostObjectIdB: ECO1 });
+    expect((await prismaTimer.sheetTimer.findUniqueOrThrow({ where: { id: b } })).externalCostObjectId).toBe(ECO1);
+    expect((await tillegg(tl.id)).sheetTimerId).toBe(a);
+    expect((await utlegg(ut.id)).sheetTimerId).toBe(a);
+    // Neste arv (en annen rad rettes): tillegget og utlegget blir i A.
+    await dag(ATT).rettRadFelt({ radType: "timer", radId: a, felter: { fraTid: "07:30", tilTid: "11:00", timer: 3.5 } });
+    expect(await eco(tl.id)).toBeNull();
+    expect((await utlegg(ut.id)).externalCostObjectId).toBeNull();
+    expect((await tillegg(tl.id)).kortId).toBe(k);
+  });
+});
+
