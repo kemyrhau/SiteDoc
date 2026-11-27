@@ -100,6 +100,9 @@ function lagCtx() {
       dailySheet: { update: vi.fn().mockResolvedValue({}) },
       // w3a (A7): stedsbytte på timeraden tar med koblede maskiner.
       sheetMachine: { updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
+      // Retur 1 runde 6: stedsbytte lar koblede tillegg og utlegg arve radens underprosjekt.
+      sheetTillegg: { findMany: vi.fn().mockResolvedValue([]) },
+      sheetUtlegg: { findMany: vi.fn().mockResolvedValue([]) },
     }),
   );
   const upsert = vi.fn();

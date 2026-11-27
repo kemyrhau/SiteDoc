@@ -6303,7 +6303,9 @@ export const dagsseddelRouter = router({
         }
         await synkroniserHodePause(tx, rad.sheetId);
         // Retur 1 runde 6: tillegg og utlegg på raden følger radens underprosjekt.
-        await arvTimeradEcoForTilleggUtlegg(tx, rad.sheetId);
+        if (stedEndret || (nyttProsjektId && nyttProsjektId !== rad.projectId)) {
+          await arvTimeradEcoForTilleggUtlegg(tx, rad.sheetId);
+        }
         const { kortIdFor } = await sikreKortId(tx, rad.sheetId);
         await krevIngenNyeMaskinBrudd(tx, ctx.prismaMaskin, rad.sheetId, maskinFoer);
         return { ...o, kortId: kortIdFor.get(input.id) ?? o?.kortId ?? null };
