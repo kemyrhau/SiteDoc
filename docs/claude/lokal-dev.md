@@ -193,7 +193,7 @@ Kenneth: «kan du nå finne en måte å jobbe på slik at jeg slipper dødtid me
 
 ### Testpanel — strukturert testrunde nederst i lokal SiteDoc (Kenneth 2026-11-27)
 
-Kenneth 2026-11-27: «under vinduet til sitedoc lager vi et testvindu … Knappen neste er et signal på at jeg er klar å vurdere neste steg.» Bygget på `feat/testpanel` 🟡 (ikke merget).
+Kenneth 2026-11-27: «under vinduet til sitedoc lager vi et testvindu … Knappen neste er et signal på at jeg er klar å vurdere neste steg.» Merget 2026-11-27 (`d0edc410`).
 
 | Ting | Verdi |
 |------|-------|
@@ -202,7 +202,7 @@ Kenneth 2026-11-27: «under vinduet til sitedoc lager vi et testvindu … Knappe
 | **Filer** | `aktiv.json` = `{ "fil": "<runde>.json" }` (kun `[a-z0-9-]+.json` i samme mappe). Runde-fila: `{ runde, hash, steg[], pause?, agentNaa? }`; steg: `nr, hvaTestes, handling, forventet, agentSa, agentVurdering (godkjent/avvik/null), status, kenneth { vurdering, merknad, forbedring, tid } \| null, markering? ({ tekst } \| { selektor } \| null), forbedringer? ([{ tekst, tid }])`. Schema: `components/testpanel/schema.ts` (Zod). Panelets POST (`type`: `svar` / `pause` / `forbedring`) patcher rå JSON og bevarer alle andre felt, også felt utenfor schemaet (`lagring.ts`) |
 | **Plass** | Fast rute nederst (260 px, 32 px minimert). Mens den er montert krympes `body`, `.h-screen` og `.min-h-screen` med panelhøyden (`html[data-testpanel]`); sider med inline `100vh`/`100dvh` dekkes ikke |
 
-**Statusflyt pr. steg:** `venter_agent` (panelet viser «Agenten kjører steget …», feltene låst) → agenten fyller `agentSa` + `agentVurdering` og setter `venter_kenneth` → Kenneth velger Godkjent/Avvik, skriver merknad (påkrevd ved Avvik) og ev. forbedring (valgfri) → **Neste** (grå til kravene er oppfylt) lagrer `kenneth` og setter `ferdig` → agenten ser `ferdig` og tar neste steg. Aktivt steg = laveste `nr` som ikke er `ferdig`. Panelet poller hvert 500. ms.
+**Statusflyt pr. steg:** `venter_agent` (panelet viser «Agenten kjører steget …», feltene låst) → agenten fyller `agentSa` + `agentVurdering` og setter `venter_kenneth` → Kenneth velger Godkjent/Avvik, skriver merknad (påkrevd ved Avvik) og ev. forbedring (valgfri) → **Neste** (grå til kravene er oppfylt) lagrer `kenneth` og setter `ferdig` → agenten ser `ferdig` og tar neste steg. Aktivt steg = laveste `nr` som ikke er `ferdig`. Panelet poller hvert 500 ms.
 
 **Underveis (RETUR 2, Kenneth 2026-11-27):**
 - **Pause/Fortsett** i toppstripa setter `pause` på runden.
