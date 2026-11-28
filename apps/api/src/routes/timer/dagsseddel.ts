@@ -4432,7 +4432,7 @@ async function utforRedigerSedelRader(
   // A7b (Kenneth 2026-11-27: «La den følge»): timerad som bytter underprosjekt eller
   // byggeplass i samme prosjekt, tar med maskinene i kortet — en ukoblet førermaskin kobles
   // først (med radens gamle kort-id), så får de koblede radens sted under. Samme regel som
-  // `oppdaterTimerRad`. Prosjektbytte flytter ikke maskin (står som før). Koblet vare
+  // `oppdaterTimerRad`. Prosjektbytte på arbeid tas i `prosjektByttetTimer` under. Koblet vare
   // (egen database) følger underprosjektet etter transaksjonen, som `flyttTimerRadEco`.
   const stedEndretTimer = plan.timer.oppdater.filter((o) => {
     const d = o.data as { projectId?: string | null; externalCostObjectId?: string | null; byggeplassId?: string | null };
