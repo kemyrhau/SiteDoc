@@ -552,11 +552,14 @@ describe("O19 pkt 23 — en reise delt ved midnatt på sedelen", () => {
     expect(within(m).queryByRole("button", { name: "timer.reise.deltSlett.slettBegge" })).toBeNull();
   });
 
-  it("negativkontroll: vanlig reise slettes rett (som før), uten delt-modalen", () => {
+  it("negativkontroll: vanlig reise får ikke delt-modalen — runde 9: bekreftes i «Slette timeraden?»", () => {
     rendre([arbeid(), REISETID]);
     aapneKort();
     fireEvent.click(document.querySelector('[data-reiselinje="rr"]')!.querySelector('[title="handling.slett"]')!);
     expect(screen.queryByTestId("slett-delt-reise")).toBeNull();
+    // Runde 9 (Kenneth 2026-11-28, ui-standarder § Slett-bekreftelse): ingen sletting før bekreftelse.
+    expect(kall("timer.dagsseddel.fjernTimerRad")).toEqual([]);
+    fireEvent.click(screen.getByText("timer.fjernTimerRad.bekreftRad"));
     expect(kall("timer.dagsseddel.fjernTimerRad")).toEqual([{ id: "rr" }]);
   });
 });

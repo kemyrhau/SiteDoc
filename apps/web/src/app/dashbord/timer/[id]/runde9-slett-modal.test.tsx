@@ -8,6 +8,7 @@
  * Negativkontroll mot develop `c37a2790` (målt): timerad uten maskin, tillegg, maskin og utlegg muterte
  * rett ved klikk — 5 røde (timerad, Avbryt, tillegg, utlegg, maskin); vakten for raden med maskin grønn.
  */
+import type { ReactNode } from "react";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DAG7_SEDEL, dag7Data } from "./testdata-dag7";
