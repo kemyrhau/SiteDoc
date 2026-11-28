@@ -4429,6 +4429,20 @@ async function utforRedigerSedelRader(
   // uendret ukoblet rad røres ikke. Jobb uten arbeid → avvist.
   const maskinerSomKobles = await maskinerSomSkalKobles(ctx.prismaTimer, sheet.id, plan);
 
+  // A7b (Kenneth 2026-11-27: «La den følge»): timerad som bytter underprosjekt eller
+  // byggeplass i samme prosjekt, tar med maskinene i kortet — en ukoblet førermaskin kobles
+  // først (med radens gamle kort-id), så får de koblede radens sted under. Samme regel som
+  // `oppdaterTimerRad`. Prosjektbytte flytter ikke maskin (står som før). Koblet vare
+  // (egen database) følger underprosjektet etter transaksjonen, som `flyttTimerRadEco`.
+  const stedEndretTimer = plan.timer.oppdater.filter((o) => {
+    const d = o.data as { projectId?: string | null; externalCostObjectId?: string | null; byggeplassId?: string | null };
+    return (
+      o.foer.projectId !== null &&
+      (d.projectId ?? null) === o.foer.projectId &&
+      ((d.externalCostObjectId ?? null) !== (o.foer.externalCostObjectId ?? null) ||
+        (d.byggeplassId ?? null) !== (o.foer.byggeplassId ?? null))
+    );
+  });
   const slettedeTimerIder = plan.timer.slett.map((r) => r.id);
   await ctx.prismaTimer.$transaction(async (tx) => {
     const maskinFoer = await lesMaskinJobbTilstand(tx, ctx.prismaMaskin, sheet.id);
@@ -4463,19 +4477,6 @@ async function utforRedigerSedelRader(
     await tx.sheetTillegg.deleteMany({ where: { id: { in: plan.tillegg.slett.map((r) => r.id) } } });
     await nullTilleggUtleggKobling(tx, sheet.id, slettedeTimerIder);
     await tx.sheetTimer.deleteMany({ where: { id: { in: slettedeTimerIder } } });
-    // A7b (Kenneth 2026-11-27: «La den følge»): timerad som bytter underprosjekt eller
-    // byggeplass i samme prosjekt, tar med maskinene i kortet — en ukoblet førermaskin kobles
-    // først (med radens gamle kort-id), så får de koblede radens sted under. Samme regel som
-    // `oppdaterTimerRad`. Prosjektbytte flytter ikke maskin (står som før).
-    const stedEndretTimer = plan.timer.oppdater.filter((o) => {
-      const d = o.data as { projectId?: string | null; externalCostObjectId?: string | null; byggeplassId?: string | null };
-      return (
-        o.foer.projectId !== null &&
-        (d.projectId ?? null) === o.foer.projectId &&
-        ((d.externalCostObjectId ?? null) !== (o.foer.externalCostObjectId ?? null) ||
-          (d.byggeplassId ?? null) !== (o.foer.byggeplassId ?? null))
-      );
-    });
     for (const o of stedEndretTimer) {
       await koblUkobledeForerMaskinerTilRad(tx, ctx.prismaMaskin, o.foer);
     }
@@ -4569,6 +4570,27 @@ async function utforRedigerSedelRader(
       });
     } catch (e) {
       ctx.req.log.error({ err: e, sheetId: sheet.id }, "[rediger_sedel_rader] vare-kobling ikke nullet");
+    }
+  }
+  // A7b + runde 7 (pkt 7, «Ja, arv timeraden»): koblet vare uten snapshot følger timeradens
+  // nye underprosjekt. Feil her ruller ikke tilbake rettingen — den logges.
+  for (const o of stedEndretTimer) {
+    const eco = (o.data as { externalCostObjectId?: string | null }).externalCostObjectId ?? null;
+    try {
+      await ctx.prismaVarelager.$executeRawUnsafe(
+        `UPDATE "varelager"."vareforbruk" SET "external_cost_object_id" = $1, "updated_at" = now()
+         WHERE "dagsseddel_id" = $2 AND "sheet_timer_id" = $3 AND "project_id" = $4 AND "attestert_snapshot" IS NULL
+           AND "external_cost_object_id" IS DISTINCT FROM $1`,
+        eco,
+        sheet.id,
+        o.foer.id,
+        o.foer.projectId,
+      );
+    } catch (err) {
+      ctx.req.log.error(
+        { err, sheetTimerId: o.foer.id, sheetId: sheet.id },
+        "[rediger_sedel_rader] koblet vare ble ikke flyttet til radens underprosjekt",
+      );
     }
   }
   const antallErstattet =

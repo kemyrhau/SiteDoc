@@ -433,6 +433,21 @@ describe("Kenneth 2026-11-27: «La den følge» — ukoblet førermaskin i attes
     },
   ];
 
+  /** Koblet vare på r1, attestert vare på r1 (snapshot) og ukoblet vare — alle på ECO_1. */
+  async function varer(o: Awaited<ReturnType<typeof oppsettA7b>>) {
+    const lag = (over: Record<string, unknown>) =>
+      prismaVarelager.vareforbruk.create({
+        data: {
+          dato: new Date(), projectId: P1, vareId: VARE, antall: 1, registrertAvUserId: USER,
+          dagsseddelId: o.sid, externalCostObjectId: ECO_1, ...over,
+        },
+      });
+    const koblet = await lag({ sheetTimerId: o.r1 });
+    const attestert = await lag({ sheetTimerId: o.r1, attestertSnapshot: { navn: "Pukk 6-32" } });
+    const ukoblet = await lag({ sheetTimerId: null });
+    return { koblet: koblet.id, attestert: attestert.id, ukoblet: ukoblet.id };
+  }
+
   for (const v of veier) {
     it(`${v.navn}: ukoblet førermaskin over raden kobles og følger; koblet følger`, async () => {
       const o = await oppsettA7b();
@@ -457,6 +472,15 @@ describe("Kenneth 2026-11-27: «La den følge» — ukoblet førermaskin i attes
       expect(await m(o.attestert)).toMatchObject({
         sheetTimerId: null, externalCostObjectId: ECO_1, kortId: attFoer.kortId, attestertStatus: "attestert",
       });
+    });
+
+    it(`${v.navn}: koblet vare følger underprosjektet; attestert og ukoblet vare står`, async () => {
+      const o = await oppsettA7b();
+      const vr = await varer(o);
+      await v.flytt(o);
+      expect((await vareRad(vr.koblet)).externalCostObjectId).toBe(ECO_2);
+      expect((await vareRad(vr.attestert)).externalCostObjectId).toBe(ECO_1);
+      expect((await vareRad(vr.ukoblet)).externalCostObjectId).toBe(ECO_1);
     });
   }
 });
