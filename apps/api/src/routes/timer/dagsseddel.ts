@@ -4443,6 +4443,13 @@ async function utforRedigerSedelRader(
         (d.byggeplassId ?? null) !== (o.foer.byggeplassId ?? null))
     );
   });
+  // A7b tillegg 2 (Kenneth 2026-11-28: «Ja, la den følge»): arbeid som bytter prosjekt i
+  // rettingen, tar med maskin og vare — underprosjekt og byggeplass er timeradens i det nye
+  // prosjektet. Reisen sperres fortsatt i `rettRadFelt` (krevIngenKoblingVedProsjektbytte).
+  const prosjektByttetTimer = plan.timer.oppdater.filter((o) => {
+    const d = o.data as { projectId?: string | null; erReise?: boolean };
+    return o.foer.projectId !== null && !!d.projectId && d.projectId !== o.foer.projectId && !d.erReise;
+  });
   const slettedeTimerIder = plan.timer.slett.map((r) => r.id);
   await ctx.prismaTimer.$transaction(async (tx) => {
     const maskinFoer = await lesMaskinJobbTilstand(tx, ctx.prismaMaskin, sheet.id);
@@ -4477,7 +4484,7 @@ async function utforRedigerSedelRader(
     await tx.sheetTillegg.deleteMany({ where: { id: { in: plan.tillegg.slett.map((r) => r.id) } } });
     await nullTilleggUtleggKobling(tx, sheet.id, slettedeTimerIder);
     await tx.sheetTimer.deleteMany({ where: { id: { in: slettedeTimerIder } } });
-    for (const o of stedEndretTimer) {
+    for (const o of [...stedEndretTimer, ...prosjektByttetTimer]) {
       await koblUkobledeForerMaskinerTilRad(tx, ctx.prismaMaskin, o.foer);
     }
     for (const o of plan.timer.oppdater) {
@@ -4508,6 +4515,19 @@ async function utforRedigerSedelRader(
           OR: [{ attestertStatus: null }, { attestertStatus: { notIn: ["attestert", "erstattet"] } }],
         },
         data: { byggeplassId: d.byggeplassId ?? null, externalCostObjectId: d.externalCostObjectId ?? null },
+      });
+    }
+    for (const o of prosjektByttetTimer) {
+      const d = o.data as { projectId: string; externalCostObjectId?: string | null; byggeplassId?: string | null };
+      const hvor = { sheetId: sheet.id, sheetTimerId: o.foer.id, projectId: o.foer.projectId ?? undefined };
+      await tx.sheetMachine.updateMany({
+        where: { ...hvor, OR: [{ attestertStatus: null }, { attestertStatus: { notIn: ["attestert", "erstattet"] } }] },
+        data: { projectId: d.projectId, byggeplassId: d.byggeplassId ?? null, externalCostObjectId: d.externalCostObjectId ?? null },
+      });
+      // Attestert og erstattet står i det gamle prosjektet (S5) og mister koblingen, som tillegget.
+      await tx.sheetMachine.updateMany({
+        where: { ...hvor, attestertStatus: { in: ["attestert", "erstattet"] } },
+        data: { sheetTimerId: null },
       });
     }
     for (const n of plan.timer.opprett) {
@@ -4590,6 +4610,35 @@ async function utforRedigerSedelRader(
       ctx.req.log.error(
         { err, sheetTimerId: o.foer.id, sheetId: sheet.id },
         "[rediger_sedel_rader] koblet vare ble ikke flyttet til radens underprosjekt",
+      );
+    }
+  }
+  // A7b tillegg 2: koblet vare uten snapshot følger timeraden til det nye prosjektet; attestert
+  // vare står i det gamle og mister koblingen. `sikreKortId` under gir varen radens kort.
+  for (const o of prosjektByttetTimer) {
+    const d = o.data as { projectId: string; externalCostObjectId?: string | null; byggeplassId?: string | null };
+    try {
+      await ctx.prismaVarelager.$executeRawUnsafe(
+        `UPDATE "varelager"."vareforbruk" SET "project_id" = $1, "byggeplass_id" = $2, "external_cost_object_id" = $3, "updated_at" = now()
+         WHERE "dagsseddel_id" = $4 AND "sheet_timer_id" = $5 AND "project_id" = $6 AND "attestert_snapshot" IS NULL`,
+        d.projectId,
+        d.byggeplassId ?? null,
+        d.externalCostObjectId ?? null,
+        sheet.id,
+        o.foer.id,
+        o.foer.projectId,
+      );
+      await ctx.prismaVarelager.$executeRawUnsafe(
+        `UPDATE "varelager"."vareforbruk" SET "sheet_timer_id" = NULL, "updated_at" = now()
+         WHERE "dagsseddel_id" = $1 AND "sheet_timer_id" = $2 AND "project_id" = $3 AND "attestert_snapshot" IS NOT NULL`,
+        sheet.id,
+        o.foer.id,
+        o.foer.projectId,
+      );
+    } catch (err) {
+      ctx.req.log.error(
+        { err, sheetTimerId: o.foer.id, sheetId: sheet.id },
+        "[rediger_sedel_rader] koblet vare ble ikke flyttet til radens nye prosjekt",
       );
     }
   }

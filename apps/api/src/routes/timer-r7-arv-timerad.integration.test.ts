@@ -28,6 +28,7 @@ const P2 = id("12");
 const BYGGEPLASS_1 = id("21");
 const ECO_1 = id("31");
 const ECO_2 = id("32");
+const ECO_P2 = id("33");
 const ORD = id("41");
 const REISE = id("42");
 const AKT = id("43");
@@ -84,7 +85,7 @@ async function ryddOpp() {
   await prismaTimer.tillegg.deleteMany({ where: { id: TILLEGG } });
   await prismaTimer.expenseCategory.deleteMany({ where: { id: KATEGORI } });
   await prisma.activity.deleteMany({ where: { actorUserId: { in: BRUKERE } } });
-  await prisma.externalCostObject.deleteMany({ where: { id: { in: [ECO_1, ECO_2] } } });
+  await prisma.externalCostObject.deleteMany({ where: { id: { in: [ECO_1, ECO_2, ECO_P2] } } });
   await prisma.byggeplass.deleteMany({ where: { id: BYGGEPLASS_1 } });
   await prisma.projectModule.deleteMany({ where: { projectId: { in: [P1, P2] } } });
   await prisma.projectMember.deleteMany({ where: { projectId: { in: [P1, P2] } } });
@@ -144,6 +145,7 @@ async function seed() {
     data: [
       { id: ECO_1, organizationId: ORG, projectId: P1, proAdmId: "R7-E1", kortNavn: "Grøft", kilde: "manuell", opprettetAvUserId: ADMIN },
       { id: ECO_2, organizationId: ORG, projectId: P1, proAdmId: "R7-E2", kortNavn: "Vei", kilde: "manuell", opprettetAvUserId: ADMIN },
+      { id: ECO_P2, organizationId: ORG, projectId: P2, proAdmId: "R7-E3", kortNavn: "B12", kilde: "manuell", opprettetAvUserId: ADMIN },
     ],
   });
   await prismaTimer.lonnsart.createMany({
@@ -483,4 +485,104 @@ describe("Kenneth 2026-11-27: «La den følge» — ukoblet førermaskin i attes
       expect((await vareRad(vr.ukoblet)).externalCostObjectId).toBe(ECO_1);
     });
   }
+
+  // ── Tillegg 2 (Kenneth 2026-11-28: «Ja, la den følge»): prosjektbytte ─────────────────
+  /** Hele sedelens ventende rader som `redigerSedelRader`-input, med r1 flyttet til P2/ECO_P2. */
+  async function redigerInput(o: Awaited<ReturnType<typeof oppsettA7b>>) {
+    const [timer, maskin] = await Promise.all([
+      prismaTimer.sheetTimer.findMany({ where: { sheetId: o.sid, attestertStatus: "pending" } }),
+      prismaTimer.sheetMachine.findMany({ where: { sheetId: o.sid, attestertStatus: "pending" } }),
+    ]);
+    return {
+      sheetId: o.sid,
+      nyeRader: {
+        timer: timer.map((r) => ({
+          originalId: r.id, projectId: r.id === o.r1 ? P2 : r.projectId, lonnsartId: r.lonnsartId!,
+          aktivitetId: r.aktivitetId!, externalCostObjectId: r.id === o.r1 ? ECO_P2 : r.externalCostObjectId,
+          byggeplassId: r.id === o.r1 ? null : r.byggeplassId, fraTid: r.fraTid, tilTid: r.tilTid,
+          timer: Number(r.timer), pauseMin: r.pauseMin, vehicleId: r.vehicleId,
+        })),
+        tillegg: [],
+        maskin: maskin.map((r) => ({
+          originalId: r.id, projectId: r.projectId, externalCostObjectId: r.externalCostObjectId,
+          vehicleId: r.vehicleId, byggeplassId: r.byggeplassId, fraTid: r.fraTid, tilTid: r.tilTid,
+          timer: Number(r.timer), mengde: r.mengde === null ? null : Number(r.mengde), enhet: r.enhet,
+        })),
+      },
+    };
+  }
+  const prosjektVeier = [
+    {
+      navn: "rettRadFelt",
+      flytt: (o: Awaited<ReturnType<typeof oppsettA7b>>) =>
+        dag(ADMIN).rettRadFelt({
+          radType: "timer", radId: o.r1, felter: { projectId: P2, byggeplassId: null, externalCostObjectId: ECO_P2 },
+        }),
+    },
+    {
+      navn: "redigerSedelRader",
+      flytt: async (o: Awaited<ReturnType<typeof oppsettA7b>>) => dag(ADMIN).redigerSedelRader(await redigerInput(o)),
+    },
+  ];
+
+  for (const v of prosjektVeier) {
+    it(`prosjektbytte (${v.navn}): koblet og ukoblet førermaskin og koblet vare følger til P2 med radens underprosjekt og kort`, async () => {
+      const o = await oppsettA7b();
+      const vr = await varer(o);
+      await v.flytt(o);
+      const r1 = await prismaTimer.sheetTimer.findUniqueOrThrow({ where: { id: o.r1 } });
+      expect(r1).toMatchObject({ projectId: P2, externalCostObjectId: ECO_P2 });
+      for (const mid of [o.m1, o.forer1]) {
+        expect(await m(mid)).toMatchObject({
+          sheetTimerId: o.r1, projectId: P2, externalCostObjectId: ECO_P2, byggeplassId: null, kortId: r1.kortId,
+        });
+      }
+      expect(await vareRad(vr.koblet)).toMatchObject({
+        sheetTimerId: o.r1, projectId: P2, externalCostObjectId: ECO_P2, kortId: r1.kortId,
+      });
+      // Velger r2: står i P1.
+      expect(await m(o.forer2)).toMatchObject({ sheetTimerId: null, projectId: P1, externalCostObjectId: ECO_1 });
+    });
+
+    it(`prosjektbytte (${v.navn}): døgnmaskin, attestert maskin og attestert/ukoblet vare står i P1`, async () => {
+      const o = await oppsettA7b();
+      const vr = await varer(o);
+      const attKoblet = await prismaTimer.sheetMachine.create({
+        data: {
+          sheetId: o.sid, sheetTimerId: o.r1, vehicleId: MASKIN, projectId: P1, externalCostObjectId: ECO_1,
+          timer: 1, fraTid: "10:00", tilTid: "11:00", kortId: (await m(o.m1)).kortId, attestertStatus: "attestert",
+        },
+      });
+      await v.flytt(o);
+      expect(await m(o.doegn)).toMatchObject({ sheetTimerId: null, projectId: P1, externalCostObjectId: ECO_1 });
+      expect(await m(o.attestert)).toMatchObject({ sheetTimerId: null, projectId: P1, attestertStatus: "attestert" });
+      // Attestert koblet maskin står i P1 og mister koblingen (som tillegget, runde 6).
+      expect(await m(attKoblet.id)).toMatchObject({ sheetTimerId: null, projectId: P1, externalCostObjectId: ECO_1 });
+      expect(await vareRad(vr.attestert)).toMatchObject({ sheetTimerId: null, projectId: P1, externalCostObjectId: ECO_1 });
+      expect(await vareRad(vr.ukoblet)).toMatchObject({ sheetTimerId: null, projectId: P1, externalCostObjectId: ECO_1 });
+    });
+  }
+
+  it("arbeiderens vei: arbeid kan ikke bytte prosjekt, og reise med koblet vare avvises (begge sperrer står)", async () => {
+    const o = await oppsettA7b();
+    await prismaTimer.dailySheet.update({ where: { id: o.sid }, data: { status: "draft" } });
+    await expect(dag().oppdaterTimerRad({ id: o.r1, projectId: P2, byggeplassId: null, externalCostObjectId: null, fraTid: "07:00", tilTid: "11:00" }))
+      .rejects.toThrow("Prosjektet kan bare byttes på en reise");
+    const reise = await prismaTimer.sheetTimer.create({
+      data: {
+        sheetId: o.sid, projectId: P1, lonnsartId: REISE, aktivitetId: AKT, fraTid: "16:00", tilTid: "17:00",
+        timer: 1, erReise: true, reiseRetning: "hjem", attestertStatus: "pending",
+      },
+    });
+    await prismaVarelager.vareforbruk.create({
+      data: {
+        dato: new Date(), projectId: P1, vareId: VARE, antall: 1, registrertAvUserId: USER,
+        dagsseddelId: o.sid, sheetTimerId: reise.id,
+      },
+    });
+    await expect(dag().oppdaterTimerRad({ id: reise.id, projectId: P2, byggeplassId: null, externalCostObjectId: null, fraTid: "16:00", tilTid: "17:00" }))
+      .rejects.toThrow("Reisen har varen");
+    expect((await prismaTimer.sheetTimer.findUniqueOrThrow({ where: { id: o.r1 } })).projectId).toBe(P1);
+    expect((await m(o.m1)).projectId).toBe(P1);
+  });
 });
