@@ -4445,11 +4445,20 @@ async function utforRedigerSedelRader(
   });
   // A7b tillegg 2 (Kenneth 2026-11-28: «Ja, la den følge»): arbeid som bytter prosjekt i
   // rettingen, tar med maskin og vare — underprosjekt og byggeplass er timeradens i det nye
-  // prosjektet. Reisen sperres fortsatt i `rettRadFelt` (krevIngenKoblingVedProsjektbytte).
+  // prosjektet. Reisen holdes utenfor (sperren under).
   const prosjektByttetTimer = plan.timer.oppdater.filter((o) => {
     const d = o.data as { projectId?: string | null; erReise?: boolean };
     return o.foer.projectId !== null && !!d.projectId && d.projectId !== o.foer.projectId && !d.erReise;
   });
+  // A7c («LØSNING GODKJENT (a)»: en reise med koblet maskin eller vare bytter ikke prosjekt):
+  // samme sperre som `oppdaterTimerRad` og `rettRadFelt`, her for `redigerSedelRader` (felles kropp).
+  for (const o of plan.timer.oppdater) {
+    const d = o.data as { projectId?: string | null; erReise?: boolean };
+    const erReise = o.foer.erReise || !!d.erReise;
+    if (erReise && (d.projectId ?? null) !== o.foer.projectId) {
+      await krevIngenKoblingVedProsjektbytte(ctx, sheet.id, o.foer.id);
+    }
+  }
   const slettedeTimerIder = plan.timer.slett.map((r) => r.id);
   await ctx.prismaTimer.$transaction(async (tx) => {
     const maskinFoer = await lesMaskinJobbTilstand(tx, ctx.prismaMaskin, sheet.id);

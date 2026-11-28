@@ -608,9 +608,9 @@ describe("Kenneth 2026-11-27: «La den følge» — ukoblet førermaskin i attes
     });
   }
 
-  // RETUR 1 funn 1: en reise holdes utenfor `prosjektByttetTimer` (`!d.erReise`). Bare
-  // `redigerSedelRader` når hit — `rettRadFelt` sperrer reisen med kobling før kroppen.
-  it("prosjektbytte (redigerSedelRader): reise som bytter prosjekt tar ikke med maskin eller vare", async () => {
+  // A7c («LØSNING GODKJENT (a)»: en reise med koblet maskin eller vare bytter ikke prosjekt):
+  // `redigerSedelRader` sperrer som `oppdaterTimerRad` og `rettRadFelt`. Uten kobling går reisen.
+  it("A7c (redigerSedelRader): reise med koblet maskin og vare som bytter prosjekt avvises; ingenting endres", async () => {
     const o = await oppsettA7b();
     const reise = await prismaTimer.sheetTimer.create({
       data: {
@@ -631,12 +631,21 @@ describe("Kenneth 2026-11-27: «La den følge» — ukoblet førermaskin i attes
         dagsseddelId: o.sid, sheetTimerId: reise.id, externalCostObjectId: ECO_1,
       },
     });
-    await dag(ADMIN).redigerSedelRader(
-      await redigerInput(o, { projectId: P2, externalCostObjectId: ECO_P2, byggeplassId: null }, reise.id),
-    );
+    const flytt = async () =>
+      dag(ADMIN).redigerSedelRader(
+        await redigerInput(o, { projectId: P2, externalCostObjectId: ECO_P2, byggeplassId: null }, reise.id),
+      );
+    await expect(flytt()).rejects.toThrow("Reisen har maskinen");
+    expect(await prismaTimer.sheetTimer.findUniqueOrThrow({ where: { id: reise.id } })).toMatchObject({
+      projectId: P1, externalCostObjectId: ECO_1,
+    });
+    expect(await m(dm.id)).toMatchObject({ sheetTimerId: reise.id, projectId: P1, externalCostObjectId: ECO_1 });
+    expect(await vareRad(vr.id)).toMatchObject({ sheetTimerId: reise.id, projectId: P1, externalCostObjectId: ECO_1 });
+    // Uten kobling er sperren stille: reisen bytter prosjekt.
+    await prismaTimer.sheetMachine.delete({ where: { id: dm.id } });
+    await prismaVarelager.vareforbruk.delete({ where: { id: vr.id } });
+    await flytt();
     expect((await prismaTimer.sheetTimer.findUniqueOrThrow({ where: { id: reise.id } })).projectId).toBe(P2);
-    expect(await m(dm.id)).toMatchObject({ projectId: P1, externalCostObjectId: ECO_1 });
-    expect(await vareRad(vr.id)).toMatchObject({ projectId: P1, externalCostObjectId: ECO_1 });
   });
 
   it("arbeiderens vei: arbeid kan ikke bytte prosjekt, og reise med koblet vare avvises (begge sperrer står)", async () => {
