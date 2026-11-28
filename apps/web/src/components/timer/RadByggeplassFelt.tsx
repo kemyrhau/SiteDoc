@@ -9,6 +9,7 @@ import {
   velgStandardByggeplass,
   type ByggeplassValg,
 } from "@/lib/timerByggeplass";
+import { SokbarNedtrekk } from "@/components/timer/SokbarNedtrekk";
 
 /**
  * Ordre 2026-11-05 (10) — byggeplass per timer-/maskin-rad i web-dagsseddelen.
@@ -66,7 +67,7 @@ export function RadByggeplassFelt({
       {eneste && verdi === eneste.id ? (
         <p className="text-sm text-gray-900">{eneste.name}</p>
       ) : (
-        <select
+        <SokbarNedtrekk
           value={verdi ?? ""}
           onChange={(e) => onEndre(e.target.value || null)}
           className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
@@ -77,7 +78,7 @@ export function RadByggeplassFelt({
               {b.name}
             </option>
           ))}
-        </select>
+        </SokbarNedtrekk>
       )}
     </div>
   );

@@ -25,6 +25,7 @@ import {
   overMaskinHoyst,
 } from "@sitedoc/shared";
 import { MaskinVelger } from "@/components/timer/MaskinVelger";
+import { SokbarNedtrekk } from "@/components/timer/SokbarNedtrekk";
 
 function tilTall(v: unknown): number {
   if (v === null || v === undefined) return 0;
@@ -590,10 +591,12 @@ export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
       open
       onClose={onLukk}
       title={t("timer.rediger.radModal.tittel")}
-      className="max-h-[90vh] max-w-4xl overflow-hidden"
+      className="max-h-[90vh] max-w-4xl"
       lukkVedBackdropKlikk
     >
-      <div className="-m-2 max-h-[calc(90vh-7rem)] overflow-y-auto">
+      {/* Runde 9 (Kenneth 2026-11-28): dialogen ruller selv (UA overflow:auto), så den sticky linjen med
+          Lagre står øverst og nederste felt nås også når dialogen kappes over testpanelet. */}
+      <div className="-m-2" data-testid="rediger-rad-innhold">
         {isLoading || !sheet ? (
           <div className="flex items-center justify-center py-12">
             <Spinner />
@@ -916,7 +919,7 @@ function KompaktTimerRad({
           placeholder="HH:MM"
         />
         )}
-        <select
+        <SokbarNedtrekk
           value={rad.lonnsartId}
           onChange={(e) => onChange({ lonnsartId: e.target.value })}
           className="rounded border border-gray-300 px-1.5 py-1"
@@ -927,8 +930,8 @@ function KompaktTimerRad({
               {l.navn}
             </option>
           ))}
-        </select>
-        <select
+        </SokbarNedtrekk>
+        <SokbarNedtrekk
           value={rad.aktivitetId}
           onChange={(e) => onChange({ aktivitetId: e.target.value })}
           className="rounded border border-gray-300 px-1.5 py-1"
@@ -939,7 +942,7 @@ function KompaktTimerRad({
               {a.navn}
             </option>
           ))}
-        </select>
+        </SokbarNedtrekk>
         <input
           type="number"
           step="any"

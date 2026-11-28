@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { SokbarNedtrekk } from "@/components/timer/SokbarNedtrekk";
 
 /** Feltene velgeren trenger fra en timerad (sedelens `timer`-rader). */
 export type TimeradValgRad = {
@@ -69,7 +70,7 @@ export function TimeradVelger({ valg }: { valg: ReturnType<typeof useTimeradValg
       <label className="mb-1 block text-sm font-medium text-gray-700">
         {t("timer.felt.timerad")}
       </label>
-      <select
+      <SokbarNedtrekk
         value={valg.id}
         onChange={(e) => valg.setId(e.target.value)}
         className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
@@ -85,7 +86,7 @@ export function TimeradVelger({ valg }: { valg: ReturnType<typeof useTimeradValg
             </option>
           );
         })}
-      </select>
+      </SokbarNedtrekk>
     </div>
   );
 }

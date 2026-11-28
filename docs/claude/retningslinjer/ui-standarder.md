@@ -2,7 +2,7 @@
 name: ui-standarder
 description: UI-designprinsipper, slett-bekreftelse, adaptive nedtrekk, filter-standard, toppbar-filtre og fargepalett. Flyttet ut av CLAUDE.md 2026-08-20 (størrelsesgrense).
 sist_verifisert_mot_kode: 2026-09-01
-sist_endret: 2026-09-17
+sist_endret: 2026-11-28
 ---
 
 # UI-standarder
@@ -98,6 +98,20 @@ Bruk alltid ekte modal-komponent (ikke native `confirm()`) for slett-operasjoner
 
 **Eksisterende unntak:**
 - `apps/web/src/app/dashbord/firma/avdelinger/page.tsx` → byttes til modal ved neste iterasjon i den filen.
+
+**Dagsseddelen (runde 9, 2026-11-28, 🟡 `fix/timer-runde9`, ikke merget):** søppelbøtta sletter aldri direkte. Timerad og reise uten maskin bekreftes i «Slette timeraden?» med tid og lønnsart. Med maskin vises dagens tekst og «Slett rad og maskiner». Tillegg, maskin og utlegg bekreftes i `BekreftSlettRad` («Slette raden?», radens navn). Se `apps/web/src/app/dashbord/timer/[id]/page.tsx` (`RaderTimer`, `ReiseLinje`, `RaderTillegg`, `RaderMaskinKompakt`, `RaderUtlegg`) og `apps/web/src/components/timer/BekreftSlettRad.tsx`.
+
+### Nedtrekk med søk (flere enn 5 valg)
+
+Kenneth 2026-11-28: et nedtrekk med **flere enn 5 valg** har søk. 🟡 `fix/timer-runde9`, ikke merget. Gjelder timer-web: registrering og attestering.
+
+- Komponent: `apps/web/src/components/timer/SokbarNedtrekk.tsx` (`SOK_TERSKEL = 5`). Den tar samme `value`, `onChange(e)`, `onBlur` og `<option>`-barn som `<select>`.
+- Ved 5 valg eller færre er den et vanlig `<select>`. Et tomt «velg»-valg teller ikke.
+- Ved flere enn 5 ser den lik ut lukket (samme klasser). Når den åpnes, får den et søkefelt øverst. Det valgte står alltid i lista, også når det ikke treffer søket.
+- Tastatur: pil opp/ned, Enter og Esc.
+- `ProsjektRadVelger` søker over samme terskel. `MaskinVelger` og underprosjekt-feltene i `JobbSkjema` og `RegistreringPanel` har eget søk og står uendret.
+- Faste lister (status, år, enhet, type) og adminsidene under `firma/timer/*` er ikke tatt inn.
+- Regelen om adaptive nedtrekk for fritekst under (søkefelt over 7) gjelder lærende fritekst og står uendret.
 
 ### Mobil-UI-regel: Adaptive nedtrekksmenyer for fritekst-felt
 

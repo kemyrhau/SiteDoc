@@ -11,6 +11,7 @@ import {
   useRadByggeplass,
 } from "@/components/timer/RadByggeplassFelt";
 import type { ByggeplassValg } from "@/lib/timerByggeplass";
+import { SokbarNedtrekk } from "@/components/timer/SokbarNedtrekk";
 
 /** Det vinduet trenger fra en timerad for å tilby den som kobling. */
 export type VareTimeradKandidat = {
@@ -148,7 +149,7 @@ export function KortVareforbrukModal({
             <label className="mb-1 block text-sm font-medium text-gray-700">
               {t("timer.felt.timerad")}
             </label>
-            <select
+            <SokbarNedtrekk
               value={sheetTimerId}
               onChange={(e) => setSheetTimerId(e.target.value)}
               className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm"
@@ -162,7 +163,7 @@ export function KortVareforbrukModal({
                   })}
                 </option>
               ))}
-            </select>
+            </SokbarNedtrekk>
           </div>
         )}
         {!rad && !jobb && (

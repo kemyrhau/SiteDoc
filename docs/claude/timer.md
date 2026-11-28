@@ -1000,6 +1000,20 @@ Reisevinduet: se [vedtak-timer-web.md § Reisevinduet](vedtak-timer-web.md). LØ
 - **Tester:** `reiseManuell.test.ts` § «w15b — start og slutt kan rettes» (8), `apps/web/src/app/dashbord/timer/[id]/reisevindu.test.tsx` (9), `apps/web/src/hooks/reise-havner-i.test.ts` (6). Negativkontroll mot develop `45a388c5`: 6 av 8 (shared) og 14 av 15 (web) røde; de grønne er bevaringstestene. `dagskort-vakt.test.tsx` + snapshot urørt.
 - **Skjermbilder (1 440 px, lokal seed):** `skisser-web-timeforing/w15b-etter-arbeid.png` («+ Reise» → «Til annet kontor» → «Etter arbeid»: Kontor Narvik, 12:00–15:50, 230 min), `w15b-byttet-prosjekt.png` («Til byggeplass», prosjektet byttet til Agent-testprosjekt: Byggeplass 1, 06:25–07:00, «Får eget kort på Agent-testprosjekt.»).
 
+### Runde 9 timer-web: søk i nedtrekk, slett i modal, Lagre over testpanelet — 🟡 `fix/timer-runde9`, ikke merget
+
+Kenneth 2026-11-28, «Ja, start»: tre UI-rettinger. Løsningen er godkjent av orkestrator. Ingen serverendring.
+
+- **Søk:** dynamiske nedtrekk med flere enn 5 valg er `SokbarNedtrekk` (`components/timer/SokbarNedtrekk.tsx`). Det gjelder prosjekt, byggeplass, lønnsart, aktivitet, underprosjekt, kjøretøy, tillegg, timerad og oppmøtested på dagssiden, i jobbskjemaet, i reisevinduet og under «Ny dagsseddel». Det gjelder også `RedigerTimerRad`, `RedigerMaskinRad` og `RedigerTilleggRad`, som også vises i Splitt-vinduet. I attesteringen gjelder det `RedigerRadModal`, `ReiseRettVindu`, `LinjeRettVindu`, firmavalget og filtrene i `SlettetKorrigertVisning`. `ProsjektRadVelger` har terskel 5 (før 7). Regelen står i `retningslinjer/ui-standarder.md` § Nedtrekk med søk.
+- **Slett:** søppelbøtta på timerad, reise, tillegg, maskin og utlegg bekreftes alltid i modal. Ingen mutasjon skjer før «Slett rad». Raden med maskin har dagens modal uendret.
+- **Lagre over testpanelet:**
+  - «Rediger timer-rad» / «Legg til timer-rad» (`TimerRadDialog`): knapperaden er `sticky bottom-0` og står fast nederst i vinduet.
+  - `RedigerRadModal`: `overflow-hidden` og den indre `max-h-[calc(90vh-7rem)]` er fjernet. Dialogen ruller selv, linjen med Lagre står øverst, og nederste felt nås når dialogen kappes over testpanelet.
+  - Målt i headless Chromium på en kopi av strukturen med `BUNNMARG_CSS`, viewport 800 og 1000, panel 260 og 32.
+- **Tester:**
+  - `components/timer/SokbarNedtrekk.test.tsx` (8): komponenten og kildetekst-vakter for terskel, sticky knapperad og dialogrulling. Vaktene er røde mot develop.
+  - `app/dashbord/timer/[id]/runde9-slett-modal.test.tsx` (6): 5 er røde mot develop, og vakten for raden med maskin er grønn.
+
 ### Runde 7 timer: maskin og vare arver timeradens underprosjekt — ✅ merget 2026-11-28
 
 Hjemmel (Kenneth 2026-11-27): «Ja, arv timeraden» · «vi må kunne dele opp et underprosjekt til det opprinnelige og til et annet underprosjekt. vi må da tillate å dele opp tilhørende rader -> maskin, varer, tillegg/utlegg og timer» · «2 ja». Vedtak: `vedtak-timer-web.md` § Dagskort-modus pkt 7 (gjelder begge moduser).

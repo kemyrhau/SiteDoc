@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { StatusBadge } from "@/components/timer/StatusBadge";
 import { SlettDagModal } from "@/components/timer/SlettDagModal";
+import { BekreftSlettRad } from "@/components/timer/BekreftSlettRad";
 import { ForslagValgSeksjon } from "@/components/timer/ForslagValgSeksjon";
 import { SplittRadModal } from "@/components/timer/SplittRadModal";
 import { ProsjektRadVelger } from "@/components/timer/ProsjektRadVelger";
@@ -120,6 +121,7 @@ import {
   kortVareforbrukInput,
   grupperPaaKort,
 } from "@sitedoc/shared";
+import { SokbarNedtrekk } from "@/components/timer/SokbarNedtrekk";
 
 function tilTall(v: unknown): number {
   if (v === null || v === undefined) return 0;
@@ -3738,6 +3740,16 @@ function Definisjon({
  * ikke har og jobben har). Knappene er de samme som på arbeidslinja. `RaderTimer` (begge
  * moduser) er urørt.
  */
+/** Runde 9: radens navn i slett-bekreftelsen — «07:00–15:00 · Ordinær». */
+function radSlettNavn(
+  rad: Pick<TimerRad, "fraTid" | "tilTid" | "lonnsartId">,
+  lonnsarter: ReadonlyArray<{ id: string; navn: string }> | undefined,
+): string {
+  const tid = rad.fraTid && rad.tilTid ? `${rad.fraTid.slice(0, 5)}–${rad.tilTid.slice(0, 5)}` : null;
+  const art = lonnsarter?.find((l) => l.id === rad.lonnsartId)?.navn ?? null;
+  return [tid, art].filter(Boolean).join(" · ") || "—";
+}
+
 function ReiseLinje({
   rad,
   jobbEcoId,
@@ -3795,8 +3807,8 @@ function ReiseLinje({
         const merkeModell = [e?.merke, e?.modell].filter(Boolean).join(" ");
         return [merkeModell || e?.internNavn || "—"];
       });
-    if (navn.length > 0) setBekreftSlett(navn);
-    else fjern.mutate({ id: rad.id });
+    // Runde 9 (ui-standarder § Slett-bekreftelse): bekreftes alltid i modal, også uten maskin.
+    setBekreftSlett(navn);
   }
 
   // Runde 2 («Annet sted»): stedet arbeideren skrev.
@@ -3840,10 +3852,12 @@ function ReiseLinje({
         <Modal open={true} onClose={() => setBekreftSlett(null)} title={t("timer.fjernTimerRad.tittel")}>
           <div className="space-y-4">
             <p className="text-sm text-gray-700">
-              {t("timer.fjernTimerRad.maskiner", {
-                count: bekreftSlett.length,
-                navn: bekreftSlett.join(", "),
-              })}
+              {bekreftSlett.length > 0
+                ? t("timer.fjernTimerRad.maskiner", {
+                    count: bekreftSlett.length,
+                    navn: bekreftSlett.join(", "),
+                  })
+                : t("timer.fjernTimerRad.tekst", { rad: radSlettNavn(rad, lonnsarter) })}
             </p>
             <div className="flex justify-end gap-2">
               <Button variant="secondary" onClick={() => setBekreftSlett(null)}>
@@ -3854,12 +3868,12 @@ function ReiseLinje({
                 loading={fjern.isPending}
                 onClick={() =>
                   fjern.mutate(
-                    { id: rad.id, slettMaskiner: true },
+                    bekreftSlett.length > 0 ? { id: rad.id, slettMaskiner: true } : { id: rad.id },
                     { onSettled: () => setBekreftSlett(null) },
                   )
                 }
               >
-                {t("timer.fjernTimerRad.bekreft")}
+                {bekreftSlett.length > 0 ? t("timer.fjernTimerRad.bekreft") : t("timer.fjernTimerRad.bekreftRad")}
               </Button>
             </div>
           </div>
@@ -3952,7 +3966,7 @@ function RaderTimer({
   const equipment = equipmentRaw as unknown as
     | Array<{ id: string; merke: string | null; modell: string | null; internNavn: string | null; utleieEnhet?: string | null }>
     | undefined;
-  const [bekreftSlett, setBekreftSlett] = useState<{ radId: string; navn: string[] } | null>(null);
+  const [bekreftSlett, setBekreftSlett] = useState<{ radId: string; navn: string[]; radNavn: string } | null>(null);
   // O19 pkt 23: en reise delt ved midnatt spør om den andre delen.
   const sedelDato = useContext(SedelDatoKontekst);
   const [slettDeltId, setSlettDeltId] = useState<string | null>(null);
@@ -3969,8 +3983,8 @@ function RaderTimer({
         const merkeModell = [e?.merke, e?.modell].filter(Boolean).join(" ");
         return [merkeModell || e?.internNavn || "—"];
       });
-    if (navn.length > 0) setBekreftSlett({ radId: rad.id, navn });
-    else fjern.mutate({ id: rad.id });
+    // Runde 9 (ui-standarder § Slett-bekreftelse): bekreftes alltid i modal, også uten maskin.
+    setBekreftSlett({ radId: rad.id, navn, radNavn: radSlettNavn(rad, lonnsarter) });
   }
 
   return (
@@ -3984,10 +3998,12 @@ function RaderTimer({
       >
         <div className="space-y-4">
           <p className="text-sm text-gray-700">
-            {t("timer.fjernTimerRad.maskiner", {
-              count: bekreftSlett.navn.length,
-              navn: bekreftSlett.navn.join(", "),
-            })}
+            {bekreftSlett.navn.length > 0
+              ? t("timer.fjernTimerRad.maskiner", {
+                  count: bekreftSlett.navn.length,
+                  navn: bekreftSlett.navn.join(", "),
+                })
+              : t("timer.fjernTimerRad.tekst", { rad: bekreftSlett.radNavn })}
           </p>
           <div className="flex justify-end gap-2">
             <Button variant="secondary" onClick={() => setBekreftSlett(null)}>
@@ -3998,12 +4014,14 @@ function RaderTimer({
               loading={fjern.isPending}
               onClick={() =>
                 fjern.mutate(
-                  { id: bekreftSlett.radId, slettMaskiner: true },
+                  bekreftSlett.navn.length > 0
+                    ? { id: bekreftSlett.radId, slettMaskiner: true }
+                    : { id: bekreftSlett.radId },
                   { onSettled: () => setBekreftSlett(null) },
                 )
               }
             >
-              {t("timer.fjernTimerRad.bekreft")}
+              {bekreftSlett.navn.length > 0 ? t("timer.fjernTimerRad.bekreft") : t("timer.fjernTimerRad.bekreftRad")}
             </Button>
           </div>
         </div>
@@ -4177,8 +4195,18 @@ function RaderTillegg({
     onSuccess: () => void utils.timer.dagsseddel.hentMedId.invalidate(),
     onError: (e: { message: string }) => alert(e.message),
   });
+  const [slettMaal, setSlettMaal] = useState<{ id: string; navn: string } | null>(null);
 
   return (
+    <>
+    {slettMaal && (
+      <BekreftSlettRad
+        navn={slettMaal.navn}
+        sletter={fjern.isPending}
+        onLukk={() => setSlettMaal(null)}
+        onBekreft={() => fjern.mutate({ id: slettMaal.id }, { onSettled: () => setSlettMaal(null) })}
+      />
+    )}
     <ul className="divide-y divide-gray-100">
       {rader.map((rad) => {
         const info = tilleggKatalog?.find((x) => x.id === rad.tilleggId);
@@ -4238,7 +4266,7 @@ function RaderTillegg({
                     <Split className="h-4 w-4" />
                   </button>
                   <button
-                    onClick={() => fjern.mutate({ id: rad.id })}
+                    onClick={() => setSlettMaal({ id: rad.id, navn: info?.navn ?? "—" })}
                     disabled={fjern.isPending}
                     className="rounded p-1.5 text-gray-500 hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
                     title={t("handling.slett")}
@@ -4252,6 +4280,7 @@ function RaderTillegg({
         );
       })}
     </ul>
+    </>
   );
 }
 
@@ -4311,8 +4340,18 @@ function RaderMaskinKompakt({
     onSuccess: () => void utils.timer.dagsseddel.hentMedId.invalidate(),
     onError: (e: { message: string }) => alert(e.message),
   });
+  const [slettMaal, setSlettMaal] = useState<{ id: string; navn: string } | null>(null);
 
   return (
+        <>
+        {slettMaal && (
+          <BekreftSlettRad
+            navn={slettMaal.navn}
+            sletter={fjern.isPending}
+            onLukk={() => setSlettMaal(null)}
+            onBekreft={() => fjern.mutate({ id: slettMaal.id }, { onSettled: () => setSlettMaal(null) })}
+          />
+        )}
         <ul className="divide-y divide-gray-100">
           {rader.map((rad) => (
             <Fragment key={rad.id}>
@@ -4357,7 +4396,7 @@ function RaderMaskinKompakt({
                       <Split className="h-4 w-4" />
                     </button>
                     <button
-                      onClick={() => fjern.mutate({ id: rad.id })}
+                      onClick={() => setSlettMaal({ id: rad.id, navn: equipmentMap.get(rad.vehicleId) ?? "—" })}
                       disabled={fjern.isPending}
                       className="rounded p-1.5 text-gray-500 hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
                       title={t("handling.slett")}
@@ -4381,6 +4420,7 @@ function RaderMaskinKompakt({
             </Fragment>
           ))}
         </ul>
+        </>
   );
 }
 
@@ -5586,7 +5626,7 @@ function TimerRadDialog({
           <label className="mb-1 block text-sm font-medium text-gray-700">
             {t("timer.felt.prosjekt")}
           </label>
-          <select
+          <SokbarNedtrekk
             value={valgtProjectId}
             onChange={(e) => byttProsjekt(e.target.value)}
             disabled={prosjektApent ? false : !!rad || !!laastProsjekt}
@@ -5599,7 +5639,7 @@ function TimerRadDialog({
                 {p.name}
               </option>
             ))}
-          </select>
+          </SokbarNedtrekk>
         </div>)}
         {!(jobb && !rad) && (
           <RadByggeplassFelt
@@ -5612,7 +5652,7 @@ function TimerRadDialog({
           <label className="mb-1 block text-sm font-medium text-gray-700">
             {t("firma.timer.fane.lonnsarter")}
           </label>
-          <select
+          <SokbarNedtrekk
             value={lonnsartId}
             onChange={(e) => setLonnsartId(e.target.value)}
             className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
@@ -5624,7 +5664,7 @@ function TimerRadDialog({
                 {l.navn}
               </option>
             ))}
-          </select>
+          </SokbarNedtrekk>
           {reiseHavnerTekst && (
             <p className="mt-1 text-xs text-gray-600">{reiseHavnerTekst}</p>
           )}
@@ -5633,7 +5673,7 @@ function TimerRadDialog({
           <label className="mb-1 block text-sm font-medium text-gray-700">
             {t("timer.felt.aktivitet")}
           </label>
-          <select
+          <SokbarNedtrekk
             value={aktivitetId}
             onChange={(e) => setAktivitetId(e.target.value)}
             className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
@@ -5645,7 +5685,7 @@ function TimerRadDialog({
                 {a.navn}
               </option>
             ))}
-          </select>
+          </SokbarNedtrekk>
         </div>
         {/* D2/D3: fra/til med pause-bevisst auto-synk mot antall (mobil-paritet).
             Fra/til er obligatorisk på timer-rader (2026-07-13) — reverserer a2. */}
@@ -5796,7 +5836,7 @@ function TimerRadDialog({
             </span>
           </label>
           <div className="flex items-center gap-2">
-            <select
+            <SokbarNedtrekk
               value={ecoId ?? ""}
               onChange={(e) => setEcoId(e.target.value || null)}
               className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
@@ -5807,7 +5847,7 @@ function TimerRadDialog({
                   {eco.proAdmId} — {eco.kortNavn}
                 </option>
               ))}
-            </select>
+            </SokbarNedtrekk>
             {ecoId && (
               <button
                 type="button"
@@ -5831,7 +5871,7 @@ function TimerRadDialog({
               </span>
             </label>
             <div className="flex items-center gap-2">
-              <select
+              <SokbarNedtrekk
                 value={vehicleId ?? ""}
                 onChange={(e) => setVehicleId(e.target.value || null)}
                 className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
@@ -5842,7 +5882,7 @@ function TimerRadDialog({
                     {m.internNavn ?? [m.merke, m.modell].filter(Boolean).join(" ")}
                   </option>
                 ))}
-              </select>
+              </SokbarNedtrekk>
               {vehicleId && (
                 <button
                   type="button"
@@ -6063,7 +6103,9 @@ function TimerRadDialog({
           </div>
         )}
         {feil && <p className="text-sm text-red-600">{feil}</p>}
-        <div className="flex justify-end gap-3 pt-2">
+        {/* Runde 9 (Kenneth 2026-11-28): Lagre står fast nederst i vinduet, også når vinduet er høyere
+            enn skjermen (eller kappet over testpanelet) og ruller inni. */}
+        <div data-testid="timerrad-knapper" className="sticky bottom-0 z-10 flex justify-end gap-3 bg-white py-2">
           <Button type="button" variant="secondary" onClick={onLukk}>
             {t("handling.avbryt")}
           </Button>
@@ -6195,7 +6237,7 @@ function RadStedFelt({
             {t("timer.felt.underprosjekt")}{" "}
             <span className="text-xs text-gray-400">({t("label.valgfritt")})</span>
           </label>
-          <select
+          <SokbarNedtrekk
             value={sted.ecoId ?? ""}
             onChange={(e) => sted.setEcoId(e.target.value || null)}
             className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
@@ -6206,7 +6248,7 @@ function RadStedFelt({
                 {eco.proAdmId} — {eco.kortNavn}
               </option>
             ))}
-          </select>
+          </SokbarNedtrekk>
         </div>
       )}
     </>
@@ -6403,7 +6445,7 @@ function TilleggRadDialog({
               {valgt?.navn ?? "—"}
             </p>
           ) : (
-            <select
+            <SokbarNedtrekk
               value={tilleggId}
               onChange={(e) => setTilleggId(e.target.value)}
               className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
@@ -6415,7 +6457,7 @@ function TilleggRadDialog({
                   {tt.navn}
                 </option>
               ))}
-            </select>
+            </SokbarNedtrekk>
           )}
         </div>
         {!erAvhuking && (
@@ -6582,8 +6624,18 @@ function RaderUtlegg({
     onSuccess: () => void utils.timer.dagsseddel.hentMedId.invalidate(),
     onError: (e: { message: string }) => alert(e.message),
   });
+  const [slettMaal, setSlettMaal] = useState<{ id: string; navn: string } | null>(null);
 
   return (
+    <>
+    {slettMaal && (
+      <BekreftSlettRad
+        navn={slettMaal.navn}
+        sletter={fjern.isPending}
+        onLukk={() => setSlettMaal(null)}
+        onBekreft={() => fjern.mutate({ id: slettMaal.id }, { onSettled: () => setSlettMaal(null) })}
+      />
+    )}
     <ul className="divide-y divide-gray-100">
       {rader.map((rad) => {
         const kat = (katalog as UtleggKategori[] | undefined)?.find(
@@ -6654,7 +6706,7 @@ function RaderUtlegg({
                     <Pencil className="h-4 w-4" />
                   </button>
                   <button
-                    onClick={() => fjern.mutate({ id: rad.id })}
+                    onClick={() => setSlettMaal({ id: rad.id, navn: kat?.navn ?? "—" })}
                     disabled={fjern.isPending}
                     className="rounded p-1.5 text-gray-500 hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
                     title={t("handling.slett")}
@@ -6668,6 +6720,7 @@ function RaderUtlegg({
         );
       })}
     </ul>
+    </>
   );
 }
 
@@ -7553,7 +7606,7 @@ function MaskinRadDialog({
               </span>
             )}
           </label>
-          <select
+          <SokbarNedtrekk
             value={sheetTimerId}
             onChange={(e) => setSheetTimerId(e.target.value)}
             className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
@@ -7568,7 +7621,7 @@ function MaskinRadDialog({
                 })}
               </option>
             ))}
-          </select>
+          </SokbarNedtrekk>
           {kreverTimerad && arbeidsrader.length === 0 && (
             <p className="mt-1 text-xs text-gray-500">
               {t("timer.maskinTimerad.ingenArbeidsrad")}
@@ -7614,7 +7667,7 @@ function MaskinRadDialog({
             </span>
           </label>
           <div className="flex items-center gap-2">
-            <select
+            <SokbarNedtrekk
               value={ecoId ?? ""}
               onChange={(e) => setEcoId(e.target.value || null)}
               className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
@@ -7625,7 +7678,7 @@ function MaskinRadDialog({
                   {eco.proAdmId} — {eco.kortNavn}
                 </option>
               ))}
-            </select>
+            </SokbarNedtrekk>
             {ecoId && (
               <button
                 type="button"
@@ -7824,7 +7877,7 @@ function RedigerHeaderDialog({
           <label className="mb-1 block text-sm font-medium text-gray-700">
             {t("timer.felt.aktivitet")}
           </label>
-          <select
+          <SokbarNedtrekk
             value={aktivitetId}
             onChange={(e) => setAktivitetId(e.target.value)}
             className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
@@ -7835,7 +7888,7 @@ function RedigerHeaderDialog({
                 {a.navn}
               </option>
             ))}
-          </select>
+          </SokbarNedtrekk>
           <p className="mt-1 text-xs text-gray-500">
             {t("timer.felt.aktivitetDefaultHjelp")}
           </p>

@@ -6,6 +6,7 @@ import { X } from "lucide-react";
 import { Spinner } from "@sitedoc/ui";
 import { formaterNorsk } from "@/lib/timer-rapport-eksport";
 import { korrigertFeltDeler, korrigertTekst, korrigertTid, type KorrigertFelt } from "./KorrigertMerke";
+import { SokbarNedtrekk } from "@/components/timer/SokbarNedtrekk";
 
 /**
  * SL2 (plan web-timeføring § 4.18 del B; vedtak-timer-web § Slettet og korrigert punkt 1–3): siden
@@ -140,23 +141,23 @@ export function SlettetKorrigertVisning({ dager, laster, periode, medAnsatt, dag
           </span>
         )}
         {medAnsatt && (
-          <select value={ansatt} onChange={(e) => setAnsatt(e.target.value)} aria-label={t("timer.slettetKorrigert.filter.ansatt")} className={velg}>
+          <SokbarNedtrekk value={ansatt} onChange={(e) => setAnsatt(e.target.value)} aria-label={t("timer.slettetKorrigert.filter.ansatt")} className={velg}>
             <option value="">{t("timer.slettetKorrigert.filter.alleAnsatte")}</option>
             {ansatte.map(([id, navn]) => (
               <option key={id} value={id}>
                 {navn}
               </option>
             ))}
-          </select>
+          </SokbarNedtrekk>
         )}
-        <select value={prosjekt} onChange={(e) => setProsjekt(e.target.value)} aria-label={t("timer.slettetKorrigert.filter.prosjekt")} className={velg}>
+        <SokbarNedtrekk value={prosjekt} onChange={(e) => setProsjekt(e.target.value)} aria-label={t("timer.slettetKorrigert.filter.prosjekt")} className={velg}>
           <option value="">{t("timer.slettetKorrigert.filter.alleProsjekter")}</option>
           {prosjekter.map(([id, navn]) => (
             <option key={id} value={id}>
               {navn}
             </option>
           ))}
-        </select>
+        </SokbarNedtrekk>
         <select value={type} onChange={(e) => setType(e.target.value as TypeFilter)} aria-label={t("timer.slettetKorrigert.filter.type")} className={velg}>
           <option value="alle">{t("timer.slettetKorrigert.filter.begge")}</option>
           <option value="slettet">{t("timer.slettetKorrigert.type.slettet")}</option>

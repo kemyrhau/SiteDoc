@@ -6,6 +6,7 @@ import { Split, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import type { RedigerTilleggRadData, ProsjektValg } from "./rediger-types";
+import { SokbarNedtrekk } from "@/components/timer/SokbarNedtrekk";
 
 type Props = {
   /** Sedelens firma — tilleggskatalogen hentes for dette firmaet (se RedigerTimerRad). */
@@ -34,7 +35,7 @@ export function RedigerTilleggRad({
 
   return (
     <div className="grid grid-cols-12 gap-2 rounded border border-gray-200 bg-gray-50 p-2 text-sm">
-      <select
+      <SokbarNedtrekk
         value={rad.projectId}
         onChange={(e) => onChange({ projectId: e.target.value })}
         className="col-span-4 rounded border border-gray-300 px-2 py-1 text-xs"
@@ -44,9 +45,9 @@ export function RedigerTilleggRad({
             {p.name}
           </option>
         ))}
-      </select>
+      </SokbarNedtrekk>
 
-      <select
+      <SokbarNedtrekk
         value={rad.tilleggId}
         onChange={(e) => onChange({ tilleggId: e.target.value })}
         className="col-span-3 rounded border border-gray-300 px-2 py-1 text-xs"
@@ -57,7 +58,7 @@ export function RedigerTilleggRad({
             {t.navn}
           </option>
         ))}
-      </select>
+      </SokbarNedtrekk>
 
       <input
         type="number"

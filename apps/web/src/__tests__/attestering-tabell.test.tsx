@@ -377,11 +377,12 @@ describe("T49 — én verktøylinje, ingen nedtrekk utenfor tabellen", () => {
     // eneste nedtrekken — ingen filternedtrekk for prosjekt, ansatt eller avdeling (T49).
     // w10b (B6): firmavalget i sidehodet er ingen filternedtrekk — det velger firmaet siden
     // gjelder, og står bare når det er mer enn ett firma å velge.
-    const nedtrekk = side.match(/<select[\s\S]*?className/g) ?? [];
+    // Runde 9: firmavalget er `SokbarNedtrekk` (søk ved flere enn 5 firma) — fortsatt en nedtrekk.
+    const nedtrekk = side.match(/<(?:select|SokbarNedtrekk)[\s\S]*?className/g) ?? [];
     expect(nedtrekk).toHaveLength(2);
     expect(nedtrekk.filter((n) => /aria-label=\{t\("timer\.attestering\.uke\.aar"\)\}/.test(n))).toHaveLength(1);
     expect(nedtrekk.filter((n) => /aria-label=\{t\("firma\.velgFirma"\)\}/.test(n))).toHaveLength(1);
-    expect(side).toMatch(/\{firmaer\.length > 1 && \(\s*<select/);
+    expect(side).toMatch(/\{firmaer\.length > 1 && \(\s*<SokbarNedtrekk/);
     expect(side).not.toMatch(/<ProsjektPivot|<AnsattPivot|<ProsjektGruppe|<SeddelKort|attesterGruppe/);
     expect(side).toMatch(/gruppering=\{visning === "sedler" \? "dag" : visning\}/);
   });

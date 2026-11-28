@@ -35,6 +35,7 @@ import {
   type JobbTidFeil,
   type OvertidForslagRad,
 } from "@sitedoc/shared";
+import { SokbarNedtrekk } from "@/components/timer/SokbarNedtrekk";
 
 export type SkjemaLonnsart = {
   id: string;
@@ -586,7 +587,7 @@ export function JobbSkjema({
       {l1 && stedValg && (
         <div className={rad} data-testid="skjema-prosjekt">
           <span className={etikett}>{t("timer.felt.prosjekt")}</span>
-          <select
+          <SokbarNedtrekk
             aria-label={t("timer.felt.prosjekt")}
             value={projectId}
             disabled={lagring === "lagrer"}
@@ -598,13 +599,13 @@ export function JobbSkjema({
                 {p.navn}
               </option>
             ))}
-          </select>
+          </SokbarNedtrekk>
         </div>
       )}
       {l1 && stedValg && byggeplasserForProsjekt(stedValg.byggeplasser, projectId).length > 0 && (
         <div className={rad} data-testid="skjema-byggeplass">
           <span className={etikett}>{t("timer.felt.byggeplass")}</span>
-          <select
+          <SokbarNedtrekk
             aria-label={t("timer.felt.byggeplass")}
             value={byggeplassId ?? ""}
             disabled={lagring === "lagrer"}
@@ -617,7 +618,7 @@ export function JobbSkjema({
                 {b.name}
               </option>
             ))}
-          </select>
+          </SokbarNedtrekk>
         </div>
       )}
 
@@ -773,7 +774,7 @@ export function JobbSkjema({
                 <>
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-sm text-gray-700">{linje1Tekst}</span>
-                    <select
+                    <SokbarNedtrekk
                       aria-label={t("timer.jobbSkjema.lonnsart")}
                       value={art1Lagres}
                       onChange={(e) => {
@@ -788,7 +789,7 @@ export function JobbSkjema({
                           {l.navn}
                         </option>
                       ))}
-                    </select>
+                    </SokbarNedtrekk>
                   </div>
                   {regnet.helOvertid && norm !== null && (
                     <span className="text-xs text-gray-500">
@@ -804,7 +805,7 @@ export function JobbSkjema({
                   {r2 && (
                     <div className="flex flex-wrap items-center gap-2" data-testid="overtid-linje">
                       {l2 ? (
-                        <select
+                        <SokbarNedtrekk
                           aria-label={t("timer.jobbSkjema.lonnsart")}
                           value={art2 ?? l2.lonnsartId}
                           onChange={(e) => {
@@ -821,7 +822,7 @@ export function JobbSkjema({
                                 {l.navn}
                               </option>
                             ))}
-                        </select>
+                        </SokbarNedtrekk>
                       ) : (
                         <span className="text-sm font-medium text-gray-800">{regnet.overtidLonnsart?.navn}</span>
                       )}

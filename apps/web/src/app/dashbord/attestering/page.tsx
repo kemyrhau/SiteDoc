@@ -39,6 +39,7 @@ import type { AttSedel } from "@/components/attestering/attestering-tabell";
 import { attesterteMedUkevarsel, linjeKanTrekkes, ukeTall, type AttUke } from "@/components/attestering/ukelinje";
 import { HjelpKnapp, HjelpFane } from "@/components/hjelp/HjelpModal";
 import { aarValg, isoUke, ukeOffsetForAar } from "@/components/attestering/ukevalg";
+import { SokbarNedtrekk } from "@/components/timer/SokbarNedtrekk";
 
 /* ------------------------------------------------------------------ */
 /*  Typer                                                               */
@@ -445,7 +446,7 @@ export default function AttesteringSide() {
               {skAntall > 0 ? t("timer.slettetKorrigert.lenkeAntall", { antall: skAntall }) : t("timer.slettetKorrigert.lenke")}
             </Link>
             {firmaer.length > 1 && (
-              <select
+              <SokbarNedtrekk
                 value={orgId}
                 onChange={(e) => velgFirma(e.target.value)}
                 aria-label={t("firma.velgFirma")}
@@ -456,7 +457,7 @@ export default function AttesteringSide() {
                     {f.navn}
                   </option>
                 ))}
-              </select>
+              </SokbarNedtrekk>
             )}
         <HjelpKnapp>
           <HjelpFane tittel={t("timer.attestering.tabell.hjelp.tittel")}>

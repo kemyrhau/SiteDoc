@@ -11,7 +11,8 @@
 > - `Arbeidsanker:` — bruks-aktiv (pågående arbeid, endres ofte)
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
-**Sist oppdatert:** 2026-11-27
+**Sist oppdatert:** 2026-11-28
+- 2026-11-28 — **`timer.md` (ny seksjon «Runde 9 timer-web») + `retningslinjer/ui-standarder.md` (ny underseksjon «Nedtrekk med søk», dagsseddelen under «Slett-bekreftelse»): søk i nedtrekk med flere enn 5 valg, slett i modal, Lagre over testpanelet** (branch `fix/timer-runde9`, kode + docs, web-timer-w1). Ingen fil opprettet eller slettet i docs/claude, så tellingene er uendret.
 - 2026-11-27 — **`timer.md` § Runde 6 (RETUR 3): flytting av koblet tillegg og utlegg — timeraden flyttes, kun til kort med timerad, `rettRadFelt` avviser underprosjekt** (Kenneths regel; branch `fix/timer-r6`, kode + docs, web-timer-w5). Tellingene er uendret.
 - 2026-11-27 — **`timer.md` § Runde 6 (RETUR 2): arven i `flyttTimerRadEco`, omkobling i `flyttLinjeTilKort` og `delJobb`** (Kontrollørens vilkår; branch `fix/timer-r6`, kode + docs, web-timer-w5). Tellingene er uendret.
 - 2026-11-27 — **`timer.md` § Runde 6 (RETUR 1) + `vedtak-timer-web.md` § Dagskort-modus pkt 3 (status): tillegg og utlegg arver timeradens underprosjekt** (Kenneth «Ja, arv timeraden»; branch `fix/timer-r6`, kode + docs, web-timer-w5). Tellingene er uendret.
