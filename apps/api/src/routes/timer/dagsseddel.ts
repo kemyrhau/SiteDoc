@@ -4463,6 +4463,22 @@ async function utforRedigerSedelRader(
     await tx.sheetTillegg.deleteMany({ where: { id: { in: plan.tillegg.slett.map((r) => r.id) } } });
     await nullTilleggUtleggKobling(tx, sheet.id, slettedeTimerIder);
     await tx.sheetTimer.deleteMany({ where: { id: { in: slettedeTimerIder } } });
+    // A7b (Kenneth 2026-11-27: «La den følge»): timerad som bytter underprosjekt eller
+    // byggeplass i samme prosjekt, tar med maskinene i kortet — en ukoblet førermaskin kobles
+    // først (med radens gamle kort-id), så får de koblede radens sted under. Samme regel som
+    // `oppdaterTimerRad`. Prosjektbytte flytter ikke maskin (står som før).
+    const stedEndretTimer = plan.timer.oppdater.filter((o) => {
+      const d = o.data as { projectId?: string | null; externalCostObjectId?: string | null; byggeplassId?: string | null };
+      return (
+        o.foer.projectId !== null &&
+        (d.projectId ?? null) === o.foer.projectId &&
+        ((d.externalCostObjectId ?? null) !== (o.foer.externalCostObjectId ?? null) ||
+          (d.byggeplassId ?? null) !== (o.foer.byggeplassId ?? null))
+      );
+    });
+    for (const o of stedEndretTimer) {
+      await koblUkobledeForerMaskinerTilRad(tx, ctx.prismaMaskin, o.foer);
+    }
     for (const o of plan.timer.oppdater) {
       await tx.sheetTimer.update({
         where: { id: o.foer.id },
@@ -4479,6 +4495,18 @@ async function utforRedigerSedelRader(
       await tx.sheetMachine.update({
         where: { id: o.foer.id },
         data: { ...o.data, parentRadId: o.foer.parentRadId ?? o.foer.id },
+      });
+    }
+    for (const o of stedEndretTimer) {
+      const d = o.data as { externalCostObjectId?: string | null; byggeplassId?: string | null };
+      await tx.sheetMachine.updateMany({
+        where: {
+          sheetId: sheet.id,
+          sheetTimerId: o.foer.id,
+          projectId: o.foer.projectId ?? undefined,
+          OR: [{ attestertStatus: null }, { attestertStatus: { notIn: ["attestert", "erstattet"] } }],
+        },
+        data: { byggeplassId: d.byggeplassId ?? null, externalCostObjectId: d.externalCostObjectId ?? null },
       });
     }
     for (const n of plan.timer.opprett) {
@@ -9050,6 +9078,9 @@ export const dagsseddelRouter = router({
       // transaksjon — én timerad som bytter underprosjekt, kan ta arbeid fra jobbens maskiner.
       const oppdatert = await ctx.prismaTimer.$transaction(async (tx) => {
         const maskinFoer = await lesMaskinJobbTilstand(tx, ctx.prismaMaskin, rad.sheetId);
+        // A7b (Kenneth 2026-11-27: «La den følge»): ukoblet førermaskin i radens kort kobles
+        // til raden før den flyttes, så updateMany under tar den med (som `oppdaterTimerRad`).
+        if (!erTillegg) await koblUkobledeForerMaskinerTilRad(tx, ctx.prismaMaskin, rad);
         const oppdatertRad = erTillegg
           ? await tx.sheetTillegg.update({
               where: { id: radId },

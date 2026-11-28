@@ -373,3 +373,90 @@ describe("Kenneth 2026-11-27: «vi må kunne dele opp et underprosjekt …» —
     expect(maskiner.every((m) => m.externalCostObjectId === ECO_2)).toBe(true);
   });
 });
+
+describe("Kenneth 2026-11-27: «La den følge» — ukoblet førermaskin i attestantens veier (A7b)", () => {
+  /**
+   * Innsendt sedel: r1 07–11 og r2 11:30–15:30 på ECO_1 i ett kort. m1 koblet til r1; i kortet
+   * står også ukoblet førermaskin over r1 (fører1) og over r2 (fører2), en ukoblet døgnmaskin
+   * og en attestert ukoblet førermaskin.
+   */
+  async function oppsettA7b() {
+    const sid = randomUUID();
+    await prismaTimer.dailySheet.create({
+      data: {
+        id: sid, clientUuid: sid, organizationId: ORG, userId: USER, registrertAvUserId: USER,
+        aktivitetId: AKT, dato: new Date(nyDato()), status: "sent",
+      },
+    });
+    const rad = (fra: string, til: string) =>
+      prismaTimer.sheetTimer.create({
+        data: {
+          sheetId: sid, projectId: P1, lonnsartId: ORD, aktivitetId: AKT, fraTid: fra, tilTid: til,
+          timer: 4, attestertStatus: "pending", externalCostObjectId: ECO_1,
+        },
+      });
+    const r1 = await rad("07:00", "11:00");
+    const r2 = await rad("11:30", "15:30");
+    await sikreKortId(prismaTimer, sid);
+    const kortA = (await prismaTimer.sheetTimer.findUniqueOrThrow({ where: { id: r1.id } })).kortId!;
+    const maskin = (f: { vehicleId?: string; sheetTimerId?: string; fra: string; til: string; status?: string }) =>
+      prismaTimer.sheetMachine.create({
+        data: {
+          sheetId: sid, sheetTimerId: f.sheetTimerId ?? null, vehicleId: f.vehicleId ?? MASKIN, projectId: P1,
+          externalCostObjectId: ECO_1, timer: 1, fraTid: f.fra, tilTid: f.til, kortId: kortA,
+          attestertStatus: f.status ?? "pending",
+        },
+      });
+    const m1 = await maskin({ sheetTimerId: r1.id, fra: "08:00", til: "09:00" });
+    const forer1 = await maskin({ fra: "07:00", til: "08:00" });
+    const forer2 = await maskin({ fra: "12:00", til: "13:00" });
+    const doegn = await maskin({ vehicleId: DOEGN, fra: "07:00", til: "08:00" });
+    const attestert = await maskin({ fra: "09:00", til: "10:00", status: "attestert" });
+    return { sid, r1: r1.id, r2: r2.id, m1: m1.id, forer1: forer1.id, forer2: forer2.id, doegn: doegn.id, attestert: attestert.id };
+  }
+  const m = (mid: string) => prismaTimer.sheetMachine.findUniqueOrThrow({ where: { id: mid } });
+
+  const veier = [
+    {
+      navn: "flyttTimerRadEco (enkeltrad)",
+      flytt: (o: Awaited<ReturnType<typeof oppsettA7b>>) =>
+        dag(ADMIN).flyttTimerRadEco({ timerRadId: o.r1, externalCostObjectId: ECO_2 }),
+      byggeplass: null as string | null,
+    },
+    {
+      navn: "rettRadFelt (underprosjekt og byggeplass)",
+      flytt: (o: Awaited<ReturnType<typeof oppsettA7b>>) =>
+        dag(ADMIN).rettRadFelt({
+          radType: "timer", radId: o.r1, felter: { externalCostObjectId: ECO_2, byggeplassId: BYGGEPLASS_1 },
+        }),
+      byggeplass: BYGGEPLASS_1 as string | null,
+    },
+  ];
+
+  for (const v of veier) {
+    it(`${v.navn}: ukoblet førermaskin over raden kobles og følger; koblet følger`, async () => {
+      const o = await oppsettA7b();
+      await v.flytt(o);
+      const kort = (await prismaTimer.sheetTimer.findUniqueOrThrow({ where: { id: o.r1 } })).kortId;
+      for (const mid of [o.m1, o.forer1]) {
+        expect(await m(mid)).toMatchObject({
+          sheetTimerId: o.r1, externalCostObjectId: ECO_2, byggeplassId: v.byggeplass, kortId: kort,
+        });
+      }
+      // Velger raden r2 (overlapp), står den — med r2 i kortet.
+      expect(await m(o.forer2)).toMatchObject({ sheetTimerId: null, externalCostObjectId: ECO_1 });
+    });
+
+    it(`${v.navn}: døgnmaskin uten timerad og attestert maskin står`, async () => {
+      const o = await oppsettA7b();
+      const [doegnFoer, attFoer] = await Promise.all([m(o.doegn), m(o.attestert)]);
+      await v.flytt(o);
+      expect(await m(o.doegn)).toMatchObject({
+        sheetTimerId: null, externalCostObjectId: ECO_1, byggeplassId: doegnFoer.byggeplassId,
+      });
+      expect(await m(o.attestert)).toMatchObject({
+        sheetTimerId: null, externalCostObjectId: ECO_1, kortId: attFoer.kortId, attestertStatus: "attestert",
+      });
+    });
+  }
+});
