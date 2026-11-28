@@ -558,7 +558,7 @@ describe("VAKTTEST 2026-11-28 (Kenneth: Godkjent steg 4–6 i testpanelet, runde
 });
 
 
-describe("retur 3 runde 6 — flytting av koblet tillegg og utlegg (Kenneths regel)", () => {
+describe("VAKTTEST 2026-11-28 (Kenneth: Godkjent steg 7 i testpanelet, runde 6+7) — retur 3 runde 6 — flytting av koblet tillegg og utlegg (Kenneths regel)", () => {
   const eco = async (rid: string) => (await tillegg(rid)).externalCostObjectId;
   const timerRad = (rid: string) => prismaTimer.sheetTimer.findUniqueOrThrow({ where: { id: rid } });
   const send = (sid: string) => prismaTimer.dailySheet.update({ where: { id: sid }, data: { status: "sent" } });

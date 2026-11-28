@@ -2385,7 +2385,7 @@ describe("D2b — flytt en linje til et annet kort", () => {
     expect(kallTil("flyttLinjeTilKort")[0]!.input).toEqual({ sheetId: "s1", radType: "maskin", radId: "m1", tilKortId: "kC" });
   });
 
-  it("retur 3 runde 6: koblet tillegg tilbys bare kort med timerad; ukoblet får også kortet uten", () => {
+  it("VAKTTEST 2026-11-28 (Kenneth: Godkjent steg 7 i testpanelet, runde 6+7) — retur 3 runde 6: koblet tillegg tilbys bare kort med timerad; ukoblet får også kortet uten", () => {
     // kC har bare et ukoblet tillegg (ingen timerad). kB har timeraden t2.
     const kortC = tl({ id: "g9", kortId: "kC", externalCostObjectId: "eX" });
     const koblet = vis([dag({ tillegg: [tl({ sheetTimerId: "t1" }), kortC] })]);
