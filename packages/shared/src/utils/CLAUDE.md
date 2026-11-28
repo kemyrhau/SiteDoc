@@ -341,6 +341,10 @@ Fasit: `tegningNedlasting.test.ts`.
 - `visByggeplassIkkeValgt({ byggeplassId, antallByggeplasser, kanRedigere })` → `boolean`: linja «Byggeplass ikke valgt · Velg» på web og mobil.
 - `byggeplassByttInput(naavaerendeOmfang, nyByggeplassId)`: oppdater-input ved bytte av byggeplass — nullstiller tegning, punkt og område, og omfang `omrade`/`punkt`. Brukt av web-chipen og mobil sjekkliste/oppgave.
 
+### Del opp en timerad (`delOppTimerad.ts`, runde 8 timer)
+
+Kenneth 2026-11-28 «Ja, begge». `foreslaDelOppFordeling` (maskin/vare forholdsmessig etter timene, bare deler i timeradens prosjekt; tillegg/utlegg til delen med flest timer; reise ut → første del, hjem → siste), `fullforDelOppFordeling` (rader klienten ikke sendte får forslaget), `validerDelOppFordeling` (summvakten) og `beregnDelOppFordeling` (vinduet; valg som ikke passer antallet deler faller bort). Server (`splittRadEier`), web og mobil bruker samme regel. Fasit: `delOppTimerad.test.ts`.
+
 ## Fallgruver
 
 - `gpsTilTegning` clamper til 0-100 — bruk `erInnenforTegning` for å sjekke gyldighet først

@@ -128,7 +128,11 @@ function lagCtx(opts: {
     userId: USER,
     req: { log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } },
     // w3a (gate 107): varesynken i oppdaterTimerRad kjøres ved hvert lagre.
-    prismaVarelager: { $executeRawUnsafe: vi.fn().mockResolvedValue(0) },
+    prismaVarelager: {
+      $executeRawUnsafe: vi.fn().mockResolvedValue(0),
+      // Runde 8: «Del opp» leser varene på timeraden (ingen her).
+      vareforbruk: { findMany: vi.fn().mockResolvedValue([]) },
+    },
     // Ordre d2c-1: døgn-maskin — R24 (krever timerad) er ikke det som måles her.
     prismaMaskin: {
       equipment: { findMany: vi.fn().mockResolvedValue([{ id: UTSTYR, merke: "Volvo", modell: "EC220E", internNavn: null, utleieEnhet: "doegn" }]) },
@@ -140,6 +144,8 @@ function lagCtx(opts: {
     },
     prismaTimer: {
       $transaction: transaction,
+      // Runde 8: «Del opp» leser utlegg på timeraden (ingen her).
+      sheetUtlegg: { findMany: vi.fn().mockResolvedValue([]) },
       dailySheet: { findUnique: vi.fn().mockResolvedValue(sheet), update: sheetUpdate },
       lonnsart: katalog([
         { id: LONNSART, organizationId: ORG, navn: "Ordinær", satsEnhet: "per_time" },

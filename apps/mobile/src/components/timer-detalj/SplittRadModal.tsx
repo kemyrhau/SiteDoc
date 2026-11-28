@@ -21,7 +21,7 @@ import { TastaturScrollView } from "./TastaturScrollView";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { X, Plus, Trash2 } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { randomUUID } from "expo-crypto";
 import { hentDatabase } from "../../db/database";
 import { sikreLokalKortId } from "../../services/kortIdLokal";
@@ -34,8 +34,16 @@ import {
   equipmentLocal,
   externalCostObjectLocal,
   dagsseddelLocal,
+  sheetUtleggLocal,
+  vareforbrukLocal,
+  tilleggLocal,
+  expenseCategoryLocal,
 } from "../../db/schema";
-import { byggNormtakBruddLinje } from "@sitedoc/shared";
+import { beregnDelOppFordeling, byggNormtakBruddLinje, type DelOppFordeling } from "@sitedoc/shared";
+import { trpc } from "../../lib/trpc";
+import { useNettverk } from "../../providers/NettverkProvider";
+import { planleggDelOppLokalt, synketVareFeil, type LokalKoblet } from "../../utils/delOppLokal";
+import { FolgerMedSeksjon, harMobilFolgerMed, type MobilFolgerMed } from "./FolgerMedSeksjon";
 import { hentDagsnormLokalt } from "../../services/arbeidstidSvarKatalog";
 import { finnNormtakArtLokalt, hentReiseLonnsartId } from "../../services/timerKatalog";
 import { erReiseRadVisning } from "../../utils/reiseRad";
@@ -170,6 +178,20 @@ export function SplittRadModal(props: Props) {
   });
 
   const [feil, setFeil] = useState<string | null>(null);
+  const [lagrer, setLagrer] = useState(false);
+
+  // Runde 8 (Kenneth 2026-11-28 «A»): «Følger med» — maskin, vare, tillegg, utlegg og reise som
+  // hører til timeraden. Ikke for fraværsrad (ingen prosjekt, ingen koblede rader).
+  const { erPaaNettet } = useNettverk();
+  const oppdaterVare = trpc.vareforbruk.oppdater.useMutation();
+  const folgerMed = useMemo(
+    () => (props.radType === "timer" && !props.original.utenProsjekt ? lesFolgerMedLokalt(props.original) : null),
+    // Leses én gang når vinduet åpnes (radene endres ikke mens det er åpent).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+  const [folgerMedValg, setFolgerMedValg] = useState<Partial<DelOppFordeling>>({});
+  const [folgerMedTekst, setFolgerMedTekst] = useState<Record<string, string>>({});
 
   const radTeller =
     props.radType === "timer"
@@ -189,7 +211,53 @@ export function SplittRadModal(props: Props) {
   const gjenstaar = originalSum - splitSum;
   const balansert = Math.abs(gjenstaar) < 0.001;
 
+  // På telefonen har alle deler originalens prosjekt og fra–til; bare timene skiller dem.
+  const folgerMedBeregnet = useMemo(() => {
+    if (!folgerMed || !harMobilFolgerMed(folgerMed.data) || props.radType !== "timer") return null;
+    const o = props.original;
+    const deler = timerDeler.map((d) => ({
+      projectId: o.projectId,
+      fraTid: o.fraTid,
+      tilTid: o.tilTid,
+      timer: tilTall(d.timerTekst),
+    }));
+    // Synket vare uten nett: låst på del 1 (kan bare rettes på nett).
+    const valg: Partial<DelOppFordeling> = erPaaNettet
+      ? folgerMedValg
+      : {
+          ...folgerMedValg,
+          varer: [
+            ...(folgerMedValg.varer ?? []).filter((v) => !folgerMed.data.varer.find((x) => x.id === v.id)?.synket),
+            ...folgerMed.data.varer
+              .filter((v) => v.synket)
+              .map((v) => ({ id: v.id, antall: deler.map((_, i) => (i === 0 ? v.antall : 0)) })),
+          ],
+        };
+    const r = beregnDelOppFordeling(deler, folgerMed.koblet, o.projectId, valg);
+    return { ...r, synketFeil: synketVareFeil(folgerMed.lokal, r.fordeling, erPaaNettet) };
+  }, [folgerMed, props.radType, props.original, timerDeler, folgerMedValg, erPaaNettet]);
+  const folgerMedSperret =
+    folgerMedBeregnet !== null && (folgerMedBeregnet.feil.length > 0 || folgerMedBeregnet.synketFeil.length > 0);
+
+  function settFolgerMedTall(type: "maskiner" | "varer", id: string, del: number, tekst: string) {
+    if (!folgerMedBeregnet) return;
+    setFolgerMedTekst((m) => ({ ...m, [`${id}:${del}`]: tekst }));
+    const verdi = Math.max(0, tilTall(tekst));
+    setFolgerMedValg((v) => {
+      if (type === "maskiner") {
+        const naa = folgerMedBeregnet.fordeling.maskiner.find((m) => m.id === id)!.timer.map((x, j) => (j === del ? verdi : x));
+        return { ...v, maskiner: [...(v.maskiner ?? []).filter((m) => m.id !== id), { id, timer: naa }] };
+      }
+      const naa = folgerMedBeregnet.fordeling.varer.find((m) => m.id === id)!.antall.map((x, j) => (j === del ? verdi : x));
+      return { ...v, varer: [...(v.varer ?? []).filter((m) => m.id !== id), { id, antall: naa }] };
+    });
+  }
+  function settFolgerMedDel(type: "tillegg" | "utlegg" | "reiser", id: string, del: number) {
+    setFolgerMedValg((v) => ({ ...v, [type]: [...(v[type] ?? []).filter((x) => x.id !== id), { id, del }] }));
+  }
+
   function leggTilDel() {
+    setFolgerMedTekst({});
     const rest = Math.max(0, gjenstaar);
     const restTekst = rest.toFixed(2);
     if (props.radType === "timer") {
@@ -226,6 +294,7 @@ export function SplittRadModal(props: Props) {
   }
 
   function slettDel(key: string) {
+    setFolgerMedTekst({});
     if (props.radType === "timer")
       setTimerDeler((d) => d.filter((r) => r.key !== key));
     else if (props.radType === "maskin")
@@ -243,7 +312,8 @@ export function SplittRadModal(props: Props) {
     setTilleggDeler((d) => d.map((r) => (r.key === key ? { ...r, ...felt } : r)));
   }
 
-  function handleLagre() {
+  async function handleLagre() {
+    if (lagrer) return;
     setFeil(null);
     if (radTeller < 2) {
       setFeil(t("timer.splitt.feil.minst2Rader"));
@@ -295,18 +365,64 @@ export function SplittRadModal(props: Props) {
           }
         }
       }
-      // NY BESLUTNING maskinkobling (2026-11-12): koblede maskiner blir på del 1
-      // (originalens id). Får del 1 færre timer enn en koblet maskin, sier vi fra
-      // og lagrer ikke — maskintimene rettes aldri stille.
-      const del1Timer = tilTall(timerDeler[0]!.timerTekst);
-      const overDel1 = maskinerOverRad(del1Timer, hentKobledeMaskiner(db, o.id), enhetLokalt(db));
-      if (overDel1.length > 0) {
-        const m = overDel1[0]!;
-        const e = db.select().from(equipmentLocal).where(eq(equipmentLocal.id, m.vehicleId)).all()[0];
-        const navn = (e ? `${e.merke ?? ""} ${e.modell ?? ""}`.trim() || e.internNavn : null) ?? t("timer.maskinSeksjon.merke");
-        const fmt = (n: number) => n.toLocaleString(i18n.language, { maximumFractionDigits: 2 });
-        setFeil(t("timer.maskinSeksjon.overRad", { maskin: navn, maskinTimer: fmt(m.timer), radTimer: fmt(del1Timer) }));
-        return;
+      if (folgerMedSperret) return;
+      // NY BESLUTNING maskinkobling (2026-11-12): en maskin har aldri flere timer enn raden den
+      // står på. Runde 8: maskinen fordeles på delene, så vakten gjelder hver del for seg.
+      // Uten «Følger med» (ingen koblede maskiner) blir alt på del 1, som før.
+      const fmt = (n: number) => n.toLocaleString(i18n.language, { maximumFractionDigits: 2 });
+      const enhet = enhetLokalt(db);
+      const koblede = hentKobledeMaskiner(db, o.id);
+      for (let i = 0; i < timerDeler.length; i++) {
+        const delTimer = tilTall(timerDeler[i]!.timerTekst);
+        const paaDel = koblede.map((m) => ({
+          ...m,
+          timer: folgerMedBeregnet
+            ? (folgerMedBeregnet.fordeling.maskiner.find((f) => f.id === m.id)?.timer[i] ?? 0)
+            : i === 0
+              ? m.timer
+              : 0,
+        }));
+        const over = maskinerOverRad(delTimer, paaDel, enhet);
+        if (over.length > 0) {
+          const m = over[0]!;
+          const e = db.select().from(equipmentLocal).where(eq(equipmentLocal.id, m.vehicleId)).all()[0];
+          const navn = (e ? `${e.merke ?? ""} ${e.modell ?? ""}`.trim() || e.internNavn : null) ?? t("timer.maskinSeksjon.merke");
+          setFeil(t("timer.maskinSeksjon.overRad", { maskin: navn, maskinTimer: fmt(m.timer), radTimer: fmt(delTimer) }));
+          return;
+        }
+      }
+      // Runde 8: delenes id-er er kjent før noe skrives, så koblingene kan peke på dem.
+      const delIder = timerDeler.map((_, i) => (i === 0 ? o.id : randomUUID()));
+      const plan =
+        folgerMed && folgerMedBeregnet
+          ? planleggDelOppLokalt(
+              timerDeler.map((d, i) => ({
+                id: delIder[i]!,
+                ecoId: d.externalCostObjectId,
+                timer: tilTall(d.timerTekst),
+              })),
+              folgerMed.lokal,
+              folgerMedBeregnet.fordeling,
+            )
+          : null;
+      // Synket vare rettes på nett FØR noe skrives lokalt — feiler kallet, lagres ingenting.
+      if (plan) {
+        setLagrer(true);
+        try {
+          for (const v of plan.vareOppdater.filter((x) => x.nett)) {
+            const lokal = folgerMed!.lokal.varer.find((x) => x.id === v.id)!;
+            await oppdaterVare.mutateAsync({
+              id: v.id,
+              antall: v.antall,
+              ...(v.ecoId !== lokal.ecoId ? { externalCostObjectId: v.ecoId } : {}),
+            });
+          }
+        } catch (e) {
+          setLagrer(false);
+          setFeil(e instanceof Error ? e.message : String(e));
+          return;
+        }
+        setLagrer(false);
       }
       // Lokal reconcile: GJENBRUK originalens id på del 1 (update), insert resten.
       // Rasjonale (S3-fiks): syncBatch sletter kun rader hvis id er i payloaden
@@ -328,12 +444,12 @@ export function SplittRadModal(props: Props) {
         })
         .where(eq(sheetTimerLocal.id, o.id))
         .run();
-      for (const d of restenTimer) {
+      restenTimer.forEach((d, n) => {
         // M18 / spec § 11.4: deler av en fraværsrad forblir i fraværskortet (uten underprosjekt).
         const v = splittDelVerdier(o, { ...d, timer: tilTall(d.timerTekst) });
         db.insert(sheetTimerLocal)
           .values({
-            id: randomUUID(),
+            id: delIder[n + 1]!,
             dagsseddelId: o.dagsseddelId,
             projectId: o.projectId,
             byggeplassId: v.byggeplassId,
@@ -351,7 +467,8 @@ export function SplittRadModal(props: Props) {
             sistEndretLokalt: Date.now(),
           })
           .run();
-      }
+      });
+      if (plan) skrivDelOppLokalt(db, plan);
     } else if (props.radType === "maskin") {
       for (const d of maskinDeler) {
         if (!d.vehicleId || tilTall(d.timerTekst) <= 0) {
@@ -549,6 +666,20 @@ export function SplittRadModal(props: Props) {
               </Text>
             </Pressable>
 
+            {folgerMed && folgerMedBeregnet && (
+              <FolgerMedSeksjon
+                antallDeler={timerDeler.length}
+                data={folgerMed.data}
+                fordeling={folgerMedBeregnet.fordeling}
+                feil={folgerMedBeregnet.feil}
+                synketFeil={folgerMedBeregnet.synketFeil}
+                paaNett={erPaaNettet}
+                tekst={folgerMedTekst}
+                onTall={settFolgerMedTall}
+                onDel={settFolgerMedDel}
+              />
+            )}
+
             {/* Gjenstår-indikator */}
             <View className={`rounded-lg border px-3 py-2.5 ${indikatorKlasse}`}>
               <Text className={`text-sm font-medium ${indikatorTekstKlasse}`}>
@@ -559,21 +690,21 @@ export function SplittRadModal(props: Props) {
             {feil && <Text className="text-sm text-red-600">{feil}</Text>}
 
             <KnappMedForklaring
-              sperret={!balansert || radTeller < 2}
-              forklaring={t("sperret.splittBalanse")}
+              sperret={!balansert || radTeller < 2 || folgerMedSperret}
+              forklaring={folgerMedSperret ? t("timer.splitt.folgerMed.sumFeilSperre") : t("sperret.splittBalanse")}
             >
             <Pressable
-              onPress={handleLagre}
-              disabled={!balansert || radTeller < 2}
+              onPress={() => void handleLagre()}
+              disabled={!balansert || radTeller < 2 || folgerMedSperret || lagrer}
               className={`mt-2 items-center rounded-lg px-6 py-4 ${
-                !balansert || radTeller < 2
+                !balansert || radTeller < 2 || folgerMedSperret
                   ? "bg-gray-300"
                   : "bg-blue-600 active:bg-blue-700"
               }`}
             >
               <Text
                 className={`text-base font-semibold ${
-                  !balansert || radTeller < 2 ? "text-gray-500" : "text-white"
+                  !balansert || radTeller < 2 || folgerMedSperret ? "text-gray-500" : "text-white"
                 }`}
               >
                 {t("timer.splitt.lagre")}
@@ -585,6 +716,168 @@ export function SplittRadModal(props: Props) {
       </SafeAreaView>
     </Modal>
   );
+}
+
+// ---- Runde 8: «Følger med» lokalt ----
+
+type LokalDb = NonNullable<ReturnType<typeof hentDatabase>>;
+
+/**
+ * Radene som hører til timeraden, lest fra telefonens database: koblede maskiner, ventende og
+ * synkede varer (ikke avviste), koblede tillegg og utlegg (`sheetTimerId`, hentet fra serveren)
+ * og reisene i samme kort (samme prosjekt, byggeplass og underprosjekt — samme utvalg som
+ * serverens `velgReiseKort`). En reiserad har ingen «Følger med».
+ */
+function lesFolgerMedLokalt(o: TimerRad): {
+  data: MobilFolgerMed;
+  koblet: Parameters<typeof beregnDelOppFordeling>[1];
+  lokal: LokalKoblet;
+} | null {
+  const db = hentDatabase();
+  if (!db) return null;
+  const maskiner = hentKobledeMaskiner(db, o.id);
+  const varer = db
+    .select()
+    .from(vareforbrukLocal)
+    .where(eq(vareforbrukLocal.sheetTimerId, o.id))
+    .all()
+    .filter((v) => v.syncStatus !== "avvist");
+  const tillegg = db.select().from(sheetTilleggLocal).where(eq(sheetTilleggLocal.sheetTimerId, o.id)).all();
+  const utlegg = db.select().from(sheetUtleggLocal).where(eq(sheetUtleggLocal.sheetTimerId, o.id)).all();
+  const reiser =
+    o.erReise || !o.projectId
+      ? []
+      : db
+          .select()
+          .from(sheetTimerLocal)
+          .where(and(eq(sheetTimerLocal.dagsseddelId, o.dagsseddelId), eq(sheetTimerLocal.erReise, true)))
+          .all()
+          .filter(
+            (r) =>
+              r.id !== o.id &&
+              r.projectId === o.projectId &&
+              (r.byggeplassId ?? null) === (o.byggeplassId ?? null) &&
+              (r.externalCostObjectId ?? null) === (o.externalCostObjectId ?? null),
+          );
+  const utstyrNavn = (id: string) => {
+    const e = db.select().from(equipmentLocal).where(eq(equipmentLocal.id, id)).all()[0];
+    return (e ? `${e.merke ?? ""} ${e.modell ?? ""}`.trim() || e.internNavn : null) ?? "—";
+  };
+  const tilleggNavn = (id: string) => db.select().from(tilleggLocal).where(eq(tilleggLocal.id, id)).all()[0]?.navn ?? "—";
+  const utleggNavn = (id: string) =>
+    db.select().from(expenseCategoryLocal).where(eq(expenseCategoryLocal.id, id)).all()[0]?.navn ?? "—";
+  return {
+    data: {
+      maskiner: maskiner.map((m) => ({ id: m.id, navn: utstyrNavn(m.vehicleId), timer: m.timer })),
+      varer: varer.map((v) => ({
+        id: v.id,
+        navn: v.vareNavn,
+        enhet: v.enhet,
+        antall: v.antall,
+        synket: v.syncStatus === "synced",
+      })),
+      tillegg: tillegg.map((r) => ({ id: r.id, navn: tilleggNavn(r.tilleggId) })),
+      utlegg: utlegg.map((r) => ({ id: r.id, navn: utleggNavn(r.expenseCategoryId) })),
+      reiser: reiser.map((r) => ({ id: r.id, retning: r.reiseRetning ?? null, fraTid: r.fraTid, tilTid: r.tilTid })),
+    },
+    koblet: {
+      maskiner: maskiner.map((m) => ({ id: m.id, timer: m.timer })),
+      varer: varer.map((v) => ({ id: v.id, antall: v.antall })),
+      tillegg: tillegg.map((r) => ({ id: r.id })),
+      utlegg: utlegg.map((r) => ({ id: r.id })),
+      reiser: reiser.map((r) => ({ id: r.id, retning: r.reiseRetning ?? null, fraTid: r.fraTid })),
+    },
+    lokal: {
+      maskiner: maskiner.map((m) => ({ id: m.id, ecoId: m.externalCostObjectId ?? null })),
+      varer: varer.map((v) => ({ id: v.id, ecoId: v.externalCostObjectId ?? null, synket: v.syncStatus === "synced" })),
+      tillegg: tillegg.map((r) => ({ id: r.id, ecoId: r.externalCostObjectId ?? null })),
+      utlegg: utlegg.map((r) => ({ id: r.id, ecoId: r.externalCostObjectId ?? null })),
+      reiser: reiser.map((r) => ({ id: r.id, ecoId: r.externalCostObjectId ?? null })),
+    },
+  };
+}
+
+/**
+ * Skriver planen lokalt. Kort-id nulles der raden får nytt sted; `sikreLokalKortId` setter den
+ * etterpå (maskin og vare følger timeradens kort, K6). Synket vare er rettet på nett før dette.
+ */
+function skrivDelOppLokalt(db: LokalDb, plan: ReturnType<typeof planleggDelOppLokalt>) {
+  const naa = Date.now();
+  for (const m of plan.maskinOppdater) {
+    db.update(sheetMachineLocal)
+      .set({ sheetTimerId: m.sheetTimerId, timer: m.timer, externalCostObjectId: m.ecoId, kortId: null, sistEndretLokalt: naa })
+      .where(eq(sheetMachineLocal.id, m.id))
+      .run();
+  }
+  for (const m of plan.maskinNye) {
+    const kilde = db.select().from(sheetMachineLocal).where(eq(sheetMachineLocal.id, m.kildeId)).all()[0];
+    if (!kilde) continue;
+    db.insert(sheetMachineLocal)
+      .values({
+        id: randomUUID(),
+        dagsseddelId: kilde.dagsseddelId,
+        sheetTimerId: m.sheetTimerId,
+        projectId: kilde.projectId,
+        externalCostObjectId: m.ecoId,
+        byggeplassId: kilde.byggeplassId,
+        vehicleId: kilde.vehicleId,
+        timer: m.timer,
+        // Mengden blir på raden som beholdes (som serveren).
+        mengde: null,
+        enhet: kilde.enhet,
+        fraTid: kilde.fraTid,
+        tilTid: kilde.tilTid,
+        sistEndretLokalt: naa,
+      })
+      .run();
+  }
+  for (const v of plan.vareOppdater) {
+    db.update(vareforbrukLocal)
+      .set({ sheetTimerId: v.sheetTimerId, antall: v.antall, externalCostObjectId: v.ecoId, kortId: null, sistEndretLokalt: naa })
+      .where(eq(vareforbrukLocal.id, v.id))
+      .run();
+  }
+  for (const v of plan.vareNye) {
+    const kilde = db.select().from(vareforbrukLocal).where(eq(vareforbrukLocal.id, v.kildeId)).all()[0];
+    if (!kilde) continue;
+    db.insert(vareforbrukLocal)
+      .values({
+        id: randomUUID(),
+        userId: kilde.userId,
+        organizationId: kilde.organizationId,
+        sheetId: kilde.sheetId,
+        projectId: kilde.projectId,
+        dato: kilde.dato,
+        vareId: kilde.vareId,
+        vareNavn: kilde.vareNavn,
+        enhet: kilde.enhet,
+        antall: v.antall,
+        byggeplassId: kilde.byggeplassId,
+        externalCostObjectId: v.ecoId,
+        sheetTimerId: v.sheetTimerId,
+        syncStatus: "pending",
+        sistEndretLokalt: naa,
+      })
+      .run();
+  }
+  for (const r of plan.tillegg) {
+    db.update(sheetTilleggLocal)
+      .set({ sheetTimerId: r.sheetTimerId, externalCostObjectId: r.ecoId, kortId: null, sistEndretLokalt: naa })
+      .where(eq(sheetTilleggLocal.id, r.id))
+      .run();
+  }
+  for (const r of plan.utlegg) {
+    db.update(sheetUtleggLocal)
+      .set({ sheetTimerId: r.sheetTimerId, externalCostObjectId: r.ecoId, kortId: null, sistEndretLokalt: naa })
+      .where(eq(sheetUtleggLocal.id, r.id))
+      .run();
+  }
+  for (const r of plan.reiser) {
+    db.update(sheetTimerLocal)
+      .set({ externalCostObjectId: r.ecoId, kortId: null, sistEndretLokalt: naa })
+      .where(eq(sheetTimerLocal.id, r.id))
+      .run();
+  }
 }
 
 // ---- Del-rader (per rad-type) ----

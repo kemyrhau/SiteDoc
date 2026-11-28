@@ -6221,5 +6221,22 @@
   "timer.slettetKorrigert.hjelp.filter": "Perkelkite tarp savaičių rodyklėmis. Filtruokite pagal darbuotoją, projektą ir tipą. Dienos filtras nuo ženklelio pašalinamas su kryželiu arba „Rodyti visą laikotarpį“.",
   "timer.slettetKorrigert.hjelp.egne": "Puslapyje rodomos eilutės apie jūsų dienas, kurias ištrynė arba pataisė – patvirtintojo arba jūsų, kol diena buvo grąžinta. Rodoma ištrinta eilutė su turiniu, kurį ji turėjo; pataisyta eilutė su reikšme prieš ir po. Tik skaityti.",
   "timer.slettetKorrigert.hjelp.ikkeMedEgne": "Neįtraukta: eilutės, kurias ištrynėte, kol diena nebuvo grąžinta (tai yra įprastas redagavimas), eilutės, ištrintos prieš tai, kai takas turėjo turinį, ir dienos, pakeistos naujesne versija.",
-  "timer.slettetKorrigert.hjelp.filterEgne": "Pasirinkite laikotarpį nuo ir iki (daugiausia 93 dienos). Filtruokite pagal projektą ir tipą."
+  "timer.slettetKorrigert.hjelp.filterEgne": "Pasirinkite laikotarpį nuo ir iki (daugiausia 93 dienos). Filtruokite pagal projektą ir tipą.",
+  "timer.splitt.folgerMed.tittel": "Su juo juda",
+  "timer.splitt.folgerMed.hjelp": "Pasiūlyme pateikiamos kiekvienos dalies valandos. Prieš išsaugodami pakeiskite jį.",
+  "timer.splitt.folgerMed.maskin": "Mašina",
+  "timer.splitt.folgerMed.vare": "Medžiaga",
+  "timer.splitt.folgerMed.tillegg": "Pašalpa",
+  "timer.splitt.folgerMed.utlegg": "Išlaidos",
+  "timer.splitt.folgerMed.horerTil": "Priklauso",
+  "timer.splitt.folgerMed.reiseHorerTil": "Kelionės priklauso",
+  "timer.splitt.folgerMed.reiseUt": "Iškeliauti {{fra}}–{{til}}",
+  "timer.splitt.folgerMed.reiseHjem": "Kelionė namo {{fra}}–{{til}}",
+  "timer.splitt.folgerMed.reise": "Kelionės {{fra}}–{{til}}",
+  "timer.splitt.folgerMed.sumFeil": "Dalys sudaro {{sum}} iš {{skal}}",
+  "timer.splitt.folgerMed.annetProsjekt": "Mašina ir medžiaga negali sekti kito projekto dalies",
+  "timer.splitt.folgerMed.sumFeilSperre": "Prieš taupydami visiškai paskirstykite mašiną ir prekes",
+  "timer.splitt.folgerMed.vareIkkeFlyttet": "Valandos yra padalintos, bet medžiagos nebuvo. Pataisykite kortelėje esančias medžiagas.",
+  "timer.splitt.folgerMed.vareSynketOffline": "Prekės siunčiamos ir lieka 1 dalyje neprisijungus.",
+  "timer.splitt.folgerMed.vareSynketDel1": "Prekės siunčiamos. 1 dalis turi išlaikyti kai kuriuos iš jų."
 }

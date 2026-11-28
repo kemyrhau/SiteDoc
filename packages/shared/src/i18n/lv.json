@@ -6221,5 +6221,22 @@
   "timer.slettetKorrigert.hjelp.filter": "Pārvietojieties starp nedēļām ar bultiņām. Filtrējiet pēc darbinieka, projekta un veida. Dienas filtrs no emblēmas tiek noņemts ar krustiņu vai “Rādīt visu periodu”.",
   "timer.slettetKorrigert.hjelp.egne": "Lapā tiek rādītas rindas par jūsu dienām, kuras tika dzēstas vai labotas — apstiprinātājs vai jūs, kamēr diena tika atgriezta. Tiek parādīta dzēsta rindiņa ar tās saturu; koriģēta līnija ar vērtību pirms un pēc. Tikai lasāms.",
   "timer.slettetKorrigert.hjelp.ikkeMedEgne": "Nav iekļauts: rindas, kuras izdzēsāt, kamēr diena netika atgriezta (tā ir parasta rediģēšana), rindas, kas izdzēstas, pirms takas saturs bija klāt, un dienas, kas aizstātas ar jaunāku versiju.",
-  "timer.slettetKorrigert.hjelp.filterEgne": "Izvēlieties periodu ar No un Līdz (ne vairāk kā 93 dienas). Filtrējiet pēc projekta un veida."
+  "timer.slettetKorrigert.hjelp.filterEgne": "Izvēlieties periodu ar No un Līdz (ne vairāk kā 93 dienas). Filtrējiet pēc projekta un veida.",
+  "timer.splitt.folgerMed.tittel": "Kustas līdzi",
+  "timer.splitt.folgerMed.hjelp": "Ieteikums seko stundām katrā daļā. Mainiet to pirms saglabāšanas.",
+  "timer.splitt.folgerMed.maskin": "Mašīna",
+  "timer.splitt.folgerMed.vare": "Materiāls",
+  "timer.splitt.folgerMed.tillegg": "Pabalsts",
+  "timer.splitt.folgerMed.utlegg": "Izdevumi",
+  "timer.splitt.folgerMed.horerTil": "Pieder pie",
+  "timer.splitt.folgerMed.reiseHorerTil": "Ceļošana pieder",
+  "timer.splitt.folgerMed.reiseUt": "Izbrauciet {{fra}}–{{til}}",
+  "timer.splitt.folgerMed.reiseHjem": "Ceļot mājās {{fra}}–{{til}}",
+  "timer.splitt.folgerMed.reise": "Ceļojums {{fra}}–{{til}}",
+  "timer.splitt.folgerMed.sumFeil": "Daļas kopā veido {{sum}} no {{skal}}",
+  "timer.splitt.folgerMed.annetProsjekt": "Mašīna un materiāls nevar sekot kādai cita projekta daļai",
+  "timer.splitt.folgerMed.sumFeilSperre": "Pirms saglabāšanas pilnībā sadaliet mašīnu un preces",
+  "timer.splitt.folgerMed.vareIkkeFlyttet": "Stundas ir sadalītas, bet materiāli nebija. Labojiet materiālus uz kartes.",
+  "timer.splitt.folgerMed.vareSynketOffline": "Preces tiek nosūtītas un paliek 1. daļā bezsaistē.",
+  "timer.splitt.folgerMed.vareSynketDel1": "Preces tiek nosūtītas. 1. daļai daži no tiem jāsaglabā."
 }

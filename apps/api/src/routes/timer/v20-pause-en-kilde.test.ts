@@ -412,6 +412,9 @@ function lagSplittCtx(opts: { status: string; eier?: boolean }) {
   };
   const txMock = {
     sheetRadHistorikk: { createMany: vi.fn().mockResolvedValue({ count: 1 }) },
+    // Runde 8: tillegg og utlegg på timeraden følger delen (ingen her).
+    sheetTillegg: { findMany: vi.fn().mockResolvedValue([]) },
+    sheetUtlegg: { findMany: vi.fn().mockResolvedValue([]) },
     dailySheet: {
       update: vi.fn((args: { data: { pauseMin?: number } }) => {
         if (typeof args.data.pauseMin === "number") hode = args.data.pauseMin;
@@ -443,7 +446,12 @@ function lagSplittCtx(opts: { status: string; eier?: boolean }) {
         findUnique: vi.fn().mockResolvedValue({ tillattRedigerVedAttestering: true }),
       },
     },
+    // Runde 8: «Del opp» leser koblede rader på timeraden (ingen her).
+    prismaVarelager: { vareforbruk: { findMany: vi.fn().mockResolvedValue([]) } },
     prismaTimer: {
+      sheetMachine: { findMany: vi.fn().mockResolvedValue([]) },
+      sheetTillegg: { findMany: vi.fn().mockResolvedValue([]) },
+      sheetUtlegg: { findMany: vi.fn().mockResolvedValue([]) },
       // Post (7) punkt 1: katalog-firmavakten slår opp lønnsart/aktivitet.
       lonnsart: { findMany: vi.fn().mockResolvedValue([{ id: LONNSART }]) },
       aktivitet: { findMany: vi.fn().mockResolvedValue([{ id: AKTIVITET }]) },

@@ -6221,5 +6221,22 @@
   "timer.slettetKorrigert.hjelp.filter": "Flytta mellan veckorna med pilarna. Filtrera efter anställd, projekt och typ. Dagfiltret från märket tas bort med krysset eller \"Visa hela perioden\".",
   "timer.slettetKorrigert.hjelp.egne": "Sidan visar rader om dina egna dagar som raderades eller korrigerades – av godkännaren eller av dig medan dagen returnerades. En raderad rad visas med innehållet den hade; en korrigerad linje med värdet före och efter. Endast läs.",
   "timer.slettetKorrigert.hjelp.ikkeMedEgne": "Ej inkluderat: rader som du raderade medan dagen inte returnerades (det vill säga vanlig redigering), rader raderade innan spåret hade innehåll och dagar ersatta av en nyare version.",
-  "timer.slettetKorrigert.hjelp.filterEgne": "Välj period med Från och Till (högst 93 dagar). Filtrera efter projekt och typ."
+  "timer.slettetKorrigert.hjelp.filterEgne": "Välj period med Från och Till (högst 93 dagar). Filtrera efter projekt och typ.",
+  "timer.splitt.folgerMed.tittel": "Rör sig med den",
+  "timer.splitt.folgerMed.hjelp": "Förslaget följer timmarna i varje del. Ändra det innan du sparar.",
+  "timer.splitt.folgerMed.maskin": "Maskin",
+  "timer.splitt.folgerMed.vare": "Material",
+  "timer.splitt.folgerMed.tillegg": "Ersättning",
+  "timer.splitt.folgerMed.utlegg": "Bekostnad",
+  "timer.splitt.folgerMed.horerTil": "Tillhör",
+  "timer.splitt.folgerMed.reiseHorerTil": "Resor tillhör",
+  "timer.splitt.folgerMed.reiseUt": "Res ut {{fra}}–{{til}}",
+  "timer.splitt.folgerMed.reiseHjem": "Res hem {{fra}}–{{til}}",
+  "timer.splitt.folgerMed.reise": "Resa {{fra}}–{{til}}",
+  "timer.splitt.folgerMed.sumFeil": "Delarna summerar till {{sum}} av {{skal}}",
+  "timer.splitt.folgerMed.annetProsjekt": "Maskin och material kan inte följa en del i ett annat projekt",
+  "timer.splitt.folgerMed.sumFeilSperre": "Fördela maskin och varor helt innan du sparar",
+  "timer.splitt.folgerMed.vareIkkeFlyttet": "Timmarna är uppdelade, men materialen var det inte. Korrigera materialet på kortet.",
+  "timer.splitt.folgerMed.vareSynketOffline": "Varorna skickas och stannar på del 1 medan de är offline.",
+  "timer.splitt.folgerMed.vareSynketDel1": "Varorna skickas. Del 1 måste behålla några av dem."
 }

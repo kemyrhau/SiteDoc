@@ -1,6 +1,6 @@
 import { prosjektFeltFraServer, prosjektFeltTilServer } from "../utils/utenProsjektSynk";
 import { eq, and, gt, gte, lte, inArray, isNull, isNotNull } from "drizzle-orm";
-import { finnSedlerÅSlette } from "@sitedoc/shared";
+import { finnSedlerÅSlette, radProsjektId } from "@sitedoc/shared";
 import { hentDatabase } from "../db/database";
 import {
   dagsseddelLocal,
@@ -871,6 +871,14 @@ async function kjorTimerSync(
           .from(sheetTilleggLocal)
           .where(eq(sheetTilleggLocal.dagsseddelId, sedel.id))
           .all();
+        // Runde 8: koblingen sendes bare når timeraden finnes på sedelen i samme prosjekt —
+        // ellers avviser serveren hele synken; utelatt felt = serveren beholder sin kobling.
+        const timerProsjekt = new Map(timer.map((t) => [t.id, radProsjektId(t, sedel)]));
+        const koblingTilTimerad = (r: { sheetTimerId?: string | null; projectId: string | null }) => {
+          const id = r.sheetTimerId ?? null;
+          if (!id || !timerProsjekt.has(id)) return {};
+          return timerProsjekt.get(id) === radProsjektId(r, sedel) ? { sheetTimerId: id } : {};
+        };
         const maskiner = db
           .select()
           .from(sheetMachineLocal)
@@ -999,6 +1007,9 @@ async function kjorTimerSync(
             byggeplassId: tl.byggeplassId ?? null,
             externalCostObjectId: tl.externalCostObjectId ?? null,
             kortId: tl.kortId ?? null,
+            // Runde 8: koblingen sendes bare når timeraden finnes på sedelen i samme prosjekt.
+            // Ellers utelates den, og serveren beholder eller nuller sin egen (ingen avvisning).
+            ...koblingTilTimerad(tl),
           })),
           maskiner: maskiner.map((m) => ({
             id: m.id,
@@ -1033,6 +1044,7 @@ async function kjorTimerSync(
             byggeplassId: u.byggeplassId ?? null,
             externalCostObjectId: u.externalCostObjectId ?? null,
             kortId: u.kortId ?? null,
+            ...koblingTilTimerad(u),
             ordningVedFoering: u.ordningVedFoering as
               | "lonnstillegg"
               | "utlegg"
@@ -1625,6 +1637,8 @@ async function kjorTimerSync(
             kommentar: tl.kommentar,
             ...kortFeltFraServer(tl as unknown as Partial<KortFelt>, kortFor.get(tl.id)),
             kortId: kortIdFraServer(tl),
+            // Runde 8: koblingen til timeraden (eldre server uten feltet → null).
+            sheetTimerId: (tl as { sheetTimerId?: string | null }).sheetTimerId ?? null,
             paaServer: true,
             sistEndretLokalt: serverTidMs,
           })
@@ -1712,6 +1726,7 @@ async function kjorTimerSync(
             foertVed: new Date(u.foertVed).getTime(),
             ...kortFeltFraServer(u as unknown as Partial<KortFelt>, kortFor.get(u.id)),
             kortId: kortIdFraServer(u),
+            sheetTimerId: (u as { sheetTimerId?: string | null }).sheetTimerId ?? null,
             paaServer: true,
             sistEndretLokalt: serverTidMs,
           })

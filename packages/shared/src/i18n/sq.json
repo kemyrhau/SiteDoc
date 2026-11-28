@@ -6221,5 +6221,22 @@
   "timer.slettetKorrigert.hjelp.filter": "Lëvizni ndërmjet javëve me shigjeta. Filtro sipas punonjësit, projektit dhe llojit. Filtri i ditës nga distinktivi hiqet me kryq ose \"Trego gjithë periudhën\".",
   "timer.slettetKorrigert.hjelp.egne": "Faqja tregon rreshta në ditët tuaja që janë fshirë ose korrigjuar - nga miratuesi ose nga ju ndërsa dita është kthyer. Një rresht i fshirë shfaqet me përmbajtjen që kishte; një linjë e korrigjuar me vlerën para dhe pas. Lexo vetëm.",
   "timer.slettetKorrigert.hjelp.ikkeMedEgne": "Nuk përfshihen: rreshtat që keni fshirë ndërsa dita nuk është kthyer (që është redaktimi i zakonshëm), rreshtat e fshirë përpara se gjurma të kishte përmbajtje dhe ditët e zëvendësuara nga një version më i ri.",
-  "timer.slettetKorrigert.hjelp.filterEgne": "Zgjidhni periudhën me Nga dhe Për (më së shumti 93 ditë). Filtro sipas projektit dhe llojit."
+  "timer.slettetKorrigert.hjelp.filterEgne": "Zgjidhni periudhën me Nga dhe Për (më së shumti 93 ditë). Filtro sipas projektit dhe llojit.",
+  "timer.splitt.folgerMed.tittel": "Lëviz me të",
+  "timer.splitt.folgerMed.hjelp": "Sugjerimi ndjek orët në secilën pjesë. Ndryshojeni përpara se të kurseni.",
+  "timer.splitt.folgerMed.maskin": "Makinë",
+  "timer.splitt.folgerMed.vare": "Materiali",
+  "timer.splitt.folgerMed.tillegg": "Kompensimi",
+  "timer.splitt.folgerMed.utlegg": "Shpenzimet",
+  "timer.splitt.folgerMed.horerTil": "I përket",
+  "timer.splitt.folgerMed.reiseHorerTil": "Udhëtimi i përket",
+  "timer.splitt.folgerMed.reiseUt": "Udhëtoni jashtë {{fra}}–{{til}}",
+  "timer.splitt.folgerMed.reiseHjem": "Udhëtoni në shtëpi {{fra}}–{{til}}",
+  "timer.splitt.folgerMed.reise": "Udhëtoni {{fra}}–{{til}}",
+  "timer.splitt.folgerMed.sumFeil": "Pjesët mblidhen deri në {{sum}} e {{skal}}",
+  "timer.splitt.folgerMed.annetProsjekt": "Makina dhe materiali nuk mund të ndjekin një pjesë në një projekt tjetër",
+  "timer.splitt.folgerMed.sumFeilSperre": "Shpërndani plotësisht makinën dhe mallrat përpara se të kurseni",
+  "timer.splitt.folgerMed.vareIkkeFlyttet": "Orët janë të ndara, por materialet jo. Korrigjoni materialet në kartë.",
+  "timer.splitt.folgerMed.vareSynketOffline": "Mallrat dërgohen dhe qëndrojnë në pjesën 1 ndërsa janë jashtë linje.",
+  "timer.splitt.folgerMed.vareSynketDel1": "Mallrat dërgohen. Pjesa 1 duhet të mbajë disa prej tyre."
 }

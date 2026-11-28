@@ -788,3 +788,11 @@ export { erMeldbarHmsMal, type MeldHmsSubdomain } from "./meldHmsMal";
 export { SUBDOMAIN_FORM, formForSubdomain, type MalForm, type FormSubdomain } from "./subdomainForm";
 // A3 (web-timeforing-plan § 4.17 del D, B55): «Reise under terskel» i attesteringen.
 export { reiseUnderTerskel, type ReiseUnderTerskel, type ReiseUnderTerskelRad } from "./reiseUnderTerskel";
+// Runde 8 timer: arbeideren deler opp en timerad — forslag og summvakt for koblede rader.
+export {
+  foreslaDelOppFordeling,
+  fullforDelOppFordeling,
+  validerDelOppFordeling,
+  beregnDelOppFordeling,
+} from "./delOppTimerad";
+export type { DelOppDel, DelOppKoblet, DelOppFordeling, DelOppFeil } from "./delOppTimerad";

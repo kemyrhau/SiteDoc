@@ -6221,5 +6221,22 @@
   "timer.slettetKorrigert.hjelp.filter": "Move between weeks with the arrows. Filter by employee, project and type. The day filter from the badge is removed with the cross or “Show the whole period”.",
   "timer.slettetKorrigert.hjelp.egne": "The page shows lines on your own days that were deleted or corrected — by the approver, or by you while the day was returned. A deleted line is shown with the content it had; a corrected line with the value before and after. Read only.",
   "timer.slettetKorrigert.hjelp.ikkeMedEgne": "Not included: lines you deleted while the day was not returned (that is ordinary editing), lines deleted before the trail had content, and days replaced by a newer version.",
-  "timer.slettetKorrigert.hjelp.filterEgne": "Choose the period with From and To (at most 93 days). Filter by project and type."
+  "timer.slettetKorrigert.hjelp.filterEgne": "Choose the period with From and To (at most 93 days). Filter by project and type.",
+  "timer.splitt.folgerMed.tittel": "Moves with it",
+  "timer.splitt.folgerMed.hjelp": "The suggestion follows the hours in each part. Change it before you save.",
+  "timer.splitt.folgerMed.maskin": "Machine",
+  "timer.splitt.folgerMed.vare": "Material",
+  "timer.splitt.folgerMed.tillegg": "Allowance",
+  "timer.splitt.folgerMed.utlegg": "Expense",
+  "timer.splitt.folgerMed.horerTil": "Belongs to",
+  "timer.splitt.folgerMed.reiseHorerTil": "Travel belongs to",
+  "timer.splitt.folgerMed.reiseUt": "Travel out {{fra}}–{{til}}",
+  "timer.splitt.folgerMed.reiseHjem": "Travel home {{fra}}–{{til}}",
+  "timer.splitt.folgerMed.reise": "Travel {{fra}}–{{til}}",
+  "timer.splitt.folgerMed.sumFeil": "The parts add up to {{sum}} of {{skal}}",
+  "timer.splitt.folgerMed.annetProsjekt": "Machine and material cannot follow a part in another project",
+  "timer.splitt.folgerMed.sumFeilSperre": "Distribute machine and goods fully before saving",
+  "timer.splitt.folgerMed.vareIkkeFlyttet": "The hours are split, but the materials were not. Correct the materials on the card.",
+  "timer.splitt.folgerMed.vareSynketOffline": "The goods are sent and stay on part 1 while offline.",
+  "timer.splitt.folgerMed.vareSynketDel1": "The goods are sent. Part 1 must keep some of them."
 }

@@ -6221,5 +6221,22 @@
   "timer.slettetKorrigert.hjelp.filter": "Mezi týdny se pohybujte pomocí šipek. Filtrujte podle zaměstnance, projektu a typu. Denní filtr z odznaku se odstraní křížkem nebo „Zobrazit celé období“.",
   "timer.slettetKorrigert.hjelp.egne": "Stránka zobrazuje řádky ve vašich vlastních dnech, které byly odstraněny nebo opraveny – schvalovatelem nebo vámi, když byl den vrácen. Smazaný řádek se zobrazí s obsahem, který měl; opravený řádek s hodnotou před a za. Pouze pro čtení.",
   "timer.slettetKorrigert.hjelp.ikkeMedEgne": "Nezahrnuje: řádky, které jste smazali, když nebyl vrácen den (to je běžná úprava), řádky smazané předtím, než trasa měla obsah, a dny nahrazené novější verzí.",
-  "timer.slettetKorrigert.hjelp.filterEgne": "Vyberte období pomocí Od a Do (maximálně 93 dní). Filtrujte podle projektu a typu."
+  "timer.slettetKorrigert.hjelp.filterEgne": "Vyberte období pomocí Od a Do (maximálně 93 dní). Filtrujte podle projektu a typu.",
+  "timer.splitt.folgerMed.tittel": "Pohybuje se s tím",
+  "timer.splitt.folgerMed.hjelp": "Návrh navazuje na hodiny v každé části. Před uložením jej změňte.",
+  "timer.splitt.folgerMed.maskin": "Stroj",
+  "timer.splitt.folgerMed.vare": "Materiál",
+  "timer.splitt.folgerMed.tillegg": "Příspěvek",
+  "timer.splitt.folgerMed.utlegg": "Výdaj",
+  "timer.splitt.folgerMed.horerTil": "Patří k",
+  "timer.splitt.folgerMed.reiseHorerTil": "Cestování patří",
+  "timer.splitt.folgerMed.reiseUt": "Cestujte {{fra}}–{{til}}",
+  "timer.splitt.folgerMed.reiseHjem": "Cesta domů {{fra}}–{{til}}",
+  "timer.splitt.folgerMed.reise": "Cestování {{fra}}–{{til}}",
+  "timer.splitt.folgerMed.sumFeil": "Součet dílů činí {{sum}} z {{skal}}",
+  "timer.splitt.folgerMed.annetProsjekt": "Stroj a materiál nemohou následovat součást v jiném projektu",
+  "timer.splitt.folgerMed.sumFeilSperre": "Před uložením plně distribuujte stroj a zboží",
+  "timer.splitt.folgerMed.vareIkkeFlyttet": "Hodiny jsou rozdělené, ale materiály nebyly. Opravte materiály na kartě.",
+  "timer.splitt.folgerMed.vareSynketOffline": "Zboží je odesláno a zůstává v části 1, když je offline.",
+  "timer.splitt.folgerMed.vareSynketDel1": "Zboží je odesláno. Část 1 musí některé z nich zachovat."
 }

@@ -38,14 +38,19 @@ function beskrivelseSperret(kilde: string): boolean {
   return sjekk >= 0 && sjekk < skriv;
 }
 
-/** R10: Del opp avviser når del 1 får færre timer enn en koblet maskin, før skriving. */
-function splittAvviserMaskinOverDel1(kilde: string): boolean {
-  const del1 = kilde.indexOf("const del1Timer = tilTall(timerDeler[0]!.timerTekst);");
+/**
+ * R10: Del opp avviser når en del får færre timer enn en koblet maskin på den delen, før skriving.
+ * Runde 8 (Kenneth 2026-11-28 «A»): maskinen fordeles på delene, så vakten gjelder hver del;
+ * uten «Følger med» står hele maskinen på del 1 (`i === 0 ? m.timer : 0`), som før.
+ */
+function splittAvviserMaskinOverDel(kilde: string): boolean {
+  const del = kilde.indexOf("const delTimer = tilTall(timerDeler[i]!.timerTekst);");
   const sjekk = kilde.search(
-    /const overDel1 = maskinerOverRad\(del1Timer, hentKobledeMaskiner\(db, o\.id\), enhetLokalt\(db\)\);\s*if \(overDel1\.length > 0\) \{[\s\S]*?setFeil\(t\("timer\.maskinSeksjon\.overRad"[\s\S]*?return;\s*\}/,
+    /const over = maskinerOverRad\(delTimer, paaDel, enhet\);\s*if \(over\.length > 0\) \{[\s\S]*?setFeil\(t\("timer\.maskinSeksjon\.overRad"[\s\S]*?return;\s*\}/,
   );
+  const utenFolgerMed = /: i === 0\s*\? m\.timer\s*: 0/.test(kilde);
   const skriv = kilde.indexOf("db.update(sheetTimerLocal)");
-  return del1 >= 0 && sjekk > del1 && skriv > sjekk;
+  return del >= 0 && sjekk > del && skriv > sjekk && utenFolgerMed;
 }
 
 describe("punkt 1 — beskrivelse påkrevd på arbeidsrad", () => {
@@ -74,20 +79,26 @@ describe("punkt 1 — beskrivelse påkrevd på arbeidsrad", () => {
   });
 });
 
-describe("R10 — Del opp med koblet maskin over del 1", () => {
+describe("R10 — Del opp med koblet maskin over delens timer", () => {
   it("avviser før originalen oppdateres", () => {
-    expect(splittAvviserMaskinOverDel1(SPLITT)).toBe(true);
+    expect(splittAvviserMaskinOverDel(SPLITT)).toBe(true);
   });
 
   it("mutant: avvisningen fjernet → vakta feiler", () => {
-    const mutert = SPLITT.replace(/if \(overDel1\.length > 0\) \{/, "if (false) {");
+    const mutert = SPLITT.replace(/if \(over\.length > 0\) \{/, "if (false) {");
     expect(mutert).not.toBe(SPLITT);
-    expect(splittAvviserMaskinOverDel1(mutert)).toBe(false);
+    expect(splittAvviserMaskinOverDel(mutert)).toBe(false);
   });
 
-  it("mutant: sjekken mot hele originalen i stedet for del 1 → vakta feiler", () => {
-    const mutert = SPLITT.replace("maskinerOverRad(del1Timer,", "maskinerOverRad(o.timer,");
+  it("mutant: sjekken mot hele originalen i stedet for delen → vakta feiler", () => {
+    const mutert = SPLITT.replace("maskinerOverRad(delTimer,", "maskinerOverRad(o.timer,");
     expect(mutert).not.toBe(SPLITT);
-    expect(splittAvviserMaskinOverDel1(mutert)).toBe(false);
+    expect(splittAvviserMaskinOverDel(mutert)).toBe(false);
+  });
+
+  it("mutant: uten «Følger med» spres maskinen på alle deler → vakta feiler", () => {
+    const mutert = SPLITT.replace(/: i === 0\s*\? m\.timer\s*: 0/, ": m.timer");
+    expect(mutert).not.toBe(SPLITT);
+    expect(splittAvviserMaskinOverDel(mutert)).toBe(false);
   });
 });

@@ -43,7 +43,7 @@ import * as schema from "../db/schema";
 import { kjorMigreringer } from "../db/migreringer";
 import { syncTimer } from "./timerSync";
 
-const { dagsseddelLocal, sheetTilleggLocal, sheetUtleggLocal } = schema;
+const { dagsseddelLocal, sheetTilleggLocal, sheetUtleggLocal, sheetTimerLocal } = schema;
 type Db = ReturnType<typeof drizzle<typeof schema>>;
 function db(): Db {
   return holder.drizzle as Db;
@@ -204,7 +204,7 @@ beforeAll(async () => {
 beforeEach(() => {
   pushPayloads.length = 0;
   holder.raw.run(
-    "DELETE FROM dagsseddel_local; DELETE FROM sheet_tillegg_local; DELETE FROM sheet_utlegg_local; DELETE FROM slettede_rader_local;",
+    "DELETE FROM dagsseddel_local; DELETE FROM sheet_timer_local; DELETE FROM sheet_tillegg_local; DELETE FROM sheet_utlegg_local; DELETE FROM slettede_rader_local;",
   );
 });
 
@@ -244,5 +244,73 @@ describe("T6 — tillegg/utlegg bærer byggeplass og underprosjekt gjennom sync"
     await syncTimer(lagKlient(pullSvar(serverTillegg(tomt), serverUtlegg(tomt))), "u1");
     expect(lokalTillegg()).toMatchObject(tomt);
     expect(lokalUtlegg()).toMatchObject(tomt);
+  });
+});
+
+/**
+ * Runde 8 (Kenneth 2026-11-28 «A»): «Del opp» flytter tillegg/utlegg til en del via den lokale
+ * kolonnen `sheet_timer_id`. Koblingen sendes bare når timeraden finnes på sedelen i samme
+ * prosjekt — ellers avviser serveren hele synken (`sikreTimeradKoblingEtterSync`), og da beholder
+ * serveren sin lagrede kobling (feltet utelates, som eldre klient).
+ */
+describe("Runde 8 — tillegg/utlegg-koblingen til timeraden i synken", () => {
+  function timerad(id: string, projectId: string) {
+    db()
+      .insert(sheetTimerLocal)
+      .values({
+        id,
+        dagsseddelId: "sheet-1",
+        projectId,
+        lonnsartId: "L1",
+        aktivitetId: "a1",
+        timer: 2,
+        fraTid: "13:00",
+        tilTid: "15:00",
+        sistEndretLokalt: 1000,
+      })
+      .run();
+  }
+  function kobl(id: string) {
+    db().update(sheetTilleggLocal).set({ sheetTimerId: id }).where(eq(sheetTilleggLocal.id, "tl-1")).run();
+    db().update(sheetUtleggLocal).set({ sheetTimerId: id }).where(eq(sheetUtleggLocal.id, "ut-1")).run();
+  }
+  const sendt = () => {
+    const sedel = pushPayloads.find((s) => s.clientUuid === "sheet-1")!;
+    return [
+      (sedel.tillegg as Array<Record<string, unknown>>)[0]!,
+      (sedel.utlegg as Array<Record<string, unknown>>)[0]!,
+    ];
+  };
+
+  it("E: gyldig kobling (timerad på sedelen, samme prosjekt) sendes som sheetTimerId", async () => {
+    seed();
+    timerad("rad2", "p1");
+    kobl("rad2");
+    await syncTimer(lagKlient(pullSvar(serverTillegg(), serverUtlegg())), "u1");
+    for (const r of sendt()) expect(r.sheetTimerId).toBe("rad2");
+  });
+
+  it("F: ukjent timerad eller annet prosjekt sendes ikke (serveren beholder sin kobling)", async () => {
+    seed();
+    timerad("rad-p2", "p2");
+    kobl("rad-p2");
+    await syncTimer(lagKlient(pullSvar(serverTillegg(), serverUtlegg())), "u1");
+    for (const r of sendt()) expect(r).not.toHaveProperty("sheetTimerId");
+    pushPayloads.length = 0;
+    holder.raw.run("DELETE FROM dagsseddel_local; DELETE FROM sheet_timer_local; DELETE FROM sheet_tillegg_local; DELETE FROM sheet_utlegg_local;");
+    seed();
+    kobl("finnes-ikke");
+    await syncTimer(lagKlient(pullSvar(serverTillegg(), serverUtlegg())), "u1");
+    for (const r of sendt()) expect(r).not.toHaveProperty("sheetTimerId");
+  });
+
+  it("G: pull fører serverens kobling inn i den lokale kolonnen", async () => {
+    seed();
+    await syncTimer(
+      lagKlient(pullSvar(serverTillegg({ sheetTimerId: "srv-rad" }), serverUtlegg({ sheetTimerId: "srv-rad" }))),
+      "u1",
+    );
+    expect(lokalTillegg().sheetTimerId).toBe("srv-rad");
+    expect(lokalUtlegg().sheetTimerId).toBe("srv-rad");
   });
 });

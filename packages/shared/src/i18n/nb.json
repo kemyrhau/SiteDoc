@@ -6221,5 +6221,22 @@
   "timer.slettetKorrigert.hjelp.filter": "Bla mellom uker med pilene. Filtrer på ansatt, prosjekt og type. Dagfilteret fra merket fjernes med krysset eller «Vis hele perioden».",
   "timer.slettetKorrigert.hjelp.egne": "Siden viser linjer på dine egne dager som er slettet eller korrigert — av attestanten, eller av deg selv mens dagen var returnert. En slettet linje vises med innholdet den hadde; en korrigert linje med verdien før og etter. Bare lesing.",
   "timer.slettetKorrigert.hjelp.ikkeMedEgne": "Ikke med: linjer du slettet mens dagen ikke var returnert (det er vanlig redigering), linjer slettet før sporet fikk innhold, og dager som er erstattet av en nyere versjon.",
-  "timer.slettetKorrigert.hjelp.filterEgne": "Velg periode med Fra og Til (høyst 93 dager). Filtrer på prosjekt og type."
+  "timer.slettetKorrigert.hjelp.filterEgne": "Velg periode med Fra og Til (høyst 93 dager). Filtrer på prosjekt og type.",
+  "timer.splitt.folgerMed.tittel": "Følger med",
+  "timer.splitt.folgerMed.hjelp": "Forslaget følger timene i hver del. Endre før du lagrer.",
+  "timer.splitt.folgerMed.maskin": "Maskin",
+  "timer.splitt.folgerMed.vare": "Vare",
+  "timer.splitt.folgerMed.tillegg": "Tillegg",
+  "timer.splitt.folgerMed.utlegg": "Utlegg",
+  "timer.splitt.folgerMed.horerTil": "Hører til",
+  "timer.splitt.folgerMed.reiseHorerTil": "Reise hører til",
+  "timer.splitt.folgerMed.reiseUt": "Reise ut {{fra}}–{{til}}",
+  "timer.splitt.folgerMed.reiseHjem": "Reise hjem {{fra}}–{{til}}",
+  "timer.splitt.folgerMed.reise": "Reise {{fra}}–{{til}}",
+  "timer.splitt.folgerMed.sumFeil": "Delene er {{sum}} av {{skal}}",
+  "timer.splitt.folgerMed.annetProsjekt": "Maskin og vare kan ikke følge en del i et annet prosjekt",
+  "timer.splitt.folgerMed.sumFeilSperre": "Fordel maskin og vare fullt før du lagrer",
+  "timer.splitt.folgerMed.vareIkkeFlyttet": "Timene er delt, men varene ble ikke delt. Rett varene på kortet.",
+  "timer.splitt.folgerMed.vareSynketOffline": "Varen er sendt og blir på del 1 uten nett.",
+  "timer.splitt.folgerMed.vareSynketDel1": "Varen er sendt. Del 1 må beholde noe av den."
 }

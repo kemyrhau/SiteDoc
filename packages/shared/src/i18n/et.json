@@ -6221,5 +6221,22 @@
   "timer.slettetKorrigert.hjelp.filter": "Liikuge nädalate vahel nooltega. Filtreerige töötaja, projekti ja tüübi järgi. Märgilt eemaldatakse päevafilter ristiga või \"Näita kogu perioodi\".",
   "timer.slettetKorrigert.hjelp.egne": "Lehel kuvatakse read teie enda päevade kohta, mis kustutati või parandati – kinnitaja või teie poolt päeva tagastamise ajal. Kuvatakse kustutatud rida koos selle sisuga; parandatud rida väärtusega enne ja pärast. Ainult lugemiseks.",
   "timer.slettetKorrigert.hjelp.ikkeMedEgne": "Ei sisalda: read, mille kustutasite, kui päeva ei tagastatud (see on tavaline redigeerimine), read, mis kustutati enne, kui rajal oli sisu, ja päevad, mis asendati uuema versiooniga.",
-  "timer.slettetKorrigert.hjelp.filterEgne": "Valige periood vahemikus Alates ja Kuni (maksimaalselt 93 päeva). Filtreerige projekti ja tüübi järgi."
+  "timer.slettetKorrigert.hjelp.filterEgne": "Valige periood vahemikus Alates ja Kuni (maksimaalselt 93 päeva). Filtreerige projekti ja tüübi järgi.",
+  "timer.splitt.folgerMed.tittel": "Liigub sellega kaasa",
+  "timer.splitt.folgerMed.hjelp": "Soovitus järgib iga osa tunde. Muutke seda enne salvestamist.",
+  "timer.splitt.folgerMed.maskin": "Masin",
+  "timer.splitt.folgerMed.vare": "Materjal",
+  "timer.splitt.folgerMed.tillegg": "Toetus",
+  "timer.splitt.folgerMed.utlegg": "Kulu",
+  "timer.splitt.folgerMed.horerTil": "Kuulub",
+  "timer.splitt.folgerMed.reiseHorerTil": "Reisimine kuulub",
+  "timer.splitt.folgerMed.reiseUt": "Reisige välja {{fra}}–{{til}}",
+  "timer.splitt.folgerMed.reiseHjem": "Reisi koju {{fra}}–{{til}}",
+  "timer.splitt.folgerMed.reise": "Reisimine {{fra}}–{{til}}",
+  "timer.splitt.folgerMed.sumFeil": "Osade summa on {{sum}} {{skal}}-st",
+  "timer.splitt.folgerMed.annetProsjekt": "Masin ja materjal ei saa järgida osa teises projektis",
+  "timer.splitt.folgerMed.sumFeilSperre": "Enne salvestamist levitage masin ja kaubad täielikult laiali",
+  "timer.splitt.folgerMed.vareIkkeFlyttet": "Tunnid on jagatud, kuid materjalid ei olnud. Parandage kaardil olevad materjalid.",
+  "timer.splitt.folgerMed.vareSynketOffline": "Kaubad saadetakse ja jäävad 1. osa juurde ka võrguühenduseta.",
+  "timer.splitt.folgerMed.vareSynketDel1": "Kaup saadetakse. Osa 1 peab säilitama mõned neist."
 }

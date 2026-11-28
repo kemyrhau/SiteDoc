@@ -6221,5 +6221,22 @@
   "timer.slettetKorrigert.hjelp.filter": "Deplasați-vă între săptămâni cu săgețile. Filtrați după angajat, proiect și tip. Filtrul de zi de pe insignă este îndepărtat cu crucea sau „Afișează întreaga perioadă”.",
   "timer.slettetKorrigert.hjelp.egne": "Pagina afișează linii din zilele tale care au fost șterse sau corectate — de către aprobator sau de către tine în timp ce ziua a fost returnată. O linie ștearsă este afișată cu conținutul pe care l-a avut; o linie corectată cu valoarea înainte și după. Numai citire.",
   "timer.slettetKorrigert.hjelp.ikkeMedEgne": "Nu sunt incluse: liniile pe care le-ați șters în timp ce ziua nu a fost returnată (adică o editare obișnuită), liniile șterse înainte ca traseul să aibă conținut și zilele înlocuite cu o versiune mai nouă.",
-  "timer.slettetKorrigert.hjelp.filterEgne": "Alegeți perioada cu De la și Până (cel mult 93 de zile). Filtrați după proiect și tip."
+  "timer.slettetKorrigert.hjelp.filterEgne": "Alegeți perioada cu De la și Până (cel mult 93 de zile). Filtrați după proiect și tip.",
+  "timer.splitt.folgerMed.tittel": "Se mișcă cu el",
+  "timer.splitt.folgerMed.hjelp": "Sugestia urmează orele din fiecare parte. Schimbați-l înainte de a salva.",
+  "timer.splitt.folgerMed.maskin": "Maşină",
+  "timer.splitt.folgerMed.vare": "Material",
+  "timer.splitt.folgerMed.tillegg": "Alocație",
+  "timer.splitt.folgerMed.utlegg": "Cheltuiala",
+  "timer.splitt.folgerMed.horerTil": "Aparține",
+  "timer.splitt.folgerMed.reiseHorerTil": "Călătoria îi aparține",
+  "timer.splitt.folgerMed.reiseUt": "Călătoriți {{fra}}–{{til}}",
+  "timer.splitt.folgerMed.reiseHjem": "Călătoriți acasă {{fra}}–{{til}}",
+  "timer.splitt.folgerMed.reise": "Călătorie {{fra}}–{{til}}",
+  "timer.splitt.folgerMed.sumFeil": "Părțile însumează {{sum}} din {{skal}}",
+  "timer.splitt.folgerMed.annetProsjekt": "Mașina și materialul nu pot urma o parte dintr-un alt proiect",
+  "timer.splitt.folgerMed.sumFeilSperre": "Distribuiți complet mașina și bunurile înainte de a salva",
+  "timer.splitt.folgerMed.vareIkkeFlyttet": "Orele sunt împărțite, dar materialele nu. Corectați materialele de pe card.",
+  "timer.splitt.folgerMed.vareSynketOffline": "Bunurile sunt trimise și rămân în partea 1 în timp ce sunt offline.",
+  "timer.splitt.folgerMed.vareSynketDel1": "Marfa este trimisă. Partea 1 trebuie să păstreze unele dintre ele."
 }

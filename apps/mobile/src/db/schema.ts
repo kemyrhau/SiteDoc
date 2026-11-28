@@ -266,6 +266,9 @@ export const sheetTilleggLocal = sqliteTable("sheet_tillegg_local", {
   // NULL = arv (byggeplass fra sedelen, intet underprosjekt). Lagt til via KORTVALG_LOCAL_KOLONNER.
   byggeplassId: text("byggeplass_id"),
   externalCostObjectId: text("external_cost_object_id"),
+  // Runde 8 (2026-11-28): timeraden tillegget hører til (speil av server). NULL = ikke koblet eller
+  // ikke hentet ennå. Lagt til via RADFORM_LOCAL_KOLONNER.
+  sheetTimerId: text("sheet_timer_id"),
   // Plan A (2026-11-13): sann når raden finnes på serveren (lagt inn av pull, eller med i en
   // push serveren svarte `ok` på). NULL/usann = aldri bekreftet sendt. Pull legger tilbake
   // slike rader når en overlapp-konflikt er løst på web. Lagt til via PAA_SERVER_KOLONNER.
@@ -352,6 +355,9 @@ export const sheetUtleggLocal = sqliteTable("sheet_utlegg_local", {
   // NULL = arv (byggeplass fra sedelen, intet underprosjekt). Lagt til via KORTVALG_LOCAL_KOLONNER.
   byggeplassId: text("byggeplass_id"),
   externalCostObjectId: text("external_cost_object_id"),
+  // Runde 8 (2026-11-28): timeraden utlegget hører til (speil av server). NULL = ikke koblet eller
+  // ikke hentet ennå. Lagt til via RADFORM_LOCAL_KOLONNER.
+  sheetTimerId: text("sheet_timer_id"),
   // Plan A (2026-11-13): sann når raden finnes på serveren (lagt inn av pull, eller med i en
   // push serveren svarte `ok` på). NULL/usann = aldri bekreftet sendt. Pull legger tilbake
   // slike rader når en overlapp-konflikt er løst på web. Lagt til via PAA_SERVER_KOLONNER.

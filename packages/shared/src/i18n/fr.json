@@ -6221,5 +6221,22 @@
   "timer.slettetKorrigert.hjelp.filter": "Déplacez-vous entre les semaines avec les flèches. Filtrer par employé, projet et type. Le filtre journalier du badge est supprimé avec la croix ou « Afficher toute la période ».",
   "timer.slettetKorrigert.hjelp.egne": "La page affiche les lignes de vos propres jours qui ont été supprimées ou corrigées — par l'approbateur ou par vous lors du retour du jour. Une ligne supprimée est affichée avec le contenu qu'elle avait ; une ligne corrigée avec la valeur avant et après. Lecture seule.",
   "timer.slettetKorrigert.hjelp.ikkeMedEgne": "Non inclus : les lignes que vous avez supprimées alors que le jour n'a pas été renvoyé (c'est-à-dire une édition ordinaire), les lignes supprimées avant que le parcours n'ait du contenu et les jours remplacés par une version plus récente.",
-  "timer.slettetKorrigert.hjelp.filterEgne": "Choisissez la période avec De et À (au maximum 93 jours). Filtrer par projet et type."
+  "timer.slettetKorrigert.hjelp.filterEgne": "Choisissez la période avec De et À (au maximum 93 jours). Filtrer par projet et type.",
+  "timer.splitt.folgerMed.tittel": "Se déplace avec",
+  "timer.splitt.folgerMed.hjelp": "La suggestion suit les heures dans chaque partie. Modifiez-le avant de sauvegarder.",
+  "timer.splitt.folgerMed.maskin": "Machine",
+  "timer.splitt.folgerMed.vare": "Matérielle",
+  "timer.splitt.folgerMed.tillegg": "Allocation",
+  "timer.splitt.folgerMed.utlegg": "Frais",
+  "timer.splitt.folgerMed.horerTil": "Appartient à",
+  "timer.splitt.folgerMed.reiseHorerTil": "Le voyage appartient à",
+  "timer.splitt.folgerMed.reiseUt": "Voyager {{fra}}–{{til}}",
+  "timer.splitt.folgerMed.reiseHjem": "Voyage à la maison {{fra}}–{{til}}",
+  "timer.splitt.folgerMed.reise": "Voyage {{fra}}–{{til}}",
+  "timer.splitt.folgerMed.sumFeil": "Les parties totalisent {{sum}} de {{skal}}",
+  "timer.splitt.folgerMed.annetProsjekt": "La machine et le matériau ne peuvent pas suivre une pièce dans un autre projet",
+  "timer.splitt.folgerMed.sumFeilSperre": "Distribuez entièrement la machine et les marchandises avant de les enregistrer",
+  "timer.splitt.folgerMed.vareIkkeFlyttet": "Les horaires sont fractionnés, mais le matériel ne l’est pas. Corrigez les éléments sur la carte.",
+  "timer.splitt.folgerMed.vareSynketOffline": "Les marchandises sont envoyées et restent sur la partie 1 lorsqu'elles sont hors ligne.",
+  "timer.splitt.folgerMed.vareSynketDel1": "Les marchandises sont envoyées. La première partie doit en conserver quelques-unes."
 }

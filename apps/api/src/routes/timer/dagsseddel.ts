@@ -174,6 +174,11 @@ import {
   lesMidnattDel,
   annetStedTekst,
   finnApenAnnetStedReise,
+  fullforDelOppFordeling,
+  validerDelOppFordeling,
+  type DelOppFordeling,
+  type DelOppKoblet,
+  type DelOppFeil,
 } from "@sitedoc/shared";
 import {
   klassifiserSyncRader,
@@ -3692,6 +3697,19 @@ const splittRadInput = z.discriminatedUnion("radType", [
         }),
       )
       .min(2, "Splitt krever minst 2 nye rader"),
+    // Runde 8 (Kenneth 2026-11-27/28 «Ja, begge»): arbeiderens fordeling av koblede rader på
+    // delene (indeks = plassen i `nyeRader`). Bare `splittRadEier` leser den. Utelatt rad =
+    // forslaget (`foreslaDelOppFordeling`); utelatt felt helt = dagens atferd (alt på første del,
+    // ingen reise flyttes).
+    fordeling: z
+      .object({
+        maskiner: z.array(z.object({ id: z.string().uuid(), timer: z.array(z.number().min(0)) })).optional(),
+        varer: z.array(z.object({ id: z.string().uuid(), antall: z.array(z.number().min(0)) })).optional(),
+        tillegg: z.array(z.object({ id: z.string().uuid(), del: z.number().int().min(0) })).optional(),
+        utlegg: z.array(z.object({ id: z.string().uuid(), del: z.number().int().min(0) })).optional(),
+        reiser: z.array(z.object({ id: z.string().uuid(), del: z.number().int().min(0) })).optional(),
+      })
+      .optional(),
   }),
   z.object({
     radType: z.literal("tillegg"),
@@ -3735,6 +3753,308 @@ const splittRadInput = z.discriminatedUnion("radType", [
   }),
 ]);
 type SplittRadInput = z.infer<typeof splittRadInput>;
+
+// ============================================================================
+//  Runde 8 — arbeideren deler opp en timerad (Kenneth 2026-11-27: «del opp en timerad, må
+//  ha mulighet å tillegne underprosjekt på hver av valgene -> vi må samtidig dele opp
+//  tilhørende maskin, varer, tillegg/utlegg. reise må tilordnes rett prosjekt/underprosjekt»;
+//  2026-11-28 «Ja, begge»). Regelen (forslag + summvakt) er `delOppTimerad.ts` i shared.
+//  Bare åpne rader deles: attestert og erstattet står på første del (S5).
+// ============================================================================
+
+type DelOppTimerOriginal = {
+  id: string;
+  sheetId: string;
+  kortId: string | null;
+  projectId: string | null;
+  erReise: boolean;
+};
+
+const APEN_RAD = { OR: [{ attestertStatus: null }, { attestertStatus: { notIn: ["attestert", "erstattet"] } }] };
+
+/** De koblede radene som følger delene, og reisene i timeradens kort. */
+async function lesDelOppKoblet(
+  ctx: Pick<InnloggetCtx, "prismaTimer" | "prismaVarelager">,
+  original: DelOppTimerOriginal,
+  medReise: boolean,
+) {
+  const pt = ctx.prismaTimer;
+  const hvor = { sheetId: original.sheetId, sheetTimerId: original.id };
+  const [maskiner, tillegg, utlegg, alleVarer, reiser] = await Promise.all([
+    pt.sheetMachine.findMany({ where: { ...hvor, ...APEN_RAD }, orderBy: [{ createdAt: "asc" }, { id: "asc" }] }),
+    pt.sheetTillegg.findMany({
+      where: { ...hvor, ...APEN_RAD },
+      select: { id: true, projectId: true, byggeplassId: true, tilleggId: true, antall: true },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    }),
+    pt.sheetUtlegg.findMany({
+      where: hvor,
+      select: { id: true, projectId: true, byggeplassId: true, expenseCategoryId: true, belop: true },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    }),
+    ctx.prismaVarelager.vareforbruk.findMany({
+      where: { dagsseddelId: original.sheetId, sheetTimerId: original.id },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+      include: { vare: { select: { navn: true, enhet: true } } },
+    }),
+    medReise && original.kortId && original.projectId !== null && !original.erReise
+      ? pt.sheetTimer.findMany({
+          where: {
+            sheetId: original.sheetId,
+            kortId: original.kortId,
+            id: { not: original.id },
+            AND: [{ OR: [{ erReise: true }, { arbeidReiseRetning: { not: null } }] }, APEN_RAD],
+          },
+          select: {
+            id: true, projectId: true, byggeplassId: true, externalCostObjectId: true,
+            erReise: true, reiseRetning: true, arbeidReiseRetning: true, fraTid: true, tilTid: true,
+          },
+          orderBy: [{ fraTid: "asc" }, { createdAt: "asc" }],
+        })
+      : Promise.resolve([]),
+  ]);
+  const varer = alleVarer.filter((v) => v.attestertSnapshot === null);
+  const koblet: DelOppKoblet = {
+    maskiner: maskiner.map((m) => ({ id: m.id, timer: Number(m.timer) })),
+    varer: varer.map((v) => ({ id: v.id, antall: Number(v.antall) })),
+    tillegg: tillegg.map((t) => ({ id: t.id })),
+    utlegg: utlegg.map((u) => ({ id: u.id })),
+    reiser: reiser.map((r) => ({
+      id: r.id,
+      retning: r.erReise ? r.reiseRetning : r.arbeidReiseRetning,
+      fraTid: r.fraTid,
+    })),
+  };
+  return { koblet, maskiner, tillegg, utlegg, varer, reiser };
+}
+type DelOppLest = Awaited<ReturnType<typeof lesDelOppKoblet>>;
+
+/** Uten fordeling fra klienten (eldre klient): alt på første del, reisene står. */
+function alleHosForsteDel(koblet: DelOppKoblet, antallDeler: number): DelOppFordeling {
+  const forst = (t: number) => Array.from({ length: antallDeler }, (_, i) => (i === 0 ? t : 0));
+  return {
+    maskiner: koblet.maskiner.map((m) => ({ id: m.id, timer: forst(m.timer) })),
+    varer: koblet.varer.map((v) => ({ id: v.id, antall: forst(v.antall) })),
+    tillegg: koblet.tillegg.map((t) => ({ id: t.id, del: 0 })),
+    utlegg: koblet.utlegg.map((u) => ({ id: u.id, del: 0 })),
+    reiser: [],
+  };
+}
+
+/** Summvaktens funn som tekst, med maskinens og varens navn. */
+async function delOppFeiltekst(
+  ctx: Pick<InnloggetCtx, "prismaMaskin">,
+  lest: DelOppLest,
+  feil: DelOppFeil[],
+): Promise<string> {
+  const utstyr = await hentUtstyrOppslag(ctx.prismaMaskin, lest.maskiner.map((m) => m.vehicleId));
+  const maskinNavn = (id: string) => {
+    const m = lest.maskiner.find((x) => x.id === id);
+    return m ? (utstyr.navn.get(m.vehicleId) ?? m.vehicleId) : id;
+  };
+  const vareNavn = (id: string) => lest.varer.find((x) => x.id === id)?.vare.navn ?? id;
+  const linje = (f: DelOppFeil): string => {
+    switch (f.type) {
+      case "maskinSum":
+        return `Maskinen «${maskinNavn(f.id)}» har ${tallNb(f.skal)} t. Delene må til sammen bli ${tallNb(f.skal)} t (nå ${tallNb(f.sum)} t).`;
+      case "vareSum":
+        return `Varen «${vareNavn(f.id)}» har ${tallNb(f.skal)}. Delene må til sammen bli ${tallNb(f.skal)} (nå ${tallNb(f.sum)}).`;
+      case "maskinAnnetProsjekt":
+        return `Maskinen «${maskinNavn(f.id)}» kan ikke følge del ${f.del + 1}, som er i et annet prosjekt.`;
+      case "vareAnnetProsjekt":
+        return `Varen «${vareNavn(f.id)}» kan ikke følge del ${f.del + 1}, som er i et annet prosjekt.`;
+      default:
+        return "Fordelingen stemmer ikke med radene på timeraden. Last siden på nytt.";
+    }
+  };
+  return [...new Set(feil.map(linje))].join(" ");
+}
+
+/**
+ * Fordelingen som skal skrives: klientens, fullført med forslaget, eller (uten felt) alt på
+ * første del. Avviser feil sum, maskin/vare til annet prosjekt, og reise til en del uten
+ * prosjekt eller til et annet prosjekt med maskin/vare koblet til reisen.
+ */
+async function lagDelOppFordeling(
+  ctx: Pick<InnloggetCtx, "prismaTimer" | "prismaMaskin" | "prismaVarelager">,
+  original: DelOppTimerOriginal,
+  deler: readonly { projectId?: string | null; fraTid?: string | null; tilTid?: string | null; timer: number }[],
+  sendt: Partial<DelOppFordeling> | undefined,
+): Promise<{ lest: DelOppLest; fordeling: DelOppFordeling }> {
+  const lest = await lesDelOppKoblet(ctx, original, sendt !== undefined);
+  const delerR = deler.map((d) => ({ projectId: d.projectId ?? null, fraTid: d.fraTid ?? null, tilTid: d.tilTid ?? null, timer: d.timer }));
+  const fordeling =
+    sendt === undefined
+      ? alleHosForsteDel(lest.koblet, deler.length)
+      : fullforDelOppFordeling(delerR, lest.koblet, original.projectId, sendt);
+  const feil = validerDelOppFordeling(delerR, lest.koblet, original.projectId, fordeling);
+  if (feil.length > 0) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: await delOppFeiltekst(ctx, lest, feil) });
+  }
+  for (const r of fordeling.reiser) {
+    const del = delerR[r.del]!;
+    if (del.projectId === null) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "Reisen kan ikke høre til en del uten prosjekt. Velg en annen del." });
+    }
+    if (del.projectId !== original.projectId) await krevIngenKoblingVedProsjektbytte(ctx, original.sheetId, r.id);
+  }
+  return { lest, fordeling };
+}
+
+/**
+ * Skriver fordelingen i timer-transaksjonen, etter at delene er skrevet (`delIder[i]` = del i).
+ * Maskin: første del med timer beholder raden, de andre får en kopi; underprosjektet er delens
+ * (runde 7), byggeplassen følger når delen har en annen enn timeraden (A7). Tillegg og utlegg
+ * flyttes hele (runde 6: prosjekt og underprosjekt følger timeraden). Reisen får delens prosjekt,
+ * underprosjekt og byggeplass der delen avviker fra timeraden. Returnerer maskinrad pr. del
+ * (til varer under maskin) og reisene som skal i delens kort.
+ */
+async function skrivDelOppTimer(
+  tx: Prisma.TransactionClient,
+  a: {
+    organizationId: string;
+    original: DelOppTimerOriginal & { byggeplassId: string | null; externalCostObjectId: string | null };
+    deler: readonly { projectId?: string | null; byggeplassId?: string | null; externalCostObjectId?: string | null; fraTid?: string | null; tilTid?: string | null }[];
+    delIder: string[];
+    lest: DelOppLest;
+    fordeling: DelOppFordeling;
+  },
+): Promise<{ maskinPrDel: Map<string, Map<number, string>>; reiseTilDel: { id: string; del: number }[] }> {
+  const { original, deler, delIder, lest, fordeling } = a;
+  const byggeplassFor = (i: number, lagret: string | null) =>
+    (deler[i]!.byggeplassId ?? null) !== (original.byggeplassId ?? null) ? (deler[i]!.byggeplassId ?? null) : lagret;
+  const maskinPrDel = new Map<string, Map<number, string>>();
+  for (const m of lest.maskiner) {
+    const tall = fordeling.maskiner.find((f) => f.id === m.id)!.timer;
+    const medTimer = tall.map((t, i) => (t > 0 ? i : -1)).filter((i) => i >= 0);
+    const delerMed = medTimer.length > 0 ? medTimer : [0];
+    const pr = new Map<number, string>();
+    for (const [n, i] of delerMed.entries()) {
+      const felles = {
+        sheetTimerId: delIder[i]!,
+        timer: tall[i] ?? 0,
+        externalCostObjectId: deler[i]!.externalCostObjectId ?? null,
+        byggeplassId: byggeplassFor(i, m.byggeplassId),
+      };
+      if (n === 0) {
+        await tx.sheetMachine.update({ where: { id: m.id }, data: felles });
+        pr.set(i, m.id);
+      } else {
+        const ny = await tx.sheetMachine.create({
+          data: {
+            ...felles,
+            sheetId: m.sheetId,
+            vehicleId: m.vehicleId,
+            projectId: m.projectId,
+            fraTid: m.fraTid ? (deler[i]!.fraTid ?? null) : null,
+            tilTid: m.tilTid ? (deler[i]!.tilTid ?? null) : null,
+            enhet: m.enhet,
+            attestertStatus: "pending",
+          },
+        });
+        pr.set(i, ny.id);
+      }
+    }
+    maskinPrDel.set(m.id, pr);
+  }
+  const flyttHel = async (tabell: "sheetTillegg" | "sheetUtlegg", rader: { id: string; byggeplassId: string | null }[], valg: { id: string; del: number }[]) => {
+    for (const r of rader) {
+      const i = valg.find((v) => v.id === r.id)!.del;
+      const data = { sheetTimerId: delIder[i]!, byggeplassId: byggeplassFor(i, r.byggeplassId), kortId: null };
+      if (tabell === "sheetTillegg") await tx.sheetTillegg.update({ where: { id: r.id }, data });
+      else await tx.sheetUtlegg.update({ where: { id: r.id }, data });
+    }
+  };
+  await flyttHel("sheetTillegg", lest.tillegg, fordeling.tillegg);
+  await flyttHel("sheetUtlegg", lest.utlegg, fordeling.utlegg);
+  for (const r of fordeling.reiser) {
+    const reise = lest.reiser.find((x) => x.id === r.id)!;
+    const del = deler[r.del]!;
+    const data: Prisma.SheetTimerUncheckedUpdateInput = {};
+    if ((del.projectId ?? null) !== original.projectId) data.projectId = del.projectId ?? null;
+    if ((del.externalCostObjectId ?? null) !== (original.externalCostObjectId ?? null)) data.externalCostObjectId = del.externalCostObjectId ?? null;
+    if ((del.byggeplassId ?? null) !== (original.byggeplassId ?? null)) data.byggeplassId = del.byggeplassId ?? null;
+    if (Object.keys(data).length > 0) await tx.sheetTimer.update({ where: { id: reise.id }, data });
+  }
+  // Tillegg og utlegg i et annet prosjekt enn delen de står på (også reisens), følger prosjektet.
+  const tilProsjekt = [
+    ...delIder.map((id, i) => ({ sheetTimerId: id, projectId: deler[i]!.projectId ?? null })),
+    ...fordeling.reiser.map((r) => ({ sheetTimerId: r.id, projectId: deler[r.del]!.projectId ?? null })),
+  ];
+  for (const t of tilProsjekt) {
+    if (t.projectId === null) continue;
+    await tilleggUtleggFoelgerProsjekt(tx, {
+      sheetId: original.sheetId,
+      sheetTimerId: t.sheetTimerId,
+      projectId: t.projectId,
+      organizationId: a.organizationId,
+    });
+  }
+  return { maskinPrDel, reiseTilDel: fordeling.reiser };
+}
+
+/**
+ * Varene (egen database, ingen felles transaksjon) etter timer-transaksjonen: første del med
+ * antall beholder raden, de andre får en kopi. Underprosjektet er delens (runde 7), kortet delens.
+ * Feil her ruller ikke tilbake timerne — den logges, og klienten får `vareIkkeFlyttet` (som
+ * `oppdaterTimerRad`).
+ */
+async function skrivDelOppVarer(
+  ctx: Pick<InnloggetCtx, "prismaTimer" | "prismaVarelager" | "req">,
+  a: {
+    original: { byggeplassId: string | null };
+    deler: readonly { byggeplassId?: string | null; externalCostObjectId?: string | null }[];
+    delIder: string[];
+    lest: DelOppLest;
+    fordeling: DelOppFordeling;
+    maskinPrDel: Map<string, Map<number, string>>;
+  },
+): Promise<boolean> {
+  const { deler, delIder, lest, fordeling, maskinPrDel } = a;
+  if (lest.varer.length === 0) return false;
+  try {
+    const kort = new Map(
+      (await ctx.prismaTimer.sheetTimer.findMany({ where: { id: { in: delIder } }, select: { id: true, kortId: true } })).map(
+        (r) => [r.id, r.kortId] as const,
+      ),
+    );
+    for (const v of lest.varer) {
+      const tall = fordeling.varer.find((f) => f.id === v.id)!.antall;
+      const medAntall = tall.map((t, i) => (t > 0 ? i : -1)).filter((i) => i >= 0);
+      for (const [n, i] of (medAntall.length > 0 ? medAntall : [0]).entries()) {
+        const maskin = v.sheetMachineId ? maskinPrDel.get(v.sheetMachineId) : undefined;
+        const felles = {
+          antall: tall[i] ?? 0,
+          sheetTimerId: delIder[i]!,
+          externalCostObjectId: deler[i]!.externalCostObjectId ?? null,
+          byggeplassId:
+            (deler[i]!.byggeplassId ?? null) !== (a.original.byggeplassId ?? null) ? (deler[i]!.byggeplassId ?? null) : v.byggeplassId,
+          kortId: kort.get(delIder[i]!) ?? null,
+          sheetMachineId: maskin ? (maskin.get(i) ?? null) : v.sheetMachineId,
+        };
+        if (n === 0) {
+          await ctx.prismaVarelager.vareforbruk.update({ where: { id: v.id }, data: felles });
+        } else {
+          await ctx.prismaVarelager.vareforbruk.create({
+            data: {
+              ...felles,
+              dato: v.dato,
+              projectId: v.projectId,
+              vareId: v.vareId,
+              registrertAvUserId: v.registrertAvUserId,
+              kommentar: v.kommentar,
+              dagsseddelId: v.dagsseddelId,
+            },
+          });
+        }
+      }
+    }
+    return false;
+  } catch (err) {
+    ctx.req.log.error({ err, sheetTimerId: delIder[0] }, "splittRadEier: koblet vare ble ikke delt");
+    return true;
+  }
+}
 
 type TilleggKortKilde = {
   projectId: string;
@@ -11092,6 +11412,48 @@ export const dagsseddelRouter = router({
   //  attesterings-audit å bevare — speiler fjernTimerRad + tilfoyTimerRad).
   //  Deler validerings-kjernen (validerSplittFelles) med leder-splittRad.
   // ============================================================================
+  // Runde 8: det «Del opp»-vinduet viser under «Følger med» — de koblede radene på arbeiderens
+  // egen timerad (utkast/returnert) og reisene i kortet, med navn. Forslaget regnes i klienten
+  // (`foreslaDelOppFordeling`), så det følger delene mens arbeideren skriver.
+  delOppKoblet: protectedProcedure
+    .input(z.object({ radId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const original = await ctx.prismaTimer.sheetTimer.findUnique({ where: { id: input.radId } });
+      if (!original) throw new TRPCError({ code: "NOT_FOUND" });
+      const sheet = await ctx.prismaTimer.dailySheet.findUnique({
+        where: { id: original.sheetId },
+        select: { userId: true, status: true },
+      });
+      if (!sheet) throw new TRPCError({ code: "NOT_FOUND" });
+      if (sheet.userId !== ctx.userId) throw new TRPCError({ code: "FORBIDDEN" });
+      if (!erRedigerbar(sheet.status)) throw new TRPCError({ code: "PRECONDITION_FAILED" });
+      const lest = await lesDelOppKoblet(ctx, original, true);
+      const [utstyr, tilleggKat, kategorier] = await Promise.all([
+        hentUtstyrOppslag(ctx.prismaMaskin, lest.maskiner.map((m) => m.vehicleId)),
+        ctx.prismaTimer.tillegg.findMany({
+          where: { id: { in: lest.tillegg.map((t) => t.tilleggId) } },
+          select: { id: true, navn: true },
+        }),
+        ctx.prismaTimer.expenseCategory.findMany({
+          where: { id: { in: lest.utlegg.map((u) => u.expenseCategoryId) } },
+          select: { id: true, navn: true },
+        }),
+      ]);
+      const navn = (liste: { id: string; navn: string }[], id: string) => liste.find((x) => x.id === id)?.navn ?? "";
+      return {
+        projectId: original.projectId,
+        maskiner: lest.maskiner.map((m) => ({ id: m.id, navn: utstyr.navn.get(m.vehicleId) ?? "", timer: Number(m.timer) })),
+        varer: lest.varer.map((v) => ({ id: v.id, navn: v.vare.navn, enhet: v.vare.enhet, antall: Number(v.antall) })),
+        tillegg: lest.tillegg.map((t) => ({ id: t.id, navn: navn(tilleggKat, t.tilleggId), antall: Number(t.antall) })),
+        utlegg: lest.utlegg.map((u) => ({ id: u.id, navn: navn(kategorier, u.expenseCategoryId), belop: Number(u.belop) })),
+        reiser: lest.reiser.map((r) => ({
+          id: r.id,
+          retning: r.erReise ? r.reiseRetning : r.arbeidReiseRetning,
+          fraTid: r.fraTid,
+          tilTid: r.tilTid,
+        })),
+      };
+    }),
   splittRadEier: protectedProcedure
     .input(splittRadInput)
     .mutation(async ({ ctx, input }) => {
@@ -11179,6 +11541,7 @@ export const dagsseddelRouter = router({
       // 6) Transaksjon: SLETT original + opprett N plain rader. Radene speiler
       //    tilfoy*-radene (ingen attestertStatus/parentRadId satt → skjema-
       //    default, identisk med normalt tillagte draft-rader).
+      let vareIkkeFlyttet = false;
       if (input.radType === "timer") {
         // RETUR 1 (V20-S): samme bærer-flytting som leder-splittRad — pausen
         // følger delraden som krysser pausevinduet (PK5), ikke bare hodet.
@@ -11208,6 +11571,15 @@ export const dagsseddelRouter = router({
             message: `Splitt bevarte ikke pausen (original ${originalPauseMin}, fordelt ${sumPause})`,
           });
         }
+        // Runde 8: koblede rader og reiser fordeles på delene. Uten `fordeling` (eldre klient)
+        // står alt på del 1 som før, og arven (runde 6/7) gir dem del 1s underprosjekt.
+        const timerOriginal = original as DelOppTimerOriginal & {
+          byggeplassId: string | null;
+          externalCostObjectId: string | null;
+        };
+        const delOpp = await lagDelOppFordeling(ctx, timerOriginal, input.nyeRader, input.fordeling);
+        const delIder: string[] = [];
+        let maskinPrDel = new Map<string, Map<number, string>>();
         await ctx.prismaTimer.$transaction(async (tx) => {
           const maskinFoer = await lesMaskinJobbTilstand(tx, ctx.prismaMaskin, sheet.id);
           // Ordre d2a: første del oppdaterer originalen på stedet (samme id), så
@@ -11219,7 +11591,7 @@ export const dagsseddelRouter = router({
               i === 0
                 ? tx.sheetTimer.update({ where: { id: original.id }, data })
                 : tx.sheetTimer.create({ data });
-            await skriv({
+            const skrevet = await skriv({
                 sheetId: sheet.id,
                 lonnsartId: rad.lonnsartId,
                 aktivitetId: rad.aktivitetId,
@@ -11240,12 +11612,41 @@ export const dagsseddelRouter = router({
                 ...arvReiseSpor(original as ReiseSporKilde),
                 kortId: splittKort(rad),
             });
+            delIder.push(skrevet.id);
           }
+          // Runde 8: maskin, tillegg, utlegg og reise følger delene; arven gir dem delens
+          // underprosjekt (runde 6/7) FØR kort-id, så regel 3 legger dem i delens kort.
+          const skrevetDelOpp = await skrivDelOppTimer(tx, {
+            organizationId: sheet.organizationId,
+            original: timerOriginal,
+            deler: input.nyeRader,
+            delIder,
+            lest: delOpp.lest,
+            fordeling: delOpp.fordeling,
+          });
+          maskinPrDel = skrevetDelOpp.maskinPrDel;
+          await arvTimeradEcoForTilleggUtlegg(tx, sheet.id);
           // PK6: hodet = Σ rad etter splitten (bumper updatedAt).
           await synkroniserHodePause(tx, sheet.id);
           // w9: kort-id før vakten, så delene vurderes i jobben de havner i.
-          await sikreKortId(tx, sheet.id, { kontekst: splittKontekst });
+          const { kortIdFor } = await sikreKortId(tx, sheet.id, { kontekst: splittKontekst });
+          // (b) Reisen står i kortet til delen den hører til (også en reise ført som arbeidstid).
+          if (skrevetDelOpp.reiseTilDel.length > 0) {
+            for (const r of skrevetDelOpp.reiseTilDel) {
+              const kortId = kortIdFor.get(delIder[r.del]!) ?? null;
+              if (kortId) await tx.sheetTimer.update({ where: { id: r.id }, data: { kortId } });
+            }
+            await sikreKortId(tx, sheet.id);
+          }
           await krevIngenNyeMaskinBrudd(tx, ctx.prismaMaskin, sheet.id, maskinFoer);
+        });
+        vareIkkeFlyttet = await skrivDelOppVarer(ctx, {
+          original: timerOriginal,
+          deler: input.nyeRader,
+          delIder,
+          lest: delOpp.lest,
+          fordeling: delOpp.fordeling,
+          maskinPrDel,
         });
       } else if (input.radType === "tillegg") {
         await ctx.prismaTimer.$transaction([
@@ -11301,7 +11702,7 @@ export const dagsseddelRouter = router({
       // Kort-id: regel 3 for deler uten arvet id.
       await sikreKortId(ctx.prismaTimer, sheet.id, { kontekst: splittKontekst });
 
-      return { radType: input.radType, antallNye: input.nyeRader.length };
+      return { radType: input.radType, antallNye: input.nyeRader.length, vareIkkeFlyttet };
     }),
 
   // @deprecated Thin wrapper — kaller attesterRader for alle pending-rader på sedelen.

@@ -29,6 +29,7 @@ SQLite-laget (expo-sqlite + Drizzle ORM) er kjernen i offline-first-strategien. 
 ### Migreringer (`migreringer.ts`)
 - Idempotent `CREATE TABLE IF NOT EXISTS` — trygt å kjøre flere ganger
 - Kjøres av `DatabaseProvider` ved app-oppstart, **blokkerer rendering**
+- `RADFORM_LOCAL_KOLONNER`: additive kolonner (PRAGMA-sjekk + ALTER, ingen backfill). `sheet_timer_id` på `vareforbruk_local` (radform) og på `sheet_tillegg_local`/`sheet_utlegg_local` (runde 8 timer: koblingen til timeraden, sendt i `syncBatch` bare når timeraden finnes i samme prosjekt)
 
 ### Opprydding (`opprydding.ts`)
 - Fullførte køoppføringer slettes ved oppstart

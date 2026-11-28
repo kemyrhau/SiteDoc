@@ -6221,5 +6221,22 @@
   "timer.slettetKorrigert.hjelp.filter": "Перемещайтесь между неделями с помощью стрелок. Фильтр по сотруднику, проекту и типу. Фильтр дня со значка убирается крестиком или «Показать весь период».",
   "timer.slettetKorrigert.hjelp.egne": "На странице отображаются строки ваших собственных дней, которые были удалены или исправлены — утверждающим лицом или вами, когда день был возвращен. Удаленная строка отображается с ее содержимым; исправленная строка со значением до и после. Только чтение.",
   "timer.slettetKorrigert.hjelp.ikkeMedEgne": "Не включены: строки, удаленные вами, пока день не был возвращен (то есть обычное редактирование), строки, удаленные до того, как в следе появился контент, и дни, замененные более новой версией.",
-  "timer.slettetKorrigert.hjelp.filterEgne": "Выберите период с помощью «От» и «До» (максимум 93 дня). Фильтровать по проекту и типу."
+  "timer.slettetKorrigert.hjelp.filterEgne": "Выберите период с помощью «От» и «До» (максимум 93 дня). Фильтровать по проекту и типу.",
+  "timer.splitt.folgerMed.tittel": "Двигается вместе с ним",
+  "timer.splitt.folgerMed.hjelp": "Предложение соответствует часам в каждой части. Измените его перед сохранением.",
+  "timer.splitt.folgerMed.maskin": "Машина",
+  "timer.splitt.folgerMed.vare": "Материал",
+  "timer.splitt.folgerMed.tillegg": "Разрешение",
+  "timer.splitt.folgerMed.utlegg": "Расход",
+  "timer.splitt.folgerMed.horerTil": "Принадлежит",
+  "timer.splitt.folgerMed.reiseHorerTil": "Путешествие принадлежит",
+  "timer.splitt.folgerMed.reiseUt": "Выезд {{fra}}–{{til}}",
+  "timer.splitt.folgerMed.reiseHjem": "Путешествуйте домой {{fra}}–{{til}}",
+  "timer.splitt.folgerMed.reise": "Путешествие {{fra}}–{{til}}",
+  "timer.splitt.folgerMed.sumFeil": "Части в сумме составляют {{sum}} от {{skal}}",
+  "timer.splitt.folgerMed.annetProsjekt": "Машина и материал не могут следовать за деталью в другом проекте.",
+  "timer.splitt.folgerMed.sumFeilSperre": "Полностью раздайте машину и товары перед сохранением.",
+  "timer.splitt.folgerMed.vareIkkeFlyttet": "Часы разбиты, а материалов не было. Исправьте материалы на карточке.",
+  "timer.splitt.folgerMed.vareSynketOffline": "Товары отправляются и остаются на части 1 в автономном режиме.",
+  "timer.splitt.folgerMed.vareSynketDel1": "Товар отправлен. Часть 1 должна сохранить некоторые из них."
 }

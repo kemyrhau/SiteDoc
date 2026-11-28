@@ -6221,5 +6221,22 @@
   "timer.slettetKorrigert.hjelp.filter": "Siirry viikkojen välillä nuolilla. Suodata työntekijän, projektin ja tyypin mukaan. Merkin päiväsuodatin poistetaan rastilla tai \"Näytä koko ajanjakso\".",
   "timer.slettetKorrigert.hjelp.egne": "Sivulla näkyvät omien päiviesi rivit, jotka on poistettu tai korjattu – hyväksyjän toimesta tai sinä, kun päivä palautettiin. Poistettu rivi näytetään sen sisällön kanssa; korjattu rivi, jonka arvo on ennen ja jälkeen. Vain luku.",
   "timer.slettetKorrigert.hjelp.ikkeMedEgne": "Ei sisälly: rivit, jotka poistit, kun päivää ei palautettu (eli tavallista muokkausta), rivit, jotka poistettiin ennen kuin polulla oli sisältöä, ja päivät korvattiin uudemmalla versiolla.",
-  "timer.slettetKorrigert.hjelp.filterEgne": "Valitse ajanjakso Alkaen ja To (enintään 93 päivää). Suodata projektin ja tyypin mukaan."
+  "timer.slettetKorrigert.hjelp.filterEgne": "Valitse ajanjakso Alkaen ja To (enintään 93 päivää). Suodata projektin ja tyypin mukaan.",
+  "timer.splitt.folgerMed.tittel": "Liikkuu sen mukana",
+  "timer.splitt.folgerMed.hjelp": "Ehdotus seuraa kunkin osan tunteja. Vaihda se ennen tallentamista.",
+  "timer.splitt.folgerMed.maskin": "Kone",
+  "timer.splitt.folgerMed.vare": "Materiaali",
+  "timer.splitt.folgerMed.tillegg": "Korvaus",
+  "timer.splitt.folgerMed.utlegg": "Kustannukset",
+  "timer.splitt.folgerMed.horerTil": "Kuuluu",
+  "timer.splitt.folgerMed.reiseHorerTil": "Matkailu kuuluu",
+  "timer.splitt.folgerMed.reiseUt": "Matkusta ulos {{fra}}–{{til}}",
+  "timer.splitt.folgerMed.reiseHjem": "Matka kotiin {{fra}}–{{til}}",
+  "timer.splitt.folgerMed.reise": "Matkailu {{fra}}–{{til}}",
+  "timer.splitt.folgerMed.sumFeil": "Osien summa on {{sum}} / {{skal}}",
+  "timer.splitt.folgerMed.annetProsjekt": "Kone ja materiaali eivät voi seurata osaa toisessa projektissa",
+  "timer.splitt.folgerMed.sumFeilSperre": "Jaa kone ja tavarat kokonaan ennen tallentamista",
+  "timer.splitt.folgerMed.vareIkkeFlyttet": "Tunnit on jaettu, mutta materiaalit eivät olleet. Korjaa kortin materiaalit.",
+  "timer.splitt.folgerMed.vareSynketOffline": "Tavarat lähetetään ja pysyvät osassa 1 offline-tilassa.",
+  "timer.splitt.folgerMed.vareSynketDel1": "Tavarat lähetetään. Osassa 1 on säilytettävä osa niistä."
 }

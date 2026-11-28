@@ -80,7 +80,11 @@ beforeAll(async () => {
 
 describe("Radform: vareforbruk_local.sheet_timer_id", () => {
   it("gjelder varelinjens timerrad", () => {
-    expect(RADFORM_LOCAL_KOLONNER.map(([t, k]) => `${t}.${k}`)).toEqual(["vareforbruk_local.sheet_timer_id"]);
+    expect(RADFORM_LOCAL_KOLONNER.map(([t, k]) => `${t}.${k}`)).toEqual([
+      "vareforbruk_local.sheet_timer_id",
+      "sheet_tillegg_local.sheet_timer_id",
+      "sheet_utlegg_local.sheet_timer_id",
+    ]);
   });
 
   it("kolonnen mangler før migrering (negativkontroll)", () => {
@@ -95,11 +99,17 @@ describe("Radform: vareforbruk_local.sheet_timer_id", () => {
     ).toEqual([3, null]);
   });
 
+  it("runde 8: tillegg og utlegg får koblingen til timeraden (additiv, NULL for gamle rader)", () => {
+    for (const tabell of ["sheet_tillegg_local", "sheet_utlegg_local"]) {
+      expect(kolonner(tabell)).toContain("sheet_timer_id");
+    }
+  });
+
   it("er idempotent — andre kjøring ALTER-er ikke på nytt", () => {
     const spion = vi.spyOn(holder.shim, "execSync");
     kjorMigreringer();
     const alters = spion.mock.calls.filter(([sql]) =>
-      /ALTER TABLE vareforbruk_local ADD COLUMN sheet_timer_id/i.test(String(sql)),
+      /ALTER TABLE \w+ ADD COLUMN sheet_timer_id/i.test(String(sql)),
     );
     spion.mockRestore();
     expect(alters).toEqual([]);

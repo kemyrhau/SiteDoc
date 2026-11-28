@@ -1625,7 +1625,14 @@ export const KORTID_LOCAL_KOLONNER = [
 export const UTEN_PROSJEKT_LOCAL_KOLONNER = [["sheet_timer_local", "uten_prosjekt"]] as const;
 
 /** Radform: varelinjens timerrad (tabell, kolonne). */
-export const RADFORM_LOCAL_KOLONNER = [["vareforbruk_local", "sheet_timer_id"]] as const;
+export const RADFORM_LOCAL_KOLONNER = [
+  ["vareforbruk_local", "sheet_timer_id"],
+  // Runde 8 timer (Kenneth 2026-11-28 «A»): tillegg/utlegg husker timeraden de hører til (speil
+  // av server sheet_tillegg/sheet_utlegg.sheet_timer_id), så «Del opp» kan flytte dem til en del.
+  // Additiv, nullable, ingen backfill — neste pull fyller koblingen fra serveren.
+  ["sheet_tillegg_local", "sheet_timer_id"],
+  ["sheet_utlegg_local", "sheet_timer_id"],
+] as const;
 
 /** Telefontest A funn 2: serverens bekreftelse på kvitteringsvedlegg (tabell, kolonne). */
 export const VEDLEGG_REGISTRERT_KOLONNER = [

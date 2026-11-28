@@ -6221,5 +6221,22 @@
   "timer.slettetKorrigert.hjelp.filter": "Poruszaj się między tygodniami za pomocą strzałek. Filtruj według pracownika, projektu i typu. Filtr dzienny z plakietki jest usuwany wraz z krzyżykiem lub „Pokaż cały okres”.",
   "timer.slettetKorrigert.hjelp.egne": "Na stronie widoczne są wiersze dotyczące Twoich dni, które zostały usunięte lub poprawione — przez osobę zatwierdzającą lub przez Ciebie w momencie zwrotu danego dnia. Usunięta linia zostanie wyświetlona wraz z zawartością; poprawiona linia z wartością przed i po. Tylko do odczytu.",
   "timer.slettetKorrigert.hjelp.ikkeMedEgne": "Nieuwzględnione: linie usunięte, gdy dzień nie został zwrócony (tzn. zwykła edycja), linie usunięte, zanim szlak zawierał treść, oraz dni zastąpione nowszą wersją.",
-  "timer.slettetKorrigert.hjelp.filterEgne": "Wybierz okres za pomocą Od i Do (maksymalnie 93 dni). Filtruj według projektu i typu."
+  "timer.slettetKorrigert.hjelp.filterEgne": "Wybierz okres za pomocą Od i Do (maksymalnie 93 dni). Filtruj według projektu i typu.",
+  "timer.splitt.folgerMed.tittel": "Porusza się wraz z nim",
+  "timer.splitt.folgerMed.hjelp": "Sugestia następuje po godzinach w każdej części. Zmień to zanim zapiszesz.",
+  "timer.splitt.folgerMed.maskin": "Maszyna",
+  "timer.splitt.folgerMed.vare": "Tworzywo",
+  "timer.splitt.folgerMed.tillegg": "Dodatek",
+  "timer.splitt.folgerMed.utlegg": "Koszt",
+  "timer.splitt.folgerMed.horerTil": "Należy do",
+  "timer.splitt.folgerMed.reiseHorerTil": "Podróż należy do",
+  "timer.splitt.folgerMed.reiseUt": "Wyjazd {{fra}}–{{til}}",
+  "timer.splitt.folgerMed.reiseHjem": "Podróż do domu {{fra}}–{{til}}",
+  "timer.splitt.folgerMed.reise": "Podróże {{fra}}–{{til}}",
+  "timer.splitt.folgerMed.sumFeil": "Części sumują się do {{sum}} z {{skal}}",
+  "timer.splitt.folgerMed.annetProsjekt": "Maszyna i materiał nie mogą podążać za częścią innego projektu",
+  "timer.splitt.folgerMed.sumFeilSperre": "Przed zapisaniem całkowicie rozdystrybuuj maszynę i towary",
+  "timer.splitt.folgerMed.vareIkkeFlyttet": "Godziny są podzielone, ale materiały nie. Popraw materiały na karcie.",
+  "timer.splitt.folgerMed.vareSynketOffline": "Towary są wysyłane i pozostają w części 1 w trybie offline.",
+  "timer.splitt.folgerMed.vareSynketDel1": "Towar zostaje wysłany. Część 1 musi zachować niektóre z nich."
 }

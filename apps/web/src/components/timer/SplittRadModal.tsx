@@ -14,6 +14,8 @@ import { trpc } from "@/lib/trpc";
 import { RedigerTimerRad } from "./RedigerTimerRad";
 import { RedigerTilleggRad } from "./RedigerTilleggRad";
 import { RedigerMaskinRad } from "./RedigerMaskinRad";
+import { FolgerMedSeksjon, beregnFolgerMed, harFolgerMed } from "./FolgerMedSeksjon";
+import type { DelOppFordeling } from "@sitedoc/shared";
 import type {
   RedigerTimerRadData,
   RedigerTilleggRadData,
@@ -172,6 +174,23 @@ export function SplittRadModal(props: Props) {
   });
 
   const [feil, setFeil] = useState<string | null>(null);
+  // Runde 8: «Følger med» — bare arbeiderens «Del opp» av en timerad. Lederens splitt er urørt.
+  const medFolgerMed = props.radType === "timer" && props.eierModus === true;
+  const folgerMedQuery = trpc.timer.dagsseddel.delOppKoblet.useQuery(
+    { radId: props.original.id },
+    { enabled: medFolgerMed },
+  );
+  const folgerMedData = medFolgerMed ? folgerMedQuery.data : undefined;
+  const [folgerMedValg, setFolgerMedValg] = useState<Partial<DelOppFordeling>>({});
+  const [vareIkkeFlyttet, setVareIkkeFlyttet] = useState(false);
+  const delOppDeler = useMemo(
+    () => splitTimer.map((r) => ({ projectId: r.projectId, fraTid: r.fraTid, tilTid: r.tilTid, timer: r.timer })),
+    [splitTimer],
+  );
+  const folgerMed = useMemo(
+    () => (folgerMedData && harFolgerMed(folgerMedData) ? beregnFolgerMed(delOppDeler, folgerMedData, folgerMedValg) : null),
+    [folgerMedData, delOppDeler, folgerMedValg],
+  );
 
   // Running sum based on radType
   const splitSum = useMemo(() => {
@@ -196,9 +215,14 @@ export function SplittRadModal(props: Props) {
     ? trpc.timer.dagsseddel.splittRadEier
     : trpc.timer.dagsseddel.splittRad;
   const lagre = splittProsedyre.useMutation({
-    onSuccess: () => {
+    onSuccess: (data: unknown) => {
       void utils.timer.dagsseddel.hentForAttestering.invalidate({ id: props.sheetId });
       void utils.timer.dagsseddel.hentTilAttesteringFirma.invalidate();
+      // Runde 8: varene ligger i en egen database. Ble de ikke delt, blir vinduet stående med beskjeden.
+      if (typeof data === "object" && data !== null && "vareIkkeFlyttet" in data && data.vareIkkeFlyttet === true) {
+        setVareIkkeFlyttet(true);
+        return;
+      }
       props.onLagret();
     },
     onError: (e: { message: string }) => setFeil(e.message),
@@ -287,6 +311,8 @@ export function SplittRadModal(props: Props) {
     setSplitMaskin((rader) => rader.map((r) => (r.key === key ? { ...r, ...felt } : r)));
   }
 
+  const folgerMedFeil = folgerMed !== null && folgerMed.feil.length > 0;
+
   function handleLagre() {
     setFeil(null);
     if (radTeller < 2) {
@@ -304,6 +330,7 @@ export function SplittRadModal(props: Props) {
           return;
         }
       }
+      if (folgerMed && folgerMed.feil.length > 0) return;
       lagre.mutate({
         radType: "timer",
         radId: props.original.id,
@@ -317,6 +344,7 @@ export function SplittRadModal(props: Props) {
           tilTid: r.tilTid,
           timer: r.timer,
         })),
+        ...(folgerMed ? { fordeling: folgerMed.fordeling } : {}),
       });
     } else if (props.radType === "tillegg") {
       for (const r of splitTillegg) {
@@ -443,26 +471,42 @@ export function SplittRadModal(props: Props) {
           </button>
         </section>
 
+        {folgerMed && folgerMedData && (
+          <FolgerMedSeksjon
+            deler={delOppDeler}
+            data={folgerMedData}
+            fordeling={folgerMed.fordeling}
+            feil={folgerMed.feil}
+            valg={folgerMedValg}
+            onEndre={setFolgerMedValg}
+          />
+        )}
+
         {/* Gjenstår-indikator */}
         <div className={`rounded-lg border p-3 text-sm font-medium ${indikatorKlasse}`}>
           {indikatorTekst}
         </div>
 
         {feil && <p className="text-sm text-red-600">{feil}</p>}
+        {vareIkkeFlyttet && <p className="text-sm text-amber-700">{t("timer.splitt.folgerMed.vareIkkeFlyttet")}</p>}
 
         {/* Footer */}
         <div className="flex justify-end gap-3 border-t border-gray-200 pt-4">
           <Button variant="secondary" onClick={props.onLukk} disabled={lagre.isPending}>
             {t("handling.avbryt")}
           </Button>
-          <KnappMedForklaring
-            sperret={(!erBalansert || radTeller < 2) && !lagre.isPending}
-            forklaring={t("sperret.splittBalanse")}
-          >
-            <Button onClick={handleLagre} disabled={!erBalansert || radTeller < 2 || lagre.isPending}>
-              {lagre.isPending ? t("handling.lagrer") : t("timer.splitt.lagre")}
-            </Button>
-          </KnappMedForklaring>
+          {vareIkkeFlyttet ? (
+            <Button onClick={props.onLagret}>{t("handling.lukk")}</Button>
+          ) : (
+            <KnappMedForklaring
+              sperret={(!erBalansert || radTeller < 2 || folgerMedFeil) && !lagre.isPending}
+              forklaring={folgerMedFeil ? t("timer.splitt.folgerMed.sumFeilSperre") : t("sperret.splittBalanse")}
+            >
+              <Button onClick={handleLagre} disabled={!erBalansert || radTeller < 2 || folgerMedFeil || lagre.isPending}>
+                {lagre.isPending ? t("handling.lagrer") : t("timer.splitt.lagre")}
+              </Button>
+            </KnappMedForklaring>
+          )}
         </div>
       </div>
     </Modal>
