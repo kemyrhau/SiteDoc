@@ -6237,6 +6237,8 @@
   "timer.splitt.folgerMed.annetProsjekt": "Mašīna un materiāls nevar sekot kādai cita projekta daļai",
   "timer.splitt.folgerMed.sumFeilSperre": "Pirms saglabāšanas pilnībā sadaliet mašīnu un preces",
   "timer.splitt.folgerMed.vareIkkeFlyttet": "Stundas ir sadalītas, bet materiāli nebija. Labojiet materiālus uz kartes.",
+  "timer.splitt.folgerMed.laster": "Notiek laika rindai piederošā satura ielāde…",
+  "timer.splitt.folgerMed.lastFeil": "Nevarēja ielādēt mašīnas, materiālus, piemaksas un ceļot laika rindā. Saglabāšana gaida, līdz tie tiek ielādēti.",
   "timer.splitt.folgerMed.vareSynketOffline": "Preces tiek nosūtītas un paliek 1. daļā bezsaistē.",
   "timer.splitt.folgerMed.vareSynketDel1": "Preces tiek nosūtītas. 1. daļai daži no tiem jāsaglabā."
 }

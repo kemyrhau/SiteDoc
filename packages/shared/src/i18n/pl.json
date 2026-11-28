@@ -6237,6 +6237,8 @@
   "timer.splitt.folgerMed.annetProsjekt": "Maszyna i materiał nie mogą podążać za częścią innego projektu",
   "timer.splitt.folgerMed.sumFeilSperre": "Przed zapisaniem całkowicie rozdystrybuuj maszynę i towary",
   "timer.splitt.folgerMed.vareIkkeFlyttet": "Godziny są podzielone, ale materiały nie. Popraw materiały na karcie.",
+  "timer.splitt.folgerMed.laster": "Ładowanie tego, co należy do wiersza czasu…",
+  "timer.splitt.folgerMed.lastFeil": "Nie można załadować maszyn, materiałów, przydziałów i podróży w wierszu czasu. Zapisz czeka, aż zostaną załadowane.",
   "timer.splitt.folgerMed.vareSynketOffline": "Towary są wysyłane i pozostają w części 1 w trybie offline.",
   "timer.splitt.folgerMed.vareSynketDel1": "Towar zostaje wysłany. Część 1 musi zachować niektóre z nich."
 }

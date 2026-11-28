@@ -6237,6 +6237,8 @@
   "timer.splitt.folgerMed.annetProsjekt": "Машина та матеріал не можуть бути частиною іншого проекту",
   "timer.splitt.folgerMed.sumFeilSperre": "Перед збереженням повністю розподіліть машину та товари",
   "timer.splitt.folgerMed.vareIkkeFlyttet": "Години розділені, а матеріали – ні. Виправте матеріали на картці.",
+  "timer.splitt.folgerMed.laster": "Завантаження того, що належить до рядка часу…",
+  "timer.splitt.folgerMed.lastFeil": "Не вдалося завантажити верстати, матеріали, припуски та проїзд на часовий ряд. Збереження чекає, поки вони завантажаться.",
   "timer.splitt.folgerMed.vareSynketOffline": "Товар відправляється і залишається на частині 1 в автономному режимі.",
   "timer.splitt.folgerMed.vareSynketDel1": "Товар відправлений. Частина 1 повинна зберегти деякі з них."
 }

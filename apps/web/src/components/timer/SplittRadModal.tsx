@@ -312,6 +312,9 @@ export function SplittRadModal(props: Props) {
   }
 
   const folgerMedFeil = folgerMed !== null && folgerMed.feil.length > 0;
+  // Gate-funn 1: uten svar fra `delOppKoblet` ville Lagre sendt uten `fordeling`, og serveren
+  // la da alt på del 1 uten å si fra. Lagre venter derfor på svaret, og en feil vises.
+  const folgerMedVenter = medFolgerMed && folgerMedData === undefined;
 
   function handleLagre() {
     setFeil(null);
@@ -323,6 +326,7 @@ export function SplittRadModal(props: Props) {
       setFeil(t("timer.splitt.feil.sumIkkeMatch"));
       return;
     }
+    if (folgerMedVenter) return;
     if (props.radType === "timer") {
       for (const r of splitTimer) {
         if (!r.projectId || !r.lonnsartId || !r.aktivitetId || r.timer <= 0) {
@@ -487,6 +491,14 @@ export function SplittRadModal(props: Props) {
           {indikatorTekst}
         </div>
 
+        {medFolgerMed && folgerMedQuery.isError && (
+          <p className="flex flex-wrap items-center gap-2 text-sm text-red-600" role="alert">
+            {t("timer.splitt.folgerMed.lastFeil")}
+            <button type="button" className="font-medium underline" onClick={() => void folgerMedQuery.refetch()}>
+              {t("handling.provIgjen")}
+            </button>
+          </p>
+        )}
         {feil && <p className="text-sm text-red-600">{feil}</p>}
         {vareIkkeFlyttet && <p className="text-sm text-amber-700">{t("timer.splitt.folgerMed.vareIkkeFlyttet")}</p>}
 
@@ -499,10 +511,19 @@ export function SplittRadModal(props: Props) {
             <Button onClick={props.onLagret}>{t("handling.lukk")}</Button>
           ) : (
             <KnappMedForklaring
-              sperret={(!erBalansert || radTeller < 2 || folgerMedFeil) && !lagre.isPending}
-              forklaring={folgerMedFeil ? t("timer.splitt.folgerMed.sumFeilSperre") : t("sperret.splittBalanse")}
+              sperret={(!erBalansert || radTeller < 2 || folgerMedFeil || folgerMedVenter) && !lagre.isPending}
+              forklaring={
+                folgerMedVenter
+                  ? t(folgerMedQuery.isError ? "timer.splitt.folgerMed.lastFeil" : "timer.splitt.folgerMed.laster")
+                  : folgerMedFeil
+                    ? t("timer.splitt.folgerMed.sumFeilSperre")
+                    : t("sperret.splittBalanse")
+              }
             >
-              <Button onClick={handleLagre} disabled={!erBalansert || radTeller < 2 || folgerMedFeil || lagre.isPending}>
+              <Button
+                onClick={handleLagre}
+                disabled={!erBalansert || radTeller < 2 || folgerMedFeil || folgerMedVenter || lagre.isPending}
+              >
                 {lagre.isPending ? t("handling.lagrer") : t("timer.splitt.lagre")}
               </Button>
             </KnappMedForklaring>

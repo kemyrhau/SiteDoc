@@ -6237,6 +6237,8 @@
   "timer.splitt.folgerMed.annetProsjekt": "La machine et le matériau ne peuvent pas suivre une pièce dans un autre projet",
   "timer.splitt.folgerMed.sumFeilSperre": "Distribuez entièrement la machine et les marchandises avant de les enregistrer",
   "timer.splitt.folgerMed.vareIkkeFlyttet": "Les horaires sont fractionnés, mais le matériel ne l’est pas. Corrigez les éléments sur la carte.",
+  "timer.splitt.folgerMed.laster": "Chargement de ce qui appartient à la ligne temporelle…",
+  "timer.splitt.folgerMed.lastFeil": "Impossible de charger les machines, les matériaux, les allocations et les déplacements sur la ligne temporelle. Save attend qu’ils soient chargés.",
   "timer.splitt.folgerMed.vareSynketOffline": "Les marchandises sont envoyées et restent sur la partie 1 lorsqu'elles sont hors ligne.",
   "timer.splitt.folgerMed.vareSynketDel1": "Les marchandises sont envoyées. La première partie doit en conserver quelques-unes."
 }

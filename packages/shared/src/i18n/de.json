@@ -6237,6 +6237,8 @@
   "timer.splitt.folgerMed.annetProsjekt": "Maschine und Material können einem Teil in einem anderen Projekt nicht folgen",
   "timer.splitt.folgerMed.sumFeilSperre": "Verteilen Sie Maschine und Ware vollständig, bevor Sie sie aufbewahren",
   "timer.splitt.folgerMed.vareIkkeFlyttet": "Die Stunden sind aufgeteilt, die Materialien jedoch nicht. Korrigieren Sie die Materialien auf der Karte.",
+  "timer.splitt.folgerMed.laster": "Es wird geladen, was zur Zeitzeile gehört …",
+  "timer.splitt.folgerMed.lastFeil": "Die Maschinen, Materialien, Zulagen und Reisen konnten nicht in die Zeitzeile geladen werden. Save wartet, bis sie geladen sind.",
   "timer.splitt.folgerMed.vareSynketOffline": "Die Ware wird versendet und bleibt offline auf Teil 1.",
   "timer.splitt.folgerMed.vareSynketDel1": "Die Ware wird verschickt. Teil 1 muss einige davon behalten."
 }

@@ -6237,6 +6237,8 @@
   "timer.splitt.folgerMed.annetProsjekt": "Stroj a materiál nemohou následovat součást v jiném projektu",
   "timer.splitt.folgerMed.sumFeilSperre": "Před uložením plně distribuujte stroj a zboží",
   "timer.splitt.folgerMed.vareIkkeFlyttet": "Hodiny jsou rozdělené, ale materiály nebyly. Opravte materiály na kartě.",
+  "timer.splitt.folgerMed.laster": "Načítání toho, co patří do časové řady…",
+  "timer.splitt.folgerMed.lastFeil": "Nebylo možné načíst stroje, materiály, povolenky a cestování na časové řadě. Uložení čeká, dokud nebudou načteny.",
   "timer.splitt.folgerMed.vareSynketOffline": "Zboží je odesláno a zůstává v části 1, když je offline.",
   "timer.splitt.folgerMed.vareSynketDel1": "Zboží je odesláno. Část 1 musí některé z nich zachovat."
 }

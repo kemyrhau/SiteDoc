@@ -6237,6 +6237,8 @@
   "timer.splitt.folgerMed.annetProsjekt": "Makina dhe materiali nuk mund të ndjekin një pjesë në një projekt tjetër",
   "timer.splitt.folgerMed.sumFeilSperre": "Shpërndani plotësisht makinën dhe mallrat përpara se të kurseni",
   "timer.splitt.folgerMed.vareIkkeFlyttet": "Orët janë të ndara, por materialet jo. Korrigjoni materialet në kartë.",
+  "timer.splitt.folgerMed.laster": "Po ngarkohet ajo që i përket rreshtit kohor…",
+  "timer.splitt.folgerMed.lastFeil": "Nuk mund të ngarkoheshin makineritë, materialet, lejimet dhe udhëtimi në rreshtin e kohës. Ruaj pritjet derisa të ngarkohen.",
   "timer.splitt.folgerMed.vareSynketOffline": "Mallrat dërgohen dhe qëndrojnë në pjesën 1 ndërsa janë jashtë linje.",
   "timer.splitt.folgerMed.vareSynketDel1": "Mallrat dërgohen. Pjesa 1 duhet të mbajë disa prej tyre."
 }

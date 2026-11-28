@@ -6237,6 +6237,8 @@
   "timer.splitt.folgerMed.annetProsjekt": "Mašina ir medžiaga negali sekti kito projekto dalies",
   "timer.splitt.folgerMed.sumFeilSperre": "Prieš taupydami visiškai paskirstykite mašiną ir prekes",
   "timer.splitt.folgerMed.vareIkkeFlyttet": "Valandos yra padalintos, bet medžiagos nebuvo. Pataisykite kortelėje esančias medžiagas.",
+  "timer.splitt.folgerMed.laster": "Įkeliama tai, kas priklauso laiko eilutei…",
+  "timer.splitt.folgerMed.lastFeil": "Nepavyko įkelti mašinų, medžiagų, pašalpų ir keliauti laiko eilute. Išsaugoti laukia, kol jie bus įkelti.",
   "timer.splitt.folgerMed.vareSynketOffline": "Prekės siunčiamos ir lieka 1 dalyje neprisijungus.",
   "timer.splitt.folgerMed.vareSynketDel1": "Prekės siunčiamos. 1 dalis turi išlaikyti kai kuriuos iš jų."
 }

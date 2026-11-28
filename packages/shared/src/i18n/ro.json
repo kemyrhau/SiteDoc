@@ -6237,6 +6237,8 @@
   "timer.splitt.folgerMed.annetProsjekt": "Mașina și materialul nu pot urma o parte dintr-un alt proiect",
   "timer.splitt.folgerMed.sumFeilSperre": "Distribuiți complet mașina și bunurile înainte de a salva",
   "timer.splitt.folgerMed.vareIkkeFlyttet": "Orele sunt împărțite, dar materialele nu. Corectați materialele de pe card.",
+  "timer.splitt.folgerMed.laster": "Se încarcă ceea ce aparține rândului de timp...",
+  "timer.splitt.folgerMed.lastFeil": "Nu s-au putut încărca mașinile, materialele, alocațiile și călătoria pe rândul de timp. Salvați așteptările până când sunt încărcate.",
   "timer.splitt.folgerMed.vareSynketOffline": "Bunurile sunt trimise și rămân în partea 1 în timp ce sunt offline.",
   "timer.splitt.folgerMed.vareSynketDel1": "Marfa este trimisă. Partea 1 trebuie să păstreze unele dintre ele."
 }

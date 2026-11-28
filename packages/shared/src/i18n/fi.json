@@ -6237,6 +6237,8 @@
   "timer.splitt.folgerMed.annetProsjekt": "Kone ja materiaali eivät voi seurata osaa toisessa projektissa",
   "timer.splitt.folgerMed.sumFeilSperre": "Jaa kone ja tavarat kokonaan ennen tallentamista",
   "timer.splitt.folgerMed.vareIkkeFlyttet": "Tunnit on jaettu, mutta materiaalit eivät olleet. Korjaa kortin materiaalit.",
+  "timer.splitt.folgerMed.laster": "Ladataan aikariville kuuluvaa…",
+  "timer.splitt.folgerMed.lastFeil": "Koneita, materiaaleja, päästöoikeuksia ja matkaa ei voitu ladata aikariville. Tallennus odottaa, kunnes ne ladataan.",
   "timer.splitt.folgerMed.vareSynketOffline": "Tavarat lähetetään ja pysyvät osassa 1 offline-tilassa.",
   "timer.splitt.folgerMed.vareSynketDel1": "Tavarat lähetetään. Osassa 1 on säilytettävä osa niistä."
 }

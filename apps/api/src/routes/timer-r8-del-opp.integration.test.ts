@@ -372,6 +372,34 @@ describe("Kenneth 2026-11-28 «Ja, begge» — arbeiderens «Del opp» med «Fø
     }
   });
 
+  it("KONTROLLØR-PRØVE A7c: hjemreise med koblet vare til del i P2 avvises, ingenting endres", async () => {
+    const o = await oppsett({ maskinTimer: 4 });
+    await prismaVarelager.vareforbruk.create({
+      data: {
+        dato: new Date(o.dato), projectId: P1, vareId: VARE, antall: 1, registrertAvUserId: USER,
+        dagsseddelId: o.sid, sheetTimerId: o.hjem, externalCostObjectId: ECO_1, kortId: o.kort,
+      },
+    });
+    const deler = [del("07:00", "11:00", 4, ECO_1), { ...del("11:00", "15:00", 4, ECO_P2), projectId: P2 }];
+    await expect(splitt(o, deler, {})).rejects.toThrow("Reisen har");
+    expect((await timerad(o.hjem)).projectId).toBe(P1);
+    expect((await timerad(o.r1)).tilTid).toBe("15:00");
+  });
+
+  it("KONTROLLØR-PRØVE S5: koblet attestert maskin står på del 1 med ECO_1 og status", async () => {
+    const o = await oppsett({ maskinTimer: 2 });
+    const att = await prismaTimer.sheetMachine.create({
+      data: {
+        sheetId: o.sid, sheetTimerId: o.r1, vehicleId: MASKIN, projectId: P1, externalCostObjectId: ECO_1,
+        timer: 1, kortId: o.kort, attestertStatus: "attestert",
+      },
+    });
+    await splitt(o, [del("07:00", "11:00", 4, ECO_2), del("11:00", "15:00", 4, ECO_1)], {});
+    const a = await prismaTimer.sheetMachine.findUniqueOrThrow({ where: { id: att.id } });
+    expect([a.sheetTimerId, a.externalCostObjectId, Number(a.timer), a.attestertStatus]).toEqual([o.r1, ECO_1, 1, "attestert"]);
+    expect((await maskinerPaa(o.sid)).length).toBe(3);
+  });
+
   it("eldre klient uten fordeling: alt på del 1, reisene står", async () => {
     const o = await oppsett({ maskinTimer: 2 });
     const foer = await timerad(o.hjem);

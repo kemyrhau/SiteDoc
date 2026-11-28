@@ -11,7 +11,8 @@ import { render, cleanup, screen, fireEvent } from "@testing-library/react";
 
 const h = vi.hoisted(() => {
   const data: Record<string, unknown> = {};
-  const kall = { mutate: [] as unknown[], query: [] as string[] };
+  const kall = { mutate: [] as unknown[], query: [] as string[], refetch: 0 };
+  const queryFeil = { aktiv: false };
   const lag = (sti: string[]): unknown =>
     new Proxy(() => {}, {
       get(_m, p: string | symbol) {
@@ -20,7 +21,13 @@ const h = vi.hoisted(() => {
         if (p === "useQuery")
           return (_i: unknown, o?: { enabled?: boolean }) => {
             if (o?.enabled !== false) kall.query.push(navn);
-            return { data: o?.enabled === false ? undefined : data[navn], isLoading: false };
+            const av = o?.enabled === false;
+            return {
+              data: av ? undefined : data[navn],
+              isLoading: !av && data[navn] === undefined && !queryFeil.aktiv,
+              isError: !av && queryFeil.aktiv,
+              refetch: () => { kall.refetch++; return Promise.resolve(); },
+            };
           };
         if (p === "useMutation") return () => ({ mutate: (i: unknown) => kall.mutate.push(i), isPending: false });
         if (p === "useUtils") return () => lag([]);
@@ -28,7 +35,7 @@ const h = vi.hoisted(() => {
         return lag([...sti, p]);
       },
     });
-  return { data, kall, trpc: lag([]) };
+  return { data, kall, queryFeil, trpc: lag([]) };
 });
 
 vi.mock("@/lib/trpc", () => ({ trpc: h.trpc }));
@@ -104,6 +111,8 @@ beforeEach(() => {
   h.data["timer.dagsseddel.delOppKoblet"] = KOBLET;
   h.kall.mutate.length = 0;
   h.kall.query.length = 0;
+  h.kall.refetch = 0;
+  h.queryFeil.aktiv = false;
 });
 afterEach(cleanup);
 
@@ -192,5 +201,29 @@ describe("Runde 8 — «Følger med» i arbeiderens Del opp", () => {
     expect(screen.queryByText("timer.splitt.folgerMed.tittel")).toBeNull();
     fireEvent.click(screen.getByText("timer.splitt.lagre"));
     expect(h.kall.mutate[0]).not.toHaveProperty("fordeling");
+  });
+
+  it("gate-funn 1: mens «Følger med» lastes er Lagre sperret, og ingenting sendes uten fordeling", () => {
+    delete h.data["timer.dagsseddel.delOppKoblet"];
+    vis(true);
+    delOpp();
+    const lagre = screen.getByText("timer.splitt.lagre").closest("button")!;
+    expect(lagre.disabled).toBe(true);
+    fireEvent.click(lagre);
+    expect(h.kall.mutate).toHaveLength(0);
+  });
+
+  it("gate-funn 1: feiler innlastingen, vises feilen med «Prøv igjen», og Lagre er sperret", () => {
+    delete h.data["timer.dagsseddel.delOppKoblet"];
+    h.queryFeil.aktiv = true;
+    vis(true);
+    delOpp();
+    expect(screen.getByRole("alert").textContent).toContain("timer.splitt.folgerMed.lastFeil");
+    fireEvent.click(screen.getByText("handling.provIgjen"));
+    expect(h.kall.refetch).toBe(1);
+    const lagre = screen.getByText("timer.splitt.lagre").closest("button")!;
+    expect(lagre.disabled).toBe(true);
+    fireEvent.click(lagre);
+    expect(h.kall.mutate).toHaveLength(0);
   });
 });

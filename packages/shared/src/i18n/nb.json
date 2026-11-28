@@ -6237,6 +6237,8 @@
   "timer.splitt.folgerMed.annetProsjekt": "Maskin og vare kan ikke følge en del i et annet prosjekt",
   "timer.splitt.folgerMed.sumFeilSperre": "Fordel maskin og vare fullt før du lagrer",
   "timer.splitt.folgerMed.vareIkkeFlyttet": "Timene er delt, men varene ble ikke delt. Rett varene på kortet.",
+  "timer.splitt.folgerMed.laster": "Henter det som følger med timeraden …",
+  "timer.splitt.folgerMed.lastFeil": "Fikk ikke hentet maskin, vare, tillegg og reise på timeraden. Lagre venter til de er hentet.",
   "timer.splitt.folgerMed.vareSynketOffline": "Varen er sendt og blir på del 1 uten nett.",
   "timer.splitt.folgerMed.vareSynketDel1": "Varen er sendt. Del 1 må beholde noe av den."
 }

@@ -6237,6 +6237,8 @@
   "timer.splitt.folgerMed.annetProsjekt": "Машина и материал не могут следовать за деталью в другом проекте.",
   "timer.splitt.folgerMed.sumFeilSperre": "Полностью раздайте машину и товары перед сохранением.",
   "timer.splitt.folgerMed.vareIkkeFlyttet": "Часы разбиты, а материалов не было. Исправьте материалы на карточке.",
+  "timer.splitt.folgerMed.laster": "Загрузка того, что принадлежит временной строке…",
+  "timer.splitt.folgerMed.lastFeil": "Не удалось загрузить станки, материалы, припуски и совершить поездку по временному ряду. Сохранение ждет, пока они загрузятся.",
   "timer.splitt.folgerMed.vareSynketOffline": "Товары отправляются и остаются на части 1 в автономном режиме.",
   "timer.splitt.folgerMed.vareSynketDel1": "Товар отправлен. Часть 1 должна сохранить некоторые из них."
 }

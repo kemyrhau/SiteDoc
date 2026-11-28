@@ -6237,6 +6237,8 @@
   "timer.splitt.folgerMed.annetProsjekt": "Masin ja materjal ei saa järgida osa teises projektis",
   "timer.splitt.folgerMed.sumFeilSperre": "Enne salvestamist levitage masin ja kaubad täielikult laiali",
   "timer.splitt.folgerMed.vareIkkeFlyttet": "Tunnid on jagatud, kuid materjalid ei olnud. Parandage kaardil olevad materjalid.",
+  "timer.splitt.folgerMed.laster": "Ajareale kuuluva laadimine …",
+  "timer.splitt.folgerMed.lastFeil": "Masinaid, materjale, saastekvoote ja reisi ajareal ei saanud laadida. Salvestus ootab, kuni need laaditakse.",
   "timer.splitt.folgerMed.vareSynketOffline": "Kaubad saadetakse ja jäävad 1. osa juurde ka võrguühenduseta.",
   "timer.splitt.folgerMed.vareSynketDel1": "Kaup saadetakse. Osa 1 peab säilitama mõned neist."
 }
