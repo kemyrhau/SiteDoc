@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import { Button, Modal } from "@sitedoc/ui";
 import { trpc } from "@/lib/trpc";
 import { TallFelt, TidFelter, type TallRetting, type TidRetting } from "./RegistreringPanel";
+import { SokbarNedtrekk } from "@/components/timer/SokbarNedtrekk";
 
 /**
  * w15g (plan § 4.15 del F, F63) — vinduet bak ✎ på en linje i attesteringskortet. Kortet er
@@ -101,9 +102,9 @@ export function LinjeRettVindu({ linje, arbeiderNavn, tidsrunding = null, onLagr
             )}
             <label className="block">
               <span className="mb-1 block font-medium text-gray-700">{t("timer.attestering.registrering.lonnsart")}</span>
-              <select aria-label={t("timer.attestering.registrering.lonnsart")} value={lonnsartId} onChange={(e) => setLonnsartId(e.target.value)} className={inp}>
+              <SokbarNedtrekk aria-label={t("timer.attestering.registrering.lonnsart")} value={lonnsartId} onChange={(e) => setLonnsartId(e.target.value)} className={inp}>
                 {linje.lonnsValg.map((x) => <option key={x.id} value={x.id}>{x.navn}</option>)}
-              </select>
+              </SokbarNedtrekk>
             </label>
           </>
         )}

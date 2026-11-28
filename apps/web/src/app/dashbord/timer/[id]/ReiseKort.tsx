@@ -39,6 +39,7 @@ import {
   type ReiseHavnerRad,
   type ReiseKortValg,
 } from "@/hooks/useManuellReiseWeb";
+import { SokbarNedtrekk } from "@/components/timer/SokbarNedtrekk";
 
 /* ============================================================================
  *  POST 2026-11-15 (13) L2 § 7 C: reise-kortet («+ Reise») på web.
@@ -1125,7 +1126,7 @@ export function ReiseKort({
       <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="reise-prosjekt">
         {t("timer.felt.prosjekt")}
       </label>
-      <select
+      <SokbarNedtrekk
         id="reise-prosjekt"
         value={prosjektId}
         onChange={(e) => byttProsjekt(e.target.value)}
@@ -1137,7 +1138,7 @@ export function ReiseKort({
             {prosjektNavn(p.id)}
           </option>
         ))}
-      </select>
+      </SokbarNedtrekk>
     </div>
   );
   // w15b / O12 pkt 3: byggeplassen — kortets som tekst, i dagskort-visning prosjekt og byggeplass.
@@ -1241,7 +1242,7 @@ export function ReiseKort({
       </p>
     ) : (
       <div>
-        <select
+        <SokbarNedtrekk
           id="reise-oppmotested"
           aria-label={t("timer.reiseKort.oppmotested")}
           value={valgtKontor ?? dagensKontorId ?? ""}
@@ -1254,7 +1255,7 @@ export function ReiseKort({
               {kontorMedMerke(id)}
             </option>
           ))}
-        </select>
+        </SokbarNedtrekk>
         {periodeLinje}
         {avsluttSporsmal}
       </div>
@@ -1273,7 +1274,7 @@ export function ReiseKort({
       {reise.kontorNavn(redigertRute.til)}
     </p>
   ) : (
-    <select
+    <SokbarNedtrekk
       id="reise-til-kontor"
       aria-label={t("timer.reiseKort.tilKontorFelt")}
       value={valgtKontor ?? ""}
@@ -1286,7 +1287,7 @@ export function ReiseKort({
           {kontorMedMerke(id)}
         </option>
       ))}
-    </select>
+    </SokbarNedtrekk>
   );
   const datoFelt = (id: string, label: string, verdi: string | null, endre: (v: string | null) => void, valgfritt = false) => (
     <div>
@@ -1354,7 +1355,7 @@ export function ReiseKort({
         {annetFraVerdi ? reise.kontorNavn(annetFraVerdi) || "—" : t("timer.reiseKort.oppmoteIkkeValgt")}
       </p>
     ) : (
-      <select
+      <SokbarNedtrekk
         id="reise-annet-fra"
         aria-label={t("timer.reiseKort.oppmotested")}
         value={annetFraVerdi ?? ""}
@@ -1370,7 +1371,7 @@ export function ReiseKort({
             {o.id === dagensKontorId ? kontorMedMerke(o.id) : o.navn}
           </option>
         ))}
-      </select>
+      </SokbarNedtrekk>
     );
   const annetTilFelt = redigering ? (
     <p data-testid="reise-annet-sted-tekst" className="text-sm text-gray-800">
@@ -1820,7 +1821,7 @@ export function ReiseKort({
               {t("timer.felt.underprosjekt")}{" "}
               <span className="text-xs text-gray-400">({t("label.valgfritt")})</span>
             </label>
-            <select
+            <SokbarNedtrekk
               value={ecoId ?? ""}
               onChange={(e) => setEcoId(e.target.value || null)}
               aria-label={t("timer.felt.underprosjekt")}
@@ -1832,7 +1833,7 @@ export function ReiseKort({
                   {eco.proAdmId} — {eco.kortNavn}
                 </option>
               ))}
-            </select>
+            </SokbarNedtrekk>
           </div>
         )}
 

@@ -12,6 +12,7 @@ import { reiseHavnerI, type ReiseHavnerAnnenRad } from "@/hooks/useManuellReiseW
 import { UnderprosjektValg, tillatteLonnsarter } from "./RegistreringPanel";
 import type { ErReiseKontekst } from "@sitedoc/shared";
 import type { AttSedel, AttTimer } from "./attestering-tabell";
+import { SokbarNedtrekk } from "@/components/timer/SokbarNedtrekk";
 
 type Eco = { id: string; proAdmId: string; kortNavn: string };
 type Prosjekt = { id: string; name: string; internalProjectNumber: string | null };
@@ -209,17 +210,17 @@ export function ReiseRettVindu({ rad, sedel, orgId, lonnsarter, reiseKtx, prosje
         </div>
         <label className="block">
           <span className="mb-1 block font-medium text-gray-700">{t("timer.attestering.registrering.lonnsart")}</span>
-          <select aria-label={t("timer.attestering.registrering.lonnsart")} value={lonnsartId} disabled={laast} onChange={(e) => setLonnsartId(e.target.value)} className={inp}>
+          <SokbarNedtrekk aria-label={t("timer.attestering.registrering.lonnsart")} value={lonnsartId} disabled={laast} onChange={(e) => setLonnsartId(e.target.value)} className={inp}>
             {artValg.map((x) => <option key={x.id} value={x.id}>{x.navn}</option>)}
-          </select>
+          </SokbarNedtrekk>
         </label>
         <label className="block">
           <span className="mb-1 block font-medium text-gray-700">{t("timer.felt.prosjekt")}</span>
-          <select aria-label={t("timer.felt.prosjekt")} value={projectId ?? ""} disabled={laast} onChange={(e) => byttProsjekt(e.target.value)} className={inp}>
+          <SokbarNedtrekk aria-label={t("timer.felt.prosjekt")} value={projectId ?? ""} disabled={laast} onChange={(e) => byttProsjekt(e.target.value)} className={inp}>
             {prosjekter.map((p) => (
               <option key={p.id} value={p.id}>{[p.internalProjectNumber, p.name].filter(Boolean).join(" — ")}</option>
             ))}
-          </select>
+          </SokbarNedtrekk>
         </label>
         {laast ? (
           <label className="block">

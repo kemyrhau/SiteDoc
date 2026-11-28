@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, Search } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { SOK_TERSKEL } from "./SokbarNedtrekk";
 
 export interface ProsjektForVelger {
   id: string;
@@ -23,7 +24,7 @@ interface ProsjektRadVelgerProps {
 /**
  * Lokal prosjekt-velger for timer-rad-modaler og dagsseddel-grupper.
  * Påvirker ikke global ProsjektKontekst eller toppbarens valgte prosjekt.
- * Søkbar når listen er > 7 elementer.
+ * Søkbar når listen har flere enn SOK_TERSKEL (5) elementer (runde 9, Kenneth 2026-11-28).
  */
 export function ProsjektRadVelger({
   valgtId,
@@ -78,7 +79,7 @@ export function ProsjektRadVelger({
       </button>
       {apen && !disabled && (
         <div className="absolute z-50 mt-1 max-h-72 w-full overflow-y-auto rounded border border-gray-200 bg-white shadow-lg">
-          {prosjekter.length > 7 && (
+          {prosjekter.length > SOK_TERSKEL && (
             <div className="sticky top-0 border-b border-gray-100 bg-white p-2">
               <div className="relative">
                 <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />

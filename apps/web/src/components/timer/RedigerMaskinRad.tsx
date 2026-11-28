@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { MaskinVelger } from "./MaskinVelger";
 import type { RedigerMaskinRadData, ProsjektValg } from "./rediger-types";
+import { SokbarNedtrekk } from "@/components/timer/SokbarNedtrekk";
 
 type Props = {
   /** Sedelens firma. Uten den faller `equipment.list` tilbake på attestantens
@@ -66,7 +67,7 @@ export function RedigerMaskinRad({
   return (
     <div className="grid grid-cols-12 gap-2 rounded border border-gray-200 bg-gray-50 p-2 text-sm">
       {/* T7-4f-splitt: rad 1 = Prosjekt + Maskin (6+6) */}
-      <select
+      <SokbarNedtrekk
         value={rad.projectId}
         onChange={(e) => onChange({ projectId: e.target.value })}
         // § 8.22 L1: maskinlista står i full høyde ved siden av — nedtrekket skal ikke strekkes med.
@@ -77,7 +78,7 @@ export function RedigerMaskinRad({
             {p.name}
           </option>
         ))}
-      </select>
+      </SokbarNedtrekk>
 
       <div className="col-span-6">
         <MaskinVelger
@@ -141,7 +142,7 @@ export function RedigerMaskinRad({
             <label className="text-xs font-medium text-gray-600">
               {t("timer.felt.underprosjekt")}:
             </label>
-            <select
+            <SokbarNedtrekk
               value={rad.externalCostObjectId ?? ""}
               onChange={(e) =>
                 onChange({ externalCostObjectId: e.target.value || null })
@@ -154,7 +155,7 @@ export function RedigerMaskinRad({
                   {eco.proAdmId} · {eco.kortNavn}
                 </option>
               ))}
-            </select>
+            </SokbarNedtrekk>
             {rad.externalCostObjectId && (
               <button
                 type="button"

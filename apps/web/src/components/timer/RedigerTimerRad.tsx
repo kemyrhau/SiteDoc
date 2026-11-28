@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { rundTilNarmeste } from "@/lib/tidsrunding";
 import type { RedigerTimerRadData, ProsjektValg } from "./rediger-types";
+import { SokbarNedtrekk } from "@/components/timer/SokbarNedtrekk";
 
 type Props = {
   /** Sedelens firma. Katalogen (lønnsart/aktivitet) hentes alltid for DETTE firmaet —
@@ -60,7 +61,7 @@ export function RedigerTimerRad({
   return (
     <div className="grid grid-cols-12 gap-2 rounded border border-gray-200 bg-gray-50 p-2 text-sm">
       {/* T7-4f-splitt: rad 1 = dropdowns (Prosjekt | Lønnsart | Aktivitet | ECO) */}
-      <select
+      <SokbarNedtrekk
         value={rad.projectId}
         onChange={(e) => onChange({ projectId: e.target.value })}
         className="col-span-3 rounded border border-gray-300 px-2 py-1 text-xs"
@@ -70,9 +71,9 @@ export function RedigerTimerRad({
             {p.name}
           </option>
         ))}
-      </select>
+      </SokbarNedtrekk>
 
-      <select
+      <SokbarNedtrekk
         value={rad.lonnsartId}
         onChange={(e) => onChange({ lonnsartId: e.target.value })}
         className="col-span-3 rounded border border-gray-300 px-2 py-1 text-xs"
@@ -83,9 +84,9 @@ export function RedigerTimerRad({
             {l.navn}
           </option>
         ))}
-      </select>
+      </SokbarNedtrekk>
 
-      <select
+      <SokbarNedtrekk
         value={rad.aktivitetId}
         onChange={(e) => onChange({ aktivitetId: e.target.value })}
         className="col-span-3 rounded border border-gray-300 px-2 py-1 text-xs"
@@ -96,9 +97,9 @@ export function RedigerTimerRad({
             {a.navn}
           </option>
         ))}
-      </select>
+      </SokbarNedtrekk>
 
-      <select
+      <SokbarNedtrekk
         value={rad.externalCostObjectId ?? ""}
         onChange={(e) =>
           onChange({ externalCostObjectId: e.target.value || null })
@@ -111,7 +112,7 @@ export function RedigerTimerRad({
             {eco.proAdmId} · {eco.kortNavn}
           </option>
         ))}
-      </select>
+      </SokbarNedtrekk>
 
       {/* T7-4f-splitt: rad 2 = tids-input + timer (4+4+4) */}
       <input

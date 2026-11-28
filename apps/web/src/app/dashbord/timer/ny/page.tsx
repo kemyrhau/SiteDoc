@@ -12,6 +12,7 @@ import { STANDARD_ARBEIDSTID_FALLBACK } from "@sitedoc/shared";
 import { OppmoteSporsmaalModal } from "@/components/timer/OppmoteSporsmaalModal";
 import { TilbakeLenke, useTilbakeAdresse } from "@/components/nivaa/TilbakeLenke";
 import { RESERVE_MINE_TIMER, medRetur } from "@/lib/tilbake-adresse";
+import { SokbarNedtrekk } from "@/components/timer/SokbarNedtrekk";
 
 function nyUuid(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -264,7 +265,7 @@ function NyDagsseddelSkjema() {
           <label className="mb-1 block text-sm font-medium text-gray-700">
             {t("timer.felt.prosjekt")}
           </label>
-          <select
+          <SokbarNedtrekk
             value={projectId}
             onChange={(e) => {
               setProjectId(e.target.value);
@@ -280,14 +281,14 @@ function NyDagsseddelSkjema() {
                 {p.name}
               </option>
             ))}
-          </select>
+          </SokbarNedtrekk>
         </div>
 
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700">
             {t("timer.felt.aktivitet")}
           </label>
-          <select
+          <SokbarNedtrekk
             value={valgtAktivitetId}
             onChange={(e) => setAktivitetId(e.target.value)}
             className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
@@ -299,7 +300,7 @@ function NyDagsseddelSkjema() {
                 {a.navn}
               </option>
             ))}
-          </select>
+          </SokbarNedtrekk>
         </div>
 
         <div className="rounded-md border border-gray-200 p-3">
